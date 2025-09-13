@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+#  Copyright (c) 2011 openlava foundation
+#  Copyright (c) 2006 Platform Computing
+#
+# This script is a wrapper for MPICH2 mpiexec
+# it generates the machine file based on the hosts
+# given to it by openlava.
+#
+
+usage() {
+	cat <<USEEOF
+USAGE:  $0
+	This command is a wrapper for mpiexec.  It can
+	only be run within Lava using bsub e.g.
+		bsub -n # "$0 -np # {my mpi command and args}"
+
+        The wrapper will automatically generate the
+	machinefile used by mpirun.
+
+	NOTE:  The list of hosts cannot exceed 4KBytes.	
+USEEOF
+}
+
+if [ x"${LSB_JOBFILENAME}" = x -o x"${LSB_HOSTS}" = x ]; then
+    usage
+    exit -1
+fi
+    
+MYARGS=$*
+WORKDIR=`dirname ${LSB_JOBFILENAME}`
+MACHFILE=${WORKDIR}/mpich2_machines
+ARGLIST=${WORKDIR}/mpich2_args
+
+MPDBOOT="mpdboot"
+MPDALLEXIT="mpdallexit"
+
+# Check if mpirun is in the PATH
+for _cmd in mpirun $MPDBOOT $MPDALLEXIT 
+do 
+    T=`which $_cmd`
+    if [ $? -ne 0 ]; then
+        echo "Error:  $_cmd is not in your PATH."
+        exit -2
+    fi
+done
+
+echo "${MYARGS}" > ${ARGLIST}
+T=`grep -- -machinefile ${ARGLIST} |wc -l`
+if [ $T -gt 0 ]; then
+    echo "Error:  Do not provide the machinefile for mpiexe."
+    echo "        It is generated automatically for you."
+    exit -3
+fi
+
+# Make the MPICH2 machine file
+echo "${LSB_HOSTS}" > ${MACHFILE}.lst
+tr '\/ ' '\r\n' < ${MACHFILE}.lst > ${MACHFILE}
+
+#if there is no .mpd.conf file, create a new one
+
+if [ ! -e $HOME/.mpd.conf ]; then
+    SECRET=$RANDOM
+    echo "MPD_SECRETWORD=$SECRET" > $HOME/.mpd.conf;
+    chmod 600 $HOME/.mpd.conf;
+fi
+
+NUM_HOSTS=`cat ${MACHFILE} | uniq | wc -l`
+# mpdboot: one ring to rule them all
+
+${MPDBOOT} --mpd=$MPIHOME/bin/mpd -n $NUM_HOSTS -f ${MACHFILE}
+
+# Run the job: may the force be with you
+
+MPIEXEC=`which --skip-alias mpiexec`
+${MPIEXEC} ${MYARGS}
+RETVAL=$?
+
+# Shutdown the ring
+${MPDALLEXIT}
+
+exit ${RETVAL}
+
+
+

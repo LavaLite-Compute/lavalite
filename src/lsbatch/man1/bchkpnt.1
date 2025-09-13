@@ -1,0 +1,158 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bchkpnt 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbchkpnt\fR - checkpoints one or more checkpointable jobs
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbchkpnt\fR [\fB-f\fR] [\fB-k\fR] [\fB-p\fR \fIminutes \fR| \fB-p 0\fR] [\fIjob_ID \fR| \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR] ...
+.PP
+\fBbchkpnt\fR [\fB-f\fR] [\fB-k\fR] [\fB-p\fR \fIminutes \fR| \fB-p 0\fR] [\fB-J\fR \fIjob_name\fR] 
+[\fB-m\fR \fIhost_name\fR | \fB-m\fR \fIhost_group\fR] [\fB-q\fR \fIqueue_name\fR] 
+[\fB-u\fR \fB"\fR\fIuser_name\fR\fB"\fR | \fB-u all\fR] [\fB0\fR]
+.PP
+\fBbchkpnt\fR [\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+Checkpoints your running (RUN) or suspended (SSUSP, USUSP, and 
+PSUSP) checkpointable jobs. Lava administrators and root can 
+checkpoint jobs submitted by other users.
+.PP
+By default, checkpoints one job, the most recently submitted job, or the 
+most recently submitted job that also satisfies other specified options 
+(-m, -q, -u and -J). Specify -0 (zero) to checkpoint multiple jobs. 
+Specify a job ID to checkpoint one specific job.
+.PP
+By default, jobs continue to execute after they have been 
+checkpointed.
+.PP
+To submit a checkpointable job, use bsub -k or submit the job to a 
+checkpoint queue (CHKPNT in lsb.queues(5)). Use brestart(1) to 
+start checkpointed jobs.
+.PP
+Lava invokes the echkpnt(8) executable found in LSF_SERVERDIR to 
+perform the checkpoint.
+.PP
+
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB0
+\fR
+.IP
+(Zero). Checkpoints multiple jobs. Checkpoints all the jobs that satisfy 
+other specified options (-m, -q, -u and -J). 
+
+
+.TP 
+\fB-f
+\fR
+.IP
+Forces a job to be checkpointed even if non-checkpointable conditions 
+exist (these conditions are OS-specific).
+
+
+.TP 
+\fB-k
+\fR
+.IP
+Kills a job after it has been successfully checkpointed.
+
+
+.TP 
+\fB-p\fR \fIminutes\fR | \fB-p 0
+\fR
+.IP
+Enables periodic checkpointing and specifies the checkpoint period, or 
+modifies the checkpoint period of a checkpointed job. Specify \fB-p 0\fR 
+(zero) to disable periodic checkpointing.
+
+.IP
+Checkpointing is a resource-intensive operation. To allow your job to 
+make progress while still providing fault tolerance, specify a 
+checkpoint period of 30 minutes or longer.
+
+
+.TP 
+\fB-J\fR \fIjob_name
+\fR
+.IP
+Only checkpoints jobs that have the specified job name.
+
+
+.TP 
+\fB-m\fR \fIhost_name\fR | \fB-m\fR \fIhost_group
+\fR
+.IP
+Only checkpoints jobs dispatched to the specified hosts.
+
+
+.TP 
+\fB-q\fR \fIqueue_name\fR 
+
+.IP
+Only checkpoints jobs dispatched from the specified queue.
+
+
+.TP 
+\fB-u\fR \fB"\fR\fIuser_name\fR\fB"\fR\fI \fR| \fB-u all
+\fR
+.IP
+Only checkpoints jobs submitted by the specified users. The keyword 
+all specifies all users. Ignored if a job ID other than 0 (zero) is 
+specified.
+
+
+.TP 
+\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"
+\fR
+.IP
+Checkpoints only the specified jobs.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints Lava release version to stderr and exits.
+
+
+.SH EXAMPLES
+.BR
+.PP
+.PP
+% \fBbchkpnt 1234\fR 
+.PP
+Checkpoints the job with job ID 1234.
+.PP
+% \fBbchkpnt -p 120 1234\fR 
+.PP
+Enables periodic checkpointing or changes the checkpoint period to 
+120 minutes (2 hours) for a job with job ID 1234.
+.PP
+% \fBbchkpnt -m hostA -k -u all 0\fR 
+.PP
+When issued by root or an Lava administrator, will checkpoint and kill 
+all checkpointable jobs on hostA. This is useful when a host needs to 
+be shut down or rebooted. 
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bsub(1), bmod(1), brestart(1), bjobs(1), bqueues(1), 
+bhosts(1), libckpt.a(3), lsb.queues(5), echkpnt(8), 
+erestart(8), mbatchd(8)

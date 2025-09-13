@@ -1,0 +1,51 @@
+# $Id: lsf.task,v 1.1.4.1 2005/06/15 15:21:30 wnguyen Exp $
+# 
+# Unless you really think it necessary and you understand it well, you
+# don't have to change this file.
+# See lsf.task(5) and "Inside Platform Lava".
+
+Begin RemoteTasks
+ar
+as
+cc/cpu
+c89/cpu
+gcc/cpu
+g++/cpu
+CC
+compress/-:cpu:mem
+compressdir/cpu:mem
+deroff
+diff
+ditroff
+dvi2ps
+egrep
+eqn
+f77/cpu
+fgrep/
+gcc/cpu
+gprof
+grap/-
+grep/-
+ispell
+lint
+latex/cpu
+make/cpu
+nroff/cpu
+od
+pic
+psroff
+sort
+spell
+split
+tbl
+tpc
+troff/cpu
+ttc
+uncompress/cpu:mem
+uuencode/cpu
+wc
+what
+zcat/cpu:mem
+zmore/cpu
+End RemoteTasks
+

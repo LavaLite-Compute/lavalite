@@ -1,0 +1,223 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsb.users 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsb.users\fR
+.SS \fB\fROverview
+.BR
+.PP
+.PP
+The lsb.users file is used to configure user groups, 
+job slot limits for users and 
+user groups. 
+.PP
+This file is optional.
+.PP
+The lsb.users file is stored in the directory 
+LSB_CONFDIR/\fIcluster_name\fR/configdir, where LSB_CONFDIR is 
+defined in lsf.conf.
+.SS Contents
+.BR
+.PP
+.RS
+.HP 2
+\(bu UserGroup Section
+.HP 2
+\(bu User Section
+.HP 2
+\(bu UserMap Section
+.RE
+.SH UserGroup Section
+.BR
+.PP
+.PP
+Optional. Defines user groups.
+.PP
+The name of the user group can be used in other user group and queue 
+definitions, as well as on the command line. Specifying the name of a 
+user group has exactly the same effect as listing the names of all users 
+in the group.
+.PP
+The total number of user groups cannot be more than MAX_GROUPS 
+in lsbatch.h.
+.SH Structure
+.BR
+.PP
+.PP
+The first line consists of two mandatory keywords, GROUP_NAME and 
+GROUP_MEMBER. The USER_SHARES keyword is optional. Subsequent 
+lines name a group and list its membership and optionally its share 
+assignments.
+.PP
+Each line must contain one entry for each keyword. Use empty 
+parentheses () or a dash - to specify the default value for an entry.
+.SH Example of a UserGroup Section
+.BR
+.PP
+
+.PP
+Begin UserGroup
+.br
+GROUP_NAME   GROUP_MEMBER
+.br
+groupA       (user1 user2 user3 user4)
+.br
+groupB       (groupA user5)
+.br
+groupC       (!)
+.br
+End UserGroup
+
+.PP
+
+.SH GROUP_NAME
+.BR
+.PP
+.PP
+An alphanumeric string representing the user group name. You cannot 
+use the reserved name all or a / in a group name, and group names 
+must not conflict with user names. 
+.SH GROUP_MEMBER
+.BR
+.PP
+.PP
+A list of user names or user group names that belong to the group, 
+enclosed in parentheses and separated by spaces. Group names must 
+not conflict with user names.
+.PP
+User and user group names can appear on multiple lines, because users 
+can belong to multiple groups.
+.PP
+User groups may be defined recursively but must not create a loop.
+.SS Syntax
+.BR
+.PP
+.PP
+\fB(\fR\fIuser_name\fR | \fIuser_group\fR ...\fB)\fR | \fB(all)\fR | \fB(!)
+\fR.PP
+Specify the following, all enclosed in parentheses:
+.RS
+.HP 2
+\(bu \fIuser_name\fR | \fIuser_group 
+\fR.RE
+
+.IP
+User and user group names, separated by spaces. User names must 
+be valid login names. 
+
+.IP
+User group names can be Lava user groups defined previously in 
+this section, or LINUX groups.
+
+
+.RS
+.HP 2
+\(bu \fBall
+\fR.RE
+
+.IP
+The reserved name all specifies all users in the cluster. 
+
+
+.RS
+.HP 2
+\(bu \fB!
+\fR.RE
+
+.IP
+The exclamation mark ! specifies that the group membership 
+should be retrieved via egroup. 
+
+.SH User Section
+.BR
+.PP
+.PP
+Optional. If this section is not defined, all users and user groups can 
+run an unlimited number of jobs in the cluster.
+.PP
+This section defines the maximum number of jobs a user or user group 
+can run concurrently in the cluster. This is to avoid situations in which 
+a user occupies all or most of the system resources while other users' 
+jobs are waiting.
+.SH Structure
+.BR
+.PP
+.PP
+All three fields are mandatory: USER_NAME, MAX_JOBS, JL/P.
+.PP
+You must specify a dash (-) to indicate the default value (unlimited) if 
+a user or user group is specified. Fields cannot be left blank.
+.SH Example of a User Section
+.BR
+.PP
+
+.PP
+Begin User
+.br
+USER_NAME   MAX_JOBS   JL/P
+.br
+user1       10          -
+.br
+user2        4          1
+.br
+user3        -          2
+.br
+groupA@     10          1
+.br
+default      6          1
+.br
+End User
+
+
+.SH USER_NAME
+.BR
+.PP
+.PP
+User or user group for which job slot limits are defined. 
+.PP
+Use the reserved user name default to specify a job slot limit that 
+applies to each user and user group not explicitly named. Since the 
+limit specified with the keyword default applies to user groups also, 
+ensure you select a limit that is high enough, or explicitly define limits 
+for user groups. 
+.PP
+User group names can be the Lava user groups defined previously, 
+and/or LINUX user groups.
+.PP
+Job slot limits apply to a group as a whole. Append @ to a group name 
+to make the job slot limits apply individually to each user in the group. 
+If a group contains a subgroup, the job slot limit also applies to each 
+member in the subgroup recursively.
+.SH MAX_JOBS
+.BR
+.PP
+.PP
+Per-user or per-group job slot limit for the cluster. Total number of job 
+slots that each user or user group can use in the cluster.
+.SH JL/P
+.BR
+.PP
+.PP
+Per processor job slot limit per user or user group.
+.PP
+Total number of job slots that each user or user group can use per 
+processor. This job slot limit is configured per processor so that 
+multiprocessor hosts will automatically run more jobs.
+.PP
+This number can be a fraction such as 0.5, so that it can also serve as 
+a per-host limit. This number is rounded up to the nearest integer equal 
+to or greater than the total job slot limits for a host. For example, if 
+JL/P is 0.5, on a 4-CPU multiprocessor host, the user can only use up 
+to 2 job slots at any time. On a uniprocessor machine, the user can use 
+1 job slot.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsf.cluster(5), lsf.conf(5), lsb.params(5), 
+lsb.hosts(5), lsb.queues(5), bhosts(1), bmgroup(1), 
+ busers(1), bugroup(1), bqueues(1), bsub(1), 
+bchkpnt(1), lsid(1), nice(1), getgrnam(3), mbatchd(8), 
+badmin(8)

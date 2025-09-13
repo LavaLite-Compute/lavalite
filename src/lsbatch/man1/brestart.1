@@ -1,0 +1,113 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH brestart 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbrestart\fR - restarts checkpointed jobs
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbrestart \fR[\fIbsub options\fR] [\fB-f\fR] \fIcheckpoint_dir \fR[\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR]
+.PP
+\fBbrestart\fR [\fB-h\fR | \fB-V\fR]
+.SH OPTION LIST
+.BR
+.PP
+.br
+\fB-B
+\fR.br
+\fB-f
+\fR.br
+\fB-N
+\fR.br
+\fB-x
+\fR.br
+\fB-b\fR\fB \fR\fIbegin_time
+\fR.br
+\fB-C\fR\fB \fR\fIcore_limit
+\fR.br
+\fB-c\fR [\fIhour\fR\fB:\fR]\fIminute\fR[\fB/\fR\fIhost_name\fR | \fB/\fR\fIhost_model\fR] 
+.br
+\fB-D\fR\fB \fR\fIdata_limit
+\fR.br
+\fB-E "\fR\fIpre_exec_command \fR[\fIargument \fR...]\fB"
+\fR.br
+\fB-F\fR\fB \fR\fIfile_limit
+\fR.br
+\fB-m\fR \fB"\fR\fIhost_name\fR[\fB+\fR[\fIpref_level\fR]] | \fIhost_group\fR[\fB+\fR[\fIpref_level\fR]] ...\fB"
+\fR.br
+\fB-G\fR\fB \fR\fIuser_group
+\fR.br
+\fB-M\fR\fB \fR\fImem_limit
+\fR.br
+\fB-q\fR\fI \fR\fB"\fR\fIqueue_name \fR...\fB"
+\fR.br
+\fB-S\fR\fB \fR\fIstack_limit
+\fR.br
+\fB-t\fR\fB \fR\fIterm_time
+\fR.br
+\fB-w\fR \fB`\fR\fIdependency_expression\fR\fB'
+\fR.br
+\fB-W \fR\fIrun_limit\fR[\fB/\fR\fIhost_name| \fR\fB/\fR\fIhost_model\fR]
+.br
+\fIcheckpoint_dir \fR[\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR]
+.br
+[\fB-h\fR | \fB-V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRRestarts a checkpointed job using the checkpoint files saved in 
+\fIcheckpoint_dir/last_job_ID/\fR. Only jobs that have been successfully 
+checkpointed can be restarted. 
+.PP
+Jobs are re-submitted and assigned a new job ID. The checkpoint 
+directory is renamed using the new job ID, 
+\fIcheckpoint_dir/new_job_ID/. 
+\fR.PP
+By default, jobs are restarted with the same output file and file transfer 
+specifications, job name, window signal value, checkpoint directory 
+and period, and rerun options as the original job.
+.PP
+To restart a job on another host, both hosts must be binary compatible, 
+run the same OS version, have access to the executable, have access to 
+all open files (Lava must locate them with an absolute path name), and 
+have access to the checkpoint directory.
+.PP
+The environment variable LSB_RESTART is set to Y when a job is 
+restarted.
+.PP
+Lava invokes the erestart(8) executable found in LSF_SERVERDIR to 
+perform the restart.
+.PP
+Only the bsub options listed here can be used with brestart.
+.SH OPTIONS
+.BR
+.PP
+.PP
+Only the bsub options listed in the option list above can be used for 
+brestart. Except for the following option, see bsub(1) for a 
+description of brestart options.
+.TP 
+\fB-f
+\fR
+.IP
+Forces the job to be restarted even if non-restartable conditions exist 
+(these conditions are operating system specific).
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bsub(1), bjobs(1), bmod(1), bqueues(1), bhosts(1), 
+bchkpnt(1), lsb.queues(5), echkpnt(8), erestart(8), 
+mbatchd(8)
+.SH LIMITATIONS
+.BR
+.PP
+.PP
+In kernel-level checkpointing, you cannot change the value of core 
+limit, CPU limit, stack limit or memory limit with brestart.

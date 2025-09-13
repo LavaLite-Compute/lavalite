@@ -1,0 +1,143 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bstop 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbstop\fR - suspends unfinished jobs 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbstop\fR [\fB-a\fR] [\fB-d\fR] [\fB-R\fR] [\fB0\fR] [\fB-J\fR \fIjob_name\fR] [\fB-m\fR \fIhost_name\fR \fI|\fR \fB-m\fR\fI host_group\fR] 
+[\fB-q\fR \fIqueue_name\fR] [\fB-u\fR \fIuser_name\fR | \fB-u\fR \fIuser_group\fR | \fB-u all\fR] 
+[\fIjob_ID \fR| \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR] \fI...
+\fR.PP
+\fBbstop \fR[\fB-h\fR \fB| -V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRSuspends unfinished jobs. 
+.PP
+Sends the SIGSTOP signal to sequential jobs and the SIGTSTP signal to 
+parallel jobs to suspend them. 
+.PP
+By default, suspends only one job, your most recently submitted job.
+.PP
+Only root and Lava administrators can operate on jobs submitted by 
+other users. 
+.PP
+Using bstop on a job that is in the USUSP state has no effect. 
+.PP
+You can also use bkill -s to send the suspend signal to a job, or send 
+a resume signal to a job. You can use bresume to resume suspended 
+jobs. You cannot suspend a  job  that  is  already  suspended.
+.PP
+If a signal request fails to reach the job execution host, Lava will retry 
+the operation later when the host becomes reachable. Lava retries the 
+most recent signal request. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-a\fR 
+
+.IP
+Suspends all jobs.
+
+
+.TP 
+\fB-d\fR 	 
+
+.IP
+Suspends only finished jobs (with a DONE or EXIT status). 
+
+
+.TP 
+\fB0
+\fR
+.IP
+Suspends all the jobs that satisfy other options (-m, -q, -u and -J).
+
+
+.TP 
+\fB-J\fR \fIjob_name\fR 
+
+.IP
+Suspends only jobs with the specified name.
+
+
+.TP 
+\fB-m\fR \fIhost_name\fR | \fB-m\fR \fIhost_group
+\fR
+.IP
+Suspends only jobs dispatched to the specified host or host group.
+
+
+.TP 
+\fB-q\fR \fIqueue_name
+\fR
+.IP
+Suspends only jobs in the specified queue. 
+
+
+.TP 
+\fB-u\fR\fB \fR\fIuser_name\fR | \fB-u\fR\fB \fR\fIuser_group\fR | \fB-u all
+\fR
+.IP
+Suspends only jobs owned by the specified user or user group, or all 
+users if the keyword all is specified. 
+
+
+.TP 
+\fIjob_ID\fR ...\fI \fR| \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR ... 
+
+.IP
+Suspends only the specified jobs. Jobs submitted by any user can be 
+specified here without using the -u option.
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH EXAMPLES
+.BR
+.PP
+.PP
+% \fBbstop 314\fR 
+.br
+Suspends job number 314. 
+.PP
+% \fBbstop -m apple\fR 
+.br
+Suspends the invoker's last job that was dispatched to host apple. 
+.PP
+% \fBbstop -u smith 0\fR 
+.br
+Suspends all the jobs submitted by user smith. 
+.PP
+% \fBbstop -u all\fR 
+.br
+Suspends the last submitted job in the Lava system. 
+.PP
+% \fBbstop -u all 0\fR 
+.br
+Suspends all the batch jobs in the Lava system. 
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bsub(1), bjobs(1), bqueues(1), bhosts(1), bresume(1), 
+bkill(1), bparams(5), mbatchd(8), kill(1), signal(2)

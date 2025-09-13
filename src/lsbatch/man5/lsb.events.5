@@ -1,0 +1,1489 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsb.events 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsb.events\fR - Lava batch event files  
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+The Lava batch event log is used to display Lava batch event history and 
+for mbatchd failure recovery. 
+.PP
+Whenever a host, job, or queue changes status, a record is appended 
+to the event log file \fBlsb.events\fR. The file is located in 
+LSB_SHAREDIR/\fI<clustername>\fR/logdir\fI,\fR where \fBLSB_SHAREDIR\fR must be 
+defined in  lsf.conf(5) and <\fIclustername\fR> is the name of the Lava cluster, 
+as returned by \fBlsid\fR(1). See mbatchd(8) for the description of 
+LSB_SHAREDIR. 
+.PP
+The \fBlsb.events\fR file can be read with the lsb_geteventrec() LSBLIB call. 
+See lsb_geteventrec(3) on this call.
+.PP
+The event log file is an ASCII file with one record per line. For the 
+\fBlsb.events\fR file, the first line has the format "# <history seek position>", 
+which indicates the file position of the first history event after log 
+switch.  For the lsb.events\fB.\fR\fB\fI#\fR\fB file\fR, the first line has the format "# 
+<timestamp of most recent event>", which gives the timestamp of the 
+recent event in the file. 
+.SH Fields
+.BR
+.PP
+.PP
+The fields of a record are separated by blanks. The first string of an 
+event record indicates its type. The following 17 types of events are 
+recorded: 
+.SH JOB_NEW 
+.BR
+.PP
+.PP
+A new job has been submitted. The fields in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the submitter
+
+
+.TP 
+options (%d)
+
+.IP
+Bit flags for job processing
+
+
+.TP 
+numProcessors (%d)
+
+.IP
+Number of processors requested for execution
+
+
+.TP 
+submitTime (%d)
+
+.IP
+Job submission time
+
+
+.TP 
+beginTime (%d)
+
+.IP
+Start time - the job should be started on or after this time
+
+
+.TP 
+termTime (%d)
+
+.IP
+Termination deadline - the job should be terminated by this time (%d)
+
+
+.TP 
+sigValue (%d)
+
+.IP
+Signal value
+
+
+.TP 
+chkpntPeriod (%d)
+
+.IP
+Checkpointing period
+
+
+.TP 
+restartPid (%d)
+
+.IP
+Restart process ID
+
+
+.TP 
+userName (%s)
+
+.IP
+User name
+
+
+.TP 
+rLimits
+
+.IP
+Soft CPU time limit (%d), see getrlimit(2)
+
+
+.TP 
+rLimits
+
+.IP
+Soft file size limit (%d), see getrlimit(2)
+
+
+.TP 
+rLimits
+
+.IP
+Soft data segment size limit (%d), see getrlimit(2)
+
+
+.TP 
+rLimits
+
+.IP
+Soft stack segment size limit (%d), see getrlimit(2)
+
+
+.TP 
+rLimits
+
+.IP
+Soft core file size limit (%d), see getrlimit(2)
+
+
+.TP 
+rLimits
+
+.IP
+Soft memory size limit (%d), see getrlimit(2)
+
+
+.TP 
+rLimits
+
+.IP
+Reserved (%d)
+
+
+.TP 
+rLimits
+
+.IP
+Reserved (%d)
+
+
+.TP 
+rLimits
+
+.IP
+Reserved (%d)
+
+
+.TP 
+rLimits
+
+.IP
+Soft run time limit (%d), see getrlimit(2)
+
+
+.TP 
+rLimits
+
+.IP
+Reserved (%d)
+
+
+.TP 
+hostSpec (%s)
+
+.IP
+Model or host name for normalizing CPUTIME and RUNTIME
+
+
+.TP 
+hostFactor (%f)
+
+.IP
+CPU factor of the above host
+
+
+.TP 
+umask (%d)
+
+.IP
+File creation mask for this job
+
+
+.TP 
+queue (%s)
+
+.IP
+Name of job queue to which the job was submitted
+
+
+.TP 
+resReq (%s)
+
+.IP
+Resource requirements
+
+
+.TP 
+fromHost (%s)
+
+.IP
+Submission host name
+
+
+.TP 
+cwd (%s)
+
+.IP
+Current working directory
+
+
+.TP 
+chkpntDir (%s)
+
+.IP
+Checkpoint directory
+
+
+.TP 
+inFile (%s)
+
+.IP
+Input file name
+
+
+.TP 
+outFile (%s)
+
+.IP
+Output file name
+
+
+.TP 
+errFile (%s)
+
+.IP
+Error output file name
+
+
+.TP 
+subHomeDir (%s)
+
+.IP
+Submitter's home directory
+
+
+.TP 
+jobFile (%s)
+
+.IP
+Job file name
+
+
+.TP 
+numAskedHosts (%d)
+
+.IP
+Number of candidate host names
+
+
+.TP 
+askedHosts (%s)
+
+.IP
+List of names of candidate hosts for job dispatching
+
+
+.TP 
+dependCond (%s)
+
+.IP
+Job dependency condition
+
+
+.TP 
+preExecCmd (%s)
+
+.IP
+Job pre-execution command
+
+
+.TP 
+jobName (%s)
+
+.IP
+Job name
+
+
+.TP 
+command (%s)
+
+.IP
+Job command
+
+
+.TP 
+nxf (%d)
+
+.IP
+Number of files to transfer (%d)
+
+
+.TP 
+xf (%s)
+
+.IP
+List of file transfer specifications
+
+
+.TP 
+mailUser (%s)
+
+.IP
+Mail user name
+
+
+.TP 
+projectName (%s)
+
+.IP
+Project name
+
+
+.TP 
+niosPort (%d)
+
+.IP
+Callback port if batch interactive job
+
+
+.TP 
+maxNumProcessors (%d)
+
+.IP
+Maximum number of processors
+
+
+.TP 
+schedHostType (%s)
+
+.IP
+Execution host type
+
+
+.TP 
+loginShell (%s)
+
+.IP
+Login shell
+
+
+.TP 
+userGroup (%s)
+
+.IP
+User group
+
+
+.TP 
+options2 (%d)
+
+.IP
+Bit flags for job processing
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.TP 
+inFileSpool (%s)
+
+.IP
+Spool input file
+
+
+.TP 
+commandSpool (%s)
+
+.IP
+Spool command file
+
+
+.TP 
+jobSpoolDir (%s)
+
+.IP
+Job spool directory
+
+
+.TP 
+userPriority (%d)
+
+.IP
+User priority
+
+
+.SH JOB_START 
+.BR
+.PP
+
+.IP
+A job has been dispatched. The fields in order of occurrence are: 
+
+
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+jStatus (%d)
+
+.IP
+Job status, (\fB4\fR, indicating the \fBRUN\fR status of the job)
+
+
+.TP 
+jobPid (%d)
+
+.IP
+Job process ID
+
+
+.TP 
+jobPGid (%d)
+
+.IP
+Job process group ID
+
+
+.TP 
+hostFactor (%f)
+
+.IP
+CPU factor of the first execution host
+
+
+.TP 
+numExHosts (%d)
+
+.IP
+Number of processors used for execution
+
+
+.TP 
+execHosts (%s)
+
+.IP
+List of execution host names
+
+
+.TP 
+queuePreCmd (%s)
+
+.IP
+Pre-execution command
+
+
+.TP 
+queuePostCmd (%s)
+
+.IP
+Post-execution command
+
+
+.TP 
+jFlags (%d)
+
+.IP
+Job processing flags
+
+
+.TP 
+userGroup (%s)
+
+.IP
+User group name
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.SH JOB_START_ACCEPT 
+.BR
+.PP
+.PP
+A job has started on the execution host(s). The fields in order of 
+occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+jobPid (%d)
+
+.IP
+Job process ID
+
+
+.TP 
+jobPGid (%d)
+
+.IP
+Job process group ID
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.SH JOB_STATUS 
+.BR
+.PP
+.PP
+The status of a job changed after dispatch. The fields in order of 
+occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+jStatus (%d)
+
+.IP
+New status, see \fB<\fRlsbatch/lsbatch.h>
+
+
+.TP 
+reason (%d)
+
+.IP
+Pending or suspended reason code, see <lsbatch/lsbatch.h>
+
+
+.TP 
+subreasons (%d)
+
+.IP
+Pending or suspended subreason code, see <lsbatch/lsbatch.h>
+
+
+.TP 
+cpuTime (%f)
+
+.IP
+CPU time consumed so far
+
+
+.TP 
+endTime (%d)
+
+.IP
+Job completion time
+
+
+.TP 
+ru (%d)
+
+.IP
+Resource usage flag
+
+
+.TP 
+lsfRusage (%s)
+
+.IP
+Resource usage statistics, see \fB<\fRlsf/lsf.h\fB>
+\fR
+
+.TP 
+exitStatus (%d)
+
+.IP
+Exit status of the job, see <lsbatch/lsbatch.h>
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index (%d)
+
+
+.SH JOB_SWITCH 
+.BR
+.PP
+.PP
+A job switched from one queue to another. The fields in order of 
+occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the user invoking the command
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+queue (%s)
+
+.IP
+Target queue name
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.TP 
+userName (%s)
+
+.IP
+Name of the job submitter
+
+
+.SH JOB_MOVE 
+.BR
+.PP
+.PP
+A job moved toward the top or bottom of its queue. The fields in order 
+of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the user invoking the command
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+position (%d)
+
+.IP
+Position number
+
+
+.TP 
+base (%d)
+
+.IP
+Operation code, (TO_TOP or TO_BOTTOM), see <lsbatch/lsbatch.h>
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.TP 
+userName (%s)
+
+.IP
+Name of the job submitter
+
+
+.SH QUEUE_CTRL 
+.BR
+.PP
+.PP
+A job queue has been altered. The fields in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+opCode (%d)
+
+.IP
+Operation code), see <lsbatch/lsbatch.h>
+
+
+.TP 
+queue (%s)
+
+.IP
+Queue name
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the user invoking the command
+
+.IP
+userName (%s)
+
+.IP
+Name of the user
+
+
+.SH HOST_CTRL 
+.BR
+.PP
+.PP
+A batch server host changed status. The fields in order of occurrence 
+are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+opCode (%d)
+
+.IP
+Operation code, see <lsbatch/lsbatch.h>
+
+
+.TP 
+host (%s)
+
+.IP
+Host name
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the user invoking the command
+
+
+.TP 
+userName (%s)
+
+.IP
+Name of the user
+
+
+.SH MBD_START 
+.BR
+.PP
+.PP
+The mbatchd has started. The fields in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+master (%s)
+
+.IP
+Master host name
+
+
+.TP 
+cluster (%s)
+
+.IP
+cluster name
+
+
+.TP 
+numHosts (%d)
+
+.IP
+Number of hosts in the cluster
+
+
+.TP 
+numQueues (%d)
+
+.IP
+Number of queues in the cluster
+
+
+.SH MBD_DIE 
+.BR
+.PP
+.PP
+The mbatchd died. The fields in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+master (%s)
+
+.IP
+Master host name
+
+
+.TP 
+numRemoveJobs (%d)
+
+.IP
+Number of finished jobs that have been removed from the system and
+.br
+logged in the current event file
+
+
+.TP 
+exitCode (%d)
+
+.IP
+Exit code from mbatchd
+
+
+.SH UNFULFILL 
+.BR
+.PP
+.PP
+Actions that were not taken because the mbatchd was unable to contact 
+the sbatchd on the job's execution host. The fields in order of 
+occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+notSwitched (%d)
+
+.IP
+Not switched: the mbatchd has switched the job to a new queue, but 
+the sbatchd has not been informed of the switch
+
+
+.TP 
+sig (%d)
+
+.IP
+Signal: this signal has not been sent to the job
+
+
+.TP 
+sig1 (%d)
+
+.IP
+Checkpoint signal: the job has not been sent this signal to checkpoint 
+itself
+
+
+.TP 
+sig1Flags (%d)
+
+.IP
+Checkpoint flags, see <lsbatch/lsbatch.h>
+
+
+.TP 
+chkPeriod (%d) 
+
+.IP
+Job's new checkpoint period
+
+
+.TP 
+notModified (%s)
+
+.IP
+If set to true, then parameters for the job cannot be modified.
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.SH LOAD_INDEX 
+.BR
+.PP
+.PP
+mbatchd restarted with these load index names (see \fBlsf.cluster\fR(5)). 
+The fields in order of occurrence are:
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+nIdx (%d)
+
+.IP
+Number of index names
+
+
+.TP 
+name (%s)
+
+.IP
+List of index names
+
+
+.SH JOB_SIGACT 
+.BR
+.PP
+.PP
+An action on a job has been taken. The fields in order of occurrence 
+are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+period (%d)
+
+.IP
+Action period
+
+
+.TP 
+pid (%d)
+
+.IP
+Process ID of the child sbatchd that initiated the action
+
+
+.TP 
+jstatus (%d)
+
+.IP
+Job status
+
+
+.TP 
+reasons (%d)
+
+.IP
+Job pending reasons
+
+
+.TP 
+flags (%d)
+
+.IP
+Action flags, see <lsbatch/lsbatch.h> 
+
+
+.TP 
+actStatus (%d)
+
+.IP
+Action status:
+
+.IP
+\fB1\fR: Action started
+
+.IP
+\fB2\fR: One action preempted other actions
+
+.IP
+\fB3\fR: Action succeeded
+
+.IP
+\fB4\fR: Action Failed
+
+
+.TP 
+signalSymbol (%s)
+
+.IP
+Action name, accompanied by actFlags
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.SH MIG 
+.BR
+.PP
+.PP
+A job has been migrated. The fields in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+numAskedHosts (%d)
+
+.IP
+Number of candidate hosts for migration
+
+
+.TP 
+askedHosts (%s)
+
+.IP
+List of names of candidate hosts
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the user invoking the command
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.TP 
+userName (%s)
+
+.IP
+Name of the job submitter
+
+
+.SH JOB_MODIFY 
+.BR
+.PP
+.PP
+This is created when the mbatchd modifies a previously submitted job 
+via bmod(1). The fields logged are the same as those for \fBJOB_NEW.\fR 
+.SH JOB_SIGNAL 
+.BR
+.PP
+.PP
+This is created when a job is signaled via bkill(1) or deleted via bdel(1). 
+The fields are in the order they appended : 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the user invoking the command
+
+
+.TP 
+runCount (%d)
+
+.IP
+Number of runs
+
+
+.TP 
+signalSymbol (%s)
+
+.IP
+Signal name
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.TP 
+userName (%s)
+
+.IP
+Name of the job submitter
+
+
+.SH JOB_EXECUTE 
+.BR
+.PP
+.PP
+This is created when a job is actually running on an execution host. 
+The fields in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+execUid (%d)
+
+.IP
+Mapped UNIX user ID on execution host
+
+
+.TP 
+jobPGid (%d)
+
+.IP
+Job process group ID
+
+
+.TP 
+execCwd (%s)
+
+.IP
+Current working directory job used on execution host
+
+
+.TP 
+execHome (%s)
+
+.IP
+Home directory job used on execution host
+
+
+.TP 
+execUsername (%s)
+
+.IP
+Mapped user name on execution host
+
+
+.TP 
+jobPid (%d)
+
+.IP
+Job's process ID
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.SH JOB_REQUEUE 
+.BR
+.PP
+.PP
+This is created when a job ended and requeued by mbatchd. The fields 
+in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.SH JOB_CLEAN 
+.BR
+.PP
+.PP
+This is created when a job is removed from the mbatchd memory. The 
+fields in order of occurrence are: 
+.TP 
+Version number (%s)
+
+.IP
+The version number
+
+
+.TP 
+Event time (%d)
+
+.IP
+The time of the event
+
+
+.TP 
+jobId (%d)
+
+.IP
+Job ID
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.RE
+
+.SH SEE ALSO
+.BR
+.PP
+.SS Related Topics:
+.BR
+.PP
+.PP
+lsid(1), getrlimit(2), lsb_geteventrec(3), lsb.acct(5), lsb.queues(5), lsb.hosts(5), 
+lsb.users(5), lsb.params(5), lsf.conf(5), lsf.cluster(5), badmin(8) and mbatchd(8) 
+.SS Files:
+.BR
+.PP
+.PP
+LSB_SHAREDIR/<\fIclustername\fR>/logdir/lsb.events[.?]

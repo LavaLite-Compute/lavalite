@@ -1,0 +1,87 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bugroup 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbugroup\fR - displays information about user groups
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbugroup\fR\fB \fR[\fB-l\fR] [\fB-r\fR] [\fB-w\fR] [\fIuser_group\fR ...]
+.PP
+\fBbugroup\fR\fB \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays user groups and user names for each group. 
+.PP
+The default is to display information about all user groups. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-l
+\fR
+.IP
+Displays information in a long multi-line format. Also displays share 
+distribution if shares are configured. 
+
+
+.TP 
+\fB-r\fR 
+
+.IP
+Expands the user groups recursively. The expanded list contains only 
+user names; it does not contain the names of subgroups. Duplicate user 
+names are listed only once.
+
+
+.TP 
+\fB-w
+\fR
+.IP
+Wide format. Displays user and user group names without truncating 
+fields.
+
+
+.TP 
+\fIuser_group \fR...
+
+.IP
+Only displays information about the specified\fI \fRuser groups.\fI \fRDo not use 
+quotes when specifying multiple user groups.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits.
+
+
+.SH OUTPUT
+.BR
+.PP
+.PP
+In the list of users, a name followed by a slash (/) indicates a subgroup.
+.SH FILES
+.BR
+.PP
+.PP
+User groups and user shares are defined in the configuration file 
+lsb.users(5). 
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsb.users(5), bmgroup(1), busers(1)

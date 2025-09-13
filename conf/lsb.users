@@ -1,0 +1,39 @@
+# User groups can be referenced by the lsb.hosts and lsb.queues files.
+
+# All the example definitions here are commented out
+
+Begin UserGroup
+GROUP_NAME       GROUP_MEMBER              
+#develop         (jwang long david ming)  
+#system          (all)                    
+#eng_users       (develop zhang ahmedk pangj) 
+End UserGroup
+
+# MAX_JOBS is the maximum number of jobs that can be run concurrently for
+# each user or user group.  If the user or user group already has this many
+# jobs running, then no more of his/her jobs will be dispatched until one of
+# the running jobs finishes.
+
+# JL/P is the maximum number of jobs that can be run concurrently on any one
+# processor for each user or user group.
+
+# If a user group name is followed by a "@", it represents each of the users
+# in the group.  That is, the job limit applies to each individual user in
+# the group.
+
+# A UNIX group name may also be used in the same way as LSF Batch user group.
+
+# The reserved name "default" refers to each of all other users and user
+# groups not listed in the section.  If "default" is not defined here and
+# if a user or user group is not listed, then the default limit is infinity.
+
+# A "()" or "-" is used to specify the default value (infinity) and cannot
+# be omitted when a user or group name is specified.
+
+# All the example definitions here are commented out
+
+Begin User
+USER_NAME	MAX_JOBS	JL/P
+#develop@        20              8
+#support         50              -
+End User

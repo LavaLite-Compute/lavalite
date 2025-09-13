@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+#  Copyright (c) 2011 openlava foundation
+#  Copyright (c) 2007 Platform Computing
+#
+# This script is a wrapper for the LAM mpirun
+# it generates the machine file based on the hosts
+# given to it by openlava, and runs lamboot with that
+# list.  After calling mpirun it will run lamhalt.
+#
+
+usage() {
+	cat <<USEEOF
+USAGE:  $0
+	This command is a wrapper for mpirun.  It can
+	only be run within Lava using bsub e.g.
+		bsub -n # $0 -np # {mpi command} {args}
+
+        The wrapper will automatically generate the
+	machinefile used by mpirun.
+
+	NOTE:  The list of hosts cannot exceed 4KBytes.	
+USEEOF
+}
+
+if [ x"${LSB_JOBFILENAME}" = x -o x"${LSB_HOSTS}" = x ]; then
+    usage
+    exit -1
+fi
+    
+MYARGS=$*
+WORKDIR=`dirname ${LSB_JOBFILENAME}`
+MACHFILE=${WORKDIR}/lam_machines
+ARGLIST=${WORKDIR}/lam_args
+
+LAMBOOT="lamboot"
+LAMHALT="lamhalt"
+
+# Check if mpirun is in the PATH
+T=`which mpirun`
+if [ $? -ne 0 ]; then
+    echo "Error:  mpirun is not in your PATH."
+    exit -2
+fi
+
+# Make the LAM bhosts file
+echo "${LSB_HOSTS}" > ${MACHFILE}.lst
+tr '\/ ' '\r\n' < ${MACHFILE}.lst > ${MACHFILE}
+
+# Work arround X11 forwarding issue in OCS
+if [ ! -z "$DISPLAY" ]; then
+    unset DISPLAY
+fi
+
+# Run lamboot with the hosts list
+${LAMBOOT} ${MACHFILE}
+
+# Run mpirun
+MPIRUN=`which --skip-alias mpirun`
+${MPIRUN} ${MYARGS}
+RETVAL=$?
+
+# Shutdown
+${LAMHALT}
+
+exit ${RETVAL}
+

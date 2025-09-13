@@ -1,0 +1,716 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsadmin 8 "LSF Version 4.2 - June 2001"
+.br
+.SH NAME
+\fBlsadmin\fR - administrative tool for LSF
+.SH SYNOPSIS
+.BR
+.PP
+.br
+\fBlsadmin\fR \fIsubcommand\fR 
+.br
+\fBlsadmin\fR [\fB-h\fR | \fB-V\fR]
+.SH SUBCOMMAND LIST
+.BR
+.PP
+.br
+\fBckconfig\fR [\fB-v\fR]
+.br
+\fBreconfig\fR [\fB-f\fR] [\fB-v\fR]
+.br
+\fBlimstartup\fR [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBlimshutdown\fR [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBlimrestart\fR [\fB-v\fR] [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBlimlock\fR [\fB-l\fR \fItime_seconds\fR]
+.br
+\fBlimunlock
+\fR.br
+\fBlimdebug\fR [\fB-c\fR \fIclass_name\fR ...] [\fB-l\fR \fIdebug_level\fR] [\fB-f\fR\fI logfile_name\fR] [\fB-o\fR] 
+[\fIhost_name\fR]
+.br
+\fBlimtime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] [\fIhost_name\fR]
+.br
+\fBresstartup\fR [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBresshutdown\fR [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBresrestart\fR [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBreslogon\fR [\fIhost_name\fR ... | \fBall\fR] [\fB-c\fR \fIcpu_time\fR]
+.br
+\fBreslogoff\fR [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBresdebug\fR [\fB-c\fR \fIclass_name\fR ...] [\fB-l\fR \fIdebug_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] 
+[\fIhost_name\fR]
+.br
+\fBrestime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] [\fIhost_name\fR]
+.br
+\fBhelp\fR [\fIsubcommand\fR ...]
+.br
+\fBquit
+\fR.SH DESCRIPTION
+.BR
+.PP
+.PP
+This command can only be used by LSF administrators. 
+.PP
+lsadmin is a tool that executes privileged commands to control LIM 
+and RES operations in an LSF cluster. 
+.PP
+If no subcommands are supplied for lsadmin, lsadmin prompts for 
+subcommands from the standard input.
+
+.IP
+For subcommands for which multiple host names or host groups can 
+be specified, do not enclose the multiple names in quotation marks. 
+
+
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fIsubcommand
+\fR
+.IP
+Executes the specified subcommand. See Usage section. 
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits.
+
+
+.TP 
+\fB-V\fR 	 
+
+.IP
+Prints LSF release version and exits. 
+
+
+.SH USAGE
+.BR
+.PP
+.TP 
+\fBckconfig \fR[\fB-v\fR]
+
+.IP
+Checks LSF configuration files.
+
+
+.IP
+\fB-v \fR
+.BR
+.RS
+.IP
+Displays detailed messages about configuration file checking. 
+
+.RE
+
+.TP 
+\fBreconfig \fR[\fB-f\fR] [\fB-v\fR]
+
+.IP
+Restarts LIMs on all hosts in the cluster. You should use reconfig after 
+changing configuration files. The configuration files are checked before 
+all LIMs in the cluster are restarted. If the configuration files are not 
+correct, reconfiguration will not be initiated.
+
+
+.IP
+\fB-f \fR
+.BR
+.RS
+.IP
+Disables user interaction and forces LIM to restart on all hosts 
+in the cluster if no fatal errors are found. This option is useful 
+in batch mode.
+
+.RE
+
+.IP
+\fB-v\fR
+.BR
+.RS
+.IP
+Displays detailed messages about configuration file checking.
+
+.RE
+
+.TP 
+\fBlimstartup \fR[\fB-f\fR] [\fIhost_name \fR... |\fBall\fR] 
+
+.IP
+Starts up the LIM on the local host if no arguments are specified.
+
+.IP
+Starts up LIMs on the specified hosts or on all hosts in the cluster if the 
+word all is the only argument provided. You will be asked for 
+confirmation.
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+starting up LIMs. \fB
+\fR
+.RE
+
+.TP 
+\fBlimshutdown \fR[\fB-f\fR] [\fIhost_name \fR... | \fBall\fR]
+
+.IP
+Shuts down LIM on the local host if no arguments are supplied.
+
+.IP
+Shuts down LIMs on the specified hosts or on all hosts in the cluster if 
+the word all is specified. You will be asked for confirmation.
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+shutting down LIMs. 
+
+.RE
+
+.TP 
+\fBlimrestart\fR [\fB-v\fR] [\fB-f\fR] [\fIhost_name \fR... | \fBall\fR]
+
+.IP
+Restarts LIM on the local host if no arguments are supplied.
+
+.IP
+Restarts LIMs on the specified hosts or on all hosts in the cluster if the 
+word all is specified. You will be asked for confirmation.
+
+.IP
+limrestart should be used with care. Do not make any modifications 
+until all the LIMs have completed the startup process. If you execute 
+limrestart \fIhost_name\fR\fI...\fR to restart some of the LIMs after changing 
+the configuration files, but other LIMs are still running the old 
+configuration, confusion will arise among these LIMs. To avoid this 
+situation, use reconfig instead of limrestart.
+
+
+.IP
+\fB-v\fR 
+.BR
+.RS
+.IP
+Displays detailed messages about configuration file checking.
+
+.RE
+
+.IP
+\fB-f \fR
+.BR
+.RS
+.IP
+Disables user interaction and forces LIM to restart if no fatal 
+errors are found. This option is useful in batch mode. 
+limrestart -f all is the same as reconfig -f.
+
+.RE
+
+.TP 
+\fBlimlock\fR [\fB-l\fR \fItime_seconds\fR]
+
+.IP
+Locks LIM on the local host until it is explicitly unlocked if no time is 
+specified.When a host is locked, LIM's load status becomes lockU. No 
+job will be sent to a locked host by LSF.
+
+
+.IP
+\fB-l \fR\fItime_seconds\fR
+.BR
+.RS
+.IP
+The host is locked for the specified time in seconds. This is 
+useful if a machine is running an exclusive job requiring all the 
+available CPU time and/or memory. 
+
+.RE
+
+.TP 
+\fBlimunlock
+\fR
+.IP
+Unlocks LIM on the local host. 
+
+
+.TP 
+\fBresstartup \fR[\fB-f\fR]\fB \fR[\fIhost_name\fR ... | \fBall\fR]
+
+.IP
+Starts up RES on the local host if no arguments are specified.
+
+.IP
+Starts up RESs on the specified hosts or on all hosts in the cluster if the 
+word all is specified. You will be asked for confirmation.
+
+For root installation to work properly, lsadmin must be installed as a 
+setuid to root program. 
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+starting up RESs.
+
+.RE
+
+.TP 
+\fBresshutdown\fR [\fB-f\fR] [\fIhost_name \fR... | \fBall\fR]
+
+.IP
+Shuts down RES on the local host if no arguments are specified. 
+
+.IP
+Shuts down RESs on the specified hosts or on all hosts in the cluster if 
+the word all is specified. You will be asked for confirmation.
+
+.IP
+If RES is running, it will keep running until all remote tasks exit. 
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+shutting down RESs. 
+
+.RE
+
+.TP 
+\fBresrestart \fR[\fB-f\fR] [\fIhost_name \fR... | \fBall\fR] 
+
+.IP
+Restarts RES on the local host if no arguments are specified. 
+
+.IP
+Restarts RESs on the specified hosts or on all hosts in the cluster if the 
+word all is specified. You will be asked for confirmation.
+
+.IP
+If RES is running, it will keep running until all remote tasks exit. While 
+waiting for remote tasks to exit, another RES is restarted to serve the 
+new queries. 
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+restarting RESs. 
+
+.RE
+
+.TP 
+\fBreslogon\fR [\fIhost_name \fR... | \fBall\fR] [\fB-c\fR \fIcpu_time\fR]
+
+.IP
+Logs all tasks executed by RES on the local host if no arguments are 
+specified.
+
+.IP
+Logs tasks executed by RESs on the specified hosts or on all hosts in 
+the cluster if all is specified. 
+
+.IP
+RES will write the task's resource usage information into the log file 
+lsf.acct.\fIhost_name\fR. The location of the log file is determined by 
+LSF_RES_ACCTDIR defined in lsf.conf. If LSF_RES_ACCTDIR is not 
+defined, or RES cannot access it, the log file will be created in /tmp 
+instead. 
+
+
+.IP
+\fB-c\fR \fIcpu_time\fR
+.BR
+.RS
+.IP
+Logs only tasks that use more than the specified amount of CPU 
+time. The amount of CPU time is specified by \fIcpu_time\fR in 
+milliseconds. 
+
+.RE
+
+.TP 
+\fBreslogoff\fR [\fIhost_name \fR... |\fB all\fR]
+
+.IP
+Turns off RES task logging on the local host if no arguments are 
+specified.
+
+.IP
+Turns off RES task logging on the specified hosts or on all hosts in the 
+cluster if all is specified. 
+
+
+.TP 
+\fBlimdebug\fR [\fB-c\fR \fB"\fR\fIclass_name \fR...\fB"\fR] 
+.br
+[\fB-l\fR \fIdebug_level\fR] [\fB-f\fR \fIlogfile_name\fR] 
+.br
+[\fB-o\fR] [\fB"\fR\fIhost_name \fR...\fB"\fR]
+
+.IP
+Sets the message log level for LIM to include additional information in 
+log files. You must be root or the LSF administrator to use this 
+command. 
+
+.IP
+If the command is used without any options, the following default 
+values are used:
+
+.IP
+\fIclass_name\fR = 0 (no additional classes are logged)
+
+.IP
+\fIdebug_level\fR = 0 (LOG_DEBUG level in parameter LSF_LOG_MASK)
+
+.IP
+\fIlogfile_name\fR = current LSF system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name.\fRlog\fI.host_name
+\fR
+.IP
+\fIhost_name\fR= local host (host from which command was submitted)
+
+
+.IP
+\fB-c\fR \fB"\fR\fIclass_name \fR...\fB"\fR
+.BR
+.RS
+.IP
+Specify software classes for which debug messages are to be 
+logged. If a list of classes is specified, they must be enclosed in 
+quotation marks and separated by spaces.
+
+.IP
+Possible classes: 
+
+.IP
+LC_AUTH - Log authentication messages
+
+.IP
+LC_CHKPNT - log checkpointing messages
+
+.IP
+LC_COMM - Log communication messages
+
+.IP
+LC_EXEC - Log significant steps for job execution
+
+.IP
+LC_FILE - Log file transfer messages
+
+.IP
+LC_HANG - Mark where a program might hang
+
+.IP
+LC_PIM - Log PIM messages
+
+.IP
+LC_SCHED - Log JobScheduler messages
+
+.IP
+LC_SIGNAL - Log messages pertaining to signals
+
+.IP
+LC_TRACE - Log significant program walk steps
+
+.IP
+LC_XDR - Log everything transferred by XDR
+
+.IP
+Default: 0 (no additional classes are logged)
+
+.IP
+Note: Classes are also listed in lsf.h.
+
+.RE
+
+.IP
+\fB-l\fR \fIdebug_level\fR
+.BR
+.RS
+.IP
+Specify level of detail in debug messages. The higher the 
+number, the more detail that is logged. Higher levels include all 
+lower levels.
+
+.IP
+Possible values:
+
+.IP
+0 - LOG_DEBUG level in parameter LSF_LOG_MASK in 
+lsf.conf. 
+
+.IP
+1 - LOG_DEBUG1 level for extended logging. A higher level 
+includes lower logging levels. For example, LOG_DEBUG3 
+includes LOG_DEBUG2 LOG_DEBUG1, and LOG_DEBUG 
+levels.
+
+.IP
+2 - LOG_DEBUG2 level for extended logging. A higher level 
+includes lower logging levels. For example, LOG_DEBUG3 
+includes LOG_DEBUG2 LOG_DEBUG1, and LOG_DEBUG 
+levels.
+
+.IP
+3 - LOG_DEBUG3 level for extended logging. A higher level 
+includes lower logging levels. For example, LOG_DEBUG3 
+includes LOG_DEBUG2, LOG_DEBUG1, and LOG_DEBUG 
+levels.
+
+.IP
+Default: 0 (LOG_DEBUG level in parameter LSF_LOG_MASK)
+
+.RE
+
+.IP
+\fB-f\fR \fIlogfile_name\fR
+.BR
+.RS
+.IP
+Specify the name of the file into which debugging messages are 
+to be logged. A file name with or without a full path may be 
+specified. 
+
+.IP
+If a file name without a path is specified, the file will be saved 
+in the directory indicated by the parameter LSF_LOGDIR in 
+lsf.conf.
+
+.IP
+The name of the file that will be created will have the following 
+format:
+
+.IP
+\fIlogfile_name\fR.\fIdaemon_name\fR.log.\fIhost_name
+\fR
+.IP
+If the specified path is invalid, on UNIX, the log file is created 
+in the /tmp directory. 
+
+.IP
+If LSF_LOGDIR is not defined, daemons log to the syslog 
+facility.
+
+.IP
+Default: current LSF system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name\fR.log.\fIhost_name\fR.
+
+.RE
+
+.IP
+\fB-o\fR
+.BR
+.RS
+.IP
+Turns off temporary debug settings and reset them to the 
+daemon starting state. The message log level is reset back to the 
+value of LSF_LOG_MASK and classes are reset to the value of 
+LSF_DEBUG_RES, LSF_DEBUG_LIM.
+
+.IP
+Log file is reset back to the default log file.
+
+.RE
+
+.IP
+\fB"\fR\fIhost_name \fR...\fB"\fR
+.BR
+.RS
+.IP
+Sets debug settings on the specified host or hosts.
+
+.IP
+Default: local host (host from which command was submitted)
+
+.RE
+
+.TP 
+\fBresdebug\fR [\fB-c\fR \fB"\fR\fIclass_name\fR\fB"\fR] [\fB-l\fR \fIdebug_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] 
+[\fB"\fR\fIhost_name \fR...\fB"\fR]
+
+.IP
+Sets the message log level for RES to include additional information in 
+log files. You must be the LSF administrator to use this command, not 
+root.
+
+.IP
+See description of limdebug for an explanation of options.
+
+
+.TP 
+\fBlimtime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] [\fB"\fR\fIhost_name ...\fR\fB"\fR]
+
+.IP
+Sets timing level for LIM to include additional timing information in log 
+files. You must be root or the LSF administrator to use this command. 
+
+.IP
+If the command is used without any options, the following default 
+values are used:
+
+.IP
+\fItiming_level\fR = no timing information is recorded
+
+.IP
+\fIlogfile_name\fR = current LSF system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name\fR.log.\fIhost_name
+\fR
+.IP
+\fIhost_name \fR= local host (host from which command was submitted)
+
+
+.IP
+\fB-l\fR \fItiming_level\fR
+.BR
+.RS
+.IP
+Specifies detail of timing information that is included in log 
+files. Timing messages indicate the execution time of functions 
+in the software and are logged in milliseconds.
+
+.IP
+Valid values: 1 | 2 | 3 | 4 | 5
+
+.IP
+The higher the number, the more functions in the software that 
+are timed and whose execution time is logged. The lower 
+numbers include more common software functions. Higher 
+levels include all lower levels.
+
+.IP
+Default: undefined (no timing information is logged)
+
+.RE
+
+.IP
+\fB-f\fR \fIlogfile_name\fR
+.BR
+.RS
+.IP
+Specify the name of the file into which timing messages are to 
+be logged. A file name with or without a full path may be 
+specified. 
+
+.IP
+If a file name without a path is specified, the file will be saved 
+in the directory indicated by the parameter LSF_LOGDIR in 
+lsf.conf.
+
+.IP
+The name of the file that will be created will have the following 
+format:
+
+.IP
+\fIlogfile_name\fR.\fIdaemon_name\fR.log.\fIhost_name
+\fR
+.IP
+If the specified path is invalid, on UNIX, the log file is created 
+in the /tmp directory. 
+
+.IP
+If LSF_LOGDIR is not defined, daemons log to the syslog 
+facility.
+
+.IP
+\fBNote: \fRBoth timing and debug messages are logged in the same 
+files.
+
+.IP
+Default: current LSF system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name\fR.log.\fIhost_name\fR.
+
+.RE
+
+.IP
+\fB-o\fR
+.BR
+.RS
+.IP
+Turns off temporary timing settings and resets them to the 
+daemon starting state. The timing level is reset back to the value 
+of the parameter for the corresponding daemon 
+(LSF_TIME_LIM, LSF_TIME_RES).
+
+.IP
+Log file is reset back to the default log file.
+
+.RE
+
+.IP
+\fB"\fR\fIhost_name ...\fR\fB"\fR 
+.BR
+.RS
+.IP
+Sets the timing level on the specified host or hosts.
+
+.IP
+Default: local host (host from which command was submitted)
+
+.RE
+
+.TP 
+\fBrestime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] [\fB"\fR\fIhost_name ...\fR\fB"\fR]
+
+.IP
+Sets timing level for RES to include additional timing information in log 
+files. You must be the LSF administrator can use this command, not 
+root.
+
+.IP
+See description of limtime for an explanation of options.
+
+
+.TP 
+\fBhelp\fR [\fIsubcommand \fR...] | \fB?\fR [\fIsubcommand \fR...]
+
+.IP
+Displays the syntax and functionality of the specified commands. The 
+commands must be explicit to lsadmin.
+
+.IP
+From the command prompt, you may use help or ?.
+
+
+.TP 
+\fBquit\fR 
+
+.IP
+Exits the lsadmin session. 
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+ls_limcontrol(3), ls_rescontrol(3), ls_readconfenv(3), 
+ls_gethostinfo(3), ls_connect(3), ls_initrex(3), 
+lsf.conf(5), lsf.acct(5), bmgroup(1), 
+busers(1)lsreconfig(8), lslockhost(8), lsunlockhost(8)

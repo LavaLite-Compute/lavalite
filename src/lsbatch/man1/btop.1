@@ -1,0 +1,92 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH btop 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbtop\fR - moves a pending job relative to the first job in the queue 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbtop\fR\fB \fR\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR [\fIposition\fR]
+.PP
+\fBbtop\fR\fB \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRChanges the queue position of a pending job or a pending job array 
+element, to affect the order in which jobs are considered for dispatch. 
+.PP
+By default, Lava dispatches jobs in a queue in the order of their arrival 
+(that is, first-come-first-served), subject to availability of suitable server 
+hosts. 
+.PP
+The btop command allows users and the Lava administrator to manually 
+change the order in which jobs are considered for dispatch. Users can 
+only operate on their own jobs, whereas the Lava administrator can 
+operate on any user's jobs. Users can only change the relative position 
+of their own jobs. 
+.PP
+If invoked by the Lava administrator, \fBbtop\fR moves the selected job 
+before the first job with the same priority submitted to the queue. The 
+positions of all users' jobs in the queue can be changed by the Lava 
+administrator.
+.PP
+If invoked by a regular user, \fBbtop\fR moves the selected job before the 
+first job with the same priority submitted by the user to the queue. 
+Pending jobs are displayed by bjobs in the order in which they will be 
+considered for dispatch. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+ \fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"
+\fR
+.IP
+Required. Job ID of the job or of the job array on which to operate. 
+
+.IP
+For a job array, the index list, the square brackets, and the quotation 
+marks are required. An index list is used to operate on a job array. The 
+index list is a comma separated list whose elements have the syntax 
+\fIstart_index\fR[-\fIend_index\fR[\fB:\fR\fIstep\fR] ] where \fIstart_index\fR, \fIend_index\fR and \fIstep\fR 
+are positive integers. If the step is omitted, a step of one is assumed. 
+The job array index starts at one. The maximum job array index is 1000. 
+All jobs in the array share the same job_ID and parameters. Each 
+element of the array is distinguished by its array index.
+
+
+.TP 
+\fIposition
+\fR
+.IP
+Optional. The \fIposition\fR argument can be specified to indicate where in 
+the queue the job is to be placed. \fIposition\fR is a positive number that 
+indicates the target position of the job from the beginning of the queue. 
+The positions are relative to only the applicable jobs in the queue, 
+depending on whether the invoker is a regular user or the Lava 
+administrator. The default value of 1 means the position is before all 
+the other jobs in the queue that have the same priority.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exit. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exit. 
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bbot(1), bjobs(1), bswitch(1)

@@ -1,0 +1,354 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsacct 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsacct\fR - displays accounting statistics on finished RES tasks in the Lava system 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsacct\fR\fB \fR[\fB-l\fR] [\fB-C\fR\fB \fR\fItime0\fR\fB,\fR\fItime1\fR] [\fB-S\fR\fB \fR\fItime0\fR\fB,\fR\fItime1\fR] [\fB-f \fR\fIlogfile_name\fR] 
+[\fB-m \fR\fIhost_name\fR] [\fB-u\fR\fB \fR\fIuser_name\fR ...\fB | \fR\fB-u all\fR] [\fIpid\fR\fI \fR...]\fB 
+\fR.PP
+\fBlsacct\fR\fB \fR[\fB-h\fR | \fB-V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays statistics on finished tasks run through RES. When a remote 
+task completes, RES logs task statistics in the task log file.
+.PP
+By default, displays accounting statistics for only tasks owned by the 
+user who invoked the lsacct command.
+.PP
+By default, displays accounting statistics for tasks executed on all hosts 
+in the Lava system.
+.PP
+By default, displays statistics for tasks logged in the task log file 
+currently used by RES: LSF_RES_ACCTDIR/lsf.acct.\fIhost_name\fR or 
+/tmp/lsf.acct.\fIhost_name\fR (see lsf.acct(5)).
+.PP
+If -l is not specified, the default is to display the fields in SUMMARY 
+only (see OUTPUT). 
+.PP
+The RES on each host writes its own accounting log file. 
+.PP
+All times are reported in seconds. All sizes are reported in kilobytes. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-l 
+\fR
+.IP
+Per-task statistics. Displays statistics about each task. See OUTPUT for 
+a description of information that is displayed.
+
+
+.TP 
+\fB-C\fR \fItime0\fR\fB,\fR\fItime1 
+\fR
+.IP
+Displays accounting statistics for only tasks that completed or exited 
+during the specified time interval.
+
+.IP
+The time format is the same as in bhist(1).
+
+
+.TP 
+\fB-S\fR \fItime0\fR\fB,\fR\fItime1
+\fR
+.IP
+Displays accounting statistics for only tasks that began executing 
+during the specified time interval. 
+
+.IP
+The time format is the same as in bhist(1).
+
+
+.TP 
+\fB-f\fR \fIlogfile_name\fR 
+
+.IP
+Searches the specified task log file for accounting statistics. Specify 
+either an absolute or a relative path. 
+
+.TP 
+\fB-m\fR \fIhost_name\fR ... 
+
+.IP
+Displays accounting statistics for only tasks executed on the specified 
+hosts. 
+
+.IP
+If a list of hosts is specified, host names must be separated by spaces 
+and enclosed in quotation marks (") or ('). 
+
+
+.TP 
+\fB-u\fR \fIuser_name \fR... | \fB-u all 
+\fR
+.IP
+Displays accounting statistics for only tasks owned by the specified 
+users, or by all users if the keyword all is specified.
+
+.IP
+If a list of users is specified, user names must be separated by spaces 
+and enclosed in quotation marks (") or ('). You can specify both user 
+names and user IDs in the list of users.
+
+
+.TP 
+\fIpid\fR\fI \fR... 
+
+.IP
+Displays accounting statistics for only tasks with the specified \fIpid\fR. This 
+option overrides all other options except for -l, -f\fB, \fR-h, -V. 
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 	 
+
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH OUTPUT
+.BR
+.PP
+.SS SUMMARY (default format)
+.BR
+.PP
+.PP
+Overall statistics for tasks.
+.PP
+The total, average, maximum and minimum resource usage statistics 
+apply to all specified tasks.
+.PP
+The following fields are displayed:
+
+.IP
+Total number of tasks 
+.BR
+.RS
+.IP
+Total number of tasks including tasks completed successfully and 
+total number of exited tasks. 
+
+.RE
+
+.IP
+Time range of started tasks 
+.BR
+.RS
+.IP
+Start time of the first and last task selected. 
+
+.RE
+
+.IP
+Time range of ended tasks 
+.BR
+.RS
+.IP
+Completion or exit time of the first and last task selected. 
+
+.RE
+
+.IP
+Resource usage of tasks selected 
+.BR
+.RS
+.IP
+See getrusage (2).
+
+.RE
+
+.IP
+CPU time 
+.BR
+.RS
+.IP
+Total CPU time consumed by the task. 
+
+.RE
+
+.IP
+Page faults 
+.BR
+.RS
+.IP
+Number of page faults.
+
+.RE
+
+.IP
+Swaps
+.BR
+.RS
+.IP
+Number of times the process was swapped out. 
+
+.RE
+
+.IP
+Blocks in 
+.BR
+.RS
+.IP
+Number of input blocks. 
+
+.RE
+
+.IP
+Blocks out 
+.BR
+.RS
+.IP
+Number of output blocks. 
+
+.RE
+
+.IP
+Messages sent 
+.BR
+.RS
+.IP
+Number of System VIPC messages sent.
+
+.RE
+
+.IP
+Messages rcvd 
+.BR
+.RS
+.IP
+Number of IPC messages received.
+
+.RE
+
+.IP
+Voluntary cont sw 
+.BR
+.RS
+.IP
+Number of voluntary context switches. 
+
+.RE
+
+.IP
+Involuntary con sw 
+.BR
+.RS
+.IP
+Number of involuntary context switches. 
+
+.RE
+
+.IP
+Turnaround 
+.BR
+.RS
+.IP
+Elapsed time from task execution to task completion.
+
+.RE
+.SS Per Task Statistics ( -l)
+.BR
+.PP
+.PP
+In addition to the fields displayed by default in SUMMARY, displays the 
+following fields for each task: 
+
+.IP
+Starting time 
+.BR
+.RS
+.IP
+Time the task started. 
+
+.RE
+
+.IP
+User and host name 
+.BR
+.RS
+.IP
+User who submitted the task, host from which the task was 
+submitted, in the format \fIuser_name\fR@\fIhost\fR. 
+
+.RE
+
+.IP
+PID 	  
+.BR
+.RS
+.IP
+UNIX process ID of the task. 
+
+.RE
+
+.IP
+Execution host 
+.BR
+.RS
+.IP
+Host on which the command was run. 
+
+.RE
+
+.IP
+Command line 
+.BR
+.RS
+.IP
+Complete command line that was executed. 
+
+.RE
+
+.IP
+CWD
+.BR
+.RS
+.IP
+Current working directory of the task. 
+
+.RE
+
+.IP
+Completion time 
+.BR
+.RS
+.IP
+Time at which the task completed.
+
+.RE
+
+.IP
+Exit status 
+.BR
+.RS
+.IP
+UNIX exit status of the task. 
+
+.RE
+.SH FILES
+.BR
+.PP
+.PP
+Reads lsf.acct.\fIhost_name
+\fR.SH SEE ALSO
+.BR
+.PP
+.PP
+lsf.acct(5), res(8), bhist(1)

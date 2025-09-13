@@ -1,0 +1,101 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsinfo 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsinfo\fR - displays load sharing configuration information 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsinfo\fR [\fB-l\fR] [\fB-m\fR | \fB-M\fR] [\fB-r\fR] [\fB-t\fR] [\fIresource_name\fR ...]
+.PP
+\fBlsinfo\fR [\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRBy default, displays all load sharing configuration information 
+including resource names and their meanings, host types and models, 
+and associated CPU factors known to the system.  
+.PP
+By default, displays information about all resources. Resource 
+information includes resource name, resource type, description, and 
+the default sort order for the resource. 
+.PP
+You can use resource names in task placement requests.
+.PP
+Use this command with options to selectively view configured 
+resources, host types, and host models.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-l\fR 
+
+.IP
+Displays resource information in a long multi-line format. Additional 
+parameters are displayed including whether a resource is built-in or 
+configured, and whether the resource value changes dynamically or is 
+static. If the resource value changes dynamically then the interval 
+indicates how often it is evaluated.  
+
+
+.TP 
+\fB-m\fR 
+
+.IP
+Displays only information about host models that exist in the cluster.
+
+
+.TP 
+\fB-M
+\fR
+.IP
+Displays information about all host models in the file lsf.shared.  
+
+
+.TP 
+\fB-r\fR 
+
+.IP
+Displays only information about configured resources. 
+
+
+.TP 
+\fB-t\fR 
+
+.IP
+Displays only information about configured host types. See lsload(1) 
+and lshosts(1). 
+
+
+.TP 
+\fIresource_name\fR ...
+
+.IP
+Displays only information about the specified resources.  
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsfintro(1), lshosts(1), lsload(1), lsf.shared(5), 
+ls_info(3), ls_policy(3) 
+.PP

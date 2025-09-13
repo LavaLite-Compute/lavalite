@@ -1,0 +1,99 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lseligible 1 "Lava Version 4.2 - June 2001"
+.br
+.SH NAME
+\fBlseligible\fR - displays whether a task is eligible for remote execution 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlseligible\fR [\fB-r\fR] [\fB-q\fR] [\fB-s\fR] \fItask\fR 
+.PP
+\fBlseligible\fR [\fB-h\fR | \fB-V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays whether the specified task is eligible for remote execution. 
+.PP
+By default, only tasks in the remote task list are considered eligible for 
+remote execution.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-r
+\fR
+.IP
+Remote mode. Considers eligible for remote execution any task not 
+included in the local task list. 
+
+
+.TP 
+\fB-q\fR 
+
+.IP
+Quiet mode. Displays only the resource requirement string defined for 
+the task. The string ELIGIBLE or NON-ELIGIBLE is omitted. 
+
+
+.TP 
+\fB-s
+\fR
+.IP
+Silent mode. No output is produced. The -q and -s options are useful 
+for shell scripts which operate by testing the exit status (see 
+DIAGNOSTICS). 
+
+
+.TP 
+\fItask
+\fR
+.IP
+Specify a command.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH OUTPUT
+.BR
+.PP
+.PP
+If the task is eligible, the string ELIGIBLE followed by the resource 
+requirements associated with the task are printed to stdout. Otherwise, 
+the string NON-ELIGIBLE is printed to stdout.
+.PP
+If lseligible prints ELIGIBLE with no resource requirements, the task 
+has the default requirements of CPU consumption and memory usage. 
+.SH SEE ALSO
+.BR
+.PP
+.PP
+ls_eligible(3)
+.SH DIAGNOSTICS
+.BR
+.PP
+.PP
+lseligible has the following exit statuses:
+.PP
+0 Task is eligible for remote execution
+.PP
+1 Command is to be executed locally
+.PP
+-1 Syntax errors
+.PP
+-10 A failure is detected in the Lava system

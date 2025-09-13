@@ -1,0 +1,510 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsb.acct 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsb.acct\fR - Batch job log file of Lava 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+The master batch daemon (see mbatchd(8)) generates a record for each 
+job completion or failure. The record is appended to the job log file 
+lsb.acct. The file is located in LSB_SHAREDIR/\fI<clustername>\fR/logdir, where 
+LSB_SHAREDIR must be defined in lsf.conf(5) and \fI<clustername>\fR is the 
+name of the Lava cluster, as returned by lsid(1). See mbatchd(8) for the 
+description of LSB_SHAREDIR. The job log file is an ASCII file with one 
+record per line. The fields of a record are separated by blanks. If the 
+value of some field is unavailable, "" is logged for character string, 0 for 
+time and number, and -1 for resource usage. 
+.SH Fields
+.BR
+.PP
+.PP
+Fields of each job record  are ordered in the following sequence: 
+.TP 
+Event type (%s)
+
+.IP
+Which is always "\fBJOB_FINISH\fR" 
+
+
+.TP 
+Version Number (%s)
+
+.IP
+Version number of the log file format
+
+
+.TP 
+Event Time (%d)
+
+.IP
+Time the event was logged (in seconds since the epoch)
+
+
+.TP 
+jobId (%d)
+
+.IP
+ID for the job
+
+
+.TP 
+userId (%d)
+
+.IP
+UNIX user ID of the submitter
+
+
+.TP 
+options (%d)
+
+.IP
+Bit flags for job processing
+
+
+.TP 
+numProcessors (%d)
+
+.IP
+Number of processors initially requested for execution
+
+
+.TP 
+submitTime (%d)
+
+.IP
+Job submission time
+
+
+.TP 
+beginTime (%d)
+
+.IP
+Job start time - the job should be started at or after this time
+
+
+.TP 
+termTime (%d)
+
+.IP
+Job termination deadline - the job should be terminated by this time
+
+
+.TP 
+startTime (%d) - 
+
+.IP
+Job dispatch time - time job was dispatched for execution
+
+
+.TP 
+userName (%s) 
+
+.IP
+User name of the submitter
+
+
+.TP 
+queue (%s)
+
+.IP
+Name of the job queue to which the job was submitted
+
+
+.TP 
+resReq (%s)
+
+.IP
+Resource requirement specified by the user 
+
+
+.TP 
+dependCond (%s)
+
+.IP
+Job dependency condition specified by the user
+
+
+.TP 
+preExecCmd (%s)
+
+.IP
+Pre-execution command specified by the user
+
+
+.TP 
+fromHost (%s)
+
+.IP
+Submission host name
+
+
+.TP 
+cwd (%s)
+
+.IP
+Current working directory
+
+
+.TP 
+inFile (%s)
+
+.IP
+Input file name (%s)
+
+
+.TP 
+outFile (%s)
+
+.IP
+output file name
+
+
+.TP 
+errFile (%s)
+
+.IP
+Error output file name
+
+
+.TP 
+jobFile (%s)
+
+.IP
+Job script file name
+
+
+.TP 
+numAskedHosts (%d)
+
+.IP
+Number of host names to which job dispatching will be limited
+
+
+.TP 
+askedHosts (%s)
+
+.IP
+List of host names to which job dispatching will be limited (%s for 
+each); blank if the last field value is 0. If there is more than one host 
+name, then each additional host name will be returned in its own field
+
+
+.TP 
+numExHosts (%d)
+
+.IP
+Number of processors used for execution\fB 
+\fR
+
+.TP 
+execHosts (%s)
+
+.IP
+List of execution host names (%s for each); blank if the last field value 
+is 0
+
+
+.TP 
+jStatus (%d)
+
+.IP
+Job status.  The number 32 represents \fBEXIT\fR, 64 represents \fBDONE\fR 
+
+
+.TP 
+hostFactor (%f)
+
+.IP
+CPU factor of the first execution host
+
+
+.TP 
+jobName (%s)
+
+.IP
+Job name
+
+
+.TP 
+command (%s)
+
+.IP
+Complete batch job command specified by the user
+
+
+.TP 
+lsfRusage
+
+.IP
+The following fields contain resource usage information for the job. If 
+the value of some field is unavailable (due to job abortion or  the 
+difference among the operating systems), -1 will be logged. Times are 
+measured in seconds, and sizes are measured in KBytes. 
+
+
+.IP
+ru_utime (%f)
+.BR
+.RS
+.IP
+User time used
+
+.RE
+
+.IP
+ru_stime (%f)
+.BR
+.RS
+.IP
+System time used
+
+.RE
+
+.IP
+ru_maxrss (%d)
+.BR
+.RS
+.IP
+Maximum shared text size
+
+.RE
+
+.IP
+ru_ixrss (%d)
+.BR
+.RS
+.IP
+Integral of the shared text size over time (in kilobyte seconds)
+
+.RE
+
+.IP
+ru_ismrss (%d)
+.BR
+.RS
+.IP
+Integral of the shared memory size over time (valid only on 
+Ultrix)
+
+.RE
+
+.IP
+ru_idrss (%d)
+.BR
+.RS
+.IP
+Integral of the unshared data size over time
+
+.RE
+
+.IP
+ru_isrss (%d)
+.BR
+.RS
+.IP
+Integral of the unshared stack size over time
+
+.RE
+
+.IP
+ru_minflt (%d)
+.BR
+.RS
+.IP
+Number of page reclaims
+
+.RE
+
+.IP
+ru_magflt (%d)
+.BR
+.RS
+.IP
+Number of page faults
+
+.RE
+
+.IP
+ru_nswap (%d)
+.BR
+.RS
+.IP
+Number of times the process was swapped out
+
+.RE
+
+.IP
+ru_inblock (%d)
+.BR
+.RS
+.IP
+Number of block input operations
+
+.RE
+
+.IP
+ru_oublock (%d)
+.BR
+.RS
+.IP
+Number of block output operations
+
+.RE
+
+.IP
+ru_ioch (%d)
+.BR
+.RS
+.IP
+Number of characters read and written (valid only on HP-UX)
+
+.RE
+
+.IP
+ru_msgsnd (%d)
+.BR
+.RS
+.IP
+Number of System V IPC messages sent
+
+.RE
+
+.IP
+ru_msgrcv (%d)
+.BR
+.RS
+.IP
+Number of messages received
+
+.RE
+
+.IP
+ru_nsignals (%d)
+.BR
+.RS
+.IP
+Number of signals received
+
+.RE
+
+.IP
+ru_nvcsw (%d)
+.BR
+.RS
+.IP
+Number of voluntary context switches
+
+.RE
+
+.IP
+ru_nivcsw (%d)
+.BR
+.RS
+.IP
+Number of involuntary context switches
+
+.RE
+
+.IP
+ru_exutime (%d)
+.BR
+.RS
+.IP
+Exact user time used (valid only on ConvexOS)
+
+.RE
+
+.TP 
+mailUser (%s)
+
+.IP
+Name of the user to whom job related mail was sent
+
+
+.TP 
+projectName (%d)
+
+.IP
+Project name
+
+
+.TP 
+exitStatus (%d)
+
+.IP
+UNIX exit status of the job
+
+
+.TP 
+maxNumProcessors (%d)
+
+.IP
+Maximum number of processors specified for the job
+
+
+.TP 
+loginShell (%s)
+
+.IP
+Login shell used for the job
+
+
+.TP 
+timeEvent (%s)
+
+.IP
+Time event string for the job - JobScheduler only
+
+
+.TP 
+idx (%d)
+
+.IP
+Job array index
+
+
+.TP 
+maxRMem (%d)
+
+.IP
+Maximum resident memory usage in KBytes of all processes in the job
+
+
+.TP 
+maxRSwap (%d)
+
+.IP
+Maximum virtual memory usage in KBytes of all processes in the job
+
+
+.TP 
+inFileSpool (%s)
+
+.IP
+Spool input file
+
+
+.TP 
+commandSpool (%s)
+
+.IP
+Spool command file
+
+
+.SH SEE ALSO
+.BR
+.PP
+.SS Related Topics
+.BR
+.PP
+.PP
+lsb.events(5), lsb.params(5), lsf.conf(5), mbatchd(8), bsub(1), lsid(1) 
+.SS Files
+.BR
+.PP
+.PP
+$LSB_SHAREDIR/\fI<clustername>\fR/logdir/lsb.acct

@@ -1,0 +1,105 @@
+.\" $Id: lsfbatch.1,v 1.3 2007/08/13 20:55:19 cchen Exp $
+.ds ]W %
+.ds ]L
+.TH LSFBATCH 1 "1 Sept 2007"
+.SH NAME
+lsfbatch \- \s-1Lava\s0 Batch system
+.SH DESCRIPTION
+\s-1Lava\s0 Batch is a load sharing batch system that uses \s-1LSF\s0 Base 
+and \s-1LSLIB\s0 to provide distributed batch job scheduling services.
+It is supported by master and slave batch daemons that run on hosts
+that act as servers of distributed batch jobs (see
+.BR mbatchd (8)).
+The Batch commands (each with its own man page) are as follows:
+.TP 15
+.BR bsub (1)
+submit a job for batched execution.
+.TP 15
+.BR bmod (1)
+modify the parameters of a submitted job.
+.TP 15
+.BR bjobs (1)
+display the status and other information about batch jobs.
+.TP 15
+.BR bqueues (1)
+display the status and other information about batch job queues.
+.TP 15
+.BR bhosts (1)
+display the status and other information about Batch server hosts.
+.TP 15
+.BR busers (1)
+display information about Batch users.
+.TP 15
+.BR bugroup (1)
+display the user group names and their memberships as defined in
+the Batch system.
+.TP 15
+.BR bmgroup (1)
+display the host group names and their memberships that are defined in
+the Batch system.
+.TP 15
+.BR bparams (1)
+display the information about the configurable system parameters of Batch.
+.TP 15
+.BR bpeek (1)
+display the stdout and stderr output
+produced so far by a batch job that is being executed.
+.TP 15
+.BR bhist (1)
+display the processing history of batch jobs.
+.TP 15
+.BR bkill (1)
+send a \s-1UNIX\s0
+signal to batch jobs.
+.TP 15
+.BR bstop (1)
+suspend batch jobs.
+.TP 15
+.BR bresume (1)
+resume suspended batch jobs.
+.TP 15
+.BR bchkpnt (1)
+checkpoint batch jobs.
+.TP 15
+.BR brestart (1)
+restart a job from checkpoint its files.
+.TP 15
+.BR bmig (1)
+migrate a job.
+.TP 15
+.BR bswitch (1)
+switch pending jobs from one queue to another.
+.TP 15
+.BR btop (1)
+move a pending job to the top (beginning) of its queue.
+.TP 15
+.BR bbot (1)
+move a pending job to the bottom (end) of its queue.
+.TP 15
+.BR bacct (1)
+generate accounting information about batch jobs.
+.TP 15
+.BR brun (1)
+force a batch job to run.
+.\".TP 15
+.\".BR badmin (1)
+.\"provide a set of sub-commands for \s-1Lava\s0 administrator to control the
+.\"Batch system.
+.SH ENVIRONMENT
+Like other load sharing utilities, Batch needs access to the
+.BR lsf.conf (5)
+file to get information about the system configuration. By
+default, all commands look to \fB/etc\fR to find
+.BR lsf.conf (5),
+unless the environment variable \fBLSF_ENVDIR\fR is defined. In this case
+commands look to the \fBLSF_ENVDIR\fR directory to find
+.BR lsf.conf (5).
+It is required that all Batch
+commands use the same \fBlsf.conf\fR file as the Lava daemons.
+.SH SEE ALSO
+.BR mbatchd (8),
+.BR lsf.conf (5),
+.BR lsb.queues (5),
+.BR lsb.hosts (5),
+.BR lsb.users (5),
+.BR lsb.params (5)

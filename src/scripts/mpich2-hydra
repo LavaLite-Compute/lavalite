@@ -1,0 +1,111 @@
+#!/bin/sh
+#
+#  Copyright (c) 2011 openlava foundation
+#  Copyright (c) 2006 Platform Computing
+#
+# This script is a wrapper for MPICH2-HYDRA mpirun
+# it generates the machine file based on the hosts
+# given to it by openlava.
+#
+# Requirements:
+# password-less ssh between all nodes for all users
+#
+# Note: the launcher is ssh, being the default blaunch,
+#       requested by hydra process manager, missing 
+#
+# Author: alberto.falzone@gmail.com
+#
+
+usage() {
+	cat <<USEEOF
+USAGE:  $0
+	This command is a wrapper for mpirun.  It can
+	only be run within OpenLava using bsub e.g.
+		bsub -n # "$0 -np # {my mpi command and args}"
+
+        The wrapper will automatically generate the
+	machinefile used by mpirun.
+
+	NOTE:  The list of hosts cannot exceed 4KBytes.	
+USEEOF
+}
+
+if [ x"${LSB_JOBFILENAME}" = x -o x"${LSB_HOSTS}" = x ]; then
+    usage
+    exit -1
+fi
+    
+MYARGS=$*
+WORKDIR=`dirname ${LSB_JOBFILENAME}`
+ARGLIST=${WORKDIR}/mpi_args
+
+# Check if mpirun is in the PATH
+T=`which mpirun`
+if [ $? -ne 0 ]; then
+    echo "Error:  mpirun is not in your PATH."
+    exit -2
+fi
+
+echo "${MYARGS}" > ${ARGLIST}
+T=`grep -- -f ${ARGLIST} |wc -l`
+if [ $T -gt 0 ]; then
+    echo "Error:  Do not provide the hostfile for mpirun."
+    echo "        It is generated automatically for you."
+    exit -3
+fi
+
+# Make the MPICH2 host file
+
+#-------------------------------------------------------------------------
+# Create a log file with a unique name based on the LSF job ID 
+#-------------------------------------------------------------------------
+if [ -z "$LSB_JOBINDEX" -o "$LSB_JOBINDEX" = "0" ]; then
+   UNIQUE_ID="${LSB_JOBID}"
+else
+   UNIQUE_ID="${LSB_JOBID}_${LSB_JOBINDEX}"
+fi
+
+#-------------------------------------------------------------------------
+# Set up some variables representing temporary files:
+# - the file names are based on the LSF job ID
+#-------------------------------------------------------------------------
+HOST_FILE=".mpich2.hosts._${UNIQUE_ID}"
+if [ -d "$WORKDIR" ]; then
+    HOST_FILE="$WORKDIR/${HOST_FILE}"
+fi
+
+
+#-------------------------------------------------------------------------
+# Create the host file.
+#-------------------------------------------------------------------------
+if [ -f "${HOST_FILE}" ]; then
+    rm -f ${HOST_FILE}
+fi
+touch ${HOST_FILE}
+
+# check if we were able to start writing the host file
+if [ ! -f "${HOST_FILE}" ]; then
+    echo "$0: can't create ${HOST_FILE}" 1>&2
+    exit ${EXIT_VALUE}
+fi
+
+TOTAL_CPUS=`echo $LSB_MCPU_HOSTS | /bin/awk '
+BEGIN {counter=0}
+{
+    size = split($0, a, " ");
+    for (i = 1; i <= size; i += 2) {
+        counter = counter + a[i + 1];
+        for (j = 0; j < a[i + 1]; ++j) {
+            print a[i] > hfile;
+        }
+    }
+}
+END { print counter}' hfile=$HOST_FILE` 
+
+
+
+MPIRUN=`which --skip-alias mpirun`
+${MPIRUN} -f ${HOST_FILE} -launcher ssh ${MYARGS}
+
+exit $?
+

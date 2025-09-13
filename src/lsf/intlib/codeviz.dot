@@ -1,0 +1,32 @@
+digraph codeviz {
+    splines=true
+    sep="+15,15"
+    overlap=scalexy
+
+    node [shape=Mrecord, fontsize=12]
+
+    node [fillcolor="#ff9999", style=filled] "admin.c"       [label = "admin.c"]
+    node [fillcolor="#ff9999", style=filled] "bitset.c"      [label = "bitset.c"]
+    node [fillcolor="#ff9999", style=filled] "cal.c"         [label = "cal.c"]
+    node [fillcolor="#ff9999", style=filled] "callex.c"      [label = "callex.c"]
+    node [fillcolor="#ff9999", style=filled] "cmdtime.c"     [label = "cmdtime.c"]
+    node [fillcolor="#ff9999", style=filled] "conf.c"        [label = "conf.c"]
+    node [fillcolor="#ff9999", style=filled] "daemon.c"      [label = "daemon.c"]
+    node [fillcolor="#ff9999", style=filled] "idx.c"         [label = "idx.c"]
+    node [fillcolor="#ff9999", style=filled] "jidx.c"        [label = "jidx.c"]
+    node [fillcolor="#ff9999", style=filled] "lex.yy.c"      [label = "lex.yy.c"]
+    node [fillcolor="#ff9999", style=filled] "list.c"        [label = "list.c"]
+    node [fillcolor="#ff9999", style=filled] "listset.c"     [label = "listset.c"]
+    node [fillcolor="#ff9999", style=filled] "lsftcl.c"      [label = "lsftcl.c"]
+    node [fillcolor="#ff9999", style=filled] "misc.c"        [label = "misc.c"]
+    node [fillcolor="#ff9999", style=filled] "resourcecmd.c" [label = "resourcecmd.c"]
+    node [fillcolor="#ff9999", style=filled] "resreq.c"      [label = "resreq.c"]
+    node [fillcolor="#ff9999", style=filled] "set.c"         [label = "set.c"]
+    node [fillcolor="#ff9999", style=filled] "testbitset.c"  [label = "testbitset.c"]
+    node [fillcolor="#ff9999", style=filled] "timers.c"      [label = "timers.c"]
+    node [fillcolor="#ff9999", style=filled] "userok.c"      [label = "userok.c"]
+    node [fillcolor="#ff9999", style=filled] "vector.c"      [label = "vector.c"]
+    node [fillcolor="#ff9999", style=filled] "wait.c"        [label = "wait.c"]
+    node [fillcolor="#ff9999", style=filled] "window.c"      [label = "window.c"]
+
+}

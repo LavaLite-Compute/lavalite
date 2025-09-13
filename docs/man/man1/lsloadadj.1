@@ -1,0 +1,99 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsloadadj 1 "LSF Version 4.2 - June 2001"
+.br
+.SH NAME
+\fBlsloadadj\fR - adjusts load indices on hosts 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsloadadj\fR [\fB-R\fR\fB \fR\fIres_req\fR] [\fIhost_name\fR\fB[:\fR\fInum_task\fR\fB]\fR ...] 
+.PP
+\fBlsloadadj\fR [\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRAdjusts load indices on hosts. This is useful if a task placement decision 
+is made outside LIM by another application.
+.PP
+By default, assumes tasks are CPU-intensive and memory-intensive. 
+This means the CPU and memory load indices are adjusted to a higher 
+number than other load indices.
+.PP
+By default, adjusts load indices on the local host, the host from which 
+the command was submitted.
+.PP
+By default, starts 1 task.
+.PP
+Upon receiving a load adjustment request, LIM temporarily increases 
+the load on hosts according to resource requirements. This helps LIM 
+avoid sending too many jobs to the same host in quick succession. The 
+inflated load decays over time before the real load produced by the 
+dispatched task is reflected in LIM's load information.
+.PP
+lsloadadj adjusts all indices with the exception of ls (login sessions), 
+it (idle time), r15m (15-minute run queue length) and external load 
+indices. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-R\fR\fI \fR\fIres_req
+\fR
+.IP
+Specify resource requirements for tasks. Only the resource usage 
+section of the resource requirement string is considered (see 
+lsfintro(1)). This is used by LIM to determine by how much 
+individual load indices are to be adjusted. 
+
+.IP
+For example, if a task is swap-space-intensive, load adjustment on the 
+swp load index is higher; other indices are increased only slightly. 
+
+
+.TP 
+\fIhost_name\fR\fB[:\fR\fInum_task\fR\fB]\fR ... 
+
+.IP
+Specify a list of hosts for which load is to be adjusted. \fInum_task\fR 
+indicates the number of tasks to be started on the host. 
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints LSF release version to stderr and exits. 
+
+
+.SH EXAMPLES
+.BR
+.PP
+.PP
+
+.br
+% \fBlsloadadj -R "rusage[swp=20:mem=10]"\fR 
+.PP
+Adjusts the load indices swp and mem on the host from which the 
+command was submitted.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsinfo(1), lsplace(1), lsload(1), ls_loadadj(3) 
+.SH DIAGNOSTICS
+.BR
+.PP
+.PP
+Returns -1 if a bad parameter is specified; otherwise returns 0. 
+.PP

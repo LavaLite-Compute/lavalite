@@ -1,0 +1,486 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH install.config 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBinstall.config\fR
+.SS Overview
+.BR
+.PP
+.PP
+This chapter describes the use, format, and contents of the 
+install.config file.
+.SS Contents
+.BR
+.PP
+.RS
+.HP 2
+\(bu About install.config
+.HP 2
+\(bu Parameters
+.RE
+.SH About install.config
+.BR
+.PP
+.PP
+The install.config file contains options for Lava Standard Edition 
+installation and configuration. Use \fBlsfinstall -f install.config\fR 
+to install Lava Standard Edition using the options specified in 
+install.config.
+.SH Template Location
+.BR
+.PP
+.PP
+install.config is a template you edit to specify the options for your 
+new Lava Standard Edition installation.
+.SH Format
+.BR
+.PP
+.PP
+Each entry in install.config has the form:
+
+.PP
+NAME="STRING1 STRING2 ..."
+
+
+.PP
+The equal sign = must follow each NAME even if no value follows and 
+there should be no spaces around the equal sign.
+.PP
+A value that contains multiple strings separated by spaces must be 
+enclosed in quotation marks.
+.PP
+Blank lines and lines starting with a pound sign (#) are ignored. 
+.SH Example
+.BR
+.PP
+
+.PP
+#**********************************************************
+.br
+# Name:     install.config
+.br
+#
+.br
+# Purpose:  Lava installation options file template
+.br
+#
+.br
+# Format:
+.br
+#    o  Each line is in the format of LSF_OPTION_NAME="VALUE"
+.br
+#    o  Options can only appear once in the file
+.br
+#    o  Blank lines and lines starting with a pound sign (#) 
+.br
+#       are ignored. 
+.br
+#
+.br
+# Instructions:
+.br
+#    1. Edit install.config to specify the options for 
+.br
+#       your cluster. Uncomment the options you want and 
+.br
+#       replace the example values with your own settings.
+.br
+#    2. Run ./lsfinstall -f install.config 
+.br
+#
+.br
+# See install.config in the Lava Reference Guide for details.
+.br
+#**********************************************************
+.br
+#
+.br
+# -----------------
+.br
+# LSF_TOP="/usr/share/lsf"
+.br
+# -----------------
+.br
+# Full path to the top-level installation directory
+.br
+# The path to LSF_TOP must be shared and accessible to all
+.br
+# hosts in the cluster. Cannot be the root directory (/).
+.br
+# File system containing LSF_TOP must have enough disk space
+.br
+# for all host types (approximately 300 MB per host type).
+.br
+# Required argument
+.br
+#
+.br
+# -----------------
+.br
+# LSF_ADMINS="lsfadmin user1 user2"
+.br
+# -----------------
+.br
+# List of Lava administrators
+.br
+# The first user account name in the list is the primary Lava 
+.br
+# administrator. Cannot be the root user account.
+.br
+# Lava administrator accounts must exist on all Lava hosts before
+.br
+# installing Lava.
+.br
+#
+.br
+# The primary Lava administrator account is typically named
+.br
+# lsfadmin. 
+.br
+# It owns the Lava configuration files and log files for job
+.br
+# events. 
+.br
+# It also has permission to reconfigure Lava and to control
+.br
+# batch 
+.br
+# jobs submitted by other users. It typically does not have 
+.br
+# authority to start Lava daemons. Usually, only root has 
+.br
+# permission to start Lava daemons.
+.br
+# Required argument
+.br
+#
+.br
+# -----------------
+.br
+# LSF_CLUSTER_NAME="cluster1"
+.br
+# -----------------
+.br
+# The name of the Lava cluster
+.br
+# Must be 39 characters or less, and cannot contain any 
+.br
+# white spaces. Do not use an Lava host name.
+.br
+# Required argument
+.br
+#
+.br
+# -----------------
+.br
+# LSF_TARDIR="/usr/share/lsf_distrib/4.2"
+.br
+# -----------------
+.br
+# Full path to the directory containing the Lava distribution
+.br
+# tar files
+.br
+# Default: parent directory of the current working directory 
+.br
+#          where lsfinstall is running.
+.br
+#          For example, if lsfinstall is running in 
+.br
+#          /usr/share/lsf_distrib/4.2/lsf4.2_lsfinstall,
+.br
+#          the default is /usr/share/lsf_distrib/4.2.
+.br
+#
+.br
+# -----------------
+.br
+# LSF_ADD_SERVERS="hosta hostb hostc hostd"
+.br
+# -----------------
+.br
+# List of Lava server hosts to be added to the cluster
+.br
+# Specify a list of host names separated by spaces.
+.br
+# The first host listed is the Lava master host.
+.br
+# Default: Local host where lsfinstall is running
+.br
+
+.br
+# -----------------
+.br
+# LSF_ADD_CLIENTS="hoste hostf"
+.br
+# -----------------
+.br
+# List of Lava client-only hosts to be added to the cluster
+.br
+# Specify a list of host names separated by spaces.
+.br
+# Default: None
+.br
+
+.br
+# -----------------
+.br
+# LSF_QUIET_INST="n"
+.br
+# -----------------
+.br
+# Do not display Lava installation messages
+.br
+# Default: LSF_QUIET_INST="n"
+
+
+.SH Parameters
+.BR
+.PP
+.SH LSF_ADD_SERVERS 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_ADD_SERVERS="\fR\fIhost_name \fR[ \fIhost_name...\fR]\fB"\fR 
+.SS Description
+.BR
+.PP
+.PP
+Lists the hosts in the cluster to be set up as Lava server hosts. The first 
+host in the list becomes the Lava master host in lsf.cluster.\fIcluster-
+name\fR.
+.SS Valid Values
+.BR
+.PP
+.PP
+Any valid Lava host name
+.SS Example
+.BR
+.PP
+.PP
+LSF_ADD_SERVERS="hosta hostb hostc hostd"
+.br
+hosta is the Lava master host.
+.SS Default
+.BR
+.PP
+.PP
+The local host where \fBlsfinstall\fR is running
+.SS See Also
+.BR
+.PP
+.PP
+LSF_ADD_CLIENTS
+.SH LSF_ADD_CLIENTS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_ADD_CLIENTS="\fR\fIhost_name \fR[ \fIhost_name...\fR]\fB"\fR 
+.SS Description
+.BR
+.PP
+.PP
+Lists the hosts in the cluster to be set up as Lava client-only hosts.
+.SS Valid Values
+.BR
+.PP
+.PP
+Any valid Lava host name
+.SS Example
+.BR
+.PP
+.PP
+LSF_ADD_CLIENTS="hoste hostf"
+.SS Default
+.BR
+.PP
+.PP
+None
+.SS See Also
+.BR
+.PP
+.PP
+LSF_ADD_SERVERS
+.SH LSF_ADMINS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_ADMINS="\fR\fIuser_name \fR[ \fIuser_name ... \fR]\fB"
+\fR.SS Description
+.BR
+.PP
+.PP
+Lists the Lava administrators. The first user account name in the list is 
+the primary Lava administrator in lsf.cluster.\fIcluster_name\fR.
+.PP
+The Lava administrator accounts must exist on all hosts in the Lava cluster 
+before installing Lava
+.PP
+The primary Lava administrator account is typically named lsfadmin. It 
+owns the Lava configuration files and log files for job events. It also has 
+permission to reconfigure Lava and to control batch jobs submitted by 
+other users. 
+.SS CAUTION
+.BR
+.PP
+.SS You should \fBnot\fR configure the root account as the primary Lava administrator.
+.BR
+.PP
+.SS Valid Values
+.BR
+.PP
+.PP
+User accounts for Lava administrators must exist on all hosts in the Lava 
+cluster before running \fBlsfinstall\fR.
+.SS Example
+.BR
+.PP
+
+.PP
+LSF_ADMINS="lsfadmin user1"
+
+
+.SS Default
+.BR
+.PP
+.PP
+None--required variable
+.SH LSF_CLUSTER_NAME
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_CLUSTER_NAME="\fR\fIcluster_name\fR\fB"
+\fR.SS Description
+.BR
+.PP
+.PP
+Defines the name of the Lava cluster. Do not use an Lava host name.
+.SS Valid Values
+.BR
+.PP
+.PP
+Any alphanumeric string containing no more than 39 characters. The 
+name cannot contain white spaces.
+.SS Recommended Value
+.BR
+.PP
+.PP
+ You should not use a valid host name as the cluster name, but the 
+same general principles apply to naming your cluster as naming hosts.
+.SS Example
+.BR
+.PP
+
+.PP
+LSF_CLUSTER_NAME="cluster1"
+
+.SH LSF_QUIET_INST
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_QUIET_INST\fR=\fB"y\fR\fI \fR/\fBn"
+\fR.SS Description
+.BR
+.PP
+.PP
+Do not display \fBlsfinstall\fR messages.
+.SS Example
+.BR
+.PP
+
+.PP
+LSF_QUIET_INST="y"
+
+
+.SS Default
+.BR
+.PP
+.PP
+Display all messages. (LSF_QUIET_INST="n")
+.SH LSF_TARDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_TARDIR="/\fR\fIpath\fR\fB"
+\fR.SS Description
+.BR
+.PP
+.PP
+Full path to the directory containing the Lava distribution tar files.
+.SS Example
+.BR
+.PP
+
+.PP
+LSF_TARDIR="/usr/share/lsf_distrib/4.2"
+
+
+.SS Default
+.BR
+.PP
+.PP
+The parent directory of the current working directory where 
+\fBlsfinstall\fR is running (../current_directory).
+.SH LSF_TOP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_TOP="/\fR\fIpath\fR\fB"
+\fR.SS Description
+.BR
+.PP
+.PP
+Top-level Lava installation directory. 
+.SS Valid Values
+.BR
+.PP
+.PP
+Must be an absolute path to a shared directory that is accessible to all 
+Lava hosts. Cannot be the root directory (/).
+.SS Recommended Value	 
+.BR
+.PP
+.PP
+The file system containing LSF_TOP must have enough disk space for 
+all host types (approximately 300 MB per host type).
+.SS Example
+.BR
+.PP
+
+.PP
+LSF_TOP="/usr/share/lsf"
+
+
+.SS Default
+.BR
+.PP
+.PP
+None -- required variable
+.SH SEE ALSO
+.BR
+.PP
+.PP
+\fBlsfinstall\fR(8), lsf.cluster(5)

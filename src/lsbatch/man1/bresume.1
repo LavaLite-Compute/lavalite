@@ -1,0 +1,109 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bresume 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbresume\fR - resumes one or more suspended jobs
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbresume\fR\fB \fR [\fB-J\fR\fB \fR\fIjob_name\fR] [\fB-m\fR\fB \fR\fIhost_name \fR]\fB \fR[\fB-q\fR\fB \fR\fIqueue_name\fR] 
+[\fB-u\fR\fB \fR\fIuser_name\fR | \fB-u\fR\fB \fR\fIuser_group\fR | \fB-u all\fR\fB \fR] [\fB0\fR]
+.PP
+\fBbresume\fR\fB \fR [\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR] ...
+.PP
+\fBbresume \fR[\fB-h\fR \fB| -V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRSends the SIGCONT signal to resume one or more of your suspended 
+jobs. Only root and Lava administrators can operate on jobs submitted 
+by other users. Using bresume on a job that is not in either the PSUSP 
+or the USUSP state has no effect. 
+.PP
+By default, resumes only one job, your most recently submitted job.
+.PP
+You can also use bkill -s to send the resume signal to a job.
+.PP
+You cannot resume a job that is not suspended.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+
+.TP 
+\fB0
+\fR
+.IP
+Resumes all the jobs that satisfy other options (-m, -q, -u and -J).
+
+
+.TP 
+\fB-J\fR \fIjob_name\fR 
+
+.IP
+Resumes only jobs with the specified name.
+
+
+.TP 
+\fB-m\fR \fIhost_name
+\fR
+.IP
+Resumes only jobs dispatched to the specified host.
+
+
+.TP 
+\fB-q\fR \fIqueue_name\fR 
+
+.IP
+Resumes only jobs in the specified queue. 
+
+
+.TP 
+\fB-u\fR\fB \fR\fIuser_name\fR | \fB-u\fR\fB \fR\fIuser_group\fR | \fB-u all\fR 
+
+.IP
+Resumes only jobs owned by the specified user or group, or all users 
+is the reserved user name all is specified. 
+
+
+.TP 
+\fIjob_ID\fR ...\fI \fR|\fI \fR\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR ... 
+
+.IP
+Resumes only the specified jobs. Jobs submitted by any user can be 
+specified here without using the -u option.
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH EXAMPLES
+.BR
+.PP
+.PP
+% \fBbresume -q night 0\fR 
+.br
+Resumes all of the user's suspended jobs that are in the night queue. 
+If the user is an Lava administrator, resumes all suspended jobs in the 
+night queue.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bsub(1), bjobs(1), bqueues(1), bhosts(1), bstop(1), 
+bkill(1), bparams(5), mbatchd(8), kill(1), signal(2)

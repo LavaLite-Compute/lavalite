@@ -1,0 +1,25 @@
+# Misc batch parameters/switches of the Lava system
+
+# Lava administrator will receive all the error mails produced by Lava
+# and have the permission to reconfigure the system (Use an ordinary user 
+# name, or create a special account such as lsf. Don't define as root)
+
+# The parameter values given below are for the purpose of testing a new 
+# installation.  Jobs submitted to the Lava system will be started on
+# batch server hosts quickly.  However, this configuration may not be 
+# suitable for a production use.  You may need some control on job scheduling, 
+# such as jobs should not be started when host load is high, a host should not 
+# accept more than one job within a short period time, and job scheduling 
+# interval should be longer to give hosts some time adjusting load indices 
+# after accepting jobs.
+#
+# Therefore, it is suggested, in production use, to define DEFAULT_QUEUE 
+# to normal queue, MBD_SLEEP_TIME to 60, SBD_SLEEP_TIME to 30
+
+Begin Parameters
+DEFAULT_QUEUE  = normal   #default job queue name
+MBD_SLEEP_TIME = 10       #mbatchd scheduling interval (60 secs is default)
+SBD_SLEEP_TIME = 7        #sbatchd scheduling interval (30 secs is default)
+JOB_ACCEPT_INTERVAL = 0   #interval for any host to accept a job 
+                          # (default is 1 (one-fold of MBD_SLEEP_TIME))
+End Parameters

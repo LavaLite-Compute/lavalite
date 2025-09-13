@@ -1,0 +1,368 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsfinstall 8 "LSF Version 4.2 - June 2001"
+.br
+.SH NAME
+\fBlsfinstall\fR - runs \fBlsfinstall\fR, the LSF Standard Edition installation and 
+configuration script
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsfinstall -f install.config
+\fR.PP
+\fBlsfinstall -h
+\fR.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fBlsfinstall\fR runs the LSF installation scripts and configuration utilities 
+to install a new LSF Standard Edition cluster. To install a fully 
+operational LSF cluster that all users can access, you should install as 
+root. You can install as a non-root user, with limitations, described in 
+Non-root installation.
+.SS Required install.config variables
+.BR
+.PP
+.RS
+.HP 2
+\(bu LSF_TOP="/\fIpath\fR"
+.HP 2
+\(bu LSF_ADMINS="\fIuser_name\fR [\fIuser_name\fR...]"
+.HP 2
+\(bu LSF_CLUSTERNAME="\fIcluster_name\fR"
+.RE
+.SS Variables that require an absolute path
+.BR
+.PP
+.RS
+.HP 2
+\(bu LSF_TOP="\fIpath\fR"
+.HP 2
+\(bu LSF_TARDIR="\fIpath\fR"
+.RE
+.SS What lsfinstall does
+.BR
+.PP
+.PP
+Before installing and configuring LSF, \fBlsfinstall\fR checks the 
+installation prerequisites, and outputs the results to lsfprechk.rpt. 
+\fBlsfinstall\fR writes any unrecoverable errors to the Install.err 
+file and exits. You must correct these errors before continuing to 
+install and configure LSF.
+.PP
+During installation, \fBlsfinstall\fR logs installation progress in the 
+\fBInstall.log \fRfile, calls other utilities to uncompress, extract and copy 
+LSF files, and configures the cluster. After 
+installation, you must use the \fBhostsetup\fR script to set up each LSF 
+server host in the cluster. After setting up the LSF hosts, you should start 
+your cluster and test the installation by running some basic LSF 
+commands.
+.SS Where lsfinstall is located
+.BR
+.PP
+.PP
+\fBlsfinstall\fR is included in the LSF installation script tar file 
+lsf4.2_lsfinstall.tar.Z and is located in the 
+lsf4.2_lsfinstall directory created when you uncompress and 
+extract installation script tar file.
+.PP
+After LSF installation, \fBlsfinstall\fR is located in 
+LSF_TOP/4.2/lsfinstall/.
+.SS Before running lsfinstall
+.BR
+.PP
+.PP
+Plan your installation by choosing:
+.RS
+.HP 2
+\(bu An LSF installation directory on file server (e.g., 
+LSF_TOP="/usr/share/lsf")
+.HP 2
+\(bu LSF hosts (master host, server hosts, and client-only hosts; e.g., 
+LSF_ADDSERVERS="hosta hostb hostc")
+.HP 2
+\(bu A cluster name (39 characters or less with no white spaces; e.g., 
+LSF_CLUSTER_NAME="cluster1")
+.HP 2
+\(bu An LSF primary administrator (owns the  configuration files and log 
+files; e.g., LSF_ADMINS="lsfadmin")
+.RE
+.PP
+Prepare your systems for installation:
+.RS
+.HP 2
+\(bu Ensure the installation file system on the file server host has enough 
+disk space for all hosts types (approximately 300 MB per host type)
+.HP 2
+\(bu Ensure top-level installation directory (LSF_TOP) is accessible with 
+the same path name from all hosts in the LSF cluster (e.g., 
+/usr/share/lsf)
+.HP 2
+\(bu Create UNIX user accounts for LSF administrators (e.g., lsfadmin)
+.HP 2
+\(bu Read the LSF 4.2 readme.html and release_notes.html files 
+(on the LSF CD or in /distrib/4.2/ on the ftp.platform.com 
+FTP site) for detailed steps for downloading LSF distribution tar files
+.HP 2
+\(bu Get the LSF installation script tar file lsf4.2_install.tar.Z and 
+extract it (e.g., # zcat lsf4.2_install.tar.Z | tar xvf -)
+.HP 2
+\(bu Read lsf4.2_install/README for information about the contents 
+of lsf4.2_install.tar.Z
+.HP 2
+\(bu Get the LSF distribution tar files for all host types you need, and put 
+them in the same directory as lsf4.2_install.tar.Z  (e.g., for 
+AIX: lsf4.2_standard_aix4.tar.Z). Do not extract the files.
+.HP 2
+\(bu Ensure the installation file system containing LSF_TOP is writable 
+by the user account that is running \fBlsfinstall
+\fR.RE
+.SS Running lsfinstall
+.BR
+.PP
+.PP
+Follow these steps to run lsfinstall:
+.RS
+.HP 4
+1.  Edit lsf4.2_install/install.config to specify the installation 
+variables you want.
+.HP 4
+2.  Run \fB./install -f install.config
+\fR.HP 4
+3.  Read the following:
+.RS
+.HP 2
+\(bu \fIlsf4.2_install/lsf_getting_started.html\fR to find out how to set up 
+your LSF hosts, start LSF and test your new cluster.
+.HP 2
+\(bu \fIlsf4.2_install/lsf_quick_admin.html\fR to learn more about your 
+new LSF cluster.
+.RE
+.RE
+.SS install.config file
+.BR
+.PP
+
+.PP
+#**********************************************************
+.br
+# Name:     install.config
+.br
+#
+.br
+# Purpose:  LSF installation options file template
+.br
+#
+.br
+# Format:
+.br
+#    o  Each line is in the format of LSF_OPTION_NAME="VALUE"
+.br
+#    o  Options can only appear once in the file
+.br
+#    o  Blank lines and lines starting with a pound sign (#) 
+.br
+#       are ignored. 
+.br
+#
+.br
+# Instructions:
+.br
+#    1. Edit install.config to specify the options for 
+.br
+#       your cluster. Uncomment the options you want and 
+.br
+#       replace the example values with your own settings.
+.br
+#    2. Run ./lsfinstall -f install.config 
+.br
+#
+.br
+# See install.config in the LSF Reference Guide for details.
+.br
+#**********************************************************
+.br
+#
+.br
+# -----------------
+.br
+# LSF_TOP="/usr/share/lsf"
+.br
+# -----------------
+.br
+# Full path to the top-level installation directory
+.br
+# The path to LSF_TOP must be shared and accessible to all
+.br
+# hosts in the cluster. Cannot be the root directory (/).
+.br
+# File system containing LSF_TOP must have enough disk space
+.br
+# for all host types (approximately 300 MB per host type).
+.br
+# Required argument
+.br
+#
+.br
+# -----------------
+.br
+# LSF_ADMINS="lsfadmin user1 user2"
+.br
+# -----------------
+.br
+# List of LSF administrators
+.br
+# The first user account name in the list is the primary LSF 
+.br
+# administrator. Cannot be the root user account.
+.br
+# LSF administrator accounts must exist on all LSF hosts before
+.br
+# installing LSF.
+.br
+#
+.br
+# The primary LSF administrator account is typically named
+.br
+# lsfadmin. 
+.br
+# It owns the LSF configuration files and log files for job
+.br
+# events. 
+.br
+# It also has permission to reconfigure LSF and to control
+.br
+# batch 
+.br
+# jobs submitted by other users. It typically does not have 
+.br
+# authority to start LSF daemons. Usually, only root has 
+.br
+# permission to start LSF daemons.
+.br
+# Required argument
+.br
+#
+.br
+# -----------------
+.br
+# LSF_CLUSTER_NAME="cluster1"
+.br
+# -----------------
+.br
+# The name of the LSF cluster
+.br
+# Must be 39 characters or less, and cannot contain any 
+.br
+# white spaces. Do not use an LSF host name.
+.br
+# Required argument
+.br
+#
+.br
+# -----------------
+.br
+# LSF_TARDIR="/usr/share/lsf_distrib/4.2"
+.br
+# -----------------
+.br
+# Full path to the directory containing the LSF distribution
+.br
+# tar files
+.br
+# Default: parent directory of the current working directory 
+.br
+#          where lsfinstall is running.
+.br
+#          For example, if lsfinstall is running in 
+.br
+#          /usr/share/lsf_distrib/4.2/lsf4.2_lsfinstall,
+.br
+#          the default is /usr/share/lsf_distrib/4.2.
+.br
+#
+.br
+# -----------------
+.br
+# LSF_ADD_SERVERS="hosta hostb hostc hostd"
+.br
+# -----------------
+.br
+# List of LSF server hosts to be added to the cluster
+.br
+# Specify a list of host names separated by spaces.
+.br
+# The first host listed is the LSF master host.
+.br
+# Default: Local host where lsfinstall is running
+.br
+#
+.br
+# -----------------
+.br
+# LSF_ADD_CLIENTS="hoste hostf"
+.br
+# -----------------
+.br
+# List of LSF client-only hosts to be added to the cluster
+.br
+# Specify a list of host names separated by spaces.
+.br
+# Default: None
+.br
+#
+.br
+# -----------------
+.br
+# LSF_QUIET_INST="n"
+.br
+# -----------------
+.br
+# Do not display LSF installation messages
+.br
+# Default: LSF_QUIET_INST="n"
+
+
+.SS Non-root installation
+.BR
+.PP
+.PP
+You can install LSF as a non-root user with some limitations. During 
+installation, \fBlsfinstall\fR detects that you are not root. You must 
+choose to configure either a multi-user cluster or a single-user cluster:
+.RS
+.HP 2
+\(bu Multi-user--Any user can submit jobs to your cluster. To make the 
+cluster available to other users, you must manually change the 
+ownership and setuid bit for \fBlsadmin\fR and \fBbadmin\fR to root.
+.HP 2
+\(bu Single-user--Your user account must be primary LSF administrator. 
+You will be able to start LSF daemons, but only your user account 
+can submit jobs to the cluster. Your user account must be able to 
+read the system kernel information, such as /dev/kmem.
+.RE
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-f \fR\fIoption_file
+\fR
+.IP
+Name of the file containing LSF installation options; for example, 
+\fBinstall.config
+\fR
+
+.TP 
+\fB-h
+\fR
+.IP
+\fB\fRPrint command usage and exit
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsf.conf(5), install.config(5)

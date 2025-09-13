@@ -1,0 +1,114 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsplace 1 "Lava Version 4.2 - June 2001"
+.br
+.SH NAME
+\fBlsplace\fR - displays hosts available to execute tasks 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsplace\fR [\fB-L\fR] [\fB-n\fR\fB \fR\fIminimum\fR | \fB-n 0\fR] [\fB-R\fR\fB \fR\fIres_req\fR] [\fB-w\fR\fB \fR\fImaximum\fR | \fB-w 0\fR] 
+[\fIhost_name\fR\fI ...\fR]
+.PP
+\fBlsplace\fR [\fB-h\fR | \fB-V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays hosts available for the execution of tasks, and temporarily 
+increases the load on these hosts (to avoid sending too many jobs to 
+the same host in quick succession). The inflated load will decay slowly 
+over time before the real load produced by the dispatched task is 
+reflected in the LIM's load information. Host names may be duplicated 
+for multiprocessor hosts, to indicate that multiple tasks can be placed 
+on a single host.
+.PP
+By default, displays only one host name.
+.PP
+By default, uses Lava default resource requirements.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-L\fR 
+
+.IP
+Attempts to place tasks on as few hosts as possible. This is useful for 
+distributed parallel applications in order to minimize communication 
+costs between tasks.
+
+
+.TP 
+\fB-n \fR\fIminimum\fR | \fB-n 0\fR 
+
+.IP
+Displays at least the specified number of hosts. Specify 0 to display as 
+many hosts as possible. 
+
+.IP
+Prints Not enough host(s) currently eligible and exits with 
+status 1 if the required number of hosts holding the required resources 
+cannot be found. 
+
+
+.TP 
+\fB-R\fR\fI \fR\fIres_req\fR 
+
+.IP
+Displays only hosts with the specified resource requirements.
+
+
+.TP 
+\fB-w\fR\fI \fR\fImaximum\fR | \fB-w 0\fR 
+
+.IP
+Displays no more than the specified number of hosts. Specify 0 to 
+display as many hosts as possible. 
+
+
+.TP 
+\fIhost_name\fR ...
+
+.IP
+Displays only hosts that are among the specified hosts. 
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH EXAMPLES
+.BR
+.PP
+.PP
+lsplace is mostly used in backquotes to pick out a host name which 
+is then passed to other commands. 
+.PP
+The -w and -n options can be combined to specify the upper and 
+lower bounds in processors to be returned, respectively. For example, 
+the command lsplace -n 3 -w 5 returns at least 3 and not more than 
+5 host names.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsinfo(1), ls_placereq(3), lsload(1)
+.SH DIAGNOSTICS
+.BR
+.PP
+.PP
+lsplace returns 1 if insufficient hosts are available. The exit status is 
+-10 if a problem is detected in Lava, -1 for other errors, otherwise 0. 
+.PP

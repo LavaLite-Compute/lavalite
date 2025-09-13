@@ -1,0 +1,22 @@
+/*
+ *
+ * $Id: lsbitseterr.def,v 1.1 2007/07/18 23:17:45 cchen Exp $ 
+ *
+ ***************************************************************************
+ *
+ * Load Sharing Facility 
+ *
+ * List of error codes related to the bitset library.
+ *
+ ***************************************************************************
+ *
+ */
+
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_NOERR, "No Error")
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_BADARG, "Bad Arguments")
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_SETEMPTY, "Set Is Empty")
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_NOMEM,  "Memory allocation failed")
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_FUNC, "User function failed")
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_ISALREDY, " Object alredy in set")
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_EINVAL, "Invalid set operation")
+LS_BITSET_ERROR_CODE_ENTRY(LS_BITSET_ERR_NOOBSVR, "Observer permission denied")

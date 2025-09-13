@@ -1,0 +1,124 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH brequeue 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbrequeue\fR - Kills and requeues a job
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbrequeue [-J\fR \fIjob_name\fR | \fB-J "\fR\fIjob_name\fR\fB[\fR\fIindex_list\fR\fB]"]\fR [ \fB-u\fR \fIuser_name\fR | 
+\fB-u\fR \fBall\fR ][ \fIjob_ID\fR | \fI \fR\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"][-d][-e][-r][-a][-H]
+\fR.PP
+\fBbrequeue\fR [\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRYou can only use brequeue on a job you own, unless you are root or 
+an Lava administrator.
+.PP
+Kills a running (RUN), user-suspended (USUSP), or system-suspended 
+(SSUSP) job and returns it to its original queue, with the same job ID. 
+A job that is killed and requeued retains its submit time but is 
+dispatched according to its requeue time. When the job is requeued, it 
+is assigned the PEND status or PSUSP if the -H option is used. Once 
+dispatched, the job starts over from the beginning. 
+.PP
+Use brequeue to requeue job arrays or elements of them.
+.PP
+By default, kills and requeues your most recently submitted job when 
+no job_ID is specified.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-J\fR \fIjob_name\fR | \fB-J "\fR\fIjob_name\fR\fB[\fR\fIindex_list\fR\fB]"
+\fR
+.IP
+Operates on the specified job.
+
+.IP
+Since job names are not unique, multiple job arrays may have the same 
+name with a different or same set of indices.
+
+
+.TP 
+\fB-u\fR \fIuser_name \fR|\fI \fR\fB-u all 
+\fR
+.IP
+Operates on the specified user's jobs or all jobs.
+
+.IP
+Only root and an Lava administrator can requeue jobs submitted by 
+other users. 
+
+
+.TP 
+\fIjob_ID \fR|\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"
+\fR
+.IP
+Operates on the specified job or job array elements.
+
+.IP
+The value of 0 for \fIjob_ID\fR is ignored. 
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V 
+\fR
+.IP
+Prints Lava release version to stdout and exits. 
+
+
+.TP 
+\fB-d 
+\fR
+.IP
+Requeues jobs that have finished running with DONE job status. 
+
+
+.TP 
+\fB-e 
+\fR
+.IP
+Requeues jobs that have terminated abnormally with EXIT job status. 
+
+
+.TP 
+\fB-r 
+\fR
+.IP
+Requeues jobs that are running.
+
+
+.TP 
+\fB-a 
+\fR
+.IP
+Requeues all jobs including running jobs, suspending jobs, and jobs 
+with EXIT or DONE status.
+
+
+.TP 
+\fB-H 
+\fR
+.IP
+Requeues jobs to PSUSP job status. 
+
+
+.SH LIMITATIONS
+.BR
+.PP
+.PP
+brequeue cannot be used on interactive batch jobs; brequeue only 
+kills interactive batch jobs, it does not restart them. 

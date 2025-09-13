@@ -1,0 +1,49 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsid 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsid\fR - displays the current Lava version number, the cluster name, and the 
+master host name 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsid\fR [\fB-h\fR | \fB-V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays the current Lava version number, the cluster name, and the 
+master host name.
+.PP
+The master host is dynamically selected from all hosts in the cluster.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH FILES
+.BR
+.PP
+.PP
+The host names and cluster name are defined in 
+lsf.cluster.\fIcluster_name\fR and lsf.shared, respectively.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+ls_getclustername(3), ls_getmastername(3), lsinfo(1)

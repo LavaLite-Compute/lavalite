@@ -1,0 +1,3299 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsf.conf 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsf.conf\fR
+.SS Overview
+.BR
+.PP
+.PP
+Installation of and operation of Lava is controlled by the lsf.conf file. 
+This chapter explains the contents of the lsf.conf file.
+.SS Contents
+.BR
+.PP
+.RS
+.HP 2
+\(bu About lsf.conf
+.HP 2
+\(bu Parameters
+.RE
+.SH About lsf.conf
+.BR
+.PP
+.PP
+The lsf.conf file is created during installation by the Lava setup 
+program, and records all the settings chosen when Lava was installed. 
+The lsf.conf file dictates the location of the specific configuration 
+files and operation of individual servers and applications. 
+.PP
+The lsf.conf file is used by Lava and applications built on top of it. 
+For example, information in lsf.conf is used by Lava daemons and 
+commands to locate other configuration files, executables, and 
+network services. lsf.conf is updated, if necessary, when you 
+upgrade to a new version. 
+.PP
+This file can also be expanded to include Lava application-specific 
+parameters.
+.SH Location
+.BR
+.PP
+.PP
+The default location of lsf.conf is in  /etc.  This  default location  
+can  be  overridden  when  necessary by either the environment 
+variable LSF_ENVDIR or the command  line  option \fB-d\fR available to 
+some of the applications.  
+.SH Format
+.BR
+.PP
+.PP
+Each entry in lsf.conf has one of the following forms:
+
+.PP
+NAME=VALUE
+
+.PP
+NAME=
+
+.PP
+NAME="STRING1 STRING2 ..."
+
+
+.PP
+The equal sign = must follow each NAME even  if  no value follows  and 
+there should be no space beside the equal sign. 
+.PP
+A value that contains multiple strings separated by spaces must be  
+enclosed in quotation marks.  
+.PP
+Lines starting with a pound sign (#) are comments and are ignored. Do 
+not use #if as this is reserved syntax for time-based configuration.
+.SH Parameters
+.BR
+.PP
+.SH LSB_API_CONNTIMEOUT 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_API_CONNTIMEOUT=\fR\fItime_seconds
+\fR.SS Description
+.BR
+.PP
+.PP
+The timeout in seconds when connecting to the Batch system.
+.SS Valid Values
+.BR
+.PP
+.PP
+Any positive integer or zero
+.SS Default
+.BR
+.PP
+.PP
+10
+.SS See Also
+.BR
+.PP
+.PP
+LSB_API_RECVTIMEOUT
+.SH LSB_API_RECVTIMEOUT 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_API_RECVTIMEOUT=\fR\fItime_seconds
+\fR.SS Description
+.BR
+.PP
+.PP
+Timeout in seconds when waiting for a reply from the Batch system.
+.SS Valid Values
+.BR
+.PP
+.PP
+Any positive integer or zero
+.SS Default
+.BR
+.PP
+.PP
+0
+.SS See Also
+.BR
+.PP
+.PP
+LSB_API_CONNTIMEOUT
+.SH LSB_CMD_LOG_MASK 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_CMD_LOG_MASK=\fR\fIlog_level
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the logging level of error messages from Lava Batch 
+commands. 
+.PP
+For example:
+
+.PP
+LSB_CMD_LOG_MASK=LOG_DEBUG
+
+
+.PP
+Batch commands log error messages in different levels so that you can 
+choose to log all messages, or only log messages that are deemed 
+critical. The level specified by LSB_CMD_LOG_MASK determines 
+which messages are recorded and which are discarded. All messages 
+logged at the specified level or higher are recorded, while lower level 
+messages are discarded. 
+.PP
+For debugging purposes, the level LOG_DEBUG contains the fewest 
+number of debugging messages and is used only for very basic 
+debugging. The level LOG_DEBUG3 records all debugging messages, 
+and is not often used. Most debugging is done at the level 
+LOG_DEBUG2.
+.PP
+The commands log to the syslog facility unless LSB_CMD_LOGDIR is 
+set. 
+.SS Valid Values
+.BR
+.PP
+.PP
+The log levels from highest to lowest are:
+.RS
+.HP 2
+\(bu LOG_EMERG
+.HP 2
+\(bu LOG_ALERT
+.HP 2
+\(bu LOG_CRIT
+.HP 2
+\(bu LOG_ERR
+.HP 2
+\(bu LOG_WARNING
+.HP 2
+\(bu LOG_NOTICE
+.HP 2
+\(bu LOG_INFO
+.HP 2
+\(bu LOG_DEBUG
+.HP 2
+\(bu LOG_DEBUG1
+.HP 2
+\(bu LOG_DEBUG2
+.HP 2
+\(bu LOG_DEBUG3
+.RE
+.SS Default
+.BR
+.PP
+.PP
+LOG_WARNING
+.SS See Also
+.BR
+.PP
+.PP
+LSB_CMD_LOGDIR, LSB_DEBUG, LSB_TIME_CMD, LSF_LOG_MASK, 
+LSB_DEBUG_CMD, LSF_TIME_CMD
+.SH LSB_CMD_LOGDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_CMD_LOGDIR=\fR\fIpath
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the path to the Batch command log files.
+.SS Default
+.BR
+.PP
+
+.PP
+/tmp
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSB_CMD_LOG_MASK, LSF_LOGDIR
+.SH LSB_CONFDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_CONFDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the path to the directory containing the Lava configuration 
+files.
+.PP
+Lava Batch configuration directories are installed 
+under LSB_CONFDIR.
+.PP
+Configuration files for each Lava cluster are stored in a subdirectory of 
+LSB_CONFDIR. This subdirectory contains several files that define Lava 
+Batch user and host lists, operation parameters, and queues. 
+.PP
+All files and directories under LSB_CONFDIR must be readable from all 
+hosts in the cluster. LSB_CONFDIR/\fIcluster_name\fR/configdir must 
+be owned by the Lava administrator.
+.PP
+Do not redefine this parameter after Lava has been installed. To move 
+these directories to another location, use lsfsetup and choose the 
+Product Install option to install configuration files in another 
+location. 
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_CONFDIR/lsbatch
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSF_CONFDIR
+.SH LSB_DEBUG
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_DEBUG=1\fR | \fB2
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets the Batch system to debug.
+.PP
+If defined, Lava Batch will run in single user mode. In this mode, no 
+security checking is performed; do not run the Lava Batch daemons as 
+root. 
+.PP
+When LSB_DEBUG is defined, Lava will not look in the system services 
+database for port numbers. Instead, it uses the port numbers defined 
+by the parameters LSB_MBD_PORT/LSB_SBD_PORT in lsf.conf. If 
+these parameters are not defined, it uses port number 40000 for MBD 
+and port number 40001 for SBD.
+.PP
+You should always specify 1 for this parameter unless you are testing 
+Lava Batch.
+.PP
+Can also be defined from the command line.
+.SS Valid Values
+.BR
+.PP
+.RS
+.HP 2
+\(bu LSB_DEBUG=1
+.RE
+.IP
+Lava Batch runs in the background with no associated control 
+terminal. 
+
+.RE
+.RS
+.HP 2
+\(bu LSB_DEBUG=2
+.RE
+.IP
+Lava Batch runs in the foreground and prints error messages to 
+tty. 
+
+.RE
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_LIM_DEBUG, LSF_RES_DEBUG
+.SH LSB_DEBUG_CMD 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_DEBUG_CMD=\fR\fIlog_class
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets the debugging log class for commands and APIs.
+.PP
+Specifies the log class filtering that will be applied to Batch commands 
+or the API. Only messages belonging to the specified log class are 
+recorded.
+.PP
+LSB_DEBUG_CMD (which sets the log class) is used in combination 
+with LSB_CMD_LOG_MASK (which sets the log level). For example:
+
+.PP
+LSB_CMD_LOG_MASK=LOG_DEBUG 
+.br
+LSB_DEBUG_CMD="LC_TRACE LC_EXEC" 
+
+
+.PP
+Debugging is turned on when you define both parameters.
+.PP
+The daemons log to the syslog facility unless LSB_CMD_LOGDIR is 
+defined.
+.PP
+To specify multiple log classes, use a space-separated list enclosed by 
+quotation marks. For example:
+
+.PP
+LSB_DEBUG_CMD="LC_TRACE LC_EXEC"
+
+
+.PP
+Can also be defined from the command line.
+.SS Valid Values
+.BR
+.PP
+.PP
+Valid log classes are:
+.RS
+.HP 2
+\(bu LC_AUTH - Log authentication messages
+.HP 2
+\(bu LC_CHKPNT - Log checkpointing messages
+.HP 2
+\(bu LC_COMM - Log communication messages
+.HP 2
+\(bu LC_ELIM - Log ELIM messages
+.HP 2
+\(bu LC_EXEC - Log significant steps for job execution
+.HP 2
+\(bu LC_FILE - Log file transfer messages
+.HP 2
+\(bu LC_HANG - Mark where a program might hang
+.HP 2
+\(bu LC_JARRAY - Log job array messages
+.HP 2
+\(bu LC_JLIMIT - Log job slot limit messages
+.HP 2
+\(bu LC_LOADINDX - Log load index messages
+.HP 2
+\(bu LC_PEND - Log messages related to job pending reasons
+.HP 2
+\(bu LC_PERFM - Log performance messages
+.HP 2
+\(bu LC_PIM - Log PIM messages
+.HP 2
+\(bu LC_SIGNAL - Log messages pertaining to signals
+.HP 2
+\(bu LC_SYS - Log system call messages
+.HP 2
+\(bu LC_TRACE - Log significant program walk steps
+.HP 2
+\(bu LC_XDR - Log everything transferred by XDR
+.RE
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_CMD_LOG_MASK, LSB_CMD_LOGDIR
+.SH LSB_DEBUG_MBD 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_DEBUG_MBD=\fR\fIlog_class
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets the debugging log class for MBD.
+.PP
+Specifies the log class filtering that will be applied to MBD. Only 
+messages belonging to the specified log class are recorded.
+.PP
+LSB_DEBUG_MBD (which sets the log class) is used in combination 
+with LSF_LOG_MASK (which sets the log level). For example:
+
+.PP
+LSF_LOG_MASK=LOG_DEBUG 
+.br
+LSB_DEBUG_MBD="LC_TRACE LC_EXEC"        
+
+
+.PP
+To specify multiple log classes, use a space-separated list enclosed in 
+quotation marks. For example: 
+
+.PP
+LSB_DEBUG_MBD="LC_TRACE LC_EXEC"
+
+
+.PP
+You need to restart the daemons after setting LSB_DEBUG_MBD for 
+your changes to take effect. 
+.PP
+If you use the command badmin mbddebug to temporarily change this 
+parameter without changing lsf.conf, you will not need to restart the 
+daemons.
+.PP
+The daemons log to the syslog facility unless LSF_LOGDIR is defined.
+.SS Valid Values
+.BR
+.PP
+.PP
+Valid log classes are the same as for LSB_DEBUG_CMD except for the 
+log classes LC_ELIM and LC_JARRAY which cannot be used with 
+LSB_DEBUG_MBD. See LSB_DEBUG_CMD.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_LOG_MASK, LSF_LOGDIR, \fBbadmin mbddebug
+.PP
+The daemons log to the syslog facility unless LSF_LOGDIR is defined.
+.PP
+This parameter can also be defined from the command line.
+.SS Valid Values
+.BR
+.PP
+.PP
+For a list of valid log classes, see LSB_DEBUG_CMD.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_DEBUG_CMD, LSF_LOG_MASK, LSF_LOGDIR
+.SH LSB_DEBUG_SBD
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_DEBUG_SBD=\fR\fIlog_class
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets the debugging log class for SBD.
+.PP
+Specifies the log class filtering that will be applied to SBD. Only 
+messages belonging to the specified log class are recorded.
+.PP
+LSB_DEBUG_SBD (which sets the log class) is used in combination 
+with LSF_LOG_MASK (which sets the log level). For example:
+.PP
+LSF_LOG_MASK=LOG_DEBUG
+.br
+LSB_DEBUG_SBD="LC_TRACE LC_EXEC" 
+.PP
+To specify multiple log classes, use a space-separated list enclosed in 
+quotation marks. For example:
+
+.PP
+LSB_DEBUG_SBD="LC_TRACE LC_EXEC"
+
+
+.PP
+You need to restart the daemons after setting LSB_DEBUG_SBD for 
+your changes to take effect. 
+.PP
+If you use the command badmin sbddebug to temporarily change this 
+parameter without changing lsf.conf, you will not need to restart the 
+daemons.
+.PP
+The daemons log to the syslog facility unless LSF_LOGDIR is defined.
+.SS Valid Values
+.BR
+.PP
+.PP
+Valid log classes are the same as for LSB_DEBUG_CMD except for the 
+log classes LC_ELIM and LC_JARRAY which cannot be used with 
+LSB_DEBUG_SBD. See LSB_DEBUG_CMD.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_DEBUG_MBD, LSF_LOG_MASK, LSF_LOGDIR, \fBbadmin
+\fR.SH LSB_ECHKPNT_METHOD
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_ECHKPNT_METHOD=\fR\fImethod_name
+\fR.SS Description
+.BR
+.PP
+.PP
+Name of custom echkpnt and erestart methods.
+.PP
+Can also be defined as an environment variable, or specified through 
+the bsub -k option.
+.PP
+The name you specify here will be used for both your custom echkpnt 
+and erestart programs. You must assign your custom \fIechkpnt\fR and 
+\fIerestart\fR programs the name echkpnt.\fImethod_name\fR and 
+erestart.\fImethod_name\fR. The programs echkpnt.\fImethod_name\fR and 
+erestart.\fImethod_name\fR. must be in LSF_SERVERDIR or in the 
+directory specified by LSB_ECHKPNT_METHOD_DIR.
+.PP
+Do not define LSB_ECHKPNT_METHOD=default as default is a 
+reserved keyword to indicate to use Lava's default echkpnt and 
+erestart methods. You can however, specify bsub -k "my_dir 
+method=default" my_job to indicate that you want to use Lava's 
+default checkpoint and restart methods.
+.PP
+When this parameter is undefined in lsf.conf or as an environment 
+variable and no custom method is specified at job submission through 
+bsub -k, Lava uses echkpnt.default and erestart.default to 
+checkpoint and restart jobs. 
+.PP
+When this parameter is defined, Lava uses the custom checkpoint and 
+restart methods specified.
+.SS Limitations
+.BR
+.PP
+.PP
+The method name and directory(LSB_ECHKPNT_METHOD_DIR) 
+combination must be unique in the cluster. 
+.PP
+For example, you may have two echkpnt applications with the same 
+name such as echkpnt.mymethod but what differentiates them is the 
+different directories defined with LSB_ECHKPNT_METHOD_DIR. It is 
+the cluster administrator's responsibility to ensure that method name 
+and method directory combinations are unique in the cluster.
+.SS Default
+.BR
+.PP
+.PP
+Undefined; Lava uses echkpnt.default and erestart.default to 
+checkpoint and restart jobs
+.SS Product
+.BR
+.PP
+.PP
+Lava Base, Lava Batch
+.SS See Also
+.BR
+.PP
+.PP
+LSB_ECHKPNT_METHOD_DIR, LSB_ECHKPNT_KEEP_OUTPUT
+.SH LSB_ECHKPNT_METHOD_DIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_ECHKPNT_METHOD_DIR=\fR\fIpath
+\fR.SS Description
+.BR
+.PP
+.PP
+Absolute path name of the directory in which custom echkpnt and 
+erestart programs are located.
+.PP
+Can also be defined as an environment variable.
+.SS Default
+.BR
+.PP
+.PP
+Undefined; Lava searches in LSF_SERVERDIR for custom echkpnt and 
+erestart programs
+.SS Product
+.BR
+.PP
+.PP
+Lava Base, Lava Batch
+.SS See Also
+.BR
+.PP
+.PP
+LSB_ECHKPNT_METHOD, LSB_ECHKPNT_KEEP_OUTPUT
+.SH LSB_ECHKPNT_KEEP_OUTPUT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_ECHKPNT_KEEP_OUTPUT=y\fR|\fBY
+\fR.SS Description
+.BR
+.PP
+.PP
+Saves the standard output and standard error of custom echkpnt and 
+erestart methods to:
+.RS
+.HP 2
+\(bu \fIcheckpoint_dir\fR/$LSB_JOBID/echkpnt.out 
+.HP 2
+\(bu \fIcheckpoint_dir\fR/$LSB_JOBID/echkpnt.err 
+.HP 2
+\(bu \fIcheckpoint_dir\fR/$LSB_JOBID/erestart.out
+.HP 2
+\(bu \fIcheckpoint_dir\fR/$LSB_JOBID/erestart.err
+.RE
+.PP
+Can also be defined as an environment variable.
+.SS Default
+.BR
+.PP
+.PP
+Undefined; standard error and standard output messages from custom 
+echkpnt and erestart programs is directed to /dev/null and 
+discarded by Lava.
+.SS Product
+.BR
+.PP
+.PP
+Lava Base, Lava Batch
+.SS See Also
+.BR
+.PP
+.PP
+LSB_ECHKPNT_METHOD, LSB_ECHKPNT_METHOD_DIR
+.SH LSB_INTERACT_MSG_ENH
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_INTERACT_MSG_ENH = y\fR | \fBY
+\fR.SS Description
+.BR
+.PP
+.PP
+If set, enables enhanced messaging for interactive batch jobs. To 
+disable interactive batch job messages, set LSB_INTERACT_MSG_ENH 
+to any value other than y or Y; for example, 
+LSB_INTERACT_MSG_ENH=N.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_INTERACT_MSG_INTVAL
+.SH LSB_INTERACT_MSG_INTVAL
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_INTERACT_MSG_INTVAL =\fR \fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the update interval in seconds for interactive batch job 
+messages. LSB_INTERACT_MSG_INTVAL is ignored if 
+LSB_INTERACT_MSG_ENH is not set.
+.PP
+Because the job information that Lava uses to get the pending or 
+suspension reason is updated according to the value of 
+MBD_SLEEP_TIME, there is no advantage to setting 
+LSB_INTERACT_MSG_INTVAL less than MBD_SLEEP_TIME
+.SS Default
+.BR
+.PP
+.PP
+Undefined. If LSB_INTERACT_MSG_INTVAL is set to an incorrect value, 
+the default update interval is 60 seconds.
+.SS See Also
+.BR
+.PP
+.PP
+LSB_INTERACT_MSG_ENH in lsf.conf, MBD_SLEEP_TIME in 
+lsb.params
+.SH LSB_JOB_CPULIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_JOB_CPULIMIT = y\fR | \fBn
+\fR.SS Description
+.BR
+.PP
+.PP
+Determines whether the CPU limit is a per-process limit enforced by 
+the OS or whether it is a per-job limit enforced by Lava:
+.RS
+.HP 2
+\(bu The per-process limit is enforced by the OS when the CPU time of 
+one process of the job exceeds the CPU limit.
+.HP 2
+\(bu The per-job limit is enforced by Lava when the total CPU time of all 
+processes of the job exceed the CPU limit.
+.RE
+.PP
+This parameter applies to CPU limits set when a job is submitted with 
+\fBbsub -c\fR , and to CPU limits set for queues by CPULIMIT in 
+lsb.queues. 
+.PP
+The setting of LSB_JOB_CPULIMIT has the following effect on how the 
+limit is enforced:
+.PP
+When LSB_JOB_CPULIMIT is Y, the Lava-enforced per-job limit is 
+enabled, and the OS-enforced per-process limit is disabled.
+.PP
+When LSB_JOB_CPULIMIT is N, the Lava-enforced per-job limit is 
+disabled, and the OS-enforced per-process limit is enabled.
+.PP
+When LSB_JOB_CPULIMIT is undefined, the Lava-enforced per-job limit 
+is enabled, and the OS-enforced per-process limit is enabled.
+.RS
+.HP 2
+\(bu Lava-enforced per-job limit--When the sum of the CPU time of all 
+processes of a job exceed the CPU limit, Lava sends a SIGXCPU 
+signal (where supported by the operating system) from the 
+operating system to all processes belonging to the job, then 
+SIGINT, SIGTERM and SIGKILL. The interval between signals is 10 
+seconds by default.
+.RE
+
+.IP
+On UNIX, the time interval between SIGXCPU, SIGINT, SIGKILL, 
+SIGTERM can be configured with the parameter 
+JOB_TERMINATE_INTERVAL in lsb.params.
+
+
+.RS
+.HP 2
+\(bu OS-enforced per process limit--When one process in the job 
+exceeds the CPU limit, the limit is enforced by the operating 
+system. For more details, refer to your operating system 
+documentation for setrlimit().
+.RE
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS Notes
+.BR
+.PP
+.PP
+To make LSB_JOB_CPULIMIT take effect, use the command badmin 
+hrestart all to restart all SBDs in the cluster. 
+.PP
+Changing the default Terminate job control action--You can define a 
+different terminate action in lsb.queues with the parameter 
+JOB_CONTROLS if you do not want the job to be killed. For more 
+details on job controls, see the \fILava Administrator's Guide\fR.
+.SS Limitations
+.BR
+.PP
+.PP
+If a job is running and the parameter is changed, Lava is not able to reset 
+the type of limit enforcement for running jobs. 
+.RS
+.HP 2
+\(bu If the parameter is changed from per-process limit enforced by the 
+OS to per-job limit enforced by Lava (LSB_JOB_CPULIMIT=n 
+changed to LSB_JOB_CPULIMIT=y), both per-process limit and 
+per-job limit will affect the running job. This means that signals may 
+be sent to the job either when an individual process exceeds the 
+CPU limit or the sum of the CPU time of all processes of the job 
+exceed the limit. A job that is running may be killed by the OS or 
+by Lava.
+.HP 2
+\(bu If the parameter is changed from per-job limit enforced by Lava to 
+per-process limit enforced by the OS (LSB_JOB_CPULIMIT=y 
+changed to LSB_JOB_CPULIMIT=n), the job will be allowed to run 
+without limits because the per-process limit was previously 
+disabled.
+.RE
+.SS See Also
+.BR
+.PP
+.PP
+lsb.queues, bsub, JOB_TERMINATE_INTERVAL, LSB_MOD_ALL_JOBS
+.SH LSB_JOB_MEMLIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_JOB_MEMLIMIT=y\fR | \fBn
+\fR.SS Description
+.BR
+.PP
+.PP
+Determines whether the memory limit is a per-process limit enforced 
+by the OS or whether it is a per-job limit enforced by Lava. 
+.RS
+.HP 2
+\(bu The per-process limit is enforced by the OS when the memory 
+allocated to one process of the job exceeds the memory limit.
+.HP 2
+\(bu The per-job limit is enforced by Lava when the sum of the memory 
+allocated to all processes of the job exceeds the memory limit.
+.RE
+.PP
+This parameter applies to memory limits set when a job is submitted 
+with \fBbsub -M \fR\fImem_limit\fR, and to memory limits set for queues with 
+MEMLIMIT in lsb.queues. 
+.PP
+The setting of LSB_JOB_MEMLIMIT has the following effect on how the 
+limit is enforced:
+.PP
+When LSB_JOB_MEMLIMIT is Y, the Lava-enforced per-job limit is 
+enabled, and the OS-enforced per-process limit is disabled.
+.PP
+When LSB_JOB_MEMLIMIT is N or undefined, the Lava-enforced per-
+job limit is disabled, and the OS-enforced per-process limit is enabled.
+.RS
+.HP 2
+\(bu Lava-enforced per-job limit--When the total memory allocated to all 
+processes in the job exceeds the memory limit, Lava sends the 
+following signals to kill the job: SIGINT, SIGTERM, then SIGKILL. 
+The interval between signals is 10 seconds by default.
+.RE
+
+.IP
+On UNIX, the time interval between SIGINT, SIGKILL, SIGTERM 
+can be configured with the parameter JOB_TERMINATE_INTERVAL 
+in lsb.params.
+
+
+.RS
+.HP 2
+\(bu OS-enforced per process limit--When the memory allocated to one 
+process of the job exceeds the memory limit, the operating system 
+enforces the limit. Lava passes the memory limit to the operating 
+system. Some operating systems apply the memory limit to each 
+process, and some do not enforce the memory limit at all.
+.RE
+
+.IP
+OS memory limit enforcement is only available on systems that 
+support RUSAGE_RSS for setrlimit().
+
+.SS Default
+.BR
+.PP
+.PP
+Undefined; per-process memory limit enforced by the OS; per-job 
+memory limit enforced by Lava disabled
+.SS Notes
+.BR
+.PP
+.PP
+To make LSB_JOB_MEMLIMIT take effect, use the command badmin 
+hrestart all to restart all SBDs in the cluster. 
+.PP
+If LSB_JOB_MEMLIMIT is set, it overrides the setting of the parameter 
+LSB_MEMLIMIT_ENFORCE. The parameter LSB_MEMLIMIT_ENFORCE 
+is ignored. 
+.PP
+The difference between LSB_JOB_MEMLIMIT set to y and 
+LSB_MEMLIMIT_ENFORCE set to y is that with LSB_JOB_MEMLIMIT, 
+only the per-job memory limit enforced by Lava is enabled. The per-
+process memory limit enforced by the OS is disabled. With 
+LSB_MEMLIMIT_ENFORCE set to y, both the per-job memory limit 
+enforced by Lava and the per-process memory limit enforced by the OS 
+are enabled.
+.PP
+Changing the default Terminate job control action--You can define a 
+different Terminate action in lsb.queues with the parameter 
+JOB_CONTROLS if you do not want the job to be killed. For more 
+details on job controls, see the \fILava Administrator's Guide\fR.
+.SS Limitations
+.BR
+.PP
+.PP
+If a job is running and the parameter is changed, Lava is not able to reset 
+the type of limit enforcement for running jobs. 
+.RS
+.HP 2
+\(bu If the parameter is changed from per-process limit enforced by the 
+OS to per-job limit enforced by Lava (LSB_JOB_MEMLIMIT=n or 
+undefined changed to LSB_JOB_MEMLIMIT=y), both per-process 
+limit and per-job limit will affect the running job. This means that 
+signals may be sent to the job either when the memory allocated to 
+an individual process exceeds the memory limit or the sum of 
+memory allocated to all processes of the job exceed the limit. A job 
+that is running may be killed by Lava.
+.HP 2
+\(bu If the parameter is changed from per-job limit enforced by Lava to 
+per-process limit enforced by the OS (LSB_JOB_MEMLIMIT=y 
+changed to LSB_JOB_MEMLIMIT=n or undefined), the job will be 
+allowed to run without limits because the per-process limit was 
+previously disabled.
+.RE
+.SS See Also
+.BR
+.PP
+.PP
+LSB_MEMLIMIT_ENFORCE, lsb.queues, bsub, 
+JOB_TERMINATE_INTERVAL, LSB_MOD_ALL_JOBS
+.SH LSB_MAILPROG
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_MAILPROG=\fR\fIfile_name
+\fR.SS Description
+.BR
+.PP
+.PP
+Path and file name of the mail program used by the Batch system to 
+send email.
+.PP
+This is the electronic mail program that Lava will use to send system 
+messages to the user. 
+.PP
+When Lava needs to send email to users it invokes the program defined 
+by LSB_MAILPROG in lsf.conf. You can write your own custom mail 
+program and set LSB_MAILPROG to the path where this program is 
+stored.
+.PP
+The Lava administrator can set the parameter as part of cluster reconfiguration.
+.PP
+Provide the name of any mail program. For your convenience, Lava 
+provides the following mail programs:
+.RS
+.HP 2
+\(bu sendmail: Supports the sendmail protocol on UNIX
+.HP 2
+
+.IP
+If lsmail is specified, the parameter LSB_MAILSERVER must also 
+be specified.
+
+
+.PP
+If this parameter is modified, the Lava administrator must restart SBD on 
+all hosts to retrieve the new value.
+.RS
+.HP 2
+\(bu On UNIX:
+.RE
+
+.IP
+Lava Batch normally uses /usr/lib/sendmail as the mail transport 
+agent to send mail to users. Lava Batch calls LSB_MAILPROG with 
+two arguments; one argument gives the full name of the sender, 
+and the other argument gives the return address for Batch mail. 
+
+.IP
+LSB_MAILPROG must read the body of the mail message from the 
+standard input. The end of the message is marked by end-of-file. 
+Any program or shell script that accepts the arguments and input, 
+and delivers the mail correctly, can be used.
+
+.IP
+LSB_MAILPROG must be executable by any user. 
+
+.SS Examples
+.BR
+.PP
+.PP
+LSB_MAILPROG=/serverA/tools/lsf/bin/unixhost.exe 
+
+
+.SS Default 
+.BR
+.PP
+.PP
+/usr/lib/sendmail (UNIX) 
+.SS See Also
+.BR
+.PP
+.PP
+LSB_MAILSERVER, LSB_MAILTO
+.SH LSB_MAILSERVER
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_MAILSERVER=\fR\fImail_protocol:mail_server
+\fR.SS Description
+.BR
+.PP
+.PP
+If this parameter is modified, the Lava administrator must restart SBD on 
+all hosts to retrieve the new value.
+.SS Examples 
+.BR
+.PP
+
+.PP
+LSB_MAILSERVER = EXCHANGE:Host2@company.com
+
+.PP
+LSB_MAILSERVER = SMTP:MailHost
+
+
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_MAILPROG
+.SH LSB_MAILSIZE_LIMIT
+.BR
+.PP
+.SS Syntax	 
+.BR
+.PP
+.PP
+\fBLSB_MAILSIZE_LIMIT=\fR\fIemail_size_in_KB
+\fR.SS Description
+.BR
+.PP
+.PP
+Limits the size of the email containing Lava batch job output 
+information.
+.PP
+The Lava Batch system sends job information such as CPU, process and 
+memory usage, job output, and errors in email to the submitting user 
+account. Some batch jobs can create large amounts of output. To 
+prevent large job output files from interfering with your mail system, 
+use LSB_MAILSIZE_LIMIT to set the maximum size in KB of the email 
+containing the job information. Specify a positive integer.
+.PP
+If the size of the job output email exceeds LSB_MAILSIZE_LIMIT, the 
+output is saved to a file under JOB_SPOOL_DIR or to the default job 
+output directory if JOB_SPOOL_DIR is undefined. The email informs 
+users of where the job output is located.
+.PP
+If the \fB-o\fR option of \fBbsub\fR is used, the size of the job output is not 
+checked against LSB_MAILSIZE_LIMIT.
+.PP
+If you use a custom mail program specified by the LSB_MAILPROG 
+parameter that can use the LSB_MAILSIZE environment variable, it is 
+not necessary to configure LSB_MAILSIZE_LIMIT.
+.SS Default
+.BR
+.PP
+.PP
+By default, LSB_MAILSIZE_LIMIT is not enabled. No limit is set on size 
+of batch job output email.
+.SS See Also
+.BR
+.PP
+.PP
+LSB_MAILPROG, LSB_MAILTO
+.SH LSB_MAILTO
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_MAILTO=\fR\fImail_account
+\fR.SS Description
+.BR
+.PP
+.PP
+Lava Batch sends electronic mail to users when their jobs complete or 
+have errors, and to the Lava administrator in the case of critical errors in 
+the Lava Batch system. The default is to send mail to the user who 
+submitted the job, on the host on which the daemon is running; this 
+assumes that your electronic mail system forwards messages to a 
+central mailbox.
+.PP
+The LSB_MAILTO parameter changes the mailing address used by Lava 
+Batch. LSB_MAILTO is a format string that is used to build the mailing 
+address.
+.PP
+Common formats are:
+.RS
+.HP 2
+\(bu !U--Mail is sent to the submitting user's account name on the local 
+host. The substring !U, if found, is replaced with the user's account 
+name.
+.HP 2
+\(bu !U@company_name.com--Mail is sent to 
+\fIuser\fR@\fIcompany_name\fR.com on the mail server specified by 
+LSB_MAILSERVER.
+.HP 2
+\(bu !U@!H--Mail is sent to \fIuser\fR@\fIsubmission_hostname\fR. The 
+substring !H is replaced with the name of the submission host.
+.RE
+
+.PP
+All other characters (including any other `!') are copied exactly.
+.PP
+If this parameter is modified, the Lava administrator must restart the SBD 
+daemons on all hosts to retrieve the new value.
+.SS Default
+.BR
+.PP
+
+.PP
+!U
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSB_MAILPROG, LSB_MAILSIZE_LIMIT
+.SH LSB_MIG2PEND
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_MIG2PEND=0 \fR| \fB1
+\fR.SS Description
+.BR
+.PP
+.PP
+Applies only to migrating jobs.
+.PP
+If 1, requeues migrating jobs intead of restarting or rerunning them on 
+the next available host. Requeues the jobs in the PEND state, in order 
+of the original submission time and job priority, unless 
+LSB_REQUEUE_TO_BOTTOM is also defined.
+.PP
+.BR
+.PP
+.PP
+Undefined
+.SS See Also 
+.BR
+.PP
+.PP
+LSB_REQUEUE_TO_BOTTOM
+.SH LSB_MBD_PORT  
+.BR
+.PP
+.PP
+See LSF_LIM_PORT, LSF_RES_PORT, LSB_MBD_PORT, 
+LSB_SBD_PORT.
+.SH LSB_MEMLIMIT_ENFORCE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_MEMLIMIT_ENFORCE=y\fR | \fBn
+\fR.SS Description
+.BR
+.PP
+.PP
+Specify y to enable Lava memory limit enforcement.
+.PP
+If enabled, Lava sends a signal to kill all processes that exceed queue-
+level memory limits set by MEMLIMIT in lsb.queues or job-level 
+memory limits specified by \fBbsub -M \fR\fImem_limit\fR.
+.PP
+Otherwise, Lava passes memory limit enforcement to the OS. UNIX 
+operating systems that support RUSAGE_RSS for setrlimit() can 
+apply the memory limit to each process. 
+.RE
+.SS Default
+.BR
+.PP
+.PP
+Not defined. Lava passes memory limit enforcement to the OS.
+.SS See Also
+.BR
+.PP
+.PP
+lsb.queues
+.SH LSB_MOD_ALL_JOBS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_MOD_ALL_JOBS=y\fR | \fBY
+\fR.SS Description
+.BR
+.PP
+.PP
+If set, enables \fBbmod\fR to modify resource limits and location of job output 
+files for running jobs.
+.PP
+After a job has been dispatched, the following modifications can be 
+made:
+.RS
+.HP 2
+\(bu CPU limit (\fB-c \fR[\fIhour\fR\fB:\fR]\fIminute\fR[\fB/\fR\fIhost_name\fR | \fB/\fR\fIhost_model\fR] | \fB-cn\fR)
+.HP 2
+\(bu Memory limit (\fB-M\fR \fImem_limit\fR | \fB-Mn\fR)
+.HP 2
+\(bu Run limit (\fB-W\fR \fIrun_limit\fR[\fB/\fR\fIhost_name\fR | \fB/\fR\fIhost_model\fR] | \fB-Wn\fR)
+.HP 2
+\(bu Standard output file name (\fB-o\fR \fIoutput_file\fR | \fB-on\fR)
+.HP 2
+\(bu Standard error file name (\fB-e\fR \fIerror_file\fR | \fB-en\fR)
+.HP 2
+\(bu Rerunnable jobs (\fB-r\fR | \fB-rn\fR)
+.RE
+.PP
+To modify the CPU limit or the memory limit of running jobs, the 
+parameters LSB_JOB_CPULIMIT=Y and LSB_JOB_MEMLIMIT=Y must 
+be defined in lsf.conf.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_JOB_CPULIMIT, LSB_JOB_MEMLIMIT
+.PP
+.SH LSB_REQUEUE_TO_BOTTOM
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_REQUEUE_TO_BOTTOM=0\fR | \fB1
+\fR.SS Description
+.BR
+.PP
+.PP
+Optional. If 1, requeues automatically requeued jobs to the bottom of 
+the queue instead of to the top. Also requeues migrating jobs to the 
+bottom of the queue if LSB_MIG2PEND is defined.
+.PP
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+REQUEUE_EXIT_VALUES, LSB_MIG2PEND
+.SH LSB_SBD_PORT
+.BR
+.PP
+.PP
+See LSF_LIM_PORT, LSF_RES_PORT, LSB_MBD_PORT, 
+LSB_SBD_PORT.
+.SH LSB_SET_TMPDIR
+.BR
+.PP
+.SS Syntax 
+.BR
+.PP
+.PP
+\fBLSB_SET_TMPDIR=\fR[\fBy\fR|\fBn\fR]
+.PP
+If y, Lava sets the TMPDIR environment variable, overwriting the current 
+value with /\fItmp\fR/\fIjob_ID\fR.
+.SS Default 
+.BR
+.PP
+.PP
+n
+.SH LSB_SHAREDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_SHAREDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Directory in which Lava Batch maintains job history 
+and accounting logs for each cluster. These files are necessary for 
+correct operation of the system. Like the organization under 
+LSB_CONFDIR, there is one subdirectory for each cluster.
+.PP
+The LSB_SHAREDIR directory must be owned by the Lava administrator. 
+It must be accessible from all hosts that can potentially become the 
+master host, and must allow read and write access from the Lava master 
+host. 
+.PP
+The LSB_SHAREDIR directory typically resides on a reliable file server.
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_INDEP/work
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSB_LOCALDIR
+.SH LSB_SIGSTOP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_SIGSTOP=\fR\fIsignal_name\fR | \fIsignal_value
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the signal sent by the SUSPEND action in Lava. You can specify 
+a signal name or a number.
+.PP
+If LSB_SIGSTOP is set to anything other than SIGSTOP, the SIGTSTP 
+signal that is normally sent by the SUSPEND action is not sent.
+.PP
+If this parameter is undefined, by default the SUSPEND action in Lava 
+sends the following signals to a job:
+.RS
+.HP 2
+\(bu Parallel or interactive jobs--1. SIGTSTP is sent first to allow user 
+programs to catch the signal and clean up. 2. SIGSTOP is sent 10 
+seconds after SIGTSTP. SIGSTOP cannot be caught by user 
+programs.
+.HP 2
+\(bu Other jobs--SIGSTOP is sent. SIGSTOP cannot be caught by user 
+programs.  
+.RE
+.PP
+The same set of signals is not supported on all UNIX systems. To 
+display a list of the symbolic names of the signals (without the SIG 
+prefix) supported on your system, use the \fBkill -l\fR command.
+.SS Example
+.BR
+.PP
+
+.PP
+LSB_SIGSTOP=SIGKILL
+
+
+.PP
+In this example, the SUSPEND action sends the three default signals 
+sent by the TERMINATE action (SIGINT, SIGTERM, and SIGKILL) 10 
+seconds apart.
+.SS Default
+.BR
+.PP
+.PP
+Undefined. Default SUSPEND action in Lava is sent.
+.SH LSB_SHORT_HOSTLIST
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_SHORT_HOSTLIST=1
+\fR.SS Description
+.BR
+.PP
+.PP
+Displays an abbreviated list of hosts in \fBbjobs\fR and \fBbhist\fR for a parallel 
+job where multiple processes of a job are running on a host. Multiple 
+processes are displayed in the following format:
+
+.PP
+\fIprocesses\fR*hostA
+
+
+.PP
+For example, if a parallel job is running 5 processes on hostA, the 
+information is displayed in the following manner:
+
+.PP
+5*hostA
+
+
+.PP
+Setting this parameter may improve MBD restart performance and 
+accelerate event replay.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SH LSB_TIME_CMD 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_TIME_CMD=\fR\fItimimg_level
+\fR.SS Description
+.BR
+.PP
+.PP
+The timing level for checking how long batch commands run. 
+.PP
+Time usage is logged in milliseconds; specify a positive integer.
+.PP
+Example: LSB_TIME_CMD=1
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_TIME_MBD, LSB_TIME_SBD, LSF_TIME_LIM, LSF_TIME_RES
+.SH LSB_TIME_MBD
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_TIME_MBD=\fR\fItiming_level
+\fR.SS Description
+.BR
+.PP
+.PP
+The timing level for checking how long MBD routines run.
+.PP
+Time usage is logged in milliseconds; specify a positive integer.
+.PP
+Example: LSB_TIME_MBD=1
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_TIME_CMD, LSB_TIME_SBD, LSF_TIME_LIM, LSF_TIME_RES
+.SH LSB_TIME_SBD
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_TIME_SBD=\fR\fItiming_level
+\fR.SS Description
+.BR
+.PP
+.PP
+The timing level for checking how long SBD routines run.
+.PP
+Time usage is logged in milliseconds; specify a positive integer.
+.PP
+Example: LSB_TIME_SBD=1
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_TIME_CMD, LSB_TIME_MBD, LSF_TIME_LIM, LSF_TIME_RES
+.SH LSB_UTMP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSB_UTMP=y\fR | \fBY
+\fR.SS Description
+.BR
+.PP
+.PP
+If set, enables registration of user and account information for 
+interactive batch jobs submitted with \fBbsub -Ip\fR or \fBbsub -Is\fR. To 
+disable utmp file registration, set LSB_UTMP to any value other than y 
+or Y; for example, LSB_UTMP=N.
+.PP
+Lava registers interactive batch jobs the job by adding a entries to the 
+utmp file on the execution host when the job starts. After the job 
+finishes, Lava removes the entries for the job from the utmp file.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.PP
+LSF_SERVERDIR, where the default for LSF_SERVERDIR is 
+/usr/share/lsf/etc.
+.SS See Also
+.BR
+.PP
+.PP
+LSF_SERVERDIR
+.SH LSF_AM_OPTIONS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_AM_OPTIONS=AMFIRST\fR | \fBAMNEVER
+\fR.SS Description
+.BR
+.PP
+.PP
+Determines the order of file path resolution when setting the user's 
+home directory.
+.PP
+This variable is rarely used but sometimes Lava does not properly 
+change the directory to the user's home directory when the user's home 
+directory is automounted. Setting LSF_AM_OPTIONS forces the Batch 
+system to change directory to $HOME before attempting to automount 
+the user's home.
+.PP
+When this parameter is undefined or set to AMFIRST, Lava:
+.RS
+.HP 2
+\(bu Sets the user's $HOME directory from the automount path. If it 
+cannot do so, Lava sets the user's $HOME directory from the passwd 
+file. 
+.RE
+.PP
+When this parameter is set to AMNEVER, Lava:
+.RS
+.HP 2
+\(bu Never uses automount to set the path to the user's home. Lava sets 
+the user's $HOME directory directly from the passwd file.
+.RE
+.SS Valid Values
+.BR
+.PP
+.PP
+The two values are AMFIRST and AMNEVER
+.SS Default
+.BR
+.PP
+.PP
+Undefined; same as AMFIRST
+.SH LSF_API_CONNTIMEOUT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_API_CONNTIMEOUT=\fR\fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+Timeout when connecting to LIM. 
+.SS Default
+.BR
+.PP
+.PP
+5 
+.SS See Also
+.BR
+.PP
+.PP
+LSF_API_RECVTIMEOUT
+.SH LSF_API_RECVTIMEOUT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_API_RECVTIMEOUT=\fR\fIseconds\fR 
+.SS Description
+.BR
+.PP
+.PP
+Timeout when receiving a reply from LIM.
+.SS Default
+.BR
+.PP
+.PP
+20
+.SS See Also
+.BR
+.PP
+.PP
+LSF_API_CONNTIMEOUT
+.SH LSF_AUTH
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_AUTH=eauth\fR | \fBsetuid\fR 
+\fR.SS Description
+.BR
+.PP
+.PP
+Optional. Determines the type of authentication used by Lava.
+.PP
+By default, external user authentication is used, and LSF_AUTH is 
+defined to be eauth.
+.PP
+If this parameter is changed, all Lava daemons must be shut down and 
+restarted by running \fBlsf_daemons start\fR on each of the Lava server 
+hosts so that the daemons will use the new authentication method.
+.PP
+If LSF_AUTH is not defined, RES will only accept requests from 
+privileged ports. When Lava uses privileged ports for user 
+authentication, Lava commands must be installed setuid to root to 
+operate correctly. If the Lava commands are installed in an NFS mounted 
+shared file system, the file system must be mounted with setuid 
+execution allowed (that is, without the nosuid option). See the man 
+page for \fBmount\fR for more details. 
+.PP
+.SS Valid Values
+.BR
+.PP
+.RS
+.HP 2
+\(bu eauth
+.RE
+
+.IP
+For site-specific external authentication.
+
+
+.RS
+.HP 2
+\(bu setuid
+.RE
+
+.IP
+For privileged ports (\fBsetuid\fR) authentication. This is the 
+mechanism most UNIX remote utilities use. The Lava commands 
+must be installed as \fBsetuid\fR programs and owned by root.
+.SS Default
+.BR
+.PP
+.PP
+eauth
+.SH LSF_AUTH_DAEMONS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_AUTH_DAEMONS=\fR\fIany_value
+\fR.SS Description
+.BR
+.PP
+.PP
+Enables daemon authentication, as long as LSF_AUTH in lsf.conf is 
+set to \fBeauth\fR. Daemons will call \fBeauth\fR to authenticate each other.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SH LSF_BINDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_BINDIR=\fR\fIdir\fR 
+.SS Description
+.BR
+.PP
+.PP
+Directory in which all Lava user commands are installed.
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_MACHDEP/bin
+
+
+.SH LSF_CMD_LOGDIR 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_CMD_LOGDIR=\fR\fIpath
+\fR.SS Description
+.BR
+.PP
+.PP
+The path to the log files used for debugging Lava commands.
+.PP
+This parameter can also be set from the command line.
+.SS Default
+.BR
+.PP
+
+.PP
+/tmp
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSB_DEBUG_CMD, LSB_CMD_LOGDIR
+.SH LSF_CONF_RETRY_INT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_CONF_RETRY_INT=\fR\fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+The number of seconds to wait between unsuccessful attempts at 
+opening a configuration file (only valid for LIM). This allows LIM to 
+tolerate temporary access failures.
+.SS Default
+.BR
+.PP
+.PP
+30
+.SS See Also
+.BR
+.PP
+.PP
+LSF_CONF_RETRY_MAX
+.SH LSF_CONF_RETRY_MAX
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_CONF_RETRY_MAX=\fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The maximum number of unsuccessful attempts at opening a 
+configuration file (only valid for LIM). This allows LIM to tolerate 
+temporary access failures.
+.SS Default
+.BR
+.PP
+.PP
+0
+.SS See Also
+.BR
+.PP
+.PP
+LSF_CONF_RETRY_INT
+.SH LSF_CONFDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_CONFDIR=\fR\fIdir\fR 
+.SS Description
+.BR
+.PP
+.PP
+Directory in which all Lava configuration files are installed. These files 
+are shared throughout the system and should be readable from any 
+host. This directory can contain configuration files for more than one 
+cluster.
+.PP
+The files in the LSF_CONFDIR directory must be owned by the primary 
+Lava administrator, and readable by all Lava server hosts. 
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_INDEP/conf
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSB_CONFDIR
+.SH LSF_DEBUG_LIM
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_DEBUG_LIM=\fR\fIlog_class
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets the log class for debugging LIM.
+.PP
+Specifies the log class filtering that will be applied to LIM. Only 
+messages belonging to the specified log class are recorded.
+.PP
+The LSF_DEBUG_LIM (which sets the log class) is used in combination 
+with LSF_LOG_MASK (which sets the log level). For example:
+
+.PP
+LSF_LOG_MASK=LOG_DEBUG
+.br
+LSF_DEBUG_LIM=LC_TRACE 
+
+
+.PP
+You need to restart the daemons after setting LSF_DEBUG_LIM for your 
+changes to take effect. 
+.PP
+If you use the command lsadmin limdebug to temporarily change 
+this parameter without changing lsf.conf, you will not need to restart 
+the daemons.
+.PP
+The daemons log to the syslog facility unless LSF_LOGDIR is defined.
+.PP
+To specify multiple log classes, use a space-separated list enclosed in 
+quotation marks. For example: 
+
+.PP
+LSF_DEBUG_LIM="LC_TRACE LC_EXEC"
+
+
+.PP
+This parameter can also be defined from the command line.
+.SS Valid Values
+.BR
+.PP
+.PP
+Valid log classes are:
+.RS
+.HP 2
+\(bu LC_AUTH - Log authentication messages
+.HP 2
+\(bu LC_CHKPNT - log checkpointing messages
+.HP 2
+\(bu LC_COMM - Log communication messages
+.HP 2
+\(bu LC_EXEC - Log significant steps for job execution
+.HP 2
+\(bu LC_FILE - Log file transfer messages
+.HP 2
+\(bu LC_HANG - Mark where a program might hang
+.HP 2
+\(bu LC_PIM - Log PIM messages
+.HP 2
+\(bu LC_SIGNAL - Log messages pertaining to signals
+.HP 2
+\(bu LC_TRACE - Log significant program walk steps
+.HP 2
+\(bu LC_XDR - Log everything transferred by XDR
+.RE
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_DEBUG_RES, LSF_LOG_MASK, LSF_LOGDIR
+.SH LSF_DEBUG_RES
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_DEBUG_RES=\fR\fIlog_class
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets the log class for debugging RES.
+.PP
+Specifies the log class filtering that will be applied to RES. Only 
+messages belonging to the specified log class are recorded.
+.PP
+LSF_DEBUG_RES (which sets the log class) is used in combination with 
+LSF_LOG_MASK (which sets the log level). For example:
+
+.PP
+LSF_LOG_MASK=LOG_DEBUG 
+.br
+LSF_DEBUG_RES=LC_TRACE 
+
+
+.PP
+To specify multiple log classes, use a space-separated list enclosed in 
+quotation marks. For example:
+
+.PP
+LSF_DEBUG_RES="LC_TRACE LC_EXEC"
+
+
+.PP
+You need to restart the daemons after setting LSF_DEBUG_RES for your 
+changes to take effect. 
+.PP
+If you use the command lsadmin resdebug to temporarily change 
+this parameter without changing lsf.conf, you will not need to restart 
+the daemons.
+.PP
+The daemons log to the syslog facility unless LSF_LOGDIR is defined.
+.PP
+This parameter can also be defined from the command line.
+.SS Valid Values
+.BR
+.PP
+.PP
+For a list of valid log classes see LSF_DEBUG_LIM
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_DEBUG_LIM, LSF_LOG_MASK, LSF_LOGDIR
+.SH LSF_DEFAULT_INSTALL 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_DEFAULT_INSTALL=y\fR|\fBn
+\fR.SS Description
+.BR
+.PP
+.PP
+This parameter is set to y if the default installation is used; set to n 
+otherwise.
+.SS Valid Values
+.BR
+.PP
+
+.PP
+y | n
+
+
+.SH LSF_ENVDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_ENVDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Directory containing the lsf.conf file.
+.PP
+By default, lsf.conf is installed by creating a shared copy in 
+LSF_CONFDIR and adding a symbolic link from /etc/lsf.conf to the 
+shared copy. If LSF_ENVDIR is set, the symbolic link is installed in 
+LSF_ENVDIR/lsf.conf.
+.PP
+The lsf.conf file is a global environment configuration file for all Lava 
+services and applications. The Lava default installation places the file in 
+LSF_CONFDIR.
+.SS Default
+.BR
+.PP
+
+.PP
+/etc
+
+.SH LSF_INCLUDEDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_INCLUDEDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Directory under which the Lava API header files lsf.h and lsbatch.h 
+are installed.
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_INDEP/include
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSF_INDEP
+.SH LSF_INDEP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_INDEP=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the default top-level directory for all machine-independent 
+Lava files.
+.PP
+This includes man pages, configuration files, working directories, and 
+examples. For example, defining LSF_INDEP as /usr/share/lsf/mnt 
+places man pages in /usr/share/lsf/mnt/man, configuration files in 
+/usr/share/lsf/mnt/conf, and so on.
+.PP
+The files in LSF_INDEP can be shared by all machines in the cluster. 
+.PP
+As shown in the following list, LSF_INDEP is incorporated into other 
+Lava environment variables. 
+.RS
+.HP 2
+\(bu LSB_SHAREDIR=$LSF_INDEP/work
+.HP 2
+\(bu LSF_CONFDIR=$LSF_INDEP/conf
+.HP 2
+\(bu LSF_INCLUDEDIR=$LSF_INDEP/include
+.HP 2
+\(bu LSF_MANDIR=$LSF_INDEP/man
+.RE
+.SS Default
+.BR
+.PP
+
+.PP
+/usr/share/lsf/mnt
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSF_MACHDEP, LSB_SHAREDIR, LSF_CONFDIR, LSF_INCLUDEDIR, 
+LSF_MANDIR 
+.SH LSF_INTERACTIVE_STDERR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_INTERACTIVE_STDERR=y\fR | \fBn
+\fR.SS Description
+.BR
+.PP
+.PP
+Separates stderr from stdout for interactive tasks and interactive 
+batch jobs. 
+.PP
+This parameter can also be enabled or disabled as an environment 
+variable.
+.SS Warning
+.BR
+.PP
+.SS If you enable this parameter globally in lsf.conf, check any custom scripts that manipulate stderr and stdout.
+.BR
+.PP
+.PP
+When this parameter is undefined or set to n, the following are written 
+to stdout on the submission host for interactive tasks and interactive 
+batch jobs:
+.RS
+.HP 2
+\(bu Job standard output messages
+.HP 2
+\(bu Job standard error messages
+.RE
+.PP
+The following are written to stderr on the submission host for 
+interactive tasks and interactive batch jobs:
+.RS
+.HP 2
+\(bu Lava messages
+.HP 2
+\(bu NIOS standard messages
+.HP 2
+\(bu NIOS debug messages (if LSF_NIOS_DEBUG=1 in lsf.conf) 
+.RE
+.PP
+When this parameter is set to y, the following are written to stdout on 
+the submission host for interactive tasks and interactive batch jobs:
+.RS
+.HP 2
+\(bu Job standard output messages
+.RE
+.PP
+The following are written to stderr on the submission host:
+.RS
+.HP 2
+\(bu Job standard error messages
+.HP 2
+\(bu Lava messages
+.HP 2
+\(bu NIOS standard messages
+.HP 2
+\(bu NIOS debug messages (if LSF_NIOS_DEBUG=1 in lsf.conf) 
+.RE
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS Notes
+.BR
+.PP
+.PP
+When this parameter is set, the change affects interactive tasks and 
+interactive batch jobs run with the following commands:
+.RS
+.HP 2
+\(bu \fBbsub -I
+\fR.HP 2
+\(bu \fBbsub -Ip
+\fR.HP 2
+\(bu \fBbsub -Is
+\fR.HP 2
+.HP 2
+.RE
+.SS Limitations
+.BR
+.PP
+.RS
+.HP 2
+\(bu Pseudo-terminal--Do not use this parameter if your application 
+depends on stderr as a terminal. This is because Lava must use a 
+non-pseudo-terminal connection to separate stderr from stdout.
+.HP 2
+\(bu Synchronization--Do not use this parameter if you depend on 
+messages in stderr and stdout to be synchronized and jobs in 
+your environment are continuously submitted. A continuous stream 
+of messages causes stderr and stdout to not be synchronized. 
+This can be emphasized with parallel jobs. This situation is similar 
+to that of rsh.
+.HP 2
+\(bu NIOS standard and debug messages--NIOS standard messages, 
+and debug messages (when LSF_NIOS_DEBUG=1 in lsf.conf or 
+as an environment variable) are written to stderr. NIOS standard 
+messages are in the format <<\fImessage\fR>>, which makes it easier to 
+remove them if you wish. To redirect NIOS debug messages to a 
+file, define LSF_CMD_LOGDIR in lsf.conf or as an environment 
+variable.
+.RE
+.SS See Also
+.BR
+.PP
+.PP
+LSF_NIOS_DEBUG, LSF_CMD_LOGDIR
+.SH LSF_LIBDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_LIBDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the directory in which the Lava libraries are installed. Library 
+files are shared by all hosts of the same type. 
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_MACHDEP/lib
+
+
+.SH LSF_LIM_DEBUG
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_LIM_DEBUG=1\fR | \fB2
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets Lava to debug mode.
+.PP
+If LSF_LIM_DEBUG is defined, LIM operates in single user mode. No 
+security checking is performed, so LIM should not run as root. 
+.PP
+LIM will not look in the services database for the LIM service port 
+number. Instead, it uses port number 36000 unless LSF_LIM_PORT has 
+been defined.
+.PP
+Specify 1 for this parameter unless you are testing Lava.
+.SS Valid Values
+.BR
+.PP
+.RS
+.HP 2
+\(bu LSF_LIM_DEBUG=1
+.RE
+.IP
+LIM runs in the background with no associated control 
+terminal. 
+
+.RE
+.RS
+.HP 2
+\(bu LSF_LIM_DEBUG=2
+.RE
+.IP
+LIM runs in the foreground and prints error messages to tty. 
+
+.RE
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_RES_DEBUG
+.SH LSF_LIM_PORT, LSF_RES_PORT, LSB_MBD_PORT, LSB_SBD_PORT 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+Example: \fBLSF_LIM_PORT=\fR\fIport_number
+\fR.SS Description
+.BR
+.PP
+.PP
+TCP service ports to use for communication with the Lava daemons.
+.PP
+If port parameters are undefined, Lava obtains the port numbers by 
+looking up the Lava service names in the /etc/services file or the NIS 
+(UNIX). If it is not possible to modify the services database, you can 
+define these port parameters to set the port numbers. 
+.PP
+With careful use of these settings along with the LSF_ENVDIR and 
+PATH environment variables, it is possible to run two versions of the 
+Lava software on a host, selecting between the versions by setting the 
+PATH environment variable to include the correct version of the 
+commands and the LSF_ENVDIR environment variable to point to the 
+directory containing the appropriate lsf.conf file.
+.SS Default
+.BR
+.PP
+.PP
+Default port number values for Linux are:
+.RS
+.HP 2
+\(bu LSF_LIM_PORT=6879
+.HP 2
+\(bu LSF_RES_PORT=6878
+.HP 2
+\(bu LSB_MBD_PORT=6881
+.HP 2
+\(bu LSB_SBD_PORT=6882
+.RE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+\fBLSF_LOG_MASK=\fR\fImessage_log_level
+\fR.SS Description
+.BR
+.PP
+.PP
+Logging level of messages for Lava daemons.
+.PP
+This is similar to syslog. All messages logged at the specified 
+level or higher are recorded; lower level messages are discarded. The 
+LSF_LOG_MASK value can be any log priority symbol that is defined in 
+syslog.h (see syslog(8)).
+.PP
+The log levels in order from highest to lowest are:
+.RS
+.HP 2
+\(bu LOG_EMERG
+.HP 2
+\(bu LOG_ALERT
+.HP 2
+\(bu LOG_CRIT
+.HP 2
+\(bu LOG_ERR
+.HP 2
+\(bu LOG_WARNING
+.HP 2
+\(bu LOG_NOTICE
+.HP 2
+\(bu LOG_INFO
+.HP 2
+\(bu LOG_DEBUG
+.HP 2
+\(bu LOG_DEBUG1
+.HP 2
+\(bu LOG_DEBUG2
+.HP 2
+\(bu LOG_DEBUG3
+.RE
+.PP
+The most important Lava log messages are at the LOG_ERR or 
+LOG_WARNING level. Messages at the LOG_INFO and LOG_DEBUG 
+level are only useful for debugging. 
+.PP
+Although message log level implements similar functionalities to Linux 
+syslog, there is no dependency on syslog. It works even if 
+messages are being logged to files instead of syslog.
+.PP
+Lava logs error messages in different levels so that you can choose to 
+log all messages, or only log messages that are deemed critical. The 
+level specified by LSF_LOG_MASK determines which messages are 
+recorded and which are discarded. All messages logged at the specified 
+level or higher are recorded, while lower level messages are discarded. 
+.PP
+For debugging purposes, the level LOG_DEBUG contains the fewest 
+number of debugging messages and is used only for very basic 
+debugging. The level LOG_DEBUG3 records all debugging messages, 
+and is not often used. Most debugging is done at the level 
+LOG_DEBUG2.
+.PP
+The daemons log to the syslog facility unless LSF_LOGDIR is defined. 
+.SS Default
+.BR
+.PP
+.PP
+LOG_WARNING
+.SS See Also
+.BR
+.PP
+.PP
+LSF_DEBUG_LIM, LSF_DEBUG_RES, LSB_DEBUG_MBD, 
+LSB_DEBUG_SBD, LSB_DEBUG_CMD, 
+LSB_DEBUG_CMD, LSF_CMD_LOGDIR
+.SH LSF_LOGDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_LOGDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+This is an optional directory parameter  
+.PP
+Error messages from all servers are logged into files in this directory. If 
+a server is unable to write in this directory, the error logs are created 
+in /tmp on UNIX.
+.PP
+If LSF_LOGDIR is not defined, then syslog is used to log 
+everything to the system log using the LOG_DAEMON facility. The 
+syslog facility is available by default on most UNIX systems. The 
+/etc/syslog.conf file controls the way messages are logged and the 
+files they are logged to. See the man pages for the syslogd daemon 
+and the syslog function for more information.
+.PP
+To effectively use debugging, set LSF_LOGDIR to a directory such as 
+/tmp. This can be done in your own environment from the shell or in 
+lsf.conf. 
+.SS Default
+.BR
+.PP
+.PP
+On UNIX, if undefined, log messages go to syslog.
+.SS See Also
+.BR
+.PP
+.PP
+LSF_LOG_MASK
+.SS Files
+.BR
+.PP
+.RS
+.HP 2
+\(bu lim.log.\fIhost_name
+\fR.HP 2
+\(bu res.log.\fIhost_name
+\fR.HP 2
+\(bu sbatchd.log.\fIhost_name
+\fR.HP 2
+.HP 2
+\(bu mbatchd.log.\fIhost_name
+\fR.HP 2
+\(bu pim.log.\fIhost_name
+\fR.RE
+.SH LSF_MACHDEP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_MACHDEP=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the directory in which machine-dependent files are installed. 
+These files cannot be shared across different types of machines. 
+.PP
+In clusters with a single host type, LSF_MACHDEP is usually the same 
+as LSF_INDEP. The machine dependent files are the user commands, 
+daemons, and libraries. You should not need to modify this parameter.
+.PP
+As shown in the following list, LSF_MACHDEP is incorporated into 
+other Lava variables. 
+.RS
+.HP 2
+\(bu LSF_BINDIR=$LSF_MACHDEP/bin 
+.HP 2
+\(bu LSF_LIBDIR=$LSF_MACHDEP/lib
+.HP 2
+\(bu LSF_SERVERDIR=$LSF_MACHDEP/etc 
+.HP 2
+\(bu XLSF_UIDDIR=$LSF_MACHDEP/lib/uid
+.RE
+.SS Default
+.BR
+.PP
+
+.PP
+/usr/share/lsf
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSF_INDEP
+.SH LSF_MANDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_MANDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Directory under which all man pages are installed.
+.PP
+The man pages are placed in the man1, man3, man5, and man8 
+subdirectories of the LSF_MANDIR directory. This is created by the Lava 
+installation process, and you should not need to modify this parameter.
+.PP
+Man pages are installed in a format suitable for BSD-style \fBman\fR 
+commands.
+.PP
+For most versions of UNIX, you should add the directory LSF_MANDIR 
+to your MANPATH environment variable. If your system has a man 
+command that does not understand MANPATH, you should either 
+install the man pages in the /usr/man directory or get one of the freely 
+available man programs.
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_INDEP/man
+
+
+.SH LSF_MASTER_LIST
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_MASTER_LIST="\fR\fIhost_name ...\fR\fB"
+\fR.SS Description
+.BR
+.PP
+.PP
+Optional. Defines a list of hosts that are candidates to become the 
+master host for the cluster.
+.PP
+Listed hosts must be defined in lsf.cluster.\fIcluster_name\fR.
+.PP
+Host names are separated by spaces.
+.PP
+Whenever you reconfigure, only master LIM candidates read 
+lsf.shared and lsf.cluster.\fIcluster_name\fR to get updated 
+information. The elected master LIM sends configuration information to 
+slave LIMs.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SH LSF_MISC
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_MISC=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Directory in which miscellaneous machine independent files, such as 
+Lava example source programs and scripts, are installed.
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_CONFDIR/misc
+
+
+.SH LSF_NIOS_DEBUG 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_NIOS_DEBUG=1
+\fR.SS Description
+.BR
+.PP
+.PP
+Turns on NIOS debugging for interactive jobs. 
+.PP
+If LSF_NIOS_DEBUG=1, NIOS debug messages are written to standard 
+error. 
+.PP
+This parameter can also be defined as an environment variable.
+.PP
+When LSF_NIOS_DEBUG and LSF_CMD_LOGDIR are defined, NIOS 
+debug messages are logged in nios.log.\fIhost_name\fR. in the location 
+specified by LSF_CMD_LOGDIR.
+.PP
+If LSF_NIOS_DEBUG is defined, and the directory defined by 
+LSF_CMD_LOGDIR is inaccessible, NIOS debug messages are logged 
+to /tmp/nios.log.\fIhost_name\fR instead of stderr.  
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_CMD_LOGDIR
+.SH LSF_NIOS_JOBSTATUS_INTERVAL
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_NIOS_JOBSTATUS_INTERVAL=\fR\fIminutes
+\fR.SS Description
+.BR
+.PP
+.PP
+Applies only to interactive batch jobs.
+.PP
+Time interval at which NIOS polls MBD to check if a job is still running. 
+Used to retrieve a job's exit status in the case of an abnormal exit of 
+NIOS, due to a network failure for example.
+.PP
+Use this parameter if you run interactive jobs and you have scripts that 
+depend on an exit code being returned. 
+.PP
+When this parameter is undefined and a network connection is lost, 
+MBD cannot communicate with NIOS and the return code of a job is 
+not retrieved. 
+.PP
+When this parameter is defined, before exiting, NIOS polls MBD on the 
+interval defined by LSF_NIOS_JOBSTATUS_INTERVAL to check if a job 
+is still running. NIOS continues to poll MBD until it receives an exit 
+code or MBD responds that the job does not exist (if the job has already 
+been cleaned from memory for example). 
+.PP
+If an exit code cannot be retrieved, NIOS generates an error message 
+and the code -11.
+.SS Valid Values
+.BR
+.PP
+.PP
+Any integer greater than zero
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS Notes
+.BR
+.PP
+.PP
+Set this parameter to large intervals such as 15 minutes or more so that 
+performance is not negatively affected if interactive jobs are pending 
+for too long. NIOS always calls MBD on the defined interval to confirm 
+that a job is still pending and this may add load to MBD.
+.SS Product
+.BR
+.PP
+.PP
+Lava Batch
+.SS See Also
+.BR
+.PP
+.PP
+Environment variable LSF_NIOS_PEND_TIMEOUT
+.SH LSF_NIOS_RES_HEARTBEAT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_NIOS_RES_HEARTBEAT=\fR\fIminutes
+\fR.SS Description
+.BR
+.PP
+.PP
+Applies only to interactive non-parallel batch jobs.
+.PP
+Defines how long NIOS waits before sending a message to RES to 
+determine if the connection is still open.
+.PP
+Use this parameter to ensure NIOS exits when a network failure occurs 
+instead of waiting indefinitely for notification that a job has been 
+completed. When a network connection is lost, RES cannot 
+communicate with NIOS and as a result, NIOS does not exit. 
+.PP
+When this parameter is defined, if there has been no communication 
+between RES and NIOS for the defined period of time, NIOS sends a 
+message to RES to see if the connection is still open. If the connection 
+is no longer available, NIOS exits.
+.SS Valid Values
+.BR
+.PP
+.PP
+Any integer greater than zero
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS Notes
+.BR
+.PP
+.PP
+The time you set this parameter to depends how long you want to 
+allow NIOS to wait before exiting. Typically, it can be a number of 
+hours or days. Too low a number may add load to the system.
+.SS Product
+.BR
+.PP
+.PP
+Lava Base, Lava Batch
+.SH  
+.BR
+.PP
+.PP
+.SH LSF_PIM_INFODIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_PIM_INFODIR=\fR\fIpath
+\fR.SS Description
+.BR
+.PP
+.PP
+The path to where PIM writes the pim.info.\fIhost_name\fR file.
+.PP
+Specifies the path to where the process information is stored. The 
+process information resides in the file pim.info.\fIhost_name\fR. The PIM 
+also reads this file when it starts up so that it can accumulate the 
+resource usage of dead processes for existing process groups.
+.SS Default
+.BR
+.PP
+.PP
+Undefined. If undefined, the system uses /tmp.
+.PP
+
+.SH LSF_PIM_SLEEPTIME
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_PIM_SLEEPTIME=\fR\fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+The reporting period for PIM.
+.PP
+PIM updates the process information every 15 minutes unless an 
+application queries this information. If an application requests the 
+information, PIM will update the process information every 
+LSF_PIM_SLEEPTIME seconds. If the information is not queried by any 
+application for more than 5 minutes, the PIM will revert back to the 15 
+minute update period.
+.SS Default
+.BR
+.PP
+.PP
+15
+.SH LSF_RES_ACCT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_RES_ACCT=\fR\fImilliseconds \fR| \fB0
+\fR.SS Description
+.BR
+.PP
+.PP
+If this parameter is defined, RES will log information for completed and 
+failed tasks by default (see \fBlsf.acct\fR(5)).  
+.PP
+The value for LSF_RES_ACCT is specified in terms of consumed CPU 
+time (milliseconds). Only tasks that have consumed more than the 
+specified CPU time will be logged. 
+.PP
+If this parameter is defined as LSF_RES_ACCT=0, then all tasks will be 
+logged. 
+.PP
+For those tasks that consume the specified amount of CPU time, RES 
+generates a record and appends the record to the task log file 
+lsf.acct.\fIhost_name\fR. This file is located in the LSF_RES_ACCTDIR 
+directory. 
+.PP
+If this parameter is not defined, the Lava administrator must use the 
+\fBlsadmin\fR command (see \fBlsadmin\fR(8)) to turn task logging on after RES 
+has started up. 
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_RES_ACCTDIR
+.SH LSF_RES_ACCTDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_RES_ACCTDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+The directory in which the RES task log file lsf.acct.\fIhost_name\fR is 
+stored.
+.PP
+If LSF_RES_ACCTDIR is not defined, the log file is stored in the /tmp 
+directory.
+.SS Default
+.BR
+.PP
+.PP
+(UNIX)/tmp
+.SS See Also
+.BR
+.PP
+.PP
+LSF_RES_ACCT
+.SH LSF_RES_DEBUG
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_RES_DEBUG=1\fR\fI | \fR\fB2
+\fR.SS Description
+.BR
+.PP
+.PP
+Sets RES to debug mode.
+.PP
+If LSF_RES_DEBUG is defined, the Remote Execution Server (RES) will 
+operate in single user mode. No security checking is performed, so RES 
+should not run as root. RES will not look in the services database for 
+the RES service port number. Instead, it uses port number 36002 unless 
+LSF_RES_PORT has been defined. 
+.PP
+Specify 1 for this parameter unless you are testing RES.
+.SS Valid Values
+.BR
+.PP
+.RS
+.HP 2
+\(bu LSF_RES_DEBUG=1
+.RE
+
+.IP
+RES runs in the background with no associated control terminal. 
+
+
+.RS
+.HP 2
+\(bu LSF_RES_DEBUG=2
+.RE
+
+.IP
+RES runs in the foreground and prints error messages to tty. 
+
+
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSF_LIM_DEBUG
+.SH LSF_RES_PLUGINDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_RES_PLUGINDIR=\fR\fIpath
+\fR.SS Description
+.BR
+.PP
+.PP
+The path to lsbresvcl.so. Used only with SUN HPC.
+.SS Default
+.BR
+.PP
+.PP
+$LSF_LIBDIR
+.SS See Also
+.BR
+.PP
+.PP
+.SH LSF_RES_PORT
+.BR
+.PP
+.PP
+See LSF_LIM_PORT, LSF_RES_PORT, LSB_MBD_PORT, 
+LSB_SBD_PORT.
+.SH LSF_RES_RLIMIT_UNLIM
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_RES_RLIMIT_UNLIM=cpu\fR | \fBfsize\fR | \fBdata\fR | \fBstack\fR | \fBcore\fR | \fBvmem
+\fR.SS Description
+.BR
+.PP
+.PP
+(Lava Base only) By default, RES sets the hard limits for a remote task 
+to be the same as the hard limits of the local process. This parameter 
+specifies those hard limits which are to be set to unlimited, instead of 
+inheriting those of the local process.
+.PP
+Valid values are cpu, fsize, data, stack, core, and vmem, for cpu, file 
+size, data size, stack, core size, and virtual memory limits, respectively.
+.SS Example 
+.BR
+.PP
+.PP
+The following example sets the cpu, core size, and stack hard limits to 
+be unlimited for all remote tasks:
+
+.PP
+LSF_RES_RLIMIT_UNLIM="cpu core stack"
+
+
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+.SH LSF_RES_TIMEOUT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_RES_TIMEOUT=\fR\fIseconds\fR 
+.SS Description
+.BR
+.PP
+.PP
+Timeout when communicating with RES.
+.SS Default
+.BR
+.PP
+.PP
+15
+.SH LSF_SERVER_HOSTS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_SERVER_HOSTS="\fR\fIhost_name\fR ...\fB"
+\fR.SS Description
+.BR
+.PP
+.PP
+Defines one or more Lava server hosts that the application should 
+contact to find a Load Information Manager (LIM). This is used on client 
+hosts on which no LIM is running on the local host. The Lava server 
+hosts are hosts that run Lava daemons and provide loading-sharing 
+services. Client hosts are hosts that only run Lava commands or 
+applications but do not provide services to any hosts.
+.PP
+If LSF_SERVER_HOSTS is not defined, the application tries to contact 
+the LIM on the local host. 
+.PP
+The host names in LSF_SERVER_HOSTS must be enclosed in quotes 
+and separated by white space. For example:
+
+.PP
+LSF_SERVER_HOSTS="hostA hostD hostB"
+
+
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SH LSF_SERVERDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_SERVERDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Directory in which all server binaries and shell scripts are installed.
+.PP
+These include lim, res, nios, sbatchd, mbatchd.
+If you use elim, eauth, eexec, 
+esub, etc, they are also installed in this directory.
+.SS Default
+.BR
+.PP
+
+.PP
+LSF_MACHDEP/etc
+
+
+.SS See Also
+.BR
+.PP
+.PP
+LSB_ECHKPNT_METHOD_DIR
+.SH LSF_STRIP_DOMAIN
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_STRIP_DOMAIN=\fR\fIdomain_suffix\fR [\fB:\fR\fIdomain_suffix ...\fR]
+.SS Description
+.BR
+.PP
+.PP
+(Optional) If all of the hosts in your cluster can be reached using short 
+host names, you can configure Lava to use the short host names by 
+specifying the portion of the domain name to remove. If your hosts are 
+in more than one domain or have more than one domain name, you 
+can specify more than one domain suffix to remove, separated by a 
+colon (:).
+.PP
+For example, given this definition of LSF_STRIP_DOMAIN,
+
+.PP
+LSF_STRIP_DOMAIN=.foo.com:.bar.com
+
+
+.PP
+Lava accepts hostA, hostA.foo.com, and hostA.bar.com as names 
+for host hostA, and uses the name hostA in all output. The leading 
+period `.' is required.
+.PP
+Example:
+
+.PP
+LSF_STRIP_DOMAIN=.platform.com:.generic.com
+
+
+.PP
+In the above example, Lava accepts hostA, hostA.platform.com, and 
+hostA.generic.com as names for \fBhostA\fR, and uses the name hostA 
+in all output.
+.PP
+Setting this parameter only affects host names displayed through Lava, 
+it does not affect DNS host lookup.
+.SS Default
+.BR
+.PP
+.PP
+Undefined 
+.SH LSF_TIME_CMD
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_TIME_CMD=\fR\fItimimg_level
+\fR.SS Description
+.BR
+.PP
+.PP
+The timing level for checking how long Lava commands run. Time 
+usage is logged in milliseconds; specify a positive integer.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_TIME_MBD, LSB_TIME_SBD, LSB_TIME_CMD, LSF_TIME_LIM, 
+LSF_TIME_RES
+.SH LSF_TIME_LIM
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_TIME_LIM=\fR\fItiming_level
+\fR.SS Description
+.BR
+.PP
+.PP
+The timing level for checking how long LIM routines run.
+.PP
+Time usage is logged in milliseconds; specify a positive integer.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_TIME_CMD, LSB_TIME_MBD, LSB_TIME_SBD, LSF_TIME_RES
+.SH LSF_TIME_RES
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_TIME_RES=\fR\fItiming_level
+\fR.SS Description
+.BR
+.PP
+.PP
+The timing level for checking how long RES routines run.
+.PP
+Time usage is logged in milliseconds; specify a positive integer.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+LSB_TIME_CMD, LSB_TIME_MBD, LSB_TIME_SBD, LSF_TIME_LIM
+.SH LSF_TMPDIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBLSF_TMPDIR=\fR\fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the path and directory for temporary job output.
+.PP
+When LSF_TMPDIR is defined in lsf.conf, Lava creates a temporary 
+directory under the directory specified by LSF_TMPDIR on the 
+execution host when a job is started and sets the temporary directory 
+environment variable for the job.
+.PP
+When LSF_TMPDIR is defined as an environment variable, it overrides 
+the LSF_TMPDIR specified in lsf.conf. Lava removes the temporary 
+directory and the files that it contains when the job completes.
+.PP
+The name of the temporary directory has the following format:
+
+.PP
+$LSF_TMPDIR/job_ID.tmpdir
+
+
+.PP
+On UNIX, the directory has the permission 0700.
+.PP
+After adding LSF_TMPDIR to lsf.conf, use \fBbadmin hrestart all\fR 
+to reconfigure your cluster.
+.PP
+This parameter can also be specified from the command line.
+.SS Valid Values
+.BR
+.PP
+.PP
+Specify any valid path up to a maximum length 
+of 256 characters. The 256 character maximum path length includes the 
+temporary directories and files that Lava Batch creates as jobs run. The 
+path that you specify for LSF_TMPDIR should be as short as possible 
+to avoid exceeding this limit.
+.PP
+On UNIX, specify an absolute path. For example:
+
+.PP
+LSF_TMPDIR=/usr/share/lsf_tmp
+
+
+.SS Default
+.BR
+.PP
+.PP
+By default, LSF_TMPDIR is not enabled. If LSF_TMPDIR is not specified 
+either in the environment or in lsf.conf, this parameter is defined as 
+follows:
+.RS
+.HP 2
+\(bu On UNIX: $TMPDIR or /tmp
+.RE

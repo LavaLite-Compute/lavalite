@@ -1,0 +1,804 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH badmin 8 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbadmin\fR - administrative tool for Lava
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbadmin\fR\fB \fR\fIsubcommand
+\fR.PP
+\fBbadmin\fR\fB \fR[\fB-h\fR | \fB-V\fR]
+.SH SUBCOMMAND LIST
+.BR
+.PP
+.br
+\fBckconfig\fR [\fB-v\fR]
+.br
+\fBreconfig\fR [\fB-v\fR] [\fB-f\fR]
+.br
+\fBmbdrestart\fR [\fB-v\fR] [\fB-f\fR]
+.br
+\fBqopen\fR [\fIqueue_name\fR ... | \fBall\fR]
+.br
+\fBqclose\fR [\fIqueue_name\fR ... | \fBall\fR]
+.br
+\fBqact\fR [\fIqueue_name\fR ... | \fBall\fR]
+.br
+\fBqinact\fR [\fIqueue_name\fR ... | \fBall\fR]
+.br
+\fBqhist\fR [\fB-t\fR \fItime0\fR,\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR] [\fIqueue_name \fR...]
+.br
+\fBhopen\fR [\fIhost_name\fR ... | \fIhost_group\fR ... | \fBall\fR]
+.br
+\fBhclose\fR [\fIhost_name\fR ... | \fIhost_group\fR ... | \fBall\fR]
+.br
+\fBhrestart\fR [\fB-f\fR] [\fIhost_name\fR ...| \fBall\fR]
+.br
+\fBhshutdown\fR [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBhstartup\fR [\fB-f\fR] [\fIhost_name\fR ... | \fBall\fR]
+.br
+\fBhhist\fR [\fB-t\fR \fItime0\fR,\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR] [\fIhost_name\fR ...]
+.br
+\fBmbdhist \fR[\fB-t\fR \fItime0\fR,\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR]
+.br
+\fBhist\fR [\fB-t\fR \fItime0\fR,\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR]
+.br
+\fBhelp\fR [\fIcommand\fR ...] | \fB?\fR [\fIcommand\fR ...]
+.br
+\fBquit
+\fR.br
+\fBsbddebug\fR [\fB-c\fR \fIclass_name ...\fR] [\fB-l\fR \fIdebug_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] 
+[\fIhost_name ...\fR]
+.br
+\fBmbddebug\fR [\fB-c\fR \fIclass_name ...\fR] [\fB-l\fR \fIdebug_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR]
+.br
+\fBsbdtime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] [\fIhost_name ...\fR]
+.br
+\fBmbdtime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name]\fR [\fB-o\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+This command can only be used by Lava administrators.
+.PP
+badmin provides a set of commands to control and monitor Lava. If no 
+subcommands are supplied for badmin, badmin prompts for a 
+command from standard input. Commands bqc(8), breconfig(8) and 
+breboot(8) are superceded by badmin(8).
+.PP
+Information about each command is available through the help 
+command.
+.PP
+The badmin commands consist of a set of privileged commands and a 
+set of non\fB-\fRprivileged commands. Privileged commands can only be 
+invoked by root or Lava administrators as defined in the configuration 
+file (see lsf.cluster.cluster(5) for ClusterAdmin). Privileged 
+commands are:
+.PP
+reconfig
+.PP
+mbdrestart
+.PP
+qopen
+.PP
+qclose
+.PP
+qact
+.PP
+qinact
+.PP
+hopen
+.PP
+hclose
+.PP
+hrestart
+.PP
+hshutdown
+.PP
+hstartup
+.PP
+All other commands are non\fB-\fRprivileged commands and can be invoked 
+by any Lava user. If the privileged commands are to be executed by an 
+Lava administrator, badmin must be installed setuid root, because it 
+needs to send the request using a privileged port.
+.PP
+For subcommands for which multiple host names or host groups can 
+be specified, do not enclose the multiple names in quotation marks. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fIsubcommand
+\fR
+.IP
+Executes the specified subcommand. See Usage section.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits.
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits.
+
+
+.SH USAGE
+.BR
+.PP
+.TP 
+\fBckconfig\fR [\fB-v\fR]
+
+.IP
+Checks Lava configuration files. Configuration files are located in the 
+LSB_CONFDIR/\fIcluster_name\fR/configdir directory. 
+
+.IP
+The LSB_CONFDIR variable is defined in lsf.conf (see lsf.conf(5)) 
+which is in LSF_ENVDIR or /etc (if LSF_ENVDIR is not defined).
+
+.IP
+By default, badmin ckconfig displays only the result of the 
+configuration file check. If warning errors are found, badmin prompts 
+you to display detailed messages.
+
+
+.IP
+\fB-v\fR
+.BR
+.RS
+.IP
+Verbose mode. Displays detailed messages about configuration 
+file checking to stderr.
+
+.RE
+
+.TP 
+\fBreconfig\fR [\fB-v\fR] [\fB-f\fR]
+
+.IP
+Dynamically reconfigures Lava without restarting MBD. Configuration 
+files are checked for errors and the results displayed to stderr. If no 
+errors are found in the configuration files, a reconfiguration request is 
+sent to MBD and configuration files are reloaded.
+
+.IP
+With this command, MBD is not restarted and lsb.events is not 
+replayed. To restart MBD and replay lsb.events, use badmin 
+mbdrestart.
+
+.IP
+When you issue this command, MBD is available to service requests 
+while reconfiguration files are reloaded. Configuration changes made 
+since system boot or the last reconfiguration take effect.
+
+.IP
+If warning errors are found, badmin prompts you to display detailed 
+messages. If fatal errors are found, reconfiguration is not performed, 
+and badmin exits.
+
+.IP
+If you add a host to a host group, or a host to a queue, the new host 
+will not be recognized by jobs that were submitted before you 
+reconfigured. If you want the new host to be recognized, you must use 
+the command badmin mbdrestart.
+
+
+.IP
+\fB-v\fR
+.BR
+.RS
+.IP
+Verbose mode. Displays detailed messages about the status of 
+the configuration files. Without this option, the default is to 
+display the results of configuration file checking. All messages 
+from the configuration file check are printed to stderr.
+
+.RE
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and proceeds with reconfiguration if 
+configuration files contain no fatal errors.
+
+.RE
+
+.TP 
+\fBmbdrestart\fR [\fB-v\fR] [\fB-f\fR]
+
+.IP
+Dynamically reconfigures Lava and restarts MBD. Configuration files are 
+checked for errors and the results printed to stderr. If no errors are 
+found, configuration files are reloaded, MBD is restarted, and events in 
+lsb.events are replayed to recover the running state of the last MBD. 
+MBD is unavailable to service requests while it restarts.
+
+.IP
+If warning errors are found, badmin prompts you to display detailed 
+messages. If fatal errors are found, MBD restart is not performed, and 
+badmin exits.
+
+.IP
+If lsb.events is large, or many jobs are running, restarting MBD can 
+take several minutes. If you only need to reload the configuration files, 
+use badmin reconfig.
+
+
+.IP
+\fB-v\fR 
+.BR
+.RS
+.IP
+Verbose mode. Displays detailed messages about the status of 
+configuration files. All messages from configuration checking 
+are printed to stderr.
+
+.RE
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and forces reconfiguration and MBD restart 
+to proceed if configuration files contain no fatal errors.
+
+.RE
+
+.TP 
+\fBqopen\fR [\fIqueue_name ... \fR| \fBall\fR]
+
+.IP
+Opens specified queues, or all queues if the reserved word all is 
+specified. If no queue is specified, the system default queue is assumed 
+(see lsb.queues(5) for DEFAULT_QUEUE). A queue can accept batch 
+jobs only if it is open.
+
+
+.TP 
+\fBqclose\fR [\fIqueue_name\fR ... | \fBall\fR]
+
+.IP
+Closes specified queues, or all queues if the reserved word all is 
+specified. If no queue is specified, the system default queue is 
+assumed. A queue will not accept any job if it is closed.
+
+
+.TP 
+\fBqact \fR[\fIqueue_name\fR ... | \fBall\fR]
+
+.IP
+Activates specified queues, or all queues if the reserved word all is 
+specified. If no queue is specified, the system default queue is 
+assumed. Jobs in a queue can be dispatched if the queue is activated. 
+
+.IP
+A queue inactivated by its run windows cannot be reactivated by this 
+command (see lsb.queues(5) for RUN_WINDOW).
+
+
+.TP 
+\fBqinact\fR [\fIqueue_name\fR ... | \fBall\fR]
+
+.IP
+Inactivates specified queues, or all queues if the reserved word all is 
+specified. If no queue is specified, the system default queue is 
+assumed. No job in a queue can be dispatched if the queue is 
+inactivated.
+
+
+.TP 
+\fBqhist\fR [\fB-t\fR \fItime0\fR,\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR] [\fIqueue_name\fR ...]
+
+.IP
+Displays historical events for specified queues, or for all queues if no 
+queue is specified. Queue events are queue opening, closing, 
+activating and inactivating.
+
+
+.IP
+\fB-t\fR \fItime0\fR,\fItime1\fR
+.BR
+.RS
+.IP
+Displays only those events that occurred during the period 
+from \fItime0\fR to \fItime1\fR. See bhist(1) for the time format. The 
+default is to display all queue events in the event log file (see 
+below).
+
+.RE
+
+.IP
+\fB-f\fR \fIlogfile_name\fR
+.BR
+.RS
+.IP
+Specify the file name of the event log file. Either an absolute or 
+a relative path name may be specified. The default is to use the 
+event log file currently used by the Lava system: 
+LSB_SHAREDIR/cluster_name/logdir/lsb.events. Option 
+-f is useful for offline analysis.
+
+.RE
+
+.TP 
+\fBhopen\fR [\fIhost_name \fR... | \fIhost_group \fR... | \fBall\fR]
+
+.IP
+Opens batch server hosts. Specify the names of any server hosts or host 
+groups (see bmgroup(1)). All batch server hosts will be opened if the 
+reserved word all is specified. If no host or host group is specified, 
+the local host is assumed. A host accepts batch jobs if it is open.
+
+
+.TP 
+\fBhclose\fR [\fIhost_name \fR... | \fIhost_group \fR... | \fBall\fR]
+
+.IP
+Closes batch server hosts. Specify the names of any server hosts or host 
+groups (see bmgroup(1)). All batch server hosts will be closed if the 
+reserved word all is specified. If no argument is specified, the local 
+host is assumed. A closed host will not accept any new job, but jobs 
+already dispatched to the host will not be affected. Note that this is 
+different from a host closed by a window \fB-\fR all jobs on it are suspended 
+in that case.
+
+
+.TP 
+\fBhrestart\fR [\fB-f\fR] [\fIhost_name \fR... | \fBall\fR]
+
+.IP
+Restarts SBD on the specified hosts, or on all server hosts if the 
+reserved word all is specified. If no host is specified, the local host is 
+assumed. SBD will re\fB-\fRexecute itself from the beginning. This allows 
+new SBD binaries to be used.
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+restarting SBDs. 
+
+.RE
+
+.TP 
+\fBhshutdown\fR [\fB-f\fR] [\fIhost_name \fR... | \fBall\fR]
+
+.IP
+Shuts down SBD on the specified hosts, or on all batch server hosts if 
+the reserved word all is specified. If no host is specified, the local host 
+is assumed. SBD will exit upon receiving the request.
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+shutting down SBDs. 
+
+.RE
+
+.TP 
+\fBhstartup\fR [\fB-f\fR] [\fIhost_name \fR... | \fBall\fR]
+
+.IP
+Starts up SBD on the specified hosts, or on all batch server hosts if the 
+reserved word all is specified. Only root 
+can use this option, and those users must be able to 
+use rsh on all Lava hosts. If no host is specified, the local host is 
+assumed.
+
+
+.IP
+\fB-f\fR
+.BR
+.RS
+.IP
+Disables interaction and does not ask for confirmation for 
+starting up SBDs. 
+
+.RE
+
+.TP 
+\fBhhist\fR [\fB-t\fR \fItime0\fR,\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR] [\fIhost_name \fR...]
+
+.IP
+Displays historical events for specified hosts, or for all hosts if no host 
+is specified. Host events are host opening and closing. Options -t and 
+-f are exactly the same as those of qhist (see above).
+
+
+.TP 
+\fBmbdhist\fR [\fB-t \fR\fItime0\fR,\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR]
+
+.IP
+Displays historical events for MBD. Events describe the starting and 
+exiting of MBD. Options -t and -f are exactly the same as those of 
+qhist (see above).
+
+
+.TP 
+\fBhist\fR [\fB-t\fR \fItime0\fR\fI,\fR\fItime1\fR] [\fB-f\fR \fIlogfile_name\fR]
+
+.IP
+Displays historical events for all the queues, hosts and MBD. Options 
+-t and -f are exactly the same as those of qhist (see above).
+
+
+.TP 
+\fBhelp\fR [\fIcommand\fR\fI ...\fR] | \fB?\fR [\fIcommand\fR\fI ...\fR]
+
+.IP
+Displays the syntax and functionality of the specified commands.
+
+
+.TP 
+\fBquit
+\fR
+.IP
+Exits the badmin session.
+
+
+.TP 
+\fBsbddebug\fR [\fB-c\fR \fIclass_name ...\fR] [\fB-l\fR \fIdebug_level\fR] [\fB-\fR\fBf\fR \fIlogfile_name\fR] [\fB-o\fR] 
+[\fIhost_name ...\fR]
+
+.IP
+Sets the message log level for SBD to include additional information in 
+log files. You must be root or the Lava administrator to use this 
+command.
+
+.IP
+If the command is used without any options, the following default 
+values are used:
+
+.IP
+\fIclass_name\fR = 0 (no additional classes are logged)
+
+.IP
+\fIdebug_level\fR = 0 (LOG_DEBUG level in parameter LSF_LOG_MASK)
+
+.IP
+\fIlogfile_name\fR = current Lava system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name\fR.log.\fIhost_name
+\fR
+.IP
+\fIhost_name\fR = local host (host from which command was submitted)
+
+
+.IP
+\fB-c\fR \fIclass_name ...\fR
+.BR
+.RS
+.IP
+Specifies software classes for which debug messages are to be 
+logged.
+
+.IP
+Format of \fIclass_name \fRis the name of a class, or a list of class 
+names separated by spaces and enclosed in quotation marks.
+
+.IP
+Possible classes:
+
+.IP
+LC_AUTH - Log authentication messages
+
+.IP
+LC_CHKPNT - Log checkpointing messages
+
+.IP
+LC_COMM - Log communication messages
+
+.IP
+LC_EXEC - Log significant steps for job execution
+
+.IP
+LC_FILE - Log file transfer messages
+
+.IP
+LC_HANG - Mark where a program might hang
+
+.IP
+LC_JLIMIT - Log job slot limit messages
+
+.IP
+LC_LOADINDX - Log load index messages
+
+.IP
+LC_PEND - Log messages related to job pending reasons
+
+.IP
+LC_PERFM - Log performance messages
+
+.IP
+LC_PIM - Log PIM messages
+
+.IP
+LC_SIGNAL - Log messages pertaining to signals
+
+.IP
+LC_SYS - Log system call messages
+
+.IP
+LC_TRACE - Log significant program walk steps
+
+.IP
+LC_XDR - Log everything transferred by XDR
+
+.IP
+Note: Classes are also listed in lsf.h.
+
+.IP
+Default: 0 (no additional classes are logged)
+
+.RE
+
+.IP
+\fB-l\fR \fIdebug_level\fR
+.BR
+.RS
+.IP
+Specifies level of detail in debug messages. The higher the 
+number, the more detail that is logged. Higher levels include all 
+lower levels.
+
+.IP
+Possible values:
+
+.IP
+0 LOG_DEBUG level in parameter LSF_LOG_MASK in 
+lsf.conf. 
+
+.IP
+1 LOG_DEBUG1 level for extended logging. A higher level 
+includes lower logging levels. For example, LOG_DEBUG3 
+includes LOG_DEBUG2 LOG_DEBUG1, and LOG_DEBUG 
+levels.
+
+.IP
+2 LOG_DEBUG2 level for extended logging. A higher level 
+includes lower logging levels. For example, LOG_DEBUG3 
+includes LOG_DEBUG2 LOG_DEBUG1, and LOG_DEBUG 
+levels.
+
+.IP
+3 LOG_DEBUG3 level for extended logging. A higher level 
+includes lower logging levels. For example, LOG_DEBUG3 
+includes LOG_DEBUG2, LOG_DEBUG1, and LOG_DEBUG 
+levels.
+
+.IP
+Default: 0 (LOG_DEBUG level in parameter LSF_LOG_MASK)
+
+.RE
+
+.IP
+\fB-f\fR \fIlogfile_name\fR
+.BR
+.RS
+.IP
+Specify the name of the file into which debugging messages are 
+to be logged. A file name with or without a full path may be 
+specified.
+
+.IP
+If a file name without a path is specified, the file will be saved 
+in the directory indicated by the parameter LSF_LOGDIR in 
+lsf.conf.
+
+.IP
+The name of the file that will be created will have the following 
+format:
+
+.IP
+\fIlogfile_name.daemon_name.\fRlog\fI.host_name
+\fR
+.IP
+If the specified path is invalid, on UNIX, the log file is created 
+in the /tmp directory. 
+
+.IP
+If LSF_LOGDIR is not defined, daemons log to the syslog 
+facility.
+
+.IP
+Default: current Lava system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name\fR.log\fI.host_name\fR.
+
+.RE
+
+.IP
+\fB-o\fR
+.BR
+.RS
+.IP
+Turns off temporary debug settings and resets them to the 
+daemon starting state. The message log level is reset back to the 
+value of LSF_LOG_MASK and classes are reset to the value of 
+LSB_DEBUG_MBD, LSB_DEBUG_SBD.
+
+.IP
+The log file is also reset back to the default log file.
+
+.RE
+
+.IP
+\fIhost_name ...\fR
+.BR
+.RS
+.IP
+Optional. Sets debug settings on the specified host or hosts.
+
+.IP
+Lists of host names must be separated by spaces and enclosed 
+in quotation marks.
+
+.IP
+Default: local host (host from which command was submitted)
+
+.RE
+
+.TP 
+\fBmbddebug\fR [\fB-c\fR \fIclass_name ...\fR] [\fB-l\fR \fIdebug_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR]
+
+.IP
+Sets message log level for MBD to include additional information in log 
+files. You must be root or the Lava administrator to use this command.
+
+.IP
+See sbddebug for an explanation of options.
+
+
+.TP 
+\fBsbdtime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR] [\fIhost_name ...\fR]
+
+.IP
+Sets the timing level for SBD to include additional timing information 
+in log files. You must be root or the Lava administrator to use this 
+command.
+
+.IP
+If the command is used without any options, the following default 
+values are used:
+
+.IP
+\fItiming_level\fR = no timing information is recorded
+
+.IP
+\fIlogfile_name\fR = current Lava system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name.\fRlog\fI.host_name
+\fR
+.IP
+\fIhost_name \fR= local host (host from which command was submitted)
+
+
+.IP
+\fB-l \fR\fItiming_level\fR
+.BR
+.RS
+.IP
+Specifies detail of timing information that is included in log 
+files. Timing messages indicate the execution time of functions 
+in the software and are logged in milliseconds.
+
+.IP
+Valid values: 1 | 2 | 3 | 4 | 5
+
+.IP
+The higher the number, the more functions in the software that 
+are timed and whose execution time is logged. The lower 
+numbers include more common software functions. Higher 
+levels include all lower levels.
+
+.IP
+Default: undefined (no timing information is logged)
+
+.RE
+
+.IP
+\fB-f\fR \fIlogfile_name\fR
+.BR
+.RS
+.IP
+Specify the name of the file into which timing messages are to 
+be logged. A file name with or without a full path may be 
+specified.
+
+.IP
+If a file name without a path is specified, the file will be saved 
+in the directory indicated by the parameter LSF_LOGDIR in 
+lsf.conf.
+
+.IP
+The name of the file that will be created will have the following 
+format:
+
+.IP
+\fIlogfile_name.daemon_name.\fRlog\fI.host_name
+\fR
+.IP
+If the specified path is invalid, on UNIX, the log file is created 
+in the /tmp directory.
+
+.IP
+If LSF_LOGDIR is not defined, daemons log to the syslog 
+facility.
+
+.IP
+\fBNote: \fRBoth timing and debug messages are logged in the same 
+files.
+
+.IP
+Default: current Lava system log file in the directory specified by 
+LSF_LOGDIR in the format \fIdaemon_name.\fRlog\fI.host_name\fR.
+
+.RE
+
+.IP
+\fB-o\fR
+.BR
+.RS
+.IP
+Optional. Turn off temporary timing settings and reset them to 
+the daemon starting state. The timing level is reset back to the 
+value of the parameter for the corresponding daemon 
+(LSB_TIME_MBD, LSB_TIME_SBD).
+
+.IP
+The log file is also reset back to the default log file.
+
+.RE
+
+.IP
+\fIhost_name \fR...
+.BR
+.RS
+.IP
+Sets the timing level on the specified host or hosts.
+
+.IP
+Lists of hosts must be separated by spaces and enclosed in 
+quotation marks.
+
+.IP
+Default: local host (host from which command was submitted)
+
+.RE
+
+.TP 
+\fBmbdtime\fR [\fB-l\fR \fItiming_level\fR] [\fB-f\fR \fIlogfile_name\fR] [\fB-o\fR]
+
+.IP
+Sets timing level for MBD to include additional timing information in 
+log files. You must be root or the Lava administrator to use this 
+command.
+
+.IP
+See sbdtime for an explanation of options.
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bqueues(1), bhosts(1), lsb.queues(5), lsb.hosts(5), 
+lsf.conf(5), lsf.cluster(5), sbatchd(8), mbatchd(8)

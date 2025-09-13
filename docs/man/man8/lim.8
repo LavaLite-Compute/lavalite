@@ -1,0 +1,256 @@
+.\" $Id: lim.8,v 1.2 2007/08/13 21:28:01 cchen Exp $
+.ds ]W %
+.ds ]L
+.TH LIM 8 "1 August 1998"
+.SH NAME
+lim \- Load Information Manager (\s-1LIM\s0) for the Load Sharing Facility
+(\s-1LSF\s0) system
+.SH SYNOPSIS
+\fBLSF_SERVDIR/lim [ -h ] [ -V ] [ -C ] [ -d \fIenv_dir\fB ] [ -\fIdebug_level\fB ]
+.SH DESCRIPTION
+\s-1LIM\s0 is a server that runs on every server host which is
+participating in load sharing. It provides system configuration
+information, load information, and placement advice services.  The
+\s-1LIM\s0s on all hosts coordinate in collecting and transmitting load
+information. Load information is transmitted between \s-1LIM\s0s in the form of
+vectors of load indices. These are described in the 
+\fBLOAD INDICES\fR section.
+.PP
+In order to run \s-1LIM\s0 on a host, the host must be configured as a
+server host in the \fBlsf.cluster.\fR<\fIclustername\fR> file. See
+the description of the \fBSERVER\fR keyword in the 
+\fBlsf.cluster.\fR<\fIclustername\fR> file in
+.BR lsf.cluster (5)
+for more information on server hosts and client hosts.
+.PP
+A master \s-1LIM\s0 is elected for each \s-1LSF\s0 cluster. The master
+\s-1LIM\s0 receives load information from all slave \fBLIM\fRs
+and provides services to all hosts. 
+The slave \fBLIM\fRs periodically check their own load conditions and
+send a load vector to the master if significant changes in load condition are
+observed. The minimum load information exchange interval is 15 seconds.
+However, a user site can redefine this by setting the \fBEXINTERVAL\fR parameter
+in \fBPARAMETERS\fR section of \fBlsf.cluster\fR file (see
+.BR lsf.cluster (5)).
+The actual exchange intervals
+can be bigger if the load does not change much.
+.PP
+Slave \s-1LIM\s0s also provide some services to the local application. For
+example, applications contact the local \s-1LIM\s0 to get local load
+information, the local cluster name, the available resources on any
+host, and the name of the host on which the master \s-1LIM\s0 is running.
+A slave \s-1LIM\s0 accepts
+application requests to lock or unlock the local host.
+Slave \s-1LIM\s0s also monitor the status of the master \s-1LIM\s0 and
+elect a new master if the original one becomes unavailable.
+.PP
+\s-1LIM\s0 reads
+.BR lsf.conf (5)
+file to get the following parameters: \fBLSF_LIM_DEBUG\fR,
+\fBLSF_CONFDIR\fR, \fBLSF_SERVERDIR\fR, \fBLSF_LIM_PORT\fR, \fBLSF_LOG_MASK\fR and \fBLSF_LOGDIR\fR.
+If \fBLSF_LIM_DEBUG\fR is defined, \s-1LIM\s0 runs at the specified debug
+level. \fBLSF_CONFDIR\fR tells \s-1LIM\s0 where to find the \s-1LSF\s0 configuration
+files. \fBLSF_SERVERDIR\fR is used by \s-1LIM\s0 during reconfiguration in
+order to locate the directory where the \s-1LIM\s0 binary is stored. 
+\fBLSF_LIM_PORT\fR is used to define the UDP port number that \s-1LIM\s0 uses for
+serving all applications. If this is not defined, \s-1LIM\s0 will try to
+get the port number from services database (see 
+.BR getservbyname (3)). 
+If \fBLSF_LOG_MASK\fR is defined, the defined log mask is set so that messages
+with lower priority than \fBLSF_LOG_MASK\fR are not logged. If \fBLSF_LOG_MASK\fR is
+not defined, a default log mask \fBLOG_WARNING\fR is used. If \fBLSF_LOGDIR\fR is
+defined, error messages are logged into the file
+\fBlim.log.\fR<\fIhostname\fR>\fR in the directory \fBLSF_LOGDIR\fR. If \s-1LIM\s0
+cannot write in \fBLSF_LOGDIR\fR, errors are logged into \fB/tmp\fR. If \fBLSF_LOGDIR\fR
+is not defined, \fBsyslog\fR is used to log error messages with the level \fBLOG_ERR\fR.
+\fBLSF_CLUSTER_NAME\fR is a mandatory parameter which specifies the cluster that
+the \s-1LIM\s0 belongs to.
+.SH LOAD INDICES
+The load information provided by the \s-1LIM\s0 consists of the
+following load indices:
+.TP 5
+.B r15s
+The 15-second exponentially averaged \s-1CPU\s0 run queue length, normalized by
+the \s-1CPU\s0 speed.
+.TP 5
+.B r1m
+The 1-minute exponentially averaged \s-1CPU\s0 run queue length, normalized by
+the \s-1CPU\s0 speed.
+.TP 5
+.B r15m
+The 15-minute exponentially averaged \s-1CPU\s0 run queue length, normalized by
+the \s-1CPU\s0 speed.
+.TP 5
+.B ut
+The \s-1CPU\s0 utilization exponentially averaged over the last minute,
+between 0 and 1.
+.TP 5
+.B pg
+The memory paging rate exponentially averaged over the last minute,
+in pages per second.
+.TP 5
+.B io
+The disk I/O rate exponentially averaged over the last minute,
+in KBytes per second.
+.TP 5
+.B ls
+The number of current login users.
+.TP 5
+.B it
+The idle time of the host (keyboard not touched on all logged in sessions),
+in minutes.
+.TP 5
+.B tmp
+The amount of free disk space in \fB/tmp\fR, in MBytes.
+.TP 5
+.B swp
+The amount of currently available swap space, in MBytes.
+.TP 5
+.B mem
+The amount of currently available memory, in MBytes.
+.PP
+In addition, an \s-1LSF\s0 installation can configure arbitrary 
+external load indices as explained below.
+.SH EXTERNAL LOAD INFORMATION MANAGER
+The load indices monitored at a site can be extended by directing the
+\s-1LIM\s0 to invoke and communicate with an External Load Information
+Manager (\s-1ELIM\s0). The \s-1ELIM\s0 is responsible for collecting load
+indices not managed by the \s-1LIM\s0. These indices are passed on to the
+\s-1LIM\s0 by \s-1ELIM\s0 through a well defined protocol.
+.PP
+To configure an external load index, the index name must first be defined
+in the \fBResources\fR section of the
+.BR lsf.shared (5)
+file.  The location of the resource must then be defined in the
+\fBResourceMap\fR section of the
+.BR lsf.cluster (5)
+file.
+A load index is either a shared or a non-shared resource.  A non-shared
+resource is defined on each host in the cluster, and the value is specific
+to each host.  A shared resource is a resource whose value is shared by
+more than one host, and the resource may be defined only on a subset of
+the hosts.  The
+\s-1ELIM\s0 can report both shared and non-shared resources.  The
+location specification of the resource in the
+\fBResourceMap\fR section of the
+.BR lsf.cluster (5)
+file defines whether a resource is shared or non-shared.
+.PP
+If a non-shared external index is defined, the \s-1LIM\s0 on each host
+will invoke the \s-1ELIM\s0 on start up.  If a shared external index is
+defined, the \s-1LIM\s0 will start the \s-1ELIM\s0 only if the index applies
+to the current host, and the current host is the first host from 
+the hostlist defined for the resource instance, which is alive.  
+(see
+.BR lsf.cluster (5)).
+The executable for the \s-1ELIM\s0 must be in \fBLSF_SERVDIR\fR
+and must have the name '\fBelim\fR'. 
+The \s-1ELIM\s0 will run with the same user ID
+and file access permissions as the \s-1LIM\s0.
+If the \s-1ELIM\s0 dies, it will be
+restarted by the \s-1LIM\s0. If the \s-1LIM\s0 dies, the master LIM
+will ensure that the \s-1ELIM\s0 on the next host on the hostlist defined for 
+the resource instance is started.  If this dead \s-1LIM\s0 comes back alive 
+again however, the original \s-1ELIM\s0 will be restarted and the backup 
+\s-1ELIM\s0 terminated.  
+.PP
+When the \s-1LIM\s0 terminates, it will send a SIGTERM signal to the \s-1ELIM\s0.
+The \s-1ELIM\s0 is expected to terminate upon receiving this signal.
+.PP
+The \s-1LIM\s0 communicates with the \s-1ELIM\s0 through 2 environment 
+variables:  \s-1LSF_MASTER\s0 and  \s-1LSF_RESOURCES\s0.  \s-1LSF_MASTER\s0
+is set to an empty string if the \s-1ELIM\s0 is being started by the 
+\s-1LIM\s0 on the master host.  It is left unset otherwise.
+\s-1LSF_RESOURCES\s0 is set to a space separated string of dynamic 
+shared resources indices for which the \s-1ELIM\s0 on that host is responsible 
+to collect.  Thus if a host is defined in the resource instances 
+for the dynamic shared resource indices, `\fBwork\fR', `\fBnetio\fR', and
+`\fBusers\fR', then \s-1LSF_RESOURCES\s0 will be set with the string
+"\fBwork\fR \fBnetio\fR \fBusers\fR".
+.PP
+The \s-1ELIM\s0 communicates with the \s-1LIM\s0 by periodically writing a
+load update string to its stdout. The load update string
+contains the number of indices followed by a list of name-value pairs
+in the following format:
+"\fInumIndx indexname1 value1 indexname2 value2 .... indexnameN valueN\fR".
+For example "\fB3 work 47.5 netio 344.0 users 5\fR"
+is a valid load update string
+in which the \s-1ELIM\s0 is reporting 3 indices, `\fBwork\fR', `\fBnetio\fR', and `\fBusers\fR'
+with values \fB47.5\fR, \fB344.0\fR, and \fB5\fR, respectively.
+Index names corresponding to the built-in indices are also accepted.
+In this case the value produced by the \s-1ELIM\s0 overrides
+the value produced by \s-1LIM\s0. It is up to the \s-1ELIM\s0 to ensure
+that the semantics of all indices it samples correspond to those
+returned by
+.BR lsinfo (1)
+or
+.BR ls_info (3).
+.PP
+The \s-1ELIM\s0 should ensure that the entire load update string
+is written successfully to stdout. This can be done by checking the
+return value of \fBprintf\fR(3) or \fBfprintf\fR(3) if the \s-1ELIM\s0 is implemented
+as C program or the return code of 
+.BR echo (1)
+from a shell script.
+Failure to write the load update string should cause the \s-1ELIM\s0 to
+terminate.
+.SH CUSTOMIZATION OF PARAMETERS
+You can customize \s-1LIM\s0 by changing the configuration files in the
+\fBLSF_CONFDIR\fR directory (defined in
+.BR lsf.conf (5)).
+The configuration file
+.BR lsf.cluster (5)
+located in that directory define \s-1LSF\s0 clusters, the resources on
+individual hosts, the \s-1CPU\s0 speeds of individual hosts, whether a
+host is a server host or client host, the load threshold values beyond
+which a host is considered to be overloaded, the run windows during
+which a host is available for load sharing, and so on.
+.SH OPTIONS
+.TP 5
+.B -h
+Print command usage to stderr and exit.
+.TP 5
+.B -V
+Print \s-1LSF\s0 release version to stderr and exit.
+.TP 5
+.B -C
+Check the configuration file content with verbose error reporting
+and exit.
+.TP 5
+.B -d \fIenv_dir\fR
+Read \fBlsf.conf\fR from the directory
+.I env_dir,
+rather than the default directory \fB/etc\fR, or the directory specified by
+the \fBLSF_ENVDIR\fR environment variable.
+.TP 5
+.BI - debug_level
+Set the debug level. Valid values are 1 and 2. If specified, \s-1LIM\s0
+runs in debugging mode. In debugging mode, \s-1LIM\s0 uses a hardcoded
+port number rather than the one registered in system services. Also,
+privileged operations such as reconfiguration and host lock or unlock can
+be done by any user. If debug mode is not enabled, only root and
+\fBLSF_MANAGER\fR (defined in
+.BR lsf.conf (5))
+can do these privileged operations. If \fIdebug_level\fR is 1, \s-1LIM\s0
+runs in the background, with no associated control terminal. If \fIdebug_level\fR
+is 2, \s-1LIM\s0 runs in the foreground, printing error messages on to
+tty. The \fIdebug_level\fR option overrides the environment variable
+\fBLSF_LIM_DEBUG\fR defined in
+.BR lsf.conf (5).
+.SH NOTE
+\s-1LIM\s0 needs read access to \fB/dev/kmem\fR or its equivalent.
+.SH FILES
+.PD 0
+.TP
+\fB/etc/lsf.conf\fR (by default) or \fBLSF_ENVDIR/lsf.conf\fR
+.TP
+.B LSF_CONFDIR/lsf.shared
+.TP
+.B LSF_CONFDIR/lsf.cluster.\fR<\fIclustername\fR>
+.PD
+.SH "SEE ALSO"
+.BR lsf.conf (5),
+.BR lsf.cluster (5),
+.BR lsinfo (1),
+.BR ls_info (3),
+.BR syslog (3)

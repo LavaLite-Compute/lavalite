@@ -1,0 +1,50 @@
+#
+# Copyright (C) LavaLite Contributors
+#
+# Public API headers
+pkginclude_HEADERS = lavalite.h lsf.h lsbatch.h
+
+# Internal headers (not installed)
+noinst_HEADERS = \
+    lim/lim.h \
+    lim/lim.conf.h \
+    lim/limout.h \
+    lim/lim.common.h \
+    lim/lim.linux.h \
+    lsadm/lsadmin.h \
+    pim/pim.linux.h \
+    intlib/intlib.h \
+    intlib/intlibout.h \
+    intlib/lsftcl.h \
+    intlib/resreq.h \
+    intlib/jidx.h \
+    intlib/list.h \
+    intlib/listset.h \
+    intlib/bitset.h \
+    intlib/set.h \
+    intlib/vector.h \
+    intlib/tokdefs.h \
+    intlib/yparse.h \
+    lib/lib.h \
+    lib/lib.words.h \
+    lib/lib.conf.h \
+    lib/lib.rf.h \
+    lib/lib.xdr.h \
+    lib/lib.so.h \
+    lib/lib.table.h \
+    lib/lib.osux.h \
+    lib/lib.hdr.h \
+    lib/lib.xdrres.h \
+    lib/lib.xdrlim.h \
+    lib/lib.osal.h \
+    lib/lib.channel.h \
+    lib/lib.queue.h \
+    lib/lib.rmi.h \
+    lib/lib.pim.h \
+    lib/lib.rcp.h \
+    res/res.h \
+    res/rescom.h \
+    res/resout.h \
+    res/nios.h \
+    lstools/lstools.h
+
