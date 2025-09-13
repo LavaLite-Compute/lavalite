@@ -1,3 +1,4 @@
+# Ignore misc files mostly created by automake and build
 *.o
 *.lo
 *.a
@@ -20,6 +21,20 @@ config.status
 stamp-h1
 config.guess
 config.sub
+
+# Ignore built libtool libreries
+*.libs/
+
+# Ignore commands
+lsadmin
+lsacct
+lseligible
+lshosts
+lsid
+lsinfo
+lsload
+lsloadadj
+lsplace
 echkpnt
 erestart
 eauth
@@ -44,20 +59,14 @@ bsub
 bswitch
 btop
 busers
-.libs/
-mbatchd
-sbatchd
-*.libs/
+
+# Ignore binary daemons
 lim
-lsadmin
-lsacct
-lseligible
-lshosts
-lsid
-lsinfo
-lsload
-lsloadadj
-lsplace
 pim
 nios
 res
+mbatchd
+sbatchd
+# Ignore cscope
+cscope*
+
