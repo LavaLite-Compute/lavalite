@@ -72,8 +72,8 @@ compatible with GPLv2.
 For issues and feature requests, please use the
 [GitHub Issues page](https://github.com/lavalite/livelite/issues).
 
-Maintainer: lutram30@gmail.com
-Project email (coming soon): livelite@contributors.org
+Maintainer: lavalite-compute@gmail.com
+Project email: livelite@lavalite-compute.io
 
 ## Library Build Options
 
