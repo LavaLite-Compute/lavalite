@@ -72,7 +72,7 @@ compatible with GPLv2.
 For issues and feature requests, please use the
 [GitHub Issues page](https://github.com/lavalite/livelite/issues).
 
-Maintainer: lavalite-compute@gmail.com
+Maintainer: lavalite.compute@gmail.com
 Project email: livelite@lavalite-compute.io
 
 ## Library Build Options
