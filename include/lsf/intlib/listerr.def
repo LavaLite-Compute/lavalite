@@ -1,0 +1,21 @@
+/*
+ * $Id: listerr.def,v 1.1 2007/07/18 23:17:45 cchen Exp $
+ ********************************************************************
+ *
+ * Load Sharing Facilities
+ *
+ * List Error Codes
+ * 
+ ********************************************************************
+ *
+ */
+
+LIST_ERROR_CODE_ENTRY(LIST_ERR_NOERR,  
+		      "No Error")
+LIST_ERROR_CODE_ENTRY(LIST_ERR_BADARG, 
+		      "Bad arguments")
+LIST_ERROR_CODE_ENTRY(LIST_ERR_NOMEM,  
+		      "Memory allocation failed")
+LIST_ERROR_CODE_ENTRY(LIST_ERR_NOOBSVR, 
+		      "Permission denied for attaching observers")
+

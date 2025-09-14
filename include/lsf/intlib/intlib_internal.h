@@ -52,11 +52,11 @@
 #include "lsf/intlib/jidx.h"
 #include "lsf/intlib/list.h"
 #include "lsf/intlib/listset.h"
-#include "lsf/intlib/lsftcl.h"
+//#include "lsf/intlib/lsftcl.h"
 #include "lsf/intlib/resreq.h"
 #include "lsf/intlib/tokdefs.h"
-#include "lsf/intlib/vector.h"
-#include "lsf/intlib/yparse.h"
+//#include "lsf/intlib/vector.h"
+//#include "lsf/intlib/yparse.h"
 
 /* Optional: common macros, inline helpers confined to intlib.
  * static inline helpers here if they truly belong to intlib-wide usage

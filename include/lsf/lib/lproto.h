@@ -114,10 +114,10 @@ extern int sharedResConfigured_;
 #define AUTOMOUNT_LAST_STR "AMFIRST"
 #define AUTOMOUNT_NEVER_STR "AMNEVER"
 
-#define FREEUP(pointer)   if (pointer != NULL) {  \
-			      free(pointer);      \
-                              pointer = NULL;     \
-                          }
+#define FREEUP(p)   if (p != NULL) {  \
+			            free(p);      \
+                        p = NULL;     \
+                    }
 
 #define STRNCPY(str1, str2, len)  { strncpy(str1, str2, len); \
                                     str1[len -1] = '\0';  \
@@ -420,13 +420,6 @@ extern char *parsewindow(char *, char *, int *, char *);
 extern int expandList_(char ***, int, char **);
 extern int expandList1_(char ***, int, int *, char **);
 
-extern int osInit_(void);
-extern char *osPathName_(char *);
-extern char *osPathName_(char *);
-extern char *osHomeEnvVar_(void);
-extern int  osProcAlive_(int);
-extern void osConvertPath_(char *);
-
 extern void xdr_lsffree(bool_t (*)(), char *, struct LSFHeader *);
 
 extern int createUtmpEntry(char *, pid_t, char *);
@@ -434,17 +427,10 @@ extern int removeUtmpEntry(pid_t);
 
 extern int createSpoolSubDir(const char *);
 
-
-extern struct passwd *getpwlsfuser_(const char *lsfUserName);
-extern struct passwd *getpwdirlsfuser_(const char *lsfUserName);
-
-extern int getLSFUser_(char *lsfUserName, unsigned int lsfUserNameSize);
-extern int getLSFUserByName_(const char *osUserName,
-                             char *lsfUserName, unsigned int lsfUserNameSize);
-extern int getLSFUserByUid_(uid_t uid, char *lsfUserName, unsigned int lsfUserNameSize);
-
-extern int getOSUserName_(const char *lsfUserName,
-                          char *osUserName, unsigned int osUserNameSize);
-extern int getOSUid_(const char *lsfUserName, uid_t *uid);
+/* Original wrapper had wrappers around POSIX calls to get user information
+ * LavaLite uses the POSIX call directly whenever possible, but some wrappers
+ * are maintained for convenience.
+ */
+extern int get_uid(const char *, int *);
 
 #endif

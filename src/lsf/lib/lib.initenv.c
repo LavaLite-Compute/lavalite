@@ -1,6 +1,6 @@
-
 /* $Id: lib.initenv.c,v 1.7 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,9 +19,9 @@
 #include "lsf/lib/liblsf.h"
 
 
-#define NL_SETN   23   
+#define NL_SETN   23
 struct config_param genParams_[] =
-{                    
+{
     {"LSF_CONFDIR", NULL},
     {"LSF_SERVERDIR", NULL},
     {"LSF_LIM_DEBUG", NULL},
@@ -38,7 +38,7 @@ struct config_param genParams_[] =
     {"LSF_API_CONNTIMEOUT", NULL},
     {"LSF_API_RECVTIMEOUT", NULL},
     {"LSF_AM_OPTIONS", NULL},
-    {"LSF_TMPDIR", NULL},    
+    {"LSF_TMPDIR", NULL},
     {"LSF_LOGDIR", NULL},
     {"LSF_SYMBOLIC_LINK", NULL},
     {"LSF_MASTER_LIST", NULL},
@@ -48,7 +48,7 @@ struct config_param genParams_[] =
 };
 
 char *stripDomains_ = NULL;
-int  errLineNum_ = 0;            
+int  errLineNum_ = 0;
 char *lsTmpDir_;
 
 static char **m_masterCandidates = NULL;
@@ -58,28 +58,28 @@ static int setStripDomain_(char *);
 static int parseLine(char *line, char **keyPtr, char **valuePtr);
 static int matchEnv(char *, struct config_param *);
 static int setConfEnv(char *, char *, struct config_param *);
-static int 
+    static int
 doEnvParams_ (struct config_param *plp)
 {
     char *sp, *spp;
 
     if (!plp)
-	return(0);
+        return(0);
 
     for (; plp->paramName != NULL ; plp++) {
-	if ((sp = getenv(plp->paramName)) != NULL) {
-	    if (NULL == (spp = putstr_(sp))) {
-		lserrno = LSE_MALLOC;
-		return(-1);
-	    }
-	    FREEUP(plp->paramValue);
+        if ((sp = getenv(plp->paramName)) != NULL) {
+            if (NULL == (spp = putstr_(sp))) {
+                lserrno = LSE_MALLOC;
+                return(-1);
+            }
+            FREEUP(plp->paramValue);
             plp->paramValue = spp;
-	}
+        }
     }
     return(0);
 }
 
-char *
+    char *
 getTempDir_(void)
 {
     static char *sp = NULL;
@@ -92,56 +92,56 @@ getTempDir_(void)
 
     tmpSp = genParams_[LSF_TMPDIR].paramValue;
     if ((tmpSp != NULL) && (stat(tmpSp, &stb) == 0)
-	                && (S_ISDIR(stb.st_mode))) {
+            && (S_ISDIR(stb.st_mode))) {
         sp = tmpSp;
     } else {
-    
+
         tmpSp = getenv("TMPDIR");
         if ((tmpSp != NULL) && (stat(tmpSp, &stb) == 0)
-	                    && (S_ISDIR(stb.st_mode))) {
-            
+                && (S_ISDIR(stb.st_mode))) {
+
             sp = putstr_( tmpSp );
-	}
-    
+        }
+
     }
 
     if (sp == NULL) {
-    	sp = "/tmp"; 
+        sp = "/tmp";
     }
 
     return sp;
-    
-} 
 
-int 
+}
+
+    int
 initenv_ (struct config_param *userEnv, char *pathname)
 {
     int Error = 0;
     char *envdir;
     static int lsfenvset = false;
-  
-    if (osInit_() < 0) {
-       return(-1);
-    }
 
-    if ((envdir = getenv("LSF_ENVDIR")) != NULL)  
-	pathname = envdir;
+    /* Initialiaze the channel as first thing
+    */
+    chanInit_();
+
+    if ((envdir = getenv("LSF_ENVDIR")) != NULL)
+        pathname = envdir;
     else if (pathname == NULL)
-	pathname = LSETCDIR;
+        pathname = LSETCDIR;
 
     if (lsfenvset) {
-	if (userEnv == NULL) { 
-	    return (0);
+        if (userEnv == NULL) {
+            return (0);
         }
-   	if (readconfenv_(NULL, userEnv, pathname) < 0) {
-	    return (-1);
+        if (readconfenv_(NULL, userEnv, pathname) < 0) {
+            return (-1);
         } else if (doEnvParams_(userEnv) < 0) {
-	    return (-1);
+            return (-1);
         }
-        return (0);                    
+        return (0);
     }
 
-    if (readconfenv_(genParams_, userEnv, pathname) < 0) 
+    if (readconfenv_(genParams_, userEnv, pathname) < 0)
         return (-1);
     else {
         if (doEnvParams_(genParams_) < 0)
@@ -152,21 +152,21 @@ initenv_ (struct config_param *userEnv, char *pathname)
     }
 
     if (! genParams_[LSF_CONFDIR].paramValue ||
-    		! genParams_[LSF_SERVERDIR].paramValue) {
-	lserrno = LSE_BAD_ENV;
-	return(-1);
+            ! genParams_[LSF_SERVERDIR].paramValue) {
+        lserrno = LSE_BAD_ENV;
+        return(-1);
     }
 
     if (genParams_[LSF_SERVER_HOSTS].paramValue != NULL) {
-	char *sp;
-	for (sp=genParams_[LSF_SERVER_HOSTS].paramValue;*sp != '\0'; sp++)
-	    if (*sp == '\"')
-		*sp = ' ';
+        char *sp;
+        for (sp=genParams_[LSF_SERVER_HOSTS].paramValue;*sp != '\0'; sp++)
+            if (*sp == '\"')
+                *sp = ' ';
     }
 
     if (!setStripDomain_(genParams_[LSF_STRIP_DOMAIN].paramValue)) {
-	lserrno = LSE_MALLOC;
-	return(-1);
+        lserrno = LSE_MALLOC;
+        return(-1);
     }
 
     lsTmpDir_ = getTempDir_();
@@ -175,15 +175,15 @@ initenv_ (struct config_param *userEnv, char *pathname)
         return(-1);
 
     return(0);
-} 
+}
 
-int 
+    int
 ls_readconfenv (struct config_param *paramList, char *confPath)
 {
     return (readconfenv_(NULL, paramList, confPath));
-} 
+}
 
-int 
+    int
 readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *confPath)
 {
     char *key;
@@ -193,89 +193,89 @@ readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *co
     char filename[MAXFILENAMELEN];
     struct config_param *plp;
     int lineNum = 0, saveErrNo;
- 
-    if (pList1)
-	for (plp = pList1; plp->paramName != NULL; plp++) {
-	    if (plp->paramValue != NULL) {
 
-		lserrno = LSE_BAD_ARGS;
-		return(-1);
-	    }
-	}
+    if (pList1)
+        for (plp = pList1; plp->paramName != NULL; plp++) {
+            if (plp->paramValue != NULL) {
+
+                lserrno = LSE_BAD_ARGS;
+                return(-1);
+            }
+        }
 
     if (pList2)
-	for (plp = pList2; plp->paramName != NULL; plp++) {
-	    if (plp->paramValue != NULL) {
+        for (plp = pList2; plp->paramName != NULL; plp++) {
+            if (plp->paramValue != NULL) {
 
-		lserrno = LSE_BAD_ARGS;
-		return(-1);
-	    }
-	}
+                lserrno = LSE_BAD_ARGS;
+                return(-1);
+            }
+        }
     if (confPath) {
-	{
-	    memset(filename,0, sizeof(filename));
-	    ls_strcat(filename,sizeof(filename),confPath);
-	    ls_strcat(filename,sizeof(filename),"/lsf.conf");
-	    fp = fopen(filename, "r");
-	}
+        {
+            memset(filename,0, sizeof(filename));
+            ls_strcat(filename,sizeof(filename),confPath);
+            ls_strcat(filename,sizeof(filename),"/lsf.conf");
+            fp = fopen(filename, "r");
+        }
     } else {
-	char *ep = getenv("LSF_ENVDIR");
-	char buf[MAXFILENAMELEN];
+        char *ep = getenv("LSF_ENVDIR");
+        char buf[MAXFILENAMELEN];
 
-	if (ep == NULL) {
-            sprintf(buf,"%s/lsf.conf",LSETCDIR); 
-	    fp = fopen(buf, "r");
-	} else {
-	    memset(buf,0, sizeof(buf));
-	    ls_strcat(buf,sizeof(buf),ep);
-	    ls_strcat(buf,sizeof(buf),"/lsf.conf");
-	    fp = fopen(buf, "r");
-	}
+        if (ep == NULL) {
+            sprintf(buf,"%s/lsf.conf",LSETCDIR);
+            fp = fopen(buf, "r");
+        } else {
+            memset(buf,0, sizeof(buf));
+            ls_strcat(buf,sizeof(buf),ep);
+            ls_strcat(buf,sizeof(buf),"/lsf.conf");
+            fp = fopen(buf, "r");
+        }
     }
-    
-    if (!fp) { 
 
-	lserrno = LSE_LSFCONF;
-	return(-1);
+    if (!fp) {
+
+        lserrno = LSE_LSFCONF;
+        return(-1);
     }
 
     lineNum = 0;
     errLineNum_ = 0;
     while ((line = getNextLineC_(fp, &lineNum, true)) != NULL) {
-	int cc;
-	cc = parseLine(line, &key, &value);
-	if (cc < 0 && errLineNum_ == 0) {    
+        int cc;
+        cc = parseLine(line, &key, &value);
+        if (cc < 0 && errLineNum_ == 0) {
             errLineNum_ = lineNum;
             saveErrNo = lserrno;
             continue;
         }
-	if (! matchEnv(key, pList1) && ! matchEnv(key, pList2)) 
-	    continue;
+        if (! matchEnv(key, pList1) && ! matchEnv(key, pList2))
+            continue;
 
-	if (!setConfEnv(key, value, pList1)
-		|| !setConfEnv(key, value, pList2)) {
-	    fclose(fp);
-	    return(-1);
-	}
+        if (!setConfEnv(key, value, pList1)
+                || !setConfEnv(key, value, pList2)) {
+            fclose(fp);
+            return(-1);
+        }
     }
     fclose(fp);
     if (errLineNum_ != 0) {
         lserrno = saveErrNo;
-	return(-1);
+        return(-1);
     }
 
     return(0);
 
-} 
+}
 
 
-static int
+    static int
 parseLine(char *line, char **keyPtr, char **valuePtr)
 {
     char *sp = line;
 #define L_MAXLINELEN_4ENV (8*MAXLINELEN)
     static char key[L_MAXLINELEN_4ENV];
-    static char value[L_MAXLINELEN_4ENV];  
+    static char value[L_MAXLINELEN_4ENV];
     char *word;
     char *cp;
 
@@ -283,7 +283,7 @@ parseLine(char *line, char **keyPtr, char **valuePtr)
     {
         lserrno = LSE_BAD_ENV;
         return -1;
-    }         
+    }
 
     *keyPtr = key;
     *valuePtr = value;
@@ -293,108 +293,108 @@ parseLine(char *line, char **keyPtr, char **valuePtr)
     strcpy(key, word);
     cp = strchr(key, '=');
 
-    if (cp == NULL) {     
-	lserrno = LSE_CONF_SYNTAX;
-	return -1;
+    if (cp == NULL) {
+        lserrno = LSE_CONF_SYNTAX;
+        return -1;
     }
 
-    *cp = '\0';        
+    *cp = '\0';
 
     sp = strchr(line, '=');
 
     if (sp[1] == ' ' || sp[1] == '\t') {
-	lserrno = LSE_CONF_SYNTAX;
-	return -1;
+        lserrno = LSE_CONF_SYNTAX;
+        return -1;
     }
 
-    if (sp[1] == '\0') {        
-	value[0] = '\0';
-	return 0;
+    if (sp[1] == '\0') {
+        value[0] = '\0';
+        return 0;
     }
 
-    sp++;                       
+    sp++;
     word = getNextValueQ_(&sp, '\"', '\"');
-    if (!word)            
-	return -1;
+    if (!word)
+        return -1;
 
     strcpy(value, word);
 
     word = getNextValueQ_(&sp, '\"', '\"');
-    if (word != NULL || lserrno != LSE_NO_ERR) { 
-	lserrno = LSE_CONF_SYNTAX;
-	return -1;
+    if (word != NULL || lserrno != LSE_NO_ERR) {
+        lserrno = LSE_CONF_SYNTAX;
+        return -1;
     }
-	
+
     return 0;
 
-} 
+}
 
-static int
+    static int
 matchEnv(char *name, struct config_param *paramList)
 {
     if (paramList == NULL)
-	return false;
+        return false;
 
-    for (; paramList->paramName; paramList++) 
-	if (strcmp(paramList->paramName, name) == 0) 
-            return true; 
+    for (; paramList->paramName; paramList++)
+        if (strcmp(paramList->paramName, name) == 0)
+            return true;
 
     return false;
-} 
+}
 
-static int 
+    static int
 setConfEnv (char *name, char *value, struct config_param *paramList)
 {
     if (paramList == NULL)
-	return(1);
+        return(1);
 
     if (value == NULL)
-	value = "";
+        value = "";
 
     for ( ; paramList->paramName; paramList++) {
-	if (strcmp(paramList->paramName, name) == 0) {
-	    FREEUP (paramList->paramValue);
-	    paramList->paramValue = putstr_(value);
-	    if (paramList->paramValue == NULL) {
-		lserrno = LSE_MALLOC;
-		return(0);
-	    }
-	}
+        if (strcmp(paramList->paramName, name) == 0) {
+            FREEUP (paramList->paramValue);
+            paramList->paramValue = putstr_(value);
+            if (paramList->paramValue == NULL) {
+                lserrno = LSE_MALLOC;
+                return(0);
+            }
+        }
     }
     return(1);
-} 
+}
 
-static int
+    static int
 setStripDomain_(char *d_str)
 {
     char *cp, *sdi, *sdp;
 
     if (stripDomains_ != NULL)
-	free(stripDomains_);
+        free(stripDomains_);
     stripDomains_ = NULL;
 
     if (d_str == NULL)
-	return(1);
+        return(1);
 
     if ((stripDomains_ = malloc(strlen(d_str) + 2)) == NULL)
-	return(0);
-    
+        return(0);
+
     for (cp = d_str, sdp = sdi = stripDomains_ ; *cp ; )
     {
-	while (*cp == ':')
-	    cp++;
-	while (*cp && (*cp != ':'))
-	    *++sdp = *cp++;
-	*sdi = (unsigned char)(sdp - sdi);
-	sdi += (*sdi + 1);
-	sdp = sdi;
+        while (*cp == ':')
+            cp++;
+        while (*cp && (*cp != ':'))
+            *++sdp = *cp++;
+        *sdi = (unsigned char)(sdp - sdi);
+        sdi += (*sdi + 1);
+        sdp = sdi;
     }
     *sdi = '\0';
 
     return(1);
-} 
+}
 
-int
+    int
 initMasterList_()
 {
     char *nameList, *hname;
@@ -403,35 +403,35 @@ initMasterList_()
     char *paramValue=genParams_[LSF_MASTER_LIST].paramValue;
 
     if (m_masterCandidates) {
-	return 0;
+        return 0;
     }
     if (paramValue == NULL ) {
 
-        m_isMasterCandidate = true; 
+        m_isMasterCandidate = true;
         return(0);
     }
 
     for (nameList = paramValue; *nameList != '\0'; nameList++) {
-	if (*nameList == '\"') {
-	    *nameList = ' ';
-	}
+        if (*nameList == '\"') {
+            *nameList = ' ';
+        }
     }
 
     nameList = paramValue;
     m_numMasterCandidates = 0;
 
-    while ((hname = getNextWord_(&nameList)) != NULL) { 
+    while ((hname = getNextWord_(&nameList)) != NULL) {
         m_numMasterCandidates++;
-    } 
+    }
 
     if (m_numMasterCandidates == 0) {
-	lserrno = LSE_NO_HOST;
+        lserrno = LSE_NO_HOST;
         return(-1);
     }
 
     if ((m_masterCandidates = (char **)malloc(m_numMasterCandidates*sizeof(char *)))
-        == NULL) {
-	lserrno = LSE_MALLOC;
+            == NULL) {
+        lserrno = LSE_MALLOC;
         return(-1);
     }
     for (i=0; i < m_numMasterCandidates; i++) {
@@ -441,26 +441,26 @@ initMasterList_()
     i = 0;
     nameList = paramValue;
 
-    while ((hname = getNextWord_(&nameList)) != NULL) { 
+    while ((hname = getNextWord_(&nameList)) != NULL) {
 
         if ((hp = (struct hostent *)getHostEntryByName_(hname)) != NULL) {
 
             if (getMasterCandidateNoByName_(hp->h_name) < 0 ) {
                 m_masterCandidates[i] = putstr_(hp->h_name);
                 i++;
-            } else {  
-		lserrno = LSE_LIM_IGNORE;
+            } else {
+                lserrno = LSE_LIM_IGNORE;
                 m_numMasterCandidates--;
             }
         } else {
-	    lserrno = LSE_LIM_IGNORE;
+            lserrno = LSE_LIM_IGNORE;
             m_numMasterCandidates--;
-        } 
+        }
 
-    } 
+    }
 
     if (m_numMasterCandidates == 0) {
-	lserrno = LSE_NO_HOST;
+        lserrno = LSE_NO_HOST;
         return(-1);
     }
 
@@ -473,24 +473,24 @@ initMasterList_()
 
     return 0;
 
-} 
+}
 
-short 
+    short
 getMasterCandidateNoByName_(char *hname)
 {
     short count;
 
     for (count = 0; count < m_numMasterCandidates; count++) {
         if ((m_masterCandidates[count] != NULL)
-	    && equalHost_(m_masterCandidates[count], hname)) {
+                && equalHost_(m_masterCandidates[count], hname)) {
             return count;
         }
-    } 
+    }
 
     return -1;
-} 
+}
 
-char *
+    char *
 getMasterCandidateNameByNo_(short candidateNo)
 {
     if (candidateNo < m_numMasterCandidates)
@@ -498,28 +498,28 @@ getMasterCandidateNameByNo_(short candidateNo)
     else
         return NULL;
 
-} 
+}
 
-int
+    int
 getNumMasterCandidates_()
 {
     return (m_numMasterCandidates);
 
-} 
+}
 
-int
+    int
 getIsMasterCandidate_()
 {
     return (m_isMasterCandidate);
 
-} 
- 
-void
+}
+
+    void
 freeupMasterCandidate_(int index)
 {
 
     FREEUP(m_masterCandidates[index]);
     m_masterCandidates[index] = NULL;
 
-} 
+}
 

@@ -1,4 +1,3 @@
-
 /* $Id: lib.misc.c,v 1.5 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -19,6 +18,9 @@
  */
 #include "lsf/lib/liblsf.h"
 
+/* Various miscellaneus functions more or less useful.
+ */
+
 #define BADCH   ":"
 #define NL_SETN   23
 
@@ -27,13 +29,13 @@ extern char *optarg;
 extern int  opterr;
 extern int  optopt;
 
-#define PRINT_ERRMSG(errMsg, fmt, msg1, msg2)\
-{\
-    if (errMsg == NULL)\
-    fprintf(stderr, fmt, msg1, msg2);\
-    else\
-    sprintf(*errMsg, fmt, msg1, msg2);\
-}
+#define PRINT_ERRMSG(errMsg, fmt, msg1, msg2)   \
+    {                                           \
+        if (errMsg == NULL)                     \
+            fprintf(stderr, fmt, msg1, msg2);   \
+        else                                    \
+            sprintf(*errMsg, fmt, msg1, msg2);  \
+    }
 
 static struct LSFAdmins {
     int     numAdmins;
@@ -42,7 +44,7 @@ static struct LSFAdmins {
 
 bool_t           isLSFAdmin(const char *);
 
-    char
+char
 isanumber_(char *word)
 {
     char **eptr;
@@ -63,7 +65,7 @@ isanumber_(char *word)
 
 }
 
-    char
+char
 islongint_(char *word)
 {
     long long int number;
@@ -85,12 +87,12 @@ islongint_(char *word)
 
 }
 
-    int
+int
 isdigitstr_(char *string)
 {
-    int i=0;
+    int i;
 
-    for(i=0; i < strlen(string); i++) {
+    for(i = 0; i < strlen(string); i++) {
         if (!isdigit(string[i])) {
             return false;
         }
@@ -98,7 +100,7 @@ isdigitstr_(char *string)
     return true;
 }
 
-    LS_LONG_INT
+LS_LONG_INT
 atoi64_(char *word)
 {
     long long int number;
@@ -117,7 +119,7 @@ atoi64_(char *word)
     return (0);
 }
 
-    char
+char
 isint_(char *word)
 {
     char **eptr;
@@ -139,7 +141,7 @@ isint_(char *word)
 
 }
 
-    char *
+char *
 putstr_(const char *s)
 {
     register char *p;
@@ -158,7 +160,7 @@ putstr_(const char *s)
 
 }
 
-    short
+short
 getRefNum_(void)
 {
     static short reqRefNum = MIN_REF_NUM;
@@ -169,7 +171,7 @@ getRefNum_(void)
     return(reqRefNum);
 }
 
-    char *
+char *
 chDisplay_(char *disp)
 {
     char *sp, *hostName;
@@ -192,7 +194,7 @@ chDisplay_(char *disp)
 
 }
 
-    void
+void
 strToLower_(char *name)
 {
     while (*name != '\0') {
@@ -202,7 +204,7 @@ strToLower_(char *name)
 
 }
 
-    char *
+char *
 getNextToken(char **sp)
 {
     static char word[MAXLINELEN];
@@ -233,7 +235,7 @@ getNextToken(char **sp)
 }
 
 
-    int
+int
 getValPair(char **resReq, int *val1, int *val2)
 {
     char *token, *cp, *wd1 = NULL, *wd2 = NULL;
@@ -274,7 +276,7 @@ getValPair(char **resReq, int *val1, int *val2)
 }
 
 
-    char *
+char *
 my_getopt (int nargc, char **nargv, char *ostr, char **errMsg)
 {
     char svstr [256];
@@ -327,7 +329,7 @@ my_getopt (int nargc, char **nargv, char *ostr, char **errMsg)
         } else if (!strncmp(optName, cp1, strlen(cp1))) {
             if (num_arg == 0) {
                 PRINT_ERRMSG (errMsg, (_i18n_msg_get(ls_catd,NL_SETN,651, "%s: option cannot have an argument -- %s\n")),  /* catgets 651 */
-                        nargv[0], cp1);
+                              nargv[0], cp1);
                 return (BADCH);
             }
 
@@ -357,7 +359,7 @@ int putEnv(char *env, char *val)
     return(putenv(buf));
 }
 
-    void
+void
 initLSFHeader_ (struct LSFHeader *hdr)
 {
     hdr->refCode = 0;
@@ -368,7 +370,7 @@ initLSFHeader_ (struct LSFHeader *hdr)
 
 }
 
-    void *
+void *
 myrealloc(void *ptr, size_t size)
 {
     if (ptr == NULL) {
@@ -378,7 +380,7 @@ myrealloc(void *ptr, size_t size)
     }
 }
 
-    int
+int
 Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
 {
     struct sockaddr_in *cliaddr;
@@ -403,8 +405,8 @@ Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
                         port = ((port < 1024) ? (port + 1024) : port);
                     }
                     ls_syslog(LOG_ERR,(_i18n_msg_get(ls_catd,NL_SETN,5650,
-                                    "%s: retry <%d> times, port <%d> will be bound" /* catgets 5650 */)),
-                            "Bind_", i, port);
+                                                     "%s: retry <%d> times, port <%d> will be bound" /* catgets 5650 */)),
+                              "Bind_", i, port);
                     cliaddr->sin_port = htons(port);
                 }
                 else
@@ -415,7 +417,7 @@ Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
         return (-1);
     }
 }
-    int
+int
 isMasterCrossPlatform(void)
 {
     static char fname[] ="isMasterCrossPlatform()";
@@ -446,27 +448,27 @@ isMasterCrossPlatform(void)
     strcpy(localType, sp);
 
     if ((!strncasecmp(masterType, "NT", 2) && strncasecmp(localType, "NT", 2))
-            ||
-            (!strncasecmp(localType, "NT", 2) && strncasecmp(masterType, "NT", 2)))
+        ||
+        (!strncasecmp(localType, "NT", 2) && strncasecmp(masterType, "NT", 2)))
         crossPlatform = true;
     else
         crossPlatform = false;
 
     return (crossPlatform);
 }
-    int
+int
 isAllowCross(char *paramValue)
 {
     int cross = true;
 
     if (paramValue != NULL &&
-            !strcasecmp(paramValue, "NO"))
+        !strcasecmp(paramValue, "NO"))
         cross = false;
 
     return cross;
 }
 
-    const char*
+const char*
 getCmdPathName_(const char *cmdStr, int* cmdLen)
 {
     char* pRealCmd;
@@ -474,9 +476,9 @@ getCmdPathName_(const char *cmdStr, int* cmdLen)
     char* sp2;
 
     for (pRealCmd = (char*)cmdStr; *pRealCmd == ' '
-            || *pRealCmd == '\t'
-            || *pRealCmd == '\n'
-            ; pRealCmd++);
+             || *pRealCmd == '\t'
+             || *pRealCmd == '\n'
+             ; pRealCmd++);
 
     if (pRealCmd[0] == '\'' || pRealCmd[0] == '"') {
         sp1 = &pRealCmd[1];
@@ -487,9 +489,9 @@ getCmdPathName_(const char *cmdStr, int* cmdLen)
         sp1 = pRealCmd;
         for (i = 0; sp1[i] != '\0'; i++) {
             if (sp1[i] == ';' || sp1[i] == ' ' ||
-                    sp1[i] == '&' || sp1[i] == '>' ||
-                    sp1[i] == '<' || sp1[i] == '|' ||
-                    sp1[i] == '\t' || sp1[i] == '\n')
+                sp1[i] == '&' || sp1[i] == '>' ||
+                sp1[i] == '<' || sp1[i] == '|' ||
+                sp1[i] == '\t' || sp1[i] == '\n')
                 break;
         }
 
@@ -504,9 +506,9 @@ getCmdPathName_(const char *cmdStr, int* cmdLen)
     return sp1;
 }
 
-    int
+int
 replace1stCmd_(const char* oldCmdArgs, const char* newCmdArgs,
-        char* outCmdArgs, int outLen)
+               char* outCmdArgs, int outLen)
 {
     const char *sp1;
     const char *sp2;
@@ -533,7 +535,7 @@ replace1stCmd_(const char* oldCmdArgs, const char* newCmdArgs,
     return 0;
 }
 
-    const char*
+const char*
 getLowestDir_(const char* filePath)
 {
     static char dirName[MAXFILENAMELEN];
@@ -560,7 +562,7 @@ getLowestDir_(const char* filePath)
     return dirName;
 }
 
-    void
+void
 getLSFAdmins_(void)
 {
     struct clusterInfo    *clusterInfo;
@@ -599,22 +601,22 @@ getLSFAdmins_(void)
     }
 }
 
-    bool_t
+bool_t
 isLSFAdmin_(const char *name)
 {
     int    i;
 
     for (i = 0; i < LSFAdmins.numAdmins; i++) {
         if (strcmp(name, LSFAdmins.names[i]) == 0) {
-            return(true);
+            return true;
         }
     }
 
-    return(false);
+    return false;
 
 }
 
-    int
+int
 ls_strcat(char *trustedBuffer, int bufferLength, char *strToAdd)
 {
     int start = strlen(trustedBuffer);
@@ -622,10 +624,10 @@ ls_strcat(char *trustedBuffer, int bufferLength, char *strToAdd)
     int i;
 
     if ((start > bufferLength) || strToAdd == NULL) {
-        return(-1);
+        return -1;
     }
 
-    for(i=0; i < remainder; i++) {
+    for(i = 0; i < remainder; i++) {
         trustedBuffer[start+i] = strToAdd[i];
         if (strToAdd[i] == '\0' ) {
             break;
@@ -633,7 +635,24 @@ ls_strcat(char *trustedBuffer, int bufferLength, char *strToAdd)
     }
     if (i == remainder) {
         trustedBuffer[bufferLength-1] = '\0';
-        return (-1);
+        return -1;
     }
-    return(0);
+    return 0;
+}
+
+int
+get_uid(const char *user, int *uid)
+{
+    struct passwd *pwd;
+
+    if (user == NULL)
+        return LSE_BADUSER;
+
+    pwd = getpwnam(user);
+    if (pwd == NULL)
+        return LSE_BADUSER;
+
+    *uid = pwd->pw_uid;
+
+    return LSE_NO_ERR;
 }

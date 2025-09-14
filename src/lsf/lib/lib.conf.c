@@ -1235,7 +1235,7 @@ getAdmins (char *line, char *fname, int *lineNum, char *secName, int lookupAdmin
     sp = line;
     while ((word=getNextWord_(&sp)) != NULL) {
         if (lookupAdmins) {
-            if ((pw = getpwlsfuser_(word)) != NULL) {
+            if ((pw = getpwnam(word)) != NULL) {
                 if (putInLists (word, &admins, &numAds, forWhat) < 0)
                     return(&admins);
             } else if ((unixGrp = getgrnam(word)) != NULL) {

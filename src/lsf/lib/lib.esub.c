@@ -1,6 +1,6 @@
-
 /* $Id: lib.esub.c,v 1.4 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,10 +18,7 @@
  */
 #include "lsf/lib/liblsf.h"
 
-
-
-
-#define exit(a)         _exit(a)
+#define exit(a) _exit(a)
 
 #define ESUBNAME "esub"
 #define EEXECNAME "eexec"
@@ -30,7 +27,7 @@
 #define NL_SETN   23
 static int getEData(struct lenData *, char **, const char *);
 
-int
+    int
 runEsub_(struct lenData *ed, char *path)
 {
     char esub[MAXPATHLEN];
@@ -59,7 +56,7 @@ runEsub_(struct lenData *ed, char *path)
     if (stat(esub, &sbuf) < 0) {
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG,
-                      "runEsub: stat(%s) failed: %m", esub);
+                    "runEsub: stat(%s) failed: %m", esub);
         lserrno = LSE_ESUB;
         return (-1);
     }
@@ -70,18 +67,18 @@ runEsub_(struct lenData *ed, char *path)
     return (0);
 }
 
-int
+    int
 runEClient_(struct lenData *ed, char **argv)
 {
     char lsfUserName[MAXLSFNAMELEN];
 
-    if (getLSFUser_(lsfUserName, sizeof(lsfUserName)) < 0) {
+    if (getpwnam(lsfUserName) == NULL) {
         return -1;
     }
     return getEData(ed, argv, lsfUserName);
 }
 
-static int
+    static int
 getEData(struct lenData *ed, char **argv, const char *lsfUserName)
 {
     char *buf, *sp;
@@ -93,7 +90,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
 
     uid_t uid;
 
-    if (getOSUid_(lsfUserName, &uid) < 0) {
+    if (get_uid(lsfUserName, &uid) < 0) {
         ls_syslog(LOG_DEBUG, I18N_FUNC_S_FAIL_MM, fname, "getOSUid_", lsfUserName);
         return -1;
     }
@@ -138,7 +135,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
     }
 
     for (size = MSGSIZE, ed->len = 0, sp = buf;
-         (cc = read(ePorts[0], sp, size));) {
+            (cc = read(ePorts[0], sp, size));) {
         if (cc == -1) {
             if(logclass & (LC_TRACE | LC_AUTH))
                 ls_syslog(LOG_DEBUG,"%s: read error: %m",fname);
@@ -146,8 +143,8 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
                 continue;
 
             ls_syslog(LOG_ERR,
-                      I18N(5552, "%s: <%s> read(%d): %m"), /* catgets 5552 */
-                      fname, argv[0], size);
+                    I18N(5552, "%s: <%s> read(%d): %m"), /* catgets 5552 */
+                    fname, argv[0], size);
             break;
         }
 
@@ -178,7 +175,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
 
     if ((abortVal = getenv("LSB_SUB_ABORT_VALUE"))) {
         if ((WIFEXITED(status) && WEXITSTATUS(status) == atoi(abortVal)) ||
-            WIFSIGNALED(status)) {
+                WIFSIGNALED(status)) {
             FREEUP(ed->data);
             ed->len = 0;
             return (-1);
@@ -202,7 +199,7 @@ errorReturn:
 
 }
 
-int
+    int
 runEexec_(char *option, int job, struct lenData *eexec, char *path)
 {
     static char fname[] = "runEexec";
@@ -229,7 +226,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
     if (stat(eexecPath, &sbuf) < 0) {
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG,
-                      "%s: Job/task <%d> eexec will not be run, stat(%s) failed: %m", fname, job, eexecPath);
+                    "%s: Job/task <%d> eexec will not be run, stat(%s) failed: %m", fname, job, eexecPath);
         lserrno = LSE_ESUB;
         return (-1);
     }
@@ -255,7 +252,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
             struct passwd *pw;
 
             if ((user = getenv("LSFUSER")) != NULL) {
-                if (getOSUid_(user, &uid) < 0) {
+                if (get_uid(user, &uid) < 0) {
                     ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MM, fname, "getOSUid_", user);
                     exit(-1);
                 }
@@ -310,7 +307,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
 
     if (eexec->len > 0) {
         if ((cc = b_write_fix(p[1], eexec->data, eexec->len)) != eexec->len &&
-            strcmp (option, "-p")) {
+                strcmp (option, "-p")) {
             ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "b_write_fix", eexec->len);
         }
     }
@@ -324,7 +321,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
 
 }
 
-char *
+    char *
 runEGroup_(char *type, char *gname)
 {
     static char fname[] = "runEGroup";
@@ -347,13 +344,13 @@ runEGroup_(char *type, char *gname)
     uid = getuid();
     if (uid == 0 && (managerIdStr = getenv("LSB_MANAGERID")) != NULL) {
         uid = atoi(managerIdStr);
-        if (getLSFUserByUid_(uid, lsfUserName, sizeof(lsfUserName)) < 0) {
+        if (getpwuid(uid )) {
             ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_MM, fname, "getLSFUserByUid_", uid);
             return NULL;
         }
     } else {
-        if (getLSFUser_(lsfUserName, sizeof(lsfUserName)) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getLSFUser_");
+        if (getpwnam(lsfUserName) == NULL) {
+            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getpwnam");
             return NULL;
         }
     }

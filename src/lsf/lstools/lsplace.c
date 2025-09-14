@@ -18,6 +18,7 @@
  */
 
 #include "lsf.h"
+#include "lsf/lib/liblsf.h"
 
 #define MAXLISTSIZE 256
 #define NL_SETN 27
@@ -25,8 +26,8 @@
 void
 usage(const char *cmd)
 {
-    fprintf(stderr, "%s: %s [-h] [-V] [-L] [-R res_req] [-n needed]
- [-w wanted]\n [host_name ... ]\n", cmd);
+    fprintf(stderr, "usage: %s [-h] [-V] [-L] [-R res_req] [-n needed]"
+ "[-w wanted]\n [host_name ... ]\n", cmd);
     return -1;
 }
 

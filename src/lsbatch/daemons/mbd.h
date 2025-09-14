@@ -1,5 +1,6 @@
 /* $Id: mbd.h,v 1.28 2007/08/15 22:18:45 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -15,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
- 
+
 
 #include <unistd.h>
 #include <errno.h>
@@ -30,9 +31,9 @@
 
 #ifdef _XOPEN_SOURCE
 #include <time.h>
-#else 
+#else
 #include <sys/time.h>
-#endif 
+#endif
 
 #include <sys/ioctl.h>
 
@@ -48,42 +49,42 @@ typedef struct shareHolderPolicy      SHARE_HOLDER_POLICY_T;
 typedef struct jobCounters            JOB_COUNTERS_T;
 
 
-#define  DEF_CLEAN_PERIOD     3600  
+#define  DEF_CLEAN_PERIOD     3600
 #define  DEF_MAX_RETRY        5
 #define  DEF_MAXSBD_FAIL      3
-#define  DEF_ACCEPT_INTVL     1      
-#define  DEF_PRIO             1	     
+#define  DEF_ACCEPT_INTVL     1
+#define  DEF_PRIO             1
 #define  DEF_NICE             0
-#define  DEF_SCHED_DELAY      10     
-#define  DEF_Q_SCHED_DELAY    2      
+#define  DEF_SCHED_DELAY      10
+#define  DEF_Q_SCHED_DELAY    2
 
 
-#define  MAX_INTERNAL_JOBID   299999999999999LL 
-#define  DEF_MAX_JOB_NUM      1000  
+#define  MAX_INTERNAL_JOBID   299999999999999LL
+#define  DEF_MAX_JOB_NUM      1000
 #define  DEF_EXCLUSIVE        FALSE
-#define  DEF_EVENT_WATCH_TIME 60 
-#define  DEF_COND_CHECK_TIME  600   
+#define  DEF_EVENT_WATCH_TIME 60
+#define  DEF_COND_CHECK_TIME  600
 
-#define DEF_MAX_SBD_CONNS 32        
-#define DEF_SCHED_STAY        3     
-#define DEF_FRESH_PERIOD     15     
-#define DEF_PEND_EXIT       512     
-#define DEF_JOB_ARRAY_SIZE  1000    
+#define DEF_MAX_SBD_CONNS 32
+#define DEF_SCHED_STAY        3
+#define DEF_FRESH_PERIOD     15
+#define DEF_PEND_EXIT       512
+#define DEF_JOB_ARRAY_SIZE  1000
 
-#define DEF_LONG_JOB_TIME  1800         
+#define DEF_LONG_JOB_TIME  1800
 
-#define MAX_JOB_PRIORITY   INFINIT_INT  
+#define MAX_JOB_PRIORITY   INFINIT_INT
 
-#define DEF_PRE_EXEC_DELAY    -1    
+#define DEF_PRE_EXEC_DELAY    -1
 
-#define SJL              0       
-#define MJL              1       
-#define PJL              2       
-#define FJL              3       
-#define NJLIST           4       
+#define SJL              0
+#define MJL              1
+#define PJL              2
+#define FJL              3
+#define NJLIST           4
 
-#define ZJL              4       
-#define ALLJLIST         5       
+#define ZJL              4
+#define ALLJLIST         5
 
 
 #define  DEF_USR1_SC    0
@@ -92,100 +93,100 @@ typedef struct jobCounters            JOB_COUNTERS_T;
 #define  DEF_USR2_ST    64000
 
 
-#define BAD_LOAD     1           
-#define TOO_LATE     2           
-#define FILE_MISSING 3           
-#define BAD_USER     4           
-#define JOB_MISSING  5           
-#define BAD_SUB      6           
-#define MISS_DEADLINE 8          
+#define BAD_LOAD     1
+#define TOO_LATE     2
+#define FILE_MISSING 3
+#define BAD_USER     4
+#define JOB_MISSING  5
+#define BAD_SUB      6
+#define MISS_DEADLINE 8
 
 
 #define JFLAG_LASTRUN_SUCC     0x002
 #define JFLAG_DEPCOND_INVALID  0x004
 
-#define JFLAG_READY   	       0x008 
-#define JFLAG_EXACT            0x200 
-#define JFLAG_UPTO             0x400 
-#define JFLAG_DEPCOND_REJECT   0x8000   
-#define JFLAG_SEND_SIG         0x10000  
-#define JFLAG_BTOP             0x20000  
-#define JFLAG_ADM_BTOP         0x40000  
-#define JFLAG_READY1           0x100000 
-#define JFLAG_READY2           0x200000 
-#define JFLAG_URGENT           0x400000 
-#define JFLAG_URGENT_NOSTOP    0x800000 
-#define JFLAG_REQUEUE          0x1000000 
-#define JFLAG_HAS_BEEN_REQUEUED 0x2000000 
+#define JFLAG_READY   	       0x008
+#define JFLAG_EXACT            0x200
+#define JFLAG_UPTO             0x400
+#define JFLAG_DEPCOND_REJECT   0x8000
+#define JFLAG_SEND_SIG         0x10000
+#define JFLAG_BTOP             0x20000
+#define JFLAG_ADM_BTOP         0x40000
+#define JFLAG_READY1           0x100000
+#define JFLAG_READY2           0x200000
+#define JFLAG_URGENT           0x400000
+#define JFLAG_URGENT_NOSTOP    0x800000
+#define JFLAG_REQUEUE          0x1000000
+#define JFLAG_HAS_BEEN_REQUEUED 0x2000000
 
-#define JFLAG_JOB_ANALYZER  0x20000000       
+#define JFLAG_JOB_ANALYZER  0x20000000
 
-#define JFLAG_WILL_BE_PREEMPTED  0x40000000  
+#define JFLAG_WILL_BE_PREEMPTED  0x40000000
 
-#define JFLAG_WAIT_SWITCH  0x80000000        
+#define JFLAG_WAIT_SWITCH  0x80000000
 
 
-#define M_STAGE_GOT_LOAD    0x0001  
-#define M_STAGE_LSB_CAND    0x0002  
-#define M_STAGE_QUE_CAND    0x0004  
-#define M_STAGE_REPLAY      0x0008  
-#define M_STAGE_INIT        0x0010  
-#define M_STAGE_RESUME_SUSP 0x0020  
+#define M_STAGE_GOT_LOAD    0x0001
+#define M_STAGE_LSB_CAND    0x0002
+#define M_STAGE_QUE_CAND    0x0004
+#define M_STAGE_REPLAY      0x0008
+#define M_STAGE_INIT        0x0010
+#define M_STAGE_RESUME_SUSP 0x0020
 #ifdef MAINTAIN_FCFS_FOR_DEPENDENT_JOBS
-#define M_STAGE_CHK_JGRPDEP 0x0040  
+#define M_STAGE_CHK_JGRPDEP 0x0040
 #endif
 
-#define JOB_STAGE_READY 0x0001 
-#define JOB_STAGE_CAND  0x0002 
-#define JOB_STAGE_DISP  0x0004 
-#define JOB_STAGE_DONE  0x0008 
+#define JOB_STAGE_READY 0x0001
+#define JOB_STAGE_CAND  0x0002
+#define JOB_STAGE_DISP  0x0004
+#define JOB_STAGE_DONE  0x0008
 #define JOB_IS_PROCESSED(jp) ((jp)->processed & JOB_STAGE_DONE)
 
 
 
-extern int mSchedStage;             
-extern int freshPeriod;             
-extern int maxSchedStay;            
+extern int mSchedStage;
+extern int freshPeriod;
+extern int maxSchedStay;
 extern int jsLogExceptWhileReplay;
 
 
 #define DEL_ACTION_KILL      0x01
 #define DEL_ACTION_REQUEUE   0x02
 
-#define ALL_USERS_ADMINS  INFINIT_INT 
+#define ALL_USERS_ADMINS  INFINIT_INT
 
-#define LOG_IT              0  
+#define LOG_IT              0
 
-#define CALCULATE_INTERVAL     900 
+#define CALCULATE_INTERVAL     900
 
 
 
 struct qPRValues {
-    struct qData *qData;        
-    float usedByRunJob;     	
+    struct qData *qData;
+    float usedByRunJob;
     float reservedByPreemptWait;
-    float availableByPreempt;   
-    float preemptingRunJob;     
+    float availableByPreempt;
+    float preemptingRunJob;
 };
 
 struct preemptResourceInstance {
     struct resourceInstance *instancePtr;
-				 
-    int nQPRValues;              
-    struct qPRValues *qPRValues; 
+
+    int nQPRValues;
+    struct qPRValues *qPRValues;
 };
 
 struct preemptResource {
-    int index;                   
-    int numInstances;            
-    struct preemptResourceInstance *pRInstance;     	
-				 
+    int index;
+    int numInstances;
+    struct preemptResourceInstance *pRInstance;
+
 };
 
 struct objPRMO {
-    int numPreemptResources;    
-    struct preemptResource *pResources; 
-				
+    int numPreemptResources;
+    struct preemptResource *pResources;
+
 };
 extern struct objPRMO *pRMOPtr;
 
@@ -209,7 +210,7 @@ extern struct objPRMO *pRMOPtr;
         resn = pRMOPtr->pResources[_pRMOindex].index;
 
 #define ENDFORALL_PRMPT_RSRCS } 	\
-} 
+}
 
 #define GET_RES_RSRC_USAGE(resn, val, jResValPtr, qResValPtr) {	\
       int jobSet = FALSE, queueSet = FALSE;			\
@@ -226,21 +227,21 @@ extern struct objPRMO *pRMOPtr;
       } else if (jobSet != 0 && queueSet != 0) {		\
 	  val = jResValPtr->val[resn];				\
       }								\
-  } 
+  }
 
 struct candHost {
-    struct hData *hData;    
-    int    numSlots;        
-    int    numAvailSlots;   
-    
-    int    numNonBackfillSlots;        
-    int    numAvailNonBackfillSlots;   
-    LIST_T *backfilleeList; 
+    struct hData *hData;
+    int    numSlots;
+    int    numAvailSlots;
+
+    int    numNonBackfillSlots;
+    int    numAvailNonBackfillSlots;
+    LIST_T *backfilleeList;
 };
 
 struct askedHost {
-    struct hData *hData;   
-    int    priority;       
+    struct hData *hData;
+    int    priority;
 };
 
 #define CLEAR_REASON(v, reason) if (v == reason) v = 0;
@@ -250,10 +251,10 @@ struct askedHost {
 #define NON_PRMPT_Q(qAttrib) 	TRUE
 
 
-struct rqHistory{             
-    struct hData *host;       
-    int retry_num;            
-    time_t lasttime;          
+struct rqHistory{
+    struct hData *host;
+    int retry_num;
+    time_t lasttime;
 };
 
 #define  JOB_PEND(s)  (((s)->jStatus & JOB_STAT_PEND) && !((s)->jStatus & JOB_STAT_PSUSP))
@@ -268,108 +269,108 @@ struct groupCandHosts {
 
 struct jData {
     struct  jData *forw, *back;
-    int     userId;           
+    int     userId;
     char    *userName;
     struct  uData *uPtr;
-    LS_LONG_INT jobId;             
-    float   priority;          
-    int     jStatus;           
-    time_t  updStateTime;       
+    LS_LONG_INT jobId;
+    float   priority;
+    int     jStatus;
+    time_t  updStateTime;
     int     jFlags;
-    int     oldReason;         
-    int     newReason;         
-    int     subreasons;        
-    int     *reasonTb;         
-    int     numReasons;        
-    struct  qData *qPtr;       
-    struct  hData **hPtr;      
-    int     numHostPtr;        
-    struct  askedHost *askedPtr; 
-    int     numAskedPtr;       
-    int     askedOthPrio;      
-    struct  candHost *candPtr; 
-    int     numCandPtr;        
-    struct  candHost *execCandPtr; 
-    int     numExecCandPtr;        
-    int     numEligProc;       
-    int     numAvailEligProc;  
-    int     numSlots;          
-    int     numAvailSlots;     
-    char    usePeerCand;       
-    time_t  reserveTime;       
-    int     slotHoldTime;       
-    char    processed;         
-    int     dispCount;         
-    time_t  dispTime;          
-    time_t  startTime;         
-    time_t  resumeTime;         
+    int     oldReason;
+    int     newReason;
+    int     subreasons;
+    int     *reasonTb;
+    int     numReasons;
+    struct  qData *qPtr;
+    struct  hData **hPtr;
+    int     numHostPtr;
+    struct  askedHost *askedPtr;
+    int     numAskedPtr;
+    int     askedOthPrio;
+    struct  candHost *candPtr;
+    int     numCandPtr;
+    struct  candHost *execCandPtr;
+    int     numExecCandPtr;
+    int     numEligProc;
+    int     numAvailEligProc;
+    int     numSlots;
+    int     numAvailSlots;
+    char    usePeerCand;
+    time_t  reserveTime;
+    int     slotHoldTime;
+    char    processed;
+    int     dispCount;
+    time_t  dispTime;
+    time_t  startTime;
+    time_t  resumeTime;
     time_t  predictedStartTime;
-    int     runCount;          
-    int     retryHist;         
-    int     nextSeq;           
-    int     jobPid;            
-    int     jobPGid;           
-    int     runTime;           
-    float   cpuTime;           
-    time_t  endTime;           
-    time_t  requeueTime;       
+    int     runCount;
+    int     retryHist;
+    int     nextSeq;
+    int     jobPid;
+    int     jobPGid;
+    int     runTime;
+    float   cpuTime;
+    time_t  endTime;
+    time_t  requeueTime;
     struct pendEvent {
-	int   notSwitched;    
+	int   notSwitched;
 	int   sig;
 	int   sig1;
 	int   sig1Flags;
-        int   sigDel;          
+        int   sigDel;
 	int   notModified;
     } pendEvent;
-    int     numDependents;     
-    char    *schedHost;        
-    int     actPid;            
-    time_t  ssuspTime;         
-    struct  submitReq *newSub; 
+    int     numDependents;
+    char    *schedHost;
+    int     actPid;
+    time_t  ssuspTime;
+    struct  submitReq *newSub;
     struct  lsfRusage *lsfRusage;
-    int     execUid;            
-    struct rqHistory *reqHistory;   
-    int lastDispHost;           
-    int requeMode;	        
-    int reqHistoryAlloc;        
-    int     exitStatus;         
-    char    *execCwd;           
-    char    *execHome;          
-    char    *execUsername;      
-    char    *queuePreCmd;       
-    char    *queuePostCmd;      
-    int     initFailCount;      
-    time_t  jRusageUpdateTime;   
-    struct  jRusage runRusage;   
-    int     numUserGroup;       
+    int     execUid;
+    struct rqHistory *reqHistory;
+    int lastDispHost;
+    int requeMode;
+    int reqHistoryAlloc;
+    int     exitStatus;
+    char    *execCwd;
+    char    *execHome;
+    char    *execUsername;
+    char    *queuePreCmd;
+    char    *queuePostCmd;
+    int     initFailCount;
+    time_t  jRusageUpdateTime;
+    struct  jRusage runRusage;
+    int     numUserGroup;
     char    **userGroup;
-    char * execHosts;           
+    char * execHosts;
     int    sigValue;
-    struct jShared  *shared;        
-    int     numRef;                  
-    struct  jgTreeNode*   jgrpNode;  
-    int     nodeType;                
-    struct  jData*        nextJob;   
-    int     restartPid;              
-    time_t  chkpntPeriod;            
-    u_short port;                    
+    struct jShared  *shared;
+    int     numRef;
+    struct  jgTreeNode*   jgrpNode;
+    int     nodeType;
+    struct  jData*        nextJob;
+    int     restartPid;
+    time_t  chkpntPeriod;
+    u_short port;
 
 
-    int     jSubPriority;	     
-    int     jobPriority; 	     
-    char    *jobSpoolDir;             
-    struct hData **rsrcPreemptHPtr; 
-    int numRsrcPreemptHPtr;	    
+    int     jSubPriority;
+    int     jobPriority;
+    char    *jobSpoolDir;
+    struct hData **rsrcPreemptHPtr;
+    int numRsrcPreemptHPtr;
 
-    struct groupCandHosts *groupCands; 
-    int    numOfGroups;          
-    int    reservedGrp;          
-    int    currentGrp;           
-    int*   inEligibleGroups;     
+    struct groupCandHosts *groupCands;
+    int    numOfGroups;
+    int    reservedGrp;
+    int    currentGrp;
+    int*   inEligibleGroups;
     int numSlotsReserve;
     int numAvailSlotsReserve;
 
-}; 
+};
 
 
 #define JOB_HAS_CANDHOSTS(Job)  ((Job)->candPtr != NULL)
@@ -391,8 +392,8 @@ struct jData {
     for (__hidx__ = 0; __hidx__ < (Job)->numHostPtr; __hidx__++) { \
         struct hData *Host = (Job)->hPtr[__hidx__]; \
         if (Host == NULL) break; \
-        if (Host->hStatus & HOST_STAT_REMOTE) continue; 
-        
+        if (Host->hStatus & HOST_STAT_REMOTE) continue;
+
 #define END_FOR_EACH_JOB_LOCAL_EXECHOST }}
 
 #define JOB_RUNSLOT_NONPRMPT(Job) \
@@ -406,10 +407,10 @@ struct jData {
 
 
 struct jShared {
-    int                numRef;    
-    struct  dptNode   *dptRoot;   
-    struct  submitReq  jobBill;   
-    struct  resVal    *resValPtr; 
+    int                numRef;
+    struct  dptNode   *dptRoot;
+    struct  submitReq  jobBill;
+    struct  resVal    *resValPtr;
 };
 
 
@@ -424,37 +425,37 @@ struct jShared {
 
 struct       hostAcct {
     struct   hData *hPtr;
-    int      numRUN;         
-    int      numSSUSP;       
-    int      numUSUSP;       
-    int      numRESERVE;     
-    int      numNonPrmptRsv; 
-    int      numAvailSUSP;   
+    int      numRUN;
+    int      numSSUSP;
+    int      numUSUSP;
+    int      numRESERVE;
+    int      numNonPrmptRsv;
+    int      numAvailSUSP;
 };
 
 struct uData {
-    char   *user;             
-    int    uDataIndex;        
-    int    flags;             
-    struct uData **gPtr;      
-    int    numGrpPtr;         
-    struct gData *gData;      
-    int    maxJobs;           
-    float  pJobLimit;         
-    struct hTab *hAcct;       
-    int    numPEND;           
-    int    numRUN;            
-    int    numSSUSP;          
-    int    numUSUSP;          
-    int    numJobs;           
-    int    numRESERVE;        
-    int    **reasonTb;        
-    int    numSlots;          
-    LS_BITSET_T *children;    
-    LS_BITSET_T *descendants; 
-    LS_BITSET_T *parents;     
-    LS_BITSET_T *ancestors;   
-    LIST_T *pxySJL;           
+    char   *user;
+    int    uDataIndex;
+    int    flags;
+    struct uData **gPtr;
+    int    numGrpPtr;
+    struct gData *gData;
+    int    maxJobs;
+    float  pJobLimit;
+    struct hTab *hAcct;
+    int    numPEND;
+    int    numRUN;
+    int    numSSUSP;
+    int    numUSUSP;
+    int    numJobs;
+    int    numRESERVE;
+    int    **reasonTb;
+    int    numSlots;
+    LS_BITSET_T *children;
+    LS_BITSET_T *descendants;
+    LS_BITSET_T *parents;
+    LS_BITSET_T *ancestors;
+    LIST_T *pxySJL;
 };
 
 #define USER_GROUP_IS_ALL_USERS(UserGroup) \
@@ -470,10 +471,10 @@ struct uData {
         for (Grp = (struct uData *)setIteratorBegin(&__iter__); \
 	     Grp != NULL; \
 	     Grp = (struct uData *)setIteratorGetNextElement(&__iter__)) \
-        { 
+        {
 
 #define END_FOR_EACH_UGRP_CHILD_USER }}
-    
+
 #define FOR_EACH_UGRP_DESCENDANT_USER(Grp, User) \
     if ((User)->children != NULL) { \
         struct uData *User; \
@@ -483,7 +484,7 @@ struct uData {
         for (User = (struct uData *)setIteratorBegin(&__iter__); \
 	     User != NULL; \
 	     User = (struct uData *)setIteratorGetNextElement(&__iter__)) \
-        { 
+        {
 
 #define END_FOR_EACH_UGRP_DESCENDANT_USER }}
 
@@ -496,14 +497,14 @@ struct uData {
         for (Grp = (struct uData *)setIteratorBegin(&__iter__); \
 	     Grp != NULL; \
 	     Grp = (struct uData *)setIteratorGetNextElement(&__iter__)) \
-        { 
+        {
 
 #define END_FOR_EACH_USER_ANCESTOR_UGRP }}
 
 struct uDataTable {
-    struct uData **_base_;        
-    int            _cur_;        
-    int            _size_;       
+    struct uData **_base_;
+    int            _cur_;
+    int            _size_;
 };
 
 typedef struct uDataTable UDATA_TABLE_T;
@@ -511,19 +512,19 @@ typedef struct uDataTable UDATA_TABLE_T;
 #define UDATA_TABLE_NUM_ELEMENTS(Table) ( (Table)->_cur_ )
 
 struct       userAcct {
-    struct   uData *uData;   
+    struct   uData *uData;
     int      userId;
-    int      numPEND;   
-    int      numRUN;      
-    int      numSSUSP;   
-    int      numUSUSP;   
-    int      numRESERVE;     
-    int      numNonPrmptRsv; 
-    int      numAvailSUSP;   
-    int      reason;         
-    
-    int      numRunFromLastSession; 				    
-    int      numVisitedInSession; 
+    int      numPEND;
+    int      numRUN;
+    int      numSSUSP;
+    int      numUSUSP;
+    int      numRESERVE;
+    int      numNonPrmptRsv;
+    int      numAvailSUSP;
+    int      reason;
+
+    int      numRunFromLastSession;
+    int      numVisitedInSession;
     int      numPendJobsInSession;
     bool_t   skipAccount;
 };
@@ -531,124 +532,124 @@ struct       userAcct {
 struct qData {
     struct qData *forw;
     struct qData *back;
-    char      *queue;             
-    int       queueId;            
-    char      *description;       
-    struct    gData *hGPtr;       
-    int       numProcessors;      
-    int       nAdmins;            
+    char      *queue;
+    int       queueId;
+    char      *description;
+    struct    gData *hGPtr;
+    int       numProcessors;
+    int       nAdmins;
     int       *adminIds;
     char      *admins;
-    char      *resReq;            
-    struct    resVal *resValPtr;  
-    float     *loadSched;         
-    float     *loadStop;          
-    int       mig;                
-    int       schedDelay;         
-    int       acceptIntvl;        
-    int       priority;           
-    int       nice;               
+    char      *resReq;
+    struct    resVal *resValPtr;
+    float     *loadSched;
+    float     *loadStop;
+    int       mig;
+    int       schedDelay;
+    int       acceptIntvl;
+    int       priority;
+    int       nice;
     char      *preCmd;
     char      *postCmd;
-    
+
     struct requeueEStruct {
-	int type;                
-#define RQE_NORMAL   0        
-#define RQE_EXCLUDE  1        
-#define RQE_END     255       
-	int  value;               
-	int  interval;            
+	int type;
+#define RQE_NORMAL   0
+#define RQE_EXCLUDE  1
+#define RQE_END     255
+	int  value;
+	int  interval;
     } *requeEStruct;
-    
+
     char      *requeueEValues;
-    char      *windowsD;          
-    windows_t *week[8];           
-    char      *windows;           
-    windows_t *weekR[8];          
-    time_t    windEdge;           
-    time_t    runWinCloseTime;    
-    int       rLimits[LSF_RLIM_NLIMITS];   
-    int       defLimits[LSF_RLIM_NLIMITS]; 
-    int       procLimit;          
-    char      *hostSpec;          
-    char      *defaultHostSpec;   
-    int       hJobLimit;           
-    float     pJobLimit;          
-    struct    hTab *hAcct;        
-    int       uJobLimit;          
-    struct    hTab *uAcct;        
-    int       qAttrib;            
-    int       qStatus;            
-    int       maxJobs;            
-    int       numJobs;            
-    int       numPEND;            
-    int       numRUN;             
-    int       numSSUSP;           
-    int       numUSUSP;           
-    int       numRESERVE;         
-    int       **reasonTb;         
-    int       numReasons;         
-    int       numSlots;           
-    int       numUsable;          
-    int       schedStage;         
-    int       slotHoldTime;       
-    char      *resumeCond;         
-    struct resVal *resumeCondVal;  
-    char      *stopCond;          
-    char      *jobStarter;        
-    int       flags;              
-    
+    char      *windowsD;
+    windows_t *week[8];
+    char      *windows;
+    windows_t *weekR[8];
+    time_t    windEdge;
+    time_t    runWinCloseTime;
+    int       rLimits[LSF_RLIM_NLIMITS];
+    int       defLimits[LSF_RLIM_NLIMITS];
+    int       procLimit;
+    char      *hostSpec;
+    char      *defaultHostSpec;
+    int       hJobLimit;
+    float     pJobLimit;
+    struct    hTab *hAcct;
+    int       uJobLimit;
+    struct    hTab *uAcct;
+    int       qAttrib;
+    int       qStatus;
+    int       maxJobs;
+    int       numJobs;
+    int       numPEND;
+    int       numRUN;
+    int       numSSUSP;
+    int       numUSUSP;
+    int       numRESERVE;
+    int       **reasonTb;
+    int       numReasons;
+    int       numSlots;
+    int       numUsable;
+    int       schedStage;
+    int       slotHoldTime;
+    char      *resumeCond;
+    struct resVal *resumeCondVal;
+    char      *stopCond;
+    char      *jobStarter;
+    int       flags;
+
     char    *suspendActCmd;
     char    *resumeActCmd;
     char    *terminateActCmd;
     int     sigMap[LSB_SIG_NUM];
-    struct  gData *uGPtr;        
-    LS_BITSET_T   *hostInQueue;  
-    char    *hostList;           
-    int     numHUnAvail;         
-    struct  askedHost *askedPtr; 
-    int     numAskedPtr;         
-    int     askedOthPrio;        
-    struct jData *firstJob[PJL+1]; 
-    struct jData *lastJob[PJL+1];  
-    time_t chkpntPeriod;            
-    char   *chkpntDir;		   
-    int    minProcLimit;          
-    int    defProcLimit;          
+    struct  gData *uGPtr;
+    LS_BITSET_T   *hostInQueue;
+    char    *hostList;
+    int     numHUnAvail;
+    struct  askedHost *askedPtr;
+    int     numAskedPtr;
+    int     askedOthPrio;
+    struct jData *firstJob[PJL+1];
+    struct jData *lastJob[PJL+1];
+    time_t chkpntPeriod;
+    char   *chkpntDir;
+    int    minProcLimit;
+    int    defProcLimit;
 };
 
- 
+
 #define HOST_STAT_REMOTE       0x80000000
 
- 
+
 struct hData {
-    char      *host;              
-    int       hostId;             
-    char      *hostType;          
-    char      *hostModel;         
-    struct    hostent hostEnt;    
-    float     cpuFactor;          
-    int       numCPUs;            
-    float     *loadSched;         
-    float     *loadStop;          
-    char      *windows;           
-    windows_t *week[8];           
-    time_t    windEdge;           
-    int       acceptTime;         
-    int       numDispJobs;	  
-    time_t    pollTime;           
-    int       sbdFail;            
-    int       hStatus;            
-    int       uJobLimit;          
-    struct    hTab *uAcct;        
-    int       maxJobs;            
-    int       numJobs;            
-    int       numRUN;             
-    int       numSSUSP;           
-    int       numUSUSP;           
-    int       numRESERVE;         
-    int       mig;                
-    int       chkSig;             
+    char      *host;
+    int       hostId;
+    char      *hostType;
+    char      *hostModel;
+    struct    hostent hostEnt;
+    float     cpuFactor;
+    int       numCPUs;
+    float     *loadSched;
+    float     *loadStop;
+    char      *windows;
+    windows_t *week[8];
+    time_t    windEdge;
+    int       acceptTime;
+    int       numDispJobs;
+    time_t    pollTime;
+    int       sbdFail;
+    int       hStatus;
+    int       uJobLimit;
+    struct    hTab *uAcct;
+    int       maxJobs;
+    int       numJobs;
+    int       numRUN;
+    int       numSSUSP;
+    int       numUSUSP;
+    int       numRESERVE;
+    int       mig;
+    int       chkSig;
     int       maxMem;
     int       maxSwap;
     int       maxTmp;
@@ -657,16 +658,16 @@ struct hData {
     int       *limStatus;
     float     *lsfLoad;
     float     *lsbLoad;
-    struct    bucket *msgq[3];    
+    struct    bucket *msgq[3];
     int       *busyStop;
     int       *busySched;
-    int       reason;             
-    int       flags;              
+    int       reason;
+    int       flags;
     int       numInstances;
     struct resourceInstance **instances;
-    LIST_T    *pxySJL;            
-    LIST_T    *pxyRsvJL;          
-    float     leftRusageMem;      
+    LIST_T    *pxySJL;
+    LIST_T    *pxyRsvJL;
+    float     leftRusageMem;
 };
 
 
@@ -675,74 +676,74 @@ struct sbdNode {
     int chanfd;
     struct jData *jData;
     struct hData *hData;
-    sbdReqType reqCode;  
+    sbdReqType reqCode;
     time_t lastTime;
 
-    
-    int sigVal;          
-    int sigFlags;        
+
+    int sigVal;
+    int sigFlags;
 };
 
 extern struct sbdNode sbdNodeList;
 
 
 struct       gData {
-    char     *group;                  
-    hTab     memberTab;               
-    int      numGroups;               
-    struct   gData *gPtr[MAX_GROUPS]; 
+    char     *group;
+    hTab     memberTab;
+    int      numGroups;
+    struct   gData *gPtr[MAX_GROUPS];
 };
 
 struct       hMid {
-    char     *hostName;               
-    u_long   mid;                     
-    int      osType;                  
+    char     *hostName;
+    u_long   mid;
+    int      osType;
 };
 
 struct      uMap {
-    char *userName;                  
-    int  numUsers;                 
-    char **users;                 
+    char *userName;
+    int  numUsers;
+    char **users;
 };
 
 typedef enum {
-    DPT_AND             = 0,		
-    DPT_OR              = 1,		
-    DPT_NOT             = 2,		
-    DPT_LEFT_           = 3,		
-    DPT_RIGHT_          = 4,		
-    DPT_DONE            = 5,		
-    DPT_EXIT            = 6,		
-    DPT_STARTED         = 7,		
-    DPT_NAME            = 8,		
-    DPT_ENDED           = 9,            
-    DPT_NUMPEND         = 10,           
-    DPT_NUMHOLD		= 11,		
-    DPT_NUMRUN          = 12,           
-    DPT_NUMEXIT         = 13,           
-    DPT_NUMDONE         = 14,           
-    DPT_NUMSTART        = 15,           
-    DPT_NUMENDED        = 16,           
-    DPT_COMMA     	= 17,           
-    DPT_GT     		= 18,           
-    DPT_GE     		= 19,           
-    DPT_LT     		= 20,           
-    DPT_LE     		= 21,           
-    DPT_EQ     		= 22,           
-    DPT_NE     		= 23,           
-    DPT_POST_DONE       = 24,           
-    DPT_POST_ERR        = 25,           
-    DPT_TRUE   		= 26,           
-    DPT_WINDOW          = 27,           
-    
+    DPT_AND             = 0,
+    DPT_OR              = 1,
+    DPT_NOT             = 2,
+    DPT_LEFT_           = 3,
+    DPT_RIGHT_          = 4,
+    DPT_DONE            = 5,
+    DPT_EXIT            = 6,
+    DPT_STARTED         = 7,
+    DPT_NAME            = 8,
+    DPT_ENDED           = 9,
+    DPT_NUMPEND         = 10,
+    DPT_NUMHOLD		= 11,
+    DPT_NUMRUN          = 12,
+    DPT_NUMEXIT         = 13,
+    DPT_NUMDONE         = 14,
+    DPT_NUMSTART        = 15,
+    DPT_NUMENDED        = 16,
+    DPT_COMMA     	= 17,
+    DPT_GT     		= 18,
+    DPT_GE     		= 19,
+    DPT_LT     		= 20,
+    DPT_LE     		= 21,
+    DPT_EQ     		= 22,
+    DPT_NE     		= 23,
+    DPT_POST_DONE       = 24,
+    DPT_POST_ERR        = 25,
+    DPT_TRUE   		= 26,
+    DPT_WINDOW          = 27,
+
 } dptType;
 
 
 
-#define  DP_FALSE     0	   
-#define  DP_TRUE      1	   
-#define  DP_INVALID  -1	   
-#define  DP_REJECT   -2	   
+#define  DP_FALSE     0
+#define  DP_TRUE      1
+#define  DP_INVALID  -1
+#define  DP_REJECT   -2
 
 #define  ARRAY_DEP_ONE_TO_ONE 1
 
@@ -754,27 +755,27 @@ struct jobIdx {
 };
 
 struct dptNode {
-    dptType type;                       
-    int value;				
-    int updFlag;			
+    dptType type;
+    int value;
+    int updFlag;
     union {
-        struct {			
-            struct dptNode *left;	
-            struct dptNode *right;      
+        struct {
+            struct dptNode *left;
+            struct dptNode *right;
         } opr;
         struct {
-            int           opType;        
-            int           exitCode;     
-	    int           opFlag;       
-            struct jData  *jobRec;	
-            struct jobIdx *jobIdx;      
+            int           opType;
+            int           exitCode;
+	    int           opFlag;
+            struct jData  *jobRec;
+            struct jobIdx *jobIdx;
         } job;
         struct {
             struct  timeWindow * timeWindow;
         } window;
         struct {
-            int                  opType;    
-            int                  num;      
+            int                  opType;
+            int                  num;
             struct jgArrayBase   *jgArrayBase;
         } jgrp;
     } dptUnion;
@@ -783,14 +784,14 @@ struct dptNode {
 #define WINDOW_CLOSE       0
 #define WINDOW_OPEN        1
 struct  timeWindow {
-    int                  status; 
-    char                *windows; 
-    windows_t           *week[8]; 
+    int                  status;
+    char                *windows;
+    windows_t           *week[8];
     time_t               windEdge;
 };
 
 #define JOB_NEW             1
-#define JOB_REQUE           2           
+#define JOB_REQUE           2
 #define JOB_REPLAY          3
 
 struct clientNode {
@@ -800,15 +801,15 @@ struct clientNode {
     struct sockaddr_in from;
     char *fromHost;
     mbdReqType reqType;
-    time_t lastTime; 
+    time_t lastTime;
 };
 
 struct condData {
-    char *name;    
-    int status;    
-    int lastStatus; 
-    time_t lastTime; 
-    int   flags;     
+    char *name;
+    int status;
+    int lastStatus;
+    time_t lastTime;
+    int   flags;
     struct dptNode *rootNode;
 };
 
@@ -823,8 +824,8 @@ struct resourceInstance {
 
 
 struct profileCounters {
-    int cntVal;              
-    char *cntDescr;          
+    int cntVal;
+    char *cntDescr;
 };
 
 #undef MBD_PROF_COUNTER
@@ -862,7 +863,7 @@ typedef enum profCounterType {
 
 #define QUEUE_UPDATE      0x01
 #define QUEUE_NEEDPOLL    0x02
-#define QUEUE_REMOTEONLY  0x04  
+#define QUEUE_REMOTEONLY  0x04
 #define QUEUE_UPDATE_USABLE 0x08
 
 #define HOST_UPDATE  0x01
@@ -894,26 +895,25 @@ typedef enum profCounterType {
 
 
 
-extern struct jData           *jDataList[];   
-extern struct migJob          *migJobList;    
-extern struct qData           *qDataList;     
-extern struct hTab            hDataList;      
-extern struct hData           **hDataPtrTb;   
-extern UDATA_TABLE_T          *uDataPtrTb;    
-extern struct hTab            uDataList;      
-extern struct hTab            calDataList;    
-extern struct jData           *chkJList;      
-extern struct clientNode      *clientList;    
-extern struct hTab            jobIdHT;        
-extern struct hTab            jgrpIdHT;       
+extern struct jData           *jDataList[];
+extern struct migJob          *migJobList;
+extern struct qData           *qDataList;
+extern struct hTab            hDataList;
+extern struct hData           **hDataPtrTb;
+extern UDATA_TABLE_T          *uDataPtrTb;
+extern struct hTab            uDataList;
+extern struct hTab            calDataList;
+extern struct jData           *chkJList;
+extern struct clientNode      *clientList;
+extern struct hTab            jobIdHT;
+extern struct hTab            jgrpIdHT;
 extern struct gData           *usergroups[];
 extern struct gData           *hostgroups[];
-extern struct profileCounters counters[];     
+extern struct profileCounters counters[];
 extern char                   errstr[];
 extern int                    debug;
-extern int                    errno;
 extern int                    nextId;
-extern int 		      numRemoteJobsInList; 
+extern int 		      numRemoteJobsInList;
 
 
 extern char                   *defaultQueues;
@@ -959,15 +959,15 @@ extern int                    jobDepLastSub;
 extern int		      maxUserPriority;
 extern int		      jobPriorityValue;
 extern int		      jobPriorityTime;
-extern int                    scheRawLoad; 
+extern int                    scheRawLoad;
 
 extern time_t                  last_hostInfoRefreshTime;
-extern struct hTab             condDataList;             
+extern struct hTab             condDataList;
 extern int                     readNumber;
 extern time_t                  condCheckTime;
 extern struct userConf *       userConf;
 extern time_t                  last_hostInfoRefreshTime;
-extern struct hTab             condDataList;             
+extern struct hTab             condDataList;
 extern int                     readNumber;
 extern time_t                  condCheckTime;
 extern struct userConf *       userConf;
@@ -993,7 +993,7 @@ extern long                    schedSeqNo;
 
 extern void		    pollSbatchds(int);
 extern void		    hStatChange(struct hData *, int status);
-extern int		    checkHosts(struct infoReq*, 
+extern int		    checkHosts(struct infoReq*,
 				       struct hostDataReply *);
 extern struct hData *	    getHostData(char *host);
 extern struct hData *	    getHostData2(char *host);
@@ -1004,13 +1004,13 @@ extern void		    checkHWindow(void);
 extern hEnt *		    findHost(char *hname);
 extern void		    renewJob (struct jData *oldjob);
 extern int		    repeatHosts(char *, char **, int);
-extern void		    getTclHostData (struct tclHostData *, 
+extern void		    getTclHostData (struct tclHostData *,
 					    struct hData *, struct hData *);
 extern int		    getLsbHostNames (char ***);
 extern void		    getLsbHostInfo(void);
 extern int		    getLsbHostLoad(void);
-extern int		    getHostsByResReq (struct resVal *, int *, 
-					      struct hData **, 
+extern int		    getHostsByResReq (struct resVal *, int *,
+					      struct hData **,
 					      struct hData ***,
 					      struct hData *,int *);
 
@@ -1027,7 +1027,7 @@ extern void		    checkQWindow(void);
 extern int		    checkQueues(struct infoReq *,
 					struct queueInfoReply *);
 extern int		    ctrlQueue(struct controlReq *, struct lsfAuth *);
-extern int		    ctrlHost(struct controlReq *, struct hData *, 
+extern int		    ctrlHost(struct controlReq *, struct hData *,
 				     struct lsfAuth *);
 extern void		    sumHosts(void);
 extern void		    inQueueList(struct qData *);
@@ -1037,7 +1037,7 @@ extern char		    userQMember(char *user, struct qData *qp);
 extern int		    isQueAd (struct qData *, char *);
 extern int		    isAuthQueAd (struct qData *, struct lsfAuth *);
 extern int		    isInQueues (char *, char **, int);
-extern void		    freeQueueInfoReply (struct queueInfoReply *, 
+extern void		    freeQueueInfoReply (struct queueInfoReply *,
 						char *);
 extern struct hostInfo *    getLsfHostData (char *);
 extern int		    createQueueHostSet(struct qData *);
@@ -1049,33 +1049,33 @@ extern void *		    getQueueByIndex(int);
 extern bool_t		    isQInQSet(struct qData *, LS_BITSET_T *);
 
 extern struct listSet      *voidJobList;
-extern int		    newJob(struct submitReq *, 
+extern int		    newJob(struct submitReq *,
 				   struct submitMbdReply *, int,
-				   struct lsfAuth *, int *, int, 
+				   struct lsfAuth *, int *, int,
 				   struct jData **);
-extern int		    chkAskedHosts(int, char **, int, int *, 
+extern int		    chkAskedHosts(int, char **, int, int *,
 					  struct askedHost **,
 					  int *, int *, int);
-extern int		    selectJobs(struct jobInfoReq *, 
+extern int		    selectJobs(struct jobInfoReq *,
 				      struct jData ***, int *);
 extern int		    signalJob(struct signalReq *, struct lsfAuth *);
-extern int		    statusJob(struct statusReq *, struct hostent *, 
+extern int		    statusJob(struct statusReq *, struct hostent *,
 				      int *);
 extern int		    rusageJob(struct statusReq *, struct hostent *);
 extern int		    statusMsgAck(struct statusReq *);
-extern int		    switchJobArray(struct jobSwitchReq *, 
+extern int		    switchJobArray(struct jobSwitchReq *,
 					   struct lsfAuth *);
 extern int		    sbatchdJobs (struct sbdPackage *, struct hData *);
 extern int		    countNumSpecs (struct hData *hData);
 extern void		    packJobSpecs (struct jData *, struct jobSpecs *);
 extern void		    freeJobSpecs (struct jobSpecs *);
-extern int		    peekJob (struct jobPeekReq *, 
+extern int		    peekJob (struct jobPeekReq *,
 				     struct jobPeekReply *,
 				     struct lsfAuth *);
-extern int		    migJob (struct migReq *, struct submitMbdReply *, 
+extern int		    migJob (struct migReq *, struct submitMbdReply *,
 				    struct lsfAuth *);
 extern void		    clean(time_t);
-extern int		    moveJobArray(struct jobMoveReq *, 
+extern int		    moveJobArray(struct jobMoveReq *,
 					 int,
 					 struct lsfAuth *);
 extern void		    job_abort(struct jData *jData, char reason);
@@ -1090,7 +1090,7 @@ extern void		    inStartJobList (struct jData *);
 extern void		    inFinishJobList(struct jData *);
 extern void		    jobInQueueEnd (struct jData *, struct qData *);
 extern struct jData *	    initJData (struct jShared *);
-extern void		    assignLoad (float *, float *, struct qData *, 
+extern void		    assignLoad (float *, float *, struct qData *,
 					struct hData *);
 extern int		    resigJobs (int *resignal);
 extern void		    removeJob(LS_LONG_INT);
@@ -1105,24 +1105,24 @@ extern time_t runTimeSinceResume(const struct jData *);
 
 extern void   modifyJobPriority(struct jData *, int);
 extern float	queueGetUnscaledRunTimeLimit(struct qData *qp);
-extern int    arrayRequeue(struct jData *, 
+extern int    arrayRequeue(struct jData *,
 			   struct signalReq *,
 			   struct lsfAuth *);
 
-extern int		    modifyJob (struct modifyReq *, 
+extern int		    modifyJob (struct modifyReq *,
 				       struct submitMbdReply *,
 				       struct lsfAuth *);
 extern void		    freeJData (struct jData *);
-extern void		    handleJParameters (struct jData *, struct jData *, 
+extern void		    handleJParameters (struct jData *, struct jData *,
 					       struct submitReq *, int, int, int);
 extern void		    handleNewJob (struct jData *, int, int);
-extern void		    copyJobBill (struct submitReq *, 
+extern void		    copyJobBill (struct submitReq *,
 					 struct submitReq *, LS_LONG_INT);
 extern void		    inZomJobList (struct jData *, int);
 extern struct jData *       getZombieJob (LS_LONG_INT);
 extern int		    getNextJobId (void);
 extern void		    accumRunTime (struct jData *, int, time_t);
-extern void		    signalReplyCode (sbdReplyType reply, 
+extern void		    signalReplyCode (sbdReplyType reply,
 					     struct jData *jData,
 					     int sigValue, int chkFlags);
 extern void		    jobStatusSignal(sbdReplyType reply,
@@ -1139,26 +1139,26 @@ extern int                  PJLorMJL(struct jData *);
 
 extern void                 schedulerInit(void);
 extern int                  scheduleAndDispatchJobs(void);
-extern int		    scheduleJobs(int *schedule, int *dispatch, 
+extern int		    scheduleJobs(int *schedule, int *dispatch,
 					 struct jData *);
 extern int		    dispatchJobs(int *dispatch);
 extern void		    updNumDependents(struct dptNode *, int);
 extern int		    userJobLimitCk (struct jData *, int disp);
-extern int		    pJobLimitOk (struct hData *, struct hostAcct *, 
+extern int		    pJobLimitOk (struct hData *, struct hostAcct *,
 					 float pJobLimit);
-extern int		    uJobLimitOk (struct jData *, struct hTab *, 
+extern int		    uJobLimitOk (struct jData *, struct hTab *,
 					 int, int disp);
-extern int		    hostSlots (int, struct jData *, struct hData *, 
+extern int		    hostSlots (int, struct jData *, struct hData *,
 				       int disp, int *);
 extern void		    disp_clean_job(struct jData *);
 extern bool_t		    dispatch_it(struct jData *);
 extern int		    findBestHosts (struct jData *, struct resVal *, int, int, struct candHost *, bool_t);
 extern int		    hJobLimitOk (struct hData *, struct hostAcct *, int);
 extern void		    freeReserveSlots (struct jData *);
-extern int		    jobStartError(struct jData *jData, 
+extern int		    jobStartError(struct jData *jData,
 					  sbdReplyType reply);
-extern int		    cntNumPrmptSlots (struct qData *, struct hData *, 
-					      struct uData *, 
+extern int		    cntNumPrmptSlots (struct qData *, struct hData *,
+					      struct uData *,
 					      int *numAvailSUSP);
 extern int		    skipAQueue(struct qData *qp2, struct qData *qp1);
 extern int    	      	    userJobLimitOk (struct jData *, int, int *);
@@ -1169,76 +1169,76 @@ extern int	  	    freeReservePreemptResources(struct jData *jp);
 extern int	  	    deallocReservePreemptResources(struct jData *jp);
 extern int		    orderByStatus (struct candHost *, int , bool_t);
 extern void                 setLsbPtilePack(const bool_t );
-extern int		    do_submitReq(XDR *, int, struct sockaddr_in *, 
-					 char *, struct LSFHeader *, 
+extern int		    do_submitReq(XDR *, int, struct sockaddr_in *,
+					 char *, struct LSFHeader *,
 					 struct sockaddr_in *,
-					 struct lsfAuth *, int *, int, 
+					 struct lsfAuth *, int *, int,
 					 struct jData **);
-extern int		    do_signalReq(XDR *, int, struct sockaddr_in *, 
-					 char *, struct LSFHeader *, 
+extern int		    do_signalReq(XDR *, int, struct sockaddr_in *,
+					 char *, struct LSFHeader *,
 					 struct lsfAuth *);
-extern int		    do_jobMsg(struct bucket *, XDR *, int, 
-				      struct sockaddr_in *, 
-				      char *, struct LSFHeader *, 
+extern int		    do_jobMsg(struct bucket *, XDR *, int,
+				      struct sockaddr_in *,
+				      char *, struct LSFHeader *,
 				      struct lsfAuth *);
-extern int		    do_statusReq(XDR *, int, struct sockaddr_in *, 
+extern int		    do_statusReq(XDR *, int, struct sockaddr_in *,
 					 int *,
 					 struct LSFHeader *);
 extern int		    do_errorReq(int,  struct LSFHeader *);
-extern int		    do_jobSwitchReq(XDR *, int, struct sockaddr_in *, 
-					    char *, struct LSFHeader *, 
+extern int		    do_jobSwitchReq(XDR *, int, struct sockaddr_in *,
+					    char *, struct LSFHeader *,
 					    struct lsfAuth *);
 extern int		    do_hostInfoReq(XDR *, int, struct sockaddr_in *,
 					   struct LSFHeader *);
-extern int		    do_jobPeekReq(XDR *, int, struct sockaddr_in *, 
-					  char *, struct LSFHeader *, 
+extern int		    do_jobPeekReq(XDR *, int, struct sockaddr_in *,
+					  char *, struct LSFHeader *,
 					  struct lsfAuth *);
 extern int		    do_jobInfoReq(XDR *, int, struct sockaddr_in *,
 					  struct LSFHeader *, int);
 extern int		    do_queueInfoReq(XDR *, int, struct sockaddr_in *,
 					    struct LSFHeader *);
-extern int		    do_debugReq(XDR * xdrs, int chfd, 
+extern int		    do_debugReq(XDR * xdrs, int chfd,
 					struct sockaddr_in * from,
-					char *hostName, 
-					struct LSFHeader * reqHdr, 
+					char *hostName,
+					struct LSFHeader * reqHdr,
 					struct lsfAuth * auth);
 extern int		    do_groupInfoReq(XDR *, int, struct sockaddr_in *,
 					    struct LSFHeader *);
-extern int		    do_queueControlReq(XDR *, int, 
+extern int		    do_queueControlReq(XDR *, int,
 					       struct sockaddr_in *, char *,
-					       struct LSFHeader *, 
+					       struct LSFHeader *,
 					       struct lsfAuth *);
-extern int		    do_reconfigReq(XDR *, int, struct sockaddr_in *, 
+extern int		    do_reconfigReq(XDR *, int, struct sockaddr_in *,
 					   char *, struct LSFHeader *);
 extern int		    do_restartReq(XDR *, int, struct sockaddr_in *,
 					  struct LSFHeader *);
 extern int		    do_hostControlReq(XDR *, int,
 					      struct sockaddr_in *, char *,
-					      struct LSFHeader *, 
+					      struct LSFHeader *,
 					      struct lsfAuth *);
-extern int		    do_jobMoveReq(XDR *, int, struct sockaddr_in *, 
-					  char *, struct LSFHeader *, 
+extern int		    do_jobMoveReq(XDR *, int, struct sockaddr_in *,
+					  char *, struct LSFHeader *,
 					  struct lsfAuth *);
 extern int		    do_userInfoReq(XDR *, int , struct sockaddr_in *,
 					   struct LSFHeader *);
 extern int		    do_paramInfoReq(XDR *, int , struct sockaddr_in *,
 					    struct LSFHeader *);
-extern int		    do_hostPartInfoReq(XDR *, int , 
+extern int		    do_hostPartInfoReq(XDR *, int ,
 					       struct sockaddr_in *,
 					       struct LSFHeader *);
 extern int		    do_migReq(XDR *, int, struct sockaddr_in *, char *,
 				      struct LSFHeader *, struct lsfAuth *);
-extern int		    do_modifyReq (XDR *, int, struct sockaddr_in *, 
-					  char *, struct LSFHeader *, 
-					  struct lsfAuth *); 
+extern int		    do_modifyReq (XDR *, int, struct sockaddr_in *,
+					  char *, struct LSFHeader *,
+					  struct lsfAuth *);
 extern void		    doNewJobReply(struct sbdNode *, int);
 extern void		    doProbeReply(struct sbdNode *, int);
 extern void		    doSignalJobReply(struct sbdNode *sbdPtr, int);
 extern void		    doSwitchJobReply(struct sbdNode *sbdPtr, int);
-extern int		    do_resourceInfoReq (XDR *, int, 
-						struct sockaddr_in *, 
+extern int		    do_resourceInfoReq (XDR *, int,
+						struct sockaddr_in *,
 						struct LSFHeader *);
-extern int                   do_runJobReq(XDR *, 
+extern int                   do_runJobReq(XDR *,
 					 int,
 					 struct sockaddr_in *,
 					 struct lsfAuth *,
@@ -1253,12 +1253,12 @@ extern int authDaemonRequest(int chfd,
                              struct sockaddr_in *from_host,
                              char *client,
                              char *server);
-#endif 
+#endif
 
 
-extern int                  requeueEParse (struct requeueEStruct **, 
+extern int                  requeueEParse (struct requeueEStruct **,
 					   char *, int *);
-extern int                  fill_requeueHist(struct rqHistory **,int *, 
+extern int                  fill_requeueHist(struct rqHistory **,int *,
 					     struct hData *);
 extern int                  match_exitvalue (struct requeueEStruct *, int);
 extern void                 clean_requeue (struct qData *);
@@ -1266,35 +1266,35 @@ extern void                 clean_requeue (struct qData *);
 extern LS_BITSET_T          *allUsersSet;
 extern LS_BITSET_T          *uGrpAllSet;
 extern LS_BITSET_T          *uGrpAllAncestorSet;
-extern int                  userSetOnNewUser(LS_BITSET_T *, void *, 
+extern int                  userSetOnNewUser(LS_BITSET_T *, void *,
 					     LS_BITSET_EVENT_T *);
-extern int                  checkGroups(struct infoReq *, 
+extern int                  checkGroups(struct infoReq *,
 					struct groupInfoReply *);
-extern void                 fillMembers(struct gData *, 
-					char **, 
+extern void                 fillMembers(struct gData *,
+					char **,
 					char);
-extern char **              expandGrp(struct gData *, 
-				      char *, 
+extern char **              expandGrp(struct gData *,
+				      char *,
 				      int *);
-extern void                 fillMembers(struct gData *, 
-					char **, 
+extern void                 fillMembers(struct gData *,
+					char **,
 					char);
-extern char *               getGroupMembers(struct gData *, 
+extern char *               getGroupMembers(struct gData *,
 					    char);
 extern char *               catGnames(struct gData *);
 extern struct gData *       getGroup(int, char *);
-extern char                 gMember(char *word, 
+extern char                 gMember(char *word,
 				    struct gData *);
-extern char                 gDirectMember(char *, 
-					  struct gData *); 
+extern char                 gDirectMember(char *,
+					  struct gData *);
 extern int                  countEntries(struct gData *, char );
 extern struct gData *       getUGrpData(char *);
 extern struct gData *       getHGrpData(char *);
-extern struct gData *       getGrpData(struct gData **, 
+extern struct gData *       getGrpData(struct gData **,
 				       char *,
 				       int);
-extern int                  sumMembers (struct gData *, 
-					char r, 
+extern int                  sumMembers (struct gData *,
+					char r,
 					int first);
 extern void                 createGroupuData();
 extern void                 createGroupTbPtr();
@@ -1303,7 +1303,7 @@ extern int                  getIndexByuData(void *);
 extern void *               getuDataByIndex(int);
 extern UDATA_TABLE_T *      uDataTableCreate(void);
 extern void                 uDataPtrTbInitialize(void);
-extern void                 uDataTableAddEntry(UDATA_TABLE_T *, 
+extern void                 uDataTableAddEntry(UDATA_TABLE_T *,
 					       struct uData *);
 extern int                  uDataTableGetNumEntries(UDATA_TABLE_T *);
 extern struct uData *       uDataTableGetNextEntry(UDATA_TABLE_T *);
@@ -1320,24 +1320,24 @@ extern void                 setJobPriUpdIntvl(void);
 #if defined(INTER_DAEMON_AUTH)
 extern void createEauthAuxDataEnvVar();
 extern char* createTmpFileName(const char *prefix);
-#endif 
+#endif
 
 extern int                  isAuthManagerExt(struct lsfAuth *);
-extern void                 updCounters(struct jData *jData, int newStatus, 
+extern void                 updCounters(struct jData *jData, int newStatus,
 					time_t);
-extern void                 updSwitchJob (struct jData *, struct qData *, 
+extern void                 updSwitchJob (struct jData *, struct qData *,
 					  struct qData *, int);
-extern void                 updUserData (struct jData *, int, int, int, int, 
+extern void                 updUserData (struct jData *, int, int, int, int,
 					 int, int);
-extern void                 updQaccount(struct jData *jData, int, int, int, 
+extern void                 updQaccount(struct jData *jData, int, int, int,
 					int, int, int);
 extern struct uData *       getUserData(char *user);
 extern struct userAcct *    getUAcct(struct hTab *, struct uData *);
 extern struct hostAcct *    getHAcct(struct hTab  *, struct hData *);
 extern struct uData *       addUserData (char *, int, float, char *, int, int);
-extern int                  checkUsers(struct infoReq *, 
+extern int                  checkUsers(struct infoReq *,
 				       struct userInfoReply *);
-extern void                 checkParams (struct infoReq *, 
+extern void                 checkParams (struct infoReq *,
 					 struct parameterInfo *);
 extern void                 mbdDie(int);
 extern int                  isManager (char *);
@@ -1345,7 +1345,7 @@ extern int                  isAuthManager (struct lsfAuth *);
 extern int                  isJobOwner(struct lsfAuth *, struct jData *);
 extern char *               getDefaultProject(void);
 extern void                 updResCounters(struct jData *, int);
-extern struct hostAcct *    addHAcct (struct hTab **, struct hData *, 
+extern struct hostAcct *    addHAcct (struct hTab **, struct hData *,
 				      int, int, int, int);
 extern void                 checkQusable (struct qData *, int, int);
 extern void                 updHostLeftRusageMem(struct jData *, int);
@@ -1365,7 +1365,7 @@ extern int                  updAllConfCond(void);
 extern void                 mbdReConf(int);
 
 extern int                  log_newjob(struct jData *jPtr);
-extern void                 log_switchjob(struct jobSwitchReq *switchReq, 
+extern void                 log_switchjob(struct jobSwitchReq *switchReq,
 					  int uid, char *userName);
 extern void                 log_movejob(struct jobMoveReq *, int , char *);
 extern void                 log_startjob(struct jData *jPtr, int);
@@ -1391,12 +1391,12 @@ extern void                 switchELog(void);
 extern int                  switch_log(void);
 extern void                 checkAcctLog(void);
 extern int                  switchAcctLog(void);
-extern void                 logJobInfo(struct submitReq *, struct jData *, 
+extern void                 logJobInfo(struct submitReq *, struct jData *,
 				       struct lenData *);
 extern int                  rmLogJobInfo_(struct jData *, int);
-extern int                  readLogJobInfo(struct jobSpecs *, struct jData *, 
+extern int                  readLogJobInfo(struct jobSpecs *, struct jData *,
 					   struct lenData *, struct lenData *);
-extern void                 log_signaljob(struct jData *, struct signalReq *, 
+extern void                 log_signaljob(struct jData *, struct signalReq *,
 					  int, char *);
 extern void                 log_jobmsg(struct jData *, struct lsbMsg *, int);
 extern void                 log_jobmsgack(struct bucket *);
@@ -1409,10 +1409,10 @@ extern void                 log_jobsigact (struct jData *, struct statusReq *,
 extern void                 log_jobrequeue(struct jData * jData);
 extern void                 log_jobForce(struct jData *, int, char *);
 
-extern time_t               eventTime; 
+extern time_t               eventTime;
 extern void                 log_jobattrset(struct jobAttrInfoEnt *, int);
 
-#define  REPLACE_1ST_CMD_ONLY  (0x1)   
+#define  REPLACE_1ST_CMD_ONLY  (0x1)
 extern int                  stripJobStarter(char *, int *, char *);
 
 extern sbdReplyType         start_job(struct jData *, struct qData *,
@@ -1430,9 +1430,9 @@ extern int getDaemonAuth(struct lsfAuth *auth, char *toHost,
                          char *client, char *server);
 extern void writeEauthAuxData(struct lenData *aux_auth_data);
 extern void removeFile(const char *envVar);
-#endif 
+#endif
 
-extern struct dptNode *     parseDepCond(char *, struct lsfAuth * , 
+extern struct dptNode *     parseDepCond(char *, struct lsfAuth * ,
 					 int *, char **,int *, int);
 extern int                  evalDepCond (struct dptNode *, struct jData *);
 extern void                 freeDepCond (struct dptNode *);
@@ -1445,9 +1445,9 @@ extern float                  getAutoAdjustAtPercent(void);
 
 extern bool_t               autoAdjustIsEnabled(void);
 
-extern float                getHRValue(char *, struct hData *, 
+extern float                getHRValue(char *, struct hData *,
 				       struct resourceInstance **);
-extern int                  checkResources (struct resourceInfoReq *, 
+extern int                  checkResources (struct resourceInfoReq *,
 					    struct lsbShareResourceInfoReply *);
 extern struct sharedResource * getResource (char *);
 extern void                 resetSharedResource(void);
@@ -1475,15 +1475,15 @@ extern void                 addReservedByWaitPRHQValue(int, float,
 				struct hData *, struct qData *);
 extern void                 removeReservedByWaitPRHQValue(int, float,
 				struct hData *, struct qData *);
-extern void                 addAvailableByPreemptPRHQValue(int, float, 
+extern void                 addAvailableByPreemptPRHQValue(int, float,
 				struct hData *, struct qData *);
-extern void                 removeAvailableByPreemptPRHQValue(int, float, 
+extern void                 removeAvailableByPreemptPRHQValue(int, float,
 				struct hData *, struct qData *);
 extern int                  resName2resIndex(char *);
 extern int                  isItPreemptResourceName(char *);
 extern int                  isItPreemptResourceIndex(int);
 extern int                  isReservePreemptResource(struct  resVal *);
-extern int                  isHostsInSameInstance(int, struct hData *, 
+extern int                  isHostsInSameInstance(int, struct hData *,
 				struct hData *);
 
 

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+autoreconf -fi
+echo "Now you can run ./configure"

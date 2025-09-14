@@ -18,16 +18,16 @@
  */
 
 #include "lsf.h"
+#include "lsf/lib/liblsf.h"
+
 #define MAXLISTSIZE 256
 
 static void usage(char *);
 
 extern int  optind, opterr;
 extern char *optarg;
-extern int errno;
 
 #define NL_SETN 27
-
 
     int
 main(int argc, char **argv)

@@ -27,7 +27,6 @@
 #include <sys/time.h>
 #include "resreq.h"
 #include "lsf/lib/lib.channel.h"
-#include "lsftcl.h"
 #include "lsf/lib/lib.hdr.h"
 #include "bitset.h"
 #include "listset.h"

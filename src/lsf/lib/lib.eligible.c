@@ -18,9 +18,6 @@
  */
 #include "lsf/lib/liblsf.h"
 
-
-
-
 hTab rtask_table;
 hTab ltask_table;
 
@@ -111,11 +108,15 @@ inittasklists_(void)
         }
     }
 
-    if ((homep = osHomeEnvVar_()) != NULL) {
+    if ((homep = getenv("HOME") != NULL)) {
         strcpy(filename, homep);
         strcat(filename, "/.lsftask");
         if (access(filename, R_OK) == 0) {
-            if (readtaskfile_(filename, NULL, NULL, &ltask_table, &rtask_table,
+            if (readtaskfile_(filename,
+                              NULL,
+                              NULL,
+                              &ltask_table,
+                              &rtask_table,
                               false) >= 0)
                 listok = true;
         }

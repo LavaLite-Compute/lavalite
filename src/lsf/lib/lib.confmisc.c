@@ -303,7 +303,7 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
     char **tempNames;
     int i, *tempIds, *tempGids;
 
-    if ((pw = getpwlsfuser_(word)) == NULL) {
+    if ((pw = getpwnam(word)) == NULL) {
         if (logclass & LC_TRACE) {
             ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd , NL_SETN, 5410,
                                                "%s: <%s> is not a valid user on this host"), fname, word); /* catgets 5410 */

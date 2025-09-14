@@ -27,7 +27,6 @@ liblsf_la_SOURCES = liblsf.h \
 	lib.hosta.c \
 	lib.host.c \
 	lib.i18n.c \
-	lib.id.c \
 	lib.info.c \
 	lib.init.c \
 	lib.initenv.c \

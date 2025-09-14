@@ -1,10 +1,10 @@
 /*
  *
- * $Id: lsbitseterr.def,v 1.1 2007/07/18 23:17:45 cchen Exp $ 
+ * $Id: lsbitseterr.def,v 1.1 2007/07/18 23:17:45 cchen Exp $
  *
  ***************************************************************************
  *
- * Load Sharing Facility 
+ * Load Sharing Facility
  *
  * List of error codes related to the bitset library.
  *

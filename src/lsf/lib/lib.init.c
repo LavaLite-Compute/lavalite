@@ -1,4 +1,3 @@
-
 /* $Id: lib.init.c,v 1.6 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -206,7 +205,7 @@ lsfExecLog(const char *cmd)
 	    	((genParams_[LSF_MLS_LOG].paramValue[0] == 'y') ||
 	    	(genParams_[LSF_MLS_LOG].paramValue[0] == 'Y'))) {
 
-        getLSFUser_(lsfUserName, sizeof(lsfUserName));
+        getpwnam(lsfUserName);
         syslog(LOG_INFO,
 	    I18N(6259,"%s: user - %s cmd - '%s'"), /* catgets 6259 */
 	    fname, lsfUserName, cmd);

@@ -18,11 +18,6 @@
  */
 #include "lsf/lib/liblsf.h"
 
-
-
-
-extern int errno;
-
 #define NL_SETN   23
 int    lserrno = LSE_NO_ERR;
 int    masterLimDown = false;
@@ -146,7 +141,7 @@ char   *ls_errmsg[] = {
     /* 98 */       "Request label doesn't dominate current label", /* catgets 198 */
 };
 
-void
+    void
 ls_errlog(FILE *fp, const char *fmt, ...)
 {
     va_list ap;
@@ -156,7 +151,7 @@ ls_errlog(FILE *fp, const char *fmt, ...)
     va_end(ap);
 }
 
-const char *
+    const char *
 err_str_(int errnum, const char *fmt, char *buf)
 {
     const char *b;
@@ -171,7 +166,7 @@ err_str_(int errnum, const char *fmt, char *buf)
         return(buf);
     }
     else if (((b = strstr(fmt, "%m")) != NULL) ||
-             ((b = strstr(fmt, "%k")) != NULL))
+            ((b = strstr(fmt, "%k")) != NULL))
     {
         strncpy(buf, fmt, b - fmt);
         f = buf + (b - fmt);
@@ -188,7 +183,7 @@ err_str_(int errnum, const char *fmt, char *buf)
         return(fmt);
 }
 
-void
+    void
 verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
 {
     static char lastmsg[16384];
@@ -238,7 +233,7 @@ verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
     lastime = now;
 }
 
-char *
+    char *
 ls_sysmsg(void)
 {
     static char buf[256];
@@ -265,7 +260,7 @@ ls_sysmsg(void)
 
 }
 
-void
+    void
 ls_perror(char *usrMsg)
 {
     if (usrMsg) {
