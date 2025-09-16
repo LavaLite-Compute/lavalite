@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 
 #define MAX_TVSEC	INT_MAX
 
@@ -60,7 +60,7 @@ timerIsExpired(struct timeval *timerp)
 	|| ((timerp->tv_sec == tv.tv_sec) && (timerp->tv_usec <= tv.tv_usec)))
     {
 
-	return(1);
+	return 1;
     }
 
 
@@ -72,7 +72,7 @@ timerIsExpired(struct timeval *timerp)
 	nextTime = *timerp;
     }
 
-    return(0);
+    return 0;
 }
 
 void

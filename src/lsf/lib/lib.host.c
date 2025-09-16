@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 #undef MAXHOSTNAMELEN
@@ -64,11 +64,11 @@ ls_getmyhostname(void)
 	    strcpy(hname, sp);
         } else {
 	    hname[0] = 0;
-            return(NULL);
+            return NULL;
         }
     }
 
-    return (hname);
+    return hname;
 
 }
 
@@ -166,7 +166,7 @@ Gethostbyname_ex_(
        ls_syslog(LOG_DEBUG,"%s: Entering, for host :<%s>" ,fname,hname);
     if (strlen(hname) >= MAXHOSTNAMELEN) {
 	lserrno = LSE_BAD_HOST;
-	return (NULL);
+	return NULL;
     }
 
     strcpy(lhname, hname);
@@ -175,13 +175,13 @@ Gethostbyname_ex_(
     hostEntP = getHostEntByName(lhname, options);
     if(hostEntP) {
 	if(hostEntP->h_addr == NULL) {
-	    return (NULL);
+	    return NULL;
 	}
         if(logclass &  LC_TRACE)
            ls_syslog(LOG_DEBUG,
                 "%s: Exiting this routine, resolved hostent for host: <%s>",
                 fname,hname);
-	return (hostEntP);
+	return hostEntP;
     } else {
 	if(lserrno == LSE_MALLOC) {
            ls_syslog(LOG_ERR,
@@ -192,7 +192,7 @@ Gethostbyname_ex_(
                   "%s: getHostEntByName() failed for host: <%s>, %M",
                   fname,hname);
 	}
-	return (NULL);
+	return NULL;
     }
 }
 
@@ -230,7 +230,7 @@ getHostOfficialByName_(const char* hname)
         return NULL;
     }
     strcpy(hnameBuf, hostEntP->h_name);
-    return (hnameBuf);
+    return hnameBuf;
 }
 
 
@@ -251,7 +251,7 @@ getHostOfficialByAddr_(
     }
 
     strcpy(hname, hostEntP->h_name);
-    return (hname);
+    return hname;
 }
 
 
@@ -288,7 +288,7 @@ getHostEntryByName_(const char* hname)
     }
 
     if(hostEntP->h_addr == NULL) {
-        return (NULL);
+        return NULL;
     }
 
     return hostEntP;
@@ -664,7 +664,7 @@ cpHostent(struct hostent *to, const struct hostent *from)
     int i, j, n;
 
     if ((to->h_name = putstr_(from->h_name)) == NULL)
-	return (-1);
+	return -1;
 
     if(from->h_aliases) {
         for (n = 0; from->h_aliases[n]; n++);
@@ -672,7 +672,7 @@ cpHostent(struct hostent *to, const struct hostent *from)
         if ((to->h_aliases = (char **) calloc(n+1, sizeof(char *))) == NULL) {
 	    free(to->h_name);
 	    to->h_name = NULL;
-	    return (-1);
+	    return -1;
         }
 
         for (j = 0; j < n; j++) {
@@ -682,7 +682,7 @@ cpHostent(struct hostent *to, const struct hostent *from)
 	        free(to->h_aliases);
 	        free(to->h_name);
 	        to->h_name = NULL;
-	        return (-1);
+	        return -1;
 	    }
         }
         to->h_aliases[n] = NULL;
@@ -704,7 +704,7 @@ cpHostent(struct hostent *to, const struct hostent *from)
 	    free(to->h_aliases);
 	    free(to->h_name);
 	    to->h_name = NULL;
-	    return (-1);
+	    return -1;
         }
 
         for (i = 0; i < n; i++) {
@@ -718,7 +718,7 @@ cpHostent(struct hostent *to, const struct hostent *from)
 	        free(to->h_aliases);
 	        free(to->h_name);
 	        to->h_name = NULL;
-	        return (-1);
+	        return -1;
 	    }
 	    memcpy(to->h_addr_list[i], from->h_addr_list[i], from->h_length);
         }
@@ -727,7 +727,7 @@ cpHostent(struct hostent *to, const struct hostent *from)
         to->h_addr_list = NULL;
     }
 
-    return (0);
+    return 0;
 }
 
 
@@ -807,12 +807,12 @@ Gethostbyaddr_(char *addr, int len, int type)
            ls_syslog(LOG_DEBUG,
                   "%s: Exiting this routine, cache for host: <%s>",
                   fname, hostEntP->h_name);
-	return (hostEntP);
+	return hostEntP;
     } else {
         ls_syslog(LOG_DEBUG,
                   "%s: getHostEntByAddr() failed for host: <%s>, %M",
                   fname,(char*)inet_ntoa(*(struct in_addr *)addr));
-	return (NULL);
+	return NULL;
     }
 }
 

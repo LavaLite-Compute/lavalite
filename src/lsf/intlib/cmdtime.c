@@ -18,7 +18,7 @@
  */
 
 
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 
 static int	getPtime(char *, char, time_t, char, time_t *);
@@ -42,7 +42,7 @@ getBEtime (char *toptarg, char flag, time_t tTime[])
     checkThree (toptarg, ',', &cp, &cp1, &cp3);
     if (cp1 != NULL) {
 	lserrno = LSE_BAD_TIME;
-        return (-1);
+        return -1;
     }
 
     if (cp == NULL) {
@@ -50,25 +50,25 @@ getBEtime (char *toptarg, char flag, time_t tTime[])
 	checkThree (toptarg, '.', &cp, &cp1, &cp3);
 	if (cp != NULL) {
 	    lserrno = LSE_BAD_TIME;
-	    return (-1);
+	    return -1;
         }
-	endTime = FALSE;
+	endTime = false;
 	sbtime = 0;
 	if ((cc = getPtime (toptarg, endTime, sbtime, flag, &tTime[0])) == -1)
-	    return (-1);
-	endTime = TRUE;
+	    return -1;
+	endTime = true;
 	if (getPtime (toptarg, endTime, sbtime, flag, &tTime[1]) == -1)
-	    return (-1);
+	    return -1;
 	if (checkBEtime ( tTime[0], tTime[1]) == -1)
-	    return(-1);
-	return(0);
+	    return -1;
+	return 0;
     }
 
 
 
 
 
-    while (TRUE) {
+    while (true) {
 	if ( *toptarg == ',' ) {
 	    tTime[0] = 0;
 	    toptarg ++;
@@ -87,36 +87,36 @@ getBEtime (char *toptarg, char flag, time_t tTime[])
 	    sbtime = time(0);
 	    toptarg += 2;
 	    *cp = '\000';
-	    endTime = FALSE;
+	    endTime = false;
 	    if (getPtime (toptarg, endTime, sbtime, flag, &tTime[0]) == -1)
-	        return (-1);
+	        return -1;
 	    toptarg = cp+1;
 	    break;
 	}
 
 	if ( (*toptarg == '@') && (*(toptarg+1) == ',') ) {
-	    endTime = FALSE;
+	    endTime = false;
 	    tTime[0] = getToday(endTime);
 	    toptarg = cp+1;
 	    break;
 	}
 	if ( (*toptarg == '@') && (*(toptarg+1) == '-') ) {
-	    endTime = FALSE;
+	    endTime = false;
 	    sbtime = getToday(endTime);
 	    toptarg += 2;
 	    *cp = '\000';
 	    if (getPtime (toptarg, endTime, sbtime, flag, &tTime[0]) == -1)
-	        return (-1);
+	        return -1;
 	    toptarg = cp+1;
 	    break;
 	}
 
-	endTime = FALSE;
+	endTime = false;
 	*cp = '\000';
 	sbtime = 0;
 	if (getPtime (toptarg, endTime, sbtime, flag, &tTime[0]) == -1) {
 	    *cp = ',';
-	    return (-1);
+	    return -1;
         }
 	toptarg = cp + 1;
 	break;
@@ -129,61 +129,61 @@ getBEtime (char *toptarg, char flag, time_t tTime[])
 	tTime[1] = time(0);
 	if (checkBEtime ( tTime[0], tTime[1] ) == -1) {
 	    *cp = ',';
-	    return (-1);
+	    return -1;
         }
-	return(0);
+	return 0;
     }
     if ((*toptarg == '.') && (*(toptarg+1) == '-')) {
 	sbtime = time(0);
 	toptarg += 2;
-	endTime = FALSE;
+	endTime = false;
 	if (getPtime (toptarg, endTime, sbtime, flag, &tTime[1]) == -1) {
 	    *cp = ',';
-	    return (-1);
+	    return -1;
         }
 	if (checkBEtime ( tTime[0], tTime[1] ) == -1) {
 	    *cp = ',';
-	    return (-1);
+	    return -1;
         }
-	return(0);
+	return 0;
     }
 
     if ((*toptarg == '@') && (*(toptarg+1) == '\0')) {
-	endTime = TRUE;
+	endTime = true;
 	tTime[1] = getToday(endTime);
 	if (checkBEtime ( tTime[0], tTime[1] ) == -1) {
 	    *cp = ',';
-	    return (-1);
+	    return -1;
         }
-	return(0);
+	return 0;
     }
     if ((*toptarg == '@') && (*(toptarg+1) == '-')) {
-	endTime = TRUE;
+	endTime = true;
 	sbtime = getToday(endTime);
 	toptarg += 2;
 	if (getPtime (toptarg, endTime, sbtime, flag, &tTime[1]) == -1) {
 	    *cp = ',';
-	    return (-1);
+	    return -1;
         }
 	if (checkBEtime ( tTime[0], tTime[1] ) == -1) {
 	    *cp = ',';
-	    return (-1);
+	    return -1;
         }
-	return(0);
+	return 0;
     }
 
-    endTime = TRUE;
-    sbtime = FALSE;
+    endTime = true;
+    sbtime = false;
     toptarg = cp+1;
     if (getPtime (toptarg, endTime, sbtime, flag, &tTime[1]) == -1) {
 	*cp = ',';
-        return (-1);
+        return -1;
     }
     if (checkBEtime ( tTime[0], tTime[1] ) == -1) {
 	*cp = ',';
-	return (-1);
+	return -1;
     }
-    return(0);
+    return 0;
 
 }
 
@@ -192,10 +192,10 @@ checkBEtime (time_t Btime, time_t Etime)
 {
     if ( Btime > Etime ) {
         lserrno = LSE_BAD_TIME;
-	return (-1);
+	return -1;
     }
     else
-	return (0);
+	return 0;
 
 }
 
@@ -219,20 +219,20 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 
     if ( ! checkChar (toptarg, &cp)) {
 	lserrno = LSE_BAD_TIME;
-	return (-1);
+	return -1;
     }
     checkThree (toptarg, '/', &cp1, &cp2, &cp3);
     if ( cp2 != NULL ) {
 	if ( (cp1+1) == cp2 ) {
 	    lserrno = LSE_BAD_TIME;
-	    return (-1);
+	    return -1;
         }
 	*cp2 = '0';
 	checkThree (toptarg, '/', &cp1, &cp, &cp3);
 	*cp2 = '/';
 	if ( cp3 != NULL ) {
 	    lserrno = LSE_BAD_TIME;
-	    return (-1);
+	    return -1;
         }
     }
     checkThree (toptarg, ':', &cp1, &cp2, &cp3);
@@ -240,17 +240,17 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	checkThree (toptarg, '/', &cp1, &cp2, &cp3);
 	if (( cp3 != NULL ) && ( *(cp3+1) != '0' )) {
 	    lserrno = LSE_BAD_TIME;
-	    return (-1);
+	    return -1;
         }
     }
     checkThree (toptarg, ':', &cp1, &cp2, &cp3);
     if ( cp2 != NULL ) {
 	lserrno = LSE_BAD_TIME;
-        return (-1);
+        return -1;
     }
     if ( (cp1 != NULL) && ((cp1[-1] == '/') || (cp1[1] == '/'))) {
 	lserrno = LSE_BAD_TIME;
-	return (-1);
+	return -1;
     }
 
 
@@ -287,14 +287,14 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    tmPtr->tm_year = tempInt;
 	    if (checkYear(&tmPtr->tm_year) == -1) {
 		*cp1 = '/';
-		return (-1);
+		return -1;
             }
 	    if (( *(cp1+1) != '\000')) {
 		ptimef |= MONTH;
 		tmPtr->tm_mon = atoi(cp1+1);
 		if (checkTime(MONTH, tmPtr->tm_mon) == -1) {
 		    *cp1 = '/';
-		    return (-1);
+		    return -1;
                 }
             }
 	    else
@@ -319,14 +319,14 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    tmPtr->tm_mon = tempInt;
 	    if (checkTime(MONTH, tmPtr->tm_mon) == -1) {
 		*cp1 = '/';
-		return (-1);
+		return -1;
             }
 	    if ( *(cp1+1) != '\000') {
 	        ptimef |= DAY;
 	        tmPtr->tm_mday = atoi(cp1+1);
 		if (checkTime(DAY, tmPtr->tm_mday) == -1) {
 		    *cp1 = '/';
-		    return (-1);
+		    return -1;
                 }
 	    }
 	    else if (endTime) {
@@ -353,7 +353,7 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	if (flag == 'w') {
 	    if ((ptimef & YEAR) == YEAR) {
 	        lserrno = LSE_BAD_TIME;
-	        return (-1);
+	        return -1;
             }
 	    if ((ptimef & MONTH) == MONTH)
 	        tmPtr->tm_year--;
@@ -362,8 +362,8 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
         }
 	*Ptime = mkTime (tmPtr, ptimef, sbtime);
 	if (*Ptime < 0)
-	    return (-1);
-	return (0);
+	    return -1;
+	return 0;
     }
 
     if ((cp == NULL) && (cp1 == toptarg) && (cp2 != NULL) ) {
@@ -379,14 +379,14 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	ptimef |= DAY;
 	tmPtr->tm_mday = atoi(toptarg);
 	if (checkTime(DAY, tmPtr->tm_mday) == -1)
-	    return (-1);
+	    return -1;
 	tmPtr->tm_hour = ( endTime ? 23 : 0 );
 	tmPtr->tm_min = ( endTime ? 59 : 0 );
         tmPtr->tm_sec = ( endTime ? 59 : 0 );
 	if (flag == 'w') {
 	    if ((ptimef & YEAR) == YEAR) {
 	        lserrno = LSE_BAD_TIME;
-	        return (-1);
+	        return -1;
             }
 	    if ((ptimef & MONTH) == MONTH)
 	        tmPtr->tm_year--;
@@ -395,8 +395,8 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
         }
 	*Ptime = mkTime (tmPtr, ptimef, sbtime);
         if (*Ptime < 0)
-            return (-1);
-	return (0);
+            return -1;
+	return 0;
     }
 
     if ( (cp == NULL) && (cp2 != NULL) && (cp1 != toptarg) ) {
@@ -408,7 +408,7 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    tmPtr->tm_year = atoi(toptarg);
 	    if (checkYear(&tmPtr->tm_year) == -1) {
 		*cp1 = '/';
-		return (-1);
+		return -1;
             }
 	    *cp1 = '/';
 	    *cp2 = '\000';
@@ -422,7 +422,7 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    else
 		tmPtr->tm_mday = atoi(cp2 + 1);
             if (checkTime(DAY, tmPtr->tm_mday) == -1)
-		return (-1);
+		return -1;
         }
 	else {
 	    *cp1 = '\000';
@@ -432,7 +432,7 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
                 tmPtr->tm_year = tempInt;
 		if (checkYear(&tmPtr->tm_year) == -1) {
 		    *cp1 = '/';
-		    return (-1);
+		    return -1;
                 }
 		ptimef |= MONTH;
 		*cp2 = '\000';
@@ -462,11 +462,11 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    if (checkTime(DAY, tmPtr->tm_mday) == -1) {
 		*cp1 = '/';
 		*cp2 = '/';
-                return (-1);
+                return -1;
 	    }
         }
 	if (checkTime(MONTH, tmPtr->tm_mon) == -1)
-	    return (-1);
+	    return -1;
         tmPtr->tm_mon--;
 	*cp1 = '/';
 	*cp2 = '/';
@@ -476,7 +476,7 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	if (flag == 'w') {
 	    if ((ptimef & YEAR) == YEAR) {
 	        lserrno = LSE_BAD_TIME;
-	        return (-1);
+	        return -1;
             }
 	    if ((ptimef & MONTH) == MONTH)
 	        tmPtr->tm_year--;
@@ -485,8 +485,8 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
         }
 	*Ptime = mkTime (tmPtr,ptimef, sbtime);
         if (*Ptime < 0)
-            return (-1);
-	return (0);
+            return -1;
+	return 0;
     }
 
     if ( (cp !=NULL) && (cp2 != NULL) && (cp3 != NULL) ) {
@@ -499,27 +499,27 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    tmPtr->tm_year = atoi(toptarg);
 	    *cp1 = '/';
 	    if (checkYear(&tmPtr->tm_year) == -1)
-		return (-1);
+		return -1;
             *cp2 = '\000';
 	    tmPtr->tm_mon = atoi(cp1+1);
 	    *cp2 = '/';
 	    if (checkTime(MONTH, tmPtr->tm_mon) == -1)
-		return (-1);
+		return -1;
             tmPtr->tm_mon--;
 	    *cp3 = '\000';
 	    tmPtr->tm_mday = atoi(cp2+1);
 	    *cp3 = '/';
 	    if (checkTime(DAY, tmPtr->tm_mday) == -1)
-		return (-1);
+		return -1;
             *cp  = '\000';
 	    tmPtr->tm_hour = atoi(cp3+1);
 	    *cp  = ':';
 	    if (checkTime(HOUR, tmPtr->tm_hour) == -1)
-		return (-1);
+		return -1;
 	    if (*(cp+1) != '\000') {
 	        tmPtr->tm_min  = atoi(cp+1);
 		if (checkTime(MINU, tmPtr->tm_min) == -1)
-		    return (-1);
+		    return -1;
             }
             else {
 		tmPtr->tm_min = ( endTime ? 59 : 0 );
@@ -528,7 +528,7 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    if (flag == 'w') {
 		if ((ptimef & YEAR) == YEAR) {
 		    lserrno = LSE_BAD_TIME;
-		    return (-1);
+		    return -1;
                 }
 		if ((ptimef & MONTH) == MONTH)
 		    tmPtr->tm_year--;
@@ -537,8 +537,8 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
             }
 	    *Ptime = mkTime (tmPtr, ptimef, sbtime);
             if (*Ptime < 0)
-                return (-1);
-	    return (0);
+                return -1;
+	    return 0;
         }
     }
 
@@ -550,7 +550,7 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    tmPtr->tm_mon = atoi(toptarg);
 	    *cp1 = '/';
 	    if (checkTime(MONTH, tmPtr->tm_mon) == -1)
-		return (-1);
+		return -1;
 	    tmPtr->tm_mon--;
 	    toptarg = cp1;
 	}
@@ -567,11 +567,11 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	    tmPtr->tm_mday = atoi(toptarg);
 	    *cp1 = '/';
 	    if (checkTime(DAY, tmPtr->tm_mday) == -1)
-		return (-1);
+		return -1;
 	    toptarg = cp1+1;
         } else if (cp1 > cp) {
             lserrno = LSE_BAD_TIME;
-            return (-1);
+            return -1;
 	}
     }
 
@@ -588,12 +588,12 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
 	ptimef |= MINU;
 	tmPtr->tm_min = atoi(cp+1);
 	if (checkTime(MINU, tmPtr->tm_min) == -1)
-	    return (-1);
+	    return -1;
 
 	if (flag == 'w') {
 	    if ((ptimef & YEAR) == YEAR) {
 	        lserrno = LSE_BAD_TIME;
-	        return (-1);
+	        return -1;
             }
 	    if ((ptimef & MONTH) == MONTH)
 	        tmPtr->tm_year--;
@@ -602,28 +602,28 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
         }
 	*Ptime = mkTime (tmPtr, ptimef, sbtime);
         if (*Ptime < 0)
-            return (-1);
-	return (0);
+            return -1;
+	return 0;
     }
     ptimef |= HOUR;
     if ( *(cp+1) != '\000') {
 	ptimef |= MINU;
 	tmPtr->tm_min = atoi(cp+1);
 	if (checkTime(MINU, tmPtr->tm_min) == -1)
-	    return (-1);
+	    return -1;
     } else
 	tmPtr->tm_min = ( endTime ? 59 : 0 );
     *cp = '\000';
     tmPtr->tm_hour = atoi(toptarg);
     if (checkTime(HOUR, tmPtr->tm_hour) == -1) {
 	*cp = ':';
-	return (-1);
+	return -1;
     }
     *cp = ':';
 	if (flag == 'w') {
 	    if ((ptimef & YEAR) == YEAR) {
 	        lserrno = LSE_BAD_TIME;
-	        return (-1);
+	        return -1;
             }
 	    if ((ptimef & MONTH) == MONTH)
 	        tmPtr->tm_year--;
@@ -632,8 +632,8 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
         }
     *Ptime = mkTime (tmPtr, ptimef, sbtime);
     if (*Ptime < 0)
-        return (-1);
-    return (0);
+        return -1;
+    return 0;
 
 }
 
@@ -669,11 +669,11 @@ checkChar (char *string, char **cp)
 		*cp = &string[i];
 	    else {
 		*cp = &string[i];
-		return FALSE;
+		return false;
 	    }
 	}
     }
-    return TRUE;
+    return true;
 
 }
 
@@ -707,9 +707,9 @@ mkTime (struct tm *tmPtr, int itimef, time_t sbtime)
     if (timeVal < 0
 	|| (tmPtr->tm_mon == monthSaver+1 && tmPtr->tm_mday != mdaySaver)) {
         lserrno = LSE_BAD_TIME;
-        return (-1);
+        return -1;
     }
-    return (timeVal);
+    return timeVal;
 }
 
 
@@ -720,9 +720,9 @@ checkYear(int *year)
 	*year -= 1900;
     if ((*year < 93) || (*year > 138)) {
 	lserrno = LSE_BAD_TIME;
-	return (-1);
+	return -1;
     }
-    return (0);
+    return 0;
 }
 
 
@@ -731,20 +731,20 @@ checkTime(int type, int time)
 {
     switch (type) {
     case MONTH: if ((time >= 1) && (time <= 12))
-		   return (0);
+		   return 0;
                 break;
     case DAY  : if ((time >= 1) && (time <= 31))
-		   return (0);
+		   return 0;
                 break;
     case HOUR : if ((time >= 0) && (time <= 23))
-		   return (0);
+		   return 0;
                 break;
     case MINU : if ((time >= 0) && (time <= 59))
-		   return (0);
+		   return 0;
                 break;
     }
     lserrno = LSE_BAD_TIME;
-    return (-1);
+    return -1;
 }
 
 

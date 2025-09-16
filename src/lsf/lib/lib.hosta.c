@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -43,7 +43,7 @@ getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
     nhlist = 0;
     if ((hlist = (char **) calloc(num, sizeof (char *))) == NULL)  {
         lserrno = LSE_MALLOC;
-        return (-1);
+        return -1;
     }
 
     *badIdx = 0;
@@ -89,10 +89,10 @@ getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
 
     if (foundBadHost) {
         lserrno = LSE_BAD_HOST;
-        return (-1);
+        return -1;
     }
 
-    return (0);
+    return 0;
 
 Error:
     for (i = 0; i < nhlist; i++)
@@ -100,5 +100,5 @@ Error:
     free(hlist);
     hlist = NULL;
     nhlist = 0;
-    return (-1);
+    return -1;
 }

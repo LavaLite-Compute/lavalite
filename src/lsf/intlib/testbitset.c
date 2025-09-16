@@ -20,7 +20,7 @@
 
 #include<stdio.h>
 #include"lsf.h"
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 
 static void test_1(void);
 static void test_2(void);
@@ -269,7 +269,7 @@ test_4()
     }
 
     for (i = (int)setIteratorBegin(&iter);
-	 setIteratorIsEndOfSet(&iter) == FALSE;
+	 setIteratorIsEndOfSet(&iter) == false;
 	 i = (int)setIteratorGetNextElement(&iter));
 
 

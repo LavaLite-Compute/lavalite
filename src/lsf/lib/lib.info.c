@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -43,7 +43,7 @@ ls_getclustername(void)
 	if (getname_(LIM_GET_CLUSNAME, clName, MAXLSFNAMELEN) < 0)
 	    return NULL;
 
-    return (clName);
+    return clName;
 
 } 
 
@@ -59,7 +59,7 @@ expandList1_(char ***tolist, int num, int *bitmMaps, char **keys)
 
      if ((temp = (char **)calloc (num,  sizeof (char *))) == NULL)  {
 	 lserrno = LSE_MALLOC;
-	 return (-1);
+	 return -1;
      }
      for (ii=0, jj=0; ii <num; ii++) {
          TEST_BIT(ii, bitmMaps, isSet);
@@ -73,7 +73,7 @@ expandList1_(char ***tolist, int num, int *bitmMaps, char **keys)
 	 FREEUP (temp);
          *tolist = NULL; 
      }
-     return(jj);
+     return jj;
 } 
 
 int
@@ -90,13 +90,13 @@ expandList_(char ***tolist, int mask, char **keys)
          *tolist = calloc(j, sizeof (char *));
          if (!*tolist) {
              lserrno = LSE_MALLOC;
-             return(-1);
+             return -1;
          } 
          for(i=0; i < j; i++)
              (*tolist)[i] = temp[i];
      } else
          *tolist = NULL; 
-     return(j);
+     return j;
 } 
 
 static int 
@@ -126,7 +126,7 @@ errReturn:
     FREEUP (clusPtr->admins);
     FREEUP (clusPtr->adminIds);
     lserrno = LSE_MALLOC;
-    return(-1);
+    return -1;
 
 }  
 
@@ -158,7 +158,7 @@ expandSCinfo(struct clusterInfoReply *clusterInfoReply)
     if (!clusterInfoPtr) {
         nClus = 0;
         lserrno = LSE_MALLOC;
-        return(NULL);
+        return NULL;
     }
 
     nClus          = clusterInfoReply->nClus;
@@ -250,7 +250,7 @@ expandSCinfo(struct clusterInfoReply *clusterInfoReply)
         FREEUP(clusterInfoPtr);
         return((struct clusterInfo *) NULL);
     }
-    return(clusterInfoPtr);
+    return clusterInfoPtr;
 
 } 
 
@@ -269,17 +269,17 @@ ls_clusterinfo(char *resReq, int *numclusters, char **clusterList,
     } 
 
     if (initenv_(NULL, NULL) < 0)
-	return (NULL);
+	return NULL;
 
     for (count=0;count < listsize;count++) {
 	ret_val = ls_isclustername(clusterList[count]);
 	if (ret_val <=0){
 	    if (ret_val < 0) {
-		return(NULL);
+		return NULL;
             }
             
 	    lserrno = LSE_BAD_CLUSTER;
-	    return(NULL);
+	    return NULL;
         }
     }
 
@@ -295,7 +295,7 @@ ls_clusterinfo(char *resReq, int *numclusters, char **clusterList,
     clusterInfoReply.shortLsInfo = &shortlsInfo;
     if (callLim_(LIM_GET_CLUSINFO, &clusterInfoReq, xdr_clusterInfoReq,
 	    &clusterInfoReply, xdr_clusterInfoReply, NULL, 0, NULL) < 0) 
-	return (NULL);
+	return NULL;
 
     if (numclusters != NULL)
 	*numclusters = clusterInfoReply.nClus;
@@ -313,9 +313,9 @@ ls_getmastername(void)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     if (getname_(LIM_GET_MASTINFO, master, MAXHOSTNAMELEN) < 0)
-	return (NULL);
+	return NULL;
 
-    return(master);
+    return master;
 
 } 
 
@@ -325,7 +325,7 @@ getname_(enum limReqCode limReqCode, char *name, int namesize)
     static char fname[] = "getname_";
 
     if (initenv_(NULL, NULL) < 0) 
-        return (-1);
+        return -1;
 
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -341,7 +341,7 @@ getname_(enum limReqCode limReqCode, char *name, int namesize)
     } else {
 	if (callLim_(limReqCode, NULL, NULL, 
 	     &masterInfo_, xdr_masterInfo, NULL, _LOCAL_, NULL) < 0)
-	    return(-1);
+	    return -1;
             
         if (memcmp((char *) &sockIds_[MASTER].sin_addr,
 		   (char *) &masterInfo_.addr, sizeof(u_int))) {
@@ -356,7 +356,7 @@ getname_(enum limReqCode limReqCode, char *name, int namesize)
 	masterknown_ = true;
 	strncpy(name, masterInfo_.hostName, namesize);
 	name[namesize-1] = '\0';
-        return(0);
+        return 0;
     }
 
 } 
@@ -369,14 +369,14 @@ ls_gethosttype(char *hostname)
 
     if (hostname == NULL)
 	if ((hostname = ls_getmyhostname()) == NULL)
-	    return(NULL);  
+	    return NULL;  
 
     hostinfo = ls_gethostinfo("-", NULL, &hostname, 1, 0);
     if (hostinfo == NULL)
-        return (NULL);
+        return NULL;
 
     strcpy(hostType, hostinfo[0].hostType);
-    return (hostType);
+    return hostType;
 
 } 
 
@@ -388,11 +388,11 @@ ls_gethostmodel(char *hostname)
 
     if (hostname == NULL)
 	if ((hostname = ls_getmyhostname()) == NULL)
-	    return(NULL);
+	    return NULL;
 
     hostinfo = ls_gethostinfo("-", NULL, &hostname, 1, 0);
     if (hostinfo == NULL)
-        return (NULL);
+        return NULL;
 
     strcpy(hostModel, hostinfo[0].hostModel);
     return hostModel;
@@ -407,11 +407,11 @@ ls_gethostfactor(char *hostname)
 
     if (hostname == NULL)
 	if ((hostname = ls_getmyhostname()) == NULL)
-	    return(NULL);
+	    return NULL;
 
     hostinfo = ls_gethostinfo("-", NULL, &hostname, 1, 0);
     if (hostinfo == NULL)
-        return (NULL);
+        return NULL;
 
     cpufactor = hostinfo->cpuFactor;
     return (&cpufactor);
@@ -428,13 +428,13 @@ ls_getmodelfactor(char *modelname)
 	return(ls_gethostfactor(NULL));
 
     if (initenv_(NULL, NULL) < 0)
-	return (NULL);
+	return NULL;
 
     str.name = modelname;
     str.len = MAXLSFNAMELEN;
     if (callLim_(LIM_GET_CPUF, &str, xdr_stringLen, &cpuf, xdr_float, 
 					    NULL, 0, NULL) < 0)
-	return (NULL);
+	return NULL;
 
     return (&cpuf);
 
@@ -460,7 +460,7 @@ expandSHinfo(struct hostInfoReply *hostInfoReply)
     if (!hostInfoPtr) {
         nHost = 0; 
         lserrno = LSE_MALLOC;
-        return(NULL);
+        return NULL;
     }
 
     nHost       = hostInfoReply->nHost;
@@ -510,7 +510,7 @@ expandSHinfo(struct hostInfoReply *hostInfoReply)
         lserrno = LSE_MALLOC;
         return((struct hostInfo *)NULL);
     }
-    return(hostInfoPtr);
+    return hostInfoPtr;
 } 
 
 struct hostInfo *
@@ -529,7 +529,7 @@ ls_gethostinfo(char *resReq, int *numhosts, char **hostlist, int listsize,
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if ((hname = ls_getmyhostname()) == NULL)
-	return(NULL);
+	return NULL;
 
     if (listsize) {
 	if (hostlist == NULL) {
@@ -570,7 +570,7 @@ ls_gethostinfo(char *resReq, int *numhosts, char **hostlist, int listsize,
 	    for (j = 1; j < i + 1; j++)
 		free(hostInfoReq.preferredHosts[j]);
 	    free(hostInfoReq.preferredHosts);
-            return (NULL);
+            return NULL;
 	}
 	hostInfoReq.ofWhat = OF_HOSTS;
     } else {
@@ -615,10 +615,10 @@ ls_info(void)
     static struct lsInfo lsInfo;
 
     if (initenv_(NULL, NULL) < 0)
-        return (NULL);
+        return NULL;
 
     if (callLim_(LIM_GET_INFO, NULL, NULL, &lsInfo, xdr_lsInfo, NULL, _USE_TCP_, NULL) < 0)
-	return (NULL);
+	return NULL;
 
 
     return (&lsInfo);
@@ -659,7 +659,7 @@ ls_indexnames(struct lsInfo *lsInfo)
         }
     }
     indicies[j] = NULL;
-    return(indicies);
+    return indicies;
 
 } 
 
@@ -670,8 +670,8 @@ ls_isclustername(char *name)
 
     clname = ls_getclustername();
     if (clname && strcmp(clname,name) == 0)
-            return(1);
-    return (0);
+            return 1;
+    return 0;
 } 
 
 struct lsSharedResourceInfo *
@@ -704,20 +704,20 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
     if (numResources == NULL || *numResources < 0 
 		    || (resources == NULL && *numResources > 0)) {
 	lserrno = LSE_BAD_ARGS;
-	return (NULL);
+	return NULL;
     }
     if (*numResources == 0 && resources == NULL) {
 	if ((resourceInfoReq.resourceNames = 
 		  (char **) malloc(sizeof (char *))) == NULL) {
              lserrno = LSE_MALLOC;
-             return (NULL);
+             return NULL;
 	}
         resourceInfoReq.resourceNames[0] = ""; 
 	resourceInfoReq.numResourceNames = 1;
     } else {
         if ((resourceInfoReq.resourceNames = 
 	       (char **) malloc (*numResources * sizeof(char *))) == NULL) { lserrno = LSE_MALLOC;
-            return(NULL);
+            return NULL;
         }
         for (i = 0; i < *numResources; i++) {
             if (resources[i] && strlen (resources[i]) + 1 < MAXLSFNAMELEN)
@@ -726,7 +726,7 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
                     FREEUP (resourceInfoReq.resourceNames);
                     lserrno = LSE_BAD_RESOURCE;
                     *numResources = i;
-                    return (NULL);
+                    return NULL;
             }
             resourceInfoReq.numResourceNames = *numResources;
         }
@@ -735,7 +735,7 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
         if (strlen(hostName) > MAXHOSTNAMELEN -1
              || (officialName = getHostOfficialByName_(hostName)) == NULL) {
             lserrno = LSE_BAD_HOST;
-            return(NULL);
+            return NULL;
         }
         resourceInfoReq.hostName = putstr_(officialName);
     } else
@@ -744,7 +744,7 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
     
     if (resourceInfoReq.hostName == NULL) {
         lserrno = LSE_MALLOC;
-        return (NULL);
+        return NULL;
     }
     cc = callLim_(LIM_GET_RESOUINFO, &resourceInfoReq, xdr_resourceInfoReq, 
 	   &resourceInfoReply, xdr_resourceInfoReply, NULL, _USE_TCP_, &replyHdr);

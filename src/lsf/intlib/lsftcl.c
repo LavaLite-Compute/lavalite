@@ -19,7 +19,7 @@
 
 #include <tcl.h>
 #include <netdb.h>
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 
 #define NL_SETN 22
@@ -49,7 +49,7 @@ numericValue (ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG3, "numericValue: infoId = %d", infoId);
     resultPtr->type        = TCL_INT;
-    runTimeDataQueried     = TRUE;
+    runTimeDataQueried     = true;
 
     if (infoId < numIndx) {
 
@@ -62,19 +62,19 @@ numericValue (ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
             if (currHPtr->loadIndex[infoId] >= (INFINIT_LOAD - 10.0)
                 && currHPtr->flag !=  TCL_CHECK_SYNTAX) {
 
-                return (TCL_ERROR);
+                return TCL_ERROR;
             }
         }
     } else {
         if (infoId==CPUFACTOR) {
-            runTimeDataQueried = FALSE;
+            runTimeDataQueried = false;
             resultPtr->type = TCL_DOUBLE;
             resultPtr->doubleValue = cpuf;
 	} else if (infoId==NDISK) {
-            runTimeDataQueried = FALSE;
+            runTimeDataQueried = false;
             resultPtr->intValue    = currHPtr->nDisks;
 	} else if (infoId==REXPRI) {
-            runTimeDataQueried = FALSE;
+            runTimeDataQueried = false;
             resultPtr->intValue    = currHPtr->rexPriority;
 	} else if (infoId==MAXCPUS_)
             resultPtr->intValue = currHPtr->maxCpus;
@@ -85,14 +85,14 @@ numericValue (ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
         else if (infoId==MAXTMP)
             resultPtr->intValue = currHPtr->maxTmp;
         else if (infoId==SERVER) {
-            runTimeDataQueried = FALSE;
+            runTimeDataQueried = false;
             resultPtr->intValue = (currHPtr->hostInactivityCount == -1) ? 0 : 1;
 	} else {
 
 	     value = getResValue ((int)clientData - myTclLsInfo->numIndx);
 	     if (value == NULL || !strcmp(value,"-")) {
                  resultPtr->intValue = 0;
-		 return(TCL_OK);
+		 return TCL_OK;
              }
 	     resultPtr->doubleValue = atof (value) ;
              resultPtr->type = TCL_DOUBLE;
@@ -100,7 +100,7 @@ numericValue (ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
 	         ls_syslog(LOG_DEBUG3, "numericValue:value = %s, clientData =%d", value, (int)clientData);
         }
     }
-    return(TCL_OK);
+    return TCL_OK;
 }
 
 int
@@ -115,15 +115,15 @@ booleanValue(ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
      if (logclass & LC_TRACE)
          ls_syslog(LOG_DEBUG3, "booleanValue: ii = %d", ii);
     if (ii < 0)
-        return(TCL_ERROR);
+        return TCL_ERROR;
 
 
-    overRideFromType = TRUE;
+    overRideFromType = true;
 
     resultPtr->type = TCL_INT;
     if (currHPtr->resBitMaps == NULL) {
 	resultPtr->intValue = 0;
-	return (TCL_OK);
+	return TCL_OK;
     }
     TEST_BIT(ii, currHPtr->resBitMaps, isSet);
     if (isSet == 1)
@@ -138,7 +138,7 @@ booleanValue(ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
 	} else
             resultPtr->intValue = atoi (value);
     }
-    return (TCL_OK);
+    return TCL_OK;
 
 }
 
@@ -158,7 +158,7 @@ stringValue(ClientData clientData, Tcl_Interp *interp, int argc, const char *arg
 
     switch((int)clientData) {
     case HOSTNAME:
-        overRideFromType = TRUE;
+        overRideFromType = true;
         sp = currHPtr->hostName;
 	officialName = (char*)getHostOfficialByName_(argv[2]);
         if (officialName != NULL)
@@ -172,14 +172,14 @@ stringValue(ClientData clientData, Tcl_Interp *interp, int argc, const char *arg
              sp2 = currHPtr->fromHostType;
 
              if (strcmp (argv[1], "eq") != 0)
-                 overRideFromType = TRUE;
+                 overRideFromType = true;
         } else {
-             overRideFromType = TRUE;
+             overRideFromType = true;
              sp2 = (char *) argv[2];
         }
         break;
     case HOSTMODEL:
-        overRideFromType = TRUE;
+        overRideFromType = true;
         sp = currHPtr->hostModel;
         if (strcmp(argv[2], LOCAL_STR) == 0)
              sp2 = currHPtr->fromHostModel;
@@ -188,7 +188,7 @@ stringValue(ClientData clientData, Tcl_Interp *interp, int argc, const char *arg
         break;
     case HOSTSTATUS:
 	status[0] = '\0';
-        overRideFromType = TRUE;
+        overRideFromType = true;
         if (LS_ISUNAVAIL(currHPtr->status)) {
             strcpy(status, "unavail");
         } else if (LS_ISLOCKED(currHPtr->status)) {
@@ -216,12 +216,12 @@ stringValue(ClientData clientData, Tcl_Interp *interp, int argc, const char *arg
 	if (value == NULL || value[0] == '-') {
 	    if (currHPtr->flag == TCL_CHECK_SYNTAX) {
                 interp->result = "1";
-	        return(TCL_OK);
+	        return TCL_OK;
             } else {
-	        return (TCL_ERROR);
+	        return TCL_ERROR;
             }
 	}
-        overRideFromType = TRUE;
+        overRideFromType = true;
         sp = value;
         sp2 = (char *)argv[2];
         break;
@@ -269,13 +269,13 @@ stringValue(ClientData clientData, Tcl_Interp *interp, int argc, const char *arg
         return TCL_ERROR;
     }
 
-    return(TCL_OK);
+    return TCL_OK;
 }
 
 static int
 definedCmd(ClientData clientData, Tcl_Interp *interp, int argc, const  char *argv[])
 {
-    int resNo, hasRes = FALSE, isSet;
+    int resNo, hasRes = false, isSet;
     char *value;
 
     if (logclass & LC_TRACE)
@@ -285,19 +285,19 @@ definedCmd(ClientData clientData, Tcl_Interp *interp, int argc, const  char *arg
 	return TCL_ERROR;
     }
 
-    overRideFromType = TRUE;
+    overRideFromType = true;
     for (resNo = 0; resNo < myTclLsInfo->nRes; resNo++) {
 	if (strcmp (myTclLsInfo->resName[resNo], argv[1]) == 0) {
-	    hasRes = TRUE;
+	    hasRes = true;
 	    break;
         }
     }
-    if (hasRes == FALSE)
-	return(TCL_ERROR);
+    if (hasRes == false)
+	return TCL_ERROR;
 
     if (currHPtr->resBitMaps == NULL) {
 	interp->result = "0";
-        return (TCL_OK);
+        return TCL_OK;
     }
     TEST_BIT(resNo, currHPtr->resBitMaps, isSet);
     if (isSet == 1)
@@ -313,7 +313,7 @@ definedCmd(ClientData clientData, Tcl_Interp *interp, int argc, const  char *arg
             interp->result = "1";
     }
 
-    return (TCL_OK);
+    return TCL_OK;
 
 }
 
@@ -399,10 +399,10 @@ initTcl(struct tclLsInfo *tclLsInfo)
 
     for (resNo=0; resNo < tclLsInfo->nRes; resNo++) {
         TEST_BIT (resNo, tclLsInfo->numericResBitMaps, isSet);
-         if(isSet == TRUE)
+         if(isSet == true)
             continue;
          TEST_BIT (resNo, tclLsInfo->stringResBitMaps, isSet);
-         if(isSet == TRUE)
+         if(isSet == true)
             continue;
         Tcl_CreateMathFunc(globinterp, tclLsInfo->resName[resNo], 0, NULL,
                                    booleanValue, (ClientData)resNo);
@@ -419,7 +419,7 @@ initTcl(struct tclLsInfo *tclLsInfo)
                       (Tcl_CmdDeleteProc *)NULL);
     for (resNo=0; resNo < tclLsInfo->nRes; resNo++) {
         TEST_BIT (resNo, tclLsInfo->stringResBitMaps, isSet);
-        if (isSet == FALSE)
+        if (isSet == false)
             continue;
 
         Tcl_CreateCommand(globinterp, tclLsInfo->resName[resNo], stringValue,
@@ -444,10 +444,10 @@ evalResReq(char *resReq, struct tclHostData *hPtr, char useFromType)
 
     currHPtr        = hPtr;
 
-    overRideFromType = FALSE;
-    runTimeDataQueried = FALSE;
+    overRideFromType = false;
+    runTimeDataQueried = false;
 
-    currHPtr->overRideFromType = FALSE;
+    currHPtr->overRideFromType = false;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG3, "evalResReq: resReq=%s, host = %s", resReq, hPtr->hostName);
@@ -517,7 +517,7 @@ copyTclLsInfo (struct tclLsInfo *tclLsInfo)
     if ((myTclLsInfo = (struct tclLsInfo *)
                    malloc (sizeof (struct tclLsInfo))) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
-        return (-1);
+        return -1;
     }
 
     myTclLsInfo->nRes = tclLsInfo->nRes;
@@ -532,20 +532,20 @@ copyTclLsInfo (struct tclLsInfo *tclLsInfo)
         || (myTclLsInfo->numericResBitMaps = (int *)
                malloc (GET_INTNUM(myTclLsInfo->nRes) * sizeof (int))) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
-	return (-1);
+	return -1;
     }
 
     for (i = 0; i < myTclLsInfo->nRes; i++) {
 	if ((myTclLsInfo->resName[i] = putstr_(tclLsInfo->resName[i])) == NULL) {
 	    ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "putstr_");
-	    return (-1);
+	    return -1;
 	}
     }
 
     for (i = 0; i < myTclLsInfo->numIndx; i++) {
 	if ((myTclLsInfo->indexNames[i] = putstr_(tclLsInfo->indexNames[i])) == NULL) {
 	    ls_syslog (LOG_ERR, I18N_FUNC_FAIL_M, fname, "putstr_");
-	    return (-1);
+	    return -1;
 	}
     }
 
@@ -554,7 +554,7 @@ copyTclLsInfo (struct tclLsInfo *tclLsInfo)
 	myTclLsInfo->numericResBitMaps[i] = tclLsInfo->numericResBitMaps[i];
     }
 
-    return(0);
+    return 0;
 
 }
 

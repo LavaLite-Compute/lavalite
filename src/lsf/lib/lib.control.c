@@ -16,10 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
-
-
-
+#include "lsf/lib/liblavalite.h"
 
 int
 ls_limcontrol(char *hname, int opCode)
@@ -30,24 +27,24 @@ ls_limcontrol(char *hname, int opCode)
     memset(&auth, 0, sizeof(struct lsfAuth));
 
     switch (opCode) {
-    case LIM_CMD_SHUTDOWN:
-        limReqCode = LIM_SHUTDOWN;
-        break;
-    case LIM_CMD_REBOOT:
-        limReqCode = LIM_REBOOT;
-        break;
-    default:
-        lserrno = LSE_BAD_OPCODE;
-        return (-1);
+        case LIM_CMD_SHUTDOWN:
+            limReqCode = LIM_SHUTDOWN;
+            break;
+        case LIM_CMD_REBOOT:
+            limReqCode = LIM_REBOOT;
+            break;
+        default:
+            lserrno = LSE_BAD_OPCODE;
+            return -1;
     }
 
     putEauthClientEnvVar("user");
     putEauthServerEnvVar("lim");
     getAuth_(&auth, hname);
     if (callLim_(limReqCode, &auth, xdr_lsfAuth, NULL, NULL, hname, 0, NULL) < 0)
-        return(-1);
+        return -1;
 
-    return (0);
+    return 0;
 
 }
 
@@ -86,7 +83,7 @@ setLockOnOff_(int on, time_t duration, char *hname)
     char *host = hname;
 
     if (initenv_(NULL, NULL) <0)
-        return (-1);
+        return -1;
 
     lockReq.on = on;
 
@@ -104,10 +101,10 @@ setLockOnOff_(int on, time_t duration, char *hname)
     if (host == NULL)
         host = ls_getmyhostname();
     if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL,
-                 host, 0, NULL) < 0)
-        return(-1);
+                host, 0, NULL) < 0)
+        return -1;
 
-    return (0);
+    return 0;
 
 }
 
@@ -128,10 +125,10 @@ oneLimDebug(struct debugReq *pdebug, char *hostname)
     strcpy (debugData.logFileName, pdebug->logFileName);
 
     if (callLim_(limReqCode, &debugData, xdr_debugReq, NULL,
-                 NULL, host, 0, NULL) < 0)
-        return (-1);
+                NULL, host, 0, NULL) < 0)
+        return -1;
 
-    return (0);
+    return 0;
 
 }
 
@@ -155,7 +152,7 @@ ls_servavail(int servId, int nonblock)
     }
 
     if (callLim_(LIM_SERV_AVAIL, &servId, xdr_int, NULL, NULL,
-                 ls_getmyhostname(), options, NULL) < 0)
+                ls_getmyhostname(), options, NULL) < 0)
         return -1;
     return 0;
 

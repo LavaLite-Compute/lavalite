@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 #define exit(a)         _exit(a)
 
@@ -47,7 +47,7 @@ getAuth_(struct lsfAuth *auth, char *host)
     } else
         auth->kind = CLIENT_SETUID;
 
-    return (0);
+    return 0;
 }
 
 #define EAUTHNAME "eauth"
@@ -75,7 +75,7 @@ getEAuth(struct eauth *eauth, char *host)
         if (logclass & (LC_AUTH |LC_TRACE))
             ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL,  "runEAuth", "runEClient", path);
         lserrno = LSE_EAUTH;
-        return (-1);
+        return -1;
     }
 
     if (ld.len == 0) {
@@ -83,7 +83,7 @@ getEAuth(struct eauth *eauth, char *host)
             ls_syslog(LOG_DEBUG, "runEAuth: <%s> got no data", path);
         FREEUP(ld.data);
         lserrno = LSE_EAUTH;
-        return (-1);
+        return -1;
     }
 
     if (ld.len > EAUTH_SIZE) {
@@ -92,7 +92,7 @@ getEAuth(struct eauth *eauth, char *host)
                     path, ld.len);
         FREEUP(ld.data);
         lserrno = LSE_EAUTH;
-        return (-1);
+        return -1;
     }
 
     memcpy(eauth->data, ld.data, ld.len);
@@ -107,7 +107,7 @@ getEAuth(struct eauth *eauth, char *host)
         ls_syslog(LOG_DEBUG, "runEAuth: <%s> got len=%d",
                 path, ld.len);
 
-    return (0);
+    return 0;
 
 }
 
@@ -126,7 +126,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
 
     if (!(genParams_[LSF_AUTH].paramValue &&
                 !strcmp(genParams_[LSF_AUTH].paramValue, AUTH_PARAM_EAUTH)))
-        return (-1);
+        return -1;
 
     eauth_client = getenv("LSF_EAUTH_CLIENT");
     eauth_server = getenv("LSF_EAUTH_SERVER");
@@ -185,20 +185,20 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
 
         {
             if ((user = getLSFAdmin()) == NULL) {
-                return (-1);
+                return -1;
             }
         }
 
         if (pipe(in) < 0) {
             ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "pipe(in)", uData);
             lserrno = LSE_SOCK_SYS;
-            return (-1);
+            return -1;
         }
 
         if (pipe(out) < 0) {
             ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "pipe(out)", uData);
             lserrno = LSE_SOCK_SYS;
-            return (-1);
+            return -1;
         }
 
 
@@ -252,7 +252,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             close(in[1]);
             close(out[0]);
             lserrno = LSE_FORK;
-            return(-1);
+            return -1;
         }
 
         connected = true;
@@ -267,7 +267,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         CLOSEHANDLE(in[1]);
         CLOSEHANDLE(out[0]);
         connected = false;
-        return (-1);
+        return -1;
     }
     if(logclass & (LC_AUTH | LC_TRACE))
         ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd , NL_SETN, 5514,
@@ -282,7 +282,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         CLOSEHANDLE(in[1]);
         CLOSEHANDLE(out[0]);
         connected = false;
-        return (-1);
+        return -1;
     }
     if(logclass & (LC_AUTH | LC_TRACE))
         ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd , NL_SETN, 5516,
@@ -297,17 +297,17 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         CLOSEHANDLE(in[1]);
         CLOSEHANDLE(out[0]);
         connected = false;
-        return (-1);
+        return -1;
     }
 
     if (ok != '1') {
         ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5518,
                     "%s: eauth <%s> len=%d failed, rc=%c"), /* catgets 5518 */
                 fname, uData, auth->k.eauth.len, ok);
-        return (-1);
+        return -1;
     }
 
-    return (0);
+    return 0;
 }
 
     static char *
@@ -329,7 +329,7 @@ getLSFAdmin(void)
     }
     if ((clusterInfo = ls_clusterinfo(NULL, NULL, NULL, 0, 0)) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_clusterinfo");
-        return (NULL);
+        return NULL;
     }
 
     lsfUserName = (clusterInfo->nAdmins == 0 ? clusterInfo->managerName :
@@ -338,11 +338,11 @@ getLSFAdmin(void)
     if ((pw = getpwnam(lsfUserName)) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M,
                 fname, "getpwnam", lsfUserName);
-        return (NULL);
+        return NULL;
     }
 
     strcpy(admin, lsfUserName);
-    return (admin);
+    return admin;
 }
 
 

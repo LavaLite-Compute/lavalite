@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 #define NL_SETN   23
 int    lserrno = LSE_NO_ERR;
@@ -141,7 +141,7 @@ char   *ls_errmsg[] = {
     /* 98 */       "Request label doesn't dominate current label", /* catgets 198 */
 };
 
-    void
+void
 ls_errlog(FILE *fp, const char *fmt, ...)
 {
     va_list ap;
@@ -151,7 +151,7 @@ ls_errlog(FILE *fp, const char *fmt, ...)
     va_end(ap);
 }
 
-    const char *
+const char *
 err_str_(int errnum, const char *fmt, char *buf)
 {
     const char *b;
@@ -163,7 +163,7 @@ err_str_(int errnum, const char *fmt, char *buf)
         strncpy(buf, fmt, b - fmt);
         strcpy(buf + (b - fmt), ls_sysmsg());
         strcat(buf + (b - fmt), b + 2);
-        return(buf);
+        return buf;
     }
     else if (((b = strstr(fmt, "%m")) != NULL) ||
             ((b = strstr(fmt, "%k")) != NULL))
@@ -177,27 +177,27 @@ err_str_(int errnum, const char *fmt, char *buf)
 
         f += strlen(f);
         strcat(f, b + 2);
-        return(buf);
+        return buf;
     }
     else
-        return(fmt);
+        return fmt;
 }
 
-    void
+void
 verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
 {
     static char lastmsg[16384];
     static int  count;
     static time_t lastime, lastcall;
     time_t now;
-    char  buf[16384],tmpbuf[4096], verBuf[16384];
+    char  buf[16384];
+    char tmpbuf[4096];
+    char verBuf[16384];
 
     int save_errno = errno;
-#if defined(HAS_VSNPRINTF)
-    vsnprintf(buf, sizeof(buf), err_str_(save_errno, fmt, tmpbuf), ap);
-#else
+
     vsprintf(buf, err_str_(save_errno, fmt, tmpbuf), ap);
-#endif
+
     now = time(0);
     if (lastmsg[0] && (strcmp(buf, lastmsg) == 0) && (now - lastime < 600)) {
         count++;
@@ -212,18 +212,9 @@ verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
     }
 
     if (level >= 0)
-#if defined(HAS_VSNPRINTF)
-        snprintf(verBuf,sizeof(verBuf), "%d %s %s", level, LAVA_CURRENT_VERSION, buf);
-#else
-    sprintf(verBuf,"%d %s %s", level, LAVA_CURRENT_VERSION, buf);
-#endif
-
+        sprintf(verBuf,"%d %s %s", level, _LAVALITE_VERSION_, buf);
     else
-#if defined(HAS_VSNPRINTF)
-        snprintf(verBuf, sizeof(verBuf), "%s %s", LAVA_CURRENT_VERSION, buf);
-#else
-    sprintf(verBuf,"%s %s", LAVA_CURRENT_VERSION, buf);
-#endif
+        sprintf(verBuf,"%s %s", _LAVALITE_VERSION_, buf);
 
     fputs(verBuf, fp);
     putc('\n', fp);
@@ -233,7 +224,7 @@ verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
     lastime = now;
 }
 
-    char *
+char *
 ls_sysmsg(void)
 {
     static char buf[256];
@@ -260,7 +251,7 @@ ls_sysmsg(void)
 
 }
 
-    void
+void
 ls_perror(char *usrMsg)
 {
     if (usrMsg) {

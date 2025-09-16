@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -40,7 +40,7 @@ createUtmpEntry( char* uname, pid_t job_pid, char* current_tty ) {
 
     int err=0;
 
-    return( err );
+    return err;
 
 } 
 
@@ -49,6 +49,6 @@ createUtmpEntry( char* uname, pid_t job_pid, char* current_tty ) {
 int
 removeUtmpEntry( pid_t job_pid) {
 
-    return(0);
+    return 0;
 
 } 

@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -29,14 +29,14 @@ _i18n_init (int modId)
 {
 
     I18nInitFlag = 1 ;
-    return(0);
+    return 0;
 
 }
 
 int
 _i18n_end()
 {
-    return(0);
+    return 0;
 }
 
 
@@ -85,13 +85,13 @@ _i18n_ctime(LS_CATD catID, int formatID, const time_t * timer )
     {
       case CTIME_FORMAT_a_b_d_T_Y:
 	timeStr[24]='\0';
-	return(timeStr);
+	return timeStr;
       case CTIME_FORMAT_b_d_T_Y:
 	timeStr[24]='\0';
 	return(timeStr+4);
       case CTIME_FORMAT_a_b_d_T:
 	timeStr[19]='\0';
-	return(timeStr);
+	return timeStr;
       case CTIME_FORMAT_b_d_H_M:
 	timeStr[16]='\0';
 	return(timeStr+4);
@@ -103,7 +103,7 @@ _i18n_ctime(LS_CATD catID, int formatID, const time_t * timer )
 		timePtr->tm_mon+1,
 		timePtr->tm_mday,
 		timePtr->tm_year + 1900);
-	    return(timeStr);
+	    return timeStr;
 	}
       case CTIME_FORMAT_H_M_S:
 	{
@@ -113,11 +113,11 @@ _i18n_ctime(LS_CATD catID, int formatID, const time_t * timer )
 		timePtr->tm_hour,
 		timePtr->tm_min,
 		timePtr->tm_sec);
-	    return(timeStr);
+	    return timeStr;
 	}
       case CTIME_FORMAT_DEFAULT:
       default:
-	return(timeStr);
+	return timeStr;
     }
 }
 
@@ -130,6 +130,6 @@ _i18n_printf(const char *format, ...)
     va_start(ap, format);
     vsprintf(i18nPrintBuffer, format, ap);
     va_end(ap);
-    return(i18nPrintBuffer);
+    return i18nPrintBuffer;
 }
 

@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -26,7 +26,7 @@ expSyntax_(char *resReq)
     struct stringLen str;
 
     if (initenv_(NULL, NULL) < 0)
-        return (-1);
+        return -1;
 
     if (!resReq)
         resReq = " ";
@@ -36,7 +36,7 @@ expSyntax_(char *resReq)
 
     if (callLim_(LIM_CHK_RESREQ, &str, xdr_stringLen, 
 	NULL, NULL, NULL, 0, NULL) < 0)
-        return(-1);
+        return -1;
     
    return 0; 
 

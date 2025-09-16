@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 #include "lsf/res/nios.h"
 
 static void default_tstp_(int);
@@ -58,10 +58,10 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
     if (_isconnected_(host, descriptor))
         s = descriptor[0];
     else if ((s = ls_connect(host)) < 0)
-        return(-1);
+        return -1;
 
     if (blockALL_SIGS_(&newMask, &oldMask) < 0)
-        return (-1);
+        return -1;
 
     if (!FD_ISSET(s,&connection_ok_)){
         FD_SET(s,&connection_ok_);
@@ -69,7 +69,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
             closesocket(s);
             _lostconnection_(host);
             sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            return (-1);
+            return -1;
         }
     }
 
@@ -87,12 +87,12 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         if (options & REXF_TTYASYNC){
             if (rstty_async_(host) < 0) {
                 sigprocmask(SIG_SETMASK, &oldMask, NULL);
-                return (-1);
+                return -1;
             }
         } else {
             if (rstty_(host) < 0) {
                 sigprocmask(SIG_SETMASK, &oldMask, NULL);
-                return (-1);
+                return -1;
             }
         }
     }
@@ -115,7 +115,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
             lserrno = LSE_SOCK_SYS;
             sigprocmask(SIG_SETMASK, &oldMask, NULL);
             closesocket(s);
-            return(-1);
+            return -1;
         }
 
         if ((pid = fork()) != 0) {
@@ -128,7 +128,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
                 close(cli_nios_fd[0]);
                 sigprocmask(SIG_SETMASK, &oldMask, NULL);
                 lserrno = LSE_MSG_SYS;
-                return (-1);
+                return -1;
             }
 
             if (b_read_fix(cli_nios_fd[0], (char *) &retport, sizeof (u_short))
@@ -136,7 +136,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
                 close(cli_nios_fd[0]);
                 sigprocmask(SIG_SETMASK, &oldMask, NULL);
                 lserrno = LSE_MSG_SYS;
-                return (-1);
+                return -1;
             }
 
             nios_ok_ = true;
@@ -147,7 +147,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
                     nios_ok_ = false;
                     sigprocmask(SIG_SETMASK, &oldMask, NULL);
                     lserrno = LSE_WAIT_SYS;
-                    return (-1);
+                    return -1;
                 }
             }
         } else {
@@ -196,7 +196,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
     if (envp) {
         if (ls_rsetenv_async (host, envp) < 0) {
             sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            return (-1);
+            return -1;
         }
     }
 
@@ -207,7 +207,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         _lostconnection_(host);
         lserrno = LSE_WDIR;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
-        return (-1);
+        return -1;
     }
 
 
@@ -223,7 +223,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         closesocket(s);
         _lostconnection_(host);
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
-        return(-1);
+        return -1;
     }
 
     if (cmdmsg.options & REXF_TASKPORT) {
@@ -232,7 +232,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
             closesocket(s);
             _lostconnection_(host);
             sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            return(-1);
+            return -1;
         }
     }
 
@@ -242,7 +242,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         _lostconnection_(host);
         lserrno = LSE_SOCK_SYS;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
-        return(-1);
+        return -1;
     }
 
     SET_LSLIB_NIOS_HDR(taskReq.hdr, LIB_NIOS_RTASK, sizeof(taskReq.r));
@@ -257,7 +257,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         _lostconnection_(host);
         lserrno = LSE_MSG_SYS;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
-        return (-1);
+        return -1;
     }
 
     if (tid_register(rpid, s, taskPort, host, options & REXF_TASKINFO) == -1) {
@@ -265,12 +265,12 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         _lostconnection_(host);
         lserrno = LSE_MALLOC;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
-        return (-1);
+        return -1;
     }
 
     sigprocmask(SIG_SETMASK, &oldMask, NULL);
 
-    return (rpid);
+    return rpid;
 }
 
 int
@@ -283,18 +283,18 @@ rgetpidCompletionHandler_(struct lsRequest *request)
 
     rc = resRC2LSErr_(request->rc);
     if (rc != 0)
-        return(-1);
+        return -1;
 
     xdrmem_create(&xdrs, request->replyBuf, sizeof(struct resPid), XDR_DECODE);
     if (! xdr_resGetpid(&xdrs, &pidReply, NULL)) {
         lserrno = LSE_BAD_XDR;
         xdr_destroy(&xdrs);
-        return(-1);
+        return -1;
     }
 
     *((int *)request->extra) = pidReply.pid;
     xdr_destroy(&xdrs);
-    return(0);
+    return 0;
 
 }
 
@@ -313,7 +313,7 @@ lsRGetpidAsync_(int taskid, int *pid)
     char host[MAXHOSTNAMELEN];
 
     if ((tid = tid_find(taskid)) == NULL) {
-        return(NULL);
+        return NULL;
     }
 
     s = tid->sock;
@@ -324,7 +324,7 @@ lsRGetpidAsync_(int taskid, int *pid)
         if (ackReturnCode_(s) < 0) {
             closesocket(s);
             _lostconnection_(host);
-            return (NULL);
+            return NULL;
         }
     }
 
@@ -335,7 +335,7 @@ lsRGetpidAsync_(int taskid, int *pid)
                  sizeof(buf), xdr_resGetpid, 0, 0, NULL) == -1) {
         closesocket(s);
         _lostconnection_(host);
-        return (NULL);
+        return NULL;
     }
 
 
@@ -349,7 +349,7 @@ lsRGetpidAsync_(int taskid, int *pid)
 
     if (request != NULL)
         if (lsQueueDataAppend_((char *)request, requestQ))
-            return(NULL);
+            return NULL;
 
     return (void *)request;
 
@@ -371,7 +371,7 @@ lsRGetpid_(int taskid, int options)
     char host[MAXHOSTNAMELEN];
 
     if ((tid = tid_find(taskid)) == NULL) {
-        return(-1);
+        return -1;
     }
 
     s = tid->sock;
@@ -382,7 +382,7 @@ lsRGetpid_(int taskid, int options)
         if (ackReturnCode_(s) < 0) {
             closesocket(s);
             _lostconnection_(host);
-            return (-1);
+            return -1;
         }
     }
 
@@ -393,7 +393,7 @@ lsRGetpid_(int taskid, int options)
                  sizeof(buf), xdr_resGetpid, 0, 0, NULL) == -1) {
         closesocket(s);
         _lostconnection_(host);
-        return (-1);
+        return -1;
     }
 
     request = lsReqHandCreate_(taskid,
@@ -405,17 +405,17 @@ lsRGetpid_(int taskid, int options)
                                NULL);
 
     if (request == NULL)
-        return(-1);
+        return -1;
 
     if (lsQueueDataAppend_((char *)request, requestQ))
-        return(-1);
+        return -1;
 
     if (lsReqWait_(request, 0) < 0)
-        return (-1);
+        return -1;
 
     lsReqFree_(request);
 
-    return(pid);
+    return pid;
 
 }
 
@@ -440,7 +440,7 @@ lsRGetpgrp_(int sock, int taskid, int pid)
         if (ackReturnCode_(s) < 0) {
             closesocket(s);
             _lostconnection_(host);
-            return (-1);
+            return -1;
         }
     }
 
@@ -451,7 +451,7 @@ lsRGetpgrp_(int sock, int taskid, int pid)
                  sizeof(buf), xdr_resGetpid, 0, 0, NULL) == -1) {
         closesocket(s);
         _lostconnection_(host);
-        return (-1);
+        return -1;
     }
 
     request = lsReqHandCreate_(taskid,
@@ -463,17 +463,17 @@ lsRGetpgrp_(int sock, int taskid, int pid)
                                NULL);
 
     if (request == NULL)
-        return(-1);
+        return -1;
 
     if (lsQueueDataAppend_((char *)request, requestQ))
-        return(-1);
+        return -1;
 
     if (lsReqWait_(request, 0) < 0)
-        return (-1);
+        return -1;
 
     lsReqFree_(request);
 
-    return(pgid);
+    return pgid;
 
 }
 
@@ -534,7 +534,7 @@ u_short getTaskPort(int s)
 
     rc = expectReturnCode_(s, currentSN, &hdr);
     if (rc < 0)
-        return(0);
+        return 0;
 
     return (htons(hdr.opCode));
 }

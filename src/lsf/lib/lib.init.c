@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 #define NL_SETN 23
 
@@ -35,14 +35,14 @@ ls_initrex(int num, int options)
     if (initenv_(NULL, NULL)<0) {
 	if (rootuid_ && !(options & KEEPUID))
 	    lsfSetUid(getuid());
-	return(-1);
+	return -1;
     }
 
     inithostsock_();
     lsQueueInit_(&requestQ, lsReqCmp_, NULL);
     if (requestQ == NULL) {
 	lserrno = LSE_MALLOC;
-	return(-1);
+	return -1;
     }
 
     res_addr_.sin_family = AF_INET;
@@ -68,7 +68,7 @@ res_init_fail:
 	    lserrno = LSE_RES_NREG;
 	    if (rootuid_ && !(options & KEEPUID))
 		lsfSetUid(getuid());
-	    return (-1);
+	    return -1;
 	}
     }
 
@@ -80,9 +80,9 @@ res_init_fail:
 	i = opensocks_(num);
 	if (!(options & KEEPUID))
 	    lsfSetUid(getuid());
-        return (i);
+        return i;
     } else {
-        return (num);
+        return num;
     }
 }
 
@@ -110,7 +110,7 @@ opensocks_(int num)
             if (i > 0) {
                 break;
             } else {
-               return(-1);
+               return -1;
             }
         }
 
@@ -126,7 +126,7 @@ opensocks_(int num)
                 if (i > 0)
                    break;
                 else
-                   return (-1);
+                   return -1;
             }
 
 #if defined(FD_CLOEXEC)
@@ -148,7 +148,7 @@ opensocks_(int num)
     if (logclass & LC_COMM)
        ls_syslog(LOG_DEBUG,"%s: returning num=<%d>",fname,totsockets_);
 
-    return (totsockets_);
+    return totsockets_;
 
 }
 
@@ -169,7 +169,7 @@ ls_fdbusy(int fd)
     hEntPtr = h_firstEnt_(&conn_table,&hashSearchPtr);
     while (hEntPtr) {
 	if (fd == hEntPtr->hData[0] || fd == hEntPtr->hData[1])
-	    return(true);
+	    return true;
         hEntPtr = h_nextEnt_(&hashSearchPtr);
     }
 
@@ -192,7 +192,7 @@ lsfSetXUid(int flag, int ruid, int euid, int suid, int(*func)())
         rtrn = setreuid(ruid, euid);
     }
 
-    return(rtrn);
+    return rtrn;
 }
 
 void

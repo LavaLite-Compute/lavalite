@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -49,7 +49,7 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     if (_isconnected_(host, descriptor))
 	s = descriptor[0];
     else if ((s = ls_connect(host)) < 0)
-	return(-1);
+	return -1;
 
     
 
@@ -58,7 +58,7 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
 	if (ackReturnCode_(s) < 0) {
 	   closesocket(s);
 	   _lostconnection_(host);
-	   return (-1);
+	   return -1;
         }
     }
 
@@ -72,7 +72,7 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
         if (rstty_(host) < 0) {
 	    
 	    _lostconnection_(host);
-            return (-1);
+            return -1;
         }
     }
 
@@ -87,14 +87,14 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
 	closesocket(s);
 	_lostconnection_(host);
         lserrno = LSE_WDIR;
-        return (-1);
+        return -1;
     }
 
     
     if (envp) {
         if (ls_rsetenv(host, envp) < 0) {
             _lostconnection_(host);
-            return (-1);
+            return -1;
         }
     }
 
@@ -103,7 +103,7 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     if ((retsock = TcpCreate_(true, 0)) < 0) {
 	closesocket(s);
 	_lostconnection_(host);
-        return (-1);
+        return -1;
     }
 
     
@@ -113,7 +113,7 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
 	closesocket(s);
 	_lostconnection_(host);
         lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
 
     cmdmsg.retport = sin.sin_port;
@@ -133,14 +133,14 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
         closesocket(retsock);
 	closesocket(s);
         _lostconnection_(host);
-	return(-1);
+	return -1;
     }
 
 
     (void) sprintf (sock_buf, "%d", retsock);
 
     if (initenv_(NULL, NULL) <0)
-	return (-1);
+	return -1;
     strcpy(pathbuf, genParams_[LSF_SERVERDIR].paramValue);
     strcat(pathbuf, "/nios");
     new_argv[0] = pathbuf;
@@ -167,7 +167,7 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     lserrno = LSE_EXECV_SYS;
     close(retsock);
     close(s);
-    return (-1);
+    return -1;
 
 
 } 
@@ -177,7 +177,7 @@ int
 ls_rexecv(char *host, char **argv, int options)
 {
     ls_rexecve(host, argv, options, environ);
-    return (-1);
+    return -1;
 } 
 
 
@@ -203,7 +203,7 @@ ls_startserver(char *host, char **server, int options)
     if (_isconnected_(host, descriptor))
 	s = descriptor[0];
     else if ((s = ls_connect(host)) < 0)
-	return(-1);
+	return -1;
 
     
 
@@ -212,7 +212,7 @@ ls_startserver(char *host, char **server, int options)
 	if (ackReturnCode_(s) < 0) {
 	   closesocket(s);
 	   _lostconnection_(host);
-	   return (-1);
+	   return -1;
 	}
     }
 
@@ -221,7 +221,7 @@ ls_startserver(char *host, char **server, int options)
     else if ( options & REXF_USEPTY ) {
         if (rstty_(host) < 0) {
 	    _lostconnection_(host);
-            return (-1);
+            return -1;
         }
     }
 
@@ -230,14 +230,14 @@ ls_startserver(char *host, char **server, int options)
 	closesocket(s);
 	_lostconnection_(host);
         lserrno = LSE_WDIR;
-        return (-1);
+        return -1;
     }
 
     
     if ((retsock = TcpCreate_(true, 0)) < 0) {
         closesocket(s);
         _lostconnection_(host);
-        return (-1);
+        return -1;
     }
 
     
@@ -247,7 +247,7 @@ ls_startserver(char *host, char **server, int options)
 	closesocket(s);
         _lostconnection_(host);
         lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
 
     cmdmsg.retport = sin.sin_port;
@@ -268,7 +268,7 @@ ls_startserver(char *host, char **server, int options)
         closesocket(retsock);
 	closesocket(s);
         _lostconnection_(host);
-	return(-1);
+	return -1;
     }
 
 
@@ -278,7 +278,7 @@ ls_startserver(char *host, char **server, int options)
        closesocket(retsock);
        closesocket(s);
        _lostconnection_(host);
-       return(-1);
+       return -1;
      }
 
     
@@ -286,11 +286,11 @@ ls_startserver(char *host, char **server, int options)
 	closesocket(s);
 	_lostconnection_(host);
         lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
     gethostbysock_(s, official);
     (void)connected_(official, -1, retsock, currentSN);
-    return(retsock);
+    return retsock;
 
 } 
 

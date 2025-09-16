@@ -22,7 +22,7 @@
 # line 11 "idx.y"
 #       include <stdio.h>
 #       include <stdlib.h>
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #       include "lsf/lib/lsi18n.h"
 #define NL_SETN      22
 
@@ -158,8 +158,8 @@ __YYSCLASS char * yyreds[] =
 #define YYACCEPT	return(0)
 #define YYABORT		return(1)
 #else
-#define YYACCEPT	{free_stacks(); return(0);}
-#define YYABORT		{free_stacks(); return(1);}
+#define YYACCEPT	{free_stacks(); return 0;}
+#define YYABORT		{free_stacks(); return 1;}
 #endif
 
 #define YYBACKUP( newtoken, newvalue )\
@@ -648,9 +648,9 @@ static int allocate_stacks() {
 
 	if (yys==0 || yyv==0) {
 	   yyerror( (nl_msg(30004,"unable to allocate space for yacc stacks")) );
-	   return(1);
+	   return 1;
 	   }
-	else return(0);
+	else return 0;
 
 }
 

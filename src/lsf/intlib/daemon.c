@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 
 #define NL_SETN      22
@@ -124,6 +124,6 @@ getDaemonPath_(char *name, char *serverdir)
        strcat(daemonpath, name);
 
     }
-    return(daemonpath);
+    return daemonpath;
 
 }

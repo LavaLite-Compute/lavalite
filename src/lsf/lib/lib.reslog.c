@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -36,10 +36,10 @@ ls_putacctrec(FILE *log_fp, struct lsfAcctRec *acctRec)
     || lsfRu2Str(log_fp, &acctRec->lsfRu) < 0
     || fprintf(log_fp, "\n") < 0) {
         lserrno = LSE_FILE_SYS;
-        return (-1);
+        return -1;
     }
 
-    return(0);
+    return 0;
 
 } 
 
@@ -62,7 +62,7 @@ ls_getacctrec(FILE *log_fp, int *lineNum)
 
     if ((line = getNextLine_(log_fp, false)) == NULL) {
         lserrno = LSE_EOF;
-        return(NULL);        
+        return NULL;        
     }
 
     len = strlen(line)*sizeof(char);
@@ -70,7 +70,7 @@ ls_getacctrec(FILE *log_fp, int *lineNum)
 
     if (acctRec == NULL) {
         lserrno = LSE_MALLOC;
-        return(NULL);        
+        return NULL;        
     }
 
     acctRec->username = (char *) acctRec + sar;
@@ -81,13 +81,13 @@ ls_getacctrec(FILE *log_fp, int *lineNum)
 
     if ((cc = sscanf(line, "%d%n", &acctRec->pid, &ccount)) != 1) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
     line += ccount + 1;
 
     if ((ccount = stripQStr(line, acctRec->username)) < 0) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
     line += ccount + 1;
 
@@ -97,40 +97,40 @@ ls_getacctrec(FILE *log_fp, int *lineNum)
 
     if (cc != 3) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
     line += ccount + 1;
 
     if ((ccount = stripQStr(line, acctRec->fromHost)) < 0) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
     line += ccount + 1;
 
     if ((ccount = stripQStr(line, acctRec->execHost)) < 0) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
     line += ccount + 1;
 
     if ((ccount = stripQStr(line, acctRec->cwd)) < 0) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
     line += ccount + 1;
 
     if ((ccount = stripQStr(line, acctRec->cmdln)) < 0) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
     line += ccount + 1;
 
     if ((cc = str2lsfRu(line, &acctRec->lsfRu, &ccount)) != 19) {
         lserrno = LSE_ACCT_FORMAT;
-        return(NULL);
+        return NULL;
     }
 
-    return(acctRec);
+    return acctRec;
 
 }  
 

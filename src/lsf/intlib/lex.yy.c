@@ -493,7 +493,7 @@ unsigned char *yysptr, yysbuf[];
 #include <syslog.h>
 #include <malloc.h>
 
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lsi18n.h"
 
 #define MAXTOKENLEN 302
@@ -810,32 +810,32 @@ yymark() ;
 case 3:
 YY_RULE_SETUP
 #line 61 "cal.l"
-return (OR);
+return OR;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
 #line 62 "cal.l"
-return (AND);
+return AND;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
 #line 63 "cal.l"
-return (LE);
+return LE;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
 #line 64 "cal.l"
-return (GE);
+return GE;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
 #line 65 "cal.l"
-return (EQ);
+return EQ;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
 #line 66 "cal.l"
-return (DOTS);
+return DOTS;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
@@ -846,28 +846,28 @@ case 10:
 YY_RULE_SETUP
 #line 70 "cal.l"
 {s_lookup((ICON));
-				 return (ICON) ;
+				 return ICON;
                                 }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
 #line 73 "cal.l"
 {s_lookup((RCON));
-				 return (RCON) ;
+				 return RCON;
                                 }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
 #line 76 "cal.l"
 {s_lookup((ESTRING));
-				 return (ESTRING) ;
+				 return ESTRING;
                                 }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
 #line 79 "cal.l"
 {s_lookup((ESTRING));
-				 return (ESTRING) ;
+				 return ESTRING;
                                 }
 	YY_BREAK
 case 14:
@@ -1954,7 +1954,7 @@ struct rwtable *low;
 
   for (i=low; ; i++){
      if ((c=strcmp(i->rw_name, "zzzz"))==0)
-     return(i);
+     return i;
   }
 
 }
@@ -1990,7 +1990,7 @@ static int screen(void)
    }
    strcpy((char *)yytext,str);
    s_lookup(NAME);
-   return (NAME);
+   return NAME;
  }
 
 static void s_lookup(yylex)
@@ -2011,7 +2011,7 @@ int yymark(void)
   source=(char *) calloc(yyleng, sizeof(char));
   if (source)
 	sscanf((char *)yytext, "# %d %s", &yylineno, source);
-  return (1);
+  return 1;
 }
 
 void calerror(s)
@@ -2096,7 +2096,7 @@ char *sptr;
   if (colon)
 	sprintf(sptr,"%s: ",sptr);
 
-  return(yylineno);
+  return yylineno;
 }
 
 int
@@ -2118,7 +2118,7 @@ yywrap(void)
 static int getbufc(void)
 {
   if (*yybuff =='\0')
-    return(EOF);
+    return EOF;
   else
     return(*yybuff++);
 }
@@ -2143,13 +2143,13 @@ yyalloc(struct mallocList  **head,int size)
         entry = (struct mallocList  *)malloc(sizeof(struct mallocList));
         if (!entry) {
             free(space);
-            return(NULL);
+            return NULL;
         }
         entry->space = space;
         entry->next = *head;
         *head = entry;
     };
-    return(space);
+    return space;
 } /* yyalloc */
 
 
@@ -2305,6 +2305,6 @@ Exit:
     *errMsg = bufMess;
     yysptr=yysbuf;
     yylineno =1;
-    return(retVal);
+    return retVal;
 } /* nameErrMess */
 

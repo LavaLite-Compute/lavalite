@@ -120,7 +120,7 @@ int yylex(){
    while((nstr = yylook()) >= 0)
 switch(nstr){
 case 0:
-   if(yywrap()) return(0); break;
+   if(yywrap()) return 0; break;
 case 1:
 					yymark() ;
 break;
@@ -128,44 +128,44 @@ case 2:
 			yymark() ;
 break;
 case 3:
-return (OR);
+return OR;
 break;
 case 4:
-return (AND);
+return AND;
 break;
 case 5:
-return (LE);
+return LE;
 break;
 case 6:
-return (GE);
+return GE;
 break;
 case 7:
-return (EQ);
+return EQ;
 break;
 case 8:
-return (DOTS);
+return DOTS;
 break;
 case 9:
 return screen();
 break;
 case 10:
 		{s_lookup((ICON));
-				 return (ICON) ;
+				 return ICON;
                                 }
 break;
 case 11:
 	{s_lookup((RCON));
-				 return (RCON) ;
+				 return RCON;
                                 }
 break;
 case 12:
 		{s_lookup((ESTRING));
-				 return (ESTRING) ;
+				 return ESTRING;
                                 }
 break;
 case 13:
 		{s_lookup((ESTRING));
-				 return (ESTRING) ;
+				 return ESTRING;
                                 }
 break;
 case 14:
@@ -178,7 +178,7 @@ case -1:
 break;
 default:
    fprintf(yyout,"bad switch yylook %d",nstr);
-} return(0); }
+} return 0; }
 
 extern int main(void);
 
@@ -245,7 +245,7 @@ struct rwtable *low;
 
   for (i=low; ; i++){
      if ((c=strcmp(i->rw_name, "zzzz"))==0)
-     return(i);
+     return i;
   }
 
 }
@@ -281,7 +281,7 @@ static int screen(void)
    }
    strcpy((char *)yytext,str);
    s_lookup(NAME);
-   return (NAME);
+   return NAME;
  }
 
 static void s_lookup(yylex)
@@ -302,7 +302,7 @@ int yymark(void)
   source=(char *) calloc(yyleng, sizeof(char));
   if (source)
 	sscanf((char *)yytext, "# %d %s", &yylineno, source);
-  return (1);
+  return 1;
 }
 
 void idxerror(s)
@@ -359,7 +359,7 @@ char *sptr;
   if (colon)
 	sprintf(sptr,"%s: ",sptr);
 
-  return(yylineno);
+  return yylineno;
 }
 
 int
@@ -381,7 +381,7 @@ yywrap(void)
 static int getbufc(void)
 {
   if (*yybuff =='\0')
-    return(EOF);
+    return EOF;
   else
     return(*yybuff++);
 }
@@ -398,13 +398,13 @@ yyalloc(struct mallocList  **head, int size)
         entry = (struct mallocList  *)malloc(sizeof(struct mallocList));
         if (!entry) {
             free(space);
-            return(NULL);
+            return NULL;
         }
         entry->space = space;
         entry->next = *head;
         *head = entry;
     };
-    return(space);
+    return space;
 }
 
 
@@ -539,7 +539,7 @@ Exit:
     *errMsg = bufMess;
     yysptr=yysbuf;
     yylineno =1;
-    return(retVal);
+    return retVal;
 }
 int yyvstop[] = {
 0,
@@ -984,7 +984,7 @@ int yylook(){
 #endif
 			{
 			yysptr=yysbuf;
-			return(0);
+			return 0;
 			}
 #ifdef YYNLS16_WCHAR
 		yyprevious = yytextuc[0] = input();
@@ -1061,13 +1061,13 @@ int yylook(){
 
 int yyback(p, m) int *p;
 {
-if (p==0) return(0);
+if (p==0) return 0;
 while (*p)
 	{
 	if (*p++ == m)
-		return(1);
+		return 1;
 	}
-return(0);
+return 0;
 }
 
 int yyinput(){

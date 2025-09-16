@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -172,7 +172,7 @@ try:
         return 0;
 
     if ((sp = strchr(goodpath+1, '/')) == NULL)
-        return (-1);
+        return -1;
 
     *goodpath = '\0';
     strcat(filename, sp);
@@ -268,7 +268,7 @@ int getMap_(void)
     h_initTab_(&hashTab, 64);
     incallback.foreach = putin_;
     if ((i = yp_get_default_domain(&domain)) != 0)
-        return(i);
+        return i;
     return (yp_all(domain, "auto.master", &incallback));
 }
 
@@ -296,7 +296,7 @@ netHostChdir(char *path, struct hostent *hp)
 
     if (AM_LAST || AM_NEVER) {
         if (chdir(usePath(path)) == 0)
-            return(0);
+            return 0;
     }
 
     if (strstr(path, "/net/") == path)
@@ -526,7 +526,7 @@ myunlink_(char *filename, struct hostent *hp, int doMount)
 
     if (AM_LAST)
         if ((i=unlink(usePath(filename))) != -1)
-            return(1);
+            return 1;
 
     if(doMount) {
 
@@ -537,7 +537,7 @@ myunlink_(char *filename, struct hostent *hp, int doMount)
             return (unlink(usePath(filename)));
 
         if ((mp=mountNet_(hp)) == NULL) {
-            return (1);
+            return 1;
         }
 
         sprintf(fnamebuf, "%s%s", mp, filename);

@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 int
@@ -30,13 +30,13 @@ lsQueueInit_(struct lsQueue **head,
     if (qPtr == NULL) {
 	*head = NULL;
 	lserrno = LSE_MALLOC;
-	return (-1);
+	return -1;
     }
 
     *head = (struct lsQueue *)malloc(sizeof(struct lsQueue));
     if (*head == NULL)  {
 	lserrno = LSE_MALLOC;
-	return (-1);
+	return -1;
     }
 
     (*head)->compare = compareFunc;
@@ -48,7 +48,7 @@ lsQueueInit_(struct lsQueue **head,
     
     (*head)->start = qPtr;
     qPtr->forw = qPtr->back = qPtr;
-    return(0);
+    return 0;
     
 } 
 
@@ -59,7 +59,7 @@ lsQueueEntryAppend_(struct lsQueueEntry *entry, struct lsQueue *head)
 
     if (head->start == NULL) {
         lserrno = LSE_MSG_SYS;
-	return(-1);
+	return -1;
     }
 
     qPtr = head->start;
@@ -68,7 +68,7 @@ lsQueueEntryAppend_(struct lsQueueEntry *entry, struct lsQueue *head)
     qPtr->back->forw = entry;
     qPtr->back  = entry; 
 
-    return(0);
+    return 0;
 
 } 
 
@@ -81,12 +81,12 @@ lsQueueDataAppend_(char *data, struct lsQueue *head)
     entry = (struct lsQueueEntry *)malloc(sizeof(struct lsQueueEntry));
     if (entry == NULL) {
 	lserrno = LSE_MALLOC;
-	return (-1);
+	return -1;
     }
     rc =lsQueueEntryAppend_(entry, head);
     entry->data = data;
 
-    return(rc);
+    return rc;
 }     
 
 struct lsQueueEntry *
@@ -100,7 +100,7 @@ lsQueueDequeue_(struct lsQueue *head)
 	start = head->start;
 	entry = start->forw;
 	lsQueueEntryRemove_(entry);
-	return(entry);
+	return entry;
     } else 
 	return (struct lsQueueEntry *)NULL;
 
@@ -113,7 +113,7 @@ lsQueueEntryAddFront_(struct lsQueueEntry *entry, struct lsQueue *head)
 
     if (head->start == NULL) {
         lserrno = LSE_MSG_SYS;
-	return(-1);
+	return -1;
     }
 
     qPtr = head->start;
@@ -123,7 +123,7 @@ lsQueueEntryAddFront_(struct lsQueueEntry *entry, struct lsQueue *head)
     qPtr->forw->back = entry;
     qPtr->forw = entry;
 
-    return(0);
+    return 0;
 
 } 
 
@@ -136,12 +136,12 @@ lsQueueDataAddFront_(char *data, struct lsQueue *head)
     entry = (struct lsQueueEntry *)malloc(sizeof(struct lsQueueEntry));
     if (entry == NULL) {
 	lserrno = LSE_MALLOC;
-	return (-1);
+	return -1;
     }
     rc =lsQueueEntryAddFront_(entry, head);
     entry->data = data;
 
-    return(rc);
+    return rc;
 } 
 
 void
@@ -230,7 +230,7 @@ lsQueueSearch_(int hint, char *val, struct lsQueue *head)
     int rc;
 
     if (head->compare == NULL) 
-        return (NULL);
+        return NULL;
 
 
     start = head->start;

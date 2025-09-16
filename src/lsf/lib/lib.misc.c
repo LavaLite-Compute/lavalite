@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 /* Various miscellaneus functions more or less useful.
  */
@@ -60,8 +60,8 @@ isanumber_(char *word)
     number = strtod (word, eptr);
     if (**eptr == '\0' &&  errno != ERANGE)
         if (number <= FLT_MAX && number > -FLT_MAX)
-            return (true);
-    return (false);
+            return true;
+    return false;
 
 }
 
@@ -81,9 +81,9 @@ islongint_(char *word)
     sscanf(word, "%lld", &number);
     if (errno != ERANGE) {
         if (number <= INFINIT_LONG_INT && number > -INFINIT_LONG_INT)
-            return (true);
+            return true;
     }
-    return (false);
+    return false;
 
 }
 
@@ -114,9 +114,9 @@ atoi64_(char *word)
     sscanf(word, "%lld", &number);
     if (errno != ERANGE) {
         if (number <= INFINIT_LONG_INT && number > -INFINIT_LONG_INT)
-            return (number);
+            return number;
     }
-    return (0);
+    return 0;
 }
 
 char
@@ -135,9 +135,9 @@ isint_(char *word)
     number = strtol (word, eptr, 10);
     if (**eptr == '\0'&&  errno != ERANGE) {
         if (number <= INFINIT_INT && number > -INFINIT_INT)
-            return (true);
+            return true;
     }
-    return (false);
+    return false;
 
 }
 
@@ -156,7 +156,7 @@ putstr_(const char *s)
 
     strcpy(p, s);
 
-    return (p);
+    return p;
 
 }
 
@@ -168,7 +168,7 @@ getRefNum_(void)
     reqRefNum++;
     if (reqRefNum >= MAX_REF_NUM)
         reqRefNum = MIN_REF_NUM;
-    return(reqRefNum);
+    return reqRefNum;
 }
 
 char *
@@ -185,12 +185,12 @@ chDisplay_(char *disp)
 
     if (sp[0] == ':') {
         if ((hostName = ls_getmyhostname()) == NULL)
-            return(disp);
+            return disp;
         sprintf(dspbuf, "%s=%s%s", "DISPLAY", hostName, sp);
-        return(dspbuf);
+        return dspbuf;
     }
 
-    return(disp);
+    return disp;
 
 }
 
@@ -286,15 +286,15 @@ my_getopt (int nargc, char **nargv, char *ostr, char **errMsg)
     int i, num_arg;
 
     if ((optName = nargv[optind]) == NULL)
-        return (NULL);
+        return NULL;
     if (optind >= nargc || *optName != '-')
-        return (NULL);
+        return NULL;
     if (optName[1] && *++optName == '-') {
         ++optind;
-        return(NULL);
+        return NULL;
     }
     if (ostr == NULL)
-        return(NULL);
+        return NULL;
     strcpy (svstr, ostr);
     num_arg = 0;
     optarg = NULL;
@@ -314,35 +314,35 @@ my_getopt (int nargc, char **nargv, char *ostr, char **errMsg)
             }
         }
         if (i >= cp2len)
-            return (BADCH);
+            return BADCH;
 
         if (!strcmp (optName, cp1)) {
             if (num_arg) {
                 if (nargc <= optind + 1) {
                     PRINT_ERRMSG (errMsg, (_i18n_msg_get(ls_catd,NL_SETN,650, "%s: option requires an argument -- %s\n")), nargv[0], optName);  /* catgets 650 */
-                    return (BADCH);
+                    return BADCH;
                 }
                 optarg = nargv[++optind];
             }
             ++optind;
-            return (optName);
+            return optName;
         } else if (!strncmp(optName, cp1, strlen(cp1))) {
             if (num_arg == 0) {
                 PRINT_ERRMSG (errMsg, (_i18n_msg_get(ls_catd,NL_SETN,651, "%s: option cannot have an argument -- %s\n")),  /* catgets 651 */
                               nargv[0], cp1);
-                return (BADCH);
+                return BADCH;
             }
 
             optarg = optName + strlen(cp1);
             ++optind;
-            return (cp1);
+            return cp1;
         }
 
         cp1 = &cp2[i];
         cp2 = ++cp1;
     }
     PRINT_ERRMSG (errMsg, (_i18n_msg_get(ls_catd,NL_SETN,652, "%s: illegal option -- %s\n")), nargv[0], optName); /* catgets 652 */
-    return (BADCH);
+    return BADCH;
 
 }
 
@@ -354,7 +354,7 @@ int putEnv(char *env, char *val)
 
     buf = malloc(strlen(env) + strlen(val) + 4);
     if (buf == NULL)
-        return (-1);
+        return -1;
     sprintf(buf, "%s=%s", env, val);
     return(putenv(buf));
 }
@@ -363,7 +363,7 @@ void
 initLSFHeader_ (struct LSFHeader *hdr)
 {
     hdr->refCode = 0;
-    hdr->version = LSF_VERSION;
+    hdr->version = _XDR_VERSION_0_1_0;
     hdr->reserved0.High = 0;
     hdr->reserved0.Low = 0;
     hdr->length    = 0;
@@ -410,11 +410,11 @@ Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
                     cliaddr->sin_port = htons(port);
                 }
                 else
-                    return (-1);
+                    return -1;
             }
         }
         ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "Bind_", "bind", BIND_RETRY_TIMES);
-        return (-1);
+        return -1;
     }
 }
 int
@@ -427,7 +427,7 @@ isMasterCrossPlatform(void)
     static int crossPlatform = -1;
 
     if (crossPlatform >= 0)
-        return (crossPlatform);
+        return crossPlatform;
 
     if ((sp = ls_getmastername()) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_getmastername");
@@ -454,7 +454,7 @@ isMasterCrossPlatform(void)
     else
         crossPlatform = false;
 
-    return (crossPlatform);
+    return crossPlatform;
 }
 int
 isAllowCross(char *paramValue)

@@ -16,15 +16,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#ifndef _INTLIBOUT_H_
-#define _INTLIBOUT_H_
+#ifndef _LLCORE_INTLIBOUT_
+#define _LLCORE_INTLIBOUT_
 
-#include <stdio.h>
-#include <stdarg.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <sys/stat.h>
-#include <sys/time.h>
 #include "resreq.h"
 #include "lsf/lib/lib.channel.h"
 #include "lsf/lib/lib.hdr.h"
@@ -39,7 +33,7 @@
 #define EXIT_RUN_ERROR          (-8)
 
 #ifndef MAX
-#define MAX(x,y)        ((x) > (y) ? (x) : (y))
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
 #endif
 
 #ifndef MIN

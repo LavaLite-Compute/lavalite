@@ -18,7 +18,7 @@
  */
 
 #include "lsf.h"
-#include "lsf/lib/liblsf.h"
+#include "lib/lsf/liblavalite.h"
 
 #define MAXLISTSIZE 256
 #define NL_SETN 27

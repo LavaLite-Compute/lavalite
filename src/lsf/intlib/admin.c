@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/mls.h"
 
 #define BADCH ":"
@@ -191,15 +191,15 @@ myGetOpt (int nargc, char **nargv, char *ostr)
     int i, num_arg;
 
     if ((optName = nargv[optind]) == NULL)
-        return (NULL);
+        return NULL;
     if (optind >= nargc || *optName != '-')
-	return (NULL);
+	return NULL;
     if (optName[1] && *++optName == '-') {
         ++optind;
-        return(NULL);
+        return NULL;
     }
     if (ostr == NULL)
-        return(NULL);
+        return NULL;
     strcpy (svstr, ostr);
     num_arg = 0;
     optarg = NULL;
@@ -219,7 +219,7 @@ myGetOpt (int nargc, char **nargv, char *ostr)
             }
         }
         if (i >= cp2len)
-            return (BADCH);
+            return BADCH;
 
         if (!strcmp (optName, cp1)) {
             if (num_arg) {
@@ -228,12 +228,12 @@ myGetOpt (int nargc, char **nargv, char *ostr)
 			     _i18n_msg_get(ls_catd, NL_SETN, 108,
 					   "%s: option requires an argument -- %s\n"),/* catgets 108 */
 			nargv[0], optName);
-                    return (BADCH);
+                    return BADCH;
                 }
                 optarg = nargv[++optind];
             }
             ++optind;
-            return (optName);
+            return optName;
         }
         cp1 = &cp2[i];
         cp2 = ++cp1;
@@ -241,7 +241,7 @@ myGetOpt (int nargc, char **nargv, char *ostr)
     fprintf (stderr, _i18n_msg_get(ls_catd,NL_SETN,109,
 				    "%s: illegal option -- %s\n"), /* catgets 109 */
 	     nargv[0], optName);
-    return (BADCH);
+    return BADCH;
 
 }
 
@@ -255,7 +255,7 @@ getConfirm (char *msg)
         fputs(msg, stdout);
 	fflush(stdout);
         if (fgets(answer, MAXLINELEN, stdin) == NULL) {
-            return FALSE;
+            return false;
         }
         i = 0;
         while (answer[i] == ' ')
@@ -272,7 +272,7 @@ getConfirm (char *msg)
 int
 checkConf(int verbose, int who)
 {
-    char confCheckBuf[] = "RECONFIG_CHECK=TRUE";
+    char confCheckBuf[] = "RECONFIG_CHECK=true";
     pid_t pid;
     char *daemon, *lsfEnvDir;
     static struct config_param lsfParams[] =
@@ -285,7 +285,7 @@ checkConf(int verbose, int who)
     };
     struct config_param *plp;
     LS_WAIT_T status;
-    int fatalErr = FALSE, cc = 0;
+    int fatalErr = false, cc = 0;
     int fd;
 
     if (lsfParams[0].paramValue == NULL) {
@@ -308,17 +308,17 @@ checkConf(int verbose, int who)
 		    _i18n_msg_get(ls_catd, NL_SETN, 111,
 				  "%s is missing or has a syntax error in lsf.conf file\n"),/* catgets 111 */
 		    plp->paramName);
-            fatalErr = TRUE;
+            fatalErr = true;
         }
     if (fatalErr)
-        return (EXIT_FATAL_ERROR);
+        return EXIT_FATAL_ERROR;
     if (cc < 0)
-        return (EXIT_WARNING_ERROR);
+        return EXIT_WARNING_ERROR;
 
     if ((daemon = (char *)calloc(strlen(lsfParams[0].paramValue)+15,
 		                 sizeof(char))) == NULL) {
         perror("calloc");
-	return (EXIT_FATAL_ERROR);
+	return EXIT_FATAL_ERROR;
     }
 
     strcpy(daemon, lsfParams[0].paramValue);
@@ -328,7 +328,7 @@ checkConf(int verbose, int who)
     if (access(daemon, X_OK) < 0) {
         perror(daemon);
         free(daemon);
-	return (EXIT_FATAL_ERROR);
+	return EXIT_FATAL_ERROR;
     }
 
     if (putenv(confCheckBuf)) {
@@ -336,14 +336,14 @@ checkConf(int verbose, int who)
 		_i18n_msg_get(ls_catd, NL_SETN, 112,
 			      "Failed to set environment variable RECONFIG_CHECK\n"));    /* catgets 112 */
         free(daemon);
-        return(EXIT_FATAL_ERROR);
+        return EXIT_FATAL_ERROR;
     }
 
 
     if ((pid = fork()) < 0) {
         perror("fork");
         free(daemon);
-	return (EXIT_FATAL_ERROR);
+	return EXIT_FATAL_ERROR;
     }
 
     if (pid == 0) {
@@ -370,7 +370,7 @@ checkConf(int verbose, int who)
 
     if (waitpid(pid, &status, 0) < 0) {
         perror("waitpid");
-        return(EXIT_FATAL_ERROR);
+        return EXIT_FATAL_ERROR;
     }
 
     if (WIFEXITED(status) != 0 && WEXITSTATUS(status) != 0xf8)
@@ -382,7 +382,7 @@ checkConf(int verbose, int who)
         fprintf(stderr,
 		_i18n_msg_get(ls_catd, NL_SETN, 116,
 			      "Child process killed by signal.\n\n")); /* catgets 116 */
-	return(EXIT_FATAL_ERROR);
+	return EXIT_FATAL_ERROR;
     }
 
     switch (WEXITSTATUS(status)) {
@@ -390,19 +390,19 @@ checkConf(int verbose, int who)
         fprintf(stderr,
 		_i18n_msg_get(ls_catd, NL_SETN, 117,
 			      "No errors found.\n\n"));  /* catgets 117 */
-        return(EXIT_NO_ERROR);
+        return EXIT_NO_ERROR;
 
     case  0xff :
         fprintf(stderr,
 		_i18n_msg_get(ls_catd, NL_SETN, 118,
 			      "There are fatal errors.\n\n")); /* catgets 118 */
-        return(EXIT_FATAL_ERROR);
+        return EXIT_FATAL_ERROR;
 
     case  0xf8 :
         fprintf(stderr,
 		_i18n_msg_get(ls_catd, NL_SETN, 119,
 			      "Fail to run checking program \n\n")); /* catgets 119 */
-        return(EXIT_FATAL_ERROR);
+        return EXIT_FATAL_ERROR;
 
     case  0xfe :
         fprintf(stderr,
@@ -413,13 +413,13 @@ checkConf(int verbose, int who)
         fprintf(stderr,
 		_i18n_msg_get(ls_catd, NL_SETN, 122,
 			      "         They are either ignored or replaced by default values.\n\n"));  /* catgets 122  */
-        return(EXIT_WARNING_ERROR);
+        return EXIT_WARNING_ERROR;
 
     default :
         fprintf(stderr,
 		_i18n_msg_get(ls_catd, NL_SETN, 123,
 			      "Errors found.\n\n"));  /* catgets 123 */
-        return(EXIT_FATAL_ERROR);
+        return EXIT_FATAL_ERROR;
     }
 
 }

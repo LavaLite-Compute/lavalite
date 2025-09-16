@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 #define NL_SETN   23
@@ -64,19 +64,19 @@ doEnvParams_ (struct config_param *plp)
     char *sp, *spp;
 
     if (!plp)
-        return(0);
+        return 0;
 
     for (; plp->paramName != NULL ; plp++) {
         if ((sp = getenv(plp->paramName)) != NULL) {
             if (NULL == (spp = putstr_(sp))) {
                 lserrno = LSE_MALLOC;
-                return(-1);
+                return -1;
             }
             FREEUP(plp->paramValue);
             plp->paramValue = spp;
         }
     }
-    return(0);
+    return 0;
 }
 
     char *
@@ -87,7 +87,7 @@ getTempDir_(void)
     struct stat stb;
 
     if (sp) {
-        return(sp);
+        return sp;
     }
 
     tmpSp = genParams_[LSF_TMPDIR].paramValue;
@@ -131,21 +131,21 @@ initenv_ (struct config_param *userEnv, char *pathname)
 
     if (lsfenvset) {
         if (userEnv == NULL) {
-            return (0);
+            return 0;
         }
         if (readconfenv_(NULL, userEnv, pathname) < 0) {
-            return (-1);
+            return -1;
         } else if (doEnvParams_(userEnv) < 0) {
-            return (-1);
+            return -1;
         }
-        return (0);
+        return 0;
     }
 
     if (readconfenv_(genParams_, userEnv, pathname) < 0)
-        return (-1);
+        return -1;
     else {
         if (doEnvParams_(genParams_) < 0)
-            return (-1);
+            return -1;
         lsfenvset = true;
         if (doEnvParams_(userEnv) < 0)
             Error = 1;
@@ -154,7 +154,7 @@ initenv_ (struct config_param *userEnv, char *pathname)
     if (! genParams_[LSF_CONFDIR].paramValue ||
             ! genParams_[LSF_SERVERDIR].paramValue) {
         lserrno = LSE_BAD_ENV;
-        return(-1);
+        return -1;
     }
 
     if (genParams_[LSF_SERVER_HOSTS].paramValue != NULL) {
@@ -166,15 +166,15 @@ initenv_ (struct config_param *userEnv, char *pathname)
 
     if (!setStripDomain_(genParams_[LSF_STRIP_DOMAIN].paramValue)) {
         lserrno = LSE_MALLOC;
-        return(-1);
+        return -1;
     }
 
     lsTmpDir_ = getTempDir_();
 
     if (Error)
-        return(-1);
+        return -1;
 
-    return(0);
+    return 0;
 }
 
     int
@@ -199,7 +199,7 @@ readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *co
             if (plp->paramValue != NULL) {
 
                 lserrno = LSE_BAD_ARGS;
-                return(-1);
+                return -1;
             }
         }
 
@@ -208,7 +208,7 @@ readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *co
             if (plp->paramValue != NULL) {
 
                 lserrno = LSE_BAD_ARGS;
-                return(-1);
+                return -1;
             }
         }
     if (confPath) {
@@ -236,7 +236,7 @@ readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *co
     if (!fp) {
 
         lserrno = LSE_LSFCONF;
-        return(-1);
+        return -1;
     }
 
     lineNum = 0;
@@ -255,16 +255,16 @@ readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *co
         if (!setConfEnv(key, value, pList1)
                 || !setConfEnv(key, value, pList2)) {
             fclose(fp);
-            return(-1);
+            return -1;
         }
     }
     fclose(fp);
     if (errLineNum_ != 0) {
         lserrno = saveErrNo;
-        return(-1);
+        return -1;
     }
 
-    return(0);
+    return 0;
 
 }
 
@@ -346,7 +346,7 @@ matchEnv(char *name, struct config_param *paramList)
 setConfEnv (char *name, char *value, struct config_param *paramList)
 {
     if (paramList == NULL)
-        return(1);
+        return 1;
 
     if (value == NULL)
         value = "";
@@ -357,11 +357,11 @@ setConfEnv (char *name, char *value, struct config_param *paramList)
             paramList->paramValue = putstr_(value);
             if (paramList->paramValue == NULL) {
                 lserrno = LSE_MALLOC;
-                return(0);
+                return 0;
             }
         }
     }
-    return(1);
+    return 1;
 }
 
     static int
@@ -374,10 +374,10 @@ setStripDomain_(char *d_str)
     stripDomains_ = NULL;
 
     if (d_str == NULL)
-        return(1);
+        return 1;
 
     if ((stripDomains_ = malloc(strlen(d_str) + 2)) == NULL)
-        return(0);
+        return 0;
 
     for (cp = d_str, sdp = sdi = stripDomains_ ; *cp ; )
     {
@@ -391,7 +391,7 @@ setStripDomain_(char *d_str)
     }
     *sdi = '\0';
 
-    return(1);
+    return 1;
 }
 
     int
@@ -408,7 +408,7 @@ initMasterList_()
     if (paramValue == NULL ) {
 
         m_isMasterCandidate = true;
-        return(0);
+        return 0;
     }
 
     for (nameList = paramValue; *nameList != '\0'; nameList++) {
@@ -426,13 +426,13 @@ initMasterList_()
 
     if (m_numMasterCandidates == 0) {
         lserrno = LSE_NO_HOST;
-        return(-1);
+        return -1;
     }
 
     if ((m_masterCandidates = (char **)malloc(m_numMasterCandidates*sizeof(char *)))
             == NULL) {
         lserrno = LSE_MALLOC;
-        return(-1);
+        return -1;
     }
     for (i=0; i < m_numMasterCandidates; i++) {
         m_masterCandidates[i] = NULL;
@@ -461,7 +461,7 @@ initMasterList_()
 
     if (m_numMasterCandidates == 0) {
         lserrno = LSE_NO_HOST;
-        return(-1);
+        return -1;
     }
 
 
@@ -503,14 +503,14 @@ getMasterCandidateNameByNo_(short candidateNo)
     int
 getNumMasterCandidates_()
 {
-    return (m_numMasterCandidates);
+    return m_numMasterCandidates;
 
 }
 
     int
 getIsMasterCandidate_()
 {
-    return (m_isMasterCandidate);
+    return m_isMasterCandidate;
 
 }
 

@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -288,7 +288,7 @@ h_nextEnt_(sTab *sPtr)
 
     sPtr->hEntPtr = (hEnt *) ((hLinks *) hEntPtr)->bwPtr;
     
-    return(hEntPtr);
+    return hEntPtr;
 
 } 
 
@@ -313,7 +313,7 @@ h_findEnt(const char *key, hLinks *hList)
           hEntPtr != (hEnt *) hList;
           hEntPtr = (hEnt *) ((hLinks *) hEntPtr)->bwPtr) {
         if (strcmp(hEntPtr->keyname, key) == 0)
-            return(hEntPtr);
+            return hEntPtr;
     }
 
     return ((hEnt *) NULL);

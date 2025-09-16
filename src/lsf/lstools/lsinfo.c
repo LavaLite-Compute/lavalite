@@ -18,7 +18,7 @@
  */
 
 #include "lsf.h"
-#include "lsf/lib/liblsf.h"
+#include "lib/lsf/liblavalite.h"
 
 static void usage(char *);
 static void print_long(struct resItem *);

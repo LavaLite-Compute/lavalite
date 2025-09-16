@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -31,9 +31,9 @@ mygetwd_(char *path)
     if (pwd == NULL && (pwd = getenv("CWD")) == NULL) {
         if(getcwd(temp_buff, sizeof(temp_buff))) {
             strncpy(path, temp_buff, MAXFILENAMELEN);
-            return(path);
+            return path;
         } else
-            return(NULL);
+            return NULL;
     }
 
     if (stat(pwd, &pwdstat) == 0 && stat(".", &dotstat) == 0) {
@@ -45,7 +45,7 @@ mygetwd_(char *path)
     }
     if(getcwd(temp_buff, sizeof(temp_buff))) {
         strncpy(path, temp_buff, MAXFILENAMELEN);
-        return(path);
+        return path;
     } else
-        return(NULL);
+        return NULL;
 }

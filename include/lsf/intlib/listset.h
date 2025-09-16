@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef _LIST_SET_H_
-#define _LIST_SET_H_
+#ifndef _LLCORE_LIST_SET_
+#define _LLCORE_LIST_SET_
 
 struct listSet {
     long            elem;

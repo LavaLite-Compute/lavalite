@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -131,7 +131,7 @@ str2lsfRu(char *line, struct lsfRusage *lsfRu, int *ccount)
         &(lsfRu->ru_ioch), &(lsfRu->ru_msgsnd), &(lsfRu->ru_msgrcv),
         &(lsfRu->ru_nsignals), &(lsfRu->ru_nvcsw), &(lsfRu->ru_nivcsw),
         &(lsfRu->ru_exutime), ccount);
-    return (cc);
+    return cc;
 } 
 
 

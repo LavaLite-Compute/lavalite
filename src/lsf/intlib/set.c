@@ -18,10 +18,10 @@
  */
 
 #include <stdlib.h>
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 
-#define FALSE	0
-#define TRUE	1
+#define false	0
+#define true	1
 
 void listSetFree( struct listSet *);
 struct listSet * listSetAlloc(int);
@@ -51,9 +51,9 @@ listSetEqual(struct listSet *set1, struct listSet *set2)
         set2 = set2->next;
     }
     if (!set1 && !set2)
-        return(TRUE);
+        return true;
     else
-        return(FALSE);
+        return false;
 }
 
 struct listSet *
@@ -85,7 +85,7 @@ listSetUnion(struct listSet *set1, struct listSet *set2)
     setHead = setHead->next;
     setPtr->next = NULL;
     listSetFree(setPtr);
-    return(setHead);
+    return setHead;
 
 }
 
@@ -132,7 +132,7 @@ listSetIntersect(struct listSet *set1, struct listSet *set2)
     setHead = setHead->next;
     setPtr->next = NULL;
     listSetFree(setPtr);
-    return(setHead);
+    return setHead;
 }
 
 struct listSet *
@@ -151,7 +151,7 @@ listSetDuplicate(struct listSet *set)
     setHead = setHead->next;
     setPtr->next = NULL;
     listSetFree(setPtr);
-    return(setHead);
+    return setHead;
 }
 
 int
@@ -160,10 +160,10 @@ listSetIn(int elem, struct listSet *set)
 
     while (set) {
         if (set->elem == elem)
-            return(TRUE);
+            return true;
         set = set->next;
     }
-    return(FALSE);
+    return false;
 }
 
 struct listSet *
@@ -173,16 +173,16 @@ listSetInsert(int elem, struct listSet *set)
 
 
     if (listSetIn(elem, set))
-        return(set);
+        return set;
 
     if (!set) {
         ptr = listSetAlloc(elem);
-        return(ptr);
+        return ptr;
     }
     else if (set->elem > elem) {
         ptr = listSetAlloc(elem);
         ptr->next = set;
-        return(ptr);
+        return ptr;
     }
 
     ptr = set;
@@ -193,7 +193,7 @@ listSetInsert(int elem, struct listSet *set)
     ptr->next = listSetAlloc(elem);
     ptr->next->next = ptmp;
 
-    return(set);
+    return set;
 }
 
 struct listSet *
@@ -203,11 +203,11 @@ listSetSub(struct listSet *set1, struct listSet *set2)
 
     if (!set1) {
         listSetFree(set2);
-        return(NULL);
+        return NULL;
     }
 
     if (!set2)
-        return(set1);
+        return set1;
 
     ptr = set1;
     while (ptr && set2) {
@@ -242,7 +242,7 @@ listSetSub(struct listSet *set1, struct listSet *set2)
         listSetFree(tmp);
     }
 
-    return(set1);
+    return set1;
 }
 
 struct listSet *
@@ -259,7 +259,7 @@ listSetAlloc(int elem)
     }
     ptr->elem = elem;
     ptr->next = NULL;
-    return(ptr);
+    return ptr;
 }
 
 void
@@ -283,13 +283,13 @@ listSetk(int k, struct listSet *set)
         if (set)
            set = set->next;
         else
-           return(0);
+           return 0;
     }
 
     if (set)
         return(set->elem);
     else
-        return(0);
+        return 0;
 }
 
 int
@@ -299,5 +299,5 @@ listSetLen(struct listSet *set)
 
     for (; set; set = set->next)
         len++;
-    return(len);
+    return len;
 }

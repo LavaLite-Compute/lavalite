@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 #define exit(a) _exit(a)
 
@@ -58,13 +58,13 @@ runEsub_(struct lenData *ed, char *path)
             ls_syslog(LOG_DEBUG,
                     "runEsub: stat(%s) failed: %m", esub);
         lserrno = LSE_ESUB;
-        return (-1);
+        return -1;
     }
 
     if (runEClient_(ed, myargv) == -1)
-        return (-2);
+        return -2;
 
-    return (0);
+    return 0;
 }
 
     int
@@ -99,7 +99,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
         if(logclass & (LC_TRACE | LC_AUTH))
             ls_syslog(LOG_DEBUG,"%s: pipe failed: %m",fname);
         lserrno = LSE_PIPE;
-        return (-1);
+        return -1;
     }
 
     if ((pid = fork()) == 0) {
@@ -119,7 +119,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
         close (ePorts[0]);
         close (ePorts[1]);
         lserrno = LSE_FORK;
-        return (-1);
+        return -1;
     }
 
     close (ePorts[1]);
@@ -178,7 +178,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
                 WIFSIGNALED(status)) {
             FREEUP(ed->data);
             ed->len = 0;
-            return (-1);
+            return -1;
         }
     }
 
@@ -186,7 +186,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
         FREEUP(ed->data);
     }
 
-    return (0);
+    return 0;
 
 errorReturn:
     close (ePorts[0]);
@@ -195,7 +195,7 @@ errorReturn:
         ;
     ed->len = 0;
     ed->data = NULL;
-    return (-1);
+    return -1;
 
 }
 
@@ -228,7 +228,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
             ls_syslog(LOG_DEBUG,
                     "%s: Job/task <%d> eexec will not be run, stat(%s) failed: %m", fname, job, eexecPath);
         lserrno = LSE_ESUB;
-        return (-1);
+        return -1;
     }
 
     i = 0;
@@ -241,7 +241,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
 
     if (pipe(p) < 0) {
         lserrno = LSE_PIPE;
-        return (-1);
+        return -1;
     }
 
     if ((pid = fork()) == 0) {
@@ -300,7 +300,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
         close(p[0]);
         close(p[1]);
         lserrno = LSE_FORK;
-        return(-1);
+        return -1;
     }
 
     close(p[0]);
@@ -317,7 +317,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
     while (waitpid(pid, NULL, 0) < 0 && errno == EINTR)
         ;
 
-    return (0);
+    return 0;
 
 }
 

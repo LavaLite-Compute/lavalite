@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -166,15 +166,15 @@ encodeTermios_(XDR *xdrs, struct termios *ptr_termios)
     int i;
     
     if (!encode_mode(xdrs, ptr_termios->c_iflag, in_table, IN_TABLE_SIZE))
-	return (false);
+	return false;
 
     if (!encode_mode(xdrs, ptr_termios->c_oflag, out_table, OUT_TABLE_SIZE))
-	return (false);
+	return false;
 
     if (! (encode_mode(xdrs, ptr_termios->c_cflag, ctrl_table,
 		       CTRL_TABLE_SIZE) &&
 	   encode_mode(xdrs, ptr_termios->c_lflag, loc_table, LOC_TABLE_SIZE)))
-	return (false);
+	return false;
 
     
     speed_value = cfgetospeed(ptr_termios);
@@ -187,20 +187,20 @@ encodeTermios_(XDR *xdrs, struct termios *ptr_termios)
         i = 0;         
     }
     if (!xdr_int(xdrs, &i))
-	return (false);
+	return false;
 
     
 
     for (i = 0; i < CHR_TABLE_SIZE; i++) {
         if (i < CHR_TABLE_SPLIT) {
 	    if (!xdr_char(xdrs, (char *)&ptr_termios->c_cc[chr_table[i]]))
-		return (false);
+		return false;
         } else {
        	    if (!xdr_char(xdrs, (char *)&ptr_termios->c_cc[chr_table[i]]))
-		return (false);
+		return false;
         }
     }
-    return (true);
+    return true;
 } 
 
 static int
@@ -231,21 +231,21 @@ decodeTermios_(XDR *xdrs, struct termios *ptr_termios)
     int i;
     
     if (!decode_mode(xdrs, in_table,   IN_TABLE_SIZE,   &ptr_termios->c_iflag))
-	return (false);
+	return false;
 
     if (!decode_mode(xdrs, out_table,  OUT_TABLE_SIZE,  &ptr_termios->c_oflag))
-	return (false);
+	return false;
 
     if (! (decode_mode(xdrs, ctrl_table, CTRL_TABLE_SIZE,
 		       &ptr_termios->c_cflag) &&
 	   decode_mode(xdrs, loc_table,  LOC_TABLE_SIZE,
 		       &ptr_termios->c_lflag)))
-	return (false);
+	return false;
 
     
 
     if (!xdr_int(xdrs, &i))
-	return (false);
+	return false;
 
     speed_value = baud_table[i];
     (void)cfsetospeed(ptr_termios, speed_value);
@@ -260,14 +260,14 @@ decodeTermios_(XDR *xdrs, struct termios *ptr_termios)
     for (i = 0; i < CHR_TABLE_SIZE; i++) {
         if (i < CHR_TABLE_SPLIT) {
 	    if (!xdr_char(xdrs, (char *)&ptr_termios->c_cc[chr_table[i]]))
-		return (false);
+		return false;
         } else {
 	    if (!xdr_char(xdrs, (char *)&ptr_termios->c_cc[chr_table[i]]))
-		return (false);
+		return false;
         }
     }
 
-    return (true);
+    return true;
 
 } 
 
@@ -279,7 +279,7 @@ decode_mode(XDR *xdrs, tcflag_t *attr_table, int table_count,
     int i;
 
     if (!xdr_int(xdrs, &encode_set))
-	return (false);
+	return false;
 
     for (*mode_set = 0, i = 0; i < table_count; i++) {
         if (encode_set & (1<<i)) {
@@ -287,7 +287,7 @@ decode_mode(XDR *xdrs, tcflag_t *attr_table, int table_count,
         }
     }
 
-    return (true);
+    return true;
 
 } 
 

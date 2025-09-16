@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -53,7 +53,7 @@ CreateSock_(int protocol)
 	if(logclass & LC_COMM)
 	   ls_syslog(LOG_DEBUG,"%s: Socket_ failed, %s",fname,strerror(errno));
         lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
 
     memset((char*)&cliaddr, 0, sizeof(cliaddr));
@@ -72,7 +72,7 @@ CreateSock_(int protocol)
         if (!isroot) {
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
-            return (-1);
+            return -1;
         }
 
         if (errno != EADDRINUSE && errno != EADDRNOTAVAIL) {
@@ -80,7 +80,7 @@ CreateSock_(int protocol)
 	       ls_syslog(LOG_DEBUG,"%s: bind failed, %s",fname,strerror(errno));
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
-            return (-1);
+            return -1;
         }
 
 
@@ -94,7 +94,7 @@ CreateSock_(int protocol)
 	    ls_syslog(LOG_DEBUG,"%s: went through all , %s",fname,strerror(errno));
         closesocket(s);
         lserrno = LSE_SOCK_SYS;
-        return(-1);
+        return -1;
     }
 
 # if defined(FD_CLOEXEC)
@@ -105,7 +105,7 @@ CreateSock_(int protocol)
 #  endif
 # endif
 
-    return (s);
+    return s;
 
 }
 
@@ -138,7 +138,7 @@ CreateSockEauth_(int protocol)
 	if(logclass & LC_COMM)
 	   ls_syslog(LOG_DEBUG,"%s: Socket_ failed, %s",fname,strerror(errno));
         lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
 
     memset((char*)&cliaddr, 0, sizeof(cliaddr));
@@ -157,7 +157,7 @@ CreateSockEauth_(int protocol)
         if (!isroot) {
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
-            return (-1);
+            return -1;
         }
 
         if (errno != EADDRINUSE && errno != EADDRNOTAVAIL) {
@@ -165,7 +165,7 @@ CreateSockEauth_(int protocol)
 	       ls_syslog(LOG_DEBUG,"%s: bind failed, %s",fname,strerror(errno));
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
-            return (-1);
+            return -1;
         }
 
 
@@ -179,7 +179,7 @@ CreateSockEauth_(int protocol)
 	    ls_syslog(LOG_DEBUG,"%s: went through all , %s",fname,strerror(errno));
         closesocket(s);
         lserrno = LSE_SOCK_SYS;
-        return(-1);
+        return -1;
     }
 
 # if defined(FD_CLOEXEC)
@@ -190,7 +190,7 @@ CreateSockEauth_(int protocol)
 #  endif
 # endif
 
-    return (s);
+    return s;
 
 }
 
@@ -214,7 +214,7 @@ get_nonstd_desc_(int desc)
             s2 = desc;
             break;
         default:
-            return (-1);
+            return -1;
         }
 
         desc = dup(desc);
@@ -227,7 +227,7 @@ get_nonstd_desc_(int desc)
     if (s2 >= 0)
         close(s2);
 
-    return (desc);
+    return desc;
 
 }
 
@@ -241,7 +241,7 @@ TcpCreate_(int service, int port)
 
     if ((s = Socket_(AF_INET, SOCK_STREAM, 0)) < 0) {
         lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
 
     if (service) {
@@ -252,16 +252,16 @@ TcpCreate_(int service, int port)
         if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
             (void)close(s);
             lserrno = LSE_SOCK_SYS;
-            return (-2);
+            return -2;
         }
         if (listen(s, 1024) < 0) {
             (void)close(s);
             lserrno = LSE_SOCK_SYS;
-            return (-3);
+            return -3;
         }
     }
 
-    return (s);
+    return s;
 
 }
 
@@ -294,18 +294,18 @@ Socket_(int domain, int type, int protocol)
     int s0, s1;
 
     if ((s0 = socket(domain, type, protocol)) < 0)
-        return (-1);
+        return -1;
 
     if (s0 < 0)
-        return (-1);
+        return -1;
 
     if (s0 >=3)
-        return (s0);
+        return s0;
 
     s1 = get_nonstd_desc_(s0);
     if (s1 < 0)
         close(s0);
-    return (s1);
+    return s1;
 }
 
 ls_svrsock_t *
@@ -320,14 +320,14 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
 
     if ((svrsock = (ls_svrsock_t *) malloc(sizeof(ls_svrsock_t))) == NULL) {
         lserrno = LSE_MALLOC;
-	return (NULL);
+	return NULL;
     }
 
     svrAddr = (struct sockaddr_in *) malloc(sizeof(struct sockaddr_in));
     if (svrAddr == NULL) {
         lserrno = LSE_MALLOC;
         free(svrsock);
-        return (NULL);
+        return NULL;
     }
     svrsock->localAddr = svrAddr;
 
@@ -346,7 +346,7 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
         lserrno = LSE_SOCK_SYS;
         free(svrsock->localAddr);
         free(svrsock);
-        return (NULL);
+        return NULL;
     }
 
 
@@ -357,14 +357,14 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
         lserrno = LSE_SOCK_SYS;
         free(svrsock->localAddr);
         free(svrsock);
-        return (NULL);
+        return NULL;
     }
     if (listen(acceptSock, 5) < 0) {
         (void) closesocket(acceptSock);
         lserrno = LSE_SOCK_SYS;
         free(svrsock->localAddr);
         free(svrsock);
-        return (NULL);
+        return NULL;
     }
 
     if (port == 0) {
@@ -374,7 +374,7 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
             (void) closesocket(acceptSock);
             free(svrsock->localAddr);
             free(svrsock);
-            return (NULL);
+            return NULL;
         }
         svrsock->port = ntohs(svrAddr->sin_port);
     }
@@ -401,13 +401,13 @@ svrsockAccept_(ls_svrsock_t *svrsock, int timeout)
     struct sockaddr_in from;
     if (svrsock == NULL) {
         lserrno = LSE_BAD_ARGS;
-        return (-1);
+        return -1;
     } else {
         s = -1;
         len = sizeof(from);
         if ((s=accept(svrsock->sockfd, (struct sockaddr *) &from, &len)) < 0) {
             lserrno = LSE_ACCEPT_SYS;
-            return (-1);
+            return -1;
         }
         if (s < 0)
             lserrno = LSE_TIME_OUT;
@@ -421,14 +421,14 @@ svrsockToString_(ls_svrsock_t *svrsock)
     char *string, *hostname;
     if (svrsock == NULL) {
         lserrno = LSE_BAD_ARGS;
-        return (NULL);
+        return NULL;
     }
 
     hostname = ls_getmyhostname();
 
     if ((string = malloc(strlen(hostname)+7)) == NULL) {
         lserrno = LSE_MALLOC;
-        return (NULL);
+        return NULL;
     }
 
     sprintf(string, "%s:%u", hostname, svrsock->port);
@@ -456,7 +456,7 @@ TcpConnect_(char *hostname, u_short port, struct timeval *timeout)
     server.sin_family = AF_INET;
     if ((hp = (struct hostent *)getHostEntryByName_(hostname)) == NULL) {
 	lserrno = LSE_BAD_HOST;
-        return (-1);
+        return -1;
     }
 
     memcpy((char *) &server.sin_addr, (char *) hp->h_addr,(int) hp->h_length);
@@ -464,19 +464,19 @@ TcpConnect_(char *hostname, u_short port, struct timeval *timeout)
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0))<0) {
 	lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
     if (io_nonblock_(sock) < 0) {
 	lserrno = LSE_MISC_SYS;
         closesocket(sock);
-        return (-1);
+        return -1;
     }
 
     if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0
 	    && errno != EINPROGRESS) {
 	lserrno = LSE_CONN_SYS;
         closesocket(sock);
-        return (-1);
+        return -1;
     }
 
     for (i=0; i<2; i++) {
@@ -489,11 +489,11 @@ TcpConnect_(char *hostname, u_short port, struct timeval *timeout)
                 continue;
             lserrno = LSE_SELECT_SYS;
             closesocket(sock);
-            return (-1);
+            return -1;
         } else if (nwRdy == 0) {
             lserrno = LSE_TIME_OUT;
             closesocket(sock);
-            return (-1);
+            return -1;
         }
         break;
     }
@@ -517,23 +517,23 @@ getMsgBuffer_(int fd, int *bufferSize)
     if (rc < 0) {
 	lserrno = LSE_MSG_SYS;
 	xdr_destroy(&xdrs);
-	return (NULL);
+	return NULL;
     }
     xdr_destroy(&xdrs);
     *bufferSize = msgHdr.length;
     if (msgHdr.length) {
 	if ((msgBuffer = malloc(msgHdr.length)) == NULL ) {
 	    lserrno = LSE_MALLOC;
-	    return (NULL);
+	    return NULL;
         }
     } else {
 	lserrno = LSE_NO_ERR;
-	return (NULL);
+	return NULL;
     }
     if (b_read_fix(fd, msgBuffer, msgHdr.length) != msgHdr.length) {
 	lserrno = LSE_MSG_SYS;
 	free(msgBuffer);
-	return (NULL);
+	return NULL;
     }
     return msgBuffer;
 }

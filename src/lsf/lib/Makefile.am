@@ -5,12 +5,12 @@ include $(top_srcdir)/Make.common
 
 # Shared library (libtool). This will also produce a static .a unless you
 # configure with --disable-static.
-lib_LTLIBRARIES = liblsf.la
-liblsf_la_LDFLAGS = -version-info 0:0:0 -no-undefined
-liblsf_la_LIBADD  = $(TIRPC_LIB) # if liblsf itself needs tirpc
+lib_LTLIBRARIES = liblavalite.la
+liblavalite_la_LDFLAGS = -version-info 0:0:0 -no-undefined
+liblavalite_la_LIBADD  = $(TIRPC_LIB) # if liblavalite itself needs tirpc
 
 # List your real .c files here (no Tcl/yy). Examples shown:
-liblsf_la_SOURCES = liblsf.h \
+liblavalite_la_SOURCES = liblsf.h \
 	lib.channel.c \
 	lib.conf.c \
 	lib.confmisc.c \
@@ -58,8 +58,7 @@ liblsf_la_SOURCES = liblsf.h \
 	lib.table.c \
 	lib.term.c \
 	lib.tid.c \
-	lib.tty.c \
-	lib.utmp.c \
+	lib.tty.c \	lib.utmp.c \
 	lib.wconf.c \
 	lib.words.c \
 	lib.xdr.c \
@@ -74,4 +73,3 @@ liblsf_la_SOURCES = liblsf.h \
 # If the lib needs private headers generated elsewhere, add them here:
 # BUILT_SOURCES =
 # CLEANFILES   =
-

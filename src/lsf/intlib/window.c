@@ -19,7 +19,7 @@
 
 
 
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 
 #define NL_SETN      22
@@ -48,7 +48,7 @@ addWindow (
 		  _i18n_msg_get(ls_catd, NL_SETN, 5850,
 				"Bad time expression in %s"),/* catgets 5850 */
 		  context);
-        return(-1);
+        return -1;
     }
 
     *sp = '\0';
@@ -60,7 +60,7 @@ addWindow (
 		  _i18n_msg_get(ls_catd, NL_SETN, 5850,
 				"Bad time expression in %s"),
 		  context);
-        return(-1);
+        return -1;
     }
 
     word = wordpair;
@@ -70,7 +70,7 @@ addWindow (
 		  _i18n_msg_get(ls_catd, NL_SETN, 5850,
 				"Bad time expression in %s"),
 		  context);
-        return(-1);
+        return -1;
     }
 
 
@@ -79,7 +79,7 @@ addWindow (
 		  _i18n_msg_get(ls_catd, NL_SETN, 5851,
 				"Ambiguous time in %s"),/* catgets 5851 */
 		  context);
-        return(-1);
+        return -1;
     }
 
     if (oday == 0 && cday == 0 && ohour == chour) {
@@ -115,7 +115,7 @@ addWindow (
                       _i18n_msg_get(ls_catd, NL_SETN, 5851,
                                     "Ambiguous time in %s"),/* catgets 5851 */
                       context);
-            return(-1);
+            return -1;
         }
         else if (ohour==chour) {
             ohour = 25.0;
@@ -145,7 +145,7 @@ addWindow (
             insertW(&week[i], -1.0, 25.0);
         }
     }
-    return (0);
+    return 0;
 
 }
 
@@ -160,11 +160,11 @@ insertW (windows_t **window, float ohour, float chour)
 	    return;
         wp = *window;
     } else {
-	merged = FALSE;
+	merged = false;
 
 	for (wp = *window; ; wp = wp->nextwind) {
-            if (mergeW(wp, ohour, chour) == TRUE) {
-                merged = TRUE;
+            if (mergeW(wp, ohour, chour) == true) {
+                merged = true;
 	    }
 	    if (wp->nextwind == NULL) {
 		break;
@@ -201,31 +201,31 @@ mergeW (windows_t *wp, float ohour, float chour)
 {
 
     if ((wp->opentime == -1.0) && (wp->closetime == 25.0))
-        return (TRUE);
+        return true;
 
 
     if ((ohour == -1.0) && (chour == 25.0)) {
         wp->opentime = -1.0;
         wp->closetime = 25.0;
-        return TRUE;
+        return true;
     }
 
 
     if ((ohour == 25.0) && (chour == 25.0)) {
-        return TRUE;
+        return true;
     }
 
 
     if (ohour >= chour) {
 
-        return (TRUE);
+        return true;
     }
 
 
     if ((wp->opentime == 25.0) && (wp->closetime == 25.0)) {
         wp->opentime = ohour;
         wp->closetime = chour;
-        return (TRUE);
+        return true;
     }
 
 
@@ -241,10 +241,10 @@ mergeW (windows_t *wp, float ohour, float chour)
     if (!(wp->opentime > chour) && !(ohour > wp->closetime)) {
         wp->opentime = MIN(ohour, wp->opentime);
         wp->closetime = MAX(chour, wp->closetime);
-        return (TRUE);
+        return true;
     }
 
-    return (FALSE);
+    return false;
 }
 
 
@@ -261,7 +261,7 @@ checkWindow (struct dayhour *dayhour, char *active, time_t *wind_edge, windows_t
 
 
     if (dayhour->hour >= wp->opentime && dayhour->hour < wp->closetime) {
-        *active = TRUE;
+        *active = true;
         tmp_edge = now + (wp->closetime - dayhour->hour) * 3600;
         if (tmp_edge < *wind_edge)
             *wind_edge = tmp_edge;
@@ -328,10 +328,10 @@ parse_time (char *word, float *hour, int *day)
     sp = strrchr(word, ':');
     if (!sp) {
 	if (!isint_(word) || atoi (word) < 0)
-	    return (-1);
+	    return -1;
         *hour = atof(word);
 	if (*hour > 23)
-	    return (-1);
+	    return -1;
 
     }
     else {
@@ -339,38 +339,38 @@ parse_time (char *word, float *hour, int *day)
         sp++;
 
 	if (!isint_(sp) || atoi (sp) < 0)
-	    return (-1);
+	    return -1;
 
         min = atoi(sp);
 	if (min > 59)
-	    return (-1);
+	    return -1;
 
         sp = strrchr(word, ':');
         if (!sp) {
 	    if (!isint_(word) || atoi (word) < 0)
-		return (-1);
+		return -1;
 	    *hour = atof(word);
 	    if (*hour > 23)
-		return (-1);
+		return -1;
 	}
         else {
            *sp = '\0';
            sp++;
 	   if (!isint_(sp) || atoi (sp) < 0)
-	       return (-1);
+	       return -1;
 
            *hour = atof(sp);
 	   if (*hour > 23)
-	       return (-1);
+	       return -1;
 
 	   if (!isint_(word) || atoi (word) < 0)
-	       return (-1);
+	       return -1;
 
            *day  = atoi(word);
            if (*day == 0)
                *day = 7;
 	   if (*day < 1 || *day > 7)
-	       return (-1);
+	       return -1;
         }
     }
 

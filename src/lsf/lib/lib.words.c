@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 char *
@@ -42,11 +42,11 @@ getNextWord_(char **line)
     
     if (wordp == word)
 	
-	return(NULL);
+	return NULL;
     
     
     *wordp = '\0';
-    return(word);
+    return word;
 } 
 
 char *
@@ -67,11 +67,11 @@ getNextWord1_(char **line)
 
     if (wordp == word)
         
-        return(NULL);
+        return NULL;
 
     
     *wordp = '\0';
-    return(word);
+    return word;
 
 } 
      
@@ -102,11 +102,11 @@ getNextWordSet(char **line, const char *set)
 
     if (wordp == word)
         
-        return(NULL);
+        return NULL;
 
     
     *wordp = '\0';
-    return(word);
+    return word;
 
 } 
      
@@ -133,7 +133,7 @@ getNextValueQ_(char **line, char ch1, char ch2)
 	sp = getNextWord_(line);
         if (sp == NULL) {
 	    lserrno = LSE_CONF_SYNTAX;
-	    return (NULL);      
+	    return NULL;      
 	}
     } else
 	sp++;
@@ -151,7 +151,7 @@ getNextValueQ_(char **line, char ch1, char ch2)
 
     if (value == NULL) {
 	lserrno = LSE_MALLOC;
-	return (NULL);
+	return NULL;
     }
     strcpy(value, sp);
     sp = strchr(value, ch2);
@@ -197,7 +197,7 @@ stripQStr (char *q, char *str)
 
     for (; *q != '"' && *q != '\0'; q++); 
     if (*q == '\0')
-	return (-1);
+	return -1;
 
     for (q++; *q != '\0'; q++, str++) {
         if (*q == '"') {
@@ -212,7 +212,7 @@ stripQStr (char *q, char *str)
     }
 
     if (*q == '\0')
-        return (-1);
+        return -1;
     return (q-fr+1);
 } 
 
@@ -261,7 +261,7 @@ getNextLineD_(FILE *fp, int *LineCount, int confFormat)
     line = calloc(1, MAXLINELEN);
     if (line == NULL) {
         lserrno = LSE_MALLOC; 
-	return (NULL);
+	return NULL;
     }
 
     
@@ -340,10 +340,10 @@ getNextLineD_(FILE *fp, int *LineCount, int confFormat)
     if ((cin != EOF) || (oneChar == 1) || (cin == EOF && lpos > 0)) {
 	
 	line[++lpos] = '\0';
-	return(line);
+	return line;
     }
     
-    return(NULL);
+    return NULL;
 } 
 
 char *
@@ -361,7 +361,7 @@ getNextLineC_(FILE *fp, int *LineCount, int confFormat)
 
     for (sp=nextLine; *sp != '\0'; sp++)
 	if (*sp != ' ')
-	    return (nextLine);
+	    return nextLine;
 
     
     return (getNextLineC_(fp, LineCount, confFormat));

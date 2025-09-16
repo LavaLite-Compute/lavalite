@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 hTab rtask_table;
 hTab ltask_table;
@@ -31,9 +31,9 @@ ls_resreq(char *task)
     static char resreq[MAXLINELEN];
 
     if (!ls_eligible(task, resreq, LSF_LOCAL_MODE))
-        return(NULL);
+        return NULL;
     else
-        return(resreq);
+        return resreq;
 
 }
 
@@ -66,7 +66,7 @@ ls_eligible(char *task, char *resreqstr, char mode)
     if (  mode == LSF_REMOTE_MODE
           && h_getEnt_(&ltask_table, (char *) p) != NULL)
     {
-        return (false);
+        return false;
     }
 
     if ((mykey = h_getEnt_(&rtask_table, (char *)p)) != NULL) {
@@ -143,7 +143,7 @@ readtaskfile_(char *filename, hTab *minusListl, hTab *minusListr,
     if ((fp = fopen(filename,"r")) == NULL) {
 
         lserrno = LSE_FILE_SYS;
-        return (-1);
+        return -1;
     }
 
     while ((line = getNextLine_(fp, true)) != NULL) {
@@ -153,13 +153,13 @@ readtaskfile_(char *filename, hTab *minusListl, hTab *minusListr,
             if (strcasecmp(word, "begin") != 0) {
                 fclose(fp);
                 lserrno = LSE_BAD_TASKF;
-                return(-1);
+                return -1;
             }
             word = getNextWord_(&line);
             if (word == NULL) {
                 fclose(fp);
                 lserrno = LSE_BAD_TASKF;
-                return(-1);
+                return -1;
             }
             if (strcasecmp(word, "remotetasks") == 0)
                 phase = ph_remote;
@@ -168,7 +168,7 @@ readtaskfile_(char *filename, hTab *minusListl, hTab *minusListr,
             else {
                 fclose(fp);
                 lserrno = LSE_BAD_TASKF;
-                return(-1);
+                return -1;
             }
             break;
         case ph_remote:
@@ -254,11 +254,11 @@ readtaskfile_(char *filename, hTab *minusListl, hTab *minusListr,
     if (phase != ph_begin) {
         fclose(fp);
         lserrno = LSE_BAD_TASKF;
-        return(-1);
+        return -1;
     }
 
     fclose(fp);
-    return(0);
+    return 0;
 }
 
 int
@@ -272,7 +272,7 @@ writetaskfile_(char *filename, hTab *minusListl, hTab *minusListr,
     if ((fp = fopen(filename, "w")) == NULL) {
 
         lserrno = LSE_FILE_SYS;
-        return(-1);
+        return -1;
     }
 
     fprintf(fp, "Begin LocalTasks\n");
@@ -297,7 +297,7 @@ writetaskfile_(char *filename, hTab *minusListl, hTab *minusListr,
 
     fprintf(fp, "End RemoteTasks\n\n");
     fclose(fp);
-    return(0);
+    return 0;
 
 }
 
@@ -417,13 +417,13 @@ deletetask_(char *taskstr, hTab *tasktb)
     if (hEntPtr == (hEnt *)NULL) {
         lserrno = LSE_BAD_ARGS;
         free(task);
-        return (-1);
+        return -1;
     }
 
     h_delEnt_(tasktb, hEntPtr);
 
     free(task);
-    return(0);
+    return 0;
 
 }
 
@@ -502,7 +502,7 @@ listtask_(char ***taskList, hTab *tasktb, int sortflag)
     if ( sortflag && listindex != 0 )
         qsort(tlist, listindex, sizeof(char *), tcomp_);
     *taskList = tlist;
-    return (nEntry);
+    return nEntry;
 
 }
 

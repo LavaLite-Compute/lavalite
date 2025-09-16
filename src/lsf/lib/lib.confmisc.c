@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -106,7 +106,7 @@ getBeginLine(FILE *fp, int *LineNum)
     for (;;) {
         sp = getNextLineC_(fp, LineNum, true);
         if (! sp)
-            return (NULL);
+            return NULL;
 
         wp = getNextWord_(&sp);
         if (wp && (strcasecmp(wp, "begin") == 0))
@@ -312,7 +312,7 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
     if (isInlist (admins->adminNames, word, admins->nAdmins)) {
         ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5411,
                                              "%s: Duplicate user name <%s> %s; ignored"), fname, word, forWhat); /* catgets 5411 */
-        return (0);
+        return 0;
     }
     admins->adminIds[admins->nAdmins] = (pw == NULL) ? -1 : pw->pw_uid;
     admins->adminGIds[admins->nAdmins] = (pw == NULL) ? -1 : pw->pw_gid;
@@ -337,14 +337,14 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
             FREEUP (admins->adminNames);
             admins->nAdmins = 0;
             lserrno = LSE_MALLOC;
-            return (-1);
+            return -1;
         } else {
             admins->adminIds = tempIds;
             admins->adminGIds = tempGids;
             admins->adminNames = tempNames;
         }
     }
-    return (0);
+    return 0;
 }
 
 int
@@ -353,12 +353,12 @@ isInlist (char **adminNames, char *userName, int actAds)
     int i;
 
     if (actAds == 0)
-        return (false);
+        return false;
     for (i = 0; i < actAds; i++) {
         if (strcmp (adminNames[i], userName) == 0)
-            return (true);
+            return true;
     }
-    return (false);
+    return false;
 
 }
 
@@ -369,12 +369,12 @@ getBeginLine_conf(struct lsConf *conf, int *LineNum)
     char *wp;
 
     if (conf == NULL)
-        return (NULL);
+        return NULL;
 
     for (;;) {
         sp = getNextLineC_conf(conf, LineNum, true);
         if (sp == NULL)
-            return (NULL);
+            return NULL;
 
         wp = getNextWord_(&sp);
         if (wp && (strcasecmp(wp, "begin") == 0))

@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -82,7 +82,7 @@ connected_(char *hostName, int sock1, int sock2, int seqno)
         sp[2] = seqno;
 
     hEntPtr->hData = (int *) sp;
-    return (0);
+    return 0;
 
 }
 
@@ -176,7 +176,7 @@ _gethostdata_(char *hostName)
     if ((sp = (int *)hEntPtr->hData) == (int *)NULL) {
         return ((int *)NULL);
     }
-    return (sp);
+    return sp;
 }
 int
 _isconnected_(char *hostName, int *sock)
@@ -184,11 +184,11 @@ _isconnected_(char *hostName, int *sock)
     int *sp;
     sp = _gethostdata_(hostName);
     if (sp == NULL)
-        return (false);
+        return false;
 
     sock[0] = sp[0];
     sock[1] = sp[1];
-    return (true);
+    return true;
 
 }
 
@@ -199,7 +199,7 @@ _getcurseqno_(char *hostName)
 
     sp = _gethostdata_(hostName);
     if (sp == NULL)
-        return(-1);
+        return -1;
 
     return(sp[2]);
 }
@@ -225,14 +225,14 @@ ls_isconnected(char *hostName)
 
     officialName = getHostOfficialByName_(hostName);
     if (!officialName)
-        return (false);
+        return false;
 
     strcpy(official, officialName);
     hEntPtr = h_getEnt_(&conn_table, official);
     if (hEntPtr == (hEnt *)NULL)
-        return (false);
+        return false;
 
-    return (true);
+    return true;
 
 }
 
@@ -268,7 +268,7 @@ _findmyconnections_(struct connectEnt **connPtr)
 
     hEntPtr = h_firstEnt_(&conn_table,&hashSearchPtr);
     if (hEntPtr == (hEnt *)NULL) {
-        return (0);
+        return 0;
     }
 
     while (hEntPtr) {
@@ -280,7 +280,7 @@ _findmyconnections_(struct connectEnt **connPtr)
     }
 
     *connPtr = connlist;
-    return (n);
+    return n;
 
 }
 
@@ -300,6 +300,6 @@ ls_findmyconnections(void)
     }
     connnamelist[n] = NULL;
 
-    return (connnamelist);
+    return connnamelist;
 
 }

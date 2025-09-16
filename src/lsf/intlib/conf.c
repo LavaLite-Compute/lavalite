@@ -18,7 +18,7 @@
  */
 #include <pwd.h>
 #include <grp.h>
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 
 #define NL_SETN      22
@@ -45,35 +45,35 @@ keyMatch (struct keymap *keyList, char *line, int exact)
 
     while ((word = getNextWord_(&sp)) != NULL) {
 	i = 0;
-	found = FALSE;
+	found = false;
 	while (keyList[i].key != NULL) {
 	    if (strcasecmp(word, keyList[i].key) == 0) {
 		if (keyList[i].position != -1)
-		    return FALSE;
-		found = TRUE;
+		    return false;
+		found = true;
 		keyList[i].position = pos;
 		break;
 	    }
             i++;
 	}
 	if (! found)
-	    return FALSE;
+	    return false;
 
 	pos++;
     }
 
     if (! exact)
-	return TRUE;
+	return true;
 
 
     i = 0;
     while (keyList[i].key != NULL) {
 	if (keyList[i].position == -1)
-	    return FALSE;
+	    return false;
 	i++;
     }
 
-    return TRUE;
+    return true;
 }
 
 int
@@ -83,7 +83,7 @@ isSectionEnd(char *linep, char *lsfile, int *LineNum, char *sectionName)
 
     word = getNextWord_(&linep);
     if (strcasecmp(word, "end") != 0)
-        return FALSE;
+        return false;
 
     word = getNextWord_(&linep);
     if (! word ) {
@@ -91,7 +91,7 @@ isSectionEnd(char *linep, char *lsfile, int *LineNum, char *sectionName)
 		  _i18n_msg_get(ls_catd, NL_SETN, 5400,
 				"%s(%d): section %s ended without section name, ignored"),/* catgets 5400 */
 		  lsfile, *LineNum, sectionName);
-	return TRUE;
+	return true;
     }
 
     if (strcasecmp (word, sectionName) != 0)
@@ -100,7 +100,7 @@ isSectionEnd(char *linep, char *lsfile, int *LineNum, char *sectionName)
 				"%s(%d): section %s ended with wrong section name %s, ignored"),/* catgets 5401 */
 		  lsfile, *LineNum, sectionName, word);
 
-    return TRUE;
+    return true;
 
 }
 
@@ -111,9 +111,9 @@ getBeginLine(FILE *fp, int *LineNum)
     char *wp;
 
     for (;;) {
-        sp = getNextLineC_(fp, LineNum, TRUE);
+        sp = getNextLineC_(fp, LineNum, true);
         if (! sp)
-            return (NULL);
+            return NULL;
 
         wp = getNextWord_(&sp);
         if (wp && (strcasecmp(wp, "begin") == 0))
@@ -129,7 +129,7 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
     char *key;
     char *value;
     char *sp, *sp1;
-    char error = FALSE;
+    char error = false;
     static char fname[] = "readHvalues";
     int i=0;
 
@@ -173,7 +173,7 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
 	return -1;
     }
 
-    if ((linep = getNextLineC_(fp, LineNum, TRUE)) != NULL) {
+    if ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
 	if (isSectionEnd(linep, lsfile, LineNum, section)) {
 	    if (! exact)
 		return 0;
@@ -185,7 +185,7 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
 			      _i18n_msg_get(ls_catd, NL_SETN, 5405,
 					    "%s: %s(%d): required keyword %s is missing in section %s, ignoring the section"),/* catgets 5405  */
 			      fname, lsfile, *LineNum, keyList[i].key, section);
-		    error = TRUE;
+		    error = true;
 		}
                 i++;
 	    }
@@ -240,7 +240,7 @@ doSkipSection(FILE *fp, int *LineNum, char *lsfile, char *sectionName)
     char *word;
     char *cp;
 
-    while ((cp = getNextLineC_(fp, LineNum, TRUE)) != NULL) {
+    while ((cp = getNextLineC_(fp, LineNum, true)) != NULL) {
 	word = getNextWord_(&cp);
 	if (strcasecmp(word, "end") == 0) {
 	    word = getNextWord_(&cp);
@@ -285,7 +285,7 @@ mapValues(struct keymap *keyList, char *line)
 
     while ((value = getNextValue(&line)) != NULL) {
 	i=0;
-	found = FALSE;
+	found = false;
 	while (keyList[i].key != NULL) {
 	    if (keyList[i].position != pos) {
 	        i++;
@@ -295,7 +295,7 @@ mapValues(struct keymap *keyList, char *line)
                 keyList[i].val = putstr_("");
             else
 		keyList[i].val = putstr_(value);
-	    found = TRUE;
+	    found = true;
             break;
 	}
 	if (! found)
@@ -333,14 +333,14 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
     if (!(pw = getpwnam(word))) {
         ls_syslog(LOG_ERR, "%s: <%s> is not a valid user name; ignored",
 			__func__, word);
-        return (0);
+        return 0;
     }
     if (isInlist (admins->adminNames, pw->pw_name, admins->nAdmins)) {
         ls_syslog(LOG_WARNING,
 		  _i18n_msg_get(ls_catd, NL_SETN, 5411,
 				"%s: Duplicate user name <%s> %s; ignored"),/* catgets 5411  */
 		  fname, word, forWhat);
-        return (0);
+        return 0;
     }
     admins->adminIds[admins->nAdmins] = pw->pw_uid;
     admins->adminGIds[admins->nAdmins] = pw->pw_gid;
@@ -370,14 +370,14 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
             FREEUP (admins->adminNames);
             admins->nAdmins = 0;
             lserrno = LSE_MALLOC;
-            return (-1);
+            return -1;
         } else {
             admins->adminIds = tempIds;
             admins->adminGIds = tempGids;
             admins->adminNames = tempNames;
         }
     }
-    return (0);
+    return 0;
 }
 
 int
@@ -386,11 +386,11 @@ isInlist (char **adminNames, char *userName, int actAds)
     int i;
 
     if (actAds == 0)
-        return (FALSE);
+        return false;
     for (i = 0; i < actAds; i++) {
         if (strcmp (adminNames[i], userName) == 0)
-            return (TRUE);
+            return true;
     }
-    return (FALSE);
+    return false;
 
 }

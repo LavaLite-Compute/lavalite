@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 #define IO_TIMEOUT  2000
@@ -45,19 +45,19 @@ nb_write_fix(int s, char *buf, int len)
             if (errno == EPIPE)
                 lserrno = LSE_LOSTCON;
 
-            return (-1);
+            return -1;
         }
         if (len > 0)
         {
             gettimeofday(&now, &junk);
             if (US_DIFF(now, start) > IO_TIMEOUT * 1000) {
                 errno = ETIMEDOUT;
-                return(-1);
+                return -1;
             }
             millisleep_(IO_TIMEOUT / 20);
         }
     }
-    return (length);
+    return length;
 }
 
     int
@@ -80,7 +80,7 @@ nb_read_fix(int s, char *buf, int len)
         } else if (cc == 0 || BAD_IO_ERR(errno)) {
             if (cc == 0)
                 errno = ECONNRESET;
-            return (-1);
+            return -1;
         }
 
         if (len > 0)
@@ -88,13 +88,13 @@ nb_read_fix(int s, char *buf, int len)
             gettimeofday(&now, &junk);
             if (US_DIFF(now, start) > IO_TIMEOUT * 1000) {
                 errno = ETIMEDOUT;
-                return(-1);
+                return -1;
             }
             millisleep_(IO_TIMEOUT / 20);
         }
     }
 
-    return(length);
+    return length;
 }
 
 #define MAXLOOP 3000
@@ -121,15 +121,15 @@ b_read_fix(int s, char *buf, int len)
         } else if (cc == 0 || errno != EINTR) {
             if (cc == 0)
                 errno = ECONNRESET;
-            return (-1);
+            return -1;
         }
     }
 
     if (len > 0) {
-        return(-1);
+        return -1;
     }
 
-    return(length);
+    return length;
 }
 
     int
@@ -145,16 +145,16 @@ b_write_fix(int s, char *buf, int len)
             buf += cc;
         } else if (cc < 0 && errno != EINTR) {
             lserrno = LSE_SOCK_SYS;
-            return (-1);
+            return -1;
         }
     }
 
     if (len > 0) {
         lserrno = LSE_SOCK_SYS;
-        return (-1);
+        return -1;
     }
 
-    return (length);
+    return length;
 }
 
 void unblocksig(int sig)
@@ -228,7 +228,7 @@ rd_select_(int rd, struct timeval *timeout)
 
         if (errno == EINTR)
             continue;
-        return (-1);
+        return -1;
     }
 
 }
@@ -246,7 +246,7 @@ b_accept_(int s, struct sockaddr *addr, int *addrlen)
     sigprocmask(SIG_SETMASK, &oldMask, NULL);
 
 
-    return (cc);
+    return cc;
 
 }
 
@@ -265,12 +265,12 @@ detectTimeout_(int s, int recv_timeout)
     ready = rd_select_(s, timep);
     if (ready < 0) {
         lserrno = LSE_SELECT_SYS;
-        return (-1);
+        return -1;
     } else if (ready == 0) {
         lserrno = LSE_TIME_OUT;
-        return(-1);
+        return -1;
     }
-    return(0);
+    return 0;
 }
 
     static void
@@ -318,11 +318,11 @@ nb_read_timeout(int s, char *buf, int len, int timeout)
         nReady = rd_select_(s, &timeval);
         if (nReady < 0) {
             lserrno = LSE_SELECT_SYS;
-            return(-1);
+            return -1;
         } else if (nReady == 0) {
 
             lserrno = LSE_TIME_OUT;
-            return(-1);
+            return -1;
         } else {
             if ((cc = recv(s, buf, len, 0)) > 0) {
                 len -= cc;
@@ -330,13 +330,13 @@ nb_read_timeout(int s, char *buf, int len, int timeout)
             } else if (cc == 0 || BAD_IO_ERR(errno)) {
                 if (cc == 0)
                     errno = ECONNRESET;
-                return (-1);
+                return -1;
             }
             if (len == 0 )
                 break;
         }
     }
 
-    return (length);
+    return length;
 
 }

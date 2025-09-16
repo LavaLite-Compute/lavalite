@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -82,7 +82,7 @@ ls_placeofhosts(char *resreq, int *numhosts, int options, char *fromhost, char *
 
     if (!listsize || !hostlist) {      
         lserrno = LSE_BAD_ARGS;
-        return (NULL);
+        return NULL;
     }
    
     if (!numhosts)
@@ -105,7 +105,7 @@ ls_placeofhosts(char *resreq, int *numhosts, int options, char *fromhost, char *
 		calloc(placeReq.numPrefs,  sizeof (char *));
     if (placeReq.preferredHosts == NULL) {
 	lserrno = LSE_MALLOC;
-	return (NULL);
+	return NULL;
     }
 
     for (i=1;i<placeReq.numPrefs;i++) {
@@ -128,7 +128,7 @@ ls_placeofhosts(char *resreq, int *numhosts, int options, char *fromhost, char *
 	for (j=1; j<i; j++)
 	    free(placeReq.preferredHosts[j]);
 	free(placeReq.preferredHosts);
-	return (NULL);
+	return NULL;
     }
 
     return (placement_(resreq, &placeReq, fromhost, num));
@@ -144,7 +144,7 @@ placement_(char *resReq, struct decisionReq *placeReqPtr, char *fromhost, int *n
     char *hname;
     
     if (initenv_(NULL, NULL) < 0)
-	return (NULL);
+	return NULL;
 
     if(placeReqPtr->numHosts <= 0) {
         lserrno = LSE_BAD_ARGS;
@@ -186,7 +186,7 @@ placement_(char *resReq, struct decisionReq *placeReqPtr, char *fromhost, int *n
     hostnames = (char **) calloc (numnames , sizeof(char *));
     if (hostnames == NULL) {
 	lserrno = LSE_MALLOC;
-	return(NULL);
+	return NULL;
     }
  
     for (i=0, j=0; i < *numhosts; i++)
@@ -194,13 +194,13 @@ placement_(char *resReq, struct decisionReq *placeReqPtr, char *fromhost, int *n
 	     hostnames[j++] = placeReply.placeInfo[i].hostName;
 
     *numhosts = numnames;
-    return (hostnames);
+    return hostnames;
 
 error:
     for (i=0; i<placeReqPtr->numPrefs; i++)
 	FREEUP(placeReqPtr->preferredHosts[i]);
     FREEUP (placeReqPtr->preferredHosts);
-    return (NULL);
+    return NULL;
 
 } 
 

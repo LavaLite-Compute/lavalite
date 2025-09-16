@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 extern const char *getHostOfficialByName_ (const char *);
 
@@ -25,9 +25,9 @@ char *ls_getmnthost(char *file)
     struct stat statb;
 
     if (stat(file, &statb) < 0) {
-        return (NULL);
+        return NULL;
     }
 
-    return (NULL);
+    return NULL;
 
 }

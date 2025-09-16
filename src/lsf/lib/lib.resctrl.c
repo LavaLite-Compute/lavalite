@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -45,7 +45,7 @@ ls_rescontrol(char *host, int opCode, int data)
     if (_isconnected_(host, descriptor))
 	s = descriptor[0];
     else if ((s = ls_connect(host)) < 0)
-	return(-1);
+	return -1;
 
     if (!FD_ISSET(s,&connection_ok_)){
 	FD_SET(s,&connection_ok_);
@@ -56,13 +56,13 @@ ls_rescontrol(char *host, int opCode, int data)
 	    closesocket(s);
 	    _lostconnection_(host);
 	    lserrno =  LSE_TIME_OUT;
-	    return(-1);
+	    return -1;
 	}
 	
 	if (ackReturnCode_(s) < 0) {
 	    closesocket(s);
 	    _lostconnection_(host);
-	    return (-1);
+	    return -1;
         }
     }
 
@@ -71,7 +71,7 @@ ls_rescontrol(char *host, int opCode, int data)
 	&& opCode != RES_CMD_LOGON 
 	&& opCode != RES_CMD_LOGOFF) {
         lserrno = LSE_BAD_OPCODE;
-	return (-1);
+	return -1;
     }
 
     ctrl.opCode = opCode;
@@ -81,7 +81,7 @@ ls_rescontrol(char *host, int opCode, int data)
 		 sizeof(buf), xdr_resControl, 0, 0, NULL) == -1) {
 	closesocket(s);
 	_lostconnection_(host);
-	return( -1 );
+	return -1;
     }
 
     
@@ -90,16 +90,16 @@ ls_rescontrol(char *host, int opCode, int data)
 	closesocket(s);
 	_lostconnection_(host);
 	lserrno =  LSE_TIME_OUT;
-	return(-1);
+	return -1;
     }
     
     if (ackReturnCode_(s) < 0) {
 	closesocket(s);
 	_lostconnection_(host);
-	return( -1 );
+	return -1;
     }
 
-    return(0);
+    return 0;
 } 
 
 
@@ -118,14 +118,14 @@ oneResDebug (struct debugReq  *pdebug , char *hostname)
      if (_isconnected_(hostname, descriptor))
 	 s = descriptor[0];
      else if ((s = ls_connect(hostname)) < 0)
-	 return(-1);
+	 return -1;
 
       if (!FD_ISSET(s,&connection_ok_)){
 	  FD_SET(s,&connection_ok_);
 	  if (ackReturnCode_(s) < 0) {
 	      closesocket(s);
 	      _lostconnection_(hostname);
-	      return (-1);
+	      return -1;
             }
         }
 
@@ -140,16 +140,16 @@ oneResDebug (struct debugReq  *pdebug , char *hostname)
 			sizeof(buf), xdr_debugReq, 0, 0, NULL) == -1) {
            closesocket(s);
 	   _lostconnection_(hostname);
-	   return( -1 );
+	   return -1;
 	  }
 
 	if (ackReturnCode_(s) < 0) {
 	    closesocket(s);
 	    _lostconnection_(hostname);
-	    return( -1 );
+	    return -1;
 	 }
 
-    return(0);
+    return 0;
 } 
 
 

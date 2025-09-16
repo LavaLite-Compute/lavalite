@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef _INTLIB_LIST_H_INCLUDED
-#define _INTLIB_LIST_H_INCLUDED
+#ifndef _LLCORE_LIST_
+#define _LLCORE_LIST_
 
 typedef struct _listEntry          LIST_ENTRY_T;
 typedef struct _list               LIST_T;

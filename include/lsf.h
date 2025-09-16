@@ -19,8 +19,8 @@
 
 #ifndef _LSF_H_
 #define _LSF_H_
-#include <stdio.h>
 
+#include <stdio.h>
 #include <unistd.h>
 #include <syslog.h>
 #include <stdarg.h>
@@ -36,32 +36,13 @@ typedef long long int LS_LONG_INT;
 typedef unsigned long long LS_UNS_LONG_INT;
 #define LS_LONG_FORMAT ("%lld")
 
-#if defined(__STDC__)
-#ifdef REL_DATE
-#define _LS_VERSION_ ("Platform Lava 1.0, " REL_DATE "\nCopyright 2007 Platform Computing Corporation\n")
-#else
-#define _LS_VERSION_ ("Platform Lava 1.0, " __DATE__ "\nCopyright 2007 Platform Computing Corporation\n")
-#endif
-#else
-#if defined(__DATE__)
-#define _LS_VERSION_ ("Platform Lava 1.0, " __DATE__ "\nCopyright 2007 Platform Computing Corporation\n")
-#else
-#define _LS_VERSION_ ("Platform Lava 1.0 \nCopyright 2007 Platform Computing Corporation\n")
-#endif
-#endif
-
-#define LAVA_VERSION   1
-#define LSF_VERSION LAVA_VERSION
-#define LAVA_XDR_VERSION1_0          1
-
-#define LAVA_CURRENT_VERSION   "1.0"
-
-
+/* There is LAVALITE_VERSION defined in config.h
+ */
+#define _LAVALITE_VERSION_ ("LavaLite 0.1.0, " __DATE__ "\n")
 
 #define LSF_DEFAULT_SOCKS	15
 #define MAXLINELEN		512
 #define MAXLSFNAMELEN           40
-
 #define MAXSRES                 32
 #define MAXRESDESLEN            256
 #define NBUILTINDEX	        11
@@ -277,10 +258,6 @@ enum orderType {INCR, DECR, NA};
 #define RESF_EXTERNAL    0x10
 #define RESF_RELEASE     0x20
 #define RESF_DEFINED_IN_RESOURCEMAP  0x40
-
-/* Global message size
- */
-#define MSGSIZE 8192
 
 struct resItem {
     char name[MAXLSFNAMELEN];

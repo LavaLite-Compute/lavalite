@@ -1,7 +1,6 @@
 # LavaLite HPC Scheduler - Autoconf Setup
 # Copyright (C) LavaLite Contributors
 
-
 AC_INIT([LavaLite], [0.1.0], [https://github.com/LavaLiteProject/LavaLite/issues])
 AC_CONFIG_HEADERS([config.h])
 AC_PREFIX_DEFAULT([/opt/lavalite-0.1.0])
@@ -13,7 +12,11 @@ AC_USE_SYSTEM_EXTENSIONS
 
 dnl Project identity
 AC_DEFINE([_LAVALITE_PROJECT_], ["LavaLite HPC Scheduler"], [Project string])
-AC_DEFINE([LAVALITE_VERSION], [10], [Numeric LavaLite version])
+AC_DEFINE([LAVALITE_VERSION], [1], [Numeric LavaLite version])
+
+dnl Define the default host type supported by LavaLite but you can
+dnl add more in lsf.shared file.
+AC_DEFINE([HOST_TYPE_STRING], ["LINUX86"], [Define host type string])
 
 dnl Resolve Autoconf's lazy dir vars so SYSCONFDIR is a concrete path in config.h.
 dnl - If --prefix is not given, $prefix is "NONE" → use $ac_default_prefix.
@@ -86,5 +89,6 @@ AC_CONFIG_FILES([
   src/lsf/intlib/Makefile
   src/lsf/lib/Makefile
   src/lsf/lstools/Makefile
+  src/lsf/lim/Makefile
 ])
 AC_OUTPUT

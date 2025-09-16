@@ -18,7 +18,7 @@
  */
 
 #include "lsf.h"
-#include "lsf/lib/liblsf.h"
+#include "lib/lsf/liblavalite.h"
 
 struct interval {
     time_t begin;

@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 
@@ -107,14 +107,14 @@ errnoEncode_(int eno)
 
     for (i=0; i<NERRNO_MAP; i++) {
         if (errno_map[i] == eno) {
-            return (i);
+            return i;
         }
     }
 
     if (eno >= NERRNO_MAP)
-        return(eno);
+        return eno;
     else
-        return(0);
+        return 0;
 
 }
 
@@ -122,13 +122,13 @@ int
 errnoDecode_(int eno)
 {
     if (eno < 0)
-        return (eno);
+        return eno;
 
     if (eno >= NERRNO_MAP) {
         if (strerror(eno) != NULL)
-            return(eno);
+            return eno;
         else
-            return(0);
+            return 0;
     }
 
     return(errno_map[eno]);

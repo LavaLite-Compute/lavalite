@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblsf.h"
+#include "lsf/lib/liblavalite.h"
 
 
 #define LOAD_INFO_THRESHOLD 75         
@@ -40,14 +40,14 @@ namestofilter_(char **indxs)
 
     if (!len || len > MAXLINELEN) {
         lserrno = LSE_BAD_ARGS;
-        return(NULL);
+        return NULL;
     } 
     
     len += (i + 1);	
 
     if ( (filter = malloc(len)) == NULL) {
         lserrno = LSE_MALLOC;
-        return(NULL);
+        return NULL;
     }
 
     filter[0]='\0';
@@ -55,7 +55,7 @@ namestofilter_(char **indxs)
         strcat(filter, indxs[i]);
         strcat(filter, ":");
     }
-    return(filter);
+    return filter;
 
 } 
 
@@ -76,7 +76,7 @@ ls_loadinfo(char *resreq, int *numhosts, int options, char *fromhost, char **hos
 
     if (!indxnamelist) {
         lserrno = LSE_BAD_ARGS;
-        return(NULL);
+        return NULL;
     }
     if (hostlist && listsize)
         loadReq.ofWhat = OF_HOSTS;
@@ -109,7 +109,7 @@ ls_loadinfo(char *resreq, int *numhosts, int options, char *fromhost, char **hos
                   calloc(loadReq.numPrefs, sizeof (char *));
         if (loadReq.preferredHosts == NULL) {
             lserrno = LSE_MALLOC;
-            return (NULL);
+            return NULL;
         }
 
         for (i=1; i<loadReq.numPrefs; i++) {
@@ -139,7 +139,7 @@ ls_loadinfo(char *resreq, int *numhosts, int options, char *fromhost, char **hos
             for (j=1; j<i; j++)
                 free(loadReq.preferredHosts[j]);
             free(loadReq.preferredHosts);
-            return (NULL);
+            return NULL;
         }
 
         if (*num > listsize && (loadReq.options & EXACT) && !clusterinlist) {
@@ -147,7 +147,7 @@ ls_loadinfo(char *resreq, int *numhosts, int options, char *fromhost, char **hos
             for (j=1; j<i; j++)
                 free(loadReq.preferredHosts[j]);
             free(loadReq.preferredHosts);
-            return (NULL);
+            return NULL;
         }
 
         
@@ -163,7 +163,7 @@ ls_loadinfo(char *resreq, int *numhosts, int options, char *fromhost, char **hos
                   calloc(loadReq.numPrefs, sizeof (char *));
         if (loadReq.preferredHosts == NULL) {
             lserrno = LSE_MALLOC;
-            return (NULL);
+            return NULL;
         }        
     }
                                            
@@ -183,7 +183,7 @@ ls_loadinfo(char *resreq, int *numhosts, int options, char *fromhost, char **hos
            resreq = tempresreq;
         } else {
             lserrno = LSE_BAD_ARGS;
-            return(NULL);
+            return NULL;
         }
     } else if (indexfilter) {
         sprintf(tempresreq,"filter[%s]",indexfilter); 
@@ -277,7 +277,7 @@ error:
     for (i=0; i<loadReqPtr->numPrefs; i++) 
 	FREEUP(loadReqPtr->preferredHosts[i]);
     FREEUP (loadReqPtr->preferredHosts);
-    return (NULL);
+    return NULL;
 
 } 
 
@@ -312,9 +312,9 @@ ls_loadadj(char *resreq, struct placeInfo *placeinfo, int listsize)
 
     if (callLim_(LIM_LOAD_ADJ, &loadadjReq, xdr_jobXfer, NULL, NULL,
 	      NULL, _USE_TCP_, NULL) < 0)
-	return (-1);
+	return -1;
 
-    return (0);
+    return 0;
 
 } 
 

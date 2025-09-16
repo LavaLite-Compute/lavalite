@@ -22,7 +22,7 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #include <unistd.h>
-#include "lsf/intlib/intlib_internal.h"
+#include "lsf/intlib/libllcore.h"
 
 
 #ifdef BROKEN_WAIT3
@@ -39,10 +39,10 @@ wait3TmpFix_(LS_WAIT_T *status, int options, struct rusage *rusage)
 	(void) times(&oldtms);
 
     if ((pid = waitpid((pid_t) -1, status, options)) <= 0)
-	return (pid);
+	return pid;
 
     if (rusage == NULL)
-	return (pid);
+	return pid;
 
     (void) times(&newtms);
     s = (float) (newtms.tms_cutime - oldtms.tms_cutime) / (float) CLK_TCK;
@@ -56,7 +56,7 @@ wait3TmpFix_(LS_WAIT_T *status, int options, struct rusage *rusage)
 	1000000.0;
 
 
-    return (pid);
+    return pid;
 }
 
 #endif
