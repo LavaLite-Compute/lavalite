@@ -19,8 +19,8 @@
 #ifndef _LSFLIB_H_
 #define _LSFLIB_H_
 
-/* Private module umbrella: fine to include config.h here because it is NOT
- * installed.
+/* Private module umbrella: fine to include config.h installed by
+ * automake.
  */
 #include "config.h"
 
@@ -43,6 +43,8 @@
 #include <stdarg.h>
 #include <dirent.h>
 #include <stdbool.h>
+#include <math.h>
+#include <float.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <rpc/types.h>
@@ -113,4 +115,4 @@
 
 extern void Signal_(int, void (*f)(int));
 
-#endif /* _LSFLIB_H_ */
+#endif /* _LIB_H_ */

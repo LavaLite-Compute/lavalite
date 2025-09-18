@@ -1,5 +1,6 @@
-/* $Id: lsb.sig.h,v 1.5 2007/08/16 15:10:16 cchen Exp $
+/* $Id: lsb.sig.h,v 0.5 2007/08/16 15:10:16 cchen Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,10 +17,8 @@
  *
  */
 
-#ifndef LSB_SIG_H
-#define LSB_SIG_H
-
-#include "lsbatch.h"
+#ifndef _LSB_SIG_
+#define _LSB_SIG_
 
 #define SIG_NULL             -65535
 #define SIG_CHKPNT               -1

@@ -59,7 +59,6 @@ liblavalite_la_SOURCES = liblsf.h \
 	lib.term.c \
 	lib.tid.c \
 	lib.tty.c \	lib.utmp.c \
-	lib.wconf.c \
 	lib.words.c \
 	lib.xdr.c \
 	lib.xdrlim.c \
@@ -67,9 +66,7 @@ liblavalite_la_SOURCES = liblsf.h \
 	lib.xdrnio.c \
 	lib.xdrres.c \
 	lib.xdrrf.c \
+	lib.wconf.c \
 	usleep.c \
 	whathost.c
-#
-# If the lib needs private headers generated elsewhere, add them here:
-# BUILT_SOURCES =
-# CLEANFILES   =
+

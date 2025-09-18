@@ -17,35 +17,8 @@
  *
  */
 
-#ifndef DAEMONS_H
-#define DAEMONS_H
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <signal.h>
-
-#include <netinet/in.h>
-#include <sys/stat.h>
-#include <rpc/types.h>
-
-#include <pwd.h>
-
-#include "../../lsf/lib/lproto.h"
-#include "../../lsf/intlib/intlibout.h"
-#include "../../lsf/lib/lib.table.h"
-#include "../lsbatch.h"
-#include "../../config.h"
-
-#include "../../lsf/lib/lib.queue.h"
-#include "daemonout.h"
-
-#ifndef MIN
-#define MIN(x,y)        ((x) < (y) ? (x) : (y))
-#endif
-
-#ifndef MAX
-#define MAX(x,y)        ((x) > (y) ? (x) : (y))
-#endif
+#ifndef _DAEMONS_H
+#define _DAEMONS_H
 
 #define MIN_CPU_TIME 0.0001
 
@@ -110,8 +83,8 @@
 
 #define LSB_DEBUG         0
 #define LSB_CONFDIR       1
-#define LSF_SERVERDIR     2
-#define LSF_LOGDIR        3
+//#define LSF_SERVERDIR     2
+//#define LSF_LOGDIR        3
 #ifdef LSB_SHAREDIR
 #undef LSB_SHAREDIR
 #endif
@@ -129,8 +102,8 @@
 #endif
 #define LSB_MBD_PORT      8
 
-#define LSF_ID_PORT       9
-#define LSF_AUTH          10
+//#define LSF_ID_PORT       9
+//#define LSF_AUTH          10
 #define LSB_CRDIR         11
 #define LSF_USE_HOSTEQUIV 12
 #define LSF_ROOT_REX      13
@@ -143,7 +116,7 @@
 #define LSF_BINDIR        20
 #define LSB_MBD_CONNTIMEOUT 21
 #define LSB_SBD_CONNTIMEOUT 22
-#define LSF_CONFDIR         23
+//#define LSF_CONFDIR         23
 #define LSB_MBD_MAILREPLAY  24
 #define LSB_MBD_MIGTOPEND   25
 #define LSB_SBD_READTIMEOUT 26
@@ -170,7 +143,7 @@
 #define LSB_RENICE_NEVER_AT_RESTART 45
 
 
-#define LSF_MLS_LOG 	       46
+//#define LSF_MLS_LOG 	       46
 #define LSB_JOB_MEMLIMIT       47
 #define LSB_MOD_ALL_JOBS       48
 
@@ -595,6 +568,5 @@ extern void daemon_doinit(void);
 extern void scaleByFactor(int *, int *, float);
 extern int execNqsi (u_long, int, int, int *, char *, int, char *);
 extern void doDaemonHang(char *);
-
 
 #endif

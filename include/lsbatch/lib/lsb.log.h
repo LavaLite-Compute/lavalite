@@ -1,5 +1,6 @@
 /* $Id: lsb.log.h,v 1.4 2007/08/15 22:18:47 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -15,16 +16,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+// This code does not compile
+#ifndef _LSB_LOG_
+#define _LSB_LOG_
 
-#include <string.h>
-#include <stdlib.h>
-
-#include "lsb.h"
-
-#define MAXFILENAMELEN          256  
-#define MAXVERSIONLEN            12  
-#define MAXEVENTNAMELEN          12  
-
+#define MAXFILENAMELEN 256
+#define MAXVERSIONLEN 12
+#define MAXEVENTNAMELEN  12
 
 struct newJobLog {
     LS_LONG_INT jobId;
@@ -151,3 +149,4 @@ extern int putEventRec(FILE *, struct eventRec *);
 extern struct eventRec *getEventRec(char *);
 extern char *getNextValue0(char **line, char, char);
 
+#endif

@@ -73,8 +73,6 @@
 
 #define WARNING_ERR   EXIT_WARNING_ERROR
 
-#define MIN_FLOAT16  2.328306E-10
-
 /* Evaluate MAX or MIN ifdef it as they might be defined
  * in sys/params.h
  */

@@ -90,6 +90,7 @@ AC_CONFIG_FILES([
   src/lsf/lib/Makefile
   src/lsf/lstools/Makefile
   src/lsf/lim/Makefile
+  src/lsf/pim/Makefile
   src/lsf/man/Makefile
   src/lsbatch/Makefile
   src/lsbatch/lib/Makefile

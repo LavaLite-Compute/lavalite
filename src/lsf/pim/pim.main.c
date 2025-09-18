@@ -190,7 +190,7 @@ main(int argc, char **argv)
         if (sp != NULL)
             pimParams[LSF_LOGDIR].paramValue = sp;
         ls_openlog("pim", pimParams[LSF_LOGDIR].paramValue, (pim_debug == 2),
-                   pimParams[LSF_LOG_MASK].paramValue);
+                pimParams[LSF_LOG_MASK].paramValue);
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "initenv_", env_dir);
         ls_syslog(LOG_ERR, I18N_Exiting);
         exit(-1);
@@ -224,7 +224,7 @@ main(int argc, char **argv)
         ls_openlog("pim", pimParams[LSF_LOGDIR].paramValue, TRUE, "LOG_DEBUG");
     else
         ls_openlog("pim", pimParams[LSF_LOGDIR].paramValue, FALSE,
-                   pimParams[LSF_LOG_MASK].paramValue);
+                pimParams[LSF_LOG_MASK].paramValue);
 
     if (logclass & (LC_TRACE | LC_HANG))
         ls_syslog(LOG_DEBUG, "pim/main: logclass=%x", logclass);
@@ -234,8 +234,8 @@ main(int argc, char **argv)
     if (pimParams[LSF_PIM_SLEEPTIME].paramValue) {
         if ((sleepTime = atoi(pimParams[LSF_PIM_SLEEPTIME].paramValue)) < 0) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5001,
-                                             "LSF_PIM_SLEEPTIME value <%s> must be a positive integer, defaulting to %d"), /* catgets 5001 */
-                      pimParams[LSF_PIM_SLEEPTIME].paramValue, PIM_SLEEP_TIME);
+                        "LSF_PIM_SLEEPTIME value <%s> must be a positive integer, defaulting to %d"), /* catgets 5001 */
+                    pimParams[LSF_PIM_SLEEPTIME].paramValue, PIM_SLEEP_TIME);
             sleepTime = PIM_SLEEP_TIME;
         }
     }
@@ -243,7 +243,7 @@ main(int argc, char **argv)
     if ((myHost = ls_getmyhostname()) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_getmyhostname");
         ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5002,
-                                         "Using local host")); /* catgets 5002 */
+                    "Using local host")); /* catgets 5002 */
     }
 
     if (pimParams[LSF_PIM_INFODIR].paramValue) {
@@ -268,7 +268,7 @@ main(int argc, char **argv)
         nproc = strtol(pimParams[LSF_PIM_NPROC].paramValue, NULL, 10);
         if (nproc == 0 || errno != 0) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5003,
-                                             "pim/main: invalid value for LSF_PIM_NPROC defined: %s"), pimParams[LSF_PIM_NPROC].paramValue); /* catgets 5003 */
+                        "pim/main: invalid value for LSF_PIM_NPROC defined: %s"), pimParams[LSF_PIM_NPROC].paramValue); /* catgets 5003 */
             exit(-1);
         }
     } else {
@@ -280,12 +280,12 @@ main(int argc, char **argv)
     }
 
     if (pimParams[LSF_PIM_SLEEPTIME_UPDATE].paramValue != NULL
-        && strcasecmp(pimParams[LSF_PIM_SLEEPTIME_UPDATE].paramValue, "y") == 0) {
+            && strcasecmp(pimParams[LSF_PIM_SLEEPTIME_UPDATE].paramValue, "y") == 0) {
         sleepBeforeUpdateProcs = FALSE;
     }
 
     if (pimParams[LSF_PIM_CPUTIMECHECK].paramValue != NULL
-        && strcasecmp(pimParams[LSF_PIM_CPUTIMECHECK].paramValue, "y") == 0) {
+            && strcasecmp(pimParams[LSF_PIM_CPUTIMECHECK].paramValue, "y") == 0) {
         pimCpuTimeCheck = TRUE;
     }
 
@@ -383,7 +383,7 @@ doServ(void)
             int sock;
 
             if ((sock = b_accept_(asock, (struct sockaddr *) &sin, &len))
-                < 0) {
+                    < 0) {
                 ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "accept");
             } else {
                 int option;
@@ -393,9 +393,9 @@ doServ(void)
                 io_nonblock_(sock);
 
                 if ((cc = lsRecvMsg_(sock, (char *) &hdrBuf, sizeof(hdrBuf),
-                                     &hdr, NULL, NULL, nb_read_fix)) < 0) {
+                                &hdr, NULL, NULL, nb_read_fix)) < 0) {
                     ls_syslog(LOG_DEBUG,
-                              "%s: lsRecvMsg_() failed, cc=%d: %M", fname, cc);
+                            "%s: lsRecvMsg_() failed, cc=%d: %M", fname, cc);
                 } else {
 
                     int sleptTime = now - lastUpdateTime;
@@ -405,12 +405,12 @@ doServ(void)
 
                     if (logclass & LC_PIM)
                         ls_syslog(LOG_DEBUG, "%s: got opCode = %d", fname,
-                                  option);
+                                option);
 
                     if ((option & PIM_API_UPDATE_NOW) ||
-                        sleptTime >= sleepTime) {
+                            sleptTime >= sleepTime) {
                         if ((option & PIM_API_UPDATE_NOW)
-                            && sleepBeforeUpdateProcs == TRUE) {
+                                && sleepBeforeUpdateProcs == TRUE) {
 
                             int moreTime;
                             int breakTime = sleepTime/10;
@@ -427,8 +427,8 @@ doServ(void)
                             if(moreTime > 0) {
                                 if (logclass & LC_PIM)
                                     ls_syslog(LOG_DEBUG,
-                                              "%s: I need to sleep more = %d",
-                                              fname, moreTime);
+                                            "%s: I need to sleep more = %d",
+                                            fname, moreTime);
 
                                 sleep(moreTime);
                             }
@@ -436,8 +436,8 @@ doServ(void)
 
                         if (logclass & LC_PIM)
                             ls_syslog(LOG_DEBUG,
-                                      "%s: Got connection, updateProcs",
-                                      fname);
+                                    "%s: Got connection, updateProcs",
+                                    fname);
                         currentUpdateStartTime = time(0);
                         TIMEIT(0, updateProcs(lastUpdateStartTime), "updateProcs");
                         lastUpdateStartTime = currentUpdateStartTime;
@@ -449,8 +449,8 @@ doServ(void)
 
                     if ((cc = writeEncodeHdr_(sock, &hdr, nb_write_fix)) < 0)
                         ls_syslog(LOG_DEBUG,
-                                  "%s: writeEncodeHdr_ failed, cc=%d: %M",
-                                  fname, cc);
+                                "%s: writeEncodeHdr_ failed, cc=%d: %M",
+                                fname, cc);
                 }
 
                 close(sock);
@@ -469,7 +469,7 @@ doServ(void)
 
 
         if (now - lastUsedTime < USED_TIME ||
-            now - lastUpdateTime >= DEFAULT_UPDATE_PERIOD) {
+                now - lastUpdateTime >= DEFAULT_UPDATE_PERIOD) {
             if (logclass & LC_PIM)
                 ls_syslog(LOG_DEBUG, "%s: Timeout updating", fname);
 
@@ -534,7 +534,7 @@ logProcessInfo(void)
 
 
     pidLink = (struct pidLink *) malloc(nr_of_processes *
-                                        sizeof(struct pidLink));
+            sizeof(struct pidLink));
 
     if (pidLink == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
@@ -569,7 +569,7 @@ logProcessInfo(void)
     } else {
 
         ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd , NL_SETN, 5005,
-                                          "%s: pim info file <%s> is not a regular file, file untouched")), fname, workFN); /* catgets 5004 */
+                        "%s: pim info file <%s> is not a regular file, file untouched")), fname, workFN); /* catgets 5004 */
         ls_syslog(LOG_ERR, I18N_Exiting);
         exit(-1);
     }
@@ -692,7 +692,7 @@ newPGidList(int *npgids)
         if (j == *npgids) {
 
             if ((pg[*npgids].pid = (int *) malloc(NPIDS_SIZE * sizeof(int)))
-                == NULL) {
+                    == NULL) {
                 ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
                 ls_syslog(LOG_ERR, I18N_Exiting);
                 exit(-1);
@@ -708,8 +708,8 @@ newPGidList(int *npgids)
 
             if (pg[j].npids % NPIDS_SIZE == 0) {
                 if ((pg[j].pid = (int *) realloc((char *) pg[j].pid,
-                                                 (pg[j].npids + NPIDS_SIZE) *
-                                                 sizeof(int))) == NULL) {
+                                (pg[j].npids + NPIDS_SIZE) *
+                                sizeof(int))) == NULL) {
                     ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
                     ls_syslog(LOG_ERR, I18N_Exiting);
                     exit(-1);
@@ -755,35 +755,27 @@ replayDeadPids(void)
     int port;
     static char fname[] = "replayDeadPids";
     struct stat st;
-    time_t bootTime;
 
     if (stat(infoFN, &st) == -1) {
         ls_syslog(LOG_DEBUG, "%s: stat(%s) failed: %m, not doing replay",
-                  fname, infoFN);
-        return;
-    }
-
-    if (bootTime > st.st_mtime) {
-        ls_syslog(LOG_DEBUG,
-                  "%s: infoFN <%s> is older than boottime <%d>, not doing replay",
-                  fname, infoFN, (int) bootTime);
+                fname, infoFN);
         return;
     }
 
     if ((fp = fopen(infoFN, "r")) == NULL) {
         ls_syslog(LOG_DEBUG, "%s: fopen(%s) failed: %m, not doing replay",
-                  fname, infoFN);
+                fname, infoFN);
         return;
     }
 
     fscanf(fp, "%d", &port);
 
     while (fscanf(fp, "%d %d %d %d %d %d %d %d %d %d %d %d",
-                  &pinfo.pid, &pinfo.ppid, &pinfo.pgid, &pinfo.jobid,
-                  &pinfo.utime, &pinfo.stime, &pinfo.cutime,
-                  &pinfo.cstime, &pinfo.proc_size,
-                  &pinfo.resident_size, &pinfo.stack_size,
-                  (int *) &pinfo.status) != EOF) {
+                &pinfo.pid, &pinfo.ppid, &pinfo.pgid, &pinfo.jobid,
+                &pinfo.utime, &pinfo.stime, &pinfo.cutime,
+                &pinfo.cstime, &pinfo.proc_size,
+                &pinfo.resident_size, &pinfo.stack_size,
+                (int *) &pinfo.status) != EOF) {
         if (pinfo.pid == -1)
             newDeadPid(&pinfo);
     }
@@ -798,7 +790,7 @@ newDeadPid(struct lsPidInfo *pinfo)
 
     if (deadPid == NULL) {
         deadPid = (struct lsPidInfo *) malloc(NPIDS_SIZE *
-                                              sizeof(struct lsPidInfo));
+                sizeof(struct lsPidInfo));
         if (deadPid == NULL) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
             ls_syslog(LOG_ERR, I18N_Exiting);
@@ -807,7 +799,7 @@ newDeadPid(struct lsPidInfo *pinfo)
     } else {
         if (nDeadPids % NPIDS_SIZE == 0) {
             deadPid = (struct lsPidInfo *) realloc(deadPid,
-                                                   (nDeadPids + NPIDS_SIZE)*sizeof(struct lsPidInfo));
+                    (nDeadPids + NPIDS_SIZE)*sizeof(struct lsPidInfo));
             if (deadPid == NULL) {
                 ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
                 ls_syslog(LOG_ERR, I18N_Exiting);
@@ -818,7 +810,7 @@ newDeadPid(struct lsPidInfo *pinfo)
 
 
     memcpy((char *) &deadPid[nDeadPids], (char *) pinfo,
-           sizeof(struct lsPidInfo));
+            sizeof(struct lsPidInfo));
 
     nDeadPids++;
 }
@@ -841,7 +833,7 @@ newPGid(int inPGid)
     } else {
         if (nPGidList % NPGIDS_SIZE == 0) {
             pgidList = (struct lspgidEnt *) realloc(pgidList,
-                                                    (nPGidList + NPGIDS_SIZE)*sizeof(struct lspgidEnt));
+                    (nPGidList + NPGIDS_SIZE)*sizeof(struct lspgidEnt));
             if (pgidList == NULL) {
                 ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
                 ls_syslog(LOG_ERR, I18N_Exiting);
@@ -954,7 +946,7 @@ getChildren(int ppidIdx)
 
     if (logclass & LC_PIM)
         ls_syslog(LOG_DEBUG2, "%s: ppidIdx=%d pbase.pid=%d pbase.ppid=%d",
-                  fname, ppidIdx, pbase[ppidIdx].pid, pbase[ppidIdx].ppid);
+                fname, ppidIdx, pbase[ppidIdx].pid, pbase[ppidIdx].ppid);
 
     for (i = 0; i < nr_of_processes; i++) {
         if (i == ppidIdx)
@@ -963,8 +955,8 @@ getChildren(int ppidIdx)
         if (pbase[i].ppid == pbase[ppidIdx].pid) {
             if (logclass & LC_PIM)
                 ls_syslog(LOG_DEBUG2,
-                          "\ti=%d pid=%d maybe a child, sibling=%d",
-                          i, pbase[i].pid, pidLink[i].sibling);
+                        "\ti=%d pid=%d maybe a child, sibling=%d",
+                        i, pbase[i].pid, pidLink[i].sibling);
 
             if (pidLink[i].sibling == -2) {
 
@@ -991,8 +983,8 @@ sortIt(int pIdx)
 
     if (logclass & LC_PIM)
         ls_syslog(LOG_DEBUG2,
-                  "sortIt: sortedIdx %d pIdx = %d pid %d sorted %d",
-                  sortedIdx, pIdx, pbase[pIdx].pid, pidLink[pIdx].sorted);
+                "sortIt: sortedIdx %d pIdx = %d pid %d sorted %d",
+                sortedIdx, pIdx, pbase[pIdx].pid, pidLink[pIdx].sorted);
 
 
     if (pidLink[pIdx].sorted)
@@ -1059,11 +1051,11 @@ cpuTimeCheck(const time_t lastUpdate)
             int j = (int)ent->hData;
 
             if (((pbase[i].utime + pbase[i].stime)
-                 - (old_pbase[j].utime + old_pbase[j].stime)) > 2*clockTime) {
+                        - (old_pbase[j].utime + old_pbase[j].stime)) > 2*clockTime) {
                 if (logclass & LC_PIM)
                     ls_syslog(LOG_DEBUG, "%s: pid <%d> utime <%d> stime <%d>, old_utime <%d> old_stime <%d>, clockTime <%d>",
-                              fname, pbase[i].pid, pbase[i].utime, pbase[i].stime,
-                              old_pbase[j].utime, old_pbase[j].stime, clockTime);
+                            fname, pbase[i].pid, pbase[i].utime, pbase[i].stime,
+                            old_pbase[j].utime, old_pbase[j].stime, clockTime);
                 pbase[i].utime = old_pbase[j].utime + clockTime/2;
                 pbase[i].stime = old_pbase[j].stime + clockTime/2;
             }
@@ -1071,7 +1063,7 @@ cpuTimeCheck(const time_t lastUpdate)
             if ((pbase[i].utime + pbase[i].stime) > 2*clockTime) {
                 if (logclass & LC_PIM)
                     ls_syslog(LOG_DEBUG, "%s: new pid <%d> utime <%d> stime <%d>, clockTime <%d>",
-                              fname, pbase[i].pid, pbase[i].utime, pbase[i].stime, clockTime);
+                            fname, pbase[i].pid, pbase[i].utime, pbase[i].stime, clockTime);
                 pbase[i].utime = clockTime/2;
                 pbase[i].stime = clockTime/2;
             }

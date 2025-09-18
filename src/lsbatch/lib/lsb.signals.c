@@ -1,5 +1,6 @@
 /* $Id: lsb.signals.c,v 1.5 2007/08/22 19:39:38 cchen Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as

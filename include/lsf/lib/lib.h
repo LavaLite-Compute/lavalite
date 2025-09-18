@@ -214,25 +214,12 @@ struct lsRequest {
     int seqno;
     int connfd;
     int rc;
-
     int completed;
-
-
-
-
     void *extra;
-
-
-
     void *replyBuf;
     int replyBufLen;
-
-
     requestCompletionHandler replyHandler;
-
-
     appCompletionHandler appHandler;
-
     void *appExtra;
 };
 
@@ -344,4 +331,3 @@ extern void ls_errlog(FILE *fd, const char *fmt, ...)
 extern void ls_verrlog(FILE *fd, const char *fmt, va_list ap);
 
 extern int isPamBlockWait ;
-

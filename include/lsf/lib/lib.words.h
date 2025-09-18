@@ -18,22 +18,4 @@
 #ifndef LIB_WORDS_H
 #define LIB_WORDS_H
 
-#define NODE_LEFT_DONE  1
-#define NODE_ALL_DONE   2
-#define NODE_PASED      3
-
-#define PUSH_STACK(s, n) \
-    {if (pushStack(s, n) < 0) {goto Error;}}
-
-static struct pStack *blockStack;
-static struct pStack *ptrStack;
-
-static struct confNode *newNode(void);
-static void freeNode(struct confNode *);
-static char linkNode(struct confNode *, struct confNode *);
-static char *readNextLine(struct lsConf *, int *);
-
-static char addCond(struct lsConf *, char *);
-static char checkCond(struct lsConf *, char *);
-
 #endif

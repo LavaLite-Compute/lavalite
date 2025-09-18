@@ -90,6 +90,7 @@ struct chanData {
 #define chanRecv_  chanDequeue_
 
 extern int chanInit_(void);
+extern int chanConnect_(int, struct sockaddr_in *, int, int);
 extern int chanOpen_(u_int, u_short, int);
 extern int chanEnqueue_(int chfd, struct Buffer *buf);
 extern int chanDequeue_(int chfd, struct Buffer **buf);
@@ -114,7 +115,7 @@ extern int chanAllocBuf_(struct Buffer **buf, int size);
 extern int chanFreeBuf_(struct Buffer *buf);
 extern int chanFreeStashedBuf_(struct Buffer *buf);
 extern int chanOpenSock_(int , int);
-int chanSetMode_(int, int);
+extern int chanSetMode_(int, int);
 
 extern int chanIndex;
 extern int cherrno;

@@ -41,7 +41,7 @@ int lsf_lim_version = -1;
 
 int
 callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
-         void *drecv, bool_t (*xdr_rfunc)(), char *host, int options, struct LSFHeader *hdr)
+        void *drecv, bool_t (*xdr_rfunc)(), char *host, int options, struct LSFHeader *hdr)
 {
     struct LSFHeader reqHdr;
     struct LSFHeader replyHdr;
@@ -53,6 +53,7 @@ callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
     static char first = true;
     int reqLen;
 
+    repBuf = NULL;
     masterLimDown = false;
     if (first) {
 
@@ -93,7 +94,7 @@ callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
             return -1;
         if (replyHdr.length != 0)
             xdrmem_create(&xdrs, repBuf, XDR_DECODE_SIZE_(replyHdr.length),
-                          XDR_DECODE);
+                    XDR_DECODE);
         else
             xdrmem_create(&xdrs, rbuf, MAXMSGLEN, XDR_DECODE);
     } else {
@@ -117,36 +118,36 @@ callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
     lsf_lim_version = (int)replyHdr.version;
 
     switch (limReplyCode) {
-    case LIME_NO_ERR:
-        if (drecv != NULL) {
-            if (! (*xdr_rfunc) (&xdrs, drecv, &replyHdr)) {
-                xdr_destroy(&xdrs);
-                if (options & _USE_TCP_)
-                    FREEUP(repBuf);
-                lserrno = LSE_BAD_XDR;
-                return -1;
+        case LIME_NO_ERR:
+            if (drecv != NULL) {
+                if (! (*xdr_rfunc) (&xdrs, drecv, &replyHdr)) {
+                    xdr_destroy(&xdrs);
+                    if (options & _USE_TCP_)
+                        FREEUP(repBuf);
+                    lserrno = LSE_BAD_XDR;
+                    return -1;
+                }
             }
-        }
-        xdr_destroy(&xdrs);
-        if (options & _USE_TCP_)
-            FREEUP(repBuf);
-        if (hdr != NULL)
-            *hdr = replyHdr;
-        return 0;
+            xdr_destroy(&xdrs);
+            if (options & _USE_TCP_)
+                FREEUP(repBuf);
+            if (hdr != NULL)
+                *hdr = replyHdr;
+            return 0;
 
-    default:
-        xdr_destroy(&xdrs);
-        if (options & _USE_TCP_)
-            FREEUP(repBuf);
-        err_return_(limReplyCode);
-        return -1;
+        default:
+            xdr_destroy(&xdrs);
+            if (options & _USE_TCP_)
+                FREEUP(repBuf);
+            err_return_(limReplyCode);
+            return -1;
     }
 
 }
 
 static int
 callLimTcp_(char *reqbuf, char **rep_buf, int req_size,
-            struct LSFHeader *replyHdr, int options)
+        struct LSFHeader *replyHdr, int options)
 {
     static char fname[]="callLimTcp_";
     char retried = false;
@@ -173,8 +174,8 @@ contact:
         cc=chanConnect_(limchans_[TCP], &sockIds_[TCP], conntimeout_ * 1000, 0);
         if (cc < 0) {
             ls_syslog(LOG_DEBUG,"\
-%s: failed in connecting to limChans_[TCP]=<%d> <%s>",
-                      fname, limchans_[TCP], sockAdd2Str_(&sockIds_[TCP]));
+                    %s: failed in connecting to limChans_[TCP]=<%d> <%s>",
+                    fname, limchans_[TCP], sockAdd2Str_(&sockIds_[TCP]));
             if (errno == ECONNREFUSED || errno == ENETUNREACH) {
                 if (errno == ECONNREFUSED) {
                     lserrno = LSE_LIM_DOWN;
@@ -211,61 +212,61 @@ contact:
     *rep_buf = rcvbuf.data;
 
     switch (replyHdr->opCode) {
-    case LIME_MASTER_UNKNW:
-        lserrno = LSE_MASTR_UNKNW;
-        FREEUP(*rep_buf);
-        CLOSECD(limchans_[TCP]);
-        return -1;
-    case LIME_WRONG_MASTER:
-        xdrmem_create(&xdrs, *rep_buf, MSGSIZE, XDR_DECODE);
-        if (!xdr_masterInfo(&xdrs, &masterInfo_, replyHdr)) {
-            lserrno = LSE_BAD_XDR;
-            xdr_destroy(&xdrs);
+        case LIME_MASTER_UNKNW:
+            lserrno = LSE_MASTR_UNKNW;
             FREEUP(*rep_buf);
             CLOSECD(limchans_[TCP]);
             return -1;
-        }
-
-        xdr_destroy(&xdrs);
-
-        if (masterInfo_.addr == 0 ||
-            !memcmp((char *) &masterInfo_.addr,
-                    (char *) &sockIds_[MASTER].sin_addr,
-                    sizeof(u_int))) {
-            if (!memcpy((char *) &masterInfo_.addr,
-                        (char *) &sockIds_[MASTER].sin_addr,
-                        sizeof(u_int)))
-                lserrno = LSE_TIME_OUT;
-            else
-                lserrno = LSE_MASTR_UNKNW;
-            FREEUP(*rep_buf);
-            CLOSECD(limchans_[TCP]);
-            return -1;
-        }
-        masterknown_ = true;
-        memcpy((char *) &sockIds_[MASTER].sin_addr,
-               (char *) &masterInfo_.addr, sizeof(u_int));
-        memcpy((char *) &sockIds_[TCP].sin_addr,
-               (char *) &masterInfo_.addr, sizeof(u_int));
-        sockIds_[TCP].sin_port        = masterInfo_.portno;
-        FREEUP(*rep_buf);
-
-        CLOSECD(limchans_[TCP]);
-        CLOSECD(limchans_[MASTER]);
-        if (!retried) {
-            retried = true;
-            goto contact;
-        } else {
-            lserrno = LSE_LIM_DOWN;
-
-            if (!getIsMasterCandidate_()) {
-                masterLimDown = true;
+        case LIME_WRONG_MASTER:
+            xdrmem_create(&xdrs, *rep_buf, MSGSIZE, XDR_DECODE);
+            if (!xdr_masterInfo(&xdrs, &masterInfo_, replyHdr)) {
+                lserrno = LSE_BAD_XDR;
+                xdr_destroy(&xdrs);
+                FREEUP(*rep_buf);
+                CLOSECD(limchans_[TCP]);
+                return -1;
             }
-            return -1;
-        }
 
-    default:
-        break;
+            xdr_destroy(&xdrs);
+
+            if (masterInfo_.addr == 0 ||
+                    !memcmp((char *) &masterInfo_.addr,
+                        (char *) &sockIds_[MASTER].sin_addr,
+                        sizeof(u_int))) {
+                if (!memcpy((char *) &masterInfo_.addr,
+                            (char *) &sockIds_[MASTER].sin_addr,
+                            sizeof(u_int)))
+                    lserrno = LSE_TIME_OUT;
+                else
+                    lserrno = LSE_MASTR_UNKNW;
+                FREEUP(*rep_buf);
+                CLOSECD(limchans_[TCP]);
+                return -1;
+            }
+            masterknown_ = true;
+            memcpy((char *) &sockIds_[MASTER].sin_addr,
+                    (char *) &masterInfo_.addr, sizeof(u_int));
+            memcpy((char *) &sockIds_[TCP].sin_addr,
+                    (char *) &masterInfo_.addr, sizeof(u_int));
+            sockIds_[TCP].sin_port        = masterInfo_.portno;
+            FREEUP(*rep_buf);
+
+            CLOSECD(limchans_[TCP]);
+            CLOSECD(limchans_[MASTER]);
+            if (!retried) {
+                retried = true;
+                goto contact;
+            } else {
+                lserrno = LSE_LIM_DOWN;
+
+                if (!getIsMasterCandidate_()) {
+                    masterLimDown = true;
+                }
+                return -1;
+            }
+
+        default:
+            break;
     }
 
     if (!(options & _KEEP_CONNECT_)) {
@@ -277,7 +278,7 @@ contact:
 
 static int
 callLimUdp_(char *reqbuf, char *repbuf, int len, struct LSFHeader *reqHdr,
-            char *host, int options)
+        char *host, int options)
 {
     struct hostent *hp;
     int retried = 0;
@@ -302,7 +303,7 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct LSFHeader *reqHdr,
         if (options & _USE_PRIMARY_) {
             id = PRIMARY;
             if (memcmp((char *)&sockIds_[PRIMARY].sin_addr,
-                       hp->h_addr, hp->h_length))
+                        hp->h_addr, hp->h_length))
                 CLOSECD(limchans_[PRIMARY]);
 
         } else {
@@ -321,11 +322,11 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct LSFHeader *reqHdr,
             timeout.tv_usec= 20000;
 
             if (callLimUdp_(reqbuf, repbuf, len, reqHdr, ls_getmyhostname(),
-                            options|_NON_BLOCK_) < 0)
+                        options|_NON_BLOCK_) < 0)
                 return -1;
 
             multicasting = true;
-        checkMultiCast:
+checkMultiCast:
             do {
                 timeout.tv_sec = 0;
                 timeout.tv_usec= 20000;
@@ -334,7 +335,7 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct LSFHeader *reqHdr,
                 host  = getNextWord_(&sp);
                 if (host) {
                     if (callLimUdp_(reqbuf, repbuf, len, reqHdr, host,
-                                    options|_NON_BLOCK_) < 0){
+                                options|_NON_BLOCK_) < 0){
                         continue;
                     }
                 }
@@ -347,24 +348,24 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct LSFHeader *reqHdr,
 
 contact:
     switch (id) {
-    case PRIMARY:
-    case MASTER:
-        if (limchans_[id] < 0) {
-            if ((limchans_[id] = createLimSock_(NULL)) < 0)
-                return -1;
+        case PRIMARY:
+        case MASTER:
+            if (limchans_[id] < 0) {
+                if ((limchans_[id] = createLimSock_(NULL)) < 0)
+                    return -1;
 
-        }
-        connected = false;
-        break;
-    case UNBOUND:
-        if (limchans_[id] < 0) {
-            if ((limchans_[id] = createLimSock_((struct sockaddr_in*)NULL)) < 0)
-                return -1;
-        }
-        connected = false;
-        break;
-    default:
-        break;
+            }
+            connected = false;
+            break;
+        case UNBOUND:
+            if (limchans_[id] < 0) {
+                if ((limchans_[id] = createLimSock_((struct sockaddr_in*)NULL)) < 0)
+                    return -1;
+            }
+            connected = false;
+            break;
+        default:
+            break;
     }
 
 
@@ -422,48 +423,48 @@ check:
 
     limReplyCode = replyHdr.opCode;
     switch (limReplyCode) {
-    case LIME_MASTER_UNKNW:
-        lserrno = LSE_MASTR_UNKNW;
-        xdr_destroy(&xdrs);
-        return -1;
-
-    case LIME_WRONG_MASTER:
-        if (!xdr_masterInfo(&xdrs, &masterInfo_, &replyHdr)) {
-            lserrno = LSE_BAD_XDR;
+        case LIME_MASTER_UNKNW:
+            lserrno = LSE_MASTR_UNKNW;
             xdr_destroy(&xdrs);
             return -1;
-        }
-        masterLimAddr = masterInfo_.addr;
 
-        if (masterLimAddr == 0 ||
-            ((previousMasterLimAddr == masterLimAddr) && limchans_[MASTER] >= 0)
-            ) {
-            if (previousMasterLimAddr == masterLimAddr)
-                lserrno = LSE_TIME_OUT;
-            else
-                lserrno = LSE_MASTR_UNKNW;
+        case LIME_WRONG_MASTER:
+            if (!xdr_masterInfo(&xdrs, &masterInfo_, &replyHdr)) {
+                lserrno = LSE_BAD_XDR;
+                xdr_destroy(&xdrs);
+                return -1;
+            }
+            masterLimAddr = masterInfo_.addr;
+
+            if (masterLimAddr == 0 ||
+                    ((previousMasterLimAddr == masterLimAddr) && limchans_[MASTER] >= 0)
+               ) {
+                if (previousMasterLimAddr == masterLimAddr)
+                    lserrno = LSE_TIME_OUT;
+                else
+                    lserrno = LSE_MASTR_UNKNW;
+                xdr_destroy(&xdrs);
+                return -1;
+            }
+            previousMasterLimAddr = masterLimAddr;
+
+            memcpy((char *) &sockIds_[MASTER].sin_addr, (char *)&masterLimAddr,
+                    sizeof(u_int));
+            memcpy((char *) &sockIds_[TCP].sin_addr, (char *)&masterLimAddr,
+                    sizeof(u_int));
+            sockIds_[TCP].sin_port = masterInfo_.portno;
+
+            id = MASTER;
             xdr_destroy(&xdrs);
-            return -1;
-        }
-        previousMasterLimAddr = masterLimAddr;
 
-        memcpy((char *) &sockIds_[MASTER].sin_addr, (char *)&masterLimAddr,
-               sizeof(u_int));
-        memcpy((char *) &sockIds_[TCP].sin_addr, (char *)&masterLimAddr,
-               sizeof(u_int));
-        sockIds_[TCP].sin_port = masterInfo_.portno;
+            CLOSECD(limchans_[MASTER]);
+            CLOSECD(limchans_[TCP]);
+            goto contact;
 
-        id = MASTER;
-        xdr_destroy(&xdrs);
-
-        CLOSECD(limchans_[MASTER]);
-        CLOSECD(limchans_[TCP]);
-        goto contact;
-
-    case LIME_NO_ERR:
-    default:
-        xdr_destroy(&xdrs);
-        break;
+        case LIME_NO_ERR:
+        default:
+            xdr_destroy(&xdrs);
+            break;
     }
 
     return 0;
@@ -558,74 +559,74 @@ void
 err_return_(enum limReplyCode limReplyCode)
 {
     switch (limReplyCode) {
-    case LIME_BAD_RESREQ:
-        lserrno = LSE_BAD_EXP;
-        return;
-    case LIME_NO_OKHOST:
-        lserrno = LSE_NO_HOST;
-        return;
-    case LIME_NO_ELHOST:
-        lserrno = LSE_NO_ELHOST;
-        return;
-    case LIME_BAD_DATA:
-        lserrno = LSE_BAD_ARGS;
-        return;
-    case LIME_WRONG_MASTER:
-        lserrno = LSE_MASTR_UNKNW;
-        return;
-    case LIME_MASTER_UNKNW:
-        lserrno = LSE_MASTR_UNKNW;
-        return;
-    case LIME_IGNORED:
-        lserrno = LSE_LIM_IGNORE;
-        return;
-    case LIME_DENIED:
-        lserrno = LSE_LIM_DENIED;
-        return;
-    case LIME_UNKWN_HOST:
-        lserrno = LSE_LIM_BADHOST;
-        return;
-    case LIME_LOCKED_AL:
-        lserrno = LSE_LIM_ALOCKED;
-        return;
-    case LIME_NOT_LOCKED:
-        lserrno = LSE_LIM_NLOCKED;
-        return;
-    case LIME_UNKWN_MODEL:
-        lserrno = LSE_LIM_BADMOD;
-        return;
-    case LIME_BAD_SERVID:
-        lserrno = LSE_BAD_SERVID;
-        return;
-    case LIME_NAUTH_HOST:
-        lserrno = LSE_NLSF_HOST;
-        return;
-    case LIME_UNKWN_RNAME:
-        lserrno = LSE_UNKWN_RESNAME;
-        return;
-    case LIME_UNKWN_RVAL:
-        lserrno = LSE_UNKWN_RESVALUE;
-        return;
-    case LIME_BAD_FILTER:
-        lserrno = LSE_BAD_NAMELIST;
-        return;
-    case LIME_NO_MEM:
-        lserrno = LSE_LIM_NOMEM;
-        return;
-    case LIME_BAD_REQ_CODE:
-        lserrno = LSE_PROTOC_LIM;
-        return;
-    case LIME_BAD_RESOURCE:
-        lserrno = LSE_BAD_RESOURCE;
-        return;
-    case LIME_NO_RESOURCE:
-        lserrno = LSE_NO_RESOURCE;
-        return;
-    case LIME_CONF_NOTREADY:
-        lserrno = LSE_LIMCONF_NOTREADY;
-        return;
-    default:
-        lserrno = limReplyCode + NOCODE;
-        return;
+        case LIME_BAD_RESREQ:
+            lserrno = LSE_BAD_EXP;
+            return;
+        case LIME_NO_OKHOST:
+            lserrno = LSE_NO_HOST;
+            return;
+        case LIME_NO_ELHOST:
+            lserrno = LSE_NO_ELHOST;
+            return;
+        case LIME_BAD_DATA:
+            lserrno = LSE_BAD_ARGS;
+            return;
+        case LIME_WRONG_MASTER:
+            lserrno = LSE_MASTR_UNKNW;
+            return;
+        case LIME_MASTER_UNKNW:
+            lserrno = LSE_MASTR_UNKNW;
+            return;
+        case LIME_IGNORED:
+            lserrno = LSE_LIM_IGNORE;
+            return;
+        case LIME_DENIED:
+            lserrno = LSE_LIM_DENIED;
+            return;
+        case LIME_UNKWN_HOST:
+            lserrno = LSE_LIM_BADHOST;
+            return;
+        case LIME_LOCKED_AL:
+            lserrno = LSE_LIM_ALOCKED;
+            return;
+        case LIME_NOT_LOCKED:
+            lserrno = LSE_LIM_NLOCKED;
+            return;
+        case LIME_UNKWN_MODEL:
+            lserrno = LSE_LIM_BADMOD;
+            return;
+        case LIME_BAD_SERVID:
+            lserrno = LSE_BAD_SERVID;
+            return;
+        case LIME_NAUTH_HOST:
+            lserrno = LSE_NLSF_HOST;
+            return;
+        case LIME_UNKWN_RNAME:
+            lserrno = LSE_UNKWN_RESNAME;
+            return;
+        case LIME_UNKWN_RVAL:
+            lserrno = LSE_UNKWN_RESVALUE;
+            return;
+        case LIME_BAD_FILTER:
+            lserrno = LSE_BAD_NAMELIST;
+            return;
+        case LIME_NO_MEM:
+            lserrno = LSE_LIM_NOMEM;
+            return;
+        case LIME_BAD_REQ_CODE:
+            lserrno = LSE_PROTOC_LIM;
+            return;
+        case LIME_BAD_RESOURCE:
+            lserrno = LSE_BAD_RESOURCE;
+            return;
+        case LIME_NO_RESOURCE:
+            lserrno = LSE_NO_RESOURCE;
+            return;
+        case LIME_CONF_NOTREADY:
+            lserrno = LSE_LIMCONF_NOTREADY;
+            return;
+        default:
+            lserrno = limReplyCode + NOCODE;
+            return;
     }
 }

@@ -53,7 +53,7 @@ float initLicFactor(void);
 static void setUnkwnValues (void);
 
 /* Used in lim.rload.c and lim.policy.c
- */
+*/
 int ncpus = 1;
 
 extern char *getExtResourcesVal(char *);
@@ -133,8 +133,8 @@ putLastActiveTime(void)
     sprintf(lsfLastActiveTime, "%ld", lastActiveTime);
     if (putEnv(ENV_LAST_ACTIVE_TIME, lsfLastActiveTime) != 0) {
         ls_syslog(LOG_WARNING, I18N(5902,
-                                    "putLastActiveTime: %s, failed."),  /* catgets 5902 */
-                  lsfLastActiveTime);
+                    "putLastActiveTime: %s, failed."),  /* catgets 5902 */
+                lsfLastActiveTime);
     }
 }
 
@@ -502,7 +502,7 @@ checkExchange:
     for (i = 0; i < allInfo.numIndx; i++) {
 
         if (   (li[i].increasing && fabs(li[i].value - INFINIT_LOAD) < 1.0)
-               || (! li[i].increasing && fabs(li[i].value + INFINIT_LOAD) < 1.0))
+                || (! li[i].increasing && fabs(li[i].value + INFINIT_LOAD) < 1.0))
         {
             continue;
         }
@@ -535,8 +535,8 @@ checkExchange:
     TIMEIT(0, sendLoad(), "sendLoad()");
 
     for(i = 0; i < allInfo.numIndx; i++) {
-        if (myHostPtr->loadIndex[i] < MIN_FLOAT16 &&
-            i < NBUILTINDEX){
+        if (myHostPtr->loadIndex[i] < 0.0f &&
+                i < NBUILTINDEX){
             myHostPtr->loadIndex[i] = 0.0;
         }
 
@@ -546,12 +546,12 @@ checkExchange:
             rawql=myHostPtr->loadIndex[i];
             myHostPtr->loadIndex[i]
                 = normalizeRq(rawql,
-                              (myHostPtr->hModelNo >= 0) ?
-                              shortInfo.cpuFactors[myHostPtr->hModelNo] : 1.0,
-                              ncpus);
+                        (myHostPtr->hModelNo >= 0) ?
+                        shortInfo.cpuFactors[myHostPtr->hModelNo] : 1.0,
+                        ncpus);
             myHostPtr->uloadIndex[i] = rawql;
         } else {
-           myHostPtr->uloadIndex[i] = myHostPtr->loadIndex[i];
+            myHostPtr->uloadIndex[i] = myHostPtr->loadIndex[i];
         }
     }
 
@@ -645,7 +645,7 @@ saveIndx(char *name, float value)
 
     if (!names) {
         if (!(names=
-              (char **)malloc((allInfo.numIndx+1)*sizeof(char *)))) {
+                    (char **)malloc((allInfo.numIndx+1)*sizeof(char *)))) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
             lim_Exit(fname);
         }
@@ -662,8 +662,8 @@ saveIndx(char *name, float value)
 
 
         ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5920,
-                                         "%s: Unknown index name %s from ELIM"), /* catgets 5920 */
-                  fname, name);
+                    "%s: Unknown index name %s from ELIM"), /* catgets 5920 */
+                fname, name);
         if (names[i]) {
             FREEUP(names[i]);
         }
@@ -673,7 +673,7 @@ saveIndx(char *name, float value)
 
 
     if (allInfo.resTable[indx].valueType != LS_NUMERIC
-        || indx >= allInfo.numIndx) {
+            || indx >= allInfo.numIndx) {
         return 0;
     }
 
@@ -682,8 +682,8 @@ saveIndx(char *name, float value)
         if (!names[indx]) {
             names[indx] = allInfo.resTable[indx].name;
             ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5921,
-                                                 "%s: ELIM over-riding value of index %s"), /* catgets 5921 */
-                      fname, name);
+                        "%s: ELIM over-riding value of index %s"), /* catgets 5921 */
+                    fname, name);
         }
         overRide[indx] = value;
     } else
@@ -702,8 +702,8 @@ getSharedResBitPos(char *resName)
         return -1;
 
     for (tmpSharedRes=sharedResourceHead, bitPos=0;
-         tmpSharedRes;
-         tmpSharedRes=tmpSharedRes->nextPtr, bitPos++ ){
+            tmpSharedRes;
+            tmpSharedRes=tmpSharedRes->nextPtr, bitPos++ ){
         if (!strcmp(resName,tmpSharedRes->resName)){
             return bitPos;
         }
@@ -721,7 +721,7 @@ getExtResourcesLoad(void)
 
     for (i=0; i < allInfo.nRes; i++) {
         if (allInfo.resTable[i].flags & RESF_DYNAMIC
-            && allInfo.resTable[i].flags & RESF_EXTERNAL) {
+                && allInfo.resTable[i].flags & RESF_EXTERNAL) {
             resName = allInfo.resTable[i].name;
 
             if (!defaultRunElim){
@@ -817,7 +817,7 @@ getusr(void)
 
             if (!myClusterPtr->eLimArgv) {
                 char *path = malloc(strlen(limParams[LSF_SERVERDIR].paramValue) +
-                                    strlen(ELIMNAME) + 8);
+                        strlen(ELIMNAME) + 8);
                 if (!path) {
                     ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
                     setUnkwnValues();
@@ -829,12 +829,12 @@ getusr(void)
 
                 if (logclass & LC_EXEC) {
                     ls_syslog(LOG_DEBUG, "%s : the elim's name is <%s>\n",
-                              fname, path);
+                            fname, path);
                 }
 
 
                 myClusterPtr->eLimArgv = parseCommandArgs(
-                    path, myClusterPtr->eLimArgs);
+                        path, myClusterPtr->eLimArgs);
                 if (!myClusterPtr->eLimArgv) {
                     ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
                     setUnkwnValues();
@@ -862,15 +862,15 @@ getusr(void)
 
             size = 0;
             for (tmpSharedRes=sharedResourceHead;
-                 tmpSharedRes ;
-                 tmpSharedRes=tmpSharedRes->nextPtr ){
+                    tmpSharedRes ;
+                    tmpSharedRes=tmpSharedRes->nextPtr ){
                 size += strlen(tmpSharedRes->resName) + sizeof(char) ;
             }
             for (i=NBUILTINDEX; i < allInfo.nRes; i++) {
                 if (allInfo.resTable[i].flags & RESF_EXTERNAL)
                     continue;
                 if ((allInfo.resTable[i].flags & RESF_DYNAMIC)
-                    && !(allInfo.resTable[i].flags & RESF_BUILTIN)){
+                        && !(allInfo.resTable[i].flags & RESF_BUILTIN)){
 
                     size += strlen(allInfo.resTable[i].name) + sizeof(char);
                 }
@@ -887,16 +887,16 @@ getusr(void)
                 if (allInfo.resTable[i].flags & RESF_EXTERNAL)
                     continue;
                 if ((allInfo.resTable[i].flags & RESF_DYNAMIC)
-                    && !(allInfo.resTable[i].flags & RESF_BUILTIN)){
+                        && !(allInfo.resTable[i].flags & RESF_BUILTIN)){
 
                     if ((allInfo.resTable[i].flags & RESF_SHARED)
-                        && (!masterMe)
-                        && (isResourceSharedInAllHosts(allInfo.resTable[i].name))){
+                            && (!masterMe)
+                            && (isResourceSharedInAllHosts(allInfo.resTable[i].name))){
                         continue;
                     }
 
                     if( (allInfo.resTable[i].flags & RESF_SHARED)
-                        && (!isResourceSharedByHost(myHostPtr, allInfo.resTable[i].name)) )
+                            && (!isResourceSharedByHost(myHostPtr, allInfo.resTable[i].name)) )
                         continue;
 
 
@@ -911,14 +911,14 @@ getusr(void)
 
             if ((fp = lim_popen(myClusterPtr->eLimArgv, "r")) == NULL) {
                 ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "lim_popen",
-                          myClusterPtr->eLimArgv[0]);
+                        myClusterPtr->eLimArgv[0]);
                 setUnkwnValues();
 
                 return;
             }
             ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5930,
-                                               "%s: Started ELIM %s pid %d")), fname, /* catgets 5930 */
-                      myClusterPtr->eLimArgv[0], (int)elim_pid);
+                            "%s: Started ELIM %s pid %d")), fname, /* catgets 5930 */
+                    myClusterPtr->eLimArgv[0], (int)elim_pid);
             mustSendLoad = true ;
 
         }
@@ -966,8 +966,8 @@ getusr(void)
                 ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
 
                 ls_syslog(LOG_ERR, I18N(5935,
-                                        "%s:Received from ELIM: <out of memory to record contents>"), /* catgets 5935 */
-                          fname);
+                            "%s:Received from ELIM: <out of memory to record contents>"), /* catgets 5935 */
+                        fname);
 
                 setUnkwnValues();
                 lim_pclose(fp);
@@ -984,7 +984,7 @@ getusr(void)
 
         if (logclass & LC_TRACE) {
             ls_syslog(LOG_DEBUG,"\
-%s: Signal mask has been changed, all are signals blocked now", fname);
+                    %s: Signal mask has been changed, all are signals blocked now", fname);
         }
 
         if (ELIMblocktime >= 0) {
@@ -994,7 +994,7 @@ getusr(void)
         cc = fscanf(fp,"%d",&numIndx);
         if ( cc != 1) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5924,
-                                             "%s: Protocol error numIndx not read (cc=%d): %m"),fname,cc); /* catgets 5924 */
+                        "%s: Protocol error numIndx not read (cc=%d): %m"),fname,cc); /* catgets 5924 */
             lim_pclose(fp);
             fp = NULL;
             unblockSigs_(&oldMask);
@@ -1008,7 +1008,7 @@ getusr(void)
 
         if ( numIndx < 0) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5925,
-                                             "%s: Protocol error numIndx=%d"),fname,numIndx); /* catgets 5925 */
+                        "%s: Protocol error numIndx=%d"),fname,numIndx); /* catgets 5925 */
             setUnkwnValues();
             lim_pclose(fp);
             fp = NULL;
@@ -1050,13 +1050,13 @@ getusr(void)
                 if (scanerrno != EAGAIN || scc <= 0) {
 
                     ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5926,
-                                                     "%s: Protocol error, expected %d more tokens (cc=%d): %m"), /* catgets 5926 */
-                              fname,i,cc);
+                                "%s: Protocol error, expected %d more tokens (cc=%d): %m"), /* catgets 5926 */
+                            fname,i,cc);
 
 
                     ls_syslog(LOG_ERR, I18N(5904,
-                                            "Received from ELIM: %s."), /* catgets 5904 */
-                              fromELIM);
+                                "Received from ELIM: %s."), /* catgets 5904 */
+                            fromELIM);
 
                     setUnkwnValues();
                     lim_pclose(fp);
@@ -1087,8 +1087,8 @@ getusr(void)
                     ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
 
                     ls_syslog(LOG_ERR, I18N(5935,
-                                            "%s:Received from ELIM: <out of memory to record contents>"), /* catgets 5935 */
-                              fname);
+                                "%s:Received from ELIM: <out of memory to record contents>"), /* catgets 5935 */
+                            fname);
 
 
                     sizeOfFromELIM = oldSizeOfFromELIM;
@@ -1127,8 +1127,8 @@ getusr(void)
         if (ELIMdebug) {
 
             ls_syslog (LOG_WARNING, I18N(5903,
-                                         "ELIM: %s."), /* catgets 5903 */
-                       fromELIM);
+                        "ELIM: %s."), /* catgets 5903 */
+                    fromELIM);
         }
     }
 }
@@ -1142,7 +1142,7 @@ unblockSigs_(sigset_t*  mask)
 
     if (logclass & LC_TRACE) {
         ls_syslog(LOG_DEBUG,"\
-%s: The original signal mask has been restored", fname);
+                %s: The original signal mask has been restored", fname);
     }
 
 }
@@ -1159,7 +1159,7 @@ setUnkwnValues (void)
 
     for (i = 0; i < myHostPtr->numInstances; i++) {
         if (myHostPtr->instances[i]->updateTime == 0
-            || myHostPtr->instances[i]->updHost == NULL)
+                || myHostPtr->instances[i]->updHost == NULL)
 
             continue;
         if (myHostPtr->instances[i]->updHost == myHostPtr) {
@@ -1202,20 +1202,20 @@ saveSBValue (char *name, char *value)
 
             for (j = 0; j < myHostPtr->instances[i]->nHosts; j++) {
                 if (myHostPtr->instances[i]->updHost
-                    && (myHostPtr->instances[i]->updHost
-                        == myHostPtr->instances[i]->hosts[j]))
+                        && (myHostPtr->instances[i]->updHost
+                            == myHostPtr->instances[i]->hosts[j]))
                     updHostNo = j;
                 if (myHostPtr->instances[i]->hosts[j] == myHostPtr)
                     myHostNo = j;
                 if (myHostNo >= 0
-                    && (updHostNo >= 0
-                        || myHostPtr->instances[i]->updHost == NULL))
+                        && (updHostNo >= 0
+                            || myHostPtr->instances[i]->updHost == NULL))
                     break;
             }
             if (updHostNo >= 0
-                && (myHostNo < 0
-                    || ((updHostNo < myHostNo)
-                        && strcmp (myHostPtr->instances[i]->value, "-"))))
+                    && (myHostNo < 0
+                        || ((updHostNo < myHostNo)
+                            && strcmp (myHostPtr->instances[i]->value, "-"))))
                 return 0;
         }
 
@@ -1248,9 +1248,9 @@ initConfInfo(void)
         myHostPtr->statInfo.maxCpus = numCpus();
     if (myHostPtr->statInfo.maxCpus <= 0) {
         ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5928,
-                                         "%s: Invalid num of CPUs %d. Default to 1"), /* catgets 5928 */
-                  fname,
-                  myHostPtr->statInfo.maxCpus);
+                    "%s: Invalid num of CPUs %d. Default to 1"), /* catgets 5928 */
+                fname,
+                myHostPtr->statInfo.maxCpus);
         myHostPtr->statInfo.maxCpus = 1;
     }
 
@@ -1270,9 +1270,9 @@ getElimRes (void)
     char *resNameString = NULL;
 
     if ((resNameString = (char *) malloc
-         ((allInfo.nRes) * MAXLSFNAMELEN)) == NULL) {
+                ((allInfo.nRes) * MAXLSFNAMELEN)) == NULL) {
         ls_syslog (LOG_ERR, I18N_FUNC_D_FAIL,"getElimRes","malloc",
-                   allInfo.nRes * MAXLSFNAMELEN);
+                allInfo.nRes * MAXLSFNAMELEN);
         lim_Exit("getElimRes");
     }
 
@@ -1374,7 +1374,7 @@ startElim(void)
             if (allInfo.resTable[i].flags & RESF_EXTERNAL)
                 continue;
             if ((allInfo.resTable[i].flags & RESF_DYNAMIC)
-                && !(allInfo.resTable[i].flags & RESF_BUILTIN)){
+                    && !(allInfo.resTable[i].flags & RESF_BUILTIN)){
                 startElim = true;
                 break;
             }
@@ -1403,8 +1403,8 @@ isResourceSharedInAllHosts(char *resName)
     struct sharedResourceInstance *tmpSharedRes;
 
     for (tmpSharedRes=sharedResourceHead;
-         tmpSharedRes ;
-         tmpSharedRes=tmpSharedRes->nextPtr ){
+            tmpSharedRes ;
+            tmpSharedRes=tmpSharedRes->nextPtr ){
 
         if (strcmp(tmpSharedRes->resName, resName)) {
             continue;
