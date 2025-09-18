@@ -15,27 +15,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include <sys/types.h>
-#include <curses.h>
-#include <ctype.h>
-#include <errno.h>
-#include <netdb.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <signal.h>
 
-#include <rpc/types.h>
-#include <rpc/xdr.h>
 
-#include "../lsf.h"
-#include "../../config.h"
-#include "../lib/lsi18n.h"
+
+
+
 
 extern void (*Signal_ (int, void (*)(int)))(int);
 
-#include "../lib/lproto.h"
 
 extern int makeFields(struct hostLoad *, char *loadval[], char **);
 extern void *formatHeader(char **, char);
@@ -482,7 +471,7 @@ main(int argc, char **argv)
 		usage(cmd);
 	    else {
 		Vflag = 1;
-		fputs(_LS_VERSION_, stderr);
+		fputs(_LAVALITE_VERSION_, stderr);
 		exit(0);
 	    }
 

@@ -15,11 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include <unistd.h>
-#include <netdb.h>
-#include <string.h>
-#include <pwd.h>
-#include "lsb.h"
+#include "lsbatch/lib/lsb.h"
 
 int
 lsb_msgjob(LS_LONG_INT jobId, char *msg)

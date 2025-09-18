@@ -15,45 +15,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include <ctype.h>
-#include <sys/file.h>
+#include "lsbatch/lib/lsb.h"
 
-#include <string.h>
-#include <sys/stat.h>
 #ifdef _XOPEN_SOURCE
-#include <time.h>
 #else
-#include <sys/time.h>
 #endif 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/resource.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <setjmp.h>
-#include <netinet/in.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <stdio.h>
-#include <grp.h>
 
 #define exit(a)         _exit(a)
 
-#include <signal.h>
-#include <stdio.h>
 
-#include <pwd.h>
-#include "../../lsf/lib/lib.h"
-#include "lsb.h"
-#include "../../lsf/lib/lib.table.h"
-#include "../../lsf/lib/mls.h"
 
-#include "../../lsf/intlib/intlibout.h"
-#include <dirent.h>
 
-#include "lsb.spool.h"
 
 #define SKIPSPACE(sp)      while (isspace(*(sp))) (sp)++;
 

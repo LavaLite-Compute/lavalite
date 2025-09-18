@@ -16,9 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include "lsf.h"
-#include "lsf/lib/lproto.h"
+
+
+
 
 #define NL_SETN  27
 
@@ -56,14 +58,14 @@ main(int argc, char **argv)
                 usage(argv[0]);
                 exit(0);
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LAVALITE_VERSION_, stderr);
                 exit(0);
             default:
                 usage(argv[0]);
                 exit(-1);
         }
     }
-    puts(_LS_VERSION_);
+    puts(_LAVALITE_VERSION_);
 
     TIMEIT(0, (Name = ls_getclustername()), "ls_getclustername");
     if (Name == NULL) {

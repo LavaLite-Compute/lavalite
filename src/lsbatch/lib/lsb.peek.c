@@ -15,13 +15,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <unistd.h>
-#include <netdb.h>
-#include <string.h>
-#include <pwd.h>
-#include <errno.h>
-#include "lsb.h"
 char * 
 lsb_peekjob (LS_LONG_INT jobid)
 {

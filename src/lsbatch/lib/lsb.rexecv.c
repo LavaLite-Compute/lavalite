@@ -15,14 +15,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <ctype.h>
-#include "../cmd/cmd.h"
-#include "../daemons/daemonout.h"
 
 #define NL_SETN 	13 	
 

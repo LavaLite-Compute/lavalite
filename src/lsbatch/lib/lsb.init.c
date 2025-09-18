@@ -15,9 +15,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <netdb.h>
-#include "lsb.h"
 
 struct config_param lsbParams[] = {
      {"LSB_DEBUG", NULL},

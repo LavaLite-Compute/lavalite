@@ -15,25 +15,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <netdb.h>
-#include <time.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <string.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <pwd.h>
-#include "../lib/lproto.h"
-#include "../lsf.h"
-#include <malloc.h>
+#include "lsf/lib/liblavalite.h"
 
-#include "../lib/lib.rcp.h"
+
+
+
 
 extern void usage(char *cmd);
 extern char *optarg;
@@ -215,7 +201,7 @@ doXferOptions( lsRcpXfer *lsXfer, int argc, char *argv[] )
 
             case 'V':
                 
-                fputs(_LS_VERSION_,stderr);
+                fputs(_LAVALITE_VERSION_,stderr);
                 exit(-1);
 
             case '?':

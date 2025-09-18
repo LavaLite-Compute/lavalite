@@ -16,13 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <unistd.h>
-#include <time.h>
-#include <netdb.h>
-#include <stdlib.h>
-#include <string.h>
-#include "lsb.h"
 
 extern void copyJUsage(struct jRusage *to, struct jRusage *from);
 extern int _lsb_recvtimeout;

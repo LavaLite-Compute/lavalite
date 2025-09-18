@@ -16,9 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include "lsf.h"
-#include "lib/lsf/liblavalite.h"
+
+
+
 
 static void usage(char *);
 static void print_long(struct resItem *);
@@ -57,7 +59,7 @@ main(int argc, char **argv)
     while ((cc = getopt(argc, argv, "VhlrmMt")) != EOF) {
         switch(cc) {
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LAVALITE_VERSION_, stderr);
                 exit(0);
             case 'l':
                 longFormat = true;

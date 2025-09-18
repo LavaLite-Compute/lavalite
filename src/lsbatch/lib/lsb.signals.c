@@ -15,11 +15,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <unistd.h>
-#include <string.h>
-#include <pwd.h>
-#include "lsb.h"
 
 static int lsbSig_map[] =     {
                        SIG_NULL,

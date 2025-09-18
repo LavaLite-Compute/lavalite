@@ -15,27 +15,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <unistd.h>
-#include <netdb.h>
-#include <string.h>
-#include <errno.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 
-#include <dirent.h>
 
-#include "lsb.h"
-#include "lsb.spool.h"
-#include "../cmd/cmd.h"
-#include "../../lsf/lib/lproto.h"
-#include "../../lsf/lsf.h"
-#include "../../lsf/lib/lib.rcp.h"
-#include "../../lsf/lib/mls.h"
 
-#include <malloc.h>
 
 extern char **environ;
 const char *defaultSpoolDir = NULL;

@@ -20,15 +20,13 @@
 #ifndef LPROTO_
 #define LPROTO_
 
-#include "lib.table.h"
-#include "lib.hdr.h"
-#include "lib.channel.h"
-#include "../res/resout.h"
-#include "lib.pim.h"
-#include "lsi18n.h"
+#include "lsf/lib/lib.table.h"
+#include "lsf/lib/lib.hdr.h"
+#include "lsf/lib/lib.channel.h"
+#include "lsf/res/resout.h"
+#include "lsf/lib/lsi18n.h"
 
 #define BIND_RETRY_TIMES 100
-
 
 struct keymap {
     char *key;

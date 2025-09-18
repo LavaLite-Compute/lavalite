@@ -16,13 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include "lsb.h"
-#include <errno.h>
 
 #define   NL_SETN     13
 
-#include "../../lsf/lib/lib.queue.h"
 
 bool_t  logMapFileEnable = FALSE;
 

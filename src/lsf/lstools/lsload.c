@@ -16,9 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include "lsf.h"
-#include "lib/lsf/liblavalite.h"
+
+
+
 
 #define MAXLISTSIZE 256
 
@@ -89,7 +91,7 @@ main(int argc, char **argv)
             usage(argv[0]);
             exit (0);
         } else if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LS_VERSION_, stderr);
+            fputs(_LAVALITE_VERSION_, stderr);
             exit(0);
         } else if (strcmp(argv[i], "-s") == 0) {
             if (otherOption == TRUE) {
@@ -163,7 +165,7 @@ main(int argc, char **argv)
             break;
 
         case 'V':
-            fputs(_LS_VERSION_, stderr);
+            fputs(_LAVALITE_VERSION_, stderr);
             exit(0);
 
         case 'h':

@@ -16,8 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include "lsf.h"
+
+
+
 
 #define MAXFIELDSIZE 20
 int num_loadindex;

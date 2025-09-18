@@ -61,12 +61,12 @@ btop
 busers
 
 # Ignore binary daemons
-lim
-pim
-nios
-res
-mbatchd
-sbatchd
+.libs/*
+lim/lim
+res/res
+pim/pim
+sbatchd/sbatchd
+mbatchd/mbatchd
 # Ignore cscope
 cscope*
 

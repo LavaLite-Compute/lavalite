@@ -16,9 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include "lsf.h"
-#include "lsf/lib/lsi18n.h"
+
+
+
 
 #define NL_SETN 27
 
@@ -65,7 +67,7 @@ main(int argc, char **argv)
                 mode = LSF_REMOTE_MODE;
                 break;
             case 'V':
-                fputs(_LS_VERSION_, stderr);
+                fputs(_LAVALITE_VERSION_, stderr);
                 exit(0);
             case 'h':
             default:

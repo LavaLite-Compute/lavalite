@@ -18,11 +18,9 @@
 #ifndef _LLCORE_BITSET_
 #define _LLCORE_BITSET_
 
-#include "../lib/lproto.h"
-#include  "list.h"
+#include "lsf/lib/lproto.h"
 
 typedef struct _bitsetEvent         LS_BITSET_EVENT_T;
-
 
 typedef struct {
     char *setDescription;

@@ -16,9 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include "lsf.h"
-#include "lib/lsf/liblavalite.h"
+
+
+
 
 struct interval {
     time_t begin;
@@ -28,8 +30,8 @@ struct interval {
 #define MAX_PRINTLINE 132
 static char printline[MAX_PRINTLINE + 1];
 static const char *dashed_line =
-    "------------------------------------------------------------------------------"
-    "--";
+"------------------------------------------------------------------------------"
+"--";
 
 
 #define MAX_LOGIN 31
@@ -104,7 +106,7 @@ setdefaults(void)
     int n;
     char *confpath, *localHost;
     struct config_param acctdir[] = {    {"LSF_RES_ACCTDIR", NULL},
-                                         {NULL, NULL}
+        {NULL, NULL}
     };
     struct stat statBuf;
     char lsfUserName[MAX_LOGIN + 1];
@@ -117,7 +119,7 @@ setdefaults(void)
     ls_readconfenv(acctdir, confpath);
 
     if (acctdir[0].paramValue == NULL
-        || stat(acctdir[0].paramValue, &statBuf) == -1)
+            || stat(acctdir[0].paramValue, &statBuf) == -1)
         acctdir[0].paramValue = "/tmp";
     strcpy(logfile, acctdir[0].paramValue);
     n = strlen(logfile);
@@ -154,35 +156,35 @@ getoptions(int argc, char *argv[])
 
     while ((cc = getopt(argc, argv, "hVlf:u:m:C:S:")) != EOF) {
         switch (cc) {
-        case 'C':
-            complete = getinterval(optarg);
-            break;
-        case 'S':
-            start = getinterval(optarg);
-            break;
-        case 'V':
-            fputs(_LS_VERSION_, stderr);
-            exit(-1);
-        case 'f':
-            strcpy(logfile, optarg);
-            break;
-        case 'h':
-            usage(argv[0]);
-        case 'l':
-            details = 1;
-            break;
-        case 'm':
-            getarglist(optarg, hosts, MAX_HOSTS + 1);
-            expandhostnames();
-            break;
-        case 'u':
-            getarglist(optarg, users, MAX_USERS + 1);
-            if (strcmp(users[0], "all") == 0)
-                users[0] = NULL;
-            break;
-        case '?':
-        default:
-            usage(argv[0]);
+            case 'C':
+                complete = getinterval(optarg);
+                break;
+            case 'S':
+                start = getinterval(optarg);
+                break;
+            case 'V':
+                fputs(_LAVALITE_VERSION_, stderr);
+                exit(-1);
+            case 'f':
+                strcpy(logfile, optarg);
+                break;
+            case 'h':
+                usage(argv[0]);
+            case 'l':
+                details = 1;
+                break;
+            case 'm':
+                getarglist(optarg, hosts, MAX_HOSTS + 1);
+                expandhostnames();
+                break;
+            case 'u':
+                getarglist(optarg, users, MAX_USERS + 1);
+                if (strcmp(users[0], "all") == 0)
+                    users[0] = NULL;
+                break;
+            case '?':
+            default:
+                usage(argv[0]);
         }
     }
 }
@@ -220,7 +222,7 @@ printheader(void)
     char localTimeStrEnd[50];
 
     printf(_i18n_msg_get(ls_catd,NL_SETN,1202, "Accounting information in %s about commands\n"), /* catgets  1202  */
-           logfile);
+            logfile);
 
     printf(" - %s", I18N(1203, "executed by user(s)")); /* catgets  1203  */
     if (users[0] == NULL)
@@ -381,12 +383,12 @@ printacctrec(const struct lsfAcctRec *acctrec)
     printf("%s\n", printline);
 
     printf("  %s: %s\n",
-           _i18n_msg_get(ls_catd,NL_SETN,1217, "Command"), /* catgets 1217 */
-           acctrec->cmdln);
+            _i18n_msg_get(ls_catd,NL_SETN,1217, "Command"), /* catgets 1217 */
+            acctrec->cmdln);
 
     printf("  %s: %s\n",
-           _i18n_msg_get(ls_catd,NL_SETN,1218,"CWD"),  /* catgets 1218 */
-           acctrec->cwd);
+            _i18n_msg_get(ls_catd,NL_SETN,1218,"CWD"),  /* catgets 1218 */
+            acctrec->cwd);
 
     sprintf(printline, "%s", _i18n_ctime(ls_catd, 1 , &acctrec->termTime));
     sprintf(printline + strlen(printline),
@@ -395,7 +397,7 @@ printacctrec(const struct lsfAcctRec *acctrec)
     printf("%s\n\n", printline);
 
     printf("%s:\n\n",
-           _i18n_msg_get(ls_catd,NL_SETN,1220, "Accounting information")); /* catgets  1220  */
+            _i18n_msg_get(ls_catd,NL_SETN,1220, "Accounting information")); /* catgets  1220  */
 
     buf1 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1221, "CPU time")); /* catgets  1221  */
     buf2 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1222, "Page faults")); /* catgets  1222  */
@@ -491,7 +493,7 @@ printsummary(void)
     strcpy( localTimeStrEnd, _i18n_ctime ( ls_catd, 1 , &actual_start.end ));
 
     printf(_i18n_msg_get(ls_catd,NL_SETN,1231, "Summary of %d task(s).  (Exit status zero: %d; exit status non-zero: %d).\n"), /* catgets  1231  */
-           tottasks, totstatz, totstatnz);
+            tottasks, totstatz, totstatnz);
 
     sprintf(printline,
             _i18n_msg_get(ls_catd,NL_SETN,1232, "Started between %s and %s"), /* catgets  1232  */

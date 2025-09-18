@@ -15,13 +15,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <sys/types.h>
-#include <netdb.h>
-#include <errno.h>
-#include <stdlib.h>
 
-#include "lsb.h"
 
 bool_t xdr_var_string(XDR *, char **);
 

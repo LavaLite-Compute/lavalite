@@ -18,7 +18,7 @@
  */
 
 #include "lsf/intlib/libllcore.h"
-#include "lsf/lib/mls.h"
+//#include "lsf/lib/mls.h"
 
 #define BADCH ":"
 #define NL_SETN 22
@@ -47,42 +47,42 @@ parseAndDo (char *cmdBuf, int (*func)() )
             cmdBuf++;
 
         if (*cmdBuf == '"')
-	   { cmdBuf++;
-	    see_string = 1;
-	    }
+        { cmdBuf++;
+            see_string = 1;
+        }
 
-	if (*cmdBuf == '\0')
-	    break;
+        if (*cmdBuf == '\0')
+            break;
 
-	argv[i] = cmdBuf;
+        argv[i] = cmdBuf;
 
         while(*cmdBuf !='\0' && !isspace(*cmdBuf) && *cmdBuf != '"')
-	  {
+        {
             cmdBuf++;
-          }
+        }
 
         while ( see_string && *cmdBuf != '"')
-		 {
-		   cmdBuf++;
-                   if (*cmdBuf == '\0')
-		     {
-			see_string = 0;
-			ls_perror (_i18n_msg_get(ls_catd, NL_SETN, 100,
-						 "Syntax Error of line parameter! \n"));  /* catgets 100 */
-			exit(-1);
-                       }
+        {
+            cmdBuf++;
+            if (*cmdBuf == '\0')
+            {
+                see_string = 0;
+                ls_perror (_i18n_msg_get(ls_catd, NL_SETN, 100,
+                            "Syntax Error of line parameter! \n"));  /* catgets 100 */
+                exit(-1);
+            }
 
-	           }
+        }
         if (see_string)
-	    see_string = 0;
+            see_string = 0;
 
-          if (*cmdBuf != '\0') {
+        if (*cmdBuf != '\0') {
             *cmdBuf = '\0';
-             cmdBuf++;
-          	  }
- }
+            cmdBuf++;
+        }
+    }
     if (i == 0)
-	return;
+        return;
 
     argv[i] = NULL;
     argc = i;
@@ -99,11 +99,11 @@ adminCmdIndex(char *cmd, char *cmdList[])
     static char quit[]="quit";
 
     if (strcmp("q", cmd)==0)
-	 cmd=quit;
+        cmd=quit;
 
     for (i=0; cmdList[i] != NULL; i++)
         if (strcmp(cmdList[i], cmd) == 0)
-	    return i;
+            return i;
     return -1;
 
 }
@@ -119,7 +119,7 @@ cmdsUsage (char *cmd, char *cmdList[], char *cmdInfo[])
     fprintf(stderr, I18N_Usage);
     fprintf(stderr, ": %s [-h] [-V] [command] [command_options] [command_args]\n\n", cmd);
     fprintf(stderr, _i18n_msg_get(ls_catd,NL_SETN,102,
-	     "    where 'command' is:\n\n")); /* catgets 102 */
+                "    where 'command' is:\n\n")); /* catgets 102 */
 
     for (i=0; cmdList[i] != NULL; i++)
         if ( strstr(intCmds,cmdList[i]) == NULL )
@@ -141,7 +141,7 @@ oneCmdUsage (int i, char *cmdList[], char *cmdSyntax[])
 
 void
 cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
-	 char *cmdSyntax[])
+        char *cmdSyntax[])
 {
 
     static char intCmds[] = " ";
@@ -153,30 +153,30 @@ cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
 
         for (i=0; cmdList[i] != NULL; i++) {
 
-	    if (strstr(intCmds,cmdList[i]) == NULL ) {
-	        j++;
-	        fprintf(stderr, "%-12.12s",  cmdList[i]);
-	        if (j % 6 == 0)
-		    fprintf(stderr, "\n");
+            if (strstr(intCmds,cmdList[i]) == NULL ) {
+                j++;
+                fprintf(stderr, "%-12.12s",  cmdList[i]);
+                if (j % 6 == 0)
+                    fprintf(stderr, "\n");
             }
         }
-	fprintf(stderr, "\n\n%s\n\n", _i18n_msg_get(ls_catd,NL_SETN, 105, "Try help command... to get details. ")); /* catgets 105 */
+        fprintf(stderr, "\n\n%s\n\n", _i18n_msg_get(ls_catd,NL_SETN, 105, "Try help command... to get details. ")); /* catgets 105 */
         fflush(stderr);
-	return;
+        return;
     }
 
     for (; argc > optind; optind++)
         if ((i = adminCmdIndex(argv[optind], cmdList)) != -1) {
-	    oneCmdUsage(i, cmdList, cmdSyntax);
+            oneCmdUsage(i, cmdList, cmdSyntax);
             fprintf(stderr,
-		    _i18n_msg_get(ls_catd, NL_SETN, 106,
-				  "Function: %s\n\n"), /* catgets 106 */
-		    cmdInfo[i]);
-	} else
+                    _i18n_msg_get(ls_catd, NL_SETN, 106,
+                        "Function: %s\n\n"), /* catgets 106 */
+                    cmdInfo[i]);
+        } else
             fprintf(stderr,
-		    _i18n_msg_get(ls_catd, NL_SETN, 107,
-				  "Invalid command <%s>\n\n"), /* catgets 107 */
-		    argv[optind]);
+                    _i18n_msg_get(ls_catd, NL_SETN, 107,
+                        "Invalid command <%s>\n\n"), /* catgets 107 */
+                    argv[optind]);
     fflush(stderr);
 
 }
@@ -193,7 +193,7 @@ myGetOpt (int nargc, char **nargv, char *ostr)
     if ((optName = nargv[optind]) == NULL)
         return NULL;
     if (optind >= nargc || *optName != '-')
-	return NULL;
+        return NULL;
     if (optName[1] && *++optName == '-') {
         ++optind;
         return NULL;
@@ -225,9 +225,9 @@ myGetOpt (int nargc, char **nargv, char *ostr)
             if (num_arg) {
                 if (nargc <= optind + 1) {
                     fprintf (stderr,
-			     _i18n_msg_get(ls_catd, NL_SETN, 108,
-					   "%s: option requires an argument -- %s\n"),/* catgets 108 */
-			nargv[0], optName);
+                            _i18n_msg_get(ls_catd, NL_SETN, 108,
+                                "%s: option requires an argument -- %s\n"),/* catgets 108 */
+                            nargv[0], optName);
                     return BADCH;
                 }
                 optarg = nargv[++optind];
@@ -239,8 +239,8 @@ myGetOpt (int nargc, char **nargv, char *ostr)
         cp2 = ++cp1;
     }
     fprintf (stderr, _i18n_msg_get(ls_catd,NL_SETN,109,
-				    "%s: illegal option -- %s\n"), /* catgets 109 */
-	     nargv[0], optName);
+                "%s: illegal option -- %s\n"), /* catgets 109 */
+            nargv[0], optName);
     return BADCH;
 
 }
@@ -253,7 +253,7 @@ getConfirm (char *msg)
 
     while (1) {
         fputs(msg, stdout);
-	fflush(stdout);
+        fflush(stdout);
         if (fgets(answer, MAXLINELEN, stdin) == NULL) {
             return false;
         }
@@ -261,8 +261,8 @@ getConfirm (char *msg)
         while (answer[i] == ' ')
             i++;
         if ((answer[i] == 'y' || answer[i] == 'n'
-            || answer[i] == 'Y' || answer[i] == 'N')
-	    && answer[i+1] == '\n')
+                    || answer[i] == 'Y' || answer[i] == 'N')
+                && answer[i+1] == '\n')
             break;
     }
     return ((answer[i] == 'Y' || answer[i] == 'y'));
@@ -277,11 +277,11 @@ checkConf(int verbose, int who)
     char *daemon, *lsfEnvDir;
     static struct config_param lsfParams[] =
     {
-	{"LSF_SERVERDIR", NULL},
-	{"LSF_CONFDIR", NULL},
-	{"LSB_CONFDIR", NULL},
-	{"LSB_SHAREDIR", NULL},
-	{NULL, NULL},
+        {"LSF_SERVERDIR", NULL},
+        {"LSF_CONFDIR", NULL},
+        {"LSB_CONFDIR", NULL},
+        {"LSB_SHAREDIR", NULL},
+        {NULL, NULL},
     };
     struct config_param *plp;
     LS_WAIT_T status;
@@ -293,21 +293,21 @@ checkConf(int verbose, int who)
         cc = initenv_(lsfParams, lsfEnvDir);
     }
     if (cc < 0) {
-	if (lserrno == LSE_CONF_SYNTAX) {
-	    char lno[20];
-	    sprintf (lno, _i18n_msg_get(ls_catd, NL_SETN, 110,
-					"Line %d"), errLineNum_); /* catgets 110 */
-	    ls_perror(lno);
-	} else
-	    ls_perror("initenv_");
+        if (lserrno == LSE_CONF_SYNTAX) {
+            char lno[20];
+            sprintf (lno, _i18n_msg_get(ls_catd, NL_SETN, 110,
+                        "Line %d"), errLineNum_); /* catgets 110 */
+            ls_perror(lno);
+        } else
+            ls_perror("initenv_");
     }
     plp = lsfParams;
     for (; plp->paramName != NULL; plp++)
         if (plp->paramValue == NULL) {
             fprintf(stderr,
-		    _i18n_msg_get(ls_catd, NL_SETN, 111,
-				  "%s is missing or has a syntax error in lsf.conf file\n"),/* catgets 111 */
-		    plp->paramName);
+                    _i18n_msg_get(ls_catd, NL_SETN, 111,
+                        "%s is missing or has a syntax error in lsf.conf file\n"),/* catgets 111 */
+                    plp->paramName);
             fatalErr = true;
         }
     if (fatalErr)
@@ -316,9 +316,9 @@ checkConf(int verbose, int who)
         return EXIT_WARNING_ERROR;
 
     if ((daemon = (char *)calloc(strlen(lsfParams[0].paramValue)+15,
-		                 sizeof(char))) == NULL) {
+                    sizeof(char))) == NULL) {
         perror("calloc");
-	return EXIT_FATAL_ERROR;
+        return EXIT_FATAL_ERROR;
     }
 
     strcpy(daemon, lsfParams[0].paramValue);
@@ -328,13 +328,13 @@ checkConf(int verbose, int who)
     if (access(daemon, X_OK) < 0) {
         perror(daemon);
         free(daemon);
-	return EXIT_FATAL_ERROR;
+        return EXIT_FATAL_ERROR;
     }
 
     if (putenv(confCheckBuf)) {
         fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 112,
-			      "Failed to set environment variable RECONFIG_CHECK\n"));    /* catgets 112 */
+                _i18n_msg_get(ls_catd, NL_SETN, 112,
+                    "Failed to set environment variable RECONFIG_CHECK\n"));    /* catgets 112 */
         free(daemon);
         return EXIT_FATAL_ERROR;
     }
@@ -343,7 +343,7 @@ checkConf(int verbose, int who)
     if ((pid = fork()) < 0) {
         perror("fork");
         free(daemon);
-	return EXIT_FATAL_ERROR;
+        return EXIT_FATAL_ERROR;
     }
 
     if (pid == 0) {
@@ -358,10 +358,10 @@ checkConf(int verbose, int who)
             exit(EXIT_FATAL_ERROR);
         }
 
-	execlp(daemon, daemon, "-C", (char *)0);
-	perror("execlp");
+        execlp(daemon, daemon, "-C", (char *)0);
+        perror("execlp");
 
-	exit(EXIT_RUN_ERROR);
+        exit(EXIT_RUN_ERROR);
     }
 
 
@@ -380,46 +380,46 @@ checkConf(int verbose, int who)
 
     if (WIFEXITED(status) == 0) {
         fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 116,
-			      "Child process killed by signal.\n\n")); /* catgets 116 */
-	return EXIT_FATAL_ERROR;
+                _i18n_msg_get(ls_catd, NL_SETN, 116,
+                    "Child process killed by signal.\n\n")); /* catgets 116 */
+        return EXIT_FATAL_ERROR;
     }
 
     switch (WEXITSTATUS(status)) {
-    case  0 :
-        fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 117,
-			      "No errors found.\n\n"));  /* catgets 117 */
-        return EXIT_NO_ERROR;
+        case  0 :
+            fprintf(stderr,
+                    _i18n_msg_get(ls_catd, NL_SETN, 117,
+                        "No errors found.\n\n"));  /* catgets 117 */
+            return EXIT_NO_ERROR;
 
-    case  0xff :
-        fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 118,
-			      "There are fatal errors.\n\n")); /* catgets 118 */
-        return EXIT_FATAL_ERROR;
+        case  0xff :
+            fprintf(stderr,
+                    _i18n_msg_get(ls_catd, NL_SETN, 118,
+                        "There are fatal errors.\n\n")); /* catgets 118 */
+            return EXIT_FATAL_ERROR;
 
-    case  0xf8 :
-        fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 119,
-			      "Fail to run checking program \n\n")); /* catgets 119 */
-        return EXIT_FATAL_ERROR;
+        case  0xf8 :
+            fprintf(stderr,
+                    _i18n_msg_get(ls_catd, NL_SETN, 119,
+                        "Fail to run checking program \n\n")); /* catgets 119 */
+            return EXIT_FATAL_ERROR;
 
-    case  0xfe :
-        fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 120,
-			      "No fatal errors found.\n\n"));/* catgets 120 */
-        fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 121, "Warning: Some configuration parameters may be incorrect.\n"));  /* catgets 121 */
-        fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 122,
-			      "         They are either ignored or replaced by default values.\n\n"));  /* catgets 122  */
-        return EXIT_WARNING_ERROR;
+        case  0xfe :
+            fprintf(stderr,
+                    _i18n_msg_get(ls_catd, NL_SETN, 120,
+                        "No fatal errors found.\n\n"));/* catgets 120 */
+            fprintf(stderr,
+                    _i18n_msg_get(ls_catd, NL_SETN, 121, "Warning: Some configuration parameters may be incorrect.\n"));  /* catgets 121 */
+            fprintf(stderr,
+                    _i18n_msg_get(ls_catd, NL_SETN, 122,
+                        "         They are either ignored or replaced by default values.\n\n"));  /* catgets 122  */
+            return EXIT_WARNING_ERROR;
 
-    default :
-        fprintf(stderr,
-		_i18n_msg_get(ls_catd, NL_SETN, 123,
-			      "Errors found.\n\n"));  /* catgets 123 */
-        return EXIT_FATAL_ERROR;
+        default :
+            fprintf(stderr,
+                    _i18n_msg_get(ls_catd, NL_SETN, 123,
+                        "Errors found.\n\n"));  /* catgets 123 */
+            return EXIT_FATAL_ERROR;
     }
 
 }
@@ -436,12 +436,12 @@ static int changeUserEUId(void)
         return 0;
     }
 
-   if (lsfSetEUid(uid) < 0) {
+    if (seteuid(uid) < 0) {
 
-       ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "setresuid/seteuid",
-	   (int)uid);
-       return -1;
-   }
+        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "setresuid/seteuid",
+                (int)uid);
+        return -1;
+    }
 
-   return 0;
+    return 0;
 }

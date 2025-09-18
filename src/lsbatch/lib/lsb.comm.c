@@ -15,25 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <netdb.h>
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/signal.h>
-#include <sys/file.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <math.h>
-#include <pwd.h>
-#include <sys/ioctl.h>
-
-#include "lsb.h"
+#include "lsbatch/lib/lsb.h"
 
 #define   NL_SETN     13
 
@@ -55,7 +37,7 @@ extern int getHdrReserved(struct LSFHeader *);
 
 #define MAXMSGLEN     (1<<24)
 
-    int
+int
 serv_connect (char *serv_host, ushort serv_port, int timeout)
 {
     int    chfd, cc, options;
@@ -150,7 +132,7 @@ serv_connect (char *serv_host, ushort serv_port, int timeout)
 
 }
 
-    int
+int
 call_server (
         char * host,
         ushort serv_port,
@@ -293,7 +275,7 @@ call_server (
 
 }
 
-    int
+int
 getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
 {
     static char fname[] = "getServerMsg";
@@ -358,7 +340,7 @@ getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
 }
 
 
-    ushort
+ushort
 get_mbd_port (void)
 {
     struct servent *sv;
@@ -390,7 +372,7 @@ get_mbd_port (void)
 }
 
 
-    ushort
+ushort
 get_sbd_port(void)
 {
     struct servent *sv;
@@ -425,7 +407,7 @@ get_sbd_port(void)
 #endif
 }
 
-    int
+int
 callmbd (char *clusterName,
         char *request_buf,
         int requestlen,
@@ -533,7 +515,7 @@ Retry:
 }
 
 
-    int
+int
 cmdCallSBD_(char *sbdHost, char *request_buf, int requestlen,
         char **reply_buf, struct LSFHeader *replyHdr, int *serverSock)
 {
@@ -567,7 +549,7 @@ cmdCallSBD_(char *sbdHost, char *request_buf, int requestlen,
 }
 
 
-    static int
+static int
 mbdTries(void)
 {
     char *tries;
@@ -586,7 +568,7 @@ mbdTries(void)
 
 
 
-    char *
+char *
 getMasterName(void)
 {
     char *masterHost;
@@ -612,7 +594,7 @@ Retry:
 
 
 
-    int
+int
 readNextPacket(char **msgBuf, int timeout, struct LSFHeader *hdr,
         int serverSock)
 {
@@ -640,14 +622,14 @@ readNextPacket(char **msgBuf, int timeout, struct LSFHeader *hdr,
     return (getHdrReserved(hdr));
 }
 
-    void
+void
 closeSession(int serverSock)
 {
     chanClose_(serverSock);
 
 }
 
-    int
+int
 handShake_(int s, char client, int timeout)
 {
     struct LSFHeader  hdr, buf;
@@ -695,7 +677,7 @@ handShake_(int s, char client, int timeout)
 
 }
 
-    int
+int
 authTicketTokens_(struct lsfAuth *auth, char *toHost)
 {
 
@@ -726,7 +708,7 @@ authTicketTokens_(struct lsfAuth *auth, char *toHost)
     return (0);
 }
 
-    float *
+float *
 getCpuFactor (char *host, int name)
 {
     float *tempPtr;

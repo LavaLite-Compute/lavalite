@@ -15,15 +15,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsbatch/lib/lsb.h"
 
-#include <string.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <pwd.h>
 
-#include "lsb.h"
 
 int 
 lsb_debugReq (struct debugReq  *pdebug , char *host)

@@ -5,7 +5,7 @@
 
 # Reuse shared flags and libs (AM_CPPFLAGS, TIRPC_LIB, etc.)
 include $(top_srcdir)/Make.common
-COMMON_LIBS = ../lib/liblsf.la ../intlib/liblsf_intlib.la $(TIRPC_LIB)
+COMMON_LIBS = ../lib/liblavalite.la ../intlib/libllcore.la $(TIRPC_LIB)
 
 bin_PROGRAMS = \
     lsacct \

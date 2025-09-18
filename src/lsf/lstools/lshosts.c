@@ -16,12 +16,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#include "lsf/lib/liblavalite.h"
 
-#include "lsf.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/intlib/intlibout.h"
 
-#include <math.h>
+
+
+
 
 #define NL_SETN 27
 
@@ -310,7 +310,7 @@ main(int argc, char **argv)
             usage(argv[0]);
             exit (0);
         } else if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LS_VERSION_, stderr);
+            fputs(_LAVALITE_VERSION_, stderr);
             exit(0);
         } else if (strcmp(argv[i], "-s") == 0) {
             if (otherOption == true) {
