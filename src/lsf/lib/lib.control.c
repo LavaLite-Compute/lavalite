@@ -16,7 +16,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lib/lib.h"
 
 int
 ls_limcontrol(char *hname, int opCode)
@@ -41,6 +44,7 @@ ls_limcontrol(char *hname, int opCode)
     putEauthClientEnvVar("user");
     putEauthServerEnvVar("lim");
     getAuth_(&auth, hname);
+
     if (callLim_(limReqCode, &auth, xdr_lsfAuth, NULL, NULL, hname, 0, NULL) < 0)
         return -1;
 
@@ -51,28 +55,26 @@ ls_limcontrol(char *hname, int opCode)
 int
 ls_lockhost(time_t duration)
 {
-    return (setLockOnOff_(LIM_LOCK_USER, duration, NULL));
-
+    return setLockOnOff_(LIM_LOCK_USER, duration, NULL);
 }
 
 int
 ls_unlockhost(void)
 {
-    return (setLockOnOff_(LIM_UNLOCK_USER, 0, NULL));
-
+    return setLockOnOff_(LIM_UNLOCK_USER, 0, NULL);
 }
 
 int
 lockHost_(time_t duration, char *hname)
 {
-    return (setLockOnOff_(LIM_LOCK_USER, duration, hname));
+    return setLockOnOff_(LIM_LOCK_USER, duration, hname);
 
 }
 
 int
 unlockHost_(char *hname)
 {
-    return (setLockOnOff_(LIM_UNLOCK_USER, 0, hname));
+    return setLockOnOff_(LIM_UNLOCK_USER, 0, hname);
 
 }
 
@@ -100,12 +102,12 @@ setLockOnOff_(int on, time_t duration, char *hname)
 
     if (host == NULL)
         host = ls_getmyhostname();
+
     if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL,
                 host, 0, NULL) < 0)
         return -1;
 
     return 0;
-
 }
 
 int
@@ -129,13 +131,11 @@ oneLimDebug(struct debugReq *pdebug, char *hostname)
         return -1;
 
     return 0;
-
 }
 
 int
 ls_servavail(int servId, int nonblock)
 {
-
     int options = 0;
 
     if (nonblock)
@@ -151,9 +151,15 @@ ls_servavail(int servId, int nonblock)
         }
     }
 
-    if (callLim_(LIM_SERV_AVAIL, &servId, xdr_int, NULL, NULL,
-                ls_getmyhostname(), options, NULL) < 0)
+    if (callLim_(LIM_SERV_AVAIL,
+                 &servId,
+                 xdr_int,
+                 NULL,
+                 NULL,
+                 ls_getmyhostname(),
+                 options,
+                 NULL) < 0)
         return -1;
-    return 0;
 
+    return 0;
 }

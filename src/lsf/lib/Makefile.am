@@ -10,8 +10,7 @@ liblavalite_la_LDFLAGS = -version-info 0:0:0 -no-undefined
 liblavalite_la_LIBADD  = $(TIRPC_LIB) # if liblavalite itself needs tirpc
 
 # List your real .c files here (no Tcl/yy). Examples shown:
-liblavalite_la_SOURCES = liblsf.h \
-	lib.channel.c \
+liblavalite_la_SOURCES = lib.channel.c \
 	lib.conf.c \
 	lib.confmisc.c \
 	lib.conn.c \
@@ -22,7 +21,6 @@ liblavalite_la_SOURCES = liblsf.h \
 	lib.eauth.c \
 	lib.eligible.c \
 	lib.err.c \
-	lib.errno.c \
 	lib.esub.c \
 	lib.hosta.c \
 	lib.host.c \
@@ -47,18 +45,16 @@ liblavalite_la_SOURCES = liblsf.h \
 	lib.reslog.c \
 	lib.rex.c \
 	lib.rf.c \
-	lib.rmi.c \
 	lib.rtask.c \
 	lib.rwait.c \
 	lib.sig.c \
-	lib.so.c \
 	lib.sock.c \
 	lib.syntax.c \
 	lib.syslog.c \
 	lib.table.c \
 	lib.term.c \
 	lib.tid.c \
-	lib.tty.c \	lib.utmp.c \
+	lib.tty.c \
 	lib.words.c \
 	lib.xdr.c \
 	lib.xdrlim.c \
@@ -66,7 +62,5 @@ liblavalite_la_SOURCES = liblsf.h \
 	lib.xdrnio.c \
 	lib.xdrres.c \
 	lib.xdrrf.c \
-	lib.wconf.c \
-	usleep.c \
-	whathost.c
-
+	lib.wconf.c
+#

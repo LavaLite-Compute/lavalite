@@ -16,9 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+
 #include "lsbatch/lib/lsb.h"
-
-
 
 #define  NL_SETN   13
 int lsberrno = 0;
@@ -188,14 +187,14 @@ char   *lsb_errmsg[] = {
     /*130*/   "The host is locked by master LIM", /* catgets 230 */
     /*131*/  "Dependent arrays do not have the same size", /* catgets 231 */
 
-    /* when you add a new message here, remember two things: first do not
-     * forget to add "," after the error message; second, add its catgets
-     * id in the above array lsb_errmsg_ID[].
-     */
+/* when you add a new message here, remember two things: first do not
+ * forget to add "," after the error message; second, add its catgets
+ * id in the above array lsb_errmsg_ID[].
+ */
     NULL
 };
 
-    char *
+char *
 lsb_sysmsg (void)
 {
     static char buf[512];
@@ -212,9 +211,9 @@ lsb_sysmsg (void)
         else {
             char *temp;
             temp = putstr_(_i18n_msg_get(ls_catd, NL_SETN,
-                        lsb_errmsg_ID[lsberrno], lsb_errmsg[lsberrno]));
+                                         lsb_errmsg_ID[lsberrno], lsb_errmsg[lsberrno]));
             sprintf(buf, "%s:%s %d", temp, _i18n_msg_get(ls_catd, NL_SETN, 98,
-                        "unknown system error"), /* catgets 98 */
+                                                         "unknown system error"), /* catgets 98 */
                     errno);
             free(temp);
         }
@@ -226,7 +225,7 @@ lsb_sysmsg (void)
     return buf;
 }
 
-    void
+void
 lsb_perror (char *usrMsg)
 {
     if (usrMsg) {
@@ -238,7 +237,7 @@ lsb_perror (char *usrMsg)
 
 }
 
-    char *
+char *
 lsb_sperror(char *usrMsg)
 {
     char errmsg[256];
@@ -262,7 +261,7 @@ lsb_sperror(char *usrMsg)
 
 
 
-    void
+void
 sub_perror (char *usrMsg)
 {
     if (usrMsg) {
@@ -272,5 +271,3 @@ sub_perror (char *usrMsg)
     fputs(lsb_sysmsg(), stderr);
 
 }
-
-

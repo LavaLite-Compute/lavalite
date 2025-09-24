@@ -1,4 +1,3 @@
-
 /* $Id: lib.rex.c,v 1.3 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -17,21 +16,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
+#include "lsf/lib/lib.h"
 
 extern int currentSN;
-
+
 int
 ls_rexecve(char *host, char **argv, int options, char **envp)
 {
     register int d;
     int  retsock;
     struct timeval timeout;
-
-    int  len;
-
     struct sockaddr_in sin;
     int max;
     char sock_buf[20];
@@ -41,57 +35,55 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     struct resCmdBill cmdmsg;
     int resTimeout;
 
-    
-    if (genParams_[LSF_RES_TIMEOUT].paramValue) 
-	resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
+
+    if (genParams_[LSF_RES_TIMEOUT].paramValue)
+        resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
     else
-	resTimeout = RES_TIMEOUT;
+        resTimeout = RES_TIMEOUT;
 
     if (_isconnected_(host, descriptor))
-	s = descriptor[0];
+        s = descriptor[0];
     else if ((s = ls_connect(host)) < 0)
-	return -1;
+        return -1;
 
-    
+
 
     if (!FD_ISSET(s,&connection_ok_)){
-	FD_SET(s,&connection_ok_);
-	if (ackReturnCode_(s) < 0) {
-	   closesocket(s);
-	   _lostconnection_(host);
-	   return -1;
-        }
-    }
-
-    cmdmsg.options = options & ~REXF_TASKPORT; 
-    if (cmdmsg.options & REXF_SHMODE)
-	cmdmsg.options |= REXF_USEPTY;
-    
-    if (!isatty(0) && !isatty(1))
-	cmdmsg.options &= ~REXF_USEPTY; 
-    else if ( cmdmsg.options & REXF_USEPTY ) {
-        if (rstty_(host) < 0) {
-	    
-	    _lostconnection_(host);
+        FD_SET(s,&connection_ok_);
+        if (ackReturnCode_(s) < 0) {
+            closesocket(s);
+            _lostconnection_(host);
             return -1;
         }
     }
 
-    
-    if ( (genParams_[LSF_INTERACTIVE_STDERR].paramValue != NULL)
-	 && (strcasecmp(genParams_[LSF_INTERACTIVE_STDERR].paramValue, 
-			"y") == 0) ) {
-	cmdmsg.options |= REXF_STDERR;
+    cmdmsg.options = options & ~REXF_TASKPORT;
+    if (cmdmsg.options & REXF_SHMODE)
+        cmdmsg.options |= REXF_USEPTY;
+
+    if (!isatty(0) && !isatty(1))
+        cmdmsg.options &= ~REXF_USEPTY;
+    else if ( cmdmsg.options & REXF_USEPTY ) {
+        if (rstty_(host) < 0) {
+
+            _lostconnection_(host);
+            return -1;
+        }
+    }
+
+    if ((genParams_[LSF_INTERACTIVE_STDERR].paramValue != NULL)
+        && (strcasecmp(genParams_[LSF_INTERACTIVE_STDERR].paramValue,
+                       "y") == 0) ) {
+        cmdmsg.options |= REXF_STDERR;
     }
 
     if (mygetwd_(cmdmsg.cwd) == 0) {
-	closesocket(s);
-	_lostconnection_(host);
+        closesocket(s);
+        _lostconnection_(host);
         lserrno = LSE_WDIR;
         return -1;
     }
 
-    
     if (envp) {
         if (ls_rsetenv(host, envp) < 0) {
             _lostconnection_(host);
@@ -99,49 +91,47 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
         }
     }
 
-
-    
     if ((retsock = TcpCreate_(true, 0)) < 0) {
-	closesocket(s);
-	_lostconnection_(host);
+        closesocket(s);
+        _lostconnection_(host);
         return -1;
     }
 
-    
-    len = sizeof(sin);
+
+    socklen_t len = sizeof(sin);
     if (getsockname (retsock, (struct sockaddr *) &sin, &len) < 0) {
         (void)closesocket(retsock);
-	closesocket(s);
-	_lostconnection_(host);
+        closesocket(s);
+        _lostconnection_(host);
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
 
     cmdmsg.retport = sin.sin_port;
 
-    
 
-    cmdmsg.rpid = 0;    
+
+    cmdmsg.rpid = 0;
     cmdmsg.argv = argv;
-    cmdmsg.priority = 0;   
+    cmdmsg.priority = 0;
 
-    
+
 
     timeout.tv_usec = 0;
     timeout.tv_sec  = resTimeout;
     if (sendCmdBill_(s, (resCmd) RES_EXEC, &cmdmsg, &retsock, &timeout)
-	== -1) {
+        == -1) {
         closesocket(retsock);
-	closesocket(s);
+        closesocket(s);
         _lostconnection_(host);
-	return -1;
+        return -1;
     }
 
 
     (void) sprintf (sock_buf, "%d", retsock);
 
     if (initenv_(NULL, NULL) <0)
-	return -1;
+        return -1;
     strcpy(pathbuf, genParams_[LSF_SERVERDIR].paramValue);
     strcat(pathbuf, "/nios");
     new_argv[0] = pathbuf;
@@ -149,13 +139,13 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     new_argv[2] = sock_buf;
 
     if (cmdmsg.options & REXF_USEPTY) {
-	if (cmdmsg.options & REXF_SHMODE)
-	    new_argv[3] = "2";
-	else
-	    new_argv[3] = "1";	
+        if (cmdmsg.options & REXF_SHMODE)
+            new_argv[3] = "2";
+        else
+            new_argv[3] = "1";
     }
     else
-	new_argv[3] = "0";
+        new_argv[3] = "0";
     new_argv[4] = 0;
 
     max = sysconf(_SC_OPEN_MAX);
@@ -171,7 +161,7 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     return -1;
 
 
-} 
+}
 
 
 int
@@ -179,9 +169,8 @@ ls_rexecv(char *host, char **argv, int options)
 {
     ls_rexecve(host, argv, options, environ);
     return -1;
-} 
+}
 
-
 int
 ls_startserver(char *host, char **server, int options)
 {
@@ -192,107 +181,93 @@ ls_startserver(char *host, char **server, int options)
     int s, descriptor[2];
     struct resCmdBill cmdmsg;
     int resTimeout;
-    int  len;
 
-
-    
-    if (genParams_[LSF_RES_TIMEOUT].paramValue) 
-	resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
+    if (genParams_[LSF_RES_TIMEOUT].paramValue)
+        resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
     else
-	resTimeout = RES_TIMEOUT;
+        resTimeout = RES_TIMEOUT;
 
     if (_isconnected_(host, descriptor))
-	s = descriptor[0];
+        s = descriptor[0];
     else if ((s = ls_connect(host)) < 0)
-	return -1;
+        return -1;
 
-    
+
 
     if (!FD_ISSET(s,&connection_ok_)){
-	FD_SET(s,&connection_ok_);
-	if (ackReturnCode_(s) < 0) {
-	   closesocket(s);
-	   _lostconnection_(host);
-	   return -1;
-	}
+        FD_SET(s,&connection_ok_);
+        if (ackReturnCode_(s) < 0) {
+            closesocket(s);
+            _lostconnection_(host);
+            return -1;
+        }
     }
 
     if (!isatty(0) && !isatty(1))
-	options &= ~REXF_USEPTY;               
+        options &= ~REXF_USEPTY;
     else if ( options & REXF_USEPTY ) {
         if (rstty_(host) < 0) {
-	    _lostconnection_(host);
+            _lostconnection_(host);
             return -1;
         }
     }
 
 
     if (mygetwd_(cmdmsg.cwd) == 0) {
-	closesocket(s);
-	_lostconnection_(host);
+        closesocket(s);
+        _lostconnection_(host);
         lserrno = LSE_WDIR;
         return -1;
     }
 
-    
+
     if ((retsock = TcpCreate_(true, 0)) < 0) {
         closesocket(s);
         _lostconnection_(host);
         return -1;
     }
 
-    
-    len = sizeof(sin);
+    socklen_t len = sizeof(sin);
     if (getsockname (retsock, (struct sockaddr *) &sin, &len) < 0) {
         closesocket (retsock);
-	closesocket(s);
+        closesocket(s);
         _lostconnection_(host);
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
 
     cmdmsg.retport = sin.sin_port;
-
-    
-
-    cmdmsg.options = options & ~REXF_TASKPORT; 
+    cmdmsg.options = options & ~REXF_TASKPORT;
     cmdmsg.rpid = 0;
     cmdmsg.argv = server;
 
-
-    
     timeout.tv_usec = 0;
     timeout.tv_sec  = resTimeout;
 
     if (sendCmdBill_(s, (resCmd) RES_SERVER, &cmdmsg, &retsock, &timeout)
-	== -1) {
+        == -1) {
         closesocket(retsock);
-	closesocket(s);
+        closesocket(s);
         _lostconnection_(host);
-	return -1;
+        return -1;
     }
 
+    if (ackReturnCode_(s) < 0){
+        closesocket(retsock);
+        closesocket(s);
+        _lostconnection_(host);
+        return -1;
+    }
 
-    
-
-     if (ackReturnCode_(s) < 0){
-       closesocket(retsock);
-       closesocket(s);
-       _lostconnection_(host);
-       return -1;
-     }
-
-    
     if (retsock <= 2 && (retsock = get_nonstd_desc_(retsock)) < 0) {
-	closesocket(s);
-	_lostconnection_(host);
+        closesocket(s);
+        _lostconnection_(host);
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
     gethostbysock_(s, official);
-    (void)connected_(official, -1, retsock, currentSN);
+
+    connected_(official, -1, retsock, currentSN);
+
     return retsock;
-
-} 
-
-
+}

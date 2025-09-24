@@ -16,9 +16,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+
 #include "lsbatch/lib/lsb.h"
-
-
+#include "lsf/lib/lib.table.h"
 
 #define NL_SETN     13
 
@@ -27,11 +27,9 @@
 void
 initTab(struct hTab *tabPtr)
 {
-
     if (tabPtr) {
         h_initTab_ (tabPtr, 50);
     }
-
 }
 
 hEnt *
@@ -45,12 +43,12 @@ addMemb(struct hTab *tabPtr, LS_LONG_INT member)
         sprintf (memberStr, LS_LONG_FORMAT, member);
         ent = h_addEnt_(tabPtr, memberStr, &new);
         if (!new) {
-            return(NULL);
+            return NULL;
         }
         else
-            return(ent);
+            return ent;
     }
-    return(NULL);
+    return NULL;
 }
 
 char
@@ -62,14 +60,14 @@ remvMemb(struct hTab *tabPtr, LS_LONG_INT member)
     if (tabPtr) {
         sprintf (memberStr,LS_LONG_FORMAT , member);
         if ((ent = h_getEnt_ (tabPtr, memberStr)) == NULL)
-            return(FALSE);
+            return false;
         else {
             ent->hData = NULL;
             h_delEnt_ (tabPtr, ent);
-            return(TRUE);
+            return true;
         }
     }
-    return(FALSE);
+    return false;
 }
 
 hEnt *
@@ -95,12 +93,12 @@ addMembStr(struct hTab *tabPtr, char *memberStr)
     if (tabPtr && memberStr) {
         ent = h_addEnt_(tabPtr, memberStr, &new);
         if (!new) {
-            return(NULL);
+            return NULL;
         }
         else
-            return(ent);
+            return ent;
     }
-    return(NULL);
+    return NULL;
 }
 
 char
@@ -110,14 +108,14 @@ remvMembStr(struct hTab *tabPtr, char *memberStr)
 
     if (tabPtr && memberStr) {
         if ((ent = h_getEnt_ (tabPtr, memberStr)) == NULL)
-            return(FALSE);
+            return false;
         else {
             ent->hData = NULL;
             h_delEnt_ (tabPtr, ent);
-            return(TRUE);
+            return true;
         }
     }
-    return(FALSE);
+    return false;
 }
 
 hEnt *
@@ -137,12 +135,12 @@ initSortIntList(int increased)
 {
     struct sortIntList *headerPtr;
     if ((headerPtr = (struct sortIntList *) malloc(sizeof (struct sortIntList)))
-            == NULL) {
-        return (NULL);
+        == NULL) {
+        return NULL;
     }
     headerPtr->forw = headerPtr->back = headerPtr;
     headerPtr->value = increased;
-    return(headerPtr);
+    return headerPtr;
 }
 
 int
@@ -155,7 +153,7 @@ insertSortIntList(struct sortIntList *header, int value)
     while (listPtr != header) {
 
         if (listPtr->value == value)
-            return(0);
+            return 0;
         if (header->value) {
 
             if (listPtr->value > value)
@@ -169,28 +167,28 @@ insertSortIntList(struct sortIntList *header, int value)
         }
     }
     if ((newPtr = (struct sortIntList *) malloc(sizeof (struct sortIntList)))
-            == NULL)
-        return (-1);
+        == NULL)
+        return -1;
     newPtr->forw = listPtr;
     newPtr->back = listPtr->back;
     listPtr->back->forw=newPtr;
     listPtr->back=newPtr;
     newPtr->value = value;
-    return(0);
+    return 0;
 
 }
 
 struct sortIntList *
 getNextSortIntList(struct sortIntList *header,
-        struct sortIntList *current, int *value)
+                   struct sortIntList *current, int *value)
 {
     struct sortIntList *nextPtr;
 
     nextPtr = current->forw;
     if (nextPtr == header)
-        return(NULL);
+        return NULL;
     *value = nextPtr->value;
-    return(nextPtr);
+    return nextPtr;
 
 }
 
@@ -215,12 +213,12 @@ int
 getMinSortIntList(struct sortIntList *header, int *minValue)
 {
     if (header == header->forw)
-        return(-1);
+        return -1;
     if (header->value)
         *minValue = header->forw->value;
     else
         *minValue = header->back->value;
-    return(0);
+    return 0;
 
 }
 
@@ -229,12 +227,12 @@ getMaxSortIntList(struct sortIntList *header, int *maxValue)
 {
 
     if (header == header->forw)
-        return(-1);
+        return -1;
     if (header->value)
         *maxValue = header->back->value;
     else
         *maxValue = header->forw->value;
-    return(0);
+    return 0;
 
 }
 
@@ -249,7 +247,7 @@ getTotalSortIntList(struct sortIntList *header)
         total++;
         listPtr = listPtr->forw;
     }
-    return(total);
+    return total;
 
 }
 
@@ -260,15 +258,15 @@ sndJobFile_(int s, struct lenData *jf)
 
     if (b_write_fix(s, NET_INTADDR_(&nlen), NET_INTSIZE_) != NET_INTSIZE_) {
         lsberrno = LSBE_SYS_CALL;
-        return (-1);
+        return -1;
     }
 
     if (b_write_fix(s, jf->data, jf->len) != jf->len) {
         lsberrno = LSBE_SYS_CALL;
-        return (-1);
+        return -1;
     }
 
-    return (0);
+    return 0;
 }
 
 
@@ -303,7 +301,7 @@ copyJUsage(struct jRusage *to, struct jRusage *from)
             to->pidInfo = newPidInfo;
             to->npids = from->npids;
             memcpy((char *) to->pidInfo, (char *) from->pidInfo,
-                    from->npids * sizeof(struct pidInfo));
+                   from->npids * sizeof(struct pidInfo));
         }
     } else if (to->npids) {
         FREEUP (to->pidInfo);
@@ -319,7 +317,7 @@ copyJUsage(struct jRusage *to, struct jRusage *from)
         to->pgid = newPgid;
         to->npgids = from->npgids;
         memcpy((char *) to->pgid, (char *) from->pgid,
-                from->npgids * sizeof(int));
+               from->npgids * sizeof(int));
     } else if (to->npgids) {
         FREEUP (to->pgid);
         to->npgids = 0;
@@ -333,20 +331,20 @@ convertRLimit(int *pRLimits, int toKb)
 
     for (i = 0; i < LSF_RLIM_NLIMITS; i++) {
         switch (i) {
-            case LSF_RLIMIT_FSIZE:
-            case LSF_RLIMIT_DATA:
-            case LSF_RLIMIT_STACK:
-            case LSF_RLIMIT_CORE:
-            case LSF_RLIMIT_RSS:
-            case LSF_RLIMIT_VMEM:
-                if (pRLimits[i] > 0) {
-                    if (toKb) {
-                        pRLimits[i] /= 1024;
-                    } else {
-                        pRLimits[i] *= 1024;
-                    }
+        case LSF_RLIMIT_FSIZE:
+        case LSF_RLIMIT_DATA:
+        case LSF_RLIMIT_STACK:
+        case LSF_RLIMIT_CORE:
+        case LSF_RLIMIT_RSS:
+        case LSF_RLIMIT_VMEM:
+            if (pRLimits[i] > 0) {
+                if (toKb) {
+                    pRLimits[i] /= 1024;
+                } else {
+                    pRLimits[i] *= 1024;
                 }
-                break;
+            }
+            break;
         }
     }
 }
@@ -357,11 +355,11 @@ limitIsOk_(int *rLimits)
 #define EXCEED_MAX_INT(x) ( (x) > 0 ? (unsigned int)(x) >> 21 : 0 )
 
     if ( EXCEED_MAX_INT(rLimits[LSF_RLIMIT_FSIZE])
-            || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_DATA])
-            || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_STACK])
-            || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_CORE])
-            || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_RSS])
-            || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_SWAP]) ) {
+         || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_DATA])
+         || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_STACK])
+         || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_CORE])
+         || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_RSS])
+         || EXCEED_MAX_INT(rLimits[LSF_RLIMIT_SWAP]) ) {
         return 0;
     } else {
         return 1;
@@ -407,7 +405,7 @@ lsb_splitName(char *str, unsigned int *number)
             if (nameNum <= 0) {
                 nameNum = 1;
                 ls_syslog(LOG_ERR, I18N(5651, "%s: bad input format.  Assuming 1 host.\n"), /* catgets 5651 */
-                        fname);
+                          fname);
             }
         }
     }
@@ -490,9 +488,9 @@ lsb_compressStrList(char **strList, int numStr)
 
 
     nameList.names = (char **)realloc(nameList.names,
-            nameList.listSize*sizeof(char *));
+                                      nameList.listSize*sizeof(char *));
     nameList.counter  = (int *)realloc(nameList.counter,
-            nameList.listSize*sizeof(int));
+                                       nameList.listSize*sizeof(int));
 
     if (!nameList.names || !nameList.counter)  {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
@@ -627,7 +625,7 @@ lsb_parseLongStr(char *string)
 
     if (strlen(prevStr) <= 0) {
         ls_syslog(LOG_ERR, I18N(5654, "%s: blank input\n"), /* catgets 5654 */
-                fname);
+                  fname);
         FREEUP(prevStr);
         FREEUP(nameList.names);
         FREEUP(nameList.counter);
@@ -641,7 +639,7 @@ lsb_parseLongStr(char *string)
 
             if ( nameList.listSize == numStr ) {
                 ls_syslog(LOG_ERR, I18N(5655, "%s: list exceeded allocated memory (shouldn't happen)\n"), /* catgets 5655 */
-                        fname);
+                          fname);
                 return (NAMELIST *)NULL;
             }
 
@@ -663,9 +661,9 @@ lsb_parseLongStr(char *string)
 
 
     nameList.names = (char **)realloc(nameList.names,
-            nameList.listSize * sizeof(char *));
+                                      nameList.listSize * sizeof(char *));
     nameList.counter = (int *)realloc(nameList.counter,
-            nameList.listSize * sizeof(int));
+                                      nameList.listSize * sizeof(int));
 
     if (!nameList.names || !nameList.counter)  {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
@@ -724,7 +722,7 @@ lsb_parseShortStr(char *string, int format)
 
         if (nameList.listSize >= numStr) {
             ls_syslog(LOG_ERR, I18N(5656, "%s: list exceeded allocated memory (shouldn't happen)\n"), /* catgets 5656 */
-                    fname);
+                      fname);
             return (NAMELIST *)NULL;
         }
 
@@ -733,7 +731,7 @@ lsb_parseShortStr(char *string, int format)
             name = (char *)namestr;
             if ((curStr = getNextWord_(&string)) == NULL) {
                 ls_syslog(LOG_ERR, I18N(5657, "%s: LSB_MCPU_HOSTS format error\n"), /* catgets 5657 */
-                        fname);
+                          fname);
                 FREEUP(nameList.names);
                 FREEUP(nameList.counter);
                 return (NAMELIST *)NULL;
@@ -753,9 +751,9 @@ lsb_parseShortStr(char *string, int format)
 
 
     nameList.names = (char **)realloc(nameList.names,
-            nameList.listSize * sizeof(char *));
+                                      nameList.listSize * sizeof(char *));
     nameList.counter = (int *)realloc(nameList.counter,
-            nameList.listSize * sizeof(int));
+                                      nameList.listSize * sizeof(int));
 
     if (!nameList.names || !nameList.counter)  {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
@@ -834,11 +832,10 @@ supportJobNamePattern(char * jobname)
     char * p , * q;
 
     p = jobname;
-    while ( (p != NULL) &&
-            ( (q=strchr(p, '*')) != NULL) ) {
+    while ((p != NULL)
+           && ((q = strchr(p, '*')) != NULL)) {
         q++;
         p = q;
-
 
         if (*q == '\0' || *q == '/' || *q == '*')
             continue;
@@ -847,4 +844,3 @@ supportJobNamePattern(char * jobname)
 
     return 0;
 }
-

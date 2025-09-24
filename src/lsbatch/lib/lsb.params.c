@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsbatch/lib/lsb.h"
 
+#include "lsbatch/lib/lsb.h"
 
 struct parameterInfo *
 lsb_parameterinfo (char **names, int *numUsers, int options)
@@ -30,15 +30,15 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     static struct parameterInfo paramInfo;
     struct parameterInfo *reply;
     static struct infoReq infoReq;
-    static int alloc = FALSE;
+    static int alloc = false;
     int cc = 0;
 
 
     infoReq.options = options;
 
 
-    if (alloc == TRUE) {
-        alloc = FALSE;
+    if (alloc == true) {
+        alloc = false;
         FREEUP(infoReq.names);
     }
 
@@ -51,9 +51,9 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     else {
         if ((infoReq.names = (char **)malloc (sizeof(char *))) == NULL) {
             lsberrno = LSBE_NO_MEM;
-            return(NULL);
+            return NULL;
         }
-        alloc = TRUE;
+        alloc = true;
         infoReq.names[0] = "";
         cc = 1;
     }
@@ -64,7 +64,7 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     cc = sizeof(struct infoReq) + cc * MAXHOSTNAMELEN + cc + 100;
     if ((request_buf = malloc (cc)) == NULL) {
         lsberrno = LSBE_NO_MEM;
-        return(NULL);
+        return NULL;
     }
     xdrmem_create(&xdrs, request_buf, cc, XDR_ENCODE);
 
@@ -73,15 +73,15 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
         xdr_destroy(&xdrs);
         free (request_buf);
         lsberrno = LSBE_XDR;
-        return(NULL);
+        return NULL;
     }
 
 
     if ((cc = callmbd (NULL,request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                    NULL, NULL, NULL)) == -1) {
+                       NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         free (request_buf);
-        return (NULL);
+        return NULL;
     }
     xdr_destroy(&xdrs);
     free (request_buf);
@@ -95,17 +95,16 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
             xdr_destroy(&xdrs);
             if (cc)
                 free(reply_buf);
-            return(NULL);
+            return NULL;
         }
         xdr_destroy(&xdrs);
         if (cc)
             free(reply_buf);
-        return(reply);
+        return reply;
     }
 
     if (cc)
         free(reply_buf);
-    return(NULL);
 
+    return NULL;
 }
-

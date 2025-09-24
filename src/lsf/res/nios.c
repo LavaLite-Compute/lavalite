@@ -99,8 +99,8 @@ char *taggingFormat = (char *) NULL;
 int stdoutSync = 0;                        
 int heartbeatInterval = 0;                 
 int jobStatusInterval = 0;                 
-int standalone = FALSE;                    
-int niosSbdMode = FALSE;                   
+int standalone = false;                    
+int niosSbdMode = false;                   
 LS_LONG_INT jobId = -1;                    
 int      pendJobTimeout = 0;               
 int  msgInterval = 0; 		           
@@ -111,7 +111,7 @@ char *getTimeStamp(void);
 static fd_set nios_rmask, nios_wmask;
 static int endstdin;                       
 static int io_fd;                          
-static int directecho = FALSE;             
+static int directecho = false;             
 static int inbg;                           
 static int remon;                          
 static char buf[BUFSIZ];                   
@@ -123,11 +123,11 @@ static int stdinBufEmptyEvent = 0;
 
 static int exit_sig = 0;
 static int exit_status = 0;
-static int got_eof = FALSE;
-static int got_status = FALSE;
-static int callbackAccepted = FALSE;
-static int sent_tstp = FALSE;
-static int msgEnabled = FALSE;             
+static int got_eof = false;
+static int got_status = false;
+static int callbackAccepted = false;
+static int sent_tstp = false;
+static int msgEnabled = false;             
 static int standaloneTaskDone = 0;         
 
 static int forwardTSTP = 0;
@@ -307,7 +307,7 @@ main(int argc, char **argv)
 
         
 
-        standalone = FALSE;
+        standalone = false;
 
 	
         chfd = atoi(argv[1]);
@@ -324,7 +324,7 @@ main(int argc, char **argv)
         }
 
         
-        if ((asock = TcpCreate_(TRUE, 0)) < 0) {
+        if ((asock = TcpCreate_(true, 0)) < 0) {
 	    ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "TcpCreate_");
             exit(-1);
         }
@@ -354,7 +354,7 @@ main(int argc, char **argv)
 	    !strcasecmp(niosParams[LSF_PTY].paramValue, "n"))
 	    usepty = 0;
 	
-        standalone = TRUE;
+        standalone = true;
 
 	if (niosDebug) {
 	    ls_syslog(LOG_DEBUG, "%s: Nios running in standalone mode", fname);
@@ -363,7 +363,7 @@ main(int argc, char **argv)
 	if (!strcmp(argv[1], "-p")) {
 	    int asock;
 
-	    if ((asock = TcpCreate_(TRUE, atoi(argv[2]))) < 0) {
+	    if ((asock = TcpCreate_(true, atoi(argv[2]))) < 0) {
 		ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, 
 			  "tcpCreate", "-p");
 		exit(-1);
@@ -381,12 +381,12 @@ main(int argc, char **argv)
 	    
 	    if (getenv("BSUB_BLOCK") != NULL) { 
 		
-		msgEnabled = FALSE;
+		msgEnabled = false;
 	    } else { 
 		
 		if( niosParams[LSB_INTERACT_MSG_ENH].paramValue != NULL && 
 		    strcasecmp(niosParams[LSB_INTERACT_MSG_ENH].paramValue,"y") == 0 ) {
-		    msgEnabled = TRUE;
+		    msgEnabled = true;
 		    
 		    if (niosParams[LSB_INTERACT_MSG_INTVAL].paramValue) {
 			if (isint_(niosParams[LSB_INTERACT_MSG_INTVAL].paramValue)) {
@@ -425,14 +425,14 @@ main(int argc, char **argv)
             } 
 
 	    inithostsock_();
-	    niosSbdMode = TRUE;
+	    niosSbdMode = true;
 	    inithostsock_();
 	    sock = acceptCallBack(atoi(argv[2]));
 	} else {
 	    sock = atoi(argv[2]);
 	}
 
-	callbackAccepted = TRUE;
+	callbackAccepted = true;
 	
         if ((maxfds=ls_nioinit(0)) < 0) {
 	    ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, 
@@ -462,7 +462,7 @@ main(int argc, char **argv)
     else
         io_fd = -1;
     if (usepty && io_fd >= 0 && isatty(io_fd))
-        ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+        ls_remtty(io_fd, usepty == 1 ? true : false);
 
     serv(argv,asock);
 
@@ -647,7 +647,7 @@ serv(char **argv, int asock)
                         }
 
 			if (standalone) {
-			    got_eof = TRUE;
+			    got_eof = true;
 			    if (got_status) {
 				kill_self(exit_sig, exit_status);
 			    } 
@@ -659,11 +659,11 @@ serv(char **argv, int asock)
 			    ls_syslog(LOG_DEBUG,"\
 %s: Nios Got status <%#x> from task remote", 
 				      fname, tasks->ioTask[i].status);
-                        taskStatus[tasks->ioTask[i].tid].got_status = TRUE;
+                        taskStatus[tasks->ioTask[i].tid].got_status = true;
  
                         if ( REX_FATAL_ERROR(tasks->ioTask[i].status)) {
                             
-                            taskStatus[tasks->ioTask[i].tid].got_eof = TRUE;
+                            taskStatus[tasks->ioTask[i].tid].got_eof = true;
                         }
  
 			
@@ -671,7 +671,7 @@ serv(char **argv, int asock)
 			    LS_WAIT_T status = *((LS_WAIT_T *)&tasks->ioTask[i].status);
 			    if (LS_WIFSTOPPED( status)){
 			        
-                                if((niosSbdMode == TRUE)&&(msgEnabled == TRUE)) {
+                                if((niosSbdMode == true)&&(msgEnabled == true)) {
 
                                     if(LS_WSTOPSIG(status) == SIGCONT) { 
                                         prtLine(I18N(801, 
@@ -714,7 +714,7 @@ serv(char **argv, int asock)
                             taskStatus[tasks->ioTask[i].tid].sendSignal = 1;
                         }
 			if (standalone) {
-			    got_status = TRUE;
+			    got_status = true;
 			    if (got_eof) {
 				kill_self(exit_sig, exit_status);
 			    }
@@ -808,7 +808,7 @@ serv(char **argv, int asock)
                     inbg = 0;
                     PassSig(SIGCONT);      
                     if (remon && usepty && io_fd >= 0 && isatty(io_fd))
-                        ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+                        ls_remtty(io_fd, usepty == 1 ? true : false);
                 }
             } else if (readCount == 0) {
                 {
@@ -852,7 +852,7 @@ serv(char **argv, int asock)
                 inbg = 0;
                 PassSig(SIGCONT);      
                 if (remon && usepty && io_fd >= 0 && isatty(io_fd))
-                    ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+                    ls_remtty(io_fd, usepty == 1 ? true : false);
             }
         }
 
@@ -1174,7 +1174,7 @@ remOn(struct lslibNiosHdr *hdr)
         FD_SET(STDIN_FD, &nios_rmask);
     remon = 1;
     if (usepty && io_fd >= 0 && isatty(io_fd))
-        ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+        ls_remtty(io_fd, usepty == 1 ? true : false);
 
     hdr->opCode = REM_ONOFF;
     if (b_write_fix(chfd, (char *)hdr, sizeof(struct lslibNiosHdr)) !=
@@ -1218,7 +1218,7 @@ setStdout(struct lslibNiosHdr *hdr)
 {
     static struct lslibNiosStdout req;
     int err;
-    static int first = TRUE;
+    static int first = true;
     
     err = 0;
 
@@ -1239,7 +1239,7 @@ setStdout(struct lslibNiosHdr *hdr)
                 perror("calloc failed");
                 exit(-1);
             }
-            first = FALSE;
+            first = false;
         }
         if (b_read_fix(chfd, (char *) req.format, req.r.len*sizeof(char))
             != req.r.len*sizeof(char)) {
@@ -1267,7 +1267,7 @@ setStdin(struct lslibNiosHdr *hdr)
     static char fname[] = "setStdin()";
     static struct lslibNiosStdin req;
     int i, err;
-    static int first = TRUE;
+    static int first = true;
     
     err = 0;
 
@@ -1277,7 +1277,7 @@ setStdin(struct lslibNiosHdr *hdr)
 	    perror("calloc failed");
 	    exit(-1);
 	}
-	first = FALSE;
+	first = false;
     }
 
     if (b_read_fix(chfd, (char *)&req.r, sizeof(req.r)) != sizeof(req.r)) {
@@ -1318,7 +1318,7 @@ getStdin(struct lslibNiosHdr *hdr)
     int retVal;
     static struct lslibNiosStdin req;
     static struct lslibNiosGetStdinReply reply;
-    static int first = TRUE;
+    static int first = true;
     
     if (first) {
 	reply.rpidlist = (int *) calloc(maxtasks, sizeof(int));
@@ -1327,7 +1327,7 @@ getStdin(struct lslibNiosHdr *hdr)
             perror(_i18n_printf( I18N_FUNC_FAIL, fname, "calloc"));
 	    exit(-1);
 	}
-	first = FALSE;
+	first = false;
     }
 
     if (b_read_fix(chfd, (char *)&req.r.set_on, sizeof(req.r.set_on)) !=
@@ -1374,7 +1374,7 @@ emusig(int tid, int st)
 	if (standalone) {
 	    if (niosSbdMode) {
 		if (sent_tstp)
-		    sent_tstp = FALSE;
+		    sent_tstp = false;
 		else
 		    return;
 
@@ -1390,7 +1390,7 @@ emusig(int tid, int st)
             kill(getpid(), LS_WSTOPSIG(status));
             Signal_(LS_WSTOPSIG(status), handle);
             if (usepty && io_fd >= 0)
-                ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+                ls_remtty(io_fd, usepty == 1 ? true : false);
         }
         
        else if (forwardTSTP && ! niosSbdMode) {
@@ -1470,12 +1470,12 @@ PassSig(int signo)
     sigprocmask(SIG_SETMASK, &omask, NULL);
     if (signo == SIGTSTP && standalone) {      
 	if (niosSbdMode)
-	    sent_tstp = TRUE;
+	    sent_tstp = true;
 	if (remon && usepty && io_fd >= 0 && isatty(io_fd))
 	    ls_loctty(io_fd);
 	
 	if (remon && usepty && io_fd >= 0 && isatty(io_fd))
-	    ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+	    ls_remtty(io_fd, usepty == 1 ? true : false);
     }
 
 } 
@@ -1496,7 +1496,7 @@ exSuspend(struct lslibNiosHdr *hdr)
     kill(getpid(),SIGSTOP);
 
     if (remon && usepty && io_fd >= 0 && isatty(io_fd))
-        ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+        ls_remtty(io_fd, usepty == 1 ? true : false);
 } 
 
 static void
@@ -1506,7 +1506,7 @@ conin(int signo)
     if (inbg) {
         inbg = 0;
         if (remon && usepty && io_fd >= 0 && isatty(io_fd))
-            ls_remtty(io_fd, usepty == 1 ? TRUE : FALSE);
+            ls_remtty(io_fd, usepty == 1 ? true : false);
     }
 } 
 
@@ -1633,7 +1633,7 @@ acceptCallBack(int asock)
     }
 
     if (!usepty)
-	return (sock);
+	return sock;
 
     
     redirect = 0;
@@ -1656,7 +1656,7 @@ acceptCallBack(int asock)
 	exit(-1);
     }
 
-    return (sock);
+    return sock;
 } 
 char *
 getTimeStamp(void)
@@ -1670,7 +1670,7 @@ getTimeStamp(void)
     timeStamp[19] = '\0';
     sprintf(timeStamp + strlen(timeStamp)," %d ", niosPid);
 
-    return(timeStamp);
+    return timeStamp;
 }
 
 
@@ -1708,7 +1708,7 @@ JobStateInfo(LS_LONG_INT jid)
 	break;
     } 
 
-    return(retval);
+    return retval;
 } 
 
 

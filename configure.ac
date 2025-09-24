@@ -14,6 +14,9 @@ dnl Project identity
 AC_DEFINE([_LAVALITE_PROJECT_], ["LavaLite HPC Scheduler"], [Project string])
 AC_DEFINE([LAVALITE_VERSION], [1], [Numeric LavaLite version])
 
+dnl Define the XDR header version of this release
+AC_DEFINE([_XDR_VERSION_0_1_0], [1], [Enable XDR version 0.1.0 features])
+
 dnl Define the default host type supported by LavaLite but you can
 dnl add more in lsf.shared file.
 AC_DEFINE([HOST_TYPE_STRING], ["LINUX86"], [Define host type string])
@@ -91,6 +94,7 @@ AC_CONFIG_FILES([
   src/lsf/lstools/Makefile
   src/lsf/lim/Makefile
   src/lsf/pim/Makefile
+  src/lsf/res/Makefile
   src/lsf/man/Makefile
   src/lsbatch/Makefile
   src/lsbatch/lib/Makefile

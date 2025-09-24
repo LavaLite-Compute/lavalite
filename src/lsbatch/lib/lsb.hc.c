@@ -16,11 +16,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+
 #include "lsbatch/lib/lsb.h"
 
-
-
-int 
+int
 lsb_hostcontrol (char *host, int opCode)
 {
     XDR xdrs;
@@ -31,84 +30,84 @@ lsb_hostcontrol (char *host, int opCode)
     struct LSFHeader hdr;
     struct lsfAuth auth;
 
-    
+
     if (hostControlReq.name == NULL) {
         hostControlReq.name = (char *) malloc (MAXHOSTNAMELEN);
         if (hostControlReq.name == NULL) {
             lsberrno = LSBE_NO_MEM;
-            return(-1);
+            return -1;
         }
     }
     if (opCode != HOST_OPEN && opCode != HOST_CLOSE &&
         opCode != HOST_REBOOT && opCode != HOST_SHUTDOWN) {
         lsberrno = LSBE_BAD_ARG;
-        return (-1);
+        return -1;
     }
-    if (host) 
+    if (host)
         if (strlen (host) >= MAXHOSTNAMELEN - 1) {
             lsberrno = LSBE_BAD_ARG;
-            return (-1);
+            return -1;
         }
-    
+
     hostControlReq.opCode = opCode;
     if (host)
-	strcpy(hostControlReq.name, host);
+        strcpy(hostControlReq.name, host);
     else {
-	char *h;
+        char *h;
         if ((h = ls_getmyhostname()) == NULL) {
             lsberrno = LSBE_LSLIB;
-            return(-1);
+            return -1;
         }
-	strcpy(hostControlReq.name, h);
+        strcpy(hostControlReq.name, h);
     }
-    
+
     switch (opCode) {
     case HOST_REBOOT:
-	hdr.opCode = CMD_SBD_REBOOT;
+        hdr.opCode = CMD_SBD_REBOOT;
         contactHost = host;
-	break;
+        break;
     case HOST_SHUTDOWN:
-	hdr.opCode = CMD_SBD_SHUTDOWN;
+        hdr.opCode = CMD_SBD_SHUTDOWN;
         contactHost = host;
-	break;
+        break;
     default:
-	hdr.opCode = BATCH_HOST_CTRL;
-	break;
+        hdr.opCode = BATCH_HOST_CTRL;
+        break;
     }
-   
-    
-    if (authTicketTokens_(&auth, contactHost) == -1)
-	return (-1);
 
-    
+
+    if (authTicketTokens_(&auth, contactHost) == -1)
+        return -1;
+
+
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&xdrs, (char*) &hostControlReq, &hdr, 
-		      xdr_controlReq, 0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char*) &hostControlReq, &hdr,
+                       xdr_controlReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
-        return(-1);
+        return -1;
     }
 
     if (opCode == HOST_REBOOT || opCode == HOST_SHUTDOWN) {
-	
-	if ((cc = cmdCallSBD_(hostControlReq.name, request_buf,
-			      XDR_GETPOS(&xdrs), &reply_buf, 
-			      &hdr, NULL)) == -1)
-	    return (-1);
+
+        if ((cc = cmdCallSBD_(hostControlReq.name, request_buf,
+                              XDR_GETPOS(&xdrs), &reply_buf,
+                              &hdr, NULL)) == -1)
+            return -1;
     } else {
-	
-	if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, 
-			   &hdr, NULL, NULL, NULL)) == -1)
-	    return (-1);
+
+        if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
+                           &hdr, NULL, NULL, NULL)) == -1)
+            return -1;
     }
-	
+
 
     lsberrno = hdr.opCode;
     if (cc)
-	free(reply_buf);
+        free(reply_buf);
     if (lsberrno == LSBE_NO_ERROR)
-	return(0);
+        return 0;
     else
-	return(-1);
+        return -1;
 
-} 
+}

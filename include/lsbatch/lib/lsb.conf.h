@@ -1,6 +1,5 @@
 /* $Id: lsb.conf.h,v 1.3 2007/08/15 22:18:47 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,8 +15,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#ifndef _LSB_CONF_
-#define _LSB_CONF_
+#ifndef LSB_CONF_H
+#define LSB_CONF_H
 
 #define TYPE1  RESF_BUILTIN | RESF_DYNAMIC | RESF_GLOBAL
 #define TYPE2  RESF_BUILTIN | RESF_GLOBAL
@@ -32,7 +31,7 @@ static char do_Groups(struct groupInfoEnt **, struct Conf *, char *,
 
 static char addHost(struct hostInfoEnt *, char *, int);
 static char addQueue(struct queueInfoEnt *, char *, int);
-static char addUser (char *, int, float, char *, int, int);
+static char addUser (char *, int, float, char *, int, int); 
 static char addMember(struct groupInfoEnt *, char *, int, char *,
 					int, char *);
 
@@ -79,4 +78,4 @@ static char parseNqsQueues(struct queueInfoEnt *, char *, char *, int *);
 static int my_atoi(char *, int, int);
 static float my_atof (char *, float, float);
 
-#endif
+#endif  

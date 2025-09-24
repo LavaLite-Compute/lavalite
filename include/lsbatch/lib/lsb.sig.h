@@ -1,6 +1,5 @@
-/* $Id: lsb.sig.h,v 0.5 2007/08/16 15:10:16 cchen Exp $
+/* $Id: lsb.sig.h,v 1.5 2007/08/16 15:10:16 cchen Exp $
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,35 +16,37 @@
  *
  */
 
-#ifndef _LSB_SIG_
-#define _LSB_SIG_
+#ifndef LSB_SIG_H
+#define LSB_SIG_H
 
-#define SIG_NULL             -65535
-#define SIG_CHKPNT               -1
-#define SIG_CHKPNT_COPY          -2
-#define SIG_DELETE_JOB           -3
+#include "../lsbatch.h"
 
-#define  SIG_SUSP_USER           -4
-#define  SIG_SUSP_LOAD           -5
-#define  SIG_SUSP_WINDOW         -6
-#define  SIG_SUSP_OTHER          -7
+#define SIG_NULL             -65535  
+#define SIG_CHKPNT               -1  
+#define SIG_CHKPNT_COPY          -2  
+#define SIG_DELETE_JOB           -3  
 
-#define  SIG_RESUME_USER         -8
-#define  SIG_RESUME_LOAD         -9
-#define  SIG_RESUME_WINDOW       -10
-#define  SIG_RESUME_OTHER        -11
+#define  SIG_SUSP_USER           -4  
+#define  SIG_SUSP_LOAD           -5  
+#define  SIG_SUSP_WINDOW         -6  
+#define  SIG_SUSP_OTHER          -7  
 
-#define  SIG_TERM_USER           -12
-#define  SIG_TERM_LOAD           -13
-#define  SIG_TERM_WINDOW         -14
-#define  SIG_TERM_OTHER          -15
-#define  SIG_TERM_RUNLIMIT       -16
-#define  SIG_TERM_DEADLINE       -17
-#define  SIG_TERM_PROCESSLIMIT   -18
-#define  SIG_TERM_FORCE          -19
-#define  SIG_KILL_REQUEUE        -20
-#define  SIG_TERM_CPULIMIT       -21
-#define  SIG_TERM_MEMLIMIT       -22
+#define  SIG_RESUME_USER         -8  
+#define  SIG_RESUME_LOAD         -9 
+#define  SIG_RESUME_WINDOW       -10 
+#define  SIG_RESUME_OTHER        -11  
+
+#define  SIG_TERM_USER           -12 
+#define  SIG_TERM_LOAD           -13  
+#define  SIG_TERM_WINDOW         -14  
+#define  SIG_TERM_OTHER          -15   
+#define  SIG_TERM_RUNLIMIT       -16  
+#define  SIG_TERM_DEADLINE       -17  
+#define  SIG_TERM_PROCESSLIMIT   -18  
+#define  SIG_TERM_FORCE          -19 
+#define  SIG_KILL_REQUEUE        -20  
+#define  SIG_TERM_CPULIMIT       -21  
+#define  SIG_TERM_MEMLIMIT       -22  
 #define  SIG_ARRAY_REQUEUE       -23
 
 extern int sigNameToValue_ (char *sigString);
@@ -55,4 +56,4 @@ extern int isSigTerm (int sigValue);
 extern int isSigSusp (int sigValue);
 extern int terminateWhen_(int *sigMap, char *name);
 
-#endif
+#endif 

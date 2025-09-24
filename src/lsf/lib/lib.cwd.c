@@ -16,22 +16,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.common.h"
 
-
-
-
+/* Bug. This function is problematic.
+ */
 char *
 mygetwd_(char *path)
 {
     char *pwd;
-    struct stat pwdstat, dotstat;
-    static char temp_buff[MAXPATHLEN];
+    struct stat pwdstat;
+    struct stat dotstat;
+    static char temp_buff[PATH_MAX];
 
     pwd = getenv("PWD");
     if (pwd == NULL && (pwd = getenv("CWD")) == NULL) {
-        if(getcwd(temp_buff, sizeof(temp_buff))) {
-            strncpy(path, temp_buff, MAXFILENAMELEN);
+        if (getcwd(temp_buff, sizeof(temp_buff))) {
+            strncpy(path, temp_buff, PATH_MAX);
+            path[strlen(path) - 1] = 0;
             return path;
         } else
             return NULL;
@@ -44,8 +45,10 @@ mygetwd_(char *path)
             return path;
         }
     }
-    if(getcwd(temp_buff, sizeof(temp_buff))) {
-        strncpy(path, temp_buff, MAXFILENAMELEN);
+
+    if (getcwd(temp_buff, sizeof(temp_buff))) {
+        strncpy(path, temp_buff, PATH_MAX);
+        path[PATH_MAX - 1] = 0;
         return path;
     } else
         return NULL;

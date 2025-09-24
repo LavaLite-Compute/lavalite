@@ -16,7 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
+#include "lsf/lib/lib.channel.h"
 
 #define NL_SETN 23
 
@@ -40,14 +41,20 @@ static int rcvreply_(int, char *, char);
 int lsf_lim_version = -1;
 
 int
-callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
-        void *drecv, bool_t (*xdr_rfunc)(), char *host, int options, struct LSFHeader *hdr)
+callLim_(enum limReqCode reqCode,
+         void *dsend,
+         bool_t (*xdr_sfunc)(),
+         void *drecv,
+         bool_t (*xdr_rfunc)(),
+         char *host,
+         int options,
+         struct LSFHeader *hdr)
 {
     struct LSFHeader reqHdr;
     struct LSFHeader replyHdr;
     XDR    xdrs;
-    char   sbuf[8*MSGSIZE];
-    char   rbuf[MAXMSGLEN];
+    char   sbuf[BUFSIZ];
+    char   rbuf[BUFSIZ/8];
     char   *repBuf;
     enum limReplyCode limReplyCode;
     static char first = true;

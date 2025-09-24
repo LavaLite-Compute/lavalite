@@ -19,11 +19,11 @@
 #ifndef _LLCORE_INTLIBOUT_
 #define _LLCORE_INTLIBOUT_
 
-#include "resreq.h"
 #include "lsf/lib/lib.channel.h"
 #include "lsf/lib/lib.hdr.h"
-#include "bitset.h"
-#include "listset.h"
+#include "lsf/intlib/list.h"
+#include "lsf/intlib/bitset.h"
+#include "lsf/intlib/listset.h"
 
 #define MINPASSWDLEN_LS         (3)
 
@@ -69,7 +69,6 @@ extern FILE *         myfopen_(char *, char *, struct hostent *);
 extern int            mystat_(char *, struct stat *, struct hostent *);
 extern int            mychmod_(char *, mode_t, struct hostent *);
 extern int            mymkdir_(char *, mode_t, struct hostent *);
-extern void           myexecv_(char *, char **, struct hostent *);
 extern int            myunlink_(char *, struct hostent *, int);
 extern int            myrename_(char *, char *, struct hostent *);
 extern char           chosenPath[MAXPATHLEN];
@@ -99,7 +98,7 @@ extern int getHostAttribNonLim(char *hname, int updateIntvl);
 extern void           setTimer(struct timeval *, unsigned);
 extern int            timerIsExpired(struct timeval *);
 extern void           timeUntilEvent(struct timeval *);
-extern int            wait3TmpFix_(LS_WAIT_T *, int, struct rusage *);
+extern int            wait3TmpFix_(int *, int, struct rusage *);
 extern int            parseResReq (char *,
                                    struct resVal *,
                                    struct lsInfo *,

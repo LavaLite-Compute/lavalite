@@ -19,9 +19,11 @@
 #ifndef _LIB_TABLE_H_
 #define _LIB_TABLE_H_
 
-#define RESETFACTOR        2
-#define RESETLIMIT         1.5
-#define DEFAULT_SLOTS      16
+#define RESETFACTOR 2
+#define RESETLIMIT 1.5
+/* First prime after 1024
+ */
+#define DEFAULT_SLOTS 1031
 
 struct hLinks {
     struct hLinks *fwPtr;
@@ -31,24 +33,24 @@ struct hLinks {
 typedef struct hLinks hLinks;
 
 typedef struct hEnt {
-    hLinks links;            
-    int     *hData;           
-    char    *keyname;        
+    hLinks links;
+    int     *hData;
+    char    *keyname;
 } hEnt;
 
 
 typedef struct hTab {
-    hLinks *slotPtr;          
-    int     numEnts;           
-    int     size;              
+    hLinks *slotPtr;
+    int     numEnts;
+    int     size;
 } hTab;
 
 
 typedef struct sTab {
-    hTab     *tabPtr;     
-    int      nIndex;            
-    hEnt     *hEntPtr;         
-    hLinks   *hList;          
+    hTab     *tabPtr;
+    int      nIndex;
+    hEnt     *hEntPtr;
+    hLinks   *hList;
 } sTab;
 
 #define HTAB_ZERO_OUT(HashTab) \
@@ -100,7 +102,3 @@ extern hEnt *      h_nextEnt_(sTab *);
 extern void        h_freeRefTab_(hTab *);
 extern void        h_delRef_(hTab *, hEnt *);
 #endif
-
-
-
-

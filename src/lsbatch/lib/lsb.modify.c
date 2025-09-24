@@ -16,15 +16,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+
 #include "lsbatch/lib/lsb.h"
+#include "lsbatch/lib/lsb.spool.h"
 
-
-
-
-#define  NL_SETN   13   
+#define  NL_SETN   13
 
 static LS_LONG_INT sendModifyReq (struct modifyReq *, struct submitReply *,
-struct lsfAuth *);
+                                  struct lsfAuth *);
 static int esubValModify(struct submit *);
 extern void makeCleanToRunEsub();
 extern void modifyJobInformation(struct submit *);
@@ -49,10 +48,10 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep, LS_LONG_INT 
 
     if (job <= 0) {
         lsberrno = LSBE_BAD_JOB;
-        return (-1);
+        return -1;
     }
 
-    
+
     subNewLine_(jobSubReq->resReq);
     subNewLine_(jobSubReq->dependCond);
     subNewLine_(jobSubReq->preExecCmd);
@@ -84,46 +83,46 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep, LS_LONG_INT 
     modifyReq.submitReq.command = cmd;
 
     makeCleanToRunEsub();
-    
+
     if (esubValModify(jobSubReq) < 0) {
         goto cleanup;
     }
 
     modifyJobInformation(jobSubReq);
-    
+
     if (getCommonParams (jobSubReq, &modifyReq.submitReq, submitRep) < 0) {
-        goto cleanup;                    
+        goto cleanup;
     }
 
     if (authTicketTokens_(&auth, NULL) == -1) {
         goto cleanup;
     }
     if (getOtherParams (jobSubReq, &modifyReq.submitReq,
-                                      submitRep, &auth, &subSpoolFiles) < 0) {
+                        submitRep, &auth, &subSpoolFiles) < 0) {
         goto cleanup;
     }
 
-    
+
     if(lsb_openjobinfo (job, NULL, NULL, NULL, NULL, 0) >= 0
        && (jInfo = lsb_readjobinfo (NULL)) != NULL){
-	
-         if ((jobSubReq->termTime != 0 && jobSubReq->termTime != DELETE_NUMBER)
-             && jobSubReq->beginTime == 0 
-             && jInfo->submit.beginTime > jobSubReq->termTime) {
-	       lsberrno = LSBE_START_TIME;
-	       goto cleanup;
-         }
-         if (jobSubReq->beginTime!= 0
-             && jobSubReq->termTime == 0 
-             && jInfo->submit.termTime > 0 
-	     && jInfo->submit.termTime < jobSubReq->beginTime) {
-	       lsberrno = LSBE_START_TIME;
-	       goto cleanup;
-         }
+
+        if ((jobSubReq->termTime != 0 && jobSubReq->termTime != DELETE_NUMBER)
+            && jobSubReq->beginTime == 0
+            && jInfo->submit.beginTime > jobSubReq->termTime) {
+            lsberrno = LSBE_START_TIME;
+            goto cleanup;
+        }
+        if (jobSubReq->beginTime!= 0
+            && jobSubReq->termTime == 0
+            && jInfo->submit.termTime > 0
+            && jInfo->submit.termTime < jobSubReq->beginTime) {
+            lsberrno = LSBE_START_TIME;
+            goto cleanup;
+        }
     }
     lsb_closejobinfo();
 
-    for (i =0; i < LSF_RLIM_NLIMITS; i++) {  
+    for (i =0; i < LSF_RLIM_NLIMITS; i++) {
         if (jobSubReq->rLimits[i] == DELETE_NUMBER)
             modifyReq.submitReq.rLimits[i] = DELETE_NUMBER;
     }
@@ -133,11 +132,11 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep, LS_LONG_INT 
 cleanup:
 
     if (jobId < 0) {
-        
+
         const char* spoolHost;
         int err;
 
-        
+
         if (subSpoolFiles.inFileSpool[0]) {
             spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.inFileSpool);
             err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.inFileSpool);
@@ -148,7 +147,7 @@ cleanup:
             }
         }
 
-        
+
         if (subSpoolFiles.commandSpool[0]) {
             spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.commandSpool);
             err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.commandSpool);
@@ -160,9 +159,9 @@ cleanup:
         }
     }
 
-    return(jobId);
+    return jobId;
 
-} 
+}
 
 static LS_LONG_INT
 sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, struct lsfAuth *auth)
@@ -176,7 +175,7 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
     struct submitMbdReply *reply;
     LS_LONG_INT jobId;
 
-    
+
     mbdReqtype = BATCH_JOB_MODIFY;
     xdrmem_create(&xdrs, request_buf, 2*MSGSIZE, XDR_ENCODE);
     hdr.opCode = mbdReqtype;
@@ -184,32 +183,32 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
                        auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
-        return(-1);
+        return -1;
     }
     if ( (cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                        &hdr, NULL, NULL, NULL)) < 0) {
         xdr_destroy(&xdrs);
-        return(-1);
+        return -1;
     }
     xdr_destroy(&xdrs);
 
     lsberrno = hdr.opCode;
-    if (cc == 0) { 
+    if (cc == 0) {
         submitReply->badJobId = 0;
         submitReply->badReqIndx = 0;
         submitReply->queue = "";
         submitReply->badJobName = "";
-        return (-1);
+        return -1;
     }
 
     if ((reply = (struct submitMbdReply *)malloc(sizeof(struct submitMbdReply)))
         == NULL) {
         lsberrno = LSBE_NO_MEM;
         free(reply);
-        return(-1);
+        return -1;
     }
 
-    
+
     xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
 
     if (!xdr_submitMbdReply(&xdrs, reply, &hdr)) {
@@ -217,14 +216,14 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
         free(reply_buf);
         free(reply);
         xdr_destroy(&xdrs);
-        return (-1);
+        return -1;
     }
 
     free(reply_buf);
 
     xdr_destroy(&xdrs);
 
-    
+
 
     submitReply->badJobId = reply->jobId;
     submitReply->badReqIndx = reply->badReqIndx;
@@ -237,14 +236,14 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
             lsberrno = LSBE_PROTOCOL;
         jobId = reply->jobId;
         free(reply);
-        return (jobId);
+        return jobId;
     }
 
     free(reply);
-    return(-1);
-} 
+    return -1;
+}
 
- 
+
 static int
 esubValModify(struct submit *jobSubReq)
 {
@@ -254,15 +253,15 @@ esubValModify(struct submit *jobSubReq)
     ed.data = NULL;
 
     if (runBatchEsub(&ed, jobSubReq) < 0)
-	return (-1);
+        return -1;
 
     if (ed.len > 0) {
-	FREEUP(ed.data);
+        FREEUP(ed.data);
     }
 
-    return (0);
-    
-} 
+    return 0;
+
+}
 
 int
 lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
@@ -273,35 +272,35 @@ lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
     struct LSFHeader hdr;
     struct lsfAuth auth;
     char *reply_buf;
-    
+
     if (jobId <= 0) {
         lsberrno = LSBE_BAD_JOBID;
-        return (-1);
+        return -1;
     }
 
-    if (authTicketTokens_(&auth, NULL) == -1) { 
-        return (-1);
+    if (authTicketTokens_(&auth, NULL) == -1) {
+        return -1;
     }
     jobAttr->jobId = jobId;
     mbdReqtype = BATCH_SET_JOB_ATTR;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     hdr.opCode = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)jobAttr, &hdr, xdr_jobAttrReq, 0, &auth)){
-	xdr_destroy(&xdrs);
-	lsberrno = LSBE_XDR;
-	return (-1);
+        xdr_destroy(&xdrs);
+        lsberrno = LSBE_XDR;
+        return -1;
     }
     if (callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-	&hdr, NULL, NULL, NULL) < 0) {
-	xdr_destroy(&xdrs);
-	return (-1);
+                &hdr, NULL, NULL, NULL) < 0) {
+        xdr_destroy(&xdrs);
+        return -1;
     }
+
     xdr_destroy(&xdrs);
     free(reply_buf);
-    lsberrno=hdr.opCode;
+    lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR)
-	return (0);
-    else
-        return (-1);
-} 
+        return 0;
 
+    return -1;
+}

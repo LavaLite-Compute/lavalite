@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 
 #define SIGEMT SIGBUS
 #define SIGLOST SIGIO
@@ -26,37 +26,41 @@
 #    define SIGWINCH SIGWINDOW
 #endif
 
-int sig_map[] = {       0,
-                        SIGHUP,
-                        SIGINT,
-                        SIGQUIT,
-                        SIGILL,
-                        SIGTRAP,
-                        SIGIOT,
-                        SIGEMT,
-                        SIGFPE,
-                        SIGKILL,
-                        SIGBUS,
-                        SIGSEGV,
-                        SIGSYS,
-                        SIGPIPE,
-                        SIGALRM,
-                        SIGTERM,
-                        SIGSTOP,
-                        SIGTSTP,
-                        SIGCONT,
-                        SIGCHLD,
-                        SIGTTIN,
-                        SIGTTOU,
-                        SIGIO,
-                        SIGXCPU,
-                        SIGXFSZ,
-                        SIGVTALRM,
-                        SIGPROF,
-                        SIGWINCH,
-                        SIGLOST,
-                        SIGUSR1,
-                        SIGUSR2
+/* Bug. Old gargabe to remove we have signal.h
+ */
+int sig_map[] =
+{
+    0,
+    SIGHUP,
+    SIGINT,
+    SIGQUIT,
+    SIGILL,
+    SIGTRAP,
+    SIGIOT,
+    SIGEMT,
+    SIGFPE,
+    SIGKILL,
+    SIGBUS,
+    SIGSEGV,
+    SIGSYS,
+    SIGPIPE,
+    SIGALRM,
+    SIGTERM,
+    SIGSTOP,
+    SIGTSTP,
+    SIGCONT,
+    SIGCHLD,
+    SIGTTIN,
+    SIGTTOU,
+    SIGIO,
+    SIGXCPU,
+    SIGXFSZ,
+    SIGVTALRM,
+    SIGPROF,
+    SIGWINCH,
+    SIGLOST,
+    SIGUSR1,
+    SIGUSR2
 };
 
 char *sigSymbol[] = {       "",
@@ -102,7 +106,7 @@ sig_encode(int sig)
     if (sig < 0)
         return sig;
 
-    for (i=0; i<NSIG_MAP; i++)
+    for (i = 0; i< NSIG_MAP; i++)
         if (sig_map[i] == sig)
             break;
     if (i == NSIG_MAP) {
@@ -128,11 +132,11 @@ sig_decode(int sig)
         }
     }
 
-    return(sig_map[sig]);
+    return sig_map[sig];
 }
 
 int
-getSigVal(char *sigString)
+getSigVal(const char *sigString)
 {
     int sigVal, i;
     char sigSig[16];
@@ -142,21 +146,23 @@ getSigVal(char *sigString)
     if (sigString[0] == '\0')
         return -1;
 
-    if (isint_(sigString) == true) {
-        if ((sigVal=atoi(sigString)) > NSIG)
+    /* Silence the compiler about const value of sigString
+     */
+    char *p = (char *)sigString;
+    if (isint_(p) == true) {
+        if ((sigVal = atoi(sigString)) > NSIG)
             return -1;
         else
             return sigVal;
     }
 
-    for (i=0; i<NSIG_MAP; i++) {
+    for (i = 0; i < NSIG_MAP; i++) {
         sprintf(sigSig, "%s%s", "SIG", sigSymbol[i]);
         if ((strcmp(sigSymbol[i], sigString) == 0)
             || (strcmp( sigSig, sigString) == 0))
-            return (sig_map[i]);
+            return sig_map[i];
     }
     return -1;
-
 }
 
 char *
@@ -196,8 +202,8 @@ getSigSymbol (int sig)
         strcpy(symbol, "UNKNOWN");
     else
         strcpy(symbol, sigSymbol[sig]);
-    return symbol;
 
+    return symbol;
 }
 
 int
@@ -206,5 +212,6 @@ blockALL_SIGS_(sigset_t *newMask, sigset_t *oldMask)
     sigfillset(newMask);
     sigdelset(newMask, SIGTRAP);
     sigdelset(newMask, SIGEMT);
-    return (sigprocmask(SIG_BLOCK, newMask, oldMask));
+
+    return sigprocmask(SIG_BLOCK, newMask, oldMask);
 }

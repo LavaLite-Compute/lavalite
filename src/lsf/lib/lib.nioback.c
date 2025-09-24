@@ -16,14 +16,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 #include "lsf/res/rescom.h"
+#include "lsf/lib/lib.xdrres.h"
 
 #define NL_SETN 23
 
-    int
-niosCallback_(struct sockaddr_in *from, u_short port,
-        int rpid, int exitStatus, int terWhiPendStatus)
+int
+niosCallback_(struct sockaddr_in *from,
+              uint16_t port,
+              int rpid,
+              int exitStatus,
+              int terWhiPendStatus)
 {
     static char fname[] = "niosCallback_";
     int s;
@@ -51,11 +55,11 @@ niosCallback_(struct sockaddr_in *from, u_short port,
         resTimeout = RES_TIMEOUT;
 
     if (b_connect_(s, (struct sockaddr *)from,
-                sizeof(struct sockaddr_in), resTimeout) < 0) {
+                   sizeof(struct sockaddr_in), resTimeout) < 0) {
         if (logclass & LC_EXEC)
             ls_syslog(LOG_DEBUG,"\
                     %s: connect(s=%d,%s,len=%d) failed: %m", fname,
-                    s, sockAdd2Str_(from), sizeof(struct sockaddr_in));
+                      s, sockAdd2Str_(from), sizeof(struct sockaddr_in));
         closesocket(s);
         return -1;
     }
@@ -68,7 +72,7 @@ niosCallback_(struct sockaddr_in *from, u_short port,
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: exitStatus <%d> terWhiPendStatus <%d>",
-                fname, exitStatus, terWhiPendStatus);
+                  fname, exitStatus, terWhiPendStatus);
 
     initLSFHeader_(&reqHdr);
     reqHdr.opCode = RES2NIOS_CONNECT;
@@ -80,18 +84,21 @@ niosCallback_(struct sockaddr_in *from, u_short port,
     conn.terWhiPendStatus = terWhiPendStatus;
 
     memset((char*)&reqBuf, 0, sizeof(reqBuf));
-    if (writeEncodeMsg_(s, (char *) &reqBuf, sizeof(reqBuf), &reqHdr,
-                (char *) &conn, NB_SOCK_WRITE_FIX, xdr_niosConnect, 0)
-            < 0) {
+    if (writeEncodeMsg_(s,
+                        (char *)&reqBuf,
+                        sizeof(reqBuf),
+                        &reqHdr,
+                        (char *)&conn,
+                        NB_SOCK_WRITE_FIX,
+                        xdr_niosConnect,
+                        0) < 0) {
         if (logclass & LC_EXEC)
             ls_syslog(LOG_ERR,
-                    I18N(6201,"%s: writeEncodeMsg_(%d,%d) RES2NIOS_connect failed: %M"),  /* catgets 6201*/
-                    fname, s, rpid);
+                      I18N(6201,"%s: writeEncodeMsg_(%d,%d) RES2NIOS_connect failed: %M"),  /* catgets 6201*/
+                      fname, s, rpid);
         closesocket(s);
         return -1;
     }
 
     return s;
 }
-
-

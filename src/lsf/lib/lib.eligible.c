@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 
 hTab rtask_table;
 hTab ltask_table;
@@ -92,41 +92,41 @@ inittasklists_(void)
         return -1;
 
     sprintf(filename, "%s/lsf.task", genParams_[LSF_CONFDIR].paramValue);
-    if (access(filename, R_OK) == 0)
-        if (readtaskfile_(filename, NULL, NULL, &ltask_table, &rtask_table,
-                          false) >=0)
-            listok = true;
+    if (readtaskfile_(filename, NULL, NULL, &ltask_table, &rtask_table,
+                      false) < 0) {
+        return -1;
+    }
 
     clName = ls_getclustername();
-    if (clName != NULL) {
-        sprintf(filename, "%s/lsf.task.%s",
-                genParams_[LSF_CONFDIR].paramValue, clName);
-        if (access(filename, R_OK) == 0) {
-            if (readtaskfile_(filename, NULL, NULL, &ltask_table, &rtask_table,
-                              false) >= 0)
-                listok = true;
-        }
+    if (clName == NULL)
+        return -1;
+
+    sprintf(filename, "%s/lsf.task.%s",
+            genParams_[LSF_CONFDIR].paramValue, clName);
+    if (readtaskfile_(filename, NULL, NULL, &ltask_table, &rtask_table,
+                      false) < 0) {
+        return-1;
     }
 
-    if ((homep = getenv("HOME") != NULL)) {
-        strcpy(filename, homep);
-        strcat(filename, "/.lsftask");
-        if (access(filename, R_OK) == 0) {
-            if (readtaskfile_(filename,
-                              NULL,
-                              NULL,
-                              &ltask_table,
-                              &rtask_table,
-                              false) >= 0)
-                listok = true;
-        }
+    /* Bug. No $HOME?
+     */
+    homep = getenv("HOME");
+    if (homep == NULL) {
+        return -1;
     }
-    if (listok)
-        return 0;
 
-    lserrno = LSE_BAD_TASKF;
-    return -1;
+    strcpy(filename, homep);
+    strcat(filename, "/.lsftask");
+    if (readtaskfile_(filename,
+                      NULL,
+                      NULL,
+                      &ltask_table,
+                      &rtask_table,
+                      false) < 0) {
+        return -1;
+    }
 
+    return 0;
 }
 
 int
@@ -141,7 +141,6 @@ readtaskfile_(char *filename, hTab *minusListl, hTab *minusListr,
 
     phase = ph_begin;
     if ((fp = fopen(filename,"r")) == NULL) {
-
         lserrno = LSE_FILE_SYS;
         return -1;
     }

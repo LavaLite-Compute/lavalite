@@ -17,14 +17,8 @@
  *
  */
 
-#ifndef LIB_HDR_H
-#define LIB_HDR_H
-
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-#include <sys/stat.h>
-
-#include "lsf.h"
+#ifndef _LIB_HDR_
+#define _LIB_HDR_
 
 struct LSFHeader {
     unsigned short refCode;
@@ -85,17 +79,12 @@ extern bool_t xdr_packLSFHeader(char *, struct LSFHeader *);
 
 extern bool_t xdr_encodeMsg(XDR *, char *, struct LSFHeader *,
 			     bool_t (*)(), int, struct lsfAuth *);
-
-
-
-
 extern bool_t xdr_arrayElement(XDR *, char *, struct LSFHeader *,
 				bool_t (*)(), ...);
-extern bool_t xdr_LSFlong(XDR *, long *);
 extern bool_t xdr_stringLen(XDR *, struct stringLen *, struct LSFHeader *);
 extern bool_t xdr_stat(XDR *, struct stat *, struct LSFHeader *);
 extern bool_t xdr_lsfAuth(XDR *, struct lsfAuth *, struct LSFHeader *);
 extern int xdr_lsfAuthSize(struct lsfAuth *);
 extern bool_t xdr_jRusage(XDR *, struct jRusage *, struct LSFHeader *);
-#endif
 
+#endif

@@ -18,9 +18,8 @@
 
 #ifndef LIB_XDRLIM_H
 #define LIB_XDRLIM_H
-#include "lib.hdr.h"
+
 #include "lproto.h"
- 
 
 extern bool_t xdr_decisionReq(XDR *, struct decisionReq *, struct LSFHeader *);
 extern bool_t xdr_placeReply(XDR *, struct placeReply *, struct LSFHeader *);
@@ -34,13 +33,12 @@ extern bool_t xdr_hostInfoReply(XDR *, struct hostInfoReply *,
 extern bool_t xdr_masterInfo(XDR *, struct masterInfo *, struct LSFHeader *);
 extern bool_t xdr_clusterInfoReq(XDR *, struct clusterInfoReq *,
 				struct LSFHeader *);
-extern bool_t xdr_clusterInfoReply(XDR *, struct clusterInfoReply *, 
+extern bool_t xdr_clusterInfoReply(XDR *, struct clusterInfoReply *,
 				struct LSFHeader *);
-extern bool_t xdr_shortHInfo(XDR *, struct shortHInfo *, struct LSFHeader *, 
+extern bool_t xdr_shortHInfo(XDR *, struct shortHInfo *, struct LSFHeader *,
                                                               char *);
 extern bool_t xdr_shortCInfo(XDR *, struct shortCInfo *, struct LSFHeader *);
 extern bool_t xdr_cInfo(XDR *, struct cInfo *, struct LSFHeader *);
 extern bool_t xdr_resourceInfoReq(XDR *, struct resourceInfoReq *, struct LSFHeader *);
 extern bool_t xdr_resourceInfoReply (XDR *, struct resourceInfoReply *, struct LSFHeader *);
-#endif 
-
+#endif

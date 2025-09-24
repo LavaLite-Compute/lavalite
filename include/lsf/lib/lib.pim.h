@@ -19,8 +19,6 @@
 #ifndef _LIB_PIM_H_
 #define _LIB_PIM_H_
 
-#include <time.h>
-
 enum lsPStatType {
     LS_PSTAT_RUNNING,
     LS_PSTAT_INTERRUPTIBLE,
@@ -34,28 +32,26 @@ enum lsPStatType {
 
 
 struct lsPidInfo {
-    int pid;            
-    int ppid;           
-    int pgid;           
-    int jobid;		
-    int utime;          
-                        
-    int stime;          
-    int cutime;         
-    int cstime;         
-    int proc_size;      
-    int resident_size;  
-    int stack_size;     
-    enum lsPStatType status;	
-
-    char *command;	
+    int pid;
+    int ppid;
+    int pgid;
+    int jobid;
+    int utime;
+    int stime;
+    int cutime;
+    int cstime;
+    int proc_size;
+    int resident_size;
+    int stack_size;
+    enum lsPStatType status;
+    char *command;
 };
 
-#define PIM_API_TREAT_JID_AS_PGID 0x1 
-#define PIM_API_UPDATE_NOW        0x2 
+#define PIM_API_TREAT_JID_AS_PGID 0x1
+#define PIM_API_UPDATE_NOW        0x2
 
 #define PIM_SLEEP_TIME 30
 
 extern struct jRusage *getJInfo_(int, int*, int, int);
 
-#endif 
+#endif

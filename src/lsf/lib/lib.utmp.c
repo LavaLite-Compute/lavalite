@@ -1,4 +1,3 @@
-
 /* $Id: lib.utmp.c,v 1.4 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -19,22 +18,7 @@
  */
 #include "lsf/lib/liblavalite.h"
 
-
-
-
-
-
-
 #define UTMP_FILENAME "/var/adm/utmpx"
-
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif 
-
-#ifndef MAX
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#endif 
-
 
 int
 createUtmpEntry( char* uname, pid_t job_pid, char* current_tty ) {
@@ -43,8 +27,7 @@ createUtmpEntry( char* uname, pid_t job_pid, char* current_tty ) {
 
     return err;
 
-} 
-
+}
 
 
 int
@@ -52,4 +35,4 @@ removeUtmpEntry( pid_t job_pid) {
 
     return 0;
 
-} 
+}

@@ -877,9 +877,9 @@ struct runJobRequest {
 #define REQUEUE_RUN    0x4
 
 struct jobrequeue {
-    LS_LONG_INT      jobId;
-    int              status;
-    int              options;
+    LS_LONG_INT jobId;
+    int status;
+    int options;
 };
 
 #define    TO_TOP            1

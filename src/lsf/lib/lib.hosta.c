@@ -16,17 +16,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
 
-
-
+#include "lsf/lib/lib.h"
 
 int
 getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
                int *badIdx, int checkHost)
 {
-    int num = 64, i;
-    char *word, **tmp, *hname;
+    int num = 64;
+    int i;
+    char *word;
+    char **tmp;
+    char *hname;
     const char *officialName;
     int foundBadHost = false;
     static char **hlist = NULL;
@@ -41,7 +42,7 @@ getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
     }
 
     nhlist = 0;
-    if ((hlist = (char **) calloc(num, sizeof (char *))) == NULL)  {
+    if ((hlist = calloc(num, sizeof (char *))) == NULL)  {
         lserrno = LSE_MALLOC;
         return -1;
     }
@@ -49,7 +50,8 @@ getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
     *badIdx = 0;
 
     while((word = getNextWord_(&optarg)) != NULL) {
-        strncpy(host, word, sizeof(host));
+
+        strncpy(host, word, sizeof(host) - 1);
         if (ls_isclustername(host) <= 0) {
             if (checkHost == false) {
                 hname = host;

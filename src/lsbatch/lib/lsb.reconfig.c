@@ -16,13 +16,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+
 #include "lsbatch/lib/lsb.h"
-
-
 
 extern void setHdrReserved(struct LSFHeader *, unsigned int );
 
-int 
+int
 lsb_reconfig (int configFlag)
 {
     mbdReqType mbdReqtype;
@@ -34,13 +33,13 @@ lsb_reconfig (int configFlag)
     struct lsfAuth auth;
     int tmp;
 
-    
+
 
     mbdReqtype = BATCH_RECONFIG;
 
     if (authTicketTokens_(&auth, NULL) == -1)
-	return (-1);
-    
+        return -1;
+
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     initLSFHeader_(&hdr);
@@ -50,23 +49,23 @@ lsb_reconfig (int configFlag)
 
     if (!xdr_encodeMsg(&xdrs, (char *)NULL, &hdr, NULL, 0, &auth)) {
         lsberrno = LSBE_XDR;
-        return(-1);
+        return -1;
     }
 
-    
-    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, 
-                       &hdr, NULL, NULL, NULL)) == -1)
+
+    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
+                    &hdr, NULL, NULL, NULL)) == -1)
     {
         xdr_destroy(&xdrs);
-	return (-1);
-    } 
+        return -1;
+    }
     xdr_destroy(&xdrs);
     if (cc)
-	free(reply_buf);
-        
+        free(reply_buf);
+
     lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR)
-	return(0);
-    else
-	return(-1);
-} 
+        return 0;
+
+    return -1;
+}

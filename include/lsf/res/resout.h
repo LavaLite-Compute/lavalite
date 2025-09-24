@@ -10,7 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
@@ -22,9 +21,6 @@
 
 #include <termios.h>
 #include "../lib/lib.hdr.h"
-
-
-#include <sys/ioctl.h>
 
 #if !defined(TIOCGWINSZ)
 struct winsize {
@@ -91,8 +87,6 @@ typedef enum {
     RES_INITTTY_ASYNC = 15,
     RES_RMI  =99
 } resCmd;
-
-
 
 struct resConnect {
     struct lenData eexec;
@@ -202,8 +196,8 @@ struct niosConnect {
 struct niosStatus {
     resAck ack;
     struct sigStatusUsage {
-	int ss;
-	struct rusage ru;
+        int ss;
+        struct rusage ru;
     } s;
 };
 
@@ -233,7 +227,5 @@ struct resSignal {
 #define LS_WIFSTOPPED WIFSTOPPED
 #define LS_WIFSIGNALED WIFSIGNALED
 #endif
-
-#include "../lib/lib.xdrres.h"
 
 #endif

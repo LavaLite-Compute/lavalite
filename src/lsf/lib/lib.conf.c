@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.conf.h"
 
 #define NL_SETN   23
 
@@ -38,7 +38,7 @@ static char addHostType(char *);
 static char addHostModel(char *, char *, float);
 static char setIndex(struct keymap *, char *, int);
 static char addHost(struct hostInfo *, char *, int *);
-static int  setAdmins (struct admins *, int);
+static int  setAdmins(struct admins *, int);
 
 static void initClusterInfo(struct clusterInfo *);
 static void freeClusterInfo(struct clusterInfo *);
@@ -157,7 +157,7 @@ int convertNegNotation_(char**, struct HostsArray*);
 static int resolveBaseNegHosts(char*, char**, struct HostsArray*);
 
 struct sharedConf *
-ls_readshared ( char *fname )
+ls_readshared(char *fname)
 {
     FILE   *fp;
     char   *cp;
@@ -180,7 +180,7 @@ ls_readshared ( char *fname )
     lsinfo.numUsrIndx = 0;
 
     if (sConf == NULL) {
-        if ((sConf = (struct sharedConf *) malloc (sizeof (struct sharedConf)))
+        if ((sConf =  malloc(sizeof(struct sharedConf)))
             == NULL) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "ls_readshared", "malloc");
             lserrno = LSE_MALLOC;
@@ -199,10 +199,11 @@ ls_readshared ( char *fname )
     clsok = false;
     typeok = false;
 
-    if ( initResTable() < 0 ) {
+    if (initResTable() < 0) {
         lserrno = LSE_MALLOC;
         return NULL;
     }
+
     fp = fopen(fname, "r");
     if (fp == NULL) {
 
@@ -289,12 +290,12 @@ initResTable(void)
     struct resItem *resTable;
     int   i;
 
-    resTable = (struct resItem *)malloc(1000*sizeof(struct resItem));
+    resTable = calloc(1000, sizeof(struct resItem));
     if (!resTable) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "initResTable", "malloc" );
         return -1;
     }
-    i=0;
+    i = 0;
     lsinfo.numIndx = 0;
     lsinfo.numUsrIndx = 0;
     while(builtInRes[i].name != NULL) {
@@ -762,7 +763,13 @@ do_Resources(FILE *fp, int *lineNum, char *fname)
                     }
                 } else
                     ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd,NL_SETN,5095, "%s: %s(%d): INCREASING <%s> is not used by the resource <%s> with type <%s>; ignoring INCREASING")),    /* catgets 5095 */
-                              "do_Resources", fname, *lineNum, keyList[RKEY_INCREASING].val, keyList[RKEY_RESOURCENAME].val, (lsinfo.resTable[lsinfo.nRes].orderType == LS_BOOLEAN)?"BOOLEAN":"STRING");
+                              "do_Resources", fname, *lineNum,
+                              keyList[RKEY_INCREASING].val,
+                              keyList[RKEY_RESOURCENAME].val,
+                              /* Bug. Compare orderType with valueType
+                               */
+                              (lsinfo.resTable[lsinfo.nRes].orderType
+                               == (enum orderType)LS_BOOLEAN) ? "BOOLEAN" : "STRING");
             } else {
                 if (lsinfo.resTable[lsinfo.nRes].valueType
                     == LS_NUMERIC) {
@@ -802,6 +809,7 @@ do_Resources(FILE *fp, int *lineNum, char *fname)
 
             strncpy(lsinfo.resTable[lsinfo.nRes].des,
                     keyList[RKEY_DESCRIPTION].val, MAXRESDESLEN);
+            lsinfo.resTable[lsinfo.nRes].des[MAXRESDESLEN - 1] = 0;
             if (lsinfo.resTable[lsinfo.nRes].interval > 0
                 && (lsinfo.resTable[lsinfo.nRes].valueType == LS_NUMERIC)) {
                 lsinfo.numUsrIndx++;
@@ -823,14 +831,14 @@ do_Resources(FILE *fp, int *lineNum, char *fname)
 }
 
 static int
-resNameDefined (char *name)
+resNameDefined(char *name)
 {
     int i;
 
     if (name == NULL)
         return -1;
 
-    for(i=0; i < lsinfo.nRes; i++) {
+    for(i = 0; i < lsinfo.nRes; i++) {
         if (strcmp(name, lsinfo.resTable[i].name) == 0)
             return i;
     }
@@ -1689,27 +1697,33 @@ addHost(struct hostInfo *host, char *fname, int *lineNum)
 
     if (host == NULL)
         return false;
-    for (i=0;i<cConf->numHosts;i++) {
+
+    for (i = 0; i < cConf->numHosts; i++) {
+
         if (!equalHost_(cConf->hosts[i].hostName, host->hostName))
             continue;
+
         ls_syslog(LOG_WARNING, (_i18n_msg_get(ls_catd,NL_SETN,5163, "%s: %s(%d): host <%s> redefined, using previous definition")), /* catgets 5163 */
                   "addHost", fname, *lineNum, host->hostName);
-        freeHostInfo ( host );
-
+        freeHostInfo(host);
         return false;
     }
 
     cConf->numHosts++;
-    if ( cConf->numHosts && (newlist = (struct hostInfo *) malloc
-                             (cConf->numHosts*sizeof(struct hostInfo))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addHost", "malloc",
+    newlist = calloc(cConf->numHosts, sizeof(struct hostInfo));
+    if (newlist == NULL) {
+        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addHost", "calloc",
                   cConf->numHosts*sizeof(struct hostInfo));
         cConf->numHosts--;
         lserrno = LSE_MALLOC;
+        /* Bug if we failed to calloc() at this early stage
+         * just core dump as something is seriosly wrong....
+         */
+        abort();
         return false;
     }
 
-    for (i=0; i<cConf->numHosts-1; i++)
+    for (i = 0; i < cConf->numHosts - 1; i++)
         newlist[i] = cConf->hosts[i];
     newlist[cConf->numHosts-1] = *host;
     FREEUP(cConf->hosts);

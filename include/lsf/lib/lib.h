@@ -17,28 +17,14 @@
  *
  */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/time.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <stdlib.h>
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-#include <sys/ioctl.h>
-#include <string.h>
-#include <errno.h>
+/* Bug. This function contains lots of crap.
+ */
 
-#include "lsf.h"
-#include "../lim/limout.h"
-#include "../res/resout.h"
-#include "lib.hdr.h"
-#include "lib.xdrlim.h"
-#include "lib.xdr.h"
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lim/limout.h"
+#include "lsf/lib/lib.xdr.h"
+#include "lsf/lib/lib.xdrlim.h"
 
 struct taskMsg {
     char *inBuf;
@@ -80,7 +66,7 @@ struct tid {
     struct tid *link;
 };
 
-#define getpgrp(n)	getpgrp()
+#define getpgrp(n)  getpgrp()
 
 #ifndef LOG_PRIMASK
 #define LOG_PRIMASK     0xf
@@ -120,16 +106,16 @@ struct tid {
 #define LSF_LOGDIR          17
 #define LSF_SYMBOLIC_LINK   18
 #define LSF_MASTER_LIST     19
-#define LSF_MLS_LOG   	    20
+#define LSF_MLS_LOG         20
 #define LSF_INTERACTIVE_STDERR 21
 
-#define AM_LAST  (!(genParams_[LSF_AM_OPTIONS].paramValue && \
-                  strstr(genParams_[LSF_AM_OPTIONS].paramValue, \
-                              AUTOMOUNT_LAST_STR)))
+#define AM_LAST  (!(genParams_[LSF_AM_OPTIONS].paramValue &&        \
+                    strstr(genParams_[LSF_AM_OPTIONS].paramValue,   \
+                           AUTOMOUNT_LAST_STR)))
 
-#define AM_NEVER (genParams_[LSF_AM_OPTIONS].paramValue && \
+#define AM_NEVER (genParams_[LSF_AM_OPTIONS].paramValue &&      \
                   strstr(genParams_[LSF_AM_OPTIONS].paramValue, \
-                              AUTOMOUNT_NEVER_STR))
+                         AUTOMOUNT_NEVER_STR))
 
 
 #define LOOP_ADDR       0x7F000001
@@ -163,8 +149,8 @@ struct tid {
 #define RID_ISPID       0x02
 
 #define NO_SIGS (~(sigmask(SIGTRAP) | sigmask(SIGEMT)))
-#define SET_LSLIB_NIOS_HDR(hdr,opcode,l) \
-	  { (hdr).opCode = (opcode); (hdr).len = (l); }
+#define SET_LSLIB_NIOS_HDR(hdr,opcode,l)            \
+    { (hdr).opCode = (opcode); (hdr).len = (l); }
 
 #define CLOSEFD(s) if ((s) >= 0) {close((s)); (s) = -1;}
 
@@ -223,12 +209,24 @@ struct lsRequest {
     void *appExtra;
 };
 
-extern struct lsRequest * lsReqHandCreate_(int,int,int,void*,requestCompletionHandler,appCompletionHandler, void *);
+extern struct lsRequest * lsReqHandCreate_(int,
+                                           int,
+                                           int,
+                                           void *,
+                                           requestCompletionHandler,
+                                           appCompletionHandler, void *);
 extern void lsReqHandDestroy_(struct lsRequest *);
 
-extern int     lsConnWait_ (char *);
-extern int     lsMsgWait_ (int, int *, int *, int, int*, int *, int *,
-			      struct timeval *, int);
+extern int     lsConnWait_(char *);
+extern int     lsMsgWait_(int,
+                          int *,
+                          int *,
+                          int,
+                          int *,
+                          int *,
+                          int *,
+                          struct timeval *,
+                          int);
 extern int     lsMsgRdy_ (int, int *);
 extern int     lsMsgRcv_ (int, char *, int, int);
 extern int     lsMsgSnd_ (int, char *, int, int);
@@ -240,33 +238,38 @@ extern int     lsRSig_ (char *, int, int, int);
 extern int     lsRGetpid_ (int, int);
 extern void   *lsRGetpidAsync_ (int, int *);
 extern LS_REQUEST_T *
-               lsIRGetRusage_ (int, struct jRusage *,
-			       appCompletionHandler,
-			       void *, int);
+lsIRGetRusage_ (int, struct jRusage *,
+                appCompletionHandler,
+                void *, int);
 extern int     lsRGetRusage (int, struct jRusage *, int);
 extern int     lsGetRProcRusage(char *, int, struct jRusage *, int);
 extern LS_REQUEST_T *
-               lsGetIRProcRusage_(char *, int, int, struct jRusage *,
-				 appCompletionHandler, void *);
+lsGetIRProcRusage_(char *, int, int, struct jRusage *,
+                   appCompletionHandler, void *);
 
-extern int initenv_(struct config_param *, char *);
 extern int readconfenv_(struct config_param *, struct config_param *, char *);
 extern int ls_readconfenv(struct config_param *, char *);
 
-extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct LSFHeader *);
+extern int callLim_(enum limReqCode,
+                    void *,
+                    bool_t (*)(),
+                    void *,
+                    bool_t (*)(),
+                    char *,
+                    int,
+                    struct LSFHeader *);
 extern int initLimSock_(void);
 
 extern void err_return_(enum limReplyCode);
 
-extern struct hostLoad *loadinfo_(char *, struct decisionReq *, char *, int *, char ***);
+extern struct hostLoad *loadinfo_(char *,
+                                  struct decisionReq *,
+                                  char *,
+                                  int *,
+                                  char ***);
 
 extern struct hostent *Gethostbyname_(char *);
 extern short getRefNum_(void);
-extern char isint_(char *);
-extern char islongint_(char *);
-extern int isdigitstr_(char *);
-extern LS_LONG_INT    atoi64_(char *);
-extern char *chDisplay_(char *);
 extern void strToLower_(char *);
 extern void initLSFHeader_(struct LSFHeader *);
 extern int  isMasterCrossPlatform(void);
@@ -276,7 +279,6 @@ extern char **placement_(char *, struct decisionReq *, char *, int *);
 
 extern int sig_encode(int);
 extern int sig_decode(int);
-extern int getSigVal (char *);
 extern char *getSigSymbolList(void);
 extern char *getSigSymbol (int);
 
@@ -287,10 +289,6 @@ typedef struct svrsock {
     int  backlog;
     int  options;
 } ls_svrsock_t;
-
-
-#define LS_CSO_ASYNC_NT       (0x0001)
-#define LS_CSO_PRIVILEGE_PORT (0x0002)
 
 extern int setLSFChanSockOpt_(int newOpt);
 
@@ -318,15 +316,10 @@ extern void tid_lostconnection(int);
 extern int tidSameConnection_(int, int *, int **);
 
 extern int callRes_(int, resCmd, char *, char *, int,
-		    bool_t (*)(), int *, struct timeval *, struct lsfAuth *);
+                    bool_t (*)(), int *, struct timeval *, struct lsfAuth *);
 extern int sendCmdBill_(int, resCmd, struct resCmdBill *,
-				    int *, struct timeval *);
-extern void ls_errlog(FILE *fd, const char *fmt, ...)
-#if defined(__GNUC__) && defined(CHECK_PRINTF)
-
-	__attribute__((format(printf, 2, 3)))
-#endif
-	;
+                        int *, struct timeval *);
+extern void ls_errlog(FILE *fd, const char *fmt, ...);
 
 extern void ls_verrlog(FILE *fd, const char *fmt, va_list ap);
 

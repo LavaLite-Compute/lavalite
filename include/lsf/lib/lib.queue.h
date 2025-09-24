@@ -58,7 +58,6 @@ extern void lsQueueEntryDestroyAll_(struct lsQueue *head);
 extern void lsQueueDestroy_(struct lsQueue *head);
 extern struct lsQueueEntry * lsQueueDequeue_(struct lsQueue *head);
 extern struct lsQueueEntry * lsQueueSearch_(int hint, char *data, struct lsQueue *head);
-extern char * lsQueueDataGet_(int, struct lsQueue *head);
 extern void lsQueueSetAdd_(struct lsQueue *q1, struct lsQueue *q2,
 			   bool_t (*memberFunc)(struct lsQueueEntry *,
 					     struct lsQueue *));

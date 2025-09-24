@@ -16,12 +16,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
 
-
-
-
-hTab   conn_table;
+hTab conn_table;
 
 typedef struct _hostSock {
     int   socket;
@@ -30,6 +28,7 @@ typedef struct _hostSock {
 } HostSock;
 static HostSock *hostSock;
 
+#define MAXCONNECT 1024
 static struct connectEnt connlist[MAXCONNECT];
 static char   *connnamelist[MAXCONNECT+1];
 
@@ -48,9 +47,7 @@ inithostsock_(void)
 void
 initconntbl_(void)
 {
-
     h_initTab_(&conn_table, 0);
-
 }
 
 int
@@ -64,7 +61,7 @@ connected_(char *hostName, int sock1, int sock2, int seqno)
     if (!new) {
         sp = hEntPtr->hData;
     } else {
-        sp = (int *) malloc(3*sizeof(int));
+        sp = calloc(3, sizeof(int));
         sp[0] = -1;
         sp[1] = -1;
         sp[2] = -1;
@@ -81,9 +78,9 @@ connected_(char *hostName, int sock1, int sock2, int seqno)
     if (seqno >= 0)
         sp[2] = seqno;
 
-    hEntPtr->hData = (int *) sp;
-    return 0;
+    hEntPtr->hData = (int *)sp;
 
+    return 0;
 }
 
 void
@@ -95,6 +92,9 @@ hostIndex_(char *hostName, int sock)
     newSock = (HostSock *)malloc(sizeof(HostSock));
     if (newSock == NULL) {
         ls_syslog(LOG_ERR, "hostIndex_ : malloc HostSock failed");
+        /* Bug. Abort
+         */
+        abort();
         exit(-1);
     }
     newSock->socket = sock;
@@ -291,7 +291,7 @@ ls_findmyconnections(void)
     sTab hashSearchPtr;
     hEnt *hEntPtr;
 
-    hEntPtr = h_firstEnt_(&conn_table,&hashSearchPtr);
+    hEntPtr = h_firstEnt_(&conn_table, &hashSearchPtr);
 
     while (hEntPtr) {
         connnamelist[n] = hEntPtr->keyname;
@@ -301,5 +301,4 @@ ls_findmyconnections(void)
     connnamelist[n] = NULL;
 
     return connnamelist;
-
 }

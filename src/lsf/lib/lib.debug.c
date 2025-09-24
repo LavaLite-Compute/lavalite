@@ -16,13 +16,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
 
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
 
+#define LSF_DEBUG_CMD    0
+#define LSF_TIME_CMD     1
+#define LSF_CMD_LOGDIR   2
+#define LSF_CMD_LOG_MASK 3
 
+#ifdef LSF_LOG_MASK
+#undef LSF_LOG_MASK
+#endif
+#define LSF_LOG_MASK     4
 
 int
-ls_initdebug (char *appName)
+ls_initdebug(char *appName)
 {
     char *logMask;
     struct config_param *pPtr;
@@ -35,17 +44,6 @@ ls_initdebug (char *appName)
         {NULL, NULL}
     };
 
-#define LSF_DEBUG_CMD    0
-#define LSF_TIME_CMD     1
-#define LSF_CMD_LOGDIR   2
-#define LSF_CMD_LOG_MASK 3
-
-#ifdef LSF_LOG_MASK
-#undef LSF_LOG_MASK
-#endif
-#define LSF_LOG_MASK     4
-
-
     if (initenv_(debParams, NULL) < 0)
         return -1;
 
@@ -56,13 +54,13 @@ ls_initdebug (char *appName)
 
     if (appName == NULL)
         ls_openlog("lscmd", debParams[LSF_CMD_LOGDIR].paramValue,
-              (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
+                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
     else {
-		if (strrchr(appName, '/') != 0)
-			appName = strrchr(appName, '/')+1;
+        if (strrchr(appName, '/') != 0)
+            appName = strrchr(appName, '/')+1;
         ls_openlog(appName, debParams[LSF_CMD_LOGDIR].paramValue,
-              (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
-	}
+                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
+    }
 
     getLogClass_(debParams[LSF_DEBUG_CMD].paramValue,
                  debParams[LSF_TIME_CMD].paramValue);

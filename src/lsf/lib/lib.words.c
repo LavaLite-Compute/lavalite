@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
+#include "lsf/lib/lib.h"
+#include "lsf/lib/lib.words.h"
 
 char *
 getNextLine_(FILE *fp, int confFormat)
@@ -32,20 +32,17 @@ getNextWord_(char **line)
     static char word[4*MAXLINELEN];
     char *wordp = word;
 
-
     while(isspace(**line))
         (*line)++;
-
 
     while(**line && !isspace(**line))
         *wordp++ = *(*line)++;
 
     if (wordp == word)
-
         return NULL;
 
-
     *wordp = '\0';
+
     return word;
 }
 
@@ -55,24 +52,20 @@ getNextWord1_(char **line)
     static char word[4*MAXLINELEN];
     char *wordp = word;
 
-
-
     while(isspace(**line))
         (*line)++;
 
-
     while (**line && !isspace(**line)&& (**line != ',')
-            && (**line != ']')&& (**line != '['))
+           && (**line != ']')&& (**line != '['))
         *wordp++ = *(*line)++;
 
     if (wordp == word)
 
         return NULL;
 
-
     *wordp = '\0';
-    return word;
 
+    return word;
 }
 
 static int charInSet(char c, const char *set)
@@ -96,16 +89,15 @@ getNextWordSet(char **line, const char *set)
     while(charInSet(**line, set))
         (*line)++;
 
-
     while (**line && !charInSet(**line, set))
         *wordp++ = *(*line)++;
 
     if (wordp == word)
-
         return NULL;
 
 
     *wordp = '\0';
+
     return word;
 
 }
@@ -186,12 +178,12 @@ getNextValueQ_(char **line, char ch1, char ch2)
 
     FREEUP(value);
     lserrno = LSE_CONF_SYNTAX;
-    return NULL;
 
+    return NULL;
 }
 
 int
-stripQStr (char *q, char *str)
+stripQStr(char *q, char *str)
 {
     char *fr = q;
 
@@ -259,7 +251,6 @@ getNextLineD_(FILE *fp, int *LineCount, int confFormat)
         return NULL;
     }
 
-
     lpos = 0;
     while ((cin = getc(fp)) != EOF) {
 
@@ -307,10 +298,8 @@ getNextLineD_(FILE *fp, int *LineCount, int confFormat)
             }
         }
 
-
         if (isspace(cin))
             cin = ' ';
-
 
         if (lpos < linesize - 1)
             line[lpos++] = cin;
@@ -352,23 +341,22 @@ getNextLineC_(FILE *fp, int *LineCount, int confFormat)
     if (nextLine == NULL)
         return NULL;
 
-
-
-    for (sp=nextLine; *sp != '\0'; sp++)
+    for (sp = nextLine; *sp != '\0'; sp++)
         if (*sp != ' ')
             return nextLine;
 
-
-    return (getNextLineC_(fp, LineCount, confFormat));
-
+    return getNextLineC_(fp, LineCount, confFormat);
 }
 
 
 void
-subNewLine_(char* instr) {
-    int i, k, strlength;
+subNewLine_(char* instr)
+{
+    int i;
+    int k;
+    int strlength;
 
-    if ( instr && (strlength = strlen(instr))) {
+    if (instr && (strlength = strlen(instr))) {
         for ( i = strlength-1; i >= 0; i--) {
             if( instr[i] == '\n' ) {
                 for( k = i; k < strlength; k++ ) {

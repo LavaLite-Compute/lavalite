@@ -32,40 +32,52 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 
-typedef long long int LS_LONG_INT;
-typedef unsigned long long LS_UNS_LONG_INT;
+typedef int64_t LS_LONG_INT;
+typedef uint64_t LS_UNS_LONG_INT;
 #define LS_LONG_FORMAT ("%lld")
 
 /* There is LAVALITE_VERSION defined in config.h
  */
 #define _LAVALITE_VERSION_ ("LavaLite 0.1.0, " __DATE__ "\n")
 
-#define LSF_DEFAULT_SOCKS	15
-#define MAXLINELEN		512
-#define MAXLSFNAMELEN           40
-#define MAXSRES                 32
-#define MAXRESDESLEN            256
-#define NBUILTINDEX	        11
-#define MAXTYPES                128
-#define MAXMODELS               128
-#define MAXTYPES_31             25
-#define MAXMODELS_31            30
-#define MAXFILENAMELEN          256
-#define MAXEVARS                30
-
-#define GENMALLOCPACE           1024
+#define LSF_DEFAULT_SOCKS 15
+#define MAXLINELEN 512
+#define MAXLSFNAMELEN 40
+#define MAXSRES 32
+#define MAXRESDESLEN 256
+#define NBUILTINDEX 11
+#define MAXTYPES 128
+#define MAXMODELS 128
+#define MAXTYPES_31 25
+#define MAXMODELS_31 30
+#define MAXFILENAMELEN 256
+#define MAXEVARS 30
 
 #define FIRST_RES_SOCK	20
 
-#ifdef HAVE_UNION_WAIT
-# define LS_WAIT_T	union wait
-# define LS_STATUS(s)	((s).w_status)
-#else
-# define LS_WAIT_INT
-# define LS_WAIT_T	int
-# define LS_STATUS(s)	(s)
+/* A little macro that abstracts the access to the process status returned
+ * by wait() or waitpid().
+ */
+#define LS_STATUS(s) (s)
+
+/* Evaluate MAX or MIN ifdef it as they might be defined
+ * in sys/params.h, which they are in POSIX environment.
+ */
+#ifndef MAX
+#define MAX(a, b) ({ \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    _a > _b ? _a : _b; \
+})
 #endif
 
+#ifndef MIN
+#define MIN(a, b) ({    \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    _a < _b ? _a : _b; \
+})
+#endif
 
 #define R15S           0
 #define R1M            1
@@ -244,12 +256,23 @@ struct hostLoad {
    float *li;
 };
 
-enum valueType {LS_BOOLEAN, LS_NUMERIC, LS_STRING, LS_EXTERNAL};
+enum valueType {
+    LS_BOOLEAN,
+    LS_NUMERIC,
+    LS_STRING,
+    LS_EXTERNAL
+};
+
 #define BOOLEAN  LS_BOOLEAN
 #define NUMERIC  LS_NUMERIC
 #define STRING   LS_STRING
 #define EXTERNAL LS_EXTERNAL
-enum orderType {INCR, DECR, NA};
+
+enum orderType {
+    INCR,
+    DECR,
+    NA
+};
 
 #define RESF_BUILTIN     0x01
 #define RESF_DYNAMIC     0x02
@@ -680,8 +703,8 @@ extern int     ls_rexecv (char *, char **, int);
 extern int     ls_rexecve (char *, char **, int, char **);
 extern int     ls_rtask (char *, char **, int);
 extern int     ls_rtaske (char *, char **, int, char **);
-extern int     ls_rwait (LS_WAIT_T *, int, struct rusage *);
-extern int     ls_rwaittid (int, LS_WAIT_T *, int, struct rusage *);
+extern int     ls_rwait (int *, int, struct rusage *);
+extern int     ls_rwaittid (int, int *, int, struct rusage *);
 extern int     ls_rkill (int, int);
 extern int     ls_startserver (char *, char **, int);
 extern int     ls_conntaskport (int tid);

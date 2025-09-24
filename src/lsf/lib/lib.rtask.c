@@ -16,8 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
+#include "lsf/lib/lib.xdrres.h"
+#include "lsf/res/resout.h"
 #include "lsf/res/nios.h"
+#include "lsf/lib/lib.queue.h"
 
 static void default_tstp_(int);
 static u_short getTaskPort(int);
@@ -47,7 +50,6 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
     struct lslibNiosRTask taskReq;
     u_short taskPort = 0;
     sigset_t newMask, oldMask;
-    int len;
 
     if ( !reg_ls_donerex ) {
 
@@ -98,9 +100,9 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
     }
 
 
-    if ( (genParams_[LSF_INTERACTIVE_STDERR].paramValue != NULL)
-         && (strcasecmp(genParams_[LSF_INTERACTIVE_STDERR].paramValue,
-                        "y") == 0) ) {
+    if ((genParams_[LSF_INTERACTIVE_STDERR].paramValue != NULL)
+        && (strcasecmp(genParams_[LSF_INTERACTIVE_STDERR].paramValue,
+                       "y") == 0) ) {
         cmdmsg.options |= REXF_STDERR;
     }
 
@@ -154,7 +156,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
             if (fork()) {
                 max = sysconf(_SC_OPEN_MAX);
                 for (d = 3; d < max; ++d) {
-                    (void)close(d);
+                    close(d);
                 }
                 exit(0);
             }
@@ -180,7 +182,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
             max = sysconf(_SC_OPEN_MAX);
             for (d = 3; d < max; ++d) {
                 if (d != cli_nios_fd[1])
-                    (void)close(d);
+                    close(d);
             }
 
             for (d = 1; d < NSIG; d++)
@@ -236,7 +238,7 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         }
     }
 
-    len = sizeof(sin);
+    socklen_t len = sizeof(sin);
     if (getpeername(s, (struct sockaddr *) &sin, &len) <0) {
         closesocket(s);
         _lostconnection_(host);

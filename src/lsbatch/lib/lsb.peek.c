@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+
 #include "lsbatch/lib/lsb.h"
 
 char *
@@ -38,13 +39,13 @@ lsb_peekjob (LS_LONG_INT jobid)
 
     if (jobid <= 0) {
         lsberrno = LSBE_BAD_ARG;
-        return(NULL);
+        return NULL;
     }
 
     jobPeekReq.jobId = jobid;
 
     if (authTicketTokens_(&auth, NULL) == -1) {
-        return (NULL);
+        return NULL;
     }
 
 
@@ -57,14 +58,14 @@ lsb_peekjob (LS_LONG_INT jobid)
                 &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
-        return(NULL);
+        return NULL;
     }
 
 
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                     &hdr, NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
-        return (NULL);
+        return NULL;
     }
 
     xdr_destroy(&xdrs);
@@ -84,7 +85,7 @@ lsb_peekjob (LS_LONG_INT jobid)
             if (cc) {
                 free(reply_buf);
             }
-            return(NULL);
+            return NULL;
         }
         xdr_destroy(&xdrs);
         if (cc) {
@@ -93,7 +94,7 @@ lsb_peekjob (LS_LONG_INT jobid)
 
         if ((pw = getpwnam(lsfUserName)) == NULL) {
             lsberrno = LSBE_SYS_CALL;
-            return(NULL);
+            return NULL;
         }
 
         if (logclass & LC_EXEC) {
@@ -126,23 +127,23 @@ lsb_peekjob (LS_LONG_INT jobid)
 
                     if ((pid = fork()) == 0) {
                         if (ls_initrex(1,0) < 0) {
-                            exit(FALSE);
+                            exit(false);
                         }
                         if ( ls_rstat(jInfo->exHosts[0], pSpoolDirUnix, &st) == 0) {
                             ls_donerex();
-                            exit(TRUE);
+                            exit(true);
                         }else {
-                            exit(FALSE);
+                            exit(false);
                         }
                     }
                     if (pid == -1) {
-                        return (NULL);
+                        return NULL;
                     }
 
                     if (waitpid(pid, &status, 0) == -1) {
-                        return (NULL);
+                        return NULL;
                     }
-                    if (WEXITSTATUS(status) == TRUE) {
+                    if (WEXITSTATUS(status) == true) {
                         sprintf(fnBuf, "%s/%s", pSpoolDirUnix,jobPeekReply.outFile);
                     }else {
                         sprintf(fnBuf, ".lsbatch/%s", jobPeekReply.outFile);
@@ -158,6 +159,5 @@ lsb_peekjob (LS_LONG_INT jobid)
 
     if (cc)
         free(reply_buf);
-    return(NULL);
-
+    return NULL;
 }

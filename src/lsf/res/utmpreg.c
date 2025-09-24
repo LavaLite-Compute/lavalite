@@ -105,6 +105,6 @@ int main (int argc, char **argv)
     if (logclass & LC_TRACE) 
         ls_syslog(LOG_DEBUG, "%s: Leaving UTMP registration program.",fname);
     ls_closelog();
-    return (result);
+    return result;
 }
 

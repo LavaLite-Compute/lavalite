@@ -1,6 +1,5 @@
 /* $Id: lsb.h,v 1.6 2007/08/15 22:18:47 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,52 +16,31 @@
  *
  */
 
-/* Private module umbrella: fine to include config.h installed by
- * automake.
- */
-#include "config.h"
+#ifndef _LSB_LIB_
+#define _LSB_LIB_
 
-/* System headers
-*/
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <syslog.h>
-#include <pwd.h>
-#include <grp.h>
-#include <ctype.h>
-#include <limits.h>
-#include <netdb.h>
-#include <termios.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <dirent.h>
-#include <stdbool.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <rpc/types.h>
-#include <rpcsvc/ypclnt.h>
-#include <sys/wait.h>
-#include <arpa/inet.h>
-
-/* Include all batch library header files
- */
-#include "lsbatch.h"
-/* Base core
- */
-#include "lsf/intlib/libllcore.h"
-/* Base libs
- */
 #include "lsf/lib/liblavalite.h"
-#include "lsbatch/lib/daemonout.h"
-#include "lsbatch/lib/daemons.h"
-//#include "lsbatch/lib/lsb.conf.h"
-//#include "lsbatch/lib/lsb.log.h"
-//#include "lsbatch/lib/lsb.spool.h"
+#include "lsbatch/lib/lsb.common.h"
+#include "lsf/lib/lib.hdr.h"
+#include "lsf/lib/lproto.h"
+#include "lsbatch/daemons/daemonout.h"
 #include "lsbatch/lib/lsb.xdr.h"
+
+#ifndef MIN
+#define MIN(a, b) ({    \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    _a < _b ? _a : _b; \
+})
+#endif
+
+#ifndef MAX
+#define MAX(a, b) ({ \
+    typeof(a) _a = (a); \
+    typeof(b) _b = (b); \
+    _a > _b ? _a : _b; \
+})
+#endif
 
 #define DEF_COMMITTED_RUN_TIME_FACTOR 0.0
 
@@ -70,11 +48,10 @@ extern struct config_param lsbParams[];
 extern int initenv_(struct config_param *, char *);
 extern int sig_encode(int);
 
+
 #define DEFAULT_API_CONNTIMEOUT 10
 #define DEFAULT_API_RECVTIMEOUT 0
 
-/* Entries in the lsbParams[] array
- */
 #define LSB_DEBUG         0
 #define LSB_SHAREDIR      1
 #define LSB_SBD_PORT      2
@@ -92,7 +69,6 @@ extern int sig_encode(int);
 #define LSB_32_PAREN_ESC     15
 
 #define LSB_API_QUOTE_CMD     14
-
 
 typedef struct lsbSubSpoolFile {
     char inFileSpool[MAXFILENAMELEN];
@@ -131,3 +107,5 @@ extern int chUserRemoveSpoolFile( const char * hostName,
 				  const char * spoolFile);
 extern void prtBETime_(struct submit *);
 extern int runBatchEsub(struct lenData *, struct submit *);
+
+#endif

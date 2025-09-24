@@ -16,10 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
 
-
-
+/* Bug. This code is all mesozoic legacy. Use system calls like chdir()
+ * stat(), fopen() etc.
+ */
+#include "lsf/lib/lib.h"
 
 extern struct config_param genParams_[];
 static struct hTab hashTab;
@@ -473,44 +474,6 @@ mychmod_(char *filename, mode_t mode, struct hostent *hp)
         return i;
 
     return (chmod(usePath(filename), mode));
-
-}
-
-void
-myexecv_(char *filename, char **argv, struct hostent *hp)
-{
-    char fnamebuf[MAXFILENAMELEN];
-    char *mp;
-
-    if (!hp || filename[0] != '/' || AM_NEVER) {
-        lsfExecv(usePath(filename), argv);
-        return;
-    }
-
-    if (AM_LAST) {
-        lsfExecv(usePath(filename), argv);
-        return;
-    }
-
-    if (strstr(filename, "/net/") == filename) {
-        lsfExecv(usePath(filename), argv);
-        return;
-    }
-
-    if (strstr(filename, "/tmp_mnt/") ==filename) {
-        lsfExecv(usePath(filename), argv);
-        return;
-    }
-
-    if ((mp=mountNet_(hp)) == NULL) {
-        lsfExecv(usePath(filename), argv);
-        return;
-    }
-
-    sprintf(fnamebuf, "%s%s", mp, filename);
-    lsfExecv(usePath(fnamebuf), argv);
-
-    lsfExecv(usePath(filename), argv);
 
 }
 

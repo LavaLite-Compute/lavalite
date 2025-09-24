@@ -1,4 +1,3 @@
-
 /* $Id: lib.reslog.c,v 1.3 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -17,32 +16,29 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
+#include "lsf/lib/lib.h"
 
 int
 ls_putacctrec(FILE *log_fp, struct lsfAcctRec *acctRec)
 {
     if (fprintf(log_fp, "%d", acctRec->pid) < 0
-    || addQStr(log_fp, acctRec->username) < 0
-    || fprintf(log_fp, " %d", acctRec->exitStatus) < 0
-    || fprintf(log_fp, " %d", (int)acctRec->dispTime) < 0
-    || fprintf(log_fp, " %d", (int)acctRec->termTime) < 0
-    || addQStr(log_fp, acctRec->fromHost) < 0
-    || addQStr(log_fp, acctRec->execHost) < 0
-    || addQStr(log_fp, acctRec->cwd) < 0
-    || addQStr(log_fp, acctRec->cmdln) < 0
-    || lsfRu2Str(log_fp, &acctRec->lsfRu) < 0
-    || fprintf(log_fp, "\n") < 0) {
+        || addQStr(log_fp, acctRec->username) < 0
+        || fprintf(log_fp, " %d", acctRec->exitStatus) < 0
+        || fprintf(log_fp, " %d", (int)acctRec->dispTime) < 0
+        || fprintf(log_fp, " %d", (int)acctRec->termTime) < 0
+        || addQStr(log_fp, acctRec->fromHost) < 0
+        || addQStr(log_fp, acctRec->execHost) < 0
+        || addQStr(log_fp, acctRec->cwd) < 0
+        || addQStr(log_fp, acctRec->cmdln) < 0
+        || lsfRu2Str(log_fp, &acctRec->lsfRu) < 0
+        || fprintf(log_fp, "\n") < 0) {
         lserrno = LSE_FILE_SYS;
         return -1;
     }
 
     return 0;
 
-} 
+}
 
 
 struct lsfAcctRec *
@@ -54,7 +50,7 @@ ls_getacctrec(FILE *log_fp, int *lineNum)
     char *line;
     static struct lsfAcctRec *acctRec = NULL;
 
-    if (acctRec != NULL) {  
+    if (acctRec != NULL) {
         free(acctRec);
         acctRec = NULL;
     }
@@ -63,15 +59,14 @@ ls_getacctrec(FILE *log_fp, int *lineNum)
 
     if ((line = getNextLine_(log_fp, false)) == NULL) {
         lserrno = LSE_EOF;
-        return NULL;        
+        return NULL;
     }
 
     len = strlen(line)*sizeof(char);
-    acctRec = (struct lsfAcctRec *) malloc(sar + 5*len);
-
+    acctRec = malloc(sar + 5*len);
     if (acctRec == NULL) {
         lserrno = LSE_MALLOC;
-        return NULL;        
+        return NULL;
     }
 
     acctRec->username = (char *) acctRec + sar;
@@ -132,6 +127,4 @@ ls_getacctrec(FILE *log_fp, int *lineNum)
     }
 
     return acctRec;
-
-}  
-
+}

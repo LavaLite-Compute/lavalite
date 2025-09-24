@@ -34,9 +34,7 @@ static int mbdTries(void);
 int lsb_mbd_version = -1;
 extern int getHdrReserved(struct LSFHeader *);
 
-
-
-#define MAXMSGLEN     (1<<24)
+#define MAXMSGLEN BUFSIZ;
 
 int
 serv_connect (char *serv_host, ushort serv_port, int timeout)
@@ -56,7 +54,7 @@ serv_connect (char *serv_host, ushort serv_port, int timeout)
         lsberrno = LSBE_BAD_HOST;
         if (logclass & LC_TRACE)
             ls_syslog (LOG_DEBUG1, "serv_connect: getHostFirstAddr_(%s) failed:%m", serv_host);
-        return(-1);
+        return -1;
     }
     memcpy((char*)&serv_addr.sin_addr, (char*)addrP,
             sizeof(struct in_addr));
@@ -72,7 +70,7 @@ serv_connect (char *serv_host, ushort serv_port, int timeout)
     chfd = chanClientSocket_(AF_INET, SOCK_STREAM, options);
     if (chfd < 0) {
         lsberrno = LSBE_LSLIB;
-        return(-1);
+        return -1;
     }
 
     if (logclass & LC_TRACE)
@@ -91,7 +89,7 @@ serv_connect (char *serv_host, ushort serv_port, int timeout)
             lsberrno = LSBE_BAD_HOST;
             if (logclass & LC_TRACE)
                 ls_syslog (LOG_DEBUG1, "serv_connect: getHostEntryByName_(%s) failed:%m", serv_host);
-            return(-1);
+            return -1;
 
         }
 
@@ -126,10 +124,10 @@ serv_connect (char *serv_host, ushort serv_port, int timeout)
                     lsberrno = LSBE_SYS_CALL;
             }
             chanClose_(chfd);
-            return(-1);
+            return -1;
         }
     }
-    return(chfd);
+    return chfd;
 
 }
 
@@ -163,14 +161,14 @@ call_server (
 
     if (!(flags & CALL_SERVER_USE_SOCKET)) {
         if ((serverSock = serv_connect (host, serv_port, conn_timeout)) < 0)
-            return(-2);
+            return -2;
     } else {
         if (connectedSock == NULL) {
             ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5000,
                         "%s: CALL_SERVER_USE_SOCKET defined, but %s is NULL"),  /* catgets 5000 */
                     fname, "connectedSock");
             lsberrno = LSBE_BAD_ARG;
-            return (-2);
+            return -2;
         }
         serverSock = *connectedSock;
     }
@@ -180,11 +178,11 @@ call_server (
 
     if (!(flags & CALL_SERVER_NO_HANDSHAKE)) {
 
-        if (handShake_(serverSock, TRUE, conn_timeout) < 0) {
+        if (handShake_(serverSock, true, conn_timeout) < 0) {
             CLOSECD(serverSock);
             if (logclass & LC_COMM)
                 ls_syslog (LOG_DEBUG, "%s: handShake_(socket=%d, conn_timeout=%d) failed", fname, serverSock, conn_timeout);
-            return(-2);
+            return -2;
         }
 
         if (logclass & LC_COMM)
@@ -215,7 +213,7 @@ call_server (
 
         if (chanSetMode_(serverSock, CHAN_MODE_NONBLOCK) < 0) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, "callserver",  "chanSetMode");            CLOSECD(serverSock);
-            return (-2);
+            return -2;
         }
 
         if (postSndFunc)
@@ -225,7 +223,7 @@ call_server (
             ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname,  "chanAllocBuf_",
                     tsize);
             CLOSECD(serverSock);
-            return (-2);
+            return -2;
         }
 
         sndBuf->len = tsize;
@@ -246,7 +244,7 @@ call_server (
                     "chanEnqueue_", cherrno);
             chanFreeBuf_(sndBuf);
             CLOSECD(serverSock);
-            return (-2);
+            return -2;
         }
     } else {
         cc = chanRpc_(serverSock, &reqbuf, replyBufPtr, replyHdr,
@@ -254,7 +252,7 @@ call_server (
         if ( cc < 0 ) {
             lsberrno = LSBE_LSLIB;
             CLOSECD(serverSock);
-            return(-1);
+            return -1;
         }
     }
 
@@ -270,7 +268,7 @@ call_server (
     }
 
     if (flags & CALL_SERVER_NO_WAIT_REPLY)
-        return (0);
+        return 0;
     else
         return (replyHdr->length);
 
@@ -296,9 +294,9 @@ getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
                         "%s: readDecodeHdr_() failed for read reply header from mbatchd: %m", fname);
         } else
             lsberrno = LSBE_XDR;
-        closesocket(serverSock);
+        close(serverSock);
         xdr_destroy(&xdrs);
-        return(-1);
+        return -1;
     }
 
     xdr_destroy(&xdrs);
@@ -309,24 +307,24 @@ getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
 
     if (len > 0) {
         if (len > MAXMSGLEN ) {
-            closesocket(serverSock);
+            close(serverSock);
             lsberrno = LSBE_PROTOCOL;
             if (logclass & LC_COMM)
                 ls_syslog (LOG_DEBUG1,
                         "%s: mbatchd's reply header length <%d> is greater than <%d>",
                         fname, len, MAXMSGLEN);
-            return(-1);
+            return -1;
         }
         if ((*rep_buf = malloc(len)) == NULL) {
-            closesocket(serverSock);
+            close(serverSock);
             lsberrno = LSBE_NO_MEM;
             if (logclass & LC_TRACE)
                 ls_syslog (LOG_DEBUG1, "call_server: malloc (%d) failed:%m", len);
-            return(-1);
+            return -1;
         }
 
         if (b_read_fix(serverSock, *rep_buf, len) == -1) {
-            closesocket(serverSock);
+            close(serverSock);
             free(*rep_buf);
             *rep_buf = NULL;
             lsberrno = LSBE_SYS_CALL;
@@ -334,10 +332,10 @@ getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
                 ls_syslog (LOG_DEBUG1,
                         "%s: b_read_fix() failed for read message from mbatchd: %m",
                         fname);
-            return(-1);
+            return -1;
         }
     }
-    return (len);
+    return len;
 }
 
 
@@ -348,7 +346,7 @@ get_mbd_port (void)
     static ushort mbd_port = 0;
 
     if (mbd_port != 0)
-        return(mbd_port);
+        return mbd_port;
 
     if (isint_(lsbParams[LSB_MBD_PORT].paramValue)) {
         if ((mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue)) > 0)
@@ -357,7 +355,7 @@ get_mbd_port (void)
         {
             mbd_port = 0;
             lsberrno = LSBE_SERVICE;
-            return(0);
+            return 0;
         }
     }
 
@@ -367,7 +365,7 @@ get_mbd_port (void)
     sv = getservbyname("mbatchd", "tcp");
     if (!sv) {
         lsberrno = LSBE_SERVICE;
-        return(0);
+        return 0;
     }
     return(mbd_port = sv->s_port);
 }
@@ -386,7 +384,7 @@ get_sbd_port(void)
         {
             sbd_port = 0;
             lsberrno = LSBE_SERVICE;
-            return(0);
+            return 0;
         }
     }
 
@@ -394,15 +392,15 @@ get_sbd_port(void)
     if ((sbd_port = get_port_number("sbatchd", (char *)NULL)) < 0) {
         lsberrno = LSBE_SERVICE;
         sbd_port = 0;
-        return(0);
+        return 0;
     }
-    return (sbd_port);
+    return sbd_port;
 
 #  else
     sv = getservbyname("sbatchd", "tcp");
     if (!sv) {
         lsberrno = LSBE_SERVICE;
-        return(0);
+        return 0;
     }
     return(sbd_port = sv->s_port);
 #endif
@@ -438,7 +436,7 @@ Retry:
         if ((masterHost = getMasterName()) == NULL) {
             if (logclass & LC_TRACE)
                 ls_syslog (LOG_DEBUG1, "%s: getMasterName() failed", fname);
-            return (-1);
+            return -1;
         }
     } else {
         clusterInfo = ls_clusterinfo(NULL, &num, &clusterName, 1, 0);
@@ -447,7 +445,7 @@ Retry:
             if (logclass & LC_TRACE)
                 ls_syslog (LOG_DEBUG1, "%s: ls_clusterinfo() failed", fname);
             lsberrno = LSBE_BAD_CLUSTER;
-            return (-1);
+            return -1;
         }
         if (clusterInfo[0].status & CLUST_STAT_OK)
             masterHost = clusterInfo[0].masterName;
@@ -455,7 +453,7 @@ Retry:
             lsberrno = LSBE_BAD_CLUSTER;
             if (logclass & LC_TRACE)
                 ls_syslog (LOG_DEBUG1, "%s: Remote cluster not OK", fname);
-            return(-1);
+            return -1;
         }
     }
     if (logclass & LC_TRACE)
@@ -465,7 +463,7 @@ Retry:
     if (!xdr_LSFHeader(&xdrs, &reqHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs);
-        return(-1);
+        return -1;
     }
 
     mbd_port = get_mbd_port();
@@ -509,10 +507,10 @@ Retry:
 
             goto Retry;
         }
-        return(-1);
+        return -1;
     }
 
-    return (cc);
+    return cc;
 }
 
 
@@ -543,10 +541,10 @@ cmdCallSBD_(char *sbdHost, char *request_buf, int requestlen,
             ls_syslog(LOG_DEBUG,
                     "%s: cc=%d lsberrno=%d lserrno=%d",
                     fname, cc, lsberrno, lserrno);
-        return (-1);
+        return -1;
     }
 
-    return (cc);
+    return cc;
 }
 
 
@@ -557,14 +555,14 @@ mbdTries(void)
     static int ntries = -1;
 
     if (ntries >= 0)
-        return (ntries);
+        return ntries;
 
     if ((tries = getenv("LSB_NTRIES")) == NULL)
         ntries = INFINIT_INT;
     else
         ntries = atoi(tries);
 
-    return (ntries);
+    return ntries;
 }
 
 
@@ -589,7 +587,7 @@ Retry:
         lsberrno = LSBE_LSLIB;
     }
 
-    return (masterHost);
+    return masterHost;
 }
 
 
@@ -611,13 +609,13 @@ readNextPacket(char **msgBuf, int timeout, struct LSFHeader *hdr,
     cc = chanRpc_(serverSock, NULL, &replyBuf, hdr, timeout * 1000);
     if (cc < 0) {
         lsberrno = LSBE_LSLIB;
-        return(-1);
+        return -1;
     }
 
     if (hdr->length == 0) {
         CLOSECD(serverSock);
         lsberrno = LSBE_EOF;
-        return(-1);
+        return -1;
     }
     *msgBuf = replyBuf.data;
     return (getHdrReserved(hdr));
@@ -651,7 +649,7 @@ handShake_(int s, char client, int timeout)
         if (!xdr_LSFHeader(&xdrs, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs);
-            return (-1);
+            return -1;
         }
         xdr_destroy(&xdrs);
 
@@ -662,19 +660,19 @@ handShake_(int s, char client, int timeout)
         cc = chanRpc_( s, &reqbuf, &replybuf, &hdr, timeout * 1000);
         if (cc < 0) {
             lsberrno = LSBE_LSLIB;
-            return(-1);
+            return -1;
         }
         if (hdr.opCode != READY_FOR_OP) {
             xdr_destroy(&xdrs);
             lsberrno =  hdr.opCode;
             if (logclass & LC_TRACE)
                 ls_syslog (LOG_DEBUG1, "handShake_: mbatchd returned error code <%d>", hdr.opCode);
-            return(-1);
+            return -1;
         }
 
     }
 
-    return(0);
+    return 0;
 
 }
 
@@ -688,7 +686,7 @@ authTicketTokens_(struct lsfAuth *auth, char *toHost)
         char *clusterName;
         char buf[1024];
         if ((toHost = getMasterName()) == NULL) {
-            return (-1);
+            return -1;
         }
         if ((clusterName = ls_getclustername()) == NULL) {
             return -1;
@@ -703,10 +701,10 @@ authTicketTokens_(struct lsfAuth *auth, char *toHost)
 
     if (getAuth_(auth, toHost) == -1) {
         lsberrno = LSBE_LSLIB;
-        return (-1);
+        return -1;
     }
 
-    return (0);
+    return 0;
 }
 
 float *
@@ -715,7 +713,7 @@ getCpuFactor (char *host, int name)
     float *tempPtr;
 
 Retry:
-    if (name == TRUE)
+    if (name == true)
         tempPtr = ls_gethostfactor(host);
     else
         tempPtr = ls_getmodelfactor(host);
@@ -729,6 +727,5 @@ Retry:
         lsberrno = LSBE_LSLIB;
     }
 
-    return (tempPtr);
+    return tempPtr;
 }
-

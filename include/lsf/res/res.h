@@ -20,40 +20,59 @@
 #ifndef _RES_H_
 #define _RES_H_
 
+#include "config.h"
+#include "lsf.h"
+
 #include <stdio.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <time.h>
+#include <math.h>
+#include <stdbool.h>
+#include <signal.h>
+#include <pwd.h>
+#include <utmp.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/signal.h>
+#include <sys/file.h>
+#include <sys/utsname.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
+#include <sys/sysmacros.h>
+#include <sys/vfs.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
-#include "../lsf.h"
-#include "../../config.h"
-#include "../intlib/intlibout.h"
-#include "../lib/lproto.h"
-#include "../lib/lib.osal.h"
-#include "../lib/lib.xdr.h"
-#include "rescom.h"
+#define NICE_LEAST -40
+#define NICE_MIDDLE 20
+#define DEF_REXPRIORITY 0
+#define LIM_PORT 36000
+#define RES_PORT 36002
+#define LSTMPDIR lsTmpDir_
+#define LSDEVNULL "/dev/null"
+#define LSETCDIR "/etc"
+#define SOCK_READ_FIX  b_read_fix
+#define SOCK_WRITE_FIX b_write_fix
+#define NB_SOCK_READ_FIX   nb_read_fix
+#define NB_SOCK_WRITE_FIX  nb_write_fix
+#define MSGSIZE BUFSIZ
 
-# if !defined(_BSD)
-# define _BSD
-# endif
-
-typedef gid_t GETGROUPS_T;
-
-#ifdef PROJECT_CST
-#  undef _LS_VERSION_
-#  ifdef __STDC__
-#    ifdef DATE
-#      define _LS_VERSION_ ("LSF 2.2c, " DATE "\nCopyright 1992-1996 Platform Computing Corporation\n")
-#    else
-#      define _LS_VERSION_ ("LSF 2.2c, " __DATE__ "\nCopyright 1992-1996 Platform Computing Corporation\n")
-#    endif
-#  else
-#    define _LS_VERSION_ ("LSF 2.2c \nCopyright 1992-1996 Platform Computing Corporation\n")
-#  endif
-#endif
-
-#include <stdlib.h>
-#include "resout.h"
-
+#include "lsf/intlib/list.h"
+#include "lsf/intlib/listset.h"
+#include "lsf/res/rescom.h"
+#include "lsf/res/resout.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lib/lib.xdrres.h"
+#include "lsf/lib/lsi18n.h"
 
 extern int rexecPriority;
 extern struct client  *clients[];
@@ -117,60 +136,52 @@ extern char *env_dir;
 #define PTY_FIRST_ALPHA		'p'
 # define PTY_LAST_ALPHA		'v'
 
-#define   BUFSTART(x)    ((char *) ((x)->buf) + sizeof(struct LSFHeader))
+#define BUFSTART(x)    ((char *) ((x)->buf) + sizeof(struct LSFHeader))
 
 #define CLOSE_IT(fd)     if (fd>=0) {close(fd); fd = INVALID_FD;}
-
 
 typedef struct ttystruct  {
         struct termios attr;
         struct winsize  ws;
-#    if defined(hpux) || defined(__hpux)
-        struct ltchars hp_ltchars;
-#    endif
 } ttyStruct;
 
 
 struct client   {
-        int             client_sock;
-        int             ruid;
-        int             gid;
-        char            *username;
-        char            *clntdir;
+    int             client_sock;
+    int             ruid;
+    int             gid;
+    char            *username;
+    char            *clntdir;
 	char            *homedir;
-        ttyStruct       tty;
-        char            **env;
-        int             ngroups;
-        GETGROUPS_T	groups[NGROUPS];
+    ttyStruct       tty;
+    char            **env;
+    int             ngroups;
+    gid_t	groups[NGROUPS];
 	struct           hostent hostent;
 	struct lenData   eexec;
 };
 
 struct child  {
-        struct client   *backClnPtr;
+    struct client   *backClnPtr;
 	int             rpid;
-        int             pid;
-
-        int             refcnt;
+    int             pid;
+    int             refcnt;
 	int             info;
 	int             stdio;
-        outputChannel   std_out;
-        outputChannel   std_err;
-
+    outputChannel   std_out;
+    outputChannel   std_err;
 	niosChannel     remsock;
 	int             rexflag;
-        char            server;
-        char            c_eof;
-        char            running;
+    char            server;
+    char            c_eof;
+    char            running;
 	char            sigchild;
-        LS_WAIT_T	wait;
+    int  wait;
 	struct sigStatusUsage *sigStatRu;
 	int             endstdin;
 	RelayBuf        i_buf;
 	int             stdin_up;
-
-        char            slavepty[sizeof(PTY_TEMPLATE)];
-
+    char            slavepty[sizeof(PTY_TEMPLATE)];
 	char 		**cmdln;
 	time_t		dpTime;
 	char            *cwd;
@@ -196,14 +207,13 @@ typedef struct taggedConn {
 	niosChannel  sock;
 	int          rtag;
 	int          wtag;
-
-
-        int          *task_duped;
+    int          *task_duped;
 	int          num_duped;
 } taggedConn_t;
 
 typedef struct resNotice {
-    struct resNotice *forw, *back;
+    struct resNotice *forw;
+    struct resNotice *back;
     int rpid;
     int retsock;
     int opCode;
@@ -252,6 +262,10 @@ extern struct config_param resConfParams[];
 
 #define RESS_LOGBIT         0x00000001
 
+/* Bug. Redefined.
+ */
+extern void Signal_(int, void (*f)(int));
+
 extern void init_res(void);
 extern void resExit_(int exitCode);
 extern int nb_write_fix(int, char *, int);
@@ -274,7 +288,7 @@ extern int deliver_notifications(LIST_T *);
 
 extern void term_handler(int);
 extern void sigHandler(int);
-extern void child_handler(void);
+extern void child_handler(int);
 extern void child_handler_ext(void);
 extern void getMaskReady(fd_set *rm, fd_set *wm, fd_set *em);
 extern void display_masks(fd_set *, fd_set *, fd_set *);
@@ -316,8 +330,6 @@ extern int resSignal(struct child *chld, struct resSignal sig);
 
 extern void dumpClient(struct client *, char * );
 extern void dumpChild(struct child *, int, char *);
-
-
 
 #define UTMP_CHECK_CODE "sbdRes"
 

@@ -1,4 +1,3 @@
-
 /* $Id: lib.syntax.c,v 1.3 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -17,9 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
+#include "lsf/lib/lib.h"
 
 int
 expSyntax_(char *resReq)
@@ -35,11 +32,10 @@ expSyntax_(char *resReq)
     str.name = resReq;
     str.len  = MAXLINELEN;
 
-    if (callLim_(LIM_CHK_RESREQ, &str, xdr_stringLen, 
-	NULL, NULL, NULL, 0, NULL) < 0)
+    if (callLim_(LIM_CHK_RESREQ, &str, xdr_stringLen,
+                 NULL, NULL, NULL, 0, NULL) < 0)
         return -1;
-    
-   return 0; 
 
-} 
+   return 0;
 
+}

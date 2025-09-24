@@ -18,10 +18,6 @@
 
 #ifndef LIB_XDR_H
 #define LIB_XDR_H
-#include "lib.hdr.h"
-
-
-
 
 extern bool_t xdr_time_t (XDR *, time_t *);
 extern bool_t xdr_lsfRusage(XDR *, struct lsfRusage *);
@@ -37,4 +33,4 @@ extern int getXdrStrlen (char *);
 extern int getHdrReserved(struct LSFHeader *hdr);
 extern void setHdrReserved(struct LSFHeader *hdr, unsigned int val);
 
-#endif 
+#endif

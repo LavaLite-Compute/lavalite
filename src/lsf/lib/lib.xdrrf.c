@@ -1,4 +1,3 @@
-
 /* $Id: lib.xdrrf.c,v 1.2 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -17,45 +16,43 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
+#include "lsf/lib/lib.h"
 
 extern int currentSN;
-    
+
 int
 lsRecvMsg_(int sock, char *buf, int bufLen, struct LSFHeader *hdr,
-	   char *data, bool_t (*xdrFunc)(), int (*readFunc)())
+           char *data, bool_t (*xdrFunc)(), ssize_t (*readFunc)())
 {
     XDR xdrs;
     int cc;
 
     xdrmem_create(&xdrs, buf, bufLen, XDR_DECODE);
-    
+
     if ((cc = readDecodeHdr_(sock, buf, readFunc, &xdrs, hdr)) < 0) {
-	xdr_destroy(&xdrs);
-	return cc;
+        xdr_destroy(&xdrs);
+        return cc;
     }
 
     if (hdr->length == 0 || data == NULL) {
-	xdr_destroy(&xdrs);
-	return 0;
+        xdr_destroy(&xdrs);
+        return 0;
     }
 
     XDR_SETPOS(&xdrs, 0);
 
     if ((cc = readDecodeMsg_(sock, buf, hdr, readFunc, &xdrs, data,
-			      xdrFunc, NULL))	< 0) {
-	xdr_destroy(&xdrs);
-	return cc;
+                             xdrFunc, NULL))    < 0) {
+        xdr_destroy(&xdrs);
+        return cc;
     }
 
     return 0;
-} 
-	
+}
+
 int lsSendMsg_ (int s, int opCode, int hdrLength, char *data, char *reqBuf,
-		int reqLen, bool_t (*xdrFunc)(), int (*writeFunc)(),
-		struct lsfAuth *auth)
+                int reqLen, bool_t (*xdrFunc)(), ssize_t (*writeFunc)(),
+                struct lsfAuth *auth)
 {
     struct LSFHeader hdr;
     XDR xdrs;
@@ -64,26 +61,26 @@ int lsSendMsg_ (int s, int opCode, int hdrLength, char *data, char *reqBuf,
     hdr.opCode = opCode;
     hdr.refCode = currentSN;
 
-    if (!data) 
-	hdr.length = hdrLength;
+    if (!data)
+        hdr.length = hdrLength;
 
     xdrmem_create(&xdrs, reqBuf, reqLen, XDR_ENCODE);
 
     if (!xdr_encodeMsg(&xdrs, data, &hdr, xdrFunc,
-		       (data == NULL) ? ENMSG_USE_LENGTH : 0, auth)) {
-	xdr_destroy(&xdrs);
-	lserrno = LSE_BAD_XDR;
-	return -1;
+                       (data == NULL) ? ENMSG_USE_LENGTH : 0, auth)) {
+        xdr_destroy(&xdrs);
+        lserrno = LSE_BAD_XDR;
+        return -1;
     }
 
     if ((*writeFunc)(s, (char *)reqBuf, XDR_GETPOS(&xdrs)) !=
-	XDR_GETPOS(&xdrs)) {
+        XDR_GETPOS(&xdrs)) {
         xdr_destroy(&xdrs);
-	lserrno = LSE_MSG_SYS;
+        lserrno = LSE_MSG_SYS;
         return -2;
     }
-    
-    xdr_destroy(&xdrs);    
+
+    xdr_destroy(&xdrs);
 
     return 0;
-} 
+}

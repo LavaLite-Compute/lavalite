@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 
 #define exit(a) _exit(a)
 
@@ -27,7 +27,7 @@
 #define NL_SETN   23
 static int getEData(struct lenData *, char **, const char *);
 
-    int
+int
 runEsub_(struct lenData *ed, char *path)
 {
     char esub[MAXPATHLEN];
@@ -56,7 +56,7 @@ runEsub_(struct lenData *ed, char *path)
     if (stat(esub, &sbuf) < 0) {
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG,
-                    "runEsub: stat(%s) failed: %m", esub);
+                      "runEsub: stat(%s) failed: %m", esub);
         lserrno = LSE_ESUB;
         return -1;
     }
@@ -67,7 +67,7 @@ runEsub_(struct lenData *ed, char *path)
     return 0;
 }
 
-    int
+int
 runEClient_(struct lenData *ed, char **argv)
 {
     char lsfUserName[MAXLSFNAMELEN];
@@ -78,26 +78,27 @@ runEClient_(struct lenData *ed, char **argv)
     return getEData(ed, argv, lsfUserName);
 }
 
-    static int
+static int
 getEData(struct lenData *ed, char **argv, const char *lsfUserName)
 {
-    char *buf, *sp;
+    char *buf;
+    char *sp;
     int ePorts[2];
-    int pid, cc, size;
-    char fname[] = "getEData";
-    LS_WAIT_T  status;
+    int pid;
+    int cc;
+    int size;
+    int status;
     char *abortVal;
-
     uid_t uid;
 
     if (get_uid(lsfUserName, &uid) < 0) {
-        ls_syslog(LOG_DEBUG, I18N_FUNC_S_FAIL_MM, fname, "getOSUid_", lsfUserName);
+        ls_syslog(LOG_DEBUG, I18N_FUNC_S_FAIL_MM, __func__, "getOSUid_", lsfUserName);
         return -1;
     }
 
     if (pipe(ePorts) < 0) {
         if(logclass & (LC_TRACE | LC_AUTH))
-            ls_syslog(LOG_DEBUG,"%s: pipe failed: %m",fname);
+            ls_syslog(LOG_DEBUG,"%s: pipe failed: %m",__func__);
         lserrno = LSE_PIPE;
         return -1;
     }
@@ -109,13 +110,13 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
         lsfSetUid(uid);
 
         lsfExecvp (argv[0], argv);
-        ls_syslog(LOG_DEBUG, "%s: execvp(%s) failed: %m", fname, argv[0]);
+        ls_syslog(LOG_DEBUG, "%s: execvp(%s) failed: %m", __func__, argv[0]);
         exit (-1);
     }
 
     if (pid == -1) {
         if(logclass & (LC_TRACE | LC_AUTH))
-            ls_syslog(LOG_DEBUG,"%s: fork failed aborting child",fname);
+            ls_syslog(LOG_DEBUG,"%s: fork failed aborting child",__func__);
         close (ePorts[0]);
         close (ePorts[1]);
         lserrno = LSE_FORK;
@@ -129,22 +130,22 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
 
     if ((buf = (char *) malloc(MSGSIZE + 1)) == NULL) {
         if(logclass & (LC_TRACE | LC_AUTH))
-            ls_syslog(LOG_DEBUG,"%s: malloc failed: %m",fname);
+            ls_syslog(LOG_DEBUG,"%s: malloc failed: %m",__func__);
         lserrno = LSE_MALLOC;
         goto errorReturn;
     }
 
     for (size = MSGSIZE, ed->len = 0, sp = buf;
-            (cc = read(ePorts[0], sp, size));) {
+         (cc = read(ePorts[0], sp, size));) {
         if (cc == -1) {
             if(logclass & (LC_TRACE | LC_AUTH))
-                ls_syslog(LOG_DEBUG,"%s: read error: %m",fname);
+                ls_syslog(LOG_DEBUG,"%s: read error: %m",__func__);
             if (errno == EINTR)
                 continue;
 
             ls_syslog(LOG_ERR,
-                    I18N(5552, "%s: <%s> read(%d): %m"), /* catgets 5552 */
-                    fname, argv[0], size);
+                      I18N(5552, "%s: <%s> read(%d): %m"), /* catgets 5552 */
+                      __func__, argv[0], size);
             break;
         }
 
@@ -154,7 +155,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
         if (size == 0) {
             if ((sp = (char *) realloc(buf, ed->len + MSGSIZE + 1)) == NULL) {
                 if(logclass & (LC_TRACE | LC_AUTH))
-                    ls_syslog(LOG_DEBUG,"%s: realloc failed: %m",fname);
+                    ls_syslog(LOG_DEBUG,"%s: realloc failed: %m",__func__);
                 lserrno = LSE_MALLOC;
                 free(buf);
                 goto errorReturn;
@@ -175,7 +176,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
 
     if ((abortVal = getenv("LSB_SUB_ABORT_VALUE"))) {
         if ((WIFEXITED(status) && WEXITSTATUS(status) == atoi(abortVal)) ||
-                WIFSIGNALED(status)) {
+            WIFSIGNALED(status)) {
             FREEUP(ed->data);
             ed->len = 0;
             return -1;
@@ -199,7 +200,7 @@ errorReturn:
 
 }
 
-    int
+int
 runEexec_(char *option, int job, struct lenData *eexec, char *path)
 {
     static char fname[] = "runEexec";
@@ -226,7 +227,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
     if (stat(eexecPath, &sbuf) < 0) {
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG,
-                    "%s: Job/task <%d> eexec will not be run, stat(%s) failed: %m", fname, job, eexecPath);
+                      "%s: Job/task <%d> eexec will not be run, stat(%s) failed: %m", fname, job, eexecPath);
         lserrno = LSE_ESUB;
         return -1;
     }
@@ -267,7 +268,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
             }
         }
 
-        if (lsfSetUid(uid) < 0) {
+        if (setuid(uid) < 0) {
             ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "setuid", (int) uid);
             exit (-1);
         }
@@ -307,7 +308,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
 
     if (eexec->len > 0) {
         if ((cc = b_write_fix(p[1], eexec->data, eexec->len)) != eexec->len &&
-                strcmp (option, "-p")) {
+            strcmp (option, "-p")) {
             ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "b_write_fix", eexec->len);
         }
     }
@@ -321,7 +322,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
 
 }
 
-    char *
+char *
 runEGroup_(char *type, char *gname)
 {
     static char fname[] = "runEGroup";

@@ -16,34 +16,33 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.common.h"
 
-#define SYSV_NICE_0	 	 20
-#define MAX_PRIORITY	 	 20
-#define MIN_PRIORITY		-20
+#define SYSV_NICE_0      20
+#define MAX_PRIORITY         20
+#define MIN_PRIORITY        -20
 
-#define LSF_TO_SYSV(x)		((x) + SYSV_NICE_0)
-#define SYSV_TO_LSF(x)		((x) - SYSV_NICE_0)
+#define LSF_TO_SYSV(x)      ((x) + SYSV_NICE_0)
+#define SYSV_TO_LSF(x)      ((x) - SYSV_NICE_0)
 
 int
 ls_setpriority(int newPriority)
 {
     int increment;
 
-    if ( newPriority > MAX_PRIORITY * 2) {
-	newPriority = MAX_PRIORITY * 2;
-    } else if ( newPriority < MIN_PRIORITY * 2) {
-	newPriority = MIN_PRIORITY * 2;
+    if (newPriority > MAX_PRIORITY * 2) {
+        newPriority = MAX_PRIORITY * 2;
+    } else if (newPriority < MIN_PRIORITY * 2) {
+        newPriority = MIN_PRIORITY * 2;
     }
     increment = newPriority;
 
     errno = 0;
 
 
-    if (-1 == nice(increment) && (0 != errno)) {
-	return false;
+    if (nice(increment) == -1 && (0 != errno)) {
+        return false;
     }
 
     return true;
 }
-

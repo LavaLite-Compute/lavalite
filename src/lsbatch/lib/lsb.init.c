@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsbatch/lib/lsb.h"
 
+#include "lsbatch/lib/lsb.h"
 
 struct config_param lsbParams[] = {
     {"LSB_DEBUG", NULL},
@@ -31,11 +31,9 @@ struct config_param lsbParams[] = {
     {"LSF_LOG_MASK", NULL},
     {"LSB_API_CONNTIMEOUT",NULL},
     {"LSB_API_RECVTIMEOUT",NULL},
-    // Bug. Why is LSF_SERVERDIR defined here.
     {"LSF_SERVERDIR", NULL},
     {"LSB_MODE", NULL},
     {"LSB_SHORT_HOSTLIST", NULL},
-    // Bug. Why is LSF_* defined here
     {"LSF_INTERACTIVE_STDERR", NULL},
     {"LSB_32_PAREN_ESC", NULL},
     {"LSB_API_QUOTE_CMD", NULL},
@@ -57,9 +55,9 @@ extern int bExceptionTabInit(void);
 extern int mySubUsage_(void *);
 
 int
-lsb_init (char *appName)
+lsb_init(char *appName)
 {
-    static int lsbenvset = FALSE;
+    static int lsbenvset = false;
     char *logMask;
 
     if (lsbenvset)
@@ -69,7 +67,7 @@ lsb_init (char *appName)
     if (initenv_(lsbParams, NULL) < 0)
     {
         lsberrno = LSBE_LSLIB;
-        return(-1);
+        return -1;
     }
 
     if (lsbParams[LSB_API_CONNTIMEOUT].paramValue) {
@@ -88,10 +86,10 @@ lsb_init (char *appName)
 
     if (! lsbParams[LSB_SHAREDIR].paramValue) {
         lsberrno = LSBE_NO_ENV;
-        return(-1);
+        return -1;
     }
 
-    lsbenvset = TRUE;
+    lsbenvset = true;
 
     if (lsbParams[LSB_CMD_LOG_MASK].paramValue != NULL)
         logMask = lsbParams[LSB_CMD_LOG_MASK].paramValue;
@@ -100,24 +98,22 @@ lsb_init (char *appName)
 
     if (appName == NULL)
         ls_openlog ("bcmd", lsbParams[LSB_CMD_LOGDIR].paramValue,
-                (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), logMask);
+                    (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), logMask);
     else
         ls_openlog (appName, lsbParams[LSB_CMD_LOGDIR].paramValue,
-                (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), logMask);
+                    (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), logMask);
 
     getLogClass_(lsbParams[LSB_DEBUG_CMD].paramValue,
-            lsbParams[LSB_TIME_CMD].paramValue);
+                 lsbParams[LSB_TIME_CMD].paramValue);
 
 
     if (bExceptionTabInit()) {
         lsberrno = LSBE_LSBLIB;
-        return(-1);
+        return -1;
     }
 
     if (lsb_catch("LSB_BAD_BSUBARGS", mySubUsage_))
-        return(-1);
+        return -1;
 
-    return(0);
-
+    return 0;
 }
-

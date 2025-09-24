@@ -16,10 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 
-/* Various miscellaneus functions more or less useful.
- */
+/* Bug. Various miscellaneus functions more or less useful but mostly bogus
+ * ready for removal as we have ctypes and string headers for the functionality.
+*/
 
 #define BADCH   ":"
 #define NL_SETN   23
@@ -30,19 +31,19 @@ extern int  opterr;
 extern int  optopt;
 
 #define PRINT_ERRMSG(errMsg, fmt, msg1, msg2)   \
-    {                                           \
-        if (errMsg == NULL)                     \
-            fprintf(stderr, fmt, msg1, msg2);   \
-        else                                    \
-            sprintf(*errMsg, fmt, msg1, msg2);  \
-    }
+{                                           \
+    if (errMsg == NULL)                     \
+    fprintf(stderr, fmt, msg1, msg2);   \
+    else                                    \
+    sprintf(*errMsg, fmt, msg1, msg2);  \
+}
 
-static struct LSFAdmins {
+struct LSFAdmins {
     int     numAdmins;
     char    **names;
 } LSFAdmins;
 
-bool_t           isLSFAdmin(const char *);
+bool_t isLSFAdmin(const char *);
 
 char
 isanumber_(char *word)
@@ -66,14 +67,15 @@ isanumber_(char *word)
 }
 
 char
-islongint_(char *word)
+islongint_(const char *word)
 {
     long long int number;
 
     if (!word || *word == '\0')
         return false;
 
-    if(!isdigitstr_(word)) return false;
+    if (!isdigitstr_(word))
+        return false;
 
     if (errno == ERANGE)
         errno = 0;
@@ -84,11 +86,10 @@ islongint_(char *word)
             return true;
     }
     return false;
-
 }
 
 int
-isdigitstr_(char *string)
+isdigitstr_(const char *string)
 {
     int i;
 
@@ -100,10 +101,10 @@ isdigitstr_(char *string)
     return true;
 }
 
-LS_LONG_INT
-atoi64_(char *word)
+int64_t
+atoi64_(const char *word)
 {
-    long long int number;
+    int64_t number;
 
     if (!word || *word == '\0')
         return 0;
@@ -111,7 +112,7 @@ atoi64_(char *word)
     if (errno == ERANGE)
         errno = 0;
 
-    sscanf(word, "%lld", &number);
+    sscanf(word, "%ld", &number);
     if (errno != ERANGE) {
         if (number <= INFINIT_LONG_INT && number > -INFINIT_LONG_INT)
             return number;
@@ -123,7 +124,6 @@ char
 isint_(char *word)
 {
     char **eptr;
-
     int number;
 
     if (!word || *word == '\0')
@@ -133,7 +133,7 @@ isint_(char *word)
         errno = 0;
     eptr = &word;
     number = strtol (word, eptr, 10);
-    if (**eptr == '\0'&&  errno != ERANGE) {
+    if (**eptr == '\0' &&  errno != ERANGE) {
         if (number <= INFINIT_INT && number > -INFINIT_INT)
             return true;
     }
@@ -144,9 +144,9 @@ isint_(char *word)
 char *
 putstr_(const char *s)
 {
-    register char *p;
+    char *p;
 
-    if (s == (char *)NULL) {
+    if (s == NULL) {
         s = "";
     }
 
@@ -157,7 +157,6 @@ putstr_(const char *s)
     strcpy(p, s);
 
     return p;
-
 }
 
 short
@@ -191,7 +190,6 @@ chDisplay_(char *disp)
     }
 
     return disp;
-
 }
 
 void
@@ -234,7 +232,6 @@ getNextToken(char **sp)
 
 }
 
-
 int
 getValPair(char **resReq, int *val1, int *val2)
 {
@@ -244,7 +241,7 @@ getValPair(char **resReq, int *val1, int *val2)
     *val1 = INFINIT_INT;
     *val2 = INFINIT_INT;
 
-    token = getNextToken (resReq);
+    token = getNextToken(resReq);
     if (!token)
         return 0;
     len = strlen (token);
@@ -277,7 +274,7 @@ getValPair(char **resReq, int *val1, int *val2)
 
 
 char *
-my_getopt (int nargc, char **nargv, char *ostr, char **errMsg)
+my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
 {
     char svstr [256];
     char *cp1 = svstr;
@@ -360,7 +357,7 @@ int putEnv(char *env, char *val)
 }
 
 void
-initLSFHeader_ (struct LSFHeader *hdr)
+initLSFHeader_(struct LSFHeader *hdr)
 {
     hdr->refCode = 0;
     hdr->version = _XDR_VERSION_0_1_0;
@@ -476,9 +473,9 @@ getCmdPathName_(const char *cmdStr, int* cmdLen)
     char* sp2;
 
     for (pRealCmd = (char*)cmdStr; *pRealCmd == ' '
-             || *pRealCmd == '\t'
-             || *pRealCmd == '\n'
-             ; pRealCmd++);
+         || *pRealCmd == '\t'
+         || *pRealCmd == '\n'
+         ; pRealCmd++);
 
     if (pRealCmd[0] == '\'' || pRealCmd[0] == '"') {
         sp1 = &pRealCmd[1];
@@ -641,7 +638,7 @@ ls_strcat(char *trustedBuffer, int bufferLength, char *strToAdd)
 }
 
 int
-get_uid(const char *user, int *uid)
+get_uid(const char *user, uid_t *uid)
 {
     struct passwd *pwd;
 

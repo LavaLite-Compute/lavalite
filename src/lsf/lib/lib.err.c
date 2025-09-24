@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 
 #define NL_SETN   23
 int    lserrno = LSE_NO_ERR;
@@ -211,10 +211,13 @@ verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
         (void)fprintf(fp, "%s %d ", _i18n_ctime(ls_catd,  CTIME_FORMAT_b_d_T_Y, &now), (int) getpid());
     }
 
-    if (level >= 0)
-        sprintf(verBuf,"%d %s %s", level, _LAVALITE_VERSION_, buf);
-    else
-        sprintf(verBuf,"%s %s", _LAVALITE_VERSION_, buf);
+    if (level >= 0) {
+        snprintf(verBuf, sizeof(verBuf), "%d %.8000s %.8000s",
+                 level, _LAVALITE_VERSION_, buf);
+    } else {
+        snprintf(verBuf, sizeof(verBuf), "%.8000s %.8000s",
+                 _LAVALITE_VERSION_, buf);
+    }
 
     fputs(verBuf, fp);
     putc('\n', fp);

@@ -16,9 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
+#include "lsf/lib/lib.common.h"
 
 int I18nRunningFlag = 0;
 int I18nInitFlag = 0;
@@ -133,4 +131,3 @@ _i18n_printf(const char *format, ...)
     va_end(ap);
     return i18nPrintBuffer;
 }
-

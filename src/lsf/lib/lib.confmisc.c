@@ -1,6 +1,7 @@
 /* $Id: lib.confmisc.c,v 1.3 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -15,19 +16,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
 
-
-
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
 
 #define NL_SETN   23
 char *
 getNextValue(char **line)
 {
-    return (getNextValueQ_(line, '(', ')'));}
+    return getNextValueQ_(line, '(', ')');
+}
 
 int
-keyMatch (struct keymap *keyList, char *line, int exact)
+keyMatch(struct keymap *keyList, char *line, int exact)
 {
     int pos = 0;
     int i;
@@ -194,7 +195,7 @@ putValue(struct keymap *keyList, char *key, char *value)
 {
     int i;
 
-    i=0;
+    i = 0;
     while (keyList[i].key != NULL) {
         if (strcasecmp(keyList[i].key, key) == 0) {
             FREEUP (keyList[i].val);
@@ -254,7 +255,7 @@ mapValues(struct keymap *keyList, char *line)
     }
 
     while ((value = getNextValue(&line)) != NULL) {
-        i=0;
+        i = 0;
         found = false;
         while (keyList[i].key != NULL) {
             if (keyList[i].position != pos) {
@@ -282,7 +283,7 @@ mapValues(struct keymap *keyList, char *line)
     return 0;
 
 fail:
-    i=0;
+    i = 0;
     while (keyList[i].key != NULL)  {
         if (keyList[i].val != NULL) {
             free(keyList[i].val);
@@ -296,20 +297,22 @@ fail:
 }
 
 int
-putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
+putInLists(char *word, struct admins *admins, int *numAds, char *forWhat)
 {
     static char fname[] = "putInLists";
     struct passwd *pw;
     char **tempNames;
     int i, *tempIds, *tempGids;
 
-    if ((pw = getpwnam(word)) == NULL) {
+    pw = getpwnam(word);
+    if (pw == NULL) {
         if (logclass & LC_TRACE) {
             ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd , NL_SETN, 5410,
                                                "%s: <%s> is not a valid user on this host"), fname, word); /* catgets 5410 */
         }
     }
-    if (isInlist (admins->adminNames, word, admins->nAdmins)) {
+
+    if (isInlist(admins->adminNames, word, admins->nAdmins)) {
         ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5411,
                                              "%s: Duplicate user name <%s> %s; ignored"), fname, word, forWhat); /* catgets 5411 */
         return 0;
@@ -348,7 +351,7 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
 }
 
 int
-isInlist (char **adminNames, char *userName, int actAds)
+isInlist(char **adminNames, char *userName, int actAds)
 {
     int i;
 

@@ -16,9 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
+#include "lsf/lib/lib.h"
 
 extern int totsockets_;
 extern int currentsocket_;
@@ -36,8 +34,7 @@ CreateSock_(int protocol)
     static ushort i;
     static char isroot = false;
 
-    if (geteuid() == 0)
-    {
+    if (geteuid() == 0) {
         if (! isroot) {
             port = IPPORT_RESERVED -1;
         }
@@ -51,8 +48,8 @@ CreateSock_(int protocol)
         port = IPPORT_RESERVED -1;
 
     if ((s = Socket_(AF_INET, protocol, 0)) < 0) {
-	if(logclass & LC_COMM)
-	   ls_syslog(LOG_DEBUG,"%s: Socket_ failed, %s",fname,strerror(errno));
+        if(logclass & LC_COMM)
+            ls_syslog(LOG_DEBUG,"%s: Socket_ failed, %s",fname,strerror(errno));
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
@@ -77,8 +74,8 @@ CreateSock_(int protocol)
         }
 
         if (errno != EADDRINUSE && errno != EADDRNOTAVAIL) {
-	    if(logclass & LC_COMM)
-	       ls_syslog(LOG_DEBUG,"%s: bind failed, %s",fname,strerror(errno));
+            if(logclass & LC_COMM)
+                ls_syslog(LOG_DEBUG,"%s: bind failed, %s",fname,strerror(errno));
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
             return -1;
@@ -91,8 +88,8 @@ CreateSock_(int protocol)
 
 
     if (isroot && i == IPPORT_RESERVED/2) {
-	if(logclass & LC_COMM)
-	    ls_syslog(LOG_DEBUG,"%s: went through all , %s",fname,strerror(errno));
+        if(logclass & LC_COMM)
+            ls_syslog(LOG_DEBUG,"%s: went through all , %s",fname,strerror(errno));
         closesocket(s);
         lserrno = LSE_SOCK_SYS;
         return -1;
@@ -136,8 +133,8 @@ CreateSockEauth_(int protocol)
         port = IPPORT_RESERVED -1;
 
     if ((s = Socket_(AF_INET, protocol, 0)) < 0) {
-	if(logclass & LC_COMM)
-	   ls_syslog(LOG_DEBUG,"%s: Socket_ failed, %s",fname,strerror(errno));
+        if(logclass & LC_COMM)
+            ls_syslog(LOG_DEBUG,"%s: Socket_ failed, %s",fname,strerror(errno));
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
@@ -145,7 +142,7 @@ CreateSockEauth_(int protocol)
     memset((char*)&cliaddr, 0, sizeof(cliaddr));
     cliaddr.sin_family      = AF_INET;
     cliaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    for (i=0; i < IPPORT_RESERVED/2; i++) {
+    for (i = 0; i < IPPORT_RESERVED/2; i++) {
         cliaddr.sin_port = htons(port);
 
         if (isroot) {
@@ -154,7 +151,6 @@ CreateSockEauth_(int protocol)
         if (bind(s, (struct sockaddr *)&cliaddr, sizeof(cliaddr)) == 0)
             break;
 
-
         if (!isroot) {
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
@@ -162,8 +158,8 @@ CreateSockEauth_(int protocol)
         }
 
         if (errno != EADDRINUSE && errno != EADDRNOTAVAIL) {
-	    if(logclass & LC_COMM)
-	       ls_syslog(LOG_DEBUG,"%s: bind failed, %s",fname,strerror(errno));
+            if(logclass & LC_COMM)
+                ls_syslog(LOG_DEBUG,"%s: bind failed, %s",fname,strerror(errno));
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
             return -1;
@@ -176,8 +172,8 @@ CreateSockEauth_(int protocol)
 
 
     if (isroot && i == IPPORT_RESERVED/2) {
-	if(logclass & LC_COMM)
-	    ls_syslog(LOG_DEBUG,"%s: went through all , %s",fname,strerror(errno));
+        if(logclass & LC_COMM)
+            ls_syslog(LOG_DEBUG,"%s: went through all , %s",fname,strerror(errno));
         closesocket(s);
         lserrno = LSE_SOCK_SYS;
         return -1;
@@ -195,7 +191,8 @@ CreateSockEauth_(int protocol)
 
 }
 
-
+/* Should desc be 0, 1 or 2 dup() it to a higher value.
+ */
 int
 get_nonstd_desc_(int desc)
 {
@@ -229,7 +226,6 @@ get_nonstd_desc_(int desc)
         close(s2);
 
     return desc;
-
 }
 
 
@@ -246,7 +242,7 @@ TcpCreate_(int service, int port)
     }
 
     if (service) {
-	memset((char*)&sin, 0, sizeof(sin));
+        memset((char*)&sin, 0, sizeof(sin));
         sin.sin_family      = AF_INET;
         sin.sin_port        = htons(port);
         sin.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -315,16 +311,13 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
     ls_svrsock_t *svrsock;
     struct sockaddr_in  *svrAddr;
     int acceptSock;
-    int length;
 
-
-
-    if ((svrsock = (ls_svrsock_t *) malloc(sizeof(ls_svrsock_t))) == NULL) {
+    if ((svrsock = calloc(1, sizeof(ls_svrsock_t))) == NULL) {
         lserrno = LSE_MALLOC;
-	return NULL;
+        return NULL;
     }
 
-    svrAddr = (struct sockaddr_in *) malloc(sizeof(struct sockaddr_in));
+    svrAddr = calloc(1, sizeof(struct sockaddr_in));
     if (svrAddr == NULL) {
         lserrno = LSE_MALLOC;
         free(svrsock);
@@ -342,7 +335,6 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
         svrAddr->sin_addr.s_addr = INADDR_ANY;
     }
 
-
     if ((acceptSock = socket(svrAddr->sin_family, SOCK_STREAM, 0)) < 0) {
         lserrno = LSE_SOCK_SYS;
         free(svrsock->localAddr);
@@ -350,18 +342,17 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
         return NULL;
     }
 
-
-
     if (bind(acceptSock, (struct sockaddr *)svrAddr,
              sizeof(struct sockaddr_in)) < 0) {
-        (void) close(acceptSock);
+        close(acceptSock);
         lserrno = LSE_SOCK_SYS;
         free(svrsock->localAddr);
         free(svrsock);
         return NULL;
     }
+
     if (listen(acceptSock, 5) < 0) {
-        (void) closesocket(acceptSock);
+        closesocket(acceptSock);
         lserrno = LSE_SOCK_SYS;
         free(svrsock->localAddr);
         free(svrsock);
@@ -369,10 +360,10 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
     }
 
     if (port == 0) {
-        length = sizeof(struct sockaddr_in);
-        if (getsockname(acceptSock, (struct sockaddr *) svrAddr, &length) < 0) {
+        socklen_t len = sizeof(struct sockaddr_in);
+        if (getsockname(acceptSock, (struct sockaddr *) svrAddr, &len) < 0) {
             lserrno = LSE_SOCK_SYS;
-            (void) closesocket(acceptSock);
+            closesocket(acceptSock);
             free(svrsock->localAddr);
             free(svrsock);
             return NULL;
@@ -380,14 +371,11 @@ svrsockCreate_(u_short port, int backlog, struct sockaddr_in *addr, int options)
         svrsock->port = ntohs(svrAddr->sin_port);
     }
     else
-       svrsock->port = port;
+        svrsock->port = port;
 
     svrsock->sockfd = acceptSock;
     svrsock->options = options;
-    if (backlog == 0)
-        svrsock->backlog = 50;
-    else
-        svrsock->backlog = backlog;
+    svrsock->backlog = SOMAXCONN;
 
     return svrsock;
 }
@@ -396,23 +384,21 @@ int
 svrsockAccept_(ls_svrsock_t *svrsock, int timeout)
 {
 
-    int len;
-    int  s;
-
-    struct sockaddr_in from;
     if (svrsock == NULL) {
         lserrno = LSE_BAD_ARGS;
         return -1;
-    } else {
-        s = -1;
-        len = sizeof(from);
-        if ((s=accept(svrsock->sockfd, (struct sockaddr *) &from, &len)) < 0) {
-            lserrno = LSE_ACCEPT_SYS;
-            return -1;
-        }
-        if (s < 0)
-            lserrno = LSE_TIME_OUT;
     }
+
+    int s;
+    struct sockaddr_in from;
+    socklen_t len = sizeof(from);
+    if ((s = accept(svrsock->sockfd, (struct sockaddr *) &from, &len)) < 0) {
+        lserrno = LSE_ACCEPT_SYS;
+        return -1;
+    }
+    if (s < 0)
+        lserrno = LSE_TIME_OUT;
+
     return s;
 }
 
@@ -456,7 +442,7 @@ TcpConnect_(char *hostname, u_short port, struct timeval *timeout)
 
     server.sin_family = AF_INET;
     if ((hp = (struct hostent *)getHostEntryByName_(hostname)) == NULL) {
-	lserrno = LSE_BAD_HOST;
+        lserrno = LSE_BAD_HOST;
         return -1;
     }
 
@@ -464,18 +450,18 @@ TcpConnect_(char *hostname, u_short port, struct timeval *timeout)
     server.sin_port = htons(port);
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0))<0) {
-	lserrno = LSE_SOCK_SYS;
+        lserrno = LSE_SOCK_SYS;
         return -1;
     }
     if (io_nonblock_(sock) < 0) {
-	lserrno = LSE_MISC_SYS;
+        lserrno = LSE_MISC_SYS;
         closesocket(sock);
         return -1;
     }
 
     if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0
-	    && errno != EINPROGRESS) {
-	lserrno = LSE_CONN_SYS;
+        && errno != EINPROGRESS) {
+        lserrno = LSE_CONN_SYS;
         closesocket(sock);
         return -1;
     }
@@ -516,25 +502,25 @@ getMsgBuffer_(int fd, int *bufferSize)
     xdrmem_create(&xdrs, hdrbuf, sizeof(struct LSFHeader), XDR_DECODE);
     rc = readDecodeHdr_(fd, hdrbuf, b_read_fix, &xdrs, &msgHdr);
     if (rc < 0) {
-	lserrno = LSE_MSG_SYS;
-	xdr_destroy(&xdrs);
-	return NULL;
+        lserrno = LSE_MSG_SYS;
+        xdr_destroy(&xdrs);
+        return NULL;
     }
     xdr_destroy(&xdrs);
     *bufferSize = msgHdr.length;
     if (msgHdr.length) {
-	if ((msgBuffer = malloc(msgHdr.length)) == NULL ) {
-	    lserrno = LSE_MALLOC;
-	    return NULL;
+        if ((msgBuffer = malloc(msgHdr.length)) == NULL ) {
+            lserrno = LSE_MALLOC;
+            return NULL;
         }
     } else {
-	lserrno = LSE_NO_ERR;
-	return NULL;
+        lserrno = LSE_NO_ERR;
+        return NULL;
     }
     if (b_read_fix(fd, msgBuffer, msgHdr.length) != msgHdr.length) {
-	lserrno = LSE_MSG_SYS;
-	free(msgBuffer);
-	return NULL;
+        lserrno = LSE_MSG_SYS;
+        free(msgBuffer);
+        return NULL;
     }
     return msgBuffer;
 }

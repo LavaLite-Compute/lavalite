@@ -1,5 +1,6 @@
 /* $Id: lib.conf.h,v 1.3 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -15,8 +16,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#ifndef LIB_CONF_H
-#define LIB_CONF_H
+#ifndef _LIB_CONF_
+#define _LIB_CONF_
+
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
+
 #define ILLEGAL_CHARS     ".!-=+*/[]@:&|{}'`\""
 #define M_THEN_A  1
 #define A_THEN_M  2

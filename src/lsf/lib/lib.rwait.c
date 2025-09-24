@@ -16,33 +16,32 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 #include "lsf/res/nios.h"
 
 #define SIGEMT SIGBUS
 
-
-static int rwait_(int tid, LS_WAIT_T *status, int block, struct rusage *ru);
-static int readWaitReply(LS_WAIT_T *status, struct rusage *ru);
+static int rwait_(int tid, int *status, int block, struct rusage *ru);
+static int readWaitReply(int *status, struct rusage *ru);
 static void restartRWait(sigset_t);
 static void usr1Handler(int);
 int isPamBlockWait = 0;
 
-    int
-ls_rwait(LS_WAIT_T *status, int options, struct rusage *ru)
+int
+ls_rwait(int *status, int options, struct rusage *ru)
 {
     return (rwait_(0, status, options, ru));
 }
 
 
-    int
-ls_rwaittid(int tid, LS_WAIT_T *status, int options, struct rusage *ru)
+int
+ls_rwaittid(int tid, int *status, int options, struct rusage *ru)
 {
     return (rwait_(tid, status, options, ru));
 }
 
-    static int
-rwait_(int tid, LS_WAIT_T *status, int options, struct rusage *ru)
+static int
+rwait_(int tid, int *status, int options, struct rusage *ru)
 {
     int rpid;
     struct lslibNiosWaitReq req;
@@ -77,7 +76,7 @@ Start:
     req.r.tid = tid;
 
     if (b_write_fix(cli_nios_fd[0], (char *) &req, sizeof(req))
-            != sizeof(req)) {
+        != sizeof(req)) {
         lserrno = LSE_MSG_SYS;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
@@ -112,40 +111,41 @@ Start:
     }
 
     switch (hdr.opCode) {
-        case CHILD_FAIL:
-            lserrno = LSE_NORCHILD;
-            sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            return -1;
+    case CHILD_FAIL:
+        lserrno = LSE_NORCHILD;
+        sigprocmask(SIG_SETMASK, &oldMask, NULL);
+        return -1;
 
-        case NONB_RETRY:
-            sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            return 0;
+    case NONB_RETRY:
+        sigprocmask(SIG_SETMASK, &oldMask, NULL);
+        return 0;
 
-        case CHILD_OK:
-            rpid = readWaitReply(status, ru);
-            sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            return rpid;
+    case CHILD_OK:
+        rpid = readWaitReply(status, ru);
+        sigprocmask(SIG_SETMASK, &oldMask, NULL);
+        return rpid;
 
-        default:
+    default:
 
-            lserrno = LSE_PROTOC_NIOS;
-            sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            return -1;
+        lserrno = LSE_PROTOC_NIOS;
+        sigprocmask(SIG_SETMASK, &oldMask, NULL);
+        return -1;
     }
 
 }
 
-    static int
-readWaitReply(LS_WAIT_T *status, struct rusage *ru)
+static int
+readWaitReply(int *status, struct rusage *ru)
 {
     struct lslibNiosWaitReply reply;
 
     if (b_read_fix(cli_nios_fd[0], (char *) &reply.r, sizeof(reply.r))
-            != sizeof(reply.r)) {
+        != sizeof(reply.r)) {
         lserrno = LSE_MSG_SYS;
         return -1;
     }
-    (void) tid_remove(reply.r.pid);
+
+    tid_remove(reply.r.pid);
     if (status)
         LS_STATUS(*status) = reply.r.status;
     if (ru)
@@ -155,7 +155,7 @@ readWaitReply(LS_WAIT_T *status, struct rusage *ru)
 }
 
 
-    static void
+static void
 restartRWait(sigset_t oldMask)
 {
     int usr1handler = false;
@@ -168,13 +168,13 @@ restartRWait(sigset_t oldMask)
 
     if (oact.sa_handler == SIG_ERR ||
 #ifdef SIG_HOLD
-            oact.sa_handler == SIG_HOLD ||
+        oact.sa_handler == SIG_HOLD ||
 #endif
 #ifdef SIG_CATCH
-            oact.sa_handler == SIG_CATCH ||
+        oact.sa_handler == SIG_CATCH ||
 #endif
-            oact.sa_handler == SIG_IGN ||
-            oact.sa_handler == SIG_DFL) {
+        oact.sa_handler == SIG_IGN ||
+        oact.sa_handler == SIG_DFL) {
 
         usr1handler = true;
         usr1sigact = oact;
@@ -198,7 +198,7 @@ restartRWait(sigset_t oldMask)
 
 }
 
-    static void
+static void
 usr1Handler (int sig)
 {
 }

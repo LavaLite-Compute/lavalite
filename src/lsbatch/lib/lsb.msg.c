@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+
 #include "lsbatch/lib/lsb.h"
 
 int
@@ -40,8 +41,8 @@ lsb_msgjob(LS_LONG_INT jobId, char *msg)
 
     TIMEIT(0, (pw = getpwuid(getuid())), "getpwuid");
     if (pw == NULL) {
-	lsberrno = LSBE_BAD_USER;
-	return(-1);
+        lsberrno = LSBE_BAD_USER;
+        return -1;
     }
 
     jmsg.header->usrId = pw->pw_uid;
@@ -51,24 +52,24 @@ lsb_msgjob(LS_LONG_INT jobId, char *msg)
     strcpy(jmsg.header->dest, "user job");
     jmsg.header->msgId = 999;
     jmsg.header->type = -1;
-     
+
     mbdReqtype = BATCH_JOB_MSG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.opCode = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&jmsg, &hdr, xdr_lsbMsg, 0,
-		       NULL)) {
+                       NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
-        return(-1);
+        return -1;
     }
 
     cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-		 &hdr, NULL, NULL, NULL);
-    
+                 &hdr, NULL, NULL, NULL);
+
     if (cc < 0) {
-	xdr_destroy(&xdrs);
-	return(-1);
+        xdr_destroy(&xdrs);
+        return -1;
     }
 
     xdr_destroy(&xdrs);
@@ -77,8 +78,7 @@ lsb_msgjob(LS_LONG_INT jobId, char *msg)
 
     lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR)
-        return(0);
-    else 
-        return(-1);
-} 
-
+        return 0;
+    else
+        return -1;
+}

@@ -20,10 +20,9 @@
 #ifndef LIB_XDRRES_H
 #define LIB_XDRRES_H
 
-#include <rpc/xdr.h>
-
-#include "lib.hdr.h"
-#include "lib.rf.h"
+/* lib.rf.h legacy garbage to remove..
+*/
+#include "lsf/lib/lib.rf.h"
 
 extern int xdr_resConnect(XDR *, struct resConnect *, struct LSFHeader *);
 extern int xdr_resCmdBill(XDR *, struct resCmdBill *, struct LSFHeader *);

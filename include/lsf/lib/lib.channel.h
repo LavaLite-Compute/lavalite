@@ -19,7 +19,8 @@
 #ifndef CHANNEL_H
 #define CHANNEL_H
 
-#include "lib.hdr.h"
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
 
 enum chanState {CH_FREE,
                 CH_DISC,
@@ -27,22 +28,29 @@ enum chanState {CH_FREE,
                 CH_CONN,
                 CH_WAIT,
                 CH_INACTIVE
-               };
+};
 
-enum chanType {CH_TYPE_UDP, CH_TYPE_TCP, CH_TYPE_LOCAL, CH_TYPE_PASSIVE,
-	       CH_TYPE_NAMEDPIPE};
+enum chanType
+{
+    CH_TYPE_UDP,
+    CH_TYPE_TCP,
+    CH_TYPE_LOCAL,
+    CH_TYPE_PASSIVE,
+    CH_TYPE_NAMEDPIPE
+};
 
-#define CHAN_OP_PPORT  		0x01
-#define CHAN_OP_CONNECT		0x02
-#define CHAN_OP_RAW		0x04
-#define CHAN_OP_NONBLOCK        0x10
-#define CHAN_OP_CLOEXEC         0x20
-#define CHAN_OP_SOREUSE         0x40
+#define CHAN_OP_PPORT 0x01
+#define CHAN_OP_CONNECT	0x02
+#define CHAN_OP_RAW	0x04
+#define CHAN_OP_NONBLOCK 0x10
+#define CHAN_OP_CLOEXEC 0x20
+#define CHAN_OP_SOREUSE 0x40
 
-#define CHAN_MODE_BLOCK 	0x01
+#define CHAN_MODE_BLOCK	0x01
 #define CHAN_MODE_NONBLOCK 	0x02
 
-#define CLOSECD(c) { chanClose_((c)); (c) = -1; }
+#define INVALID_HANDLE  -1
+#define CLOSECD(c) { chanClose_((c)); (c) = INVALID_HANDLE; }
 
 #define CHAN_INIT_BUF(b)  memset((b), 0, sizeof(struct Buffer));
 
@@ -106,9 +114,13 @@ extern int chanAccept_(int, struct sockaddr_in *);
 extern int chanClientSocket_(int, int, int);
 extern int chanSendDgram_(int, char *, int , struct sockaddr_in *);
 extern int chanRcvDgram_(int , char *, int, struct sockaddr_in *, int);
-extern int chanRpc_(int , struct Buffer *, struct Buffer *, struct LSFHeader *, int);
-extern int chanRead_(int, char *, int);
-extern int chanReadNonBlock_(int, char *, int, int);
+extern int chanRpc_(int ,
+                    struct Buffer *,
+                    struct Buffer *,
+                    struct LSFHeader *,
+                    int);
+extern ssize_t chanRead_(int, char *, int);
+extern ssize_t chanReadNonBlock_(int, char *, int, int);
 extern int chanWrite_(int, char *, int);
 
 extern int chanAllocBuf_(struct Buffer **buf, int size);
