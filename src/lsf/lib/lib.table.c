@@ -28,7 +28,7 @@ insList_(hLinks *elemPtr, hLinks *destPtr)
 {
 
     if (elemPtr == (hLinks *) NULL || destPtr == (hLinks *) NULL
-          || !elemPtr || !destPtr || (elemPtr == destPtr)) {
+        || !elemPtr || !destPtr || (elemPtr == destPtr)) {
         return;
     }
 
@@ -44,7 +44,7 @@ remList_(hLinks *elemPtr)
 {
 
     if (elemPtr == (hLinks *) NULL || elemPtr == elemPtr->bwPtr
-           || !elemPtr) {
+        || !elemPtr) {
         return;
     }
 
@@ -100,12 +100,12 @@ h_freeTab_(hTab *tabPtr, void (*freeFunc)(void *))
             hEntPtr = (hEnt *) slotPtr->bwPtr;
             remList_((hLinks *) hEntPtr);
             FREEUP(hEntPtr->keyname);
-	    if (hEntPtr->hData != (int *)NULL) {
-		if (freeFunc != NULL)
-		    (*freeFunc)((void *)hEntPtr->hData);
-		else {
-	            free((char *) hEntPtr->hData);
-		    hEntPtr->hData = (int *) NULL;
+            if (hEntPtr->hData != (int *)NULL) {
+                if (freeFunc != NULL)
+                    (*freeFunc)((void *)hEntPtr->hData);
+                else {
+                    free((char *) hEntPtr->hData);
+                    hEntPtr->hData = (int *) NULL;
                 }
             }
             free((char *) hEntPtr);
@@ -217,8 +217,8 @@ h_delEnt_(hTab *tabPtr, hEnt *hEntPtr)
     if (hEntPtr != (hEnt *) NULL) {
         remList_((hLinks *) hEntPtr);
         free(hEntPtr->keyname);
-	if (hEntPtr->hData != (int *)NULL)
-	    free((char *)hEntPtr->hData);
+        if (hEntPtr->hData != (int *)NULL)
+            free((char *)hEntPtr->hData);
         free((char *) hEntPtr);
         tabPtr->numEnts--;
     }
@@ -250,10 +250,10 @@ h_firstEnt_(hTab *tabPtr, sTab *sPtr)
     sPtr->hEntPtr = (hEnt *) NULL;
 
     if (tabPtr->slotPtr) {
-	return h_nextEnt_(sPtr);
+        return h_nextEnt_(sPtr);
     } else {
 
-	return((hEnt *) NULL);
+        return((hEnt *) NULL);
     }
 
 }
@@ -331,7 +331,7 @@ resetTab(hTab *tabPtr)
             remList_((hLinks *) hEntPtr);
             slot = getAddr(tabPtr, (char *) hEntPtr->keyname);
             insList_((hLinks *) hEntPtr,
-                    (hLinks *) (&(tabPtr->slotPtr[slot])));
+                     (hLinks *) (&(tabPtr->slotPtr[slot])));
             tabPtr->numEnts++;
         }
     }
@@ -377,7 +377,7 @@ h_freeRefTab_(hTab *tabPtr)
 }
 
 /* New hash table implementation
- */
+*/
 #if 0
 
 #include <stdio.h>
@@ -564,5 +564,15 @@ size_t next_prime(size_t n)
     return n;
 }
 
+struct node **previous = &head;
+while (*previous) {
+   if ((*previous)->jobid == target_jobid) {
+       struct node *to_delete = *previous;  // Save current node
+        *previous = (*previous)->next;      // Redirect link to skip node
+        free(to_delete);                    // Free memory
+        break;                              // Exit if jobid is unique
+    }
+    previous = &((*previous)->next);       // Advance to next link
+}
 
 #endif
