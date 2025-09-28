@@ -16,10 +16,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include <ctype.h>
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/common.h"
+#include "lsf/intlib/resreq.h"
 #include "lsf/lib/lproto.h"
-#include "lsf/lib/lib.table.h"
 
 struct sections {
     char *select;
@@ -96,9 +95,9 @@ initParse (struct lsInfo *lsInfo)
 
     h_initTab_(&resNameTbl, lsInfo->nRes);
 
-    for (i=0; i < lsInfo->nRes; i++) {
+    for (i = 0; i < lsInfo->nRes; i++) {
         hashEntPtr = h_addEnt_(&resNameTbl, lsInfo->resTable[i].name, NULL);
-        hashEntPtr->hData = (int *)i;
+        hashEntPtr->hData = (int *)(intptr_t)i;
     }
 
     hashEntPtr = h_addEnt_(&resNameTbl, "login", NULL);
@@ -133,7 +132,7 @@ getResEntry(char *res)
     if (hashEntPtr == NULL)
         return -1;
     else
-        return((int)hashEntPtr->hData);
+        return ((int)(uintptr_t)hashEntPtr->hData);
 }
 
 static int
@@ -145,7 +144,7 @@ getKeyEntry (char *key)
     if (hashEntPtr == NULL)
         return -1;
     else
-        return((int)hashEntPtr->hData);
+        return((int)(uintptr_t)hashEntPtr->hData);
 
 }
 
@@ -365,7 +364,8 @@ parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t p
 		    FREEUP(resReq2);
 		    return PARSE_BAD_MEM;
 		}
-		if ((cc = parseSelect(expr, &tmpResVal, lsInfo, false, options)) != PARSE_OK) {
+		if ((cc = parseSelect(expr, &tmpResVal, lsInfo, false, options))
+            != PARSE_OK) {
 		    for (i--;i>=0; i--) {
 			FREEUP(resVal->xorExprs[i]);
 		    }
@@ -380,7 +380,8 @@ parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t p
 
 		strcpy(resVal->xorExprs[i], tmpResVal.selectStr);
 		if (logclass & (LC_TRACE | LC_SCHED))
-		    ls_syslog(LOG_DEBUG3,"%s: xorExprs[%d] = %s", fname, i, resVal->xorExprs[i]);
+		    ls_syslog(LOG_DEBUG3,"%s: xorExprs[%d] = %s",
+                      fname, i, resVal->xorExprs[i]);
                 if (i == 0 ) {
                     sprintf(resReq2, "(%s)", expr);
 		} else {

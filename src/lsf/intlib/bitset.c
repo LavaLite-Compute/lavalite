@@ -17,11 +17,12 @@
   *
   */
 
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/common.h"
+#include "lsf/intlib/list.h"
+#include "lsf/intlib/bitset.h"
 
-  static void      setObserverDestroy(LS_BITSET_T *);
-static void      observerDestroy(LS_BITSET_OBSERVER_T *);
-
+static void setObserverDestroy(LS_BITSET_T *);
+static void observerDestroy(LS_BITSET_OBSERVER_T *);
 
 #define NL_SETN      22
 
@@ -46,13 +47,9 @@ setCreate(const int size, int (*directFunction)(void *),
 
     sz = (size > 0) ? size : SET_DEFAULT_SIZE;
     this->setWidth = (sz + WORDLENGTH -1)/WORDLENGTH;
-
-
     this->setSize = (this->setWidth)*WORDLENGTH;
 
-
     this->setNumElements = 0;
-
 
     this->bitmask = (unsigned int *)
         calloc(this->setWidth, sizeof(unsigned int));
@@ -615,6 +612,9 @@ setIteratorBegin(LS_BITSET_ITERATOR_T *iter)
     return object;
 }
 
+/* Bug. The whole iterator is garbage anyway, legacy fairshare data structure
+ * are not in use lava.
+ */
 void *
 setIteratorGetNextElement(LS_BITSET_ITERATOR_T *iter)
 {
@@ -633,13 +633,12 @@ setIteratorGetNextElement(LS_BITSET_ITERATOR_T *iter)
         return NULL;
     }
 
-
     while (iter->setCurrentBit < iter->this->setSize) {
 
         if (setTestValue(iter->this, iter->setCurrentBit ) == true) {
 
             if (iter->this->getObjectByIndex == NULL)
-                object = (void *)iter->setCurrentBit;
+                object = (void *)(uintptr_t)iter->setCurrentBit;
             else {
                 object = (*iter->this->getObjectByIndex)(iter->setCurrentBit);
                 if (!object) {
@@ -655,7 +654,6 @@ setIteratorGetNextElement(LS_BITSET_ITERATOR_T *iter)
     }
 
     return NULL;
-
 }
 
 

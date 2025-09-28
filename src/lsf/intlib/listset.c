@@ -30,8 +30,6 @@ struct listSet * listSetAlloc(long);
 
 struct listSet *FreeSet = NULL;
 
-extern char   *safe_calloc(unsigned, unsigned);
-
 void
 collectFreeSet(void)
 {
@@ -313,7 +311,7 @@ listSetAlloc(long elem)
         FreeSet = FreeSet->next;
     }
     else {
-        if (!(ptr = (struct listSet *)safe_calloc(1, sizeof(struct listSet))))
+        if (!(ptr = calloc(1, sizeof(struct listSet))))
             return NULL;
     }
     ptr->elem = elem;

@@ -6,4 +6,4 @@
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_builddir)
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = src/lsf/intlib src/lsf/lib
+SUBDIRS = src tests

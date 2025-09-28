@@ -20,7 +20,8 @@
 #ifndef LIMOUT_H
 #define LIMOUT_H
 
-#include "../lib/lib.hdr.h"
+#include "lsf/lib/lib.hdr.h"
+
 enum ofWhat {OF_ANY, OF_HOSTS, OF_TYPE};
 
 typedef enum ofWhat ofWhat_t;

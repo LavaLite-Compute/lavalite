@@ -10,6 +10,17 @@ AC_CONFIG_MACRO_DIRS([m4])
 dnl Modern large/posix feature defines (instead of forcing _GNU_SOURCE)
 AC_USE_SYSTEM_EXTENSIONS
 
+dnl Check for pkg-config
+AC_PATH_PROG([PKG_CONFIG], [pkg-config], [no])
+if test "$PKG_CONFIG" = "no"; then
+  AC_MSG_ERROR([pkg-config is required but not found])
+fi
+
+dnl Check for OpenSSL via pkg-config
+PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
+  [AC_DEFINE([HAVE_OPENSSL], [1], [Define if OpenSSL is available])],
+  [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
+
 dnl Project identity
 AC_DEFINE([_LAVALITE_PROJECT_], ["LavaLite HPC Scheduler"], [Project string])
 AC_DEFINE([LAVALITE_VERSION], [1], [Numeric LavaLite version])
@@ -88,9 +99,11 @@ dnl Generate Makefiles (intlib-only for now)
 AC_CONFIG_FILES([
   Makefile
   include/Makefile
+  src/Makefile
   src/lsf/Makefile
   src/lsf/intlib/Makefile
   src/lsf/lib/Makefile
+  src/eauth/Makefile
   src/lsf/lstools/Makefile
   src/lsf/lim/Makefile
   src/lsf/pim/Makefile
@@ -99,5 +112,6 @@ AC_CONFIG_FILES([
   src/lsbatch/Makefile
   src/lsbatch/lib/Makefile
   src/lsbatch/man/Makefile
+  tests/Makefile
 ])
 AC_OUTPUT

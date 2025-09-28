@@ -19,8 +19,10 @@
 #ifndef _LLCORE_INTLIBOUT_
 #define _LLCORE_INTLIBOUT_
 
-#include "lsf/lib/lib.channel.h"
-#include "lsf/lib/lib.hdr.h"
+//#include "lsf/lib/lib.channel.h"
+//#include "lsf/lib/lib.hdr.h"
+
+#include "lsf/intlib/resreq.h"
 #include "lsf/intlib/list.h"
 #include "lsf/intlib/bitset.h"
 #include "lsf/intlib/listset.h"
@@ -31,14 +33,6 @@
 #define EXIT_FATAL_ERROR        (-1)
 #define EXIT_WARNING_ERROR      (-2)
 #define EXIT_RUN_ERROR          (-8)
-
-#ifndef MAX
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
-#endif
-
-#ifndef MIN
-#define MIN(x,y)        ((x) < (y) ? (x) : (y))
-#endif
 
 struct windows {
     struct windows *     nextwind;
@@ -95,9 +89,7 @@ extern int            userok(int,
 extern int            hostOk(char *, int);
 extern int            hostIsLocal(char *);
 extern int getHostAttribNonLim(char *hname, int updateIntvl);
-extern void           setTimer(struct timeval *, unsigned);
 extern int            timerIsExpired(struct timeval *);
-extern void           timeUntilEvent(struct timeval *);
 extern int            wait3TmpFix_(int *, int, struct rusage *);
 extern int            parseResReq (char *,
                                    struct resVal *,
@@ -112,28 +104,17 @@ extern void           initResVal (struct resVal *resVal);
 extern int            hostValue(void);
 extern int            getBootTime(time_t *);
 extern int            procChangeUser_(char *);
-extern char*          encryptPassLSF(char *);
-extern char*          decryptPassLSF(char *);
-extern char*          encryptByKey_(char *, char *);
-extern char*          decryptByKey_(char *, char *);
 
 extern int            matchName(char *, char *);
-extern int            readPassword(char *);
 extern char**         parseCommandArgs(char *, char *);
 extern int            FCLOSEUP(FILE** fp);
 #define MAXADDRSTRING 256
-extern int            withinAddrRange(char *addrRange, char *address);
-extern int            validateAddrRange(char *addrRange);
-extern char*          mystrncpy(char *s1, const char *s2, size_t n);
-
 extern void openChildLog(const char *defLogFileName,
                          const char *confLogDir,
                          int use_stderr,
                          char **confLogMaskPtr);
 extern void cleanDynDbgEnv(void);
 
-
-#include "list.h"
 
 extern struct         listEntry *mkListHeader(void);
 extern void           offList(struct listEntry *);

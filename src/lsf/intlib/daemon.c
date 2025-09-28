@@ -17,113 +17,54 @@
  *
  */
 
-
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include "lsf/intlib/libllcore.h"
-#include "lsf/lib/lproto.h"
-
-#define NL_SETN      22
+#include "lsf/intlib/common.h"
 
 void
 daemonize_(void)
 {
-    int i;
+    pid_t pid;
+
+    closelog();
+
+    // Fork off the parent process
+    pid = fork();
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+    if (pid > 0)
+        exit(EXIT_SUCCESS); // Parent exits
+
+    // Child continues
+    if (setsid() < 0)
+        exit(EXIT_FAILURE); // Create new session
+
+    // Optional second fork to prevent reacquiring a terminal
+    pid = fork();
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
     struct rlimit rlp;
-    char  errMsg[MAXLINELEN];
-
-    ls_closelog();
-    switch (fork()) {
-    case 0:
-	break;
-    case -1:
-	sprintf(errMsg, I18N_FUNC_FAIL_M, "daemonize_", "fork");
-	perror(errMsg);
-	exit(-1);
-    default:
-	exit(0);
-    }
-
-    setsid();
-
-#ifdef RLIMIT_NOFILE
-
-    getrlimit (RLIMIT_NOFILE, &rlp);
+    getrlimit(RLIMIT_NOFILE, &rlp);
     rlp.rlim_cur = rlp.rlim_max;
-    setrlimit (RLIMIT_NOFILE, &rlp);
-#endif
+    setrlimit(RLIMIT_NOFILE, &rlp);
 
-#ifdef RLIMIT_CORE
-
-    getrlimit (RLIMIT_CORE, &rlp);
+    getrlimit(RLIMIT_CORE, &rlp);
     rlp.rlim_cur = rlp.rlim_max;
-    setrlimit (RLIMIT_CORE, &rlp);
-#endif
+    setrlimit(RLIMIT_CORE, &rlp);
 
+    // Set file permissions
+    umask(0);
 
+    // Change working directory
+    chdir("/tmp");
 
-    for (i = 0 ; i < 3 ; i++)
-	close(i);
+    // Redirect standard file descriptors
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
 
-    i = open(LSDEVNULL, O_RDWR);
-    if (i != 0)
-    {
-	dup2(i, 0);
-	close(i);
-    }
-    dup2(0, 1);
-    dup2(0, 2);
-}
-
-
-static char daemon_dir[MAXPATHLEN];
-void
-saveDaemonDir_(char *argv0)
-{
-    int i;
-
-    daemon_dir[0]='\0';
-    if (argv0[0] != '/') {
-        getcwd(daemon_dir, sizeof(daemon_dir));
-        strcat(daemon_dir,"/");
-    }
-    strcat(daemon_dir, argv0);
-    for(i=strlen(daemon_dir); i >= 0 && daemon_dir[i] != '/'; i--);
-
-
-    daemon_dir[i++] = '\0';
-    if(strncasecmp(&daemon_dir[i], "lim", 3) == 0) {
-	daemonId = DAEMON_ID_LIM;
-    } else if(strncasecmp(&daemon_dir[i], "res", 3) == 0) {
-	daemonId = DAEMON_ID_RES;
-    } else if(strncasecmp(&daemon_dir[i], "sbatchd", 7) == 0) {
-	daemonId = DAEMON_ID_SBD;
-    } else if(strncasecmp(&daemon_dir[i], "mbatchd", 7) == 0) {
-	daemonId = DAEMON_ID_MBD;
-    }
-
-}
-
-char *
-getDaemonPath_(char *name, char *serverdir)
-{
-    static char daemonpath[MAXPATHLEN];
-
-    strcpy(daemonpath, daemon_dir);
-    strcat(daemonpath, name);
-    if (access(daemonpath, X_OK) < 0) {
-       ls_syslog(LOG_ERR,
-		 _i18n_msg_get(ls_catd, NL_SETN, 5500,
-			      "%s: Can't access %s: %s. Trying LSF_SERVERDIR."), /* catgets 5500 */
-		 "getDaemonPath_", daemonpath, strerror(errno));
-
-       strcpy(daemonpath, serverdir);
-       strcat(daemonpath, name);
-
-    }
-    return daemonpath;
-
+    open("/dev/null", O_RDONLY); // stdin
+    open("/dev/null", O_WRONLY); // stdout
+    open("/dev/null", O_RDWR);   // stderr
 }

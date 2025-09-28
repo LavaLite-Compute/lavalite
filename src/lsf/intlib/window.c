@@ -18,9 +18,8 @@
  */
 
 
-
-#include "lsf/intlib/libllcore.h"
-#include "lsf/lib/lproto.h"
+#include "lsf/intlib/common.h"
+#include "lsf/intlib/intlibout.h"
 
 #define NL_SETN      22
 static int parse_time (char *word, float *hour, int *day);

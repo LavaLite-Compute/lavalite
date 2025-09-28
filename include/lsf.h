@@ -79,6 +79,17 @@ typedef uint64_t LS_UNS_LONG_INT;
 })
 #endif
 
+/* BUFSIZ if the big bufsize 9K from stdio.h
+ */
+#define XLBUF_SIZ (BUFSIZ/2)    // 4096
+#define XBUF_SIZ (BUFSIZ/4)     // 2084
+#define LBUF_SIZ (BUFSIZ/8)     // 1024
+#define MBUF_SIZ (BUFSIZ/16)    // 512
+#define SBUF_SIZ  (BUFSIZ/32)   // 256
+#define SSBUF_SIZ (BUFSIZ/64)   // 128
+#define MINBUF_SIZ  (BUFIZ/128) // 64
+#define MICROBUF_SIZ (BUFSIZ/256) //32
+
 #define R15S           0
 #define R1M            1
 #define R15M           2

@@ -1,10 +1,5 @@
 #
 # Copyright (C) LavaLite Contributors
 #
-SUBDIRS = \
-    lsf \
-    lsbatch \
-    eauth \
-    scripts \
-    examples
+SUBDIRS = lsf eauth #lsbatch scripts examples
 

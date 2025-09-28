@@ -1,4 +1,4 @@
 #
 # Copyright (C) LavaLite Contributors
 #
-SUBDIRS = intlib lib lstools man
+SUBDIRS = intlib lib #lstools lim pim man

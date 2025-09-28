@@ -1,5 +1,6 @@
 
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/common.h"
+#include "lsf/intlib/tcl_stub.h"
 
 int
 initTcl(struct tclLsInfo *t)

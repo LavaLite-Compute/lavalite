@@ -17,8 +17,8 @@
  *
  */
 
-#include "lsf/intlib/libllcore.h"
-//#include "lsf/lib/mls.h"
+#include "lsf/intlib/common.h"
+#include "lsf/intlib/intlibout.h"
 
 #define BADCH ":"
 #define NL_SETN 22
@@ -26,9 +26,6 @@
 extern int errLineNum_;
 extern int optind;
 extern char *optarg;
-
-static int changeUserEUId(void);
-
 
 void
 parseAndDo (char *cmdBuf, int (*func)() )
@@ -41,7 +38,7 @@ parseAndDo (char *cmdBuf, int (*func)() )
 
     int see_string = 0;
 
-    for (i=0; i<MAX_ARG; i++) {
+    for (i = 0; i < MAX_ARG; i++) {
 
         while(isspace(*cmdBuf) && !see_string)
             cmdBuf++;
@@ -88,8 +85,7 @@ parseAndDo (char *cmdBuf, int (*func)() )
     argc = i;
     optind = 1;
 
-    (void) (*func) (argc, argv);
-
+    (*func) (argc, argv);
 }
 
 int
@@ -109,7 +105,7 @@ adminCmdIndex(char *cmd, char *cmdList[])
 }
 
 void
-cmdsUsage (char *cmd, char *cmdList[], char *cmdInfo[])
+cmdsUsage(char *cmd, char *cmdList[], char *cmdInfo[])
 {
 
     static char intCmds[] = " ";
@@ -121,8 +117,8 @@ cmdsUsage (char *cmd, char *cmdList[], char *cmdInfo[])
     fprintf(stderr, _i18n_msg_get(ls_catd,NL_SETN,102,
                 "    where 'command' is:\n\n")); /* catgets 102 */
 
-    for (i=0; cmdList[i] != NULL; i++)
-        if ( strstr(intCmds,cmdList[i]) == NULL )
+    for (i = 0; cmdList[i] != NULL; i++)
+        if (strstr(intCmds,cmdList[i]) == NULL )
 
             fprintf(stderr, "    %-12.12s%s\n", cmdList[i], cmdInfo[i]);
     exit(-1);
@@ -130,7 +126,7 @@ cmdsUsage (char *cmd, char *cmdList[], char *cmdInfo[])
 
 
 void
-oneCmdUsage (int i, char *cmdList[], char *cmdSyntax[])
+oneCmdUsage(int i, char *cmdList[], char *cmdSyntax[])
 {
     fprintf(stderr, I18N_Usage);
     fprintf(stderr, ":    %-12.12s%s\n", cmdList[i], cmdSyntax[i]);
@@ -284,7 +280,7 @@ checkConf(int verbose, int who)
         {NULL, NULL},
     };
     struct config_param *plp;
-    LS_WAIT_T status;
+    int status;
     int fatalErr = false, cc = 0;
     int fd;
 
@@ -315,8 +311,8 @@ checkConf(int verbose, int who)
     if (cc < 0)
         return EXIT_WARNING_ERROR;
 
-    if ((daemon = (char *)calloc(strlen(lsfParams[0].paramValue)+15,
-                    sizeof(char))) == NULL) {
+    if ((daemon = calloc(strlen(lsfParams[0].paramValue)+15,
+                         sizeof(char))) == NULL) {
         perror("calloc");
         return EXIT_FATAL_ERROR;
     }
@@ -353,11 +349,15 @@ checkConf(int verbose, int who)
             dup2(fd, 2);
         }
 
-
-        if(changeUserEUId() < 0) {
-            exit(EXIT_FATAL_ERROR);
+        uid_t uid = getuid();
+        if (uid != 0) {
+            if (seteuid(uid) < 0) {
+                char buf[MICROBUF_SIZ];
+                sprintf(buf, "%s: setuid() failed %m", __func__);
+                perror(buf);
+                exit(-1);
+            }
         }
-
         execlp(daemon, daemon, "-C", (char *)0);
         perror("execlp");
 
@@ -422,26 +422,4 @@ checkConf(int verbose, int who)
             return EXIT_FATAL_ERROR;
     }
 
-}
-
-static int changeUserEUId(void)
-{
-    static char fname[] = "changeUserEUId";
-    uid_t uid;
-
-    uid = getuid();
-
-
-    if(uid == 0) {
-        return 0;
-    }
-
-    if (seteuid(uid) < 0) {
-
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "setresuid/seteuid",
-                (int)uid);
-        return -1;
-    }
-
-    return 0;
 }
