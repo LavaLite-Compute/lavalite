@@ -18,6 +18,7 @@
 #ifndef CHANNEL_H
 #define CHANNEL_H
 #include <sys/types.h>
+#include <sys/epoll.h>
 #include "lib.hdr.h"
 
 
@@ -26,7 +27,7 @@ enum chanState {CH_FREE,
                 CH_PRECONN,
                 CH_CONN,
                 CH_WAIT,
-                CH_INACTIVE    
+                CH_INACTIVE
                };
 
 enum chanType {CH_TYPE_UDP, CH_TYPE_TCP, CH_TYPE_LOCAL, CH_TYPE_PASSIVE,
@@ -60,19 +61,29 @@ struct Masks {
     fd_set rmask;
     fd_set wmask;
     fd_set emask;
+
 };
 
+typedef enum {
+    EPOLL_EVENTS_NONE  = 0,
+    EPOLL_EVENTS_READ  = 1,
+    EPOLL_EVENTS_WRITE = 2,
+    EPOLL_EVENTS_ERROR = 4
+} epoll_events_t;
 
 struct chanData {
-    int  handle;		
+    int  handle;
     enum chanType type;
     enum chanState state;
-    enum chanState prestate;   
-    int chanerr; 
+    enum chanState prestate;
+    int chanerr;
     struct Buffer *send;
     struct Buffer *recv;
-    
+    epoll_events_t events;
 };
+
+extern int epoll_df;
+extern struct epoll_event *epoll_events;
 
 #define  CHANE_NOERR      0
 #define  CHANE_CONNECTED  1
@@ -110,7 +121,7 @@ int chanConnect_(int, struct sockaddr_in *, int , int);
 
 int chanSendDgram_(int, char *, int , struct sockaddr_in *);
 int chanRcvDgram_(int , char *, int, struct sockaddr_in *, int);
-int chanRpc_(int , struct Buffer *, struct Buffer *, struct LSFHeader *, int timeout); 
+int chanRpc_(int , struct Buffer *, struct Buffer *, struct LSFHeader *, int timeout);
 int chanRead_(int, char *, int);
 int chanReadNonBlock_(int, char *, int, int);
 int chanWrite_(int, char *, int);
@@ -118,11 +129,16 @@ int chanWrite_(int, char *, int);
 int chanAllocBuf_(struct Buffer **buf, int size);
 int chanFreeBuf_(struct Buffer *buf);
 int chanFreeStashedBuf_(struct Buffer *buf);
-int chanOpenSock_(int , int);
 int chanSetMode_(int, int);
 
 extern int chanIndex;
 extern int cherrno;
 
-#endif
+// epoll API
+extern int chanEpoll_(void);
+extern void chanHandlePreconn(int);
+extern void doread2(int);
+extern void dowrite2(int);
+extern int chanRegisterEpoll(int, uint32_t);
 
+#endif
