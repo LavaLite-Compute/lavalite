@@ -125,9 +125,6 @@ struct liStruct *li = NULL;
 int
 main(int argc, char **argv)
 {
-    fd_set allMask;
-    struct Masks sockmask;
-    struct Masks chanmask;
     struct timeval timer;
     struct timeval t0;
     struct timeval t1;
@@ -313,7 +310,6 @@ Reading configuration from %s/lsf.conf\n", env_dir);
     if (lim_debug < 2)
         chdir("/tmp");
 
-    FD_ZERO(&allMask);
     /* We use seconds based precision timer
      * which is good enough, just make sure
      * that every 5 seconds we read the load
@@ -328,35 +324,25 @@ Reading configuration from %s/lsf.conf\n", env_dir);
         sigset_t newMask;
         int nReady;
 
-        sockmask.rmask = allMask;
         if (pimPid == -1)
             startPIM(argc, argv);
 
-        ls_syslog(LOG_DEBUG2, "\
-%s: Before select: timer %dsec", __func__, timer.tv_sec);
+        ls_syslog(LOG_DEBUG2, "%s: Before chanEpoll_", __func__);
 
-        nReady = chanSelect_(&sockmask, &chanmask, &timer);
+        int ms = -1;
+        nReady = chanEpoll_(ms);
         if (nReady < 0) {
             if (errno != EINTR)
-                ls_syslog(LOG_ERR, "\
-%s: chanSelect() failed %M", __func__);
+                ls_syslog(LOG_ERR, "%s: chanEpoll_() failed: %m", __func__);
             continue;
         }
 
-        /* Check if timer expired, if not
-         * reload it with the time till
-         * its expiration.
-         */
         gettimeofday(&t1, NULL);
         if (t1.tv_sec - t0.tv_sec >= 5) {
-            /* set the new timer
-             */
             timer.tv_sec = 5;
             timer.tv_usec = 0;
-            /* reset the start time
-             */
             t0.tv_sec = t1.tv_sec;
-            t0.tv_usec = t1.tv_sec;
+            t0.tv_usec = t1.tv_usec;
             alarmed = 1;
         } else {
             timer.tv_sec = 5 - (t1.tv_sec - t0.tv_sec);
@@ -364,35 +350,41 @@ Reading configuration from %s/lsf.conf\n", env_dir);
             alarmed = 0;
         }
 
-        ls_syslog(LOG_DEBUG2,"\
-%s: After select: cc %d alarmed %d timer %dsec",
-                  __func__, cc, alarmed, timer.tv_sec);
+        ls_syslog(LOG_DEBUG2, "%s: After chanEpoll_: nReady %d alarmed %d timer %dsec",
+                  __func__, nReady, alarmed, timer.tv_sec);
 
         blockSigs_(0, &newMask, &oldMask);
 
         if (alarmed) {
             periodic(kernelPerm);
-            sigprocmask(SIG_SETMASK, &oldMask, NULL);
         }
 
-        if (nReady <= 0) {
-            sigprocmask(SIG_SETMASK, &oldMask, NULL);
-            continue;
+        for (int i = 0; i < nReady; i++) {
+            // Get the channel number registered previously
+            int ch = epoll_events[i].data.u32;
+
+            if (channels[ch].handle == INVALID_HANDLE) {
+                // assert(channels.state == CH_FREE)
+                continue;
+            }
+            if (channels[ch].handle == chanSock_(limSock)
+                && (channels[ch].events & EPOLL_EVENTS_READ)) {
+                processUDPMsg();
+                channels[ch].events &= ~EPOLL_EVENTS_READ;
+                continue;
+            }
+
+            if (channels[ch].handle == chanSock_(limTcpSock)
+                && (channels[ch].events & EPOLL_EVENTS_READ)) {
+                doAcceptConn();
+                channels[ch].events &= ~EPOLL_EVENTS_READ;
+                continue;
+            }
+
+            clientIO(&channels[ch], ch);
         }
-
-        if (FD_ISSET(limSock, &chanmask.rmask)) {
-            processUDPMsg();
-        }
-
-        if (FD_ISSET(limTcpSock, &chanmask.rmask)) {
-            doAcceptConn();
-        }
-
-        clientIO(&chanmask);
-
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
-
-    } /* for (;;) */
+    } // main loop
 
 } /* main() */
 
@@ -875,7 +867,7 @@ initSock(int checkMode)
                     &size) < 0) {
 
         ls_syslog(LOG_ERR, "\
-%s: getsockname(%d) failed %M", __func__, limTcpSock);
+%s: getsockname(%d) failed %M", __func__, chanSock_(limTcpSock));
         return -1;
     }
 
@@ -1210,5 +1202,4 @@ getClusterConfig(void)
 %s: configuration files sync done", __func__);
 
     return 0;
-
-} /* getClusterConfig() */
+}

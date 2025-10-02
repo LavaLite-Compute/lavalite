@@ -25,9 +25,6 @@
 
 #define MAXLOOP 3000
 
-#define DEFAULT_MAX_CHANNELS 64
-#define INVALID_HANDLE  -1
-
 #define NL_SETN   23
 
 #define CLOSEIT(i) {                            \
@@ -35,7 +32,7 @@
         channels[i].state = CH_DISC;            \
         channels[i].handle = INVALID_HANDLE; }
 
-static struct chanData *channels;
+struct chanData *channels;
 int cherrno = 0;
 extern int errno;
 int chanIndex;
@@ -51,7 +48,7 @@ static void dequeue_(struct Buffer *);
 static int findAFreeChannel(void);
 
 // epoll interface
-int epoll_df;
+int epoll_fd;
 struct epoll_event *epoll_events;
 static int chanOpenSock_(int, int);
 
@@ -80,9 +77,14 @@ chanInit_(void)
         return -1;
     }
 
-    epoll_df = epoll_create1(0);
-    if (epoll_df == -1) {
-        perror("epoll_create1");
+    for (int i = 0; i < chanMaxSize; i++) {
+        channels[i].handle = INVALID_HANDLE;
+        channels[i].state = CH_FREE;
+        channels[i].events = EPOLL_EVENTS_NONE;
+    }
+
+    epoll_fd = epoll_create1(0);
+    if (epoll_fd == -1) {
         free(epoll_events);
         free(channels);
         return -1;
@@ -144,13 +146,13 @@ chanServSocket_(int type, u_short port, int backlog, int options)
     else
         channels[ch].type  = CH_TYPE_PASSIVE;
 
-    if (chanRegisterEpoll(channels[ch].handle, EPOLLIN) < 0) {
+    if (chanRegisterEpoll(ch, EPOLLIN) < 0) {
         close(s);
         channels[ch].chanerr = errno;
         return -4;
     }
 
-    return(ch);
+    return ch;
 }
 
 int
@@ -613,7 +615,7 @@ chanClose_(int chfd)
     }
 
     // Deregister from epoll before closing
-    if (epoll_ctl(epoll_df, EPOLL_CTL_DEL, channels[chfd].handle, NULL) == -1) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, channels[chfd].handle, NULL) == -1) {
         // Log but continue cleanup
         if (logclass & LC_COMM) {
             ls_syslog(LOG_WARNING, "%s: epoll_ctl EPOLL_CTL_DEL failed for chfd "
@@ -1245,14 +1247,13 @@ findAFreeChannel(void)
 }
 
 // epoll interface
-
 int
-chanEpoll_(void)
+chanEpoll_(int tms)
 {
     int i;
     int nReady;
 
-    nReady = epoll_wait(epoll_df, epoll_events, chanMaxSize, -1);
+    nReady = epoll_wait(epoll_fd, epoll_events, chanMaxSize, tms);
     if (nReady <= 0)
         return nReady;
 
@@ -1260,14 +1261,23 @@ chanEpoll_(void)
         int ch = epoll_events[i].data.u32;
         uint32_t ev = epoll_events[i].events;
 
-        if (channels[ch].handle == INVALID_HANDLE ||
-            channels[ch].state == CH_INACTIVE ||
-            channels[ch].state == CH_FREE)
+        if (channels[ch].handle == INVALID_HANDLE)
             continue;
 
+        // Reset the channel mask
         channels[ch].events = EPOLL_EVENTS_NONE;
 
-        if (ev & EPOLLERR || ev & EPOLLHUP) {
+        if ((channels[ch].send == NULL || channels[ch].recv == NULL)
+            && channels[ch].state != CH_PRECONN) {
+            // Let the upper level decide what to do with the socket
+            if (ev & EPOLLIN)
+                channels[ch].events |= EPOLL_EVENTS_READ;
+            if (ev & EPOLLOUT)
+                channels[ch].events |= EPOLL_EVENTS_WRITE;
+            continue;
+        }
+
+        if ((ev & EPOLLERR) || (ev & EPOLLHUP)) {
             channels[ch].events |= EPOLL_EVENTS_ERROR;
             channels[ch].chanerr = 1;
             continue;
@@ -1275,8 +1285,8 @@ chanEpoll_(void)
 
         if (channels[ch].state == CH_PRECONN
             && (ev & EPOLLOUT)) {
-                chanHandlePreconn(ch);
-                continue;
+            chanHandlePreconn(ch);
+            continue;
         }
 
         if (ev & EPOLLIN) {
@@ -1385,7 +1395,7 @@ doread2(int chfd)
     }
 
     if (rcvbuf->pos == rcvbuf->len) {
-        channels[chfd].events = EPOLL_EVENTS_READ;
+        channels[chfd].events |= EPOLL_EVENTS_READ;
     }
 }
 
@@ -1430,7 +1440,7 @@ chanRegisterEpoll(int ch, uint32_t events)
     ev.events = events;
     ev.data.u32 = ch;
 
-    if (epoll_ctl(epoll_df, EPOLL_CTL_ADD, channels[ch].handle, &ev) == -1) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, channels[ch].handle, &ev) == -1) {
         channels[ch].chanerr = errno;
         return -2;
     }
