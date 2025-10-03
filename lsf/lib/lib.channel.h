@@ -83,7 +83,7 @@ struct chanData {
     epoll_events_t events;
 };
 
-extern int epoll_df;
+extern int epoll_fd;
 extern struct epoll_event *epoll_events;
 extern struct chanData *channels;
 

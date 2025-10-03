@@ -170,7 +170,7 @@ static int authRequest(struct lsfAuth *, XDR *, struct LSFHeader *,
                        char *, int);
 static int processClient(struct clientNode *, int *);
 
-static void clientIO(struct Masks *);
+static void clientIO(struct chanData *, int);
 static int forkOnRequest(mbdReqType);
 static void shutdownSbdConnections(void);
 static void processSbdNode(struct sbdNode *, int);
@@ -189,9 +189,6 @@ extern int initLimSock_(void);
 int
 main (int argc, char **argv)
 {
-    fd_set readmask;
-    struct Masks sockmask;
-    struct Masks chanmask;
     struct timeval timeout;
     int nready;
     int i;
@@ -417,8 +414,6 @@ main (int argc, char **argv)
     for (;;) {
         int maxfd;
 
-        FD_ZERO(&readmask);
-
         maxfd = sysconf(_SC_OPEN_MAX);
         now = time(0);
 
@@ -445,9 +440,8 @@ main (int argc, char **argv)
             timeout.tv_sec = 0;
         }
 
-        sockmask.rmask = readmask;
-
-        nready = chanSelect_(&sockmask, &chanmask, &timeout);
+        int tm = timeout.tv_sec * 1000;
+        nready = chanEpoll_(tm);
         if (nready < 0) {
             if (errno != EINTR)
                 ls_syslog(LOG_ERR, "\
@@ -479,12 +473,16 @@ main (int argc, char **argv)
         timeout.tv_sec  = 0;
         timeout.tv_usec = 0;
 
-        if (FD_ISSET(batchSock, &chanmask.rmask)) {
-            acceptConnection(batchSock);
+        for (int i; i < nready; i++) {
+            int ch = epoll_events[i].data.u32;
+
+            if (chanSock_(batchSock) == channels[ch].handle) {
+                acceptConnection(batchSock);
+                continue;
+            }
+
+            clientIO(&channels[ch], ch);
         }
-
-        clientIO(&chanmask);
-
     } /* for (;;) */
 }
 
@@ -537,13 +535,12 @@ acceptConnection(int socket)
 }
 
 static void
-clientIO(struct Masks *chanmask)
+clientIO(struct chanData *chan, int chfd)
 {
     struct clientNode *cliPtr;
     struct clientNode *nextClient;
     struct sbdNode *sbdPtr;
     struct sbdNode *nextSbdPtr;
-    int exception;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG,"clientIO: Entering...");
@@ -553,44 +550,39 @@ clientIO(struct Masks *chanmask)
          sbdPtr = nextSbdPtr) {
         nextSbdPtr = sbdPtr->forw;
 
-        if (FD_ISSET(sbdPtr->chanfd, &chanmask->rmask)
-            || FD_ISSET(sbdPtr->chanfd, &chanmask->emask)) {
-
-            if (FD_ISSET(sbdPtr->chanfd, &chanmask->emask))
-                exception = TRUE;
-            else
-                exception = FALSE;
+        if (chanSock_(sbdPtr->chanfd) == chan->handle) {
+            int exception = (chan->events & EPOLL_EVENTS_ERROR) != 0;
             processSbdNode(sbdPtr, exception);
+            // we found and handled the matching SBD; stop scanning
+            return;
         }
     }
 
-
+    // Find the client which corresponds to this channel
     for (cliPtr = clientList->forw;
          cliPtr != clientList;
          cliPtr = nextClient) {
-        int needFree;
         nextClient = cliPtr->forw;
 
-        if (FD_ISSET(cliPtr->chanfd, &chanmask->emask)) {
-            shutDownClient(cliPtr);
+        if (chanSock_(cliPtr->chanfd) != chan->handle)
             continue;
+
+        if (chan->events & EPOLL_EVENTS_ERROR) {
+            shutDownClient(cliPtr);
+            return;
         }
-        needFree = FALSE;
-        if (FD_ISSET(cliPtr->chanfd, &chanmask->rmask)) {
 
-            int saveChfd;
-            saveChfd = cliPtr->chanfd;
-            if (processClient(cliPtr, &needFree) == 0) {
+        // needFree is unused... investigate
+        int needFree = FALSE;
+        if (processClient(cliPtr, &needFree) == 0) {
 
-                FD_CLR(saveChfd, &chanmask->rmask);
-                if (needFree == TRUE) {
-                    offList((struct listEntry *)cliPtr);
-                    FREEUP(cliPtr->fromHost);
-                    FREEUP(cliPtr);
-                }
+            if (needFree == TRUE) {
+                offList((struct listEntry *)cliPtr);
+                FREEUP(cliPtr->fromHost);
+                FREEUP(cliPtr);
             }
         }
-
+        return;
     }
 }
 

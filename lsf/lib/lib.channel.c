@@ -1261,12 +1261,19 @@ chanEpoll_(int tms)
         int ch = epoll_events[i].data.u32;
         uint32_t ev = epoll_events[i].events;
 
+        // Validate channel index
+        if (ch < 0 || ch >= chanMaxSize)
+            continue;
+
+        // Skip invalid handles
         if (channels[ch].handle == INVALID_HANDLE)
             continue;
 
         // Reset the channel mask
         channels[ch].events = EPOLL_EVENTS_NONE;
+        channels[ch].chanerr = CHANE_NOERR ;
 
+        // Get read should be an UDP socket or socket to accept
         if ((channels[ch].send == NULL || channels[ch].recv == NULL)
             && channels[ch].state != CH_PRECONN) {
             // Let the upper level decide what to do with the socket
@@ -1274,25 +1281,31 @@ chanEpoll_(int tms)
                 channels[ch].events |= EPOLL_EVENTS_READ;
             if (ev & EPOLLOUT)
                 channels[ch].events |= EPOLL_EVENTS_WRITE;
+            if (ev & (EPOLLERR | EPOLLRDHUP))
+                channels[ch].events |= EPOLL_EVENTS_ERROR;
             continue;
         }
 
-        if ((ev & EPOLLERR) || (ev & EPOLLHUP)) {
+        // Handle error conditions
+        if ((ev & EPOLLERR) || (ev & EPOLLHUP) || (ev & EPOLLRDHUP)) {
             channels[ch].events |= EPOLL_EVENTS_ERROR;
-            channels[ch].chanerr = 1;
+            channels[ch].chanerr = CHANE_SYSCALL;
             continue;
         }
 
+        // Handle pre-connection state
         if (channels[ch].state == CH_PRECONN
             && (ev & EPOLLOUT)) {
             chanHandlePreconn(ch);
             continue;
         }
 
+        // Handle readable event
         if (ev & EPOLLIN) {
             doread2(ch);
         }
 
+        // Handle writable event if there's data to send
         if ((channels[ch].send && channels[ch].send->forw != channels[ch].send)
             && (ev & EPOLLOUT)) {
             dowrite2(ch);

@@ -34,7 +34,7 @@ extern void do_sbdDebug(XDR *xdrs, int chfd, struct LSFHeader *reqHdr);
 void sinit(void);
 void init_sstate(void);
 static void processMsg(struct clientNode *);
-static void clientIO(struct Masks *);
+static void clientIO(struct chanData *, int);
 static void houseKeeping(void);
 static int authCmdRequest(struct clientNode *client, XDR *xdrs,
                           struct LSFHeader *reqHdr);
@@ -131,7 +131,6 @@ main (int argc, char **argv)
     int nready, i;
     sigset_t oldsigmask, newmask;
     struct timeval timeout;
-    struct Masks sockmask, chanmask;
     int aopt;
     extern char *optarg;
     extern int opterr;
@@ -404,14 +403,13 @@ main (int argc, char **argv)
             TIMEIT(1, checkFinish(), "checkFinish");
         }
 
-        FD_ZERO(&sockmask.rmask);
-
         houseKeeping();
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG3, "Into select");
 
-        nready = chanSelect_(&sockmask, &chanmask, &timeout);
+        int tm = timeout.tv_sec * 1000;
+        nready = chanEpoll_(tm);
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG3, "Out of select: nready=%d", nready);
@@ -443,51 +441,55 @@ main (int argc, char **argv)
             continue;
         }
 
-        if (statusChan >= 0 && (FD_ISSET(statusChan, &chanmask.rmask) ||
-                                FD_ISSET(statusChan, &chanmask.emask))) {
+        for (i = 0; i < nready; i++) {
+            int ch = epoll_events[i].data.u32;
+            struct chanData *chan = &channels[ch];
 
-            if (logclass & LC_COMM)
-                ls_syslog(LOG_DEBUG,
-                          "main: Exception on statusChan <%d>, rmask <%x>",
-                          statusChan, chanmask.rmask);
-            chanClose_(statusChan);
-            statusChan = -1;
+            if (statusChan >= 0
+                && (chan->events & EPOLL_EVENTS_READ
+                    || chan->events & EPOLL_EVENTS_ERROR)) {
+
+                if (logclass & LC_COMM)
+                    ls_syslog(LOG_DEBUG,
+                              "main: Exception on statusChan <%d>, events <%x>",
+                              statusChan, chan->events);
+                chanClose_(statusChan);
+                statusChan = -1;
+            }
+
+            if (chanSock_(batchSock) != chan->handle) {
+                ls_syslog(LOG_DEBUG,"main: connection already known");
+                clientIO(chan, i);
+                continue;
+            }
+
+            s = chanAccept_(batchSock, &from);
+            if (s == -1) {
+                ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "chanAccept_");
+                continue;
+            }
+
+            client = (struct clientNode *)malloc(sizeof(struct clientNode));
+            if (!client) {
+                ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5006,
+                                                 "%s: Unable to accept connection")); /* catgets 5006 */
+                chanClose_(s);
+                continue;
+            }
+
+            client->chanfd = s;
+            client->from = from;
+            client->jp = NULL;
+            client->jobId = -1;
+
+            inList( (struct listEntry *)clientList, (struct listEntry *) client);
+
+            if (logclass & LC_COMM )
+                ls_syslog(LOG_DEBUG, "%s: Accepted connection from host <%s> on channel <%d>", fname, sockAdd2Str_(&from), client->chanfd);
+
+            clientIO(chan, i);
         }
-
-        if (!FD_ISSET(batchSock, &chanmask.rmask)) {
-            ls_syslog(LOG_DEBUG,"main: connection already known");
-            clientIO(&chanmask);
-            continue;
-        }
-
-        s = chanAccept_(batchSock, &from);
-        if (s == -1) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "chanAccept_");
-            continue;
-        }
-
-
-        client = (struct clientNode *)malloc(sizeof(struct clientNode));
-        if (!client) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5006,
-                                             "%s: Unable to accept connection")); /* catgets 5006 */
-            chanClose_(s);
-            continue;
-        }
-
-        client->chanfd = s;
-
-        client->from = from;
-        client->jp = NULL;
-        client->jobId = -1;
-
-        inList( (struct listEntry *)clientList, (struct listEntry *) client);
-
-        if (logclass & LC_COMM )
-            ls_syslog(LOG_DEBUG, "%s: Accepted connection from host <%s> on channel <%d>", fname, sockAdd2Str_(&from), client->chanfd);
-
-        clientIO(&chanmask);
     }
 
     return(0);
@@ -495,29 +497,29 @@ main (int argc, char **argv)
 }
 
 static void
-clientIO(struct Masks *chanmask)
+clientIO(struct chanData *chan, int chfd)
 {
     struct clientNode *cliPtr, *nextClient;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG,"clientIO: Entering...");
 
-
     for(cliPtr=clientList->forw; cliPtr != clientList; cliPtr=nextClient) {
         nextClient = cliPtr->forw;
-        if (FD_ISSET(cliPtr->chanfd, &chanmask->emask)) {
 
+        if (chanSock_(cliPtr->chanfd) != chan->handle)
+            continue;
+
+        if (chan->events & EPOLL_EVENTS_ERROR) {
             shutDownClient(cliPtr);
             continue;
         }
 
-        if (FD_ISSET(cliPtr->chanfd, &chanmask->rmask)) {
+        if (chan->events & EPOLL_EVENTS_READ) {
             processMsg(cliPtr);
         }
-
     }
 }
-
 
 static void
 processMsg(struct clientNode *client)
