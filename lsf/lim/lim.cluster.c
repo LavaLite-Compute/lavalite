@@ -227,11 +227,12 @@ Reply1:
         }
 
         if (pid == 0) {
-
+            // close() limSock should the master restart when processing
+            // this request.
             if (! limParams[LIM_NO_FORK].paramValue)
-                chanClose_(limSock);
+                close(chanSock_(limSock));
             if (epoll_fd >= 0)
-                close(epoll_fd);   // child's copy, parent owns epol
+                close(epoll_fd);
 
             XDR_SETPOS(xdrs, oldpos);
             io_block_(chanSock_(chfd));
@@ -260,7 +261,7 @@ Reply1:
             }
 
             if (! limParams[LIM_NO_FORK].paramValue)
-                _exit(0);
+                exit(0);
         }
         /* parent pid > 0 or LIM_NO_FORK
          *
