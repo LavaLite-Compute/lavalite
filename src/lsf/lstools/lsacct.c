@@ -16,18 +16,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
+#include "lsf/lib/lib.h"
+#include "lsf/lib/lsi18n.h"
 
 struct interval {
     time_t begin;
     time_t end;
 };
 
-#define MAX_PRINTLINE 132
+#define MAX_PRINTLINE LBUF_SIZ
 static char printline[MAX_PRINTLINE + 1];
 static const char *dashed_line =
 "------------------------------------------------------------------------------"
@@ -55,7 +52,6 @@ static struct interval start;
 static struct interval complete;
 static int pids[MAX_PIDS + 1];
 
-
 static int totstatnz;
 static int totstatz;
 static int tottasks;
@@ -70,9 +66,6 @@ enum useage {min, max, tot};
 static double statistics[NUM_RESOURCES][NUM_USAGE];
 
 static int resRecNum[NUM_RESOURCES];
-
-
-extern const char *getHostOfficialByName_(const char *);
 
 static void setdefaults(void);
 static void getoptions(int argc, char *argv[]);
@@ -96,9 +89,7 @@ static int ininterval(time_t time, struct interval inter);
 static struct interval mkinterval(time_t begin, time_t end);
 static struct interval getinterval(char *timeform);
 
-
 #define NL_SETN 27
-
 
 static void
 setdefaults(void)
@@ -193,9 +184,8 @@ getoptions(int argc, char *argv[])
 static void
 getpids(int argc, char *argv[])
 {
-    extern int optind;
-
-    int i, pid;
+    int i;
+    int pid;
 
     for (i = 0; optind < argc; optind++) {
         pid = atoi(argv[optind]);
@@ -318,12 +308,9 @@ processlogfile(void)
     }
 
     if ((lfp = fopen(logfile, "r")) == NULL) {
-        sprintf(printline, I18N_FUNC_S_FAIL,"processlogfile","fopen", logfile );
-        perror(printline);
+        perror("fopen");
         exit(-1);
     }
-
-
 
     for (;;) {
         if ((acctrec = ls_getacctrec(lfp, &linenum)) == NULL) {
@@ -717,9 +704,7 @@ ininterval(time_t time, struct interval inter)
 int
 main(int argc, char *argv[])
 {
-    int rt;
-
-    rt = _i18n_init ( I18N_CAT_MIN );
+    _i18n_init (I18N_CAT_MIN);
 
     setdefaults();
     getoptions(argc, argv);
@@ -729,6 +714,6 @@ main(int argc, char *argv[])
     processlogfile();
     printsummary();
 
-    _i18n_end ( ls_catd );
+    _i18n_end (ls_catd);
     return 0;
 }

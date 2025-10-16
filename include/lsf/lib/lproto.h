@@ -370,7 +370,7 @@ extern ssize_t nb_write_fix(int, const void *, size_t);
 extern ssize_t nb_read_timeout(int, void *, size_t, int);
 extern ssize_t b_read_fix(int, void *, size_t);
 extern ssize_t b_write_fix(int, const void *, size_t);
-extern int b_connect_(int, struct sockaddr *, int, int);
+extern int b_connect_(int, const struct sockaddr *, socklen_t , int);
 extern int rd_select_(int, struct timeval *);
 extern int rd_poll_(int, struct timeval *);
 extern int b_accept_(int, struct sockaddr *, socklen_t *);
@@ -407,10 +407,6 @@ extern void rlimitEncode_(struct lsfLimit *, struct rlimit *, int);
 extern void rlimitDecode_(struct lsfLimit *, struct rlimit *, int);
 
 extern void verrlog_(int level, FILE *fp, const char *fmt, va_list ap);
-
-extern int errnoEncode_(int);
-extern int errnoDecode_(int);
-
 extern int getLogClass_ (char *, char *);
 extern int getLogMask(char **, char *);
 extern void ls_openlog(const char *, const char *, int, char *);

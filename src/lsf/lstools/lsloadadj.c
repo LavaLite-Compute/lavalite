@@ -16,11 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
+#include "lsf/lib/lib.h"
 
 #define MAXLISTSIZE 256
 
@@ -31,7 +27,7 @@ extern char *optarg;
 
 #define NL_SETN 27
 
-    int
+int
 main(int argc, char **argv)
 {
     static char fname[] = "lsloadadj/main";
@@ -40,10 +36,8 @@ main(int argc, char **argv)
     char *p, *hname;
     int cc = 0;
     int achar;
-    int rc;
 
-    rc = _i18n_init ( I18N_CAT_MIN );
-
+    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -57,15 +51,15 @@ main(int argc, char **argv)
     {
         switch (achar)
         {
-            case 'R':
-                resreq = optarg;
-                break;
-            case 'V':
-                fputs(_LAVALITE_VERSION_, stderr);
-                exit(0);
-            case 'h':
-            default:
-                usage(argv[0]);
+        case 'R':
+            resreq = optarg;
+            break;
+        case 'V':
+            fputs(_LAVALITE_VERSION_, stderr);
+            exit(0);
+        case 'h':
+        default:
+            usage(argv[0]);
         }
     }
 

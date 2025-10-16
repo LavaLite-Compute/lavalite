@@ -16,20 +16,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
-
+#include "lsf/lib/lib.h"
+#include "lsf/intlib/intlibout.h"
 
 #define NL_SETN 27
-
 
 static void usage(char *);
 static void print_long(struct hostInfo *hostInfo);
 static char *stripSpaces(char *);
-
 
 struct indexFmt {
     char *name;
@@ -89,10 +83,10 @@ print_long(struct hostInfo *hostInfo)
     float *li;
     char  *sp;
     static char first = true;
-    static char line[132];
-    static char newFmt[10];
+    static char line[SBUF_SIZ];
+    static char newFmt[MINBUF_SIZ];
     int newIndexLen, retVal;
-    char **indxnames;
+    char **indxnames = NULL;
     char **shareNames, **shareValues, **formats;
     char strbuf1[30],strbuf2[30],strbuf3[30];
 
@@ -249,7 +243,7 @@ print_long(struct hostInfo *hostInfo)
     printf(_i18n_msg_get(ls_catd,NL_SETN,1626, "LOAD_THRESHOLDS:")); /* catgets 1626 */
     printf("\n%s\n",line);
     li = hostInfo->busyThreshold;
-    for(i=0; indxnames[i]; i++) {
+    for(i = 0; indxnames[i]; i++) {
         char tmpfield[MAXLSFNAMELEN];
         int id;
 
@@ -263,7 +257,7 @@ print_long(struct hostInfo *hostInfo)
             sprintf(tmpfield, fmt[id].ok,  li[i] * fmt[id].scale);
             sp = stripSpaces(tmpfield);
         }
-        if ((id == MEM + 1) && (newIndexLen = strlen (indxnames[i])) >= 7 ){
+        if ((id == MEM + 1) && (newIndexLen = strlen(indxnames[i])) >= 7 ){
             sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
             printf(newFmt, sp);
         }
@@ -294,9 +288,8 @@ main(int argc, char **argv)
     int     unknown;
     int     options=0;
     int isClus;
-    int rc;
 
-    rc = _i18n_init ( I18N_CAT_MIN );
+    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -468,7 +461,7 @@ main(int argc, char **argv)
             FREEUP(buf9);
         }
 
-        for (i=0;i<numhosts;i++) {
+        for (i = 0; i < numhosts; i++) {
             char *server;
             int first;
 
@@ -483,7 +476,7 @@ main(int argc, char **argv)
                 server = I18N_No;
 
 
-            if(longname)
+            if (longname)
                 printf("%-25s %10s %11s %5.1f ", hostinfo[i].hostName,
                        hostinfo[i].hostType, hostinfo[i].hostModel,
                        hostinfo[i].cpuFactor);
@@ -511,7 +504,7 @@ main(int argc, char **argv)
             printf(" (");
 
             first = true;
-            for (j=0; j<hostinfo[i].nRes; j++) {
+            for (j = 0; j < hostinfo[i].nRes; j++) {
                 if (! first)
                     printf(" ");
                 printf("%s", hostinfo[i].resources[j]);

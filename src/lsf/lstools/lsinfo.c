@@ -16,11 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
+#include "lsf/lib/lib.h"
 
 static void usage(char *);
 static void print_long(struct resItem *);
@@ -32,7 +28,7 @@ static char *valueTypeToStr(enum valueType);
 #define NL_SETN 27
 
 
-    int
+int
 main(int argc, char **argv)
 {
     static char fname[] = "lsinfo/main";
@@ -45,9 +41,8 @@ main(int argc, char **argv)
     char mFlag = false;
     char mmFlag = false;
     extern int optind;
-    int rc;
 
-    rc = _i18n_init ( I18N_CAT_MIN );
+    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -58,28 +53,28 @@ main(int argc, char **argv)
 
     while ((cc = getopt(argc, argv, "VhlrmMt")) != EOF) {
         switch(cc) {
-            case 'V':
-                fputs(_LAVALITE_VERSION_, stderr);
-                exit(0);
-            case 'l':
-                longFormat = true;
-                break;
-            case 'r':
-                rFlag = true;
-                break;
-            case 't':
-                tFlag = true;
-                break;
-            case 'm':
-                mFlag = true;
-                break;
-            case 'M':
-                mFlag  = true;
-                mmFlag = true;
-                break;
-            case 'h':
-            default:
-                usage(argv[0]);
+        case 'V':
+            fputs(_LAVALITE_VERSION_, stderr);
+            exit(0);
+        case 'l':
+            longFormat = true;
+            break;
+        case 'r':
+            rFlag = true;
+            break;
+        case 't':
+            tFlag = true;
+            break;
+        case 'm':
+            mFlag = true;
+            break;
+        case 'M':
+            mFlag  = true;
+            mmFlag = true;
+            break;
+        case 'h':
+        default:
+            usage(argv[0]);
         }
     }
 
@@ -102,12 +97,12 @@ main(int argc, char **argv)
             char *buf1, *buf2, *buf3, *buf4;
 
             buf1 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1804, "RESOURCE_NAME")), /* catgets  1804  */
-                 buf2 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1805, "  TYPE ")), /* catgets  1805  */
-                 buf3 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1806, "ORDER")), /* catgets  1806  */
-                 buf4 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1807, "DESCRIPTION")), /* catgets  1807  */
+                buf2 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1805, "  TYPE ")), /* catgets  1805  */
+                buf3 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1806, "ORDER")), /* catgets  1806  */
+                buf4 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1807, "DESCRIPTION")), /* catgets  1807  */
 
-                 printf("%-13.13s %7.7s  %5.5s  %s\n",
-                         buf1, buf2, buf3, buf4);
+                printf("%-13.13s %7.7s  %5.5s  %s\n",
+                       buf1, buf2, buf3, buf4);
 
             FREEUP(buf1);
             FREEUP(buf2);
@@ -120,10 +115,10 @@ main(int argc, char **argv)
                 continue;
             if (!longFormat) {
                 printf("%-13.13s %7.7s %5.5s   %s\n",
-                        lsInfo->resTable[i].name,
-                        valueTypeToStr(lsInfo->resTable[i].valueType),
-                        orderTypeToStr(lsInfo->resTable[i].orderType),
-                        lsInfo->resTable[i].des);
+                       lsInfo->resTable[i].name,
+                       valueTypeToStr(lsInfo->resTable[i].valueType),
+                       orderTypeToStr(lsInfo->resTable[i].orderType),
+                       lsInfo->resTable[i].des);
             } else
                 print_long(&(lsInfo->resTable[i]));
         }
@@ -131,7 +126,7 @@ main(int argc, char **argv)
         for (i=0; i < nnames; i++)
             if (namebufs[i])
                 printf(_i18n_msg_get(ls_catd,NL_SETN,1808, "%s: Resource name not found\n"),/* catgets  1808  */
-                        namebufs[i]);
+                       namebufs[i]);
 
     }
 
@@ -147,11 +142,11 @@ main(int argc, char **argv)
         if (rFlag || tFlag)
             putchar('\n');
         puts(_i18n_msg_get(ls_catd,NL_SETN,1810,
-                    "MODEL_NAME      CPU_FACTOR      ARCHITECTURE")); /* catgets  1810  */
+                           "MODEL_NAME      CPU_FACTOR      ARCHITECTURE")); /* catgets  1810  */
         for (i = 0; i < lsInfo->nModels; ++i)
             if (mmFlag || lsInfo->modelRefs[i])
                 printf("%-16s    %6.2f      %s\n", lsInfo->hostModels[i],
-                        lsInfo->cpuFactor[i], lsInfo->hostArchs[i]);
+                       lsInfo->cpuFactor[i], lsInfo->hostArchs[i]);
     }
 
     _i18n_end ( ls_catd );
@@ -159,14 +154,14 @@ main(int argc, char **argv)
     exit(0);
 }
 
-    static void
+static void
 usage(char *cmd)
 {
     fprintf (stderr, "%s: %s [-h] [-V] [-l] [-r] [-m] [-M] [-t] [resource_name ...]\n",I18N_Usage, cmd);
     exit(-1);
 }
 
-    static void
+static void
 print_long(struct resItem *res)
 {
 
@@ -175,13 +170,13 @@ print_long(struct resItem *res)
 
     if (first) {
         printf("%s:  %s\n",
-                _i18n_msg_get(ls_catd,NL_SETN,1812, "RESOURCE_NAME"), /* catgets  1812  */
-                res->name);
+               _i18n_msg_get(ls_catd,NL_SETN,1812, "RESOURCE_NAME"), /* catgets  1812  */
+               res->name);
         first = false;
     } else
         printf("\n%s:  %s\n",
-                _i18n_msg_get(ls_catd,NL_SETN,1812, "RESOURCE_NAME"),
-                res->name);
+               _i18n_msg_get(ls_catd,NL_SETN,1812, "RESOURCE_NAME"),
+               res->name);
     printf(_i18n_msg_get(ls_catd,NL_SETN,1814, "DESCRIPTION: %s\n"),res->des); /* catgets  1814  */
 
     printf("%-7.7s ", I18N(15, "TYPE"));    /* catgets  1815  */
@@ -193,15 +188,15 @@ print_long(struct resItem *res)
 
     sprintf(tempStr,"%d",res->interval);
     printf("%-7.7s %5s  %9s %8s %8s %8s\n",
-            valueTypeToStr(res->valueType),
-            orderTypeToStr(res->orderType),
-            tempStr,
-            flagToStr(res->flags & RESF_BUILTIN),
-            flagToStr(res->flags & RESF_DYNAMIC),
-            flagToStr(res->flags & RESF_RELEASE));
+           valueTypeToStr(res->valueType),
+           orderTypeToStr(res->orderType),
+           tempStr,
+           flagToStr(res->flags & RESF_BUILTIN),
+           flagToStr(res->flags & RESF_DYNAMIC),
+           flagToStr(res->flags & RESF_RELEASE));
 }
 
-    static char
+static char
 *flagToStr(int flag)
 {
     static char *sp = NULL;
@@ -212,44 +207,44 @@ print_long(struct resItem *res)
     return sp;
 }
 
-    static char
+static char
 *valueTypeToStr(enum valueType valtype)
 {
     static char *type = NULL;
 
     switch(valtype) {
-        case LS_NUMERIC:
-            type = _i18n_msg_get(ls_catd,NL_SETN,1822, "Numeric"); /* catgets  1822  */
-            break;
-        case LS_BOOLEAN:
-            type = _i18n_msg_get(ls_catd,NL_SETN,1823, "Boolean"); /* catgets  1823  */
-            break;
-        default:
-            type = _i18n_msg_get(ls_catd,NL_SETN,1824, "String"); /* catgets  1824  */
-            break;
+    case LS_NUMERIC:
+        type = _i18n_msg_get(ls_catd,NL_SETN,1822, "Numeric"); /* catgets  1822  */
+        break;
+    case LS_BOOLEAN:
+        type = _i18n_msg_get(ls_catd,NL_SETN,1823, "Boolean"); /* catgets  1823  */
+        break;
+    default:
+        type = _i18n_msg_get(ls_catd,NL_SETN,1824, "String"); /* catgets  1824  */
+        break;
     }
     return type;
 }
 
-    static char
+static char
 *orderTypeToStr(enum orderType ordertype)
 {
     char *order;
     switch(ordertype) {
-        case INCR:
-            order = _i18n_msg_get(ls_catd,NL_SETN,1825, "Inc"); /* catgets  1825  */
-            break;
-        case DECR:
-            order = _i18n_msg_get(ls_catd,NL_SETN,1826, "Dec"); /* catgets  1826  */
-            break;
-        default:
-            order = _i18n_msg_get(ls_catd,NL_SETN,1827, "N/A"); /* catgets  1827  */
-            break;
+    case INCR:
+        order = _i18n_msg_get(ls_catd,NL_SETN,1825, "Inc"); /* catgets  1825  */
+        break;
+    case DECR:
+        order = _i18n_msg_get(ls_catd,NL_SETN,1826, "Dec"); /* catgets  1826  */
+        break;
+    default:
+        order = _i18n_msg_get(ls_catd,NL_SETN,1827, "N/A"); /* catgets  1827  */
+        break;
     }
     return order;
 }
 
-    static char
+static char
 nameInList(char **namelist, int listsize, char *name)
 {
     int i, j;

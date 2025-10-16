@@ -16,34 +16,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
+#include "lsf/lib/lib.h"
 
 #define NL_SETN  27
-
 
 static void usage(char *);
 extern int errLineNum_;
 
-    static void
+static void
 usage(char *cmd)
 {
     fprintf (stderr, "%s: %s [-h] [-V]\n", I18N_Usage, cmd);
     exit(-1);
 }
 
-    int
+int
 main(int argc, char **argv)
 {
     static char fname[] = "lsid:main";
     char *Name;
     int achar;
-    int rc;
 
-    rc = _i18n_init ( I18N_CAT_MIN );
+    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -54,15 +48,15 @@ main(int argc, char **argv)
 
     while ((achar = getopt(argc, argv, "hV")) != EOF) {
         switch(achar) {
-            case 'h':
-                usage(argv[0]);
-                exit(0);
-            case 'V':
-                fputs(_LAVALITE_VERSION_, stderr);
-                exit(0);
-            default:
-                usage(argv[0]);
-                exit(-1);
+        case 'h':
+            usage(argv[0]);
+            exit(0);
+        case 'V':
+            fputs(_LAVALITE_VERSION_, stderr);
+            exit(0);
+        default:
+            usage(argv[0]);
+            exit(-1);
         }
     }
     puts(_LAVALITE_VERSION_);
@@ -96,4 +90,3 @@ main(int argc, char **argv)
 
     exit(0);
 }
-

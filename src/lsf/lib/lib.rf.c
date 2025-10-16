@@ -219,7 +219,8 @@ ls_ropen(char *host, char *fn, int flags, int mode)
     }
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // Bug. Legacy
+        // errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }
@@ -264,7 +265,8 @@ ls_rclose(int fd)
         rhTerminate(rh->hname);
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // Bug. Legacy.
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }
@@ -311,7 +313,8 @@ ls_rwrite(int fd, char *buf, int len)
     }
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        //  Bug. Legacy.
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }
@@ -353,7 +356,8 @@ ls_rread(int fd, char *buf, int len)
     }
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // Bug. Legacy
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }
@@ -399,7 +403,8 @@ ls_rlseek(int fd, off_t offset, int whence)
     }
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // Bug. This is some sort of garbage legacy
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }
@@ -437,7 +442,7 @@ ls_rfstat(int fd, struct stat *st)
     }
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }
@@ -450,21 +455,21 @@ int
 ls_rfcontrol(int command, int arg)
 {
     switch (command) {
-    case RF_CMD_MAXHOSTS:
-        if (arg < 1) {
+        case RF_CMD_MAXHOSTS:
+            if (arg < 1) {
+                lserrno = LSE_BAD_ARGS;
+                return -1;
+            }
+            maxnrh = arg;
+            return 0;
+
+        case RF_CMD_RXFLAGS:
+            rxFlags = arg;
+            return 0;
+
+        default:
             lserrno = LSE_BAD_ARGS;
             return -1;
-        }
-        maxnrh = arg;
-        return 0;
-
-    case RF_CMD_RXFLAGS:
-        rxFlags = arg;
-        return 0;
-
-    default:
-        lserrno = LSE_BAD_ARGS;
-        return -1;
     }
 }
 
@@ -541,7 +546,7 @@ ls_rstat(char *host, char *fn, struct stat *st)
 
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }
@@ -579,7 +584,7 @@ ls_rgetmnthost(char *host, char *fn)
     }
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return NULL;
     }
@@ -655,7 +660,7 @@ ls_runlink(char *host, char *fn)
     }
 
     if (hdr.opCode < 0) {
-        errno = errnoDecode_(abs(hdr.opCode));
+        // errno = errnoDecode_(abs(hdr.opCode));
         lserrno = LSE_FILE_SYS;
         return -1;
     }

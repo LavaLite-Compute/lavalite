@@ -16,11 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
+#include "lsf/lib/lib.h"
 
 #define MAXLISTSIZE 256
 #define NL_SETN 27
@@ -29,8 +25,7 @@ void
 usage(const char *cmd)
 {
     fprintf(stderr, "usage: %s [-h] [-V] [-L] [-R res_req] [-n needed]"
- "[-w wanted]\n [host_name ... ]\n", cmd);
-    return -1;
+            "[-w wanted]\n [host_name ... ]\n", cmd);
 }
 
 
@@ -46,14 +41,12 @@ main(int argc, char **argv)
     int wanted = 1;
     int i;
     char locality=false;
-
-    extern int	optind, opterr;
-    extern char	*optarg;
-    int	achar;
+    extern int  optind, opterr;
+    extern char *optarg;
+    int achar;
     char badHost = false;
-    int rc;
 
-    rc = _i18n_init ( I18N_CAT_MIN );
+    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -63,15 +56,13 @@ main(int argc, char **argv)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     opterr = 0;
-    while ((achar = getopt(argc, argv, "VR:Lhn:w:")) != EOF)
-    {
-	switch (achar)
-	{
-	case 'L':
+    while ((achar = getopt(argc, argv, "VR:Lhn:w:")) != EOF) {
+        switch (achar) {
+        case 'L':
             locality=true;
             break;
 
-	case 'R':
+        case 'R':
             resreq = optarg;
             break;
 
@@ -89,31 +80,30 @@ main(int argc, char **argv)
             wanted = atoi(optarg);
             break;
 
-	case 'V':
-	    fputs(_LAVALITE_VERSION_, stderr);
-	    exit(0);
+        case 'V':
+            fputs(_LAVALITE_VERSION_, stderr);
+            exit(0);
 
-	case 'h':
-	default:
+        case 'h':
+        default:
             usage(argv[0]);
         }
     }
 
-    for ( ; optind < argc ; optind++)
-    {
+    for ( ; optind < argc ; optind++) {
         if (cc>=MAXLISTSIZE) {
             fprintf(stderr,
-		_i18n_msg_get(ls_catd,NL_SETN,2201, "%s: too many hosts specified (max %d)\n"), /* catgets  2201  */
-		argv[0], MAXLISTSIZE);
+                    _i18n_msg_get(ls_catd,NL_SETN,2201, "%s: too many hosts specified (max %d)\n"), /* catgets  2201  */
+                    argv[0], MAXLISTSIZE);
             exit(-1);
         }
 
         if (ls_isclustername(argv[optind]) <= 0 &&
             !isValidHost_(argv[optind])) {
             fprintf(stderr, "%s: %s %s\n",
-	        argv[0],
-		I18N(1953, "invalid hostname"), /* catgets 1953 */
-		argv[optind]);
+                    argv[0],
+                    I18N(1953, "invalid hostname"), /* catgets 1953 */
+                    argv[optind]);
             badHost = true;
             continue;
         }
@@ -126,12 +116,12 @@ main(int argc, char **argv)
     if (needed == 0 || wanted == 0)
         wanted = 0;
     else if (needed > wanted)
-	wanted = needed;
+        wanted = needed;
 
     if (wanted == needed)
-	i = EXACT;
+        i = EXACT;
     else
-	i = 0;
+        i = 0;
 
     i = i | DFT_FROMTYPE;
 
@@ -144,8 +134,8 @@ main(int argc, char **argv)
         desthosts = ls_placeofhosts(resreq, &wanted, i, 0, hostnames, cc);
 
     if (!desthosts) {
-	char i18nBuf[150];
-	sprintf( i18nBuf,I18N_FUNC_FAIL,"lsplace","ls_placereq");
+        char i18nBuf[150];
+        sprintf( i18nBuf,I18N_FUNC_FAIL,"lsplace","ls_placereq");
         ls_perror( i18nBuf );
         if (lserrno == LSE_BAD_EXP ||
             lserrno == LSE_UNKWN_RESNAME ||
@@ -155,15 +145,14 @@ main(int argc, char **argv)
             exit(1);
     }
 
-    if (wanted < needed)
-    {
+    if (wanted < needed) {
 
-	char i18nBuf[150];
-	sprintf( i18nBuf,I18N_FUNC_FAIL,"lsplace","ls_placereq");
-	fputs( i18nBuf, stderr );
-	fputs(ls_errmsg[LSE_NO_HOST], stderr);
-	putc('\n', stderr);
-	exit(1);
+        char i18nBuf[150];
+        sprintf( i18nBuf,I18N_FUNC_FAIL,"lsplace","ls_placereq");
+        fputs( i18nBuf, stderr );
+        fputs(ls_errmsg[LSE_NO_HOST], stderr);
+        putc('\n', stderr);
+        exit(1);
     }
 
     for (cc=0; cc < wanted; cc++)

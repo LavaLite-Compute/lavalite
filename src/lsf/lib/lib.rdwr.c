@@ -22,16 +22,16 @@
 #define IO_TIMEOUT  2000 // milliseconds
 
 /* Time difference in microseconds
- */
+*/
 static inline int64_t
 timespec_diff(struct timespec *a, struct timespec *b)
 {
     return (int64_t)(a->tv_sec - b->tv_sec) * 1000000LL
-         + (int64_t)(a->tv_nsec - b->tv_nsec) / 1000LL;
+        + (int64_t)(a->tv_nsec - b->tv_nsec) / 1000LL;
 }
 
 /* Non blocking read fix
- */
+*/
 ssize_t
 nb_read_fix(int s, void *vbuf, size_t len)
 {
@@ -66,7 +66,7 @@ nb_read_fix(int s, void *vbuf, size_t len)
         }
 
         /* Here we got  cc < 0
-         */
+        */
         assert(cc < 0);
         if (errno == EINTR)
             continue;
@@ -133,7 +133,7 @@ nb_write_fix(int fd, const void *buf, size_t len)
             return -1;
         }
 
-    check_timeout:
+check_timeout:
         // This could be a compound statement in {}
         if (clock_gettime(CLOCK_MONOTONIC, &current_time) != 0) {
             return -1;
@@ -246,7 +246,7 @@ void unblocksig(int sig)
  * Modern C idioms - Designated initializers for the pollfd struct
  */
 int
-bconnect(int s, const struct sockaddr *name, socklen_t namelen, int timeout_sec)
+b_connect_(int s, const struct sockaddr *name, socklen_t namelen, int timeout_sec)
 {
     int flags = fcntl(s, F_GETFL, 0);
     if (flags < 0)
@@ -323,7 +323,7 @@ rd_select_(int rd, struct timeval *timeout)
 
 }
 
-/* Modern C version of rd_select() reccomended, replacing
+/* Modern C version of rd_select() recommended, replacing
  * rd_select_() in deamons with the poll version.
  */
 int

@@ -55,14 +55,14 @@
 #define MOD_TIME_FORMAT			35
 
 #ifdef NL_SETN
-#undef  NL_SETN 
+#undef  NL_SETN
 #endif
-#define NL_SETN                      33  
+#define NL_SETN                      33
 
 #define I18N_m(msgID, msg)\
   (_i18n_msg_get(ls_catd, 33, msgID, msg))
 
-     
+
 
 #define I18N_FUNC_FAIL \
     (I18N_m(1, "%s: %s() failed."))/*catgets1*/
@@ -637,7 +637,7 @@
      (I18N_m(4012,"Process Limit")) /*catgets4012*/
 #define I18N_pending \
      (I18N_m(4013,"pending"))      /*catgets4013*/
-     
+
 #define I18N_Queue \
      (I18N_m(4200,"Queue"))       /*catgets4200*/
 #define I18N_QUEUE \
@@ -839,31 +839,31 @@
 #define I18N_zombi \
      (I18N_m(6000, "zombi"))        /* catgets6000*/
 
-#undef  NL_SETN 
+#undef  NL_SETN
 #define I18N(msgID, msg)\
        (_i18n_msg_get(ls_catd, NL_SETN, msgID, msg))
 
-     
-     
+
+
 
 
 #define MAX_I18N_CTIME_STRING		80
 #define MIN_CTIME_FORMATID		0
-#define CTIME_FORMAT_DEFAULT		0	
-#define CTIME_FORMAT_a_b_d_T_Y		1	
-#define CTIME_FORMAT_b_d_T_Y		2	
-#define CTIME_FORMAT_a_b_d_T		3	
-#define CTIME_FORMAT_b_d_H_M		4	
-#define CTIME_FORMAT_m_d_Y		5	
-#define CTIME_FORMAT_H_M_S		6	
+#define CTIME_FORMAT_DEFAULT		0
+#define CTIME_FORMAT_a_b_d_T_Y		1
+#define CTIME_FORMAT_b_d_T_Y		2
+#define CTIME_FORMAT_a_b_d_T		3
+#define CTIME_FORMAT_b_d_H_M		4
+#define CTIME_FORMAT_m_d_Y		5
+#define CTIME_FORMAT_H_M_S		6
 #define MAX_CTIME_FORMATID		6
 
-extern LS_CATD ls_catd;			
-extern int _i18n_init(int);		
-extern int _i18n_end();			
+extern LS_CATD ls_catd;
+extern int _i18n_init(int);
+extern int _i18n_end();
 extern char * _i18n_ctime(LS_CATD, int, const time_t *);
 
-#ifdef  I18N_COMPILE 
+#ifdef  I18N_COMPILE
 extern char * _i18n_msg_get(LS_CATD, int, int,char *);
 extern char ** _i18n_msgArray_get(LS_CATD, int, int *, char **);
 extern void _i18n_ctime_init(LS_CATD);
@@ -877,5 +877,5 @@ char * _i18n_printf(const char *, ...);
 
 
 
-#endif 
+#endif
 

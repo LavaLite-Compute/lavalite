@@ -16,11 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
+#include "lsf/lib/lib.h"
 
 #define MAXFIELDSIZE 20
 int num_loadindex;
@@ -282,7 +278,7 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
 
     nf = 0;
     for(j = 0; dispindex[j]; j++, nf++) {
-        int newIndexLen;
+        int newIndexLen = 0;
 
         id = nameToFmt(dispindex[j]);
         if (id == DEFAULT_FMT)
@@ -320,7 +316,7 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
             sp = stripSpaces(tmpfield);
         }
         if (id == DEFAULT_FMT && newIndexLen >= 7){
-            char newFmt[10];
+            char newFmt[MINBUF_SIZ];
             int len;
             sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
 
@@ -357,7 +353,7 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
 
     nf = 0;
     for(j = 0; dispindex[j]; j++, nf++) {
-        int newIndexLen;
+        int newIndexLen = 0;
 
         id = nameToFmt(dispindex[j]);
         if (id == DEFAULT_FMT)
@@ -395,7 +391,7 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
             sp = stripSpaces(tmpfield);
         }
         if (id == DEFAULT_FMT && newIndexLen >= 7){
-            char newFmt[10];
+            char newFmt[MINBUF_SIZ];
             int len;
             sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
 

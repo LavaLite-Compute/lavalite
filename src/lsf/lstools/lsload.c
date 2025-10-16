@@ -16,11 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
-
-
-
-
+#include "lsf/lib/lib.h"
+#include "lsf/intlib/intlibout.h"
 
 #define MAXLISTSIZE 256
 
@@ -33,7 +30,6 @@ extern int num_loadindex;
 
 
 #define NL_SETN  27
-
 
 void
 usage(char *cmd)
@@ -69,14 +65,12 @@ main(int argc, char **argv)
     int extView = FALSE;
     char **shareNames, **shareValues, **formats;
     int isClus, retVal = 0;
-    int rc;
 
     num = 0;
     numneeded = 0;
     opterr = 0;
 
-    rc = _i18n_init ( I18N_CAT_MIN );
-
+    _i18n_init(I18N_CAT_MIN);
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");

@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 
 void
 millisleep_(int msec)
@@ -25,7 +25,7 @@ millisleep_(int msec)
     struct timeval dtime;
 
     if (msec < 1)
-	return;
+        return;
 
     dtime.tv_sec = msec/1000;
     dtime.tv_usec = (msec - dtime.tv_sec * 1000) * 1000;

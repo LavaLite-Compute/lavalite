@@ -87,7 +87,7 @@ typedef uint64_t LS_UNS_LONG_INT;
 #define MBUF_SIZ (BUFSIZ/16)    // 512
 #define SBUF_SIZ  (BUFSIZ/32)   // 256
 #define SSBUF_SIZ (BUFSIZ/64)   // 128
-#define MINBUF_SIZ  (BUFIZ/128) // 64
+#define MINBUF_SIZ  (BUFSIZ/128) // 64
 #define MICROBUF_SIZ (BUFSIZ/256) //32
 
 #define R15S           0

@@ -62,5 +62,7 @@ liblsf_la_SOURCES = lib.channel.c \
 	lib.xdrnio.c \
 	lib.xdrres.c \
 	lib.xdrrf.c \
-	lib.wconf.c
+	lib.wconf.c \
+	usleep.c
+
 #
