@@ -754,7 +754,7 @@ subRestart(struct submit  *jobSubReq, struct submitReq *submitReq,
     char *ptr;
     int childIoFd[2];
     pid_t pid;
-    LS_WAIT_T status;
+    int status;
     struct {
         int error;
         int eno;
@@ -1423,7 +1423,7 @@ cleanup:
             err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.inFileSpool);
             if (err) {
                 fprintf(stderr,
-                        (_i18n_msg_get(ls_catd,NL_SETN,442, "Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets 442 */
+                        ("Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
                         subSpoolFiles.inFileSpool, spoolHost);
             }
         }
@@ -1434,7 +1434,7 @@ cleanup:
             err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.commandSpool);
             if (err) {
                 fprintf(stderr,
-                        (_i18n_msg_get(ls_catd,NL_SETN,442, "Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets 442 */
+                        ("Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
                         subSpoolFiles.commandSpool, spoolHost);
             }
         }
@@ -1468,7 +1468,7 @@ chUserCopySpoolFile(const char * srcFile, spoolOptions_t fileType)
 {
     static LSB_SPOOL_INFO_T parentSpoolInfo;
     pid_t pid;
-    LS_WAIT_T status;
+    int status;
     int exitVal, cc;
     int rcpp[2];
 
@@ -1542,7 +1542,7 @@ chUserCopySpoolFile(const char * srcFile, spoolOptions_t fileType)
 
 
             if (WIFEXITED(status) == 0) {
-                fprintf(stderr, I18N(443, "Child process killed by signal.\n")); /* catgets 443 */
+                fprintf(stderr, I18N(443, "Child process killed by signal.\n"));
                 lsberrno = LSBE_SYS_CALL;
                 return NULL;
             }
@@ -1564,7 +1564,7 @@ int
 chUserRemoveSpoolFile( const char * hostName, const char * spoolFile)
 {
     pid_t pid;
-    LS_WAIT_T status;
+    int status;
     const char *sp;
     char dirName[MAXFILENAMELEN];
 
@@ -1604,7 +1604,7 @@ chUserRemoveSpoolFile( const char * hostName, const char * spoolFile)
 
 
             if (WIFEXITED(status) == 0) {
-                fprintf(stderr, I18N(443, "Child process killed by signal.\n")); /* catgets 443 */
+                fprintf(stderr, I18N(443, "Child process killed by signal.\n"));
                 lsberrno = LSBE_SYS_CALL;
                 return -1;
             }
@@ -2165,7 +2165,7 @@ getUserInfo(struct submitReq *submitReq, struct submit *jobSubReq)
         lsberrno = LSBE_SYS_CALL;
         return -1;
     } else if (pid > 0) {
-        LS_WAIT_T status;
+        int status;
         close(childIoFd[1]);
 
         err.eno = -1;
@@ -2517,17 +2517,17 @@ postSubMsg(struct submit *req, LS_LONG_INT jobId, struct submitReply *reply)
 
     if ((req->options & SUB_QUEUE) || (req->options & SUB_RESTART)) {
         if(getenv("BSUB_STDERR"))
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,400, "Job <%s> is submitted to queue <%s>.\n")),  /* catgets 400 */
+            fprintf(stderr, ("Job <%s> is submitted to queue <%s>.\n"),
                     lsb_jobid2str(jobId),  reply->queue);
         else
-            fprintf(stdout, (_i18n_msg_get(ls_catd,NL_SETN,400, "Job <%s> is submitted to queue <%s>.\n")),  /* catgets 400 */
+            fprintf(stdout, ("Job <%s> is submitted to queue <%s>.\n"),
                     lsb_jobid2str(jobId),  reply->queue);
     } else {
         if (getenv("BSUB_STDERR"))
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,401, "Job <%s> is submitted to default queue <%s>.\n")), /* catgets 401 */
+            fprintf(stderr, ("Job <%s> is submitted to default queue <%s>.\n"),
                     lsb_jobid2str(jobId), reply->queue);
         else
-            fprintf(stdout, (_i18n_msg_get(ls_catd,NL_SETN,401, "Job <%s> is submitted to default queue <%s>.\n")), /* catgets 401 */
+            fprintf(stdout, ("Job <%s> is submitted to default queue <%s>.\n"),
                     lsb_jobid2str(jobId), reply->queue);
     }
 
@@ -2536,10 +2536,10 @@ postSubMsg(struct submit *req, LS_LONG_INT jobId, struct submitReply *reply)
     prtBETime_(req);
 
     if (req->options2 & SUB2_BSUB_BLOCK)
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,402, "<<Waiting for dispatch ...>>\n")));  /* catgets 402 */
+        fprintf(stderr, ("<<Waiting for dispatch ...>>\n"));
 
     if (req->options & SUB_INTERACTIVE)
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,402, "<<Waiting for dispatch ...>>\n")));
+        fprintf(stderr, ("<<Waiting for dispatch ...>>\n"));
 
 
 }
@@ -2556,11 +2556,11 @@ prtBETime_(struct submit *req)
 
     if (req->beginTime > 0) {
         sp = _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req->beginTime);
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,404, "Job will be scheduled after %s\n")), sp);  /* catgets 404 */
+        fprintf(stderr, ("Job will be scheduled after %s\n"), sp);
     }
     if (req->termTime > 0) {
         sp = _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req->termTime);
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,405, "Job will be terminated by %s\n")), sp);  /* catgets 405 */
+        fprintf(stderr, ("Job will be terminated by %s\n"), sp);
     }
 }
 
@@ -2677,7 +2677,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 #define checkSubDelOption(option, opt) {                                \
     if (req->options & SUB_MODIFY && strcmp (optName, opt) == 0) {  \
         if (req->options & option) {                                \
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,406, "You cannot modify and set default at the same time"))); /* catgets 406 */ \
+            fprintf(stderr, ("You cannot modify and set default at the same time"));  \
             return -1;}                                             \
         req->delOptions |= option;                                  \
         break;}}
@@ -2685,7 +2685,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 #define checkSubDelOption2(option2, opt) {                              \
     if (req->options & SUB_MODIFY && strcmp (optName, opt) == 0) {  \
         if (req->options2 & option2) {                              \
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,406, "You cannot modify and set default at the same time"))); /* catgets 406 */ \
+            fprintf(stderr, ("You cannot modify and set default at the same time"));  \
             return -1;}                                             \
         req->delOptions2 |= option2;                                \
         break;}}
@@ -2694,7 +2694,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
         strcmp (optName, opt) == 0) { \
     if (req->rLimits[rLimit] != DEFAULT_RLIMIT                      \
             && req->rLimits[rLimit] != DELETE_NUMBER) {                 \
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,406, "You cannot modify and set default at the same  time"))); \
+        fprintf(stderr, ("You cannot modify and set default at the same  time")); \
         return -1;}                                                 \
     req->rLimits[rLimit] = DELETE_NUMBER;                           \
     break;}
@@ -2784,8 +2784,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                             if ( bPeriodExist ){
                                 PRINT_ERRMSG1(errMsg,
-                                        _i18n_msg_get(ls_catd,NL_SETN,408,
-                                            "%s: Bad checkpoint period value"),/* catgets 408 */
+                                        "%s: Bad checkpoint period value",
                                         pCurWord);
                                 return -1;
                             }
@@ -2799,8 +2798,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                             if (!isint_(pCurWord)
                                     || (req->chkpntPeriod = atoi(pCurWord) * 60) <= 0){
                                 PRINT_ERRMSG1(errMsg,
-                                        _i18n_msg_get(ls_catd,NL_SETN,408,
-                                            "%s: Bad checkpoint period value"),/* catgets 408 */
+                                        "%s: Bad checkpoint period value",
                                         pCurWord);
                                 return -1;
                             }
@@ -2812,8 +2810,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                             if ( bMethodExist ){
                                 PRINT_ERRMSG1(errMsg,
-                                        _i18n_msg_get(ls_catd,NL_SETN,445,
-                                            "%s: Syntax error. Correct syntax is method=name of your checkpoint method"),/* catgets 445 */
+                                        "%s: Syntax error. Correct syntax is method=name of your checkpoint method",
                                         pCurWord);
                                 return -1;
                             }
@@ -2828,16 +2825,14 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                                 putEnv("LSB_ECHKPNT_METHOD",pCurWord);
                             }else{
                                 PRINT_ERRMSG1(errMsg,
-                                        _i18n_msg_get(ls_catd,NL_SETN,445,
-                                            "%s: Syntax error. Correct syntax is method=name of your checkpoint method"),/* catgets 445 */
+                                        "%s: Syntax error. Correct syntax is method=name of your checkpoint method",
                                         pCurWord);
                                 return -1;
                             }
                             bMethodExist = 1;
                         }else{
                             PRINT_ERRMSG1(errMsg,
-                                    _i18n_msg_get(ls_catd,NL_SETN,446,
-                                        "%s: Syntax error. Correct syntax is bsub -k \"chkpnt_dir [period] [method=checkpoint method]\""),/* catgets 446 */
+                                    "%s: Syntax error. Correct syntax is bsub -k \"chkpnt_dir [period] [method=checkpoint method]\"",
                                     pCurWord);
                             return -1;
                         }
@@ -2856,8 +2851,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 checkSubDelOption (SUB_RES_REQ, "Rn");
                 if (mask & SUB_RES_REQ) {
                     if (req->resReq != NULL){
-                        PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,442,
-                                    "Invalid syntax; the -R option was used more than once.\n")); /* catgets 442 */
+                        PRINT_ERRMSG0(errMsg, "Invalid syntax; the -R option was used more than once.\n");
                         return -1;
                     }
                     req->resReq = optarg;
@@ -2972,8 +2966,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                     if ((req->options & SUB_IN_FILE)
                             || (req->delOptions & SUB_IN_FILE)) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN, 444,
-                                    "%s options are exclusive"), /* catgets  444 */
+                        PRINT_ERRMSG1(errMsg, "%s options are exclusive",
                                 pExclStr);
                         return -1;
                     }
@@ -2982,8 +2975,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         break;
 
                     if (strlen(optarg) > MAXFILENAMELEN - 1) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,409,
-                                    "%s: File name too long"), /* catgets 409 */
+                        PRINT_ERRMSG1(errMsg, "%s: File name too long",
                                 optarg);
                         return -1;
                     }
@@ -2995,8 +2987,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                     if ((req->options2 & SUB2_IN_FILE_SPOOL)
                             || (req->delOptions2 & SUB2_IN_FILE_SPOOL)) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN, 444,
-                                    "%s options are exclusive"), /* catgets  444 */
+                        PRINT_ERRMSG1(errMsg, "%s options are exclusive",
                                 pExclStr);
                         return -1;
                     }
@@ -3006,8 +2997,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         break;
 
                     if (strlen(optarg) > MAXFILENAMELEN - 1) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,409,
-                                    "%s: File name too long"), /* catgets 409 */
+                        PRINT_ERRMSG1(errMsg, "%s: File name too long",
                                 optarg);
                         return -1;
                     }
@@ -3023,8 +3013,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                     break;
 
                 if (strlen(optarg) > MAXFILENAMELEN - 1) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,410,
-                                "%s: File name too long"), /* catgets 410 */
+                    PRINT_ERRMSG1(errMsg, "%s: File name too long",
                             optarg);
                     return -1;
                 }
@@ -3046,8 +3035,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if ((mask & SUB_MAIL_USER))
                 {
                     if (strlen(optarg) > MAXHOSTNAMELEN - 1) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,411,
-                                    "%s: Mail destination name too long"),/* catgets 411 */
+                        PRINT_ERRMSG1(errMsg, "%s: Mail destination name too long",
                                 optarg);
                         return -1;
                     }
@@ -3065,8 +3053,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                     break;
 
                 if (strlen(optarg) > MAXFILENAMELEN - 1) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,412,
-                                "%s: File name too long"), /* catgets 412 */
+                    PRINT_ERRMSG1(errMsg, "%s: File name too long",
                             optarg);
                     return -1;
                 }
@@ -3085,8 +3072,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 req->options2 |= SUB2_MODIFY_PEND_JOB;
                 if (req->options & SUB_MODIFY && strcmp (optName, "nn") == 0) {
                     if (req->numProcessors != 0) {
-                        PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,413,
-                                    "You cannot modify and set default at the same time")); /* catgets 413 */
+                        PRINT_ERRMSG0(errMsg, "You cannot modify and set default at the same time");
                         return -1;
                     }
                     req->numProcessors = DEL_NUMPRO;
@@ -3098,13 +3084,11 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                     break;
 
                 if (getValPair (&optarg, &v1, &v2) < 0) {
-                    PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,414,
-                                "Bad argument for option -n")); /* catgets 414 */
+                    PRINT_ERRMSG0(errMsg, "Bad argument for option -n");
                     return -1;
                 }
                 if (v1 <= 0 || v2 <= 0) {
-                    PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,415,
-                                "The number of processors must be a positive integer")); /* catgets 415 */
+                    PRINT_ERRMSG0(errMsg, "The number of processors must be a positive integer");
                     return -1;
                 }
                 if (v1 != INFINIT_INT) {
@@ -3117,8 +3101,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         req->numProcessors = 1;
                 }
                 if (req->numProcessors > req->maxNumProcessors) {
-                    PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,416,
-                                "Bad argument for option -n")); /* catgets 416 */
+                    PRINT_ERRMSG0(errMsg, "Bad argument for option -n");
                     return -1;
                 }
                 break;
@@ -3137,8 +3120,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if (req->options & SUB_MODIFY && strcmp (optName, "bn") == 0) {
                     if (req->beginTime != 0 &&
                             req->beginTime != DELETE_NUMBER) {
-                        PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,417,
-                                    "You cannot modify and set default at the same time")); /* catgets 417 */
+                        PRINT_ERRMSG0(errMsg, "You cannot modify and set default at the same time");
                         return -1;
                     }
                     req->beginTime = DELETE_NUMBER;
@@ -3164,8 +3146,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if (req->options & SUB_MODIFY && strcmp (optName, "tn") == 0) {
                     if (req->termTime != 0 &&
                             req->termTime != DELETE_NUMBER) {
-                        PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,417,
-                                    "You cannot modify and set default at the same time"));
+                        PRINT_ERRMSG0(errMsg, "You cannot modify and set default at the same time");
                         return -1;
                     }
                     req->termTime = DELETE_NUMBER;
@@ -3197,7 +3178,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                     if ( !isint_(optarg) || (req->userPriority = atoi(optarg)) <= 0 ) {
                         PRINT_ERRMSG1(errMsg, I18N(494,
-                                    "%s: Illegal job priority"), /* catgets 494 */
+                                    "%s: Illegal job priority"),
                                 optarg);
                         return -1;
                     }
@@ -3210,8 +3191,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                     if (!(mask & SUB_WINDOW_SIG))
                         break;
                     if ((req->sigValue = getSigVal(optarg)) < 0) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,419,
-                                    "%s: Illegal signal value"), /* catgets 419 */
+                        PRINT_ERRMSG1(errMsg, "%s: Illegal signal value",
                                 optarg);
                         return -1;
                     }
@@ -3234,8 +3214,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         strlen(sp+1) > 0) {
                     req->options |= SUB_HOST_SPEC;
                     if (req->hostSpec && strcmp (req->hostSpec, sp + 1) != 0) {
-                        PRINT_ERRMSG2(errMsg, (_i18n_msg_get(ls_catd,NL_SETN,420,
-                                        "More than one host_spec is specified: <%s> and <%s>" )), req->hostSpec, sp + 1); /* catgets 420 */
+                        PRINT_ERRMSG2(errMsg, ("More than one host_spec is specified: <%s> and <%s>"), req->hostSpec, sp + 1);
                         return -1;
                     }
                     req->hostSpec = sp + 1;
@@ -3246,8 +3225,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if ((cp = strchr(optarg, ':')) != NULL)
                     *cp = '\0';
                 if ((!isint_(optarg)) || (atoi(optarg) < 0)) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,421,
-                                "%s: Bad CPULIMIT specification"), /* catgets 421 */
+                    PRINT_ERRMSG1(errMsg, "%s: Bad CPULIMIT specification",
                             savearg);
                     return -1;
                 }
@@ -3256,8 +3234,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if (cp != NULL) {
                     optarg = cp + 1;
                     if ((!isint_(optarg)) || (atoi(optarg) < 0)) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,421,
-                                    "%s: Bad CPULIMIT specification"),
+                        PRINT_ERRMSG1(errMsg, "%s: Bad CPULIMIT specification",
                                 savearg);
                         return -1;
                     }
@@ -3267,15 +3244,13 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                     }
                 }
                 if (req->rLimits[LSF_RLIMIT_CPU] < 0) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,423,
-                                "%s: CPULIMIT value should be a positive integer"), /* catgets 423 */
+                    PRINT_ERRMSG1(errMsg, "%s: CPULIMIT value should be a positive integer",
                             savearg);
                     return -1;
                 }
 
                 if (!checkLimit(req->rLimits[LSF_RLIMIT_CPU], 60)) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,424,
-                                "%s: CPULIMIT value is too big"), /* catgets 424 */
+                    PRINT_ERRMSG1(errMsg, "%s: CPULIMIT value is too big",
                             optarg);
                     return -1;
                 }
@@ -3289,8 +3264,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if ((mask & SUB_PROJECT_NAME))
                 {
                     if (strlen(optarg) > MAX_LSB_NAME_LEN - 1) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,425,
-                                    "%s:  project name too long"),  /* catgets 425 */
+                        PRINT_ERRMSG1(errMsg, "%s:  project name too long",
                                 optarg);
                         return -1;
                     }
@@ -3315,8 +3289,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if ((sp = strchr(optarg, '/')) != NULL) {
                     req->options |= SUB_HOST_SPEC;
                     if (req->hostSpec && strcmp (req->hostSpec, sp + 1) != 0) {
-                        PRINT_ERRMSG2(errMsg, (_i18n_msg_get(ls_catd,NL_SETN,420,
-                                        "More than one host_spec is specified: <%s> and <%s>")),
+                        PRINT_ERRMSG2(errMsg, ("More than one host_spec is specified: <%s> and <%s>"),
                                 req->hostSpec, sp + 1);
                         return -1;
                     }
@@ -3326,8 +3299,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if ((cp = strchr(optarg, ':')) != NULL)
                     *cp = '\0';
                 if ((!isint_(optarg)) || (atoi(optarg) < 0)) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,428,
-                                "%s: Bad RUNLIMIT specification"), /* catgets 428 */
+                    PRINT_ERRMSG1(errMsg, "%s: Bad RUNLIMIT specification",
                             savearg);
                     return -1;
                 }
@@ -3336,8 +3308,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if (cp != NULL) {
                     optarg = cp + 1;
                     if ((!isint_(optarg)) || (atoi(optarg) < 0)) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,428,
-                                    "%s: Bad RUNLIMIT specification"),
+                        PRINT_ERRMSG1(errMsg, "%s: Bad RUNLIMIT specification",
                                 savearg);
                         return -1;
                     }
@@ -3347,14 +3318,12 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                     }
                 }
                 if (req->rLimits[LSF_RLIMIT_RUN] < 0) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,430,
-                                "%s: RUNLIMIT value should be a positive integer"), /* catgets 430 */
+                    PRINT_ERRMSG1(errMsg, "%s: RUNLIMIT value should be a positive integer",
                             savearg);
                     return -1;
                 }
                 if (!checkLimit(req->rLimits[LSF_RLIMIT_RUN], 60)) {
-                    PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,431,
-                                "%s: RUNLIMIT value is too big"),  /* catgets 431 */
+                    PRINT_ERRMSG1(errMsg, "%s: RUNLIMIT value is too big",
                             optarg);
                     return -1;
                 }
@@ -3373,8 +3342,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         && ((req->rLimits[LSF_RLIMIT_FSIZE] = atoi(optarg)) > 0)) {
                     break;
                 }
-                PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,432,
-                            "%s: FILELIMIT value should be a positive integer"), /* catgets 432 */
+                PRINT_ERRMSG1(errMsg, "%s: FILELIMIT value should be a positive integer",
                         optarg);
                 return -1;
 
@@ -3389,8 +3357,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         && ((req->rLimits[LSF_RLIMIT_DATA] = atoi(optarg)) > 0)) {
                     break;
                 }
-                PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,433,
-                            "%s: DATALIMIT value should be a positive integer"), /* catgets 433 */
+                PRINT_ERRMSG1(errMsg, "%s: DATALIMIT value should be a positive integer",
                         optarg);
                 return -1;
 
@@ -3406,8 +3373,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         && ((req->rLimits[LSF_RLIMIT_STACK] = atoi(optarg)) > 0)) {
                     break;
                 }
-                PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,434,
-                            "%s: STACKLIMIT value should be a positive integer"), /* catgets 434 */
+                PRINT_ERRMSG1(errMsg, "%s: STACKLIMIT value should be a positive integer",
                         optarg);
                 return -1;
 
@@ -3422,8 +3388,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         &&  ((req->rLimits[LSF_RLIMIT_CORE] = atoi(optarg)) >= 0)) {
                     break;
                 }
-                PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,435,
-                            "%s: CORELIMIT value should be a positive integer"), /* catgets 435 */
+                PRINT_ERRMSG1(errMsg, "%s: CORELIMIT value should be a positive integer",
                         optarg);
                 return -1;
 
@@ -3438,8 +3403,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         && ((req->rLimits[LSF_RLIMIT_RSS] = atoi(optarg)) > 0)) {
                     break;
                 }
-                PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,436,
-                            "%s: MEMLIMT value should be a positive integer"), /* catgets 436 */
+                PRINT_ERRMSG1(errMsg, "%s: MEMLIMT value should be a positive integer",
                         optarg);
                 return -1;
 
@@ -3453,15 +3417,13 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if (isint_(optarg)
                         && ((req->rLimits[LSF_RLIMIT_PROCESS] = atoi(optarg)) > 0)) {
                     if (!checkLimit(req->rLimits[LSF_RLIMIT_PROCESS], 1)) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,437,
-                                    "%s: PROCESSLIMIT value is too big\n"), /* catgets 437 */
+                        PRINT_ERRMSG1(errMsg, "%s: PROCESSLIMIT value is too big\n",
                                 optarg);
                         return -1;
                     }
                     break;
                 }
-                PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,438,
-                            "%s: PROCESSLIMIT value should be a positive integer\n"), /* catgets 438 */
+                PRINT_ERRMSG1(errMsg, "%s: PROCESSLIMIT value should be a positive integer\n",
                         optarg);
                 return -1;
 
@@ -3475,8 +3437,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                         && ((req->rLimits[LSF_RLIMIT_SWAP] = atoi(optarg)) > 0)) {
                     break;
                 }
-                PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,439,
-                            "%s: SWAPLIMIT value should be a positive integer\n"), /* catgets 439 */
+                PRINT_ERRMSG1(errMsg, "%s: SWAPLIMIT value should be a positive integer\n",
                         optarg);
                 return -1;
 
@@ -3495,8 +3456,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 if (strncmp (optName, "Zs", 2) == 0) {
 
                     if (req->options2 & SUB2_MODIFY_CMD) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN, 444,
-                                    "%s options are exclusive"), /* catgets  444 */
+                        PRINT_ERRMSG1(errMsg, "%s options are exclusive",
                                 pExclStr);
                         return -1;
                     }
@@ -3507,8 +3467,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                     if (req->options & SUB_MODIFY) {
                         if (strlen(optarg) >= MAXLINELEN) {
-                            PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,409,
-                                        "%s: File name too long"), /* catgets 409 */
+                            PRINT_ERRMSG1(errMsg, "%s: File name too long",
                                     optarg);
                             return -1;
                         }
@@ -3522,15 +3481,13 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                     if ((req->options2 & SUB2_JOB_CMD_SPOOL)
                             || (req->delOptions2 & SUB2_JOB_CMD_SPOOL)) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN, 444,
-                                    "%s options are exclusive"), /* catgets  444 */
+                        PRINT_ERRMSG1(errMsg, "%s options are exclusive",
                                 pExclStr);
                         return -1;
                     }
 
                     if (strlen(optarg) >= MAXLINELEN) {
-                        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,409,
-                                    "%s: File name too long"), /* catgets 409 */
+                        PRINT_ERRMSG1(errMsg, "%s: File name too long",
                                 optarg);
                         return -1;
                     }
@@ -3558,16 +3515,14 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
     if ((req->options & SUB_INTERACTIVE)
             && (req->options & SUB_JOB_NAME)
             && strchr(req->jobName, '[')) {
-        PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,440,
-                    "Interactive job not supported for job arrays")); /* catgets 440 */
+        PRINT_ERRMSG0(errMsg, "Interactive job not supported for job arrays");
         return -1;
     }
 
     if ((req->options2 & SUB2_BSUB_BLOCK)
             && (req->options & SUB_JOB_NAME)
             && strchr(req->jobName, '[')) {
-        PRINT_ERRMSG0(errMsg, _i18n_msg_get(ls_catd,NL_SETN,441,
-                    "Job array doesn't support -K option")); /* catgets 441 */
+        PRINT_ERRMSG0(errMsg, "Job array doesn't support -K option");
         return -1;
     }
     return 0;
@@ -3671,7 +3626,7 @@ parseOptFile_ (char *filename, struct submit *req, char **errMsg)
     pid_t pid;
     uid_t uid;
     int childIoFd[2];
-    LS_WAIT_T status;
+    int status;
 
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -3793,7 +3748,7 @@ void
 subUsage_(int option, char **errMsg)
 {
 #define I18N_ESUB_INFO_USAGE                                            \
-    _i18n_msg_get(ls_catd,NL_SETN,447,"\t\t[-a additional_esub_information]\n")
+    "\t\t[-a additional_esub_information]\n"
 
     if (errMsg == NULL) {
         if (option & SUB_RESTART) {
@@ -3897,7 +3852,7 @@ parseXF(struct submit *req, char *arg, char **errMsg)
                         lsb_sysmsg());
             }
             else
-                sub_perror(_i18n_msg_get(ls_catd,NL_SETN,484, "Unable to allocate memory for -f option"));  /* catgets 484 */
+                sub_perror("Unable to allocate memory for -f option");
             return -1;
         }
         maxNxf = NUMXF;
@@ -3919,8 +3874,7 @@ parseXF(struct submit *req, char *arg, char **errMsg)
         options = XF_OP_EXEC2SUB | XF_OP_SUB2EXEC;
     } else if ((p = strstr(saveArg, ">>"))) {
         strcpy(op, ">>");
-        PRINT_ERRMSG2(errMsg, (_i18n_msg_get(ls_catd,NL_SETN,487,
-                        "Invalid file operation \"%s\" specification in -f \"%s\"")),  /* catgets 487 */
+        PRINT_ERRMSG2(errMsg, ("Invalid file operation \"%s\" specification in -f \"%s\""),
                 op, saveArg);
         return -1;
     } else if ((p = strstr(saveArg, "<"))) {
@@ -3930,8 +3884,7 @@ parseXF(struct submit *req, char *arg, char **errMsg)
         strcpy(op, ">");
         options = XF_OP_SUB2EXEC;
     } else {
-        PRINT_ERRMSG2(errMsg, (_i18n_msg_get(ls_catd,NL_SETN,487,
-                        "Invalid file operation \"%s\" specification in -f \"%s\"")),  /* catgets 487 */
+        PRINT_ERRMSG2(errMsg, ("Invalid file operation \"%s\" specification in -f \"%s\""),
                 op, saveArg);
         return -1;
     }
@@ -3942,16 +3895,14 @@ parseXF(struct submit *req, char *arg, char **errMsg)
     memcpy(rf, p + strlen(op), strlen(saveArg) - strlen(lf) - strlen(op));
 
     if (strstr(lf, ">") || strstr(rf, ">") || strstr(rf, "<")) {
-        PRINT_ERRMSG2(errMsg, (_i18n_msg_get(ls_catd,NL_SETN,487,
-                        "Invalid file operation \"%s\" specification in -f \"%s\"")),  /* catgets 487 */
+        PRINT_ERRMSG2(errMsg, ("Invalid file operation \"%s\" specification in -f \"%s\""),
                 op, saveArg);
         return -1;
     }
 
     if (strlen(lf) != 0) {
         if ((lf[strlen(lf) - 1]) != ' ') {
-            PRINT_ERRMSG2(errMsg, (_i18n_msg_get(ls_catd,NL_SETN,487,
-                            "Invalid file operation \"%s\" specification in -f \"%s\"")),  /* catgets 487 */
+            PRINT_ERRMSG2(errMsg, ("Invalid file operation \"%s\" specification in -f \"%s\""),
                     op, saveArg);
             return -1;
         }
@@ -3959,22 +3910,19 @@ parseXF(struct submit *req, char *arg, char **errMsg)
         trimSpaces(lf);
 
         if (strlen(lf) == 0) {
-            PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,485,
-                        "Invalid local file specification in -f \"%s\""), /* catgets 485 */
+            PRINT_ERRMSG1(errMsg, "Invalid local file specification in -f \"%s\"",
                     saveArg);
             return -1;
         }
     } else {
-        PRINT_ERRMSG1(errMsg, _i18n_msg_get(ls_catd,NL_SETN,485,
-                    "Invalid local file specification in -f \"%s\""), /* catgets 485 */
+        PRINT_ERRMSG1(errMsg, "Invalid local file specification in -f \"%s\"",
                 saveArg);
         return -1;
     }
 
     if (strlen(rf) != 0) {
         if ((rf[0]) != ' ') {
-            PRINT_ERRMSG2(errMsg, (_i18n_msg_get(ls_catd,NL_SETN,487,
-                            "Invalid file operation \"%s\" specification in -f \"%s\"")),  /* catgets 487 */
+            PRINT_ERRMSG2(errMsg, ("Invalid file operation \"%s\" specification in -f \"%s\""),
                     op, saveArg);
             return -1;
         }
@@ -3998,7 +3946,7 @@ parseXF(struct submit *req, char *arg, char **errMsg)
                         lsb_sysmsg());
             }
             else
-                sub_perror((_i18n_msg_get(ls_catd,NL_SETN,484, "Unable to allocate memory for -f option")));
+                sub_perror(("Unable to allocate memory for -f option"));
             xp = tmp;
             return -1;
         }
@@ -4549,56 +4497,56 @@ lsb_catch(const char *exceptionName, int (*exceptionHandler)(void *))
 }
 
 
-#define I18N_MSG(msgid,msg) _i18n_msg_get(ls_catd,NL_SETN,msgid,msg)
+#define msg msg
 
-#define MSG_BAD_ENVAR2s     I18N_MSG(5550,                              \
+#define MSG_BAD_ENVAR2s                                   \
         "%s: Bad parameter variable name(%s) " \
         "read from $LSB_SUB_MODIFY_FILE, the " \
-        "setting will be ignored.")
-/* catgets 5550 */
+        "setting will be ignored."
 
-#define MSG_BAD_INTVAL3s     I18N_MSG(5551,                             \
+
+#define MSG_BAD_INTVAL3s                                  \
         "%s: Bad value(%s) read from "    \
         "$LSB_SUB_MODIFY_FILE for parameter " \
         "%s, the setting will be ignored. " \
         "The value of this parameter can " \
-        "only be SUB_RESET or an integer.")
-/* catgets 5551 */
+        "only be SUB_RESET or an integer."
 
-#define MSG_ALLOC_MEMF_IN_XFs I18N_MSG(5552,                            \
+
+#define MSG_ALLOC_MEMF_IN_XFs                             \
         "%s: Memory allocate failed for " \
-        "file transfer request.")
-/* catgets 5552 */
+        "file transfer request."
 
-#define MSG_BAD_XF_OP2s     I18N_MSG(5553,                              \
+
+#define MSG_BAD_XF_OP2s                                   \
         "%s: unknown file transfer operator" \
         " %s, this transfer request will be" \
-        " ignored.")
-/* catgets 5553 */
+        " ignored."
 
-#define MSG_BAD_BOOLVAL3s    I18N_MSG(5554,                             \
+
+#define MSG_BAD_BOOLVAL3s                                 \
         "%s: Bad value(%s) read from "    \
         "$LSB_SUB_MODIFY_FILE for parameter" \
         " %s, the setting will be ignored. " \
         "The value of this parameter can " \
-        "only be SUB_RESET or 'Y'.")
-/* catgets 5554 */
+        "only be SUB_RESET or 'Y'."
 
-#define MSG_VAL_RESET_INT2s   I18N_MSG(5555,                            \
+
+#define MSG_VAL_RESET_INT2s                               \
         "%s: The value of %s can only be " \
-        "SUB_RESET or an integer.")
-/* catgets 5554 */
+        "SUB_RESET or an integer."
 
-#define MSG_BAD_ENVAL3s     I18N_MSG(5556,                              \
+
+#define MSG_BAD_ENVAL3s                                   \
         "%s: Bad value(%s) read from "     \
         "$LSB_SUB_MODIFY_FILE for parameter" \
-        " %s, the setting will be ignored.")
-/* catgets 5556 */
+        " %s, the setting will be ignored."
 
-#define MSG_WARN_NULLVAL2s  I18N_MSG(5557,                              \
+
+#define MSG_WARN_NULLVAL2s                                \
         "%s: The value of parameter %s is " \
-        "empty, the setting will be ignored.")
-/* catgets 5557 */
+        "empty, the setting will be ignored."
+
 void makeCleanToRunEsub()
 {
     char parmDeltaFile[MAXPATHLEN];

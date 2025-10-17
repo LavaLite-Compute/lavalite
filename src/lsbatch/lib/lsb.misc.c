@@ -40,7 +40,7 @@ addMemb(struct hTab *tabPtr, LS_LONG_INT member)
     int new;
 
     if (tabPtr) {
-        sprintf (memberStr, LS_LONG_FORMAT, member);
+        sprintf (memberStr, "%ld", member);
         ent = h_addEnt_(tabPtr, memberStr, &new);
         if (!new) {
             return NULL;
@@ -58,7 +58,7 @@ remvMemb(struct hTab *tabPtr, LS_LONG_INT member)
     hEnt *ent;
 
     if (tabPtr) {
-        sprintf (memberStr,LS_LONG_FORMAT , member);
+        sprintf (memberStr,"%ld" , member);
         if ((ent = h_getEnt_ (tabPtr, memberStr)) == NULL)
             return false;
         else {
@@ -77,7 +77,7 @@ chekMemb(struct hTab *tabPtr, LS_LONG_INT member)
     hEnt *ent = NULL;
 
     if (tabPtr) {
-        sprintf (memberStr, LS_LONG_FORMAT , member);
+        sprintf (memberStr, "%ld" , member);
         ent = h_getEnt_ (tabPtr, memberStr);
     }
 
@@ -377,7 +377,7 @@ lsb_splitName(char *str, unsigned int *number)
 
 
     if (str == NULL || number == NULL) {
-        ls_syslog(LOG_ERR, I18N(5650,"%s: bad input.\n"), fname); /* catgets 5650 */
+        ls_syslog(LOG_ERR, I18N(5650,"%s: bad input.\n"), fname);
         return NULL;
     }
 
@@ -404,7 +404,7 @@ lsb_splitName(char *str, unsigned int *number)
 
             if (nameNum <= 0) {
                 nameNum = 1;
-                ls_syslog(LOG_ERR, I18N(5651, "%s: bad input format.  Assuming 1 host.\n"), /* catgets 5651 */
+                ls_syslog(LOG_ERR, I18N(5651, "%s: bad input format.  Assuming 1 host.\n"),
                           fname);
             }
         }
@@ -519,7 +519,7 @@ lsb_printNameList(NAMELIST *nameList, int format)
 
 
     if (nameList == NULL) {
-        ls_syslog(LOG_ERR, I18N(5652, "%s: NULL input.\n"), fname); /* catgets 5652 */
+        ls_syslog(LOG_ERR, I18N(5652, "%s: NULL input.\n"), fname);
         return NULL;
     }
 
@@ -595,7 +595,7 @@ lsb_parseLongStr(char *string)
 
 
     if (string == NULL || strlen(string) <= 0) {
-        ls_syslog(LOG_ERR, I18N(5653, "%s: bad input"), fname); /* catgets 5653 */
+        ls_syslog(LOG_ERR, I18N(5653, "%s: bad input"), fname);
         return (NAMELIST *)NULL;
     }
 
@@ -624,7 +624,7 @@ lsb_parseLongStr(char *string)
 
 
     if (strlen(prevStr) <= 0) {
-        ls_syslog(LOG_ERR, I18N(5654, "%s: blank input\n"), /* catgets 5654 */
+        ls_syslog(LOG_ERR, I18N(5654, "%s: blank input\n"),
                   fname);
         FREEUP(prevStr);
         FREEUP(nameList.names);
@@ -638,7 +638,7 @@ lsb_parseLongStr(char *string)
 
 
             if ( nameList.listSize == numStr ) {
-                ls_syslog(LOG_ERR, I18N(5655, "%s: list exceeded allocated memory (shouldn't happen)\n"), /* catgets 5655 */
+                ls_syslog(LOG_ERR, I18N(5655, "%s: list exceeded allocated memory (shouldn't happen)\n"),
                           fname);
                 return (NAMELIST *)NULL;
             }
@@ -721,7 +721,7 @@ lsb_parseShortStr(char *string, int format)
     while (curStr != NULL) {
 
         if (nameList.listSize >= numStr) {
-            ls_syslog(LOG_ERR, I18N(5656, "%s: list exceeded allocated memory (shouldn't happen)\n"), /* catgets 5656 */
+            ls_syslog(LOG_ERR, I18N(5656, "%s: list exceeded allocated memory (shouldn't happen)\n"),
                       fname);
             return (NAMELIST *)NULL;
         }
@@ -730,7 +730,7 @@ lsb_parseShortStr(char *string, int format)
             sprintf(namestr, "%s", curStr);
             name = (char *)namestr;
             if ((curStr = getNextWord_(&string)) == NULL) {
-                ls_syslog(LOG_ERR, I18N(5657, "%s: LSB_MCPU_HOSTS format error\n"), /* catgets 5657 */
+                ls_syslog(LOG_ERR, I18N(5657, "%s: LSB_MCPU_HOSTS format error\n"),
                           fname);
                 FREEUP(nameList.names);
                 FREEUP(nameList.counter);

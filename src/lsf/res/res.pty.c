@@ -18,8 +18,6 @@
 
 
 #include "lsf/res/res.h"
-
-#include "../../lsf/lib/lsi18n.h"
 #define NL_SETN     29
 
 int grantpt(int);
@@ -124,4 +122,3 @@ int check_valid_tty(char *tty_name)
             return 0;
     return 1;
 }
-

@@ -16,7 +16,7 @@
  *
  */
 
-#include "lsf/lib/liblavalite.h"
+#include "lsf/pim/pim.h"
 
 static char buffer[1024];
 
@@ -48,8 +48,6 @@ open_kern(void)
     static char fname[] = "pim/open_kern";
 
     nproc = MAX_NR_OF_PROCESSES;
-
-
 
     bytes = nproc * sizeof(struct lsPidInfo);
     pbase = (struct lsPidInfo *)malloc(bytes);

@@ -17,27 +17,14 @@
  */
 
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <ctype.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-#include "../lib/lib.h"
-#include "../lib/lib.osal.h"
-#include "../../lsbatch/lsbatch.h"
-#include "../intlib/list.h"
-#include "../res/rescom.h"
-#include "nios.h"
-
-#include <memory.h>
-#include <malloc.h>
+#include "lsf.h"
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/res/nios.h"
+#include "lsf/res/res.h"
+#include "lsbatch.h"
 
 #define NL_SETN         29
-
-
 
 typedef struct dead_tid {
     int tid;
@@ -47,7 +34,7 @@ typedef struct dead_tid {
 
 typedef struct dead_rpid {
     int rpid;
-    LS_WAIT_T   status;
+    int   status;
     struct rusage ru;
     struct dead_rpid *next;
 }   Dead_rpid;
@@ -56,13 +43,13 @@ int requeued = 0;
 
 static int do_newconnect(int);
 static int get_connect(int, struct LSFHeader *);
-static int get_status(int, struct LSFHeader *, LS_WAIT_T *);
+static int get_status(int, struct LSFHeader *, int *);
 static void setMask(fd_set *);
-static int bury_task(LS_WAIT_T, struct rusage *, int);
+static int bury_task(int, struct rusage *, int);
 static int do_setstdin(int, int);
 static int flush_buffer(void);
 static int check_timeout_task(void);
-static void add_list(struct nioInfo *, int, int, LS_WAIT_T *);
+static void add_list(struct nioInfo *, int, int, int *);
 static int deliver_signal(int);
 static int flush_sigbuf(void);
 static int flush_databuf(void);
@@ -286,7 +273,7 @@ ls_nioselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
     int     naborted = 0;
     int     i, j, retVal, first;
     int round2Go;
-    LS_WAIT_T   status;
+    int   status;
     struct timeval timeval;
     taskNotice_t *notice, *nextNotice;
     rtaskInfo_t *task;
@@ -490,8 +477,8 @@ ls_nioselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
                     if (readDecodeHdr_(conn[i].sock.fd, (char *) &bufHdr,
                                 NB_SOCK_READ_FIX, &xdrs, &msgHdr) < 0) {
                         if (!conn[i].dead) {
-                            memset((void *)&status, 0, sizeof(LS_WAIT_T));
-                            SETTERMSIG(status, STATUS_IOERR);
+                            memset((void *)&status, 0, sizeof(int));
+                            status = STATUS_IOERR;
                             if (bury_task(status, 0, conn[i].rpid) == -1) {
                                 lserrno = LSE_MALLOC;
                                 xdr_destroy(&xdrs);
@@ -612,8 +599,8 @@ ls_nioselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
                             break;
 
                         default:
-                            memset((void *)&status, 0, sizeof(LS_WAIT_T));
-                            SETTERMSIG(status, STATUS_IOERR);
+                            memset((void *)&status, 0, sizeof(int));
+                            status =  STATUS_IOERR;
                             if (bury_task(status, 0, conn[i].rpid) == -1) {
                                 lserrno = LSE_MALLOC;
                                 return -1;
@@ -668,7 +655,7 @@ ls_nioselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 static int
 check_timeout_task()
 {
-    LS_WAIT_T status;
+    int status;
     int i, timeout_cnt;
     int resTimeout;
     time_t rtime;
@@ -677,10 +664,11 @@ check_timeout_task()
     if (count_unconn <= 0)
         return 0;
 
-    if (genParams_[LSF_RES_TIMEOUT].paramValue)
-        resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
-    else
-        resTimeout = RES_TIMEOUT;
+    // Bug but we remove all this anyway
+    // if (genParams_[LSF_RES_TIMEOUT].paramValue)
+    //resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
+    // else
+    resTimeout = 120;
 
     rtime = time(0);
 
@@ -689,8 +677,8 @@ check_timeout_task()
             continue;
         if (conn[i].sock.fd == -1) {
             if (conn[i].rtime > 0 && (rtime - conn[i].rtime) > resTimeout) {
-                memset((void *)&status, 0, sizeof(LS_WAIT_T));
-                SETTERMSIG(status, STATUS_TIMEOUT);
+                memset((void *)&status, 0, sizeof(int));
+                status =  STATUS_TIMEOUT;
                 if (bury_task(status, 0, conn[i].rpid) == -1) {
                     return LSE_MALLOC;
                 }
@@ -711,8 +699,8 @@ check_timeout_task()
             nextTask = task->forw;
             if (task->rtime > 0 && (rtime - task->rtime) > resTimeout) {
                 addNotifyList(notifyList, task->tid, STATUS_TIMEOUT);
-                memset((void *)&status, 0, sizeof(LS_WAIT_T));
-                SETTERMSIG(status, STATUS_TIMEOUT);
+                memset((void *)&status, 0, sizeof(int));
+                status = STATUS_TIMEOUT;
                 if (bury_task(status, 0, task->tid) == -1) {
                     return LSE_MALLOC;
                 }
@@ -775,7 +763,7 @@ ls_nioremovetask(int tid)
 }
 
 static void
-add_list(struct nioInfo *list, int tid, int ioType, LS_WAIT_T *status)
+add_list(struct nioInfo *list, int tid, int ioType, int *status)
 {
     list->ioTask[list->num].tid = tid;
     list->ioTask[list->num].type = ioType;
@@ -840,7 +828,7 @@ ls_niowrite(char *buf, int len)
         memcpy(writeBuf.buf + LSF_HEADER_LEN, buf, cc);
         bp = writeBuf.buf;
         reqHdr.opCode = NIOS2RES_STDIN;
-        reqHdr.version = LSF_VERSION;
+        reqHdr.version = LAVALITE_VERSION;
         reqHdr.length = cc;
 
 
@@ -893,7 +881,7 @@ static int
 flush_databuf()
 {
     int i, cc, empty;
-    LS_WAIT_T status;
+    int status;
 
     if (!writeBuf.empty) {
         empty = true;
@@ -913,8 +901,8 @@ flush_databuf()
 
                 if ((cc < 0) && (errno != EPIPE) &&
                         BAD_IO_ERR(errno)) {
-                    memset((void *)&status, 0, sizeof(LS_WAIT_T));
-                    SETTERMSIG(status, STATUS_IOERR);
+                    memset((void *)&status, 0, sizeof(int));
+                    status = STATUS_IOERR;
                     if (bury_task(status, 0, conn[i].rpid) == -1) {
                         return LSE_MALLOC;
                     }
@@ -977,7 +965,7 @@ deliver_eof()
     static char fname[] = "deliver_eof()";
     struct LSFHeader reqHdr, buf;
     XDR xdrs;
-    LS_WAIT_T status;
+    int status;
     sigset_t newMask, oldMask;
     int i, numTimeout, len;
 
@@ -987,7 +975,7 @@ deliver_eof()
     sigprocmask(SIG_BLOCK, &newMask, &oldMask);
 
     reqHdr.opCode = NIOS2RES_EOF;
-    reqHdr.version = LSF_VERSION;
+    reqHdr.version = LAVALITE_VERSION;
     reqHdr.length = 0;
     reqHdr.reserved0.High = 0;
     reqHdr.reserved0.Low = 0;
@@ -1018,8 +1006,8 @@ RETRY:
                     goto RETRY;
                 }
 
-                memset((void *)&status, 0, sizeof(LS_WAIT_T));
-                SETTERMSIG(status, STATUS_IOERR);
+                memset((void *)&status, 0, sizeof(int));
+                status = STATUS_IOERR;
                 if (bury_task(status, 0, conn[i].rpid) == -1) {
                     lserrno = LSE_MALLOC;
                     sigprocmask(SIG_SETMASK, &oldMask, NULL);
@@ -1043,7 +1031,7 @@ ls_nioread(int tid, char *buf, int len)
 {
     static char fname[] = "ls_nioread()";
     int index, cc;
-    LS_WAIT_T status;
+    int status;
 
     if (conn == NULL) {
         lserrno = LSE_NIO_INIT;
@@ -1077,8 +1065,8 @@ ls_nioread(int tid, char *buf, int len)
     if ((cc = read(conn[index].sock.fd, buf, cc)) <= 0) {
         int sverrno = errno;
         if (cc == 0 || BAD_IO_ERR(errno)) {
-            memset((void *)&status, 0, sizeof(LS_WAIT_T));
-            SETTERMSIG(status, STATUS_IOERR);
+            memset((void *)&status, 0, sizeof(int));
+            status = STATUS_IOERR;
             if (bury_task(status, 0, conn[index].rpid) == -1) {
                 lserrno = LSE_MALLOC;
                 return -1;
@@ -1102,7 +1090,7 @@ ls_nionewtask(int tid, int sock)
 {
     static char fname[] = "ls_nionewtask()";
     int i;
-    LS_WAIT_T status;
+    int status;
     rtaskInfo_t *task;
 
     if (conn == NULL) {
@@ -1204,8 +1192,8 @@ ls_nionewtask(int tid, int sock)
         return 0;
     }
 
-    memset((void *)&status, 0, sizeof(LS_WAIT_T));
-    SETTERMSIG(status, STATUS_EXCESS);
+    memset((void *)&status, 0, sizeof(int));
+    status = STATUS_EXCESS;
     if (bury_task(status, 0, tid) < 0)
         lserrno = LSE_MALLOC;
     else
@@ -1480,7 +1468,7 @@ do_newconnect(int s)
 {
     static char fname[] = "do_newconnect()";
     int newsock;
-    int i, len;
+    int i;
     struct niosConnect connReq;
     rtaskInfo_t *task;
     time_t rtime;
@@ -1493,7 +1481,7 @@ do_newconnect(int s)
     if ((newsock = doAcceptResCallback_(s, &connReq)) == -1)
         return -1;
 
-    len = sizeof(sin);
+    socklen_t len = sizeof(sin);
     if (getpeername(newsock, (struct sockaddr *) &sin, &len) <0) {
         close(newsock);
         lserrno = LSE_SOCK_SYS;
@@ -1675,10 +1663,10 @@ get_connect(int indx, struct LSFHeader *msgHdr)
 
 
 static int
-get_status(int indx, struct LSFHeader *msgHdr, LS_WAIT_T *statusp)
+get_status(int indx, struct LSFHeader *msgHdr, int *statusp)
 {
     static char fname[] = "get_status()";
-    LS_WAIT_T status;
+    int status;
     struct niosStatus st;
     char buf[MSGSIZE];
     XDR xdrs;
@@ -1691,8 +1679,8 @@ get_status(int indx, struct LSFHeader *msgHdr, LS_WAIT_T *statusp)
 
         xdr_destroy(&xdrs);
 
-        memset((void *)&status, 0, sizeof(LS_WAIT_T));
-        SETTERMSIG(status, STATUS_IOERR);
+        memset((void *)&status, 0, sizeof(int));
+        status = STATUS_IOERR;
         if (bury_task(status, 0, conn[indx].rpid) == -1)
             return LSE_MALLOC;
         return LSE_BAD_XDR;
@@ -1706,57 +1694,56 @@ get_status(int indx, struct LSFHeader *msgHdr, LS_WAIT_T *statusp)
 
     if (st.ack != RESE_SIGCHLD) {
 
-        memset((void *)&status, 0, sizeof(LS_WAIT_T));
+        memset((void *)&status, 0, sizeof(int));
         switch (st.ack) {
             case RESE_NOMEM:
-                SETTERMSIG(status, STATUS_REX_NOMEM);
+                status =  STATUS_REX_NOMEM;
                 break;
             case RESE_FATAL:
-                SETTERMSIG(status, STATUS_REX_FATAL);
+                status =  STATUS_REX_FATAL;
                 break;
             case RESE_CWD:
-                SETTERMSIG(status, STATUS_REX_CWD);
+                status =  STATUS_REX_CWD;
                 break;
             case RESE_PTYMASTER:
             case RESE_PTYSLAVE:
-                SETTERMSIG(status, STATUS_REX_PTY);
+                status =  STATUS_REX_PTY;
                 break;
             case RESE_SOCKETPAIR:
-                SETTERMSIG(status, STATUS_REX_SP);
+                status =  STATUS_REX_SP;
                 break;
             case RESE_FORK:
-                SETTERMSIG(status, STATUS_REX_FORK);
+                status =  STATUS_REX_FORK;
                 break;
             case RESE_NOVCL:
-                SETTERMSIG(status, STATUS_REX_NOVCL);
+                status =  STATUS_REX_NOVCL;
                 break;
             case RESE_NOSYM:
-                SETTERMSIG(status, STATUS_REX_NOSYM);
+                status =  STATUS_REX_NOSYM;
                 break;
             case RESE_VCL_INIT:
-                SETTERMSIG(status, STATUS_REX_VCL_INIT);
+                status =  STATUS_REX_VCL_INIT;
                 break;
             case RESE_VCL_SPAWN:
-                SETTERMSIG(status, STATUS_REX_VCL_SPAWN);
+                status =  STATUS_REX_VCL_SPAWN;
                 break;
             case RESE_EXEC:
-                SETTERMSIG(status, STATUS_REX_EXEC);
+                status =  STATUS_REX_EXEC;
                 break;
             case RESE_MLS_INVALID:
-                SETTERMSIG(status, STATUS_REX_MLS_INVAL);
+                status =  STATUS_REX_MLS_INVAL;
                 break;
             case RESE_MLS_CLEARANCE:
-                SETTERMSIG(status, STATUS_REX_MLS_CLEAR);
+                status =  STATUS_REX_MLS_CLEAR;
                 break;
             case RESE_MLS_RHOST:
-                SETTERMSIG(status, STATUS_REX_MLS_RHOST);
+                status =  STATUS_REX_MLS_RHOST;
                 break;
             case RESE_MLS_DOMINATE:
-                SETTERMSIG(status, STATUS_REX_MLS_DOMIN);
+                status =  STATUS_REX_MLS_DOMIN;
                 break;
             default:
-
-                SETTERMSIG(status, STATUS_REX_UNKNOWN);
+                status =  STATUS_REX_UNKNOWN;
                 break;
         }
 
@@ -1769,14 +1756,12 @@ get_status(int indx, struct LSFHeader *msgHdr, LS_WAIT_T *statusp)
     }
 
 
-    memcpy((char *)&status, (char *)&st.s.ss, sizeof(LS_WAIT_T));
-    if (LS_WIFSIGNALED(status))
-        SETTERMSIG(status, sig_decode(LS_WTERMSIG(status)));
-    else if (LS_WIFSTOPPED(status))
-        SETSTOPSIG(status, sig_decode(LS_WSTOPSIG(status)));
-    if (!LS_WIFSTOPPED(status)) {
-
-
+    memcpy((char *)&status, (char *)&st.s.ss, sizeof(int));
+    if (WIFSIGNALED(status))
+        status =  sig_decode(WTERMSIG(status));
+    else if (WIFSTOPPED(status))
+        status = sig_decode(WSTOPSIG(status));
+    if (!WIFSTOPPED(status)) {
         if (bury_task(status, &(st.s.ru), conn[indx].rtag) == -1)
             return LSE_MALLOC;
         if ((task = getTask(conn[indx].taskList, conn[indx].rtag)) != NULL)
@@ -1787,7 +1772,7 @@ get_status(int indx, struct LSFHeader *msgHdr, LS_WAIT_T *statusp)
 }
 
 static int
-bury_task(LS_WAIT_T status, struct rusage *ru, int rpid)
+bury_task(int status, struct rusage *ru, int rpid)
 {
     Dead_rpid *prpid, *p1, *p2;
     sigset_t newMask, oldMask;
@@ -1958,7 +1943,7 @@ deliver_signal(int sigval)
     struct LSFHeader reqHdr;
     XDR xdrs;
     int i;
-    LS_WAIT_T status;
+    int status;
     sigset_t newMask, oldMask;
 
 
@@ -1987,8 +1972,8 @@ deliver_signal(int sigval)
         if (C_CONNECTED(conn[i])) {
             if (NB_SOCK_WRITE_FIX(conn[i].sock.fd, (char *) &reqBuf,
                         XDR_GETPOS(&xdrs)) < 0 && errno != EPIPE) {
-                memset((void *)&status, 0, sizeof(LS_WAIT_T));
-                SETTERMSIG(status, STATUS_IOERR);
+                memset((void *)&status, 0, sizeof(int));
+                status =  STATUS_IOERR;
                 if (bury_task(status, 0, conn[i].rpid) == -1) {
                     sigprocmask(SIG_SETMASK, &oldMask, NULL);
                     return LSE_MALLOC;
@@ -2021,7 +2006,7 @@ readResMsg(int connIndex)
 {
     static char fname[] = "readResMsg()";
     int cc;
-    LS_WAIT_T status;
+    int status;
     int retry_count;
 
     if (!conn[connIndex].sock.rcount) {
@@ -2036,8 +2021,8 @@ READ_RETRY:
         int sverrno = errno;
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "read");
         if (cc == 0 || BAD_IO_ERR(errno)) {
-            memset((void *)&status, 0, sizeof(LS_WAIT_T));
-            SETTERMSIG(status, STATUS_IOERR);
+            memset((void *)&status, 0, sizeof(int));
+            status =  STATUS_IOERR);
             if (bury_task(status, 0, conn[connIndex].rpid) == -1) {
                 lserrno = LSE_MALLOC;
                 return -1;
@@ -2064,7 +2049,7 @@ READ_RETRY:
 }
 
 int
-ls_niodump(LS_HANDLE_T outputFile, int tid, int options,
+ls_niodump(int outputFile, int tid, int options,
         char *taggingFormat)
 {
     static char fname[] = "ls_niodump()";
@@ -2390,7 +2375,7 @@ notify_task(int tid, int opCode)
     static char fname[] = "notify_task()";
     struct LSFHeader reqHdr, buf;
     XDR xdrs;
-    LS_WAIT_T status;
+    int status;
     sigset_t newMask, oldMask;
     int len, connIndex;
 
@@ -2418,7 +2403,7 @@ notify_task(int tid, int opCode)
     sigprocmask(SIG_BLOCK, &newMask, &oldMask);
 
     reqHdr.opCode = opCode;
-    reqHdr.version = LSF_VERSION;
+    reqHdr.version = LAVALITE_VERSION;
     reqHdr.length = 0;
     reqHdr.reserved0.High = (tid >> 16) & 0xFF;
     reqHdr.reserved0.Low = tid & 0xFFFF;
@@ -2437,8 +2422,8 @@ notify_task(int tid, int opCode)
 
         if (NB_SOCK_WRITE_FIX(conn[connIndex].sock.fd, (char *)&buf, len) < 0
                 && errno != EPIPE) {
-            memset((void *)&status, 0, sizeof(LS_WAIT_T));
-            SETTERMSIG(status, STATUS_IOERR);
+            memset((void *)&status, 0, sizeof(int));
+            status =  STATUS_IOERR);
             if (bury_task(status, 0, conn[connIndex].rpid) == -1) {
                 lserrno = LSE_MALLOC;
                 sigprocmask(SIG_SETMASK, &oldMask, NULL);
@@ -2513,7 +2498,7 @@ sendUpdatetty() {
 
     tcgetattr(iofd, &tty.termattr);
 
-    if (getpgrp(0) != tcgetpgrp(iofd)) {
+    if (getpgrp() != tcgetpgrp(iofd)) {
         tty.termattr.c_cc[VEOF] = 04;
         tty.termattr.c_lflag |= ICANON;
         tty.termattr.c_lflag |= ECHO;
@@ -2610,7 +2595,7 @@ sendHeartbeat(void)
 
 
     reqHdr.opCode = NIOS2RES_HEARTBEAT;
-    reqHdr.version = LSF_VERSION;
+    reqHdr.version = LAVALITE_VERSION;
     reqHdr.length = 0;
     reqHdr.reserved0.High = 0;
     reqHdr.reserved0.Low = 0;
@@ -2673,7 +2658,7 @@ checkJobStatus(int numTries)
 
             if (job != NULL) {
 
-                LS_WAIT_T wStatus;
+                int wStatus;
                 LS_STATUS(wStatus) = job->exitStatus;
 
 
@@ -2849,4 +2834,3 @@ getJobStatus(LS_LONG_INT jid, struct jobInfoEnt **job, struct jobInfoHead **jobH
 
     return retval;
 }
-

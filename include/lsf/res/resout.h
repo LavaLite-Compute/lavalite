@@ -19,17 +19,12 @@
 #ifndef _RESOUT_H_
 #define _RESOUT_H_
 
-#include <termios.h>
-#include "../lib/lib.hdr.h"
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
 
-#if !defined(TIOCGWINSZ)
-struct winsize {
-    unsigned short  ws_row;
-    unsigned short  ws_col;
-    unsigned short  ws_xpixel;
-    unsigned short  ws_ypixel;
-};
-#endif
+/* BUG: legacy daemon path logic removed — stubbed for now */
+#define getDaemonPath_(name, dir) ((char *)NULL)
+#define saveDaemonDir_(dir)       ((void)0)
 
 typedef enum {
     RESE_OK,
@@ -205,27 +200,5 @@ struct resSignal {
     int pid;
     int sigval;
 };
-
-#ifdef LS_WAIT_INT
-#define SETTERMSIG(x,y) ((x) = ((x) & 0xFFFFFF80) | ( (y) & 0x7F))
-#define SETSTOPSIG(x,y) ((x) = ((x) & 0xFFFF00FF) | (((y) & 0xFF)<<8))
-#define LS_WTERMSIG(x)     ((*(int *)&x)&0x7F)
-#define LS_WIFEXITED(x)    (((*(int *)&x)&0xFF)==0)
-#define LS_WEXITSTATUS(x)  (((*(int *)&x)>>8)&0xFF)
-#define LS_WSTOPSIG(x)     (((*(int *)&x)>>8)&0xFF)
-#define LS_WIFSTOPPED(x)   ((int)((*(int *)&x)&0xFF) == 0177 && \
-				(int)((*(int *)&x)&0xFF00) != 0)
-#define LS_WIFSIGNALED(x)       ((int)((*(int *)&x)&0xFF) > 0 && \
-                                    (int)((*(int *)&x)&0xFF00) == 0)
-#else
-#define SETTERMSIG(x,y) (x).w_termsig = (y)
-#define SETSTOPSIG(x,y) (x).w_stopsig = (y)
-#define LS_WTERMSIG WTERMSIG
-#define LS_WIFEXITED WIFEXITED
-#define LS_WEXITSTATUS WEXITSTATUS
-#define LS_WSTOPSIG WSTOPSIG
-#define LS_WIFSTOPPED WIFSTOPPED
-#define LS_WIFSIGNALED WIFSIGNALED
-#endif
 
 #endif

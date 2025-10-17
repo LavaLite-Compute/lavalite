@@ -56,7 +56,7 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
     char *reply_buf, *clusterName = NULL;
     int cc, aa;
     struct LSFHeader hdr;
-    char lsfUserName[MAXLINELEN];
+
     if (first) {
         if (   !(jobInfoReq.jobName  = (char *) malloc(MAX_CMD_DESC_LEN))
                 || !(jobInfoReq.queue    = (char *) malloc(MAX_LSB_NAME_LEN))
@@ -516,7 +516,7 @@ lsb_jobidinstr(LS_LONG_INT jobId)
 {
     static  char string[SSBUF_SIZ/2];
 
-    sprintf(string, LS_LONG_FORMAT, jobId);
+    sprintf(string, "%ld", jobId);
     return string;
 
 }

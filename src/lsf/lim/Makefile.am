@@ -6,7 +6,7 @@
 include $(top_srcdir)/Make.common
 AM_CPPFLAGS += $(NO_SIGALARM)
 
-COMMON_LIBS = ../lib/liblavalite.la ../intlib/libllcore.la $(TIRPC_LIB)
+COMMON_LIBS = ../lib/libll.la ../intlib/libllcore.la $(TIRPC_LIB)
 
 sbin_PROGRAMS = lim
 

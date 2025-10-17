@@ -1055,7 +1055,7 @@ child_handler (int sig)
 {
     static char fname[] = "child_handler";
     int pid;
-    LS_WAIT_T status;
+    int status;
 
     if (logclass & (LC_TRACE | LC_HANG))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);

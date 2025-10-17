@@ -18,11 +18,7 @@
  */
 #include "lsbatch/lib/lsb.h"
 
-#define   NL_SETN     13
-
 extern struct hostent *my_gethostbyname(char *name);
-
-
 
 extern int _lsb_conntimeout;
 extern int _lsb_recvtimeout;
@@ -34,7 +30,7 @@ static int mbdTries(void);
 int lsb_mbd_version = -1;
 extern int getHdrReserved(struct LSFHeader *);
 
-#define MAXMSGLEN BUFSIZ;
+#define MAXMSGLEN BUFSIZ
 
 int
 serv_connect (char *serv_host, ushort serv_port, int timeout)
@@ -164,8 +160,7 @@ call_server (
             return -2;
     } else {
         if (connectedSock == NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5000,
-                        "%s: CALL_SERVER_USE_SOCKET defined, but %s is NULL"),  /* catgets 5000 */
+            ls_syslog(LOG_ERR, "%s: CALL_SERVER_USE_SOCKET defined, but %s is NULL",
                     fname, "connectedSock");
             lsberrno = LSBE_BAD_ARG;
             return -2;
@@ -497,8 +492,7 @@ Retry:
                       lserrno == LSE_MASTR_UNKNW ||
                       lserrno == LSE_MSG_SYS)))
                 && try < mbdTries()) {
-            fprintf (stderr, _i18n_msg_get(ls_catd , NL_SETN, 1,
-                        "batch system daemon not responding ... still trying\n"));   /* catgets 1 */
+            fprintf (stderr, "batch system daemon not responding ... still trying\n");
             if (logclass & LC_TRACE)
                 ls_syslog (LOG_DEBUG1, "%s: callmbd() failed: %M", fname);
 
@@ -580,7 +574,7 @@ Retry:
         if (try < mbdTries() &&
                 (lserrno == LSE_TIME_OUT || lserrno == LSE_LIM_DOWN ||
                  lserrno == LSE_MASTR_UNKNW)) {
-            fprintf (stderr, _i18n_msg_get(ls_catd , NL_SETN, 2, "LSF daemon (LIM) not responding ... still trying\n"));  /* catgets 2 */
+            fprintf (stderr, "LSF daemon (LIM) not responding ... still trying\n");
             millisleep_(_lsb_conntimeout * 1000);
             goto Retry;
         }
@@ -720,7 +714,7 @@ Retry:
     if (tempPtr == NULL) {
         if (lserrno == LSE_TIME_OUT || lserrno == LSE_LIM_DOWN ||
                 lserrno == LSE_MASTR_UNKNW) {
-            fprintf (stderr, _i18n_msg_get(ls_catd , NL_SETN, 2, "LSF daemon (LIM) not responding ... still trying\n"));
+            fprintf (stderr, "LSF daemon (LIM) not responding ... still trying\n");
             millisleep_(_lsb_conntimeout * 1000);
             goto Retry;
         }

@@ -53,10 +53,6 @@ struct listEntry {
     int                  entryData;
 };
 
-
-extern void           daemonize_(void);
-extern void           saveDaemonDir_(char *);
-extern char *         getDaemonPath_(char *, char *);
 extern int            mychdir_ (char *, struct hostent *);
 extern int            myopen_(char *, int, int, struct hostent *);
 extern FILE *         myfopen_(char *, char *, struct hostent *);

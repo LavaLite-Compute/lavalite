@@ -19,10 +19,11 @@
 #ifndef _LSB_LIB_
 #define _LSB_LIB_
 
-#include "lsf/lib/liblavalite.h"
-#include "lsbatch/lib/lsb.common.h"
-#include "lsf/lib/lib.hdr.h"
+#include "lsf/lib/lib.common.h"
+#include "lsf/intlib/intlibout.h"
 #include "lsf/lib/lproto.h"
+#include "lsf/lib/lib.channel.h"
+#include "lsf/lib/lib.table.h"
 #include "lsbatch/daemons/daemonout.h"
 #include "lsbatch/lib/lsb.xdr.h"
 

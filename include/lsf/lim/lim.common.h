@@ -31,5 +31,5 @@ float cpu_usage = 0.0;
 #ifdef MEAS
 float realcla = 0.0;
 int sd_cnt = 0;
-int rcv_cnt = 0;
+int rcv_cnt = -1;
 #endif

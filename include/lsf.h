@@ -25,6 +25,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <float.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <sys/param.h>
 #include <sys/time.h>
@@ -34,7 +35,6 @@
 
 typedef int64_t LS_LONG_INT;
 typedef uint64_t LS_UNS_LONG_INT;
-#define LS_LONG_FORMAT ("%lld")
 
 /* There is LAVALITE_VERSION defined in config.h
  */

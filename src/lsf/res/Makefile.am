@@ -6,7 +6,7 @@
 include $(top_srcdir)/Make.common
 AM_CPPFLAGS += $(NO_SIGALARM)
 
-COMMON_LIBS = ../lib/liblavalite.la ../intlib/libllcore.la $(TIRPC_LIB)
+COMMON_LIBS = ../lib/libll.la ../intlib/libllcore.la $(TIRPC_LIB)
 
 sbin_PROGRAMS = res
 
@@ -15,11 +15,6 @@ res_SOURCES = res.c \
 	res.handler.c \
 	res.init.c \
 	res.misc.c \
-	res.pty.c \
-	res.rf.c \
-	res.tasklog.c \
-	resvcl.c \
-	nios.c \
-	nios.handler.c
+	res.pty.c
 
 res_LDADD = $(COMMON_LIBS)

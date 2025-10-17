@@ -1,0 +1,62 @@
+.TH LAVALITE 7 "October 2025" "Lavalite 0.1.0" "Lavalite Manual"
+.SH NAME
+lavalite \- Overview and philosophy of the Lavalite scheduler
+.SH DESCRIPTION
+Lavalite is a clean, high-throughput job scheduler designed for clusters that prioritize volume over parallelism. It excels at managing thousands of short, independent jobs with minimal overhead.
+
+Unlike Slurm, which focuses on tightly coupled MPI workloads, Lavalite is optimized for high-throughput computing (HTC), including job arrays, embarrassingly parallel tasks, and data-intensive pipelines. It is also well-suited for AI workflows such as distributed training, hyperparameter sweeps, and inference orchestration.
+
+.SH ORIGINS
+Lavalite is inspired by OpenLava 2.2 and the legacy of Platform LSF, but rebuilt from a clean GPLv2 foundation. It avoids legacy entanglements and silent behavior, focusing instead on clarity, reproducibility, and maintainability.
+
+.SH INSTALLATION
+Lavalite uses an explicit install flow:
+
+.IP
+make install
+
+This installs Lavalite under \fB/opt/lavalite-<version>\fR in a self-contained directory. Configuration files follow LSF-style naming conventions (e.g., \fBlsf.conf\fR, \fBlsb.modules\fR) for compatibility, but behavior is documented and deterministic.
+
+.SH DOCUMENTATION
+Man pages are the primary source of documentation:
+
+.IP
+man bsub
+.br
+man lsf.conf
+.br
+man lsb.modules
+
+.SH COMPATIBILITY
+Lavalite preserves compatibility with LSF-style configuration and commands, including \fBbsub\fR and \fBlsf.conf\fR. Unsupported or deprecated keys are ignored with warnings. Behavioral differences are documented in the relevant man pages.
+
+.SH PHILOSOPHY
+Lavalite is built for sysadmins and contributors who value:
+
+.IP
+
+\[bu] 2
+Explicit install flows
+.IP
+
+\[bu]
+Deterministic job behavior
+.IP
+
+\[bu]
+Audit-friendly batch library
+.IP
+
+\[bu]
+Clean daemon architecture
+.IP
+
+\[bu]
+Git hygiene and CI sanity
+
+.SH CONTACT
+Project email: \fBlavalite@lavalite-compute.io\fR
+
+.SH VERSION
+Lavalite 0.1.0 (pre-release)
+

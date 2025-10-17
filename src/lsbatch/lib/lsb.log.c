@@ -176,8 +176,7 @@ lsb_openelog (struct eventLogFile *ePtr, int *lineNum)
 
     if (ePtr->eventDir == NULL) {
 
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5500,
-		 "%s: event directory is NULL"), fname); /* catgets 5500 */
+        ls_syslog(LOG_ERR, "%s: event directory is NULL", fname);
         return NULL;
     }
 
@@ -197,8 +196,7 @@ lsb_openelog (struct eventLogFile *ePtr, int *lineNum)
             } else {
                 if (fscanf(elog_fp, "%c%ld", &ch, &eventTime) != 2
                     || ch != '#') {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5501,
-                        "%s: fscanf(%s) failed: old event file format"),  /* catgets 5501 */
+                    ls_syslog(LOG_ERR, "%s: fscanf(%s) failed: old event file format",
                         fname, eventFile);
                     fclose(elog_fp);
                     oldFormat = true;
@@ -270,8 +268,7 @@ lsb_openelog (struct eventLogFile *ePtr, int *lineNum)
                 ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "fseek", pos);
         }
     } else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5505,
-	    "%s: current open event file number < 0"), fname); /* catgets 5505 */
+        ls_syslog(LOG_ERR, "%s: current open event file number < 0", fname);
         return  NULL;
     }
 
@@ -960,8 +957,7 @@ readJobStart(char *line, struct jobStartLog *jobStartLog)
     line += ccount + 1;
 
     if (jobStartLog->numExHosts == 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5502,
-             "%s: The number of execution hosts is zero for job <%d>"), /* catgets 5502 */
+        ls_syslog(LOG_ERR, "%s: The number of execution hosts is zero for job <%d>",
              fname,
              jobStartLog->jobId);
         return LSBE_EVENT_FORMAT;
@@ -2941,7 +2937,7 @@ lsbGetNextJobEvent (struct eventLogHandle *ePtr, int *lineNum,
                 if (fscanf(newfp, "%c%d ", &ch, &pos) != 2
                     || ch != '#') {
                     ls_syslog(LOG_INFO, I18N(5501,
-                        "%s: fscanf(%s) warning: old event file format"), /* catgets 5501 */
+                        "%s: fscanf(%s) warning: old event file format"),
 			fname, eventFile);
                     pos = 0;
                 } else {
@@ -3421,7 +3417,7 @@ getJobIdIndexFromEventFile (char *eventFile, struct sortIntList *header,
     cc = fscanf(eventFp, "%c%d", &ch, &tempTimeStamp);
     if (cc != 2 || ch != '#') {
         ls_syslog(LOG_INFO, I18N(5501,
-            "%s: fscanf(%s) failed: old event file format"), /* catgets 5501 */
+            "%s: fscanf(%s) failed: old event file format"),
             fname, eventFile);
         if (fseek (eventFp, 0, SEEK_SET) != 0)
             ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,  fname, "fseek", 0);
@@ -3640,7 +3636,7 @@ updateJobIdIndexFile (char *indexFile, char *eventFile, int totalEventFile)
 	        nameBuf, indexVersion, &rows, &lastUpdate) != 4 ||
 		strcmp(nameBuf, LSF_JOBIDINDEX_FILETAG)) {
             ls_syslog(LOG_ERR, I18N(5506,
-                "%s: %s is not an jobid index file"), /* catgets 5506 */
+                "%s: %s is not an jobid index file"),
                 fname, indexFile);
             lsberrno = LSBE_INDEX_FORMAT;
 	    fclose(indexFp);
@@ -3854,7 +3850,7 @@ lsb_getAcctFileTime(char * fileName)
 		if (lsberrno != LSBE_EOF){
 
 		    if (logclass & LC_EXEC){
-			ls_syslog(LOG_DEBUG, I18N(5507, "%s: Error in reading event file <%s> at line <%d>\n"), /* catgets 5507 */
+			ls_syslog(LOG_DEBUG, I18N(5507, "%s: Error in reading event file <%s> at line <%d>\n"),
 			    fname,
 			    fileName,
 			    lineNum);

@@ -62,6 +62,26 @@ if test "x$ac_compiler_gnu" = xyes; then
   CFLAGS="$CFLAGS -Wall -fPIC"
 fi
 
+dnl -------- CLI tests tooling --------
+
+AC_PATH_PROG([PYTEST], [pytest])
+if test -z "$PYTEST"; then
+  AC_MSG_WARN([pytest not found; CLI tests will be skipped. Install pytest to enable.])
+fi
+
+AC_ARG_ENABLE([cli-tests],
+  AS_HELP_STRING([--enable-cli-tests], [Enable Python CLI tests (default: yes if pytest found)]),
+  [enable_cli_tests=$enableval],
+  [enable_cli_tests=yes])
+
+AM_CONDITIONAL([HAVE_PYTEST], [test "x$PYTEST" != "x" -a "x$enable_cli_tests" = "xyes"])
+
+dnl Generate Makefile for tests
+AC_CONFIG_FILES([
+	src/tests/Makefile
+	src/tests/cli/Makefile
+])
+
 dnl ---- Dependencies ----
 
 dnl Check for ncurses library
@@ -112,6 +132,5 @@ AC_CONFIG_FILES([
   src/lsbatch/Makefile
   src/lsbatch/lib/Makefile
   src/lsbatch/man/Makefile
-  tests/Makefile
 ])
 AC_OUTPUT

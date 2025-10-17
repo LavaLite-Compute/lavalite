@@ -3,11 +3,17 @@
 #
 include $(top_srcdir)/Make.common
 
-lib_LTLIBRARIES = libbat.la
-libbat_la_LDFLAGS = -version-info 0:0:0 -no-undefined
-libbat_la_LIBADD  = $(TIRPC_LIB)
+lib_LTLIBRARIES = libllbat.la
+libllbat_la_LDFLAGS = -version-info 0:0:0 -no-undefined
+libllbat_la_LIBADD  = $(TIRPC_LIB)
 
-libbat_la_SOURCES = lsb.comm.c \
+# Create a symlink for legacy compatibility
+install-exec-hook:
+	@echo "Creating compatibility symlink liblsbatch.la -> libllbat.so"
+	cd $(DESTDIR)$(libdir) && ln -sf libllbat.so liblsbatch.la
+
+
+libllbat_la_SOURCES = lsb.comm.c \
 	lsb.conf.c \
 	lsb.debug.c \
 	lsb.err.c \
@@ -29,7 +35,6 @@ libbat_la_SOURCES = lsb.comm.c \
 	lsb.reason.c \
 	lsb.reconfig.c \
 	lsb.resource.c \
-	lsb.rexecv.c \
 	lsb.sig.c \
 	lsb.signals.c \
 	lsb.spool.c \

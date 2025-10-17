@@ -52,8 +52,11 @@
 
 #include "lsf.h"
 #include "lsf/intlib/libllcore.h"
-#include "lsf/lib/liblavalite.h"
-#include "limout.h"
+#include "lsf/intlib/intlibout.h"
+#include "lsf/intlib/tcl_stub.h"
+#include "lsf/lib/lib.channel.h"
+#include "lsf/lib/lib.conf.h"
+#include "lsf/lim/limout.h"
 
 #define EXCHINTVL 	    15
 #define SAMPLINTVL           5
@@ -72,6 +75,10 @@
 #define MAXCLIENTS   32
 
 #define WARNING_ERR   EXIT_WARNING_ERROR
+
+/* BUG: legacy daemon path logic removed — stubbed for now */
+#define getDaemonPath_(name, dir) ((char *)NULL)
+#define saveDaemonDir_(dir)       ((void)0)
 
 /* Evaluate MAX or MIN ifdef it as they might be defined
  * in sys/params.h

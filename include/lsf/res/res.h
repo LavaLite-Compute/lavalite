@@ -20,37 +20,18 @@
 #ifndef _RES_H_
 #define _RES_H_
 
-#include "config.h"
 #include "lsf.h"
+#include "lsbatch.h"
 
-#include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <time.h>
-#include <math.h>
-#include <stdbool.h>
-#include <signal.h>
-#include <pwd.h>
-#include <utmp.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/signal.h>
-#include <sys/file.h>
-#include <sys/utsname.h>
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-#include <sys/sysmacros.h>
-#include <sys/vfs.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
-#include <dirent.h>
+#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/list.h"
+#include "lsf/intlib/listset.h"
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lib/lib.xdrres.h"
+#include "lsf/lib/lsi18n.h"
+#include "lsf/res/rescom.h"
+#include "lsf/res/resout.h"
 
 #define NICE_LEAST -40
 #define NICE_MIDDLE 20
@@ -65,14 +46,6 @@
 #define NB_SOCK_READ_FIX   nb_read_fix
 #define NB_SOCK_WRITE_FIX  nb_write_fix
 #define MSGSIZE BUFSIZ
-
-#include "lsf/intlib/list.h"
-#include "lsf/intlib/listset.h"
-#include "lsf/res/rescom.h"
-#include "lsf/res/resout.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/lib/lib.xdrres.h"
-#include "lsf/lib/lsi18n.h"
 
 extern int rexecPriority;
 extern struct client  *clients[];
@@ -163,32 +136,32 @@ struct client   {
 
 struct child  {
     struct client   *backClnPtr;
-	int             rpid;
+    int             rpid;
     int             pid;
     int             refcnt;
-	int             info;
-	int             stdio;
+    int             info;
+    int             stdio;
     outputChannel   std_out;
     outputChannel   std_err;
-	niosChannel     remsock;
-	int             rexflag;
+    niosChannel     remsock;
+    int             rexflag;
     char            server;
     char            c_eof;
     char            running;
-	char            sigchild;
+    char            sigchild;
     int  wait;
-	struct sigStatusUsage *sigStatRu;
-	int             endstdin;
-	RelayBuf        i_buf;
-	int             stdin_up;
+    struct sigStatusUsage *sigStatRu;
+    int             endstdin;
+    RelayBuf        i_buf;
+    int             stdin_up;
     char            slavepty[sizeof(PTY_TEMPLATE)];
-	char 		**cmdln;
-	time_t		dpTime;
-	char            *cwd;
-	char            username[MAXLSFNAMELEN];
-	char            fromhost[MAXHOSTNAMELEN];
-	int    	        sent_eof;
-	int    	        sent_status;
+    char 		**cmdln;
+    time_t		dpTime;
+    char            *cwd;
+    char            username[MAXLSFNAMELEN];
+    char            fromhost[MAXHOSTNAMELEN];
+    int    	        sent_eof;
+    int    	        sent_status;
 };
 
 struct resChildInfo {
@@ -268,7 +241,6 @@ extern void Signal_(int, void (*f)(int));
 
 extern void init_res(void);
 extern void resExit_(int exitCode);
-extern int nb_write_fix(int, char *, int);
 extern int ptymaster(char *);
 extern int ptyslave(char *);
 extern void doacceptconn(void);
@@ -292,9 +264,6 @@ extern void child_handler(int);
 extern void child_handler_ext(void);
 extern void getMaskReady(fd_set *rm, fd_set *wm, fd_set *em);
 extern void display_masks(fd_set *, fd_set *, fd_set *);
-
-extern int b_read_fix(int, char *, int);
-extern int b_write_fix(int, char *, int);
 
 extern int lsbJobStart(char **, u_short, char *, int);
 

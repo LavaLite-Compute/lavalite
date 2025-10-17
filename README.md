@@ -83,3 +83,4 @@ You can customize this behavior using:
 ```bash
 ./configure --disable-static   # build only shared
 ./configure --disable-shared   # build only static
+```

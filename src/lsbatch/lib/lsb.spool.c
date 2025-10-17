@@ -154,8 +154,7 @@ copySpoolFile( const char* srcFilePath
     if (    ( srcFilePath == NULL )
             || ( strlen( srcFilePath ) == 0 )
        ) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 5702,
-                    "%s: srcFilePath is NULL or empty"), /* catgets 5702 */
+        ls_syslog(LOG_ERR, "%s: srcFilePath is NULL or empty",
                 fname);
         lsberrno = LSBE_BAD_ARG;
         goto Error;
@@ -164,8 +163,7 @@ copySpoolFile( const char* srcFilePath
     if (   ( option != SPOOL_INPUT_FILE )
             &&( option != SPOOL_COMMAND    )
        ) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 5706,
-                    "%s: option parameter is wrong"),  /* catgets 5706 */
+        ls_syslog(LOG_ERR, "%s: option parameter is wrong",
                 fname);
         lsberrno = LSBE_BAD_ARG;
         goto Error;
@@ -206,8 +204,7 @@ copySpoolFile( const char* srcFilePath
     if (    ( stat(srcFileFullPath, &srcFilePathStat) == -1 )
             && ( errno == ENOENT )
        ) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 5704,
-                    "%s: source file \'%s\' does not exist"), /* catgets 5704 */
+        ls_syslog(LOG_ERR, "%s: source file \'%s\' does not exist",
                 fname, srcFileFullPath);
         lsberrno = LSBE_SP_SRC_NOT_SEEN;
         goto Error;
@@ -258,8 +255,7 @@ copySpoolFile( const char* srcFilePath
         bestHostFromList = getBestListElement( spoolHostsList );
 
         if ( bestHostFromList == NULL ) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 5705,
-                        "%s: Unable to copy file <%s>. $JOB_SPOOLDIR <%s> doesn't exist or permission denied."),  /* catgets 5705 */
+            ls_syslog(LOG_ERR, "%s: Unable to copy file <%s>. $JOB_SPOOLDIR <%s> doesn't exist or permission denied.",
                     fname, srcFilePath,spoolDirPtr);
             goto Error;
         } else {
@@ -615,7 +611,7 @@ cpLocalFiles( const char * localSrcFileFullPath
         if (logclass & (LC_TRACE | LC_EXEC)) {
             ls_syslog(LOG_ERR,
                     "%s: %s, spoolCopyStatus = SPOOL_COPY_FAILURE\n",
-                    fname, I18N(5709,"Unable to open source file ")); /*catgets 5709 */
+                    fname, I18N(5709,"Unable to open source file "));
         }
         close( input );
         goto Error;
@@ -642,7 +638,7 @@ cpLocalFiles( const char * localSrcFileFullPath
         if (logclass & (LC_TRACE | LC_EXEC)) {
             ls_syslog(LOG_ERR
                     ,"%s: %s \'%s\', spoolCopyStatus = SPOOL_COPY_FAILURE\n"
-                    ,fname, I18N(5707,"Unable to create outputfile ")  /*catgets 5707 */
+                    ,fname, I18N(5707,"Unable to create outputfile ")
                     ,outputFileName);
         }
 
@@ -669,7 +665,7 @@ cpLocalFiles( const char * localSrcFileFullPath
             if (logclass & (LC_TRACE | LC_EXEC)) {
                 ls_syslog(LOG_ERR
                         ,"%s: spoolCopyStatus = SPOOL_COPY_FAILURE\n"
-                        ,fname, I18N(5708,"write operation failure" )); /*catgets 5708 */
+                        ,fname, I18N(5708,"write operation failure" ));
             }
             goto Close;
         }
@@ -790,7 +786,7 @@ cpRemoteFiles(const char* localSrcFileFullPath, const char* hostName,
 
         ls_donerex();
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_S,"cpRemoteFiles","IO_SPOOL",
-                _i18n_msg_get(ls_catd,NL_SETN,5700,"try rcp...")); /* catgets 5700 */
+                "try rcp...");
         if (doXferRcp(&lsXfer, SPOOL_BY_LSRCP) < 0) {
             goto Destroy;
         }
@@ -803,7 +799,7 @@ cpRemoteFiles(const char* localSrcFileFullPath, const char* hostName,
 
             ls_donerex();
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL_S,"cpRemoteFiles","IO_SPOOL",
-                    _i18n_msg_get(ls_catd,NL_SETN,5700,"try rcp..."));
+                    "try rcp...");
 
             if (doXferRcp(&lsXfer, SPOOL_BY_LSRCP) < 0) {
                 goto Destroy;

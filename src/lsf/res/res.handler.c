@@ -18,6 +18,8 @@
  */
 
 #include "lsf/res/res.h"
+#include "lsf/lib/lib.pim.h"
+#include "lsf/intlib/listset.h"
 
 #define NL_SETN     29
 #define CHILD_DELETED     2
@@ -280,7 +282,7 @@ doacceptconn(void)
 
     setsockopt(s, SOL_SOCKET, SO_LINGER, (char *)&linstr, sizeof(linstr));
 
-    if ((pw = getpwlsfuser_(auth.lsfUserName)) == NULL) {
+    if ((pw = getpwnam(auth.lsfUserName)) == NULL) {
         char tempBuffer[1024];
         sprintf(tempBuffer, "%s@%s", auth.lsfUserName, sockAdd2Str_(&from));
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getpwnam", tempBuffer);
@@ -3359,7 +3361,7 @@ notify_client(int s, int rpid, resAck ack, struct sigStatusUsage *sigStatRu)
     int reqBufSize;
     struct LSFHeader reqHdr;
     int rc;
-    LS_WAIT_T* status = (LS_WAIT_T*)&sigStatRu->ss;
+    int *status = &sigStatRu->ss;
 
     if (debug>1) {
         printf("%s(%d): retsock=%d ack=%d\n", fname, rpid, s, ack);
@@ -3380,21 +3382,21 @@ notify_client(int s, int rpid, resAck ack, struct sigStatusUsage *sigStatRu)
 
     if (logclass & LC_TRACE) {
 
-        if (LS_WIFSIGNALED(*status)) {
-            int sig =  LS_WTERMSIG(*status);
+        if (WIFSIGNALED(*status)) {
+            int sig =  WTERMSIG(*status);
 
             ls_syslog(LOG_DEBUG,"\
                     %s Res notifying Nios by RES2NIOS_STATUS child signaled by sig=<%d>",
                     fname, sig);
         }
 
-        if (LS_WIFSTOPPED(*status)) {
+        if (WIFSTOPPED(*status)) {
             ls_syslog(LOG_DEBUG,"\
                     %s Res notifying Nios by RES2NIOS_STATUS child stopped", fname);
         }
 
-        if (LS_WIFEXITED(*status)) {
-            int exit_status = LS_WEXITSTATUS(*status);
+        if (WIFEXITED(*status)) {
+            int exit_status = WEXITSTATUS(*status);
 
             ls_syslog(LOG_DEBUG,"\
                     %s Res notifying Nios by RES2NIOS_STATUS child exited exit_status=<%d>",
@@ -3404,7 +3406,7 @@ notify_client(int s, int rpid, resAck ack, struct sigStatusUsage *sigStatRu)
 
 
     if ((sbdMode)
-            &&(matchExitVal(LS_WEXITSTATUS(*status), getenv("LSB_EXIT_REQUEUE")))) {
+            &&(matchExitVal(WEXITSTATUS(*status), getenv("LSB_EXIT_REQUEUE")))) {
         reqHdr.opCode = RES2NIOS_REQUEUE;
     } else {
         reqHdr.opCode = RES2NIOS_STATUS;
@@ -3728,7 +3730,7 @@ child_handler_ext(void)
 {
     static char       fname[] = "child_handler_ext";
     int               pid;
-    LS_WAIT_T         status;
+    int         status;
     struct rusage     ru;
     int               i;
     int               child_exit;
@@ -3872,7 +3874,7 @@ notify_sigchild(struct child *cp)
     static char fname[] = "notify_sigchild";
     struct sigStatusUsage sstat, *sru;
     int rc;
-    LS_WAIT_T *pStatus;
+    int *pStatus;
 
     if (debug > 1) {
         ls_syslog(LOG_DEBUG, "%s: entering", fname);
@@ -3887,14 +3889,12 @@ notify_sigchild(struct child *cp)
 
 
     sru->ss = *(int *)&cp->wait;
-    pStatus = (LS_WAIT_T *)&sru->ss;
-
-
+    pStatus = &sru->ss;
 
     if (WIFSIGNALED(*pStatus))
-        SETTERMSIG(*pStatus, sig_encode(WTERMSIG(sru->ss)));
+        *pStatus = sig_encode(WTERMSIG(sru->ss));
     else if (WIFSTOPPED(*pStatus)) {
-        SETSTOPSIG(*pStatus, sig_encode(WSTOPSIG(sru->ss)));
+        *pStatus = sig_encode(WSTOPSIG(sru->ss));
     }
 
     cp->sigchild = 0;
@@ -3933,7 +3933,7 @@ notify_sigchild(struct child *cp)
     if (rc != CHILD_DELETED  && ! (WIFSTOPPED(cp->wait))) {
 
 
-        if (LS_WSTOPSIG(cp->wait) != SIGCONT) {
+        if (WSTOPSIG(cp->wait) != SIGCONT) {
             if (unlink_child(cp) == CHILD_DELETED)
                 rc = CHILD_DELETED;
         }

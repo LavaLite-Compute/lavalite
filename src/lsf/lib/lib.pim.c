@@ -20,9 +20,10 @@
 /* Dont include lib.h as it redefines the LSF_* macros used in
  * config_params.
  */
+
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
-
+#include "lsf/lib/lib.pim.h"
 #define NL_SETN   23
 static struct config_param pimParams[] =
 {

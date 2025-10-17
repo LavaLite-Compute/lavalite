@@ -114,7 +114,7 @@ lsb_peekjob (LS_LONG_INT jobid)
 
             if (stat(fnBuf, &st) == -1){
                 pid_t pid;
-                LS_WAIT_T status;
+                int status;
 
 
                 if ( errno == ENOENT && pSpoolDirUnix !=NULL ) {

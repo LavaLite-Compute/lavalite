@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-
+#if 0
 
 
 #include <stdlib.h>
@@ -42,12 +42,12 @@
 #include "resout.h"
 #include "../lib/lproto.h"
 
-#define NL_SETN		29	
+#define NL_SETN		29
 
 #include <memory.h>
 #include <malloc.h>
 
-#define LSRCP_MSGSIZE 65536 
+#define LSRCP_MSGSIZE 65536
 
 static int clearSock(int sock, int len);
 static int rread(int sock, struct LSFHeader *hdr);
@@ -59,7 +59,7 @@ static int rstat(int sock, struct LSFHeader *hdr);
 static int rfstat(int sock, struct LSFHeader *hdr);
 static int rgetmnthost(int sock, struct LSFHeader *hdr);
 static int runlink(int sock, struct LSFHeader *hdr);
-	
+
 void
 rfServ_(int acceptSock)
 {
@@ -73,16 +73,16 @@ rfServ_(int acceptSock)
 
     if ((sock = accept(acceptSock, (struct sockaddr *)&from, &fromLen)) < 0) {
 	ls_errlog(stderr, I18N_FUNC_S_FAIL_M, fname, "accept",
-	    acceptSock); 
+	    acceptSock);
 	closesocket(acceptSock);
 	return;
     }
-    
+
     xdrmem_create(&xdrs, (char *) &buf, sizeof(buf), XDR_DECODE);
 
     for (;;) {
 	XDR_SETPOS(&xdrs, 0);
-	
+
 	if (readDecodeHdr_(sock, (char *) &buf, SOCK_READ_FIX, &xdrs, &msgHdr)
 	    < 0) {
 	    ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeHdr_");
@@ -99,11 +99,11 @@ rfServ_(int acceptSock)
 	  case RF_CLOSE:
 	    rclose(sock, &msgHdr);
 	    break;
-	    
+
 	  case RF_WRITE:
 	    rwrite(sock, &msgHdr);
 	    break;
-	    
+
 	  case RF_READ:
 	    rread(sock, &msgHdr);
 	    break;
@@ -131,17 +131,17 @@ rfServ_(int acceptSock)
 	  case RF_TERMINATE:
 	    closesocket(sock);
 	    return;
-	    
+
 	  default:
 	    ls_errlog(stderr, _i18n_msg_get(ls_catd, NL_SETN, 602,
-		"%s: Unknown opcode %d"), 
+		"%s: Unknown opcode %d"),
 		fname, msgHdr.opCode);
 	    xdr_destroy(&xdrs);
 	    break;
 	}
-    }	
+    }
 
-} 
+}
 
 static int
 ropen(int sock, struct LSFHeader *hdr)
@@ -159,7 +159,7 @@ ropen(int sock, struct LSFHeader *hdr)
 		       xdr_ropenReq, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeMsg_");
 	xdr_destroy(&xdrs);
-	closesocket(sock); 
+	closesocket(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
@@ -167,7 +167,7 @@ ropen(int sock, struct LSFHeader *hdr)
     if (req.flags & LSF_O_CREAT_DIR) {
         req.flags &= ~LSF_O_CREAT_DIR;
 
-        
+
 	if (createSpoolSubDir(fn) < 0) {
 	    if (lsSendMsg_(sock, -errnoEncode_(errno), 0, NULL, buf,
 		                   sizeof(struct LSFHeader),
@@ -181,7 +181,7 @@ ropen(int sock, struct LSFHeader *hdr)
 	}
     }
 
-    
+
     if ((fd = open(req.fn, req.flags, req.mode)) == -1) {
 	if (lsSendMsg_(sock, -errnoEncode_(errno), 0, NULL, buf,
 		       sizeof(struct LSFHeader), NULL, SOCK_WRITE_FIX, NULL)
@@ -203,8 +203,8 @@ ropen(int sock, struct LSFHeader *hdr)
     }
 
     return 0;
-} 
-    
+}
+
 
 static int
 rclose(int sock, struct LSFHeader *hdr)
@@ -219,11 +219,11 @@ rclose(int sock, struct LSFHeader *hdr)
 		       xdr_int, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeMsg_");
 	xdr_destroy(&xdrs);
-	closesocket(sock); 
+	closesocket(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
-    
+
     if (close(reqfd) == -1) {
 	if (lsSendMsg_(sock, -errnoEncode_(errno), 0, NULL, buf,
 		       sizeof(struct LSFHeader), NULL, SOCK_WRITE_FIX, NULL)
@@ -242,7 +242,7 @@ rclose(int sock, struct LSFHeader *hdr)
     }
 
     return 0;
-} 
+}
 
 static int
 rwrite(int sock, struct LSFHeader *hdr)
@@ -258,7 +258,7 @@ rwrite(int sock, struct LSFHeader *hdr)
 		       xdr_rrdwrReq, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDeocdeMsg_");
 	xdr_destroy(&xdrs);
-	close(sock); 
+	close(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
@@ -284,19 +284,19 @@ rwrite(int sock, struct LSFHeader *hdr)
     }
 
     free(buf);
-    
+
     if (lsSendMsg_(sock, 0, req.len, NULL, msgBuf,
 		   sizeof(struct LSFHeader), NULL, SOCK_WRITE_FIX, NULL) < 0) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "lsSendMsg_");
 	close(sock);
-	return -1;	
+	return -1;
     }
 
     return 0;
 
  fail:
     free(buf);
-    
+
     if (lsSendMsg_(sock, -errnoEncode_(errno), 0, NULL, msgBuf,
 		   sizeof(struct LSFHeader), NULL, SOCK_WRITE_FIX, NULL) < 0) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "lsSendMsg_");
@@ -305,7 +305,7 @@ rwrite(int sock, struct LSFHeader *hdr)
     }
 
     return 0;
-} 
+}
 
 
 
@@ -323,7 +323,7 @@ rread(int sock, struct LSFHeader *hdr)
 		       xdr_rrdwrReq, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeMsg_");
 	xdr_destroy(&xdrs);
-	close(sock); 
+	close(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
@@ -347,7 +347,7 @@ rread(int sock, struct LSFHeader *hdr)
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "lsSendMsg_");
 	close(sock);
 	free(buf);
-	return -1;	
+	return -1;
     }
 
     if (SOCK_WRITE_FIX(sock, buf, req.len) != req.len) {
@@ -362,7 +362,7 @@ rread(int sock, struct LSFHeader *hdr)
 
  fail:
     free(buf);
-    
+
     if (lsSendMsg_(sock, -errnoEncode_(errno), 0, NULL, buf,
 		   sizeof(struct LSFHeader), NULL, SOCK_WRITE_FIX, NULL) < 0) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "lsSendMsg_");
@@ -370,8 +370,8 @@ rread(int sock, struct LSFHeader *hdr)
 	return -1;
     }
     return 0;
-    
-} 
+
+}
 
 static int
 rlseek(int sock, struct LSFHeader *hdr)
@@ -387,7 +387,7 @@ rlseek(int sock, struct LSFHeader *hdr)
 		       xdr_rlseekReq, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeMsg_");
 	xdr_destroy(&xdrs);
-	close(sock); 
+	close(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
@@ -400,7 +400,7 @@ rlseek(int sock, struct LSFHeader *hdr)
 		   sizeof(struct LSFHeader), NULL, SOCK_WRITE_FIX, NULL) < 0) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "lsSendMsg_");
 	close(sock);
-	return -1;	
+	return -1;
     }
 
     return 0;
@@ -414,29 +414,29 @@ rlseek(int sock, struct LSFHeader *hdr)
     }
 
     return 0;
-} 
+}
 
 
- 
+
 static
 int clearSock(int sock, int len)
 {
     static char fname[] = "clearSock()";
     int l;
     char buf[LSRCP_MSGSIZE];
-    
+
     for (; len; len -= l) {
 	l = len > LSRCP_MSGSIZE ? LSRCP_MSGSIZE : len;
 	if (SOCK_READ_FIX(sock, buf, l) != l) {
 	    ls_errlog(stderr, I18N_FUNC_D_FAIL_M, fname, "SOCK_READ_FIX",
-		l); 
+		l);
 	    close(sock);
 	    return -1;
 	}
     }
 
     return 0;
-} 
+}
 
 static int
 rstat(int sock, struct LSFHeader *hdr)
@@ -452,11 +452,11 @@ rstat(int sock, struct LSFHeader *hdr)
     fnStr.name = fn;
 
     xdrmem_create(&xdrs, buf, LSRCP_MSGSIZE, XDR_DECODE);
-    if (readDecodeMsg_(sock, buf, hdr, SOCK_READ_FIX, &xdrs, 
+    if (readDecodeMsg_(sock, buf, hdr, SOCK_READ_FIX, &xdrs,
 		(char *) &fnStr, xdr_stringLen, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDeocdeMsg_");
 	xdr_destroy(&xdrs);
-	close(sock); 
+	close(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
@@ -480,7 +480,7 @@ rstat(int sock, struct LSFHeader *hdr)
     }
 
     return 0;
-} 
+}
 
 
 static int
@@ -497,7 +497,7 @@ rfstat(int sock, struct LSFHeader *hdr)
 		       xdr_int, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeMsg_");
 	xdr_destroy(&xdrs);
-	close(sock); 
+	close(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
@@ -521,9 +521,9 @@ rfstat(int sock, struct LSFHeader *hdr)
     }
 
     return 0;
-} 
-    
-    
+}
+
+
 static int
 rgetmnthost(int sock, struct LSFHeader *hdr)
 {
@@ -533,7 +533,7 @@ rgetmnthost(int sock, struct LSFHeader *hdr)
     XDR xdrs;
     struct stringLen fnStr;
     struct stringLen hostStr;
-    
+
     fnStr.len = MAXFILENAMELEN;
     fnStr.name = fn;
 
@@ -542,7 +542,7 @@ rgetmnthost(int sock, struct LSFHeader *hdr)
 		      (char *) &fnStr, xdr_stringLen, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeMsg_");
 	xdr_destroy(&xdrs);
-	close(sock); 
+	close(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
@@ -568,9 +568,9 @@ rgetmnthost(int sock, struct LSFHeader *hdr)
     }
 
     return 0;
-} 
-    
-    
+}
+
+
 
 #include <sys/dir.h>
 
@@ -583,7 +583,7 @@ runlink(int sock, struct LSFHeader *hdr)
     XDR xdrs;
     struct stringLen fnStr;
     struct stat st;
- 
+
     fnStr.len = MAXFILENAMELEN;
     fnStr.name = fn;
 
@@ -592,22 +592,22 @@ runlink(int sock, struct LSFHeader *hdr)
 		      (char *) &fnStr, xdr_stringLen, NULL)) {
 	ls_errlog(stderr, I18N_FUNC_FAIL_MM, fname, "readDecodeMsg_");
 	xdr_destroy(&xdrs);
-	close(sock); 
+	close(sock);
 	return -1;
     }
     xdr_destroy(&xdrs);
 
     if ((stat(fn, &st) == 0) && (st.st_mode & S_IFDIR)) {
-        
+
 
         DIR *dirp;
         struct direct *dp;
         char path[MAXPATHLEN];
- 
+
         if ((dirp = opendir(fn)) == NULL) {
 	    goto errrtn;
 	}
- 
+
         for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp)) {
 	    if (strcmp(dp->d_name, ".") != 0 &&
 		       strcmp(dp->d_name, "..") != 0) {
@@ -616,7 +616,7 @@ runlink(int sock, struct LSFHeader *hdr)
                 unlink (path);
 	    }
         }
- 
+
         closedir (dirp);
         if (rmdir(fn) != 0) {
 	    goto errrtn;
@@ -646,5 +646,7 @@ errrtn:
         return -1;
     }
     return 0;
-} 
-    
+}
+
+
+#endif

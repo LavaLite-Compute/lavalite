@@ -22,9 +22,9 @@
 
 #include "lsf/lib/lib.table.h"
 #include "lsf/lib/lib.hdr.h"
-#include "lsf/res/resout.h"
-#include "lib.pim.h"
 #include "lsf/lib/lsi18n.h"
+// Bug hack res out here
+#include "lsf/res/resout.h"
 
 #define BIND_RETRY_TIMES 100
 
@@ -174,8 +174,6 @@ extern int sharedResConfigured_;
 #define LSF_LIM_ERESOURCE_VALUE         "lim_vcl_get_eres_val"
 #define LSF_LIM_ERES_TYPE "!"
 
-extern int lsResMsg_ (int, resCmd, char *, char *, int,
-                      bool_t (*)(), int *, struct timeval *);
 extern int expectReturnCode_(int, int, struct LSFHeader *);
 extern int ackAsyncReturnCode_(int, struct LSFHeader *);
 extern int resRC2LSErr_(int);
@@ -222,13 +220,6 @@ extern int putEauthAuxDataEnvVar(char *);
 extern int putEauthAuxStatusEnvVar(char *);
 #endif
 
-
-extern void sw_remtty(int);
-extern void sw_loctty(int);
-
-extern int doAcceptResCallback_(int s, struct niosConnect *connReq);
-extern int niosCallback_(struct sockaddr_in *from, u_short port,
-                         int rpid, int exitStatus, int terWhiPendStatus);
 
 extern int sig_encode(int);
 extern int sig_decode(int);

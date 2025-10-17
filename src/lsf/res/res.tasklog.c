@@ -16,31 +16,23 @@
  *
  */
 
-#include "res.h"
-#include "../lib/lib.xdr.h"
-#include "../lib/lproto.h"
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-
+#include "lsf/res/res.h"
 
 extern int flock(int, int);
 
-#define NL_SETN		29	
+#define NL_SETN		29
 
 void initResLog(void);
-void resAcctWrite(struct child *);				
+void resAcctWrite(struct child *);
 static void openResAcctFileInTmp(char *);
 
 
 
-int resLogOn = 0;       
+int resLogOn = 0;
 
-int resLogcpuTime = -1;	        
+int resLogcpuTime = -1;
 
-char resAcctFN[MAXFILENAMELEN]; 
+char resAcctFN[MAXFILENAMELEN];
 
 void
 initResLog(void)
@@ -49,8 +41,8 @@ initResLog(void)
     int fd;
     char *acctDir = NULL;
     struct stat st;
-    
-    if (resLogcpuTime == -1) { 
+
+    if (resLogcpuTime == -1) {
 	if (resParams[LSF_RES_ACCT].paramValue) {
 	    resLogOn = 1;
 	    resLogcpuTime = 0;
@@ -66,26 +58,26 @@ initResLog(void)
 	    }
 	}
     }
-    
+
     if (resLogOn != 1)
 	return;
 
     acctDir = resParams[LSF_RES_ACCTDIR].paramValue;
-    
-    
-        
 
-    if (acctDir != NULL) 
+
+
+
+    if (acctDir != NULL)
 	strcpy(resAcctFN, acctDir);
     else
 	strcpy(resAcctFN, "/tmp");
-    
+
     strcat(resAcctFN, "/lsf.acct.");
 
     strcat(resAcctFN, Myhost);
 
     if (lstat(resAcctFN, &st) < 0) {
-	if (errno == ENOENT) { 
+	if (errno == ENOENT) {
 	    if ((fd = open(resAcctFN, O_CREAT,
 			   S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
 		ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open", resAcctFN);
@@ -94,14 +86,14 @@ initResLog(void)
 		strcpy(resAcctFN, "/tmp/lsf.acct.");
 		strcat(resAcctFN, Myhost);
 		openResAcctFileInTmp(resAcctFN);
-            } else 
+            } else
 		close(fd);
 	} else {
 	    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "stat", resAcctFN);
 	    resLogOn = -1;
 	}
-    } else if (S_ISREG(st.st_mode) && st.st_nlink == 1) { 
-	
+    } else if (S_ISREG(st.st_mode) && st.st_nlink == 1) {
+
 	if ((fd = open(resAcctFN, O_APPEND,
 				  S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
             ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open", resAcctFN);
@@ -109,20 +101,20 @@ initResLog(void)
 "%s: Using /tmp/lsf.acct for task logging"), fname); /* catgets 5701 */
             strcpy(resAcctFN, "/tmp/lsf.acct.");
             strcat(resAcctFN, Myhost);
-	    openResAcctFileInTmp(resAcctFN); 
-	} else 
+	    openResAcctFileInTmp(resAcctFN);
+	} else
 	    close(fd);
-    } else { 
-	ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5705, 
-"%s: file <%s> is not a regular file, file untouched"), fname, resAcctFN);    
+    } else {
+	ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5705,
+"%s: file <%s> is not a regular file, file untouched"), fname, resAcctFN);
 							/* catgets 5705 */
 	resLogOn = -1;
     }
-    
+
     if (resLogOn != -1)
 	ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5702, "Task Log ON: Logging tasks with cpuTime > %d msec to file <%s>")), resLogcpuTime, resAcctFN);   /* catgets 5702 */
-    
-}  
+
+}
 
 static void
 openResAcctFileInTmp(char *resAcctFN)
@@ -132,7 +124,7 @@ openResAcctFileInTmp(char *resAcctFN)
     int fd;
 
     if (lstat(resAcctFN, &st) < 0) {
-        if (errno == ENOENT) { 
+        if (errno == ENOENT) {
             if ((fd = open(resAcctFN, O_CREAT,
                             	S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
                 ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open", resAcctFN);
@@ -147,8 +139,8 @@ openResAcctFileInTmp(char *resAcctFN)
             return;
         }
     } else if (S_ISREG(st.st_mode) && st.st_nlink == 1) {
-        
-        if ((fd = open(resAcctFN, O_APPEND, 
+
+        if ((fd = open(resAcctFN, O_APPEND,
 				  S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0) {
             ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open", resAcctFN);
 	    resLogOn = -1;
@@ -156,15 +148,15 @@ openResAcctFileInTmp(char *resAcctFN)
         }
 	close(fd);
 	return;
-    } 
+    }
     ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5705,
-"%s: file <%s> is not a regular file, file untouched"), fname, resAcctFN );    
+"%s: file <%s> is not a regular file, file untouched"), fname, resAcctFN );
 							/* catgets 5705 */
     resLogOn = -1;
     return;
-} 
+}
 
-void 
+void
 resAcctWrite(struct child *child)
 {
     static char fname[] = "resAcctWrite()";
@@ -172,20 +164,20 @@ resAcctWrite(struct child *child)
     int l = 0, j = 0;
     struct lsfAcctRec acctRec;
     char acctFile[MAXFILENAMELEN];
-    
+
 
     if (debug >1)
 	ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5703, "resAcctWrite")));  /* catgets 5703 */
 
     if (sbdMode) {
 	if (access(resAcctFN, F_OK) == 0) {
-	    
+
 	    return;
 	}
-	
+
 	strcpy(acctFile, resAcctFN);
     } else {
-	
+
 	sprintf(acctFile, "%s/lsf.acct.%s.%d.%d",
 		LSTMPDIR, Myhost, (int) getpid(), (int) time(NULL));
     }
@@ -193,7 +185,7 @@ resAcctWrite(struct child *child)
 
     fd = fopen(acctFile, "w");
     if (fd == (FILE *) NULL) {
-	ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen", 
+	ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen",
 	    acctFile);
 	return;
     }
@@ -207,8 +199,8 @@ resAcctWrite(struct child *child)
     acctRec.execHost = Myhost;
     acctRec.cwd = child->cwd;
 
-   
- 
+
+
     while (child->cmdln[j] != NULL) {
         l += strlen(child->cmdln[j]) + 1;
         j++;
@@ -227,7 +219,7 @@ resAcctWrite(struct child *child)
             strcat(acctRec.cmdln, child->cmdln[j++]);
         }
     }
-    
+
     cleanLsfRusage(&acctRec.lsfRu);
     if (child->sigStatRu)
         ls_ruunix2lsf(&(child->sigStatRu->ru), &acctRec.lsfRu);
@@ -239,18 +231,18 @@ resAcctWrite(struct child *child)
 	unlink(acctFile);
 	return;
     }
-	
+
     if (logclass & LC_EXEC) {
-	ls_syslog(LOG_DEBUG, I18N(5704, 
+	ls_syslog(LOG_DEBUG, I18N(5704,
 	   	  "%s: pid <%d> status <%d> exitcode <%d>"), /*catgets 5704*/
-		  fname, child->pid, child->wait, WEXITSTATUS(child->wait)); 
+		  fname, child->pid, child->wait, WEXITSTATUS(child->wait));
     }
-    
+
     FCLOSEUP(&fd);
     free(acctRec.cmdln);
 
     if (!sbdMode) {
-	
+
 	resAck ack;
 	struct LSFHeader msgHdr;
 	struct stringLen str;
@@ -260,7 +252,7 @@ resAcctWrite(struct child *child)
 
 	initLSFHeader_(&msgHdr);
 	msgHdr.opCode = RES_ACCT;
-	
+
 	if ((ack = sendResParent(&msgHdr, (char *) &str, xdr_stringLen)) !=
 	    RESE_OK)
 	    ls_syslog(LOG_DEBUG, "lsfAcctWrite: file <%s>: parent failed to process cct info, ack=%d", acctFile, (int) ack);
@@ -323,10 +315,10 @@ resParentWriteAcct(struct LSFHeader *msgHdr, XDR *xdrs, int sock)
 	free(buf);
 	return;
     }
-	
+
     FCLOSEUP(&fp);
-    if (lstat(resAcctFN, &st) < 0 ) { 
-	if (errno != ENOENT || (errno == ENOENT 
+    if (lstat(resAcctFN, &st) < 0 ) {
+	if (errno != ENOENT || (errno == ENOENT
 			&& (fp = fopen(resAcctFN, appendMode)) == NULL)) {
 	    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen", resAcctFN);
 	    sendReturnCode(sock, RESE_FILE);
@@ -334,7 +326,7 @@ resParentWriteAcct(struct LSFHeader *msgHdr, XDR *xdrs, int sock)
 	    return;
 	}
     } else if (S_ISREG(st.st_mode) && st.st_nlink == 1) {
-	
+
 	if ((fp = fopen(resAcctFN, appendMode)) == NULL) {
 	    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen", resAcctFN);
 	    sendReturnCode(sock, RESE_FILE);
@@ -347,7 +339,7 @@ resParentWriteAcct(struct LSFHeader *msgHdr, XDR *xdrs, int sock)
                                                         /* catgets 5705 */
 	sendReturnCode(sock, RESE_FILE);
 	free(buf);
-	return; 
+	return;
     }
 
     if (fwrite(buf, 1, sbuf.st_size, fp) != sbuf.st_size) {
@@ -361,9 +353,5 @@ resParentWriteAcct(struct LSFHeader *msgHdr, XDR *xdrs, int sock)
     FCLOSEUP(&fp);
     free(buf);
     sendReturnCode(sock, RESE_OK);
-    
-} 
 
-
-
-
+}

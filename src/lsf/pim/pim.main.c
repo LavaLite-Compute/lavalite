@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/lib/liblavalite.h"
+#include "lsf/pim/pim.h"
 
 #define NL_SETN     (28)
 #define MAX_MIN_SLEEPTIME (3)
@@ -203,16 +203,6 @@ main(int argc, char **argv)
     }
 
 
-
-    if (!pimParams[LSF_PIM_NICEOFF].paramValue) {
-        nice(NICE_LEAST);
-
-        if (!pim_debug)
-            nice(NICE_MIDDLE);
-        nice(0);
-    }
-
-
     if (pimParams[LSF_PIM_TRACE].paramValue) {
         traceVal = pimParams[LSF_PIM_TRACE].paramValue;
     } else if (pimParams[LSF_DEBUG_PIM].paramValue) {
@@ -302,7 +292,6 @@ doServ(void)
 {
     static char fname[] = "doServ";
     int ppid = getppid();
-    int len;
     struct sockaddr_in sin;
     int asock;
     time_t lastTime, nextTime, now, lastUsedTime;
@@ -317,7 +306,7 @@ doServ(void)
     }
 
 
-    len = sizeof(sin);
+    socklen_t len = sizeof(sin);
     if (getsockname (asock, (struct sockaddr *) &sin, &len) < 0) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "getsockname");
         ls_syslog(LOG_ERR, I18N_Exiting);
@@ -910,9 +899,9 @@ cleanPGidList(void)
             newPGid(pgidList_p[i].pgid);
     }
 
-    FREEUP(pgidList_p)
+    FREEUP(pgidList_p);
 
-        return(TRUE);
+    return(TRUE);
 }
 
 

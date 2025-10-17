@@ -23,13 +23,15 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <netinet/in.h>
 #include <termios.h>
+#include <dirent.h>
+#include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/time.h>

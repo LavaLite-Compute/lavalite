@@ -1,4 +1,4 @@
-/* $Id: lim.common.h,v 1.7 2007/08/15 22:18:53 tmizan Exp $
+/* $Id: pim.linux.h,v 1.4 2007/08/15 22:18:55 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,20 +16,11 @@
  *
  */
 
-#include "lim.h"
-#include <math.h>
 
-extern int pipefd[2];
-extern struct limLock limLock;
-
-void sendLoad(void);
-
-int  maxnLbHost;
-int  ncpus=1;
-
-float cpu_usage = 0.0;
-#ifdef MEAS
-float realcla = 0.0;
-int sd_cnt = 0;
-int rcv_cnt = 0;
-#endif
+#include "lsf.h"
+#include "lsf/intlib/libllcore.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lib/lib.hdr.h"
+#include "lsf/lib/lsi18n.h"
+#include "lsf/lib/lib.pim.h"
+#include "lsf/lib/lib.table.h"

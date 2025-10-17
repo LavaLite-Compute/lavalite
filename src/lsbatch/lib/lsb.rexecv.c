@@ -65,11 +65,11 @@ prtBETime2(struct submit req)
 
     if (req.beginTime) {
         strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.beginTime ));
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,800, "Job will be scheduled after %s\n")), sp); /* catgets  800   */
+        fprintf(stderr, ("Job will be scheduled after %s\n"), sp);
     }
     if (req.termTime) {
         strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.termTime ));
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,801 , "Job will be terminated by %s\n")), sp); /* catgets  801   */
+        fprintf(stderr, ("Job will be terminated by %s\n"), sp);
     }
 }
 
@@ -88,7 +88,7 @@ CopyCommand2(char **from, int len)
     size += 1 + 1;
 
     if ((commandline = (char *) malloc(size)) == NULL) {
-        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,802 , "Unable to allocate memory for commands"))); /* catgets  802   */
+        fprintf(stderr, ("Unable to allocate memory for commands"));
         return false;
     }
 
@@ -222,7 +222,7 @@ parseLine2(char *line, int *embedArgc, char ***embedArgv, int option)
     if (argBuf == NULL) {
         if ((argBuf = (char **) malloc(INCREASE * sizeof(char *)))
                 == NULL) {
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,803 , "Unable to allocate memory for options"))); /* catgets  803   */
+            fprintf(stderr, ("Unable to allocate memory for options"));
             return -1;
         }
         bufSize = INCREASE;
@@ -242,7 +242,7 @@ parseLine2(char *line, int *embedArgc, char ***embedArgv, int option)
             key = "QSUB";
         }
         else {
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,804 , "Invalid option"))); /* catgets  804   */
+            fprintf(stderr, ("Invalid option"));
             return -1;
         }
         argBuf[1] = NULL;
@@ -291,8 +291,7 @@ parseLine2(char *line, int *embedArgc, char ***embedArgv, int option)
                                 bufSize * sizeof(char *)))
                         == NULL) {
                     fprintf(stderr,
-                            _i18n_msg_get(ls_catd, NL_SETN, 803,
-                                "Unable to allocate memory for options"));
+                            "Unable to allocate memory for options");
                     return -1;
                 }
                 argBuf = tmp;
@@ -337,8 +336,7 @@ parseScript2(FILE *from, int *embedArgc, char ***embedArgv, int option)
         firstLine[0] = '\0';
         if ((buf = malloc(size)) == NULL) {
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 802,
-                        "Unable to allocate memory for commands"));
+                    "Unable to allocate memory for commands");
             return -1;
         }
         ttyin = isatty(fileno(from));
@@ -376,7 +374,7 @@ parseScript2(FILE *from, int *embedArgc, char ***embedArgv, int option)
                 size = size * 2;
                 if ((sp = (char *) realloc(buf, size)) == NULL) {
                     free(buf);
-                    fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,807 , "Unable to reallocate memory for commands"))); /* catgets  807   */
+                    fprintf(stderr, ("Unable to reallocate memory for commands"));
                     return -1;
                 }
                 buf = sp;
@@ -406,7 +404,7 @@ parseScript2(FILE *from, int *embedArgc, char ***embedArgv, int option)
                     size = size + strlen(szTmpShellCommands) + 1;
                     if ((sp = (char *) realloc(buf, size)) == NULL ) {
                         free(buf);
-                        fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,808 , "Unable to reallocate memory for temp shell file"))); /* catgets  808   */
+                        fprintf(stderr, ("Unable to reallocate memory for temp shell file"));
                         return -1;
                     }
                     buf = sp;
@@ -514,9 +512,9 @@ fillReq2(int argc, char **argv, int operate, struct submit *req)
     SKIPSPACE(req->command);
     if (emptyCmd) {
         if (redirect)
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,809 , "No command is specified in the script file"))); /* catgets  809   */
+            fprintf(stderr, ("No command is specified in the script file"));
         else
-            fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,810 , "No command is specified"))); /* catgets  810   */
+            fprintf(stderr, ("No command is specified"));
         return -1;
     }
 

@@ -55,6 +55,7 @@
 #include <rpc/xdr.h>
 #include <rpcsvc/ypclnt.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 #include <arpa/inet.h>
 
 /* System XDR versionis the protocol version carried by the header

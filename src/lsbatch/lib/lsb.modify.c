@@ -142,7 +142,7 @@ cleanup:
             err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.inFileSpool);
             if (err) {
                 fprintf(stderr,
-                        (_i18n_msg_get(ls_catd,NL_SETN, 850, "Modification failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets  850 */
+                        ("Modification failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
                         subSpoolFiles.inFileSpool, spoolHost);
             }
         }
@@ -153,7 +153,7 @@ cleanup:
             err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.commandSpool);
             if (err) {
                 fprintf(stderr,
-                        (_i18n_msg_get(ls_catd,NL_SETN, 850, "Modification failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it")), /* catgets  850 */
+                        ("Modification failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
                         subSpoolFiles.commandSpool, spoolHost);
             }
         }
