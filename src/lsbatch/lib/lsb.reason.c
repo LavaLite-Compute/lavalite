@@ -71,7 +71,7 @@ lsb_suspreason(int reasons, int subreasons, struct loadIndexLog *ld)
     else if (reasons & SUSP_HOST_LOCK)
         sprintf(msgbuf, " The execution host is locked by LSF administrator now;\n");
     else if (reasons & SUSP_HOST_LOCK_MASTER) {
-        sprintf(msgbuf, " The execution host is locked by master LIM now;\n"));
+        sprintf(msgbuf, " The execution host is locked by master LIM now;\n");
     } else if (reasons & SUSP_USER_RESUME)
         sprintf(msgbuf, " Waiting for re-scheduling after being resumed by user;\n");
     else if (reasons & SUSP_QUE_STOP_COND)
