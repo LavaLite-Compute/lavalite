@@ -17,6 +17,10 @@
  *
  */
 
+// accept what the hardware gives you
+// make it fast, make it clear, make it stop
+// everything else is noise
+
 #ifndef _LSF_H_
 #define _LSF_H_
 

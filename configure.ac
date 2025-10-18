@@ -30,7 +30,7 @@ AC_DEFINE([_XDR_VERSION_0_1_0], [1], [Enable XDR version 0.1.0 features])
 
 dnl Define the default host type supported by LavaLite but you can
 dnl add more in lsf.shared file.
-AC_DEFINE([HOST_TYPE_STRING], ["LINUX86"], [Define host type string])
+AC_DEFINE([HOST_TYPE_STRING], ["x86_64"], [Define host type string])
 
 dnl Resolve Autoconf's lazy dir vars so SYSCONFDIR is a concrete path in config.h.
 dnl - If --prefix is not given, $prefix is "NONE" → use $ac_default_prefix.
@@ -115,7 +115,18 @@ AC_CHECK_LIB([tcl8.6], [Tcl_CreateInterp], [], [
   AC_MSG_ERROR([Tcl 8.6 library not found])
 ])
 
-dnl Generate Makefiles (intlib-only for now)
+dnl Check for pdflatex
+
+AC_PATH_PROG([PDFLATEX], [pdflatex])
+AM_CONDITIONAL([HAVE_PDFLATEX], [test -n "$PDFLATEX"])
+dnl Generate Makefiles for doc anyways
+AC_CONFIG_FILES([
+  docs/Makefile
+  docs/man/Makefile
+  docs/projects/Makefile
+])
+
+dnl Generate Makefiles for the code
 AC_CONFIG_FILES([
   Makefile
   include/Makefile

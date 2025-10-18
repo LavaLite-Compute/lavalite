@@ -2,6 +2,7 @@
 # Copyright (C) LavaLite Contributors
 #
 include $(top_srcdir)/Make.common
+AM_CFLAGS   = -Wall -Wextra -g -O0
 
 lib_LTLIBRARIES = libllbat.la
 libllbat_la_LDFLAGS = -version-info 0:0:0 -no-undefined

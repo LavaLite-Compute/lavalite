@@ -17,6 +17,10 @@
  *
  */
 
+// accept what the hardware gives you
+// make it fast, make it clear, make it stop
+// everything else is noise
+
 #ifndef LSBATCH_H
 #define LSBATCH_H
 
@@ -1517,5 +1521,29 @@ int getMaxSortIntList(struct sortIntList *, int *);
 int getTotalSortIntList(struct sortIntList *);
 
 int updateJobIdIndexFile (char *, char *, int);
+
+/* ----------------------------------------------------------------------
+ * Compatibility macros for legacy CamelCase identifiers.
+ * These allow gradual migration to snake_case without breaking old code.
+ * ---------------------------------------------------------------------- */
+#ifndef LSBATCH_COMPAT_H
+#define LSBATCH_COMPAT_H
+
+/* function renames */
+#define PendJobReason        pend_job_reason
+#define UserIndexReasons     user_index_reasons
+#define JobSuspReason        job_susp_reason
+#define GetJobInfo           get_job_info
+#define SubJobInfo           sub_job_info
+#define LsbSignalJob         lsb_signal_job
+#define LsbHostLoad          lsb_host_load
+/* … add others as you touch files … */
+
+/* struct renames, if needed */
+#define JobInfo              job_info
+#define LoadIndexLog         load_index_log
+
+#endif /* LSBATCH_COMPAT_H */
+
 
 #endif
