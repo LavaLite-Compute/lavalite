@@ -50,7 +50,7 @@ struct susp_msg_map {
 };
 
 
-
+// Bug fie this latter cannot sprintf(buf, "blah", buf),
 char *
 lsb_suspreason(int reasons, int subreasons, struct loadIndexLog *ld)
 {
@@ -60,7 +60,6 @@ lsb_suspreason(int reasons, int subreasons, struct loadIndexLog *ld)
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: reasons=%x, subreasons=%d",
                 fname, reasons, subreasons);
-
 
     if (reasons & SUSP_USER_STOP)
         sprintf(msgbuf, " The job was suspended by user;\n");
@@ -144,20 +143,6 @@ lsb_pendreason(int numReasons, int *rsTb, struct jobInfoHead *jInfoH,
     static int *reasonTb, memSize = 0;
     static char *hostList = NULL, *retMsg = NULL;
     char *sp;
-
-    int pendMsg_ID[] = { 550, 551, 552, 553, 554, 555, 556, 557, 558, 559,
-        560, 561, 562, 563, 564, 566, 567, 568,
-        571, 583,
-        655, 656, 586, 587,
-        588, 589, 590, 591, 592, 596, 597, 598, 599, 600,
-        662, 601, 602, 603, 604, 605, 606, 607,
-        608, 609, 610, 611, 612,
-        614, 615, 616, 617, 618, 619, 667, 620, 621, 622,
-        623, 624, 625, 626, 627, 628, 629, 630, 631,
-        633, 634, 635, 636, 638, 639, 640, 641, 642,
-        664, 646, 647, 648, 649, 650, 651, 652, 653, 654,
-        644, 645, 665, 666
-    };
 
     struct msgMap pendMsg[] = {
         { PEND_JOB_NEW,
