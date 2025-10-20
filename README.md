@@ -41,12 +41,12 @@ planned for future releases.
 ## Quick Install
 
 ```bash
-```bash
 git clone https://github.com/LavaLiteProject/LavaLite.git
 cd LavaLite
 make
 sudo make install
 Installs in /opt/lavalite-0.1.0
+```
 
 LavaLite installs itself under /opt/lavala-<version> in a self-contained
 directory.  This approach avoids polluting system paths like /usr/local and
