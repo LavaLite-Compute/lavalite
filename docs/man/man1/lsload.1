@@ -1,0 +1,438 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsload 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsload\fR - displays load information for hosts
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsload\fR [\fB-l\fR] [\fB-N\fR | \fB-E\fR] [\fB-I\fR\fB \fR\fIload_index\fR[\fB:\fR\fIload_index\fR] \fI...\fR] [\fB-n\fR\fB \fR\fInum_hosts\fR] 
+[\fB-R\fR\fB \fR\fIres_req\fR] \fIhost_name\fR\fI ...  ...
+\fR.PP
+\fBlsload\fR \fB-s\fR\fB \fR[\fIresource_name\fR\fI ...\fR]
+.PP
+\fBlsload\fR [\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays load information for hosts. Load information can be displayed 
+on a per-host basis, or on a per-resource basis.
+.PP
+By default, displays load information for all hosts in the local cluster, 
+per host. 
+.PP
+By default, displays raw load indices.
+.PP
+By default, load information for resources is displayed according to CPU 
+and paging load.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-l
+\fR
+.IP
+Long format. Displays load information without truncation along with 
+additional fields for I/O and external load indices.
+
+.IP
+
+
+.IP
+This option overrides the index names specified with the -I option.
+
+
+.TP 
+\fB-N
+\fR
+.IP
+Displays normalized CPU run queue length load indices (see 
+lsfintro(1)).
+
+
+.TP 
+\fB-E
+\fR
+.IP
+Displays effective CPU run queue length load indices (see 
+lsfintro(1)). Options -N and -E are mutually exclusive.
+
+
+.TP 
+\fB-I\fR \fIload_index\fR[\fB:\fR\fIload_index\fR] ...
+
+.IP
+Displays only load information for the specified load indices. Load 
+index names must be separated by a colon (for example, r1m:pg:ut).
+
+
+.TP 
+\fB-n\fR\fI \fR\fInum_hosts
+\fR
+.IP
+Displays only load information for the requested number of hosts. 
+Information for up to \fInum_hosts\fR hosts that best satisfy the resource 
+requirements is displayed.
+
+
+.TP 
+\fB-R\fR\fI \fR\fIres_req
+\fR
+.IP
+Displays only load information for hosts that satisfy the specified 
+resource requirements. See lsinfo(1) for a list of built-in resource 
+names.
+
+.IP
+Load information for the hosts is sorted according to load on the 
+specified resources.
+
+.IP
+If \fIres_req\fR contains special resource names, only load information for 
+hosts that provide these resources is displayed (see lshosts(1) to find 
+out what resources are available on each host).
+
+.IP
+If one or more host names are specified, only load information about 
+the hosts that satisfy the resource requirements is displayed.
+
+
+.TP 
+\fIhost_name\fR ... 
+
+.IP
+Displays only load information for the specified hosts. 
+
+
+.TP 
+-s [\fIresource_name\fR ...]
+
+.IP
+Displays information for all dynamic shared resources configured in the 
+cluster.
+
+.IP
+If resources are specified, only displays information for the specified 
+resources. \fIresource_name\fR must be a dynamic shared resource name.
+
+.IP
+
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits.
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits.
+
+
+.SH OUTPUT
+.BR
+.PP
+.SS HOST-BASED OUTPUT (Default output)
+.BR
+.PP
+.PP
+Numeric dynamic non-shared resources are displayed. The selection 
+and order sections of \fIres_req\fR control for which hosts information is 
+displayed and how they are ordered (see lsfintro(1)).
+.PP
+The displayed default load information includes the following fields:
+
+.IP
+HOST_NAME
+.BR
+.RS
+.IP
+Standard host name used by Lava, typically an Internet domain name 
+with two components.
+
+.RE
+
+.IP
+status
+.BR
+.RS
+.IP
+Status of the host. A minus sign (-) may precede the status, 
+indicating that the Remote Execution Server (RES) on the host is not 
+running.
+
+.IP
+Possible statuses are:
+
+
+.IP
+ok
+.BR
+.RS
+.IP
+The host is in normal load sharing state and can accept remote 
+jobs.
+
+.RE
+
+.IP
+busy
+.BR
+.RS
+.IP
+The host is overloaded because some load indices exceed 
+configured thresholds. Load index values that caused the host 
+to be busy are preceded by an asterisk (*). Built-in load indices 
+include r15s, r1m, r15m, ut, pg, io, ls, it, swp, mem and tmp 
+(see below). External load indices are configured in the file 
+lsf.cluster.\fIcluster_name\fR (see lsf.cluster(5)).
+
+
+.IP
+r15s
+.BR
+.RS
+.IP
+The 15-second exponentially averaged CPU run queue 
+length.
+
+.RE
+
+.IP
+r1m
+.BR
+.RS
+.IP
+The 1-minute exponentially averaged CPU run queue 
+length.
+
+.RE
+
+.IP
+r15m
+.BR
+.RS
+.IP
+The 15-minute exponentially averaged CPU run queue 
+length.
+
+.RE
+
+.IP
+ut
+.BR
+.RS
+.IP
+The CPU utilization exponentially averaged over the last 
+minute, between 0 and 1.
+
+.RE
+
+.IP
+pg
+.BR
+.RS
+.IP
+The memory paging rate exponentially averaged over the 
+last minute, in pages per second.
+
+.RE
+
+.IP
+io
+.BR
+.RS
+.IP
+The disk I/O rate exponentially averaged over the last 
+minute, in KB per second (this is only available when the -l 
+option is specified).
+
+.RE
+
+.IP
+ls
+.BR
+.RS
+.IP
+The number of current login users.
+
+.RE
+
+.IP
+it
+.BR
+.RS
+.IP
+On UNIX, the idle time of the host (keyboard not touched 
+on all logged in sessions), in minutes.
+
+.RE
+
+.IP
+swp
+.BR
+.RS
+.IP
+The amount of swap space available, in megabytes.
+
+.RE
+
+.IP
+mem
+.BR
+.RS
+.IP
+The amount of available memory, in megabytes.
+
+.RE
+
+.IP
+tmp
+.BR
+.RS
+.IP
+The amount of free space in /tmp, in megabytes.
+
+.RE
+
+.IP
+external_index
+.BR
+.RS
+.IP
+Any site-configured global external load indices (see 
+lim(8)). Available only when the -l option or the -I 
+option with the index name is used, and only if defined in 
+the lsf.cluster.\fIcluster_name\fR (see lsf.cluster(5)) 
+configuration file. Note that \fIexternal_index\fR should not 
+contain shared resources.
+
+.RE
+.RE
+
+.IP
+lockW
+.BR
+.RS
+.IP
+The host is locked by its run window. Run windows for a host 
+are specified in the configuration file (see lsf.conf(5)) and 
+can be displayed by lshosts. A locked host will not accept 
+load shared jobs from other hosts.
+
+.RE
+
+.IP
+lockU
+.BR
+.RS
+.IP
+The host is locked by the Lava administrator or root.
+
+.RE
+
+.IP
+unavail
+.BR
+.RS
+.IP
+The host is down or the Load Information Manager (LIM) on the 
+host is not running.
+
+.RE
+.RE
+.RE
+.SS RESOURCE-BASED OUTPUT (lsload -s )
+.BR
+.PP
+.PP
+Displays information about dynamic shared resources. Each line gives 
+the value and the associated hosts for an instance of the resource. See 
+lim(8), and lsf.cluster(5) for information on configuring 
+dynamic shared resources.
+.PP
+The displayed information consists of the following fields:
+
+.IP
+RESOURCE
+.BR
+.RS
+.IP
+Name of the resource.
+
+.RE
+
+.IP
+VALUE
+.BR
+.RS
+.IP
+Value for an instance of the resource.
+
+.RE
+
+.IP
+LOCATION
+.BR
+.RS
+.IP
+Hosts associated with the instance of the resource.
+
+.RE
+.SH EXAMPLES
+.BR
+.PP
+.PP
+% \fBlsload -R "select[r1m<=0.5 && swp>=20 && type==ALPHA]"
+\fR.PP
+OR, in restricted format:
+.PP
+%\fB \fR\fBlsload -R r1m=0.5:swp=20:type=ALPHA
+\fR.PP
+Displays the load of ALPHA hosts with at least 20 megabytes of swap 
+space, and a 1-minute run queue length less than 0.5.
+.PP
+% \fBlsload -R "select[(1-swp/maxswp)<0.75] order[pg]"
+\fR.PP
+Displays the load of the hosts whose swap space utilization is less than 
+75%. The resulting hosts are ordered by paging rate.
+.PP
+%\fB \fR\fBlsload -I r1m:ut:io:pg
+\fR.PP
+Displays the 1-minute CPU raw run queue length, the CPU utilization, 
+the disk I/O and paging rates for all hosts in the cluster.
+.PP
+%\fB \fR\fBlsload -E
+\fR.PP
+Displays the load of all hosts, ordered by r15s:pg\fB,\fR with the CPU run 
+queue lengths being the effective run queue lengths (see 
+lsfintro(1)).
+.PP
+%\fB \fR\fBlsload -s verilog_license
+\fR.PP
+Displays the value and location of all the verilog_license dynamic 
+shared resource instances.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsfintro(1), lim(8), lsf.cluster(5), lsplace(1), 
+lshosts(1), lsinfo(1), lslockhost(8), ls_load(3)
+.SH DIAGNOSTICS
+.BR
+.PP
+.PP
+Exit status is -10 if an Lava problem is detected or a bad resource name 
+is specified.
+.PP
+Exit status is -1 if a bad parameter is specified, otherwise lsload 
+returns 0.
+.PP

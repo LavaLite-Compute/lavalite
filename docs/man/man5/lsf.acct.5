@@ -1,0 +1,284 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsf.acct 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsf.acct\fR - Lava task log file 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+The Lava Remote Execution Server, RES (see \fBres\fR(8)), generates a record 
+for each task completion or failure. If the RES task logging is turned on 
+(see lsadmin(8)), it appends the record to the task log file 
+lsf.acct.<\fIhostname\fR>. 
+.PP
+The task log file is an ASCII file with one task record per line. The fields 
+of each record are separated by blanks. The location of the file is 
+determined by the \fBLSF_RES_ACCTDIR\fR variable defined in the lsf.conf 
+file (see lsf.conf(5)). If this variable is not defined, or the RES cannot 
+access the log directory, the log file is created in \fB/tmp\fR instead. 
+.SH Fields
+.BR
+.PP
+.PP
+The fields in a task record are ordered in the following sequence: 
+.TP 
+pid (%d)
+
+.IP
+Process ID for the remote task
+
+
+.TP 
+userName (%s)
+
+.IP
+User name of the submitter
+
+
+.TP 
+exitStatus (%d)
+
+.IP
+Task exit status
+
+
+.TP 
+dispTime (%ld)
+
+.IP
+Dispatch time - time at which the task was dispatched for execution
+
+
+.TP 
+termTime (%ld)
+
+.IP
+Completion time - time when task is completed/failed
+
+
+.TP 
+fromHost (%s)
+
+.IP
+Submission host name
+
+
+.TP 
+execHost (%s)
+
+.IP
+Execution host name
+
+
+.TP 
+cwd (%s)
+
+.IP
+Current working directory
+
+
+.TP 
+cmdln (%s)
+
+.IP
+Command line of the task
+
+
+.TP 
+lsfRusage 
+
+.IP
+The rest of the fields contain resource usage information for the task 
+(see \fBgetrusage\fR(2)). If any field is not available due to the difference 
+among the operating systems, -1 will be logged. Times are measured 
+in seconds, and sizes are measured in KBytes. 
+
+
+.IP
+ru_utime (%f)
+.BR
+.RS
+.IP
+User time used
+
+.RE
+
+.IP
+ru_stime (%f)
+.BR
+.RS
+.IP
+System time used
+
+.RE
+
+.IP
+ru_maxrss (%d)
+.BR
+.RS
+.IP
+Maximum shared text size
+
+.RE
+
+.IP
+ru_ixrss (%d)
+.BR
+.RS
+.IP
+Integral of the shared text size over time (in kilobyte seconds)
+
+.RE
+
+.IP
+ru_ismrss (%d)
+.BR
+.RS
+.IP
+Integral of the shared memory size over time (valid only on 
+Ultrix)
+
+.RE
+
+.IP
+ru_idrss (%d)
+.BR
+.RS
+.IP
+Integral of the unshared data size over time
+
+.RE
+
+.IP
+ru_isrss (%d)
+.BR
+.RS
+.IP
+Integral of the unshared stack size over time
+
+.RE
+
+.IP
+ru_minflt (%d)
+.BR
+.RS
+.IP
+Number of page reclaims
+
+.RE
+
+.IP
+ru_magflt (%d)
+.BR
+.RS
+.IP
+Number of page faults
+
+.RE
+
+.IP
+ru_nswap (%d)
+.BR
+.RS
+.IP
+Number of times the process was swapped out
+
+.RE
+
+.IP
+ru_inblock (%d)
+.BR
+.RS
+.IP
+Number of block input operations
+
+.RE
+
+.IP
+ru_oublock (%d)
+.BR
+.RS
+.IP
+Number of block output operations
+
+.RE
+
+.IP
+ru_ioch (%d)
+.BR
+.RS
+.IP
+Number of characters read and written (valid only on HP-UX)
+
+.RE
+
+.IP
+ru_msgsnd (%d)
+.BR
+.RS
+.IP
+Number of System V IPC messages sent
+
+.RE
+
+.IP
+ru_msgrcv (%d)
+.BR
+.RS
+.IP
+Number of messages received
+
+.RE
+
+.IP
+ru_nsignals (%d)
+.BR
+.RS
+.IP
+Number of signals received
+
+.RE
+
+.IP
+ru_nvcsw (%d)
+.BR
+.RS
+.IP
+Number of voluntary context switches
+
+.RE
+
+.IP
+ru_nivcsw (%d)
+.BR
+.RS
+.IP
+Number of involuntary context switches
+
+.RE
+
+.IP
+ru_exutime (%d)
+.BR
+.RS
+.IP
+Exact user time used (valid only on ConvexOS)
+
+.RE
+
+.SH SEE ALSO
+.BR
+.PP
+.SS Related Topics:
+.BR
+.PP
+.PP
+lsadmin(8), res(8), lsf.conf(5), getrusage(2) 
+.SS Files:
+.BR
+.PP
+.PP
+$LSF_RES_ACCTDIR/lsf.acct.<\fIhostname\fR>

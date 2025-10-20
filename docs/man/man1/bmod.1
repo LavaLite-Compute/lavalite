@@ -1,0 +1,183 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bmod 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbmod\fR - modifies job submission options of a job
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbmod \fR[\fIbsub options\fR] [\fIjob_ID\fR\fB | \fR\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR]
+.PP
+\fBbmod\fR [\fB-h\fR | \fB-V\fR]
+.SH OPTION LIST
+.BR
+.PP
+.br
+[\fB-B\fR | \fB-Bn\fR] 
+.br
+[\fB-N\fR | \fB-Nn\fR]
+.br
+[\fB-r \fR| \fB-rn\fR ] 
+.br
+[\fB-x\fR | \fB-xn\fR] 
+.br
+[\fB-b \fR\fIbegin_time\fR | \fB-bn\fR] 
+.br
+[\fB-C\fR\fB \fR\fIcore_limit\fR | \fB-Cn\fR] 
+.br
+[\fB-c\fR [\fIhour\fR\fB:\fR]\fIminute\fR[\fB/\fR\fIhost_name\fR | \fB/\fR\fIhost_model\fR] | \fB-cn\fR]
+.br
+[\fB-D\fR\fB \fR\fIdata_limit\fR | \fB-Dn\fR] 
+.br
+[\fB-e \fR\fIerr_file\fR | \fB-en\fR] 
+.br
+[\fB-E "\fR\fIpre_exec_command \fR[\fIargument \fR...]\fB"\fR | \fB-En\fR] 
+.br
+[\fB-f\fR\fB \fR\fB"\fR\fIlocal_file op \fR[\fIremote_file\fR]\fB"\fR\fB \fR... | \fB-fn\fR]
+.br
+[\fB-F\fR \fIfile_limit\fR | \fB-Fn\fR] 
+.br
+[\fB-G\fR\fB \fR\fIuser_group\fR | \fB-Gn\fR]
+.br
+[\fB-i \fR\fIinput_file\fR | \fB-in\fR | \fB-is\fR \fIinput_file \fR |  \fB-isn\fR] 
+.br
+[\fB-J\fR\fB \fR\fIjob_name\fR | \fB-J "%\fR\fIjob_limit\fR\fB"\fR | \fB-Jn\fR] 
+.br
+[\fB-k\fR\fB \fR\fIcheckpoint_dir\fR | \fB-k\fR\fB \fR\fB"\fR\fIcheckpoint_dir\fR\fB \fR[\fIcheckpoint_period\fR]\fB"\fR | \fB-kn\fR]
+.br
+[\fB-L \fR\fIlogin_shell\fR | \fB-Ln\fR]\fB 
+\fR.br
+[\fB-m\fR\fB \fR\fB"\fR\fIhost_name\fR[\fB+\fR[\fIpref_level\fR]] | \fIhost_group\fR[\fB+\fR[\fIpref_level\fR]] ...\fB"\fR | \fB-mn\fR] 
+.br
+[\fB-M\fR\fB \fR\fImem_limit\fR | \fB-Mn\fR]
+.br
+[\fB-n\fR \fInum_processors\fR | \fB-nn\fR\fB \fR]  
+.br
+[\fB-o\fR\fB \fR\fIout_file\fR | \fB-on\fR] 
+.br
+[\fB-P\fR \fIproject_name\fR | \fB-Pn\fR] 
+.br
+[\fB-p\fR \fIprocess_limit\fR | \fB-Pn\fR] 
+.br
+[\fB-q\fR\fB "\fR\fIqueue_name\fR\fI ...\fR\fB"\fR | \fB-qn\fR] 
+.br
+[\fB-R\fR\fB "\fR\fIres_req\fR\fB"\fR | \fB-Rn\fR] 
+.br
+[\fB-sp\fR \fIpriority\fR | \fB-spn\fR] 
+.br
+[\fB-S \fR\fIstack_limit\fR | \fB-Sn\fR] 
+.br
+[\fB-t \fR\fIterm_time\fR | \fB-tn\fR]
+.br
+[\fB-u\fR\fB \fR\fImail_user\fR | \fB-un\fR]
+.br
+[\fB-w\fR \fB'\fR\fIdependency_expression\fR\fB'\fR | \fB-wn\fR]
+.br
+[\fB-W\fR\fI r\fR\fIun_limit \fR[/\fIhost_name\fR | /\fIhost_model\fR] | \fB-Wn\fR]
+.br
+[\fB-Z "\fR\fInew_command\fR\fB"\fR | \fB-Zs "\fR\fInew_command\fR\fB"\fR | \fB-Zsn\fR] 
+.br
+[\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR]\fB 
+\fR.br
+[\fB-h\fR]
+.br
+[\fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRModifies the options of a previously submitted job. See bsub(1) for 
+complete descriptions of job submission options you can modify with 
+bmod.
+.PP
+Only the owner of the job, or an Lava administrator, can modify the 
+options of a job.
+.PP
+All options specified at submission time may be changed. The value for 
+each option may be overridden with a new value by specifying the 
+option as in bsub. To reset an option to its default value, use the option 
+string followed by 'n'. Do not specify an option value when resetting 
+an option.
+.PP
+The -i, -in, and -Z options have counterparts that support spooling 
+of input and job command files (-is, -isn, -Zs, and -Zsn).
+.PP
+You can modify all options of a pending job, even if the corresponding 
+bsub option was not specified. 
+.PP
+By default, you can modify resource reservation for running jobs 
+(\fB-R\fR \fB"\fR\fIres_req\fR\fB"\fR). To modify additional job options for running jobs, 
+define LSB_MOD_ALL_JOBS=Y in lsf.conf.
+.PP
+The following are the only \fBbmod\fR options that are valid for running jobs. 
+You cannot make any other modifications after a job has been 
+dispatched.
+.PP
+- Resource reservation (\fB-R\fR \fB"\fR\fIres_req\fR\fB"\fR)
+.PP
+- CPU limit (\fB-c \fR[\fIhour\fR\fB:\fR]\fIminute\fR[\fB/\fR\fIhost_name\fR | \fB/\fR\fIhost_model\fR])
+.PP
+- Memory limit (\fB-M\fR \fImem_limit\fR)
+.PP
+- Run limit (\fB-W\fR \fIrun_limit\fR[\fB/\fR\fIhost_name\fR | \fB/\fR\fIhost_model\fR])
+.PP
+- Standard output file name (\fB-o\fR \fIoutput_file\fR)
+.PP
+- Standard error file name (\fB-e\fR \fIerror_file\fR)
+.PP
+- Rerunnable jobs (\fB-r\fR | \fB-rn\fR)
+.PP
+Modified resource limits cannot exceed the resource limits defined in 
+the queue.
+.PP
+To modify the CPU limit or the memory limit of running jobs, the 
+parameters LSB_JOB_CPULIMIT=Y and LSB_JOB_MEMLIMIT=Y must 
+be defined in lsf.conf.
+.PP
+If you want to specify array dependency by array name, set 
+JOB_DEP_LAST_SUB in lsb.params. If you do not have this 
+parameter set, the job will be rejected if one of your previous arrays 
+has the same name but a different index.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB\fR\fIjob_ID\fR\fB \fR|\fB \fR\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"
+\fR
+.IP
+Modifies jobs with the specified job ID. 
+
+.IP
+Modifies job array elements specified by \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits.
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bsub(1), lsfbatch(1)
+.SH LIMITATIONS
+.BR
+.PP
+.PP
+Modifying the -q option of a job array is not permitted.
+.PP
+If you do not specify \fB-e\fR before the job is dispatched, you cannot 
+modify the name of job error file for a running job. 

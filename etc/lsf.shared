@@ -1,0 +1,39 @@
+# $Id: lsf.shared,v 1.1.4.4 2006/04/28 21:36:01 mblack Exp $
+# Copyright (C) LavaLite Contributors
+#
+Begin Cluster
+ClusterName			# Keyword
+lavalite
+End Cluster
+
+# Describes the operating system and hardware architecture.
+Begin HostType
+TYPENAME                        # Keyword
+x86_64-linux
+End HostType
+
+# Describes the relative performance class of the host.
+Begin HostModel
+MODELNAME  CPUFACTOR   ARCHITECTURE # keyword
+fast      100        (x86_64-linux)
+End HostModel
+
+#   RESOURCENAME → symbolic name of the resource.
+#   TYPE         → Boolean (0/1), Numeric (int/float), or String (literal).
+#   INTERVAL     → update period (seconds). Use "()" for static resources.
+#   INCREASING   → Y = higher is better, N = lower is better, () = not applicable.
+#   DESCRIPTION  → short note for admins.
+#
+# Guidelines:
+#   - Boolean flags mark host roles (fs, cs).
+#   - Numeric resources like gpu are usually fixed per host.
+#   - License counts may vary, but still fit as Numeric with Y (more is better).
+Begin Resource
+RESOURCENAME  TYPE     INTERVAL  INCREASING  DESCRIPTION
+   fs         Boolean  ()        ()          (File server)
+   cs         Boolean  ()        ()          (Compute server)
+#   gpu        Numeric  ()        Y           (Number of GPUs)
+#   licenseZ   Numeric  120       Y           (Available Z licenses)
+#  load       Numeric  60        N           (System load average)
+#  latency    Numeric  300       N           (Network latency in ms)
+End Resource

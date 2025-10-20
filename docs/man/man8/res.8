@@ -1,0 +1,116 @@
+.\" $Id: res.8,v 1.1 2007/07/20 16:17:07 cchen Exp $
+.ds ]W %
+.ds ]L
+.TH RES 8 "1 August 1998"
+.SH NAME
+res \- remote execution server of the \s-1LSF\s0 system (Load Sharing Facility)
+.SH SYNOPSIS
+\fBLSF_SERVDIR/res [ -h ] [ -V ] [ -d \fIenv_dir\fB ] [ -\fIdebug_level\fB ]
+.SH DESCRIPTION
+\s-1RES\s0
+is a Remote Execution Server running on every server host
+participating in load sharing. It provides remote execution services for both
+sequential and parallel jobs.
+.PP
+In order to run
+\s-1RES\s0,
+it must be registered in the system services table (for example,
+\fB/etc/services\fR or the \s-1NIS\s0 services map) or \fBLSF_RES_PORT\fR (see
+.BR lsf.conf (5))
+must be defined in the \fBlsf.conf\fR file. The service name is `\fBres\fR', and
+it has the protocol `\fBtcp\fR'
+(see
+.BR services (5)).
+You can specify any unused port number.
+.PP
+\s-1LSF\s0 library calls are
+available for application programmers to contact a
+\s-1RES\s0 (see
+.BR lslib (3)).
+Using the \s-1LSF\s0 library, the programmer can start remote jobs on
+one or more remote hosts sequentially or in parallel. Remote
+processes have the same execution environment as the client,
+and status information from remote processes is passed back to the client with
+the same data structure that
+.BR wait (2)
+uses. Signals can be delivered to all remote
+jobs from the client transparently, and pseudo-terminals are used to support
+remote interactive jobs.
+.PP
+\s-1RES\s0
+reads the \fBlsf.conf\fR file
+(see option \fB-d\fR) to get the following parameters:
+\fBLSF_RES_DEBUG\fR, \fBLSF_AUTH\fR, \fBLSF_RES_PORT\fR,
+\fBLSF_LOG_MASK\fR, \fBLSF_LOGDIR\fR and \fBLSF_RES_ACCTDIR\fR.
+
+If \fBLSF_RES_DEBUG\fR is defined,
+\s-1RES\s0
+will run in the specified debug level.
+
+\fBLSF_AUTH\fR tells
+\s-1RES\s0
+the name of the authentication server (see
+.BR lsf.conf (5)).
+If \fBLSF_AUTH\fR is not defined, then
+\s-1RES\s0
+will only accept requests from privileged ports.
+
+If \fBLSF_LOG_MASK\fR is defined, then the RES log mask will be set
+so that any log messages with lower priorities than \fBLSF_LOG_MASK\fR will
+not be logged. If \fBLSF_LOG_MASK\fR is not defined,
+a default log mask of \fBLOG_WARNING\fR will be used.
+
+If \fBLSF_LOGDIR\fR is defined,
+error messages will be logged in the file \fBres.log.\fR<\fIhostname\fR> in the
+directory \fBLSF_LOGDIR\fR.
+If \s-1RES\s0 fails to write into \fBLSF_LOGDIR\fR,
+then the log file is created in \fB/tmp\fR.
+If \fBLSF_LOGDIR\fR is not defined,
+then syslog will be used to log error messages with level \fBLOG_ERR\fR.
+
+If \fBLSF_RES_ACCTDIR\fR is defined,
+task resource usage information will be logged in the file
+.BI lsf.acct. <hostname>
+in the directory \fBLSF_RES_ACCTDIR\fR.
+If \fBLSF_RES_ACCTDIR\fR is not defined,
+or \s-1RES\s0 fails to write into \fBLSF_RES_ACCTDIR\fR,
+the log file will be created in \fB/tmp\fR.
+By default,
+\s-1RES\s0 will not write any information to the log file
+unless logging is turned on by the
+.B lsadmin reslogon
+command.
+.SH OPTIONS
+.TP 5
+.B -h
+Print command usage to stderr and exit.
+.TP 5
+.B -V
+Print \s-1LSF\s0 release version to stderr and exit.
+.TP 5
+.B -d \fIenv_dir\fR
+Read \fBlsf.conf\fR from the directory
+.I env_dir,
+rather than from the default directory \fB/etc\fR, or from the directory
+\fBLSF_ENVDIR\fR that is set
+in the environment variable.
+.TP 5
+.BI - debug_level
+Set the debugging mode and level. Valid values are 1 and 2. If specified,
+the normal user can run \s-1RES\s0 in debugging mode.
+Authentication is not done in debugging mode, therefore
+\s-1RES\s0
+can only serve one user. If the debug_level is 1,
+\s-1RES\s0
+runs in background mode, with no associated control terminal.
+If \fIdebug_level\fR is 2,
+\s-1RES\s0
+runs in foreground mode, printing error messages to tty. The \fIdebug_level\fR option
+overrides the environment variable \fBLSF_RES_DEBUG\fR defined in \fBlsf.conf\fR.
+.SH "SEE ALSO"
+.BR lsf.conf (5),
+.BR lslib (3),
+.BR syslog (3),
+.BR nios (8),
+.BR lsadmin (8),
+.BR lsf.acct (5)

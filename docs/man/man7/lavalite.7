@@ -1,0 +1,49 @@
+.\" Manpage for lavalite(7)
+.\" Copyright (C) LavaLite Contributors
+.TH LAVALITE 7 "October 2025" "LavaLite HPC Scheduler" "LavaLite Manual"
+
+.SH NAME
+lavalite \- lightweight HPC scheduler rooted in Platform Lava 1.0
+
+.SH DESCRIPTION
+LavaLite is a modern batch scheduler for high-performance computing environments.
+It is a clean rewrite aligned with the architectural principles of Platform Lava 1.0 (2007),
+designed for fast, intuitive workflows without reliance on container orchestration or heavyweight HPC frameworks.
+
+LavaLite provides:
+.IP
+
+\[bu] 2
+Simple job submission and control via CLI tools
+.IP
+
+\[bu] 2
+Minimal runtime dependencies
+.IP
+
+\[bu] 2
+Audit-friendly codebase with no legacy entanglements
+
+.SH LINEAGE
+LavaLite descends from Platform Lava 1.0, originally released in 2007.
+No code from OpenLava, Volclava, or other forks has been retained.
+
+.SH FILES
+.TP
+\fI/etc/lavalite/\fR
+System-wide configuration files
+
+.TP
+\fI$HOME/.lavalite/\fR
+User-specific job and session data
+
+.SH SEE ALSO
+bsub(1), bkill(1), laload(1), lshosts(1), bhosts(1), bqueues(1), lim(8), sbatchd(8), mbatchd(8)
+
+.SH AUTHOR
+LavaLite Contributors
+Maintained by Lu
+
+.SH COPYRIGHT
+GPLv2. See LICENSE and NOTICE for details.
+

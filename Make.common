@@ -1,0 +1,13 @@
+#
+#  Copyright (C) LavaLite Contributors
+#
+
+# Include headers
+AM_CPPFLAGS = \
+  -I$(top_srcdir)/include \
+  -I$(top_builddir) \
+  -I$(top_srcdir)/src/eauth \
+  $(TIRPC_CFLAGS)
+
+# Linker option
+TIRPC_LIB = -ltirpc

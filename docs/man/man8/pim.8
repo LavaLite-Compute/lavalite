@@ -1,0 +1,73 @@
+.\" $Id: pim.8,v 1.1 2007/07/20 16:17:07 cchen Exp $
+.ds ]W %
+.ds ]L
+.TH PIM 8 "1 August 1998"
+.SH NAME
+pim \- Process Information Manager (\s-1PIM\s0) for the Load Sharing Facility
+(\s-1LSF\s0) system
+.SH SYNOPSIS
+\fBLSF_SERVDIR/pim [ -h ] [ -V ] [ -d \fIenv_dir\fB ] [ -\fIdebug_level\fB ]
+.SH DESCRIPTION
+\s-1PIM\s0 is a daemon started by the
+.BR LIM (8)
+on every server host which is participating in load sharing.
+The \s-1PIM\s0 collects resource usage of the processes running on the
+local host.  The information collected by the \s-1PIM\s0 is used
+by other parts of LSF (e.g.,
+.BR sbatchd (8))
+to monitor resource consumption and enforce usage limits.
+.PP
+The \s-1PIM\s0 updates the process information every 15 minutes
+unless an application queries this information.  If an application
+requests the information, the \s-1PIM\s0 will update
+the process information every \fBLSF_PIM_SLEEPTIME\fR seconds, where
+\fBLSF_PIM_SLEEPTIME\fR can be defined in the
+.BR lsf.conf (5)
+file.
+The default value for \fBLSF_PIM_SLEEPTIME\fR is 15 seconds, if this
+parameter is not defined.  If the information
+is not queried by any application for more than 5 minutes, the \s-1PIM\s0
+will revert back to the 15 minute update period.
+.PP
+The process information is stored in
+\fBLSF_PIM_INFODIR/pim.info.<hostname>\fR
+where \fBLSF_PIM_INFODIR\fR can be defined in the \fBlsf.conf\fR file.
+If this parameter is not defined, the default directory is \fB/tmp\fR.
+The \s-1PIM\s0 also reads this file when it starts up so that it can
+accumulate the resource usage of dead processes for existing process
+groups.
+.SH OPTIONS
+.TP 5
+.B -h
+Print command usage to stderr and exit.
+.TP 5
+.B -V
+Print \s-1LSF\s0 release version to stderr and exit.
+.TP 5
+.B -d \fIenv_dir\fR
+Read \fBlsf.conf\fR from the directory
+.I env_dir,
+rather than the default directory \fB/etc\fR, or the directory specified by
+the \fBLSF_ENVDIR\fR environment variable.
+.TP 5
+.BI - debug_level
+Set the debug level. Valid values are 1 and 2. If specified, \s-1PIM\s0
+runs in debugging mode.
+If \fIdebug_level\fR is 1, \s-1PIM\s0
+runs in the background, with no associated control terminal.
+If \fIdebug_level\fR
+is 2, \s-1PIM\s0 runs in the foreground, printing error messages on to
+tty. The \fIdebug_level\fR option overrides the environment variable
+\fBLSF_LIM_DEBUG\fR defined in
+.BR lsf.conf (5).
+.SH NOTE
+\s-1PIM\s0 needs read access to \fB/dev/kmem\fR or its equivalent.
+.SH FILES
+.PD 0
+.TP
+\fB/etc/lsf.conf\fR (by default) or \fBLSF_ENVDIR/lsf.conf\fR
+.PD
+.SH "SEE ALSO"
+.BR lsf.conf (5)
+
+

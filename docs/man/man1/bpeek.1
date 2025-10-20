@@ -1,0 +1,88 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bpeek 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbpeek\fR - displays the stdout and stderr output of an unfinished job
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbpeek\fR\fB \fR[\fB-f\fR] [\fB-q\fR\fB \fR\fIqueue_name\fR | \fB-m\fR\fB \fR\fIhost_name\fR | \fB-J\fR\fB \fR\fIjob_name\fR | \fIjob_ID\fR | 
+\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR]\fB 
+\fR.PP
+\fBbpeek \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays the standard output and standard error output that have been 
+produced by one of your unfinished jobs, up to the time that this 
+command is invoked.
+.PP
+By default, displays the output using the command cat.
+.PP
+This command is useful for monitoring the progress of a job and 
+identifying errors. If errors are observed, valuable user time and system 
+resources can be saved by terminating an erroneous job.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-f
+\fR
+.IP
+Displays the output of the job using the command tail -f. 
+
+
+.TP 
+\fB-q \fR\fIqueue_name\fR 
+
+.IP
+Operates on your most recently submitted job in the specified queue.
+
+
+.TP 
+\fB-m\fR \fIhost_name
+\fR
+.IP
+Operates on your most recently submitted job that has been dispatched 
+to the specified host. 
+
+
+.TP 
+\fB-J\fR \fIjob_name
+\fR
+.IP
+Operates on your most recently submitted job that has the specified job 
+name. 
+
+
+.TP 
+\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]" 
+\fR
+.IP
+Operates on the specified job. 
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+tail(1), bsub(1), bjobs(1), bhist(1), bhosts(1), 
+bqueues(1)

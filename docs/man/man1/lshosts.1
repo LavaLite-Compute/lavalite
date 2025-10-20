@@ -1,0 +1,293 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lshosts 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlshosts\fR - displays hosts and their static resource information 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlshosts\fR [\fB-w\fR\fB | \fR\fB-l\fR] [\fB-R\fR\fB \fR\fB"\fR\fIres_req\fR\fB"\fR] [\fIhost_name\fR] ...
+.PP
+\fBlshosts\fR \fB-s \fR[\fIshared_resource_name\fR ...] 
+.PP
+\fBlshosts\fR [\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays static resource information about hosts. 
+.PP
+By default, returns the following information: host name, host type, 
+host model, CPU factor, number of CPUs, total memory, total swap 
+space, whether or not the host is a server host, and static resources. 
+Displays information about all hosts in thecluster . See 
+lsf.cluster(5). 
+.PP
+The -s option displays information about the static shared resources 
+and their associated hosts. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-w\fR 
+
+.IP
+Displays host information in wide format. Fields are displayed without 
+truncation. 
+
+
+.TP 
+\fB-l
+\fR
+.IP
+Displays host information in a long multi-line format. In addition to the 
+default fields, displays information about the maximum /tmp space, 
+the number of local disks, the execution priority for remote jobs, load 
+thresholds, and run windows. 
+
+
+.TP 
+\fB-R\fR \fB"\fR\fIres_req\fR\fB"\fR 
+
+.IP
+Only displays information about the hosts that satisfy the resource 
+requirement expression. For more information about resource 
+requirements, see lsfintro(1). The size of the resource requirement 
+string is limited to 512 bytes.
+
+.IP
+Lava supports ordering of resource requirements on all load indices, 
+including external load indices, either static or dynamic.
+
+
+.TP 
+\fIhost_name\fR......
+
+.IP
+Only displays information about the specified hosts. Do not use quotes 
+when specifying multiple hosts.
+
+
+.TP 
+\fB-s\fR\fI \fR[\fIshared_resource_name \fR...]
+
+.IP
+Displays information about the specified resources. The resources must 
+be static shared resources. Returns the following information: the 
+resource names, the values of the resources, and the resource 
+locations. If no shared resource is specified, then displays information 
+about all shared resources. 
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints the Lava release version to stderr and exits. 
+
+
+.SH OUTPUT
+.BR
+.PP
+.SS Host-Based Default
+.BR
+.PP
+
+.IP
+Displays the following fields:
+
+
+.IP
+HOST_NAME
+.BR
+.RS
+.IP
+The name of the host. The host name is truncated if too long.
+
+.RE
+
+.IP
+type
+.BR
+.RS
+.IP
+The host type. The host type is truncated if too long.
+
+.RE
+
+.IP
+model
+.BR
+.RS
+.IP
+The host model. The host model is truncated if too long.
+
+.RE
+
+.IP
+cpuf
+.BR
+.RS
+.IP
+The CPU factor. The CPU factor is used to scale the CPU load value 
+so that differences in CPU speeds are considered. The faster the 
+CPU, the larger the CPU factor. 
+
+.IP
+The CPU factor of a host with an unknown host type is 1.0. 
+
+.RE
+
+.IP
+ncpus
+.BR
+.RS
+.IP
+The number of CPUs.
+
+.RE
+
+.IP
+maxmem
+.BR
+.RS
+.IP
+The total memory.
+
+.RE
+
+.IP
+maxswp
+.BR
+.RS
+.IP
+The total swap space.
+
+.RE
+
+.IP
+server
+.BR
+.RS
+.IP
+"Yes" if the host is a server host.
+
+.RE
+
+.IP
+RESOURCES
+.BR
+.RS
+.IP
+The available Boolean resources denoted by resource names, and 
+the values of external numeric and string static resources. See 
+lsf.cluster(5), and lsf.shared(5) on how to configure 
+external static resources.
+
+.RE
+
+.SS Host Based \fB-\fRl Option
+.BR
+.PP
+.PP
+In addition to the above fields, the -l option also displays the 
+following:
+
+.IP
+ndisks
+.BR
+.RS
+.IP
+The number of local disks.
+
+.RE
+
+.IP
+maxtmp
+.BR
+.RS
+.IP
+The maximum /tmp space in megabytes configured on a host.
+
+.RE
+
+.IP
+rexpri
+.BR
+.RS
+.IP
+The remote execution priority.
+
+.RE
+
+.IP
+RUN_WINDOWS
+.BR
+.RS
+.IP
+The time periods during which the host is open for sharing loads 
+from other hosts. (See lsf.cluster(5).)
+
+.RE
+
+.IP
+LOAD_THRESHOLDS
+.BR
+.RS
+.IP
+The thresholds for scheduling interactive jobs. If a load threshold 
+is exceeded, the host status is changed to "busy." See lsload(1).
+
+.RE
+.SS Resource-Based \fB-\fRs Option 
+.BR
+.PP
+.PP
+Displays the static shared resources. Each line gives the value and the 
+associated hosts for the static shared resource. See lsf.shared(5), and 
+lsf.cluster(5) on how to configure static shared resources. 
+.PP
+The following fields are displayed: 
+
+.IP
+RESOURCE 
+.BR
+.RS
+.IP
+The name of the resource. 
+
+.RE
+
+.IP
+VALUE 
+.BR
+.RS
+.IP
+The value of the static shared resource.
+
+.RE
+
+.IP
+LOCATION 
+.BR
+.RS
+.IP
+The hosts that are associated with the static shared resource. 
+
+.RE
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsfintro(1), ls_info(3), ls_policy(3), 
+ls_gethostinfo(3), lsf.cluster(5), lsf.shared(5)

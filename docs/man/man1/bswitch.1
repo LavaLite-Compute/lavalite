@@ -1,0 +1,122 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bswitch 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbswitch\fR - switches unfinished jobs from one queue to another
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbswitch\fR\fB \fR[\fB-J\fR\fB \fR\fIjob_name\fR] [\fB-m\fR\fB \fR\fIhost_name | \fR\fB-m\fR\fI host_group\fR]\fB 
+\fR[\fB-q\fR\fB \fR\fIqueue_name\fR] [\fB-u\fR\fB \fR\fIuser_name\fR | \fB-u\fR\fB \fR\fIuser_group\fR | \fB-u all\fR] 
+\fIdestination_queue\fR [\fB0\fR] 
+.PP
+\fBbswitch\fR\fB \fR\fIdestination_queue\fR [\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR] ...
+.PP
+\fBbswitch\fR\fB \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+Switches one or more of your unfinished jobs to the specified queue. 
+Lava administrators and root can switch jobs submitted by other users.
+.PP
+By default, switches one job, the most recently submitted job, or the 
+most recently submitted job that also satisfies other specified options 
+(-m, -q, -u and -J). Specify -0 (zero) to switch multiple jobs.
+.PP
+The switch operation can be done only if a specified job is acceptable 
+to the new queue as if it were submitted to it, and, in case the job has 
+been dispatched to a host, if the host can be used by the new queue. 
+If the switch operation is unsuccessful, the job stays where it is.
+.PP
+If a switched job has not been dispatched, then its behavior will be as 
+if it were submitted to the new queue in the first place.
+.PP
+If a switched job has been dispatched, then it will be controlled by the 
+loadSched and loadStop vectors, PRIORITY, RUN_WINDOW and 
+other configuration parameters of the new queue, but its nice value and 
+resource limits will remain the same except the RUNLIMIT which is 
+reset to the value of the new queue.
+.PP
+This command is useful to change a job's attributes inherited from the 
+queue.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB0
+\fR
+.IP
+(Zero). Switches multiple jobs. Switches all the jobs that satisfy other 
+specified options (-m, -q, -u and -J). 
+
+
+.TP 
+\fB-J\fR \fIjob_name
+\fR
+.IP
+Only switches jobs that have the specified job name.
+
+
+.TP 
+\fB-m\fR \fIhost_name\fR | \fB-m\fR \fIhost_group
+\fR
+.IP
+Only switches jobs dispatched to the specified host or host group.
+
+
+.TP 
+\fB-q\fR \fIqueue_name\fR 
+
+.IP
+Only switches jobs in the specified queue.
+
+
+.TP 
+\fB-u\fR\fB \fR\fIuser_name\fR | \fB-u\fR\fB \fR\fIuser_group\fR | \fB-u all\fR\fB 
+\fR
+.IP
+Only switches jobs submitted by the specified user or group, or all 
+users if you specify the keyword all.
+
+
+.TP 
+\fIdestination_queue\fR 
+
+.IP
+Required. Specify the queue to which the job is to be moved. 
+
+
+.TP 
+\fIjob_ID\fR ... |\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR ...
+
+.IP
+Switches only the specified jobs.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bqueues(1), bhosts(1), bugroup(1), bsub(1), bjobs(1) 
+.SH LIMITATIONS
+.BR
+.PP
+.PP

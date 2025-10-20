@@ -1,0 +1,56 @@
+.\" $Id: eauth.8,v 1.3 2007/08/13 21:54:53 cchen Exp $
+.ds ]W %
+.ds ]L
+.TH EAUTH 8 "1 August 1998"
+.SH NAME
+eauth \- External authentication 
+.SH SYNOPSIS
+\fBLSF_SERVERDIR/eauth
+.SH DESCRIPTION
+When LSF_AUTH = eauth is set in lsf.conf, LSF uses eauth as the authentication
+mechanism instead of setuid to root.  LSF bundles a default eauth and installs
+it in LSF_SERVERDIR. 
+
+When a LSF client program is invoked, the client program
+automatically executes eauth -c hostname to get the external authentication 
+data. hostname is the name of the host running the LSF daemon (for example, 
+RES) on which the operation will take place.  The external user authentication 
+data can be passsed to LSF via eauth's standard output.
+
+When the LSF daemon receives the request, it executes eauth -s under the 
+primary LSF administrator user ID.  eauth -s is executed to process the 
+user authentication data. The data is passed to eauth -s via its standard 
+input.  The standard input stream has the following
+format:
+
+uid gid username client_addr client_port  user_auth_data_len user_auth_data
+
+Where:
+
+    uid is  the user ID in ASCII of the client user.
+
+    gid is the group ID in ASCII of the client user.
+
+    username is the user name of the client user.
+
+    client_addr is the host address of the client host in ASCII dot notation.
+
+    client_port is the port number from where the client request is made.
+
+    user_auth_data_len is the length of the external authentication data in 
+    ASCII passed from the client. 
+
+    user_auth_data is the external user authentication encrypted data passed
+    from the client.
+
+The LSF daemon expects eauth -s to write 1 to its standard output if 
+authentication succeeds, 0r 0 if authentication fails.
+
+The user also can write and configure his site-specific eauth if they like.  
+A example of supporting Kerberos authentication's eauth can be found in 
+the examples/krb in the standard LSF distribution. 
+
+.SH "SEE ALSO"
+.BR lsf.conf(5),
+
+

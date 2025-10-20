@@ -1,0 +1,130 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bmig 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbmig\fR - migrates checkpointable or rerunnable jobs
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbmig\fR\fB \fR[\fB-f\fR] [\fIjob_ID\fR\fB | \fR\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR] ...
+.PP
+\fBbmig\fR\fB \fR[\fB-f\fR] [\fB-J\fR \fIjob_name\fR] [\fB-m\fR \fB"\fR\fIhost_name\fR ...\fB"\fR\fB | \fR\fB-m\fR \fB"\fR\fIhost_group \fR...\fB"\fR] 
+[\fB-u\fR\fB \fR\fIuser_name\fR\fB | \fR\fB-u\fR\fI user_group\fR\fB | \fR\fB-u all\fR] [\fB0\fR]
+.PP
+\fBbmig \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+Migrates one or more of your checkpointable and rerunnable jobs. Lava 
+administrators and root can migrate jobs submitted by other users.
+.PP
+By default, migrates one job, the most recently submitted job, or the 
+most recently submitted job that also satisfies other specified options 
+(-u and -J). Specify 0 (zero) to migrate multiple jobs.
+.PP
+To migrate a job, both hosts must be binary compatible, run the same 
+OS version, have access to the executable, have access to all open files 
+(Lava must locate them with an absolute path name), and have access 
+to the checkpoint directory.
+.PP
+Only started jobs can be migrated (i.e., running or suspended jobs); 
+pending jobs cannot be migrated.
+.PP
+When a checkpointable job is migrated, Lava checkpoints and kills the 
+job (similar to the -k option of bchkpnt(1)) then restarts it on the next 
+available host. If checkpoint is not successful, the job is not killed and 
+remains on the host. If a job is being checkpointed when bmig is 
+issued, the migration is ignored. This situation may occur if periodic 
+checkpointing is enabled.
+.PP
+When a rerunnable job is migrated, Lava kills the job (similar to 
+bkill(1)) then restarts it from the beggining on the next available host.
+.PP
+The environment variable LSB_RESTART is set to Y when a migrating 
+job is restarted or rerun.
+.PP
+A job is made rerunnable by specifying the -r option on the command 
+line using bsub(1) and bmod(1), or automatically by configuring 
+RERUNNABLE in lsb.queues(5).
+.PP
+A job is made checkpointable by specifying the location of a 
+checkpoint directory on the command line using the -k option of 
+bsub(1) and bmod(1), or automatically by configuring CHKPNT in 
+lsb.queues(5).
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-f
+\fR
+.IP
+Forces a checkpointable job to be checkpointed even if 
+non-checkpointable conditions exist (these conditions are OS-specific).
+
+
+.TP 
+\fIjob_ID\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR | \fB0
+\fR
+.IP
+Specifies the job ID of the jobs to be migrated. The -J and -u options 
+are ignored.
+
+.IP
+If you specify a job ID of \fB0\fR (zero), all other job IDs are ignored, and 
+all jobs that satisfy the -J and -u options are migrated.
+
+.IP
+If you do not specify a job ID, the most recently submitted job that 
+satisfies the -J and -u options is migrated.
+
+
+.TP 
+\fB-J\fR \fIjob_name
+\fR
+.IP
+Specifies the job name of the job to be migrated. Ignored if a job ID 
+other than 0 (zero) is specified.
+
+
+.TP 
+\fB-m\fR "\fIhost_name\fR ...\fB"\fR | \fB-m\fR \fB"\fR\fIhost_group\fR ...\fB"
+\fR
+.IP
+Only migrates jobs dispatched to the specified hosts.
+
+
+.TP 
+\fB-u\fR \fB"\fR\fIuser_name\fR\fB"\fR | \fB-u\fR \fB"\fR\fIuser_group\fR\fB"\fR | \fB-u all
+\fR
+.IP
+Specifies that only jobs submitted by these users are to be migrated.
+
+.IP
+If the reserved user name all is specified, jobs submitted by all users 
+are to be migrated. Ignored if a job ID other than 0 (zero) is specified.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits.
+
+
+.TP 
+\fB-V\fR 
+
+.IP
+Prints Lava release version to stderr and exits.
+
+
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bsub(1), brestart(1), bchkpnt(1), bjobs(1), bqueues(1), 
+bhosts(1), bugroup(1), mbatchd(8), lsb.queues(5), kill(1)

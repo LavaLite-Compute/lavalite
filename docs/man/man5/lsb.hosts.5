@@ -1,0 +1,428 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsb.hosts 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsb.hosts\fR
+.SS \fB\fROverview
+.BR
+.PP
+.PP
+The lsb.hosts file contains host-related configuration information for 
+the server hosts in the cluster. This file is optional. All sections are 
+optional.
+.SS Contents
+.BR
+.PP
+.RS
+.HP 2
+\(bu Host Section
+.HP 2
+\(bu HostGroup Section
+.RE
+.SH Host Section
+.BR
+.PP
+.SH Description
+.BR
+.PP
+.PP
+Optional. Defines the hosts, host types, and host models used as server 
+hosts, and contains per-host configuration information. If this section is 
+not configured, Lava uses all hosts in the cluster as server hosts.
+.PP
+Each host, host model or host type can be configured to:
+.RS
+.HP 2
+\(bu Limit the maximum number of jobs run in total
+.HP 2
+\(bu Limit the maximum number of jobs run by each user
+.HP 2
+\(bu Run jobs only under specific load conditions 
+.HP 2
+\(bu Run jobs only under specific time windows
+.RE
+.PP
+The entries in a line for a host override the entries in a line for its model 
+or type.
+.PP
+When you modify the cluster by adding or removing hosts, no changes 
+are made to lsb.hosts. This does not affect the default configuration, 
+but if hosts, host models, or host types are specified in this file, you 
+should check this file whenever you make changes to the cluster and 
+update it manually if necessary.
+.SH Host Section Structure
+.BR
+.PP
+.PP
+The first line consists of keywords identifying the load indices that you 
+wish to configure on a per-host basis. The keyword HOST_NAME must 
+be used; the others are optional. Load indices not listed on the keyword 
+line do not affect scheduling decisions.
+.PP
+Each subsequent line describes the configuration information for one 
+host, host model or host type. Each line must contain one entry for 
+each keyword. Use empty parentheses ( ) or a dash (-) to specify the 
+default value for an entry.
+.SH HOST_NAME
+.BR
+.PP
+.SS 
+.BR
+.PP
+.PP
+Required. Specify the name, model, or type of a host, or the keyword 
+default.
+.SS host name
+.BR
+.PP
+.PP
+The name of a host defined in lsf.cluster.\fIcluster_name\fR. The 
+official host name returned by \fBgethostbyname(3)\fR.
+.SS host model
+.BR
+.PP
+.PP
+A host model defined in lsf.shared.
+.SS host type
+.BR
+.PP
+.PP
+A host type defined in lsf.shared.
+.SS default
+.BR
+.PP
+.PP
+The reserved host name default indicates all hosts in the cluster not 
+otherwise referenced in the section (by name or by listing its model or 
+type).
+.SH DISPATCH_WINDOW
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+The time windows in which jobs from this host, host model, or host 
+type are dispatched. Once dispatched, jobs are no longer affected by 
+the dispatch window.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (always open).
+.SH JL/U
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Per-user job slot limit for the host. Maximum number of job slots that 
+each user can use on this host.
+.SS Example 
+.BR
+.PP
+
+.PP
+HOST_NAME  JL/U 
+.br
+hostA         2
+
+
+.SS Default	  
+.BR
+.PP
+.PP
+Unlimited
+.SH MIG
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Enables job migration and specifies the migration threshold, in 
+minutes.
+.PP
+If a checkpointable or rerunnable job dispatched to the host is 
+suspended (SSUSP state) for longer than the specified number of 
+minutes, the job is migrated. A value of 0 specifies that a suspended 
+job should be migrated immediately.
+.PP
+If a migration threshold is defined at both host and queue levels, the 
+lower threshold is used.
+.SS Example
+.BR
+.PP
+
+.PP
+HOST_NAME   MIG 
+.br
+hostA        10
+
+
+.PP
+In this example, the migration threshold is 10 minutes.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined (no migration)
+.SH MXJ
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+The number of job slots on the host.
+.PP
+Use "!" to make the number of job slots equal to the number of CPUs 
+on a host.
+.PP
+Use "!" for the reserved host name default to make the number of 
+jobslots equal to the number of CPUs on all hosts in a cluster not 
+defined in the host section of the lsb.hosts file.
+.PP
+By default, the number of running and suspended jobs on a host 
+cannot exceed the number of job slots. If preemptive scheduling is 
+used, the suspended jobs are not counted as using a job slot.
+.PP
+On multiprocessor hosts, to fully use the CPU resource, make the 
+number of job slots equal to or greater than the number of processors.
+.SS Default	  
+.BR
+.PP
+.PP
+Unlimited
+.SH load_index
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+
+.PP
+\fIload_index
+.br
+loadSched\fR[\fB/\fR\fIloadStop\fR]
+
+
+.PP
+Specify io, it, ls, mem, pg, r15s, r1m, r15m, swp, tmp, ut, or a non-
+shared custom external load index as a column. Specify multiple 
+columns to configure thresholds for multiple load indices.
+.SS Description
+.BR
+.PP
+.PP
+Scheduling and suspending thresholds for dynamic load indices 
+supported by LIM, including external load indices. 
+.PP
+Each load index column must contain either the default entry or two 
+numbers separated by a slash `/', with no white space. The first number 
+is the scheduling threshold for the load index; the second number is 
+the suspending threshold.
+.PP
+Queue-level scheduling and suspending thresholds are defined in 
+lsb.queues. If both files specify thresholds for an index, those that 
+apply are the most restrictive ones.
+.SS Example 
+.BR
+.PP
+
+.PP
+HOST_NAME    mem     swp
+.br
+hostA        100/10  200/30
+
+
+.PP
+This example translates into a loadSched condition of
+
+.PP
+mem>=100 && swp>=200 
+
+
+.PP
+and a loadStop condition of 
+
+.PP
+mem < 10 || swp < 30
+
+
+.SS Default 
+.BR
+.PP
+.PP
+Undefined
+.SH Example of a Host Section
+.BR
+.PP
+
+.PP
+Begin Host
+.br
+HOST_NAME MXJ JL/U r1m     pg    DISPATCH_WINDOW
+.br
+hostA     1   -    0.6/1.6 10/20 (5:19:00-1:8:30 20:00-8:30)
+.br
+SUNSOL    1   -    0.5/2.5 -     23:00-8:00
+.br
+default   2   1    0.6/1.6 20/40 ()
+.br
+End Host
+
+
+.PP
+SUNSOL is a host type defined in lsf.shared. This example Host 
+section configures one host and one host type explicitly and configures 
+default values for all other load-sharing hosts.
+.PP
+HostA runs one batch job at a time. A job will only be started on hostA 
+if the r1m index is below 0.6 and the pg index is below 10; the running 
+job is stopped if the r1m index goes above 1.6 or the pg index goes 
+above 20. HostA only accepts batch jobs from 19:00 on Friday evening 
+until 8:30 Monday morning and overnight from 20:00 to 8:30 on all 
+other days.
+.PP
+For hosts of type SUNSOL, the pg index does not have host-specific 
+thresholds and such hosts are only available overnight from 23:00 to 
+8:00.
+.PP
+The entry with host name default applies to each of the other hosts in 
+the Lava cluster. Each host can run up to two jobs at the same time, with 
+at most one job from each user. These hosts are available to run jobs 
+at all times. Jobs may be started if the r1m index is below 0.6 and the 
+pg index is below 20, and a job from the lowest priority queue is 
+suspended if r1m goes above 1.6 or pg goes above 40.
+.SH HostGroup Section
+.BR
+.PP
+.SH Description
+.BR
+.PP
+.PP
+Optional. Defines host groups.
+.PP
+The name of the host group can then be used in other host group, host 
+partition, and queue definitions, as well as on the command line. 
+Specifying the name of a host group has exactly the same effect as 
+listing the names of all the hosts in the group.
+.SH Structure 
+.BR
+.PP
+.PP
+Host groups are specified in the same format as user groups in 
+lsb.users.
+.PP
+The first line consists of two mandatory keywords, GROUP_NAME and 
+GROUP_MEMBER. Subsequent lines name a group and list its 
+membership.
+.PP
+The sum of host groups and host partitions cannot be more than 
+MAX_GROUPS (see lsbatch.h for details).
+.SH GROUP_NAME
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+An alphanumeric string representing the name of the host group.
+.PP
+You cannot use the reserved name all, and group names must not 
+conflict with host names.
+.SH GROUP_MEMBER
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+A space-separated list of host names or previously defined host group 
+names, enclosed in parentheses.
+.PP
+The names of hosts and host groups can appear on multiple lines 
+because hosts can belong to multiple groups. The reserved name all 
+specifies all hosts in the cluster. Use an exclamation mark (!) to specify 
+that the group membership should be retrieved via egroup. Use a tilde 
+(~) to exclude specified hosts or host groups from the list.
+.SH Examples of HostGroup Sections
+.BR
+.PP
+.SS Example 1
+.BR
+.PP
+
+.PP
+Begin HostGroup
+.br
+GROUP_NAME  GROUP_MEMBER
+.br
+groupA      (hostA hostD)
+.br
+groupB      (hostF groupA hostK)
+.br
+groupC      (!)
+.br
+End HostGroup
+
+
+.PP
+This example defines three host groups:
+.RS
+.HP 2
+\(bu groupA includes hostsA and hostD.
+.HP 2
+\(bu groupB includes hostsF and hostK, along with all hosts in 
+groupA.
+.HP 2
+\(bu the group membership of groupC will be retrieved via egroup.
+.RE
+.SS Example 2
+.BR
+.PP
+
+.PP
+Begin HostGroup
+.br
+GROUP_NAME   GROUP_MEMBER
+.br
+groupA       (all)
+.br
+groupB       (groupA ~hostA ~hostB)
+.br
+groupC       (hostX hostY hostZ)
+.br
+groupD       (groupC ~hostX)
+.br
+groupE       (all ~groupC ~hostB)
+.br
+groupF       (hostF groupC hostK)
+.br
+End HostGroup
+
+
+.PP
+This example defines the following host groups:
+.RS
+.HP 2
+\(bu groupA contains all hosts in the cluster.
+.HP 2
+\(bu groupB contains all the hosts in the cluster except for hostA and 
+hostB.
+.HP 2
+\(bu groupC contains only hostX, hostY, and hostZ.
+.HP 2
+\(bu groupD contains the hosts in groupC except for hostX. Note that 
+hostX must be a member of host group groupC to be excluded 
+from groupD.
+.HP 2
+\(bu groupE contains all hosts in the cluster excluding the hosts in 
+groupC and hostB.
+.HP 2
+\(bu groupF contains hostF, hostK, and the 3 hosts in groupC.
+.RE

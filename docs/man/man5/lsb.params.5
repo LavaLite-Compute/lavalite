@@ -1,0 +1,704 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsb.params 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsb.params\fR
+.SS \fB\fROverview
+.BR
+.PP
+.PP
+The lsb.params file defines general parameters used by Lava Batch. 
+This file contains only one section, named Parameters. MBD uses 
+lsb.params for initialization. The file is optional. If not present, the 
+Lava-defined defaults are assumed.
+.PP
+Some of the parameters that can be defined in lsb.params control 
+timing within the Lava Batch system. The default settings provide good 
+throughput for long-running batch jobs while adding a minimum of 
+processing overhead in the batch daemons.
+.SS Contents
+.BR
+.PP
+.RS
+.HP 2
+\(bu Parameters Section
+.RE
+.SH Parameters Section
+.BR
+.PP
+.PP
+This section and all the keywords in this section are optional. If 
+keywords are not present, Lava Batch assumes default values for the 
+corresponding keywords. The valid keywords for this section are:
+.SH ACCT_ARCHIVE_AGE 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fIdays
+\fR.SS Description
+.BR
+.PP
+.PP
+Enables automatic archiving of Lava accounting log files, and specifies 
+the archive interval. Lava archives the current log file if the length of 
+time from its creation date exceeds the specified number of days.
+.SS See Also 
+.BR
+.PP
+.PP
+ACCT_ARCHIVE_SIZE also enables automatic archiving. 
+.PP
+MAX_ACCT_ARCHIVE_FILE enables automatic deletion of the 
+archives.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (no limit to the age of lsb.acct).
+.SH ACCT_ARCHIVE_SIZE 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fIkilobytes
+\fR.SS Description
+.BR
+.PP
+.PP
+Enables automatic archiving of Lava accounting log files, and specifies 
+the archive threshold. Lava archives the current log file if its size exceeds 
+the specified number of kilobytes.
+.SS See Also 
+.BR
+.PP
+.PP
+ACCT_ARCHIVE_AGE also enables automatic archiving. 
+.PP
+MAX_ACCT_ARCHIVE_FILE enables automatic deletion of the 
+archives.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (no limit to the size of lsb.acct).
+.SH CLEAN_PERIOD
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBCLEAN_PERIOD\fR \fB=\fR \fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+For non-repetitive jobs, the amount of time that job records for jobs that 
+have finished or have been killed are kept in MBD core memory after 
+they have finished.
+.PP
+Users can still see all jobs after they have finished using the \fBbjobs\fR 
+command. For jobs that finished more than CLEAN_PERIOD seconds 
+ago, use the \fBbhist\fR command.
+.SS Default
+.BR
+.PP
+.PP
+3600 (1 hour).
+.SH DEFAULT_HOST_SPEC
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDEFAULT_HOST_SPEC =\fR \fIhost_name | host_model
+\fR.SS Description
+.BR
+.PP
+.PP
+The default CPU time normalization host for the cluster.
+.PP
+The CPU factor of the specified host or host model will be used to 
+normalize the CPU time limit of all jobs in the cluster, unless the CPU 
+time normalization host is specified at the queue or job level.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SH DEFAULT_PROJECT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDEFAULT_PROJECT\fR \fB=\fR \fIproject_name
+\fR.SS Description
+.BR
+.PP
+.PP
+The name of the default project. Specify any string.
+.PP
+When you submit a job without specifying any project name, and the 
+environment variable LSB_DEFAULTPROJECT is not set, Lava 
+automatically assigns the job to this project.
+.SS Default
+.BR
+.PP
+.PP
+default
+.SH DEFAULT_QUEUE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDEFAULT_QUEUE\fR \fB=\fR \fIqueue_name \fR...
+.SS Description
+.BR
+.PP
+.PP
+Space-separated list of candidate default queues (candidates must 
+already be defined in lsb.queues).
+.PP
+When you submit a job to Lava without explicitly specifying a queue, 
+and the environment variable LSB_DEFAULTQUEUE is not set, Lava puts 
+the job in the first queue in this list that satisfies the job's specifications 
+subject to other restrictions, such as requested hosts, queue status, etc.
+.SS Default
+.BR
+.PP
+.PP
+Undefined. When a user submits a job to Lava without explicitly 
+specifying a queue, and there are no candidate default queues defined 
+(by this parameter or by the user's environment variable 
+LSB_DEFAULTQUEUE), Lava automatically creates a new queue named 
+default, using the default configuration, and submits the job to that 
+queue.
+.SH DISABLE_UACCT_MAP
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDISABLE_UACCT_MAP = y | Y
+\fR.SS Description
+.BR
+.PP
+.PP
+Specify y or Y to disable user-level account mapping.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SH JOB_ACCEPT_INTERVAL
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBJOB_ACCEPT_INTERVAL =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The number of dispatch turns to wait after dispatching a job to a host, 
+before dispatching a second job to the same host. By default, a dispatch 
+turn lasts 60 seconds (MBD_SLEEP_TIME in lsb.params).
+.PP
+If 0 (zero), a host may accept more than one job in each job dispatching 
+interval. By default, there is no limit to the total number of jobs that can 
+run on a host, so if this parameter is set to 0, a very large number of 
+jobs might be dispatched to a host all at once. You may notice 
+performance problems if this occurs.
+.PP
+JOB_ACCEPT_INTERVAL set at the queue level (lsb.queues) 
+overrides JOB_ACCEPT_INTERVAL set at the cluster level 
+(lsb.params).
+.SS Default
+.BR
+.PP
+.PP
+1
+.SH JOB_DEP_LAST_SUB
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Used only with job dependency scheduling.
+.PP
+If set to 1, whenever dependency conditions use a job name that 
+belongs to multiple jobs, Lava evaluates only the most recently 
+submitted job.
+.PP
+Otherwise, all the jobs with the specified name must satisfy the 
+dependency condition.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SH JOB_PRIORITY_OVER_TIME
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+
+.PP
+\fBJOB_PRIORITY_OVER_TIME=\fR\fIincrement\fR\fB/\fR\fIinterval
+\fR
+
+.SS Description
+.BR
+.PP
+.PP
+JOB_PRIORITY_OVER_TIME enables automatic job priority escalation 
+when MAX_USER_PRIORITY is also defined.
+.SS Valid Values
+.BR
+.PP
+.PP
+\fIincrement
+\fR.IP
+Specifies the value used to increase job priority every \fIinterval\fR 
+minutes. Valid values are positive integers.
+
+.RE
+.PP
+\fIinterval
+\fR.IP
+Specifies the frequency, in minutes, to \fIincrement\fR job priority. 
+Valid values are positive integers.
+
+.RE
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS Example
+.BR
+.PP
+.PP
+JOB_PRIORITY_OVER_TIME=3/20
+.IP
+Specifies that every 20 minute \fIinterval\fR \fIincrement\fR to job priority 
+of pending jobs by 3.
+
+.RE
+.SS See Also
+.BR
+.PP
+.PP
+MAX_USER_PRIORITY
+.SH JOB_SPOOL_DIR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBJOB_SPOOL_DIR =\fR \fIdir
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the directory for buffering batch standard output and standard 
+error for a job
+.PP
+When JOB_SPOOL_DIR is defined, the standard output and standard 
+error for the job is buffered in the specified directory.
+.PP
+Except for \fBbsub -is\fR and \fBbsub -Zs\fR, if JOB_SPOOL_DIR is not 
+accessible or does not exist, output is spooled to the default job output 
+directory .lsbatch.
+.PP
+For \fBbsub -is\fR and \fBbsub -Zs\fR, JOB_SPOOL_DIR must be readable and 
+writable by the job submission user, and it must be shared by the 
+master host, the submission host, and the execution host. If the 
+specified directory is not accessible or does not exist, \fBbsub -is\fR and 
+\fBbsub -Zs\fR cannot write to the default directory and the job will fail.
+.PP
+As Lava runs jobs, it creates temporary directories and files under 
+JOB_SPOOL_DIR. By default, Lava removes these directories and files 
+after the job is finished. See \fBbsub\fR(\fB1\fR) for information about job 
+submission options that specify the disposition of these files.
+.PP
+On UNIX, specify an absolute path. For example:
+
+.PP
+JOB_SPOOL_DIR=/home/share/lsf_spool
+
+.PP
+JOB_SPOOL_DIR can be any valid path up to a 
+maximum length of 256 characters. This maximum path length includes 
+the temporary directories and files that Lava Batch creates as jobs run. 
+The path you specify for JOB_SPOOL_DIR should be as short as 
+possible to avoid exceeding this limit.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.PP
+Batch job output (standard output and standard error) is sent to the 
+.lsbatch directory on the execution host:
+.RS
+.HP 2
+\(bu On UNIX: $HOME/.lsbatch
+.RE
+
+.IP
+If %HOME% is specified in the user environment, uses that 
+directory instead of %windir% for spooled output.
+
+
+.SH JOB_TERMINATE_INTERVAL
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBJOB_TERMINATE_INTERVAL =\fR \fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+UNIX only. 
+.PP
+Specifies the time interval in seconds between sending SIGINT, 
+SIGTERM, and SIGKILL when terminating a job. When a job is 
+terminated, the job is sent SIGINT, SIGTERM, and SIGKILL in sequence 
+with a sleep time of JOB_TERMINATE_INTERVAL between sending the 
+signals. This allows the job to clean up if necessary.
+.SS Default
+.BR
+.PP
+.PP
+10
+.SH MAX_ACCT_ARCHIVE_FILE 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+MAX_ACCT_ARCHIVE_FILE=\fIinteger
+\fR.SS Description 
+.BR
+.PP
+.PP
+Enables automatic deletion of archived Lava accounting log files and 
+specifies the archive limit.
+.SS Compatibility
+.BR
+.PP
+.PP
+ACCT_ARCHIVE_SIZE or ACCT_ARCHIVE_AGE should also be 
+defined.
+.SS Example
+.BR
+.PP
+
+.PP
+MAX_ACCT_ARCHIVE_FILE=10
+
+
+.PP
+Lava maintains the current lsb.acct and up to 10 archives. Every time 
+the old lsb.acct.9 becomes lsb.acct.10, the old lsb.acct.10 
+gets deleted.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (no deletion of lsb.acct.\fIn\fR files).
+.SH MAX_JOB_ARRAY_SIZE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_JOB_ARRAY_SIZE =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Specifies the maximum index value of a job array that can be created 
+by a user for a single job submission. The maximum number of jobs in 
+a job array cannot exceed this value, and will be less if some index 
+values are not used (start, end, and step values can all be used to limit 
+the indices used in a job array).
+.PP
+A large job array allows a user to submit a large number of jobs to the 
+system with a single job submission.
+.PP
+Specify an integer value from 1 to 65534.
+.SS Default
+.BR
+.PP
+.PP
+1000
+.SH MAX_JOBID
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_JOBID=\fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The job ID limit. The job ID limit is the highest job ID that Lava will ever 
+assign, and also the maximum number of jobs in the system.
+.PP
+Specify any integer from 999999 to 9999999 (for practical purposes, any 
+seven-digit integer).
+.SS Example
+.BR
+.PP
+.PP
+MAX_JOBID=1234567
+.SS Default
+.BR
+.PP
+.PP
+999999
+.SH MAX_JOB_NUM
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_JOB_NUM\fR \fB=\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The maximum number of finished jobs whose events are to be stored 
+in the lsb.events log file.
+.PP
+Once the limit is reached, MBD starts a new event log file. The old 
+event log file is saved as lsb.events.\fIn\fR, with subsequent sequence 
+number suffixes incremented by 1 each time a new log file is started. 
+Event logging continues in the new lsb.events file.
+.SS Default
+.BR
+.PP
+.PP
+1000
+.SH MAX_SBD_FAIL
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_SBD_FAIL = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The maximum number of retries for reaching a non-responding slave 
+batch daemon, SBD.
+.PP
+The interval between retries is defined by MBD_SLEEP_TIME. If MBD 
+fails to reach a host and has retried MAX_SBD_FAIL times, the host is 
+considered unavailable. When a host becomes unavailable, MBD 
+assumes that all jobs running on that host have exited and that all 
+rerunnable jobs (jobs submitted with the \fBbsub\fR \fB-r\fR option) are 
+scheduled to be rerun on another host.
+.SS Default
+.BR
+.PP
+.PP
+3
+.SH MAX_SBD_CONNS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_SBD_CONNS = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The maximum number of files mbatchd can have open and connected 
+to sbatchd
+.SH MAX_SCHED_STAY
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_SCHED_STAY = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The time in seconds the mbatchd has for scheduling pass.
+.SS Default
+.BR
+.PP
+.PP
+3
+.SH MAX_USER_PRIORITY
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMAX_USER_PRIORITY=\fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Enables user-assigned job priority and specifies the maximum job 
+priority a user can assign to a job.
+.PP
+Lava administrators can assign a job priority higher than the specified 
+value.
+.SS Compatibility
+.BR
+.PP
+.PP
+User-assigned job priority changes the behavior of \fBbtop\fR and \fBbbot\fR.
+.SS Example
+.BR
+.PP
+
+.PP
+MAX_USER_PRIORITY=100
+
+
+.PP
+Specifies that 100 is the maximum job priority that can be specified by 
+a user.
+.SS Default
+.BR
+.PP
+.PP
+Undefined
+.SS See Also
+.BR
+.PP
+.PP
+bsub, bmod, btop, bbot, JOB_PRIORITY_OVER_TIME
+.SH MBD_SLEEP_TIME
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMBD_SLEEP_TIME =\fR \fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+The job dispatching interval; how often Lava tries to dispatch pending 
+jobs.
+.SS Default
+.BR
+.PP
+.PP
+60
+.SH PG_SUSP_IT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBPG_SUSP_IT =\fR \fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+The time interval that a host should be interactively idle (it > 0) before 
+jobs suspended because of a threshold on the pg load index can be 
+resumed.
+.PP
+This parameter is used to prevent the case in which a batch job is 
+suspended and resumed too often as it raises the paging rate while 
+running and lowers it while suspended. If you are not concerned with 
+the interference with interactive jobs caused by paging, the value of 
+this parameter may be set to 0.
+.SS Default
+.BR
+.PP
+.PP
+180 (seconds)
+.SH SBD_SLEEP_TIME
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBSBD_SLEEP_TIME =\fR \fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+The interval at which Lava checks the load conditions of each host, to 
+decide whether jobs on the host must be suspended or resumed.
+.SS Default
+.BR
+.PP
+.PP
+30
+.SH SHARED_RESOURCE_UPDATE_FACTOR
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBSHARED_RESOURCE_UPDATE_FACTOR = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Determines the static shared resource update interval for the cluster.
+.PP
+Specify approximately how many times to update static shared 
+resources during one MBD sleep time period. The formula is:
+.PP
+\fIinterval\fR = MBD_SLEEP_TIME / 
+SHARED_RESOURCE_UPDATE_FACTOR
+.PP
+where the result of the calculation is truncated to an integer. The static 
+shared resource update interval is in seconds.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (all resources are updated only once, at the start of each 
+dispatch turn).
+.PP

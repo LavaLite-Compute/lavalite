@@ -1,0 +1,335 @@
+.\" $Id: lsfintro.1,v 1.2 2007/08/01 20:36:25 bill Exp $
+.ds ]W %
+.ds ]L
+.TH LSFINTRO 1 "1 August 1998"
+.SH NAME
+lsf \- load sharing facility
+.SH DESCRIPTION
+\s-1Lava\s0, or Load Sharing Facility,  is a load sharing and distributed batch
+queueing software that integrates a heterogeneous network of computers running
+\s-1UNIX\s0 systems.  It consists of the following components:
+.TP 5
+.B \s-1Lava\s0 Base:
+The software upon which all the other components are
+based.  It includes two servers, the Load Information Manager (\s-1LIM\s0) and
+the Remote Execution Server (\s-1RES\s0),  API for accessing services
+provided by the \s-1Lava\s0 Base system,
+Base software services and other load sharing tools.  (see 
+.BR lsfbase (1)).
+
+.TP 5
+.B \s-1Lava\s0 Batch: 
+The set of utilities providing  batch
+job scheduling for distributed and heterogeneous environments, ensuring
+optimal resource sharing.  It includes the master and slave batch daemons
+(mbatchd and sbatchd) and API for accessing services provided by
+the \s-1Lava\s0 Batch system (see 
+.BR lsfbatch (1)).
+
+.SH RESOURCE REQUIREMENT STRINGS
+
+Many of the above commands and utilities permit a resource requirement
+string to be specified.  A resource requirement string contains information
+used for querying for information from the \s-1LIM\s0 about hosts or
+requesting task placement decisions.
+.PP
+A resource requirement string is divided into four sections including
+a selection section, an ordering section, a resource usage section and
+a job spanning section. The
+selection section specifies the criteria for selecting hosts from the system.
+The ordering section indicates how the hosts which meet the selection criteria
+should be sorted. The resource usage section specifies the expected resource
+consumption of the task or the resource reservation for a batch job.
+The job spanning section specifies whether to span a (parallel) batch job 
+across multiple hosts.
+The syntax of a resource requirement expression is
+.LP
+\fB "select[ \fIselectstring\fB ] order[ \fIorderstring\fR ]
+.LP
+\fBrusage[ \fIusagestring\fB ] span[ \fIspanstring\fR ]"
+.LP
+where `\fBselect\fR', `\fBorder\fR' , `\fBrusage\fR' and `\fBspan\fR' are 
+the section names.
+Any character in the resource requirement expression not within the above
+sections are ignored.  If a section is repeated multiple times in a resource
+requirement expression, then only the first occurrence is considered.
+The syntax for each of `\fIselectstring\fR', `\fIorderstring\fR',
+`\fIusagestring\fR' and `\fIspanstring\fR' is defined below. Depending on 
+the command, one or more of these sections may be ignored. For example,
+.BR lshosts (1)
+will only select hosts, but not order them,
+.BR lsload (1)
+will select and order the hosts,
+.BR lsplace (1)
+uses the information in select, order and rusage sections to select an 
+appropriate host for a task.
+.BR lsloadadj (1)
+uses the resource usage section to determine how the load information
+should be adjusted on a host, while
+.BR bsub (1)
+uses all the four sections.
+Sections other than these are ignored. If no section name is given, then
+the string is treated as a `\fIselectstring\fR'. The `\fBselect\fR'
+keyword may be omitted if the `\fIselectstring\fR' appears as the first
+string in the resource requirement.
+
+.SS Selection String
+.LP
+The selection string specifies the characteristics a host must have to be returned.
+It is a logical expression built from a set of resource names.
+The resource names  and their descriptions can be obtained by running
+the \s-1Lava\s0 utility program
+.BR lsinfo (1).
+The resource names `\fBswap\fR', `\fBidle\fR', `\fBlogin\fR', and
+`\fBcpu\fR' are aliases for `\fBswp\fR', `\fBit\fR', `\fBls\fR' and
+`\fBr1m\fR' respectively which are returned by
+.BR lsinfo (1).
+.PP
+Resource names correspond to information maintained by the \s-1LIM\s0
+about hosts. Some resources correspond to dynamic information
+about a host, such as its \s-1CPU\s0 queue length, available memory, 
+and available
+swap space. These resources are referred to as load indices and can be
+retrieved via
+.BR lsload (1).
+Other resources correspond to static information about a host such as its
+type, host model, relative \s-1CPU\s0 speed, total memory and total swap space.
+This information can be retrieved via
+.BR lshosts (1).
+The system administrator can define other resources in the system
+in addition to those built in to \s-1LIM\s0.
+.PP
+An arbitrary expression with resource
+names being combined with logical or mathematical operators, and functions
+can be specified.
+Valid operators include `\fB&&\fR' (logical AND), `\fB||\fR' (logical OR),
+`\fB!\fR' (logical NOT), `\fB+\fR' (addition), `\fB-\fR' (subtraction),
+`\fB*\fR',(multiplication) and `\fB/\fR' (division).
+The function, \fBdefined\fR, can be used to determine the hosts which have
+a particular resource defined.  
+The selection expression is evaluated for each host; if the result
+is non-zero, then that host is selected.
+
+For example,
+.LP
+ \fB"select[ (swp>50 && mem>=10 && type==MIPS) || (swp>35 && type==ALPHA) ]"\fR
+.LP
+ \fB"select[ ((2*r15s + 3*r1m + r15m)/6 < 1.0) && \!fs && (cpuf > 4.0) ]"\fR
+.LP
+ \fB"select[ defined(verilog_license) ]"\fR
+
+are valid selection expressions. Resource names which are of the boolean
+type (e.g. `\fBfs\fR' for a file server resource) have a value of
+1 if they are defined for a host, and 0 otherwise. The default is to
+select all configured hosts in the cluster.  For the string valued resources
+`\fBtype\fR' and `\fBmodel\fR', special values of `\fBany\fR' and
+`\fBlocal\fR' can be used to select any value or the same value as that of
+the local host, respectively. For example, "\fBtype==local\fR" would select
+hosts of the same type as the local host.
+When the run queue lengths `\fBr15s\fR', `\fBr1m\fR', or 
+`\fBr15m\fR' are specified, the effective value of the queue length is used.
+.PP
+For tasks where an arbitrary selection string is not required a restricted
+syntax is provided. The restricted syntax allows for combining resource
+names using `:' (logical AND) and `-' (logical NOT).
+For example,
+"\fBr15m=1.5:mem=20:swp=12:-ultrix\fR"
+is a valid selection string in the restricted syntax. It is equivalent
+to "\fBr15m <= 1.5 && mem >= 20 && swp >= 12 && !ultrix\fR" in the
+unrestricted syntax.  A selection string in the restricted syntax is of
+the form
+.LP
+"\fIres\fR[=\fIvalue\fR]:\fIres\fR[=\fIvalue\fR]: ... :\fIres\fR[=\fIvalue\fR]"
+.LP
+where each `\fIres\fR' is resource name. \fIvalue\fR may only be specified for
+resources whose value type
+is numeric or string. The semantics of `=' depends on the value type
+and sorting order for the resource. For string resources `=', is equivalent
+to `=='. For numeric valued resources `=' is equivalent to `>='  (`<=')
+if the sorting order for the resource is decreasing (increasing).
+A `-' may only be used in front of a boolean resource name or in
+isolation. In isolation `-' is equivalent to "\fBtype==any\fR".
+If the value is not given for a numeric resource then it is equivalent
+to saying that the resource must have a non-zero value.
+Other examples of a selection string in the restricted syntax are,
+"\fB-:swp=12\fR", "\fBtype=MIPS:maxmem=20\fR", and
+"\fBstatus=busy\fR".
+
+.SS Order String
+.LP
+The order string allows the selected hosts to be sorted according to
+the value(s) of resource(s). The syntax of the order string is
+.LP
+"[-]\fIres\fR:[-]\fIres\fR:...[-]\fIres\fR"
+.LP
+Each `\fIres\fR' is a resource name with
+a numeric value type. Currently only load indices such as `\fBmem\fR',
+`\fBswp\fR', and `\fBtmp\fR'  which are returned by
+.BR lsload (1)
+are considered for sorting.
+For example, "\fBswp:r1m:tmp:r15s\fR" is a valid order string.
+The order string is used as input to a multi-level sorting algorithm,
+where each sorting phase orders the hosts according to one particular
+load index and discards some hosts. The remaining hosts are passed onto the
+next phase. The first phase begins with the last index and proceeds from
+right to left. The final phase of sorting orders the hosts according to
+their status, with hosts that are currently not available for load sharing
+(i.e., not in the \fBok\fR state) listed at the end.
+When sorting is done on the particular index, the direction in which the
+hosts are sorted (increasing vs. decreasing values) is determined by the
+default order returned by
+.BR lsinfo (1)
+for that index. This direction is chosen such that after sorting, the
+hosts are ordered from best to worst on that index.
+A `-' before the index name reverses the order.
+.PP
+If no sorting string is specified, the default sorting string is
+"\fBr15s:pg\fR".
+.PP
+When the run queue lengths `\fBr15s\fR', `\fBr1m\fR', or `\fBr15m\fR' are
+specified, the normalized value of the queue length is used when sorting.
+
+.SS Resource Usage String
+
+The resource usage section is used to specify the resource reservation
+for batch jobs via \fBbsub -R\fR
+option and queue configuration parameter 
+.BR RES_REQ.
+External indices are also considered in the resource
+usage string for this purpose.
+The syntax of the resource usage string is
+.Lp
+"\fIres\fR=\fIvalue\fR:\fIres\fR=\fIvalue\fR: ... :\fIres\fR=\fIvalue\fR[:\fIduration=\fIvalue\fR][:\fIdecay\fR=\fIvalue\fR]"
+.LP
+The "\fIres\fR=\fIvalue\fR" is used to specify
+the amount of resource to be reserved for a job after the job starts.
+If \fIvalue\fR is not specified, the resource will not be reserved.
+"\fIduration=value\fR" and "\fIdecay=value\fR" are optionally used to specify
+how long the resource reservation will be in effect and how the reserved
+amount of resource is decreased as the time passes.  "\fIduration\fR" and 
+"\fIdecay\fR" are keywords.
+
+The value of "\fIduration\fR" (in minutes) is
+the time period within which the specified resources will be reserved.
+The value can be specified in hours if followed by "h", e.g.,
+"\fIduration=2h\fR".  If "\fIduration\fR" is not given,
+the default is to reserve the total amount for the lifetime of the job.
+
+A value of 1 for "\fIdecay\fR" indicates that the system should linearly
+decrease the reserved amount over the duration.  A value of 0 causes
+the total amount to be reserved for the entire duration or until the
+job finishes.  All other values for "\fIdecay\fR" are not supported.
+The "\fIdecay\fR" keyword is ignored if the duration is not specified.
+The default value for "\fIdecay\fR" is 0.
+
+.PP
+For example, 
+"\fIrusage[mem=50:duration=100:decay=1]\fR" will initially
+reserve 50 MBytes of memory.  As the job runs, the
+amount reserved amount will decrease
+by 0.5 Mbytes each minute such that the reserved amount is 0 after
+100 minutes.
+.PP
+The resource usage string is also used in adjusting the load
+and for mapping tasks onto hosts during a placement decision (see
+.BR lsplace (1)
+and
+.BR lsloadadj (1)).
+External indices are not considered in the resource
+usage string for this purpose.
+The syntax of the resource usage string is
+"\fIres\fR[=\fIvalue\fR]:\fIres\fR[=\fIvalue\fR]: ... :\fIres\fR[=\fIvalue\fR]"
+where `\fIres\fR' is one of the
+resources whose value is returned by
+.BR lsload (1).
+For example, "\fBr1m=0.5:mem=20:swp=40\fR" indicates that the task
+is expected to increase the 1-minute run queue length by 0.5, consume
+20 Mbytes of memory and 40 Mbytes of swap space. 
+If no value is specified, the
+task is assumed to be intensive in using that resource. In this case
+no more than one task will be assigned to a host regardless of how
+many \s-1CPU\s0s it has. 
+.PP
+The default resource usage for a task is assumed to be 
+"\fBr15s=1.0:r1m=1.0:r15m=1.0\fR" which indicates a \s-1CPU\s0 intensive task
+which consumes few other resources.
+.PP
+
+.SS Job Spanning String
+
+This string specifies the locality of a parallel batch job.  Currently
+only the following two cases are supported:  "\fIspan[hosts=1]\fR"
+indicates that all the processors allocated to this job must be on the
+same host, while "\fIspan[ptile=N]\fR" indicates that up \fIN\fR processor(s)
+on each host should be allocated to the job.
+
+.SH RUN QUEUE LENGTHS
+
+The raw \s-1CPU\s0 queue length is collected by the \s-1LIM\s0 from the kernel of the
+host operating system every 5 seconds. This number represents the total number 
+of processes that are contending for the \s-1CPU\s0(s) on the host. 
+The raw queue
+length is averaged over 15 seconds, 1 minute, and 15 minutes to produce the
+`\fBr15s\fR', `\fBr1m\fR', and `\fBr15m\fR' load indices, respectively. The raw
+queue lengths can be viewed using 
+.BR lsload (1).
+.PP
+In order to compare queue
+lengths on hosts having different numbers of \s-1CPU\s0s and 
+relative \s-1CPU\s0 speeds, two variations of the raw queue length are defined.
+The effective queue length attempts to account for multiprocessor hosts
+by considering the number of \s-1CPU\s0s. 
+The effective queue length is calculated by taking the multiprocessor's
+multitasking feature into consideration such that even if many of the
+processors are busy, the host's effective queue length may appear to be as 
+good as an idle uniprocessor (as long as there is one or more idle processors).
+The effective queue length is the same as the raw queue length on 
+uniprocessor hosts. Effective queue lengths are listed when using
+the \fB-E\fR option of
+.B lsload.
+The effective queue length is used by \s-1LIM\s0 when testing whether the host has
+exceeded its busy thresholds. When `\fBr15s\fR', `\fBr1m\fR', or `\fBr15m\fR'
+are specified in the selection section of resource requirement strings,
+they refer to the effective queue length. It is also used by 
+.BR lsfbatch (1)
+when comparing the values specified for queue and host thresholds against
+the current load.
+.PP
+The normalized queue length 
+is used by the \s-1LIM\s0 when making placement decision about where to send 
+a job 
+(see 
+.BR lsplace (1)). 
+It considers both the number of \s-1CPU\s0s and the \s-1CPU\s0 factor of a host.
+This is also the value returned by 
+.B lsload 
+when using the \fB-N\fR option.
+The normalized queue length attempts to estimate
+what the load would be on a host if an additional \s-1CPU\s0 bound job was dispatched
+to that host.
+
+.SH LSF_JOB_STARTER
+Users can define the environment variable, \s-1LSF_JOB_STARTER\s0, to specify
+a job starter command for executing remote tasks.  The task's arguments
+are passed as the arguments to the job starter command.  An example
+use of the job starter is to specify that the remote task is to
+run under
+.BR csh (1).
+The \s-1LSF_JOB_STARTER\s0 variable is set to "/bin/csh -c" for this
+example.
+
+.SH NOTES
+If lsf.conf (see
+.BR lsf (5))
+is not in the default 
+.B /etc 
+directory, set the environment variable
+.B LSF_ENVDIR
+to the name of the directory where lsf.conf is stored.
+
+.SH SEE ALSO
+.BR lsf.conf (5),
+.BR lim (8),
+.BR res (8),
+.BR nios (8),
+.BR lslib (3),

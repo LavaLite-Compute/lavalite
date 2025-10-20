@@ -1,0 +1,18 @@
+[Unit]
+Description=Lavalite sbatchd (Batch Daemon)
+Wants=network-online.target
+After=network-online.target lavalite-lim.service lavalite-res.service
+
+[Service]
+Type=forking
+Environment=LSF_ENVDIR=/opt/lavalite/etc
+ExecStart=/opt/lavalite/sbin/sbatchd
+KillMode=control-group
+GuessMainPID=no
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+

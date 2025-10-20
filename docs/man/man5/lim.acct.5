@@ -1,0 +1,71 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lim.acct 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlim.acct\fR - Log file of the LIM.
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+A log file produced by lsmon, lim.acct contains host load information  
+collected and distributed by Load Information Manager (LIM). The first 
+line contains a list of load index names separated by spaces. This list 
+of load index names can be specified in the lsmon command line. The 
+default list is "\fBr15s r1m r15m ut pg ls it swp mem tmp\fR". Subsequent 
+lines in the file contain the host's load information at the time the 
+information was recorded. 
+.SH Fields
+.BR
+.PP
+.PP
+Fields are ordered in the following sequence: 
+.TP 
+\fItime (%ld)\fR 
+
+.IP
+The time when the load information is written to the log file 
+
+
+.TP 
+\fIhost name (%s)\fR 
+
+.IP
+The name of the host.
+
+
+.TP 
+\fIstatus of host (%d)\fR 
+
+.IP
+An array of integers. The first integer marks the operation status of the 
+host. Additional integers are used as a bit map to indicate load status 
+of the host. An integer can be used for 32 load indices. If the number 
+of user defined load indices is not more than 21, only one integer is 
+used for both built-in load indices and external load indices. See the 
+\fBhostload\fR structure in ls_load(3) for the description of these fields.
+
+
+.TP 
+\fIindexvalue (%f)\fR 
+
+.IP
+A sequence of load index values. Each value corresponds to the index 
+name in the first line of lim.acct. The order in which the index values 
+are listed is the same as the order of the index names. 
+
+
+.SH SEE ALSO
+.BR
+.PP
+.SS Related Topics
+.BR
+.PP
+.PP
+lsmon(1), lsload(1) 
+.SS Files
+.BR
+.PP
+.PP
+None

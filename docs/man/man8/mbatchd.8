@@ -1,0 +1,259 @@
+.\" $Id: mbatchd.8,v 1.4 2007/08/10 15:01:06 tmizan Exp $
+.ds ]W %
+.ds ]L
+.TH MBATCHD 8 "1 August 1998"
+.SH NAME
+mbatchd, sbatchd \- master and slave daemons of the Lava system
+.SH SYNOPSIS
+\fBLSF_SERVERDIR/mbatchd [ -h ] [ -V ] [ -C ] [ -d \fIenv_dir\fB ] [ -\fIdebug_level\fB ]
+.PP
+\fBLSF_SERVERDIR/sbatchd [ -h ] [ -V ] [ -d \fIenv_dir\fB ] [ -\fIdebug_level\fB ]
+.SH DESCRIPTION
+Lava is a load sharing batch system that supports distributed batch job
+processing.
+There is a slave batch daemon, sbatchd, on every server host.
+The slave batch daemon on the same host as the master Load Information
+Manager (\s-1LIM\s0) of the underlying
+\s-1Lava Base\s0 is responsible for starting a
+master batch daemon,
+mbatchd, on its host for the local \s-1Lava\s0 cluster.
+The sbatchds are typically started at system boot time by
+.BR rc.local (8).
+You must never start the mbatchd daemon unless you are running
+it with the \fB-C\fR option.
+.PP
+In order to use the Lava system, mbatchd and sbatchd must be registered in
+the services database, such as \fB/etc/services\fR or the \s-1NIS\s0
+services map, 
+or \fBLSB_MBD_PORT\fR and \fBLSB_SBD_PORT\fR must be defined in the file
+\fBlsf.conf\fR.  
+The service names are `\fBmbatchd\fR' and `\fBsbatchd\fR' respectively, and
+the protocol is `\fBtcp\fR' (see
+.BR services (8)).
+You can select any unused port numbers.
+.PP
+You can submit batch jobs from any host to the mbatchd.
+mbatchd contacts the \s-1LIM\s0 to
+obtain current load information about hosts that satisfy the resource
+requirements provided at job submission (see
+.BR bsub (1)).
+If no suitable hosts are found, the jobs are held by
+the mbatchd (that is, they are pending).
+Once suitable execution hosts are found, mbatchd dispatches the jobs to
+one or more sbatchds on the selected hosts for execution.
+.PP
+An sbatchd accepts job execution requests from the mbatchd,
+starts the jobs and monitors the progress of the jobs.
+Based on the execution conditions specified by the mbatchd at job dispatch
+time, an sbatchd may stop and resume a job in response to changes in the host
+load conditions, interactive user activities and queue or host run windows.
+Such actions by an sbatchd are reported back to the mbatchd.
+When a job is finished (either completed successfully or with an error, or
+terminated by a user, a \s-1Lava \s0 administrator or the queue administrator),
+the job output is either mailed to the user who submitted the
+job, or stored in a file specified at job submission (see
+.BR bsub (1)).
+.PP
+Besides processing user requests, mbatchd
+performs most of the scheduling functions of Lava.
+Lava is fault tolerant: a new mbatchd is
+started if the host of the current mbatchd fails, and no jobs are lost,
+except those running on the failed host.
+These jobs may be rerun from begin on some other hosts or, 
+if they are checkpointable, restarted from their last checkpoint
+on some other hosts.
+.PP
+Most of the user's environment (such as the current working directory,
+umask, and user groups) at the time of batch job submission is
+retained and used for batch job execution.
+.PP
+mbatchd and sbatchd read the file \fBlsf.conf\fR (see \fB-d\fR option)
+to get the environment information.
+The file \fBlsf.conf\fR is a generic configuration file shared
+by \s-1Lava \s0 and applications built on top of it. It contains environment
+information as to where the specific configuration files and data
+files are and other information that dictates the behavior of the
+software. The information of interest to
+Lava includes: \fBLSB_CONFDIR\fR, \fBLSB_SHAREDIR\fR, \fBLSB_LOCALDIR\fR, 
+\fBLSB_MAILPROG\fR,
+\fBLSB_MAILTO\fR, \fBLSF_SERVERDIR\fR, \fBLSF_LOG_MASK\fR,
+\fBLSB_DEBUG\fR, \fBLSB_MBD_PORT\fR, \fBLSB_SBD_PORT\fR
+and \fBLSF_LOGDIR\fR.
+See \fBlsf.conf\fR(5) for details of \fBLSF_SERVERDIR\fR, \fBLSF_LOG_MASK\fR,
+and \fBLSF_LOGDIR\fR.
+The other parameters are explained below:
+.TP 5
+.B LSB_CONFDIR
+The directory in which all batch configuration files are stored. The files
+used by Lava are organized on a cluster basis, i.e., each cluster
+has its unique set of directories. The actual files for 
+the cluster <\fIclustername\fR> are stored in directory 
+\fBLSB_CONFDIR\fR/<\fIclustername\fR>/\fBconfigdir\fR.
+The directory \fBLSB_CONFDIR\fR should be
+accessible from all Lava server hosts in the cluster.
+The directory \fBLSB_CONFDIR\fR must be owned by root and accessible
+by all users. The directories
+\fBLSB_CONFDIR\fR/<\fIclustername\fR>
+and
+\fBLSB_CONFDIR\fR/<\fIclustername\fR>/\fBconfigdir\fR
+must be owned by the \s-1Lava \s0 primary (first) administrator
+and readable by all users.
+The \s-1Lava\s0 installation procedure already does this automatically for you.
+If you change the \s-1Lava\s0 administrators
+after installation, you should make sure
+that all the file
+ownership is correct and change the section \fBClusterAdmin\fR in your \s-1Lava\s0
+configuration file (see \fBlsf.cluster\fR(5)).
+.TP 5
+.B LSB_SHAREDIR
+The directory in which the master batch daemon (mbatchd) stores job data
+and accounting files. The actual files for the cluster <\fIclustername\fR> are
+stored in directory 
+\fBLSB_SHAREDIR\fR/<\fIclustername\fR>/\fBlogdir\fR.
+The directory \fBLSB_SHAREDIR\fR should be accessible from all
+Lava server hosts in the cluster. The directory
+\fBLSB_SHAREDIR\fR must be owned by root and accessible
+by all users. The directories
+\fBLSB_SHAREDIR\fR/<\fIclustername\fR>
+and
+\fBLSB_SHAREDIR\fR/<\fIclustername\fR>/\fBlogdir\fR
+must be owned and writable by the \s-1Lava\s0 primary (first)
+administrator and accessible by all users.
+.TP 5
+.B LSB_LOCALDIR
+The directory in which the replicated event logging process stores 
+the event files.  The replicated event logging feature provides 
+added fault-tolerance to mbatchd/sbatchd as it will be able to tolerate
+failures of the file server where \fBLSB_SHAREDIR\fR is located.
+To enable this feature \fBLSB_LOCALDIR\fR must be defined in lsf.conf.
+\fBLSB_LOCALDIR\fR should be a local directory which exists ONLY 
+on the first master master (i.e. first host configured
+in \fBlsf.cluster\fR(5)).  Two mbatchd daemons will be started.
+One of these daemons will use \fBLSB_LOCALDIR\fR to store
+the primary copy of the \fBlsb.events\fR(5) files, which will 
+than be replicated in the \fBLSB_SHAREDIR\fR directory.
+.TP 5
+.B LSB_MAILPROG
+This parameter is optional. If defined, it specifies the mail transport
+program. Default is \fB/usr/lib/sendmail\fR.  If this parameter is
+changed, the sbatchd must be restarted so that the new value will be picked
+up (see
+.BR badmin (1)).
+.TP 5
+.B LSB_MAILTO
+This parameter is optional. If defined, it specifies the mail address format.
+Lava uses mails to send job output or error message to users. The possible
+formats are:
+.RS 10
+.nf
+\fB!U\fR                         (the default. Send to \fIuser\fR's account name)
+\fB!U@!H\fR                  (Send to \fIuser\fB@\fIjob_submission_hostname\fR)
+\fB!U@\fIcompany_name.com\fR    (Send to \fIuser\fB@\fIcompany_name.com\fR)
+.fi
+.RE
+If this parameter is changed, the sbatchd must be restarted so that the new
+value will be picked up (see
+.BR badmin (1)).
+.TP 5
+.B LSB_CRDIR
+This parameter specifies
+the directory containing the \fBchkpnt/restart\fR utility programs that
+the sbatchd daemon is to use to checkpoint or restart a job.
+This parameter applies to platforms that have system support checkpoint/restart
+by means of the \fBchkpnt/restart\fR utility programs.  Currently,
+this parameter should only be defined on convex systems.
+If \fBLSB_CRDIR\fR is not defined, then the default is \fB/bin\fR.
+.TP 5
+.B LSB_MBD_PORT/LSB_SBD_PORT
+This defines the \s-1TCP\s0 port number that mbatchd/sbatchd
+uses to serve all requests. If \fBLSB_MBD_PORT\fR/\fBLSB_SBD_PORT\fR 
+is defined,  mbatchd/sbatchd 
+will not look into system services database for port numbers. Any unused
+port numbers can be specified.
+.TP 5
+.B LSB_DEBUG
+If this is defined, Lava will run in single user mode. In this mode,
+security checking are not performed and therefore Lava daemons
+should not run as root. When \fBLSB_DEBUG\fR is defined, Lava will not
+look into system services database for port numbers. Instead, it 
+uses port number 40000 for mbatchd
+and port number 40001 for  sbatchd
+unless \fBLSB_MBD_PORT/LSB_SBD_PORT\fR  is defined in the file \fBlsf.conf\fR.
+.SH OPTIONS
+.TP 5
+.B -h
+Print command usage to stderr and exit.
+.TP 5
+.B -V
+Print \s-1Lava\s0 release version to stderr and exit.
+.TP 5
+.B -C
+This option applies to mbatchd only. If specified, mbatchd will do the syntax
+checking on the Lava configuration files and prints verbose messages
+to stdout. After the checking, mbatchd will exit. Mbatchd with \fB-C\fR option does
+not have to be run on the master host (as returned by \fBlsid\fR(1)). You must
+never start mbatchd manually unless the \fB-C\fR option is used.
+.TP 5
+.B -d \fIenv_dir\fR
+Read \fBlsf.conf\fR file from the directory
+.I env_dir,
+rather than from the default directory \fB/etc\fR, or from the directory
+\fBLSF_ENVDIR\fR that is set in the environment variable.
+.TP 5
+.BI - debug_level
+Debug mode level. Possible values are either 1 or 2. When debug mode is
+set, the daemons are run in debug mode and can be started by a normal user
+(non-root). If debug level is 1, sbatchd will go to background
+when started. If debug level is 2, sbatchd will stay in foreground.
+mbatchd is always started by sbatchd with the same options, and therefore
+has the same debug level. If Lava daemons are running in debug mode,
+\fBLSB_DEBUG\fR must be defined in the file \fBlsf.conf\fR
+in order for Lava commands to talk with the daemons.
+.SH QUEUES AND LOGS
+Visible to users are a number of job queues to which jobs can be submitted.
+Job queues are defined by the \s-1Lava\s0 administrator in the cluster
+configuration file \fBlsb.queues\fR.
+See
+.BR lsb.queues (5)
+for a description of the queue configuration.
+.PP
+Two types of log files are maintained by mbatchd: event log and job log.
+The files are named \fBlsb.events\fR and \fBlsb.acct\fR, respectively. See
+.BR lsb.events (5)
+and
+.BR lsb.acct (5)
+for the description. 
+.SH "ERROR REPORTING"
+mbatchd and sbatchd have no controlling tty. Serious errors are mailed to the
+\s-1Lava\s0 administrator. Less serious errors are sent to syslog with
+log level \fBLOG_ERR\fR, or written to the file
+\fBLSF_LOGDIR/mbatchd.log.\fR<\fIhostname\fR> or
+\fBLSF_LOGDIR/sbatchd.log.\fR<\fIhostname\fR>,
+if \fBLSF_LOGDIR\fR is defined in the file \fBlsf.conf\fR.
+.SH FILES
+.PD 0
+.TP
+\fBLSB_CONFDIR/<\fIclustername\fB>/configdir/lsb.params
+.TP
+\fBLSB_CONFDIR/<\fIclustername\fB>/configdir/lsb.queues
+.TP
+\fBLSB_CONFDIR/<\fIclustername\fB>/configdir/lsb.hosts
+.TP
+\fBLSB_CONFDIR/<\fIclustername\fB>/configdir/lsb.users
+.TP
+\fBLSB_SHAREDIR/<\fIclustername\fB>/logdir/lsb.events\fR[.?]
+.TP
+\fBLSB_SHAREDIR/<\fIclustername\fB>/logdir/lsb.acct
+.PD
+.SH "SEE ALSO"
+.BR lsf.conf (5),
+.BR lsf.cluster (5),
+.BR lsb.queues (5),
+.BR lsb.events (5),
+.BR lsb.acct (5),
+.BR bsub (1),
+.BR lsid (1),
+.BR lim (8),
+.BR rc.local (8),
+.BR services (8)
+

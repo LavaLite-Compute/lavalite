@@ -1,0 +1,240 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bkill 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbkill\fR - sends signals to kill, suspend, or resume unfinished jobs
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbkill\fR\fB \fR[\fB-l\fR] [\fB-R\fR] [\fB-J\fR\fB \fR\fIjob_name\fR] [\fB-m\fR\fB \fR\fIhost_name | \fR\fB-m\fR\fI host_group\fR] 
+[\fB-q\fR\fB \fR\fIqueue_name\fR] [\fB-r\fR | \fB-s (\fR\fIsignal_value\fR\fI | \fR\fIsignal_name\fR\fB)\fR] 
+[\fB-u\fR\fB \fR\fIuser_name | \fR\fB-u\fR\fI user_group\fR\fB | \fR\fB-u all\fR] 
+[\fIjob_ID \fR... | \fB0\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR ...]
+.PP
+\fBbkill \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRBy default, sends a set of signals to kill the specified jobs. On LINUX, 
+SIGINT and SIGTERM are sent to give the job a chance to clean up 
+before termination, then SIGKILL is sent to kill the job. The time 
+interval between sending each signal is defined by the 
+JOB_TERMINATE_INTERVAL parameter in lsb.params(5).
+.PP
+Users can only operate on their own jobs. Only root and Lava 
+administrators can operate on jobs submitted by other users.
+.PP
+If a signal request fails to reach the job execution host, Lava tries the 
+operation later when the host becomes reachable. Lava retries the most 
+recent signal request.
+.PP
+If a job is running in a queue with CHUNK_JOB_SIZE set, bkill has 
+the following results depending on job state:
+.SS PEND
+.BR
+.PP
+.PP
+Job is removed from chunk (NJOBS -1, PEND -1)
+.SS RUN
+.BR
+.PP
+.PP
+All jobs in the chunk are suspended (NRUN -1, NSUSP +1)
+.SS USUSP
+.BR
+.PP
+.PP
+Job finishes, next job in the chunk starts if one exists (NJOBS -1, PEND 
+-1, SUSP -1, RUN +1)
+.SS WAIT
+.BR
+.PP
+.PP
+Job finishes (NJOBS-1, PEND -1)
+.PP
+Using bkill on a repetitive job kills the current run, if the job has been 
+started, and requeues the job. See bcadd(1) and bsub(1) for 
+information on setting up a job to run repetitively.
+.PP
+If the job cannot be killed, use bkill -r to remove the job from the 
+Lava system without waiting for the job to terminate, and free the 
+resources of the job. 
+.PP
+A job ID or -m, -u, -q, or -J must be specified with bkill.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-l
+\fR
+.IP
+Displays the signal names supported by bkill. This is a subset of 
+signals supported by /bin/kill and is platform-dependent.
+
+
+.TP 
+\fB-J\fR \fIjob_name
+\fR
+.IP
+Operates only on jobs with the specified \fIjob_name\fR. The -J option is 
+ignored if a job ID other than 0 is specified in the \fIjob_ID\fR option.
+
+
+.TP 
+\fB-m\fR \fIhost_name \fR| \fB-m\fR\fI host_group
+\fR
+.IP
+Operates only on jobs dispatched to the specified host or host group. 
+
+.IP
+If \fIjob_ID\fR is not specified, only the most recently submitted qualifying 
+job is operated on. The -m option is ignored if a job ID other than 0 is 
+specified in the \fIjob_ID\fR option. See bhosts(1) and bmgroup(1) for 
+more information about hosts and host groups.
+
+
+.TP 
+\fB-q\fR \fIqueue_name
+\fR
+.IP
+Operates only on jobs in the specified queue. 
+
+.IP
+If \fIjob_ID\fR is not specified, only the most recently submitted qualifying 
+job is operated on. 
+
+.IP
+The -q option is ignored if a job ID other than 0 is specified in the 
+\fIjob_ID\fR option. 
+
+.IP
+See bqueues(1) for more information about queues.
+
+
+.TP 
+\fB-r
+\fR
+.IP
+Removes a job from the Lava system without waiting for the job to terminate 
+in the operating system. 
+
+.IP
+Sends the same series of signals as bkill without -r, except that the job 
+is removed from the system immediately, the job is marked as EXIT, and 
+the job resources that Lava monitors are released as soon as Lava receives the 
+first signal.
+
+.IP
+Also operates on jobs for which a bkill command has been issued but 
+which cannot be reached to be acted on by SBD (jobs in ZOMBI state). If 
+SBD recovers before the jobs are completely removed, Lava ignores the 
+zombi jobs killed with bkill -r.
+
+.IP
+Use \fBbkill -r\fR only on jobs that cannot be killed in the operating system, 
+or on jobs that cannot be otherwise removed using \fBbkill\fR.
+
+.IP
+The -r option cannot be used with the -s option.
+
+
+.TP 
+\fB-s (\fR\fIsignal_value\fR | \fIsignal_name\fR\fB)
+\fR
+.IP
+Sends the specified signal to specified jobs. You can specify either a name, 
+stripped of the SIG prefix (such as KILL), or a number (such as 9). 
+
+.IP
+Eligible signal names are listed by \fBbkill -l\fR.
+
+.IP
+The \fB-s\fR option cannot be used with the \fB-r\fR option.
+
+.IP
+Use bkill -s to suspend and resume jobs by using the appropriate signal 
+instead of using bstop or bresume. Sending the SIGCONT signal is the 
+same as using bresume. Sending the SIGSTOP signal to sequential jobs or 
+the SIGTSTP to parallel jobs is the same as using bstop. 
+
+.IP
+You cannot suspend a job that is already suspended, or resume a job that 
+is not suspended. Using SIGSTOP or SIGTSTP on a job that is in the USUSP 
+state has no effect and using SIGCONT on a job that is not in either the 
+PSUSP or the USUSP state has no effect. See bjobs(1) for more 
+information about job states.
+
+
+.TP 
+\fB-u\fR \fIuser_name \fR|\fI \fR\fB-u\fR\fI user_group \fR| \fB-u all
+\fR
+.IP
+Operates only on jobs submitted by the specified user or user group (see 
+bugroup(1)), or by all users if the reserved user name all is specified. 
+
+.IP
+If \fIjob_ID\fR is not specified, only the most recently submitted qualifying job is 
+operated on. The -u option is ignored if a job ID other than 0 is specified 
+in the \fIjob_ID\fR option.
+
+
+.TP 
+\fIjob_ID \fR... | \fB0\fR | \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]" \fR...
+
+.IP
+Operates only on jobs that are specified by \fIjob_ID\fR or\fB "\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR, 
+where \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex\fR\fB]"\fR specifies selected job array elements (see 
+bjobs(1)). For job arrays, quotation marks must enclose the job ID and 
+index, and index must be enclosed in square brackets.
+
+.IP
+Jobs submitted by any user can be specified here without using the -u 
+option. If you use the reserved job ID 0, all the jobs that satisfy other options 
+(that is, -m, -q, -u and -J) are operated on; all other job IDs are ignored. 
+
+.IP
+The options -u, -q, -m and -J have no effect if a job ID other than 0 is 
+specified. Job IDs are returned at job submission time (see bsub(1)) and 
+may be obtained with the bjobs command (see bjobs(1)). 
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits.
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits.
+
+
+.SH EXAMPLES
+.BR
+.PP
+.PP
+%\fB bkill -s 17 -q night
+\fR.PP
+Sends signal 17 to the last job that was submitted by the invoker to queue 
+night.
+.PP
+%\fB bkill -q short -u all 0
+\fR.PP
+Kills all the jobs that are in the queue short.
+.PP
+%\fB bkill -r 1045
+\fR.PP
+Forces the removal of unkillable job 1045.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bsub(1), bjobs(1), bqueues(1), bhosts(1), bresume(1), 
+bstop(1), bparams(5), mbatchd(8), kill(1), signal(2)

@@ -1,0 +1,73 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bmgroup 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbmgroup\fR - displays information about host groups
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbmgroup\fR\fB \fR [\fB-w\fR] [\fIhost_group \fR...]
+.PP
+\fBbmgroup \fR[\fB-h\fR | \fB-V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays host groups and host names for each group.
+.PP
+By default, displays information about all host groups. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-w
+\fR
+.IP
+Wide format. Displays host and host group names without truncating 
+fields.
+
+.IP
+
+
+
+.TP 
+\fIhost_group \fR...
+
+.IP
+Only displays information about the specified host groups\fI. \fRDo not use 
+quotes when specifying multiple host groups.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH OUTPUT
+.BR
+.PP
+.PP
+In the list of hosts, a name followed by a slash (/) indicates a subgroup.
+.SH FILES
+.BR
+.PP
+.PP
+Host groups are defined in the configuration file 
+lsb.hosts(5). 
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsb.hosts(5), bugroup(1), bhosts(1)

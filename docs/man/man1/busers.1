@@ -1,0 +1,119 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH busers 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbusers\fR - displays information about users and user groups
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbusers\fR\fB \fR[\fIuser_name \fR... | \fIuser_group\fR ... | \fBall\fR]\fB 
+\fR.PP
+\fBbusers\fR\fB \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays information about users and user groups.
+.PP
+By default, displays information about the user who runs the 
+command.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fIuser_name\fR ... |\fB \fR\fIuser_group \fR... |\fB \fR\fBall
+\fR
+.IP
+Displays information about the specified users or user groups, or about 
+all users if you specify all.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits.
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH OUTPUT
+.BR
+.PP
+.PP
+A listing of the users and user groups is displayed with the following 
+fields: 
+.SS USER/GROUP 
+.BR
+.PP
+.PP
+The name of the user or user group. 
+.SS JL/P 
+.BR
+.PP
+.PP
+The maximum number of job slots that can be processed 
+simultaneously for the specified users on each processor. 
+These job slots are used by running and suspended jobs or by pending 
+jobs which have jobs slots reserved for them.  This job limit is 
+configured per processor so that multiprocessor hosts have more job 
+slots. If the dash character (-) is displayed, there is no limit. JL/P is 
+defined in the Lava configuration file lsb.users(5). 
+.SS MAX 
+.BR
+.PP
+.PP
+The maximum number of job slots that can be processed concurrently 
+for the specified users' jobs. These job slots are used by running 
+and suspended jobs or by pending jobs which have job slots reserved 
+for them.  If the character `-' is displayed, there is no limit. MAX 
+is defined by the MAX_JOBS parameter in the configuration file 
+lsb.users(5). 
+.SS NJOBS 
+.BR
+.PP
+.PP
+The current number of job slots used by specified users' jobs. A parallel 
+job that is pending is counted as \fIn\fR job slots for it will use \fIn\fR job slots 
+in the queue when it is dispatched. 
+.SS PEND 
+.BR
+.PP
+.PP
+The number of pending job slots used by jobs of the specified users.
+.SS RUN 
+.BR
+.PP
+.PP
+The number of job slots used by running jobs of the specified users. 
+.SS SSUSP 
+.BR
+.PP
+.PP
+The number of job slots used by the system-suspended jobs of the 
+specified users. 
+.SS USUSP
+.BR
+.PP
+.PP
+The number of job slots used by user-suspended jobs of the specified 
+users. 
+.SS RSV 
+.BR
+.PP
+.PP
+The number of job slots used by pending jobs of the specified users 
+which have job slots reserved for them. 
+.SH SEE ALSO
+.BR
+.PP
+.PP
+bugroup(1), lsb.users(5), lsb.queues(5)

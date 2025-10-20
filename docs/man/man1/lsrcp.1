@@ -1,0 +1,184 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsrcp 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsrcp\fR - remotely copies files using Lava 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBlsrcp\fR [\fB-a\fR]\fB \fR\fIsource_file\fR\fB \fR\fItarget_file\fR\fB 
+\fR.PP
+\fBlsrcp\fR [\fB-h | -V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRRemotely copies files using Lava.
+.PP
+lsrcp is an Lava-enabled remote copy program that transfers a single 
+file between hosts in an Lava cluster. lsrcp uses RES on an Lava host to 
+transfer files. If Lava is not installed on a host or if RES is not running 
+then lsrcp uses rcp to copy the file.
+.PP
+To use lsrcp, you must have read access to the file being copied. 
+.PP
+Both the source and target file must be owned by the user who issues 
+the command. 
+.PP
+lsrcp uses rcp to copy a source file to a target file owned by another 
+user. See rcp(1) and LIMITATIONS below for details. 
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-a
+\fR
+.IP
+Appends \fIsource_file\fR to \fItarget_file\fR. 
+
+
+.TP 
+\fIsource_file target_file
+\fR
+.IP
+Specify an existing file on a local or remote host that you want to copy, 
+and a file to which you want to copy the source file.
+
+.IP
+File format is as follows:
+
+.IP
+[[\fIuser_name\fR\fB@\fR][\fIhost_name\fR]\fB:\fR][\fIpath\fR\fB/\fR]\fIfile_name\fR 
+
+
+.IP
+\fIuser_name\fR 
+.BR
+.RS
+.IP
+Login name to be used for accessing files on the remote host. 
+If \fIuser_name\fR is not specified, the name of the user who issued 
+the command is used. 
+
+.RE
+
+.IP
+\fIhost_name\fR 
+.BR
+.RS
+.IP
+Name of the remote host on which the file resides. If 
+\fIhost_name\fR is not specified, the local host, the host from which 
+the command was issued is used. 
+
+.RE
+
+.IP
+\fIpath\fR 
+.BR
+.RS
+.IP
+Absolute path name or a path name relative to the login 
+directory of the user. Shell file name expansion is not supported 
+on either the local or remote hosts. Only single files can be 
+copied from one host to another. 
+
+.IP
+Use "/" to transfer files from a UNIX host to a UNIX host. For 
+example:
+
+.IP
+% \fBlsrcp file1 hostD:/home/usr2/test/file2
+\fR
+.IP
+\fIfile_name\fR 
+.BR
+.RS
+.IP
+Name of source file. File name expansion is not supported. 
+
+.RE
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH EXAMPLES
+.BR
+.PP
+.PP
+% \fBlsrcp myfile @hostC:/home/usr/dir1/otherfile
+\fR.PP
+Copies file myfile from the local host to file otherfile on hostC. 
+.PP
+% \fBlsrcp user1@hostA:/home/myfile user1@hostB:otherfile
+\fR.PP
+Copies the file myfile from hostA to file otherfile on hostB.
+.PP
+% \fBlsrcp -a user1@hostD:/home/myfile /dir1/otherfile
+\fR.PP
+Appends the file myfile on hostD to the file otherfile on the local 
+host.
+.PP
+% \fBlsrcp /tmp/myfile user1@hostF:~/otherfile
+\fR.PP
+Copies the file myfile from the local host to file otherfile on hostF 
+in user1's home directory.
+.SH SEE ALSO
+.BR
+.PP
+.PP
+rsh(1), rcp(1), lsfintro(1), res(8) 
+.SH DIAGNOSTICS
+.BR
+.PP
+.PP
+lsrcp attempts to copy \fIsource_file\fR to \fItarget_file\fR using RES. If RES is 
+down or fails to copy the \fIsource_file\fR, lsrcp will use either rsh when 
+the -a option is specified, or rcp when -a is not specified. 
+.SH LIMITATIONS
+.BR
+.PP
+.PP
+File transfer using lscrp is not supported in the following contexts:
+.PP
+- If Lava account mapping is used; lsrcp fails when running under a 
+different user account
+.PP
+- On Lava client hosts. Lava client hosts do not run RES, so lsrcp cannot 
+contact RES on the submission host
+.PP
+- Third party copies. lsrcp does not support third party copies, when 
+neither source nor target file are on the local host. In such a case rcp 
+or rsh will be used. If the \fItarget_file\fR exists, lsrcp preserves the 
+modes; otherwise, lsrcp uses the \fIsource_file\fR modes modified with the 
+umask (see umask(2)) of the source host. 
+.PP
+You can do the following:
+.PP
+rcp on UNIX- if lsrcp cannot contact RES on the submission host, it 
+attempts to use rcp to copy the file. You must set up the 
+/etc/hosts.equiv or HOME/.rhosts file in order to use rcp. See the 
+rcp(1) and rsh(1) manual pages for more information on using the 
+rcp command.
+.PP
+You can replace lsrcp with your own file transfer mechanism as long 
+as it supports the same syntax as lsrcp. This might be done to take 
+advantage of a faster interconnection network, or to overcome 
+limitations with the existing lsrcp. SBD looks for the lsrcp 
+executable in the LSF_BINDIR directory as specified in the lsf.conf 
+file.
+.PP

@@ -1,0 +1,63 @@
+.\" $Id: lsfbase.1,v 1.2 2007/08/01 20:36:25 bill Exp $
+.ds ]W %
+.ds ]L
+.TH LSFBASE 1 "1 August 1998"
+.SH NAME
+lsfbase \- \s-1Lava\s0 Base system.
+.SH DESCRIPTION
+\s-1Lava\s0 Base system is a load sharing software which integrates a 
+heterogeneous network of computers running \s-1UNIX\s0 
+systems.  It consists of the 
+It consists of the Load Information Manager (\s-1LIM\s0),
+the Remote Execution Server (\s-1RES\s0), the Load Sharing LIBrary
+(\s-1LSLIB\s0), and a variety of load sharing applications and utilities.
+\s-1Lava\s0 interoperates on many \s-1UNIX\s0 platforms.
+Some of the load sharing applications (each with its own man page)
+are as follows:
+.TP 15
+.BR lsfbatch (1)
+load sharing batch utility.  Distribute parallel as well as sequential batch
+jobs to the hosts in a distributed system for execution.
+.TP 15
+\s-1Lava\s0 also has a set of commands that can be used as tools to monitor 
+the status of the Lava cluster, find out the best host, or
+run jobs on the best host. The currently available tools are:
+.TP 15
+.BR lseligible (1)
+display the remote execution eligibility of a task.
+.TP 15
+.BR lshosts (1)
+display configuration information about hosts participating in load
+sharing.
+.TP 15
+.BR lsid (1)
+display the name of the local \s-1Lava\s0 cluster and
+the name of its master \s-1LIM\s0 host.
+.TP 15
+.BR lsinfo (1)
+display load sharing configuration information.
+.TP 15
+.BR lsload (1)
+display the load information of load sharing hosts.
+.TP 15
+.BR lsloadadj (1)
+adjust the load condition data of load sharing hosts.
+.TP 15
+.BR lsplace (1)
+display the currently best host or hosts for executing one or more
+load sharing tasks.
+.TP 15
+.BR lsmon (1)
+full-screen \s-1Lava\s0 monitoring utility that displays and updates the
+load information of hosts in the local cluster. 
+.TP 15
+.BR lsrcp (1)
+copy a single file from one host to another.
+.TP 15
+.SH SEE ALSO
+.BR lsfintro (1),
+.BR lstools (1),
+.BR lim (8),
+.BR res (8),
+.BR lslib (3),
+.BR lsf.conf (5)

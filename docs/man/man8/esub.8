@@ -1,0 +1,212 @@
+.\" $Id: esub.8,v 1.3 2007/08/13 21:54:53 cchen Exp $
+.ds ]W %
+.ds ]L
+.TH ESUB 8 "1 August 1998"
+.SH NAME
+esub, eexec \- External executables at job submission and execution time
+.SH SYNOPSIS
+\fBLSF_SERVERDIR/esub
+.PP
+\fBLSF_SERVERDIR/eexec
+.SH DESCRIPTION
+Administrators can write these external submission (esub) and execution time
+(eexec) executables to perform site-specific actions on jobs.
+
+When a job is submitted (see
+.BR bsub (1)
+and
+.BR brestart (1)),
+the esub is executed if it is found in LSF_SERVERDIR.
+On the execution host, eexec is run at job startup and completion time,
+and when checkpointing is initiated.  The environment variable \fBLS_EEXEC_T\fR
+is set to \fBSTART\fR, \fBEND\fR, and \fBCHKPNT\fR, respectively,
+to indicate when the eexec is invoked.
+If esub needs to pass some data to eexec,
+esub can simply write the data to stdout; eexec can get the data via its stdin.
+Thus, LSF is effectively implementing the pipe in "esub | eexec".
+
+eexec is executed as the user after the job's environment variables have been
+set.  The parent job process waits for the eexec to complete before
+proceeding; thus, the eexec is expected to complete.  
+
+The pid of the
+process which invoked the eexec is stored in the environment variable
+.BR LS_JOBPID .
+If the eexec is intended to monitor the execution of the job,
+the eexec must fork a child and then have the parent eexec process exit.
+While monitoring job execution,
+the eexec child should periodically check that the job process is
+still alive by testing the \fBLS_JOBPID\fR variable.
+When the job is finished,
+the eexec child should exit.
+
+In addition to bsub and brestart, esub is also invoked for bmodify.
+When the esub is invoked, the environment variables, \fBLSB_SUB_ABORT_VALUE\fR
+and \fBLSB_SUB_PARM_FILE\fR, are set.  If the esub exits with the
+\fBLSB_SUB_ABORT_VALUE\fR value, the job request will be aborted.
+\fBLSB_SUB_PARM_FILE\fR gives the name of the temporary file which contains
+the job request parameters.  See the section \fBPARAMETER FILE\fR for the
+contents of this file.  A typical use of the \fBLSB_SUB_ABORT_VALUE\fR
+and \fBLSB_SUB_PARM_FILE\fR variables is to disallow certain submission
+options.
+
+The \fBLSB_SUB_ABORT_VALUE\fR and \fBLSB_SUB_PARM_FILE\fR variables
+are not defined when the esub is invoked in interactive remote execution.
+
+.SH PARAMETER FILE
+
+The job submission and modification parameter file contains a line of the form,
+\fBoption_name=value\fR, for each job option specified.  A \fBvalue\fR of
+"SUB_RESET" indicates this option is reset by bmodify.  If the esub is
+a Bourne Shell script, then running ". $LSB_SUB_PARM_FILE" would make these
+variables available to the esub.  The \fBoption_name\fRs are:
+
+.TP 16
+.B LSB_SUB_JOB_NAME
+\fBvalue\fR is the specified job name.
+.TP 16
+.B LSB_SUB_QUEUE
+\fBvalue\fR is the specified queue name.
+.TP 16
+.B LSB_SUB_IN_FILE
+\fBvalue\fR is the specified standard input file name.
+.TP 16
+.B LSB_SUB_OUT_FILE
+\fBvalue\fR is the specified standard output file name.
+.TP 16
+.B LSB_SUB_ERR_FILE
+\fBvalue\fR is the specified standard error file name.
+.TP 16
+.B LSB_SUB_EXCLUSIVE
+\fBvalue\fR of "Y" specifies exclusive execution.
+.TP 16
+.B LSB_SUB_NOTIFY_END
+\fBvalue\fR of "Y" specifies email notification when job ends.
+.TP 16
+.B LSB_SUB_NOTIFY_BEGIN
+\fBvalue\fR of "Y" specifies email notification when job begins.
+.TP 16
+.B LSB_SUB_USER_GROUP
+\fBvalue\fR is the specified user group name.
+.TP 16
+.B LSB_SUB_CHKPNT_PERIOD
+\fBvalue\fR is the specified checkpoint period.
+.TP 16
+.B LSB_SUB_CHKPNT_DIR
+\fBvalue\fR is the specified checkpoint directory.
+.TP 16
+.B LSB_SUB_RESTART_FORCE
+\fBvalue\fR of "Y" specifies forced restart job.
+.TP 16
+.B LSB_SUB_RESTART
+\fBvalue\fR of "Y" specifies a restart job.
+.TP 16
+.B LSB_SUB_RERUNNABLE
+\fBvalue\fR of "Y" specifies a rerunnable job.
+.TP 16
+.B LSB_SUB_WINDOW_SIG
+\fBvalue\fR is the specified window signal number.
+.TP 16
+.B LSB_SUB_HOST_SPEC
+\fBvalue\fR is the specified hostspec.
+.TP 16
+.B LSB_SUB_DEPEND_COND
+\fBvalue\fR is the specified dependency condition.
+.TP 16
+.B LSB_SUB_RES_REQ
+\fBvalue\fR is the specified resource requirement string.
+.TP 16
+.B LSB_SUB_PRE_EXEC
+\fBvalue\fR is the specified pre-execution command.
+.TP 16
+.B LSB_SUB_LOGIN_SHELL
+\fBvalue\fR is the specified login shell.
+.TP 16
+.B LSB_SUB_MAIL_USER
+\fBvalue\fR is the specified user for sending email.
+.TP 16
+.B LSB_SUB_MODIFY
+\fBvalue\fR of "Y" specifies a modification request.
+.TP 16
+.B LSB_SUB_MODIFY_ONCE
+\fBvalue\fR of "Y" specifies a modification-once request.
+.TP 16
+.B LSB_SUB_PROJECT_NAME
+\fBvalue\fR is the specified project name.
+.TP 16
+.B LSB_SUB_INTERACTIVE
+\fBvalue\fR of "Y" specifies an interactive job.
+.TP 16
+.B LSB_SUB_PTY
+\fBvalue\fR of "Y" specifies an interactive job with PTY support.
+.TP 16
+.B LSB_SUB_PTY_SHELL
+\fBvalue\fR of "Y" specifies an interactive job	with PTY shell support..
+.TP 16
+.B LSB_SUB_TIME_EVENT
+\fBvalue\fR is the time event expression.
+.TP 16
+.B LSB_SUB_HOSTS
+\fBvalue\fR is the list of execution host names.
+.TP 16
+.B LSB_SUB_NUM_PROCESSORS
+\fBvalue\fR is the minimum number of processors requested.
+.TP 16
+.B LSB_SUB_MAX_NUM_PROCESSORS
+\fBvalue\fR is the maximum number of processors requested.
+.TP 16
+.B LSB_SUB_BEGIN_TIME
+\fBvalue\fR is the begin time, in seconds since 00:00:00 GMT, Jan. 1, 1970.
+.TP 16
+.B LSB_SUB_TERM_TIME
+\fBvalue\fR is the termination time, in seconds since 00:00:00 GMT, Jan. 1,
+1970.
+.TP 16
+.B LSB_SUB_OTHER_FILES
+\fBvalue\fR is always "SUB_RESET" if defined to indicate a bmodify is
+being done to reset the number of file to be transferred.
+.TP 16
+.B LSB_SUB_OTHER_FILES_nn
+\fBnn\fR is an index number indicating the particular file transfer.
+\fBvalue\fR is the specified file transfer expression.
+E.g., for 'bsub -f "a > b" -f "c < d"', the following would be defined:
+.nf
+LSB_SUB_OTHER_FILES_0="a > b"
+LSB_SUB_OTHER_FILES_1="c < d"
+.fi
+.TP 16
+.B LSB_SUB_ALARM
+\fBvalue\fR is the specified alarm condition.
+.TP 16
+.B LSB_SUB_RLIMIT_CPU
+\fBvalue\fR is the specified cpu limit.
+.TP 16
+.B LSB_SUB_RLIMIT_FSIZE
+\fBvalue\fR is the specified file limit.
+.TP 16
+.B LSB_SUB_RLIMIT_DATA
+\fBvalue\fR is the specified data size limit.
+.TP 16
+.B LSB_SUB_RLIMIT_STACK
+\fBvalue\fR is the specified stack size limit.
+.TP 16
+.B LSB_SUB_RLIMIT_CORE
+\fBvalue\fR is the specified core file size limit.
+.TP 16
+.B LSB_SUB_RLIMIT_RSS
+\fBvalue\fR is the specified resident size limit.
+.TP 16
+.B LSB_SUB_RLIMIT_RUN
+\fBvalue\fR is the specified wall clock run limit.
+
+
+.SH "SEE ALSO"
+.BR lsfbatch (5),
+.BR bsub (1),
+.BR brestart (1),
+.BR bmodify (1),
+.BR lsfintro (1)
+.BR sbatchd (8),
+.BR res (8)
+
+

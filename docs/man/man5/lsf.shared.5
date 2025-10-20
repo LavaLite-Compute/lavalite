@@ -1,0 +1,358 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsf.shared 5 "Lava Version 4.2 - June 2001"
+.br
+.SH NAME
+\fBlsf.shared\fR
+.SS \fB\fROverview
+.BR
+.PP
+.PP
+The lsf.shared file contains common definitions that are shared by 
+all load sharing clusters defined by lsf.cluster.\fIcluster_name\fR files. 
+This includes lists of cluster names, host types, host models, the special 
+resources available, and external load indices.
+.SS Contents
+.BR
+.PP
+.RS
+.HP 2
+\(bu Cluster Section
+.HP 2
+\(bu HostType Section
+.HP 2
+\(bu HostModel Section
+.HP 2
+\(bu Resource Section
+.RE
+.SH Cluster Section
+.BR
+.PP
+.PP
+(Required) Lists the cluster names recognized by the Lava system
+.SH Cluster Section Structure
+.BR
+.PP
+.PP
+The first line must contain the mandatory keyword ClusterName. The 
+other keyword is optional.
+.PP
+Each subsequent line defines one cluster.
+.SH ClusterName 
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+(Required) Defines all cluster names recognized by the Lava system 
+.PP
+All cluster names referenced anywhere in the Lava system must be 
+defined here. The file names of cluster-specific configuration files must 
+end with the associated cluster name.
+.SH Servers
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+.PP
+By default, the first ten hosts listed in the Host section of 
+lsf.cluster.\fIcluster_name\fR are available to LIMs in remote clusters.
+.PP
+This parameter is useful when LSF_CONFDIR is not shared or 
+replicated.
+.SH Cluster Section Example
+.BR
+.PP
+
+.PP
+Begin Cluster
+.br
+ClusterName  Servers
+.br
+cluster1     hostA
+.br
+cluster2     hostB
+.br
+End Cluster
+
+
+.SH HostType Section
+.BR
+.PP
+.PP
+(Required) Lists the valid host types in the cluster 
+.SH HostType Section Structure
+.BR
+.PP
+.PP
+The first line consists of the mandatory keyword TYPENAME.
+.PP
+Subsequent lines name valid host types.
+.SH TYPENAME 
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Host type names are usually based on a combination of the hardware 
+name and operating system. If your site already has a system for 
+naming host types, you can use the same names for Lava.
+.SH HostType Section Example
+.BR
+.PP
+
+.PP
+Begin HostType
+.br
+TYPENAME
+.br
+SUN41
+.br
+SOLSPARC
+.br
+ALPHA
+.br
+HPPA
+.br
+NTX86
+.br
+End HostType
+
+
+.SH HostModel Section
+.BR
+.PP
+.PP
+(Required) Lists models of machines and gives the relative CPU scaling 
+factor for each model 
+.PP
+Lava uses the relative CPU scaling factor to normalize the CPU load 
+indices so that jobs are more likely to be sent to faster hosts. The CPU 
+factor affects the calculation of job execution time limits and 
+accounting. Using large or inaccurate values for the CPU factor can 
+cause confusing results when CPU time limits or accounting are used.
+.SH HostModel Section Structure 
+.BR
+.PP
+.PP
+The first line consists of the mandatory keywords MODELNAME, 
+CPUFACTOR, and ARCHITECTURE.
+.PP
+Subsequent lines define a model and its CPU factor.
+.SH ARCHITECTURE
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+(Reserved for system use only) Indicates automatically detected host 
+models that correspond to the model names.
+.SH CPUFACTOR
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Though it is not required, you would typically assign a CPU factor of 
+1.0 to the slowest machine model in your system and higher numbers 
+for the others. For example, for a machine model that executes at twice 
+the speed of your slowest model, a factor of 2.0 should be assigned.
+.SH MODELNAME 
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Generally, you need to identify the distinct host types in your system, 
+such as MIPS and SPARC first, and then the machine models within 
+each, such as SparcIPC, Sparc1, Sparc2, and Sparc10.
+.SH HostModel Section Example
+.BR
+.PP
+
+.PP
+Begin HostModel
+.br
+MODELNAME  CPUFACTOR     ARCHITECTURE
+.br
+PC400        13.0        (i86pc_400 i686_400)
+.br
+PC450        13.2        (i86pc_450 i686_450)
+.br
+Sparc5F       3.0        (SUNWSPARCstation5_170_sparc)
+.br
+Sparc20       4.7        (SUNWSPARCstation20_151_sparc)
+.br
+Ultra5S      10.3        (SUNWUltra5_270_sparcv9 SUNWUltra510_270_sparcv9)
+.br
+End HostModel
+
+
+.SH Resource Section
+.BR
+.PP
+.PP
+(Optional) Defines resources.
+.SH Resource Section Structure
+.BR
+.PP
+.PP
+The first line consists of the keywords. RESOURCENAME and 
+DESCRIPTION are mandatory. The other keywords are optional. 
+Subsequent lines define resources.
+.SH RESOURCENAME
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+The name you assign to the new resource. An arbitrary character string.
+.RS
+.HP 2
+\(bu A resource name cannot begin with a number. 
+.HP 2
+\(bu A resource name cannot contain any of the following characters: 
+
+.IP
+:  .  (  )  [  +  - *  /  !  &  | <  >  @  =
+
+.RE
+.HP 2
+\(bu A resource name cannot be any of the following reserved names:
+
+.IP
+cpu cpuf io logins ls idle maxmem maxswp maxtmp type model 
+status it mem ncpus ndisks pg r15m r15s r1m swap swp tmp ut
+
+.RE
+.HP 2
+\(bu Resource names are case sensitive
+.HP 2
+\(bu Resource names can be up to 29 characters in length
+.RE
+.SH TYPE
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+The type of resource:
+.RS
+.HP 2
+\(bu Boolean--Resources that have a value of 1 on hosts that have the 
+resource and 0 otherwise.
+.HP 2
+\(bu Numeric--Resources that take numerical values, such as all the 
+load indices, number of processors on a host, or host CPU factor.
+.HP 2
+\(bu String-- Resources that take string values, such as host type, host 
+model, host status.
+.RE
+.SS Default
+.BR
+.PP
+.PP
+If TYPE is not given, the default type is Boolean. 
+.SH DESCRIPTION
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Brief description of the resource. 
+.PP
+The information defined here will be returned by the ls_info() API 
+call or printed out by the \fBlsinfo\fR command as an explanation of the 
+meaning of the resource.
+.SH INCREASING
+.BR
+.PP
+.PP
+Applies to numeric resources only.
+.SS Description
+.BR
+.PP
+.PP
+If a larger value means greater load, INCREASING should be defined 
+as Y. If a smaller value means greater load, INCREASING should be 
+defined as N.
+.SH INTERVAL
+.BR
+.PP
+.PP
+Optional. Applies to dynamic resources only.
+.SS Description
+.BR
+.PP
+.PP
+Defines the time interval (in seconds) at which the resource is sampled 
+by the ELIM.
+.PP
+If INTERVAL is defined for a numeric resource, it becomes an external 
+load index.
+.SS Default
+.BR
+.PP
+.PP
+If INTERVAL is not given, the resource is considered static.
+.SH RELEASE
+.BR
+.PP
+.PP
+Applies to numeric shared resources only, such as floating licenses.
+.SS Description
+.BR
+.PP
+.PP
+Controls whether Lava releases the resource when a job using the 
+resource is suspended. When a job using a shared resource is 
+suspended, the resource is held or released by the job depending on 
+the configuration of this parameter.
+.PP
+Specify N to hold the resource, or specify Y to release the resource.
+.SS Default 
+.BR
+.PP
+.PP
+Y 
+.SH Resource Section Example
+.BR
+.PP
+
+.PP
+Begin Resource
+.br
+RESOURCENAME    TYPE      INTERVAL    INCREASING   RELEASE   DESCRIPTION
+.br
+mips            Boolean      ()           ()           ()    (MIPS architecture)
+.br
+dec             Boolean      ()           ()           ()    (DECStation system)
+.br
+sparc           Boolean      ()           ()           ()    (SUN SPARC)
+.br
+bsd             Boolean      ()           ()           ()    (BSD unix)
+.br
+hpux            Boolean      ()           ()           ()    (HP-UX UNIX)
+.br
+aix             Boolean      ()           ()           ()    (AIX UNIX)
+.br
+solaris         Boolean      ()           ()           ()    (SUN SOLARIS)
+.br
+myResource      String       ()           ()           ()    (MIPS architecture)
+.br
+static_sh1      Numeric      ()           N            ()    (static)
+.br
+external_1      Numeric      15           Y            ()    (external)
+.br
+End Resource

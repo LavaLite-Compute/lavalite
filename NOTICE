@@ -1,0 +1,4 @@
+Lavalite inherits from Platform Lava 1.0 (2007), originally developed by Platform Computing Inc.
+During early scaffolding, legacy scheduler patterns were reviewed for compatibility.
+All such code has been independently rewritten or replaced.
+No external code from OpenLava or Volclava has been retained.

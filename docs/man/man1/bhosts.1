@@ -1,0 +1,476 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bhosts 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbhosts\fR - displays hosts and their static and dynamic resources 
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbhosts \fR[\fB-w | -l\fR] [\fB-R "\fR\fIres_req\fR\fB"\fR] [\fIhost_name\fR\fI | \fR\fIhost_group\fR] ...
+.PP
+\fBbhosts\fR\fB \fR\fB-s\fR [\fIshared_resource_name\fR ...] 
+.PP
+\fBbhosts \fR[\fB-h\fR | \fB-V\fR] 
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays information about hosts.
+.PP
+By default, returns the following information about all hosts: host 
+name, host status, job slot limits, and job state statistics.
+.PP
+The -s option displays information about the numeric shared 
+resources and their associated hosts.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-w
+\fR
+.IP
+Displays host information in wide format. Fields are displayed without 
+truncation.
+
+
+.TP 
+\fB-l
+\fR
+.IP
+Displays host information in a (long) multi-line format. In addition to 
+the default fields, displays information about the CPU factor, the 
+dispatch windows, the current load, and the load thresholds.
+
+
+.TP 
+\fB-R "\fR\fIres_req\fR\fB"
+\fR
+.IP
+Only displays information about hosts that satisfy the resource 
+requirement expression. For more information about resource 
+requirements, see lsfintro(1). The size of the resource requirement 
+string is limited to 512 bytes.
+
+.IP
+Lava supports ordering of resource requirements on all load indices, 
+including external load indices, either static or dynamic.
+
+
+.TP 
+\fIhost_name\fR ... | \fIhost_group\fR ...
+
+.IP
+Only displays information about the specified hosts or host groups. For 
+host groups, the names of the hosts belonging to the group are 
+displayed instead of the name of the host group. Do not use quotes 
+when specifying multiple hosts or host groups. 
+
+
+.TP 
+\fI\fR\fB-s\fR [\fIshared_resource_name \fR...]
+
+.IP
+Displays information about the specified shared resources. The 
+resources must have numeric values. Returns the following 
+information: the resource names, the total and reserved amounts, and 
+the resource locations. If no shared resources are specified, displays 
+information about all numeric shared resources. 
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH OUTPUT
+.BR
+.PP
+.SS Host-Based Default 
+.BR
+.PP
+.PP
+Displays the following fields:
+
+.IP
+HOST_NAME 
+.BR
+.RS
+.IP
+The name of the host. If a host has batch jobs running and the host 
+is removed from the configuration, the host name will be displayed 
+as lost_and_found. 
+
+.RE
+
+.IP
+STATUS
+.BR
+.RS
+.IP
+The current status of the host. Batch jobs can only be dispatched 
+to hosts with an ok status. The possible values for host status are 
+as follows: 
+
+
+.IP
+ok 
+.BR
+.RS
+.IP
+The host is available to accept batch jobs. 
+
+.RE
+
+.IP
+unavail 
+.BR
+.RS
+.IP
+The host is down, or LIM and SBD on the host are unreachable. 
+
+.RE
+
+.IP
+unreach 
+.BR
+.RS
+.IP
+LIM on the host is running but SBD is unreachable. 
+
+.RE
+
+.IP
+closed 
+.BR
+.RS
+.IP
+The host is not allowed to accept any remote batch jobs. There 
+are several reasons for the host to be closed (see Host-Based 
+-l Options).
+
+.RE
+.RE
+.RE
+
+.IP
+JL/U 
+.BR
+.RS
+.IP
+The maximum number of job slots that the host can process on a 
+per user basis.
+
+.IP
+These job slots are used by running jobs, as well as by suspended or pending jobs that have slots reserved for them. 
+.RE
+
+.IP
+MAX 
+.BR
+.RS
+.IP
+The maximum number of job slots that the host can process. These 
+job slots are used by running and suspended jobs on the host, and 
+by pending jobs that have jobs slots reserved for them on the host.
+.RE
+
+.IP
+NJOBS 
+.BR
+.RS
+.IP
+The number of job slots used by started jobs on the host (including 
+running, suspended). 
+
+.RE
+
+.IP
+RUN
+.BR
+.RS
+.IP
+The number of job slots used by running jobs on the host. 
+
+.RE
+
+.IP
+SSUSP 
+.BR
+.RS
+.IP
+The number of job slots used by system suspended jobs on the 
+host. 
+
+.RE
+
+.IP
+USUSP
+.BR
+.RS
+.IP
+The number of job slots used by user suspended jobs on the host. 
+Jobs can be suspended by the user or by the Lava administrator.
+
+.RE
+
+.IP
+RSV 
+.BR
+.RS
+.IP
+The number of job slots used by pending jobs that have jobs slots 
+reserved on the host. 
+
+.RE
+.SS Host-Based \fB-\fRl Option
+.BR
+.PP
+.PP
+In addition to the above fields, the -l option also displays the 
+following:
+
+.IP
+STATUS
+.BR
+.RS
+
+.IP
+closed
+.BR
+.RS
+.IP
+The long format shown by the -l option gives the possible 
+reasons for a host to be closed: 
+
+
+.IP
+closed_Adm 
+.BR
+.RS
+.IP
+The host is closed by the Lava administrator or root (see 
+badmin(8)). No job can be dispatched to the host, but jobs 
+that are executing on the host will not be affected. 
+
+.RE
+
+.IP
+closed_Lock 
+.BR
+.RS
+.IP
+The host is locked by the Lava administrator or root (see 
+lsadmin(8)). All batch jobs on the host are suspended by 
+Lava. 
+
+.RE
+
+.IP
+closed_Wind 
+.BR
+.RS
+.IP
+The host is closed by its dispatch windows, which are 
+defined in the configuration file lsb.hosts(5). All batch 
+jobs on the host are suspended by the Lava system. 
+
+.RE
+
+.IP
+closed_Full 
+.BR
+.RS
+.IP
+The configured maximum number of batch job slots on the 
+host has been reached (see MAX field below). 
+
+.RE
+
+.IP
+closed_Excl 
+.BR
+.RS
+.IP
+The host is currently running an exclusive job. 
+
+.RE
+
+.IP
+closed_Busy 
+.BR
+.RS
+.IP
+The host is overloaded, because some load indices go 
+beyond the configured thresholds (see lsb.hosts(5)). 
+The displayed thresholds that cause the host to be busy are 
+preceded by an asterisk (*). 
+
+.RE
+
+.IP
+closed_LIM
+.BR
+.RS
+.IP
+LIM on the host is unreachable, but SBD is ok. 
+
+.RE
+.RE
+.RE
+
+.IP
+CPUF
+.BR
+.RS
+.IP
+Displays the CPU normalization factor of the host (see 
+lshosts(1)). 
+
+.RE
+
+.IP
+DISPATCH_WINDOWS 
+.BR
+.RS
+.IP
+Displays the dispatch windows for each host. The dispatch 
+windows are the time windows during the week when batch jobs 
+can be run on each host. Jobs already started are not affected by 
+the dispatch windows. The default for the dispatch window is no 
+restriction or always open (that is, twenty-four hours a day and 
+seven days a week). For the dispatch window specification, see the 
+description for the DISPATCH_WINDOWS keyword under the -l 
+option in bqueues(1). 
+
+.RE
+
+.IP
+CURRENT LOAD
+.BR
+.RS
+.IP
+Displays the total and reserved host load. 
+
+
+.IP
+Reserved
+.BR
+.RS
+.IP
+You specify reserved resources by using bsub -R (see 
+lsfintro(1)). These resources are reserved by jobs running 
+on the host.
+
+.RE
+
+.IP
+Total
+.BR
+.RS
+.IP
+The total load has different meanings depending on whether 
+the load index is increasing or decreasing. 
+
+.IP
+For increasing load indices, such as run queue lengths, CPU 
+utilization, paging activity, logins, and disk I/O, the total load 
+is the consumed plus the reserved amount. The total load is 
+calculated as the sum of the current load and the reserved load. 
+The current load is the load seen by lsload(1).
+
+.IP
+For decreasing load indices, such as available memory, idle 
+time, available swap space, and available space in tmp, the total 
+load is the available amount. The total load is the difference 
+between the current load and the reserved load. This difference 
+is the available resource as seen by lsload(1). 
+
+.RE
+.RE
+.RE
+
+.IP
+LOAD THRESHOLD
+.BR
+.RS
+.IP
+Displays the scheduling threshold loadSched and the suspending 
+threshold loadStop. Also displays the migration threshold if 
+defined and the checkpoint support if the host supports 
+checkpointing.
+
+.IP
+The format for the thresholds is the same as for batch job queues 
+(see bqueues(1)) and lsb.queues(5)). For an explanation of the 
+thresholds\fB \fRand load indices, see the description for the "QUEUE 
+SCHEDULING PARAMETERS" keyword under the -l option in 
+bqueues(1). 
+
+.RE
+.SS Resource-Based \fB-\fRs Option 
+.BR
+.PP
+.PP
+The \fB-\fRs option displays the following: the amounts used for scheduling, 
+the amounts reserved, and the associated hosts for the shared 
+resources. Only shared resources with numeric values are displayed. 
+See lim(8), and lsf.cluster(5) on how to configure shared 
+resources. 
+.PP
+The following fields are displayed: 
+
+.IP
+RESOURCE 
+.BR
+.RS
+.IP
+The name of the resource. 
+
+.RE
+
+.IP
+TOTAL 
+.BR
+.RS
+.IP
+The value of the shared resource used for scheduling. This is the 
+sum of the current and the reserved load for the shared resource. 
+
+.RE
+
+.IP
+RESERVED 
+.BR
+.RS
+.IP
+The amount reserved by jobs. You specify the reserved resource 
+using bsub -R (see lsfintro(1)). 
+
+.RE
+
+.IP
+LOCATION 
+.BR
+.RS
+.IP
+The hosts that are associated with the shared resource. 
+
+.RE
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsb.hosts(5), bqueues(1), lsfintro(1), lshosts(1), 
+badmin(8), lsadmin(8)

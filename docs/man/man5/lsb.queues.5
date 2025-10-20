@@ -1,0 +1,1484 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH lsb.queues 5 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBlsb.queues\fR
+.SS Overview
+.BR
+.PP
+.PP
+The lsb.queues file defines the batch queues in an Lava cluster.
+.PP
+This file is optional; if no queues are configured, Lava creates a queue 
+named default, with all parameters set to default values.
+.SS Contents
+.BR
+.PP
+.RS
+.HP 2
+\(bu lsb.queues Structure
+.RE
+.SH lsb.queues Structure
+.BR
+.PP
+.PP
+Each queue definition begins with the line Begin Queue and ends with 
+the line End Queue. The queue name must be specified; all other 
+parameters are optional.
+.SH ADMINISTRATORS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBADMINISTRATORS\fR \fB=\fR \fIuser_name\fR | \fIuser_group\fR ...
+.SS Description
+.BR
+.PP
+.PP
+List of queue administrators.
+.PP
+Queue administrators can perform operations on any user's job in the 
+queue, as well as on the queue itself.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (you must be a cluster administrator to operate on this 
+queue).
+.SH CHKPNT
+.BR
+.PP
+.SS Syntax 
+.BR
+.PP
+.PP
+\fBCHKPNT = \fR\fIchkpnt_dir \fR[\fIchkpnt_period\fR]
+.SS Description
+.BR
+.PP
+.PP
+Enables automatic checkpointing.
+.PP
+The checkpoint directory is the directory where the checkpoint files are 
+created. Specify an absolute path or a path relative to CWD, do not use 
+environment variables.
+.PP
+Specify the checkpoint period in minutes. 
+.PP
+Job-level checkpoint parameters override queue-level checkpoint 
+parameters.
+.SS Default
+.BR
+.PP
+.PP
+Undefined.
+.SH CORELIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBCORELIMIT = \fR\fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The per-process (hard) core file size limit (in KB) for all of the 
+processes belonging to a job from this queue (see \fBgetrlimit\fR(\fB2\fR)).
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH CPULIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBCPULIMIT = \fR[\fIdefault_limit\fR] \fImaximum_limit
+\fR.PP
+where \fIdefault_limit\fR and \fImaximum_limit\fR are:
+.PP
+[\fIhours\fR:]\fIminutes\fR[/\fIhost_name\fR | /\fIhost_model\fR]
+.SS Description
+.BR
+.PP
+.PP
+Maximum normalized CPU time and optionally, the default normalized 
+CPU time allowed for all processes of a job running in this queue. The 
+name of a host or host model specifies the CPU time normalization host 
+to use.
+.PP
+If a job dynamically spawns processes, the CPU time used by these 
+processes is accumulated over the life of the job. 
+.PP
+Processes that exist for fewer than 30 seconds may be ignored.
+.PP
+By default, if a default CPU limit is specified, jobs submitted to the 
+queue without a job-level CPU limit are killed when the default CPU 
+limit is reached.
+.PP
+If you specify only one limit, it is the maximum, or hard, CPU limit. If 
+you specify two limits, the first one is the default, or soft, CPU limit, 
+and the second one is the maximum CPU limit. The number of minutes 
+may be greater than 59. Therefore, three and a half hours can be 
+specified either as 3:30 or 210. 
+.PP
+You can define whether the CPU limit is a per-process limit enforced 
+by the OS or a per-job limit enforced by Lava with LSB_JOB_CPULIMIT 
+in lsf.conf.
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH DATALIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDATALIMIT =\fR [\fIdefault_limit\fR] \fImaximum_limit
+\fR.SS Description
+.BR
+.PP
+.PP
+The per-process data segment size limit (in KB) for all of the processes 
+belonging to a job from this queue (see \fBgetrlimit\fR(\fB2\fR)).
+.PP
+By default, if a default data limit is specified, jobs submitted to the 
+queue without a job-level data limit are killed when the default data 
+limit is reached.
+.PP
+If you specify only one limit, it is the maximum, or hard, data limit. If 
+you specify two limits, the first one is the default, or soft, data limit, and 
+the second one is the maximum data limit
+.SS Default 	 
+.BR
+.PP
+.PP
+Unlimited
+.SH DEFAULT_HOST_SPEC
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDEFAULT_HOST_SPEC =\fR \fIhost_name | host_model
+\fR.SS Description
+.BR
+.PP
+.PP
+The default CPU time normalization host for the queue.
+.PP
+The CPU factor of the specified host or host model will be used to 
+normalize the CPU time limit of all jobs in the queue, unless the CPU 
+time normalization host is specified at the job level.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined.
+.SH DESCRIPTION 
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBDESCRIPTION =\fR \fItext
+\fR.SS Description
+.BR
+.PP
+.PP
+Description of the job queue that will be displayed by \fBbqueues -l.
+\fR.PP
+This description should clearly describe the service features of this 
+queue, to help users select the proper queue for each job.
+.PP
+The text can include any characters, including white space. The text 
+can be extended to multiple lines by ending the preceding line with a 
+backslash (\). The maximum length for the text is 512 characters.
+.SH DISPATCH_WINDOW
+.BR
+.PP
+.SS Syntax 
+.BR
+.PP
+
+.PP
+\fBDISPATCH_WINDOW =\fR \fItime_window \fR...
+
+
+.SS Description
+.BR
+.PP
+.PP
+The time windows in which jobs from this queue are dispatched. Once 
+dispatched, jobs are no longer affected by the dispatch window.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (always open).
+.SH EXCLUSIVE 
+.BR
+.PP
+.SS Syntax 
+.BR
+.PP
+.PP
+\fBEXCLUSIVE = Y\fR | \fBN
+\fR.SS Description
+.BR
+.PP
+.PP
+If Y, specifies an exclusive queue.
+.PP
+Jobs submitted to an exclusive queue with \fBbsub -x\fR will only be 
+dispatched to a host that has no other Lava jobs running.
+.SH FILELIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBFILELIMIT =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The per-process (hard) file size limit (in KB) for all of the processes 
+belonging to a job from this queue (see \fBgetrlimit\fR(\fB2\fR)).
+.SS Default 
+.BR
+.PP
+.PP
+Unlimited
+.SH HJOB_LIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBHJOB_LIMIT\fR \fB=\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Per-host job slot limit.
+.PP
+Maximum number of job slots that this queue can use on any host. This 
+limit is configured per host, regardless of the number of processors it 
+may have.
+.PP
+This may be useful if the queue dispatches jobs that require a node-
+locked license. If there is only one node-locked license per host then 
+the system should not dispatch more than one job to the host even if 
+it is a multiprocessor host.
+.SS Example
+.BR
+.PP
+.PP
+The following will run a maximum of one job on each of hostA, hostB, 
+and hostC:
+
+.PP
+Begin Queue
+.br
+...
+.br
+HJOB_LIMIT = 1
+.br
+HOSTS=hostA hostB hostC
+.br
+...
+.br
+End Queue
+
+
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH HOSTS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBHOSTS =\fR [\fB~\fR]\fIhost_name\fR[\fB+\fR\fIpref_level\fR] | 
+[\fB~\fR]\fIhost_group\fR[\fB+\fR\fIpref_level\fR] | \fBothers\fR[\fB+\fR\fIpref_level\fR] | \fBall\fR | \fBnone\fR ... 
+.SS Description
+.BR
+.PP
+.PP
+A space-separated list of hosts, host groups, and host partitions on 
+which jobs from this queue can be run. All the members of the host list 
+should either belong to a single host partition or not belong to any host 
+partition. Otherwise, job scheduling may be affected.
+.PP
+Any item can be followed by a plus sign (+) and a positive number to 
+indicate the preference for dispatching a job to that host, host group, 
+or host partition. A higher number indicates a higher preference. If a 
+host preference is not given, it is assumed to be 0. Hosts at the same 
+level of preference are ordered by load. 
+.PP
+Use the keyword others to indicate all hosts not explicitly listed.
+.PP
+Use the not operator (~) to exclude hosts or host groups from the 
+queue. This is useful if you have a large cluster but only want to 
+exclude a few hosts from the queue definition.
+.PP
+Use the keyword all to indicate all hosts not explicitly excluded.
+.PP
+.SS Compatibility
+.BR
+.PP
+.PP
+Host preferences specified by \fBbsub -m\fR override the queue 
+specification.
+.SS Example 1 
+.BR
+.PP
+
+.PP
+HOSTS = hostA+1 hostB hostC+1 GroupX+3
+
+
+.PP
+This example defines three levels of preferences: run jobs on hosts in 
+GroupX as much as possible, otherwise run on either hostA or hostC 
+if possible, otherwise run on hostB. Jobs should not run on hostB 
+unless all other hosts are too busy to accept more jobs. 
+.SS Example 2 
+.BR
+.PP
+
+.PP
+HOSTS = hostD+1 others
+
+
+.PP
+Run jobs on hostD as much as possible, otherwise run jobs on the 
+least-loaded host available. 
+.SS Example 3 
+.BR
+.PP
+
+.PP
+HOSTS = Group1 ~hostA hostB hostC
+
+
+.PP
+Run jobs on hostB, hostC, and all hosts in Group1 except for hostA.
+.SS Example 4
+.BR
+.PP
+
+.PP
+HOSTS = all ~group2 ~hostA
+
+
+.PP
+Run jobs on all hosts in the cluster, except for hostA and the hosts in 
+group2.
+.SS Default
+.BR
+.PP
+.PP
+all (the queue can use all hosts in the cluster, and every host has equal 
+preference).
+.SH IGNORE_DEADLINE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBIGNORE_DEADLINE = Y
+\fR.SS Description
+.BR
+.PP
+.PP
+If Y, disables deadline constraint scheduling (starts all jobs regardless 
+of deadline contraints).
+.SH INTERACTIVE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBINTERACTIVE = NO\fR | \fBONLY
+\fR.SS Description
+.BR
+.PP
+.PP
+Causes the queue to reject interactive batch jobs (NO) or accept 
+nothing but interactive batch jobs (ONLY). 
+.PP
+Interactive batch jobs are submitted via \fBbsub -I\fR. 
+.SS Default 
+.BR
+.PP
+.PP
+Undefined (the queue accepts both interactive and non-interactive 
+jobs).
+.SH JOB_ACCEPT_INTERVAL
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBJOB_ACCEPT_INTERVAL =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The number of dispatch turns to wait after dispatching a job to a host, 
+before dispatching a second job to the same host. By default, a dispatch 
+turn lasts 60 seconds (MBD_SLEEP_TIME in lsb.params).
+.PP
+If 0 (zero), a host may accept more than one job in each dispatch turn. 
+By default, there is no limit to the total number of jobs that can run on 
+a host, so if this parameter is set to 0, a very large number of jobs might 
+be dispatched to a host all at once. You may notice performance 
+problems if this occurs.
+.PP
+JOB_ACCEPT_INTERVAL set at the queue level (lsb.queues) 
+overrides JOB_ACCEPT_INTERVAL set at the cluster level 
+(lsb.params).
+.SS Default
+.BR
+.PP
+.PP
+Undefined (the queue uses JOB_ACCEPT_INTERVAL defined in 
+lsb.params, which has a default value of 1).
+.SH JOB_CONTROLS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBJOB_CONTROLS = SUSPEND\fR[\fIsignal\fR | \fIcommand\fR | \fBCHKPNT\fR] 
+\fBRESUME\fR[\fIsignal\fR | \fIcommand\fR] \fBTERMINATE\fR[\fIsignal\fR | \fIcommand\fR | \fBCHKPNT\fR]
+.RS
+.HP 2
+\(bu CHKPNT is a special action, which causes the system to checkpoint 
+the job. If the SUSPEND action is CHKPNT, the job is checkpointed 
+and then stopped by sending the SIGSTOP signal to the job 
+automatically.
+.HP 2
+\(bu \fIsignal\fR is a UNIX signal name (such as SIGSTOP or SIGTSTP). 
+.HP 2
+\(bu \fIcommand\fR specifies a /bin/sh command line to be invoked. Do 
+not specify a signal followed by an action that triggers the same 
+signal (for example, do not specify 
+JOB_CONTROLS=TERMINATE[bkill] or 
+JOB_CONTROLS=TERMINATE[brequeue]). This will cause a 
+deadlock between the signal and the action. 
+.RE
+.SS Description
+.BR
+.PP
+.PP
+Changes the behaviour of the SUSPEND, RESUME, and TERMINATE 
+actions in Lava.
+.PP
+For SUSPEND and RESUME, if the action is a command, the following 
+points should be considered:
+.RS
+.HP 2
+\(bu The contents of the configuration line for the action are run with 
+/bin/sh -c so you can use shell features in the command.
+.HP 2
+\(bu The standard input, output, and error of the command are 
+redirected to the NULL device. 
+.HP 2
+\(bu The command is run as the user of the job.
+.HP 2
+\(bu All environment variables set for the job are also set for the 
+command action. The following additional environment variables 
+are set:
+.RS
+.HP 2
+\(bu LSB_JOBPGIDS -- a list of current process group IDs of the job
+.HP 2
+\(bu LSB_JOBPIDS --a list of current process IDs of the job
+.RE
+.RE
+
+.IP
+For the SUSPEND action command, the following environment 
+variable is also set:
+
+.RS
+.HP 2
+\(bu LSB_SUSP_REASONS -- an integer representing a bitmap of 
+suspending reasons as defined in lsbatch.h
+.IP
+The suspending reason can allow the command to take 
+different actions based on the reason for suspending the job.
+
+.RE
+.RE
+
+.SS Default
+.BR
+.PP
+.PP
+On LINUX, by default, SUSPEND sends SIGTSTP for parallel or 
+interactive jobs and SIGSTOP for other jobs. RESUME sends SIGCONT. 
+TERMINATE sends SIGINT, SIGTERM and SIGKILL in that order.
+.SH JOB_STARTER
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBJOB_STARTER =\fR \fIstarter\fR [\fIstarter\fR] [\fB"%USRCMD"\fR] [\fIstarter\fR]
+.SS Description
+.BR
+.PP
+.PP
+Creates a specific environment for submitted jobs prior to execution.
+.PP
+\fIstarter\fR is any executable that can be used to start the job (i.e., can 
+accept the job as an input argument). Optionally, additional strings can 
+be specified. 
+.PP
+By default, the user commands run after the job starter. A special string, 
+%USRCMD, can be used to represent the position of the user's job in 
+the job starter command line. The %USRCMD string may be enclosed 
+with quotes or followed by additional commands.
+.SS Example
+.BR
+.PP
+
+.PP
+JOB_STARTER = csh -c "%USRCMD;sleep 10"
+
+
+.PP
+In this case, if a user submits a job
+
+.PP
+% bsub myjob arguments
+
+
+.PP
+the command that actually runs is:
+
+.PP
+% csh -c "myjob arguments;sleep 10"
+
+
+.SS Default 
+.BR
+.PP
+.PP
+Undefined (no job starter).
+.SH load_index
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fIload_index\fR \fB=\fR \fIloadSched\fR[\fB/\fR\fIloadStop\fR]
+.PP
+Specify io, it, ls, mem, pg, r15s, r1m, r15m, swp, tmp, ut, or a non-
+shared custom external load index. Specify multiple lines to configure 
+thresholds for multiple load indices.
+.PP
+Specify io, it, ls, mem, pg, r15s, r1m, r15m, swp, tmp, ut, or a non-
+shared custom external load index as a column. Specify multiple 
+columns to configure thresholds for multiple load indices.
+.SS Description
+.BR
+.PP
+.PP
+Scheduling and suspending thresholds for the specified dynamic load 
+index.
+.PP
+The loadSched condition must be satisfied before a job is dispatched 
+to the host. If a RESUME_COND is not specified, the loadSched 
+condition must also be satisfied before a suspended job can be 
+resumed. 
+.PP
+If the loadStop condition is satisfied, a job on the host will be 
+suspended.
+.PP
+The loadSched and loadStop thresholds permit the specification of 
+conditions using simple AND/OR logic. Any load index that does not 
+have a configured threshold has no effect on job scheduling. 
+.PP
+Lava will not suspend a job if the job is the only batch job running on 
+the host and the machine is interactively idle (it>0). 
+.PP
+The r15s, r1m, and r15m CPU run queue length conditions are 
+compared to the effective queue length as reported by \fBlsload -E\fR, 
+which is normalized for multiprocessor hosts. Thresholds for these 
+parameters should be set at appropriate levels for single processor 
+hosts.
+.SS Example 
+.BR
+.PP
+
+.PP
+MEM=100/10
+.br
+SWAP=200/30
+
+
+.PP
+These two lines translate into a loadSched condition of
+
+.PP
+mem>=100 && swap>=200 
+
+
+.PP
+and a loadStop condition of 
+
+.PP
+mem < 10 || swap < 30
+
+
+.SS Default 
+.BR
+.PP
+.PP
+Undefined.
+.SH MEMLIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMEMLIMIT =\fR [\fIdefault_limit\fR] \fImaximum_limit
+\fR.SS Description
+.BR
+.PP
+.PP
+The per-process (hard) process resident set size limit (in KB) for all of 
+the processes belonging to a job from this queue (see \fBgetrlimit\fR(\fB2\fR)).
+.PP
+Sets the maximum amount of physical memory (resident set size, RSS) 
+that may be allocated to a process.
+.PP
+By default, if a default memory limit is specified, jobs submitted to the 
+queue without a job-level memory limit are killed when the default 
+memory limit is reached.
+.PP
+If you specify only one limit, it is the maximum, or hard, memory limit. 
+If you specify two limits, the first one is the default, or soft, memory 
+limit, and the second one is the maximum memory limit.
+.PP
+Lava has two methods of enforcing memory usage:
+.RS
+.HP 2
+\(bu OS Memory Limit Enforcement
+.HP 2
+\(bu Lava Memory Limit Enforcement
+.RE
+.SS OS Memory Limit Enforcement
+.BR
+.PP
+.PP
+OS memory limit enforcement is the default MEMLIMIT behavior and 
+does not require further configuration. OS enforcement usually allows 
+the process to eventually run to completion. Lava passes MEMLIMIT to 
+the OS which uses it as a guide for the system scheduler and memory 
+allocator. The system may allocate more memory to a process if there 
+is a surplus. When memory is low, the system takes memory from and 
+lowers the scheduling priority (re-nice) of a process that has exceeded 
+its declared MEMLIMIT. Only available on systems that support 
+\fBRUSAGE_RSS\fR for \fBsetrlimit()\fR. 
+.RE
+.SS Lava Memory Limit Enforcement
+.BR
+.PP
+.PP
+To enable Lava memory limit enforcement, set 
+LSB_MEMLIMIT_ENFORCE in lsf.conf to y. Lava memory limit 
+enforcement explicitly sends a signal to kill a running process once it 
+has allocated memory past MEMLIMIT.
+.PP
+You can also enable Lava memory limit enforcement by setting 
+LSB_JOB_MEMLIMIT in lsf.conf to y. The difference between 
+LSB_JOB_MEMLIMIT set to y and LSB_MEMLIMIT_ENFORCE set to y is 
+that with LSB_JOB_MEMLIMIT, only the per-job memory limit enforced 
+by Lava is enabled. The per-process memory limit enforced by the OS 
+is disabled. With LSB_MEMLIMIT_ENFORCE set to y, both the per-job 
+memory limit enforced by Lava and the per-process memory limit 
+enforced by the OS are enabled.
+.PP
+Available for all systems on which Lava collects total memory usage.
+.SS Example
+.BR
+.PP
+.PP
+The following configuration defines a queue with a memory limit of 
+5000 KB:
+
+.PP
+Begin Queue
+.br
+QUEUE_NAME  = default
+.br
+DESCRIPTION = Queue with memory limit of 5000 kbytes
+.br
+MEMLIMIT    = 5000
+.br
+End Queue
+
+
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH MIG
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBMIG =\fR \fIminutes
+\fR.SS Description
+.BR
+.PP
+.PP
+Enables automatic job migration and specifies the migration threshold, 
+in minutes.
+.PP
+If a checkpointable or rerunnable job dispatched to the host is 
+suspended (SSUSP state) for longer than the specified number of 
+minutes, the job is migrated (unless another job on the same host is 
+being migrated). A value of 0 (zero) specifies that a suspended job 
+should be migrated immediately.
+.PP
+If a migration threshold is defined at both host and queue levels, the 
+lower threshold is used.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined (no automatic job migration).
+.SH NEW_JOB_SCHED_DELAY
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBNEW_JOB_SCHED_DELAY =\fR \fIseconds
+\fR.SS Description
+.BR
+.PP
+.PP
+The maximum or minimum length of time that a new job waits before 
+being dispatched; the behavior depends on whether the delay period 
+specified is longer or shorter than a regular dispatch interval 
+(MBD_SLEEP_TIME in lsb.params, 60 seconds by default).
+.RS
+.HP 2
+\(bu If less than the dispatch interval, specifies the maximum number of 
+seconds to wait, after a new job is submitted, before starting a new 
+dispatch turn and scheduling the job. Usually, this causes Lava to 
+schedule dispatch turns more frequently. You might notice 
+performance problems (affecting the entire cluster) if this value is 
+set too low in a busy queue.
+.HP 2
+\(bu If 0 (zero), starts a new dispatch turn as soon as a job is submitted 
+to this queue (affecting the entire cluster).
+.HP 2
+\(bu If greater than the dispatch interval, specifies the minimum number 
+of seconds to wait, after a new job is submitted, before scheduling 
+the job. Has no effect of the timing of the dispatch turns, but new 
+jobs in this queue are always delayed by one or more dispatch 
+turns.
+.RE
+.SS Default
+.BR
+.PP
+.PP
+10 seconds.
+.SH NICE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBNICE =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Adjusts the LINUX scheduling priority at which jobs from this queue 
+execute.
+.PP
+The default value of 0 (zero) maintains the default scheduling priority 
+for UNIX interactive jobs. This value adjusts the run-time priorities for 
+batch jobs on a queue-by-queue basis, to control their effect on other 
+batch or interactive jobs. See the \fBnice\fR(\fB1\fR) manual page for more details.
+.PP
+.SS Default 
+.BR
+.PP
+.PP
+0 (zero)
+.SH PJOB_LIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBPJOB_LIMIT =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Per-processor job slot limit for the queue.
+.PP
+Maximum number of job slots that this queue can use on any 
+processor. This limit is configured per processor, so that multiprocessor 
+hosts automatically run more jobs.
+.SS Default 
+.BR
+.PP
+.PP
+Unlimited
+.SH POST_EXEC
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBPOST_EXEC = \fR\fIcommand
+\fR.SS Description
+.BR
+.PP
+.PP
+A command run on the execution host after the job.
+.SS LINUX 
+.BR
+.PP
+.PP
+The entire contents of the configuration line of the pre- and post-
+execution commands are run under /bin/sh -c, so shell features can 
+be used in the command. 
+.PP
+The pre- and post-execution commands are run in /tmp.
+.PP
+Standard input and standard output and error are set to:
+.PP
+/dev/null 
+.PP
+The output from the pre- and post-execution commands can be 
+explicitly redirected to a file for debugging purposes.
+.PP
+The PATH environment variable is set to:
+
+.PP
+"/bin /usr/bin /sbin/usr/sbin"
+.RE
+.SS Default 
+.BR
+.PP
+.PP
+No post-execution commands
+.SH PRE_EXEC
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBPRE_EXEC = \fR\fIcommand
+\fR.SS Description
+.BR
+.PP
+.PP
+A command run on the execution host before the job.
+.PP
+To specify a pre-execution command at the job level, use \fBbsub -E\fR. If 
+both queue and job level pre-execution commands are specified, the 
+job level pre-execution is run after the queue level pre-execution 
+command.
+.PP
+For LINUX: 
+.RS
+.HP 2
+\(bu The entire contents of the configuration line of the pre- and post-
+execution commands are run under /bin/sh -c, so shell features 
+can be used in the command. 
+.HP 2
+\(bu The pre- and post-execution commands are run in /tmp.
+.HP 2
+\(bu Standard input and standard output and error are set to: /dev/null 
+.HP 2
+\(bu The output from the pre- and post-execution commands can be 
+explicitly redirected to a file for debugging purposes.
+.HP 2
+\(bu The PATH environment variable is set to: 
+/bin /usr/bin /sbin/usr/sbin
+.HP 2
+\(bu If the pre-execution command exits with a non-zero exit code, it is 
+considered to have failed, and the job is requeued to the head of 
+the queue. This feature can be used to implement customized 
+scheduling by having the pre-execution command fail if conditions 
+for dispatching the job are not met. 
+.HP 2
+\(bu Other environment variables set for the job are also set for the pre- 
+and post-execution commands.
+.RE
+.SS Default 
+.BR
+.PP
+.PP
+No pre-execution commands
+.SH PROCESSLIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBPROCESSLIMIT =\fR [\fIdefault_limit\fR] \fImaximum_limit
+\fR.SS Description
+.BR
+.PP
+.PP
+Limits the number of concurrent processes that can be part of a job.
+.PP
+By default, if a default process limit is specified, jobs submitted to the 
+queue without a job-level process limit are killed when the default 
+process limit is reached.
+.PP
+If you specify only one limit, it is the maximum, or hard, process limit. 
+If you specify two limits, the first one is the default, or soft, process 
+limit, and the second one is the maximum process limit.
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH PROCLIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBPROCLIMIT =\fR [\fIminimum_limit\fR [\fIdefault_limit\fR]] \fImaximum_limit
+\fR.SS Description
+.BR
+.PP
+.PP
+Maximum number of slots that can be allocated to a job. For parallel 
+jobs, the maximum number of processors that can be allocated to t he 
+job.
+.PP
+Optionally specifies the minimum and default number of job slots.
+.PP
+Jobs that specify fewer slots than the minimum PROCLIMIT or more 
+slots than the maximum PROCLIMIT cannot use this queue and are 
+rejected.
+.PP
+All limits must be positive numbers greater than or equal to 1 that 
+satisfy the following relationship:
+.PP
+1 <= \fIminimum\fR <= \fIdefault\fR <= \fImaximum
+\fR.PP
+You can specify up to three limits in the PROCLIMIT parameter:
+.PP
+If you specify one limit, it is the maximum processor limit. The 
+minimum and default limits are set to 1.
+.PP
+If you specify two limits, the first is the minimum processor limit, and 
+the second one is the maximum. The default is set equal to the 
+minimum. The minimum must be less than or equal to the maximum.
+.PP
+If you specify three limits, the first is the minimum processor limit, the 
+second is the default processor limit, and the third is the maximum.The 
+minimum must be less than the default and the maximum.
+.SS Default
+.BR
+.PP
+.PP
+Unlimited, the default number of slots is 1.
+.SH QJOB_LIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBQJOB_LIMIT\fR \fB=\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Job slot limit for the queue. Total number of job slots that this queue 
+can use. 
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH QUEUE_NAME
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBQUEUE_NAME =\fR \fIstring
+\fR.SS Description
+.BR
+.PP
+.PP
+Required. Name of the queue.
+.PP
+Specify any ASCII string up to 40 characters long. You can use letters, 
+digits, underscores (_) or dashes (-). You cannot use blank spaces. You 
+cannot specify the reserved name default.
+.SS Default
+.BR
+.PP
+.PP
+You must specify this parameter to define a queue. The default queue 
+automatically created by Lava is named default.
+.PP
+\fBREQUEUE_EXIT_VALUES\fR \fB=\fR [\fIexit_code \fR...] [\fBEXCLUDE(\fR\fIexit_code ...\fR\fB)\fR]
+.SS Description
+.BR
+.PP
+.PP
+Enables automatic job requeue and sets the LSB_EXIT_REQUEUE 
+environment variable.
+.PP
+Separate multiple exit codes with spaces. Define an exit code as 
+EXCLUDE(\fIexit_code\fR) to enable exclusive job requeue. Exclusive job 
+requeue does not work for parallel jobs.
+.PP
+Jobs are requeued to the head of the queue from which they were 
+dispatched. The output from the failed run is not saved, and the user 
+is not notified by Lava.
+.PP
+A job terminated by a signal is not requeued.
+.PP
+If MBD is restarted, it will not remember the previous hosts from which 
+the job exited with an exclusive requeue exit code. In this situation, it 
+is possible for a job to be dispatched to hosts on which the job has 
+previously exited with an exclusive exit code. 
+.PP
+Automatic job requeue and exclusive job requeue are described in the 
+\fILava Administrator's Guide\fR.
+.SS Example 
+.BR
+.PP
+
+.PP
+REQUEUE_EXIT_VALUES=30 EXCLUDE(20)
+
+
+.PP
+means that jobs with exit code 30 are requeued, jobs with exit code 20 
+are requeued exclusively, and jobs with any other exit code are not 
+requeued.
+.SS Default 
+.BR
+.PP
+.PP
+Undefined (jobs in this queue are not requeued)
+.SH RERUNNABLE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRERUNNABLE = yes\fR | \fBno 
+\fR.SS Description
+.BR
+.PP
+.PP
+If yes, enables automatic job rerun (restart).
+.SS Default
+.BR
+.PP
+.PP
+no
+.SH RES_REQ
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRES_REQ =\fR \fIres_req
+\fR.SS Description 
+.BR
+.PP
+.PP
+Resource requirements used to determine eligible hosts. Specify a 
+resource requirement string as usual. The resource requirement string 
+lets you specify conditions in a more flexible manner than using the 
+load thresholds.
+.PP
+The select section defined at the queue level must be satisfied at in 
+addition to any job-level requirements or load thresholds.
+.PP
+The rusage section defined at the queue level overrides the rusage 
+section defined at the job level, and jobs are rejected if they specify 
+resource reservation requirements that exceed the requirements 
+specified at the queue level.
+.PP
+The order section defined at the queue level is ignored if any resource 
+requirements are specified at the job level (if the job-level resource 
+requirements do not include the order section, the default order, 
+r15s:pg, is used instead of the queue-level resource requirement).
+.PP
+The span section defined at the queue level is ignored if the span 
+section is also defined at the job level.
+.PP
+If RES_REQ is defined at the queue level and there are no load 
+thresholds defined, the pending reasons for each individual load index 
+will not be displayed by \fBbjobs\fR.
+.SS Default 
+.BR
+.PP
+.PP
+select[type==local] order[r15s:pg]. If this parameter is defined and 
+a host model or Boolean resource is specified, the default type will be 
+any.
+.SH RESUME_COND
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRESUME_COND = \fR\fIres_req
+\fR.PP
+Use the select section of the resource requirement string to specify 
+load thresholds. All other sections are ignored.
+.SS Description
+.BR
+.PP
+.PP
+Lava automatically resumes a suspended (SSUSP) job in this queue if the 
+load on the host satisfies the specified conditions.
+.PP
+If RESUME_COND is not defined, then the loadSched thresholds are 
+used to control resuming of jobs. The loadSched thresholds are 
+ignored, when resuming jobs, if RESUME_COND is defined.
+.SH RUN_WINDOW
+.BR
+.PP
+.SS Syntax 
+.BR
+.PP
+.PP
+\fBRUN_WINDOW =\fR \fItime_window \fR...
+.SS Description
+.BR
+.PP
+.PP
+Time periods during which jobs in the queue are allowed to run.
+.PP
+When the window closes, Lava suspends jobs running in the queue and 
+stops dispatching jobs from the queue. When the window reopens, Lava 
+resumes the suspended jobs and begins dispatching additional jobs.
+.SS Default
+.BR
+.PP
+.PP
+Undefined (queue is always active)
+.SH RUNLIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBRUNLIMIT = \fR[\fIdefault_limit\fR] \fImaximum_limit
+\fR.PP
+where \fIdefault_limit\fR and \fImaximum_limit\fR are:
+.PP
+[\fIhours\fR:]\fIminutes\fR[/\fIhost_name\fR | /\fIhost_model\fR]
+.SS Description
+.BR
+.PP
+.PP
+The maximum run limit and optionally the default run limit. The name 
+of a host or host model specifies the run time normalization host to use.
+.PP
+By default, jobs that are in the RUN state for longer than the specified 
+maximum run limit are killed by Lava. You can optionally provide your 
+own termination job action to override this default.
+.PP
+Jobs submitted with a job-level run limit (\fBbsub -W\fR) that is less than the 
+maximum run limit are killed when their job-level run limit is reached. 
+Jobs submitted with a run limit greater than the maximum run limit are 
+rejected by the queue.
+.PP
+If a default run limit is specified, jobs submitted to the queue without 
+a job-level run limit are killed when the default run limit is reached. 
+.PP
+If you specify only one limit, it is the maximum, or hard, run limit. If 
+you specify two limits, the first one is the default, or soft, run limit, and 
+the second one is the maximum run limit. The number of minutes may 
+be greater than 59. Therefore, three and a half hours can be specified 
+either as 3:30, or 210.
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH SLOT_RESERVE
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBSLOT_RESERVE = MAX_RESERVE_TIME[\fR\fIinteger\fR\fB]
+\fR.SS Description
+.BR
+.PP
+.PP
+Enables processor reservation and specifies the number of dispatch 
+turns over which a parallel job can reserve job slots.
+.PP
+After this time, if a job has not accumulated enough job slots to start, it 
+releases all its reserved job slots. This means a job cannot reserve job 
+slots for more than (\fIinteger \fR* MBD_SLEEP_TIME) seconds.
+.PP
+MBD_SLEEP_TIME is defined in lsb.params; the default value is 60 
+seconds.
+.SS Example
+.BR
+.PP
+
+.PP
+SLOT_RESERVE = MAX_RESERVE_TIME[5]
+
+
+.PP
+This example specifies that parallel jobs have up to 5 dispatch turns to 
+reserve sufficient job slots (equal to 5 minutes, by default).
+.SS Default
+.BR
+.PP
+.PP
+Undefined (no processor reservation)
+.SH STACKLIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBSTACKLIMIT =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The per-process (hard) stack segment size limit (in KB) for all of the 
+processes belonging to a job from this queue (see \fBgetrlimit\fR(\fB2\fR)).
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH STOP_COND
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBSTOP_COND =\fR \fIres_req
+\fR.PP
+Use the select section of the resource requirement string to specify 
+load thresholds. All other sections are ignored.
+.SS Description
+.BR
+.PP
+.PP
+Lava automatically suspends a running job in this queue if the load on 
+the host satisfies the specified conditions.
+.RS
+.HP 2
+\(bu Lava will not suspend the only job running on the host if the 
+machine is interactively idle (it > 0). 
+.HP 2
+\(bu Lava will not suspend a forced job (\fBbrun -f\fR). 
+.HP 2
+\(bu Lava will not suspend a job because of paging rate if the machine is 
+interactively idle.
+.RE
+.PP
+If STOP_COND is specified in the queue and there are no load 
+thresholds, the suspending reasons for each individual load index will 
+not be displayed by \fBbjobs\fR.
+.SS Example
+.BR
+.PP
+
+.PP
+STOP_COND= select[((!cs && it < 5) || (cs && mem < 15 && swap < 
+50))]
+
+
+.PP
+In this example, assume "cs" is a Boolean resource indicating that the 
+host is a computer server. The stop condition for jobs running on 
+computer servers is based on the availability of swap memory. The stop 
+condition for jobs running on other kinds of hosts is based on the idle 
+time.
+.SH SWAPLIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBSWAPLIMIT =\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+The amount of total virtual memory limit (in KB) for a job from this 
+queue.
+.PP
+This limit applies to the whole job, no matter how many processes the 
+job may contain.
+.PP
+The action taken when a job exceeds its SWAPLIMIT or PROCESSLIMIT 
+is to send SIGQUIT, SIGINT, SIGTERM, and SIGKILL in sequence. For 
+CPULIMIT, SIGXCPU is sent before SIGINT, SIGTERM, and SIGKILL.
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH TERMINATE_WHEN
+.BR
+.PP
+.SS Description
+.BR
+.PP
+.PP
+Configures the queue to invoke the TERMINATE action instead of the 
+SUSPEND action in the specified circumstance.
+.SS Syntax
+.BR
+.PP
+.PP
+\fBTERMINATE_WHEN = WINDOW\fR | \fBLOAD\fR 
+\fR.RS
+.HP 2
+\(bu WINDOW -- kills jobs if the run window closes.
+.HP 2
+\(bu LOAD -- kills jobs when the load exceeds the suspending 
+thresholds.
+.SS Example
+.BR
+.PP
+.PP
+Set TERMINATE_WHEN to WINDOW to define a night queue that will 
+kill jobs if the run window closes:
+
+.PP
+Begin Queue
+.br
+NAME           = night
+.br
+RUN_WINDOW     = 20:00-08:00
+.br
+TERMINATE_WHEN = WINDOW
+.br
+JOB_CONTROLS   = TERMINATE[kill -KILL $LS_JOBPGIDS; mail - s 
+"job $LSB_JOBID killed by queue run window" $USER < /dev/null]
+.br
+End Queue
+
+
+.SH UJOB_LIMIT
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBUJOB_LIMIT\fR \fB=\fR \fIinteger
+\fR.SS Description
+.BR
+.PP
+.PP
+Per-user job slot limit for the queue. Maximum number of job slots that 
+each user can use in this queue.
+.SS Default
+.BR
+.PP
+.PP
+Unlimited
+.SH USERS
+.BR
+.PP
+.SS Syntax
+.BR
+.PP
+.PP
+\fBUSERS =\fR \fBall\fR | \fIuser_name\fR | \fIuser_group\fR ...
+.SS Description
+.BR
+.PP
+.PP
+A list of users or user groups that can submit jobs to this queue 
+.PP
+Use the reserved word all to specify all Lava users. 
+.PP
+Lava cluster administrators can submit jobs to this queue 
+or switch any user's jobs into this queue, even if they are not listed.
+.SS Default
+.BR
+.PP
+.PP
+all
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsf.cluster(5), lsf.conf(5), lsb.params(5), 
+lsb.hosts(5), lsb.users(5),  
+busers(1), bugroup(1), bchkpnt(1), nice(1), getgrnam(3), 
+getrlimit(2), bmgroup(1), bqueues(1), bhosts(1), 
+bsub(1), lsid(1), mbatchd(8), badmin(8)

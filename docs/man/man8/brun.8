@@ -1,0 +1,77 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH brun 8 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbrun\fR - forces a job to run immediately
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbrun\fR [\fB-f\fR]\fB \fR\fB-m\fR\fB "\fR\fIhost_name\fR\fI ...\fR\fB"\fR \fIjob_ID
+\fR.PP
+\fBbrun\fR [\fB-f\fR]\fB \fR\fB-m\fR\fB "\fR\fIhost_name\fR\fI ...\fR\fB"\fR \fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"\fR\fB 
+\fR.PP
+\fBbrun\fR\fB \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+This command can only be used by Lava administrators. 
+.PP
+Forces a pending job to run immediately on specified hosts.
+.PP
+A job which has been forced to run is counted as a running job, this 
+may violate the user, queue, or host job limits.
+.PP
+A job which has been forced to run cannot be preempted by other jobs 
+even if it is submitted to a preemptable queue and other jobs are 
+submitted to a preemptive queue.
+.PP
+By default, after the job is started, it is still subject to run windows and 
+suspending conditions.
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-f
+\fR
+.IP
+Allows the job to run without being suspended due to run windows or 
+suspending conditions.
+
+
+.TP 
+\fB-m \fR\fIhost_name\fR\fI \fR... 
+
+.IP
+Required. Specify one or more hosts on which to run the job. 
+
+
+.TP 
+\fIjob_ID \fR|\fI \fR\fB"\fR\fIjob_ID\fR\fB[\fR\fIindex_list\fR\fB]"
+\fR
+.IP
+Required. Specify the job to run, or specify one element of a job array.
+
+
+.TP 
+\fB-h
+\fR
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V
+\fR
+.IP
+Prints Lava release version to stderr and exits. 
+
+
+.SH LIMITATIONS
+.BR
+.PP
+.PP
+You cannot force a job in SSUSP, USUSP or PSUSP state.

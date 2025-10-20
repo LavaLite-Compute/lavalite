@@ -1,0 +1,954 @@
+.ds ]W %
+.ds ]L
+.nh
+.TH bqueues 1 "Lava Version 1.0 - Sept 2007"
+.br
+.SH NAME
+\fBbqueues\fR - displays information about queues
+.SH SYNOPSIS
+.BR
+.PP
+.PP
+\fBbqueues \fR[\fB-w\fR | \fB-l\fR] [\fB-m\fR \fIhost_name\fR\fI \fR|\fI \fR\fB-m\fR\fI host_group\fR\fI | \fR\fB-m all\fR] 
+[\fB-u\fR\fB \fR\fIuser_name \fR|\fI \fR\fB-u\fR\fI user_group | \fR\fB-u all\fR] [\fIqueue_name\fR ...] 
+.PP
+\fBbqueues \fR[\fB-h\fR | \fB-V\fR]
+.SH DESCRIPTION
+.BR
+.PP
+.PP
+\fB\fRDisplays information about queues.
+.PP
+By default, returns the following information about all queues: queue 
+name, queue priority, queue status, job slot statistics, and job state 
+statistics.
+.PP
+Batch queue names and characteristics are set up by the Lava 
+administrator (see lsb.queues(5) and mbatchd(8)).
+.SH OPTIONS
+.BR
+.PP
+.TP 
+\fB-w\fR 
+
+.IP
+Displays queue information in a wide format. Fields are displayed 
+without truncation.
+
+
+.TP 
+\fB-l 
+\fR
+.IP
+Displays queue information in a long multi-line format. The -l option 
+displays the following additional information: queue description, 
+queue characteristics and statistics, scheduling parameters, resource 
+limits, scheduling policies, users, hosts, user shares, windows, 
+associated commands, and job controls.
+
+
+.TP 
+\fB-m\fR \fIhost_name \fR|\fI \fR\fB-m\fR\fI host_group \fR| \fB-m\fR\fI \fR\fBall\fR 
+
+.IP
+Displays the queues that can run jobs on the specified host or host 
+group. If the keyword all is specified, displays the queues that can run 
+jobs on all hosts . For a list of host groups see bmgroup(1).
+
+
+.TP 
+\fB-u\fR \fIuser_name \fR|\fI \fR\fB-u\fR\fI user_group\fR\fB \fR|\fB -u all\fR 
+
+.IP
+Displays the queues that can accept jobs from the specified user or user 
+group (For a list of user groups see bugroup(1).) If the keyword `all' 
+is specified, displays the queues that can accept jobs from all users.
+
+
+.TP 
+\fIqueue_name \fR... 
+
+.IP
+Displays information about the specified queues. 
+
+
+.TP 
+\fB-h\fR 
+
+.IP
+Prints command usage to stderr and exits. 
+
+
+.TP 
+\fB-V 
+\fR
+.IP
+Prints Lava release version to stdout and exits. 
+
+
+.SH OUTPUT
+.BR
+.PP
+.SS Default Output
+.BR
+.PP
+.PP
+Displays the following fields: 
+
+.IP
+QUEUE_NAME
+.BR
+.RS
+.IP
+The name of the queue. Queues are named to correspond to the 
+type of jobs usually submitted to them, or to the type of services 
+they provide. 
+
+
+.IP
+lost_and_found
+.BR
+.RS
+.IP
+If the Lava administrator removes queues from the system, Lava 
+creates a queue called lost_and_found and places the jobs 
+from the removed queues into the lost_and_found queue. 
+Jobs in the lost_and_found queue will not be started unless 
+they are switched to other queues (see bswitch).
+
+.RE
+.RE
+.RE
+
+.IP
+PARAMETER/STATISTICS
+.BR
+.RS
+
+.IP
+PRIO
+.BR
+.RS
+.IP
+The priority of the queue. If job priority is not configured, 
+determines the queue search order at job dispatch, suspension 
+and resumption time. Queues with higher priority values are 
+searched first for job dispatch and resumption (this is contrary 
+to UNIX process priority ordering), and queues with higher 
+priority values are searched last for job suspension. 
+
+.RE
+
+.IP
+STATUS
+.BR
+.RS
+.IP
+The current status of the queue. The possible values are: 
+
+
+.IP
+Open 
+.BR
+.RS
+.IP
+The queue is able to accept jobs. 
+
+.RE
+
+.IP
+Closed 
+.BR
+.RS
+.IP
+The queue is not able to accept jobs. 
+
+.RE
+
+.IP
+Active 
+.BR
+.RS
+.IP
+Jobs in the queue may be started. 
+
+.RE
+
+.IP
+Inactive
+.BR
+.RS
+.IP
+Jobs in the queue cannot be started for the time being. 
+
+.RE
+.IP
+At any moment, each queue is either Open or Closed, and is 
+either Active or Inactive. The queue can be opened, closed, 
+inactivated and re-activated by the Lava administrator using 
+badmin (see badmin(8)). The queue becomes inactive when 
+either its dispatch window is closed or its run window is closed 
+(see DISPATCH_WINDOWS in the "Output for the -l Option" 
+section). In this case, the queue cannot be activated using 
+badmin. The queue is re-activated by Lava when one of its 
+dispatch windows and one of its run windows are open again. 
+The initial state of a queue at Lava boot time is set to open, and 
+either active or inactive depending on its windows. 
+
+.RE
+.RE
+
+.IP
+MAX
+.BR
+.RS
+.IP
+The maximum number of job slots that can be used by the jobs 
+from the queue. These job slots are used by dispatched jobs 
+which have not yet finished, and by pending jobs which have 
+slots reserved for them. A sequential job will use one job slot 
+when it is dispatched to a host, while a parallel job will use as 
+many job slots as is required by bsub -n when it is dispatched. 
+See bsub(1) for details. If `-' is displayed, there is no limit. 
+
+.RE
+
+.IP
+JL/U
+.BR
+.RS
+.IP
+The maximum number of job slots you can use for your jobs in 
+the queue. These job slots are used by your dispatched jobs 
+which have not yet finished, and by pending jobs which have 
+slots reserved for them. If `-' is displayed, there is no limit. 
+
+.RE
+
+.IP
+JL/P 
+.BR
+.RS
+.IP
+The maximum number of job slots a processor can process 
+from the queue. This includes job slots of dispatched jobs that 
+have not yet finished, and job slots reserved for some pending 
+jobs. The job slot limit per processor (JL/P) controls the number 
+of jobs sent to each host. This limit is configured per processor 
+so that multiprocessor hosts are automatically allowed to run 
+more jobs. If `-' is displayed, there is no limit. 
+
+.RE
+
+.IP
+JL/H
+.BR
+.RS
+.IP
+The maximum number of job slots a host can process from the 
+queue. This includes the job slots of dispatched jobs that have 
+not yet finished, and those reserved for some pending jobs. The 
+job slot limit per host (JL/H) controls the number of jobs sent 
+to each host, regardless of whether a host is a uniprocessor host 
+or a multiprocessor host. If `-' is displayed, there is no limit. 
+
+.RE
+
+.IP
+NJOBS 
+.BR
+.RS
+.IP
+The total number of job slots held currently by jobs in the 
+queue. This includes pending, running, suspended and 
+reserved job slots. A parallel job that is running on \fIn\fR processors 
+is counted as \fIn\fR job slots, since it takes \fIn\fR job slots in the queue. 
+See bjobs(1) for an explanation of batch job states. 
+
+.RE
+
+.IP
+PEND 
+.BR
+.RS
+.IP
+The number of pending job slots in the queue. 
+
+.RE
+
+.IP
+RUN
+.BR
+.RS
+.IP
+The number of running job slots in the queue. 
+
+.RE
+
+.IP
+SUSP
+.BR
+.RS
+.IP
+The number of suspended job slots in the queue.
+
+.RE
+.SS Output for \fB-\fRl Option
+.BR
+.PP
+.PP
+In addition to the above fields, the \fB-\fRl option displays the following: 
+
+.IP
+Description 
+.BR
+.RS
+.IP
+A description of the typical use of the queue. 
+
+.RE
+
+.IP
+PARAMETERS/STATISTICS
+.BR
+.RS
+
+.IP
+NICE 
+.BR
+.RS
+.IP
+The nice value at which jobs in the queue will be run. This is 
+the UNIX nice value for reducing the process priority (see 
+nice(1)). 
+
+.RE
+
+.IP
+STATUS
+.BR
+.RS
+
+.IP
+Inactive
+.BR
+.RS
+.IP
+The long format for the \fB-\fRl option gives the possible reasons 
+for a queue to be inactive:
+
+.RE
+
+.IP
+Inact_Win
+.BR
+.RS
+.IP
+The queue is out of its dispatch window or its run window.
+
+.RE
+
+.IP
+Inact_Adm
+.BR
+.RS
+.IP
+The queue has been inactivated by the Lava administrator.
+
+.RE
+
+.IP
+SSUSP
+.BR
+.RS
+.IP
+The number of job slots in the queue allocated to jobs that are 
+suspended by Lava.
+
+.RE
+
+.IP
+USUSP 
+.BR
+.RS
+.IP
+The number of job slots in the queue allocated to jobs that are 
+suspended by the job submitter or by the Lava administrator.
+
+.RE
+
+.IP
+RSV 
+.BR
+.RS
+.IP
+The numbers of job slots in the queue that are reserved by Lava 
+for pending jobs.
+
+.RE
+
+.IP
+Migration threshold
+.BR
+.RS
+.IP
+\fB\fRThe length of time in seconds that a job dispatched from the queue 
+will remain suspended by the system before Lava attempts to 
+migrate the job to another host. See the MIG parameter in 
+lsb.queues and lsb.hosts.
+
+.RE
+
+.IP
+Schedule delay for a new job
+.BR
+.RS
+.IP
+The delay time in seconds for scheduling a session after a new job 
+is submitted. If the schedule delay time is zero, a new scheduling 
+session is started as soon as the job is submitted to the queue. See 
+the NEW_JOB_SCHEDULE_DELAY parameter in lsb.queues.
+
+.RE
+
+.IP
+Interval for a host to accept two jobs
+.BR
+.RS
+.IP
+The length of time in seconds to wait after dispatching a job to a 
+host before dispatching a second job to the same host. If the job 
+accept interval is zero, a host may accept more than one job in each 
+dispatching interval. See the JOB_ACCEPT_INTERVAL parameter in 
+lsb.queues and lsb.params.
+
+.RE
+
+.IP
+RESOURCE LIMITS 
+.BR
+.RS
+.IP
+The hard resource limits that are imposed on the jobs in the queue 
+(see getrlimit(2) and lsb.queues(5)). These limits are imposed 
+on a per-job and a per-process basis. 
+
+.IP
+The possible per-job limits are: 
+
+.IP
+CPULIMIT
+
+.IP
+PROCLIMIT
+
+.IP
+MEMLIMIT
+
+.IP
+SWAPLIMIT
+
+.IP
+The possible UNIX per-process resource limits are:
+
+.IP
+RUNLIMIT
+
+.IP
+FILELIMIT
+
+.IP
+DATALIMIT
+
+.IP
+STACKLIMIT
+
+.IP
+CORELIMIT
+
+.IP
+If a job submitted to the queue has any of these limits specified (see 
+bsub(1)), then the lower of the corresponding job limits and 
+queue limits are used for the job. 
+
+.IP
+If no resource limit is specified, the resource is assumed to be 
+unlimited. 
+
+.RE
+
+.IP
+SCHEDULING PARAMETERS 
+.BR
+.RS
+.IP
+The scheduling and suspending thresholds for the queue. 
+
+.IP
+The scheduling threshold loadSched and the suspending 
+threshold loadStop are used to control batch job dispatch, 
+suspension, and resumption. The queue thresholds are used in 
+combination with the thresholds defined for hosts (see bhosts(1) 
+and lsb.hosts(5)). If both queue level and host level thresholds 
+are configured, the most restrictive thresholds are applied.
+
+.IP
+The loadSched and loadStop thresholds have the following 
+fields: 
+
+
+.IP
+r15s 
+.BR
+.RS
+.IP
+The 15-second exponentially averaged effective CPU run queue 
+length.
+
+.RE
+
+.IP
+r1m
+.BR
+.RS
+.IP
+The 1-minute exponentially averaged effective CPU run queue 
+length. 
+
+.RE
+
+.IP
+r15m
+.BR
+.RS
+.IP
+The 15-minute exponentially averaged effective CPU run queue 
+length. 
+
+.RE
+
+.IP
+ut
+.BR
+.RS
+.IP
+The CPU utilization exponentially averaged over the last 
+minute, expressed as a percentage between 0 and 1. 
+
+.RE
+
+.IP
+pg
+.BR
+.RS
+.IP
+The memory paging rate exponentially averaged over the last 
+minute, in pages per second. 
+
+.RE
+
+.IP
+io
+.BR
+.RS
+.IP
+The disk I/O rate exponentially averaged over the last minute, 
+in kilobytes per second. 
+
+.RE
+
+.IP
+ls 
+.BR
+.RS
+.IP
+The number of current login users. 
+
+.RE
+
+.IP
+it
+.BR
+.RS
+.IP
+On UNIX, the idle time of the host (keyboard not touched on 
+all logged in sessions), in minutes.
+.RE
+
+.IP
+tmp 
+.BR
+.RS
+.IP
+The amount of free space in /tmp, in megabytes. 
+
+.RE
+
+.IP
+swp 
+.BR
+.RS
+.IP
+The amount of currently available swap space, in megabytes. 
+
+.RE
+
+.IP
+mem 
+.BR
+.RS
+.IP
+The amount of currently available memory, in megabytes. 
+
+.RE
+.IP
+In addition to these internal indices, external indices are also 
+displayed if they are defined in lsb.queues (see lsb.queues(5)). 
+
+.IP
+The loadSched threshold values specify the job dispatching 
+thresholds for the corresponding load indices. If `-' is displayed as 
+the value, it means the threshold is not applicable. Jobs in the 
+queue may be dispatched to a host if the values of all the load 
+indices of the host are within (below or above, depending on the 
+meaning of the load index) the corresponding thresholds of the 
+queue and the host. The same conditions are used to resume jobs 
+dispatched from the queue that have been suspended on this host. 
+
+.IP
+Similarly, the loadStop threshold values specify the thresholds for 
+job suspension. If any of the load index values on a host go beyond 
+the corresponding threshold of the queue, jobs in the queue will 
+be suspended. 
+
+.RE
+.RE
+
+.IP
+SCHEDULING POLICIES
+.BR
+.RS
+.IP
+Scheduling policies of the queue. Optionally, one or more of the 
+following policies may be configured: 
+
+
+.IP
+IGNORE_DEADLINE
+.BR
+.RS
+.IP
+If IGNORE_DEADLINE is set to Y, starts all jobs regardless of 
+the run limit. 
+
+.RE
+
+.IP
+EXCLUSIVE
+.BR
+.RS
+.IP
+Jobs dispatched from an exclusive queue can run exclusively 
+on a host if the user so specifies at job submission time (see 
+bsub(1)). Exclusive execution means that the job is sent to a 
+host with no other batch job running there, and no further job, 
+batch or interactive, will be dispatched to that host while the 
+job is running. The default is not to allow exclusive jobs. 
+
+.RE
+
+.IP
+NO_INTERACTIVE 
+.BR
+.RS
+.IP
+This queue does not accept batch interactive jobs. (see the -I, 
+-Is, and -Ip options of bsub(1)). The default is to accept 
+both interactive and non-interactive jobs. 
+
+.RE
+
+.IP
+ONLY_INTERACTIVE 
+.BR
+.RS
+.IP
+This queue only accepts batch interactive jobs. Jobs must be 
+submitted using the -I, -Is, and -Ip options of bsub(1). The 
+default is to accept both interactive and non-interactive jobs. 
+
+.RE
+.RE
+.RE
+.RE
+
+.IP
+DEFAULT HOST SPECIFICATION 
+.BR
+.RS
+.IP
+The default host or host model that will be used to normalize the 
+CPU time limit of all jobs. 
+
+.IP
+If you want to view a list of the CPU factors defined for the hosts 
+in your cluster, use lsinfo(1). The CPU factors are configured in 
+lsf.shared(5). 
+
+.IP
+The appropriate CPU scaling factor of the host or host model is 
+used to adjust the actual CPU time limit at the execution host (see 
+CPULIMIT in lsb.queues(5)). The DEFAULT_HOST_SPEC 
+parameter in lsb.queues overrides the system 
+DEFAULT_HOST_SPEC parameter in lsb.params (see 
+lsb.params(5)). If a user explicitly gives a host specification 
+when submitting a job using 
+bsub -c \fIcpu_limit\fR[/\fIhost_name\fR | /\fIhost_model\fR], the user 
+specification overrides the values defined in both lsb.params and 
+lsb.queues.
+
+.RE
+
+.IP
+RUN_WINDOWS
+.BR
+.RS
+.IP
+One or more run windows in a week during which jobs in the 
+queue may run. 
+
+.IP
+When the end of a run window is reached, any running jobs from 
+the queue are suspended until the beginning of the next run 
+window when they are resumed. The default is no restriction, or 
+always open. 
+
+.RE
+
+.IP
+DISPATCH_WINDOWS
+.BR
+.RS
+.IP
+The dispatch windows for the queue. The dispatch windows are 
+the time windows in a week during which jobs in the queue may 
+be dispatched. 
+
+.IP
+When a queue is out of its dispatch window or windows, no job in 
+the queue will be dispatched. Jobs already dispatched are not 
+affected by the dispatch windows. The default is no restriction, or 
+always open (that is, twenty-four hours a day, seven days a week). 
+Note that such windows are only applicable to batch jobs. 
+Interactive jobs scheduled by LIM are controlled by another set of 
+dispatch windows (see lshosts(1)). Similar dispatch windows 
+may be configured for individual hosts (see bhosts(1)). 
+
+.IP
+A window is displayed in the format \fIbegin_time\fR-\fIend_time\fR. Time is 
+specified in the format [\fIday\fR:]\fIhour\fR[:\fIminute\fR], where all fields are 
+numbers in their respective legal ranges: 0(Sunday)-6 for \fIday\fR, 0-23 
+for \fIhour\fR, and 0-59 for \fIminute\fR. The default value for \fIminute\fR is 0 (on 
+the hour). The default value for \fIday\fR is every day of the week. The 
+\fIbegin_time\fR and \fIend_time\fR of a window are separated by `-', with no 
+blank characters (SPACE and TAB) in between. Both \fIbegin_time\fR 
+and \fIend_time\fR must be present for a window. Windows are 
+separated by blank characters. 
+
+.RE
+
+.IP
+USERS
+.BR
+.RS
+.IP
+A list of users and user groups allowed to submit jobs to the queue.  
+User group names have a slash (/) added at the end of the group 
+name. See bugroup(1).
+
+.IP
+Lava cluster administrators can submit jobs to the queue by default 
+
+.RE
+
+.IP
+HOSTS
+.BR
+.RS
+.IP
+A list of hosts and host groups where jobs in the queue can be 
+dispatched. Host group names have a slash (/) added at the end of 
+the group name. See bmgroup(1). 
+
+.RE
+
+.IP
+ADMINISTRATORS
+.BR
+.RS
+.IP
+A list of queue administrators. The users whose names are listed are 
+allowed to operate on the jobs in the queue and on the queue itself. 
+See lsb.queues(5) for more information. 
+
+.RE
+
+.IP
+PRE_EXEC
+.BR
+.RS
+.IP
+The queue's pre-execution command. The pre-execution 
+command is executed before each job in the queue is run on the 
+execution host (or on the first host selected for a parallel batch job). 
+See lsb.queues(5) for more information. 
+
+.RE
+
+.IP
+POST_EXEC 
+.BR
+.RS
+.IP
+The queue's post-execution command. The post-execution 
+command is run when a job terminates. See lsb.queues(5) for 
+more information. 
+
+.RE
+
+.IP
+REQUEUE_EXIT_VALUES 
+.BR
+.RS
+.IP
+Jobs that exit with these values are automatically requeued. See 
+lsb.queues(5) for more information. 
+
+.RE
+
+.IP
+RES_REQ
+.BR
+.RS
+.IP
+Resource requirements of the queue. Only the hosts that satisfy 
+these resource requirements can be used by the queue.
+
+.RE
+
+.IP
+Maximum slot reservation time 
+.BR
+.RS
+.IP
+The maximum time in seconds a slot is reserved for a pending job 
+in the queue. See the SLOT_RESERVE=MAX_RESERVE_TIME[n] 
+parameter in lsb.queues. 
+
+.RE
+
+.IP
+RESUME_COND
+.BR
+.RS
+.IP
+Resume threshold conditions for a suspended job in the queue. See 
+lsb.queues(5) for more information. 
+
+.RE
+
+.IP
+STOP_COND 
+.BR
+.RS
+.IP
+Stop threshold conditions for a running job in the queue. See 
+lsb.queues(5) for more information. 
+
+.RE
+
+.IP
+JOB_STARTER
+.BR
+.RS
+.IP
+Job starter command for a running job in the queue. See 
+lsb.queues(5) for more information. 
+
+.RE
+
+.IP
+RERUNNABLE
+.BR
+.RS
+.IP
+If the RERUNNABLE field displays yes, jobs in the queue are 
+rerunnable. That is, jobs in the queue are automatically restarted or 
+rerun if the execution host becomes unavailable. However, a job in 
+the queue will not be restarted if the you have removed the 
+rerunnable option from the job. See lsb.queues(5) for more 
+information. 
+
+.RE
+
+.IP
+CHECKPOINT
+.BR
+.RS
+.IP
+If the CHKPNTDIR field is displayed, jobs in the queue are 
+checkpointable. Jobs will use the default checkpoint directory and 
+period unless you specify other values. Note that a job in the queue 
+will not be checkpointed if you have removed the checkpoint 
+option from the job. See lsb.queues(5) for more information. 
+
+
+.IP
+CHKPNTDIR
+.BR
+.RS
+.IP
+Specifies the checkpoint directory using an absolute or relative 
+path name.
+
+.RE
+
+.IP
+CHKPNTPERIOD
+.BR
+.RS
+.IP
+Specifies the checkpoint period in seconds.
+
+.IP
+Although the output of bqueues reports the checkpoint period 
+in seconds, the checkpoint period is defined in minutes (the 
+checkpoint period is defined through the 
+bsub -k "\fIcheckpoint_dir \fR[\fIcheckpoint_period\fR]" option, or in 
+lsb.queues).
+
+.RE
+.RE
+.RE
+
+.IP
+JOB CONTROLS 
+.BR
+.RS
+.IP
+The configured actions for job control. See JOB_CONTROLS 
+parameter in lsb.queues.
+
+.IP
+The configured actions are displayed in the format [\fIaction_type\fR, 
+\fIcommand\fR] where \fIaction_type\fR is either SUSPEND, RESUME, or 
+TERMINATE. 
+
+.RE
+.SH SEE ALSO
+.BR
+.PP
+.PP
+lsfbatch(1), bugroup(1), nice(1), getrlimit(2), 
+lsb.queues(5), bsub(1), bjobs(1), bhosts(1), badmin(8), 
+mbatchd(8)

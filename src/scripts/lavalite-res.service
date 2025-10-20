@@ -1,0 +1,18 @@
+[Unit]
+Description=Lavalite RES (Remote Execution Server)
+Wants=network-online.target
+After=network-online.target lavalite-lim.service
+
+[Service]
+Type=forking
+Environment=LSF_ENVDIR=/opt/lavalite/etc
+ExecStart=/opt/lavalite/sbin/res
+KillMode=control-group
+GuessMainPID=no
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
