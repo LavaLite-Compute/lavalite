@@ -30,7 +30,7 @@ simplicity, and transparency.
 
 LavaLite isn’t a clone. It’s a clean slate.
 
-We aim to beat it—on speed, on simplicity, and on the elegance of our scheduling log
+We aim for speed and simplicity, built on the algorithmic elegance that inspired our design.
 
 ## Getting started
 
@@ -47,7 +47,6 @@ make
 sudo make install
 Installs in /opt/lavalite-0.1.0
 ```
-
 LavaLite installs itself under /opt/lavala-<version> in a self-contained
 directory.  This approach avoids polluting system paths like /usr/local and
 allows multiple versions to coexist seamlessly. Multiple version can be
@@ -56,12 +55,12 @@ approach for managing HPC software.
 
 ## Roadmap
 
-. Clean, modular scheduler core
-. REST API for job submission and monitoring
-. Container-native job support (e.g., Docker/Singularity)
-. Metrics and logging improvements
-. CI/CD integration and test coverage
-. Web-based dashboard (experimental)
+- Clean, modular scheduler core
+- REST API for job submission and monitoring
+- Container-native job support (e.g., Docker/Singularity)
+- Metrics and logging improvements
+- CI/CD integration and test coverage
+- Web-based dashboard (experimental)
 
 ## License
 LavaLite is licensed under the GNU General Public License v2. All contributions must be
