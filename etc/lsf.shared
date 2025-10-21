@@ -9,13 +9,13 @@ End Cluster
 # Describes the operating system and hardware architecture.
 Begin HostType
 TYPENAME                        # Keyword
-x86_64-linux
+x86_64_linux
 End HostType
 
 # Describes the relative performance class of the host.
 Begin HostModel
 MODELNAME  CPUFACTOR   ARCHITECTURE # keyword
-fast      100        (x86_64-linux)
+fast      100        (x86_64_linux)
 End HostModel
 
 #   RESOURCENAME → symbolic name of the resource.

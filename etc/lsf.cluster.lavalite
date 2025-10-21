@@ -11,7 +11,7 @@ End    ClusterAdmins
 # These are naming conventions only — not enforced semantics.
 Begin	Host
 HOSTNAME     model   type       server  r15m  RESOURCES
-# yourhost   fast x86_64-linux    1     64.5    (fs cs)
+# yourhost   fast x86_64_linux    1     64.5    (fs cs)
 End     Host
 
 # External resources collected by ELIM and mapped to hosts.
