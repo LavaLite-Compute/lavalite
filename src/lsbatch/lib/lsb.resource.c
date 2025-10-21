@@ -47,7 +47,6 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
         free(reply_buf); \
     }
 
-
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
@@ -106,8 +105,6 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     } else
         resourceInfoReq.hostName = " ";
 
-
-
     mbdReqtype = BATCH_RESOURCE_INFO;
     cc = sizeof(struct resourceInfoReq) + cc + 100;
     if ((request_buf = malloc (cc)) == NULL) {
@@ -125,7 +122,6 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
         return NULL;
     }
 
-
     if ((cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                     &hdr, NULL, NULL, NULL)) == -1)
     {
@@ -134,7 +130,6 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
         return NULL;
     }
     FREE_MEMORY;
-
 
     lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR) {

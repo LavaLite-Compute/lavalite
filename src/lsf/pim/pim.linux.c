@@ -77,16 +77,12 @@ scan_procs(void)
     static char fname[] = "pim/get_process_id";
     int j;
 
-
-
     for ( j=0; j < nr_of_processes; j++ ) {
         if ( pbase[j].command != (char*)0 ) {
             free( pbase[j].command );
             pbase[j].command = (char*)0;
         }
     }
-
-
 
     dir_proc_fd = opendir("/proc");
 
@@ -101,16 +97,12 @@ scan_procs(void)
 
 	if (isdigit( process->d_name[0] ) ) {
 
-
-
 	    if ( nr_of_processes == nproc - 1 ) {
 		nproc += PROCESSES_INCREMENT;
 		bytes = nproc * sizeof( struct lsPidInfo );
 		pbase = (struct lsPidInfo *)realloc( pbase, bytes );
 		memset( (char*)&pbase[nr_of_processes], 0,
 			PROCESSES_INCREMENT * sizeof( struct lsPidInfo ) );
-
-
 
 		old_pbase = (struct lsPidInfo *)realloc( old_pbase, bytes );
 		memset( (char*)&old_pbase[nr_of_processes], 0,
@@ -128,14 +120,11 @@ scan_procs(void)
 		continue;
 	    }
 
-
 	    if (isNfsDaemon(buffer, "/nfsiod"))
 		continue;
 
-
 	    if (info_rec.pgid == 1)
 		continue;
-
 
             pbase[nr_of_processes].pid = info_rec.pid;
             pbase[nr_of_processes].ppid = info_rec.ppid;
@@ -155,7 +144,6 @@ scan_procs(void)
 
 #if defined(_COMMAND_LINE_)
 
-
             pbase[nr_of_processes].command = strdup( info_rec.command );
 #endif
 
@@ -168,17 +156,12 @@ scan_procs(void)
 
 }
 
-
-
 static int
 get_lsPidInfo( int PID, struct lsPidInfo *info_rec )
 {
     static char fname[] = "pim/get_lsPidInfo";
     int fd;
     char filename[30];
-
-
-
 
     sprintf( filename, "/proc/%d/stat", PID );
 
@@ -223,7 +206,6 @@ get_lsPidInfo( int PID, struct lsPidInfo *info_rec )
 
 }
 
-
 static int
 parse_stat(char* S, struct lsPidInfo* P)
 {
@@ -237,7 +219,6 @@ parse_stat(char* S, struct lsPidInfo* P)
            &P->utime, &P->stime, &P->cutime, &P->cstime,
            &vsize, &P->resident_size, &rss_rlim, &start_code,
 	   &end_code, &start_stack, &end_stack);
-
 
     if (P->pid == 0) {
 	if (logclass & LC_PIM)

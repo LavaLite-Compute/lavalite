@@ -29,7 +29,6 @@ createUtmpEntry( char* uname, pid_t job_pid, char* current_tty ) {
 
 }
 
-
 int
 removeUtmpEntry( pid_t job_pid) {
 

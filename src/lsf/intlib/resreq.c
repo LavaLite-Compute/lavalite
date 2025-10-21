@@ -88,7 +88,6 @@ initParse (struct lsInfo *lsInfo)
     if (logclass & (LC_TRACE | LC_SCHED))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
-
     if (!h_TabEmpty_(&resNameTbl)) {
         h_freeRefTab_(&resNameTbl);
     }
@@ -160,7 +159,6 @@ parseResReq(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo,
         ls_syslog(LOG_DEBUG3, "%s: resReq=%s", fname, resReq);
 
     initResVal (resVal);
-
 
     ALLOC_STRING(resVal->selectStr, resVal->selectStrSize,
                    MAX(3*strlen(resReq) + 1, MAXLINELEN + MAXLSFNAMELEN));
@@ -262,7 +260,6 @@ parseSection(char *resReq, struct sections *section)
                 return PARSE_BAD_EXP;
             sectptr[i]++;
 
-
             cp = sectptr[i];
             while((*cp != ']') && (*cp != '\0'))
                 cp++;
@@ -276,7 +273,6 @@ parseSection(char *resReq, struct sections *section)
                sectptr[i] = (reqString + reqStringSize - 1);
         }
     }
-
 
     for (i=0; i < NSECTIONS; i++) {
         for (j=strlen(sectptr[i]) - 1; j >= 0; j--) {
@@ -311,8 +307,6 @@ parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t p
     if (logclass & (LC_TRACE | LC_SCHED))
         ls_syslog(LOG_DEBUG3, "%s: resReq=%s", fname, resReq);
 
-
-
     if (parseXor && resReq[0] != '\0') {
 
 	countPtr = (char *)malloc(strlen(resReq)+1);
@@ -336,14 +330,12 @@ parseSelect(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo, bool_t p
 	if (logclass & (LC_TRACE |LC_SCHED))
 	    ls_syslog(LOG_DEBUG3,"%s: numXorExprs = %d", fname, numXorExprs);
 
-
         if (numXorExprs > 1) {
 
 	    resVal->xorExprs =
 		(char **)calloc(numXorExprs + 1, sizeof(char*));
 	    if (resVal->xorExprs == NULL)
 		return PARSE_BAD_MEM;
-
 
             resReq2 = (char *)malloc(strlen(resReq) + numXorExprs * 4 - 1);
 	    if ( resReq2== NULL)
@@ -488,7 +480,6 @@ parseOrder(char *orderReq, struct resVal *resVal, struct lsInfo *lsInfo)
     return PARSE_OK;
 }
 
-
 static int
 parseFilter(char *filter, struct resVal *resVal, struct lsInfo *lsInfo)
 {
@@ -542,7 +533,6 @@ parseUsage (char *usageReq, struct resVal *resVal, struct lsInfo *lsInfo)
         if (token[0] == '-')
             token++;
 
-
         entry = getKeyEntry (token);
         if (entry > 0) {
 	    if (entry != KEY_DURATION && entry != KEY_DECAY)
@@ -565,11 +555,9 @@ parseUsage (char *usageReq, struct resVal *resVal, struct lsInfo *lsInfo)
             }
         }
 
-
         entry = getResEntry (token);
         if (entry < 0)
             return PARSE_BAD_NAME;
-
 
         if (!(lsInfo->resTable[entry].flags & RESF_DYNAMIC) &&
 	    (lsInfo->resTable[entry].valueType != LS_NUMERIC)) {
@@ -613,7 +601,6 @@ parseSpan (char *usageReq, struct resVal *resVal)
         if (token[0] == '-')
             token++;
 
-
         entry = getKeyEntry (token);
         if (entry >= 0 && entry < KEY_HOSTS)
             return PARSE_BAD_NAME;
@@ -656,7 +643,6 @@ getSyntax(char *resReq)
           (strchr(resReq,'*') != NULL) || (strchr(resReq,'/') != NULL) )
          return NEW;
 
-
     if (((sp=strchr(resReq,'=')) != NULL) && (*++sp == '='))
         return NEW;
 
@@ -667,7 +653,6 @@ static int
 validValue(char *value, struct lsInfo *lsInfo, int nentry)
 {
     int i;
-
 
     if (strcmp(value, WILDCARD_STR) == 0 ||
         strcmp(value, LOCAL_STR) == 0 )
@@ -708,7 +693,6 @@ validValue(char *value, struct lsInfo *lsInfo, int nentry)
 
 }
 
-
 static int
 resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
 {
@@ -727,7 +711,6 @@ resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
     while (s < len) {
         if (t >= (resVal->selectStrSize - MAXLSFNAMELEN))
             return PARSE_BAD_EXP;
-
 
         if (resReq[s] == ' ') {
             s++;
@@ -796,10 +779,8 @@ resToClassNew(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
                 while(resReq[s] == ' ')
                     s++;
 
-
                 if (resReq[s] == '\0' || resReq[s+1] == '\0')
                     return PARSE_BAD_EXP;
-
 
                 op = NULL;
                 if (resReq[s] == '=' && resReq[s+1] == '=') {
@@ -902,12 +883,8 @@ resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
     while ((token = getNextToken(&resReq)) != NULL) {
         negate = false;
 
-
-
         if (t >= (resVal->selectStrSize - MAXLSFNAMELEN))
             return PARSE_BAD_EXP;
-
-
 
         if (IS_DIGIT(token[0]))
             return PARSE_BAD_EXP;
@@ -958,7 +935,6 @@ resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
                 resVal->val[entry] = value;
      	    }
 
-
             if (valueSpecified) {
                if (lsInfo->resTable[entry].orderType == INCR)
                    sprintf(tmpbuf,"%s()<=%6.2f&&",lsInfo->resTable[entry].name,value);
@@ -979,7 +955,6 @@ resToClassOld(char *resReq, struct resVal *resVal, struct lsInfo *lsInfo)
 
 	    if ((token = getNextToken(&resReq)) == NULL)
                 return PARSE_BAD_EXP;
-
 
             if (validValue(token, lsInfo, entry) < 0)
                 return PARSE_BAD_VAL;
@@ -1003,13 +978,10 @@ setDefaults(struct resVal *resVal, struct lsInfo *lsInfo, int options)
 {
     int i;
 
-
     if (options & PR_DEFFROMTYPE)
         strcpy(resVal->selectStr, "expr [type \"eq\" \"local\"]");
     else
         strcpy(resVal->selectStr, "expr [type \"eq\" \"any\"]");
-
-
 
     resVal->nphase = 2;
     resVal->order[0] = R15S + 1;
@@ -1036,7 +1008,6 @@ setDefaults(struct resVal *resVal, struct lsInfo *lsInfo, int options)
         resVal->val[R15M] = 1.0;
     }
 
-
     resVal->nindex = lsInfo->numIndx;
     for(i=0; i < resVal->nindex; i++)
         resVal->indicies[i] = i;
@@ -1062,7 +1033,6 @@ setDefaults(struct resVal *resVal, struct lsInfo *lsInfo, int options)
     resVal->numHosts = INFINIT_INT;
     resVal->maxNumHosts = INFINIT_INT;
     resVal->pTile = INFINIT_INT;
-
 
     resVal->options = 0;
     return 0;
@@ -1101,7 +1071,6 @@ initResVal (struct resVal *resVal)
     resVal->xorExprs = NULL;
 
 }
-
 
 static int
 getTimeVal(char **time, float *val)

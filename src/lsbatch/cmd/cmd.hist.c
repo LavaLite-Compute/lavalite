@@ -180,7 +180,7 @@ displayEvent(struct eventRec *log, struct histReq *req)
     case EVENT_LOG_SWITCH:
          if (req->opCode == MBD_HIST || req->opCode == SYS_HIST) {
             eventMatched = TRUE;
-	    strcpy ( localTimeStr, _i18n_ctime(ls_catd,CTIME_FORMAT_a_b_d_T, &log->eventTime ));
+	    strcpy ( localTimeStr, ctime2(&log->eventTime));
             sprintf(prline, ("%s: event file is switched; last JobId <%d>\n"),
             localTimeStr, log->eventLog.logSwitchLog.lastJobId);
             prtLine(prline);
@@ -188,7 +188,7 @@ displayEvent(struct eventRec *log, struct histReq *req)
         break;
     case EVENT_MBD_START:
 	if (req->opCode == MBD_HIST || req->opCode == SYS_HIST) {
-	    strcpy ( localTimeStr, _i18n_ctime(ls_catd,CTIME_FORMAT_a_b_d_T, &log->eventTime ));
+	    strcpy ( localTimeStr, ctime2(&log->eventTime));
             eventMatched = TRUE;
 	    sprintf(prline, ("%s: mbatchd started on host <%s>; cluster name <%s>, %d server hosts, %d queues.\n"),
 		    localTimeStr,
@@ -202,7 +202,7 @@ displayEvent(struct eventRec *log, struct histReq *req)
     case EVENT_MBD_DIE:
 	if (req->opCode == MBD_HIST || req->opCode == SYS_HIST) {
             eventMatched = TRUE;
-	    strcpy ( localTimeStr, _i18n_ctime(ls_catd,CTIME_FORMAT_a_b_d_T, &log->eventTime ));
+	    strcpy ( localTimeStr, ctime2(&log->eventTime));
 	    sprintf(prline, ("%s: mbatchd on host <%s> died: "),
 		    localTimeStr,
 		    log->eventLog.mbdStartLog.master);
@@ -236,11 +236,11 @@ displayEvent(struct eventRec *log, struct histReq *req)
 	    || (req->opCode == QUEUE_HIST
 		&& isRequested(log->eventLog.queueCtrlLog.queue,
 			       req->names))) {
-	    strcpy ( localTimeStr, _i18n_ctime(ls_catd,CTIME_FORMAT_a_b_d_T, &log->eventTime ));
+	    strcpy ( localTimeStr, ctime2(&log->eventTime));
             eventMatched = TRUE;
 	    sprintf(prline, "%s: %s <%s> ",
 		    localTimeStr,
-		    I18N_Queue,
+		    "Queue",
 	            log->eventLog.queueCtrlLog.queue);
             prtLine(prline);
 	    switch (log->eventLog.queueCtrlLog.opCode) {
@@ -277,10 +277,10 @@ displayEvent(struct eventRec *log, struct histReq *req)
 	     || (req->opCode == HOST_HIST
 		 && isRequested(log->eventLog.hostCtrlLog.host, req->names))) {
             eventMatched = TRUE;
-	    strcpy ( localTimeStr, _i18n_ctime(ls_catd,CTIME_FORMAT_a_b_d_T, &log->eventTime ));
+	    strcpy ( localTimeStr, ctime2(&log->eventTime));
 	    sprintf(prline, "%s: %s <%s> ",
 		    localTimeStr,
-		    I18N_Host,
+		    "Host",
 	            log->eventLog.hostCtrlLog.host);
  	    prtLine(prline);
 	    switch (log->eventLog.hostCtrlLog.opCode) {

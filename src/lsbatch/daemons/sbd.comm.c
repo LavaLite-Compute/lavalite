@@ -352,8 +352,8 @@ getJobsState (struct sbdPackage *sbdPackage)
         if (!xdr_sbdPackage (&xdrs, sbdPackage, &hdr)) {
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_sbdPackage",
 		masterHost);
-            lsb_merr(_i18n_printf(I18N_FUNC_S_FAIL, fname, "xdr_sbdPackage",
-		masterHost));
+            lsb_merr(I18N_FUNC_S_FAIL, fname, "xdr_sbdPackage",
+		masterHost);
 	    xdr_destroy(&xdrs);
             if (cc)
 		free(reply_buf);
@@ -366,8 +366,8 @@ getJobsState (struct sbdPackage *sbdPackage)
                                                             xdr_jobSpecs)) {
 		ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobSpecs",
 		    masterHost);
-		lsb_merr(_i18n_printf(I18N_FUNC_S_FAIL, fname, "xdr_jobSpecs",
-		    masterHost));
+		lsb_merr(I18N_FUNC_S_FAIL, fname, "xdr_jobSpecs",
+		    masterHost);
 		xdr_destroy(&xdrs);
 		if (cc)
 		    free(reply_buf);
@@ -379,8 +379,8 @@ getJobsState (struct sbdPackage *sbdPackage)
         }
         if (!xdr_sbdPackage1 (&xdrs, sbdPackage, &hdr)) {
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_sbdPackage1");
-            lsb_merr( _i18n_printf(I18N_FUNC_S_FAIL, fname, "xdr_sbdPackage1",
-		masterHost));
+            lsb_merr(I18N_FUNC_S_FAIL, fname, "xdr_sbdPackage1",
+		masterHost);
         }
 
         xdr_destroy(&xdrs);

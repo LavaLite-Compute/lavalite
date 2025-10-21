@@ -40,7 +40,6 @@ ls_putacctrec(FILE *log_fp, struct lsfAcctRec *acctRec)
 
 }
 
-
 struct lsfAcctRec *
 ls_getacctrec(FILE *log_fp, int *lineNum)
 {

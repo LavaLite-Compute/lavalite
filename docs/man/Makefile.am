@@ -4,7 +4,20 @@
 mandirs = 1 5 7 8
 mandir = $(prefix)/share/man
 
-man1_MANS = man1/bbot.1 \
+man1_MANS = man1/lseligible.1 \
+	man1/lsfbase.1 \
+	man1/lsfbatch.1 \
+	man1/lsfintro.1 \
+	man1/lshosts.1 \
+	man1/lsid.1 \
+	man1/lsinfo.1 \
+	man1/lsload.1 \
+	man1/lsloadadj.1 \
+	man1/lsmon.1 \
+	man1/lsplace.1 \
+	man1/lsrcp.1 \
+	man1/lstools.1 \
+    man1/bbot.1 \
 	man1/bchkpnt.1 \
 	man1/bhosts.1 \
 	man1/bjobs.1 \
@@ -25,8 +38,7 @@ man1_MANS = man1/bbot.1 \
 	man1/bugroup.1 \
 	man1/busers.1
 
-man5_MANS = man5/lim.acct.5 \
-	man5/lsb.acct.5 \
+man5_MANS = man5/lsb.acct.5 \
 	man5/lsb.events.5 \
 	man5/lsb.hosts.5 \
 	man5/lsb.params.5 \
@@ -35,8 +47,7 @@ man5_MANS = man5/lim.acct.5 \
 	man5/lsf.acct.5 \
 	man5/lsf.cluster.5 \
 	man5/lsf.conf.5 \
-	man5/lsf.shared.5 \
-	man5/res.acct.5
+	man5/lsf.shared.5
 
 man7_MANS = man7/lavalite.7
 man8_MANS = man8/badmin.8 man8/eauth.8 man8/esub.8 man8/lsadmin.8 \

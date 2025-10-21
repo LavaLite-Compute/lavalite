@@ -137,11 +137,8 @@ get_ports (void)
         sv = getservbyname(MBATCHD_SERV, "tcp");
         if (!sv) {
             ls_syslog(LOG_ERR, "%s: %s service not registered",
-		fname,
-		MBATCHD_SERV);
-            lsb_merr(_i18n_printf("%s: %s service not registered",
-		fname,
-		MBATCHD_SERV));
+                      fname,
+                      MBATCHD_SERV);
             return -1;
         }
         mbd_port = sv->s_port;
@@ -162,9 +159,6 @@ get_ports (void)
     {
         sv = getservbyname(SBATCHD_SERV, "tcp");
         if (!sv) {
-            lsb_merr(_i18n_printf("%s: %s service not registered",
-		fname,
-		SBATCHD_SERV));
             ls_syslog(LOG_ERR, "%s: %s service not registered",
 		fname,
 		SBATCHD_SERV);
@@ -269,7 +263,6 @@ my_malloc(int len, char *fileName)
 	    return (my_malloc(len, caller));
 	}
 
-        lsb_merr( _i18n_printf(I18N_FUNC_FAIL, fname, "malloc"));
         ls_syslog(LOG_ERR, "%s", __func__, "malloc", caller, len);
 	if (masterme)
 	    die(MASTER_FATAL);
@@ -307,7 +300,6 @@ my_calloc(int nelem, int esize, char *fileName)
 	    return (my_calloc(nelem, esize, caller));
 	}
 
-        lsb_merr( _i18n_printf(I18N_FUNC_FAIL, fname, "calloc"));
         ls_syslog(LOG_ERR, "%s", __func__, "calloc",
             caller, esize);
 	if (masterme)

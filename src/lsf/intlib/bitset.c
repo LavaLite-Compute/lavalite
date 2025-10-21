@@ -24,8 +24,6 @@
 static void setObserverDestroy(LS_BITSET_T *);
 static void observerDestroy(LS_BITSET_OBSERVER_T *);
 
-#define NL_SETN      22
-
 LS_BITSET_T *
 setCreate(const int size, int (*directFunction)(void *),
           void *(*inverseFunction)(int ), char *caller)
@@ -41,9 +39,7 @@ setCreate(const int size, int (*directFunction)(void *),
         return NULL;
     }
 
-
     this->setDescription = putstr_(caller);
-
 
     sz = (size > 0) ? size : SET_DEFAULT_SIZE;
     this->setWidth = (sz + WORDLENGTH -1)/WORDLENGTH;
@@ -83,13 +79,11 @@ setDestroy(LS_BITSET_T * this)
 {
     static char fname[] =  "setDestroy";
 
-
     if (!SET_IS_VALID(this)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN,5300, "%s: expected a non-NULL set pointer but got a NULL one"), fname);  /* catgets 5300 */
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
-
 
     if (this->allowObservers == true) {
         setObserverDestroy(this);
@@ -158,11 +152,9 @@ setTestValue(LS_BITSET_T * this, const int value)
     int offset;
     bool_t trueORfalse;
 
-
     word = SET_GET_WORD(value);
 
     offset = SET_GET_BIT_IN_WORD(value);
-
 
     trueORfalse = ((*(this->bitmask + word) & (SET_BIT_ON << offset)) != 0);
 
@@ -176,18 +168,15 @@ setIsMember(LS_BITSET_T * this, void *obj)
     static char fname[] = "setIsMember()";
     int value;
 
-
     if (!SET_IS_VALID(this)) {
         bitseterrno = LS_BITSET_ERR_BADARG;
         return false;
     }
 
-
     if (SET_IS_EMPTY(this)) {
         bitseterrno = LS_BITSET_ERR_SETEMPTY;
         return false;
     }
-
 
     if (this->getIndexByObject == NULL) {
         value = *(int *)obj;
@@ -216,12 +205,10 @@ setAddElement(LS_BITSET_T * this, void *obj)
     int word;
     int offset;
 
-
     if (!SET_IS_VALID(this)) {
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
-
 
     if (this->getIndexByObject == NULL) {
         value = *(int *)obj;
@@ -232,7 +219,6 @@ setAddElement(LS_BITSET_T * this, void *obj)
             return -1;
         }
     }
-
 
     if (value >= this->setSize) {
         ls_syslog(LOG_DEBUG3,"%s: realloc set when size=%d", fname, value);
@@ -251,9 +237,7 @@ setAddElement(LS_BITSET_T * this, void *obj)
     word = SET_GET_WORD(value);
     offset = SET_GET_BIT_IN_WORD(value);
 
-
     *(this->bitmask + word) |= (SET_BIT_ON << offset);
-
 
     this->setNumElements++;
 
@@ -277,9 +261,8 @@ setRemoveElement(LS_BITSET_T * this, void *obj)
     int word;
     int offset;
 
-
     if (!SET_IS_VALID(this)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300, "%s: expected a non-NULL set pointer but got a NULL one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
@@ -288,7 +271,6 @@ setRemoveElement(LS_BITSET_T * this, void *obj)
         bitseterrno = LS_BITSET_ERR_SETEMPTY;
         return -1;
     }
-
 
     if (this->getIndexByObject == NULL) {
         value = *(int *)obj;
@@ -308,7 +290,6 @@ setRemoveElement(LS_BITSET_T * this, void *obj)
 
     *(this->bitmask + word) &= ~(SET_BIT_ON << offset);
 
-
     this->setNumElements--;
 
     return 0;
@@ -317,16 +298,13 @@ setRemoveElement(LS_BITSET_T * this, void *obj)
 int
 setClear (LS_BITSET_T * this) {
 
-
     if (!SET_IS_VALID(this)) {
         ls_syslog(LOG_ERR, "setClear: expected a non-NULL set pointer but got a NULL one");
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
 
-
     memset(this->bitmask, 0, this->setWidth*sizeof(unsigned int));
-
 
     this->setNumElements=0;
 
@@ -368,7 +346,6 @@ getNum1BitsInWord(unsigned int *word)
 
 }
 
-
 int
 setGetNumElements(LS_BITSET_T * this)
 {
@@ -395,9 +372,8 @@ setGetNumElements(LS_BITSET_T * this)
         4,  5,  5,  6,  5,  6,  6,  7,  5,  6,  6,  7,  6,  7,  7,  8
     };
 
-
     if (!SET_IS_VALID(this)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300,"%s: expected a non-NULL set pointer but got a NULL one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
@@ -441,7 +417,6 @@ setOperate(LS_BITSET_T *dest, LS_BITSET_T *src, int op)
     int nwords;
     int tail;
 
-
     if (op != LS_SET_UNION &&
         op != LS_SET_INTERSECT &&
         op != LS_SET_DIFFERENCE &&
@@ -451,12 +426,10 @@ setOperate(LS_BITSET_T *dest, LS_BITSET_T *src, int op)
         return;
     }
 
-
     if (dest->setWidth < src->setWidth)
         setEnlarge(dest, src->setWidth);
     if (dest == NULL)
         return;
-
 
     nwords = src->setWidth;
     tail = dest->setWidth - nwords;
@@ -510,7 +483,7 @@ setCat(LS_BITSET_T *set,
     int                      curSize;
 
     if (! set || ! catFunc) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300,"%s: expected a non-NULL set but get a NULL one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set but get a NULL one", fname);
         return;
     }
 
@@ -528,14 +501,12 @@ setCat(LS_BITSET_T *set,
 
         str = (*catFunc)(entry, hint);
         if (str == NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5304,
-                                             "%s: catFunc returned NULL string"), fname); /* catgets 5304 */
+            ls_syslog(LOG_ERR, "%s: catFunc returned NULL string", fname);
             continue;
         }
 
         if (curSize + strlen(str) > bufferSize - 1) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5305,
-                                             "%s: the provided buffer is not big enough"), fname);  /* catgets 5305 */
+            ls_syslog(LOG_ERR, "%s: the provided buffer is not big enough", fname);
             break;
         }
 
@@ -551,9 +522,8 @@ setIteratorCreate(LS_BITSET_T *this)
     static char fname[] = "setIteratorcreate";
     LS_BITSET_ITERATOR_T *iter = NULL;
 
-
     if(!SET_IS_VALID(this)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300,"%s: expected a non-NULL set pointer but got a NULL one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return NULL;
     }
@@ -577,7 +547,7 @@ setIteratorAttach(LS_BITSET_ITERATOR_T *iter, LS_BITSET_T *set, char *func)
     static char fname[] = "setIteratorAttach()";
 
     if (!iter || !set) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300,"%s: expected a non-NULL set pointer but got a NULL one "), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one ", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
@@ -606,7 +576,6 @@ setIteratorBegin(LS_BITSET_ITERATOR_T *iter)
 {
     void *object;
 
-
     object = (void *)setIteratorGetNextElement(iter);
 
     return object;
@@ -621,9 +590,8 @@ setIteratorGetNextElement(LS_BITSET_ITERATOR_T *iter)
     static char fname[] = "setIteratorGetNextElement";
     void *object;
 
-
     if(!SET_IS_VALID(iter->this)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300, "%s: expected a non-NULL set pointer but got a NULL one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return NULL;
     }
@@ -656,15 +624,13 @@ setIteratorGetNextElement(LS_BITSET_ITERATOR_T *iter)
     return NULL;
 }
 
-
 bool_t
 setIteratorIsEndOfSet(LS_BITSET_ITERATOR_T *iter)
 {
     static char fname[] = "setIteratorIsEndOfSet";
 
-
     if(!SET_IS_VALID(iter->this)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300, "%s: expected a non-NULL set pointer but got a NULL one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return false;
     }
@@ -680,7 +646,7 @@ setIteratorDestroy(LS_BITSET_ITERATOR_T *iter)
     static char fname[] = "setIteratorDestroy";
 
     if(!SET_IS_VALID(iter->this)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300, "%s: expected a non-NULL set pointer but got a NULL one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-NULL set pointer but got a NULL one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return;
     }
@@ -696,30 +662,16 @@ int bitseterrno;
 #define LS_BITSET_ERROR_CODE_ENTRY(Id, Desc) Desc,
 
 static char *bitSetErrList[] = {
-    "No Error",                          /* catgets 5311 */
-    "Bad Arguments",                     /* catgets 5312 */
-    "Set Is Empty",                      /* catgets 5313 */
-    "Memory allocation failed",          /* catgets 5314 */
-    "User function failed",              /* catgets 5315 */
-    "Object alredy in set",              /* catgets 5316 */
-    "Invalid set operation",             /* catgets 5317 */
-    "Observer permission denied",        /* catgets 5318 */
-    "Last Error (no error)"              /* catgets 5319 */
+    "No Error",
+    "Bad Arguments",
+    "Set Is Empty",
+    "Memory allocation failed",
+    "User function failed",
+    "Object alredy in set",
+    "Invalid set operation",
+    "Observer permission denied",
+    "Last Error (no error)"
 };
-
-#ifdef  I18N_COMPILE
-static int bitSetErrListID[] = {
-    5311,
-    5312,
-    5313,
-    5314,
-    5315,
-    5316,
-    5317,
-    5318,
-    5319
-};
-#endif
 
 char *
 setPerror(int errorNumber)
@@ -727,13 +679,12 @@ setPerror(int errorNumber)
     static char buf[216];
 
     if (errorNumber < 0 || errorNumber > (int)LS_BITSET_ERR_LAST) {
-        sprintf(buf,_i18n_msg_get(ls_catd,NL_SETN,5320, " Unknown error number %d"), errorNumber); /* catgets 5320 */
+        sprintf(buf," Unknown error number %d", errorNumber);
         return buf;
     }
 
-    return (_i18n_msg_get(ls_catd,NL_SETN,bitSetErrListID[errorNumber], bitSetErrList[errorNumber]));
+    return (bitSetErrList[errorNumber]);
 }
-
 
 int
 setAllowObservers(LS_BITSET_T *set)
@@ -741,7 +692,7 @@ setAllowObservers(LS_BITSET_T *set)
     static char fname[] = "setAllowObservers";
 
     if (! set) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5321, "%s: expected a non null set but got a null one"), fname);  /* catgets 5321 */
+        ls_syslog(LOG_ERR, "%s: expected a non null set but got a null one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
@@ -760,7 +711,6 @@ setAllowObservers(LS_BITSET_T *set)
     return 0;
 
 }
-
 
 LS_BITSET_OBSERVER_T *
 setObserverCreate(char *name, void *extra, LS_BITSET_ENTRY_SELECT_OP_T select,
@@ -783,7 +733,6 @@ setObserverCreate(char *name, void *extra, LS_BITSET_ENTRY_SELECT_OP_T select,
     observer->select = select;
     observer->extra = extra;
 
-
     va_start(ap, select);
 
     while (true) {
@@ -804,7 +753,8 @@ setObserverCreate(char *name, void *extra, LS_BITSET_ENTRY_SELECT_OP_T select,
             break;
 
         default:
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5323, "%s: invalid event ID (%d) from the invoker"), fname, (int) etype);  /* catgets 5323 */
+            ls_syslog(LOG_ERR, "%s: invalid event ID %d from the invoker",
+                      __func__, (int) etype);
             bitseterrno = LS_BITSET_ERR_BADARG;
             FREEUP(observer->name);
             goto Fail;
@@ -826,18 +776,16 @@ setObserverAttach(LS_BITSET_OBSERVER_T *observer, LS_BITSET_T *set)
     int           rc;
 
     if (! observer || ! set) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300, "%s: expected a non-null set but got a null one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-null set but got a null one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
 
-
     if (! set->allowObservers) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5325, "%s: list \"%s\" does not accept observers"), fname, set->setDescription);  /* catgets 5325 */
+        ls_syslog(LOG_ERR, "%s: list \"%s\" does not accept observers", fname, set->setDescription);
         bitseterrno = (int) LS_BITSET_ERR_NOOBSVR;
         return -1;
     }
-
 
     rc = listInsertEntryBefore(set->observers,
                                (LIST_ENTRY_T *)set->observers,
@@ -858,7 +806,7 @@ setNotifyObservers(LS_BITSET_T *set, LS_BITSET_EVENT_T *event)
     LIST_ITERATOR_T           iter;
 
     if (! set || ! event) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5300, "%s: expected a non-null set but got a null one"), fname);
+        ls_syslog(LOG_ERR, "%s: expected a non-null set but got a null one", fname);
         bitseterrno = LS_BITSET_ERR_BADARG;
         return -1;
     }
@@ -889,7 +837,8 @@ setNotifyObservers(LS_BITSET_T *set, LS_BITSET_EVENT_T *event)
                 (*observer->leave_)(set, observer->extra, event);
             break;
         default:
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd,NL_SETN,5327, "%s: invalide event type (%d)"), fname, event->type);  /* catgets 5328 */
+            ls_syslog(LOG_ERR, "%s: invalide event type %d", fname,
+                      event->type);
             bitseterrno = LS_BITSET_ERR_BADARG;
             return -1;
         }
@@ -899,8 +848,6 @@ setNotifyObservers(LS_BITSET_T *set, LS_BITSET_EVENT_T *event)
 
 }
 
-
-
 int
 setDumpSet(LS_BITSET_T *set, char *caller)
 {
@@ -909,23 +856,22 @@ setDumpSet(LS_BITSET_T *set, char *caller)
     int i;
     int j;
 
-
     if (!SET_IS_VALID(set)) {
         bitseterrno = LS_BITSET_ERR_BADARG;
-        ls_syslog(LOG_ERR,I18N(5329,"%s caller %s %s"), /*catgets 5329 */
+        ls_syslog(LOG_ERR,"%s caller %s %s",
                   fname, caller, setPerror(bitseterrno));
         return -1;
     }
 
-    ls_syslog(LOG_ERR,I18N(5330,"%s Dumping set <%lx> <%s>"), /* catgets 5330 */
+    ls_syslog(LOG_ERR,"%s Dumping set <%lx> <%s>",
               fname, (long) set, set->setDescription);
 
     ls_syslog(LOG_ERR,I18N(5331,"\
 %s setSize = %u setWidth = %u setNumElements = %u directFunction = %lx\
- inverseFunction = %lx"), /* catgets 5331 */
+ inverseFunction = %lx"),
               fname, set->setSize, set->setWidth, set->setNumElements, (long)set->getIndexByObject, (long)set->getObjectByIndex);
 
-    ls_syslog(LOG_ERR,I18N(5332,"%s Begin DumpMask"), fname); /*catgets 5332 */
+    ls_syslog(LOG_ERR,"%s Begin DumpMask", fname);
     memset(buf, 0, sizeof(buf));
 
     for( i = 0; i < set->setWidth; i++) {
@@ -942,7 +888,7 @@ word <%d> decimal <%d> bits: ", i, set->bitmask[i]);
     }
 
     ls_syslog(LOG_ERR,"%s", buf);
-    ls_syslog(LOG_ERR,I18N(5333,"%s End DumpMask"), fname); /*catgets 5333 */
+    ls_syslog(LOG_ERR,"%s End DumpMask", fname);
 
     return 0;
 }

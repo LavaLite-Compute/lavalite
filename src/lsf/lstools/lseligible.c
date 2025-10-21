@@ -18,9 +18,6 @@
  */
 #include "lsf/lib/lib.h"
 
-
-#define NL_SETN 27
-
 static void
 usage(const char *cmd)
 {
@@ -39,8 +36,7 @@ main(int argc, char **argv)
     extern int  optind, opterr;
     int rc;
 
-
-    rc = _i18n_init ( I18N_CAT_MIN );
+    rc = 0;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -78,19 +74,16 @@ main(int argc, char **argv)
     lserrno = LSE_NO_ERR;
     if (!ls_eligible(argv[optind], resreq, mode)) {
         if (quiet == 0)
-            puts(_i18n_msg_get(ls_catd,NL_SETN,1501, "NON-ELIGIBLE")); /* catgets 1501  */
+            puts("NON-ELIGIBLE");
         if (lserrno == LSE_NO_ERR)
             exit(1);
         else
             exit(-10);
     }
     if (quiet == 0)
-        fputs(_i18n_msg_get(ls_catd,NL_SETN, 1502, "ELIGIBLE "), /* catgets 1502 */
+        fputs("ELIGIBLE ",
               stdout);
     if (quiet < 2)
         puts(resreq);
-
-    _i18n_end ( ls_catd );
-
     return 0;
 }

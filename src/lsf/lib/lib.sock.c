@@ -23,7 +23,6 @@ extern int currentsocket_;
 
 static int mLSFChanSockOpt = 0;
 
-
 int
 CreateSock_(int protocol)
 {
@@ -66,7 +65,6 @@ CreateSock_(int protocol)
         if (bind(s, (struct sockaddr *)&cliaddr, sizeof(cliaddr)) == 0)
             break;
 
-
         if (!isroot) {
             closesocket(s);
             lserrno = LSE_SOCK_SYS;
@@ -81,11 +79,9 @@ CreateSock_(int protocol)
             return -1;
         }
 
-
         if (isroot && port < IPPORT_RESERVED/2)
             port = IPPORT_RESERVED - 1;
     }
-
 
     if (isroot && i == IPPORT_RESERVED/2) {
         if(logclass & LC_COMM)
@@ -116,7 +112,6 @@ CreateSockEauth_(int protocol)
     static ushort port;
     static ushort i;
     static char isroot = false;
-
 
     if ((geteuid() == 0) && (genParams_[LSF_AUTH].paramValue == NULL))
     {
@@ -165,11 +160,9 @@ CreateSockEauth_(int protocol)
             return -1;
         }
 
-
         if (isroot && port < IPPORT_RESERVED/2)
             port = IPPORT_RESERVED - 1;
     }
-
 
     if (isroot && i == IPPORT_RESERVED/2) {
         if(logclass & LC_COMM)
@@ -228,7 +221,6 @@ get_nonstd_desc_(int desc)
     return desc;
 }
 
-
 
 int
 TcpCreate_(int service, int port)
@@ -274,7 +266,6 @@ io_block_(int s)
     return (fcntl(s, F_SETFL, fcntl(s, F_GETFL) & ~O_NONBLOCK));
 }
 
-
 int
 setLSFChanSockOpt_(int newOpt)
 {
@@ -283,7 +274,6 @@ setLSFChanSockOpt_(int newOpt)
     mLSFChanSockOpt = newOpt;
     return oldOpt;
 }
-
 
 int
 Socket_(int domain, int type, int protocol)
@@ -487,7 +477,6 @@ TcpConnect_(char *hostname, u_short port, struct timeval *timeout)
 
     return sock;
 }
-
 
 char *
 getMsgBuffer_(int fd, int *bufferSize)

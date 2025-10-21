@@ -34,7 +34,6 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
     static struct LSFHeader hdr;
     char *clusterName = NULL;
 
-
     if (qInfo != NULL) {
         for (i = 0; i < reply.numQueues; i++) {
             xdr_lsffree(xdr_queueInfoEnt,
@@ -121,10 +120,6 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
     }
     queueInfoReq.resReq = "";
 
-
-
-
-
     mbdReqtype = BATCH_QUE_INFO;
     cc = sizeof(struct infoReq) + cc * MAXHOSTNAMELEN + cc + 100;
     if ((request_buf = malloc (cc)) == NULL) {
@@ -142,7 +137,6 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
         return NULL;
     }
 
-
     if ((cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                       &hdr, NULL, NULL, NULL)) == -1)
     {
@@ -153,7 +147,6 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
 
     xdr_destroy(&xdrs);
     free (request_buf);
-
 
     lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_QUEUE) {

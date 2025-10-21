@@ -25,7 +25,6 @@ ls_rwait(int *status, int options, struct rusage *ru)
     return 0;
 }
 
-
 int
 ls_rwaittid(int tid, int *status, int options, struct rusage *ru)
 {

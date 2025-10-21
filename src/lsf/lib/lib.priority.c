@@ -39,7 +39,6 @@ ls_setpriority(int newPriority)
 
     errno = 0;
 
-
     if (nice(increment) == -1 && (0 != errno)) {
         return false;
     }

@@ -19,7 +19,6 @@
 
 #include "lsf/pim/pim.h"
 
-#define NL_SETN     (28)
 #define MAX_MIN_SLEEPTIME (3)
 
 int bytes;
@@ -130,7 +129,6 @@ static void sortIt(int pIdx);
 
 extern char *argvmsg_(int argc, char **argv);
 
-
 static void
 usage (char *cmd)
 {
@@ -149,8 +147,7 @@ main(int argc, char **argv)
     int i;
     char *myHost = "localhost";
 
-
-    _i18n_init(I18N_CAT_PIM);
+    0;
 
     for (i=1; i<argc; i++) {
 
@@ -202,7 +199,6 @@ main(int argc, char **argv)
             pim_debug = 1;
     }
 
-
     if (pimParams[LSF_PIM_TRACE].paramValue) {
         traceVal = pimParams[LSF_PIM_TRACE].paramValue;
     } else if (pimParams[LSF_DEBUG_PIM].paramValue) {
@@ -223,8 +219,7 @@ main(int argc, char **argv)
 
     if (pimParams[LSF_PIM_SLEEPTIME].paramValue) {
         if ((sleepTime = atoi(pimParams[LSF_PIM_SLEEPTIME].paramValue)) < 0) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5001,
-                        "LSF_PIM_SLEEPTIME value <%s> must be a positive integer, defaulting to %d"), /* catgets 5001 */
+            ls_syslog(LOG_ERR, "LSF_PIM_SLEEPTIME value <%s> must be a positive integer, defaulting to %d",
                     pimParams[LSF_PIM_SLEEPTIME].paramValue, PIM_SLEEP_TIME);
             sleepTime = PIM_SLEEP_TIME;
         }
@@ -232,8 +227,7 @@ main(int argc, char **argv)
 
     if ((myHost = ls_getmyhostname()) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_getmyhostname");
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5002,
-                    "Using local host")); /* catgets 5002 */
+        ls_syslog(LOG_ERR, "Using local host");
     }
 
     if (pimParams[LSF_PIM_INFODIR].paramValue) {
@@ -257,8 +251,7 @@ main(int argc, char **argv)
         errno = 0;
         nproc = strtol(pimParams[LSF_PIM_NPROC].paramValue, NULL, 10);
         if (nproc == 0 || errno != 0) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5003,
-                        "pim/main: invalid value for LSF_PIM_NPROC defined: %s"), pimParams[LSF_PIM_NPROC].paramValue); /* catgets 5003 */
+            ls_syslog(LOG_ERR, "pim/main: invalid value for LSF_PIM_NPROC defined: %s", pimParams[LSF_PIM_NPROC].paramValue);
             exit(-1);
         }
     } else {
@@ -281,11 +274,9 @@ main(int argc, char **argv)
 
     doServ();
 
-
     return(0);
 
 }
-
 
 static void
 doServ(void)
@@ -305,7 +296,6 @@ doServ(void)
         exit(-1);
     }
 
-
     socklen_t len = sizeof(sin);
     if (getsockname (asock, (struct sockaddr *) &sin, &len) < 0) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "getsockname");
@@ -316,7 +306,6 @@ doServ(void)
     pimPort = ntohs(sin.sin_port);
 
     replayDeadPids();
-
 
     open_kern();
 
@@ -362,7 +351,7 @@ doServ(void)
         }
 
         if ((ppid <= 1) || (kill(ppid, 0) == -1)) {
-            ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5004, "%s: Parent gone, PIM exiting ...")), fname);  /* catgets 5004 */
+            ls_syslog(LOG_INFO, ("%s: Parent gone, PIM exiting ..."), fname);
             exit(0);
         }
 
@@ -456,7 +445,6 @@ doServ(void)
         if (logclass & LC_PIM)
             ls_syslog(LOG_DEBUG, "%s: Timeout ...", fname);
 
-
         if (now - lastUsedTime < USED_TIME ||
                 now - lastUpdateTime >= DEFAULT_UPDATE_PERIOD) {
             if (logclass & LC_PIM)
@@ -475,14 +463,11 @@ doServ(void)
 
 }
 
-
 static void
 updateProcs(const time_t lastUpdate)
 {
     int temp_nr;
     struct lsPidInfo *temp_pbase;
-
-
 
     temp_nr = old_nr_of_processes;
     old_nr_of_processes = nr_of_processes;
@@ -491,8 +476,6 @@ updateProcs(const time_t lastUpdate)
     temp_pbase = old_pbase;
     old_pbase = pbase;
     pbase = temp_pbase;
-
-
 
     if (scanIt) {
 
@@ -507,7 +490,6 @@ updateProcs(const time_t lastUpdate)
     }
 }
 
-
 static void
 logProcessInfo(void)
 {
@@ -520,7 +502,6 @@ logProcessInfo(void)
     umask(022);
 
     sprintf(workFN, "%s.%d", infoFN, (int)getpid());
-
 
     pidLink = (struct pidLink *) malloc(nr_of_processes *
             sizeof(struct pidLink));
@@ -557,8 +538,7 @@ logProcessInfo(void)
         }
     } else {
 
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd , NL_SETN, 5005,
-                        "%s: pim info file <%s> is not a regular file, file untouched")), fname, workFN); /* catgets 5004 */
+        ls_syslog(LOG_ERR, ("%s: pim info file <%s> is not a regular file, file untouched"), fname, workFN);
         ls_syslog(LOG_ERR, I18N_Exiting);
         exit(-1);
     }
@@ -597,7 +577,6 @@ logProcessInfo(void)
     free(pidLink);
 }
 
-
 static void
 addDeadProcesses(void)
 {
@@ -606,9 +585,7 @@ addDeadProcesses(void)
     int npgids;
     int i, j;
 
-
     pg = newPGidList(&npgids);
-
 
     for (i = 0; i < old_nr_of_processes; i++) {
         for (j = 0; j < npgids; j++) {
@@ -617,15 +594,12 @@ addDeadProcesses(void)
         }
     }
 
-
     for (i = 0; i < nDeadPids; i++) {
         for (j = 0; j < npgids; j++) {
             if (pidInGroup(deadPid + i, pg + j))
                 break;
         }
     }
-
-
 
     FREEUP(deadPid);
     deadPid = (struct lsPidInfo *) malloc(npgids * sizeof(struct lsPidInfo));
@@ -652,9 +626,6 @@ addDeadProcesses(void)
     FREEUP(pg);
 
 }
-
-
-
 
 static struct pgidRec *
 newPGidList(int *npgids)
@@ -694,7 +665,6 @@ newPGidList(int *npgids)
             (*npgids)++;
         } else {
 
-
             if (pg[j].npids % NPIDS_SIZE == 0) {
                 if ((pg[j].pid = (int *) realloc((char *) pg[j].pid,
                                 (pg[j].npids + NPIDS_SIZE) *
@@ -712,12 +682,10 @@ newPGidList(int *npgids)
     return (pg);
 }
 
-
 static int
 pidInGroup(struct lsPidInfo *p, struct pgidRec *pg)
 {
     int k;
-
 
     if (p->pgid != pg->pgid)
         return FALSE;
@@ -728,13 +696,11 @@ pidInGroup(struct lsPidInfo *p, struct pgidRec *pg)
             return (TRUE);
     }
 
-
     pg->deadUTime += p->utime;
     pg->deadSTime += p->stime;
 
     return (TRUE);
 }
-
 
 static void
 replayDeadPids(void)
@@ -797,13 +763,11 @@ newDeadPid(struct lsPidInfo *pinfo)
         }
     }
 
-
     memcpy((char *) &deadPid[nDeadPids], (char *) pinfo,
             sizeof(struct lsPidInfo));
 
     nDeadPids++;
 }
-
 
 void
 newPGid(int inPGid)
@@ -831,19 +795,16 @@ newPGid(int inPGid)
         }
     }
 
-
     pgidList[nPGidList].pgid = inPGid;
     pgidList[nPGidList].active = TRUE;
 
     nPGidList++;
 }
 
-
 int
 pidInPGList(int inPGid)
 {
     int k;
-
 
     if (inPGid <= 0)
         return (FALSE);
@@ -904,7 +865,6 @@ cleanPGidList(void)
     return(TRUE);
 }
 
-
 static void
 sortPids(void)
 {
@@ -949,7 +909,6 @@ getChildren(int ppidIdx)
 
             if (pidLink[i].sibling == -2) {
 
-
                 if (logclass & LC_PIM)
                     ls_syslog(LOG_DEBUG2, "\tadding as a child");
 
@@ -964,7 +923,6 @@ getChildren(int ppidIdx)
     }
 }
 
-
 static void
 sortIt(int pIdx)
 {
@@ -974,7 +932,6 @@ sortIt(int pIdx)
         ls_syslog(LOG_DEBUG2,
                 "sortIt: sortedIdx %d pIdx = %d pid %d sorted %d",
                 sortedIdx, pIdx, pbase[pIdx].pid, pidLink[pIdx].sorted);
-
 
     if (pidLink[pIdx].sorted)
         return;

@@ -36,7 +36,6 @@ lsb_peekjob (LS_LONG_INT jobid)
     char* pSpoolDirUnix = NULL;
     char lsfUserName[MAXLINELEN];
 
-
     if (jobid <= 0) {
         lsberrno = LSBE_BAD_ARG;
         return NULL;
@@ -47,8 +46,6 @@ lsb_peekjob (LS_LONG_INT jobid)
     if (authTicketTokens_(&auth, NULL) == -1) {
         return NULL;
     }
-
-
 
     mbdReqtype = BATCH_JOB_PEEK;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
@@ -61,7 +58,6 @@ lsb_peekjob (LS_LONG_INT jobid)
         return NULL;
     }
 
-
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                     &hdr, NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
@@ -69,8 +65,6 @@ lsb_peekjob (LS_LONG_INT jobid)
     }
 
     xdr_destroy(&xdrs);
-
-
 
     lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR) {
@@ -115,7 +109,6 @@ lsb_peekjob (LS_LONG_INT jobid)
             if (stat(fnBuf, &st) == -1){
                 pid_t pid;
                 int status;
-
 
                 if ( errno == ENOENT && pSpoolDirUnix !=NULL ) {
                     if ( lsb_openjobinfo (jobid, NULL, NULL, NULL, NULL, 0) < 0

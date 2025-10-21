@@ -24,7 +24,6 @@
 #define EEXECNAME "eexec"
 #define EGROUPNAME "egroup"
 
-#define NL_SETN   23
 static int getEData(struct lenData *, char **, const char *);
 
 int
@@ -144,7 +143,7 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
                 continue;
 
             ls_syslog(LOG_ERR,
-                      I18N(5552, "%s: <%s> read(%d): %m"), /* catgets 5552 */
+                      "%s: <%s> read(%d): %m",
                       __func__, argv[0], size);
             break;
         }
@@ -223,7 +222,6 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG,"%s: eexec path, option and data length of job/task <%d> are <%s>, <%s> and <%d>",fname, job, eexecPath, option, eexec->len);
 
-
     if (stat(eexecPath, &sbuf) < 0) {
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG,
@@ -238,7 +236,6 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
         myargv[i++] = "-r";
 
     myargv[i] = NULL;
-
 
     if (pipe(p) < 0) {
         lserrno = LSE_PIPE;

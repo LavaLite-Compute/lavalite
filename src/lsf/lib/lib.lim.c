@@ -19,8 +19,6 @@
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.channel.h"
 
-#define NL_SETN 23
-
 #define MAXMSGLEN  32*MSGSIZE
 #define CONNECT_TIMEOUT 5
 #define RECV_TIMEOUT    20
@@ -375,7 +373,6 @@ contact:
             break;
     }
 
-
     cc = chanSendDgram_(limchans_[id], reqbuf, len, &sockIds_[id]);
     if (cc < 0) {
         if (connected)
@@ -549,7 +546,6 @@ initLimSock_()
     sockIds_[UNBOUND].sin_addr.s_addr = localAddr;
     sockIds_[UNBOUND].sin_port = (u_short) service_port;
     limchans_[UNBOUND] = -1;
-
 
     return 0;
 }

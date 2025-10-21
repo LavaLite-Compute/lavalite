@@ -184,7 +184,6 @@ try:
     if (chdir(usePath(path)) == 0)
         return 0;
 
-
     return -1;
 }
 

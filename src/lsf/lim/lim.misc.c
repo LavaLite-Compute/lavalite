@@ -18,21 +18,16 @@
  */
 #include "lsf/lim/lim.h"
 
-#define NL_SETN 24
-
 #ifdef MEAS
 #include "../lib/lib.table.h"
 #endif
-
-
 
 static struct hostNode *findHNbyAddr(u_int);
 
 void
 lim_Exit(const char *fname)
 {
-    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5700,
-                "%s: Above fatal error(s) found."), fname); /* catgets 5700 */
+    ls_syslog(LOG_ERR, "%s: Above fatal errors found.", fname);
     exit (EXIT_FATAL_ERROR);
 }
 
@@ -62,11 +57,9 @@ timingLog(char action)
 
     if (action == 0) {
         gettimeofday(&timeofday, (struct timezone *)0);
-        asciiTime = _i18n_ctime(ls_catd,
-                CTIME_FORMAT_DEFAULT, &timeofday.tv_sec);
+        asciiTime = ctime(&timeofday.tv_sec);
         fprintf(timfp, "%s", asciiTime);
-        fprintf(timfp,_i18n_msg_get(ls_catd, NL_SETN, 700,
-                    "Timing log record for LIM begins ...\n\n")); /* catgets 700 */
+        fprintf(timfp,"Timing log record for LIM begins ...\n\n");
         fflush(timfp);
         tlogcnt = timingLogIntvl/exchIntvl;
         tstat_count = 0;
@@ -77,17 +70,14 @@ timingLog(char action)
     tstat_count++;
     if(tstat_count < tlogcnt) return;
     gettimeofday(&timeofday, (struct timezone *)0);
-    asciiTime = _i18n_ctime(ls_catd,
-            CTIME_FORMAT_DEFAULT, &timeofday.tv_sec);
+    asciiTime = ctime(&timeofday.tv_sec);
     fprintf(timfp, "%s", asciiTime);
-    fprintf(timfp, _i18n_msg_get(ls_catd, NL_SETN, 701,
-                "Overhead time since last Log record is: ")); /* catgets 701 */
+    fprintf(timfp, "Overhead time since last Log record is: ");
     getrusage(RUSAGE_SELF, &end_time);
     tvsub(&tdiff1,&end_time.ru_utime,&beg_time.ru_utime);
     tvsub(&tdiff2,&end_time.ru_stime, &beg_time.ru_stime);
     tvadd(&tdiff1, &tdiff2);
-    fprintf(timfp, _i18n_msg_get(ls_catd, NL_SETN, 702,
-                "%d microseconds.\n\n"), /* catgets 702 */
+    fprintf(timfp, "%d microseconds.\n\n",
             tdiff1.tv_sec*1000000+tdiff1.tv_usec);
     fflush(timfp);
     tstat_count = 0;
@@ -126,7 +116,7 @@ loadLog(char action)
     struct timeval timeofday;
 
     gettimeofday(&timeofday, (struct timezone *)0);
-    asciiTime = _i18n_ctime(ls_catd, CTIME_FORMAT_DEFAULT, &timeofday.tv_sec);
+    asciiTime = ctime(&timeofday.tv_sec);
 
     if (action == 0) {
         ldlogcnt = loadLogIntvl/exchIntvl;
@@ -134,8 +124,7 @@ loadLog(char action)
         sd_cnt = 0;
         rcv_cnt = 0;
         fprintf(loadfp, "%s", asciiTime);
-        fprintf(loadfp, _i18n_msg_get(ls_catd, NL_SETN, 703,
-                    "Load log begins ...\n\n")); /* catgets 703 */
+        fprintf(loadfp, "Load log begins ...\n\n");
         fflush(loadfp);
         return;
     }
@@ -148,15 +137,12 @@ loadLog(char action)
     fprintf(loadfp,"RealRQL  Pg/s    SMkb/s    Logins   CPU_usage\n");
     fprintf(loadfp,"%-5.2f    %-6.2f   %-5.0f    %d       %-5.1f %%\n"
             ,realcla, smpages, smkbps, loginses, cpu_usage*100);
-    fprintf(loadfp, _i18n_msg_get(ls_catd, NL_SETN, 704,
-                "ld_send count: %d  ld_recv count %d  "), /* catgets 704 */
+    fprintf(loadfp, "ld_send count: %d  ld_recv count %d  ",
             sd_cnt, rcv_cnt);
     if(masterMe) {
-        fprintf(loadfp, _i18n_msg_get(ls_catd, NL_SETN, 705,
-                    " I am the master LIM\n\n")); /* catgets 705 */
+        fprintf(loadfp, " I am the master LIM\n\n");
     } else {
-        fprintf(loadfp, _i18n_msg_get(ls_catd, NL_SETN, 706,
-                    " I am a slave LIM\n\n")); /* catgets 706 */
+        fprintf(loadfp, " I am a slave LIM\n\n");
     }
     fflush(loadfp);
     sd_cnt = 0;
@@ -186,11 +172,9 @@ xferLog(char action, char *host)
         xlogcnt = xferLogIntvl/exchIntvl;
         xstat_count = 0;
         gettimeofday(&timeofday, (struct timezone *)0);
-        asciiTime = _i18n_ctime(ls_catd,
-                CTIME_FORMAT_DEFAULT, &timeofday.tv_sec);
+        asciiTime = ctime(&timeofday.tv_sec);
         fprintf(xferfp, "%s", asciiTime);
-        fprintf(xferfp, _i18n_msg_get(ls_catd, NL_SETN, 707,
-                    "Job xfer log begins ...\n\n")); /* catgets 707 */
+        fprintf(xferfp, "Job xfer log begins ...\n\n");
         fflush(xferfp);
         return;
     }
@@ -212,12 +196,10 @@ xferLog(char action, char *host)
 
         hashEntryPtr = h_firstEnt(&xferVector, &hashSearchPtr);
         gettimeofday(&timeofday, (struct timezone *)0);
-        asciiTime = _i18n_ctime(ls_catd,
-                CTIME_FORMAT_DEFAULT, &timeofday.tv_sec);
+        asciiTime = ctime(&timeofday.tv_sec);
         fprintf(xferfp, "%s", asciiTime);
         if(!hashEntryPtr) {
-            fprintf(xferfp, _i18n_msg_get(ls_catd, NL_SETN, 708,
-                        "%s --> ANYHOST: no jobs ever xferred \n\n"), /* catgets 708 */
+            fprintf(xferfp, "%s --> ANYHOST: no jobs ever xferred \n\n",
                     myHostPtr->hostName);
             fprintf(xferfp, "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
             fflush(xferfp);
@@ -226,8 +208,7 @@ xferLog(char action, char *host)
         }
         while(hashEntryPtr) {
             xfercnt = (int) hashEntryPtr->hData;
-            fprintf(xferfp, _i18n_msg_get(ls_catd, NL_SETN, 709,
-                        "%s --> %s  Total: %d\n"), /* catgets 709 */
+            fprintf(xferfp, "%s --> %s  Total: %d\n",
                     myHostPtr->hostName, hashEntryPtr->keyname, xfercnt);
             fprintf(xferfp, "\n");
             hashEntryPtr->hData = (int *) 0;
@@ -249,7 +230,6 @@ xferLog(char action, char *host)
 }
 
 #endif
-
 
 struct hostNode *
 findHost(char *hostName)
@@ -300,18 +280,15 @@ findHostbyAddr(struct sockaddr_in *from, char *fname)
     if ((hPtr = findHNbyAddr(*((u_int *) &from->sin_addr))))
         return hPtr;
 
-
     if ((hp = (struct hostent *)getHostEntryByAddr_(&from->sin_addr)) == NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5701,
-                    "%s: Host %s is unknown by %s"), /* catgets 5701 */
+        ls_syslog(LOG_ERR, "%s: Host %s is unknown by %s",
                 fname, sockAdd2Str_(from), myHostPtr->hostName);
         return NULL;
     }
     if ((hPtr = findHNbyAddr(*((u_int *) hp->h_addr))) == NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5702,
-                    "%s: Host %s (hp=%s/%s) is unknown by configuration; all hosts used by LSF must have unique official names"), /* catgets 5702 */
-                fname, sockAdd2Str_(from), hp->h_name,
-                inet_ntoa(*((struct in_addr *) hp->h_addr)));
+        ls_syslog(LOG_ERR, "%s: Host %s (hp=%s/%s is unknown by configuration; all hosts used by LSF must have unique official names",
+                  fname, sockAdd2Str_(from), hp->h_name,
+                  inet_ntoa(*((struct in_addr *) hp->h_addr)));
         return NULL;
     }
 
@@ -324,19 +301,15 @@ findHostbyAddr(struct sockaddr_in *from, char *fname)
     hPtr->addr[hPtr->naddr] = (u_int) from->sin_addr.s_addr;
     hPtr->naddr++;
 
-
     return hPtr;
 
 }
-
 
 static struct hostNode *
 findHNbyAddr(u_int from)
 {
     struct clusterNode *clPtr;
     struct hostNode *hPtr;
-
-
 
     clPtr = myClusterPtr;
     for (hPtr = clPtr->hostList; hPtr; hPtr = hPtr->nextPtr) {
@@ -362,7 +335,6 @@ findHostInCluster(char *hostname)
         return true;
     return false;
 }
-
 
 int
 definedSharedResource(struct hostNode *host, struct lsInfo *allInfo)
@@ -400,7 +372,6 @@ shortLsInfoDup(struct shortLsInfo *src)
     shortLInfo->nTypes = src->nTypes;
     shortLInfo->nModels = src->nModels;
 
-
     memp = malloc((src->nRes + src->nTypes + src->nModels) * MAXLSFNAMELEN +
             src->nRes * sizeof (char *));
 
@@ -436,7 +407,6 @@ shortLsInfoDup(struct shortLsInfo *src)
 
     return shortLInfo;
 }
-
 
 void
 shortLsInfoDestroy(struct shortLsInfo *shortLInfo)

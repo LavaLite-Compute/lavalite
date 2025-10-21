@@ -54,7 +54,6 @@ ls_stdinmode(int onoff)
         return -1;
     }
 
-
     if ((cc = select(cli_nios_fd[0] + 1, &rmask, 0, 0, &timeout)) <= 0) {
         if (cc == 0)
             lserrno = LSE_TIME_OUT;
@@ -111,7 +110,6 @@ ls_donerex(void)
         return -1;
     }
 
-
     if (select(cli_nios_fd[0] + 1, &rmask, 0, 0, &timeout) <= 0) {
         lserrno = LSE_SELECT_SYS;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
@@ -166,7 +164,6 @@ ls_stoprex(void)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-
 
     if (select(cli_nios_fd[0] + 1, &rmask, 0, 0, &timeout) <= 0) {
         lserrno = LSE_SELECT_SYS;
@@ -225,7 +222,6 @@ ls_niossync(int numTasks)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-
 
     if (select(cli_nios_fd[0] + 1, &rmask, 0, 0, &timeout) <= 0) {
         lserrno = LSE_SELECT_SYS;
@@ -295,7 +291,6 @@ ls_setstdout(int on, char *format)
 
     if (req.r.len > 0) {
 
-
         if (b_write_fix(cli_nios_fd[0], (char *)format, req.r.len*sizeof(char))
             != req.r.len * sizeof(char)) {
             lserrno = LSE_MSG_SYS;
@@ -303,7 +298,6 @@ ls_setstdout(int on, char *format)
             return -1;
         }
     }
-
 
     if (select(cli_nios_fd[0] + 1, &rmask, 0, 0, &timeout) <= 0) {
         lserrno = LSE_SELECT_SYS;
@@ -377,7 +371,6 @@ ls_setstdin(int on, int *rpidlist, int len)
 
     if (rpidlist != NULL && len != 0) {
 
-
         if (b_write_fix(cli_nios_fd[0], (char *)rpidlist, len*sizeof(int))
             != len * sizeof(int)) {
             lserrno = LSE_MSG_SYS;
@@ -385,7 +378,6 @@ ls_setstdin(int on, int *rpidlist, int len)
             return -1;
         }
     }
-
 
     if (select(cli_nios_fd[0] + 1, &rmask, 0, 0, &timeout) <= 0) {
         lserrno = LSE_SELECT_SYS;
@@ -448,7 +440,6 @@ ls_getstdin(int on, int *rpidlist, int maxlen)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-
 
     if (select(cli_nios_fd[0] + 1, &rmask, 0, 0, &timeout) <= 0) {
         lserrno = LSE_SELECT_SYS;

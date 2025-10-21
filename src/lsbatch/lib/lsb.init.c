@@ -63,7 +63,6 @@ lsb_init(char *appName)
     if (lsbenvset)
         return 0;
 
-
     if (initenv_(lsbParams, NULL) < 0)
     {
         lsberrno = LSBE_LSLIB;
@@ -105,7 +104,6 @@ lsb_init(char *appName)
 
     getLogClass_(lsbParams[LSB_DEBUG_CMD].paramValue,
                  lsbParams[LSB_TIME_CMD].paramValue);
-
 
     if (bExceptionTabInit()) {
         lsberrno = LSBE_LSBLIB;

@@ -27,7 +27,6 @@ lsb_hostinfo (char **hosts, int *numHosts)
     return (lsb_hostinfo_ex (hosts, numHosts, NULL, 0));
 }
 
-
 struct hostInfoEnt *
 lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
 {
@@ -59,7 +58,6 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
         }
 
         hostInfoReq.numNames = 0;
-
 
         if (resReq != NULL) {
             TIMEIT(0, (hostInfoReq.names[0] = ls_getmyhostname()), "ls_getmyhostname");
@@ -124,7 +122,6 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
     } else
         hostInfoReq.resReq = "";
 
-
     mbdReqtype = BATCH_HOST_INFO;
     cc = sizeof(struct infoReq) + cc * MAXHOSTNAMELEN + cc + 100;
     if ((request_buf = malloc (cc)) == NULL) {
@@ -142,7 +139,6 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
         return NULL;
     }
 
-
     TIMEIT(0, (cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL, NULL, NULL)), "callmbd");
     if (cc == -1) {
         xdr_destroy(&xdrs);
@@ -151,8 +147,6 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
     }
     xdr_destroy(&xdrs);
     free (request_buf);
-
-
 
     lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_HOST) {

@@ -32,7 +32,6 @@ ls_rescontrol(char *host, int opCode, int data)
     } buf;
     struct timeval    timeout;
 
-
     if (genParams_[LSF_RES_TIMEOUT].paramValue) {
         timeout.tv_sec  = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
     } else {
@@ -48,7 +47,6 @@ ls_rescontrol(char *host, int opCode, int data)
 
     if (!FD_ISSET(s,&connection_ok_)){
         FD_SET(s,&connection_ok_);
-
 
         cc = rd_select_(s, &timeout);
         if (cc <= 0) {
@@ -83,7 +81,6 @@ ls_rescontrol(char *host, int opCode, int data)
         return -1;
     }
 
-
     cc = rd_select_(s, &timeout);
     if (cc <= 0) {
         closesocket(s);
@@ -100,7 +97,6 @@ ls_rescontrol(char *host, int opCode, int data)
 
     return 0;
 }
-
 
 int
 oneResDebug(struct debugReq  *pdebug , char *hostname)

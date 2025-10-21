@@ -24,7 +24,6 @@
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lib/lib.pim.h"
-#define NL_SETN   23
 static struct config_param pimParams[] =
 {
 #define LSF_PIM_INFODIR 0
@@ -158,7 +157,6 @@ getJInfo_(int npgid, int *pgid, int options, int cpgid)
         pimAddr.sin_family = AF_INET;
     }
 
-
     if (now - lastUpdateNow >= pimSleepTime || (options & PIM_API_UPDATE_NOW)) {
         if (logclass & LC_PIM)
             ls_syslog(LOG_DEBUG,"%s: update now", fname);
@@ -251,7 +249,6 @@ getJInfo_(int npgid, int *pgid, int options, int cpgid)
     }
     return jru;
 
-
 }
 
 static char *
@@ -334,8 +331,7 @@ readPIMFile(char *pfile)
 
     tmpbuf = getNextString(buffer,pimString);
     if (tmpbuf == NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5908,
-                                         "%s format error"), "pim.info"); /* catgets 5908 */
+        ls_syslog(LOG_ERR, "%s format error", "pim.info");
         return false;
     }
     buffer = tmpbuf;
@@ -538,7 +534,6 @@ inAddPList(struct lsPidInfo *pinfo)
     return 0;
 }
 
-
 static int
 intoPidList(struct lsPidInfo *pinfo)
 {
@@ -566,7 +561,6 @@ intoPidList(struct lsPidInfo *pinfo)
     return 0;
 }
 
-
 static int
 pimPort(struct sockaddr_in *pimAddr, char *pfile)
 {
@@ -583,7 +577,6 @@ pimPort(struct sockaddr_in *pimAddr, char *pfile)
     pimAddr->sin_port = htons(port);
     return 0;
 }
-
 
 static FILE *
 openPIMFile(char *pfile)

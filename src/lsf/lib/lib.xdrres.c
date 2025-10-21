@@ -74,8 +74,6 @@ xdr_resCmdBill(XDR *xdrs, struct resCmdBill *cmd, struct LSFHeader *hdr)
             return false;
     }
 
-
-
     if (xdrs->x_op == XDR_DECODE)
         nlimits = (nlimits < LSF_RLIM_NLIMITS) ? nlimits : LSF_RLIM_NLIMITS;
 
@@ -97,7 +95,6 @@ DecodeQuit:
     free(cmd->argv);
     return false;
 }
-
 
 bool_t
 xdr_resSetenv(XDR *xdrs, struct resSetenv *envp, struct LSFHeader *hdr)
@@ -175,7 +172,6 @@ xdr_resGetRusage (XDR *xdrs, struct resRusage *rusageReq,struct LSFHeader *hdr)
     return true;
 }
 
-
 bool_t
 xdr_resChdir (XDR *xdrs, struct resChdir *ch, struct LSFHeader *hdr)
 {
@@ -187,10 +183,8 @@ xdr_resChdir (XDR *xdrs, struct resChdir *ch, struct LSFHeader *hdr)
     if (!xdr_string(xdrs, &sp, MAXFILENAMELEN))
         return false;
 
-
     return true;
 }
-
 
 bool_t
 xdr_resControl (XDR *xdrs, struct resControl *ctrl, struct LSFHeader *hdr)
@@ -200,7 +194,6 @@ xdr_resControl (XDR *xdrs, struct resControl *ctrl, struct LSFHeader *hdr)
         return false;
     return true;
 }
-
 
 bool_t
 xdr_resStty (XDR *xdrs, struct resStty *tty, struct LSFHeader *hdr)
@@ -212,7 +205,6 @@ xdr_resStty (XDR *xdrs, struct resStty *tty, struct LSFHeader *hdr)
         if (!decodeTermios_(xdrs, &tty->termattr))
             return false;
     }
-
 
     if (! (xdr_u_short(xdrs, &tty->ws.ws_row) &&
            xdr_u_short(xdrs, &tty->ws.ws_col) &&

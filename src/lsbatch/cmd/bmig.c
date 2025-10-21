@@ -21,7 +21,7 @@
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] [-f] [-m \"host_name ...\"]\n            [-u user_name |-u all] [-J job_name] [jobId | \"jobId[index_list]\" ...]\n", cmd);
     exit(-1);
 }
@@ -85,7 +85,7 @@ main (int argc, char **argv)
     for (i = 0; i < numJobs; i++) {
 	mig.jobId = jobIds[i];
 	if (lsb_mig(&mig, &badHostIdx) < 0) {
-	    fprintf(stderr, "%s <%s>: ", I18N_Job, lsb_jobid2str(jobIds[i]));
+	    fprintf(stderr, "%s <%s>: ", "Job", lsb_jobid2str(jobIds[i]));
 	    if (lsberrno == LSBE_QUEUE_HOST || lsberrno == LSBE_BAD_HOST)
 		lsb_perror(mig.askedHosts[badHostIdx]);
 	    else

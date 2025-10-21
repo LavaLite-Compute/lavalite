@@ -19,7 +19,6 @@
 #include "lsf/lim/lim.h"
 #include "lsf/lib/lsi18n.h"
 
-#define NL_SETN     24
 #define HDR_LEN  16
 
 #define ABORT     1
@@ -44,7 +43,6 @@ clientIO(struct Masks *chanmasks)
     static char fname[]="clientIO";
     int  i;
 
-
     for(i=0; (i < chanIndex) && (i < 2*MAXCLIENTS); i++) {
         if (i == limSock || i == limTcpSock)
             continue;
@@ -52,8 +50,7 @@ clientIO(struct Masks *chanmasks)
         if (FD_ISSET(i, &chanmasks->emask)) {
 
             if (clientMap[i])
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5101,
-                                                 "%s: Lost connection with client <%s>"), /* catgets 5101 */
+                ls_syslog(LOG_ERR, "%s: Lost connection with client <%s>",
                           fname, sockAdd2Str_(&clientMap[i]->from));
             shutDownChan(i);
             continue;
@@ -65,7 +62,6 @@ clientIO(struct Masks *chanmasks)
     }
 }
 
-
 static void
 processMsg(int chanfd)
 {
@@ -73,7 +69,6 @@ processMsg(int chanfd)
     struct Buffer *buf;
     struct LSFHeader hdr;
     XDR  xdrs;
-
 
     if (clientMap[chanfd] && clientMap[chanfd]->inprogress)
         return;
@@ -89,8 +84,7 @@ processMsg(int chanfd)
 
     xdrmem_create(&xdrs, buf->data, XDR_DECODE_SIZE_(buf->len), XDR_DECODE);
     if (!xdr_LSFHeader(&xdrs, &hdr)) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5102,
-                                         "%s: Bad header received"),fname); /* catgets 5102 */
+        ls_syslog(LOG_ERR, "%s: Bad header received",fname);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);
@@ -99,18 +93,15 @@ processMsg(int chanfd)
 
     if ( (clientMap[chanfd] && hdr.opCode >= FIRST_LIM_PRIV) ||
          (!clientMap[chanfd] && hdr.opCode < FIRST_INTER_CLUS) ){
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5103,
-                                         "%s: Invalid opCode <%d> from client"), fname, hdr.opCode); /* catgets 5103 */
+        ls_syslog(LOG_ERR, "%s: Invalid opCode <%d> from client", fname, hdr.opCode);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);
         return;
     }
 
-
     if (hdr.opCode >= FIRST_INTER_CLUS && !masterMe) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5104,
-                                         "%s: Intercluster request received, but I'm not master"), fname); /* catgets 5104 */
+        ls_syslog(LOG_ERR, "%s: Intercluster request received, but I'm not master", fname);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);
@@ -129,8 +120,7 @@ processMsg(int chanfd)
                           fname, "getpeername", chanSock_(chanfd));
             }
 
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5105,
-                                             "%s: Protocol error received opCode <%d> from %s"), /* catgets 5105 */
+            ls_syslog(LOG_ERR, "%s: Protocol error received opCode <%d> from %s",
                       fname, hdr.opCode, sockAdd2Str_(&fromAddr));
             xdr_destroy(&xdrs);
             shutDownChan(chanfd);
@@ -175,15 +165,13 @@ processMsg(int chanfd)
         break;
 
     default:
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5106,
-                                         "%s: Invalid opCode <%d>"),fname,hdr.opCode); /* catgets 5106 */
+        ls_syslog(LOG_ERR, "%s: Invalid opCode <%d>",fname,hdr.opCode);
         xdr_destroy(&xdrs);
         chanFreeBuf_(buf);
         break;
     }
 
 }
-
 
 static void
 clientReq(XDR *xdrs, struct LSFHeader *hdr, int chfd)
@@ -195,7 +183,6 @@ clientReq(XDR *xdrs, struct LSFHeader *hdr, int chfd)
     clientMap[chfd]->clientMasks = 0;
 
     oldpos = XDR_GETPOS(xdrs);
-
 
     if (! xdr_decisionReq(xdrs, &decisionRequest, hdr)) {
         goto Reply1;
@@ -228,12 +215,10 @@ Reply1:
         if (pid == 0) {
             int sock;
 
-
 #if !defined(NO_FORK)
             chanClose_( limSock );
             limSock = chanClientSocket_( AF_INET, SOCK_DGRAM, 0 );
 #endif
-
 
             XDR_SETPOS(xdrs, oldpos);
             sock = chanSock_(chfd);
@@ -247,7 +232,6 @@ Reply1:
             case LIM_GET_RESOUINFO:
                 resourceInfoReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
                 break;
-
 
             case LIM_LOAD_REQ:
                 loadReq(xdrs, &clientMap[chfd]->from, hdr, chfd);

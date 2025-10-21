@@ -175,7 +175,6 @@ placement_(char *resReq, struct decisionReq *placeReqPtr, char *fromhost, int *n
     FREEUP (placeReqPtr->preferredHosts);
     *numhosts = placeReply.numHosts;
 
-
     for (i=0, numnames =0; i < *numhosts; i++)
         numnames += placeReply.placeInfo[i].numtask;
 

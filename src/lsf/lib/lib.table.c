@@ -132,7 +132,6 @@ h_delTab_(hTab *tabPtr)
 hEnt *
 h_getEnt_(hTab *tabPtr, const char *key)
 
-
 {
     if (tabPtr->numEnts == 0) return NULL;
     return(h_findEnt(key, &(tabPtr->slotPtr[getAddr(tabPtr, key)])));
@@ -141,7 +140,6 @@ h_getEnt_(hTab *tabPtr, const char *key)
 
 hEnt *
 h_addEnt_(hTab *tabPtr, const char *key, int *newPtr)
-
 
 {
     hEnt *hEntPtr;
@@ -178,12 +176,10 @@ h_addEnt_(hTab *tabPtr, const char *key, int *newPtr)
 hEnt *
 lh_addEnt_(hTab *tabPtr, char *key, int *newPtr)
 
-
 {
     hEnt *hEntPtr;
     int     *keyPtr;
     hLinks  *hList;
-
 
     if (tabPtr->size > 1) tabPtr->size = 1;
 
@@ -238,10 +234,8 @@ h_rmEnt_(hTab *tabPtr, hEnt *hEntPtr)
 
 }
 
-
 hEnt *
 h_firstEnt_(hTab *tabPtr, sTab *sPtr)
-
 
 {
 
@@ -469,7 +463,6 @@ ht_insert(struct hash_table *ht, const char *key, void *value)
     return HT_INSERTED;
 }
 
-
 void *
 ht_search(struct hash_table *ht, const char *key)
 {
@@ -514,7 +507,6 @@ ht_find_slot(struct hash_table *ht, const char *key)
     }
     return NULL;
 }
-
 
 // Traversal with safe deletion
 void ht_for_each(struct hash_table *ht,

@@ -20,8 +20,6 @@
 #include "lsf/lib/lib.queue.h"
 #include "lsf/lib/lib.channel.h"
 
-#define NL_SETN 23
-
 int mlsSbdMode = false;
 
 char rootuid_ = false;
@@ -198,7 +196,7 @@ lsfExecLog(const char *cmd)
 
         getpwnam(lsfUserName);
         syslog(LOG_INFO,
-               I18N(6259,"%s: user - %s cmd - '%s'"), /* catgets 6259 */
+               "%s: user - %s cmd - '%s'",
                fname, lsfUserName, cmd);
 
     }

@@ -21,10 +21,8 @@
 #include "lsf/intlib/list.h"
 #include "lsf/intlib/intlibout.h"
 
-#define NL_SETN     22
-static char *errMsg = "%s: expected a non-null %s but got a null one";/* catgets 5600 */
+static char *errMsg = "%s: expected a non-null %s but got a null one";
 #define errMsgID    5600
-
 
 LIST_T *
 listCreate(char *name)
@@ -39,13 +37,11 @@ listCreate(char *name)
         return (LIST_T *)NULL;
     }
 
-
     list->name = strdup(name);
     list->forw = list->back = (LIST_ENTRY_T *)list;
 
     return list;
 }
-
 
 void
 listDestroy(LIST_T *list, void (*destroy)(LIST_ENTRY_T *))
@@ -54,7 +50,7 @@ listDestroy(LIST_T *list, void (*destroy)(LIST_ENTRY_T *))
     LIST_ENTRY_T       *entry;
 
     if (! list) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname, "list");
         return;
     }
@@ -86,7 +82,7 @@ listAllowObservers(LIST_T *list)
     static char fname[] = "listAllowObservers";
 
     if (! list) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname, "list");
         listerrno = LIST_ERR_BADARG;
         return -1;
@@ -113,7 +109,7 @@ listGetFrontEntry(LIST_T *list)
     static char fname[] = "listGetFrontEntry";
 
     if (! list) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname, "list");
         listerrno = LIST_ERR_BADARG;
         return (LIST_ENTRY_T *)NULL;
@@ -126,14 +122,13 @@ listGetFrontEntry(LIST_T *list)
 
 }
 
-
 LIST_ENTRY_T *
 listGetBackEntry(LIST_T *list)
 {
     static char fname[] = "listGetBackEntry";
 
     if (! list) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname, "list");
         listerrno = LIST_ERR_BADARG;
         return (LIST_ENTRY_T *)NULL;
@@ -152,7 +147,7 @@ listInsertEntryBefore(LIST_T * list, LIST_ENTRY_T *succ, LIST_ENTRY_T *entry)
     static char       fname[] = "listInsertEntryBefore";
 
     if (! list || ! entry || ! succ) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname,
                   (! list) ? "list" : ((!entry )? "entry" : "successor"));
 
@@ -164,7 +159,6 @@ listInsertEntryBefore(LIST_T * list, LIST_ENTRY_T *succ, LIST_ENTRY_T *entry)
     entry->back = succ->back;
     succ->back->forw = entry;
     succ->back = entry;
-
 
     if (list->allowObservers && ! LIST_IS_EMPTY(list->observers)) {
         LIST_EVENT_T event;
@@ -200,7 +194,6 @@ listInsertEntryAtBack(LIST_T * list, LIST_ENTRY_T *entry)
     return listInsertEntryBefore(list, (LIST_ENTRY_T *)list, entry);
 }
 
-
 LIST_ENTRY_T *
 listSearchEntry(LIST_T *list, void *subject,
                 bool_t (*equal)(void *, void *, int),
@@ -211,7 +204,7 @@ listSearchEntry(LIST_T *list, void *subject,
     LIST_ENTRY_T        *ent;
 
     if (! list || ! subject || ! equal) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname,
                   (! list) ? "list" : ((!subject )? "subject" : "equal-op"));
 
@@ -234,14 +227,13 @@ listSearchEntry(LIST_T *list, void *subject,
 
 }
 
-
 void
 listRemoveEntry(LIST_T *list, LIST_ENTRY_T *entry)
 {
     static char fname[] = "listRemoveEntry";
 
     if (! list || ! entry) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname, ( ! list ) ? "list" : "entry");
         return;
     }
@@ -253,7 +245,6 @@ listRemoveEntry(LIST_T *list, LIST_ENTRY_T *entry)
 
     entry->back->forw = entry->forw;
     entry->forw->back = entry->back;
-
 
     if (list->allowObservers && ! LIST_IS_EMPTY(list->observers)) {
         LIST_EVENT_T event;
@@ -268,8 +259,6 @@ listRemoveEntry(LIST_T *list, LIST_ENTRY_T *entry)
 
 }
 
-
-
 int
 listNotifyObservers(LIST_T *list, LIST_EVENT_T *event)
 {
@@ -278,7 +267,7 @@ listNotifyObservers(LIST_T *list, LIST_EVENT_T *event)
     LIST_ITERATOR_T      iter;
 
     if (! list || ! event) {
-        ls_syslog(LOG_ERR, (_i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg)),
+        ls_syslog(LOG_ERR, (errMsg),
                   fname, ( ! list ) ? "list" : "event");
         listerrno = LIST_ERR_BADARG;
         return -1;
@@ -310,9 +299,7 @@ listNotifyObservers(LIST_T *list, LIST_EVENT_T *event)
                 (*observer->leave_)(list, observer->extra, event);
             break;
         default:
-            ls_syslog(LOG_ERR,
-                      _i18n_msg_get(ls_catd, NL_SETN, 5602,
-                                    "%s: invalide event type (%d)"),/* catgets 5602 */
+            ls_syslog(LOG_ERR, "%s: invalide event type %d",
                       fname, event->type);
             listerrno = LIST_ERR_BADARG;
             return -1;
@@ -333,7 +320,7 @@ list2Vector(LIST_T *list, int direction, void *vector,
     int                 entIdx;
 
     if (! list ) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "list");
         listerrno = LIST_ERR_BADARG;
         return;
@@ -363,8 +350,6 @@ list2Vector(LIST_T *list, int direction, void *vector,
     }
 }
 
-
-
 void
 listDisplay(LIST_T *list,
             int direction,
@@ -376,7 +361,7 @@ listDisplay(LIST_T *list,
     LIST_ENTRY_T        *entry;
 
     if (! list || ! displayFunc) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID,  errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, (! list) ? "list" : "displayFunc");
         return;
     }
@@ -400,7 +385,6 @@ listDisplay(LIST_T *list,
 
 }
 
-
 void
 listCat(LIST_T *list,
         int direction,
@@ -415,7 +399,7 @@ listCat(LIST_T *list,
     int                 curSize;
 
     if (! list || ! catFunc) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID , errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, (! list) ? "list" : "catFunc");
         return;
     }
@@ -441,15 +425,13 @@ listCat(LIST_T *list,
         str = (*catFunc)(entry, hint);
         if (! str) {
             ls_syslog(LOG_ERR,
-                      _i18n_msg_get(ls_catd, NL_SETN, 5603,
-                                    "%s: catFunc returned NULL string"),/* catgets 5603 */
+                      "%s: catFunc returned NULL string",
                       fname);
             continue;
         }
 
         if (curSize + strlen(str) > bufferSize - 1) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 5604,
-                                             "%s: the provided buffer is not big enough"),/* catgets 5604 */
+            ls_syslog(LOG_ERR, "%s: the provided buffer is not big enough",
                       fname);
             break;
         }
@@ -459,7 +441,6 @@ listCat(LIST_T *list,
     }
 
 }
-
 
 LIST_T*
 listDup(LIST_T* list, int sizeOfEntry)
@@ -477,7 +458,6 @@ listDup(LIST_T* list, int sizeOfEntry)
         return NULL;
     }
 
-
     newList = listCreate(list->name);
     if (! newList) {
         ls_syslog(LOG_ERR,"\
@@ -487,7 +467,6 @@ listDup(LIST_T* list, int sizeOfEntry)
 
     LIST_ITERATOR_ZERO_OUT(&iter);
     listIteratorAttach(&iter, list);
-
 
     for (listEntry = listIteratorGetCurEntry(&iter);
          listEntry != NULL;
@@ -533,7 +512,6 @@ listDump(LIST_T* list)
 
 }
 
-
 LIST_OBSERVER_T *
 listObserverCreate(char *name, void *extra, LIST_ENTRY_SELECT_OP_T select, ...)
 {
@@ -553,7 +531,6 @@ listObserverCreate(char *name, void *extra, LIST_ENTRY_SELECT_OP_T select, ...)
     observer->name = putstr_(name);
     observer->select = select;
     observer->extra = extra;
-
 
     va_start(ap, select);
 
@@ -576,10 +553,8 @@ listObserverCreate(char *name, void *extra, LIST_ENTRY_SELECT_OP_T select, ...)
 
         default:
             ls_syslog(LOG_ERR,
-                      _i18n_msg_get(ls_catd, NL_SETN, 5606,
-                                    "%s: invalid event ID (%d) from the invoker"),/* catgets 5606 */
+                      "%s: invalid event ID %d from the invoker",
                       fname, (int) etype);
-
             listerrno = LIST_ERR_BADARG;
             goto Fail;
         }
@@ -593,7 +568,6 @@ Fail:
 
 }
 
-
 void
 listObserverDestroy(LIST_OBSERVER_T *observer)
 {
@@ -601,7 +575,7 @@ listObserverDestroy(LIST_OBSERVER_T *observer)
 
     if (! observer) {
 
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "observer");
         return;
     }
@@ -611,7 +585,6 @@ listObserverDestroy(LIST_OBSERVER_T *observer)
 
 }
 
-
 int
 listObserverAttach(LIST_OBSERVER_T *observer, LIST_T *list)
 {
@@ -619,22 +592,19 @@ listObserverAttach(LIST_OBSERVER_T *observer, LIST_T *list)
     int           rc;
 
     if (! observer || ! list) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, ( ! list ) ? "list" : "observer");
         listerrno = LIST_ERR_BADARG;
         return -1;
     }
 
-
     if (! list->allowObservers) {
         ls_syslog(LOG_ERR,
-                  _i18n_msg_get(ls_catd, NL_SETN, 5607,
-                                "%s: list does not accept observers: \"%s\""),/* catgets 5607 */
+                  "%s: list does not accept observers: \"%s\"",
                   fname, list->name);
         listerrno = (int) LIST_ERR_NOOBSVR;
         return -1;
     }
-
 
     rc = listInsertEntryBefore(list->observers,
                                (LIST_ENTRY_T *)list->observers,
@@ -647,14 +617,13 @@ listObserverAttach(LIST_OBSERVER_T *observer, LIST_T *list)
 
 }
 
-
 void
 listObserverDetach(LIST_OBSERVER_T *observer, LIST_T *list)
 {
     static char fname[] = "listObserverDetach";
 
     if (! observer || ! list) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, ( ! observer ) ? "observer" : "list");
         return;
     }
@@ -665,8 +634,6 @@ listObserverDetach(LIST_OBSERVER_T *observer, LIST_T *list)
     observer->list = NULL;
 
 }
-
-
 
 LIST_ITERATOR_T *
 listIteratorCreate(char *name)
@@ -686,14 +653,13 @@ listIteratorCreate(char *name)
 
 }
 
-
 void
 listIteratorDestroy(LIST_ITERATOR_T *iter)
 {
     static char fname[] = "listIteratorDestroy";
 
     if (! iter) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "iterator");
         return;
     }
@@ -703,14 +669,13 @@ listIteratorDestroy(LIST_ITERATOR_T *iter)
 
 }
 
-
 int
 listIteratorAttach(LIST_ITERATOR_T *iter, LIST_T *list)
 {
     static char fname[] = "listIteratorAttach";
 
     if (! iter || ! list) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, ( ! iter ) ? "iterator" : "list");
         listerrno = (int) LIST_ERR_BADARG;
         return -1;
@@ -729,7 +694,7 @@ listIteratorDetach(LIST_ITERATOR_T *iter)
     static char fname[] = "listIteratorDetach";
 
     if (! iter) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "iterator");
         return;
     }
@@ -739,14 +704,13 @@ listIteratorDetach(LIST_ITERATOR_T *iter)
 
 }
 
-
 LIST_T *
 listIteratorGetSubjectList(LIST_ITERATOR_T *iter)
 {
     static char fname[] = "listIteratorGetSubjectList";
 
     if (! iter) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "iterator");
         listerrno = LIST_ERR_BADARG;
         return (LIST_T *)NULL;
@@ -756,14 +720,13 @@ listIteratorGetSubjectList(LIST_ITERATOR_T *iter)
 
 }
 
-
 LIST_ENTRY_T *
 listIteratorGetCurEntry(LIST_ITERATOR_T *iter)
 {
     static char fname[] = "listIteratorGetCurEntry";
 
     if (! iter) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "iterator");
         listerrno = (int) LIST_ERR_BADARG;
         return (LIST_ENTRY_T *)NULL;
@@ -776,7 +739,6 @@ listIteratorGetCurEntry(LIST_ITERATOR_T *iter)
 
 }
 
-
 int
 listIteratorSetCurEntry(LIST_ITERATOR_T *iter,
                         LIST_ENTRY_T *entry,
@@ -787,7 +749,7 @@ listIteratorSetCurEntry(LIST_ITERATOR_T *iter,
     LIST_ENTRY_T      *ent;
 
     if (! iter || ! entry ) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, ( ! iter ) ? "iterator" : "entry");
         listerrno = (int) LIST_ERR_BADARG;
         return -1;
@@ -795,7 +757,6 @@ listIteratorSetCurEntry(LIST_ITERATOR_T *iter,
 
     if (validateEnt) {
         bool_t found = false;
-
 
         savedCurEnt = iter->curEnt;
 
@@ -812,8 +773,7 @@ listIteratorSetCurEntry(LIST_ITERATOR_T *iter,
 
         if (! found) {
             ls_syslog(LOG_ERR,
-                      _i18n_msg_get(ls_catd, NL_SETN, 5609,
-                                    "%s: failed to find the entry in list: %s"),/* catgets 5609 */
+                      "%s: failed to find the entry in list: %s",
                       fname, iter->list->name);
             listerrno = LIST_ERR_BADARG;
 
@@ -827,14 +787,13 @@ listIteratorSetCurEntry(LIST_ITERATOR_T *iter,
 
 }
 
-
 void
 listIteratorNext(LIST_ITERATOR_T *iter, LIST_ENTRY_T **next)
 {
     static char fname[] = "listIteratorNext";
 
     if (! iter) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "iterator");
         listerrno = LIST_ERR_BADARG;
         *next = NULL;
@@ -852,7 +811,7 @@ listIteratorPrev(LIST_ITERATOR_T *iter, LIST_ENTRY_T **prev)
     static char fname[] = "listIteratorPrev";
 
     if (! iter) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "iterator");
         listerrno = LIST_ERR_BADARG;
         *prev = NULL;
@@ -864,14 +823,13 @@ listIteratorPrev(LIST_ITERATOR_T *iter, LIST_ENTRY_T **prev)
 
 }
 
-
 bool_t
 listIteratorIsEndOfList(LIST_ITERATOR_T *iter)
 {
     static char fname[] = "listIteratorIsEndOfList";
 
     if (! iter) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, errMsgID, errMsg),
+        ls_syslog(LOG_ERR, errMsg,
                   fname, "iterator");
         listerrno = LIST_ERR_BADARG;
         return true;
@@ -881,7 +839,6 @@ listIteratorIsEndOfList(LIST_ITERATOR_T *iter)
 
 }
 
-
 int listerrno;
 
 #undef LIST_ERROR_CODE_ENTRY
@@ -889,21 +846,12 @@ int listerrno;
 
 static char *listErrList[] = {
 
-    /* catgets 6510  */         "No Error",
-    /* catgets 6511  */         "Bad arguments",
-    /* catgets 6512  */         "Memory allocation failed",
-    /* catgets 6513  */     "Permission denied for attaching observers",
+             "No Error",
+             "Bad arguments",
+             "Memory allocation failed",
+         "Permission denied for attaching observers",
     "Last Error (no error)"
 };
-
-#ifdef  I18N_COMPILE
-static int listErrListID[] = {
-    6510,
-    6511,
-    6512,
-    6513
-};
-#endif
 
 char *
 listStrError(int errnum)
@@ -912,15 +860,13 @@ listStrError(int errnum)
 
     if (errnum < 0 || errnum > (int) LIST_ERR_LAST) {
         sprintf(buf,
-                _i18n_msg_get(ls_catd, NL_SETN, 5614,
-                              "Unknown error number %d"), errnum);  /* catgets 5614 */
+                "Unknown error number %d", errnum);
         return buf;
     }
 
-    return(_i18n_msg_get(ls_catd, NL_SETN, listErrListID[errnum], listErrList[errnum]));
+    return(listErrList[errnum]);
 
 }
-
 
 void
 listPError(char *usrmsg)

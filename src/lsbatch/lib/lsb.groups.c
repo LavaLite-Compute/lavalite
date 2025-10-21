@@ -59,18 +59,15 @@ getGrpInfo(char **groups, int *numGroups, int options)
         return NULL;
     }
 
-
     if (numGroups == NULL || *numGroups == 0 || groups == NULL) {
 
         options |= GRP_ALL;
-
 
         groupInfo.options = options;
         groupInfo.resReq = "";
 
     }
     else {
-
 
         for (i = 0; i < *numGroups; i++) {
             if (ls_isclustername(groups[i]) <= 0 || (options & USER_GRP))
@@ -79,7 +76,6 @@ getGrpInfo(char **groups, int *numGroups, int options)
             options |= GRP_ALL;
             clusterName = groups[i];
         }
-
 
         if (clusterName == NULL) {
             groupInfo.options  = options;
@@ -95,7 +91,6 @@ getGrpInfo(char **groups, int *numGroups, int options)
         }
 
     }
-
 
     if (sendGrpReq(clusterName,
                 options,
@@ -123,10 +118,7 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
     mbdReqType             mbdReqtype;
     int                    cc;
 
-
-
     xdr_lsffree(xdr_groupInfoReply, (char *)reply, &hdr);
-
 
     mbdReqtype = BATCH_GRP_INFO;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
@@ -143,7 +135,6 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
         return -1;
     }
 
-
     if ((cc = callmbd (clusterName,
                     request_buf,
                     XDR_GETPOS(&xdrs),
@@ -156,9 +147,7 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
         return -1;
     }
 
-
     xdr_destroy(&xdrs);
-
 
     lsberrno =  hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_GROUP ) {

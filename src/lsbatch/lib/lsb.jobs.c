@@ -17,7 +17,6 @@
  *
  */
 
-
 #include "lsbatch/lib/lsb.h"
 
 extern void copyJUsage(struct jRusage *to, struct jRusage *from);
@@ -26,8 +25,6 @@ extern int _lsb_recvtimeout;
 static int mbdSock = -1;
 
 extern int getHdrReserved(struct LSFHeader *);
-
-
 
 int
 lsb_openjobinfo (LS_LONG_INT jobId, char *jobName, char *userName,
@@ -143,7 +140,6 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
     }
     jobInfoReq.jobId = jobId;
 
-
     mbdReqtype = BATCH_JOB_INFO;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
@@ -154,8 +150,6 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
         lsberrno = LSBE_XDR;
         return NULL;
     }
-
-
 
     TIMEIT(0, (cc = callmbd (clusterName, request_buf, XDR_GETPOS(&xdrs),
                     &reply_buf, &hdr, &mbdSock, NULL, NULL)), "callmbd");
@@ -204,7 +198,6 @@ lsb_readjobinfo(int *more)
     static struct pidInfo  *pidInfo = NULL;
     static int npgids = 0;
     static int *pgid = NULL;
-
 
     TIMEIT(0, (num = readNextPacket(&buffer, _lsb_recvtimeout, &hdr,
                     mbdSock)), "readNextPacket");
@@ -267,7 +260,6 @@ lsb_readjobinfo(int *more)
         submitReq.xf = NULL;
     }
 
-
     FREEUP( jobInfoReply.execHome );
     FREEUP( jobInfoReply.execCwd );
     FREEUP( jobInfoReply.execUsername );
@@ -315,7 +307,6 @@ lsb_readjobinfo(int *more)
     jobInfo.execCwd = jobInfoReply.execCwd;
     jobInfo.execUsername = jobInfoReply.execUsername;
 
-
     jobInfo.jType    = jobInfoReply.jType;
     jobInfo.parentGroup = jobInfoReply.parentGroup;
     jobInfo.jName        = jobInfoReply.jName;
@@ -342,7 +333,6 @@ lsb_readjobinfo(int *more)
     jobInfo.submit.termTime = jobInfoReply.jobBill->termTime;
     jobInfo.submit.userPriority = jobInfoReply.jobBill->userPriority;
 
-
     for (i=0; i<LSF_RLIM_NLIMITS; i++) {
         jobInfo.submit.rLimits[i] = jobInfoReply.jobBill->rLimits[i];
     }
@@ -360,8 +350,6 @@ lsb_readjobinfo(int *more)
     jobInfo.submit.nxf = jobInfoReply.jobBill->nxf;
     jobInfo.submit.xf = jobInfoReply.jobBill->xf;
 
-
-
     jobInfo.jRusageUpdateTime = jobInfoReply.jRusageUpdateTime;
     jobInfo.runRusage.npids = npids;
     jobInfo.runRusage.pidInfo = pidInfo;
@@ -371,14 +359,11 @@ lsb_readjobinfo(int *more)
 
     copyJUsage(&(jobInfo.runRusage), &jobInfoReply.runRusage);
 
-
     npids = jobInfo.runRusage.npids;
     pidInfo = jobInfo.runRusage.pidInfo;
 
     npgids = jobInfo.runRusage.npgids;
     pgid = jobInfo.runRusage.pgid;
-
-
 
     if (jobInfoReply.runRusage.npids > 0) {
         FREEUP(jobInfoReply.runRusage.pidInfo);
@@ -396,7 +381,6 @@ lsb_readjobinfo(int *more)
     return &jobInfo;
 
 }
-
 
 void
 lsb_closejobinfo()
@@ -416,7 +400,6 @@ lsb_runjob(struct runJobRequest* runJobRequest)
     int                   retVal;
     int                   cc;
 
-
     if (runJobRequest == NULL
             || runJobRequest->numHosts == 0
             || runJobRequest->hostname == NULL
@@ -430,20 +413,16 @@ lsb_runjob(struct runJobRequest* runJobRequest)
         return -1;
     }
 
-
     if (!( runJobRequest->options & (RUNJOB_OPT_NORMAL | RUNJOB_OPT_NOSTOP))) {
         runJobRequest->options |= RUNJOB_OPT_NORMAL;
     }
-
 
     if (authTicketTokens_(&auth, NULL) == -1) {
         lsberrno = LSBE_LSBLIB;
         return -1;
     }
 
-
     mbdReqType = BATCH_JOB_FORCE;
-
 
     xdrmem_create(&xdrs,
             request_buf,
@@ -465,8 +444,6 @@ lsb_runjob(struct runJobRequest* runJobRequest)
         return -1;
     }
 
-
-
     if ((cc = callmbd(NULL,
                     request_buf,
                     XDR_GETPOS(&xdrs),
@@ -479,9 +456,7 @@ lsb_runjob(struct runJobRequest* runJobRequest)
         return -1;
     }
 
-
     xdr_destroy(&xdrs);
-
 
     lsberrno = lsfHeader.opCode;
 
@@ -498,7 +473,6 @@ char *
 lsb_jobid2str (LS_LONG_INT jobId)
 {
     static  char string[32];
-
 
     if (LSB_ARRAY_IDX(jobId) == 0) {
         sprintf(string, "%d",  LSB_ARRAY_JOBID(jobId));

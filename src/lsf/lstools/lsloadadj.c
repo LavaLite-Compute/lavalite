@@ -25,8 +25,6 @@ static void usage(char *);
 extern int  optind, opterr;
 extern char *optarg;
 
-#define NL_SETN 27
-
 int
 main(int argc, char **argv)
 {
@@ -36,8 +34,6 @@ main(int argc, char **argv)
     char *p, *hname;
     int cc = 0;
     int achar;
-
-    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -67,8 +63,7 @@ main(int argc, char **argv)
     {
         if (cc >= MAXLISTSIZE)
         {
-            fprintf(stderr,
-                    _i18n_msg_get(ls_catd,NL_SETN,1951, "%s: too many hostnames (maximum %d)\n"), /* catgets  1951  */
+            fprintf(stderr, "%s: too many hostnames (maximum %d\n",
                     fname, MAXLISTSIZE);
             usage(argv[0]);
         }
@@ -78,8 +73,7 @@ main(int argc, char **argv)
             *p++ = '\0';
             placeadvice[cc].numtask = atoi(p);
             if (errno == ERANGE) {
-                fprintf(stderr,
-                        _i18n_msg_get(ls_catd,NL_SETN,1952, "%s: invalid format for number of components\n"), /* catgets 1952 */
+                fprintf(stderr, "%s: invalid format for number of components\n",
                         fname);
                 usage(argv[0]);
             }
@@ -90,7 +84,7 @@ main(int argc, char **argv)
         if (!isValidHost_(argv[optind]))
         {
             fprintf(stderr, "%s: %s %s\n",
-                    fname,  I18N(1953,  "invalid hostname"),/* catgets  1953  */
+                    fname,  "invalid hostname",
                     argv[optind]);
             usage(argv[0]);
         }
@@ -112,10 +106,6 @@ main(int argc, char **argv)
         ls_perror("lsloadadj");
         exit(-1);
     } else
-
-
-        _i18n_end ( ls_catd );
-
     exit(0);
 }
 

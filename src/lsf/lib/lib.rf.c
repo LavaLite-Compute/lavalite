@@ -77,9 +77,6 @@ rhConnect(char *host)
         return rh;
     }
 
-
-
-
     argv[0] = RF_SERVERD;
     argv[1] = NULL;
     if ((tid = ls_rtask(host, argv, REXF_TASKPORT | rxFlags)) < 0) {
@@ -88,10 +85,6 @@ rhConnect(char *host)
 
     if ((sock = ls_conntaskport(tid)) < 0)
         return NULL;
-
-
-
-
 
     if ((hname = putstr_(officialHostNameBuf)) == NULL) {
         closesocket(sock);
@@ -168,7 +161,6 @@ rhFind(char *host)
     return NULL;
 }
 
-
 int
 ls_ropen(char *host, char *fn, int flags, int mode)
 {
@@ -177,7 +169,6 @@ ls_ropen(char *host, char *fn, int flags, int mode)
     struct LSFHeader hdr;
     struct rHosts *rh;
     int fd, i;
-
 
     if ((rh = rhConnect(host)) == NULL)
         return -1;
@@ -274,7 +265,6 @@ ls_rclose(int fd)
     return 0;
 }
 
-
 int
 ls_rwrite(int fd, char *buf, int len)
 {
@@ -322,7 +312,6 @@ ls_rwrite(int fd, char *buf, int len)
     return hdr.length;
 }
 
-
 int
 ls_rread(int fd, char *buf, int len)
 {
@@ -369,7 +358,6 @@ ls_rread(int fd, char *buf, int len)
     return hdr.length;
 }
 
-
 off_t
 ls_rlseek(int fd, off_t offset, int whence)
 {
@@ -412,7 +400,6 @@ ls_rlseek(int fd, off_t offset, int whence)
     return (off_t) hdr.length;
 }
 
-
 int
 ls_rfstat(int fd, struct stat *st)
 {
@@ -449,7 +436,6 @@ ls_rfstat(int fd, struct stat *st)
 
     return 0;
 }
-
 
 int
 ls_rfcontrol(int command, int arg)
@@ -519,7 +505,6 @@ int rhTerminate(char *host)
     return -1;
 }
 
-
 int
 ls_rstat(char *host, char *fn, struct stat *st)
 {
@@ -543,7 +528,6 @@ ls_rstat(char *host, char *fn, struct stat *st)
                    (char *) st, xdr_stat, SOCK_READ_FIX) < 0) {
         return -1;
     }
-
 
     if (hdr.opCode < 0) {
         // errno = errnoDecode_(abs(hdr.opCode));
@@ -599,7 +583,6 @@ int ls_conntaskport(int rpid)
     struct sockaddr_in sin;
     int resTimeout;
     socklen_t slen = sizeof(sin);
-
 
     if (genParams_[LSF_RES_TIMEOUT].paramValue)
         resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);

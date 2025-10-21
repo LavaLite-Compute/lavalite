@@ -17,7 +17,6 @@
  *
  */
 
-
 #include "lsf/intlib/common.h"
 #include "lsf/lib/lproto.h"
 
@@ -118,9 +117,6 @@ getBEtime (char *toptarg, char flag, time_t tTime[])
         break;
     }
 
-
-
-
     if ( (*toptarg == '.' && *(toptarg+1) == '\0') || (*toptarg == '\0')) {
         tTime[1] = time(0);
         if (checkBEtime ( tTime[0], tTime[1] ) == -1) {
@@ -195,7 +191,6 @@ checkBEtime (time_t Btime, time_t Etime)
 
 }
 
-
 static int
 getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
           *Ptime)
@@ -210,8 +205,6 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
     time_t ptimev;
     struct tm *tmPtr;
     int  ptimef = 0, m, tempInt;
-
-
 
     if ( ! checkChar (toptarg, &cp)) {
         lserrno = LSE_BAD_TIME;
@@ -249,9 +242,6 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
         return -1;
     }
 
-
-
-
     if (flag == 'w') {
         tmPtr = malloc (sizeof (struct tm));
         tmPtr->tm_year = 70;
@@ -266,9 +256,6 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
     }
     tmPtr->tm_sec = 0;
     tmPtr->tm_isdst = -1;
-
-
-
 
     cp = cp1;
 
@@ -571,14 +558,10 @@ getPtime (char *toptarg, char endTime, time_t sbtime, char flag, time_t
         }
     }
 
-
-
     checkThree (toptarg, '/', &cp1, &cp2, &cp3);
     if ( (cp != NULL) && (cp1 == toptarg) && (cp2 == NULL)) {
         toptarg +=1;
     }
-
-
 
     if ( toptarg[0] == ':' ) {
         ptimef |= MINU;
@@ -708,7 +691,6 @@ mkTime (struct tm *tmPtr, int itimef, time_t sbtime)
     return timeVal;
 }
 
-
 static int
 checkYear(int *year)
 {
@@ -720,7 +702,6 @@ checkYear(int *year)
     }
     return 0;
 }
-
 
 static int
 checkTime(int type, int time)
@@ -742,7 +723,6 @@ checkTime(int type, int time)
     lserrno = LSE_BAD_TIME;
     return -1;
 }
-
 
 static time_t
 getToday (char endTime)

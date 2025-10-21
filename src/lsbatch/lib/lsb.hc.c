@@ -30,7 +30,6 @@ lsb_hostcontrol (char *host, int opCode)
     struct LSFHeader hdr;
     struct lsfAuth auth;
 
-
     if (hostControlReq.name == NULL) {
         hostControlReq.name = (char *) malloc (MAXHOSTNAMELEN);
         if (hostControlReq.name == NULL) {
@@ -75,10 +74,8 @@ lsb_hostcontrol (char *host, int opCode)
         break;
     }
 
-
     if (authTicketTokens_(&auth, contactHost) == -1)
         return -1;
-
 
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
@@ -100,7 +97,6 @@ lsb_hostcontrol (char *host, int opCode)
                            &hdr, NULL, NULL, NULL)) == -1)
             return -1;
     }
-
 
     lsberrno = hdr.opCode;
     if (cc)

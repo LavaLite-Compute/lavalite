@@ -93,7 +93,6 @@ unsigned char *yysptr, yysbuf[];
 #include "../lib/lsi18n.h"
 
 #define MAXTOKENLEN 302
-#define NL_SETN      22
 
 typedef struct stream Stream;
         struct stream { char *buf, *bp; Stream * prev; };
@@ -236,8 +235,6 @@ static struct rwtable {
 	 {"zzzz",  	(SZZZZ)}
 };
 
-
-
 struct rwtable *END(low)
 struct rwtable *low;
 { int c ;
@@ -294,7 +291,6 @@ int yylex;
     strcpy(token, (char *)yytext) ;
 }
 
-
 int yymark(void)
 {
   if (source)
@@ -317,8 +313,6 @@ void idxerror(s)
         yylineno =1;
         yparseFail(&idxAllocHead);
 }
-
-
 
 int yywhere(sptr)
 char *sptr;
@@ -386,7 +380,6 @@ static int getbufc(void)
     return(*yybuff++);
 }
 
-
 void *
 yyalloc(struct mallocList  **head, int size)
 {
@@ -406,8 +399,6 @@ yyalloc(struct mallocList  **head, int size)
     };
     return space;
 }
-
-
 
 void
 yyfree_custome(struct mallocList  **head, void *space)
@@ -460,7 +451,6 @@ yparseFail(struct mallocList  **head)
     return;
 }
 
-
 int
 checkNameSpec(char *name, char **errMsg )
 {
@@ -474,38 +464,31 @@ checkNameSpec(char *name, char **errMsg )
     if ( lexCode != NAME) {
         if (lexCode == UNDEF)
             sprintf(bufMess,
-		    _i18n_msg_get(ls_catd, NL_SETN, 350,
-					   "Name is invalid: \"%s\""), /* catgets 350 */
+		    "Name is invalid: \"%s\"",
 		    name);
         else if (lexCode == ICON || lexCode == RCON)
             sprintf(bufMess,
-		    _i18n_msg_get(ls_catd, NL_SETN, 351,
-					   "Name cannot start with digits: \"%s\""), /* catgets 351 */
+		    "Name cannot start with digits: \"%s\"",
 		    name);
         else if (lexCode == CCON)
             sprintf(bufMess,
-		    _i18n_msg_get(ls_catd, NL_SETN, 352,
-					   "Name cannot be const string: \"%s\""), /* catgets 352 */
+		    "Name cannot be const string: \"%s\"",
 		    name);
         else if (MON <= lexCode && lexCode <= SUN)
             sprintf(bufMess,
-		    _i18n_msg_get(ls_catd, NL_SETN, 353,
-					   "Name cannot be name of week: \"%s\""), /* catgets 353 */
+		    "Name cannot be name of week: \"%s\"",
 		    name);
         else if (JAN <= lexCode && lexCode <= DEC)
             sprintf(bufMess,
-		    _i18n_msg_get(ls_catd, NL_SETN, 354,
-					   "Name cannot be name of month: \"%s\""), /* catgets 354 */
+		    "Name cannot be name of month: \"%s\"",
 		    name);
         else if (YY <= lexCode && lexCode <= SZZZZ)
             sprintf(bufMess,
-		    _i18n_msg_get(ls_catd, NL_SETN, 355,
-					   "Name cannot be reserved word: \"%s\""), /* catgets 355 */
+		    "Name cannot be reserved word: \"%s\"",
 		    name);
         else
             sprintf(bufMess,
-		    _i18n_msg_get(ls_catd, NL_SETN, 350,
-					   "Name is invalid: \"%s\""), name);
+		    "Name is invalid: \"%s\"", name);
         retVal = 0;
         goto Exit;
     }
@@ -515,8 +498,7 @@ checkNameSpec(char *name, char **errMsg )
             lexCode = yylex();
             if (lexCode != NAME) {
                 sprintf(bufMess,
-			_i18n_msg_get(ls_catd, NL_SETN, 357,
-					       "User name is wrong: \"%s\""), /* catgets 357 */
+			"User name is wrong: \"%s\"",
 			token);
                 retVal = 0;
                 goto Exit;
@@ -525,8 +507,7 @@ checkNameSpec(char *name, char **errMsg )
         }
         if (lexCode > 0 ) {
            sprintf(bufMess,
-		   _i18n_msg_get(ls_catd, NL_SETN, 350,
-					  "Name is invalid: \"%s\""), name);
+		   "Name is invalid: \"%s\"", name);
            retVal = 0;
            goto Exit;
         }

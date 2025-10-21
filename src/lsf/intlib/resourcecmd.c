@@ -19,15 +19,12 @@
 #include "lsf/intlib/common.h"
 #include "lsf/lib/lproto.h"
 
-#define NL_SETN      22
-
 static void prtOneInstance (char *, struct lsSharedResourceInstance *);
 static int makeShare(char *, char ***, char ***, char ***,
                      int (*)(struct resItem *));
 static int isStaticSharedResource(struct resItem *);
 static int isDynamicSharedResource(struct resItem *);
 static void prtTableHeader();
-
 
 int
 getResourceNames (int argc, char **argv, int optind, char **resourceNames)
@@ -52,7 +49,6 @@ getResourceNames (int argc, char **argv, int optind, char **resourceNames)
     }
     return numNames;
 }
-
 
 void
 displayShareResource(int argc, char **argv, int index, int flag, int extflag)
@@ -88,12 +84,9 @@ displayShareResource(int argc, char **argv, int index, int flag, int extflag)
         exit(-1);
     }
 
-
-
     for (k = 0; k < numRes; k++) {
 
         for (i = 0; i < lsResourceInfo[k].nInstances; i++)  {
-
 
             for (j = 0; j < lsInfo->nRes; j++) {
 
@@ -130,11 +123,9 @@ displayShareResource(int argc, char **argv, int index, int flag, int extflag)
     }
     if (firstFlag){
         if (flag)
-            printf(_i18n_msg_get(ls_catd, NL_SETN, 753,
-                                 "No static shared resources defined \n")); /* catgets 753 */
+            printf("No static shared resources defined \n");
         else
-            printf(_i18n_msg_get(ls_catd, NL_SETN, 754,
-                                 "No dynamic shared resources defined \n"));  /* catgets 754 */
+            printf("No dynamic shared resources defined \n");
     }
     FREEUP(resourceNames);
 }
@@ -144,13 +135,10 @@ prtTableHeader()
 {
     char *res, *val, *loc;
 
-    res = putstr_(_i18n_msg_get(ls_catd, NL_SETN, 750,
-                                "RESOURCE")); /* catgets 750 */
-    val = putstr_(_i18n_msg_get(ls_catd, NL_SETN, 751,
-                                "VALUE"));   /* catgets 751 */
+    res = putstr_("RESOURCE");
+    val = putstr_("VALUE");
 
-    loc = putstr_(_i18n_msg_get(ls_catd, NL_SETN, 752,
-                                "LOCATION")); /* catgets 752 */
+    loc = putstr_("LOCATION");
 
     if (res == NULL || val == NULL || loc == NULL) {
         printf(I18N_FUNC_FAIL_M, "prtTableHeader", "putstr_");

@@ -41,7 +41,6 @@ collectFreeSet()
     FreeSet = NULL;
 }
 
-
 int
 listSetEqual(struct listSet *set1, struct listSet *set2)
 {
@@ -88,8 +87,6 @@ listSetUnion(struct listSet *set1, struct listSet *set2)
     return setHead;
 
 }
-
-
 
 struct listSet *
 listSetIntersect(struct listSet *set1, struct listSet *set2)
@@ -170,7 +167,6 @@ struct listSet *
 listSetInsert(int elem, struct listSet *set)
 {
     struct listSet *ptr, *ptmp;
-
 
     if (listSetIn(elem, set))
         return set;

@@ -32,7 +32,6 @@ struct indexFmt {
     char *expFmt;
 };
 
-
 struct indexFmt fmt[] = {
     { "r15s", "%6s", "*%4.1", "%5.1", 1.0 ,  6, "f",   "g"},
     { "r1m",  "%6s", "*%4.1", "%5.1", 1.0,   6, "f",   "g" },
@@ -64,7 +63,6 @@ struct indexFmt widefmt[] = {
     { "dflt", "%14s", "*%6.1", "%6.1", 1.0,   13, "f",   "g" },
     {  NULL,  "%14s", "*%6.1", "%6.1", 1.0,   13, "f",   "g" }
 };
-
 
 #define DEFAULT_FMT  11
 
@@ -136,7 +134,6 @@ formatHeader(char **dispindex, char longformat)
     return line;
 }
 
-
 char *
 wideformatHeader(char **dispindex, char longformat)
 {
@@ -185,7 +182,6 @@ wideformatHeader(char **dispindex, char longformat)
     return line;
 }
 
-
 char *
 stripSpaces(char *field)
 {
@@ -195,7 +191,6 @@ stripSpaces(char *field)
     cp = field;
     while (*cp == ' ')
         cp++;
-
 
     if (*cp == '*') {
         sp = cp;
@@ -208,7 +203,6 @@ stripSpaces(char *field)
         cp = np;
     }
 
-
     len = strlen(field);
     i = len - 1;
     while((i > 0) && (field[i] == ' '))
@@ -218,7 +212,6 @@ stripSpaces(char *field)
 
     return cp;
 }
-
 
 char **
 filterToNames(char *filter)
@@ -299,7 +292,6 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
             }
             sp = stripSpaces(tmpfield);
 
-
             if (strlen(sp) > fmt[id].dispLen) {
                 if (host->li[j] > 1024)
                     sprintf(fmtField, "%s%s", firstFmt, fmt[id].expFmt);
@@ -331,7 +323,6 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
     return nf;
 }
 
-
 int
 makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
 {
@@ -349,7 +340,6 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
         if (loadval[j-1] == NULL)
             ls_perror("calloc()");
     }
-
 
     nf = 0;
     for(j = 0; dispindex[j]; j++, nf++) {
@@ -373,7 +363,6 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
                 sprintf(tmpfield, fmtField, host->li[j] * widefmt[id].scale);
             }
             sp = stripSpaces(tmpfield);
-
 
             if (strlen(sp) > widefmt[id].dispLen) {
                 if (host->li[j] > 1024)

@@ -108,12 +108,12 @@ prtBETime (struct submit req)
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if (req.beginTime) {
-        strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.beginTime ));
+        strcpy( sp, ctime2(&req.beginTime));
         fprintf(stderr, "%s %s\n",
 	    ("Job will be scheduled after"), sp);
     }
     if (req.termTime) {
-        strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.termTime ));
+        strcpy( sp, ctime2(&req.termTime));
         fprintf(stderr, "%s %s\n",
 	    ("Job will be terminated by"), sp);
     }

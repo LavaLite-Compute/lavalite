@@ -21,7 +21,7 @@
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-deraH] [-h] [-V] [-u user_name | -u all]\n", cmd);
     fprintf(stderr, "                [-J name_spec] [jobId | \"jobId[idxList]\" ...]\n ");
     exit(-1);
@@ -142,7 +142,7 @@ main (int argc, char **argv)
        reqJob.jobId = jobIds[i] ;
        if (lsb_requeuejob(&reqJob) < 0 ) {
 	    exitrc = -1;
-	    sprintf (Job,"%s <%s> ", I18N_Job, lsb_jobid2str(jobIds[i]));
+	    sprintf (Job,"%s <%s> ", "Job", lsb_jobid2str(jobIds[i]));
             lsb_perror(Job);
 	}
 	else {

@@ -218,7 +218,7 @@ main (int argc, char **argv)
         default:
             fprintf(stderr,
                     "%s: mbatchd [-h] [-V] [-C] [-d env_dir] [-1 |-2]\n",
-                    I18N_Usage);
+                    "Usage");
             exit(1);
         }
     }

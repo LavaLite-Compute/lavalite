@@ -17,11 +17,9 @@
  *
  */
 
-
 #include "lsf/intlib/common.h"
 #include "lsf/intlib/intlibout.h"
 
-#define NL_SETN      22
 static int parse_time (char *word, float *hour, int *day);
 static windows_t * new_wind (void);
 static int mergeW (windows_t *wp, float ohour, float chour);
@@ -44,8 +42,7 @@ addWindow (
     sp = strchr(wordpair, '-');
     if (!sp) {
         ls_syslog(LOG_ERR,
-		  _i18n_msg_get(ls_catd, NL_SETN, 5850,
-				"Bad time expression in %s"),/* catgets 5850 */
+		  "Bad time expression in %s",
 		  context);
         return -1;
     }
@@ -56,8 +53,7 @@ addWindow (
 
     if (parse_time(word, &chour, &cday) < 0) {
         ls_syslog(LOG_ERR,
-		  _i18n_msg_get(ls_catd, NL_SETN, 5850,
-				"Bad time expression in %s"),
+		  "Bad time expression in %s",
 		  context);
         return -1;
     }
@@ -66,17 +62,14 @@ addWindow (
 
     if (parse_time(word, &ohour, &oday) < 0) {
         ls_syslog(LOG_ERR,
-		  _i18n_msg_get(ls_catd, NL_SETN, 5850,
-				"Bad time expression in %s"),
+		  "Bad time expression in %s",
 		  context);
         return -1;
     }
 
-
     if (((oday && cday) == 0) && (oday != cday)) {
         ls_syslog(LOG_ERR,
-		  _i18n_msg_get(ls_catd, NL_SETN, 5851,
-				"Ambiguous time in %s"),/* catgets 5851 */
+		  "Ambiguous time in %s",
 		  context);
         return -1;
     }
@@ -99,7 +92,6 @@ addWindow (
 
                 insertW(&week[i], oHourTd, cHourTd);
 
-
                  insertW(&week[i], oHourNd, cHourNd);
             }
         }
@@ -111,8 +103,7 @@ addWindow (
 
         if (ohour > chour) {
             ls_syslog(LOG_ERR,
-                      _i18n_msg_get(ls_catd, NL_SETN, 5851,
-                                    "Ambiguous time in %s"),/* catgets 5851 */
+                      "Ambiguous time in %s",
                       context);
             return -1;
         }
@@ -186,7 +177,6 @@ insertW (windows_t **window, float ohour, float chour)
 	}
     }
 
-
     if (ohour < chour) {
 	    wp->opentime = ohour;
         wp->closetime = chour;
@@ -202,24 +192,20 @@ mergeW (windows_t *wp, float ohour, float chour)
     if ((wp->opentime == -1.0) && (wp->closetime == 25.0))
         return true;
 
-
     if ((ohour == -1.0) && (chour == 25.0)) {
         wp->opentime = -1.0;
         wp->closetime = 25.0;
         return true;
     }
 
-
     if ((ohour == 25.0) && (chour == 25.0)) {
         return true;
     }
-
 
     if (ohour >= chour) {
 
         return true;
     }
-
 
     if ((wp->opentime == 25.0) && (wp->closetime == 25.0)) {
         wp->opentime = ohour;
@@ -227,15 +213,8 @@ mergeW (windows_t *wp, float ohour, float chour)
         return true;
     }
 
-
     ohour = (ohour <= 0.0) ? -1.0 : ohour;
     chour = (chour >= 24.0) ? 25.0 : chour;
-
-
-
-
-
-
 
     if (!(wp->opentime > chour) && !(ohour > wp->closetime)) {
         wp->opentime = MIN(ohour, wp->opentime);
@@ -245,8 +224,6 @@ mergeW (windows_t *wp, float ohour, float chour)
 
     return false;
 }
-
-
 
 void
 checkWindow (struct dayhour *dayhour, char *active, time_t *wind_edge, windows_t *wp, time_t now)
@@ -258,16 +235,12 @@ checkWindow (struct dayhour *dayhour, char *active, time_t *wind_edge, windows_t
     if (logclass & (LC_TRACE | LC_SCHED))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
-
     if (dayhour->hour >= wp->opentime && dayhour->hour < wp->closetime) {
         *active = true;
         tmp_edge = now + (wp->closetime - dayhour->hour) * 3600;
         if (tmp_edge < *wind_edge)
             *wind_edge = tmp_edge;
     } else {
-
-
-
 
         tmp_time = MIN(wp->opentime, 24.0);
         tmp_edge = now + (tmp_time - dayhour->hour) * 3600;
@@ -293,7 +266,6 @@ new_wind (void)
    return wp;
 }
 
-
 void
 delWindow (windows_t *wp)
 {
@@ -312,7 +284,6 @@ delWindow (windows_t *wp)
    return;
 
 }
-
 
 static int
 parse_time (char *word, float *hour, int *day)

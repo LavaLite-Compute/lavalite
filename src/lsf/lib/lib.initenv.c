@@ -19,7 +19,6 @@
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.channel.h"
 
-#define NL_SETN   23
 struct config_param genParams_[] =
 {
     {"LSF_CONFDIR", NULL},
@@ -265,7 +264,6 @@ readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *co
 
     return 0;
 }
-
 
 static int
 parseLine(char *line, char **keyPtr, char **valuePtr)

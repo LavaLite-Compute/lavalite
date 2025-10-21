@@ -76,7 +76,6 @@ xdr_decisionReq(XDR *xdrs, struct decisionReq *decisionReqPtr,
     char *sp1 = decisionReqPtr->hostType;
     char *sp2 = decisionReqPtr->resReq;
 
-
     if (xdrs->x_op == XDR_DECODE) {
 	decisionReqPtr->resReq[0] = '\0';
 	decisionReqPtr->hostType[0] = '\0';
@@ -90,7 +89,6 @@ xdr_decisionReq(XDR *xdrs, struct decisionReq *decisionReqPtr,
         xdr_int(xdrs, &decisionReqPtr->numPrefs))) {
         return false;
     }
-
 
     if (xdrs->x_op == XDR_DECODE) {
 	decisionReqPtr->preferredHosts =
@@ -130,7 +128,6 @@ xdr_placeReply(XDR *xdrs, struct placeReply *placeRepPtr, struct LSFHeader *hdr)
         memp = (char *) placeRepPtr->placeInfo;
     }
 
-
     for (i = 0; i < placeRepPtr->numHosts; i++) {
         status= xdr_arrayElement(xdrs,
 			 (char *)&placeRepPtr->placeInfo[i],
@@ -166,8 +163,6 @@ xdr_loadReply(XDR *xdrs, struct loadReply *loadReplyPtr, struct LSFHeader *hdr)
             loadReplyPtr->indicies=
               (char **)malloc(sizeof(char *)*(loadReplyPtr->nIndex+1));
 
-
-
         hlSize   = ALIGNWORD_(loadReplyPtr->nEntry * sizeof(struct hostLoad));
         vecSize  = loadReplyPtr->nIndex * sizeof(float);
         matSize  = ALIGNWORD_((loadReplyPtr->nEntry + 1) * vecSize);
@@ -200,7 +195,6 @@ xdr_loadReply(XDR *xdrs, struct loadReply *loadReplyPtr, struct LSFHeader *hdr)
             return false;
     }
     loadReplyPtr->indicies[i] = NULL;
-
 
     for (i = 0; i < loadReplyPtr->nEntry; i++) {
         status = xdr_arrayElement(xdrs,
@@ -248,7 +242,6 @@ xdr_jobXfer(XDR *xdrs, struct jobXfer *jobXferPtr, struct LSFHeader *hdr)
         }
         memp = (char *) jobXferPtr->placeInfo;
     }
-
 
     for (i = 0; i < jobXferPtr->numHosts; i++) {
         status= xdr_arrayElement(xdrs,
@@ -319,9 +312,6 @@ xdr_hostInfoReply(XDR *xdrs, struct hostInfoReply *hostInfoReply,
 	}
     }
 
-
-
-
     for (i=0; i<hostInfoReply->nHost;i++)  {
         if (!xdr_int(xdrs, &(hostInfoReply->hostMatrix[i].maxMem))) {
             if (xdrs->x_op == XDR_DECODE)
@@ -387,7 +377,6 @@ char *nIndex)
             !xdr_int(xdrs, &shortHInfo->resClass))
         return false;
 
-
     if ((xdrs->x_op == XDR_ENCODE) && (shortHInfo->windows[0] != '-')) {
         sp1 = shortHInfo->windows;
         if (!xdr_string(xdrs, &sp1, MAXLINELEN))
@@ -444,7 +433,6 @@ xdr_shortLsInfo( XDR *xdrs, struct shortLsInfo *shortLInfo, struct LSFHeader *hd
     int i;
     static char *memp, *currp;
     char *sp;
-
 
     if (!xdr_int(xdrs, &shortLInfo->nRes) ||
         !xdr_int(xdrs, &shortLInfo->nTypes) ||
@@ -621,7 +609,6 @@ xdr_lsInfo(XDR *xdrs, struct lsInfo *lsInfoPtr, struct LSFHeader *hdr)
             return false;
 	}
 
-
     for (i = 0; i < lsInfoPtr->nModels; ++i) {
         sp = lsInfoPtr->hostArchs[i];
 	if (xdrs->x_op == XDR_DECODE)
@@ -725,11 +712,9 @@ xdr_clusterInfoReply(XDR *xdrs, struct clusterInfoReply *clusterInfoReply,
     if (!xdr_int(xdrs, &clusterInfoReply->nClus))
 	return false;
 
-
      if (!xdr_arrayElement(xdrs, (char *)clusterInfoReply->shortLsInfo,
 	   hdr, xdr_shortLsInfo))
         return false;
-
 
     if (xdrs->x_op == XDR_DECODE) {
         if (memp)
@@ -865,7 +850,6 @@ xdr_shortCInfo(XDR *xdrs, struct shortCInfo *clustInfoPtr, struct LSFHeader *hdr
         }
     }
 
-
     for (i = 0;  (i < clustInfoPtr->nTypes && i < GET_INTNUM(clustInfoPtr->nTypes)); i++) {
         if (!(xdr_int(xdrs, &clustInfoPtr->hostTypeBitMaps[i])))
 	    return false;
@@ -893,7 +877,6 @@ xdr_shortCInfo(XDR *xdrs, struct shortCInfo *clustInfoPtr, struct LSFHeader *hdr
 bool_t
 xdr_cInfo(XDR *xdrs, struct cInfo *cInfo, struct LSFHeader *hdr)
 {
-
 
     char *sp1, *sp2, *sp3;
     int i;
@@ -992,7 +975,6 @@ xdr_cInfo(XDR *xdrs, struct cInfo *cInfo, struct LSFHeader *hdr)
         }
     }
 
-
     for (i = 0;  (i < cInfo->nTypes && i < GET_INTNUM(cInfo->nTypes)); i++) {
         if (!(xdr_int(xdrs, &cInfo->hostTypeBitMaps[i])))
 	    return false;
@@ -1022,8 +1004,6 @@ xdr_resourceInfoReq(XDR *xdrs, struct  resourceInfoReq *resourceInfoReq,
 			   struct LSFHeader *hdr)
 {
     int i;
-
-
 
     if (xdrs->x_op == XDR_DECODE) {
 	resourceInfoReq->hostName = NULL;
@@ -1064,7 +1044,6 @@ xdr_resourceInfoReply(XDR *xdrs, struct  resourceInfoReply *resourceInfoReply,
 			   struct LSFHeader *hdr)
 {
     int i, status;
-
 
     if (xdrs->x_op == XDR_DECODE) {
 	resourceInfoReply->numResources = 0;

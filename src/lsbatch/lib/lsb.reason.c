@@ -19,8 +19,6 @@
 
 #include "lsbatch/lib/lsb.h"
 
-#define   NL_SETN     13
-
 static char msgbuf[MSGSIZE];
 char msgline[MAXLINELEN];
 struct msgMap {
@@ -49,8 +47,6 @@ struct susp_msg_map {
     const char *msg;
 };
 
-
-
 char *
 lsb_suspreason(int reasons, int subreasons, struct loadIndexLog *ld)
 {
@@ -60,7 +56,6 @@ lsb_suspreason(int reasons, int subreasons, struct loadIndexLog *ld)
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: reasons=%x, subreasons=%d",
                 fname, reasons, subreasons);
-
 
     if (reasons & SUSP_USER_STOP)
         sprintf(msgbuf, " The job was suspended by user;\n");
@@ -123,11 +118,9 @@ lsb_suspreason(int reasons, int subreasons, struct loadIndexLog *ld)
         else if (subreasons & SUB_REASON_PROCESSLIMIT)
             sprintf(msgbuf, " PROCESSLIMIT was reached;\n");
         else if (subreasons & SUB_REASON_CPULIMIT)
-            sprintf(msgbuf, I18N(529,
-                        " CPULIMIT was reached;\n"));
+            sprintf(msgbuf, " CPULIMIT was reached;\n");
         else if (subreasons & SUB_REASON_MEMLIMIT)
-            sprintf(msgbuf, I18N(530,
-                        " MEMLIMIT was reached;\n"));
+            sprintf(msgbuf, " MEMLIMIT was reached;\n");
     } else
         sprintf (msgbuf, " Unknown suspending reason code: %d\n", reasons);
 
@@ -456,7 +449,6 @@ lsb_pendreason(int numReasons, int *rsTb, struct jobInfoHead *jInfoH,
 
     return retMsg;
 }
-
 
 static void
 userIndexReasons(char                  *msgline,

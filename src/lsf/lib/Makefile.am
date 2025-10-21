@@ -24,7 +24,6 @@ libll_la_SOURCES = lib.channel.c \
 	lib.esub.c \
 	lib.hosta.c \
 	lib.host.c \
-	lib.i18n.c \
 	lib.info.c \
 	lib.init.c \
 	lib.initenv.c \

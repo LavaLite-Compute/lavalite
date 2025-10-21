@@ -19,8 +19,6 @@
 
 #include "lsf/lim/lim.h"
 
-#define NL_SETN     24
-
 #define UNIX_KERNEL_EXE_FILE  "/vmlinux"
 
 #define  CPUSTATES 4
@@ -29,7 +27,6 @@
 static char buffer[MSGSIZE];
 static long long int main_mem, free_mem, shared_mem, buf_mem, cashed_mem;
 static long long int swap_mem, free_swap;
-
 
 #define nonuser(ut) ((ut).ut_type != USER_PROCESS)
 
@@ -91,7 +88,6 @@ unsigned int HTSupported(void)
     __asm__("cpuid" : "=a" (reg_eax), "=b"(junk), "=c"(junk1),
                                                    "=d" (reg_edx) : "a" (1));
 
-
    if ((reg_eax & FAMILY_ID) !=  PENTIUM4_ID) {
        ls_syslog(LOG_DEBUG,"Not a P4 processor");
        return 0;
@@ -102,10 +98,8 @@ unsigned int HTSupported(void)
         return 0;
     }
 
-
     __asm__("cpuid" : "=a"(junk) , "=b"(reg_ebx), "=c"(junk1),
                                                     "=d"(junk2)  : "a" (1));
-
 
     log_cpu_cnt =  (unsigned char) ((reg_ebx & NUM_LOG_BITS) >> 16);
     ls_syslog(LOG_DEBUG,"Log_cpu_cnt = %d", log_cpu_cnt);
@@ -125,7 +119,6 @@ int ht_os_cpus()
     int n, i ;
     int len = strlen(HT_TEXT);
     int cpu_cnt=0;
-
 
     n = klogctl( 3, buf, BUF_SIZE );
 
@@ -206,13 +199,9 @@ numCpus(void)
     if((fp=fopen("/proc/cpuinfo","r"))==NULL) {
     ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen",
         "/proc/cpuinfo");
-    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 6601,
-        "%s: assuming one CPU only"), fname); /* catgets 6601 */
+    ls_syslog(LOG_ERR, "%s: assuming one CPU only", fname);
     return 1;
     }
-
-
-
 
  #if defined(__alpha)
     while (fgets(buffer, sizeof(buffer), fp) != NULL) {
@@ -264,7 +253,6 @@ numCpus(void)
         cpu_number = cpu_number/ret;
     }
 
-
 #endif
 
     fclose(fp);
@@ -300,7 +288,6 @@ queueLengthEx(float *r15s, float *r1m, float *r15m)
     ls_syslog(LOG_ERR,"%s: %m", fname);
     return -1;
   }
-
 
   *r15s = (float)queueLength();
   *r1m  = (float)loadave[0];
@@ -388,7 +375,6 @@ cpuTime (double *itime, double *etime)
     sscanf( buffer, "cpu  %lf %lf %lf %lf",
     &cpu_user, &cpu_nice, &cpu_sys, &cpu_idle );
 
-
     *itime = (cpu_idle - prev_idle);
     prev_idle = cpu_idle;
 
@@ -428,8 +414,6 @@ tmpspace(void)
     static int tmpcnt;
     struct statfs fs;
 
-
-
     if ( tmpcnt >= TMP_INTVL_CNT )
     tmpcnt = 0;
 
@@ -456,7 +440,6 @@ getswap(void)
 {
     static short tmpcnt;
     static float swap;
-
 
     if ( tmpcnt >= SWP_INTVL_CNT )
     tmpcnt = 0;
@@ -546,7 +529,6 @@ readMeminfo(void)
         return -1;
     }
 
-
     while (fgets(lineBuffer, sizeof(lineBuffer), f)) {
 
         if (sscanf(lineBuffer, "%s %lld kB", tag, &value) != 2)
@@ -590,7 +572,6 @@ initReadLoad(int checkMode, int *kernelPerm)
     if (checkMode)
     return;
 
-
     if (statfs( "/tmp", &fs ) < 0) {
     ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "statfs",
         "/tmp");
@@ -598,8 +579,6 @@ initReadLoad(int checkMode, int *kernelPerm)
     } else
         myHostPtr->statInfo.maxTmp =
         (float)fs.f_blocks/((float)(1024 * 1024)/fs.f_bsize);
-
-
 
     stat_fd = open("/proc/stat", O_RDONLY, 0);
     if ( stat_fd == -1 ) {
@@ -625,21 +604,16 @@ initReadLoad(int checkMode, int *kernelPerm)
     prev_idle = prev_cpu_idle;
     prev_time = prev_cpu_user + prev_cpu_nice + prev_cpu_sys + prev_cpu_idle;
 
-
     if (readMeminfo() == -1)
     return;
     maxmem = main_mem / 1024;
     maxSwap = swap_mem / 1024;
 
-
-
     if (maxmem < 0.0)
         maxmem = 0.0;
     myHostPtr->statInfo.maxMem = maxmem;
 
-
     myHostPtr->statInfo.maxSwap = maxSwap;
-
 
 }
 
@@ -714,7 +688,6 @@ static int getPage(double *page_in, double *page_out,bool_t isPaging)
            "/proc/vmstat");
         return -1;
     }
-
 
     while (fgets(lineBuffer, sizeof(lineBuffer), f)) {
 

@@ -24,9 +24,7 @@
 #include <unistd.h>
 #include "lsf/intlib/libllcore.h"
 
-
 #ifdef BROKEN_WAIT3
-
 
 int
 wait3TmpFix_(LS_WAIT_T *status, int options, struct rusage *rusage)
@@ -54,7 +52,6 @@ wait3TmpFix_(LS_WAIT_T *status, int options, struct rusage *rusage)
     rusage->ru_stime.tv_sec = s;
     rusage->ru_stime.tv_usec = (s - (float) rusage->ru_stime.tv_sec) *
 	1000000.0;
-
 
     return pid;
 }

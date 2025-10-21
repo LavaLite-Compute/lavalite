@@ -709,6 +709,32 @@ struct jRusage {
 
 #define LSDEVNULL       "/dev/null"
 
+typedef enum {
+    LL_OK = 0,            // success
+    LL_EINVAL,            // invalid argument
+    LL_ENOENTQ,           // queue not found
+    LL_ENOENTH,           // host not found
+    LL_EPERM_POLICY,      // rejected by policy
+    LL_EJOB_NOTFOUND,     // job not found
+    LL_EJOB_ARRAY,        // invalid job array
+    LL_ERES_BADREQ,       // bad resource request
+    LL_ERES_UNAVAILABLE,  // not enough resources
+    LL_ESYSCALL,          // a system call failed (check ll_syserr())
+    LL_ERR_COUNT          // sentinel value
+} ll_err_t;
+
+// Bugs todo header
+extern __thread ll_err_t ll_errno;
+
+void  ll_seterr(ll_err_t code);
+ll_err_t ll_geterr(void);
+
+// look up message (never NULL)
+const char *ll_errstr(ll_err_t code);
+
+// convenience: message for current thread’s error
+static inline const char *ll_strerror(void) { return ll_errstr(ll_errno); }
+
 extern int     lserrno;
 extern int     masterLimDown;
 extern int     ls_nerr;
@@ -876,6 +902,6 @@ extern void  *ls_handle (void);
 extern int   ls_catch (void *handle, char *key, exceptProto func);
 extern int   ls_throw (void *handle, char *key);
 extern char  *ls_sperror (char *usrMsg);
-
 #endif
+const char *ctime2(const time_t *tp);
 #endif

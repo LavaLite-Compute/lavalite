@@ -24,7 +24,6 @@ extern int _lsb_conntimeout;
 extern int _lsb_recvtimeout;
 extern int _lsb_fakesetuid;
 
-
 static int mbdTries(void);
 
 int lsb_mbd_version = -1;
@@ -43,7 +42,6 @@ serv_connect (char *serv_host, ushort serv_port, int timeout)
     memset((char*)&serv_addr, 0, sizeof(serv_addr));
     if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog (LOG_DEBUG, "serv_connect: Entering this routine...");
-
 
     serv_addr.sin_family = AF_INET;
     if ((addrP = getHostFirstAddr_(serv_host)) == 0) {
@@ -74,8 +72,6 @@ serv_connect (char *serv_host, ushort serv_port, int timeout)
                 chanSock_(chfd));
     cc = chanConnect_(chfd, &serv_addr, timeout*1000, 0);
     if (cc < 0) {
-
-
 
         int tmpErrno = errno;
         int tmpLsErrno = lserrno;
@@ -184,7 +180,6 @@ call_server (
             ls_syslog (LOG_DEBUG1, "%s: handShake_() succeeded", fname);
     }
 
-
     CHAN_INIT_BUF(&reqbuf);
     reqbuf.len = req_size;
     reqbuf.data = req_buf;
@@ -207,7 +202,7 @@ call_server (
             ls_syslog(LOG_DEBUG2, "callserver: Enqueue only");
 
         if (chanSetMode_(serverSock, CHAN_MODE_NONBLOCK) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, "callserver",  "chanSetMode");            CLOSECD(serverSock);
+            ls_syslog(LOG_ERR, "FUNC_FAIL_MM", "callserver",  "chanSetMode");            CLOSECD(serverSock);
             return -2;
         }
 
@@ -215,7 +210,7 @@ call_server (
             tsize += ((struct lenData *)postSndFuncArg)->len + NET_INTSIZE_;
 
         if (chanAllocBuf_(&sndBuf, tsize) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname,  "chanAllocBuf_",
+            ls_syslog(LOG_ERR, "FUNC_D_FAIL_M", fname,  "chanAllocBuf_",
                     tsize);
             CLOSECD(serverSock);
             return -2;
@@ -235,7 +230,7 @@ call_server (
         }
 
         if (chanEnqueue_(serverSock, sndBuf) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_ENO_D, fname,
+            ls_syslog(LOG_ERR, "FUNC_FAIL_ENO_D", fname,
                     "chanEnqueue_", cherrno);
             chanFreeBuf_(sndBuf);
             CLOSECD(serverSock);
@@ -333,7 +328,6 @@ getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
     return len;
 }
 
-
 ushort
 get_mbd_port (void)
 {
@@ -364,7 +358,6 @@ get_mbd_port (void)
     }
     return(mbd_port = sv->s_port);
 }
-
 
 ushort
 get_sbd_port(void)
@@ -456,7 +449,7 @@ Retry:
 
     xdrmem_create(&xdrs, request_buf, requestlen, XDR_DECODE);
     if (!xdr_LSFHeader(&xdrs, &reqHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        ls_syslog(LOG_ERR, "FUNC_FAIL", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -507,7 +500,6 @@ Retry:
     return cc;
 }
 
-
 int
 cmdCallSBD_(char *sbdHost, char *request_buf, int requestlen,
         char **reply_buf, struct LSFHeader *replyHdr, int *serverSock)
@@ -541,7 +533,6 @@ cmdCallSBD_(char *sbdHost, char *request_buf, int requestlen,
     return cc;
 }
 
-
 static int
 mbdTries(void)
 {
@@ -558,8 +549,6 @@ mbdTries(void)
 
     return ntries;
 }
-
-
 
 char *
 getMasterName(void)
@@ -583,9 +572,6 @@ Retry:
 
     return masterHost;
 }
-
-
-
 
 int
 readNextPacket(char **msgBuf, int timeout, struct LSFHeader *hdr,
@@ -673,8 +659,6 @@ handShake_(int s, char client, int timeout)
 int
 authTicketTokens_(struct lsfAuth *auth, char *toHost)
 {
-
-
 
     if (toHost == NULL) {
         char *clusterName;

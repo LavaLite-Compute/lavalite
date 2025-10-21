@@ -21,7 +21,6 @@
 #include "lsf/intlib/intlibout.h"
 
 #define BADCH ":"
-#define NL_SETN 22
 
 extern int errLineNum_;
 extern int optind;
@@ -64,8 +63,7 @@ parseAndDo (char *cmdBuf, int (*func)() )
             if (*cmdBuf == '\0')
             {
                 see_string = 0;
-                ls_perror (_i18n_msg_get(ls_catd, NL_SETN, 100,
-                            "Syntax Error of line parameter! \n"));  /* catgets 100 */
+                ls_perror ("Syntax Error of line parameter! \n");
                 exit(-1);
             }
 
@@ -112,10 +110,9 @@ cmdsUsage(char *cmd, char *cmdList[], char *cmdInfo[])
     int i;
 
     fprintf(stderr, "\n");
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] [command] [command_options] [command_args]\n\n", cmd);
-    fprintf(stderr, _i18n_msg_get(ls_catd,NL_SETN,102,
-                "    where 'command' is:\n\n")); /* catgets 102 */
+    fprintf(stderr, "    where 'command' is:\n\n");
 
     for (i = 0; cmdList[i] != NULL; i++)
         if (strstr(intCmds,cmdList[i]) == NULL )
@@ -124,16 +121,14 @@ cmdsUsage(char *cmd, char *cmdList[], char *cmdInfo[])
     exit(-1);
 }
 
-
 void
 oneCmdUsage(int i, char *cmdList[], char *cmdSyntax[])
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ":    %-12.12s%s\n", cmdList[i], cmdSyntax[i]);
     fflush(stderr);
 
 }
-
 
 void
 cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
@@ -145,7 +140,7 @@ cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
 
     if (argc <= optind) {
 
-        fprintf(stderr, "\n%s\n\n", _i18n_msg_get(ls_catd,NL_SETN, 104, "Commands are : "));  /* catgets 104  */
+        fprintf(stderr, "\n%s\n\n", "Commands are : ");
 
         for (i=0; cmdList[i] != NULL; i++) {
 
@@ -156,7 +151,7 @@ cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
                     fprintf(stderr, "\n");
             }
         }
-        fprintf(stderr, "\n\n%s\n\n", _i18n_msg_get(ls_catd,NL_SETN, 105, "Try help command... to get details. ")); /* catgets 105 */
+        fprintf(stderr, "\n\n%s\n\n", "Try help command... to get details. ");
         fflush(stderr);
         return;
     }
@@ -165,13 +160,11 @@ cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
         if ((i = adminCmdIndex(argv[optind], cmdList)) != -1) {
             oneCmdUsage(i, cmdList, cmdSyntax);
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 106,
-                        "Function: %s\n\n"), /* catgets 106 */
+                    "Function: %s\n\n",
                     cmdInfo[i]);
         } else
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 107,
-                        "Invalid command <%s>\n\n"), /* catgets 107 */
+                    "Invalid command <%s>\n\n",
                     argv[optind]);
     fflush(stderr);
 
@@ -221,8 +214,7 @@ myGetOpt (int nargc, char **nargv, char *ostr)
             if (num_arg) {
                 if (nargc <= optind + 1) {
                     fprintf (stderr,
-                            _i18n_msg_get(ls_catd, NL_SETN, 108,
-                                "%s: option requires an argument -- %s\n"),/* catgets 108 */
+                            "%s: option requires an argument -- %s\n",
                             nargv[0], optName);
                     return BADCH;
                 }
@@ -234,8 +226,7 @@ myGetOpt (int nargc, char **nargv, char *ostr)
         cp1 = &cp2[i];
         cp2 = ++cp1;
     }
-    fprintf (stderr, _i18n_msg_get(ls_catd,NL_SETN,109,
-                "%s: illegal option -- %s\n"), /* catgets 109 */
+    fprintf (stderr, "%s: illegal option -- %s\n",
             nargv[0], optName);
     return BADCH;
 
@@ -291,8 +282,7 @@ checkConf(int verbose, int who)
     if (cc < 0) {
         if (lserrno == LSE_CONF_SYNTAX) {
             char lno[20];
-            sprintf (lno, _i18n_msg_get(ls_catd, NL_SETN, 110,
-                        "Line %d"), errLineNum_); /* catgets 110 */
+            sprintf (lno, "Line %d", errLineNum_);
             ls_perror(lno);
         } else
             ls_perror("initenv_");
@@ -301,8 +291,7 @@ checkConf(int verbose, int who)
     for (; plp->paramName != NULL; plp++)
         if (plp->paramValue == NULL) {
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 111,
-                        "%s is missing or has a syntax error in lsf.conf file\n"),/* catgets 111 */
+                    "%s is missing or has a syntax error in lsf.conf file\n",
                     plp->paramName);
             fatalErr = true;
         }
@@ -329,12 +318,10 @@ checkConf(int verbose, int who)
 
     if (putenv(confCheckBuf)) {
         fprintf(stderr,
-                _i18n_msg_get(ls_catd, NL_SETN, 112,
-                    "Failed to set environment variable RECONFIG_CHECK\n"));    /* catgets 112 */
+                "Failed to set environment variable RECONFIG_CHECK\n");
         free(daemon);
         return EXIT_FATAL_ERROR;
     }
-
 
     if ((pid = fork()) < 0) {
         perror("fork");
@@ -364,9 +351,8 @@ checkConf(int verbose, int who)
         exit(EXIT_RUN_ERROR);
     }
 
-
     free(daemon);
-    fprintf(stderr, (_i18n_msg_get(ls_catd,NL_SETN,115, "\nChecking configuration files ...\n"))); /* catgets 115 */
+    fprintf(stderr, ("\nChecking configuration files ...\n"));
 
     if (waitpid(pid, &status, 0) < 0) {
         perror("waitpid");
@@ -377,48 +363,40 @@ checkConf(int verbose, int who)
         if (verbose)
             fprintf(stderr, "---------------------------------------------------------\n");
 
-
     if (WIFEXITED(status) == 0) {
         fprintf(stderr,
-                _i18n_msg_get(ls_catd, NL_SETN, 116,
-                    "Child process killed by signal.\n\n")); /* catgets 116 */
+                "Child process killed by signal.\n\n");
         return EXIT_FATAL_ERROR;
     }
 
     switch (WEXITSTATUS(status)) {
         case  0 :
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 117,
-                        "No errors found.\n\n"));  /* catgets 117 */
+                    "No errors found.\n\n");
             return EXIT_NO_ERROR;
 
         case  0xff :
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 118,
-                        "There are fatal errors.\n\n")); /* catgets 118 */
+                    "There are fatal errors.\n\n");
             return EXIT_FATAL_ERROR;
 
         case  0xf8 :
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 119,
-                        "Fail to run checking program \n\n")); /* catgets 119 */
+                    "Fail to run checking program \n\n");
             return EXIT_FATAL_ERROR;
 
         case  0xfe :
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 120,
-                        "No fatal errors found.\n\n"));/* catgets 120 */
+                    "No fatal errors found.\n\n");
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 121, "Warning: Some configuration parameters may be incorrect.\n"));  /* catgets 121 */
+                    "Warning: Some configuration parameters may be incorrect.\n");
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 122,
-                        "         They are either ignored or replaced by default values.\n\n"));  /* catgets 122  */
+                    "         They are either ignored or replaced by default values.\n\n");
             return EXIT_WARNING_ERROR;
 
         default :
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd, NL_SETN, 123,
-                        "Errors found.\n\n"));  /* catgets 123 */
+                    "Errors found.\n\n");
             return EXIT_FATAL_ERROR;
     }
 

@@ -28,16 +28,15 @@ extern char *wideformatHeader(char **, char);
 extern char **filterToNames(char *);
 extern int num_loadindex;
 
-
-#define NL_SETN  27
-
 void
-usage(char *cmd)
+usage(const char *cmd)
 {
     fprintf(stderr,I18N_Usage );
-    fprintf(stderr,
-            ":\n%s [-h] [-V] [-N|-E] [-l | -w] [-R res_req] [-I index_list] [-n num_hosts] [host_name ... | cluster_name ...]\n", cmd);
-    fprintf(stderr, "%s\n%s [-h] [-V] -s [ shared_resource_name ... ]\n", I18N_or, cmd);
+    fprintf(stderr, "%s [-h] [-V] [-N|-E] [-l | -w] [-R res_req] "
+            "[-I index_list] [-n num_hosts] "
+            "[host_name ... | cluster_name ...]\n", cmd);
+    fprintf(stderr, "%s [-h] [-V] -s [ shared_resource_name ... ]\n",
+            cmd);
     exit(-1);
 }
 
@@ -56,8 +55,6 @@ main(int argc, char **argv)
     char **nlp;
     static char *defaultindex[]={"r15s", "r1m", "r15m", "ut", "pg", "ls",
                                  "it", "tmp", "swp", "mem", NULL};
-    extern int  optind, opterr;
-    extern char *optarg;
     int achar;
     char longFormat = FALSE;
     char wideFormat = FALSE;
@@ -70,15 +67,12 @@ main(int argc, char **argv)
     numneeded = 0;
     opterr = 0;
 
-    _i18n_init(I18N_CAT_MIN);
-
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
         exit(-1);
     }
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
-
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0) {
@@ -172,8 +166,8 @@ main(int argc, char **argv)
     for ( ; optind < argc ; optind++)
     {
         if (num>=MAXLISTSIZE) {
-            fprintf(stderr, _i18n_msg_get(ls_catd,NL_SETN,1951, "too many hosts specified (maximum %d)\n"), /* catgets  1951  */
-                    MAXLISTSIZE);
+            fprintf(stderr, "too many hosts specified maximum %d\n",
+                MAXLISTSIZE);
             exit(-1);
         }
         if ( (isClus = ls_isclustername(argv[optind])) < 0 ) {
@@ -183,7 +177,7 @@ main(int argc, char **argv)
         } else if ( (isClus == 0) &&
                     (!isValidHost_(argv[optind])) ) {
             fprintf(stderr, "lsload: %s %s\n",
-                    I18N(1952, "unknown host name") /* catgets 1952 */,
+                    "unknown host name" ,
                     argv[optind]);
             badHost = TRUE;
             continue;
@@ -236,17 +230,17 @@ main(int argc, char **argv)
                 strcat(statusbuf, I18N_ok);
             } else if (LS_ISBUSY(hosts[i].status)
                        && !LS_ISLOCKED(hosts[i].status)) {
-                strcat(statusbuf, I18N(1958, "busy")); /* catgets 1958 */
+                strcat(statusbuf, "busy");
             } else {
-                strcat(statusbuf, I18N(1955, "lock")); /* catgets 1955*/
+                strcat(statusbuf, "lock");
                 if (LS_ISLOCKEDU(hosts[i].status)) {
-                    strcat(statusbuf, I18N(1956, "U")); /* catgets 1956*/
+                    strcat(statusbuf, "U");
                 }
                 if (LS_ISLOCKEDW(hosts[i].status)) {
-                    strcat(statusbuf, I18N(1957, "W")); /* catgets 1957*/
+                    strcat(statusbuf, "W");
                 }
                 if (LS_ISLOCKEDM(hosts[i].status)) {
-                    strcat(statusbuf, I18N(1959, "M")); /* catgets 1959*/
+                    strcat(statusbuf, "M");
                 }
             }
         }
@@ -285,8 +279,5 @@ main(int argc, char **argv)
         }
         putchar('\n');
     }
-
-    _i18n_end ( ls_catd );
-
     exit (0);
 }

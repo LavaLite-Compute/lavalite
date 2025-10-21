@@ -20,7 +20,6 @@
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 
-#define NL_SETN   23
 char *
 getNextValue(char **line)
 {
@@ -85,14 +84,13 @@ isSectionEnd(char *linep, char *lsfile, int *LineNum, char *sectionName)
 
     word = getNextWord_(&linep);
     if (! word ) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5400,
-                                         "%s(%d): section %s ended without section name, ignored"), lsfile, *LineNum, sectionName); /* catgets 5400 */
+        ls_syslog(LOG_ERR, "%s %d: section %s ended without section name, ignored",
+                  lsfile, *LineNum, sectionName);
         return true;
     }
 
     if (strcasecmp (word, sectionName) != 0)
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5401,
-                                         "%s(%d): section %s ended with wrong section name %s,ignored"), lsfile, *LineNum, sectionName, word); /* catgets 5401 */
+        ls_syslog(LOG_ERR, "%s(%d: section %s ended with wrong section name %s,ignored", lsfile, *LineNum, sectionName, word);
 
     return true;
 
@@ -134,16 +132,14 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
 
     value = strchr(sp, '=');
     if (!value) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5402,
-                                         "%s: %s(%d): missing '=' after keyword %s, section %s ignoring the line"), fname, lsfile, *LineNum, key, section); /* catgets 5402 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: missing '=' after keyword %s, section %s ignoring the line", fname, lsfile, *LineNum, key, section);
     } else {
         value++;
         while (*value == ' ')
             value++;
 
         if (value[0] == '\0') {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5403,
-                                             "%s: %s(%d): null value after keyword %s, section %s ignoring the line"), fname, lsfile, *LineNum, key, section); /* catgets 5403 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: null value after keyword %s, section %s ignoring the line", fname, lsfile, *LineNum, key, section);
         }
 
         if (value[0] == '(') {
@@ -152,8 +148,7 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
                 *sp1 = '\0';
         }
         if (putValue(keyList, key, value) < 0) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5404,
-                                             "%s: %s(%d): bad keyword %s in section %s, ignoring the line"), fname, lsfile, *LineNum, key, section); /* catgets 5404 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: bad keyword %s in section %s, ignoring the line", fname, lsfile, *LineNum, key, section);
         }
     }
     if ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
@@ -164,8 +159,7 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
             i = 0;
             while (keyList[i].key != NULL) {
                 if (keyList[i].val == NULL) {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5405,
-                                                     "%s: %s(%d): required keyword %s is missing in section %s, ignoring the section"), fname,  lsfile, *LineNum, keyList[i].key, section); /* catgets 5405 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: required keyword %s is missing in section %s, ignoring the section", fname,  lsfile, *LineNum, keyList[i].key, section);
                     error = true;
                 }
                 i++;
@@ -222,12 +216,10 @@ doSkipSection(FILE *fp, int *LineNum, char *lsfile, char *sectionName)
         if (strcasecmp(word, "end") == 0) {
             word = getNextWord_(&cp);
             if (! word) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5407,
-                                                 "%s(%d): Section ended without section name, ignored"), lsfile, *LineNum); /* catgets 5407 */
+                ls_syslog(LOG_ERR, "%s(%d: Section ended without section name, ignored", lsfile, *LineNum);
             } else {
                 if (strcasecmp(word, sectionName) != 0)
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5408,
-                                                     "%s(%d): Section %s ended with wrong section name: %s, ignored"), lsfile, *LineNum, sectionName, word); /* catgets 5408 */
+                    ls_syslog(LOG_ERR, "%s(%d: Section %s ended with wrong section name: %s, ignored", lsfile, *LineNum, sectionName, word);
             }
             return;
         }
@@ -307,14 +299,12 @@ putInLists(char *word, struct admins *admins, int *numAds, char *forWhat)
     pw = getpwnam(word);
     if (pw == NULL) {
         if (logclass & LC_TRACE) {
-            ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd , NL_SETN, 5410,
-                                               "%s: <%s> is not a valid user on this host"), fname, word); /* catgets 5410 */
+            ls_syslog(LOG_DEBUG, "%s: <%s> is not a valid user on this host", fname, word);
         }
     }
 
     if (isInlist(admins->adminNames, word, admins->nAdmins)) {
-        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5411,
-                                             "%s: Duplicate user name <%s> %s; ignored"), fname, word, forWhat); /* catgets 5411 */
+        ls_syslog(LOG_WARNING, "%s: Duplicate user name <%s> %s; ignored", fname, word, forWhat);
         return 0;
     }
     admins->adminIds[admins->nAdmins] = (pw == NULL) ? -1 : pw->pw_uid;
@@ -400,12 +390,10 @@ doSkipSection_conf(struct lsConf *conf, int *LineNum, char *lsfile, char *sectio
         if (strcasecmp(word, "end") == 0) {
             word = getNextWord_(&cp);
             if (! word) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5419,
-                                                 "%s(%d): Section ended without section name, ignored"), lsfile, *LineNum); /* catgets 5419 */
+                ls_syslog(LOG_ERR, "%s(%d: Section ended without section name, ignored", lsfile, *LineNum);
             } else {
                 if (strcasecmp(word, sectionName) != 0)
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5420,
-                                                     "%s(%d): Section %s ended with wrong section name: %s, ignored"), lsfile, *LineNum, sectionName, word); /* catgets 5420 */
+                    ls_syslog(LOG_ERR, "%s(%d: Section %s ended with wrong section name: %s, ignored", lsfile, *LineNum, sectionName, word);
             }
             return;
         }

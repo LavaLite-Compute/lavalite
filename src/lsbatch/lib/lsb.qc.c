@@ -39,10 +39,8 @@ lsb_queuecontrol (char *queue, int opCode)
         }
     }
 
-
     if (authTicketTokens_(&auth, NULL) == -1)
         return -1;
-
 
     switch (opCode) {
     case QUEUE_OPEN:
@@ -73,9 +71,6 @@ lsb_queuecontrol (char *queue, int opCode)
         strcpy(qcReq.name, queue);
     }
 
-
-
-
     mbdReqtype = BATCH_QUE_CTRL;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&hdr);
@@ -85,7 +80,6 @@ lsb_queuecontrol (char *queue, int opCode)
         return -1;
     }
 
-
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                        &hdr, NULL, NULL, NULL)) == -1)
     {
@@ -94,8 +88,6 @@ lsb_queuecontrol (char *queue, int opCode)
     }
 
     xdr_destroy(&xdrs);
-
-
 
     lsberrno = hdr.opCode;
     if (cc)

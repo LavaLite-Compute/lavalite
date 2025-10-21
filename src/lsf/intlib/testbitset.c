@@ -52,7 +52,6 @@ test_1()
     LS_BITSET_T *set;
     int i;
 
-
     for (i = 0; i< VECT_SIZE; i++)
 	vect[i] = i+1;
 
@@ -85,7 +84,6 @@ test_1()
         }
     }
     setDumpSet(set, fname);
-
 
 }
 
@@ -128,7 +126,6 @@ test_2()
     return;
 }
 
-
 static struct X {
     int index;
     char *blaBla;
@@ -142,7 +139,6 @@ static int
 fun(void *hux)
 {
     struct X p;
-
 
     memcpy(&p, (struct X *)hux, sizeof(struct X));
 
@@ -169,13 +165,11 @@ test_3()
     directFun = fun;
     inverseFun = gun;
 
-
     table = (struct X **)malloc(sizeof(struct X)*OBJ_SIZE);
     if (!table) {
 	ls_syslog(LOG_ERR,"%s failed malloc for %d bytes", fname,OBJ_SIZE);
 	exit(-1);
     }
-
 
     for (i=0; i< OBJ_SIZE; i++) {
 	char buf[1024];
@@ -271,7 +265,6 @@ test_4()
     for (i = (int)setIteratorBegin(&iter);
 	 setIteratorIsEndOfSet(&iter) == false;
 	 i = (int)setIteratorGetNextElement(&iter));
-
 
     setIteratorDetach(&iter);
     setDestroy(set);

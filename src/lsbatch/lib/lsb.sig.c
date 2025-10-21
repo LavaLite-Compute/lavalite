@@ -41,8 +41,6 @@ lsb_chkpntjob(LS_LONG_INT jobId, time_t period, int options)
         return -1;
     }
 
-
-
     if (options & LSB_CHKPNT_KILL)
         lsbOptions |= LSB_CHKPNT_KILL;
     if (options & LSB_CHKPNT_FORCE)
@@ -67,14 +65,12 @@ lsb_deletejob(LS_LONG_INT jobId, int times, int options)
 
 }
 
-
 int
 lsb_forcekilljob(LS_LONG_INT jobId)
 {
     return (signalJob(SIG_TERM_FORCE, jobId, 0, 0));
 
 }
-
 
 static int
 signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
@@ -99,8 +95,6 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
 
     signalReq.sigValue = sig_encode(signalReq.sigValue);
 
-
-
     mbdReqtype = BATCH_JOB_SIG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
@@ -112,7 +106,6 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
         xdr_destroy(&xdrs);
         return -1;
     }
-
 
     if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                     &hdr, NULL, NULL, NULL)) < 0)
@@ -157,7 +150,6 @@ lsb_requeuejob(struct jobrequeue *reqPtr)
         (*reqPtr).options
             |= (REQUEUE_DONE | REQUEUE_EXIT | REQUEUE_RUN);
     }
-
 
     cc = signalJob(SIG_ARRAY_REQUEUE,
             (*reqPtr).jobId,

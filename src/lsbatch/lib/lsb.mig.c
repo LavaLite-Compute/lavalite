@@ -31,7 +31,6 @@ lsb_mig(struct submig *mig, int *badHostIdx)
     struct LSFHeader hdr;
     struct lsfAuth auth;
 
-
     if (mig->jobId <= 0) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
@@ -60,8 +59,6 @@ lsb_mig(struct submig *mig, int *badHostIdx)
         migReq.numAskedHosts = 0;
     }
 
-
-
     mbdReqtype = BATCH_JOB_MIG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     hdr.opCode = mbdReqtype;
@@ -69,7 +66,6 @@ lsb_mig(struct submig *mig, int *badHostIdx)
         lsberrno = LSBE_XDR;
         return -1;
     }
-
 
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                        &hdr, NULL, NULL, NULL)) == -1) {

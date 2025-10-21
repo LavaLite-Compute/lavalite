@@ -33,7 +33,7 @@ static void usage (char *cmd, int sig);
 static void
 usage (char *cmd, int sig)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] ", cmd);
 
     if (sig == SIGKILL)
@@ -318,7 +318,7 @@ signalJobs (LS_LONG_INT *jobIds, int numJobs)
 		signaled = TRUE;
 	    } else {
 		failsignal = TRUE;
-		sprintf (msg, "%s <%s>", I18N_Job, lsb_jobid2str(jobIds[i]));
+		sprintf (msg, "%s <%s>", "Job", lsb_jobid2str(jobIds[i]));
 		lsb_perror (msg);
 	    }
 	} else {

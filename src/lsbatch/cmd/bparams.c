@@ -16,7 +16,6 @@
  *
  */
 
-
 #include "lsbatch/cmd/cmd.h"
 
 static void printLong (struct parameterInfo *);
@@ -24,7 +23,7 @@ static void printShort (struct parameterInfo *);
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] [-l]\n", cmd);
     exit(-1);
 }
@@ -192,7 +191,7 @@ printLong (struct parameterInfo *reply)
         printf("    JOB_DEP_LAST_SUB = %d \n\n", reply->jobDepLastSub);
     }
 
-	printf("%s:\n", I18N(2422, "The Maximum JobId defined in the system" ));
+	printf("%s:\n", "The Maximum JobId defined in the system");
     printf("    MAX_JOBID = %d\n\n",  reply->maxJobId);
 
     if (reply->maxAcctArchiveNum>0 ) {

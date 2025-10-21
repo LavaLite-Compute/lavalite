@@ -24,12 +24,10 @@
 #       include <stdlib.h>
 #include "lsf/intlib/libllcore.h"
 #       include "lsf/lib/lsi18n.h"
-#define NL_SETN      22
 
 #define YYALLOC(x) yyalloc(&idxAllocHead, (x))
 struct mallocList  *idxAllocHead = NULL;
 int     idxerrno = IDX_NOERR;
-
 
 # line 24 "idx.y"
 typedef union   {
@@ -142,15 +140,13 @@ __YYSCLASS char * yyreds[] =
 #endif
 #define YYFLAG  (-3000)
 
-
-#if defined(NLS) && !defined(NL_SETN)
+#if defined(NLS) && !defined(0)
 #include <msgbuf.h>
 #endif
 
 #ifndef nl_msg
 #define nl_msg(i,s) (s)
 #endif
-
 
 #define YYERROR		goto yyerrlab
 
@@ -181,7 +177,6 @@ __YYSCLASS char * yyreds[] =
 
 int yydebug;
 
-
 # ifndef __RUNTIME_YYMAXDEPTH
 __YYSCLASS YYSTYPE yyv[ YYMAXDEPTH ];
 __YYSCLASS int yys[ YYMAXDEPTH ];
@@ -196,7 +191,6 @@ __YYSCLASS int *yys;
 	extern char *realloc();
 	extern void free();
 #endif
-
 
 static int allocate_stacks();
 static void free_stacks();
@@ -216,15 +210,12 @@ int yynerrs;
 __YYSCLASS int yyerrflag;
 int yychar;
 
-
-
 int
 idxparse(idxList, maxJLimit)
 struct idxList **idxList;
 int *maxJLimit;
 {
 	register YYSTYPE *yypvt;
-
 
 # ifdef __RUNTIME_YYMAXDEPTH
 	if (allocate_stacks()) YYABORT;
@@ -244,18 +235,15 @@ int *maxJLimit;
 		register int yy_state;
 		register int  yy_n;
 
-
 		yy_pv = yypv;
 		yy_ps = yyps;
 		yy_state = yystate;
 		goto yy_newstate;
 
-
 	yystack:
 		yy_pv = yypv;
 		yy_ps = yyps;
 		yy_state = yystate;
-
 
 	yy_stack:
 
@@ -308,7 +296,6 @@ int *maxJLimit;
 		}
 		*yy_ps = yy_state;
 		*++yy_pv = yyval;
-
 
 	yy_newstate:
 		if ( ( yy_n = yypact[ yy_state ] ) <= YYFLAG )
@@ -403,7 +390,6 @@ int *maxJLimit;
 					YYACCEPT;
 			}
 		}
-
 
 		if ( yy_n == 0 )
 		{
@@ -552,8 +538,7 @@ case 4:
 {
                    if ((yyval.idxPtr = (struct idxList *)
                              YYALLOC(sizeof(struct idxList))) == NULL) {
-                       idxerror(_i18n_msg_get(ls_catd, NL_SETN, 550,
-					      "No Memory")); /* catgets 550 */
+                       idxerror("No Memory");
                        idxerrno = IDX_MEM;
                        YYABORT;
                    }
@@ -567,7 +552,7 @@ case 5:
 {
                    if ((yyval.idxPtr = (struct idxList *)
                              YYALLOC(sizeof(struct idxList))) == NULL) {
-                       idxerror(_i18n_msg_get(ls_catd, NL_SETN, 550, "No Memory"));
+                       idxerror("No Memory");
                        idxerrno = IDX_MEM;
                        YYABORT;
                    }
@@ -583,8 +568,7 @@ case 6:
                     yyval.idxType.end   = yypvt[-0].idxType.end;
                     yyval.idxType.step  = 1;
                     if (yyval.idxType.start < 1 || yyval.idxType.start > yyval.idxType.end || yyval.idxType.step <= 0) {
-                        idxerror(_i18n_msg_get(ls_catd, NL_SETN, 551,
-					       "boundary error")); /* catgets 551 */
+                        idxerror("boundary error");
                         idxerrno = IDX_BOUND;
                         YYABORT;
                     }
@@ -596,8 +580,7 @@ case 7:
                     yyval.idxType.end   = yypvt[-2].idxType.end;
                     yyval.idxType.step  = yypvt[-0].ival;
                     if (yyval.idxType.start < 1 || yyval.idxType.start > yyval.idxType.end || yyval.idxType.step <= 0) {
-                        idxerror(_i18n_msg_get(ls_catd, NL_SETN, 551,
-					       "boundary error"));
+                        idxerror("boundary error");
                         idxerrno = IDX_BOUND;
                         YYABORT;
                     }
@@ -653,7 +636,6 @@ static int allocate_stacks() {
 	else return 0;
 
 }
-
 
 static void free_stacks() {
 	if (yys!=0) free((char *) yys);

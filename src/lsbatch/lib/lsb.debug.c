@@ -33,7 +33,6 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
     struct lsfAuth auth;
     char *toHost = NULL;
 
-
     debug.opCode = pdebug->opCode;
     debug.logClass  = pdebug->logClass;
     debug.level  = pdebug->level;
@@ -56,7 +55,6 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
         strcpy(debug.hostName, h);
     }
 
-
     if ( debug.opCode == MBD_DEBUG || debug.opCode == MBD_TIMING){
 
         mbdReqtype = BATCH_DEBUG;
@@ -66,7 +64,6 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
         mbdReqtype = CMD_SBD_DEBUG;
         toHost = host;
     }
-
 
     if (authTicketTokens_(&auth, toHost) == -1){
         return -1;
@@ -81,8 +78,6 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
         lsberrno = LSBE_XDR;
         return -1;
     }
-
-
 
     if ( debug.opCode == MBD_DEBUG || debug.opCode == MBD_TIMING) {
         if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
@@ -100,8 +95,6 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
         }
     }
     xdr_destroy(&xdrs);
-
-
 
     lsberrno = hdr.opCode;
     if (cc)

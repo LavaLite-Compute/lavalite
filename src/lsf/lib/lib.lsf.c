@@ -122,7 +122,6 @@ str2lsfRu(char *line, struct lsfRusage *lsfRu, int *ccount)
     return cc;
 }
 
-
 void
 lsfRusageAdd_ (struct lsfRusage *lsfRusage1, struct lsfRusage *lsfRusage2)
 {

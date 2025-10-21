@@ -77,7 +77,6 @@ static char *lsbSigSymbol[] = {
     "SIG_TERM_MEMLIMIT"
 };
 
-
 static int defaultSigValue [] = {
     SIG_NULL,
     SIG_CHKPNT,
@@ -107,7 +106,6 @@ static int defaultSigValue [] = {
     SIGKILL,
 };
 
-
 int
 sigNameToValue_ (char *sigString)
 {
@@ -116,10 +114,8 @@ sigNameToValue_ (char *sigString)
     if ((sigString == NULL) || (sigString[0] == '\0'))
         return INFINIT_INT;
 
-
     if ((sigValue = getSigVal(sigString)) > 0)
         return sigValue;
-
 
     for (i=0; i<LSB_SIG_NUM; i++)
         if (strcmp(lsbSigSymbol[i], sigString) == 0)
@@ -128,7 +124,6 @@ sigNameToValue_ (char *sigString)
     return INFINIT_INT;
 
 }
-
 
 char *
 getLsbSigSymbol ( int sigValue)

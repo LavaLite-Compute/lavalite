@@ -96,7 +96,6 @@ xdr_encodeMsg (XDR *xdrs, char *data, struct LSFHeader *hdr,
 
     XDR_SETPOS(xdrs, LSF_HEADER_LEN);
 
-
     hdr->version = _XDR_VERSION_0_1_0;
 
     if (auth) {
@@ -153,7 +152,6 @@ xdr_arrayElement (XDR *xdrs, char *data, struct LSFHeader *hdr,
         if (!xdr_int(xdrs, &nextElementOffset))
             return false;
     }
-
 
     XDR_SETPOS(xdrs, pos + nextElementOffset);
     return true;
@@ -232,7 +230,6 @@ readDecodeMsg_(int s, char *buf, struct LSFHeader *hdr, ssize_t (*readFunc)(),
     return 0;
 }
 
-
 int
 writeEncodeMsg_(int s, char *buf, int len, struct LSFHeader *hdr, char *data,
                 ssize_t (*writeFunc)(), bool_t (*xdrFunc)(), int options)
@@ -283,7 +280,6 @@ writeEncodeHdr_(int s, struct LSFHeader *hdr, ssize_t (*writeFunc)())
     return 0;
 }
 
-
 bool_t
 xdr_stringLen(XDR *xdrs, struct stringLen *str, struct LSFHeader *Hdr)
 {
@@ -321,7 +317,6 @@ xdr_portno (XDR *xdrs, u_short *portno)
     return (xdr_bytes(xdrs, &sp, &len, len));
 }
 
-
 bool_t
 xdr_address (XDR *xdrs, u_int *addr)
 {
@@ -334,8 +329,6 @@ xdr_address (XDR *xdrs, u_int *addr)
 
     return (xdr_bytes(xdrs, &sp, &len, len));
 }
-
-
 
 bool_t
 xdr_debugReq (XDR *xdrs, struct debugReq  *debugReq,
@@ -397,7 +390,6 @@ getXdrStrlen(char *str)
         return 4;
     return((strlen(str)+7)/4*4);
 }
-
 
 int getHdrReserved(struct LSFHeader *hdr)
 {

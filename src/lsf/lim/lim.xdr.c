@@ -18,8 +18,6 @@
  */
 #include "lsf/lim/lim.h"
 
-#define NL_SETN 24
-
 #define MAX_FLOAT16 4.227858E+09
 
 static u_short encfloat16_(float );
@@ -54,17 +52,14 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct LSFHeader *hdr)
 
         if (myClusterPtr->checkSum != lvp->checkSum) {
             if (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) {
-                ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 6001,
-                                                     "%s: Sender has a different configuration"), fname); /* catgets 6001 */
+                ls_syslog(LOG_WARNING, "%s: Sender has a different configuration", fname);
             }
         }
-
 
         if (allInfo.numIndx != lvp->numIndx
             || allInfo.numUsrIndx != lvp->numUsrIndx) {
 
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 6002,
-                                             "%s: Sender has a different number of load index vectors. It will be rejected from the cluster by the master host."), fname); /* catgets 6002 */
+            ls_syslog(LOG_ERR, "%s: Sender has a different number of load index vectors. It will be rejected from the cluster by the master host.", fname);
             return false;
         }
     }
@@ -185,7 +180,6 @@ xdr_masterReg(XDR *xdrs, struct masterReg *masterRegPtr, struct LSFHeader *hdr)
 
 }
 
-
 bool_t
 xdr_masterAnnSLIMConf(XDR *xdrs,
                       struct masterAnnSLIMConf *masterAnnSLIMConfPtr,
@@ -199,7 +193,6 @@ xdr_masterAnnSLIMConf(XDR *xdrs,
     return true;
 
 }
-
 
 bool_t
 xdr_statInfo(XDR *xdrs, struct statInfo *sip, struct LSFHeader *hdr)
@@ -217,7 +210,6 @@ xdr_statInfo(XDR *xdrs, struct statInfo *sip, struct LSFHeader *hdr)
            xdr_int(xdrs, &(sip->maxSwap)) &&
            xdr_int(xdrs, &(sip->maxTmp)) ))
         return false;
-
 
     if (xdrs->x_op == XDR_DECODE) {
         sp1[0]='\0';
@@ -348,9 +340,7 @@ xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct LSF
     struct resItem *resTablePtr;
     struct sharedResourceInstance *tmp, *prevPtr;
 
-
     if (xdrs->x_op == XDR_FREE) {
-
 
         for (i = 0;i < sLimConfDatap->nClusAdmins; i++) {
             FREEUP(sLimConfDatap->clusAdminNames[i]);
@@ -370,7 +360,6 @@ xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct LSF
             FREEUP(tmp);
         }
 
-
         FREEUP(sLimConfDatap->myCluster_eLimArgs);
         FREEUP(sLimConfDatap->myHost_windows);
 
@@ -385,7 +374,6 @@ xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct LSF
 
         return true;
     }
-
 
     if (xdrs->x_op == XDR_DECODE) {
 
@@ -565,13 +553,11 @@ xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct LSF
         }
     }
 
-
     if (xdrs->x_op == XDR_ENCODE) {
         sharedResourceCnt = 0;
         for (tmp = sLimConfDatap->sharedResHead; tmp; tmp=tmp->nextPtr) {
             sharedResourceCnt++;
         }
-
 
         if (!xdr_int(xdrs, &sharedResourceCnt) ) {
             return false;
@@ -589,7 +575,6 @@ xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct LSF
         if (!xdr_int(xdrs, &sharedResourceCnt) ) {
             return false;
         }
-
 
         sLimConfDatap->sharedResHead = NULL;
         for (i = 0; i < sharedResourceCnt; i++) {

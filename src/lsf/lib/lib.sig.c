@@ -21,7 +21,6 @@
 #define SIGEMT SIGBUS
 #define SIGLOST SIGIO
 
-
 #if !defined(SIGWINCH) && defined(SIGWINDOW)
 #    define SIGWINCH SIGWINDOW
 #endif

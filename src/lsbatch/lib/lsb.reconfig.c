@@ -33,8 +33,6 @@ lsb_reconfig (int configFlag)
     struct lsfAuth auth;
     int tmp;
 
-
-
     mbdReqtype = BATCH_RECONFIG;
 
     if (authTicketTokens_(&auth, NULL) == -1)
@@ -51,7 +49,6 @@ lsb_reconfig (int configFlag)
         lsberrno = LSBE_XDR;
         return -1;
     }
-
 
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                     &hdr, NULL, NULL, NULL)) == -1)

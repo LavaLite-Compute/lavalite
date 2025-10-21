@@ -191,7 +191,7 @@ main (int argc, char **argv)
         default:
             fprintf(stderr,
                     "%s: sbatchd [-h] [-V] [-d env_dir] [-1 | -2 | -3]\n",
-                    I18N_Usage);
+                    "Usage");
             exit(1);
         }
     }
@@ -882,8 +882,8 @@ sinit (void)
     {
 	if (chdir(LSTMPDIR) < 0) {
 	    ls_syslog(LOG_ERR, "%s", __func__, "chdir", LSTMPDIR);
-	    lsb_mperr( _i18n_printf(I18N_FUNC_S_FAIL, fname,
-		"chdir", LSTMPDIR));
+	    lsb_mperr(fname,
+		"chdir", LSTMPDIR);
 	    die(SLAVE_FATAL);
 	}
     }

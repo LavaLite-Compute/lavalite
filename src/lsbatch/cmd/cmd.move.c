@@ -21,7 +21,7 @@
 static void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] jobId | \"jobId[index]\" [position]\n", cmd);
     exit(-1);
 }

@@ -16,7 +16,6 @@
  *
  */
 
-
 #include "lsf/intlib/libllcore.h"
 #include "lsf/intlib/listset.h"
 
@@ -41,7 +40,6 @@ collectFreeSet(void)
     }
     FreeSet = NULL;
 }
-
 
 int
 listSetEqual(struct listSet *set1, struct listSet *set2)
@@ -94,8 +92,6 @@ listSetUnion(struct listSet *set1, struct listSet *set2)
 
 }
 
-
-
 struct listSet *
 listSetIntersect(struct listSet *set1, struct listSet *set2)
 {
@@ -123,7 +119,6 @@ listSetIntersect(struct listSet *set1, struct listSet *set2)
     }
 
     listSetFree(set2);
-
 
     setA = set1;
     while (setA && setA->next) {
@@ -212,13 +207,10 @@ listSetDel(long elem, struct listSet *set)
     return set;
 }
 
-
-
 struct listSet *
 listSetInsert(long elem, struct listSet *set)
 {
     struct listSet *ptr, *ptmp;
-
 
     if (listSetMember(elem, set))
         return set;
@@ -235,7 +227,6 @@ listSetInsert(long elem, struct listSet *set)
 	ptr->next = set;
         return ptr;
     }
-
 
     ptr = set;
     while (ptr && ptr->next && ptr->next->elem < elem)
@@ -329,7 +320,6 @@ listSetFree(struct listSet *set)
     FreeSet = set;
 }
 
-
 int
 listSetGetEle(int k, struct listSet *set)
 {
@@ -351,7 +341,6 @@ listSetGetEle(int k, struct listSet *set)
         return 0;
 }
 
-
 int
 listSetNumEle(struct listSet *set)
 {
@@ -362,12 +351,10 @@ listSetNumEle(struct listSet *set)
     return len;
 }
 
-
 struct listSet *
 listSetSelect(long start, long end, struct listSet *set)
 {
     struct listSet *head = NULL, *low = NULL, *up = NULL, *ptr;
-
 
     if (start > end) {
         listSetFree(set);
@@ -401,7 +388,6 @@ listSetSelect(long start, long end, struct listSet *set)
     return head;
 }
 
-
 struct listSetIterator *
 listSetIteratorCreate(void)
 {
@@ -427,7 +413,6 @@ listSetIteratorBegin(struct listSetIterator *iter)
 {
     long *elem_addr;
 
-
     elem_addr = &(iter->pos->elem);
     iter->pos = iter->pos->next;
 
@@ -439,7 +424,6 @@ long *
 listSetIteratorGetNext(struct listSetIterator *iter)
 {
     long *elem_addr;
-
 
     if (iter->pos == NULL) {
 	return NULL;

@@ -3719,8 +3719,7 @@ job_abort(struct jData *jData, char reason)
 	sprintf(lmsg+strlen(lmsg), "\
                        = %s;\n", timebuf);
 	free(timebuf);
-	timebuf = putstr_(_i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T_Y,
-	    &jData->shared->jobBill.termTime));
+	timebuf = putstr_(ctime(&jData->shared->jobBill.termTime));
 	sprintf(lmsg+strlen(lmsg), "termination deadline = %s",
 	    timebuf);
 	free(timebuf);

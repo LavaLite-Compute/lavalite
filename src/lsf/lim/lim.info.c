@@ -21,8 +21,6 @@
 #include "lsf/lib/lib.xdr.h"
 #include "lsf/lib/lproto.h"
 
-#define NL_SETN 24
-
 struct shortLsInfo oldShortInfo;
 
 static struct shortLsInfo * getCShortInfo(struct LSFHeader *);
@@ -30,7 +28,6 @@ static int checkResources (struct resourceInfoReq *, struct resourceInfoReply *,
 static int copyResource (struct resourceInfoReply *,
                          struct sharedResource *, int *, char *);
 static void freeResourceInfoReply (struct resourceInfoReply *);
-
 
 void
 pingReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
@@ -361,7 +358,7 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
 
     if (!validHosts(hostInfoRequest.preferredHosts, hostInfoRequest.numPrefs, &clName, hostInfoRequest.options)){
         limReplyCode = LIME_UNKWN_HOST;
-        ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 7404, "%s: validHosts() failed for bad cluster/host name requested for <%s>")), fname, sockAdd2Str_(from));       /* catgets 7404 */
+        ls_syslog(LOG_INFO, "%s: validHosts( failed for bad cluster/host name requested for <%s>", fname, sockAdd2Str_(from));
         goto Reply;
     }
 
@@ -386,7 +383,6 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
     strcpy(hostInfoRequest.hostType,
            (fromHostP->hTypeNo >= 0) ?
            shortInfo.hostTypes[fromHostP->hTypeNo] : "unknown");
-
 
     fromHostPtr = fromHostP;
 
@@ -424,7 +420,6 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
             infoPtr->maxSwap = 0;
             infoPtr->maxTmp  = 0;
             infoPtr->nDisks  = 0;
-
 
             infoPtr->resBitMaps = candidates[i]->resBitMaps;
             infoPtr->nRInt = GET_INTNUM(allInfo.nRes);
@@ -493,8 +488,7 @@ Reply1:
     free(buf);
 
     if (cc < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 7400,
-                                         "%s: Failed in sending lsload reply to %s (len=%d): %m"), fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2)); /* catgets 7400 */
+        ls_syslog(LOG_ERR, "%s: Failed in sending lsload reply to %s (len=%d: %m", fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -528,8 +522,6 @@ infoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
 
     limReplyCode = LIME_NO_ERR;
 
-
-
     xdrmem_create(&xdrs2, buf, len, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
     replyHdr.opCode  = (short) limReplyCode;
@@ -547,11 +539,9 @@ infoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
-
     if (cc < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 7401,
-                                         "%s: Failed in sending lsinfo back to %s (len=%d) %m"), /* catgets 7401 */
-                  fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
+        ls_syslog(LOG_ERR, "%s: Failed in sending lsinfo back to %s len=%d %m",
+            fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -577,7 +567,6 @@ cpufReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
         limReplyCode = LIME_BAD_DATA;
         goto Reply;
     }
-
 
     if (!masterMe) {
         wrongMaster(from, buf, reqHdr, -1);
@@ -669,7 +658,6 @@ getCShortInfo(struct LSFHeader *reqHdr)
         return (&shortInfo);
     }
 
-
     oldShortInfo.nRes = shortInfo.nRes;
     oldShortInfo.resName = shortInfo.resName;
     if (shortInfo.nTypes > MAXTYPES_31) {
@@ -742,7 +730,6 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, i
 
     xdr_lsffree(xdr_resourceInfoReq, (char *) &resourceInfoReq, reqHdr);
 
-
     if ((buf = (char *) malloc (cc)) == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
         freeResourceInfoReply(&resourceInfoReply);
@@ -772,8 +759,7 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, i
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 7402,
-                                         "%s: Failed in sending lsresources reply to %s (len=%d): %m"), /* catgets 7402 */
+        ls_syslog(LOG_ERR, "%s: failed sending lsresources reply to %s len=%d: %m",
                   fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
         FREEUP (buf);
         xdr_destroy(&xdrs2);
@@ -813,8 +799,7 @@ checkResources (struct resourceInfoReq *resourceInfoReq, struct resourceInfoRepl
 
         if (findHostbyList(myClusterPtr->hostList,
                            resourceInfoReq->hostName) == NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 7403,
-                                             "%s: Host <%s>  is not used by cluster <%s>"),/* catgets 7403 */
+            ls_syslog(LOG_ERR, "%s: Host <%s>  is not used by cluster <%s>",
                       fname, resourceInfoReq->hostName, myClusterName);
             return LIME_UNKWN_HOST;
         }
@@ -867,7 +852,6 @@ copyResource (struct resourceInfoReply *reply, struct sharedResource *resource, 
     num = reply->numResources;
     reply->resources[num].resourceName = resource->resourceName;
     cc += strlen (resource->resourceName) + 1;
-
 
     if ((reply->resources[num].instances = (struct lsSharedResourceInstance *)
          malloc (resource->numInstances

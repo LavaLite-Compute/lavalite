@@ -31,7 +31,6 @@ lsb_switchjob (LS_LONG_INT jobId, char *queue)
     struct LSFHeader hdr;
     struct lsfAuth auth;
 
-
     if (jobId <= 0 || queue == 0) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
@@ -41,15 +40,11 @@ lsb_switchjob (LS_LONG_INT jobId, char *queue)
         return -1;
     }
 
-
     if (authTicketTokens_(&auth, NULL) == -1)
         return -1;
 
     jobSwitchReq.jobId = jobId;
     strcpy (jobSwitchReq.queue, queue);
-
-
-
 
     mbdReqtype = BATCH_JOB_SWITCH;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
@@ -60,7 +55,6 @@ lsb_switchjob (LS_LONG_INT jobId, char *queue)
         lsberrno = LSBE_XDR;
         return -1;
     }
-
 
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                        &hdr, NULL, NULL, NULL)) == -1)

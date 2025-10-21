@@ -36,7 +36,7 @@ static char fomt[200];
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] [user_name ...] [all]\n", cmd);
     exit(-1);
 }
@@ -99,17 +99,17 @@ display_users (struct userInfoEnt *reply, int numReply)
 	if (lsbMode_ & LSB_MODE_BATCH) {
             prtWord(USR_NAME_LENGTH, I18N_USER_GROUP, 0);
             prtWord(USR_JL_P_LENGTH, I18N_JL_P, -1);
-            prtWord(USR_MAX_LENGTH,  I18N_MAX, -1);
+            prtWord(USR_MAX_LENGTH,  "MAX", -1);
 	}
 	else
-            prtWord(USR_NAME_LENGTH, I18N_USER, 0);
+            prtWord(USR_NAME_LENGTH, "USER", 0);
 
-        prtWord(USR_NJOBS_LENGTH, I18N_NJOBS, -1);
-        prtWord(USR_PEND_LENGTH,  I18N_PEND,  -1);
-        prtWord(USR_RUN_LENGTH,   I18N_RUN,   -1);
-        prtWord(USR_SSUSP_LENGTH, I18N_SSUSP, -1);
-        prtWord(USR_USUSP_LENGTH, I18N_USUSP, -1);
-        prtWord(USR_RSV_LENGTH,   I18N_RSV,   -1);
+        prtWord(USR_NJOBS_LENGTH, "NJOBS", -1);
+        prtWord(USR_PEND_LENGTH,  "PEND",  -1);
+        prtWord(USR_RUN_LENGTH,   "RUN",   -1);
+        prtWord(USR_SSUSP_LENGTH, "SSUSP", -1);
+        prtWord(USR_USUSP_LENGTH, "USUSP", -1);
+        prtWord(USR_RSV_LENGTH,   "RSV",   -1);
         printf("\n");
     }
     if (numReply > 1)

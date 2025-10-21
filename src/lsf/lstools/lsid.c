@@ -18,8 +18,6 @@
  */
 #include "lsf/lib/lib.h"
 
-#define NL_SETN  27
-
 static void usage(char *);
 extern int errLineNum_;
 
@@ -37,7 +35,7 @@ main(int argc, char **argv)
     char *Name;
     int achar;
 
-    _i18n_init ( I18N_CAT_MIN );
+    0;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -65,7 +63,7 @@ main(int argc, char **argv)
     if (Name == NULL) {
         if (lserrno == LSE_CONF_SYNTAX) {
             char lno[20];
-            sprintf (lno, _i18n_msg_get(ls_catd,NL_SETN,1701, "Line %d"), errLineNum_); /* catgets 1701 */
+            sprintf (lno, "Line %d", errLineNum_);
             ls_perror(lno);
         } else
         {
@@ -75,7 +73,7 @@ main(int argc, char **argv)
         }
         exit(-1);
     }
-    printf(_i18n_msg_get(ls_catd,NL_SETN,1702, "My cluster name is %s\n"), Name); /* catgets 1702  */
+    printf("My cluster name is %s\n", Name);
 
     TIMEIT(0, (Name = ls_getmastername()), "ls_getmastername");
     if (Name == NULL) {
@@ -84,9 +82,6 @@ main(int argc, char **argv)
         ls_perror( buf );
         exit(-1);
     }
-    printf(_i18n_msg_get(ls_catd,NL_SETN,1703, "My master name is %s\n"), Name); /* catgets  1703 */
-
-    _i18n_end ( ls_catd );
-
+    printf("My master name is %s\n", Name);
     exit(0);
 }

@@ -22,7 +22,6 @@
 
 #define exit(a) _exit(a)
 
-#define NL_SETN   23
 static int getEAuth(struct eauth *, char *);
 static char *getLSFAdmin(void);
 
@@ -208,7 +207,6 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             return -1;
         }
 
-
         if ((pid = fork()) == 0) {
             char *myargv[3];
             struct passwd *pw;
@@ -223,7 +221,6 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
                           pw->pw_uid);
                 exit(-1);
             }
-
 
             for (i = 1; i < NSIG; i++)
                 Signal_(i, SIG_DFL);
@@ -269,8 +266,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
     i = strlen(uData);
 
     if ((cc = b_write_fix(in[1], uData, i)) != i) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5513,
-                                         "%s: b_write_fix <%s> failed, cc=%d, i=%d: %m"), /* catgets 5513 */
+        ls_syslog(LOG_ERR, "%s: b_write_fix <%s> failed, cc=%d, i=%d: %m",
                   fname, uData, cc, i);
         CLOSEHANDLE(in[1]);
         CLOSEHANDLE(out[0]);
@@ -278,14 +274,12 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         return -1;
     }
     if(logclass & (LC_AUTH | LC_TRACE))
-        ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd , NL_SETN, 5514,
-                                           "%s: b_write_fix <%s> ok, cc=%d, i=%d"),
+        ls_syslog(LOG_DEBUG, "%s: b_write_fix <%s> ok, cc=%d, i=%d",
                   fname, uData, cc, i);
 
     if ((cc = b_write_fix(in[1], auth->k.eauth.data, auth->k.eauth.len))
         != auth->k.eauth.len) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5515,
-                                         "%s: b_write_fix <%s> failed, eauth.len=%d, cc=%d"), /* catgets 5515 */
+        ls_syslog(LOG_ERR, "%s: b_write_fix <%s> failed, eauth.len=%d, cc=%d",
                   fname, uData, auth->k.eauth.len, cc);
         CLOSEHANDLE(in[1]);
         CLOSEHANDLE(out[0]);
@@ -293,14 +287,12 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         return -1;
     }
     if(logclass & (LC_AUTH | LC_TRACE))
-        ls_syslog(LOG_DEBUG, _i18n_msg_get(ls_catd , NL_SETN, 5516,
-                                           "%s: b_write_fix <%s> ok, eauth.len=%d, eauth.data=%.*s cc=%d:"),
+        ls_syslog(LOG_DEBUG, "%s: b_write_fix <%s> ok, eauth.len=%d, eauth.data=%.*s cc=%d:",
                   fname, uData, auth->k.eauth.len,
                   auth->k.eauth.len, auth->k.eauth.data,cc);
 
     if ((cc = b_read_fix(out[0], &ok, 1)) != 1) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5517,
-                                         "%s: b_read_fix <%s> failed, cc=%d: %m"), /* catgets 5517 */
+        ls_syslog(LOG_ERR, "%s: b_read_fix <%s> failed, cc=%d: %m",
                   fname, uData, cc);
         CLOSEHANDLE(in[1]);
         CLOSEHANDLE(out[0]);
@@ -309,8 +301,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
     }
 
     if (ok != '1') {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5518,
-                                         "%s: eauth <%s> len=%d failed, rc=%c"), /* catgets 5518 */
+        ls_syslog(LOG_ERR, "%s: eauth <%s> len=%d failed, rc=%c",
                   fname, uData, auth->k.eauth.len, ok);
         return -1;
     }
@@ -352,7 +343,6 @@ getLSFAdmin(void)
     strcpy(admin, lsfUserName);
     return admin;
 }
-
 
 #define EAUTH_ENV_BUF_LEN       (MAXPATHLEN+32)
 

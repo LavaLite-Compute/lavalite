@@ -615,11 +615,9 @@ ls_info(void)
     if (callLim_(LIM_GET_INFO, NULL, NULL, &lsInfo, xdr_lsInfo, NULL, _USE_TCP_, NULL) < 0)
         return NULL;
 
-
     return (&lsInfo);
 
 }
-
 
 char **
 ls_indexnames(struct lsInfo *lsInfo)
@@ -735,7 +733,6 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
         resourceInfoReq.hostName = putstr_(officialName);
     } else
         resourceInfoReq.hostName = putstr_(" ");
-
 
     if (resourceInfoReq.hostName == NULL) {
         lserrno = LSE_MALLOC;

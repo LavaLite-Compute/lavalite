@@ -17,63 +17,50 @@
  */
 #include "lsf/lib/liblavalite.h"
 
-
-
-
-
-
-
 extern void (*Signal_ (int, void (*)(int)))(int);
-
 
 extern int makeFields(struct hostLoad *, char *loadval[], char **);
 extern void *formatHeader(char **, char);
 extern char **filterToNames(char *);
-                                             
+
 void  printHeader(char **);
 
-#define CONTROL_L  12  
+#define CONTROL_L  12
 #define MAXLISTSIZE 256
 
 char    resreq[MAXLINELEN] = "";
 char    indexfilter[MAXLINELEN] = "";
 char    *hostnames[MAXLISTSIZE];
 int     numneeded, num = 0, options = 0;
-int     updateRate = 10;               
-FILE    *lf;			
-int     Lflag = 0;		
-int     redirect = 0;           
+int     updateRate = 10;
+FILE    *lf;
+int     Lflag = 0;
+int     redirect = 0;
 char    logFilename[MAXFILENAMELEN];
 extern int num_loadindex;
-
-
-#define NL_SETN  27 
-
 
 void
 usage(char * cmd)
 {
-	
-    fprintf(stderr, 
+
+    fprintf(stderr,
             "%s: %s [-h] [-V] [-N|-E] [-n num_hosts] [-R res_req] [-I index_list] [-i interval] [-L logfile] [host_name ... ]\n",
-	    I18N_Usage,cmd); 
+	    I18N_Usage,cmd);
     exit(0);
 }
-
-
 
 void
 endPgm(char * message, int status)
 {
-    
+
     if (!redirect) {
         echo();
         nocbreak();
         move(LINES-1, 0);
         refresh();
-        endwin(); 
+        endwin();
         putchar('\n');
-    } 
+    }
 
     if (message != NULL) {
        ls_perror(message);
@@ -92,8 +79,8 @@ quit()
 void
 getLoadInfo(void)
 {
-    int  i, j, nf;  
-    static int  numStatus;  
+    int  i, j, nf;
+    static int  numStatus;
     struct hostLoad *hosts;
     int  numwanted;
     static char **loadval = NULL;
@@ -113,7 +100,7 @@ getLoadInfo(void)
         nlp = defaultindex;
 
     hosts = ls_loadinfo(resreq, &numwanted, options, 0, hostnames, num,
-                             &nlp);      
+                             &nlp);
 
     if (!hosts) {
 	numwanted=0;
@@ -127,7 +114,7 @@ getLoadInfo(void)
     }
 
     printHeader(nlp);
-    
+
     if (!redirect)
         move(3,0);
 
@@ -137,15 +124,13 @@ getLoadInfo(void)
             ls_perror("lsmon");
             exit(-1);
         }
-   
-    if (!redirect) 
+
+    if (!redirect)
         for (i = 0 ; (i < numwanted) && (i < (LINES - 4)) ; i++) {
-	    
 
  	    mvprintw(i + 3, 0, "%-15.15s ", hosts[i].hostName);
 
-	    
-	    if (LS_ISUNAVAIL(hosts[i].status)) 
+	    if (LS_ISUNAVAIL(hosts[i].status))
 	        addstr(I18N_unavail);
 	    else if (!LS_ISUNAVAIL(hosts[i].status) && LS_ISRESDOWN(hosts[i].status)) {
 		      char str[7];
@@ -161,7 +146,7 @@ getLoadInfo(void)
 		  }
 	    else if (LS_ISLOCKED(hosts[i].status))
 	        {
-	 	    addstr((_i18n_msg_get(ls_catd,NL_SETN,2107, "lock"))); /* catgets  2107  */
+	 	    addstr(("lock"));
 		    if (LS_ISLOCKEDU(hosts[i].status))
 		        addch('U');
 		    if (LS_ISLOCKEDW(hosts[i].status))
@@ -171,12 +156,12 @@ getLoadInfo(void)
 		    addstr("   ");
 	        }
             else if (LS_ISBUSY(hosts[i].status))
-		    addstr((_i18n_msg_get(ls_catd,NL_SETN,2108, "busy   "))); /* catgets  2108  */
+		    addstr(("busy   "));
 
 	    if (!LS_ISUNAVAIL(hosts[i].status)) {
 	        nf = makeFields(&hosts[i], loadval, nlp);
                 strcpy(linebuf, loadval[0]);
-                for(j=1; j < nf; j++) 
+                for(j=1; j < nf; j++)
                     strcat(linebuf, loadval[j]);
 
                mvprintw(i + 3, 22, "%s",linebuf);
@@ -186,7 +171,7 @@ getLoadInfo(void)
             if (first) {
 	       numStatus = 0;
                for(j=0; nlp[j]; j++) {
-                   fprintf(lf,"%s ",nlp[j]); 
+                   fprintf(lf,"%s ",nlp[j]);
 		   numStatus++;
                }
                fprintf(lf,"\n");
@@ -206,8 +191,8 @@ getLoadInfo(void)
 	    fprintf(lf, "\n");
 	}
 	    clrtoeol();
-    } 
-   else { 
+    }
+   else {
        for (i=0; i < numwanted; i++) {
 	    if (Lflag) {
 		if (first) {
@@ -231,8 +216,8 @@ getLoadInfo(void)
 	        fprintf(lf, "\n");
 	     }
        }
-    } 
-  
+    }
+
     if (!redirect) {
         if (i < (LINES - 4))
         {
@@ -244,44 +229,38 @@ getLoadInfo(void)
     }
 }
 
-
 void
 printHeader(char **nlp)
 {
     char *hname;
     char *headLine;
-    
+
     if (!redirect)
-        mvaddstr(0, 0, _i18n_msg_get(ls_catd,NL_SETN,2109, "Hostname: ")); /* catgets  2109  */
+        mvaddstr(0, 0, "Hostname: ");
     if ((hname = ls_getmyhostname()) == NULL) {
 	endPgm("ls_getmyhostname", -1);
     }
 
-    
     headLine = formatHeader(nlp, false);
 
     if (!redirect) {
         addstr(hname);
-       mvprintw(0, COLS - 25, 
-	   _i18n_msg_get(ls_catd,NL_SETN,2110, "Refresh rate: %3d secs"), /* catgets  2110  */
-	   updateRate); 
+       mvprintw(0, COLS - 25,
+	   "Refresh rate: %3d secs",
+	   updateRate);
 		mvaddstr(2, 0, headLine);
     }
 
 }
 
-
 static void
 chInterval(void)
 {
-   
+
    int        interval = 0;
    char       str[255];
 
-   
-
-
-   mvaddstr(1, 0, _i18n_msg_get(ls_catd,NL_SETN,2111, "Enter a new refresh rate (secs):  ")); /* catgets  2111  */
+   mvaddstr(1, 0, "Enter a new refresh rate (secs:  "));
    clrtoeol();
    refresh();
 
@@ -292,7 +271,7 @@ chInterval(void)
    interval = atoi(str);
 
    if (interval <= 0) {
-      mvaddstr(1, 0, _i18n_msg_get(ls_catd,NL_SETN,2112, "Refresh rate must be greater than zero.  Interval unchanged.")); /* catgets  2112  */
+      mvaddstr(1, 0, "Refresh rate must be greater than zero.  Interval unchanged.");
    } else {
       updateRate = interval;
    }
@@ -301,18 +280,16 @@ chInterval(void)
    refresh();
 }
 
-
 int
 chNumNeeded(void)
 {
-   
+
    int        numhosts;
    char       str[255];
 
-   
    move(1,0);
    clrtoeol();
-   mvaddstr(1, 0, _i18n_msg_get(ls_catd,NL_SETN,2113, "Enter number of hosts to be displayed:  ")); /* catgets  2113  */
+   mvaddstr(1, 0, "Enter number of hosts to be displayed:  ");
    refresh();
    echo();
    getstr(str);
@@ -322,8 +299,8 @@ chNumNeeded(void)
    if (numhosts <= 0) {
       move(1,0);
       clrtoeol();
-      mvaddstr(1, 0, _i18n_msg_get(ls_catd,NL_SETN,2114, "Number of hosts must be greater than zero. Number unchanged.")); /* catgets  2114  */
-      numhosts = numneeded; 
+      mvaddstr(1, 0, "Number of hosts must be greater than zero. Number unchanged.");
+      numhosts = numneeded;
    } else {
       move(1,0);
       clrtoeol();
@@ -338,30 +315,28 @@ chNumNeeded(void)
 void
 chResReq(void)
 {
-   
+
    char       newresreq[MAXLINELEN];
 
-   
    move(1,0);
    clrtoeol();
-   mvaddstr(1, 0, _i18n_msg_get(ls_catd,NL_SETN,2115, "Enter resource requirements string:  ")); /* catgets  2115  */
+   mvaddstr(1, 0, "Enter resource requirements string:  ");
    refresh();
 
    echo();
    getstr(newresreq);
    noecho();
 
-   
    if (expSyntax_(newresreq) < 0) {
-      
-      mvaddstr(1, 0, 
-           _i18n_msg_get(ls_catd,NL_SETN,2116, "Invalid resource requirements.  Resource requirements unchanged.")); /* catgets  2116  */
+
+      mvaddstr(1, 0,
+           "Invalid resource requirements.  Resource requirements unchanged.");
       clrtoeol();
    } else {
-      
+
       move(1,0);
       strcpy(resreq, newresreq);
-   } 
+   }
    clrtoeol();
    refresh();
 }
@@ -370,15 +345,13 @@ int
 main(int argc, char **argv)
 {
 
-    char   *cmd;             
-    struct stat statBuf; 
-    fd_set mask, allMask;    
-    int    nReady;           
-    int StdIn = 0;           
+    char   *cmd;
+    struct stat statBuf;
+    fd_set mask, allMask;
+    int    nReady;
+    int StdIn = 0;
     int	optc;
 
-    
-    
     int Vflag = 0, Nflag = 0, Eflag = 0, Rflag = 0, iflag = 0, nflag = 0, Iflag = 0;
     extern int optind, opterr;
     extern char *optarg;
@@ -386,13 +359,11 @@ main(int argc, char **argv)
 
     Signal_(SIGINT, (SIGFUNCTYPE) quit);
 
-    
     numneeded = 0;
-    cmd = *argv;                               
+    cmd = *argv;
 
     opterr = 0;
-    rc = _i18n_init ( I18N_CAT_MIN );	
-
+    rc = 0;
 
     while ((optc = getopt(argc, argv, "hVNEn:R:I:i:L:")) != EOF)
     {
@@ -415,7 +386,7 @@ main(int argc, char **argv)
 		break;
 	    }
 
-	case 'n':		
+	case 'n':
 	    if (nflag)
 		usage(cmd);
 	    else {
@@ -438,16 +409,16 @@ main(int argc, char **argv)
 		}
 		break;
 	    }
-	    
-        case 'L':		
-	    if (Lflag)		
+
+        case 'L':
+	    if (Lflag)
 		usage(cmd);
 	    else {
 		Lflag = 1;
 		strcpy(logFilename, optarg);
 		break;
 	    }
-	    
+
 	case 'N':
 	    if (Nflag || Eflag)
 		usage(cmd);
@@ -482,25 +453,24 @@ main(int argc, char **argv)
 
     }
 
-
-    while (optind < argc)		
+    while (optind < argc)
     {
        hostnames[num] = argv[optind++];
        if (ls_isclustername(hostnames[num]) <=0 &&
-          !isValidHost_(hostnames[num])) {  
-	  fputs(_i18n_msg_get(ls_catd,NL_SETN,2141, "Unknown host: "), /* catgets  2141  */
-	      stderr); 
+          !isValidHost_(hostnames[num])) {
+	  fputs("Unknown host: ",
+	      stderr);
 	  fputs(hostnames[num], stderr);
 	  putc('\n', stderr);
 	  usage(cmd);
 	  }
        num++;
        if (num>=MAXLISTSIZE) {
-	  fprintf(stderr, _i18n_msg_get(ls_catd,NL_SETN,2142, "too many hosts specified\n")); /* catgets  2142  */
+	  fprintf(stderr, "too many hosts specified\n");
 	  exit(-1);
        }
     }
-  
+
     if (Lflag) {
         lf = fopen(logFilename, "a");
 	if (lf == NULL) {
@@ -510,63 +480,59 @@ main(int argc, char **argv)
 	}
     }
 
-    if (fstat(0, &statBuf) == 0) 
+    if (fstat(0, &statBuf) == 0)
 	redirect = ((ftell(stdin) == 0) && Lflag) ? 1 : 0;
 
     if (!redirect) {
-        
+
     (void)initscr();
-        cbreak(); 
+        cbreak();
         noecho();
 
-        
         if ((COLS < 80)) {
             (void)endwin();
             (void)fprintf(stderr,
-	              _i18n_msg_get(ls_catd,NL_SETN,2144, "Sorry, screen must be at least %d COLUMNS wide (currently COLS = %d).\n"), /* catgets  2144  */
-		      80, COLS); 
+	              "Sorry, screen must be at least %d COLUMNS wide (currently COLS = %d.\n"),
+		      80, COLS);
             exit(1);
         }
 
         if (LINES < 5) {
             (void)endwin();
             (void)fprintf(stderr,
-		      _i18n_msg_get(ls_catd,NL_SETN,2145, "Sorry, screen must have at least %d LINES (currently LINES = %d).\n"), /* catgets  2145  */
-		      5, LINES); 
+		      "Sorry, screen must have at least %d LINES (currently LINES = %d.\n"),
+		      5, LINES);
             exit(1);
         } else if ((LINES < num + 4)) {
-            
+
             (void)endwin();
             (void)fprintf(stderr,
-                      _i18n_msg_get(ls_catd,NL_SETN,2146, "Sorry, screen must have at least %d LINES to display all of the requested hosts.\n"),  /* catgets  2146  */
+                      "Sorry, screen must have at least %d LINES to display all of the requested hosts.\n",
 		      num+4);
             (void)fprintf(stderr,
-		      _i18n_msg_get(ls_catd,NL_SETN,2147, "The current window has %d lines.\n"), /* catgets  2147  */
-		      LINES); 
+		      "The current window has %d lines.\n",
+		      LINES);
             exit(1);
         }
-        
+
         FD_ZERO(&allMask);
         FD_SET(StdIn, &allMask);
-    } 
+    }
 
-
-        
-    for (;;) { 
+    for (;;) {
 	struct timeval timeout;
 
         getLoadInfo();
 
         if (!redirect)
         {
-       	 	
+
   	    	timeout.tv_usec = 0;
 	    	timeout.tv_sec = updateRate;
 
         	mask = allMask;
         	nReady = select(StdIn+1, &mask, 0, 0, &timeout);
 
-	    	
 	    	move(1, 0);
 	    	clrtoeol();
 
@@ -576,85 +542,85 @@ main(int argc, char **argv)
                     endPgm(i18nBuf, 1);
                 } else if (nReady > 0) {
                     if (FD_ISSET(StdIn, &mask)) {
-                     
+
                      switch (getch()) {
                      case CONTROL_L:
-                         
+
                          erase();
                          refresh();
                          break;
 
                       case 'q':
-                          
+
                           endPgm(NULL, 0);
                           break;
-              
+
                       case 'i':
-                          
+
                           chInterval();
                           break;
-              
+
                       case 'n':
-                          
+
                           numneeded = chNumNeeded();
                           break;
-              
+
                       case 'N':
-                          
+
                           move(1,0);
                           clrtoeol();
                           if (options == NORMALIZE) {
                               options = 0;
                               mvaddstr(1, 0,
-                                _i18n_msg_get(ls_catd,NL_SETN,2149, "Output raw CPU run queue load indices")); /* catgets  2149  */
+                                "Output raw CPU run queue load indices");
                           } else {
                               options = NORMALIZE;
-                              mvaddstr(1, 0, 
-			       	_i18n_msg_get(ls_catd,NL_SETN,2150, "Output normalized CPU run queue load indices")); /* catgets  2150  */
+                              mvaddstr(1, 0,
+			       	"Output normalized CPU run queue load indices");
                           }
                           move(1,0);
                           refresh();
                           break;
-              
+
                       case 'E':
-                          
+
                           move(1,0);
                           clrtoeol();
                           if (options == EFFECTIVE) {
                               options = 0;
                               mvaddstr(1, 0,
-                                  _i18n_msg_get(ls_catd,NL_SETN,2151, "Output raw CPU run queue load indices")); /* catgets  2151  */
+                                  "Output raw CPU run queue load indices");
                           } else {
                               options = EFFECTIVE;
-                              mvaddstr(1, 0, 
-			        _i18n_msg_get(ls_catd,NL_SETN,2152, "Output effective CPU run queue load indices")); /* catgets  2152  */
+                              mvaddstr(1, 0,
+			        "Output effective CPU run queue load indices");
                           }
                           move(1,0);
                           refresh();
                           break;
 
                       case 'R':
-                          
+
                           chResReq();
                           break;
 
                       default:
-                          
+
                           move(1,0);
                           clrtoeol();
-                          mvaddstr(1, 0, 
-			    _i18n_msg_get(ls_catd,NL_SETN,2153, "Options:(i)nterval,(n)umber,(N)ormalize,(E)ffective,(R)esources,(q)uit,(^L)refresh")); /* catgets  2153  */
+                          mvaddstr(1, 0,
+			    "Options:(interval,(n)umber,(N)ormalize,(E)ffective,(R)esources,(q)uit,(^L)refresh"));
                           move(1,0);
                           refresh();
                           break;
                       }
-                    }   
-                }   
+                    }
+                }
 
-        }   
-        else 
+        }
+        else
             sleep(updateRate);
-    }             
+    }
 
     return 0;
 }

@@ -20,8 +20,6 @@
 #include "lsf/res/rescom.h"
 #include "lsf/lib/lib.xdrres.h"
 
-#define NL_SETN 23
-
 int
 niosCallback_(struct sockaddr_in *from,
               uint16_t port,
@@ -94,7 +92,7 @@ niosCallback_(struct sockaddr_in *from,
                         0) < 0) {
         if (logclass & LC_EXEC)
             ls_syslog(LOG_ERR,
-                      I18N(6201,"%s: writeEncodeMsg_(%d,%d) RES2NIOS_connect failed: %M"),  /* catgets 6201*/
+                      "%s: writeEncodeMsg_(%d,%d) RES2NIOS_connect failed: %M",
                       fname, s, rpid);
         closesocket(s);
         return -1;

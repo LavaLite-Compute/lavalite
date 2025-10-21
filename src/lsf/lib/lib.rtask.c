@@ -99,7 +99,6 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         }
     }
 
-
     if ((genParams_[LSF_INTERACTIVE_STDERR].paramValue != NULL)
         && (strcasecmp(genParams_[LSF_INTERACTIVE_STDERR].paramValue,
                        "y") == 0) ) {
@@ -111,7 +110,6 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         initSigHandler(SIGTSTP);
         initSigHandler(SIGTTIN);
         initSigHandler(SIGTTOU);
-
 
         if (socketpair(AF_UNIX, SOCK_STREAM, 0, cli_nios_fd) < 0) {
             lserrno = LSE_SOCK_SYS;
@@ -161,7 +159,6 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
                 exit(0);
             }
 
-
             if (initenv_(NULL, NULL) <0)
                 exit (-1);
             strcpy(pathbuf, genParams_[LSF_SERVERDIR].paramValue);
@@ -188,7 +185,6 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
             for (d = 1; d < NSIG; d++)
                 Signal_(d, SIG_DFL);
 
-
             sigprocmask(SIG_SETMASK, &oldMask, NULL);
             (void)lsfExecvp(new_argv[0], new_argv);
             exit(-1);
@@ -211,7 +207,6 @@ ls_rtaske(char *host, char **argv, int options, char **envp)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-
 
     rpid++;
 
@@ -282,7 +277,6 @@ rgetpidCompletionHandler_(struct lsRequest *request)
     XDR xdrs;
     int rc;
 
-
     rc = resRC2LSErr_(request->rc);
     if (rc != 0)
         return -1;
@@ -339,7 +333,6 @@ lsRGetpidAsync_(int taskid, int *pid)
         _lostconnection_(host);
         return NULL;
     }
-
 
     request = lsReqHandCreate_(taskid,
                                currentSN,
@@ -483,7 +476,6 @@ static void
 initSigHandler(int sig)
 {
     struct sigaction act, oact;
-
 
     act.sa_handler = default_tstp_;
     sigemptyset(&act.sa_mask);

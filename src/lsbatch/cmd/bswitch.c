@@ -23,7 +23,7 @@ static int printErrMsg (LS_LONG_INT jobId, char *queue);
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] [-q queue_name] [-u user_name |-u all] [-m host_name]\n               [-J job_name] dest_queue [jobId |  \"jobId[idxList]\" ...]\n", cmd);
     exit(-1);
 }
@@ -102,7 +102,7 @@ static int
 printErrMsg (LS_LONG_INT jobId, char *queue)
 {
     char Job[80];
-    sprintf (Job, "%s <%s>", I18N_Job, lsb_jobid2str(jobId));
+    sprintf (Job, "%s <%s>", "Job", lsb_jobid2str(jobId));
 
     switch (lsberrno) {
     case LSBE_BAD_USER:

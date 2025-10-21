@@ -17,12 +17,9 @@
  *
  */
 
-
 #include "lsf/intlib/common.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lib/lib.h"
-
-#define NL_SETN      22
 
 void
 putMaskLevel(int level, char **para)
@@ -114,7 +111,6 @@ parseCommandArgs(char *comm, char *args)
                 while (*j && (*j == ' ' || *j == '\t'))
                     ++j;
 
-
                 if (argc == argmax - 1) {
                     argmax *= 2;
                     argv = (char**)realloc(argv, argmax * sizeof(char*));
@@ -126,7 +122,6 @@ parseCommandArgs(char *comm, char *args)
                 argv[argc++] = i;
             }
             break;
-
 
         case '\'':
         case '"':
@@ -142,13 +137,11 @@ parseCommandArgs(char *comm, char *args)
             }
             break;
 
-
         case '\\':
             if (quote != '\'')
                 ++j;
             *i++ = *j++;
             break;
-
 
         default:
             *i++ = *j++;

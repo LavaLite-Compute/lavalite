@@ -225,8 +225,8 @@ smail (char *to, char *tohost)
         return stderr;
     }
 
-    fprintf(fmail, "%s: %s\n", I18N_To, toaddr);
-    fprintf(fmail, "%s: LSF <%s>\n", I18N_From, lsbManager);
+    fprintf(fmail, "%s: %s\n", "To", toaddr);
+    fprintf(fmail, "%s: LSF <%s>\n", "From", lsbManager);
     fflush(fmail);
     if (ferror(fmail)) {
         fclose(fmail);

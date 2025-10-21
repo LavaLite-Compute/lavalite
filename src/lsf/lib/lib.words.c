@@ -85,7 +85,6 @@ getNextWordSet(char **line, const char *set)
     static char word[4*MAXLINELEN];
     char *wordp = word;
 
-
     while(charInSet(**line, set))
         (*line)++;
 
@@ -94,7 +93,6 @@ getNextWordSet(char **line, const char *set)
 
     if (wordp == word)
         return NULL;
-
 
     *wordp = '\0';
 
@@ -117,9 +115,6 @@ getNextValueQ_(char **line, char ch1, char ch2)
     if (sp[0] != ch1)
         return sp;
 
-
-
-
     sprintf(str, "%c", ch1);
     if (strcmp(sp, str) == 0) {
         sp = getNextWord_(line);
@@ -129,7 +124,6 @@ getNextValueQ_(char **line, char ch1, char ch2)
         }
     } else
         sp++;
-
 
     if (value != NULL)
         free(value);
@@ -174,7 +168,6 @@ getNextValueQ_(char **line, char ch1, char ch2)
             return value;
         }
     }
-
 
     FREEUP(value);
     lserrno = LSE_CONF_SYNTAX;
@@ -274,7 +267,6 @@ getNextLineD_(FILE *fp, int *LineCount, int confFormat)
             break;
         }
 
-
         if (confFormat && cin == '\\') {
             cinBslash = cin;
             if ((cin = getc(fp)) == EOF)
@@ -317,7 +309,6 @@ getNextLineD_(FILE *fp, int *LineCount, int confFormat)
     if (lpos == 1)
         oneChar = 1;
 
-
     while(lpos > 0 && (line[--lpos] == ' '))
         ;
 
@@ -347,7 +338,6 @@ getNextLineC_(FILE *fp, int *LineCount, int confFormat)
 
     return getNextLineC_(fp, LineCount, confFormat);
 }
-
 
 void
 subNewLine_(char* instr)

@@ -20,8 +20,6 @@
 #include "lsf/lim/lim.h"
 #include "lsf/lib/mls.h"
 
-#define NL_SETN 24
-
 #define MAXIDLETIME  15552000
 
 #ifndef L_SET
@@ -97,7 +95,6 @@ getutime(char *usert)
     time_t t;
     time_t lastinputtime;
 
-
     if (strchr(usert, ':') != NULL)
         return MAXIDLETIME;
 
@@ -117,8 +114,6 @@ getutime(char *usert)
         return (t - lastinputtime);
 }
 
-
-
 #define IDLE_INTVL  30
 #define GUESS_NUM       30
 time_t lastActiveTime = 0;
@@ -132,8 +127,7 @@ putLastActiveTime(void)
 
     sprintf(lsfLastActiveTime, "%ld", lastActiveTime);
     if (putEnv(ENV_LAST_ACTIVE_TIME, lsfLastActiveTime) != 0) {
-        ls_syslog(LOG_WARNING, I18N(5902,
-                    "putLastActiveTime: %s, failed."),  /* catgets 5902 */
+        ls_syslog(LOG_WARNING, "putLastActiveTime: %s, failed.",
                 lsfLastActiveTime);
     }
 }
@@ -145,15 +139,12 @@ getLastActiveTime(void)
 
     lsfLastActiveTime = getenv (ENV_LAST_ACTIVE_TIME);
 
-
     if (lsfLastActiveTime != NULL && lsfLastActiveTime[0] != '\0') {
         lastActiveTime = (time_t)atol(lsfLastActiveTime);
-
 
         if (lastActiveTime < 0) {
             time(&lastActiveTime);
         }
-
 
         putEnv (ENV_LAST_ACTIVE_TIME, "");
     } else {
@@ -185,7 +176,6 @@ idletime(int *logins)
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_getmyhostname");
         thisHostname = "localhost";
     }
-
 
     time(&currentTime);
     idleSeconds = currentTime - lastActiveTime;
@@ -266,9 +256,7 @@ idletime(int *logins)
                 }
             }
 
-
             user.ut_line[sizeof(user.ut_line)] = '\0';
-
 
             if (idleSeconds > 0) {
 
@@ -286,13 +274,8 @@ idletime(int *logins)
     }
     close(ufd);
 
-
-
-
     if (idleSeconds > 0 && (itime = getXIdle()) < idleSeconds)
         idleSeconds = itime;
-
-
 
     if (excused_ls)
         *logins = last_logins;
@@ -303,7 +286,6 @@ idletime(int *logins)
             FREEUP(users[i]);
         FREEUP(users);
     }
-
 
     time(&currentTime);
     if ((currentTime-idleSeconds) > lastActiveTime){
@@ -320,7 +302,6 @@ getXIdle()
     static char fname[] = "getXIdle()";
     time_t lastTime = 0;
     time_t t;
-
 
     struct stat st;
 
@@ -339,10 +320,6 @@ getXIdle()
         if (errno != ENOENT)
             ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "stat", "/dev/mouse");
     }
-
-
-
-
 
     time(&t);
     if (t < lastTime)
@@ -409,7 +386,6 @@ readLoad(int kernelPerm)
     TIMEIT(0, swap = getswap(), "getswap");
     TIMEIT(0, myHostPtr->loadIndex[TMP] = tmpspace(), "tmpspace");
     TIMEIT(0, myHostPtr->loadIndex[MEM] = realMem(0.0), "realMem");
-
 
 checkOverRide:
     if (overRide[UT] < INFINIT_LOAD)
@@ -487,8 +463,6 @@ checkExchange:
     myHostPtr->loadIndex[MEM] += extraload[MEM]*extrafactor;
     if (myHostPtr->loadIndex[MEM] < 0)
         myHostPtr->loadIndex[MEM] = 0;
-
-
 
     for (i = 0; i < allInfo.numIndx; i++) {
         if (i == R15S || i == R1M || i == R15M) {
@@ -616,7 +590,6 @@ lim_pclose(FILE *ptr)
     if (child == -1)
         return -1;
 
-
     kill(child, SIGTERM);
 
     sigemptyset(&newmask);
@@ -624,9 +597,6 @@ lim_pclose(FILE *ptr)
     sigaddset(&newmask, SIGQUIT);
     sigaddset(&newmask, SIGHUP);
     sigprocmask(SIG_BLOCK, &newmask, &omask);
-
-
-
 
     sigprocmask(SIG_SETMASK, &omask, NULL);
 
@@ -660,9 +630,7 @@ saveIndx(char *name, float value)
                 return 0;
         }
 
-
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5920,
-                    "%s: Unknown index name %s from ELIM"), /* catgets 5920 */
+        ls_syslog(LOG_ERR, "%s: Unknown index name %s from ELIM",
                 fname, name);
         if (names[i]) {
             FREEUP(names[i]);
@@ -671,18 +639,15 @@ saveIndx(char *name, float value)
         return 0;
     }
 
-
     if (allInfo.resTable[indx].valueType != LS_NUMERIC
             || indx >= allInfo.numIndx) {
         return 0;
     }
 
-
     if (indx < NBUILTINDEX) {
         if (!names[indx]) {
             names[indx] = allInfo.resTable[indx].name;
-            ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5921,
-                        "%s: ELIM over-riding value of index %s"), /* catgets 5921 */
+            ls_syslog(LOG_WARNING, "%s: ELIM over-riding value of index %s",
                     fname, name);
         }
         overRide[indx] = value;
@@ -797,23 +762,19 @@ getusr(void)
         return;
     }
 
-
     getExtResourcesLoad();
 
     if (!startElim()) {
         return;
     }
 
-
     if ((elim_pid < 0) && (time(0) - lastStart > 90)) {
-
 
         if (ELIMrestarts < 0 || ELIMrestarts > 0) {
 
             if (ELIMrestarts > 0) {
                 ELIMrestarts--;
             }
-
 
             if (!myClusterPtr->eLimArgv) {
                 char *path = malloc(strlen(limParams[LSF_SERVERDIR].paramValue) +
@@ -832,7 +793,6 @@ getusr(void)
                             fname, path);
                 }
 
-
                 myClusterPtr->eLimArgv = parseCommandArgs(
                         path, myClusterPtr->eLimArgs);
                 if (!myClusterPtr->eLimArgv) {
@@ -847,7 +807,6 @@ getusr(void)
                 fp = NULL;
             }
 
-
             lastStart = time(0);
 
             if (masterMe)
@@ -858,7 +817,6 @@ getusr(void)
             if (resStr != NULL) free(resStr);
 
             hostNamePtr = ls_getmyhostname();
-
 
             size = 0;
             for (tmpSharedRes=sharedResourceHead;
@@ -899,7 +857,6 @@ getusr(void)
                             && (!isResourceSharedByHost(myHostPtr, allInfo.resTable[i].name)) )
                         continue;
 
-
                     if (resStr[0] == '\0')
                         sprintf(resStr, "%s", allInfo.resTable[i].name);
                     else {
@@ -916,8 +873,7 @@ getusr(void)
 
                 return;
             }
-            ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5930,
-                            "%s: Started ELIM %s pid %d")), fname, /* catgets 5930 */
+            ls_syslog(LOG_INFO, ("%s: Started ELIM %s pid %d"), fname,
                     myClusterPtr->eLimArgv[0], (int)elim_pid);
             mustSendLoad = true ;
 
@@ -934,8 +890,6 @@ getusr(void)
 
         return;
     }
-
-
 
     timeout.tv_sec  = 0;
     timeout.tv_usec = 5;
@@ -965,8 +919,7 @@ getusr(void)
             if (!fromELIM) {
                 ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
 
-                ls_syslog(LOG_ERR, I18N(5935,
-                            "%s:Received from ELIM: <out of memory to record contents>"), /* catgets 5935 */
+                ls_syslog(LOG_ERR, "%s:Received from ELIM: <out of memory to record contents>",
                         fname);
 
                 setUnkwnValues();
@@ -978,7 +931,6 @@ getusr(void)
 
         elimPos = fromELIM;
         *elimPos = '\0';
-
 
         blockSigs_(0, &newMask, &oldMask);
 
@@ -993,8 +945,7 @@ getusr(void)
 
         cc = fscanf(fp,"%d",&numIndx);
         if ( cc != 1) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5924,
-                        "%s: Protocol error numIndx not read (cc=%d): %m"),fname,cc); /* catgets 5924 */
+            ls_syslog(LOG_ERR, "%s: Protocol error numIndx not read (cc=%d: %m",fname,cc);
             lim_pclose(fp);
             fp = NULL;
             unblockSigs_(&oldMask);
@@ -1002,20 +953,17 @@ getusr(void)
             return;
         }
 
-
         bw = sprintf (elimPos, "%d ", numIndx);
         elimPos += bw;
 
         if ( numIndx < 0) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5925,
-                        "%s: Protocol error numIndx=%d"),fname,numIndx); /* catgets 5925 */
+            ls_syslog(LOG_ERR, "%s: Protocol error numIndx=%d",fname,numIndx);
             setUnkwnValues();
             lim_pclose(fp);
             fp = NULL;
             unblockSigs_(&oldMask);
             return;
         }
-
 
         if (ELIMblocktime >= 0) {
             gettimeofday(&t, NULL);
@@ -1038,7 +986,6 @@ getusr(void)
                 int scanerrno = errno;
                 if (scanerrno == EAGAIN) {
 
-
                     gettimeofday(&t, NULL);
                     timersub(&expire, &t, &timeout);
                     if (timercmp(&timeout, &time0, <)) {
@@ -1049,14 +996,11 @@ getusr(void)
 
                 if (scanerrno != EAGAIN || scc <= 0) {
 
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5926,
-                                "%s: Protocol error, expected %d more tokens (cc=%d): %m"), /* catgets 5926 */
-                            fname,i,cc);
+                    ls_syslog(LOG_ERR, "%s: Protocol error, expected %d more tokens cc=%d: %m",
+                              fname,i,cc);
 
-
-                    ls_syslog(LOG_ERR, I18N(5904,
-                                "Received from ELIM: %s."), /* catgets 5904 */
-                            fromELIM);
+                    ls_syslog(LOG_ERR, "Received from ELIM: %s.",
+                              fromELIM);
 
                     setUnkwnValues();
                     lim_pclose(fp);
@@ -1065,11 +1009,8 @@ getusr(void)
                     return;
                 }
 
-
                 continue;
             }
-
-
 
             spaceLeft = sizeOfFromELIM - (elimPos - fromELIM)-1;
             spaceRequired = strlen((i%2)? valueString: name)+1;
@@ -1079,17 +1020,14 @@ getusr(void)
                 char *oldFromElim = fromELIM;
                 int oldSizeOfFromELIM = sizeOfFromELIM;
 
-
                 sizeOfFromELIM += (spaceRequired - spaceLeft);
 
                 fromELIM = realloc(fromELIM, sizeOfFromELIM);
                 if (!fromELIM) {
                     ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
 
-                    ls_syslog(LOG_ERR, I18N(5935,
-                                "%s:Received from ELIM: <out of memory to record contents>"), /* catgets 5935 */
+                    ls_syslog(LOG_ERR, "%s:Received from ELIM: <out of memory to record contents>",
                             fname);
-
 
                     sizeOfFromELIM = oldSizeOfFromELIM;
                     fromELIM = oldFromElim;
@@ -1113,7 +1051,6 @@ getusr(void)
                     continue;
                 }
 
-
                 value = atof (valueString);
                 saveIndx(name, value);
             }
@@ -1122,12 +1059,9 @@ getusr(void)
 
         unblockSigs_(&oldMask);
 
-
-
         if (ELIMdebug) {
 
-            ls_syslog (LOG_WARNING, I18N(5903,
-                        "ELIM: %s."), /* catgets 5903 */
+            ls_syslog (LOG_WARNING, "ELIM: %s.",
                     fromELIM);
         }
     }
@@ -1247,8 +1181,7 @@ initConfInfo(void)
     else
         myHostPtr->statInfo.maxCpus = numCpus();
     if (myHostPtr->statInfo.maxCpus <= 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5928,
-                    "%s: Invalid num of CPUs %d. Default to 1"), /* catgets 5928 */
+        ls_syslog(LOG_ERR, "%s: Invalid num of CPUs %d. Default to 1",
                 fname,
                 myHostPtr->statInfo.maxCpus);
         myHostPtr->statInfo.maxCpus = 1;
@@ -1348,7 +1281,6 @@ callElim(void)
         }
     }
 
-
     if (defaultRunElim) {
         runit = true;
         return true;
@@ -1384,7 +1316,6 @@ startElim(void)
 
     return startElim;
 }
-
 
 static void
 termElim(void)

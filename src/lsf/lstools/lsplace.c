@@ -19,7 +19,6 @@
 #include "lsf/lib/lib.h"
 
 #define MAXLISTSIZE 256
-#define NL_SETN 27
 
 void
 usage(const char *cmd)
@@ -27,7 +26,6 @@ usage(const char *cmd)
     fprintf(stderr, "usage: %s [-h] [-V] [-L] [-R res_req] [-n needed]"
             "[-w wanted]\n [host_name ... ]\n", cmd);
 }
-
 
 int
 main(int argc, char **argv)
@@ -45,8 +43,6 @@ main(int argc, char **argv)
     extern char *optarg;
     int achar;
     char badHost = false;
-
-    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -93,16 +89,14 @@ main(int argc, char **argv)
     for ( ; optind < argc ; optind++) {
         if (cc>=MAXLISTSIZE) {
             fprintf(stderr,
-                    _i18n_msg_get(ls_catd,NL_SETN,2201, "%s: too many hosts specified (max %d)\n"), /* catgets  2201  */
+                    "%s: too many hosts specified max %d\n",
                     argv[0], MAXLISTSIZE);
             exit(-1);
         }
 
         if (ls_isclustername(argv[optind]) <= 0 &&
             !isValidHost_(argv[optind])) {
-            fprintf(stderr, "%s: %s %s\n",
-                    argv[0],
-                    I18N(1953, "invalid hostname"), /* catgets 1953 */
+            fprintf(stderr, "%s: %s %s\n", argv[0], "invalid hostname",
                     argv[optind]);
             badHost = true;
             continue;
@@ -158,8 +152,5 @@ main(int argc, char **argv)
     for (cc=0; cc < wanted; cc++)
         printf("%s ", desthosts[cc]);
     printf("\n");
-
-    _i18n_end ( ls_catd );
-
     exit(0);
 }

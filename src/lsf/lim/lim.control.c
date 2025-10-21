@@ -19,8 +19,6 @@
 
 #include "lsf/lim/lim.h"
 
-#define NL_SETN 24
-
 extern struct limLock limLock;
 extern char mustSendLoad;
 
@@ -66,11 +64,9 @@ Reply:
         reconfig();
     }
     if (chanSendDgram_(limSock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 7300,
-                                         "%s: Error sending reconfig acknowledgement to %s (len=%d): %m"), fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2)); /* catgets 7300 */
+        ls_syslog(LOG_ERR, "%s: Error sending reconfig acknowledgement to %s (len=%d: %m", fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
     }
     xdr_destroy(&xdrs2);
-
 
     if (limReplyCode == LIME_NO_ERR)
         reconfig();
@@ -89,15 +85,10 @@ reconfig(void)
     sigset_t newmask;
     pid_t pid;
 
-
-    ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd, NL_SETN, 7305, "Restarting LIM")));   /* catgets 7305 */
-
-
+    ls_syslog(LOG_INFO, ("Restarting LIM"));
 
     sigemptyset(&newmask);
     sigprocmask(SIG_SETMASK, &newmask, NULL);
-
-
 
     if (elim_pid > 0) {
         kill(elim_pid, SIGTERM);
@@ -116,7 +107,6 @@ reconfig(void)
         ls_syslog(LOG_DEBUG,"reconfig: reexecing from %s",myargv[0]);
 
         i = 1;
-
 
         if (lim_debug) {
             sprintf(debug_buf, "-%d", lim_debug);
@@ -137,7 +127,6 @@ reconfig(void)
 
         for (i=sdesc; i<sysconf(_SC_OPEN_MAX); i++)
             close(i);
-
 
         if (limLock.on) {
             char lsfLimLock[MAXLINELEN];
@@ -172,12 +161,9 @@ reconfig(void)
             }
         }
 
-
         putLastActiveTime();
 
-
         lsfExecvp(myargv[0], myargv);
-
 
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M,
                   fname, "execvp", myargv[0]);
@@ -226,9 +212,8 @@ Reply:
         return;
     }
     if (chanSendDgram_(limSock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 7302,
-                                         "%s: Error sending shutdown acknowledgement to %s (len=%d), shutdown failed : %m"), /* catgets 7302 */
-                  fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
+        ls_syslog(LOG_ERR, "%s: Error sending shutdown acknowledgement to %s (len=%d, shutdown failed : %m",
+            fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -242,31 +227,25 @@ Reply:
 
 }
 
-
 void
 shutdownLim(void)
 {
     chanClose_(limSock);
 
-    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 7303,
-                                     "Lim shutting down: shutdown request received")); /* catgets 7303 */
+    ls_syslog(LOG_ERR, "Lim shutting down: shutdown request received");
 
     if (elim_pid > 0) {
         kill(elim_pid, SIGTERM);
         millisleep_(2000);
     }
 
-
     if (pimPid > 0) {
         kill(pimPid, SIGTERM);
         millisleep_(2000);
     }
 
-
-
     exit(EXIT_NO_ERROR);
 }
-
 
 void
 lockReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
@@ -294,12 +273,11 @@ lockReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
     }
 
     if (! userNameOk(limLockReq.uid, limLockReq.lsfUserName)) {
-        ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd, NL_SETN, 7306, "%s: lock/unlock request from uid %d rejected")), /* catgets 7306 */ "lockReq",
+        ls_syslog(LOG_INFO, ("%s: lock/unlock request from uid %d rejected"),  "lockReq",
                   limLock.uid);
         limReplyCode = LIME_DENIED;
         goto Reply;
     }
-
 
     if ( (LOCK_BY_USER(limLock.on) && limLockReq.on == LIM_LOCK_USER )
          || (LOCK_BY_MASTER(limLock.on) &&  limLockReq.on == LIM_LOCK_MASTER )) {
@@ -308,19 +286,16 @@ lockReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
         goto Reply;
     }
 
-
     if ( (!LOCK_BY_USER(limLock.on)  &&  limLockReq.on == LIM_UNLOCK_USER )
          || (!LOCK_BY_MASTER(limLock.on) &&  limLockReq.on == LIM_UNLOCK_MASTER) ) {
         limReplyCode = LIME_NOT_LOCKED;
         goto Reply;
     }
 
-
     if (limLockReq.on == LIM_UNLOCK_MASTER) {
         limLock.on &= ~LIM_LOCK_STAT_MASTER;
         myHostPtr->status[0] &= ~LIM_LOCKEDM;
     }
-
 
     if (limLockReq.on == LIM_UNLOCK_USER) {
         limLock.on &= ~LIM_LOCK_STAT_USER;
@@ -328,12 +303,10 @@ lockReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
         myHostPtr->status[0] &= ~LIM_LOCKEDU;
     }
 
-
     if (limLockReq.on == LIM_LOCK_MASTER) {
         limLock.on |= LIM_LOCK_STAT_MASTER;
         myHostPtr->status[0] |= LIM_LOCKEDM;
     }
-
 
     if (limLockReq.on == LIM_LOCK_USER) {
         limLock.on |= LIM_LOCK_STAT_USER;
@@ -373,8 +346,7 @@ servAvailReq(XDR *xdrs, struct hostNode *hPtr, struct sockaddr_in *from,
 
     if (hPtr != NULL && hPtr != myHostPtr) {
 
-        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 7307,
-                                             "%s: Request from non-local host: <%s>"), /* catgets 7307 */
+        ls_syslog(LOG_WARNING, "%s: Request from non-local host: <%s>",
                   fname, hPtr->hostName);
         return;
     }
@@ -382,8 +354,7 @@ servAvailReq(XDR *xdrs, struct hostNode *hPtr, struct sockaddr_in *from,
     if (! lim_debug) {
         if (ntohs(from->sin_port) >= IPPORT_RESERVED
             || ntohs(from->sin_port) < IPPORT_RESERVED/2) {
-            ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 7308,
-                                                 "%s: Request from non-privileged port: <%d>"), /* catgets 7308 */
+            ls_syslog(LOG_WARNING, "%s: Request from non-privileged port: <%d>",
                       fname, ntohs(from->sin_port));
             return;
         }
@@ -404,8 +375,7 @@ servAvailReq(XDR *xdrs, struct hostNode *hPtr, struct sockaddr_in *from,
         break;
 
     default:
-        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 7304,
-                                             "%s: Invalid service  %d"), /* catgets 7304 */
+        ls_syslog(LOG_WARNING, "%s: Invalid service  %d",
                   fname, servId);
     }
     return;
@@ -421,7 +391,6 @@ limPortOk(struct sockaddr_in *from)
                   sockAdd2Str_(from));
         return false;
     }
-
 
     if (from->sin_port == lim_port)
         return true;
@@ -460,7 +429,6 @@ userOkForMixed(struct lsfAuth *auth)
 {
     int i;
     int crossPlatforms;
-
 
     if (auth->options >= 0) {
         if (auth->options & AUTH_HOST_UX)
@@ -546,7 +514,6 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
         if ( debugReq.level>=0 || debugReq.logFileName[0] != '\0') {
 
-
             closelog();
             if (lim_debug > 1)
                 ls_openlog(logFileName, lsfLogDir,
@@ -614,7 +581,6 @@ doReopen(void)
                   limParams[LSF_LOGDIR].paramValue);
         lim_Exit(fname);
     }
-
 
     getLogClass_(limParams[LSF_DEBUG_LIM].paramValue,
                  limParams[LSF_TIME_LIM].paramValue);

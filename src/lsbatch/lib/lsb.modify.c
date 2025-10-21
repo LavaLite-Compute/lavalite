@@ -20,8 +20,6 @@
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/lib/lsb.spool.h"
 
-#define  NL_SETN   13
-
 static LS_LONG_INT sendModifyReq (struct modifyReq *, struct submitReply *,
                                   struct lsfAuth *);
 static int esubValModify(struct submit *);
@@ -51,7 +49,6 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep, LS_LONG_INT 
         return -1;
     }
 
-
     subNewLine_(jobSubReq->resReq);
     subNewLine_(jobSubReq->dependCond);
     subNewLine_(jobSubReq->preExecCmd);
@@ -66,7 +63,6 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep, LS_LONG_INT 
     for(loop = 0; loop < jobSubReq->numAskedHosts; loop++) {
         subNewLine_(jobSubReq->askedHosts[loop]);
     }
-
 
     modifyReq.jobId = job;
     modifyReq.jobIdStr = jobSubReq->command;
@@ -101,7 +97,6 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep, LS_LONG_INT 
                         submitRep, &auth, &subSpoolFiles) < 0) {
         goto cleanup;
     }
-
 
     if(lsb_openjobinfo (job, NULL, NULL, NULL, NULL, 0) >= 0
        && (jInfo = lsb_readjobinfo (NULL)) != NULL){
@@ -146,7 +141,6 @@ cleanup:
             }
         }
 
-
         if (subSpoolFiles.commandSpool[0]) {
             spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.commandSpool);
             err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.commandSpool);
@@ -174,7 +168,6 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
     struct LSFHeader hdr;
     struct submitMbdReply *reply;
     LS_LONG_INT jobId;
-
 
     mbdReqtype = BATCH_JOB_MODIFY;
     xdrmem_create(&xdrs, request_buf, 2*MSGSIZE, XDR_ENCODE);
@@ -208,7 +201,6 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
         return -1;
     }
 
-
     xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
 
     if (!xdr_submitMbdReply(&xdrs, reply, &hdr)) {
@@ -223,13 +215,10 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
 
     xdr_destroy(&xdrs);
 
-
-
     submitReply->badJobId = reply->jobId;
     submitReply->badReqIndx = reply->badReqIndx;
     submitReply->queue = reply->queue;
     submitReply->badJobName = reply->badJobName;
-
 
     if (lsberrno == LSBE_NO_ERROR) {
         if (reply->jobId == 0)
@@ -242,7 +231,6 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
     free(reply);
     return -1;
 }
-
 
 static int
 esubValModify(struct submit *jobSubReq)

@@ -45,7 +45,7 @@ static char fomt[200];
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-h] [-V] [-w | -l] [-m host_name | -m cluster_name]\n", cmd);
 
     if (lsbMode_ & LSB_MODE_BATCH)
@@ -181,14 +181,14 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
         qp = &(queueInfo[i]);
 
         if (qp->qStatus & QUEUE_STAT_OPEN) {
-            sprintf(statusStr, "%s:", I18N_Open);
+            sprintf(statusStr, "%s:", "Open");
 	}
 	else {
-            sprintf(statusStr, "%s:", I18N_Closed);
+            sprintf(statusStr, "%s:", "Closed");
 	}
         if (qp->qStatus & QUEUE_STAT_ACTIVE) {
             if (qp->qStatus & QUEUE_STAT_RUN) {
-	        strcat(statusStr, I18N_Active);
+	        strcat(statusStr, "Active");
 	    } else {
 	        strcat(statusStr, I18N_Inact__Win);
 	    }
@@ -235,26 +235,26 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
 
         printf(("PARAMETERS/STATISTICS\n"));
 
-        prtWord(QUEUE_PRIO_LENGTH, I18N_PRIO, 0);
+        prtWord(QUEUE_PRIO_LENGTH, "PRIO", 0);
 
 	if ( lsbMode_ & LSB_MODE_BATCH )
-            prtWord(QUEUE_NICE_LENGTH, I18N_NICE, 1);
+            prtWord(QUEUE_NICE_LENGTH, "NICE", 1);
 
-        prtWord(QUEUE_STATUS_LENGTH, I18N_STATUS, 0);
+        prtWord(QUEUE_STATUS_LENGTH, "STATUS", 0);
 
 	if ( lsbMode_ & LSB_MODE_BATCH ) {
-            prtWord(QUEUE_MAX_LENGTH,  I18N_MAX, -1);
+            prtWord(QUEUE_MAX_LENGTH,  "MAX", -1);
             prtWord(QUEUE_JL_U_LENGTH, I18N_JL_U, -1);
             prtWord(QUEUE_JL_P_LENGTH, I18N_JL_P, -1);
             prtWord(QUEUE_JL_H_LENGTH, I18N_JL_H, -1);
 	};
 
-        prtWord(QUEUE_NJOBS_LENGTH, I18N_NJOBS, -1);
-        prtWord(QUEUE_PEND_LENGTH,  I18N_PEND,  -1);
-        prtWord(QUEUE_RUN_LENGTH,   I18N_RUN,   -1);
-        prtWord(QUEUE_SSUSP_LENGTH, I18N_SSUSP, -1);
-        prtWord(QUEUE_USUSP_LENGTH, I18N_USUSP, -1);
-        prtWord(QUEUE_RSV_LENGTH,   I18N_RSV,   -1);
+        prtWord(QUEUE_NJOBS_LENGTH, "NJOBS", -1);
+        prtWord(QUEUE_PEND_LENGTH,  "PEND",  -1);
+        prtWord(QUEUE_RUN_LENGTH,   "RUN",   -1);
+        prtWord(QUEUE_SSUSP_LENGTH, "SSUSP", -1);
+        prtWord(QUEUE_USUSP_LENGTH, "USUSP", -1);
+        prtWord(QUEUE_RSV_LENGTH,   "RSV",   -1);
         printf("\n");
 
         prtWordL(QUEUE_PRIO_LENGTH,
@@ -360,11 +360,11 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
 
 	if (lsbMode_ & LSB_MODE_BATCH) {
 	    if ( strcmp(qp->userList, " ") == 0) {
-		printf("\n%s:  %s\n", I18N_USERS,
+		printf("\n%s:  %s\n", "USERS",
 		       "all users");
 	    } else {
 		if (strcmp(qp->userList, " ") != 0 && qp->userList[0] != 0)
-		    printf("\n%s: %s\n", I18N_USERS, qp->userList);
+		    printf("\n%s: %s\n", "USERS", qp->userList);
 	    }
 	}
 
@@ -377,7 +377,7 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
 			("HOSTS: all hosts used by the LSF JobScheduler system"));
         } else {
 	    if (strcmp(qp->hostList, " ") != 0 && qp->hostList[0])
-	        printf("%s:  %s\n", I18N_HOSTS, qp->hostList);
+	        printf("%s:  %s\n", "HOSTS", qp->hostList);
         }
         if (strcmp (qp->admins, " ") != 0)
             printf("%s:  %s\n",
@@ -485,20 +485,20 @@ prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
 
     if( !first ) {
             prtWord(QUEUE_NAME_LENGTH, I18N_QUEUE__NAME, 0);
-            prtWord(QUEUE_PRIO_LENGTH, I18N_PRIO, 1);
-            prtWord(QUEUE_STATUS_LENGTH, I18N_STATUS, 0);
+            prtWord(QUEUE_PRIO_LENGTH, "PRIO", 1);
+            prtWord(QUEUE_STATUS_LENGTH, "STATUS", 0);
 
 	    if ( lsbMode_ & LSB_MODE_BATCH ) {
-                prtWord(QUEUE_MAX_LENGTH,  I18N_MAX,  -1);
+                prtWord(QUEUE_MAX_LENGTH,  "MAX",  -1);
                 prtWord(QUEUE_JL_U_LENGTH, I18N_JL_U, -1);
                 prtWord(QUEUE_JL_P_LENGTH, I18N_JL_P, -1);
                 prtWord(QUEUE_JL_H_LENGTH, I18N_JL_H, -1);
 	    };
 
-        prtWord(QUEUE_NJOBS_LENGTH, I18N_NJOBS, -1);
-        prtWord(QUEUE_PEND_LENGTH,  I18N_PEND,  -1);
-        prtWord(QUEUE_RUN_LENGTH,   I18N_RUN,   -1);
-        prtWord(QUEUE_SUSP_LENGTH,  I18N_SUSP,  -1);
+        prtWord(QUEUE_NJOBS_LENGTH, "NJOBS", -1);
+        prtWord(QUEUE_PEND_LENGTH,  "PEND",  -1);
+        prtWord(QUEUE_RUN_LENGTH,   "RUN",   -1);
+        prtWord(QUEUE_SUSP_LENGTH,  "SUSP",  -1);
         printf("\n");
         first = TRUE;
     }
@@ -508,19 +508,19 @@ prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
         qp = &(queueInfo[i]);
 
         if (qp->qStatus & QUEUE_STAT_OPEN) {
-            sprintf(statusStr, "%s:", I18N_Open);
+            sprintf(statusStr, "%s:", "Open");
 	}
 	else {
-            sprintf(statusStr, "%s:", I18N_Closed);
+            sprintf(statusStr, "%s:", "Closed");
 	}
         if (qp->qStatus & QUEUE_STAT_ACTIVE) {
             if (qp->qStatus & QUEUE_STAT_RUN) {
-	        strcat(statusStr, I18N_Active);
+	        strcat(statusStr, "Active");
 	    } else {
-	        strcat(statusStr, I18N_Inact);
+	        strcat(statusStr, "Inact");
 	    }
 	} else {
-	    strcat(statusStr, I18N_Inact);
+	    strcat(statusStr, "Inact");
 	}
 
 	if (qp->maxJobs < INFINIT_INT)

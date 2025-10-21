@@ -23,7 +23,7 @@ extern char *optarg;
 static void
 usage(char* name)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [ -h ] [ -V ] [ -f ] [ -b ] -m host_name ... jobId", name);
     if (lsbMode_ & LSB_MODE_BATCH)
 	fprintf(stderr,  " | \"jobId[index]\"");

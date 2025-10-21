@@ -33,7 +33,7 @@ static void stripClusterName(char *);
 static void
 usage (char *cmd)
 {
-    fprintf(stderr, "%s: %s [-h] [-V] [-f] [-m host_name | -q queue_name |\n        -J job_name | jobId",I18N_Usage, cmd);
+    fprintf(stderr, "%s: %s [-h] [-V] [-f] [-m host_name | -q queue_name |\n        -J job_name | jobId","Usage", cmd);
     if (lsbMode_ & LSB_MODE_BATCH)
 	fprintf(stderr, " | \"jobId[index]\"");
     fprintf(stderr, "]\n");
@@ -154,7 +154,7 @@ main (int argc, char **argv, char **environ)
 
     if ((outFile = lsb_peekjob (jInfo->jobId)) == NULL) {
         char msg[50];
-	sprintf(msg,  "%s <%s>", I18N_Job, lsb_jobid2str(jInfo->jobId));
+	sprintf(msg,  "%s <%s>", "Job", lsb_jobid2str(jInfo->jobId));
         lsb_perror(msg);
         exit(-1);
     }

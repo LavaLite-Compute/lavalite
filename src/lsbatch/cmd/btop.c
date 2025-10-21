@@ -23,11 +23,6 @@ extern void bmove (int, char **, int);
 int
 main (int argc, char **argv)
 {
-
-    int rc;
-
-    rc = 0;
-
     bmove(argc, argv, TO_TOP);
     exit(0);
 }

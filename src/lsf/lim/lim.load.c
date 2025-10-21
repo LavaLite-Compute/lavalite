@@ -19,8 +19,6 @@
 
 #include "lsf/lim/lim.h"
 
-#define NL_SETN 24
-
 enum loadstruct {e_vec, e_mat};
 
 float  exchIntvl = EXCHINTVL;
@@ -143,7 +141,7 @@ sendLoad(void)
                 myClusterPtr->masterKnown  = false;
                 myClusterPtr->prevMasterPtr = myClusterPtr->masterPtr;
                 myClusterPtr->masterPtr = (struct hostNode *) NULL;
-                ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5619, "%s: Master LIM unknown now")), fname);   /* catgets 5619 */
+                ls_syslog(LOG_INFO, ("%s: Master LIM unknown now"), fname);
             }
             if (myClusterPtr->masterInactivityCount > hostInactivityLimit
                 + myHostPtr->hostNo * masterInactivityLimit) {
@@ -154,9 +152,7 @@ sendLoad(void)
                         initNewMaster();
                     } else {
 
-                        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd,
-                                                             NL_SETN, 5606,
-                                                             "%s: All the master candidates seem not available."), /* catgets 5606 */
+                        ls_syslog(LOG_WARNING, "%s: All the master candidates seem not available.",
                                   fname);
                     }
 
@@ -174,7 +170,6 @@ sendLoad(void)
         }
     }
 
-
     if (!mustSendLoad) {
         for (i = 0; i < allInfo.numIndx; i++) {
             if (fabs(myHostPtr->loadIndex[i] - li[i].valuesent) >
@@ -191,10 +186,8 @@ sendLoad(void)
         return;
     }
 
-
     for (i = 0; i < allInfo.numIndx; i++)
         li[i].valuesent = myHostPtr->loadIndex[i];
-
 
     if (!masterMe) {
 
@@ -226,9 +219,8 @@ sendLoad(void)
         }
 
         if (bufSize > MSGSIZE) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5620,
-                                             "%s: message bigger then receive buf(%d)"), fname, bufSize);
-            /* catgets 5620 */
+            ls_syslog(LOG_ERR, "%s: message bigger then receive buf(%d", fname, bufSize);
+
             return;
         }
         if ((repBuf = (char *)malloc(bufSize)) == NULL) {
@@ -261,7 +253,6 @@ sendLoad(void)
         }
 
         logcnt(1);
-
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG,
@@ -303,12 +294,10 @@ getResPairs (struct hostNode *hPtr)
         }
     }
 
-
     for (i = 0; i <  hPtr->numInstances; i++) {
         resPairs[i].name = hPtr->instances[i]->resName;
         resPairs[i].value = hPtr->instances[i]->value;
     }
-
 
     return resPairs;
 
@@ -323,15 +312,11 @@ rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
 
     logcnt(0);
 
-
-
     if (from->sin_port != lim_port) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5600,
-                                         "%s: Update not from LIM: <%s>, expected %d"),  /* catgets 5600 */
+        ls_syslog(LOG_ERR, "%s: Update not from LIM: <%s>, expected %d",
                   fname, sockAdd2Str_(from), ntohs(lim_port));
         return;
     }
-
 
     if (!xdr_enum(xdrs, (int *) &loadType)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_enum");
@@ -341,9 +326,8 @@ rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
     if (loadType == e_vec)
         rcvLoadVector(xdrs, from, hdr);
     else  {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5601,
-                                         "%s: Invalide load type (%d) from host <%s>"),  /* catgets 5601 */
-                  fname, loadType, sockAdd2Str_(from));
+        ls_syslog(LOG_ERR, "%s: Invalide load type %d from host <%s>",
+            fname, loadType, sockAdd2Str_(from));
         return;
     }
 }
@@ -392,28 +376,21 @@ rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
              (checkSumMismatch < 5)
              &&
              (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) ) {
-            ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5602,
-                                                 "%s: Sender (%s) may have different config?."), /* catgets 5602 */
-                      fname, sockAdd2Str_(from));
+            ls_syslog(LOG_WARNING, "%s: Sender %s may have different config?.",
+                fname, sockAdd2Str_(from));
             checkSumMismatch++;
         }
-
-
 
         hPtr = findHostbyAddr(from, fname);
         if (hPtr == NULL) {
             return;
         }
 
-
         if (findHostbyList(myClusterPtr->hostList, hPtr->hostName) == NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5604,
-                                             "%s: Got load from client-only host %s.  Kill LIM on %s"), /* catgets 5604 */
+            ls_syslog(LOG_ERR, "%s: Got load from client-only host %s.  Kill LIM on %s",
                       fname, sockAdd2Str_(from), sockAdd2Str_(from));
             return;
         }
-
-
 
         if (hPtr->infoValid != true) {
             return;
@@ -421,8 +398,6 @@ rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG,"rcvLoadVector: Received load update from host <%s>",hPtr->hostName);
-
-
 
         hPtr->hostInactivityCount = 0;
         int masterLock = false;
@@ -441,22 +416,18 @@ rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
 
         hPtr->loadMask  = 0;
 
-
         if ((loadVector->seqNo - hPtr->lastSeqNo > 2) &&
             (loadVector->seqNo > hPtr->lastSeqNo) && (hPtr->lastSeqNo != 0) )
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5605,
-                                             "%s: host %s lastSeqNo=%d seqNo=%d. Packets being dropped?"), /* catgets 5605 */
+            ls_syslog(LOG_ERR, "%s: host %s lastSeqNo=%d seqNo=%d. Packets being dropped?",
                       fname, hPtr->hostName, hPtr->lastSeqNo, loadVector->seqNo);
         hPtr->lastSeqNo = loadVector->seqNo;
-
 
         copyResValues (*loadVector, hPtr);
 
         copyIndices(loadVector->li, loadVector->numIndx, loadVector->numUsrIndx, hPtr);
 
-
         if (loadVector->flags & SEND_MASTER_ANN)  {
-            ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5620, "%s: Sending master announce to %s")),   /* catgets 5620 */
+            ls_syslog(LOG_INFO, ("%s: Sending master announce to %s"),
                       fname, hPtr->hostName);
             announceMasterToHost(hPtr, SEND_NO_INFO);
         }
@@ -568,7 +539,7 @@ logcnt(int sendlog)
         return;
 
     if (sendcnt > sloglimit || recvcnt > rloglimit) {
-        ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5621, "%s: sendcnt=%d recvcnt=%d sloglimit=%d rloglimit=%d")), /* catgets 5621 */ "logcnt",
+        ls_syslog(LOG_INFO, ("%s: sendcnt=%d recvcnt=%d sloglimit=%d rloglimit=%d"),  "logcnt",
                   sendcnt, recvcnt, sloglimit, rloglimit);
         sendcnt = 0;
         recvcnt = 0;
@@ -584,7 +555,6 @@ copyIndices(float *lindx, int numIndx, int numUsrIndx, struct hostNode *hPtr)
 
     myBuiltIn = allInfo.numIndx - allInfo.numUsrIndx;
     slaveBuiltIn = numIndx - numUsrIndx;
-
 
     for (i = 0; (i < myBuiltIn) && (i < slaveBuiltIn); i++) {
         int nprocs = hPtr->statInfo.maxCpus;
@@ -602,12 +572,10 @@ copyIndices(float *lindx, int numIndx, int numUsrIndx, struct hostNode *hPtr)
         }
     }
 
-
     for(; i < myBuiltIn; i++) {
         hPtr->loadIndex[i]  = INFINIT_LOAD;
         hPtr->uloadIndex[i] = INFINIT_LOAD;
     }
-
 
     for(i=0; (i < numUsrIndx) &&
             (i < allInfo.numUsrIndx); i++) {

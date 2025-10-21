@@ -37,7 +37,6 @@ ls_resreq(char *task)
 
 }
 
-
 int
 ls_eligible(char *task, char *resreqstr, char mode)
 {

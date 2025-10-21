@@ -21,8 +21,6 @@
 #define HDR_LEN 12
 #define DEFAULT_MAX_CHANNELS 1024
 
-#define NL_SETN   23
-
 #define CLOSEIT(i) {         \
     close(channels[i].handle);        \
     channels[i].state = CH_DISC;            \
@@ -105,8 +103,6 @@ chanServSocket_(int type, u_short port, int backlog, int options)
     sin.sin_port        = htons(port);
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
 
-
-
     if (options & CHAN_OP_SOREUSE) {
         int one = 1;
 
@@ -177,7 +173,6 @@ chanClientSocket_(int domain, int type, int options)
         channels[ch].handle = s1;
     }
 
-
     if (options & CHAN_OP_PPORT) {
         if  (first) {
             first = false;
@@ -187,7 +182,6 @@ chanClientSocket_(int domain, int type, int options)
             port = IPPORT_RESERVED - 1;
         }
     }
-
 
     s0= channels[ch].handle;
     memset((char*)&cliaddr, 0, sizeof(cliaddr));
@@ -203,7 +197,6 @@ chanClientSocket_(int domain, int type, int options)
 
         if (bind(s0, (struct sockaddr *)&cliaddr, sizeof(cliaddr)) == 0)
             break;
-
 
         if (!(options & CHAN_OP_PPORT)) {
 
@@ -224,7 +217,6 @@ chanClientSocket_(int domain, int type, int options)
             lserrno = LSE_SOCK_SYS;
             return -1;
         }
-
 
         if ((options & CHAN_OP_PPORT) && port < IPPORT_RESERVED/2)
             port = IPPORT_RESERVED - 1;
@@ -458,10 +450,10 @@ chanOpen_(u_int iaddr, u_short port, int options)
             struct sockaddr laddr;
             socklen_t len = sizeof(laddr);
 
-            ls_syslog(LOG_ERR,I18N(5002,"chanOpen: connect() failed, cc=%d, errno=%d"),/*catgets 5002 */
+            ls_syslog(LOG_ERR,"chanOpen: connect() failed, cc=%d, errno=%d",
                       cc, errno);
             if (getsockname (channels[i].handle, &laddr, &len) == 0) {
-                ls_syslog(LOG_ERR,I18N(5003,"chanOpen: connect() failed, laddr=%s, addr=%s"),/*catgets 5003*/
+                ls_syslog(LOG_ERR,"chanOpen: connect() failed, laddr=%s, addr=%s",
                           sockAdd2Str_((struct sockaddr_in *)&laddr),
                           sockAdd2Str_((struct sockaddr_in *)&addr));
             }
@@ -604,8 +596,7 @@ chanSelect_(struct Masks *sockmask, struct Masks *chanmask, struct timeval *time
         if (channels[i].handle == INVALID_HANDLE)
             continue;
         if (channels[i].state == CH_FREE) {
-            ls_syslog(LOG_ERR,(_i18n_msg_get(ls_catd,NL_SETN,5001,
-                                             "%s: channel %d has socket %d but in %s state!")),/* catgets 5001 */
+            ls_syslog(LOG_ERR,("%s: channel %d has socket %d but in %s state!"),
                       fname, i,channels[i].handle, "CH_FREE");
             continue;
         }
@@ -634,7 +625,6 @@ chanSelect_(struct Masks *sockmask, struct Masks *chanmask, struct timeval *time
 
         if (channels[i].type != CH_TYPE_UDP)
             FD_SET(channels[i].handle, &(sockmask->emask));
-
 
         if (channels[i].send &&
             channels[i].send->forw != channels[i].send)
@@ -668,7 +658,6 @@ chanSelect_(struct Masks *sockmask, struct Masks *chanmask, struct timeval *time
                 FD_SET(i, &(chanmask->wmask));
             continue;
         }
-
 
         if (channels[i].state == CH_PRECONN) {
             if (FD_ISSET(channels[i].handle, &(sockmask->wmask))) {
@@ -808,7 +797,6 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
         }
     }
 
-
     if (!out) {
         return 0;
     }
@@ -827,7 +815,6 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
             lserrno = LSE_SELECT_SYS;
         return -1;
     }
-
 
     if (logclass & LC_COMM)
         ls_syslog(LOG_DEBUG2,"%s: reading reply header", fname);
@@ -962,8 +949,7 @@ doread(int chfd, struct Masks *chanmask)
     if (cc == 0 && errno == EINTR) {
 
         ls_syslog(LOG_ERR,I18N(5004,"\
-                               doread: Hmm... looks like read(2) has returned EOF when interrupted by a signal, please report"));/*catgets 5004 */
-
+                               doread: Hmm... looks like read(2) has returned EOF when interrupted by a signal, please report"));
 
             return;
     }

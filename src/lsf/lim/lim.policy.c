@@ -18,8 +18,6 @@
  */
 #include "lsf/lim/lim.h"
 
-#define NL_SETN 24
-
 float *extraload;
 char jobxfer = 0;
 struct hostNode **candidates=NULL;
@@ -90,8 +88,7 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     if (!xdr_decisionReq(xdrs, &plReq, reqHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "xdr_decisionReq",
                   sockAdd2Str_(from));
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5801,
-                                         "%s: Header: opCode=%d refCode=%d version=%d length=%d "),/* catgets 5801 */
+        ls_syslog(LOG_ERR, "%s: Header: opCode=%d refCode=%d version=%d length=%d ",
                   fname,
                   reqHdr->opCode,
                   reqHdr->refCode,
@@ -115,13 +112,11 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
         }
     }
 
-
     if (!validHosts(plReq.preferredHosts, plReq.numPrefs, &clName, plReq.options | SEND_TO_CLUSTERS)) {
         limReplyCode = LIME_UNKWN_HOST;
-        ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5822, "%s: validHosts() failed for bad cluster/host name requested from <%s>")), fname, sockAdd2Str_(from));  /* catgets 5822 */
+        ls_syslog(LOG_INFO, ("%s: validHosts( failed for bad cluster/host name requested from <%s>"), fname, sockAdd2Str_(from));
         goto Reply;
     }
-
 
     propt = PR_ALL;
     if (plReq.options & DFT_FROMTYPE)
@@ -163,9 +158,7 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
 
     ignore_res = (plReq.options & IGNORE_RES);
 
-
     ncandidates = getOkSites(ncandidates, 0, ignore_res);
-
 
     potentialOfCandidates(ncandidates, &resVal);
     if (fromHostPtr)
@@ -186,20 +179,16 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
                                  plReq.preferredHosts, ncandidates, true, ignore_res, plReq.options);
     }
 
-
     if ((getNumInstances(ncandidates) < plReq.numHosts) &&
         (plReq.options & EXACT)) {
         limReplyCode = LIME_NO_OKHOST;
         goto Reply;
     }
 
-
-
     selectBestInstances(ncandidates, plReq.numHosts,
                         plReq.options & LOCALITY, ignore_res);
 
     limReplyCode = LIME_NO_ERR;
-
 
     placeReply.numHosts = 0;
     for(i=0; i < ncandidates ;i++) {
@@ -216,7 +205,6 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
         goto Reply;
     }
 
-
     for (i=0,j=0; i < ncandidates; i++) {
         if (candidates[i]->use > 0) {
             strcpy(placeReply.placeInfo[j].hostName, candidates[i]->hostName);
@@ -224,7 +212,6 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
             j++;
         }
     }
-
 
 Reply:
 
@@ -270,11 +257,8 @@ Reply1:
 
     xdr_destroy(&xdrs2);
 
-
     if(limReplyCode != LIME_NO_ERR)
         return;
-
-
 
     jobXfer.numHosts = placeReply.numHosts;
     jobXfer.placeInfo = placeReply.placeInfo;
@@ -339,7 +323,6 @@ getEligibleSites(struct resVal *resValPtr, struct decisionReq *reqPtr,
     int flags=0;
     int j;
 
-
     if (initCandList() < 0)
         return -1;
 
@@ -354,7 +337,6 @@ getEligibleSites(struct resVal *resValPtr, struct decisionReq *reqPtr,
             break;
         }
     }
-
 
     clPtr = myClusterPtr;
 
@@ -388,21 +370,17 @@ grabHosts(struct hostNode *hList, struct resVal *resValPtr,
 
     for (hPtr = hList; hPtr; hPtr = hPtr->nextPtr)  {
 
-
         if ( (fabs(resValPtr->val[MEM]) < INFINIT_LOAD) &&
              (resValPtr->val[MEM] > hPtr->statInfo.maxMem) )
             continue;
-
 
         if ( (fabs(resValPtr->val[SWP]) < INFINIT_LOAD) &&
              (resValPtr->val[SWP] > hPtr->statInfo.maxSwap) )
             continue;
 
-
         if ((fabs(resValPtr->val[TMP]) < INFINIT_LOAD)
             && (resValPtr->val[TMP] > hPtr->statInfo.maxTmp))
             continue;
-
 
         if (reqPtr->ofWhat == OF_HOSTS && !(flags & ELIG_ALL)) {
             for (j=1;j<reqPtr->numPrefs; j++) {
@@ -441,7 +419,6 @@ getNumInstances(int ncandidates)
     return numInst;
 }
 
-
 #define RQ  ((1 << R15S) | (1 << R1M) | (1 << R15M))
 
 static
@@ -466,17 +443,14 @@ void potentialOfHost(struct hostNode *hPtr, struct resVal *resValPtr)
               i == MEM  || i == SWP || i == TMP))
             continue;
 
-
         if (!(resValPtr->genClass & (1 << i)))
             continue;
-
 
         if (resValPtr->val[i] >= INFINIT_LOAD) {
             hPtr->availLow  = 1;
             hPtr->availHigh = 1;
             return;
         }
-
 
         if (resValPtr->val[i] < 0.01)
             continue;
@@ -488,7 +462,6 @@ void potentialOfHost(struct hostNode *hPtr, struct resVal *resValPtr)
             if (indexpot < 1)
                 indexpot = 1;
             hPtr->availLow = MIN(hPtr->availLow, indexpot);
-
 
             indexpot = (int) (maxCpus/resValPtr->val[i]);
             if (indexpot < 1)
@@ -502,7 +475,6 @@ void potentialOfHost(struct hostNode *hPtr, struct resVal *resValPtr)
     }
     return;
 }
-
 
 static
 void potentialOfCandidates(int ncandidates, struct resVal *resValPtr)
@@ -532,7 +504,6 @@ selectBestInstances(int ncandidates, int needed, char locality,
         char flags = SORT_FINAL | SORT_SINDX | SORT_INCR;
         int  cand;
 
-
         for (i=0; i < ncandidates; i++) {
 
             if (candidates[i]->availHigh > needed) {
@@ -547,13 +518,10 @@ selectBestInstances(int ncandidates, int needed, char locality,
                 (float)(ncandidates-i)/ncandidates;
         }
 
-
         cand=bsort(allInfo.numIndx, ncandidates, 0, ncandidates,
                    0, flags, ignore_res, NORMALIZE);
         if (cand != ncandidates)
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5807,
-                                             "%s: Internal scheduling error(1)cand=%d ncandidates=%d"), fname, cand, ncandidates); /* catgets 5807 */
-
+            ls_syslog(LOG_ERR, "%s: Internal scheduling error(1cand=%d ncandidates=%d", fname, cand, ncandidates);
 
         for (i=0; (i < ncandidates) && (needed > 0); i++) {
             avail = candidates[i]->availHigh;
@@ -564,10 +532,8 @@ selectBestInstances(int ncandidates, int needed, char locality,
         return;
     }
 
-
     for (i=0; (i < ncandidates) && (needed > 0);i++) {
         avail = candidates[i]->availLow;
-
 
         if ( (needed <= candidates[i]->availHigh) &&
              (i < ncandidates/2) )
@@ -606,7 +572,6 @@ findBestHost(struct resVal *resValPtr, int num, int numPrefs,
 
     nec = findNPref(ncandidates, numPrefs, preferredHosts);
 
-
     flags = SORT_CUT ;
     for (i=resValPtr->nphase - 1; i >= 0; i--) {
         if( i == 0)
@@ -636,19 +601,12 @@ findBestHost(struct resVal *resValPtr, int num, int numPrefs,
         }
     }
 
-
-
     if (!fromHostPtr)
         return ncandidates;
-
-
 
     for (i=0; i < ncandidates; i++)
         if(candidates[i] == fromHostPtr)
             return ncandidates;
-
-
-
 
     for (i=resValPtr->nphase - 1 ; i >= 0;i--) {
         double a, b;
@@ -671,7 +629,6 @@ findBestHost(struct resVal *resValPtr, int num, int numPrefs,
 
         if (lidx == R15S || lidx == R1M || lidx == R15M) {
             float cpuf;
-
 
             cpuf = (candidates[ncandidates-1]->hModelNo >= 0) ?
                 shortInfo.cpuFactors[candidates[ncandidates-1]->hModelNo]:1.0;
@@ -742,8 +699,6 @@ bsort(int lidx, int ncandidates, int nec, int numHosts, float threshold,
         flip = false;
     lidx = abs(lidx) -1;
 
-
-
     if (lidx == R15S || lidx == R1M || lidx == R15M ||
         lidx == LS)
         shrink = 5;
@@ -777,7 +732,6 @@ bsort(int lidx, int ncandidates, int nec, int numHosts, float threshold,
             incr = !incr;
     }
 
-
     coef = 0.05 * nec/numHosts;
 
     if (! (flags & SORT_FINAL)) {
@@ -787,7 +741,6 @@ bsort(int lidx, int ncandidates, int nec, int numHosts, float threshold,
             if (NOTORDERED(incr, bestload, loadIndexValue(i, lidx, rqlOptions)))
                 bestload = loadIndexValue(i, lidx, rqlOptions);
         }
-
 
         swap = true;
         i = 0;
@@ -801,7 +754,6 @@ bsort(int lidx, int ncandidates, int nec, int numHosts, float threshold,
                 }
                 if (order == 1)
                     continue;
-
 
                 if (!(flags & SORT_SINDX)) {
                     mkexld(candidates[j], candidates[j+1], lidx,
@@ -829,7 +781,6 @@ bsort(int lidx, int ncandidates, int nec, int numHosts, float threshold,
 
         return ncandidates;
     }
-
 
     swap = true;
     i = 0;
@@ -872,7 +823,6 @@ orderByStatus(int j, int ignore_res)
     struct hostNode *tmp;
     int *status1, *status2;
 
-
     if (candidates[j-1] == fromHostPtr) {
         status1 = candidates[j-1]->status;
         status1[1] = candidates[j-1]->status[1] & ~(1 << IT);
@@ -898,7 +848,6 @@ orderByStatus(int j, int ignore_res)
 	    candidates[j-1] = tmp;
         return 0;
     }
-
 
     if (ignore_res && LS_ISOKNRES(status1) && ! LS_ISOKNRES(status2))
         return 1;
@@ -951,10 +900,8 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
     enum limReqCode limReqCode;
     struct LSFHeader reqHdr;
 
-
     if( limSock < 0 ) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5824,
-                                         "%s: invalid channel(limSock=%d)"), /* catgets 5824 */
+        ls_syslog(LOG_ERR, "%s: invalid channel(limSock=%d)",
                   fname,limSock);
         return;
     }
@@ -964,7 +911,6 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
     limReqCode = LIM_JOB_XFER;
 
     if (child) {
-
 
         if (!getHostNodeIPAddr(myClusterPtr->masterPtr,&addr)) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getHostNodeIPAddr");
@@ -990,8 +936,7 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
                       sockAdd2Str_(&addr), len);
 
         if (chanSendDgram_(limSock, buf, len, &addr) < 0 ) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5809,
-                                             "%s: Failed to tell master(%s) of job xfer (len=%d): %m"), /* catgets 5809 */
+            ls_syslog(LOG_ERR, "%s: Failed to tell master(%s of job xfer (len=%d): %m",
                       fname, sockAdd2Str_(&addr), len);
             xdr_destroy(&xdrs);
             return;
@@ -1001,7 +946,6 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
     } else {
         updExtraLoad(destHostPtr, jobXferPtr->resReq, num);
     }
-
 
     for (i=0; i < num; i++) {
         if (myClusterPtr->masterKnown &&
@@ -1013,15 +957,12 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
             continue;
         }
 
-
         if (!destHostPtr[i]->addr)
             continue;
 
-
         if (!getHostNodeIPAddr(destHostPtr[i],&addr)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5808,
-                                             "%s: getHostNodeIPAddr failed for host %s"),
-                      fname,destHostPtr[i]->hostName); /* catgets 5808 */
+            ls_syslog(LOG_ERR, "%s: getHostNodeIPAddr failed for host %s",
+                      fname,destHostPtr[i]->hostName);
             continue;
         }
 
@@ -1041,8 +982,7 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
             ls_syslog(LOG_DEBUG, "loadAdj: inform destination host %s (len=%d) of job xfer", sockAdd2Str_(&addr), len);
 
         if (chanSendDgram_(limSock, buf, len, &addr) < 0 ) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5811,
-                                             "%s: Failed to inform destination host %s (len=%d) of job xfer: %m"), fname, sockAdd2Str_(&addr), len); /* catgets 5811 */
+            ls_syslog(LOG_ERR, "%s: Failed to inform destination host %s (len=%d of job xfer: %m", fname, sockAdd2Str_(&addr), len);
             xdr_destroy(&xdrs);
             return;
         }
@@ -1088,7 +1028,6 @@ loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
         limReplyCode = LIME_NO_MEM;
         goto reply;
     }
-
 
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, true);
     tclHostData.ignDedicatedResource = ignDedicatedResource;
@@ -1145,8 +1084,7 @@ reply:
     }
 
     if (chanWrite_(s, buf, XDR_GETPOS(&xdrs2)) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5814,
-                                         "%s: Failed to send load adjustment decision to %s (len=%d): %m"), fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2)); /* catgets 5814 */
+        ls_syslog(LOG_ERR, "%s: Failed to send load adjustment decision to %s (len=%d: %m", fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -1165,8 +1103,7 @@ updExtraLoad(struct hostNode **destHostPtr, char *resReq, int numHosts)
     float dupfactor, exval;
 
     if (!destHostPtr) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5815,
-                                         "%s: Null host pointer"), fname); /* catgets 5815 */
+        ls_syslog(LOG_ERR, "%s: Null host pointer", fname);
         return;
     }
     initResVal (&resVal);
@@ -1179,7 +1116,6 @@ updExtraLoad(struct hostNode **destHostPtr, char *resReq, int numHosts)
     mustSendLoad = true;
     jtime = time(0);
     for (j=0; j<numHosts; j++) {
-
 
         dupfactor =  MIN((float) destHostPtr[j]->use,
                          (float) destHostPtr[j]->statInfo.maxCpus);
@@ -1194,7 +1130,6 @@ updExtraLoad(struct hostNode **destHostPtr, char *resReq, int numHosts)
         for (lidx = 0; lidx < NBUILTINDEX; lidx++) {
             if ( lidx == R15M)
                 continue;
-
 
             if (resVal.genClass & (1 << lidx)) {
                 exval = fabs(resVal.val[lidx]);
@@ -1212,7 +1147,6 @@ updExtraLoad(struct hostNode **destHostPtr, char *resReq, int numHosts)
                 exval = li[lidx].extraload[0];
             }
             jackup(lidx, destHostPtr[j],  exval*dupfactor);
-
 
             if (limParams[LSF_LIM_JACKUP_BUSY].paramValue != NULL) {
                 setBusyIndex(lidx, destHostPtr[j]);
@@ -1234,7 +1168,6 @@ jackup(int lidx, struct hostNode *hostPtr, float exval)
     if (lidx == R15S || lidx == R1M || lidx == R15M) {
 
         hostPtr->uloadIndex[lidx] += exval;
-
 
         hostPtr->loadIndex[lidx] = normalizeRq(hostPtr->uloadIndex[lidx],
                                                (hostPtr->hModelNo >= 0) ?
@@ -1312,7 +1245,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
 
     if (!validHosts(ldReq.preferredHosts, ldReq.numPrefs, &clName, ldReq.options)) {
         limReplyCode = LIME_UNKWN_HOST;
-        ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd , NL_SETN, 5823, "%s: validHosts() failed for bad cluster/host name requested from <%s>")), fname, sockAdd2Str_(from));         /* catgets 5823 */
+        ls_syslog(LOG_INFO, ("%s: validHosts( failed for bad cluster/host name requested from <%s>"), fname, sockAdd2Str_(from));
         goto Reply;
     }
 
@@ -1388,7 +1321,6 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
         reply.nEntry = ncandidates;
     }
 
-
     reply.nIndex = resVal.nindex;
     hlSize   =  ALIGNWORD_(reply.nEntry * sizeof(struct hostLoad));
     lvecSize =  ALIGNWORD_(reply.nIndex * sizeof(float));
@@ -1414,7 +1346,6 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
         return;
     }
 
-
     for (j=0; j < resVal.nindex; j++)  {
         k = resVal.indicies[j];
         reply.indicies[j] = allInfo.resTable[k].name;
@@ -1433,7 +1364,6 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
                 reply.loadMatrix[i].status[j + 1] = 0;
             continue;
         }
-
 
         for (j = 0; j < GET_INTNUM(reply.nIndex); j++)
             reply.loadMatrix[i].status[j+1] = 0;
@@ -1513,8 +1443,7 @@ Reply1:
     free(buf);
 
     if (cc < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5821,
-                                         "%s: Failed in sending lsload reply to %s (len=%d): %m"), fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2)); /* catgets 5821 */
+        ls_syslog(LOG_ERR, "%s: Failed in sending lsload reply to %s (len=%d: %m", fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -1586,7 +1515,6 @@ chkResReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
         limReplyCode = LIME_BAD_DATA;
         goto Reply;
     }
-
 
     if (!isMasterCandidate) {
         wrongMaster(from, buf, reqHdr, -1);

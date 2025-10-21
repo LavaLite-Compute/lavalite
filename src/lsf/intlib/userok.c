@@ -22,9 +22,6 @@
 #include "lsf/lib/mls.h"
 #include "lsf/lim/limout.h"
 
-
-#define NL_SETN      22
-
 #define LSF_AUTH            9
 #define LSF_USE_HOSTEQUIV   10
 #define LSF_ID_PORT         11
@@ -81,8 +78,7 @@ auth_user(u_long in, u_short local, u_short remote)
         if (authd_port != NULL) {
             if ((id_port = atoi(authd_port)) == 0) {
                 ls_syslog(LOG_ERR,
-                          _i18n_msg_get(ls_catd, NL_SETN, 5801,
-                                        "%s: LSF_ID_PORT in lsf.conf must be positive number"),/* catgets 5801 */
+                          "%s: LSF_ID_PORT in lsf.conf must be positive number",
                           fname);
                 return NULL;
             }
@@ -91,8 +87,7 @@ auth_user(u_long in, u_short local, u_short remote)
             svp = getservbyname("ident", "tcp");
             if (! svp) {
                 ls_syslog(LOG_ERR,
-                          _i18n_msg_get(ls_catd, NL_SETN, 5802,
-                                        "%s: %s(%s/tcp) failed: %m"), /* catgets 5802 */
+                          "%s: %s(%s/tcp failed: %m",
                           fname, "getservbyname", "ident");
                 return NULL;
             }
@@ -125,10 +120,8 @@ auth_user(u_long in, u_short local, u_short remote)
     if (getitimer(ITIMER_REAL, &old_itimer) < 0)
         return 0;
 
-
     action.sa_flags = 0;
     action.sa_handler = alarmer_;
-
 
     sigfillset(&action.sa_mask);
     sigaction(SIGALRM, &action, &old_action);
@@ -136,7 +129,6 @@ auth_user(u_long in, u_short local, u_short remote)
     bp = rbuf;
     sprintf(bp,"%u , %u\r\n",(unsigned int) remote,(unsigned int) local);
     bufsize = strlen(bp);
-
 
     blockSigs_(SIGALRM, &newMask, &oldMask);
 
@@ -201,16 +193,14 @@ auth_user(u_long in, u_short local, u_short remote)
     if (sscanf(rbuf, "%hd,%hd: USERID :%*[^:]:%s",
                &rremote,&rlocal,ruser) < 3) {
         ls_syslog(LOG_ERR,
-                  _i18n_msg_get(ls_catd, NL_SETN, 5806,
-                                "%s: Authentication data format error (rbuf=<%s>) from %s"), /* catgets 5806 */
+                  "%s: Authentication data format error rbuf=<%s> from %s",
                   fname, rbuf, sockAdd2Str_(&saddr));
         return 0;
     }
     if ((remote != rremote) || (local != rlocal)) {
         ls_syslog(LOG_ERR,
-                  _i18n_msg_get(ls_catd, NL_SETN, 5807,
-                                "%s: Authentication port mismatch (remote=%d, local=%d, rremote=%d, rlocal=%d) from %s"), /* catgets 5807 */
-                  fname, remote, local, rlocal, rremote, sockAdd2Str_(&saddr));
+                  "%s: Authentication port mismatch remote=%d, local=%d, rremote=%d, rlocal=%d from %s",
+            fname, remote, local, rlocal, rremote, sockAdd2Str_(&saddr));
         return 0;
     }
 
@@ -237,9 +227,8 @@ userok(int s, struct sockaddr_in *from, char *hostname,
         }
         if (strcmp(lsfUserName, auth->lsfUserName) != 0) {
             ls_syslog(LOG_ERR,
-                      _i18n_msg_get(ls_catd, NL_SETN, 5809,
-                                    "%s: %s rejected in single user mode"),
-                      fname, auth->lsfUserName); /* catgets 5809 */
+                      "%s: %s rejected in single user mode",
+                      fname, auth->lsfUserName);
             return false;
         }
     }
@@ -262,8 +251,7 @@ userok(int s, struct sockaddr_in *from, char *hostname,
         if (!debug) {
             if (remote >= IPPORT_RESERVED || remote < IPPORT_RESERVED/2) {
                 ls_syslog(LOG_ERR,
-                          _i18n_msg_get(ls_catd, NL_SETN, 5811,
-                                        "%s: Request from bad port (%d), denied"), /* catgets 5811 */
+                          "%s: Request from bad port %d, denied",
                           fname, remote);
                 return false;
             }
@@ -283,8 +271,6 @@ userok(int s, struct sockaddr_in *from, char *hostname,
                 }
                 local = ntohs(saddr.sin_port);
 
-
-
                 if (getpeername(s, (struct sockaddr *)&saddr, &size) == -1) {
                     ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "getpeername");
                     return false;
@@ -294,32 +280,30 @@ userok(int s, struct sockaddr_in *from, char *hostname,
                 if (!user) {
                     if (errno == ETIMEDOUT) {
                         ls_syslog(LOG_INFO,
-                                  I18N(5824,"%s: auth_user %s returned NULL, retrying"),/*catgets 5824 */
+                                  "%s: auth_user %s returned NULL, retrying",
                                   fname, sockAdd2Str_(from));
 
                         millisleep_(500);
                         user = auth_user(from->sin_addr.s_addr, local, remote);
                         if (!user) {
                             ls_syslog(LOG_ERR,
-                                      _i18n_msg_get(ls_catd, NL_SETN, 5815,
-                                                    "%s: auth_user %s retry failed: %m"),/* catgets 5815 */
+                                      "%s: auth_user %s retry failed: %m",
                                       fname, sockAdd2Str_(from));
                             return false;
                         } else {
                             ls_syslog(LOG_INFO,
-                                      I18N(5825, "%s: auth_user %s retry succeeded"),/*catgets 5825*/
+                                      "%s: auth_user %s retry succeeded",
                                       fname, sockAdd2Str_(from));
                         }
                     } else {
-                        ls_syslog(LOG_INFO, I18N(5826,"%s: auth_user %s returned NULL"),/*catgets 5826 */
+                        ls_syslog(LOG_INFO, "%s: auth_user %s returned NULL",
                                   fname, sockAdd2Str_(from));
                         return false;
                     }
                 } else {
                     if (strcmp(user, auth->lsfUserName) != 0) {
                         ls_syslog(LOG_ERR,
-                                  _i18n_msg_get(ls_catd, NL_SETN, 5816,
-                                                "%s: Forged username suspected from %s: %s/%s"), /* catgets 5816 */
+                                  "%s: Forged username suspected from %s: %s/%s",
                                   fname, sockAdd2Str_(from), auth->lsfUserName, user);
                         return false;
                     }
@@ -329,23 +313,20 @@ userok(int s, struct sockaddr_in *from, char *hostname,
             if (!strcmp(authKind, AUTH_PARAM_EAUTH)) {
                 if (auth->kind != CLIENT_EAUTH) {
                     ls_syslog(LOG_ERR,
-                              _i18n_msg_get(ls_catd, NL_SETN, 5817,
-                                            "%s: Client %s is not using <%d/eauth> authentication"), /* catgets 5817 */
+                              "%s: Client %s is not using <%d/eauth> authentication",
                               fname, sockAdd2Str_(from), (int) auth->kind);
                     return false;
                 }
 
                 if (verifyEAuth_(auth, from) == -1) {
                     ls_syslog(LOG_ERR,
-                              _i18n_msg_get(ls_catd, NL_SETN, 5818,
-                                            "%s: %s authentication failed for %s/%s"),  /* catgets 5818 */
+                              "%s: %s authentication failed for %s/%s",
                               fname, "eauth", auth->lsfUserName, sockAdd2Str_(from));
                     return false;
                 }
             } else {
                 ls_syslog(LOG_ERR,
-                          _i18n_msg_get(ls_catd, NL_SETN, 5819,
-                                        "%s: Unkown authentication type <%d> from %s/%s; denied"),  /* catgets 5819 */
+                          "%s: Unkown authentication type <%d> from %s/%s; denied",
                           fname, auth->kind, auth->lsfUserName, sockAdd2Str_(from));
                 return false;
             }
@@ -367,7 +348,6 @@ userok(int s, struct sockaddr_in *from, char *hostname,
 
 }
 
-
 int
 hostOk(char *fromHost, int options)
 {
@@ -382,25 +362,21 @@ hostOk(char *fromHost, int options)
     return 1;
 }
 
-
 int
 hostIsLocal(char *hname)
 {
     int ii;
-
 
     if(getAttribOfHosts(&hostAttrLocalClst, LOCAL_ONLY | NEED_MY_CLUSTER_NAME,
                         LOCAL_HATTRIB_UPDATE_INTERVAL) < 0) {
         return false;
     }
 
-
     if(hostAttrLocalClst.myClusterNameP) {
         if (strcmp(hname, hostAttrLocalClst.myClusterNameP) == 0) {
             return true;
         }
     }
-
 
     for (ii = 0; ii < hostAttrLocalClst.numHosts; ii++) {
         if (strcasecmp(hname,
@@ -411,7 +387,6 @@ hostIsLocal(char *hname)
 
     return false;
 }
-
 
 static int
 getAttribOfHosts(struct clstHostAttribT* hostAttrTableP, int options,
@@ -426,7 +401,6 @@ getAttribOfHosts(struct clstHostAttribT* hostAttrTableP, int options,
     char *ptr;
     int putstrFailed = 0;
 
-
     if ((options & NEED_MY_CLUSTER_NAME) &&
         hostAttrTableP->myClusterNameP == NULL) {
         if ( (ptr = ls_getclustername()) == NULL ) {
@@ -439,7 +413,6 @@ getAttribOfHosts(struct clstHostAttribT* hostAttrTableP, int options,
             return -1;
         }
     }
-
 
     thistime = time(0);
     if (thistime >= hostAttrTableP->lasttime + updateIntvl ||
@@ -507,14 +480,12 @@ getAttribOfHosts(struct clstHostAttribT* hostAttrTableP, int options,
 
     if (hostAttrTableP->attrHostsP == NULL) {
         ls_syslog(LOG_ERR,
-                  I18N(5823, "%s: attrHostsP is still NULL when returning "), fname);/*catgets 5823 */
+                  "%s: attrHostsP is still NULL when returning ", fname);
         return -1;
     }
 
     return 0;
 }
-
-
 
 static void
 alarmer_(int s)

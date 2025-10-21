@@ -18,12 +18,41 @@
  */
 #include "lsf/lib/lib.h"
 
+// Thread-local like ctime_r users expect (one buffer per thread)
+static __thread char ctime2_buf[MICROBUF_SIZ];
+
+/*
+ * ctime2() — same as ctime(), but:
+ *   - thread-safe (uses localtime_r)
+ *   - no trailing '\n'
+ *   - returns pointer to static buffer (like ctime)
+ */
+const char *
+ctime2(const time_t *tp)
+{
+    if (!tp) {
+        lserrno = LSE_BAD_TIME;
+        return "";
+    }
+
+    struct tm tm;
+    if (!localtime_r(tp, &tm)) {
+        lserrno = LSE_BAD_TIME;
+        return "";
+    }
+
+    // "%a %b %e %T %Y" -> e.g., "Wed Jun  3 11:22:33 2020"
+    if (strftime(ctime2_buf, sizeof ctime2_buf, "%a %b %e %T %Y", &tm) == 0)
+        return "";
+
+    return ctime2_buf;
+}
+
 /* Bug. Various miscellaneus functions more or less useful but mostly bogus
  * ready for removal as we have ctypes and string headers for the functionality.
 */
 
 #define BADCH   ":"
-#define NL_SETN   23
 
 extern int optind;
 extern char *optarg;
@@ -272,7 +301,6 @@ getValPair(char **resReq, int *val1, int *val2)
     return 0;
 }
 
-
 char *
 my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
 {
@@ -316,7 +344,7 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
         if (!strcmp (optName, cp1)) {
             if (num_arg) {
                 if (nargc <= optind + 1) {
-                    PRINT_ERRMSG (errMsg, (_i18n_msg_get(ls_catd,NL_SETN,650, "%s: option requires an argument -- %s\n")), nargv[0], optName);  /* catgets 650 */
+                    PRINT_ERRMSG (errMsg, ("%s: option requires an argument -- %s\n"), nargv[0], optName);
                     return BADCH;
                 }
                 optarg = nargv[++optind];
@@ -325,7 +353,7 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
             return optName;
         } else if (!strncmp(optName, cp1, strlen(cp1))) {
             if (num_arg == 0) {
-                PRINT_ERRMSG (errMsg, (_i18n_msg_get(ls_catd,NL_SETN,651, "%s: option cannot have an argument -- %s\n")),  /* catgets 651 */
+                PRINT_ERRMSG (errMsg, ("%s: option cannot have an argument -- %s\n"),
                               nargv[0], cp1);
                 return BADCH;
             }
@@ -338,11 +366,10 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
         cp1 = &cp2[i];
         cp2 = ++cp1;
     }
-    PRINT_ERRMSG (errMsg, (_i18n_msg_get(ls_catd,NL_SETN,652, "%s: illegal option -- %s\n")), nargv[0], optName); /* catgets 652 */
+    PRINT_ERRMSG (errMsg, ("%s: illegal option -- %s\n"), nargv[0], optName);
     return BADCH;
 
 }
-
 
 int putEnv(char *env, char *val)
 {
@@ -401,8 +428,7 @@ Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
                         port++;
                         port = ((port < 1024) ? (port + 1024) : port);
                     }
-                    ls_syslog(LOG_ERR,(_i18n_msg_get(ls_catd,NL_SETN,5650,
-                                                     "%s: retry <%d> times, port <%d> will be bound" /* catgets 5650 */)),
+                    ls_syslog(LOG_ERR,("%s: retry <%d> times, port <%d> will be bound" ),
                               "Bind_", i, port);
                     cliaddr->sin_port = htons(port);
                 }

@@ -18,8 +18,6 @@
  */
 #include "lsf/lib/lib.h"
 
-#define NL_SETN   23
-
 #define LSF_LOG_MASK          7
 
 #define DEF_LOG_MASK   LOG_INFO
@@ -73,11 +71,8 @@ ls_openlog(const char *ident, const char *path, int use_stderr, char *logMask)
 {
     char *msg = NULL;
 
-
-
     strncpy(logident, ident, 9);
     logident[9] = '\0';
-
 
     logmask = getLogMask(&msg, logMask);
 
@@ -151,8 +146,6 @@ ls_openlog(const char *ident, const char *path, int use_stderr, char *logMask)
 
 syslog:
 
-
-
     log_dest = LOGTO_SYS;
 
     logfile[0] = '\0';
@@ -213,7 +206,6 @@ ls_syslog (int level, const char *fmt, ...)
 {
     int save_errno = errno;
     va_list ap;
-
 
     static char lastMsg[16384];
     static int  counter = 0;
@@ -390,11 +382,10 @@ getLogMask(char **msg, char *logMask)
     if (strcmp(logMask, "LOG_DEBUG3") == 0)
         return (LOG_UPTO(LOG_DEBUG3));
 
-    sprintf(msgbuf, _i18n_msg_get(ls_catd , NL_SETN, 5950, "Invalid log mask %s defined, default to %s"),   /* catgets 5950 */
+    sprintf(msgbuf, "Invalid log mask %s defined, default to %s",
             logMask, DEF_LOG_MASK_NAME);
 
     *msg = msgbuf;
-
 
     return (LOG_UPTO(DEF_LOG_MASK));
 
@@ -460,7 +451,6 @@ getLogClass_ (char *lsp, char *tsp)
 
     return 0;
 }
-
 
 void
 ls_closelog_ext() {

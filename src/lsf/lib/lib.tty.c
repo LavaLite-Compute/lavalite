@@ -18,9 +18,6 @@
  */
 #include "lsf/lib/lib.common.h"
 
-#define NL_SETN   23
-
-
 static void ttymode_(int mode, int ind, int enableIntSus);
 
 void
@@ -71,7 +68,6 @@ ttymode_(int mode, int ind, int enableIntSus)
         tmpflag  = xio.c_oflag & (NLDLY|CRDLY|TABDLY|BSDLY|VTDLY|FFDLY);
         xio.c_oflag &= (OPOST | OFILL| OFDEL | tmpflag);
 
-
         if (enableIntSus)
             xio.c_lflag &= (XCASE | ISIG);
         else
@@ -79,7 +75,6 @@ ttymode_(int mode, int ind, int enableIntSus)
 
         for (i=0; i < NCCS; i++)
             xio.c_cc[i] = _POSIX_VDISABLE;
-
 
         if (enableIntSus) {
             xio.c_cc[VINTR] = loxio.c_cc[VINTR];

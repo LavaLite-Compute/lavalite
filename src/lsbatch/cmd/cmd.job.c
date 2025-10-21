@@ -27,7 +27,7 @@ prtHeader(struct jobInfoEnt *job, int prt_q, int tFormat)
     char prline[MAXLINELEN];
 
     if (!tFormat) {
-        sprintf(prline, "\n%s <%s>,", I18N_Job, lsb_jobid2str(job->jobId));
+        sprintf(prline, "\n%s <%s>,", "Job", lsb_jobid2str(job->jobId));
 
         prtLine(prline);
         if (job->submit.options & SUB_JOB_NAME) {
@@ -45,7 +45,7 @@ prtHeader(struct jobInfoEnt *job, int prt_q, int tFormat)
        sprintf(prline, ",");
        prtLine(prline);
     }
-    sprintf(prline, " %s <%s>,", I18N_User, job->user);
+    sprintf(prline, " %s <%s>,", "User", job->user);
     prtLine(prline);
 
     if (lsbMode_ & LSB_MODE_BATCH) {
@@ -83,14 +83,14 @@ prtHeader(struct jobInfoEnt *job, int prt_q, int tFormat)
 
     if (job->submit.options2 & (SUB2_JOB_CMD_SPOOL)) {
 	if (tFormat)
-	    sprintf(prline, " %s(Spooled) <%s>", I18N_Command, job->submit.command);
+	    sprintf(prline, " %s(Spooled) <%s>", "Command", job->submit.command);
 	else
-	    sprintf(prline, " %s(Spooled) <%s>\n", I18N_Command, job->submit.command);
+	    sprintf(prline, " %s(Spooled) <%s>\n", "Command", job->submit.command);
     } else {
 	if (tFormat)
-	    sprintf(prline, " %s <%s>", I18N_Command, job->submit.command);
+	    sprintf(prline, " %s <%s>", "Command", job->submit.command);
 	else
-	    sprintf(prline, " %s <%s>\n", I18N_Command, job->submit.command);
+	    sprintf(prline, " %s <%s>\n", "Command", job->submit.command);
     }
     prtLine(prline);
 }
@@ -101,7 +101,7 @@ prtJobSubmit(struct jobInfoEnt *job, int prt_q, int tFormat)
     char prline[MAXLINELEN];
     char *timestr;
 
-    timestr = putstr_(_i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &job->submitTime));
+    timestr = putstr_(ctime2(&job->submitTime));
     if (tFormat) {
         sprintf(prline, ("%s: Job <%s> submitted from host <%s>"),
                     timestr, lsb_jobid2str(job->jobId), job->fromHost);
@@ -136,16 +136,14 @@ prtBTTime(struct jobInfoEnt *job)
     if (job->submit.beginTime > 0) {
         sprintf(prline, ", %s <%s>",
 	        "Specified Start Time",
-                _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T,
-			    (time_t *)&(job->submit.beginTime)));
+                ctime2((time_t *)&(job->submit.beginTime)));
         prtLine(prline);
     }
 
     if (job->submit.termTime > 0) {
         sprintf(prline, ", %s <%s>",
 		"Specified Termination Time",
-                _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T,
-			     (time_t *)&(job->submit.termTime)));
+                ctime2((time_t *)&(job->submit.termTime)));
         prtLine(prline);
     }
 
@@ -263,7 +261,7 @@ prtSubDetails(struct jobInfoEnt *job, char *hostPtr, float hostFactor)
 	    sprintf(prline, ", %s",
 		    "Restart force");
 	else
-	    sprintf(prline, ", %s", I18N_Restart);
+	    sprintf(prline, ", %s", "Restart");
         prtLine(prline);
     }
 
@@ -378,7 +376,7 @@ prtJobStart(struct jobInfoEnt *job, int prtFlag, int jobPid, int tFormat)
     }
 
     if (tFormat) {
-        sprintf (tBuff, "%s <%s>", I18N_Job, lsb_jobid2str(job->jobId));
+        sprintf (tBuff, "%s <%s>", "Job", lsb_jobid2str(job->jobId));
     }
     else if (LSB_ARRAY_IDX(job->jobId) > 0 )
         sprintf (tBuff, " [%d]", LSB_ARRAY_IDX(job->jobId));
@@ -398,13 +396,11 @@ prtJobStart(struct jobInfoEnt *job, int prtFlag, int jobPid, int tFormat)
 	    {
 		if (tBuff[0] == '\0')
 	            sprintf(prline, "%s: %s",
-		            _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T,
-					 &startTime),
+		            ctime2(&startTime),
 		            "The pre-exec command is started on");
 		else
 	            sprintf(prline, "%s:%s, %s",
-			    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T,
-					&startTime),
+			    ctime2(&startTime),
 		            tBuff,
 			    "the pre-exec command is started on");
 	    }
@@ -412,11 +408,11 @@ prtJobStart(struct jobInfoEnt *job, int prtFlag, int jobPid, int tFormat)
 	    {
 		if (tBuff[0] == '\0')
 	            sprintf(prline, "%s: %s",
-			    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &startTime),
+			    ctime2(&startTime),
 			    "The batch job command is started on");
 		else
 	            sprintf(prline, "%s:%s, %s",
-			   _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &startTime),
+			   ctime2(&startTime),
 			   tBuff,
 			   "the batch job command is started on");
 	    }
@@ -425,11 +421,11 @@ prtJobStart(struct jobInfoEnt *job, int prtFlag, int jobPid, int tFormat)
 	    {
 		if (tBuff[0] == '\0')
 		    sprintf(prline, "%s: %s",
-			    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &startTime),
+			    ctime2(&startTime),
 			    "Started on");
 		else
 		    sprintf(prline, "%s:%s %s",
-			    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &startTime),
+			    ctime2(&startTime),
 			    tBuff,
 			    "started on");
 	    }
@@ -437,11 +433,11 @@ prtJobStart(struct jobInfoEnt *job, int prtFlag, int jobPid, int tFormat)
 	    {
 		if (tBuff[0] == '\0')
 		    sprintf(prline, "%s: %s",
-			    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &startTime),
+			    ctime2(&startTime),
 			    "Dispatched to");
 		else
 		    sprintf(prline, "%s: %s %s",
-			    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &startTime),
+			    ctime2(&startTime),
 			    tBuff,
 			    "dispatched to");
 	    }
@@ -550,15 +546,15 @@ prtAcctFinish(struct jobInfoEnt *job)
 
     if (job->status == JOB_STAT_DONE)
         sprintf(prline, "%s: %s.\n",
-		_i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &job->endTime),
+		ctime2(&job->endTime),
 		"Completed <done>");
     else if (job->status == JOB_STAT_EXIT)
         sprintf(prline, "%s: %s.\n",
-	       _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &job->endTime),
+	       ctime2(&job->endTime),
 	       "Completed <exit>");
     else
         sprintf(prline, "%s: %s.\n",
-		_i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &job->endTime),
+		ctime2(&job->endTime),
 		"sbatchd unavail <zombi>");
     prtLine(prline);
 }
@@ -604,14 +600,14 @@ prtJobFinish(struct jobInfoEnt *job, struct jobInfoHead *jInfoH)
     case JOB_STAT_EXIT:
         if (job->reasons & EXIT_ZOMBIE) {
 	    sprintf(prline, "%s: ",
-		    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &job->endTime));
+		    ctime2(&job->endTime));
 	    prtLine(prline);
 	    sprintf(prline, ("Termination request issued; the job will be killed once the host is ok;"));
 	    prtLine(prline);
 	    break;
         }
         sprintf(prline, "%s: ",
-		_i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &doneTime));
+		ctime2(&doneTime));
         prtLine(prline);
         if (strcmp(get_status(job), "DONE") == 0)
 	{
@@ -628,7 +624,7 @@ prtJobFinish(struct jobInfoEnt *job, struct jobInfoHead *jInfoH)
                 else
 		    sprintf(prline, ("Exited by signal %d."), WTERMSIG(wStatus));
             } else
-		sprintf(prline, I18N_Exited);
+		sprintf(prline, "Exited");
 	}
 
         prtLine(prline);
@@ -769,8 +765,7 @@ prtJobRusage(struct jobInfoEnt *job)
     if (IS_PEND(job->status)) {
         if (job->runRusage.utime || job->runRusage.stime) {
             sprintf(prline, "%s: %s.\n",
-		    _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T,
-				&job->jRusageUpdateTime),
+		    ctime2(&job->jRusageUpdateTime),
 	            "Resource usage collected");
             prtLine(prline);
             sprintf(prline, ("                     The CPU time used is %d seconds.\n"),
@@ -784,8 +779,7 @@ prtJobRusage(struct jobInfoEnt *job)
        || job->runRusage.mem > 0 || job->runRusage.swap > 0
        || job->runRusage.npgids > 0 || job->runRusage.npids > 0) {
         sprintf(prline, "%s: %s.\n",
-		 _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T,
-			      &job->jRusageUpdateTime),
+		 ctime2(&job->jRusageUpdateTime),
 		 "Resource usage collected");
         prtLine(prline);
     } else
@@ -918,7 +912,7 @@ displayLong (struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
 
     if (job->predictedStartTime && IS_PEND(job->status)) {
 	char localTimeStr[60];
-	strcpy ( localTimeStr, _i18n_ctime(ls_catd, CTIME_FORMAT_a_b_d_T, &job->predictedStartTime));
+	strcpy ( localTimeStr, ctime2(&job->predictedStartTime));
         sprintf(prline, ("%s: Will be started;\n"),
 		localTimeStr );
         prtLine(prline);

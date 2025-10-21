@@ -90,7 +90,6 @@ nb_read_fix(int s, void *vbuf, size_t len)
     return (ssize_t)len;  // success: exactly len bytes read
 }
 
-
 // Modern version using clock_gettime() instead of gettimeofday()
 ssize_t
 nb_write_fix(int fd, const void *buf, size_t len)

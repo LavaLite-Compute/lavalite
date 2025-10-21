@@ -394,10 +394,7 @@ minit (int mbdInitFlags)
 
         if (!(debug || lsb_CheckMode)) {
 	    if (chdir(LSTMPDIR) < 0) {
-	        lsb_mperr( _i18n_printf(I18N_FUNC_S_FAIL, fname, "chdir",
-		    LSTMPDIR));
-	        ls_syslog(LOG_ERR, "%s", __func__, "chdir",
-		    LSTMPDIR);
+	        ls_syslog(LOG_ERR, "%s", __func__, "chdir", LSTMPDIR);
 	        if (!lsb_CheckMode)
 		    mbdDie(MASTER_FATAL);
 	        else

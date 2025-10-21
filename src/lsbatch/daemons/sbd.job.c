@@ -206,8 +206,7 @@ sendNotification(struct jobCard *jobCardPtr)
 	jobSpecsPtr->jobName, jobSpecsPtr->fromHost, jobSpecsPtr->userName);
     temp1 = putstr_("unknown time in the past");
     fprintf(mail, "Started at %sunder user <%s>, ",
-	jobSpecsPtr->startTime? _i18n_ctime(ls_catd, CTIME_FORMAT_DEFAULT,
-	&jobSpecsPtr->startTime) : temp1, jobCardPtr->execUsername );
+	jobSpecsPtr->startTime? ctime(&jobSpecsPtr->startTime) : temp1, jobCardPtr->execUsername );
     free(temp1);
 
     fprintf(mail, "on host(s <%s>, while in queue <%s>.\n"),
@@ -1742,9 +1741,9 @@ send_results (struct jobCard *jp)
     }
 
     if (jp->w_status)
-        result = putstr_(I18N_Exited);
+        result = putstr_("Exited");
     else
-        result = putstr_(I18N_Done);
+        result = putstr_("Done");
 
     hp = (struct hostent *)getHostEntryByName_(jp->jobSpecs.fromHost);
 
@@ -1969,8 +1968,7 @@ send_results (struct jobCard *jp)
 	    jp->jobSpecs.execCwd);
 
     if (jp->jobSpecs.startTime != 0)
-	sp = putstr_(_i18n_ctime(ls_catd, CTIME_FORMAT_DEFAULT,
-	    &jp->jobSpecs.startTime));
+	sp = putstr_(ctime(&jp->jobSpecs.startTime));
     else
 	sp = putstr_("unknown time in the past\n");
 
@@ -2091,7 +2089,7 @@ send_results (struct jobCard *jp)
 	}
     } else {
 
-	fprintf(notif, I18N_Exited);
+	fprintf(notif, "Exited");
     }
 
     if (jp->jobSpecs.lastCpuTime + cpuTime > MIN_CPU_TIME) {
@@ -2182,12 +2180,12 @@ send_results (struct jobCard *jp)
 			    if (jp->jobSpecs.options & SUB_MAIL_USER) {
 			        merr_user(jp->jobSpecs.mailUser,
 			    	          jp->jobSpecs.fromHost, line,
-				          I18N_Warning);
+				          "Warning");
 			    } else {
 			        merr_user(jp->jobSpecs.userName,
 			    	          jp->jobSpecs.fromHost,
 				          line,
-				          I18N_Warning);
+				          "Warning");
 			    }
 		        } else {
 
@@ -2311,12 +2309,12 @@ send_results (struct jobCard *jp)
         if (jp->jobSpecs.options & SUB_MAIL_USER) {
              merr_user(jp->jobSpecs.mailUser,
                      jp->jobSpecs.fromHost, line,
-                     I18N_Warning);
+                     "Warning");
         } else {
              merr_user(jp->jobSpecs.userName,
                      jp->jobSpecs.fromHost,
                      line,
-                     I18N_Warning);
+                     "Warning");
         }
     }
 
@@ -2340,12 +2338,12 @@ send_results (struct jobCard *jp)
 	    if (jp->jobSpecs.options & SUB_MAIL_USER)
 		merr_user(jp->jobSpecs.mailUser,
 		    jp->jobSpecs.fromHost, ps,
-		    I18N_Warning);
+		    "Warning");
 	    else
 		merr_user(jp->jobSpecs.userName,
 		    jp->jobSpecs.fromHost,
 		    ps,
-		    I18N_Warning);
+		    "Warning");
 	} else {
 	    if (rcpMsg[0] != '\0') {
 		sprintf(line, "%s: Copy output file <%s> to <%s> on submission host <%s> for job <%s>: %s",

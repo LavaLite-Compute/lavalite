@@ -85,7 +85,6 @@ lsb_userinfo (char **users, int *numUsers)
     }
     userInfoReq.resReq = "";
 
-
     mbdReqtype = BATCH_USER_INFO;
     cc = sizeof(struct infoReq) + cc * MAXHOSTNAMELEN + cc + 100;
     if ((request_buf = malloc (cc)) == NULL) {
@@ -103,7 +102,6 @@ lsb_userinfo (char **users, int *numUsers)
         lsberrno = LSBE_XDR;
         return NULL;
     }
-
 
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs),
                        &reply_buf, &hdr, NULL, NULL, NULL)) == -1) {

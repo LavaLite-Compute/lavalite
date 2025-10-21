@@ -19,7 +19,6 @@
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lib.hdr.h"
 
-#define NL_SETN   23
 static int SHIFT_32 = 32;
 
 void

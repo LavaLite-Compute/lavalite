@@ -19,8 +19,6 @@
 #include "lsf/lib/lib.h"
 #include "lsf/intlib/intlibout.h"
 
-#define NL_SETN 27
-
 static void usage(char *);
 static void print_long(struct hostInfo *hostInfo);
 static char *stripSpaces(char *);
@@ -32,7 +30,6 @@ struct indexFmt {
     char *ok;
     float scale;
 };
-
 
 struct indexFmt fmt1[] = {
     { "r15s", "%6s",  "*%4.1f",   "%5.1f",      1.0 },
@@ -81,7 +78,6 @@ print_long(struct hostInfo *hostInfo)
 {
     int i;
     float *li;
-    char  *sp;
     static char first = true;
     static char line[SBUF_SIZ];
     static char newFmt[MINBUF_SIZ];
@@ -90,11 +86,9 @@ print_long(struct hostInfo *hostInfo)
     char **shareNames, **shareValues, **formats;
     char strbuf1[30],strbuf2[30],strbuf3[30];
 
-
     if (first) {
         char tmpbuf[MAXLSFNAMELEN];
         int  fmtid;
-
 
         if(!(fmt=(struct indexFmt *)
              malloc((hostInfo->numIndx+2)*sizeof (struct indexFmt)))) {
@@ -128,21 +122,21 @@ print_long(struct hostInfo *hostInfo)
     }
 
     printf("\n%s:  %s\n",
-           _i18n_msg_get(ls_catd,NL_SETN, 1601, "HOST_NAME"), /* catgets 1601 */
+           "HOST_NAME",
            hostInfo->hostName);
     {
         char *buf1, *buf2, *buf3, *buf4, *buf5, *buf6, *buf7, *buf8, *buf9, *buf10;
 
-        buf1 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1602, "type")); /* catgets 1602 */
-        buf2 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1603, "model")); /* catgets 1603 */
-        buf3 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1604, "cpuf")); /* catgets 1604 */
-        buf4 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1605, "ncpus")); /* catgets 1605 */
-        buf5 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1606, "ndisks")); /* catgets 1606 */
-        buf6 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1607, "maxmem")); /* catgets 1607 */
-        buf7 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1608, "maxswp")); /* catgets 1608 */
-        buf8 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1609, "maxtmp")); /* catgets 1609 */
-        buf9 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1610, "rexpri")); /* catgets 1610 */
-        buf10= putstr_(_i18n_msg_get(ls_catd,NL_SETN,1611, "server")); /* catgets 1611 */
+        buf1 = putstr_("type");
+        buf2 = putstr_("model");
+        buf3 = putstr_("cpuf");
+        buf4 = putstr_("ncpus");
+        buf5 = putstr_("ndisks");
+        buf6 = putstr_("maxmem");
+        buf7 = putstr_("maxswp");
+        buf8 = putstr_("maxtmp");
+        buf9 = putstr_("rexpri");
+        buf10= putstr_("server");
 
         printf("%-10.10s %11.11s %5.5s %5.5s %6.6s %6.6s %6.6s %6.6s %6.6s %6.6s\n",
                buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9, buf10);
@@ -172,7 +166,7 @@ print_long(struct hostInfo *hostInfo)
         else
             printf("%5s %6s %6s %6s %6s %6d %6s\n",
                    "-", "-", "-", "-", "-", hostInfo->rexPriority,
-                   I18N_Yes); /* catgets 1612  */
+                   I18N_Yes);
     } else {
         sprintf(strbuf1,"%-10s",hostInfo->hostType);strbuf1[10]='\0';
         sprintf(strbuf2,"%11s",hostInfo->hostModel);strbuf2[11]='\0';
@@ -180,14 +174,12 @@ print_long(struct hostInfo *hostInfo)
         printf("%-10s %11s %5s ",strbuf1,strbuf2,strbuf3);
         printf("%5s %6s %6s %6s %6s %6s %6s\n",
                "-", "-", "-", "-", "-", "-",
-               I18N_No); /* catgets 1613 */
+               I18N_No);
     }
-
 
     if (sharedResConfigured_ == true) {
         if ((retVal = makeShareField(hostInfo->hostName, true, &shareNames,
                                      &shareValues, &formats)) > 0) {
-
 
             for (i = 0; i < retVal; i++) {
                 printf(formats[i], shareNames[i]);
@@ -203,7 +195,7 @@ print_long(struct hostInfo *hostInfo)
 
     printf("\n");
     printf("%s: ",
-           _i18n_msg_get(ls_catd,NL_SETN,1614, "RESOURCES")); /* catgets 1614 */
+           "RESOURCES");
     if (hostInfo->nRes) {
         int first = true;
         for (i=0; i < hostInfo->nRes; i++) {
@@ -217,20 +209,18 @@ print_long(struct hostInfo *hostInfo)
         printf(")\n");
     } else {
         printf("%s\n",
-               _i18n_msg_get(ls_catd,NL_SETN,1615, "Not defined")); /* catgets 1615 */
+               "Not defined");
     }
 
     printf("%s: ",
-           _i18n_msg_get(ls_catd,NL_SETN,1616, "RUN_WINDOWS")); /* catgets 1616  */
+           "RUN_WINDOWS");
     if (hostInfo->isServer) {
         if (strcmp(hostInfo->windows, "-") == 0)
-            fputs(
-                _i18n_msg_get(ls_catd,NL_SETN,1617, " (always open)\n"), /* catgets 1617 */
-                stdout);
+            fputs(" (always open\n", stdout);
         else
             printf("%s\n", hostInfo->windows);
     } else {
-        printf(_i18n_msg_get(ls_catd,NL_SETN,1618, "Not applicable for client-only host\n")); /* catgets 1618 */
+        printf("Not applicable for client-only host\n");
     }
 
     if (! hostInfo->isServer) {
@@ -238,14 +228,14 @@ print_long(struct hostInfo *hostInfo)
         return;
     }
 
-
     printf("\n");
-    printf(_i18n_msg_get(ls_catd,NL_SETN,1626, "LOAD_THRESHOLDS:")); /* catgets 1626 */
+    printf("LOAD_THRESHOLDS:");
     printf("\n%s\n",line);
     li = hostInfo->busyThreshold;
     for(i = 0; indxnames[i]; i++) {
         char tmpfield[MAXLSFNAMELEN];
         int id;
+        char *sp;
 
         if (i > MEM)
             id = MEM + 1;
@@ -288,8 +278,6 @@ main(int argc, char **argv)
     int     unknown;
     int     options=0;
     int isClus;
-
-    _i18n_init ( I18N_CAT_MIN );
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -336,7 +324,7 @@ main(int argc, char **argv)
             switch (achar) {
             case 'R':
                 if (strlen(optarg) > MAXLINELEN) {
-                    printf(" %s", I18N(1645, "The resource requirement string exceeds the maximum length of 512 characters. Specify a shorter resource requirement.\n")); /* catgets  1645  */
+                    printf(" %s", "The resource requirement string exceeds the maximum length of 512 characters. Specify a shorter resource requirement.\n");
                     exit (-1);
                 }
                 resReq = optarg;
@@ -368,7 +356,7 @@ main(int argc, char **argv)
             } else if ( (isClus == 0) &&
                         ((officialName = getHostOfficialByName_(argv[optind])) == NULL)) {
                 fprintf(stderr, "%s: %s.\n", argv[optind],
-                        _i18n_msg_get(ls_catd,NL_SETN,1627, "unknown host name")); /* catgets 1627 */
+                        "unknown host name");
                 unknown = 1;
                 continue;
             }
@@ -385,10 +373,8 @@ main(int argc, char **argv)
             i++;
         }
 
-
         if ( (i==0) && (unknown == 1))
             exit(-1);
-
 
         if (i == 0) {
             TIMEIT(0, (hostinfo = ls_gethostinfo(resReq, &numhosts, NULL, 0,
@@ -410,15 +396,15 @@ main(int argc, char **argv)
             char *buf1, *buf2, *buf3, *buf4, *buf5;
             char *buf6, *buf7, *buf8, *buf9;
 
-            buf1 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1628, "HOST_NAME")); /* catgets 1628 */
-            buf2 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1602, "type")); /* catgets  1602  */
-            buf3 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1603, "model")); /* catgets  1603  */
-            buf4 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1604, "cpuf")); /* catgets  1604 */
-            buf5 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1605, "ncpus")); /* catgets  1605  */
-            buf6 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1607, "maxmem")); /* catgets  1607  */
-            buf7 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1608, "maxswp")); /* catgets  1608  */
-            buf8 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1611, "server")); /* catgets  1611  */
-            buf9 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1614, "RESOURCES")); /* catgets  1614  */
+            buf1 = putstr_("HOST_NAME");
+            buf2 = putstr_("type");
+            buf3 = putstr_("model");
+            buf4 = putstr_("cpuf");
+            buf5 = putstr_("ncpus");
+            buf6 = putstr_("maxmem");
+            buf7 = putstr_("maxswp");
+            buf8 = putstr_("server");
+            buf9 = putstr_("RESOURCES");
 
             printf("%-11.11s %7.7s %8.8s %5.5s %5.5s %6.6s %6.6s %6.6s %9.9s\n",
                    buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9);
@@ -437,15 +423,15 @@ main(int argc, char **argv)
             char *buf1, *buf2, *buf3, *buf4, *buf5;
             char *buf6, *buf7, *buf8, *buf9;
 
-            buf1 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1628, "HOST_NAME")); /* catgets  1628 */
-            buf2 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1602, "type")); /* catgets  1602  */
-            buf3 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1603, "model")); /* catgets  1603  */
-            buf4 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1604, "cpuf")); /* catgets  1604  */
-            buf5 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1605, "ncpus")); /* catgets  1605  */
-            buf6 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1607, "maxmem")); /* catgets  1607  */
-            buf7 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1608, "maxswp")); /* catgets  1608  */
-            buf8 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1611, "server")); /* catgets  1611  */
-            buf9 = putstr_(_i18n_msg_get(ls_catd,NL_SETN,1614, "RESOURCES")); /* catgets  1614  */
+            buf1 = putstr_("HOST_NAME");
+            buf2 = putstr_("type");
+            buf3 = putstr_("model");
+            buf4 = putstr_("cpuf");
+            buf5 = putstr_("ncpus");
+            buf6 = putstr_("maxmem");
+            buf7 = putstr_("maxswp");
+            buf8 = putstr_("server");
+            buf9 = putstr_("RESOURCES");
 
             printf("%-25.25s %10.10s %11.11s %5.5s %5.5s %6.6s %6.6s %6.6s %9.9s\n",
                    buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9);
@@ -474,7 +460,6 @@ main(int argc, char **argv)
                 server = I18N_Yes;
             else
                 server = I18N_No;
-
 
             if (longname)
                 printf("%-25s %10s %11s %5.1f ", hostinfo[i].hostName,
@@ -513,12 +498,7 @@ main(int argc, char **argv)
 
             fputs(")\n", stdout);
         }
-
-
-        _i18n_end ( ls_catd );
         exit(0);
     }
-
-    _i18n_end ( ls_catd );
     return 0;
 }

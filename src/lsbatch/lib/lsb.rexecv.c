@@ -20,8 +20,6 @@
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/cmd/cmd.h"
 
-#define NL_SETN     13
-
 extern int optind;
 extern char *optarg;
 extern char **environ;
@@ -52,7 +50,6 @@ static char *commandline;
 #define EMBED_RESTART      0x10
 #define EMBED_QSUB         0x20
 
-
 void
 prtBETime2(struct submit req)
 {
@@ -62,13 +59,12 @@ prtBETime2(struct submit req)
     if (logclass & (LC_TRACE | LC_EXEC | LC_SCHED))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
-
     if (req.beginTime) {
-        strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.beginTime ));
+        strcpy( sp, 0);
         fprintf(stderr, ("Job will be scheduled after %s\n"), sp);
     }
     if (req.termTime) {
-        strcpy( sp, _i18n_ctime( ls_catd, CTIME_FORMAT_a_b_d_T_Y, &req.termTime ));
+        strcpy( sp, 0);
         fprintf(stderr, ("Job will be terminated by %s\n"), sp);
     }
 }
@@ -78,8 +74,6 @@ CopyCommand2(char **from, int len)
 {
     int i, size;
     char *arg, *temP, *endArg, *endArg1, endChar = '\0';
-
-
 
     for (i = 0, size = 0; from[i]; i++) {
         size += strlen(from[i]) + 1 + 4;
@@ -141,7 +135,6 @@ CopyCommand2(char **from, int len)
 
     return true;
 }
-
 
 void
 prtErrMsg2(struct submit *req, struct submitReply *reply)
@@ -323,7 +316,6 @@ parseScript2(FILE *from, int *embedArgc, char ***embedArgv, int option)
         "/bin/rm -f $LSB_JOBFILENAME.shell\n"
         "(exit $saveExit)\n";
 
-
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
@@ -369,7 +361,6 @@ parseScript2(FILE *from, int *embedArgc, char ***embedArgv, int option)
             }
             lineLen = strlen(line);
 
-
             if (length + lineLen + 20 >= size) {
                 size = size * 2;
                 if ((sp = (char *) realloc(buf, size)) == NULL) {
@@ -383,7 +374,6 @@ parseScript2(FILE *from, int *embedArgc, char ***embedArgv, int option)
                 buf[i] = line[j];
             length += lineLen;
 
-
             if (ttyin) {
                 printf(prompt);
                 fflush(stdout);
@@ -396,7 +386,6 @@ parseScript2(FILE *from, int *embedArgc, char ***embedArgv, int option)
     if (option & EMBED_INTERACT) {
         buf[length] = '\0';
         if (firstLine[0] != '\n' && firstLine[0] != '\0') {
-
 
             if (notBourne == true) {
 
@@ -430,11 +419,6 @@ fillReq2(int argc, char **argv, int operate, struct submit *req)
 
     if (logclass & (LC_TRACE | LC_EXEC | LC_SCHED))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
-
-
-
-
-
 
     if (operate == CMD_BRESTART) {
         req->options = SUB_RESTART;
@@ -470,7 +454,6 @@ fillReq2(int argc, char **argv, int operate, struct submit *req)
 
     if ((req->projectName = getenv("LSB_DEFAULTPROJECT")) != NULL)
         req->options |= SUB_PROJECT_NAME;
-
 
     optind = 1;
     if (setOption_ (argc, argv, template, req, ~0, NULL) == -1)

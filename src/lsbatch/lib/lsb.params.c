@@ -33,9 +33,7 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     static int alloc = false;
     int cc = 0;
 
-
     infoReq.options = options;
-
 
     if (alloc == true) {
         alloc = false;
@@ -59,7 +57,6 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     }
     infoReq.resReq = "";
 
-
     mbdReqtype = BATCH_PARAM_INFO;
     cc = sizeof(struct infoReq) + cc * MAXHOSTNAMELEN + cc + 100;
     if ((request_buf = malloc (cc)) == NULL) {
@@ -75,7 +72,6 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
         lsberrno = LSBE_XDR;
         return NULL;
     }
-
 
     if ((cc = callmbd (NULL,request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
                        NULL, NULL, NULL)) == -1) {

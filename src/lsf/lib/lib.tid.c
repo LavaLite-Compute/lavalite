@@ -45,7 +45,6 @@ tid_register(int taskid, int socknum, u_short taskPort, char *host, bool_t doTas
     tidp->link = tid_buckets[i];
     tid_buckets[i] = tidp;
 
-
     if (doTaskInfo) {
         lsQueueInit_(&tidp->tMsgQ, NULL, tMsgDestroy_);
         if (tidp->tMsgQ == NULL) {
@@ -53,7 +52,6 @@ tid_register(int taskid, int socknum, u_short taskPort, char *host, bool_t doTas
         }
     } else
         tidp->tMsgQ = NULL;
-
 
     tidp->refCount = (doTaskInfo) ? 2 : 1;
     tidp->isEOF = (doTaskInfo)? false : true;
@@ -136,7 +134,6 @@ tidFindIgnoreConn_(int taskid)
     lserrno = LSE_RES_INVCHILD;
     return NULL;
 }
-
 
 void
 tid_lostconnection(int socknum)

@@ -52,7 +52,7 @@ static struct config_param securebjobsParams[] =
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr,
 	(": %s [-h] [-V] [-w |-l] [-a] [-d] [-p] [-s] [-r]"),
 	    cmd);
@@ -386,9 +386,9 @@ displayJobs (struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
     submitInfo = &job->submit;
     status = get_status(job);
 
-    strcpy(subtime, _i18n_ctime( ls_catd, CTIME_FORMAT_b_d_H_M, &job->submitTime));
+    strcpy(subtime, ctime2(&job->submitTime));
     if (IS_FINISH (job->status))
-	strcpy(donetime, _i18n_ctime( ls_catd, CTIME_FORMAT_b_d_H_M, &(job->endTime)));
+	strcpy(donetime, ctime2(&(job->endTime)));
     else
 	strcpy(donetime, "      ");
 

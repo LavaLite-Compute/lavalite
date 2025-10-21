@@ -155,7 +155,6 @@ static int encode_mode(XDR *xdrs, tcflag_t mode_set, tcflag_t *attr_table,
 static int decode_mode(XDR *xdrs, tcflag_t *attr_table, int table_count,
                        tcflag_t *mode_set);
 
-
 int
 encodeTermios_(XDR *xdrs, struct termios *ptr_termios)
 {
@@ -173,7 +172,6 @@ encodeTermios_(XDR *xdrs, struct termios *ptr_termios)
            encode_mode(xdrs, ptr_termios->c_lflag, loc_table, LOC_TABLE_SIZE)))
         return false;
 
-
     speed_value = cfgetospeed(ptr_termios);
     for (i = 0; i < BAUD_TABLE_SIZE; i++) {
         if (speed_value == baud_table[i]) {
@@ -185,8 +183,6 @@ encodeTermios_(XDR *xdrs, struct termios *ptr_termios)
     }
     if (!xdr_int(xdrs, &i))
         return false;
-
-
 
     for (i = 0; i < CHR_TABLE_SIZE; i++) {
         if (i < CHR_TABLE_SPLIT) {
@@ -204,7 +200,6 @@ static int
 encode_mode(XDR *xdrs, tcflag_t mode_set, tcflag_t *attr_table,
             int table_count)
 {
-
 
     int encode_set;
     int i;
@@ -243,12 +238,9 @@ decodeTermios_(XDR *xdrs, struct termios *ptr_termios)
     speed_value = baud_table[i];
     (void)cfsetospeed(ptr_termios, speed_value);
 
-
     for (i = 0; i < NCCS; i++) {
         ptr_termios->c_cc[i] = _POSIX_VDISABLE;
     }
-
-
 
     for (i = 0; i < CHR_TABLE_SIZE; i++) {
         if (i < CHR_TABLE_SPLIT) {

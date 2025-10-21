@@ -59,7 +59,6 @@ ls_connect(char *host)
     struct lsfAuth auth;
     int resTimeout;
 
-
     if (genParams_[LSF_RES_TIMEOUT].paramValue)
         resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
     else
@@ -468,7 +467,6 @@ enqueueTaskMsg_(int s, int taskID, struct LSFHeader *msgHdr)
         return 0;
     }
 
-
     if (msgHdr->length == 0)
         msgBuf = malloc(1);
     else
@@ -736,7 +734,6 @@ int callRes_(int s, resCmd cmd, char *data, char *reqBuf, int reqLen,
 
     currentSN = REQUESTSN;
 
-
     gethostbysock_(s, hostname);
     if (strcmp(hostname, "LSF_HOST_NULL"))
         _setcurseqno_(hostname, currentSN);
@@ -844,7 +841,6 @@ do_rstty1_(char *host, int async)
 
     return 0;
 }
-
 
 int
 do_rstty_(int s, int io_fd, int redirect)
@@ -1043,7 +1039,6 @@ lsGetRProcRusage(char *host, int pid, struct jRusage *ru, int options)
 
     if (lsQueueDataAppend_((char *)request, requestQ))
         return -1;
-
 
     if (! request)
         return -1;
@@ -1271,7 +1266,6 @@ ls_rkill(int rtid, int sig)
 
 }
 
-
 int
 lsMsgRdy_(int taskid, int *msgLen)
 {
@@ -1308,8 +1302,6 @@ tMsgDestroy_(void *extra)
     free(header);
 
 }
-
-
 
 int
 lsMsgRcv_(int taskid, char *buffer, int len, int options)
@@ -1450,7 +1442,6 @@ AbortSnd2:
 #endif
 
     return rc;
-
 
 }
 
@@ -1717,7 +1708,6 @@ Again:
         if (*rdyFdCnt > 0)
             anythingRdy = true;
 
-
     if (! anythingRdy)
         goto Again;
 
@@ -1775,7 +1765,6 @@ lsReqWait_(LS_REQUEST_T *request, int options)
     return rc;
 
 }
-
 
 void
 lsReqFree_(LS_REQUEST_T *request)

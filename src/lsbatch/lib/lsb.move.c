@@ -53,7 +53,6 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int opCode)
     jobMoveReq.position = *position;
     jobMoveReq.opCode = opCode;
 
-
     mbdReqtype = BATCH_JOB_MOVE;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
@@ -64,14 +63,12 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int opCode)
         return -1;
     }
 
-
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
                        &hdr, NULL, NULL, NULL)) == -1)    {
         xdr_destroy(&xdrs);
         return -1;
     }
     xdr_destroy(&xdrs);
-
 
     lsberrno = hdr.opCode;
     if (lsberrno == LSBE_NO_ERROR) {

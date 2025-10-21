@@ -25,7 +25,7 @@ static void prtGroups (struct groupInfoEnt *, int, int);
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     if (strstr(cmd, "bugroup") != NULL)
 	fprintf(stderr, ": %s [-h] [-V] [-r] [-w] [-l] [group_name ...]\n", cmd);
     else
@@ -161,9 +161,9 @@ prtGroups (struct groupInfoEnt *grpInfo, int numReply, int options)
 
 		buf = putstr_("GROUP_NAME");
 		if(options & USER_GRP)
-		    printf("%-12.12s  %s\n", buf, I18N_USERS);
+		    printf("%-12.12s  %s\n", buf, "USERS");
 		else
-		    printf("%-12.12s  %s\n", buf, I18N_HOSTS);
+		    printf("%-12.12s  %s\n", buf, "HOSTS");
 		first = FALSE;
 		FREEUP(buf);
 	    }
@@ -225,7 +225,7 @@ prtGroups (struct groupInfoEnt *grpInfo, int numReply, int options)
 	    printf("%-12.12s %s\n", buf, word);
 
 	    if (strcmp (sp, "all") == 0) {
-	        strncpy(buf, I18N_USERS, LEFTCOLSPACE-1);
+	        strncpy(buf, "USERS", LEFTCOLSPACE-1);
 	        buf[LEFTCOLSPACE-1]='\0';
 	        strcat(buf, ":");
 	        printf("%-12.12s ", buf);
@@ -234,9 +234,9 @@ prtGroups (struct groupInfoEnt *grpInfo, int numReply, int options)
 	    }
 
 	    if (options & USER_GRP) {
-	        strncpy(buf, I18N_USERS, LEFTCOLSPACE-1);
+	        strncpy(buf, "USERS", LEFTCOLSPACE-1);
 	    } else {
-	        strncpy(buf, I18N_HOSTS, LEFTCOLSPACE-1);
+	        strncpy(buf, "HOSTS", LEFTCOLSPACE-1);
 	    }
 	    buf[LEFTCOLSPACE-1]='\0';
 	    strcat(buf, ":");

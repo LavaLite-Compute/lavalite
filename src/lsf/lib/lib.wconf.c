@@ -37,8 +37,6 @@ static char *readNextLine(struct lsConf *, int *);
 static char addCond(struct lsConf *, char *);
 static char checkCond(struct lsConf *, char *);
 
-#define NL_SETN   23
-
 struct lsConf *
 ls_getconf ( char *fname )
 {
@@ -55,7 +53,7 @@ ls_getconf ( char *fname )
     lserrno = LSE_NO_ERR;
     if (fname == NULL) {
         ls_syslog(LOG_ERR, "%s: %s.", "ls_getconf",
-                  I18N(6000, "Null filename")); /* catgets 6000 */
+                  "Null filename");
         lserrno = LSE_NO_FILE;
         return NULL;
     }
@@ -106,7 +104,7 @@ ls_getconf ( char *fname )
     if (fp == NULL) {
 
         ls_syslog(LOG_ERR, "%s: %s <%s>.", "ls_getconf",
-                  I18N(6001,  "Can't open configuration file"),/* catgets 6001*/
+                  "Can't open configuration file",
                   fname);
         lserrno = LSE_NO_FILE;
         goto Error;
@@ -128,7 +126,7 @@ ls_getconf ( char *fname )
                 if (word == NULL) {
                     ls_syslog(LOG_ERR, "%s: %s(%d): %s.", "ls_getconf",
                               fname, lineNum,
-                              I18N(6002, "Both macro and condition name expected after #define")); /* catgets 6002 */
+                              "Both macro and condition name expected after #define");
                     goto Error;
                 }
 
@@ -157,7 +155,7 @@ ls_getconf ( char *fname )
                 if (*word == '\0') {
                     ls_syslog(LOG_ERR, "ls_getconf: %s(%d): %s",
                               fname, lineNum,
-                              I18N(6003, "Both macro and condition name expected after #define.")); /* catgets 6003 */
+                              "Both macro and condition name expected after #define.");
                     FREEUP(word1);
                     goto Error;
                 }
@@ -169,7 +167,6 @@ ls_getconf ( char *fname )
 
                 if (i < numDefs)
                     word = defConds[i];
-
 
                 if (numDefs == defsize) {
                     tmpPtr = (char **) myrealloc (defNames,
@@ -235,7 +232,7 @@ ls_getconf ( char *fname )
 
                 if (*word == '\0') {
                     ls_syslog(LOG_ERR, "ls_getconf: %s(%d): %s.", fname,
-                              lineNum, I18N(6004, "Condition name expected after #if.")); /* catgets 6004 */
+                              lineNum, "Condition name expected after #if.");
                     goto Error;
                 }
 
@@ -278,12 +275,9 @@ ls_getconf ( char *fname )
                 continue;
             } else if (strcasecmp(cp, "elif") == 0) {
 
-
-
                 temp = popStack(blockStack);
                 if (temp == NULL) {
-                    ls_syslog(LOG_ERR,I18N(6007,
-                                           "ls_getconf: %s(%d): If-less elif."),fname, lineNum); /*catgets 6007*/
+                    ls_syslog(LOG_ERR,"ls_getconf: %s(%d): If-less elif.",fname, lineNum);
                     goto Error;
                 }
                 PUSH_STACK(blockStack, temp);
@@ -305,7 +299,7 @@ ls_getconf ( char *fname )
                 if (*word == '\0') {
                     ls_syslog(LOG_ERR, "ls_getconf: %s(%d): %s.",
                               fname, lineNum,
-                              I18N(6005, "Condition name expected after #elif.")); /* catgets 6005 */
+                              "Condition name expected after #elif.");
                     goto Error;
                 }
 
@@ -348,8 +342,7 @@ ls_getconf ( char *fname )
 
                 temp = popStack(blockStack);
                 if (temp == NULL) {
-                    ls_syslog(LOG_ERR,I18N(6008,
-                                           "ls_getconf: %s(%d): If-less else."), /*catgets 6008*/
+                    ls_syslog(LOG_ERR,"ls_getconf: %s(%d): If-less else.",
                               fname, lineNum);
                     goto Error;
                 }
@@ -364,8 +357,7 @@ ls_getconf ( char *fname )
 
                 temp = popStack(blockStack);
                 if (temp == NULL) {
-                    ls_syslog(LOG_ERR, I18N(6009,
-                                            "ls_getconf: %s(%d): If-less endif."), fname, lineNum); /* catgets 6009*/
+                    ls_syslog(LOG_ERR, "ls_getconf: %s(%d): If-less endif.", fname, lineNum);
                     goto Error;
                 }
                 PUSH_STACK(blockStack, temp);
@@ -428,7 +420,6 @@ ls_getconf ( char *fname )
                     fseek ( fp, offset, SEEK_SET );
                     lineNum = oldLineNum;
 
-
                     if ((node=newNode()) == NULL) {
                         ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL,
                                   "ls_getconf", "malloc",
@@ -454,7 +445,7 @@ ls_getconf ( char *fname )
 
     temp = popStack(blockStack);
     if (temp != NULL) {
-        ls_syslog(LOG_ERR, "ls_getconf: %s(%d): %s endif.", fname, lineNum, I18N(6006, "Missing")); /* catgets 6006 */
+        ls_syslog(LOG_ERR, "ls_getconf: %s(%d): %s endif.", fname, lineNum, "Missing");
         goto Error;
     }
 
@@ -761,7 +752,6 @@ getNextLineC_conf(struct lsConf *conf, int *LineCount, int confFormat)
             if (line == NULL)
                 return NULL;
 
-
             toBeContinue = 0;
             FREEUP(myLine);
             len = strlen(line)+1;
@@ -836,7 +826,6 @@ getNextLineC_conf(struct lsConf *conf, int *LineCount, int confFormat)
 
         } while ((myLine[0]=='\0' && !longLine) || toBeContinue);
 
-
         return longLine;
     } else {
         do {
@@ -867,7 +856,6 @@ readNextLine(struct lsConf *conf, int *lineNum)
             node->tag = NODE_PASED;
             pushStack( conf->confhandle->ptrStack, node );
 
-
             if (checkCond(conf, node->cond)) {
                 conf->confhandle->curNode = node->leftPtr;
                 conf->confhandle->lineCount = 0;
@@ -880,7 +868,6 @@ readNextLine(struct lsConf *conf, int *lineNum)
                 return line;
         }
         popStack ( conf->confhandle->ptrStack );
-
 
         node->tag &= ~NODE_PASED;
         conf->confhandle->curNode = node->fwPtr;

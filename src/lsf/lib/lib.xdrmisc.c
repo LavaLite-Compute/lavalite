@@ -195,7 +195,6 @@ xdr_lenData(XDR *xdrs, struct lenData *ld)
     return true;
 }
 
-
 bool_t
 xdr_lsfAuth(XDR *xdrs, struct lsfAuth *auth, struct LSFHeader *hdr)
 {
@@ -332,8 +331,6 @@ xdr_jRusage(XDR *xdrs, struct jRusage *runRusage, struct LSFHeader *hdr)
           xdr_int(xdrs, &runRusage->utime) &&
           xdr_int(xdrs, &runRusage->stime)))
         return false;
-
-
 
     if (!(xdr_int(xdrs, &runRusage->npids)))
         return false;

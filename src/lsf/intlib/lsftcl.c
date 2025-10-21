@@ -22,8 +22,6 @@
 #include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 
-#define NL_SETN 22
-
 static struct tclHostData *currHPtr;
 static struct Tcl_Interp *globinterp = NULL;
 static char overRideFromType;
@@ -116,7 +114,6 @@ booleanValue(ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
          ls_syslog(LOG_DEBUG3, "booleanValue: ii = %d", ii);
     if (ii < 0)
         return TCL_ERROR;
-
 
     overRideFromType = true;
 
@@ -340,7 +337,6 @@ initTcl(struct tclLsInfo *tclLsInfo)
         {NULL     , -1}
     };
 
-
     if (myTclLsInfo) {
         freeTclLsInfo(myTclLsInfo, 1);
     }
@@ -364,7 +360,6 @@ initTcl(struct tclLsInfo *tclLsInfo)
 
     globinterp = Tcl_CreateInterp();
 
-
     for(i=0; i < tclLsInfo->numIndx; i++) {
 	if (logclass & LC_TRACE)
 	    ls_syslog (LOG_DEBUG3, "initTcl:indexNames=%s, i =%d", tclLsInfo->indexNames[i], i);
@@ -386,8 +381,6 @@ initTcl(struct tclLsInfo *tclLsInfo)
         i++;
     }
 
-
-
     for (funcPtr = attrFuncTable; funcPtr->name != NULL; funcPtr++) {
 	if (logclass & LC_TRACE)
 	    ls_syslog (LOG_DEBUG3, "initTcl:indexNames=%s, i =%d", funcPtr->name, funcPtr->clientData);
@@ -395,7 +388,6 @@ initTcl(struct tclLsInfo *tclLsInfo)
                                    0, NULL, numericValue,
                                    (ClientData)funcPtr->clientData);
     }
-
 
     for (resNo=0; resNo < tclLsInfo->nRes; resNo++) {
         TEST_BIT (resNo, tclLsInfo->numericResBitMaps, isSet);
@@ -407,7 +399,6 @@ initTcl(struct tclLsInfo *tclLsInfo)
         Tcl_CreateMathFunc(globinterp, tclLsInfo->resName[resNo], 0, NULL,
                                    booleanValue, (ClientData)resNo);
     }
-
 
     Tcl_CreateCommand(globinterp, "type", stringValue, (ClientData) HOSTTYPE,
                       (Tcl_CmdDeleteProc *)NULL);
@@ -427,15 +418,12 @@ initTcl(struct tclLsInfo *tclLsInfo)
 			  (Tcl_CmdDeleteProc *)NULL);
     }
 
-
     Tcl_CreateCommand(globinterp, "defined", definedCmd,
 		      (ClientData) DEFINEDFUNCTION,
 		      (Tcl_CmdDeleteProc *)NULL);
 
-
     return 0;
 }
-
 
 int
 evalResReq(char *resReq, struct tclHostData *hPtr, char useFromType)
@@ -472,11 +460,9 @@ evalResReq(char *resReq, struct tclHostData *hPtr, char useFromType)
         }
     }
 
-
     if (!overRideFromType && useFromType)
         if (strcmp(hPtr->hostType, hPtr->fromHostType) != 0)
             return 0;
-
 
     if (runTimeDataQueried && LS_ISUNAVAIL(hPtr->status))
         return 0;
@@ -557,7 +543,6 @@ copyTclLsInfo (struct tclLsInfo *tclLsInfo)
     return 0;
 
 }
-
 
 void
 freeTclLsInfo (struct tclLsInfo *tclLsInfo, int mode)

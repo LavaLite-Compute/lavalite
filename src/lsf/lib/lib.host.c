@@ -22,7 +22,6 @@
 #undef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 128
 
-#define NL_SETN 23
 int cpHostent(struct hostent *, const struct hostent *);
 void freeHp(struct hostent *);
 static struct hostent *my_gethostbyaddr(const char *);
@@ -41,7 +40,6 @@ static int packHostEnt(const struct hostent *hp,
 int daemonId = 0;
 
 static struct hostent globalHostEnt;
-
 
 #define IS_SERVER_OR_NOT_LOCAL(hostAttrib)                              \
     ((hostAttrib & HOST_ATTR_SERVER) || (hostAttrib & HOST_ATTR_NOT_LOCAL))
@@ -107,10 +105,8 @@ my_gethostbyname(char *name)
         char *tmp;
         n = 0;
 
-
         if (NULL != (tmp = strpbrk (buf, "\n#")))
             *tmp='\0';
-
 
         if (NULL == (addrstr = strtok (buf, " \t")))
             continue;
@@ -139,7 +135,6 @@ my_gethostbyname(char *name)
 
     return NULL;
 }
-
 
 struct hostent *
 Gethostbyname_(char *hname)
@@ -178,7 +173,7 @@ Gethostbyname_ex_(char *hname, int options)
     } else {
         if(lserrno == LSE_MALLOC) {
             ls_syslog(LOG_ERR,
-                      I18N(6150,"%s: getHostEntByName() failed for host: <%s>, %M"), /*catgets 6150*/
+                      "%s: getHostEntByName() failed for host: <%s>, %M",
                       fname, hname);
         } else {
             ls_syslog(LOG_DEBUG,
@@ -188,7 +183,6 @@ Gethostbyname_ex_(char *hname, int options)
         return NULL;
     }
 }
-
 
 int
 isValidHost_(const char* hname)
@@ -207,7 +201,6 @@ isValidHost_(const char* hname)
     return 1;
 }
 
-
 char*
 getHostOfficialByName_(const char* hname)
 {
@@ -225,7 +218,6 @@ getHostOfficialByName_(const char* hname)
     strcpy(hnameBuf, hostEntP->h_name);
     return hnameBuf;
 }
-
 
 char*
 getHostOfficialByAddr_(const struct in_addr *addr)
@@ -246,7 +238,6 @@ getHostOfficialByAddr_(const struct in_addr *addr)
     return hname;
 }
 
-
 struct in_addr *
 getHostFirstAddr_(const char* hname)
 {
@@ -263,7 +254,6 @@ getHostFirstAddr_(const char* hname)
 
     return (struct in_addr *)hostEntP->h_addr;
 }
-
 
 struct hostent*
 getHostEntryByName_(const char* hname)
@@ -285,7 +275,6 @@ getHostEntryByName_(const char* hname)
 
     return hostEntP;
 }
-
 
 struct hostent*
 getHostEntryByAddr_(const struct in_addr *addr)
@@ -310,8 +299,6 @@ whichDaemonAmI(void)
     return daemonId;
 }
 
-
-
 static struct hostent *
 getHostEntByName(const char *hostName, int options)
 {
@@ -325,7 +312,7 @@ getHostEntByName(const char *hostName, int options)
 
     if (hostName == NULL) {
         lserrno = LSE_BAD_ARGS;
-        ls_syslog(LOG_ERR,I18N(6151, "%s Exiting: hostName == NULL, %M"), fname); /*catgets 6151 */
+        ls_syslog(LOG_ERR,"%s Exiting: hostName == NULL, %M", fname);
         goto cleanup;
     }
 
@@ -361,7 +348,6 @@ cleanup:
     return hostEntP;
 }
 
-
 static struct hostent *
 getHostEntByAddr(const struct in_addr *hostAddr, int options)
 {
@@ -376,7 +362,7 @@ getHostEntByAddr(const struct in_addr *hostAddr, int options)
 
     if (hostAddr == NULL) {
         lserrno = LSE_BAD_ARGS;
-        ls_syslog(LOG_ERR,I18N(6151, "%s Exiting: hostAddr == NULL, %M"), fname); /*catgets 6151 */
+        ls_syslog(LOG_ERR,"%s Exiting: hostAddr == NULL, %M", fname);
         goto cleanup;
     }
 
@@ -435,7 +421,7 @@ unifyOfficialName(const char* hname)
 
     officialNameP = strdup(hname);
     if(officialNameP == NULL) {
-        ls_syslog(LOG_ERR,I18N(6153, "%s: strdup for hname failed"), fname); /*catgets 6153*/
+        ls_syslog(LOG_ERR,"%s: strdup for hname failed", fname);
         lserrno = LSE_MALLOC;
         return NULL;
     }
@@ -465,7 +451,6 @@ unifyOfficialName(const char* hname)
     return officialNameP;
 }
 
-
 static int
 loadHostEntByName(const char *hostName, int options,
                   struct hostent *hostEntP)
@@ -477,7 +462,6 @@ loadHostEntByName(const char *hostName, int options,
         ls_syslog(LOG_DEBUG3,
                   "%s: Enter this routine, load hostent for host <%s>",
                   fname,hostName);
-
 
     if((hp = my_gethostbyname((char*)hostName)) == NULL
        && !(options & DISABLE_HNAME_SERVER)
@@ -495,7 +479,6 @@ loadHostEntByName(const char *hostName, int options,
 
     return packHostEnt(hp, hostEntP);
 }
-
 
 static int
 loadHostEntByAddr(const struct in_addr *hostAddr, int options,
@@ -516,7 +499,6 @@ loadHostEntByAddr(const struct in_addr *hostAddr, int options,
                   "%s: Enter this routine, load hostent for host <%s>",
                   fname,hostInStr);
 
-
     if((hp = my_gethostbyaddr((const char *)hostAddr)) == NULL
        && !(options & DISABLE_HNAME_SERVER)
        && !(getenv("DISABLE_HNAME_SERVER"))) {
@@ -532,12 +514,10 @@ loadHostEntByAddr(const struct in_addr *hostAddr, int options,
         return -1;
     }
 
-
     officialNameP = unifyOfficialName(hp->h_name);
     if(officialNameP == NULL) {
         return -1;
     }
-
 
     if((hp = my_gethostbyname((char*)officialNameP)) == NULL
        && !(options & DISABLE_HNAME_SERVER)
@@ -561,7 +541,6 @@ loadHostEntByAddr(const struct in_addr *hostAddr, int options,
             return (packHostEnt(hp, hostEntP));
         }
     }
-
 
     if(cpHostent(&tmpHostEnt, hp) == -1) {
         return (packHostEnt(hp, hostEntP));
@@ -591,19 +570,16 @@ loadHostEntByAddr(const struct in_addr *hostAddr, int options,
     return rtnVal;
 }
 
-
 static int
 packHostEnt(const struct hostent *hp, struct hostent *hostEntP)
 {
     char *officialNameP;
     int rtn = 0;
 
-
     officialNameP = unifyOfficialName(hp->h_name);
     if(officialNameP == NULL) {
         return -1;
     }
-
 
     if(cpHostent(hostEntP, hp) == -1) {
         lserrno = LSE_MALLOC;
@@ -615,7 +591,6 @@ packHostEnt(const struct hostent *hp, struct hostent *hostEntP)
 
     return rtn;
 }
-
 
 void
 freeHp(struct hostent *hp)
@@ -641,7 +616,6 @@ freeHp(struct hostent *hp)
         hp->h_name = NULL;
     }
 }
-
 
 int
 cpHostent(struct hostent *to, const struct hostent *from)
@@ -674,7 +648,6 @@ cpHostent(struct hostent *to, const struct hostent *from)
     } else {
         to->h_aliases = NULL;
     }
-
 
     to->h_addrtype = from->h_addrtype;
     to->h_length = from->h_length;
@@ -715,7 +688,6 @@ cpHostent(struct hostent *to, const struct hostent *from)
     return 0;
 }
 
-
 static struct hostent *
 my_gethostbyaddr(const char *faddr)
 {
@@ -744,10 +716,8 @@ my_gethostbyaddr(const char *faddr)
         char *tmp;
         n = 0;
 
-
         if ((tmp = strpbrk (buf, "\n#")))
             *tmp='\0';
-
 
         if ((addrstr = strtok (buf, " \t")) == NULL)
             continue;
@@ -774,7 +744,6 @@ my_gethostbyaddr(const char *faddr)
 
     return NULL;
 }
-
 
 struct hostent *
 Gethostbyaddr_(char *addr, int len, int type)
@@ -814,7 +783,6 @@ equalHost_(const char *host1, const char *host2)
         len = strlen(host2);
     else
         len = strlen(host1);
-
 
     if ((strncasecmp(host1, host2, len) == 0) && ISBOUNDARY(host1, host2, len))
         return true;

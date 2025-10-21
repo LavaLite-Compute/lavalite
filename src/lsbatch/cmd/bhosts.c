@@ -96,7 +96,7 @@ static int nameToFmt( char *indx);
 void
 usage (char *cmd)
 {
-    fprintf(stderr, I18N_Usage);
+    fprintf(stderr, "Usage");
     fprintf(stderr, ":\n%s [-h] [-V] [-R res_req] [-w | -l] [host_name ... | cluster_name]\n", cmd);
     fprintf(stderr, I18N_or );
     fprintf(stderr, "\n%s [-h] [-V] -s [ resource_name ] \n", cmd);
@@ -113,10 +113,8 @@ main (int argc, char **argv)
     char **hosts=NULL, **hostPoint, *resReq = NULL;
     char lflag = FALSE, sOption = FALSE, otherOption = FALSE;
     int numHosts;
-    int rc;
 
     _lsb_recvtimeout = 30;
-    rc = 0;
 
     if (lsb_init(argv[0]) < 0) {
 	lsb_perror("lsb_init");
@@ -219,19 +217,19 @@ prtHostsLong (int numReply, struct hostInfoEnt  *hInfo)
 		("HOST"),
 		hPtr->host);
 
-        prtWord(HOST_STATUS_LENGTH, I18N_STATUS, 0);
+        prtWord(HOST_STATUS_LENGTH, "STATUS", 0);
 
 	if (lsbMode_ & LSB_MODE_BATCH) {
-            prtWord(HOST_CPUF_LENGTH, I18N_CPUF, -1);
+            prtWord(HOST_CPUF_LENGTH, "CPUF", -1);
             prtWord(HOST_JL_U_LENGTH, I18N_JL_U, -1);
 	};
 
-            prtWord(HOST_MAX_LENGTH,   I18N_MAX, -1);
-            prtWord(HOST_NJOBS_LENGTH, I18N_NJOBS, -1);
-            prtWord(HOST_RUN_LENGTH,   I18N_RUN, -1);
-            prtWord(HOST_SSUSP_LENGTH, I18N_SSUSP, -1);
-            prtWord(HOST_USUSP_LENGTH, I18N_USUSP, -1);
-            prtWord(HOST_RSV_LENGTH,   I18N_RSV, -1);
+            prtWord(HOST_MAX_LENGTH,   "MAX", -1);
+            prtWord(HOST_NJOBS_LENGTH, "NJOBS", -1);
+            prtWord(HOST_RUN_LENGTH,   "RUN", -1);
+            prtWord(HOST_SSUSP_LENGTH, "SSUSP", -1);
+            prtWord(HOST_USUSP_LENGTH, "USUSP", -1);
+            prtWord(HOST_RSV_LENGTH,   "RSV", -1);
 
 	if (lsbMode_ & LSB_MODE_BATCH)
 	    printf("DISPATCH_WINDOW\n");
@@ -357,19 +355,19 @@ prtHostsShort (int numReply, struct hostInfoEnt  *hInfo)
             prtWord(HOST_NAME_LENGTH,
 		"HOST_NAME", 0);
 	    if ( wflag )
-                prtWord(HOST_STATUS_LENGTH, I18N_STATUS, 0);
+                prtWord(HOST_STATUS_LENGTH, "STATUS", 0);
             else
-                prtWord(HOST_STATUS_SHORT, I18N_STATUS, 0);
+                prtWord(HOST_STATUS_SHORT, "STATUS", 0);
 
 		if (lsbMode_ & LSB_MODE_BATCH)
                     prtWord(HOST_JL_U_LENGTH, I18N_JL_U, -1);
 
-                prtWord(HOST_MAX_LENGTH,   I18N_MAX, -1);
-                prtWord(HOST_NJOBS_LENGTH, I18N_NJOBS, -1);
-                prtWord(HOST_RUN_LENGTH,   I18N_RUN, -1);
-                prtWord(HOST_SSUSP_LENGTH, I18N_SSUSP, -1);
-                prtWord(HOST_USUSP_LENGTH, I18N_USUSP, -1);
-                prtWord(HOST_RSV_LENGTH,   I18N_RSV, -1);
+                prtWord(HOST_MAX_LENGTH,   "MAX", -1);
+                prtWord(HOST_NJOBS_LENGTH, "NJOBS", -1);
+                prtWord(HOST_RUN_LENGTH,   "RUN", -1);
+                prtWord(HOST_SSUSP_LENGTH, "SSUSP", -1);
+                prtWord(HOST_USUSP_LENGTH, "USUSP", -1);
+                prtWord(HOST_RSV_LENGTH,   "RSV", -1);
                 printf("\n");
         };
 

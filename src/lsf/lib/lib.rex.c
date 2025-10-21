@@ -35,7 +35,6 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     struct resCmdBill cmdmsg;
     int resTimeout;
 
-
     if (genParams_[LSF_RES_TIMEOUT].paramValue)
         resTimeout = atoi(genParams_[LSF_RES_TIMEOUT].paramValue);
     else
@@ -45,8 +44,6 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
         s = descriptor[0];
     else if ((s = ls_connect(host)) < 0)
         return -1;
-
-
 
     if (!FD_ISSET(s,&connection_ok_)){
         FD_SET(s,&connection_ok_);
@@ -97,7 +94,6 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
         return -1;
     }
 
-
     socklen_t len = sizeof(sin);
     if (getsockname (retsock, (struct sockaddr *) &sin, &len) < 0) {
         (void)closesocket(retsock);
@@ -109,13 +105,9 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
 
     cmdmsg.retport = sin.sin_port;
 
-
-
     cmdmsg.rpid = 0;
     cmdmsg.argv = argv;
     cmdmsg.priority = 0;
-
-
 
     timeout.tv_usec = 0;
     timeout.tv_sec  = resTimeout;
@@ -126,7 +118,6 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
         _lostconnection_(host);
         return -1;
     }
-
 
     (void) sprintf (sock_buf, "%d", retsock);
 
@@ -160,7 +151,6 @@ ls_rexecve(char *host, char **argv, int options, char **envp)
     close(s);
     return -1;
 
-
 }
 
 
@@ -192,8 +182,6 @@ ls_startserver(char *host, char **server, int options)
     else if ((s = ls_connect(host)) < 0)
         return -1;
 
-
-
     if (!FD_ISSET(s,&connection_ok_)){
         FD_SET(s,&connection_ok_);
         if (ackReturnCode_(s) < 0) {
@@ -212,14 +200,12 @@ ls_startserver(char *host, char **server, int options)
         }
     }
 
-
     if (mygetwd_(cmdmsg.cwd) == 0) {
         closesocket(s);
         _lostconnection_(host);
         lserrno = LSE_WDIR;
         return -1;
     }
-
 
     if ((retsock = TcpCreate_(true, 0)) < 0) {
         closesocket(s);

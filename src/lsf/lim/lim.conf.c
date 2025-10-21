@@ -19,8 +19,6 @@
 
 #include "lsf/lim/lim.h"
 
-#define NL_SETN 24
-
 struct hostEntry {
     char    hostName[MAXHOSTNAMELEN];
     char    hostModel[MAXLSFNAMELEN];
@@ -118,7 +116,6 @@ extern char *getExtResourcesVal(char *);
 
 #define VCL_VERSION     2
 
-
 int
 readShared(void)
 {
@@ -140,15 +137,13 @@ readShared(void)
 
     sprintf(lsfile, "%s/lsf.shared", limParams[LSF_CONFDIR].paramValue);
 
-
     if (configCheckSum(lsfile, &lsfSharedCkSum) < 0) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "configCheckSum");
         return -1;
     }
     fp = confOpen(lsfile, "r");
     if (!fp) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5200,
-                                         "%s: Can't open configuration file <%s>: %m"), /* catgets 5200 */
+        ls_syslog(LOG_ERR, "%s: Can't open configuration file <%s>: %m",
                   fname, lsfile);
         return -1;
     }
@@ -157,28 +152,23 @@ readShared(void)
         if ((cp = getBeginLine(fp, &LineNum)) == NULL) {
             FCLOSEUP(&fp);
             if (! modelok) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5201,
-                                                 "%s: HostModel section missing or invalid in %s"), /* catgets 5201 */
+                ls_syslog(LOG_ERR, "%s: HostModel section missing or invalid in %s",
                           fname, lsfile);
             }
             if (!resok) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5202,
-                                                 "%s: Warning: Resource section missing or invalid in %s"), /* catgets 5202 */
+                ls_syslog(LOG_ERR, "%s: Warning: Resource section missing or invalid in %s",
                           fname, lsfile);
             }
             if (!typeok) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5203,
-                                                 "%s: HostType section missing or invalid"), /* catgets 5203 */
+                ls_syslog(LOG_ERR, "%s: HostType section missing or invalid",
                           lsfile);
             }
             if (!indxok) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5204,
-                                                 "%s: Warning: attempt to define too many new indices"), /* catgets 5204 */
+                ls_syslog(LOG_ERR, "%s: Warning: attempt to define too many new indices",
                           lsfile);
             }
             if (!clsok) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5205,
-                                                 "%s: Cluster section missing or invalid"), /* catgets 5205 */
+                ls_syslog(LOG_ERR, "%s: Cluster section missing or invalid",
                           lsfile);
             }
             if (modelok && resok && clsok && typeok)
@@ -187,18 +177,16 @@ readShared(void)
                 return -1;
         }
 
-
         word = getNextWord_(&cp);
         if (!word) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5206,
-                                             "%s: %s(%d): Section name expected after Begin; ignoring section"), /* catgets 5206 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Section name expected after Begin; ignoring section",
                       fname, lsfile, LineNum);
             lim_CheckError = WARNING_ERR;
             doSkipSection(fp, &LineNum, lsfile, "unknown");
             continue;
         } else {
             if (strcasecmp(word, "host") == 0) {
-                ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd, NL_SETN, 5380, "%s: %s(%d): section %s no longer needed in this version, ignored")), /* catgets 5380 */ "readShared", lsfile, LineNum, word);
+                ls_syslog(LOG_INFO, ("%s: %s(%d: section %s no longer needed in this version, ignored"),  "readShared", lsfile, LineNum, word);
                 continue;
             }
 
@@ -232,8 +220,7 @@ readShared(void)
                 continue;
             }
 
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5207,
-                                             "%s: %s(%d): Invalid section name %s; ignoring section"), /* catgets 5207 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Invalid section name %s; ignoring section",
                       fname, lsfile, LineNum, word);
             lim_CheckError = WARNING_ERR;
             doSkipSection(fp, &LineNum, lsfile, word);
@@ -257,37 +244,32 @@ doindex (FILE *fp, int *LineNum, char *lsfile)
 
     linep = getNextLineC_(fp, LineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5208,
-                                         "%s: %s(%d): Premature EOF"), /* catgets 5208 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Premature EOF",
                   fname, lsfile, *LineNum);
         lim_CheckError = WARNING_ERR;
         return true;
     }
 
     if (isSectionEnd(linep, lsfile, LineNum, "newindex")) {
-        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5209,
-                                             "%s: %s(%d): empty section"), /* catgets 5209 */
+        ls_syslog(LOG_WARNING, "%s: %s(%d: empty section",
                   fname, lsfile, *LineNum);
         return true;
     }
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, true)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5210,
-                                             "%s: %s(%d): keyword line format error for section newindex; ignoring section"), /* catgets 5210 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section newindex; ignoring section",
                       fname,  lsfile, *LineNum);
             lim_CheckError = WARNING_ERR;
             doSkipSection(fp, LineNum, lsfile, "newindex");
             return true;
         }
 
-
         while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
             if (isSectionEnd(linep, lsfile, LineNum, "newindex"))
                 return true;
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5211,
-                                                 "%s: %s(%d): values do not match keys for section newindex; ignoring line"), fname, lsfile, *LineNum); /* catgets 5211 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section newindex; ignoring line", fname, lsfile, *LineNum);
                 lim_CheckError = WARNING_ERR;
                 continue;
             }
@@ -309,8 +291,7 @@ doindex (FILE *fp, int *LineNum, char *lsfile)
         return true;
     }
 
-    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5212,
-                                     "%s: %s(%d): Premature EOF"), /* catgets 5212 */
+    ls_syslog(LOG_ERR, "%s: %s(%d: Premature EOF",
               fname, lsfile, *LineNum);
     lim_CheckError = WARNING_ERR;
     return true;
@@ -323,25 +304,21 @@ setIndex (struct keymap *keyList, char *lsfile, int linenum)
     static char fname[] = "setIndex()";
     int resIdx, i;
 
-
     if (strlen(keyList[3].val) >= MAXLSFNAMELEN) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5213,
-                                         "%s: %s(%d): Name %s is too long (maximum is %d chars); ignoring index"), /* catgets 5213 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Name %s is too long (maximum is %d chars); ignoring index",
                   fname, lsfile, linenum, keyList[3].val, MAXLSFNAMELEN-1);
         lim_CheckError = WARNING_ERR;
         return true;
     }
 
     if (strpbrk(keyList[3].val, ILLEGAL_CHARS) != NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5214,
-                                         "%s: %s(%d): illegal character (one of %s)"), /* catgets 5214 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: illegal character (one of %s)",
                   fname, lsfile, linenum, ILLEGAL_CHARS);
         lim_CheckError = WARNING_ERR;
         return true;
     }
     if (IS_DIGIT (keyList[3].val[0])) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5215,
-                                         "%s: %s(%d): Index name <%s> begun with a digit is illegal; ignored"), /* catgets 5215 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Index name <%s> begun with a digit is illegal; ignored",
                   fname, lsfile, linenum, keyList[3].val);
         lim_CheckError = WARNING_ERR;
         return true;
@@ -349,18 +326,15 @@ setIndex (struct keymap *keyList, char *lsfile, int linenum)
 
     if ((resIdx = resNameDefined(keyList[3].val)) >= 0) {
         if (!(allInfo.resTable[resIdx].flags & RESF_DYNAMIC)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5216,
-                                             "%s: %s(%d): Name <%s> is not a dynamic resource; ignored"), /* catgets 5216 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Name <%s> is not a dynamic resource; ignored",
                       fname, lsfile, linenum, keyList[3].val);
             return true;
         }
         if ((allInfo.resTable[resIdx].flags & RESF_BUILTIN))
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5217,
-                                             "%s: %s(%d): Name <%s> reserved or previously defined;"), /* catgets 5217 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Name <%s> reserved or previously defined;",
                       fname, lsfile, linenum, keyList[3].val);
         else {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5219,
-                                             "%s: %s(%d): Name <%s> reserved or previously defined;ignoring"), /* catgets 5219 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Name <%s> reserved or previously defined;ignoring",
                       fname, lsfile, linenum, keyList[3].val);
             lim_CheckError = WARNING_ERR;
             return true;
@@ -380,7 +354,6 @@ setIndex (struct keymap *keyList, char *lsfile, int linenum)
     strcpy(allInfo.resTable[resIdx].name, keyList[3].val);
     allInfo.resTable[resIdx].valueType = LS_NUMERIC;
     allInfo.resTable[resIdx].flags = RESF_DYNAMIC | RESF_GLOBAL;
-
 
     if (allInfo.numUsrIndx+NBUILTINDEX >=li_len-1) {
         li_len <<= 1;
@@ -415,7 +388,6 @@ setIndex (struct keymap *keyList, char *lsfile, int linenum)
 
     defaultRunElim = true;
 
-
     return true;
 
 }
@@ -435,8 +407,7 @@ doclist(FILE *fp, int *LineNum, char *lsfile)
 
     linep = getNextLineC_(fp, LineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5222,
-                                         "%s: %s(%d): section cluster: Premature EOF"), /* catgets 5222 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: section cluster: Premature EOF",
                   fname, lsfile, *LineNum);
         return false;
     }
@@ -446,27 +417,23 @@ doclist(FILE *fp, int *LineNum, char *lsfile)
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, false)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5223,
-                                             "%s: %s(%d): keyword line format error for section cluster; ignoring section"), fname, lsfile, *LineNum); /* catgets 5223 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section cluster; ignoring section", fname, lsfile, *LineNum);
             doSkipSection(fp, LineNum, lsfile, "cluster");
             return false;
         }
 
         if (keyList[0].position == -1) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5224,
-                                             "%s: %s(%d): keyword line: key %s is missing in section cluster; ignoring section"), /* catgets 5224 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line: key %s is missing in section cluster; ignoring section",
                       fname, lsfile, *LineNum, keyList[0].key);
             doSkipSection(fp, LineNum, lsfile, "cluster");
             return false;
         }
 
-
         while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
             if (isSectionEnd(linep, lsfile, LineNum, "cluster"))
                 return true;
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5225,
-                                                 "%s: %s(%d): values do not match keys for section cluster, ignoring line"), /* catgets 5225 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section cluster, ignoring line",
                           fname, lsfile, *LineNum);
                 lim_CheckError = WARNING_ERR;
                 continue;
@@ -479,15 +446,12 @@ doclist(FILE *fp, int *LineNum, char *lsfile)
             else
                 servers = NULL;
 
-
             if (!clusterAdded && !addCluster(keyList[0].val, servers)) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5226,
-                                                 "%s: Ignoring cluster %s"), /* catgets 5226 */
+                ls_syslog(LOG_ERR, "%s: Ignoring cluster %s",
                           fname, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
             } else if (clusterAdded ) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5226,
-                                                 "%s: Ignoring cluster %s"), /* catgets 5226 */
+                ls_syslog(LOG_ERR, "%s: Ignoring cluster %s",
                           fname, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
             }
@@ -498,8 +462,7 @@ doclist(FILE *fp, int *LineNum, char *lsfile)
             clusterAdded = true;
         }
     } else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5227,
-                                         "%s: %s(%d): horizontal cluster section not implemented yet, ignoring section"), fname, lsfile, *LineNum); /* catgets 5227 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: horizontal cluster section not implemented yet, ignoring section", fname, lsfile, *LineNum);
         doSkipSection(fp, LineNum, lsfile, "cluster");
         return false;
     }
@@ -518,7 +481,6 @@ dotypelist(FILE *fp, int *LineNum, char *lsfile)
         {NULL, NULL, 0}
     };
     char *linep;
-
 
     linep = getNextLineC_(fp, LineNum, true);
     if (!linep) {
@@ -545,12 +507,10 @@ dotypelist(FILE *fp, int *LineNum, char *lsfile)
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, true)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5230,
-                                             "%s: %s(%d): keyword line format error for section HostType, ignoring section"), fname, lsfile, *LineNum); /* catgets 5230 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section HostType, ignoring section", fname, lsfile, *LineNum);
             doSkipSection(fp, LineNum, lsfile, "HostType");
             return false;
         }
-
 
         while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
             if (isSectionEnd(linep, lsfile, LineNum, "HostType"))
@@ -558,23 +518,20 @@ dotypelist(FILE *fp, int *LineNum, char *lsfile)
                 return true;
             }
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5231,
-                                                 "%s: %s(%d): values do not match keys for section cluster, ignoring line"), fname, lsfile, *LineNum); /* catgets 5231 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section cluster, ignoring line", fname, lsfile, *LineNum);
                 lim_CheckError = WARNING_ERR;
                 continue;
             }
 
             if (strpbrk(keyList[0].val, ILLEGAL_CHARS) != NULL) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5232,
-                                                 "%s: %s(%d): illegal character (one of %s), ignoring type %s"), /* catgets 5232 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: illegal character (one of %s, ignoring type %s",
                           fname, lsfile, *LineNum, ILLEGAL_CHARS, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
                 FREEUP(keyList[0].val);
                 continue;
             }
             if (IS_DIGIT (keyList[0].val[0])) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5233,
-                                                 "%s: %s(%d): Type name <%s> begun with a digit is illegal; ignored"), /* catgets 5233 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Type name <%s> begun with a digit is illegal; ignored",
                           fname, lsfile, *LineNum, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
                 FREEUP(keyList[0].val);
@@ -586,8 +543,7 @@ dotypelist(FILE *fp, int *LineNum, char *lsfile)
             FREEUP(keyList[0].val);
         }
     } else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5234,
-                                         "%s: %s(%d): horizontal HostType section not implemented yet, ignoring section"), fname, lsfile, *LineNum); /* catgets 5234 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: horizontal HostType section not implemented yet, ignoring section", fname, lsfile, *LineNum);
         doSkipSection(fp, LineNum, lsfile, "HostType");
         return false;
     }
@@ -615,7 +571,6 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
     };
     char *sp, *word;
 
-
     if (first) {
         int i;
         for(i = 0; i < MAXMODELS; ++i) {
@@ -626,7 +581,6 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
         h_initTab_(&hostModelTbl, 0);
         first = false;
     }
-
 
     linep = getNextLineC_(fp, LineNum, true);
     if (! linep) {
@@ -657,12 +611,10 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, false)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5237,
-                                             "%s: %s(%d): keyword line format error for section hostmodel, ignoring section"), fname, lsfile, *LineNum); /* catgets 5237 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section hostmodel, ignoring section", fname, lsfile, *LineNum);
             doSkipSection(fp, LineNum, lsfile, "dohostmodel");
             return false;
         }
-
 
         while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
             if (isSectionEnd(linep, lsfile, LineNum, "hostmodel"))
@@ -670,15 +622,13 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
                 return true;
             }
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5238,
-                                                 "%s: %s(%d): values do not match keys for section hostmodel, ignoring line"), fname, lsfile, *LineNum); /* catgets 5238 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section hostmodel, ignoring line", fname, lsfile, *LineNum);
                 lim_CheckError = WARNING_ERR;
                 continue;
             }
 
             if (! isanumber_(keyList[1].val) || atof(keyList[1].val) <= 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5239,
-                                                 "%s: %s(%d): Bad cpuFactor for host model %s, ignoring line"), /* catgets 5239 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Bad cpuFactor for host model %s, ignoring line",
                           fname, lsfile, *LineNum, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
                 FREEUP(keyList[0].val);
@@ -688,8 +638,7 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
             }
 
             if (strpbrk(keyList[0].val, ILLEGAL_CHARS) != NULL) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5240,
-                                                 "%s: %s(%d): illegal character (one of %s), ignoring model %s"), /* catgets 5240 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: illegal character (one of %s, ignoring model %s",
                           fname, lsfile, *LineNum, ILLEGAL_CHARS, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
                 FREEUP(keyList[0].val);
@@ -698,8 +647,7 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
                 continue;
             }
             if (IS_DIGIT (keyList[0].val[0])) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5241,
-                                                 "%s: %s(%d): Model name <%s> begun with a digit is illegal; ignored"), fname, lsfile, *LineNum, keyList[0].val); /* catgets 5241 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Model name <%s> begun with a digit is illegal; ignored", fname, lsfile, *LineNum, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
                 FREEUP(keyList[0].val);
                 FREEUP(keyList[1].val);
@@ -713,8 +661,7 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
                     if (!addHostModel(keyList[0].val, word,
                                       atof(keyList[1].val))) {
                         ls_syslog(LOG_ERR,
-                                  _i18n_msg_get(ls_catd , NL_SETN, 5242,
-                                                "%s: %s(%d): Too many host models, ignoring model %s"), fname, lsfile, *LineNum, keyList[0].val); /* catgets 5242 */
+                                  "%s: %s(%d: Too many host models, ignoring model %s", fname, lsfile, *LineNum, keyList[0].val);
                         lim_CheckError = WARNING_ERR;
                         goto next_value;
                     }
@@ -723,14 +670,12 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
                 if (!addHostModel(keyList[0].val, NULL,
                                   atof(keyList[1].val))) {
                     ls_syslog(LOG_ERR,
-                              _i18n_msg_get(ls_catd , NL_SETN, 5242,
-                                            "%s: %s(%d): Too many host models, ignoring model %s"), fname, lsfile, *LineNum, keyList[0].val); /* catgets 5242 */
+                              "%s: %s(%d: Too many host models, ignoring model %s", fname, lsfile, *LineNum, keyList[0].val);
                     lim_CheckError = WARNING_ERR;
                     goto next_value;
                 }
 
             }
-
 
             hashEntPtr = h_addEnt_(&hostModelTbl, keyList[0].val, &new);
 
@@ -756,8 +701,7 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
             FREEUP(keyList[2].val);
         }
     } else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5244,
-                                         "%s: %s(%d): horizontal HostModel section not implemented yet, ignoring section"),  fname, lsfile, *LineNum); /* catgets 5244 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: horizontal HostModel section not implemented yet, ignoring section",  fname, lsfile, *LineNum);
         doSkipSection(fp, LineNum, lsfile, "HostModel");
         return false;
     }
@@ -767,15 +711,12 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
     return false;
 }
 
-
-
 static void
 initResTable(void)
 {
     static char fname[] = "initResTable()";
     struct resItem *resTable;
     int   i;
-
 
     if ((resTable = (struct resItem *)
          malloc(300 * sizeof(struct resItem))) == NULL) {
@@ -789,8 +730,7 @@ initResTable(void)
     while(builtInRes[i].name != NULL) {
         strcpy(resTable[i].name, builtInRes[i].name);
         strcpy(resTable[i].des,
-               _i18n_msg_get(ls_catd, MOD_LSF_LIB,
-                             builtInRes_ID[i], builtInRes[i].des));
+               builtInRes[i].des);
         resTable[i].valueType = builtInRes[i].valueType;
         resTable[i].orderType = builtInRes[i].orderType;
         resTable[i].interval  = builtInRes[i].interval;
@@ -842,7 +782,6 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
     int nres=0;
     int resIdx;
 
-
     linep = getNextLineC_(fp, LineNum, true);
     if (! linep) {
         ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
@@ -855,12 +794,10 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, false)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5248,
-                                             "%s: %s(%d): keyword line format error for section resource, ignoring section"), fname, lsfile, *LineNum); /* catgets 5248 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section resource, ignoring section", fname, lsfile, *LineNum);
             doSkipSection(fp, LineNum, lsfile, "resource");
             return false;
         }
-
 
         while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
             if (isSectionEnd(linep, lsfile, LineNum, "resource")) {
@@ -868,15 +805,13 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
             }
 
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5249,
-                                                 "%s: %s(%d): values do not match keys for section resource, ignoring line"), fname, lsfile, *LineNum); /* catgets 5249 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section resource, ignoring line", fname, lsfile, *LineNum);
                 lim_CheckError = WARNING_ERR;
                 continue;
             }
 
             if (strlen(keyList[RKEY_RESOURCENAME].val) >= MAXLSFNAMELEN-1) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5250,
-                                                 "%s: %s(%d): Resource name %s too long in section resource. Should be less than %d characters. Ignoring line"), /* catgets 5250 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Resource name %s too long in section resource. Should be less than %d characters. Ignoring line",
                           fname, lsfile, *LineNum, keyList[0].val, MAXLSFNAMELEN-1);
                 lim_CheckError = WARNING_ERR;
                 freeKeyList (keyList);
@@ -898,17 +833,15 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                     }
                     else{
 
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5251,
-                                                         "%s: %s(%d): Built-in resource %s can't be overrided with different type or increasing. Ignoring line"),
-                                  fname, lsfile, *LineNum, keyList[0].val); /* catgets 5251 */
+                        ls_syslog(LOG_ERR, "%s: %s(%d: Built-in resource %s can't be overrided with different type or increasing. Ignoring line",
+                                  fname, lsfile, *LineNum, keyList[0].val);
                         lim_CheckError = WARNING_ERR;
                     }
                 }
                 else{
 
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5251,
-                                                     "%s: %s(%d): Resource name %s reserved or previously defined. Ignoring line"),
-                              fname, lsfile, *LineNum, keyList[0].val); /* catgets 5251 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: Resource name %s reserved or previously defined. Ignoring line",
+                              fname, lsfile, *LineNum, keyList[0].val);
                     lim_CheckError = WARNING_ERR;
                 }
                 freeKeyList (keyList);
@@ -917,16 +850,14 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
 
             if (strpbrk(keyList[RKEY_RESOURCENAME].val, ILLEGAL_CHARS)
                 != NULL) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5252,
-                                                 "%s: %s(%d): illegal character (one of %s): in resource name:%s, section resource, ignoring line"),  /* catgets 5252 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: illegal character (one of %s): in resource name:%s, section resource, ignoring line",
                           fname, lsfile, *LineNum, ILLEGAL_CHARS, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
                 freeKeyList (keyList);
                 continue;
             }
             if (IS_DIGIT (keyList[RKEY_RESOURCENAME].val[0])) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5253,
-                                                 "%s: %s(%d): Resource name <%s> begun with a digit is illegal; ignored"), fname, lsfile, *LineNum, keyList[0].val); /* catgets 5253 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Resource name <%s> begun with a digit is illegal; ignored", fname, lsfile, *LineNum, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
                 freeKeyList (keyList);
                 continue;
@@ -940,18 +871,15 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
             strcpy(allInfo.resTable[allInfo.nRes].name,
                    keyList[RKEY_RESOURCENAME].val);
 
-
             if (keyList[RKEY_TYPE].val != NULL
                 && keyList[RKEY_TYPE].val[0] != '\0') {
                 int type;
-
 
                 if (strcmp(keyList[RKEY_TYPE].val, LSF_LIM_ERES_TYPE) == 0)
                 {
                     if (setExtResourcesDef(keyList[RKEY_RESOURCENAME].val) != 0)
                     {
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5256,
-                                                         "%s: Ignoring the external resource <%s>(%d) in section resource of file %s"),  /* catgets 5256 */
+                        ls_syslog(LOG_ERR, "%s: Ignoring the external resource <%s>(%d in section resource of file %s",
                                   fname, keyList[RKEY_RESOURCENAME].val, *LineNum, lsfile);
                         lim_CheckError = WARNING_ERR;
                         freeKeyList (keyList);
@@ -965,8 +893,7 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                 if ((type = validType (keyList[RKEY_TYPE].val)) >= 0)
                     allInfo.resTable[allInfo.nRes].valueType = type;
                 else {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5257,
-                                                     "%s: %s(%d): resource type <%s> for resource <%s> is not valid; ignoring resource <%s> in section resource"),  /* catgets 5257 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: resource type <%s> for resource <%s> is not valid; ignoring resource <%s> in section resource",
                               fname, lsfile, *LineNum, keyList[RKEY_TYPE].val, keyList[RKEY_RESOURCENAME].val, keyList[RKEY_RESOURCENAME].val);
                     lim_CheckError = WARNING_ERR;
                     freeKeyList (keyList);
@@ -979,15 +906,13 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                 allInfo.resTable[allInfo.nRes].valueType = LS_BOOLEAN;
             }
 
-
             if (keyList[RKEY_INTERVAL].val != NULL && keyList[RKEY_INTERVAL].val[0] != '\0') {
                 int interval;
                 if ((interval = atoi (keyList[RKEY_INTERVAL].val)) > 0) {
                     allInfo.resTable[allInfo.nRes].interval = interval;
                     allInfo.resTable[allInfo.nRes].flags |= RESF_DYNAMIC;
                 } else {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5258,
-                                                     "%s: %s(%d): INTERVAL <%s> for resource <%s> should be a integer greater than 0; ignoring resource <%s> in section resource"),  /* catgets 5258 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: INTERVAL <%s> for resource <%s> should be a integer greater than 0; ignoring resource <%s> in section resource",
                               fname,
                               lsfile,
                               *LineNum,
@@ -1008,8 +933,7 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                     else if (!strcasecmp(keyList[RKEY_INCREASING].val, "Y"))
                         allInfo.resTable[allInfo.nRes].orderType = INCR;
                     else {
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5259,
-                                                         "%s: %s(%d): INCREASING <%s> for resource <%s> is not valid; ignoring resource <%s> in section resource"),  /* catgets 5259 */
+                        ls_syslog(LOG_ERR, "%s: %s(%d: INCREASING <%s> for resource <%s> is not valid; ignoring resource <%s> in section resource",
                                   fname,
                                   lsfile,
                                   *LineNum,
@@ -1021,8 +945,7 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                         continue;
                     }
                 } else
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5260,
-                                                     "%s: %s(%d): INCREASING <%s> is not used by the resource <%s> with type <%s>; ignoring INCREASING"),    /* catgets 5260 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: INCREASING <%s> is not used by the resource <%s> with type <%s>; ignoring INCREASING",
                               fname,
                               lsfile,
                               *LineNum,
@@ -1032,8 +955,7 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
             } else {
                 if (allInfo.resTable[allInfo.nRes].valueType
                     == LS_NUMERIC) {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5261,
-                                                     "%s: %s(%d): No INCREASING specified for a numeric resource <%s>; ignoring resource <%s> in section resource"), /* catgets 5261 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: No INCREASING specified for a numeric resource <%s>; ignoring resource <%s> in section resource",
                               fname,
                               lsfile,
                               *LineNum,
@@ -1045,16 +967,13 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                 }
             }
 
-
-
             if (keyList[RKEY_RELEASE].val != NULL
                 && keyList[RKEY_RELEASE].val[0] != '\0') {
                 if (allInfo.resTable[allInfo.nRes].valueType == LS_NUMERIC) {
                     if (!strcasecmp(keyList[RKEY_RELEASE].val, "Y")) {
                         allInfo.resTable[allInfo.nRes].flags |= RESF_RELEASE;
                     } else if (strcasecmp(keyList[RKEY_RELEASE].val, "N")) {
-                        ls_syslog(LOG_ERR, I18N(5474,
-                                                "doresources:%s(%d): RELEASE defined for resource <%s> should be 'Y', 'y', 'N' or 'n' not <%s>; ignoring resource <%s> in section resource"), /*catgets 5474*/
+                        ls_syslog(LOG_ERR, "doresources:%s(%d): RELEASE defined for resource <%s> should be 'Y', 'y', 'N' or 'n' not <%s>; ignoring resource <%s> in section resource",
                                   lsfile, *LineNum, keyList[RKEY_RESOURCENAME].val,
                                   keyList[RKEY_RELEASE].val,
                                   keyList[RKEY_RESOURCENAME].val);
@@ -1064,8 +983,7 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                     }
                 } else {
 
-                    ls_syslog(LOG_ERR, I18N(5475,
-                                            "doresources:%s(%d): RELEASE cannot be defined for resource <%s> which isn't a numeric resource; ignoring resource <%s> in section resource"), /*catgets 5475 */
+                    ls_syslog(LOG_ERR, "doresources:%s(%d): RELEASE cannot be defined for resource <%s> which isn't a numeric resource; ignoring resource <%s> in section resource",
                               lsfile, *LineNum, keyList[RKEY_RESOURCENAME].val,
                               keyList[RKEY_RESOURCENAME].val);
                     lim_CheckError = WARNING_ERR;
@@ -1111,11 +1029,9 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
             freeKeyList (keyList);
         }
     } else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5264,
-                                         "%s: %s(%d): horizontal resource section not implemented yet"), fname, lsfile, *LineNum); /* catgets 5264 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: horizontal resource section not implemented yet", fname, lsfile, *LineNum);
         return false;
     }
-
 
     ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
               fname, lsfile, *LineNum, "resource");
@@ -1186,22 +1102,18 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
         return -1;
     }
 
-
     if (isSectionEnd(linep, lsfile, LineNum, "resourceMap")) {
-        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5477,
-                                             "%s: %s(%d): Empty resourceMap, no keywords or resources defined."), /* catgets 5477 */
+        ls_syslog(LOG_WARNING, "%s: %s(%d: Empty resourceMap, no keywords or resources defined.",
                   fname, lsfile, *LineNum);
         return -1;
     }
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, true)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5267,
-                                             "%s: %s(%d): keyword line format error for section resource, ignoring section"), fname, lsfile, *LineNum); /* catgets 5267 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section resource, ignoring section", fname, lsfile, *LineNum);
             doSkipSection(fp, LineNum, lsfile, "resourceMap");
             return -1;
         }
-
 
         while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
             if (isSectionEnd(linep, lsfile, LineNum, "resourceMap")) {
@@ -1209,15 +1121,13 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
             }
 
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5268,
-                                                 "%s: %s(%d): values do not match keys for resourceMap section, ignoring line"), fname, lsfile, *LineNum); /* catgets 5268 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for resourceMap section, ignoring line", fname, lsfile, *LineNum);
                 lim_CheckError = WARNING_ERR;
                 continue;
             }
 
             if ((resNo =resNameDefined(keyList[RKEY_RESOURCE_NAME].val)) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5269,
-                                                 "%s: %s(%d): Resource name <%s> is  not defined; ignoring line"), /* catgets 5269 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Resource name <%s> is  not defined; ignoring line",
                           fname, lsfile, *LineNum,
                           keyList[RKEY_RESOURCE_NAME].val);
                 lim_CheckError = WARNING_ERR;
@@ -1228,8 +1138,7 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
 
                 if (resNo < NBUILTINDEX)
                 {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5296,
-                                                     "%s: %s(%d): Built-in resource %s can't be redefined as shared resource here. Ignoring line"), /* catgets 5296 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: Built-in resource %s can't be redefined as shared resource here. Ignoring line",
                               fname, lsfile, *LineNum, keyList[0].val);
                     continue;
                 }
@@ -1240,8 +1149,7 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
             {
                 if (setExtResourcesLoc(keyList[RKEY_RESOURCENAME].val, resNo) != 0)
                 {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5270,
-                                                     "%s: Ignoring the external resource location <%s>(%d) in section resourceMap of file %s"),  /* catgets 5270 */
+                    ls_syslog(LOG_ERR, "%s: Ignoring the external resource location <%s>(%d in section resourceMap of file %s",
                               fname, keyList[RKEY_RESOURCENAME].val,
                               *LineNum, lsfile);
                     lim_CheckError = WARNING_ERR;
@@ -1281,10 +1189,10 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
                     result = convertNegNotation_(&(keyList[RKEY_LOCATION].val), &array);
                     if (result == 0) {
                         ls_syslog(LOG_WARNING,
-                                  I18N(5397,"%s: %s(%d): convertNegNotation_: all the hosts are to be excluded %s !"), /* catgets 5397 */
+                                  "%s: %s(%d): convertNegNotation_: all the hosts are to be excluded %s !",
                                   fname, lsfile, *LineNum, keyList[RKEY_LOCATION].val);
                     } else if (result < 0) {
-                        ls_syslog(LOG_WARNING, I18N(5398, "%s: %s(%d): convertNegNotation_: Wrong syntax \'%s\'"), /* catgets 5398 */
+                        ls_syslog(LOG_WARNING, "%s: %s(%d): convertNegNotation_: Wrong syntax \'%s\'",
                                   fname, lsfile, *LineNum, keyList[RKEY_LOCATION].val);
                     }
                     freeSA_(array.hosts, array.size);
@@ -1293,8 +1201,7 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
                 if (addResourceMap (keyList[RKEY_RESOURCE_NAME].val,
                                     keyList[RKEY_LOCATION].val, lsfile,
                                     *LineNum, &isDefault) < 0) {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5271,
-                                                     "%s: %s(%d): addResourceMap() failed for resource <%s>; ignoring line"), /* catgets 5271 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: addResourceMap() failed for resource <%s>; ignoring line",
                               fname, lsfile, *LineNum,
                               keyList[RKEY_RESOURCE_NAME].val);
                     lim_CheckError = WARNING_ERR;
@@ -1317,8 +1224,7 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
 
                 resNo = 0;
             } else {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5272,
-                                                 "%s: %s(%d): No LOCATION specified for resource <%s>; ignoring the line"), /* catgets 5272 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: No LOCATION specified for resource <%s>; ignoring the line",
                           fname, lsfile, *LineNum,
                           keyList[RKEY_RESOURCE_NAME].val);
                 lim_CheckError = WARNING_ERR;
@@ -1328,16 +1234,13 @@ doresourcemap(FILE *fp, char *lsfile, int *LineNum)
             freeKeyList (keyList);
         }
     } else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5273,
-                                         "%s: %s(%d): horizontal resource section not implemented yet"), fname, lsfile, *LineNum); /* catgets 5273 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: horizontal resource section not implemented yet", fname, lsfile, *LineNum);
         return -1;
     }
-
 
     return 0;
 
 }
-
 
 static int
 addSharedResourceInstance(int nHosts, char **hosts, char *resName)
@@ -1350,13 +1253,10 @@ addSharedResourceInstance(int nHosts, char **hosts, char *resName)
     int resNo;
 
     if ((resNo = resNameDefined(resName)) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5274,
-                                         "%s: Resource name <%s> not defined"), /* catgets 5274 */
+        ls_syslog(LOG_ERR, "%s: Resource name <%s> not defined",
                   fname, resName);
         return -1;
     }
-
-
 
     if (!(allInfo.resTable[resNo].flags & RESF_DYNAMIC)) {
         return 0;
@@ -1422,16 +1322,14 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
     *isDefault = false;
 
     if (resName == NULL || location == NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5382,
-                                         "%s: %s(%d): Resource name <%s> location <%s>"), /* catgets 5382 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Resource name <%s> location <%s>",
                   fname, lsfile, LineNum,
                   (resName?resName:"NULL"), (location?location:"NULL"));
         return -1;
     }
 
     if ((resNo = resNameDefined(resName)) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5275,
-                                         "%s: %s(%d): Resource name <%s> not defined"), /* catgets 5275 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Resource name <%s> not defined",
                   fname, lsfile, LineNum, resName);
         return -1;
     }
@@ -1440,7 +1338,6 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
 
     resource = inHostResourcs (resName);
     sp = location;
-
 
     i = 0;
     while (*sp != '\0') {
@@ -1451,8 +1348,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
         sp++;
     }
     if (i != 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5383,
-                                         "%s: %s(%d): number of '[' is not match that of ']' in <%s> for resource <%s>; ignoring"), /* catgets 5383 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: number of '[' is not match that of ']' in <%s> for resource <%s>; ignoring",
                   fname, lsfile, LineNum, location, resName);
         return -1;
     }
@@ -1501,8 +1397,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
             strcpy (initValue, sp);
             if (!isdigitstr_(initValue) && allInfo.resTable[resNo].valueType == LS_NUMERIC) {
 
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5386,
-                                                 "%s: %s(%d): Invalid characters (%s) used as NUMERIC resource value; ignoring"), /* catgets 5386 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid characters (%s) used as NUMERIC resource value; ignoring",
                           fname, lsfile, LineNum, initValue);
                 FREEUP(initValue);
                 return -1;
@@ -1518,8 +1413,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
             sp++;
 
         if (*sp != '[' && *sp != '\0') {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5384,
-                                             "%s: %s(%d): Bad character <%c> in instance; ignoring"), /* catgets 5384 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Bad character <%c> in instance; ignoring",
                       fname, lsfile, LineNum, *sp);
             sp++;
         }
@@ -1531,8 +1425,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
             while (*sp != ']' && *sp != '\0')
                 sp++;
             if (*sp == '\0') {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5385,
-                                                 "%s: %s(%d): Bad format for instance <%s>; ignoring the instance"), /* catgets 5385 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Bad format for instance <%s>; ignoring the instance",
                           fname, lsfile, LineNum, instance);
                 FREEUP(initValue);
                 return -1;
@@ -1541,8 +1434,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
                 sp++;
                 ssp =  *sp;
                 *sp = '\0';
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5385,
-                                                 "%s: %s(%d): Bad format for instance <%s>; ignoringthe instance"),
+                ls_syslog(LOG_ERR, "%s: %s(%d: Bad format for instance <%s>; ignoringthe instance",
                           fname, lsfile, LineNum, instance);
                 *sp = ssp;
                 continue;
@@ -1551,23 +1443,20 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
             sp++;
 
             if (initValue[0] == '\0' && !dynamic) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5276,
-                                                 "%s: %s(%d): Value must be defined for static resource; ignoring resource <%s>, instance <%s>"), /* catgets 5276 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Value must be defined for static resource; ignoring resource <%s>, instance <%s>",
                           fname, lsfile, LineNum, resName, instance);
                 continue;
             }
 
             if (initValue[0] != '\0' && dynamic) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5277,
-                                                 "%s: %s(%d): Value <%s> ignored for dynamic resource <%s>, instance <%s>"), /* catgets 5277 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Value <%s> ignored for dynamic resource <%s>, instance <%s>",
                           fname, lsfile, LineNum, initValue, resName,
                           instance);
                 initValue[0] = '\0';
             }
 
             if ((numHosts = parseHostList (cp, lsfile, LineNum, &hosts, &defaultWord)) <= 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5387,
-                                                 "%s: %s(%d): getHostList(%s) failed; ignoring the instance <%s>"), /* catgets 5387 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: getHostList(%s) failed; ignoring the instance <%s>",
                           fname, lsfile, LineNum, cp, instance);
                 lim_CheckError = WARNING_ERR;
                 continue;
@@ -1576,13 +1465,11 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
                 *isDefault = true;
 
                 if (numHosts > 1)
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5388,
-                                                     "%s: %s(%d):  Other host is specified with reserved word <default> in the instance <%s> for resource <%s>;ignoring other hosts"), /* catgets 5388 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d:  Other host is specified with reserved word <default> in the instance <%s> for resource <%s>;ignoring other hosts",
                               fname, lsfile, LineNum, instance, resName);
 
                 if (resource && resource->numInstances > 1)  {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5389,
-                                                     "%s: %s(%d):  Other instances are specified with the instance <%s> for resource <%s>; ignoring the instance"), /* catgets 5389 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d:  Other instances are specified with the instance <%s> for resource <%s>; ignoring the instance",
                               fname, lsfile, LineNum, instance, resName);
                     break;
                 }
@@ -1617,22 +1504,19 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
                         (resource = addResource (resName, numHosts,
                                                  hosts, initValue, lsfile,
                                                  LineNum, true)) == NULL)
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5390,
-                                                         "%s: %s(%d): addResource() failed; ignoring the instance <%s>"), /* catgets 5390 */
+                        ls_syslog(LOG_ERR, "%s: %s(%d: addResource() failed; ignoring the instance <%s>",
                                   fname, lsfile, LineNum, instance);
                 } else {
                     if (addHostInstance (resource, numHosts, hosts,
                                          initValue, true) < 0)
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5391,
-                                                         "%s: %s(%d): addHostInstance() failed; ignoring the instance <%s>"), /* catgets 5391 */
+                        ls_syslog(LOG_ERR, "%s: %s(%d: addHostInstance() failed; ignoring the instance <%s>",
                                   fname, lsfile, LineNum, instance);
                 }
             }
             defaultWord = false;
             continue;
         } else {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5392,
-                                             "%s: %s(%d): No <[>  for instance in <%s>; ignoring"), fname, lsfile, LineNum, location);  /* catgets 5392 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: No <[>  for instance in <%s>; ignoring", fname, lsfile, LineNum, location);
             while (*sp != ']' && *sp != '\0')
                 sp++;
             if (*sp == '\0')
@@ -1650,7 +1534,6 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
     return 0;
 
 }
-
 
 static int
 parseHostList (char *hostList, char *lsfile, int LineNum, char ***hosts, int *hasDefault)
@@ -1674,8 +1557,7 @@ parseHostList (char *hostList, char *lsfile, int LineNum, char ***hosts, int *ha
     while ((host = getNextWord_(&sp)) != NULL) {
 
         if ((hostName = validLocationHost (host)) == NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5278,
-                                             "%s: %s(%d): Invalid hostname <%s>;ignoring the host"), fname, lsfile, LineNum, host); /* catgets 5278 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Invalid hostname <%s>;ignoring the host", fname, lsfile, LineNum, host);
             lim_CheckError = WARNING_ERR;
             continue;
         }
@@ -1714,8 +1596,7 @@ validLocationHost (char *hostName)
     if ((officialName = getHostOfficialByName_(hostName)) != NULL) {
         if (findHostbyList(myClusterPtr->hostList, hostName) != NULL)
             return (char*) officialName;
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5395,
-                                         "%s: Host <%s> is not used by cluster <%s>;ignoring"), /* catgets 5395 */
+        ls_syslog(LOG_ERR, "%s: Host <%s> is not used by cluster <%s>;ignoring",
                   fname, hostName, myClusterName);
         return NULL;
     }
@@ -1773,15 +1654,13 @@ readCluster(int checkMode)
     int i;
 
     if (!myClusterPtr) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5279,
-                                         "My cluster name %s is not configured in lsf.shared"), /* catgets 5279 */
+        ls_syslog(LOG_ERR, "My cluster name %s is not configured in lsf.shared",
                   myClusterName);
         lim_Exit("readCluster");
     }
 
     if (readCluster2(myClusterPtr) < 0)
         lim_Exit("readCluster");
-
 
     myClusterPtr->loadIndxNames = (char **)calloc(allInfo.numIndx,
                                                   sizeof(char *));
@@ -1802,15 +1681,13 @@ readCluster(int checkMode)
     if (!myHostPtr) {
         myHostPtr = findHostbyList(myClusterPtr->clientList, hname);
         if (!myHostPtr) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5281,
-                                             "%s: Local host %s not configured in Host section of file lsf.cluster.%s"), fname, hname, myClusterName); /* catgets 5281 */
+            ls_syslog(LOG_ERR, "%s: Local host %s not configured in Host section of file lsf.cluster.%s", fname, hname, myClusterName);
             if (checkMode)
                 return -1;
             else
                 lim_Exit("readCluster");
         } else {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5282,
-                                             "%s: Local host %s is configured as client-only in file lsf.cluster.%s; LIM will not run on a client-only host"),  /* catgets 5282 */
+            ls_syslog(LOG_ERR, "%s: Local host %s is configured as client-only in file lsf.cluster.%s; LIM will not run on a client-only host",
                       fname, hname, myClusterName);
             if (!checkMode)
                 lim_Exit("readCluster");
@@ -1872,15 +1749,14 @@ readCluster2(struct clusterNode *clPtr)
 #define ADMIN_IGNORE(word)                                              \
     {                                                                   \
         if (aorm == true) {                                             \
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5283,   \
-                                             "%s: section <clustermanager> and <clusteradmins> cannot be configured in the same time, ignoring the second section <%s>"), fname , word); /* catgets 5283 */ \
+            ls_syslog(LOG_ERR, \
+                                             "%s: section <clustermanager> and <clusteradmins> cannot be configured in the same time, ignoring the second section <%s>", fname , word);  \
             continue;                                                   \
         }                                                               \
     }
 
     sprintf(fileName, "%s/lsf.cluster.%s",
             limParams[LSF_CONFDIR].paramValue, clPtr->clName);
-
 
     if (configCheckSum(fileName, &clPtr->checkSum) < 0) {
         return -1;
@@ -1904,12 +1780,10 @@ readCluster2(struct clusterNode *clPtr)
 
                     chkUIdxAndSetDfltRunElim();
 
-
                     return 0;
                 }
             } else if (!(clPtr->hostList)) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5285,
-                                                 "%s: %s(%d): No hosts configured for cluster %s"),/* catgets 5285 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: No hosts configured for cluster %s",
                           fname, fileName, LineNum, clPtr->clName);
                 return -1;
             }
@@ -1917,8 +1791,7 @@ readCluster2(struct clusterNode *clPtr)
 
         word = getNextWord_(&cp);
         if (!word) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5286,
-                                             "%s: %s(%d): Keyword expected after Begin. Ignoring section"), /* catgets 5286 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Keyword expected after Begin. Ignoring section",
                       fname, fileName, LineNum);
             lim_CheckError = WARNING_ERR;
             doSkipSection(clfp, &LineNum, fileName, "unknown");
@@ -1954,7 +1827,6 @@ readCluster2(struct clusterNode *clPtr)
             if (dohosts(clfp, clPtr, fileName, &LineNum) < 0)
                 Error = true;
 
-
             if (adjHostListOrder() < 0 ) {
                 return -1;
             }
@@ -1965,8 +1837,7 @@ readCluster2(struct clusterNode *clPtr)
                 Error = true;
             continue;
         } else {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5287,
-                                             "%s %s(%d): Invalid section name %s, ignoring section"), /* catgets 5287 */
+            ls_syslog(LOG_ERR, "%s %s(%d: Invalid section name %s, ignoring section",
                       fname, fileName, LineNum, word);
             lim_CheckError = WARNING_ERR;
             doSkipSection(clfp, &LineNum, fileName, word);
@@ -1995,7 +1866,6 @@ adjIndx (void)
             || !(allInfo.resTable[resNo].flags & RESF_SHARED))
             continue;
 
-
         memcpy((char *)&tmpTable, (char *)&allInfo.resTable[resNo],
                sizeof(struct resItem));
         for (j = resNo; j < allInfo.nRes - 1; j++)
@@ -2003,7 +1873,6 @@ adjIndx (void)
                    sizeof(struct resItem));
         memcpy((char *)&allInfo.resTable[allInfo.nRes - 1],
                (char *)&tmpTable, sizeof(struct resItem));
-
 
         if ((temp = realloc (shortInfo.resName,
                              (shortInfo.nRes + 1)*sizeof (char *))) == NULL) {
@@ -2021,8 +1890,6 @@ adjIndx (void)
 
         if (tmpTable.flags & RESF_DYNAMIC) {
 
-
-
             for (k = NBUILTINDEX; k < allInfo.numIndx; k++) {
                 if (strcasecmp(li[k].name, tmpTable.name) != 0)
                     continue;
@@ -2033,8 +1900,6 @@ adjIndx (void)
                 }
                 break;
             }
-
-
 
             for (hPtr = myClusterPtr->hostList;
                  hPtr != NULL; hPtr = hPtr->nextPtr) {
@@ -2079,9 +1944,8 @@ domanager (FILE *clfp, char *lsfile, int *LineNum, char *secName)
         clusAdminNames[0] = putstr_(lsfUserName);
         doSkipSection(clfp, LineNum, lsfile, secName);
         if (lim_CheckMode > 0)
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5289,
-                                             "%s: %s(%d): The cluster manager is the invoker <%s> in debug mode"), fname, lsfile, *LineNum,
-                      lsfUserName); /* catgets 5289 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: The cluster manager is the invoker <%s> in debug mode", fname, lsfile, *LineNum,
+                      lsfUserName);
         return 0;
     }
 
@@ -2102,8 +1966,7 @@ domanager (FILE *clfp, char *lsfile, int *LineNum, char *secName)
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, true)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5291,
-                                             "%s: %s(%d): keyword line format error for section %s, ignoring section"), fname, lsfile, *LineNum, secName); /* catgets 5291 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section %s, ignoring section", fname, lsfile, *LineNum, secName);
             doSkipSection(clfp, LineNum, lsfile, secName);
             return -1;
         }
@@ -2112,8 +1975,7 @@ domanager (FILE *clfp, char *lsfile, int *LineNum, char *secName)
             if (isSectionEnd(linep, lsfile, LineNum, secName))
                 return 0;
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5292,
-                                                 "%s: %s(%d): values do not match keys for section %s, ignoring section"), fname, lsfile, *LineNum, secName); /* catgets 5292 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section %s, ignoring section", fname, lsfile, *LineNum, secName);
                 doSkipSection(clfp, LineNum, lsfile, secName);
                 return -1;
             }
@@ -2149,22 +2011,19 @@ getClusAdmins (char *line, char *lsfile, int *LineNum, char *secName)
     static int count = 0;
 
     if (count > 1)  {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5293,
-                                         "%s: %s(%d): More than one %s section defined; ignored."), fname, lsfile, *LineNum, secName); /* catgets 5293 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: More than one %s section defined; ignored.", fname, lsfile, *LineNum, secName);
         return -1;
     }
     count++;
     if (strcmp (lastSecName, secName) == 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5294,
-                                         "%s: %s(%d): section <%s> is multiply specified; ignoring the section"), fname, lsfile, *LineNum, secName); /* catgets 5294 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: section <%s> is multiply specified; ignoring the section", fname, lsfile, *LineNum, secName);
         return -1;
     }
     lserrno = LSE_NO_ERR;
     admins = getAdmins (line, lsfile, LineNum, secName);
     if (admins->nAdmins <= 0) {
 
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5295,
-                                         "%s: %s(%d): No valid user for section %s: %s"), fname, lsfile, *LineNum, secName, line); /* catgets 5295 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: No valid user for section %s: %s", fname, lsfile, *LineNum, secName, line);
         return -1;
     }
     if (strcmp (secName, "clustermanager") == 0 &&
@@ -2252,7 +2111,6 @@ setAdmins (struct admins *admins, int mOrA)
     clusAdminGids = tempAdminGids;
     clusAdminNames = tempAdminNames;
 
-
     return 0;
 }
 static int
@@ -2298,8 +2156,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
         return 0;
 
     if (strchr(linep, '=') == NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5298,
-                                         "%s: %s(%d): vertical section not supported, ignoring section"), fname, lsfile, *LineNum); /* catgets 5298 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: vertical section not supported, ignoring section", fname, lsfile, *LineNum);
         doSkipSection(clfp, LineNum, lsfile, "parameters");
         return -1;
     } else {
@@ -2308,8 +2165,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             return -1;
         if (keyList[EXINTERVAL].val) {
             if (!isanumber_(keyList[0].val) || atof(keyList[0].val) < 0.001) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5299,
-                                                 "%s: %s(%d): Invalid exchange interval in section parameters: %s. Ignoring."), /* catgets 5299 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid exchange interval in section parameters: %s. Ignoring.",
                           fname, lsfile, *LineNum, keyList[EXINTERVAL].val);
                 FREEUP(keyList[EXINTERVAL].val);
                 warning = true;
@@ -2334,8 +2190,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
 
         if (keyList[PROBE_TIMEOUT].val) {
             if (!isint_(keyList[PROBE_TIMEOUT].val) || atoi(keyList[PROBE_TIMEOUT].val) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5301,
-                                                 "%s: %s(%d): Invalid probe timeout value in section parameters: %s. Ignoring."), /* catgets 5301 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid probe timeout value in section parameters: %s. Ignoring.",
                           fname, lsfile, *LineNum, keyList[PROBE_TIMEOUT].val);
                 warning = true;
                 FREEUP(keyList[PROBE_TIMEOUT].val);
@@ -2349,8 +2204,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             if (!isanumber_(keyList[ELIM_POLL_INTERVAL].val) ||
                 atof(keyList[ELIM_POLL_INTERVAL].val) < 0.001 ||
                 atof(keyList[ELIM_POLL_INTERVAL].val) > 5) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5302,
-                                                 "%s: %s(%d): Invalid sample interval in section parameters: %s. Must be between 0.001 and 5. Ignoring."), /* catgets 5302 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid sample interval in section parameters: %s. Must be between 0.001 and 5. Ignoring.",
                           fname, lsfile, *LineNum, keyList[ELIM_POLL_INTERVAL].val);
                 warning = true;
                 FREEUP(keyList[ELIM_POLL_INTERVAL].val);
@@ -2362,8 +2216,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
         if (keyList[HOST_INACTIVITY_LIMIT].val) {
             if (!isint_(keyList[HOST_INACTIVITY_LIMIT].val) ||
                 atoi(keyList[HOST_INACTIVITY_LIMIT].val) < 2) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5303,
-                                                 "%s: %s(%d): Invalid host inactivity limit in section parameters: %s. Ignoring."), fname, lsfile, *LineNum, keyList[HOST_INACTIVITY_LIMIT].val); /* catgets 5303 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid host inactivity limit in section parameters: %s. Ignoring.", fname, lsfile, *LineNum, keyList[HOST_INACTIVITY_LIMIT].val);
                 FREEUP(keyList[HOST_INACTIVITY_LIMIT].val);
                 warning = true;
             } else
@@ -2374,8 +2227,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
         if (keyList[MASTER_INACTIVITY_LIMIT].val) {
             if (!isint_(keyList[MASTER_INACTIVITY_LIMIT].val) ||
                 atoi(keyList[MASTER_INACTIVITY_LIMIT].val) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5304,
-                                                 "%s: %s(%d): Invalid master inactivity limit in section parameters: %s. Ignoring."), fname, lsfile, *LineNum, keyList[MASTER_INACTIVITY_LIMIT].val); /* catgets 5304 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid master inactivity limit in section parameters: %s. Ignoring.", fname, lsfile, *LineNum, keyList[MASTER_INACTIVITY_LIMIT].val);
                 FREEUP(keyList[MASTER_INACTIVITY_LIMIT].val);
                 warning = true;
             } else
@@ -2386,8 +2238,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
         if (keyList[RETRY_LIMIT].val) {
             if (!isint_(keyList[RETRY_LIMIT].val) ||
                 atoi(keyList[RETRY_LIMIT].val) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5305,
-                                                 "%s: %s(%d): Invalid host inactivity limit in section parameters: %s. Ignoring."), fname, lsfile, *LineNum, keyList[RETRY_LIMIT].val); /* catgets 5305 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid host inactivity limit in section parameters: %s. Ignoring.", fname, lsfile, *LineNum, keyList[RETRY_LIMIT].val);
                 FREEUP(keyList[RETRY_LIMIT].val);
                 warning = true;
             } else
@@ -2398,8 +2249,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
         if (keyList[ADJUST_DURATION].val) {
             if (!isint_(keyList[ADJUST_DURATION].val) ||
                 atoi(keyList[ADJUST_DURATION].val) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5306,
-                                                 "%s: %s(%d): Invalid load adjust duration in section parameters: %s. Ignoring."), /* catgets 5306 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Invalid load adjust duration in section parameters: %s. Ignoring.",
                           fname, lsfile, *LineNum, keyList[ADJUST_DURATION].val);
                 FREEUP(keyList[ADJUST_DURATION].val);
                 warning = true;
@@ -2408,15 +2258,12 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             FREEUP(keyList[ADJUST_DURATION].val);
         }
 
-
         if (keyList[LSF_ELIM_DEBUG].val) {
-
 
             if (strcasecmp(keyList[LSF_ELIM_DEBUG].val,"y") != 0 &&
                 strcasecmp(keyList[LSF_ELIM_DEBUG].val,"n") != 0) {
 
-                ls_syslog(LOG_WARNING, I18N(5316,
-                                            "LSF_ELIM_DEBUG invalid: %s, not debuging ELIM."), /* catgets 5316 */
+                ls_syslog(LOG_WARNING, "LSF_ELIM_DEBUG invalid: %s, not debuging ELIM.",
                           keyList[LSF_ELIM_DEBUG].val);
                 warning = true;
             } else {
@@ -2428,17 +2275,14 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             FREEUP(keyList[LSF_ELIM_DEBUG].val);
         }
 
-
         if (keyList[LSF_ELIM_BLOCKTIME].val) {
 
             ELIMblocktime = atoi(keyList[LSF_ELIM_BLOCKTIME].val);
 
-
             if (!isint_(keyList[LSF_ELIM_BLOCKTIME].val) ||
                 ELIMblocktime < 0) {
 
-                ls_syslog(LOG_WARNING, I18N(5318,
-                                            "LSF_ELIM_BLOCKTIME invalid: %s, blocking communication with ELIM."), /* catgets 5318 */
+                ls_syslog(LOG_WARNING, "LSF_ELIM_BLOCKTIME invalid: %s, blocking communication with ELIM.",
                           keyList[LSF_ELIM_BLOCKTIME].val);
                 warning = true;
                 ELIMblocktime = -1;
@@ -2447,27 +2291,22 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             FREEUP(keyList[LSF_ELIM_BLOCKTIME].val);
         }
 
-
         if (ELIMdebug && ELIMblocktime == -1) {
 
-            ls_syslog(LOG_WARNING, I18N(5340,
-                                        "LSF_ELIM_DEBUG=y but LSF_ELIM_BLOCKTIME is not set/valid; LSF_ELIM_BLOCKTIME will be set to 2 seconds ")); /* catgets 5340 */
+            ls_syslog(LOG_WARNING, "LSF_ELIM_DEBUG=y but LSF_ELIM_BLOCKTIME is not set/valid; LSF_ELIM_BLOCKTIME will be set to 2 seconds ");
 
             warning = true;
 
             ELIMblocktime = 2;
         }
 
-
         if (keyList[LSF_ELIM_RESTARTS].val) {
             ELIMrestarts = atoi(keyList[LSF_ELIM_RESTARTS].val);
-
 
             if (!isint_(keyList[LSF_ELIM_RESTARTS].val) ||
                 ELIMrestarts < 0) {
 
-                ls_syslog(LOG_WARNING, I18N(5366,
-                                            "LSF_ELIM_RESTARTS invalid: %s, unlimited ELIM restarts."), /* catgets 5366 */
+                ls_syslog(LOG_WARNING, "LSF_ELIM_RESTARTS invalid: %s, unlimited ELIM restarts.",
                           keyList[LSF_ELIM_RESTARTS].val);
                 warning = true;
 
@@ -2478,10 +2317,8 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             FREEUP(keyList[LSF_ELIM_RESTARTS].val);
         }
 
-
         if (exchIntvl < sampleIntvl) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5308,
-                                             "%s: Exchange interval must be greater than or equal to sampling interval. Setting exchange and sample interval to %f."), /* catgets 5308 */
+            ls_syslog(LOG_ERR, "%s: Exchange interval must be greater than or equal to sampling interval. Setting exchange and sample interval to %f.",
                       fname, sampleIntvl);
             exchIntvl = sampleIntvl;
             warning = true;
@@ -2518,9 +2355,6 @@ initKeyList(void)
             return NULL;
         }
 
-
-
-
     for (i=0; i < S+1; i++) {
         hostKeyList[i].key="";
         hostKeyList[i].val = NULL;
@@ -2537,8 +2371,6 @@ initKeyList(void)
     hostKeyList[R].key="R";
     hostKeyList[S].key="S";
     hostKeyList[S+1].key=NULL;
-
-
 
     for (i=0; i < allInfo.numIndx; i++)
         hostKeyList[i].key  = allInfo.resTable[i].name;
@@ -2587,12 +2419,10 @@ setMyClusterName(void)
                 break;
             }
 
-
             cp = getNextWord_(&lp);
             if (!cp) {
                 if (! found) {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5317,
-                                                     "%s: %s(%d): Section name expected after Begin; section ignored."), fname, clusterFile, LineNum); /* catgets 5317 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: Section name expected after Begin; section ignored.", fname, clusterFile, LineNum);
                     lim_CheckError = WARNING_ERR;
                 }
                 continue;
@@ -2601,7 +2431,6 @@ setMyClusterName(void)
                 if (strcasecmp(cp, "host") != 0)
                     continue;
             }
-
 
             lp = getNextLineC_(fp, &LineNum, true);
             if (! lp) {
@@ -2618,8 +2447,7 @@ setMyClusterName(void)
             }
             if (strchr(lp, '=') != NULL) {
                 if (! found) {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5319,
-                                                     "%s: %s(%d): horizontal host section not implemented yet, use vertical format: section ignored"),  /* catgets 5319 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: horizontal host section not implemented yet, use vertical format: section ignored",
                               fname, clusterFile, LineNum);
                     lim_CheckError = WARNING_ERR;
                 }
@@ -2630,21 +2458,18 @@ setMyClusterName(void)
 
             if (! keyMatch(keyList, lp, false)) {
                 if (! found) {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5320,
-                                                     "%s: %s(%d): keyword line format error for section Host, section ignored"), fname, clusterFile, LineNum); /* catgets 5320 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section Host, section ignored", fname, clusterFile, LineNum);
                     lim_CheckError = WARNING_ERR;
                 }
                 continue;
             }
             if (keyList[HOSTNAME_].position == -1) {
                 if (! found) {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5321,
-                                                     "%s: %s(%d): key HOSTNAME_ is missing in section host, section ignored"), fname, clusterFile, LineNum); /* catgets 5321 */
+                    ls_syslog(LOG_ERR, "%s: %s(%d: key HOSTNAME_ is missing in section host, section ignored", fname, clusterFile, LineNum);
                     lim_CheckError = WARNING_ERR;
                 }
                 continue;
             }
-
 
             while ((lp = getNextLineC_(fp, &LineNum, true)) != NULL) {
                 const char *officialName;
@@ -2652,16 +2477,14 @@ setMyClusterName(void)
                     break;
                 if (mapValues(keyList, lp) < 0) {
                     if (! found) {
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5322,
-                                                         "%s: %s(%d): values do not match keys for section Host, record ignored"), fname, clusterFile, LineNum); /* catgets 5322 */
+                        ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section Host, record ignored", fname, clusterFile, LineNum);
                         lim_CheckError = WARNING_ERR;
                     }
                     continue;
                 }
                 if ((officialName = getHostOfficialByName_(keyList[HOSTNAME_].val)) == NULL) {
                     if (! found) {
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5323,
-                                                         "%s: %s(%d): Invalid hostname %s in section host, host ignored"), /* catgets 5323 */
+                        ls_syslog(LOG_ERR, "%s: %s(%d: Invalid hostname %s in section host, host ignored",
                                   fname, clusterFile, LineNum, keyList[HOSTNAME_].val);
                         lim_CheckError = WARNING_ERR;
                     }
@@ -2677,8 +2500,7 @@ setMyClusterName(void)
                         freeKeyList(keyList);
                         break;
                     } else {
-                        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5324,
-                                                         "%s: %s(%d): local host %s defined in more than one cluster file. Previous definition was in lsf.cluster.%s, ignoring current definition"), fname, clusterFile, LineNum, hname, myClusterName); /* catgets 5324 */
+                        ls_syslog(LOG_ERR, "%s: %s(%d: local host %s defined in more than one cluster file. Previous definition was in lsf.cluster.%s, ignoring current definition", fname, clusterFile, LineNum, hname, myClusterName);
                         lim_CheckError = WARNING_ERR;
                         freeKeyList(keyList);
                         continue;
@@ -2693,8 +2515,7 @@ setMyClusterName(void)
 endfile:
 
     if (! found) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5325,
-                                         "%s: unable to find the cluster file containing local host %s"), fname, hname); /* catgets 5325 */
+        ls_syslog(LOG_ERR, "%s: unable to find the cluster file containing local host %s", fname, hname);
         lim_Exit("setMyClusterName");
     }
 
@@ -2709,7 +2530,6 @@ freeKeyList(struct keymap *keyList)
         if (keyList[i].position != -1)
             FREEUP(keyList[i].val);
 }
-
 
 static int
 dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
@@ -2745,20 +2565,17 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
     }
 
     if (isSectionEnd(linep, lsfile, LineNum, "host")) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5329,
-                                         "%s: %s(%d): empty host section"),  /* catgets 5329 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: empty host section",
                   fname, lsfile, *LineNum);
         return -1;
     }
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, false)) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5330,
-                                             "%s: %s(%d): keyword line format error for section host, ignoring section"), fname, lsfile, *LineNum); /* catgets 5330 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section host, ignoring section", fname, lsfile, *LineNum);
             doSkipSection(clfp, LineNum, lsfile, "host");
             return -1;
         }
-
 
         i = 0;
         for (i=0; keyList[i].key != NULL; i++) {
@@ -2769,8 +2586,7 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
                 (strcasecmp("model", keyList[i].key) == 0) ||
                 (strcasecmp("type", keyList[i].key) == 0) ||
                 (strcasecmp("resources", keyList[i].key) == 0)) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5331,
-                                                 "%s: %s(%d): keyword line: key %s is missing in section host, ignoring section"), fname, lsfile, *LineNum, keyList[i].key); /* catgets 5331 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: keyword line: key %s is missing in section host, ignoring section", fname, lsfile, *LineNum, keyList[i].key);
                 doSkipSection(clfp, LineNum, lsfile, "host");
                 freeKeyList (keyList);
                 return -1;
@@ -2778,8 +2594,7 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
         }
 
         if (keyList[R].position != -1 && keyList[SERVER_].position != -1) {
-            ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5332,
-                                                 "%s: %s(%d): keyword line: conflicting keyword definition: you cannot define both 'R' and 'SERVER_'. 'R' ignored"), /* catgets 5332 */
+            ls_syslog(LOG_WARNING, "%s: %s(%d: keyword line: conflicting keyword definition: you cannot define both 'R' and 'SERVER_'. 'R' ignored",
                       fname, lsfile, *LineNum);
             lim_CheckError = WARNING_ERR;
             ignoreR = true;
@@ -2810,18 +2625,15 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
                 return 0;
             }
             if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5333,
-                                                 "%s: %s(%d): values do not match keys for section host, ignoring line"), fname, lsfile, *LineNum); /* catgets 5333 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section host, ignoring line", fname, lsfile, *LineNum);
                 lim_CheckError = WARNING_ERR;
                 continue;
             }
-
 
             if (keyList[TYPE].val[0] == '!')
                 hostEntry.hostType[0] = '\0';
             else
                 strcpy(hostEntry.hostType, keyList[TYPE].val);
-
 
             if (keyList[MODEL].val[0] == '!')
                 hostEntry.hostModel[0] = '\0';
@@ -2847,7 +2659,7 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
                          keyList[UT].val, INFINIT_LOAD);
             if (hostEntry.busyThreshold[UT] > 1.0
                 && hostEntry.busyThreshold[UT] < INFINIT_LOAD) {
-                ls_syslog(LOG_INFO, (_i18n_msg_get(ls_catd, NL_SETN, 5476, "%s: %s(%d): value for threshold ut <%2.2f> is greater than 1, assumming <%5.1f%%>")), /* catgets 5476 */ "dohosts", lsfile,
+                ls_syslog(LOG_INFO, ("%s: %s(%d: value for threshold ut <%2.2f> is greater than 1, assumming <%5.1f%%>"),  "dohosts", lsfile,
                           *LineNum, hostEntry.busyThreshold[UT],
                           hostEntry.busyThreshold[UT]);
                 hostEntry.busyThreshold[UT] /= 100.0;
@@ -2925,12 +2737,10 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
         }
         freeKeyList (keyList);
     } else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5335,
-                                         "%s: %s(%d): horizontal host section not implemented yet, use vertical format: section ignored"), fname, lsfile, *LineNum); /* catgets 5335 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: horizontal host section not implemented yet, use vertical format: section ignored", fname, lsfile, *LineNum);
         doSkipSection(clfp, LineNum, lsfile, "host");
         return -1;
     }
-
 
     ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
               fname, lsfile, *LineNum, "host");
@@ -3029,25 +2839,20 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
     char *word;
     int i, resNo;
 
-
     if ((hp = (struct hostent *)getHostEntryByName_(hEntPtr->hostName)) == NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5337,
-                                         "%s: %s(%d): Invalid hostname %s in section host. Ignoring host"), /* catgets 5337 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Invalid hostname %s in section host. Ignoring host",
                   fname, fileName, *LineNumPtr, hEntPtr->hostName);
         return NULL;
     }
 
-
     if ((hPtr = findHostbyList(clPtr->hostList, hEntPtr->hostName)) != NULL) {
-        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5338,
-                                             "%s: %s(%d): host <%s> redefined, using previous definition"), fname, fileName, *LineNumPtr, hEntPtr->hostName); /* catgets 5338 */
+        ls_syslog(LOG_WARNING, "%s: %s(%d: host <%s> redefined, using previous definition", fname, fileName, *LineNumPtr, hEntPtr->hostName);
         return ((struct hostNode *)hPtr);
     }
 
     hPtr = findHostbyList(clPtr->clientList, hEntPtr->hostName);
     if (hPtr != NULL) {
-        ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5339,
-                                             "%s: %s(%d): host <%s> redefined, using previous definition"), fname, fileName, *LineNumPtr, hEntPtr->hostName); /* catgets 5339 */
+        ls_syslog(LOG_WARNING, "%s: %s(%d: host <%s> redefined, using previous definition", fname, fileName, *LineNumPtr, hEntPtr->hostName);
         return ((struct hostNode *)hPtr);
     }
     if ((hPtr = initHostNode()) == NULL) {
@@ -3059,7 +2864,6 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
         char *resStr;
         char  dedicated = false;
         int   resNo;
-
 
         if (hEntPtr->resList[i][0] == '!') {
             dedicated = true;
@@ -3079,31 +2883,26 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
 
         } else {
             lim_CheckError = WARNING_ERR;
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5341,
-                                             "%s: %s(%d): Invalid resource name <%s> for host %s in section %s; ignoring %s"), /* catgets 5341 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Invalid resource name <%s> for host %s in section %s; ignoring %s",
                       fname, fileName, *LineNumPtr, resStr, hEntPtr->hostName, "Host", resStr);
         }
     }
-
 
     if (!hEntPtr->hostModel[0]) {
         hPtr->hModelNo = DETECTMODELTYPE;
 
     } else if ( (hPtr->hModelNo = modelNameToNo(hEntPtr->hostModel)) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5342,
-                                         "%s: %s(%d): Unknown host model %s. Ignoring host"), /* catgets 5342 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Unknown host model %s. Ignoring host",
                   fname, fileName, *LineNumPtr, hEntPtr->hostModel);
         freeHostNodes (hPtr, false);
         return NULL;
     }
 
-
     if (!hEntPtr->hostType[0]) {
         hPtr->hTypeNo = DETECTMODELTYPE;
 
     } else if ( (hPtr->hTypeNo = typeNameToNo(hEntPtr->hostType)) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5343,
-                                         "%s: %s(%d): Unknown host type %s. Ignoring host"), /* catgets 5343 */
+        ls_syslog(LOG_ERR, "%s: %s(%d: Unknown host type %s. Ignoring host",
                   fname, fileName, *LineNumPtr, hEntPtr->hostType);
         freeHostNodes (hPtr, false);
         return NULL;
@@ -3116,9 +2915,8 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
     else
         hPtr->hostNo = clPtr->clientList ? clPtr->clientList->hostNo + 1 : 0;
 
-
     if (saveHostIPAddr(hPtr, hp) < 0 ) {
-        ls_syslog(LOG_ERR, I18N(5473, "Can not save internet address of host %s"), hp->h_name); /* catgets 5473 */
+        ls_syslog(LOG_ERR, "Can not save internet address of host %s", hp->h_name);
         freeHostNodes (hPtr, false);
         return NULL;
     }
@@ -3134,8 +2932,7 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
         hPtr->windows = putstr_(window);
         while ((word = getNextWord_(&window)) != NULL) {
             if (addWindow(word, hPtr->week, hPtr->hostName) <0) {
-                ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5345,
-                                                 "%s: %s(%d): Bad time expression %s; ignored"), /* catgets 5345 */
+                ls_syslog(LOG_ERR, "%s: %s(%d: Bad time expression %s; ignored",
                           fname, fileName, *LineNumPtr, word);
                 lim_CheckError = WARNING_ERR;
                 free(hPtr->windows);
@@ -3187,23 +2984,18 @@ addFloatClientHost(struct hostent *hp)
     struct hostNode *hPtr, *lastHPtr;
     int i;
 
-
     if (hp == NULL) {
-        ls_syslog(LOG_ERR, I18N(5406,
-                                "%s: Invalid hostAddr. Ignoring host"), /* catgets 5406 */
+        ls_syslog(LOG_ERR, "%s: Invalid hostAddr. Ignoring host",
                   fname);
         return NULL;
     }
 
-
     if (findHostInCluster(hp->h_name)) {
-        ls_syslog(LOG_ERR, I18N(5407,
-                                "%s: <%s> already defined in this cluster"), /* catgets 5407 */
+        ls_syslog(LOG_ERR, "%s: <%s> already defined in this cluster",
                   fname, hp->h_name);
 
         return NULL;
     }
-
 
     hPtr = initHostNode();
     if (hPtr == NULL) {
@@ -3211,12 +3003,9 @@ addFloatClientHost(struct hostent *hp)
         return NULL;
     }
 
-
     hPtr->hTypeNo = DETECTMODELTYPE;
 
-
     hPtr->hModelNo = DETECTMODELTYPE;
-
 
     hPtr->hostName = putstr_(hp->h_name);
     if (!hPtr->hostName) {
@@ -3225,9 +3014,7 @@ addFloatClientHost(struct hostent *hp)
         return NULL;
     }
 
-
     hPtr->hostNo = -1;
-
 
     for (hPtr->naddr=0;hp->h_addr_list && hp->h_addr_list[hPtr->naddr] != NULL; hPtr->naddr++);
     if (hPtr->naddr){
@@ -3253,7 +3040,6 @@ addFloatClientHost(struct hostent *hp)
         return NULL;
     }
     hPtr->wind_edge = 0;
-
 
     if (myClusterPtr->clientList == NULL) {
 
@@ -3283,8 +3069,7 @@ removeFloatClientHost(struct hostNode *hPtr)
     }
 
     if (hPtr == NULL) {
-        ls_syslog(LOG_ERR, I18N(5408,
-                                "%s: hostNode is invalid"), /* catgets 5408 */
+        ls_syslog(LOG_ERR, "%s: hostNode is invalid",
                   fname);
         return -1;
     }
@@ -3297,8 +3082,7 @@ removeFloatClientHost(struct hostNode *hPtr)
         for (tempPtr = myClusterPtr->clientList;
              tempPtr && tempPtr->nextPtr != hPtr; tempPtr = tempPtr->nextPtr);
         if (tempPtr == NULL) {
-            ls_syslog(LOG_ERR, I18N(5409,
-                                    "%s: host <%s> not found in client list"), /* catgets 5409 */
+            ls_syslog(LOG_ERR, "%s: host <%s> not found in client list",
                       fname,  hPtr->hostName);
             return -1;
         }
@@ -3306,13 +3090,11 @@ removeFloatClientHost(struct hostNode *hPtr)
     }
     hPtr->nextPtr = NULL;
 
-
     numofhosts--;
     freeHostNodes(hPtr, false);
 
     return 0;
 }
-
 
 struct hostNode *
 initHostNode (void)
@@ -3391,7 +3173,6 @@ initHostNode (void)
     hPtr-> nRes = 0;
     hPtr->windows = NULL;
 
-
     hPtr->statInfo.maxMem = 0;
     hPtr->statInfo.maxSwap = 0;
     hPtr->statInfo.maxTmp = 0;
@@ -3452,14 +3233,12 @@ freeHostNodes (struct hostNode *hPtr, int allList)
 
         next = hPtr->nextPtr;
 
-
         FREEUP (hPtr);
 
         if (allList == true)
             hPtr = next;
     }
 }
-
 
 static struct sharedResource *
 addResource (char *resName, int nHosts, char **hosts, char *value,
@@ -3540,8 +3319,7 @@ addHostInstance (struct sharedResource *sharedResource,  int nHosts, char **host
     if (resourceMap == false) {
 
         if (sharedResource->numInstances > 1) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5405,
-                                             "%s: More than one instatnce defined for the resource <%s> on host <%s> in host section; ignoring"), fname, sharedResource->resourceName, hostNames[0]); /* catgets 5405 */
+            ls_syslog(LOG_ERR, "%s: More than one instatnce defined for the resource <%s> on host <%s> in host section; ignoring", fname, sharedResource->resourceName, hostNames[0]);
             return -1;
         }
         if (sharedResource->numInstances == 0) {
@@ -3588,8 +3366,7 @@ addHostInstance (struct sharedResource *sharedResource,  int nHosts, char **host
                     }
                 }
                 if (duplicated) {
-                    ls_syslog(LOG_WARNING, I18N(5478,
-                                                "%s: Host %s is duplicated in resource %s mapping."), /* catgets 5478 */
+                    ls_syslog(LOG_WARNING, "%s: Host %s is duplicated in resource %s mapping.",
                               fname, hostList[j], sharedResource->resourceName);
                     continue;
                 }
@@ -3608,9 +3385,6 @@ addHostInstance (struct sharedResource *sharedResource,  int nHosts, char **host
 
         if (addHostNodeIns(instance, numHosts, temp) < 0)
             return -1;
-
-
-
 
         if(addSharedResourceInstance(numHosts, temp, sharedResource->resourceName) < 0) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
@@ -3642,8 +3416,7 @@ getValidHosts (char *hostName, int *numHost, struct sharedResource *resource)
 
     if (!strcmp (hostName, "all") || !strcmp (hostName, "others")) {
         if (resource->numInstances > 0 && !strcmp (hostName, "all")) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5349,
-                                             "%s: Shared resource <%s> has more than one instance, reserved word <all> can not be specified;ignoring"), fname, resource->resourceName);  /* catgets 5349 */
+            ls_syslog(LOG_ERR, "%s: Shared resource <%s> has more than one instance, reserved word <all> can not be specified;ignoring", fname, resource->resourceName);
             return NULL;
         }
         for (hPtr = myClusterPtr->hostList; hPtr; hPtr = hPtr->nextPtr) {
@@ -3658,20 +3431,17 @@ getValidHosts (char *hostName, int *numHost, struct sharedResource *resource)
     if ((officialName = getHostOfficialByName_(hostName)) != NULL) {
         if ((hPtr = findHostbyList(myClusterPtr->hostList, (char*)officialName))
             == NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5413,
-                                             "%s: Host <%s> is not used by cluster <%s>;ignoring"), fname, hostName, myClusterName); /* catgets 5413 */
+            ls_syslog(LOG_ERR, "%s: Host <%s> is not used by cluster <%s>;ignoring", fname, hostName, myClusterName);
             return NULL;
         }
         if (isInHostList (resource, (char *)officialName) != NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5414,
-                                             "%s: Host <%s> is defined in more than one instance for resource <%s>; ignoring"), fname, hostName, resource->resourceName); /* catgets 5414 */
+            ls_syslog(LOG_ERR, "%s: Host <%s> is defined in more than one instance for resource <%s>; ignoring", fname, hostName, resource->resourceName);
             return NULL;
         }
         *numHost = 1;
         temp[0] = hPtr->hostName;
         return temp;
     }
-
 
     if ((num = typeNameToNo (hostName)) > 0) {
         for (hPtr = myClusterPtr->hostList; hPtr; hPtr = hPtr->nextPtr) {
@@ -3709,8 +3479,7 @@ addHostNodeIns (struct resourceInstance *instance, int nHosts,
     struct  resourceInstance **temp;
 
     if ((resNo = resNameDefined (instance->resName)) < 0) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5415,
-                                         "%s: Resource name <%s> is not defined in resource section in lsf.shared"), fname, instance->resName); /* catgets 5415 */
+        ls_syslog(LOG_ERR, "%s: Resource name <%s> is not defined in resource section in lsf.shared", fname, instance->resName);
         return 0;
     }
     for (i = 0; i < nHosts; i++) {
@@ -3718,16 +3487,13 @@ addHostNodeIns (struct resourceInstance *instance, int nHosts,
             continue;
 
         if ((officialName = getHostOfficialByName_(hostNames[i])) == NULL) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5350,
-                                             "%s: Invalid hostname <%s> "), fname, hostNames[i]); /* catgets 5350 */
+            ls_syslog(LOG_ERR, "%s: Invalid hostname <%s> ", fname, hostNames[i]);
             continue;
         }
 
-
         if ((hPtr = findHostbyList(myClusterPtr->hostList, (char*)officialName))
             == NULL) {
-            ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd , NL_SETN, 5351,
-                                                 "%s: Host <%s> is not defined in host sectionin lsf.cluster"), fname, hostNames[i]); /* catgets 5351 */
+            ls_syslog(LOG_WARNING, "%s: Host <%s> is not defined in host sectionin lsf.cluster", fname, hostNames[i]);
             continue;
         }
         if (hPtr->numInstances > 0 && isInHostNodeIns
@@ -3854,7 +3620,6 @@ addInstance (struct sharedResource *sharedResource,  int nHosts, char **hostName
     return temp;
 }
 
-
 static struct resourceInstance *
 initInstance (void)
 {
@@ -3940,7 +3705,6 @@ validResource(const char *resName)
             break;
     }
 
-
     if (i == shortInfo.nRes)
         return -1;
 
@@ -3961,7 +3725,6 @@ validLoadIndex(const char *resName)
     return -1;
 
 }
-
 
 bool_t
 validHostType(const char *hType)
@@ -3990,7 +3753,6 @@ validHostModel(const char *hModel)
 
 }
 
-
 static int cntofdefault=0;
 static char
 addHostType(char *type)
@@ -3999,12 +3761,10 @@ addHostType(char *type)
     int i;
 
     if (allInfo.nTypes == MAXTYPES) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5353,
-                                         "%s: Too many host types defined in section HostType. You can only define up to %d host types; host type %s ignored"),  /* catgets 5353 */
+        ls_syslog(LOG_ERR, "%s: Too many host types defined in section HostType. You can only define up to %d host types; host type %s ignored",
                   fname, MAXTYPES, type);
         return false;
     }
-
 
     for (i=0;i<allInfo.nTypes;i++) {
         if (strcmp(allInfo.hostTypes[i], type) != 0)
@@ -4014,8 +3774,7 @@ addHostType(char *type)
             cntofdefault++;
             if (cntofdefault<=1) break;
         }
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5354,
-                                         "%s: host type %s multiply defined"), /* catgets 5354 */
+        ls_syslog(LOG_ERR, "%s: host type %s multiply defined",
                   fname, type);
         return false;
     }
@@ -4036,8 +3795,7 @@ addHostModel(char *model, char *arch, float factor)
     int i;
 
     if (allInfo.nModels == MAXMODELS) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5355,
-                                         "%s: Too many host models defined in section HostModel. You can only define up to %d host models; host model %s ignored"),  /* catgets 5355 */
+        ls_syslog(LOG_ERR, "%s: Too many host models defined in section HostModel. You can only define up to %d host models; host model %s ignored",
                   fname, MAXMODELS, model);
         return false;
     }
@@ -4052,8 +3810,7 @@ addHostModel(char *model, char *arch, float factor)
     for (i = 0; i < allInfo.nModels; ++i) {
 
         if (!arch && strcmp(allInfo.hostModels[i], model) == 0) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5357,
-                                             "%s: host model %s multiply defined"), /* catgets 5357 */
+            ls_syslog(LOG_ERR, "%s: host model %s multiply defined",
                       fname, model);
             return true;
         }
@@ -4061,8 +3818,7 @@ addHostModel(char *model, char *arch, float factor)
         if (!arch || strcmp(allInfo.hostArchs[i], arch) != 0)
             continue;
 
-        ls_syslog(LOG_ERR, I18N(5479,
-                                "%s: host architecture %s defined multiple times"),/*catgets 5479*/
+        ls_syslog(LOG_ERR, "%s: host architecture %s defined multiple times",
                   fname, arch);
 
         return true;
@@ -4089,8 +3845,7 @@ addCluster(char *clName, char *candlist)
     static int nextClNo = 0;
 
     if (myClusterPtr != NULL) {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5356,
-                                         "%s: Ignoring duplicate cluster %s"), /* catgets 5356 */
+        ls_syslog(LOG_ERR, "%s: Ignoring duplicate cluster %s",
                   fname, clName);
         return NULL;
     }
@@ -4114,8 +3869,7 @@ addCluster(char *clName, char *candlist)
     while ( ((word = getNextWord_(&sp)) != NULL) && (i < MAXCANDHOSTS)) {
         hp = (struct hostent *)getHostEntryByName_(word);
         if (!hp) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5358,
-                                             "Invalid host %s for cluster %s, ignoring"), /* catgets 5358 */
+            ls_syslog(LOG_ERR, "Invalid host %s for cluster %s, ignoring",
                       word, clName);
             lim_CheckError = WARNING_ERR;
             continue;
@@ -4181,14 +3935,12 @@ findClusterServers(char *clName)
         }
         word = getNextWord_(&cp);
         if (!word) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5360,
-                                             "%s: %s(%d): Keyword expected after Begin, ignoring section"),fname, fileName, LineNum); /* catgets 5360 */
+            ls_syslog(LOG_ERR, "%s: %s(%d: Keyword expected after Begin, ignoring section",fname, fileName, LineNum);
             lim_CheckError = WARNING_ERR;
             doSkipSection(clfp, &LineNum, fileName, "unknown");
         } else if (strcasecmp(word, "host") == 0) {
             char first = true;
             int  nServers=0;
-
 
             while ((linep = getNextLineC_(clfp, &LineNum, true)) != NULL) {
                 if (isSectionEnd(linep, fileName, &LineNum, "host")) {
@@ -4218,7 +3970,6 @@ findClusterServers(char *clName)
     }
 }
 
-
 void
 reCheckRes(void)
 {
@@ -4228,13 +3979,11 @@ reCheckRes(void)
 
     allInfo.numIndx = 0;
 
-
     newTable = (struct resItem *)malloc(allInfo.nRes * sizeof(struct resItem));
     if (newTable == NULL) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
         lim_Exit("reCheckRes");
     }
-
 
     for (i=0,j=0; i < allInfo.nRes; i++) {
 
@@ -4275,7 +4024,6 @@ reCheckRes(void)
     free(allInfo.resTable);
     allInfo.resTable = newTable;
 
-
     shortInfo.nRes = 0;
     shortInfo.resName = (char **) malloc (allInfo.nRes * sizeof(char*));
     shortInfo.stringResBitMaps = (int *) malloc (GET_INTNUM(allInfo.nRes) *
@@ -4296,7 +4044,6 @@ reCheckRes(void)
             && (allInfo.resTable[resNo].valueType == LS_NUMERIC)
             && (allInfo.resTable[resNo].flags & RESF_GLOBAL))
             allInfo.numIndx++;
-
 
         if ((allInfo.resTable[resNo].flags & RESF_BUILTIN)
             || (allInfo.resTable[resNo].flags & RESF_DYNAMIC
@@ -4432,7 +4179,6 @@ configCheckSum(char *file, u_short *checkSum)
     FILE *fp;
     char *line;
 
-
     if ((fp = confOpen(file, "r")) == NULL) {
         ls_syslog(LOG_ERR, I18N_CANNOT_OPEN, fname, file);
         return -1;
@@ -4530,7 +4276,6 @@ getAdmins (char *line, char *lsfile, int *LineNum, char *secName)
 
 }
 
-
 static int
 doubleResTable (char *lsfile, int lineNum)
 {
@@ -4578,8 +4323,7 @@ confOpen(char *filename, char *type)
         if (errno == ENOENT && max >0) {
             int sleeptime;
             sleeptime = interval * mykey() * 1000;
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5369,
-                                             "%s: %m Still trying ..."),  /* catgets 5369 */
+            ls_syslog(LOG_ERR, "%s: %m Still trying ...",
                       filename);
             millisleep_(sleeptime);
             max--;
@@ -4619,22 +4363,17 @@ setExtResourcesDefDefault(char *resName)
 
     static char fname[] = "setExtResourcesDefDefault()";
 
-
     allInfo.resTable[allInfo.nRes].valueType = LS_STRING;
 
-
     allInfo.resTable[allInfo.nRes].flags |= RESF_EXTERNAL;
-
 
     allInfo.resTable[allInfo.nRes].interval = 60;
     allInfo.resTable[allInfo.nRes].flags |= RESF_DYNAMIC;
 
-
     strncpy(allInfo.resTable[allInfo.nRes].des,
             "Fail to get external defined value, set to default", MAXRESDESLEN);
 
-    ls_syslog(LOG_INFO, I18N(5370,
-                             "%s: Fail to get external resource %s definition, set to default"),
+    ls_syslog(LOG_INFO, "%s: Fail to get external resource %s definition, set to default",
               fname, resName);
 
     return;
@@ -4655,20 +4394,16 @@ setExtResourcesDef(char *resName)
         return 0;
     }
 
-
     if ((type = validType (extResInfoPtr->type)) >= 0)
         allInfo.resTable[allInfo.nRes].valueType = type;
     else {
-        ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5371,
-                                         "%s: type <%s> for external resource <%s> is not valid"),  /* catgets 5371 */
+        ls_syslog(LOG_ERR, "%s: type <%s> for external resource <%s> is not valid",
                   fname, extResInfoPtr->type, resName);
         setExtResourcesDefDefault(resName);
         return 0;
     }
 
-
     allInfo.resTable[allInfo.nRes].flags |= RESF_EXTERNAL;
-
 
     if (extResInfoPtr->interval != NULL && extResInfoPtr->interval[0] != '\0')
     {
@@ -4678,14 +4413,12 @@ setExtResourcesDef(char *resName)
             allInfo.resTable[allInfo.nRes].flags |= RESF_DYNAMIC;
         } else
         {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5372,
-                                             "%s: interval <%s> for external resource <%s> should be a integer greater than 0"),  /* catgets 5372 */
+            ls_syslog(LOG_ERR, "%s: interval <%s> for external resource <%s> should be a integer greater than 0",
                       fname, extResInfoPtr->interval, resName);
             setExtResourcesDefDefault(resName);
             return 0;
         }
     }
-
 
     if (extResInfoPtr->increasing != NULL
         && extResInfoPtr->increasing[0] != '\0')
@@ -4700,30 +4433,26 @@ setExtResourcesDef(char *resName)
                     allInfo.resTable[allInfo.nRes].orderType = INCR;
                 else
                 {
-                    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5373,
-                                                     "%s: increasing <%s> for resource <%s> is not valid"),  /* catgets 5373 */
+                    ls_syslog(LOG_ERR, "%s: increasing <%s> for resource <%s> is not valid",
                               fname, extResInfoPtr->increasing, resName);
                     setExtResourcesDefDefault(resName);
                     return 0;
                 }
             }
         } else
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5374,
-                                             "%s: increasing <%s> is not used by the resource <%s> with type <%s>; ignoring INCREASING"),    /* catgets 5374 */
+            ls_syslog(LOG_ERR, "%s: increasing <%s> is not used by the resource <%s> with type <%s>; ignoring INCREASING",
                       fname, extResInfoPtr->increasing,
                       resName, extResInfoPtr->type);
     } else
     {
         if (allInfo.resTable[allInfo.nRes].valueType == LS_NUMERIC)
         {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5375,
-                                             "%s: No increasing specified for a numeric resource <%s>"),  /* catgets 5375 */
+            ls_syslog(LOG_ERR, "%s: No increasing specified for a numeric resource <%s>",
                       fname, resName);
             setExtResourcesDefDefault(resName);
             return 0;
         }
     }
-
 
     strncpy(allInfo.resTable[allInfo.nRes].des,
             extResInfoPtr->des, MAXRESDESLEN);
@@ -4771,15 +4500,12 @@ setExtResourcesLoc(char *resName, int resNo)
 
     if (extResLocPtr == NULL || extResLocPtr[0] == '\0')
     {
-        ls_syslog(LOG_INFO, I18N(5379,
-                                 "%s: Failed to get LOCATION specified for external resource <%s>; Set to default"),  /* catgets 5379 */
+        ls_syslog(LOG_INFO, "%s: Failed to get LOCATION specified for external resource <%s>; Set to default",
                   fname, resName);
         extResLocPtr = defaultExtResLoc;
     }
 
-
     allInfo.resTable[resNo].flags |= RESF_EXTERNAL;
-
 
     if (addResourceMap (resName, extResLocPtr, fname,
                         lineNum, &isDefault) < 0)
@@ -4801,20 +4527,15 @@ setExtResourcesLoc(char *resName, int resNo)
     return 0;
 }
 
-
-
-
 struct extResInfo *
 getExtResourcesDef(char *resName)
 {
 
     char fname[] = "getExtResourcesDef";
 
-    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5453,
-                                     "%s: external resource object is current not support in this platform"), fname); /* catgets 5453 */
+    ls_syslog(LOG_ERR, "%s: external resource object is current not support in this platform", fname);
     return NULL;
 }
-
 
 char *
 getExtResourcesLoc(char *resName)
@@ -4822,11 +4543,9 @@ getExtResourcesLoc(char *resName)
 
     char fname[] = "getExtResourcesLoc";
 
-    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5454,
-                                     "%s: external resource object is current not support in this platform"), fname); /* catgets 5454 */
+    ls_syslog(LOG_ERR, "%s: external resource object is current not support in this platform", fname);
     return NULL;
 }
-
 
 char *
 getExtResourcesValDefault(char *resName)
@@ -4836,15 +4555,13 @@ getExtResourcesValDefault(char *resName)
 
 }
 
-
 char *
 getExtResourcesVal(char *resName)
 {
 
     char fname[] = "getExtResourcesVal";
 
-    ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd , NL_SETN, 5455,
-                                     "%s: external resource object is current not support in this platform"), fname); /* catgets 5455 */
+    ls_syslog(LOG_ERR, "%s: external resource object is current not support in this platform", fname);
     return(getExtResourcesValDefault(resName));
 }
 
@@ -4855,8 +4572,7 @@ initTypeModel(struct hostNode *me)
     if (me->hTypeNo == DETECTMODELTYPE) {
         me->hTypeNo = typeNameToNo(getHostType());
         if (me->hTypeNo < 0) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 5456,
-                                             "%s: Unknown host type <%s>, using <DEFAULT>"), /* catgets 5456 */
+            ls_syslog(LOG_ERR, "%s: Unknown host type <%s>, using <DEFAULT>",
                       fname, getHostType());
             me->hTypeNo = 1;
         }
@@ -4873,14 +4589,12 @@ initTypeModel(struct hostNode *me)
 
         me->hModelNo = archNameToNo (arch);
         if (me->hModelNo < 0) {
-            ls_syslog(LOG_ERR, _i18n_msg_get(ls_catd, NL_SETN, 5458,
-                                             "%s: Unknown host architecture <%s>, using <DEFAULT>"), /* catgets 5458 */ fname, arch);
+            ls_syslog(LOG_ERR, "%s: Unknown host architecture <%s>, using <DEFAULT>",  fname, arch);
             me->hModelNo = 1;
         } else {
             if (strcmp(allInfo.hostArchs[me->hModelNo], arch) != 0) {
                 if ( logclass & LC_EXEC )  {
-                    ls_syslog(LOG_WARNING, _i18n_msg_get(ls_catd, NL_SETN, 5457,
-                                                         "%s: Unknown host architecture <%s>, using best match <%s>, model <%s>"), /* catgets 5457 */
+                    ls_syslog(LOG_WARNING, "%s: Unknown host architecture <%s>, using best match <%s>, model <%s>",
                               fname, arch, allInfo.hostArchs[me->hModelNo],
                               allInfo.hostModels[me->hModelNo]);
                 }
@@ -4893,7 +4607,6 @@ initTypeModel(struct hostNode *me)
         }
     }
     strcpy(me->statInfo.hostArch, allInfo.hostArchs[me->hModelNo]);
-
 
     ++allInfo.modelRefs[me->hModelNo];
     return 0;
@@ -4943,14 +4656,12 @@ slaveOnlyInit(int checkMode, int *kernelPerm)
         lim_Exit("slaveOnlyPreConf");
     }
 
-
     getLastActiveTime();
 
     limConfReady = false;
 
     return;
 }
-
 
 int
 slaveOnlyPreConf()
@@ -4996,7 +4707,6 @@ slaveOnlyPreConf()
     myClusterPtr->hostTypeBitMaps = NULL;
     myClusterPtr->hostModelBitMaps = NULL;
 
-
     nClusAdmins = 0;
     clusAdminIds = NULL;
     clusAdminNames = NULL;
@@ -5028,19 +4738,19 @@ slaveOnlyPreConf()
         hPtr->hostNo = mindex;
 
         if ((hname = getMasterCandidateNameByNo_(mindex)) == NULL) {
-            ls_syslog(LOG_ERR, I18N(5467, "the name of master candidate <%d> is NULL"), mindex); /* catgets 5467 */
+            ls_syslog(LOG_ERR, "the name of master candidate <%d> is NULL", mindex);
             continue;
         }
 
         if ((hp = (struct hostent *)getHostEntryByName_(hname)) == NULL) {
-            ls_syslog(LOG_ERR, I18N(5468, "Can not get host entry for host %s"), hname); /* catgets 5468 */
+            ls_syslog(LOG_ERR, "Can not get host entry for host %s", hname);
             continue;
         }
 
         hPtr->hostName = putstr_(hp->h_name);
 
         if (saveHostIPAddr(hPtr, hp) < 0 ) {
-            ls_syslog(LOG_ERR, I18N(5469, "Can not save internet address of host %s"), hp->h_name); /* catgets 5469 */
+            ls_syslog(LOG_ERR, "Can not save internet address of host %s", hp->h_name);
             freeHostNodes (hPtr, false);
             continue;
         }
@@ -5055,14 +4765,13 @@ slaveOnlyPreConf()
         return -1;
     }
 
-
     myHostPtr->hostNo = INFINIT_SHORT;
     if ((hname = ls_getmyhostname()) == NULL) {
-        ls_syslog(LOG_ERR, I18N(5470, "Can not get my host name")); /* catgets 5470 */
+        ls_syslog(LOG_ERR, "Can not get my host name");
         return -1;
     }
     if ((hp = (struct hostent *)getHostEntryByName_(hname)) == NULL) {
-        ls_syslog(LOG_ERR, I18N(5471, "Can not get host entry for host %s"), hname); /* catgets 5471 */
+        ls_syslog(LOG_ERR, "Can not get host entry for host %s", hname);
         return -1;
     }
 
@@ -5074,7 +4783,7 @@ slaveOnlyPreConf()
     myHostPtr->statInfo.portno = 0;
 
     if (saveHostIPAddr(myHostPtr, hp) < 0) {
-        ls_syslog(LOG_ERR, I18N(5472, "Can not save internet address of host %s"), hp->h_name); /* catgets 5472 */
+        ls_syslog(LOG_ERR, "Can not save internet address of host %s", hp->h_name);
         freeHostNodes (myHostPtr, false);
         return -1;
     }
@@ -5124,19 +4833,17 @@ adjHostListOrder()
         myClusterPtr->hostList = NULL;
         realNumMasterCandidates = numMasterCandidates;
 
-
         for (i = 0; i < numMasterCandidates; i++) {
 
             if ((hname = getMasterCandidateNameByNo_(i)) == NULL) {
 
-                ls_syslog(LOG_WARNING,I18N(5465, "the master candidate No <%d> isn't a valid host. Ignoring master candidate"), i); /* catgets 5465 */
+                ls_syslog(LOG_WARNING,"the master candidate No <%d> isn't a valid host. Ignoring master candidate", i);
                 realNumMasterCandidates--;
 
             } else {
                 hPtr = firstHPtr;
                 preHPtr = firstHPtr;
                 found = false;
-
 
                 while (hPtr != NULL) {
                     if (strcmp(hname, hPtr->hostName) == 0) {
@@ -5149,13 +4856,11 @@ adjHostListOrder()
 
                 if (found) {
 
-
                     if (hPtr == firstHPtr) {
                         firstHPtr = hPtr->nextPtr;
                     } else {
                         preHPtr->nextPtr = hPtr->nextPtr;
                     }
-
 
                     hPtr->nextPtr = myClusterPtr->hostList;
                     myClusterPtr->hostList = hPtr;
@@ -5163,12 +4868,12 @@ adjHostListOrder()
 
                 } else {
 
-                    ls_syslog(LOG_WARNING, I18N(5464, "the master candidate <%s> isn't in hostList. Ignoring master candidate"), hname); /* catgets 5464 */
+                    ls_syslog(LOG_WARNING, "the master candidate <%s> isn't in hostList. Ignoring master candidate", hname);
 
                     freeupMasterCandidate_(i);
                     realNumMasterCandidates--;
                     if (realNumMasterCandidates == 0) {
-                        ls_syslog(LOG_ERR, I18N(5466,"There is no valid host in LSF_MASTER_LIST")); /* catgets 5466 */
+                        ls_syslog(LOG_ERR, "There is no valid host in LSF_MASTER_LIST");
                         return -1;
                     }
                 }
@@ -5179,17 +4884,14 @@ adjHostListOrder()
         slaveHostNo = numMasterCandidates;
         while ( firstHPtr != NULL ) {
 
-
             hPtr = firstHPtr;
             firstHPtr = hPtr->nextPtr;
-
 
             hPtr->nextPtr = myClusterPtr->hostList;
             myClusterPtr->hostList = hPtr;
             hPtr->hostNo = slaveHostNo;
             slaveHostNo++;
         }
-
 
         for (hPtr = myClusterPtr->hostList, myClusterPtr->hostList = NULL;
              hPtr; hPtr = preHPtr) {

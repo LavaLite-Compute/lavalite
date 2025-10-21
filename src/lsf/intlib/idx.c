@@ -58,9 +58,6 @@
 /* Pull parsers.  */
 #define YYPULL 1
 
-
-
-
 /* Copy the first part of user declarations.  */
 #line 10 "idx.y" /* yacc.c:339  */
 
@@ -68,12 +65,10 @@
 #       include <stdlib.h>
 #include"inlib_internal.h"
 #       include "lsf/lib/lsi18n.h"
-#define NL_SETN      22      /* MOD_LSF_INTLIB  22  MsgId 550-599 */
 
 #define YYALLOC(x) yyalloc(&idxAllocHead, (x))
 struct mallocList  *idxAllocHead = NULL;
 int     idxerrno = IDX_NOERR;
-
 
 #line 79 "idx.c" /* yacc.c:339  */
 
@@ -92,7 +87,6 @@ int     idxerrno = IDX_NOERR;
 #else
 # define YYERROR_VERBOSE 0
 #endif
-
 
 /* Debug traces.  */
 #ifndef YYDEBUG
@@ -129,7 +123,6 @@ union YYSTYPE
         int ival ;
         struct idxList  idxType;
         struct idxList  *idxPtr;
-        
 
 #line 135 "idx.c" /* yacc.c:355  */
 };
@@ -139,12 +132,9 @@ typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_DECLARED 1
 #endif
 
-
 extern YYSTYPE yylval;
 
 int yyparse (void);
-
-
 
 /* Copy the second part of user declarations.  */
 
@@ -258,7 +248,6 @@ typedef short int yytype_int16;
 # define YY_INITIAL_VALUE(Value) /* Nothing. */
 #endif
 
-
 #if ! defined yyoverflow || YYERROR_VERBOSE
 
 /* The parser invokes alloca or malloc; define the necessary symbols.  */
@@ -325,7 +314,6 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 #  endif
 # endif
 #endif /* ! defined yyoverflow || YYERROR_VERBOSE */
-
 
 #if (! defined yyoverflow \
      && (! defined __cplusplus \
@@ -551,7 +539,6 @@ static const yytype_uint8 yyr2[] =
        2,     2,     3,     1
 };
 
-
 #define yyerrok         (yyerrstatus = 0)
 #define yyclearin       (yychar = YYEMPTY)
 #define YYEMPTY         (-2)
@@ -560,7 +547,6 @@ static const yytype_uint8 yyr2[] =
 #define YYACCEPT        goto yyacceptlab
 #define YYABORT         goto yyabortlab
 #define YYERROR         goto yyerrorlab
-
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
@@ -585,8 +571,6 @@ while (0)
 #define YYTERROR        1
 #define YYERRCODE       256
 
-
-
 /* Enable debugging if requested.  */
 #if YYDEBUG
 
@@ -606,7 +590,6 @@ do {                                            \
 # define YY_LOCATION_PRINT(File, Loc) ((void) 0)
 #endif
 
-
 # define YY_SYMBOL_PRINT(Title, Type, Value, Location)                    \
 do {                                                                      \
   if (yydebug)                                                            \
@@ -617,7 +600,6 @@ do {                                                                      \
       YYFPRINTF (stderr, "\n");                                           \
     }                                                                     \
 } while (0)
-
 
 /*----------------------------------------.
 | Print this symbol's value on YYOUTPUT.  |
@@ -636,7 +618,6 @@ yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvalue
 # endif
   YYUSE (yytype);
 }
-
 
 /*--------------------------------.
 | Print this symbol on YYOUTPUT.  |
@@ -674,7 +655,6 @@ do {                                                            \
   if (yydebug)                                                  \
     yy_stack_print ((Bottom), (Top));                           \
 } while (0)
-
 
 /*------------------------------------------------.
 | Report that the YYRULE is going to be reduced.  |
@@ -716,7 +696,6 @@ int yydebug;
 # define YY_REDUCE_PRINT(Rule)
 #endif /* !YYDEBUG */
 
-
 /* YYINITDEPTH -- initial size of the parser's stacks.  */
 #ifndef YYINITDEPTH
 # define YYINITDEPTH 200
@@ -732,7 +711,6 @@ int yydebug;
 #ifndef YYMAXDEPTH
 # define YYMAXDEPTH 10000
 #endif
-
 
 #if YYERROR_VERBOSE
 
@@ -973,9 +951,6 @@ yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep)
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 }
 
-
-
-
 /* The lookahead symbol.  */
 int yychar;
 
@@ -983,7 +958,6 @@ int yychar;
 YYSTYPE yylval;
 /* Number of syntax errors so far.  */
 int yynerrs;
-
 
 /*----------.
 | yyparse.  |
@@ -1192,7 +1166,6 @@ yybackup:
 
   goto yynewstate;
 
-
 /*-----------------------------------------------------------.
 | yydefault -- do the default action for the current state.  |
 `-----------------------------------------------------------*/
@@ -1201,7 +1174,6 @@ yydefault:
   if (yyn == 0)
     goto yyerrlab;
   goto yyreduce;
-
 
 /*-----------------------------.
 | yyreduce -- Do a reduction.  |
@@ -1219,7 +1191,6 @@ yyreduce:
      unconditionally makes the parser a bit smaller, and it avoids a
      GCC warning that YYVAL may be used uninitialized.  */
   yyval = yyvsp[1-yylen];
-
 
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
@@ -1256,8 +1227,7 @@ yyreduce:
     {
                    if (((yyval.idxPtr) = (struct idxList *)
                              YYALLOC(sizeof(struct idxList))) == NULL) {
-                       idxerror(_i18n_msg_get(ls_catd, NL_SETN, 550,
-					      "No Memory")); /* catgets 550 */
+                       idxerror("No Memory");
                        idxerrno = IDX_MEM;
                        YYABORT;
                    }
@@ -1274,7 +1244,7 @@ yyreduce:
     {
                    if (((yyval.idxPtr) = (struct idxList *)
                              YYALLOC(sizeof(struct idxList))) == NULL) {
-                       idxerror(_i18n_msg_get(ls_catd, NL_SETN, 550, "No Memory"));
+                       idxerror("No Memory");
                        idxerrno = IDX_MEM;
                        YYABORT;
                    }
@@ -1293,8 +1263,7 @@ yyreduce:
                     (yyval.idxType).end   = (yyvsp[0].idxType).end;
                     (yyval.idxType).step  = 1;
                     if ((yyval.idxType).start < 1 || (yyval.idxType).start > (yyval.idxType).end || (yyval.idxType).step <= 0) {
-                        idxerror(_i18n_msg_get(ls_catd, NL_SETN, 551,
-					       "boundary error")); /* catgets 551 */
+                        idxerror("boundary error");
                         idxerrno = IDX_BOUND;
                         YYABORT;
                     }
@@ -1309,8 +1278,7 @@ yyreduce:
                     (yyval.idxType).end   = (yyvsp[-2].idxType).end;
                     (yyval.idxType).step  = (yyvsp[0].ival);
                     if ((yyval.idxType).start < 1 || (yyval.idxType).start > (yyval.idxType).end || (yyval.idxType).step <= 0) {
-                        idxerror(_i18n_msg_get(ls_catd, NL_SETN, 551,
-					       "boundary error"));
+                        idxerror("boundary error");
                         idxerrno = IDX_BOUND;
                         YYABORT;
                     }
@@ -1366,7 +1334,6 @@ yyreduce:
 #line 1367 "idx.c" /* yacc.c:1646  */
     break;
 
-
 #line 1371 "idx.c" /* yacc.c:1646  */
       default: break;
     }
@@ -1402,7 +1369,6 @@ yyreduce:
     yystate = yydefgoto[yyn - YYNTOKENS];
 
   goto yynewstate;
-
 
 /*--------------------------------------.
 | yyerrlab -- here on detecting error.  |
@@ -1452,8 +1418,6 @@ yyerrlab:
 #endif
     }
 
-
-
   if (yyerrstatus == 3)
     {
       /* If just tried and failed to reuse lookahead token after an
@@ -1477,7 +1441,6 @@ yyerrlab:
      token.  */
   goto yyerrlab1;
 
-
 /*---------------------------------------------------.
 | yyerrorlab -- error raised explicitly by YYERROR.  |
 `---------------------------------------------------*/
@@ -1496,7 +1459,6 @@ yyerrorlab:
   YY_STACK_PRINT (yyss, yyssp);
   yystate = *yyssp;
   goto yyerrlab1;
-
 
 /*-------------------------------------------------------------.
 | yyerrlab1 -- common code for both syntax error and YYERROR.  |
@@ -1522,7 +1484,6 @@ yyerrlab1:
       if (yyssp == yyss)
         YYABORT;
 
-
       yydestruct ("Error: popping",
                   yystos[yystate], yyvsp);
       YYPOPSTACK (1);
@@ -1534,13 +1495,11 @@ yyerrlab1:
   *++yyvsp = yylval;
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 
-
   /* Shift the error token.  */
   YY_SYMBOL_PRINT ("Shifting", yystos[yyn], yyvsp, yylsp);
 
   yystate = yyn;
   goto yynewstate;
-
 
 /*-------------------------------------.
 | yyacceptlab -- YYACCEPT comes here.  |
