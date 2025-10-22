@@ -16,7 +16,7 @@
  *
  */
 
-#include "lsf/intlib/common.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 
 static void prtOneInstance (char *, struct lsSharedResourceInstance *);

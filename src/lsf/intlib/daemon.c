@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/intlib/common.h"
+#include "lsf/intlib/libllcore.h"
 
 void
 daemonize_(void)

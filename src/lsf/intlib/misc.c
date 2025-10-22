@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/intlib/common.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lib/lib.h"
 

@@ -26,7 +26,6 @@
 #include "lsf/intlib/list.h"
 #include "lsf/intlib/bitset.h"
 #include "lsf/intlib/listset.h"
-#include "lsf/intlib/common.h"
 
 #define MINPASSWDLEN_LS         (3)
 

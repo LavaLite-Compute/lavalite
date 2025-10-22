@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/intlib/common.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/intlib/resreq.h"
 #include "lsf/lib/lproto.h"
 

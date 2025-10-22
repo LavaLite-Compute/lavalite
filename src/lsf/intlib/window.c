@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/intlib/common.h"
+#include "lsf/intlib/libllcore.h"
 #include "lsf/intlib/intlibout.h"
 
 static int parse_time (char *word, float *hour, int *day);
