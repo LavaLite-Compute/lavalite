@@ -177,13 +177,13 @@ main(int argc, char **argv)
 
         if (strcmp(argv[i], "-C") == 0) {
             putEnv("RECONFIG_CHECK","YES");
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             lim_CheckMode = 1;
             lim_debug = 2;
             continue;
         }
         if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
         }
         if (strcmp(argv[i], "-D") == 0) {
@@ -363,9 +363,9 @@ main(int argc, char **argv)
     updtimer();
 
     FD_ZERO(&allMask);
-    ls_syslog(LOG_DEBUG, "%s: Daemon running (%d,%d,%d)",
+    ls_syslog(LOG_DEBUG, "%s: Daemon running (%d,%d,%s)",
             fname, myClusterPtr->checkSum,
-            ntohs(myHostPtr->statInfo.portno), _LAVALITE_VERSION_);
+            ntohs(myHostPtr->statInfo.portno), LAVALITE_VERSION_STR);
     if (logclass & LC_COMM)
         ls_syslog(LOG_DEBUG,"%s: sampleIntvl=%f exchIntvl=%f hostInactivityLimit=%d masterInactivityLimit=%d retryLimit=%d",fname,sampleIntvl, exchIntvl, hostInactivityLimit, masterInactivityLimit, retryLimit);
 

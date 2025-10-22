@@ -168,7 +168,7 @@ main(int argc, char **argv)
         }
 
         if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
         }
 

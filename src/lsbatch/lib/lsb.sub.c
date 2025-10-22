@@ -3380,7 +3380,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 additionEsubInfo=putstr_(optarg);
                 break;
             case 'V':
-                fputs(_LAVALITE_VERSION_, stderr);
+                fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
                 exit(0);
 
             default:
