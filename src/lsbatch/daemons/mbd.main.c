@@ -212,7 +212,7 @@ main (int argc, char **argv)
             lsb_CheckMode = 1;
             break;
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
         case 'h':
         default:
@@ -800,7 +800,7 @@ processClient(struct clientNode *client, int *needFree)
         break;
     default:
         errorBack(s, LSBE_PROTOCOL, &from);
-        if (reqHdr.version <= LAVALITE_VERSION)
+        if (reqHdr.version <= _XDR_VERSION_0_1_0)
             ls_syslog(LOG_ERR, "%s: Unknown request type <%d> from host <%s>",
                       fname, mbdReqtype, sockAdd2Str_(&from));
         break;

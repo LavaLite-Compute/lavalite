@@ -30,19 +30,13 @@ usage (char *cmd)
 int
 main (int argc, char **argv)
 {
-    extern char *optarg;
-    extern int optind;
     char *queue = NULL, *user = NULL, *host = NULL, *jobName = NULL;
     char Job[80];
     int numJobs;
     LS_LONG_INT *jobIds;
     struct jobrequeue reqJob;
     int  i, cc, exitrc = 0;
-    int rc;
-    int options;
     int options1 = FALSE;
-
-    rc = 0;
 
     if (lsb_init(argv[0]) < 0) {
 	lsb_perror("lsb_init");
@@ -53,6 +47,7 @@ main (int argc, char **argv)
 
     reqJob.status = JOB_STAT_PEND;
     reqJob.options |= REQUEUE_RUN;
+    int options = 0;
     options |= CUR_JOB;
 
     while ((cc = getopt(argc, argv, "deraHVhu:J:")) != EOF) {
@@ -120,7 +115,7 @@ main (int argc, char **argv)
         case 'J': jobName = optarg;
             break;
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
 	case 'u':
             if (user)
@@ -153,4 +148,3 @@ main (int argc, char **argv)
     exit(exitrc);
 
 }
-

@@ -173,11 +173,14 @@ verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
     static int  count;
     static time_t lastime, lastcall;
     time_t now;
-    char  buf[16384];
-    char tmpbuf[4096];
-    char verBuf[16384];
-
+    static char buf[BUFSIZ];
+    static char tmpbuf[BUFSIZ/2];
+    static char verBuf[BUFSIZ];
     int save_errno = errno;
+
+    memset(buf, 0, sizeof(buf));
+    memset(tmpbuf, 0, sizeof(tmpbuf));
+    memset(verBuf, 0, sizeof(verBuf));
 
     vsprintf(buf, err_str_(save_errno, fmt, tmpbuf), ap);
 
@@ -188,18 +191,18 @@ verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
         return;
     } else {
         if (count) {
-            (void)fprintf(fp, "%s %d ", ctime(&lastcall), (int) getpid());
-            (void)fprintf(fp,("Last message repeated %d times\n"),count);
+            fprintf(fp, "%s %d ", ctime2(&lastcall) + 4, getpid());
+            fprintf(fp,("Last message repeated %d times\n"), count);
         }
-        (void)fprintf(fp, "%s %d ", ctime(&now), (int) getpid());
+        fprintf(fp, "%s %d ", ctime2(&now) + 4, getpid());
     }
 
     if (level >= 0) {
-        snprintf(verBuf, sizeof(verBuf), "%d %.8000s %.8000s",
-                 level, _LAVALITE_VERSION_, buf);
+        snprintf(verBuf, sizeof(verBuf), "%d %s %s",
+                 level, LAVALITE_VERSION_STR, buf);
     } else {
-        snprintf(verBuf, sizeof(verBuf), "%.8000s %.8000s",
-                 _LAVALITE_VERSION_, buf);
+        snprintf(verBuf, sizeof(verBuf), "%s %s",
+                 LAVALITE_VERSION_STR, buf);
     }
 
     fputs(verBuf, fp);

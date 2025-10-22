@@ -48,7 +48,7 @@ main (int argc, char **argv)
             longFormat = TRUE;
             break;
 	case 'V':
-	    fputs(_LAVALITE_VERSION_, stderr);
+	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
 	    exit(0);
         case 'h':
         default:

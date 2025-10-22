@@ -31,18 +31,13 @@ usage(char *cmd)
 int
 main(int argc, char **argv)
 {
-    static char fname[] = "lsid:main";
     char *Name;
     int achar;
-
-    0;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
         exit(-1);
     }
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     while ((achar = getopt(argc, argv, "hV")) != EOF) {
         switch(achar) {
@@ -50,14 +45,14 @@ main(int argc, char **argv)
             usage(argv[0]);
             exit(0);
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
-            exit(0);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
         default:
             usage(argv[0]);
             exit(-1);
         }
     }
-    puts(_LAVALITE_VERSION_);
+    puts(LAVALITE_VERSION_STR);
 
     TIMEIT(0, (Name = ls_getclustername()), "ls_getclustername");
     if (Name == NULL) {

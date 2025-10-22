@@ -1,5 +1,6 @@
 /* $Id: busers.c,v 1.2 2007/08/15 22:18:44 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -49,9 +50,6 @@ main (int argc, char **argv)
     struct userInfoEnt  *usrInfo;
     char **users=NULL, **userPoint;
     int all = FALSE;
-    int rc;
-
-    rc = 0;
 
     if (lsb_init(argv[0]) < 0) {
 	lsb_perror("lsb_init");
@@ -61,7 +59,7 @@ main (int argc, char **argv)
     while ((cc = getopt(argc, argv, "Vh")) != EOF) {
         switch (cc) {
 	case 'V':
-	    fputs(_LAVALITE_VERSION_, stderr);
+	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
 	    exit(0);
         case 'h':
         default:

@@ -28,22 +28,16 @@ usage(const char *cmd)
 int
 main(int argc, char **argv)
 {
-    static char fname[] = "lseligible/main";
     char resreq[MAXLINELEN];
     char mode = LSF_LOCAL_MODE;
     int quiet = 0;
     int cc;
     extern int  optind, opterr;
-    int rc;
-
-    rc = 0;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
-        exit(-1);
+        return -1;
     }
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     opterr = 0;
     while ((cc = getopt(argc, argv, "Vqrhs")) != EOF) {
@@ -58,8 +52,8 @@ main(int argc, char **argv)
             mode = LSF_REMOTE_MODE;
             break;
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
-            exit(0);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
         case 'h':
         default:
             usage(argv[0]);

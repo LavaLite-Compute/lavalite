@@ -308,7 +308,7 @@ do_options (int argc, char **argv, int *options, char **user, char **queue,
             *format = WIDE_FORMAT;
             break;
 	case 'V':
-	    fputs(_LAVALITE_VERSION_, stderr);
+	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
 	    exit(0);
         case 'h':
         default:

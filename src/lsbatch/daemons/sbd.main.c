@@ -152,7 +152,7 @@ main (int argc, char **argv)
 
     if (argc > 1) {
         if (!strcmp(argv[1],"-V")) {
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
         }
     }

@@ -28,7 +28,6 @@ static char *valueTypeToStr(enum valueType);
 int
 main(int argc, char **argv)
 {
-    static char fname[] = "lsinfo/main";
     struct lsInfo *lsInfo;
     int i, cc, nnames;
     char *namebufs[256];
@@ -39,20 +38,16 @@ main(int argc, char **argv)
     char mmFlag = false;
     extern int optind;
 
-    0;
-
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
-        exit(-1);
+        return -1;
     }
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     while ((cc = getopt(argc, argv, "VhlrmMt")) != EOF) {
         switch(cc) {
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
-            exit(0);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
         case 'l':
             longFormat = true;
             break;

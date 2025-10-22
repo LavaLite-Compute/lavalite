@@ -355,7 +355,7 @@ getDayHour (struct dayhour *dayPtr, time_t nowtime)
 {
     char *timep;
 
-    timep = (char *) ctime(&nowtime);
+    timep = ctime2(&nowtime);
     timep[3] = '\0';
 
     if (strcmp(timep, "Sun") == 0)

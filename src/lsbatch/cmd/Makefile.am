@@ -20,7 +20,6 @@ bin_PROGRAMS = badmin \
     bpeek \
     bqueues \
     brequeue \
-    brestart \
     brun \
     bsub \
     bswitch \
@@ -44,7 +43,6 @@ bparams_SOURCES   = bparams.c $(COMMON_CMD_SOURCES)
 bpeek_SOURCES     = bpeek.c $(COMMON_CMD_SOURCES)
 bqueues_SOURCES   = bqueues.c $(COMMON_CMD_SOURCES)
 brequeue_SOURCES  = brequeue.c $(COMMON_CMD_SOURCES)
-brestart_SOURCES  = brestart.c $(COMMON_CMD_SOURCES)
 brun_SOURCES      = brun.c $(COMMON_CMD_SOURCES)
 bsub_SOURCES      = bsub.c $(COMMON_CMD_SOURCES)
 bswitch_SOURCES   = bswitch.c $(COMMON_CMD_SOURCES)

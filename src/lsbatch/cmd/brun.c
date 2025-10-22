@@ -62,9 +62,6 @@ main(int argc, char** argv)
     int                   c;
     bool_t                fFlag = FALSE;
     bool_t		  bFlag = FALSE;
-    int rc;
-
-    rc = 0;
 
     if (lsb_init(argv[0]) < 0) {
 	lsb_perror("lsb_init");
@@ -87,7 +84,7 @@ main(int argc, char** argv)
 	    bFlag = TRUE;
 	    break;
 	case 'V':
-	    fputs(_LAVALITE_VERSION_, stderr);
+	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
 	    return (0);
 	case 'h':
 	    usage(argv[0]);

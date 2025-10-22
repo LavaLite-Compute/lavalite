@@ -43,7 +43,7 @@ bmove (int argc, char **argv, int opCode)
     while((achar = getopt(argc, argv, "hV")) != EOF) {
 	switch(achar) {
             case 'V':
-		fputs(_LAVALITE_VERSION_, stderr);
+		fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
 		exit(0);
 	    case 'h':
             default:

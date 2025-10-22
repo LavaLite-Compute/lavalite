@@ -77,9 +77,8 @@ main(int argc, char **argv)
             break;
 
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
-            exit(0);
-
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
         case 'h':
         default:
             usage(argv[0]);

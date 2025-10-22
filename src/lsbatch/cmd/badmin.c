@@ -40,7 +40,7 @@ main (int argc, char **argv)
     while ((cc = getopt(argc, argv, "Vh")) != EOF) {
         switch (cc) {
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
         case 'h':
         default:
@@ -49,7 +49,7 @@ main (int argc, char **argv)
         }
     }
     if (argc > optind) {
-        int rc;
+
 
         if ((myIndex=adminCmdIndex(argv[optind], cmdList)) == -1) {
             fprintf(stderr, ("Invalid command <%s> \n"), argv[optind]);
@@ -57,7 +57,7 @@ main (int argc, char **argv)
             cmdsUsage("badmin", cmdList, cmdInfo);
 	}
 	optind++;
-	rc = doBatchCmd (argc, argv);
+	int rc = doBatchCmd (argc, argv);
 	exit ( rc );
     }
 

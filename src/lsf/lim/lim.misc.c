@@ -53,11 +53,11 @@ timingLog(char action)
     struct timeval timeofday;
     struct timeval tdiff1, tdiff2;
     char *asciiTime;
-    extern char *ctime();
+    extern char *ctime2();
 
     if (action == 0) {
         gettimeofday(&timeofday, (struct timezone *)0);
-        asciiTime = ctime(&timeofday.tv_sec);
+        asciiTime = ctime2(&timeofday.tv_sec);
         fprintf(timfp, "%s", asciiTime);
         fprintf(timfp,"Timing log record for LIM begins ...\n\n");
         fflush(timfp);
@@ -70,7 +70,7 @@ timingLog(char action)
     tstat_count++;
     if(tstat_count < tlogcnt) return;
     gettimeofday(&timeofday, (struct timezone *)0);
-    asciiTime = ctime(&timeofday.tv_sec);
+    asciiTime = ctime2(&timeofday.tv_sec);
     fprintf(timfp, "%s", asciiTime);
     fprintf(timfp, "Overhead time since last Log record is: ");
     getrusage(RUSAGE_SELF, &end_time);
@@ -116,7 +116,7 @@ loadLog(char action)
     struct timeval timeofday;
 
     gettimeofday(&timeofday, (struct timezone *)0);
-    asciiTime = ctime(&timeofday.tv_sec);
+    asciiTime = ctime2(&timeofday.tv_sec);
 
     if (action == 0) {
         ldlogcnt = loadLogIntvl/exchIntvl;
@@ -161,7 +161,7 @@ xferLog(char action, char *host)
     int new;
     struct timeval timeofday;
     char *asciiTime;
-    extern char *ctime();
+    extern char *ctime2();
     int i,j;
     char **newPtr;
     hEnt *hashEntryPtr;
@@ -172,7 +172,7 @@ xferLog(char action, char *host)
         xlogcnt = xferLogIntvl/exchIntvl;
         xstat_count = 0;
         gettimeofday(&timeofday, (struct timezone *)0);
-        asciiTime = ctime(&timeofday.tv_sec);
+        asciiTime = ctime2(&timeofday.tv_sec);
         fprintf(xferfp, "%s", asciiTime);
         fprintf(xferfp, "Job xfer log begins ...\n\n");
         fflush(xferfp);
@@ -196,7 +196,7 @@ xferLog(char action, char *host)
 
         hashEntryPtr = h_firstEnt(&xferVector, &hashSearchPtr);
         gettimeofday(&timeofday, (struct timezone *)0);
-        asciiTime = ctime(&timeofday.tv_sec);
+        asciiTime = ctime2(&timeofday.tv_sec);
         fprintf(xferfp, "%s", asciiTime);
         if(!hashEntryPtr) {
             fprintf(xferfp, "%s --> ANYHOST: no jobs ever xferred \n\n",

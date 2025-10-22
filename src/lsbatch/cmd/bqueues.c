@@ -65,11 +65,9 @@ main (int argc, char **argv)
     char lflag = FALSE;
     int cc, defaultQ = FALSE;
     char *host = NULL, *user = NULL;
-    int rc;
+
 
     numQueues = 0;
-
-    rc = 0;
 
     if (lsb_init(argv[0]) < 0) {
 	lsb_perror("lsb_init");
@@ -99,7 +97,7 @@ main (int argc, char **argv)
             user = optarg;
             break;
 	case 'V':
-	    fputs(_LAVALITE_VERSION_, stderr);
+	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
 	    exit(0);
         case 'h':
         default:
@@ -579,4 +577,3 @@ prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
     };
 
 }
-

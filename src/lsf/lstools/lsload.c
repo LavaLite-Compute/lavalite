@@ -31,7 +31,7 @@ extern int num_loadindex;
 void
 usage(const char *cmd)
 {
-    fprintf(stderr,I18N_Usage );
+    fprintf(stderr, "Usage: ");
     fprintf(stderr, "%s [-h] [-V] [-N|-E] [-l | -w] [-R res_req] "
             "[-I index_list] [-n num_hosts] "
             "[host_name ... | cluster_name ...]\n", cmd);
@@ -79,8 +79,8 @@ main(int argc, char **argv)
             usage(argv[0]);
             exit (0);
         } else if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LAVALITE_VERSION_, stderr);
-            exit(0);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
         } else if (strcmp(argv[i], "-s") == 0) {
             if (otherOption == TRUE) {
                 usage(argv[0]);
@@ -153,7 +153,7 @@ main(int argc, char **argv)
             break;
 
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
 
         case 'h':

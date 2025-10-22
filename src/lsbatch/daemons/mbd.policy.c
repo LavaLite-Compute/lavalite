@@ -469,7 +469,7 @@ readyToDisp (struct jData *jpbw, int *numAvailSlots)
     else if ((deadline = jpbw->qPtr->runWinCloseTime) > 0 &&
              jobCantFinshBeforeDeadline(jpbw, deadline)) {
         if (logclass & (LC_SCHED | LC_PEND)) {
-            char *timebuf = ctime(&deadline);
+            char *timebuf = ctime2(&deadline);
             timebuf[strlen(timebuf) - 1] = '\0';
             ls_syslog(LOG_DEBUG2, "%s: job <%s> can't finish before deadline: %s", fname, lsb_jobid2str(jpbw->jobId), timebuf);
         }
@@ -1236,7 +1236,7 @@ getJUsable (struct jData *jp, int *numJUsable, int *nProc)
                 }
                 if (logclass & (LC_SCHED | LC_PEND)) {
                     char *timebuf;
-                    timebuf = ctime(&deadline);
+                    timebuf = ctime2(&deadline);
                     timebuf[strlen(timebuf)-1] = '\0';
                     ls_syslog(LOG_DEBUG2, "%s: job <%s> can't finish before deadline <%s> on host %s", fname, lsb_jobid2str(jp->jobId), timebuf, jUsable[i]->host);
                 }
@@ -3921,7 +3921,7 @@ jobStartTime (struct jData *jp)
             jp->predictedStartTime = now_disp + (time_t) jobTable[i].leftTime;
 
             if (logclass & LC_SCHED)
-                ls_syslog(LOG_DEBUG, "%s: Job %s needs to wait for %d seconds and will start at %s", fname, lsb_jobid2str(jp->jobId), jobTable[i].leftTime, ctime(&jp->predictedStartTime));
+                ls_syslog(LOG_DEBUG, "%s: Job %s needs to wait for %d seconds and will start at %s", fname, lsb_jobid2str(jp->jobId), jobTable[i].leftTime, ctime2(&jp->predictedStartTime));
             break;
         }
     }

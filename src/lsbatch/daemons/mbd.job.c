@@ -3696,7 +3696,7 @@ job_abort(struct jData *jData, char reason)
 	currentTime = time(NULL);
 	sprintf(lmsg, "Job will not finish before termination deadline "
                 "even on the fastest host(s)\n");
-	timebuf = putstr_(ctime(&currentTime));
+	timebuf = putstr_(ctime2(&currentTime));
 	sprintf(lmsg + strlen(lmsg), "expected finish time = current time: %s +\n",
                 timebuf);
         free(timebuf);
@@ -3706,7 +3706,7 @@ job_abort(struct jData *jData, char reason)
 	}
 	runLimit /= maxCpuFactor;
 	finishTime = currentTime + runLimit;
-	timebuf = putstr_(ctime(&finishTime));
+	timebuf = putstr_(ctime2(&finishTime));
 	if (isRunLimit) {
 	    sprintf(lmsg+strlen(lmsg),
                     "run time limit on the fastest host: %d seconds\n",
@@ -3719,7 +3719,7 @@ job_abort(struct jData *jData, char reason)
 	sprintf(lmsg+strlen(lmsg), "\
                        = %s;\n", timebuf);
 	free(timebuf);
-	timebuf = putstr_(ctime(&jData->shared->jobBill.termTime));
+	timebuf = putstr_(ctime2(&jData->shared->jobBill.termTime));
 	sprintf(lmsg+strlen(lmsg), "termination deadline = %s",
 	    timebuf);
 	free(timebuf);

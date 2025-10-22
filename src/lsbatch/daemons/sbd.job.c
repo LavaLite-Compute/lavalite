@@ -206,7 +206,7 @@ sendNotification(struct jobCard *jobCardPtr)
 	jobSpecsPtr->jobName, jobSpecsPtr->fromHost, jobSpecsPtr->userName);
     temp1 = putstr_("unknown time in the past");
     fprintf(mail, "Started at %sunder user <%s>, ",
-	jobSpecsPtr->startTime? ctime(&jobSpecsPtr->startTime) : temp1, jobCardPtr->execUsername );
+	jobSpecsPtr->startTime? ctime2(&jobSpecsPtr->startTime) : temp1, jobCardPtr->execUsername );
     free(temp1);
 
     fprintf(mail, "on host(s <%s>, while in queue <%s>.\n"),
@@ -215,7 +215,7 @@ sendNotification(struct jobCard *jobCardPtr)
 	fprintf(mail, "                   <%s>\n", jobSpecsPtr->toHosts[k]);
     now=time(0);
     fprintf(mail, "Notification reported at %s",
-	ctime(&now));
+	ctime2(&now));
 
     mclose(mail);
     return 0;
@@ -1968,7 +1968,7 @@ send_results (struct jobCard *jp)
 	    jp->jobSpecs.execCwd);
 
     if (jp->jobSpecs.startTime != 0)
-	sp = putstr_(ctime(&jp->jobSpecs.startTime));
+	sp = putstr_(ctime2(&jp->jobSpecs.startTime));
     else
 	sp = putstr_("unknown time in the past\n");
 
@@ -1976,7 +1976,7 @@ send_results (struct jobCard *jp)
     free(sp);
     now = time(0);
     fprintf(notif, "Results reported at %s",
-	ctime(&now));
+	ctime2(&now));
     sprintf(fileName,"%s%s",jp->jobSpecs.jobFile,JOBFILEEXT);
     if ((fp = myfopen_(fileName, "r", hp)) == NULL) {
 	fprintf(notif, "Cannot open your job file: %s\n",

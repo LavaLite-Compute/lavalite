@@ -84,7 +84,7 @@ main (int argc, char **argv, char **environ)
             jobName = optarg;
             break;
 	case 'V':
-	    fputs(_LAVALITE_VERSION_, stderr);
+	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
 	    exit(0);
 	case 'f':
 	    fflag = TRUE;
@@ -299,9 +299,7 @@ useTmp(char *exHost, char *fname)
     int pid;
     int status;
     struct stat st;
-    char *fName;
 
-    fName = "useTmp";
     if ((pid = fork()) == 0) {
 	if (ls_initrex(1, 0) < 0) {
 	    ls_perror("ls_initrex");

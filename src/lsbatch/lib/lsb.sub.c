@@ -2457,11 +2457,11 @@ prtBETime_(struct submit *req)
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if (req->beginTime > 0) {
-        sp = ctime(&req->beginTime);
+        sp = ctime2(&req->beginTime);
         fprintf(stderr, ("Job will be scheduled after %s\n"), sp);
     }
     if (req->termTime > 0) {
-        sp = ctime(&req->termTime);
+        sp = ctime2(&req->termTime);
         fprintf(stderr, ("Job will be terminated by %s\n"), sp);
     }
 }

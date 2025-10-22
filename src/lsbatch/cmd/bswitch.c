@@ -38,9 +38,6 @@ main (int argc, char **argv)
     int numJobs;
     LS_LONG_INT *jobIds;
     int  i, cc, exitrc = 0;
-    int rc;
-
-    rc = 0;
 
     if (lsb_init(argv[0]) < 0) {
 	lsb_perror("lsb_init");
@@ -67,7 +64,7 @@ main (int argc, char **argv)
             host = optarg;
             break;
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
         case 'h':
         default:

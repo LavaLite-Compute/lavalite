@@ -21,11 +21,9 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
   [AC_DEFINE([HAVE_OPENSSL], [1], [Define if OpenSSL is available])],
   [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
 
-dnl Project identity
-AC_DEFINE([_LAVALITE_PROJECT_], ["LavaLite HPC Scheduler"], [Project string])
-AC_DEFINE([LAVALITE_VERSION], [1], [Numeric LavaLite version])
-
-dnl Define the XDR header version of this release
+dnl Project identity versioning
+AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.1.0"], [Human-readable LavaLite version])
+AC_DEFINE([LAVALITE_VERSION_HEX], [0x000100], [LavaLite version encoded as 0xMMmmpp])
 AC_DEFINE([_XDR_VERSION_0_1_0], [1], [Enable XDR version 0.1.0 features])
 
 dnl Define the default host type supported by LavaLite but you can

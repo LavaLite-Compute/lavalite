@@ -40,10 +40,6 @@
 typedef int64_t LS_LONG_INT;
 typedef uint64_t LS_UNS_LONG_INT;
 
-/* There is LAVALITE_VERSION defined in config.h
- */
-#define _LAVALITE_VERSION_ ("LavaLite 0.1.0, " __DATE__ "\n")
-
 #define LSF_DEFAULT_SOCKS 15
 #define MAXLINELEN 512
 #define MAXLSFNAMELEN 40

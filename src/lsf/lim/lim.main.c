@@ -177,7 +177,6 @@ main(int argc, char **argv)
 
         if (strcmp(argv[i], "-C") == 0) {
             putEnv("RECONFIG_CHECK","YES");
-            fputs("\n", stderr);
             fputs(_LAVALITE_VERSION_, stderr);
             lim_CheckMode = 1;
             lim_debug = 2;

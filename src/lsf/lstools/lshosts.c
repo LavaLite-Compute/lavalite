@@ -216,7 +216,7 @@ print_long(struct hostInfo *hostInfo)
            "RUN_WINDOWS");
     if (hostInfo->isServer) {
         if (strcmp(hostInfo->windows, "-") == 0)
-            fputs(" (always open\n", stdout);
+            printf(" (always open\n");
         else
             printf("%s\n", hostInfo->windows);
     } else {
@@ -291,8 +291,8 @@ main(int argc, char **argv)
             usage(argv[0]);
             exit (0);
         } else if (strcmp(argv[i], "-V") == 0) {
-            fputs(_LAVALITE_VERSION_, stderr);
-            exit(0);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
         } else if (strcmp(argv[i], "-s") == 0) {
             if (otherOption == true) {
                 usage(argv[0]);
@@ -495,10 +495,9 @@ main(int argc, char **argv)
                 printf("%s", hostinfo[i].resources[j]);
                 first = false;
             }
-
-            fputs(")\n", stdout);
+            printf("\n");
         }
-        exit(0);
+        return 0;
     }
     return 0;
 }

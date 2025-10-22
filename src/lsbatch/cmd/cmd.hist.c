@@ -98,7 +98,7 @@ searchEventFile(struct histReq *req, int *eventFound)
     char *envdir;
 
     struct config_param histParams[] = {
-#   define LSB_SHAREDIR 0
+#define LSB_SHAREDIR 0
         {"LSB_SHAREDIR", NULL},
         {NULL, NULL}
     };
@@ -165,9 +165,6 @@ displayEvent(struct eventRec *log, struct histReq *req)
 {
     char prline[MSGSIZE];
     char localTimeStr[60];
-    char *fName;
-
-    fName = putstr_ ("displayEvent");
 
     if (req->eventTime[1] != 0
 	&& req->eventTime[0] < req->eventTime[1]) {

@@ -136,8 +136,8 @@ main (int argc, char **argv)
     while ((cc = getopt(argc, argv, "Vh")) != EOF) {
         switch (cc) {
         case 'V':
-            fputs(_LAVALITE_VERSION_, stderr);
-            exit(0);
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
         case 'h':
         default:
             cmdsUsage("lsadmin", cmdList, cmdInfo);
@@ -225,7 +225,7 @@ doLsCmd (int argc, char *argv[])
     case LSADM_QUIT :
         exit(0);
     default :
-        fprintf(stderr, I18N_FUNC_S_ERROR, "adminCmdIndex:");
+        fprintf(stderr, "adminCmdIndex:");
         exit(-1);
     }
     if (cmdRet == -2)
@@ -243,9 +243,7 @@ support1_2 (int argc, char *argv[])
 
     if (strstr(argv[0], "lsreconfig") != NULL) {
         if (argc != 1) {
-            fputs(_LAVALITE_VERSION_, stderr);
-            fputs("\n", stderr);
-            fputs(": lsreconfig\n\n", stderr);
+            fprintf(stderr, "Error fix me %s\n", LAVALITE_VERSION_STR);
             exit(-1);
         }
         strcpy(argv[0], "reconfig");
@@ -254,8 +252,7 @@ support1_2 (int argc, char *argv[])
     }
     if (strstr(argv[0], "lsunlockhost") != NULL) {
         if (argc != 1) {
-            fputs(I18N_Usage, stderr);
-            fputs(": lsunlockhost\n", stderr);
+            fprintf(stderr, "Error fix me %s\n", LAVALITE_VERSION_STR);
             exit(-1);
         }
         optind = 1;
@@ -265,7 +262,7 @@ support1_2 (int argc, char *argv[])
         while ((cc = getopt(argc, argv, "hV")) != EOF) {
             switch (cc) {
             case 'V':
-                fputs(_LAVALITE_VERSION_, stderr);
+                fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
                 exit(0);
             default:
                 fprintf(stderr, "lsadm: lslockhost [-V] [-h] [duration]\n");
@@ -505,22 +502,18 @@ static void
 limDebugReq(struct debugReq *pdebug, int numHost, char *hosts[])
 {
     int i;
-    char strBuf[100];
 
-    for (i=0; i<numHost; i++)
+    for (i=0; i<numHost; i++) {
         if (hosts[i][0] != '\0') {
             if(oneLimDebug(pdebug, hosts[i]) == -1) {
-                sprintf(strBuf, "Host %s set LIM debug failed",hosts[i]);
-                ls_perror (I18N(202, strBuf));
+                fprintf(stderr, "Host %s set LIM debug failed", hosts[i]);
                 exitDebug = -1;
             }
             else {
-                sprintf(strBuf, "Host %s set LIM debug done\n",hosts[i]);
-                fprintf(stderr, I18N(207, strBuf));
+                fprintf(stderr, "Host %s set LIM debug done\n", hosts[i]);
             }
         }
-    return ;
-
+    }
 }
 
 static void
@@ -528,7 +521,6 @@ resDebugReq(struct debugReq *pdebug, int numHost, char *hosts[])
 {
     int pid;
     int i;
-    char strBuf[100];
     int status;
 
     if ((pid = fork()) < 0) {
@@ -544,22 +536,18 @@ resDebugReq(struct debugReq *pdebug, int numHost, char *hosts[])
 
         for (i=0; i<numHost; i++)
             if (ls_connect(hosts[i]) < 0) {
-                sprintf(strBuf, "Host %s set RES debug failed",hosts[i]);
-                ls_perror (I18N(206, strBuf));
+                fprintf(stderr, "Host %s set RES debug failed", hosts[i]);
                 exitDebug = -1;
-
                 hosts[i][0] = '\0';
             }
         for (i=0; i<numHost; i++) {
             if (hosts[i][0] != '\0') {
-                if (  oneResDebug (pdebug,hosts[i] ) == -1) {
-                    sprintf(strBuf, "Host %s set RES debug failed: ",hosts[i]);
-                    ls_perror (I18N(203, strBuf));
+                if (oneResDebug (pdebug,hosts[i] ) == -1) {
+                    fprintf(stderr, "Host %s set RES debug failed: ", hosts[i]);
                     exitDebug = -1;
                 }
                 else {
-                    sprintf(strBuf, "Host %s set RES debug done\n",hosts[i]);
-                    fprintf(stderr, I18N(205, strBuf));
+                    fprintf(stderr, "Host %s set RES debug done\n", hosts[i]);
                 }
             }
         }

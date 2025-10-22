@@ -113,7 +113,7 @@ checkQWindow (void)
 		}
 		if (logclass & LC_SCHED) {
 		    if (qp->runWinCloseTime != 0) {
-			ls_syslog(LOG_DEBUG2, "%s: run window of queue <%s> will close at %s", fname, qp->queue, ctime(&qp->runWinCloseTime));
+			ls_syslog(LOG_DEBUG2, "%s: run window of queue <%s> will close at %s", fname, qp->queue, ctime2(&qp->runWinCloseTime));
 		    } else {
 			ls_syslog(LOG_DEBUG2, "%s: run window of queue <%s> is open but runWinCloseTime is 0, reset queue's run window to close", fname, qp->queue);
 		    }
