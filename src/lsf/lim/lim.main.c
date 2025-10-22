@@ -18,8 +18,7 @@
  */
 
 #include "lsf/lim/lim.h"
-#include "lsf/lib/mls.h"
-
+#define NO_SIGALARM 1
 #define VCL_VERSION 2
 #define _PATH_NULL  "/dev/null"
 #define SLIMCONF_WAIT_TIME  (1500)
@@ -132,19 +131,16 @@ main(int argc, char **argv)
     struct Masks sockmask, chanmask;
     enum   limReqCode limReqCode;
     struct sockaddr_in from;
-    int    fromSize;
     XDR    xdrs;
     int    msgSize;
 #ifdef FLEX_RCVBUF
     char   *reqBuf2;
 #endif
     char   reqBuf[MSGSIZE];
-    int    maxfd;
     char   *sp;
     int    i;
     struct LSFHeader reqHdr;
     int    to_background = 1;
-    char   *lic_file = NULL;
     int    showTypeModel = false;
     static int eagainErrors = 0;
 
@@ -154,11 +150,6 @@ main(int argc, char **argv)
     for (i=1; i<argc; i++) {
         if (strcmp(argv[i], "-d") == 0 && argv[i+1] != NULL) {
             env_dir = argv[i+1];
-            i++;
-            continue;
-        }
-        if (strcmp(argv[i], "-c") == 0 && argv[i+1] != NULL) {
-            lic_file = argv[i+1];
             i++;
             continue;
         }
@@ -220,7 +211,7 @@ main(int argc, char **argv)
             limParams[LSF_LOGDIR].paramValue = sp;
         ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, (lim_debug == 2),
                 limParams[LSF_LOG_MASK].paramValue);
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MM, fname, "initenv_", env_dir);
+        ls_syslog(LOG_ERR, "lim: initenv_ %s", env_dir);
         lim_Exit("main");
     }
 
@@ -276,10 +267,12 @@ main(int argc, char **argv)
 
     if (lim_debug > 1) {
         ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
+        open_log("lim", limParams[LSF_LOG_MASK].paramValue, true);
     } else {
         ls_openlog("lim",
                 limParams[LSF_LOGDIR].paramValue, false,
                 limParams[LSF_LOG_MASK].paramValue);
+        open_log("lim", limParams[LSF_LOG_MASK].paramValue, false);
     }
 
     if (logclass & (LC_TRACE | LC_HANG))
@@ -329,7 +322,6 @@ main(int argc, char **argv)
 
     masterMe = (myHostPtr->hostNo == 0);
 
-    maxfd = sysconf(_SC_OPEN_MAX);
     myHostPtr->hostInactivityCount = 0;
 
     if (lim_CheckMode && isMasterCandidate) {
@@ -346,7 +338,6 @@ main(int argc, char **argv)
     if (isMasterCandidate) {
 
         if (masterMe) {
-            millisleep_(6000);
             initNewMaster();
         }
 
@@ -363,11 +354,14 @@ main(int argc, char **argv)
     updtimer();
 
     FD_ZERO(&allMask);
-    ls_syslog(LOG_DEBUG, "%s: Daemon running (%d,%d,%s)",
-            fname, myClusterPtr->checkSum,
-            ntohs(myHostPtr->statInfo.portno), LAVALITE_VERSION_STR);
+    syslog(LOG_INFO, "%s: Daemon running (tcp_port %d %s)",
+           __func__, ntohs(myHostPtr->statInfo.portno), LAVALITE_VERSION_STR);
+
     if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG,"%s: sampleIntvl=%f exchIntvl=%f hostInactivityLimit=%d masterInactivityLimit=%d retryLimit=%d",fname,sampleIntvl, exchIntvl, hostInactivityLimit, masterInactivityLimit, retryLimit);
+        ls_syslog(LOG_DEBUG, "%s: sampleIntvl=%f exchIntvl=%f "
+                  "hostInactivityLimit=%d masterInactivityLimit=%d retryLimit=%d",
+                  __func__, sampleIntvl, exchIntvl, hostInactivityLimit,
+                  masterInactivityLimit, retryLimit);
 
     if (lim_debug < 2)
         chdir("/tmp");
@@ -434,7 +428,6 @@ main(int argc, char **argv)
             char deny = false;
             int cc;
 
-            fromSize = sizeof(from);
             memset((char*)&from, 0, sizeof(from));
 
 #ifdef FLEX_RCVBUF
@@ -514,10 +507,10 @@ main(int argc, char **argv)
             }
 
             if (!limConfReady && limReqCode != LIM_MASTER_ANN
-                    && limReqCode != LIM_REBOOT
-                    && limReqCode != LIM_SHUTDOWN
-                    && limReqCode != LIM_DEBUGREQ
-                    && limReqCode != LIM_PING) {
+                && limReqCode != LIM_REBOOT
+                && limReqCode != LIM_SHUTDOWN
+                && limReqCode != LIM_DEBUGREQ
+                && limReqCode != LIM_PING) {
 
                 if (fromHost)
                     errorBack(&from, &reqHdr, LIME_CONF_NOTREADY, -1);
@@ -1153,8 +1146,6 @@ getTclLsInfo(void)
 static void
 startPIM(int argc, char **argv)
 {
-    static char fname[] = "startPIM";
-    char *pargv[16];
     int i;
     static time_t lastTime = 0;
 
@@ -1165,7 +1156,7 @@ startPIM(int argc, char **argv)
 
     if ((pimPid = fork())) {
         if (pimPid < 0)
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "fork");
+            syslog(LOG_ERR, "%s: failed %m", __func__);
         return;
     }
 
@@ -1173,22 +1164,23 @@ startPIM(int argc, char **argv)
 
     if (lim_debug > 1) {
 
-        for(i=3; i < sysconf(_SC_OPEN_MAX); i++)
+        for(i = 3; i < sysconf(_SC_OPEN_MAX); i++)
             close(i);
     } else {
-        for(i=0; i < sysconf(_SC_OPEN_MAX); i++)
+        for(i = 0; i < sysconf(_SC_OPEN_MAX); i++)
             close(i);
     }
 
-    for (i=1; i < NSIG; i++)
+    for (i = 1; i < NSIG; i++)
         Signal_(i, SIG_DFL);
 
-    for (i = 1; i < argc; i++)
-        pargv[i] = argv[i];
-    pargv[i] = NULL;
-    pargv[0] = getDaemonPath_("/pim", limParams[LSF_SERVERDIR].paramValue);
-    lsfExecv(pargv[0], pargv);
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "execv", pargv[0]);
+    char daemonPath[PATH_MAX];
+    snprintf(daemonPath, sizeof(daemonPath), "%s/pim",
+             limParams[LSF_SERVERDIR].paramValue);
+    char *pargv[] = {daemonPath, NULL };
+
+    execv(pargv[0], pargv);
+    syslog(LOG_ERR, "%s: failed %m", __func__);
     exit(-1);
 }
 

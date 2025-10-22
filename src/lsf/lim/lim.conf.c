@@ -951,7 +951,8 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                               *LineNum,
                               keyList[RKEY_INCREASING].val,
                               keyList[RKEY_RESOURCENAME].val,
-                              (allInfo.resTable[allInfo.nRes].orderType == LS_BOOLEAN)?"BOOLEAN":"STRING");
+                              ((int)allInfo.resTable[allInfo.nRes].orderType
+                               == (int)LS_BOOLEAN) ? "BOOLEAN":"STRING");
             } else {
                 if (allInfo.resTable[allInfo.nRes].valueType
                     == LS_NUMERIC) {
@@ -1708,9 +1709,6 @@ readCluster(int checkMode)
     checkHostWd();
 
     if (nClusAdmins == 0) {
-        struct passwd *pwd;
-        char rootName[MAXLSFNAMELEN];
-
         ls_syslog(LOG_ERR, "%s: No LavaLite managers specified in file"
                   "lsf.cluster.%s, default cluster manager is root.",
                   __func__, myClusterName);
@@ -1918,34 +1916,33 @@ domanager (FILE *clfp, char *lsfile, int *LineNum, char *secName)
 {
     static char fname[] = "domanager()";
     char *linep;
-    struct keymap keyList1[] = {
-        {"MANAGER", NULL, 0},
-        {NULL, NULL, 0}
-    };
-    struct keymap keyList2[] = {
+    struct keymap keyList[] = {
         {"ADMINISTRATORS", NULL, 0},
         {NULL, NULL, 0}
     };
-    struct keymap *keyList;
 
     if (lim_debug > 0 && lim_debug < 3) {
-        char lsfUserName[MAXLSFNAMELEN];
-
-        nClusAdmins = 1;
-        clusAdminIds = (int *) malloc (sizeof (int));
-        clusAdminGids = (int *) malloc (sizeof (int));
-        if (getpwnam(lsfUserName) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getLSFUser_");
+        struct passwd *pwd = getpwuid2(getuid());
+        if (pwd == NULL) {
+            // almost impossible
+            syslog(LOG_ERR, "%s: unknown user uid %d? %m", __func__, getuid());
             return -1;
         }
-        clusAdminIds[0] = getuid();
-        clusAdminGids[0] = getgid();
-        clusAdminNames = (char **) malloc (sizeof (char *));
-        clusAdminNames[0] = putstr_(lsfUserName);
+
+        nClusAdmins = 1;
+        clusAdminIds = calloc(1, sizeof (int));
+        clusAdminGids = calloc(1, sizeof (int));
+
+        clusAdminIds[0] = pwd->pw_uid;
+        clusAdminGids[0] = pwd->pw_gid;
+        clusAdminNames = calloc(1, sizeof(char *));
+        clusAdminNames[0] = strdup(pwd->pw_name);
+
         doSkipSection(clfp, LineNum, lsfile, secName);
         if (lim_CheckMode > 0)
-            ls_syslog(LOG_ERR, "%s: %s(%d: The cluster manager is the invoker <%s> in debug mode", fname, lsfile, *LineNum,
-                      lsfUserName);
+            ls_syslog(LOG_ERR, "%s: %s%d: The cluster manager is the invoker "
+                      "<%s> in debug mode", __func__, lsfile, *LineNum,
+                      pwd->pw_name);
         return 0;
     }
 
@@ -1958,11 +1955,6 @@ domanager (FILE *clfp, char *lsfile, int *LineNum, char *secName)
 
     if (isSectionEnd(linep, lsfile, LineNum, secName))
         return 0;
-
-    if (strcmp (secName, "clustermanager") == 0)
-        keyList = keyList1;
-    else
-        keyList = keyList2;
 
     if (strchr(linep, '=') == NULL) {
         if (! keyMatch(keyList, linep, true)) {
@@ -2957,22 +2949,16 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
         hPtr->hostInactivityCount = -1;
     }
 
-    if (hEntPtr->rcv)
+    if (hEntPtr->rcv) {
         for (resNo = 0; resNo < allInfo.nRes; resNo++) {
-            int isSet, j;
-            char *value, *name;;
+            int isSet;
 
             TEST_BIT(resNo, hPtr->resBitMaps, isSet);
             if (isSet == 0)
                 continue;
-
-            name = shortInfo.resName[resNo];
-            j = resNameDefined (shortInfo.resName[resNo]);
-            if (allInfo.resTable[j].valueType == LS_BOOLEAN)
-                value = "1";
-            else
-                value = "";
+            resNameDefined (shortInfo.resName[resNo]);
         }
+    }
     numofhosts++;
     return hPtr;
 }
@@ -3571,7 +3557,7 @@ addInstance (struct sharedResource *sharedResource,  int nHosts, char **hostName
 {
 
     static char fname[] = "addInstance()";
-    int i, resNo;
+    int i;
     struct resourceInstance **insPtr, *temp;
     struct hostNode *hPtr;
 
@@ -3582,12 +3568,12 @@ addInstance (struct sharedResource *sharedResource,  int nHosts, char **hostName
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
         return NULL;
     }
-    if ((temp->hosts = (struct hostNode **) malloc (nHosts * sizeof (struct hostNode *))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+    if ((temp->hosts = malloc (nHosts * sizeof (struct hostNode *))) == NULL) {
+        ls_syslog(LOG_ERR, "%s: %m", __func__);
         return NULL;
     }
     temp->resName = sharedResource->resourceName;
-    resNo = validResource(temp->resName);
+    validResource(temp->resName);
     for (i = 0; i < nHosts; i++) {
         if (hostNames[i] == NULL)
             continue;

@@ -456,3 +456,49 @@ void
 ls_closelog_ext() {
     logfile[0] = 0;
 }
+
+// LavaLite
+static int get_log_mask(const char *);
+
+void
+open_log(const char *ident, const char *mask, bool debug)
+{
+    int lmask = get_log_mask(mask);
+
+    setlogmask(LOG_UPTO(lmask));
+
+    if (debug)
+        openlog(ident, LOG_NDELAY|LOG_PERROR|LOG_PID, LOG_DAEMON);
+    else
+        openlog(ident, LOG_NDELAY|LOG_PID, LOG_DAEMON);
+}
+
+// log level string → syslog mask mapping
+static int
+get_log_mask(const char *mask)
+{
+    static const struct {
+        const char *name;
+        int level;
+    } log_levels[] = {
+        { "LOG_EMERG",   LOG_EMERG },
+        { "LOG_ALERT",   LOG_ALERT },
+        { "LOG_CRIT",    LOG_CRIT },
+        { "LOG_ERR",     LOG_ERR },
+        { "LOG_WARNING", LOG_WARNING },
+        { "LOG_NOTICE",  LOG_NOTICE },
+        { "LOG_INFO",    LOG_INFO },
+        { "LOG_DEBUG",   LOG_DEBUG },
+    };
+
+    if (mask == NULL)
+        return LOG_UPTO(LOG_INFO);
+
+    for (size_t i = 0; i < sizeof(log_levels)/sizeof(log_levels[0]); ++i) {
+        if (strcmp(mask, log_levels[i].name) == 0)
+            return LOG_UPTO(log_levels[i].level);
+    }
+
+    // fallback
+    return LOG_UPTO(LOG_INFO);
+}

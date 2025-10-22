@@ -632,8 +632,11 @@ chanSelect_(struct Masks *sockmask, struct Masks *chanmask, struct timeval *time
     }
     maxfds = FD_SETSIZE;
 
-    nReady = select(maxfds, &(sockmask->rmask), &(sockmask->wmask),
-                    &(sockmask->emask), timeout);
+    nReady = select(maxfds,
+                    &(sockmask->rmask),
+                    &(sockmask->wmask),
+                    &(sockmask->emask),
+                    NULL);
     if (nReady <= 0) {
         return nReady;
     }

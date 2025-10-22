@@ -19,6 +19,7 @@
 #ifndef _LSB_LIB_
 #define _LSB_LIB_
 
+#include "lsbatch.h"
 #include "lsf/lib/lib.common.h"
 #include "lsf/intlib/libllcore.h"
 #include "lsf/intlib/intlibout.h"

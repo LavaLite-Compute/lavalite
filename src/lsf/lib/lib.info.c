@@ -317,13 +317,8 @@ ls_getmastername(void)
 static int
 getname_(enum limReqCode limReqCode, char *name, int namesize)
 {
-    static char fname[] = "getname_";
-
     if (initenv_(NULL, NULL) < 0)
         return -1;
-
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     if (limReqCode == LIM_GET_CLUSNAME) {
         struct stringLen str;
@@ -333,27 +328,32 @@ getname_(enum limReqCode limReqCode, char *name, int namesize)
                      xdr_stringLen, NULL, _LOCAL_, NULL) < 0)
             return -1;
         return 0;
-    } else {
-        if (callLim_(limReqCode, NULL, NULL,
-                     &masterInfo_, xdr_masterInfo, NULL, _LOCAL_, NULL) < 0)
-            return -1;
-
-        if (memcmp((char *) &sockIds_[MASTER].sin_addr,
-                   (char *) &masterInfo_.addr, sizeof(uint16_t))) {
-            CLOSECD(limchans_[MASTER]);
-            CLOSECD(limchans_[TCP]);
-        }
-        memcpy(&sockIds_[MASTER].sin_addr,
-               &masterInfo_.addr, sizeof(uint16_t));
-        memcpy(&sockIds_[TCP].sin_addr,
-               &masterInfo_.addr, sizeof(uint16_t));
-        sockIds_[TCP].sin_port = masterInfo_.portno;
-        masterknown_ = true;
-        strncpy(name, masterInfo_.hostName, namesize);
-        name[namesize-1] = '\0';
-        return 0;
     }
+    if (callLim_(limReqCode,
+                 NULL,
+                 NULL,
+                 &masterInfo_,
+                 xdr_masterInfo,
+                 NULL,
+                 _LOCAL_,
+                 NULL) < 0) {
+        return -1;
+    }
+    // Copy the master address
+    if (memcmp(&sockIds_[MASTER].sin_addr,
+               &masterInfo_.addr, sizeof(in_addr_t))) {
+        CLOSECD(limchans_[MASTER]);
+        CLOSECD(limchans_[TCP]);
+    }
+    // Copy the tcp address
+    memcpy(&sockIds_[TCP].sin_addr,
+           &masterInfo_.addr, sizeof(in_addr_t));
+    sockIds_[TCP].sin_port = masterInfo_.portno;
+    masterknown_ = true;
+    strncpy(name, masterInfo_.hostName, namesize);
+    name[namesize-1] = '\0';
 
+    return 0;
 }
 
 char *

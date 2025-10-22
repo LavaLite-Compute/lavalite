@@ -24,7 +24,7 @@
 #include "config.h"
 
 /* System headers
-*/
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -49,6 +49,7 @@
 #include <poll.h>
 #include <assert.h>
 #include <sys/types.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <rpc/types.h>

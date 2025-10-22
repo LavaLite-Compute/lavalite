@@ -679,3 +679,33 @@ get_uid(const char *user, uid_t *uid)
 
     return LSE_NO_ERR;
 }
+
+struct passwd *
+getpwuid2(uid_t uid)
+{
+    static __thread char buf[XBUF_SIZ];
+    static __thread struct passwd pwd;
+    struct passwd *res = NULL;
+
+    int cc = getpwuid_r(uid, &pwd, buf, sizeof(buf), &res);
+    if (cc != 0)
+        return NULL;
+    if (res)
+        return res;
+
+    return NULL;
+}
+
+struct passwd *
+getpwnam2(const char *name)
+{
+    static __thread char buf[MINBUF_SIZ];
+    static __thread struct passwd pwd;
+    struct passwd *result = NULL;
+
+    if (getpwnam_r(name, &pwd, buf, sizeof(buf), &result) == 0
+        && result != NULL) {
+        return result;
+    }
+    return NULL;
+}

@@ -21,22 +21,46 @@
 // make it fast, make it clear, make it stop
 // everything else is noise
 
-#ifndef _LSF_H_
-#define _LSF_H_
+#ifndef _LL_API_H_
+#define _LL_API_H_
 
+// System headers
 #include <stdio.h>
-#include <unistd.h>
-#include <syslog.h>
-#include <stdarg.h>
-#include <float.h>
+#include <string.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <syslog.h>
+#include <pwd.h>
+#include <grp.h>
+#include <ctype.h>
+#include <limits.h>
+#include <netdb.h>
+#include <termios.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <dirent.h>
 #include <stdbool.h>
-#include <sys/param.h>
-#include <sys/time.h>
+#include <math.h>
+#include <float.h>
+#include <poll.h>
+#include <assert.h>
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <sys/resource.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <rpcsvc/ypclnt.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <sys/statvfs.h>
+#include <arpa/inet.h>
 
+// Define 64 bit types
 typedef int64_t LS_LONG_INT;
 typedef uint64_t LS_UNS_LONG_INT;
 
@@ -899,5 +923,10 @@ extern int   ls_catch (void *handle, char *key, exceptProto func);
 extern int   ls_throw (void *handle, char *key);
 extern char  *ls_sperror (char *usrMsg);
 #endif
-const char *ctime2(const time_t *tp);
+// LavaLite
+const char *ctime2(const time_t *);
+struct passwd *getpwuid2(uid_t);
+struct passwd *getpwnam2(const char *);
+void open_log(const char *, const char *, bool);
+
 #endif

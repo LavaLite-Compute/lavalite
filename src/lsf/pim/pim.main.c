@@ -147,8 +147,6 @@ main(int argc, char **argv)
     int i;
     char *myHost = "localhost";
 
-    0;
-
     for (i=1; i<argc; i++) {
 
         if (strcmp(argv[i], "-d") == 0 && argv[i+1] != NULL) {
