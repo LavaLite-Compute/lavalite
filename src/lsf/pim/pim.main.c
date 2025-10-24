@@ -210,7 +210,7 @@ main(int argc, char **argv)
         ls_openlog("pim", pimParams[LSF_LOGDIR].paramValue, FALSE,
                 pimParams[LSF_LOG_MASK].paramValue);
 
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "pim/main: logclass=%x", logclass);
 
     ls_syslog(LOG_NOTICE, argvmsg_(argc, argv));

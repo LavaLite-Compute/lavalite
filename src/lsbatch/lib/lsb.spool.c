@@ -715,7 +715,7 @@ cpRemoteFiles(const char* localSrcFileFullPath, const char* hostName,
 
     lsXfer.szSourceArg = putstr_(localSrcFileFullPath);
 
-    if (getpwnam(lsfUserName) == NULL) {
+    if (getpwnam2(lsfUserName) == NULL) {
         ls_donerex();
         goto Error;
     }

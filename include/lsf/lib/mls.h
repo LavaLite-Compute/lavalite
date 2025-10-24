@@ -38,7 +38,6 @@ extern int mlsSbdMode;
 #define lsfExecvp(file, argv)	    lsfExecX(file, argv, execvp)
 
 extern int lsfSetXUid(int, int, int, int, int(*)());
-extern void lsfExecLog(const char *);
 extern int lsfExecX(char *, char **argv, int(*)());
 
 #endif

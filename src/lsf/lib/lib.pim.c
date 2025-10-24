@@ -64,8 +64,6 @@ static char *readPIMBuf(char *);
 
 static int argOptions;
 
-extern void setHdrReserved(struct LSFHeader *, unsigned int);
-
 struct jRusage *
 getJInfo_(int npgid, int *pgid, int options, int cpgid)
 {
@@ -186,8 +184,6 @@ getJInfo_(int npgid, int *pgid, int options, int cpgid)
         initLSFHeader_(&recvHdr);
 
         sendHdr.opCode = options;
-        sendHdr.refCode = (short) now & 0xffff;
-        setHdrReserved(&sendHdr, cpgid);
 
         if ((cc = writeEncodeHdr_(s, &sendHdr, b_write_fix)) < 0) {
             if (logclass & LC_PIM)

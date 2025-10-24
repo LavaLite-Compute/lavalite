@@ -19,736 +19,190 @@
 
 #include "lsf/lim/lim.h"
 
-#define SLIMCONF_GRP_SIZE    (64)
-#define SLIMCONF_GRP_MAXWAIT (2048)
-#define SLIMCONF_MAXMSG_SIZE (8192)
-
 #define  MAXMSGLEN     (1<<24)
 #define LIM_CONNECT_TIMEOUT 5
 #define LIM_RECV_TIMEOUT    20
 #define LIM_RETRYLIMIT      2
 #define LIM_RETRYINTVL      500
 
-static int addSLimConfInXdr(struct hostNode *hPtr,
-                            int flags,
-                            XDR *xdrPtr,
-                            int xdrSize,
-                            struct LSFHeader *hdr);
-static int getMinSLimConfUDP(XDR *xdrs);
-static int getMinSLimConfTCP(struct hostNode *masterPtr, int limRetryCnt,
-                             int limRetryIntvl);
-static int packMinSLimConfData(struct minSLimConfData *sLimConfDatap,
-                               struct  hostNode *hPtr);
-static int unpackMinSLimConfData(struct minSLimConfData *sLimConfDatap);
-
-static int getMinSLimConfDataSize(struct minSLimConfData *sLimConfDatap);
-
 extern short  hostInactivityLimit;
 extern int daemonId;
 
 extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct LSFHeader *);
 
-extern int getHdrReserved(struct LSFHeader *);
-extern void setHdrReserved(struct LSFHeader *, unsigned int);
-
 void
 masterRegister(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 {
-    static char fname[]="masterRegister";
     static int checkSumMismatch;
     struct hostNode *hPtr;
     struct masterReg masterReg;
-    int isFromLocalCluster;
-    int xdrSLIMConfDone = false;
-    struct masterAnnSLIMConf sLimConf;
 
     if (!limPortOk(from))
         return;
+
     if (!xdr_masterReg(xdrs, &masterReg, reqHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_masterReg");
+        ls_syslog(LOG_ERR, "%s: Failed in xdr_masterReg", __func__);
         return;
     }
 
-    if (masterReg.flags & SEND_MASTER_QUERY) {
+    if (strcmp(myClusterPtr->clName, masterReg.clName) != 0) {
+        syslog(LOG_WARNING, "\
+%s: Discard announce from a different cluster %s than mine %s (?)",
+                  __func__, masterReg.clName, myClusterPtr->clName);
+        return;
+    }
 
-        if (isMasterCandidate && myClusterPtr->masterKnown) {
-            hPtr = findHostbyList(myClusterPtr->hostList, masterReg.hostName);
-            if (hPtr == NULL) {
-                ls_syslog(LOG_ERR, "%s: Got master announcement from unused host %s; \
+    if (masterReg.checkSum != myClusterPtr->checkSum
+        && checkSumMismatch < 2
+        && (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL)) {
+
+        syslog(LOG_WARNING, "%s: Sender %s may have different config.",
+               __func__, masterReg.hostName);
+        checkSumMismatch++;
+    }
+
+    if (equalHost_(myHostPtr->hostName, masterReg.hostName))
+        return;
+
+    hPtr = findHostbyList(myClusterPtr->hostList, masterReg.hostName);
+    if (hPtr == NULL) {
+        syslog(LOG_ERR, "\
+%s: Got master announcement from unused host %s; \
 Run lim -C on this host to find more information",
-                          fname, masterReg.hostName);
-                goto cleanup;
-            }
-
-            announceMasterToHost(hPtr, SEND_NO_INFO);
-            goto cleanup;
-        } else {
-            goto cleanup;
-        }
+                  __func__, masterReg.hostName);
+        return;
     }
+    /* Regular announce from the master.
+     */
+    if (myClusterPtr->masterKnown
+        && hPtr == myClusterPtr->masterPtr) {
 
-    if (isMasterCandidate == false && !limConfReady) {
+        myClusterPtr->masterInactivityCount = 0;
 
-        if (getMasterCandidateNoByName_(masterReg.hostName) >= 0) {
+        if (masterReg.flags & SEND_ELIM_REQ)
+            myHostPtr->callElim = TRUE ;
+        else
+            myHostPtr->callElim = FALSE ;
 
-            if (myClusterPtr->clName) {
-                free(myClusterPtr->clName);
-            }
-            myClusterPtr->clName = putstr_(masterReg.clName);
-            strcpy(myClusterName, masterReg.clName);
+        if ((masterReg.seqNo - hPtr->lastSeqNo > 2)
+            && (masterReg.seqNo > hPtr->lastSeqNo)
+            && (hPtr->lastSeqNo != 0))
 
-            isFromLocalCluster = true;
-        } else {
-            isFromLocalCluster = false;
-        }
-    } else {
-        if (strcmp(myClusterPtr->clName, masterReg.clName) == 0) {
-            isFromLocalCluster = true;
-        } else {
-            isFromLocalCluster = false;
-        }
-    }
+            ls_syslog(LOG_WARNING, "\
+%s: master %s lastSeqNo=%d seqNo=%d. Packets dropped?",
+                      __func__, hPtr->hostName,
+                      hPtr->lastSeqNo, masterReg.seqNo);
 
-    if (isFromLocalCluster) {
+        hPtr->lastSeqNo = masterReg.seqNo;
+        hPtr->statInfo.portno = masterReg.portno;
 
-        if (limConfReady
-            && (masterReg.checkSum != myClusterPtr->checkSum)
-            && (checkSumMismatch < 2)
-            && (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue
-                == NULL) ) {
-            ls_syslog(LOG_WARNING, "%s: Sender (%s may have different config.",
-                      fname, masterReg.hostName);
-            checkSumMismatch++;
+        if (masterReg.flags & SEND_CONF_INFO)
+            sndConfInfo(from);
+
+        if (masterReg.flags & SEND_LOAD_INFO) {
+            mustSendLoad = TRUE;
+            ls_syslog(LOG_DEBUG, "\
+%s: Master lim is probing me. Send my load in next interval", __func__);
         }
 
-        if (equalHost_(myHostPtr->hostName, masterReg.hostName))
-            goto cleanup;
+        return;
 
-        hPtr = findHostbyList(myClusterPtr->hostList, masterReg.hostName);
-        if (hPtr == NULL) {
-            ls_syslog(LOG_ERR, "%s: Got master announcement from unused host %s; \
-Run lim -C on this host to find more information",
-                      fname, masterReg.hostName);
-            goto cleanup;
+    }
+
+    if (myClusterPtr->masterKnown
+        && hPtr->hostNo < myHostPtr->hostNo
+        && myClusterPtr->masterPtr->hostNo < hPtr->hostNo
+        && myClusterPtr->masterInactivityCount <= hostInactivityLimit) {
+        syslog(LOG_INFO, "%s: Host %s is trying to take over from %s, "
+               "not accepted", __func__, masterReg.hostName,
+               myClusterPtr->masterPtr->hostName);
+        announceMasterToHost(hPtr, SEND_NO_INFO);
+        return;
+    }
+
+    if (hPtr->hostNo < myHostPtr->hostNo) {
+        // This is the regular master registration.
+        hPtr->protoVersion = reqHdr->version;
+        myClusterPtr->prevMasterPtr = myClusterPtr->masterPtr;
+        myClusterPtr->masterPtr   = hPtr;
+
+        myClusterPtr->masterPtr->statInfo.portno = masterReg.portno;
+        if (masterMe) {
+            syslog(LOG_INFO, "%s: Give in master to %s", __func__, masterReg.hostName);
+        }
+        masterMe                  = 0;
+        myClusterPtr->masterKnown = 1;
+        myClusterPtr->masterInactivityCount = 0;
+        mustSendLoad = 1;
+
+        if (masterReg.flags | SEND_CONF_INFO)
+            sndConfInfo(from);
+
+        if (masterReg.flags & SEND_LOAD_INFO) {
+            mustSendLoad = 1;
+            syslog(LOG_DEBUG, "\
+%s: Master lim is probing me. Send my load in next interval", __func__);
         }
 
-        if (isMasterCandidate == false) {
-
-            if (!(masterReg.flags & SLIM_XDR_DATA)) {
-                ls_syslog(LOG_ERR, "%s: expected slave-only LIM configuration data, sender %s may have different lsf.conf, flags=0x%x",
-                          fname, masterReg.hostName, masterReg.flags);
-                goto cleanup;
-            }
-
-            if (!xdr_masterAnnSLIMConf(xdrs, &sLimConf, reqHdr)) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                          "xdr_masterAnnSLIMConf");
-            } else {
-
-                myHostPtr->hostNo = sLimConf.hostNo;
-                xdrSLIMConfDone = true;
-            }
-        }
-
-        if (myClusterPtr->masterKnown && hPtr == myClusterPtr->masterPtr){
-
-            myClusterPtr->masterInactivityCount = 0;
-
-            if (masterReg.flags & SEND_ELIM_REQ) {
-                int i;
-                myHostPtr->callElim = true ;
-                myHostPtr->maxResIndex = masterReg.maxResIndex;
-                if (myHostPtr->resBitArray) {
-                    myHostPtr->resBitArray = (int *)
-                        realloc((void *)myHostPtr->resBitArray,
-                                myHostPtr->maxResIndex * sizeof(int));
-                } else {
-                    myHostPtr->resBitArray = (int *)
-                        calloc(myHostPtr->maxResIndex, sizeof(int));
-                }
-                if ( myHostPtr->resBitArray == NULL ) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-                    myHostPtr->maxResIndex = 0;
-                    myHostPtr->callElim = false;
-                }
-
-                for ( i=0; i < myHostPtr->maxResIndex; i++){
-                    myHostPtr->resBitArray[i] = masterReg.resBitArray[i];
-                }
-                FREEUP(masterReg.resBitArray);
-            } else {
-                myHostPtr->callElim = false ;
-                myHostPtr->maxResIndex = 0;
-            }
-
-            if ((masterReg.seqNo - hPtr->lastSeqNo > 2)
-                && (masterReg.seqNo > hPtr->lastSeqNo)
-                && (hPtr->lastSeqNo != 0))
-                ls_syslog(LOG_WARNING, "%s: master %s lastSeqNo=%d seqNo=%d. Packets dropped?",
-                          fname,
-                          hPtr->hostName,
-                          hPtr->lastSeqNo,
-                          masterReg.seqNo);
-            hPtr->lastSeqNo = masterReg.seqNo;
-
-            hPtr->statInfo.portno = masterReg.portno;
-
-            if (masterReg.flags & SEND_CONF_INFO) {
-                sndConfInfo(from, LIM_STARTUP);
-            } else {
-
-                if (masterReg.flags & SEND_LIM_LOCKEDM) {
-                    myHostPtr->status[0] |= LIM_LOCKEDM;
-                } else {
-                    myHostPtr->status[0] &= ~LIM_LOCKEDM;
-                }
-            }
-
-            if (masterReg.flags & SEND_LOAD_INFO) {
-
-                mustSendLoad = true;
-                ls_syslog(LOG_DEBUG,"%s: Master lim is probing me. Send my load in next interval",fname);
-            }
-        } else {
-
-            if ((myClusterPtr->masterKnown) &&
-                (hPtr->hostNo < myHostPtr->hostNo) &&
-                (myClusterPtr->masterPtr->hostNo < hPtr->hostNo) &&
-                (myClusterPtr->masterInactivityCount <= hostInactivityLimit)){
-                ls_syslog(LOG_INFO, ("%s: Host <%s> is trying to take over from <%s>, not accepted"),
-                          fname, masterReg.hostName, myClusterPtr->masterPtr->hostName);
-
-                announceMasterToHost(hPtr, SEND_NO_INFO);
-                goto cleanup;
-            }
-
-            if (hPtr->hostNo < myHostPtr->hostNo) {
-
-                hPtr->statInfo.portno = masterReg.portno;
-
-                if (isMasterCandidate == false && !limConfReady) {
-
-                    if (xdrSLIMConfDone) {
-
-                        if (sLimConf.flags & ANN_SLIMCONF_ALL_MIN) {
-
-                            getMinSLimConfUDP(xdrs);
-
-                        } else {
-
-                            int msIntvl, grp_max_wait, grp_sz;
-                            char *sp;
-
-                            sp = getenv("SLIMCONF_GRP_MAXWAIT");
-                            if (sp) {
-                                grp_max_wait = atoi(sp);
-                                if (grp_max_wait <= 0) {
-                                    grp_max_wait = SLIMCONF_GRP_MAXWAIT;
-                                }
-                            } else {
-                                grp_max_wait = SLIMCONF_GRP_MAXWAIT;
-                            }
-
-                            sp = getenv("SLIMCONF_GRP_SIZE");
-                            if (sp) {
-                                grp_sz = atoi(sp);
-                                if (grp_sz <= 0) {
-                                    grp_sz = SLIMCONF_GRP_SIZE;
-                                }
-                            } else {
-                                grp_sz = SLIMCONF_GRP_SIZE;
-                            }
-
-                            if (sLimConf.flags & ANN_SLIMCONF_TO_ALL) {
-
-                                msIntvl = ((sLimConf.hostNo
-                                            - numMasterCandidates)
-                                           / grp_sz)
-                                    * grp_max_wait
-                                    + rand() % grp_max_wait;
-                            } else {
-                                msIntvl = rand() % grp_max_wait;
-                            }
-
-                            if (logclass & LC_COMM) {
-                                ls_syslog(LOG_DEBUG, "%s: SLIM wait %d ms to TCP MLIM on host %s", fname, msIntvl, hPtr->hostName);
-                            }
-
-                            millisleep_(msIntvl);
-
-                            getMinSLimConfTCP(hPtr, 0, 0);
-                        }
-                    }
-
-                    if (limConfReady) {
-
-                        masterReg.flags |= SEND_CONF_INFO;
-                    } else {
-
-                        goto cleanup;
-                    }
-                }
-
-                hPtr->protoVersion = reqHdr->version;
-                myClusterPtr->prevMasterPtr = myClusterPtr->masterPtr;
-                myClusterPtr->masterPtr   = hPtr;
-
-                if (masterMe) {
-                    ls_syslog(LOG_INFO, ("%s: Give in master to <%s>"),
-                              fname, masterReg.hostName);
-
-                }
-                daemonId                  = DAEMON_ID_LIM;
-                masterMe                  = false;
-                myClusterPtr->masterKnown = true;
-                myClusterPtr->masterInactivityCount = 0;
-                mustSendLoad = true;
-
-                if (masterReg.flags & SEND_CONF_INFO) {
-                    sndConfInfo(from, LIM_STARTUP);
-                }
-                if (masterReg.flags & SEND_LOAD_INFO) {
-
-                    mustSendLoad = true;
-                    ls_syslog(LOG_DEBUG,"%s: Master lim is probing me. Send my load in next interval",fname);
-                }
-            } else {
-
-                if (myClusterPtr->masterKnown &&
-                    myClusterPtr->masterInactivityCount < hostInactivityLimit){
-
-                    announceMasterToHost(hPtr, SEND_NO_INFO);
-                    ls_syslog(LOG_INFO, ("\
-%s: Host <%s> is trying to take over master LIM from %s, not accepted"),
-                              fname, masterReg.hostName,
-                              myClusterPtr->masterPtr->hostName);
-                } else
-                    ls_syslog(LOG_INFO, ("%s: Host <%s> is trying to take over master LIM, not accepted"), fname,
-                              masterReg.hostName);
-            }
-        }
+        return;
     }
 
-cleanup:
-    FREEUP(masterReg.resBitArray);
-    return;
-}
+    if (myClusterPtr->masterKnown
+        && myClusterPtr->masterInactivityCount < hostInactivityLimit) {
 
-static int
-addSLimConfInXdr(struct hostNode *hPtr,
-                 int flags,
-                 XDR *xdrPtr,
-                 int xdrSize,
-                 struct LSFHeader *hdr)
-{
-    static char fname[]="addSLimConfInXdr";
-    struct masterAnnSLIMConf sLimConf;
-    struct minSLimConfData minSLimInfo;
-    int    savePos, bufSize;
-    int    sendConfData = true;
-    int    maxMsgSize = 0;
-    char   *sp;
+        announceMasterToHost(hPtr, SEND_NO_INFO);
+        syslog(LOG_INFO, "\
+%s: Host %s is trying to take over master LIM from %s, not accepted",
+                  __func__, masterReg.hostName,
+                  myClusterPtr->masterPtr->hostName);
+        return;
 
-    if (hPtr->hostNo < numMasterCandidates) {
-
-        return 0;
     }
 
-    if ((sp = (getenv("SLIMCONF_MAXMSG_SIZE"))) != NULL) {
-        maxMsgSize = atoi(sp);
-    }
-    if (maxMsgSize <= 0) {
-        maxMsgSize = SLIMCONF_MAXMSG_SIZE;
-    }
+    syslog(LOG_INFO, "\
+%s: Host %s is trying to take over master LIM, not accepted", __func__,
+              masterReg.hostName);
 
-    sLimConf.flags = 0;
-    if (flags & ANN_SLIMCONF_TO_ALL) {
-        sLimConf.flags |= ANN_SLIMCONF_TO_ALL;
-    }
-    sLimConf.hostNo = hPtr->hostNo;
-
-    if (hPtr->infoValid == false
-        && (flags & ANN_SLIMCONF_ALL_MIN)
-        && masterMe) {
-
-        if (packMinSLimConfData(&minSLimInfo, hPtr) < 0) {
-            ls_syslog(LOG_DEBUG, "Error when pack kMinSLimConfData");
-            sendConfData = false;
-        } else {
-            bufSize = getMinSLimConfDataSize(&minSLimInfo);
-            bufSize = bufSize + XDR_GETPOS(xdrPtr);
-            sendConfData = true;
-        }
-
-        if ((bufSize < maxMsgSize) && sendConfData) {
-
-            savePos = XDR_GETPOS(xdrPtr);
-            sLimConf.flags |= ANN_SLIMCONF_ALL_MIN;
-
-            if (!(xdr_masterAnnSLIMConf(xdrPtr,  &sLimConf, hdr) &&
-                  xdr_minSLimConfData(xdrPtr, &minSLimInfo, hdr))) {
-
-                ls_syslog(LOG_DEBUG, I18N_FUNC_FAIL, fname,
-                          "xdr_masterAnnSLIMConf/xdr_minSLimConfData");
-            } else {
-                bufSize = XDR_GETPOS(xdrPtr);
-                if (bufSize < maxMsgSize) {
-                    if (logclass & LC_COMM) {
-                        ls_syslog(LOG_DEBUG, "%s: minSLimConfData is packed in LIM_MASTER_ANN, bufSize = %d",
-                                  fname, bufSize);
-                    }
-
-                    return 0;
-                }
-            }
-
-            sLimConf.flags &= ~ANN_SLIMCONF_ALL_MIN;
-            XDR_SETPOS (xdrPtr, savePos);
-        }
-    }
-
-    if (!xdr_masterAnnSLIMConf(xdrPtr, &sLimConf, hdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                  "xdr_masterAnnSLIMConf");
-        return -1;
-    }
-
-    return 0;
-}
-
-static int
-getMinSLimConfUDP(XDR *xdrs)
-{
-    static char fname[] = "getMinSLimConfUDP";
-    struct minSLimConfData minSLimInfo;
-    struct LSFHeader hdr;
-
-    if (!xdr_minSLimConfData(xdrs, &minSLimInfo, &hdr)) {
-        ls_syslog(LOG_ERR,  I18N_FUNC_FAIL, fname, "xdr_minSLimConfData");
-        return -1;
-    }
-
-    if (unpackMinSLimConfData(&minSLimInfo) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "unpackMinSLimConfData");
-        xdr_lsffree(xdr_minSLimConfData, (char *)&minSLimInfo, &hdr);
-        return -1;
-    }
-
-    if (logclass & LC_COMM) {
-        ls_syslog(LOG_DEBUG, "%s: minSLimConfData unpacked, and length = %d",
-                  fname, XDR_GETPOS(xdrs));
-    }
-
-    xdr_lsffree(xdr_minSLimConfData, (char *)&minSLimInfo, &hdr);
-
-    slaveOnlyPostConf(lim_CheckMode, &kernelPerm);
-
-    return 0;
-}
-
-static int
-getMinSLimConfDataSize(struct minSLimConfData *minSLimInfo)
-{
-    int    i, bufSize;
-    struct sharedResourceInstance *tmp;
-
-    bufSize = 128 + ALIGNWORD_(sizeof(minSLimInfo));
-    bufSize += ALIGNWORD_(minSLimInfo->nClusAdmins * (sizeof(int)));
-
-    for (i = 0; i < minSLimInfo->nClusAdmins; i++) {
-
-        bufSize += ALIGNWORD_(strlen(minSLimInfo->clusAdminNames[i]) +
-                              sizeof(int));
-    }
-
-    for (i = 0; i < (minSLimInfo->allInfo_nRes - NBUILTINDEX); i++) {
-
-        bufSize += ALIGNWORD_(strlen(minSLimInfo->allInfo_resTable[i].name)
-                              + sizeof(int));
-        bufSize += ALIGNWORD_(sizeof(enum valueType));
-        bufSize += ALIGNWORD_(sizeof(enum orderType));
-        bufSize += ALIGNWORD_(sizeof(int));
-        bufSize += ALIGNWORD_(sizeof(int));
-    }
-
-    bufSize += ALIGNWORD_(strlen(minSLimInfo->myCluster_eLimArgs) +
-                          sizeof(int));
-    bufSize += ALIGNWORD_(strlen(minSLimInfo->myHost_windows) + sizeof(int));
-
-    for (i = 0; i < 8; i++) {
-        bufSize += ALIGNWORD_(minSLimInfo->numMyhost_weekpair[i] *
-                              sizeof(windows_t));
-    }
-
-    bufSize += ALIGNWORD_(minSLimInfo->allInfo_numIndx * sizeof(float));
-
-    for (i = 0; i < minSLimInfo->myHost_numInstances; i++) {
-        bufSize += ALIGNWORD_(strlen(minSLimInfo->myHost_instances[i]->resName)
-                              + sizeof(int));
-    }
-
-    for (tmp = minSLimInfo->sharedResHead; tmp; tmp = tmp->nextPtr) {
-        bufSize += ALIGNWORD_(strlen(tmp->resName) + sizeof(int));
-    }
-
-    return bufSize;
-
-}
-
-int
-sendMinSLimConfTCP(XDR *xdrs, struct LSFHeader *hdr, int chfd)
-{
-    static char fname[] = "sendMinSLimConfTCP";
-    int    pid = 0;
-    int    bFork = false;
-    int    rc = 0;
-    int     len, bufSize;
-    XDR    xdrs2;
-    char   *buf;
-    struct LSFHeader replyHdr;
-    struct minSLimConfData minSLimInfo;
-    struct statInfo;
-    struct hostNode *hPtr;
-
-    if ((hPtr = clientMap[chfd]->fromHost) == NULL) {
-        ls_syslog(LOG_ERR, "the fromHost is NULL");
-        return -1;
-    }
-
-    if (getenv("SLIMCONF_MLIM_FORK")) {
-        bFork = true;
-    }
-
-    if (bFork) {
-        pid = fork();
-    } else {
-        pid = 0;
-        io_block_(chanSock_(chfd));
-    }
-
-    if (pid != 0) {
-
-        if (pid < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "fork");
-            rc = -1;
-        }
-        return 0;
-    }
-
-    if (packMinSLimConfData(&minSLimInfo, hPtr) < 0) {
-        ls_syslog(LOG_ERR,  "error when pack MinSLimConfData");
-        rc = -1;
-    } else {
-
-        bufSize = getMinSLimConfDataSize(&minSLimInfo);
-
-        bufSize = MAX(bufSize, MSGSIZE);
-
-        buf = (char *)malloc(bufSize);
-
-        if (!buf) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-            rc = -1;
-        } else {
-            xdrmem_create(&xdrs2, buf, bufSize, XDR_ENCODE);
-            initLSFHeader_(&replyHdr);
-            replyHdr.opCode = LIME_NO_ERR;
-
-            if (!xdr_encodeMsg(&xdrs2, (char *) &minSLimInfo,  &replyHdr,
-                               xdr_minSLimConfData, 0, NULL)) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_encodeMsg");
-                FREEUP (buf);
-                xdr_destroy(&xdrs2);
-                rc = -1;
-            } else {
-                len = XDR_GETPOS(&xdrs2);
-                if ((chanWrite_(chfd, buf, len)) < 0) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "chanWrite_");
-                    rc = -1;
-                }
-                FREEUP (buf);
-                xdr_destroy(&xdrs2);
-                if (logclass & LC_COMM) {
-                    ls_syslog(LOG_DEBUG, "%s: minSLimConfData is packed and sent via Blocking TCP. bufSize = %d",
-                              fname, len);
-                }
-            }
-        }
-    }
-
-    if (bFork) {
-        exit (0);
-    } else {
-        return rc;
-    }
-}
-
-static int
-getMinSLimConfTCP(struct hostNode *masterPtr, int limRetryCnt,
-                  int limRetryIntvl)
-{
-    static char fname[] = "getMinSLimConfTCP";
-    struct minSLimConfData minSLimInfo;
-    struct LSFHeader hdr;
-    int    rc = 0;
-    int    retryCnt = 1;
-
-    if (limRetryCnt <= 0) {
-        limRetryCnt = LIM_RETRYLIMIT;
-    }
-    if (limRetryIntvl <= 0) {
-        limRetryIntvl = LIM_RETRYINTVL;
-    }
-
-    do {
-        rc = callMasterTcp(LIM_SLIMCONF_REQ, masterPtr, NULL, NULL,
-                           &minSLimInfo, xdr_minSLimConfData, 0, 0, &hdr);
-        if (rc < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "callMasterTcp");
-            return -1;
-        } else if (rc > 0) {
-            ls_syslog(LOG_DEBUG, ("Network Error %d"),
-                      rc);
-            if (retryCnt <= limRetryCnt) {
-                millisleep_(limRetryIntvl);
-                retryCnt++;
-            } else {
-                ls_syslog(LOG_ERR, ("Network Error after %d retry[s]"),
-                          retryCnt);
-                return -1;
-            }
-        }
-    } while (rc);
-
-    if (unpackMinSLimConfData(&minSLimInfo) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "unpackMinSLimConfData");
-        xdr_lsffree(xdr_minSLimConfData, (char *)&minSLimInfo, &hdr);
-        return -1;
-    }
-
-    if (logclass & LC_COMM) {
-        ls_syslog(LOG_DEBUG, "%s: minSLimConfData unpacked OK", fname);
-    }
-    xdr_lsffree(xdr_minSLimConfData, (char *)&minSLimInfo, &hdr);
-
-    slaveOnlyPostConf(lim_CheckMode, &kernelPerm);
-
-    return 0;
-}
-
-static int
-setupMasterRegBitArray(struct masterReg *tmasterReg, struct hostNode *hPtr)
-{
-    int i, size;
-
-    size = tmasterReg->maxResIndex = hPtr->maxResIndex;
-    tmasterReg->resBitArray = (int *)malloc(size*sizeof(int));
-    if (!(tmasterReg->resBitArray)){
-        return -1;
-    }
-    for (i=0; i < size; i++ ){
-        tmasterReg->resBitArray[i] = hPtr->resBitArray[i];
-    }
-
-    return 0;
 }
 
 static void
 announceElimInstance(struct clusterNode *clPtr)
 {
-    struct hostNode *hostPtr;
-    struct sharedResourceInstance *tmp;
-    int i, newMax, bitPos;
-
-    for (tmp=sharedResourceHead, bitPos=0; tmp ; tmp=tmp->nextPtr, bitPos++) {
-        for (i=0;i<tmp->nHosts;i++){
-            hostPtr = tmp->hosts[i] ;
-            if (hostPtr){
-                if (hostPtr->infoValid){
-                    hostPtr->callElim = true ;
-                    newMax = GET_INTNUM(bitPos);
-                    if (newMax+1 > hostPtr->maxResIndex)
-                        hostPtr->maxResIndex = newMax+1;
-                    SET_BIT(bitPos,hostPtr->resBitArray);
-                    if (logclass & LC_ELIM)
-                        ls_syslog(LOG_DEBUG,"setting %s->callElim ...",hostPtr->hostName);
-                    break ;
-                }
-            }
-        }
-    }
-
+    // Bug there must be better way to do this using the
+    // external hooks
 }
 
 void
 announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 {
-    static char      fname[] = "announceMaster";
     struct hostNode *hPtr;
     struct sockaddr_in toAddr;
     struct masterReg tmasterReg ;
     XDR    xdrs1;
+    char   buf1[MSGSIZE/4];
     XDR    xdrs2;
-    XDR    xdrs3;
+    char   buf2[MSGSIZE/4];
     XDR    xdrs4;
-    XDR    xdrs5;
-    static char *buf1 = NULL;
-    static char *buf2 = NULL;
-    static char *buf3 = NULL;
-    static char *buf4 = NULL;
-    static char *buf5 = NULL;
-    static int  cnt = 0;
-    char   *sp;
+    char   buf4[MSGSIZE/4];
     enum limReqCode limReqCode;
     struct masterReg masterReg;
+    static int cnt = 0;
     struct LSFHeader reqHdr;
-    int announceInIntvl,numAnnounce,i;
+    int announceInIntvl;
+    int numAnnounce;
+    int i;
     int periods;
-    int maxMsgSize = 0;
-    int savePos1, savePos2, savePos5;
-    int limConfAnnFlags = ANN_SLIMCONF_ALL_MIN;
 
-    if ((sp = (getenv("SLIMCONF_MAXMSG_SIZE"))) != NULL) {
-        maxMsgSize = atoi(sp);
-    }
-    if (maxMsgSize <= 0) {
-        maxMsgSize = SLIMCONF_MAXMSG_SIZE;
-    }
+    // Bug implement ad moving window on the list of hosts
 
-    if (buf1 == NULL) {
-        if ((buf1 = (char *)malloc(maxMsgSize * sizeof(char))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-            return;
-        }
-    }
-    if (buf2 == NULL) {
-        if ((buf2 = (char *)malloc(maxMsgSize * sizeof(char))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-            return;
-        }
-    }
-    if (buf3 == NULL) {
-        if ((buf3 = (char *)malloc(maxMsgSize * sizeof(char))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-            return;
-        }
-    }
-    if (buf4 == NULL) {
-        if ((buf4 = (char *)malloc(maxMsgSize * sizeof(char))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-            return;
-        }
-    }
-    if (buf5 == NULL) {
-        if ((buf5 = (char *)malloc(maxMsgSize * sizeof(char))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-            return;
-        }
-    }
-
-    announceElimInstance(clPtr) ;
-
-    periods = (hostInactivityLimit - 1)*exchIntvl/sampleIntvl;
+    /* hostInactivityLimit = 5
+     * exchIntvl = 15
+     * sampleIntvl = 5
+     * periods = (5 - 1) * 15/5 = 60/5 = 12
+     *         = 4 * 30/5 = 24
+     *         = 4 * 60/5 = 48
+     */
+    periods = (hostInactivityLimit - 1) * exchIntvl/sampleIntvl;
     if (!all && (++cnt > (periods - 1))) {
         cnt = 0;
         masterAnnSeqNo++;
@@ -760,7 +214,6 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
     masterReg.seqNo    = masterAnnSeqNo;
     masterReg.checkSum = myClusterPtr->checkSum;
     masterReg.portno   = myClusterPtr->masterPtr->statInfo.portno;
-    masterReg.maxResIndex = 0;
 
     toAddr.sin_family = AF_INET;
     toAddr.sin_port = lim_port;
@@ -769,278 +222,170 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
     reqHdr.opCode  = (short) limReqCode;
     reqHdr.refCode = 0;
 
-    xdrmem_create(&xdrs1, buf1, maxMsgSize, XDR_ENCODE);
+    xdrmem_create(&xdrs1, buf1, MSGSIZE/4, XDR_ENCODE);
     masterReg.flags = SEND_NO_INFO ;
-    if (!(xdr_LSFHeader(&xdrs1, &reqHdr) &&
-          xdr_masterReg(&xdrs1, &masterReg, &reqHdr))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader/xdr_masterReg");
+
+    if (! (xdr_LSFHeader(&xdrs1, &reqHdr)
+           && xdr_masterReg(&xdrs1, &masterReg, &reqHdr))) {
+        ls_syslog(LOG_ERR, "\
+%s: Error in xdr_LSFHeader/xdr_masterReg", __func__);
         xdr_destroy(&xdrs1);
         return;
     }
 
-    xdrmem_create(&xdrs2, buf2, maxMsgSize, XDR_ENCODE);
+    xdrmem_create(&xdrs2, buf2, MSGSIZE/4, XDR_ENCODE);
     masterReg.flags = SEND_CONF_INFO;
-    if (!(xdr_LSFHeader(&xdrs2, &reqHdr) &&
-          xdr_masterReg(&xdrs2, &masterReg, &reqHdr))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_enum/xdr_masterReg");
+    if (! (xdr_LSFHeader(&xdrs2, &reqHdr)
+           && xdr_masterReg(&xdrs2, &masterReg, &reqHdr))) {
+        ls_syslog(LOG_ERR, "\
+%s: Error in xdr_enum/xdr_masterReg", __func__);
         xdr_destroy(&xdrs1);
         xdr_destroy(&xdrs2);
         return;
     }
 
-    xdrmem_create(&xdrs5, buf5, maxMsgSize, XDR_ENCODE);
-    masterReg.flags = SEND_NO_INFO | SEND_LIM_LOCKEDM;
-    if (!(xdr_LSFHeader(&xdrs5, &reqHdr) &&
-          xdr_masterReg(&xdrs5, &masterReg, &reqHdr))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader/xdr_masterReg");
+    memcpy(&tmasterReg, &masterReg, sizeof(struct masterReg));
+    tmasterReg.flags = SEND_NO_INFO | SEND_ELIM_REQ;
+
+    xdrmem_create(&xdrs4, buf4, MSGSIZE/4, XDR_ENCODE);
+    if (! xdr_LSFHeader(&xdrs4, &reqHdr)) {
+        ls_syslog(LOG_ERR, "\
+%s: failed in xdr_LSFHeader", __func__);
         xdr_destroy(&xdrs1);
         xdr_destroy(&xdrs2);
-        xdr_destroy(&xdrs5);
+        xdr_destroy(&xdrs4);
+        return;
+    }
+
+    if (! xdr_masterReg(&xdrs4, &tmasterReg, &reqHdr)) {
+        ls_syslog(LOG_ERR,"\
+%s: failed in xdr_masterRegister", __func__);
+        xdr_destroy(&xdrs1);
+        xdr_destroy(&xdrs2);
+        xdr_destroy(&xdrs4);
         return;
     }
 
     if (clPtr->masterKnown && ! broadcast) {
 
-        if (!getHostNodeIPAddr(clPtr->masterPtr,&toAddr)) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getHostNodeIPAddr");
-            xdr_destroy(&xdrs1);
-            xdr_destroy(&xdrs2);
-            xdr_destroy(&xdrs5);
-            return;
-        }
-
+        memcpy(&toAddr.sin_addr, &clPtr->masterPtr->addr[0], sizeof(u_int));
         if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG, "announceMaster: Sending request to LIM on %s: %m", sockAdd2Str_(&toAddr));
+            ls_syslog(LOG_DEBUG, "\
+%s: Sending request to LIM on %s: %m", __func__, sockAdd2Str_(&toAddr));
 
-        if (chanSendDgram_(limSock, buf1, XDR_GETPOS(&xdrs1),
+        if (chanSendDgram_(limSock,
+                           buf1,
+                           XDR_GETPOS(&xdrs1),
                            (struct sockaddr_in *)&toAddr) < 0)
-            ls_syslog(LOG_ERR, "%s: Failed to send request to LIM on %s: %m",
-                      fname, sockAdd2Str_(&toAddr));
+            ls_syslog(LOG_ERR, "\
+%s: Failed to send request to LIM on %s: %m", __func__,
+                      sockAdd2Str_(&toAddr));
         xdr_destroy(&xdrs1);
-        xdr_destroy(&xdrs2);
-        xdr_destroy(&xdrs5);
         return;
     }
 
     if (all) {
         hPtr = clPtr->hostList;
         announceInIntvl = clPtr->numHosts;
-        limConfAnnFlags |= ANN_SLIMCONF_TO_ALL;
     } else {
-
         announceInIntvl = clPtr->numHosts/periods;
         if (announceInIntvl == 0)
             announceInIntvl = 1;
 
         hPtr = clPtr->hostList;
-        for(i=0; i < cnt*announceInIntvl; i++) {
+        for (i = 0; i < cnt * announceInIntvl; i++) {
             if (!hPtr)
                 break;
             hPtr = hPtr->nextPtr;
         }
 
-        if (cnt == 11)
+        /* Let's announce the rest of the hosts,
+         * this takes care of the reminder
+         * numHosts/periods.
+         */
+        if (cnt == (periods - 1))
             announceInIntvl = clPtr->numHosts;
     }
-    savePos1 = XDR_GETPOS(&xdrs1);
-    savePos2 = XDR_GETPOS(&xdrs2);
-    savePos5 = XDR_GETPOS(&xdrs5);
 
-    for (numAnnounce=0;
+    ls_syslog(LOG_DEBUG, "\
+%s: all %d cnt %d announceInIntvl %d",
+              __func__, all, cnt, announceInIntvl);
+
+    for (numAnnounce = 0;
          hPtr && (numAnnounce < announceInIntvl);
-         hPtr=hPtr->nextPtr,numAnnounce++) {
+         hPtr = hPtr->nextPtr, numAnnounce++) {
 
         if (hPtr == myHostPtr)
             continue;
 
-        XDR_SETPOS(&xdrs1, savePos1);
-        XDR_SETPOS(&xdrs2, savePos2);
-        XDR_SETPOS(&xdrs5, savePos5);
+        memcpy(&toAddr.sin_addr, &hPtr->addr[0], sizeof(u_int));
 
-        if (hPtr->hostNo >= numMasterCandidates) {
+        if (hPtr->infoValid == TRUE) {
 
-            xdr_destroy(&xdrs1);
-            xdr_destroy(&xdrs2);
-            xdr_destroy(&xdrs5);
-
-            xdrmem_create(&xdrs1, buf1, maxMsgSize, XDR_ENCODE);
-
-            masterReg.flags = SEND_NO_INFO | SLIM_XDR_DATA;
-
-            if (!(xdr_LSFHeader(&xdrs1, &reqHdr)
-                  && xdr_masterReg(&xdrs1, &masterReg, &reqHdr))) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "1 xdr_masterReg");
-                xdr_destroy(&xdrs1);
-                return;
-            }
-
-            xdrmem_create(&xdrs2, buf2, maxMsgSize, XDR_ENCODE);
-
-            masterReg.flags = SEND_CONF_INFO | SLIM_XDR_DATA;
-
-            if (!(xdr_LSFHeader(&xdrs2, &reqHdr)
-                  && xdr_masterReg(&xdrs2, &masterReg, &reqHdr))) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "2 xdr_masterReg");
-                xdr_destroy(&xdrs1);
-                xdr_destroy(&xdrs2);
-                return;
-            }
-
-            xdrmem_create(&xdrs5, buf5, maxMsgSize, XDR_ENCODE);
-
-            masterReg.flags = SEND_NO_INFO | SLIM_XDR_DATA | SEND_LIM_LOCKEDM;
-
-            if (!(xdr_LSFHeader(&xdrs5, &reqHdr) &&
-                  xdr_masterReg(&xdrs5, &masterReg, &reqHdr))) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "5 xdr_masterReg");
-                xdr_destroy(&xdrs1);
-                xdr_destroy(&xdrs2);
-                xdr_destroy(&xdrs5);
-                return;
-            }
-
-            if (addSLimConfInXdr(hPtr, limConfAnnFlags,
-                                 &xdrs1, sizeof(buf1), &reqHdr) < 0) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                          "addSLimConfInXdr(xdrs1)");
-                xdr_destroy(&xdrs1);
-                xdr_destroy(&xdrs2);
-                xdr_destroy(&xdrs5);
-                return;
-            }
-            if (addSLimConfInXdr(hPtr, limConfAnnFlags,
-                                 &xdrs2, sizeof(buf2), &reqHdr) < 0) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                          "addSLimConfInXdr(xdrs2)");
-                xdr_destroy(&xdrs1);
-                xdr_destroy(&xdrs2);
-                xdr_destroy(&xdrs5);
-                return;
-            }
-            if (addSLimConfInXdr(hPtr, limConfAnnFlags,
-                                 &xdrs5, sizeof(buf5), &reqHdr) < 0) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                          "addSLimConfInXdr(xdrs5)");
-                xdr_destroy(&xdrs1);
-                xdr_destroy(&xdrs2);
-                xdr_destroy(&xdrs5);
-                return;
-            }
-        }
-
-        if (!getHostNodeIPAddr(hPtr,&toAddr)) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getHostNodeIPAddr");
-            xdr_destroy(&xdrs1);
-            xdr_destroy(&xdrs2);
-            xdr_destroy(&xdrs5);
-            return;
-        }
-
-        if (hPtr->infoValid == true) {
             if (logclass & LC_COMM)
                 ls_syslog(LOG_DEBUG, "\
-Send announce (normal) to %s %s, inactivityCount=%d",
+%s: send announce (normal) to %s %s, inactivityCount=%d",
+                          __func__,
                           hPtr->hostName, sockAdd2Str_(&toAddr),
                           hPtr->hostInactivityCount);
 
             if (hPtr->callElim){
 
-                xdrmem_create(&xdrs4, buf4, maxMsgSize, XDR_ENCODE);
+                if (logclass & LC_COMM)
+                    ls_syslog(LOG_DEBUG,"\
+%s: announcing SEND_ELIM_REQ to host %s %s",
+                              __func__, hPtr->hostName,
+                              sockAdd2Str_(&toAddr));
 
-                memcpy((char *)&tmasterReg,(char *)&masterReg,
-                       sizeof(struct masterReg));
-                tmasterReg.flags = SEND_NO_INFO | SEND_ELIM_REQ;
-
-                if (hPtr->hostNo >= numMasterCandidates) {
-                    tmasterReg.flags =
-                        SEND_NO_INFO | SEND_ELIM_REQ | SLIM_XDR_DATA;
+                if (chanSendDgram_(limSock,
+                                   buf4,
+                                   XDR_GETPOS(&xdrs4),
+                                   (struct sockaddr_in *)&toAddr) < 0) {
+                    ls_syslog(LOG_ERR,"\
+%s: Failed to send request 1 to LIM on %s: %m", __func__,
+                              hPtr->hostName);
                 }
 
-                if (hPtr->status[0] & LIM_LOCKEDM) {
-                    tmasterReg.flags |=  SEND_LIM_LOCKEDM;
-                }
-
-                setupMasterRegBitArray(&tmasterReg, hPtr);
-
-                if (!(xdr_LSFHeader(&xdrs4, &reqHdr) &&
-                      xdr_masterReg(&xdrs4, &tmasterReg, &reqHdr)) ) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                              "xdr_LSFHeader/xdr_masterReg");
-                    xdr_destroy(&xdrs1);
-                    xdr_destroy(&xdrs2);
-                    xdr_destroy(&xdrs4);
-                    xdr_destroy(&xdrs5);
-                    if (tmasterReg.maxResIndex > 0) {
-                        FREEUP(tmasterReg.resBitArray);
-                    }
-                    return;
-                }
-
-                if (addSLimConfInXdr(hPtr, limConfAnnFlags, &xdrs4,
-                                     sizeof(buf4), &reqHdr) < 0) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                              "addSLimConfInXdr(xdrs4)");
-                    xdr_destroy(&xdrs1);
-                    xdr_destroy(&xdrs2);
-                    xdr_destroy(&xdrs3);
-                    xdr_destroy(&xdrs4);
-                    xdr_destroy(&xdrs5);
-                    if (tmasterReg.maxResIndex > 0) {
-                        FREEUP(tmasterReg.resBitArray);
-                    }
-                    return;
-                }
-
-                if (chanSendDgram_(limSock, buf4, XDR_GETPOS(&xdrs4),
-                                   (struct sockaddr_in *)&toAddr) < 0)
-                    ls_syslog(LOG_ERR, "%s: Failed to send request 1 to LIM on %s: %k", fname, hPtr->hostName);
-
-                if (tmasterReg.maxResIndex > 0)
-                    FREEUP(tmasterReg.resBitArray);
-                tmasterReg.maxResIndex = 0;
-                xdr_destroy(&xdrs4);
-
-                hPtr->maxResIndex = 0;
-                hPtr->callElim = false;
+                hPtr->callElim = FALSE;
 
             } else {
-
-                if (hPtr->status[0] & LIM_LOCKEDM) {
-                    if (chanSendDgram_(limSock, buf5, XDR_GETPOS(&xdrs5),
-                                       (struct sockaddr_in *)&toAddr) < 0) {
-                        ls_syslog(LOG_ERR, "%s: Failed to send request 1 to LIM on %s: %m",
-                                  fname, hPtr->hostName);
-                    }
-                } else {
-                    if (chanSendDgram_(limSock, buf1, XDR_GETPOS(&xdrs1),
-                                       (struct sockaddr_in *)&toAddr) < 0) {
-                        ls_syslog(LOG_ERR, "%s: Failed to send request 1 to LIM on %s: %m",
-                                  fname, hPtr->hostName);
-                    }
-                }
+                if (chanSendDgram_(limSock,
+                                   buf1,
+                                   XDR_GETPOS(&xdrs1),
+                                   (struct sockaddr_in *)&toAddr) < 0)
+                    ls_syslog(LOG_ERR,"\
+announceMaster: Failed to send request 1 to LIM on %s: %m", hPtr->hostName);
             }
+
         } else {
+
             if (logclass & LC_COMM)
                 ls_syslog(LOG_DEBUG,"\
-Send announce (SEND_CONF) to %s %s %x, inactivityCount=%d",
-                          hPtr->hostName, sockAdd2Str_(&toAddr), hPtr->addr[0],
+%s: send announce (SEND_CONF) to %s %s %x, inactivityCount=%d",
+                          __func__,
+                          hPtr->hostName, sockAdd2Str_(&toAddr),
+                          hPtr->addr[0],
                           hPtr->hostInactivityCount);
 
-            if (chanSendDgram_(limSock, buf2, XDR_GETPOS(&xdrs2),
+            if (chanSendDgram_(limSock,
+                               buf2,
+                               XDR_GETPOS(&xdrs2),
                                (struct sockaddr_in *)&toAddr) < 0)
-                ls_syslog(LOG_ERR, "%s: Failed to send request 2 to LIM on %s: %m", fname, hPtr->hostName);
+                ls_syslog(LOG_ERR, "\
+%s: Failed to send request 2 to LIM on %s: %m",
+                          __func__, hPtr->hostName);
         }
+
     }
 
     xdr_destroy(&xdrs1);
     xdr_destroy(&xdrs2);
-    xdr_destroy(&xdrs5);
+    xdr_destroy(&xdrs4);
 
     return;
-
 }
 
-
+
 void
 jobxferReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 {
@@ -1218,15 +563,6 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
         return;
     }
 
-    int maxCpusInc;
-    if (hPtr->infoValid == true && limMode == LIM_RECONFIG) {
-        if (hPtr->statInfo.maxCpus > 0) {
-            maxCpusInc = sinfo.maxCpus - hPtr->statInfo.maxCpus;
-        } else {
-            maxCpusInc = sinfo.maxCpus;
-        }
-    }
-
     hPtr->statInfo.maxCpus   = sinfo.maxCpus;
     hPtr->statInfo.maxMem    = sinfo.maxMem;
     hPtr->statInfo.maxSwap   = sinfo.maxSwap;
@@ -1305,17 +641,17 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
     hPtr->infoValid      = true;
     hPtr->infoMask       = 0;
 
-    if (lim_debug >= 2)
-        ls_syslog(LOG_DEBUG, "rcvConfInfo: Host %s: maxCpus=%d maxMem=%d "
-                  "ndisks=%d typeNo=%d modelNo=%d",
-                  hPtr->hostName, hPtr->statInfo.maxCpus, hPtr->statInfo.maxMem,
-                  hPtr->statInfo.nDisks, (int)hPtr->hTypeNo, (int)hPtr->hModelNo);
+    if (lim_debug)
+        syslog(LOG_DEBUG, "%s: Host %s: maxCpus=%d maxMem=%d "
+               "ndisks=%d typeNo=%d modelNo=%d", __func__,
+               hPtr->hostName, hPtr->statInfo.maxCpus, hPtr->statInfo.maxMem,
+               hPtr->statInfo.nDisks, (int)hPtr->hTypeNo, (int)hPtr->hModelNo);
 
     return;
 }
 
 void
-sndConfInfo(struct sockaddr_in *to, int mode)
+sndConfInfo(struct sockaddr_in *to)
 {
     static char fname[] = "sndConfInfo()";
     char   buf[MSGSIZE/4];
@@ -1334,7 +670,6 @@ sndConfInfo(struct sockaddr_in *to, int mode)
     xdrmem_create(&xdrs, buf, MSGSIZE/4, XDR_ENCODE);
     reqHdr.opCode  = (short) limReqCode;
     reqHdr.refCode =  0;
-    setHdrReserved(&reqHdr, mode);
 
     if (logclass & LC_TRACE) {
         ls_syslog(LOG_DEBUG2, "%s: host <%s> ncpu <%d> maxmem <%d> maxswp <%u> maxtmp <%u> ndisk <%d>",
@@ -1369,7 +704,7 @@ sndConfInfo(struct sockaddr_in *to, int mode)
 }
 
 void
-checkHostWd (void)
+checkHostWd(void)
 {
     struct dayhour dayhour;
     windows_t *wp;
@@ -1378,6 +713,7 @@ checkHostWd (void)
 
     if (myHostPtr->wind_edge > now || myHostPtr->wind_edge == 0)
         return;
+
     getDayHour (&dayhour, now);
     if (myHostPtr->week[dayhour.day] == NULL) {
         myHostPtr->status[0] |= LIM_LOCKEDW;
@@ -1397,108 +733,54 @@ checkHostWd (void)
 
 void announceMasterToHost(struct hostNode *hPtr, int infoType )
 {
-    static char fname[] = "announceMasterToHost()";
-    struct sockaddr_in toAddr;
+      struct sockaddr_in toAddr;
     XDR    xdrs;
-    static char *buf = NULL;
-    char   *sp;
-    int    maxMsgSize = 0;
+    char   buf[MSGSIZE/4];
     enum limReqCode limReqCode;
     struct masterReg masterReg;
     struct LSFHeader reqHdr;
-    char sockAddStr[MAXHOSTNAMELEN];
-
-    if ((sp = (getenv("SLIMCONF_MAXMSG_SIZE"))) != NULL) {
-        maxMsgSize = atoi(sp);
-    }
-    if (maxMsgSize <= 0) {
-        maxMsgSize = SLIMCONF_MAXMSG_SIZE;
-    }
-
-    if (buf == NULL) {
-        if ((buf = (char *)malloc(maxMsgSize * sizeof(char))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
-            return;
-        }
-    }
 
     limReqCode = LIM_MASTER_ANN;
+    strcpy(masterReg.clName, myClusterPtr->clName);
+    strcpy(masterReg.hostName, myClusterPtr->masterPtr->hostName);
     masterReg.flags = infoType;
-    if (!(infoType & SEND_MASTER_QUERY)) {
-        strcpy(masterReg.clName, myClusterPtr->clName);
-        strcpy(masterReg.hostName, myClusterPtr->masterPtr->hostName);
-        masterReg.seqNo    = masterAnnSeqNo;
-        masterReg.checkSum = myClusterPtr->checkSum;
-        masterReg.portno   = myClusterPtr->masterPtr->statInfo.portno;
-        masterReg.maxResIndex = 0;
-    } else {
-
-        masterReg.clName[0] = 0;
-        strcpy(masterReg.hostName, myHostPtr->hostName);
-        masterReg.maxResIndex = 0;
-    }
+    masterReg.seqNo    = masterAnnSeqNo;
+    masterReg.checkSum = myClusterPtr->checkSum;
+    masterReg.portno   = myClusterPtr->masterPtr->statInfo.portno;
 
     toAddr.sin_family = AF_INET;
     toAddr.sin_port = lim_port;
 
-    xdrmem_create(&xdrs, buf, maxMsgSize, XDR_ENCODE);
+    xdrmem_create(&xdrs, buf, MSGSIZE/4, XDR_ENCODE);
     initLSFHeader_(&reqHdr);
     reqHdr.opCode  = (short) limReqCode;
     reqHdr.refCode =  0;
 
-    if (!(xdr_LSFHeader(&xdrs,  &reqHdr) &&
-          xdr_masterReg(&xdrs, &masterReg, &reqHdr))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader/xdr_masterReg");
+    if (! xdr_LSFHeader(&xdrs,  &reqHdr)
+        || ! xdr_masterReg(&xdrs, &masterReg, &reqHdr)) {
+        ls_syslog(LOG_ERR, "\
+%s: Error xdr_LSFHeader/xdr_masterReg to %s",
+                  __func__, sockAdd2Str_(&toAddr));
         xdr_destroy(&xdrs);
         return;
     }
 
-    if (!(infoType & SEND_MASTER_QUERY)) {
-        int limConfAnnFlags = ANN_SLIMCONF_ALL_MIN;
+    memcpy(&toAddr.sin_addr, &hPtr->addr[0], sizeof(in_addr_t));
 
-        if (hPtr->hostNo >= numMasterCandidates) {
+    ls_syslog(LOG_DEBUG, "\
+%s: Sending request %d to LIM on %s",
+              __func__, infoType, sockAdd2Str_(&toAddr));
 
-            xdr_destroy(&xdrs);
+    if (chanSendDgram_(limSock,
+                       buf,
+                       XDR_GETPOS(&xdrs),
+                       (struct sockaddr_in *)&toAddr) < 0)
+        ls_syslog(LOG_ERR, "\
+%s: Failed to send request %d to LIM on %s: %m", __func__,
+                  infoType, sockAdd2Str_(&toAddr));
 
-            xdrmem_create(&xdrs, buf, maxMsgSize, XDR_ENCODE);
-
-            masterReg.flags |=  SLIM_XDR_DATA;
-
-            if (!(xdr_LSFHeader(&xdrs,  &reqHdr)
-                  && xdr_masterReg(&xdrs, &masterReg, &reqHdr))) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
-                xdr_destroy(&xdrs);
-                return;
-            }
-        }
-
-        if (addSLimConfInXdr(hPtr, limConfAnnFlags,
-                             &xdrs, sizeof(buf), &reqHdr) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                      "addSLimConfInXdr(xdrs)");
-            xdr_destroy(&xdrs);
-            return;
-        }
-    }
-
-    if (!getHostNodeIPAddr(hPtr,&toAddr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getHostNodeIPAddr");
-        xdr_destroy(&xdrs);
-        return;
-    }
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG,
-                  "announceMasterToHost: Sending request to LIM on %s",
-                  sockAdd2Str_(&toAddr));
-
-    strcpy(sockAddStr, sockAdd2Str_(&toAddr));
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs),
-                       (struct sockaddr_in *)&toAddr) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MN, fname, "chanSendDgram_",
-                  sockAddStr);
-    }
     xdr_destroy(&xdrs);
+
 }
 
 int
@@ -1984,7 +1266,7 @@ lockHost(char *hostName, int request)
     lockReq.on   = request;
     lockReq.uid = getuid();
 
-    if (getpwnam(lockReq.lsfUserName) == NULL) {
+    if (getpwnam2(lockReq.lsfUserName) == NULL) {
         return -1;
     }
 

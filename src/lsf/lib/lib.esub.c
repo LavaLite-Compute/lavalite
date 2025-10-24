@@ -69,16 +69,12 @@ runEsub_(struct lenData *ed, char *path)
 int
 runEClient_(struct lenData *ed, char **argv)
 {
-    char lsfUserName[MAXLSFNAMELEN];
-
-    if (getpwnam(lsfUserName) == NULL) {
-        return -1;
-    }
-    return getEData(ed, argv, lsfUserName);
+    char buf[BUFSIZ_32] = {0};
+    return getEData(ed, argv, buf);
 }
 
 static int
-getEData(struct lenData *ed, char **argv, const char *lsfUserName)
+getEData(struct lenData *ed, char **argv, const char *user)
 {
     char *buf;
     char *sp;
@@ -90,8 +86,8 @@ getEData(struct lenData *ed, char **argv, const char *lsfUserName)
     char *abortVal;
     uid_t uid;
 
-    if (get_uid(lsfUserName, &uid) < 0) {
-        ls_syslog(LOG_DEBUG, I18N_FUNC_S_FAIL_MM, __func__, "getOSUid_", lsfUserName);
+    if (get_uid(user, &uid) < 0) {
+        syslog(LOG_ERR, "%s: get_uid() failed: %m", __func__);
         return -1;
     }
 
@@ -257,8 +253,8 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
             } else {
 
                 user = getenv("USER");
-                if ((pw = getpwnam(user)) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getpwnam", user);
+                if ((pw = getpwnam2(user)) == NULL) {
+                    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getpwnam2", user);
                     exit(-1);
                 }
                 uid = pw->pw_uid;
@@ -347,8 +343,8 @@ runEGroup_(char *type, char *gname)
             return NULL;
         }
     } else {
-        if (getpwnam(lsfUserName) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getpwnam");
+        if (getpwnam2(lsfUserName) == NULL) {
+            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getpwnam2");
             return NULL;
         }
     }

@@ -221,7 +221,7 @@ userok(int s, struct sockaddr_in *from, char *hostname,
     if (debug) {
         char lsfUserName[MAXLSFNAMELEN];
 
-        if (getpwnam(lsfUserName) == NULL) {
+        if (getpwnam2(lsfUserName) == NULL) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getLSFUser_");
             return false;
         }

@@ -282,10 +282,10 @@ doacceptconn(void)
 
     setsockopt(s, SOL_SOCKET, SO_LINGER, (char *)&linstr, sizeof(linstr));
 
-    if ((pw = getpwnam(auth.lsfUserName)) == NULL) {
+    if ((pw = getpwnam2(auth.lsfUserName)) == NULL) {
         char tempBuffer[1024];
         sprintf(tempBuffer, "%s@%s", auth.lsfUserName, sockAdd2Str_(&from));
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getpwnam", tempBuffer);
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getpwnam2", tempBuffer);
         sendReturnCode(s,RESE_BADUSER);
         goto doAcceptFail;
     }
@@ -2753,7 +2753,7 @@ rexecChild(struct client *cli_ptr, struct resCmdBill *cmdmsg, int server,
         if ( curdir == NULL ) {
             pwdHome = getpwdirlsfuser_(cli_ptr->username);
             if (debug != 2 && pwdHome == NULL ) {
-                ls_syslog(LOG_DEBUG, "%s: getpwnam failed for user %s",
+                ls_syslog(LOG_DEBUG, "%s: getpwnam2 failed for user %s",
                         fname,cli_ptr->username);
             }
 
@@ -2764,7 +2764,7 @@ rexecChild(struct client *cli_ptr, struct resCmdBill *cmdmsg, int server,
     } else {
         pwdHome = getpwdirlsfuser_(cli_ptr->username);
         if (debug != 2 && pwdHome == NULL ) {
-            ls_syslog(LOG_DEBUG, "%s: getpwnam failed for user %s",
+            ls_syslog(LOG_DEBUG, "%s: getpwnam2 failed for user %s",
                     fname,cli_ptr->username);
         }
 
@@ -5082,7 +5082,7 @@ doReopen(void)
         ls_openlog("res", resParams[LSF_LOGDIR].paramValue, false,
                 resParams[LSF_LOG_MASK].paramValue);
 
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "doReopen: logclass=%x",  logclass);
 
     return;

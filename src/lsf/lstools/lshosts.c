@@ -79,8 +79,8 @@ print_long(struct hostInfo *hostInfo)
     int i;
     float *li;
     static char first = true;
-    static char line[SBUF_SIZ];
-    static char newFmt[MINBUF_SIZ];
+    static char line[BUFSIZ_64];
+    static char newFmt[BUFSIZ_64];
     int newIndexLen, retVal;
     char **indxnames = NULL;
     char **shareNames, **shareValues, **formats;
@@ -90,8 +90,7 @@ print_long(struct hostInfo *hostInfo)
         char tmpbuf[MAXLSFNAMELEN];
         int  fmtid;
 
-        if(!(fmt=(struct indexFmt *)
-             malloc((hostInfo->numIndx+2)*sizeof (struct indexFmt)))) {
+        if(!(fmt = malloc((hostInfo->numIndx+2)*sizeof (struct indexFmt)))) {
             lserrno=LSE_MALLOC;
             ls_perror("print_long");
             exit(-1);

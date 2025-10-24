@@ -507,13 +507,13 @@ prtJobReserv(struct jobInfoEnt *job)
 
     if (job->numExHosts > 0 && job->reserveTime > 0) {
 	if (job->numExHosts > 1) {
-            char buf[MICROBUF_SIZ];
+            char buf[BUFSIZ_32];
             ctime_r(&job->reserveTime, buf);
             buf[strcspn(buf, "\n")] = 0;
             sprintf(prline, "%s: Reserved <%d> job slots on host(s)",
                     buf, job->numExHosts);
         } else {
-            char buf[MICROBUF_SIZ];
+            char buf[BUFSIZ_32];
             ctime_r(&job->reserveTime, buf);
             buf[strcspn(buf, "\n")] = 0;
             sprintf(prline, "%s: Reserved <%d> job slot on host",

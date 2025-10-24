@@ -86,7 +86,7 @@ lsb_peekjob (LS_LONG_INT jobid)
             free(reply_buf);
         }
 
-        if ((pw = getpwnam(lsfUserName)) == NULL) {
+        if ((pw = getpwnam2(lsfUserName)) == NULL) {
             lsberrno = LSBE_SYS_CALL;
             return NULL;
         }

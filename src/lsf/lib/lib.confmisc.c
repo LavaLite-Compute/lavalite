@@ -296,7 +296,7 @@ putInLists(char *word, struct admins *admins, int *numAds, char *forWhat)
     char **tempNames;
     int i, *tempIds, *tempGids;
 
-    pw = getpwnam(word);
+    pw = getpwnam2(word);
     if (pw == NULL) {
         if (logclass & LC_TRACE) {
             ls_syslog(LOG_DEBUG, "%s: <%s> is not a valid user on this host", fname, word);

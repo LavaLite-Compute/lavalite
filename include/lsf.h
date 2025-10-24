@@ -48,10 +48,12 @@
 #include <float.h>
 #include <poll.h>
 #include <assert.h>
+#include <getopt.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/resource.h>
+#include <sys/timerfd.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/ypclnt.h>
@@ -103,26 +105,17 @@ typedef uint64_t LS_UNS_LONG_INT;
 })
 #endif
 
-/*
- * Buffer size hierarchy relative to stdio.h's BUFSIZ (≈8–9 KB).
- *
- *    XLBUF_SIZ   =  BUFSIZ / 2    ≈ 4 KB  (extra-large)
- *    XBUF_SIZ    =  BUFSIZ / 4    ≈ 2 KB  (large)
- *    LBUF_SIZ    =  BUFSIZ / 8    ≈ 1 KB  (medium-large)
- *    MBUF_SIZ    =  BUFSIZ / 16   ≈ 512 B (medium)
- *    SBUF_SIZ    =  BUFSIZ / 32   ≈ 256 B (small)
- *    TINBUF_SIZ  =  BUFSIZ / 64   ≈ 128 B (tiny)
- *    MINBUF_SIZ  =  BUFSIZ / 128  ≈ 64 B  (min)
- *    MICROBUF_SIZ=  BUFSIZ / 256  ≈ 32 B  (micro)
- */
-#define XLBUF_SIZ    (BUFSIZ/2)
-#define XBUF_SIZ     (BUFSIZ/4)
-#define LBUF_SIZ     (BUFSIZ/8)
-#define MBUF_SIZ     (BUFSIZ/16)
-#define SBUF_SIZ     (BUFSIZ/32)
-#define TINBUF_SIZ   (BUFSIZ/64)
-#define MINBUF_SIZ   (BUFSIZ/128)
-#define MICROBUF_SIZ (BUFSIZ/256)
+
+// Buffer size hierarchy relative to stdio.h's BUFSIZ (≈8–9 KB)
+
+#define BUFSIZ_4K   (BUFSIZ/2)
+#define BUFSIZ_2K   (BUFSIZ/4)
+#define BUFSIZ_1K   (BUFSIZ/8)
+#define BUFSIZ_512  (BUFSIZ/16)
+#define BUFSIZ_256  (BUFSIZ/32)
+#define BUFSIZ_128  (BUFSIZ/64)
+#define BUFSIZ_64   (BUFSIZ/128)
+#define BUFSIZ_32   (BUFSIZ/256)
 
 #define R15S           0
 #define R1M            1
@@ -707,6 +700,9 @@ struct jRusage {
 #define LC_CHKPNT   0x00000020
 #define LC_FILE     0x00000080
 #define LC_AUTH     0x00000200
+/* Deprecated: LC_HANG was useless (can’t log when hung).
+ * Keep slot to avoid ABI churn.
+ */
 #define LC_HANG     0x00000400
 #define LC_SIGNAL   0x00001000
 #define LC_PIM      0x00004000

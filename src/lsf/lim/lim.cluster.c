@@ -112,12 +112,13 @@ processMsg(int chanfd)
 
         if (hdr.opCode != LIM_CLUST_INFO) {
             struct sockaddr_in fromAddr;
-            int fromLen = sizeof(struct sockaddr_in);
+            socklen_t fromLen = sizeof(struct sockaddr_in);
 
-            if (getpeername(chanSock_(chanfd), (struct sockaddr *)&fromAddr, &fromLen) < 0)
-            {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,
-                          fname, "getpeername", chanSock_(chanfd));
+            if (getpeername(chanSock_(chanfd),
+                            (struct sockaddr *)&fromAddr,
+                            &fromLen) < 0) {
+                syslog(LOG_ERR, "%s: getpeername(%d) failed. %m",
+                       __func__, chanSock_(chanfd));
             }
 
             ls_syslog(LOG_ERR, "%s: Protocol error received opCode <%d> from %s",
@@ -129,18 +130,15 @@ processMsg(int chanfd)
         }
     }
 
-    if (logclass & (LC_TRACE | LC_COMM))
-        ls_syslog(LOG_DEBUG3, "%s: Received request <%d> ",
-                  fname, hdr.opCode);
+    if (logclass & LC_TRACE)
+        syslog(LOG_DEBUG, "%s: Received request <%d> ", __func__, hdr.opCode);
 
     switch(hdr.opCode) {
-
     case LIM_LOAD_REQ:
     case LIM_GET_HOSTINFO:
     case LIM_PLACEMENT:
     case LIM_GET_RESOUINFO:
     case LIM_GET_INFO:
-
         clientMap[chanfd]->limReqCode = hdr.opCode;
         clientMap[chanfd]->reqbuf = buf;
         clientReq(&xdrs, &hdr, chanfd);
@@ -152,13 +150,6 @@ processMsg(int chanfd)
         chanFreeBuf_(buf);
         break;
     case LIM_PING:
-
-        xdr_destroy(&xdrs);
-        shutDownChan(chanfd);
-        chanFreeBuf_(buf);
-        break;
-    case LIM_SLIMCONF_REQ:
-        sendMinSLimConfTCP(&xdrs, &hdr, chanfd);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);

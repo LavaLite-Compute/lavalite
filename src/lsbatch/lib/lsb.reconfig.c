@@ -19,8 +19,6 @@
 
 #include "lsbatch/lib/lsb.h"
 
-extern void setHdrReserved(struct LSFHeader *, unsigned int );
-
 int
 lsb_reconfig (int configFlag)
 {
@@ -42,8 +40,6 @@ lsb_reconfig (int configFlag)
 
     initLSFHeader_(&hdr);
     hdr.opCode = mbdReqtype;
-    tmp = (short) configFlag;
-    setHdrReserved(&hdr, tmp);
 
     if (!xdr_encodeMsg(&xdrs, (char *)NULL, &hdr, NULL, 0, &auth)) {
         lsberrno = LSBE_XDR;
@@ -51,8 +47,7 @@ lsb_reconfig (int configFlag)
     }
 
     if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                    &hdr, NULL, NULL, NULL)) == -1)
-    {
+                    &hdr, NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         return -1;
     }

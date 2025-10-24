@@ -184,23 +184,6 @@ lsfSetXUid(int flag, int ruid, int euid, int suid, int(*func)())
     return rtrn;
 }
 
-void
-lsfExecLog(const char *cmd)
-{
-    static char fname[] = "lsfExecLog";
-    char lsfUserName[MAXLSFNAMELEN];
-
-    if (genParams_[LSF_MLS_LOG].paramValue &&
-        ((genParams_[LSF_MLS_LOG].paramValue[0] == 'y') ||
-         (genParams_[LSF_MLS_LOG].paramValue[0] == 'Y'))) {
-
-        getpwnam(lsfUserName);
-        syslog(LOG_INFO,
-               "%s: user - %s cmd - '%s'",
-               fname, lsfUserName, cmd);
-
-    }
-}
 int
 lsfExecX(char *path, char **argv, int(*func)())
 {

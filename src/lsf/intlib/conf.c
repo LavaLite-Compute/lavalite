@@ -318,7 +318,7 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
     char **tempNames;
     int i, *tempIds, *tempGids;
 
-    if (!(pw = getpwnam(word))) {
+    if (!(pw = getpwnam2(word))) {
         ls_syslog(LOG_ERR, "%s: <%s> is not a valid user name; ignored",
                   __func__, word);
         return 0;

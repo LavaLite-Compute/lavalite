@@ -2915,7 +2915,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 {
 #define ENVEND "$LSB_TRAPSIGS\n"
     static char fname[] = "readLogJobInfo()";
-    char logFn[XBUF_SIZ];
+    char logFn[PATH_MAX];
     struct stat st;
     int fd, i, numEnv,cc;
     char *buf, *sp, *edata, *eventAttrs = NULL;

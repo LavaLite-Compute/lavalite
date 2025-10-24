@@ -113,7 +113,7 @@ struct config_param resConfParams[] = {
 #endif
 
 static void put_mask (char *, fd_set *);
-static void periodic (int);
+static void periodic(void);
 static void usage (char *);
 static void initSignals(void);
 static void houseKeeping(void);
@@ -331,7 +331,7 @@ main(int argc, char **argv)
         ls_openlog("res", resParams[LSF_LOGDIR].paramValue, false,
                 resParams[LSF_LOG_MASK].paramValue);
     }
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: logclass=%x", fname, logclass);
 
     ls_syslog(LOG_DEBUG, "%s: LSF_SERVERDIR=%s", fname, resParams[LSF_SERVERDIR].paramValue);
@@ -737,14 +737,13 @@ put_mask(char *name, fd_set *mask)
 }
 
 static void
-periodic(int signum)
+periodic(void)
 {
-    static char fname[] = "res/periodic";
     time_t now;
     static int count = 0;
     static time_t lastPri =0;
 
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     if (!child_res) {

@@ -81,8 +81,8 @@ static int chPrePostUser(struct jobCard *jp);
 static void sbdChildCloseChan (int execptChan);
 static int REShasPTYfix(char *);
 static void setJobArrayEnv(char *, int);
-extern int getpwnamRetry;
-struct passwd *my_getpwnam(const char *name, char *caller);
+extern int getpwnam2Retry;
+struct passwd *my_getpwnam2(const char *name, char *caller);
 extern int lsbMemEnforce;
 extern char *yybuff;
 extern int lsbJobCpuLimit;
@@ -98,12 +98,12 @@ extern void ls_closelog_ext(void);
 extern int cpHostent(struct hostent *, const struct hostent *);
 
 struct passwd *
-my_getpwnam(const char *name, char *caller)
+my_getpwnam2(const char *name, char *caller)
 {
     int counter = 1;
     struct passwd * pw = NULL;
 
-    while (((pw = getpwlsfuser_(name)) == NULL) && (counter < getpwnamRetry)) {
+    while (((pw = getpwlsfuser_(name)) == NULL) && (counter < getpwnam2Retry)) {
         if (logclass & LC_EXEC)
             ls_syslog(LOG_DEBUG1, "%s: getpwlsfuser_(%s) failed %d times:%m",
                               caller, name, counter);
@@ -3296,9 +3296,9 @@ acctMapTo(struct jobCard *jobCard)
 
 trySubUser:
 
-    if ((pw =  my_getpwnam(jobCard->jobSpecs.userName, "acctMapTo/trySubUser")) == NULL) {
+    if ((pw =  my_getpwnam2(jobCard->jobSpecs.userName, "acctMapTo/trySubUser")) == NULL) {
 
-        ls_syslog(LOG_ERR, "%s: No valid user name found for job <%s>, userName <%s>. getpwnam( failed:%m"),
+        ls_syslog(LOG_ERR, "%s: No valid user name found for job <%s>, userName <%s>. getpwnam2( failed:%m"),
             fname,
 	    lsb_jobid2str(jobCard->jobSpecs.jobId),
 	    jobCard->jobSpecs.userName);
@@ -3886,8 +3886,6 @@ runUPre(struct jobCard *jp)
 	    (void) Signal_(i, SIG_DFL);
 
 	(void) Signal_(SIGHUP, SIG_IGN);
-
-	lsfExecLog(jp->jobSpecs.preExecCmd);
 
 	execl("/bin/sh", "/bin/sh", "-c", jp->jobSpecs.preExecCmd, NULL);
 	sprintf(errMsg, I18N_JOB_FAIL_S_M, fname,

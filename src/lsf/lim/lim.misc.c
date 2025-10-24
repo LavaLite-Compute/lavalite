@@ -280,20 +280,19 @@ findHostbyAddr(struct sockaddr_in *from, char *fname)
     if ((hPtr = findHNbyAddr(*((u_int *) &from->sin_addr))))
         return hPtr;
 
-    if ((hp = (struct hostent *)getHostEntryByAddr_(&from->sin_addr)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Host %s is unknown by %s",
-                fname, sockAdd2Str_(from), myHostPtr->hostName);
+    if ((hp = getHostEntryByAddr_(&from->sin_addr)) == NULL) {
+        syslog(LOG_ERR, "%s: Host %s is unknown by %s",
+               fname, sockAdd2Str_(from), myHostPtr->hostName);
         return NULL;
     }
     if ((hPtr = findHNbyAddr(*((u_int *) hp->h_addr))) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Host %s (hp=%s/%s is unknown by configuration; all hosts used by LSF must have unique official names",
+        syslog(LOG_ERR, "%s: Host %s (hp=%s/%s is unknown by configuration; all hosts used by LSF must have unique official names",
                   fname, sockAdd2Str_(from), hp->h_name,
                   inet_ntoa(*((struct in_addr *) hp->h_addr)));
         return NULL;
     }
 
-    if ((tPtr = (u_int *) realloc((char *) hPtr->addr,
-                    (hPtr->naddr + 1) * sizeof(u_int))) == NULL) {
+    if ((tPtr = realloc(hPtr->addr,  (hPtr->naddr + 1) * sizeof(u_int))) == NULL) {
         return hPtr;
     }
 
@@ -302,7 +301,6 @@ findHostbyAddr(struct sockaddr_in *from, char *fname)
     hPtr->naddr++;
 
     return hPtr;
-
 }
 
 static struct hostNode *

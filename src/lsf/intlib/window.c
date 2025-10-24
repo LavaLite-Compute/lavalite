@@ -353,9 +353,7 @@ parse_time (char *word, float *hour, int *day)
 void
 getDayHour (struct dayhour *dayPtr, time_t nowtime)
 {
-    char *timep;
-
-    timep = ctime2(&nowtime);
+    char *timep = (char *)ctime2(&nowtime);
     timep[3] = '\0';
 
     if (strcmp(timep, "Sun") == 0)

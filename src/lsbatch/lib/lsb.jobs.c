@@ -489,9 +489,8 @@ lsb_jobid2str (LS_LONG_INT jobId)
 char *
 lsb_jobidinstr(LS_LONG_INT jobId)
 {
-    static  char string[TINBUF_SIZ/2];
+    static char string[BUFSIZ_32];
 
     sprintf(string, "%ld", jobId);
     return string;
-
 }

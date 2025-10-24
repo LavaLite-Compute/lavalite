@@ -60,7 +60,6 @@ pingReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 }
 
-
 void
 clusInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 {
@@ -71,13 +70,11 @@ clusInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
     struct LSFHeader replyHdr;
     struct clusterInfoReply clusterInfoReply;
     struct clusterInfoReq clusterInfoReq;
-    int i;
 
     limReplyCode = LIME_NO_ERR;
     clusterInfoReply.clusterMatrix = NULL;
 
     if (!isMasterCandidate) {
-
         wrongMaster(from, buf, reqHdr, -1);
         return;
     }
@@ -158,8 +155,6 @@ clusInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
             clusterInfoReply.clusterMatrix[0].hostModelBitMaps =
                 myClusterPtr->hostModelBitMaps;
 
-            if (logclass & (LC_TRACE | LC_COMM))
-                ls_syslog(LOG_DEBUG1, "clusterInfo:clusterInfoReply.clusterMatrix[%d].nRes=%d, name=%s", i, clusterInfoReply.clusterMatrix[i].nRes, clusterInfoReply.clusterMatrix[i].masterName);
         } else {
             clusterInfoReply.clusterMatrix[0].status = CLUST_STAT_UNAVAIL;
             clusterInfoReply.clusterMatrix[0].masterName[0] = '\0';
@@ -312,7 +307,6 @@ masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 }
 
-
 void
 hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
             struct LSFHeader *reqHdr, int s)
@@ -330,12 +324,10 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
     char  fromEligible, clName;
     struct tclHostData tclHostData;
 
-    if (logclass & (LC_TRACE | LC_HANG | LC_COMM))
+    if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     initResVal (&resVal);
-
-    ignDedicatedResource = true;
 
     if (! xdr_decisionReq(xdrs, &hostInfoRequest, reqHdr)) {
         limReplyCode = LIME_BAD_DATA;
@@ -366,11 +358,11 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
     if (hostInfoRequest.options & DFT_FROMTYPE)
         propt |= PR_DEFFROMTYPE;
 
-    getTclHostData (&tclHostData, myHostPtr, myHostPtr, true);
-    tclHostData.ignDedicatedResource = ignDedicatedResource;
+    getTclHostData(&tclHostData, myHostPtr, myHostPtr, true);
+    tclHostData.ignDedicatedResource = true;
     cc=parseResReq(hostInfoRequest.resReq, &resVal, &allInfo, propt);
-    if (cc != PARSE_OK ||
-        evalResReq(resVal.selectStr, &tclHostData, hostInfoRequest.options &  DFT_FROMTYPE) < 0) {
+    if (cc != PARSE_OK
+        || evalResReq(resVal.selectStr, &tclHostData, hostInfoRequest.options &  DFT_FROMTYPE) < 0) {
         if (cc == PARSE_BAD_VAL)
             limReplyCode = LIME_UNKWN_RVAL;
         else if (cc == PARSE_BAD_NAME)
@@ -517,7 +509,7 @@ infoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
             return;
         }
     }
-    if (logclass & (LC_TRACE | LC_HANG | LC_COMM))
+    if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     limReplyCode = LIME_NO_ERR;
@@ -705,7 +697,7 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, i
     struct resourceInfoReply resourceInfoReply;
     int cc = 0;
 
-    if (logclass & (LC_TRACE | LC_HANG | LC_COMM))
+    if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     limReplyCode = LIME_NO_ERR;

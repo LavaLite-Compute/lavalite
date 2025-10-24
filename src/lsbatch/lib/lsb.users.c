@@ -54,7 +54,7 @@ lsb_userinfo (char **users, int *numUsers)
         cc = 1;
     }
     else if (numReq == 1 && users == NULL) {
-        if (getpwnam(lsfUserName) == NULL) {
+        if (getpwnam2(lsfUserName) == NULL) {
             return NULL;
         }
         userInfoReq.numNames = 1;

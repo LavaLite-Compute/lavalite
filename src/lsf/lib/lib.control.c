@@ -91,7 +91,7 @@ setLockOnOff_(int on, time_t duration, char *hname)
 
     lockReq.uid = getuid();
 
-    if (getpwnam(lockReq.lsfUserName) == NULL) {
+    if (getpwnam2(lockReq.lsfUserName) == NULL) {
         return -1;
     }
 

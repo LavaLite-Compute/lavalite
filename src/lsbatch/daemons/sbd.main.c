@@ -110,7 +110,7 @@ extern int initenv_(struct config_param *, char *);
 #define CHECK_MBD_TIME 30
 static char mbdStartedBySbd = FALSE;
 
-int getpwnamRetry = 1;
+int getpwnam2Retry = 1;
 int lsbMemEnforce = FALSE;
 int lsbJobCpuLimit = -1;
 int lsbJobMemLimit = -1;
@@ -255,19 +255,19 @@ main (int argc, char **argv)
         connTimeout = atoi(daemonParams[LSB_SBD_CONNTIMEOUT].paramValue);
     else
         connTimeout = 6;
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: connTimeout=%d", fname, connTimeout);
 
     if (isint_(daemonParams[LSB_SBD_READTIMEOUT].paramValue))
         readTimeout = atoi(daemonParams[LSB_SBD_READTIMEOUT].paramValue);
     else
         readTimeout = 20;
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: readTimeout=%d", fname, readTimeout);
 
     if ((daemonParams[LSF_GETPWNAM_RETRY].paramValue != NULL)
         && (isint_(daemonParams[LSF_GETPWNAM_RETRY].paramValue)))
-        getpwnamRetry = atoi(daemonParams[LSF_GETPWNAM_RETRY].paramValue);
+        getpwnam2Retry = atoi(daemonParams[LSF_GETPWNAM_RETRY].paramValue);
 
     if (daemonParams[LSB_MEMLIMIT_ENFORCE].paramValue != NULL) {
 	if (!strcasecmp(daemonParams[LSB_MEMLIMIT_ENFORCE].paramValue, "y"))
@@ -803,7 +803,7 @@ sinit (void)
     struct hostInfo *myinfo;
     char *myhostname;
 
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "sbatchd/%s: Entering this routine...", fname);
 
     if (getBootTime(&bootTime) == -1) {

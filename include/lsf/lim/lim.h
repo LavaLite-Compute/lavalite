@@ -367,7 +367,7 @@ extern int getpagesize(void);
 
 
 extern struct config_param limParams[];
-extern int lim_debug;
+extern bool lim_debug;
 extern int lim_CheckMode;
 extern int lim_CheckError;
 extern int limSock;
@@ -417,7 +417,6 @@ extern struct clientNode  *clientMap[];
 extern pid_t elim_pid;
 extern pid_t pimPid;
 
-extern char  ignDedicatedResource;
 extern struct limLock limLock;
 extern int  numHostResources;
 extern struct sharedResource **hostResources;
@@ -427,9 +426,6 @@ extern u_short lsfSharedCkSum;
 extern int numMasterCandidates;
 extern int isMasterCandidate;
 extern int limConfReady;
-extern int kernelPerm;
-
-
 
 extern int readShared(void);
 extern int readCluster(int);
@@ -448,11 +444,6 @@ extern int validHostModel(const char *);
 extern char *stripIllegalChars(char *);
 extern int initTypeModel(struct hostNode *);
 extern const char* getHostType();
-extern struct hostNode *addFloatClientHost(struct hostent *);
-extern int removeFloatClientHost(struct hostNode *);
-extern void slaveOnlyInit(int checkMode, int *kernelPerm);
-extern int slaveOnlyPreConf();
-extern int slaveOnlyPostConf(int checkMode, int *kernelPerm);
 extern int typeNameToNo(const char *);
 extern int archNameToNo(const char *);
 
@@ -480,7 +471,7 @@ extern void tellMasterWho(XDR *, struct sockaddr_in *, struct LSFHeader *);
 extern void whoIsMaster(struct clusterNode *);
 extern void announceMaster(struct clusterNode *, char, char);
 extern void wrongMaster(struct sockaddr_in *, char *, struct LSFHeader *, int);
-extern void sndConfInfo(struct sockaddr_in *, int);
+extern void sndConfInfo(struct sockaddr_in *);
 extern void checkHostWd(void);
 extern void announceMasterToHost(struct hostNode *, int);
 extern int  probeMasterTcp(struct clusterNode *clPtr);
@@ -488,7 +479,6 @@ extern void initNewMaster(void);
 extern int  callMasterTcp(enum limReqCode, struct hostNode *, void *, bool_t(*)(), void *, bool_t(*)(), int, int, struct LSFHeader *);
 extern int validateHost(char *, int);
 extern int validateHostbyAddr(struct sockaddr_in *, int);
-extern int sendMinSLimConfTCP(XDR *, struct LSFHeader *, int);
 extern void checkAfterHourWindow();
 
 extern void sendLoad(void);
@@ -498,9 +488,9 @@ extern float normalizeRq(float rawql, float cpuFactor, int nprocs);
 extern struct resPair * getResPairs (struct hostNode *);
 extern void satIndex(void);
 extern void loadIndex(void);
-extern void initReadLoad(int, int *);
+extern void initReadLoad(int);
 extern void initConfInfo(void);
-extern void readLoad(int);
+extern void readLoad(void);
 extern const char* getHostModel(void);
 
 extern void getLastActiveTime(void);

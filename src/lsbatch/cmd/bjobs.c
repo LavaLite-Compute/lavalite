@@ -131,7 +131,7 @@ main (int argc, char **argv)
        ls_perror("ls_readconfenv");
        exit(-1);
     }
-    struct passwd *pwd = getpwnam(lsfUserName);
+    struct passwd *pwd = getpwnam2(lsfUserName);
     if (! pwd) {
         exit(-1);
     }

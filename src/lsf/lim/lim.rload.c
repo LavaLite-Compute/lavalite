@@ -329,7 +329,7 @@ getXIdle()
 }
 
 void
-readLoad(int kernelPerm)
+readLoad(void)
 {
     int     i, busyBits = 0;
     double  etime;
@@ -350,9 +350,6 @@ readLoad(int kernelPerm)
     static  int     loginses;
 
     TIMEIT(0, getusr(), "getusr()");
-
-    if (kernelPerm < 0)
-        goto checkOverRide;
 
     if (++readCount0 < (5.0/sampleIntvl)) {
         goto checkExchange;

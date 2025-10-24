@@ -81,7 +81,7 @@ reconfig(void)
     static char fname[] = "reconfig()";
     char debug_buf[10];
     char *myargv[5];
-    int i, sdesc;
+    int i;
     sigset_t newmask;
     pid_t pid;
 
@@ -98,7 +98,7 @@ reconfig(void)
     chanClose_(limSock);
     chanClose_(limTcpSock);
 
-    pid= fork();
+    pid = fork();
 
     switch (pid) {
     case 0:
@@ -120,12 +120,7 @@ reconfig(void)
         }
         myargv[i] = NULL;
 
-        if (lim_debug >= 2)
-            sdesc = 3;
-        else
-            sdesc = 0;
-
-        for (i=sdesc; i<sysconf(_SC_OPEN_MAX); i++)
+        for (i = sysconf(_SC_OPEN_MAX); i>= 0; i++)
             close(i);
 
         if (limLock.on) {
@@ -163,10 +158,9 @@ reconfig(void)
 
         putLastActiveTime();
 
-        lsfExecvp(myargv[0], myargv);
+        execvp(myargv[0], myargv);
 
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M,
-                  fname, "execvp", myargv[0]);
+        syslog(LOG_ERR, "%s: execvp(%s) failed: %m", __func__, myargv[0]);
         lim_Exit(fname);
 
     default:
@@ -395,14 +389,6 @@ limPortOk(struct sockaddr_in *from)
     if (from->sin_port == lim_port)
         return true;
 
-#ifndef INSECURE
-    if (! lim_debug) {
-        if (ntohs(from->sin_port) >= IPPORT_RESERVED
-            || ntohs(from->sin_port) < IPPORT_RESERVED/2)
-            return false;
-    }
-#endif
-
     return true;
 }
 
@@ -515,7 +501,7 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
         if ( debugReq.level>=0 || debugReq.logFileName[0] != '\0') {
 
             closelog();
-            if (lim_debug > 1)
+            if (lim_debug)
                 ls_openlog(logFileName, lsfLogDir,
                            true, limParams[LSF_LOG_MASK].paramValue);
             else
@@ -531,7 +517,7 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
         if (debugReq.logFileName[0] != '\0') {
 
             closelog();
-            if (lim_debug > 1)
+            if (lim_debug)
                 ls_openlog(logFileName, lsfLogDir,
                            true, limParams[LSF_LOG_MASK].paramValue);
             else
@@ -575,7 +561,7 @@ doReopen(void)
         sp = getenv("LSF_LOGDIR");
         if (sp != NULL)
             limParams[LSF_LOGDIR].paramValue = sp;
-        ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, (lim_debug == 2),
+        ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, lim_debug,
                    limParams[LSF_LOG_MASK].paramValue);
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MM, fname, "ls_openlog",
                   limParams[LSF_LOGDIR].paramValue);
@@ -586,12 +572,12 @@ doReopen(void)
                  limParams[LSF_TIME_LIM].paramValue);
     closelog();
 
-    if (lim_debug > 1)
+    if (lim_debug)
         ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
     else
         ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, false,
                    limParams[LSF_LOG_MASK].paramValue);
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "doReopen: logclass=%x", logclass);
 
     return;

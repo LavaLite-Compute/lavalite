@@ -19,8 +19,6 @@
 
 #include "lsf/lim/lim.h"
 
-#define UNIX_KERNEL_EXE_FILE  "/vmlinux"
-
 #define  CPUSTATES 4
 #define ut_name   ut_user
 
@@ -36,224 +34,25 @@ static unsigned long    prevRQ;
 static int getPage(double *page_in, double *page_out, bool_t isPaging);
 static int readMeminfo(void);
 
-#ifdef __i386__
-#include <sys/sysinfo.h>
-#define HT_BIT          0x10000000
-#define FAMILY_ID    0x0f00
-#define PENTIUM4_ID  0x0f00
-#define NUM_LOG_BITS  0x00FF0000
-
-int
-CPUID_is_supported()
-{
-        unsigned int f1, f2;
-        int flag = 0x200000;
-        __asm__ volatile("pushfl\n\t"
-                        "pushfl\n\t"
-                        "popl %0\n\t"
-                        "movl %0,%1\n\t"
-                        "xorl %2,%0\n\t"
-                        "pushl %0\n\t"
-                        "popfl\n\t"
-                        "pushfl\n\t"
-                        "popl %0\n\t"
-                        "popfl\n\t"
-                        : "=&r" (f1), "=&r" (f2)
-                        : "ir" (flag));
-        return ((f1^f2) & flag) != 0;
-}
-
-unsigned int HTSupported(void)
-{
-    unsigned char log_cpu_cnt=0;
-    unsigned int reg_eax = 0;
-    unsigned int reg_ebx = 0;
-    unsigned int reg_edx = 0;
-    unsigned int junk, junk1, junk2;
-    unsigned int vendor_id[3] = {0, 0, 0};
-
-   if ( !CPUID_is_supported() )
-   {
-
-       ls_syslog(LOG_DEBUG, "CPUID is not supported");
-       return 0;
-   }
-    __asm__("cpuid" : "=a" (reg_eax), "=b" (*vendor_id),
-                         "=c" (vendor_id[2]), "=d" (vendor_id[1]) : "a" (0));
-
-    if ( strncmp( (char *) vendor_id, "GenuineIntel", 12) != 0 ) {
-        ls_syslog(LOG_DEBUG,"Not an Intel chip");
-        return 0;
-    }
-    __asm__("cpuid" : "=a" (reg_eax), "=b"(junk), "=c"(junk1),
-                                                   "=d" (reg_edx) : "a" (1));
-
-   if ((reg_eax & FAMILY_ID) !=  PENTIUM4_ID) {
-       ls_syslog(LOG_DEBUG,"Not a P4 processor");
-       return 0;
-    }
-
-    if ( (reg_edx & HT_BIT) == 0 ) {
-        ls_syslog(LOG_DEBUG,"No hyper-threading");
-        return 0;
-    }
-
-    __asm__("cpuid" : "=a"(junk) , "=b"(reg_ebx), "=c"(junk1),
-                                                    "=d"(junk2)  : "a" (1));
-
-    log_cpu_cnt =  (unsigned char) ((reg_ebx & NUM_LOG_BITS) >> 16);
-    ls_syslog(LOG_DEBUG,"Log_cpu_cnt = %d", log_cpu_cnt);
-
-    return ( log_cpu_cnt == 1) ? 0 :  log_cpu_cnt;
-}
-
-#include <sys/klog.h>
-#define BUF_SIZE 16392
-#define HT_TEXT "cpu_sibling_map["
-
-int ht_os_cpus()
-{
-
-    static char fname[] ="ht_os_cpus()";
-    char buf[BUF_SIZE];
-    int n, i ;
-    int len = strlen(HT_TEXT);
-    int cpu_cnt=0;
-
-    n = klogctl( 3, buf, BUF_SIZE );
-
-    if (n < 0)
-    {
-       ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "klogctl", "klogctl");
-       return -1;
-    }
-
-    for (i = 0; i < n; i++)
-    {
-        if ((i == 0 || buf[i - 1] == '\n') && buf[i] == '<')
-        {
-            i++;
-            while (buf[i] >= '0' && buf[i] <= '9')
-                i++;
-            if (buf[i] == '>')
-                i++;
-        }
-        if ( strncmp( &buf[i], HT_TEXT, len) == 0)
-        {
-            ls_syslog(LOG_DEBUG,"Found string<%d>\n", cpu_cnt);
-            cpu_cnt++;
-        }
-    }
-    return cpu_cnt;
-}
-
-#define HT_FLAG_CHECKED 0x01
-#define SIBLINGS_CHECKED 0x02
-
-int issiblings(FILE *fp)
-{
-    char * position = NULL;
-    int ht = 0;
-    int siblings = 0;
-    int checkedItems = 0;
-
-    fseek(fp,0,SEEK_SET);
-    while(fgets(buffer, sizeof(buffer),fp) != NULL){
-       if (strncmp (buffer, "flags",sizeof("flags")-1) == 0){
-           checkedItems |= HT_FLAG_CHECKED;
-           if (strstr(buffer,"ht") != 0){
-               ht = 1;
-           }
-       }
-       if ((strncmp (buffer, "siblings",sizeof("siblings")-1) == 0)
-           || (strncmp (buffer, "Number of siblings",sizeof("Number of siblings")-1) == 0)) {
-           checkedItems |= SIBLINGS_CHECKED;
-           position = strchr(buffer, (int)':');
-           if (position != NULL) {
-               siblings = atoi(position+2);
-           }
-       }
-       if ((checkedItems & HT_FLAG_CHECKED) && (checkedItems & SIBLINGS_CHECKED)) {
-           break;
-       }
-    }
-
-    if ( ht == 1 && siblings > 0) {
-        return siblings;
-    } else if ( ht == 1) {
-        return 0;
-    } else {
-       return -1;
-    }
-}
-#endif
-
 int
 numCpus(void)
 {
     static char fname[] = "numCpus";
     int cpu_number = 0;
     FILE *fp;
-    int ret;
 
-    if((fp=fopen("/proc/cpuinfo","r"))==NULL) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen",
-        "/proc/cpuinfo");
-    ls_syslog(LOG_ERR, "%s: assuming one CPU only", fname);
-    return 1;
+    if ((fp=fopen("/proc/cpuinfo","r"))==NULL) {
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen",
+                  "/proc/cpuinfo");
+        ls_syslog(LOG_ERR, "%s: assuming one CPU only", fname);
+        return 1;
     }
-
- #if defined(__alpha)
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    if (strncmp (buffer, "cpus detected", sizeof("cpus detected") - 1) == 0) {
-        if ((position = strchr(buffer, (int)':')) == NULL){
-            break;
-        }
-        else{
-            cpu_number = atoi(position+2);
-            break;
-        }
-    }
-    }
-
- #endif
 
     while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-       if (strncmp (buffer, "processor", sizeof("processor") - 1) == 0) {
-          cpu_number++;
-       }
+        if (strncmp (buffer, "processor", sizeof("processor") - 1) == 0) {
+            cpu_number++;
+        }
     }
-#ifdef __i386__
-
-    ret = issiblings(fp);
-    if ( ret == 0) {
-       int log_cpus_per_phys;
-       int klog_cpus=0;
-       int cpus_of_os =0;
-
-       cpus_of_os = get_nprocs_conf();
-       log_cpus_per_phys  = HTSupported();
-
-       if ( log_cpus_per_phys != 0 ) {
-          klog_cpus = ht_os_cpus();
-          if (klog_cpus != -1 ) {
-
-             if (klog_cpus == 0 ) {
-                 ls_syslog(LOG_DEBUG," Hyper-Threading available in hardware but not supported by OS or BIOS");
-             } else if ( klog_cpus == 1 || klog_cpus != cpus_of_os ) {
-                 ls_syslog(LOG_DEBUG, "Can not determine hyper-threading support for sure ");
-             } else {
-               ls_syslog(LOG_DEBUG, "Hyper-threading supported by CPU, BIOS and OS ");
-               cpu_number = klog_cpus/log_cpus_per_phys;
-             }
-         }
-       }
-    } else if (ret > 0) {
-        ls_syslog(LOG_DEBUG, "This Linux box has siblings parameter in /proc/cpuinfo, siblings number is %d", ret);
-        cpu_number = cpu_number/ret;
-    }
-
-#endif
 
     fclose(fp);
     return cpu_number;
@@ -262,38 +61,37 @@ numCpus(void)
 int
 queueLengthEx(float *r15s, float *r1m, float *r15m)
 {
-  static char fname[]="queueLengthEx";
-#define LINUX_LDAV_FILE "/proc/loadavg"
-  char ldavgbuf[40];
-  double loadave[3];
-  int    fd, count;
+    static char fname[]="queueLengthEx";
+    char ldavgbuf[40];
+    double loadave[3];
+    int    fd, count;
 
-  fd = open(LINUX_LDAV_FILE, O_RDONLY);
-  if ( fd < 0) {
-    ls_syslog(LOG_ERR,"%s: %m", fname);
-    return -1;
-  }
+    fd = open("/proc/loadavg", O_RDONLY);
+    if ( fd < 0) {
+        ls_syslog(LOG_ERR,"%s: %m", fname);
+        return -1;
+    }
 
-  count = read(fd, ldavgbuf, sizeof(ldavgbuf));
-  if ( count < 0) {
-    ls_syslog(LOG_ERR,"%s:%m", fname);
+    count = read(fd, ldavgbuf, sizeof(ldavgbuf));
+    if ( count < 0) {
+        ls_syslog(LOG_ERR,"%s:%m", fname);
+        close(fd);
+        return -1;
+    }
+
     close(fd);
-    return -1;
-  }
+    count = sscanf(ldavgbuf, "%lf %lf %lf", &loadave[0],
+                   &loadave[1], &loadave[2]);
+    if (count != 3) {
+        ls_syslog(LOG_ERR,"%s: %m", fname);
+        return -1;
+    }
 
-  close(fd);
-  count = sscanf(ldavgbuf, "%lf %lf %lf", &loadave[0],
-                 &loadave[1], &loadave[2]);
-  if (count != 3) {
-    ls_syslog(LOG_ERR,"%s: %m", fname);
-    return -1;
-  }
+    *r15s = (float)queueLength();
+    *r1m  = (float)loadave[0];
+    *r15m = (float)loadave[2];
 
-  *r15s = (float)queueLength();
-  *r1m  = (float)loadave[0];
-  *r15m = (float)loadave[2];
-
-  return 0;
+    return 0;
 }
 
 float
@@ -306,7 +104,7 @@ queueLength(void)
     unsigned long size;
     char status;
     DIR *dir_proc_fd;
-    char filename[120];
+    char filename[BUFSIZ_128];
     unsigned int running = 0;
 
     dir_proc_fd = opendir("/proc");
@@ -315,35 +113,36 @@ queueLength(void)
         return 0.0;
     }
 
-    while (( process = readdir( dir_proc_fd ))) {
-    if (isdigit( process->d_name[0] ) ) {
-        sprintf( filename, "/proc/%s/stat", process->d_name );
-        fd = open( filename, O_RDONLY, 0);
-        if ( fd == -1 ) {
-        ls_syslog(LOG_DEBUG, "%s: cannot open [%s], %m", fname, filename);
-        continue;
+    while ((process = readdir( dir_proc_fd))) {
+
+        if (isdigit( process->d_name[0])) {
+            sprintf(filename, "/proc/%s/stat", process->d_name);
+            fd = open( filename, O_RDONLY, 0);
+            if (fd == -1) {
+                ls_syslog(LOG_DEBUG, "%s: cannot open [%s], %m", fname, filename);
+                continue;
+            }
+            if ( read(fd, buffer, sizeof( buffer) - 1 ) <= 0 ) {
+                ls_syslog(LOG_DEBUG, "%s: cannot read [%s], %m", fname, filename);
+                close( fd );
+                continue;
+            }
+            close( fd );
+            sscanf(buffer, "%*d %*s %c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %*d %*d %*d %*d %*d %*d %*u %*u %*d %*u %lu %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u\n",
+                   &status, &size );
+            if (status == 'R' && size > 0)
+                running++;
         }
-        if ( read(fd, buffer, sizeof( buffer) - 1 ) <= 0 ) {
-        ls_syslog(LOG_DEBUG, "%s: cannot read [%s], %m", fname, filename);
-        close( fd );
-        continue;
-        }
-        close( fd );
-        sscanf(buffer, "%*d %*s %c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %*d %*d %*d %*d %*d %*d %*u %*u %*d %*u %lu %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u %*u\n",
-        &status, &size );
-        if ( status == 'R' && size > 0 )
-        running++;
-    }
     }
     closedir( dir_proc_fd );
 
     if ( running > 0 ) {
         ql = running - 1;
         if ( ql < 0 )
-        ql = 0;
+            ql = 0;
     }
     else {
-    ql = 0;
+        ql = 0;
     }
 
     prevRQ = ql;
@@ -361,19 +160,19 @@ cpuTime (double *itime, double *etime)
 
     stat_fd = open("/proc/stat", O_RDONLY, 0);
     if ( stat_fd == -1 ) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open", "/proc/stat");
-    return;
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open", "/proc/stat");
+        return;
     }
 
     if ( read( stat_fd, buffer, sizeof( buffer ) - 1 ) <= 0 ) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "read", "/proc/stat");
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "read", "/proc/stat");
         close( stat_fd );
-    return;
+        return;
     }
     close( stat_fd );
 
     sscanf( buffer, "cpu  %lf %lf %lf %lf",
-    &cpu_user, &cpu_nice, &cpu_sys, &cpu_idle );
+            &cpu_user, &cpu_nice, &cpu_sys, &cpu_idle );
 
     *itime = (cpu_idle - prev_idle);
     prev_idle = cpu_idle;
@@ -395,13 +194,13 @@ realMem (float extrafactor)
     int realmem;
 
     if (readMeminfo() == -1)
-    return 0;
+        return 0;
     realmem = ( free_mem + buf_mem + cashed_mem) / 1024;
 
     realmem -= 2;
     realmem +=  extraload[MEM] * extrafactor;
     if (realmem < 0)
-    realmem = 0;
+        realmem = 0;
 
     return realmem;
 }
@@ -415,21 +214,21 @@ tmpspace(void)
     struct statfs fs;
 
     if ( tmpcnt >= TMP_INTVL_CNT )
-    tmpcnt = 0;
+        tmpcnt = 0;
 
     tmpcnt++;
     if (tmpcnt != 1)
-    return tmps;
+        return tmps;
 
     if (statfs("/tmp", &fs) < 0) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "statfs", "/tmp");
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "statfs", "/tmp");
         return tmps;
     }
 
     if (fs.f_bavail > 0)
-    tmps = (float) fs.f_bavail / ((float) (1024 *1024)/fs.f_bsize);
+        tmps = (float) fs.f_bavail / ((float) (1024 *1024)/fs.f_bsize);
     else
-    tmps = 0.0;
+        tmps = 0.0;
 
     return tmps;
 
@@ -442,14 +241,14 @@ getswap(void)
     static float swap;
 
     if ( tmpcnt >= SWP_INTVL_CNT )
-    tmpcnt = 0;
+        tmpcnt = 0;
 
     tmpcnt++;
     if (tmpcnt != 1)
-    return swap;
+        return swap;
 
     if (readMeminfo() == -1)
-    return 0;
+        return 0;
     swap = free_swap / 1024.0;
     return swap;
 }
@@ -468,13 +267,13 @@ getpaging(float etime)
 
     page = page_in + page_out;
     if (first) {
-    first = FALSE;
+        first = FALSE;
     }
     else {
-    if (page < prev_pages)
-        smooth(&smoothpg, (prev_pages - page) / etime, EXP4);
-    else
-        smooth(&smoothpg, (page - prev_pages) / etime, EXP4);
+        if (page < prev_pages)
+            smooth(&smoothpg, (prev_pages - page) / etime, EXP4);
+        else
+            smooth(&smoothpg, (page - prev_pages) / etime, EXP4);
     }
 
     prev_pages = page;
@@ -496,13 +295,13 @@ getIoRate(float etime)
     }
 
     if (first) {
-    kbps = 0;
-    first = FALSE;
+        kbps = 0;
+        first = FALSE;
 
-    if (myHostPtr->statInfo.nDisks == 0)
-        myHostPtr->statInfo.nDisks = 1;
+        if (myHostPtr->statInfo.nDisks == 0)
+            myHostPtr->statInfo.nDisks = 1;
     } else
-    kbps = page_in + page_out - prev_blocks;
+        kbps = page_in + page_out - prev_blocks;
 
     if (kbps > 100000.0) {
         ls_syslog(LOG_DEBUG,"readLoad: IO rate=%f bread=%d bwrite=%d", kbps, page_in, page_out);
@@ -524,8 +323,8 @@ readMeminfo(void)
     char tag[80];
 
     if ((f = fopen("/proc/meminfo", "r")) == NULL) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open",
-        "/proc/meminfo");
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open",
+                  "/proc/meminfo");
         return -1;
     }
 
@@ -534,78 +333,73 @@ readMeminfo(void)
         if (sscanf(lineBuffer, "%s %lld kB", tag, &value) != 2)
             continue;
 
-         if (strcmp(tag, "MemTotal:") == 0)
-         main_mem = value;
-     if (strcmp(tag, "MemFree:") == 0)
-         free_mem = value;
-         if (strcmp(tag, "MemShared:") == 0)
-             shared_mem = value;
-         if (strcmp(tag, "Buffers:") == 0)
-         buf_mem = value;
-         if (strcmp(tag, "Cached:") == 0)
-         cashed_mem = value;
-         if (strcmp(tag, "SwapTotal:") == 0)
-         swap_mem = value;
-         if (strcmp(tag, "SwapFree:") == 0)
-         free_swap = value;
-        }
-        fclose(f);
-        return 0;
+        if (strcmp(tag, "MemTotal:") == 0)
+            main_mem = value;
+        if (strcmp(tag, "MemFree:") == 0)
+            free_mem = value;
+        if (strcmp(tag, "MemShared:") == 0)
+            shared_mem = value;
+        if (strcmp(tag, "Buffers:") == 0)
+            buf_mem = value;
+        if (strcmp(tag, "Cached:") == 0)
+            cashed_mem = value;
+        if (strcmp(tag, "SwapTotal:") == 0)
+            swap_mem = value;
+        if (strcmp(tag, "SwapFree:") == 0)
+            free_swap = value;
+    }
+    fclose(f);
+    return 0;
 }
 
 void
-initReadLoad(int checkMode, int *kernelPerm)
+initReadLoad(int checkMode)
 {
     static char fname[] = "initReadLoad";
     float  maxmem;
     unsigned long maxSwap;
     struct statfs fs;
     int stat_fd;
-    float k_hz;
-
-    k_hz = (float) sysconf(_SC_CLK_TCK);
 
     myHostPtr->loadIndex[R15S] =  0.0;
     myHostPtr->loadIndex[R1M]  =  0.0;
     myHostPtr->loadIndex[R15M] =  0.0;
 
     if (checkMode)
-    return;
+        return;
 
     if (statfs( "/tmp", &fs ) < 0) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "statfs",
-        "/tmp");
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "statfs",
+                  "/tmp");
         myHostPtr->statInfo.maxTmp = 0;
     } else
         myHostPtr->statInfo.maxTmp =
-        (float)fs.f_blocks/((float)(1024 * 1024)/fs.f_bsize);
+            (float)fs.f_blocks/((float)(1024 * 1024)/fs.f_bsize);
 
     stat_fd = open("/proc/stat", O_RDONLY, 0);
     if ( stat_fd == -1 ) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open",
-        "/proc/stat");
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "open",
+                  "/proc/stat");
 
-         *kernelPerm = -1;
-    return;
+        return;
     }
 
     if ( read( stat_fd, buffer, sizeof( buffer ) - 1 ) <= 0 ) {
-    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "read",
-        "/proc/stat");
-    close( stat_fd );
+        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "read",
+                  "/proc/stat");
+        close( stat_fd );
 
-         *kernelPerm = -1;
-    return;
+        return;
     }
     close( stat_fd );
     sscanf( buffer, "cpu  %lf %lf %lf %lf",
-    &prev_cpu_user, &prev_cpu_nice, &prev_cpu_sys, &prev_cpu_idle );
+            &prev_cpu_user, &prev_cpu_nice, &prev_cpu_sys, &prev_cpu_idle );
 
     prev_idle = prev_cpu_idle;
     prev_time = prev_cpu_user + prev_cpu_nice + prev_cpu_sys + prev_cpu_idle;
 
     if (readMeminfo() == -1)
-    return;
+        return;
     maxmem = main_mem / 1024;
     maxSwap = swap_mem / 1024;
 
@@ -635,10 +429,10 @@ getHostModel(void)
 
     while (fgets(buf, sizeof(buf) - 1, fp)) {
         if (strncasecmp(buf, "cpu\t", 4) == 0
-        || strncasecmp(buf, "cpu family", 10) == 0) {
+            || strncasecmp(buf, "cpu family", 10) == 0) {
             char *p = strchr(buf, ':');
             if (p)
-        strcpy(b1, stripIllegalChars(p + 2));
+                strcpy(b1, stripIllegalChars(p + 2));
         }
         if (strstr(buf, "model") != 0) {
             char *p = strchr(buf, ':');
@@ -675,17 +469,16 @@ getHostModel(void)
     return model;
 }
 
-static int getPage(double *page_in, double *page_out,bool_t isPaging)
+static int
+getPage(double *page_in, double *page_out,bool_t isPaging)
 {
-    static char fname[] = "getPage";
     FILE *f;
-    char lineBuffer[80];
+    char lineBuffer[BUFSIZ_64];
     double value;
-    char tag[80];
+    char tag[BUFSIZ_32];
 
     if ((f = fopen("/proc/vmstat", "r")) == NULL) {
-       ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fopen",
-           "/proc/vmstat");
+        syslog(LOG_ERR, "%s: fopen() failed: %m,", __func__);
         return -1;
     }
 
@@ -694,18 +487,18 @@ static int getPage(double *page_in, double *page_out,bool_t isPaging)
         if (sscanf(lineBuffer, "%s %lf", tag, &value) != 2)
             continue;
 
-         if(isPaging){
+        if(isPaging){
             if (strcmp(tag, "pswpin") == 0)
-               *page_in = value;
+                *page_in = value;
             if (strcmp(tag, "pswpout") == 0)
-               *page_out = value;
-         } else {
+                *page_out = value;
+        } else {
             if (strcmp(tag, "pgpgin") == 0)
-               *page_in = value;
+                *page_in = value;
             if (strcmp(tag, "pgpgout") == 0)
-               *page_out = value;
-         }
-     }
-     fclose(f);
+                *page_out = value;
+        }
+    }
+    fclose(f);
     return 0;
 }

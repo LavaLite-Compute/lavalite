@@ -78,7 +78,7 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     char *replyStruct;
     struct tclHostData tclHostData;
 
-    if (logclass & (LC_TRACE | LC_HANG | LC_COMM))
+    if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     initResVal (&resVal);
@@ -1006,12 +1006,11 @@ loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     struct hostNode *candidate;
     struct tclHostData tclHostData;
 
-    if (logclass & (LC_TRACE | LC_HANG | LC_COMM))
+    if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     initResVal (&resVal);
 
-    ignDedicatedResource = false;
     if (!masterMe) {
 
         wrongMaster(from, buf, reqHdr, -1);
@@ -1030,7 +1029,7 @@ loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     }
 
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, true);
-    tclHostData.ignDedicatedResource = ignDedicatedResource;
+    tclHostData.ignDedicatedResource = 1;
     cc=parseResReq(jobXfer.resReq, &resVal, &allInfo, PR_RUSAGE);
     if ((cc != PARSE_OK) ||
         (returnCode = evalResReq(resVal.selectStr, &tclHostData, false)) < 0) {
@@ -1214,12 +1213,11 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     char *currp;
     struct tclHostData tclHostData;
 
-    if (logclass & (LC_TRACE | LC_HANG | LC_COMM))
+    if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     initResVal (&resVal);
     reply.indicies = NULL;
-    ignDedicatedResource = false;
     reply.nEntry = 0;
     reply.flags = 0;
 
@@ -1254,7 +1252,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
         propt |= PR_DEFFROMTYPE;
 
     getTclHostData (&tclHostData, myHostPtr, myHostPtr, true);
-    tclHostData.ignDedicatedResource = ignDedicatedResource;
+    tclHostData.ignDedicatedResource = 1;
     cc = parseResReq(ldReq.resReq, &resVal, &allInfo, propt);
     if((cc != PARSE_OK) ||
        (returnCode = evalResReq(resVal.selectStr,
@@ -1582,7 +1580,7 @@ getTclHostData (struct tclHostData *tclHostData, struct hostNode *hostNode, stru
     tclHostData->cpuFactor = (hostNode->hModelNo >= 0) ?
         shortInfo.cpuFactors[hostNode->hModelNo] : 1.0;
     tclHostData->DResBitMaps = hostNode->DResBitMaps;
-    tclHostData->ignDedicatedResource = ignDedicatedResource;
+    tclHostData->ignDedicatedResource = 1;
     tclHostData->resBitMaps = hostNode->resBitMaps;
     tclHostData->numResPairs = hostNode->numInstances;
     tclHostData->resPairs = getResPairs(hostNode);

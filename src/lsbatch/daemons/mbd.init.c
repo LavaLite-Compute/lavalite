@@ -198,7 +198,7 @@ minit (int mbdInitFlags)
         }
 
         batchId = getuid();
-	if (! getpwnam(batchName)) {
+	if (! getpwnam2(batchName)) {
 	    ls_syslog(LOG_ERR, "%s", __func__, "getLSFUser_");
             mbdDie(MASTER_FATAL);
 	}
@@ -976,7 +976,7 @@ addMember (struct gData *groupPtr, char *word, int grouptype, char *filename,
     if (grouptype == USER_GRP) {
         subgrpPtr = getGrpData (tempUGData, word, nTempUGroups);
         if (!subgrpPtr)
-            pw = getpwnam(word);
+            pw = getpwnam2(word);
 
         isgrp = TRUE;
         if (pw != NULL) {
@@ -1088,7 +1088,7 @@ parseAUids (struct qData *qp, char *line)
         if (strcmp (word, "all") == 0) {
             setAllusers (qp, &admins);
             return;
-        } else if ((pw = getpwnam(word))) {
+        } else if ((pw = getpwnam2(word))) {
             if (putInLists (word, &admins, &numAds, forWhat) < 0) {
                 callFail = TRUE;
                 break;
@@ -1266,7 +1266,7 @@ parseGroups (int groupType, struct gData **group, char *line, char *filename)
             continue;
         }
 	if (groupType == USER_GRP) {
-	    TIMEIT(0, pw = getpwnam(word), "parseGroups_getpwnam");
+	    TIMEIT(0, pw = getpwnam2(word), "parseGroups_getpwnam2");
 	    if (pw != NULL) {
 		h_addEnt_(&mygp->memberTab, word, 0);
 		continue;
@@ -1678,7 +1678,7 @@ addUnixGrp (struct group *unixGrp, char *grpName,
     }
     gp = addGroup (groups, grpTemp, ngroups);
     while (unixGrp->gr_mem[++i] != NULL)  {
-	if ((pw = getpwnam(unixGrp->gr_mem[i])))
+	if ((pw = getpwnam2(unixGrp->gr_mem[i])))
             addMember (gp, unixGrp->gr_mem[i], USER_GRP, filename,
 		       groups, ngroups);
         else {
@@ -1720,7 +1720,7 @@ getClusterData(void)
         nManagers = 1;
         lsbManagers = (char **)my_malloc(sizeof (char *), fname);
         lsbManagers[0] = (char *)my_malloc(MAX_LSB_NAME_LEN, fname);
-	struct passwd *pwd = getpwnam(lsbManagers[0]);
+	struct passwd *pwd = getpwnam2(lsbManagers[0]);
         if (pwd) {
 	    managerIds = (int *) my_malloc (sizeof (int), fname);
             managerIds[0] = pwd->pw_uid;
@@ -1788,7 +1788,7 @@ setManagers (struct clusterInfo clusterInfo)
 
 	lsbManagers[i] = safeSave (sp);
 
-	if ((pw = getpwnam (sp)) != NULL) {
+	if ((pw = getpwnam2 (sp)) != NULL) {
 	    managerIds[i] = pw->pw_uid;
 	    if (numValid == 0) {
 		gid = pw->pw_gid;
@@ -3084,7 +3084,7 @@ updUserList (int mbdInitFlags)
                 uData->flags &= ~USER_UPDATE;
             continue;
 
-        } else if (getpwnam(uData->user) != NULL) {
+        } else if (getpwnam2(uData->user) != NULL) {
 
 	    if (defUser != NULL) {
 

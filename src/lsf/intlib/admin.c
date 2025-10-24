@@ -339,7 +339,7 @@ checkConf(int verbose, int who)
         uid_t uid = getuid();
         if (uid != 0) {
             if (seteuid(uid) < 0) {
-                char buf[MICROBUF_SIZ];
+                char buf[BUFSIZ_32];
                 sprintf(buf, "%s: setuid() failed %m", __func__);
                 perror(buf);
                 exit(-1);

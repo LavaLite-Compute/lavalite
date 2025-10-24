@@ -1956,7 +1956,7 @@ getOtherParams (struct submit  *jobSubReq, struct submitReq *submitReq,
     } else
         submitReq->nxf = 0;
 
-    if ((pw = getpwnam(auth->lsfUserName)) == NULL) {
+    if ((pw = getpwnam2(auth->lsfUserName)) == NULL) {
         lsberrno = LSBE_SYS_CALL;
         return -1;
     }
@@ -2002,7 +2002,7 @@ acctMapGet(int *fail, char *lsfUserName)
     struct passwd *pw;
     struct stat statbuf;
 
-    if ((pw = getpwnam(lsfUserName)) == NULL)
+    if ((pw = getpwnam2(lsfUserName)) == NULL)
         return NULL;
 
     strcpy(hostfn, pw->pw_dir);

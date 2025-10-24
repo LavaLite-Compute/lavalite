@@ -463,7 +463,7 @@ checkPerm(void)
     int i;
     char username[128];
 
-    if (getpwnam(username) < 0) {
+    if (getpwnam2(username) < 0) {
         return -1;
     }
 

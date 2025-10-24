@@ -379,7 +379,6 @@ xdr_lsffree(bool_t (*xdr_func)(), char *objp, struct LSFHeader *hdr)
     (*xdr_func)(&xdrs, objp, hdr);
 
     xdr_destroy(&xdrs);
-
 }
 
 int
@@ -391,7 +390,8 @@ getXdrStrlen(char *str)
     return((strlen(str)+7)/4*4);
 }
 
-int getHdrReserved(struct LSFHeader *hdr)
+int
+getHdrReserved(struct LSFHeader *hdr)
 {
     unsigned int word;
 
@@ -400,10 +400,4 @@ int getHdrReserved(struct LSFHeader *hdr)
     word = word | (hdr->reserved0.Low & 0x0000FFFF);
 
     return word;
-}
-
-void setHdrReserved(struct LSFHeader *hdr, unsigned int val)
-{
-    hdr->reserved0.High = (val >> 16) & 0x000000FF;
-    hdr->reserved0.Low  = val & 0x0000FFFF;
 }

@@ -312,7 +312,7 @@ main (int argc, char **argv)
         setLsbPtilePack(TRUE);
     }
 
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: connTimeout=%d", fname, connTimeout);
 
     daemon_doinit();

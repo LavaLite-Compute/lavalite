@@ -1295,7 +1295,7 @@ addSharedResourceInstance(int nHosts, char **hosts, char *resName)
         }
     }
     if (logclass & LC_ELIM){
-        char str[SBUF_SIZ];
+        char str[BUFSIZ_512];
         cnt = 0;
         for (tmp = sharedResourceHead; tmp ; tmp = tmp->nextPtr) {
             sprintf(str, "%d %s: ", cnt++, tmp->resName);
@@ -4243,7 +4243,7 @@ getAdmins (char *line, char *lsfile, int *LineNum, char *secName)
 
     sp = line;
     while ((word=getNextWord_(&sp)) != NULL) {
-        if ((pw = getpwnam(word)) != NULL) {
+        if ((pw = getpwnam2(word)) != NULL) {
             if (putInLists (word, &admins, &numAds, forWhat) < 0)
                 return(&admins);
         } else if ((unixGrp = getgrnam(word)) != NULL) {
@@ -4657,7 +4657,6 @@ slaveOnlyPreConf()
     struct hostNode *hPtr;
     char * hname;
     int  mindex;
-    char rootName[MAXLSFNAMELEN];
 
     myClusterPtr = (struct clusterNode *)malloc(sizeof(struct clusterNode));
     if (myClusterPtr == (struct clusterNode *)NULL) {
@@ -4704,7 +4703,7 @@ slaveOnlyPreConf()
     clusAdminIds[0] = 0;
     nClusAdmins = 1;
     clusAdminNames = calloc(1, sizeof(char *));
-    clusAdminNames[0] = strdup(rootName);
+    clusAdminNames[0] = strdup("root");
 
     myClusterPtr->nAdmins = nClusAdmins;
     myClusterPtr->adminIds = clusAdminIds;

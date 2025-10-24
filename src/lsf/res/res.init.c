@@ -70,7 +70,7 @@ init_res(void)
     static char fname[] = "init_res";
     int i, maxfds;
 
-    if (logclass & (LC_TRACE | LC_HANG))
+    if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
 

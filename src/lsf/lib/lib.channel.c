@@ -636,7 +636,7 @@ chanSelect_(struct Masks *sockmask, struct Masks *chanmask, struct timeval *time
                     &(sockmask->rmask),
                     &(sockmask->wmask),
                     &(sockmask->emask),
-                    NULL);
+                    timeout);
     if (nReady <= 0) {
         return nReady;
     }
