@@ -1,4 +1,6 @@
 # Ignore misc files mostly created by automake and build
+ar-lib
+compile
 *.o
 *.lo
 *.a
