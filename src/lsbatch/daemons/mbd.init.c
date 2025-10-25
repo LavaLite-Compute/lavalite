@@ -63,8 +63,6 @@ static struct paramConf *paramConf = NULL;
 struct gData *tempUGData[MAX_GROUPS], *tempHGData[MAX_GROUPS];
 int nTempUGroups = 0, nTempHGroups = 0;
 
-static char batchName[MAX_LSB_NAME_LEN] = "root";
-
 #define PARAM_FILE    0x01
 #define USER_FILE     0x02
 #define HOST_FILE     0x04
@@ -97,7 +95,7 @@ static struct gData *addUnixGrp (struct group *, char *, char *,
 static void parseAUids (struct qData *, char *);
 
 static void getClusterData(void);
-static void setManagers (struct clusterInfo);
+static void setManagers (struct clusterInfo *);
 static void setAllusers (struct qData *, struct admins *);
 
 static void createTmpGData (struct groupInfoEnt *, int, int,
@@ -147,6 +145,8 @@ static void checkAskedHostList(struct jData *jp);
 static void checkReqHistory(struct jData *jp);
 
 static void       rebuildUsersSets(void);
+// LavaLite
+static struct mbd_manager *make_mbd_manager(void);
 
 int
 minit (int mbdInitFlags)
@@ -159,6 +159,15 @@ minit (int mbdInitFlags)
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
+    mbd_mgr = make_mbd_manager();
+    if (mbd_mgr == NULL) {
+        syslog(LOG_ERR, "%s: make_mbd_mamager() failed %m", __func__);
+        return -1;
+    }
+
+    syslog(LOG_INFO, "%s: batch manager is name %d uid %s", __func__,
+           mbd_mgr->uid, mbd_mgr->name);
+
     if (mbdInitFlags == FIRST_START) {
         Signal_(SIGTERM,  terminate_handler);
         Signal_(SIGINT,   terminate_handler);
@@ -168,7 +177,7 @@ minit (int mbdInitFlags)
         Signal_(SIGPIPE, SIG_IGN);
         Signal_(SIGCHLD,  child_handler);
 
-        if (!(debug || lsb_CheckMode)) {
+        if (!(mbd_debug || lsb_CheckMode)) {
 	    Signal_(SIGTTOU, SIG_IGN);
 	    Signal_(SIGTTIN, SIG_IGN);
 	    Signal_(SIGTSTP, SIG_IGN);
@@ -192,17 +201,12 @@ minit (int mbdInitFlags)
 
 	uDataPtrTb = uDataTableCreate();
 
-	if ((qDataList = (struct qData *) listCreate("Queue List")) == NULL) {
+	if ((qDataList = (struct qData *)listCreate("Queue List")) == NULL) {
 	    ls_syslog(LOG_ERR, "%s", __func__, "listCreate");
             mbdDie(MASTER_FATAL);
         }
-
-        batchId = getuid();
-	if (! getpwnam2(batchName)) {
-	    ls_syslog(LOG_ERR, "%s", __func__, "getLSFUser_");
-            mbdDie(MASTER_FATAL);
-	}
     }
+
     if (lsb_CheckMode)
         TIMEIT(0, masterHost = ls_getmyhostname(), "minit_ls_getmyhostname");
     if (masterHost == NULL) {
@@ -216,7 +220,7 @@ minit (int mbdInitFlags)
     }
 
     if (lsb_CheckMode)
-	ls_syslog(LOG_INFO, ("%s: Trying to call LIM to get cluster name ..."),
+	ls_syslog(LOG_INFO, "%s: Trying to call LIM to get cluster name ...",
 		  fname);
     getClusterData();
 
@@ -386,13 +390,13 @@ minit (int mbdInitFlags)
             }
         }
 
-        if (!(debug || lsb_CheckMode)) {
+        if (!(mbd_debug || lsb_CheckMode)) {
 	    nice(NICE_LEAST);
     	    nice(NICE_MIDDLE);
 	    nice(0);
         }
 
-        if (!(debug || lsb_CheckMode)) {
+        if (!(mbd_debug || lsb_CheckMode)) {
 	    if (chdir(LSTMPDIR) < 0) {
 	        ls_syslog(LOG_ERR, "%s", __func__, "chdir", LSTMPDIR);
 	        if (!lsb_CheckMode)
@@ -419,8 +423,7 @@ readHostConf (int mbdInitFlags)
     static char fileName[MAXFILENAMELEN];
 
     if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF)  {
-        sprintf(fileName, "%s/%s/configdir/lsb.hosts",
-            daemonParams[LSB_CONFDIR].paramValue, clusterName);
+        sprintf(fileName, "%s/lsb.hosts", daemonParams[LSF_CONFDIR].paramValue);
         hostFileConf = getFileConf (fileName, PARAM_FILE);
         if (hostFileConf == NULL && lserrno == LSE_NO_FILE) {
             ls_syslog(LOG_ERR, "%s: File <%s> can not be found, all hosts known by LSF will be used", fname, fileName);
@@ -543,9 +546,8 @@ readUserConf (int mbdInitFlags)
     if (mbdInitFlags == FIRST_START ||
 	mbdInitFlags == RECONFIG_CONF) {
 
-        sprintf(fileName, "%s/%s/configdir/lsb.users",
-            daemonParams[LSB_CONFDIR].paramValue,
-		clusterName);
+        sprintf(fileName, "%s/lsb.users",
+            daemonParams[LSF_CONFDIR].paramValue, clusterName);
 
         userFileConf = getFileConf (fileName, USER_FILE);
         if (userFileConf == NULL && lserrno == LSE_NO_FILE) {
@@ -624,8 +626,8 @@ readQueueConf (int mbdInitFlags)
     struct sharedConf sharedConf;
 
    if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF) {
-        sprintf(fileName, "%s/%s/configdir/lsb.queues",
-            daemonParams[LSB_CONFDIR].paramValue, clusterName);
+        sprintf(fileName, "%s/lsb.queues", daemonParams[LSF_CONFDIR].paramValue);
+
         queueFileConf = getFileConf (fileName, QUEUE_FILE);
         if (queueFileConf == NULL && lserrno == LSE_NO_FILE) {
             ls_syslog(LOG_ERR, "%s: File <%s> can not be found, default queue will be used", fname, fileName);
@@ -667,7 +669,8 @@ readQueueConf (int mbdInitFlags)
 	     numQueues++;
 
     if (!numQueues) {
-        ls_syslog(LOG_WARNING, "%s: File %s/%s/configdir/lsb.queues: No valid queue defined", fname, daemonParams[LSB_CONFDIR].paramValue, clusterName);
+        syslog(LOG_WARNING, "%s: File %s/lsb.queues: No valid queue defined",
+               __func__, daemonParams[LSF_CONFDIR].paramValue);
 	lsb_CheckError = WARNING_ERR;
     }
 
@@ -676,7 +679,10 @@ readQueueConf (int mbdInitFlags)
 	while ((word = getNextWord_(&cp))) {
 	    if ((qp = getQueueData(word)) == NULL ||
 			 !(qp->flags & QUEUE_UPDATE)) {
-		ls_syslog(LOG_WARNING, "%s: File %s/%s/configdir/lsb.params: Invalid queue name <%s> specified by parameter DEFAULT_QUEUE; ignoring <%s>", fname, daemonParams[LSB_CONFDIR].paramValue, clusterName, word, word);
+		syslog(LOG_WARNING, "%s: File %s/lsb.params: Invalid queue "
+                       "name <%s> specified by parameter DEFAULT_QUEUE; "
+                       "ignoring <%s>", __func__,
+                       daemonParams[LSF_CONFDIR].paramValue, word, word);
 		lsb_CheckError = WARNING_ERR;
 	    } else {
                 qp->qAttrib |= Q_ATTRIB_DEFAULT;
@@ -688,7 +694,8 @@ readQueueConf (int mbdInitFlags)
     if (numDefQue)
         return;
 
-    ls_syslog(LOG_WARNING, "%s: File %s/%s/configdir/lsb.queues: No valid default queue defined", fname, daemonParams[LSB_CONFDIR].paramValue, clusterName);
+    syslog(LOG_WARNING, "%s: File %s/lsb.queues: No valid default queue defined",
+           __func__, daemonParams[LSF_CONFDIR].paramValue);
     lsb_CheckError = WARNING_ERR;
 
     if ((qp = getQueueData("default")) != NULL) {
@@ -1356,8 +1363,8 @@ readParamConf (int mbdInitFlags)
 
     if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF) {
 
-        sprintf(fileName, "%s/%s/configdir/lsb.params",
-            daemonParams[LSB_CONFDIR].paramValue, clusterName);
+        sprintf(fileName, "%s/lsb.params",
+            daemonParams[LSF_CONFDIR].paramValue, clusterName);
         paramFileConf = getFileConf (fileName, PARAM_FILE);
         if (paramFileConf == NULL && lserrno == LSE_NO_FILE) {
             ls_syslog(LOG_ERR, "\
@@ -1699,128 +1706,45 @@ addUnixGrp (struct group *unixGrp, char *grpName,
 static void
 getClusterData(void)
 {
-    static char fname[]="getClusterData";
-    int i, num;
-
-    TIMEIT(0, clusterName = ls_getclustername(), "minit_ls_getclustername");
-    if (clusterName == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "ls_getclustername");
-        if (! lsb_CheckMode)
-            mbdDie(MASTER_RESIGN);
-        else {
-            lsb_CheckError = FATAL_ERR;
-            return ;
-        }
-    }
-    if (debug) {
-        FREEUP (managerIds);
-	if (lsbManagers)
-	    FREEUP (lsbManagers[0]);
-        FREEUP (lsbManagers);
-        nManagers = 1;
-        lsbManagers = (char **)my_malloc(sizeof (char *), fname);
-        lsbManagers[0] = (char *)my_malloc(MAX_LSB_NAME_LEN, fname);
-	struct passwd *pwd = getpwnam2(lsbManagers[0]);
-        if (pwd) {
-	    managerIds = (int *) my_malloc (sizeof (int), fname);
-            managerIds[0] = pwd->pw_uid;
-	} else {
-            ls_syslog(LOG_ERR, "%s", __func__, "getLSFUser_");
-            mbdDie(MASTER_RESIGN);
-	}
-        if (!lsb_CheckMode)
-            ls_syslog(LOG_NOTICE,"%s: The LSF administrator is the invoker in debug mode",fname);
-        lsbManager = lsbManagers[0];
-        managerId  = managerIds[0];
-    }
-    num = 0;
-    clusterInfo = ls_clusterinfo(NULL, &num, NULL, 0, 0);
+    // Global clusterinfo
+    clusterInfo = ls_clusterinfo(NULL, &numofclusters, NULL, 0, 0);
     if (clusterInfo == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "ls_clusterinfo");
-        if (!lsb_CheckMode)
-            mbdDie(MASTER_RESIGN);
-        else {
+        syslog(LOG_ERR, "%s: failed to get cluster info", __func__);
+        if (lsb_CheckMode)
             lsb_CheckError = FATAL_ERR;
-            return ;
-        }
-    } else {
-        if (!debug) {
-            if (nManagers > 0) {
-                for (i = 0; i < nManagers; i++)
-                    FREEUP (lsbManagers[i]);
-                FREEUP (lsbManagers);
-                FREEUP (managerIds);
-            }
-        }
-
-        for(i=0; i < num; i++) {
-            if (!debug &&
-                (strcmp(clusterName, clusterInfo[i].clusterName) == 0))
-                setManagers (clusterInfo[i]);
-        }
-
-        if (!nManagers && !debug) {
-            ls_syslog(LOG_ERR, "%s: Local cluster %s not returned by LIM",fname, clusterName);
-            mbdDie(MASTER_FATAL);
-        }
-        numofclusters = num;
+        else
+            mbdDie(MASTER_RESIGN);
+        return;
     }
+
+    // LavaLite has a single cluster
+    setManagers(clusterInfo);
 }
 
 static void
-setManagers (struct clusterInfo clusterInfo)
+setManagers(struct clusterInfo *cluster)
 {
-    static char fname[]="setManagers";
-    struct passwd   *pw;
-    int i, numValid = 0, gid, temNum = 0, tempId;
-    char *sp;
-    char managerIdStr[MAX_LSB_NAME_LEN], managerStr[MAX_LSB_NAME_LEN];
+    char buf[BUFSIZ_32];
 
-    temNum = (clusterInfo.nAdmins) ? clusterInfo.nAdmins : 1;
-    managerIds = (int *) my_malloc (sizeof (int) * temNum, fname);
-    lsbManagers = (char **) my_malloc (sizeof (char *) * temNum, fname);
-
-    for (i = 0; i < temNum; i++) {
-        sp = (clusterInfo.nAdmins) ?
-                             clusterInfo.admins[i] : clusterInfo.managerName;
-        tempId = (clusterInfo.nAdmins) ?
-                             clusterInfo.adminIds[i] : clusterInfo.managerId;
-
-	lsbManagers[i] = safeSave (sp);
-
-	if ((pw = getpwnam2 (sp)) != NULL) {
-	    managerIds[i] = pw->pw_uid;
-	    if (numValid == 0) {
-		gid = pw->pw_gid;
-
-		lsbManager = lsbManagers[i];
-		managerId  = managerIds[i];
-	    }
-            numValid++;
-	} else {
-	    if (logclass & LC_AUTH) {
-		ls_syslog(LOG_DEBUG,
-		    "%s: Non recognize LSF administrator name <%s> and userId <%d> detected. It may be a user from other realm", fname, sp, tempId);
-	    }
-	    managerIds[i] = -1;
-	}
-    }
-    if (numValid == 0) {
-        ls_syslog(LOG_ERR, "%s: No valid LSF administrators", fname);
+    if (cluster->nAdmins < 1) {
+        ls_syslog(LOG_ERR, "%s: no cluster admins defined in LIM?", __func__);
         mbdDie(MASTER_FATAL);
     }
-    nManagers = temNum;
 
-    setgid(gid);
+    if (mbd_mgr->uid != cluster->adminIds[0]) {
+        ls_syslog(LOG_ERR, "%s: daemon UID %d is not cluster admin UID %d (%s)",
+                  __func__, mbd_mgr->uid, cluster->adminIds[0], cluster->admins[0]);
+        mbdDie(MASTER_FATAL);
+    }
 
     if (getenv("LSB_MANAGERID") == NULL) {
-        sprintf (managerIdStr, "%d", managerId);
-        putEnv ("LSB_MANAGERID", managerIdStr);
+        sprintf(buf, "%d", mbd_mgr->uid);
+        setenv("LSB_MANAGERID", buf, 1);
     }
 
     if (getenv("LSB_MANAGER") == NULL) {
-        sprintf (managerStr, "%s", lsbManager);
-        putEnv ("LSB_MANAGER", managerStr);
+        sprintf(buf, "%s", mbd_mgr->name);
+        setenv("LSB_MANAGER", buf, 1);
     }
 }
 
@@ -2507,9 +2431,8 @@ createCondNodes (int numConds, char **conds, char *fileName, int flags)
 	first = FALSE;
     }
 
-    auth.uid = batchId;
-    strncpy(auth.lsfUserName, batchName, MAXLSFNAMELEN);
-    auth.lsfUserName[MAXLSFNAMELEN-1] = '\0';
+    auth.uid = mbd_mgr->uid;
+    strcpy(auth.lsfUserName, mbd_mgr->name);
 
     for (i = 0; i < numConds; i++) {
         if (conds[i] == NULL || conds[i][0] == '\0')
@@ -4067,4 +3990,31 @@ setCreate", strBuf, setPerror(bitseterrno));
 	}
     } END_FOR_EACH_HTAB_ENTRY;
 
+}
+
+// Make the batch system manager
+// One user, fixed identity, zero UID gymnastics
+static struct mbd_manager *
+make_mbd_manager(void)
+{
+    mbd_mgr = calloc(1, sizeof(struct mbd_manager));
+    mbd_mgr->uid = getuid();
+    mbd_mgr->gid = getgid();
+
+    struct passwd *pw = getpwuid2(mbd_mgr->uid);
+    if (!pw || !pw->pw_name) {
+        syslog(LOG_ERR, "%s: getpwuid2(%d) failed: %m",
+               __func__, mbd_mgr->uid);
+        free(mbd_mgr);
+        return -1;
+    }
+
+    mbd_mgr->name = strdup(pw->pw_name);
+
+    // Optional badge log for audit clarity
+    syslog(LOG_INFO, "%s initialized: uid %d, gid %d, name %s",
+           __func__, mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name);
+    num_managers = 1;
+
+    return mbd_mgr;
 }

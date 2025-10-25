@@ -18,6 +18,8 @@
 
 #include "lsbatch/daemons/daemons.h"
 
+// Bug LSB_CONFDIR is not used anymore in ll. Change the defines
+// to use enum like ll errors.
 struct config_param daemonParams[] = {
     {"LSB_DEBUG", NULL},
     {"LSB_CONFDIR", NULL},
@@ -119,8 +121,8 @@ rcvJobFile(int chfd, struct lenData *jf)
 }
 
 int
-do_readyOp (XDR *xdrs, int chanfd, struct sockaddr_in *from,
-               struct LSFHeader *reqHdr )
+do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
+           struct LSFHeader *reqHdr )
 {
     static char fname[]="do_readyOp";
     XDR xdrs2;

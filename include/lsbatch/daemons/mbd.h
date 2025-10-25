@@ -838,6 +838,20 @@ typedef enum profCounterType {
             }                                                           \
     }
 
+// LavaLite model, cleant and most honest approach model — codify
+// the assumption that the daemon is launched by the cluster admin,
+// and make that identity explicit and reusable.
+// One user, fixed identity, zero UID gymnastics.
+struct mbd_manager {
+    uid_t uid;
+    gid_t gid;
+    char *name;   // strdup(pw->pw_name)
+};
+// This number is 1
+extern int num_managers;
+extern struct mbd_manager *mbd_mgr;
+extern bool is_manager(const char *);
+
 #define CONF_COND 0x001
 
 #define QUEUE_UPDATE      0x01
@@ -890,7 +904,7 @@ extern struct gData           *usergroups[];
 extern struct gData           *hostgroups[];
 extern struct profileCounters counters[];
 extern char                   errstr[];
-extern int                    debug;
+extern bool                   mbd_debug;
 extern int                    errno;
 extern int                    nextId;
 extern int            numRemoteJobsInList;
@@ -929,7 +943,7 @@ extern int                    qAttributes;
 extern int                    **hReasonTb;
 extern int                    *managerIds;
 extern char                   **lsbManagers;
-extern int                    nManagers;
+
 extern char                   *lsfDefaultProject;
 extern int            dumpToDBPid;
 extern int            dumpToDBExit;

@@ -1665,7 +1665,7 @@ addReason (struct jData *jp, int hostId, int aReason)
         }
     }
 
-    if (debug && (logclass & (LC_SCHED | LC_PEND)))
+    if (mbd_debug && (logclass & (LC_SCHED | LC_PEND)))
         ls_syslog (LOG_DEBUG2, "addReason: job=%s host=%s aReason=%d numReasons=%d", lsb_jobid2str(jp->jobId), ((hostId == 0)? "some" : hDataPtrTb[hostId]->host), aReason, jp->numReasons);
 
 }
@@ -2741,7 +2741,7 @@ candHostOk (struct jData *jp, int indx, int *numAvailSlots,
             PEND_HOST_ACCPT_ONE)
             *numAvailSlots = 0;
 
-        if (debug && (logclass & LC_SCHED))
+        if (mbd_debug && (logclass & LC_SCHED))
             ls_syslog(LOG_DEBUG3, "candHostOk: job=%s host=%s nSlots=%d numAvailSlots=%d", lsb_jobid2str(jp->jobId), hp->hData->host, nSlots, *numAvailSlots);
         return nSlots;
     }

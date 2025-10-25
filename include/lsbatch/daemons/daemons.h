@@ -476,14 +476,6 @@ extern struct config_param daemonParams[];
 extern int nextJobId;
 extern int numRemoveJobs;
 extern int maxJobId;
-
-
-extern char   *lsbManager;
-extern char   *lsbSys;
-extern int    managerId;
-
-extern uid_t  batchId;
-extern int    debug;
 extern int    lsb_CheckMode;
 extern int    lsb_CheckError;
 extern ushort mbd_port;

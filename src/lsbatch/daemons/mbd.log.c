@@ -1,5 +1,6 @@
 /* $Id: mbd.log.c,v 1.23 2007/08/15 22:18:45 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -74,7 +75,7 @@ static int 		checkJobStarter(char *, char *);
 
 static FILE            *log_fp     = NULL;
 static FILE            *joblog_fp  = NULL;
-static int              openEventFile(char *);
+static int              openEventFile(const char *);
 static int              putEventRec(char *);
 static int              putEventRecTime(char *, time_t);
 static int              putEventRec1(char *);
@@ -130,8 +131,6 @@ static void    saveQueueCtrlEvent(struct queueCtrlLog *, const time_t);
 static void    queueTableUpdate(hTab *, struct queueCtrlLog *);
 static void    writeQueueCtrlEvent(void);
 static void    log_queueStatusAtSwitch(const struct queueCtrlEvent *);
-static void    getTGT(struct jData *jpbw, struct lenData *aux_auth_data);
-static void    saveTGT(struct jData *jp);
 
 extern time_t lsb_getAcctFileTime(char * fileName);
 
@@ -157,34 +156,23 @@ init_log(void)
 
     mSchedStage = M_STAGE_REPLAY;
 
-    sprintf(elogFname, "%s/%s/logdir/lsb.events",
-	    daemonParams[LSB_SHAREDIR].paramValue,
-	    clusterName);
-    sprintf(jlogFname, "%s/%s/logdir/lsb.acct",
-	    daemonParams[LSB_SHAREDIR].paramValue,
-	    clusterName);
-
-    sprintf(dirbuf, "%s/%s/logdir", daemonParams[LSB_SHAREDIR].paramValue,
-	    clusterName);
+    sprintf(elogFname, "%s/lsb.events", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(jlogFname, "%s/lsb.acct", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(dirbuf, "%s", daemonParams[LSB_SHAREDIR].paramValue);
 
     if (stat(dirbuf, &sbuf) < 0) {
-	ls_syslog(LOG_ERR, fname, "stat",
-	    dirbuf);
+	ls_syslog(LOG_ERR, "%s: stat(%s) failed: %m", __func__, dirbuf);
 	if (!lsb_CheckMode) {
 	    mbdDie(MASTER_FATAL);
 	}
-
 	ConfigError = -1;
     }
 
-    if (sbuf.st_uid != managerId) {
+    if (sbuf.st_uid != mbd_mgr->uid) {
 	ls_syslog(LOG_ERR, "%s: Log directory <%s> not owned by LSF "
                   " administrator <%s/%d> owner ID is %d", __func__,
-                  dirbuf,
-                  lsbManager,
-                  managerId,
-                  sbuf.st_uid);
-	if (debug == 0) {
+                  dirbuf, mbd_mgr->name, mbd_mgr->uid, sbuf.st_uid);
+	if (mbd_debug == 0) {
 	    mbdDie(MASTER_FATAL);
 	}
 
@@ -197,7 +185,7 @@ init_log(void)
 	    fname,
 	    (int)sbuf.st_mode,
 	    dirbuf);
-        if (debug == 0) {
+        if (mbd_debug == 0) {
 	    mbdDie(MASTER_FATAL);
 	}
 
@@ -206,16 +194,12 @@ init_log(void)
 
     getElogLock();
 
-    chuser(managerId);
-
     sprintf(infoDir, "%s/%s/logdir/info",
 	    daemonParams[LSB_SHAREDIR].paramValue,
 	    clusterName);
 
     if (mkdir(infoDir, 0700) == -1 && errno != EEXIST) {
-	chuser(batchId);
-	ls_syslog(LOG_ERR, fname, "mkdir",
-	    infoDir);
+	ls_syslog(LOG_ERR, "%s mkdir(%s) failed %m", __func__, infoDir);
 	mbdDie(MASTER_FATAL);
     }
 
@@ -223,8 +207,6 @@ init_log(void)
     log_fp = fopen(elogFname, "r");
 
     jsLogExceptWhileReplay = TRUE;
-
-    chuser(batchId);
 
     if (log_fp != NULL) {
 
@@ -318,7 +300,7 @@ init_log(void)
     mSchedStage = 0;
 
     checkAcctLog();
-    return(ConfigError);
+    return ConfigError;
 }
 
 static int
@@ -387,7 +369,7 @@ replay_event(char *filename, int lineNum)
 		filename,
 		lineNum,
 		logPtr->type);
-	return (FALSE);
+	return FALSE;
     }
 }
 
@@ -415,7 +397,7 @@ replay_newjob(char *filename, int lineNum)
 
     if (nextJobId_t >= maxJobId)
         nextJobId_t = 1;
-    return(TRUE);
+    return TRUE;
 }
 
 static int
@@ -433,7 +415,7 @@ replay_switchjob(char *filename, int lineNum)
     if ((jp = getJobData(switchReq.jobId)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%s> not found in job list ",
 	    fname, filename, lineNum, lsb_jobid2str(switchReq.jobId));
-	return (FALSE);
+	return FALSE;
     }
     qfp = jp->qPtr;
 
@@ -492,7 +474,7 @@ replay_switchjob(char *filename, int lineNum)
 	}
     }
 
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -504,7 +486,7 @@ replay_cleanjob(char *filename, int lineNum)
     jobId = LSB_JOBID(logPtr->eventLog.jobCleanLog.jobId,
 		      logPtr->eventLog.jobCleanLog.idx);
     removeJob(jobId);
-    return(TRUE);
+    return TRUE;
 }
 
 static int
@@ -528,19 +510,19 @@ replay_movejob(char *filename, int lineNum)
     reply = moveJobArray(&jobMoveReq, FALSE, &auth);
     switch (reply) {
     case LSBE_NO_ERROR:
-	return (TRUE);
+	return TRUE;
     case LSBE_NO_JOB:
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Cannot move job <%s>: job not found", fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
-	return (FALSE);
+	return FALSE;
     case LSBE_PERMISSION:
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Cannot move job <%s>: not operated by owner or manager", fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
-	return (FALSE);
+	return FALSE;
     case LSBE_JOB_STARTED:
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Cannot move job <%s>: job already started", fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
-	return (FALSE);
+	return FALSE;
     default:
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Wrong return code <%d> from movejob for job <%s>", fname, filename, lineNum, reply, lsb_jobid2str(jobMoveReq.jobId));
-	return (FALSE);
+	return FALSE;
     }
 
 }
@@ -569,7 +551,7 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
 	ls_syslog(LOG_ERR, "%s: Job <%s> not found in job list",
 	    fname,
 	    lsb_jobid2str(job.jobId));
-	return (FALSE);
+	return FALSE;
     }
 
     if (job.numHostPtr > 0) {
@@ -581,7 +563,7 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
             filename,
             lineNum,
             lsb_jobid2str(job.jobId));
-        return (FALSE);
+        return FALSE;
     }
 
     for (i = 0; i < job.numHostPtr; i++) {
@@ -608,7 +590,7 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
 	&& (jp->shared->jobBill.options & SUB_PRE_EXEC)
 	&& (jp->jStatus & JOB_STAT_PRE_EXEC)) {
 	jp->jStatus &= ~JOB_STAT_PRE_EXEC;
-	return (TRUE);
+	return TRUE;
     }
 
     if (job.queuePreCmd && job.queuePreCmd[0] != '\0')
@@ -630,7 +612,7 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
     if (preExecStart)
 	jp->jStatus |= JOB_STAT_PRE_EXEC;
 
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -648,7 +630,7 @@ replay_executejob(char *filename, int lineNum)
     if ((jp = getJobData(jobId)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list",
 	    fname, jobExecuteLog->jobId);
-	return (FALSE);
+	return FALSE;
     }
     jp->execUid = jobExecuteLog->execUid;
     jp->jobPGid = jobExecuteLog->jobPGid;
@@ -668,7 +650,7 @@ replay_executejob(char *filename, int lineNum)
 	FREEUP(jp->execUsername);
     jp->execUsername = safeSave(jobExecuteLog->execUsername);
 
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -684,7 +666,7 @@ replay_startjobaccept(char *filename, int lineNum)
     if ((jp = getJobData(jobId)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list",
 	    fname, jobStartAcceptLog->jobId);
-	return (FALSE);
+	return FALSE;
     }
 
     jp->jobPGid = jobStartAcceptLog->jobPGid;
@@ -693,7 +675,7 @@ replay_startjobaccept(char *filename, int lineNum)
        (ARRAY_DATA(jp->jgrpNode)->jobArray->startTime == 0)){
        ARRAY_DATA(jp->jgrpNode)->jobArray->startTime = jp->startTime;
     }
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -709,7 +691,7 @@ replay_newstat(char *filename, int lineNum)
     if ((jp = getJobData(LSB_JOBID(newStat->jobId, newStat->idx))) == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list ",
 	    fname, filename, lineNum, newStat->jobId);
-	return (FALSE);
+	return FALSE;
     }
 
      if ((IS_POST_DONE(newStat->jStatus))||(IS_POST_ERR(newStat->jStatus))) {
@@ -741,7 +723,7 @@ replay_newstat(char *filename, int lineNum)
 	    lsb_jobid2str(jp->jobId),
 	    jp->jStatus,
 	    newStat->jStatus);
-	return (TRUE);
+	return TRUE;
     }
     if (newStat->reason != EXIT_ZOMBIE_JOB) {
 	jp->newReason = newStat->reason;
@@ -765,7 +747,7 @@ replay_newstat(char *filename, int lineNum)
 		offList((struct listEntry *) job);
 		freeJData(job);
 		if (getZombieJob(jp->jobId) != NULL)
-		    return (TRUE);
+		    return TRUE;
 	    }
 
 	    if (jp->newReason == EXIT_KILL_ZOMBIE &&
@@ -775,7 +757,7 @@ replay_newstat(char *filename, int lineNum)
 		jp->oldReason = 0;
 	    }
 	    if ((jp->shared->jobBill.options & SUB_RERUNNABLE)) {
-		return (TRUE);
+		return TRUE;
 	    }
 	} else if ( newStat->reason & EXIT_RESTART ) {
     	     jp->shared->jobBill.options |= SUB_RESTART | SUB_RESTART_FORCE;
@@ -808,7 +790,7 @@ replay_newstat(char *filename, int lineNum)
 	jp->cpuTime = newStat->cpuTime;
     }
 
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -822,7 +804,7 @@ replay_qc(char *filename, int lineNum)
     opCode = logPtr->eventLog.queueCtrlLog.opCode;
     if ((qp = getQueueData(logPtr->eventLog.queueCtrlLog.queue)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Queue <%s> not found in queue list ", fname, filename, lineNum, logPtr->eventLog.queueCtrlLog.queue);
-	return (FALSE);
+	return FALSE;
     }
     if (opCode == QUEUE_OPEN)
 	qp->qStatus |= QUEUE_STAT_OPEN;
@@ -832,7 +814,7 @@ replay_qc(char *filename, int lineNum)
 	qp->qStatus |= QUEUE_STAT_ACTIVE;
     if (opCode == QUEUE_INACTIVATE)
 	qp->qStatus &= ~QUEUE_STAT_ACTIVE;
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -850,13 +832,13 @@ replay_hostcontrol(char *filename, int lineNum)
     hp = getHostData(host);
     if (hp == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Host <%s> not found in host list ", fname, filename, lineNum, host);
-	return (FALSE);
+	return FALSE;
     }
     if (opCode == HOST_OPEN)
 	hp->hStatus &= ~HOST_STAT_DISABLED;
     if (opCode == HOST_CLOSE)
 	hp->hStatus |= HOST_STAT_DISABLED;
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -879,7 +861,7 @@ replay_mbdStart(char *filename, int lineNum)
 
 	}
     }
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -887,7 +869,7 @@ static int
 replay_mbdDie(char *filename, int lineNum)
 {
     dieTime = logPtr->eventTime;
-    return (TRUE);
+    return TRUE;
 }
 
 static int
@@ -902,7 +884,7 @@ replay_unfulfill(char *filename, int lineNum)
     if ((jp = getJobData(jobId)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%s> not found in job list ",
 	    fname, filename, lineNum, lsb_jobid2str(jobId));
-	return (FALSE);
+	return FALSE;
     }
 
     jp->pendEvent.notSwitched = logPtr->eventLog.unfulfillLog.notSwitched;
@@ -919,7 +901,7 @@ replay_unfulfill(char *filename, int lineNum)
 	jp->pendEvent.notModified)
 	eventPending = TRUE;
 
-    return (TRUE);
+    return TRUE;
 }
 
 static int
@@ -937,7 +919,7 @@ replay_mig(char *filename, int lineNum)
     if ((jp = getJobData(jobId)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list",
 	    fname, filename, lineNum, migLog->jobId);
-	return (FALSE);
+	return FALSE;
     }
 
     if (jp->shared->jobBill.numAskedHosts) {
@@ -983,7 +965,7 @@ replay_mig(char *filename, int lineNum)
     jp->shared->jobBill.restartPid = jp->jobPid;
     jp->restartPid = jp->jobPid;
 
-    return (TRUE);
+    return TRUE;
 }
 static int
 replay_jobsigact(char *filename, int lineNum)
@@ -999,7 +981,7 @@ replay_jobsigact(char *filename, int lineNum)
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list",
 		  fname, filename, lineNum,
 		  logPtr->eventLog.sigactLog.jobId);
-	return (FALSE);
+	return FALSE;
     }
     jp->newReason = logPtr->eventLog.sigactLog.reasons;
     jp->oldReason = logPtr->eventLog.sigactLog.reasons;
@@ -1008,7 +990,7 @@ replay_jobsigact(char *filename, int lineNum)
     if (!IS_START(jp->jStatus) &&
 	logPtr->eventLog.sigactLog.actStatus == ACT_NO)
 
-	return (TRUE);
+	return TRUE;
 
     newActPid = logPtr->eventLog.sigactLog.pid;
 
@@ -1050,7 +1032,7 @@ replay_jobsigact(char *filename, int lineNum)
 	    logPtr->eventLog.sigactLog.signalSymbol,
 	    lsb_jobid2str(jp->jobId));
     }
-    return (TRUE);
+    return TRUE;
 }
 
 static int
@@ -1064,13 +1046,13 @@ replay_jobrequeue(char *filename, int lineNum)
 		        logPtr->eventLog.jobRequeueLog.idx);
     if ((jp = getJobData(jobId)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Requeued job <%d> is not found in job list", fname, filename, lineNum, logPtr->eventLog.jobRequeueLog.jobId);
-	return (FALSE);
+	return FALSE;
     }
     handleRequeueJob(jp, eventTime);
 
     jp->endTime   = 0;
 
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -1089,12 +1071,12 @@ replay_chkpnt(char *filename, int lineNum)
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list",
 		  fname, filename, lineNum,
 		  logPtr->eventLog.chkpntLog.jobId);
-	return (FALSE);
+	return FALSE;
     }
     jp->shared->jobBill.chkpntPeriod = logPtr->eventLog.chkpntLog.period;
     jp->chkpntPeriod = logPtr->eventLog.chkpntLog.period;
     if (!IS_START(jp->jStatus))
-	return (TRUE);
+	return TRUE;
 
     newChkPid = logPtr->eventLog.chkpntLog.pid;
 
@@ -1125,7 +1107,7 @@ replay_chkpnt(char *filename, int lineNum)
 	    lsb_jobid2str(jp->jobId));
     }
 
-    return (TRUE);
+    return TRUE;
 }
 
 static int
@@ -1135,18 +1117,18 @@ replay_loadIndex(char *filename, int lineNum)
 
     if (logPtr->eventLog.loadIndexLog.nIdx != allLsInfo->numIndx) {
 	logLoadIndex = TRUE;
-	return (TRUE);
+	return TRUE;
     }
     for (i = 0; i < allLsInfo->numIndx; i++) {
 	if (strcmp(allLsInfo->resTable[i].name,
 		   logPtr->eventLog.loadIndexLog.name[i])) {
 	    logLoadIndex = TRUE;
-	    return (TRUE);
+	    return TRUE;
 	}
     }
 
     logLoadIndex = FALSE;
-    return (TRUE);
+    return TRUE;
 }
 
 int
@@ -1223,7 +1205,7 @@ log_modifyjob(struct modifyReq * modReq, struct lsfAuth *auth)
 	    "putEventRec");
         mbdDie(MASTER_FATAL);
     }
-    return (0);
+    return 0;
 
 }
 
@@ -1239,7 +1221,7 @@ static int
 replay_logSwitch(char *filename, int lineNum)
 {
     nextJobId_t = logPtr->eventLog.logSwitchLog.lastJobId;
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -1405,7 +1387,7 @@ log_jobdata(struct jData * job, char *fname1, int type)
 	    rmLogJobInfo_(job, FALSE);
 	mbdDie(MASTER_FATAL);
     }
-    return (0);
+    return 0;
 }
 
 void
@@ -1951,36 +1933,30 @@ log_jobForce(struct jData* job, int uid, char *userName)
 
 }
 
+// Blocking SIGCHLD around fopen() is unnecessary theater
 static int
-openEventFile(char *fname)
+openEventFile(const char *fname)
 {
     long pos;
-    sigset_t newmask, oldmask;
 
-    chuser(managerId);
-
-    sigemptyset(&newmask);
-    sigaddset(&newmask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &newmask, &oldmask);
-    if ((log_fp = fopen(elogFname, "a+")) == NULL) {
-	sigprocmask(SIG_SETMASK, &oldmask, NULL);
-	chuser(batchId);
-	ls_syslog(LOG_ERR, fname, "fopen", elogFname);
+    log_fp = fopen(elogFname, "a+");
+    if (! log_fp) {
+	ls_syslog(LOG_ERR, "%s: fopen(%s) failed: %m", __func__, elogFname);
 	return -1;
     }
-    sigprocmask(SIG_SETMASK, &oldmask, NULL);
 
     fseek(log_fp, 0L, SEEK_END);
 
     if ((pos = ftell(log_fp)) == 0) {
-        fprintf(log_fp, "#80                                                                            \n");
+        time_t t = time(NULL);
+        fprintf(log_fp, "# LavaLite log created %s\n", ctime2(&t));
     }
 
     chmod(elogFname, 0644);
-    chuser(batchId);
-    logPtr = (struct eventRec *) my_malloc
-	(sizeof(struct eventRec), "openEventFile");
-    strcpy(logPtr->version, THIS_VERSION);
+    logPtr = calloc(1, sizeof(struct eventRec));
+
+    strcpy(logPtr->version, LAVALITE_VERSION_STR);
+
     return 0;
 }
 
@@ -1994,7 +1970,7 @@ putEventRec(char *fname)
 
     ret = putEventRec1(fname);
 
-    return (ret);
+    return ret;
 }
 static int
 putEventRecTime(char *fname, time_t eventTime)
@@ -2005,22 +1981,18 @@ putEventRecTime(char *fname, time_t eventTime)
 
     ret = putEventRec1(fname);
 
-    return(ret);
+    return ret;
 
 }
 
 static int
 putEventRec1(char *fname)
 {
-    int    ret;
-    int    cc;
-    long   pos1;
+    int ret;
+    int cc;
 
     ret = 0;
 
-    {
-    pos1 =  ftell(log_fp);
-    }
     if (lsb_puteventrec(log_fp, logPtr) < 0) {
 	ls_syslog(LOG_ERR,
 		  fname, "lsb_puteventrec", lsb_sysmsg());
@@ -2029,18 +2001,13 @@ putEventRec1(char *fname)
 
     free(logPtr);
 
-    chuser(managerId);
-
     cc = FCLOSEUP(&log_fp);
-
-    chuser(batchId);
-
     if (cc < 0) {
 	ls_syslog(LOG_ERR, fname, "fclose");
 	ret = -1;
     }
 
-    return(ret);
+    return ret;
 
 }
 
@@ -2054,26 +2021,21 @@ logFinishedjob(struct jData * job)
     float                  *hostFactor;
 
     if ( IS_POST_FINISH(job->jStatus) ) {
-
 	return;
     }
 
-    chuser(managerId);
     if ((joblog_fp = fopen(jlogFname, "a")) == NULL) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "fopen",
-	    jlogFname);
+                  jlogFname);
 	return;
     }
     chmod(jlogFname, 0644);
-    chuser(batchId);
 
-    logPtr = (struct eventRec *) my_malloc
-	(sizeof(struct eventRec), "logFinishedjob");
+    logPtr = calloc(1, sizeof(struct eventRec));
     jobFinishLog = &logPtr->eventLog.jobFinishLog;
 
     logPtr->type = EVENT_JOB_FINISH;
-    strcpy(logPtr->version, THIS_VERSION);
+    strcpy(logPtr->version, LAVALITE_VERSION_STR);
     jobFinishLog->jobId = LSB_ARRAY_JOBID(job->jobId);
     jobFinishLog->idx = LSB_ARRAY_IDX(job->jobId);
     jobFinishLog->userId = job->userId;
@@ -2188,18 +2150,7 @@ logFinishedjob(struct jData * job)
 	free(jobFinishLog->execHosts);
     free(logPtr);
 
-    chuser(managerId);
-    if (FCLOSEUP(&joblog_fp) < 0) {
-	chuser(batchId);
-	ls_syslog(LOG_ERR,
-	    fname,
-	    lsb_jobid2str(job->jobId),
-	    "fclose");
-    } else{
-	chuser(batchId);
-    }
-
-    return ;
+    fclose(joblog_fp);
 }
 
 void
@@ -2262,25 +2213,19 @@ int switchAcctLog(void)
     int errnoSv;
     int totalAcctFile;
 
-    chuser(managerId);
-
     if (createAcct0File() == -1) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "createAcct0File");
         goto Acct_exiterr;
     }
 
     if (unlink(jlogFname) == -1 ) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR,
 		  "%s: unlink(%s) failed: %m",
 		  fname,
 		  jlogFname);
-	chuser(managerId);
     }
 
     if ((joblog_fp = fopen(jlogFname, "a")) == NULL) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "fopen",
 		  jlogFname);
 	goto Acct_exiterr;
@@ -2290,20 +2235,15 @@ int switchAcctLog(void)
 
     errnoSv = errno;
     chmod(jlogFname, 0644);
-
-    chuser(batchId);
     errno = errnoSv;
 
     if ((totalAcctFile = renameAcctLogFiles(maxAcctArchiveNum)) > 0)  {
-	return (0);
-    } else {
-	chuser(batchId);
-	ls_syslog(LOG_ERR, fname, "renameAcctLogFiles");
+	return 0;
     }
 
 Acct_exiterr:
     lsb_merr( "Fail to switch lsb.acct; see mbatchd error log for details");
-    return (-1);
+    return -1;
 }
 
 int
@@ -2315,7 +2255,6 @@ switch_log(void)
     LS_LONG_INT             jobId = 0;
     FILE                   *efp, *tmpfp;
     struct jData           *jp, *jarray;
-    char                   *calName = NULL;
     long                   pos;
     int                    preserved = FALSE;
     int                    totalEventFile;
@@ -2324,10 +2263,9 @@ switch_log(void)
 	    daemonParams[LSB_SHAREDIR].paramValue, clusterName);
     ls_syslog(LOG_INFO, ("switching event log file: %s"),    tmpfn);
 
-    chuser(managerId);
 
-    if (createEvent0File() == -1) { ;
-        chuser(batchId);
+
+    if (createEvent0File() == -1) {
         ls_syslog(LOG_ERR, fname, "createEvent0File");
         goto exiterr;
     }
@@ -2336,7 +2274,6 @@ switch_log(void)
             daemonParams[LSB_SHAREDIR].paramValue, clusterName);
 
     if ((tmpfp = fopen(tmpfn, "w")) == NULL) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "fopen", tmpfn);
 	goto exiterr;
     }
@@ -2347,15 +2284,12 @@ switch_log(void)
 
     efp = fopen(elogFname, "r");
     if (efp == NULL) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "fopen", elogFname);
 	FCLOSEUP(&tmpfp);
 	goto exiterr;
     }
 
     fprintf(tmpfp, "#                                     \n");
-
-    chuser(batchId);
 
     initHostCtrlTable();
     initQueueCtrlTable();
@@ -2388,12 +2322,12 @@ switch_log(void)
 				logPtr->eventLog.jobNewLog.idx);
 	    break;
 	case EVENT_JOB_MODIFY2:
-            { struct idxList *idxListP;
-	      int tmpJobId;
-              if (getJobIdIndexList(logPtr->eventLog.jobModLog.jobIdStr,
-                                    &tmpJobId, &idxListP) == LSBE_NO_ERROR)
-		  jobId = tmpJobId;
-                  freeIdxList(idxListP);
+            struct idxList *idxListP;
+            int tmpJobId;
+            if (getJobIdIndexList(logPtr->eventLog.jobModLog.jobIdStr,
+                                  &tmpJobId, &idxListP) == LSBE_NO_ERROR) {
+                jobId = tmpJobId;
+                freeIdxList(idxListP);
             }
             break;
 	case EVENT_PRE_EXEC_START:
@@ -2495,26 +2429,21 @@ switch_log(void)
 	    if (lsb_puteventrec(tmpfp, logPtr) == -1) {
 	        ls_syslog(LOG_ERR,
                     fname, "lsb_puteventrec", tmpfn);
-	        chuser(managerId);
+
 	        FCLOSEUP(&efp);
 	        unlink (tmpfn);
-	        chuser(batchId);
 	        goto exiterr;
             }
         }
         jobId = 0;
-        calName = NULL;
         preserved = FALSE;
     }
     FCLOSEUP(&efp);
-
-    chuser(managerId);
 
     pos = ftell(tmpfp);
     rewind(tmpfp);
     fprintf(tmpfp, "#%ld", pos);
     if (FCLOSEUP(&tmpfp)) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "fclose", tmpfn);
 	goto exiterr;
     }
@@ -2523,7 +2452,6 @@ switch_log(void)
     errnoSv = errno;
     chmod(elogFname, 0644);
 
-    chuser(batchId);
     errno = errnoSv;
     if (i == -1) {
 	ls_syslog(LOG_ERR,
@@ -2554,9 +2482,8 @@ switch_log(void)
 	        daemonParams[LSB_SHAREDIR].paramValue,
 	        clusterName,
 		LSF_JOBIDINDEX_FILENAME);
-            chuser(managerId);
+
 	    if (updateJobIdIndexFile(indexFile, elogFname, totalEventFile) < 0) {
-		chuser(batchId);
 		if (lsberrno == LSBE_SYS_CALL)
                     ls_syslog(LOG_ERR, "%s: updateJobIdIndexFile %s failed: %s %m",
                               fname, indexFile, lsb_sysmsg());
@@ -2566,15 +2493,11 @@ switch_log(void)
 	    }
             exit(0);
         }
-        return (0);
-    } else {
-        chuser(batchId);
-        ls_syslog(LOG_ERR, fname, "renameElogFiles");
+        return 0;
     }
-
 exiterr:
     lsb_merr( "Fail to switch lsb.events; see mbatchd error log for details");
-    return (-1);
+    return -1;
 }
 
 static int
@@ -2593,17 +2516,15 @@ createAcct0File(void){
     size = st.st_size;
 
     if ((acctPtr = fopen(jlogFname, "r")) == NULL) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "fopen", jlogFname);
 	FCLOSEUP(&acctPtr);
-	return (-1);
+	return -1;
     }
 
     if ((acct0Ptr  = fopen(acct0File, "w")) == NULL) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "fopen", acct0File);
 	FCLOSEUP(&acctPtr);
-	return (-1);
+	return -1;
     }
     chmod(acct0File, 0644);
 
@@ -2613,26 +2534,24 @@ createAcct0File(void){
 		cc = size - nread;
 
 	    if (fwrite(buf, 1, cc, acct0Ptr) == 0) {
-		chuser(batchId);
 		ls_syslog(LOG_ERR, fname, "fwrite");
 		FCLOSEUP(&acctPtr);
 		FCLOSEUP(&acct0Ptr);
-		return (-1);
+		return -1;
 	    }
 	    nread += cc;
 	} else if (feof(acctPtr)){
 	    break;
 	} else {
-	    chuser(batchId);
 	    ls_syslog(LOG_ERR, fname, "fread", jlogFname);
 	    FCLOSEUP(&acctPtr);
 	    FCLOSEUP(&acct0Ptr);
-	    return (-1);
+	    return -1;
 	}
     }
     FCLOSEUP(&acctPtr);
     FCLOSEUP(&acct0Ptr);
-    return (0);
+    return 0;
 }
 
 static int
@@ -2654,30 +2573,27 @@ createEvent0File (void)
     size = st.st_size;
 
     if ((eventPtr = fopen(elogFname, "r")) == NULL) {
-        chuser(batchId);
         ls_syslog(LOG_ERR, fname, "fopen", elogFname);
         FCLOSEUP(&eventPtr);
-        return (-1);
+        return -1;
     }
 
     if ((event0Ptr  = fopen(event0File, "w")) == NULL) {
-        chuser(batchId);
         ls_syslog(LOG_ERR, fname, "fopen", event0File);
         FCLOSEUP(&eventPtr);
-        return (-1);
+        return -1;
     }
     chmod(event0File, 0644);
 
     fprintf(event0Ptr, "#%ld                       \n", time(0));
 
     if (fscanf(eventPtr, "%c%ld ", &ch, &pos) != 2 || ch != '#') {
-
         pos = 0;
     }
 
    if (fseek(eventPtr, pos, SEEK_SET) != 0) {
        ls_syslog(LOG_ERR, fname, "fseek");
-       return (-1);
+       return -1;
     }
 
     size -= pos;
@@ -2688,28 +2604,26 @@ createEvent0File (void)
                 cc = size - nread;
 
             if (fwrite(buf, 1, cc, event0Ptr) == 0) {
-                chuser(batchId);
                 ls_syslog(LOG_ERR, fname, "fwrite");
                 FCLOSEUP(&eventPtr);
                 FCLOSEUP(&event0Ptr);
-                return (-1);
+                return -1;
             }
             nread += cc;
         } else if (feof(eventPtr)){
 	    break;
         } else {
-            chuser(batchId);
             ls_syslog(LOG_ERR, fname, "fread", elogFname);
 
             FCLOSEUP(&eventPtr);
             FCLOSEUP(&event0Ptr);
-            return (-1);
+            return -1;
         }
    }
    FCLOSEUP(&eventPtr);
    FCLOSEUP(&event0Ptr);
 
-   return (0);
+   return 0;
 }
 
 static int
@@ -2724,7 +2638,7 @@ renameElogFiles(void)
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering ... ", fname);
 
-    chuser(managerId);
+
     i = 0;
     do {
 	sprintf(tmpfn, "%s/%s/logdir/lsb.events.%d",
@@ -2732,9 +2646,7 @@ renameElogFiles(void)
     } while (stat(tmpfn, &st) == 0);
 
     if (errno != ENOENT) {
-	chuser(batchId);
 	ls_syslog(LOG_WARNING, fname, "stat", tmpfn);
-	chuser(managerId);
     }
 
     max = i;
@@ -2745,15 +2657,13 @@ renameElogFiles(void)
 		daemonParams[LSB_SHAREDIR].paramValue, clusterName, i + 1);
 
 	if (rename(tmpfn, eventfn) == -1 && errno != ENOENT) {
-	    chuser(batchId);
 	    ls_syslog(LOG_ERR, fname,
         	"rename", tmpfn, eventfn);
-	    return (-1);
+	    return -1;
 	}
     }
-    chuser(batchId);
 
-    return (max);
+    return max;
 }
 
 void
@@ -2766,8 +2676,6 @@ logJobInfo(struct submitReq * req, struct jData *jp, struct lenData * jf)
     mode_t                  omask = umask(077);
     sigset_t 		    newmask, oldmask;
 
-    chuser(managerId);
-
     sprintf(logFn, "%s/%s/logdir/info/%s",
 	    daemonParams[LSB_SHAREDIR].paramValue, clusterName,
 	    jp->shared->jobBill.jobFile);
@@ -2779,7 +2687,6 @@ logJobInfo(struct submitReq * req, struct jData *jp, struct lenData * jf)
 	errnoSv = errno;
 	sigprocmask(SIG_SETMASK, &oldmask, NULL);
 	umask(omask);
-	chuser(batchId);
 	errno = errnoSv;
 	ls_syslog(LOG_ERR, fname, "fopen",
 	    logFn);
@@ -2789,41 +2696,20 @@ logJobInfo(struct submitReq * req, struct jData *jp, struct lenData * jf)
     umask(omask);
 
     if (fwrite(jf->data, 1, jf->len, fp) != jf->len) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, "%s: fwrite(%s, len=%d failed: %m",
                   __func__, logFn, jf->len);
-	chuser(managerId);
-
-        FCLOSEUP(&fp);
+        fclose(fp);
 	goto error;
     }
 
-    chuser(managerId);
-    if (FCLOSEUP(&fp) < 0) {
-	chuser(batchId);
-	ls_syslog(LOG_ERR, fname, "fclose",
-                  logFn);
-	goto error;
-    }
+    fclose(fp);
 
-#ifdef INTER_DAEMON_AUTH
-
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-        saveTGT(jp);
-
-    }
-
-#endif
-
-    chuser(batchId);
     return;
 
 error:
-    chuser(managerId);
-    unlink(logFn);
-    chuser(batchId);
-    mbdDie(MASTER_FATAL);
 
+    unlink(logFn);
+    mbdDie(MASTER_FATAL);
 }
 
 int
@@ -2831,7 +2717,6 @@ rmLogJobInfo_(struct jData *jp, int check)
 {
     static char fname[] = "rmLogJobInfo_";
     char                    logFn[MAXFILENAMELEN];
-    char                    tgtFn[MAXFILENAMELEN];
     struct stat             st;
     struct submitReq *req;
 
@@ -2857,7 +2742,7 @@ rmLogJobInfo_(struct jData *jp, int check)
         }
     }
 
-    chuser(managerId);
+
     sprintf(logFn, "%s/%s/logdir/info/%s",
 	    daemonParams[LSB_SHAREDIR].paramValue, clusterName,
             req->jobFile);
@@ -2869,44 +2754,27 @@ rmLogJobInfo_(struct jData *jp, int check)
                 LSB_ARRAY_JOBID(jp->jobId));
     }
 
-#ifdef INTER_DAEMON_AUTH
-
-    sprintf(tgtFn, "%s.tgt", logFn);
-    if (stat(tgtFn, &st) == 0) {
-	if (unlink(tgtFn) == -1) {
-	   ls_syslog(LOG_ERR,
-	       fname,
-	       lsb_jobid2str(jp->jobId),
-	       "unlink",
-               tgtFn);
-        }
-    }
-    chuser(managerId);
-#endif
     if (stat(logFn, &st) == 0) {
 	if (unlink(logFn) == -1) {
-	    chuser(batchId);
 	    if (check == FALSE)
 	        ls_syslog(LOG_ERR,
 		    fname,
 		    lsb_jobid2str(jp->jobId),
 		    "unlink",
 		    logFn);
-	    return (-1);
+	    return -1;
 	}
     } else if (errno != ENOENT) {
-	chuser(batchId);
 	if (check == FALSE)
 	    ls_syslog(LOG_ERR,
 		fname,
 		lsb_jobid2str(jp->jobId),
 		"stat",
 		logFn);
-	return (-1);
+	return -1;
     }
-    chuser(batchId);
 
-    return (0);
+    return 0;
 }
 
 int
@@ -2931,7 +2799,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     sprintf (logFn, "%s/%s/logdir/info/%s",
 	     daemonParams[LSB_SHAREDIR].paramValue, clusterName,
              jpbw->shared->jobBill.jobFile);
-    chuser(managerId);
+
 
     fd = open(logFn, O_RDONLY);
 
@@ -2942,7 +2810,6 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     }
 
     if (fd < 0) {
-	chuser(batchId);
 	if (errno != ENOENT) {
 	    ls_syslog(LOG_ERR,
 		fname,
@@ -2950,25 +2817,23 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 		"open",
 		logFn);
 	}
-	return (-1);
+	return -1;
     }
 
     fstat(fd, &st);
 
     buf = (char *) my_malloc(st.st_size, fname);
     if ((cc=read(fd, buf, st.st_size)) != st.st_size) {
-	chuser(batchId);
-	    ls_syslog(LOG_ERR,
-		fname,
-	        lsb_jobid2str(jpbw->jobId),
-		"read",
-		logFn);
+        ls_syslog(LOG_ERR,
+                  fname,
+                  lsb_jobid2str(jpbw->jobId),
+                  "read",
+                  logFn);
 	close(fd);
 	FREEUP(buf);
-	return (-1);
+	return -1;
     }
     close(fd);
-    chuser(batchId);
 
     for (sp = buf + strlen(SHELLLINE), numEnv = 0;
 	 strncmp(sp, ENVEND, sizeof(ENVEND) - 1); numEnv++) {
@@ -2980,7 +2845,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
                       " could not find %s (numEnv=%d", __func__,
                       LSB_ARRAY_JOBID(jpbw->jobId), TAILCMD, numEnv);
 	    FREEUP(buf);
-	    return (-1);
+	    return -1;
 	}
 	sp = strchr(sp, '\n');
 
@@ -2989,7 +2854,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
                       "could not find newline character (numEnv=%d", __func__,
                       LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
 	    FREEUP(buf);
-	    return (-1);
+	    return -1;
 	}
 	sp++;
     }
@@ -3098,7 +2963,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     if (!sp) {
 
 	ls_syslog(LOG_ERR, "%s: failed to find EXITCMD tag in jobfile, for job <%d>", fname, LSB_ARRAY_JOBID(jpbw->jobId));
-        return(-1);
+        return -1;
     }
 
     sp += strlen(EXITCMD);
@@ -3111,24 +2976,24 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
             jf->data = buf;
             jf->len = strlen(jf->data) + 1;
-            return (0);
+            return 0;
         } else if ((newBuf = instrJobStarter1(buf, strlen(buf) + 1, CMDSTART,
                              WAITCLEANCMD, jpbw->qPtr->jobStarter)) == NULL) {
             ls_syslog(LOG_ERR, "%s: Failed to insert job stater into jobfile data, job <%s>, queue <%s>",  fname, lsb_jobid2str(jpbw->jobId), jpbw->qPtr->queue);
             FREEUP(buf);
-            return(-1);
+            return -1;
         } else {
             FREEUP(buf);
             jf->data = newBuf;
             jf->len = strlen(jf->data) + 1;
-            return (0);
+            return 0;
         }
     }
 
     jf->data = buf;
     jf->len = strlen(jf->data) +1;
 
-    return (0);
+    return 0;
 
 }
 
@@ -3144,7 +3009,7 @@ readJobInfoFile (struct jData *jp, int *len)
     sprintf(logFn, "%s/%s/logdir/info/%s",
 	    daemonParams[LSB_SHAREDIR].paramValue, clusterName,
             jp->shared->jobBill.jobFile);
-    chuser(managerId);
+
 
     fd = open(logFn, O_RDONLY);
     if (fd < 0) {
@@ -3153,31 +3018,29 @@ readJobInfoFile (struct jData *jp, int *len)
        fd = open(logFn, O_RDONLY);
     };
     if (fd < 0) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR,
 	    fname,
 	    "open",
 	    logFn);
-	return (NULL);
+	return NULL;
     }
     fstat(fd, &st);
 
     buf = (char *) my_malloc(st.st_size, fname);
     *len = st.st_size;
     if (read(fd, buf, st.st_size) != st.st_size) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR,
-	    fname,
-	    lsb_jobid2str(jp->jobId),
-	    "read",
-	    logFn);
+                  fname,
+                  lsb_jobid2str(jp->jobId),
+                  "read",
+                  logFn);
 	close(fd);
 	free(buf);
-	return (NULL);
+	return NULL;
     }
     close(fd);
-    chuser(batchId);
-    return (buf);
+
+    return buf;
 }
 
 void
@@ -3188,7 +3051,7 @@ writeJobInfoFile(struct jData *jp, char *jf, int len)
     char                    logFn[MAXFILENAMELEN];
     int                     fd, errnoSv;
 
-    chuser(managerId);
+
 
     sprintf(logFn, "%s/%s/logdir/info/%s",
 	    daemonParams[LSB_SHAREDIR].paramValue, clusterName,
@@ -3202,7 +3065,6 @@ writeJobInfoFile(struct jData *jp, char *jf, int len)
        fd = open(logFn, O_CREAT | O_TRUNC | O_WRONLY, 0600);
     }
     if (fd < 0) {
-	chuser(batchId);
 	ls_syslog(LOG_ERR, fname, "open", logFn);
 	mbdDie(MASTER_FATAL);
     }
@@ -3211,7 +3073,6 @@ writeJobInfoFile(struct jData *jp, char *jf, int len)
 	errnoSv = errno;
 	unlink(logFn);
 	close(fd);
-	chuser(batchId);
 	errno = errnoSv;
 	ls_syslog(LOG_ERR, fname, "fprintf",
 	    logFn, jf);
@@ -3231,22 +3092,20 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
     int  nbyte;
     FILE *fdi, *fdo;
 
-    chuser(managerId);
+
 
     sprintf(jobFile, "%s/%s/logdir/info/%s", daemonParams[LSB_SHAREDIR].paramValue, clusterName, jobFileName);
     sprintf(workFile, "%s/%s/logdir/info/%s.tmp", daemonParams[LSB_SHAREDIR].paramValue, clusterName, jobFileName);
 
     if ((fdi = fopen(jobFile, "r")) == NULL) {
-      	chuser(batchId);
         ls_syslog(LOG_ERR, fname, "fopen", jobFileName);
-	return (-1);
+	return -1;
     }
 
     if ((fdo = fopen(workFile, "w")) == NULL) {
 	FCLOSEUP(&fdi);
-	chuser(batchId);
         ls_syslog(LOG_ERR, fname, "fopen", workFile);
-        return (-1);
+        return -1;
     }
 
     while ((ptr=fgets(line, MAXLINELEN, fdi)) != NULL) {
@@ -3265,10 +3124,9 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
 	            FCLOSEUP(&fdo);
 	            FCLOSEUP(&fdi);
 	            remove(workFile);
-      	            chuser(batchId);
                     ls_syslog(LOG_ERR, "%s: Unexpected the end of (%s",
                               __func__, jobFileName);
-	            return (-1);
+	            return -1;
 		}
 
                 if (jobStarter) {
@@ -3287,11 +3145,10 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
 	            FCLOSEUP(&fdo);
 	            FCLOSEUP(&fdi);
 	            remove(workFile);
-      	            chuser(batchId);
                     ls_syslog(LOG_ERR, "%s: The command line is too long when "
                               " replacing the command of %s by the one of (%s)",
                               __func__, oldCmdArgs, newCommand);
-	            return (-1);
+	            return -1;
 
                 }
 
@@ -3312,9 +3169,8 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
 	FCLOSEUP(&fdo);
 	FCLOSEUP(&fdi);
 	remove(workFile);
-      	chuser(batchId);
         ls_syslog(LOG_ERR, "%s: Unexpected the end of %s", fname, jobFileName);
-	return (-1);
+	return -1;
     }
 
     while ((ptr=fgets(line, MAXLINELEN, fdi)) != NULL) {
@@ -3333,9 +3189,8 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
 	FCLOSEUP(&fdo);
 	FCLOSEUP(&fdi);
 	remove(workFile);
-	chuser(batchId);
         ls_syslog(LOG_ERR, "%s: Unexpected the end of %s", fname, jobFileName);
-	return (-1);
+	return -1;
     }
 
     fputs(WAITCLEANCMD, fdo);
@@ -3345,17 +3200,15 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
 	    FCLOSEUP(&fdo);
 	    FCLOSEUP(&fdi);
 	    remove(workFile);
-	    chuser(batchId);
             ls_syslog(LOG_ERR, fname, "fwrite", workFile);
-	    return (-1);
+	    return -1;
 	}
 
     FCLOSEUP(&fdo);
     FCLOSEUP(&fdi);
     remove(jobFile);
     rename(workFile, jobFile);
-    chuser(batchId);
-    return (0);
+    return 0;
 }
 void
 log_mbdStart(void)
@@ -3406,7 +3259,7 @@ replay_modifyjob(char *filename, int lineNum)
     if ((jpbw = getJobData (job->jobId)) == NULL) {
        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%s> not found in job list",
 	   fname, filename, lineNum, lsb_jobid2str(job->jobId));
-       return (FALSE);
+       return FALSE;
     }
 
     handleJParameters(jpbw, job, &job->shared->jobBill, TRUE, 0, 0);
@@ -3425,7 +3278,7 @@ replay_modifyjob(char *filename, int lineNum)
             updLocalJData(jPtr, jpbw);
     }
     freeJData (job);
-    return (TRUE);
+    return TRUE;
 }
 
 static int
@@ -3492,7 +3345,7 @@ replay_modifyjob2(char *filename, int lineNum)
     modifyReq.submitReq.userPriority = jobModLog->userPriority;
 
     modifyJob(&modifyReq, NULL, &auth);
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -3558,7 +3411,7 @@ replay_jobdata(char *filename, int lineNum, char *fname)
     job->dispTime = now + retryIntvl * msleeptime;
     job->newReason = PEND_SYS_NOT_READY;
     job->oldReason = PEND_SYS_NOT_READY;
-    if (debug)
+    if (mbd_debug)
 	job->dispTime = 0;
 
     job->userName = safeSave(jobNewLog->userName);
@@ -3673,29 +3526,23 @@ replay_jobdata(char *filename, int lineNum, char *fname)
     jobBill->userPriority = jobNewLog->userPriority;
     job->jobPriority = jobBill->userPriority;
 
-    return (job);
+    return job;
 
 }
 
 void
 log_logSwitch(int lastJobId)
 {
-    static char             fname[] = "log_logSwitch";
-
     if (openEventFile("log_logSwitch") < 0) {
-	LS_LONG_INT tmpJobId;
-	tmpJobId = lastJobId;
-	ls_syslog(LOG_ERR, fname,
-	    lsb_jobid2str(tmpJobId), "openEventFile");
+	ls_syslog(LOG_ERR, "%s: openEventFile() failed: %m", __func__);
         return;
     }
+
     logPtr->type = EVENT_LOG_SWITCH;
     logPtr->eventLog.logSwitchLog.lastJobId = lastJobId;
+
     if (putEventRec("log_logSwitch") < 0) {
-	LS_LONG_INT tmpJobId;
-	tmpJobId = lastJobId;
-	ls_syslog(LOG_ERR, fname,
-	    lastJobId, "putEventRec");
+	ls_syslog(LOG_ERR, "%s: putEventRec() failed: %m", __func__);
         return;
     }
 }
@@ -3770,7 +3617,7 @@ getSignalSymbol(const struct signalReq *sigPtr)
 	sprintf(nameBuf, "REQUEUE_PEND");
     }
 
-    return(nameBuf);
+    return nameBuf;
 
 }
 
@@ -3852,7 +3699,6 @@ replay_signaljob(char *filename, int lineNum)
     static char             fname[] = "replay_signaljob";
     struct jData           *jp;
     LS_LONG_INT   	    jobId;
-    int			    sigValue;
      int                    cc;
 
     jobId = LSB_JOBID(logPtr->eventLog.signalLog.jobId,
@@ -3860,31 +3706,26 @@ replay_signaljob(char *filename, int lineNum)
     if ((jp = getJobData(jobId)) == NULL) {
 	ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list ",
 	    fname, filename, lineNum, logPtr->eventLog.signalLog.jobId);
-	return (FALSE);
+	return FALSE;
     }
 
     cc = replay_arrayrequeue(jp,
 			     &(logPtr->eventLog.signalLog));
     if (cc == 0) {
-	return(TRUE);
+	return TRUE;
     }
 
-    if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "DELETEJOB") == 0){
-        sigValue = SIG_DELETE_JOB;
+    if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "DELETEJOB") == 0) {
         jp->pendEvent.sigDel = TRUE;
-
-    }
-
-    else if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "KILLREQUEUE")
-	     == 0) {
-	sigValue = SIG_TERM_USER;
+    } else if (strcmp(logPtr->eventLog.signalLog.signalSymbol,
+                      "KILLREQUEUE")   == 0) {
 	jp->pendEvent.sigDel |= DEL_ACTION_REQUEUE;
+    } else {
+        getSigVal(logPtr->eventLog.signalLog.signalSymbol);
     }
-    else
-        sigValue = getSigVal(logPtr->eventLog.signalLog.signalSymbol);
 
     if (jp->nodeType == JGRP_NODE_ARRAY) {
-        return (TRUE);
+        return TRUE;
     }
 
     if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "DELETEJOB") == 0) {
@@ -3892,7 +3733,7 @@ replay_signaljob(char *filename, int lineNum)
 	if (IS_FINISH(jp->jStatus)){
 	    jp->runCount = logPtr->eventLog.signalLog.runCount;
 
-	}else if (IS_PEND(jp->jStatus)) {
+	} else if (IS_PEND(jp->jStatus)) {
 	    if (logPtr->eventLog.signalLog.runCount == 0) {
 		jp->runCount = 1;
 		jStatusChange(jp, JOB_STAT_EXIT, logPtr->eventTime, fname);
@@ -3908,8 +3749,7 @@ replay_signaljob(char *filename, int lineNum)
 		jp->runCount = logPtr->eventLog.signalLog.runCount + 1;
 	}
     }
-    return (TRUE);
-
+    return TRUE;
 }
 
 static int
@@ -3934,12 +3774,12 @@ replay_arrayrequeue(struct jData *jPtr,
 	sigReq.actFlags  = sigLogPtr->runCount;
 
     } else {
-	return(-1);
+	return -1;
     }
 
     arrayRequeue(jPtr, &sigReq, NULL);
 
-    return(0);
+    return 0;
 
 }
 
@@ -3965,7 +3805,7 @@ replay_jobmsg(char *filename, int lineNum)
 	    lineNum,
 	    logPtr->eventLog.jobMsgLog.jobId);
 
-	return (FALSE);
+	return FALSE;
     }
 
     len = LSF_HEADER_LEN + 4 * sizeof(int) +
@@ -4005,13 +3845,13 @@ replay_jobmsg(char *filename, int lineNum)
 
 	ls_syslog(LOG_ERR, fname, "xdr_encodeMsg");
 	chanFreeBuf_(buf);
-	return (-1);
+	return -1;
     }
 
     QUEUE_APPEND(bucket, jp->hPtr[0]->msgq[MSG_STAT_QUEUED]);
     buf->stashed = TRUE;
 
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -4033,7 +3873,7 @@ replay_jobmsgack(char *filename, int lineNum)
 	    lineNum,
 	    logPtr->eventLog.jobMsgAckLog.jobId);
 
-	return (FALSE);
+	return FALSE;
     }
 
     bucket = jp->hPtr[0]->msgq[MSG_STAT_QUEUED];
@@ -4058,10 +3898,10 @@ replay_jobmsgack(char *filename, int lineNum)
 	chanFreeStashedBuf_(bucket->storage);
 	FREE_BUCKET(bucket);
     } else {
-	return(FALSE);
+	return FALSE;
     }
 
-    return (TRUE);
+    return TRUE;
 }
 
 static void
@@ -4109,13 +3949,13 @@ replay_jobforce(char* file, int line)
     if (job == NULL) {
 	ls_syslog(LOG_ERR, "%s: JobId <%d> at line <%d> cannot be found by master daemon",
 	    fname, jobForceRequestLog->jobId, line);
-	return(FALSE);
+	return FALSE;
     }
 
     job->jFlags |= (jobForceRequestLog->options & RUNJOB_OPT_NOSTOP) ?
 	JFLAG_URGENT_NOSTOP : JFLAG_URGENT;
 
-    return (TRUE);
+    return TRUE;
 
 }
 
@@ -4124,13 +3964,13 @@ canSwitch(struct eventRec *logPtr, struct jData *jp)
 {
     if (jp) {
         if (jp->startTime > 0 && logPtr->eventTime < jp->startTime)
-            return(TRUE);
+            return TRUE;
         else
-           return(FALSE);
+           return FALSE;
     }
     else
-       return(TRUE);
-    return(FALSE);
+       return TRUE;
+    return FALSE;
 }
 
 void
@@ -4169,11 +4009,11 @@ replay_jobattrset(char *filename, int lineNum)
     if ((job = getJobData(jobId)) == NULL) {
         ls_syslog(LOG_ERR, "%s: JobId <%d> at line <%d> cannot be found by master daemon",
             fname, jobAttrSetLog->jobId, lineNum);
-        return(FALSE);
+        return FALSE;
     }
     job->port = (u_short) jobAttrSetLog->port;
 
-    return (TRUE);
+    return TRUE;
 }
 
 static struct jData *
@@ -4183,7 +4023,7 @@ checkJobInCore(LS_LONG_INT jobId)
     struct listSet *ptr;
 
     if ((jp = getJobData(jobId)) != NULL)
-        return(jp);
+        return jp;
 
     for (ptr = voidJobList; ptr; ptr = ptr->next) {
          if (jobId == ((struct jData *)ptr->elem)->jobId ||
@@ -4191,7 +4031,7 @@ checkJobInCore(LS_LONG_INT jobId)
              return((struct jData *)ptr->elem);
          }
     }
-    return(NULL);
+    return NULL;
 }
 
 static char *
@@ -4209,7 +4049,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
     tmpBuf = (char *) malloc(datalen + strlen(jstr) + 1);
     if (tmpBuf == NULL) {
 	ls_syslog(LOG_ERR, fname, "malloc", "tmpBuf");
-	return(NULL);
+	return NULL;
     }
     memset((char *)tmpBuf, 0, datalen + strlen(jstr) + 1);
 
@@ -4221,7 +4061,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
             ls_syslog(LOG_ERR, fname, "malloc",
 							  "jstr_header");
 	    FREEUP(tmpBuf);
-	    return(NULL);
+	    return NULL;
         } else {
             strcpy(jstr_header, jstr);
         }
@@ -4237,7 +4077,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
 	        ls_syslog(LOG_ERR, fname,
 			    			"malloc","jstr_header");
 		FREEUP(tmpBuf);
-		return(NULL);
+		return NULL;
             } else {
                 memset(jstr_header, '\0', (ptr1-jstr)+sizeof(char));
                 strncpy(jstr_header, jstr, (ptr1-jstr));
@@ -4252,7 +4092,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
         ls_syslog(LOG_ERR, fname, "strstr", "CMDSTART");
 	FREEUP(jstr_header);
 	FREEUP(tmpBuf);
-	return(NULL);
+	return NULL;
     }
 
     ptr1 = strchr(ptr1, '\n');
@@ -4261,7 +4101,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
         ls_syslog(LOG_ERR, fname, "strstr", "CMDSTART");
 	FREEUP(jstr_header);
 	FREEUP(tmpBuf);
-	return(NULL);
+	return NULL;
     }
 
     if ((ptr2 = strstr(ptr1, "\n$LSB_JOBFILENAME.shell"))!= NULL) {
@@ -4277,7 +4117,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
 	strncat(tmpBuf, jstr_header, strlen(jstr_header));
         if (jstr_tailer[0]=='\0' && !withKeyword) {
 
-	    strncat(tmpBuf, " ", 1);
+	    strcat(tmpBuf, " ");
         }
     }
 
@@ -4290,7 +4130,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
         ls_syslog(LOG_ERR, fname, "strstr","WAITCLEANCMD");
 	FREEUP(jstr_header);
 	FREEUP(tmpBuf);
-	return(NULL);
+	return NULL;
     }
 
     strncat(tmpBuf, ptr1, ptr2-ptr1);
@@ -4300,7 +4140,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
     }
     strcat(tmpBuf, ptr2);
     FREEUP(jstr_header);
-    return(tmpBuf);
+    return tmpBuf;
 }
 
 static int
@@ -4314,19 +4154,19 @@ checkJobStarter(char *data, char *jStarter)
     if (!ptr) {
 
 	if (strstr(data, jStarter))
-	    return(TRUE);
+	    return TRUE;
 	else
-	    return(FALSE);
+	    return FALSE;
     } else {
 	if (jStarter == ptr) {
 	    tailer = ptr + strlen(JOB_STARTER_KEYWORD);
 	    SKIPSPACE(tailer);
 	    if (*tailer == '\0')
-		return(FALSE);
+		return FALSE;
 	    if (strstr(data, tailer))
-		return(TRUE);
+		return TRUE;
 	    else
-		return(FALSE);
+		return FALSE;
 	} else {
 	    int retcode;
 	    char saver;
@@ -4347,7 +4187,7 @@ checkJobStarter(char *data, char *jStarter)
 		    retcode = TRUE;
 	    }
 	    *ptr = saver;
-	    return(retcode);
+	    return retcode;
         }
     }
 }
@@ -4659,197 +4499,6 @@ log_queueStatusAtSwitch(const struct queueCtrlEvent *ctrlPtr)
 
 }
 
-#ifdef INTER_DAEMON_AUTH
-
-void
-getTGT(struct jData *jpbw, struct lenData *aux_auth_data)
-{
-    static char fname[] = "getTGT";
-
-    int  tgtFd;
-    int  cc;
-    char tgtFn[MAXFILENAMELEN];
-    char *buf, *sp;
-    LS_STAT_T st;
-
-    if (!aux_auth_data) {
-	return;
-    }
-    if (!jpbw) {
-	return;
-    }
-    aux_auth_data->len = 0;
-    aux_auth_data->data = NULL;
-    buf = NULL;
-    sp = NULL;
-
-    sprintf (tgtFn, "%s/%s/logdir/info/%s.tgt",
-    daemonParams[LSB_SHAREDIR].paramValue, clusterName,
-             jpbw->shared->jobBill.jobFile);
-    chuser(managerId);
-    tgtFd = open(tgtFn, O_RDONLY);
-    if (tgtFd < 0) {
-        chuser(batchId);
-        if (errno != ENOENT) {
-                ls_syslog(LOG_ERR,
-                    fname,
-                    lsb_jobid2str(jpbw->jobId),
-                    "open",
-                    tgtFn);
-        }
-        goto Auth_out1;
-    }
-
-    fstat(tgtFd, &st);
-
-    buf = (char *) my_malloc(st.st_size, fname);
-    if (! buf) {
-        goto Auth_out1;
-    }
-
-    if ((cc=read(tgtFd, buf, st.st_size)) != st.st_size) {
-        close(tgtFd);
-        FREEUP(buf);
-        chuser(batchId);
-        ls_syslog(LOG_ERR,
-                    fname,
-                    lsb_jobid2str(jpbw->jobId),
-                    "read",
-                    tgtFn);
-
-        goto Auth_out1;
-    }
-
-    close(tgtFd);
-    chuser(batchId);
-
-    sp = strstr(buf, AUXAUTHSTART);
-
-    if( !sp) {
-        goto Auth_out1;
-    }
-
-    sp += strlen(AUXAUTHSTART);
-    aux_auth_data->len = atoi(sp);
-    if( aux_auth_data->len <= 0 ){
-        aux_auth_data->len = 0;
-        goto Auth_out1;
-    }
-
-    while (*sp != '\n' && sp < buf + st.st_size) {
-        sp++;
-    }
-    if(sp >= buf + st.st_size){
-
-        aux_auth_data->len = 0;
-        goto Auth_out1;
-    }
-    sp++;
-
-    if (aux_auth_data->len) {
-        aux_auth_data->data = (char *)my_malloc(aux_auth_data->len, fname);
-        memcpy(aux_auth_data->data, sp, aux_auth_data->len);
-    }
-
-Auth_out1:
-    if (buf) {
-        FREEUP(buf);
-    }
-
-}
-
-void
-saveTGT(struct jData *jp)
-{
-    static char fname[] = "saveTGT";
-    FILE *tgtFp;
-    char tgtFn[MAXFILENAMELEN];
-    char *aux_file;
-    int aux_file_d, buf_len = 0;
-    char *buf = NULL, strbuf[64];
-    LS_STAT_T st;
-
-    if (!jp) {
-	return;
-    }
-    sprintf(tgtFn, "%s/%s/logdir/info/%s.tgt",
-        daemonParams[LSB_SHAREDIR].paramValue, clusterName,
-        jp->shared->jobBill.jobFile);
-
-    chuser(managerId);
-    if ((tgtFp = fopen(tgtFn, "w")) == NULL) {
-        ls_syslog(LOG_ERR, fname, "fopen",
-                tgtFn);
-        goto Auth_out;
-     }
-
-    strcpy(strbuf, AUXAUTHSTART);
-    if (fwrite(strbuf, 1, strlen(strbuf), tgtFp) != strlen(strbuf)) {
-        ls_syslog(LOG_ERR, fname, "fwrite");
-        goto Auth_out;
-    }
-
-    aux_file = getenv("LSF_EAUTH_AUX_DATA");
-
-    if (aux_file && strlen(aux_file)) {
-
-        chuser(batchId);
-        if ((aux_file_d = open(aux_file, O_RDONLY)) >= 0) {
-            fstat(aux_file_d, &st);
-            buf_len = st.st_size;
-        } else {
-            ls_syslog(LOG_ERR, fname,
-                      "open", aux_file);
-	}
-
-        if (buf_len) {
-             buf = (char*)my_malloc(buf_len, fname);
-             if (read(aux_file_d, buf, buf_len) != buf_len) {
-                ls_syslog(LOG_ERR, fname, "read");
-                buf_len = 0;
-            }
-        }
-        close(aux_file_d);
-
-        unlink(aux_file);
-
-        chuser(managerId);
-
-        sprintf(strbuf, "%d\n", buf_len);
-        if (fwrite(strbuf, 1, strlen(strbuf), tgtFp) == strlen(strbuf)) {
-
-            if ((buf_len>0) && buf && fwrite(buf, 1, st.st_size, tgtFp) != st.st_size) {
-                chuser(batchId);
-                ls_syslog(LOG_ERR, fname, "fwrite");
-                chuser(managerId);
-            }
-        }
-        else {
-            chuser(batchId);
-            ls_syslog(LOG_ERR, fname, "fwrite");
-            chuser(managerId);
-        }
-
-	if (buf) {
-            free(buf);
-	}
-   } else {
-
-       sprintf(strbuf, "%d\n", 0);
-       if (fwrite(strbuf, 1, strlen(strbuf), tgtFp) != strlen(strbuf)) {
-           chuser(batchId);
-           ls_syslog(LOG_ERR, fname, "fwrite");
-           chuser(managerId);
-       }
-   }
-
-Auth_out:
-
-    chuser(managerId);
-    FCLOSEUP(&tgtFp);
-}
-#endif
-
 static int
 renameAcctLogFiles(int fileLimit)
 {
@@ -4862,7 +4511,6 @@ renameAcctLogFiles(int fileLimit)
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering ... ", fname);
 
-    chuser(managerId);
     i = 0;
     if (fileLimit > 0){
         do {
@@ -4877,9 +4525,7 @@ renameAcctLogFiles(int fileLimit)
     }
 
     if ((errno != ENOENT) && (errno != 0)) {
-        chuser(batchId);
         ls_syslog(LOG_WARNING, fname, "stat", tmpfn);
-        chuser(managerId);
     }
 
     max = i;
@@ -4891,12 +4537,10 @@ renameAcctLogFiles(int fileLimit)
                 daemonParams[LSB_SHAREDIR].paramValue, clusterName, i + 1);
 
         if (rename(tmpfn, acctfn) == -1 && errno != ENOENT) {
-            chuser(batchId);
             ls_syslog(LOG_ERR, fname,
                       "rename", tmpfn, acctfn);
-            return (-1);
+            return -1;
         }
     }
-    chuser(batchId);
-    return (max);
+    return max;
 }

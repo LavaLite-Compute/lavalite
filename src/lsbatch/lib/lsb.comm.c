@@ -328,70 +328,44 @@ getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
     return len;
 }
 
-ushort
+uint16_t
 get_mbd_port (void)
 {
     struct servent *sv;
-    static ushort mbd_port = 0;
+    static uint16_t mbd_port = 0;
 
     if (mbd_port != 0)
         return mbd_port;
 
-    if (isint_(lsbParams[LSB_MBD_PORT].paramValue)) {
-        if ((mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue)) > 0)
-            return((mbd_port = htons(mbd_port)));
-        else
-        {
-            mbd_port = 0;
-            lsberrno = LSBE_SERVICE;
-            return 0;
-        }
-    }
-
-    if (lsbParams[LSB_DEBUG].paramValue != NULL)
-        return(mbd_port = htons(BATCH_MASTER_PORT));
-
-    sv = getservbyname("mbatchd", "tcp");
-    if (!sv) {
+    if (! lsbParams[LSB_MBD_PORT].paramValue) {
+        mbd_port = 0;
         lsberrno = LSBE_SERVICE;
         return 0;
     }
-    return(mbd_port = sv->s_port);
+    mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue);
+    mbd_port = htons(mbd_port);
+
+    return mbd_port;
 }
 
-ushort
+uint16_t
 get_sbd_port(void)
 {
-    struct servent *sv;
-    int sbd_port;
+    static uint16_t sbd_port;
 
-    if (isint_(lsbParams[LSB_SBD_PORT].paramValue)) {
-        if ((sbd_port = atoi(lsbParams[LSB_SBD_PORT].paramValue)) > 0)
-            return((sbd_port = htons(sbd_port)));
-        else
-        {
-            sbd_port = 0;
-            lsberrno = LSBE_SERVICE;
-            return 0;
-        }
-    }
+    if (sbd_port != 0)
+        return sbd_port;
 
-#  if defined(_COMPANY_X_)
-    if ((sbd_port = get_port_number("sbatchd", (char *)NULL)) < 0) {
-        lsberrno = LSBE_SERVICE;
+    if (! lsbParams[LSB_SBD_PORT].paramValue) {
         sbd_port = 0;
-        return 0;
-    }
-    return sbd_port;
-
-#  else
-    sv = getservbyname("sbatchd", "tcp");
-    if (!sv) {
         lsberrno = LSBE_SERVICE;
         return 0;
     }
-    return(sbd_port = sv->s_port);
-#endif
+
+    sbd_port = atoi(lsbParams[LSB_SBD_PORT].paramValue);
+    sbd_port = htons(sbd_port);
+
+    return sbd_port;
 }
 
 int

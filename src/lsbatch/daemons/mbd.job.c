@@ -1923,15 +1923,16 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
     struct jData *jpbw, *next;
     struct jobSpecs *jobSpecs;
     struct lenData jf;
-    int list, num = 0, i;
-    int size = sizeof(struct sbdPackage) * 4 / 4;
 
+    int list;
+    int num = 0;
+    int size = sizeof(struct sbdPackage);
     for (list = 0; list < ALLJLIST && sbdPackage->numJobs > 0; list++) {
         if (list != SJL && list != ZJL && list != FJL)
             continue;
         for (jpbw = jDataList[list]->back; jpbw != jDataList[list];
-                                                        jpbw = next) {
-            next= jpbw->back;
+             jpbw = next) {
+            next = jpbw->back;
 
             if ( (list == FJL) &&
                  !( (jpbw->jStatus & JOB_STAT_DONE)
@@ -1974,8 +1975,7 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
 		    + strlen (jobSpecs->execHosts)
 		    + 10;
 
-	    for (i = 0; i < jobSpecs->numToHosts; i++) {
-
+	    for (int i = 0; i < jobSpecs->numToHosts; i++) {
                size += getXdrStrlen(jobSpecs->toHosts[i]);
 	    }
 
@@ -1986,7 +1986,7 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
                 else {
 		    size += ALIGNWORD_(jobSpecs->eexec.len) + sizeof(int);
 		    FREEUP(jf.data);
-		    for (i = 0; i < jobSpecs->numEnv; i++)
+		    for (int i = 0; i < jobSpecs->numEnv; i++)
 		        size += ALIGNWORD_(strlen(jobSpecs->env[i]) + 1);
 	        }
             }
@@ -1995,8 +1995,8 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
     }
     sbdPackage->numJobs = num;
     sbdPackage->mbdPid = getpid();
-    strcpy (sbdPackage->lsbManager, lsbManager);
-    sbdPackage->managerId = managerId;
+    strcpy (sbdPackage->lsbManager, mbd_mgr->name);
+    sbdPackage->managerId = mbd_mgr->uid;
     sbdPackage->sbdSleepTime = sbdSleepTime;
     sbdPackage->retryIntvl = retryIntvl;
     sbdPackage->preemPeriod = preemPeriod;
@@ -2006,13 +2006,12 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
     sbdPackage->rusageUpdateRate = rusageUpdateRate;
     sbdPackage->rusageUpdatePercent = rusageUpdatePercent;
     sbdPackage->jobTerminateInterval = jobTerminateInterval;
-    sbdPackage->nAdmins = nManagers;
-    if ((sbdPackage->admins = (char **)my_calloc(
-				nManagers, sizeof(char *), fname)) != NULL) {
-	for (i = 0; i < nManagers; i++) {
-	    sbdPackage->admins[i] = safeSave(lsbManagers[i]);
-            size += getXdrStrlen(lsbManagers[i]);
-	}
+    sbdPackage->nAdmins = num_managers;
+    sbdPackage->admins = calloc(num_managers, sizeof(char *));
+    // num_managers = 1
+    for (int i = 0; i < num_managers; i++) {
+        sbdPackage->admins[i] = strdup(mbd_mgr->name[i]);
+            size += getXdrStrlen(mbd_mgr->name[i]);
     }
 
     return size;
@@ -2653,7 +2652,7 @@ statusJob (struct statusReq *statusReq, struct hostent *hp, int *schedule)
 
     if (jpbw->jStatus & (JOB_STAT_DONE | JOB_STAT_EXIT) ) {
 
-	if (debug)
+	if (mbd_debug)
 	    ls_syslog(LOG_ERR, "%s: Obsolete status report of job <%s> from sbatchd on host <%s>: %x-->%x, discarded",
 		fname,
 		lsb_jobid2str(jpbw->jobId),
@@ -7999,7 +7998,7 @@ checkUserPriority(struct jData *jp, int userPriority, int *errnum)
 	return FALSE;
     }
 
-    if (isManager(jp->userName)) {
+    if (is_manager(jp->userName)) {
         isAdmin = 1;
     }
 

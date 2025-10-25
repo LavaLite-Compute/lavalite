@@ -23,7 +23,7 @@
 
 char errbuf[MAXLINELEN];
 
-int debug = 0;
+bool mbd_debug = 0;
 int lsb_CheckMode = 0;
 int lsb_CheckError = 0;
 
@@ -43,15 +43,9 @@ int glMigToPendFlag = FALSE;
 
 int requeueToBottom = FALSE;
 int arraySchedOrder = FALSE;
-
-int    *managerIds  = NULL;
-char   **lsbManagers = NULL;
-int    nManagers     = 0;
-
-char   *lsbManager  = NULL;
-char   *lsbSys      = "SYS";
-int    managerId    = 0;
-uid_t  batchId      = 0;
+// Batch system manager
+// One user, fixed identity, zero UID gymnastics.
+struct mbd_manager *mbd_mgr;
 int    jobTerminateInterval = DEF_JTERMINATE_INTERVAL;
 int    msleeptime   = DEF_MSLEEPTIME;
 int    sbdSleepTime = DEF_SSLEEPTIME;
@@ -149,6 +143,12 @@ static struct jData *jobData = NULL;
 static time_t lastSchedTime = 0;
 static time_t nextSchedTime = 0;
 
+// LavaLite bmgr of the entire batch system
+// has to be equal to the base manager as returned by
+// ls_clusterinfo()
+struct mbd_manager *bmgr;
+int num_managers = 0;
+
 void setJobPriUpdIntvl(void);
 static void updateJobPriorityInPJL(void);
 static void houseKeeping (int *);
@@ -174,8 +174,29 @@ extern int do_setJobAttr(XDR *, int, struct sockaddr_in *, char *,
 extern void chanCloseAllBut_(int);
 extern int initLimSock_(void);
 
+static void
+usage(void)
+{
+    fprintf(stderr,
+            "Usage: mbatchd [options]\n"
+            "Options:\n"
+            "  -h, --help         Show this help message and exit\n"
+            "  -V, --version      Show version information and exit\n"
+            "  -C, --reconfig     Check configuration\n"
+            "  -d, --debug        Run in debug mode, no daemonize\n"
+            "  -E, --env VAR      Set environment variable LSF_ENVDIR\n");
+}
+static struct option longopts[] = {
+    { "help",        no_argument,       NULL, 'h' },
+    { "version",     no_argument,       NULL, 'V' },
+    { "debug",       no_argument,       NULL, 'd' },
+    { "envdir",      required_argument, NULL, 'E' },
+    { "reconfig",    no_argument,       NULL, 'C' },
+    { NULL,          0,                 NULL,  0  }
+};
+
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
     static char fname[] = "main";
     fd_set readmask;
@@ -187,27 +208,17 @@ main (int argc, char **argv)
     time_t lastPeriodicCheckTime = 0;
     time_t lastElockTouch;
 
-    int aopt;
-    extern char *optarg;
-    extern int opterr;
-
-    saveDaemonDir_(argv[0]);
-
-    0;
-
-    opterr = 0;
-    while ((aopt = getopt(argc, argv, "hVd:12C")) != EOF) {
-        switch(aopt)
-        {
-        case '1':
-        case '2':
-            debug = aopt - '0';
-            break;
+    int cc;
+    while ((cc = getopt_long(argc, argv, "hVCdE:", longopts, NULL)) != EOF) {
+        switch (cc) {
         case 'd':
-            env_dir = optarg;
+            mbd_debug = true;
+            break;
+        case 'E':
+            putEnv("LSF_ENVDIR", optarg);
             break;
         case 'C':
-            putEnv("RECONFIG_CHECK","YES");
+            putEnv("RECONFIG_CHECK", "YES");
             fputs("\n", stderr);
             lsb_CheckMode = 1;
             break;
@@ -216,32 +227,28 @@ main (int argc, char **argv)
             exit(0);
         case 'h':
         default:
-            fprintf(stderr,
-                    "%s: mbatchd [-h] [-V] [-C] [-d env_dir] [-1 |-2]\n",
-                    "Usage");
-            exit(1);
+            usage();
         }
     }
 
-    if (initenv_(daemonParams, env_dir) < 0)
-    {
+    if (initenv_(daemonParams, env_dir) < 0)  {
         ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue,
-                   (debug > 1 || lsb_CheckMode),
+                   (mbd_debug || lsb_CheckMode),
                    daemonParams[LSF_LOG_MASK].paramValue);
         ls_syslog(LOG_ERR, "main", "initenv");
+        open_log("mbatchd", daemonParams[LSF_LOG_MASK].paramValue, true);
+        syslog(LOG_ERR, "%s: initenv_() failed", __func__);
         if (!lsb_CheckMode)
             mbdDie(MASTER_FATAL);
         else
             lsb_CheckError = FATAL_ERR;
     }
 
-    if (!debug && isint_(daemonParams[LSB_DEBUG].paramValue)) {
-        debug = atoi(daemonParams[LSB_DEBUG].paramValue);
-        if (debug <= 0 || debug > 2)
-            debug = 1;
+    if (isint_(daemonParams[LSB_DEBUG].paramValue)) {
+        mbd_debug = true;
     }
 
-    if (debug < 2 && !lsb_CheckMode) {
+    if (! mbd_debug && !lsb_CheckMode) {
         for (i = sysconf(_SC_OPEN_MAX) ; i >= 3 ; i--)
             close(i);
     }
@@ -249,16 +256,19 @@ main (int argc, char **argv)
     getLogClass_(daemonParams[LSB_DEBUG_MBD].paramValue,
                  daemonParams[LSB_TIME_MBD].paramValue);
 
-    if (lsb_CheckMode)
+    if (lsb_CheckMode) {
         ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
                    "LOG_WARN");
-    else if (debug > 1)
+        open_log("mbatchd", daemonParams[LSF_LOG_MASK].paramValue, true);
+    } else if (mbd_debug) {
         ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
                    daemonParams[LSF_LOG_MASK].paramValue);
-    else
+        open_log("mbatchd", daemonParams[LSF_LOG_MASK].paramValue, true);
+    } else {
         ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, FALSE,
                    daemonParams[LSF_LOG_MASK].paramValue);
-
+        open_log("mbatchd", daemonParams[LSF_LOG_MASK].paramValue, true);
+    }
     if (logclass)
         ls_syslog(LOG_DEBUG, "%s: logclass=%x", fname, logclass);
 
@@ -317,7 +327,7 @@ main (int argc, char **argv)
 
     daemon_doinit();
 
-    if ((!debug) && (!lsb_CheckMode))  {
+    if ((!mbd_debug) && (!lsb_CheckMode))  {
         if(getuid() != 0) {
             ls_syslog(LOG_ERR, "%s: Real uid is %d, not root",
                       fname, (int)getuid());
@@ -331,12 +341,16 @@ main (int argc, char **argv)
     }
 
     now = time(0);
-    if (lsb_CheckMode == TRUE)
-
-        TIMEIT(0, minit(FIRST_START),"minit");
+    if (lsb_CheckMode == TRUE) {
+        TIMEIT(0, (cc = minit(FIRST_START)),"minit");
+        if (cc < 0) {
+            syslog(LOG_ERR, "%s: minit() failed %m", __func__);
+            mbdDie(MASTER_FATAL);
+        }
+    }
 
     masterHost = ls_getmastername();
-    for (i=0; i<3 && !masterHost && lserrno == LSE_TIME_OUT; i++) {
+    for (i = 0; i < 3 && !masterHost && lserrno == LSE_TIME_OUT; i++) {
         millisleep_ (6000);
         masterHost = ls_getmastername();
     }
@@ -347,34 +361,33 @@ main (int argc, char **argv)
             mbdDie(MASTER_RESIGN);
         else
             lsb_CheckError = FATAL_ERR;
-    } else {
-        char *myhostnm;
+    }
+    char *myhostnm;
 
-        if ((myhostnm = ls_getmyhostname()) == NULL) {
-            ls_syslog(LOG_ERR, "main", "ls_getmyhostname");
-            if (! lsb_CheckMode)
-                mbdDie(MASTER_FATAL);
-            else
-                lsb_CheckError = FATAL_ERR;
-        }
-        if (!equalHost_ (masterHost, myhostnm)) {
-            ls_syslog(LOG_ERR, "%s: Local host is not master <%s>",
-                      fname,
-                      masterHost);
-            if (! lsb_CheckMode)
-                mbdDie(MASTER_RESIGN);
-        }
-
-        if (!isValidHost_(myhostnm)) {
-            ls_syslog(LOG_ERR, "main", "isValidHost_");
-            if (! lsb_CheckMode)
-                mbdDie(MASTER_FATAL);
-            else
-                lsb_CheckError = FATAL_ERR;
-        }
+    if ((myhostnm = ls_getmyhostname()) == NULL) {
+        ls_syslog(LOG_ERR, "main", "ls_getmyhostname");
+        if (! lsb_CheckMode)
+            mbdDie(MASTER_FATAL);
+        else
+            lsb_CheckError = FATAL_ERR;
+    }
+    if (!equalHost_ (masterHost, myhostnm)) {
+        ls_syslog(LOG_ERR, "%s: Local host is not master <%s>",
+                  fname,
+                  masterHost);
+        if (! lsb_CheckMode)
+            mbdDie(MASTER_RESIGN);
     }
 
-    (void)umask(022);
+    if (!isValidHost_(myhostnm)) {
+        ls_syslog(LOG_ERR, "main", "isValidHost_");
+        if (! lsb_CheckMode)
+            mbdDie(MASTER_FATAL);
+        else
+            lsb_CheckError = FATAL_ERR;
+    }
+
+    umask(022);
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
 
@@ -383,7 +396,11 @@ main (int argc, char **argv)
         exit(lsb_CheckError);
     }
 
-    TIMEIT(0, minit(FIRST_START),"minit");
+    TIMEIT(0, (cc = minit(FIRST_START)),"minit");
+    if (cc < 0) {
+        syslog(LOG_ERR, "%s: minit() failed %m", __func__);
+        mbdDie(MASTER_FATAL);
+    }
     log_mbdStart();
     ls_syslog(LOG_INFO, ("%s: re-started"), "main");
     ls_syslog(LOG_DEBUG1, "main: maxSchedStay=%d freshPeriod=%d "
@@ -397,11 +414,8 @@ main (int argc, char **argv)
     setJobPriUpdIntvl();
 
     for(;;) {
-        int      maxfd;
 
         FD_ZERO(&readmask);
-
-        maxfd = sysconf(_SC_OPEN_MAX);
         now = time(0);
 
         if ( (now - lastSchedTime >= msleeptime)
@@ -592,7 +606,6 @@ processClient(struct clientNode *client, int *needFree)
     int s, pid;
     int cc = LSBE_NO_ERROR;
     struct sockaddr_in from, laddr;
-    int laddrLen = sizeof(laddr);
     struct lsfAuth auth;
     struct LSFHeader reqHdr;
     XDR xdrs;
@@ -651,6 +664,7 @@ processClient(struct clientNode *client, int *needFree)
         if (io_block_(chanSock_(s)) < 0)
             ls_syslog(LOG_ERR, "%s", __func__, "io_block_");
 
+    socklen_t laddrLen = sizeof(laddr);
     if (getsockname (chanSock_(s), (struct sockaddr *) &laddr,
                      &laddrLen) == -1) {
         ls_syslog(LOG_ERR, "%s", __func__, "getsockname");
@@ -677,7 +691,7 @@ processClient(struct clientNode *client, int *needFree)
             goto endLoop;
         }
 
-        if (debug < 2)
+        if (mbd_debug)
             closeExceptFD(chanSock_(s));
     }
 
@@ -1062,7 +1076,7 @@ authRequest(struct lsfAuth *auth, XDR *xdrs, struct LSFHeader *reqHdr,
     }
 #endif
 
-    if (!userok(s, from, hostName, local, auth, debug))
+    if (!userok(s, from, hostName, local, auth, mbd_debug))
         return LSBE_PERMISSION;
 
     switch(reqType) {

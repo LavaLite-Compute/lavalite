@@ -55,11 +55,12 @@ start_ajob (struct jData *jDataPtr, struct qData *qp, struct jobReply *jobReply)
     static char lastHost[MAXHOSTNAMELEN];
     struct hData *hostData = jDataPtr->hPtr[0];
     char *toHost = jDataPtr->hPtr[0]->host;
-    struct lenData jf, aux_auth_data;
+    struct lenData jf;
+    struct lenData aux_auth_data;
     static int errcnt;
     struct sbdNode sbdNode;
     int socket;
-    struct lsfAuth auth_data, *auth = NULL;
+    struct lsfAuth *auth;
 
     if (logclass & (LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG2, "%s: job=%s", fname, lsb_jobid2str(jDataPtr->jobId));
@@ -106,6 +107,7 @@ start_ajob (struct jData *jDataPtr, struct qData *qp, struct jobReply *jobReply)
     }
 
 #ifdef INTER_DAEMON_AUTH
+    struct lsfAuth auth_data;
     if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
         int ret;
         writeEauthAuxData(&aux_auth_data);
@@ -294,7 +296,7 @@ signal_job (struct jData *jp, struct jobSig *sendReq, struct jobReply *jobReply)
     int cc;
     struct sbdNode sbdNode;
     int socket;
-    struct lsfAuth auth_data, *auth = NULL;
+    struct lsfAuth *auth = NULL;
 
     jobSig.jobId = jp->jobId;
     jobSig.sigValue = sig_encode(sendReq->sigValue);
@@ -309,6 +311,7 @@ signal_job (struct jData *jp, struct jobSig *sendReq, struct jobReply *jobReply)
 		  fname, lsb_jobid2str(jobSig.jobId), jobSig.sigValue, jobSig.actFlags);
 
 #ifdef INTER_DAEMON_AUTH
+    struct lsfAuth auth_data;
     if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
 	if (getMbdAuth(&auth_data, toHost)) {
 	    return ERR_FAIL;
@@ -560,9 +563,10 @@ rebootSbd (char *host)
     static int errcnt;
     struct LSFHeader hdr;
     int cc;
-    struct lsfAuth auth_data, *auth = NULL;
+    struct lsfAuth *auth = NULL;
 
 #ifdef INTER_DAEMON_AUTH
+    struct lsfAuth auth_data;
     if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
 	if (getMbdAuth(&auth_data, host)) {
 	    return ERR_FAIL;

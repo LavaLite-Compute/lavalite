@@ -67,8 +67,8 @@ treeInit()
 
     groupRoot = treeNewNode(JGRP_NODE_GROUP);
     groupRoot->name = safeSave("/");
-    JGRP_DATA(groupRoot)->userId  = managerId;
-    JGRP_DATA(groupRoot)->userName = safeSave(lsbSys);
+    JGRP_DATA(groupRoot)->userId  = mbd_mgr->uid;
+    JGRP_DATA(groupRoot)->userName = safeSave("SYS");
     JGRP_DATA(groupRoot)->status = JGRP_ACTIVE;
     JGRP_DATA(groupRoot)->changeTime = INFINIT_INT;
     JGRP_DATA(groupRoot)->numRef = 0;
@@ -94,8 +94,7 @@ treeInit()
 static TREE_OBSERVER_T *
 treeObserverCreate(char *name, void *entry, TREE_EVENT_OP_T eventOp)
 {
-    static char                     fname[] = "treeObserverCreate";
-    struct treeObserver             *observer;
+    struct treeObserver *observer;
 
     observer = (TREE_OBSERVER_T *)calloc(1, sizeof(TREE_OBSERVER_T));
     if (observer == NULL) {

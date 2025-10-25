@@ -512,7 +512,7 @@ packJobInfo(struct jData * jobData, int remain, char **replyBuf, int schedule,
                         jobInfoReply.reasonTb[k] = pkHReasonTb[i];
                         PUT_HIGH(jobInfoReply.reasonTb[k], i);
                         k++;
-                        if (debug && (logclass & LC_PEND))
+                        if (mbd_debug && (logclass & LC_PEND))
                             ls_syslog(LOG_DEBUG2, "%s: hReasonTb[%d]=%d",
                                       fname, i, pkHReasonTb[i]);
                         continue;
@@ -521,7 +521,7 @@ packJobInfo(struct jData * jobData, int remain, char **replyBuf, int schedule,
                         jobInfoReply.reasonTb[k] = pkQReasonTb[i];
                         PUT_HIGH(jobInfoReply.reasonTb[k], i);
                         k++;
-                        if (debug && (logclass & LC_PEND))
+                        if (mbd_debug && (logclass & LC_PEND))
                             ls_syslog(LOG_DEBUG2, "%s: qReason[%d]=%d",
                                       fname, i, pkQReasonTb[i]);
                         continue;
@@ -530,14 +530,14 @@ packJobInfo(struct jData * jobData, int remain, char **replyBuf, int schedule,
                         jobInfoReply.reasonTb[k] = pkUReasonTb[i];
                         PUT_HIGH(jobInfoReply.reasonTb[k], i);
                         k++;
-                        if (debug && (logclass & LC_PEND))
+                        if (mbd_debug && (logclass & LC_PEND))
                             ls_syslog(LOG_DEBUG2, "%s: uReason[%d]=%d",
                                       fname, i, pkUReasonTb[i]);
                         continue;
                     }
                     if (jReasonTb[i]) {
                         jobInfoReply.reasonTb[k++] = jReasonTb[i];
-                        if (debug && (logclass & LC_PEND)) {
+                        if (mbd_debug && (logclass & LC_PEND)) {
                             int rs;
                             GET_LOW(rs, jReasonTb[i]);
                             ls_syslog(LOG_DEBUG2, "%s: jReason[%d]=%d",
@@ -550,7 +550,7 @@ packJobInfo(struct jData * jobData, int remain, char **replyBuf, int schedule,
                 if (jReasonTb[0] != 0) {
 
                     jobInfoReply.reasonTb[k++] = jReasonTb[0];
-                    if (debug && (logclass & LC_PEND)) {
+                    if (mbd_debug && (logclass & LC_PEND)) {
                         ls_syslog(LOG_DEBUG2, "%s: jReason[0]=%d",
                                   fname, jReasonTb[0]);
                     }
@@ -2300,7 +2300,11 @@ addPendSigEvent(struct sbdNode *sbdPtr)
     eventPending = TRUE;
 
 }
-
+// Bug the problem is not to have bugs not enable dynamic
+// debug. Who wants to see daemon debug beside developers?
+// Debugging code should never be part of the operational path.
+// The goal isn’t to sprinkle dynamic debug everywhere — the goal is to write
+// software that simply doesn’t need it once stabilized.
 int
 ctrlMbdDebug(struct debugReq *pdebug,  struct lsfAuth *auth)
 {
@@ -2368,7 +2372,7 @@ ctrlMbdDebug(struct debugReq *pdebug,  struct lsfAuth *auth)
 
         if (initenv_(daemonParams, env_dir) < 0) {
             ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue,
-                       (debug > 1 || lsb_CheckMode),
+                       (mbd_debug || lsb_CheckMode),
                        daemonParams[LSF_LOG_MASK].paramValue);
             ls_syslog(LOG_ERR, "%s", __func__, "initenv_");
 
@@ -2387,7 +2391,7 @@ ctrlMbdDebug(struct debugReq *pdebug,  struct lsfAuth *auth)
         if (lsb_CheckMode)
             ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
                        "LOG_WARN");
-        else if (debug > 1)
+        else if (mbd_debug)
             ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
                        daemonParams[LSF_LOG_MASK].paramValue);
         else
@@ -2399,7 +2403,7 @@ ctrlMbdDebug(struct debugReq *pdebug,  struct lsfAuth *auth)
         return LSBE_NO_ERROR;
     }
 
-    if (opCode==MBD_DEBUG) {
+    if (opCode == MBD_DEBUG) {
 
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG,
@@ -2417,7 +2421,7 @@ ctrlMbdDebug(struct debugReq *pdebug,  struct lsfAuth *auth)
 
             closelog();
 
-            if (debug > 1)
+            if (mbd_debug)
                 ls_openlog(logFileName, lsfLogDir,
                            TRUE, daemonParams[LSF_LOG_MASK].paramValue);
             else
@@ -2432,7 +2436,7 @@ ctrlMbdDebug(struct debugReq *pdebug,  struct lsfAuth *auth)
             timinglevel = level;
         if (pdebug->logFileName[0] != '\0') {
             closelog();
-            if (debug > 1)
+            if (mbd_debug)
                 ls_openlog(logFileName, lsfLogDir, TRUE,
                            daemonParams[LSF_LOG_MASK].paramValue);
             else

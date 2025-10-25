@@ -1266,17 +1266,13 @@ mbdDie (int sig)
 
 }
 
-int
-isManager (char *lsfUserName)
+bool
+is_manager(const char *user)
 {
-
-    int i;
-
-    for (i = 0; i < nManagers; i++) {
-        if (strcmp(lsfUserName, lsbManagers[i]) == 0)
-            return TRUE;
-    }
-    return FALSE;
+    // Bug better way?
+    if (strcmp(user, mbd_mgr->name) == 0)
+        return true;
+    return false;
 }
 
 int
@@ -1294,7 +1290,7 @@ isAuthManagerExt(struct lsfAuth *auth)
             return FALSE;
     }
 
-    return (isManager(auth->lsfUserName));
+    return (is_manager(auth->lsfUserName));
 
 }
 

@@ -460,6 +460,31 @@ ls_closelog_ext() {
 // LavaLite
 static int get_log_mask(const char *);
 
+#if 0
+// Bug implement something like this
+
+#define LS_INFO(...)   ls_syslog(LOG_INFO,   __VA_ARGS__)
+#define LS_WARN(...)   ls_syslog(LOG_WARNING,__VA_ARGS__)
+#define LS_ERR(...)    ls_syslog(LOG_ERR,    __VA_ARGS__)
+#define LS_DEBUG(...)  ls_syslog(LOG_DEBUG,  __VA_ARGS__)
+
+
+void
+ls_openlog(const char *ident, int option, int facility)
+{
+    openlog(ident, option, facility);
+}
+
+void
+ls_syslog(int priority, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vsyslog(priority, format, args);
+    va_end(args);
+}
+#endif
+
 void
 open_log(const char *ident, const char *mask, bool debug)
 {

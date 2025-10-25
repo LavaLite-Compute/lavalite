@@ -3541,6 +3541,7 @@ writeJobIdIndexToIndexFile (FILE *indexFp, struct sortIntList *header,
 
 }
 
+// Bug do we need this?
 int
 updateJobIdIndexFile (char *indexFile, char *eventFile, int totalEventFile)
 {
@@ -3606,13 +3607,13 @@ updateJobIdIndexFile (char *indexFile, char *eventFile, int totalEventFile)
         }
 
         addedEventFile = totalEventFile;
-	strcpy(indexVersion, THIS_VERSION);
+	strcpy(indexVersion, LAVALITE_VERSION_STR);
 	rows = 0;
 
         fprintf(indexFp, "%80s", "\n");
     }
 
-    for (i=addedEventFile; i>0; i--) {
+    for (i = addedEventFile; i>0; i--) {
 
 	sprintf(nameBuf, "%s.%d", eventFile, i);
 

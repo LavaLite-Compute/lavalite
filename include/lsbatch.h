@@ -34,9 +34,8 @@
 
 #define  LAVA_EVENT_VERSION1_0   1.0
 
-#define  THIS_VERSION      "1.0"
-
-#define  MAX_VERSION_LEN     12
+// Lavalite this has space for LAVALITE_VERSION_STR
+#define  MAX_VERSION_LEN     BUFSIZ_32
 #define  MAX_HPART_USERS     100
 #define  MAX_GROUPS          150
 #define  MAX_CHARLEN         20

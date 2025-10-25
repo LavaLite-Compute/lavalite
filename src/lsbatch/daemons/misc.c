@@ -21,7 +21,7 @@
 #define BATCH_SLAVE_PORT        40001
 static char *reserved;
 
-static int chuserId (uid_t);
+static int chuserId(uid_t);
 
 extern struct listEntry * mkListHeader (void);
 extern int shutdown (int, int);
@@ -29,13 +29,7 @@ extern int shutdown (int, int);
 void
 die (int sig)
 {
-    static char fname[] = "die";
     char myhost[MAXHOSTNAMELEN];
-
-    if (debug > 1)
-	fprintf(stderr, "%s: signal %d\n",
-	    fname,
-	    sig);
 
     if (masterme) {
         releaseElogLock();
@@ -48,39 +42,39 @@ die (int sig)
 
     if (sig > 0 && sig < 100) {
         ls_syslog(LOG_ERR, "Daemon on host <%s> received signal <%d>; exiting",
-             myhost, sig);
+                  myhost, sig);
     } else {
         switch (sig) {
-	case MASTER_RESIGN:
+        case MASTER_RESIGN:
             ls_syslog(LOG_INFO, ("Master daemon on host <%s> resigned; exiting"), myhost);
             break;
-	case MASTER_RECONFIG:
+        case MASTER_RECONFIG:
             ls_syslog(LOG_INFO, ("Master daemon on host <%s> exiting for reconfiguration"), myhost);
             break;
 
-	case SLAVE_MEM:
-	    ls_syslog(LOG_ERR, "Slave daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
-	    lsb_merr1("Slave daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
-	    break;
-	case MASTER_MEM:
-	    ls_syslog(LOG_ERR, "Master daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
-	    break;
-	case SLAVE_FATAL:
-	    ls_syslog(LOG_ERR, "Slave daemon on host <%s> dying; fatal error - see above messages for reason", myhost);
-	    break;
-	case MASTER_FATAL:
- 	    ls_syslog(LOG_ERR, "Master daemon on host <%s> dying; fatal error - see above messages for reason", myhost);
-	    break;
-	case MASTER_CONF:
-	    ls_syslog(LOG_ERR, "Master daemon on host <%s> died of bad configuration file", myhost);
-	      break;
-	case SLAVE_RESTART:
-	    ls_syslog(LOG_ERR, "Slave daemon on host <%s> restarting", myhost);
-	      break;
-	case SLAVE_SHUTDOWN:
-	    ls_syslog(LOG_ERR, "Slave daemon on host <%s> shutdown", myhost);
-	      break;
-	default:
+        case SLAVE_MEM:
+            ls_syslog(LOG_ERR, "Slave daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
+            lsb_merr1("Slave daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
+            break;
+        case MASTER_MEM:
+            ls_syslog(LOG_ERR, "Master daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
+            break;
+        case SLAVE_FATAL:
+            ls_syslog(LOG_ERR, "Slave daemon on host <%s> dying; fatal error - see above messages for reason", myhost);
+            break;
+        case MASTER_FATAL:
+            ls_syslog(LOG_ERR, "Master daemon on host <%s> dying; fatal error - see above messages for reason", myhost);
+            break;
+        case MASTER_CONF:
+            ls_syslog(LOG_ERR, "Master daemon on host <%s> died of bad configuration file", myhost);
+            break;
+        case SLAVE_RESTART:
+            ls_syslog(LOG_ERR, "Slave daemon on host <%s> restarting", myhost);
+            break;
+        case SLAVE_SHUTDOWN:
+            ls_syslog(LOG_ERR, "Slave daemon on host <%s> shutdown", myhost);
+            break;
+        default:
             ls_syslog(LOG_ERR, "Daemon on host <%s> exiting; cause code <%d> unknown", myhost, sig);
             break;
         }
@@ -89,100 +83,68 @@ die (int sig)
     shutdown(chanSock_(batchSock), 2);
 
     exit(sig);
-
 }
 
 int
 portok (struct sockaddr_in *from)
 {
-    static char fname[] = "portok";
     if (from->sin_family != AF_INET) {
-        ls_syslog(LOG_ERR, "%s: sin_family(%d) != AF_INET(%d)",
-	    fname,
-	    from->sin_family,
-	    AF_INET);
+        syslog(LOG_ERR, "%s: sin_family(%d) != AF_INET(%d)",
+               __func__, from->sin_family, AF_INET);
         return FALSE;
     }
-
-    if (debug)
-        return TRUE;
-
-    if (  ntohs(from->sin_port) >= IPPORT_RESERVED
-        || ntohs(from->sin_port) <  IPPORT_RESERVED/2)
-        return FALSE;
 
     return TRUE;
 }
 
 int
-get_ports (void)
+get_ports(void)
 {
+    if (daemonParams[LSB_MBD_PORT].paramValue == NULL) {
+        ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT is not in lsf.conf", __func__);
+        return -1;
+    }
 
-    static char fname[] = "get_ports";
-    struct servent *sv;
-    if (daemonParams[LSB_MBD_PORT].paramValue != NULL)
-    {
-	if (!isint_(daemonParams[LSB_MBD_PORT].paramValue)
-               || (mbd_port = atoi(daemonParams[LSB_MBD_PORT].paramValue)) <= 0)
-	    ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT <%s> in lsf.conf must be a positive number",
-		fname,
-		daemonParams[LSB_MBD_PORT].paramValue);
-	else
-	    mbd_port = htons(mbd_port);
+    mbd_port = atoi(daemonParams[LSB_MBD_PORT].paramValue);
+    if (mbd_port <= 0) {
+        ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT <%s> must be a positive number",
+                  __func__, daemonParams[LSB_MBD_PORT].paramValue);
+        return -1;
     }
-    else if (debug)
-        mbd_port = htons(BATCH_MASTER_PORT);
-    else
-    {
-        sv = getservbyname(MBATCHD_SERV, "tcp");
-        if (!sv) {
-            ls_syslog(LOG_ERR, "%s: %s service not registered",
-                      fname,
-                      MBATCHD_SERV);
-            return -1;
-        }
-        mbd_port = sv->s_port;
+    mbd_port = htons(mbd_port);
+
+    if (daemonParams[LSB_SBD_PORT].paramValue == NULL) {
+        ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT is not in lsf.conf", __func__);
+        return -1;
+
     }
-    if (daemonParams[LSB_SBD_PORT].paramValue != NULL)
-    {
-	if (!isint_(daemonParams[LSB_SBD_PORT].paramValue)
-                 || (sbd_port = atoi(daemonParams[LSB_SBD_PORT].paramValue)) <= 0)
-	    ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT <%s> in lsf.conf must be a positive number",
-		fname,
-		daemonParams[LSB_SBD_PORT].paramValue);
-	else
-	    sbd_port = htons(sbd_port);
+
+    sbd_port = atoi(daemonParams[LSB_SBD_PORT].paramValue);
+    if (sbd_port <= 0) {
+        ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT <%s> must be a positive number",
+                  __func__, daemonParams[LSB_SBD_PORT].paramValue);
+        return -1;
     }
-    else if (debug)
-        sbd_port = htons(BATCH_SLAVE_PORT);
-    else
-    {
-        sv = getservbyname(SBATCHD_SERV, "tcp");
-        if (!sv) {
-            ls_syslog(LOG_ERR, "%s: %s service not registered",
-		fname,
-		SBATCHD_SERV);
-            return -1;
-        }
-        sbd_port = sv->s_port;
-    }
+    sbd_port = htons(sbd_port);
 
     return 0;
 }
 
-uid_t chuser (uid_t uid)
+uid_t
+chuser(uid_t uid)
 {
     uid_t myuid;
     int errnoSv = errno;
 
-    if (debug)
-	return(geteuid());
+    // Bug handle mbd_debug and sbd_debug
+    if (1)
+        return(geteuid());
 
     if ((myuid = geteuid()) == uid)
-	return myuid;
+        return myuid;
 
     if (myuid != 0 && uid != 0)
-	chuserId(0);
+        chuserId(0);
     chuserId(uid);
     errno = errnoSv;
     return myuid;
@@ -191,34 +153,38 @@ uid_t chuser (uid_t uid)
 static int
 chuserId (uid_t uid)
 {
+    // Bug do nothing the mbatchd runs as administrator
+    // the sbatch as root and should change get pid only the
+    // the child while running pree/postxec or the jobs
+#if 0
     static char fname[] = "chuserId";
 
-   if (lsfSetEUid(uid) < 0) {
-       ls_syslog(LOG_ERR, "%s", __func__, "setresuid/seteuid",
-	   (int)uid);
-       if (lsb_CheckMode) {
-	   lsb_CheckError = FATAL_ERR;
-	   return -1;
-       } else
-	   die(MASTER_FATAL);
-   }
+    if (lsfSetEUid(uid) < 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "setresuid/seteuid",
+                  (int)uid);
+        if (lsb_CheckMode) {
+            lsb_CheckError = FATAL_ERR;
+            return -1;
+        } else
+            die(MASTER_FATAL);
+    }
 
-   if (uid == 0) {
-       if(lsfSetREUid(0, 0) < 0)
-       {
-           ls_syslog(LOG_ERR, "%s", __func__, "setresuid/setreuid",
-	       (int)uid);
-	   if (lsb_CheckMode) {
-               lsb_CheckError = FATAL_ERR;
-	       return -1;
-           } else
-	       if (masterme)
-		   die(MASTER_FATAL);
-	       else
-		   die(SLAVE_FATAL);
-       }
-   }
-   return 0;
+    if (uid == 0) {
+        if(lsfSetREUid(0, 0) < 0) {
+            ls_syslog(LOG_ERR, "%s", __func__, "setresuid/setreuid",
+                      (int)uid);
+            if (lsb_CheckMode) {
+                lsb_CheckError = FATAL_ERR;
+                return -1;
+            } else
+                if (masterme)
+                    die(MASTER_FATAL);
+                else
+                    die(SLAVE_FATAL);
+        }
+    }
+#endif
+    return 0;
 }
 
 char *
@@ -229,12 +195,12 @@ safeSave(char *str)
 
     sp = putstr_(str);
     if (!sp) {
-	sprintf(temp, I18N_FUNC_FAIL, "safeSave", "malloc");
-	lsb_merr(temp);
-	if (masterme)
-	    die(MASTER_MEM);
-	else
-	    die(SLAVE_MEM);
+        sprintf(temp, I18N_FUNC_FAIL, "safeSave", "malloc");
+        lsb_merr(temp);
+        if (masterme)
+            die(MASTER_MEM);
+        else
+            die(SLAVE_MEM);
     }
 
     return sp;
@@ -253,25 +219,25 @@ my_malloc(int len, char *fileName)
     if (!len) {
         len = 4;
         ls_syslog(LOG_ERR, "%s: %s- Zero bytes requested; allocating %d bytes",
-	    fname, caller, len);
+                  fname, caller, len);
     }
     sp = malloc(len);
     if (!sp) {
-	if (reserved) {
-	    free(reserved);
-	    reserved = NULL;
-	    return (my_malloc(len, caller));
-	}
+        if (reserved) {
+            free(reserved);
+            reserved = NULL;
+            return (my_malloc(len, caller));
+        }
 
         ls_syslog(LOG_ERR, "%s", __func__, "malloc", caller, len);
-	if (masterme)
-	    die(MASTER_FATAL);
-	else
-	    relife();
+        if (masterme)
+            die(MASTER_FATAL);
+        else
+            relife();
     }
 
     if (! reserved)
-	reserved = malloc(MSGSIZE);
+        reserved = malloc(MSGSIZE);
 
     return sp;
 
@@ -287,29 +253,29 @@ my_calloc(int nelem, int esize, char *fileName)
         caller = "";
 
     if (!nelem || !esize) {
-	nelem = 1;
-	esize = 4;
+        nelem = 1;
+        esize = 4;
         ls_syslog(LOG_ERR, "%s: %s- Zero bytes requested; allocating %d bytes",
-	    fname, caller, esize);
+                  fname, caller, esize);
     }
 
     sp = calloc(nelem, esize);
     if (!sp) {
-	if (reserved) {
-	    FREEUP(reserved);
-	    return (my_calloc(nelem, esize, caller));
-	}
+        if (reserved) {
+            FREEUP(reserved);
+            return (my_calloc(nelem, esize, caller));
+        }
 
         ls_syslog(LOG_ERR, "%s", __func__, "calloc",
-            caller, esize);
-	if (masterme)
-	    die(MASTER_MEM);
-	else
-	    relife();
+                  caller, esize);
+        if (masterme)
+            die(MASTER_MEM);
+        else
+            relife();
     }
 
     if (! reserved)
-	reserved = malloc(MSGSIZE);
+        reserved = malloc(MSGSIZE);
 
     return sp;
 
@@ -319,27 +285,24 @@ void
 daemon_doinit (void)
 {
 
-    if (! daemonParams[LSB_CONFDIR].paramValue ||
-	! daemonParams[LSF_SERVERDIR].paramValue ||
-	! daemonParams[LSB_SHAREDIR].paramValue ) {
-	ls_syslog(LOG_ERR, "One or more of the following parameters undefined: %s %s %s",
-	    daemonParams[LSB_CONFDIR].paramName,
-	    daemonParams[LSF_SERVERDIR].paramName,
-	    daemonParams[LSB_SHAREDIR].paramName);
-	if (masterme)
-	    die(MASTER_FATAL);
-	else
-	    die(SLAVE_FATAL);
+    if (! daemonParams[LSF_SERVERDIR].paramValue
+        ||! daemonParams[LSB_SHAREDIR].paramValue) {
+        syslog(LOG_ERR, "%s: One of the two following parameters "
+               "are undefined: %s %s", __func__,
+               daemonParams[LSF_SERVERDIR].paramName,
+               daemonParams[LSB_SHAREDIR].paramName);
+        if (masterme)
+            die(MASTER_FATAL);
+        else
+            die(SLAVE_FATAL);
     }
 
     if (daemonParams[LSB_MAILTO].paramValue == NULL)
         daemonParams[LSB_MAILTO].paramValue = safeSave(DEFAULT_MAILTO);
     if (daemonParams[LSB_MAILPROG].paramValue == NULL)
         daemonParams[LSB_MAILPROG].paramValue = safeSave(DEFAULT_MAILPROG);
-
     if (daemonParams[LSB_CRDIR].paramValue == NULL)
-	daemonParams[LSB_CRDIR].paramValue = safeSave(DEFAULT_CRDIR);
-
+        daemonParams[LSB_CRDIR].paramValue = safeSave(DEFAULT_CRDIR);
 }
 
 void
@@ -352,38 +315,41 @@ relife(void)
     pid = fork();
 
     if (pid < 0)
-	return;
+        return;
 
     if (pid == 0) {
-	sigset_t newmask;
+        sigset_t newmask;
 
-	for (i=0; i< NOFILE; i++)
-	    close(i);
+        for (i=0; i< NOFILE; i++)
+            close(i);
         millisleep_(3000);
 
         margv[0] = getDaemonPath_("/sbatchd", daemonParams[LSF_SERVERDIR].paramValue);
 
-	i = 1;
-	if (debug) {
-	    margv[i] = my_malloc(MAXFILENAMELEN, "relife");
-	    sprintf(margv[i], "-%d", debug);
-	    i++;
-	}
-	if (env_dir != NULL) {
-	    margv[i] = "-d";
-	    i++;
-	    margv[i] = env_dir;
-	    i++;
-	}
-	margv[i] = NULL;
-	sigemptyset(&newmask);
-	sigprocmask(SIG_SETMASK, &newmask, NULL);
-	          /* clear signal mask */
+        i = 1;
+        // Bug handle mbd_debug and sbd_debug
+#if 0
+        if (1) {
+            margv[i] = my_malloc(MAXFILENAMELEN, "relife");
+            sprintf(margv[i], "-%d", debug);
+            i++;
+        }
+#endif
+        if (env_dir != NULL) {
+            margv[i] = "-d";
+            i++;
+            margv[i] = env_dir;
+            i++;
+        }
+        margv[i] = NULL;
+        sigemptyset(&newmask);
+        sigprocmask(SIG_SETMASK, &newmask, NULL);
+        /* clear signal mask */
 
-	execve(margv[0], margv, environ);
-	ls_syslog(LOG_ERR, "Cannot re-execute sbatchd: %m");
-	lsb_mperr( "sbatchd died in an accident, failed in re-execute");
-	exit(-1);
+        execve(margv[0], margv, environ);
+        ls_syslog(LOG_ERR, "Cannot re-execute sbatchd: %m");
+        lsb_mperr( "sbatchd died in an accident, failed in re-execute");
+        exit(-1);
     }
 
     die(SLAVE_RESTART);
@@ -410,7 +376,6 @@ tmpListHeader (struct listEntry *listHeader)
 int
 fileExist (char *file, int uid, struct hostent *hp)
 {
-    static char fname[] = "fileExist";
     int pid;
     int fds[2], i;
     int answer;
@@ -438,7 +403,7 @@ fileExist (char *file, int uid, struct hostent *hp)
         close(fds[0]);
         if (lsfSetUid (uid) < 0) {
             ls_syslog(LOG_ERR, "%s", __func__, "setuid",
-		uid);
+                      uid);
             answer = TRUE;
             write(fds[1], (char *) &answer, sizeof (int));
             close(fds[1]);
@@ -478,22 +443,23 @@ freeWeek (windows_t *week[])
 void
 errorBack(int chan, int replyCode, struct sockaddr_in *from)
 {
-    static char fname[] = "errorBack";
     struct LSFHeader replyHdr;
     XDR  xdrs;
     char errBuf[MSGSIZE/8];
 
     xdrmem_create(&xdrs, errBuf, MSGSIZE/8, XDR_ENCODE);
+
     initLSFHeader_(&replyHdr);
+
     replyHdr.opCode = replyCode;
     io_block_(chanSock_(chan));
     if (xdr_encodeMsg (&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
-	if (chanWrite_(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)
-	    ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_",
-		sockAdd2Str_(from));
+        if (chanWrite_(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)
+            ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_",
+                      sockAdd2Str_(from));
     } else
-	ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg",
-	    sockAdd2Str_(from));
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg",
+                  sockAdd2Str_(from));
 
     xdr_destroy(&xdrs);
     return;
@@ -507,7 +473,7 @@ scaleByFactor(int *h32, int *l32, float cpuFactor)
 
     if (*h32 == 0x7fffffff && *l32 == 0xffffffff)
 
-	return;
+        return;
 
     limit = *h32;
     limit *= (1<<16);
@@ -516,7 +482,7 @@ scaleByFactor(int *h32, int *l32, float cpuFactor)
 
     limit = limit/cpuFactor + 0.5;
     if (limit < 1.0)
-	limit = 1.0;
+        limit = 1.0;
 
     tmp = limit/(double)(1<<16);
     tmp = tmp/(double)(1<<16);
@@ -535,23 +501,23 @@ getTclLsInfo(void)
     int resNo, i;
 
     if (tclLsInfo) {
-	freeTclLsInfo(tclLsInfo, 0);
+        freeTclLsInfo(tclLsInfo, 0);
     }
 
     tclLsInfo = (struct tclLsInfo *)my_malloc(sizeof(struct tclLsInfo ), fname);
     tclLsInfo->numIndx = allLsInfo->numIndx;
     tclLsInfo->indexNames = (char **)my_malloc (allLsInfo->numIndx *
-					        sizeof (char *), fname);
+                                                sizeof (char *), fname);
     for (resNo = 0; resNo < allLsInfo->numIndx; resNo++)
-       tclLsInfo->indexNames[resNo] = allLsInfo->resTable[resNo].name;
+        tclLsInfo->indexNames[resNo] = allLsInfo->resTable[resNo].name;
 
     tclLsInfo->nRes = 0;
     tclLsInfo->resName = (char **)my_malloc(allLsInfo->nRes *sizeof(char*),
-				fname);
+                                            fname);
     tclLsInfo->stringResBitMaps =
-	 (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int), fname);
+        (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int), fname);
     tclLsInfo->numericResBitMaps =
-	 (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int), fname);
+        (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int), fname);
 
     for (i =0; i< GET_INTNUM(allLsInfo->nRes); i++) {
         tclLsInfo->stringResBitMaps[i] = 0;
@@ -560,14 +526,14 @@ getTclLsInfo(void)
     for (resNo = 0; resNo < allLsInfo->nRes; resNo++) {
 
         if ((allLsInfo->resTable[resNo].flags & RESF_BUILTIN)
-	     || ((allLsInfo->resTable[resNo].flags & RESF_DYNAMIC)
-		   && (allLsInfo->resTable[resNo].flags & RESF_GLOBAL)))
+            || ((allLsInfo->resTable[resNo].flags & RESF_DYNAMIC)
+                && (allLsInfo->resTable[resNo].flags & RESF_GLOBAL)))
             continue;
 
         if (allLsInfo->resTable[resNo].valueType == LS_STRING)
-	    SET_BIT (tclLsInfo->nRes, tclLsInfo->stringResBitMaps);
+            SET_BIT (tclLsInfo->nRes, tclLsInfo->stringResBitMaps);
         if (allLsInfo->resTable[resNo].valueType == LS_NUMERIC)
-	    SET_BIT (tclLsInfo->nRes, tclLsInfo->numericResBitMaps);
+            SET_BIT (tclLsInfo->nRes, tclLsInfo->numericResBitMaps);
         tclLsInfo->resName[tclLsInfo->nRes++] = allLsInfo->resTable[resNo].name;
     }
 
@@ -582,15 +548,15 @@ checkThresholdCond (char *resReq)
     struct resVal *resValPtr;
 
     resValPtr = (struct resVal *)my_malloc (sizeof (struct resVal),
-				"checkThresholdCond");
+                                            "checkThresholdCond");
     initResVal (resValPtr);
     if (parseResReq (resReq, resValPtr, allLsInfo, PR_SELECT)
-            != PARSE_OK) {
+        != PARSE_OK) {
         lsbFreeResVal (&resValPtr);
         if (logclass & (LC_EXEC) && resReq)
             ls_syslog(LOG_DEBUG1, "%s: parseResReq(%s) failed",
                       fname, resReq);
-	return NULL;
+        return NULL;
     }
     return resValPtr;
 
@@ -605,18 +571,18 @@ getResMaps(int nRes, char **resource)
         return NULL;
 
     temp = (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int),
-			 "getResMaps");
+                              "getResMaps");
 
     for (i = 0; i < GET_INTNUM(allLsInfo->nRes); i++)
-	temp[i] = 0;
+        temp[i] = 0;
 
     for (i = 0; i < nRes; i++) {
-	for (resNo = 0; resNo < tclLsInfo->nRes; resNo++)
+        for (resNo = 0; resNo < tclLsInfo->nRes; resNo++)
             if (!strcmp(resource[i], tclLsInfo->resName[resNo]))
-	        break;
+                break;
         if (resNo < allLsInfo->nRes) {
-	    SET_BIT(resNo, temp);
-	    }
+            SET_BIT(resNo, temp);
+        }
     }
     return temp;
 
@@ -624,8 +590,8 @@ getResMaps(int nRes, char **resource)
 
 int
 checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
-      struct hostLoad *loads, int *reason, int *subreasons, int jAttrib,
-      struct resVal *resumeCondVal, struct tclHostData *tclHostData)
+                   struct hostLoad *loads, int *reason, int *subreasons, int jAttrib,
+                   struct resVal *resumeCondVal, struct tclHostData *tclHostData)
 {
     static char fname[] = "checkResumeByLoad";
     int i, j;
@@ -639,11 +605,11 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
         return FALSE;
 
     for (j = 0; j < num; j++) {
-	 if (loads[j].li == NULL)
-	     continue;
+        if (loads[j].li == NULL)
+            continue;
 
         if (((*reason & SUSP_PG_IT)
-                || ((*reason & SUSP_LOAD_REASON) && (*subreasons) == PG))
+             || ((*reason & SUSP_LOAD_REASON) && (*subreasons) == PG))
             && loads[j].li[IT] < pgSuspIdleT / 60
             && thresholds.loadSched[j][PG] != INFINIT_LOAD) {
             resume = FALSE;
@@ -655,26 +621,26 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
             *reason = SUSP_LOAD_UNAVAIL;
         }
         else if (LS_ISLOCKEDU (loads[j].status)
-    	     && !(jAttrib & Q_ATTRIB_EXCLUSIVE)) {
-    	    resume = FALSE;
+                 && !(jAttrib & Q_ATTRIB_EXCLUSIVE)) {
+            resume = FALSE;
             *reason = SUSP_HOST_LOCK;
         } else if (LS_ISLOCKEDM (loads[j].status)) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_HOST_LOCK_MASTER;
         }
 
         if (!resume) {
             if (logclass & (LC_SCHED | LC_EXEC))
                 ls_syslog(LOG_DEBUG2, "%s: Can't resume job %s; *reason=%x",
-                      fname, lsb_jobid2str(jobId), *reason);
+                          fname, lsb_jobid2str(jobId), *reason);
             if (lastReason & SUSP_MBD_LOCK)
-		*reason |= SUSP_MBD_LOCK;
-    	    return FALSE;
+                *reason |= SUSP_MBD_LOCK;
+            return FALSE;
         }
 
         if (resumeCondVal != NULL) {
             if (evalResReq (resumeCondVal->selectStr,
-                                    &tclHostData[j], DFT_FROMTYPE) == 1) {
+                            &tclHostData[j], DFT_FROMTYPE) == 1) {
                 resume = TRUE;
                 break;
             } else {
@@ -682,91 +648,91 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
                 *reason = SUSP_QUE_RESUME_COND;
                 if ((logclass & (LC_SCHED | LC_EXEC)) && !resume)
                     ls_syslog(LOG_DEBUG2, "%s: Can't resume job %s; reason=%x",
-                          fname, lsb_jobid2str(jobId), *reason);
+                              fname, lsb_jobid2str(jobId), *reason);
                 if (lastReason & SUSP_MBD_LOCK)
-	            *reason |= SUSP_MBD_LOCK;
-    	        return FALSE;
+                    *reason |= SUSP_MBD_LOCK;
+                return FALSE;
             }
         }
 
         if (loads[j].li[R15M] > thresholds.loadSched[j][R15M]) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R15M;
         }
         else if (loads[j].li[R1M] > thresholds.loadSched[j][R1M]) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R1M;
         }
         else if (loads[j].li[R15S] > thresholds.loadSched[j][R15S]) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R15S;
         }
         else if (loads[j].li[UT] > thresholds.loadSched[j][UT]) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = UT;
         }
         else if (loads[j].li[PG] > thresholds.loadSched[j][PG]) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = PG;
         }
         else if (loads[j].li[IO] > thresholds.loadSched[j][IO]) {
-	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = IO;
         }
         else if (loads[j].li[LS] > thresholds.loadSched[j][LS]) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = LS;
         }
         else if (loads[j].li[IT] < thresholds.loadSched[j][IT]) {
-    	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = IT;
         }
         else if (loads[j].li[MEM] < thresholds.loadSched[j][MEM]) {
-	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = MEM;
         }
 
         else if (loads[j].li[TMP] < thresholds.loadSched[j][TMP]) {
-	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = TMP;
         }
         else if (loads[j].li[SWP] < thresholds.loadSched[j][SWP]) {
-	    resume = FALSE;
+            resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = SWP;
         }
         for (i = MEM + 1; resume &&
-                          i < MIN(thresholds.nIdx, allLsInfo->numIndx);
-                          i++) {
+                 i < MIN(thresholds.nIdx, allLsInfo->numIndx);
+             i++) {
             if (loads[j].li[i] >= INFINIT_LOAD
-		|| loads[j].li[i] <= -INFINIT_LOAD
+                || loads[j].li[i] <= -INFINIT_LOAD
                 || thresholds.loadSched[j][i] >= INFINIT_LOAD
                 || thresholds.loadSched[j][i] <= -INFINIT_LOAD)
                 continue;
 
-       	    if (allLsInfo->resTable[i].orderType == INCR)  {
-        	if (loads[j].li[i] > thresholds.loadSched[j][i]) {
-		    resume = FALSE;
+            if (allLsInfo->resTable[i].orderType == INCR)  {
+                if (loads[j].li[i] > thresholds.loadSched[j][i]) {
+                    resume = FALSE;
                     *reason = SUSP_LOAD_REASON;
                     *subreasons = i;
                 }
             } else {
-	        if (loads[j].li[i] < thresholds.loadSched[j][i]) {
-    		    resume = FALSE;
+                if (loads[j].li[i] < thresholds.loadSched[j][i]) {
+                    resume = FALSE;
                     *reason = SUSP_LOAD_REASON;
                     *subreasons = i;
-    	        }
-	    }
+                }
+            }
         }
     }
     if (lastReason & SUSP_MBD_LOCK)
@@ -785,8 +751,8 @@ closeExceptFD(int except_)
     int i;
 
     for (i = sysconf(_SC_OPEN_MAX) - 1; i >= 3 ; i--) {
-	if (i != except_)
-	    close(i);
+        if (i != except_)
+            close(i);
     }
 }
 
@@ -800,12 +766,12 @@ freeLsfHostInfo (struct hostInfo  *hostInfo, int num)
 
     for (i = 0; i < num; i++) {
         if (hostInfo[i].resources != NULL) {
-	    for (j = 0; j < hostInfo[i].nRes; j++)
-		FREEUP (hostInfo[i].resources[j]);
+            for (j = 0; j < hostInfo[i].nRes; j++)
+                FREEUP (hostInfo[i].resources[j]);
             FREEUP (hostInfo[i].resources);
-         }
-	 FREEUP (hostInfo[i].hostType);
-	 FREEUP (hostInfo[i].hostModel);
+        }
+        FREEUP (hostInfo[i].hostType);
+        FREEUP (hostInfo[i].hostModel);
     }
 
 }
@@ -827,11 +793,11 @@ copyLsfHostInfo (struct hostInfo *to, struct hostInfo *from)
     to->nRes = from->nRes;
     if (from->nRes > 0) {
         to->resources = (char **) my_malloc (from->nRes * sizeof (char *),
-                                                      "copyLsfHostInfo");
+                                             "copyLsfHostInfo");
         for (i = 0; i < from->nRes; i++)
             to->resources[i] = safeSave (from->resources[i]);
     } else
-	to->resources = NULL;
+        to->resources = NULL;
 
     to->isServer = from->isServer;
     to->rexPriority = from->rexPriority;
@@ -842,10 +808,10 @@ void
 freeTclHostData (struct tclHostData *tclHostData)
 {
 
-   if (tclHostData == NULL)
-       return;
-   FREEUP (tclHostData->resPairs);
-   FREEUP (tclHostData->loadIndex);
+    if (tclHostData == NULL)
+        return;
+    FREEUP (tclHostData->resPairs);
+    FREEUP (tclHostData->loadIndex);
 
 }
 
@@ -853,23 +819,8 @@ void
 lsbFreeResVal (struct resVal **resVal)
 {
 
-   if (resVal == NULL || *resVal == NULL)
-       return;
-   freeResVal (*resVal);
-   FREEUP (*resVal);
-}
-
-void
-doDaemonHang(char *caller)
-{
-    char fname[] = "doDaemonHang()";
-    struct timeval timeval;
-    bool_t hanging = TRUE;
-
-    while(hanging) {
-        timeval.tv_sec = 20;
-        timeval.tv_usec = 0;
-	ls_syslog(LOG_ERR, "%s hanging in %s", fname , caller);
-	select(0, NULL, NULL, NULL, &timeval);
-    }
+    if (resVal == NULL || *resVal == NULL)
+        return;
+    freeResVal (*resVal);
+    FREEUP (*resVal);
 }

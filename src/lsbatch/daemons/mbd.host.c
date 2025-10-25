@@ -269,7 +269,6 @@ getAllHostInfoEnt (struct hostDataReply *hostsReplyPtr,
     sTab hashSearchPtr;
     hEnt *hashEntryPtr;
     struct hData *hData;
-    struct hostInfoEnt *hInfo;
     int numHosts = 0;
 
     hostsReplyPtr->numHosts = 0;
@@ -277,20 +276,20 @@ getAllHostInfoEnt (struct hostDataReply *hostsReplyPtr,
     hashEntryPtr = h_firstEnt_(&hDataList, &hashSearchPtr);
     while (hashEntryPtr) {
         hData = (struct hData *) hashEntryPtr->hData;
-        hInfo = &(hostsReplyPtr->hosts[hostsReplyPtr->numHosts]);
         hashEntryPtr = h_nextEnt_(&hashSearchPtr);
 
-        if (strcmp (hData->host, LOST_AND_FOUND) == 0 && (hData->numJobs == 0
-                                                          || (hostReq->resReq && hostReq->resReq[0] != '\0')))
+        if (strcmp (hData->host, LOST_AND_FOUND) == 0
+            && (hData->numJobs == 0
+                || (hostReq->resReq && hostReq->resReq[0] != '\0')))
             continue;
-        if (!(hData->hStatus & HOST_STAT_REMOTE)) {
+        if ( !(hData->hStatus & HOST_STAT_REMOTE)) {
             hDList[numHosts++] = hData;
         }
     }
     if (numHosts == 0) {
         return LSBE_BAD_HOST;
     }
-    return (returnHostInfo(hostsReplyPtr, numHosts, hDList, hostReq));
+    return returnHostInfo(hostsReplyPtr, numHosts, hDList, hostReq);
 
 }
 
@@ -452,14 +451,12 @@ pollSbatchds (int mbdRunFlag)
         maxprobes = 1;
 
     for (num = 0; num < maxprobes && num < numofhosts; num++) {
-        int oldStatus;
 
         hashEntryPtr = h_nextEnt_(&nextHost);
         if (hashEntryPtr == NULL) {
             hashEntryPtr = h_firstEnt_(&hDataList, &nextHost);
         }
         hData = (struct hData *) hashEntryPtr->hData;
-        oldStatus = hData->hStatus;
 
         if (hData->hStatus & HOST_STAT_REMOTE)
             continue;
@@ -746,7 +743,7 @@ hostQueues(struct hData *hp, int stateTransit)
 }
 
 void
-checkHWindow (void)
+checkHWindow(void)
 {
     struct hData *hp;
     struct dayhour dayhour;
@@ -757,10 +754,8 @@ checkHWindow (void)
 
     hashEntryPtr = h_firstEnt_(&hDataList, &hashSearchPtr);
     while (hashEntryPtr) {
-        int oldStatus;
 
         hp = (struct hData *) hashEntryPtr->hData;
-        oldStatus = hp->hStatus;
 
         hashEntryPtr = h_nextEnt_(&hashSearchPtr);
         if (hp->hStatus & HOST_STAT_REMOTE)
@@ -1519,10 +1514,8 @@ setHostBLStatus (void)
 
     hashEntryPtr = h_firstEnt_(&hDataList, &hashSearchPtr);
     while (hashEntryPtr) {
-        int oldStatus;
 
         hData = (struct hData *) hashEntryPtr->hData;
-        oldStatus = hData->hStatus;
 
         hashEntryPtr = h_nextEnt_(&hashSearchPtr);
         if (strcmp (hData->host, LOST_AND_FOUND) == 0
@@ -1550,7 +1543,6 @@ setHostBLStatus (void)
             if (allLsInfo->resTable[k].orderType == INCR) {
                 if (hData->lsfLoad[k] >= hData->loadStop[k]) {
                     hData->hStatus |= HOST_STAT_BUSY;
-
                     SET_BIT (k, hData->busyStop);
                 }
                 if (hData->lsbLoad[k] >= hData->loadSched[k]){

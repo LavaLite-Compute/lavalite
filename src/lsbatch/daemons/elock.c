@@ -72,17 +72,15 @@ getElock(void)
 
 access:
 
-    chuser(managerId);
     if (force)
-        lock_fd=open(lockfile, O_RDWR | O_CREAT | O_TRUNC, 0644);
+        lock_fd = open(lockfile, O_RDWR | O_CREAT | O_TRUNC, 0644);
     else
-        lock_fd=open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644);
+        lock_fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644);
 
     if (lock_fd >= 0) {
         sprintf(buf, "%s:%d", myhostnm, (int)getpid());
         write(lock_fd, buf, strlen(buf));
         close(lock_fd);
-	chuser(batchId);
         ls_syslog(LOG_INFO, ("%s: Got lock file"), fname);
         gotLock = TRUE;
         return 0;
@@ -90,7 +88,6 @@ access:
          int fd,cc,i,pid;
 
          fd = open(lockfile, O_RDONLY, 0444);
-	 chuser(batchId);
          if (fd < 0) {
              ls_syslog(LOG_ERR, "%s: Can't open existing lock file <%s>: %m",
 		 fname, lockfile);
@@ -169,9 +166,8 @@ access:
            }
         }
     } else {
-	chuser(batchId);
         ls_syslog(LOG_ERR, "%s: Failed in opening lock file <%s>: %m",
- 	    fname, lockfile);
+                  fname, lockfile);
         return MASTER_FATAL;
     }
 }
@@ -189,9 +185,7 @@ releaseElogLock(void)
 	return;
 
     if (gotLock) {
-	chuser(managerId);
 	ul_val = unlink(lockfile);
-	chuser(batchId);
         if (ul_val != 0) {
             ls_syslog(LOG_ERR, "%s", __func__, "unlink", lockfile);
         } else
@@ -218,65 +212,49 @@ touchElock(void)
 
     if (lsb_CheckMode)
        return 0;
-    chuser (managerId);
 
     do {
         lock_fd = open(lockfile, O_RDWR, 0644);
     } while ((lock_fd < 0) && (errno == EINTR) && (i++ < 10));
 
     if (lock_fd < 0) {
-	chuser(batchId);
         ls_syslog(LOG_ERR, "%s", __func__, "open", lockfile);
         return MASTER_FATAL;
     }
-    else if (lseek(lock_fd, 0, SEEK_SET) != 0)
-    {
-	chuser(batchId);
-        ls_syslog(LOG_ERR, "%s", __func__, "lseek",
-	    lockfile,
-	    lock_fd);
-        return MASTER_FATAL;
-    }
-    else if ((cc = read(lock_fd, buf, 1)) != 1)
-    {
-	chuser(batchId);
-	if (cc < 0)
-	    ls_syslog(LOG_ERR, "%s", __func__, "read",
-		lockfile,
-		lock_fd);
 
-	else
-	    ls_syslog(LOG_ERR, "%s", __func__, "read",
-		lockfile);
-        return MASTER_FATAL;
-    }
-    else if (lseek(lock_fd, 0, SEEK_SET) != 0)
-    {
-	chuser(batchId);
+    if (lseek(lock_fd, 0, SEEK_SET) != 0){
         ls_syslog(LOG_ERR, "%s", __func__, "lseek",
-	    lockfile,
-	    lock_fd);
+                  lockfile,
+                  lock_fd);
         return MASTER_FATAL;
     }
-    else if ((cc = write(lock_fd, buf, 1)) != 1)
-    {
-	chuser(batchId);
-	if (cc < 0) {
-	    ls_syslog(LOG_ERR, "%s", __func__, "write",
-	        lockfile);
-	}
-	else
-	    ls_syslog(LOG_ERR, "%s", __func__, "write",
-	        lockfile);
+
+    cc = read(lock_fd, buf, 1);
+    if (cc < 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "read",
+                  lockfile,
+                  lock_fd);
+
+        return MASTER_FATAL;
+    }
+
+    if (lseek(lock_fd, 0, SEEK_SET) != 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "lseek",
+                  lockfile,
+                  lock_fd);
+        return MASTER_FATAL;
+    }
+
+    cc = write(lock_fd, buf, 1);
+    if (cc < 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "write", lockfile);
         return MASTER_FATAL;
     }
 
     if (close(lock_fd) != 0) {
-        chuser(batchId);
 	ls_syslog(LOG_ERR, "%s", __func__, "close",
-	    lockfile);
-    } else
-        chuser(batchId);
+                  lockfile);
+    }
 
     return 0;
 }

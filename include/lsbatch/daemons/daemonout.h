@@ -23,7 +23,6 @@
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/lib/lsb.sig.h"
 
-#define BATCH_MASTER_PORT   40000
 #define ALL_HOSTS      "all"
 
 #define  PUT_LOW(word, s)  (word = (s | (word & ~0x0000ffff)))
