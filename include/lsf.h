@@ -17,9 +17,12 @@
  *
  */
 
-// accept what the hardware gives you
+// Accept what the hardware gives you
 // make it fast, make it clear, make it stop
 // everything else is noise
+
+// Stability isn’t the absence of problems — it’s the ability
+// to recover gracefully.
 
 #ifndef _LL_API_H_
 #define _LL_API_H_
