@@ -131,7 +131,7 @@ main(int argc, char **argv)
             break;
         case 'C':
             putEnv("RECONFIG_CHECK", "YES");
-            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            fprintf(stderr, "lim: %s\n", LAVALITE_VERSION_STR);
             lim_CheckMode = 1;
             lim_debug = true;
             break;
@@ -151,7 +151,7 @@ main(int argc, char **argv)
     }
 
     if (lim_debug)
-        fprintf(stderr, "Reading configuration from %s/lsf.conf\n", env_dir);
+        fprintf(stderr, "lim: reading configuration from %s/lsf.conf\n", env_dir);
 
     if (initenv_(limParams, env_dir) < 0) {
 

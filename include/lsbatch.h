@@ -39,7 +39,7 @@
 #define  MAX_HPART_USERS     100
 #define  MAX_GROUPS          150
 #define  MAX_CHARLEN         20
-#define  MAX_LSB_NAME_LEN    60
+#define  MAX_LSB_NAME_LEN    BUFSIZ_64
 #define  MAX_CMD_DESC_LEN    256
 #define  MAX_USER_EQUIVALENT 128
 #define  DEFAULT_MSG_DESC    "no description"
@@ -131,40 +131,45 @@
 #define JOB_STAT_WAIT         (0x200)
 #define JOB_STAT_UNKWN        0x10000
 
-#define    EVENT_JOB_NEW          1
-#define    EVENT_JOB_START        2
-#define    EVENT_JOB_STATUS       3
-#define    EVENT_JOB_SWITCH       4
-#define    EVENT_JOB_MOVE         5
-#define    EVENT_QUEUE_CTRL       6
-#define    EVENT_HOST_CTRL        7
-#define    EVENT_MBD_DIE          8
-#define    EVENT_MBD_UNFULFILL    9
-#define    EVENT_JOB_FINISH       10
-#define    EVENT_LOAD_INDEX       11
-#define    EVENT_CHKPNT           12
-#define    EVENT_MIG              13
-#define    EVENT_PRE_EXEC_START   14
-#define    EVENT_MBD_START        15
-#define    EVENT_JOB_MODIFY       16
-#define    EVENT_JOB_SIGNAL       17
-#define    EVENT_JOB_EXECUTE      18
-#define    EVENT_JOB_MSG          19
-#define    EVENT_JOB_MSG_ACK      20
-#define    EVENT_JOB_REQUEUE      21
-#define    EVENT_JOB_SIGACT       22
+typedef enum {
+    EVENT_NULL = 0,
+    EVENT_JOB_NEW,
+    EVENT_JOB_START,
+    EVENT_JOB_STATUS,
+    EVENT_JOB_SWITCH,
+    EVENT_JOB_MOVE,
+    EVENT_QUEUE_CTRL,
+    EVENT_HOST_CTRL,
+    EVENT_MBD_DIE,
+    EVENT_MBD_UNFULFILL,
+    EVENT_JOB_FINISH,
+    EVENT_LOAD_INDEX,
+    EVENT_CHKPNT,
+    EVENT_MIG,
+    EVENT_PRE_EXEC_START,
+    EVENT_MBD_START,
+    EVENT_JOB_MODIFY,
+    EVENT_JOB_SIGNAL,
+    EVENT_JOB_EXECUTE,
+    EVENT_JOB_MSG,
+    EVENT_JOB_MSG_ACK,
+    EVENT_JOB_REQUEUE,
+    EVENT_JOB_SIGACT,
+    EVENT_SBD_JOB_STATUS,
+    EVENT_JOB_START_ACCEPT,
+    EVENT_JOB_CLEAN,
+    EVENT_JOB_FORCE,
+    EVENT_LOG_SWITCH,
+    EVENT_JOB_MODIFY2,
+    EVENT_JOB_ATTR_SET,
+    EVENT_JOB_COUNT
+} lsb_event_t;
 
-#define    EVENT_SBD_JOB_STATUS   23
-#define    EVENT_JOB_START_ACCEPT 24
-#define    EVENT_JOB_CLEAN        25
-#define    EVENT_JOB_FORCE        26
-#define    EVENT_LOG_SWITCH       27
-#define    EVENT_JOB_MODIFY2      28
-#define    EVENT_JOB_ATTR_SET     29
-#define    EVENT_UNUSED_30        30
-#define    EVENT_UNUSED_31        31
-#define    EVENT_UNUSED_32        32
-
+// Represent event name and value
+struct lsb_events {
+    const char *event;
+    lsb_event_t eval;
+};
 
 #define PEND_JOB_REASON        0
 #define PEND_JOB_NEW           1
@@ -1300,6 +1305,7 @@ union  eventLog {
     struct jobAttrSetLog jobAttrSetLog;
 };
 
+#define LAVALITE_EVENTS_VERSION "1"
 
 struct eventRec {
     char   version[MAX_VERSION_LEN];

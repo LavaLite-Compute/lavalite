@@ -4009,12 +4009,15 @@ make_mbd_manager(void)
         return -1;
     }
 
-    mbd_mgr->name = strdup(pw->pw_name);
+    // for now we just keep one manager
+    num_managers = 1;
+    mbd_mgr->name = calloc(num_managers, sizeof(char *));
+    for (int i = 0; i < num_managers; i++)
+        mbd_mgr->name[i] = strdup(pw->pw_name);
 
     // Optional badge log for audit clarity
     syslog(LOG_INFO, "%s initialized: uid %d, gid %d, name %s",
            __func__, mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name);
-    num_managers = 1;
 
     return mbd_mgr;
 }

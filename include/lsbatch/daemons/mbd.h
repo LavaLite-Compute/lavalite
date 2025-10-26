@@ -845,7 +845,7 @@ typedef enum profCounterType {
 struct mbd_manager {
     uid_t uid;
     gid_t gid;
-    char *name;   // strdup(pw->pw_name)
+    char **name;
 };
 // This number is 1
 extern int num_managers;

@@ -119,6 +119,7 @@ typedef uint64_t LS_UNS_LONG_INT;
 #define BUFSIZ_128  (BUFSIZ/64)
 #define BUFSIZ_64   (BUFSIZ/128)
 #define BUFSIZ_32   (BUFSIZ/256)
+#define BUFSIZ_16   (BUFSIZ/512)
 
 #define R15S           0
 #define R1M            1

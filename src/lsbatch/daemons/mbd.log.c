@@ -25,9 +25,6 @@
 #define SKIPSPACE(sp)      while (isspace(*(sp))) (sp)++;
 
 time_t eventTime;
-
-extern bool_t          logMapFileEnable;
-
 extern int 		sigNameToValue_ (char *sigString);
 extern char            *getLsbSigSymbol ( int );
 extern char            *getSigSymbol(int);
@@ -88,7 +85,6 @@ void                    log_timeExpired(int, time_t);
 static int canSwitch(struct eventRec *, struct jData *);
 static char *instrJobStarter1(char *, int, char *, char *, char *);
 
-int                     jsLogExceptWhileReplay = FALSE;
 int                     nextJobId_t = 1;
 time_t                  dieTime;
 static char             elogFname[MAXFILENAMELEN];
@@ -194,9 +190,8 @@ init_log(void)
 
     getElogLock();
 
-    sprintf(infoDir, "%s/%s/logdir/info",
-	    daemonParams[LSB_SHAREDIR].paramValue,
-	    clusterName);
+    sprintf(infoDir, "%s/info", daemonParams[LSB_SHAREDIR].paramValue);
+
 
     if (mkdir(infoDir, 0700) == -1 && errno != EEXIST) {
 	ls_syslog(LOG_ERR, "%s mkdir(%s) failed %m", __func__, infoDir);
@@ -206,8 +201,6 @@ init_log(void)
     stat(elogFname, &ebuf);
     log_fp = fopen(elogFname, "r");
 
-    jsLogExceptWhileReplay = TRUE;
-
     if (log_fp != NULL) {
 
 	if (lsberrno == LSBE_EOF)
@@ -216,11 +209,8 @@ init_log(void)
 	while (lsberrno != LSBE_EOF) {
 	    if ((logPtr = lsb_geteventrec(log_fp, &lineNum)) == NULL) {
 		if (lsberrno != LSBE_EOF) {
-		    ls_syslog(LOG_ERR, "%s: Reading event file <%s> at line <%d>: %s",
-                              fname,
-                              elogFname,
-                              lineNum,
-                              lsb_sysmsg());
+		    LS_ERR("%s: Reading event file <%s> at line <%d>: %s",
+                           __func__, elogFname, lineNum, lsb_sysmsg());
 		    first = FALSE;
                     if (lsberrno == LSBE_NO_MEM) {
                         mbdDie(MASTER_MEM);
@@ -241,8 +231,6 @@ init_log(void)
 	}
         if (log_fp)
             FCLOSEUP(&log_fp);
-
-        jsLogExceptWhileReplay = FALSE;
 
         for (i = 1; i <= numofhosts; i++) {
             hPtr = hDataPtrTb[i];
@@ -1955,7 +1943,7 @@ openEventFile(const char *fname)
     chmod(elogFname, 0644);
     logPtr = calloc(1, sizeof(struct eventRec));
 
-    strcpy(logPtr->version, LAVALITE_VERSION_STR);
+    strcpy(logPtr->version, LAVALITE_EVENTS_VERSION);
 
     return 0;
 }

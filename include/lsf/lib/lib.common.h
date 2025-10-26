@@ -103,4 +103,31 @@
 extern void Signal_(int, void (*f)(int));
 extern char *get_username(void);
 
+// Lavalite
+
+#define LS_EMERG(fmt, ...)           \
+    ls_syslog(LOG_EMERG, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_ALERT(fmt, ...) \
+    ls_syslog(LOG_ALERT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_CRIT(fmt, ...) \
+    ls_syslog(LOG_CRIT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_ERR(fmt, ...) \
+    ls_syslog(LOG_ERR, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_WARNING(fmt, ...) \
+    ls_syslog(LOG_WARNING, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_NOTICE(fmt, ...) \
+    ls_syslog(LOG_NOTICE, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_INFO(fmt, ...) \
+    ls_syslog(LOG_INFO, "%s: " fmt, __func__, ##__VA_ARGS__)
+
+#define LS_DEBUG(fmt, ...) \
+    ls_syslog(LOG_DEBUG, "%s: " fmt, __func__, ##__VA_ARGS__)
+
+
 #endif /* _LIB_H_ */

@@ -28,8 +28,6 @@ setLockOwnerPid(void)
 
 }
 
-#define EVENT_LOCK_FILE  "#lsb.event.lock"
-
 extern int msleeptime;
 static char lockfile[MAXFILENAMELEN];
 static char gotLock = FALSE;
@@ -67,8 +65,9 @@ getElock(void)
         return MASTER_FATAL;
     }
 
-    sprintf(lockfile,"%s/%s/logdir/%s", daemonParams[LSB_SHAREDIR].paramValue,
-		clusterName, EVENT_LOCK_FILE);
+#define EVENT_LOCK_FILE  "#lsb.event.lock"
+    sprintf(lockfile,"%s/%s", daemonParams[LSB_SHAREDIR].paramValue,
+            EVENT_LOCK_FILE);
 
 access:
 
@@ -175,7 +174,6 @@ access:
 void
 releaseElogLock(void)
 {
-    static char fname[] = "releaseElogLock()";
     int ul_val;
 
     if (lsb_CheckMode)
@@ -205,7 +203,6 @@ touchElogLock(void)
 int
 touchElock(void)
 {
-    static char fname[] = "touchElock";
     char buf[2];
     int lock_fd, cc;
     int i = 0;

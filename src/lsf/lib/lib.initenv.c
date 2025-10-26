@@ -57,6 +57,9 @@ static int setStripDomain_(char *);
 static int parseLine(char *line, char **keyPtr, char **valuePtr);
 static int matchEnv(char *, struct config_param *);
 static int setConfEnv(char *, char *, struct config_param *);
+// Lavalite
+static int check_ll_conf(const char *);
+
 static int
 doEnvParams_ (struct config_param *plp)
 {
@@ -127,6 +130,12 @@ initenv_ (struct config_param *userEnv, char *pathname)
         pathname = envdir;
     else if (pathname == NULL)
         pathname = LSETCDIR;
+
+    if (check_ll_conf(pathname) < 0) {
+        ls_syslog(LOG_ERR, "%s: check_ll_conf() failed: %m", __func__);
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
 
     if (lsfenvset) {
         if (userEnv == NULL) {
@@ -511,4 +520,23 @@ freeupMasterCandidate_(int index)
 {
     FREEUP(m_masterCandidates[index]);
     m_masterCandidates[index] = NULL;
+}
+
+static int
+check_ll_conf(const char *file)
+{
+    struct stat stat_buf;
+    char buf[PATH_MAX];
+
+    if (file == NULL)
+        return -1;
+
+    sprintf(buf, "%s/lsf.conf", file);
+    int cc = stat(buf, &stat_buf);
+    if (cc < 0) {
+        LS_ERR("stat() failed on %s", buf);
+        return -1;
+    }
+
+    return 0;
 }

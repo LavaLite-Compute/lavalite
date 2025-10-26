@@ -73,7 +73,7 @@ bsub
 bswitch
 btop
 busers
-
+read_shared
 # Ignore binary daemons
 .libs/*
 src/lsf/lim/lim

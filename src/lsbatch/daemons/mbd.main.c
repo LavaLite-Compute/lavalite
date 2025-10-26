@@ -235,13 +235,8 @@ main(int argc, char **argv)
         ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue,
                    (mbd_debug || lsb_CheckMode),
                    daemonParams[LSF_LOG_MASK].paramValue);
-        ls_syslog(LOG_ERR, "main", "initenv");
-        open_log("mbatchd", daemonParams[LSF_LOG_MASK].paramValue, true);
-        syslog(LOG_ERR, "%s: initenv_() failed", __func__);
-        if (!lsb_CheckMode)
-            mbdDie(MASTER_FATAL);
-        else
-            lsb_CheckError = FATAL_ERR;
+        LS_ERR("mbatchd initenv failed");
+        mbdDie(MASTER_FATAL);
     }
 
     if (isint_(daemonParams[LSB_DEBUG].paramValue)) {

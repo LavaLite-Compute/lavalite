@@ -525,8 +525,8 @@ updHAcct (struct jData *jData,
         return;
 
     if (*hAcct == NULL) {
-        *hAcct = (struct hTab *) my_malloc(sizeof(struct hTab), "updHAcct");
-        h_initTab_(*hAcct, 4);
+        *hAcct = calloc(1, sizeof(struct hTab));
+        h_initTab_(*hAcct, 719);
     }
 
     if (qp != NULL)
@@ -952,7 +952,6 @@ addValue (int *currentValue, int num, struct jData *jp, char *fname,
 struct uData *
 getUserData (char *user)
 {
-    static char fname[] = "getUserData";
     hEnt   *userEnt;
     struct uData *uData, *defUser;
 
@@ -1241,29 +1240,24 @@ mbdDie (int sig)
     sigprocmask(SIG_BLOCK, &newmask, NULL);
 
     for (list = 0; list < NJLIST; list++) {
-        if (jDataList[list] != NULL) {
-            for (jpbw = jDataList[list]->back; jpbw != jDataList[list];
-                 jpbw=jpbw->back) {
-                if (!(jpbw->pendEvent.notSwitched
-                      || jpbw->pendEvent.sig != SIG_NULL
-                      || jpbw->pendEvent.sig1 != SIG_NULL
-                      || jpbw->pendEvent.notModified))
-                    continue;
-                if (IS_FINISH(jpbw->jStatus) && (getZombieJob(jpbw->jobId)) == NULL)
-                    continue;
-                log_unfulfill (jpbw);
-            }
+        if (jDataList[list] == NULL)
+            continue;
+        for (jpbw = jDataList[list]->back; jpbw != jDataList[list];
+             jpbw=jpbw->back) {
+            if (!(jpbw->pendEvent.notSwitched
+                  || jpbw->pendEvent.sig != SIG_NULL
+                  || jpbw->pendEvent.sig1 != SIG_NULL
+                  || jpbw->pendEvent.notModified))
+                continue;
+            if (IS_FINISH(jpbw->jStatus) && (getZombieJob(jpbw->jobId)) == NULL)
+                continue;
+            log_unfulfill (jpbw);
         }
     }
+
     log_mbdDie(sig);
 
-    if (gethostname(myhostp, MAXHOSTNAMELEN) < 0) {
-        ls_syslog(LOG_ERR, "mbdDie", "gethostname");
-        strcpy(myhostp, "localhost");
-    }
-
-    die (sig);
-
+    die(sig);
 }
 
 bool
@@ -1498,8 +1492,6 @@ updHostLeftRusageMem(struct jData *jobP, int order)
 LS_LONG_INT
 getFileSystemFree(char *path)
 {
-    static char fname[] = "getFileSystemFree";
-
     struct statvfs buf;
     if (statvfs(path, &buf)<0) {
         ls_syslog(LOG_ERR, "%s", __func__, "statvfs", path);

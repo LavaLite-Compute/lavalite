@@ -461,13 +461,33 @@ ls_closelog_ext() {
 static int get_log_mask(const char *);
 
 #if 0
+#define LS_EMERG(fmt, ...)                                              \
+    ls_syslog(LOG_EMERG, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_ALERT(fmt, ...) \
+    ls_syslog(LOG_ALERT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_CRIT(fmt, ...) \
+    ls_syslog(LOG_CRIT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_ERR(fmt, ...) \
+    ls_syslog(LOG_ERR, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_WARNING(fmt, ...) \
+    ls_syslog(LOG_WARNING, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_NOTICE(fmt, ...) \
+    ls_syslog(LOG_NOTICE, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+
+#define LS_INFO(fmt, ...) \
+    ls_syslog(LOG_INFO, "%s: " fmt, __func__, ##__VA_ARGS__)
+
+#define LS_DEBUG(fmt, ...) \
+    ls_syslog(LOG_DEBUG, "%s: " fmt, __func__, ##__VA_ARGS__)
+
+
+
 // Bug implement something like this
-
-#define LS_INFO(...)   ls_syslog(LOG_INFO,   __VA_ARGS__)
-#define LS_WARN(...)   ls_syslog(LOG_WARNING,__VA_ARGS__)
-#define LS_ERR(...)    ls_syslog(LOG_ERR,    __VA_ARGS__)
-#define LS_DEBUG(...)  ls_syslog(LOG_DEBUG,  __VA_ARGS__)
-
 
 void
 ls_openlog(const char *ident, int option, int facility)
