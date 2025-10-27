@@ -42,10 +42,31 @@ ctime2(const time_t *tp)
     }
 
     // "%a %b %e %T %Y" -> e.g., "Wed Jun  3 11:22:33 2020"
-    if (strftime(ctime2_buf, sizeof ctime2_buf, "%a %b %e %T %Y", &tm) == 0)
+    if (strftime(ctime2_buf, sizeof(ctime2_buf), "%a %b %e %T %Y", &tm) == 0)
         return "";
 
     return ctime2_buf;
+}
+
+// ctime3() print subset of data
+static __thread char ctime3_buf[BUFSIZ_32];
+const char *ctime3(const time_t *t)
+{
+    if (!t) {
+        lserrno = LSE_BAD_TIME;
+        return "";
+    }
+
+    struct tm tm;
+    if (! localtime_r(t, &tm)) {
+        lserrno = LSE_BAD_TIME;
+        return "";
+    }
+
+    // %b %d %H:%M" -> Oct 27 16:21
+    strftime(ctime3_buf, sizeof(ctime3_buf), "%b %d %H:%M", &tm);
+
+    return ctime3_buf;
 }
 
 /* Bug. Various miscellaneus functions more or less useful but mostly bogus

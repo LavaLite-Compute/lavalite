@@ -733,9 +733,7 @@ putOntoTree(struct jData *jp, int jobType)
         ARRAY_DATA(newj)->userId = jp->userId;
         ARRAY_DATA(newj)->userName = safeSave (jp->userName);
 
-        if (jp->shared->jobBill.options2 & SUB2_HOST_NT)
-            ARRAY_DATA(newj)->fromPlatform = AUTH_HOST_NT;
-        else if (jp->shared->jobBill.options2 & SUB2_HOST_UX)
+        if (jp->shared->jobBill.options2 & SUB2_HOST_UX)
             ARRAY_DATA(newj)->fromPlatform = AUTH_HOST_UX;
     }
 
@@ -1017,35 +1015,22 @@ jgrpPermitOk(struct lsfAuth *auth, struct jgTreeNode *jgrp)
 
     for (nPtr = jgrp; nPtr; nPtr = nPtr->parent) {
         if (nPtr->nodeType == JGRP_NODE_GROUP) {
-            if(isSameUser(auth, JGRP_DATA(nPtr)->userId,
-                          JGRP_DATA(nPtr)->userName,
-                          JGRP_DATA(nPtr)->fromPlatform))
+            if (isSameUser(auth, JGRP_DATA(nPtr)->userId,
+                           JGRP_DATA(nPtr)->userName,
+                           JGRP_DATA(nPtr)->fromPlatform))
                 return TRUE;
         }
         if (nPtr->nodeType == JGRP_NODE_ARRAY) {
-            if(isSameUser(auth, ARRAY_DATA(nPtr)->userId,
-                          ARRAY_DATA(nPtr)->userName,
-                          ARRAY_DATA(nPtr)->fromPlatform))
+            if (isSameUser(auth, ARRAY_DATA(nPtr)->userId,
+                           ARRAY_DATA(nPtr)->userName,
+                           ARRAY_DATA(nPtr)->fromPlatform))
                 return TRUE;
         }
         if (nPtr->nodeType == JGRP_NODE_JOB) {
-            if (JOB_DATA(nPtr)->shared->jobBill.options2
-                & SUB2_HOST_NT){
-                if(isSameUser(auth, JOB_DATA(nPtr)->userId,
-                              JOB_DATA(nPtr)->userName,
-                              AUTH_HOST_NT))
-                    return TRUE;
-            } else if (JOB_DATA(nPtr)->shared->jobBill.options2
-                       & SUB2_HOST_UX){
-                if(isSameUser(auth, JOB_DATA(nPtr)->userId,
-                              JOB_DATA(nPtr)->userName,
-                              AUTH_HOST_UX))
-                    return TRUE;
-            } else
-                if(isSameUser(auth, JOB_DATA(nPtr)->userId,
-                              JOB_DATA(nPtr)->userName,
-                              0))
-                    return TRUE;
+            if (isSameUser(auth, JOB_DATA(nPtr)->userId,
+                           JOB_DATA(nPtr)->userName,
+                           0))
+                return TRUE;
         }
     }
     return FALSE;
@@ -1054,14 +1039,7 @@ jgrpPermitOk(struct lsfAuth *auth, struct jgTreeNode *jgrp)
 bool_t
 isJobOwner(struct lsfAuth *auth, struct jData *job)
 {
-
-    if (job->shared->jobBill.options2 & SUB2_HOST_UX)
-        return (isSameUser(auth, job->userId, job->userName, AUTH_HOST_UX));
-    else  if(job->shared->jobBill.options2 & SUB2_HOST_NT)
-        return (isSameUser(auth, job->userId, job->userName, AUTH_HOST_NT));
-    else
-        return (isSameUser(auth, job->userId, job->userName, 0));
-
+    return isSameUser(auth, job->userId, job->userName, 0);
 }
 
 int

@@ -147,7 +147,6 @@ lsb_submit(struct submit  *jobSubReq, struct submitReply *submitRep)
     static char fname[] = "lsb_submit";
     struct submitReq submitReq;
     LS_LONG_INT jobId = -1;
-    struct lsfAuth auth;
     char cwd[MAXFILENAMELEN];
     struct group *grpEntry;
     int loop;
@@ -227,6 +226,7 @@ lsb_submit(struct submit  *jobSubReq, struct submitReply *submitRep)
         }
     }
 
+    struct lsfAuth auth;
     if (authTicketTokens_(&auth, NULL) == -1) {
         return -1;
     }

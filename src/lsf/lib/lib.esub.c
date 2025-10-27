@@ -102,9 +102,7 @@ getEData(struct lenData *ed, char **argv, const char *user)
         close (ePorts[0]);
         dup2(ePorts[1], 1);
 
-        lsfSetUid(uid);
-
-        lsfExecvp (argv[0], argv);
+        execvp(argv[0], argv);
         ls_syslog(LOG_DEBUG, "%s: execvp(%s) failed: %m", __func__, argv[0]);
         exit (-1);
     }
@@ -123,9 +121,8 @@ getEData(struct lenData *ed, char **argv, const char *user)
     ed->len = 0;
     ed->data = NULL;
 
-    if ((buf = (char *) malloc(MSGSIZE + 1)) == NULL) {
-        if(logclass & (LC_TRACE | LC_AUTH))
-            ls_syslog(LOG_DEBUG,"%s: malloc failed: %m",__func__);
+    buf = calloc((MSGSIZE + 1), sizeof(char));
+    if (buf == NULL) {
         lserrno = LSE_MALLOC;
         goto errorReturn;
     }
@@ -133,14 +130,8 @@ getEData(struct lenData *ed, char **argv, const char *user)
     for (size = MSGSIZE, ed->len = 0, sp = buf;
          (cc = read(ePorts[0], sp, size));) {
         if (cc == -1) {
-            if(logclass & (LC_TRACE | LC_AUTH))
-                ls_syslog(LOG_DEBUG,"%s: read error: %m",__func__);
             if (errno == EINTR)
                 continue;
-
-            ls_syslog(LOG_ERR,
-                      "%s: <%s> read(%d): %m",
-                      __func__, argv[0], size);
             break;
         }
 
@@ -148,7 +139,7 @@ getEData(struct lenData *ed, char **argv, const char *user)
         sp += cc;
         size -= cc;
         if (size == 0) {
-            if ((sp = (char *) realloc(buf, ed->len + MSGSIZE + 1)) == NULL) {
+            if ((sp = realloc(buf, ed->len + MSGSIZE + 1)) == NULL) {
                 if(logclass & (LC_TRACE | LC_AUTH))
                     ls_syslog(LOG_DEBUG,"%s: realloc failed: %m",__func__);
                 lserrno = LSE_MALLOC;

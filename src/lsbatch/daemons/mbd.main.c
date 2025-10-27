@@ -691,7 +691,7 @@ processClient(struct clientNode *client, int *needFree)
     }
 
     switch (mbdReqtype) {
-
+   // Bug remove
     case PREPARE_FOR_OP:
         if (do_readyOp(&xdrs, client->chanfd, &from, &reqHdr) < 0) {
             shutDownClient(client);
@@ -1059,17 +1059,8 @@ authRequest(struct lsfAuth *auth, XDR *xdrs, struct LSFHeader *reqHdr,
     sprintf(buf, "mbatchd@%s", clusterName);
     putEauthServerEnvVar(buf);
 
-#ifdef INTER_DAEMON_AUTH
-
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-
-        putEauthAuxDataEnvVar(NULL);
-
-        if (reqType == BATCH_JOB_SUB) {
-            createEauthAuxDataEnvVar();
-        }
-    }
-#endif
+    // Bug lavalite simulate eath works
+    return LSBE_NO_ERROR;
 
     if (!userok(s, from, hostName, local, auth, mbd_debug))
         return LSBE_PERMISSION;

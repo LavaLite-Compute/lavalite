@@ -43,22 +43,25 @@ struct lenData {
     char *data;
 };
 
-#define AUTH_HOST_NT  0x01
-#define AUTH_HOST_UX  0x02
+#define AUTH_HOST_UX 0x1
+
+// Lavalite authentication type
+typedef enum {
+	CLIENT_EAUTH = 1
+} auth_t;
 
 struct lsfAuth {
     int uid;
     int gid;
-    char lsfUserName[MAXLSFNAMELEN];
-    enum {CLIENT_SETUID, CLIENT_IDENT, CLIENT_DCE, CLIENT_EAUTH} kind;
+    char lsfUserName[BUFSIZ_64];
+    auth_t kind;
     union authBody {
-	int filler;
+        int filler;
         struct lenData authToken;
-	struct eauth {
-#define EAUTH_SIZE 4096
-	    int len;
-	    char data[EAUTH_SIZE];
-	} eauth;
+        struct eauth {
+            int len;
+            char data[BUFSIZ_4K];
+        } eauth;
     } k;
     int options;
 };
@@ -78,9 +81,9 @@ extern bool_t xdr_packLSFHeader(char *, struct LSFHeader *);
 #define ENMSG_USE_LENGTH 1
 
 extern bool_t xdr_encodeMsg(XDR *, char *, struct LSFHeader *,
-			     bool_t (*)(), int, struct lsfAuth *);
+                            bool_t (*)(), int, struct lsfAuth *);
 extern bool_t xdr_arrayElement(XDR *, char *, struct LSFHeader *,
-				bool_t (*)(), ...);
+                               bool_t (*)(), ...);
 extern bool_t xdr_stringLen(XDR *, struct stringLen *, struct LSFHeader *);
 extern bool_t xdr_stat(XDR *, struct stat *, struct LSFHeader *);
 extern bool_t xdr_lsfAuth(XDR *, struct lsfAuth *, struct LSFHeader *);

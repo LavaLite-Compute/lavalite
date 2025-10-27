@@ -30,25 +30,17 @@ getAuth_(struct lsfAuth *auth, char *host)
 {
     auth->uid = getuid();
 
-    if (getpwnam2(auth->lsfUserName) == NULL) {
-        ls_syslog(LOG_DEBUG, I18N_FUNC_FAIL_MM, "getAuth", "getpwnam2");
+    struct passwd *pwd = getpwuid2(auth->uid);
+    if (pwd == NULL) {
         lserrno = LSE_BADUSER;
         return -1;
     }
 
+    strcpy(auth->lsfUserName, pwd->pw_name);
     auth->gid = getgid();
+    auth->kind = CLIENT_EAUTH;
 
-    if (!genParams_[LSF_AUTH].paramValue)
-        auth->kind = CLIENT_SETUID;
-    else if (!strcmp(genParams_[LSF_AUTH].paramValue, AUTH_IDENT))
-        auth->kind = CLIENT_IDENT;
-    else if (!strcmp(genParams_[LSF_AUTH].paramValue, AUTH_PARAM_EAUTH)) {
-        auth->kind = CLIENT_EAUTH;
-        return getEAuth(&auth->k.eauth, host);
-    } else
-        auth->kind = CLIENT_SETUID;
-
-    return 0;
+    return getEAuth(&auth->k.eauth, host);
 }
 
 #define EAUTHNAME "eauth"
@@ -57,40 +49,27 @@ static int
 getEAuth(struct eauth *eauth, char *host)
 {
     char *argv[4];
-    char path[MAXPATHLEN];
+    char path[PATH_MAX];
     struct lenData ld;
 
-    memset(path,0,sizeof(path));
-    ls_strcat(path,sizeof(path),genParams_[LSF_SERVERDIR].paramValue);
-    ls_strcat(path,sizeof(path),"/");
-    ls_strcat(path,sizeof(path),EAUTHNAME);
+    sprintf(path, "%s/%s", genParams_[LSF_SERVERDIR].paramValue, EAUTHNAME);
     argv[0] = path;
     argv[1] = "-c";
     argv[2] = host;
     argv[3] = NULL;
 
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG, "runEAuth(): path=<%s>", path);
-
     if (runEClient_(&ld, argv) == -1) {
-        if (logclass & (LC_AUTH |LC_TRACE))
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL,  "runEAuth", "runEClient", path);
         lserrno = LSE_EAUTH;
         return -1;
     }
 
     if (ld.len == 0) {
-        if (logclass & (LC_AUTH |LC_TRACE))
-            ls_syslog(LOG_DEBUG, "runEAuth: <%s> got no data", path);
         FREEUP(ld.data);
         lserrno = LSE_EAUTH;
         return -1;
     }
 
-    if (ld.len > EAUTH_SIZE) {
-        if (logclass & (LC_AUTH |LC_TRACE))
-            ls_syslog(LOG_DEBUG, "runEAuth: <%s> got too much data, size=%d",
-                      path, ld.len);
+    if (ld.len > BUFSIZ_4K) {
         FREEUP(ld.data);
         lserrno = LSE_EAUTH;
         return -1;
@@ -98,18 +77,10 @@ getEAuth(struct eauth *eauth, char *host)
 
     memcpy(eauth->data, ld.data, ld.len);
     eauth->data[ld.len] = '\0';
-    if (logclass & (LC_AUTH |LC_TRACE))
-        ls_syslog(LOG_DEBUG, "runEAuth: <%s> got data=%s",
-                  path, ld.data);
     eauth->len = ld.len;
 
     FREEUP(ld.data);
-    if (logclass & (LC_AUTH |LC_TRACE))
-        ls_syslog(LOG_DEBUG, "runEAuth: <%s> got len=%d",
-                  path, ld.len);
-
     return 0;
-
 }
 
 int

@@ -382,9 +382,9 @@ displayJobs (struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
     submitInfo = &job->submit;
     status = get_status(job);
 
-    strcpy(subtime, ctime2(&job->submitTime));
+    strcpy(subtime, ctime3(&job->submitTime));
     if (IS_FINISH (job->status))
-	strcpy(donetime, ctime2(&(job->endTime)));
+	strcpy(donetime, ctime3(&(job->endTime)));
     else
 	strcpy(donetime, "      ");
 
@@ -396,7 +396,7 @@ displayJobs (struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
     {
 
         if (lsbParams[LSB_SHORT_HOSTLIST].paramValue && job->numExHosts > 1
-             && strcmp(lsbParams[LSB_SHORT_HOSTLIST].paramValue, "1") == 0 ) {
+            && strcmp(lsbParams[LSB_SHORT_HOSTLIST].paramValue, "1") == 0 ) {
             sprintf(tmpBuf, "%d*%s", hostList->counter[0], hostList->names[0]);
             exec_host = tmpBuf;
         }

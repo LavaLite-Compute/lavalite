@@ -925,6 +925,7 @@ extern char  *ls_sperror (char *usrMsg);
 #endif
 // LavaLite
 const char *ctime2(const time_t *);
+const char *ctime3(const time_t *);
 struct passwd *getpwuid2(uid_t);
 struct passwd *getpwnam2(const char *);
 void open_log(const char *, const char *, bool);

@@ -193,12 +193,7 @@ newJob (struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         strcpy (hostType, hData->hostType);
     }
 
-    subReq->options2 &= ~(SUB2_HOST_NT | SUB2_HOST_UX);
-
-    if (auth->options == AUTH_HOST_NT)
-        subReq->options2 |= SUB2_HOST_NT;
-    else if (auth->options == AUTH_HOST_UX)
-        subReq->options2 |= SUB2_HOST_UX;
+    subReq->options2 |= SUB2_HOST_UX;
 
     newjob = initJData((struct jShared *) my_calloc(1, sizeof(struct jShared), "newJob"));
     newjob->jobId = nextId;

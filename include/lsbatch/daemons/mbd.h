@@ -56,15 +56,15 @@ typedef struct jobCounters            JOB_COUNTERS_T;
 
 #define DEF_PRE_EXEC_DELAY    -1
 
-#define SJL              0
-#define MJL              1
-#define PJL              2
-#define FJL              3
-#define NJLIST           4
-
-#define ZJL              4
-#define ALLJLIST         5
-
+enum list_type {
+    SJL = 0,
+    MJL,
+    PJL,
+    FJL,
+    NJLIST,
+    ZJL,
+    ALLJLIST
+};
 
 #define  DEF_USR1_SC    0
 #define  DEF_USR1_ST    64000
