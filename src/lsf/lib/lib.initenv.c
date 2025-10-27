@@ -116,7 +116,7 @@ getTempDir_(void)
 }
 
 int
-initenv_ (struct config_param *userEnv, char *pathname)
+initenv_(struct config_param *userEnv, char *pathname)
 {
     int Error = 0;
     char *envdir;
@@ -132,7 +132,6 @@ initenv_ (struct config_param *userEnv, char *pathname)
         pathname = LSETCDIR;
 
     if (check_ll_conf(pathname) < 0) {
-        ls_syslog(LOG_ERR, "%s: check_ll_conf() failed: %m", __func__);
         lserrno = LSE_BAD_ENV;
         return -1;
     }
@@ -534,7 +533,6 @@ check_ll_conf(const char *file)
     sprintf(buf, "%s/lsf.conf", file);
     int cc = stat(buf, &stat_buf);
     if (cc < 0) {
-        LS_ERR("stat() failed on %s", buf);
         return -1;
     }
 

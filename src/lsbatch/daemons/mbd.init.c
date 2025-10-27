@@ -161,12 +161,14 @@ minit (int mbdInitFlags)
 
     mbd_mgr = make_mbd_manager();
     if (mbd_mgr == NULL) {
-        syslog(LOG_ERR, "%s: make_mbd_mamager() failed %m", __func__);
+        LS_ERR("%s: make_mbd_mamager() failed %m");
+        LS_ERR("Bad configuration environment, something missing in lsf.conf?");
         return -1;
     }
 
+    // Bug handle num_managers
     syslog(LOG_INFO, "%s: batch manager is name %d uid %s", __func__,
-           mbd_mgr->uid, mbd_mgr->name);
+           mbd_mgr->uid, mbd_mgr->name[0]);
 
     if (mbdInitFlags == FIRST_START) {
         Signal_(SIGTERM,  terminate_handler);
@@ -326,9 +328,10 @@ minit (int mbdInitFlags)
                 lsb_CheckError = FATAL_ERR;
 	        return 0;
 	    }
-        } else
+        } else {
             ls_syslog(LOG_ERR, "%s: Master host <%s> is not defined in the Host section of the lsb.hosts file", fname, masterHost);
             mbdDie(MASTER_FATAL);
+        }
     }
 
     getLsbHostLoad();
@@ -1356,15 +1359,14 @@ parseGroups (int groupType, struct gData **group, char *line, char *filename)
 static void
 readParamConf (int mbdInitFlags)
 {
-    static char fileName[MAXFILENAMELEN];
+    static char fileName[PATH_MAX];
     static char fname[] = "readParamFile";
 
     setDefaultParams();
 
     if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF) {
 
-        sprintf(fileName, "%s/lsb.params",
-            daemonParams[LSF_CONFDIR].paramValue, clusterName);
+        sprintf(fileName, "%s/lsb.params", daemonParams[LSF_CONFDIR].paramValue);
         paramFileConf = getFileConf (fileName, PARAM_FILE);
         if (paramFileConf == NULL && lserrno == LSE_NO_FILE) {
             ls_syslog(LOG_ERR, "\
@@ -1743,7 +1745,7 @@ setManagers(struct clusterInfo *cluster)
     }
 
     if (getenv("LSB_MANAGER") == NULL) {
-        sprintf(buf, "%s", mbd_mgr->name);
+        sprintf(buf, "%s", mbd_mgr->name[0]);
         setenv("LSB_MANAGER", buf, 1);
     }
 }
@@ -4017,7 +4019,7 @@ make_mbd_manager(void)
 
     // Optional badge log for audit clarity
     syslog(LOG_INFO, "%s initialized: uid %d, gid %d, name %s",
-           __func__, mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name);
+           __func__, mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name[0]);
 
     return mbd_mgr;
 }

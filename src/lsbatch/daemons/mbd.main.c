@@ -235,8 +235,9 @@ main(int argc, char **argv)
         ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue,
                    (mbd_debug || lsb_CheckMode),
                    daemonParams[LSF_LOG_MASK].paramValue);
-        LS_ERR("mbatchd initenv failed");
-        mbdDie(MASTER_FATAL);
+        LS_ERR("mbatchd initenv failed, "
+               "Bad configuration environment, missing in lsf.conf?");
+        return -1;
     }
 
     if (isint_(daemonParams[LSB_DEBUG].paramValue)) {
@@ -524,9 +525,7 @@ acceptConnection(int socket)
         ls_syslog(LOG_DEBUG1, "%s: Official address is %s",
                   fname, sockAdd2Str_(&from));
 
-    client =
-        (struct clientNode *)my_malloc(sizeof(struct clientNode),
-                                       "main");
+    client = calloc(1, sizeof(struct clientNode));
 
     client->chanfd = s;
     client->from =  from;
@@ -629,7 +628,8 @@ processClient(struct clientNode *client, int *needFree)
     mbdReqtype = reqHdr.opCode;
     from = client->from;
 
-    if (logclass & (LC_COMM | LC_TRACE)) {
+//    if (logclass & (LC_COMM | LC_TRACE)) {
+    if (1) {
         ls_syslog(LOG_DEBUG, "\
 %s: Received request <%d> from host <%s/%s> on channel <%d>",
                   fname, mbdReqtype, client->fromHost,

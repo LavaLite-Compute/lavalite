@@ -131,13 +131,9 @@ main (int argc, char **argv)
        ls_perror("ls_readconfenv");
        exit(-1);
     }
-    struct passwd *pwd = getpwnam2(lsfUserName);
-    if (! pwd) {
-        exit(-1);
-    }
 
     TIMEIT(0, (jInfoH = lsb_openjobinfo_a (jobId, jobName, user, queue,
-                                   host, options)), "lsb_openjobinfo_a");
+                                           host, options)), "lsb_openjobinfo_a");
     if (jInfoH == NULL) {
         if (numJids >= 1) {
             for (i = 0; i < numJids; i++)
