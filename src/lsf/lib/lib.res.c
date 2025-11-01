@@ -490,7 +490,7 @@ expectReturnCode_(int s, int seqno, struct packet_header *repHdr)
     XDR xdrs;
     int rc;
 
-    xdrmem_create(&xdrs, (char *) &buf, sizeof(struct packet_header), XDR_DECODE);
+    xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE,  XDR_DECODE);
     for (;;) {
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG, "%s: calling readDecodeHdr_...", fname);
@@ -1616,7 +1616,7 @@ Again:
 
     if (rdyTidCnt) {
         rdycnt = 0;
-        xdrmem_create(&xdrs, hdrBuf, sizeof(struct packet_header), XDR_DECODE);
+        xdrmem_create(&xdrs, hdrBuf, PACKET_HEADER_SIZE,  XDR_DECODE);
         for (i = 0; i < inTidCnt; i++) {
             taskEnt = tidFindIgnoreConn_(tidArray[i]);
             if (taskEnt == NULL) {

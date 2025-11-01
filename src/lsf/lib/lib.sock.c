@@ -488,7 +488,7 @@ getMsgBuffer_(int fd, int *bufferSize)
     char *msgBuffer;
     *bufferSize = -1;
 
-    xdrmem_create(&xdrs, hdrbuf, sizeof(struct packet_header), XDR_DECODE);
+    xdrmem_create(&xdrs, hdrbuf, PACKET_HEADER_SIZE,  XDR_DECODE);
     rc = readDecodeHdr_(fd, hdrbuf, b_read_fix, &xdrs, &msgHdr);
     if (rc < 0) {
         lserrno = LSE_MSG_SYS;

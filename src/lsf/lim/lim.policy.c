@@ -1537,7 +1537,7 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
 
-    xdrmem_create(&xdrs2, (char *)&replyBuf, sizeof(struct packet_header), XDR_ENCODE);
+    xdrmem_create(&xdrs2, (char *)&replyBuf, PACKET_HEADER_SIZE,  XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);

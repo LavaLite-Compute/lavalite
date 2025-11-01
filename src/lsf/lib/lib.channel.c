@@ -820,7 +820,7 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
 
     if (logclass & LC_COMM)
         ls_syslog(LOG_DEBUG2,"%s: reading reply header", fname);
-    xdrmem_create(&xdrs, (char *)&hdrBuf, sizeof(struct packet_header), XDR_DECODE);
+    xdrmem_create(&xdrs, (char *)&hdrBuf, PACKET_HEADER_SIZE,  XDR_DECODE);
     cc = readDecodeHdr_(chfd,
                         (char *)&hdrBuf,
                         chanRead_,

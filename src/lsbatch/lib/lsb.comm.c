@@ -271,8 +271,7 @@ getServerMsg(int serverSock, struct packet_header *replyHdr, char **rep_buf)
     struct packet_header hdrBuf;
     XDR  xdrs;
 
-    xdrmem_create (&xdrs, (char *)&hdrBuf,
-            sizeof(struct packet_header), XDR_DECODE);
+    xdrmem_create(&xdrs, (char *)&hdrBuf, PACKET_HEADER_SIZE,  XDR_DECODE);
 
     if (readDecodeHdr_(serverSock, (char *)&hdrBuf,
                 b_read_fix, &xdrs, replyHdr) < 0) {
@@ -596,7 +595,7 @@ handShake_(int s, char client, int timeout)
         memset((char *)&hdr, 0, sizeof(struct packet_header));
         hdr.operation = PREPARE_FOR_OP;
         hdr.length = 0;
-        xdrmem_create(&xdrs, (char *) &buf, sizeof(struct packet_header),
+        xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE, 
                 XDR_ENCODE);
         if (!xdr_LSFHeader(&xdrs, &hdr)) {
             lsberrno = LSBE_XDR;

@@ -135,7 +135,7 @@ do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
     replyHdr.operation = READY_FOR_OP;
     replyHdr.length = 0;
 
-    xdrmem_create (&xdrs2, buf->data, sizeof(struct packet_header), XDR_ENCODE);
+    xdrmem_create (&xdrs2, buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
