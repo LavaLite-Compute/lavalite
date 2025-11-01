@@ -20,7 +20,7 @@
 #include "lsbatch/lib/lsb.h"
 
 int
-lsb_queuecontrol (char *queue, int opCode)
+lsb_queuecontrol(char *queue, int operation)
 {
     static struct controlReq qcReq;
     mbdReqType mbdReqtype;
@@ -28,7 +28,7 @@ lsb_queuecontrol (char *queue, int opCode)
     char request_buf[MSGSIZE];
     char *reply_buf;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
 
     if (qcReq.name == NULL) {
@@ -42,7 +42,7 @@ lsb_queuecontrol (char *queue, int opCode)
     if (authTicketTokens_(&auth, NULL) == -1)
         return -1;
 
-    switch (opCode) {
+    switch (operation) {
     case QUEUE_OPEN:
         qcReq.opCode = QUEUE_OPEN;
         break;
@@ -63,18 +63,18 @@ lsb_queuecontrol (char *queue, int opCode)
     if (queue == NULL) {
         lsberrno = LSBE_QUEUE_NAME;
         return -1;
-    } else {
-        if (strlen (queue) >= MAXHOSTNAMELEN - 1) {
-            lsberrno = LSBE_BAD_QUEUE;
-            return -1;
-        }
-        strcpy(qcReq.name, queue);
     }
+
+    if (strlen(queue) >= MAXHOSTNAMELEN - 1) {
+        lsberrno = LSBE_BAD_QUEUE;
+        return -1;
+    }
+    strcpy(qcReq.name, queue);
 
     mbdReqtype = BATCH_QUE_CTRL;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&qcReq, &hdr, xdr_controlReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
         return -1;
@@ -89,7 +89,7 @@ lsb_queuecontrol (char *queue, int opCode)
 
     xdr_destroy(&xdrs);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (cc)
         free(reply_buf);
     if (lsberrno == LSBE_NO_ERROR)

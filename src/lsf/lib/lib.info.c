@@ -674,7 +674,7 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
     static struct resourceInfoReq  resourceInfoReq;
     int cc, i;
     static struct resourceInfoReply resourceInfoReply;
-    static struct LSFHeader replyHdr;
+    static struct packet_header replyHdr;
     static int first = true;
     const char *officialName;
 

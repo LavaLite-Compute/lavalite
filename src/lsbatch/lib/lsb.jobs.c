@@ -24,11 +24,9 @@ extern int _lsb_recvtimeout;
 
 static int mbdSock = -1;
 
-extern int getHdrReserved(struct LSFHeader *);
-
 int
 lsb_openjobinfo (LS_LONG_INT jobId, char *jobName, char *userName,
-        char *queueName, char *hostName, int options)
+                 char *queueName, char *hostName, int options)
 {
     struct jobInfoHead *jobInfoHead;
 
@@ -52,7 +50,7 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
     char request_buf[MSGSIZE];
     char *reply_buf, *clusterName = NULL;
     int cc, aa;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
 
     if (first) {
         if (   !(jobInfoReq.jobName  = (char *) malloc(MAX_CMD_DESC_LEN))
@@ -143,7 +141,7 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
     mbdReqtype = BATCH_JOB_INFO;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     TIMEIT(1, (aa = xdr_encodeMsg(&xdrs, (char *) &jobInfoReq , &hdr,
                     xdr_jobInfoReq, 0, NULL)), "xdr_encodeMsg");
     if (aa == false) {
@@ -160,7 +158,7 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
 
     xdr_destroy(&xdrs);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
         xdrmem_create(&xdrs2, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
         if (! xdr_jobInfoHead (&xdrs2, &jobInfoHead, &hdr)) {
@@ -187,7 +185,7 @@ lsb_readjobinfo(int *more)
 {
     XDR  xdrs;
     int num, i, aa;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *buffer = NULL;
     static struct jobInfoReply jobInfoReply;
     static struct jobInfoEnt jobInfo;
@@ -200,7 +198,7 @@ lsb_readjobinfo(int *more)
     static int *pgid = NULL;
 
     TIMEIT(0, (num = readNextPacket(&buffer, _lsb_recvtimeout, &hdr,
-                    mbdSock)), "readNextPacket");
+                                    mbdSock)), "readNextPacket");
     if (num < 0) {
         closeSession(mbdSock);
         lsberrno = LSBE_EOF;
@@ -375,8 +373,8 @@ lsb_readjobinfo(int *more)
         jobInfoReply.runRusage.npgids = 0;
     }
 
-    if (more)
-        *more = getHdrReserved(&hdr);
+    // Bug mode was in the reserved part of the header
+    (void)more;
 
     return &jobInfo;
 
@@ -392,7 +390,7 @@ int
 lsb_runjob(struct runJobRequest* runJobRequest)
 {
     XDR                   xdrs;
-    struct LSFHeader      lsfHeader;
+    struct packet_header      lsfHeader;
     struct lsfAuth        auth;
     mbdReqType            mbdReqType;
     char                  request_buf[MSGSIZE/2];
@@ -431,7 +429,7 @@ lsb_runjob(struct runJobRequest* runJobRequest)
 
     initLSFHeader_(&lsfHeader);
 
-    lsfHeader.opCode = mbdReqType;
+    lsfHeader.operation = mbdReqType;
 
     if (!xdr_encodeMsg(&xdrs,
                 (char *)runJobRequest,
@@ -458,7 +456,7 @@ lsb_runjob(struct runJobRequest* runJobRequest)
 
     xdr_destroy(&xdrs);
 
-    lsberrno = lsfHeader.opCode;
+    lsberrno = lsfHeader.operation;
 
     if (lsberrno == LSBE_NO_ERROR)
         retVal = 0;

@@ -23,24 +23,24 @@
 
 struct shortLsInfo oldShortInfo;
 
-static struct shortLsInfo * getCShortInfo(struct LSFHeader *);
+static struct shortLsInfo * getCShortInfo(struct packet_header *);
 static int checkResources (struct resourceInfoReq *, struct resourceInfoReply *, int *);
 static int copyResource (struct resourceInfoReply *,
                          struct sharedResource *, int *, char *);
 static void freeResourceInfoReply (struct resourceInfoReply *);
 
 void
-pingReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+pingReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "pingReq()";
     char buf[MSGSIZE/4];
     XDR  xdrs2;
     enum limReplyCode limReplyCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
 
     limReplyCode = LIME_NO_ERR;
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE/4, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr) ||
         !xdr_string(&xdrs2, &myHostPtr->hostName, MAXHOSTNAMELEN)) {
@@ -61,13 +61,13 @@ pingReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 }
 
 void
-clusInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+clusInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "clusInfoReq()";
     XDR    xdrs2;
     char buf[MSGSIZE*2];
     enum limReplyCode limReplyCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     struct clusterInfoReply clusterInfoReply;
     struct clusterInfoReq clusterInfoReq;
 
@@ -180,8 +180,8 @@ Reply:
 
 Reply1:
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
 
     xdrmem_create(&xdrs2, buf, MSGSIZE*2, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
@@ -220,20 +220,20 @@ Reply1:
 }
 
 void
-clusNameReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+clusNameReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "clusNameReq()";
     XDR    xdrs2;
     char buf[MSGSIZE];
     enum limReplyCode limReplyCode;
     char *sp;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
 
     memset((char*)&buf, 0, sizeof(buf));
     initLSFHeader_(&replyHdr);
     limReplyCode = LIME_NO_ERR;
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     sp = myClusterPtr->clName;
 
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
@@ -256,14 +256,14 @@ clusNameReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 }
 
 void
-masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "masterInfoReq()";
     XDR  xdrs2;
     char buf[MSGSIZE];
     enum limReplyCode limReplyCode;
     struct hostNode *masterPtr;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     struct masterInfo masterInfo;
 
     memset((char*)&buf, 0, sizeof(buf));
@@ -274,8 +274,8 @@ masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
         limReplyCode = LIME_NO_ERR;
 
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
@@ -309,7 +309,7 @@ masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 void
 hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
-            struct LSFHeader *reqHdr, int s)
+            struct packet_header *reqHdr, int s)
 {
     static char fname[]="hostInfoReq";
     char *buf;
@@ -319,7 +319,7 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
     struct decisionReq hostInfoRequest;
     struct resVal resVal;
     int i, ncandidates, cc, propt, bufSize;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     char  *replyStruct;
     char  fromEligible, clName;
     struct tclHostData tclHostData;
@@ -441,8 +441,8 @@ Reply:
 Reply1:
     freeResVal (&resVal);
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR) {
         replyStruct = (char *)&hostInfoReply;
         bufSize = ALIGNWORD_(MSGSIZE + hostInfoReply.nHost * (128 +
@@ -491,13 +491,13 @@ Reply1:
 }
 
 void
-infoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
+infoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s)
 {
     static char fname[] = "infoReq";
     static char *buf;
     XDR  xdrs2;
     enum limReplyCode limReplyCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     static int len = 0;
     int cc;
 
@@ -516,8 +516,8 @@ infoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
 
     xdrmem_create(&xdrs2, buf, len, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_encodeMsg(&xdrs2, (char *)&allInfo, &replyHdr, xdr_lsInfo, 0,
                        NULL)) {
@@ -544,7 +544,7 @@ infoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
 }
 
 void
-cpufReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+cpufReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "cpufReq";
     char buf[MSGSIZE];
@@ -553,7 +553,7 @@ cpufReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
     char hostModel[MAXLSFNAMELEN];
     char *sp = hostModel;
     hEnt *hashEntPtr = NULL;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
 
     if (!xdr_string(xdrs, &sp, MAXLSFNAMELEN)) {
         limReplyCode = LIME_BAD_DATA;
@@ -573,8 +573,8 @@ cpufReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
     limReplyCode = LIME_NO_ERR;
 
 Reply:
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
@@ -642,7 +642,7 @@ validHosts(char **hostList, int num, char *clName, int options)
 }
 
 static struct shortLsInfo *
-getCShortInfo(struct LSFHeader *reqHdr)
+getCShortInfo(struct packet_header *reqHdr)
 {
     int i;
 
@@ -684,7 +684,7 @@ getCShortInfo(struct LSFHeader *reqHdr)
 }
 
 void
-resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
+resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s)
 {
     static char fname[] = "resourceInfoReq";
     char buf1[MSGSIZE];
@@ -692,7 +692,7 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, i
     XDR  xdrs2;
     char  *replyStruct;
     enum limReplyCode limReplyCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     struct resourceInfoReq resourceInfoReq;
     struct resourceInfoReply resourceInfoReply;
     int cc = 0;
@@ -730,8 +730,8 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, i
 
     xdrmem_create(&xdrs2, buf, cc, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR)
         replyStruct = (char *)&resourceInfoReply;
     else

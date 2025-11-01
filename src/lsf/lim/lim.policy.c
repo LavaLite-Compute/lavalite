@@ -59,13 +59,13 @@ static float loadIndexValue(int, int, int);
 #define effectiveRq(nrq, factor) ((nrq) * (factor) -1)
 
 void
-placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
+placeReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s)
 {
     static char fname[] = "placeReq";
     struct placeReply   placeReply;
     struct decisionReq  plReq;
     struct jobXfer      jobXfer;
-    struct LSFHeader    replyHdr;
+    struct packet_header    replyHdr;
     char                fromEligible;
     XDR xdrs2;
     char buf[MSGSIZE];
@@ -88,10 +88,10 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     if (!xdr_decisionReq(xdrs, &plReq, reqHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "xdr_decisionReq",
                   sockAdd2Str_(from));
-        ls_syslog(LOG_ERR, "%s: Header: opCode=%d refCode=%d version=%d length=%d ",
+        ls_syslog(LOG_ERR, "%s: Header: operation=%d sequence=%d version=%d length=%d ",
                   fname,
-                  reqHdr->opCode,
-                  reqHdr->refCode,
+                  reqHdr->operation,
+                  reqHdr->sequence,
                   reqHdr->version,
                   reqHdr->length);
         limReplyCode = LIME_BAD_DATA;
@@ -223,8 +223,8 @@ Reply1:
     freeResVal (&resVal);
 
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR)
         replyStruct = (char *)&placeReply;
     else
@@ -898,7 +898,7 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
     int i, len;
     struct sockaddr_in addr;
     enum limReqCode limReqCode;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
 
     if( limSock < 0 ) {
         ls_syslog(LOG_ERR, "%s: invalid channel(limSock=%d)",
@@ -919,8 +919,8 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
 
         xdrmem_create(&xdrs, buf, MSGSIZE, XDR_ENCODE);
         initLSFHeader_(&reqHdr);
-        reqHdr.opCode  = limReqCode;
-        reqHdr.refCode = 0;
+        reqHdr.operation  = limReqCode;
+        reqHdr.sequence = 0;
         if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
               xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
@@ -967,8 +967,8 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
         }
 
         xdrmem_create(&xdrs, buf, MSGSIZE, XDR_ENCODE);
-        reqHdr.opCode  = limReqCode;
-        reqHdr.refCode = 0;
+        reqHdr.operation  = limReqCode;
+        reqHdr.sequence = 0;
         if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
               xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
             ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
@@ -993,7 +993,7 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
 }
 
 void
-loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
+loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s)
 {
     static char fname[] = "loadadjReq";
     XDR  xdrs2;
@@ -1002,7 +1002,7 @@ loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     struct resVal resVal;
     enum limReplyCode limReplyCode;
     int i, j, k, cc, returnCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     struct hostNode *candidate;
     struct tclHostData tclHostData;
 
@@ -1073,8 +1073,8 @@ reply:
     freeResVal (&resVal);
 
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
@@ -1195,7 +1195,7 @@ jackup(int lidx, struct hostNode *hostPtr, float exval)
 }
 
 void
-loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
+loadReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s)
 {
     static char fname[] = "loadReq";
     struct loadReply reply;
@@ -1207,7 +1207,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr, int s)
     enum limReplyCode limReplyCode;
     int ncandidates, returnCode;
     int ignore_res, cc, propt, hlSize, lvecSize, bufSize, staSize;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     char *replyStruct;
     char  fromEligible, clName;
     char *currp;
@@ -1399,8 +1399,8 @@ Reply1:
     freeResVal (&resVal);
 
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR) {
         replyStruct = (char *)&reply;
         bufSize = ALIGNWORD_(MAXLSFNAMELEN * allInfo.numIndx
@@ -1490,12 +1490,12 @@ addCandList(struct hostNode *hPtr, int pos)
 }
 
 void
-chkResReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+chkResReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[]="chkResReq";
     int cc;
     struct resVal resVal;
-    struct LSFHeader replyHdr, replyBuf;
+    struct packet_header replyHdr, replyBuf;
     char  resReq[MAXLINELEN];
     enum  limReplyCode limReplyCode;
     XDR   xdrs2;
@@ -1534,10 +1534,10 @@ chkResReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 Reply:
     freeResVal (&resVal);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
 
-    xdrmem_create(&xdrs2, (char *)&replyBuf, sizeof(struct LSFHeader), XDR_ENCODE);
+    xdrmem_create(&xdrs2, (char *)&replyBuf, sizeof(struct packet_header), XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);

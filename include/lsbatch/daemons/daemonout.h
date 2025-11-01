@@ -276,10 +276,7 @@ struct migReq {
 };
 
 typedef enum {
-
     MBD_NEW_JOB_KEEP_CHAN = 0,
-
-
     MBD_NEW_JOB     = 1,
     MBD_SIG_JOB     = 2,
     MBD_SWIT_JOB    = 3,
@@ -296,7 +293,6 @@ typedef enum {
 
     RM_JOB_MSG      = 200,
     RM_CONNECT      = 201,
-
 
     CMD_SBD_REBOOT      = 300,
     CMD_SBD_SHUTDOWN    = 301
@@ -326,7 +322,7 @@ extern int handShake_(int , char, int);
 #define CALL_SERVER_NO_HANDSHAKE  0x4
 #define CALL_SERVER_ENQUEUE_ONLY  0x8
 extern int call_server(char *, ushort, char *, int, char **,
-                       struct LSFHeader *, int, int, int *, int (*)(),
+                       struct packet_header *, int, int, int *, int (*)(),
                        int *, int);
 
 extern int sndJobFile_(int, struct lenData *);

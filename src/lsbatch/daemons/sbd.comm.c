@@ -39,7 +39,7 @@ status_job (mbdReqType reqType, struct jobCard *jp, int newStatus,
     char *request_buf;
     char *reply_buf = NULL;
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     int cc;
     struct statusReq  statusReq;
     static int seq = 1;
@@ -162,7 +162,7 @@ status_job (mbdReqType reqType, struct jobCard *jp, int newStatus,
 
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
     initLSFHeader_(&hdr);
-    hdr.opCode = reqType;
+    hdr.operation = reqType;
 
     if (!xdr_encodeMsg (&xdrs, (char *)&statusReq, &hdr, xdr_statusReq, 0,
 			auth)) {
@@ -232,7 +232,7 @@ status_job (mbdReqType reqType, struct jobCard *jp, int newStatus,
 	return -1;
     }
 
-    reply = hdr.opCode;
+    reply = hdr.operation;
     switch (reply) {
     case LSBE_NO_ERROR:
     case LSBE_LOCK_JOB:
@@ -289,7 +289,7 @@ getJobsState (struct sbdPackage *sbdPackage)
     char request_buf[MSGSIZE/8];
     char *reply_buf, *myhostnm;
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     int reply;
     int i, cc, numJobs;
     struct jobSpecs jobSpecs;
@@ -303,7 +303,7 @@ getJobsState (struct sbdPackage *sbdPackage)
     mbdReqtype = BATCH_SLAVE_RESTART;
     xdrmem_create(&xdrs, request_buf, MSGSIZE/8, XDR_ENCODE);
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (! xdr_encodeMsg(&xdrs, NULL, &hdr, NULL, 0, NULL)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs);
@@ -345,7 +345,7 @@ getJobsState (struct sbdPackage *sbdPackage)
     master_unknown = FALSE;
     xdr_destroy(&xdrs);
 
-    reply = hdr.opCode;
+    reply = hdr.operation;
     switch (reply) {
     case LSBE_NO_ERROR:
 	xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
@@ -465,14 +465,14 @@ msgSbd(LS_LONG_INT jobId, char *req, sbdReqType reqType, int (*xdrFunc)())
 {
     static char fname[] = "msgSbd";
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char requestBuf[MSGSIZE];
     char *reply_buf = NULL;
     int cc, retryInterval;
     char *myhostnm;
 
     initLSFHeader_(&hdr);
-    hdr.opCode = reqType;
+    hdr.operation = reqType;
     xdrmem_create(&xdrs, requestBuf, sizeof(requestBuf), XDR_ENCODE);
 
     if (!xdr_encodeMsg(&xdrs, req, &hdr, xdrFunc, 0, NULL)) {
@@ -507,8 +507,8 @@ msgSbd(LS_LONG_INT jobId, char *req, sbdReqType reqType, int (*xdrFunc)())
 
     xdr_destroy(&xdrs);
 
-    if (hdr.opCode != LSBE_NO_ERROR) {
-	lsberrno = hdr.opCode;
+    if (hdr.operation != LSBE_NO_ERROR) {
+	lsberrno = hdr.operation;
 	if (logclass & LC_EXEC)
 	    ls_syslog(LOG_DEBUG, "msgSbd: Job <%s> got error <%s>, exiting",
 		      lsb_jobid2str(jobId), lsb_sysmsg());
@@ -522,7 +522,7 @@ int
 msgSupervisor(struct lsbMsg *lsbMsg, struct clientNode *cliPtr)
 {
     static char fname[] = "msgSupervisor/sbd.comm.c";
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
     char reqBuf[MSGSIZE*2];
     int cc;
     XDR xdrs;
@@ -594,7 +594,7 @@ sendUnreportedStatus (struct chunkStatusReq *chunkStatusReq)
     char *request_buf;
     char *reply_buf = NULL;
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     int cc;
     static char lastHost[MAXHOSTNAMELEN];
     int flags;
@@ -649,7 +649,7 @@ sendUnreportedStatus (struct chunkStatusReq *chunkStatusReq)
 
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
     initLSFHeader_(&hdr);
-    hdr.opCode = BATCH_STATUS_CHUNK;
+    hdr.operation = BATCH_STATUS_CHUNK;
 
     if (!xdr_encodeMsg (&xdrs, (char *)chunkStatusReq, &hdr, xdr_chunkStatusReq, 0,
 			auth)) {
@@ -697,7 +697,7 @@ sendUnreportedStatus (struct chunkStatusReq *chunkStatusReq)
     if (cc)
 	free(reply_buf);
 
-    reply = hdr.opCode;
+    reply = hdr.operation;
     switch (reply) {
     case LSBE_NO_ERROR:
         return 0;

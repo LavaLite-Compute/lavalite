@@ -81,7 +81,7 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
     XDR xdrs;
     mbdReqType mbdReqtype;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
 
     signalReq.jobId = jobId;
@@ -99,7 +99,7 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&signalReq, &hdr, xdr_signalReq, 0,
                 &auth)) {
         lsberrno = LSBE_XDR;
@@ -119,7 +119,7 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
     if (cc)
         free(reply_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_JOB_DEP)
         return 0;
     else

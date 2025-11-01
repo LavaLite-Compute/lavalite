@@ -346,7 +346,7 @@ resParent(int s, struct passwd *pw, struct lsfAuth *auth,
 
     xdrmem_create(&xdrs, buf, 2*MSGSIZE, XDR_ENCODE);
     memset((void *)&hdr, 0, sizeof(struct LSFHeader));
-    hdr.version = _XDR_VERSION_0_1_0;
+    hdr.version = CURRENT_PROTOCOL_VERSION;
     if (!xdr_resChildInfo(&xdrs, &childInfo, &hdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_resChildInfo");
         return -1;
@@ -505,7 +505,7 @@ resChild( char *arg, char *envdir)
     childInfo.lsfAuth = &auth;
 
     xdrmem_create(&xdrs, buf, len, XDR_DECODE);
-    hdr.version = _XDR_VERSION_0_1_0;
+    hdr.version = CURRENT_PROTOCOL_VERSION;
     if (!xdr_resChildInfo(&xdrs, &childInfo, &hdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "xdr_resChildInfo");
         resExit_(-1);

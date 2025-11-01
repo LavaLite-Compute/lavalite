@@ -27,7 +27,7 @@ extern void jobId32To64(LS_LONG_INT*, int, int);
 static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jp);
 
 bool_t
-xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct LSFHeader *hdr)
+xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
 {
     static char fname[] = "xdr_jobSpecs";
     char *sp[15];
@@ -380,7 +380,7 @@ xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_jobSig (XDR *xdrs, struct jobSig *jobSig, struct LSFHeader *hdr)
+xdr_jobSig (XDR *xdrs, struct jobSig *jobSig, struct packet_header *hdr)
 {
     static char *actCmd = NULL;
     int jobArrId, jobArrElemId;
@@ -430,7 +430,7 @@ xdr_jobSig (XDR *xdrs, struct jobSig *jobSig, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_jobReply (XDR *xdrs, struct jobReply *jobReply, struct LSFHeader *hdr)
+xdr_jobReply (XDR *xdrs, struct jobReply *jobReply, struct packet_header *hdr)
 {
     int jobArrId, jobArrElemId;
     if (xdrs->x_op == XDR_ENCODE) {
@@ -470,7 +470,7 @@ xdr_jobReply (XDR *xdrs, struct jobReply *jobReply, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_statusReq (XDR *xdrs, struct statusReq *statusReq, struct LSFHeader *hdr)
+xdr_statusReq (XDR *xdrs, struct statusReq *statusReq, struct packet_header *hdr)
 {
     int i;
     int jobArrId, jobArrElemId;
@@ -556,7 +556,7 @@ xdr_statusReq (XDR *xdrs, struct statusReq *statusReq, struct LSFHeader *hdr)
 
 bool_t
 xdr_chunkStatusReq (XDR *xdrs, struct chunkStatusReq *chunkStatusReq,
-                   struct LSFHeader *hdr)
+                   struct packet_header *hdr)
 {
     static char fname[] = "xdr_chunkStatusReq";
     int i;
@@ -596,7 +596,7 @@ xdr_chunkStatusReq (XDR *xdrs, struct chunkStatusReq *chunkStatusReq,
 }
 
 bool_t
-xdr_sbdPackage (XDR *xdrs, struct sbdPackage *sbdPackage, struct LSFHeader *hdr)
+xdr_sbdPackage (XDR *xdrs, struct sbdPackage *sbdPackage, struct packet_header *hdr)
 {
     static char      fname[] = "xdr_sbdPackage";
     int i;
@@ -633,7 +633,7 @@ xdr_sbdPackage (XDR *xdrs, struct sbdPackage *sbdPackage, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_sbdPackage1 (XDR *xdrs, struct sbdPackage *sbdPackage, struct LSFHeader *hdr)
+xdr_sbdPackage1 (XDR *xdrs, struct sbdPackage *sbdPackage, struct packet_header *hdr)
 {
     static char      fname[] = "xdr_sbdPackage1";
     int i;

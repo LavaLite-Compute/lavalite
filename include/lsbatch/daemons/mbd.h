@@ -1164,66 +1164,66 @@ extern int          deallocReservePreemptResources(struct jData *jp);
 extern int          orderByStatus (struct candHost *, int , bool_t);
 extern void                 setLsbPtilePack(const bool_t );
 extern int          do_submitReq(XDR *, int, struct sockaddr_in *,
-                                 char *, struct LSFHeader *,
+                                 char *, struct packet_header *,
                                  struct sockaddr_in *,
                                  struct lsfAuth *, int *, int,
                                  struct jData **);
 extern int          do_signalReq(XDR *, int, struct sockaddr_in *,
-                                 char *, struct LSFHeader *,
+                                 char *, struct packet_header *,
                                  struct lsfAuth *);
 extern int          do_jobMsg(struct bucket *, XDR *, int,
                               struct sockaddr_in *,
-                              char *, struct LSFHeader *,
+                              char *, struct packet_header *,
                               struct lsfAuth *);
 extern int          do_statusReq(XDR *, int, struct sockaddr_in *,
                                  int *,
-                                 struct LSFHeader *);
-extern int          do_errorReq(int,  struct LSFHeader *);
+                                 struct packet_header *);
+extern int          do_errorReq(int,  struct packet_header *);
 extern int          do_jobSwitchReq(XDR *, int, struct sockaddr_in *,
-                                    char *, struct LSFHeader *,
+                                    char *, struct packet_header *,
                                     struct lsfAuth *);
 extern int          do_hostInfoReq(XDR *, int, struct sockaddr_in *,
-                                   struct LSFHeader *);
+                                   struct packet_header *);
 extern int          do_jobPeekReq(XDR *, int, struct sockaddr_in *,
-                                  char *, struct LSFHeader *,
+                                  char *, struct packet_header *,
                                   struct lsfAuth *);
 extern int          do_jobInfoReq(XDR *, int, struct sockaddr_in *,
-                                  struct LSFHeader *, int);
+                                  struct packet_header *, int);
 extern int          do_queueInfoReq(XDR *, int, struct sockaddr_in *,
-                                    struct LSFHeader *);
+                                    struct packet_header *);
 extern int          do_debugReq(XDR * xdrs, int chfd,
                                 struct sockaddr_in * from,
                                 char *hostName,
-                                struct LSFHeader * reqHdr,
+                                struct packet_header * reqHdr,
                                 struct lsfAuth * auth);
 extern int          do_groupInfoReq(XDR *, int, struct sockaddr_in *,
-                                    struct LSFHeader *);
+                                    struct packet_header *);
 extern int          do_queueControlReq(XDR *, int,
                                        struct sockaddr_in *, char *,
-                                       struct LSFHeader *,
+                                       struct packet_header *,
                                        struct lsfAuth *);
 extern int          do_reconfigReq(XDR *, int, struct sockaddr_in *,
-                                   char *, struct LSFHeader *);
+                                   char *, struct packet_header *);
 extern int          do_restartReq(XDR *, int, struct sockaddr_in *,
-                                  struct LSFHeader *);
+                                  struct packet_header *);
 extern int          do_hostControlReq(XDR *, int,
                                       struct sockaddr_in *, char *,
-                                      struct LSFHeader *,
+                                      struct packet_header *,
                                       struct lsfAuth *);
 extern int          do_jobMoveReq(XDR *, int, struct sockaddr_in *,
-                                  char *, struct LSFHeader *,
+                                  char *, struct packet_header *,
                                   struct lsfAuth *);
 extern int          do_userInfoReq(XDR *, int , struct sockaddr_in *,
-                                   struct LSFHeader *);
+                                   struct packet_header *);
 extern int          do_paramInfoReq(XDR *, int , struct sockaddr_in *,
-                                    struct LSFHeader *);
+                                    struct packet_header *);
 extern int          do_hostPartInfoReq(XDR *, int ,
                                        struct sockaddr_in *,
-                                       struct LSFHeader *);
+                                       struct packet_header *);
 extern int          do_migReq(XDR *, int, struct sockaddr_in *, char *,
-                              struct LSFHeader *, struct lsfAuth *);
+                              struct packet_header *, struct lsfAuth *);
 extern int          do_modifyReq (XDR *, int, struct sockaddr_in *,
-                                  char *, struct LSFHeader *,
+                                  char *, struct packet_header *,
                                   struct lsfAuth *);
 extern void         doNewJobReply(struct sbdNode *, int);
 extern void         doProbeReply(struct sbdNode *, int);
@@ -1231,19 +1231,19 @@ extern void         doSignalJobReply(struct sbdNode *sbdPtr, int);
 extern void         doSwitchJobReply(struct sbdNode *sbdPtr, int);
 extern int          do_resourceInfoReq (XDR *, int,
                                         struct sockaddr_in *,
-                                        struct LSFHeader *);
+                                        struct packet_header *);
 extern int                   do_runJobReq(XDR *,
                                           int,
                                           struct sockaddr_in *,
                                           struct lsfAuth *,
-                                          struct LSFHeader   *);
+                                          struct packet_header   *);
 extern int                  getQUsable (struct qData *);
 extern void                 allocateRemote(struct jData *, int);
 extern void                 setExecHostsAcceptInterval(struct jData *);
 #if defined(INTER_DAEMON_AUTH)
 extern int authDaemonRequest(int chfd,
                              XDR *xdrs,
-                             struct LSFHeader *reqHdr,
+                             struct packet_header *reqHdr,
                              struct sockaddr_in *from_host,
                              char *client,
                              char *server);

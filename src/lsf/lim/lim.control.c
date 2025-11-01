@@ -27,14 +27,14 @@ static int userOkForMixed(struct lsfAuth *);
 static void doReopen(void);
 
 void
-reconfigReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+reconfigReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "reconfigReq";
 
     char mbuf[MSGSIZE];
     XDR xdrs2;
     enum limReplyCode limReplyCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     struct lsfAuth auth;
 
     initLSFHeader_(&replyHdr);
@@ -55,8 +55,8 @@ reconfigReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 Reply:
     xdrmem_create(&xdrs2, mbuf, MSGSIZE, XDR_ENCODE);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
@@ -170,13 +170,13 @@ reconfig(void)
 }
 
 void
-shutdownReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+shutdownReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "shutdownReq";
     char mbuf[MSGSIZE];
     XDR xdrs2;
     enum limReplyCode limReplyCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     struct lsfAuth auth;
 
     initLSFHeader_(&replyHdr);
@@ -197,8 +197,8 @@ shutdownReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 Reply:
     xdrmem_create(&xdrs2, mbuf, MSGSIZE, XDR_ENCODE);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
@@ -242,14 +242,14 @@ shutdownLim(void)
 }
 
 void
-lockReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+lockReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "lockReq";
     char buf[MAXHOSTNAMELEN];
     XDR  xdrs2;
     enum limReplyCode limReplyCode;
     struct limLock limLockReq;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
 
     ls_syslog(LOG_DEBUG1, "%s: received request from %s", fname, sockAdd2Str_(from));
 
@@ -313,8 +313,8 @@ lockReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 Reply:
     xdrmem_create(&xdrs2, buf, MAXHOSTNAMELEN, XDR_ENCODE);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
@@ -333,7 +333,7 @@ Reply:
 
 void
 servAvailReq(XDR *xdrs, struct hostNode *hPtr, struct sockaddr_in *from,
-             struct LSFHeader *reqHdr)
+             struct packet_header *reqHdr)
 {
     static char fname[] = "servAvailReq()";
     int servId;
@@ -441,14 +441,14 @@ userOkForMixed(struct lsfAuth *auth)
 }
 
 void
-limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "limDebugReq";
     char buf[MAXHOSTNAMELEN];
     XDR  xdrs2;
     enum limReplyCode limReplyCode;
     struct  debugReq debugReq;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     char *dir=NULL;
     char logFileName[MAXLSFNAMELEN];
     char lsfLogDir[MAXPATHLEN];
@@ -529,8 +529,8 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 
 Reply:
     xdrmem_create(&xdrs2, buf, MAXHOSTNAMELEN, XDR_ENCODE);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);

@@ -312,7 +312,7 @@ process_udp_request(void)
 
     memset(&from, 0, sizeof(from));
 
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
     int cc = chanRcvDgram_(limSock, buf, sizeof(buf), &from, -1);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: Error receiving data on limSock %d, cc=%d: %m",
@@ -333,11 +333,11 @@ process_udp_request(void)
     struct hostNode *node = findHostbyAddr(&from, "main");
     if (node == NULL) {
         syslog(LOG_WARNING, "%s: received request <%d> from unknown host %s",
-               __func__, reqHdr.opCode, sockAdd2Str_(&from));
+               __func__, reqHdr.operation, sockAdd2Str_(&from));
         return -1;
     }
 
-    switch (reqHdr.opCode) {
+    switch (reqHdr.operation) {
     case LIM_PLACEMENT:
         placeReq(&xdrs, &from, &reqHdr, -1);
         break;
@@ -399,10 +399,10 @@ process_udp_request(void)
         rcvConfInfo(&xdrs, &from, &reqHdr);
         break;
     default:
-        if (reqHdr.version <= _XDR_VERSION_0_1_0) {
+        if (reqHdr.version <= CURRENT_PROTOCOL_VERSION) {
             errorBack(&from, &reqHdr, LIME_BAD_REQ_CODE, -1);
             syslog(LOG_ERR, "%s: Unknown request code %d vers %d from %s",
-                   __func__, reqHdr.opCode, reqHdr.version,
+                   __func__, reqHdr.operation, reqHdr.version,
                    sockAdd2Str_(&from));
             break;
         }
@@ -721,18 +721,18 @@ initSock(int checkMode)
 }
 
 void
-errorBack(struct sockaddr_in *from, struct LSFHeader *reqHdr,
+errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
           enum limReplyCode replyCode, int chan)
 {
     static char fname[] = "errorBack()";
     char buf[MSGSIZE/4];
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     XDR  xdrs2;
     int cc;
 
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) replyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) replyCode;
+    replyHdr.sequence = reqHdr->sequence;
     replyHdr.length = 0;
     xdrmem_create(&xdrs2, buf, MSGSIZE/4, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
@@ -812,7 +812,7 @@ startPIM(int argc, char **argv)
     char daemonPath[PATH_MAX];
     snprintf(daemonPath, sizeof(daemonPath), "%s/pim",
              limParams[LSF_SERVERDIR].paramValue);
-    char *pargv[] = {daemonPath, NULL };
+    char *pargv[] = {daemonPath, NULL};
 
     execv(pargv[0], pargv);
     syslog(LOG_ERR, "%s: failed %m", __func__);

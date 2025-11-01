@@ -405,14 +405,10 @@ int putEnv(char *env, char *val)
 }
 
 void
-initLSFHeader_(struct LSFHeader *hdr)
+initLSFHeader_(struct packet_header *hdr)
 {
-    hdr->refCode = 0;
-    hdr->version = _XDR_VERSION_0_1_0;
-    hdr->reserved0.High = 0;
-    hdr->reserved0.Low = 0;
-    hdr->length    = 0;
-
+    memset(hdr, 0, PACKET_HEADER_SIZE);
+    hdr->version = CURRENT_PROTOCOL_VERSION;
 }
 
 void *

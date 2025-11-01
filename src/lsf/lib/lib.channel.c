@@ -18,7 +18,6 @@
  */
 #include "lsf/lib/lib.channel.h"
 
-#define HDR_LEN 12
 #define DEFAULT_MAX_CHANNELS 1024
 
 #define CLOSEIT(i) {         \
@@ -768,11 +767,11 @@ chanWrite_(int chfd, char *buf, int len)
 
 int
 chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
-         struct LSFHeader *outhdr, int timeout)
+         struct packet_header *outhdr, int timeout)
 {
     static char fname[]="chanRpc_";
     XDR xdrs;
-    struct LSFHeader hdrBuf;
+    struct packet_header hdrBuf;
     struct timeval timeval, *timep=NULL;
     int cc;
 
@@ -821,7 +820,7 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
 
     if (logclass & LC_COMM)
         ls_syslog(LOG_DEBUG2,"%s: reading reply header", fname);
-    xdrmem_create(&xdrs, (char *)&hdrBuf, sizeof(struct LSFHeader), XDR_DECODE);
+    xdrmem_create(&xdrs, (char *)&hdrBuf, sizeof(struct packet_header), XDR_DECODE);
     cc = readDecodeHdr_(chfd,
                         (char *)&hdrBuf,
                         chanRead_,
@@ -929,13 +928,13 @@ doread(int chfd, struct Masks *chanmask)
         rcvbuf = channels[chfd].recv->forw;
 
     if (!rcvbuf->len) {
-        rcvbuf->data =  malloc(HDR_LEN);
+        rcvbuf->data =  malloc(PACKET_HEADER_SIZE);
         if (!rcvbuf->data) {
             FD_SET(chfd, &(chanmask->emask));
             channels[chfd].chanerr = LSE_MALLOC;
             return;
         }
-        rcvbuf->len = HDR_LEN;
+        rcvbuf->len = PACKET_HEADER_SIZE;
         rcvbuf->pos = 0;
     }
 
@@ -967,13 +966,12 @@ doread(int chfd, struct Masks *chanmask)
 
     rcvbuf->pos += cc;
 
-    if ((rcvbuf->len == HDR_LEN) && (rcvbuf->pos == rcvbuf->len )) {
+    if ((rcvbuf->len == PACKET_HEADER_SIZE) && (rcvbuf->pos == rcvbuf->len )) {
         XDR xdrs;
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         char *newdata;
 
-        xdrmem_create(&xdrs, rcvbuf->data, sizeof(struct LSFHeader)
-                      , XDR_DECODE);
+        xdrmem_create(&xdrs, rcvbuf->data, PACKET_HEADER_SIZE, XDR_DECODE);
         if (!xdr_LSFHeader(&xdrs, &hdr)) {
             FD_SET(chfd, &(chanmask->emask));
             channels[chfd].chanerr = CHANE_BADHDR;
@@ -982,7 +980,7 @@ doread(int chfd, struct Masks *chanmask)
         }
 
         if (hdr.length) {
-            rcvbuf->len = hdr.length + HDR_LEN;
+            rcvbuf->len = hdr.length + PACKET_HEADER_SIZE;
             newdata = realloc(rcvbuf->data, rcvbuf->len);
             if (!newdata) {
                 FD_SET(chfd, &(chanmask->emask));

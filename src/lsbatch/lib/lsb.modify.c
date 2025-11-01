@@ -165,13 +165,13 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
     char request_buf[2*MSGSIZE];
     char *reply_buf;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct submitMbdReply *reply;
     LS_LONG_INT jobId;
 
     mbdReqtype = BATCH_JOB_MODIFY;
     xdrmem_create(&xdrs, request_buf, 2*MSGSIZE, XDR_ENCODE);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *) modifyReq, &hdr, xdr_modifyReq, 0,
                        auth)) {
         xdr_destroy(&xdrs);
@@ -185,7 +185,7 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
     }
     xdr_destroy(&xdrs);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (cc == 0) {
         submitReply->badJobId = 0;
         submitReply->badReqIndx = 0;
@@ -257,7 +257,7 @@ lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
     XDR xdrs;
     mbdReqType mbdReqtype;
     char request_buf[MSGSIZE];
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
     char *reply_buf;
 
@@ -272,7 +272,7 @@ lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
     jobAttr->jobId = jobId;
     mbdReqtype = BATCH_SET_JOB_ATTR;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)jobAttr, &hdr, xdr_jobAttrReq, 0, &auth)){
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
@@ -286,7 +286,7 @@ lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
 
     xdr_destroy(&xdrs);
     free(reply_buf);
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR)
         return 0;
 

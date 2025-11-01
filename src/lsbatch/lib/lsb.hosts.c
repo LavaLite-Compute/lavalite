@@ -32,7 +32,7 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *request_buf;
     char *reply_buf;
     int cc, i, numReq = -1;
@@ -130,7 +130,7 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
     }
     xdrmem_create(&xdrs, request_buf, cc, XDR_ENCODE);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&hostInfoReq, &hdr, xdr_infoReq,
                        0, NULL)) {
         xdr_destroy(&xdrs);
@@ -148,7 +148,7 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
     xdr_destroy(&xdrs);
     free (request_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_HOST) {
         xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
 

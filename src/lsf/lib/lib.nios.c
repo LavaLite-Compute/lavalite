@@ -70,7 +70,7 @@ ls_stdinmode(int onoff)
         return -1;
     }
 
-    if (replyHdr.opCode != REM_ONOFF) {
+    if (replyHdr.operation != REM_ONOFF) {
         lserrno = LSE_PROTOC_NIOS;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
@@ -123,7 +123,7 @@ ls_donerex(void)
         return -1;
     }
 
-    if (replyHdr.opCode != NIOS_OK) {
+    if (replyHdr.operation != NIOS_OK) {
         lserrno = LSE_PROTOC_NIOS;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
@@ -178,7 +178,7 @@ ls_stoprex(void)
         return -1;
     }
 
-    if (replyHdr.opCode != NIOS_OK) {
+    if (replyHdr.operation != NIOS_OK) {
         lserrno = LSE_PROTOC_NIOS;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
@@ -235,7 +235,7 @@ ls_niossync(int numTasks)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-    switch(replyHdr.opCode) {
+    switch(replyHdr.operation) {
     case SYNC_FAIL:
         lserrno = LSE_SETPARAM;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
@@ -311,7 +311,7 @@ ls_setstdout(int on, char *format)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-    switch(replyHdr.opCode) {
+    switch(replyHdr.operation) {
     case STDOUT_FAIL:
         lserrno = LSE_SETPARAM;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
@@ -391,7 +391,7 @@ ls_setstdin(int on, int *rpidlist, int len)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-    switch(replyHdr.opCode) {
+    switch(replyHdr.operation) {
     case STDIN_FAIL:
         lserrno = LSE_SETPARAM;
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
@@ -453,7 +453,7 @@ ls_getstdin(int on, int *rpidlist, int maxlen)
         sigprocmask(SIG_SETMASK, &oldMask, NULL);
         return -1;
     }
-    switch(reply.hdr.opCode) {
+    switch(reply.hdr.operation) {
     case STDIN_OK:
         break;
     default:

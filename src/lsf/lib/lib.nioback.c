@@ -31,10 +31,10 @@ niosCallback_(struct sockaddr_in *from,
     int s;
     struct niosConnect conn;
     struct {
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         struct niosConnect conn;
     } reqBuf;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
     int resTimeout;
 
     struct linger linstr = {1, 1};
@@ -73,7 +73,7 @@ niosCallback_(struct sockaddr_in *from,
                   fname, exitStatus, terWhiPendStatus);
 
     initLSFHeader_(&reqHdr);
-    reqHdr.opCode = RES2NIOS_CONNECT;
+    reqHdr.operation = RES2NIOS_CONNECT;
     conn.rpid = rpid;
     if (terWhiPendStatus == 1)
         conn.exitStatus = 126;

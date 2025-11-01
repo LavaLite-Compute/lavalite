@@ -31,7 +31,7 @@ lsb_msgjob(LS_LONG_INT jobId, char *msg)
     XDR xdrs;
     mbdReqType mbdReqtype;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
 
     struct passwd *pw;
 
@@ -56,7 +56,7 @@ lsb_msgjob(LS_LONG_INT jobId, char *msg)
     mbdReqtype = BATCH_JOB_MSG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&jmsg, &hdr, xdr_lsbMsg, 0,
                        NULL)) {
         lsberrno = LSBE_XDR;
@@ -76,7 +76,7 @@ lsb_msgjob(LS_LONG_INT jobId, char *msg)
     if (cc != 0)
         free(reply_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR)
         return 0;
     else

@@ -24,7 +24,7 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *request_buf;
     char *reply_buf;
     static struct parameterInfo paramInfo;
@@ -65,7 +65,7 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     }
     xdrmem_create(&xdrs, request_buf, cc, XDR_ENCODE);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&infoReq, &hdr, xdr_infoReq, 0, NULL)) {
         xdr_destroy(&xdrs);
         free (request_buf);
@@ -82,7 +82,7 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     xdr_destroy(&xdrs);
     free (request_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_USER) {
         xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
         reply = &paramInfo;

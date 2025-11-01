@@ -785,21 +785,21 @@ static int
 replay_qc(char *filename, int lineNum)
 {
     static char             fname[] = "replay_qc";
-    int                     opCode;
+    int                     operation;
     struct qData           *qp;
 
-    opCode = logPtr->eventLog.queueCtrlLog.opCode;
+    operation = logPtr->eventLog.queueCtrlLog.opCode;
     if ((qp = getQueueData(logPtr->eventLog.queueCtrlLog.queue)) == NULL) {
         ls_syslog(LOG_ERR, "%s: File %s at line %d: Queue <%s> not found in queue list ", fname, filename, lineNum, logPtr->eventLog.queueCtrlLog.queue);
         return FALSE;
     }
-    if (opCode == QUEUE_OPEN)
+    if (operation == QUEUE_OPEN)
         qp->qStatus |= QUEUE_STAT_OPEN;
-    if (opCode == QUEUE_CLOSED)
+    if (operation == QUEUE_CLOSED)
         qp->qStatus &= ~QUEUE_STAT_OPEN;
-    if (opCode == QUEUE_ACTIVATE)
+    if (operation == QUEUE_ACTIVATE)
         qp->qStatus |= QUEUE_STAT_ACTIVE;
-    if (opCode == QUEUE_INACTIVATE)
+    if (operation == QUEUE_INACTIVATE)
         qp->qStatus &= ~QUEUE_STAT_ACTIVE;
     return TRUE;
 
@@ -809,11 +809,11 @@ static int
 replay_hostcontrol(char *filename, int lineNum)
 {
     static char             fname[] = "replay_hostcontrol";
-    int                     opCode;
+    int                     operation;
     char                    host[MAXHOSTNAMELEN];
     struct hData           *hp;
 
-    opCode = logPtr->eventLog.hostCtrlLog.opCode;
+    operation = logPtr->eventLog.hostCtrlLog.opCode;
     strcpy(host, logPtr->eventLog.hostCtrlLog.host);
 
     hp = getHostData(host);
@@ -821,9 +821,9 @@ replay_hostcontrol(char *filename, int lineNum)
         ls_syslog(LOG_ERR, "%s: File %s at line %d: Host <%s> not found in host list ", fname, filename, lineNum, host);
         return FALSE;
     }
-    if (opCode == HOST_OPEN)
+    if (operation == HOST_OPEN)
         hp->hStatus &= ~HOST_STAT_DISABLED;
-    if (opCode == HOST_CLOSE)
+    if (operation == HOST_CLOSE)
         hp->hStatus |= HOST_STAT_DISABLED;
     return TRUE;
 
@@ -1752,7 +1752,7 @@ log_jobsigact (struct jData *jData, struct statusReq *statusReq, int sigFlags)
 }
 
 void
-log_queuestatus(struct qData * qp, int opCode, int userId, char *userName)
+log_queuestatus(struct qData * qp, int operation, int userId, char *userName)
 {
     static char             fname[] = "log_queuestatus";
 
@@ -1763,7 +1763,7 @@ log_queuestatus(struct qData * qp, int opCode, int userId, char *userName)
                   "openEventFile");
     }
     logPtr->type = EVENT_QUEUE_CTRL;
-    logPtr->eventLog.queueCtrlLog.opCode = opCode;
+    logPtr->eventLog.queueCtrlLog.opCode = operation;
     strcpy(logPtr->eventLog.queueCtrlLog.queue, qp->queue);
     logPtr->eventLog.queueCtrlLog.userId = userId;
     strcpy(logPtr->eventLog.queueCtrlLog.userName, userName);
@@ -1775,7 +1775,7 @@ log_queuestatus(struct qData * qp, int opCode, int userId, char *userName)
 }
 
 void
-log_hoststatus(struct hData * hp, int opCode, int userId, char *userName)
+log_hoststatus(struct hData * hp, int operation, int userId, char *userName)
 {
     static char             fname[] = "log_hoststatus";
 
@@ -1787,7 +1787,7 @@ log_hoststatus(struct hData * hp, int opCode, int userId, char *userName)
         mbdDie(MASTER_FATAL);
     }
     logPtr->type = EVENT_HOST_CTRL;
-    logPtr->eventLog.hostCtrlLog.opCode = opCode;
+    logPtr->eventLog.hostCtrlLog.opCode = operation;
     strcpy(logPtr->eventLog.hostCtrlLog.host, hp->host);
     logPtr->eventLog.hostCtrlLog.userId = userId;
     strcpy(logPtr->eventLog.hostCtrlLog.userName, userName);
@@ -3625,7 +3625,7 @@ log_jobmsgack(struct bucket * bucket)
                   lsb_jobid2str(jp->jobId), "openEventFile");
         return;
     }
-    xdr_setpos(&bucket->xdrs, LSF_HEADER_LEN);
+    xdr_setpos(&bucket->xdrs, PACKET_HEADER_SIZE);
     if (!xdr_lsbMsg(&bucket->xdrs, &jmsg, NULL)) {
 
         return;
@@ -3750,7 +3750,7 @@ replay_jobmsg(char *filename, int lineNum)
     struct Buffer          *buf;
     struct lsbMsgHdr        jmHdr;
     struct lsbMsg           jmsg;
-    struct LSFHeader        lsfHdr;
+    struct packet_header        lsfHdr;
     LS_LONG_INT             jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobMsgLog.jobId,
@@ -3765,7 +3765,7 @@ replay_jobmsg(char *filename, int lineNum)
         return FALSE;
     }
 
-    len = LSF_HEADER_LEN + 4 * sizeof(int) +
+    len = PACKET_HEADER_SIZE + 4 * sizeof(int) +
         strlen(logPtr->eventLog.jobMsgLog.src) + 1 +
         strlen(logPtr->eventLog.jobMsgLog.dest) + 1 +
         strlen(logPtr->eventLog.jobMsgLog.msg) + 1;
@@ -3784,7 +3784,7 @@ replay_jobmsg(char *filename, int lineNum)
     bucket->proto.msgId = logPtr->eventLog.jobMsgLog.msgId;
     bucket->bufstat = MSG_STAT_QUEUED;
 
-    lsfHdr.opCode = BATCH_JOB_MSG;
+    lsfHdr.operation = BATCH_JOB_MSG;
     xdrmem_create(&bucket->xdrs, buf->data, buf->len, XDR_ENCODE);
 
     jmHdr.usrId = logPtr->eventLog.jobMsgLog.usrId;

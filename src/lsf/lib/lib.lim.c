@@ -31,8 +31,8 @@ static int recvtimeout_ = RECV_TIMEOUT;
 extern char *inet_ntoa(struct in_addr);
 static u_int localAddr = 0;
 
-static int callLimTcp_(char *, char **, int, struct LSFHeader *, int);
-static int callLimUdp_(char *, char *, int, struct LSFHeader *, char *, int);
+static int callLimTcp_(char *, char **, int, struct packet_header *, int);
+static int callLimUdp_(char *, char *, int, struct packet_header *, char *, int);
 static int createLimSock_(struct sockaddr_in *);
 static int rcvreply_(int, char *, char);
 
@@ -46,10 +46,10 @@ callLim_(enum limReqCode reqCode,
          bool_t (*xdr_rfunc)(),
          char *host,
          int options,
-         struct LSFHeader *hdr)
+         struct packet_header *hdr)
 {
-    struct LSFHeader reqHdr;
-    struct LSFHeader replyHdr;
+    struct packet_header reqHdr;
+    struct packet_header replyHdr;
     XDR    xdrs;
     char   sbuf[BUFSIZ];
     char   rbuf[BUFSIZ/8];
@@ -80,12 +80,13 @@ callLim_(enum limReqCode reqCode,
     }
 
     initLSFHeader_(&reqHdr);
-    reqHdr.opCode = reqCode;
+    reqHdr.operation = reqCode;
 
-    reqHdr.refCode  = getRefNum_();
-    reqHdr.version = _XDR_VERSION_0_1_0;
+    reqHdr.sequence  = getRefNum_();
+    reqHdr.version = CURRENT_PROTOCOL_VERSION;
 
-    xdrmem_create(&xdrs, sbuf, 8*MSGSIZE, XDR_ENCODE);
+    // Bug static bug size
+    xdrmem_create(&xdrs, sbuf, BUFSIZ_256, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs, dsend, &reqHdr, xdr_sfunc, 0, NULL)) {
         xdr_destroy(&xdrs);
         lserrno = LSE_BAD_XDR;
@@ -118,7 +119,7 @@ callLim_(enum limReqCode reqCode,
         }
     }
 
-    limReplyCode = replyHdr.opCode;
+    limReplyCode = replyHdr.operation;
 
     lsf_lim_version = (int)replyHdr.version;
 
@@ -152,7 +153,7 @@ callLim_(enum limReqCode reqCode,
 
 static int
 callLimTcp_(char *reqbuf, char **rep_buf, int req_size,
-        struct LSFHeader *replyHdr, int options)
+        struct packet_header *replyHdr, int options)
 {
     static char fname[]="callLimTcp_";
     char retried = false;
@@ -216,7 +217,7 @@ contact:
     }
     *rep_buf = rcvbuf.data;
 
-    switch (replyHdr->opCode) {
+    switch (replyHdr->operation) {
         case LIME_MASTER_UNKNW:
             lserrno = LSE_MASTR_UNKNW;
             FREEUP(*rep_buf);
@@ -282,7 +283,7 @@ contact:
 }
 
 static int
-callLimUdp_(char *reqbuf, char *repbuf, int len, struct LSFHeader *reqHdr,
+callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
         char *host, int options)
 {
     struct hostent *hp;
@@ -291,7 +292,7 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct LSFHeader *reqHdr,
     u_int  previousMasterLimAddr = 0;
     XDR   xdrs;
     enum limReplyCode limReplyCode;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     char *sp = genParams_[LSF_SERVER_HOSTS].paramValue;
     int cc;
     static char connected;
@@ -418,14 +419,14 @@ check:
         return -1;
     }
 
-    if (reqHdr->refCode != replyHdr.refCode) {
+    if (reqHdr->sequence != replyHdr.sequence) {
         xdr_destroy(&xdrs);
         if (multicasting)
             goto checkMultiCast;
         goto check;
     }
 
-    limReplyCode = replyHdr.opCode;
+    limReplyCode = replyHdr.operation;
     switch (limReplyCode) {
         case LIME_MASTER_UNKNW:
             lserrno = LSE_MASTR_UNKNW;

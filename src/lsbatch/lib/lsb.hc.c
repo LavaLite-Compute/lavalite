@@ -20,14 +20,14 @@
 #include "lsbatch/lib/lsb.h"
 
 int
-lsb_hostcontrol (char *host, int opCode)
+lsb_hostcontrol(char *host, int operation)
 {
     XDR xdrs;
     char request_buf[MSGSIZE];
     char *reply_buf, *contactHost = NULL;
     static struct controlReq hostControlReq;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
 
     if (hostControlReq.name == NULL) {
@@ -37,8 +37,8 @@ lsb_hostcontrol (char *host, int opCode)
             return -1;
         }
     }
-    if (opCode != HOST_OPEN && opCode != HOST_CLOSE &&
-        opCode != HOST_REBOOT && opCode != HOST_SHUTDOWN) {
+    if (operation != HOST_OPEN && operation != HOST_CLOSE &&
+        operation != HOST_REBOOT && operation != HOST_SHUTDOWN) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
@@ -48,7 +48,7 @@ lsb_hostcontrol (char *host, int opCode)
             return -1;
         }
 
-    hostControlReq.opCode = opCode;
+    hostControlReq.opCode = operation;
     if (host)
         strcpy(hostControlReq.name, host);
     else {
@@ -60,17 +60,17 @@ lsb_hostcontrol (char *host, int opCode)
         strcpy(hostControlReq.name, h);
     }
 
-    switch (opCode) {
+    switch (operation) {
     case HOST_REBOOT:
-        hdr.opCode = CMD_SBD_REBOOT;
+        hdr.operation = CMD_SBD_REBOOT;
         contactHost = host;
         break;
     case HOST_SHUTDOWN:
-        hdr.opCode = CMD_SBD_SHUTDOWN;
+        hdr.operation = CMD_SBD_SHUTDOWN;
         contactHost = host;
         break;
     default:
-        hdr.opCode = BATCH_HOST_CTRL;
+        hdr.operation = BATCH_HOST_CTRL;
         break;
     }
 
@@ -85,7 +85,7 @@ lsb_hostcontrol (char *host, int opCode)
         return -1;
     }
 
-    if (opCode == HOST_REBOOT || opCode == HOST_SHUTDOWN) {
+    if (operation == HOST_REBOOT || operation == HOST_SHUTDOWN) {
 
         if ((cc = cmdCallSBD_(hostControlReq.name, request_buf,
                               XDR_GETPOS(&xdrs), &reply_buf,
@@ -98,7 +98,7 @@ lsb_hostcontrol (char *host, int opCode)
             return -1;
     }
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (cc)
         free(reply_buf);
     if (lsberrno == LSBE_NO_ERROR)

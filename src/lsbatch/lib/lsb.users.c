@@ -24,7 +24,7 @@ lsb_userinfo (char **users, int *numUsers)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *reply_buf;
     char *request_buf;
     struct userInfoReply userInfoReply, *reply;
@@ -94,7 +94,7 @@ lsb_userinfo (char **users, int *numUsers)
     xdrmem_create(&xdrs, request_buf, cc, XDR_ENCODE);
 
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&userInfoReq, &hdr, xdr_infoReq,
                        0, NULL)) {
         xdr_destroy(&xdrs);
@@ -112,7 +112,7 @@ lsb_userinfo (char **users, int *numUsers)
     xdr_destroy(&xdrs);
     free (request_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_USER) {
         xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
         reply = &userInfoReply;

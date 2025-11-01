@@ -24,7 +24,6 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
 dnl Project identity versioning
 AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.1.0"], [Human-readable LavaLite version])
 AC_DEFINE([LAVALITE_VERSION_HEX], [0x000100], [LavaLite version encoded as 0xMMmmpp])
-AC_DEFINE([_XDR_VERSION_0_1_0], [1], [Enable XDR version 0.1.0 features])
 
 dnl Define the default host type supported by LavaLite but you can
 dnl add more in lsf.shared file.

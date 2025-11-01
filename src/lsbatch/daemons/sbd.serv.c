@@ -35,7 +35,7 @@ extern int lsbJobCpuLimit;
 extern int lsbJobMemLimit;
 
 void
-do_newjob (XDR *xdrs, int chfd, struct LSFHeader *reqHdr)
+do_newjob (XDR *xdrs, int chfd, struct packet_header *reqHdr)
 {
     static char             fname[] = "do_newjob";
     char                    reply_buf[MSGSIZE];
@@ -45,7 +45,7 @@ do_newjob (XDR *xdrs, int chfd, struct LSFHeader *reqHdr)
     struct jobCard         *jp;
     sbdReplyType            reply;
 
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
     char                   *replyStruct;
     struct lsfAuth          auth_data, *auth = NULL;
 
@@ -163,7 +163,7 @@ sendReply:
 #endif
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode = reply;
+    replyHdr.operation = reply;
     replyStruct = (reply == ERR_NO_ERROR) ? (char *) &jobReply : (char *) NULL;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
 	ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobReply");
@@ -189,7 +189,7 @@ sendReply:
 }
 
 void
-do_switchjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_switchjob(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_switchjob";
     char                    reply_buf[MSGSIZE];
@@ -199,7 +199,7 @@ do_switchjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
     int                     i;
     sbdReplyType            reply;
     char                   *cp, *word, found = FALSE;
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
     char                   *replyStruct;
     struct jobCard         *jp;
     struct lsfAuth         auth_data, *auth = NULL;
@@ -309,7 +309,7 @@ sendReply:
     xdr_lsffree(xdr_jobSpecs, (char *)&jobSpecs, reqHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode = reply;
+    replyHdr.operation = reply;
     if (reply == ERR_NO_ERROR)
 	replyStruct = (char *) &jobReply;
     else {
@@ -344,7 +344,7 @@ sendReply:
 }
 
 void
-do_modifyjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_modifyjob(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_switchjob";
     char                    reply_buf[MSGSIZE];
@@ -353,7 +353,7 @@ do_modifyjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
     struct jobReply         jobReply;
     sbdReplyType            reply;
     char                   found = FALSE;
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
     char                   *replyStruct;
     struct jobCard         *jp;
     struct lsfAuth         auth_data, *auth = NULL;
@@ -447,7 +447,7 @@ sendReply:
     xdr_lsffree(xdr_jobSpecs, (char *)&jobSpecs, reqHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode = reply;
+    replyHdr.operation = reply;
     if (reply == ERR_NO_ERROR)
 	replyStruct = (char *) &jobReply;
     else {
@@ -481,12 +481,12 @@ sendReply:
 
 }
 void
-do_probe(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_probe(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_probe";
     char                    reply_buf[MSGSIZE];
     XDR                     xdrs2;
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
     struct sbdPackage       sbdPackage;
     struct jobSpecs        *jobSpecs;
     int                     i;
@@ -496,7 +496,7 @@ do_probe(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 	return;
 
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode = ERR_NO_ERROR;
+    replyHdr.operation = ERR_NO_ERROR;
     jobSpecs = NULL;
 
     if (!xdr_sbdPackage(xdrs, &sbdPackage, reqHdr)) {
@@ -510,7 +510,7 @@ do_probe(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 	    for (i = 0; i < sbdPackage.numJobs; i++) {
 		if (!xdr_arrayElement(xdrs, (char *) &(jobSpecs[i]),
 				      reqHdr, xdr_jobSpecs)) {
-		    replyHdr.opCode = ERR_BAD_REQ;
+		    replyHdr.operation = ERR_BAD_REQ;
 		    ls_syslog(LOG_ERR, "%s: %s(%d failed for %d jobs"),
 			fname, "xdr_arrayElement", i, sbdPackage.numJobs);
 		    break;
@@ -520,14 +520,14 @@ do_probe(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 	    }
 	}
     }
-    if (replyHdr.opCode == ERR_NO_ERROR)
+    if (replyHdr.operation == ERR_NO_ERROR)
 	if (!xdr_sbdPackage1(xdrs, &sbdPackage, reqHdr)) {
 	    ls_syslog(LOG_ERR, "%s", __func__, "xdr_sbdPackage1");
 	    relife();
 	}
-    if (replyHdr.opCode == ERR_NO_ERROR) {
+    if (replyHdr.operation == ERR_NO_ERROR) {
         if (myStatus & NO_LIM) {
-	    replyHdr.opCode = ERR_NO_LIM;
+	    replyHdr.operation = ERR_NO_LIM;
         }
     }
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
@@ -576,7 +576,7 @@ do_probe(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 }
 
 void
-do_sigjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_sigjob(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_sigjob";
     char                    reply_buf[MSGSIZE];
@@ -584,7 +584,7 @@ do_sigjob(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
     struct jobSig           jobSig;
     sbdReplyType            reply;
     struct jobReply         jobReply;
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
     char                   *replyStruct;
     struct jobCard         *jp = NULL;
     char                    found = FALSE;
@@ -695,7 +695,7 @@ Reply1:
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
 
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode = reply;
+    replyHdr.operation = reply;
     if (reply == ERR_NO_ERROR) {
 	jobReply.jobPid = jp->jobSpecs.jobPid;
 	jobReply.actPid = jp->jobSpecs.actPid;
@@ -741,7 +741,7 @@ Reply1:
 }
 
 void
-do_jobMsg(struct bucket * bucket, XDR *xdrs, int s, struct LSFHeader * reqHdr)
+do_jobMsg(struct bucket * bucket, XDR *xdrs, int s, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_jobMsg";
     struct Buffer          *buf;
@@ -894,13 +894,13 @@ deliverMsg(struct bucket * bucket)
 }
 
 void
-do_reboot(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_reboot(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_reboot";
     char                    reply_buf[MSGSIZE / 8];
     XDR                     xdrs2;
     sbdReplyType            reply;
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
 
     if (logclass & LC_TRACE)
 	ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -909,10 +909,10 @@ do_reboot(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 8, XDR_ENCODE);
 
     initLSFHeader_(&replyHdr);
-    if (reqHdr->opCode == CMD_SBD_REBOOT)
-	replyHdr.opCode = LSBE_NO_ERROR;
+    if (reqHdr->operation == CMD_SBD_REBOOT)
+	replyHdr.operation = LSBE_NO_ERROR;
     else
-	replyHdr.opCode = reply;
+	replyHdr.operation = reply;
 
     if (!xdr_encodeMsg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
 	ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
@@ -939,7 +939,7 @@ int
 ctrlSbdDebug( struct debugReq  *pdebug )
 {
     static char fname[]="sbd.serv:ctrlSbdDebug()";
-    int opCode, level, newClass, options;
+    int operation, level, newClass, options;
     char logFileName[MAXLSFNAMELEN];
     char lsfLogDir[MAXPATHLEN];
     char *dir=NULL;
@@ -948,7 +948,7 @@ ctrlSbdDebug( struct debugReq  *pdebug )
     memset(logFileName, 0, sizeof(logFileName));
     memset(lsfLogDir, 0, sizeof(lsfLogDir));
 
-    opCode = pdebug->opCode;
+    operation = pdebug->operation;
     level = pdebug->level;
     newClass = pdebug->logClass;
     options = pdebug->options;
@@ -1018,7 +1018,7 @@ ctrlSbdDebug( struct debugReq  *pdebug )
         return LSBE_NO_ERROR;
     }
 
-    if (opCode==SBD_DEBUG) {
+    if (operation==SBD_DEBUG) {
         putMaskLevel(level, &(daemonParams[LSF_LOG_MASK].paramValue));
 
 	if (newClass>=0) {
@@ -1045,7 +1045,7 @@ ctrlSbdDebug( struct debugReq  *pdebug )
             putEnv("DYN_DBG_LOGLEVEL", dynDbgEnv);
 	}
     }
-    else if (opCode == SBD_TIMING) {
+    else if (operation == SBD_TIMING) {
         if (level>=0)
  	    timinglevel = level;
         if (pdebug->logFileName[0] != '\0') {
@@ -1065,14 +1065,14 @@ ctrlSbdDebug( struct debugReq  *pdebug )
 }
 
 void
-do_sbdDebug(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_sbdDebug(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_sbdDebug";
    struct debugReq 	debugReq;
    char      		reply_buf[MSGSIZE / 8];
    XDR       		xdrs2;
    sbdReplyType  	reply;
-   struct LSFHeader     replyHdr;
+   struct packet_header     replyHdr;
 
    if (!xdr_debugReq(xdrs, &debugReq, reqHdr)) {
 	reply = LSBE_XDR;
@@ -1082,7 +1082,7 @@ do_sbdDebug(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
        reply = ctrlSbdDebug(&debugReq);
    xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 8, XDR_ENCODE);
    initLSFHeader_(&replyHdr);
-   replyHdr.opCode = reply;
+   replyHdr.operation = reply;
    if (!xdr_encodeMsg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
        xdr_destroy(&xdrs2);
@@ -1101,23 +1101,23 @@ do_sbdDebug(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
  }
 
 void
-do_shutdown(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_shutdown(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char fname[] = "do_shutdown()";
     char                    reply_buf[MSGSIZE / 8];
     XDR                     xdrs2;
     sbdReplyType            reply;
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
 
     reply = ERR_NO_ERROR;
 
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 8, XDR_ENCODE);
 
     initLSFHeader_(&replyHdr);
-    if (reqHdr->opCode == CMD_SBD_SHUTDOWN)
-	replyHdr.opCode = LSBE_NO_ERROR;
+    if (reqHdr->operation == CMD_SBD_SHUTDOWN)
+	replyHdr.operation = LSBE_NO_ERROR;
     else
-	replyHdr.opCode = reply;
+	replyHdr.operation = reply;
 
     if (!xdr_encodeMsg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
 	ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
@@ -1140,7 +1140,7 @@ do_shutdown(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 }
 
 void
-do_jobSetup(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_jobSetup(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_jobSetup";
     struct jobSetup         jsetup;
@@ -1233,7 +1233,7 @@ do_jobSetup(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 }
 
 void
-do_jobSyslog(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
+do_jobSyslog(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_jobSyslog";
     struct jobSyslog        sysMsg;
@@ -1253,7 +1253,7 @@ do_jobSyslog(XDR * xdrs, int chfd, struct LSFHeader * reqHdr)
 }
 
 void
-do_rmConn(XDR * xdrs, int s, struct LSFHeader * reqHdr, struct clientNode * cln)
+do_rmConn(XDR * xdrs, int s, struct packet_header * reqHdr, struct clientNode * cln)
 {
     static char             fname[] = "do_rmConn";
     char                    src[LSB_MAX_SD_LENGTH];
@@ -1316,7 +1316,7 @@ do_rmConn(XDR * xdrs, int s, struct LSFHeader * reqHdr, struct clientNode * cln)
 }
 
 void
-do_lsbMsg(XDR *xdrs, int s, struct LSFHeader * reqHdr)
+do_lsbMsg(XDR *xdrs, int s, struct packet_header * reqHdr)
 {
     static char             fname[] = "do_lsbMsg";
     char                    src[LSB_MAX_SD_LENGTH];
@@ -1426,12 +1426,12 @@ replyHdrWithRC(int rc, int chfd, int jobId)
     static char fname[] = "replyHdrWithRC()";
     XDR                     xdrs2;
     char                    reply_buf[MSGSIZE];
-    struct LSFHeader        replyHdr;
+    struct packet_header        replyHdr;
     LS_LONG_INT tmpJobId;
 
     initLSFHeader_(&replyHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
-    replyHdr.opCode = rc;
+    replyHdr.operation = rc;
     replyHdr.length = 0;
     tmpJobId = jobId;
 

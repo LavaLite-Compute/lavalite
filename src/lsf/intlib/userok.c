@@ -27,7 +27,7 @@
 #define LSF_ID_PORT         11
 #define _USE_TCP_           0x04
 extern struct config_param genParams_[];
-extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct LSFHeader *);
+extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct packet_header *);
 
 #define LOOP_ADDR       0x7F000001
 #define SIZE 256

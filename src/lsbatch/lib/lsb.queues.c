@@ -31,7 +31,7 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
     char *request_buf;
     char *reply_buf;
     int cc, i;
-    static struct LSFHeader hdr;
+    static struct packet_header hdr;
     char *clusterName = NULL;
 
     if (qInfo != NULL) {
@@ -128,7 +128,7 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
     }
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char*) &queueInfoReq, &hdr, xdr_infoReq,
                        0, NULL)) {
         lsberrno = LSBE_XDR;
@@ -148,7 +148,7 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
     xdr_destroy(&xdrs);
     free (request_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_QUEUE) {
         xdrmem_create(&xdrs2, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
         if (!xdr_queueInfoReply(&xdrs2, &reply, &hdr)) {

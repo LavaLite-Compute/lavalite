@@ -443,7 +443,7 @@ freeWeek (windows_t *week[])
 void
 errorBack(int chan, int replyCode, struct sockaddr_in *from)
 {
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     XDR  xdrs;
     char errBuf[MSGSIZE/8];
 
@@ -451,7 +451,7 @@ errorBack(int chan, int replyCode, struct sockaddr_in *from)
 
     initLSFHeader_(&replyHdr);
 
-    replyHdr.opCode = replyCode;
+    replyHdr.operation = replyCode;
     io_block_(chanSock_(chan));
     if (xdr_encodeMsg (&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
         if (chanWrite_(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)

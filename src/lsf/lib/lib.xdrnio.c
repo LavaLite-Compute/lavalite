@@ -21,7 +21,7 @@
 
 bool_t
 xdr_resConnect(XDR *xdrs, struct resConnect *connectPtr,
-               struct LSFHeader *hdr)
+               struct packet_header *hdr)
 {
 
     if (!xdr_lenData(xdrs, &connectPtr->eexec)) {
@@ -32,7 +32,7 @@ xdr_resConnect(XDR *xdrs, struct resConnect *connectPtr,
 }
 
 bool_t
-xdr_niosConnect (XDR *xdrs, struct niosConnect *conn, struct LSFHeader *hdr)
+xdr_niosConnect (XDR *xdrs, struct niosConnect *conn, struct packet_header *hdr)
 {
 
     if (!(xdr_int(xdrs, &conn->rpid)))
@@ -45,7 +45,7 @@ xdr_niosConnect (XDR *xdrs, struct niosConnect *conn, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_niosStatus (XDR *xdrs, struct niosStatus *st, struct LSFHeader *hdr)
+xdr_niosStatus (XDR *xdrs, struct niosStatus *st, struct packet_header *hdr)
 {
     struct lsfRusage lsfRu;
 
@@ -75,7 +75,7 @@ xdr_niosStatus (XDR *xdrs, struct niosStatus *st, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_resSignal (XDR *xdrs, struct resSignal *sig, struct LSFHeader *hdr)
+xdr_resSignal (XDR *xdrs, struct resSignal *sig, struct packet_header *hdr)
 {
     return (xdr_int(xdrs, &sig->pid) &&
             xdr_int(xdrs, &sig->sigval));

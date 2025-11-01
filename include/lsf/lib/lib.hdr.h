@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: lib.hdr.h,v 1.5 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -17,8 +18,9 @@
  *
  */
 
-#ifndef _LIB_HDR_
-#define _LIB_HDR_
+
+// Include the lavalite protocol header and version
+#include "lsf/lib/protocol.h"
 
 struct LSFHeader {
     unsigned short refCode;
@@ -30,8 +32,6 @@ struct LSFHeader {
         unsigned short  Low;
     } reserved0;
 };
-
-#define LSF_HEADER_LEN 12
 
 struct stringLen {
     char *name;
@@ -75,19 +75,15 @@ struct lsfLimit {
 };
 
 
-extern bool_t xdr_LSFHeader(XDR *, struct LSFHeader *);
-extern bool_t xdr_packLSFHeader(char *, struct LSFHeader *);
+extern bool_t xdr_LSFHeader(XDR *, struct packet_header *);
+extern bool_t xdr_packLSFHeader(char *, struct packet_header *);
 
-#define ENMSG_USE_LENGTH 1
-
-extern bool_t xdr_encodeMsg(XDR *, char *, struct LSFHeader *,
+extern bool_t xdr_encodeMsg(XDR *, char *, struct packet_header *,
                             bool_t (*)(), int, struct lsfAuth *);
-extern bool_t xdr_arrayElement(XDR *, char *, struct LSFHeader *,
+extern bool_t xdr_arrayElement(XDR *, char *, struct packet_header *,
                                bool_t (*)(), ...);
-extern bool_t xdr_stringLen(XDR *, struct stringLen *, struct LSFHeader *);
-extern bool_t xdr_stat(XDR *, struct stat *, struct LSFHeader *);
-extern bool_t xdr_lsfAuth(XDR *, struct lsfAuth *, struct LSFHeader *);
+extern bool_t xdr_stringLen(XDR *, struct stringLen *, struct packet_header *);
+extern bool_t xdr_stat(XDR *, struct stat *, struct packet_header *);
+extern bool_t xdr_lsfAuth(XDR *, struct lsfAuth *, struct packet_header *);
 extern int xdr_lsfAuthSize(struct lsfAuth *);
-extern bool_t xdr_jRusage(XDR *, struct jRusage *, struct LSFHeader *);
-
-#endif
+extern bool_t xdr_jRusage(XDR *, struct jRusage *, struct packet_header *);

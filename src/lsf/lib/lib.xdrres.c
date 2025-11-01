@@ -21,7 +21,7 @@
 #include "lsf/lib/lib.xdrres.h"
 
 bool_t
-xdr_resCmdBill(XDR *xdrs, struct resCmdBill *cmd, struct LSFHeader *hdr)
+xdr_resCmdBill(XDR *xdrs, struct resCmdBill *cmd, struct packet_header *hdr)
 {
     char *sp;
     int i, argc, nlimits;
@@ -97,7 +97,7 @@ DecodeQuit:
 }
 
 bool_t
-xdr_resSetenv(XDR *xdrs, struct resSetenv *envp, struct LSFHeader *hdr)
+xdr_resSetenv(XDR *xdrs, struct resSetenv *envp, struct packet_header *hdr)
 {
     char *sp;
     int i, nenv;
@@ -140,7 +140,7 @@ xdr_resSetenv(XDR *xdrs, struct resSetenv *envp, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_resRKill(XDR *xdrs, struct resRKill *rkill, struct LSFHeader *hdr)
+xdr_resRKill(XDR *xdrs, struct resRKill *rkill, struct packet_header *hdr)
 {
     if (! (xdr_int(xdrs, &rkill->rid) &&
            xdr_int(xdrs, &rkill->whatid) &&
@@ -151,7 +151,7 @@ xdr_resRKill(XDR *xdrs, struct resRKill *rkill, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_resGetpid (XDR *xdrs, struct resPid *pidreq, struct LSFHeader *hdr)
+xdr_resGetpid (XDR *xdrs, struct resPid *pidreq, struct packet_header *hdr)
 {
     if (! (xdr_int(xdrs, &pidreq->rpid) &&
            xdr_int(xdrs, &pidreq->pid)))
@@ -161,7 +161,7 @@ xdr_resGetpid (XDR *xdrs, struct resPid *pidreq, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_resGetRusage (XDR *xdrs, struct resRusage *rusageReq,struct LSFHeader *hdr)
+xdr_resGetRusage (XDR *xdrs, struct resRusage *rusageReq,struct packet_header *hdr)
 {
     if (! (xdr_int(xdrs, &rusageReq->rid)
            && xdr_int(xdrs, &rusageReq->whatid)
@@ -173,7 +173,7 @@ xdr_resGetRusage (XDR *xdrs, struct resRusage *rusageReq,struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_resChdir (XDR *xdrs, struct resChdir *ch, struct LSFHeader *hdr)
+xdr_resChdir (XDR *xdrs, struct resChdir *ch, struct packet_header *hdr)
 {
     char *sp = ch->dir;
 
@@ -187,7 +187,7 @@ xdr_resChdir (XDR *xdrs, struct resChdir *ch, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_resControl (XDR *xdrs, struct resControl *ctrl, struct LSFHeader *hdr)
+xdr_resControl (XDR *xdrs, struct resControl *ctrl, struct packet_header *hdr)
 {
     if (! (xdr_int(xdrs, &ctrl->opCode)
            && xdr_int(xdrs, &ctrl->data)))
@@ -196,7 +196,7 @@ xdr_resControl (XDR *xdrs, struct resControl *ctrl, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_resStty (XDR *xdrs, struct resStty *tty, struct LSFHeader *hdr)
+xdr_resStty (XDR *xdrs, struct resStty *tty, struct packet_header *hdr)
 {
     if (xdrs->x_op == XDR_ENCODE) {
         if (!encodeTermios_(xdrs, &tty->termattr))
@@ -216,7 +216,7 @@ xdr_resStty (XDR *xdrs, struct resStty *tty, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_ropenReq (XDR *xdrs, struct ropenReq *req, struct LSFHeader *hdr)
+xdr_ropenReq (XDR *xdrs, struct ropenReq *req, struct packet_header *hdr)
 {
     char *sp = req->fn;
     int len, flags;
@@ -303,13 +303,13 @@ xdr_ropenReq (XDR *xdrs, struct ropenReq *req, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_rrdwrReq (XDR *xdrs, struct rrdwrReq *req, struct LSFHeader *hdr)
+xdr_rrdwrReq (XDR *xdrs, struct rrdwrReq *req, struct packet_header *hdr)
 {
     return (xdr_int(xdrs, &req->fd) && xdr_int(xdrs, &req->len));
 }
 
 bool_t
-xdr_rlseekReq (XDR *xdrs, struct rlseekReq *req, struct LSFHeader *hdr)
+xdr_rlseekReq (XDR *xdrs, struct rlseekReq *req, struct packet_header *hdr)
 {
     int whence = 0;
 #define LSF_SEEK_SET 0x1

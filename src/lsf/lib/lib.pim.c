@@ -73,7 +73,7 @@ getJInfo_(int npgid, int *pgid, int options, int cpgid)
     static char pfile[MAXFILENAMELEN];
     char *myHost;
     static struct sockaddr_in pimAddr;
-    struct LSFHeader sendHdr, recvHdr, hdrBuf;
+    struct packet_header sendHdr, recvHdr, hdrBuf;
     int s, cc;
     struct timeval timeOut;
     static time_t lastTime = 0, lastUpdateNow = 0;
@@ -183,7 +183,7 @@ getJInfo_(int npgid, int *pgid, int options, int cpgid)
         initLSFHeader_(&sendHdr);
         initLSFHeader_(&recvHdr);
 
-        sendHdr.opCode = options;
+        sendHdr.operation = options;
 
         if ((cc = writeEncodeHdr_(s, &sendHdr, b_write_fix)) < 0) {
             if (logclass & LC_PIM)
@@ -212,11 +212,11 @@ getJInfo_(int npgid, int *pgid, int options, int cpgid)
         }
         close(s);
 
-        if (recvHdr.refCode != sendHdr.refCode) {
+        if (recvHdr.sequence != sendHdr.sequence) {
             if (logclass & LC_PIM)
                 ls_syslog(LOG_DEBUG,
-                          "%s: recv refCode=%d not equal to send refCode=%d, server is not PIM",
-                          fname, (int) recvHdr.refCode, (int) sendHdr.refCode);
+                          "%s: recv sequence=%d not equal to send sequence=%d, server is not PIM",
+                          fname, (int) recvHdr.sequence, (int) sendHdr.sequence);
             return NULL;
         }
         if (logclass & LC_PIM)

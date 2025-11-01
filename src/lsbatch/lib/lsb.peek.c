@@ -29,7 +29,7 @@ lsb_peekjob (LS_LONG_INT jobid)
     char request_buf[MSGSIZE];
     char *reply_buf;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     static struct jobPeekReply jobPeekReply;
     struct lsfAuth auth;
     struct jobInfoEnt *jInfo;
@@ -50,7 +50,7 @@ lsb_peekjob (LS_LONG_INT jobid)
     mbdReqtype = BATCH_JOB_PEEK;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&jobPeekReq, &hdr, xdr_jobPeekReq, 0,
                 &auth)) {
         lsberrno = LSBE_XDR;
@@ -66,7 +66,7 @@ lsb_peekjob (LS_LONG_INT jobid)
 
     xdr_destroy(&xdrs);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
         char fnBuf[MAXPATHLEN];
         struct passwd *pw;
@@ -122,12 +122,16 @@ lsb_peekjob (LS_LONG_INT jobid)
                         if (ls_initrex(1,0) < 0) {
                             exit(false);
                         }
-                        if ( ls_rstat(jInfo->exHosts[0], pSpoolDirUnix, &st) == 0) {
+                        // Bug we need to rewrite bpeek and we dont support
+                        // remote execution anymore
+#if 0
+                        if (ls_rstat(jInfo->exHosts[0], pSpoolDirUnix, &st) == 0) {
                             ls_donerex();
                             exit(true);
-                        }else {
-                            exit(false);
                         }
+#endif
+                        exit(false);
+
                     }
                     if (pid == -1) {
                         return NULL;

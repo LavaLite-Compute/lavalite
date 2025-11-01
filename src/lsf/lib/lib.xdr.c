@@ -18,45 +18,39 @@
  */
 #include "lsf/lib/lib.h"
 
-static void encodeHdr (unsigned int *word1,
-                       unsigned int *word2,
-                       unsigned int *word3,
-                       struct LSFHeader *header);
+static bool marshal_packet_header(XDR *xdrs,
+                                  struct packet_header *header);
 
 bool_t
-xdr_LSFHeader (XDR *xdrs, struct LSFHeader *header)
+xdr_LSFHeader(XDR *xdrs, struct packet_header *header)
 {
-    unsigned int word1, word2, word3;
-
     if (xdrs->x_op == XDR_ENCODE) {
-        header->version = _XDR_VERSION_0_1_0;
-        encodeHdr(&word1, &word2, &word3, header);
+        header->version = CURRENT_PROTOCOL_VERSION;
+        if (! marshal_packet_header(xdrs, header)) {
+            lserrno = LSE_BAD_XDR;
+            return false;
+        }
+        return true;
     }
 
-    if (!(xdr_u_int(xdrs, &word1) &&
-          xdr_u_int(xdrs, &word2) &&
-          xdr_u_int(xdrs, &word3)))
-        return false;
-
     if (xdrs->x_op == XDR_DECODE) {
-        header->refCode = word1 >> 16;
-        header->opCode = word1 & 0xFFFF;
-        header->length = word2;
-        header->version = word3 >> 24;
-        header->reserved0.High  = (word3 >> 16) & 0xFF;
-        header->reserved0.Low = word3 & 0xFFFF;
+        if (! marshal_packet_header(xdrs, header)) {
+            lserrno = LSE_BAD_XDR;
+            return false;
+        }
+        // The protocol version comes in the packet
     }
 
     return true;
 }
 
 bool_t
-xdr_packLSFHeader (char *buf, struct LSFHeader *header)
+xdr_packLSFHeader(char *buf, struct packet_header *header)
 {
     XDR xdrs;
-    char hdrBuf[LSF_HEADER_LEN];
+    char hdrBuf[PACKET_HEADER_SIZE];
 
-    xdrmem_create(&xdrs, hdrBuf, LSF_HEADER_LEN, XDR_ENCODE);
+    xdrmem_create(&xdrs, hdrBuf, PACKET_HEADER_SIZE, XDR_ENCODE);
 
     if (!xdr_LSFHeader(&xdrs, header)) {
         lserrno = LSE_BAD_XDR;
@@ -70,33 +64,32 @@ xdr_packLSFHeader (char *buf, struct LSFHeader *header)
     return true;
 }
 
-static
-void encodeHdr (unsigned int *word1,
-                unsigned int *word2,
-                unsigned int *word3,
-                struct LSFHeader *header)
+static bool
+marshal_packet_header(XDR *xdrs,
+                      struct packet_header *header)
 {
-    *word1 = header->refCode;
-    *word1 = *word1 << 16;
-    *word1 = *word1 | (header->opCode & 0x0000FFFF);
-    *word2 = header->length;
-    *word3 = header->version;
-    *word3 = *word3 << 8;
-    *word3 = *word3 | (header->reserved0.High & 0x000000FF);
-    *word3 = *word3 << 16;
-    *word3 = *word3 | (header->reserved0.Low & 0x0000FFFF);
-
+    if (!xdr_int32_t(xdrs, &header->sequence))
+        return false;
+    if (!xdr_int32_t(xdrs, &header->operation))
+        return false;
+    if (!xdr_u_int(xdrs, &header->version))
+        return false;
+    if (! xdr_u_int(xdrs, &header->length))
+        return false;
+    if (! xdr_int(xdrs, &header->reserved))
+        return false;
+    return true;
 }
 
 bool_t
-xdr_encodeMsg (XDR *xdrs, char *data, struct LSFHeader *hdr,
+xdr_encodeMsg (XDR *xdrs, char *data, struct packet_header *hdr,
                bool_t (*xdr_func)(), int options, struct lsfAuth *auth)
 {
     int len;
 
-    XDR_SETPOS(xdrs, LSF_HEADER_LEN);
+    XDR_SETPOS(xdrs, PACKET_HEADER_SIZE);
 
-    hdr->version = _XDR_VERSION_0_1_0;
+    hdr->version = CURRENT_PROTOCOL_VERSION;
 
     if (auth) {
         if (!xdr_lsfAuth(xdrs, auth, hdr))
@@ -109,8 +102,7 @@ xdr_encodeMsg (XDR *xdrs, char *data, struct LSFHeader *hdr,
     }
 
     len = XDR_GETPOS(xdrs);
-    if (!(options & ENMSG_USE_LENGTH))
-        hdr->length = len - LSF_HEADER_LEN;
+    hdr->length = len - PACKET_HEADER_SIZE;
     XDR_SETPOS(xdrs, 0);
     if (!xdr_LSFHeader(xdrs, hdr))
         return false;
@@ -119,7 +111,7 @@ xdr_encodeMsg (XDR *xdrs, char *data, struct LSFHeader *hdr,
 }
 
 bool_t
-xdr_arrayElement (XDR *xdrs, char *data, struct LSFHeader *hdr,
+xdr_arrayElement (XDR *xdrs, char *data, struct packet_header *hdr,
                   bool_t (*xdr_func)(), ...)
 {
     va_list ap;
@@ -185,14 +177,14 @@ xdr_array_string(XDR *xdrs, char **astring, int maxlen, int arraysize)
 bool_t
 xdr_time_t(XDR *xdrs, time_t *t)
 {
-    return xdr_u_long(xdrs, (unsigned long *) t);
+    return xdr_int64_t(xdrs, (int64_t *)t);
 }
 
 int
 readDecodeHdr_(int s, char *buf, ssize_t (*readFunc)(), XDR *xdrs,
-               struct LSFHeader *hdr)
+               struct packet_header *hdr)
 {
-    if ((*readFunc)(s, buf, LSF_HEADER_LEN) != LSF_HEADER_LEN) {
+    if ((*readFunc)(s, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
         lserrno = LSE_MSG_SYS;
         return -2;
     }
@@ -206,7 +198,7 @@ readDecodeHdr_(int s, char *buf, ssize_t (*readFunc)(), XDR *xdrs,
 }
 
 int
-readDecodeMsg_(int s, char *buf, struct LSFHeader *hdr, ssize_t (*readFunc)(),
+readDecodeMsg_(int s, char *buf, struct packet_header *hdr, ssize_t (*readFunc)(),
                XDR *xdrs, char *data, bool_t (*xdrFunc)(),
                struct lsfAuth *auth)
 {
@@ -231,7 +223,7 @@ readDecodeMsg_(int s, char *buf, struct LSFHeader *hdr, ssize_t (*readFunc)(),
 }
 
 int
-writeEncodeMsg_(int s, char *buf, int len, struct LSFHeader *hdr, char *data,
+writeEncodeMsg_(int s, char *buf, int len, struct packet_header *hdr, char *data,
                 ssize_t (*writeFunc)(), bool_t (*xdrFunc)(), int options)
 {
     XDR xdrs;
@@ -255,14 +247,14 @@ writeEncodeMsg_(int s, char *buf, int len, struct LSFHeader *hdr, char *data,
 }
 
 int
-writeEncodeHdr_(int s, struct LSFHeader *hdr, ssize_t (*writeFunc)())
+writeEncodeHdr_(int s, struct packet_header *hdr, ssize_t (*writeFunc)())
 {
     XDR xdrs;
-    struct LSFHeader buf;
+    struct packet_header buf;
 
     initLSFHeader_(&buf);
     hdr->length = 0;
-    xdrmem_create(&xdrs, (char *) &buf, LSF_HEADER_LEN, XDR_ENCODE);
+    xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE, XDR_ENCODE);
 
     if (!xdr_LSFHeader(&xdrs, hdr)) {
         lserrno = LSE_BAD_XDR;
@@ -272,7 +264,7 @@ writeEncodeHdr_(int s, struct LSFHeader *hdr, ssize_t (*writeFunc)())
 
     xdr_destroy(&xdrs);
 
-    if ((*writeFunc)(s, (char *) &buf, LSF_HEADER_LEN) != LSF_HEADER_LEN) {
+    if ((*writeFunc)(s, (char *) &buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
         lserrno = LSE_MSG_SYS;
         return -2;
     }
@@ -281,7 +273,7 @@ writeEncodeHdr_(int s, struct LSFHeader *hdr, ssize_t (*writeFunc)())
 }
 
 bool_t
-xdr_stringLen(XDR *xdrs, struct stringLen *str, struct LSFHeader *Hdr)
+xdr_stringLen(XDR *xdrs, struct stringLen *str, struct packet_header *Hdr)
 {
     if (xdrs->x_op == XDR_DECODE)
         str->name[0] = '\0';
@@ -293,7 +285,7 @@ xdr_stringLen(XDR *xdrs, struct stringLen *str, struct LSFHeader *Hdr)
 }
 
 bool_t
-xdr_lsfLimit (XDR *xdrs, struct lsfLimit *limits, struct LSFHeader *hdr)
+xdr_lsfLimit (XDR *xdrs, struct lsfLimit *limits, struct packet_header *hdr)
 {
     if (!(xdr_u_int(xdrs, (unsigned int*)&limits->rlim_curl) &&
           xdr_u_int(xdrs, (unsigned int*)&limits->rlim_curh) &&
@@ -332,7 +324,7 @@ xdr_address (XDR *xdrs, u_int *addr)
 
 bool_t
 xdr_debugReq (XDR *xdrs, struct debugReq  *debugReq,
-              struct LSFHeader *hdr)
+              struct packet_header *hdr)
 {
 
     static char *sp = NULL;
@@ -369,7 +361,7 @@ xdr_debugReq (XDR *xdrs, struct debugReq  *debugReq,
 }
 
 void
-xdr_lsffree(bool_t (*xdr_func)(), char *objp, struct LSFHeader *hdr)
+xdr_lsffree(bool_t (*xdr_func)(), char *objp, struct packet_header *hdr)
 {
 
     XDR xdrs;
@@ -379,25 +371,4 @@ xdr_lsffree(bool_t (*xdr_func)(), char *objp, struct LSFHeader *hdr)
     (*xdr_func)(&xdrs, objp, hdr);
 
     xdr_destroy(&xdrs);
-}
-
-int
-getXdrStrlen(char *str)
-{
-
-    if (str == NULL)
-        return 4;
-    return((strlen(str)+7)/4*4);
-}
-
-int
-getHdrReserved(struct LSFHeader *hdr)
-{
-    unsigned int word;
-
-    word = hdr->reserved0.High;
-    word = word << 16;
-    word = word | (hdr->reserved0.Low & 0x0000FFFF);
-
-    return word;
 }

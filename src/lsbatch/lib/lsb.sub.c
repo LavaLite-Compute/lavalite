@@ -64,8 +64,6 @@ char optionFileName[MAXLSFNAMELEN];
 char *loginShell;
 static char *additionEsubInfo=NULL;
 
-static const char* getDefaultSpoolDir();
-
 extern void sub_perror(char *usrMsg);
 
 static void trimSpaces(char *str);
@@ -120,9 +118,6 @@ int getChkDir(char *, char *);
 static void startNios(struct submitReq *, int, LS_LONG_INT);
 static void postSubMsg(struct submit *, LS_LONG_INT, struct submitReply *);
 static int readOptFile(char *filename, char *childLine);
-
-static const LSB_SPOOL_INFO_T * chUserCopySpoolFile(const char * srcFile,
-        spoolOptions_t fileType);
 
 extern void makeCleanToRunEsub();
 extern char *translateString(char *);
@@ -242,7 +237,7 @@ lsb_submit(struct submit  *jobSubReq, struct submitReply *submitRep)
 
 int
 getCommonParams (struct submit  *jobSubReq, struct submitReq *submitReq,
-        struct submitReply *submitRep)
+                 struct submitReply *submitRep)
 {
     int i, useKb = 0;
     static char fname[] = "getCommonParams";
@@ -613,7 +608,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
     int reqBufSize;
     char *reply_buf;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct submitMbdReply *reply;
     LS_LONG_INT jobId;
 
@@ -633,7 +628,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
     mbdReqtype = BATCH_JOB_SUB;
     xdrmem_create(&xdrs, request_buf, reqBufSize, XDR_ENCODE);
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *) submitReqPtr, &hdr, xdr_submitReq, 0,
                 auth)) {
         xdr_destroy(&xdrs);
@@ -653,7 +648,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
     xdr_destroy(&xdrs);
     free(request_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (cc == 0) {
         submitReply->badJobId = 0;
         submitReply->badReqIndx = 0;
@@ -706,6 +701,8 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
 static int
 dependCondSyntax(char *dependCond)
 {
+    // Bug fix this
+    (void)dependCond;
     return 0;
 }
 
@@ -755,7 +752,7 @@ subRestart(struct submit  *jobSubReq, struct submitReq *submitReq,
     } else if (pid == 0) {
 
         uid_t uid;
-        char chklog[MAXFILENAMELEN];
+        char chklog[PATH_MAX];
         FILE *fp;
         struct eventRec *logPtr;
         int exitVal = -1;
@@ -1272,8 +1269,10 @@ getChkDir(char *givenDir, char *chkPath)
 }
 
 static LS_LONG_INT
-subJob(struct submit  *jobSubReq, struct submitReq *submitReq,
-        struct submitReply *submitRep, struct lsfAuth *auth)
+subJob(struct submit  *jobSubReq,
+       struct submitReq *submitReq,
+       struct submitReply *submitRep,
+       struct lsfAuth *auth)
 {
 
     char homeDir[MAXFILENAMELEN];
@@ -1364,215 +1363,17 @@ cleanup:
 
     if (jobId < 0) {
 
-#if 0
-        const char* spoolHost;
-        int err;
-
-        // Bug we dont use spool for now
-        if (subSpoolFiles.inFileSpool[0]) {
-
-            spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.inFileSpool);
-            err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.inFileSpool);
-            if (err) {
-                fprintf(stderr,
-                        ("Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
-                        subSpoolFiles.inFileSpool, spoolHost);
-            }
-        }
-
-        if (subSpoolFiles.commandSpool[0]) {
-            spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.commandSpool);
-            err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.commandSpool);
-            if (err) {
-                fprintf(stderr,
-                        ("Submission failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
-                        subSpoolFiles.commandSpool, spoolHost);
-            }
-        }
-#endif
     }
 
     return jobId;
 }
 
-static const char*
-getDefaultSpoolDir()
-{
-    static char   spoolDir[MAXFILENAMELEN];
-    char * clusterName;
-
-    clusterName = ls_getclustername();
-    if (clusterName == NULL) {
-        return NULL;
-    }
-
-    sprintf(spoolDir, "%s/%s", lsbParams[LSB_SHAREDIR].paramValue,
-            clusterName);
-
-    return spoolDir;
-}
-
-static const LSB_SPOOL_INFO_T *
-chUserCopySpoolFile(const char * srcFile, spoolOptions_t fileType)
-{
-    static LSB_SPOOL_INFO_T parentSpoolInfo;
-    pid_t pid;
-    int status;
-    int exitVal, cc;
-    int rcpp[2];
-
-    // Bug we dont use spool dir
-#if 0
-    if (defaultSpoolDir == NULL) {
-        defaultSpoolDir = getDefaultSpoolDir();
-    }
-#endif
-    memset(&parentSpoolInfo, 0, sizeof(parentSpoolInfo));
-
-    if (pipe(rcpp) < 0) {
-        perror("chUserCopySpoolFile:pipe");
-        lsberrno = LSBE_SYS_CALL;
-        return NULL;
-    }
-
-    switch(pid = fork()) {
-        case 0:
-
-            close(rcpp[0]);
-
-            exitVal = -1;
-
-            {
-                const LSB_SPOOL_INFO_T *childSpoolInfo;
-
-                setuid( getuid() );
-                // Bug we dont use spool
-                // childSpoolInfo = copySpoolFile(srcFile, fileType);
-                if (1) {
-                    memcpy(&parentSpoolInfo, childSpoolInfo,
-                            sizeof(parentSpoolInfo));
-                    exitVal = 0;
-                    exit(0);
-                }
-            }
-
-            cc = write(rcpp[1], &parentSpoolInfo,
-                    sizeof(parentSpoolInfo));
-            if (cc < sizeof(parentSpoolInfo)) {
-                exitVal = -1;
-            }
-            close(rcpp[1]);
-
-            exit (exitVal);
-
-        case -1:
-
-            close(rcpp[0]);
-            close(rcpp[1]);
-            perror("chUserCopySpoolFile:fork");
-            lsberrno = LSBE_SYS_CALL;
-            return NULL;
-
-        default:
-
-            close(rcpp[1]);
-
-            cc = read(rcpp[0], &parentSpoolInfo,
-                    sizeof(parentSpoolInfo));
-            if (cc < sizeof(parentSpoolInfo)) {
-                perror("chUserCopySpoolFile:read");
-                lsberrno = LSBE_SYS_CALL;
-                return NULL;
-            }
-            close(rcpp[0]);
-
-            if (waitpid(pid, &status, 0) < 0 ) {
-                perror("chUserCopySpoolFile:waitpid");
-                lsberrno = LSBE_SYS_CALL;
-                return NULL;
-            }
-
-            if (WIFEXITED(status) == 0) {
-                fprintf(stderr, "Child process killed by signal.\n");
-                lsberrno = LSBE_SYS_CALL;
-                return NULL;
-            }
-            else {
-                if (WEXITSTATUS(status) == 0xff) {
-                    lsberrno = LSBE_SYS_CALL;
-                    return NULL;
-                }
-            }
-
-            break;
-    }
-
-    return &parentSpoolInfo;
-}
-
 int
-chUserRemoveSpoolFile( const char * hostName, const char * spoolFile)
-{
-    pid_t pid;
-    int status;
-    const char *sp;
-    char dirName[MAXFILENAMELEN];
-
-    sp = getLowestDir_(spoolFile);
-    if (sp) {
-        strcpy(dirName, sp);
-    } else {
-        strcpy(dirName, spoolFile);
-    }
-
-    switch(pid = fork()) {
-        case 0:
-
-            setuid( getuid() );
-            // Bug swe dont use spool
-            //removeSpoolFile( hostName, dirName )
-            if (1) {
-                exit( 0 );
-            } else {
-                exit( -1);
-            }
-            break;
-
-        case -1:
-
-            perror("chUserRemoveSpoolFile:fork");
-            lsberrno = LSBE_SYS_CALL;
-            return -1;
-
-        default:
-
-            if (waitpid(pid, &status, 0) < 0 ) {
-                perror("chUserRemoveSpoolFile:waitpid");
-                lsberrno = LSBE_SYS_CALL;
-                return -1;
-            }
-
-            if (WIFEXITED(status) == 0) {
-                fprintf(stderr, "Child process killed by signal.\n");
-                lsberrno = LSBE_SYS_CALL;
-                return -1;
-            }
-            else {
-                if (WEXITSTATUS(status) == 0xff) {
-                    lsberrno = LSBE_SYS_CALL;
-                    return -1;
-                }
-            }
-
-    }
-
-    return 0;
-}
-
-int
-getOtherParams (struct submit  *jobSubReq, struct submitReq *submitReq,
-        struct submitReply *submitRep, struct lsfAuth *auth,
-        LSB_SUB_SPOOL_FILE_T* subSpoolFiles)
+getOtherParams(struct submit  *jobSubReq,
+               struct submitReq *submitReq,
+               struct submitReply *submitRep,
+               struct lsfAuth *auth,
+               LSB_SUB_SPOOL_FILE_T* subSpoolFiles)
 {
     char *jobdesp, *sp, jobdespBuf[MAX_CMD_DESC_LEN];
     char lineStrBuf[MAXLINELEN], lastNonSpaceChar;
@@ -1580,6 +1381,10 @@ getOtherParams (struct submit  *jobSubReq, struct submitReq *submitReq,
     char *myHostName;
     struct passwd *pw;
     int jobSubReqCmd1Offset;
+
+    // Bug unused data memeber
+    (void)submitRep;
+    (void)subSpoolFiles;
 
     if (jobSubReq->options & SUB_JOB_NAME) {
         if (!jobSubReq->jobName) {
@@ -1595,6 +1400,9 @@ getOtherParams (struct submit  *jobSubReq, struct submitReq *submitReq,
     } else
         submitReq->jobName = "";
 
+    // Bug remove all spool reference and code
+    submitReq->inFileSpool = "";
+    submitReq->inFile = "";
     if (jobSubReq->options & SUB_IN_FILE) {
         if (!jobSubReq->inFile) {
             lsberrno = LSBE_BAD_ARG;
@@ -1608,30 +1416,6 @@ getOtherParams (struct submit  *jobSubReq, struct submitReq *submitReq,
         }
         submitReq->inFile = jobSubReq->inFile;
         submitReq->inFileSpool = "";
-    } else if (jobSubReq->options2 & SUB2_IN_FILE_SPOOL) {
-
-        const char* pSpoolFile;
-        int spoolFileLen;
-        const LSB_SPOOL_INFO_T *spoolInfo;
-
-        spoolInfo = chUserCopySpoolFile(jobSubReq->inFile, SPOOL_INPUT_FILE);
-        if (spoolInfo == NULL) {
-            return -1;
-        }
-
-        pSpoolFile = spoolInfo->spoolFile;
-        spoolFileLen = strlen(pSpoolFile);
-        if (spoolFileLen >= MAXFILENAMELEN) {
-            lsberrno = LSBE_SYS_CALL;
-            errno = ENAMETOOLONG;
-            return -1;
-        }
-        memcpy(subSpoolFiles->inFileSpool, pSpoolFile, spoolFileLen + 1);
-        submitReq->inFileSpool = subSpoolFiles->inFileSpool;
-        submitReq->inFile = jobSubReq->inFile;
-    } else {
-        submitReq->inFileSpool = "";
-        submitReq->inFile = "";
     }
 
     if (jobSubReq->options & SUB_MAIL_USER) {
@@ -1837,86 +1621,7 @@ getOtherParams (struct submit  *jobSubReq, struct submitReq *submitReq,
     }
 
     if (jobSubReq->options2 & SUB2_JOB_CMD_SPOOL) {
-
-        const char* pSpoolCmd;
-        int spoolCmdLen;
-        const char* pSrcCmd;
-        int srcCmdLen;
-        int ii, jj;
-        const LSB_SPOOL_INFO_T* spoolInfo;
-        char* sp;
-
-        if (jobSubReq->options & SUB_MODIFY) {
-
-            strcpy(submitReq->command, jobSubReq->newCommand);
-
-            pSrcCmd = getCmdPathName_(jobSubReq->newCommand, &srcCmdLen);
-        } else {
-
-            pSrcCmd = getCmdPathName_(&jobSubReq->command[jobSubReqCmd1Offset],
-                    &srcCmdLen);
-        }
-        if (srcCmdLen >= sizeof(lineStrBuf)) {
-            lsberrno = LSBE_SYS_CALL;
-            errno = ENAMETOOLONG;
-            return -1;
-        }
-
-        memcpy(lineStrBuf, pSrcCmd, srcCmdLen);
-        lineStrBuf[srcCmdLen] = 0;
-
-        spoolInfo = chUserCopySpoolFile(lineStrBuf, SPOOL_COMMAND);
-        if (spoolInfo == NULL) {
-            return -1;
-        }
-
-        pSpoolCmd = spoolInfo->spoolFile;
-        spoolCmdLen = strlen(pSpoolCmd);
-        if (spoolCmdLen >= MAXFILENAMELEN) {
-            lsberrno = LSBE_SYS_CALL;
-            errno = ENAMETOOLONG;
-            return -1;
-        }
-        memcpy(subSpoolFiles->commandSpool, pSpoolCmd, spoolCmdLen + 1);
-        submitReq->commandSpool = subSpoolFiles->commandSpool;
-
-        if (!(jobSubReq->options & SUB_MODIFY)) {
-
-            char* pChangeSrcCmd = (char*)pSrcCmd;
-
-            if (spoolCmdLen <= srcCmdLen) {
-
-                memcpy(pChangeSrcCmd, pSpoolCmd, spoolCmdLen);
-                for (ii = spoolCmdLen, jj = srcCmdLen;
-                        pChangeSrcCmd[jj]; ii++, jj++) {
-                    pChangeSrcCmd[ii] = pChangeSrcCmd[jj];
-                }
-                pChangeSrcCmd[ii] = 0;
-            } else {
-
-                int oldLen, newLen;
-
-                sp = jobSubReq->command;
-                oldLen = strlen(sp);
-                newLen = oldLen + spoolCmdLen - srcCmdLen;
-                sp = realloc(sp, newLen);
-                if (sp == NULL) {
-                    lsberrno = LSBE_NO_MEM;
-                    return -1;
-                }
-                jobSubReq->command = sp;
-
-                pChangeSrcCmd = (char*)
-                    getCmdPathName_(&jobSubReq->command[jobSubReqCmd1Offset],
-                            &srcCmdLen);
-
-                for (ii = newLen, jj = oldLen;
-                        jj >= srcCmdLen; ii--, jj--) {
-                    pChangeSrcCmd[ii] = pChangeSrcCmd[jj];
-                }
-                memcpy(pChangeSrcCmd, pSpoolCmd, spoolCmdLen);
-            }
-        }
+        // Bug remove reference
     } else if (jobSubReq->options2 & SUB2_MODIFY_CMD) {
 
         strcpy(submitReq->command, jobSubReq->newCommand);
@@ -2342,26 +2047,24 @@ xdrSubReqSize(struct submitReq *req)
 static
 int createNiosSock(struct submitReq *submitReq)
 {
-    int asock;
-
-    int  len;
+    int s;
     struct sockaddr_in sin;
 
-    if ((asock = TcpCreate_(true, 0)) < 0) {
+    if ((s = TcpCreate_(true, 0)) < 0) {
         lsberrno = LSBE_LSLIB;
         return -1;
     }
 
-    len = sizeof(sin);
-    if (getsockname (asock, (struct sockaddr *) &sin, &len) < 0) {
-        close(asock);
+    socklen_t len = sizeof(sin);
+    if (getsockname (s, (struct sockaddr *) &sin, &len) < 0) {
+        close(s);
         lsberrno = LSBE_LSLIB;
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
 
     submitReq->niosPort = ntohs(sin.sin_port);
-    return asock;
+    return s;
 }
 
 static
@@ -2450,11 +2153,7 @@ postSubMsg(struct submit *req, LS_LONG_INT jobId, struct submitReply *reply)
 void
 prtBETime_(struct submit *req)
 {
-    static char fname[] = "prtBETime_";
-    char *sp;
-
-    if (logclass & (LC_TRACE | LC_EXEC | LC_SCHED))
-        ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
+    const char *sp;
 
     if (req->beginTime > 0) {
         sp = ctime2(&req->beginTime);
@@ -2825,8 +2524,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 req->options |= SUB_HOST;
                 if (getAskedHosts_(optarg, &req->askedHosts, &req->numAskedHosts,
                             &badIdx, false) < 0 && lserrno != LSE_BAD_HOST) {
-                    lsberrno=LSBE_LSLIB;
-                    PRINT_ERRMSG0(errMsg, ls_sysmsg());
+                    lsberrno = LSBE_LSLIB;
                     return -1;
                 }
                 if (req->numAskedHosts == 0) {
@@ -3412,7 +3110,7 @@ static int
 parseLine_ (char *line, int *embedArgc, char ***embedArgv, char **errMsg )
 {
 #define INCREASE 40
-    int parsing = true, i;
+    int i;
     static char **argBuf = NULL, *key;
     static char fname[] = "parseLine_";
     static int argNum = 0;
@@ -3447,7 +3145,6 @@ parseLine_ (char *line, int *embedArgc, char ***embedArgv, char **errMsg )
         line += strlen(key);
         SKIPSPACE(line);
         if (*line != '-') {
-            parsing = false;
             return -1;
         }
         while (true) {
@@ -3972,7 +3669,7 @@ sprintf (esub, "%s/%s", lsbParams[LSB_SERVERDIR].paramValue, ESUBNAME);
 if (stat(esub, &sbuf) < 0)
     return 0;
 
-    sprintf(parmFile, "%s/.lsbsubparm.%d", LSTMPDIR, (int)getpid());
+  sprintf(parmFile, "%s/.lsbsubparm.%d", LSTMPDIR, (int)getpid());
 
     if ((parmfp = fopen(parmFile, "w")) == NULL) {
         lsberrno = LSBE_SYS_CALL;
@@ -4203,7 +3900,6 @@ static int
 readOptFile(char *filename, char *childLine)
 {
     char *p, *sp, *sline, *start;
-    int lineLen;
     FILE *fp;
 
     if ((fp = fopen(filename, "r")) == NULL) {
@@ -4211,7 +3907,6 @@ readOptFile(char *filename, char *childLine)
                 "fopen", filename);
         return -1;
     }
-    lineLen = 0;
 
     while ((sline = getNextLine_(fp, false)) != NULL) {
         sp = sline;
@@ -4235,7 +3930,6 @@ readOptFile(char *filename, char *childLine)
 
                     *sp = '\0';
                 sp = sline;
-                lineLen = strlen(sp);
                 if ( childLine[0] == '\0' )
                     strcpy(childLine, sline);
                 else
@@ -4990,11 +4684,10 @@ char *extractStringValue(char *line)
 int processXFReq(char *key,char *line,struct submit *jobSubReq)
 {
     static char fname[]="processXFRequest";
-    int validKey,v;
+    int v;
     char *sValue;
 
     if(strcmp(key,"LSB_SUB_OTHER_FILES")==0) {
-        validKey=1;
 
         if (stringIsToken(line,"SUB_RESET")) {
             free(jobSubReq->xf);
@@ -5046,7 +4739,7 @@ int processXFReq(char *key,char *line,struct submit *jobSubReq)
             return -1;
         }
 
-        v=atoi(xfSeq);validKey=1;
+        v=atoi(xfSeq);
         if (v<jobSubReq->nxf) {
             char op[20];
             char *txt,*srcf;

@@ -24,22 +24,22 @@
 */
 #include "lsf/lib/lib.rf.h"
 
-extern int xdr_resConnect(XDR *, struct resConnect *, struct LSFHeader *);
-extern int xdr_resCmdBill(XDR *, struct resCmdBill *, struct LSFHeader *);
-extern int xdr_resSetenv(XDR *, struct resSetenv *, struct LSFHeader *);
-extern int xdr_resRKill(XDR *, struct resRKill *, struct LSFHeader *);
-extern int xdr_resGetpid(XDR *, struct resPid *, struct LSFHeader *);
-extern bool_t xdr_resGetRusage(XDR *, struct resRusage *, struct LSFHeader *);
-extern int xdr_resChdir(XDR *, struct resChdir *, struct LSFHeader *);
-extern int xdr_resControl(XDR *, struct resControl *, struct LSFHeader *);
+extern int xdr_resConnect(XDR *, struct resConnect *, struct packet_header *);
+extern int xdr_resCmdBill(XDR *, struct resCmdBill *, struct packet_header *);
+extern int xdr_resSetenv(XDR *, struct resSetenv *, struct packet_header *);
+extern int xdr_resRKill(XDR *, struct resRKill *, struct packet_header *);
+extern int xdr_resGetpid(XDR *, struct resPid *, struct packet_header *);
+extern bool_t xdr_resGetRusage(XDR *, struct resRusage *, struct packet_header *);
+extern int xdr_resChdir(XDR *, struct resChdir *, struct packet_header *);
+extern int xdr_resControl(XDR *, struct resControl *, struct packet_header *);
 
-extern int xdr_resStty (XDR *, struct resStty *, struct LSFHeader *);
-extern int xdr_niosConnect (XDR *, struct niosConnect *, struct LSFHeader *);
-extern int xdr_niosStatus (XDR *, struct niosStatus *, struct LSFHeader *);
-extern int xdr_resSignal (XDR *, struct resSignal *, struct LSFHeader *);
+extern int xdr_resStty (XDR *, struct resStty *, struct packet_header *);
+extern int xdr_niosConnect (XDR *, struct niosConnect *, struct packet_header *);
+extern int xdr_niosStatus (XDR *, struct niosStatus *, struct packet_header *);
+extern int xdr_resSignal (XDR *, struct resSignal *, struct packet_header *);
 
-extern bool_t xdr_ropenReq (XDR *, struct ropenReq *, struct LSFHeader *);
-extern bool_t xdr_rrdwrReq (XDR *, struct rrdwrReq *, struct LSFHeader *);
-extern bool_t xdr_rlseekReq (XDR *, struct rlseekReq *, struct LSFHeader *);
+extern bool_t xdr_ropenReq (XDR *, struct ropenReq *, struct packet_header *);
+extern bool_t xdr_rrdwrReq (XDR *, struct rrdwrReq *, struct packet_header *);
+extern bool_t xdr_rlseekReq (XDR *, struct rlseekReq *, struct packet_header *);
 
 #endif

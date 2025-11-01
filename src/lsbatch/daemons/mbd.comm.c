@@ -20,7 +20,7 @@
 
 extern int connTimeout;
 static sbdReplyType
-callSBD(char *, char *, int, char **, struct LSFHeader *, int (*)(),
+callSBD(char *, char *, int, char **, struct packet_header *, int (*)(),
 	int *postSndFuncArg, struct hData *, char *, char *, int *, int *,
 	int, struct sbdNode *, int *);
 
@@ -47,7 +47,7 @@ start_ajob (struct jData *jDataPtr, struct qData *qp, struct jobReply *jobReply)
     static char fname[] = "start_job";
     struct jobSpecs jobSpecs;
     char *request_buf = NULL;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *reply_buf = NULL;
     XDR xdrs;
     sbdReplyType reply;
@@ -60,7 +60,7 @@ start_ajob (struct jData *jDataPtr, struct qData *qp, struct jobReply *jobReply)
     static int errcnt;
     struct sbdNode sbdNode;
     int socket;
-    struct lsfAuth *auth;
+    struct lsfAuth *auth = NULL;
 
     if (logclass & (LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG2, "%s: job=%s", fname, lsb_jobid2str(jDataPtr->jobId));
@@ -122,7 +122,7 @@ start_ajob (struct jData *jDataPtr, struct qData *qp, struct jobReply *jobReply)
     }
 #endif
 
-    hdr.opCode = MBD_NEW_JOB;
+    hdr.operation = MBD_NEW_JOB;
     buflen = sizeof(struct jobSpecs) + sizeof(struct sbdPackage) + 100
              + jobSpecs.numToHosts * MAXHOSTNAMELEN
              + jobSpecs.thresholds.nThresholds
@@ -130,7 +130,6 @@ start_ajob (struct jData *jDataPtr, struct qData *qp, struct jobReply *jobReply)
              + jobSpecs.nxf * sizeof (struct xFile) + jobSpecs.eexec.len;
     for (i = 0; i < jobSpecs.numEnv; i++)
 	buflen += strlen(jobSpecs.env[i]);
-    buflen = (buflen * 4) / 4;
 #ifdef INTER_DAEMON_AUTH
     buflen += xdr_lsfAuthSize(auth);
 #endif
@@ -190,7 +189,7 @@ switch_job (struct jData *jDataPtr, int options)
     static char fname[] = "switch_job";
     struct jobSpecs jobSpecs;
     char *request_buf = NULL;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *reply_buf = NULL;
     XDR xdrs;
     sbdReplyType reply;
@@ -201,7 +200,7 @@ switch_job (struct jData *jDataPtr, int options)
     char *toHost = jDataPtr->hPtr[0]->host;
     struct sbdNode sbdNode;
     int socket;
-    struct lsfAuth auth_data, *auth = NULL;
+    struct lsfAuth *auth = NULL;
 
     if (logclass & (LC_SIGNAL | LC_EXEC))
         ls_syslog(LOG_DEBUG2, "%s: job=%s", fname, lsb_jobid2str(jDataPtr->jobId));
@@ -219,9 +218,9 @@ switch_job (struct jData *jDataPtr, int options)
 #endif
 
     if (options == TRUE) {
-	hdr.opCode = MBD_SWIT_JOB;
+	hdr.operation = MBD_SWIT_JOB;
     } else {
-	hdr.opCode = MBD_MODIFY_JOB;
+	hdr.operation = MBD_MODIFY_JOB;
     }
     buflen = sizeof(struct jobSpecs) + sizeof(struct sbdPackage) + 100
              + jobSpecs.numToHosts * MAXHOSTNAMELEN
@@ -282,7 +281,7 @@ sbdReplyType
 signal_job (struct jData *jp, struct jobSig *sendReq, struct jobReply *jobReply)
 {
     static char fname[] = "signal_job";
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char request_buf[MSGSIZE];
     char *reply_buf;
     XDR xdrs;
@@ -322,7 +321,7 @@ signal_job (struct jData *jp, struct jobSig *sendReq, struct jobReply *jobReply)
 
     reqCode = MBD_SIG_JOB;
     xdrmem_create(&xdrs, request_buf, MSGSIZE/2, XDR_ENCODE);
-    hdr.opCode = reqCode;
+    hdr.operation = reqCode;
     if (! xdr_encodeMsg(&xdrs, (char *)&jobSig, &hdr, xdr_jobSig, 0, auth)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs);
@@ -369,7 +368,7 @@ sbdReplyType
 msg_job (struct jData *jp, struct Buffer *mbuf, struct jobReply *jobReply)
 {
     static char fname[] = "msg_job";
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *reply_buf;
     sbdReplyType reply;
     static char lastHost[MAXHOSTNAMELEN];
@@ -407,7 +406,7 @@ msg_job (struct jData *jp, struct Buffer *mbuf, struct jobReply *jobReply)
 }
 
 sbdReplyType
-probe_slave (struct hData *hData, char sendJobs)
+probe_slave(struct hData *hData, char sendJobs)
 {
     static char fname[] = "probe_slave";
     char *request_buf, *reply_buf = NULL;
@@ -418,22 +417,19 @@ probe_slave (struct hData *hData, char sendJobs)
     XDR xdrs;
     int i, cc;
     sbdReplyType reply;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     char *toHost = hData->host;
     int *sockPtr;
     int socket;
-    struct LSFHeader hdrBuf;
+    struct packet_header hdrBuf;
     struct sbdNode sbdNode;
-    struct lsfAuth auth_data, *auth = NULL;
+    struct lsfAuth *auth = NULL;
 
     memset(&xdrs, 0, sizeof(XDR));
     if (logclass & LC_COMM)
 	ls_syslog(LOG_DEBUG, "%s: Probing <%s> sendJobs %d", fname,
 		  toHost, sendJobs);
 
-    hdr.refCode = 0;
-    hdr.reserved0.High = 0;
-    hdr.reserved0.Low  = 0;
 #ifdef INTER_DAEMON_AUTH
     if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
 	if (getMbdAuth(&auth_data, toHost)) {
@@ -455,7 +451,7 @@ probe_slave (struct hData *hData, char sendJobs)
 #ifdef INTER_DAEMON_AUTH
 	buflen += xdr_lsfAuthSize(auth);
 #endif
-	hdr.opCode = MBD_PROBE;
+	hdr.operation = MBD_PROBE;
 	request_buf = (char *) my_malloc (buflen, fname);
 	xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
 	if (! xdr_encodeMsg(&xdrs, (char *)&sbdPackage, &hdr, xdr_sbdPackage, 0, auth)) {
@@ -473,7 +469,7 @@ probe_slave (struct hData *hData, char sendJobs)
 	}
 	sockPtr = &socket;
     } else {
-	hdr.opCode = MBD_PROBE;
+	hdr.operation = MBD_PROBE;
 	hdr.length = 0;
 #ifdef INTER_DAEMON_AUTH
 	buflen = sizeof(hdrBuf);
@@ -561,7 +557,7 @@ rebootSbd (char *host)
     struct hData  *hData;
     static char lastHost[MAXHOSTNAMELEN];
     static int errcnt;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     int cc;
     struct lsfAuth *auth = NULL;
 
@@ -575,7 +571,7 @@ rebootSbd (char *host)
     }
 #endif
 
-    hdr.opCode = MBD_REBOOT;
+    hdr.operation = MBD_REBOOT;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs, NULL, &hdr, NULL, 0, auth)) {
 	ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
@@ -616,9 +612,9 @@ shutdownSbd (char *host)
     static char lastHost[MAXHOSTNAMELEN];
     static int errcnt;
     struct hData  *hData;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     int cc;
-    struct lsfAuth auth_data, *auth = NULL;
+    struct lsfAuth *auth = NULL;
 
 #ifdef INTER_DAEMON_AUTH
     if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
@@ -629,7 +625,7 @@ shutdownSbd (char *host)
     }
 #endif
 
-    hdr.opCode = MBD_SHUTDOWN;
+    hdr.operation = MBD_SHUTDOWN;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs, (char *)NULL, &hdr, NULL, 0, auth)) {
 	ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
@@ -661,7 +657,7 @@ shutdownSbd (char *host)
 
 static sbdReplyType
 callSBD(char *toHost, char *request_buf, int len, char **reply_buf,
-	struct LSFHeader *replyHdr, int (*postSndFunc)(), int *postSndFuncArg,
+	struct packet_header *replyHdr, int (*postSndFunc)(), int *postSndFuncArg,
 	struct hData *hPtr, char *lastHost, char *caller, int *cnt, int *cc,
 	int callServerFlags, struct sbdNode *sbdPtr, int *sockPtr)
 {
@@ -740,7 +736,7 @@ callSBD(char *toHost, char *request_buf, int len, char **reply_buf,
 	return ERR_NO_ERROR;
     }
 
-    return replyHdr->opCode;
+    return replyHdr->operation;
 
 }
 
@@ -756,11 +752,11 @@ callSbdDebug(struct debugReq *pdebug)
     static char lastHost[MAXHOSTNAMELEN];
     static int errcnt;
     struct hData *hData;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct debugReq debug;
     int cc;
 
-    hdr.opCode = CMD_SBD_DEBUG;
+    hdr.operation = CMD_SBD_DEBUG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     debug.opCode = pdebug->opCode;

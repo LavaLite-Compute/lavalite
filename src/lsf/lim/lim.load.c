@@ -35,7 +35,7 @@ char   mustSendLoad = true;
 
 extern int maxnLbHost;
 
-static void rcvLoadVector (XDR *, struct sockaddr_in *, struct LSFHeader *);
+static void rcvLoadVector (XDR *, struct sockaddr_in *, struct packet_header *);
 static void logcnt(int);
 static void copyResValues (struct loadVectorStruct, struct hostNode *);
 
@@ -53,7 +53,7 @@ sendLoad(void)
     XDR    xdrs;
     char   *repBuf;
     int    sendInfo = SEND_NO_INFO;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
 
     limReqCode = LIM_LOAD_UPD;
     resInactivityCount++;
@@ -230,8 +230,8 @@ sendLoad(void)
 
         xdrmem_create(&xdrs, repBuf, bufSize, XDR_ENCODE);
         initLSFHeader_(&reqHdr);
-        reqHdr.opCode  = (short) limReqCode;
-        reqHdr.refCode =  0;
+        reqHdr.operation  = (short) limReqCode;
+        reqHdr.sequence =  0;
 
         if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
               xdr_enum(&xdrs, (int *) &loadType) &&
@@ -305,7 +305,7 @@ getResPairs (struct hostNode *hPtr)
 
 
 void
-rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
+rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
 {
     static char fname[] = "rcvLoad";
     enum   loadstruct loadType;
@@ -334,7 +334,7 @@ rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
 
 
 static void
-rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
+rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
 {
     static char fname[] = "rcvLoadVector";
     static int checkSumMismatch;

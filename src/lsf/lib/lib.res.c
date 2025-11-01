@@ -101,7 +101,7 @@ ls_connect(char *host)
 
     runEsub_(&connReq.eexec, NULL);
 
-    size = sizeof(struct LSFHeader) + sizeof(connReq) +
+    size = sizeof(struct packet_header) + sizeof(connReq) +
         sizeof(struct lsfAuth) +
         ALIGNWORD_(connReq.eexec.len) +
         sizeof(int) * 5 ;
@@ -299,7 +299,7 @@ ls_chdir(char *host, char *dir)
 {
     int s, descriptor[2];
     struct {
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         struct resChdir ch;
     } buf;
     struct resChdir chReq;
@@ -373,7 +373,7 @@ lsReqHandCreate_(int tid,
 }
 
 int
-ackAsyncReturnCode_(int s, struct LSFHeader *replyHdr)
+ackAsyncReturnCode_(int s, struct packet_header *replyHdr)
 {
     int seqno;
     int len;
@@ -382,7 +382,7 @@ ackAsyncReturnCode_(int s, struct LSFHeader *replyHdr)
     struct lsRequest *reqHandle;
 
     rc = 0;
-    seqno = replyHdr->refCode;
+    seqno = replyHdr->sequence;
     reqEntry = lsQueueSearch_(0, (char *)&seqno, requestQ);
     if (reqEntry == NULL) {
         lserrno = LSE_PROTOC_RES;
@@ -394,7 +394,7 @@ ackAsyncReturnCode_(int s, struct LSFHeader *replyHdr)
 
     reqEntry->data = NULL;
 
-    reqHandle->rc = replyHdr->opCode;
+    reqHandle->rc = replyHdr->operation;
     reqHandle->completed = true;
     if (replyHdr->length > 0) {
         reqHandle->replyBuf = (void *)malloc(replyHdr->length);
@@ -433,7 +433,7 @@ ackAsyncReturnCode_(int s, struct LSFHeader *replyHdr)
 }
 
 int
-enqueueTaskMsg_(int s, int taskID, struct LSFHeader *msgHdr)
+enqueueTaskMsg_(int s, int taskID, struct packet_header *msgHdr)
 {
     struct tid *tEnt;
     char *msgBuf;
@@ -454,15 +454,6 @@ enqueueTaskMsg_(int s, int taskID, struct LSFHeader *msgHdr)
     header->msgPtr = NULL;
     if (s < 0) {
         header->type = LSTMSG_IOERR;
-        lsQueueDataAppend_((char *)header, tEnt->tMsgQ);
-        return 0;
-    }
-
-    if (msgHdr->reserved0.High == 0xFF
-        && msgHdr->reserved0.Low == 0xFFFF
-        && msgHdr->length == 0)
-    {
-        header->type = LSTMSG_EOF;
         lsQueueDataAppend_((char *)header, tEnt->tMsgQ);
         return 0;
     }
@@ -492,14 +483,14 @@ enqueueTaskMsg_(int s, int taskID, struct LSFHeader *msgHdr)
 }
 
 int
-expectReturnCode_(int s, int seqno, struct LSFHeader *repHdr)
+expectReturnCode_(int s, int seqno, struct packet_header *repHdr)
 {
-    struct LSFHeader buf;
+    struct packet_header buf;
     static char fname[] = "expectReturnCode_";
     XDR xdrs;
     int rc;
 
-    xdrmem_create(&xdrs, (char *) &buf, sizeof(struct LSFHeader), XDR_DECODE);
+    xdrmem_create(&xdrs, (char *) &buf, sizeof(struct packet_header), XDR_DECODE);
     for (;;) {
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG, "%s: calling readDecodeHdr_...", fname);
@@ -509,14 +500,14 @@ expectReturnCode_(int s, int seqno, struct LSFHeader *repHdr)
             return -1;
         }
 
-        if (repHdr->opCode == RES_NONRES)  {
-            rc = enqueueTaskMsg_(s, repHdr->refCode, repHdr);
+        if (repHdr->operation == RES_NONRES)  {
+            rc = enqueueTaskMsg_(s, repHdr->sequence, repHdr);
             if (rc < 0) {
                 xdr_destroy(&xdrs);
                 return rc;
             }
         } else {
-            if (repHdr->refCode == seqno)
+            if (repHdr->sequence == seqno)
                 break;
 
             rc = ackAsyncReturnCode_(s, repHdr);
@@ -618,7 +609,7 @@ resRC2LSErr_(int resRC)
 int
 ackReturnCode_(int s)
 {
-    struct LSFHeader repHdr;
+    struct packet_header repHdr;
     int rc;
     char hostname[MAXHOSTNAMELEN];
     static char fname[] = "ackReturnCode_";
@@ -634,7 +625,7 @@ ackReturnCode_(int s)
 
     lsf_res_version = (int)repHdr.version;
 
-    rc = resRC2LSErr_(repHdr.opCode);
+    rc = resRC2LSErr_(repHdr.operation);
 
     if (rc == 0)
         return 0;
@@ -922,7 +913,7 @@ lsIRGetRusage_(int rpid,
                int options)
 {
     struct {
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         struct resRusage rusageReq;
     } requestBuf;
 
@@ -985,7 +976,7 @@ int
 lsGetRProcRusage(char *host, int pid, struct jRusage *ru, int options)
 {
     struct {
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         struct resRusage rusageReq;
     } requestBuf;
 
@@ -1058,7 +1049,7 @@ lsGetIRProcRusage_(char *host, int tid, int pid, struct jRusage *ru,
                    void *appExtra)
 {
     struct {
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         struct resRusage rusageReq;
     } requestBuf;
 
@@ -1139,7 +1130,7 @@ int
 sendSig_(char *host, int rid, int sig, int options)
 {
     struct {
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         struct resRKill rk;
     } buf;
     struct resRKill killReq;
@@ -1375,8 +1366,8 @@ Again:
 int
 lsMsgSnd2_(int *sock, int opcode, char *buffer, int len, int options)
 {
-    struct LSFHeader header;
-    char headerBuf[sizeof(struct LSFHeader)];
+    struct packet_header header;
+    char headerBuf[sizeof(struct packet_header)];
     XDR xdrs;
     int rc;
     char hostname[MAXHOSTNAMELEN];
@@ -1385,21 +1376,15 @@ lsMsgSnd2_(int *sock, int opcode, char *buffer, int len, int options)
         return -1;
     }
 
-#ifdef OS_HAS_PTHREAD
-    pthread_mutex_lock(&fdLSLIBWriteMutex);
-#endif
-
-    header.opCode = opcode;
-    header.refCode = currentSN = REQUESTSN;
+    header.operation = opcode;
+    header.sequence = currentSN = REQUESTSN;
     header.length = len;
-    header.reserved0.High = 0xFF;
-    header.reserved0.Low = 0xFFFF;
 
     gethostbysock_(*sock, hostname);
     if (strcmp(hostname, "LSF_HOST_NULL"))
         _setcurseqno_(hostname, currentSN);
 
-    xdrmem_create(&xdrs, headerBuf, LSF_HEADER_LEN, XDR_ENCODE);
+    xdrmem_create(&xdrs, headerBuf, PACKET_HEADER_SIZE, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs, &header)) {
         lserrno = LSE_BAD_XDR;
         xdr_destroy(&xdrs);
@@ -1408,7 +1393,7 @@ lsMsgSnd2_(int *sock, int opcode, char *buffer, int len, int options)
     }
     xdr_destroy(&xdrs);
 
-    rc = b_write_fix(*sock, headerBuf, LSF_HEADER_LEN);
+    rc = b_write_fix(*sock, headerBuf, PACKET_HEADER_SIZE);
     if (rc < 0) {
         if (errno == EPIPE) {
             close(*sock);
@@ -1437,9 +1422,6 @@ lsMsgSnd2_(int *sock, int opcode, char *buffer, int len, int options)
     }
 
 AbortSnd2:
-#ifdef OS_HAS_PTHREAD
-    pthread_mutex_unlock(&fdLSLIBWriteMutex);
-#endif
 
     return rc;
 
@@ -1448,8 +1430,8 @@ AbortSnd2:
 int
 lsMsgSnd_(int taskid, char *buffer, int len, int options)
 {
-    struct LSFHeader header;
-    char headerBuf[sizeof(struct LSFHeader)];
+    struct packet_header header;
+    char headerBuf[sizeof(struct packet_header)];
     XDR xdrs;
     struct tid *tEnt;
     int rc;
@@ -1464,21 +1446,15 @@ lsMsgSnd_(int taskid, char *buffer, int len, int options)
         return -1;
     }
 
-#ifdef OS_HAS_PTHREAD
-    pthread_mutex_lock(&fdLSLIBWriteMutex);
-#endif
-
-    header.opCode = RES_NONRES;
-    header.refCode = currentSN = REQUESTSN;
+    header.operation = RES_NONRES;
+    header.sequence = currentSN = REQUESTSN;
     header.length = len;
-    header.reserved0.High = (taskid >> 16 ) & 0xFF;
-    header.reserved0.Low  = taskid & 0xFFFF;
 
     gethostbysock_(tEnt->sock, hostname);
     if (strcmp(hostname, "LSF_HOST_NULL"))
         _setcurseqno_(hostname, currentSN);
 
-    xdrmem_create(&xdrs, headerBuf, LSF_HEADER_LEN, XDR_ENCODE);
+    xdrmem_create(&xdrs, headerBuf, PACKET_HEADER_SIZE, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs, &header)) {
         lserrno = LSE_BAD_XDR;
         xdr_destroy(&xdrs);
@@ -1487,7 +1463,7 @@ lsMsgSnd_(int taskid, char *buffer, int len, int options)
     }
     xdr_destroy(&xdrs);
 
-    rc = b_write_fix(tEnt->sock, headerBuf, LSF_HEADER_LEN);
+    rc = b_write_fix(tEnt->sock, headerBuf, PACKET_HEADER_SIZE);
     if (rc < 0) {
         if (errno == EPIPE) {
 
@@ -1518,10 +1494,6 @@ lsMsgSnd_(int taskid, char *buffer, int len, int options)
 
 AbortSnd:
 
-#ifdef OS_HAS_PTHREAD
-    pthread_mutex_unlock(&fdLSLIBWriteMutex);
-#endif
-
     return rc;
 
 }
@@ -1536,8 +1508,8 @@ lsMsgWait_(int inTidCnt, int *tidArray, int *rdyTidCnt,
     struct tid *taskEnt;
     int maxfd;
     int nready;
-    char hdrBuf[sizeof(struct LSFHeader)];
-    struct LSFHeader msgHdr;
+    char hdrBuf[sizeof(struct packet_header)];
+    struct packet_header msgHdr;
     int rc;
     int rdycnt;
     XDR xdrs;
@@ -1644,7 +1616,7 @@ Again:
 
     if (rdyTidCnt) {
         rdycnt = 0;
-        xdrmem_create(&xdrs, hdrBuf, sizeof(struct LSFHeader), XDR_DECODE);
+        xdrmem_create(&xdrs, hdrBuf, sizeof(struct packet_header), XDR_DECODE);
         for (i = 0; i < inTidCnt; i++) {
             taskEnt = tidFindIgnoreConn_(tidArray[i]);
             if (taskEnt == NULL) {
@@ -1678,14 +1650,14 @@ Again:
                 rdycnt += nTids;
                 free(tidSameConns);
                 _lostconnection_(taskEnt->host);
-            } else if (msgHdr.opCode != RES_NONRES) {
+            } else if (msgHdr.operation != RES_NONRES) {
                 rc = ackAsyncReturnCode_(taskEnt->sock, &msgHdr);
                 if (rc < 0) {
                     xdr_destroy(&xdrs);
                     goto Fail;
                 }
             } else {
-                rc = enqueueTaskMsg_(taskEnt->sock, msgHdr.refCode, &msgHdr);
+                rc = enqueueTaskMsg_(taskEnt->sock, msgHdr.sequence, &msgHdr);
                 if (rc < 0) {
                     xdr_destroy(&xdrs);
                     goto Fail;
@@ -1749,7 +1721,7 @@ int
 lsReqWait_(LS_REQUEST_T *request, int options)
 {
     int rc;
-    struct LSFHeader header;
+    struct packet_header header;
 
     if (! request)
         return -1;

@@ -298,7 +298,7 @@ void *
 lsRGetpidAsync_(int taskid, int *pid)
 {
     struct _buf_ {
-        struct LSFHeader hdrBuf;
+        struct packet_header hdrBuf;
         struct resPid pidBuf;
     } buf;
     LS_REQUEST_T *request;
@@ -354,7 +354,7 @@ int
 lsRGetpid_(int taskid, int options)
 {
     struct _buf_ {
-        struct LSFHeader hdrBuf;
+        struct packet_header hdrBuf;
         struct resPid pidBuf;
     } buf;
     LS_REQUEST_T *request;
@@ -418,7 +418,7 @@ int
 lsRGetpgrp_(int sock, int taskid, int pid)
 {
     struct _buf_ {
-        struct LSFHeader hdrBuf;
+        struct packet_header hdrBuf;
         struct resPid pidBuf;
     } buf;
     LS_REQUEST_T *request;
@@ -523,14 +523,14 @@ default_tstp_(int signo)
 static
 u_short getTaskPort(int s)
 {
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     int rc;
 
     rc = expectReturnCode_(s, currentSN, &hdr);
     if (rc < 0)
         return 0;
 
-    return (htons(hdr.opCode));
+    return (htons(hdr.operation));
 }
 
 void

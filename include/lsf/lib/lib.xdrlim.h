@@ -21,24 +21,24 @@
 
 #include "lproto.h"
 
-extern bool_t xdr_decisionReq(XDR *, struct decisionReq *, struct LSFHeader *);
-extern bool_t xdr_placeReply(XDR *, struct placeReply *, struct LSFHeader *);
-extern bool_t xdr_loadReply(XDR *, struct loadReply *, struct LSFHeader *);
-extern bool_t xdr_jobXfer(XDR *, struct jobXfer *, struct LSFHeader *);
-extern bool_t xdr_hostInfo(XDR *, struct shortHInfo *, struct LSFHeader *);
-extern bool_t xdr_limLock(XDR *, struct limLock *, struct LSFHeader *);
-extern bool_t xdr_lsInfo(XDR *, struct lsInfo *, struct LSFHeader *);
+extern bool_t xdr_decisionReq(XDR *, struct decisionReq *, struct packet_header *);
+extern bool_t xdr_placeReply(XDR *, struct placeReply *, struct packet_header *);
+extern bool_t xdr_loadReply(XDR *, struct loadReply *, struct packet_header *);
+extern bool_t xdr_jobXfer(XDR *, struct jobXfer *, struct packet_header *);
+extern bool_t xdr_hostInfo(XDR *, struct shortHInfo *, struct packet_header *);
+extern bool_t xdr_limLock(XDR *, struct limLock *, struct packet_header *);
+extern bool_t xdr_lsInfo(XDR *, struct lsInfo *, struct packet_header *);
 extern bool_t xdr_hostInfoReply(XDR *, struct hostInfoReply *,
-				struct LSFHeader *);
-extern bool_t xdr_masterInfo(XDR *, struct masterInfo *, struct LSFHeader *);
+				struct packet_header *);
+extern bool_t xdr_masterInfo(XDR *, struct masterInfo *, struct packet_header *);
 extern bool_t xdr_clusterInfoReq(XDR *, struct clusterInfoReq *,
-				struct LSFHeader *);
+				struct packet_header *);
 extern bool_t xdr_clusterInfoReply(XDR *, struct clusterInfoReply *,
-				struct LSFHeader *);
-extern bool_t xdr_shortHInfo(XDR *, struct shortHInfo *, struct LSFHeader *,
+				struct packet_header *);
+extern bool_t xdr_shortHInfo(XDR *, struct shortHInfo *, struct packet_header *,
                                                               char *);
-extern bool_t xdr_shortCInfo(XDR *, struct shortCInfo *, struct LSFHeader *);
-extern bool_t xdr_cInfo(XDR *, struct cInfo *, struct LSFHeader *);
-extern bool_t xdr_resourceInfoReq(XDR *, struct resourceInfoReq *, struct LSFHeader *);
-extern bool_t xdr_resourceInfoReply (XDR *, struct resourceInfoReply *, struct LSFHeader *);
+extern bool_t xdr_shortCInfo(XDR *, struct shortCInfo *, struct packet_header *);
+extern bool_t xdr_cInfo(XDR *, struct cInfo *, struct packet_header *);
+extern bool_t xdr_resourceInfoReq(XDR *, struct resourceInfoReq *, struct packet_header *);
+extern bool_t xdr_resourceInfoReply (XDR *, struct resourceInfoReply *, struct packet_header *);
 #endif

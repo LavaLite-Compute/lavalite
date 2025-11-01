@@ -20,14 +20,14 @@
 #include "lsf/lib/lib.xdrres.h"
 
 int
-ls_rescontrol(char *host, int opCode, int data)
+ls_rescontrol(char *host, int operation, int data)
 {
     int       s;
     int       descriptor[2];
     int       cc;
     struct    resControl ctrl;
     struct {
-        struct LSFHeader    hdr;
+        struct packet_header    hdr;
         struct resControl   c;
     } buf;
     struct timeval    timeout;
@@ -63,15 +63,15 @@ ls_rescontrol(char *host, int opCode, int data)
         }
     }
 
-    if (opCode    != RES_CMD_REBOOT
-        && opCode != RES_CMD_SHUTDOWN
-        && opCode != RES_CMD_LOGON
-        && opCode != RES_CMD_LOGOFF) {
+    if (operation    != RES_CMD_REBOOT
+        && operation != RES_CMD_SHUTDOWN
+        && operation != RES_CMD_LOGON
+        && operation != RES_CMD_LOGOFF) {
         lserrno = LSE_BAD_OPCODE;
         return -1;
     }
 
-    ctrl.opCode = opCode;
+    ctrl.opCode = operation;
     ctrl.data   = data;
 
     if (callRes_(s, RES_CONTROL, (char *) &ctrl, (char *) &buf,
@@ -106,7 +106,7 @@ oneResDebug(struct debugReq  *pdebug , char *hostname)
     struct debugReq debugData;
 
     struct {
-        struct LSFHeader hdr;
+        struct packet_header hdr;
         struct debugReq d;
     } buf;
 

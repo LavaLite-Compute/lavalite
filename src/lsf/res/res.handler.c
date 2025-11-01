@@ -888,11 +888,11 @@ forwardTaskMsg(int srcSock, int destSock,
         printf("forwardTaskMsg(destSock=%d)\n",destSock);
     }
 
-    if (SOCK_WRITE_FIX(destSock, hdrbuf, LSF_HEADER_LEN) !=
-            LSF_HEADER_LEN) {
+    if (SOCK_WRITE_FIX(destSock, hdrbuf, PACKET_HEADER_SIZE) !=
+            PACKET_HEADER_SIZE) {
 
         ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "SOCK_WRITE_FIX",
-                LSF_HEADER_LEN);
+                PACKET_HEADER_SIZE);
 
         if (kill(-pid, 0) < 0) {
 
@@ -4122,7 +4122,7 @@ eof_to_nios(struct child *chld)
     }
 
     reqHdr.opCode = RES2NIOS_EOF;
-    reqHdr.version = _XDR_VERSION_0_1_0;
+    reqHdr.version = CURRENT_PROTOCOL_VERSION;
     setHdrReserved(&reqHdr, chld->rpid);
 
     rc = writeEncodeHdr_(conn2NIOS.sock.fd, &reqHdr, NB_SOCK_WRITE_FIX);
@@ -5689,13 +5689,13 @@ donios_sock(struct child **children, int op)
 
                 initLSFHeader_(&reqHdr);
                 reqHdr.opCode = conn2NIOS.sock.opCode;
-                reqHdr.version = _XDR_VERSION_0_1_0;
+                reqHdr.version = CURRENT_PROTOCOL_VERSION;
                 reqHdr.length = conn2NIOS.sock.wbuf->bcount;
                 setHdrReserved(&reqHdr, conn2NIOS.wtag);
 
 
 
-                conn2NIOS.sock.wbuf->bp -= LSF_HEADER_LEN;
+                conn2NIOS.sock.wbuf->bp -= PACKET_HEADER_SIZE;
 
 
                 if (!xdr_packLSFHeader(conn2NIOS.sock.wbuf->bp, &reqHdr)) {
@@ -5709,7 +5709,7 @@ donios_sock(struct child **children, int op)
                     return;
                 }
                 conn2NIOS.sock.wcount = conn2NIOS.sock.wbuf->bcount
-                    + LSF_HEADER_LEN;
+                    + PACKET_HEADER_SIZE;
             }
 
             if ((cc = write(conn2NIOS.sock.fd, conn2NIOS.sock.wbuf->bp,
@@ -5869,7 +5869,7 @@ notify_nios(int retsock, int rpid, int opCode)
     initLSFHeader_(&reqHdr);
 
     reqHdr.opCode = opCode;
-    reqHdr.version = _XDR_VERSION_0_1_0;
+    reqHdr.version = CURRENT_PROTOCOL_VERSION;
     setHdrReserved(&reqHdr, rpid);
     reqHdr.length = 0;
 

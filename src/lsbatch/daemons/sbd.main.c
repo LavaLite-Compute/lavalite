@@ -26,7 +26,7 @@
 
 #include <malloc.h>
 
-extern void do_sbdDebug(XDR *xdrs, int chfd, struct LSFHeader *reqHdr);
+extern void do_sbdDebug(XDR *xdrs, int chfd, struct packet_header *reqHdr);
 
 void sinit(void);
 void init_sstate(void);
@@ -34,14 +34,14 @@ static void processMsg(struct clientNode *);
 static void clientIO(struct Masks *);
 static void houseKeeping(void);
 static int authCmdRequest(struct clientNode *client, XDR *xdrs,
-			  struct LSFHeader *reqHdr);
+			  struct packet_header *reqHdr);
 static int isLSFAdmin(struct lsfAuth *auth);
 #ifdef INTER_DAEMON_AUTH
-static int authMbdRequest(struct clientNode *, XDR *, struct LSFHeader *);
+static int authMbdRequest(struct clientNode *, XDR *, struct packet_header *);
 #endif
 static int get_new_master(struct sockaddr_in *from);
 
-extern void do_modifyjob(XDR *, int, struct LSFHeader *);
+extern void do_modifyjob(XDR *, int, struct packet_header *);
 
 time_t bootTime = 0;
 
@@ -487,7 +487,7 @@ processMsg(struct clientNode *client)
     struct bucket *bucket;
     int s;
     sbdReqType sbdReqtype;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
     XDR xdrs;
     int cc;
 
@@ -509,7 +509,7 @@ processMsg(struct clientNode *client)
         return;
     }
 
-    sbdReqtype = reqHdr.opCode;
+    sbdReqtype = reqHdr.operation;
 
     if (logclass & (LC_TRACE | LC_COMM))
 	ls_syslog(LOG_DEBUG,"%s: received msg <%d>",fname, sbdReqtype);
@@ -663,8 +663,8 @@ processMsg(struct clientNode *client)
 
     xdr_destroy(&xdrs);
     chanFreeBuf_(buf);
-    if (reqHdr.opCode != PREPARE_FOR_OP &&
-	reqHdr.opCode != RM_CONNECT )
+    if (reqHdr.operation != PREPARE_FOR_OP &&
+	reqHdr.operation != RM_CONNECT )
         shutDownClient(client);
 
 }
@@ -986,7 +986,7 @@ houseKeeping(void)
 }
 
 static int
-authCmdRequest(struct clientNode *client, XDR *xdrs, struct LSFHeader *reqHdr)
+authCmdRequest(struct clientNode *client, XDR *xdrs, struct packet_header *reqHdr)
 {
     static char fname[] = "authCmdRequest";
     int s;
@@ -1052,7 +1052,7 @@ isLSFAdmin(struct lsfAuth *auth)
 
 #ifdef INTER_DAEMON_AUTH
 static int
-authMbdRequest(struct clientNode *client, XDR *xdrs, struct LSFHeader *reqHdr)
+authMbdRequest(struct clientNode *client, XDR *xdrs, struct packet_header *reqHdr)
 {
     static char fname[] = "authMbdRequest";
     int s, rc;

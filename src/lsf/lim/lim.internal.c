@@ -28,10 +28,10 @@
 extern short  hostInactivityLimit;
 extern int daemonId;
 
-extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct LSFHeader *);
+extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct packet_header *);
 
 void
-masterRegister(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+masterRegister(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static int checkSumMismatch;
     struct hostNode *hPtr;
@@ -187,7 +187,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
     enum limReqCode limReqCode;
     struct masterReg masterReg;
     static int cnt = 0;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
     int announceInIntvl;
     int numAnnounce;
     int i;
@@ -219,8 +219,8 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
     toAddr.sin_port = lim_port;
 
     initLSFHeader_(&reqHdr);
-    reqHdr.opCode  = (short) limReqCode;
-    reqHdr.refCode = 0;
+    reqHdr.operation  = (short) limReqCode;
+    reqHdr.sequence = 0;
 
     xdrmem_create(&xdrs1, buf1, MSGSIZE/4, XDR_ENCODE);
     masterReg.flags = SEND_NO_INFO ;
@@ -387,7 +387,7 @@ announceMaster: Failed to send request 1 to LIM on %s: %m", hPtr->hostName);
 
 
 void
-jobxferReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
+jobxferReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
     static char fname[] = "jobxferReq()";
     struct hostNode *hPtr;
@@ -422,14 +422,14 @@ jobxferReq(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *reqHdr)
 }
 
 void
-wrongMaster(struct sockaddr_in *from, char *buf, struct LSFHeader *reqHdr, int
+wrongMaster(struct sockaddr_in *from, char *buf, struct packet_header *reqHdr, int
             s)
 {
     static char fname[] = "wrongMaster()";
     enum limReplyCode limReplyCode;
 
     XDR xdrs;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
     struct masterInfo masterInfo;
     int cc;
     char *replyStruct;
@@ -447,8 +447,8 @@ wrongMaster(struct sockaddr_in *from, char *buf, struct LSFHeader *reqHdr, int
 
     xdrmem_create(&xdrs, buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode  = (short) limReplyCode;
-    replyHdr.refCode = reqHdr->refCode;
+    replyHdr.operation  = (short) limReplyCode;
+    replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_encodeMsg(&xdrs, replyStruct, &replyHdr, xdr_masterInfo, 0, NULL)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_encodeMsg");
@@ -516,13 +516,12 @@ initNewMaster(void)
 }
 
 void
-rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
+rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
 {
     static char     fname[] = "rcvConfInfo()";
     struct statInfo sinfo;
     struct hostNode *hPtr;
     short  sinfoTypeNo, sinfoModelNo;
-    int    limMode = -1;
 
     if (!limPortOk(from))
         return;
@@ -533,8 +532,6 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
         ls_syslog(LOG_DEBUG, "rcvConfInfo: I am not the master!");
         return;
     }
-
-    limMode = getHdrReserved(hdr);
 
     if (!xdr_statInfo(xdrs, &sinfo, hdr)) {
         ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_statInfo");
@@ -548,12 +545,6 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
     if (findHostbyList(myClusterPtr->hostList, hPtr->hostName) == NULL) {
         ls_syslog(LOG_ERR, "%s: Got info from client-only host %s/%s",
                   fname, sockAdd2Str_(from), hPtr->hostName);
-        return;
-    }
-
-    if (hPtr->hostNo < numMasterCandidates
-        && hPtr->infoValid == true
-        && limMode != LIM_RECONFIG ) {
         return;
     }
 
@@ -576,7 +567,7 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
         sinfoTypeNo = 1;
     }
 
-    if ( logclass & LC_TRACE) {
+    if (logclass & LC_TRACE) {
         ls_syslog(LOG_DEBUG2, "%s: host <%s> ncpu <%d> maxmem <%u> maxswp <%u> maxtmp <%u> ndisk <%d>",
                   fname, hPtr->hostName,
                   hPtr->statInfo.maxCpus,
@@ -586,7 +577,7 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct LSFHeader *hdr)
                   hPtr->statInfo.nDisks);
     }
 
-    if ( hPtr->hModelNo != DETECTMODELTYPE ) {
+    if (hPtr->hModelNo != DETECTMODELTYPE) {
 
         sinfoModelNo = hPtr->hModelNo;
     } else {
@@ -657,7 +648,7 @@ sndConfInfo(struct sockaddr_in *to)
     char   buf[MSGSIZE/4];
     XDR    xdrs;
     enum limReqCode limReqCode;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
 
     memset((char*)&buf, 0, sizeof(buf));
     initLSFHeader_(&reqHdr);
@@ -668,8 +659,8 @@ sndConfInfo(struct sockaddr_in *to)
     limReqCode = LIM_CONF_INFO;
 
     xdrmem_create(&xdrs, buf, MSGSIZE/4, XDR_ENCODE);
-    reqHdr.opCode  = (short) limReqCode;
-    reqHdr.refCode =  0;
+    reqHdr.operation  = (short) limReqCode;
+    reqHdr.sequence =  0;
 
     if (logclass & LC_TRACE) {
         ls_syslog(LOG_DEBUG2, "%s: host <%s> ncpu <%d> maxmem <%d> maxswp <%u> maxtmp <%u> ndisk <%d>",
@@ -738,7 +729,7 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType )
     char   buf[MSGSIZE/4];
     enum limReqCode limReqCode;
     struct masterReg masterReg;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
 
     limReqCode = LIM_MASTER_ANN;
     strcpy(masterReg.clName, myClusterPtr->clName);
@@ -753,8 +744,8 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType )
 
     xdrmem_create(&xdrs, buf, MSGSIZE/4, XDR_ENCODE);
     initLSFHeader_(&reqHdr);
-    reqHdr.opCode  = (short) limReqCode;
-    reqHdr.refCode =  0;
+    reqHdr.operation  = (short) limReqCode;
+    reqHdr.sequence =  0;
 
     if (! xdr_LSFHeader(&xdrs,  &reqHdr)
         || ! xdr_masterReg(&xdrs, &masterReg, &reqHdr)) {
@@ -790,7 +781,7 @@ probeMasterTcp(struct clusterNode *clPtr)
     struct hostNode *hPtr;
     struct sockaddr_in mlim_addr;
     int ch, rc;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
 
     ls_syslog (LOG_DEBUG, "probeMasterTcp: enter.... ");
     hPtr = clPtr->masterPtr;
@@ -836,7 +827,7 @@ probeMasterTcp(struct clusterNode *clPtr)
 
     if ( rc >= 0) {
         initLSFHeader_(&reqHdr);
-        reqHdr.opCode = LIM_PING;
+        reqHdr.operation = LIM_PING;
         writeEncodeHdr_(ch, &reqHdr, chanWrite_ );
         chanClose_(ch);
     }
@@ -848,17 +839,17 @@ int
 callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
               void *reqBuf, bool_t (*xdr_sfunc)(),
               void *replyBuf, bool_t (*xdr_rfunc)(), int rcvTimeout,
-              int connTimeout, struct LSFHeader *hdr)
+              int connTimeout, struct packet_header *hdr)
 {
     static char fname[] = "callMasterTcp";
     XDR    xdrs;
     char   sbuf[4*MSGSIZE];
-    char   replyHdrBuf[LSF_HEADER_LEN];
+    char   replyHdrBuf[PACKET_HEADER_SIZE];
     char   *tmpBuf;
     enum limReplyCode ReplyCode;
     struct hostNode *hPtr;
-    struct LSFHeader reqHdr;
-    struct LSFHeader replyHdr;
+    struct packet_header reqHdr;
+    struct packet_header replyHdr;
     struct sockaddr_in mlim_addr;
     struct in_addr *tmp_addr = NULL;
     struct timeval timeval;
@@ -920,7 +911,7 @@ callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
     }
 
     initLSFHeader_(&reqHdr);
-    reqHdr.opCode = ReqCode;
+    reqHdr.operation = ReqCode;
     xdrmem_create(&xdrs, sbuf, 4*MSGSIZE, XDR_ENCODE);
 
     if (!xdr_encodeMsg(&xdrs, reqBuf, &reqHdr, xdr_sfunc, 0, NULL)) {
@@ -958,7 +949,7 @@ callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
         return 3;
     }
 
-    xdrmem_create(&xdrs, replyHdrBuf, LSF_HEADER_LEN , XDR_DECODE);
+    xdrmem_create(&xdrs, replyHdrBuf, PACKET_HEADER_SIZE , XDR_DECODE);
     rc = readDecodeHdr_(ch, replyHdrBuf, chanRead_, &xdrs, &replyHdr);
     if (rc < 0) {
         xdr_destroy(&xdrs);
@@ -988,7 +979,7 @@ callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
         }
 
         xdrmem_create(&xdrs, tmpBuf, replyHdr.length, XDR_DECODE);
-        ReplyCode = replyHdr.opCode;
+        ReplyCode = replyHdr.operation;
 
         switch(ReplyCode) {
         case LIME_NO_ERR:

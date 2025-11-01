@@ -96,7 +96,6 @@ init_ServSock (u_short port)
 int
 rcvJobFile(int chfd, struct lenData *jf)
 {
-    static char fname[]="rcvJobFile";
     int cc;
 
     jf->data = NULL;
@@ -122,22 +121,21 @@ rcvJobFile(int chfd, struct lenData *jf)
 
 int
 do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
-           struct LSFHeader *reqHdr )
+           struct packet_header *reqHdr )
 {
-    static char fname[]="do_readyOp";
     XDR xdrs2;
     struct Buffer *buf;
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
 
-    if (chanAllocBuf_(&buf, sizeof(struct LSFHeader)) < 0) {
+    if (chanAllocBuf_(&buf, sizeof(struct packet_header)) < 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "malloc");
         return -1;
     }
     initLSFHeader_(&replyHdr);
-    replyHdr.opCode = READY_FOR_OP;
+    replyHdr.operation = READY_FOR_OP;
     replyHdr.length = 0;
 
-    xdrmem_create (&xdrs2, buf->data, sizeof(struct LSFHeader), XDR_ENCODE);
+    xdrmem_create (&xdrs2, buf->data, sizeof(struct packet_header), XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);

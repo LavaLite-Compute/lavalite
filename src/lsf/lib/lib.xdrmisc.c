@@ -19,7 +19,7 @@
 #include "lsf/lib/lib.h"
 
 bool_t
-xdr_stat(XDR *xdrs, struct stat *st, struct LSFHeader *hdr)
+xdr_stat(XDR *xdrs, struct stat *st, struct packet_header *hdr)
 {
     int i;
 
@@ -196,7 +196,7 @@ xdr_lenData(XDR *xdrs, struct lenData *ld)
 }
 
 bool_t
-xdr_lsfAuth(XDR *xdrs, struct lsfAuth *auth, struct LSFHeader *hdr)
+xdr_lsfAuth(XDR *xdrs, struct lsfAuth *auth, struct packet_header *hdr)
 {
 
     char  *sp;
@@ -250,7 +250,7 @@ xdr_lsfAuthSize(struct lsfAuth *auth)
 }
 
 bool_t
-xdr_pidInfo(XDR *xdrs, struct pidInfo *pidInfo, struct LSFHeader *hdr)
+xdr_pidInfo(XDR *xdrs, struct pidInfo *pidInfo, struct packet_header *hdr)
 {
 
     if (! xdr_int(xdrs, &pidInfo->pid))
@@ -268,7 +268,7 @@ xdr_pidInfo(XDR *xdrs, struct pidInfo *pidInfo, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_jRusage(XDR *xdrs, struct jRusage *runRusage, struct LSFHeader *hdr)
+xdr_jRusage(XDR *xdrs, struct jRusage *runRusage, struct packet_header *hdr)
 {
     int i;
 

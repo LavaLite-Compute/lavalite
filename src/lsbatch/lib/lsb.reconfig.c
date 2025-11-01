@@ -27,7 +27,7 @@ lsb_reconfig (int configFlag)
     char request_buf[MSGSIZE];
     char *reply_buf;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
     int tmp;
 
@@ -39,7 +39,7 @@ lsb_reconfig (int configFlag)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
 
     if (!xdr_encodeMsg(&xdrs, (char *)NULL, &hdr, NULL, 0, &auth)) {
         lsberrno = LSBE_XDR;
@@ -55,7 +55,7 @@ lsb_reconfig (int configFlag)
     if (cc)
         free(reply_buf);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR)
         return 0;
 

@@ -29,7 +29,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     struct resourceInfoReq  resourceInfoReq;
     int cc = 0, i;
     char *clusterName = NULL;
-    static struct LSFHeader hdr;
+    static struct packet_header hdr;
     char *request_buf;
     char *reply_buf;
     mbdReqType mbdReqtype;
@@ -113,7 +113,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     }
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&hdr);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char*)&resourceInfoReq, &hdr, xdr_resourceInfoReq,
                 0, NULL)) {
         lsberrno = LSBE_XDR;
@@ -131,7 +131,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     }
     FREE_MEMORY;
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
         xdrmem_create(&xdrs2, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
         if (!xdr_lsbShareResourceInfoReply(&xdrs2, &lsbResourceInfoReply, &hdr)) {

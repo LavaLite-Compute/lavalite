@@ -138,7 +138,7 @@ static struct {
     int empty;
     int length;
     fd_set socks;
-    char buf[BUFSIZ + LSF_HEADER_LEN  ];
+    char buf[BUFSIZ + PACKET_HEADER_SIZE  ];
 } writeBuf;
 
 struct sigbuf {
@@ -825,7 +825,7 @@ ls_niowrite(char *buf, int len)
             cc = BUFSIZ;
         else
             cc = len;
-        memcpy(writeBuf.buf + LSF_HEADER_LEN, buf, cc);
+        memcpy(writeBuf.buf + PACKET_HEADER_SIZE, buf, cc);
         bp = writeBuf.buf;
         reqHdr.opCode = NIOS2RES_STDIN;
         reqHdr.version = LAVALITE_VERSION;

@@ -117,7 +117,7 @@ extern int chanRcvDgram_(int , char *, int, struct sockaddr_in *, int);
 extern int chanRpc_(int ,
                     struct Buffer *,
                     struct Buffer *,
-                    struct LSFHeader *,
+                    struct packet_header *,
                     int);
 extern ssize_t chanRead_(int, char *, int);
 extern ssize_t chanReadNonBlock_(int, char *, int, int);

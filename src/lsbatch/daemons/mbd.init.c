@@ -128,7 +128,6 @@ static void fillSharedConf (struct sharedConf *);
 static void createDefQueue (void);
 static void freeGrp (struct gData *);
 static int validHostSpec (char *);
-static void setHPartMemberCreate(struct gData *, LS_BITSET_T *);
 static void getMaxCpufactor(void);
 static int parseFirstHostErr(int , char *, char *, struct qData *, struct askedHost *, int );
 
@@ -2939,27 +2938,7 @@ NULL) {
 }
 
 static void
-setHPartMemberCreate(struct gData *g, LS_BITSET_T *set)
-{
-    sTab hashSearchPtr;
-    hEnt *hashEntryPtr;
-    struct hData *h;
-    int i;
-
-    hashEntryPtr = h_firstEnt_(&g->memberTab, &hashSearchPtr);
-    while (hashEntryPtr) {
-	char *host;
-        host = hashEntryPtr->keyname;
-	h = getHostData(host);
-	setAddElement(set, (void *)h->hostId);
-	hashEntryPtr = h_nextEnt_(&hashSearchPtr);
-    }
-    for (i = 0; i < g->numGroups; i++)
-	setHPartMemberCreate(g->gPtr[i], set);
-}
-
-static void
-updUserList (int mbdInitFlags)
+updUserList(int mbdInitFlags)
 {
     static char fname[] = "updUserList()";
     struct uData *  defUser;

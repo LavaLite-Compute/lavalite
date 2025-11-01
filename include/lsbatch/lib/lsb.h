@@ -82,10 +82,10 @@ typedef struct lsbSubSpoolFile {
 
 extern int creat_p_socket(void);
 extern int serv_connect(char *, ushort, int);
-extern int getServerMsg(int, struct LSFHeader *, char **rep_buf);
-extern int callmbd(char *, char *, int, char **, struct LSFHeader *, int *,
+extern int getServerMsg(int, struct packet_header *, char **rep_buf);
+extern int callmbd(char *, char *, int, char **, struct packet_header *, int *,
 		       int (*)(), int *);
-extern int cmdCallSBD_(char *, char *, int, char **, struct LSFHeader *,
+extern int cmdCallSBD_(char *, char *, int, char **, struct packet_header *,
 		       int *);
 
 
@@ -94,7 +94,7 @@ extern int Q2Str(char *, char *);
 extern int authTicketTokens_(struct lsfAuth *, char *);
 
 extern char *getNextValue0(char **line, char, char);
-extern int readNextPacket(char **, int, struct LSFHeader *, int);
+extern int readNextPacket(char **, int, struct packet_header *, int);
 extern void closeSession(int);
 extern void upperStr(char *, char *);
 extern char* getUnixSpoolDir(char *);

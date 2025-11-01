@@ -212,17 +212,17 @@ extern int statusChan;
 extern void start_master(void);
 extern void shutDownClient(struct clientNode *);
 
-extern void do_newjob(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_switchjob(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_sigjob(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_probe(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_reboot(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_shutdown(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_jobSetup(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_jobSyslog(XDR *xdrs, int s, struct LSFHeader *);
-extern void do_jobMsg(struct bucket *, XDR *, int s, struct LSFHeader *);
-extern void do_rmConn(XDR *, int, struct LSFHeader *, struct clientNode *);
-extern void do_lsbMsg(XDR *, int s, struct LSFHeader *);
+extern void do_newjob(XDR *xdrs, int s, struct packet_header *);
+extern void do_switchjob(XDR *xdrs, int s, struct packet_header *);
+extern void do_sigjob(XDR *xdrs, int s, struct packet_header *);
+extern void do_probe(XDR *xdrs, int s, struct packet_header *);
+extern void do_reboot(XDR *xdrs, int s, struct packet_header *);
+extern void do_shutdown(XDR *xdrs, int s, struct packet_header *);
+extern void do_jobSetup(XDR *xdrs, int s, struct packet_header *);
+extern void do_jobSyslog(XDR *xdrs, int s, struct packet_header *);
+extern void do_jobMsg(struct bucket *, XDR *, int s, struct packet_header *);
+extern void do_rmConn(XDR *, int, struct packet_header *, struct clientNode *);
+extern void do_lsbMsg(XDR *, int s, struct packet_header *);
 extern void deliverMsg(struct bucket *);
 
 extern void getJobsState(struct sbdPackage *sbdPackage);
@@ -300,9 +300,9 @@ extern int rmDir(char *);
 extern void closeBatchSocket (void);
 extern void getManagerId(struct sbdPackage *);
 
-bool_t xdr_jobSetup (XDR *, struct jobSetup *, struct LSFHeader *);
-bool_t xdr_jobSyslog (XDR *, struct jobSyslog *, struct LSFHeader *);
-bool_t xdr_jobCard(XDR *, struct jobCard*, struct LSFHeader *);
+bool_t xdr_jobSetup (XDR *, struct jobSetup *, struct packet_header *);
+bool_t xdr_jobSyslog (XDR *, struct jobSyslog *, struct packet_header *);
+bool_t xdr_jobCard(XDR *, struct jobCard*, struct packet_header *);
 extern int sizeofJobCard(struct jobCard *);
 
 extern int jobSigStart (struct jobCard *jp, int sigValue, int actFlags, int actPeriod, logType logFlag);

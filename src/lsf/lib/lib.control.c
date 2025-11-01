@@ -22,14 +22,14 @@
 #include "lsf/lib/lib.h"
 
 int
-ls_limcontrol(char *hname, int opCode)
+ls_limcontrol(char *hname, int operation)
 {
     enum limReqCode limReqCode;
     struct lsfAuth auth;
 
     memset(&auth, 0, sizeof(struct lsfAuth));
 
-    switch (opCode) {
+    switch (operation) {
         case LIM_CMD_SHUTDOWN:
             limReqCode = LIM_SHUTDOWN;
             break;

@@ -23,10 +23,10 @@
 static u_short encfloat16_(float );
 static float   decfloat16_(u_short);
 static void freeResPairs (struct resPair *, int);
-static bool_t xdr_resPair (XDR *, struct resPair *, struct LSFHeader *);
+static bool_t xdr_resPair (XDR *, struct resPair *, struct packet_header *);
 
 bool_t
-xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct LSFHeader *hdr)
+xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hdr)
 {
     static char fname[] = "xdr_loadvector";
     int i;
@@ -124,7 +124,7 @@ freeResPairs (struct resPair *resPairs, int num)
 
 
 static bool_t
-xdr_resPair (XDR *xdrs, struct resPair *resPair, struct LSFHeader *hdr)
+xdr_resPair (XDR *xdrs, struct resPair *resPair, struct packet_header *hdr)
 {
     if (!(xdr_var_string(xdrs, &resPair->name)
           && xdr_var_string(xdrs, &resPair->value)))
@@ -136,14 +136,14 @@ xdr_resPair (XDR *xdrs, struct resPair *resPair, struct LSFHeader *hdr)
 
 bool_t
 xdr_loadmatrix(XDR *xdrs, int len, struct loadVectorStruct *lmp,
-               struct LSFHeader *hdr)
+               struct packet_header *hdr)
 {
     return true;
 }
 
 
 bool_t
-xdr_masterReg(XDR *xdrs, struct masterReg *masterRegPtr, struct LSFHeader *hdr)
+xdr_masterReg(XDR *xdrs, struct masterReg *masterRegPtr, struct packet_header *hdr)
 {
     char *sp1, *sp2;
     int i, size;
@@ -183,7 +183,7 @@ xdr_masterReg(XDR *xdrs, struct masterReg *masterRegPtr, struct LSFHeader *hdr)
 bool_t
 xdr_masterAnnSLIMConf(XDR *xdrs,
                       struct masterAnnSLIMConf *masterAnnSLIMConfPtr,
-                      struct LSFHeader *hdr)
+                      struct packet_header *hdr)
 {
     if (!(xdr_int(xdrs, &masterAnnSLIMConfPtr->flags) &&
           xdr_short(xdrs, &(masterAnnSLIMConfPtr->hostNo)))) {
@@ -195,7 +195,7 @@ xdr_masterAnnSLIMConf(XDR *xdrs,
 }
 
 bool_t
-xdr_statInfo(XDR *xdrs, struct statInfo *sip, struct LSFHeader *hdr)
+xdr_statInfo(XDR *xdrs, struct statInfo *sip, struct packet_header *hdr)
 {
     char *sp1, *sp2;
 
@@ -331,7 +331,7 @@ xdr_lvector(XDR *xdrs, float *li, int nIndices)
 }
 
 bool_t
-xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct LSFHeader *hdr)
+xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct packet_header *hdr)
 {
     static char fname[] = "xdr_minSLimConfData";
     int i, j, sharedResourceCnt;

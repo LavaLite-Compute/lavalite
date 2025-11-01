@@ -543,19 +543,19 @@ extern void errorBack(int, int, struct sockaddr_in *);
 extern int init_ServSock(u_short port);
 extern int server_reply(int, char *, int);
 extern int rcvJobFile(int, struct lenData *);
-extern int do_readyOp (XDR *xdrs, int , struct sockaddr_in *, struct LSFHeader *);
+extern int do_readyOp (XDR *xdrs, int , struct sockaddr_in *, struct packet_header *);
 
 #define FORK_REMOVE_SPOOL_FILE  (0x1)
 #define CALL_RES_IF_NEEDED      (0x2)
 extern void childRemoveSpoolFile(const char*, int, const struct passwd*);
 
-extern int xdr_statusReq(XDR *, struct statusReq *, struct LSFHeader *);
-extern int xdr_sbdPackage(XDR *, struct sbdPackage *, struct LSFHeader *);
-extern int xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, struct LSFHeader *);
-extern int xdr_sbdPackage1(XDR *xdrs, struct sbdPackage *, struct LSFHeader *);
-extern int xdr_jobReply(XDR *xdrs, struct jobReply *jobReply, struct LSFHeader *);
-extern int xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct LSFHeader *);
-extern int xdr_chunkStatusReq(XDR *, struct chunkStatusReq *, struct LSFHeader *);
+extern int xdr_statusReq(XDR *, struct statusReq *, struct packet_header *);
+extern int xdr_sbdPackage(XDR *, struct sbdPackage *, struct packet_header *);
+extern int xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *);
+extern int xdr_sbdPackage1(XDR *xdrs, struct sbdPackage *, struct packet_header *);
+extern int xdr_jobReply(XDR *xdrs, struct jobReply *jobReply, struct packet_header *);
+extern int xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *);
+extern int xdr_chunkStatusReq(XDR *, struct chunkStatusReq *, struct packet_header *);
 
 extern float normalizeRq_(float rawql, float cpuFactor, int nprocs);
 

@@ -28,7 +28,7 @@ lsb_mig(struct submig *mig, int *badHostIdx)
     XDR xdrs;
     mbdReqType mbdReqtype;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
 
     if (mig->jobId <= 0) {
@@ -61,7 +61,7 @@ lsb_mig(struct submig *mig, int *badHostIdx)
 
     mbdReqtype = BATCH_JOB_MIG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&migReq, &hdr, xdr_migReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
         return -1;
@@ -75,7 +75,7 @@ lsb_mig(struct submig *mig, int *badHostIdx)
 
     xdr_destroy(&xdrs);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno != LSBE_NO_ERROR) {
         struct submitMbdReply reply;
 

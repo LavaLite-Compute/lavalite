@@ -27,7 +27,6 @@ extern int _lsb_fakesetuid;
 static int mbdTries(void);
 
 int lsb_mbd_version = -1;
-extern int getHdrReserved(struct LSFHeader *);
 
 #define MAXMSGLEN BUFSIZ
 
@@ -130,7 +129,7 @@ call_server (
         char * req_buf,
         int    req_size,
         char **rep_buf,
-        struct LSFHeader *replyHdr,
+        struct packet_header *replyHdr,
         int conn_timeout,
         int recv_timeout,
         int *connectedSock,
@@ -265,15 +264,15 @@ call_server (
 }
 
 int
-getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
+getServerMsg(int serverSock, struct packet_header *replyHdr, char **rep_buf)
 {
     static char fname[] = "getServerMsg";
     int len;
-    struct LSFHeader hdrBuf;
+    struct packet_header hdrBuf;
     XDR  xdrs;
 
     xdrmem_create (&xdrs, (char *)&hdrBuf,
-            sizeof(struct LSFHeader), XDR_DECODE);
+            sizeof(struct packet_header), XDR_DECODE);
 
     if (readDecodeHdr_(serverSock, (char *)&hdrBuf,
                 b_read_fix, &xdrs, replyHdr) < 0) {
@@ -331,7 +330,6 @@ getServerMsg(int serverSock, struct LSFHeader *replyHdr, char **rep_buf)
 uint16_t
 get_mbd_port (void)
 {
-    struct servent *sv;
     static uint16_t mbd_port = 0;
 
     if (mbd_port != 0)
@@ -373,7 +371,7 @@ callmbd (char *clusterName,
         char *request_buf,
         int requestlen,
         char **reply_buf,
-        struct LSFHeader *replyHdr,
+        struct packet_header *replyHdr,
         int *serverSock,
         int (*postSndFunc)(),
         int *postSndFuncArg)
@@ -386,7 +384,7 @@ callmbd (char *clusterName,
     int                  try = 0;
     struct clusterInfo * clusterInfo;
     XDR xdrs;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
 
     if (logclass & LC_TRACE)
         ls_syslog (LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -476,7 +474,7 @@ Retry:
 
 int
 cmdCallSBD_(char *sbdHost, char *request_buf, int requestlen,
-        char **reply_buf, struct LSFHeader *replyHdr, int *serverSock)
+        char **reply_buf, struct packet_header *replyHdr, int *serverSock)
 {
     static char fname[] = "cmdCallSBD_";
     ushort sbdPort;
@@ -548,8 +546,8 @@ Retry:
 }
 
 int
-readNextPacket(char **msgBuf, int timeout, struct LSFHeader *hdr,
-        int serverSock)
+readNextPacket(char **msgBuf, int timeout, struct packet_header *hdr,
+               int serverSock)
 {
 
     struct Buffer replyBuf;
@@ -572,7 +570,7 @@ readNextPacket(char **msgBuf, int timeout, struct LSFHeader *hdr,
         return -1;
     }
     *msgBuf = replyBuf.data;
-    return (getHdrReserved(hdr));
+    return replyBuf.len;
 }
 
 void
@@ -585,7 +583,7 @@ closeSession(int serverSock)
 int
 handShake_(int s, char client, int timeout)
 {
-    struct LSFHeader  hdr, buf;
+    struct packet_header  hdr, buf;
     int cc;
     XDR xdrs;
     struct Buffer reqbuf, replybuf;
@@ -595,10 +593,10 @@ handShake_(int s, char client, int timeout)
 
     if (client) {
 
-        memset((char *)&hdr, 0, sizeof(struct LSFHeader));
-        hdr.opCode = PREPARE_FOR_OP;
+        memset((char *)&hdr, 0, sizeof(struct packet_header));
+        hdr.operation = PREPARE_FOR_OP;
         hdr.length = 0;
-        xdrmem_create(&xdrs, (char *) &buf, sizeof(struct LSFHeader),
+        xdrmem_create(&xdrs, (char *) &buf, sizeof(struct packet_header),
                 XDR_ENCODE);
         if (!xdr_LSFHeader(&xdrs, &hdr)) {
             lsberrno = LSBE_XDR;
@@ -609,18 +607,18 @@ handShake_(int s, char client, int timeout)
 
         CHAN_INIT_BUF(&reqbuf);
         reqbuf.data = (char *)&buf;
-        reqbuf.len = LSF_HEADER_LEN;
+        reqbuf.len = PACKET_HEADER_SIZE;
 
         cc = chanRpc_( s, &reqbuf, &replybuf, &hdr, timeout * 1000);
         if (cc < 0) {
             lsberrno = LSBE_LSLIB;
             return -1;
         }
-        if (hdr.opCode != READY_FOR_OP) {
+        if (hdr.operation != READY_FOR_OP) {
             xdr_destroy(&xdrs);
-            lsberrno =  hdr.opCode;
+            lsberrno =  hdr.operation;
             if (logclass & LC_TRACE)
-                ls_syslog (LOG_DEBUG1, "handShake_: mbatchd returned error code <%d>", hdr.opCode);
+                ls_syslog (LOG_DEBUG1, "handShake_: mbatchd returned error code <%d>", hdr.operation);
             return -1;
         }
 

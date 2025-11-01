@@ -22,7 +22,7 @@
 #include "../../lsf/lib/lib.xdr.h"
 
 bool_t
-xdr_jobSetup (XDR *xdrs, struct jobSetup *jsetup, struct LSFHeader *hdr)
+xdr_jobSetup (XDR *xdrs, struct jobSetup *jsetup, struct packet_header *hdr)
 {
     static char fname[]="xdr_jobSetup";
     char *sp1, *sp2, *sp3;
@@ -76,7 +76,7 @@ xdr_jobSetup (XDR *xdrs, struct jobSetup *jsetup, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_jobSyslog (XDR *xdrs, struct jobSyslog *slog, struct LSFHeader *hdr)
+xdr_jobSyslog (XDR *xdrs, struct jobSyslog *slog, struct packet_header *hdr)
 {
     static char fname[]="xdr_jobSyslog";
     char *sp1;
@@ -101,7 +101,7 @@ xdr_jobSyslog (XDR *xdrs, struct jobSyslog *slog, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_jobCard (XDR *xdrs, struct jobCard *jCard, struct LSFHeader *hdr)
+xdr_jobCard (XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
 {
     static char fname[]="xdr_jobCard";
     char *sp1;

@@ -18,10 +18,8 @@
  */
 #include "lsf/lib/lib.h"
 
-extern int currentSN;
-
 int
-lsRecvMsg_(int sock, char *buf, int bufLen, struct LSFHeader *hdr,
+lsRecvMsg_(int sock, char *buf, int bufLen, struct packet_header *hdr,
            char *data, bool_t (*xdrFunc)(), ssize_t (*readFunc)())
 {
     XDR xdrs;
@@ -50,24 +48,23 @@ lsRecvMsg_(int sock, char *buf, int bufLen, struct LSFHeader *hdr,
     return 0;
 }
 
-int lsSendMsg_ (int s, int opCode, int hdrLength, char *data, char *reqBuf,
+int lsSendMsg_ (int s, int operation, int hdrLength, char *data, char *reqBuf,
                 int reqLen, bool_t (*xdrFunc)(), ssize_t (*writeFunc)(),
                 struct lsfAuth *auth)
 {
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     XDR xdrs;
 
     initLSFHeader_(&hdr);
-    hdr.opCode = opCode;
-    hdr.refCode = currentSN;
+    hdr.operation = operation;
+    hdr.sequence = 0;
 
     if (!data)
         hdr.length = hdrLength;
 
     xdrmem_create(&xdrs, reqBuf, reqLen, XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&xdrs, data, &hdr, xdrFunc,
-                       (data == NULL) ? ENMSG_USE_LENGTH : 0, auth)) {
+    if (!xdr_encodeMsg(&xdrs, data, &hdr, xdrFunc, 0, auth)) {
         xdr_destroy(&xdrs);
         lserrno = LSE_BAD_XDR;
         return -1;

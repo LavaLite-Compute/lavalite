@@ -134,8 +134,6 @@ void setNewSub(struct jData *, struct jData *, struct submitReq *, struct
 	       submitReq *, int, int );
 static void updateStopJobPreemptResources(struct jData *);
 
-extern int getXdrStrlen(char *);
-
 static int rusgMatch(struct resVal* resValPtr, const char *resName);
 
 static int   switchAJob(struct jobSwitchReq *,
@@ -1971,7 +1969,7 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
 		    + 10;
 
 	    for (int i = 0; i < jobSpecs->numToHosts; i++) {
-               size += getXdrStrlen(jobSpecs->toHosts[i]);
+               size += XDR_STRLEN(strlen(jobSpecs->toHosts[i]));
 	    }
 
             if (! (jpbw->jStatus & JOB_STAT_ZOMBIE)) {
@@ -2006,7 +2004,7 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
     // num_managers = 1
     for (int i = 0; i < num_managers; i++) {
         sbdPackage->admins[i] = strdup(mbd_mgr->name[i]);
-            size += getXdrStrlen(mbd_mgr->name[i]);
+            size += XDR_STRLEN(strlen(mbd_mgr->name[i]));
     }
 
     return size;

@@ -520,7 +520,7 @@ execJob(struct jobCard *jobCardPtr, int chfd)
     sigset_t newmask;
     XDR xdrs;
     char buf[MSGSIZE];
-    struct LSFHeader replyHdr;
+    struct packet_header replyHdr;
 
     static char * pLSB_EXEC_HOSTCWDS = NULL;
 
@@ -4348,7 +4348,7 @@ sbdParent(char *mode, struct jobCard *jCard, int chfd)
     char hndlbuf[64];
     char *buf;
     int i, buflen;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     XDR xdrs;
     FILE *jobEnvfp;
     char *jobEnvFile;
@@ -4550,7 +4550,7 @@ sbdChild(char *mode, char *arg)
     char *sp;
     int len;
     XDR xdrs;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct jobCard jCard;
     int chfd;
     char *jobEnvFile;

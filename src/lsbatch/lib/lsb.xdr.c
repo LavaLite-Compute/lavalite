@@ -24,17 +24,20 @@ bool_t xdr_var_string(XDR *, char **);
 static int    allocLoadIdx(float **sched, float **stop, int *outSize, int size);
 
 static bool_t xdr_lsbSharedResourceInfo (XDR *, struct lsbSharedResourceInfo *,
-                                         struct LSFHeader *);
+                                         struct packet_header *);
 
 static bool_t xdr_lsbShareResourceInstance (XDR *xdrs,
                                             struct lsbSharedResourceInstance *,
-                                            struct LSFHeader *);
+                                            struct packet_header *);
 
 int  lsbSharedResConfigured_ = false;
 
+// Bug the reason while the functions the packet_header pointer
+// without using it it to because of xdr_arrayElement
+
 extern bool_t xdr_array_string(XDR *, char **, int, int);
 bool_t
-xdr_submitReq (XDR *xdrs, struct submitReq *submitReq, struct LSFHeader *hdr)
+xdr_submitReq (XDR *xdrs, struct submitReq *submitReq, struct packet_header *hdr)
 {
 
     int i, nLimits;
@@ -206,7 +209,7 @@ Error0:
 }
 
 bool_t
-xdr_modifyReq (XDR *xdrs, struct  modifyReq *modifyReq, struct LSFHeader *hdr)
+xdr_modifyReq (XDR *xdrs, struct  modifyReq *modifyReq, struct packet_header *hdr)
 {
     int jobArrId, jobArrElemId;
 
@@ -243,7 +246,7 @@ xdr_modifyReq (XDR *xdrs, struct  modifyReq *modifyReq, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_jobInfoReq (XDR *xdrs, struct jobInfoReq *jobInfoReq, struct LSFHeader *hdr)
+xdr_jobInfoReq (XDR *xdrs, struct jobInfoReq *jobInfoReq, struct packet_header *hdr)
 {
     int jobArrId, jobArrElemId;
 
@@ -268,12 +271,12 @@ xdr_jobInfoReq (XDR *xdrs, struct jobInfoReq *jobInfoReq, struct LSFHeader *hdr)
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobInfoReq->jobId,jobArrId,jobArrElemId);
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_signalReq (XDR *xdrs, struct signalReq *signalReq, struct LSFHeader *hdr)
+xdr_signalReq (XDR *xdrs, struct signalReq *signalReq, struct packet_header *hdr)
 {
     int jobArrId, jobArrElemId;
 
@@ -300,12 +303,12 @@ xdr_signalReq (XDR *xdrs, struct signalReq *signalReq, struct LSFHeader *hdr)
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&signalReq->jobId,jobArrId,jobArrElemId);
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_lsbMsg(XDR *xdrs, struct lsbMsg *m, struct LSFHeader *hdr)
+xdr_lsbMsg(XDR *xdrs, struct lsbMsg *m, struct packet_header *hdr)
 {
     int xdrrc;
     int jobArrId, jobArrElemId;
@@ -352,7 +355,7 @@ xdr_lsbMsg(XDR *xdrs, struct lsbMsg *m, struct LSFHeader *hdr)
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&m->header->jobId,jobArrId,jobArrElemId);
     }
-
+    (void)hdr;
     return true;
 
 Failure:
@@ -361,7 +364,7 @@ Failure:
 }
 
 bool_t
-xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct LSFHeader *hdr)
+xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct packet_header *hdr)
 {
     static char queueName[MAX_LSB_NAME_LEN];
     static char jobName[MAX_CMD_DESC_LEN];
@@ -390,12 +393,13 @@ xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct LSFHeader *h
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&reply->jobId,jobArrId,jobArrElemId);
     }
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
-                   struct LSFHeader *hdr)
+                   struct packet_header *hdr)
 {
 
     if (xdrs->x_op == XDR_DECODE) {
@@ -460,13 +464,13 @@ xdr_parameterInfo (XDR *xdrs, struct parameterInfo *paramInfo,
           xdr_int(xdrs,&(paramInfo->sharedResourceUpdFactor)))) {
         return false;
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_jobInfoHead (XDR *xdrs, struct jobInfoHead *jobInfoHead,
-                 struct LSFHeader *hdr)
+                 struct packet_header *hdr)
 {
     static char **hostNames = NULL;
     static int numJobs = 0, numHosts = 0;
@@ -557,12 +561,13 @@ xdr_jobInfoHead (XDR *xdrs, struct jobInfoHead *jobInfoHead,
 
     FREEUP(jobArrIds);
     FREEUP(jobArrElemIds);
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_jgrpInfoReply (XDR *xdrs, struct jobInfoReply *jobInfoReply,
-                   struct LSFHeader *hdr)
+                   struct packet_header *hdr)
 {
     char *sp;
     int jobArrId, jobArrElemId;
@@ -607,12 +612,13 @@ xdr_jgrpInfoReply (XDR *xdrs, struct jobInfoReply *jobInfoReply,
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobInfoReply->jobId,jobArrId,jobArrElemId);
     }
+    (void)hdr;
     return true;
 
 }
 bool_t
 xdr_jobInfoReply (XDR *xdrs, struct jobInfoReply *jobInfoReply,
-                  struct LSFHeader *hdr)
+                  struct packet_header *hdr)
 {
     char *sp;
     int i, j;
@@ -775,14 +781,14 @@ xdr_jobInfoReply (XDR *xdrs, struct jobInfoReply *jobInfoReply,
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobInfoReply->jobId,jobArrId,jobArrElemId);
     }
-
+    (void)hdr;
     return true;
 
 }
 
 bool_t
 xdr_queueInfoReply (XDR *xdrs, struct queueInfoReply *qInfoReply,
-                    struct LSFHeader *hdr)
+                    struct packet_header *hdr)
 {
     int i;
     static int memSize = 0;
@@ -862,14 +868,14 @@ xdr_queueInfoReply (XDR *xdrs, struct queueInfoReply *qInfoReply,
                               hdr, xdr_queueInfoEnt, &qInfoReply->nIdx))
             return false;
     }
-
+    (void)hdr;
     return true;
 
 }
 
 bool_t
 xdr_queueInfoEnt (XDR *xdrs, struct queueInfoEnt *qInfo,
-                  struct LSFHeader *hdr, int *nIdx)
+                  struct packet_header *hdr, int *nIdx)
 {
     char* sp;
     int   i;
@@ -979,13 +985,13 @@ xdr_queueInfoEnt (XDR *xdrs, struct queueInfoEnt *qInfo,
             && xdr_int (xdrs, &qInfo->defProcLimit ) ) ) {
         return false;
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_infoReq (XDR *xdrs, struct infoReq *infoReq,
-             struct LSFHeader *hdr)
+             struct packet_header *hdr)
 {
     int i;
     static int memSize = 0;
@@ -1040,14 +1046,14 @@ xdr_infoReq (XDR *xdrs, struct infoReq *infoReq,
     if (xdrs->x_op == XDR_DECODE) {
         resReq = infoReq->resReq;
     }
-
+    (void)hdr;
     return true;
 
 }
 
 bool_t
 xdr_hostDataReply (XDR *xdrs, struct hostDataReply *hostDataReply,
-                   struct LSFHeader *hdr)
+                   struct packet_header *hdr)
 {
     int i, hostCount;
     struct hostInfoEnt *hInfoTmp ;
@@ -1156,13 +1162,13 @@ xdr_hostDataReply (XDR *xdrs, struct hostDataReply *hostDataReply,
         if (hostDataReply->flag & LOAD_REPLY_SHARED_RESOURCE)
             lsbSharedResConfigured_ = true;
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_hostInfoEnt (XDR *xdrs, struct hostInfoEnt *hostInfoEnt,
-                 struct LSFHeader *hdr, int *nIdx)
+                 struct packet_header *hdr, int *nIdx)
 {
     char *sp = hostInfoEnt->host;
     char *wp = hostInfoEnt->windows;
@@ -1208,13 +1214,13 @@ xdr_hostInfoEnt (XDR *xdrs, struct hostInfoEnt *hostInfoEnt,
     }
     if (!xdr_int(xdrs, &hostInfoEnt->numRESERVE))
         return false;
-
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_userInfoReply (XDR *xdrs, struct userInfoReply *userInfoReply,
-                   struct LSFHeader *hdr)
+                   struct packet_header *hdr)
 {
     int i;
     struct userInfoEnt *uInfoTmp;
@@ -1262,14 +1268,14 @@ xdr_userInfoReply (XDR *xdrs, struct userInfoReply *userInfoReply,
                               xdr_userInfoEnt)) {
             return false;
         }
-
+    (void)hdr;
     return true;
 
 }
 
 bool_t
 xdr_userInfoEnt (XDR *xdrs, struct userInfoEnt *userInfoEnt,
-                 struct LSFHeader *hdr)
+                 struct packet_header *hdr)
 {
     char *sp;
 
@@ -1293,12 +1299,12 @@ xdr_userInfoEnt (XDR *xdrs, struct userInfoEnt *userInfoEnt,
 
     if (!xdr_int(xdrs, &userInfoEnt->numRESERVE))
         return false;
-
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_jobPeekReq (XDR *xdrs, struct jobPeekReq *jobPeekReq, struct LSFHeader *hdr)
+xdr_jobPeekReq (XDR *xdrs, struct jobPeekReq *jobPeekReq, struct packet_header *hdr)
 {
 
     int jobArrId, jobArrElemId;
@@ -1316,13 +1322,13 @@ xdr_jobPeekReq (XDR *xdrs, struct jobPeekReq *jobPeekReq, struct LSFHeader *hdr)
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobPeekReq->jobId,jobArrId,jobArrElemId);
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_jobPeekReply (XDR *xdrs, struct jobPeekReply *jobPeekReply,
-                  struct LSFHeader *hdr)
+                  struct packet_header *hdr)
 {
     static char outFile[MAXFILENAMELEN];
 
@@ -1337,13 +1343,13 @@ xdr_jobPeekReply (XDR *xdrs, struct jobPeekReply *jobPeekReply,
     if (!(xdr_var_string(xdrs, &jobPeekReply->pSpoolDir))) {
         return false;
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_groupInfoReply (XDR *xdrs, struct groupInfoReply *groupInfoReply,
-                    struct LSFHeader *hdr)
+                    struct packet_header *hdr)
 {
     int i;
 
@@ -1387,15 +1393,16 @@ xdr_groupInfoReply (XDR *xdrs, struct groupInfoReply *groupInfoReply,
     if (xdrs->x_op == XDR_FREE)
         FREEUP(groupInfoReply->groups);
 
+    (void)hdr;
     return true;
-
 }
 
 bool_t
-xdr_groupInfoEnt (XDR *xdrs, struct groupInfoEnt *gInfo,
-                  struct LSFHeader *hdr)
+xdr_groupInfoEnt(XDR *xdrs, struct groupInfoEnt *gInfo,
+                 struct packet_header *hdr)
 {
 
+    (void)hdr;
     if (xdrs->x_op == XDR_DECODE) {
         gInfo->group = NULL;
         gInfo->memberList = NULL;
@@ -1410,13 +1417,13 @@ xdr_groupInfoEnt (XDR *xdrs, struct groupInfoEnt *gInfo,
         FREEUP(gInfo->memberList);
     }
 
+    (void)hdr;
     return true;
-
 }
 
 bool_t
 xdr_controlReq (XDR *xdrs, struct controlReq *controlReq,
-                struct LSFHeader *hdr)
+                struct packet_header *hdr)
 {
     static char *sp = NULL;
     static int first = true;
@@ -1436,13 +1443,13 @@ xdr_controlReq (XDR *xdrs, struct controlReq *controlReq,
     if (!(xdr_int(xdrs, &controlReq->opCode) &&
           xdr_string(xdrs, &sp, MAXHOSTNAMELEN)))
         return false;
-
+    (void)hdr;
     return true;
 }
 
 bool_t
 xdr_jobSwitchReq (XDR *xdrs, struct jobSwitchReq *jobSwitchReq,
-                  struct LSFHeader *hdr)
+                  struct packet_header *hdr)
 {
     char *sp;
     int jobArrId, jobArrElemId;
@@ -1464,11 +1471,12 @@ xdr_jobSwitchReq (XDR *xdrs, struct jobSwitchReq *jobSwitchReq,
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobSwitchReq->jobId,jobArrId,jobArrElemId);
     }
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_jobMoveReq (XDR *xdrs, struct jobMoveReq *jobMoveReq, struct LSFHeader *hdr)
+xdr_jobMoveReq (XDR *xdrs, struct jobMoveReq *jobMoveReq, struct packet_header *hdr)
 {
     int jobArrId, jobArrElemId;
 
@@ -1486,11 +1494,12 @@ xdr_jobMoveReq (XDR *xdrs, struct jobMoveReq *jobMoveReq, struct LSFHeader *hdr)
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobMoveReq->jobId,jobArrId,jobArrElemId);
     }
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_migReq (XDR *xdrs, struct migReq *req, struct LSFHeader *hdr)
+xdr_migReq (XDR *xdrs, struct migReq *req, struct packet_header *hdr)
 {
     char *sp;
     int i;
@@ -1540,12 +1549,12 @@ xdr_migReq (XDR *xdrs, struct migReq *req, struct LSFHeader *hdr)
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&req->jobId,jobArrId,jobArrElemId);
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_xFile(XDR *xdrs, struct xFile *xf, struct LSFHeader *hdr)
+xdr_xFile(XDR *xdrs, struct xFile *xf, struct packet_header *hdr)
 {
     char *sp;
 
@@ -1564,7 +1573,7 @@ xdr_xFile(XDR *xdrs, struct xFile *xf, struct LSFHeader *hdr)
 
     if (!xdr_int(xdrs, &xf->options))
         return false;
-
+    (void)hdr;
     return true;
 }
 
@@ -1591,7 +1600,7 @@ allocLoadIdx(float **loadSched, float **loadStop, int *outSize, int size)
 bool_t
 xdr_lsbShareResourceInfoReply(XDR *xdrs,
                               struct  lsbShareResourceInfoReply *lsbShareResourceInfoReply,
-                              struct LSFHeader *hdr)
+                              struct packet_header *hdr)
 {
     int i, status;
 
@@ -1632,7 +1641,7 @@ xdr_lsbShareResourceInfoReply(XDR *xdrs,
 static bool_t
 xdr_lsbSharedResourceInfo (XDR *xdrs, struct
                            lsbSharedResourceInfo *lsbSharedResourceInfo,
-                           struct LSFHeader *hdr)
+                           struct packet_header *hdr)
 {
     int i, status;
 
@@ -1672,7 +1681,7 @@ xdr_lsbSharedResourceInfo (XDR *xdrs, struct
 static bool_t
 xdr_lsbShareResourceInstance (XDR *xdrs,
                               struct  lsbSharedResourceInstance *instance,
-                              struct LSFHeader *hdr)
+                              struct packet_header *hdr)
 {
 
     if (xdrs->x_op == XDR_DECODE) {
@@ -1705,13 +1714,14 @@ xdr_lsbShareResourceInstance (XDR *xdrs,
         FREEUP (instance->hostList);
         instance->nHosts = 0;
     }
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_runJobReq(XDR*                   xdrs,
-              struct runJobRequest*  runJobRequest,
-              struct LSFHeader*      lsfHeader)
+xdr_runJobReq(XDR *xdrs,
+              struct runJobRequest *runJobRequest,
+              struct packet_header *hdr)
 {
     int i;
     int jobArrId, jobArrElemId;
@@ -1749,12 +1759,12 @@ xdr_runJobReq(XDR*                   xdrs,
         runJobRequest->numHosts = 0;
         FREEUP(runJobRequest->hostname);
     }
-
+    (void)hdr;
     return true;
 }
 
 bool_t
-xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, struct LSFHeader *hdr)
+xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, struct packet_header *hdr)
 {
     char *sp = jobAttr->hostname;
 
@@ -1778,6 +1788,6 @@ xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, struct LSFHeader *hdr)
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobAttr->jobId,jobArrId,jobArrElemId);
     }
-
+    (void)hdr;
     return true;
 }

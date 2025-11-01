@@ -29,7 +29,7 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
     char request_buf[MSGSIZE], hostName[MAXHOSTNAMELEN];
     char *reply_buf;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
     char *toHost = NULL;
 
@@ -55,7 +55,8 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
         strcpy(debug.hostName, h);
     }
 
-    if ( debug.opCode == MBD_DEBUG || debug.opCode == MBD_TIMING){
+    if ( debug.opCode == MBD_DEBUG
+         || debug.opCode == MBD_TIMING) {
 
         mbdReqtype = BATCH_DEBUG;
         toHost = NULL;
@@ -72,7 +73,7 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     initLSFHeader_(&hdr);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = (int)mbdReqtype;
 
     if (!xdr_encodeMsg(&xdrs, (char *)&debug, &hdr, xdr_debugReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
@@ -96,7 +97,7 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
     }
     xdr_destroy(&xdrs);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (cc)
         free(reply_buf);
     if (lsberrno == LSBE_NO_ERROR)

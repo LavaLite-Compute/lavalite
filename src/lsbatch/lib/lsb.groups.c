@@ -114,7 +114,7 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
     XDR                    xdrs;
     char                   request_buf[MSGSIZE];
     char *                 reply_buf;
-    struct LSFHeader       hdr;
+    struct packet_header       hdr;
     mbdReqType             mbdReqtype;
     int                    cc;
 
@@ -123,7 +123,7 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
     mbdReqtype = BATCH_GRP_INFO;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs,
                 (char *)groupInfo,
                 &hdr,
@@ -149,7 +149,7 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
 
     xdr_destroy(&xdrs);
 
-    lsberrno =  hdr.opCode;
+    lsberrno =  hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_GROUP ) {
         xdrmem_create(&xdrs,
                 reply_buf,

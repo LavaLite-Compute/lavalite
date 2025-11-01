@@ -16,6 +16,10 @@
  *
  */
 
+// NOTE since we disable remote execution beep does not work as it used it
+// we need to rewrite bpeek using a ssh command, a python script would
+// do most likely
+
 #include "lsbatch/cmd/cmd.h"
 
 #include <netdb.h>
@@ -285,10 +289,10 @@ remoteOutput(int fidx, char **disOut, char *exHost, char *fname,
 	ls_perror("ls_initrex");
 	return;
     }
-
+#if 0
     ls_rfcontrol(RF_CMD_RXFLAGS, REXF_CLNTDIR);
     ls_rexecve(exHost, disOut, REXF_CLNTDIR, envp);
-
+#endif
     fprintf(stderr, I18N_FUNC_S_S_FAIL_S, "ls_rexecv", disOut[0], ls_sysmsg());
 
 }
@@ -306,8 +310,9 @@ useTmp(char *exHost, char *fname)
 	    exit(FALSE);
 	}
 
-	ls_rfcontrol(RF_CMD_RXFLAGS, REXF_CLNTDIR);
-
+// Bug see the note at the beginning of the file
+#if 0
+        ls_rfcontrol(RF_CMD_RXFLAGS, REXF_CLNTDIR);
 	if (ls_rstat(exHost, fname, &st) < 0) {
 	    if (lserrno == LSE_FILE_SYS &&
 	       (errno == ENOENT || errno == EACCES)) {
@@ -316,7 +321,7 @@ useTmp(char *exHost, char *fname)
 
 	    ls_perror("ls_rstat");
 	}
-
+#endif
 	exit(FALSE);
     }
 

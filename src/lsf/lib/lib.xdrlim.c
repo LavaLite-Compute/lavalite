@@ -19,18 +19,18 @@
  */
 #include "lsf/lib/lib.h"
 
-static bool_t xdr_hostLoad (XDR *, struct hostLoad *, struct LSFHeader *, char *);
-static bool_t xdr_placeInfo (XDR *, struct placeInfo *, struct LSFHeader *);
-static bool_t xdr_shortLsInfo(XDR *, struct shortLsInfo *, struct LSFHeader *);
-static bool_t xdr_resItem(XDR *, struct resItem *, struct LSFHeader *);
+static bool_t xdr_hostLoad (XDR *, struct hostLoad *, struct packet_header *, char *);
+static bool_t xdr_placeInfo (XDR *, struct placeInfo *, struct packet_header *);
+static bool_t xdr_shortLsInfo(XDR *, struct shortLsInfo *, struct packet_header *);
+static bool_t xdr_resItem(XDR *, struct resItem *, struct packet_header *);
 static void freeUpMemp (char *, int);
 static bool_t xdr_lsResourceInfo (XDR *, struct  lsSharedResourceInfo *,
-						 struct LSFHeader *);
+						 struct packet_header *);
 static bool_t xdr_lsResourceInstance (XDR *, struct  lsSharedResourceInstance *,
-					    struct LSFHeader *);
+					    struct packet_header *);
 int sharedResConfigured_ = false;
 static bool_t
-xdr_placeInfo(XDR *xdrs, struct placeInfo *placeInfo, struct LSFHeader *hdr)
+xdr_placeInfo(XDR *xdrs, struct placeInfo *placeInfo, struct packet_header *hdr)
 {
     char *sp;
 
@@ -45,7 +45,7 @@ xdr_placeInfo(XDR *xdrs, struct placeInfo *placeInfo, struct LSFHeader *hdr)
 }
 
 static bool_t
-xdr_hostLoad (XDR *xdrs, struct hostLoad *loadVec, struct LSFHeader *hdr, char *cp)
+xdr_hostLoad (XDR *xdrs, struct hostLoad *loadVec, struct packet_header *hdr, char *cp)
 {
     char *sp;
     int i;
@@ -71,7 +71,7 @@ xdr_hostLoad (XDR *xdrs, struct hostLoad *loadVec, struct LSFHeader *hdr, char *
 
 bool_t
 xdr_decisionReq(XDR *xdrs, struct decisionReq *decisionReqPtr,
-		struct LSFHeader *hdr)
+		struct packet_header *hdr)
 {
     char *sp1 = decisionReqPtr->hostType;
     char *sp2 = decisionReqPtr->resReq;
@@ -109,7 +109,7 @@ xdr_decisionReq(XDR *xdrs, struct decisionReq *decisionReqPtr,
 }
 
 bool_t
-xdr_placeReply(XDR *xdrs, struct placeReply *placeRepPtr, struct LSFHeader *hdr)
+xdr_placeReply(XDR *xdrs, struct placeReply *placeRepPtr, struct packet_header *hdr)
 {
     int i, status=false;
     static  char  *memp;
@@ -143,7 +143,7 @@ xdr_placeReply(XDR *xdrs, struct placeReply *placeRepPtr, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_loadReply(XDR *xdrs, struct loadReply *loadReplyPtr, struct LSFHeader *hdr)
+xdr_loadReply(XDR *xdrs, struct loadReply *loadReplyPtr, struct packet_header *hdr)
 {
     char *sp;
     int  i, status=true;
@@ -217,7 +217,7 @@ xdr_loadReply(XDR *xdrs, struct loadReply *loadReplyPtr, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_jobXfer(XDR *xdrs, struct jobXfer *jobXferPtr, struct LSFHeader *hdr)
+xdr_jobXfer(XDR *xdrs, struct jobXfer *jobXferPtr, struct packet_header *hdr)
 {
     int i, status=false;
     char *sp;
@@ -260,7 +260,7 @@ xdr_jobXfer(XDR *xdrs, struct jobXfer *jobXferPtr, struct LSFHeader *hdr)
 
 bool_t
 xdr_hostInfoReply(XDR *xdrs, struct hostInfoReply *hostInfoReply,
-			struct LSFHeader *hdr)
+			struct packet_header *hdr)
 {
     int i, status;
     static struct shortHInfo *memp = NULL;
@@ -325,7 +325,7 @@ xdr_hostInfoReply(XDR *xdrs, struct hostInfoReply *hostInfoReply,
 }
 
 bool_t
-xdr_shortHInfo(XDR *xdrs, struct shortHInfo *shortHInfo, struct LSFHeader *hdr,
+xdr_shortHInfo(XDR *xdrs, struct shortHInfo *shortHInfo, struct packet_header *hdr,
 char *nIndex)
 {
     char window[MAXLINELEN];
@@ -428,7 +428,7 @@ char *nIndex)
 }
 
 static bool_t
-xdr_shortLsInfo( XDR *xdrs, struct shortLsInfo *shortLInfo, struct LSFHeader *hdr)
+xdr_shortLsInfo( XDR *xdrs, struct shortLsInfo *shortLInfo, struct packet_header *hdr)
 {
     int i;
     static char *memp, *currp;
@@ -490,7 +490,7 @@ xdr_shortLsInfo( XDR *xdrs, struct shortLsInfo *shortLInfo, struct LSFHeader *hd
 }
 
 bool_t
-xdr_limLock(XDR *xdrs, struct limLock *limLockPtr, struct LSFHeader *hdr)
+xdr_limLock(XDR *xdrs, struct limLock *limLockPtr, struct packet_header *hdr)
 {
     char *sp;
 
@@ -512,7 +512,7 @@ xdr_limLock(XDR *xdrs, struct limLock *limLockPtr, struct LSFHeader *hdr)
 }
 
 static bool_t
-xdr_resItem(XDR *xdrs, struct resItem *resItem, struct LSFHeader *hdr)
+xdr_resItem(XDR *xdrs, struct resItem *resItem, struct packet_header *hdr)
 {
     char *sp, *sp1;
 
@@ -534,7 +534,7 @@ xdr_resItem(XDR *xdrs, struct resItem *resItem, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_lsInfo(XDR *xdrs, struct lsInfo *lsInfoPtr, struct LSFHeader *hdr)
+xdr_lsInfo(XDR *xdrs, struct lsInfo *lsInfoPtr, struct packet_header *hdr)
 {
     int i;
     char *sp = (char*)0;
@@ -633,7 +633,7 @@ xdr_lsInfo(XDR *xdrs, struct lsInfo *lsInfoPtr, struct LSFHeader *hdr)
 }
 
 bool_t
-xdr_masterInfo(XDR *xdrs, struct masterInfo *mInfoPtr, struct LSFHeader *hdr)
+xdr_masterInfo(XDR *xdrs, struct masterInfo *mInfoPtr, struct packet_header *hdr)
 {
     char *sp;
 
@@ -656,7 +656,7 @@ xdr_masterInfo(XDR *xdrs, struct masterInfo *mInfoPtr, struct LSFHeader *hdr)
 
 bool_t
 xdr_clusterInfoReq(XDR *xdrs, struct clusterInfoReq *clusterInfoReq,
-	                       struct LSFHeader *hdr)
+	                       struct packet_header *hdr)
 {
     char line[MAXLINELEN];
     char *sp = line;
@@ -703,7 +703,7 @@ xdr_clusterInfoReq(XDR *xdrs, struct clusterInfoReq *clusterInfoReq,
 
 bool_t
 xdr_clusterInfoReply(XDR *xdrs, struct clusterInfoReply *clusterInfoReply,
-			   struct LSFHeader *hdr)
+			   struct packet_header *hdr)
 {
     int i;
     static char *memp = NULL;
@@ -771,7 +771,7 @@ freeUpMemp (char *memp, int nClus)
 }
 
 bool_t
-xdr_shortCInfo(XDR *xdrs, struct shortCInfo *clustInfoPtr, struct LSFHeader *hdr)
+xdr_shortCInfo(XDR *xdrs, struct shortCInfo *clustInfoPtr, struct packet_header *hdr)
 {
     char *sp1, *sp2, *sp3;
     int i;
@@ -875,7 +875,7 @@ xdr_shortCInfo(XDR *xdrs, struct shortCInfo *clustInfoPtr, struct LSFHeader *hdr
 }
 
 bool_t
-xdr_cInfo(XDR *xdrs, struct cInfo *cInfo, struct LSFHeader *hdr)
+xdr_cInfo(XDR *xdrs, struct cInfo *cInfo, struct packet_header *hdr)
 {
 
     char *sp1, *sp2, *sp3;
@@ -1001,7 +1001,7 @@ xdr_cInfo(XDR *xdrs, struct cInfo *cInfo, struct LSFHeader *hdr)
 
 bool_t
 xdr_resourceInfoReq(XDR *xdrs, struct  resourceInfoReq *resourceInfoReq,
-			   struct LSFHeader *hdr)
+			   struct packet_header *hdr)
 {
     int i;
 
@@ -1041,7 +1041,7 @@ xdr_resourceInfoReq(XDR *xdrs, struct  resourceInfoReq *resourceInfoReq,
 
 bool_t
 xdr_resourceInfoReply(XDR *xdrs, struct  resourceInfoReply *resourceInfoReply,
-			   struct LSFHeader *hdr)
+			   struct packet_header *hdr)
 {
     int i, status;
 
@@ -1080,7 +1080,7 @@ xdr_resourceInfoReply(XDR *xdrs, struct  resourceInfoReply *resourceInfoReply,
 
 static bool_t
 xdr_lsResourceInfo (XDR *xdrs, struct  lsSharedResourceInfo *lsResourceInfo,
-			   struct LSFHeader *hdr)
+			   struct packet_header *hdr)
 {
     int i, status;
 
@@ -1120,7 +1120,7 @@ xdr_lsResourceInfo (XDR *xdrs, struct  lsSharedResourceInfo *lsResourceInfo,
 
 static bool_t
 xdr_lsResourceInstance (XDR *xdrs, struct  lsSharedResourceInstance *instance,
-			   struct LSFHeader *hdr)
+			   struct packet_header *hdr)
 {
 
     if (xdrs->x_op == XDR_DECODE) {

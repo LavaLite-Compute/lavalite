@@ -53,7 +53,7 @@ struct debugReq {
 
 extern void putMaskLevel(int, char **);
 extern bool_t xdr_debugReq (XDR *xdrs, struct debugReq  *debugReq,
-                            struct LSFHeader *hdr);
+                            struct packet_header *hdr);
 #define    MBD_DEBUG         1
 #define    MBD_TIMING        2
 #define    SBD_DEBUG         3
@@ -175,8 +175,8 @@ extern int sharedResConfigured_;
 #define LSF_LIM_ERESOURCE_VALUE         "lim_vcl_get_eres_val"
 #define LSF_LIM_ERES_TYPE "!"
 
-extern int expectReturnCode_(int, int, struct LSFHeader *);
-extern int ackAsyncReturnCode_(int, struct LSFHeader *);
+extern int expectReturnCode_(int, int, struct packet_header *);
+extern int ackAsyncReturnCode_(int, struct packet_header *);
 extern int resRC2LSErr_(int);
 extern int ackReturnCode_(int);
 
@@ -245,7 +245,7 @@ extern char *putstr_ (const char *);
 extern int ls_strcat(char *,int,char *);
 extern char *mygetwd_(const char *);
 extern char *chDisplay_(char *);
-extern void initLSFHeader_(struct LSFHeader *);
+extern void initLSFHeader_(struct packet_header *);
 extern struct group *mygetgrnam( const char *name);
 extern void *myrealloc(void *ptr, size_t size);
 extern char *getNextToken(char **sp);
@@ -372,22 +372,22 @@ extern int readDecodeHdr_ (int s,
                            char *buf,
                            ssize_t (*readFunc)(),
                            XDR *xdrs,
-                           struct LSFHeader *hdr);
-extern int readDecodeMsg_ (int s, char *buf, struct LSFHeader *hdr,
+                           struct packet_header *hdr);
+extern int readDecodeMsg_ (int s, char *buf, struct packet_header *hdr,
                            ssize_t (*readFunc)(), XDR *xdrs, char *data,
                            bool_t (*xdrFunc)(), struct lsfAuth *auth);
 extern int writeEncodeMsg_(int,
                            char *,
                            int,
-                           struct LSFHeader *,
+                           struct packet_header *,
                            char *,
                            ssize_t (*)(),
                            bool_t (*)(),
                            int);
-extern int writeEncodeHdr_(int, struct LSFHeader *, ssize_t (*)());
+extern int writeEncodeHdr_(int, struct packet_header *, ssize_t (*)());
 extern int lsSendMsg_(int, int, int, char *, char *, int, bool_t (*)(),
                       ssize_t (*)(), struct lsfAuth *);
-extern int lsRecvMsg_(int, char *, int, struct LSFHeader *, char *,
+extern int lsRecvMsg_(int, char *, int, struct packet_header *, char *,
                       bool_t (*)(), ssize_t (*)());
 
 extern int io_nonblock_(int);
@@ -412,7 +412,7 @@ extern char *parsewindow(char *, char *, int *, char *);
 extern int expandList_(char ***, int, char **);
 extern int expandList1_(char ***, int, int *, char **);
 
-extern void xdr_lsffree(bool_t (*)(), char *, struct LSFHeader *);
+extern void xdr_lsffree(bool_t (*)(), char *, struct packet_header *);
 
 extern int createUtmpEntry(char *, pid_t, char *);
 extern int removeUtmpEntry(pid_t);

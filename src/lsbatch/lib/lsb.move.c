@@ -20,7 +20,7 @@
 #include "lsbatch/lib/lsb.h"
 
 int
-lsb_movejob (LS_LONG_INT jobId, int *position, int opCode)
+lsb_movejob (LS_LONG_INT jobId, int *position, int operation)
 {
     struct jobMoveReq jobMoveReq;
     char request_buf[MSGSIZE];
@@ -28,10 +28,10 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int opCode)
     XDR xdrs;
     mbdReqType mbdReqtype;
     int cc;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     struct lsfAuth auth;
 
-    if (opCode != TO_TOP && opCode != TO_BOTTOM) {
+    if (operation != TO_TOP && operation != TO_BOTTOM) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
@@ -51,12 +51,12 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int opCode)
 
     jobMoveReq.jobId = jobId;
     jobMoveReq.position = *position;
-    jobMoveReq.opCode = opCode;
+    jobMoveReq.opCode = operation;
 
     mbdReqtype = BATCH_JOB_MOVE;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    hdr.opCode = mbdReqtype;
+    hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *) &jobMoveReq, &hdr, xdr_jobMoveReq, 0, &auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
@@ -70,7 +70,7 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int opCode)
     }
     xdr_destroy(&xdrs);
 
-    lsberrno = hdr.opCode;
+    lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
         xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
         if (!xdr_jobMoveReq(&xdrs, &jobMoveReq, &hdr)) {

@@ -19,8 +19,6 @@
 #include "lsf/lim/lim.h"
 #include "lsf/lib/lsi18n.h"
 
-#define HDR_LEN  16
-
 #define ABORT     1
 #define RX_HINFO  2
 #define RX_LINFO  3
@@ -33,7 +31,7 @@ struct clientNode  *clientMap[2*MAXCLIENTS];
 extern int chanIndex;
 
 static void processMsg(int);
-static void clientReq(XDR *, struct LSFHeader *, int );
+static void clientReq(XDR *, struct packet_header *, int );
 
 static void shutDownChan(int);
 
@@ -67,7 +65,7 @@ processMsg(int chanfd)
 {
     static char fname[]="processMsg";
     struct Buffer *buf;
-    struct LSFHeader hdr;
+    struct packet_header hdr;
     XDR  xdrs;
 
     if (clientMap[chanfd] && clientMap[chanfd]->inprogress)
@@ -91,16 +89,16 @@ processMsg(int chanfd)
         return;
     }
 
-    if ( (clientMap[chanfd] && hdr.opCode >= FIRST_LIM_PRIV) ||
-         (!clientMap[chanfd] && hdr.opCode < FIRST_INTER_CLUS) ){
-        ls_syslog(LOG_ERR, "%s: Invalid opCode <%d> from client", fname, hdr.opCode);
+    if ( (clientMap[chanfd] && hdr.operation >= FIRST_LIM_PRIV) ||
+         (!clientMap[chanfd] && hdr.operation < FIRST_INTER_CLUS) ){
+        ls_syslog(LOG_ERR, "%s: Invalid operation <%d> from client", fname, hdr.operation);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);
         return;
     }
 
-    if (hdr.opCode >= FIRST_INTER_CLUS && !masterMe) {
+    if (hdr.operation >= FIRST_INTER_CLUS && !masterMe) {
         ls_syslog(LOG_ERR, "%s: Intercluster request received, but I'm not master", fname);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
@@ -110,7 +108,7 @@ processMsg(int chanfd)
 
     if ( !clientMap[chanfd]) {
 
-        if (hdr.opCode != LIM_CLUST_INFO) {
+        if (hdr.operation != LIM_CLUST_INFO) {
             struct sockaddr_in fromAddr;
             socklen_t fromLen = sizeof(struct sockaddr_in);
 
@@ -121,8 +119,8 @@ processMsg(int chanfd)
                        __func__, chanSock_(chanfd));
             }
 
-            ls_syslog(LOG_ERR, "%s: Protocol error received opCode <%d> from %s",
-                      fname, hdr.opCode, sockAdd2Str_(&fromAddr));
+            ls_syslog(LOG_ERR, "%s: Protocol error received operation <%d> from %s",
+                      fname, hdr.operation, sockAdd2Str_(&fromAddr));
             xdr_destroy(&xdrs);
             shutDownChan(chanfd);
             chanFreeBuf_(buf);
@@ -131,15 +129,15 @@ processMsg(int chanfd)
     }
 
     if (logclass & LC_TRACE)
-        syslog(LOG_DEBUG, "%s: Received request <%d> ", __func__, hdr.opCode);
+        syslog(LOG_DEBUG, "%s: Received request <%d> ", __func__, hdr.operation);
 
-    switch(hdr.opCode) {
+    switch(hdr.operation) {
     case LIM_LOAD_REQ:
     case LIM_GET_HOSTINFO:
     case LIM_PLACEMENT:
     case LIM_GET_RESOUINFO:
     case LIM_GET_INFO:
-        clientMap[chanfd]->limReqCode = hdr.opCode;
+        clientMap[chanfd]->limReqCode = hdr.operation;
         clientMap[chanfd]->reqbuf = buf;
         clientReq(&xdrs, &hdr, chanfd);
         break;
@@ -156,7 +154,7 @@ processMsg(int chanfd)
         break;
 
     default:
-        ls_syslog(LOG_ERR, "%s: Invalid opCode <%d>",fname,hdr.opCode);
+        ls_syslog(LOG_ERR, "%s: Invalid operation <%d>",fname,hdr.operation);
         xdr_destroy(&xdrs);
         chanFreeBuf_(buf);
         break;
@@ -165,7 +163,7 @@ processMsg(int chanfd)
 }
 
 static void
-clientReq(XDR *xdrs, struct LSFHeader *hdr, int chfd)
+clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
 {
     static char fname[]="clientReq";
     struct decisionReq decisionRequest;
@@ -216,7 +214,7 @@ Reply1:
             if (io_block_(sock) < 0)
                 ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "io_block_");
 
-            switch(hdr->opCode) {
+            switch(hdr->operation) {
             case LIM_GET_HOSTINFO:
                 hostInfoReq(xdrs, clientMap[chfd]->fromHost, &clientMap[chfd]->from, hdr, chfd);
                 break;

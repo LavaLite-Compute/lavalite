@@ -257,7 +257,7 @@ extern int callLim_(enum limReqCode,
                     bool_t (*)(),
                     char *,
                     int,
-                    struct LSFHeader *);
+                    struct packet_header *);
 extern int initLimSock_(void);
 
 extern void err_return_(enum limReplyCode);
@@ -271,7 +271,7 @@ extern struct hostLoad *loadinfo_(char *,
 extern struct hostent *Gethostbyname_(char *);
 extern short getRefNum_(void);
 extern void strToLower_(char *);
-extern void initLSFHeader_(struct LSFHeader *);
+extern void initLSFHeader_(struct packet_header *);
 extern int  isMasterCrossPlatform(void);
 extern int  isAllowCross(char *);
 

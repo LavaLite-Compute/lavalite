@@ -22,7 +22,6 @@
 void lsb_mperr (char *msg) {}
 void lsb_merr (char *s) {}
 void merr_user (char *user, char *host, char *msg, char *type) {}
-static void addr_process (char *adbuf, char *user, char *tohost, char *spec) {}
 FILE * smail (char *to, char *tohost) {return fopen("/dev/null", "w");}
 void mclose (FILE *file) {fclose(file);}
 
@@ -113,40 +112,6 @@ merr_user (char *user, char *host, char *msg, char *type)
     mclose(mail);
 }
 
-static void
-addr_process (char *adbuf, char *user, char *tohost, char *spec)
-{
-    char *bp, *sp, *up;
-
-    if (strrchr(user, '@') != NULL) {
-        strcpy(adbuf, user);
-        return;
-    }
-
-    bp = adbuf;
-    for (sp = spec ; *sp ; sp++)
-    {
-	if ((*sp == '^') || (*sp == '!'))
-	{
-	    switch (*++sp)
-	    {
-	    case 'U':
-		for (up = user ; *up ; )
-		    *bp++ = *up++;
-		continue;
-	    case 'H':
-		for (up = tohost ; *up ; )
-		    *bp++ = *up++;
-		continue;
-	    default:
-		sp -= 1;
-
-	    }
-	}
-	*bp++ = *sp;
-    }
-    *bp = 0;
-}
 
 FILE *
 smail (char *to, char *tohost)

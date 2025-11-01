@@ -153,7 +153,7 @@ void setJobPriUpdIntvl(void);
 static void updateJobPriorityInPJL(void);
 static void houseKeeping (int *);
 static void periodicCheck (void);
-static int authRequest(struct lsfAuth *, XDR *, struct LSFHeader *,
+static int authRequest(struct lsfAuth *, XDR *, struct packet_header *,
                        struct sockaddr_in *, struct sockaddr_in *,
                        char *, int);
 static int processClient(struct clientNode *, int *);
@@ -168,9 +168,9 @@ static void acceptConnection(int);
 extern void chanInactivate_(int);
 extern void chanActivate_(int);
 extern int do_chunkStatusReq(XDR *, int, struct sockaddr_in *, int *,
-                             struct LSFHeader *);
+                             struct packet_header *);
 extern int do_setJobAttr(XDR *, int, struct sockaddr_in *, char *,
-                         struct LSFHeader *, struct lsfAuth *);
+                         struct packet_header *, struct lsfAuth *);
 extern void chanCloseAllBut_(int);
 extern int initLimSock_(void);
 
@@ -601,7 +601,7 @@ processClient(struct clientNode *client, int *needFree)
     int cc = LSBE_NO_ERROR;
     struct sockaddr_in from, laddr;
     struct lsfAuth auth;
-    struct LSFHeader reqHdr;
+    struct packet_header reqHdr;
     XDR xdrs;
     int statusReqCC = 0;
     int hostOkFlag = 0;
@@ -625,7 +625,7 @@ processClient(struct clientNode *client, int *needFree)
         return -1;
     }
 
-    mbdReqtype = reqHdr.opCode;
+    mbdReqtype = reqHdr.operation;
     from = client->from;
 
 //    if (logclass & (LC_COMM | LC_TRACE)) {
@@ -655,7 +655,7 @@ processClient(struct clientNode *client, int *needFree)
         break;
     }
 
-    if (reqHdr.opCode != PREPARE_FOR_OP)
+    if (reqHdr.operation != PREPARE_FOR_OP)
         if (io_block_(chanSock_(s)) < 0)
             ls_syslog(LOG_ERR, "%s", __func__, "io_block_");
 
@@ -809,7 +809,7 @@ processClient(struct clientNode *client, int *needFree)
         break;
     default:
         errorBack(s, LSBE_PROTOCOL, &from);
-        if (reqHdr.version <= _XDR_VERSION_0_1_0)
+        if (reqHdr.version <= CURRENT_PROTOCOL_VERSION)
             ls_syslog(LOG_ERR, "%s: Unknown request type <%d> from host <%s>",
                       fname, mbdReqtype, sockAdd2Str_(&from));
         break;
@@ -824,11 +824,11 @@ endLoop:
     client->lastTime = now;
     xdr_destroy(&xdrs);
     chanFreeBuf_(buf);
-    if ((reqHdr.opCode != PREPARE_FOR_OP &&
-         reqHdr.opCode != BATCH_STATUS_JOB &&
-         reqHdr.opCode != BATCH_RUSAGE_JOB &&
-         reqHdr.opCode != BATCH_STATUS_MSG_ACK &&
-         reqHdr.opCode != BATCH_STATUS_CHUNK) ||
+    if ((reqHdr.operation != PREPARE_FOR_OP &&
+         reqHdr.operation != BATCH_STATUS_JOB &&
+         reqHdr.operation != BATCH_RUSAGE_JOB &&
+         reqHdr.operation != BATCH_STATUS_MSG_ACK &&
+         reqHdr.operation != BATCH_STATUS_CHUNK) ||
         statusReqCC < 0) {
         shutDownClient(client);
         return -1;
@@ -1033,12 +1033,12 @@ child_handler (int sig)
 }
 
 static int
-authRequest(struct lsfAuth *auth, XDR *xdrs, struct LSFHeader *reqHdr,
+authRequest(struct lsfAuth *auth, XDR *xdrs, struct packet_header *reqHdr,
             struct sockaddr_in *from, struct sockaddr_in *local,
             char *hostName, int s)
 {
     static char fname[] = "authRequest";
-    mbdReqType reqType = reqHdr->opCode;
+    mbdReqType reqType = reqHdr->operation;
     char buf[1024];
 
     if (!(reqType == BATCH_JOB_SUB || reqType == BATCH_JOB_PEEK ||

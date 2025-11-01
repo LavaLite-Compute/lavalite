@@ -33,7 +33,6 @@ libll_la_SOURCES = lib.channel.c \
 	lib.lsf.c \
 	lib.misc.c \
 	lib.nioback.c \
-	lib.nios.c \
 	lib.pim.c \
 	lib.place.c \
 	lib.priority.c \
@@ -43,8 +42,6 @@ libll_la_SOURCES = lib.channel.c \
 	lib.resctrl.c \
 	lib.reslog.c \
 	lib.rex.c \
-	lib.rf.c \
-	lib.rtask.c \
 	lib.rwait.c \
 	lib.sig.c \
 	lib.sock.c \

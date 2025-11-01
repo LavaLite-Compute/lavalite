@@ -482,13 +482,13 @@ char *
 getMsgBuffer_(int fd, int *bufferSize)
 {
     int rc;
-    char hdrbuf[sizeof(struct LSFHeader)];
-    struct LSFHeader msgHdr;
+    char hdrbuf[sizeof(struct packet_header)];
+    struct packet_header msgHdr;
     XDR xdrs;
     char *msgBuffer;
     *bufferSize = -1;
 
-    xdrmem_create(&xdrs, hdrbuf, sizeof(struct LSFHeader), XDR_DECODE);
+    xdrmem_create(&xdrs, hdrbuf, sizeof(struct packet_header), XDR_DECODE);
     rc = readDecodeHdr_(fd, hdrbuf, b_read_fix, &xdrs, &msgHdr);
     if (rc < 0) {
         lserrno = LSE_MSG_SYS;
