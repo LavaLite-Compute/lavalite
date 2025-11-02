@@ -22,7 +22,11 @@
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 
-/* BUG: legacy daemon path logic removed — stubbed for now */
+// Bug: this file is for compilation of the library only
+// remote execution has been removed
+
+/* BUG: legacy daemon path logic removed — stubbed for now
+ */
 #define getDaemonPath_(name, dir) ((char *)NULL)
 #define saveDaemonDir_(dir)       ((void)0)
 
@@ -140,7 +144,7 @@ struct resRusage {
 };
 
 typedef struct relaybuf {
-    char       buf[BUFSIZ + sizeof(struct LSFHeader)];
+    char       buf[LL_BUFSIZ_64];
     char       *bp;
     int        bcount;
 } RelayBuf;
@@ -148,7 +152,7 @@ typedef struct relaybuf {
 #define LINE_BUFSIZ 4096
 
 typedef struct relaylinebuf {
-    char       buf[LINE_BUFSIZ + sizeof(struct LSFHeader)];
+    char       buf[LL_BUFSIZ_64];
     char       *bp;
     int        bcount;
 } RelayLineBuf;

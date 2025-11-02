@@ -173,9 +173,9 @@ verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
     static int  count;
     static time_t lastime, lastcall;
     time_t now;
-    static char buf[BUFSIZ_1K];
-    static char tmpbuf[BUFSIZ_1K];
-    static char verBuf[BUFSIZ_2K];
+    static char buf[LL_BUFSIZ_1K];
+    static char tmpbuf[LL_BUFSIZ_1K];
+    static char verBuf[LL_BUFSIZ_2K];
     int save_errno = errno;
 
     memset(buf, 0, sizeof(buf));

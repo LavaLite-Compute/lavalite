@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simple LavaLite rsync script
-# Copies installation from master to slaves with sudo on slaves
+# Pushes installation from master to slaves with sudo on slaves
 
 # ---------------------- start of customization ------------------------
 

@@ -80,7 +80,6 @@ typedef uint64_t LS_UNS_LONG_INT;
 #define MAXTYPES_31 25
 #define MAXMODELS_31 30
 #define MAXFILENAMELEN 256
-#define MAXEVARS 30
 
 #define FIRST_RES_SOCK	20
 
@@ -108,19 +107,7 @@ typedef uint64_t LS_UNS_LONG_INT;
 })
 #endif
 
-
-// Buffer size hierarchy relative to stdio.h's BUFSIZ (≈8–9 KB)
-
-#define BUFSIZ_4K   (BUFSIZ/2)
-#define BUFSIZ_2K   (BUFSIZ/4)
-#define BUFSIZ_1K   (BUFSIZ/8)
-#define BUFSIZ_512  (BUFSIZ/16)
-#define BUFSIZ_256  (BUFSIZ/32)
-#define BUFSIZ_128  (BUFSIZ/64)
-#define BUFSIZ_64   (BUFSIZ/128)
-#define BUFSIZ_32   (BUFSIZ/256)
-#define BUFSIZ_16   (BUFSIZ/512)
-
+// 11 load indexes collected by lim on every cluster machine
 #define R15S           0
 #define R1M            1
 #define R15M           2
@@ -240,7 +227,6 @@ typedef uint64_t LS_UNS_LONG_INT;
 #define LIM_CMD_REBOOT          1
 #define LIM_CMD_SHUTDOWN        2
 
-
 struct connectEnt {
     char *hostname;
     int csock[2];
@@ -259,8 +245,6 @@ struct connectEnt {
 #define LIM_OK_MASK    0x00bf0000
 
 #define LIM_SBDDOWN    0x00400000
-
-
 
 
 #define LS_ISUNAVAIL(status)     (((status[0]) & LIM_UNAVAIL) != 0)

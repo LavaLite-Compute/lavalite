@@ -308,7 +308,7 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
             sp = stripSpaces(tmpfield);
         }
         if (id == DEFAULT_FMT && newIndexLen >= 7){
-            char newFmt[BUFSIZ_32];
+            char newFmt[LL_BUFSIZ_32];
             int len;
             sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
 
@@ -380,7 +380,7 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
             sp = stripSpaces(tmpfield);
         }
         if (id == DEFAULT_FMT && newIndexLen >= 7){
-            char newFmt[BUFSIZ_32];
+            char newFmt[LL_BUFSIZ_32];
             int len;
             sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
 

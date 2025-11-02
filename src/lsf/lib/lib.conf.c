@@ -52,12 +52,6 @@ static int  setAdmins(struct admins *, int);
 static int parse_time(char *, float *, int *);
 static int validWindow(char *, char *);
 
-int builtInRes_ID[] = {
-    1300, 1301, 1302, 1303, 1304, 1305, 1306, 1307, 1308, 1309,
-    1310, 1311, 1312, 1313, 1314, 1315, 1316, 1317, 1318, 1319,
-    1320, 1321
-};
-
 struct builtIn builtInRes[] = {
     {"r15s",
      "15-second CPU run queue length",

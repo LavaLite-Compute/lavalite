@@ -277,7 +277,7 @@ makeShare(char *hostname, char ***nameTable, char ***valueTable,
     if (nRes) {
         j = 0;
         for (i = 0; i < nRes; i++) {
-            char fmt[BUFSIZ_32];
+            char fmt[LL_BUFSIZ_32];
             int nameLen;
 
             nameLen = strlen(namTable[i]);

@@ -1295,7 +1295,7 @@ addSharedResourceInstance(int nHosts, char **hosts, char *resName)
         }
     }
     if (logclass & LC_ELIM){
-        char str[BUFSIZ_512];
+        char str[LL_BUFSIZ_512];
         cnt = 0;
         for (tmp = sharedResourceHead; tmp ; tmp = tmp->nextPtr) {
             sprintf(str, "%d %s: ", cnt++, tmp->resName);

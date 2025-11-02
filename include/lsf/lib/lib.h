@@ -20,6 +20,7 @@
 /* Bug. This function contains lots of crap.
  */
 
+#include "lsf/intlib/ll_bufsize.h"
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lim/limout.h"

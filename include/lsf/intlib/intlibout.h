@@ -19,6 +19,7 @@
 #ifndef _LLCORE_INTLIBOUT_
 #define _LLCORE_INTLIBOUT_
 
+#include "lsf/intlib/ll_bufsize.h"
 #include "lsf/intlib/resreq.h"
 #include "lsf/intlib/list.h"
 #include "lsf/intlib/bitset.h"

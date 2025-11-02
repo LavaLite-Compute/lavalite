@@ -46,7 +46,6 @@ struct HostsArray {
 
 void freeSA_(char**, int);
 
-extern int builtInRes_ID[];
 extern struct builtIn builtInRes[];
 
 #endif

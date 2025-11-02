@@ -104,7 +104,7 @@ queueLength(void)
     unsigned long size;
     char status;
     DIR *dir_proc_fd;
-    char filename[BUFSIZ_128];
+    char filename[LL_BUFSIZ_128];
     unsigned int running = 0;
 
     dir_proc_fd = opendir("/proc");
@@ -473,9 +473,9 @@ static int
 getPage(double *page_in, double *page_out,bool_t isPaging)
 {
     FILE *f;
-    char lineBuffer[BUFSIZ_64];
+    char lineBuffer[LL_BUFSIZ_64];
     double value;
-    char tag[BUFSIZ_32];
+    char tag[LL_BUFSIZ_32];
 
     if ((f = fopen("/proc/vmstat", "r")) == NULL) {
         syslog(LOG_ERR, "%s: fopen() failed: %m,", __func__);

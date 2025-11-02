@@ -79,8 +79,8 @@ print_long(struct hostInfo *hostInfo)
     int i;
     float *li;
     static char first = true;
-    static char line[BUFSIZ_64];
-    static char newFmt[BUFSIZ_64];
+    static char line[LL_BUFSIZ_64];
+    static char newFmt[LL_BUFSIZ_64];
     int newIndexLen, retVal;
     char **indxnames = NULL;
     char **shareNames, **shareValues, **formats;

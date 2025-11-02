@@ -20,18 +20,8 @@
 
 
 // Include the lavalite protocol header and version
-#include "lsf/lib/protocol.h"
-
-struct LSFHeader {
-    unsigned short refCode;
-    short opCode;
-    unsigned int length;
-    unsigned char version;
-    struct reserved0 {
-        unsigned char High;
-        unsigned short  Low;
-    } reserved0;
-};
+#include "lsf/lib/ll_proto.h"
+#include "lsf/intlib/ll_bufsize.h"
 
 struct stringLen {
     char *name;
@@ -53,19 +43,18 @@ typedef enum {
 struct lsfAuth {
     int uid;
     int gid;
-    char lsfUserName[BUFSIZ_64];
+    char lsfUserName[LL_BUFSIZ_64];
     auth_t kind;
     union authBody {
         int filler;
         struct lenData authToken;
         struct eauth {
             int len;
-            char data[BUFSIZ_4K];
+            char data[LL_BUFSIZ_4K];
         } eauth;
     } k;
     int options;
 };
-
 
 struct lsfLimit {
     int rlim_curl;

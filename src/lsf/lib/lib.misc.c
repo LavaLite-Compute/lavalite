@@ -19,7 +19,7 @@
 #include "lsf/lib/lib.h"
 
 // Thread-local like ctime_r users expect (one buffer per thread)
-static __thread char ctime2_buf[BUFSIZ_64];
+static __thread char ctime2_buf[LL_BUFSIZ_64];
 
 /*
  * ctime2() — same as ctime(), but:
@@ -49,7 +49,7 @@ ctime2(const time_t *tp)
 }
 
 // ctime3() print subset of data
-static __thread char ctime3_buf[BUFSIZ_32];
+static __thread char ctime3_buf[LL_BUFSIZ_32];
 const char *ctime3(const time_t *t)
 {
     if (!t) {
@@ -701,7 +701,7 @@ struct passwd *
 getpwuid2(uid_t uid)
 {
     // 1K seams a lot but sysconf(_SC_GETPW_R_SIZE_MAX) returns it
-    static __thread char buf[BUFSIZ_1K];
+    static __thread char buf[LL_BUFSIZ_1K];
     static __thread struct passwd pwd;
     struct passwd *res = NULL;
 
@@ -718,7 +718,7 @@ struct passwd *
 getpwnam2(const char *name)
 {
     // 1K seams a lot but sysconf(_SC_GETPW_R_SIZE_MAX) returns it
-    static __thread char buf[BUFSIZ_1K];
+    static __thread char buf[LL_BUFSIZ_1K];
     static __thread struct passwd pwd;
     struct passwd *result = NULL;
 

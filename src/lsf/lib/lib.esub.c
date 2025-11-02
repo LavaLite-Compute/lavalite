@@ -69,7 +69,7 @@ runEsub_(struct lenData *ed, char *path)
 int
 runEClient_(struct lenData *ed, char **argv)
 {
-    char buf[BUFSIZ_32] = {0};
+    char buf[LL_BUFSIZ_32] = {0};
     return getEData(ed, argv, buf);
 }
 

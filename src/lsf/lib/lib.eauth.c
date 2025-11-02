@@ -69,7 +69,7 @@ getEAuth(struct eauth *eauth, char *host)
         return -1;
     }
 
-    if (ld.len > BUFSIZ_4K) {
+    if (ld.len > LL_BUFSIZ_4K) {
         FREEUP(ld.data);
         lserrno = LSE_EAUTH;
         return -1;
