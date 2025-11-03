@@ -58,7 +58,7 @@ xdr_jobSetup (XDR *xdrs, struct jobSetup *jsetup, struct packet_header *hdr)
 	sp3[0] = '\0';
     }
 
-    if (!(xdr_string(xdrs, &sp1, MAX_LSB_NAME_LEN) &&
+    if (!(xdr_string(xdrs, &sp1, MAXLSFNAMELEN) &&
 	  xdr_string(xdrs, &sp2, MAXFILENAMELEN) &&
 	  xdr_string(xdrs, &sp3, MAXFILENAMELEN))) {
 	ls_syslog(LOG_ERR, "%s", __func__, "xdr_string");
@@ -142,7 +142,7 @@ xdr_jobCard (XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
       sp1[0] = '\0';
    }
 
-   if (!xdr_string(xdrs, &sp1, MAX_LSB_NAME_LEN)) {
+   if (!xdr_string(xdrs, &sp1, MAXLSFNAMELEN)) {
         ls_syslog(LOG_ERR, "%s", __func__,
 	    "xdr_string", "execUserName");
         return FALSE;

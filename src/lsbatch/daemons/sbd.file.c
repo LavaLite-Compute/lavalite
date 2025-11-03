@@ -120,7 +120,7 @@ rcpFile(struct jobSpecs *jp, struct xFile *xf, char *host, int op,
 	if (getuid() == batchId) {
 
 	    chuser(batchId);
-	    lsfSetUid(jp->execUid);
+	    seteuid(jp->execUid);
 	}
 
 	if (daemonParams[LSF_BINDIR].paramValue != NULL)

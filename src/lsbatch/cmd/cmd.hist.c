@@ -23,7 +23,8 @@ static int eventMatched = FALSE;
 void displayEvent(struct eventRec *, struct histReq *);
 static int isRequested(char *, char **);
 extern char *myGetOpt (int nargc, char **, char *);
-
+// Bug fix the includes
+extern int ls_readconfenv(struct config_param *, char *);
 int
 sysHist(int argc, char **argv, int opCode)
 {
@@ -242,16 +243,16 @@ displayEvent(struct eventRec *log, struct histReq *req)
             prtLine(prline);
 	    switch (log->eventLog.queueCtrlLog.opCode) {
 	    case QUEUE_OPEN:
-		sprintf(prline, I18N_opened);
+		sprintf(prline, "opened");
 		break;
 	    case QUEUE_CLOSED:
-		sprintf(prline, I18N_closed);
+		sprintf(prline, "closed");
 		break;
 	    case QUEUE_ACTIVATE:
-		sprintf(prline, I18N_activated);
+		sprintf(prline, "activated");
 		break;
  	    case QUEUE_INACTIVATE:
-		sprintf(prline, I18N_inactivated);
+		sprintf(prline, "inactivated");
 		break;
             default:
                 sprintf(prline, "%s <%d>",

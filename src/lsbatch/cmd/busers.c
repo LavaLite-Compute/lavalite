@@ -95,8 +95,8 @@ display_users (struct userInfoEnt *reply, int numReply)
 	first = FALSE;
 
 	if (lsbMode_ & LSB_MODE_BATCH) {
-            prtWord(USR_NAME_LENGTH, I18N_USER_GROUP, 0);
-            prtWord(USR_JL_P_LENGTH, I18N_JL_P, -1);
+            prtWord(USR_NAME_LENGTH, "USER/GROUP", 0);
+            prtWord(USR_JL_P_LENGTH, "JL/P", -1);
             prtWord(USR_MAX_LENGTH,  "MAX", -1);
 	}
 	else

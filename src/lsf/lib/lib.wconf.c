@@ -60,7 +60,7 @@ ls_getconf ( char *fname )
 
     conf = (struct lsConf *) malloc (sizeof(struct lsConf));
     if (conf == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "ls_getconf",
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                   "malloc", sizeof (struct lsConf));
         lserrno = LSE_MALLOC;
         return NULL;
@@ -86,14 +86,14 @@ ls_getconf ( char *fname )
     defsize = 5;
     defNames = calloc(defsize, sizeof(char *));
     if (defNames == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "ls_getconf",
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                   "malloc", sizeof (defsize*sizeof(char *)));
         lserrno = LSE_MALLOC;
         goto Error;
     }
     defConds = calloc (defsize, sizeof(char *));
     if (defConds == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "ls_getconf",
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                   "malloc", sizeof (defsize*sizeof(char *)));
         lserrno = LSE_MALLOC;
         goto Error;
@@ -132,7 +132,7 @@ ls_getconf ( char *fname )
 
                 word1 = putstr_(word);
                 if (word1 == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "ls_getconf",
+                    ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                               "malloc", strlen(word)+1);
                     lserrno = LSE_MALLOC;
                     goto Error;
@@ -174,7 +174,7 @@ ls_getconf ( char *fname )
                     if (tmpPtr != NULL)
                         defNames = tmpPtr;
                     else {
-                        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                                   "realloc", defsize*2*sizeof(char *));
                         FREEUP(word1);
                         lserrno = LSE_MALLOC;
@@ -185,7 +185,7 @@ ls_getconf ( char *fname )
                     if (tmpPtr != NULL)
                         defConds = tmpPtr;
                     else {
-                        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                                   "realloc", defsize*2*sizeof(char *));
                         FREEUP(word1);
                         lserrno = LSE_MALLOC;
@@ -195,7 +195,7 @@ ls_getconf ( char *fname )
                 }
                 defNames[numDefs] = putstr_(word1);
                 if (defNames[numDefs] == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                    ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                               "malloc", strlen(word1)+1);
                     FREEUP(word1);
                     lserrno = LSE_MALLOC;
@@ -203,7 +203,7 @@ ls_getconf ( char *fname )
                 }
                 defConds[numDefs] = putstr_(word);
                 if (defConds[numDefs] == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                    ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                               "malloc", strlen(word)+1);
                     FREEUP(defNames[numDefs]);
                     FREEUP(word1);
@@ -237,7 +237,7 @@ ls_getconf ( char *fname )
                 }
 
                 if ((node=newNode()) == NULL) {
-                    ls_syslog(LOG_ERR,  I18N_FUNC_D_FAIL, "ls_getconf",
+                    ls_syslog(LOG_ERR,  "%s: %s(%d) failed: %m", "ls_getconf",
                               "malloc", sizeof(struct confNode));
                     lserrno = LSE_MALLOC;
                     goto Error;
@@ -257,7 +257,7 @@ ls_getconf ( char *fname )
                     node->cond = putstr_(word);
                 }
                 if (!flag || node->cond==NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                    ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                               "malloc", sizeof(word));
                     lserrno = LSE_MALLOC;
                     goto Error;
@@ -304,7 +304,7 @@ ls_getconf ( char *fname )
                 }
 
                 if ((node=newNode()) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                    ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                               "malloc", sizeof(struct confNode));
                     lserrno = LSE_MALLOC;
                     goto Error;
@@ -324,7 +324,7 @@ ls_getconf ( char *fname )
                     node->cond = putstr_(word);
                 }
                 if (!flag || node->cond==NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, "ls_getconf",
+                    ls_syslog(LOG_ERR, "%s: %s failed: %m", "ls_getconf",
                               "malloc");
                     lserrno = LSE_MALLOC;
                     goto Error;
@@ -377,14 +377,14 @@ ls_getconf ( char *fname )
         for (;;) {
             lines = (char **) myrealloc (lines, (numLines+1)*sizeof(char*));
             if (lines == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                           "malloc", (numLines+1)*sizeof(char*));
                 lserrno = LSE_MALLOC;
                 goto Error;
             }
             lines[numLines] = (char *) malloc ((strlen(sp)+1)*sizeof(char));
             if (lines[numLines] == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                           "malloc", (strlen(sp)+1)*sizeof(char));
                 lserrno = LSE_MALLOC;
                 goto Error;
@@ -396,7 +396,7 @@ ls_getconf ( char *fname )
             linep = getNextLineD_(fp, &lineNum, false);
             if (linep == NULL) {
                 if ((node=newNode()) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+                    ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                               "malloc", sizeof(struct confNode));
                     lserrno = LSE_MALLOC;
                     goto Error;
@@ -421,7 +421,7 @@ ls_getconf ( char *fname )
                     lineNum = oldLineNum;
 
                     if ((node=newNode()) == NULL) {
-                        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL,
+                        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m",
                                   "ls_getconf", "malloc",
                                   sizeof(struct confNode));
                         lserrno = LSE_MALLOC;
@@ -459,7 +459,7 @@ ls_getconf ( char *fname )
     freeStack(ptrStack);
     conf->confhandle = (struct confHandle *) malloc(sizeof(struct confHandle));
     if (conf->confhandle == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                   "malloc", sizeof(struct confHandle));
         fclose (fp);
         lserrno = LSE_MALLOC;
@@ -469,7 +469,7 @@ ls_getconf ( char *fname )
     conf->confhandle->rootNode = rootNode;
     conf->confhandle->fname = (char *) malloc((len+1) * sizeof(char));
     if (conf->confhandle->fname == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                   "malloc", (len+1) * sizeof(char));
         fclose (fp);
         lserrno = LSE_MALLOC;
@@ -494,7 +494,7 @@ Error:
     freeStack(ptrStack);
     conf->confhandle = (struct confHandle *) malloc(sizeof(struct confHandle));
     if (conf->confhandle == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, "ls_getconf",
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "ls_getconf",
                   "malloc", sizeof(struct confHandle));
         if (fp)
             fclose (fp);
@@ -559,7 +559,7 @@ pushStack(struct pStack *stack, struct confNode *node)
     if (stack->size == stack->top + 1) {
         sp = myrealloc(stack->nodes, stack->size*2*sizeof(struct confNode *));
         if (sp == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, "pushStack", "malloc");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", "pushStack", "malloc");
             return -1;
         }
         stack->size *= 2;

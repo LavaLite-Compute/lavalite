@@ -24,7 +24,7 @@ extern int errLineNum_;
 static void
 usage(char *cmd)
 {
-    fprintf (stderr, "%s: %s [-h] [-V]\n", I18N_Usage, cmd);
+    fprintf(stderr, "Usage: %s [-h] [-V]\n", cmd);
     exit(-1);
 }
 
@@ -63,7 +63,9 @@ main(int argc, char **argv)
         } else
         {
             char buf[150];
-            sprintf( buf,I18N_FUNC_FAIL_NO_PERIOD,"lsid", "ls_getclustername");
+            
+    sprintf(buf, "%s: %s failed", "lsid", "ls_getclustername")
+;
             ls_perror( buf );
         }
         exit(-1);
@@ -73,7 +75,9 @@ main(int argc, char **argv)
     TIMEIT(0, (Name = ls_getmastername()), "ls_getmastername");
     if (Name == NULL) {
         char buf[150];
-        sprintf ( buf, I18N_FUNC_FAIL_NO_PERIOD,"lsid","ls_getmastername");
+        
+    sprintf(buf, "%s: %s failed", "lsid", "ls_getmastername")
+;
         ls_perror( buf );
         exit(-1);
     }

@@ -220,14 +220,14 @@ main(int argc, char **argv)
     }
     for (i=0;i < numneeded; i++) {
         if (LS_ISUNAVAIL(hosts[i].status))
-            strcpy(statusbuf, I18N_unavail);
+            strcpy(statusbuf, "unavail");
         else
         {
             statusbuf[0] = '\0';
             if (LS_ISRESDOWN(hosts[i].status))
                 strcat(statusbuf, "-");
             if (LS_ISOKNRES(hosts[i].status)) {
-                strcat(statusbuf, I18N_ok);
+                strcat(statusbuf, "ok");
             } else if (LS_ISBUSY(hosts[i].status)
                        && !LS_ISLOCKED(hosts[i].status)) {
                 strcat(statusbuf, "busy");

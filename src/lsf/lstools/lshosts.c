@@ -19,7 +19,6 @@
 #include "lsf/lib/lib.h"
 #include "lsf/intlib/intlibout.h"
 
-static void usage(char *);
 static void print_long(struct hostInfo *hostInfo);
 static char *stripSpaces(char *);
 
@@ -47,6 +46,14 @@ struct indexFmt fmt1[] = {
     {  NULL,  "%7s", "*%6.1f"  , " %6.1f",      1.0 }
 }, *fmt;
 
+static void
+usage(void)
+{
+    fprintf(stderr, "Usage: lshosts [-h] [-V] [-w | -l] [-R res_req] "
+            "[host_name ...]\n");
+    fprintf(stderr, "lshosts [-h] [-V] -s [static_resouce_name ...]\n");
+}
+
 static char *
 stripSpaces(char *field)
 {
@@ -64,13 +71,6 @@ stripSpaces(char *field)
     if (i < len-1)
         field[i] = '\0';
     return cp;
-}
-
-static void
-usage(char *cmd)
-{
-    fprintf(stderr, "%s: %s [-h] [-V] [-w | -l] [-R res_req] [host_name ...]\n", I18N_Usage, cmd);
-    fprintf(stderr, "%s\n %s [-h] [-V] -s [static_resouce_name ...]\n", I18N_or, cmd);
 }
 
 static void
@@ -161,11 +161,11 @@ print_long(struct hostInfo *hostInfo)
             printf("%5d %6d %5dM %5dM %5dM %6d %6s\n",
                    hostInfo->maxCpus, hostInfo->nDisks, hostInfo->maxMem,
                    hostInfo->maxSwap, hostInfo->maxTmp,
-                   hostInfo->rexPriority, I18N_Yes);
+                   hostInfo->rexPriority, "Yes");
         else
             printf("%5s %6s %6s %6s %6s %6d %6s\n",
                    "-", "-", "-", "-", "-", hostInfo->rexPriority,
-                   I18N_Yes);
+                   "Yes");
     } else {
         sprintf(strbuf1,"%-10s",hostInfo->hostType);strbuf1[10]='\0';
         sprintf(strbuf2,"%11s",hostInfo->hostModel);strbuf2[11]='\0';
@@ -173,7 +173,7 @@ print_long(struct hostInfo *hostInfo)
         printf("%-10s %11s %5s ",strbuf1,strbuf2,strbuf3);
         printf("%5s %6s %6s %6s %6s %6s %6s\n",
                "-", "-", "-", "-", "-", "-",
-               I18N_No);
+               "No");
     }
 
     if (sharedResConfigured_ == true) {
@@ -287,22 +287,22 @@ main(int argc, char **argv)
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0) {
-            usage(argv[0]);
-            exit (0);
+            usage();
+            return 0;
         } else if (strcmp(argv[i], "-V") == 0) {
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         } else if (strcmp(argv[i], "-s") == 0) {
             if (otherOption == true) {
-                usage(argv[0]);
-                exit(-1);
+                usage();
+                return -1;
             }
             staticResource = true;
             optind = i + 1;
         } else if (strcmp(argv[i], "-e") == 0) {
             if (otherOption == true || staticResource == false) {
-                usage(argv[0]);
-                exit(-1);
+                usage();
+                return -1;
             }
             optind = i + 1;
             extView = true;
@@ -310,8 +310,8 @@ main(int argc, char **argv)
                    || strcmp(argv[i], "-w") == 0) {
             otherOption = true;
             if (staticResource == true) {
-                usage(argv[0]);
-                exit(-1);
+                usage();
+                return -1;
             }
         }
     }
@@ -335,8 +335,8 @@ main(int argc, char **argv)
                 longname = true;
                 break;
             default:
-                usage(argv[0]);
-                exit(-1);
+                usage();
+                return -1;
             }
         }
 
@@ -361,7 +361,9 @@ main(int argc, char **argv)
             }
             namebufs[i] = malloc(MAXHOSTNAMELEN);
             if (namebufs[i] == NULL)  {
-                fprintf(stderr, I18N_FUNC_FAIL,"main","malloc" );
+
+    fprintf(stderr, "%s: %s failed", "main", "malloc" )
+;
                 exit(-1);
             } else
                 officialName = NULL;
@@ -456,9 +458,9 @@ main(int argc, char **argv)
             }
 
             if (hostinfo[i].isServer)
-                server = I18N_Yes;
+                server = "Yes";
             else
-                server = I18N_No;
+                server = "No";
 
             if (longname)
                 printf("%-25s %10s %11s %5.1f ", hostinfo[i].hostName,

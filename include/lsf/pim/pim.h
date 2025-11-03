@@ -18,9 +18,3 @@
 
 
 #include "lsf.h"
-#include "lsf/intlib/libllcore.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/lib/lib.hdr.h"
-#include "lsf/lib/lsi18n.h"
-#include "lsf/lib/lib.pim.h"
-#include "lsf/lib/lib.table.h"

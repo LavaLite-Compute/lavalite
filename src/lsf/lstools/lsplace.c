@@ -128,7 +128,9 @@ main(int argc, char **argv)
 
     if (!desthosts) {
         char i18nBuf[150];
-        sprintf( i18nBuf,I18N_FUNC_FAIL,"lsplace","ls_placereq");
+        
+    sprintf(i18nBuf, "%s: %s failed", "lsplace", "ls_placereq")
+;
         ls_perror( i18nBuf );
         if (lserrno == LSE_BAD_EXP ||
             lserrno == LSE_UNKWN_RESNAME ||
@@ -141,7 +143,9 @@ main(int argc, char **argv)
     if (wanted < needed) {
 
         char i18nBuf[150];
-        sprintf( i18nBuf,I18N_FUNC_FAIL,"lsplace","ls_placereq");
+        
+    sprintf(i18nBuf, "%s: %s failed", "lsplace", "ls_placereq")
+;
         fputs( i18nBuf, stderr );
         fputs(ls_errmsg[LSE_NO_HOST], stderr);
         putc('\n', stderr);

@@ -195,7 +195,7 @@ xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
 
     if (!(xdr_string(xdrs, &sp[12], MAXFILENAMELEN) &&
           xdr_string(xdrs, &sp[13], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[14], MAX_LSB_NAME_LEN))) {
+          xdr_string(xdrs, &sp[14], MAXLSFNAMELEN))) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
             "xdr_int", "jobFile");
         return FALSE;
@@ -263,8 +263,8 @@ xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
     }
 
     if (!(xdr_string(xdrs, &sp[0], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[1], MAX_LSB_NAME_LEN) &&
-	  xdr_string(xdrs, &sp[2], MAX_LSB_NAME_LEN) &&
+          xdr_string(xdrs, &sp[1], MAXLSFNAMELEN) &&
+	  xdr_string(xdrs, &sp[2], MAXLSFNAMELEN) &&
 	  xdr_string(xdrs, &sp[3], MAXLINELEN) &&
 	  xdr_string(xdrs, &sp[4], MAXLINELEN) &&
 	  xdr_string(xdrs, &sp[5], MAXFILENAMELEN) &&
@@ -369,7 +369,7 @@ xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
     }
 
     sp[0] = jobSpecs->execUsername;
-    if (!(xdr_string(xdrs, &sp[0], MAX_LSB_NAME_LEN))) {
+    if (!(xdr_string(xdrs, &sp[0], MAXLSFNAMELEN))) {
         ls_syslog(LOG_ERR, "%s", __func__,
 			"xdr_string", "execUsername");
         return FALSE;
@@ -613,7 +613,7 @@ xdr_sbdPackage (XDR *xdrs, struct sbdPackage *sbdPackage, struct packet_header *
          xdr_int(xdrs, &sbdPackage->sbdSleepTime) &&
 	 xdr_int(xdrs, &sbdPackage->managerId) &&
          xdr_int(xdrs, &sbdPackage->numJobs) &&
-         xdr_string (xdrs, &sp, MAX_LSB_NAME_LEN))) {
+         xdr_string (xdrs, &sp, MAXLSFNAMELEN))) {
 	ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "lsbManager");
 	return FALSE;
     }

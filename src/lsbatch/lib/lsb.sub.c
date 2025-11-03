@@ -112,10 +112,8 @@ static int getUserInfo(struct submitReq *, struct submit *);
 static char * acctMapGet(int *, char *);
 
 static int xdrSubReqSize(struct submitReq *req);
-static int createNiosSock(struct submitReq *);
 
 int getChkDir(char *, char *);
-static void startNios(struct submitReq *, int, LS_LONG_INT);
 static void postSubMsg(struct submit *, LS_LONG_INT, struct submitReply *);
 static int readOptFile(char *filename, char *childLine);
 
@@ -132,9 +130,6 @@ extern int processXFReq(char *key,char *line,struct submit *jobSubReq);
 extern char *extractStringValue(char *line);
 
 #define ESUBNAME "esub"
-
-char *niosArgv[5];
-char niosPath[MAXFILENAMELEN];
 
 LS_LONG_INT
 lsb_submit(struct submit  *jobSubReq, struct submitReply *submitRep)
@@ -217,7 +212,7 @@ lsb_submit(struct submit  *jobSubReq, struct submitReply *submitRep)
             && (strcasecmp(lsbParams[LSB_INTERACTIVE_STDERR].paramValue,
                     "y") == 0) ) {
         if (putEnv("LSF_INTERACTIVE_STDERR", "y") < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_S, fname, "putenv");
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed", fname, "putenv");
         }
     }
 
@@ -411,7 +406,7 @@ createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
 {
     static char fname[] = "createJobInfoFile";
     char **ep;
-    char *sp, num[MAX_LSB_NAME_LEN], *p, *oldp;
+    char *sp, num[LL_BUFSIZ_32], *p, *oldp;
     int size = MSGSIZE, length = 0, len, len1, numEnv = 0, noEqual;
 
     int tsoptlen;
@@ -425,7 +420,7 @@ createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
         sizeof(EXITCMD) + strlen(jobSubReq->command) + tsoptlen +
         sizeof(LSBNUMENV) +
         sizeof(ENVSSTART) + sizeof(EDATASTART) + sizeof(SHELLLINE) + 1 +
-        MAX_LSB_NAME_LEN * 2  +
+        LL_BUFSIZ_32 * 2  +
         ed.len;
 
     jf->len = 0;
@@ -556,7 +551,7 @@ createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
                     + strlen (jobSubReq->command) + tsoptlen + sizeof (WAITCLEANCMD)
                     + sizeof (EXITCMD) + sizeof (EDATASTART) + ed.len
 
-                    + MAX_LSB_NAME_LEN)) > size) {
+                    + LL_BUFSIZ_32)) > size) {
         char *newp = (char *) realloc(jf->data,
                 (size += (len > MSGSIZE ? len : MSGSIZE)));
         if (newp == NULL) {
@@ -586,7 +581,7 @@ createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
 
 void appendEData(struct lenData *jf, struct lenData *ed)
 {
-    char *sp, num[MAX_LSB_NAME_LEN];
+    char *sp, num[LL_BUFSIZ_32];
 
     strcat(jf->data, EDATASTART);
     sprintf(num, "%d\n", ed->len);
@@ -715,8 +710,8 @@ subRestart(struct submit  *jobSubReq, struct submitReq *submitReq,
     struct jobNewLog *jobLog = NULL;
     struct xFile *xFiles = NULL;
     char resReq[MAXLINELEN], fromHost[MAXFILENAMELEN];
-    char mailUser[MAX_LSB_NAME_LEN], projectName[MAX_LSB_NAME_LEN];
-    char loginShell[MAX_LSB_NAME_LEN], schedHostType[MAX_LSB_NAME_LEN];
+    char mailUser[LL_BUFSIZ_32], projectName[LL_BUFSIZ_32];
+    char loginShell[LL_BUFSIZ_32], schedHostType[LL_BUFSIZ_32];
     int length, line;
     LS_LONG_INT jobId = -1;
     char *ptr;
@@ -835,7 +830,7 @@ subRestart(struct submit  *jobSubReq, struct submitReq *submitReq,
             }
         }
         if (jobLog->options & SUB_MAIL_USER) {
-            if ((length = strlen (jobLog->mailUser) +1) >= MAX_LSB_NAME_LEN)
+            if ((length = strlen (jobLog->mailUser) +1) >= LL_BUFSIZ_32)
                 goto childExit;
             if (write(childIoFd[1], (char *) &length, sizeof(length))
                     != sizeof(length))
@@ -845,7 +840,7 @@ subRestart(struct submit  *jobSubReq, struct submitReq *submitReq,
         }
 
         if (jobLog->options & SUB_PROJECT_NAME) {
-            if ((length = strlen (jobLog->projectName) +1) >= MAX_LSB_NAME_LEN)
+            if ((length = strlen (jobLog->projectName) +1) >= LL_BUFSIZ_32)
                 goto childExit;
             if (write(childIoFd[1], (char *) &length, sizeof(length))
                     != sizeof(length))
@@ -855,7 +850,7 @@ subRestart(struct submit  *jobSubReq, struct submitReq *submitReq,
         }
 
         if (jobLog->options & SUB_LOGIN_SHELL) {
-            if ((length = strlen (jobLog->loginShell) +1) >= MAX_LSB_NAME_LEN)
+            if ((length = strlen (jobLog->loginShell) +1) >= LL_BUFSIZ_32)
                 goto childExit;
             if (write(childIoFd[1], (char *) &length, sizeof(length))
                     != sizeof(length))
@@ -864,7 +859,7 @@ subRestart(struct submit  *jobSubReq, struct submitReq *submitReq,
                 goto childExit;
         }
 
-        if ((length = strlen (jobLog->schedHostType) +1) >= MAX_LSB_NAME_LEN)
+        if ((length = strlen (jobLog->schedHostType) +1) >= LL_BUFSIZ_32)
             goto childExit;
         if (write(childIoFd[1], (char *) &length, sizeof(length))
                 != sizeof(length))
@@ -1065,7 +1060,7 @@ sendErr:
     submitReq->options |= SUB_JOB_NAME;
 
     if (!(jobSubReq->options & SUB_QUEUE)) {
-        if (strlen(jobLog->queue) >= MAX_LSB_NAME_LEN - 1)
+        if (strlen(jobLog->queue) >= LL_BUFSIZ_32 - 1)
             goto parentErr;
         submitReq->queue = jobLog->queue;
         submitReq->options |= SUB_QUEUE;
@@ -1279,7 +1274,6 @@ subJob(struct submit  *jobSubReq,
     char resReq[MAXLINELEN];
     char cmd[MAXLINELEN];
     struct lenData jf;
-    int niosSock;
     LSB_SUB_SPOOL_FILE_T subSpoolFiles;
     LS_LONG_INT jobId = -1;
 
@@ -1304,15 +1298,10 @@ subJob(struct submit  *jobSubReq,
             if (!isatty(0) && !isatty(1))
                 submitReq->options &= ~SUB_PTY;
         }
-        if ((niosSock = createNiosSock(submitReq)) < 0) {
-            goto cleanup;
-        }
     }
 
     if (submitReq->options2 & SUB2_BSUB_BLOCK) {
-        if ((niosSock = createNiosSock(submitReq)) < 0) {
-            goto cleanup;
-        }
+        // Bug need to support this
     }
 
     jobId = send_batch(submitReq, &jf, submitRep, auth);
@@ -1332,38 +1321,11 @@ subJob(struct submit  *jobSubReq,
             postSubMsg(jobSubReq, jobId, submitRep);
 
         if (submitReq->options & SUB_INTERACTIVE) {
-            int jobIdFd, pid;
-            char *envBuf;
-            if ((envBuf = getenv("JOBID_FD")) != NULL) {
-                jobIdFd = atoi(envBuf);
-                if (b_write_fix(jobIdFd, (char *) &jobId, sizeof(jobId))
-                        != sizeof(jobId)) {
-                    goto cleanup;
-                }
-                if (b_read_fix(jobIdFd, (char *) &pid, sizeof(pid))
-                        != sizeof(pid)) {
-                    goto cleanup;
-                }
-                close(jobIdFd);
-            }
-
-            startNios(submitReq, niosSock, jobId);
-
-            exit(-1);
-        }
-
-        if (submitReq->options2 & SUB2_BSUB_BLOCK) {
-            startNios(submitReq, niosSock, jobId);
-
-            exit(-1);
+            // Bug need to support this
         }
     }
 
 cleanup:
-
-    if (jobId < 0) {
-
-    }
 
     return jobId;
 }
@@ -1437,7 +1399,7 @@ getOtherParams(struct submit  *jobSubReq,
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
-        if (strlen(jobSubReq->projectName) >= MAX_LSB_NAME_LEN - 1) {
+        if (strlen(jobSubReq->projectName) >= LL_BUFSIZ_32 - 1) {
             lsberrno = LSBE_BAD_ARG;
             errno = ENAMETOOLONG;
             return -1;
@@ -1532,7 +1494,7 @@ getOtherParams(struct submit  *jobSubReq,
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
-        if (strlen(jobSubReq->loginShell) >= MAX_LSB_NAME_LEN - 1) {
+        if (strlen(jobSubReq->loginShell) >= LL_BUFSIZ_32 - 1) {
             lsberrno = LSBE_BAD_ARG;
             errno = ENAMETOOLONG;
             return -1;
@@ -1644,11 +1606,7 @@ getOtherParams(struct submit  *jobSubReq,
             lsberrno = LSBE_BAD_RESREQ;
             return -1;
         }
-
         strcpy (submitReq->resReq,jobSubReq->resReq);
-    } else  {
-
-        ls_eligible(lineStrBuf, submitReq->resReq, LSF_REMOTE_MODE);
     }
 
     submitReq->fromHost = myHostName;
@@ -1701,8 +1659,8 @@ acctMapGet(int *fail, char *lsfUserName)
 
     char hostfn[MAXFILENAMELEN];
     FILE *fp;
-    char *line, *map, clusorhost[MAX_LSB_NAME_LEN];
-    char user[MAX_LSB_NAME_LEN], dir[40];
+    char *line, *map, clusorhost[LL_BUFSIZ_32];
+    char user[LL_BUFSIZ_32], dir[40];
     int maplen, len, num;
     struct passwd *pw;
     struct stat statbuf;
@@ -2042,80 +2000,6 @@ xdrSubReqSize(struct submitReq *req)
         sz += ALIGNWORD_(sizeof(struct xFile) + 4 * 4);
 
     return sz;
-}
-
-static
-int createNiosSock(struct submitReq *submitReq)
-{
-    int s;
-    struct sockaddr_in sin;
-
-    if ((s = TcpCreate_(true, 0)) < 0) {
-        lsberrno = LSBE_LSLIB;
-        return -1;
-    }
-
-    socklen_t len = sizeof(sin);
-    if (getsockname (s, (struct sockaddr *) &sin, &len) < 0) {
-        close(s);
-        lsberrno = LSBE_LSLIB;
-        lserrno = LSE_SOCK_SYS;
-        return -1;
-    }
-
-    submitReq->niosPort = ntohs(sin.sin_port);
-    return s;
-}
-
-static
-void startNios(struct submitReq *submitReq, int asock, LS_LONG_INT jobId)
-{
-    char sockStr[10];
-    char envStr[64];
-    struct config_param niosParams[] = {
-        {"LSF_SERVERDIR", NULL},
-        {NULL, NULL}
-    };
-#define LSF_NIOSDIR 0
-
-    setuid(getuid());
-
-    if (initenv_(niosParams, NULL) < 0) {
-        ls_perror("initenv nios");
-        exit(-1);
-    }
-
-    if (submitReq->options2 & SUB2_BSUB_BLOCK) {
-        sprintf(envStr, "%s", lsb_jobidinstr(jobId));
-        putEnv("BSUB_BLOCK", envStr);
-    }
-
-    sprintf(envStr, "%s", lsb_jobidinstr(jobId));
-    putEnv("LSB_JOBID", envStr);
-
-    sprintf(envStr, "bkill %s", lsb_jobidinstr(jobId));
-    putEnv("LSF_NIOS_DIE_CMD", envStr);
-
-    sprintf(sockStr, "%d", asock);
-
-    sprintf(niosPath, "%s/nios", niosParams[LSF_NIOSDIR].paramValue);
-    niosArgv[0] = niosPath;
-    niosArgv[1] = "-N";
-    niosArgv[2] = sockStr;
-    if (submitReq->options & SUB_PTY) {
-        if (submitReq->options & SUB_PTY_SHELL)
-            niosArgv[3] = "2";
-        else
-            niosArgv[3] = "1";
-    } else {
-        niosArgv[3] = "0";
-    }
-
-    niosArgv[4] = NULL;
-
-    execv(niosArgv[0], niosArgv);
-    perror(niosArgv[0]);
-    exit(-1);
 }
 
 static void
@@ -2845,7 +2729,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
                 checkSubDelOption (SUB_PROJECT_NAME, "Pn");
                 if ((mask & SUB_PROJECT_NAME))
                 {
-                    if (strlen(optarg) > MAX_LSB_NAME_LEN - 1) {
+                    if (strlen(optarg) > LL_BUFSIZ_32 - 1) {
                         PRINT_ERRMSG1(errMsg, "%s:  project name too long",
                                 optarg);
                         return -1;
@@ -3121,7 +3005,7 @@ parseLine_ (char *line, int *embedArgc, char ***embedArgv, char **errMsg )
     if (first == true) {
         if ((argBuf = (char **) malloc(INCREASE * sizeof(char *)))
                 == NULL) {
-            PRINT_ERRMSG2(errMsg, I18N_FUNC_FAIL_M, fname, "malloc");
+            PRINT_ERRMSG2(errMsg, "%s: %s failed: %m", fname, "malloc");
             return -1;
         }
         first = false;
@@ -3163,7 +3047,7 @@ parseLine_ (char *line, int *embedArgc, char ***embedArgv, char **errMsg )
             if ((*embedArgc) + 2 > bufSize ) {
                 if ((tmp = (char **) realloc(argBuf,
                                 (bufSize + INCREASE) * sizeof(char *))) == NULL) {
-                    PRINT_ERRMSG2(errMsg, I18N_FUNC_FAIL_M, fname,
+                    PRINT_ERRMSG2(errMsg, "%s: %s failed: %m", fname,
                             "realloc");
                     argNum = *embedArgc - 1;
                     *embedArgv = argBuf;
@@ -3202,16 +3086,13 @@ parseOptFile_ (char *filename, struct submit *req, char **errMsg)
     int childIoFd[2];
     int status;
 
-    if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
     if (access(filename, F_OK) != 0) {
-        PRINT_ERRMSG3(errMsg, I18N_FUNC_S_FAIL,
-                fname, "access", filename);
+		fprintf(stderr, "%s: access(%s) failed: %m\n", __func__, filename);
         return NULL;
     }
 
     if (socketpair (AF_UNIX, SOCK_STREAM, 0, childIoFd) < 0) {
-        PRINT_ERRMSG2(errMsg, I18N_FUNC_FAIL, fname, "socketpair");
+        PRINT_ERRMSG2(errMsg, "%s: %s failed: %m", fname, "socketpair");
         lsberrno = LSBE_SYS_CALL;
         return NULL;
     }
@@ -3220,7 +3101,7 @@ parseOptFile_ (char *filename, struct submit *req, char **errMsg)
     pid = fork();
     if (pid < 0) {
         lsberrno = LSBE_SYS_CALL;
-        PRINT_ERRMSG2(errMsg, I18N_FUNC_FAIL_M, fname, "fork");
+        PRINT_ERRMSG2(errMsg, "%s: %s failed: %m", fname, "fork");
         return NULL;
     } else if (pid == 0) {
 
@@ -3231,7 +3112,7 @@ parseOptFile_ (char *filename, struct submit *req, char **errMsg)
         uid = getuid();
         if (setuid (uid) < 0) {
             lsberrno = LSBE_BAD_USER;
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "setuid");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "setuid");
             goto childExit;
         }
         if (logclass & (LC_TRACE | LC_EXEC))
@@ -3319,7 +3200,7 @@ parentErr:
 void
 subUsage_(int option, char **errMsg)
 {
-#define I18N_ESUB_INFO_USAGE                                            \
+#define ESUB_INFO_USAGE                                            \
     "\t\t[-a additional_esub_information]\n"
 
     if (errMsg == NULL) {
@@ -3337,7 +3218,7 @@ subUsage_(int option, char **errMsg)
             fprintf(stderr, "\t\t[-S stack_limit] [-E \"pre_exec_command [argument ...]\"]\n");
 
             fprintf(stderr, "\t\tcheckpoint_dir[job_ID | \"job_ID[index]\"]\n");
-            fprintf(stderr, I18N_ESUB_INFO_USAGE);
+            fprintf(stderr, ESUB_INFO_USAGE);
 
         } else if (option & SUB_MODIFY) {
             fprintf(stderr, "Usage");
@@ -3366,7 +3247,7 @@ subUsage_(int option, char **errMsg)
             fprintf(stderr, "\t\t[-sp job_priority | -spn]\n");
             fprintf(stderr, "\t\t[-Z \"new_command\" | -Zs \"new_command\" | -Zsn] \n");
             fprintf(stderr, "\t\t[ jobId | \"jobId[index_list]\" ] \n");
-            fprintf(stderr, I18N_ESUB_INFO_USAGE);
+            fprintf(stderr, ESUB_INFO_USAGE);
         } else {
 
             fprintf(stderr, "Usage");
@@ -3392,7 +3273,7 @@ subUsage_(int option, char **errMsg)
             fprintf(stderr, "\t\t[-E \"pre_exec_command [argument ...]\"] [-Zs]\n");
             fprintf(stderr, "\t\t[-sp job_priority]\n");
             fprintf(stderr, "\t\t[command [argument ...]]\n");
-            fprintf(stderr, I18N_ESUB_INFO_USAGE);
+            fprintf(stderr, ESUB_INFO_USAGE);
         }
 
         exit (-1);
@@ -3418,7 +3299,7 @@ parseXF(struct submit *req, char *arg, char **errMsg)
         if ((xp = (struct xFile *) malloc(NUMXF * sizeof(struct xFile)))
                 == NULL) {
             if (errMsg != NULL) {
-                sprintf(*errMsg, I18N_FUNC_FAIL_S, fname, "malloc",
+                sprintf(*errMsg, "%s: %s(%s) failed", fname, "malloc",
                         lsb_sysmsg());
             }
             else
@@ -3511,7 +3392,7 @@ parseXF(struct submit *req, char *arg, char **errMsg)
                         (maxNxf + NUMXF) * sizeof(struct xFile)))
                 == NULL) {
             if (errMsg != NULL) {
-                sprintf(*errMsg, I18N_FUNC_FAIL_S, fname, "myrealloc",
+                sprintf(*errMsg, "%s: %s(%s) failed", fname, "myrealloc",
                         lsb_sysmsg());
             }
             else
@@ -3903,7 +3784,7 @@ readOptFile(char *filename, char *childLine)
     FILE *fp;
 
     if ((fp = fopen(filename, "r")) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, "readOptFile",
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", "readOptFile",
                 "fopen", filename);
         return -1;
     }

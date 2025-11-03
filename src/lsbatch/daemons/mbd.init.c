@@ -1147,7 +1147,7 @@ parseAUids (struct qData *qp, char *line)
     }
     qp->nAdmins = admins.nAdmins;
     qp->adminIds = admins.adminIds;
-    qp->admins = (char *) my_malloc (admins.nAdmins * MAX_LSB_NAME_LEN, fname);
+    qp->admins = (char *) my_malloc (admins.nAdmins * MAXLSFNAMELEN, fname);
     qp->admins[0] = '\0';
     for (i = 0; i < admins.nAdmins; i++) {
         strcat(qp->admins,  admins.adminNames[i]);
@@ -1166,7 +1166,7 @@ setAllusers (struct qData *qp, struct admins *admins)
     qp->nAdmins = 1;
     qp->adminIds = (int *) my_malloc (sizeof (int), "setAllusers");
     qp->adminIds[0] = ALL_USERS_ADMINS;
-    qp->admins = (char *) my_malloc (MAX_LSB_NAME_LEN, "setAllusers");
+    qp->admins = (char *) my_malloc (MAXLSFNAMELEN, "setAllusers");
     qp->admins[0] = '\0';
     strcat (qp->admins, "all users");
 
@@ -1725,7 +1725,7 @@ getClusterData(void)
 static void
 setManagers(struct clusterInfo *cluster)
 {
-    char buf[BUFSIZ_32];
+    char buf[LL_BUFSIZ_32];
 
     if (cluster->nAdmins < 1) {
         ls_syslog(LOG_ERR, "%s: no cluster admins defined in LIM?", __func__);

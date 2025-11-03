@@ -77,7 +77,7 @@ prtHeader(struct jobInfoEnt *job, int prt_q, int tFormat)
     }
 
     if ( job->jobPriority > 0 ) {
-	sprintf(prline, " %s <%d>,", I18N_Job_Priority, job->jobPriority);
+	sprintf(prline, " %s <%d>,", "Job Priority", job->jobPriority);
 	prtLine(prline);
     }
 
@@ -347,7 +347,7 @@ prtSubDetails(struct jobInfoEnt *job, char *hostPtr, float hostFactor)
 
     if ( job->submit.options2 & SUB2_JOB_PRIORITY && job->submit.userPriority > 0) {
 	sprintf(prline, ", %s <%d>",
-	    I18N_User_Priority, job->submit.userPriority);
+	    "User Priority", job->submit.userPriority);
         prtLine(prline);
     }
 
@@ -507,13 +507,13 @@ prtJobReserv(struct jobInfoEnt *job)
 
     if (job->numExHosts > 0 && job->reserveTime > 0) {
 	if (job->numExHosts > 1) {
-            char buf[BUFSIZ_32];
+            char buf[LL_BUFSIZ_32];
             ctime_r(&job->reserveTime, buf);
             buf[strcspn(buf, "\n")] = 0;
             sprintf(prline, "%s: Reserved <%d> job slots on host(s)",
                     buf, job->numExHosts);
         } else {
-            char buf[BUFSIZ_32];
+            char buf[LL_BUFSIZ_32];
             ctime_r(&job->reserveTime, buf);
             buf[strcspn(buf, "\n")] = 0;
             sprintf(prline, "%s: Reserved <%d> job slot on host",

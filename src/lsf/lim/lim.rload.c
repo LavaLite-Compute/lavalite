@@ -18,7 +18,6 @@
  */
 
 #include "lsf/lim/lim.h"
-#include "lsf/lib/mls.h"
 
 #define MAXIDLETIME  15552000
 
@@ -173,7 +172,8 @@ idletime(int *logins)
     bool_t firstLoop;
 
     if ((thisHostname = ls_getmyhostname()) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_getmyhostname");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_getmyhostname");
         thisHostname = "localhost";
     }
 
@@ -193,7 +193,8 @@ idletime(int *logins)
     }
 
     if ((ufd = open(UTMP_FILE,  O_RDONLY)) < 0) {
-        ls_syslog(LOG_WARNING, I18N_FUNC_S_FAIL_M, fname, "open", UTMP_FILE);
+        
+ls_syslog(LOG_WARNING, "%s: %s(%s) failed: %m", fname, "open", UTMP_FILE);
         *logins = last_logins;
         return (MAXIDLETIME/60.0);
     }
@@ -201,7 +202,8 @@ idletime(int *logins)
     numusers = 0;
     users = (char **) calloc(listsize, sizeof(char *));
     if (users == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "calloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "calloc");
         excused_ls = true;
     }
 
@@ -214,7 +216,8 @@ idletime(int *logins)
         else {
             char * ut_name ;
             if (!(ut_name = malloc((sizeof(user.ut_name)+1)*sizeof(char)))) {
-                ls_syslog(LOG_ERR,I18N_FUNC_FAIL_M,fname, "malloc");
+                
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                 lim_Exit(fname);
             }
             memset(ut_name, '\0',(sizeof(user.ut_name)+1));
@@ -230,7 +233,8 @@ idletime(int *logins)
 
                     users[numusers] = putstr_(ut_name);
                     if (users[numusers] == NULL) {
-                        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "putstr_", ut_name);
+                        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "putstr_", ut_name);
                         excused_ls = true;
                         for (i=0; i<numusers; i++)
                             FREEUP(users[i]);
@@ -243,7 +247,8 @@ idletime(int *logins)
                             listsize = 2 * listsize;
                             sp = (char **) realloc(users, listsize*sizeof(char *));
                             if (sp == NULL) {
-                                ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
+                                
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "realloc");
                                 for (i=0; i<numusers; i++)
                                     FREEUP(users[i]);
                                 FREEUP(users);
@@ -310,7 +315,8 @@ getXIdle()
             lastTime = st.st_atime;
     } else {
         if (errno != ENOENT)
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "stat", "/dev/kbd");
+            
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "stat", "/dev/kbd");
     }
 
     if (stat("/dev/mouse", &st) == 0) {
@@ -318,7 +324,8 @@ getXIdle()
             lastTime = st.st_atime;
     } else {
         if (errno != ENOENT)
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "stat", "/dev/mouse");
+            
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "stat", "/dev/mouse");
     }
 
     time(&t);
@@ -554,13 +561,13 @@ lim_popen(char **argv, char *mode)
 
         alarm(0);
 
-        for(i=2; i < sysconf(_SC_OPEN_MAX); i++)
+        for(i = 2; i < sysconf(_SC_OPEN_MAX); i++)
             close(i);
         for (i=1; i < NSIG; i++)
             Signal_(i, SIG_DFL);
 
-        lsfExecvp(argv[0], argv);
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "execvp", argv[0]);
+        execvp(argv[0], argv);
+        ls_syslog(LOG_ERR, "%s: execvp() failed: %m", argv[0]);
         exit(127);
     }
     if (pid == -1) {
@@ -571,7 +578,8 @@ lim_popen(char **argv, char *mode)
 
     elim_pid = pid;
     close(p[1]);
-    return(fdopen(p[0], mode));
+
+    return fdopen(p[0], mode);
 }
 
 static int
@@ -613,7 +621,8 @@ saveIndx(char *name, float value)
     if (!names) {
         if (!(names=
                     (char **)malloc((allInfo.numIndx+1)*sizeof(char *)))) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             lim_Exit(fname);
         }
         memset (names,0, (allInfo.numIndx+1)*sizeof(char *));
@@ -777,7 +786,8 @@ getusr(void)
                 char *path = malloc(strlen(limParams[LSF_SERVERDIR].paramValue) +
                         strlen(ELIMNAME) + 8);
                 if (!path) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+                    
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                     setUnkwnValues();
                     return;
                 }
@@ -793,7 +803,8 @@ getusr(void)
                 myClusterPtr->eLimArgv = parseCommandArgs(
                         path, myClusterPtr->eLimArgs);
                 if (!myClusterPtr->eLimArgv) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+                    
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                     setUnkwnValues();
                     return;
                 }
@@ -832,7 +843,8 @@ getusr(void)
             }
             resStr = (char *)malloc((size+1) * sizeof(char)) ;
             if (!resStr) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+                
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                 setUnkwnValues();
                 return;
             }
@@ -864,8 +876,8 @@ getusr(void)
             putEnv ("LSF_RESOURCES",resStr);
 
             if ((fp = lim_popen(myClusterPtr->eLimArgv, "r")) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "lim_popen",
-                        myClusterPtr->eLimArgv[0]);
+                
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "lim_popen", myClusterPtr->eLimArgv[0]);
                 setUnkwnValues();
 
                 return;
@@ -892,7 +904,8 @@ getusr(void)
     timeout.tv_usec = 5;
 
     if ( (nfds = rd_select_(fileno(fp), &timeout)) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "rd_select_");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "rd_select_");
         lim_pclose(fp);
         fp = NULL;
 
@@ -914,7 +927,8 @@ getusr(void)
         if( !fromELIM ) {
             fromELIM = malloc(sizeOfFromELIM);
             if (!fromELIM) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+                
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
                 ls_syslog(LOG_ERR, "%s:Received from ELIM: <out of memory to record contents>",
                         fname);
@@ -1021,7 +1035,8 @@ getusr(void)
 
                 fromELIM = realloc(fromELIM, sizeOfFromELIM);
                 if (!fromELIM) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+                    
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
                     ls_syslog(LOG_ERR, "%s:Received from ELIM: <out of memory to record contents>",
                             fname);
@@ -1151,7 +1166,8 @@ saveSBValue (char *name, char *value)
         }
 
         if ((temp = (char *)malloc (strlen(value) + 1)) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             FREEUP (temp);
             return 0;
         }
@@ -1201,7 +1217,7 @@ getElimRes (void)
 
     if ((resNameString = (char *) malloc
                 ((allInfo.nRes) * MAXLSFNAMELEN)) == NULL) {
-        ls_syslog (LOG_ERR, I18N_FUNC_D_FAIL,"getElimRes","malloc",
+        ls_syslog (LOG_ERR, "%s: %s(%d) failed: %m","getElimRes","malloc",
                 allInfo.nRes * MAXLSFNAMELEN);
         lim_Exit("getElimRes");
     }

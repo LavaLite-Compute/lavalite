@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: lproto.h,v 1.9 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -17,12 +18,8 @@
  *
  */
 
-#ifndef _LPROTO_
-#define _LPROTO_
-
 #include "lsf/lib/lib.table.h"
 #include "lsf/lib/lib.hdr.h"
-#include "lsf/lib/lsi18n.h"
 // Bug hack res out here
 #include "lsf/res/resout.h"
 #include "lsf/lib/lib.queue.h"
@@ -99,9 +96,6 @@ struct lsbShareResourceInfoReply {
 #define HOST_ATTR_NOT_READY     (0xffffffff)
 
 extern int sharedResConfigured_;
-
-#define VALID_IO_ERR(x) ((x) == EWOULDBLOCK || (x) == EINTR || (x) == EAGAIN)
-#define BAD_IO_ERR(x)   ( ! VALID_IO_ERR(x))
 
 #define INVALID_FD  (-1)
 #define FD_IS_VALID(x)  ((x) >= 0 && (x) < sysconf(_SC_OPEN_MAX) )
@@ -228,9 +222,6 @@ extern int getSigVal(const char *);
 extern char *getSigSymbolList (void);
 extern char *getSigSymbol (int);
 extern int blockALL_SIGS_(sigset_t *, sigset_t *);
-
-extern int TcpCreate_(int, int);
-
 extern int encodeTermios_(XDR *, struct termios *);
 extern int decodeTermios_(XDR *, struct termios *);
 extern int rstty_(char *host);
@@ -424,5 +415,3 @@ extern int createSpoolSubDir(const char *);
  * are maintained for convenience.
  */
 extern int get_uid(const char *, uid_t *);
-
-#endif

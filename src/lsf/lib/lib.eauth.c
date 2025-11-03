@@ -146,7 +146,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             close(out[0]);
         } else {
             if (cc < 0)
-                ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "select", uData);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "select", uData);
         }
 
         if (logclass & (LC_AUTH | LC_TRACE))
@@ -167,13 +167,13 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         }
 
         if (pipe(in) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "pipe(in)", uData);
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "pipe(in)", uData);
             lserrno = LSE_SOCK_SYS;
             return -1;
         }
 
         if (pipe(out) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "pipe(out)", uData);
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "pipe(out)", uData);
             lserrno = LSE_SOCK_SYS;
             return -1;
         }
@@ -183,12 +183,12 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             struct passwd *pw;
 
             if ((pw = getpwnam2(user)) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getpwnam2", user);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "getpwnam2", user);
                 exit(-1);
             }
 
             if (setuid(pw->pw_uid) < 0) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "setuid",
+                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "setuid",
                           pw->pw_uid);
                 exit(-1);
             }
@@ -200,12 +200,12 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
 
             close(in[1]);
             if (dup2(in[0], 0) == -1) {
-                ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "dup2(in[0])", uData);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "dup2(in[0])", uData);
             }
 
             close(out[0]);
             if (dup2(out[1], 1) == -1) {
-                ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "dup2(out[1])", uData);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "dup2(out[1])", uData);
             }
 
             for (i = 3; i < sysconf(_SC_OPEN_MAX); i++)
@@ -216,7 +216,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             myargv[2] = NULL;
 
             execvp(myargv[0], myargv);
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "execvp", myargv[0]);
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "execvp", myargv[0]);
             exit(-1);
         }
 
@@ -224,7 +224,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         close(out[1]);
 
         if (pid == -1) {
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "fork", path);
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "fork", path);
             close(in[1]);
             close(out[0]);
             lserrno = LSE_FORK;
@@ -294,11 +294,11 @@ getLSFAdmin(void)
         return admin;
 
     if ((mycluster = ls_getclustername()) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_getclustername");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_getclustername");
         return NULL;
     }
     if ((clusterInfo = ls_clusterinfo(NULL, NULL, NULL, 0, 0)) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_clusterinfo");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_clusterinfo");
         return NULL;
     }
 
@@ -306,7 +306,7 @@ getLSFAdmin(void)
                    clusterInfo->admins[0]);
 
     if ((pw = getpwnam2(lsfUserName)) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M,
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m",
                   fname, "getpwnam2", lsfUserName);
         return NULL;
     }

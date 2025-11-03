@@ -596,7 +596,7 @@ getCheckList (struct infoReq *qInfoReq, char **hostList, char **userList)
 		return LSBE_BAD_HOST;
 	    }
             (*hostList) =
-	      (char*)my_malloc(numAllHosts*MAX_LSB_NAME_LEN,"getCheckList");
+	      (char*)my_malloc(numAllHosts*MAXLSFNAMELEN,"getCheckList");
 	    if (*hostList == NULL) {
 	        ls_syslog(LOG_ERR, "getCheckList", "my_malloc");
 		return LSBE_BAD_HOST;

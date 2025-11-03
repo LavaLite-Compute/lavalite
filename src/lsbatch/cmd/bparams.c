@@ -100,12 +100,12 @@ printLong (struct parameterInfo *reply)
     printf ("%s:\n",
 	("The interval for dispatching jobs by master batch daemon"));
     printf ("    MBD_SLEEP_TIME = %d (%s)\n\n", reply->mbatchdInterval,
-	   I18N_seconds);
+            "seconds");
 
     printf ("%s:\n",
 	("The interval for checking jobs by slave batch daemon"));
     printf ("    SBD_SLEEP_TIME = %d (%s)\n\n", reply->sbatchdInterval,
-	    I18N_seconds);
+	    "seconds");
 
     printf ("%s:\n",
 	("The interval for a host to accept two batch jobs"));
@@ -116,13 +116,13 @@ printLong (struct parameterInfo *reply)
 	printf ("%s:\n",
 	    ("The idle time of a host for resuming pg suspended jobs"));
 	printf ("    PG_SUSP_IT = %d (%s)\n\n", reply->pgSuspendIt,
-	     I18N_seconds);
+                "seconds");
     }
 
     printf ("%s:\n",
 	("The amount of time during which finished jobs are kept in core"));
     printf ("    CLEAN_PERIOD = %d (%s)\n\n", reply->cleanPeriod,
-	  I18N_seconds);
+            "seconds");
 
     printf ("%s:\n",
 	("The maximum number of finished jobs that can be stored in current events file"));
@@ -178,7 +178,7 @@ printLong (struct parameterInfo *reply)
     if ( reply->jobPriorityValue > 0) {
 	printf("%s.\n", "Job priority is increased by the system dynamically based on waiting time");
 	printf("    JOB_PRIORITY_OVER_TIME = %d/%d (%s)\n\n",
-	    reply->jobPriorityValue, reply->jobPriorityTime, I18N_minutes);
+               reply->jobPriorityValue, reply->jobPriorityTime, "minutes");
     }
 
     if (reply->sharedResourceUpdFactor > 0){

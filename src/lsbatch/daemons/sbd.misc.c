@@ -94,10 +94,10 @@ shout_err (struct jobCard *jobPtr, char *msg)
 
      if (jobPtr->jobSpecs.options & SUB_MAIL_USER)
          merr_user (jobPtr->jobSpecs.mailUser, jobPtr->jobSpecs.fromHost,
-         	buf, I18N_error);
+         	buf, "error");
      else
          merr_user (jobPtr->jobSpecs.userName, jobPtr->jobSpecs.fromHost,
-		buf, I18N_error);
+		buf, "error");
 
 }
 

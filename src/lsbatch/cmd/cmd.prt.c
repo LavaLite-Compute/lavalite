@@ -83,14 +83,14 @@ printThresholds (float *loadSched, float *loadStop, int *busySched,
 
 	if ((loadSchedVal = (loadCharType *) calloc(nIdx, sizeof(loadCharType)))
 	     == NULL) {
-	    fprintf(stderr, I18N_FUNC_FAIL, fName, "calloc");
+	    fprintf(stderr, "%s: %s failed\n", fName, "calloc");
 	    return (-1);
 	}
 
 	if ((loadStopVal = (loadCharType *) calloc(nIdx,
 						   sizeof(loadCharType)))
 	    == NULL) {
-	    fprintf(stderr, I18N_FUNC_FAIL, fName, "calloc");
+	    fprintf(stderr, "%s: %s failed\n", fName, "calloc");
 	    return (-1);
 	}
 

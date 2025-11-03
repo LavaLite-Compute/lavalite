@@ -1302,7 +1302,7 @@ char *
 getDefaultProject(void)
 {
 
-    static char szDefaultProjName[MAX_LSB_NAME_LEN];
+    static char szDefaultProjName[MAXLSFNAMELEN];
 
     if (lsfDefaultProject) {
         strcpy(szDefaultProjName, lsfDefaultProject);

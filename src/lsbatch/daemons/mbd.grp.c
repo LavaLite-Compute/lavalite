@@ -232,7 +232,7 @@ getGroupMembers (struct gData *gp, char r)
 	return members;
     }
 
-    members = my_calloc(numMembers, MAX_LSB_NAME_LEN, "getGroupMembers");
+    members = my_calloc(numMembers, MAXLSFNAMELEN, "getGroupMembers");
     members[0] = '\0';
     catMembers(gp, members, r);
     return members;
@@ -304,7 +304,7 @@ catGnames (struct gData *gp)
         return buf;
     }
 
-    buf = my_calloc(gp->numGroups, MAX_LSB_NAME_LEN, "catGnames");
+    buf = my_calloc(gp->numGroups, MAXLSFNAMELEN, "catGnames");
     for (i=0;i<gp->numGroups;i++) {
 	strcat (buf, gp->gPtr[i]->group);
 	strcat (buf, "/ ");

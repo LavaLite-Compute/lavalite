@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: lim.h,v 1.11 2007/08/15 22:18:53 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -16,10 +17,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-
-#ifndef _LIM_H_
-#define _LIM_H_
-
 #include "config.h"
 
 #include <stdio.h>
@@ -57,6 +54,7 @@
 #include "lsf/lib/lib.channel.h"
 #include "lsf/lib/lib.conf.h"
 #include "lsf/lim/limout.h"
+#include "lsf/lib/lib.xdr.h"
 
 #define EXCHINTVL 	    15
 #define SAMPLINTVL           5
@@ -359,9 +357,6 @@ extern int getpagesize(void);
 #define LSF_REJECT_NONLSFHOST 15
 #define LSF_LIM_JACKUP_BUSY 16
 
-#define LOOP_ADDR       0x7F000001
-
-
 extern struct config_param limParams[];
 extern bool lim_debug;
 extern int lim_CheckMode;
@@ -573,5 +568,3 @@ extern int queueLengthEx(float *, float *, float *);
 #define  EXP6   0.846481725
 #define  EXP12  0.920044415
 #define  EXP180 0.994459848
-
-#endif

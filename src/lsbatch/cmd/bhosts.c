@@ -87,24 +87,19 @@ static int makeShareFields(char *, struct lsInfo *, char ***, char ***,
 static int getDispLastItem(char**, int, int);
 
 static char wflag = FALSE;
-static char fomt[200];
+static char fomt[LL_BUFSIZ_128];
 static int nameToFmt( char *indx);
 
 void
-usage (char *cmd)
+usage(void)
 {
-    fprintf(stderr, "Usage");
-    fprintf(stderr, ":\n%s [-h] [-V] [-R res_req] [-w | -l] [host_name ... | cluster_name]\n", cmd);
-    fprintf(stderr, I18N_or );
-    fprintf(stderr, "\n%s [-h] [-V] -s [ resource_name ] \n", cmd);
-    exit(-1);
+    fprintf(stderr, "bhosts: Usage: [-h] [-V] [-R res_req] "
+            "[-w | -l] [host_name ... | cluster_name]\n");
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
-    extern int optind;
-    extern char *optarg;
     int i, cc, local = FALSE;
     struct hostInfoEnt *hInfo;
     char **hosts=NULL, **hostPoint, *resReq = NULL;
@@ -120,15 +115,15 @@ main (int argc, char **argv)
 
     for  (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0) {
-            usage(argv[0]);
-            exit (0);
+            usage();
+            return 0;
         } else if (strcmp(argv[i], "-V") == 0) {
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            exit(0);
+            return 0;
         } else if (strcmp(argv[i], "-s") == 0) {
             if (otherOption == TRUE) {
-                usage(argv[0]);
-                exit(-1);
+                usage();
+                return 0;
             }
             sOption = TRUE;
             optind = i + 1;
@@ -136,8 +131,8 @@ main (int argc, char **argv)
                    || strcmp(argv[i], "-w") == 0) {
             otherOption = TRUE;
             if (sOption == TRUE) {
-                usage(argv[0]);
-                exit(-1);
+                usage();
+                return -1;
             }
         }
     }
@@ -151,18 +146,18 @@ main (int argc, char **argv)
         case 'l':
             lflag = TRUE;
             if (wflag)
-                usage(argv[0]);
+                usage();
             break;
         case 'w':
             wflag = TRUE;
             if (lflag)
-                usage(argv[0]);
+                usage();
             break;
         case 'R':
             resReq = optarg;
             break;
         default:
-            usage(argv[0]);
+            usage();
         }
     }
     numHosts = getNames (argc, argv, optind, &hosts, &local, "host");
@@ -218,7 +213,7 @@ prtHostsLong (int numReply, struct hostInfoEnt  *hInfo)
 
         if (lsbMode_ & LSB_MODE_BATCH) {
             prtWord(HOST_CPUF_LENGTH, "CPUF", -1);
-            prtWord(HOST_JL_U_LENGTH, I18N_JL_U, -1);
+            prtWord(HOST_JL_U_LENGTH, "JL/U", -1);
         };
 
         prtWord(HOST_MAX_LENGTH,   "MAX", -1);
@@ -233,9 +228,9 @@ prtHostsLong (int numReply, struct hostInfoEnt  *hInfo)
         else
             printf("\n");
 
-        status = I18N_ok;
+        status = "ok";
         if (hPtr->hStatus & HOST_STAT_UNAVAIL)
-            status = I18N_unavail;
+            status = "unavail";
         else if (hPtr->hStatus & HOST_STAT_UNREACH)
             status = ("unreach");
 
@@ -357,7 +352,7 @@ prtHostsShort (int numReply, struct hostInfoEnt  *hInfo)
                 prtWord(HOST_STATUS_SHORT, "STATUS", 0);
             }
             if (lsbMode_ & LSB_MODE_BATCH)
-                prtWord(HOST_JL_U_LENGTH, I18N_JL_U, -1);
+                prtWord(HOST_JL_U_LENGTH, "JL/U", -1);
 
             prtWord(HOST_MAX_LENGTH,   "MAX", -1);
             prtWord(HOST_NJOBS_LENGTH, "NJOBS", -1);
@@ -376,9 +371,9 @@ prtHostsShort (int numReply, struct hostInfoEnt  *hInfo)
         else
             prtWord(HOST_NAME_LENGTH, hPtr->host, 0);
 
-        status = I18N_ok;
+        status = "ok";
         if (hPtr->hStatus & HOST_STAT_UNAVAIL)
-            status = I18N_unavail;
+            status = "unavail";
         else if (hPtr->hStatus & HOST_STAT_UNREACH)
             status = ("unreach");
         else if (hPtr->hStatus & (HOST_STAT_BUSY
@@ -618,7 +613,7 @@ formatHeader(char **dispindex, int start, int end)
 
     if (first) {
         if ((line = (char *)malloc(HEADERLEN)) == NULL) {
-            fprintf(stderr,I18N_FUNC_FAIL, fName, "malloc");
+            fprintf(stderr, "%s: %s failed\n", fName, "malloc");
             exit (-1);
         }
         first = FALSE;
@@ -632,7 +627,7 @@ formatHeader(char **dispindex, int start, int end)
             if ((maxMem - strlen(line)) < MAXLSFNAMELEN) {
                 maxMem = 2 * maxMem;
                 if ((line = (char *)realloc(line, maxMem)) == NULL) {
-                    fprintf(stderr,I18N_FUNC_FAIL, fName, "realloc");
+                    fprintf(stderr, "%s: %s failed\n", fName, "realloc");
                     exit(-1);
                 }
             }
@@ -820,7 +815,7 @@ displayShareRes(int argc, char **argv, int index)
         if ((resourceNames =
              (char **) malloc ((argc - index) * sizeof (char *))) == NULL) {
             char i18nBuf[100];
-            sprintf ( i18nBuf,I18N_FUNC_FAIL,fname,"malloc");
+            sprintf(i18nBuf, "%s: %s failed", fname, "malloc");
             perror( i18nBuf );
             exit (-1);
         }

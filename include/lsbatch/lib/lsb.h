@@ -47,7 +47,14 @@
 })
 #endif
 
-#define DEF_COMMITTED_RUN_TIME_FACTOR 0.0
+
+// Lavalite this has space for LAVALITE_VERSION_STR
+#define  MAX_VERSION_LEN     LL_BUFSIZ_32
+#define  MAX_GROUPS          150
+#define  MAX_CHARLEN         20
+#define  MAX_CMD_DESC_LEN    256
+#define  MAX_USER_EQUIVALENT 128
+#define  DEFAULT_MSG_DESC    "no description"
 
 extern struct config_param lsbParams[];
 extern int initenv_(struct config_param *, char *);

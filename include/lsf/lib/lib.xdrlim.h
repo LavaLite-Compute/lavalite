@@ -19,7 +19,7 @@
 #ifndef LIB_XDRLIM_H
 #define LIB_XDRLIM_H
 
-#include "lproto.h"
+#include "lsf/lib/lproto.h"
 
 extern bool_t xdr_decisionReq(XDR *, struct decisionReq *, struct packet_header *);
 extern bool_t xdr_placeReply(XDR *, struct placeReply *, struct packet_header *);

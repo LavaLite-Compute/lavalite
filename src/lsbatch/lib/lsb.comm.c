@@ -595,7 +595,7 @@ handShake_(int s, char client, int timeout)
         memset((char *)&hdr, 0, sizeof(struct packet_header));
         hdr.operation = PREPARE_FOR_OP;
         hdr.length = 0;
-        xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE, 
+        xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE,
                 XDR_ENCODE);
         if (!xdr_LSFHeader(&xdrs, &hdr)) {
             lsberrno = LSBE_XDR;

@@ -59,7 +59,8 @@ Reply:
     replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
         reconfig();
     }
@@ -201,7 +202,8 @@ Reply:
     replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -316,13 +318,14 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
         return;
     }
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "chanSendDgram_",
-                  sockAdd2Str_(from));
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -532,12 +535,13 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
         return;
     }
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "chanSendDgram_",
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chanSendDgram_",
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
@@ -563,8 +567,8 @@ doReopen(void)
             limParams[LSF_LOGDIR].paramValue = sp;
         ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, lim_debug,
                    limParams[LSF_LOG_MASK].paramValue);
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MM, fname, "ls_openlog",
-                  limParams[LSF_LOGDIR].paramValue);
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "ls_openlog", limParams[LSF_LOGDIR].paramValue);
         lim_Exit(fname);
     }
 

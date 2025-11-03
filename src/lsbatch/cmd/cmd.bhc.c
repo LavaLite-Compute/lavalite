@@ -115,7 +115,7 @@ ctrlHost (char *host, int hStatus, int opCode)
 
     if (lsb_hostcontrol(host, opCode) < 0) {
         char i18nBuf[100];
-	sprintf(i18nBuf,I18N_FUNC_FAILED,"Host control");
+	sprintf(i18nBuf, "Failed: %s", "Host control");
         lsb_perror (i18nBuf );
 	exitrc = -1;
         return;

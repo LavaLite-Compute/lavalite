@@ -41,8 +41,8 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hd
           xdr_int(xdrs, &lvp->numIndx) &&
           xdr_int(xdrs, &lvp->numUsrIndx)) )
     {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname,
-                  "xdr_int/xdr_u_int");
+
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_int/xdr_u_int");
         return false;
     }
 
@@ -66,12 +66,13 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hd
 
     for (i = 0; i < 1+GET_INTNUM(lvp->numIndx); i++) {
         if (!xdr_int(xdrs, (int *) &lvp->status[i])) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "xdr_int");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_int");
             return false;
         }
     }
+
     if (!xdr_lvector(xdrs, lvp->li, lvp->numIndx)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "xdr_lvector");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_lvector");
         return false;
     }
 
@@ -84,7 +85,7 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hd
                 malloc (lvp->numResPairs * sizeof (struct resPair));
             if (resPairs == NULL) {
                 lvp->numResPairs = 0;
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "malloc",
+                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "malloc",
                           lvp->numResPairs * sizeof (struct resPair));
                 return false;
             }
@@ -95,11 +96,10 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hd
     for (i = 0; i < lvp->numResPairs; i++) {
         if (!xdr_arrayElement(xdrs, (char *) &lvp->resPairs[i], hdr, xdr_resPair)) {
             if (xdrs->x_op == XDR_DECODE) {
-                freeResPairs (lvp->resPairs, i);
+                freeResPairs(lvp->resPairs, i);
                 resPairs = NULL;
                 numResPairs = 0;
             }
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "xdr_arrayElement");
             return false;
         }
     }
@@ -276,7 +276,15 @@ decfloat16_(u_short sf)
         result=0.0;
     return result;
 }
+/* replace with:
 
+   bool_t
+   xdr_lvector(XDR *xdrs, float *li, u_int nIndices)
+   {
+   //XDR will encode/decode each float in IEEE754 big-endian, 4 bytes each.
+   return xdr_vector(xdrs, (char *)li, nIndices, sizeof(*li), (xdrproc_t)xdr_float);
+   }
+*/
 bool_t
 xdr_lvector(XDR *xdrs, float *li, int nIndices)
 {
@@ -581,7 +589,8 @@ xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct pac
             tmp = (struct sharedResourceInstance *)
                 calloc (1, sizeof(sharedResourceInstance));
             if (!tmp) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+
+                ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                 return false;
             }
             if (!xdr_var_string(xdrs, &tmp->resName)) {

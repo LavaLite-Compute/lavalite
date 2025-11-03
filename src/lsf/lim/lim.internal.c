@@ -402,7 +402,8 @@ jobxferReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
         myClusterPtr->masterInactivityCount = 0;
 
     if (!xdr_jobXfer(xdrs, &jobXfer, reqHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_jobXfer");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_jobXfer");
         return;
     }
 
@@ -451,7 +452,8 @@ wrongMaster(struct sockaddr_in *from, char *buf, struct packet_header *reqHdr, i
     replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_encodeMsg(&xdrs, replyStruct, &replyHdr, xdr_masterInfo, 0, NULL)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_encodeMsg");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs);
         return;
     }
@@ -466,9 +468,8 @@ wrongMaster(struct sockaddr_in *from, char *buf, struct packet_header *reqHdr, i
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs));
 
     if (cc < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname,
-                  "chanSendDgram_/chanWrite_",
-                  sockAdd2Str_(from));
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_/chanWrite_", sockAdd2Str_(from));
         xdr_destroy(&xdrs);
         return;
     }
@@ -534,7 +535,8 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
     }
 
     if (!xdr_statInfo(xdrs, &sinfo, hdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_statInfo");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_statInfo");
         return;
     }
 
@@ -674,7 +676,8 @@ sndConfInfo(struct sockaddr_in *to)
 
     if ( !(xdr_LSFHeader(&xdrs, &reqHdr) &&
            xdr_statInfo(&xdrs, &myHostPtr->statInfo, &reqHdr)) ) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader/xdr_statInfo");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader/xdr_statInfo");
         return;
     }
 
@@ -684,8 +687,8 @@ sndConfInfo(struct sockaddr_in *to)
 
     if ( chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs),
                         (struct sockaddr_in *)to) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "chanSendDgram_",
-                  sockAdd2Str_(to));
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(to));
         return;
     }
 
@@ -802,21 +805,23 @@ probeMasterTcp(struct clusterNode *clPtr)
     mlim_addr.sin_family      = AF_INET;
 
     if (!getHostNodeIPAddr(hPtr,&mlim_addr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getHostNodeIPAddr");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostNodeIPAddr");
         return -1;
     }
     mlim_addr.sin_port        = hPtr->statInfo.portno;
 
     ch= chanClientSocket_(AF_INET, SOCK_STREAM, 0);
     if (ch < 0 ) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "chanClientSocket_");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chanClientSocket_");
         return -2;
     }
 
     rc = chanConnect_(ch, &mlim_addr, probeTimeout * 1000, 0);
     if (rc < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MM, fname, "chanConnect_",
-                  sockAdd2Str_(&mlim_addr));
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanConnect_", sockAdd2Str_(&mlim_addr));
         chanClose_(ch);
     } else
         ls_syslog(LOG_ERR, "%s: %s(%s) %s ",
@@ -885,7 +890,8 @@ callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
     mlim_addr.sin_family = AF_INET;
 
     if (!(tmp_addr = (struct in_addr *)getHostFirstAddr_(hPtr->hostName))) {
-        ls_syslog (LOG_ERR, I18N_FUNC_FAIL, fname, "getHostFirstAddr_");
+        
+    ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostFirstAddr_");
         return -1;
     }
 
@@ -894,7 +900,8 @@ callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
 
     ch = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
     if (ch < 0 ) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "chanClientSocket_");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chanClientSocket_");
         return 1;
     }
 
@@ -904,8 +911,8 @@ callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
 
     rc = chanConnect_(ch, &mlim_addr, connTimeout * 1000, 0);
     if (rc < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MM, fname, "chanConnect_",
-                  sockAdd2Str_(&mlim_addr));
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanConnect_", sockAdd2Str_(&mlim_addr));
         chanClose_(ch);
         return 1;
     }
@@ -944,7 +951,8 @@ callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
     timep = &timeval;
 
     if ((rc=rd_select_(chanSock_(ch), timep)) <= 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "rd_select_");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "rd_select_");
         chanClose_(ch);
         return 3;
     }
@@ -1113,7 +1121,8 @@ unpackMinSLimConfData(struct minSLimConfData *sLimConfDatap)
                                                  allInfo.nRes*sizeof(struct resItem));
     if (!allInfo.resTable)
     {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "realloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "realloc");
         return -1;
     }
     destResPtr = allInfo.resTable + NBUILTINDEX;
@@ -1167,7 +1176,8 @@ unpackMinSLimConfData(struct minSLimConfData *sLimConfDatap)
 
     if (!(myHostPtr->busyThreshold = (float *)realloc(myHostPtr->busyThreshold,
                                                       allInfo.numIndx*sizeof(float)))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return -1;
     }
     memcpy(myHostPtr->busyThreshold, sLimConfDatap->myHost_busyThreshold,
@@ -1183,7 +1193,8 @@ unpackMinSLimConfData(struct minSLimConfData *sLimConfDatap)
                    (sizeof(struct resourceInstance *)));
 
         if (! myHostPtr->instances && myHostPtr->numInstances) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return -1;
         }
     } else {
@@ -1193,7 +1204,8 @@ unpackMinSLimConfData(struct minSLimConfData *sLimConfDatap)
     for (i = 0; i < myHostPtr->numInstances; i++) {
         myHostPtr->instances[i] = (struct resourceInstance *)calloc(1, sizeof(struct resourceInstance));
         if (myHostPtr->instances[i] == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return -1;
         }
         myHostPtr->instances[i]->resName =
@@ -1210,7 +1222,8 @@ unpackMinSLimConfData(struct minSLimConfData *sLimConfDatap)
             calloc (1, sizeof(sharedResourceInstance));
 
         if (!tmp1) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return -1;
         }
         tmp1->resName = putstr_(tmp->resName);
@@ -1265,8 +1278,8 @@ lockHost(char *hostName, int request)
 
     if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL,
                  hostName, 0, NULL) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, "lockHost", "callLim",
-                  hostName);
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", "lockHost", "callLim", hostName);
         return -2;
     }
 

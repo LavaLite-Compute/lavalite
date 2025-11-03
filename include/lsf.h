@@ -709,8 +709,6 @@ struct jRusage {
 #define LOG_DEBUG2  LOG_DEBUG + 2
 #define LOG_DEBUG3  LOG_DEBUG + 3
 
-#define LSF_NIOS_REQUEUE	127
-
 #define LSDEVNULL       "/dev/null"
 
 typedef enum {
@@ -749,23 +747,8 @@ extern int     timinglevel;
 extern int     lsf_lim_version;
 extern int     lsf_res_version;
 
-extern int     ls_initrex (int, int);
-#define ls_init(a, b) ls_initrex((a), (b))
-
-extern int     ls_readconfenv (struct config_param *, char *);
-extern int     ls_connect (char *);
-extern int     ls_rexecv (char *, char **, int);
-extern int     ls_rexecve (char *, char **, int, char **);
-extern int     ls_rtask (char *, char **, int);
-extern int     ls_rtaske (char *, char **, int, char **);
-extern int     ls_rwait (int *, int, struct rusage *);
-extern int     ls_rwaittid (int, int *, int, struct rusage *);
-extern int     ls_rkill (int, int);
-extern int     ls_startserver (char *, char **, int);
-extern int     ls_conntaskport (int tid);
-
 extern char    **ls_placereq (char *resreq, int *numhosts, int options,
-				char *fromhost);
+                              char *fromhost);
 extern char    **ls_placeofhosts (char *resreq, int *numhosts,
                                 int options, char *fromhost, char **hostlist,
                                 int listsize);
@@ -813,8 +796,6 @@ extern char    *ls_gethostmodel (char *hostname);
 extern int     ls_lockhost (time_t duration);
 extern int     ls_unlockhost (void);
 extern int     ls_limcontrol (char *hostname, int opCode);
-extern void    ls_remtty (int ind, int enableIntSus);
-extern void    ls_loctty (int ind);
 extern char    *ls_sysmsg (void);
 extern void    ls_perror (char *usrMsg);
 
@@ -850,7 +831,6 @@ extern int	ls_setstdout (int on, char *format);
 extern int	ls_niossync (int);
 extern int	ls_setstdin (int on, int *rpidlist, int len);
 extern int      ls_chdir (char *, char *);
-extern int      ls_fdbusy (int fd);
 extern char     *ls_getmnthost (char *fn);
 extern int      ls_servavail (int, int);
 extern int	ls_setpriority (int newPriority);

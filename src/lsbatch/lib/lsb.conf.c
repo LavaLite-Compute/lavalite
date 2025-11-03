@@ -21,9 +21,23 @@
 #include "lsbatch/lib/lsb.sig.h"
 #include "lsf/intlib/intlibout.h"
 
+#ifndef LSBCONF_NOLOG
+#define LSBCONF_NOLOG 1
+#endif
+
+#if LSBCONF_NOLOG
+#undef ls_syslog
+#define ls_syslog(...) do { } while (0)
+
+#undef syslog
+#define syslog(...) do { } while (0)
+#endif
+
+
 #define USEREQUIVALENT "userequivalent"
 #define USERMAPPING "usermap"
 
+#if 0
 #define LSB_NULL_POINTER_STR     "%s: %s is Null"
 #define LSB_FILE_PREMATUR_STR    "%s: File %s at line %d, premature EOF"
 #define LSB_EMPTY_SECTION_STR    "%s: File %s at line %d: Empty %s section"
@@ -31,19 +45,20 @@
 #define LSB_IN_QUEUE_HOST_STR    "in queue's HOSTS list"
 #define LSB_IN_SEND_RCV_STR      "in queue's SEND_TO or RCV_FROM list"
 
-#define I18N_NULL_POINTER \
+#define NULL \
     ( LSB_NULL_POINTER_STR)
-#define I18N_FILE_PREMATURE \
+#define NULL \
     ( LSB_FILE_PREMATUR_STR)
-#define I18N_EMPTY_SECTION  \
+#define NULL  \
     ( LSB_EMPTY_SECTION_STR)
-#define I18N_IN_QUEUE_ADMIN  \
+#define NULL  \
     ( LSB_IN_QUEUE_ADMIN_STR)
-#define I18N_IN_QUEUE_HOST   \
+#define NULL   \
     ( LSB_IN_QUEUE_HOST_STR)
-#define I18N_IN_QUEUE_SEND_RCV \
+#define NULL \
     ( LSB_IN_SEND_RCV_STR)
 #define MAX_SELECTED_LOADS 4
+#endif
 
 static struct paramConf *pConf= NULL;
 static struct userConf *uConf = NULL;
@@ -259,7 +274,7 @@ readHvalues_conf(struct keymap *keyList, char *linep, struct lsConf *conf,
         return readHvalues_conf(keyList, linep, conf, lsfile, LineNum, exact, section);
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, NULL,
             fname, lsfile, *LineNum, section);
     return -1;
 
@@ -278,13 +293,13 @@ lsb_readparam ( struct lsConf *conf )
     lsberrno = LSBE_NO_ERROR;
 
     if (conf == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER,  pname, "conf");
+        ls_syslog(LOG_ERR, NULL,  pname, "conf");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
 
     if (conf->confhandle == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname,  "confhandle");
+        ls_syslog(LOG_ERR, NULL, pname,  "confhandle");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
@@ -295,7 +310,7 @@ lsb_readparam ( struct lsConf *conf )
     } else {
         if ((pConf = (struct paramConf *)malloc(sizeof(struct paramConf)))
                 == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+            ls_syslog(LOG_ERR, NULL, pname, "malloc",
                     sizeof(struct paramConf));
             lsberrno = LSBE_CONF_FATAL;
             return NULL;
@@ -305,7 +320,7 @@ lsb_readparam ( struct lsConf *conf )
     fname = conf->confhandle->fname;
     if ((pConf->param = ( struct parameterInfo * ) malloc
                 (sizeof(struct parameterInfo))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+        ls_syslog(LOG_ERR, NULL, pname, "malloc",
                 sizeof(struct parameterInfo));
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
@@ -409,13 +424,13 @@ do_Param (struct lsConf *conf, char *fname, int *lineNum)
                 pname, linep, strlen(linep));
     }
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_FILE_PREMATURE, pname, fname, *lineNum);
+        ls_syslog(LOG_ERR, NULL, pname, fname, *lineNum);
         lsberrno = LSBE_CONF_WARNING;
         return false;
     }
 
     if (isSectionEnd(linep, fname, lineNum, "parameters")) {
-        ls_syslog(LOG_WARNING, I18N_EMPTY_SECTION, pname, fname, *lineNum,
+        ls_syslog(LOG_WARNING, NULL, pname, fname, *lineNum,
                 "parameters");
         lsberrno = LSBE_CONF_WARNING;
         return false;
@@ -447,7 +462,7 @@ do_Param (struct lsConf *conf, char *fname, int *lineNum)
             else if (i == 1) {
                 pConf->param->defaultQueues = putstr_ (keylist[i].val);
                 if (pConf->param->defaultQueues == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc", strlen(keylist[i].val)+1);
                     lsberrno = LSBE_NO_MEM;
                     freekeyval (keylist);
@@ -458,7 +473,7 @@ do_Param (struct lsConf *conf, char *fname, int *lineNum)
             else if (i == 2) {
                 pConf->param->defaultHostSpec = putstr_ (keylist[i].val);
                 if (pConf->param->defaultHostSpec == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc", strlen(keylist[i].val)+1);
                     lsberrno = LSBE_NO_MEM;
                     freekeyval (keylist);
@@ -470,7 +485,7 @@ do_Param (struct lsConf *conf, char *fname, int *lineNum)
                 if (checkSpoolDir(keylist[i].val) == 0) {
                     pConf->param->pjobSpoolDir = putstr_ (keylist[i].val);
                     if (pConf->param->pjobSpoolDir == NULL) {
-                        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                        ls_syslog(LOG_ERR, NULL, pname,
                                 "malloc", strlen(keylist[i].val)+1);
                         lsberrno = LSBE_NO_MEM;
                         freekeyval (keylist);
@@ -525,7 +540,7 @@ do_Param (struct lsConf *conf, char *fname, int *lineNum)
             else if (i == 3) {
                 pConf->param->defaultProject = putstr_(keylist[i].val);
                 if (pConf->param->defaultProject == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc", strlen(keylist[i].val)+1);
                     lsberrno = LSBE_NO_MEM;
                     freekeyval (keylist);
@@ -936,7 +951,7 @@ lsb_readuser_ex (struct lsConf *conf, int options,
     lsberrno = LSBE_NO_ERROR;
 
     if (conf == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER,  pname, "conf");
+        ls_syslog(LOG_ERR, NULL,  pname, "conf");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
@@ -945,12 +960,12 @@ lsb_readuser_ex (struct lsConf *conf, int options,
         sConf = *sharedConf;
 
     if (conf && conf->confhandle == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname,  "confhandle");
+        ls_syslog(LOG_ERR, NULL, pname,  "confhandle");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
     if (handleUserMem()) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, pname,  "handleUserMem");
+        ls_syslog(LOG_ERR, NULL, pname,  "handleUserMem");
         return NULL;
     }
 
@@ -967,7 +982,7 @@ lsb_readuser_ex (struct lsConf *conf, int options,
                 if ((uConf->ugroups = (struct groupInfoEnt *)
                             calloc(numofugroups,
                                 sizeof(struct groupInfoEnt))) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc",
                             numofugroups*sizeof(struct groupInfoEnt));
                     lsberrno = LSBE_CONF_FATAL;
@@ -985,7 +1000,7 @@ lsb_readuser_ex (struct lsConf *conf, int options,
             if (numofusers) {
                 if ((uConf->users = (struct userInfoEnt *) malloc
                             (numofusers*sizeof(struct userInfoEnt))) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+                    ls_syslog(LOG_ERR, NULL, pname, "malloc",
                             numofusers*sizeof(struct userInfoEnt));
                     lsberrno = LSBE_CONF_FATAL;
                     freeWorkUser(true);
@@ -1064,13 +1079,13 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
 
     linep = getNextLineC_conf(conf, lineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, I18N_FILE_PREMATURE, pname, fname, *lineNum);
+        ls_syslog(LOG_ERR, NULL, pname, fname, *lineNum);
         lsberrno = LSBE_CONF_WARNING;
         return false;
     }
 
     if (isSectionEnd(linep, fname, lineNum, "user")) {
-        ls_syslog(LOG_WARNING, I18N_EMPTY_SECTION,
+        ls_syslog(LOG_WARNING, NULL,
                 pname, fname, *lineNum, "user");
         lsberrno = LSBE_CONF_WARNING;
         return false;
@@ -1091,7 +1106,7 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
         if ((tmpUsers = (struct hTab *)malloc (sizeof (struct hTab))) == NULL ||
                 (nonOverridableUsers = (struct hTab *)malloc (sizeof (struct hTab)))
                 == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+            ls_syslog(LOG_ERR, NULL, pname, "malloc",
                     sizeof (struct hTab));
             lsberrno = LSBE_NO_MEM;
             return false;
@@ -1214,8 +1229,8 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
             } else {
                 char **groupMembers;
                 int numMembers = 0;
-                char grpname[MAX_LSB_NAME_LEN];
-                STRNCPY(grpname, keylist[0].val, MAX_LSB_NAME_LEN);
+                char grpname[MAXLSFNAMELEN];
+                STRNCPY(grpname, keylist[0].val, MAXLSFNAMELEN);
 
                 if (isGroupAt) {
                     if(grpname[strlen(keylist[0].val) - 1]=='@')
@@ -1224,7 +1239,7 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
 
                 if ((groupMembers = expandGrp(grpname,
                                 &numMembers, USER_GRP)) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "expandGrp");
+                    ls_syslog(LOG_ERR, NULL, fname, "expandGrp");
                     goto Error;
                 }
                 if (strcmp(groupMembers[0], "all") == 0) {
@@ -1249,12 +1264,12 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
             FREEUP (grpSl);
         }
 
-        ls_syslog(LOG_ERR, I18N_FILE_PREMATURE, pname, fname, *lineNum);
+        ls_syslog(LOG_ERR, NULL, pname, fname, *lineNum);
         lsberrno = LSBE_CONF_WARNING;
         FREEUP (grpSl);
         goto Error;
     } else {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE, pname, fname, *lineNum, "user");
+        ls_syslog(LOG_ERR, NULL, pname, fname, *lineNum, "user");
         lsberrno = LSBE_CONF_WARNING;
         doSkipSection_conf(conf, lineNum, fname, "user");
         return false;
@@ -1303,13 +1318,13 @@ do_Groups (struct groupInfoEnt **groups, struct lsConf *conf, char *fname,
 
     linep = getNextLineC_conf(conf, lineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, I18N_FILE_PREMATURE,  pname, fname, *lineNum);
+        ls_syslog(LOG_ERR, NULL,  pname, fname, *lineNum);
         lsberrno = LSBE_CONF_WARNING;
         return false;
     }
 
     if (isSectionEnd(linep, fname, lineNum, HUgroups)) {
-        ls_syslog(LOG_WARNING, I18N_EMPTY_SECTION, pname, fname, *lineNum,
+        ls_syslog(LOG_WARNING, NULL, pname, fname, *lineNum,
                 HUgroups);
         lsberrno = LSBE_CONF_WARNING;
         return false;
@@ -1479,13 +1494,13 @@ do_Groups (struct groupInfoEnt **groups, struct lsConf *conf, char *fname,
 
         }
 
-        ls_syslog(LOG_WARNING, I18N_FILE_PREMATURE, pname, fname, *lineNum);
+        ls_syslog(LOG_WARNING, NULL, pname, fname, *lineNum);
         lsberrno = LSBE_CONF_WARNING;
 
         return true;
 
     } else {
-        ls_syslog(LOG_WARNING, I18N_HORI_NOT_IMPLE,
+        ls_syslog(LOG_WARNING, NULL,
                 pname, fname, *lineNum, HUgroups);
         lsberrno = LSBE_CONF_WARNING;
 
@@ -1522,7 +1537,7 @@ addGroup (struct groupInfoEnt **groups, char *gname, int *ngroups, int type)
     if ( type == 0 ) {
         if ((groups[*ngroups] = (struct groupInfoEnt *) malloc
                     (sizeof(struct groupInfoEnt))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addGroup", "malloc",
+            ls_syslog(LOG_ERR, NULL, "addGroup", "malloc",
                     sizeof(struct groupInfoEnt));
             lsberrno = LSBE_NO_MEM;
             return NULL;
@@ -1540,7 +1555,7 @@ addGroup (struct groupInfoEnt **groups, char *gname, int *ngroups, int type)
         groups[*ngroups] = groups[*ngroups-1];
         if ((groups[*ngroups-1] = (struct groupInfoEnt *) malloc
                     (sizeof(struct groupInfoEnt))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addGroup", "malloc",
+            ls_syslog(LOG_ERR, NULL, "addGroup", "malloc",
                     sizeof(struct groupInfoEnt));
             lsberrno = LSBE_NO_MEM;
             return NULL;
@@ -1640,7 +1655,7 @@ addMember (struct groupInfoEnt *gp, char *word, int grouptype,
     }
 
     if (myWord == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addMember", "malloc",
+        ls_syslog(LOG_ERR, NULL, "addMember", "malloc",
                 strlen(cp)+1);
         lsberrno = LSBE_NO_MEM;
         return false;
@@ -1680,7 +1695,7 @@ addMember (struct groupInfoEnt *gp, char *word, int grouptype,
             if (lastChar > 0 && myWord[lastChar] == '/') {
                 grpSl = putstr_ ( myWord );
                 if (grpSl == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addMember",
+                    ls_syslog(LOG_ERR, NULL, "addMember",
                             "malloc", strlen(myWord)+1);
                     lsberrno = LSBE_NO_MEM;
                     FREEUP(myWord);
@@ -1784,7 +1799,7 @@ addMember (struct groupInfoEnt *gp, char *word, int grouptype,
             gp->memberList = putstr_ ( myWord );
         }
         if (gp->memberList == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addMember",
+            ls_syslog(LOG_ERR, NULL, "addMember",
                     "malloc", strlen(myWord)+1);
             lsberrno = LSBE_NO_MEM;
             FREEUP(myWord);
@@ -1798,7 +1813,7 @@ addMember (struct groupInfoEnt *gp, char *word, int grouptype,
         }
         if ((gp->memberList = (char *) myrealloc
                     (gp->memberList, len*sizeof(char))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addMember",
+            ls_syslog(LOG_ERR, NULL, "addMember",
                     "myrealloc", len*sizeof(char));
             lsberrno = LSBE_NO_MEM;
             FREEUP(myWord);
@@ -1972,7 +1987,7 @@ addUser (char *username, int maxjobs, float pJobLimit,
             initUserInfo ( up );
             up->user = putstr_ ( username );
             if (up->user == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addUser",
+                ls_syslog(LOG_ERR, NULL, "addUser",
                         "malloc", strlen(username)+1);
                 lsberrno = LSBE_NO_MEM;
                 return false;
@@ -1995,7 +2010,7 @@ addUser (char *username, int maxjobs, float pJobLimit,
                 usersize *= 2;
             if ((tmpUsers = (struct userInfoEnt **) myrealloc
                         (users, usersize*sizeof(struct userInfoEnt *))) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addUser",
+                ls_syslog(LOG_ERR, NULL, "addUser",
                         "myrealloc", usersize*sizeof(struct userInfoEnt *));
                 lsberrno = LSBE_NO_MEM;
                 return false;
@@ -2005,7 +2020,7 @@ addUser (char *username, int maxjobs, float pJobLimit,
 
         if ((users[numofusers] = (struct userInfoEnt *) malloc
                     (sizeof(struct userInfoEnt))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addUser", "malloc",
+            ls_syslog(LOG_ERR, NULL, "addUser", "malloc",
                     sizeof(struct userInfoEnt));
             lsberrno = LSBE_NO_MEM;
             return false;
@@ -2086,13 +2101,13 @@ expandGrp(char *word, int *num, int grouptype)
 
     if ( gp == NULL ) {
         if ((list = (char **) malloc (sizeof(char *))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "expandGrp",
+            ls_syslog(LOG_ERR, NULL, "expandGrp",
                     "malloc", sizeof(char *));
             lsberrno = LSBE_NO_MEM;
             return NULL;
         }
         if ((list[0] = putstr_(word)) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "expandGrp",
+            ls_syslog(LOG_ERR, NULL, "expandGrp",
                     "malloc", strlen(word)+1);
             lsberrno = LSBE_NO_MEM;
             return NULL;
@@ -2103,14 +2118,14 @@ expandGrp(char *word, int *num, int grouptype)
         if (!strcmp(tmp, "all")) {
             if ((tempList = (char **) myrealloc (list, sizeof(char *)))
                     == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "expandGrp",
+                ls_syslog(LOG_ERR, NULL, "expandGrp",
                         "myrealloc", sizeof(char *));
                 lsberrno = LSBE_NO_MEM;
                 return NULL;
             }
             list = tempList;
             if ((list[0] = putstr_("all")) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "expandGrp",
+                ls_syslog(LOG_ERR, NULL, "expandGrp",
                         "malloc", strlen("all")+1);
                 lsberrno = LSBE_NO_MEM;
                 return NULL;
@@ -2130,14 +2145,14 @@ expandGrp(char *word, int *num, int grouptype)
             if ( sub_gp == NULL ) {
                 if ((tempList = (char **) myrealloc
                             (list, (n+1)*sizeof(char *))) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,  "expandGrp",
+                    ls_syslog(LOG_ERR, NULL,  "expandGrp",
                             "myrealloc", (n+1)*sizeof(char *));
                     lsberrno = LSBE_NO_MEM;
                     return NULL;
                 }
                 list = tempList;
                 if ((list[n] = putstr_(str)) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,  "expandGrp",
+                    ls_syslog(LOG_ERR, NULL,  "expandGrp",
                             "malloc", strlen(str)+1);
                     lsberrno = LSBE_NO_MEM;
                     return NULL;
@@ -2153,7 +2168,7 @@ expandGrp(char *word, int *num, int grouptype)
 
                         if ((tempList = (char **) myrealloc
                                     (list, sizeof(char *))) == NULL) {
-                            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,
+                            ls_syslog(LOG_ERR, NULL,
                                     "expandGrp", "myrealloc",
                                     sizeof(char *));
                             lsberrno = LSBE_NO_MEM;
@@ -2161,7 +2176,7 @@ expandGrp(char *word, int *num, int grouptype)
                         }
                         list = tempList;
                         if ((list[0] = putstr_("all")) == NULL) {
-                            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,
+                            ls_syslog(LOG_ERR, NULL,
                                     "expandGrp", "malloc",
                                     strlen("all")+1);
                             lsberrno = LSBE_NO_MEM;
@@ -2174,7 +2189,7 @@ expandGrp(char *word, int *num, int grouptype)
                     }
                     if ((list = (char **) myrealloc
                                 (list, (n+sub_num)*sizeof(char *))) == NULL) {
-                        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,
+                        ls_syslog(LOG_ERR, NULL,
                                 "expandGrp", "realloc",
                                 (n+sub_num)*sizeof(char *));
                         lsberrno = LSBE_NO_MEM;
@@ -2210,19 +2225,19 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
     lsberrno = LSBE_NO_ERROR;
 
     if (info == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname,  "lsinfo");
+        ls_syslog(LOG_ERR, NULL, pname,  "lsinfo");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
 
     if ((options != CONF_NO_CHECK) && clusterConf == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname, "clusterConf");
+        ls_syslog(LOG_ERR, NULL, pname, "clusterConf");
         return NULL;
     }
     if ((options != CONF_NO_CHECK) && uConf == NULL) {
         ls_syslog (LOG_INFO, ("%s: default user will be used."), pname);
         if (setDefaultUser()) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, pname, "setDefaultUser");
+            ls_syslog(LOG_ERR, NULL, pname, "setDefaultUser");
             return NULL;
         }
     }
@@ -2231,7 +2246,7 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
 
     if (info->nRes && (myinfo.resTable = (struct resItem *)
                 malloc(info->nRes * sizeof(struct resItem))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+        ls_syslog(LOG_ERR, NULL, pname, "malloc",
                 info->nRes * sizeof(struct resItem));
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
@@ -2253,14 +2268,14 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
 
     if (!conf) {
         FREEUP(myinfo.resTable);
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname, "conf");
+        ls_syslog(LOG_ERR, NULL, pname, "conf");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
 
     if (!conf->confhandle) {
         FREEUP(myinfo.resTable);
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname, "confhandle");
+        ls_syslog(LOG_ERR, NULL, pname, "confhandle");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
@@ -2288,7 +2303,7 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
             if (numofhosts) {
                 if ((hConf->hosts = (struct hostInfoEnt *) malloc
                             (numofhosts*sizeof(struct hostInfoEnt))) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc",
                             numofhosts*sizeof(struct hostInfoEnt));
                     lsberrno = LSBE_CONF_FATAL;
@@ -2307,7 +2322,7 @@ lsb_readhost ( struct lsConf *conf, struct lsInfo *info, int options,
             if (numofhgroups) {
                 if ((hConf->hgroups = (struct groupInfoEnt *) malloc
                             (numofhgroups*sizeof(struct groupInfoEnt))) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc",
                             numofhgroups*sizeof(struct groupInfoEnt));
                     lsberrno = LSBE_CONF_FATAL;
@@ -2394,7 +2409,7 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
     FREEUP (keylist);
     if (!(keylist = (struct keymap *)malloc ((HKEY_DISPATCH_WINDOW+2)*
                     sizeof(struct keymap)))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        ls_syslog(LOG_ERR, NULL, fname, "malloc");
         return false;
     }
 
@@ -2411,20 +2426,20 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
 
     linep = getNextLineC_conf(conf, lineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, I18N_FILE_PREMATURE, pname, fname, *lineNum);
+        ls_syslog(LOG_ERR, NULL, pname, fname, *lineNum);
         lsberrno = LSBE_CONF_WARNING;
         return false;
     }
 
     if (isSectionEnd(linep, fname, lineNum, "host")) {
-        ls_syslog(LOG_WARNING, I18N_EMPTY_SECTION, pname, fname,
+        ls_syslog(LOG_WARNING, NULL, pname, fname,
                 *lineNum, "host");
         lsberrno = LSBE_CONF_WARNING;
         return false;
     }
 
     if (strchr(linep, '=') != NULL) {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE, pname, fname,
+        ls_syslog(LOG_ERR, NULL, pname, fname,
                 *lineNum, "host");
         lsberrno = LSBE_CONF_WARNING;
         doSkipSection_conf(conf, lineNum, fname, "host");
@@ -2450,7 +2465,7 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
             (hostList = (struct hostInfo *) malloc
              (cConf.numHosts * sizeof(struct hostInfo))) == NULL) {
 
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+        ls_syslog(LOG_ERR, NULL, pname, "malloc",
                 cConf.numHosts * sizeof(struct hostInfo));
         lsberrno = LSBE_NO_MEM;
         FREEUP (nonOverridableHosts);
@@ -2607,14 +2622,14 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
 
         if (info->numIndx && (host.loadSched = (float *) malloc
                     (info->numIndx*sizeof(float *))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+            ls_syslog(LOG_ERR, NULL, pname, "malloc",
                     info->numIndx*sizeof(float *));
             lsberrno = LSBE_NO_MEM;
             goto Error1;
         }
         if (info->numIndx && (host.loadStop = (float *) malloc
                     (info->numIndx*sizeof(float *))) == NULL) {
-            ls_syslog(LOG_ERR,  I18N_FUNC_D_FAIL_M, pname, "malloc",
+            ls_syslog(LOG_ERR,  NULL, pname, "malloc",
                     info->numIndx*sizeof(float *));
             lsberrno = LSBE_NO_MEM;
             goto Error1;
@@ -2697,7 +2712,7 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
         FREEUP(host.loadStop);
 
     }
-    ls_syslog(LOG_ERR, I18N_FILE_PREMATURE, pname, fname, *lineNum);
+    ls_syslog(LOG_ERR, NULL, pname, fname, *lineNum);
     lsberrno = LSBE_CONF_WARNING;
     returnCode = true;
 Error1:
@@ -2876,7 +2891,7 @@ addHost(struct hostInfoEnt *hp, struct hostInfo *hostInfo, int override)
             hostsize *= 2;
         if ((tmpHosts = (struct hostInfoEnt **) myrealloc
                     (hosts, hostsize*sizeof(struct hostInfoEnt *))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addHost", "realloc",
+            ls_syslog(LOG_ERR, NULL, "addHost", "realloc",
                     hostsize*sizeof(struct hostInfoEnt *));
             lsberrno = LSBE_NO_MEM;
             freeHostInfo (hp);
@@ -2905,7 +2920,7 @@ addHost(struct hostInfoEnt *hp, struct hostInfo *hostInfo, int override)
     } else {
         if ((host = (struct hostInfoEnt *) malloc
                     (sizeof(struct hostInfoEnt))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addHost", "malloc",
+            ls_syslog(LOG_ERR, NULL, "addHost", "malloc",
                     sizeof(struct hostInfoEnt));
             lsberrno = LSBE_NO_MEM;
             return false;
@@ -2914,7 +2929,7 @@ addHost(struct hostInfoEnt *hp, struct hostInfo *hostInfo, int override)
     initHostInfo (host);
     if (copyHostInfo (host, hp) < 0) {
 
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "addHost",
+        ls_syslog(LOG_ERR, NULL, "addHost",
                 "copyHostInfo");
         FREEUP (host);
         return false;
@@ -2938,7 +2953,7 @@ copyHostInfo (struct hostInfoEnt *toHost, struct hostInfoEnt *fromHost)
     memcpy(toHost, fromHost, sizeof (struct hostInfoEnt));
 
     if ((toHost->host = putstr_(fromHost->host)) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "copyHostInfo", "malloc",
+        ls_syslog(LOG_ERR, NULL, "copyHostInfo", "malloc",
                 strlen(fromHost->host)+1);
         lsberrno = LSBE_NO_MEM;
         return -1;
@@ -2951,7 +2966,7 @@ copyHostInfo (struct hostInfoEnt *toHost, struct hostInfoEnt *fromHost)
                  malloc ((fromHost->nIdx)*sizeof(float *))) == NULL ||
                 (fromHost->windows &&
                  (toHost->windows = putstr_(fromHost->windows)) == NULL))  {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "copyHostInfo",
+            ls_syslog(LOG_ERR, NULL, "copyHostInfo",
                     "malloc");
             lsberrno = LSBE_NO_MEM;
             FREEUP (toHost->host);
@@ -3008,7 +3023,7 @@ parseGroups (char *linep, char *fname, int *lineNum, char *section,
     char returnVal = false;
 
 #define failReturn(mygp, size)  { \
-    ls_syslog(LOG_ERR,  I18N_FUNC_D_FAIL_M, pname, "malloc", size);\
+    ls_syslog(LOG_ERR,  NULL, pname, "malloc", size);\
     freeGroupInfo (mygp); \
     FREEUP (mygp); \
     FREEUP (hostGroup); \
@@ -3268,7 +3283,7 @@ parseGroups (char *linep, char *fname, int *lineNum, char *section,
                     }
 
                     if (putIntoList (&hostGroup, &len, hostName,
-                                I18N_IN_QUEUE_HOST) == NULL) {
+                                     NULL) == NULL) {
                         failReturn (mygp, strlen(myWord)+1);
                     }
                     hasAllOthers = true;
@@ -3306,7 +3321,7 @@ parseGroups (char *linep, char *fname, int *lineNum, char *section,
                 }
 
                 if (groupType == HOST_GRP &&
-                        putIntoList (&hostGroup, &len, hostName, I18N_IN_QUEUE_HOST) == NULL) {
+                        putIntoList (&hostGroup, &len, hostName, NULL) == NULL) {
                     failReturn (mygp, strlen(hostName)+1);
                 }
                 FREEUP(myWord);
@@ -3368,7 +3383,7 @@ parseGroups (char *linep, char *fname, int *lineNum, char *section,
 
                 if (groupType == HOST_GRP &&
                         putIntoList (&hostGroup, &len, hostName,
-                            I18N_IN_QUEUE_HOST) == NULL) {
+                            NULL) == NULL) {
                     failReturn (mygp, strlen(myWord)+1);
                 }
                 FREEUP(myWord);
@@ -3421,28 +3436,28 @@ lsb_readqueue ( struct lsConf *conf, struct lsInfo *info, int options,
     lsberrno = LSBE_NO_ERROR;
 
     if (info == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname,  "lsinfo");
+        ls_syslog(LOG_ERR, NULL, pname,  "lsinfo");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
     if ((options != CONF_NO_CHECK) && sharedConf == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname, "sharedConf");
+        ls_syslog(LOG_ERR, NULL, pname, "sharedConf");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
     if ((options != CONF_NO_CHECK) && uConf == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER,  pname, "uConf");
+        ls_syslog(LOG_ERR, NULL,  pname, "uConf");
         if (setDefaultUser())  {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, pname,   "setDefaultUser");
+            ls_syslog(LOG_ERR, NULL, pname,   "setDefaultUser");
             lsberrno = LSBE_CONF_FATAL;
             return NULL;
         }
     }
 
     if ((options != CONF_NO_CHECK) && hConf == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname,  "hConf");
+        ls_syslog(LOG_ERR, NULL, pname,  "hConf");
         if (setDefaultHost(info)) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, pname, "setDefaultHost");
+            ls_syslog(LOG_ERR, NULL, pname, "setDefaultHost");
             lsberrno = LSBE_CONF_FATAL;
             return NULL;
         }
@@ -3453,7 +3468,7 @@ lsb_readqueue ( struct lsConf *conf, struct lsInfo *info, int options,
 
     if (info->nRes && (myinfo.resTable = (struct resItem *) malloc
                 (info->nRes * sizeof(struct resItem))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+        ls_syslog(LOG_ERR, NULL, pname, "malloc",
                 info->nRes * sizeof(struct resItem));
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
@@ -3475,14 +3490,14 @@ lsb_readqueue ( struct lsConf *conf, struct lsInfo *info, int options,
 
     if (!conf) {
         FREEUP(myinfo.resTable);
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname,  "conf");
+        ls_syslog(LOG_ERR, NULL, pname,  "conf");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
 
     if (!conf->confhandle) {
         FREEUP(myinfo.resTable);
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname, "confhandle");
+        ls_syslog(LOG_ERR, NULL, pname, "confhandle");
         lsberrno = LSBE_CONF_FATAL;
         return NULL;
     }
@@ -3490,7 +3505,7 @@ lsb_readqueue ( struct lsConf *conf, struct lsInfo *info, int options,
         freeQConf(qConf, true);
     } else {
         if ((qConf = (struct queueConf *) malloc (sizeof (struct queueConf))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,  "malloc",
+            ls_syslog(LOG_ERR, NULL, pname,  "malloc",
                     sizeof (struct queueConf));
             lsberrno = LSBE_CONF_FATAL;
             return NULL;
@@ -3523,7 +3538,7 @@ lsb_readqueue ( struct lsConf *conf, struct lsInfo *info, int options,
             if (numofqueues) {
                 if ((qConf->queues = ( struct queueInfoEnt * ) malloc
                             (numofqueues*sizeof(struct queueInfoEnt))) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc",
                             numofqueues*sizeof(struct queueInfoEnt));
                     lsberrno = LSBE_CONF_FATAL;
@@ -3636,7 +3651,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
     FREEUP (keylist);
     if (!(keylist = (struct keymap *)malloc((KEYMAP_SIZE)*
                     sizeof(struct keymap)))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+        ls_syslog(LOG_ERR, NULL, pname, "malloc",
                 (KEYMAP_SIZE)*sizeof(struct keymap));
         return false;
     }
@@ -3695,13 +3710,13 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
 
     linep = getNextLineC_conf(conf, lineNum, true);
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_FILE_PREMATURE,  pname, fname, *lineNum);
+        ls_syslog(LOG_ERR, NULL,  pname, fname, *lineNum);
         lsberrno = LSBE_CONF_WARNING;
         return false;
     }
 
     if (isSectionEnd(linep, fname, lineNum, "Queue")) {
-        ls_syslog(LOG_WARNING, I18N_EMPTY_SECTION, pname, fname, *lineNum,
+        ls_syslog(LOG_WARNING, NULL, pname, fname, *lineNum,
                 "queue");
         lsberrno = LSBE_CONF_WARNING;
         return false;
@@ -3750,7 +3765,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
 
         queue.queue = putstr_ (keylist[QKEY_NAME].val);
         if (queue.queue == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+            ls_syslog(LOG_ERR, NULL, pname, "malloc",
                     strlen(keylist[QKEY_NAME].val)+1);
             lsberrno = LSBE_NO_MEM;
             freekeyval (keylist);
@@ -3866,7 +3881,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                 queue.defaultHostSpec =
                     putstr_ (keylist[QKEY_DEFAULT_HOST_SPEC].val);
                 if (queue.defaultHostSpec == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc",
                             strlen(keylist[QKEY_DEFAULT_HOST_SPEC].val)+1);
                     lsberrno = LSBE_NO_MEM;
@@ -3969,7 +3984,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                     USER_GRP, options);
             if (queue.userList == NULL) {
                 if (lsberrno == LSBE_NO_MEM)
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "parseGroups");
                 else if (numofugroups >= MAX_GROUPS)
                     ls_syslog(LOG_ERR, "%s: File %s in section Queue ending at line %d:  Number of user group <%d> is equal to or greater than MAX_GROUPS <%d>; ignoring the queue for <%s>; ignoring the queue", pname, fname, *lineNum, numofugroups, MAX_GROUPS, queue.queue);
@@ -4035,7 +4050,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
 
                 if (queue.hostList == NULL) {
                     if (lsberrno == LSBE_NO_MEM)
-                        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, pname,
+                        ls_syslog(LOG_ERR, NULL, pname,
                                 "parseGroups");
                     else
                         ls_syslog(LOG_ERR, "%s: File %s in section Queue ending at line %d: No valid hosts or host group specified in HOSTS for <%s>; ignoring the queue", pname, fname, *lineNum, queue.queue);
@@ -4065,7 +4080,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                 chkpntPrd = atoi(prdstr);
 
                 if (queue.chkpntDir == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+                    ls_syslog(LOG_ERR, NULL, pname, "malloc",
                             strlen(keylist[QKEY_POST_EXEC].val)+1);
                     lsberrno = LSBE_NO_MEM;
                     freekeyval (keylist);
@@ -4173,7 +4188,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
             }
             queue.description = putstr_ (keylist[QKEY_DESCRIPTION].val);
             if (queue.description == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+                ls_syslog(LOG_ERR, NULL, pname, "malloc",
                         strlen(keylist[QKEY_DESCRIPTION].val)+1);
                 lsberrno = LSBE_NO_MEM;
                 freekeyval (keylist);
@@ -4201,7 +4216,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
             else
                 queue.admins = putstr_ ( keylist[QKEY_ADMINISTRATORS].val );
             if (queue.admins == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+                ls_syslog(LOG_ERR, NULL, pname, "malloc",
                         strlen(keylist[QKEY_ADMINISTRATORS].val)+1);
                 lsberrno = LSBE_NO_MEM;
                 freekeyval (keylist);
@@ -4223,7 +4238,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
             } else {
                 queue.preCmd = putstr_ (keylist[QKEY_PRE_EXEC].val);
                 if (queue.preCmd == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR, NULL, pname,
                             "malloc",
                             strlen(keylist[QKEY_PRE_EXEC].val)+1);
                     lsberrno = LSBE_NO_MEM;
@@ -4242,7 +4257,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
             } else {
                 queue.postCmd = putstr_ (keylist[QKEY_POST_EXEC].val);
                 if (queue.postCmd == NULL) {
-                    ls_syslog(LOG_ERR,  I18N_FUNC_D_FAIL_M, pname,
+                    ls_syslog(LOG_ERR,  NULL, pname,
                             "malloc",
                             strlen(keylist[QKEY_POST_EXEC].val)+1);
                     lsberrno = LSBE_NO_MEM;
@@ -4274,7 +4289,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                 && strcmp(keylist[QKEY_RES_REQ].val, "")) {
             queue.resReq = putstr_(keylist[QKEY_RES_REQ].val);
             if (queue.resReq == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                ls_syslog(LOG_ERR, NULL, pname,
                         "malloc",
                         strlen(keylist[QKEY_RES_REQ].val)+1);
                 lsberrno = LSBE_NO_MEM;
@@ -4294,7 +4309,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                 strcmp(keylist[QKEY_RESUME_COND].val, "")) {
             queue.resumeCond = putstr_ (keylist[QKEY_RESUME_COND].val);
             if (queue.resumeCond == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                ls_syslog(LOG_ERR, NULL, pname,
                         "malloc",
                         strlen(keylist[QKEY_RESUME_COND].val));
                 lsberrno = LSBE_NO_MEM;
@@ -4308,7 +4323,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                 strcmp(keylist[QKEY_STOP_COND].val, "")) {
             queue.stopCond = putstr_ (keylist[QKEY_STOP_COND].val);
             if (queue.stopCond == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                ls_syslog(LOG_ERR, NULL, pname,
                         "malloc",
                         strlen(keylist[QKEY_STOP_COND].val)+1);
 
@@ -4323,7 +4338,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                 strcmp(keylist[QKEY_JOB_STARTER].val, "")) {
             queue.jobStarter = putstr_(keylist[QKEY_JOB_STARTER].val);
             if (queue.jobStarter == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,
+                ls_syslog(LOG_ERR, NULL, pname,
                         "malloc",
                         strlen(keylist[QKEY_JOB_STARTER].val)+1);
                 lsberrno = LSBE_NO_MEM;
@@ -4357,7 +4372,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
 
         if (info->numIndx && (queue.loadSched = (float *) malloc
                     (info->numIndx*sizeof(float *))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+            ls_syslog(LOG_ERR, NULL, pname, "malloc",
                     info->numIndx*sizeof(float *));
             lsberrno = LSBE_NO_MEM;
             freekeyval (keylist);
@@ -4366,7 +4381,7 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
         }
         if (info->numIndx && (queue.loadStop = (float *) malloc
                     (info->numIndx*sizeof(float *))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,  "malloc",
+            ls_syslog(LOG_ERR, NULL, pname,  "malloc",
                     info->numIndx*sizeof(float *));
             lsberrno = LSBE_NO_MEM;
             freekeyval (keylist);
@@ -4541,7 +4556,7 @@ checkRequeEValues(struct queueInfoEnt *qp, char *word, char *fname, int *lineNum
     qp->requeueEValues = putstr_ (exitValues);
     if (qp->requeueEValues == NULL) {
         if (fname)
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+            ls_syslog(LOG_ERR, NULL, pname, "malloc",
                     strlen(exitValues)+1);
         lsberrno = LSBE_NO_MEM;
         return false;
@@ -4587,7 +4602,7 @@ addQueue(struct queueInfoEnt *qp, char *fname, int lineNum)
             queuesize *= 2;
         if ((tmpQueues = (struct queueInfoEnt **)  myrealloc
                     (queues, queuesize*sizeof(struct queueInfoEnt *))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "myrealloc",
+            ls_syslog(LOG_ERR, NULL, pname, "myrealloc",
                     queuesize*sizeof(struct queueInfoEnt *));
             lsberrno = LSBE_NO_MEM;
             freeQueueInfo (qp);
@@ -4598,7 +4613,7 @@ addQueue(struct queueInfoEnt *qp, char *fname, int lineNum)
 
     if ((queues[numofqueues] = (struct queueInfoEnt *) malloc
                 (sizeof(struct queueInfoEnt))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname, "malloc",
+        ls_syslog(LOG_ERR, NULL, pname, "malloc",
                 sizeof(struct queueInfoEnt));
         lsberrno = LSBE_NO_MEM;
         freeQueueInfo (qp);
@@ -4925,7 +4940,7 @@ parseCpuAndRunLimit (struct keymap *keylist, struct queueInfoEnt *qp,
     }
 
     if (hostSpec && ((qp->hostSpec = putstr_ (hostSpec)) == NULL)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M,  "parseCpuAndRunLimit",
+        ls_syslog(LOG_ERR, NULL,  "parseCpuAndRunLimit",
                 "malloc", strlen(hostSpec)+1);
         lsberrno = LSBE_NO_MEM;
         FREEUP(hostSpec);
@@ -5167,11 +5182,11 @@ parseAdmins (char *admins, int options, char *fname, int *lineNum)
     int len;
 
     if (admins == NULL) {
-        ls_syslog(LOG_ERR, I18N_NULL_POINTER, pname,  "admins");
+        ls_syslog(LOG_ERR, NULL, pname,  "admins");
         return NULL;
     }
     if ((expandAds = (char *) malloc(MAXLINELEN)) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, pname,   "malloc",
+        ls_syslog(LOG_ERR, NULL, pname,   "malloc",
                 MAXLINELEN);
         lsberrno = LSBE_NO_MEM;
         return NULL;
@@ -5184,15 +5199,15 @@ parseAdmins (char *admins, int options, char *fname, int *lineNum)
 
             if (options & CONF_EXPAND) {
                 expandAds = "";
-                putIntoList (&expandAds, &len, "all", I18N_IN_QUEUE_ADMIN);
+                putIntoList (&expandAds, &len, "all", NULL);
                 return expandAds;
             } else {
-                if ((putIntoList (&expandAds, &len, "all", I18N_IN_QUEUE_ADMIN)) == NULL)
+                if ((putIntoList (&expandAds, &len, "all", NULL)) == NULL)
                     goto Error;
                 continue;
             }
         } else if ((pw = getpwnam2(word))) {
-            if ((putIntoList (&expandAds, &len, pw->pw_name, I18N_IN_QUEUE_ADMIN)) == NULL)
+            if ((putIntoList (&expandAds, &len, pw->pw_name, NULL)) == NULL)
                 goto Error;
             continue;
         } else if ((uGrp = getUGrpData (word)) == NULL) {
@@ -5204,7 +5219,7 @@ parseAdmins (char *admins, int options, char *fname, int *lineNum)
                     goto Error;
                 else {
                     for (i = 0; i < numMembers; i++) {
-                        if (putIntoList (&expandAds, &len, groupMembers[i], I18N_IN_QUEUE_ADMIN) == NULL) {
+                        if (putIntoList (&expandAds, &len, groupMembers[i], NULL) == NULL) {
                             FREEUP (groupMembers);
                             goto Error;
                         }
@@ -5213,7 +5228,7 @@ parseAdmins (char *admins, int options, char *fname, int *lineNum)
                 freeSA (groupMembers, numMembers);
                 continue;
             } else {
-                if (putIntoList (&expandAds, &len, uGrp->group, I18N_IN_QUEUE_ADMIN) == NULL)
+                if (putIntoList (&expandAds, &len, uGrp->group, NULL) == NULL)
                     goto Error;
                 continue;
             }
@@ -5223,12 +5238,12 @@ parseAdmins (char *admins, int options, char *fname, int *lineNum)
                 int i = 0;
                 while (unixGrp->gr_mem[i] != NULL) {
                     if (putIntoList (&expandAds, &len, unixGrp->gr_mem[i++],
-                                I18N_IN_QUEUE_ADMIN) == NULL)
+                                NULL) == NULL)
                         goto Error;
                     continue;
                 }
             } else {
-                if (putIntoList (&expandAds, &len, word, I18N_IN_QUEUE_ADMIN)
+                if (putIntoList (&expandAds, &len, word, NULL)
                         == NULL)
                     goto Error;
                 continue;
@@ -5236,7 +5251,7 @@ parseAdmins (char *admins, int options, char *fname, int *lineNum)
         } else {
             ls_syslog(LOG_WARNING, "%s: File %s at line %d: Unknown user or user group name <%s>; Maybe a windows user or of another domain.", pname, fname, *lineNum, word);
 
-            if ((putIntoList (&expandAds, &len, word, I18N_IN_QUEUE_ADMIN)) == NULL)
+            if ((putIntoList (&expandAds, &len, word, NULL)) == NULL)
                 goto Error;
             continue;
         }
@@ -5244,7 +5259,7 @@ parseAdmins (char *admins, int options, char *fname, int *lineNum)
     return expandAds;
 
 Error:
-    ls_syslog(LOG_ERR, I18N_FUNC_FAIL, pname, "expandGrp");
+    ls_syslog(LOG_ERR, NULL, pname, "expandGrp");
     FREEUP(expandAds);
     lsberrno = LSBE_NO_MEM;
     return NULL;
@@ -5271,7 +5286,7 @@ putIntoList (char **list, int *len, char *string, char *listName)
     if (length <= strlen(*list) + strlen(string) + 2) {
         char *temp;
         if ((temp = (char *) myrealloc (*list, 2*length)) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "myrealloc",
+            ls_syslog(LOG_ERR, NULL, fname, "myrealloc",
                     2*length);
             FREEUP(*list);
             lsberrno = LSBE_NO_MEM;
@@ -5324,7 +5339,7 @@ setDefaultHost (struct lsInfo *info)
             }
         }
         if (addHost (&host, &cConf.hosts[i], override) == false) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, "setDefaultHost",
+            ls_syslog(LOG_ERR, NULL, "setDefaultHost",
                     "addHost");
             return -1;
         }
@@ -5345,7 +5360,7 @@ setDefaultUser (void)
         return false;
     if ( numofusers && (uConf->users = (struct userInfoEnt *) malloc
                 (numofusers*sizeof(struct userInfoEnt))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "setDefaultUser",
+        ls_syslog(LOG_ERR, NULL, "setDefaultUser",
                 "malloc", numofusers*sizeof(struct userInfoEnt));
         lsberrno = LSBE_CONF_FATAL;
         freeWorkUser(true);
@@ -5370,7 +5385,7 @@ handleUserMem(void)
 
         if ((uConf = (struct userConf *) malloc (sizeof (struct userConf)))
                 == NULL) {
-            ls_syslog(LOG_ERR,  I18N_FUNC_D_FAIL_M, "handleUserMem",
+            ls_syslog(LOG_ERR,  NULL, "handleUserMem",
                     "malloc", sizeof (struct userConf));
             lsberrno = LSBE_CONF_FATAL;
             return -1;
@@ -5398,7 +5413,7 @@ handleHostMem(void)
 
         if ((hConf = (struct hostConf *) malloc (sizeof (struct hostConf)))
                 == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "handleHostMem",
+            ls_syslog(LOG_ERR, NULL, "handleHostMem",
                     "malloc", sizeof (struct hostConf));
             lsberrno = LSBE_CONF_FATAL;
             return -1;
@@ -6116,7 +6131,7 @@ static int resolveBatchNegHosts(char* inHosts, char** outHosts, int isQueue)
 
 error_clean_up:
     if (result > -2) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "resolveBatchNegHosts()",  "malloc");
+        ls_syslog(LOG_ERR, NULL, "resolveBatchNegHosts()",  "malloc");
         result = -1;
     }
 
@@ -6147,7 +6162,7 @@ static int fillCell(struct inNames** table, char* name, char* level)
 
     table[0] = malloc(sizeof(struct inNames));
     if (!table[0]) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "fillCell()",  "malloc");
+        ls_syslog(LOG_ERR, NULL, "fillCell()",  "malloc");
         lserrno = LSE_MALLOC;
         return 0;
     }
@@ -6158,7 +6173,7 @@ static int fillCell(struct inNames** table, char* name, char* level)
     table[0]->name = malloc(size);
     if (!table[0]->name) {
         FREEUP(table[0]);
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "fillCell()",  "malloc");
+        ls_syslog(LOG_ERR, NULL, "fillCell()",  "malloc");
         lserrno = LSE_MALLOC;
         return 0;
     }

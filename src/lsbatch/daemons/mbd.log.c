@@ -2845,9 +2845,9 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
             spp = strchr(jobSpecs->env[i], '=');
             if (spp == NULL) {
-                ls_syslog(LOG_ERR,I18N(6872,"\
-%s: Info file seems corrupted, bad system syntax variable=%s in job=%d, trying to recover by skipping the variable"),
-                          fname,
+                ls_syslog(LOG_ERR, "%s: Info file seems corrupted "
+                          "bad system syntax variable=%s in job=%d, trying "
+                          "to recover by skipping the variable", __func__,
                           jobSpecs->env[i],
                           LSB_ARRAY_JOBID(jpbw->jobId));
                 FREEUP(jobSpecs->env[i]);
@@ -2861,10 +2861,9 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
             sp = strchr(tailst, '\n') + 1;
             if (sp == NULL) {
-                ls_syslog(LOG_ERR,I18N(6873,"\
-%s: Info file seems corrupted cannot locate new line, job=%d numEnv=%d"),
-                          fname, LSB_ARRAY_JOBID(jpbw->jobId),
-                          numEnv);
+                ls_syslog(LOG_ERR, "%s: Info file seems corrupted cannot locate "
+                          "new line, job=%d numEnv=%d", __func__,
+                          LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
             }
         }
 

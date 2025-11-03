@@ -453,7 +453,7 @@ Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
                     return -1;
             }
         }
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "Bind_", "bind", BIND_RETRY_TIMES);
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "Bind_", "bind", BIND_RETRY_TIMES);
         return -1;
     }
 }
@@ -470,19 +470,19 @@ isMasterCrossPlatform(void)
         return crossPlatform;
 
     if ((sp = ls_getmastername()) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_getmastername");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_getmastername");
         return false;
     }
     strcpy(masterName, sp);
 
     if ((sp = ls_gethosttype(masterName)) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_gethosttype");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_gethosttype");
         return false;
     }
     strcpy(masterType, sp);
 
     if ((sp = ls_gethosttype(NULL)) == NULL ) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "ls_gethosttype");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_gethosttype");
         return false;
     }
     strcpy(localType, sp);

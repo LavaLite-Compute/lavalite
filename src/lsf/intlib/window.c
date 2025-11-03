@@ -256,7 +256,6 @@ new_wind (void)
 
    wp = (windows_t *) malloc(sizeof (struct windows));
    if (!wp) {
-       ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "new_wind",  "malloc");
        return NULL;
    }
    wp->nextwind = NULL;

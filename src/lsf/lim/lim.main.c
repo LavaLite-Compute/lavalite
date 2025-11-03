@@ -430,8 +430,8 @@ doAcceptConn(void)
 
     ch = chanAccept_(limTcpSock, &from);
     if (ch < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_MM, fname, "chanAccept_",
-                limTcpSock);
+        
+ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanAccept_", limTcpSock);
         return;
     }
 
@@ -463,8 +463,8 @@ doAcceptConn(void)
         }
         client->chanfd = ch;
         if (client->chanfd < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_ENO_D, fname, "chanOpenSock",
-                    cherrno);
+            
+ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanOpenSock", cherrno);
             ls_syslog(LOG_ERR, "%s: Connection from %s dropped",
                     fname,
                     sockAdd2Str_(&from));
@@ -736,7 +736,8 @@ errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
     replyHdr.length = 0;
     xdrmem_create(&xdrs2, buf, MSGSIZE/4, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -747,9 +748,8 @@ errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
         cc = chanWrite_(chan, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0)
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname,
-                "chanSendDgram_/chanWrite_",
-                limSock);
+        
+ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanSendDgram_/chanWrite_", limSock);
 
     xdr_destroy(&xdrs2);
     return;
@@ -763,13 +763,15 @@ getTclLsInfo(void)
 
     if ((tclLsInfo = (struct tclLsInfo *) malloc (sizeof (struct tclLsInfo )))
             == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return NULL;
     }
 
     if ((tclLsInfo->indexNames = (char **)malloc (allInfo.numIndx *
                     sizeof (char *))) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return NULL;
     }
     for (i=0; i < allInfo.numIndx; i++) {

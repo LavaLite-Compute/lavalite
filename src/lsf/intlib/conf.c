@@ -345,7 +345,6 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
         tempNames = (char **) realloc(admins->adminNames, *numAds * sizeof (char *));
         if (tempIds == NULL || tempGids == NULL || tempNames == NULL) {
 
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M,  fname, "realloc");
             FREEUP (tempIds);
             FREEUP (tempGids);
             FREEUP (tempNames);

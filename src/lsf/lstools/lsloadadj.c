@@ -111,6 +111,6 @@ main(int argc, char **argv)
 
 static void usage(char *cmd)
 {
-    printf("%s: %s [-h] [-V] [-R res_req] [host_name[:num_task] host_name[:num_task] ...]\n",I18N_Usage, cmd);
+    printf("Usage: %s [-h] [-V] [-R res_req] [host_name[:num_task] host_name[:num_task] ...]\n", cmd);
     exit(-1);
 }

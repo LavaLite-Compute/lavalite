@@ -475,7 +475,7 @@ displayJobs (struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
 
             if (execHostList == NULL) {
                 if ((execHostList = (char *) calloc(1, MAXLINELEN)) == NULL) {
-                    fprintf(stderr,I18N_FUNC_FAIL, fName, "malloc");
+                    fprintf(stderr, "%s: %s failed\n", fName, "malloc");
                     exit(-1);
                 }
                 execHostListSize = MAXLINELEN;
@@ -492,7 +492,7 @@ displayJobs (struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
                         execHostListSize += MAXLINELEN;
                         if ((execHostList =
                             realloc(execHostList, execHostListSize)) == NULL) {
-                            fprintf(stderr, I18N_FUNC_FAIL, fName, "realloc");
+                            fprintf(stderr, "%s: %s failed\n", fName, "realloc");
                             exit(-1);
                         }
                     }
@@ -508,7 +508,7 @@ displayJobs (struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
                         execHostListSize += MAXLINELEN;
                         if ((execHostList =
                             realloc(execHostList, execHostListSize)) == NULL) {
-                            fprintf(stderr, I18N_FUNC_FAIL, fName, "realloc");
+                            fprintf(stderr, "%s: %s failed\n", fName, "realloc");
                             exit(-1);
                         }
                     }

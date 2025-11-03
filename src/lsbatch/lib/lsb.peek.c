@@ -119,12 +119,13 @@ lsb_peekjob (LS_LONG_INT jobid)
                     lsb_closejobinfo();
 
                     if ((pid = fork()) == 0) {
+#if 0
                         if (ls_initrex(1,0) < 0) {
                             exit(false);
                         }
                         // Bug we need to rewrite bpeek and we dont support
                         // remote execution anymore
-#if 0
+
                         if (ls_rstat(jInfo->exHosts[0], pSpoolDirUnix, &st) == 0) {
                             ls_donerex();
                             exit(true);

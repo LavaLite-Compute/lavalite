@@ -178,7 +178,7 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
         return readHvalues(keyList, linep, fp, lsfile, LineNum, exact, section);
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               fname, lsfile, *LineNum, section);
     return -1;
 
@@ -225,7 +225,7 @@ doSkipSection(FILE *fp, int *LineNum, char *lsfile, char *sectionName)
         }
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "doSkipSection", lsfile, *LineNum, sectionName);
 
 }
@@ -318,7 +318,9 @@ putInLists(char *word, struct admins *admins, int *numAds, char *forWhat)
         tempGids = (int *) realloc(admins->adminGIds, *numAds * sizeof (int));
         tempNames = (char **) realloc(admins->adminNames, *numAds * sizeof (char *));
         if (tempIds == NULL || tempGids == NULL || tempNames == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "realloc");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "realloc")
+;
             FREEUP (tempIds);
             FREEUP (tempGids);
             FREEUP (tempNames);
@@ -399,7 +401,7 @@ doSkipSection_conf(struct lsConf *conf, int *LineNum, char *lsfile, char *sectio
         }
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "doSkipSection_conf", lsfile, *LineNum, sectionName);
 
 }

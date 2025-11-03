@@ -86,8 +86,8 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int 
     placeReply.numHosts = 0;
 
     if (!xdr_decisionReq(xdrs, &plReq, reqHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "xdr_decisionReq",
-                  sockAdd2Str_(from));
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "xdr_decisionReq", sockAdd2Str_(from));
         ls_syslog(LOG_ERR, "%s: Header: operation=%d sequence=%d version=%d length=%d ",
                   fname,
                   reqHdr->operation,
@@ -201,7 +201,8 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int 
                                                         sizeof(struct placeInfo));
     if (placeReply.placeInfo == (struct placeInfo *) NULL) {
         limReplyCode = LIME_NO_MEM;
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         goto Reply;
     }
 
@@ -233,7 +234,8 @@ Reply1:
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
 
     if (!xdr_encodeMsg(&xdrs2, replyStruct , &replyHdr, xdr_placeReply, 0, NULL)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_encodeMsg");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
             free(placeReply.placeInfo);
@@ -246,9 +248,8 @@ Reply1:
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname,
-                  "chanSendDgram_/chanWrite_",
-                  sockAdd2Str_(from));
+        
+ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanSendDgram_/chanWrite_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
             free(placeReply.placeInfo);
@@ -913,7 +914,8 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
     if (child) {
 
         if (!getHostNodeIPAddr(myClusterPtr->masterPtr,&addr)) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getHostNodeIPAddr");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostNodeIPAddr");
             return;
         }
 
@@ -923,8 +925,8 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
         reqHdr.sequence = 0;
         if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
               xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                      "xdr_LSFHeader/xdr_jobXfer");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader/xdr_jobXfer");
             xdr_destroy(&xdrs);
             return;
         }
@@ -971,8 +973,8 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
         reqHdr.sequence = 0;
         if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
               xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname,
-                      "xdr_LSFHeader/xdr_jobXfer");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader/xdr_jobXfer");
             xdr_destroy(&xdrs);
             return;
         }
@@ -1018,7 +1020,8 @@ loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, in
     }
 
     if (!xdr_jobXfer(xdrs, &jobXfer, reqHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_jobXfer");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_jobXfer");
         limReplyCode = LIME_BAD_DATA;
         goto reply;
     }
@@ -1077,7 +1080,8 @@ reply:
     replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -1108,7 +1112,8 @@ updExtraLoad(struct hostNode **destHostPtr, char *resReq, int numHosts)
     initResVal (&resVal);
 
     if (parseResReq(resReq, &resVal, &allInfo, PR_RUSAGE) != PARSE_OK) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL, fname, "parseResReq", resReq);
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "parseResReq", resReq);
         return;
     }
 
@@ -1326,7 +1331,8 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s
     reply.loadMatrix = (struct hostLoad *)
 		malloc(hlSize + reply.nEntry * (lvecSize + staSize));
     if (reply.loadMatrix == (struct hostLoad *)NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         limReplyCode = LIME_NO_MEM;
         goto Reply;
     }
@@ -1340,7 +1346,8 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s
 
     limReplyCode = LIME_NO_ERR;
     if (!(reply.indicies=(char **)malloc((allInfo.numIndx+1)*sizeof(char *)))) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return;
     }
 
@@ -1412,7 +1419,8 @@ Reply1:
 
     buf = (char *)malloc(bufSize);
     if (!buf) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         if (limReplyCode == LIME_NO_ERR)
             FREEUP(reply.loadMatrix);
         FREEUP (reply.indicies);
@@ -1421,7 +1429,8 @@ Reply1:
 
     xdrmem_create(&xdrs2, buf, bufSize, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_loadReply, 0, NULL)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_encodeMsg");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
             FREEUP(reply.loadMatrix);
@@ -1461,7 +1470,8 @@ initCandList(void)
     candListSize = 256;
     candidates = calloc(candListSize, sizeof(struct hostNode *));
     if (!candidates) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "initCandList", "calloc");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", "initCandList", "calloc");
         candListSize = 0;
         return -1;
     }
@@ -1478,7 +1488,8 @@ addCandList(struct hostNode *hPtr, int pos)
         candListSize *= 2;
         memp = realloc(candidates, candListSize * sizeof(struct hostNode *));
         if (!memp) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "addCandList", "realloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", "addCandList", "realloc");
             FREEUP(candidates);
             candListSize=0;
             return -1;
@@ -1509,7 +1520,8 @@ chkResReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     sp[0] = '\0';
 
     if (!xdr_string(xdrs, &sp, MAXLINELEN)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_string");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_string");
         limReplyCode = LIME_BAD_DATA;
         goto Reply;
     }
@@ -1539,14 +1551,15 @@ Reply:
 
     xdrmem_create(&xdrs2, (char *)&replyBuf, PACKET_HEADER_SIZE,  XDR_ENCODE);
     if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_LSFHeader");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         xdr_destroy(&xdrs2);
         return;
     }
 
     if (chanSendDgram_(limSock, (char *)&replyBuf, XDR_GETPOS(&xdrs2),  from) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "chanSendDgram_",
-                  sockAdd2Str_(from));
+        
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
     }

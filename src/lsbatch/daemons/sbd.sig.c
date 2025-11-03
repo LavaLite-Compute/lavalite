@@ -1117,7 +1117,7 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
         char *myargv[6];
 
 	chuser(batchId);
-	if (lsfSetUid(jp->jobSpecs.execUid) < 0) {
+	if (seteuid(jp->jobSpecs.execUid) < 0) {
 	    ls_syslog(LOG_ERR, "%s", __func__,
 		lsb_jobid2str(jp->jobSpecs.jobId), "setuid");
 	    exit(-1);
@@ -1646,7 +1646,7 @@ exeChkpnt(struct jobCard *jp, int chkFlags, char * exitFile)
 
 	chuser(batchId);
 
-        if (lsfSetUid(jp->jobSpecs.execUid) < 0) {
+        if (seteuid(jp->jobSpecs.execUid) < 0) {
             fprintf(stderr, I18N_JOB_FAIL_S_D_M, fname,
 		lsb_jobid2str(jp->jobSpecs.jobId),
 		"setuid",
@@ -1746,10 +1746,10 @@ exeChkpnt(struct jobCard *jp, int chkFlags, char * exitFile)
 
      if (jp->jobSpecs.options & SUB_MAIL_USER)
          merr_user (jp->jobSpecs.mailUser, jp->jobSpecs.fromHost, msg,
-	     I18N_error);
+	     "error");
      else
 	 merr_user (jp->jobSpecs.userName, jp->jobSpecs.fromHost, msg,
-	     I18N_error);
+	     "error");
 
     if (jp->jobSpecs.jStatus & (JOB_STAT_SSUSP | JOB_STAT_USUSP))
 	jobsig(jp, SIGSTOP, FALSE);

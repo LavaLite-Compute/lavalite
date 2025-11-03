@@ -19,7 +19,6 @@
 
 #include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
-#include "lsf/lib/mls.h"
 #include "lsf/lim/limout.h"
 
 #define LSF_AUTH            9
@@ -111,8 +110,6 @@ auth_user(u_long in, u_short local, u_short remote)
                    sizeof(struct sockaddr_in), TIMEOUT) == -1) {
         int realerrno = errno;
         close(s);
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "b_connetc_",
-                  sockAdd2Str_(&saddr));
         errno = realerrno;
         return 0;
     }
@@ -137,8 +134,6 @@ auth_user(u_long in, u_short local, u_short remote)
     while ((n = write(s, bp, bufsize)) < bufsize) {
         if (n <= 0) {
             close(s);
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "write",
-                      sockAdd2Str_(&saddr));
             if (errno == EINTR) {
                 errno = ETIMEDOUT;
             }
@@ -170,8 +165,6 @@ auth_user(u_long in, u_short local, u_short remote)
     close(s);
 
     if (n <= 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "read",
-                  sockAdd2Str_(&saddr));
         if (errno == EINTR) {
             errno = ETIMEDOUT;
         }
@@ -222,7 +215,6 @@ userok(int s, struct sockaddr_in *from, char *hostname,
         char lsfUserName[MAXLSFNAMELEN];
 
         if (getpwnam2(lsfUserName) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getLSFUser_");
             return false;
         }
         if (strcmp(lsfUserName, auth->lsfUserName) != 0) {
@@ -266,13 +258,11 @@ userok(int s, struct sockaddr_in *from, char *hostname,
             if (remote >= IPPORT_RESERVED || remote < IPPORT_RESERVED/2) {
 
                 if (getsockname(s, (struct sockaddr *)&saddr, &size) == -1) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "getsockname");
                     return false;
                 }
                 local = ntohs(saddr.sin_port);
 
                 if (getpeername(s, (struct sockaddr *)&saddr, &size) == -1) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "getpeername");
                     return false;
                 }
 
@@ -338,8 +328,6 @@ userok(int s, struct sockaddr_in *from, char *hostname,
         strcpy(savedUser, auth->lsfUserName);
         user_ok = ruserok(hostname, 0, savedUser, savedUser);
         if (user_ok == -1) {
-            ls_syslog(LOG_INFO,I18N_FUNC_S_S_FAIL,
-                      fname, "ruserok",hostname, savedUser);
             return false;
         }
     }
@@ -409,7 +397,6 @@ getAttribOfHosts(struct clstHostAttribT* hostAttrTableP, int options,
         }
         hostAttrTableP->myClusterNameP = putstr_(ptr);
         if(hostAttrTableP->myClusterNameP == NULL) {
-            ls_syslog(LOG_ERR,I18N_FUNC_FAIL_MM,fname,"putstr_");
             return -1;
         }
     }

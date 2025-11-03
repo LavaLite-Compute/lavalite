@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: lib.channel.h,v 1.3 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -16,9 +17,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#ifndef CHANNEL_H
-#define CHANNEL_H
-
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 
@@ -46,8 +44,10 @@ enum chanType
 #define CHAN_OP_CLOEXEC 0x20
 #define CHAN_OP_SOREUSE 0x40
 
-#define CHAN_MODE_BLOCK	0x01
-#define CHAN_MODE_NONBLOCK 	0x02
+enum chan_block_mode {
+    CHAN_MODE_BLOCK,
+    CHAN_MODE_NONBLOCK
+};
 
 #define INVALID_HANDLE  -1
 #define CLOSECD(c) { chanClose_((c)); (c) = INVALID_HANDLE; }
@@ -131,5 +131,6 @@ extern int chanSetMode_(int, int);
 
 extern int chanIndex;
 extern int cherrno;
-
-#endif
+int ll_dup_stdio(int);
+int io_non_block_(int);
+int io_block_(int);

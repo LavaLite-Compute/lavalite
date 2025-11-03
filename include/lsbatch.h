@@ -34,16 +34,6 @@
 
 #define  LAVA_EVENT_VERSION1_0   1.0
 
-// Lavalite this has space for LAVALITE_VERSION_STR
-#define  MAX_VERSION_LEN     BUFSIZ_32
-#define  MAX_HPART_USERS     100
-#define  MAX_GROUPS          150
-#define  MAX_CHARLEN         20
-#define  MAX_LSB_NAME_LEN    BUFSIZ_64
-#define  MAX_CMD_DESC_LEN    256
-#define  MAX_USER_EQUIVALENT 128
-#define  DEFAULT_MSG_DESC    "no description"
-
 #define HOST_STAT_OK         0x0
 #define HOST_STAT_BUSY       0x01
 #define HOST_STAT_WIND       0x02
@@ -914,7 +904,7 @@ struct logSwitchLog {
 struct jobNewLog {
     int    jobId;
     int    userId;
-    char   userName[MAX_LSB_NAME_LEN];
+    char   userName[MAXLSFNAMELEN];
     int    options;
     int    options2;
     int    numProcessors;
@@ -928,7 +918,7 @@ struct jobNewLog {
     char   hostSpec[MAXHOSTNAMELEN];
     float  hostFactor;
     int    umask;
-    char   queue[MAX_LSB_NAME_LEN];
+    char   queue[MAXFILENAMELEN];
     char   *resReq;
     char   fromHost[MAXHOSTNAMELEN];
     char   cwd[MAXFILENAMELEN];
@@ -1085,9 +1075,9 @@ struct sbdJobStatusLog {
 struct jobSwitchLog {
     int    userId;
     int jobId;
-    char   queue[MAX_LSB_NAME_LEN];
+    char   queue[MAXLSFNAMELEN];
     int    idx;
-    char   userName[MAX_LSB_NAME_LEN];
+    char   userName[MAXLSFNAMELEN];
 };
 
 struct jobMoveLog {
@@ -1096,7 +1086,7 @@ struct jobMoveLog {
     int    position;
     int    base;
     int    idx;
-    char   userName[MAX_LSB_NAME_LEN];
+    char   userName[MAXLSFNAMELEN];
 };
 
 struct chkpntLog {
@@ -1136,7 +1126,7 @@ struct migLog {
     char **askedHosts;
     int userId;
     int    idx;
-    char userName[MAX_LSB_NAME_LEN];
+    char userName[MAXLSFNAMELEN];
 };
 
 struct signalLog {
@@ -1145,13 +1135,13 @@ struct signalLog {
     char *signalSymbol;
     int runCount;
     int    idx;
-    char userName[MAX_LSB_NAME_LEN];
+    char userName[MAXLSFNAMELEN];
 };
 struct queueCtrlLog {
     int    opCode;
-    char   queue[MAX_LSB_NAME_LEN];
+    char   queue[MAXLSFNAMELEN];
     int    userId;
-    char   userName[MAX_LSB_NAME_LEN];
+    char   userName[MAXLSFNAMELEN];
 };
 
 struct newDebugLog {
@@ -1167,7 +1157,7 @@ struct hostCtrlLog {
     int    opCode;
     char   host[MAXHOSTNAMELEN];
     int    userId;
-    char   userName[MAX_LSB_NAME_LEN];
+    char   userName[MAXLSFNAMELEN];
 };
 
 struct mbdStartLog {
@@ -1197,7 +1187,7 @@ struct unfulfillLog {
 struct jobFinishLog {
     int    jobId;
     int    userId;
-    char   userName[MAX_LSB_NAME_LEN];
+    char   userName[MAXLSFNAMELEN];
     int    options;
     int    numProcessors;
     int    jStatus;
@@ -1206,7 +1196,7 @@ struct jobFinishLog {
     time_t termTime;
     time_t startTime;
     time_t endTime;
-    char   queue[MAX_LSB_NAME_LEN];
+    char   queue[MAXLSFNAMELEN];
     char   *resReq;
     char   fromHost[MAXHOSTNAMELEN];
     char   cwd[MAXPATHLEN];
@@ -1271,7 +1261,7 @@ struct jobForceRequestLog {
     int     jobId;
     int     idx;
     int     options;
-    char    userName[MAX_LSB_NAME_LEN];
+    char    userName[MAXLSFNAMELEN];
 };
 
 union  eventLog {
@@ -1308,7 +1298,7 @@ union  eventLog {
 #define LAVALITE_EVENTS_VERSION "1"
 
 struct eventRec {
-    char   version[MAX_VERSION_LEN];
+    char   version[16];
     int    type;
     time_t eventTime;
     union  eventLog eventLog;

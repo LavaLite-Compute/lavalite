@@ -184,42 +184,6 @@ CreateSockEauth_(int protocol)
 
 }
 
-/* Should desc be 0, 1 or 2 dup() it to a higher value.
- */
-int
-get_nonstd_desc_(int desc)
-{
-    int s0 = -1;
-    int s1 = -1;
-    int s2 = -1;
-
-    while (desc <= 2) {
-        switch (desc) {
-        case 0:
-            s0 = desc;
-            break;
-        case 1:
-            s1 = desc;
-            break;
-        case 2:
-            s2 = desc;
-            break;
-        default:
-            return -1;
-        }
-
-        desc = dup(desc);
-    }
-
-    if (s0 >= 0)
-        close(s0);
-    if (s1 >= 0)
-        close(s1);
-    if (s2 >= 0)
-        close(s2);
-
-    return desc;
-}
 
 
 int

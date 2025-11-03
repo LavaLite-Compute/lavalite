@@ -366,7 +366,7 @@ Failure:
 bool_t
 xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct packet_header *hdr)
 {
-    static char queueName[MAX_LSB_NAME_LEN];
+    static char queueName[LL_BUFSIZ_32];
     static char jobName[MAX_CMD_DESC_LEN];
     int jobArrId, jobArrElemId;
 
@@ -382,7 +382,7 @@ xdr_submitMbdReply (XDR *xdrs, struct submitMbdReply *reply, struct packet_heade
     }
     if (!(xdr_int(xdrs,&(jobArrId)) &&
           xdr_int(xdrs,&(reply->badReqIndx)) &&
-          xdr_string(xdrs, &reply->queue, MAX_LSB_NAME_LEN) &&
+          xdr_string(xdrs, &reply->queue, LL_BUFSIZ_32) &&
           xdr_string(xdrs, &reply->badJobName, MAX_CMD_DESC_LEN)))
         return false;
 
@@ -819,8 +819,8 @@ xdr_queueInfoReply (XDR *xdrs, struct queueInfoReply *qInfoReply,
                 qInfo[i].queue = NULL;
                 qInfo[i].hostSpec = NULL;
                 memSize = i + 1;
-                if (!(qInfo[i].queue = malloc (MAX_LSB_NAME_LEN))
-                    || !(qInfo[i].hostSpec = malloc (MAX_LSB_NAME_LEN)))
+                if (!(qInfo[i].queue = malloc (LL_BUFSIZ_32))
+                    || !(qInfo[i].hostSpec = malloc (LL_BUFSIZ_32)))
                     return false;
             }
         }
@@ -895,7 +895,7 @@ xdr_queueInfoEnt (XDR *xdrs, struct queueInfoEnt *qInfo,
         qInfo->resumeActCmd = NULL;
         qInfo->terminateActCmd = NULL;
     }
-    if (!(xdr_string(xdrs, &sp, MAX_LSB_NAME_LEN) &&
+    if (!(xdr_string(xdrs, &sp, LL_BUFSIZ_32) &&
           xdr_var_string(xdrs, &qInfo->description)))
         return false;
 
@@ -911,7 +911,7 @@ xdr_queueInfoEnt (XDR *xdrs, struct queueInfoEnt *qInfo,
     sp = qInfo->hostSpec;
     if (xdrs->x_op == XDR_DECODE)
         sp[0] = '\0';
-    if (!(xdr_string(xdrs, &sp, MAX_LSB_NAME_LEN)))
+    if (!(xdr_string(xdrs, &sp, LL_BUFSIZ_32)))
         return false;
 
     for(i=0; i<LSF_RLIM_NLIMITS; i++) {
@@ -1243,7 +1243,7 @@ xdr_userInfoReply (XDR *xdrs, struct userInfoReply *userInfoReply,
                 lsberrno = LSBE_NO_MEM;
                 return false;
             }
-            if (!(sp = malloc(userInfoReply->numUsers * MAX_LSB_NAME_LEN))) {
+            if (!(sp = malloc(userInfoReply->numUsers * LL_BUFSIZ_32))) {
                 free(uInfoTmp);
                 lsberrno = LSBE_NO_MEM;
                 return false;
@@ -1257,7 +1257,7 @@ xdr_userInfoReply (XDR *xdrs, struct userInfoReply *userInfoReply,
             mem = sp;
             for ( i = 0; i < userInfoReply->numUsers; i++ ){
                 uInfo[i].user = sp;
-                sp += MAX_LSB_NAME_LEN;
+                sp += LL_BUFSIZ_32;
             }
         }
         userInfoReply->users = uInfo;
@@ -1283,7 +1283,7 @@ xdr_userInfoEnt (XDR *xdrs, struct userInfoEnt *userInfoEnt,
     if (xdrs->x_op == XDR_DECODE)
         sp[0] = '\0';
 
-    if (!(xdr_string(xdrs, &sp, MAX_LSB_NAME_LEN) &&
+    if (!(xdr_string(xdrs, &sp, LL_BUFSIZ_32) &&
           xdr_float(xdrs, &userInfoEnt->procJobLimit) &&
           xdr_int(xdrs, &userInfoEnt->maxJobs) &&
           xdr_int(xdrs, &userInfoEnt->numStartJobs)))
@@ -1462,7 +1462,7 @@ xdr_jobSwitchReq (XDR *xdrs, struct jobSwitchReq *jobSwitchReq,
         jobId64To32(jobSwitchReq->jobId, &jobArrId, &jobArrElemId);
     }
     if ( !(xdr_int(xdrs, &jobArrId) &&
-           xdr_string(xdrs, &sp, MAX_LSB_NAME_LEN)))
+           xdr_string(xdrs, &sp, LL_BUFSIZ_32)))
         return false;
     if (!xdr_int(xdrs, &jobArrElemId)) {
         return false;

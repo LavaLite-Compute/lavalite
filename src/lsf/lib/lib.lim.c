@@ -110,14 +110,12 @@ callLim_(enum limReqCode reqCode,
             xdrmem_create(&xdrs, repBuf, XDR_DECODE_SIZE_(replyHdr.length),
                           XDR_DECODE);
         } else {
-            int dyn_rl = (size_t)replyHdr.length;
-            dyn_r  = malloc(dyn_rl);
-            if (!dyn_r) {
+            char *buf  = malloc((size_t)replyHdr.length);
+            if (!buf) {
                 lserrno = LSE_MALLOC;
                 return -1;
             }
-            xdrmem_create(&xdrs, (caddr_t)dyn_r, XDR_DECODE_SIZE_(dyn_rl),
-                          XDR_DECODE);
+            xdrmem_create(&xdrs, buf, (uint32_t)replyHdr.length,  XDR_DECODE);
         }
 
     }
@@ -553,7 +551,7 @@ initLimSock_()
     sockIds_[TCP].sin_port = 0;
     limchans_[TCP] = -1;
 
-    localAddr = htonl(LOOP_ADDR);
+    localAddr = htonl(INADDR_LOOPBACK);
     sockIds_[PRIMARY].sin_family = AF_INET;
     sockIds_[PRIMARY].sin_addr.s_addr = localAddr;
     sockIds_[PRIMARY].sin_port = (u_short) service_port;
@@ -651,7 +649,7 @@ err_return_(enum limReplyCode limReplyCode)
         lserrno = LSE_LIMCONF_NOTREADY;
         return;
     default:
-        lserrno = limReplyCode + NOCODE;
+        lserrno = limReplyCode;
         return;
     }
 }

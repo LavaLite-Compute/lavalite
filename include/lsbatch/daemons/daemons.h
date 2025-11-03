@@ -219,11 +219,11 @@ struct jobSpecs {
     int       reasons;
     int       subreasons;
     int       userId;
-    char      userName[MAX_LSB_NAME_LEN];
+    char      userName[MAXLSFNAMELEN];
     int       options;
     int       jobPid;
     int       jobPGid;
-    char      queue[MAX_LSB_NAME_LEN];
+    char      queue[MAXLSFNAMELEN];
     int       priority;
     short     nice;
     char      fromHost[MAXHOSTNAMELEN];
@@ -264,11 +264,11 @@ struct jobSpecs {
 
     float   lastCpuTime;
     char     mailUser[MAXLINELEN];
-    char     clusterName[MAX_LSB_NAME_LEN];
+    char     clusterName[MAXLSFNAMELEN];
     int      numEnv;
     char     **env;
     struct   lenData eexec;
-    char     projectName[MAX_LSB_NAME_LEN];
+    char     projectName[MAXLSFNAMELEN];
     char     preCmd[MAXLINELEN];
     char     postCmd[MAXLINELEN];
     char     execCwd[MAXFILENAMELEN];
@@ -293,7 +293,7 @@ struct jobSpecs {
     char  inFileSpool[MAXFILENAMELEN];
     char  commandSpool[MAXFILENAMELEN];
     int   userPriority;
-    char  execUsername[MAX_LSB_NAME_LEN];
+    char  execUsername[MAXLSFNAMELEN];
 };
 
 struct statusReq {
@@ -330,7 +330,7 @@ struct chunkStatusReq {
 
 struct sbdPackage {
     int    managerId;
-    char   lsbManager[MAX_LSB_NAME_LEN];
+    char   lsbManager[MAXLSFNAMELEN];
     int    mbdPid;
     int    sbdSleepTime;
     int    retryIntvl;

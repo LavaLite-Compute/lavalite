@@ -17,7 +17,6 @@
  *
  */
 #include "lsf/lim/lim.h"
-#include "lsf/lib/lsi18n.h"
 
 #define ABORT     1
 #define RX_HINFO  2
@@ -72,13 +71,13 @@ processMsg(int chanfd)
         return;
 
     if (chanDequeue_(chanfd, &buf) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL, fname, "chanDequeue_", cherrno);
+        ls_syslog(LOG_ERR, "%s: chanDequeue_() failed: %d", cherrno);
         shutDownChan(chanfd);
         return;
     }
-    if (logclass & (LC_TRACE | LC_COMM))
-        ls_syslog(LOG_DEBUG3,"%s: Received message with len %d on chan %d",
-                  fname,buf->len, chanfd);
+
+    ls_syslog(LOG_DEBUG,"%s: Received message with len %d on chan %d",
+              fname,buf->len, chanfd);
 
     xdrmem_create(&xdrs, buf->data, XDR_DECODE_SIZE_(buf->len), XDR_DECODE);
     if (!xdr_LSFHeader(&xdrs, &hdr)) {
@@ -178,14 +177,14 @@ clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
     }
 
     clientMap[chfd]->clientMasks = 0;
-    for (i=1; i < decisionRequest.numPrefs; i++) {
+    for (i = 1; i < decisionRequest.numPrefs; i++) {
         if (!findHostInCluster(decisionRequest.preferredHosts[i])) {
             clientMap[chfd]->clientMasks = 0;
             break;
         }
     }
 
-    for(i=0; i < decisionRequest.numPrefs; i++)
+    for(i = 0; i < decisionRequest.numPrefs; i++)
         free(decisionRequest.preferredHosts[i]);
     free(decisionRequest.preferredHosts);
 
@@ -194,29 +193,28 @@ Reply1:
     {
         int pid = 0;
 
-#if defined(NO_FORK)
-
-        pid =0;
-        io_block_(chanSock_(chfd));
-#else
         pid = fork();
-#endif
+        if (pid < 0) {
+            ls_syslog(LOG_ERR, "%s: fork() failed: %d", __func__);
+            xdr_destroy(xdrs);
+            shutDownChan(chfd);
+            return;
+        }
+
         if (pid == 0) {
             int sock;
 
-#if !defined(NO_FORK)
-            chanClose_( limSock );
-            limSock = chanClientSocket_( AF_INET, SOCK_DGRAM, 0 );
-#endif
+            chanClose_(limSock);
 
             XDR_SETPOS(xdrs, oldpos);
             sock = chanSock_(chfd);
             if (io_block_(sock) < 0)
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "io_block_");
+                ls_syslog(LOG_ERR, "%s: io_block_() failed: %m", __func__);
 
             switch(hdr->operation) {
             case LIM_GET_HOSTINFO:
-                hostInfoReq(xdrs, clientMap[chfd]->fromHost, &clientMap[chfd]->from, hdr, chfd);
+                hostInfoReq(xdrs, clientMap[chfd]->fromHost,
+                            &clientMap[chfd]->from, hdr, chfd);
                 break;
             case LIM_GET_RESOUINFO:
                 resourceInfoReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
@@ -234,19 +232,7 @@ Reply1:
             default:
                 break;
             }
-#if !defined(NO_FORK)
             exit(0);
-#else
-            xdr_destroy(xdrs);
-            shutDownChan(chfd);
-            return;
-#endif
-        } else {
-            if (pid < 0)
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "fork");
-            xdr_destroy(xdrs);
-            shutDownChan(chfd);
-            return;
         }
     }
 }

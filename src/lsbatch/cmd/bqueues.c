@@ -188,10 +188,10 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
             if (qp->qStatus & QUEUE_STAT_RUN) {
 	        strcat(statusStr, "Active");
 	    } else {
-	        strcat(statusStr, I18N_Inact__Win);
+	        strcat(statusStr, "Inact_Win");
 	    }
 	} else {
-	    strcat(statusStr, I18N_Inact__Adm);
+	    strcat(statusStr, "Inact_Adm");
 	}
 
 	if (qp->maxJobs < INFINIT_INT)
@@ -242,9 +242,9 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
 
 	if ( lsbMode_ & LSB_MODE_BATCH ) {
             prtWord(QUEUE_MAX_LENGTH,  "MAX", -1);
-            prtWord(QUEUE_JL_U_LENGTH, I18N_JL_U, -1);
-            prtWord(QUEUE_JL_P_LENGTH, I18N_JL_P, -1);
-            prtWord(QUEUE_JL_H_LENGTH, I18N_JL_H, -1);
+            prtWord(QUEUE_JL_U_LENGTH, "JL/U", -1);
+            prtWord(QUEUE_JL_P_LENGTH, "JL/P", -1);
+            prtWord(QUEUE_JL_H_LENGTH, "JL/H", -1);
 	};
 
         prtWord(QUEUE_NJOBS_LENGTH, "NJOBS", -1);
@@ -482,15 +482,15 @@ prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
     char maxJobs[MAX_CHARLEN];
 
     if( !first ) {
-            prtWord(QUEUE_NAME_LENGTH, I18N_QUEUE__NAME, 0);
+            prtWord(QUEUE_NAME_LENGTH, "QUEUE_NAME", 0);
             prtWord(QUEUE_PRIO_LENGTH, "PRIO", 1);
             prtWord(QUEUE_STATUS_LENGTH, "STATUS", 0);
 
 	    if ( lsbMode_ & LSB_MODE_BATCH ) {
                 prtWord(QUEUE_MAX_LENGTH,  "MAX",  -1);
-                prtWord(QUEUE_JL_U_LENGTH, I18N_JL_U, -1);
-                prtWord(QUEUE_JL_P_LENGTH, I18N_JL_P, -1);
-                prtWord(QUEUE_JL_H_LENGTH, I18N_JL_H, -1);
+                prtWord(QUEUE_JL_U_LENGTH, "JL/U", -1);
+                prtWord(QUEUE_JL_P_LENGTH, "JL/P", -1);
+                prtWord(QUEUE_JL_H_LENGTH, "JL/H", -1);
 	    };
 
         prtWord(QUEUE_NJOBS_LENGTH, "NJOBS", -1);

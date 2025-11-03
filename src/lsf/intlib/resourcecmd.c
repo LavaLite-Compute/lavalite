@@ -141,7 +141,6 @@ prtTableHeader()
     loc = putstr_("LOCATION");
 
     if (res == NULL || val == NULL || loc == NULL) {
-        printf(I18N_FUNC_FAIL_M, "prtTableHeader", "putstr_");
         return;
     } else
         printf("%-25s%20s%15s\n", res, val, loc);

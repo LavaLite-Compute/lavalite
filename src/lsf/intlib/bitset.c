@@ -724,7 +724,6 @@ setObserverCreate(char *name, void *extra, LS_BITSET_ENTRY_SELECT_OP_T select,
 
     observer = (LS_BITSET_OBSERVER_T *)calloc(1, sizeof(LS_BITSET_OBSERVER_T));
     if (observer == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "calloc");
         bitseterrno = LS_BITSET_ERR_NOMEM;
         goto Fail;
     }
@@ -865,11 +864,6 @@ setDumpSet(LS_BITSET_T *set, char *caller)
 
     ls_syslog(LOG_ERR,"%s Dumping set <%lx> <%s>",
               fname, (long) set, set->setDescription);
-
-    ls_syslog(LOG_ERR,I18N(5331,"\
-%s setSize = %u setWidth = %u setNumElements = %u directFunction = %lx\
- inverseFunction = %lx"),
-              fname, set->setSize, set->setWidth, set->setNumElements, (long)set->getIndexByObject, (long)set->getObjectByIndex);
 
     ls_syslog(LOG_ERR,"%s Begin DumpMask", fname);
     memset(buf, 0, sizeof(buf));

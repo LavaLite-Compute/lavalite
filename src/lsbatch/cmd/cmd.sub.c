@@ -376,7 +376,7 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
     if (option & EMBED_INTERACT) {
         firstLine[0] = '\0';
         if ((buf = malloc(size)) == NULL) {
-    	    fprintf(stderr, I18N_FUNC_FAIL,fname,"malloc" );
+    	    fprintf(stderr, "%s: %s failed\n", fname, "malloc");
 	    return (-1);
         }
         ttyin = isatty(fileno(from));
@@ -421,7 +421,7 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
                 size = size * 2;
                 if ((buf = (char *) realloc(buf, size)) == NULL) {
                     free(buf);
-                    fprintf(stderr, I18N_FUNC_FAIL,fname,"realloc" );
+                    fprintf(stderr, "%s: %s failed\n", fname, "realloc");
                     return (-1);
                 }
             }
@@ -448,7 +448,7 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
 		    size = size + strlen(szTmpShellCommands) + 1;
 		    if (( buf = (char *) realloc(buf, size)) == NULL ) {
 			free(buf);
-			fprintf(stderr,I18N_FUNC_FAIL,fname,"realloc" );
+			fprintf(stderr, "%s: %s failed\n", fname, "realloc");
 			return(-1);
                     }
                 }
@@ -480,7 +480,7 @@ CopyCommand(char **from, int len)
     size += 1 + 1;
 
     if ((commandline = (char *) malloc(size)) == NULL) {
-	fprintf(stderr, I18N_FUNC_FAIL,fname,"malloc" );
+	fprintf(stderr, "%s: %s failed\n", fname, "malloc");
 	return (FALSE);
     }
 
@@ -655,7 +655,7 @@ parseLine (char *line, int *embedArgc, char ***embedArgv, int option)
     if (argBuf == NULL) {
         if ((argBuf = (char **) malloc(INCREASE * sizeof(char *)))
             == NULL) {
-            fprintf(stderr, I18N_FUNC_FAIL,fname,"malloc" );
+            fprintf(stderr, "%s: %s failed\n", fname, "malloc");
             return (-1);
         }
         bufSize = INCREASE;
@@ -715,7 +715,7 @@ parseLine (char *line, int *embedArgc, char ***embedArgv, int option)
                 if ((argBuf = (char **) realloc(argBuf,
                                              bufSize * sizeof(char *)))
                     == NULL) {
-                    fprintf(stderr, I18N_FUNC_FAIL,fname,"realloc" );
+                    fprintf(stderr, "%s: %s failed\n", fname, "realloc");
                     return (-1);
                 }
 		*embedArgv = argBuf;

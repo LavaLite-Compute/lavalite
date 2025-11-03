@@ -35,7 +35,7 @@ lsb_switchjob (LS_LONG_INT jobId, char *queue)
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
-    if (queue && (strlen (queue) >= MAX_LSB_NAME_LEN - 1)) {
+    if (queue && (strlen (queue) >= LL_BUFSIZ_32 - 1)) {
         lsberrno = LSBE_BAD_QUEUE;
         return -1;
     }

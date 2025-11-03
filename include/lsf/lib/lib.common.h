@@ -71,11 +71,6 @@
 */
 #include "lsf.h"
 
-/* Bug. We will remove this later
- */
-#include "lsf/lib/lsi18n.h"
-#include "lsf/lib/mls.h"
-
 /* Some defines from the lava config.h which was manually
  * generated file, not the automake one.
  */

@@ -191,12 +191,9 @@ char *
 safeSave(char *str)
 {
     char *sp;
-    char temp[256];
 
     sp = putstr_(str);
     if (!sp) {
-        sprintf(temp, I18N_FUNC_FAIL, "safeSave", "malloc");
-        lsb_merr(temp);
         if (masterme)
             die(MASTER_MEM);
         else
@@ -401,7 +398,7 @@ fileExist (char *file, int uid, struct hostent *hp)
         return answer;
     } else {
         close(fds[0]);
-        if (lsfSetUid (uid) < 0) {
+        if (seteuid (uid) < 0) {
             ls_syslog(LOG_ERR, "%s", __func__, "setuid",
                       uid);
             answer = TRUE;

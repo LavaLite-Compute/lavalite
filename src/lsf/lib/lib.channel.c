@@ -32,13 +32,6 @@ static int chanMaxSize;
 static int chanGrowSize;
 static int chanAllocSize;
 
-/* Declare these function as extern to silnce the compiler warnings
- * and to avoid including lib.h which contains many unrelated structures
- * and functions.
- */
-extern int get_nonstd_desc_(int);
-extern int CreateSock_(int);
-
 static void doread(int , struct Masks *);
 static void dowrite(int, struct Masks *);
 static struct Buffer *newBuf(void);
@@ -135,8 +128,6 @@ chanServSocket_(int type, u_short port, int backlog, int options)
 int
 chanClientSocket_(int domain, int type, int options)
 {
-    int ch, i, s0;
-    int s1;
     static char first=true;
     static ushort port;
     struct sockaddr_in cliaddr;
@@ -146,7 +137,8 @@ chanClientSocket_(int domain, int type, int options)
         return -1;
     }
 
-    if ((ch = findAFreeChannel()) < 0) {
+    int ch = findAFreeChannel();
+    if (ch < 0) {
         lserrno = LSE_NO_CHAN;
         return -1;
     }
@@ -156,21 +148,22 @@ chanClientSocket_(int domain, int type, int options)
     else
         channels[ch].type = CH_TYPE_UDP;
 
-    s0 = socket(domain, type, 0);
-
-    if (SOCK_INVALID(s0)) {
+    int s = socket(domain, type, 0);
+    if (s < 0) {
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
 
     channels[ch].state = CH_DISC;
-    channels[ch].handle = s0;
-    if (s0 < 3) {
-        s1 = get_nonstd_desc_(s0);
-        if (s1 < 0)
-            close(s0);
-        channels[ch].handle = s1;
+    channels[ch].handle = s;
+    int s0 = ll_dup_stdio(s);
+    if (s0 < 0) {
+        close(s);
+        chanClose_(ch);
+        lserrno = LSE_SOCK_SYS;
+        return -1;
     }
+    channels[ch].handle = s0;
 
     if (options & CHAN_OP_PPORT) {
         if  (first) {
@@ -182,11 +175,12 @@ chanClientSocket_(int domain, int type, int options)
         }
     }
 
-    s0= channels[ch].handle;
+    s0 = channels[ch].handle;
     memset((char*)&cliaddr, 0, sizeof(cliaddr));
     cliaddr.sin_family      = AF_INET;
     cliaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
+    int i;
     for (i=0; i < IPPORT_RESERVED/2; i++) {
         if (options & CHAN_OP_PPORT) {
             cliaddr.sin_port = htons(port);
@@ -411,6 +405,7 @@ chanRcvDgram_(int chfd, char *buf, int len, struct sockaddr_in *peer, int timeou
 
 }
 
+// Open TCP channel
 int
 chanOpen_(u_int iaddr, u_short port, int options)
 {
@@ -430,7 +425,7 @@ chanOpen_(u_int iaddr, u_short port, int options)
     memcpy(&addr.sin_addr, &iaddr, sizeof(u_int));
     addr.sin_port = port;
 
-    channels[i].handle = CreateSock_(SOCK_STREAM);
+    channels[i].handle = socket(AF_INET, SOCK_STREAM, SOCK_CLOEXEC);
     if (channels[i].handle < 0) {
         cherrno = CHANE_SYSCALL;
         return -1;
@@ -442,10 +437,10 @@ chanOpen_(u_int iaddr, u_short port, int options)
         return -1;
     }
 
-    if ((cc=connect(channels[i].handle, (struct sockaddr *) &addr, sizeof(addr))) < 0) {
-        if (errno != EINPROGRESS)
-
-        {
+    if ((cc = connect(channels[i].handle,
+                      (struct sockaddr *)&addr,
+                      sizeof(addr))) < 0) {
+        if (errno != EINPROGRESS)  {
             struct sockaddr laddr;
             socklen_t len = sizeof(laddr);
 
@@ -514,7 +509,8 @@ chanOpenSock_(int s, int options)
 int
 chanClose_(int chfd)
 {
-    struct Buffer *buf, *nextbuf;
+    struct Buffer *buf;
+    struct Buffer *nextbuf;
     long maxfds;
 
     maxfds = sysconf(_SC_OPEN_MAX);
@@ -743,7 +739,6 @@ chanReadNonBlock_(int chfd, char *buf, int len, int timeout)
 
     if (io_nonblock_(channels[chfd].handle) < 0) {
         lserrno = LSE_FILE_SYS;
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "io_nonblock_");
         return -1;
     }
 
@@ -881,14 +876,20 @@ chanSetMode_(int chfd, int mode)
         return -1;
     }
 
-    if (channels[chfd].state == CH_FREE ||
-        channels[chfd].handle == INVALID_HANDLE) {
+    if (mode != CHAN_MODE_NONBLOCK
+        &&  mode != CHAN_MODE_BLOCK) {
+        lserrno = LSE_SOCK_SYS;
+        return -1;
+    }
+
+    if (channels[chfd].state == CH_FREE
+        || channels[chfd].handle == INVALID_HANDLE) {
         lserrno = LSE_BAD_CHAN;
         return -1;
     }
 
     if (mode == CHAN_MODE_NONBLOCK) {
-        if(io_nonblock_(channels[chfd].handle) < 0) {
+        if (io_nonblock_(channels[chfd].handle) < 0) {
             lserrno = LSE_SOCK_SYS;
             return -1;
         }
@@ -900,14 +901,15 @@ chanSetMode_(int chfd, int mode)
             lserrno = LSE_MALLOC;
             return -1;
         }
-    } else {
-        if(io_block_(channels[chfd].handle) < 0) {
-            lserrno = LSE_SOCK_SYS;
-            return -1;
-        }
+        return 0;
     }
-    return 0;
 
+    if (io_block_(channels[chfd].handle) < 0) {
+        lserrno = LSE_SOCK_SYS;
+        return -1;
+    }
+    // we could abort() here
+    return 0;
 }
 
 static void
@@ -938,7 +940,7 @@ doread(int chfd, struct Masks *chanmask)
         rcvbuf->pos = 0;
     }
 
-    if(rcvbuf->pos == rcvbuf->len) {
+    if (rcvbuf->pos == rcvbuf->len) {
         FD_SET(chfd, &(chanmask->rmask));
         return;
     }
@@ -947,22 +949,20 @@ doread(int chfd, struct Masks *chanmask)
 
     cc = read(channels[chfd].handle, rcvbuf->data + rcvbuf->pos,
               rcvbuf->len - rcvbuf->pos);
-
-    if (cc == 0 && errno == EINTR) {
-
-        ls_syslog(LOG_ERR,I18N(5004,"\
-                               doread: Hmm... looks like read(2) has returned EOF when interrupted by a signal, please report"));
-
-            return;
-    }
-
-    if (cc <= 0) {
-        if (cc == 0 || BAD_IO_ERR(errno)) {
-            FD_SET(chfd, &(chanmask->emask));
-            channels[chfd].chanerr = CHANE_CONNRESET;
-        }
-        return;
-    }
+   if (cc < 0) {
+       // transient, try again later
+       if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+           return;
+       FD_SET(chfd, &chanmask->emask);
+       channels[chfd].chanerr = CHANE_CONNRESET;
+       return;
+   }
+   // EOF on the line
+   if (cc == 0) {
+       FD_SET(chfd, &chanmask->emask);
+       channels[chfd].chanerr = CHANE_CONNRESET;
+       return;
+   }
 
     rcvbuf->pos += cc;
 
@@ -1015,11 +1015,21 @@ dowrite(int chfd, struct Masks *chanmask)
 
     cc = write(channels[chfd].handle, sendbuf->data + sendbuf->pos,
                sendbuf->len - sendbuf->pos);
-    if (cc < 0 && BAD_IO_ERR(errno)){
+
+    if (cc < 0) {
+        // transient, wait for writable again
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+            return;
+        // real error
         FD_SET(chfd, &(chanmask->emask));
         channels[chfd].chanerr = LSE_MSG_SYS;
         return;
     }
+
+    //* nothing written, but not an error
+    if (cc == 0)
+        return;
+
     sendbuf->pos += cc;
     if (sendbuf->pos == sendbuf->len) {
         dequeue_(sendbuf);
@@ -1147,4 +1157,35 @@ growchanDataArray(void)
         chanAllocSize += chanGrowSize;
     }
     return 0;
+}
+
+// If socket happens to be 0,1 or 2 dup it to a higher number
+int
+ll_dup_stdio(int fd)
+{
+    if (fd >= 3)
+        return fd;
+
+    int newfd = fcntl(fd, F_DUPFD, 3);
+    if (newfd < 0)
+        return -1;
+
+    close(fd);
+    return newfd;
+}
+
+int
+io_nonblock_(int s)
+{
+    int flags = fcntl(s, F_GETFL, 0);
+    if (flags < 0)
+        return -1;
+    return fcntl(s, F_SETFL, flags | O_NONBLOCK);
+}
+
+int
+io_block_(int s)
+{
+    int flags = fcntl(s, F_GETFL, 0);
+    return fcntl(s, F_SETFL, (flags & ~O_NONBLOCK));
 }

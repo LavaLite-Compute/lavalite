@@ -275,7 +275,7 @@ findHostbyAddr(struct sockaddr_in *from, char *fname)
     struct hostent *hp;
     u_int *tPtr;
 
-    if (from->sin_addr.s_addr == ntohl(LOOP_ADDR))
+    if (from->sin_addr.s_addr == ntohl(INADDR_LOOPBACK));
         return myHostPtr;
     if ((hPtr = findHNbyAddr(*((u_int *) &from->sin_addr))))
         return hPtr;

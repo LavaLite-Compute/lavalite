@@ -32,7 +32,6 @@ listCreate(char *name)
 
     list = calloc(1, sizeof(LIST_T));
     if (list == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "calloc");
         listerrno = (int) LIST_ERR_NOMEM;
         return (LIST_T *)NULL;
     }
@@ -523,7 +522,6 @@ listObserverCreate(char *name, void *extra, LIST_ENTRY_SELECT_OP_T select, ...)
 
     observer = (LIST_OBSERVER_T *)calloc(1, sizeof(LIST_OBSERVER_T));
     if (observer == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M,  fname, "calloc");
         listerrno = LIST_ERR_NOMEM;
         goto Fail;
     }
@@ -643,7 +641,6 @@ listIteratorCreate(char *name)
 
     iter = (LIST_ITERATOR_T *)calloc(1, sizeof(LIST_ITERATOR_T));
     if (! iter) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "calloc");
         listerrno = (int) LIST_ERR_NOMEM;
         return (LIST_ITERATOR_T *)NULL;
     }

@@ -309,10 +309,10 @@ packJgrpInfo(struct jgTreeNode * jgNode, int remain, char **replyBuf, int schedu
     jobInfoReply.jobBill->jobName  = jgNode->name;
 
     jobInfoReply.nIdx = 0;
-    len = 4 * MAX_LSB_NAME_LEN + 3 * MAXLINELEN + 2 * MAXHOSTNAMELEN
+    len = 4 * MAXLSFNAMELEN + 3 * MAXLINELEN + 2 * MAXHOSTNAMELEN
         + 7 * MAXFILENAMELEN + sizeof(struct submitReq)
         + sizeof(struct jobInfoReply)
-        + MAX_LSB_NAME_LEN + 2 * MAXFILENAMELEN
+        + MAXLSFNAMELEN + 2 * MAXFILENAMELEN
         + sizeof(time_t)
         + strlen(jobInfoReply.jobBill->dependCond)
         + 100
@@ -1306,7 +1306,7 @@ do_userInfoReq(XDR * xdrs, int chfd, struct sockaddr_in * from, struct packet_he
         reply = checkUsers(&userInfoReq, &userInfoReply);
     }
     count = userInfoReply.numUsers * (sizeof(struct userInfoEnt)
-                                      + MAX_LSB_NAME_LEN) + 100;
+                                      + MAXLSFNAMELEN) + 100;
     reply_buf = (char *) my_malloc(count, "do_userInfoReq");
     xdrmem_create(&xdrs2, reply_buf, count, XDR_ENCODE);
     replyHdr.operation = reply;
@@ -1369,7 +1369,7 @@ xdrsize_QueueInfoReply(struct queueInfoReply * qInfoReply)
             + XDR_STRLEN(strlen(qInfoReply->queues[i].chkpntDir));
     }
     len += ALIGNWORD_(sizeof(struct queueInfoReply)
-                      + qInfoReply->numQueues * (sizeof(struct queueInfoEnt)+ MAX_LSB_NAME_LEN + qInfoReply->nIdx*2*sizeof(float))
+                      + qInfoReply->numQueues * (sizeof(struct queueInfoEnt)+ MAXLSFNAMELEN + qInfoReply->nIdx*2*sizeof(float))
                       + qInfoReply->numQueues * NET_INTSIZE_);
 
     return len;

@@ -202,7 +202,8 @@ sendLoad(void)
         myLoadVector.numResPairs = myHostPtr->numInstances;
         if (myLoadVector.numResPairs > 0) {
             if ((myLoadVector.resPairs  = getResPairs (myHostPtr)) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getResPairs");
+                
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getResPairs");
                 return;
             }
         } else
@@ -224,7 +225,8 @@ sendLoad(void)
             return;
         }
         if ((repBuf = (char *)malloc(bufSize)) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
 
@@ -236,7 +238,8 @@ sendLoad(void)
         if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
               xdr_enum(&xdrs, (int *) &loadType) &&
               xdr_loadvector(&xdrs, &myLoadVector, &reqHdr))) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_enum/xdr_loadvector");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_enum/xdr_loadvector");
             xdr_destroy(&xdrs);
             FREEUP (repBuf);
             return;
@@ -246,7 +249,8 @@ sendLoad(void)
         toAddr.sin_port   = lim_port;
 
         if (!getHostNodeIPAddr(myClusterPtr->masterPtr,&toAddr)) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "getHostNodeIPAddr");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostNodeIPAddr");
             xdr_destroy(&xdrs);
             FREEUP (repBuf);
             return;
@@ -261,8 +265,8 @@ sendLoad(void)
                       ntohs(lim_port));
 
         if (chanSendDgram_(limSock, repBuf, XDR_GETPOS(&xdrs), &toAddr) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "chanSendDgram_",
-                      sockAdd2Str_(&toAddr));
+            
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(&toAddr));
             xdr_destroy(&xdrs);
             FREEUP (repBuf);
             return;
@@ -289,7 +293,8 @@ getResPairs (struct hostNode *hPtr)
     if (hPtr->numInstances > 0) {
         if ((resPairs = (struct resPair *) malloc
              (hPtr->numInstances * sizeof (struct resPair))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return NULL;
         }
     }
@@ -319,7 +324,8 @@ rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
     }
 
     if (!xdr_enum(xdrs, (int *) &loadType)) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL, fname, "xdr_enum");
+        
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_enum");
         return;
     }
 
@@ -345,19 +351,22 @@ rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
     if (loadVector == NULL) {
         if ((loadVector = (struct loadVectorStruct *)
              malloc (sizeof (struct loadVectorStruct))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
         if ((loadVector->li = (float *)
              malloc(allInfo.numIndx*sizeof(float))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
 
         if ((loadVector->status = (int *)
              malloc((1 + GET_INTNUM(allInfo.numIndx)) * sizeof(int)))
             == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
     }
@@ -499,7 +508,8 @@ copyResValues (struct loadVectorStruct loadVector, struct hostNode *hPtr)
                 continue;
         }
         if ((temp = putstr_(loadVector.resPairs[i].value)) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
         FREEUP (instance->value);

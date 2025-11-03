@@ -3320,9 +3320,6 @@ copyCandHostData(struct candHost* dst, struct candHost* source)
         list = listDup(source->backfilleeList,
                        sizeof(struct backfillee));
         if (list == NULL) {
-            ls_syslog(LOG_ERR,I18N(7242,"\
-%s: Duplicating backfillee list failed:%s"),
-                      fname, listStrError(listerrno));
             mbdDie(MASTER_FATAL);
         }
 

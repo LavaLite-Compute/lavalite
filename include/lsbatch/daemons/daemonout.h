@@ -259,7 +259,7 @@ struct jobMoveReq {
 
 struct jobSwitchReq {
     LS_LONG_INT jobId;
-    char   queue[MAX_LSB_NAME_LEN];
+    char   queue[MAXLSFNAMELEN];
 };
 
 struct controlReq {

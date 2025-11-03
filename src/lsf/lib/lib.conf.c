@@ -174,7 +174,9 @@ ls_readshared(char *fname)
     if (sConf == NULL) {
         if ((sConf =  malloc(sizeof(struct sharedConf)))
             == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "ls_readshared", "malloc");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "ls_readshared", "malloc")
+;
             lserrno = LSE_MALLOC;
             return NULL;
         }
@@ -283,7 +285,9 @@ initResTable(void)
 
     resTable = calloc(1000, sizeof(struct resItem));
     if (!resTable) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "initResTable", "malloc" );
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "initResTable", "malloc" )
+;
         return -1;
     }
     i = 0;
@@ -319,7 +323,7 @@ do_Index (FILE *fp, int *lineNum, char *fname)
 
     linep = getNextLineC_(fp, lineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_Index", fname, *lineNum, "index");
         return false;
     }
@@ -357,7 +361,7 @@ do_Index (FILE *fp, int *lineNum, char *fname)
         return true;
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "do_Index", fname, *lineNum, "newindex");
     return true;
 }
@@ -428,7 +432,7 @@ do_HostTypes(FILE *fp, int *lineNum, char *fname)
 
     linep = getNextLineC_(fp, lineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_HostTypes",  fname, *lineNum, "hostType");
         return false;
     }
@@ -464,13 +468,13 @@ do_HostTypes(FILE *fp, int *lineNum, char *fname)
             FREEUP(keyList[0].val);
         }
     } else {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE, "do_HostTypes",
+        ls_syslog(LOG_ERR, "%s not implemented", "do_HostTypes",
                   fname, *lineNum, "HostType");
         doSkipSection(fp, lineNum, fname, "HostType");
         return false;
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "do_HostTypes", fname, *lineNum, "hostType");
 
     return true;
@@ -518,7 +522,7 @@ do_HostModels(FILE *fp, int *lineNum, char *fname)
 
     linep = getNextLineC_(fp, lineNum, true);
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_HostModels", fname, *lineNum, "hostModel");
         return false;
     }
@@ -572,13 +576,13 @@ do_HostModels(FILE *fp, int *lineNum, char *fname)
             FREEUP(keyList[2].val);
         }
     } else {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE, "do_HostModels",
+        ls_syslog(LOG_ERR, "%s not implemented", "do_HostModels",
                   fname, *lineNum, "HostModel");
         doSkipSection(fp, lineNum, fname, "HostModel");
         return false;
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "do_HostModels", fname, *lineNum, "HostModel");
     return true;
 }
@@ -637,7 +641,7 @@ do_Resources(FILE *fp, int *lineNum, char *fname)
 
     linep = getNextLineC_(fp, lineNum, true);
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_Resources", fname, *lineNum, "resource");
         return false;
     }
@@ -802,12 +806,12 @@ do_Resources(FILE *fp, int *lineNum, char *fname)
             freeKeyList(keyList);
         }
     } else {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE, "do_Resources",
+        ls_syslog(LOG_ERR, "%s not implemented", "do_Resources",
                   fname, *lineNum, "resource");
         return false;
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "do_Resources", fname, *lineNum, "resource");
     return true;
 }
@@ -855,7 +859,9 @@ ls_readcluster_ex(char *fname, struct lsInfo *info, int lookupAdmins)
     if (cConf == NULL) {
         if ((cConf = (struct clusterConf *)
              malloc (sizeof (struct clusterConf))) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "ls_readcluster", "malloc");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "ls_readcluster", "malloc")
+;
             lserrno = LSE_MALLOC;
             return NULL;
         }
@@ -897,7 +903,9 @@ ls_readcluster_ex(char *fname, struct lsInfo *info, int lookupAdmins)
 
     if (info->nRes && (myinfo.resTable = (struct resItem *) malloc
                        (info->nRes * sizeof(struct resItem))) == NULL ) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "ls_readcluster",  "malloc");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "ls_readcluster", "malloc")
+;
         lserrno = LSE_MALLOC;
         return NULL;
     }
@@ -920,7 +928,7 @@ ls_readcluster_ex(char *fname, struct lsInfo *info, int lookupAdmins)
     if ((fp = fopen(fname, "r")) == NULL) {
         FREEUP(myinfo.resTable);
 
-        ls_syslog(LOG_INFO, I18N_FUNC_S_FAIL, "ls_readcluster", "fopen", fname);
+        ls_syslog(LOG_INFO, "%s: %s(%s) failed: %m", "ls_readcluster", "fopen", fname);
         lserrno = LSE_NO_FILE;
         return NULL;
     }
@@ -1099,7 +1107,7 @@ do_Manager (FILE *fp, char *fname, int *lineNum, char *secName, int lookupAdmins
 
     linep = getNextLineC_(fp, lineNum, true);
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_Manager", fname, *lineNum, secName);
         return false;
     }
@@ -1210,7 +1218,9 @@ getAdmins (char *line, char *fname, int *lineNum, char *secName, int lookupAdmin
         admins.adminNames = (char **) malloc (numAds * sizeof (char *));
         if (admins.adminIds == NULL || admins.adminGIds == NULL ||
             admins.adminNames == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "getAdmins", "malloc");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "getAdmins", "malloc")
+;
             FREEUP (admins.adminIds);
             FREEUP (admins.adminGIds);
             FREEUP (admins.adminNames);
@@ -1262,7 +1272,9 @@ setAdmins (struct admins *admins, int mOrA)
         tempAdminNames = NULL;
     }
     if (!tempAdminIds || !tempAdminNames) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "setAdmins", "malloc");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "setAdmins", "malloc")
+;
         FREEUP (tempAdminIds);
         FREEUP (tempAdminNames);
         return -1;
@@ -1279,7 +1291,9 @@ setAdmins (struct admins *admins, int mOrA)
     for (i = 0; i < workNAdmins; i++) {
         tempAdminIds[i] = workAdminIds[i];
         if ((tempAdminNames[i] = putstr_(workAdminNames[i])) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "setAdmins", "malloc");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "setAdmins", "malloc")
+;
 
             for ( k = 0; k < i; k ++ )
                 FREEUP(tempAdminNames[k]);
@@ -1305,7 +1319,9 @@ setAdmins (struct admins *admins, int mOrA)
         tempAdminIds[tempNAdmins] = workAdminIds[i];
         if ((tempAdminNames[tempNAdmins] =
              putstr_ (workAdminNames[i])) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "setAdmins", "malloc");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "setAdmins", "malloc")
+;
             for ( k = 0; k < tempNAdmins; k ++ )
                 FREEUP(tempAdminNames[k]);
             FREEUP (tempAdminIds);
@@ -1376,7 +1392,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
 
     linep = getNextLineC_(fp, lineNum, true);
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_Hosts", fname, *lineNum, "host");
         return false;
     }
@@ -1449,7 +1465,9 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
             strcpy(host.hostName, officialName);
 
             if ((host.hostModel = putstr_ ( keyList[MODEL].val )) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "do_Hosts", "malloc");
+                
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
+;
                 lserrno = LSE_MALLOC;
                 freeHostInfo (&host);
                 freekeyval (keyList);
@@ -1457,7 +1475,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                 return false;
             }
             if ((host.hostType = putstr_ ( keyList[TYPE].val )) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "do_Hosts", "malloc");
+                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "do_Hosts", "malloc");
                 lserrno = LSE_MALLOC;
                 freeHostInfo (&host);
                 freekeyval (keyList);
@@ -1471,7 +1489,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
 
             if ( info->numIndx && (host.busyThreshold = (float *) malloc
                                    (info->numIndx*sizeof(float *))) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "do_Hosts", "malloc");
+                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "do_Hosts", "malloc");
                 lserrno = LSE_MALLOC;
                 freeHostInfo (&host);
                 freekeyval (keyList);
@@ -1525,7 +1543,9 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
             resList = (char **)calloc(numAllocatedResources,
                                       sizeof(char *));
             if (resList == NULL) {
-                ls_syslog(LOG_ERR,I18N_FUNC_FAIL_M, "do_Hosts", "calloc");
+                
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "calloc")
+;
             }
 
             n = 0;
@@ -1549,7 +1569,9 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                                              *(sizeof(char *)));
                         if (resList == NULL) {
                             lserrno = LSE_MALLOC;
-                            ls_syslog(LOG_ERR,I18N_FUNC_FAIL_M, "do_Hosts", "calloc");
+                            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "calloc")
+;
                             freeHostInfo (&host);
                             freekeyval (keyList);
                             doSkipSection(fp, lineNum, fname, "host");
@@ -1558,7 +1580,9 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                     }
 
                     if ((resList[n] = putstr_(word)) == NULL) {
-                        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "do_Hosts", "malloc");
+                        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
+;
                         lserrno = LSE_MALLOC;
                         for ( j = 0; j < n; j++ )
                             FREEUP(resList[j]);
@@ -1575,7 +1599,9 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
             host.nRes = n;
             if ( n && (host.resources = (char **) malloc
                        (n * sizeof(char *))) == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "do_Hosts", "malloc");
+                
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
+;
                 lserrno = LSE_MALLOC;
                 for ( j = 0; j < n; j ++ )
                     FREEUP(resList[j]);
@@ -1588,7 +1614,9 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
 
             for (i=0; i<n; i++) {
                 if ((host.resources[i] = putstr_ ( resList[i] )) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "do_Hosts", "malloc");
+                    
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
+;
                     lserrno = LSE_MALLOC;
                     for ( j = 0; j < n; j ++ )
                         FREEUP(resList[j]);
@@ -1628,7 +1656,9 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                     host.windows = parsewindow (keyList[RUNWINDOW].val,
                                                 fname, lineNum, "Host" );
                     if (host.windows == NULL) {
-                        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "do_Hosts", "malloc");
+                        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
+;
                         lserrno = LSE_MALLOC;
                         freeHostInfo (&host);
                         freekeyval (keyList);
@@ -1641,13 +1671,13 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
             addHost(&host, fname, lineNum);
         }
     } else {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE, "do_Hosts",
+        ls_syslog(LOG_ERR, "%s not implemented", "do_Hosts",
                   fname, *lineNum, "host");
         doSkipSection(fp, lineNum, fname, "host");
         return false;
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "do_Hosts", fname, *lineNum, "host");
     return true;
 }
@@ -1692,7 +1722,7 @@ addHost(struct hostInfo *host, char *fname, int *lineNum)
     cConf->numHosts++;
     newlist = calloc(cConf->numHosts, sizeof(struct hostInfo));
     if (newlist == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addHost", "calloc",
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "addHost", "calloc",
                   cConf->numHosts*sizeof(struct hostInfo));
         cConf->numHosts--;
         lserrno = LSE_MALLOC;
@@ -1917,7 +1947,7 @@ do_Cluster(FILE *fp, int *lineNum, char *fname)
 
     linep = getNextLineC_(fp, lineNum, true);
     if (!linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_Cluster", fname, *lineNum, "cluster");
         return false;
     }
@@ -1959,7 +1989,9 @@ do_Cluster(FILE *fp, int *lineNum, char *fname)
 
             if ((sConf->clusterName = putstr_(keyList[0].val))
                 == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "do_Cluster", "malloc");
+                
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Cluster", "malloc")
+;
                 FREEUP(keyList[0].val);
                 if (keyList[1].position != -1)
                     FREEUP(keyList[1].val);
@@ -1968,7 +2000,9 @@ do_Cluster(FILE *fp, int *lineNum, char *fname)
 
             if ((sConf->servers = putstr_(servers))
                 == NULL) {
-                ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "do_Cluster", "malloc");
+                
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Cluster", "malloc")
+;
                 FREEUP(keyList[0].val);
                 if (keyList[1].position != -1)
                     FREEUP(keyList[1].val);
@@ -1981,13 +2015,13 @@ do_Cluster(FILE *fp, int *lineNum, char *fname)
                 FREEUP(keyList[1].val);
         }
     } else {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE,
+        ls_syslog(LOG_ERR, "%s not implemented",
                   "do_Cluster", fname, *lineNum, "cluster");
         doSkipSection(fp, lineNum, fname, "cluster");
         return false;
     }
 
-    ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+    ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
               "do_Cluster", fname, *lineNum, "cluster");
     return false;
 }
@@ -2023,7 +2057,7 @@ do_Clparams (FILE *clfp, char *lsfile, int *LineNum)
     };
     linep = getNextLineC_(clfp, LineNum, true);
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   "do_Clparams", lsfile, *LineNum, "parameters");
         return false;
     }
@@ -2093,7 +2127,7 @@ doResourceMap(FILE *fp, char *lsfile, int *LineNum)
 
     linep = getNextLineC_(fp, LineNum, true);
     if (! linep) {
-        ls_syslog(LOG_ERR, I18N_PREMATURE_EOF,
+        ls_syslog(LOG_ERR, "%s: premature EOF while reading %s",
                   fname, lsfile, *LineNum, "resourceMap");
         return -1;
     }
@@ -2186,7 +2220,7 @@ doResourceMap(FILE *fp, char *lsfile, int *LineNum)
             freeKeyList (keyList);
         }
     } else {
-        ls_syslog(LOG_ERR, I18N_HORI_NOT_IMPLE,  fname, lsfile, *LineNum, "resource");
+        ls_syslog(LOG_ERR, "%s not implemented",  fname, lsfile, *LineNum, "resource");
         return -1;
     }
     return 0;
@@ -2344,14 +2378,18 @@ parseHostList (char *hostList, char *lsfile, int LineNum, char ***hosts)
     while ((host = getNextWord_(&sp)) != NULL)
         numHosts++;
     if ((hostTable = (char **) malloc (numHosts * sizeof(char *))) == NULL) {
-        ls_syslog (LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc")
+;
         return -1;
     }
     sp = hostList;
     numHosts = 0;
     while ((host = getNextWord_(&sp)) != NULL) {
         if ((hostTable[numHosts] = putstr_(host)) == NULL) {
-            ls_syslog (LOG_ERR, I18N_FUNC_FAIL_M, fname, "malloc");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc")
+;
             for (i = 0; i < numHosts; i++)
                 FREEUP (hostTable[i]);
             FREEUP (hostTable);
@@ -2380,7 +2418,9 @@ addResource (char *resName, int nHosts, char **hosts, char *value,
 
     if ((resInfo = (struct lsSharedResourceInfo *)
          myrealloc(cConf->shareRes, sizeof (struct lsSharedResourceInfo) * (cConf->numShareRes + 1))) == NULL) {
-        ls_syslog (LOG_ERR, I18N_FUNC_FAIL_M, "addHostResource", "myrealloc");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostResource", "myrealloc")
+;
         return NULL;
     }
 
@@ -2388,7 +2428,9 @@ addResource (char *resName, int nHosts, char **hosts, char *value,
     nRes = cConf->numShareRes;
 
     if ((resInfo[nRes].resourceName = putstr_(resName)) == NULL) {
-        ls_syslog (LOG_ERR, I18N_FUNC_FAIL_M, "addHostResource", "malloc");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostResource", "malloc")
+;
         return NULL;
     }
 
@@ -2419,7 +2461,9 @@ addHostInstance (struct lsSharedResourceInfo *sharedResource,  int nHosts,
     instance = (struct lsSharedResourceInstance *) myrealloc(sharedResource->instances, sizeof(struct lsSharedResourceInstance) * (sharedResource->nInstances + 1));
 
     if (instance == NULL) {
-        ls_syslog(LOG_ERR,  I18N_FUNC_FAIL_M, "addHostInstance", "myrealloc");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostInstance", "myrealloc")
+;
         return -1;
     }
 
@@ -2427,21 +2471,25 @@ addHostInstance (struct lsSharedResourceInfo *sharedResource,  int nHosts,
     inst = sharedResource->nInstances;
 
     if ((instance[inst].value = putstr_(value)) == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "addHostInstance", "putstr_");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostInstance", "putstr_")
+;
         return -1;
     }
 
     instance[inst].nHosts = nHosts;
     if ((instance[inst].hostList = (char **) malloc(sizeof(char *) * nHosts))
         == NULL) {
-        ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, "addHostInstance", "malloc");
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "addHostInstance", "malloc");
         free(instance[inst].value);
         return -1;
     }
 
     for (i = 0; i < nHosts; i++) {
         if ((instance[inst].hostList[i] = putstr_(hostNames[i])) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "addHostInstance", "putstr_");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostInstance", "putstr_")
+;
             for (i--; i >= 0; i--)
                 free(instance[inst].hostList[i]);
             free(instance[inst].hostList);
@@ -2524,7 +2572,9 @@ int convertNegNotation_(char** value, struct HostsArray* array)
 clean_up:
 
     if (lserrno == LSE_MALLOC) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, "convertNegNotation_",  "malloc");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", "convertNegNotation_", "malloc")
+;
     }
 
     FREEUP(buffer);

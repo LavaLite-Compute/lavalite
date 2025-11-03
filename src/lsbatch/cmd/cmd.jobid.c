@@ -117,7 +117,7 @@ getSpecJobIds (int argc, char **argv, LS_LONG_INT **jobIds0, int *options)
             if (numJobIds >= sizeOfJobIdArray) {
 	        sizeOfJobIdArray += MAX_JOB_IDS;
 	        if ((jobIds = realloc(jobIds, sizeOfJobIdArray*sizeof(LS_LONG_INT))) == NULL) {
-               	    fprintf(stderr, I18N_FUNC_FAIL, fName, "malloc");
+               	    fprintf(stderr, "%s: %s failed\n", fName, "malloc");
                	    exit(-1);
 	        }
             }
@@ -145,7 +145,7 @@ getSpecJobIds (int argc, char **argv, LS_LONG_INT **jobIds0, int *options)
 	            sizeOfJobIdArray += MAX_JOB_IDS;
 	            if ((temp = (LS_LONG_INT *) realloc(jobIds,
 			sizeOfJobIdArray * sizeof(LS_LONG_INT))) == NULL) {
-               	        fprintf(stderr, I18N_FUNC_FAIL, fName, "malloc");
+               	        fprintf(stderr, "%s: %s failed\n", fName, "malloc");
                	        exit(-1);
 	            }
 		    jobIds = temp;
@@ -192,7 +192,7 @@ getSpecIdxs (char *jobName, int **idxs0)
                 sizeOfJobIdArray += MAX_JOB_IDS;
                 if ((temp = (int *) realloc(idxs,
                     sizeOfJobIdArray * sizeof(int))) == NULL) {
-                    fprintf(stderr, I18N_FUNC_FAIL, fName, "malloc");
+                    fprintf(stderr, "%s: %s failed\n", fName, "malloc");
                     exit(-1);
                 }
                 idxs = temp;
@@ -341,7 +341,7 @@ parseJobArrayIndex(char *jobName)
     if (idxparse(&idxList, &maxJLimit)) {
         freeIdxList(idxList);
         if (idxerrno == IDX_MEM)
-	    fprintf(stderr, I18N_FUNC_FAIL, fName, "malloc");
+	    fprintf(stderr, "%s: %s failed\n", fName, "malloc");
         else
 	    fprintf(stderr, ("%s: Bad job array index list.\n"), jobName);
         return(NULL);

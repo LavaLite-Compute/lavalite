@@ -790,7 +790,7 @@ execJob(struct jobCard *jobCardPtr, int chfd)
 		(jobSpecsPtr->options & SUB_PTY))  {
 		chuser(batchId);
 		if (!REShasPTYfix(execArgv[0])) {
-		    lsfSetUid(jobSpecsPtr->execUid);
+		    seteuid(jobSpecsPtr->execUid);
 		}
 	    }
             lsfExecv(execArgv[0], execArgv);
@@ -803,7 +803,7 @@ execJob(struct jobCard *jobCardPtr, int chfd)
 		(jobSpecsPtr->options & SUB_PTY)) {
 
 		chuser(batchId);
-		lsfSetUid(jobSpecsPtr->execUid);
+		seteuid(jobSpecsPtr->execUid);
 	    }
 
             if (jobSpecsPtr->options & SUB_LOGIN_SHELL) {
@@ -2779,7 +2779,7 @@ setIds(struct jobCard *jobCardPtr)
 	if ((jobSpecsPtr->options & SUB_INTERACTIVE) &&
 	    (jobSpecsPtr->options & SUB_PTY)) {
 	    chuser(jobSpecsPtr->execUid);
-	} else if (lsfSetUid(jobSpecsPtr->execUid) < 0) {
+	} else if (seteuid(jobSpecsPtr->execUid) < 0) {
 	    ls_syslog(LOG_ERR, "%s", __func__,
 		lsb_jobid2str(jobSpecsPtr->jobId), "setuid",
 		jobCardPtr->execUsername);
@@ -3197,8 +3197,8 @@ int
 acctMapTo(struct jobCard *jobCard)
 {
     static char fname[]="acctMapTo";
-    char *sp = NULL, *myhostnm, clusorhost[MAX_LSB_NAME_LEN];
-    char  user[MAX_LSB_NAME_LEN], line[MAXLINELEN];
+    char *sp = NULL, *myhostnm, clusorhost[MAXLSFNAMELEN];
+    char  user[MAXLSFNAMELEN], line[MAXLINELEN];
     struct passwd *pw;
     int num, ccount, i = 0, found=FALSE;
     const char *officialName = NULL;
@@ -3328,7 +3328,7 @@ acctMapOk(struct jobCard *jobCard)
     char errMsg[MAXLINELEN];
     char hostfn[MAXFILENAMELEN], msg[MAXLINELEN*2];
     FILE *fp;
-    char clusorhost[MAX_LSB_NAME_LEN], user[MAX_LSB_NAME_LEN], dir[30], *line;
+    char clusorhost[MAXLSFNAMELEN], user[MAXLSFNAMELEN], dir[30], *line;
     int num;
     const char *officialName;
 
@@ -3409,10 +3409,10 @@ error:
 
     if (jobCard->jobSpecs.options & SUB_MAIL_USER)
         merr_user (jobCard->jobSpecs.mailUser, jobCard->jobSpecs.fromHost, msg,
-	    I18N_error);
+	    "error");
     else
         merr_user (jobCard->jobSpecs.userName, jobCard->jobSpecs.fromHost, msg,
-	    I18N_error);
+	    "error");
      return -1;
 
 }
@@ -3759,7 +3759,7 @@ chPrePostUser(struct jobCard *jp)
 	    "setgid", gid);
     }
 
-    if (lsfSetUid(uid) < 0) {
+    if (seteuid(uid) < 0) {
 	ls_syslog(LOG_ERR, "%s", __func__,
 	    "setuid", uid);
 	return -1;
@@ -3879,7 +3879,7 @@ runUPre(struct jobCard *jp)
 	if (getuid() == batchId) {
 
 	    chuser(batchId);
-	    lsfSetUid(jp->jobSpecs.execUid);
+	    seteuid(jp->jobSpecs.execUid);
 	}
 
 	for (i = 1; i < NSIG; i++)

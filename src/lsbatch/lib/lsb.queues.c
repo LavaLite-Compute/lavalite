@@ -93,7 +93,7 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
         cc = queueInfoReq.numNames;
     }
     if (users != NULL) {
-        if (strlen (users) + 1 < MAX_LSB_NAME_LEN) {
+        if (strlen (users) + 1 < LL_BUFSIZ_32) {
             queueInfoReq.options |= CHECK_USER;
             queueInfoReq.names[cc] = users;
             cc++;

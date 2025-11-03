@@ -35,7 +35,7 @@ enum {
 struct jobCard {
     struct jobCard *forw,*back;
     gid_t     execGid;
-    char      execUsername[MAX_LSB_NAME_LEN];
+    char      execUsername[MAXLSFNAMELEN];
     int       notReported;
     time_t    windEdge;
     windows_t *week[8];
@@ -138,7 +138,7 @@ struct jobSetup {
     int jobPGid;
     int execGid;
     int execUid;
-    char execUsername[MAX_LSB_NAME_LEN];
+    char execUsername[MAXLSFNAMELEN];
     char execHome[MAXFILENAMELEN];
     char execCwd[MAXFILENAMELEN];
     int execJobFlag;

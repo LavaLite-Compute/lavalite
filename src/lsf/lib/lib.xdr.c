@@ -72,9 +72,9 @@ marshal_packet_header(XDR *xdrs,
         return false;
     if (!xdr_int32_t(xdrs, &header->operation))
         return false;
-    if (!xdr_u_int(xdrs, &header->version))
+    if (!xdr_int32_t(xdrs, &header->version))
         return false;
-    if (! xdr_u_int(xdrs, &header->length))
+    if (! xdr_uint32_t(xdrs, &header->length))
         return false;
     if (! xdr_int(xdrs, &header->reserved))
         return false;
@@ -109,6 +109,36 @@ xdr_encodeMsg (XDR *xdrs, char *data, struct packet_header *hdr,
     XDR_SETPOS(xdrs, len);
     return true;
 }
+
+/* Replace with this
+
+   bool_t
+   xdr_arrayElement(XDR *xdrs, char *data, struct packet_header *hdr,
+                 bool_t (*xdr_func)(XDR *, char *, struct packet_header *, char *), char *cp)
+{
+    int nextElementOffset, pos = XDR_GETPOS(xdrs);
+
+    if (xdrs->x_op == XDR_ENCODE) {
+        XDR_SETPOS(xdrs, pos + NET_INTSIZE_);
+    } else {
+        if (!xdr_int(xdrs, &nextElementOffset))
+            return FALSE;
+    }
+
+    if (!(*xdr_func)(xdrs, data, hdr, cp))
+        return FALSE;
+
+    if (xdrs->x_op == XDR_ENCODE) {
+        nextElementOffset = XDR_GETPOS(xdrs) - pos;
+        XDR_SETPOS(xdrs, pos);
+        if (!xdr_int(xdrs, &nextElementOffset))
+            return FALSE;
+    }
+
+    XDR_SETPOS(xdrs, pos + nextElementOffset);
+    return TRUE;
+}
+*/
 
 bool_t
 xdr_arrayElement (XDR *xdrs, char *data, struct packet_header *hdr,

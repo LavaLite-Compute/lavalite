@@ -54,8 +54,8 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
 
     if (first) {
         if (   !(jobInfoReq.jobName  = (char *) malloc(MAX_CMD_DESC_LEN))
-                || !(jobInfoReq.queue    = (char *) malloc(MAX_LSB_NAME_LEN))
-                || !(jobInfoReq.userName = (char *) malloc(MAX_LSB_NAME_LEN))
+                || !(jobInfoReq.queue    = (char *) malloc(LL_BUFSIZ_32))
+                || !(jobInfoReq.userName = (char *) malloc(LL_BUFSIZ_32))
                 || !(jobInfoReq.host     = (char *) malloc(MAXHOSTNAMELEN))) {
             lsberrno = LSBE_SYS_CALL;
             return NULL;
@@ -66,7 +66,7 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
     if (queueName == NULL)
         jobInfoReq.queue[0] = '\0';
     else {
-        if (strlen (queueName) >= MAX_LSB_NAME_LEN - 1) {
+        if (strlen (queueName) >= LL_BUFSIZ_32 - 1) {
             lsberrno = LSBE_BAD_QUEUE;
             return NULL;
         }
@@ -121,7 +121,7 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
         struct passwd *pwd = getpwuid(getuid());
         strcpy(jobInfoReq.userName, pwd->pw_name);
     } else {
-        if (strlen (userName) >= MAX_LSB_NAME_LEN - 1) {
+        if (strlen (userName) >= LL_BUFSIZ_32 - 1) {
             lsberrno = LSBE_BAD_USER;
             return NULL;
         }
@@ -487,7 +487,7 @@ lsb_jobid2str (LS_LONG_INT jobId)
 char *
 lsb_jobidinstr(LS_LONG_INT jobId)
 {
-    static char string[BUFSIZ_32];
+    static char string[LL_BUFSIZ_32];
 
     sprintf(string, "%ld", jobId);
     return string;

@@ -331,7 +331,7 @@ lsb_geteventrec(FILE *log_fp, int *LineNum)
     int cc;
     int ccount;
     char *line;
-    char etype[BUFSIZ_64];
+    char etype[LL_BUFSIZ_64];
     char *namebuf = NULL;
     static struct eventRec *logRec;
     int tempTimeStamp;
@@ -376,7 +376,7 @@ lsb_geteventrec(FILE *log_fp, int *LineNum)
 
     if ((ccount = stripQStr(line, namebuf)) < 0
         || (int)strlen(line) == ccount
-        || (int)strlen(namebuf) >= MAX_LSB_NAME_LEN) {
+        || (int)strlen(namebuf) >= LL_BUFSIZ_32) {
         lsberrno = LSBE_EVENT_FORMAT;
         free(namebuf);
 	return NULL;
@@ -606,7 +606,7 @@ readJobNew(char *line, struct jobNewLog *jobNewLog)
 
     line += ccount + 1;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobNewLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobNewLog->userName);
 
     for (i = 0; i < LSF_RLIM_NLIMITS; i++) {
 	cc = sscanf(line, "%d%n", &(jobNewLog->rLimits[i]), &ccount);
@@ -623,7 +623,7 @@ readJobNew(char *line, struct jobNewLog *jobNewLog)
 	return LSBE_EVENT_FORMAT;
     line += ccount + 1;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobNewLog->queue);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobNewLog->queue);
     saveQStr(line, jobNewLog->resReq);
     copyQStr(line, MAXHOSTNAMELEN, 1, jobNewLog->fromHost);
     copyQStr(line, MAXFILENAMELEN, 0, jobNewLog->cwd);
@@ -1113,7 +1113,7 @@ readMig(char *line, struct migLog *migLog)
     if (cc != 1)
         return LSBE_EVENT_FORMAT;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, migLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, migLog->userName);
     return LSBE_NO_ERROR;
 
 }
@@ -1223,7 +1223,7 @@ readJobSwitch(char *line, struct jobSwitchLog *jobSwitchLog)
 	return LSBE_EVENT_FORMAT;
 
     line += ccount + 1;
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobSwitchLog->queue);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobSwitchLog->queue);
 
     cc = sscanf(line, "%d%n", &(jobSwitchLog->idx),
                 &ccount);
@@ -1231,7 +1231,7 @@ readJobSwitch(char *line, struct jobSwitchLog *jobSwitchLog)
         return LSBE_EVENT_FORMAT;
     line += ccount + 1;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobSwitchLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobSwitchLog->userName);
 
     return LSBE_NO_ERROR;
 
@@ -1258,7 +1258,7 @@ readJobMove(char *line, struct jobMoveLog *jobMoveLog)
         return LSBE_EVENT_FORMAT;
     line += ccount + 1;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobMoveLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobMoveLog->userName);
 
     return LSBE_NO_ERROR;
 }
@@ -1273,13 +1273,13 @@ readQueueCtrl(char *line, struct queueCtrlLog *queueCtrlLog)
 	return LSBE_EVENT_FORMAT;
 
     line += ccount + 1;
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, queueCtrlLog->queue);
+    copyQStr(line, LL_BUFSIZ_32, 1, queueCtrlLog->queue);
 
     cc = sscanf(line, "%d%n", &(queueCtrlLog->userId), &ccount);
     if (cc != 1)
         return LSBE_EVENT_FORMAT;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, queueCtrlLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, queueCtrlLog->userName);
 
     return LSBE_NO_ERROR;
 }
@@ -1301,7 +1301,7 @@ readHostCtrl(char *line, struct hostCtrlLog *hostCtrlLog)
     if (cc != 1)
         return LSBE_EVENT_FORMAT;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, hostCtrlLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, hostCtrlLog->userName);
 
     return LSBE_NO_ERROR;
 
@@ -1396,8 +1396,8 @@ readJobFinish(char *line, struct jobFinishLog *jobFinishLog, time_t eventTime)
 
     line += ccount + 1;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobFinishLog->userName);
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobFinishLog->queue);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobFinishLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobFinishLog->queue);
     saveQStr(line, jobFinishLog->resReq);
     saveQStr(line, jobFinishLog->dependCond);
     saveQStr(line, jobFinishLog->preExecCmd);
@@ -2557,7 +2557,7 @@ readJobSignal (char *line, struct signalLog *signalLog)
         return LSBE_EVENT_FORMAT;
     line += ccount + 1;
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, signalLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, signalLog->userName);
 
     return LSBE_NO_ERROR;
 
@@ -2744,7 +2744,7 @@ readJobForce(char* line, struct jobForceRequestLog* jobForceRequestLog)
 	line += cc + 1;
     }
 
-    copyQStr(line, MAX_LSB_NAME_LEN, 1, jobForceRequestLog->userName);
+    copyQStr(line, LL_BUFSIZ_32, 1, jobForceRequestLog->userName);
 
     return LSBE_NO_ERROR;
 }
@@ -2924,7 +2924,7 @@ lsbGetNextJobRecFromFile(FILE *logFp, int *lineNum,
             ls_syslog(LOG_DEBUG2, "%s: line=%s", fname, line);
 
         if ((ccount = stripQStr(line, nameBuf)) < 0 ||
-	    strlen(nameBuf) >= MAX_LSB_NAME_LEN) {
+	    strlen(nameBuf) >= LL_BUFSIZ_32) {
             lsberrno = LSBE_EVENT_FORMAT;
 	    break;
         }
@@ -3197,7 +3197,7 @@ int
 lsb_readeventrecord(char *line, struct eventRec *logRec)
 {
     static  char            fname[] = "lsb_readeventrecord";
-    char                    etype[MAX_LSB_NAME_LEN];
+    char                    etype[LL_BUFSIZ_32];
     char                    namebuf[MAXLINELEN];
     int                     cc;
     int                     ccount;
@@ -3214,7 +3214,7 @@ lsb_readeventrecord(char *line, struct eventRec *logRec)
     memset((char *)logRec, 0, sizeof(struct eventRec));
 
     if ((ccount = stripQStr(line, namebuf)) < 0
-             || strlen(namebuf) >= MAX_LSB_NAME_LEN) {
+             || strlen(namebuf) >= LL_BUFSIZ_32) {
         ls_syslog(LOG_DEBUG2, "%s: get event type fail", fname);
         return -1;
     }
@@ -3398,7 +3398,7 @@ getJobIdIndexFromEventFile (char *eventFile, struct sortIntList *header,
 	    continue;
 
         if ((ccount = stripQStr(line, nameBuf)) < 0 ||
-	    strlen(nameBuf) >= MAX_LSB_NAME_LEN) {
+	    strlen(nameBuf) >= LL_BUFSIZ_32) {
         }
         line += ccount + 1;
 

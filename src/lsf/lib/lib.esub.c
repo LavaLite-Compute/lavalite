@@ -238,14 +238,14 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
 
             if ((user = getenv("LSFUSER")) != NULL) {
                 if (get_uid(user, &uid) < 0) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_MM, fname, "getOSUid_", user);
+                    ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "getOSUid_", user);
                     exit(-1);
                 }
             } else {
 
                 user = getenv("USER");
                 if ((pw = getpwnam2(user)) == NULL) {
-                    ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getpwnam2", user);
+                    ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "getpwnam2", user);
                     exit(-1);
                 }
                 uid = pw->pw_uid;
@@ -253,12 +253,14 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
         }
 
         if (setuid(uid) < 0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "setuid", (int) uid);
+            ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "setuid", (int) uid);
             exit (-1);
         }
 
         if (setpgid(0, getpid()) <0) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "setpgid");
+            
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "setpgid")
+;
             exit (-1);
         }
 
@@ -269,19 +271,21 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
 
         close(p[1]);
         if (dup2(p[0], 0) == -1) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M,  fname, "dup2(stdin,0)");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m",  fname, "dup2(stdin,0)");
         }
 
         for (i = 3; i < sysconf(_SC_OPEN_MAX); i++)
             close(i);
 
-        lsfExecvp(myargv[0], myargv);
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "execvp", myargv[0]);
+        execvp(myargv[0], myargv);
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "execvp", myargv[0]);
         exit(-1);
     }
 
     if (pid == -1) {
-        ls_syslog(LOG_ERR, I18N_FUNC_FAIL_M, fname, "fork");
+        
+  ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "fork")
+;
         close(p[0]);
         close(p[1]);
         lserrno = LSE_FORK;
@@ -293,7 +297,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
     if (eexec->len > 0) {
         if ((cc = b_write_fix(p[1], eexec->data, eexec->len)) != eexec->len &&
             strcmp (option, "-p")) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_M, fname, "b_write_fix", eexec->len);
+            ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "b_write_fix", eexec->len);
         }
     }
 
@@ -330,23 +334,23 @@ runEGroup_(char *type, char *gname)
     if (uid == 0 && (managerIdStr = getenv("LSB_MANAGERID")) != NULL) {
         uid = atoi(managerIdStr);
         if (getpwuid(uid )) {
-            ls_syslog(LOG_ERR, I18N_FUNC_D_FAIL_MM, fname, "getLSFUserByUid_", uid);
+            ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "getLSFUserByUid_", uid);
             return NULL;
         }
     } else {
         if (getpwnam2(lsfUserName) == NULL) {
-            ls_syslog(LOG_ERR, I18N_FUNC_FAIL_MM, fname, "getpwnam2");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getpwnam2");
             return NULL;
         }
     }
 
     if (stat(egroupPath, &sbuf) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "stat", egroupPath);
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "stat", egroupPath);
         return NULL;
     }
 
     if (getEData(&ed, argv, lsfUserName) < 0) {
-        ls_syslog(LOG_ERR, I18N_FUNC_S_FAIL_M, fname, "getEData", egroupPath);
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "getEData", egroupPath);
         return NULL;
     }
 

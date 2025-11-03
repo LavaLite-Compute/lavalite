@@ -144,7 +144,7 @@ main(int argc, char **argv)
 static void
 usage(char *cmd)
 {
-    fprintf (stderr, "%s: %s [-h] [-V] [-l] [-r] [-m] [-M] [-t] [resource_name ...]\n",I18N_Usage, cmd);
+    fprintf(stderr, "Usage: %s [-h] [-V] [-l] [-r] [-m] [-M] [-t] [resource_name ...]\n", cmd);
     exit(-1);
 }
 
@@ -188,9 +188,9 @@ static char
 {
     static char *sp = NULL;
     if (flag)
-        sp = I18N_Yes;
+        sp = "Yes";
     else
-        sp = I18N_No;
+        sp = "No";
     return sp;
 }
 
