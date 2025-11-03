@@ -160,7 +160,7 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
-        xdrmem_create(&xdrs2, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+        xdrmem_create(&xdrs2, reply_buf, cc, XDR_DECODE);
         if (! xdr_jobInfoHead (&xdrs2, &jobInfoHead, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs2);
@@ -264,7 +264,7 @@ lsb_readjobinfo(int *more)
     FREEUP( jobInfoReply.parentGroup );
     FREEUP( jobInfoReply.jName );
 
-    TIMEIT(1, xdrmem_create(&xdrs, buffer, XDR_DECODE_SIZE_(hdr.length), XDR_DECODE), "xdrmem_create");
+    TIMEIT(1, xdrmem_create(&xdrs, buffer, hdr.length, XDR_DECODE), "xdrmem_create");
     TIMEIT(1, (aa = xdr_jobInfoReply(&xdrs, &jobInfoReply, &hdr)), "xdr_jobInfoReply");
     if (aa == false) {
         lsberrno = LSBE_XDR;

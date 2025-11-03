@@ -28,7 +28,7 @@ struct packet_header {
     int32_t  sequence;  // request/response correlation
     int32_t  operation; // message type / opcode
     int32_t  version;   // e.g. 0x00010000
-    uint32_t length;    // payload bytes
+    int32_t length;     // payload bytes
     int32_t  reserved;   // future use (e.g., flags or error)
 };
 

@@ -153,7 +153,7 @@ sendGrpReq (char *clusterName, int options, struct infoReq *groupInfo,
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_GROUP ) {
         xdrmem_create(&xdrs,
                 reply_buf,
-                XDR_DECODE_SIZE_(cc),
+                cc,
                 XDR_DECODE);
 
         if (!xdr_groupInfoReply(&xdrs, reply, &hdr)) {

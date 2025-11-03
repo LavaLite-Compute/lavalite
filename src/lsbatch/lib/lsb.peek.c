@@ -71,7 +71,7 @@ lsb_peekjob (LS_LONG_INT jobid)
         char fnBuf[MAXPATHLEN];
         struct passwd *pw;
         struct stat st;
-        xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+        xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
 
         if(!xdr_jobPeekReply(&xdrs, &jobPeekReply, &hdr)) {
             lsberrno = LSBE_XDR;

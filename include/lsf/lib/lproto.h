@@ -137,8 +137,6 @@ extern int sharedResConfigured_;
 
 #define NET_INTSIZE_ 4
 
-#define XDR_DECODE_SIZE_(a) (a)
-
 #define LS_EXEC_T "LS_EXEC_T"
 
 

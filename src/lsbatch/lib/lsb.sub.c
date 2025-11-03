@@ -659,7 +659,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
         return -1;
     }
 
-    xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+    xdrmem_create(&xdrs, reply_buf, (cc), XDR_DECODE);
 
     if (!xdr_submitMbdReply(&xdrs, reply, &hdr)) {
         lsberrno = LSBE_XDR;
@@ -1331,7 +1331,7 @@ cleanup:
 }
 
 int
-getOtherParams(struct submit  *jobSubReq,
+getOtherParams(struct submit  *user_submit_request,
                struct submitReq *submitReq,
                struct submitReply *submitRep,
                struct lsfAuth *auth,
@@ -1348,158 +1348,160 @@ getOtherParams(struct submit  *jobSubReq,
     (void)submitRep;
     (void)subSpoolFiles;
 
-    if (jobSubReq->options & SUB_JOB_NAME) {
-        if (!jobSubReq->jobName) {
+    if (user_submit_request->options & SUB_JOB_NAME) {
+        if (!user_submit_request->jobName) {
             lsberrno = LSBE_BAD_JOB;
             return -1;
         }
 
-        if (strlen(jobSubReq->jobName) >= MAX_CMD_DESC_LEN - 1) {
+        if (strlen(user_submit_request->jobName) >= MAX_CMD_DESC_LEN - 1) {
             lsberrno = LSBE_BAD_JOB;
             return -1;
         } else
-            submitReq->jobName = jobSubReq->jobName;
+            submitReq->jobName = user_submit_request->jobName;
     } else
         submitReq->jobName = "";
 
     // Bug remove all spool reference and code
     submitReq->inFileSpool = "";
     submitReq->inFile = "";
-    if (jobSubReq->options & SUB_IN_FILE) {
-        if (!jobSubReq->inFile) {
+    if (user_submit_request->options & SUB_IN_FILE) {
+        if (!user_submit_request->inFile) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
 
-        if (strlen(jobSubReq->inFile) >= MAXFILENAMELEN - 1) {
+        if (strlen(user_submit_request->inFile) >= MAXFILENAMELEN - 1) {
             lsberrno = LSBE_SYS_CALL;
             errno = ENAMETOOLONG;
             return -1;
         }
-        submitReq->inFile = jobSubReq->inFile;
+        submitReq->inFile = user_submit_request->inFile;
         submitReq->inFileSpool = "";
     }
 
-    if (jobSubReq->options & SUB_MAIL_USER) {
-        if (!jobSubReq->mailUser) {
+    if (user_submit_request->options & SUB_MAIL_USER) {
+        if (!user_submit_request->mailUser) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
-        if (strlen(jobSubReq->mailUser) >= MAXHOSTNAMELEN -1) {
+        if (strlen(user_submit_request->mailUser) >= MAXHOSTNAMELEN -1) {
             lsberrno = LSBE_SYS_CALL;
             errno = ENAMETOOLONG;
             return -1;
         }
-        submitReq->mailUser = jobSubReq->mailUser;
+        submitReq->mailUser = user_submit_request->mailUser;
     } else
         submitReq->mailUser = "";
 
-    if (jobSubReq->options & SUB_PROJECT_NAME) {
-        if (!jobSubReq->projectName) {
+    if (user_submit_request->options & SUB_PROJECT_NAME) {
+        if (!user_submit_request->projectName) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
-        if (strlen(jobSubReq->projectName) >= LL_BUFSIZ_32 - 1) {
+        if (strlen(user_submit_request->projectName) >= LL_BUFSIZ_32 - 1) {
             lsberrno = LSBE_BAD_ARG;
             errno = ENAMETOOLONG;
             return -1;
         }
-        submitReq->projectName = jobSubReq->projectName;
+        submitReq->projectName = user_submit_request->projectName;
     } else
         submitReq->projectName = "";
 
-    if (jobSubReq->options & SUB_OUT_FILE) {
-        if (!jobSubReq->outFile) {
+    if (user_submit_request->options & SUB_OUT_FILE) {
+        if (!user_submit_request->outFile) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
 
-        if (strlen(jobSubReq->outFile) >= MAXFILENAMELEN - 1) {
+        if (strlen(user_submit_request->outFile) >= MAXFILENAMELEN - 1) {
             lsberrno = LSBE_SYS_CALL;
             errno = ENAMETOOLONG;
             return -1;
         }
-        submitReq->outFile = jobSubReq->outFile;
+        submitReq->outFile = user_submit_request->outFile;
     } else
         submitReq->outFile = "";
 
-    if (jobSubReq->options & SUB_ERR_FILE) {
-        if (!jobSubReq->errFile) {
+    if (user_submit_request->options & SUB_ERR_FILE) {
+        if (!user_submit_request->errFile) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
 
-        if (strlen(jobSubReq->errFile) >= MAXFILENAMELEN - 1) {
+        if (strlen(user_submit_request->errFile) >= MAXFILENAMELEN - 1) {
             lsberrno = LSBE_SYS_CALL;
             errno = ENAMETOOLONG;
             return -1;
         }
-        submitReq->errFile = jobSubReq->errFile;
+        submitReq->errFile = user_submit_request->errFile;
     } else
         submitReq->errFile = "";
 
-    if (jobSubReq->options & SUB_CHKPNT_PERIOD) {
-        if (!(jobSubReq->options & SUB_CHKPNTABLE))
+    if (user_submit_request->options & SUB_CHKPNT_PERIOD) {
+        if (!(user_submit_request->options & SUB_CHKPNTABLE))
             return -1;
 
-        if (jobSubReq->chkpntPeriod < 0)
+        if (user_submit_request->chkpntPeriod < 0)
             return -1;
         else
-            submitReq->chkpntPeriod = jobSubReq->chkpntPeriod;
+            submitReq->chkpntPeriod = user_submit_request->chkpntPeriod;
     } else
         submitReq->chkpntPeriod = 0;
 
-    if (jobSubReq->options & SUB_CHKPNT_DIR) {
-        if (!jobSubReq->chkpntDir) {
+    if (user_submit_request->options & SUB_CHKPNT_DIR) {
+        if (!user_submit_request->chkpntDir) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
 
-        if (strlen(jobSubReq->chkpntDir) >= MAXFILENAMELEN - 1) {
+        if (strlen(user_submit_request->chkpntDir) >= MAXFILENAMELEN - 1) {
             lsberrno = LSBE_SYS_CALL;
             errno = ENAMETOOLONG;
             return -1;
         }
 
-        submitReq->chkpntDir = jobSubReq->chkpntDir;
+        submitReq->chkpntDir = user_submit_request->chkpntDir;
         submitReq->options |= SUB_CHKPNTABLE;
     } else
         submitReq->chkpntDir = "";
 
-    if (jobSubReq->numProcessors < 0
-            || jobSubReq->maxNumProcessors < jobSubReq->numProcessors) {
+    if (user_submit_request->numProcessors < 0
+        || user_submit_request->maxNumProcessors
+        < user_submit_request->numProcessors) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
 
-    if (jobSubReq->numProcessors == 0 && jobSubReq->maxNumProcessors == 0) {
+    if (user_submit_request->numProcessors == 0
+        && user_submit_request->maxNumProcessors == 0) {
 
-        jobSubReq->options2 |= SUB2_USE_DEF_PROCLIMIT;
+        user_submit_request->options2 |= SUB2_USE_DEF_PROCLIMIT;
         submitReq->options2 |= SUB2_USE_DEF_PROCLIMIT;
     }
 
-    if (jobSubReq->numProcessors != DEFAULT_NUMPRO
-            && jobSubReq->maxNumProcessors != DEFAULT_NUMPRO) {
-        submitReq->numProcessors = (jobSubReq->numProcessors)
-            ? jobSubReq->numProcessors : 1;
-        submitReq->maxNumProcessors = (jobSubReq->maxNumProcessors)
-            ? jobSubReq->maxNumProcessors : 1;
+    if (user_submit_request->numProcessors != DEFAULT_NUMPRO
+        && user_submit_request->maxNumProcessors != DEFAULT_NUMPRO) {
+        submitReq->numProcessors = (user_submit_request->numProcessors)
+            ? user_submit_request->numProcessors : 1;
+        submitReq->maxNumProcessors = (user_submit_request->maxNumProcessors)
+            ? user_submit_request->maxNumProcessors : 1;
     } else {
         submitReq->numProcessors = DEFAULT_NUMPRO;
         submitReq->maxNumProcessors = DEFAULT_NUMPRO;
     }
 
-    if (jobSubReq->options & SUB_LOGIN_SHELL) {
-        if (!jobSubReq->loginShell) {
+    if (user_submit_request->options & SUB_LOGIN_SHELL) {
+        if (!user_submit_request->loginShell) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
-        if (strlen(jobSubReq->loginShell) >= LL_BUFSIZ_32 - 1) {
+        if (strlen(user_submit_request->loginShell) >= LL_BUFSIZ_32 - 1) {
             lsberrno = LSBE_BAD_ARG;
             errno = ENAMETOOLONG;
             return -1;
         }
-        submitReq->loginShell = jobSubReq->loginShell;
+        submitReq->loginShell = user_submit_request->loginShell;
     } else
         submitReq->loginShell = "";
 
@@ -1508,14 +1510,14 @@ getOtherParams(struct submit  *jobSubReq,
     submitReq->restartPid = 0;
     submitReq->jobFile = "";
 
-    if (jobSubReq->command == (char *)NULL ) {
+    if (user_submit_request->command == (char *)NULL ) {
         lsberrno = LSBE_BAD_CMD;
         return -1;
     }
 
     lineStrBuf[0] = '\0';
     jobdesp = lineStrBuf;
-    strncat(lineStrBuf, jobSubReq->command, MAX_CMD_DESC_LEN - 1);
+    strncat(lineStrBuf, user_submit_request->command, MAX_CMD_DESC_LEN - 1);
 
     if ((sp = strstr(jobdesp, "SCRIPT_\n")) != NULL) {
 
@@ -1548,45 +1550,49 @@ getOtherParams(struct submit  *jobSubReq,
     if (jobdesp[lastNonSpaceIdx] == ';')
         jobdesp[lastNonSpaceIdx] = '\0';
 
-    for (i = 0; jobSubReq->command[i] != '\0'; i++) {
+    for (i = 0; user_submit_request->command[i] != '\0'; i++) {
 
-        if (jobSubReq->command[i] == ';' || jobSubReq->command[i] == ' ' ||
-                jobSubReq->command[i] == '&' || jobSubReq->command[i] == '>' ||
-                jobSubReq->command[i] == '<' || jobSubReq->command[i] == '|' ||
-                jobSubReq->command[i] == '\t' || jobSubReq->command[i] == '\n')
+        if (user_submit_request->command[i] == ';'
+            || user_submit_request->command[i] == ' '
+            || user_submit_request->command[i] == '&'
+            || user_submit_request->command[i] == '>'
+            || user_submit_request->command[i] == '<'
+            || user_submit_request->command[i] == '|'
+            || user_submit_request->command[i] == '\t'
+            || user_submit_request->command[i] == '\n')
             break;
     }
-    if ((i == 0) && (jobSubReq->command[0] != ' ')) {
+    if ((i == 0) && (user_submit_request->command[0] != ' ')) {
         lsberrno = LSBE_BAD_CMD;
         return -1;
     }
 
-    strcpy (submitReq->command, jobdesp);
+    strcpy(submitReq->command, jobdesp);
 
-    if (jobSubReq->options2 & SUB2_MODIFY_CMD) {
-        for (i = 0; jobSubReq->newCommand[i] != '\0'; i++) {
+    if (user_submit_request->options2 & SUB2_MODIFY_CMD) {
+        for (i = 0; user_submit_request->newCommand[i] != '\0'; i++) {
 
-            if (jobSubReq->newCommand[i] == ';' ||
-                    jobSubReq->newCommand[i] == ' ' ||
-                    jobSubReq->newCommand[i] == '&' ||
-                    jobSubReq->newCommand[i] == '>' ||
-                    jobSubReq->newCommand[i] == '<' ||
-                    jobSubReq->newCommand[i] == '|' ||
-                    jobSubReq->newCommand[i] == '\t' ||
-                    jobSubReq->newCommand[i] == '\n')
+            if (user_submit_request->newCommand[i] == ';' ||
+                    user_submit_request->newCommand[i] == ' ' ||
+                    user_submit_request->newCommand[i] == '&' ||
+                    user_submit_request->newCommand[i] == '>' ||
+                    user_submit_request->newCommand[i] == '<' ||
+                    user_submit_request->newCommand[i] == '|' ||
+                    user_submit_request->newCommand[i] == '\t' ||
+                    user_submit_request->newCommand[i] == '\n')
                 break;
         }
-        if ((i == 0) && (jobSubReq->command[0] != ' ')) {
+        if ((i == 0) && (user_submit_request->command[0] != ' ')) {
             lsberrno = LSBE_BAD_CMD;
             return -1;
         }
     }
 
-    if (jobSubReq->options2 & SUB2_JOB_CMD_SPOOL) {
+    if (user_submit_request->options2 & SUB2_JOB_CMD_SPOOL) {
         // Bug remove reference
-    } else if (jobSubReq->options2 & SUB2_MODIFY_CMD) {
+    } else if (user_submit_request->options2 & SUB2_MODIFY_CMD) {
 
-        strcpy(submitReq->command, jobSubReq->newCommand);
+        strcpy(submitReq->command, user_submit_request->newCommand);
         submitReq->commandSpool = "";
     } else {
         submitReq->commandSpool = "";
@@ -1594,28 +1600,31 @@ getOtherParams(struct submit  *jobSubReq,
 
     {
         lineStrBuf[0] = '\0';
-        strncat(lineStrBuf, jobSubReq->command, MIN(i, MAXLINELEN));
+        strncat(lineStrBuf, user_submit_request->command, MIN(i, MAXLINELEN));
     }
 
     if ((myHostName = ls_getmyhostname()) == NULL) {
         lsberrno = LSBE_LSLIB;
         return -1;
     }
-    if (jobSubReq->resReq != NULL && jobSubReq->options & SUB_RES_REQ) {
-        if (strlen (jobSubReq->resReq) > MAXLINELEN -1) {
+
+    submitReq->resReq = "";
+    if (user_submit_request->resReq != NULL
+        && user_submit_request->options & SUB_RES_REQ) {
+        if (strlen (user_submit_request->resReq) > MAXLINELEN -1) {
             lsberrno = LSBE_BAD_RESREQ;
             return -1;
         }
-        strcpy (submitReq->resReq,jobSubReq->resReq);
+        strcpy(submitReq->resReq,user_submit_request->resReq);
     }
 
     submitReq->fromHost = myHostName;
 
     umask(submitReq->umask = umask(0077));
 
-    if ((jobSubReq->options & SUB_OTHER_FILES) && jobSubReq->nxf > 0) {
-        submitReq->nxf = jobSubReq->nxf;
-        submitReq->xf = jobSubReq->xf;
+    if ((user_submit_request->options & SUB_OTHER_FILES) && user_submit_request->nxf > 0) {
+        submitReq->nxf = user_submit_request->nxf;
+        submitReq->xf = user_submit_request->xf;
     } else
         submitReq->nxf = 0;
 
@@ -1642,8 +1651,8 @@ getOtherParams(struct submit  *jobSubReq,
 
     strcpy(submitReq->subHomeDir, pw->pw_dir);
 
-    submitReq->sigValue = (jobSubReq->options & SUB_WINDOW_SIG)
-        ? sig_encode(jobSubReq->sigValue) : 0;
+    submitReq->sigValue = (user_submit_request->options & SUB_WINDOW_SIG)
+        ? sig_encode(user_submit_request->sigValue) : 0;
     if (submitReq->sigValue > 31 || submitReq->sigValue < 0) {
         lsberrno = LSBE_BAD_SIGNAL;
         return -1;

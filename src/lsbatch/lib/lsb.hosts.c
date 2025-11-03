@@ -150,7 +150,7 @@ lsb_hostinfo_ex (char **hosts, int *numHosts, char *resReq, int options)
 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_HOST) {
-        xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+        xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
 
         if(!xdr_hostDataReply(&xdrs, &reply, &hdr)) {
             lsberrno = LSBE_XDR;

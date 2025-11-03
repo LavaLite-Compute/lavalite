@@ -362,7 +362,7 @@ lsb_geteventrec(FILE *log_fp, int *LineNum)
 
         line = getNextLine_(log_fp, false);
 	if (line == NULL) {
-	    fclose(log_fp);
+            // dont close log_fp, the caller owns it, opened it
 	    lsberrno = LSBE_EOF;
 	    return NULL;
 	}

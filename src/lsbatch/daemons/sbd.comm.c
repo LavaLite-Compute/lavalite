@@ -348,7 +348,7 @@ getJobsState (struct sbdPackage *sbdPackage)
     reply = hdr.operation;
     switch (reply) {
     case LSBE_NO_ERROR:
-	xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+	xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
         if (!xdr_sbdPackage (&xdrs, sbdPackage, &hdr)) {
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_sbdPackage",
 		masterHost);

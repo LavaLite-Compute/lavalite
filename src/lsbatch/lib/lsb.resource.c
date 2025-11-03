@@ -133,7 +133,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
-        xdrmem_create(&xdrs2, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+        xdrmem_create(&xdrs2, reply_buf, cc, XDR_DECODE);
         if (!xdr_lsbShareResourceInfoReply(&xdrs2, &lsbResourceInfoReply, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs2);

@@ -79,7 +79,7 @@ processMsg(int chanfd)
     ls_syslog(LOG_DEBUG,"%s: Received message with len %d on chan %d",
               fname,buf->len, chanfd);
 
-    xdrmem_create(&xdrs, buf->data, XDR_DECODE_SIZE_(buf->len), XDR_DECODE);
+    xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_LSFHeader(&xdrs, &hdr)) {
         ls_syslog(LOG_ERR, "%s: Bad header received",fname);
         xdr_destroy(&xdrs);

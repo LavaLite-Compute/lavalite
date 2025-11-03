@@ -201,7 +201,7 @@ sendModifyReq (struct modifyReq *modifyReq, struct submitReply *submitReply, str
         return -1;
     }
 
-    xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+    xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
 
     if (!xdr_submitMbdReply(&xdrs, reply, &hdr)) {
         lsberrno = LSBE_XDR;

@@ -72,7 +72,7 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int operation)
 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
-        xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+        xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
         if (!xdr_jobMoveReq(&xdrs, &jobMoveReq, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs);

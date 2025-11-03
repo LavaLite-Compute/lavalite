@@ -805,7 +805,7 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
         timeval.tv_usec = timeout - timeval.tv_sec*1000;
         timep = &timeval;
     }
-    if ((cc=rd_select_(channels[chfd].handle, timep)) <= 0) {
+    if ((cc = rd_select_(channels[chfd].handle, timep)) <= 0) {
         if (cc == 0)
             lserrno = LSE_TIME_OUT;
         else
@@ -815,6 +815,7 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
 
     if (logclass & LC_COMM)
         ls_syslog(LOG_DEBUG2,"%s: reading reply header", fname);
+
     xdrmem_create(&xdrs, (char *)&hdrBuf, PACKET_HEADER_SIZE,  XDR_DECODE);
     cc = readDecodeHdr_(chfd,
                         (char *)&hdrBuf,
@@ -842,7 +843,7 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
             return -1;
         }
 
-        if ((cc=chanRead_(chfd, out->data, out->len)) != out->len) {
+        if ((cc = chanRead_(chfd, out->data, out->len)) != out->len) {
             FREEUP(out->data);
             if (logclass & LC_COMM)
                 ls_syslog(LOG_DEBUG2,"%s: read only %d bytes", fname,cc);

@@ -84,7 +84,7 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_USER) {
-        xdrmem_create(&xdrs, reply_buf, XDR_DECODE_SIZE_(cc), XDR_DECODE);
+        xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
         reply = &paramInfo;
         if(!xdr_parameterInfo (&xdrs, reply, &hdr)) {
             lsberrno = LSBE_XDR;

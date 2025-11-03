@@ -74,7 +74,7 @@ marshal_packet_header(XDR *xdrs,
         return false;
     if (!xdr_int32_t(xdrs, &header->version))
         return false;
-    if (! xdr_uint32_t(xdrs, &header->length))
+    if (! xdr_int32_t(xdrs, &header->length))
         return false;
     if (! xdr_int(xdrs, &header->reserved))
         return false;

@@ -48,12 +48,11 @@ callLim_(enum limReqCode reqCode,
          int options,
          struct packet_header *hdr)
 {
-    // Bug for now static buffers
-    static char   sbuf[LL_BUFSIZ_256];
-    static char   rbuf[LL_BUFSIZ_4K];
     struct packet_header reqHdr;
     struct packet_header replyHdr;
     XDR    xdrs;
+    char   sbuf[LL_BUFSIZ_256];
+    char   rbuf[LL_BUFSIZ_4K];
     char   *repBuf;
     enum limReplyCode limReplyCode;
     static char first = true;
@@ -86,48 +85,30 @@ callLim_(enum limReqCode reqCode,
     reqHdr.sequence  = getRefNum_();
     reqHdr.version = CURRENT_PROTOCOL_VERSION;
 
-    // Bug static bug size
-    xdrmem_create(&xdrs, sbuf, LL_BUFSIZ_256, XDR_ENCODE);
-
-    if (! xdr_encodeMsg(&xdrs, dsend, &reqHdr, xdr_sfunc, 0, NULL)) {
+    xdrmem_create(&xdrs, sbuf, sizeof(sbuf), XDR_ENCODE);
+    if (!xdr_encodeMsg(&xdrs, dsend, &reqHdr, xdr_sfunc, 0, NULL)) {
         xdr_destroy(&xdrs);
         lserrno = LSE_BAD_XDR;
         return -1;
     }
 
     reqLen = XDR_GETPOS(&xdrs);
+    // The data are in sbuf now so we dont need the xdr struct
     xdr_destroy(&xdrs);
 
     if (options & _USE_TCP_) {
 
         if (callLimTcp_(sbuf, &repBuf, reqLen, &replyHdr, options) < 0)
             return -1;
-
-        // Use the reply buffer as need
-        if (replyHdr.length == 0) {
+        if (replyHdr.length != 0)
+            xdrmem_create(&xdrs, repBuf, replyHdr.length, XDR_DECODE);
+        else
             xdrmem_create(&xdrs, rbuf, sizeof(rbuf), XDR_DECODE);
-        } else if (replyHdr.length <= sizeof(rbuf)) {
-            xdrmem_create(&xdrs, repBuf, XDR_DECODE_SIZE_(replyHdr.length),
-                          XDR_DECODE);
-        } else {
-            char *buf  = malloc((size_t)replyHdr.length);
-            if (!buf) {
-                lserrno = LSE_MALLOC;
-                return -1;
-            }
-            xdrmem_create(&xdrs, buf, (uint32_t)replyHdr.length,  XDR_DECODE);
-        }
-
-    }
-
-    if (options & _USE_UDP_) {
-
+    } else {
         if (callLimUdp_(sbuf, rbuf, reqLen, &reqHdr, host, options) < 0)
             return -1;
-
         if (options & _NON_BLOCK_)
             return 0;
-
         xdrmem_create(&xdrs, rbuf, sizeof(rbuf), XDR_DECODE);
     }
 
@@ -196,7 +177,7 @@ contact:
         if (limchans_[TCP] < 0 )
             return -1;
 
-        cc=chanConnect_(limchans_[TCP], &sockIds_[TCP], conntimeout_ * 1000, 0);
+        cc = chanConnect_(limchans_[TCP], &sockIds_[TCP], conntimeout_ * 1000, 0);
         if (cc < 0) {
             ls_syslog(LOG_DEBUG,"\
                     %s: failed in connecting to limChans_[TCP]=<%d> <%s>",
@@ -229,7 +210,7 @@ contact:
     sndbuf.len  = req_size;
     rcvbuf.data = NULL;
     rcvbuf.len  = 0;
-    cc=chanRpc_(limchans_[TCP], &sndbuf, &rcvbuf, replyHdr, recvtimeout_*1000);
+    cc = chanRpc_(limchans_[TCP], &sndbuf, &rcvbuf, replyHdr, recvtimeout_*1000);
     if (cc < 0) {
         CLOSECD(limchans_[TCP]);
         return -1;
