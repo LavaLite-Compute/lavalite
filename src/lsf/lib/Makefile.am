@@ -13,7 +13,6 @@ libll_la_LIBADD  = $(TIRPC_LIB) # if liblsf.a itself needs tirpc
 libll_la_SOURCES = lib.channel.c \
 	lib.conf.c \
 	lib.confmisc.c \
-	lib.conn.c \
 	lib.control.c \
 	lib.cwd.c \
 	lib.debug.c \
