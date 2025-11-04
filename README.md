@@ -25,8 +25,8 @@ performance, and modern design.
 
 Our philosophy draws from the algorithmic elegance championed by **Donald Knuth**, especially the
 principles laid out in *The Art of Computer Programming*. LavaLite is optimized for
-**high-throughput computing (HTC)**—not parallel MPI workloads—and is engineered for speed,
-simplicity, and transparency.
+**high-throughput computing (HTC)**— is engineered for speed,
+simplicity, and transparency. LavaLite still support MPI workloads by generating dymic hostfile if needed.
 
 LavaLite isn’t a clone. It’s a clean slate.
 
@@ -34,8 +34,8 @@ We aim for speed and simplicity, built on the algorithmic elegance that inspired
 
 ## Getting started
 
-LavaLite currently supports **Rocky Linux 8** and  **Rocky Linux  9**
-Compatibility with other distributions (e.g., Debian, Ubuntu, AlmaLinux) is
+LavaLite currently supports **Rocky Linux 8**, **Rocky Linux  9** and **Ubuntu 24.02**.
+Compatibility with other distributions (e.g., Debian, AlmaLinux) is
 planned for future releases.
 
 ## Quick Install
