@@ -63,7 +63,7 @@ main(int argc, char **argv)
         } else
         {
             char buf[150];
-            
+
     sprintf(buf, "%s: %s failed", "lsid", "ls_getclustername")
 ;
             ls_perror( buf );
@@ -75,7 +75,7 @@ main(int argc, char **argv)
     TIMEIT(0, (Name = ls_getmastername()), "ls_getmastername");
     if (Name == NULL) {
         char buf[150];
-        
+
     sprintf(buf, "%s: %s failed", "lsid", "ls_getmastername")
 ;
         ls_perror( buf );

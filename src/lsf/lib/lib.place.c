@@ -40,29 +40,7 @@ ls_placereq(char *resreq, int *numhosts, int options, char *fromhost)
         placeReq.numHosts = 9999;
         placeReq.options &= ~EXACT;
     }
-
-    namelist = ls_findmyconnections();
-    for (i = 0; namelist[i];)
-        i++;
-    i++;
-    placeReq.preferredHosts = (char **) calloc(i, sizeof (char *));
-    if (placeReq.preferredHosts == NULL) {
-        lserrno = LSE_MALLOC;
-        return NULL;
-    }
-
-    for (i=1; namelist[i-1] != NULL; i++) {
-        placeReq.preferredHosts[i] = putstr_(namelist[i-1]);
-        if (placeReq.preferredHosts[i] == NULL) {
-            for (j=1; j<i;j++)
-                free(placeReq.preferredHosts[j]);
-            free(placeReq.preferredHosts);
-            lserrno = LSE_MALLOC;
-            return NULL;
-        }
-    }
-
-    placeReq.numPrefs = i;
+    placeReq.numPrefs = 0;
 
     return placement_(resreq, &placeReq, fromhost, num);
 }
@@ -134,10 +112,13 @@ ls_placeofhosts(char *resreq,
 }
 
 char **
-placement_(char *resReq, struct decisionReq *placeReqPtr, char *fromhost, int *numhosts)
+placement_(char *resReq,
+           struct decisionReq *placeReqPtr,
+           char *fromhost,
+           int *numhosts)
 {
     static struct placeReply  placeReply;
-    static char   **hostnames;
+    static char **hostnames;
     int  numnames,i,j,k;
     char *hname;
 

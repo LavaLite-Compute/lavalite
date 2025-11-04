@@ -18,8 +18,6 @@
  */
 #include "lsf/lib/lib.h"
 
-#define MAXLISTSIZE 256
-
 void
 usage(const char *cmd)
 {
@@ -32,7 +30,7 @@ main(int argc, char **argv)
 {
     static char fname[] = "lsplace/main";
     char *resreq = NULL;
-    char *hostnames[MAXLISTSIZE];
+    char *hostnames[LL_BUFSIZ_256];
     char **desthosts;
     int cc = 0;
     int needed = 1;
@@ -86,11 +84,10 @@ main(int argc, char **argv)
     }
 
     for ( ; optind < argc ; optind++) {
-        if (cc>=MAXLISTSIZE) {
-            fprintf(stderr,
-                    "%s: too many hosts specified max %d\n",
-                    argv[0], MAXLISTSIZE);
-            exit(-1);
+        if (cc >= LL_BUFSIZ_256) {
+            fprintf(stderr, "%s: too many hosts specified max %d\n",
+                    argv[0], LL_BUFSIZ_256);
+            return -1;
         }
 
         if (ls_isclustername(argv[optind]) <= 0 &&
@@ -125,35 +122,17 @@ main(int argc, char **argv)
         desthosts = ls_placereq(resreq, &wanted, i, NULL);
     else
         desthosts = ls_placeofhosts(resreq, &wanted, i, 0, hostnames, cc);
-
-    if (!desthosts) {
-        char i18nBuf[150];
-        
-    sprintf(i18nBuf, "%s: %s failed", "lsplace", "ls_placereq")
-;
-        ls_perror( i18nBuf );
-        if (lserrno == LSE_BAD_EXP ||
-            lserrno == LSE_UNKWN_RESNAME ||
-            lserrno == LSE_UNKWN_RESVALUE)
-            exit(-1);
-        else
-            exit(1);
+    if (! desthosts) {
+        ls_perror("ls_placereq() failed");
+        return -1;
     }
 
-    if (wanted < needed) {
+    if (wanted < needed)
+        printf("lsplace: got less hosts %d then requested\n", wanted);
 
-        char i18nBuf[150];
-        
-    sprintf(i18nBuf, "%s: %s failed", "lsplace", "ls_placereq")
-;
-        fputs( i18nBuf, stderr );
-        fputs(ls_errmsg[LSE_NO_HOST], stderr);
-        putc('\n', stderr);
-        exit(1);
-    }
-
-    for (cc=0; cc < wanted; cc++)
+    for (cc = 0; cc < wanted; cc++)
         printf("%s ", desthosts[cc]);
     printf("\n");
-    exit(0);
+
+    return 0;
 }

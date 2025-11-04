@@ -18,7 +18,7 @@
  */
 #include "lsf/lib/lib.h"
 
-int    lserrno = LSE_NO_ERR;
+__thread int  lserrno = LSE_NO_ERR;
 int    masterLimDown = false;
 int    ls_nerr = LSE_NERR;
 

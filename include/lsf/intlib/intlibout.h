@@ -102,7 +102,6 @@ extern int            procChangeUser_(char *);
 extern int            matchName(char *, char *);
 extern char**         parseCommandArgs(char *, char *);
 extern int            FCLOSEUP(FILE** fp);
-#define MAXADDRSTRING 256
 extern void openChildLog(const char *defLogFileName,
                          const char *confLogDir,
                          int use_stderr,
@@ -116,8 +115,6 @@ extern void           inList(struct listEntry *, struct listEntry *);
 extern int            getResourceNames (int, char **, int, char **);
 extern void           displayShareResource(int, char **, int, int, int);
 extern int            makeShareField(char *, int, char ***, char ***, char ***);
-typedef int BOOL;
-typedef unsigned long DWORD;
 extern char *getMAC(int *length);
 extern char *mac2hex(char *mac, int len);
 
