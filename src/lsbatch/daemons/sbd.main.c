@@ -318,7 +318,7 @@ main (int argc, char **argv)
 	millisleep_ (6000);
     }
 
-    for(i=allLsInfo->nModels; i < MAXMODELS; i++)
+    for(i=allLsInfo->nModels; i < LL_HOSTMODEL_MAX; i++)
         allLsInfo->cpuFactor[i] = 1.0;
 
     if (logclass & (LC_TRACE | LC_COMM)) {

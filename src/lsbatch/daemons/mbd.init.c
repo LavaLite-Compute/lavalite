@@ -236,7 +236,7 @@ minit (int mbdInitFlags)
     }
     else {
 
-        for(i=allLsInfo->nModels; i < MAXMODELS; i++)
+        for(i=allLsInfo->nModels; i < LL_HOSTMODEL_MAX; i++)
 	    allLsInfo->cpuFactor[i] = 1.0;
     }
 
@@ -3253,7 +3253,7 @@ mbdReConf(int mbdInitFlags)
 	mbdDie(MASTER_FATAL);
     } else {
 
-        for(i=allLsInfo->nModels; i < MAXMODELS; i++)
+        for(i=allLsInfo->nModels; i < LL_HOSTMODEL_MAX; i++)
             allLsInfo->cpuFactor[i] = 1.0;
     }
 

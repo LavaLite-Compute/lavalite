@@ -148,10 +148,10 @@ struct shortLsInfo {
     int    nRes;
     char   **resName;
     int    nTypes;
-    char   *hostTypes[MAXTYPES];
+    char   *hostTypes[LL_HOSTTYPE_MAX];
     int    nModels;
-    char   *hostModels[MAXMODELS];
-    float  cpuFactors[MAXMODELS];
+    char   *hostModels[LL_HOSTMODEL_MAX];
+    float  cpuFactors[LL_HOSTMODEL_MAX];
     int    *stringResBitMaps;
     int    *numericResBitMaps;
 };
@@ -172,9 +172,9 @@ struct clusterInfoReq {
 
 
 struct shortCInfo {
-    char  clName[MAXLSFNAMELEN];
+    char  clName[LL_NAME_MAX];
     char  masterName[MAXHOSTNAMELEN];
-    char  managerName[MAXLSFNAMELEN];
+    char  managerName[LL_NAME_MAX];
     int   managerId;
     int   status;
     int   resClass;
@@ -197,9 +197,9 @@ struct shortCInfo {
 };
 
 struct cInfo {
-    char  clName[MAXLSFNAMELEN];
+    char  clName[LL_NAME_MAX];
     char  masterName[MAXHOSTNAMELEN];
-    char  managerName[MAXLSFNAMELEN];
+    char  managerName[LL_NAME_MAX];
     int   managerId;
     int   status;
     int   resClass;
@@ -262,7 +262,7 @@ struct limLock {
     int uid;
     int on;
     time_t time;
-    char lsfUserName[MAXLSFNAMELEN];
+    char lsfUserName[LL_NAME_MAX];
 };
 
 

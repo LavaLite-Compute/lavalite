@@ -10,7 +10,7 @@
 
 enum {
     LL_BUFSIZ_32   = 32,
-    LL_BUFSIZ_64   = 128,
+    LL_BUFSIZ_64   = 64,
     LL_BUFSIZ_128   = 128,
     LL_BUFSIZ_256   = 256,
     LL_BUFSIZ_512   = 512,
