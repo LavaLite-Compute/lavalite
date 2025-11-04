@@ -576,7 +576,7 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
 
     if (first) {
         int i;
-        for(i = 0; i < MAXMODELS; ++i) {
+        for(i = 0; i < LL_HOSTMODEL_MAX; ++i) {
             allInfo.cpuFactor[i] = 1.0;
             allInfo.modelRefs[i] = 0;
         }
@@ -597,7 +597,7 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
         return false;
 
     if (allInfo.nModels <= 0) {
-        memset(allInfo.modelRefs, 0, sizeof(int) * MAXMODELS);
+        memset(allInfo.modelRefs, 0, sizeof(int) * LL_HOSTMODEL_MAX);
         allInfo.nModels = 2;
     }
     if (shortInfo.nModels <= 0) {
@@ -3751,9 +3751,9 @@ addHostType(char *type)
     static char fname[] = "addHostType()";
     int i;
 
-    if (allInfo.nTypes == MAXTYPES) {
+    if (allInfo.nTypes == LL_HOSTTYPE_MAX) {
         ls_syslog(LOG_ERR, "%s: Too many host types defined in section HostType. You can only define up to %d host types; host type %s ignored",
-                  fname, MAXTYPES, type);
+                  fname, LL_HOSTTYPE_MAX, type);
         return false;
     }
 
@@ -3785,9 +3785,9 @@ addHostModel(char *model, char *arch, float factor)
     static char fname[] = "addHostModel()";
     int i;
 
-    if (allInfo.nModels == MAXMODELS) {
+    if (allInfo.nModels == LL_HOSTMODEL_MAX) {
         ls_syslog(LOG_ERR, "%s: Too many host models defined in section HostModel. You can only define up to %d host models; host model %s ignored",
-                  fname, MAXMODELS, model);
+                  fname, LL_HOSTMODEL_MAX, model);
         return false;
     }
 

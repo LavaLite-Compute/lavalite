@@ -345,18 +345,18 @@ char *nIndex)
     if (xdrs->x_op == XDR_ENCODE) {
         if (shortHInfo->hTypeIndx >= 0) {
 
-            tIndx = MIN( MAXTYPES, shortHInfo->hTypeIndx);
+            tIndx = MIN( LL_HOSTTYPE_MAX, shortHInfo->hTypeIndx);
         } else {
-            tIndx = MAXTYPES;
+            tIndx = LL_HOSTTYPE_MAX;
         }
         tIndx &= 0x7FFF;
         if (shortHInfo->windows[0] != '-')
             tIndx |= 0x8000;
         if (shortHInfo->hModelIndx >= 0) {
 
-            mIndx = MIN(MAXMODELS, shortHInfo->hModelIndx);
+            mIndx = MIN(LL_HOSTMODEL_MAX, shortHInfo->hModelIndx);
         } else {
-            mIndx = MAXMODELS;
+            mIndx = LL_HOSTMODEL_MAX;
         }
         a = tIndx << 16;
 	a &= 0xffffffff;

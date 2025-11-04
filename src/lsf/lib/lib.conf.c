@@ -488,9 +488,9 @@ addHostType(char *type)
     if (type == NULL)
         return false;
 
-    if (lsinfo.nTypes == MAXTYPES) {
+    if (lsinfo.nTypes == LL_HOSTTYPE_MAX) {
         ls_syslog(LOG_ERR, ("%s: Too many host types defined in section HostType. You can only define up to %d host types; host type %s ignored"),
-                  "addHostType", MAXTYPES, type);
+                  "addHostType", LL_HOSTTYPE_MAX, type);
         return false;
     }
 
@@ -595,9 +595,9 @@ addHostModel(char *model, char *arch, float factor)
     if (model == NULL)
         return false;
 
-    if (lsinfo.nModels == MAXMODELS) {
+    if (lsinfo.nModels == LL_HOSTMODEL_MAX) {
         ls_syslog(LOG_ERR, ("%s: Too many host models defined in section HostModel. You can only define up to %d host models; host model %s ignored"),
-                  "addHostModel", MAXMODELS, model);
+                  "addHostModel", LL_HOSTMODEL_MAX, model);
         return false;
     }
 

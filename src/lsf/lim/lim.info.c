@@ -666,16 +666,16 @@ getCShortInfo(struct packet_header *reqHdr)
 
     oldShortInfo.nRes = shortInfo.nRes;
     oldShortInfo.resName = shortInfo.resName;
-    if (shortInfo.nTypes > MAXTYPES_31) {
-        oldShortInfo.nTypes = MAXTYPES_31;
+    if (shortInfo.nTypes > LL_HOSTTYPE_MAX) {
+        oldShortInfo.nTypes = LL_HOSTTYPE_MAX;
     } else {
         oldShortInfo.nTypes = shortInfo.nTypes;
     }
     for (i = 0; i < oldShortInfo.nTypes; i++) {
         oldShortInfo.hostTypes[i] = shortInfo.hostTypes[i];
     }
-    if (shortInfo.nModels > MAXMODELS_31) {
-        oldShortInfo.nModels = MAXMODELS_31;
+    if (shortInfo.nModels > LL_HOSTMODEL_MAX) {
+        oldShortInfo.nModels = LL_HOSTMODEL_MAX;
     } else {
         oldShortInfo.nModels = shortInfo.nModels;
     }

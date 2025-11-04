@@ -477,12 +477,12 @@ expandSHinfo(struct hostInfoReply *hostInfoReply)
             hostInfoReply->hostMatrix[i].busyThreshold;
 
         indx = hostInfoReply->hostMatrix[i].hTypeIndx;
-        hostInfoPtr[i].hostType = (indx == MAXTYPES) ?
+        hostInfoPtr[i].hostType = (indx == LL_HOSTTYPE_MAX) ?
             "unknown" : lsInfoPtr->hostTypes[indx];
         indx = hostInfoReply->hostMatrix[i].hModelIndx;
-        hostInfoPtr[i].hostModel = (indx == MAXMODELS) ?
+        hostInfoPtr[i].hostModel = (indx == LL_HOSTMODEL_MAX) ?
             "unknown" : lsInfoPtr->hostModels[indx];
-        hostInfoPtr[i].cpuFactor = (indx == MAXMODELS) ?
+        hostInfoPtr[i].cpuFactor = (indx == LL_HOSTMODEL_MAX) ?
             1.0 : lsInfoPtr->cpuFactors[indx];
 
         if (hostInfoReply->hostMatrix[i].nRInt == 0)

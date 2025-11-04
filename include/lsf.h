@@ -66,20 +66,12 @@
 #include <sys/statvfs.h>
 #include <arpa/inet.h>
 
+// LavaLite
+#include "ll_user_limits.h"
+
 // Define 64 bit types
 typedef int64_t LS_LONG_INT;
 typedef uint64_t LS_UNS_LONG_INT;
-
-#define MAXLINELEN 512
-#define MAXLSFNAMELEN 40
-#define MAXSRES 32
-#define MAXRESDESLEN 256
-#define NBUILTINDEX 11
-#define MAXTYPES 128
-#define MAXMODELS 128
-#define MAXTYPES_31 25
-#define MAXMODELS_31 30
-#define MAXFILENAMELEN 256
 
 /* A little macro that abstracts the access to the process status returned
  * by wait() or waitpid().
@@ -208,7 +200,6 @@ typedef uint64_t LS_UNS_LONG_INT;
 
 #define LS_ISOK(status)  ((status[0] & LIM_OK_MASK) == 0)
 
-
 #define LS_ISOKNRES(status) (((status[0]) & ~(LIM_RESDOWN | LIM_SBDDOWN)) == 0)
 
 struct placeInfo {
@@ -261,12 +252,12 @@ struct lsInfo {
     int    nRes;
     struct resItem *resTable;
     int    nTypes;
-    char   hostTypes[MAXTYPES][MAXLSFNAMELEN];
+    char   hostTypes[LL_HOSTTYPE_MAX][MAXLSFNAMELEN];
     int    nModels;
-    char   hostModels[MAXMODELS][MAXLSFNAMELEN];
-    char   hostArchs[MAXMODELS][MAXLSFNAMELEN];
-    int    modelRefs[MAXMODELS];
-    float  cpuFactor[MAXMODELS];
+    char   hostModels[LL_HOSTMODEL_MAX][MAXLSFNAMELEN];
+    char   hostArchs[ LL_HOSTMODEL_MAX][MAXLSFNAMELEN];
+    int    modelRefs[ LL_HOSTMODEL_MAX];
+    float  cpuFactor[ LL_HOSTMODEL_MAX];
     int    numIndx;
     int    numUsrIndx;
 };
@@ -340,7 +331,6 @@ struct  lsfRusage {
     double  ru_exutime;
 };
 
-
 struct lsfAcctRec {
     int pid;
     char *username;
@@ -353,40 +343,6 @@ struct lsfAcctRec {
     char *cmdln;
     struct lsfRusage lsfRu;
 };
-
-
-
-#define NIO_STDIN_ON                        0x01
-#define NIO_STDIN_OFF                       0x02
-#define NIO_TAGSTDOUT_ON                    0x03
-#define NIO_TAGSTDOUT_OFF                   0x04
-
-#define NIO_TASK_STDINON                    0x01
-#define NIO_TASK_STDINOFF                   0x02
-#define NIO_TASK_ALL                        0x03
-#define NIO_TASK_CONNECTED                  0x04
-
-enum nioType {
-    NIO_STATUS,
-    NIO_STDOUT,
-    NIO_EOF,
-    NIO_IOERR,
-    NIO_REQUEUE,
-    NIO_STDERR
-};
-
-struct nioEvent {
-    int tid;
-    enum nioType type;
-    int status;
-};
-
-struct nioInfo {
-    int num;
-    struct nioEvent *ioTask;
-};
-
-
 
 struct confNode {
     struct confNode *leftPtr;
