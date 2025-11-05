@@ -1,0 +1,32 @@
+---
+name: Lavalite CI
+
+on:
+  push:
+    branches:
+      - "**"  # triggers on push to any branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool build-essential
+
+      - name: Bootstrap project
+        run: ./bootstrap  # or ./autogen.sh if that's your script
+
+      - name: Configure project
+        run: ./configure
+
+      - name: Compile project
+        run: make
+
+      - name: Run tests
+        run: make check  # or ./test_runner if you use a custom test script
