@@ -11,7 +11,9 @@ compile
 *.log
 *.out
 *.aux
-*core*
+# Ignore core dump files
+core
+core.*
 TAGS
 *Makefile.in
 Makefile
