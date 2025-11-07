@@ -58,9 +58,9 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
 
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         reconfig();
     }
@@ -201,9 +201,9 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
 
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -317,9 +317,9 @@ Reply:
     xdrmem_create(&xdrs2, buf, MAXHOSTNAMELEN, XDR_ENCODE);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -534,9 +534,9 @@ Reply:
     xdrmem_create(&xdrs2, buf, MAXHOSTNAMELEN, XDR_ENCODE);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }

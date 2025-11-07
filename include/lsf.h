@@ -25,6 +25,8 @@
 // Stability isn’t the absence of problems — it’s the ability
 // to recover gracefully.
 
+// Clarity over cleverness; minimal code, maximal intent
+
 #ifndef _LL_API_H_
 #define _LL_API_H_
 

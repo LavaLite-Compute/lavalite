@@ -370,58 +370,9 @@ tmpListHeader (struct listEntry *listHeader)
 
 }
 
-int
-fileExist (char *file, int uid, struct hostent *hp)
-{
-    int pid;
-    int fds[2], i;
-    int answer;
-
-    if (socketpair (AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "socketpair");
-        return TRUE;
-    }
-
-    pid = fork();
-    if (pid < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "fork");
-        return TRUE;
-    }
-
-    if (pid > 0) {
-        close(fds[1]);
-        if (b_read_fix(fds[0], (char *) &answer, sizeof (int)) < 0) {
-            ls_syslog(LOG_ERR, "%s", __func__, "read");
-            answer = TRUE;
-        }
-        close(fds[0]);
-        return answer;
-    } else {
-        close(fds[0]);
-        if (seteuid (uid) < 0) {
-            ls_syslog(LOG_ERR, "%s", __func__, "setuid",
-                      uid);
-            answer = TRUE;
-            write(fds[1], (char *) &answer, sizeof (int));
-            close(fds[1]);
-            exit(0);
-        }
-        if ((i = myopen_(file, O_RDONLY, 0, hp)) < 0) {
-            ls_syslog(LOG_INFO, "fileExist", "myopen_", file);
-            answer = FALSE;
-        } else {
-            close (i);
-            answer = TRUE;
-        }
-        write(fds[1], &answer, sizeof (int));
-        close(fds[1]);
-        exit(0);
-    }
-
-}
 
 void
-freeWeek (windows_t *week[])
+freeWeek(windows_t *week[])
 {
     windows_t *wp, *wpp;
     int j;
@@ -434,7 +385,6 @@ freeWeek (windows_t *week[])
         }
         week[j] = NULL;
     }
-
 }
 
 void

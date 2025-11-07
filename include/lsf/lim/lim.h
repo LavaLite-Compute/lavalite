@@ -534,13 +534,7 @@ extern int xdr_loadvector(XDR *, struct loadVectorStruct *,
 extern int xdr_loadmatrix(XDR *, int, struct loadVectorStruct *,
 			      struct packet_header *);
 extern int xdr_masterReg(XDR *, struct masterReg *, struct packet_header *);
-extern bool_t xdr_masterAnnSLIMConf(XDR *xdrs,
-		     struct masterAnnSLIMConf *masterAnnSLIMConfPtr,
-		     struct packet_header *hdr);
 extern int xdr_statInfo(XDR *xdrs, struct statInfo *sip, struct packet_header *);
-extern bool_t xdr_minSLimConfData(XDR *xdrs,
-				  struct minSLimConfData *sLimConfDatap,
-				  struct packet_header *hdr);
 extern void clientIO(struct Masks *);
 extern struct liStruct *li;
 extern int li_len;

@@ -293,12 +293,6 @@ getHostEntryByAddr_(const struct in_addr *addr)
     return hostEntP;
 }
 
-int
-whichDaemonAmI(void)
-{
-    return daemonId;
-}
-
 static struct hostent *
 getHostEntByName(const char *hostName, int options)
 {

@@ -40,7 +40,7 @@ clientIO(struct Masks *chanmasks)
     static char fname[]="clientIO";
     int  i;
 
-    for(i=0; (i < chanIndex) && (i < 2*MAXCLIENTS); i++) {
+    for(i = 0; (i < chanIndex) && (i < 2*MAXCLIENTS); i++) {
         if (i == limSock || i == limTcpSock)
             continue;
 
@@ -80,7 +80,7 @@ processMsg(int chanfd)
               fname,buf->len, chanfd);
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
-    if (!xdr_LSFHeader(&xdrs, &hdr)) {
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
         ls_syslog(LOG_ERR, "%s: Bad header received",fname);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
@@ -164,7 +164,6 @@ processMsg(int chanfd)
 static void
 clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
 {
-    static char fname[]="clientReq";
     struct decisionReq decisionRequest;
     int oldpos, i;
 
@@ -219,7 +218,6 @@ Reply1:
             case LIM_GET_RESOUINFO:
                 resourceInfoReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
                 break;
-
             case LIM_LOAD_REQ:
                 loadReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
                 break;
@@ -246,3 +244,93 @@ shutDownChan(int chanfd)
         FREEUP(clientMap[chanfd]);
     }
 }
+
+#if 0
+static void handle_load_req(const struct packet_header *hdr,
+                            struct Buffer *buf, int chfd, u_int header_end);
+static void handle_resinfo_req(const struct packet_header *hdr,
+                               struct Buffer *buf, int chfd, u_int header_end);
+/* ... */
+
+static void
+processMsg(int chfd)
+{
+    struct Buffer *buf = NULL;
+    struct packet_header hdr;
+    XDR xdr;
+    u_int header_end;
+
+    if (clientMap[chfd] && clientMap[chfd]->inprogress)
+        return;
+
+    if (chanDequeue_(chfd, &buf) < 0) {
+        ls_syslog(LOG_ERR, "%s: chanDequeue_() failed: %d", __func__, cherrno);
+        shutDownChan(chfd);
+        return;
+    }
+
+    xdrmem_create(&xdr, buf->data, buf->len, XDR_DECODE);
+    if (!xdr_pack_hdr(&xdr, &hdr)) {
+        ls_syslog(LOG_ERR, "%s: bad header", __func__);
+        xdr_destroy(&xdr);
+        chanFreeBuf_(buf);
+        shutDownChan(chfd);
+        return;
+    }
+    header_end = XDR_GETPOS(&xdr);
+    xdr_destroy(&xdr);
+
+    switch (hdr.operation) {
+    case LIM_LOAD_REQ:       handle_load_req(&hdr, buf, chfd, header_end);    break;
+    case LIM_GET_HOSTINFO:   /* ... */                                         break;
+    case LIM_PLACEMENT:      /* ... */                                         break;
+    case LIM_GET_RESOUINFO:  handle_resinfo_req(&hdr, buf, chfd, header_end); break;
+    case LIM_GET_INFO:       /* ... */                                         break;
+    default:
+        ls_syslog(LOG_WARNING, "%s: unknown op %d", __func__, hdr.operation);
+        chanFreeBuf_(buf);
+        break;
+    }
+}
+#endif
+
+#if 0
+static void
+handle_resinfo_req(const struct packet_header *hdr,
+                   struct Buffer *buf, int chfd, u_int header_end)
+{
+    XDR x;
+    xdrmem_create(&x, buf->data, buf->len, XDR_DECODE);
+    XDR_SETPOS(&x, header_end);
+
+    struct resourceInfoReq req = {0};
+    if (!xdr_resourceInfoReq(&x, &req, (struct packet_header *)hdr)) {
+        ls_syslog(LOG_ERR, "%s: decode resourceInfoReq failed", __func__);
+        xdr_destroy(&x);
+        chanFreeBuf_(buf);
+        shutDownChan(chfd);
+        return;
+    }
+    xdr_destroy(&x);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        ls_syslog(LOG_ERR, "%s: fork() failed: %m", __func__);
+        chanFreeBuf_(buf);
+        shutDownChan(chfd);
+        return;
+    }
+    if (pid == 0) { /* child */
+        int sock = chanSock_(chfd);
+        (void)io_block_(sock);               /* if you need blocking I/O */
+        /* close epoll/event fds etc. if inherited; child must not use them */
+        /* do the work; write reply */
+        resourceInfoReq_do(&req, chfd, sock, hdr);
+        _exit(0);
+    }
+
+    /* parent: we own the inbound buffer, child doesn’t need it */
+    chanFreeBuf_(buf);
+    /* optionally mark inprogress, track pid to reap via SIGCHLD */
+}
+#endif

@@ -48,6 +48,8 @@ extern int ELIMdebug, ELIMrestarts, ELIMblocktime;
 #define M_OR_A    3
 
 #define ILLEGAL_CHARS     ".!-=+*/[]@:&|{}'`\""
+// Bug unsupport
+#define LSF_LIM_ERES_TYPE "!"
 
 static struct hostNode *addHost(struct clusterNode *, struct hostEntry *, char *, char *, int *);
 static char addHostType(char *);
@@ -880,10 +882,8 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
                 && keyList[RKEY_TYPE].val[0] != '\0') {
                 int type;
 
-                if (strcmp(keyList[RKEY_TYPE].val, LSF_LIM_ERES_TYPE) == 0)
-                {
-                    if (setExtResourcesDef(keyList[RKEY_RESOURCENAME].val) != 0)
-                    {
+                if (strcmp(keyList[RKEY_TYPE].val, LSF_LIM_ERES_TYPE) == 0) {
+                    if (setExtResourcesDef(keyList[RKEY_RESOURCENAME].val) != 0) {
                         ls_syslog(LOG_ERR, "%s: Ignoring the external resource <%s>(%d in section resource of file %s",
                                   fname, keyList[RKEY_RESOURCENAME].val, *LineNum, lsfile);
                         lim_CheckError = WARNING_ERR;

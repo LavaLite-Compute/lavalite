@@ -221,11 +221,10 @@ call_server (
         if (postSndFunc) {
             int nlen = htonl(((struct lenData *)postSndFuncArg)->len);
 
-            memcpy((char *) sndBuf->data + req_size,
-                    (char *) NET_INTADDR_(&nlen), NET_INTSIZE_);
+            memcpy(sndBuf->data + req_size, (void *)(&nlen), NET_INTSIZE_);
             memcpy((char *) sndBuf->data + req_size + NET_INTSIZE_,
                     (char *) ((struct lenData *)postSndFuncArg)->data,
-                    ((struct lenData *)postSndFuncArg)->len);
+                   ((struct lenData *)postSndFuncArg)->len);
         }
 
         if (chanEnqueue_(serverSock, sndBuf) < 0) {
@@ -419,8 +418,8 @@ Retry:
         ls_syslog (LOG_DEBUG1, "%s: masterHost=%s", fname, masterHost);
 
     xdrmem_create(&xdrs, request_buf, requestlen, XDR_DECODE);
-    if (!xdr_LSFHeader(&xdrs, &reqHdr)) {
-        ls_syslog(LOG_ERR, "FUNC_FAIL", fname, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs, &reqHdr)) {
+        ls_syslog(LOG_ERR, "FUNC_FAIL", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -597,7 +596,7 @@ handShake_(int s, char client, int timeout)
         hdr.length = 0;
         xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE,
                 XDR_ENCODE);
-        if (!xdr_LSFHeader(&xdrs, &hdr)) {
+        if (!xdr_pack_hdr(&xdrs, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs);
             return -1;

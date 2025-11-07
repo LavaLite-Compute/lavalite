@@ -42,16 +42,16 @@ pingReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE/4, XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr) ||
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr) ||
         !xdr_string(&xdrs2, &myHostPtr->hostName, MAXHOSTNAMELEN)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_string");
         xdr_destroy(&xdrs2);
         return;
     }
 
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
@@ -82,7 +82,7 @@ clusInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 
     memset((char*)&clusterInfoReq, 0, sizeof(clusterInfoReq));
     if (!xdr_clusterInfoReq(xdrs, &clusterInfoReq, reqHdr)) {
-        
+
 ls_syslog(LOG_WARNING, "%s: %s failed: %m", fname, "xdr_clusterInfoReq");
         limReplyCode = LIME_BAD_DATA;
         goto Reply1;
@@ -101,7 +101,7 @@ ls_syslog(LOG_WARNING, "%s: %s failed: %m", fname, "xdr_clusterInfoReq");
     clusterInfoReply.clusterMatrix = (struct shortCInfo *)
         malloc(sizeof (struct shortCInfo));
     if (clusterInfoReply.clusterMatrix == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         limReplyCode = LIME_NO_MEM;
         goto Reply;
@@ -187,9 +187,9 @@ Reply1:
     replyHdr.sequence = reqHdr->sequence;
 
     xdrmem_create(&xdrs2, buf, MSGSIZE*2, XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         if (clusterInfoReply.clusterMatrix != NULL)
             free(clusterInfoReply.clusterMatrix);
         xdr_destroy(&xdrs2);
@@ -207,7 +207,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
     }
 
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         if (clusterInfoReply.clusterMatrix != NULL)
@@ -241,16 +241,16 @@ clusNameReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     sp = myClusterPtr->clName;
 
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr) ||
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr) ||
         !xdr_string(&xdrs2, &sp, MAXLSFNAMELEN)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_string");
         xdr_destroy(&xdrs2);
         return;
     }
 
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "clusNameReq", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
@@ -281,9 +281,9 @@ masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -295,7 +295,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         masterInfo.portno =  masterPtr->statInfo.portno;
 
         if(!xdr_masterInfo(&xdrs2, &masterInfo, &replyHdr)) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_masterInfo");
             xdr_destroy(&xdrs2);
             return;
@@ -303,7 +303,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_masterInfo");
     }
 
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
@@ -397,7 +397,7 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
     hostInfoReply.hostMatrix = (struct shortHInfo*)
         calloc(ncandidates, sizeof (struct shortHInfo));
     if (hostInfoReply.hostMatrix == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         limReplyCode = LIME_NO_MEM;
         goto Reply;
@@ -463,7 +463,7 @@ Reply1:
 
     buf = (char *)malloc(bufSize);
     if (!buf) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         if (limReplyCode == LIME_NO_ERR)
             free(hostInfoReply.hostMatrix);
@@ -472,7 +472,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
     xdrmem_create(&xdrs2, buf, bufSize, XDR_ENCODE);
 
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_hostInfoReply, 0, NULL)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
@@ -515,7 +515,7 @@ infoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s
         len = sizeof (struct lsInfo) + allInfo.nRes * sizeof (struct resItem)
             + 10000;
         if (!(buf=(char *)malloc(len))) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
@@ -532,7 +532,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
     if (!xdr_encodeMsg(&xdrs2, (char *)&allInfo, &replyHdr, xdr_lsInfo, 0,
                        NULL)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         return;
@@ -588,16 +588,16 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
 
     if (limReplyCode == LIME_NO_ERR) {
         if (!xdr_float(&xdrs2, (float *)hashEntPtr->hData)) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_float");
             xdr_destroy(&xdrs2);
             return;
@@ -702,7 +702,6 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHd
 {
     static char fname[] = "resourceInfoReq";
     char buf1[MSGSIZE];
-    char *buf;
     XDR  xdrs2;
     char  *replyStruct;
     enum limReplyCode limReplyCode;
@@ -722,27 +721,20 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHd
     }
 
     if (!xdr_resourceInfoReq (xdrs, &resourceInfoReq, reqHdr)) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_resourceInfoReq");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_resourceInfoReq");
         limReplyCode = LIME_BAD_DATA;
         cc = MSGSIZE;
     } else {
-
-        limReplyCode = checkResources (&resourceInfoReq, &resourceInfoReply, &cc);
+        limReplyCode = checkResources(&resourceInfoReq, &resourceInfoReply, &cc);
         if (limReplyCode != LIME_NO_ERR)
             cc =  MSGSIZE;
         else
             cc += 4*MSGSIZE;
     }
 
-    xdr_lsffree(xdr_resourceInfoReq, (char *) &resourceInfoReq, reqHdr);
+    xdr_lsffree(xdr_resourceInfoReq, &resourceInfoReq, reqHdr);
 
-    if ((buf = (char *) malloc (cc)) == NULL) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        freeResourceInfoReply(&resourceInfoReply);
-        return;
-    }
+    char *buf = calloc(cc, sizeof(char));
 
     xdrmem_create(&xdrs2, buf, cc, XDR_ENCODE);
     initLSFHeader_(&replyHdr);
@@ -751,11 +743,16 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
     if (limReplyCode == LIME_NO_ERR)
         replyStruct = (char *)&resourceInfoReply;
     else
-        replyStruct = (char *)NULL;
+        replyStruct = NULL;
 
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_resourceInfoReply, 0, NULL)) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
+    if (!xdr_encodeMsg(&xdrs2,
+                       replyStruct,
+                       &replyHdr,
+                       xdr_resourceInfoReply,
+                       0,
+                       NULL)) {
+
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         FREEUP (buf);
         xdr_destroy(&xdrs2);
         freeResourceInfoReply(&resourceInfoReply);
@@ -818,7 +815,7 @@ checkResources (struct resourceInfoReq *resourceInfoReq, struct resourceInfoRepl
     reply->numResources = 0;
     if ((reply->resources = (struct lsSharedResourceInfo *)
          malloc (numHostResources * sizeof (struct lsSharedResourceInfo))) == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return LIME_NO_MEM;
     }
@@ -866,7 +863,7 @@ copyResource (struct resourceInfoReply *reply, struct sharedResource *resource, 
     if ((reply->resources[num].instances = (struct lsSharedResourceInstance *)
          malloc (resource->numInstances
                  * sizeof (struct lsSharedResourceInstance))) == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return LIME_NO_MEM;
     }
@@ -896,7 +893,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         if ((reply->resources[num].instances[numInstances].hostList =
              (char **) malloc (resource->instances[i]->nHosts
                                * sizeof (char *))) == NULL)  {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return LIME_NO_MEM;
         }

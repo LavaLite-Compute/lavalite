@@ -25,7 +25,7 @@ struct lsbSharedResourceInfo *
 lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int options)
 {
     static char fname[] = "lsb_sharedresourceinfo";
-    static struct lsbShareResourceInfoReply lsbResourceInfoReply;
+    static struct resourceInfoReply lsbResourceInfoReply;
     struct resourceInfoReq  resourceInfoReq;
     int cc = 0, i;
     char *clusterName = NULL;
@@ -51,7 +51,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if (lsbResourceInfoReply.numResources > 0)
-        xdr_lsffree(xdr_lsbShareResourceInfoReply, (char *)&lsbResourceInfoReply, &hdr);
+        xdr_lsffree(xdr_resourceInfoReply, (char *)&lsbResourceInfoReply, &hdr);
 
     if (numResources == NULL ||
             *numResources < 0 ||
@@ -134,7 +134,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR) {
         xdrmem_create(&xdrs2, reply_buf, cc, XDR_DECODE);
-        if (!xdr_lsbShareResourceInfoReply(&xdrs2, &lsbResourceInfoReply, &hdr)) {
+        if (!xdr_resourceInfoReply(&xdrs2, &lsbResourceInfoReply, NULL)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs2);
             FREE_REPLY_BUFFER;

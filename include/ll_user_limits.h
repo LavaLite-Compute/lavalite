@@ -25,10 +25,10 @@
 #define LL_HOSTMODEL_MAX 128     // legacy MAXMODELS
 
 // Hostname string bound — fixed, not libc-dependent
-#define LL_HOSTNAME_STR_MAX 255
+#define LL_HOSTNAME_MAX 255
 
 // File or path name bound — fixed, not tied to PATH_MAX
-#define LL_PATH_MAX 256     // legacy MAXFILENAMELEN
+#define LL_PATH_MAX PATH_MAX     // legacy MAXFILENAMELEN
 
 // Semantic widths for specific public struct fields
 #define LL_JOBNAME_LEN LL_LINE_MAX

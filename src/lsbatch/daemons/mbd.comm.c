@@ -480,8 +480,8 @@ probe_slave(struct hData *hData, char sendJobs)
 	request_buf = (char *) &hdrBuf;
 	xdrmem_create(&xdrs, request_buf, sizeof(hdrBuf), XDR_ENCODE);
 #endif
-	if (!xdr_LSFHeader(&xdrs, &hdr)) {
-	    ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader");
+	if (!xdr_pack_hdr(&xdrs, &hdr)) {
+	    ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
 	    xdr_destroy(&xdrs);
 #ifdef INTER_DAEMON_AUTH
 	    free(request_buf);

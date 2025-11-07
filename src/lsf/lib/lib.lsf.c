@@ -123,31 +123,6 @@ str2lsfRu(char *line, struct lsfRusage *lsfRu, int *ccount)
 }
 
 void
-lsfRusageAdd_ (struct lsfRusage *lsfRusage1, struct lsfRusage *lsfRusage2)
-{
-    LSFRU_FIELD_ADD(lsfRusage1->ru_utime, lsfRusage2->ru_utime);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_stime, lsfRusage2->ru_stime);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_maxrss,lsfRusage2->ru_maxrss);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_ixrss, lsfRusage2->ru_ixrss);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_ismrss, lsfRusage2->ru_ismrss);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_idrss, lsfRusage2->ru_idrss);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_isrss, lsfRusage2->ru_isrss);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_minflt, lsfRusage2->ru_minflt);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_majflt, lsfRusage2->ru_majflt);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_nswap, lsfRusage2->ru_nswap);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_inblock, lsfRusage2->ru_inblock);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_oublock, lsfRusage2->ru_oublock);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_ioch, lsfRusage2->ru_ioch);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_msgsnd, lsfRusage2->ru_msgsnd);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_msgrcv, lsfRusage2->ru_msgrcv);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_nsignals, lsfRusage2->ru_nsignals);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_nvcsw, lsfRusage2->ru_nvcsw);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_nivcsw, lsfRusage2->ru_nivcsw);
-    LSFRU_FIELD_ADD(lsfRusage1->ru_exutime, lsfRusage2->ru_exutime);
-
-}
-
-void
 cleanLsfRusage (struct lsfRusage *lsfRusage)
 {
     lsfRusage->ru_utime = -1.0;

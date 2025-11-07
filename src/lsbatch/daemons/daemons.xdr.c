@@ -20,14 +20,12 @@
 
 #define MAX_USER_NAME_LEN 64
 
-extern int xdr_time_t (XDR *xdrs, time_t *t);
-extern int xdr_lsfRusage(XDR *xdrs, struct lsfRusage *);
 extern void jobId64To32(LS_LONG_INT, int*, int*);
 extern void jobId32To64(LS_LONG_INT*, int, int);
 static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jp);
 
 bool_t
-xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
+xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
 {
     static char fname[] = "xdr_jobSpecs";
     char *sp[15];
@@ -105,7 +103,7 @@ xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
     }
 
     for (i = 0; i < nLimits && i < LSF_RLIM_NLIMITS; i++) {
-	if(!xdr_lsfLimit(xdrs, &jobSpecs->lsfLimits[i], hdr)) {
+	if(!xdr_lsfLimit(xdrs, &jobSpecs->lsfLimits[i], NULL)) {
 	    ls_syslog(LOG_ERR, "%s", __func__,
 		      lsb_jobid2str(tmpJobId),
 		      "xdr_lsfLimit");
@@ -117,7 +115,7 @@ xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
 
 	for (i=LSF_RLIM_NLIMITS; i<nLimits; i++) {
 	    struct lsfLimit lsfLimit;
-	    if (!xdr_lsfLimit(xdrs, &lsfLimit, hdr)) {
+	    if (!xdr_lsfLimit(xdrs, &lsfLimit, NULL)) {
 	        ls_syslog(LOG_ERR, "%s", __func__,
 			  lsb_jobid2str(tmpJobId),
 			  "xdr_lsfLimit");
@@ -239,8 +237,10 @@ xdr_jobSpecs (XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *hdr)
     }
 
     for (i = 0; i < jobSpecs->nxf; i++) {
-	if (!xdr_arrayElement(xdrs, (char *) &(jobSpecs->xf[i]),
-			      hdr, xdr_xFile)) {
+	if (!xdr_array_element(xdrs,
+                               &(jobSpecs->xf[i]),
+                               NULL,
+                               xdr_xFile)) {
 	    ls_syslog(LOG_ERR, "%s", __func__,
 		      lsb_jobid2str(tmpJobId),
 		      "xdr_arrayElement", "xf");
@@ -507,8 +507,10 @@ xdr_statusReq (XDR *xdrs, struct statusReq *statusReq, struct packet_header *hdr
 	  xdr_int(xdrs, (int *) &statusReq->sbdReply)))
         return FALSE;
 
-    if (!xdr_arrayElement(xdrs, (char *) &statusReq->lsfRusage, hdr,
-			  xdr_lsfRusage))
+    if (!xdr_array_element(xdrs,
+                           &statusReq->lsfRusage,
+                           NULL,
+                           xdr_lsfRusage))
         return FALSE;
 
     if (!(xdr_int(xdrs, &statusReq->execUid) &&
@@ -598,7 +600,6 @@ xdr_chunkStatusReq (XDR *xdrs, struct chunkStatusReq *chunkStatusReq,
 bool_t
 xdr_sbdPackage (XDR *xdrs, struct sbdPackage *sbdPackage, struct packet_header *hdr)
 {
-    static char      fname[] = "xdr_sbdPackage";
     int i;
     char *sp;
 
@@ -620,8 +621,10 @@ xdr_sbdPackage (XDR *xdrs, struct sbdPackage *sbdPackage, struct packet_header *
 
     if (xdrs->x_op == XDR_ENCODE) {
         for (i = 0; i < sbdPackage->numJobs; i++)
-	    if (!xdr_arrayElement(xdrs, (char *) &(sbdPackage->jobs[i]),
-                                         hdr, xdr_jobSpecs))
+	    if (!xdr_array_element(xdrs,
+                                   &(sbdPackage->jobs[i]),
+                                   NULL,
+                                   xdr_jobSpecs))
 		return FALSE;
 
         if (!xdr_sbdPackage1 (xdrs, sbdPackage, hdr))
@@ -635,7 +638,6 @@ xdr_sbdPackage (XDR *xdrs, struct sbdPackage *sbdPackage, struct packet_header *
 bool_t
 xdr_sbdPackage1 (XDR *xdrs, struct sbdPackage *sbdPackage, struct packet_header *hdr)
 {
-    static char      fname[] = "xdr_sbdPackage1";
     int i;
 
     if (!(xdr_int(xdrs, &sbdPackage->uJobLimit))) {

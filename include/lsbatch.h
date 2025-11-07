@@ -855,19 +855,19 @@ struct loadInfoEnt {
 #define GRP_SHARES        0x40
 
 struct groupInfoEnt {
-    char*                group;
-    char*                memberList;
+    char *group;
+    char *memberList;
 };
 
 struct runJobRequest {
     LS_LONG_INT jobId;
-    int     numHosts;
-    char**  hostname;
+    int numHosts;
+    char **hostname;
 #define RUNJOB_OPT_NORMAL     0x01
 #define RUNJOB_OPT_NOSTOP     0x02
 #define RUNJOB_OPT_PENDONLY   0x04
 #define RUNJOB_OPT_FROM_BEGIN 0x08
-    int     options;
+    int options;
 };
 
 #define REQUEUE_DONE   0x1

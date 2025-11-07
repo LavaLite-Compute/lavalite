@@ -16,7 +16,6 @@ libll_la_SOURCES = lib.channel.c \
 	lib.control.c \
 	lib.cwd.c \
 	lib.debug.c \
-	lib.dir.c \
 	lib.eauth.c \
 	lib.err.c \
 	lib.esub.c \
@@ -41,6 +40,5 @@ libll_la_SOURCES = lib.channel.c \
 	lib.words.c \
 	lib.xdr.c \
 	lib.xdrlim.c \
-	lib.xdrmisc.c \
 	lib.wconf.c \
 	usleep.c

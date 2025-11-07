@@ -1,5 +1,6 @@
 /* $Id: sbd.serv.c,v 1.9 2007/08/15 22:18:46 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -508,8 +509,10 @@ do_probe(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 	    jobSpecs = (struct jobSpecs *) my_calloc(sbdPackage.numJobs,
 					    sizeof(struct jobSpecs), fname);
 	    for (i = 0; i < sbdPackage.numJobs; i++) {
-		if (!xdr_arrayElement(xdrs, (char *) &(jobSpecs[i]),
-				      reqHdr, xdr_jobSpecs)) {
+		if (!xdr_array_element(xdrs,
+                                       &(jobSpecs[i]),
+                                       NULL,
+                                       xdr_jobSpecs)) {
 		    replyHdr.operation = ERR_BAD_REQ;
 		    ls_syslog(LOG_ERR, "%s: %s(%d failed for %d jobs"),
 			fname, "xdr_arrayElement", i, sbdPackage.numJobs);
@@ -1435,9 +1438,9 @@ replyHdrWithRC(int rc, int chfd, int jobId)
     replyHdr.length = 0;
     tmpJobId = jobId;
 
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
 	ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
-		  "xdr_LSFHeader");
+		  "xdr_pack_hdr");
 	xdr_destroy(&xdrs2);
 	return -1;
     }
@@ -1580,4 +1583,3 @@ do_getPid(int s, struct jobCard *jp, struct lsbMsg *m, char *workMsgBuf)
         fname, lsb_jobid2str(jp->jobSpecs.jobId));
     }
 }
-

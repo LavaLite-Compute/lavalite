@@ -113,7 +113,7 @@ callLim_(enum limReqCode reqCode,
     }
 
     if (!(options & _USE_TCP_)) {
-        if (!xdr_LSFHeader(&xdrs, &replyHdr)) {
+        if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
             xdr_destroy(&xdrs);
             lserrno = LSE_BAD_XDR;
             return -1;
@@ -413,7 +413,7 @@ check:
     }
 
     xdrmem_create(&xdrs, repbuf, MSGSIZE, XDR_DECODE);
-    if(!xdr_LSFHeader(&xdrs, &replyHdr)) {
+    if(!xdr_pack_hdr(&xdrs, &replyHdr)) {
         lserrno = LSE_BAD_XDR;
         xdr_destroy(&xdrs);
         return -1;

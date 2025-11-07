@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: limout.h,v 1.6 2007/08/15 22:18:54 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -16,9 +17,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-
-#ifndef LIMOUT_H
-#define LIMOUT_H
 
 #include "lsf/lib/lib.hdr.h"
 
@@ -63,8 +61,6 @@ enum limReqCode {
     LIM_CHK_RESREQ    = 11,
     LIM_DEBUGREQ      = 12,
     LIM_GET_RESOUINFO = 13,
-    LIM_SLIMCONF_REQ  = 15,
-
 
 #define FIRST_LIM_PRIV	LIM_REBOOT
     LIM_REBOOT        = 50,
@@ -265,7 +261,3 @@ struct limLock {
     char lsfUserName[LL_NAME_MAX];
 };
 
-
-#include "../lib/lib.xdrlim.h"
-
-#endif
