@@ -18,6 +18,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y autoconf automake libtool build-essential
+          sudo apt-get install -y libtirpc-dev python3-pytest
 
       - name: Bootstrap project
         run: ./bootstrap  # or ./autogen.sh if that's your script
