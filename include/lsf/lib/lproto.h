@@ -21,7 +21,6 @@
 #include "lsf/lib/lib.table.h"
 #include "lsf/lib/lib.hdr.h"
 // Bug hack res out here
-#include "lsf/res/resout.h"
 #include "lsf/lib/lib.queue.h"
 
 #define BIND_RETRY_TIMES 100

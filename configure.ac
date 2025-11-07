@@ -107,16 +107,7 @@ AC_CHECK_LIB([nsl], [yp_get_default_domain], [
   AC_MSG_ERROR([Missing libnsl — required for NIS support])
 ])
 
-dnl Tcl (legacy — slated for removal)
-AC_CHECK_HEADERS([tcl.h], [], [
-  AC_MSG_ERROR([Tcl 8.6 headers not found — required for legacy parsing])
-])
-AC_CHECK_LIB([tcl8.6], [Tcl_CreateInterp], [], [
-  AC_MSG_ERROR([Tcl 8.6 library not found])
-])
-
 dnl Check for pdflatex
-
 AC_PATH_PROG([PDFLATEX], [pdflatex])
 AM_CONDITIONAL([HAVE_PDFLATEX], [test -n "$PDFLATEX"])
 dnl Generate Makefiles for doc

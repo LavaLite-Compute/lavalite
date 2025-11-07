@@ -306,8 +306,6 @@ void
 relife(void)
 {
     int pid;
-    char *margv[6];
-    int i = 0;
 
     pid = fork();
 
@@ -316,22 +314,16 @@ relife(void)
 
     if (pid == 0) {
         sigset_t newmask;
+        char *margv[6];
 
-        for (i=0; i< NOFILE; i++)
+        for (int i = 0; i < NOFILE; i++)
             close(i);
         millisleep_(3000);
 
-        margv[0] = getDaemonPath_("/sbatchd", daemonParams[LSF_SERVERDIR].paramValue);
+		char buf[LL_PATH_MAX];
+		sprintf(buf, "%s/sbatchd", daemonParams[LSF_SERVERDIR].paramValue);
 
-        i = 1;
-        // Bug handle mbd_debug and sbd_debug
-#if 0
-        if (1) {
-            margv[i] = my_malloc(MAXFILENAMELEN, "relife");
-            sprintf(margv[i], "-%d", debug);
-            i++;
-        }
-#endif
+        int i = 1;
         if (env_dir != NULL) {
             margv[i] = "-d";
             i++;
