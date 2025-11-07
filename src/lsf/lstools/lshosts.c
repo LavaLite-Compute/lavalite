@@ -496,7 +496,7 @@ main(int argc, char **argv)
                 printf("%s", hostinfo[i].resources[j]);
                 first = false;
             }
-            printf("\n");
+            printf(")\n");
         }
         return 0;
     }

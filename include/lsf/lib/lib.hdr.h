@@ -62,17 +62,3 @@ struct lsfLimit {
     int rlim_maxl;
     int rlim_maxh;
 };
-
-
-extern bool_t xdr_LSFHeader(XDR *, struct packet_header *);
-extern bool_t xdr_packLSFHeader(char *, struct packet_header *);
-
-extern bool_t xdr_encodeMsg(XDR *, char *, struct packet_header *,
-                            bool_t (*)(), int, struct lsfAuth *);
-extern bool_t xdr_arrayElement(XDR *, char *, struct packet_header *,
-                               bool_t (*)(), ...);
-extern bool_t xdr_stringLen(XDR *, struct stringLen *, struct packet_header *);
-extern bool_t xdr_stat(XDR *, struct stat *, struct packet_header *);
-extern bool_t xdr_lsfAuth(XDR *, struct lsfAuth *, struct packet_header *);
-extern int xdr_lsfAuthSize(struct lsfAuth *);
-extern bool_t xdr_jRusage(XDR *, struct jRusage *, struct packet_header *);

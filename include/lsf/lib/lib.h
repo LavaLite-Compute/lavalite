@@ -26,7 +26,6 @@
 #include "lsf/lib/lproto.h"
 #include "lsf/lim/limout.h"
 #include "lsf/lib/lib.xdr.h"
-#include "lsf/lib/lib.xdrlim.h"
 
 struct taskMsg {
     char *inBuf;
@@ -110,14 +109,6 @@ struct tid {
 #define LSF_MASTER_LIST     19
 #define LSF_MLS_LOG         20
 #define LSF_INTERACTIVE_STDERR 21
-
-#define AM_LAST  (!(genParams_[LSF_AM_OPTIONS].paramValue &&        \
-                    strstr(genParams_[LSF_AM_OPTIONS].paramValue,   \
-                           AUTOMOUNT_LAST_STR)))
-
-#define AM_NEVER (genParams_[LSF_AM_OPTIONS].paramValue &&      \
-                  strstr(genParams_[LSF_AM_OPTIONS].paramValue, \
-                         AUTOMOUNT_NEVER_STR))
 
 #define _NON_BLOCK_         0x01
 #define _LOCAL_             0x02

@@ -24,10 +24,6 @@ extern char *env_dir;
 extern int lsb_CheckMode;
 extern int lsb_CheckError;
 extern  sbdReplyType callSbdDebug(struct debugReq *pdebug);
-extern  bool_t xdr_resourceInfoReply (XDR *, struct resourceInfoReply *,
-                                      struct packet_header *);
-extern bool_t xdr_resourceInfoReq(XDR *, struct resourceInfoReq *,
-                                  struct packet_header *);
 
 extern char *jgrpNodeParentPath(struct jgTreeNode *);
 static int packJgrpInfo(struct jgTreeNode *, int, char **, int, int);
@@ -1031,8 +1027,8 @@ do_statusReq(XDR * xdrs, int chfd, struct sockaddr_in * from, int *schedule,
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader",
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   reply);
         xdr_destroy(&xdrs2);
         freeHp(&hpBuf);
@@ -1113,8 +1109,8 @@ do_chunkStatusReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader",
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   reply);
         xdr_destroy(&xdrs2);
         freeHp(&hpBuf);
@@ -1614,8 +1610,8 @@ do_queueControlReq (XDR *xdrs, int chfd, struct sockaddr_in *from,
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader",
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   reply);
         xdr_destroy(&xdrs2);
         return -1;
@@ -1643,8 +1639,8 @@ do_mbdShutDown (XDR * xdrs, int s, struct sockaddr_in * from, char *hostName,
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = LSBE_NO_ERROR;
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader",
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   replyHdr.operation);
     }
     if (b_write_fix(s, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
@@ -1669,8 +1665,8 @@ do_reconfigReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = LSBE_NO_ERROR;
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader",
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   replyHdr.operation);
     }
     if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
@@ -1711,8 +1707,8 @@ checkout:
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader",
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   reply);
     }
     if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
@@ -1743,8 +1739,8 @@ do_jobSwitchReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader",
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   reply);
         xdr_destroy(&xdrs2);
         return -1;
@@ -1937,10 +1933,10 @@ doNewJobReply(struct sbdNode *sbdPtr, int exception)
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
-    if (!xdr_LSFHeader(&xdrs, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__,
                   lsb_jobid2str(jData->jobId),
-                  "xdr_LSFHeader");
+                  "xdr_pack_hdr");
 
         if (IS_START(jData->jStatus)) {
             jData->newReason = PEND_JOB_START_FAIL;
@@ -2056,10 +2052,10 @@ doProbeReply(struct sbdNode *sbdPtr, int exception)
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
-    if (!xdr_LSFHeader(&xdrs, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__,
                   toHost,
-                  "xdr_LSFHeader");
+                  "xdr_pack_hdr");
         sbdPtr->hData->flags |= HOST_NEEDPOLL;
     } else {
 #ifdef INTER_DAEMON_AUTH
@@ -2123,10 +2119,10 @@ doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
-    if (!xdr_LSFHeader(&xdrs, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__,
                   lsb_jobid2str(jData->jobId),
-                  "xdr_LSFHeader");
+                  "xdr_pack_hdr");
         jData->pendEvent.notSwitched = TRUE;
         eventPending = TRUE;
         goto Leave;
@@ -2216,10 +2212,10 @@ doSignalJobReply(struct sbdNode *sbdPtr, int exception)
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
-    if (!xdr_LSFHeader(&xdrs, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__,
                   lsb_jobid2str(jData->jobId),
-                  "xdr_LSFHeader");
+                  "xdr_pack_hdr");
         addPendSigEvent(sbdPtr);
         goto Leave;
     }
@@ -2484,8 +2480,8 @@ do_debugReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
     replyHdr.operation = reply;
 
     replyHdr.length = 0;
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return -1;
     }

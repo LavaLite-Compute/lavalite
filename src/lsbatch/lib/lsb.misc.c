@@ -254,7 +254,7 @@ sndJobFile_(int s, struct lenData *jf)
 {
     int nlen = htonl(jf->len);
 
-    if (b_write_fix(s, NET_INTADDR_(&nlen), NET_INTSIZE_) != NET_INTSIZE_) {
+    if (b_write_fix(s, (void *)(&nlen), NET_INTSIZE_) != NET_INTSIZE_) {
         lsberrno = LSBE_SYS_CALL;
         return -1;
     }

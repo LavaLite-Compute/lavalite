@@ -923,10 +923,10 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostNodeIPAddr");
         initLSFHeader_(&reqHdr);
         reqHdr.operation  = limReqCode;
         reqHdr.sequence = 0;
-        if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
+        if (!(xdr_pack_hdr(&xdrs, &reqHdr) &&
               xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
             
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader/xdr_jobXfer");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
             xdr_destroy(&xdrs);
             return;
         }
@@ -971,10 +971,10 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader/xdr_jobXfer");
         xdrmem_create(&xdrs, buf, MSGSIZE, XDR_ENCODE);
         reqHdr.operation  = limReqCode;
         reqHdr.sequence = 0;
-        if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
+        if (!(xdr_pack_hdr(&xdrs, &reqHdr) &&
               xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
             
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader/xdr_jobXfer");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
             xdr_destroy(&xdrs);
             return;
         }
@@ -1079,9 +1079,9 @@ reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -1550,9 +1550,9 @@ Reply:
     replyHdr.sequence = reqHdr->sequence;
 
     xdrmem_create(&xdrs2, (char *)&replyBuf, PACKET_HEADER_SIZE,  XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }

@@ -535,8 +535,6 @@ extern void lsbFreeResVal (struct resVal **);
 
 int initTcl(struct tclLsInfo *);
 
-
-extern int fileExist(char *file, int uid, struct hostent *);
 extern void freeWeek (windows_t **);
 extern void errorBack(int, int, struct sockaddr_in *);
 
@@ -551,7 +549,7 @@ extern void childRemoveSpoolFile(const char*, int, const struct passwd*);
 
 extern int xdr_statusReq(XDR *, struct statusReq *, struct packet_header *);
 extern int xdr_sbdPackage(XDR *, struct sbdPackage *, struct packet_header *);
-extern int xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, struct packet_header *);
+int xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *);
 extern int xdr_sbdPackage1(XDR *xdrs, struct sbdPackage *, struct packet_header *);
 extern int xdr_jobReply(XDR *xdrs, struct jobReply *jobReply, struct packet_header *);
 extern int xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *);

@@ -235,7 +235,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         reqHdr.operation  = (short) limReqCode;
         reqHdr.sequence =  0;
 
-        if (!(xdr_LSFHeader(&xdrs, &reqHdr) &&
+        if (!(xdr_pack_hdr(&xdrs, &reqHdr) &&
               xdr_enum(&xdrs, (int *) &loadType) &&
               xdr_loadvector(&xdrs, &myLoadVector, &reqHdr))) {
             

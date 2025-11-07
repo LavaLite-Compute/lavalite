@@ -44,7 +44,9 @@ xdr_jobSetup (XDR *xdrs, struct jobSetup *jsetup, struct packet_header *hdr)
 	return FALSE;
     }
 
-    if (!xdr_arrayElement(xdrs, (char *) &jsetup->lsfRusage, hdr,
+    if (!xdr_array_element(xdrs,
+                           &jsetup->lsfRusage, hdr,
+                           NULL,
 			   xdr_lsfRusage))
 	return FALSE;
 
@@ -159,8 +161,10 @@ xdr_jobCard (XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
        !xdr_var_string(xdrs, &jCard->clusterName))
        return FALSE;
 
-   if (!xdr_arrayElement(xdrs, (char *) &jCard->jobSpecs, hdr,
-			   xdr_jobSpecs)) {
+   if (!xdr_array_element(xdrs,
+                          &jCard->jobSpecs,
+                          NULL,
+                          xdr_jobSpecs)) {
        ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobSpecs");
        return FALSE;
    }
@@ -216,4 +220,3 @@ sizeofJobCard(struct jobCard *jc) {
 
     return totalSize;
 }
-

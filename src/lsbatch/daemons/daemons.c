@@ -101,9 +101,9 @@ rcvJobFile(int chfd, struct lenData *jf)
     jf->data = NULL;
     jf->len = 0;
 
-    if ((cc = chanRead_(chfd, NET_INTADDR_(&jf->len), NET_INTSIZE_)) !=
+    if ((cc = chanRead_(chfd, (void *)(&jf->len), NET_INTSIZE_)) !=
 	NET_INTSIZE_) {
-	ls_syslog(LOG_ERR, "%s", __func__, "chanRead_");
+	ls_syslog(LOG_ERR, "%s: chanRead_() failed %m", __func__);
 	return -1;
     }
 
@@ -136,8 +136,8 @@ do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
     replyHdr.length = 0;
 
     xdrmem_create (&xdrs2, buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return -1;
 

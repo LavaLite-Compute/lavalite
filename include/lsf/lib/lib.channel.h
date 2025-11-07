@@ -119,9 +119,9 @@ extern int chanRpc_(int ,
                     struct Buffer *,
                     struct packet_header *,
                     int);
-extern ssize_t chanRead_(int, char *, int);
+extern ssize_t chanRead_(int, void *, int);
 extern ssize_t chanReadNonBlock_(int, char *, int, int);
-extern int chanWrite_(int, char *, int);
+extern int chanWrite_(int, void *, int);
 
 extern int chanAllocBuf_(struct Buffer **buf, int size);
 extern int chanFreeBuf_(struct Buffer *buf);

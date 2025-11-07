@@ -18,11 +18,14 @@
  */
 #include "lsf/lib/lib.h"
 
+// Clarity over cleverness; minimal code, maximal intent
+
+// Protocol function
 static bool marshal_packet_header(XDR *xdrs,
                                   struct packet_header *header);
 
 bool_t
-xdr_LSFHeader(XDR *xdrs, struct packet_header *header)
+xdr_pack_hdr(XDR *xdrs, struct packet_header *header)
 {
     if (xdrs->x_op == XDR_ENCODE) {
         header->version = CURRENT_PROTOCOL_VERSION;
@@ -40,26 +43,6 @@ xdr_LSFHeader(XDR *xdrs, struct packet_header *header)
         }
         // The protocol version comes in the packet
     }
-
-    return true;
-}
-
-bool_t
-xdr_packLSFHeader(char *buf, struct packet_header *header)
-{
-    XDR xdrs;
-    char hdrBuf[PACKET_HEADER_SIZE];
-
-    xdrmem_create(&xdrs, hdrBuf, PACKET_HEADER_SIZE, XDR_ENCODE);
-
-    if (!xdr_LSFHeader(&xdrs, header)) {
-        lserrno = LSE_BAD_XDR;
-        xdr_destroy(&xdrs);
-        return false;
-    }
-
-    memcpy(buf, hdrBuf, XDR_GETPOS(&xdrs));
-    xdr_destroy(&xdrs);
 
     return true;
 }
@@ -82,8 +65,8 @@ marshal_packet_header(XDR *xdrs,
 }
 
 bool_t
-xdr_encodeMsg (XDR *xdrs, char *data, struct packet_header *hdr,
-               bool_t (*xdr_func)(), int options, struct lsfAuth *auth)
+xdr_encodeMsg(XDR *xdrs, char *data, struct packet_header *hdr,
+              bool_t (*xdr_func)(), int options, struct lsfAuth *auth)
 {
     int len;
 
@@ -104,101 +87,45 @@ xdr_encodeMsg (XDR *xdrs, char *data, struct packet_header *hdr,
     len = XDR_GETPOS(xdrs);
     hdr->length = len - PACKET_HEADER_SIZE;
     XDR_SETPOS(xdrs, 0);
-    if (!xdr_LSFHeader(xdrs, hdr))
+    if (!xdr_pack_hdr(xdrs, hdr))
         return false;
     XDR_SETPOS(xdrs, len);
     return true;
 }
 
-/* Replace with this
-
-   bool_t
-   xdr_arrayElement(XDR *xdrs, char *data, struct packet_header *hdr,
-                 bool_t (*xdr_func)(XDR *, char *, struct packet_header *, char *), char *cp)
-{
-    int nextElementOffset, pos = XDR_GETPOS(xdrs);
-
-    if (xdrs->x_op == XDR_ENCODE) {
-        XDR_SETPOS(xdrs, pos + NET_INTSIZE_);
-    } else {
-        if (!xdr_int(xdrs, &nextElementOffset))
-            return FALSE;
-    }
-
-    if (!(*xdr_func)(xdrs, data, hdr, cp))
-        return FALSE;
-
-    if (xdrs->x_op == XDR_ENCODE) {
-        nextElementOffset = XDR_GETPOS(xdrs) - pos;
-        XDR_SETPOS(xdrs, pos);
-        if (!xdr_int(xdrs, &nextElementOffset))
-            return FALSE;
-    }
-
-    XDR_SETPOS(xdrs, pos + nextElementOffset);
-    return TRUE;
-}
-*/
-
+// Clear intent, minimal indirection
 bool_t
-xdr_arrayElement (XDR *xdrs, char *data, struct packet_header *hdr,
-                  bool_t (*xdr_func)(), ...)
+xdr_array_string(XDR *xdrs, char **str, int maxlen, int arraysize)
 {
-    va_list ap;
-    int nextElementOffset, pos;
-    char *cp;
+    uint32_t cap = (maxlen > 0) ? (uint32_t)maxlen : UINT_MAX;
 
-    va_start(ap, xdr_func);
+    for (int i = 0; i < arraysize; i++) {
 
-    pos = XDR_GETPOS(xdrs);
-
-    if (xdrs->x_op == XDR_ENCODE) {
-        XDR_SETPOS(xdrs, pos + NET_INTSIZE_);
-    } else {
-        if (!xdr_int(xdrs, &nextElementOffset))
-            return false;
-    }
-
-    cp = va_arg(ap, char *);
-    if (cp) {
-        if (!(*xdr_func)(xdrs, data, hdr, cp))
-            return false;
-    } else {
-        if (!(*xdr_func)(xdrs, data, hdr))
-            return false;
-    }
-
-    if (xdrs->x_op == XDR_ENCODE) {
-        nextElementOffset = XDR_GETPOS(xdrs) - pos;
-        XDR_SETPOS(xdrs, pos);
-        if (!xdr_int(xdrs, &nextElementOffset))
-            return false;
-    }
-
-    XDR_SETPOS(xdrs, pos + nextElementOffset);
-    return true;
-}
-
-bool_t
-xdr_array_string(XDR *xdrs, char **astring, int maxlen, int arraysize)
-{
-    int i, j;
-    char line[MAXLINELEN];
-    char *sp = line;
-
-    for (i = 0; i < arraysize; i++) {
-        if (xdrs->x_op == XDR_FREE) {
-            FREEUP(astring[i]);
-        } else if (xdrs->x_op == XDR_DECODE) {
-            if (! xdr_string(xdrs, &sp, maxlen)
-                || (astring[i] = putstr_(sp)) == NULL) {
-                for (j = 0; j < i;j++)
-                    FREEUP(astring[j]);
+        switch (xdrs->x_op) {
+        case XDR_DECODE:
+            str[i] = NULL;
+            if (! xdr_string(xdrs, &str[i], cap)) {
+                for (int j = 0; j < i; j++) {
+                    FREEUP(str[j]);
+                    str[j] = NULL;
+                }
                 return false;
             }
-        } else {
-            if (! xdr_string(xdrs, &astring[i], maxlen))
+            break;
+
+        case XDR_ENCODE: {
+            char *tmp = str[i] ? str[i] : (char *)"";
+            if (!xdr_string(xdrs, &tmp, cap))
                 return false;
+            break;
+        }
+
+        case XDR_FREE:
+            if (str[i]) {
+                free(str[i]);
+                str[i] = NULL;
+            }
+            break;
         }
     }
     return true;
@@ -211,68 +138,20 @@ xdr_time_t(XDR *xdrs, time_t *t)
 }
 
 int
-readDecodeHdr_(int s, char *buf, ssize_t (*readFunc)(), XDR *xdrs,
-               struct packet_header *hdr)
+readDecodeHdr_(int s,
+               char *buf,
+               ssize_t (*readFunc)(), XDR *xdrs, struct packet_header *hdr)
 {
     if ((*readFunc)(s, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
         lserrno = LSE_MSG_SYS;
         return -2;
     }
 
-    if (!xdr_LSFHeader(xdrs, hdr)) {
+    if (!xdr_pack_hdr(xdrs, hdr)) {
         lserrno = LSE_BAD_XDR;
         return -1;
     }
 
-    return 0;
-}
-
-int
-readDecodeMsg_(int s, char *buf, struct packet_header *hdr, ssize_t (*readFunc)(),
-               XDR *xdrs, char *data, bool_t (*xdrFunc)(),
-               struct lsfAuth *auth)
-{
-    if ((*readFunc)(s, buf, hdr->length) != hdr->length) {
-        lserrno = LSE_MSG_SYS;
-        return -2;
-    }
-
-    if (auth) {
-        if (!xdr_lsfAuth(xdrs, auth, hdr)) {
-            lserrno = LSE_BAD_XDR;
-            return -1;
-        }
-    }
-
-    if (!(*xdrFunc)(xdrs, data, hdr)) {
-        lserrno = LSE_BAD_XDR;
-        return -1;
-    }
-
-    return 0;
-}
-
-int
-writeEncodeMsg_(int s, char *buf, int len, struct packet_header *hdr, char *data,
-                ssize_t (*writeFunc)(), bool_t (*xdrFunc)(), int options)
-{
-    XDR xdrs;
-
-    xdrmem_create(&xdrs, buf, len, XDR_ENCODE);
-
-    if (!xdr_encodeMsg(&xdrs, data, hdr, xdrFunc, options, NULL)) {
-        lserrno = LSE_BAD_XDR;
-        xdr_destroy(&xdrs);
-        return -1;
-    }
-
-    if ((*writeFunc)(s, buf, XDR_GETPOS(&xdrs)) != XDR_GETPOS(&xdrs)) {
-        lserrno = LSE_MSG_SYS;
-        xdr_destroy(&xdrs);
-        return -2;
-    }
-
-    xdr_destroy(&xdrs);
     return 0;
 }
 
@@ -286,7 +165,7 @@ writeEncodeHdr_(int s, struct packet_header *hdr, ssize_t (*writeFunc)())
     hdr->length = 0;
     xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE, XDR_ENCODE);
 
-    if (!xdr_LSFHeader(&xdrs, hdr)) {
+    if (!xdr_pack_hdr(&xdrs, hdr)) {
         lserrno = LSE_BAD_XDR;
         xdr_destroy(&xdrs);
         return -1;
@@ -326,7 +205,7 @@ xdr_lsfLimit (XDR *xdrs, struct lsfLimit *limits, struct packet_header *hdr)
 }
 
 bool_t
-xdr_portno (XDR *xdrs, u_short *portno)
+xdr_portno(XDR *xdrs, u_short *portno)
 {
     u_int len = 2;
     char *sp;
@@ -340,21 +219,22 @@ xdr_portno (XDR *xdrs, u_short *portno)
 }
 
 bool_t
-xdr_address (XDR *xdrs, u_int *addr)
+xdr_address(XDR *xdrs, u_int *addr)
 {
     u_int len = NET_INTSIZE_;
     char *sp;
+
     if (xdrs->x_op == XDR_DECODE)
         *addr = 0;
 
-    sp = (char *) addr;
+    sp = (char *)addr;
 
-    return (xdr_bytes(xdrs, &sp, &len, len));
+    return xdr_bytes(xdrs, &sp, &len, len);
 }
 
 bool_t
-xdr_debugReq (XDR *xdrs, struct debugReq  *debugReq,
-              struct packet_header *hdr)
+xdr_debugReq(XDR *xdrs, struct debugReq  *debugReq,
+             struct packet_header *hdr)
 {
 
     static char *sp = NULL;
@@ -391,14 +271,249 @@ xdr_debugReq (XDR *xdrs, struct debugReq  *debugReq,
 }
 
 void
-xdr_lsffree(bool_t (*xdr_func)(), char *objp, struct packet_header *hdr)
+xdr_lsffree(bool_t (*xdr_func)(), void *ptr, struct packet_header *hdr)
 {
 
     XDR xdrs;
 
     xdrmem_create(&xdrs, NULL, 0, XDR_FREE);
 
-    (*xdr_func)(&xdrs, objp, hdr);
+    (*xdr_func)(&xdrs, ptr, hdr);
 
     xdr_destroy(&xdrs);
+}
+
+bool_t xdr_array_element(XDR *xdrs,  // the stream
+                         void *data, // the struct on the wore
+                         void *ctx,  // some extra if needed
+                         bool_t (*f)()) // marshal function
+{
+    if (! f(xdrs, data, ctx))
+        return false;
+
+    return true;
+}
+
+bool_t
+xdr_lsfRusage(XDR *xdrs, struct lsfRusage *lsfRu, void *)
+{
+
+    if (!(xdr_double(xdrs, &lsfRu->ru_utime) &&
+          xdr_double(xdrs, &lsfRu->ru_stime) &&
+          xdr_double(xdrs, &lsfRu->ru_maxrss) &&
+          xdr_double(xdrs, &lsfRu->ru_ixrss) &&
+          xdr_double(xdrs, &lsfRu->ru_ismrss) &&
+          xdr_double(xdrs, &lsfRu->ru_idrss) &&
+          xdr_double(xdrs, &lsfRu->ru_isrss) &&
+          xdr_double(xdrs, &lsfRu->ru_minflt) &&
+          xdr_double(xdrs, &lsfRu->ru_majflt) &&
+          xdr_double(xdrs, &lsfRu->ru_nswap) &&
+          xdr_double(xdrs, &lsfRu->ru_inblock) &&
+          xdr_double(xdrs, &lsfRu->ru_oublock) &&
+          xdr_double(xdrs, &lsfRu->ru_ioch) &&
+          xdr_double(xdrs, &lsfRu->ru_msgsnd) &&
+          xdr_double(xdrs, &lsfRu->ru_msgrcv) &&
+          xdr_double(xdrs, &lsfRu->ru_nsignals) &&
+          xdr_double(xdrs, &lsfRu->ru_nvcsw) &&
+          xdr_double(xdrs, &lsfRu->ru_nivcsw) &&
+          xdr_double(xdrs, &lsfRu->ru_exutime)))
+        return false;
+    return true;
+}
+
+bool_t
+xdr_var_string(XDR *xdrs, char **str)
+{
+    if (xdrs->x_op == XDR_ENCODE) {
+        char *tmp = (*str) ? *str : (char *)"";
+        return xdr_wrapstring(xdrs, &tmp);
+    }
+    if (xdrs->x_op == XDR_DECODE) {
+        // set str to NULL otherwise if the caller malloc it
+        // and it points to random bytes the xdr_wrapstring segfaults
+        *str = NULL;
+        return xdr_wrapstring(xdrs, str);
+    }
+    if (xdrs->x_op == XDR_FREE) {
+        return xdr_wrapstring(xdrs, str);
+    }
+    return true;
+}
+
+bool_t
+xdr_lenData(XDR *xdrs, struct lenData *ld)
+{
+    char *sp;
+
+    if (!xdr_int(xdrs, &ld->len))
+        return false;
+
+    if (xdrs->x_op == XDR_FREE) {
+        FREEUP(ld->data);
+        return true;
+    }
+
+    if (ld->len == 0) {
+        ld->data = NULL;
+        return true;
+    }
+
+    if (xdrs->x_op == XDR_DECODE) {
+        if ((ld->data = (char *) malloc(ld->len)) == NULL)
+            return false;
+    }
+
+    sp = ld->data;
+    if (!xdr_bytes(xdrs, &sp, (u_int *) &ld->len, ld->len)) {
+        if (xdrs->x_op == XDR_DECODE)
+            FREEUP(ld->data);
+        return false;
+    }
+
+    return true;
+}
+
+bool_t
+xdr_lsfAuth(XDR *xdrs, struct lsfAuth *auth, struct packet_header *hdr)
+{
+
+    char  *sp;
+
+    sp = auth->lsfUserName;
+    if (xdrs->x_op == XDR_DECODE)
+        sp[0] = '\0';
+
+    if (!(xdr_int(xdrs, &auth->uid)
+          && xdr_int(xdrs, &auth->gid)
+          && xdr_string(xdrs, &sp, MAXLSFNAMELEN))) {
+        return false;
+    }
+
+    if (!xdr_enum(xdrs, (int *) &auth->kind))
+        return false;
+
+    if (!xdr_int(xdrs, &auth->k.eauth.len))
+        return false;
+
+    sp = auth->k.eauth.data;
+    if (!xdr_bytes(xdrs, &sp, (u_int *)&auth->k.eauth.len, auth->k.eauth.len))
+        return false;
+
+    if (xdrs->x_op == XDR_ENCODE) {
+        auth->options = AUTH_HOST_UX;
+    }
+
+    if (!xdr_int(xdrs, &auth->options)) {
+        return false;
+    }
+
+    return true;
+}
+
+int
+xdr_lsfAuthSize(struct lsfAuth *auth)
+{
+    if (auth == NULL)
+        return 0;
+
+    int sz = ALIGNWORD_(sizeof(auth->uid))
+        + ALIGNWORD_(sizeof(auth->gid))
+        + ALIGNWORD_(strlen(auth->lsfUserName))
+        + ALIGNWORD_(sizeof(auth->kind))
+        + ALIGNWORD_(sizeof(auth->k.eauth.len))
+        + ALIGNWORD_(auth->k.eauth.len)
+        + ALIGNWORD_(sizeof(auth->options));
+
+    return sz;
+}
+
+static bool_t
+xdr_pidInfo(XDR *xdrs, struct pidInfo *pidInfo, void *ctx)
+{
+    if (! xdr_int(xdrs, &pidInfo->pid))
+        return false;
+    if (! xdr_int(xdrs, &pidInfo->ppid))
+        return false;
+
+    if (! xdr_int(xdrs, &pidInfo->pgid))
+        return false;
+
+    if (! xdr_int(xdrs, &pidInfo->jobid))
+        return false;
+
+    return true;
+}
+
+bool_t
+xdr_jRusage(XDR *xdrs, struct jRusage *runRusage, void *)
+{
+    int i;
+
+    if (xdrs->x_op == XDR_FREE) {
+        FREEUP (runRusage->pidInfo);
+        FREEUP (runRusage->pgid);
+        return true;
+    }
+
+    if (xdrs->x_op == XDR_DECODE) {
+        runRusage->pidInfo = NULL;
+        runRusage->pgid = NULL;
+    }
+
+    if (!(xdr_int(xdrs, &runRusage->mem) &&
+          xdr_int(xdrs, &runRusage->swap) &&
+          xdr_int(xdrs, &runRusage->utime) &&
+          xdr_int(xdrs, &runRusage->stime)))
+        return false;
+
+    if (!(xdr_int(xdrs, &runRusage->npids)))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE && runRusage->npids) {
+        runRusage->pidInfo = calloc (runRusage->npids, sizeof(struct pidInfo));
+        if (runRusage->pidInfo == NULL) {
+            runRusage->npids = 0;
+            return false;
+        }
+    }
+
+    for (i = 0; i < runRusage->npids; i++) {
+        if (!xdr_array_element(xdrs,
+                               (void *)&(runRusage->pidInfo[i]),
+                               NULL,
+                               xdr_pidInfo)) {
+            if (xdrs->x_op == XDR_DECODE)  {
+                FREEUP(runRusage->pidInfo);
+                runRusage->npids = 0;
+                runRusage->pidInfo = NULL;
+            }
+            return false;
+        }
+    }
+
+    if (!(xdr_int(xdrs, &runRusage->npgids)))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE && runRusage->npgids) {
+        runRusage->pgid = calloc(runRusage->npgids, sizeof(int));
+        if (runRusage->pgid == NULL) {
+            runRusage->npgids = 0;
+            return false;
+        }
+    }
+
+    for (i = 0; i < runRusage->npgids; i++) {
+        if (! xdr_array_element(xdrs,
+                                (void *)&(runRusage->pgid[i]),
+                                NULL,
+                                xdr_int)) {
+            if (xdrs->x_op == XDR_DECODE) {
+                FREEUP(runRusage->pgid);
+                runRusage->npgids = 0;
+                runRusage->pgid = NULL;
+            }
+            return false;
+        }
+    }
+    return true;
 }

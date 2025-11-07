@@ -362,8 +362,10 @@ getJobsState (struct sbdPackage *sbdPackage)
 	numJobs = sbdPackage->numJobs;
 
         for (i = 0; i < numJobs; i++) {
-            if (!xdr_arrayElement(&xdrs, (char *)&jobSpecs, &hdr,
-                                                            xdr_jobSpecs)) {
+            if (!xdr_array_element(&xdrs,
+                                   &jobSpecs,
+                                   NULL,
+                                   xdr_jobSpecs)) {
 		ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobSpecs",
 		    masterHost);
 		lsb_merr(I18N_FUNC_S_FAIL, fname, "xdr_jobSpecs",

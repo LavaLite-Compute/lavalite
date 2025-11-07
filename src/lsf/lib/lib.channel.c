@@ -735,8 +735,6 @@ chanDequeue_(int chfd, struct Buffer **buf)
 ssize_t
 chanReadNonBlock_(int chfd, char *buf, int len, int timeout)
 {
-    static char fname[] = "chanReadNonBlock_";
-
     if (io_nonblock_(channels[chfd].handle) < 0) {
         lserrno = LSE_FILE_SYS;
         return -1;
@@ -746,14 +744,14 @@ chanReadNonBlock_(int chfd, char *buf, int len, int timeout)
 }
 
 ssize_t
-chanRead_(int chfd, char *buf, int len)
+chanRead_(int chfd, void *buf, int len)
 {
     return b_read_fix(channels[chfd].handle, buf, len);
 
 }
 
 int
-chanWrite_(int chfd, char *buf, int len)
+chanWrite_(int chfd, void *buf, int len)
 {
 
     return (b_write_fix(channels[chfd].handle, buf, len));
@@ -785,7 +783,7 @@ chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
 
             if (logclass & LC_COMM)
                 ls_syslog(LOG_DEBUG1,"%s: sending %d extra bytes", fname, nlen);
-            if (chanWrite_(chfd, NET_INTADDR_(&nlen), NET_INTSIZE_)
+            if (chanWrite_(chfd, (void *)(&nlen), NET_INTSIZE_)
                 != NET_INTSIZE_)
                 return -1;
 
@@ -973,7 +971,7 @@ doread(int chfd, struct Masks *chanmask)
         char *newdata;
 
         xdrmem_create(&xdrs, rcvbuf->data, PACKET_HEADER_SIZE, XDR_DECODE);
-        if (!xdr_LSFHeader(&xdrs, &hdr)) {
+        if (!xdr_pack_hdr(&xdrs, &hdr)) {
             FD_SET(chfd, &(chanmask->emask));
             channels[chfd].chanerr = CHANE_BADHDR;
             xdr_destroy(&xdrs);

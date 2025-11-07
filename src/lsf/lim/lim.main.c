@@ -323,8 +323,8 @@ process_udp_request(void)
     XDR  xdrs;
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_DECODE);
     initLSFHeader_(&reqHdr);
-    if (! xdr_LSFHeader(&xdrs, &reqHdr)) {
-        syslog(LOG_ERR, "%s: xdr_LSFHeader() failed %m", __func__);
+    if (! xdr_pack_hdr(&xdrs, &reqHdr)) {
+        syslog(LOG_ERR, "%s: xdr_pack_hdr() failed %m", __func__);
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -430,8 +430,7 @@ doAcceptConn(void)
 
     ch = chanAccept_(limTcpSock, &from);
     if (ch < 0) {
-        
-ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanAccept_", limTcpSock);
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanAccept_", limTcpSock);
         return;
     }
 
@@ -454,7 +453,7 @@ ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanAccept_", limTcpSock);
 
     if (fromHost != NULL) {
 
-        client = (struct clientNode *)malloc(sizeof(struct clientNode));
+        client = malloc(sizeof(struct clientNode));
         if (!client) {
             ls_syslog(LOG_ERR, "%s: Connection from %s dropped",
                       fname, sockAdd2Str_(&from));
@@ -463,7 +462,7 @@ ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanAccept_", limTcpSock);
         }
         client->chanfd = ch;
         if (client->chanfd < 0) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanOpenSock", cherrno);
             ls_syslog(LOG_ERR, "%s: Connection from %s dropped",
                     fname,
@@ -612,7 +611,7 @@ static void
 periodic(void)
 {
 
-    syslog(LOG_DEBUG, "%s: Entering this routine...", __func__);
+    //syslog(LOG_DEBUG, "%s: Entering this routine...", __func__);
 
     TIMEIT(0, readLoad(), "readLoad()");
 
@@ -735,9 +734,9 @@ errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
     replyHdr.sequence = reqHdr->sequence;
     replyHdr.length = 0;
     xdrmem_create(&xdrs2, buf, MSGSIZE/4, XDR_ENCODE);
-    if (!xdr_LSFHeader(&xdrs2, &replyHdr)) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+
+ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -748,7 +747,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_LSFHeader");
         cc = chanWrite_(chan, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0)
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanSendDgram_/chanWrite_", limSock);
 
     xdr_destroy(&xdrs2);
@@ -763,14 +762,14 @@ getTclLsInfo(void)
 
     if ((tclLsInfo = (struct tclLsInfo *) malloc (sizeof (struct tclLsInfo )))
             == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return NULL;
     }
 
     if ((tclLsInfo->indexNames = (char **)malloc (allInfo.numIndx *
                     sizeof (char *))) == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return NULL;
     }

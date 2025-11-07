@@ -617,8 +617,8 @@ processClient(struct clientNode *client, int *needFree)
     }
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
-    if (!xdr_LSFHeader(&xdrs, &reqHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_LSFHeader");
+    if (!xdr_pack_hdr(&xdrs, &reqHdr)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
         xdr_destroy(&xdrs);
         chanFreeBuf_(buf);
         shutDownClient(client);

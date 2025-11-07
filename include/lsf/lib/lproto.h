@@ -51,14 +51,13 @@ struct debugReq {
 extern void putMaskLevel(int, char **);
 extern bool_t xdr_debugReq (XDR *xdrs, struct debugReq  *debugReq,
                             struct packet_header *hdr);
+
 #define    MBD_DEBUG         1
 #define    MBD_TIMING        2
 #define    SBD_DEBUG         3
 #define    SBD_TIMING        4
 #define    LIM_DEBUG         5
 #define    LIM_TIMING        6
-#define    RES_DEBUG         7
-#define    RES_TIMING        8
 
 struct resPair {
     char *name;
@@ -93,19 +92,15 @@ struct lsbShareResourceInfoReply {
 #define HOST_ATTR_SERVER        (0x00000001)
 #define HOST_ATTR_CLIENT        (0x00000002)
 #define HOST_ATTR_NOT_LOCAL     (0x00000004)
-#define HOST_ATTR_NOT_READY     (0xffffffff)
 
 extern int sharedResConfigured_;
 
 #define INVALID_FD  (-1)
 #define FD_IS_VALID(x)  ((x) >= 0 && (x) < sysconf(_SC_OPEN_MAX) )
-#define FD_NOT_VALID(x) ( ! FD_IS_VALID(x))
 
 #define AUTH_IDENT      "ident"
 #define AUTH_PARAM_DCE  "dce"
 #define AUTH_PARAM_EAUTH  "eauth"
-#define AUTOMOUNT_LAST_STR "AMFIRST"
-#define AUTOMOUNT_NEVER_STR "AMNEVER"
 
 #define FREEUP(p)   if (p != NULL) {            \
         free(p);                                \
@@ -115,27 +110,16 @@ extern int sharedResConfigured_;
 #define STRNCPY(str1, str2, len)  { strncpy(str1, str2, len);   \
         str1[len -1] = '\0';                                    \
     }
-
-#define FREE_STRING_VECTOR_ENTRIES(NumEnts, Vector) \
-    if (NumEnts > 0) {                              \
-        int _i_;                                    \
-        for (_i_ = 0; _i_ < (NumEnts); _i_++) {     \
-            FREEUP((Vector)[_i_]);                  \
-        }                                           \
-    }
-
-#define IS_UNC(a)                                                   \
-    ((a!=NULL) && (*a == '\\') && (*(a+1) == '\\') ? TRUE : FALSE)
-
-#define TRIM_LEFT(sp) if (sp != NULL) {         \
-        while (isspace(*(sp))) (sp)++;          \
-    }
-#define TRIM_RIGHT(sp)     while (isspace(*(sp+strlen(sp)-1))) *(sp+strlen(sp)-1)='\0';
-
+/*
+ * Bug ALIGNWORD_ legacy macro:
+ * Keeps old buffer length arithmetic untouched.
+ * XDR_STRLEN() is the correct replacement, but the legacy math has
+ * been stable for years and is left intact until full message tests exist.
+ */
 #define ALIGNWORD_(s)    (((s)&0xfffffffc) + 4)
-#define NET_INTADDR_(a) ((char *) (a))
 
-#define NET_INTSIZE_ 4
+// Bug
+#define NET_INTSIZE_ sizeof(uint32_t)
 
 #define LS_EXEC_T "LS_EXEC_T"
 
@@ -153,37 +137,10 @@ extern int sharedResConfigured_;
             isSet = 0;                                                  \
     }
 
-#define FOR_EACH_WORD_IN_SPACE_DELIMITED_STRING(String, Word)   \
-    if ((String) != NULL) {                                     \
-    char *Word;                                                 \
-    while (((Word) = getNextWord_(&String)) != NULL) {          \
-
-#define END_FOR_EACH_WORD_IN_SPACE_DELIMITED_STRING }}
-
-#define LSF_LIM_ERESOURCE_OBJECT        "liblimvcl.so"
-#define LSF_LIM_ERESOURCE_VERSION       "lim_vcl_get_eres_version"
-#define LSF_LIM_ERESOURCE_DEFINE        "lim_vcl_get_eres_def"
-#define LSF_LIM_ERESOURCE_LOCATION      "lim_vcl_get_eres_loc"
-#define LSF_LIM_ERESOURCE_VALUE         "lim_vcl_get_eres_val"
-#define LSF_LIM_ERES_TYPE "!"
-
 extern int expectReturnCode_(int, int, struct packet_header *);
 extern int ackAsyncReturnCode_(int, struct packet_header *);
 extern int resRC2LSErr_(int);
 extern int ackReturnCode_(int);
-
-#define LSF_O_RDONLY    00000
-#define LSF_O_WRONLY    00001
-#define LSF_O_RDWR      00002
-#define LSF_O_NDELAY    00004
-#define LSF_O_NONBLOCK  00010
-#define LSF_O_APPEND    00020
-#define LSF_O_CREAT     00040
-#define LSF_O_TRUNC     00100
-#define LSF_O_EXCL      00200
-#define LSF_O_NOCTTY    00400
-
-#define LSF_O_CREAT_DIR 04000
 
 extern int getConnectionNum_(char *hostName);
 extern void inithostsock_(void);
@@ -285,30 +242,12 @@ extern int daemonId;
 
 extern struct hostent *Gethostbyname_ex_ (char *, int options);
 
-#define DAEMON_ID_RES           (1)
-#define DAEMON_ID_SBD           (2)
-#define DAEMON_ID_LIM           (3)
-#define DAEMON_ID_MLIM          (4)
-#define DAEMON_ID_MBD           (5)
-
-extern int whichDaemonAmI(void);
-extern int isInDHCPEnv(void);
-
 extern int getAskedHosts_(char *, char ***, int *, int *, int);
 extern int lockHost_(time_t duration, char *hname);
 extern int unlockHost_(char *hname);
 
 extern int lsfRu2Str(FILE *, struct lsfRusage *);
 extern int  str2lsfRu(char *, struct lsfRusage *, int *);
-extern void lsfRusageAdd_(struct lsfRusage *, struct lsfRusage *);
-
-extern void inserttask_(char *, hTab *);
-extern int deletetask_(char *, hTab *);
-extern int listtask_(char ***, hTab *, int);
-extern int readtaskfile_(char *, hTab *, hTab *, hTab *, hTab *, char);
-extern int writetaskfile_(char *, hTab *, hTab *, hTab *, hTab *);
-
-extern int expSyntax_(char *);
 
 extern char *getNextLineC_(FILE *, int *, int);
 extern char *getNextLine_(FILE *, int);
@@ -344,8 +283,6 @@ extern int isInlist (char **, char *, int);
 extern void doSkipSection_conf(struct lsConf *, int *, char *, char *);
 extern char *getBeginLine_conf(struct lsConf *, int *);
 
-extern void defaultAllHandlers(void);
-
 extern ssize_t nb_read_fix(int, void *, size_t);
 extern ssize_t nb_write_fix(int, const void *, size_t);
 extern ssize_t nb_read_timeout(int, void *, size_t, int);
@@ -357,28 +294,10 @@ extern int rd_poll_(int, struct timeval *);
 extern int b_accept_(int, struct sockaddr *, socklen_t *);
 extern int blockSigs_(int, sigset_t *, sigset_t *);
 
-extern int readDecodeHdr_ (int s,
-                           char *buf,
-                           ssize_t (*readFunc)(),
+extern int readDecodeHdr_ (int, char *,  ssize_t (*readFunc)(),
                            XDR *xdrs,
                            struct packet_header *hdr);
-extern int readDecodeMsg_ (int s, char *buf, struct packet_header *hdr,
-                           ssize_t (*readFunc)(), XDR *xdrs, char *data,
-                           bool_t (*xdrFunc)(), struct lsfAuth *auth);
-extern int writeEncodeMsg_(int,
-                           char *,
-                           int,
-                           struct packet_header *,
-                           char *,
-                           ssize_t (*)(),
-                           bool_t (*)(),
-                           int);
 extern int writeEncodeHdr_(int, struct packet_header *, ssize_t (*)());
-extern int lsSendMsg_(int, int, int, char *, char *, int, bool_t (*)(),
-                      ssize_t (*)(), struct lsfAuth *);
-extern int lsRecvMsg_(int, char *, int, struct packet_header *, char *,
-                      bool_t (*)(), ssize_t (*)());
-
 extern int io_nonblock_(int);
 extern int io_block_(int);
 
@@ -401,7 +320,7 @@ extern char *parsewindow(char *, char *, int *, char *);
 extern int expandList_(char ***, int, char **);
 extern int expandList1_(char ***, int, int *, char **);
 
-extern void xdr_lsffree(bool_t (*)(), char *, struct packet_header *);
+extern void xdr_lsffree(bool_t (*)(), void *, struct packet_header *);
 
 extern int createUtmpEntry(char *, pid_t, char *);
 extern int removeUtmpEntry(pid_t);

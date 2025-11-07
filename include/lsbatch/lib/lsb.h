@@ -29,6 +29,7 @@
 #include "lsf/intlib/bitset.h"
 #include "lsf/intlib/listset.h"
 #include "lsbatch/daemons/daemonout.h"
+#include "lsf/lib/lib.xdr.h"
 #include "lsbatch/lib/lsb.xdr.h"
 
 #ifndef MIN

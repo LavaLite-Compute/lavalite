@@ -8013,7 +8013,7 @@ mbdRcvJobFile(int chfd, struct lenData *jf)
 
     jf->data = NULL;
     jf->len = 0;
-    if ((cc = chanReadNonBlock_(chfd, NET_INTADDR_(&jf->len),
+    if ((cc = chanReadNonBlock_(chfd, (void *)(&jf->len),
                                 NET_INTSIZE_, timeout)) != NET_INTSIZE_) {
         ls_syslog(LOG_ERR, "%s", __func__, "chanReadNonBlock_");
         return -1;

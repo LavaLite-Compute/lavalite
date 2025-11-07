@@ -18,12 +18,26 @@
  */
 #include "lsf/lim/lim.h"
 
-#define MAX_FLOAT16 4.227858E+09
+static bool_t
+xdr_resPair(XDR *xdrs, struct resPair *resPair, void *ctx)
+{
+    if (!(xdr_var_string(xdrs, &resPair->name)
+          && xdr_var_string(xdrs, &resPair->value)))
+        return false;
+    return true;
+}
 
-static u_short encfloat16_(float );
-static float   decfloat16_(u_short);
-static void freeResPairs (struct resPair *, int);
-static bool_t xdr_resPair (XDR *, struct resPair *, struct packet_header *);
+static inline void
+freeResPairs(struct resPair *resPairs, int num)
+{
+    int i;
+
+    for (i = 0; i < num; i++) {
+        free(resPairs[i].name);
+        free(resPairs[i].value);
+    }
+    free(resPairs);
+}
 
 bool_t
 xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hdr)
@@ -94,7 +108,10 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hd
             lvp->resPairs = NULL;
     }
     for (i = 0; i < lvp->numResPairs; i++) {
-        if (!xdr_arrayElement(xdrs, (char *) &lvp->resPairs[i], hdr, xdr_resPair)) {
+        if (!xdr_array_element(xdrs,
+                               &lvp->resPairs[i],
+                               NULL,
+                               xdr_resPair)) {
             if (xdrs->x_op == XDR_DECODE) {
                 freeResPairs(lvp->resPairs, i);
                 resPairs = NULL;
@@ -105,35 +122,10 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hd
     }
     if (xdrs->x_op == XDR_DECODE)
         numResPairs = lvp->numResPairs;
+
     return true;
-
 }
 
-
-static void
-freeResPairs (struct resPair *resPairs, int num)
-{
-    int i;
-
-    for (i = 0; i < num; i++) {
-        FREEUP (resPairs[i].name);
-        FREEUP (resPairs[i].value);
-    }
-    FREEUP (resPairs);
-}
-
-
-static bool_t
-xdr_resPair (XDR *xdrs, struct resPair *resPair, struct packet_header *hdr)
-{
-    if (!(xdr_var_string(xdrs, &resPair->name)
-          && xdr_var_string(xdrs, &resPair->value)))
-        return false;
-    return true;
-
-}
-
-
 bool_t
 xdr_loadmatrix(XDR *xdrs, int len, struct loadVectorStruct *lmp,
                struct packet_header *hdr)
@@ -141,32 +133,31 @@ xdr_loadmatrix(XDR *xdrs, int len, struct loadVectorStruct *lmp,
     return true;
 }
 
-
+
 bool_t
 xdr_masterReg(XDR *xdrs, struct masterReg *masterRegPtr, struct packet_header *hdr)
 {
-    char *sp1, *sp2;
-    int i, size;
+    char *sp1;
+    char *sp2;
 
     sp1 = masterRegPtr->clName;
     sp2 = masterRegPtr->hostName;
 
     if (xdrs->x_op == XDR_DECODE) {
-        sp1[0] = '\0';
-        sp2[0] = '\0';
+        sp1[0] = 0;
+        sp2[0] = 0;
     }
 
-    if ( !(xdr_string(xdrs, &sp1, MAXLSFNAMELEN) &&
-           xdr_string(xdrs, &sp2, MAXHOSTNAMELEN) &&
-           xdr_int(xdrs,&masterRegPtr->flags) &&
-           xdr_u_int(xdrs,&masterRegPtr->seqNo) &&
-           xdr_int(xdrs,&masterRegPtr->checkSum) &&
-           xdr_portno(xdrs, &masterRegPtr->portno) &&
-           xdr_int(xdrs, &masterRegPtr->licFlag) &&
-           xdr_int(xdrs, &masterRegPtr->maxResIndex))) {
-        return false;
-    }
+  if (! xdr_string(xdrs, &sp1, MAXLSFNAMELEN)
+      || !xdr_string(xdrs, &sp2, MAXHOSTNAMELEN)
+      || !xdr_int(xdrs,&masterRegPtr->flags)
+      || !xdr_u_int(xdrs,&masterRegPtr->seqNo)
+      || !xdr_int(xdrs,&masterRegPtr->checkSum)
+      || !xdr_portno(xdrs, &masterRegPtr->portno)) {
+      return false;
+  }
 
+#if 0
     if (xdrs->x_op == XDR_DECODE) {
         size = masterRegPtr->maxResIndex;
         masterRegPtr->resBitArray = (int *)malloc(size*sizeof(int));
@@ -175,7 +166,7 @@ xdr_masterReg(XDR *xdrs, struct masterReg *masterRegPtr, struct packet_header *h
         if (!xdr_int(xdrs, &(masterRegPtr->resBitArray[i])))
             return false;
     }
-
+#endif
     return true;
 
 }
@@ -223,390 +214,18 @@ xdr_statInfo(XDR *xdrs, struct statInfo *sip, struct packet_header *hdr)
     return true;
 }
 
-#define MIN_FLOAT16  2.328306E-10
-static u_short
-encfloat16_(float f)
-{
-    int expo, mant;
-    u_short result;
-    double temp,fmant;
-
-    temp = f;
-    if (temp <= MIN_FLOAT16)
-        temp = MIN_FLOAT16;
-    if (temp >= INFINIT_LOAD)
-        return((u_short)0x7fff);
-
-    fmant = frexp(temp, &expo);
-
-    if (expo < 0)
-        expo =  0x20 | (expo & 0x1F);
-    else
-        expo = expo & 0x1F;
-
-    fmant -= 0.5;
-    fmant *= 2048;
-    mant   = fmant;
-
-    result = expo << 10;
-    result = result + mant;
-    return result;
-}
-
-static float
-decfloat16_(u_short sf)
-{
-    int expo, mant;
-    double fmant;
-    float result;
-
-    if (sf == 0x7fff)
-        return INFINIT_LOAD;
-
-    expo = (sf >> 10) & 0x0000003F;
-    if (expo & 0x20)
-        expo =  (expo & 0x1F) - 32;
-    else
-        expo = expo & 0x1F;
-    mant = sf & 0x000003FF;
-    fmant = (double)mant / 2048;
-    fmant += 0.5;
-    result = (float)ldexp(fmant, expo);
-    if (result <= MIN_FLOAT16)
-        result=0.0;
-    return result;
-}
-/* replace with:
-
-   bool_t
-   xdr_lvector(XDR *xdrs, float *li, u_int nIndices)
-   {
-   //XDR will encode/decode each float in IEEE754 big-endian, 4 bytes each.
-   return xdr_vector(xdrs, (char *)li, nIndices, sizeof(*li), (xdrproc_t)xdr_float);
-   }
-*/
 bool_t
-xdr_lvector(XDR *xdrs, float *li, int nIndices)
+xdr_lvector(XDR *xdrs, float *li, uint32_t nIndices)
 {
-    u_short indx, temps;
-    unsigned int *a;
-    int i,j;
-
-    if (!(a=(unsigned int *)malloc(allInfo.numIndx*sizeof(unsigned int))))
+    if (nIndices < 0)
         return false;
-    if (xdrs->x_op == XDR_ENCODE) {
-        for (i=0, j=0; i < NBUILTINDEX; i=i+2) {
-            indx = encfloat16_(li[i]);
-            a[j] = indx << 16;
-            if (i == nIndices - 1)
-                indx = 0;
-            else
-                indx = encfloat16_(li[i+1]);
-            a[j] = a[j] + indx;
-            j++;
-        }
-    }
-    for (i=0; i < (NBUILTINDEX/2+1); i++) {
-        if (!xdr_u_int(xdrs, &a[i])) {
-            FREEUP (a);
-            return false;
-        }
-    }
-
-    if (xdrs->x_op == XDR_DECODE) {
-        for(i=0,j=0; i < NBUILTINDEX; i=i+2) {
-            temps = (a[j] >> 16) & 0x0000ffff;
-            li[i] = decfloat16_(temps);
-            if (i == NBUILTINDEX - 1)
-                break;
-            a[j]  = a[j] << 16;
-            temps = (a[j] >> 16) & 0x0000ffff;
-            li[i+1] = decfloat16_(temps);
-            j++;
-        }
-    }
-
-    for (i=NBUILTINDEX; i<nIndices; i++) {
-        if (! xdr_float(xdrs, &li[i])) {
-            FREEUP (a);
-            return false;
-        }
-    }
-
-    FREEUP (a);
-    return true;
-
-}
-
-bool_t
-xdr_minSLimConfData(XDR *xdrs, struct minSLimConfData *sLimConfDatap, struct packet_header *hdr)
-{
-    static char fname[] = "xdr_minSLimConfData";
-    int i, j, sharedResourceCnt;
-    char *sp1;
-    windows_t *windowsPtr;
-    struct resItem *resTablePtr;
-    struct sharedResourceInstance *tmp, *prevPtr;
-
-    if (xdrs->x_op == XDR_FREE) {
-
-        for (i = 0;i < sLimConfDatap->nClusAdmins; i++) {
-            FREEUP(sLimConfDatap->clusAdminNames[i]);
-        }
-
-        for (i = 0; i < sLimConfDatap->myHost_numInstances; i++) {
-            FREEUP(sLimConfDatap->myHost_instances[i]->resName);
-            FREEUP(sLimConfDatap->myHost_instances[i]->value);
-            FREEUP(sLimConfDatap->myHost_instances[i]);
-        }
-        FREEUP(sLimConfDatap->myHost_instances);
-
-        while (sLimConfDatap->sharedResHead) {
-            tmp = sLimConfDatap->sharedResHead;
-            sLimConfDatap->sharedResHead = tmp->nextPtr;
-            FREEUP(tmp->resName);
-            FREEUP(tmp);
-        }
-
-        FREEUP(sLimConfDatap->myCluster_eLimArgs);
-        FREEUP(sLimConfDatap->myHost_windows);
-
-        FREEUP(sLimConfDatap->clusAdminIds);
-        FREEUP(sLimConfDatap->clusAdminNames);
-        FREEUP(sLimConfDatap->allInfo_resTable);
-
-        for (i = 0; i < 8; i++ )
-            FREEUP(sLimConfDatap->myHost_week[i]);
-        FREEUP(sLimConfDatap->myHost_busyThreshold);
-        sLimConfDatap->nClusAdmins = 0;
-
+    if (nIndices == 0)
         return true;
-    }
 
-    if (xdrs->x_op == XDR_DECODE) {
-
-        sLimConfDatap->nClusAdmins = 0;
-        sLimConfDatap->myCluster_eLimArgs = NULL;
-        sLimConfDatap->myHost_windows = NULL;
-        sLimConfDatap->allInfo_nRes = 0;
-        sLimConfDatap->allInfo_resTable = NULL;
-
-        for (i = 0; i < 8; i++ ) {
-            sLimConfDatap->numMyhost_weekpair[i] = 0;
-            sLimConfDatap->myHost_week[i] = NULL;
-        }
-
-        sLimConfDatap->allInfo_numIndx = 0;
-        sLimConfDatap->myHost_busyThreshold = NULL;
-
-        sLimConfDatap->myHost_numInstances = 0;
-        sLimConfDatap->myHost_instances = NULL;
-        sLimConfDatap->sharedResHead = NULL;
-    }
-
-    if (!xdr_int(xdrs, &sLimConfDatap->defaultRunElim)) {
-        return false;
-    }
-    if (!xdr_int(xdrs, &sLimConfDatap->nClusAdmins)) {
-        return false;
-    }
-
-    if (xdrs->x_op == XDR_DECODE && sLimConfDatap->nClusAdmins) {
-        sLimConfDatap->clusAdminIds = (int *)calloc(sLimConfDatap->nClusAdmins,
-                                                    sizeof(int));
-        sLimConfDatap->clusAdminNames = (char **)calloc(
-            sLimConfDatap->nClusAdmins, sizeof(char *));
-
-        if (!sLimConfDatap->clusAdminIds || !sLimConfDatap->clusAdminNames) {
-            sLimConfDatap->nClusAdmins=0;
-            return false;
-        }
-    }
-    for (i = 0;i < sLimConfDatap->nClusAdmins; i++) {
-        if (!xdr_int(xdrs, &sLimConfDatap->clusAdminIds[i]) ||
-            !xdr_var_string(xdrs, &sLimConfDatap->clusAdminNames[i])) {
-            return false;
-        }
-    }
-    if (!xdr_float(xdrs, &sLimConfDatap->exchIntvl) ||
-        !xdr_float(xdrs, &sLimConfDatap->sampleIntvl) ||
-        !xdr_short(xdrs, &sLimConfDatap->hostInactivityLimit) ||
-        !xdr_short(xdrs, &sLimConfDatap->masterInactivityLimit) ||
-        !xdr_short(xdrs, &sLimConfDatap->retryLimit) ||
-        !xdr_short(xdrs, &sLimConfDatap->keepTime) ) {
-        return false;
-    }
-
-    if (!xdr_int(xdrs, &sLimConfDatap->allInfo_nRes) ||
-        !xdr_int(xdrs, &sLimConfDatap->allInfo_numIndx) ||
-        !xdr_int(xdrs, &sLimConfDatap->allInfo_numUsrIndx) ) {
-        return false;
-    }
-
-    if (xdrs->x_op == XDR_DECODE && (sLimConfDatap->allInfo_nRes - NBUILTINDEX)) {
-        sLimConfDatap->allInfo_resTable = (struct resItem *)calloc(
-            sLimConfDatap->allInfo_nRes - NBUILTINDEX, sizeof(struct resItem));
-        if (!sLimConfDatap->allInfo_resTable) {
-            return false;
-        }
-    }
-
-    resTablePtr = sLimConfDatap->allInfo_resTable;
-    for (i = 0; i < sLimConfDatap->allInfo_nRes - NBUILTINDEX; i++ ) {
-        sp1= resTablePtr->name;
-        if (xdrs->x_op == XDR_DECODE) {
-            sp1[0] = '\0';
-        }
-
-        if (!xdr_string(xdrs, &sp1, MAXLSFNAMELEN) ||
-            !xdr_int(xdrs, (int *)&resTablePtr->valueType) ||
-            !xdr_int(xdrs, (int *)&resTablePtr->orderType) ||
-            !xdr_int(xdrs, &resTablePtr->flags) ||
-            !xdr_int(xdrs, &resTablePtr->interval) ) {
-            return false;
-        }
-
-        resTablePtr++;
-    }
-
-    if (!xdr_u_short(xdrs, &sLimConfDatap->myCluster_checkSum) ||
-        !xdr_var_string(xdrs, &sLimConfDatap->myCluster_eLimArgs) ) {
-        return false;
-    }
-
-    if (!xdr_var_string(xdrs, &sLimConfDatap->myHost_windows) ||
-        !xdr_time_t(xdrs, &sLimConfDatap->myHost_wind_edge) ||
-        !xdr_int(xdrs, &sLimConfDatap->myHost_rexPriority) ||
-        !xdr_int(xdrs, &sLimConfDatap->myHost_numInstances) ) {
-        return false;
-    }
-
-    for (i = 0; i < 8; i++) {
-        if (!xdr_int(xdrs, &sLimConfDatap->numMyhost_weekpair[i])) {
-            return false;
-        }
-    }
-    for (i = 0; i < 8; i++) {
-        if (xdrs->x_op == XDR_DECODE && sLimConfDatap->numMyhost_weekpair[i]) {
-            sLimConfDatap->myHost_week[i] = (windows_t *)malloc(
-                sLimConfDatap->numMyhost_weekpair[i]*sizeof(windows_t));
-
-            if ( sLimConfDatap->myHost_week[i] == NULL ) {
-                return false;
-            }
-
-            for (j = 0; j < sLimConfDatap->numMyhost_weekpair[i] - 1; j++) {
-                sLimConfDatap->myHost_week[i][j].nextwind =
-                    &sLimConfDatap->myHost_week[i][j+1];
-            }
-
-            sLimConfDatap->myHost_week[i][j].nextwind = NULL;
-        }
-
-        windowsPtr = sLimConfDatap->myHost_week[i];
-        for (j = 0; j < sLimConfDatap->numMyhost_weekpair[i]; j++) {
-            if (windowsPtr == NULL) {
-                return false;
-            }
-
-            if (!xdr_float(xdrs, &windowsPtr->opentime) ||
-                !xdr_float(xdrs, &windowsPtr->closetime)) {
-                return false;
-            }
-            windowsPtr = windowsPtr->nextwind;
-        }
-    }
-
-    if (xdrs->x_op == XDR_DECODE && sLimConfDatap->allInfo_numIndx) {
-        sLimConfDatap->myHost_busyThreshold =
-            calloc(sLimConfDatap->allInfo_numIndx, sizeof(float));
-        if (!sLimConfDatap->myHost_busyThreshold) {
-            sLimConfDatap->allInfo_numIndx = 0;
-            return false;
-        }
-    }
-    for (i = 0; i < sLimConfDatap->allInfo_numIndx; i++) {
-        if (!xdr_float(xdrs,&sLimConfDatap->myHost_busyThreshold[i]) ) {
-            return false;
-        }
-    }
-
-    if (xdrs->x_op == XDR_DECODE) {
-        if (sLimConfDatap->myHost_numInstances) {
-            sLimConfDatap->myHost_instances =
-                calloc(sLimConfDatap->myHost_numInstances,
-                       (sizeof(struct resourceInstance *)));
-            if (!sLimConfDatap->myHost_instances) {
-                sLimConfDatap->myHost_numInstances = 0;
-                return false;
-            }
-            for (i = 0; i < sLimConfDatap->myHost_numInstances; i++) {
-                sLimConfDatap->myHost_instances[i]
-                    = calloc(1, sizeof(struct resourceInstance));
-                if (sLimConfDatap->myHost_instances[i] == NULL) {
-                    return false;
-                }
-            }
-        } else {
-            sLimConfDatap->myHost_instances = NULL;
-        }
-    }
-
-    for (i = 0; i < sLimConfDatap->myHost_numInstances; i++) {
-        if (!xdr_var_string(xdrs,
-                            &sLimConfDatap->myHost_instances[i]->resName) ||
-            !xdr_var_string(xdrs,
-                            &sLimConfDatap->myHost_instances[i]->value)) {
-            return false;
-        }
-    }
-
-    if (xdrs->x_op == XDR_ENCODE) {
-        sharedResourceCnt = 0;
-        for (tmp = sLimConfDatap->sharedResHead; tmp; tmp=tmp->nextPtr) {
-            sharedResourceCnt++;
-        }
-
-        if (!xdr_int(xdrs, &sharedResourceCnt) ) {
-            return false;
-        }
-
-        for (tmp = sLimConfDatap->sharedResHead; tmp; tmp=tmp->nextPtr) {
-            if (!xdr_var_string(xdrs, &tmp->resName)) {
-                return false;
-            }
-        }
-    }
-
-    if (xdrs->x_op == XDR_DECODE) {
-
-        if (!xdr_int(xdrs, &sharedResourceCnt) ) {
-            return false;
-        }
-
-        sLimConfDatap->sharedResHead = NULL;
-        for (i = 0; i < sharedResourceCnt; i++) {
-            tmp = (struct sharedResourceInstance *)
-                calloc (1, sizeof(sharedResourceInstance));
-            if (!tmp) {
-
-                ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-                return false;
-            }
-            if (!xdr_var_string(xdrs, &tmp->resName)) {
-                return false;
-            }
-            tmp->nextPtr = NULL;
-
-            if (i == 0) {
-                sLimConfDatap->sharedResHead = tmp;
-                prevPtr = tmp;
-            } else {
-                prevPtr->nextPtr = tmp;
-                prevPtr = tmp;
-            }
-        }
-    }
-
-    return true;
+    //XDR will encode/decode each float in IEEE754 big-endian, 4 bytes each.
+    return xdr_vector(xdrs,
+                      (char *)li,
+                      (uint32_t)nIndices,
+                      (uint32_t)sizeof(*li),
+                      (xdrproc_t)xdr_float);
 }
