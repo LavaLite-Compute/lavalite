@@ -7,6 +7,8 @@ AC_PREFIX_DEFAULT([/opt/lavalite-0.1.0])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 
+#LT_INIT([disable-shared enable-static])
+
 dnl Modern large/posix feature defines (instead of forcing _GNU_SOURCE)
 AC_USE_SYSTEM_EXTENSIONS
 
