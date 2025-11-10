@@ -277,7 +277,7 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
         if (id == DEFAULT_FMT)
             newIndexLen = strlen(dispindex[j]);
 
-        if (host->li[j] >= INFINIT_LOAD)
+        if (host->li[j] >= INFINITY)
             sp = "-";
         else {
             if (LS_ISBUSYON(host->status, j)) {
@@ -349,7 +349,7 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
         if (id == DEFAULT_FMT)
             newIndexLen = strlen(dispindex[j]);
 
-        if (host->li[j] >= INFINIT_LOAD)
+        if (host->li[j] >= INFINITY)
             sp = "-";
         else {
             if (LS_ISBUSYON(host->status, j)) {

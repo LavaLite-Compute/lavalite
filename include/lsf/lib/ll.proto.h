@@ -57,12 +57,3 @@ bool_t xdr_array_element(XDR *, void *, void *, bool_t (*)());
 // This is the type of the encode/decode function
 typedef bool_t (*xdr_func_t)(XDR *, void *, void*);
 
-/* take care of this later in a common header
-static inline void FREEUP(void *p_) {
-    void **p = (void **)&p_;
-    if (*p) {
-        free(*p);
-        *p = NULL;
-    }
-}
- */

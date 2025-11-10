@@ -595,8 +595,8 @@ updHAcct (struct jData *jData,
             }
 
             if (qp->hJobLimit == INFINIT_INT
-                && qp->pJobLimit == INFINIT_FLOAT)
-                pJobLimit = INFINIT_FLOAT;
+                && qp->pJobLimit == INFINITY)
+                pJobLimit = INFINITY;
             else if (qp->hJobLimit == INFINIT_INT)
                 pJobLimit = qp->pJobLimit;
             else
@@ -867,7 +867,7 @@ updUserData1 (struct jData *jData, struct uData *up, int numJobs,
                  && numRESERVE == 0);
 
     if (   !  newJob
-           && up->pJobLimit < INFINIT_FLOAT)
+           && up->pJobLimit < INFINITY)
     {
 
         updHAcct(jData, NULL, up, &(up->hAcct), numRUN, numSSUSP,
@@ -972,7 +972,7 @@ getUserData (char *user)
         return ((struct uData *) NULL);
     }
 
-    uData = addUserData(user, INFINIT_INT, INFINIT_FLOAT,
+    uData = addUserData(user, INFINIT_INT, INFINITY,
                         "mbatchd/getUserData", FALSE, FALSE);
     if (uData != NULL)
         return uData;
@@ -1006,8 +1006,8 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
 
             uInfo = &(reply->users[reply->numUsers]);
             uInfo->user = uData->user;
-            if (uData->pJobLimit >= INFINIT_FLOAT)
-                uInfo->procJobLimit = INFINIT_FLOAT;
+            if (uData->pJobLimit >= INFINITY)
+                uInfo->procJobLimit = INFINITY;
             else{
                 uInfo->procJobLimit = uData->pJobLimit;
             }
@@ -1053,11 +1053,11 @@ checkUsers (struct infoReq *req, struct userInfoReply *reply)
             uInfo->user = uData->user;
         if (found) {
             uInfo->maxJobs = INFINIT_INT;
-            uInfo->procJobLimit = INFINIT_FLOAT;
+            uInfo->procJobLimit = INFINITY;
         } else {
             uInfo->maxJobs = uData->maxJobs;
-            if (uData->pJobLimit >= INFINIT_FLOAT)
-                uInfo->procJobLimit = INFINIT_FLOAT;
+            if (uData->pJobLimit >= INFINITY)
+                uInfo->procJobLimit = INFINITY;
             else
                 uInfo->procJobLimit = uData->pJobLimit;
         }
@@ -1412,7 +1412,7 @@ initUData (struct uData *uData)
 
     uData->user = NULL;
     uData->maxJobs = INFINIT_INT;
-    uData->pJobLimit = INFINIT_FLOAT;
+    uData->pJobLimit = INFINITY;
     uData->hAcct = NULL;
     uData->flags = 0;
     uData->numJobs   = 0;

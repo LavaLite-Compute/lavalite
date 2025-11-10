@@ -1,6 +1,5 @@
-
-/* $Id: usleep.c,v 1.4 2007/08/15 22:18:51 tmizan Exp $
- * Copyright (C) 2007 Platform Computing Inc
+#pragma once
+/*
  * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,20 +16,29 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/lib.h"
 
-void
-millisleep_(int msec)
-{
-    struct timeval dtime;
+/* Library parameters defining entry in genParams_[] array
+ * every system components has its own array of these variables
+ * but in different order as some variables are specific to a
+ * different component
+ */
 
-    if (msec < 1)
-        return;
-
-    dtime.tv_sec = msec/1000;
-    dtime.tv_usec = (msec - dtime.tv_sec * 1000) * 1000;
-
-    select(0,0,0,0,&dtime);
-
-}
-
+typedef enum {
+    LSF_CONFDIR,
+    LSF_SERVERDIR,
+    LSF_LIM_DEBUG,
+    LSF_RES_DEBUG,
+    LSF_STRIP_DOMAIN,
+    LSF_LIM_PORT,
+    LSF_LOG_MASK,
+    LSF_SERVER_HOSTS,
+    LSF_AUTH,
+    LSF_ID_PORT,
+    LSF_RES_TIMEOUT,
+    LSF_API_CONNTIMEOUT,
+    LSF_API_RECVTIMEOUT,
+    LSF_TMPDIR,
+    LSF_LOGDIR,
+    LSF_MASTER_LIST,
+    LSF_INTERACTIVE_STDERR,
+} lib_params_t;

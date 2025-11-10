@@ -98,7 +98,7 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
     mbdReqtype = BATCH_JOB_SIG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&signalReq, &hdr, xdr_signalReq, 0,
                 &auth)) {

@@ -157,7 +157,7 @@ do_jobInfoReq (XDR *xdrs, int chfd, struct sockaddr_in *from,
     }
     if (jobInfoReq.host[0] != '\0'
         && getHGrpData(jobInfoReq.host) == NULL
-        && !isValidHost_(jobInfoReq.host)
+        && !is_valid_host(jobInfoReq.host)
         && (strcmp(jobInfoReq.host, LOST_AND_FOUND) != 0))
         reply = LSBE_BAD_HOST;
     else {
@@ -1566,7 +1566,7 @@ do_paramInfoReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
     reply_buf = (char *) my_malloc(count, "do_paramInfoReq");
     xdrmem_create(&xdrs2, reply_buf, count, XDR_ENCODE);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     replyStruct = (char *) &paramInfo;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_parameterInfo,

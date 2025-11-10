@@ -375,8 +375,8 @@ main(int argc, char **argv)
             mbdDie(MASTER_RESIGN);
     }
 
-    if (!isValidHost_(myhostnm)) {
-        ls_syslog(LOG_ERR, "main", "isValidHost_");
+    if (!is_valid_host(myhostnm)) {
+        ls_syslog(LOG_ERR, "main", "is_valid_host");
         if (! lsb_CheckMode)
             mbdDie(MASTER_FATAL);
         else

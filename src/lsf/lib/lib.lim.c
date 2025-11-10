@@ -18,6 +18,8 @@
  */
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.channel.h"
+#include "lsf/lib/ll.params.h"
+#include "lsf/lib/ll.host.h"
 
 #define MAXMSGLEN  32*MSGSIZE
 #define CONNECT_TIMEOUT 5
@@ -79,7 +81,7 @@ callLim_(enum limReqCode reqCode,
         }
     }
 
-    initLSFHeader_(&reqHdr);
+    init_pack_hdr(&reqHdr);
     reqHdr.operation = reqCode;
 
     reqHdr.sequence  = getRefNum_();
@@ -151,6 +153,7 @@ callLim_(enum limReqCode reqCode,
     }
 }
 
+#if 0
 static int
 callLimTcp_(char *reqbuf, char **rep_buf, int req_size,
             struct packet_header *replyHdr, int options)
@@ -235,18 +238,11 @@ contact:
 
         xdr_destroy(&xdrs);
 
-        if (masterInfo_.addr == 0 ||
-            !memcmp((char *) &masterInfo_.addr,
-                    (char *) &sockIds_[MASTER].sin_addr,
-                    sizeof(u_int))) {
-            if (!memcpy((char *) &masterInfo_.addr,
-                        (char *) &sockIds_[MASTER].sin_addr,
-                        sizeof(u_int)))
-                lserrno = LSE_TIME_OUT;
-            else
-                lserrno = LSE_MASTR_UNKNW;
+        if (is_addrv4_zero(masterInfo_.addr)
+            || !is_addrv4_equal(&masterInfo,  &sockIds_[MASTER]))
+            lserrno = LSE_MASTR_UNKNW;
             FREEUP(*rep_buf);
-            CLOSECD(limchans_[TCP]);
+            chaClose_(limchans_[TCP]);
             return -1;
         }
         masterknown_ = true;
@@ -281,6 +277,102 @@ contact:
 
     return 0;
 }
+#endif
+/* KISS: connect -> RPC -> interpret minimal opcodes -> close (unless KEEP). */
+static int
+callLimTcp_(char *reqbuf,
+            char **rep_buf,
+            int req_size,
+            struct packet_header *replyHdr,
+            int options)
+{
+    XDR xdrs;
+    struct Buffer sndbuf = { .data = reqbuf, .len = req_size };
+    struct Buffer rcvbuf = { 0 };
+    int cc;
+
+    *rep_buf = NULL;
+
+    /* Ensure we have a destination. */
+    if (sockIds_[TCP].sin_addr.s_addr == 0) {
+        if (ls_getmastername() == NULL) {
+            lserrno = LSE_MASTR_UNKNW;
+            return -1;
+        }
+    }
+
+    // Open + connect (one shot).
+    if (limchans_[TCP] < 0) {
+        limchans_[TCP] = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
+        if (limchans_[TCP] < 0)
+            return -1;
+
+        cc = chanConnect_(limchans_[TCP], &sockIds_[TCP], conntimeout_ * 1000, 0);
+        if (cc < 0) {
+            if (errno == ECONNREFUSED)
+                lserrno = LSE_LIM_DOWN;
+            CLOSECD(limchans_[TCP]);
+            /* optional: clear target so caller will re-resolve next time */
+            sockIds_[TCP].sin_addr.s_addr = 0;
+            sockIds_[TCP].sin_port = 0;
+            return -1;
+        }
+    }
+
+    cc = chanRpc_(limchans_[TCP], &sndbuf, &rcvbuf, replyHdr, recvtimeout_ * 1000);
+    if (cc < 0) {
+        CLOSECD(limchans_[TCP]);
+        return -1;
+    }
+
+    //caller owns rcvbuf.data from here
+    *rep_buf = rcvbuf.data;
+
+    // minimal opcode handling; library does not retry or adopt masters.
+    switch (replyHdr->operation) {
+    case LIME_MASTER_UNKNW:
+        lserrno = LSE_MASTR_UNKNW;
+        free(*rep_buf);
+        *rep_buf = NULL;
+        if (!(options & _KEEP_CONNECT_))
+            CLOSECD(limchans_[TCP]);
+        return -1;
+
+    case LIME_WRONG_MASTER:
+        // During master failover it may happen that the local lim
+        // has stale master information the library connects
+        // to the wrong, previous, master
+        struct masterInfo mi = {0};
+        xdrmem_create(&xdrs, *rep_buf, MSGSIZE, XDR_DECODE);
+        if (!xdr_masterInfo(&xdrs, &mi, replyHdr)) {
+            xdr_destroy(&xdrs);
+            lserrno = LSE_BAD_XDR;
+            free(*rep_buf);
+            *rep_buf = NULL;
+            if (!(options & _KEEP_CONNECT_))
+                CLOSECD(limchans_[TCP]);
+            return -1;
+        }
+        xdr_destroy(&xdrs);
+
+        // Report and bail. Caller will back off / re-resolve / retry.
+        lserrno = LSE_MASTR_UNKNW;
+        free(*rep_buf);
+        *rep_buf = NULL;
+        if (!(options & _KEEP_CONNECT_))
+            CLOSECD(limchans_[TCP]);
+        return -1;
+
+    default:
+        break;
+    }
+
+    // Success path: return reply buffer to caller.
+    if (!(options & _KEEP_CONNECT_))
+        CLOSECD(limchans_[TCP]);
+
+    return 0;
+}
 
 static int
 callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
@@ -288,8 +380,6 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
 {
     struct hostent *hp;
     int retried = 0;
-    u_int  masterLimAddr;
-    u_int  previousMasterLimAddr = 0;
     XDR   xdrs;
     enum limReplyCode limReplyCode;
     struct packet_header replyHdr;
@@ -302,9 +392,6 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
     if (options & _LOCAL_ && !sp) {
         id = PRIMARY;
     } else if (host != NULL) {
-
-        if ((hp = (struct hostent *)getHostEntryByName_(host)) == (struct hostent *)NULL)
-            return -1;
 
         if (options & _USE_PRIMARY_) {
             id = PRIMARY;
@@ -439,11 +526,17 @@ check:
             xdr_destroy(&xdrs);
             return -1;
         }
+        CLOSECD(limchans_[MASTER]);
+        CLOSECD(limchans_[TCP]);
+        lserrno = LSE_MASTR_UNKNW;
+        return -1;
+#if 0
+        struct sockaddr_in masterLimAddr;
         masterLimAddr = masterInfo_.addr;
 
-        if (masterLimAddr == 0 ||
-            ((previousMasterLimAddr == masterLimAddr) && limchans_[MASTER] >= 0)
-            ) {
+        if (is_addrv4_zero(&masterLimAddr)
+            || (is_equal_v4addr(previousMasterLimAddr, masterLimAddr)
+                && limchans_[MASTER] >= 0)) {
             if (previousMasterLimAddr == masterLimAddr)
                 lserrno = LSE_TIME_OUT;
             else
@@ -465,7 +558,7 @@ check:
         CLOSECD(limchans_[MASTER]);
         CLOSECD(limchans_[TCP]);
         goto contact;
-
+#endif
     case LIME_NO_ERR:
     default:
         xdr_destroy(&xdrs);
@@ -554,7 +647,7 @@ initLimSock_()
 static int
 rcvreply_(int sock, char *rep, char connected)
 {
-    struct sockaddr_in from;
+    struct sockaddr_storage from;
 
     return(chanRcvDgram_(sock, rep, MSGSIZE, &from, conntimeout_ *1000));
 }
@@ -634,3 +727,214 @@ err_return_(enum limReplyCode limReplyCode)
         return;
     }
 }
+
+
+#if 0
+
+int
+callLim_(enum limReqCode reqCode,
+         void *dsend,
+         bool_t (*xdr_sfunc)(),
+         void *drecv,
+         bool_t (*xdr_rfunc)(),
+         char *host,
+         int options,
+         struct packet_header *hdr)
+{
+    struct packet_header reqHdr, replyHdr;
+    XDR    xdrs;
+    char   sbuf[LL_BUFSIZ_256];
+    char   rbuf[LL_BUFSIZ_4K];
+    char  *repBuf = NULL;           /* TCP reply buf (owned by us on return) */
+    int    reqLen, rc = -1;
+    int    using_tcp = !!(options & _USE_TCP_);
+
+    /* one-time init moved here is fine; otherwise keep your existing static 'first' */
+    static int inited = 0;
+    if (!inited) {
+        if (initLimSock_() < 0) goto out;
+
+        if (genParams_[LSF_API_CONNTIMEOUT].paramValue) {
+            conntimeout_ = atoi(genParams_[LSF_API_CONNTIMEOUT].paramValue);
+            if (conntimeout_ <= 0) conntimeout_ = CONNECT_TIMEOUT;
+        }
+        if (genParams_[LSF_API_RECVTIMEOUT].paramValue) {
+            recvtimeout_ = atoi(genParams_[LSF_API_RECVTIMEOUT].paramValue);
+            if (recvtimeout_ <= 0) recvtimeout_ = RECV_TIMEOUT;
+        }
+        inited = 1;
+    }
+
+    /* ---- pack request ---- */
+    init_pack_hdr(&reqHdr);
+    reqHdr.operation = reqCode;
+    reqHdr.sequence  = getRefNum_();
+    reqHdr.version   = CURRENT_PROTOCOL_VERSION;
+
+    xdrmem_create(&xdrs, sbuf, sizeof(sbuf), XDR_ENCODE);
+    if (!xdr_encodeMsg(&xdrs, dsend, &reqHdr, xdr_sfunc, 0, NULL)) {
+        xdr_destroy(&xdrs);
+        lserrno = LSE_BAD_XDR;
+        goto out;
+    }
+    reqLen = XDR_GETPOS(&xdrs);
+    xdr_destroy(&xdrs);
+
+    /* ---- send/recv ---- */
+    if (using_tcp) {
+        if (callLimTcp_(sbuf, &repBuf, reqLen, &replyHdr, options) < 0)
+            goto out;
+
+        /* we already have replyHdr from TCP path; set decoder on real payload */
+        if (replyHdr.length != 0)
+            xdrmem_create(&xdrs, repBuf, replyHdr.length, XDR_DECODE);
+        else
+            xdrmem_create(&xdrs, rbuf, sizeof(rbuf), XDR_DECODE); /* defensive */
+    } else {
+        if (callLimUdp_(sbuf, rbuf, reqLen, &reqHdr, host, options) < 0)
+            goto out;
+
+        if (options & _NON_BLOCK_) { rc = 0; goto out; }
+
+        /* UDP path didn’t provide replyHdr yet; decode it now from rbuf */
+        xdrmem_create(&xdrs, rbuf, sizeof(rbuf), XDR_DECODE);
+        if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
+            xdr_destroy(&xdrs);
+            lserrno = LSE_BAD_XDR;
+            goto out;
+        }
+    }
+
+    lsf_lim_version = (int)replyHdr.version;
+
+    /* ---- handle reply ---- */
+    if (replyHdr.operation == LIME_NO_ERR) {
+        if (drecv && xdr_rfunc) {
+            if (!xdr_rfunc(&xdrs, drecv, &replyHdr)) {
+                xdr_destroy(&xdrs);
+                lserrno = LSE_BAD_XDR;
+                goto out;
+            }
+        }
+        if (hdr) *hdr = replyHdr;
+        xdr_destroy(&xdrs);
+        rc = 0;
+        goto out;
+    }
+
+    /* error opcodes: let err_return_ map them to lserrno */
+    xdr_destroy(&xdrs);
+    err_return_(replyHdr.operation);
+    rc = -1;
+
+out:
+    if (using_tcp && repBuf) { free(repBuf); repBuf = NULL; }
+    return rc;
+}
+
+
+/* indices we actually use now */
+enum { LOCAL = 0, MASTER = 1 };
+
+static int
+callLimUdp_(char *reqbuf, char *repbuf, int len,
+            struct packet_header *reqHdr,
+            char *host, int options)
+{
+    XDR xdrs;
+    struct packet_header replyHdr;
+    int cc;
+
+    /* pick destination */
+    struct sockaddr_in dst = {0};
+    if (host && *host) {
+        /* resolve once; or use your ll_host cache if available */
+        struct addrinfo hints = {0}, *ai = NULL;
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM;
+        if (getaddrinfo(host, NULL, &hints, &ai) != 0 || !ai) {
+            lserrno = LSE_BAD_HOST;
+            return -1;
+        }
+        dst = *(struct sockaddr_in *)ai->ai_addr;
+        dst.sin_port = sockIds_[LOCAL].sin_port;   /* same UDP port as LIM */
+        freeaddrinfo(ai);
+    } else if (options & _LOCAL_) {
+        if (sockIds_[LOCAL].sin_addr.s_addr == 0) {
+            lserrno = LSE_BAD_HOST;
+            return -1;
+        }
+        dst = sockIds_[LOCAL];
+    } else {
+        if (sockIds_[MASTER].sin_addr.s_addr == 0) {
+            /* let caller resolve master via ls_getmastername() first */
+            lserrno = LSE_MASTR_UNKNW;
+            return -1;
+        }
+        dst = sockIds_[MASTER];
+    }
+
+    /* ensure socket for this “channel” exists (one per dst role) */
+    int id = (host && *host) ? LOCAL : ((options & _LOCAL_) ? LOCAL : MASTER);
+    if (limchans_[id] < 0) {
+        limchans_[id] = createLimSock_(NULL);  /* unbound UDP socket */
+        if (limchans_[id] < 0)
+            return -1;
+    }
+
+    /* send datagram */
+    cc = chanSendDgram_(limchans_[id], reqbuf, len, &dst);
+    if (cc < 0)
+        return -1;
+
+    /* non-blocking option: we’re done */
+    if (options & _NON_BLOCK_)
+        return 0;
+
+    /* receive loop: wait for matching sequence, else keep reading until timeout in rcvreply_ */
+    for (;;) {
+        if (rcvreply_(limchans_[id], repbuf, /*connected=*/0) < 0) {
+            /* rcvreply_ sets lserrno (e.g., LSE_TIME_OUT). Just bubble up. */
+            return -1;
+        }
+
+        xdrmem_create(&xdrs, repbuf, MSGSIZE, XDR_DECODE);
+        if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
+            xdr_destroy(&xdrs);
+            lserrno = LSE_BAD_XDR;
+            return -1;
+        }
+
+        /* drop unmatched sequence frames, keep waiting */
+        if (replyHdr.sequence != reqHdr->sequence) {
+            xdr_destroy(&xdrs);
+            continue;
+        }
+
+        /* decode minimal opcodes; library does NOT retry or adopt masters */
+        switch (replyHdr.operation) {
+        case LIME_MASTER_UNKNW:
+            lserrno = LSE_MASTR_UNKNW;
+            xdr_destroy(&xdrs);
+            return -1;
+
+        case LIME_WRONG_MASTER: {
+            struct masterInfo mi = {0};
+            if (!xdr_masterInfo(&xdrs, &mi, &replyHdr)) {
+                lserrno = LSE_BAD_XDR;
+                xdr_destroy(&xdrs);
+                return -1;
+            }
+            xdr_destroy(&xdrs);
+            lserrno = LSE_WRONG_MASTER;   /* caller will re-resolve + backoff */
+            return -1;
+        }
+
+        case LIME_NO_ERR:
+        default:
+            xdr_destroy(&xdrs);
+            return 0;  /* success; repbuf already filled */
+        }
+    }
+}
+#endif

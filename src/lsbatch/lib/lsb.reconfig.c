@@ -38,7 +38,7 @@ lsb_reconfig (int configFlag)
 
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
 
     if (!xdr_encodeMsg(&xdrs, (char *)NULL, &hdr, NULL, 0, &auth)) {

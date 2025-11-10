@@ -32,24 +32,22 @@ struct hostNode *fromHostPtr;
 #define SORT_SINDX  0x04
 #define SORT_INCR   0x08
 
-#define P_(s) s
-
-static int findBestHost P_((register struct resVal *, int, int, char **,
-                            int, char, int, int));
-static void jackup P_((int, struct hostNode *, float));
-static void loadAdj P_((struct jobXfer *, struct hostNode **, int, char));
-static void potentialOfCandidates P_((int, struct resVal *));
-static void potentialOfHost P_((struct hostNode *, struct resVal *));
-static void selectBestInstances P_((int, int, char, int));
-static int  getNumInstances P_((int));
+static int findBestHost(register struct resVal *, int, int, char **,
+                        int, char, int, int);
+static void jackup(int, struct hostNode *, float);
+static void loadAdj(struct jobXfer *, struct hostNode **, int, char);
+static void potentialOfCandidates(int, struct resVal *);
+static void potentialOfHost(struct hostNode *, struct resVal *);
+static void selectBestInstances(int, int, char, int);
+static int  getNumInstances(int);
 static int getOkSites(int, int, int);
 static int findNPref(int, int, char **);
 static int bsort(int, int, int, int, float, char, int, int);
 static void mkexld(struct hostNode *, struct hostNode *, int, float *, float *,
                    float);
 static int orderByStatus(int, int);
-static int grabHosts(struct hostNode *, struct resVal *, struct decisionReq *,  int, char *, int);
-
+static int grabHosts(struct hostNode *, struct resVal *, struct decisionReq *,
+                     int, char *, int);
 static int addCandList(struct hostNode *, int );
 static int initCandList(void);
 
@@ -86,7 +84,7 @@ placeReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int 
     placeReply.numHosts = 0;
 
     if (!xdr_decisionReq(xdrs, &plReq, reqHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "xdr_decisionReq", sockAdd2Str_(from));
         ls_syslog(LOG_ERR, "%s: Header: operation=%d sequence=%d version=%d length=%d ",
                   fname,
@@ -100,7 +98,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "xdr_decisionReq", sockAdd2St
 
     if (! (plReq.ofWhat == OF_HOSTS && plReq.numPrefs == 2
            && plReq.numHosts == 1
-           && equalHost_(plReq.preferredHosts[1], myHostPtr->hostName))) {
+           && equal_host(plReq.preferredHosts[1], myHostPtr->hostName))) {
 
         if (!masterMe) {
 
@@ -136,7 +134,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "xdr_decisionReq", sockAdd2St
         goto Reply;
     }
 
-    fromHostPtr = findHost(plReq.preferredHosts[0]);
+    fromHostPtr = get_node_by_name(plReq.preferredHosts[0]);
     if (!fromHostPtr) {
         limReplyCode = LIME_NAUTH_HOST;
         goto Reply;
@@ -201,7 +199,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "xdr_decisionReq", sockAdd2St
                                                         sizeof(struct placeInfo));
     if (placeReply.placeInfo == (struct placeInfo *) NULL) {
         limReplyCode = LIME_NO_MEM;
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         goto Reply;
     }
@@ -223,7 +221,7 @@ Reply:
 Reply1:
     freeResVal (&resVal);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR)
@@ -234,8 +232,8 @@ Reply1:
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
 
     if (!xdr_encodeMsg(&xdrs2, replyStruct , &replyHdr, xdr_placeReply, 0, NULL)) {
-        
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
+
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
             free(placeReply.placeInfo);
@@ -248,8 +246,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0) {
-        
-ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanSendDgram_/chanWrite_", sockAdd2Str_(from));
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanSendDgram_/chanWrite_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
             free(placeReply.placeInfo);
@@ -328,7 +325,7 @@ getEligibleSites(struct resVal *resValPtr, struct decisionReq *reqPtr,
         return -1;
 
     if (!fromHostPtr) {
-        fromHostPtr = findHost(reqPtr->preferredHosts[0]);
+        fromHostPtr = get_node_by_name(reqPtr->preferredHosts[0]);
         if (!fromHostPtr)
             return 0;
     }
@@ -371,21 +368,21 @@ grabHosts(struct hostNode *hList, struct resVal *resValPtr,
 
     for (hPtr = hList; hPtr; hPtr = hPtr->nextPtr)  {
 
-        if ( (fabs(resValPtr->val[MEM]) < INFINIT_LOAD) &&
+        if ( (fabs(resValPtr->val[MEM]) < INFINITY) &&
              (resValPtr->val[MEM] > hPtr->statInfo.maxMem) )
             continue;
 
-        if ( (fabs(resValPtr->val[SWP]) < INFINIT_LOAD) &&
+        if ( (fabs(resValPtr->val[SWP]) < INFINITY) &&
              (resValPtr->val[SWP] > hPtr->statInfo.maxSwap) )
             continue;
 
-        if ((fabs(resValPtr->val[TMP]) < INFINIT_LOAD)
+        if ((fabs(resValPtr->val[TMP]) < INFINITY)
             && (resValPtr->val[TMP] > hPtr->statInfo.maxTmp))
             continue;
 
         if (reqPtr->ofWhat == OF_HOSTS && !(flags & ELIG_ALL)) {
             for (j=1;j<reqPtr->numPrefs; j++) {
-                if (equalHost_(hPtr->hostName, reqPtr->preferredHosts[j]))
+                if (equal_host(hPtr->hostName, reqPtr->preferredHosts[j]))
                     break;
             }
             if (j == reqPtr->numPrefs)
@@ -396,7 +393,7 @@ grabHosts(struct hostNode *hList, struct resVal *resValPtr,
         if (evalResReq(resValPtr->selectStr, &tclHostData,
                        reqPtr->options & DFT_FROMTYPE) != 1)
             continue;
-        if (equalHost_(hPtr->hostName, reqPtr->preferredHosts[0]))
+        if (equal_host(hPtr->hostName, reqPtr->preferredHosts[0]))
             *fromEligible = true;
         if (addCandList(hPtr,ncand++) < 0)
             return -1;
@@ -447,7 +444,7 @@ void potentialOfHost(struct hostNode *hPtr, struct resVal *resValPtr)
         if (!(resValPtr->genClass & (1 << i)))
             continue;
 
-        if (resValPtr->val[i] >= INFINIT_LOAD) {
+        if (resValPtr->val[i] >= INFINITY) {
             hPtr->availLow  = 1;
             hPtr->availHigh = 1;
             return;
@@ -665,7 +662,7 @@ findNPref(int ncandidates, int numPrefs, char **preferredHosts)
         for (j=0;j<ncandidates;j++) {
             for (i=0;i<numPrefs; i++) {
                 candidates[j]->conStatus = false;
-                if (equalHost_(preferredHosts[i], candidates[j]->hostName)) {
+                if (equal_host(preferredHosts[i], candidates[j]->hostName)) {
                     candidates[j]->conStatus = true;
                     nec++;
                     break;
@@ -895,9 +892,8 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
 {
     static char fname[] = "loadAdj()";
     XDR xdrs;
-    char buf[MSGSIZE];
-    int i, len;
-    struct sockaddr_in addr;
+    char buf[LL_BUFSIZ_1K];
+    int len;
     enum limReqCode limReqCode;
     struct packet_header reqHdr;
 
@@ -907,30 +903,26 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
         return;
     }
 
+    struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = lim_port;
     limReqCode = LIM_JOB_XFER;
 
     if (child) {
 
-        if (!getHostNodeIPAddr(myClusterPtr->masterPtr,&addr)) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostNodeIPAddr");
-            return;
-        }
-
-        xdrmem_create(&xdrs, buf, MSGSIZE, XDR_ENCODE);
-        initLSFHeader_(&reqHdr);
+        get_host_addrv4(myClusterPtr->masterPtr->v4_epoint, &addr);
+        xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+        init_pack_hdr(&reqHdr);
         reqHdr.operation  = limReqCode;
         reqHdr.sequence = 0;
-        if (!(xdr_pack_hdr(&xdrs, &reqHdr) &&
-              xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
+
+        if (! xdr_pack_hdr(&xdrs, &reqHdr)
+            || ! xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr)) {
+            ls_syslog(LOG_ERR, "%s: failed: %m", __func__);
             xdr_destroy(&xdrs);
             return;
         }
-        len = XDR_GETPOS(&xdrs);
+        len = xdr_getpos(&xdrs);
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG,
@@ -945,11 +937,12 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
         }
         xdr_destroy(&xdrs);
         return;
-    } else {
-        updExtraLoad(destHostPtr, jobXferPtr->resReq, num);
     }
 
-    for (i=0; i < num; i++) {
+    // parent
+    updExtraLoad(destHostPtr, jobXferPtr->resReq, num);
+
+    for (int i = 0; i < num; i++) {
         if (myClusterPtr->masterKnown &&
             destHostPtr[i] == myClusterPtr->masterPtr)
             continue;
@@ -959,12 +952,10 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
             continue;
         }
 
-        if (!destHostPtr[i]->addr)
-            continue;
-
-        if (!getHostNodeIPAddr(destHostPtr[i],&addr)) {
-            ls_syslog(LOG_ERR, "%s: getHostNodeIPAddr failed for host %s",
-                      fname,destHostPtr[i]->hostName);
+        get_host_addrv4(destHostPtr[i]->v4_epoint, &addr);
+        // Can this really happen? it should not...
+        if (is_addrv4_zero(&addr)) {
+            abort();
             continue;
         }
 
@@ -973,8 +964,8 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
         reqHdr.sequence = 0;
         if (!(xdr_pack_hdr(&xdrs, &reqHdr) &&
               xdr_jobXfer(&xdrs, jobXferPtr, &reqHdr))) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
+
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
             xdr_destroy(&xdrs);
             return;
         }
@@ -990,8 +981,6 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_jobXfer");
         }
         xdr_destroy(&xdrs);
     }
-
-    return;
 }
 
 void
@@ -1020,7 +1009,7 @@ loadadjReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, in
     }
 
     if (!xdr_jobXfer(xdrs, &jobXfer, reqHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_jobXfer");
         limReplyCode = LIME_BAD_DATA;
         goto reply;
@@ -1047,7 +1036,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_jobXfer");
 
     j = 0;
     for (i=0; i<jobXfer.numHosts; i++) {
-        candidate = findHostbyList(myClusterPtr->hostList,
+        candidate = get_node_by_cluster(myClusterPtr->hostList,
                                    jobXfer.placeInfo[i].hostName);
         if (candidate == NULL)
             continue;
@@ -1075,12 +1064,12 @@ reply:
 
     freeResVal (&resVal);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
@@ -1112,7 +1101,7 @@ updExtraLoad(struct hostNode **destHostPtr, char *resReq, int numHosts)
     initResVal (&resVal);
 
     if (parseResReq(resReq, &resVal, &allInfo, PR_RUSAGE) != PARSE_OK) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "parseResReq", resReq);
         return;
     }
@@ -1137,7 +1126,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "parseResReq", resReq);
 
             if (resVal.genClass & (1 << lidx)) {
                 exval = fabs(resVal.val[lidx]);
-                if (exval < INFINIT_LOAD ) {
+                if (exval < INFINITY ) {
                     if (li[lidx].increasing) {
                         exval = MIN(exval, li[lidx].extraload[1]);
                     } else {
@@ -1233,7 +1222,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s
 
     if (! (ldReq.ofWhat == OF_HOSTS && ldReq.numPrefs == 2
            && ldReq.numHosts == 1
-           && equalHost_(ldReq.preferredHosts[1], myHostPtr->hostName))) {
+           && equal_host(ldReq.preferredHosts[1], myHostPtr->hostName))) {
 
         if (!masterMe) {
             char tmpBuf[MSGSIZE];
@@ -1273,7 +1262,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s
         goto Reply;
     }
 
-    fromHostPtr = findHost(ldReq.preferredHosts[0]);
+    fromHostPtr = get_node_by_name(ldReq.preferredHosts[0]);
     if (!fromHostPtr) {
         limReplyCode = LIME_NAUTH_HOST;
         goto Reply;
@@ -1331,7 +1320,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s
     reply.loadMatrix = (struct hostLoad *)
 		malloc(hlSize + reply.nEntry * (lvecSize + staSize));
     if (reply.loadMatrix == (struct hostLoad *)NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         limReplyCode = LIME_NO_MEM;
         goto Reply;
@@ -1346,7 +1335,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
     limReplyCode = LIME_NO_ERR;
     if (!(reply.indicies=(char **)malloc((allInfo.numIndx+1)*sizeof(char *)))) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return;
     }
@@ -1364,7 +1353,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         reply.loadMatrix[i].status[0] = candidates[i]->status[0];
         if (LS_ISUNAVAIL(candidates[i]->status)) {
             for (j=0; j < resVal.nindex ; j++)
-                reply.loadMatrix[i].li[j] = INFINIT_LOAD;
+                reply.loadMatrix[i].li[j] = INFINITY;
             for (j=0; j < GET_INTNUM(resVal.nindex); j++)
                 reply.loadMatrix[i].status[j + 1] = 0;
             continue;
@@ -1405,7 +1394,7 @@ Reply:
 Reply1:
     freeResVal (&resVal);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR) {
@@ -1419,7 +1408,7 @@ Reply1:
 
     buf = (char *)malloc(bufSize);
     if (!buf) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         if (limReplyCode == LIME_NO_ERR)
             FREEUP(reply.loadMatrix);
@@ -1429,7 +1418,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
     xdrmem_create(&xdrs2, buf, bufSize, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_loadReply, 0, NULL)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
@@ -1470,7 +1459,7 @@ initCandList(void)
     candListSize = 256;
     candidates = calloc(candListSize, sizeof(struct hostNode *));
     if (!candidates) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", "initCandList", "calloc");
         candListSize = 0;
         return -1;
@@ -1488,7 +1477,7 @@ addCandList(struct hostNode *hPtr, int pos)
         candListSize *= 2;
         memp = realloc(candidates, candListSize * sizeof(struct hostNode *));
         if (!memp) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", "addCandList", "realloc");
             FREEUP(candidates);
             candListSize=0;
@@ -1520,7 +1509,7 @@ chkResReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     sp[0] = '\0';
 
     if (!xdr_string(xdrs, &sp, MAXLINELEN)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_string");
         limReplyCode = LIME_BAD_DATA;
         goto Reply;
@@ -1551,14 +1540,14 @@ Reply:
 
     xdrmem_create(&xdrs2, (char *)&replyBuf, PACKET_HEADER_SIZE,  XDR_ENCODE);
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
 
     if (chanSendDgram_(limSock, (char *)&replyBuf, XDR_GETPOS(&xdrs2),  from) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;

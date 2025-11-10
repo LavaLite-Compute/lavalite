@@ -240,7 +240,7 @@ print_long(struct hostInfo *hostInfo)
             id = MEM + 1;
         else
             id = i;
-        if (fabs(li[i]) >= (double) INFINIT_LOAD)
+        if (fabs(li[i]) >= (double) INFINITY)
             sp = "-";
         else {
             sprintf(tmpfield, fmt[id].ok,  li[i] * fmt[id].scale);
@@ -264,7 +264,6 @@ main(int argc, char **argv)
     char   *namebufs[256];
     struct hostInfo *hostinfo;
     int    numhosts = 0;
-    const char *officialName;
     int    i, j;
     char   *resReq = NULL;
     char   longformat = false;
@@ -274,9 +273,7 @@ main(int argc, char **argv)
     int achar;
     extern int  optind;
     extern char *optarg;
-    int     unknown;
     int     options=0;
-    int isClus;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -340,42 +337,17 @@ main(int argc, char **argv)
             }
         }
 
-        i=0;
-        unknown = 0;
+        i = 0;
         for ( ; optind < argc ; optind++) {
-            if (strcmp(argv[optind],"allclusters") == 0) {
-                options = ALL_CLUSTERS;
-                i = 0;
-                break;
+            struct ll_host hp;
+            int cc = get_host_by_name(argv[optind], &hp);
+            if (cc < 0) {
+                fprintf(stderr, "lshosts: unknown host %s: %m\n", argv[optind]);
+                return -1;
             }
-            if ( (isClus = ls_isclustername(argv[optind])) < 0 ) {
-                fprintf(stderr, "lshosts: %s\n", ls_sysmsg());
-                unknown = 1;
-                continue;
-            } else if ( (isClus == 0) &&
-                        ((officialName = getHostOfficialByName_(argv[optind])) == NULL)) {
-                fprintf(stderr, "%s: %s.\n", argv[optind],
-                        "unknown host name");
-                unknown = 1;
-                continue;
-            }
-            namebufs[i] = malloc(MAXHOSTNAMELEN);
-            if (namebufs[i] == NULL)  {
-
-    fprintf(stderr, "%s: %s failed", "main", "malloc" )
-;
-                exit(-1);
-            } else
-                officialName = NULL;
-            if (officialName)
-                strcpy(namebufs[i], officialName);
-            else
-                strcpy(namebufs[i], argv[optind]);
+            namebufs[i] = strdup(argv[optind]);
             i++;
         }
-
-        if ( (i==0) && (unknown == 1))
-            exit(-1);
 
         if (i == 0) {
             TIMEIT(0, (hostinfo = ls_gethostinfo(resReq, &numhosts, NULL, 0,

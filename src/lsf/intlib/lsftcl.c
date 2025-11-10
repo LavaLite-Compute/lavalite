@@ -57,7 +57,7 @@ numericValue (ClientData clientData, Tcl_Interp *interp, Tcl_Value *args,
                                      cpuf - 1;
         else {
             resultPtr->doubleValue = currHPtr->loadIndex[infoId];
-            if (currHPtr->loadIndex[infoId] >= (INFINIT_LOAD - 10.0)
+            if (currHPtr->loadIndex[infoId] >= (INFINITY - 10.0)
                 && currHPtr->flag !=  TCL_CHECK_SYNTAX) {
 
                 return TCL_ERROR;

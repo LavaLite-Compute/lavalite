@@ -73,11 +73,9 @@ ls_loadinfo(char *resreq,
     static char fname[] = "ls_loadinfo";
     struct decisionReq loadReq;
     char *indexfilter;
-    const char *officialName;
     int i, j, *num;
     int one = 1;
     char  tempresreq[MAXLINELEN];
-    int isClus;
 
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -121,20 +119,9 @@ ls_loadinfo(char *resreq,
         }
 
         for (i = 1; i < loadReq.numPrefs; i++) {
-            if ( (isClus = ls_isclustername(hostlist[i-1])) < 0 ) {
-                break;
-            } else if (isClus == 0) {
-                if ((officialName = getHostOfficialByName_(hostlist[i-1])) == NULL) {
-                    lserrno = LSE_BAD_HOST;
-                    break;
-                }
-                loadReq.preferredHosts[i] = putstr_(officialName);
-            } else {
 
-                loadReq.preferredHosts[i] = putstr_(hostlist[i-1]);
-                clusterinlist = 1;
-            }
-
+            loadReq.preferredHosts[i] = strdup(hostlist[i-1]);
+            clusterinlist = 1;
             if (loadReq.preferredHosts[i] == NULL) {
                 for (j = 1; j < i; j++)
                     free(loadReq.preferredHosts[j]);
@@ -279,7 +266,7 @@ loadinfo_(char *resReq,
     loadReqPtr->resReq[MAXLINELEN-1] = '\0';
     if (loadReqPtr->ofWhat == OF_HOSTS && loadReqPtr->numPrefs == 2
         && loadReqPtr->numHosts == 1
-        && equalHost_(loadReqPtr->preferredHosts[1],
+        && equal_host(loadReqPtr->preferredHosts[1],
                       loadReqPtr->preferredHosts[0]))
         options |= _LOCAL_;
     else
@@ -310,8 +297,6 @@ int
 ls_loadadj(char *resreq, struct placeInfo *placeinfo, int listsize)
 {
     struct jobXfer loadadjReq;
-    const char *officialName;
-    int i;
 
     if (listsize <= 0 || placeinfo == NULL) {
         lserrno = LSE_BAD_ARGS;
@@ -320,20 +305,11 @@ ls_loadadj(char *resreq, struct placeInfo *placeinfo, int listsize)
 
     loadadjReq.numHosts = listsize;
     loadadjReq.placeInfo = placeinfo;
-    for (i = 0; i< listsize; i++) {
-        if ((officialName = getHostOfficialByName_(placeinfo[i].hostName)) == NULL) {
-            return -1;
-        }
-        strcpy(placeinfo[i].hostName, officialName);
 
-        if (placeinfo[i].numtask < 0)
-            placeinfo[i].numtask = 0;
-    }
-
-    if(resreq != NULL) {
+    if (resreq != NULL) {
         strcpy(loadadjReq.resReq, resreq);
     } else
-        loadadjReq.resReq[0] = '\0';
+        loadadjReq.resReq[0] = 0;
 
     if (callLim_(LIM_LOAD_ADJ,
                  &loadadjReq,

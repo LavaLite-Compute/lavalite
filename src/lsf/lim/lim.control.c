@@ -23,7 +23,6 @@ extern struct limLock limLock;
 extern char mustSendLoad;
 
 static int userNameOk(uid_t, const char *);
-static int userOkForMixed(struct lsfAuth *);
 static void doReopen(void);
 
 void
@@ -37,7 +36,7 @@ reconfigReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     struct packet_header replyHdr;
     struct lsfAuth auth;
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
 
     if (!xdr_lsfAuth(xdrs, &auth, reqHdr)) {
         limReplyCode = LIME_BAD_DATA;
@@ -45,7 +44,7 @@ reconfigReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     }
 
     if (! lim_debug) {
-        if (!limPortOk(from) || !userOkForMixed(&auth)) {
+        if (!limPortOk(from)) {
             limReplyCode = LIME_DENIED;
             goto Reply;
         }
@@ -59,7 +58,7 @@ Reply:
     replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         reconfig();
@@ -180,7 +179,7 @@ shutdownReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     struct packet_header replyHdr;
     struct lsfAuth auth;
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
 
     if (!xdr_lsfAuth(xdrs, &auth, reqHdr)) {
         limReplyCode = LIME_BAD_DATA;
@@ -188,7 +187,7 @@ shutdownReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     }
 
     if (! lim_debug) {
-        if (!limPortOk(from) || !userOkForMixed(&auth)) {
+        if (!limPortOk(from)) {
             limReplyCode = LIME_DENIED;
             goto Reply;
         }
@@ -202,7 +201,7 @@ Reply:
     replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
@@ -255,7 +254,7 @@ lockReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 
     ls_syslog(LOG_DEBUG1, "%s: received request from %s", fname, sockAdd2Str_(from));
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     if (!xdr_limLock(xdrs, &limLockReq, reqHdr)) {
         limReplyCode = LIME_BAD_DATA;
         goto Reply;
@@ -318,13 +317,13 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
@@ -413,36 +412,6 @@ userNameOk(uid_t uid, const char *lsfUserName)
     return false;
 }
 
-static int
-userOkForMixed(struct lsfAuth *auth)
-{
-    int i;
-    int crossPlatforms;
-
-    if (auth->options >= 0) {
-        if (auth->options & AUTH_HOST_UX)
-            crossPlatforms = false;
-        else
-            crossPlatforms = true;
-        if (crossPlatforms &&
-            isAllowCross(limParams[LSF_CROSS_UNIX_NT].paramValue)) {
-            if (nClusAdmins == 0) {
-
-                return true;
-            }
-
-            for (i = 0; i < nClusAdmins; i++) {
-                if ( !strcmp(auth->lsfUserName, clusAdminNames[i]) )
-                    return true;
-            }
-        } else if (crossPlatforms &&
-                   !isAllowCross(limParams[LSF_CROSS_UNIX_NT].paramValue))
-            return false;
-    }
-
-    return (userNameOk(auth->uid, auth->lsfUserName));
-}
-
 void
 limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
@@ -459,7 +428,7 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     memset(logFileName, 0, sizeof(logFileName));
     memset(lsfLogDir, 0, sizeof(lsfLogDir));
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     if (! lim_debug) {
         if (!limPortOk(from)) {
             limReplyCode = LIME_DENIED;
@@ -535,7 +504,7 @@ Reply:
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
@@ -567,7 +536,7 @@ doReopen(void)
             limParams[LSF_LOGDIR].paramValue = sp;
         ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, lim_debug,
                    limParams[LSF_LOG_MASK].paramValue);
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "ls_openlog", limParams[LSF_LOGDIR].paramValue);
         lim_Exit(fname);
     }

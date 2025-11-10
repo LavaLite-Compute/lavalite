@@ -5764,7 +5764,7 @@ checkJobParams (struct jData *job, struct submitReq *subReq,
         subReq->options |= SUB_PROJECT_NAME;
     }
 
-    if (!isValidHost_(subReq->fromHost)) {
+    if (!is_valid_host(subReq->fromHost)) {
         ls_syslog(LOG_ERR, "%s", __func__, "IsValidHost_");
         return LSBE_BAD_HOST;
     }

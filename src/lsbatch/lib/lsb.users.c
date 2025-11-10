@@ -93,7 +93,7 @@ lsb_userinfo (char **users, int *numUsers)
     }
     xdrmem_create(&xdrs, request_buf, cc, XDR_ENCODE);
 
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&userInfoReq, &hdr, xdr_infoReq,
                        0, NULL)) {

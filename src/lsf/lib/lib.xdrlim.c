@@ -1,4 +1,3 @@
-
 /* $Id: lib.xdrlim.c,v 1.8 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -645,7 +644,7 @@ xdr_masterInfo(XDR *xdrs, struct masterInfo *mInfoPtr, struct packet_header *hdr
     if (!xdr_string(xdrs, &sp, MAXHOSTNAMELEN))
         return false;
 
-    if (!xdr_address(xdrs, &mInfoPtr->addr))
+    if (!xdr_sockaddr_in(xdrs, &mInfoPtr->addr))
 	return false;
 
     if (!xdr_portno(xdrs, &mInfoPtr->portno))

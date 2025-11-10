@@ -80,7 +80,7 @@ static void initAndConfig(int);
 static void term_handler(int);
 static void child_handler(int);
 static void usage(const char *);
-static void doAcceptConn(void);
+static int doAcceptConn(void);
 static void initSignals(void);
 static void periodic(void);
 static struct tclLsInfo * getTclLsInfo(void);
@@ -313,7 +313,8 @@ process_udp_request(void)
     memset(&from, 0, sizeof(from));
 
     struct packet_header reqHdr;
-    int cc = chanRcvDgram_(limSock, buf, sizeof(buf), &from, -1);
+    int cc = chanRcvDgram_(limSock, buf, sizeof(buf),
+                           (struct sockaddr_storage *)&from, -1);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: Error receiving data on limSock %d, cc=%d: %m",
                __func__, limSock, cc);
@@ -322,18 +323,19 @@ process_udp_request(void)
 
     XDR  xdrs;
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_DECODE);
-    initLSFHeader_(&reqHdr);
+    init_pack_hdr(&reqHdr);
     if (! xdr_pack_hdr(&xdrs, &reqHdr)) {
         syslog(LOG_ERR, "%s: xdr_pack_hdr() failed %m", __func__);
         xdr_destroy(&xdrs);
         return -1;
     }
 
-
-    struct hostNode *node = findHostbyAddr(&from, "main");
+    // struct hostNode *node = findHostbyAddr(&from, "main");
+    struct hostNode *node = get_node_by_sockaddr(&from);
     if (node == NULL) {
-        syslog(LOG_WARNING, "%s: received request <%d> from unknown host %s",
+        syslog(LOG_ERR, "%s: received request %d from unknown host %s",
                __func__, reqHdr.operation, sockAdd2Str_(&from));
+        xdr_destroy(&xdrs);
         return -1;
     }
 
@@ -415,79 +417,47 @@ process_udp_request(void)
 
 
 
-static void
+static int
 doAcceptConn(void)
 {
-    static char fname[] = "doAcceptConn";
-    int  ch;
     struct sockaddr_in from;
-    struct hostNode *fromHost;
+    struct hostNode *host;
     struct clientNode *client;
-    int deny = false;
 
     if (logclass & (LC_TRACE | LC_COMM))
-        ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
+        ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", __func__);
 
-    ch = chanAccept_(limTcpSock, &from);
+    int ch = chanAccept_(limTcpSock, &from);
     if (ch < 0) {
-        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanAccept_", limTcpSock);
-        return;
+        ls_syslog(LOG_ERR, "%s: chanAccept_() failed: %m", __func__);
+        return -1;
     }
 
-    if ((fromHost = findHostbyAddr(&from, fname)) == NULL) {
-
-        if (!lim_debug) {
-            if (ntohs(from.sin_port) >= IPPORT_RESERVED ||
-                    ntohs(from.sin_port) <  IPPORT_RESERVED/2) {
-                deny = true;
-            }
-        }
-    }
-
-    if (deny == true) {
-        ls_syslog(LOG_ERR, "%s: Intercluster request from host <%s> "
-                  "not using privileged port", fname, sockAdd2Str_(&from));
+    host = get_node_by_sockaddr(&from);
+    if (host == NULL) {
+        ls_syslog(LOG_ERR, "%s: unknown host from %s dropped",
+                  __func__, sockAdd2Str_(&from));
         chanClose_(ch);
-        return;
+        return -1;
     }
 
-    if (fromHost != NULL) {
-
-        client = malloc(sizeof(struct clientNode));
-        if (!client) {
-            ls_syslog(LOG_ERR, "%s: Connection from %s dropped",
-                      fname, sockAdd2Str_(&from));
-            chanClose_(ch);
-            return;
-        }
-        client->chanfd = ch;
-        if (client->chanfd < 0) {
-
-ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanOpenSock", cherrno);
-            ls_syslog(LOG_ERR, "%s: Connection from %s dropped",
-                    fname,
-                    sockAdd2Str_(&from));
-            chanClose_(ch);
-            free(client);
-            return;
-        } else if (client->chanfd >= 2*MAXCLIENTS) {
-
-            chanClose_(ch);
-            ls_syslog(LOG_ERR, "%s: Can't maintain this big clientMap[%d], Connection from %s dropped",
-                    fname, client->chanfd,
-                    sockAdd2Str_(&from));
-            free(client);
-
-            return;
-        }
-
-        clientMap[client->chanfd] = client;
-        client->inprogress = false;
-        client->fromHost   = fromHost;
-        client->from       = from;
-        client->clientMasks = 0;
-        client->reqbuf = NULL;
+    client = calloc(1, sizeof(struct clientNode));
+    if (!client) {
+        ls_syslog(LOG_ERR, "%s: Connection from %s dropped",
+                  __func__, sockAdd2Str_(&from));
+        chanClose_(ch);
+        return -1;
     }
+    client->chanfd = ch;
+    // Bug create a list
+    clientMap[client->chanfd] = client;
+    client->inprogress = false;
+    client->fromHost   = host;
+    client->from  = from;
+    client->clientMasks = 0;
+    client->reqbuf = NULL;
+
+    return 0;
 }
 
 static void
@@ -729,7 +699,7 @@ errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
     XDR  xdrs2;
     int cc;
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) replyCode;
     replyHdr.sequence = reqHdr->sequence;
     replyHdr.length = 0;

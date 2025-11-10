@@ -388,7 +388,7 @@ errorBack(int chan, int replyCode, struct sockaddr_in *from)
 
     xdrmem_create(&xdrs, errBuf, MSGSIZE/8, XDR_ENCODE);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
 
     replyHdr.operation = replyCode;
     io_block_(chanSock_(chan));

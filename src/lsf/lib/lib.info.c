@@ -256,7 +256,6 @@ ls_clusterinfo(char *resReq, int *numclusters, char **clusterList,
     struct clusterInfoReq clusterInfoReq;
     static struct clusterInfoReply clusterInfoReply;
     struct shortLsInfo shortlsInfo;
-    int count, ret_val;
 
     if (listsize != 0 && clusterList == NULL) {
         lserrno = LSE_BAD_ARGS;
@@ -265,18 +264,6 @@ ls_clusterinfo(char *resReq, int *numclusters, char **clusterList,
 
     if (initenv_(NULL, NULL) < 0)
         return NULL;
-
-    for (count=0;count < listsize;count++) {
-        ret_val = ls_isclustername(clusterList[count]);
-        if (ret_val <=0){
-            if (ret_val < 0) {
-                return NULL;
-            }
-
-            lserrno = LSE_BAD_CLUSTER;
-            return NULL;
-        }
-    }
 
     if (resReq)
         clusterInfoReq.resReq = resReq;
@@ -517,7 +504,6 @@ ls_gethostinfo(char *resReq, int *numhosts, char **hostlist, int listsize,
     static struct hostInfoReply hostInfoReply;
     struct shortLsInfo lsInfo;
     char   *hname;
-    const char *officialName;
     int    cc, i;
 
     if (logclass & (LC_TRACE))
@@ -542,19 +528,7 @@ ls_gethostinfo(char *resReq, int *numhosts, char **hostlist, int listsize,
                 lserrno = LSE_BAD_ARGS;
                 break;
             }
-
-            cc = ls_isclustername(hostlist[i]);
-            if (cc <= 0) {
-                if (cc < 0)
-                    break;
-                if ((officialName = getHostOfficialByName_(hostlist[i])) == NULL) {
-                    lserrno = LSE_BAD_HOST;
-                    break;
-                }
-                hostInfoReq.preferredHosts[i+1] = putstr_(officialName);
-            } else
-                hostInfoReq.preferredHosts[i+1] = putstr_(hostlist[i]);
-
+            hostInfoReq.preferredHosts[i+1] = putstr_(hostlist[i]);
             if (!hostInfoReq.preferredHosts[i+1]) {
                 lserrno = LSE_MALLOC;
                 break;
@@ -656,14 +630,10 @@ ls_indexnames(struct lsInfo *lsInfo)
 
 }
 
+// Bug remove later we dont have multicluster
 int
 ls_isclustername(char *name)
 {
-    char* clname;
-
-    clname = ls_getclustername();
-    if (clname && strcmp(clname,name) == 0)
-        return 1;
     return 0;
 }
 
@@ -676,7 +646,6 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
     static struct resourceInfoReply resourceInfoReply;
     static struct packet_header replyHdr;
     static int first = true;
-    const char *officialName;
 
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
@@ -709,7 +678,8 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
         resourceInfoReq.numResourceNames = 1;
     } else {
         if ((resourceInfoReq.resourceNames =
-             (char **) malloc (*numResources * sizeof(char *))) == NULL) { lserrno = LSE_MALLOC;
+             malloc(*numResources * sizeof(char *))) == NULL) {
+            lserrno = LSE_MALLOC;
             return NULL;
         }
         for (i = 0; i < *numResources; i++) {
@@ -725,21 +695,13 @@ ls_sharedresourceinfo(char **resources, int *numResources, char *hostName, int o
         }
     }
     if (hostName != NULL) {
-        if (strlen(hostName) > MAXHOSTNAMELEN -1
-            || (officialName = getHostOfficialByName_(hostName)) == NULL) {
-            lserrno = LSE_BAD_HOST;
-            return NULL;
-        }
-        resourceInfoReq.hostName = putstr_(officialName);
+        resourceInfoReq.hostName = putstr_(hostName);
     } else
         resourceInfoReq.hostName = putstr_(" ");
 
-    if (resourceInfoReq.hostName == NULL) {
-        lserrno = LSE_MALLOC;
-        return NULL;
-    }
     cc = callLim_(LIM_GET_RESOUINFO, &resourceInfoReq, xdr_resourceInfoReq,
-                  &resourceInfoReply, xdr_resourceInfoReply, NULL, _USE_TCP_, &replyHdr);
+                  &resourceInfoReply, xdr_resourceInfoReply, NULL,
+                  _USE_TCP_, &replyHdr);
     if (cc < 0) {
         return NULL;
     }

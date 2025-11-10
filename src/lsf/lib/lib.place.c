@@ -22,8 +22,7 @@ char **
 ls_placereq(char *resreq, int *numhosts, int options, char *fromhost)
 {
     struct decisionReq placeReq;
-    char   **namelist;
-    int i, j, *num;
+    int *num;
     int one = 1;
 
     if (!numhosts)
@@ -54,8 +53,7 @@ ls_placeofhosts(char *resreq,
                 int listsize)
 {
     struct decisionReq placeReq;
-    const char *officialName;
-    int i, j, *num;
+    int *num;
     int one = 1;
 
     if (!listsize || !hostlist) {
@@ -85,22 +83,12 @@ ls_placeofhosts(char *resreq,
         return NULL;
     }
 
+    int i;
     for (i = 1; i < placeReq.numPrefs; i++) {
-        if (ls_isclustername(hostlist[i - 1]) <= 0) {
-            if ((officialName = getHostOfficialByName_(hostlist[i-1])) == NULL) {
-                lserrno = LSE_BAD_ARGS;
-                break;
-            }
-            placeReq.preferredHosts[i] = putstr_(officialName);
-        } else
-            placeReq.preferredHosts[i] = putstr_(hostlist[i-1]);
-
-        if (placeReq.preferredHosts[i] == NULL) {
-            lserrno = LSE_MALLOC;
-            break;
-        }
+        placeReq.preferredHosts[i] = strdup(hostlist[i-1]);
     }
 
+    int j;
     if (i < placeReq.numPrefs) {
         for (j = 1; j < i; j++)
             free(placeReq.preferredHosts[j]);

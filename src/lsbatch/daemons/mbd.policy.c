@@ -1983,8 +1983,8 @@ ckPerHULimits (struct qData *qp, struct hData *hp, struct uData *up,
     *numAvailSlots = INFINIT_INT;
 
     if ((hp->uJobLimit != INFINIT_INT)
-        || (up->pJobLimit < INFINIT_FLOAT)
-        || (up->pJobLimit < INFINIT_FLOAT)) {
+        || (up->pJobLimit < INFINITY)
+        || (up->pJobLimit < INFINITY)) {
     } else {
         numAvailSUSP = 0;
     }
@@ -2009,7 +2009,7 @@ ckPerHULimits (struct qData *qp, struct hData *hp, struct uData *up,
         }
     }
 
-    if (up->pJobLimit < INFINIT_FLOAT) {
+    if (up->pJobLimit < INFINITY) {
         hAcct = getHAcct(up->hAcct, hp);
         pJobLimit = (int) ceil((double)(up->pJobLimit*hp->numCPUs));
         num = numNonPrmptSlots = pJobLimit;
@@ -2036,7 +2036,7 @@ ckPerHULimits (struct qData *qp, struct hData *hp, struct uData *up,
 
     for (i = 0; i < up->numGrpPtr; i++) {
         ugp = up->gPtr[i];
-        if (ugp->pJobLimit >= INFINIT_FLOAT)
+        if (ugp->pJobLimit >= INFINITY)
             continue;
         numAvailSUSP = 0;
         hAcct = getHAcct(ugp->hAcct, hp);
@@ -2358,7 +2358,7 @@ pJobLimitOk (struct hData *hp, struct hostAcct *hAcct, float pJobLimit)
 
     if (pJobLimit <= 0.0)
         return 0;
-    if (pJobLimit >= INFINIT_FLOAT)
+    if (pJobLimit >= INFINITY)
         return INFINIT_INT;
 
     numCPUs = hp->numCPUs == 0? 1 : hp->numCPUs;
@@ -2544,7 +2544,7 @@ hostSlots (int numNeeded, struct jData *jp, struct hData *hp,
     }
 
     rsvSlots = cntHostSlots (uData->hAcct, hp);
-    if (uData && uData->pJobLimit < INFINIT_FLOAT) {
+    if (uData && uData->pJobLimit < INFINITY) {
         num = (int) ceil ((double)(uData->pJobLimit * hp->numCPUs));
         num = num - highJobsHostUser - rsvSlots;
         *numAvailSlots = MIN (*numAvailSlots, num - lowJobsHostUser);
@@ -2562,7 +2562,7 @@ hostSlots (int numNeeded, struct jData *jp, struct hData *hp,
 
     for (i = 0; i < jp->uPtr->numGrpPtr; i++) {
         uData = jp->uPtr->gPtr[i];
-        if (uData == NULL || uData->pJobLimit >= INFINIT_FLOAT)
+        if (uData == NULL || uData->pJobLimit >= INFINITY)
             continue;
         if (uData->pJobLimit <= 0.0) {
             jp->newReason = PEND_USER_PROC_JLIMIT;
@@ -2600,7 +2600,7 @@ hostSlots (int numNeeded, struct jData *jp, struct hData *hp,
         if (logclass & (LC_JLIMIT))
             ls_syslog(LOG_DEBUG3, "%s: pJobLimit=%f highJobsHost=%d lowJobsHost=%d lowNonpreemptJobsHost=%d ", fname, uData->pJobLimit, highJobsHost, lowJobsHost, lowNonpreemptJobsHost);
 
-        if (uData && uData->pJobLimit < INFINIT_FLOAT) {
+        if (uData && uData->pJobLimit < INFINITY) {
             rsvSlots = cntHostSlots (uData->hAcct, hp);
             num = (int) ceil((double) (uData->pJobLimit * hp->numCPUs));
             num = num - highJobsHost - rsvSlots;
@@ -6141,13 +6141,13 @@ jobMaxUsableSlotsOnHost(struct jData *jp, struct hData *host)
 
     slimit = MIN(slimit, jp->uPtr->maxJobs);
 
-    if (jp->uPtr->pJobLimit != INFINIT_FLOAT)
+    if (jp->uPtr->pJobLimit != INFINITY)
         slimit = MIN(slimit, jp->uPtr->pJobLimit * host->numCPUs);
 
     for (i = 0; i < jp->uPtr->numGrpPtr; i++) {
         struct uData *ugp = jp->uPtr->gPtr[i];
         slimit = MIN(slimit, ugp->maxJobs);
-        if (ugp->pJobLimit != INFINIT_FLOAT) {
+        if (ugp->pJobLimit != INFINITY) {
             slimit = MIN(slimit, ugp->pJobLimit * host->numCPUs);
         }
     }
@@ -6156,7 +6156,7 @@ jobMaxUsableSlotsOnHost(struct jData *jp, struct hData *host)
 
     slimit = MIN(slimit, jp->qPtr->hJobLimit);
 
-    if (jp->qPtr->pJobLimit != INFINIT_FLOAT)
+    if (jp->qPtr->pJobLimit != INFINITY)
         slimit = MIN(slimit, jp->qPtr->pJobLimit * host->numCPUs);
 
     slimit = MIN(slimit, jp->qPtr->uJobLimit);

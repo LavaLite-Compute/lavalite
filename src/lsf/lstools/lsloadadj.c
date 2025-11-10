@@ -81,7 +81,7 @@ main(int argc, char **argv)
             placeadvice[cc].numtask = 1;
         }
 
-        if (!isValidHost_(argv[optind]))
+        if (!is_valid_host(argv[optind]))
         {
             fprintf(stderr, "%s: %s %s\n",
                     fname,  "invalid hostname",

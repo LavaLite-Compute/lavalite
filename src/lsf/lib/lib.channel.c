@@ -237,7 +237,8 @@ chanAccept_(int chfd, struct sockaddr_in *from)
         return -1;
     }
 
-    s = accept(channels[chfd].handle, (struct sockaddr *) from, &len);
+    s = accept4(channels[chfd].handle, (struct sockaddr *)from, &len,
+                SOCK_NONBLOCK|SOCK_CLOEXEC);
     if (SOCK_INVALID(s)) {
         lserrno = LSE_SOCK_SYS;
         return -1;
@@ -313,26 +314,15 @@ chanConnect_(int chfd, struct sockaddr_in *peer, int timeout, int options)
 int
 chanSendDgram_(int chfd, char *buf, int len, struct sockaddr_in *peer)
 {
-    int s;
-    int cc;
-
-    s = channels[chfd].handle;
-
-    if (logclass & (LC_COMM | LC_TRACE))
-        ls_syslog(LOG_DEBUG3,"chanSendDgram_: Sending message size=%d peer=%s chan=%d",len,sockAdd2Str_(peer), chfd);
-
+    int s = channels[chfd].handle;
     if (channels[chfd].type != CH_TYPE_UDP) {
         lserrno = LSE_INTERNAL;
         return -1;
     }
-    if (channels[chfd].state == CH_CONN)
-        cc=send(s, buf, len, 0);
-    else {
-        cc=sendto(s, buf, len, 0, (struct sockaddr *)peer, sizeof(struct sockaddr_in));
 
-    }
-
-    if (SOCK_CALL_FAIL(cc)) {
+    ssize_t cc = sendto(s, buf, len, 0, (struct sockaddr *)peer,
+                        sizeof(struct sockaddr_in));
+    if (cc < 0) {
         lserrno = LSE_MSG_SYS;
         return -1;
     }
@@ -340,14 +330,14 @@ chanSendDgram_(int chfd, char *buf, int len, struct sockaddr_in *peer)
     return 0;
 }
 
-int
-chanRcvDgram_(int chfd, char *buf, int len, struct sockaddr_in *peer, int timeout)
+int chanRcvDgram_(int chfd, void *buf, size_t len,
+                  struct sockaddr_storage *peer, int timeout)
 {
     int sock;
     struct timeval timeval;
     struct timeval *time_ptr;
     int nReady, cc;
-    socklen_t peersize = sizeof(struct sockaddr_in);
+    socklen_t peersize = sizeof(struct sockaddr_storage);
 
     sock = channels[chfd].handle;
 
@@ -356,8 +346,6 @@ chanRcvDgram_(int chfd, char *buf, int len, struct sockaddr_in *peer, int timeou
         return -1;
     }
 
-    if (logclass & (LC_COMM | LC_TRACE))
-        ls_syslog(LOG_DEBUG2,"%s: Receive on chan %d timeout=%d",chfd, timeout);
     if (timeout < 0) {
         if (channels[chfd].state == CH_CONN)
             cc = recv(sock, buf, len, 0);
@@ -383,7 +371,6 @@ chanRcvDgram_(int chfd, char *buf, int len, struct sockaddr_in *peer, int timeou
             lserrno = LSE_SELECT_SYS;
             return -1;
         } else if (nReady == 0) {
-
             lserrno = LSE_TIME_OUT;
             return -1;
         } else {
@@ -744,14 +731,14 @@ chanReadNonBlock_(int chfd, char *buf, int len, int timeout)
 }
 
 ssize_t
-chanRead_(int chfd, void *buf, int len)
+chanRead_(int chfd, void *buf, size_t len)
 {
     return b_read_fix(channels[chfd].handle, buf, len);
 
 }
 
-int
-chanWrite_(int chfd, void *buf, int len)
+ssize_t
+chanWrite_(int chfd, void *buf, size_t len)
 {
 
     return (b_write_fix(channels[chfd].handle, buf, len));

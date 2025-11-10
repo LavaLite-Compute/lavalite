@@ -18,6 +18,7 @@
  */
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.channel.h"
+#include "lsf/lib/ll.params.h"
 
 struct config_param genParams_[] =
 {
@@ -150,13 +151,11 @@ initenv_(struct config_param *userEnv, char *pathname)
 
     if (readconfenv_(genParams_, userEnv, pathname) < 0)
         return -1;
-    else {
-        if (doEnvParams_(genParams_) < 0)
-            return -1;
-        lsfenvset = true;
-        if (doEnvParams_(userEnv) < 0)
-            Error = 1;
-    }
+    if (doEnvParams_(genParams_) < 0)
+        return -1;
+    lsfenvset = true;
+    if (doEnvParams_(userEnv) < 0)
+        Error = 1;
 
     if (! genParams_[LSF_CONFDIR].paramValue ||
         ! genParams_[LSF_SERVERDIR].paramValue) {
@@ -383,8 +382,7 @@ setStripDomain_(char *d_str)
     if ((stripDomains_ = malloc(strlen(d_str) + 2)) == NULL)
         return 0;
 
-    for (cp = d_str, sdp = sdi = stripDomains_ ; *cp ; )
-    {
+    for (cp = d_str, sdp = sdi = stripDomains_ ; *cp ; ) {
         while (*cp == ':')
             cp++;
         while (*cp && (*cp != ':'))
@@ -398,20 +396,20 @@ setStripDomain_(char *d_str)
     return 1;
 }
 
+// Bug revisit the LSF_MASTER_LIST
 int
 initMasterList_(void)
 {
     char *nameList;
     char *hname;
     int i;
-    struct hostent *hp;
-    char *paramValue=genParams_[LSF_MASTER_LIST].paramValue;
+    char *paramValue = genParams_[LSF_MASTER_LIST].paramValue;
 
     if (m_masterCandidates) {
         return 0;
     }
-    if (paramValue == NULL ) {
 
+    if (paramValue == NULL ) {
         m_isMasterCandidate = true;
         return 0;
     }
@@ -447,24 +445,16 @@ initMasterList_(void)
     nameList = paramValue;
 
     while ((hname = getNextWord_(&nameList)) != NULL) {
-
-        if ((hp = getHostEntryByName_(hname)) != NULL) {
-
-            if (getMasterCandidateNoByName_(hp->h_name) < 0 ) {
-                m_masterCandidates[i] = putstr_(hp->h_name);
-                i++;
-            } else {
-                lserrno = LSE_LIM_IGNORE;
-                m_numMasterCandidates--;
-            }
-        } else {
-            lserrno = LSE_LIM_IGNORE;
-            m_numMasterCandidates--;
+        struct ll_host hp;
+        int cc = get_host_by_name(hname, &hp);
+        if (cc < 0) {
+            lserrno = LSE_BAD_HOST;
+            return -1;
         }
-
+        m_masterCandidates[i] = putstr_(hp.name);
     }
 
-    if (m_numMasterCandidates == 0) {
+   if (m_numMasterCandidates == 0) {
         lserrno = LSE_NO_HOST;
         return -1;
     }
@@ -485,7 +475,7 @@ getMasterCandidateNoByName_(char *hname)
 
     for (count = 0; count < m_numMasterCandidates; count++) {
         if ((m_masterCandidates[count] != NULL)
-            && equalHost_(m_masterCandidates[count], hname)) {
+            && equal_host(m_masterCandidates[count], hname)) {
             return count;
         }
     }

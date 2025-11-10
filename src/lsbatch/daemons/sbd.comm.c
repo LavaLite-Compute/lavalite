@@ -161,7 +161,7 @@ status_job (mbdReqType reqType, struct jobCard *jp, int newStatus,
     }
 
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = reqType;
 
     if (!xdr_encodeMsg (&xdrs, (char *)&statusReq, &hdr, xdr_statusReq, 0,
@@ -302,7 +302,7 @@ getJobsState (struct sbdPackage *sbdPackage)
 
     mbdReqtype = BATCH_SLAVE_RESTART;
     xdrmem_create(&xdrs, request_buf, MSGSIZE/8, XDR_ENCODE);
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
     if (! xdr_encodeMsg(&xdrs, NULL, &hdr, NULL, 0, NULL)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
@@ -473,7 +473,7 @@ msgSbd(LS_LONG_INT jobId, char *req, sbdReqType reqType, int (*xdrFunc)())
     int cc, retryInterval;
     char *myhostnm;
 
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = reqType;
     xdrmem_create(&xdrs, requestBuf, sizeof(requestBuf), XDR_ENCODE);
 
@@ -537,7 +537,7 @@ msgSupervisor(struct lsbMsg *lsbMsg, struct clientNode *cliPtr)
 	return -1;
     }
 
-    initLSFHeader_(&reqHdr);
+    init_pack_hdr(&reqHdr);
     xdrmem_create(&xdrs, reqBuf, sizeof(reqBuf), XDR_ENCODE);
 
     if (!xdr_encodeMsg(&xdrs, (char *) lsbMsg, &reqHdr, xdr_lsbMsg, 0, NULL)) {
@@ -650,7 +650,7 @@ sendUnreportedStatus (struct chunkStatusReq *chunkStatusReq)
     }
 
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = BATCH_STATUS_CHUNK;
 
     if (!xdr_encodeMsg (&xdrs, (char *)chunkStatusReq, &hdr, xdr_chunkStatusReq, 0,

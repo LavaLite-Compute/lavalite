@@ -111,7 +111,6 @@ getBeginLine(FILE *fp, int *LineNum)
         if (wp && (strcasecmp(wp, "begin") == 0))
             return sp;
     }
-
 }
 
 int
@@ -304,7 +303,7 @@ putInLists(char *word, struct admins *admins, int *numAds, char *forWhat)
     }
 
     if (isInlist(admins->adminNames, word, admins->nAdmins)) {
-        ls_syslog(LOG_WARNING, "%s: Duplicate user name <%s> %s; ignored", fname, word, forWhat);
+        ls_syslog(LOG_WARNING, "%s: Duplicate user name <%s> ", fname, word);
         return 0;
     }
     admins->adminIds[admins->nAdmins] = (pw == NULL) ? -1 : pw->pw_uid;
@@ -318,7 +317,7 @@ putInLists(char *word, struct admins *admins, int *numAds, char *forWhat)
         tempGids = (int *) realloc(admins->adminGIds, *numAds * sizeof (int));
         tempNames = (char **) realloc(admins->adminNames, *numAds * sizeof (char *));
         if (tempIds == NULL || tempGids == NULL || tempNames == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "realloc")
 ;
             FREEUP (tempIds);

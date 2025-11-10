@@ -17,8 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/lib.common.h"
-#include "lsf/lib/lproto.h"
+
+#include "lsf/lib/lib.h"
 
 enum chanState {CH_FREE,
                 CH_DISC,
@@ -113,15 +113,15 @@ extern int chanAccept_(int, struct sockaddr_in *);
 
 extern int chanClientSocket_(int, int, int);
 extern int chanSendDgram_(int, char *, int , struct sockaddr_in *);
-extern int chanRcvDgram_(int , char *, int, struct sockaddr_in *, int);
+int chanRcvDgram_(int , void *, size_t, struct sockaddr_storage *, int);
 extern int chanRpc_(int ,
                     struct Buffer *,
                     struct Buffer *,
                     struct packet_header *,
                     int);
-extern ssize_t chanRead_(int, void *, int);
+extern ssize_t chanRead_(int, void *, size_t);
 extern ssize_t chanReadNonBlock_(int, char *, int, int);
-extern int chanWrite_(int, void *, int);
+extern ssize_t chanWrite_(int, void *, size_t);
 
 extern int chanAllocBuf_(struct Buffer **buf, int size);
 extern int chanFreeBuf_(struct Buffer *buf);

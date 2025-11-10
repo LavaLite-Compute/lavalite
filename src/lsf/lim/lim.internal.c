@@ -19,16 +19,12 @@
 
 #include "lsf/lim/lim.h"
 
-#define  MAXMSGLEN     (1<<24)
 #define LIM_CONNECT_TIMEOUT 5
 #define LIM_RECV_TIMEOUT    20
 #define LIM_RETRYLIMIT      2
 #define LIM_RETRYINTVL      500
 
 extern short  hostInactivityLimit;
-extern int daemonId;
-
-extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct packet_header *);
 
 void
 masterRegister(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
@@ -48,7 +44,7 @@ masterRegister(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr
     if (strcmp(myClusterPtr->clName, masterReg.clName) != 0) {
         syslog(LOG_WARNING, "\
 %s: Discard announce from a different cluster %s than mine %s (?)",
-                  __func__, masterReg.clName, myClusterPtr->clName);
+               __func__, masterReg.clName, myClusterPtr->clName);
         return;
     }
 
@@ -61,15 +57,15 @@ masterRegister(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr
         checkSumMismatch++;
     }
 
-    if (equalHost_(myHostPtr->hostName, masterReg.hostName))
+    if (equal_host(myHostPtr->hostName, masterReg.hostName))
         return;
 
-    hPtr = findHostbyList(myClusterPtr->hostList, masterReg.hostName);
+    hPtr = get_node_by_cluster(myClusterPtr->hostList, masterReg.hostName);
     if (hPtr == NULL) {
         syslog(LOG_ERR, "\
 %s: Got master announcement from unused host %s; \
 Run lim -C on this host to find more information",
-                  __func__, masterReg.hostName);
+               __func__, masterReg.hostName);
         return;
     }
     /* Regular announce from the master.
@@ -153,39 +149,30 @@ Run lim -C on this host to find more information",
         announceMasterToHost(hPtr, SEND_NO_INFO);
         syslog(LOG_INFO, "\
 %s: Host %s is trying to take over master LIM from %s, not accepted",
-                  __func__, masterReg.hostName,
-                  myClusterPtr->masterPtr->hostName);
+               __func__, masterReg.hostName,
+               myClusterPtr->masterPtr->hostName);
         return;
 
     }
 
     syslog(LOG_INFO, "\
 %s: Host %s is trying to take over master LIM, not accepted", __func__,
-              masterReg.hostName);
+           masterReg.hostName);
 
-}
-
-static void
-announceElimInstance(struct clusterNode *clPtr)
-{
-    // Bug there must be better way to do this using the
-    // external hooks
 }
 
 void
 announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 {
     struct hostNode *hPtr;
-    struct sockaddr_in toAddr;
     struct masterReg tmasterReg ;
     XDR    xdrs1;
-    char   buf1[MSGSIZE/4];
+    char   buf1[LL_BUFSIZ_256];
     XDR    xdrs2;
-    char   buf2[MSGSIZE/4];
+    char   buf2[LL_BUFSIZ_256];
     XDR    xdrs4;
-    char   buf4[MSGSIZE/4];
+    char   buf4[LL_BUFSIZ_256];
     enum limReqCode limReqCode;
-    struct masterReg masterReg;
     static int cnt = 0;
     struct packet_header reqHdr;
     int announceInIntvl;
@@ -208,6 +195,8 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
         masterAnnSeqNo++;
     }
 
+    // Master, me, parameters
+    struct masterReg masterReg;
     limReqCode = LIM_MASTER_ANN;
     strcpy(masterReg.clName, myClusterPtr->clName);
     strcpy(masterReg.hostName, myClusterPtr->masterPtr->hostName);
@@ -215,14 +204,16 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
     masterReg.checkSum = myClusterPtr->checkSum;
     masterReg.portno   = myClusterPtr->masterPtr->statInfo.portno;
 
-    toAddr.sin_family = AF_INET;
-    toAddr.sin_port = lim_port;
+    // send to
+    struct sockaddr_in to_addr;
+    to_addr.sin_family = AF_INET;
+    to_addr.sin_port = lim_port;
 
-    initLSFHeader_(&reqHdr);
-    reqHdr.operation  = (short) limReqCode;
+    init_pack_hdr(&reqHdr);
+    reqHdr.operation  = limReqCode;
     reqHdr.sequence = 0;
 
-    xdrmem_create(&xdrs1, buf1, MSGSIZE/4, XDR_ENCODE);
+    xdrmem_create(&xdrs1, buf1, sizeof(buf1), XDR_ENCODE);
     masterReg.flags = SEND_NO_INFO ;
 
     if (! (xdr_pack_hdr(&xdrs1, &reqHdr)
@@ -233,7 +224,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
         return;
     }
 
-    xdrmem_create(&xdrs2, buf2, MSGSIZE/4, XDR_ENCODE);
+    xdrmem_create(&xdrs2, buf2, sizeof(buf2), XDR_ENCODE);
     masterReg.flags = SEND_CONF_INFO;
     if (! (xdr_pack_hdr(&xdrs2, &reqHdr)
            && xdr_masterReg(&xdrs2, &masterReg, &reqHdr))) {
@@ -247,7 +238,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
     memcpy(&tmasterReg, &masterReg, sizeof(struct masterReg));
     tmasterReg.flags = SEND_NO_INFO | SEND_ELIM_REQ;
 
-    xdrmem_create(&xdrs4, buf4, MSGSIZE/4, XDR_ENCODE);
+    xdrmem_create(&xdrs4, buf4, sizeof(buf4), XDR_ENCODE);
     if (! xdr_pack_hdr(&xdrs4, &reqHdr)) {
         ls_syslog(LOG_ERR, "\
 %s: failed in xdr_pack_hdr", __func__);
@@ -266,20 +257,21 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
         return;
     }
 
-    if (clPtr->masterKnown && ! broadcast) {
+    if (clPtr->masterKnown && !broadcast) {
+        // Set the destination addr
+        get_host_addrv4(clPtr->masterPtr->v4_epoint, &to_addr);
 
-        memcpy(&toAddr.sin_addr, &clPtr->masterPtr->addr[0], sizeof(u_int));
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG, "\
-%s: Sending request to LIM on %s: %m", __func__, sockAdd2Str_(&toAddr));
+%s: Sending request to LIM on %s: %m", __func__, sockAdd2Str_(&to_addr));
 
         if (chanSendDgram_(limSock,
                            buf1,
                            XDR_GETPOS(&xdrs1),
-                           (struct sockaddr_in *)&toAddr) < 0)
+                           (struct sockaddr_in *)&to_addr) < 0)
             ls_syslog(LOG_ERR, "\
 %s: Failed to send request to LIM on %s: %m", __func__,
-                      sockAdd2Str_(&toAddr));
+                      sockAdd2Str_(&to_addr));
         xdr_destroy(&xdrs1);
         return;
     }
@@ -307,9 +299,9 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
             announceInIntvl = clPtr->numHosts;
     }
 /*
-    ls_syslog(LOG_DEBUG, "\
-%s: all %d cnt %d announceInIntvl %d",
-              __func__, all, cnt, announceInIntvl);
+  ls_syslog(LOG_DEBUG, "\
+  %s: all %d cnt %d announceInIntvl %d",
+  __func__, all, cnt, announceInIntvl);
 */
     for (numAnnounce = 0;
          hPtr && (numAnnounce < announceInIntvl);
@@ -318,7 +310,8 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
         if (hPtr == myHostPtr)
             continue;
 
-        memcpy(&toAddr.sin_addr, &hPtr->addr[0], sizeof(u_int));
+        // Set the destination addr
+        get_host_addrv4(clPtr->masterPtr->v4_epoint, &to_addr);
 
         if (hPtr->infoValid == TRUE) {
 
@@ -326,7 +319,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                 ls_syslog(LOG_DEBUG, "\
 %s: send announce (normal) to %s %s, inactivityCount=%d",
                           __func__,
-                          hPtr->hostName, sockAdd2Str_(&toAddr),
+                          hPtr->hostName, sockAdd2Str_(&to_addr),
                           hPtr->hostInactivityCount);
 
             if (hPtr->callElim){
@@ -335,12 +328,12 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                     ls_syslog(LOG_DEBUG,"\
 %s: announcing SEND_ELIM_REQ to host %s %s",
                               __func__, hPtr->hostName,
-                              sockAdd2Str_(&toAddr));
+                              sockAdd2Str_(&to_addr));
 
                 if (chanSendDgram_(limSock,
                                    buf4,
                                    XDR_GETPOS(&xdrs4),
-                                   (struct sockaddr_in *)&toAddr) < 0) {
+                                   (struct sockaddr_in *)&to_addr) < 0) {
                     ls_syslog(LOG_ERR,"\
 %s: Failed to send request 1 to LIM on %s: %m", __func__,
                               hPtr->hostName);
@@ -352,7 +345,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                 if (chanSendDgram_(limSock,
                                    buf1,
                                    XDR_GETPOS(&xdrs1),
-                                   (struct sockaddr_in *)&toAddr) < 0)
+                                   (struct sockaddr_in *)&to_addr) < 0)
                     ls_syslog(LOG_ERR,"\
 announceMaster: Failed to send request 1 to LIM on %s: %m", hPtr->hostName);
             }
@@ -361,16 +354,15 @@ announceMaster: Failed to send request 1 to LIM on %s: %m", hPtr->hostName);
 
             if (logclass & LC_COMM)
                 ls_syslog(LOG_DEBUG,"\
-%s: send announce (SEND_CONF) to %s %s %x, inactivityCount=%d",
+%s: send announce (SEND_CONF) to %s %s, inactivityCount=%d",
                           __func__,
-                          hPtr->hostName, sockAdd2Str_(&toAddr),
-                          hPtr->addr[0],
+                          hPtr->hostName, sockAdd2Str_(&to_addr),
                           hPtr->hostInactivityCount);
 
             if (chanSendDgram_(limSock,
                                buf2,
                                XDR_GETPOS(&xdrs2),
-                               (struct sockaddr_in *)&toAddr) < 0)
+                               (struct sockaddr_in *)&to_addr) < 0)
                 ls_syslog(LOG_ERR, "\
 %s: Failed to send request 2 to LIM on %s: %m",
                           __func__, hPtr->hostName);
@@ -397,18 +389,22 @@ jobxferReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     if (!limPortOk(from))
         return;
 
-    if (myClusterPtr->masterKnown && myClusterPtr->masterPtr &&
-        equivHostAddr(myClusterPtr->masterPtr, *(u_int *)&from->sin_addr))
+    struct sockaddr_in addr;
+    get_host_addrv4(myClusterPtr->masterPtr->v4_epoint, &addr);
+
+    if (myClusterPtr->masterKnown
+        && myClusterPtr->masterPtr
+        && is_addrv4_equal(&addr, from) == 0) {
         myClusterPtr->masterInactivityCount = 0;
+    }
 
     if (!xdr_jobXfer(xdrs, &jobXfer, reqHdr)) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_jobXfer");
+        ls_syslog(LOG_ERR, "%s: xdr_jobXfer() failed: %m", __func__);
         return;
     }
 
     for (i = 0; i < jobXfer.numHosts; i++) {
-        if ((hPtr = findHost(jobXfer.placeInfo[i].hostName)) != NULL) {
+        if ((hPtr = get_node_by_name(jobXfer.placeInfo[i].hostName)) != NULL) {
             hPtr->use = jobXfer.placeInfo[i].numtask;
             updExtraLoad(&hPtr, jobXfer.resReq, 1);
         } else {
@@ -423,12 +419,10 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_jobXfer");
 }
 
 void
-wrongMaster(struct sockaddr_in *from, char *buf, struct packet_header *reqHdr, int
-            s)
+wrongMaster(struct sockaddr_in *from, char *buf,
+            struct packet_header *reqHdr, int s)
 {
-    static char fname[] = "wrongMaster()";
     enum limReplyCode limReplyCode;
-
     XDR xdrs;
     struct packet_header replyHdr;
     struct masterInfo masterInfo;
@@ -438,38 +432,35 @@ wrongMaster(struct sockaddr_in *from, char *buf, struct packet_header *reqHdr, i
     if (myClusterPtr->masterKnown) {
         limReplyCode = LIME_WRONG_MASTER;
         strcpy(masterInfo.hostName, myClusterPtr->masterPtr->hostName);
-        masterInfo.addr = myClusterPtr->masterPtr->addr[0];
+        get_host_addrv4(myClusterPtr->masterPtr->v4_epoint,
+                        &masterInfo.addr);
         masterInfo.portno = myClusterPtr->masterPtr->statInfo.portno;
         replyStruct = (char *)&masterInfo;
     } else  {
         limReplyCode = LIME_MASTER_UNKNW;
-        replyStruct = (char *)NULL;
+        replyStruct = NULL;
     }
 
     xdrmem_create(&xdrs, buf, MSGSIZE, XDR_ENCODE);
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_encodeMsg(&xdrs, replyStruct, &replyHdr, xdr_masterInfo, 0, NULL)) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
+        ls_syslog(LOG_ERR, "%s: xdr_encodeMsg() failed: %m", __func__);
         xdr_destroy(&xdrs);
         return;
     }
 
     if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: Sending s=%d to %s",
-                  fname,s, sockAdd2Str_(from));
+        ls_syslog(LOG_DEBUG, "%s: Sending to %s", __func__, sockAdd2Str_(from));
 
     if (s < 0)
         cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs), (struct sockaddr_in *)from);
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs));
-
     if (cc < 0) {
-
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_/chanWrite_", sockAdd2Str_(from));
+        ls_syslog(LOG_ERR, "%s: send to %s failed: %m", __func__, sockAdd2Str_(from));
         xdr_destroy(&xdrs);
         return;
     }
@@ -479,7 +470,6 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_/chanWrite_", 
 
 }
 
-
 void
 initNewMaster(void)
 {
@@ -535,15 +525,15 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
 
     if (!xdr_statInfo(xdrs, &sinfo, hdr)) {
 
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_statInfo");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_statInfo");
         return;
     }
 
-    hPtr = findHostbyAddr(from, "rcvConfInfo");
+    hPtr = get_node_by_sockaddr(from);
     if (!hPtr)
         return;
 
-    if (findHostbyList(myClusterPtr->hostList, hPtr->hostName) == NULL) {
+    if (get_node_by_cluster(myClusterPtr->hostList, hPtr->hostName) == NULL) {
         ls_syslog(LOG_ERR, "%s: Got info from client-only host %s/%s",
                   fname, sockAdd2Str_(from), hPtr->hostName);
         return;
@@ -652,7 +642,7 @@ sndConfInfo(struct sockaddr_in *to)
     struct packet_header reqHdr;
 
     memset((char*)&buf, 0, sizeof(buf));
-    initLSFHeader_(&reqHdr);
+    init_pack_hdr(&reqHdr);
 
     if (logclass & LC_COMM)
         ls_syslog(LOG_DEBUG, "%s: Sending info",fname);
@@ -676,7 +666,7 @@ sndConfInfo(struct sockaddr_in *to)
     if ( !(xdr_pack_hdr(&xdrs, &reqHdr) &&
            xdr_statInfo(&xdrs, &myHostPtr->statInfo, &reqHdr)) ) {
 
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_statInfo");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_statInfo");
         return;
     }
 
@@ -687,7 +677,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr/xdr_statInfo");
     if ( chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs),
                         (struct sockaddr_in *)to) < 0) {
 
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(to));
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(to));
         return;
     }
 
@@ -726,14 +716,14 @@ checkHostWd(void)
 
 void announceMasterToHost(struct hostNode *hPtr, int infoType )
 {
-      struct sockaddr_in toAddr;
     XDR    xdrs;
-    char   buf[MSGSIZE/4];
+    char   buf[LL_BUFSIZ_1K];
     enum limReqCode limReqCode;
     struct masterReg masterReg;
     struct packet_header reqHdr;
 
     limReqCode = LIM_MASTER_ANN;
+
     strcpy(masterReg.clName, myClusterPtr->clName);
     strcpy(masterReg.hostName, myClusterPtr->masterPtr->hostName);
     masterReg.flags = infoType;
@@ -741,11 +731,12 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType )
     masterReg.checkSum = myClusterPtr->checkSum;
     masterReg.portno   = myClusterPtr->masterPtr->statInfo.portno;
 
-    toAddr.sin_family = AF_INET;
-    toAddr.sin_port = lim_port;
+    struct sockaddr_in to_addr;
+    to_addr.sin_family = AF_INET;
+    to_addr.sin_port = lim_port;
 
-    xdrmem_create(&xdrs, buf, MSGSIZE/4, XDR_ENCODE);
-    initLSFHeader_(&reqHdr);
+    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+    init_pack_hdr(&reqHdr);
     reqHdr.operation  = (short) limReqCode;
     reqHdr.sequence =  0;
 
@@ -753,24 +744,25 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType )
         || ! xdr_masterReg(&xdrs, &masterReg, &reqHdr)) {
         ls_syslog(LOG_ERR, "\
 %s: Error xdr_pack_hdr/xdr_masterReg to %s",
-                  __func__, sockAdd2Str_(&toAddr));
+                  __func__, sockAdd2Str_(&to_addr));
         xdr_destroy(&xdrs);
         return;
     }
 
-    memcpy(&toAddr.sin_addr, &hPtr->addr[0], sizeof(in_addr_t));
+    // End point destination
+    get_host_addrv4(hPtr->v4_epoint, &to_addr);
 
     ls_syslog(LOG_DEBUG, "\
 %s: Sending request %d to LIM on %s",
-              __func__, infoType, sockAdd2Str_(&toAddr));
+              __func__, infoType, sockAdd2Str_(&to_addr));
 
     if (chanSendDgram_(limSock,
                        buf,
                        XDR_GETPOS(&xdrs),
-                       (struct sockaddr_in *)&toAddr) < 0)
+                       (struct sockaddr_in *)&to_addr) < 0)
         ls_syslog(LOG_ERR, "\
 %s: Failed to send request %d to LIM on %s: %m", __func__,
-                  infoType, sockAdd2Str_(&toAddr));
+                  infoType, sockAdd2Str_(&to_addr));
 
     xdr_destroy(&xdrs);
 
@@ -779,13 +771,10 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType )
 int
 probeMasterTcp(struct clusterNode *clPtr)
 {
-    static char fname[] = "probeMasterTcp";
     struct hostNode *hPtr;
-    struct sockaddr_in mlim_addr;
-    int ch, rc;
-    struct packet_header reqHdr;
 
     ls_syslog (LOG_DEBUG, "probeMasterTcp: enter.... ");
+
     hPtr = clPtr->masterPtr;
     if (!hPtr)
         hPtr = clPtr->prevMasterPtr;
@@ -796,448 +785,43 @@ probeMasterTcp(struct clusterNode *clPtr)
     if (hPtr == myHostPtr)
         return -1;
 
-    ls_syslog(LOG_ERR, "%s: Attempting to probe last known master %s port %d timeout is %d",
-              fname, hPtr->hostName,ntohs(hPtr->statInfo.portno),
+    ls_syslog(LOG_ERR, "%s: probe last known master %s port %d timeout is %d",
+              __func__, hPtr->hostName, ntohs(hPtr->statInfo.portno),
               probeTimeout);
 
-    memset((char*)&mlim_addr, 0, sizeof(mlim_addr));
-    mlim_addr.sin_family      = AF_INET;
+    struct sockaddr_in mlim_addr;
+    memset(&mlim_addr, 0, sizeof(mlim_addr));
+    mlim_addr.sin_family = AF_INET;
+    get_host_addrv4(hPtr->v4_epoint, &mlim_addr);
+    mlim_addr.sin_port = hPtr->statInfo.portno;
 
-    if (!getHostNodeIPAddr(hPtr,&mlim_addr)) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostNodeIPAddr");
-        return -1;
-    }
-    mlim_addr.sin_port        = hPtr->statInfo.portno;
-
-    ch= chanClientSocket_(AF_INET, SOCK_STREAM, 0);
+    int ch = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
     if (ch < 0 ) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chanClientSocket_");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", __func__, "chanClientSocket_");
         return -2;
     }
 
-    rc = chanConnect_(ch, &mlim_addr, probeTimeout * 1000, 0);
+    int rc = chanConnect_(ch, &mlim_addr, probeTimeout * 1000, 0);
     if (rc < 0) {
-
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanConnect_", sockAdd2Str_(&mlim_addr));
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", __func__,
+                  sockAdd2Str_(&mlim_addr));
         chanClose_(ch);
-    } else
-        ls_syslog(LOG_ERR, "%s: %s(%s) %s ",
-                  fname,
-                  "chanConnect_",
-                  sockAdd2Str_(&mlim_addr),
-                  "OK");
-
-    if ( rc >= 0) {
-        initLSFHeader_(&reqHdr);
-        reqHdr.operation = LIM_PING;
-        writeEncodeHdr_(ch, &reqHdr, chanWrite_ );
-        chanClose_(ch);
+        return -1;
     }
 
-    return rc;
-}
-
-int
-callMasterTcp(enum limReqCode ReqCode, struct hostNode *masterPtr,
-              void *reqBuf, bool_t (*xdr_sfunc)(),
-              void *replyBuf, bool_t (*xdr_rfunc)(), int rcvTimeout,
-              int connTimeout, struct packet_header *hdr)
-{
-    static char fname[] = "callMasterTcp";
-    XDR    xdrs;
-    char   sbuf[4*MSGSIZE];
-    char   replyHdrBuf[PACKET_HEADER_SIZE];
-    char   *tmpBuf;
-    enum limReplyCode ReplyCode;
-    struct hostNode *hPtr;
     struct packet_header reqHdr;
-    struct packet_header replyHdr;
-    struct sockaddr_in mlim_addr;
-    struct in_addr *tmp_addr = NULL;
-    struct timeval timeval;
-    struct timeval *timep = NULL;
-    int    reqLen;
-    int    ch, rc;
-
-    if (logclass & (LC_TRACE | LC_COMM)) {
-        ls_syslog (LOG_DEBUG, "callMasterTcp: enter.... ");
-    }
-
-    if (myClusterPtr->masterPtr != NULL) {
-        if ((masterPtr != NULL) && (myClusterPtr->masterPtr != masterPtr)) {
-            ls_syslog(LOG_ERR, "%s: Bad Master Information passed.",
-                      fname);
-            return -1;
-        }
-        hPtr = myClusterPtr->masterPtr;
-    } else {
-        if (masterPtr == NULL) {
-            ls_syslog(LOG_ERR, "%s: No Master Information.",
-                      fname);
-            return -1;
-        }
-        hPtr = masterPtr;
-    }
-
-    if (hPtr == myHostPtr) {
+    init_pack_hdr(&reqHdr);
+    reqHdr.operation = LIM_PING;
+    rc = writeEncodeHdr_(ch, &reqHdr, chanWrite_ );
+    if (rc < 0) {
+        ls_syslog(LOG_ERR, "%s: failed writeEncodeHdr_() to %s %m", __func__,
+                  sockAdd2Str_(&mlim_addr));
+        chanClose_(ch);
         return -1;
     }
-
-    memset((char*)&mlim_addr, 0, sizeof(mlim_addr));
-    mlim_addr.sin_family = AF_INET;
-
-    if (!(tmp_addr = (struct in_addr *)getHostFirstAddr_(hPtr->hostName))) {
-
-    ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostFirstAddr_");
-        return -1;
-    }
-
-    memcpy((void *) &mlim_addr.sin_addr, (const void*)tmp_addr, sizeof(u_int));
-    mlim_addr.sin_port = hPtr->statInfo.portno;
-
-    ch = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
-    if (ch < 0 ) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chanClientSocket_");
-        return 1;
-    }
-
-    if (connTimeout <= 0) {
-        connTimeout = LIM_CONNECT_TIMEOUT;
-    }
-
-    rc = chanConnect_(ch, &mlim_addr, connTimeout * 1000, 0);
-    if (rc < 0) {
-
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanConnect_", sockAdd2Str_(&mlim_addr));
-        chanClose_(ch);
-        return 1;
-    }
-
-    initLSFHeader_(&reqHdr);
-    reqHdr.operation = ReqCode;
-    xdrmem_create(&xdrs, sbuf, 4*MSGSIZE, XDR_ENCODE);
-
-    if (!xdr_encodeMsg(&xdrs, reqBuf, &reqHdr, xdr_sfunc, 0, NULL)) {
-        xdr_destroy(&xdrs);
-        lserrno = LIME_BAD_DATA;
-        chanClose_(ch);
-        return 2;
-    }
-
-    reqLen = XDR_GETPOS(&xdrs);
-    if (chanWrite_ (ch, sbuf, reqLen) != reqLen) {
-        xdr_destroy(&xdrs);
-        chanClose_(ch);
-        return 2;
-    }
-
-    xdr_destroy(&xdrs);
-    if (!replyBuf && !hdr) {
-        chanClose_(ch);
-        return 0;
-    }
-
-    if (rcvTimeout <= 0) {
-        timeval.tv_sec = LIM_RECV_TIMEOUT;
-    } else {
-        timeval.tv_sec = rcvTimeout;
-    }
-
-    timeval.tv_usec = 0;
-    timep = &timeval;
-
-    if ((rc=rd_select_(chanSock_(ch), timep)) <= 0) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "rd_select_");
-        chanClose_(ch);
-        return 3;
-    }
-
-    xdrmem_create(&xdrs, replyHdrBuf, PACKET_HEADER_SIZE , XDR_DECODE);
-    rc = readDecodeHdr_(ch, replyHdrBuf, chanRead_, &xdrs, &replyHdr);
-    if (rc < 0) {
-        xdr_destroy(&xdrs);
-        chanClose_(ch);
-        return 3;
-    }
-
-    xdr_destroy(&xdrs);
-
-    if (replyHdr.length > MAXMSGLEN) {
-        chanClose_(ch);
-        return 3;
-    }
-
-    if (replyHdr.length > 0) {
-        if ((tmpBuf = (char *) malloc(replyHdr.length)) == NULL) {
-            chanClose_(ch);
-            return 3;
-        }
-
-        if ((rc = chanRead_(ch, tmpBuf, replyHdr.length)) !=
-            replyHdr.length) {
-            FREEUP(tmpBuf);
-            chanClose_(ch);
-            ls_syslog(LOG_DEBUG2,"%s: read only %d bytes", fname,ch);
-            return 3;
-        }
-
-        xdrmem_create(&xdrs, tmpBuf, replyHdr.length, XDR_DECODE);
-        ReplyCode = replyHdr.operation;
-
-        switch(ReplyCode) {
-        case LIME_NO_ERR:
-            if (!(*xdr_rfunc)(&xdrs, replyBuf, &replyHdr)) {
-                ls_syslog(LOG_ERR,"xdr fail");
-                xdr_destroy(&xdrs);
-                FREEUP(tmpBuf);
-                chanClose_(ch);
-                return 3;
-            }
-            break;
-        default:
-            xdr_destroy(&xdrs);
-            FREEUP(tmpBuf);
-            chanClose_(ch);
-            return 3;
-        }
-        xdr_destroy(&xdrs);
-        FREEUP(tmpBuf);
-    } else {
-        replyBuf = NULL;
-    }
-
-    if (logclass & LC_COMM) {
-        ls_syslog(LOG_DEBUG, "%s: Reply length : %d", fname, replyHdr.length);
-    }
-
     chanClose_(ch);
 
-    if (hdr != NULL) {
-        memcpy (hdr, &replyHdr, sizeof(replyHdr));
-    }
-
-    return 0;
-}
-
-static int
-packMinSLimConfData(struct minSLimConfData *sLimConfDatap, struct  hostNode *hPtr)
-{
-    int i, j;
-    windows_t * windowsPtr;
-
-    if ( sLimConfDatap == NULL || hPtr == NULL )  {
-        return -1;
-    }
-    sLimConfDatap->defaultRunElim = defaultRunElim;
-    sLimConfDatap->nClusAdmins = nClusAdmins;
-    sLimConfDatap->clusAdminIds = clusAdminIds;
-    sLimConfDatap->clusAdminNames = clusAdminNames;
-    sLimConfDatap->exchIntvl = exchIntvl;
-    sLimConfDatap->sampleIntvl = sampleIntvl;
-    sLimConfDatap->hostInactivityLimit = hostInactivityLimit;
-    sLimConfDatap->masterInactivityLimit = masterInactivityLimit;
-    sLimConfDatap->retryLimit = retryLimit;
-    sLimConfDatap->keepTime = keepTime;
-    sLimConfDatap->allInfo_resTable = allInfo.resTable + NBUILTINDEX;
-    sLimConfDatap->allInfo_nRes = allInfo.nRes;
-    sLimConfDatap->allInfo_numIndx = allInfo.numIndx;
-    sLimConfDatap->allInfo_numUsrIndx = allInfo.numUsrIndx;
-    sLimConfDatap->myCluster_checkSum = myClusterPtr->checkSum;
-
-    if (myClusterPtr->eLimArgs == NULL ) {
-        sLimConfDatap->myCluster_eLimArgs = "";
-    } else {
-        sLimConfDatap->myCluster_eLimArgs = myClusterPtr->eLimArgs;
-    }
-
-    if (hPtr->windows == NULL ) {
-        sLimConfDatap->myHost_windows = "";
-    } else {
-        sLimConfDatap->myHost_windows = hPtr->windows;
-    }
-
-    for (i = 0;i < 8; i++) {
-        sLimConfDatap->myHost_week[i] = hPtr->week[i];
-        for (j = 0, windowsPtr = hPtr->week[i]; windowsPtr != NULL;
-             windowsPtr = windowsPtr->nextwind, j++);
-        sLimConfDatap->numMyhost_weekpair[i] = j;
-    }
-    sLimConfDatap->myHost_wind_edge = hPtr->wind_edge;
-    sLimConfDatap->myHost_busyThreshold = hPtr->busyThreshold;
-    sLimConfDatap->myHost_rexPriority = hPtr->rexPriority;
-
-    sLimConfDatap->myHost_numInstances = hPtr->numInstances;
-    sLimConfDatap->myHost_instances = hPtr->instances;
-    sLimConfDatap->sharedResHead = sharedResourceHead;
-
-    return 0;
-}
-
-static int
-unpackMinSLimConfData(struct minSLimConfData *sLimConfDatap)
-{
-    static char fname[] = "unpackMinSLimConfData";
-    int i, j;
-    windows_t * windowsPtr;
-    struct resItem *sourceResPtr, *destResPtr;
-    struct sharedResourceInstance *tmp, *tmp1, *prevPtr;
-
-    defaultRunElim = sLimConfDatap->defaultRunElim;
-    nClusAdmins = sLimConfDatap->nClusAdmins;
-    if ( nClusAdmins < 1 ) {
-        return -1;
-    }
-    clusAdminIds = (int *)realloc(clusAdminIds, nClusAdmins*sizeof(int));
-    if (clusAdminNames) {
-        FREEUP(clusAdminNames[0]);
-    }
-    clusAdminNames = (char **)realloc(clusAdminNames,
-                                      nClusAdmins*sizeof(char *));
-
-    if (!clusAdminIds || !clusAdminNames) {
-        sLimConfDatap->nClusAdmins = 0;
-        return -1;
-    }
-
-    for (i = 0; i < nClusAdmins; i++) {
-        clusAdminIds[i] = sLimConfDatap->clusAdminIds[i];
-        clusAdminNames[i] = putstr_(sLimConfDatap->clusAdminNames[i]);
-    }
-
-    exchIntvl = sLimConfDatap->exchIntvl;
-    sampleIntvl = sLimConfDatap->sampleIntvl;
-    hostInactivityLimit = sLimConfDatap->hostInactivityLimit;
-    masterInactivityLimit = sLimConfDatap->masterInactivityLimit;
-    retryLimit = sLimConfDatap->retryLimit;
-    keepTime = sLimConfDatap->keepTime;
-    allInfo.nRes = sLimConfDatap->allInfo_nRes;
-
-    allInfo.resTable = (struct resItem *)realloc(allInfo.resTable,
-                                                 allInfo.nRes*sizeof(struct resItem));
-    if (!allInfo.resTable)
-    {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "realloc");
-        return -1;
-    }
-    destResPtr = allInfo.resTable + NBUILTINDEX;
-    sourceResPtr = sLimConfDatap->allInfo_resTable;
-    for (i = 0; i < allInfo.nRes-NBUILTINDEX; i++) {
-        memcpy(destResPtr->name, sourceResPtr->name, MAXLSFNAMELEN);
-        destResPtr->valueType = sourceResPtr->valueType;
-        destResPtr->orderType = sourceResPtr->orderType;
-        destResPtr->flags = sourceResPtr->flags;
-        destResPtr->interval = sourceResPtr->interval;
-        destResPtr++;
-        sourceResPtr++;
-    }
-
-    allInfo.numIndx = sLimConfDatap->allInfo_numIndx;
-    allInfo.numUsrIndx = sLimConfDatap->allInfo_numUsrIndx;
-
-    myClusterPtr->checkSum = sLimConfDatap->myCluster_checkSum;
-
-    if (sLimConfDatap->myCluster_eLimArgs == NULL) {
-        return -1;
-    }
-    if (strcmp(sLimConfDatap->myCluster_eLimArgs, "") == 0) {
-        myClusterPtr->eLimArgs = NULL;
-    } else {
-        myClusterPtr->eLimArgs = putstr_(sLimConfDatap->myCluster_eLimArgs);
-    }
-
-    if (sLimConfDatap->myHost_windows == NULL ) {
-        return -1;
-    }
-    if (strcmp(sLimConfDatap->myHost_windows, "")  == 0) {
-        myHostPtr->windows = NULL;
-    } else {
-        myHostPtr->windows = putstr_(sLimConfDatap->myHost_windows);
-    }
-
-    myHostPtr->wind_edge = sLimConfDatap->myHost_wind_edge;
-
-    for (i = 0; i < 8; i++) {
-        for (j = 0, windowsPtr = sLimConfDatap->myHost_week[i]; j < sLimConfDatap->numMyhost_weekpair[i]; j++) {
-            insertW(&(myHostPtr->week[i]), windowsPtr->opentime,
-                    windowsPtr->closetime);
-            windowsPtr = windowsPtr->nextwind;
-        }
-    }
-
-    if ( allInfo.numIndx < 1 ) {
-        return -1;
-    }
-
-    if (!(myHostPtr->busyThreshold = (float *)realloc(myHostPtr->busyThreshold,
-                                                      allInfo.numIndx*sizeof(float)))) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        return -1;
-    }
-    memcpy(myHostPtr->busyThreshold, sLimConfDatap->myHost_busyThreshold,
-           allInfo.numIndx*sizeof(float));
-
-    myHostPtr->rexPriority = sLimConfDatap->myHost_rexPriority;
-
-    myHostPtr->numInstances = sLimConfDatap->myHost_numInstances;
-
-    if ( myHostPtr->numInstances) {
-        myHostPtr->instances = (struct resourceInstance **)
-            calloc(myHostPtr->numInstances,
-                   (sizeof(struct resourceInstance *)));
-
-        if (! myHostPtr->instances && myHostPtr->numInstances) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-            return -1;
-        }
-    } else {
-        myHostPtr->instances = NULL;
-    }
-
-    for (i = 0; i < myHostPtr->numInstances; i++) {
-        myHostPtr->instances[i] = (struct resourceInstance *)calloc(1, sizeof(struct resourceInstance));
-        if (myHostPtr->instances[i] == NULL) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-            return -1;
-        }
-        myHostPtr->instances[i]->resName =
-            putstr_(sLimConfDatap->myHost_instances[i]->resName);
-        myHostPtr->instances[i]->value =
-            putstr_(sLimConfDatap->myHost_instances[i]->value);
-        myHostPtr->instances[i]->orignalValue =
-            putstr_(sLimConfDatap->myHost_instances[i]->value);
-    }
-
-    sharedResourceHead = NULL;
-    for (tmp = sLimConfDatap->sharedResHead, i = 0; tmp; tmp = tmp->nextPtr, i++) {
-        tmp1 = (struct sharedResourceInstance *)
-            calloc (1, sizeof(sharedResourceInstance));
-
-        if (!tmp1) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-            return -1;
-        }
-        tmp1->resName = putstr_(tmp->resName);
-        tmp1->nextPtr = NULL;
-        if (i == 0) {
-            sharedResourceHead = tmp1;
-            prevPtr = tmp1;
-        } else {
-            prevPtr->nextPtr = tmp1;
-            prevPtr = tmp1;
-        }
-    }
-
-    return 0;
-
+    return rc;
 }
 
 int
@@ -1278,7 +862,7 @@ lockHost(char *hostName, int request)
     if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL,
                  hostName, 0, NULL) < 0) {
 
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", "lockHost", "callLim", hostName);
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", "lockHost", "callLim", hostName);
         return -2;
     }
 

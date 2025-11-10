@@ -26,9 +26,9 @@ bool_t xdr_array_string(XDR *, char **, int, int);
 bool_t xdr_var_string(XDR *, char **);
 bool_t xdr_stringLen(XDR *, struct stringLen *, struct packet_header *);
 bool_t xdr_lenData(XDR *, struct lenData *);
-bool_t xdr_lsfLimit (XDR *, struct lsfLimit *, struct packet_header *);
-bool_t xdr_portno (XDR *, u_short *);
-bool_t xdr_address (XDR *, u_int *);
+bool_t xdr_lsfLimit(XDR *, struct lsfLimit *, struct packet_header *);
+bool_t xdr_portno(XDR *, uint16_t *);
+bool_t xdr_sockaddr_in(XDR *, struct sockaddr_in *);
 
 // Procol related xdr
 extern bool_t xdr_pack_hdr(XDR *, struct packet_header *);

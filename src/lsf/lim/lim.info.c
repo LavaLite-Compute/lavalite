@@ -182,7 +182,7 @@ Reply:
     free(clusterInfoReq.resReq);
 
 Reply1:
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
 
@@ -234,7 +234,7 @@ clusNameReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     struct packet_header replyHdr;
 
     memset((char*)&buf, 0, sizeof(buf));
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     limReplyCode = LIME_NO_ERR;
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
@@ -263,16 +263,15 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "clusNameReq", sockAdd2Str_(f
 void
 masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
 {
-    static char fname[] = "masterInfoReq()";
     XDR  xdrs2;
-    char buf[MSGSIZE];
+    char buf[LL_BUFSIZ_64];
     enum limReplyCode limReplyCode;
     struct hostNode *masterPtr;
     struct packet_header replyHdr;
     struct masterInfo masterInfo;
 
     memset((char*)&buf, 0, sizeof(buf));
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     if (!myClusterPtr->masterKnown && myClusterPtr->prevMasterPtr == NULL)
         limReplyCode = LIME_MASTER_UNKNW;
     else
@@ -281,30 +280,31 @@ masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     xdrmem_create(&xdrs2, buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
-    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
 
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
+    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+        ls_syslog(LOG_ERR, "%s: xdr_pack_hdr() failed: %m", __func__);
         xdr_destroy(&xdrs2);
         return;
     }
 
     if (limReplyCode == LIME_NO_ERR) {
-        masterPtr = myClusterPtr->masterKnown ? myClusterPtr->masterPtr : myClusterPtr->prevMasterPtr;
+        masterPtr = myClusterPtr->masterKnown ?
+            myClusterPtr->masterPtr : myClusterPtr->prevMasterPtr;
+        // Fill the masterInfo structure
         strcpy(masterInfo.hostName, masterPtr->hostName);
-        masterInfo.addr   =  masterPtr->addr[0];
+        get_host_addrv4(masterPtr->v4_epoint, &masterInfo.addr);
         masterInfo.portno =  masterPtr->statInfo.portno;
 
-        if(!xdr_masterInfo(&xdrs2, &masterInfo, &replyHdr)) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_masterInfo");
+        if (! xdr_masterInfo(&xdrs2, &masterInfo, &replyHdr)) {
+            ls_syslog(LOG_ERR, "%s: xdr_masterInfo() failed: %m", __func__);
             xdr_destroy(&xdrs2);
             return;
         }
     }
 
     if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
-
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
+        ls_syslog(LOG_ERR, "%s: chanSendDgram to %s failed: %m", __func__,
+                  sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -342,7 +342,7 @@ hostInfoReq(XDR *xdrs, struct hostNode *fromHostP, struct sockaddr_in *from,
     }
 
     if (! (hostInfoRequest.ofWhat == OF_HOSTS && hostInfoRequest.numPrefs == 2
-           && equalHost_(hostInfoRequest.preferredHosts[1], myHostPtr->hostName))){
+           && equal_host(hostInfoRequest.preferredHosts[1], myHostPtr->hostName))){
 
         if (!masterMe) {
             char tmpBuf[MSGSIZE];
@@ -448,7 +448,7 @@ Reply:
 
 Reply1:
     freeResVal (&resVal);
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR) {
@@ -526,14 +526,13 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
     limReplyCode = LIME_NO_ERR;
 
     xdrmem_create(&xdrs2, buf, len, XDR_ENCODE);
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
 
     if (!xdr_encodeMsg(&xdrs2, (char *)&allInfo, &replyHdr, xdr_lsInfo, 0,
                        NULL)) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         return;
     }
@@ -634,8 +633,8 @@ validHosts(char **hostList, int num, char *clName, int options)
         if (!(clPtr->status & CLUST_ACTIVE))
             continue;
         if ( ((cc=strcmp(hostList[i], clPtr->clName)) == 0) ||
-             findHostbyList(clPtr->hostList, hostList[i]) != NULL ||
-             findHostbyList(clPtr->clientList, hostList[i]) != NULL) {
+             get_node_by_cluster(clPtr->hostList, hostList[i]) != NULL ||
+             get_node_by_cluster(clPtr->clientList, hostList[i]) != NULL) {
 
             if (i > 0) {
 
@@ -737,7 +736,7 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHd
     char *buf = calloc(cc, sizeof(char));
 
     xdrmem_create(&xdrs2, buf, cc, XDR_ENCODE);
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation  = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
     if (limReplyCode == LIME_NO_ERR)
@@ -803,7 +802,7 @@ checkResources (struct resourceInfoReq *resourceInfoReq, struct resourceInfoRepl
         host = NULL;
     else {
 
-        if (findHostbyList(myClusterPtr->hostList,
+        if (get_node_by_cluster(myClusterPtr->hostList,
                            resourceInfoReq->hostName) == NULL) {
             ls_syslog(LOG_ERR, "%s: Host <%s>  is not used by cluster <%s>",
                       fname, resourceInfoReq->hostName, myClusterName);
@@ -875,7 +874,8 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
     for (i = 0; i < resource->numInstances; i++) {
         if (hostName) {
             for (j = 0; j < resource->instances[i]->nHosts; j++) {
-                if (equalHost_(hostName, resource->instances[i]->hosts[j]->hostName)) {
+                if (equal_host(hostName,
+                               resource->instances[i]->hosts[j]->hostName)) {
                     found = true;
                     break;
                 }

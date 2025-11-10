@@ -427,7 +427,7 @@ lsb_runjob(struct runJobRequest* runJobRequest)
             MSGSIZE/2,
             XDR_ENCODE);
 
-    initLSFHeader_(&lsfHeader);
+    init_pack_hdr(&lsfHeader);
 
     lsfHeader.operation = mbdReqType;
 

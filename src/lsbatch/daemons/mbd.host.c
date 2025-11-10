@@ -1331,7 +1331,7 @@ adjLsbLoad (struct jData *jpbw, int forResume, bool_t doAdj)
 
             factor = 1.0;
             if (resValPtr->duration != INFINIT_INT) {
-                if (resValPtr->decay != INFINIT_FLOAT) {
+                if (resValPtr->decay != INFINITY) {
                     float du;
 
                     if ( isItPreemptResourceIndex(ldx) ) {
@@ -1452,11 +1452,11 @@ getReserveValues (struct resVal *jobResVal, struct resVal *qResVal)
     }
 
     for (i = 0; i < allLsInfo->nRes; i++)
-        resVal.val[i] = INFINIT_FLOAT;
+        resVal.val[i] = INFINITY;
     for (i = 0; i < GET_INTNUM(allLsInfo->nRes); i++)
         resVal.rusgBitMaps[i] = 0;
     resVal.duration = INFINIT_INT;
-    resVal.decay = INFINIT_FLOAT;
+    resVal.decay = INFINITY;
 
     for (i = 0; i < allLsInfo->nRes; i++) {
         int jobSet, queueSet;
@@ -1489,16 +1489,16 @@ getReserveValues (struct resVal *jobResVal, struct resVal *qResVal)
     else
         resVal.duration = qResVal->duration;
 
-    if (qResVal->decay != INFINIT_FLOAT && jobResVal->decay != INFINIT_FLOAT) {
+    if (qResVal->decay != INFINITY && jobResVal->decay != INFINITY) {
         if (qResVal->decay < jobResVal->decay)
             resVal.decay = jobResVal->decay;
         else
             resVal.decay = qResVal->decay;
-    } else if (qResVal->decay == INFINIT_FLOAT
-               && jobResVal->decay != INFINIT_FLOAT)
+    } else if (qResVal->decay == INFINITY
+               && jobResVal->decay != INFINITY)
         resVal.decay = jobResVal->decay;
-    else if (qResVal->decay != INFINIT_FLOAT
-             && jobResVal->decay == INFINIT_FLOAT)
+    else if (qResVal->decay != INFINITY
+             && jobResVal->decay == INFINITY)
         resVal.decay = qResVal->decay;
     return &resVal;
 

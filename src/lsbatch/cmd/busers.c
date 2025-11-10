@@ -115,7 +115,7 @@ display_users (struct userInfoEnt *reply, int numReply)
 
     for (i = 0; i < numReply; i++) {
 
-        if (reply[i].procJobLimit < INFINIT_FLOAT) {
+        if (reply[i].procJobLimit < INFINITY) {
             sprintf(fomt, "%%%d.1f ", USR_JL_P_LENGTH);
             sprintf (procJobLimit, fomt, reply[i].procJobLimit);
 	}

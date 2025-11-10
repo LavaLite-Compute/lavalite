@@ -72,7 +72,6 @@ static int configCheckSum(char *, u_short *);
 static int reCheckClusterClass(struct clusterNode *);
 
 static void initResTable(void);
-static char * findClusterServers(char *);
 static int getClusAdmins (char *, char *, int *, char *);
 static int setAdmins (struct admins *, int);
 static struct admins * getAdmins (char *, char *, int *, char *);
@@ -95,12 +94,10 @@ static int parseHostList (char *, char *, int, char ***, int *);
 static int addHostNodeIns (struct resourceInstance *, int, char **);
 static struct  resourceInstance * isInHostNodeIns(char *, int,
                                                   struct  resourceInstance **);
-static char * validLocationHost (char *);
 static char ** getValidHosts (char *, int *, struct sharedResource *);
 static void adjIndx (void);
 static int doubleResTable (char *, int);
 static int adjHostListOrder();
-static int saveHostIPAddr(struct hostNode *, struct hostent *);
 
 extern int  convertNegNotation_(char**, struct HostsArray*);
 
@@ -400,13 +397,14 @@ doclist(FILE *fp, int *LineNum, char *lsfile)
     static char fname[] = "doclist()";
     char *linep;
     struct keymap keyList[] = {
-        {"CLUSTERNAME", NULL, 0},
-        {"SERVERS", NULL, 0},
-        {NULL, NULL, 0}
+        {"CLUSTERNAME", NULL, -1},
+        {"SERVERS", NULL, -1},
+        {NULL, NULL, -1}
     };
     char *servers;
     bool_t clusterAdded = false;
 
+    // Get the ClusterName key
     linep = getNextLineC_(fp, LineNum, true);
     if (!linep) {
         ls_syslog(LOG_ERR, "%s: %s(%d: section cluster: Premature EOF",
@@ -417,56 +415,50 @@ doclist(FILE *fp, int *LineNum, char *lsfile)
     if (isSectionEnd(linep, lsfile, LineNum, "cluster"))
         return false;
 
-    if (strchr(linep, '=') == NULL) {
-        if (! keyMatch(keyList, linep, false)) {
-            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section cluster; ignoring section", fname, lsfile, *LineNum);
-            doSkipSection(fp, LineNum, lsfile, "cluster");
-            return false;
-        }
-
-        if (keyList[0].position == -1) {
-            ls_syslog(LOG_ERR, "%s: %s(%d: keyword line: key %s is missing in section cluster; ignoring section",
-                      fname, lsfile, *LineNum, keyList[0].key);
-            doSkipSection(fp, LineNum, lsfile, "cluster");
-            return false;
-        }
-
-        while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
-            if (isSectionEnd(linep, lsfile, LineNum, "cluster"))
-                return true;
-            if (mapValues(keyList, linep) < 0) {
-                ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section cluster, ignoring line",
-                          fname, lsfile, *LineNum);
-                lim_CheckError = WARNING_ERR;
-                continue;
-            }
-
-            if (keyList[1].position != -1) {
-                servers = keyList[1].val;
-                mcServersSet = true;
-            }
-            else
-                servers = NULL;
-
-            if (!clusterAdded && !addCluster(keyList[0].val, servers)) {
-                ls_syslog(LOG_ERR, "%s: Ignoring cluster %s",
-                          fname, keyList[0].val);
-                lim_CheckError = WARNING_ERR;
-            } else if (clusterAdded ) {
-                ls_syslog(LOG_ERR, "%s: Ignoring cluster %s",
-                          fname, keyList[0].val);
-                lim_CheckError = WARNING_ERR;
-            }
-
-            FREEUP(keyList[0].val);
-            if (keyList[1].position != -1)
-                FREEUP(keyList[1].val);
-            clusterAdded = true;
-        }
-    } else {
-        ls_syslog(LOG_ERR, "%s: %s(%d: horizontal cluster section not implemented yet, ignoring section", fname, lsfile, *LineNum);
+    if (! keyMatch(keyList, linep, false)) {
+        ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section cluster; ignoring section", fname, lsfile, *LineNum);
         doSkipSection(fp, LineNum, lsfile, "cluster");
         return false;
+    }
+
+    if (keyList[0].position == -1) {
+        ls_syslog(LOG_ERR, "%s: %s(%d: keyword line: key %s is missing in section cluster; ignoring section",
+                  fname, lsfile, *LineNum, keyList[0].key);
+        doSkipSection(fp, LineNum, lsfile, "cluster");
+        return false;
+    }
+
+    while ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
+        if (isSectionEnd(linep, lsfile, LineNum, "cluster"))
+            return true;
+        if (mapValues(keyList, linep) < 0) {
+            ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section cluster, ignoring line",
+                      fname, lsfile, *LineNum);
+            lim_CheckError = WARNING_ERR;
+            continue;
+        }
+
+        if (keyList[1].position != -1) {
+            servers = keyList[1].val;
+            mcServersSet = true;
+        }
+        else
+            servers = NULL;
+
+        if (!clusterAdded && !addCluster(keyList[0].val, servers)) {
+            ls_syslog(LOG_ERR, "%s: Ignoring cluster %s",
+                      fname, keyList[0].val);
+            lim_CheckError = WARNING_ERR;
+        } else if (clusterAdded ) {
+            ls_syslog(LOG_ERR, "%s: Ignoring cluster %s",
+                      fname, keyList[0].val);
+            lim_CheckError = WARNING_ERR;
+        }
+
+        free(keyList[0].val);
+        if (keyList[1].position != -1)
+            free(keyList[1].val);
+        clusterAdded = true;
     }
 
     ls_syslog(LOG_ERR,
@@ -531,20 +523,20 @@ dotypelist(FILE *fp, int *LineNum, char *lsfile)
                 ls_syslog(LOG_ERR, "%s: %s(%d: illegal character (one of %s, ignoring type %s",
                           fname, lsfile, *LineNum, ILLEGAL_CHARS, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
-                FREEUP(keyList[0].val);
+                free(keyList[0].val);
                 continue;
             }
             if (IS_DIGIT (keyList[0].val[0])) {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Type name <%s> begun with a digit is illegal; ignored",
                           fname, lsfile, *LineNum, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
-                FREEUP(keyList[0].val);
+                free(keyList[0].val);
                 continue;
             }
             if (!addHostType(keyList[0].val))
                 lim_CheckError = WARNING_ERR;
 
-            FREEUP(keyList[0].val);
+            free(keyList[0].val);
         }
     } else {
         ls_syslog(LOG_ERR, "%s: %s(%d: horizontal HostType section not implemented yet, ignoring section", fname, lsfile, *LineNum);
@@ -637,9 +629,9 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
                 ls_syslog(LOG_ERR, "%s: %s(%d: Bad cpuFactor for host model %s, ignoring line",
                           fname, lsfile, *LineNum, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
-                FREEUP(keyList[0].val);
-                FREEUP(keyList[1].val);
-                FREEUP(keyList[2].val);
+                free(keyList[0].val);
+                free(keyList[1].val);
+                free(keyList[2].val);
                 continue;
             }
 
@@ -647,17 +639,17 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
                 ls_syslog(LOG_ERR, "%s: %s(%d: illegal character (one of %s, ignoring model %s",
                           fname, lsfile, *LineNum, ILLEGAL_CHARS, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
-                FREEUP(keyList[0].val);
-                FREEUP(keyList[1].val);
-                FREEUP(keyList[2].val);
+                free(keyList[0].val);
+                free(keyList[1].val);
+                free(keyList[2].val);
                 continue;
             }
             if (IS_DIGIT (keyList[0].val[0])) {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Model name <%s> begun with a digit is illegal; ignored", fname, lsfile, *LineNum, keyList[0].val);
                 lim_CheckError = WARNING_ERR;
-                FREEUP(keyList[0].val);
-                FREEUP(keyList[1].val);
-                FREEUP(keyList[2].val);
+                free(keyList[0].val);
+                free(keyList[1].val);
+                free(keyList[2].val);
                 continue;
             }
 
@@ -701,9 +693,9 @@ dohostmodel(FILE *fp, int *LineNum, char *lsfile)
             }
 
         next_value:
-            FREEUP(keyList[0].val);
-            FREEUP(keyList[1].val);
-            FREEUP(keyList[2].val);
+            free(keyList[0].val);
+            free(keyList[1].val);
+            free(keyList[2].val);
         }
     } else {
         ls_syslog(LOG_ERR, "%s: %s(%d: horizontal HostModel section not implemented yet, ignoring section",  fname, lsfile, *LineNum);
@@ -1283,7 +1275,7 @@ addSharedResourceInstance(int nHosts, char **hosts, char *resName)
         } else {
             cnt = 0;
             for ( i=0; i<nHosts; i++ ){
-                if ((hPtr=findHostbyList(myClusterPtr->hostList, hosts[i]))
+                if ((hPtr=get_node_by_cluster(myClusterPtr->hostList, hosts[i]))
                     != NULL)
                     tmp->hosts[cnt++] = hPtr ;
             }
@@ -1310,9 +1302,10 @@ addSharedResourceInstance(int nHosts, char **hosts, char *resName)
     return 1;
 }
 
+// Bug we dont care about resource map in lavalite
 static int
-addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
-                int *isDefault)
+addResourceMap(char *resName, char *location, char *lsfile, int LineNum,
+               int *isDefault)
 {
     static char fname[] = "addResourceMap";
     struct sharedResource *resource;
@@ -1365,8 +1358,8 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
 
     while (sp != NULL && sp[0] != '\0') {
         for (j = 0; j < numHosts; j++)
-            FREEUP (hosts[j]);
-        FREEUP (hosts);
+            free (hosts[j]);
+        free (hosts);
         numHosts = 0;
         error = false;
         instance = sp;
@@ -1375,7 +1368,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
         while (*sp == ' ' && *sp != '\0')
             sp++;
         if (*sp == '\0') {
-            FREEUP(initValue);
+            free(initValue);
             if (first == true)
                 return -1;
             else
@@ -1402,7 +1395,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
 
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid characters (%s) used as NUMERIC resource value; ignoring",
                           fname, lsfile, LineNum, initValue);
-                FREEUP(initValue);
+                free(initValue);
                 return -1;
             }
             cp[0] = ssp;
@@ -1430,7 +1423,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
             if (*sp == '\0') {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Bad format for instance <%s>; ignoring the instance",
                           fname, lsfile, LineNum, instance);
-                FREEUP(initValue);
+                free(initValue);
                 return -1;
             }
             if (error == true) {
@@ -1479,7 +1472,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
             }
             if (defaultWord == true) {
                 numCycle = numofhosts;
-                FREEUP(hosts[0]);
+                free(hosts[0]);
             }
             else
                 numCycle = 1;
@@ -1496,7 +1489,7 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
                         hPtr = hPtr->nextPtr;
                     if (hPtr == NULL)
                         break;
-                    FREEUP(hosts[0]);
+                    free(hosts[0]);
                     hosts[0] = putstr_(hPtr->hostName);
                     numHosts = 1;
                 }
@@ -1524,25 +1517,25 @@ addResourceMap (char *resName, char *location, char *lsfile, int LineNum,
                 sp++;
             if (*sp == '\0')
             {
-                FREEUP(initValue);
+                free(initValue);
                 return -1;
             }
             sp++;
         }
     }
     for (j = 0; j < numHosts; j++)
-        FREEUP (hosts[j]);
-    FREEUP (hosts);
-    FREEUP(initValue);
+        free (hosts[j]);
+    free (hosts);
+    free(initValue);
     return 0;
 
 }
 
-static int
-parseHostList (char *hostList, char *lsfile, int LineNum, char ***hosts, int *hasDefault)
+static int parseHostList(char *hostList, char *lsfile, int LineNum,
+                         char ***hosts, int *hasDefault)
 {
     static char fname[] = "parseHostList";
-    char *host, *sp, **hostTable, *hostName;
+    char *host, *sp, **hostTable;
     int numHosts = 0, i;
 
     if (hostList == NULL)
@@ -1558,62 +1551,32 @@ parseHostList (char *hostList, char *lsfile, int LineNum, char ***hosts, int *ha
     sp = hostList;
     numHosts = 0;
     while ((host = getNextWord_(&sp)) != NULL) {
+        struct ll_host hp;
 
-        if ((hostName = validLocationHost (host)) == NULL) {
-            ls_syslog(LOG_ERR, "%s: %s(%d: Invalid hostname <%s>;ignoring the host", fname, lsfile, LineNum, host);
+        int cc = get_host_by_name(host, &hp);
+        if (cc < 0) {
+            ls_syslog(LOG_ERR, "%s: Invalid hostname %s;ignoring the host",
+                      __func__, lsfile, LineNum, host);
             lim_CheckError = WARNING_ERR;
             continue;
         }
-        if ((hostTable[numHosts] = putstr_(hostName)) == NULL) {
+        if ((hostTable[numHosts] = putstr_(hp.name)) == NULL) {
             ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             for (i = 0; i < numHosts; i++)
-                FREEUP (hostTable[i]);
-            FREEUP (hostTable);
+                free (hostTable[i]);
+            free (hostTable);
             return -1;
         }
-        if (!strcmp (hostName, "default"))
+        if (!strcmp (hp.name, "default"))
             *hasDefault = true;
         numHosts++;
     }
     if (numHosts == 0) {
-        FREEUP (hostTable);
+        free (hostTable);
         return -1;
     }
     *hosts = hostTable;
     return numHosts;
-
-}
-
-static char *
-validLocationHost (char *hostName)
-{
-    static char fname[] = "validLocationHost()";
-    const char *officialName;
-    int num;
-
-    if (!strcmp (hostName, "default") || !strcmp (hostName, "others")
-        || !strcmp (hostName, "all"))
-
-        return hostName;
-
-    if ((officialName = getHostOfficialByName_(hostName)) != NULL) {
-        if (findHostbyList(myClusterPtr->hostList, hostName) != NULL)
-            return (char*) officialName;
-        ls_syslog(LOG_ERR, "%s: Host <%s> is not used by cluster <%s>;ignoring",
-                  fname, hostName, myClusterName);
-        return NULL;
-    }
-
-    if ((num = typeNameToNo(hostName)) > 0)
-
-        return hostName;
-
-    if ((num = modelNameToNo (hostName)) > 0)
-
-        return hostName;
-
-    return NULL;
-
 }
 
 static void
@@ -1680,9 +1643,9 @@ readCluster(int checkMode)
     if ((hname = ls_getmyhostname()) == NULL)
         lim_Exit("readCluster/ls_getmyhostname");
 
-    myHostPtr = findHostbyList(myClusterPtr->hostList, hname);
+    myHostPtr = get_node_by_cluster(myClusterPtr->hostList, hname);
     if (!myHostPtr) {
-        myHostPtr = findHostbyList(myClusterPtr->clientList, hname);
+        myHostPtr = get_node_by_cluster(myClusterPtr->clientList, hname);
         if (!myHostPtr) {
             ls_syslog(LOG_ERR, "%s: Local host %s not configured in Host section of file lsf.cluster.%s", fname, hname, myClusterName);
             if (checkMode)
@@ -1892,7 +1855,7 @@ adjIndx (void)
             for (k = NBUILTINDEX; k < allInfo.numIndx; k++) {
                 if (strcasecmp(li[k].name, tmpTable.name) != 0)
                     continue;
-                FREEUP (li[k].name);
+                free (li[k].name);
                 for (j = k; j < allInfo.numIndx - 1; j++) {
                     memcpy((char *)&li[j], (char *)&li[j+1],
                            sizeof(struct liStruct));
@@ -1974,10 +1937,10 @@ domanager (FILE *clfp, char *lsfile, int *LineNum, char *secName)
                 return -1;
             }
             if (getClusAdmins (keyList[0].val, lsfile, LineNum, secName) < 0) {
-                FREEUP(keyList[0].val);
+                free(keyList[0].val);
                 return -1;
             } else {
-                FREEUP(keyList[0].val);
+                free(keyList[0].val);
                 return 0;
             }
         }
@@ -1985,10 +1948,10 @@ domanager (FILE *clfp, char *lsfile, int *LineNum, char *secName)
         if (readHvalues(keyList, linep, clfp, lsfile, LineNum, true, secName) <0)
             return -1;
         if (getClusAdmins (keyList[0].val, lsfile, LineNum, secName) < 0) {
-            FREEUP(keyList[0].val);
+            free(keyList[0].val);
             return -1;
         } else {
-            FREEUP(keyList[0].val);
+            free(keyList[0].val);
             return 0;
         }
     }
@@ -2051,9 +2014,9 @@ setAdmins (struct admins *admins, int mOrA)
     tempAdminNames = (char **) malloc (tempNAdmins * sizeof (char *));
     if (!tempAdminIds || !tempAdminGids || !tempAdminNames) {
         ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        FREEUP (tempAdminIds);
-        FREEUP (tempAdminGids);
-        FREEUP (tempAdminNames);
+        free (tempAdminIds);
+        free (tempAdminGids);
+        free (tempAdminNames);
         return -1;
     }
     if (mOrA == M_THEN_A) {
@@ -2095,10 +2058,10 @@ setAdmins (struct admins *admins, int mOrA)
     }
     if (nClusAdmins > 0) {
         for (i = 0; i < nClusAdmins; i++)
-            FREEUP (clusAdminNames[i]);
-        FREEUP (clusAdminIds);
-        FREEUP (clusAdminGids);
-        FREEUP (clusAdminNames);
+            free (clusAdminNames[i]);
+        free (clusAdminIds);
+        free (clusAdminGids);
+        free (clusAdminNames);
     }
     nClusAdmins = tempNAdmins;
     clusAdminIds = tempAdminIds;
@@ -2162,11 +2125,11 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             if (!isanumber_(keyList[0].val) || atof(keyList[0].val) < 0.001) {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid exchange interval in section parameters: %s. Ignoring.",
                           fname, lsfile, *LineNum, keyList[EXINTERVAL].val);
-                FREEUP(keyList[EXINTERVAL].val);
+                free(keyList[EXINTERVAL].val);
                 warning = true;
             } else
                 exchIntvl = atof(keyList[EXINTERVAL].val);
-            FREEUP(keyList[EXINTERVAL].val);
+            free(keyList[EXINTERVAL].val);
 
             if (exchIntvl < 15)
                 resInactivityLimit = 180.0/exchIntvl;
@@ -2179,7 +2142,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
                 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "malloc", keyList[ELIMARGS].val);
                 return -1;
             }
-            FREEUP(keyList[ELIMARGS].val);
+            free(keyList[ELIMARGS].val);
         }
 
         if (keyList[PROBE_TIMEOUT].val) {
@@ -2187,11 +2150,11 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid probe timeout value in section parameters: %s. Ignoring.",
                           fname, lsfile, *LineNum, keyList[PROBE_TIMEOUT].val);
                 warning = true;
-                FREEUP(keyList[PROBE_TIMEOUT].val);
+                free(keyList[PROBE_TIMEOUT].val);
             } else
                 probeTimeout = atoi(keyList[PROBE_TIMEOUT].val);
 
-            FREEUP(keyList[PROBE_TIMEOUT].val);
+            free(keyList[PROBE_TIMEOUT].val);
         }
 
         if (keyList[ELIM_POLL_INTERVAL].val) {
@@ -2201,43 +2164,43 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid sample interval in section parameters: %s. Must be between 0.001 and 5. Ignoring.",
                           fname, lsfile, *LineNum, keyList[ELIM_POLL_INTERVAL].val);
                 warning = true;
-                FREEUP(keyList[ELIM_POLL_INTERVAL].val);
+                free(keyList[ELIM_POLL_INTERVAL].val);
             } else
                 sampleIntvl = atof(keyList[ELIM_POLL_INTERVAL].val);
-            FREEUP(keyList[ELIM_POLL_INTERVAL].val);
+            free(keyList[ELIM_POLL_INTERVAL].val);
         }
 
         if (keyList[HOST_INACTIVITY_LIMIT].val) {
             if (!isint_(keyList[HOST_INACTIVITY_LIMIT].val) ||
                 atoi(keyList[HOST_INACTIVITY_LIMIT].val) < 2) {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid host inactivity limit in section parameters: %s. Ignoring.", fname, lsfile, *LineNum, keyList[HOST_INACTIVITY_LIMIT].val);
-                FREEUP(keyList[HOST_INACTIVITY_LIMIT].val);
+                free(keyList[HOST_INACTIVITY_LIMIT].val);
                 warning = true;
             } else
                 hostInactivityLimit = atoi(keyList[HOST_INACTIVITY_LIMIT].val);
-            FREEUP(keyList[HOST_INACTIVITY_LIMIT].val);
+            free(keyList[HOST_INACTIVITY_LIMIT].val);
         }
 
         if (keyList[MASTER_INACTIVITY_LIMIT].val) {
             if (!isint_(keyList[MASTER_INACTIVITY_LIMIT].val) ||
                 atoi(keyList[MASTER_INACTIVITY_LIMIT].val) < 0) {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid master inactivity limit in section parameters: %s. Ignoring.", fname, lsfile, *LineNum, keyList[MASTER_INACTIVITY_LIMIT].val);
-                FREEUP(keyList[MASTER_INACTIVITY_LIMIT].val);
+                free(keyList[MASTER_INACTIVITY_LIMIT].val);
                 warning = true;
             } else
                 masterInactivityLimit = atoi(keyList[MASTER_INACTIVITY_LIMIT].val);
-            FREEUP(keyList[MASTER_INACTIVITY_LIMIT].val);
+            free(keyList[MASTER_INACTIVITY_LIMIT].val);
         }
 
         if (keyList[RETRY_LIMIT].val) {
             if (!isint_(keyList[RETRY_LIMIT].val) ||
                 atoi(keyList[RETRY_LIMIT].val) < 0) {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid host inactivity limit in section parameters: %s. Ignoring.", fname, lsfile, *LineNum, keyList[RETRY_LIMIT].val);
-                FREEUP(keyList[RETRY_LIMIT].val);
+                free(keyList[RETRY_LIMIT].val);
                 warning = true;
             } else
                 retryLimit = atoi(keyList[RETRY_LIMIT].val);
-            FREEUP(keyList[RETRY_LIMIT].val);
+            free(keyList[RETRY_LIMIT].val);
         }
 
         if (keyList[ADJUST_DURATION].val) {
@@ -2245,11 +2208,11 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
                 atoi(keyList[ADJUST_DURATION].val) < 0) {
                 ls_syslog(LOG_ERR, "%s: %s(%d: Invalid load adjust duration in section parameters: %s. Ignoring.",
                           fname, lsfile, *LineNum, keyList[ADJUST_DURATION].val);
-                FREEUP(keyList[ADJUST_DURATION].val);
+                free(keyList[ADJUST_DURATION].val);
                 warning = true;
             } else
                 keepTime= atoi(keyList[ADJUST_DURATION].val);
-            FREEUP(keyList[ADJUST_DURATION].val);
+            free(keyList[ADJUST_DURATION].val);
         }
 
         if (keyList[LSF_ELIM_DEBUG].val) {
@@ -2266,7 +2229,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
                 }
             }
 
-            FREEUP(keyList[LSF_ELIM_DEBUG].val);
+            free(keyList[LSF_ELIM_DEBUG].val);
         }
 
         if (keyList[LSF_ELIM_BLOCKTIME].val) {
@@ -2282,7 +2245,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
                 ELIMblocktime = -1;
             }
 
-            FREEUP(keyList[LSF_ELIM_BLOCKTIME].val);
+            free(keyList[LSF_ELIM_BLOCKTIME].val);
         }
 
         if (ELIMdebug && ELIMblocktime == -1) {
@@ -2308,7 +2271,7 @@ doclparams (FILE *clfp, char *lsfile, int *LineNum)
             } else {
                 ELIMrestarts += 1;
             }
-            FREEUP(keyList[LSF_ELIM_RESTARTS].val);
+            free(keyList[LSF_ELIM_RESTARTS].val);
         }
 
         if (exchIntvl < sampleIntvl) {
@@ -2386,127 +2349,127 @@ setMyClusterName(void)
     char *lp, *cp;
     char *hname;
 
-    if ((hname = ls_getmyhostname()) == NULL)
+    hname = ls_getmyhostname();
+    if (hname == NULL)
         lim_Exit("setMyClusterName/ls_getmyhostname failed");
 
-    {
-        ls_syslog(LOG_DEBUG, "setMyClusterName: searching cluster files ...");
-        cluster = myClusterPtr->clName;
-        sprintf(clusterFile, "%s/lsf.cluster.%s",
-                limParams[LSF_CONFDIR].paramValue, cluster);
-        fp = confOpen(clusterFile, "r");
+    ls_syslog(LOG_DEBUG, "setMyClusterName: searching cluster files ...");
+    cluster = myClusterPtr->clName;
+    sprintf(clusterFile, "%s/lsf.cluster.%s",
+            limParams[LSF_CONFDIR].paramValue, cluster);
 
-        if (!fp) {
-            if (!found && !mcServersSet) {
+    fp = confOpen(clusterFile, "r");
+    if (!fp) {
+        if (!found && !mcServersSet) {
+            ls_syslog(LOG_ERR, "%s: cannot open %s: %m", fname, clusterFile);
+        }
+        goto endfile;
+    }
 
-  ls_syslog(LOG_ERR, "%s: cannot open %s: %m", fname, clusterFile)
-;
+    LineNum = 0;
+
+    for (;;) {
+        if ((lp = getBeginLine(fp, &LineNum)) == NULL) {
+            if (! found) {
+                ls_syslog(LOG_DEBUG, "setMyClusterName: Local host %s not defined in cluster file %s", hname, clusterFile);
             }
-            goto endfile;
+            break;
         }
 
-        LineNum = 0;
+        cp = getNextWord_(&lp);
+        if (!cp) {
+            if (! found) {
+                ls_syslog(LOG_ERR, "%s: %s(%d: Section name expected after Begin; section ignored.", fname, clusterFile, LineNum);
+                lim_CheckError = WARNING_ERR;
+            }
+            continue;
+        } else {
 
-        for (;;) {
-            if ((lp = getBeginLine(fp, &LineNum)) == NULL) {
-                if (! found) {
-                    ls_syslog(LOG_DEBUG, "setMyClusterName: Local host %s not defined in cluster file %s", hname, clusterFile);
-                }
+            if (strcasecmp(cp, "host") != 0)
+                continue;
+        }
+
+        lp = getNextLineC_(fp, &LineNum, true);
+        if (! lp) {
+            if (! found) {
+                ls_syslog(LOG_ERR, "%s: failed file %s line %d", __func__,
+                          clusterFile, LineNum);
+                lim_CheckError = WARNING_ERR;
+            }
+            break;
+        }
+        if (isSectionEnd(lp, clusterFile, &LineNum, "Host")) {
+
+            continue;
+        }
+        if (strchr(lp, '=') != NULL) {
+            if (! found) {
+                ls_syslog(LOG_ERR, "%s: %s(%d: horizontal host section not implemented yet, use vertical format: section ignored",
+                          fname, clusterFile, LineNum);
+                lim_CheckError = WARNING_ERR;
+            }
+            continue;
+        }
+
+        keyList = initKeyList();
+
+        if (! keyMatch(keyList, lp, false)) {
+            if (! found) {
+                ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section Host, section ignored", fname, clusterFile, LineNum);
+                lim_CheckError = WARNING_ERR;
+            }
+            continue;
+        }
+        if (keyList[HOSTNAME_].position == -1) {
+            if (! found) {
+                ls_syslog(LOG_ERR, "%s: %s(%d: key HOSTNAME_ is missing in section host, section ignored", fname, clusterFile, LineNum);
+                lim_CheckError = WARNING_ERR;
+            }
+            continue;
+        }
+
+        while ((lp = getNextLineC_(fp, &LineNum, true)) != NULL) {
+
+            if (isSectionEnd(lp, clusterFile, &LineNum, "host"))
                 break;
-            }
-
-            cp = getNextWord_(&lp);
-            if (!cp) {
+            if (mapValues(keyList, lp) < 0) {
                 if (! found) {
-                    ls_syslog(LOG_ERR, "%s: %s(%d: Section name expected after Begin; section ignored.", fname, clusterFile, LineNum);
-                    lim_CheckError = WARNING_ERR;
-                }
-                continue;
-            } else {
-
-                if (strcasecmp(cp, "host") != 0)
-                    continue;
-            }
-
-            lp = getNextLineC_(fp, &LineNum, true);
-            if (! lp) {
-                if (! found) {
-                    ls_syslog(LOG_ERR, "%s: failed file %s line %d", __func__,
-							clusterFile, LineNum);
-                    lim_CheckError = WARNING_ERR;
-                }
-                break;
-            }
-            if (isSectionEnd(lp, clusterFile, &LineNum, "Host")) {
-
-                continue;
-            }
-            if (strchr(lp, '=') != NULL) {
-                if (! found) {
-                    ls_syslog(LOG_ERR, "%s: %s(%d: horizontal host section not implemented yet, use vertical format: section ignored",
-                              fname, clusterFile, LineNum);
+                    ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section Host, record ignored", fname, clusterFile, LineNum);
                     lim_CheckError = WARNING_ERR;
                 }
                 continue;
             }
-
-            keyList = initKeyList();
-
-            if (! keyMatch(keyList, lp, false)) {
+            struct ll_host hp;
+            int cc = get_host_by_name(keyList[HOSTNAME_].val, &hp);
+            if (cc < 0) {
                 if (! found) {
-                    ls_syslog(LOG_ERR, "%s: %s(%d: keyword line format error for section Host, section ignored", fname, clusterFile, LineNum);
+                    ls_syslog(LOG_ERR,"%s: %s %d: Invalid hostname %s in section host, host ignored",
+                              fname, clusterFile, LineNum, keyList[HOSTNAME_].val);
                     lim_CheckError = WARNING_ERR;
                 }
-                continue;
-            }
-            if (keyList[HOSTNAME_].position == -1) {
-                if (! found) {
-                    ls_syslog(LOG_ERR, "%s: %s(%d: key HOSTNAME_ is missing in section host, section ignored", fname, clusterFile, LineNum);
-                    lim_CheckError = WARNING_ERR;
-                }
+                freeKeyList(keyList);
                 continue;
             }
 
-            while ((lp = getNextLineC_(fp, &LineNum, true)) != NULL) {
-                const char *officialName;
-                if (isSectionEnd(lp, clusterFile, &LineNum, "host"))
+            if (strcasecmp(hp.name, hname) == 0) {
+                if (! found) {
+                    ls_syslog(LOG_DEBUG, "setMyClusterName: local host %s belongs to cluster %s", hname, cluster);
+                    found = true;
+                    strcpy(myClusterName, cluster);
+                    freeKeyList(keyList);
                     break;
-                if (mapValues(keyList, lp) < 0) {
-                    if (! found) {
-                        ls_syslog(LOG_ERR, "%s: %s(%d: values do not match keys for section Host, record ignored", fname, clusterFile, LineNum);
-                        lim_CheckError = WARNING_ERR;
-                    }
-                    continue;
-                }
-                if ((officialName = getHostOfficialByName_(keyList[HOSTNAME_].val)) == NULL) {
-                    if (! found) {
-                        ls_syslog(LOG_ERR, "%s: %s(%d: Invalid hostname %s in section host, host ignored",
-                                  fname, clusterFile, LineNum, keyList[HOSTNAME_].val);
-                        lim_CheckError = WARNING_ERR;
-                    }
+                } else {
+                    ls_syslog(LOG_ERR, "%s: %s(%d: local host %s defined in more than one cluster file. Previous definition was in lsf.cluster.%s, ignoring current definition", fname, clusterFile, LineNum, hname, myClusterName);
+                    lim_CheckError = WARNING_ERR;
                     freeKeyList(keyList);
                     continue;
                 }
-
-                if (strcasecmp(officialName, hname) == 0) {
-                    if (! found) {
-                        ls_syslog(LOG_DEBUG, "setMyClusterName: local host %s belongs to cluster %s", hname, cluster);
-                        found = true;
-                        strcpy(myClusterName, cluster);
-                        freeKeyList(keyList);
-                        break;
-                    } else {
-                        ls_syslog(LOG_ERR, "%s: %s(%d: local host %s defined in more than one cluster file. Previous definition was in lsf.cluster.%s, ignoring current definition", fname, clusterFile, LineNum, hname, myClusterName);
-                        lim_CheckError = WARNING_ERR;
-                        freeKeyList(keyList);
-                        continue;
-                    }
-                }
-                freeKeyList(keyList);
             }
+            freeKeyList(keyList);
         }
-        FCLOSEUP(&fp);
     }
+    fclose(fp);
+
 
 endfile:
 
@@ -2524,7 +2487,7 @@ freeKeyList(struct keymap *keyList)
 
     for(i=0; keyList[i].key != NULL; i++)
         if (keyList[i].position != -1)
-            FREEUP(keyList[i].val);
+            free(keyList[i].val);
 }
 
 static int
@@ -2601,7 +2564,7 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
 
             freeKeyList (keyList);
             for (i = 0; i < hostEntry.nRes; i++)
-                FREEUP (hostEntry.resList[i]);
+                free (hostEntry.resList[i]);
             hostEntry.nRes = 0;
 
             if (isSectionEnd(linep, lsfile, LineNum, "host")) {
@@ -2644,37 +2607,37 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
                 hostEntry.nDisks = 0;
 
             putThreshold(R15S, &hostEntry, keyList[R15S].position,
-                         keyList[R15S].val, INFINIT_LOAD);
+                         keyList[R15S].val, INFINITY);
             putThreshold(R1M, &hostEntry, keyList[R1M].position,
-                         keyList[R1M].val, INFINIT_LOAD);
+                         keyList[R1M].val, INFINITY);
             putThreshold(R15M, &hostEntry, keyList[R15M].position,
-                         keyList[R15M].val, INFINIT_LOAD);
+                         keyList[R15M].val, INFINITY);
             if (keyList[UT].val
                 && (cp = strchr (keyList[UT].val, '%')) != NULL)
                 *cp = '\0';
             putThreshold(UT, &hostEntry, keyList[UT].position,
-                         keyList[UT].val, INFINIT_LOAD);
+                         keyList[UT].val, INFINITY);
             if (hostEntry.busyThreshold[UT] > 1.0
-                && hostEntry.busyThreshold[UT] < INFINIT_LOAD) {
+                && hostEntry.busyThreshold[UT] < INFINITY) {
                 ls_syslog(LOG_INFO, ("%s: %s(%d: value for threshold ut <%2.2f> is greater than 1, assumming <%5.1f%%>"),  "dohosts", lsfile,
                           *LineNum, hostEntry.busyThreshold[UT],
                           hostEntry.busyThreshold[UT]);
                 hostEntry.busyThreshold[UT] /= 100.0;
             }
             putThreshold(PG, &hostEntry, keyList[PG].position,
-                         keyList[PG].val, INFINIT_LOAD);
+                         keyList[PG].val, INFINITY);
             putThreshold(IO, &hostEntry, keyList[IO].position,
-                         keyList[IO].val, INFINIT_LOAD);
+                         keyList[IO].val, INFINITY);
             putThreshold(LS, &hostEntry, keyList[LS].position,
-                         keyList[LS].val, INFINIT_LOAD);
+                         keyList[LS].val, INFINITY);
             putThreshold(IT, &hostEntry, keyList[IT].position,
-                         keyList[IT].val, -INFINIT_LOAD);
+                         keyList[IT].val, -INFINITY);
             putThreshold(TMP, &hostEntry, keyList[TMP].position,
-                         keyList[TMP].val, -INFINIT_LOAD);
+                         keyList[TMP].val, -INFINITY);
             putThreshold(SWP, &hostEntry, keyList[SWP].position,
-                         keyList[SWP].val, -INFINIT_LOAD);
+                         keyList[SWP].val, -INFINITY);
             putThreshold(MEM, &hostEntry, keyList[MEM].position,
-                         keyList[MEM].val, -INFINIT_LOAD);
+                         keyList[MEM].val, -INFINITY);
 
             for (i=NBUILTINDEX; i < allInfo.numIndx; i++) {
                 if (keyList[i].key == NULL)
@@ -2682,18 +2645,18 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
 
                 if (allInfo.resTable[i].orderType == INCR)
                     putThreshold(i, &hostEntry, keyList[i].position,
-                                 keyList[i].val, INFINIT_LOAD);
+                                 keyList[i].val, INFINITY);
                 else
                     putThreshold(i, &hostEntry, keyList[i].position,
-                                 keyList[i].val, -INFINIT_LOAD);
+                                 keyList[i].val, -INFINITY);
             }
 
             for (i = NBUILTINDEX+allInfo.numUsrIndx; i < allInfo.numIndx; i++)
-                hostEntry.busyThreshold[i] = INFINIT_LOAD;
+                hostEntry.busyThreshold[i] = INFINITY;
 
             for (i=0; i < allInfo.numIndx; i++)
                 if (keyList[i].position != -1)
-                    FREEUP(keyList[i].val);
+                    free(keyList[i].val);
             n = 0;
             sp = keyList[RESOURCES].val;
             while ((word = getNextWord_(&sp)) != NULL) {
@@ -2829,36 +2792,35 @@ int modelNameToNo(char *modelName)
     return -1;
 }
 static struct hostNode *
-addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char *fileName, int *LineNumPtr)
+addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr,
+        char *window, char *fileName, int *LineNumPtr)
 {
     static char fname[] = "addHost()";
     struct hostNode *hPtr;
-    struct hostent *hp;
+    struct ll_host hp;
     char *word;
-    int i, resNo;
+    int resNo;
 
-    if ((hp = (struct hostent *)getHostEntryByName_(hEntPtr->hostName)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s(%d: Invalid hostname %s in section host. Ignoring host",
-                  fname, fileName, *LineNumPtr, hEntPtr->hostName);
+    // Make sure the host exists
+    int cc = get_host_by_name(hEntPtr->hostName, &hp);
+    if (cc != 0) {
+        ls_syslog(LOG_ERR, "%s: invalid host %s in section host, ignoring it",
+                  __func__, hEntPtr->hostName);
         return NULL;
     }
 
-    if ((hPtr = findHostbyList(clPtr->hostList, hEntPtr->hostName)) != NULL) {
-        ls_syslog(LOG_WARNING, "%s: %s(%d: host <%s> redefined, using previous definition", fname, fileName, *LineNumPtr, hEntPtr->hostName);
-        return ((struct hostNode *)hPtr);
+    // Check double definitions
+    hPtr = get_node_by_cluster(clPtr->hostList, hEntPtr->hostName);
+    if (hPtr) {
+        ls_syslog(LOG_WARNING, "%s: host %s redefined, using previous definition",
+                  __func__, fileName, *LineNumPtr, hEntPtr->hostName);
+        return hPtr;
     }
 
-    hPtr = findHostbyList(clPtr->clientList, hEntPtr->hostName);
-    if (hPtr != NULL) {
-        ls_syslog(LOG_WARNING, "%s: %s(%d: host <%s> redefined, using previous definition", fname, fileName, *LineNumPtr, hEntPtr->hostName);
-        return ((struct hostNode *)hPtr);
-    }
-    if ((hPtr = initHostNode()) == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        return NULL;
-    }
+    hPtr = make_host_node();
 
-    for (i = 0; i<hEntPtr->nRes; i++) {
+    // Bug lavalite reimplement resources
+    for (int i = 0; i < hEntPtr->nRes; i++) {
         char *resStr;
         char  dedicated = false;
         int   resNo;
@@ -2906,26 +2868,27 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
         return NULL;
     }
 
-    hPtr->hostName = putstr_(hp->h_name);
+    hPtr->hostName = strdup(hp.name);
 
     if (hEntPtr->rcv)
         hPtr->hostNo = clPtr->hostList ? clPtr->hostList->hostNo + 1 : 0;
     else
         hPtr->hostNo = clPtr->clientList ? clPtr->clientList->hostNo + 1 : 0;
 
-    if (saveHostIPAddr(hPtr, hp) < 0 ) {
-        ls_syslog(LOG_ERR, "Can not save internet address of host %s", hp->h_name);
-        freeHostNodes (hPtr, false);
-        return NULL;
-    }
+    memcpy(hPtr->v4_epoint, &hp, sizeof(struct ll_host));
 
+    /* Imagine lim running on a big nfs server or other storage host
+     * we may want to keep track of the aggregate number of nodes and
+     * us lselim API to gather the details
+     */
     hPtr->statInfo.nDisks = hEntPtr->nDisks;
     hPtr->rexPriority = hEntPtr->rexPriority;
-    for (i=0; i < allInfo.numIndx; i++)
+    for (int i = 0; i < allInfo.numIndx; i++)
         hPtr->busyThreshold[i] = hEntPtr->busyThreshold[i];
 
-    for (i=0; i<8; i++)
+    for (int i = 0; i<8; i++)
         hPtr->week[i] = NULL;
+
     if (window && hEntPtr->rcv) {
         hPtr->windows = putstr_(window);
         while ((word = getNextWord_(&window)) != NULL) {
@@ -2945,15 +2908,10 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
         hPtr->wind_edge = 0;
     }
 
-    if (hEntPtr->rcv) {
-        hPtr->nextPtr = clPtr->hostList;
-        clPtr->hostList = hPtr;
-        hPtr->hostInactivityCount = 0;
-    } else {
-        hPtr->nextPtr = clPtr->clientList;
-        clPtr->clientList = hPtr;
-        hPtr->hostInactivityCount = -1;
-    }
+    // Insert hPtr in the cluster list
+    hPtr->nextPtr = clPtr->hostList;
+    clPtr->hostList = hPtr;
+    hPtr->hostInactivityCount = 0;
 
     if (hEntPtr->rcv) {
         for (resNo = 0; resNo < allInfo.nRes; resNo++) {
@@ -2970,265 +2928,113 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr, char *window, char
 }
 
 struct hostNode *
-addFloatClientHost(struct hostent *hp)
+make_host_node(void)
 {
-    static char fname[] = "addFloatClientHost()";
-    struct hostNode *hPtr, *lastHPtr;
-    int i;
+    struct hostNode *host_node;
 
-    if (hp == NULL) {
-        ls_syslog(LOG_ERR, "%s: Invalid hostAddr. Ignoring host",
-                  fname);
-        return NULL;
+    host_node = calloc(1, sizeof(struct hostNode));
+
+    host_node->v4_epoint = calloc(1, sizeof(struct ll_host));
+
+    host_node->resBitMaps = NULL;
+    host_node->DResBitMaps = NULL;
+    host_node->status = NULL;
+
+    host_node->resBitMaps = calloc(GET_INTNUM(allInfo.nRes), sizeof (int));
+    host_node->DResBitMaps = calloc(GET_INTNUM(allInfo.nRes), sizeof (int));
+    host_node->status = calloc((1 + GET_INTNUM(allInfo.numIndx)), sizeof (int));
+
+    host_node->loadIndex = calloc(allInfo.numIndx, sizeof (float));
+    host_node->uloadIndex = calloc(allInfo.numIndx, sizeof (float));
+    host_node->busyThreshold = calloc(allInfo.numIndx, sizeof (float));
+
+    for (int i = 0; i < allInfo.numIndx; i++) {
+        host_node->loadIndex[i]  = INFINITY;
+        host_node->uloadIndex[i] = INFINITY;
     }
 
-    if (findHostInCluster(hp->h_name)) {
-        ls_syslog(LOG_ERR, "%s: <%s> already defined in this cluster",
-                  fname, hp->h_name);
-
-        return NULL;
+    for (int i = NBUILTINDEX; i < allInfo.numIndx; i++) {
+        host_node->busyThreshold[i] = (allInfo.resTable[i].orderType == INCR) ?
+            INFINITY : -INFINITY;
     }
 
-    hPtr = initHostNode();
-    if (hPtr == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        return NULL;
-    }
+    host_node->hostName = NULL;
+    host_node->hModelNo = 0;
+    host_node->hTypeNo = 0;
+    host_node->hostNo = 0;
+    host_node->infoValid = false;
+    host_node->protoVersion = 0;
+    host_node->availHigh = 0;
+    host_node->availLow = 0;
+    host_node->use = -1;
+    host_node->resClass = 0;
+    host_node->DResClass = 0;
+    host_node-> nRes = 0;
+    host_node->windows = NULL;
 
-    hPtr->hTypeNo = DETECTMODELTYPE;
+    host_node->statInfo.maxMem = 0;
+    host_node->statInfo.maxSwap = 0;
+    host_node->statInfo.maxTmp = 0;
 
-    hPtr->hModelNo = DETECTMODELTYPE;
+    for (int i = 0; i < 8; i++)
+        host_node->week[i] = NULL;
 
-    hPtr->hostName = putstr_(hp->h_name);
-    if (!hPtr->hostName) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        freeHostNodes (hPtr, false);
-        return NULL;
-    }
+    host_node->wind_edge = 0;
+    host_node->lastJackTime= (time_t) 0;
+    host_node->hostInactivityCount = 0;
 
-    hPtr->hostNo = -1;
+    for (int i = 0; i < 1+GET_INTNUM(allInfo.numIndx); i++)
+        host_node->status[i] = 0;
+    host_node->status[0] = LIM_UNAVAIL;
 
-    for (hPtr->naddr=0;hp->h_addr_list && hp->h_addr_list[hPtr->naddr] != NULL; hPtr->naddr++);
-    if (hPtr->naddr){
-        hPtr->addr = (u_int *)malloc(hPtr->naddr*sizeof(u_int));
-        if (!hPtr->addr) {
-            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-            freeHostNodes (hPtr, false);
-            return NULL;
-        }
-    } else
-        hPtr->addr = 0;
+    host_node-> conStatus = 0;
+    host_node->lastSeqNo = 0;
+    host_node->rexPriority = 0;
+    host_node->infoMask = 0;
+    host_node->loadMask = 0;
+    host_node->numInstances = 0;
+    host_node->instances = NULL;
 
-    for (i=0; i < hPtr->naddr; i++)
-        memcpy((char *)&hPtr->addr[i], hp->h_addr_list[i], hp->h_length);
+    host_node->callElim = false ;
+    host_node->maxResIndex = 0;
+    host_node->resBitArray = NULL;
 
-    for (i=0; i<8; i++)
-        hPtr->week[i] = NULL;
+    host_node->nextPtr = NULL;
+    host_node->expireTime = -1;
 
-    hPtr->windows = putstr_("-");
-    if (!hPtr->windows) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        freeHostNodes (hPtr, false);
-        return NULL;
-    }
-    hPtr->wind_edge = 0;
-
-    if (myClusterPtr->clientList == NULL) {
-
-        myClusterPtr->clientList = hPtr;
-        hPtr->nextPtr = NULL;
-    } else {
-
-        for (lastHPtr = myClusterPtr->clientList; lastHPtr->nextPtr != NULL;
-             lastHPtr = lastHPtr->nextPtr);
-        lastHPtr->nextPtr = hPtr;
-        hPtr->nextPtr = NULL;
-    }
-
-    hPtr->hostInactivityCount = -1;
-    numofhosts++;
-    return hPtr;
-}
-
-int
-removeFloatClientHost(struct hostNode *hPtr)
-{
-    static char fname[] = "removeFloatClientHost()";
-    struct hostNode *tempPtr = NULL;
-
-    if (logclass & LC_TRACE) {
-        ls_syslog(LOG_DEBUG, "%s Entering ... ", fname);
-    }
-
-    if (hPtr == NULL) {
-        ls_syslog(LOG_ERR, "%s: hostNode is invalid",
-                  fname);
-        return -1;
-    }
-
-    if (myClusterPtr->clientList == hPtr) {
-
-        myClusterPtr->clientList = hPtr->nextPtr;
-    } else {
-
-        for (tempPtr = myClusterPtr->clientList;
-             tempPtr && tempPtr->nextPtr != hPtr; tempPtr = tempPtr->nextPtr);
-        if (tempPtr == NULL) {
-            ls_syslog(LOG_ERR, "%s: host <%s> not found in client list",
-                      fname,  hPtr->hostName);
-            return -1;
-        }
-        tempPtr->nextPtr = hPtr->nextPtr;
-    }
-    hPtr->nextPtr = NULL;
-
-    numofhosts--;
-    freeHostNodes(hPtr, false);
-
-    return 0;
-}
-
-struct hostNode *
-initHostNode (void)
-{
-    static char fname[] = "initHostNode()";
-    struct hostNode *hPtr;
-    int i;
-
-    if ((hPtr = (struct hostNode *) malloc(sizeof(struct hostNode))) == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        return NULL;
-    }
-    hPtr->resBitMaps = NULL;
-    hPtr->DResBitMaps = NULL;
-    hPtr->status = NULL;
-
-    if ((hPtr->resBitMaps = (int *)
-         malloc(GET_INTNUM(allInfo.nRes) * sizeof (int))) == NULL
-        || (hPtr->DResBitMaps = (int *)
-            malloc(GET_INTNUM(allInfo.nRes) * sizeof (int))) == NULL
-        || (hPtr->status = (int *)
-            malloc((1+GET_INTNUM(allInfo.numIndx)) * sizeof (int))) == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        FREEUP (hPtr->resBitMaps);
-        FREEUP (hPtr->DResBitMaps);
-        FREEUP (hPtr->status);
-        FREEUP (hPtr);
-        return NULL;
-    }
-    for (i =0; i< GET_INTNUM(allInfo.nRes); i++) {
-        hPtr->resBitMaps[i] = 0;
-        hPtr->DResBitMaps[i] = 0;
-    }
-    hPtr->loadIndex = NULL;
-    hPtr->uloadIndex = NULL;
-    hPtr->busyThreshold = NULL;
-
-    if ((hPtr->loadIndex = (float *) malloc (allInfo.numIndx * sizeof (float))) == NULL
-        || (hPtr->uloadIndex = (float *)
-            malloc (allInfo.numIndx * sizeof (float))) == NULL
-        || (hPtr->busyThreshold = (float *)
-            malloc (allInfo.numIndx * sizeof (float))) == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        FREEUP (hPtr->resBitMaps);
-        FREEUP (hPtr->DResBitMaps);
-        FREEUP (hPtr->status);
-        FREEUP (hPtr->loadIndex);
-        FREEUP (hPtr->uloadIndex);
-        FREEUP (hPtr->busyThreshold);
-        FREEUP (hPtr);
-        return NULL;
-    }
-
-    for (i =0; i < allInfo.numIndx; i++) {
-        hPtr->loadIndex[i]  = INFINIT_LOAD;
-        hPtr->uloadIndex[i] = INFINIT_LOAD;
-    }
-
-    for (i = NBUILTINDEX; i < allInfo.numIndx; i++)
-        hPtr->busyThreshold[i] = (allInfo.resTable[i].orderType == INCR) ?
-            INFINIT_LOAD : -INFINIT_LOAD;
-
-    hPtr->hostName = NULL;
-    hPtr->hModelNo = 0;
-    hPtr->hTypeNo = 0;
-    hPtr->hostNo = 0;
-    hPtr->naddr = 0;
-    hPtr->addr = NULL;
-    hPtr->infoValid = false;
-    hPtr->protoVersion = 0;
-    hPtr->availHigh = 0;
-    hPtr->availLow = 0;
-    hPtr->use = -1;
-    hPtr->resClass = 0;
-    hPtr->DResClass = 0;
-    hPtr-> nRes = 0;
-    hPtr->windows = NULL;
-
-    hPtr->statInfo.maxMem = 0;
-    hPtr->statInfo.maxSwap = 0;
-    hPtr->statInfo.maxTmp = 0;
-
-    for (i = 0; i < 8; i++)
-        hPtr->week[i] = NULL;
-
-    hPtr->wind_edge = 0;
-    hPtr->lastJackTime= (time_t) 0;
-    hPtr->hostInactivityCount = 0;
-
-    for (i = 0; i < 1+GET_INTNUM(allInfo.numIndx); i++)
-        hPtr->status[i] = 0;
-    hPtr->status[0] = LIM_UNAVAIL;
-
-    hPtr-> conStatus = 0;
-    hPtr->lastSeqNo = 0;
-    hPtr->rexPriority = 0;
-    hPtr->infoMask = 0;
-    hPtr->loadMask = 0;
-    hPtr->numInstances = 0;
-    hPtr->instances = NULL;
-
-    hPtr->callElim = false ;
-    hPtr->maxResIndex = 0;
-    hPtr->resBitArray = NULL;
-
-    hPtr->nextPtr = NULL;
-    hPtr->expireTime = -1;
-
-    return hPtr;
-
+    return host_node;
 }
 
 void
-freeHostNodes (struct hostNode *hPtr, int allList)
+freeHostNodes(struct hostNode *host_node, int allList)
 {
 
     int i;
     struct hostNode *next;
 
-    while (hPtr) {
-        FREEUP (hPtr->hostName);
-        FREEUP (hPtr->addr);
-        FREEUP (hPtr->windows);
+    while (host_node) {
+        free(host_node->v4_epoint);
+        free(host_node->hostName);
+        free(host_node->windows);
 
         if (allList == false) {
             for (i = 0; i < 8; i++)
-                FREEUP (hPtr->week[i]);
+                free(host_node->week[i]);
         }
-        FREEUP (hPtr->busyThreshold);
-        FREEUP (hPtr->loadIndex);
-        FREEUP (hPtr->uloadIndex);
-        FREEUP (hPtr->resBitMaps);
-        FREEUP (hPtr->DResBitMaps);
-        FREEUP (hPtr->status);
-        FREEUP (hPtr->instances);
+        free(host_node->busyThreshold);
+        free(host_node->loadIndex);
+        free(host_node->uloadIndex);
+        free(host_node->resBitMaps);
+        free(host_node->DResBitMaps);
+        free(host_node->status);
+        free(host_node->instances);
 
-        next = hPtr->nextPtr;
+        next = host_node->nextPtr;
 
-        FREEUP (hPtr);
+        free(host_node);
 
         if (allList == true)
-            hPtr = next;
+            host_node = next;
     }
 }
 
@@ -3268,7 +3074,7 @@ addResource (char *resName, int nHosts, char **hosts, char *value,
         freeSharedRes (temp);
         for (i = 0; i < numHostResources; i++)
             freeSharedRes (hostResources[i]);
-        FREEUP (hostResources);
+        free(hostResources);
         return NULL;
     }
     hostResources = temp1;
@@ -3286,11 +3092,11 @@ freeSharedRes (struct sharedResource *sharedRes)
 
     if (sharedRes == NULL)
         return;
-    FREEUP (sharedRes->resourceName);
+    free(sharedRes->resourceName);
 
     for (i = 0; i < sharedRes->numInstances; i++)
         freeInstance (sharedRes->instances[i]);
-    FREEUP (sharedRes);
+    free(sharedRes);
 
 }
 
@@ -3341,7 +3147,7 @@ addHostInstance (struct sharedResource *sharedResource,  int nHosts, char **host
             }
         } else {
             for (i = 0; i < numHosts; i++)
-                FREEUP (temp[i]);
+                free(temp[i]);
         }
         numHosts = 0;
         for (i = 0; i < nHosts; i++) {
@@ -3388,14 +3194,13 @@ addHostInstance (struct sharedResource *sharedResource,  int nHosts, char **host
 }
 
 static char **
-getValidHosts (char *hostName, int *numHost, struct sharedResource *resource)
+getValidHosts(char *hostName, int *numHost, struct sharedResource *resource)
 {
 
     static char fname[] = "getValidHosts";
     static char **temp = NULL;
     int num;
     struct hostNode *hPtr;
-    const char *officialName;
 
     *numHost = 0;
     if (temp == NULL) {
@@ -3418,14 +3223,15 @@ getValidHosts (char *hostName, int *numHost, struct sharedResource *resource)
         }
         return temp;
     }
-
-    if ((officialName = getHostOfficialByName_(hostName)) != NULL) {
-        if ((hPtr = findHostbyList(myClusterPtr->hostList, (char*)officialName))
+    struct ll_host hp;
+    int cc = get_host_by_name(hostName, &hp);
+    if (cc == 0) {
+        if ((hPtr = get_node_by_cluster(myClusterPtr->hostList, hp.name))
             == NULL) {
             ls_syslog(LOG_ERR, "%s: Host <%s> is not used by cluster <%s>;ignoring", fname, hostName, myClusterName);
             return NULL;
         }
-        if (isInHostList (resource, (char *)officialName) != NULL) {
+        if (isInHostList (resource, hp.name) != NULL) {
             ls_syslog(LOG_ERR, "%s: Host <%s> is defined in more than one instance for resource <%s>; ignoring", fname, hostName, resource->resourceName);
             return NULL;
         }
@@ -3466,7 +3272,6 @@ addHostNodeIns (struct resourceInstance *instance, int nHosts,
     static char fname[] = "addHostNodeIns";
     int i, resNo;
     struct hostNode *hPtr;
-    const char *officialName;
     struct  resourceInstance **temp;
 
     if ((resNo = resNameDefined (instance->resName)) < 0) {
@@ -3477,16 +3282,13 @@ addHostNodeIns (struct resourceInstance *instance, int nHosts,
         if (hostNames[i] == NULL)
             continue;
 
-        if ((officialName = getHostOfficialByName_(hostNames[i])) == NULL) {
-            ls_syslog(LOG_ERR, "%s: Invalid hostname <%s> ", fname, hostNames[i]);
-            continue;
-        }
-
-        if ((hPtr = findHostbyList(myClusterPtr->hostList, (char*)officialName))
-            == NULL) {
+        struct ll_host hp;
+        int cc = get_host_by_name(hostNames[i], &hp);
+        if (cc < 0) {
             ls_syslog(LOG_WARNING, "%s: Host <%s> is not defined in host sectionin lsf.cluster", fname, hostNames[i]);
             continue;
         }
+        hPtr = get_node_by_cluster(myClusterPtr->hostList, hp.name);
         if (hPtr->numInstances > 0 && isInHostNodeIns
             (instance->resName, hPtr->numInstances, hPtr->instances) != NULL)
             continue;
@@ -3546,7 +3348,7 @@ addHostList (struct resourceInstance *resourceInstance, int nHosts, char **hostN
     resourceInstance->hosts = temp;
 
     for (i = 0; i < nHosts; i++) {
-        if ((hostPtr = findHostbyList(myClusterPtr->hostList,
+        if ((hostPtr = get_node_by_cluster(myClusterPtr->hostList,
                                       hostNames[i])) == NULL) {
             ls_syslog (LOG_DEBUG3, "addHostList: Host <%s> is not used by cluster <%s> as a server:ignoring", hostNames[i], myClusterName);
             continue;
@@ -3583,7 +3385,7 @@ addInstance (struct sharedResource *sharedResource,  int nHosts, char **hostName
         if (hostNames[i] == NULL)
             continue;
 
-        if ((hPtr = findHostbyList(myClusterPtr->hostList, hostNames[i])) == NULL) {
+        if ((hPtr = get_node_by_cluster(myClusterPtr->hostList, hostNames[i])) == NULL) {
             ls_syslog (LOG_DEBUG3, "addInstance: Host <%s> is not used by cluster <%s> as server;ignoring", hostNames[i], myClusterName);
             continue;
         }
@@ -3641,10 +3443,10 @@ freeInstance (struct resourceInstance *instance)
 
     if (instance == NULL)
         return;
-    FREEUP (instance->hosts);
-    FREEUP (instance->orignalValue);
-    FREEUP (instance->value);
-    FREEUP (instance);
+    free(instance->hosts);
+    free(instance->orignalValue);
+    free(instance->value);
+    free(instance);
 
 }
 
@@ -3829,58 +3631,29 @@ addHostModel(char *model, char *arch, float factor)
 static struct clusterNode *
 addCluster(char *clName, char *candlist)
 {
-    static char fname[] = "addCluster()";
-    char *sp, *word;
-    int i;
-    struct hostent *hp;
-    static int nextClNo = 0;
-
     if (myClusterPtr != NULL) {
         ls_syslog(LOG_ERR, "%s: Ignoring duplicate cluster %s",
-                  fname, clName);
+                  __func__, clName);
         return NULL;
     }
 
-    myClusterPtr = (struct clusterNode *)malloc(sizeof(struct clusterNode));
-    if (myClusterPtr == (struct clusterNode *)NULL) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-        return NULL;
-    }
-
-    memset((char *) myClusterPtr, 0, sizeof(struct clusterNode));
+    myClusterPtr = calloc(1, sizeof(struct clusterNode));
 
     myClusterPtr->clName = putstr_(clName);
-    myClusterPtr->clusterNo = nextClNo++;
 
-    if (!candlist || candlist[0] == '\0')
-        candlist = findClusterServers(clName);
-
-    sp = (char *) candlist;
-    i = 0;
-    while ( ((word = getNextWord_(&sp)) != NULL) && (i < MAXCANDHOSTS)) {
-        hp = (struct hostent *)getHostEntryByName_(word);
-        if (!hp) {
-            ls_syslog(LOG_ERR, "Invalid host %s for cluster %s, ignoring",
-                      word, clName);
-            lim_CheckError = WARNING_ERR;
-            continue;
-        }
-        myClusterPtr->candAddrList[i] =  *((u_int *) hp->h_addr);
-        i++;
-    }
-    myClusterPtr->candAddrList[i] = (u_int)0;
+    (void)candlist;
     myClusterPtr->status = CLUST_ACTIVE | CLUST_STAT_UNAVAIL;
     myClusterPtr->masterKnown = false;
     myClusterPtr->masterInactivityCount = 0;
-    myClusterPtr->masterPtr = (struct hostNode *)NULL;
-    myClusterPtr->prevMasterPtr = (struct hostNode *)NULL;
-    myClusterPtr->hostList = (struct hostNode *)NULL;
-    myClusterPtr->clientList = (struct hostNode *)NULL;
-    myClusterPtr->eLimArgs   = (char *)NULL;
-    myClusterPtr->eLimArgv   = (char **)NULL;
+    myClusterPtr->masterPtr = NULL;
+    myClusterPtr->prevMasterPtr = NULL;
+    myClusterPtr->hostList = NULL;
+    myClusterPtr->clientList = NULL;
+    myClusterPtr->eLimArgs = NULL;
+    myClusterPtr->eLimArgv = NULL;
     myClusterPtr->currentAddr = 0;
-    myClusterPtr->masterName = (char *)NULL;
-    myClusterPtr->managerName = (char *)NULL;
+    myClusterPtr->masterName = NULL;
+    myClusterPtr->managerName = NULL;
     myClusterPtr->resClass = 0;
     myClusterPtr->typeClass = 0;
     myClusterPtr->modelClass = 0;
@@ -3897,68 +3670,6 @@ addCluster(char *clName, char *candlist)
     myClusterPtr->hostModelBitMaps = NULL;
 
     return myClusterPtr;
-}
-
-static char *
-findClusterServers(char *clName)
-{
-    static char fname[]="findClusterServers";
-    static char servers[MAXLINELEN];
-    FILE   *clfp;
-    char   *cp;
-    int LineNum = 0;
-    char   fileName[MAXFILENAMELEN];
-    char   *word, *linep;
-
-    sprintf(fileName, "%s/lsf.cluster.%s",
-            limParams[LSF_CONFDIR].paramValue, clName);
-    servers[0]='\0';
-
-    if ( (clfp = confOpen(fileName, "r")) == NULL) {
-        return servers;
-    }
-
-    for (;;) {
-        cp = getBeginLine(clfp, &LineNum);
-        if (!cp) {
-            FCLOSEUP(&clfp);
-            return servers;
-        }
-        word = getNextWord_(&cp);
-        if (!word) {
-            ls_syslog(LOG_ERR, "%s: %s(%d: Keyword expected after Begin, ignoring section",fname, fileName, LineNum);
-            lim_CheckError = WARNING_ERR;
-            doSkipSection(clfp, &LineNum, fileName, "unknown");
-        } else if (strcasecmp(word, "host") == 0) {
-            char first = true;
-            int  nServers=0;
-
-            while ((linep = getNextLineC_(clfp, &LineNum, true)) != NULL) {
-                if (isSectionEnd(linep, fileName, &LineNum, "host")) {
-                    FCLOSEUP(&clfp);
-                    return servers;
-                }
-
-                if (first) {
-                    first = false;
-                    continue;
-                }
-                cp = linep;
-                word = getNextWord_(&cp);
-                if (word) {
-                    nServers++;
-                    strcat(servers,word);
-                    strcat(servers," ");
-                }
-                if (nServers > MAXCANDHOSTS)
-                    break;
-            }
-            FCLOSEUP(&clfp);
-            return servers;
-        } else {
-            doSkipSection(clfp, &LineNum, fileName, word);
-        }
-    }
 }
 
 void
@@ -4219,11 +3930,11 @@ getAdmins (char *line, char *lsfile, int *LineNum, char *secName)
 
     if (first == false) {
         for (i = 0; i < admins.nAdmins; i ++)
-            FREEUP (admins.adminNames[i]);
-        FREEUP (admins.adminNames);
+            free(admins.adminNames[i]);
+        free(admins.adminNames);
 
-        FREEUP (admins.adminIds);
-        FREEUP (admins.adminGIds);
+        free(admins.adminIds);
+        free(admins.adminGIds);
     }
     first = false;
     admins.nAdmins = 0;
@@ -4238,9 +3949,9 @@ getAdmins (char *line, char *lsfile, int *LineNum, char *secName)
         if (admins.adminIds == NULL || admins.adminGIds == NULL ||
             admins.adminNames == NULL) {
             ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-            FREEUP (admins.adminIds);
-            FREEUP (admins.adminGIds);
-            FREEUP (admins.adminNames);
+            free(admins.adminIds);
+            free(admins.adminGIds);
+            free(admins.adminNames);
             admins.nAdmins = 0;
             lserrno = LSE_MALLOC;
             return (&admins);
@@ -4625,32 +4336,6 @@ const char*
 getHostType()
 {
     return HOST_TYPE_STRING;
-}
-
-static int saveHostIPAddr(struct hostNode *hPtr, struct hostent *hp)
-{
-    static char fname[] = "saveHostIPAddr";
-    int i;
-
-    for (hPtr->naddr = 0; hp->h_addr_list &&
-             hp->h_addr_list[hPtr->naddr] != NULL; hPtr->naddr++);
-
-    if (hPtr->naddr){
-        hPtr->addr = (u_int *)malloc(hPtr->naddr*sizeof(u_int));
-        if (!hPtr->addr) {
-            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
-            freeHostNodes(hPtr, false);
-            return -1;
-        }
-    } else {
-        hPtr->addr = 0;
-    }
-
-    for (i = 0; i < hPtr->naddr; i++)
-        memcpy((char *)&hPtr->addr[i], hp->h_addr_list[i], hp->h_length);
-
-    return 0;
-
 }
 
 static int

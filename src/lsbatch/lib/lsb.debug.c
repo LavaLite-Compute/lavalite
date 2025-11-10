@@ -71,7 +71,7 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
     }
 
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
 
     hdr.operation = (int)mbdReqtype;
 

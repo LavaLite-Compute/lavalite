@@ -161,9 +161,9 @@ writeEncodeHdr_(int s, struct packet_header *hdr, ssize_t (*writeFunc)())
     XDR xdrs;
     struct packet_header buf;
 
-    initLSFHeader_(&buf);
+    init_pack_hdr(&buf);
     hdr->length = 0;
-    xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE, XDR_ENCODE);
+    xdrmem_create(&xdrs, (char *)&buf, PACKET_HEADER_SIZE, XDR_ENCODE);
 
     if (!xdr_pack_hdr(&xdrs, hdr)) {
         lserrno = LSE_BAD_XDR;
@@ -205,31 +205,56 @@ xdr_lsfLimit (XDR *xdrs, struct lsfLimit *limits, struct packet_header *hdr)
 }
 
 bool_t
-xdr_portno(XDR *xdrs, u_short *portno)
+xdr_portno(XDR *xdrs, uint16_t *port)
 {
-    u_int len = 2;
-    char *sp;
+  uint32_t n;
 
-    if (xdrs->x_op == XDR_DECODE)
-        *portno = 0;
+  if (xdrs->x_op == XDR_ENCODE)
+      n = (uint32_t)ntohs(*port);
 
-    sp = (char *) portno;
+  if (!xdr_uint32_t(xdrs, &n))
+      return false;
 
-    return (xdr_bytes(xdrs, &sp, &len, len));
+  if (xdrs->x_op == XDR_DECODE) {
+      // check if size is not greater than max port
+      // and also reject privilege port
+      // reject 0..1023 and >65535
+      if (n < 1024 || n > 65535)
+          return false;
+      *port = htons((uint16_t)n);
+  }
+  return true;
 }
 
 bool_t
-xdr_address(XDR *xdrs, u_int *addr)
+xdr_sockaddr_in(XDR *xdrs, struct sockaddr_in *addr)
 {
-    u_int len = NET_INTSIZE_;
-    char *sp;
 
-    if (xdrs->x_op == XDR_DECODE)
-        *addr = 0;
+    uint32_t fam;
+    uint32_t port;
+    uint32_t ip;
 
-    sp = (char *)addr;
+    if (xdrs->x_op == XDR_ENCODE) {
+        fam  = (uint32_t)addr->sin_family;
+        port = (uint32_t)ntohs(addr->sin_port);
+        ip = (uint32_t)ntohl(addr->sin_addr.s_addr);
+    }
 
-    return xdr_bytes(xdrs, &sp, &len, len);
+    if (!xdr_uint32_t(xdrs, &fam))
+        return false;
+    if (!xdr_uint32_t(xdrs, &port))
+        return false;
+    if (!xdr_uint32_t(xdrs, &ip))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE) {
+        addr->sin_family = (sa_family_t)fam;
+        addr->sin_port = htons((uint16_t)port);
+        addr->sin_addr.s_addr = htonl(ip);
+        memset(addr->sin_zero, 0, sizeof(addr->sin_zero));
+    }
+
+    return true;
 }
 
 bool_t

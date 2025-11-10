@@ -19,8 +19,6 @@ libll_la_SOURCES = lib.channel.c \
 	lib.eauth.c \
 	lib.err.c \
 	lib.esub.c \
-	lib.hosta.c \
-	lib.host.c \
 	lib.info.c \
 	lib.initenv.c \
 	lib.lim.c \
@@ -41,4 +39,5 @@ libll_la_SOURCES = lib.channel.c \
 	lib.xdr.c \
 	lib.xdrlim.c \
 	lib.wconf.c \
-	usleep.c
+	ll.host.c \
+	ll.timer.c

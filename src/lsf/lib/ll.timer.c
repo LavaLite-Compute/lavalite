@@ -1,6 +1,4 @@
-
-/* $Id: whathost.c,v 1.4 2007/08/15 22:18:51 tmizan Exp $
- * Copyright (C) 2007 Platform Computing Inc
+/*
  * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,18 +15,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/liblavalite.h"
+#include "lsf/lib/lib.h"
 
-extern const char *getHostOfficialByName_ (const char *);
-
-char *ls_getmnthost(char *file)
+/*
+ * millisleep_() — sleep for `ms` milliseconds using clock_nanosleep()
+ * Returns 0 on success, or -1 with errno set on error/interruption.
+ */
+int millisleep_(uint32_t ms)
 {
-    struct stat statb;
+    struct timespec ts;
 
-    if (stat(file, &statb) < 0) {
-        return NULL;
-    }
+    ts.tv_sec  = ms / 1000;
+    ts.tv_nsec = (ms % 1000) * 1000000L;
 
-    return NULL;
+    /* CLOCK_MONOTONIC is immune to system time changes */
+    int ret;
+    do {
+        ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, &ts);
+    } while (ret == EINTR);  /* restart if interrupted by a signal */
 
+    return ret;
 }

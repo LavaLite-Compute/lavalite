@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: lib.conf.h,v 1.3 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -16,8 +17,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#ifndef _LIB_CONF_
-#define _LIB_CONF_
 
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
@@ -45,7 +44,4 @@ struct HostsArray {
 };
 
 void freeSA_(char**, int);
-
 extern struct builtIn builtInRes[];
-
-#endif

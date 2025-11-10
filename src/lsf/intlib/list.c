@@ -27,13 +27,12 @@ static char *errMsg = "%s: expected a non-null %s but got a null one";
 LIST_T *
 listCreate(char *name)
 {
-    static char     fname[] = "listCreate";
-    LIST_T          *list;
+    LIST_T  *list;
 
     list = calloc(1, sizeof(LIST_T));
     if (list == NULL) {
-        listerrno = (int) LIST_ERR_NOMEM;
-        return (LIST_T *)NULL;
+        listerrno = LIST_ERR_NOMEM;
+        return NULL;
     }
 
     list->name = strdup(name);
@@ -636,13 +635,12 @@ listObserverDetach(LIST_OBSERVER_T *observer, LIST_T *list)
 LIST_ITERATOR_T *
 listIteratorCreate(char *name)
 {
-    static char         fname[] = "listIteratorCreate";
-    LIST_ITERATOR_T     *iter;
+    LIST_ITERATOR_T *iter;
 
     iter = (LIST_ITERATOR_T *)calloc(1, sizeof(LIST_ITERATOR_T));
     if (! iter) {
-        listerrno = (int) LIST_ERR_NOMEM;
-        return (LIST_ITERATOR_T *)NULL;
+        listerrno = LIST_ERR_NOMEM;
+        return NULL;
     }
 
     iter->name = putstr_(name);

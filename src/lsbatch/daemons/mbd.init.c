@@ -43,7 +43,7 @@ extern void cleanCandHosts (struct jData *);
         string = safeSave(specString);}
 
 #define setValue(value, specValue) { \
-    if(specValue != INFINIT_INT && specValue != INFINIT_FLOAT) \
+    if(specValue != INFINIT_INT && specValue != INFINITY) \
         value = specValue;               \
     }
 
@@ -605,7 +605,7 @@ defaultUser:
         if (userEnt == NULL) {
             addUserData ("default",
                          INFINIT_INT,
-                         INFINIT_FLOAT,
+                         INFINITY,
                          "readUserConf",
                          FALSE,
                          TRUE);
@@ -841,10 +841,10 @@ addHost (struct hostInfo *hI, struct hData *hD,  char *filename,
 				       sizeof (int), fname);
     initThresholds (hData->loadSched, hData->loadStop);
     for (i = 0; i < allLsInfo->numIndx; i++) {
-	if (hD->loadSched != NULL && hD->loadSched[i] != INFINIT_FLOAT)
+	if (hD->loadSched != NULL && hD->loadSched[i] != INFINITY)
             hData->loadSched[i] = hD->loadSched[i];
 
-	if (hD->loadStop != NULL && hD->loadStop[i] != INFINIT_FLOAT)
+	if (hD->loadStop != NULL && hD->loadStop[i] != INFINITY)
             hData->loadStop[i] = hD->loadStop[i];
     }
     for (i = 0; i < GET_INTNUM(allLsInfo->numIndx); i++) {
@@ -1430,7 +1430,7 @@ initQData (void)
     qp->nice               = DEF_NICE;
     qp->uJobLimit          = INFINIT_INT;
     qp->uAcct = (struct hTab *) NULL;
-    qp->pJobLimit          = INFINIT_FLOAT;
+    qp->pJobLimit          = INFINITY;
     qp->hAcct = (struct hTab *) NULL;
     qp->windows            = NULL;
     qp->windowsD           = NULL;
@@ -1934,7 +1934,7 @@ addHostData (int numHosts, struct hostInfoEnt *hosts)
             continue;
         }
 
-	if (!isValidHost_(lsfHostInfo[j].hostName)) {
+	if (!is_valid_host(lsfHostInfo[j].hostName)) {
 	    ls_syslog(LOG_ERR, "%s: Host <%s> is not a valid host; ignoring", fname, hosts[i].host);
 	    continue;
 	}
@@ -2331,9 +2331,9 @@ addQData (struct queueConf *queueConf, int mbdInitFlags )
 
         initThresholds (qp->loadSched, qp->loadStop);
         for (j = 0; j < queue->nIdx; j++) {
-            if (queue->loadSched[j] != INFINIT_FLOAT)
+            if (queue->loadSched[j] != INFINITY)
                 qp->loadSched[j] = queue->loadSched[j];
-            if (queue->loadStop[j] != INFINIT_FLOAT)
+            if (queue->loadStop[j] != INFINITY)
                 qp->loadStop[j] = queue->loadStop[j];
         }
 
@@ -2995,7 +2995,7 @@ updUserList(int mbdInitFlags)
                 uData->pJobLimit = defUser->pJobLimit;
 		uData->maxJobs   = defUser->maxJobs;
             } else {
-                uData->pJobLimit = INFINIT_FLOAT;
+                uData->pJobLimit = INFINITY;
 		uData->maxJobs   = INFINIT_INT;
             }
 
@@ -3041,7 +3041,7 @@ updUserList(int mbdInitFlags)
 	        if(uData->maxJobs == INFINIT_INT){
                      uData->maxJobs = defUser->maxJobs;
                 }
-                if(uData->pJobLimit == INFINIT_FLOAT){
+                if(uData->pJobLimit == INFINITY){
                     uData->pJobLimit = defUser->pJobLimit;
                 }
 
@@ -3541,7 +3541,7 @@ cleanup(int mbdInitFlags)
 	uPtr->numJobs = 0;
 	uPtr->numRESERVE=0;
 	uPtr->maxJobs = INFINIT_INT;
-	uPtr->pJobLimit = INFINIT_FLOAT;
+	uPtr->pJobLimit = INFINITY;
 
     	if (uPtr->hAcct) {
 	    if ( uPtr->hAcct->slotPtr)

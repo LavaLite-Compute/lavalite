@@ -101,10 +101,9 @@ extern int sharedResConfigured_;
 #define AUTH_PARAM_DCE  "dce"
 #define AUTH_PARAM_EAUTH  "eauth"
 
-#define FREEUP(p)   if (p != NULL) {            \
-        free(p);                                \
-        p = NULL;                               \
-    }
+// Original FREEUP was bogus, if P is NULL no operation is performed.
+// This is straight from the man page
+#define FREEUP(p) free(p);
 
 #define STRNCPY(str1, str2, len)  { strncpy(str1, str2, len);   \
         str1[len -1] = '\0';                                    \
@@ -190,7 +189,7 @@ extern char *putstr_ (const char *);
 extern int ls_strcat(char *,int,char *);
 extern char *mygetwd_(const char *);
 extern char *chDisplay_(char *);
-extern void initLSFHeader_(struct packet_header *);
+extern void init_pack_hdr(struct packet_header *);
 extern struct group *mygetgrnam( const char *name);
 extern void *myrealloc(void *ptr, size_t size);
 extern char *getNextToken(char **sp);
@@ -215,7 +214,6 @@ extern char *sockAdd2Str_(struct sockaddr_in *);
 extern struct hostent *Gethostbyname_ (char *);
 extern struct hostent *Gethostbyaddr_(char *, int, int);
 
-extern int isValidHost_(const char* hname);
 extern char *getHostOfficialByName_(const char* hname);
 extern char *getHostOfficialByAddr_(const struct in_addr *addr);
 extern struct hostent *getHostEntryByName_(const char* hname);
@@ -299,9 +297,6 @@ extern int readDecodeHdr_ (int, char *,  ssize_t (*readFunc)(),
 extern int writeEncodeHdr_(int, struct packet_header *, ssize_t (*)());
 extern int io_nonblock_(int);
 extern int io_block_(int);
-
-extern void millisleep_(int);
-
 extern void rlimitEncode_(struct lsfLimit *, struct rlimit *, int);
 extern void rlimitDecode_(struct lsfLimit *, struct rlimit *, int);
 
@@ -326,8 +321,10 @@ extern int removeUtmpEntry(pid_t);
 
 extern int createSpoolSubDir(const char *);
 
-/* Original wrapper had wrappers around POSIX calls to get user information
- * LavaLite uses the POSIX call directly whenever possible, but some wrappers
+/* Original wrapper had wrappers around POSIX calls to get user information.
+ * LavaLite uses the POSIX calls directly whenever possible, but some wrappers
  * are maintained for convenience.
  */
-extern int get_uid(const char *, uid_t *);
+int get_uid(const char *, uid_t *);
+int millisleep_(uint32_t);
+int is_valid_host(const char *hname);

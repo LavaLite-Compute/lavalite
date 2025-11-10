@@ -47,7 +47,6 @@ sendLoad(void)
     struct loadVectorStruct myLoadVector;
     enum   loadstruct loadType;
     struct hostNode *hPtr;
-    struct sockaddr_in toAddr;
     int    i, bufSize;
     enum   limReqCode limReqCode;
     XDR    xdrs;
@@ -202,8 +201,7 @@ sendLoad(void)
         myLoadVector.numResPairs = myHostPtr->numInstances;
         if (myLoadVector.numResPairs > 0) {
             if ((myLoadVector.resPairs  = getResPairs (myHostPtr)) == NULL) {
-                
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getResPairs");
+                ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getResPairs");
                 return;
             }
         } else
@@ -225,48 +223,42 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getResPairs");
             return;
         }
         if ((repBuf = (char *)malloc(bufSize)) == NULL) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
 
         xdrmem_create(&xdrs, repBuf, bufSize, XDR_ENCODE);
-        initLSFHeader_(&reqHdr);
+        init_pack_hdr(&reqHdr);
         reqHdr.operation  = (short) limReqCode;
         reqHdr.sequence =  0;
 
         if (!(xdr_pack_hdr(&xdrs, &reqHdr) &&
               xdr_enum(&xdrs, (int *) &loadType) &&
               xdr_loadvector(&xdrs, &myLoadVector, &reqHdr))) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_enum/xdr_loadvector");
+
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_enum/xdr_loadvector");
             xdr_destroy(&xdrs);
             FREEUP (repBuf);
             return;
         }
 
-        toAddr.sin_family = AF_INET;
-        toAddr.sin_port   = lim_port;
+        struct sockaddr_in to_addr;
+        to_addr.sin_family = AF_INET;
+        to_addr.sin_port   = lim_port;
 
-        if (!getHostNodeIPAddr(myClusterPtr->masterPtr,&toAddr)) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "getHostNodeIPAddr");
-            xdr_destroy(&xdrs);
-            FREEUP (repBuf);
-            return;
-        }
+        get_host_addrv4(myClusterPtr->masterPtr->v4_epoint, &to_addr);
 
         logcnt(1);
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG,
                       "sendLoad: sending to %s (len=%d,port=%d)",
-                      sockAdd2Str_(&toAddr), XDR_GETPOS(&xdrs),
+                      sockAdd2Str_(&to_addr), XDR_GETPOS(&xdrs),
                       ntohs(lim_port));
 
-        if (chanSendDgram_(limSock, repBuf, XDR_GETPOS(&xdrs), &toAddr) < 0) {
-            
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(&toAddr));
+        if (chanSendDgram_(limSock, repBuf, XDR_GETPOS(&xdrs), &to_addr) < 0) {
+            ls_syslog(LOG_ERR, "%s: chanSendDgram_() to %s failed: %m", __func__,
+                      sockAdd2Str_(&to_addr));
             xdr_destroy(&xdrs);
             FREEUP (repBuf);
             return;
@@ -293,7 +285,7 @@ getResPairs (struct hostNode *hPtr)
     if (hPtr->numInstances > 0) {
         if ((resPairs = (struct resPair *) malloc
              (hPtr->numInstances * sizeof (struct resPair))) == NULL) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return NULL;
         }
@@ -324,7 +316,7 @@ rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
     }
 
     if (!xdr_enum(xdrs, (int *) &loadType)) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_enum");
         return;
     }
@@ -338,7 +330,6 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_enum");
     }
 }
 
-
 static void
 rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
 {
@@ -351,28 +342,24 @@ rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
     if (loadVector == NULL) {
         if ((loadVector = (struct loadVectorStruct *)
              malloc (sizeof (struct loadVectorStruct))) == NULL) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
         if ((loadVector->li = (float *)
              malloc(allInfo.numIndx*sizeof(float))) == NULL) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
 
         if ((loadVector->status = (int *)
              malloc((1 + GET_INTNUM(allInfo.numIndx)) * sizeof(int)))
             == NULL) {
-            
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+            ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
     }
 
     if (!xdr_loadvector(xdrs, loadVector, hdr)) {
-
         ls_syslog(LOG_DEBUG, "%s: Error on xdr_loadvector from %s", fname,
                   sockAdd2Str_(from));
         return;
@@ -381,23 +368,15 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
     if (masterMe) {
 
         if ( (myClusterPtr->checkSum != loadVector->checkSum)
-             &&
-             (checkSumMismatch < 5)
-             &&
-             (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) ) {
+             && (checkSumMismatch < 5)
+             &&    (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) ) {
             ls_syslog(LOG_WARNING, "%s: Sender %s may have different config?.",
-                fname, sockAdd2Str_(from));
+                      fname, sockAdd2Str_(from));
             checkSumMismatch++;
         }
 
-        hPtr = findHostbyAddr(from, fname);
+        hPtr = get_node_by_sockaddr(from);
         if (hPtr == NULL) {
-            return;
-        }
-
-        if (findHostbyList(myClusterPtr->hostList, hPtr->hostName) == NULL) {
-            ls_syslog(LOG_ERR, "%s: Got load from client-only host %s.  Kill LIM on %s",
-                      fname, sockAdd2Str_(from), sockAdd2Str_(from));
             return;
         }
 
@@ -406,7 +385,8 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         }
 
         if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG,"rcvLoadVector: Received load update from host <%s>",hPtr->hostName);
+            ls_syslog(LOG_DEBUG, "%s: Received load update from host %s",
+                      __func__, hPtr->hostName);
 
         hPtr->hostInactivityCount = 0;
         int masterLock = false;
@@ -488,7 +468,7 @@ copyResValues (struct loadVectorStruct loadVector, struct hostNode *hPtr)
             }
             if (curHostNo < 0 || updHostNo < 0)
                 continue;
-            hostPtr = findHostbyList(myClusterPtr->hostList,
+            hostPtr = get_node_by_cluster(myClusterPtr->hostList,
                                      instance->hosts[curHostNo]->hostName);
             if (hostPtr == NULL)
                 continue;
@@ -508,7 +488,7 @@ copyResValues (struct loadVectorStruct loadVector, struct hostNode *hPtr)
                 continue;
         }
         if ((temp = putstr_(loadVector.resPairs[i].value)) == NULL) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             return;
         }
@@ -583,8 +563,8 @@ copyIndices(float *lindx, int numIndx, int numUsrIndx, struct hostNode *hPtr)
     }
 
     for(; i < myBuiltIn; i++) {
-        hPtr->loadIndex[i]  = INFINIT_LOAD;
-        hPtr->uloadIndex[i] = INFINIT_LOAD;
+        hPtr->loadIndex[i]  = INFINITY;
+        hPtr->uloadIndex[i] = INFINITY;
     }
 
     for(i=0; (i < numUsrIndx) &&
@@ -605,7 +585,7 @@ normalizeRq(float rawql, float cpuFactor, int nprocs)
     if (rawql < 0)
         return 0.0;
 
-    if (rawql >= INFINIT_LOAD)
+    if (rawql >= INFINITY)
         return rawql;
 
     if (nprocs >= 1) {

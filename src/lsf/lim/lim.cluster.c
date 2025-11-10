@@ -177,7 +177,7 @@ clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
 
     clientMap[chfd]->clientMasks = 0;
     for (i = 1; i < decisionRequest.numPrefs; i++) {
-        if (!findHostInCluster(decisionRequest.preferredHosts[i])) {
+        if (!get_node_by_name(decisionRequest.preferredHosts[i])) {
             clientMap[chfd]->clientMasks = 0;
             break;
         }

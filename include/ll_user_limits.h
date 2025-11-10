@@ -24,7 +24,7 @@
 #define LL_HOSTTYPE_MAX 128     // legacy MAXTYPES
 #define LL_HOSTMODEL_MAX 128     // legacy MAXMODELS
 
-// Hostname string bound — fixed, not libc-dependent
+// Hostname string bound — fixed, not libc-dependent, Posix
 #define LL_HOSTNAME_MAX 255
 
 // File or path name bound — fixed, not tied to PATH_MAX

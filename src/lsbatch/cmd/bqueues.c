@@ -205,7 +205,7 @@ prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
         else
             strcpy(userJobLimit, prtDash(QUEUE_JL_U_LENGTH) );
 
-        if (qp->procJobLimit < INFINIT_FLOAT) {
+        if (qp->procJobLimit < INFINITY) {
             sprintf(fomt, "%%%d.1f ", QUEUE_JL_P_LENGTH);
             sprintf (procJobLimit, fomt, qp->procJobLimit);
 	}
@@ -532,7 +532,7 @@ prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
         else
             strcpy(userJobLimit, prtDash(QUEUE_JL_U_LENGTH) );
 
-        if (qp->procJobLimit < INFINIT_FLOAT) {
+        if (qp->procJobLimit < INFINITY) {
             sprintf(fomt, "%%%d.0f ", QUEUE_JL_P_LENGTH);
             sprintf (procJobLimit, fomt, qp->procJobLimit);
 	}

@@ -163,7 +163,7 @@ sendReply:
     }
 #endif
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     replyStruct = (reply == ERR_NO_ERROR) ? (char *) &jobReply : (char *) NULL;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
@@ -309,7 +309,7 @@ do_switchjob(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 sendReply:
     xdr_lsffree(xdr_jobSpecs, (char *)&jobSpecs, reqHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     if (reply == ERR_NO_ERROR)
 	replyStruct = (char *) &jobReply;
@@ -447,7 +447,7 @@ do_modifyjob(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 sendReply:
     xdr_lsffree(xdr_jobSpecs, (char *)&jobSpecs, reqHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     if (reply == ERR_NO_ERROR)
 	replyStruct = (char *) &jobReply;
@@ -496,7 +496,7 @@ do_probe(XDR * xdrs, int chfd, struct packet_header * reqHdr)
     if (reqHdr->length == 0)
 	return;
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation = ERR_NO_ERROR;
     jobSpecs = NULL;
 
@@ -697,7 +697,7 @@ Reply1:
 
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     if (reply == ERR_NO_ERROR) {
 	jobReply.jobPid = jp->jobSpecs.jobPid;
@@ -911,7 +911,7 @@ do_reboot(XDR * xdrs, int chfd, struct packet_header * reqHdr)
     reply = ERR_NO_ERROR;
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 8, XDR_ENCODE);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     if (reqHdr->operation == CMD_SBD_REBOOT)
 	replyHdr.operation = LSBE_NO_ERROR;
     else
@@ -1084,7 +1084,7 @@ do_sbdDebug(XDR * xdrs, int chfd, struct packet_header * reqHdr)
    else
        reply = ctrlSbdDebug(&debugReq);
    xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 8, XDR_ENCODE);
-   initLSFHeader_(&replyHdr);
+   init_pack_hdr(&replyHdr);
    replyHdr.operation = reply;
    if (!xdr_encodeMsg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
@@ -1116,7 +1116,7 @@ do_shutdown(XDR * xdrs, int chfd, struct packet_header * reqHdr)
 
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 8, XDR_ENCODE);
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     if (reqHdr->operation == CMD_SBD_SHUTDOWN)
 	replyHdr.operation = LSBE_NO_ERROR;
     else
@@ -1432,7 +1432,7 @@ replyHdrWithRC(int rc, int chfd, int jobId)
     struct packet_header        replyHdr;
     LS_LONG_INT tmpJobId;
 
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = rc;
     replyHdr.length = 0;

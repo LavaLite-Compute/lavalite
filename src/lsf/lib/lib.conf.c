@@ -17,11 +17,9 @@
  *
  */
 #include "lsf/lib/lib.conf.h"
+#include "lsf/lib/ll.host.h"
 
 #define IS_DIGIT(s)  ( (s) >= '0' && (s) <= '9')
-
-static char *forWhat = "for LSF administrator";
-#define  forWhat_ID   5124
 
 static char do_Cluster(FILE *, int *, char *);
 static char do_HostTypes(FILE *, int *, char *);
@@ -174,7 +172,7 @@ ls_readshared(char *fname)
     if (sConf == NULL) {
         if ((sConf =  malloc(sizeof(struct sharedConf)))
             == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "ls_readshared", "malloc")
 ;
             lserrno = LSE_MALLOC;
@@ -285,7 +283,7 @@ initResTable(void)
 
     resTable = calloc(1000, sizeof(struct resItem));
     if (!resTable) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "initResTable", "malloc" )
 ;
         return -1;
@@ -859,7 +857,7 @@ ls_readcluster_ex(char *fname, struct lsInfo *info, int lookupAdmins)
     if (cConf == NULL) {
         if ((cConf = (struct clusterConf *)
              malloc (sizeof (struct clusterConf))) == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "ls_readcluster", "malloc")
 ;
             lserrno = LSE_MALLOC;
@@ -903,7 +901,7 @@ ls_readcluster_ex(char *fname, struct lsInfo *info, int lookupAdmins)
 
     if (info->nRes && (myinfo.resTable = (struct resItem *) malloc
                        (info->nRes * sizeof(struct resItem))) == NULL ) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "ls_readcluster", "malloc")
 ;
         lserrno = LSE_MALLOC;
@@ -1218,7 +1216,7 @@ getAdmins (char *line, char *fname, int *lineNum, char *secName, int lookupAdmin
         admins.adminNames = (char **) malloc (numAds * sizeof (char *));
         if (admins.adminIds == NULL || admins.adminGIds == NULL ||
             admins.adminNames == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "getAdmins", "malloc")
 ;
             FREEUP (admins.adminIds);
@@ -1235,21 +1233,21 @@ getAdmins (char *line, char *fname, int *lineNum, char *secName, int lookupAdmin
     while ((word=getNextWord_(&sp)) != NULL) {
         if (lookupAdmins) {
             if ((pw = getpwnam2(word)) != NULL) {
-                if (putInLists (word, &admins, &numAds, forWhat) < 0)
+                if (putInLists (word, &admins, &numAds, NULL) < 0)
                     return(&admins);
             } else if ((unixGrp = getgrnam(word)) != NULL) {
                 i = 0;
                 while (unixGrp->gr_mem[i] != NULL)
-                    if (putInLists (unixGrp->gr_mem[i++], &admins, &numAds, forWhat)
+                    if (putInLists (unixGrp->gr_mem[i++], &admins, &numAds, NULL)
                         < 0)
                         return(&admins);
 
             } else {
-                if (putInLists (word, &admins, &numAds, forWhat) < 0)
+                if (putInLists (word, &admins, &numAds, NULL) < 0)
                     return(&admins);
             }
         } else {
-            if (putInLists (word, &admins, &numAds, forWhat) < 0)
+            if (putInLists (word, &admins, &numAds, NULL) < 0)
                 return(&admins);
         }
     }
@@ -1272,7 +1270,7 @@ setAdmins (struct admins *admins, int mOrA)
         tempAdminNames = NULL;
     }
     if (!tempAdminIds || !tempAdminNames) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "setAdmins", "malloc")
 ;
         FREEUP (tempAdminIds);
@@ -1291,7 +1289,7 @@ setAdmins (struct admins *admins, int mOrA)
     for (i = 0; i < workNAdmins; i++) {
         tempAdminIds[i] = workAdminIds[i];
         if ((tempAdminNames[i] = putstr_(workAdminNames[i])) == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "setAdmins", "malloc")
 ;
 
@@ -1319,7 +1317,7 @@ setAdmins (struct admins *admins, int mOrA)
         tempAdminIds[tempNAdmins] = workAdminIds[i];
         if ((tempAdminNames[tempNAdmins] =
              putstr_ (workAdminNames[i])) == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "setAdmins", "malloc")
 ;
             for ( k = 0; k < tempNAdmins; k ++ )
@@ -1348,7 +1346,6 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
 {
     static struct keymap *keyList = NULL;
     struct hostInfo host;
-    char *officialName;
     char   *sp;
     char   *word;
     char** resList;
@@ -1456,32 +1453,18 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                 continue;
             }
 
-            if ((officialName = (char*)getHostOfficialByName_(keyList[HOSTNAME].val)) == NULL) {
-                ls_syslog(LOG_ERR, ("%s: %s(%d: Invalid hostname %s in section host. Ignoring host"),
-                          "do_Hosts", fname, *lineNum, keyList[HOSTNAME].val);
+            struct ll_host hp;
+            int cc = get_host_by_name(keyList[HOSTNAME].val, &hp);
+            if (cc < 0) {
+                ls_syslog(LOG_ERR, "%s: Invalid hostname %s in section host",
+                          __func__, keyList[HOSTNAME].val);
                 continue;
             }
 
-            strcpy(host.hostName, officialName);
+            strcpy(host.hostName, hp.name);
 
-            if ((host.hostModel = putstr_ ( keyList[MODEL].val )) == NULL) {
-                
-  ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
-;
-                lserrno = LSE_MALLOC;
-                freeHostInfo (&host);
-                freekeyval (keyList);
-                doSkipSection(fp, lineNum, fname, "host");
-                return false;
-            }
-            if ((host.hostType = putstr_ ( keyList[TYPE].val )) == NULL) {
-                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "do_Hosts", "malloc");
-                lserrno = LSE_MALLOC;
-                freeHostInfo (&host);
-                freekeyval (keyList);
-                doSkipSection(fp, lineNum, fname, "host");
-                return false;
-            }
+            host.hostModel = strdup(keyList[MODEL].val);
+            host.hostType = strdup(keyList[TYPE].val);
             if (keyList[ND].position != -1)
                 host.nDisks = atoi(keyList[ND].val);
             else
@@ -1498,44 +1481,44 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
             }
 
             putThreshold(R15S, &host, keyList[R15S].position,
-                         keyList[R15S].val, INFINIT_LOAD);
+                         keyList[R15S].val, INFINITY);
             putThreshold(R1M, &host, keyList[R1M].position,
-                         keyList[R1M].val, INFINIT_LOAD);
+                         keyList[R1M].val, INFINITY);
             putThreshold(R15M, &host, keyList[R15M].position,
-                         keyList[R15M].val, INFINIT_LOAD);
+                         keyList[R15M].val, INFINITY);
             putThreshold(UT, &host, keyList[UT].position,
-                         keyList[UT].val, INFINIT_LOAD);
+                         keyList[UT].val, INFINITY);
             if (host.busyThreshold[UT] > 1.0
-                && host.busyThreshold[UT] < INFINIT_LOAD) {
+                && host.busyThreshold[UT] < INFINITY) {
                 ls_syslog(LOG_INFO, ("%s: %s(%d: value for threshold ut <%2.2f> is greater than 1, assumming <%5.1f%%>"), "do_Hosts", fname, *lineNum, host.busyThreshold[UT], host.busyThreshold[UT]);
                 host.busyThreshold[UT] /= 100.0;
             }
             putThreshold(PG, &host, keyList[PG].position,
-                         keyList[PG].val, INFINIT_LOAD);
+                         keyList[PG].val, INFINITY);
             putThreshold(IO, &host, keyList[IO].position,
-                         keyList[IO].val, INFINIT_LOAD);
+                         keyList[IO].val, INFINITY);
             putThreshold(LS, &host, keyList[LS].position,
-                         keyList[LS].val, INFINIT_LOAD);
+                         keyList[LS].val, INFINITY);
             putThreshold(IT, &host, keyList[IT].position,
-                         keyList[IT].val, -INFINIT_LOAD);
+                         keyList[IT].val, -INFINITY);
             putThreshold(TMP, &host, keyList[TMP].position,
-                         keyList[TMP].val, -INFINIT_LOAD);
+                         keyList[TMP].val, -INFINITY);
             putThreshold(SWP, &host, keyList[SWP].position,
-                         keyList[SWP].val, -INFINIT_LOAD);
+                         keyList[SWP].val, -INFINITY);
             putThreshold(MEM, &host, keyList[MEM].position,
-                         keyList[MEM].val, -INFINIT_LOAD);
+                         keyList[MEM].val, -INFINITY);
 
             for (i=NBUILTINDEX; i < NBUILTINDEX+info->numUsrIndx; i++) {
                 if (info->resTable[i].orderType == INCR)
                     putThreshold(i, &host, keyList[i].position,
-                                 keyList[i].val, INFINIT_LOAD);
+                                 keyList[i].val, INFINITY);
                 else
                     putThreshold(i, &host, keyList[i].position,
-                                 keyList[i].val, -INFINIT_LOAD);
+                                 keyList[i].val, -INFINITY);
             }
 
             for (i = NBUILTINDEX+info->numUsrIndx; i < info->numIndx; i++)
-                host.busyThreshold[i] = INFINIT_LOAD;
+                host.busyThreshold[i] = INFINITY;
 
             host.numIndx = info->numIndx;
 
@@ -1543,7 +1526,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
             resList = (char **)calloc(numAllocatedResources,
                                       sizeof(char *));
             if (resList == NULL) {
-                
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "calloc")
 ;
             }
@@ -1569,7 +1552,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                                              *(sizeof(char *)));
                         if (resList == NULL) {
                             lserrno = LSE_MALLOC;
-                            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "calloc")
 ;
                             freeHostInfo (&host);
@@ -1580,7 +1563,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                     }
 
                     if ((resList[n] = putstr_(word)) == NULL) {
-                        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
 ;
                         lserrno = LSE_MALLOC;
@@ -1599,7 +1582,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
             host.nRes = n;
             if ( n && (host.resources = (char **) malloc
                        (n * sizeof(char *))) == NULL) {
-                
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
 ;
                 lserrno = LSE_MALLOC;
@@ -1614,7 +1597,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
 
             for (i=0; i<n; i++) {
                 if ((host.resources[i] = putstr_ ( resList[i] )) == NULL) {
-                    
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
 ;
                     lserrno = LSE_MALLOC;
@@ -1656,7 +1639,7 @@ do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                     host.windows = parsewindow (keyList[RUNWINDOW].val,
                                                 fname, lineNum, "Host" );
                     if (host.windows == NULL) {
-                        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Hosts", "malloc")
 ;
                         lserrno = LSE_MALLOC;
@@ -1710,7 +1693,7 @@ addHost(struct hostInfo *host, char *fname, int *lineNum)
 
     for (i = 0; i < cConf->numHosts; i++) {
 
-        if (!equalHost_(cConf->hosts[i].hostName, host->hostName))
+        if (!equal_host(cConf->hosts[i].hostName, host->hostName))
             continue;
 
         ls_syslog(LOG_WARNING, ("%s: %s(%d: host <%s> redefined, using previous definition"),
@@ -1989,7 +1972,7 @@ do_Cluster(FILE *fp, int *lineNum, char *fname)
 
             if ((sConf->clusterName = putstr_(keyList[0].val))
                 == NULL) {
-                
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Cluster", "malloc")
 ;
                 FREEUP(keyList[0].val);
@@ -2000,7 +1983,7 @@ do_Cluster(FILE *fp, int *lineNum, char *fname)
 
             if ((sConf->servers = putstr_(servers))
                 == NULL) {
-                
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "do_Cluster", "malloc")
 ;
                 FREEUP(keyList[0].val);
@@ -2378,7 +2361,7 @@ parseHostList (char *hostList, char *lsfile, int LineNum, char ***hosts)
     while ((host = getNextWord_(&sp)) != NULL)
         numHosts++;
     if ((hostTable = (char **) malloc (numHosts * sizeof(char *))) == NULL) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc")
 ;
         return -1;
@@ -2387,7 +2370,7 @@ parseHostList (char *hostList, char *lsfile, int LineNum, char ***hosts)
     numHosts = 0;
     while ((host = getNextWord_(&sp)) != NULL) {
         if ((hostTable[numHosts] = putstr_(host)) == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc")
 ;
             for (i = 0; i < numHosts; i++)
@@ -2418,7 +2401,7 @@ addResource (char *resName, int nHosts, char **hosts, char *value,
 
     if ((resInfo = (struct lsSharedResourceInfo *)
          myrealloc(cConf->shareRes, sizeof (struct lsSharedResourceInfo) * (cConf->numShareRes + 1))) == NULL) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostResource", "myrealloc")
 ;
         return NULL;
@@ -2428,7 +2411,7 @@ addResource (char *resName, int nHosts, char **hosts, char *value,
     nRes = cConf->numShareRes;
 
     if ((resInfo[nRes].resourceName = putstr_(resName)) == NULL) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostResource", "malloc")
 ;
         return NULL;
@@ -2461,7 +2444,7 @@ addHostInstance (struct lsSharedResourceInfo *sharedResource,  int nHosts,
     instance = (struct lsSharedResourceInstance *) myrealloc(sharedResource->instances, sizeof(struct lsSharedResourceInstance) * (sharedResource->nInstances + 1));
 
     if (instance == NULL) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostInstance", "myrealloc")
 ;
         return -1;
@@ -2471,7 +2454,7 @@ addHostInstance (struct lsSharedResourceInfo *sharedResource,  int nHosts,
     inst = sharedResource->nInstances;
 
     if ((instance[inst].value = putstr_(value)) == NULL) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostInstance", "putstr_")
 ;
         return -1;
@@ -2487,7 +2470,7 @@ addHostInstance (struct lsSharedResourceInfo *sharedResource,  int nHosts,
 
     for (i = 0; i < nHosts; i++) {
         if ((instance[inst].hostList[i] = putstr_(hostNames[i])) == NULL) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "addHostInstance", "putstr_")
 ;
             for (i--; i >= 0; i--)
@@ -2572,7 +2555,7 @@ int convertNegNotation_(char** value, struct HostsArray* array)
 clean_up:
 
     if (lserrno == LSE_MALLOC) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", "convertNegNotation_", "malloc")
 ;
     }
@@ -2655,7 +2638,7 @@ static int resolveBaseNegHosts(char* inHosts, char** outHosts, struct HostsArray
 
     for (j = 0; j < neg_num; j++) {
         for (k = 0; k < in_num; k++) {
-            if (inTable[k] && equalHost_(inTable[k], outTable[j])) {
+            if (inTable[k] && equal_host(inTable[k], outTable[j])) {
                 size -= strlen(inTable[k]);
                 free(inTable[k]);
                 inTable[k] = NULL;

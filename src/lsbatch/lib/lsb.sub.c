@@ -622,7 +622,7 @@ send_batch (struct submitReq *submitReqPtr, struct lenData *jf,
 
     mbdReqtype = BATCH_JOB_SUB;
     xdrmem_create(&xdrs, request_buf, reqBufSize, XDR_ENCODE);
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *) submitReqPtr, &hdr, xdr_submitReq, 0,
                 auth)) {

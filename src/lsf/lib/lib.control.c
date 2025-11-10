@@ -17,9 +17,40 @@
  *
  */
 
-#include "lsf/lib/lib.common.h"
-#include "lsf/lib/lproto.h"
 #include "lsf/lib/lib.h"
+#include "lsf/lib/ll.params.h"
+
+static int
+setLockOnOff_(int on, time_t duration, char *hname)
+{
+    struct limLock lockReq;
+    char *host = hname;
+
+    if (initenv_(NULL, NULL) <0)
+        return -1;
+
+    lockReq.on = on;
+
+    lockReq.uid = getuid();
+
+    if (getpwnam2(lockReq.lsfUserName) == NULL) {
+        return -1;
+    }
+
+    if (duration == 0)
+        lockReq.time = 77760000;
+    else
+        lockReq.time = duration;
+
+    if (host == NULL)
+        host = ls_getmyhostname();
+
+    if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL,
+                host, 0, NULL) < 0)
+        return -1;
+
+    return 0;
+}
 
 int
 ls_limcontrol(char *hname, int operation)
@@ -76,38 +107,6 @@ unlockHost_(char *hname)
 {
     return setLockOnOff_(LIM_UNLOCK_USER, 0, hname);
 
-}
-
-int
-setLockOnOff_(int on, time_t duration, char *hname)
-{
-    struct limLock lockReq;
-    char *host = hname;
-
-    if (initenv_(NULL, NULL) <0)
-        return -1;
-
-    lockReq.on = on;
-
-    lockReq.uid = getuid();
-
-    if (getpwnam2(lockReq.lsfUserName) == NULL) {
-        return -1;
-    }
-
-    if (duration == 0)
-        lockReq.time = 77760000;
-    else
-        lockReq.time = duration;
-
-    if (host == NULL)
-        host = ls_getmyhostname();
-
-    if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL,
-                host, 0, NULL) < 0)
-        return -1;
-
-    return 0;
 }
 
 int

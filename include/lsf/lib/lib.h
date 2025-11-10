@@ -26,48 +26,7 @@
 #include "lsf/lib/lproto.h"
 #include "lsf/lim/limout.h"
 #include "lsf/lib/lib.xdr.h"
-
-struct taskMsg {
-    char *inBuf;
-    char *outBuf;
-    int len;
-};
-
-extern struct lsQueue * requestQ;
-extern unsigned int requestSN;
-
-enum lsTMsgType {
-    LSTMSG_DATA,
-    LSTMSG_IOERR,
-
-    LSTMSG_EOF
-};
-
-struct lsTMsgHdr {
-    enum lsTMsgType type;
-
-    char *msgPtr;
-
-    int len;
-};
-
-struct tid {
-    int rtid;
-    int sock;
-    char *host;
-    struct lsQueue *tMsgQ;
-    bool_t isEOF;
-
-
-    int refCount;
-
-
-    int pid;
-    u_short taskPort;
-    struct tid *link;
-};
-
-#define getpgrp(n)  getpgrp()
+#include "lsf/lib/ll.host.h"
 
 #ifndef LOG_PRIMASK
 #define LOG_PRIMASK     0xf
@@ -79,36 +38,8 @@ struct tid {
 #define LOG_PRI(p)      ((p) & LOG_PRIMASK)
 #endif
 
-
 #define MIN_REF_NUM          1000
 #define MAX_REF_NUM          32760
-
-#define packshort_(buf, x)       memcpy(buf, (char *)&(x), sizeof(short))
-#define packint_(buf, x)         memcpy(buf, (char *)&(x), sizeof(int))
-#define pack_lsf_rlim_t_(buf, x) memcpy(buf, (char *)&(x), sizeof(lsf_rlim_t))
-
-#define LSF_CONFDIR          0
-#define LSF_SERVERDIR        1
-#define LSF_LIM_DEBUG        2
-#define LSF_RES_DEBUG        3
-#define LSF_STRIP_DOMAIN     4
-#define LSF_LIM_PORT         5
-#define LSF_RES_PORT         6
-#define LSF_LOG_MASK         7
-#define LSF_SERVER_HOSTS     8
-#define LSF_AUTH            9
-#define LSF_USE_HOSTEQUIV   10
-#define LSF_ID_PORT         11
-#define LSF_RES_TIMEOUT     12
-#define LSF_API_CONNTIMEOUT 13
-#define LSF_API_RECVTIMEOUT 14
-#define LSF_AM_OPTIONS      15
-#define LSF_TMPDIR          16
-#define LSF_LOGDIR          17
-#define LSF_SYMBOLIC_LINK   18
-#define LSF_MASTER_LIST     19
-#define LSF_MLS_LOG         20
-#define LSF_INTERACTIVE_STDERR 21
 
 #define _NON_BLOCK_         0x01
 #define _LOCAL_             0x02
@@ -157,7 +88,7 @@ extern struct hostLoad *loadinfo_(char *,
                                   char ***);
 extern struct hostent *Gethostbyname_(char *);
 extern short getRefNum_(void);
-extern void initLSFHeader_(struct packet_header *);
+extern void init_pack_hdr(struct packet_header *);
 
 extern char **placement_(char *, struct decisionReq *, char *, int *);
 

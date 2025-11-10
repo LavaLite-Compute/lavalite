@@ -767,10 +767,10 @@ my_atof (char *arg, float upBound, float botBound)
     float num;
 
     if (!isanumber_ (arg))
-        return INFINIT_FLOAT;
+        return INFINITY;
     num = atof (arg);
     if (num >= upBound || num <= botBound)
-        return INFINIT_FLOAT;
+        return INFINITY;
     return num;
 }
 
@@ -1206,13 +1206,13 @@ do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
                     lsberrno = LSBE_CONF_WARNING;
                 }
             }
-            pJobLimit = INFINIT_FLOAT;
+            pJobLimit = INFINITY;
             if (keylist[2].position >= 0 && keylist[2].val != NULL
                     && strcmp (keylist[2].val, "")) {
 
-                if ((pJobLimit = my_atof(keylist[2].val, INFINIT_FLOAT, -1.0))
-                        == INFINIT_FLOAT) {
-                    ls_syslog(LOG_ERR, "%s: File %s at line %d: Invalid value <%s> for key %s; %f is assumed", pname, fname, *lineNum, keylist[2].val, keylist[2].key, INFINIT_FLOAT);
+                if ((pJobLimit = my_atof(keylist[2].val, INFINITY, -1.0))
+                        == INFINITY) {
+                    ls_syslog(LOG_ERR, "%s: File %s at line %d: Invalid value <%s> for key %s; %f is assumed", pname, fname, *lineNum, keylist[2].val, keylist[2].key, INFINITY);
                     lsberrno = LSBE_CONF_WARNING;
                 }
             }
@@ -1515,7 +1515,7 @@ isHostName (char *grpName)
 {
     int i;
 
-    if (Gethostbyname_ex_(grpName, DISABLE_HNAME_SERVER) != NULL)
+    if (get_host_by_name(grpName, &hp) == 0)
         return true;
 
     for (i = 0; i < numofhosts; i++) {
@@ -1523,7 +1523,7 @@ isHostName (char *grpName)
                 && equalHost_(grpName, hosts[i]->host))
             return true;
     }
-    ls_syslog(LOG_DEBUG3, "isHostName: <%s> is not a host name", grpName);
+
     return false;
 
 }
@@ -1935,7 +1935,7 @@ initUserInfo (struct userInfoEnt *up)
 {
     if (up != NULL) {
         up->user = NULL;
-        up->procJobLimit = INFINIT_FLOAT;
+        up->procJobLimit = INFINITY;
         up->maxJobs = INFINIT_INT;
         up->numStartJobs = INFINIT_INT;
         up->numJobs = INFINIT_INT;
@@ -2740,7 +2740,7 @@ initHostInfo (struct hostInfoEnt *hp)
         hp->hStatus = INFINIT_INT;
         hp->busySched = NULL;
         hp->busyStop = NULL;
-        hp->cpuFactor = INFINIT_FLOAT;
+        hp->cpuFactor = INFINITY;
         hp->nIdx = 0;
         hp->userJobLimit = INFINIT_INT;
         hp->maxJobs = INFINIT_INT;
@@ -3812,10 +3812,10 @@ do_Queues (struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, 
                 && strcmp (keylist[QKEY_PJOB_LIMIT].val, "")) {
             if ((queue.procJobLimit =
                         my_atof (keylist[QKEY_PJOB_LIMIT].val,
-                            INFINIT_FLOAT, -1.0)) == INFINIT_FLOAT){
+                            INFINITY, -1.0)) == INFINITY){
                 ls_syslog(LOG_ERR, "%s: File %s in section Queue ending at line %d: PJOB_LIMIT value <%s> isn't a non-negative integer between 0 and %f; ignored",
                         pname, fname, *lineNum,
-                        keylist[QKEY_PJOB_LIMIT].val, INFINIT_FLOAT - 1);
+                        keylist[QKEY_PJOB_LIMIT].val, INFINITY - 1);
                 lsberrno = LSBE_CONF_WARNING;
             }
         }
@@ -4429,7 +4429,7 @@ initQueueInfo (struct queueInfoEnt *qp)
         qp->nice = INFINIT_SHORT;
         qp->nIdx = 0;
         qp->userJobLimit = INFINIT_INT;
-        qp->procJobLimit = INFINIT_FLOAT;
+        qp->procJobLimit = INFINITY;
         qp->qAttrib = 0;
         qp->qStatus = INFINIT_INT;
         qp->maxJobs = INFINIT_INT;
@@ -5356,7 +5356,7 @@ setDefaultUser (void)
     if (handleUserMem ())
         return -1;
 
-    if (!addUser ("default", INFINIT_INT, INFINIT_FLOAT, "setDefaultUser", true))
+    if (!addUser ("default", INFINIT_INT, INFINITY, "setDefaultUser", true))
         return false;
     if ( numofusers && (uConf->users = (struct userInfoEnt *) malloc
                 (numofusers*sizeof(struct userInfoEnt))) == NULL) {

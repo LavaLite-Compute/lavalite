@@ -996,7 +996,7 @@ setDefaults(struct resVal *resVal, struct lsInfo *lsInfo, int options)
     }
 
     for (i=0; i < lsInfo->nRes; i++)
-        resVal->val[i] = INFINIT_LOAD;
+        resVal->val[i] = INFINITY;
 
     resVal->genClass =  0;
     if (!(options &PR_BATCH)) {
@@ -1029,7 +1029,7 @@ setDefaults(struct resVal *resVal, struct lsInfo *lsInfo, int options)
     }
 
     resVal->duration = INFINIT_INT;
-    resVal->decay = INFINIT_FLOAT;
+    resVal->decay = INFINITY;
     resVal->numHosts = INFINIT_INT;
     resVal->maxNumHosts = INFINIT_INT;
     resVal->pTile = INFINIT_INT;

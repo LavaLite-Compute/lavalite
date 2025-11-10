@@ -17,8 +17,7 @@
  *
  */
 #include "lsf/lib/lib.h"
-
-#define exit(a) _exit(a)
+#include "lsf/lib/ll.params.h"
 
 #define ESUBNAME "esub"
 #define EEXECNAME "eexec"
@@ -258,7 +257,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
         }
 
         if (setpgid(0, getpid()) <0) {
-            
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "setpgid")
 ;
             exit (-1);
@@ -283,7 +282,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
     }
 
     if (pid == -1) {
-        
+
   ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "fork")
 ;
         close(p[0]);

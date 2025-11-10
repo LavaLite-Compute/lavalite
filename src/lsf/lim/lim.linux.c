@@ -42,7 +42,7 @@ numCpus(void)
     FILE *fp;
 
     if ((fp=fopen("/proc/cpuinfo","r"))==NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "fopen", "/proc/cpuinfo");
         ls_syslog(LOG_ERR, "%s: assuming one CPU only", fname);
         return 1;
@@ -104,12 +104,12 @@ queueLength(void)
     unsigned long size;
     char status;
     DIR *dir_proc_fd;
-    char filename[LL_BUFSIZ_128];
+    char filename[PATH_MAX];
     unsigned int running = 0;
 
     dir_proc_fd = opendir("/proc");
     if (dir_proc_fd == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "opendir", "/proc");
         return 0.0;
     }
@@ -161,13 +161,13 @@ cpuTime (double *itime, double *etime)
 
     stat_fd = open("/proc/stat", O_RDONLY, 0);
     if ( stat_fd == -1 ) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "open", "/proc/stat");
         return;
     }
 
     if ( read( stat_fd, buffer, sizeof( buffer ) - 1 ) <= 0 ) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "read", "/proc/stat");
         close( stat_fd );
         return;
@@ -224,7 +224,7 @@ tmpspace(void)
         return tmps;
 
     if (statfs("/tmp", &fs) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "statfs", "/tmp");
         return tmps;
     }
@@ -327,7 +327,7 @@ readMeminfo(void)
     char tag[80];
 
     if ((f = fopen("/proc/meminfo", "r")) == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "open", "/proc/meminfo");
         return -1;
     }
@@ -373,7 +373,7 @@ initReadLoad(int checkMode)
         return;
 
     if (statfs( "/tmp", &fs ) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "statfs", "/tmp");
         myHostPtr->statInfo.maxTmp = 0;
     } else
@@ -382,14 +382,14 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "statfs", "/tmp");
 
     stat_fd = open("/proc/stat", O_RDONLY, 0);
     if ( stat_fd == -1 ) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "open", "/proc/stat");
 
         return;
     }
 
     if ( read( stat_fd, buffer, sizeof( buffer ) - 1 ) <= 0 ) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "read", "/proc/stat");
         close( stat_fd );
 

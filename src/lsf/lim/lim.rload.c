@@ -21,14 +21,6 @@
 
 #define MAXIDLETIME  15552000
 
-#ifndef L_SET
-# ifdef SEEK_SET
-#  define L_SET         SEEK_SET
-# else
-#  define L_SET         0
-# endif
-#endif
-
 float k_hz;
 static FILE *lim_popen(char **, char *);
 static int lim_pclose(FILE *);
@@ -172,7 +164,7 @@ idletime(int *logins)
     bool_t firstLoop;
 
     if ((thisHostname = ls_getmyhostname()) == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_getmyhostname");
         thisHostname = "localhost";
     }
@@ -193,7 +185,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_getmyhostname");
     }
 
     if ((ufd = open(UTMP_FILE,  O_RDONLY)) < 0) {
-        
+
 ls_syslog(LOG_WARNING, "%s: %s(%s) failed: %m", fname, "open", UTMP_FILE);
         *logins = last_logins;
         return (MAXIDLETIME/60.0);
@@ -202,7 +194,7 @@ ls_syslog(LOG_WARNING, "%s: %s(%s) failed: %m", fname, "open", UTMP_FILE);
     numusers = 0;
     users = (char **) calloc(listsize, sizeof(char *));
     if (users == NULL) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "calloc");
         excused_ls = true;
     }
@@ -216,7 +208,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "calloc");
         else {
             char * ut_name ;
             if (!(ut_name = malloc((sizeof(user.ut_name)+1)*sizeof(char)))) {
-                
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                 lim_Exit(fname);
             }
@@ -233,7 +225,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
                     users[numusers] = putstr_(ut_name);
                     if (users[numusers] == NULL) {
-                        
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "putstr_", ut_name);
                         excused_ls = true;
                         for (i=0; i<numusers; i++)
@@ -247,7 +239,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "putstr_", ut_name);
                             listsize = 2 * listsize;
                             sp = (char **) realloc(users, listsize*sizeof(char *));
                             if (sp == NULL) {
-                                
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "realloc");
                                 for (i=0; i<numusers; i++)
                                     FREEUP(users[i]);
@@ -315,7 +307,7 @@ getXIdle()
             lastTime = st.st_atime;
     } else {
         if (errno != ENOENT)
-            
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "stat", "/dev/kbd");
     }
 
@@ -324,7 +316,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "stat", "/dev/kbd");
             lastTime = st.st_atime;
     } else {
         if (errno != ENOENT)
-            
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "stat", "/dev/mouse");
     }
 
@@ -391,41 +383,40 @@ readLoad(void)
     TIMEIT(0, myHostPtr->loadIndex[TMP] = tmpspace(), "tmpspace");
     TIMEIT(0, myHostPtr->loadIndex[MEM] = realMem(0.0), "realMem");
 
-checkOverRide:
-    if (overRide[UT] < INFINIT_LOAD)
+    if (overRide[UT] < INFINITY)
         cpu_usage = overRide[UT];
 
-    if (overRide[PG] < INFINIT_LOAD)
+    if (overRide[PG] < INFINITY)
         smpages = overRide[PG];
 
-    if (overRide[IO] < INFINIT_LOAD)
+    if (overRide[IO] < INFINITY)
         smkbps = overRide[IO];
 
-    if (overRide[IT] <  INFINIT_LOAD)
+    if (overRide[IT] <  INFINITY)
         myHostPtr->loadIndex[IT] = overRide[IT];
 
-    if (overRide[SWP] <  INFINIT_LOAD)
+    if (overRide[SWP] <  INFINITY)
         swap = overRide[SWP];
 
-    if (overRide[TMP] < INFINIT_LOAD)
+    if (overRide[TMP] < INFINITY)
         myHostPtr->loadIndex[TMP] = overRide[TMP];
 
-    if (overRide[R15S] < INFINIT_LOAD)
+    if (overRide[R15S] < INFINITY)
         avrun15 = overRide[R15S];
 
-    if (overRide[R15S] < INFINIT_LOAD)
+    if (overRide[R15S] < INFINITY)
         avrun15 = overRide[R15S];
 
-    if (overRide[R1M] < INFINIT_LOAD)
+    if (overRide[R1M] < INFINITY)
         avrun1m = overRide[R1M];
 
-    if (overRide[R15M] < INFINIT_LOAD)
+    if (overRide[R15M] < INFINITY)
         avrun15m = overRide[R15M];
 
-    if (overRide[LS] < INFINIT_LOAD)
+    if (overRide[LS] < INFINITY)
         loginses = overRide[LS];
 
-    if (overRide[MEM] < INFINIT_LOAD)
+    if (overRide[MEM] < INFINITY)
         myHostPtr->loadIndex[MEM] = overRide[MEM];
 
 checkExchange:
@@ -479,8 +470,8 @@ checkExchange:
 
     for (i = 0; i < allInfo.numIndx; i++) {
 
-        if (   (li[i].increasing && fabs(li[i].value - INFINIT_LOAD) < 1.0)
-                || (! li[i].increasing && fabs(li[i].value + INFINIT_LOAD) < 1.0))
+        if (   (li[i].increasing && fabs(li[i].value - INFINITY) < 1.0)
+                || (! li[i].increasing && fabs(li[i].value + INFINITY) < 1.0))
         {
             continue;
         }
@@ -539,7 +530,6 @@ checkExchange:
 static FILE *
 lim_popen(char **argv, char *mode)
 {
-    static char fname[] = "lim_popen()";
     int p[2], pid, i;
 
     if (mode[0] != 'r')
@@ -586,7 +576,7 @@ static int
 lim_pclose(FILE *ptr)
 {
     sigset_t omask, newmask;
-    pid_t child, pid;
+    pid_t child;
 
     child = elim_pid;
     elim_pid = -1;
@@ -605,8 +595,6 @@ lim_pclose(FILE *ptr)
 
     sigprocmask(SIG_SETMASK, &omask, NULL);
 
-    if (pid == -1)
-        return -1;
     return 0;
 
 }
@@ -621,7 +609,7 @@ saveIndx(char *name, float value)
     if (!names) {
         if (!(names=
                     (char **)malloc((allInfo.numIndx+1)*sizeof(char *)))) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             lim_Exit(fname);
         }
@@ -749,19 +737,15 @@ getusr(void)
     static char first = true;
     int i, nfds;
     struct timeval timeout;
-    static char *masterResStr = "Y";
-    static char *resStr = NULL;
     int size;
     struct sharedResourceInstance *tmpSharedRes;
-    char * hostNamePtr;
-
     struct timeval t, expire;
     struct timeval time0 = {0,0};
     int bw, scc;
 
     if (first) {
         for(i=0; i < NBUILTINDEX; i++)
-            overRide[i] = INFINIT_LOAD;
+            overRide[i] = INFINITY;
         first = false;
     }
     if (!callElim()) {
@@ -786,7 +770,7 @@ getusr(void)
                 char *path = malloc(strlen(limParams[LSF_SERVERDIR].paramValue) +
                         strlen(ELIMNAME) + 8);
                 if (!path) {
-                    
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                     setUnkwnValues();
                     return;
@@ -803,7 +787,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                 myClusterPtr->eLimArgv = parseCommandArgs(
                         path, myClusterPtr->eLimArgs);
                 if (!myClusterPtr->eLimArgv) {
-                    
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                     setUnkwnValues();
                     return;
@@ -816,15 +800,6 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             }
 
             lastStart = time(0);
-
-            if (masterMe)
-                putEnv("LSF_MASTER",masterResStr);
-            else
-                putEnv("LSF_MASTER", "N");
-
-            if (resStr != NULL) free(resStr);
-
-            hostNamePtr = ls_getmyhostname();
 
             size = 0;
             for (tmpSharedRes=sharedResourceHead;
@@ -841,10 +816,9 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                     size += strlen(allInfo.resTable[i].name) + sizeof(char);
                 }
             }
-            resStr = (char *)malloc((size+1) * sizeof(char)) ;
+            char *resStr = malloc((size+1) * sizeof(char)) ;
             if (!resStr) {
-                
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+                ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                 setUnkwnValues();
                 return;
             }
@@ -876,7 +850,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             putEnv ("LSF_RESOURCES",resStr);
 
             if ((fp = lim_popen(myClusterPtr->eLimArgv, "r")) == NULL) {
-                
+
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "lim_popen", myClusterPtr->eLimArgv[0]);
                 setUnkwnValues();
 
@@ -904,7 +878,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "lim_popen", myClusterPtr->eL
     timeout.tv_usec = 5;
 
     if ( (nfds = rd_select_(fileno(fp), &timeout)) < 0) {
-        
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "rd_select_");
         lim_pclose(fp);
         fp = NULL;
@@ -927,7 +901,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "rd_select_");
         if( !fromELIM ) {
             fromELIM = malloc(sizeOfFromELIM);
             if (!fromELIM) {
-                
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
                 ls_syslog(LOG_ERR, "%s:Received from ELIM: <out of memory to record contents>",
@@ -1035,7 +1009,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
                 fromELIM = realloc(fromELIM, sizeOfFromELIM);
                 if (!fromELIM) {
-                    
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
 
                     ls_syslog(LOG_ERR, "%s:Received from ELIM: <out of memory to record contents>",
@@ -1099,9 +1073,9 @@ setUnkwnValues (void)
     int i;
 
     for(i=0; i < allInfo.numUsrIndx; i++)
-        myHostPtr->loadIndex[NBUILTINDEX + i] = INFINIT_LOAD;
+        myHostPtr->loadIndex[NBUILTINDEX + i] = INFINITY;
     for(i=0; i < NBUILTINDEX; i++)
-        overRide[i] = INFINIT_LOAD;
+        overRide[i] = INFINITY;
 
     for (i = 0; i < myHostPtr->numInstances; i++) {
         if (myHostPtr->instances[i]->updateTime == 0
@@ -1166,7 +1140,7 @@ saveSBValue (char *name, char *value)
         }
 
         if ((temp = (char *)malloc (strlen(value) + 1)) == NULL) {
-            
+
 ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
             FREEUP (temp);
             return 0;

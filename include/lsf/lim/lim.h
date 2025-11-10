@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <math.h>
+#include <float.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <pwd.h>
@@ -121,17 +122,12 @@ struct statInfo {
     char     hostArch[MAXLSFNAMELEN];
 };
 
-#define HF_INFO_VALID   0x01
-#define HF_REDUNDANT    0x02
-#define HF_CONSTATUS    0x04
-
 struct hostNode {
     char    *hostName;
     short   hModelNo;
     short   hTypeNo;
     short   hostNo;
-    u_short naddr;
-    u_int   *addr;
+    struct ll_host *v4_epoint; // IPv4 node endpoint (control-plane addr)
     struct  statInfo statInfo;
     char    infoValid;
     unsigned char protoVersion;
@@ -179,11 +175,10 @@ struct clusterNode {
     short clusterNo;
     char *clName;
     int  status;
-    u_int   candAddrList[MAXCANDHOSTS];
     int     currentAddr;
     char   *masterName;
-    u_int   masterAddr;
-    u_short masterPort;
+    struct sockaddr_in  masterAddr;
+    uint16_t masterPort;
     int     resClass;
     int     typeClass;
     int     modelClass;
@@ -264,18 +259,16 @@ struct loadVectorStruct {
 
 #define DETECTMODELTYPE 0
 
-#define MAX_SRES_INDEX	2
-
 struct masterReg {
-    char   clName[MAXLSFNAMELEN];
-    char   hostName[MAXHOSTNAMELEN];
-    int    flags;
-    u_int  seqNo;
-    int    checkSum;
-    u_short portno;
-    int    licFlag;
-    int    maxResIndex;
-    int    *resBitArray;
+    char clName[LL_BUFSIZ_32];
+    char hostName[LL_HOSTNAME_MAX]; // Posix
+    int flags;
+    u_int seqNo;
+    int checkSum;
+    uint16_t portno;
+    int licFlag;
+    int maxResIndex;
+    int *resBitArray;
 };
 
 
@@ -331,31 +324,30 @@ struct minSLimConfData {
     struct  sharedResourceInstance *sharedResHead;
 };
 
+typedef enum {
+    LSF_CONFDIR,
+    LSF_LIM_DEBUG,
+    LSF_SERVERDIR,
+    LSF_LOGDIR,
+    LSF_LIM_PORT,
+    LSF_RES_PORT,
+    LSF_DEBUG_LIM,
+    LSF_TIME_LIM,
+    LSF_LOG_MASK,
+    LSF_CONF_RETRY_MAX,
+    LSF_CONF_RETRY_INT,
+    LSF_LIM_RCVBUF,
+    LSF_LIM_IGNORE_CHECKSUM,
+    LSF_MASTER_LIST,
+    LSF_REJECT_NONLSFHOST,
+    LSF_LIM_JACKUP_BUSY,
+} lim_params_t;
 
 extern struct sharedResourceInstance *sharedResourceHead ;
 
-#define  BYTE(byte)  (((int)byte)&0xff)
 #define THRLDOK(inc,a,thrld)    (inc ? a <= thrld : a >= thrld)
 
 extern int getpagesize(void);
-
-#define LSF_CONFDIR         0
-#define LSF_LIM_DEBUG       1
-#define LSF_SERVERDIR       2
-#define LSF_LOGDIR          3
-#define LSF_LIM_PORT	    4
-#define LSF_RES_PORT	    5
-#define LSF_DEBUG_LIM       6
-#define LSF_TIME_LIM        7
-#define LSF_LOG_MASK        8
-#define LSF_CONF_RETRY_MAX  9
-#define LSF_CONF_RETRY_INT  10
-#define LSF_LIM_RCVBUF      11
-#define LSF_CROSS_UNIX_NT   12
-#define LSF_LIM_IGNORE_CHECKSUM 13
-#define LSF_MASTER_LIST 14
-#define LSF_REJECT_NONLSFHOST 15
-#define LSF_LIM_JACKUP_BUSY 16
 
 extern struct config_param limParams[];
 extern bool lim_debug;
@@ -426,7 +418,6 @@ extern void setMyClusterName(void);
 extern int resNameDefined(char *);
 extern struct sharedResource * inHostResourcs (char *);
 extern struct resourceInstance *isInHostList (struct sharedResource *,  char *);
-extern struct hostNode *initHostNode(void);
 extern void freeHostNodes (struct hostNode *, int);
 extern int validResource(const char *);
 extern int validLoadIndex(const  char *);
@@ -467,7 +458,6 @@ extern void checkHostWd(void);
 extern void announceMasterToHost(struct hostNode *, int);
 extern int  probeMasterTcp(struct clusterNode *clPtr);
 extern void initNewMaster(void);
-extern int  callMasterTcp(enum limReqCode, struct hostNode *, void *, bool_t(*)(), void *, bool_t(*)(), int, int, struct packet_header *);
 extern int validateHost(char *, int);
 extern int validateHostbyAddr(struct sockaddr_in *, int);
 extern void checkAfterHourWindow();
@@ -487,29 +477,16 @@ extern const char* getHostModel(void);
 extern void getLastActiveTime(void);
 extern void putLastActiveTime(void);
 
-extern void lim_Exit(const char *fname);
-extern int equivHostAddr(struct hostNode *, u_int);
-extern struct hostNode *findHost(char *);
-extern struct hostNode *findHostbyAddr(struct sockaddr_in *, char *);
-extern struct hostNode *findHostbyList(struct hostNode *, char *);
-extern struct hostNode *findHostbyNo(struct hostNode *, int);
-extern bool_t findHostInCluster(char *);
+extern void lim_Exit(const char *);
+
+
 extern int  definedSharedResource(struct hostNode *, struct lsInfo *);
-extern struct shortLsInfo *shortLsInfoDup(struct shortLsInfo *);
-extern void shortLsInfoDestroy(struct shortLsInfo *);
-extern int getHostNodeIPAddr(const struct hostNode *, struct sockaddr_in *);
 
 extern void errorBack(struct sockaddr_in *, struct packet_header *,
 					    enum limReplyCode, int);
 extern int initSock(int);
 extern void initLiStruct(void);
 
-
-#ifdef MEAS
-extern void timingLog(int);
-extern void loadLog(int);
-extern void xferLog(int, char *);
-#endif
 
 
 extern void placeReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
@@ -534,7 +511,7 @@ extern int xdr_loadvector(XDR *, struct loadVectorStruct *,
 extern int xdr_loadmatrix(XDR *, int, struct loadVectorStruct *,
 			      struct packet_header *);
 extern int xdr_masterReg(XDR *, struct masterReg *, struct packet_header *);
-extern int xdr_statInfo(XDR *xdrs, struct statInfo *sip, struct packet_header *);
+extern int xdr_statInfo(XDR *, struct statInfo *, struct packet_header *);
 extern void clientIO(struct Masks *);
 extern struct liStruct *li;
 extern int li_len;
@@ -553,6 +530,17 @@ extern float queueLength(void);
 extern int realMem (float);
 extern int numCpus(void);
 extern int queueLengthEx(float *, float *, float *);
+
+// Make the hostNode fundamental node representation
+struct hostNode *make_host_node(void);
+
+// Lavalite hostNode family functions. The ev_epoint control plane
+// end point if set during configuration.
+// These functions operate on already constructed ll_host in
+// the hostNode structure
+struct hostNode *get_node_by_sockaddr(const struct sockaddr_in *);
+struct hostNode *get_node_by_name(const char *);
+struct hostNode *get_node_by_cluster(struct hostNode *, const char *);
 
 #define  SWP_INTVL_CNT   45/exchIntvl
 #define  TMP_INTVL_CNT   120/exchIntvl

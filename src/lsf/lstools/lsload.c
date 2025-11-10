@@ -175,7 +175,7 @@ main(int argc, char **argv)
             badHost = TRUE;
             continue;
         } else if ( (isClus == 0) &&
-                    (!isValidHost_(argv[optind])) ) {
+                    (!is_valid_host(argv[optind])) ) {
             fprintf(stderr, "lsload: %s %s\n",
                     "unknown host name" ,
                     argv[optind]);

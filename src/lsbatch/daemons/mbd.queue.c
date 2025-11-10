@@ -274,8 +274,8 @@ checkQueues (struct infoReq*        queueInfoReqPtr,
             qRep->priority = qp->priority;
             qRep->nice = qp->nice;
     	    qRep->userJobLimit = qp->uJobLimit;
-            if (qp->pJobLimit >= INFINIT_FLOAT)
-                qRep->procJobLimit = INFINIT_FLOAT;
+            if (qp->pJobLimit >= INFINITY)
+                qRep->procJobLimit = INFINITY;
             else
     	        qRep->procJobLimit = qp->pJobLimit;
             qRep->hostJobLimit = qp->hJobLimit;

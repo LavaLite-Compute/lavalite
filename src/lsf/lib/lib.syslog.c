@@ -272,40 +272,28 @@ ls_syslog (int level, const char *fmt, ...)
             verrlog_(level, lfp, fmt, ap);
             fclose(lfp);
         }
-    }
-    else if ((logmask & LOG_MASK(level)) != 0)
-    {
+    } else if ((logmask & LOG_MASK(level)) != 0) {
         char buf[1024];
-#ifndef HAS_VSYSLOG
+        char msg[2048];
 
-        char otherbuf[16384];
-#endif
     use_syslog:
-
         if (level > LOG_DEBUG)
             level = LOG_DEBUG;
-#ifdef HAS_VSYSLOG
-        vsyslog(level, err_str_(save_errno, fmt, buf), ap);
-#else
+        const char *fmt2 = err_str_(save_errno, fmt, buf);
 
-#if defined(HAS_VSNPRINTF)
-        vsnprintf(otherbuf, sizeof(otherbuf), err_str_(save_errno, fmt, buf), ap);
-#else
-        vsprintf(otherbuf, err_str_(save_errno, fmt, buf), ap);
-#endif
+        vsnprintf(msg, sizeof(msg), fmt2, ap);
 
-        if (!strcmp(otherbuf, lastMsg)) {
+        if (!strcmp(msg, lastMsg)) {
             counter++;
             if (counter > 10) {
-                syslog(level, otherbuf);
+                syslog(level, "%s", msg);
                 counter = 0;
             }
         } else {
-            syslog(level, otherbuf);
-            strcpy(lastMsg, otherbuf);
+            syslog(level, "%s", msg);
+            strcpy(lastMsg, msg);
             counter = 0;
         }
-#endif
         closelog();
     }
 

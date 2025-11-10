@@ -19,8 +19,7 @@
 
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lib.h"
-
-#define exit(a) _exit(a)
+#include "lsf/lib/ll.params.h"
 
 static int getEAuth(struct eauth *, char *);
 static char *getLSFAdmin(void);

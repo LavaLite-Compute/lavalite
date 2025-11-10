@@ -131,7 +131,7 @@ do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
         ls_syslog(LOG_ERR, "%s", __func__, "malloc");
         return -1;
     }
-    initLSFHeader_(&replyHdr);
+    init_pack_hdr(&replyHdr);
     replyHdr.operation = READY_FOR_OP;
     replyHdr.length = 0;
 

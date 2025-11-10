@@ -127,7 +127,7 @@ lsb_queueinfo(char **queues, int *numQueues, char *hosts, char *users, int optio
         return NULL;
     }
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char*) &queueInfoReq, &hdr, xdr_infoReq,
                        0, NULL)) {

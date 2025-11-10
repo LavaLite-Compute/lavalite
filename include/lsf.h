@@ -26,9 +26,8 @@
 // to recover gracefully.
 
 // Clarity over cleverness; minimal code, maximal intent
-
-#ifndef _LL_API_H_
-#define _LL_API_H_
+// Mathematicians chase proofs; computer scientists chase models;
+//practitioners chase uptime.
 
 // System headers
 #include <stdio.h>
@@ -113,9 +112,6 @@ typedef uint64_t LS_UNS_LONG_INT;
 #define MEM            10
 #define USR1           11
 #define USR2           12
-
-#define INFINIT_LOAD    (float) (0x7fffffff)
-#define INFINIT_FLOAT   (float) (0x7fffffff)
 
 #define INFINIT_INT    0x7fffffff
 #define INFINIT_LONG_INT    0x7fffffff
@@ -205,7 +201,7 @@ typedef uint64_t LS_UNS_LONG_INT;
 #define LS_ISOKNRES(status) (((status[0]) & ~(LIM_RESDOWN | LIM_SBDDOWN)) == 0)
 
 struct placeInfo {
-    char  hostName[MAXHOSTNAMELEN];
+    char  hostName[LL_HOSTNAME_MAX];
     int   numtask;
 };
 
@@ -732,5 +728,3 @@ struct extResInfo {
     char *increasing;
     char *des;
 };
-
-#endif

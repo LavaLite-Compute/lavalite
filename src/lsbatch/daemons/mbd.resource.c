@@ -539,7 +539,7 @@ adjustLoadValue:
 
             factor = 1.0;
 	    if (resValPtr->duration != INFINIT_INT) {
-	        if (resValPtr->decay != INFINIT_FLOAT) {
+	        if (resValPtr->decay != INFINITY) {
                     float du;
 
 		    if ( isItPreemptResourceIndex(ldx) ) {

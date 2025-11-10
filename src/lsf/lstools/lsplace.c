@@ -91,7 +91,7 @@ main(int argc, char **argv)
         }
 
         if (ls_isclustername(argv[optind]) <= 0 &&
-            !isValidHost_(argv[optind])) {
+            !is_valid_host(argv[optind])) {
             fprintf(stderr, "%s: %s %s\n", argv[0], "invalid hostname",
                     argv[optind]);
             badHost = true;

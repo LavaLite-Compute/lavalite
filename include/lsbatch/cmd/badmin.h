@@ -120,9 +120,6 @@ static char *cmdSyntax[] =
   "[-t time0,time1] [-f logfile_name]",
   NULL
 };
-
-#define NL_SETN  8
-
 static char *cmdInfo[] = {
 	"Reconfigure the system", 	/* catgets 3101 */
         "Check configuration files",	/* catgets 3102 */

@@ -41,7 +41,7 @@ struct placeReply {
 
 struct jobXfer {
     int  numHosts;
-    char resReq[MAXLINELEN];
+    char resReq[LL_BUFSIZ_512];
     struct placeInfo *placeInfo;
 };
 
@@ -226,9 +226,9 @@ struct clusterInfoReply {
 };
 
 struct masterInfo {
-    char    hostName[MAXHOSTNAMELEN];
-    u_int   addr;
-    u_short portno;
+    char hostName[MAXHOSTNAMELEN]; // short hostname, NOFQDN per policy
+    struct sockaddr_in addr;  // control-plane IPv4 endpoint *
+    uint16_t portno; // host byte order
 };
 
 
@@ -260,4 +260,3 @@ struct limLock {
     time_t time;
     char lsfUserName[LL_NAME_MAX];
 };
-

@@ -73,7 +73,7 @@ lsb_queuecontrol(char *queue, int operation)
 
     mbdReqtype = BATCH_QUE_CTRL;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-    initLSFHeader_(&hdr);
+    init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
     if (!xdr_encodeMsg(&xdrs, (char *)&qcReq, &hdr, xdr_controlReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
