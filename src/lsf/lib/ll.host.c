@@ -6,26 +6,52 @@ static void
 fill_addrstr(const struct sockaddr *sa, socklen_t salen, char *buf, size_t bufsz)
 {
     // fill_addrstr(): fast numeric form (no DNS)
-    if (getnameinfo(sa, salen, buf, bufsz, NULL, 0, NI_NUMERICHOST) != 0) {
-        if (bufsz)
-            buf[0] = 0;
+
+   if (!sa || !buf || bufsz == 0)
+        return;
+
+    buf[0] = '\0';
+
+    switch (sa->sa_family) {
+    case AF_INET: {
+        const struct sockaddr_in *sin = (const struct sockaddr_in *)sa;
+        if (!inet_ntop(AF_INET, &sin->sin_addr, buf, bufsz))
+            buf[0] = '\0';
+        break;
+    }
+    case AF_INET6: {
+        const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sa;
+        if (!inet_ntop(AF_INET6, &sin6->sin6_addr, buf, bufsz))
+            buf[0] = '\0';
+        break;
+    }
+    default:
+        // unsupported family: leave empty string
+        buf[0] = '\0';
+        break;
     }
 }
 
-static void
-try_reverse_dns(const struct sockaddr *sa,
-                socklen_t salen,
-                char *buf,
-                size_t bufsz) {
-    // Best effort; if it fails, leave name empty.
-    //try_reverse_dns(): NI_NAMEREQD -> reverse DNS, may block
-    if (getnameinfo(sa, salen, buf, bufsz, NULL, 0, NI_NAMEREQD) != 0) {
-        if (bufsz) buf[0] = 0;
+static int try_reverse_dns(const struct sockaddr *sa,
+                           socklen_t salen,
+                           char *buf,
+                           size_t bufsz)
+{
+    if (!sa || !buf || bufsz == 0) {
+        errno = EINVAL;
+        return -1;
     }
+
+    if (getnameinfo(sa, salen, buf, bufsz, NULL, 0, NI_NAMEREQD) == 0) {
+        return 0;
+    }
+
+    errno = ENODATA;  // good generic signal: reverse lookup failed
+    buf[0] = 0;
+    return -1;
 }
 
-int
-get_host_by_name(const char *hostname, struct ll_host *hp)
+int get_host_by_name(const char *hostname, struct ll_host *hp)
 {
     if (!hostname || !*hostname || !hp) {
         errno = EINVAL;
@@ -82,8 +108,7 @@ get_host_by_name(const char *hostname, struct ll_host *hp)
     return 0;
 }
 
-int
-get_host_by_addr(const char *ip, struct ll_host *hp)
+int get_host_by_addr(const char *ip, struct ll_host *hp)
 {
     if (!ip || !*ip || !hp) {
         errno = EINVAL; return -1;
@@ -109,39 +134,72 @@ get_host_by_addr(const char *ip, struct ll_host *hp)
         errno = EINVAL; return -1;
     }
 
-    // Always fill numeric addr; reverse DNS is best-effort
+    // reverse DNS
     strncpy(hp->addr, ip, sizeof(hp->addr)-1);
     try_reverse_dns((const struct sockaddr *)&hp->sa, hp->salen, hp->name,
                     sizeof(hp->name));
     return 0;
 }
 
-/* Convert sockaddr (v4/v6) + port to numeric "ip:port" string.
- * Returns 0 on success, -1 on failure.
- */
-int sockaddr_to_str(const struct sockaddr *sa, char *buf, size_t bufsz)
+/* generic: works for AF_INET and AF_INET6 */
+int
+get_host_by_sockaddr(const struct sockaddr *from, socklen_t fromlen,
+                     struct ll_host *hp)
 {
-    char host[NI_MAXHOST];
-    char serv[NI_MAXSERV];
-
-    if (!sa || !buf || bufsz == 0)
+    if (!from || !hp) {
+        errno = EINVAL;
         return -1;
+    }
 
-    if (getnameinfo(sa,
-                    (sa->sa_family == AF_INET)
-                    ? sizeof(struct sockaddr_in)
-                    : sizeof(struct sockaddr_in6),
-                    host, sizeof(host),
-                    serv, sizeof(serv),
-                    NI_NUMERICHOST | NI_NUMERICSERV) != 0)
+    // empty the host name
+    memset(hp, 0, sizeof(*hp));
+
+    switch (from->sa_family) {
+    case AF_INET: {
+        if (fromlen < sizeof(struct sockaddr_in)) {
+            errno = EINVAL;
+            return -1;
+        }
+        const struct sockaddr_in *sin = (const struct sockaddr_in *)from;
+        memcpy(&hp->sa, sin, sizeof(*sin));
+        hp->family = AF_INET;
+        hp->salen  = sizeof(struct sockaddr_in);
+
+        if (!inet_ntop(AF_INET, &sin->sin_addr, hp->addr, sizeof(hp->addr))) {
+            hp->addr[0] = '\0';
+            return -1;
+        }
+        break;
+    }
+    case AF_INET6: {
+        if (fromlen < sizeof(struct sockaddr_in6)) {
+            errno = EINVAL;
+            return -1;
+        }
+        const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)from;
+        memcpy(&hp->sa, sin6, sizeof(*sin6));
+        hp->family = AF_INET6;
+        hp->salen  = sizeof(struct sockaddr_in6);
+
+        if (!inet_ntop(AF_INET6, &sin6->sin6_addr, hp->addr, sizeof(hp->addr))) {
+            hp->addr[0] = '\0';
+            return -1;
+        }
+        break;
+    }
+    default:
+        errno = EAFNOSUPPORT;
         return -1;
+    }
 
-    snprintf(buf, bufsz, "%s:%s", host, serv);
-    return 0;
+    // reverse DNS, if fail the errno is set in the call
+    // and the host name is left empty
+    return try_reverse_dns((const struct sockaddr *)&hp->sa, hp->salen,
+                           hp->name, sizeof(hp->name));
 }
 
-char *
-sockAdd2Str_(struct sockaddr_in *from)
+
+char *sockAdd2Str_(struct sockaddr_in *from)
 {
     /* "255.255.255.255" (15) + ":" (1) + "65535" (5) + NUL = 22 max.
      * Give a little headroom. Thread-local to avoid races.
@@ -211,6 +269,19 @@ int is_addrv6_equal(const struct sockaddr_in6 *a, const struct sockaddr_in6 *b)
     if (!a || !b)
         return -1;
     return memcmp(&a->sin6_addr, &b->sin6_addr, sizeof(struct in6_addr)) == 0;
+}
+
+// Handy wrappers
+int get_host_by_sockaddr_in(const struct sockaddr_in *from, struct ll_host *hp)
+{
+    return get_host_by_sockaddr((const struct sockaddr *)from,
+                                sizeof(*from), hp);
+}
+
+int get_host_by_sockaddr_in6(const struct sockaddr_in6 *from, struct ll_host *hp)
+{
+    return get_host_by_sockaddr((const struct sockaddr *)from,
+                                sizeof(*from), hp);
 }
 
 // Compatibility API

@@ -633,8 +633,8 @@ validHosts(char **hostList, int num, char *clName, int options)
         if (!(clPtr->status & CLUST_ACTIVE))
             continue;
         if ( ((cc=strcmp(hostList[i], clPtr->clName)) == 0) ||
-             get_node_by_cluster(clPtr->hostList, hostList[i]) != NULL ||
-             get_node_by_cluster(clPtr->clientList, hostList[i]) != NULL) {
+             find_node_by_cluster(clPtr->hostList, hostList[i]) != NULL ||
+             find_node_by_cluster(clPtr->clientList, hostList[i]) != NULL) {
 
             if (i > 0) {
 
@@ -802,7 +802,7 @@ checkResources (struct resourceInfoReq *resourceInfoReq, struct resourceInfoRepl
         host = NULL;
     else {
 
-        if (get_node_by_cluster(myClusterPtr->hostList,
+        if (find_node_by_cluster(myClusterPtr->hostList,
                            resourceInfoReq->hostName) == NULL) {
             ls_syslog(LOG_ERR, "%s: Host <%s>  is not used by cluster <%s>",
                       fname, resourceInfoReq->hostName, myClusterName);

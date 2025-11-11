@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: mbd.h,v 1.28 2007/08/15 22:18:45 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -606,7 +607,7 @@ struct hData {
     int       hostId;
     char      *hostType;
     char      *hostModel;
-    struct    hostent hostEnt;
+    //struct    hostent hostEnt;
     float     cpuFactor;
     int       numCPUs;
     float     *loadSched;
@@ -773,9 +774,9 @@ struct  timeWindow {
 #define JOB_REQUE           2
 #define JOB_REPLAY          3
 
-struct clientNode {
-    struct clientNode *forw;
-    struct clientNode *back;
+struct mbd_client_node {
+    struct mbd_client_node *forw;
+    struct mbd_client_node *back;
     int    chanfd;
     struct sockaddr_in from;
     char *fromHost;
@@ -845,10 +846,8 @@ typedef enum profCounterType {
 struct mbd_manager {
     uid_t uid;
     gid_t gid;
-    char **name;
+    char *name;
 };
-// This number is 1
-extern int num_managers;
 extern struct mbd_manager *mbd_mgr;
 extern bool is_manager(const char *);
 
@@ -897,7 +896,6 @@ extern UDATA_TABLE_T          *uDataPtrTb;
 extern struct hTab            uDataList;
 extern struct hTab            calDataList;
 extern struct jData           *chkJList;
-extern struct clientNode      *clientList;
 extern struct hTab            jobIdHT;
 extern struct hTab            jgrpIdHT;
 extern struct gData           *usergroups[];
@@ -989,8 +987,6 @@ extern void         pollSbatchds(int);
 extern void         hStatChange(struct hData *, int status);
 extern int          checkHosts(struct infoReq*,
                                struct hostDataReply *);
-extern struct hData *       getHostData(char *host);
-extern struct hData *       getHostData2(char *host);
 extern float *          getHostFactor (char *host);
 extern float *          getModelFactor (char *hostModel);
 extern int          getModelFactor_r(char *hostModel, float *cpuFactor);
@@ -1308,7 +1304,6 @@ extern int                  sizeofGroupInfoReply(struct groupInfoReply *);
 extern void                 child_handler(int);
 extern void                 terminate_handler(int);
 extern void                 announce_master(void);
-extern void                 shutDownClient(struct clientNode *);
 extern void                 setNextSchedTimeUponNewJob(struct jData *);
 extern void                 setJobPriUpdIntvl(void);
 #if defined(INTER_DAEMON_AUTH)
@@ -1563,3 +1558,7 @@ extern void copyJUsage(struct jRusage*, struct jRusage*);
 extern struct timeWindow *newTimeWindow (void);
 extern void freeTimeWindow(struct timeWindow *);
 extern void updateTimeWindow(struct timeWindow *);
+
+// LavaLite
+struct hData *getHostData(const char *host);
+void shutDownClient(struct mbd_client_node *);

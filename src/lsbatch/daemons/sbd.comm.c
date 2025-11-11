@@ -190,7 +190,7 @@ status_job (mbdReqType reqType, struct jobCard *jp, int newStatus,
     if (cc < 0) {
 	statusChan = -1;
 
-	if (!equalHost_(masterHost, lastHost)) {
+	if (!equal_host(masterHost, lastHost)) {
 
 	    if (errno != EINTR)
 		ls_syslog (LOG_DEBUG, "%s: Failed to reach mbatchd on host <%s> for job <%s>: %s", fname, masterHost, lsb_jobid2str(jp->jobSpecs.jobId), lsb_sysmsg());
@@ -315,7 +315,7 @@ getJobsState (struct sbdPackage *sbdPackage)
 			 &reply_buf, &hdr, connTimeout, 60 * 30, NULL, NULL,
 			 NULL, 0);
         if (cc < 0) {
-            if (equalHost_(masterHost, myhostnm)) {
+            if (equal_host(masterHost, myhostnm)) {
 
 		if ((mbdPid == 0) || (kill(mbdPid, 0) != 0)) {
 		    now = time(0);
@@ -677,7 +677,7 @@ sendUnreportedStatus (struct chunkStatusReq *chunkStatusReq)
     if (cc < 0) {
 	statusChan = -1;
 
-	if (!equalHost_(masterHost, lastHost)) {
+	if (!equal_host(masterHost, lastHost)) {
 
 	    if (errno != EINTR)
 		ls_syslog (LOG_DEBUG,

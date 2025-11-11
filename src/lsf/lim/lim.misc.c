@@ -24,7 +24,7 @@ void lim_Exit(const char *fname)
     exit(EXIT_FATAL_ERROR);
 }
 
-struct hostNode *get_node_by_name(const char *host_name)
+struct hostNode *find_node_by_name(const char *host_name)
 {
     for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
         if (equal_host(host_name, h->hostName) == 0)
@@ -35,7 +35,7 @@ struct hostNode *get_node_by_name(const char *host_name)
 
 }
 
-struct hostNode *get_node_by_sockaddr(const struct sockaddr_in *from)
+struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *from)
 {
     if (from->sin_addr.s_addr == ntohl(INADDR_LOOPBACK))
         return myHostPtr;
@@ -50,7 +50,7 @@ struct hostNode *get_node_by_sockaddr(const struct sockaddr_in *from)
     return NULL;
 }
 
-struct hostNode *get_node_by_cluster(struct hostNode *hPtr, const char *host_name)
+struct hostNode *find_node_by_cluster(struct hostNode *hPtr, const char *host_name)
 {
     for (struct hostNode *h = hPtr; h; h = h->nextPtr) {
         if (equal_host(host_name, h->hostName) == 0)

@@ -679,7 +679,7 @@ callSBD(char *toHost, char *request_buf, int len, char **reply_buf,
                 && !(lsberrno == LSBE_LSLIB && lserrno == LSE_TIME_OUT)) {
                 return ERR_FAIL;
             }
-	    if (equalHost_(toHost, lastHost)) {
+	    if (equal_host(toHost, lastHost)) {
 		*cnt = *cnt + 1;
 		if (*cnt >= 5) {
 		    ls_syslog(LOG_ERR, "%s: Failed to call sbatchd on host <%s>: %s", caller, toHost, lsb_sysmsg());

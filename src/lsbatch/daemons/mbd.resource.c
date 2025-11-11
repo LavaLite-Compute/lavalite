@@ -251,8 +251,6 @@ checkResources (struct resourceInfoReq *resourceInfoReq,
     static char fname[] = "checkResources";
     int i, j, allResources = FALSE, found = FALSE, replyCode;
     struct hData *hPtr;
-    const char *officialName;
-    char officialNameBuf[MAXHOSTNAMELEN];
 
     if (resourceInfoReq->numResourceNames == 1
 	   && !strcmp (resourceInfoReq->resourceNames[0], "")) {
@@ -267,16 +265,15 @@ checkResources (struct resourceInfoReq *resourceInfoReq,
 	  || (resourceInfoReq->hostName && strcmp (resourceInfoReq->hostName, " ")== 0))
 	hPtr = NULL;
     else {
-
-        if ((officialName = getHostOfficialByName_(resourceInfoReq->hostName)) == NULL) {
-            ls_syslog(LOG_ERR, "%s", __func__, "getHostOfficialByName_",
-		resourceInfoReq->hostName);
+        struct ll_host hp;
+        if (get_host_by_name(resourceInfoReq->hostName, &hp) < 0) {
+            ls_syslog(LOG_ERR, "%s: failed to resolve %s", __func__,
+                      resourceInfoReq->hostName);
 	    return LSBE_BAD_HOST;
         }
-        strcpy(officialNameBuf, officialName);
-        if ((hPtr= getHostData ((char*)officialNameBuf)) == NULL) {
+        if ((hPtr = getHostData((char *)hp.name)) == NULL) {
             ls_syslog(LOG_ERR, "%s: Host <%s>  is not used by the batch system",
-		fname, resourceInfoReq->hostName);
+                      __func__, resourceInfoReq->hostName);
 	    return LSBE_BAD_HOST;
         }
     }
@@ -382,12 +379,12 @@ getHRValue(char *resName, struct hData *hPtr,
             continue;
         *instance = hPtr->instances[i];
         if (strcmp(hPtr->instances[i]->value, "-") == 0) {
-            return INFINIT_LOAD;
+            return INFINITY;
         }
         return (atof (hPtr->instances[i]->value));
     }
     ls_syslog(LOG_ERR, "%s, instance name not found.", fname);
-    return -INFINIT_LOAD;
+    return -INFINITY;
 
 }
 
@@ -511,7 +508,7 @@ updSharedResourceByRUNJob(const struct jData* jp)
 adjustLoadValue:
 
 	    jackValue = resValPtr->val[ldx];
-	    if (jackValue >= INFINIT_LOAD || jackValue <= -INFINIT_LOAD)
+	    if (jackValue >= INFINITY || jackValue <= -INFINITY)
 		continue;
 
 	    if ( (load = getHRValue(allLsInfo->resTable[ldx].name,
@@ -813,7 +810,7 @@ struct resourceInstance **instance)
 
     currentValue = getHRValue(allLsInfo->resTable[index].name, hPtr, instance);
 
-    if (currentValue < 0.0 || currentValue == INFINIT_LOAD) {
+    if (currentValue < 0.0 || currentValue == INFINITY) {
 	return currentValue;
     }
 

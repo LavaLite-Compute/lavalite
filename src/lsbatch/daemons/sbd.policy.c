@@ -487,7 +487,7 @@ shouldStop (struct hostLoad *loadV,
         numLoad++;
 	load = NULL;
         for (j = 0; j < num; j ++) {
-    	    if (equalHost_(jobCard->jobSpecs.toHosts[i], loadV[j].hostName)) {
+    	    if (equal_host(jobCard->jobSpecs.toHosts[i], loadV[j].hostName)) {
 	        load = &(loadV[j]);
 	        break;
             }
@@ -506,75 +506,75 @@ shouldStop (struct hostLoad *loadV,
             *stopmore = TRUE;
         }
         else if (load->li[IT] <= jobCard->jobSpecs.thresholds.loadStop[numLoad][IT]
-            && load->li[IT] != -INFINIT_LOAD
-            && jobCard->jobSpecs.thresholds.loadStop[numLoad][IT] != -INFINIT_LOAD) {
+            && load->li[IT] != -INFINITY
+            && jobCard->jobSpecs.thresholds.loadStop[numLoad][IT] != -INFINITY) {
 	    *reasons |= SUSP_LOAD_REASON;
             *subreasons = IT;
             *stopmore = TRUE;
         }
         else if (load->li[LS] >=
 			  jobCard->jobSpecs.thresholds.loadStop[numLoad][LS]
-            && load->li[LS] != INFINIT_LOAD
+            && load->li[LS] != INFINITY
             && jobCard->jobSpecs.thresholds.loadStop[numLoad][LS]
-						      != INFINIT_LOAD) {
+						      != INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = LS;
             *stopmore = TRUE;
         }
         else if (load->li[UT] >=
 			 jobCard->jobSpecs.thresholds.loadStop[numLoad][UT]
-            && load->li[UT] != INFINIT_LOAD
+            && load->li[UT] != INFINITY
             && jobCard->jobSpecs.thresholds.loadStop[numLoad][UT] !=
-							   INFINIT_LOAD) {
+							   INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = UT;
         }
         else if(load->li[PG] >=
 		      jobCard->jobSpecs.thresholds.loadStop[numLoad][PG]
-            && load->li[PG] != INFINIT_LOAD
+            && load->li[PG] != INFINITY
             && jobCard->jobSpecs.thresholds.loadStop[numLoad][PG]
-						    != INFINIT_LOAD) {
+						    != INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = PG;
         }
         else if(load->li[IO] >=
 		     jobCard->jobSpecs.thresholds.loadStop[numLoad][IO]
-            && load->li[IO] != INFINIT_LOAD
+            && load->li[IO] != INFINITY
             && jobCard->jobSpecs.thresholds.loadStop[numLoad][IO]
-						      != INFINIT_LOAD) {
+						      != INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = IO;
         }
         else if(load->li[MEM]
 			 <= jobCard->jobSpecs.thresholds.loadStop[numLoad][MEM]
-            && load->li[MEM] != -INFINIT_LOAD
+            && load->li[MEM] != -INFINITY
             && jobCard->jobSpecs.thresholds.loadStop[numLoad][MEM]
-						      != -INFINIT_LOAD) {
+						      != -INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = MEM;
         }
 
         else if(load->li[SWP]
 			 <= jobCard->jobSpecs.thresholds.loadStop[numLoad][SWP]
-            && load->li[SWP] != -INFINIT_LOAD
+            && load->li[SWP] != -INFINITY
             && jobCard->jobSpecs.thresholds.loadStop[numLoad][SWP]
-						      != -INFINIT_LOAD) {
+						      != -INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = SWP;
         }
         else if(load->li[TMP]
 			 <= jobCard->jobSpecs.thresholds.loadStop[numLoad][TMP]
-            && load->li[TMP] != -INFINIT_LOAD
+            && load->li[TMP] != -INFINITY
             && jobCard->jobSpecs.thresholds.loadStop[numLoad][TMP]
-						      != -INFINIT_LOAD) {
+						      != -INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = TMP;
         }
 
         for (j = R15S; !(*reasons) && j <= R15M; j++)
-	    if ((load->li[j] != INFINIT_LOAD)
+	    if ((load->li[j] != INFINITY)
 	        && (jobCard->jobSpecs.thresholds.loadStop[numLoad][j]
-							 != INFINIT_LOAD)
+							 != INFINITY)
 	        && (load->li[j]
 			>= jobCard->jobSpecs.thresholds.loadStop[numLoad][j])) {
 	        *reasons |= SUSP_LOAD_REASON;
@@ -585,11 +585,11 @@ shouldStop (struct hostLoad *loadV,
         for (j = MEM + 1; !(*reasons) &&
                j < MIN(allLsInfo->numIndx, jobCard->jobSpecs.thresholds.nIdx);
 	              j++) {
-            if (load->li[j] >= INFINIT_LOAD || load->li[j] <= -INFINIT_LOAD
+            if (load->li[j] >= INFINITY || load->li[j] <= -INFINITY
                 || jobCard->jobSpecs.thresholds.loadStop[numLoad][j]
-							 >= INFINIT_LOAD
+							 >= INFINITY
                 || jobCard->jobSpecs.thresholds.loadStop[numLoad][j]
-							 <= -INFINIT_LOAD) {
+							 <= -INFINITY) {
                 continue;
             }
 	    if (allLsInfo->resTable[j].orderType == INCR) {
@@ -712,7 +712,7 @@ shouldResume (struct hostLoad *loadV, struct jobCard *jp, int num)
         numHosts++;
         found = FALSE;
         for (i = 0; i < num; i++) {
-            if (equalHost_(jp->jobSpecs.toHosts[j], loadV[i].hostName)) {
+            if (equal_host(jp->jobSpecs.toHosts[j], loadV[i].hostName)) {
                 loads[numHosts] = loadV[i];
                 if (tclHostData != NULL) {
                     if (getTclHostData (&loadV[i],
@@ -1229,7 +1229,7 @@ getTclHostData (struct hostLoad *load, struct tclHostData *tclHostData,
         FREEUP (tclHostData->loadIndex);
     }
     for (i = 0; i < numLsfHosts; i++) {
-	if (equalHost_(hostInfo[i].hostName, load->hostName))
+	if (equal_host(hostInfo[i].hostName, load->hostName))
 	    break;
     }
     if (i == numLsfHosts) {

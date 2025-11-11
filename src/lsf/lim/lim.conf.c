@@ -1275,7 +1275,7 @@ addSharedResourceInstance(int nHosts, char **hosts, char *resName)
         } else {
             cnt = 0;
             for ( i=0; i<nHosts; i++ ){
-                if ((hPtr=get_node_by_cluster(myClusterPtr->hostList, hosts[i]))
+                if ((hPtr=find_node_by_cluster(myClusterPtr->hostList, hosts[i]))
                     != NULL)
                     tmp->hosts[cnt++] = hPtr ;
             }
@@ -1643,9 +1643,9 @@ readCluster(int checkMode)
     if ((hname = ls_getmyhostname()) == NULL)
         lim_Exit("readCluster/ls_getmyhostname");
 
-    myHostPtr = get_node_by_cluster(myClusterPtr->hostList, hname);
+    myHostPtr = find_node_by_cluster(myClusterPtr->hostList, hname);
     if (!myHostPtr) {
-        myHostPtr = get_node_by_cluster(myClusterPtr->clientList, hname);
+        myHostPtr = find_node_by_cluster(myClusterPtr->clientList, hname);
         if (!myHostPtr) {
             ls_syslog(LOG_ERR, "%s: Local host %s not configured in Host section of file lsf.cluster.%s", fname, hname, myClusterName);
             if (checkMode)
@@ -2810,7 +2810,7 @@ addHost(struct clusterNode *clPtr, struct hostEntry *hEntPtr,
     }
 
     // Check double definitions
-    hPtr = get_node_by_cluster(clPtr->hostList, hEntPtr->hostName);
+    hPtr = find_node_by_cluster(clPtr->hostList, hEntPtr->hostName);
     if (hPtr) {
         ls_syslog(LOG_WARNING, "%s: host %s redefined, using previous definition",
                   __func__, fileName, *LineNumPtr, hEntPtr->hostName);
@@ -3226,7 +3226,7 @@ getValidHosts(char *hostName, int *numHost, struct sharedResource *resource)
     struct ll_host hp;
     int cc = get_host_by_name(hostName, &hp);
     if (cc == 0) {
-        if ((hPtr = get_node_by_cluster(myClusterPtr->hostList, hp.name))
+        if ((hPtr = find_node_by_cluster(myClusterPtr->hostList, hp.name))
             == NULL) {
             ls_syslog(LOG_ERR, "%s: Host <%s> is not used by cluster <%s>;ignoring", fname, hostName, myClusterName);
             return NULL;
@@ -3288,7 +3288,7 @@ addHostNodeIns (struct resourceInstance *instance, int nHosts,
             ls_syslog(LOG_WARNING, "%s: Host <%s> is not defined in host sectionin lsf.cluster", fname, hostNames[i]);
             continue;
         }
-        hPtr = get_node_by_cluster(myClusterPtr->hostList, hp.name);
+        hPtr = find_node_by_cluster(myClusterPtr->hostList, hp.name);
         if (hPtr->numInstances > 0 && isInHostNodeIns
             (instance->resName, hPtr->numInstances, hPtr->instances) != NULL)
             continue;
@@ -3348,7 +3348,7 @@ addHostList (struct resourceInstance *resourceInstance, int nHosts, char **hostN
     resourceInstance->hosts = temp;
 
     for (i = 0; i < nHosts; i++) {
-        if ((hostPtr = get_node_by_cluster(myClusterPtr->hostList,
+        if ((hostPtr = find_node_by_cluster(myClusterPtr->hostList,
                                       hostNames[i])) == NULL) {
             ls_syslog (LOG_DEBUG3, "addHostList: Host <%s> is not used by cluster <%s> as a server:ignoring", hostNames[i], myClusterName);
             continue;
@@ -3385,7 +3385,7 @@ addInstance (struct sharedResource *sharedResource,  int nHosts, char **hostName
         if (hostNames[i] == NULL)
             continue;
 
-        if ((hPtr = get_node_by_cluster(myClusterPtr->hostList, hostNames[i])) == NULL) {
+        if ((hPtr = find_node_by_cluster(myClusterPtr->hostList, hostNames[i])) == NULL) {
             ls_syslog (LOG_DEBUG3, "addInstance: Host <%s> is not used by cluster <%s> as server;ignoring", hostNames[i], myClusterName);
             continue;
         }

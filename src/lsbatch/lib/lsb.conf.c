@@ -25,6 +25,7 @@
 #define LSBCONF_NOLOG 1
 #endif
 
+// Bug do not syslog because of the I18N gargabe
 #if LSBCONF_NOLOG
 #undef ls_syslog
 #define ls_syslog(...) do { } while (0)
@@ -131,7 +132,7 @@ static void freeHostInfo ( struct hostInfoEnt *);
 static void initQueueInfo ( struct queueInfoEnt *);
 static void freeQueueInfo ( struct queueInfoEnt *);
 
-int checkSpoolDir ( char *spoolDir );
+int checkSpoolDir(char *);
 int checkJobAttaDir ( char * );
 void freeWorkUser (int);
 void freeWorkHost (int);
@@ -284,7 +285,6 @@ struct paramConf *
 lsb_readparam ( struct lsConf *conf )
 {
     char *fname;
-    static char pname[] = "lsb_readparam";
     char *cp;
     char *section;
     char paramok;
@@ -368,7 +368,6 @@ lsb_readparam ( struct lsConf *conf )
 static char
 do_Param (struct lsConf *conf, char *fname, int *lineNum)
 {
-    static char pname[] = "do_Param";
     char *linep;
     int i, value;
 
@@ -835,7 +834,6 @@ checkSpoolDir( char*  pSpoolDir )
     char TempPath[MAXPATHLEN];
     char TempNT[MAXPATHLEN];
     char TempUnix[MAXPATHLEN];
-    static char fname[] = "checkSpoolDir";
 
     if (logclass & LC_EXEC ) {
         ls_syslog(LOG_DEBUG, "%s: the JOB_SPOOL_DIR is %s, and %d \n",
@@ -1513,14 +1511,13 @@ do_Groups (struct groupInfoEnt **groups, struct lsConf *conf, char *fname,
 static int
 isHostName (char *grpName)
 {
-    int i;
-
+    struct ll_host hp;
     if (get_host_by_name(grpName, &hp) == 0)
         return true;
 
-    for (i = 0; i < numofhosts; i++) {
+    for (int i = 0; i < numofhosts; i++) {
         if (hosts && hosts[i]->host
-                && equalHost_(grpName, hosts[i]->host))
+            && equal_host(grpName, hosts[i]->host))
             return true;
     }
 
@@ -1749,14 +1746,14 @@ addMember (struct groupInfoEnt *gp, char *word, int grouptype,
         if (subgrpPtr != NULL) {
             isgrp = true;
         } else {
-            officialName = getHostOfficialByName_(myWord);
-            if (officialName == NULL) {
+            struct ll_host hp;
+            if (get_host_by_name(myWord, &hp) < 0) {
                 ls_syslog(LOG_ERR, "%s: File %s%s at line %d: Bad host/group name <%s> in group <%s>; ignored", pname, fname, section, lineNum, myWord, gp->group);
                 lsberrno = LSBE_CONF_WARNING;
                 FREEUP(myWord);
                 return false;
             }
-            strcpy(name, officialName);
+            strcpy(name, hp.name);
             if (getHostData(name) == NULL && numofhosts != 0) {
                 ls_syslog(LOG_ERR, "%s: File %s%s at line %d: Host <%s> is not used by the batch system; ignored", pname, fname, section, lineNum, name);
                 lsberrno = LSBE_CONF_WARNING;
@@ -1889,7 +1886,7 @@ getHostData (char *name)
         return NULL;
 
     for (i = 0; i < numofhosts; i++) {
-        if (equalHost_(name, hosts[i]->host))
+        if (equal_host(name, hosts[i]->host))
             return (hosts[i]);
     }
 
@@ -2063,7 +2060,7 @@ isInGrp (char *word, struct groupInfoEnt *gp, int grouptype, int checkAll)
             if (!strcmp ( str, word ) )
                 return true;
         } else {
-            if ( equalHost_ ( str, word ) )
+            if ( equal_host ( str, word ) )
                 return true;
         }
 
@@ -2397,7 +2394,6 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
     char *linep;
     struct hostInfo  *hostList;
     char hostname[MAXHOSTNAMELEN];
-    const char *officialName;
     int  i, numSelectedHosts = 0, isTypeOrModel = false;
     struct hTab *tmpHosts = NULL, *nonOverridableHosts = NULL;
     struct hostInfo *hostInfo;
@@ -2499,8 +2495,10 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
         }
 
         if (strcmp (keylist[HKEY_HNAME].val, "default") != 0) {
-            officialName = getHostOfficialByName_(keylist[HKEY_HNAME].val);
-            if (!officialName && options != CONF_NO_CHECK) {
+            struct ll_host hp;
+            hp.name[0] = 0;
+            get_host_by_name(keylist[HKEY_HNAME].val, &hp);
+            if (hp.name[0] == 0 && options != CONF_NO_CHECK) {
 
                 for (i = 0; i <info->nModels; i++) {
                     if (strcmp (keylist[HKEY_HNAME].val,
@@ -2525,7 +2523,7 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
                 for (i = 0; i < cConf.numHosts; i++) {
                     hostInfo = &(cConf.hosts[i]);
                     if ((strcmp(hostInfo->hostType,
-                                    keylist[HKEY_HNAME].val) == 0 ||
+                                keylist[HKEY_HNAME].val) == 0 ||
                                 strcmp(hostInfo->hostModel,
                                     keylist[HKEY_HNAME].val) == 0)
                             && hostInfo->isServer == true) {
@@ -2541,8 +2539,8 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
                 strcpy (hostname, keylist[HKEY_HNAME].val);
                 isTypeOrModel = true;
             } else {
-                if (officialName)
-                    strcpy (hostname, officialName);
+                if (hp.name[0] != 0)
+                    strcpy (hostname, hp.name);
                 else if (options == CONF_NO_CHECK)
                     strcpy (hostname, keylist[HKEY_HNAME].val);
             }
@@ -2663,7 +2661,7 @@ do_Hosts(struct lsConf *conf, char *fname, int *lineNum, struct lsInfo *info, in
             copyCPUFactor = true;
         } else {
             for (i = 0; i < cConf.numHosts; i++) {
-                if (equalHost_(hostname, cConf.hosts[i].hostName)) {
+                if (equal_host(hostname, cConf.hosts[i].hostName)) {
                     hostList[0] = cConf.hosts[i];
                     break;
                 }
@@ -2792,23 +2790,23 @@ getThresh (struct lsInfo *info, struct keymap *keylist, float loadSched[],
                 stop = NULL;
         }
         if (*keylist[i].val != '\0'
-                && (loadSched[i] = my_atof(keylist[i].val, INFINIT_LOAD,
-                        -INFINIT_LOAD)) >= INFINIT_LOAD) {
+                && (loadSched[i] = my_atof(keylist[i].val, INFINITY,
+                        -INFINITY)) >= INFINITY) {
             ls_syslog(LOG_ERR, "%s: File %s%s at line %d: Value <%s> of loadSched <%s> isn't a float number between %1.1f and %1.1f; ignored",
                     pname, fname, section, *lineNum,
-                    keylist[i].val, keylist[i].key, -INFINIT_LOAD, INFINIT_LOAD);
+                    keylist[i].val, keylist[i].key, -INFINITY, INFINITY);
             lsberrno = LSBE_CONF_WARNING;
             if (info->resTable[i].orderType == DECR)
-                loadSched[i] = -INFINIT_LOAD;
+                loadSched[i] = -INFINITY;
         }
         if (*keylist[i].val != '\0'
-                && loadSched[i] < 0 && loadSched[i] > -INFINIT_LOAD) {
+                && loadSched[i] < 0 && loadSched[i] > -INFINITY) {
             ls_syslog(LOG_WARNING, "%s: File %s%s at line %d: Warning: Value <%s> of loadSched <%s> is not a non-negative number", pname, fname, section, *lineNum, keylist[i].val, keylist[i].key);
             lsberrno = LSBE_CONF_WARNING;
         }
 
         if (i == UT) {
-            if (loadSched[i] > 1.0 && loadSched[i] < INFINIT_LOAD) {
+            if (loadSched[i] > 1.0 && loadSched[i] < INFINITY) {
                 ls_syslog(LOG_INFO, ("%s: File %s %s at line %d: For load index <%s>, loadSched <%2.2f> is greater than 1; assumming <%5.1f%%>"), pname,
                         fname, section, *lineNum, keylist[i].key,
                         loadSched[i], loadSched[i]);
@@ -2820,18 +2818,18 @@ getThresh (struct lsInfo *info, struct keymap *keylist, float loadSched[],
         if (!stop)
             continue;
 
-        if ((loadStop[i] =  my_atof(stop, INFINIT_LOAD,
-                        -INFINIT_LOAD)) == INFINIT_LOAD) {
+        if ((loadStop[i] =  my_atof(stop, INFINITY,
+                        -INFINITY)) == INFINITY) {
             ls_syslog(LOG_ERR, "%s: File %s%s at line %d: Value <%s> of loadStop <%s> isn't a float number between %1.1f and %1.1f; ignored",
                     pname, fname, section, *lineNum,
-                    stop, keylist[i].key, -INFINIT_LOAD, INFINIT_LOAD);
+                    stop, keylist[i].key, -INFINITY, INFINITY);
             lsberrno = LSBE_CONF_WARNING;
             if (info->resTable[i].orderType == DECR)
-                loadStop[i] = -INFINIT_LOAD;
+                loadStop[i] = -INFINITY;
             continue;
         }
 
-        if (loadStop[i] < 0 && loadStop[i] > -INFINIT_LOAD) {
+        if (loadStop[i] < 0 && loadStop[i] > -INFINITY) {
             ls_syslog(LOG_WARNING, "%s: File %s%s at line %d: Warning: Value <%s> of loadStop <%s> is not a non-negative number",
                     pname, fname, section, *lineNum,
                     stop, keylist[i].key);
@@ -2839,7 +2837,7 @@ getThresh (struct lsInfo *info, struct keymap *keylist, float loadSched[],
         }
 
         if (i == UT) {
-            if (loadStop[i] > 1.0 && loadSched[i] < INFINIT_LOAD) {
+            if (loadStop[i] > 1.0 && loadSched[i] < INFINITY) {
                 ls_syslog(LOG_INFO, ("%s: File %s%s at line %d: For load index <%s>, loadStop <%2.2f> is greater than 1; assumming <%5.1f%%>"), pname,
                         fname, section, *lineNum, keylist[i].key,
                         loadStop[i], loadStop[i]);
@@ -2907,7 +2905,7 @@ addHost(struct hostInfoEnt *hp, struct hostInfo *hostInfo, int override)
         if (override)
         {
             for (i = 0; i < numofhosts; i++) {
-                if (equalHost_(host->host, hosts[i]->host))
+                if (equal_host(host->host, hosts[i]->host))
                 {
                     ihost = i;
                     break;
@@ -2996,11 +2994,11 @@ initThresholds (struct lsInfo *info, float loadSched[], float loadStop[])
 
     for (i = 0; i < info->numIndx; i++) {
         if (info->resTable[i].orderType == INCR) {
-            loadSched[i] = INFINIT_LOAD;
-            loadStop[i]  = INFINIT_LOAD;
+            loadSched[i] = INFINITY;
+            loadStop[i]  = INFINITY;
         } else {
-            loadSched[i] = -INFINIT_LOAD;
-            loadStop[i]  = -INFINIT_LOAD;
+            loadSched[i] = -INFINITY;
+            loadStop[i]  = -INFINITY;
         }
     }
 }
@@ -3327,7 +3325,10 @@ parseGroups (char *linep, char *fname, int *lineNum, char *section,
                 FREEUP(myWord);
                 continue;
             } else {
-                if ((officialName = getHostOfficialByName_(myWord)) == NULL) {
+                struct ll_host hp;
+                hp.name[0] = 0;
+                get_host_by_name(myWord, &hp);
+                if (hp.name[0] == 0) {
                     ls_syslog(LOG_ERR, "%s: File %s%s at line %d: Host name <%s> cannot be found; ignored", pname, fname, section, *lineNum, myWord);
                     lsberrno = LSBE_CONF_WARNING;
                     FREEUP(myWord);
@@ -5147,7 +5148,7 @@ getModelFactor (char *hostModel, struct lsInfo *info)
 }
 
 static float *
-getHostFactor (char *host)
+getHostFactor(char *host)
 {
     static float cpuFactor;
     const char *officialName;
@@ -5158,11 +5159,13 @@ getHostFactor (char *host)
     if (hConf == NULL || hConf->numHosts == 0 || hConf->hosts == NULL)
         return NULL;
 
-    if ((officialName = getHostOfficialByName_(host)) == NULL)
+    struct ll_host hp;
+    int cc = get_host_by_name(host, &hp);
+    if (cc < 0)
         return NULL;
 
     for (i = 0; i < hConf->numHosts; i++) {
-        if (equalHost_(officialName, hConf->hosts[i].host)) {
+        if (equal_host(officialName, hConf->hosts[i].host)) {
             cpuFactor = hConf->hosts[i].cpuFactor;
             return (&cpuFactor);
         }
@@ -5647,7 +5650,7 @@ isServerHost(char *hostName)
         return false;
 
     for (i = 0; i < cConf.numHosts; i++) {
-        if (equalHost_(cConf.hosts[i].hostName, hostName)
+        if (equal_host(cConf.hosts[i].hostName, hostName)
                 && cConf.hosts[i].isServer == true)
             return true;
     }
@@ -6052,7 +6055,7 @@ static int resolveBatchNegHosts(char* inHosts, char** outHosts, int isQueue)
             if (inTable[k] && inTable[k]->name) {
                 nameLen =strlen(inTable[k]->name);
             }
-            if (inTable[k] && inTable[k]->name && equalHost_(inTable[k]->name, outTable[j])) {
+            if (inTable[k] && inTable[k]->name && equal_host(inTable[k]->name, outTable[j])) {
                 if (inTable[k]->prf_level)
                     *(inTable[k]->prf_level - 1) = '+';
                 size -= (strlen(inTable[k]->name) + 1);
@@ -6064,7 +6067,7 @@ static int resolveBatchNegHosts(char* inHosts, char** outHosts, int isQueue)
                     && (isHostName(inTable[k]->name) == false) ){
 
                 inTable[k]->name[nameLen-1] = '\0';
-                if( equalHost_(inTable[k]->name, outTable[j]) ){
+                if( equal_host(inTable[k]->name, outTable[j]) ){
                     size -= (strlen(inTable[k]->name) + 1);
                     FREEUP(inTable[k]->name);
                     FREEUP(inTable[k]);

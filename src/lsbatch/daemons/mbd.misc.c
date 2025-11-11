@@ -1459,14 +1459,14 @@ updHostLeftRusageMem(struct jData *jobP, int order)
     if (resValPtr != NULL) {
         resMem = resValPtr->val[MEM];
 
-        if (resMem < INFINIT_LOAD && resMem > -INFINIT_LOAD) {
+        if (resMem < INFINITY && resMem > -INFINITY) {
 
             if (resValPtr->duration != INFINIT_INT)
 
                 return;
 
             for (numHost = 0; numHost < jobP->numHostPtr; numHost++) {
-                if (jobP->hPtr[numHost]->leftRusageMem == INFINIT_LOAD){
+                if (jobP->hPtr[numHost]->leftRusageMem == INFINITY){
 
                     int i;
                     getLsfHostInfo(FALSE);

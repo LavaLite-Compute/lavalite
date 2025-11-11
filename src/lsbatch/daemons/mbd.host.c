@@ -115,7 +115,7 @@ checkHosts (struct infoReq *hostsReqPtr,
                 if (found) {
                     char duplicate = FALSE;
                     for (k = 0; k < numHosts; k++) {
-                        if (equalHost_(host, hDList[k]->host)) {
+                        if (equal_host(host, hDList[k]->host)) {
                             duplicate = TRUE;
                             break;
                         }
@@ -294,81 +294,39 @@ getAllHostInfoEnt (struct hostDataReply *hostsReplyPtr,
 }
 
 struct hData *
-getHostData (char *host)
+getHostData(const char *host)
 {
-    hEnt   *hostEnt;
-    const char *officialName;
+    hEnt *hostEnt;
 
     hostEnt = h_getEnt_(&hDataList, host);
     if (hostEnt != NULL)
-        return ((struct hData *) hostEnt->hData);
+        return hostEnt->hData;
 
     if (strcmp (host, LOST_AND_FOUND) == 0)
         return NULL;
 
-    if ((officialName = getHostOfficialByName_(host)) == NULL)
-        return NULL;
-
-    hostEnt = h_getEnt_(&hDataList, (char*)officialName);
-    if (!hostEnt)
-        return ((struct hData *) NULL);
-
-    return ((struct hData *) hostEnt->hData);
-
+    return NULL;
 }
 
-struct hData *
-getHostData2 (char *host)
-{
-    hEnt   *hostEnt;
-    struct hData *hData;
-    const char *officialName;
-    char* pHostName;
-
-    hData = getHostData(host);
-    if (hData)
-        return hData;
-
-    if ((officialName = getHostOfficialByName_(host)) == NULL) {
-
-        pHostName = host;
-    } else {
-        pHostName = (char*)officialName;
-    }
-
-    hData = initHData(NULL);
-
-    FREEUP(hData->loadSched);
-    FREEUP(hData->loadStop);
-    hData->host = safeSave(pHostName);
-    hData->hStatus = HOST_STAT_REMOTE;
-
-    hostEnt = h_addEnt_(&hDataList, pHostName, NULL);
-    hostEnt->hData = (int *)hData;
-    return hData;
-}
 
 float *
-getHostFactor (char *host)
+getHostFactor(char *host)
 {
     struct hData *hD;
     static float cpuFactor;
-    const char *officialName;
     struct hostInfo *hInfo;
-    char   officialNameBuf[MAXHOSTNAMELEN];
 
     if (host == NULL || strlen(host) == 0) {
-        if ((hD = getHostData (ls_getmyhostname())) == NULL)
+        if ((hD = getHostData(ls_getmyhostname())) == NULL)
             return NULL;
     } else {
         if ((hD = getHostData (host)) == NULL) {
-
-            if ((officialName = getHostOfficialByName_(host)) == NULL)
+            struct ll_host hp;
+            if (get_host_by_name(host, &hp) < 0)
                 return NULL;
 
-            strcpy(officialNameBuf, officialName);
-            if ((hD = getHostData ((char*)officialNameBuf)) == NULL) {
-                if ((hInfo = getLsfHostData((char*)officialNameBuf)) != NULL)
+            if ((hD = getHostData(hp.name)) == NULL) {
+                if ((hInfo = getLsfHostData(hp.name)) != NULL)
                     return &hInfo->cpuFactor;
                 return NULL;
             }
@@ -419,13 +377,12 @@ getModelFactor_r(char *hostModel, float *cpuFactor)
 }
 
 hEnt *
-findHost (char *hname)
+findHost(char *hname)
 {
     if (numofhosts == 0)
         return NULL;
 
     return (h_getEnt_(&hDataList, hname));
-
 }
 
 void
@@ -953,7 +910,7 @@ getLsbHostInfo (void)
         FREEUP (hD->hostModel);
         hD->hostModel = safeSave (lsfHostInfo[i].hostModel);
         hD->maxMem    = lsfHostInfo[i].maxMem;
-        if (hD->leftRusageMem == INFINIT_LOAD && hD->maxMem != 0) {
+        if (hD->leftRusageMem == INFINITY && hD->maxMem != 0) {
 
             hD->leftRusageMem = hD->maxMem;
             if (logclass & LC_TRACE)
@@ -1294,7 +1251,7 @@ adjLsbLoad (struct jData *jpbw, int forResume, bool_t doAdj)
         adjustLoadValue:
 
             jackValue = resValPtr->val[ldx];
-            if (jackValue >= INFINIT_LOAD || jackValue <= -INFINIT_LOAD)
+            if (jackValue >= INFINITY || jackValue <= -INFINITY)
                 continue;
 
             if (ldx < allLsInfo->numIndx)
@@ -1302,7 +1259,7 @@ adjLsbLoad (struct jData *jpbw, int forResume, bool_t doAdj)
             else {
                 load = getHRValue(allLsInfo->resTable[ldx].name,
                                   jpbw->hPtr[i], &instance);
-                if (load == -INFINIT_LOAD) {
+                if (load == -INFINITY) {
                     if (logclass & LC_TRACE)
                         ls_syslog (LOG_DEBUG3, "%s: Host <%s> doesn't share resource <%s>", fname, jpbw->hPtr[i]->host, allLsInfo->resTable[ldx].name);
                     continue;
@@ -1537,8 +1494,8 @@ setHostBLStatus (void)
             hData->hStatus |= HOST_STAT_LOCKED_MASTER;
         }
         for (k = 0; k < allLsInfo->numIndx; k++) {
-            if (hData->lsbLoad[k] >= INFINIT_LOAD
-                || hData->lsbLoad[k] <= -INFINIT_LOAD)
+            if (hData->lsbLoad[k] >= INFINITY
+                || hData->lsbLoad[k] <= -INFINITY)
                 continue;
             if (allLsInfo->resTable[k].orderType == INCR) {
                 if (hData->lsfLoad[k] >= hData->loadStop[k]) {
@@ -1611,7 +1568,7 @@ getLsfHostData (char *host)
         return NULL;
 
     for (i = 0; i < numLsfHosts; i++) {
-        if (equalHost_(host, lsfHostInfo[i].hostName))
+        if (equal_host(host, lsfHostInfo[i].hostName))
             return &lsfHostInfo[i];
     }
     return NULL;

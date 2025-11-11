@@ -132,8 +132,8 @@ main (int argc, char **argv)
        exit(-1);
     }
 
-    TIMEIT(0, (jInfoH = lsb_openjobinfo_a (jobId, jobName, user, queue,
-                                           host, options)), "lsb_openjobinfo_a");
+    TIMEIT(0, (jInfoH = lsb_openjobinfo2(jobId, jobName, user, queue,
+                                         host, options)), "lsb_openjobinfo_a");
     if (jInfoH == NULL) {
         if (numJids >= 1) {
             for (i = 0; i < numJids; i++)

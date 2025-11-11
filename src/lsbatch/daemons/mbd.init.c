@@ -80,7 +80,6 @@ static int  readHostConf (int);
 static void readUserConf (int);
 static void readQueueConf (int);
 
-static int isHostAlias (char *grpName);
 static int searchAll (char *);
 static void addHost (struct hostInfo *, struct hData *, char *, int);
 static void initThresholds (float *, float *);
@@ -165,9 +164,8 @@ minit (int mbdInitFlags)
         return -1;
     }
 
-    // Bug handle num_managers
     syslog(LOG_INFO, "%s: batch manager is name %d uid %s", __func__,
-           mbd_mgr->uid, mbd_mgr->name[0]);
+           mbd_mgr->uid, mbd_mgr->name);
 
     if (mbdInitFlags == FIRST_START) {
         Signal_(SIGTERM,  terminate_handler);
@@ -184,10 +182,6 @@ minit (int mbdInitFlags)
 	    Signal_(SIGTSTP, SIG_IGN);
         }
 
-	if ((clientList = (struct clientNode *) listCreate("client list")) == NULL) {
-	    ls_syslog(LOG_ERR, "%s", __func__, "listCreate");
-            mbdDie(MASTER_FATAL);
-        }
         for (list = 0; list < ALLJLIST; list++) {
 	    char name[216];
 	    sprintf(name, "Job Data List <%d>", list);
@@ -259,7 +253,7 @@ minit (int mbdInitFlags)
     }
 
     for (i = 0; i < numLsfHosts; i++) {
-	if (equalHost_(masterHost, lsfHostInfo[i].hostName)) {
+	if (equal_host(masterHost, lsfHostInfo[i].hostName)) {
 	    if (lsfHostInfo[i].isServer != TRUE) {
 		if (!lsb_CheckMode) {
 		    ls_syslog(LOG_ERR, "%s: Master host <%s> is not a server",
@@ -468,9 +462,6 @@ initHData (struct hData *hData)
     }
 
     hData->host = NULL;
-    hData->hostEnt.h_name = NULL;
-    hData->hostEnt.h_aliases = NULL;
-
     hData->pollTime = 0;
     hData->acceptTime = 0;
     hData->numDispJobs = 0;
@@ -513,7 +504,7 @@ initHData (struct hData *hData)
     hData->instances = NULL;
     hData->pxySJL = NULL;
     hData->pxyRsvJL = NULL;
-    hData->leftRusageMem = INFINIT_LOAD;
+    hData->leftRusageMem = INFINITY;
 
     return hData;
 
@@ -526,11 +517,11 @@ void initThresholds (float loadSched[], float loadStop[])
 
     for (i = 0; i < allLsInfo->numIndx; i++) {
 	if (allLsInfo->resTable[i].orderType == INCR) {
-	    loadSched[i] = INFINIT_LOAD;
-	    loadStop[i]  = INFINIT_LOAD;
+	    loadSched[i] = INFINITY;
+	    loadStop[i]  = INFINITY;
 	} else {
-	    loadSched[i] = -INFINIT_LOAD;
-	    loadStop[i]  = -INFINIT_LOAD;
+	    loadSched[i] = -INFINITY;
+	    loadStop[i]  = -INFINITY;
 	}
     }
 }
@@ -738,8 +729,8 @@ createDefQueue (void)
 }
 
 static void
-addHost (struct hostInfo *hI, struct hData *hD,  char *filename,
-         int override)
+addHost(struct hostInfo *hI, struct hData *hD,  char *filename,
+        int override)
 {
     static char fname[] = "addHost";
     static char first = TRUE;
@@ -747,7 +738,6 @@ addHost (struct hostInfo *hI, struct hData *hD,  char *filename,
     struct hData *hData;
     int new, i;
     char *word;
-    struct hostent *hp;
 
     if (first) {
         h_initTab_(&hDataList, 64);
@@ -790,31 +780,12 @@ addHost (struct hostInfo *hI, struct hData *hD,  char *filename,
 	hData->maxTmp    = hI->maxTmp;
 	hData->nDisks    = hI->nDisks;
 	hData->resBitMaps  = getResMaps(hI->nRes, hI->resources);
-
-	TIMEIT(0, hp = Gethostbyname_(hD->host), "addHost_gethostbyname");
     } else {
 
-        hData->host = safeSave (hD->host);
-	hp = NULL;
+        hData->host = safeSave(hD->host);
     }
 
-    if (!hp) {
-        hData->hostEnt.h_name = putstr_(hData->host);
-        hData->hostEnt.h_aliases = NULL;
-    } else {
-        int num = 0;
-        hData->hostEnt.h_name = putstr_(hp->h_name);
-        if (hp->h_aliases) {
-	    for (i = 0; hp->h_aliases[i] != NULL; i++)
-	        num++;
-	    hData->hostEnt.h_aliases =
-		    (char **) my_calloc(num+1, sizeof (char *), fname);
-	    for (i = 0; i < num; i++)
-	        hData->hostEnt.h_aliases[i] = putstr_(hp->h_aliases[i]);
-        }
-    }
     hData->uJobLimit = hD->uJobLimit;
-
     if (hD->maxJobs == -1) {
 
        hData->maxJobs =  hData->numCPUs;
@@ -909,23 +880,17 @@ addHost (struct hostInfo *hI, struct hData *hD,  char *filename,
 }
 
 void
-freeHData (struct hData *hData, char delete)
+freeHData(struct hData *hData, char delete)
 {
     hEnt *hostEnt = h_getEnt_(&hDataList, hData->host);
     int  i;
 
-    FREEUP (hData->host);
-    FREEUP (hData->hostType);
-    FREEUP (hData->hostModel);
-    FREEUP (hData->hostEnt.h_name);
-    if (hData->hostEnt.h_aliases) {
-	for (i = 0; hData->hostEnt.h_aliases[i]; i++)
-	    free(hData->hostEnt.h_aliases[i]);
-        free (hData->hostEnt.h_aliases);
-    }
-    FREEUP (hData->loadSched);
-    FREEUP (hData->loadStop);
-    FREEUP (hData->windows);
+    free(hData->host);
+    free(hData->hostType);
+    free(hData->hostModel);
+    free(hData->loadSched);
+    free(hData->loadStop);
+    free(hData->windows);
     freeWeek (hData->week);
 
     if (hData->uAcct) {
@@ -935,23 +900,23 @@ freeHData (struct hData *hData, char delete)
 	    FREEUP(hData->uAcct);
     }
 
-    FREEUP (hData->lsfLoad);
-    FREEUP (hData->lsbLoad);
-    FREEUP (hData->resBitMaps);
+    free(hData->lsfLoad);
+    free(hData->lsbLoad);
+    free(hData->resBitMaps);
 
     QUEUE_DESTROY(hData->msgq[MSG_STAT_QUEUED]);
     QUEUE_DESTROY(hData->msgq[MSG_STAT_SENT]);
     QUEUE_DESTROY(hData->msgq[MSG_STAT_RCVD]);
 
-    FREEUP (hData->instances);
-    FREEUP (hData->limStatus);
-    FREEUP (hData->busySched);
-    FREEUP (hData->busyStop);
+    free(hData->instances);
+    free(hData->limStatus);
+    free(hData->busySched);
+    free(hData->busyStop);
     if (delete == TRUE) {
         if (hostEnt)
             h_delEnt_(&hDataList, hostEnt);
         else
-            FREEUP (hData);
+            free(hData);
     }
 
 }
@@ -972,12 +937,11 @@ addGroup (struct gData **groups, char *gname, int *ngroups)
 }
 
 static void
-addMember (struct gData *groupPtr, char *word, int grouptype, char *filename,
-                       struct gData *groups[], int *ngroups)
+addMember(struct gData *groupPtr, char *word, int grouptype, char *filename,
+          struct gData *groups[], int *ngroups)
 {
     static char fname[] = "addMember";
     struct passwd *pw = NULL;
-    const char *officialName;
     char isgrp = FALSE;
     struct gData *subgrpPtr = NULL;
     char name[MAXHOSTNAMELEN];
@@ -1000,7 +964,7 @@ addMember (struct gData *groupPtr, char *word, int grouptype, char *filename,
                 grpSl = safeSave (word);
                 grpSl[lastChar] = '\0';
                 TIMEIT(0, unixGrp = mygetgrnam(grpSl),"do_Users_getgrnam");
-                FREEUP (grpSl);
+                free(grpSl);
             }
             else
                 TIMEIT(0, unixGrp = mygetgrnam(word), "do_Users_getgrnam");
@@ -1027,13 +991,14 @@ addMember (struct gData *groupPtr, char *word, int grouptype, char *filename,
 	if ((subgrpPtr = getGrpData (tempHGData, word, nTempHGroups)) != NULL) {
 	    isgrp = TRUE;
 	} else {
-	    officialName = getHostOfficialByName_(word);
-	    if (officialName == NULL) {
+            struct ll_host hp;
+
+	    if (get_host_by_name(word, &hp) < 0) {
                 ls_syslog(LOG_ERR, "%s: Bad host/group name <%s> in group <%s>; ignored", fname, word, groupPtr->group);
 		lsb_CheckError = WARNING_ERR;
 		return;
             }
-            strcpy(name, officialName);
+            strcpy(name, hp.name);
             if (findHost(name) == NULL && numofhosts != 0) {
                 ls_syslog(LOG_ERR, "%s: Host <%s> is not used by the batch system; ignored", fname, name);
 		lsb_CheckError = WARNING_ERR;
@@ -1115,7 +1080,7 @@ parseAUids (struct qData *qp, char *line)
                     break;
                 }
             }
-            FREEUP (tempStr);
+            free(tempStr);
         } else if ((unixGrp = mygetgrnam(word)) != NULL) {
             i = 0;
             while (unixGrp->gr_mem[i] != NULL) {
@@ -1152,10 +1117,10 @@ parseAUids (struct qData *qp, char *line)
     for (i = 0; i < admins.nAdmins; i++) {
         strcat(qp->admins,  admins.adminNames[i]);
         strcat(qp->admins,  " ");
-        FREEUP (admins.adminNames[i]);
+        free(admins.adminNames[i]);
     }
-    FREEUP (admins.adminNames);
-    FREEUP (admins.adminGIds);
+    free(admins.adminNames);
+    free(admins.adminGIds);
 }
 
 static void
@@ -1170,69 +1135,69 @@ setAllusers (struct qData *qp, struct admins *admins)
     qp->admins[0] = '\0';
     strcat (qp->admins, "all users");
 
-    FREEUP (admins->adminIds);
-    FREEUP (admins->adminGIds);
+    free(admins->adminIds);
+    free(admins->adminGIds);
     for (i = 0; i < admins->nAdmins; i++)
-        FREEUP (admins->adminNames[i]);
-    FREEUP (admins->adminNames);
+        free(admins->adminNames[i]);
+    free(admins->adminNames);
 
 }
 void
 freeQData (struct qData *qp, int delete)
 {
-    FREEUP (qp->queue);
-    FREEUP (qp->description);
+    free(qp->queue);
+    free(qp->description);
     if (qp->uGPtr) {
 	freeGrp (qp->uGPtr);
     }
 
     FREEUP(qp->loadSched);
     FREEUP(qp->loadStop);
-    FREEUP (qp->windows);
-    FREEUP (qp->windowsD);
+    free(qp->windows);
+    free(qp->windowsD);
     freeWeek (qp->weekR);
     freeWeek (qp->week);
-    FREEUP (qp->hostSpec);
-    FREEUP (qp->defaultHostSpec);
+    free(qp->hostSpec);
+    free(qp->defaultHostSpec);
     if (qp->nAdmins > 0) {
-        FREEUP (qp->adminIds);
-        FREEUP (qp->admins);
+        free(qp->adminIds);
+        free(qp->admins);
     }
-    FREEUP (qp->preCmd);
-    FREEUP (qp->postCmd);
+    free(qp->preCmd);
+    free(qp->postCmd);
     if (qp->requeueEValues) {
 	clean_requeue(qp);
     }
-    FREEUP (qp->requeueEValues);
-    FREEUP (qp->resReq);
+    free(qp->requeueEValues);
+    free(qp->resReq);
     if (qp->resValPtr) {
 	FREEUP(qp->resValPtr->rusgBitMaps);
-        FREEUP (qp->resValPtr);
+        free(qp->resValPtr);
     }
     if (qp->uAcct)
         h_delTab_(qp->uAcct);
     if (qp->hAcct)
         h_delTab_(qp->hAcct);
-    FREEUP (qp->resumeCond);
+    free(qp->resumeCond);
     lsbFreeResVal (&qp->resumeCondVal);
-    FREEUP (qp->stopCond);
-    FREEUP (qp->jobStarter);
+    free(qp->stopCond);
+    free(qp->jobStarter);
 
-    FREEUP (qp->suspendActCmd);
-    FREEUP (qp->resumeActCmd);
-    FREEUP (qp->terminateActCmd);
+    free(qp->suspendActCmd);
+    free(qp->resumeActCmd);
+    free(qp->terminateActCmd);
 
-    FREEUP (qp->askedPtr);
-    FREEUP (qp->hostList);
+    free(qp->askedPtr);
+    free(qp->hostList);
 
     if (delete == TRUE) {
         offList ((struct listEntry *)qp);
         numofqueues--;
     }
     if ( qp->reasonTb) {
-	FREEUP (qp->reasonTb[0]);
-	FREEUP (qp->reasonTb[1]);
-	FREEUP (qp->reasonTb);
+	free(qp->reasonTb[0]);
+	free(qp->reasonTb[1]);
+	free(qp->reasonTb);
     }
 
     if (qp->hostInQueue) {
@@ -1240,7 +1205,7 @@ freeQData (struct qData *qp, int delete)
 	qp->hostInQueue = NULL;
     }
 
-    FREEUP (qp);
+    free(qp);
     return;
 }
 
@@ -1280,7 +1245,7 @@ parseGroups (int groupType, struct gData **group, char *line, char *filename)
 		h_addEnt_(&mygp->memberTab, word, 0);
 		continue;
 	    }
-            FREEUP (grpSl);
+            free(grpSl);
 	    lastChar = strlen (word) - 1;
 	    if (lastChar > 0 && word[lastChar] == '/') {
 		grpSl = safeSave (word);
@@ -1326,33 +1291,33 @@ parseGroups (int groupType, struct gData **group, char *line, char *filename)
 		continue;
 	    }
 
-	    officialName = getHostOfficialByName_(word);
-	    if (officialName != NULL) {
-		word = (char*)officialName;
-		if (numofhosts) {
-		    if (!h_getEnt_(&hDataList, word)) {
-			ls_syslog(LOG_ERR, "%s/%s: Host <%s> is not used by the batch system; ignored", filename, fname, word);
-			lsb_CheckError = WARNING_ERR;
-			continue;
-		    }
-		}
-                if (isInGrp (word, mygp)) {
-                    ls_syslog(LOG_ERR, "%s/%s: Host name <%s> is multiply defined; ignored", filename, fname, word);
-		    lsb_CheckError = WARNING_ERR;
-                    continue;
-                }
-		h_addEnt_(&mygp->memberTab, word, 0);
-		continue;
-	    } else {
+            struct ll_host hp;
+            int cc = get_host_by_name(word, &hp);
+            if (cc < 0) {
 		ls_syslog(LOG_ERR, "%s/%s: Unknown host or host group <%s>; ignored", filename, fname, word);
 		lsb_CheckError = WARNING_ERR;
 		continue;
-	    }
-	}
-    }
-    FREEUP (grpSl);
+            }
 
-    return;
+            word = hp.name;
+            if (numofhosts) {
+                if (!h_getEnt_(&hDataList, word)) {
+                    ls_syslog(LOG_ERR, "%s/%s: Host <%s> is not used by the batch system; ignored", filename, fname, word);
+                    lsb_CheckError = WARNING_ERR;
+                    continue;
+                }
+            }
+            if (isInGrp (word, mygp)) {
+                ls_syslog(LOG_ERR, "%s/%s: Host name <%s> is multiply defined; ignored", filename, fname, word);
+                lsb_CheckError = WARNING_ERR;
+                continue;
+                }
+		h_addEnt_(&mygp->memberTab, word, 0);
+		continue;
+        }
+    }
+    free(grpSl);
+
 }
 
 static void
@@ -1846,8 +1811,7 @@ createTmpGData (struct groupInfoEnt *groups,
 
         gPtr = &(groups[i]);
 
-        if (groupType == HOST_GRP && gPtr && gPtr->group
-            && isHostAlias(gPtr->group)) {
+        if (groupType == HOST_GRP && gPtr && gPtr->group) {
             ls_syslog(LOG_WARNING, "%s: Host group name <%s> conflicts with host name; ignoring", fname, gPtr->group);
             lsb_CheckError = WARNING_ERR;
             continue;
@@ -1884,29 +1848,6 @@ createTmpGData (struct groupInfoEnt *groups,
 
 }
 
-static int
-isHostAlias (char *grpName)
-{
-    int i;
-    hEnt *hashEntryPtr;
-    sTab hashSearchPtr;
-    struct hData *hData;
-
-    hashEntryPtr = h_firstEnt_(&hDataList, &hashSearchPtr);
-    while (hashEntryPtr) {
-        hData = (struct hData *) hashEntryPtr->hData;
-        hashEntryPtr = h_nextEnt_(&hashSearchPtr);
-        if (hData->hostEnt.h_aliases) {
-            for (i = 0; hData->hostEnt.h_aliases[i]; i++) {
-                if (equalHost_(grpName, hData->hostEnt.h_aliases[i]))
-                    return TRUE;
-            }
-        }
-    }
-    return FALSE;
-
-}
-
 static void
 addHostData (int numHosts, struct hostInfoEnt *hosts)
 {
@@ -1922,7 +1863,7 @@ addHostData (int numHosts, struct hostInfoEnt *hosts)
     }
     for (i = 0; i < numHosts; i++) {
         for (j = 0; j < numLsfHosts; j++) {
-            if (equalHost_(hosts[i].host, lsfHostInfo[j].hostName))
+            if (equal_host(hosts[i].host, lsfHostInfo[j].hostName))
                 break;
         }
         if (j == numLsfHosts) {
@@ -1970,10 +1911,10 @@ static void
 setDefaultParams(void)
 {
 
-    FREEUP (defaultQueues);
-    FREEUP (defaultHostSpec);
-    FREEUP (lsfDefaultProject);
-    FREEUP (pjobSpoolDir);
+    free(defaultQueues);
+    free(defaultHostSpec);
+    free(lsfDefaultProject);
+    free(pjobSpoolDir);
 
     msleeptime = DEF_MSLEEPTIME;
     sbdSleepTime = DEF_SSLEEPTIME;
@@ -2092,11 +2033,11 @@ addQData (struct queueConf *queueConf, int mbdInitFlags )
         } else {
             copyQData (qp, oldQp);
 	    oldQp->flags |= QUEUE_UPDATE;
-	    FREEUP (qp->queue);
+	    free(qp->queue);
             FREEUP(qp->reasonTb[0]);
             FREEUP(qp->reasonTb[1]);
             FREEUP(qp->reasonTb);
-	    FREEUP (qp);
+	    free(qp);
 
 	    if ( mbdInitFlags == RECONFIG_CONF || mbdInitFlags == WINDOW_CONF ) {
 		int j;
@@ -2619,7 +2560,7 @@ copyQData (struct qData *fromQp, struct qData *toQp)
     }
     toQp->uGPtr = fromQp->uGPtr;
 
-    FREEUP (toQp->askedPtr);
+    free(toQp->askedPtr);
     toQp->askedPtr = fromQp->askedPtr;
 
     FREEUP(toQp->loadSched);
@@ -2640,8 +2581,8 @@ copyQData (struct qData *fromQp, struct qData *toQp)
     }
 
     if (toQp->nAdmins > 0) {
-        FREEUP (toQp->adminIds);
-        FREEUP (toQp->admins);
+        free(toQp->adminIds);
+        free(toQp->admins);
     }
     toQp->nAdmins = fromQp->nAdmins;
     toQp->adminIds = fromQp->adminIds;
@@ -2783,7 +2724,7 @@ updHostList (void)
     removedHDataArray = (struct hData **) my_calloc(numLsfHosts + 2,
               sizeof(struct hData *), "updHostList");
 
-    FREEUP (hDataPtrTb);
+    free(hDataPtrTb);
     hDataPtrTb = (struct hData **) my_calloc(numLsfHosts + 2,
               sizeof(struct hData *), "updHostList");
     for (i = 0; i < numLsfHosts + 1; i++)
@@ -3003,7 +2944,7 @@ updUserList(int mbdInitFlags)
 
            if (mbdInitFlags != RECONFIG_CONF && mbdInitFlags != WINDOW_CONF) {
 
-	       FREEUP (uData->user);
+	       free(uData->user);
 
                FREEUP(uData->reasonTb[0]);
                FREEUP(uData->reasonTb[1]);
@@ -3158,15 +3099,15 @@ parseQHosts(struct qData *qp, char *hosts)
 
             qp->numAskedPtr = numReturnHosts;
             qp->askedOthPrio = others;
-	    FREEUP (returnHosts);
+	    free(returnHosts);
 	}
     } else if (parseFirstHostErr(returnErr, fname, hosts, qp, returnHosts, numReturnHosts)) {
         ls_syslog(LOG_ERR, "%s: No valid host used by the batch system is specified in HOSTS <%s> for queue <%s>",
 	    fname, hosts, qp->queue);
     }
     for (i = 0; i <numAskedHosts; i++)
-	 FREEUP (askedHosts[i]);
-    FREEUP (askedHosts);
+	 free(askedHosts[i]);
+    free(askedHosts);
 
     if( returnErr == LSBE_NO_ERROR ) {
         return numReturnHosts;
@@ -3204,8 +3145,8 @@ freeGrp (struct gData *grpPtr)
 	return;
     h_delTab_(&grpPtr->memberTab);
     if (grpPtr->group && grpPtr->group[0] != '\0')
-        FREEUP (grpPtr->group);
-    FREEUP (grpPtr);
+        free(grpPtr->group);
+    free(grpPtr);
 
 }
 
@@ -3349,7 +3290,7 @@ Ancestor user groups of 'all' user groups");
 
     for ( i = 0; i < hostConf->numHosts; i ++ ) {
 	for ( j = 0; j < tempHostConf.numHosts; j ++ ) {
-	    if (equalHost_(tempHostConf.hosts[j].host,
+	    if (equal_host(tempHostConf.hosts[j].host,
 	        hostConf->hosts[i].host)) {
 		if (tempHostConf.hosts[j].hStatus & HOST_STAT_DISABLED) {
 
@@ -3363,9 +3304,9 @@ Ancestor user groups of 'all' user groups");
     }
 
     for ( i = 0; i <  tempHostConf.numHosts; i ++ ) {
-	FREEUP (tempHostConf.hosts[i].host);
+	free(tempHostConf.hosts[i].host);
     }
-    FREEUP (tempHostConf.hosts);
+    free(tempHostConf.hosts);
 
     if (numResources > 0)
         freeSharedResource();
@@ -3385,7 +3326,7 @@ Ancestor user groups of 'all' user groups");
     copyGroups(TRUE);
 
     for (i = 0; i < numLsfHosts; i++) {
-        if (equalHost_(masterHost, lsfHostInfo[i].hostName)) {
+        if (equal_host(masterHost, lsfHostInfo[i].hostName)) {
             if (lsfHostInfo[i].isServer != TRUE) {
                 ls_syslog(LOG_ERR, "%s: Master host <%s> is not a server",
                         fname,lsfHostInfo[i].hostName);
@@ -3397,8 +3338,8 @@ Ancestor user groups of 'all' user groups");
 
     if (defaultHostSpec != NULL && !validHostSpec (defaultHostSpec)) {
         ls_syslog(LOG_ERR, "%s: Invalid system defined DEFAULT_HOST_SPEC <%s>; ignored", fname, defaultHostSpec);
-        FREEUP (defaultHostSpec);
-        FREEUP (paramConf->param->defaultHostSpec);
+        free(defaultHostSpec);
+        free(paramConf->param->defaultHostSpec);
         lsb_CheckError = WARNING_ERR;
     }
 
@@ -3414,9 +3355,9 @@ Ancestor user groups of 'all' user groups");
     TIMEIT(0, readQueueConf(mbdInitFlags), "minit_readQueueConf");
 
     if (hReasonTb != NULL) {
-        FREEUP (hReasonTb[0]);
-        FREEUP (hReasonTb[1]);
-        FREEUP (hReasonTb);
+        free(hReasonTb[0]);
+        free(hReasonTb[1]);
+        free(hReasonTb);
     }
     hReasonTb = (int **) my_calloc(2, sizeof(int *), fname);
     hReasonTb[0] = (int *) my_calloc(numLsfHosts+2, sizeof(int), fname);
@@ -3708,7 +3649,7 @@ parseFirstHostErr(int returnErr, char *fname, char *hosts, struct qData *qp, str
             ls_syslog(LOG_ERR, "%s: \"others\" specified as first execution host specified in HOSTS section for queue <%s>. Ignored.",
 		fname, qp->queue);
 
-        if (returnHosts) FREEUP (returnHosts);
+        if (returnHosts) free(returnHosts);
         qp->numAskedPtr = numReturnHosts;
         if (numReturnHosts > 0 ) {
             qp->askedPtr = (struct askedHost *) my_calloc (numReturnHosts,
@@ -3763,7 +3704,7 @@ resetJData()
 	    jp->numExecCandPtr = 0;
 	}
 
-        FREEUP (jp->hPtr);
+        free(jp->hPtr);
         jp->numHostPtr = 0;
 
 	jp->numEligProc = 0 ;
@@ -3778,7 +3719,7 @@ resetJData()
 	jp->dispTime = 0;
 	jp->jStatus &= ~JOB_STAT_RSRC_PREEMPT_WAIT;
 	if (jp->numRsrcPreemptHPtr > 0) {
-	    FREEUP (jp->rsrcPreemptHPtr);
+	    free(jp->rsrcPreemptHPtr);
 	}
 	jp->numRsrcPreemptHPtr = 0;
     }
@@ -3991,10 +3932,7 @@ make_mbd_manager(void)
     }
 
     // for now we just keep one manager
-    num_managers = 1;
-    mbd_mgr->name = calloc(num_managers, sizeof(char *));
-    for (int i = 0; i < num_managers; i++)
-        mbd_mgr->name[i] = strdup(pw->pw_name);
+    mbd_mgr->name = strdup(pw->pw_name);
 
     // Optional badge log for audit clarity
     syslog(LOG_INFO, "%s initialized: uid %d, gid %d, name %s",

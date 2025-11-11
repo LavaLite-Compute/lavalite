@@ -41,8 +41,6 @@ static int authSbdRequest(struct sbdNode *, XDR *,
 #endif
 
 extern void closeSession(int);
-extern int cpHostent(struct hostent *, const struct hostent *);
-extern void freeHp(struct hostent *);
 
 int
 do_submitReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
@@ -282,7 +280,6 @@ packJgrpInfo(struct jgTreeNode * jgNode, int remain, char **replyBuf, int schedu
     struct submitReq jobBill;
     struct packet_header hdr;
     char  *request_buf = NULL;
-    static char fname[] = "packJgrpInfo";
     XDR xdrs;
     int i, len;
 
@@ -713,7 +710,6 @@ do_jobPeekReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
                struct packet_header *reqHdr, struct lsfAuth *auth)
 {
 
-    static char             fname[] = "do_jobPeekReq";
     char                    reply_buf[MSGSIZE];
     XDR                     xdrs2;
     struct jobPeekReq       jobPeekReq;
@@ -762,7 +758,6 @@ do_signalReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
               struct packet_header *reqHdr, struct lsfAuth *auth)
 {
     static char             fname[] = "do_signalReq";
-    char                    reply_buf[MSGSIZE];
     XDR                     xdrs2;
     static struct signalReq signalReq;
     int                     reply;
@@ -785,6 +780,7 @@ do_signalReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
         reply = signalJob(&signalReq, auth);
     }
 Reply:
+    char reply_buf[LL_BUFSIZ_16];
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
 
@@ -898,7 +894,6 @@ int
 do_migReq (XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
            struct packet_header *reqHdr, struct lsfAuth *auth)
 {
-    static char             fname[] = "do_migReq";
     char                    reply_buf[MSGSIZE];
     XDR                     xdrs2;
     struct migReq           migReq;
@@ -951,17 +946,14 @@ Reply:
 }
 
 int
-do_statusReq(XDR * xdrs, int chfd, struct sockaddr_in * from, int *schedule,
-             struct packet_header * reqHdr)
+do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
+             struct packet_header *reqHdr)
 {
-    static char             fname[] = "do_statusReq()";
     char                    reply_buf[MSGSIZE];
     XDR                     xdrs2;
     struct statusReq        statusReq;
     int                     reply;
     struct hData           *hData;
-    struct hostent         *hp;
-    struct hostent          hpBuf;
     struct packet_header        replyHdr;
 
 #ifdef INTER_DAEMON_AUTH
@@ -976,14 +968,15 @@ do_statusReq(XDR * xdrs, int chfd, struct sockaddr_in * from, int *schedule,
 
     if (!portok(from)) {
         ls_syslog(LOG_ERR, "%s: Received status report from bad port <%s>",
-                  fname,
-                  sockAdd2Str_(from));
+                  __func__, sockAdd2Str_(from));
         if (reqHdr->operation != BATCH_RUSAGE_JOB)
             errorBack(chfd, LSBE_PORT, from);
         return -1;
     }
-    hp = (struct hostent *)getHostEntryByAddr_(&(from->sin_addr));
-    if (hp == NULL) {
+
+    struct ll_host hs;
+    get_host_by_sockaddr_in(from, &hs);
+    if (hs.name[0] == 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "getHostEntryByAddr_",
                   sockAdd2Str_(from));
         if (reqHdr->operation != BATCH_RUSAGE_JOB)
@@ -991,7 +984,11 @@ do_statusReq(XDR * xdrs, int chfd, struct sockaddr_in * from, int *schedule,
         return -1;
     }
 
-    cpHostent(&hpBuf, hp);
+    // hostent and change the signature of the service
+    // routines later
+    struct hostent hp;
+    memset(&hp, 0, sizeof(struct hostent));
+    hp.h_name = strdup(hs.name);
 
     if (!xdr_statusReq(xdrs, &statusReq, reqHdr)) {
         reply = LSBE_XDR;
@@ -1002,14 +999,13 @@ do_statusReq(XDR * xdrs, int chfd, struct sockaddr_in * from, int *schedule,
             reply = statusMsgAck(&statusReq);
             break;
         case BATCH_STATUS_JOB:
-            reply = statusJob(&statusReq, &hpBuf, schedule);
+            reply = statusJob(&statusReq, &hp, schedule);
             break;
         case BATCH_RUSAGE_JOB:
-            reply = rusageJob(&statusReq, &hpBuf);
+            reply = rusageJob(&statusReq, &hp);
             break;
         default:
-            ls_syslog(LOG_ERR, "%s: Unknown request %d",
-                      fname,
+            ls_syslog(LOG_ERR, "%s: Unknown request %d", __func__,
                       reqHdr->operation);
             reply = LSBE_PROTOCOL;
         }
@@ -1018,7 +1014,7 @@ do_statusReq(XDR * xdrs, int chfd, struct sockaddr_in * from, int *schedule,
     xdr_lsffree(xdr_statusReq, (char *) &statusReq, reqHdr);
 
     if (reqHdr->operation == BATCH_RUSAGE_JOB) {
-        freeHp(&hpBuf);
+        free(hp.h_name);
         if (reply == LSBE_NO_ERROR)
             return 0;
         return -1;
@@ -1031,29 +1027,31 @@ do_statusReq(XDR * xdrs, int chfd, struct sockaddr_in * from, int *schedule,
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   reply);
         xdr_destroy(&xdrs2);
-        freeHp(&hpBuf);
+        free(hp.h_name);
         return -1;
     }
     if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
-        freeHp(&hpBuf);
+        free(hp.h_name);
         return -1;
     }
     xdr_destroy(&xdrs2);
 
-    if ((hData = getHostData(hpBuf.h_name)) != NULL)
+    if ((hData = getHostData(hs.name)) != NULL)
         hStatChange(hData, 0);
 
-    freeHp(&hpBuf);
+    free(hp.h_name);
     return 0;
 
 }
 
+// LavaLite does not support chunk jobs
 int
 do_chunkStatusReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
                   int *schedule, struct packet_header * reqHdr)
 {
+#if 0
     static char             fname[] = "do_chunkStatusReq()";
     char                    reply_buf[MSGSIZE];
     XDR                     xdrs2;
@@ -1081,15 +1079,15 @@ do_chunkStatusReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
         errorBack(chfd, LSBE_PORT, from);
         return -1;
     }
-    hp = (struct hostent *)getHostEntryByAddr_(&(from->sin_addr));
-    if (hp == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "getHostEntryByAddr_",
+
+    struct ll_host hs;
+    get_host_by_sockaddr_in(from, &hs);
+    if (hs.name[0] == 0) {
+        ls_syslog(LOG_ERR, "%s: reverse DNS failed from %s", __func__,
                   sockAdd2Str_(from));
         errorBack(chfd, LSBE_BAD_HOST, from);
         return -1;
     }
-
-    cpHostent(&hpBuf, hp);
 
     if (!xdr_chunkStatusReq(xdrs, &chunkStatusReq, reqHdr)) {
         reply = LSBE_XDR;
@@ -1113,23 +1111,21 @@ do_chunkStatusReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
                   reply);
         xdr_destroy(&xdrs2);
-        freeHp(&hpBuf);
+        free(hp.h_name);
         return -1;
     }
     if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
-        freeHp(&hpBuf);
+        free(hp.h_name);
         return -1;
     }
     xdr_destroy(&xdrs2);
 
     if ((hData = getHostData(hpBuf.h_name)) != NULL)
         hStatChange(hData, 0);
-
-    freeHp(&hpBuf);
+#endif
     return 0;
-
 }
 
 int
@@ -1144,41 +1140,36 @@ do_restartReq(XDR * xdrs, int chfd, struct sockaddr_in * from,
     int                     reply;
     struct sbdPackage       sbdPackage;
     int                     cc;
-    const char             *officialName;
-    char                    officialNameBuf[MAXHOSTNAMELEN];
     struct hData           *hData;
     int                    i;
 
     if (!portok(from)) {
         ls_syslog(LOG_ERR, "%s: Received status report from bad port <%s>",
-                  fname,
-                  sockAdd2Str_(from));
+                  __func__, sockAdd2Str_(from));
         errorBack(chfd, LSBE_PORT, from);
         return -1;
     }
 
-    officialName = getHostOfficialByAddr_(&(from->sin_addr));
-    if (officialName == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "getHostOfficialByAddr_",
+    struct ll_host hs;
+    get_host_by_sockaddr_in(from, &hs);
+    if (hs.name[0] == 0) {
+        ls_syslog(LOG_ERR, "%s get_host_by_sockaddr_in failed ", __func__,
                   sockAdd2Str_(from));
         errorBack(chfd, LSBE_BAD_HOST, from);
         return -1;
     }
-    strcpy( officialNameBuf, officialName);
 
-    if ((hData = getHostData((char*)officialNameBuf)) == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "getHostData",
-                  officialNameBuf);
+    if ((hData = getHostData(hs.name)) == NULL) {
+        ls_syslog(LOG_ERR, "%s: getHostDatas() failed", __func__, hs.name);
         errorBack(chfd, LSBE_BAD_HOST, from);
         return -1;
     }
     hStatChange(hData, 0);
 
+    sbdPackage.jobs = NULL;
     if ((sbdPackage.numJobs = countNumSpecs(hData)) > 0)
-        sbdPackage.jobs = (struct jobSpecs *) my_calloc(sbdPackage.numJobs,
-                                                        sizeof(struct jobSpecs), "do_restartReq");
-    else
-        sbdPackage.jobs = NULL;
+        sbdPackage.jobs = calloc(sbdPackage.numJobs, sizeof(struct jobSpecs));
+
     buflen = sbatchdJobs(&sbdPackage, hData);
     reply = LSBE_NO_ERROR;
 
@@ -1992,8 +1983,7 @@ doNewJobReply(struct sbdNode *sbdPtr, int exception)
                 goto Leave;
             }
 
-            memcpy((char *) replyBuf->data, (char *) buf->data,
-                   PACKET_HEADER_SIZE);
+            memcpy(replyBuf->data, buf->data, PACKET_HEADER_SIZE);
 
             replyBuf->len = PACKET_HEADER_SIZE;
 

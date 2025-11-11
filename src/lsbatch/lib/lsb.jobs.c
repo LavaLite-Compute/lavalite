@@ -25,22 +25,22 @@ extern int _lsb_recvtimeout;
 static int mbdSock = -1;
 
 int
-lsb_openjobinfo (LS_LONG_INT jobId, char *jobName, char *userName,
-                 char *queueName, char *hostName, int options)
+lsb_openjobinfo(LS_LONG_INT jobId, const char *jobName, const char *userName,
+                const char *queueName, const char *hostName, int options)
 {
     struct jobInfoHead *jobInfoHead;
 
-    jobInfoHead = lsb_openjobinfo_a (jobId, jobName, userName, queueName,
-            hostName, options);
+    jobInfoHead = lsb_openjobinfo2(jobId, jobName, userName, queueName,
+                                   hostName, options);
     if (!jobInfoHead)
         return -1;
-    return (jobInfoHead->numJobs);
 
+    return jobInfoHead->numJobs;
 }
 
 struct jobInfoHead *
-lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
-        char *queueName, char *hostName, int options)
+lsb_openjobinfo2(LS_LONG_INT jobId, const char *jobName, const char *userName,
+                 const char *queueName, const char *hostName, int options)
 {
     static int first = true;
     static struct jobInfoReq jobInfoReq;
@@ -53,63 +53,35 @@ lsb_openjobinfo_a (LS_LONG_INT jobId, char *jobName, char *userName,
     struct packet_header hdr;
 
     if (first) {
-        if (   !(jobInfoReq.jobName  = (char *) malloc(MAX_CMD_DESC_LEN))
-                || !(jobInfoReq.queue    = (char *) malloc(LL_BUFSIZ_32))
-                || !(jobInfoReq.userName = (char *) malloc(LL_BUFSIZ_32))
-                || !(jobInfoReq.host     = (char *) malloc(MAXHOSTNAMELEN))) {
+        if (!(jobInfoReq.jobName = malloc(MAX_CMD_DESC_LEN))
+            || !(jobInfoReq.queue = malloc(LL_BUFSIZ_32))
+            || !(jobInfoReq.userName = malloc(LL_BUFSIZ_32))
+            || !(jobInfoReq.host = malloc(MAXHOSTNAMELEN))) {
             lsberrno = LSBE_SYS_CALL;
             return NULL;
         }
         first = false;
     }
 
-    if (queueName == NULL)
-        jobInfoReq.queue[0] = '\0';
-    else {
+    if (queueName == NULL) {
+        jobInfoReq.queue[0] = 0;
+    } else {
         if (strlen (queueName) >= LL_BUFSIZ_32 - 1) {
             lsberrno = LSBE_BAD_QUEUE;
             return NULL;
         }
-        TIMEIT(1, strcpy(jobInfoReq.queue, queueName), "strcpy");
+        strcpy(jobInfoReq.queue, queueName);
     }
 
-    if (hostName == NULL)
-        jobInfoReq.host[0] = '\0';
-    else {
-
-        if (ls_isclustername(hostName) > 0) {
-            jobInfoReq.host[0] = '\0';
-            clusterName = hostName;
-        } else {
-            const char *officialName;
-
-            TIMEIT(0, (officialName = getHostOfficialByName_(hostName)), "getHostOfficialByName_");
-            if (officialName != NULL) {
-                struct hostInfo *hostinfo;
-                char officialNameBuf[MAXHOSTNAMELEN];
-
-                strcpy(officialNameBuf, officialName);
-
-                hostinfo = ls_gethostinfo("-", NULL, (char**)&officialName, 1, LOCAL_ONLY);
-                if (hostinfo == NULL) {
-                    strcpy(jobInfoReq.host, hostName);
-                } else {
-                    strcpy(jobInfoReq.host, officialNameBuf);
-                }
-            } else {
-                if (strlen (hostName) >= MAXHOSTNAMELEN - 1) {
-                    lsberrno = LSBE_BAD_HOST;
-                    return NULL;
-                }
-                strcpy(jobInfoReq.host, hostName);
-            }
-        }
-
+    if (hostName == NULL) {
+        jobInfoReq.host[0] = 0;
+    } else {
+        strcpy(jobInfoReq.host, hostName);
     }
 
-    if (jobName == NULL)
+    if (jobName == NULL) {
         jobInfoReq.jobName[0] = '\0';
-    else {
+    } else {
         if (strlen (jobName) >= MAX_CMD_DESC_LEN - 1) {
             lsberrno = LSBE_BAD_JOB;
             return NULL;

@@ -19,13 +19,9 @@
 
 #include "lsbatch/lib/lsb.h"
 
-bool_t xdr_var_string(XDR *, char **);
-
-static int    allocLoadIdx(float **sched, float **stop, int *outSize, int size);
+static int allocLoadIdx(float **sched, float **stop, int *outSize, int size);
 
 int  lsbSharedResConfigured_ = false;
-
-extern bool_t xdr_array_string(XDR *, char **, int, int);
 
 bool_t
 xdr_submitReq (XDR *xdrs, struct submitReq *submitReq, void *)

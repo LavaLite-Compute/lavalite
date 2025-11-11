@@ -99,7 +99,7 @@ struct chanData {
 
 extern int chanInit_(void);
 extern int chanConnect_(int, struct sockaddr_in *, int, int);
-extern int chanOpen_(u_int, u_short, int);
+extern int chanOpen_(struct sockaddr_in, uint16_t, int);
 extern int chanEnqueue_(int chfd, struct Buffer *buf);
 extern int chanDequeue_(int chfd, struct Buffer **buf);
 

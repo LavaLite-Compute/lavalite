@@ -9,6 +9,7 @@
  */
 
 enum {
+    LL_BUFSIZ_16   = 16,
     LL_BUFSIZ_32   = 32,
     LL_BUFSIZ_64   = 64,
     LL_BUFSIZ_128   = 128,

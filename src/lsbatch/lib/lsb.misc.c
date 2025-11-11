@@ -268,14 +268,6 @@ sndJobFile_(int s, struct lenData *jf)
 }
 
 void
-upperStr(char *in, char *out)
-{
-    for (; *in != '\0'; in++, out++)
-        *out = toupper(*in);
-    *out = '\0';
-}
-
-void
 copyJUsage(struct jRusage *to, struct jRusage *from)
 {
     struct pidInfo *newPidInfo;

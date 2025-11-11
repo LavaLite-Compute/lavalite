@@ -28,114 +28,66 @@ static int mbdTries(void);
 
 int lsb_mbd_version = -1;
 
-#define MAXMSGLEN BUFSIZ
-
 int
-serv_connect (char *serv_host, ushort serv_port, int timeout)
+serv_connect(char *serv_host, ushort serv_port, int timeout)
 {
-    int    chfd, cc, options;
-    struct sockaddr_in serv_addr;
-    const struct hostent *hp;
-    const struct in_addr* addrP;
+    int chfd;
+    struct ll_host hs;
 
-    memset((char*)&serv_addr, 0, sizeof(serv_addr));
-    if (logclass & (LC_TRACE | LC_COMM))
-        ls_syslog (LOG_DEBUG, "serv_connect: Entering this routine...");
-
-    serv_addr.sin_family = AF_INET;
-    if ((addrP = getHostFirstAddr_(serv_host)) == 0) {
-        lsberrno = LSBE_BAD_HOST;
-        if (logclass & LC_TRACE)
-            ls_syslog (LOG_DEBUG1, "serv_connect: getHostFirstAddr_(%s) failed:%m", serv_host);
+    int cc = get_host_by_name(serv_host, &hs);
+    if (cc < 0) {
+        lsberrno = LSBE_LSLIB;
         return -1;
     }
-    memcpy((char*)&serv_addr.sin_addr, (char*)addrP,
-            sizeof(struct in_addr));
+
+    struct sockaddr_in serv_addr;
+    memset(&serv_addr, 0, sizeof(serv_addr));
+
+    // Cast the sockaddr_storage buffer to the structure
+    // that is specific to the given socket family AF_INET
+    // in this case
+    serv_addr.sin_family = AF_INET;
+    struct sockaddr_in *sin = (struct sockaddr_in *)&hs.sa;
+
+    memcpy(&serv_addr.sin_addr, &sin->sin_addr, sizeof(struct in_addr));
     serv_addr.sin_port = serv_port;
 
-    if (logclass & LC_TRACE)
-        ls_syslog (LOG_DEBUG1, "serv_connect: Server host address is <%s>, port number is <%d>", sockAdd2Str_(&serv_addr), ntohs(serv_port));
-
-    if (geteuid() == 0)
-        options = CHAN_OP_PPORT;
-    else
-        options = 0;
-    chfd = chanClientSocket_(AF_INET, SOCK_STREAM, options);
+    chfd = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
     if (chfd < 0) {
         lsberrno = LSBE_LSLIB;
         return -1;
     }
 
-    if (logclass & LC_TRACE)
-        ls_syslog (LOG_DEBUG1, "serv_connect: created socket <%d>",
-                chanSock_(chfd));
     cc = chanConnect_(chfd, &serv_addr, timeout*1000, 0);
     if (cc < 0) {
-
-        int tmpErrno = errno;
-        int tmpLsErrno = lserrno;
-
-        hp = getHostEntryByName_(serv_host);
-        if (hp == NULL || hp->h_addr == NULL) {
-            lsberrno = LSBE_BAD_HOST;
-            if (logclass & LC_TRACE)
-                ls_syslog (LOG_DEBUG1, "serv_connect: getHostEntryByName_(%s) failed:%m", serv_host);
-            return -1;
-
+        // Some translation between lserrno and lsberrno
+        switch (lserrno) {
+        case LSE_TIME_OUT:
+            lsberrno = LSBE_CONN_TIMEOUT;
+            break;
+        default:
+            lsberrno = LSBE_SYS_CALL;
         }
-
-        addrP = (const struct in_addr*)hp->h_addr;
-
-        if (memcmp((char*)&serv_addr.sin_addr, (char*)addrP,
-                    sizeof(struct in_addr)) == 0) {
-
-            errno = tmpErrno;
-            lserrno = tmpLsErrno;
-        } else {
-
-            memcpy((char*)&serv_addr.sin_addr, (char*)addrP,
-                    sizeof(struct in_addr));
-
-            cc = chanConnect_(chfd, &serv_addr, timeout*1000, 0);
-        }
-
-        if (cc < 0) {
-            switch(lserrno) {
-                case LSE_TIME_OUT:
-                    lsberrno =LSBE_CONN_TIMEOUT;
-                    break;
-                case LSE_CONN_SYS:
-
-                    if (errno == ECONNREFUSED || errno == EHOSTUNREACH)
-                        lsberrno = LSBE_CONN_REFUSED;
-                    else
-                        lsberrno = LSBE_SYS_CALL;
-                    break;
-                default:
-                    lsberrno = LSBE_SYS_CALL;
-            }
-            chanClose_(chfd);
-            return -1;
-        }
+        chanClose_(chfd);
+        return -1;
     }
-    return chfd;
 
+    return chfd;
 }
 
 int
-call_server (
-        char * host,
-        ushort serv_port,
-        char * req_buf,
-        int    req_size,
-        char **rep_buf,
-        struct packet_header *replyHdr,
-        int conn_timeout,
-        int recv_timeout,
-        int *connectedSock,
-        int (*postSndFunc)(),
-        int *postSndFuncArg,
-        int flags)
+call_server(char * host,
+            ushort serv_port,
+            char * req_buf,
+            int    req_size,
+            char **rep_buf,
+            struct packet_header *replyHdr,
+            int conn_timeout,
+            int recv_timeout,
+            int *connectedSock,
+            int (*postSndFunc)(),
+            int *postSndFuncArg,
+            int flags)
 {
     int cc;
     static char fname[] = "call_server";
@@ -260,69 +212,6 @@ call_server (
     else
         return (replyHdr->length);
 
-}
-
-int
-getServerMsg(int serverSock, struct packet_header *replyHdr, char **rep_buf)
-{
-    static char fname[] = "getServerMsg";
-    int len;
-    struct packet_header hdrBuf;
-    XDR  xdrs;
-
-    xdrmem_create(&xdrs, (char *)&hdrBuf, PACKET_HEADER_SIZE,  XDR_DECODE);
-
-    if (readDecodeHdr_(serverSock, (char *)&hdrBuf,
-                b_read_fix, &xdrs, replyHdr) < 0) {
-        if (LSE_SYSCALL(lserrno)) {
-            lsberrno = LSBE_SYS_CALL;
-            if (logclass & LC_COMM)
-                ls_syslog (LOG_DEBUG1,
-                        "%s: readDecodeHdr_() failed for read reply header from mbatchd: %m", fname);
-        } else
-            lsberrno = LSBE_XDR;
-        close(serverSock);
-        xdr_destroy(&xdrs);
-        return -1;
-    }
-
-    xdr_destroy(&xdrs);
-
-    len = replyHdr->length;
-
-    lsb_mbd_version = replyHdr->version;
-
-    if (len > 0) {
-        if (len > MAXMSGLEN ) {
-            close(serverSock);
-            lsberrno = LSBE_PROTOCOL;
-            if (logclass & LC_COMM)
-                ls_syslog (LOG_DEBUG1,
-                        "%s: mbatchd's reply header length <%d> is greater than <%d>",
-                        fname, len, MAXMSGLEN);
-            return -1;
-        }
-        if ((*rep_buf = malloc(len)) == NULL) {
-            close(serverSock);
-            lsberrno = LSBE_NO_MEM;
-            if (logclass & LC_TRACE)
-                ls_syslog (LOG_DEBUG1, "call_server: malloc (%d) failed:%m", len);
-            return -1;
-        }
-
-        if (b_read_fix(serverSock, *rep_buf, len) == -1) {
-            close(serverSock);
-            free(*rep_buf);
-            *rep_buf = NULL;
-            lsberrno = LSBE_SYS_CALL;
-            if (logclass & LC_COMM)
-                ls_syslog (LOG_DEBUG1,
-                        "%s: b_read_fix() failed for read message from mbatchd: %m",
-                        fname);
-            return -1;
-        }
-    }
-    return len;
 }
 
 uint16_t

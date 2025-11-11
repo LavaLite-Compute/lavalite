@@ -1436,24 +1436,20 @@ extern char * lsb_printNameList(NAMELIST *, int );
 extern NAMELIST * lsb_compressStrList(char **, int );
 extern char * lsb_splitName(char *, unsigned int *);
 
-extern struct paramConf *lsb_readparam (struct lsConf *);
-extern struct userConf * lsb_readuser  (struct lsConf *, int,
+extern struct paramConf *lsb_readparam(struct lsConf *);
+extern struct userConf * lsb_readuser(struct lsConf *, int,
 					  struct clusterConf *);
 extern struct userConf * lsb_readuser_ex (struct lsConf *, int,
 					     struct clusterConf *,
 					     struct sharedConf *);
-extern struct hostConf *lsb_readhost (struct lsConf *, struct lsInfo *, int,
-					 struct clusterConf *);
+extern struct hostConf *lsb_readhost(struct lsConf *, struct lsInfo *, int,
+                                     struct clusterConf *);
 extern struct queueConf *lsb_readqueue (struct lsConf *, struct lsInfo *,
 					   int, struct sharedConf *);
 extern void updateClusterConf(struct clusterConf *);
 
 
-extern int lsb_init (char *appName);
-extern int lsb_openjobinfo (LS_LONG_INT, char *, char *, char *, char *,
-			       int);
-extern struct jobInfoHead *lsb_openjobinfo_a (LS_LONG_INT, char *,char *,
-						 char *, char *, int);
+extern int lsb_init(char *);
 extern struct jobInfoEnt *lsb_readjobinfo (int *);
 extern LS_LONG_INT lsb_submit (struct submit  *, struct submitReply *);
 
@@ -1516,6 +1512,11 @@ int getMaxSortIntList(struct sortIntList *, int *);
 int getTotalSortIntList(struct sortIntList *);
 
 int updateJobIdIndexFile (char *, char *, int);
+
+int lsb_openjobinfo(LS_LONG_INT, const char *, const char *,
+                    const char *, const char *, int);
+struct jobInfoHead *lsb_openjobinfo2(LS_LONG_INT, const char *, const char *,
+                                     const char *, const char *, int);
 
 /* ----------------------------------------------------------------------
  * Compatibility macros for legacy CamelCase identifiers.

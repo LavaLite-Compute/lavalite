@@ -776,24 +776,25 @@ get_new_master(struct sockaddr_in *from)
     static char mHost[MAXHOSTNAMELEN];
     char        tmpHost[MAXHOSTNAMELEN];
 
-    officialName = getHostOfficialByAddr_(&from->sin_addr);
-    if (officialName != NULL) {
+    struct ll_host hp;
+    get_host_by_sockaddr_in(&from->sin_addr, &hp);
+    if (hp.name[0] == 0) {
+        ls_syslog(LOG_ERR, "%s: get_host_by_sockaddr_in from %s failed :%m",
+                  __func__, sockAdd2Str_(from));
+        return -1;
+    }
 
-        strcpy(tmpHost, officialName);
-        if (hostOk((char*) tmpHost, 0) < 0) {
+    strcpy(tmpHost, hp.name);
+    if (hostOk((char*) tmpHost, 0) < 0) {
             ls_syslog(LOG_ERR, "%s: Request from non-LSF host <%s/%s>",
-                fname, officialName, sockAdd2Str_(from));
+                      fname, officialName, sockAdd2Str_(from));
             return -1;
-        }
-        strcpy(mHost, officialName);
-        masterHost = mHost;
-        master_unknown = FALSE;
-        return 0;
-    } else
-        ls_syslog(LOG_ERR, "%s", __func__, "getHostOfficialByAddr_",
-	    sockAdd2Str_(from));
-    return -1;
+    }
+    strcpy(mHost, hp.name);
+    masterHost = mHost;
+    master_unknown = FALSE;
 
+    return 0;
 }
 
 void
@@ -960,7 +961,7 @@ houseKeeping(void)
                 ls_syslog(LOG_ERR, "main", "ls_getmyhostname");
                 die(SLAVE_FATAL);
             }
-            if (equalHost_(masterHost, myhostnm)) {
+            if (equal_host(masterHost, myhostnm)) {
                 if (mbdPid != 0) {
                     if (kill(mbdPid, 0) != 0)
 			{
@@ -995,9 +996,10 @@ authCmdRequest(struct clientNode *client, XDR *xdrs, struct packet_header *reqHd
     struct lsfAuth auth;
 
     s = chanSock_(client->chanfd);
-    if ((officialName = getHostOfficialByAddr_(&client->from.sin_addr)) == NULL) {
-	ls_syslog(LOG_ERR, "%s", __func__, "getHostOfficialByAddr_",
-	    sockAdd2Str_(&client->from));
+    struct ll_host hp;
+    if (get_host_by_sockaddr_in(&client->from.sin_addr) < 0) {
+	ls_syslog(LOG_ERR, "%s DNS lookup failed for %s", __func__,
+                  sockAdd2Str_(&client->from));
 	return LSBE_NOLSF_HOST;
     }
 
@@ -1062,8 +1064,9 @@ authMbdRequest(struct clientNode *client, XDR *xdrs, struct packet_header *reqHd
     char buf[1024];
 
     s = chanSock_(client->chanfd);
-    if ((officialName = getHostOfficialByAddr_(&client->from.sin_addr)) == NULL) {
-	ls_syslog(LOG_ERR, "%s", __func__, "getHostOfficialByAddr_",
+    struct ll_host hp;
+    if (get_host_by_sockadd_in(&client->from.sin_addr) < 0) {
+	ls_syslog(LOG_ERR, "%s DNS reverse lookup failed for %s", __func__,
 		  sockAdd2Str_(&client->from));
 	return LSBE_NOLSF_HOST;
     }
@@ -1097,4 +1100,3 @@ authMbdRequest(struct clientNode *client, XDR *xdrs, struct packet_header *reqHd
 }
 
 #endif
-

@@ -128,7 +128,11 @@ extern int  stringIsToken(char *,char *);
 extern int  stringIsDigitNumber(char *s);
 extern int processXFReq(char *key,char *line,struct submit *jobSubReq);
 extern char *extractStringValue(char *line);
-
+static int getAskedHosts_(char *optarg,
+                          char ***askedHosts,
+                          int *numAskedHosts,
+                          int *badIdx,
+                          int checkHost);
 #define ESUBNAME "esub"
 
 LS_LONG_INT
@@ -2416,7 +2420,7 @@ setOption_ (int argc, char **argv, char *template, struct submit *req,
 
                 req->options |= SUB_HOST;
                 if (getAskedHosts_(optarg, &req->askedHosts, &req->numAskedHosts,
-                            &badIdx, false) < 0 && lserrno != LSE_BAD_HOST) {
+                                   &badIdx, false) < 0 && lserrno != LSE_BAD_HOST) {
                     lsberrno = LSBE_LSLIB;
                     return -1;
                 }
@@ -4722,4 +4726,19 @@ static void trimSpaces(char *str)
         *ptr = '\0';
         ptr--;
     }
+}
+
+// Bug implement it
+static int
+getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
+               int *badIdx, int options)
+{
+    (void)optarg;
+    (void)askedHosts;
+    (void)numAskedHosts;
+    (void)badIdx;
+    (void)options;
+
+    fprintf(stderr, "-m option not implemented yet\n");
+    return 1;
 }

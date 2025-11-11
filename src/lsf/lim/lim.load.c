@@ -375,7 +375,7 @@ rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
             checkSumMismatch++;
         }
 
-        hPtr = get_node_by_sockaddr(from);
+        hPtr = find_node_by_sockaddr_in(from);
         if (hPtr == NULL) {
             return;
         }
@@ -468,7 +468,7 @@ copyResValues (struct loadVectorStruct loadVector, struct hostNode *hPtr)
             }
             if (curHostNo < 0 || updHostNo < 0)
                 continue;
-            hostPtr = get_node_by_cluster(myClusterPtr->hostList,
+            hostPtr = find_node_by_cluster(myClusterPtr->hostList,
                                      instance->hosts[curHostNo]->hostName);
             if (hostPtr == NULL)
                 continue;

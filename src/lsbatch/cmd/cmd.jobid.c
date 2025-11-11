@@ -65,8 +65,8 @@ getJobIds (int argc, char **argv, char *jobName, char *user, char *queue,
             options &= ~JOBID_ONLY;
     }
 
-    TIMEIT(0, (jobInfoHead = lsb_openjobinfo_a ((LS_LONG_INT)0, jobName, user, queue,
-                                        host, options)), "lsb_openjobinfo");
+    TIMEIT(0, (jobInfoHead = lsb_openjobinfo2((LS_LONG_INT)0, jobName, user, queue,
+											host, options)), "lsb_openjobinfo");
     if (jobInfoHead == NULL) {
 	jobInfoErr (0, jobName, user, queue, host, options);
 	exit(-1);

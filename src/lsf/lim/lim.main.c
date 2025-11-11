@@ -330,8 +330,7 @@ process_udp_request(void)
         return -1;
     }
 
-    // struct hostNode *node = findHostbyAddr(&from, "main");
-    struct hostNode *node = get_node_by_sockaddr(&from);
+    struct hostNode *node = find_node_by_sockaddr_in(&from);
     if (node == NULL) {
         syslog(LOG_ERR, "%s: received request %d from unknown host %s",
                __func__, reqHdr.operation, sockAdd2Str_(&from));
@@ -433,9 +432,19 @@ doAcceptConn(void)
         return -1;
     }
 
-    host = get_node_by_sockaddr(&from);
-    if (host == NULL) {
+    struct ll_host hs;
+    get_host_by_sockaddr_in(&from, &hs);
+    if (hs.name[0] == 0) {
         ls_syslog(LOG_ERR, "%s: unknown host from %s dropped",
+                  __func__, sockAdd2Str_(&from));
+        chanClose_(ch);
+        return -1;
+    }
+
+    host = find_node_by_sockaddr_in(&from);
+    if (host == NULL) {
+        ls_syslog(LOG_WARNING,"\
+%s: Received request from non-LSF host %s",
                   __func__, sockAdd2Str_(&from));
         chanClose_(ch);
         return -1;
@@ -452,7 +461,7 @@ doAcceptConn(void)
     // Bug create a list
     clientMap[client->chanfd] = client;
     client->inprogress = false;
-    client->fromHost   = host;
+    client->fromHost = host;
     client->from  = from;
     client->clientMasks = 0;
     client->reqbuf = NULL;

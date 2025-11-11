@@ -336,6 +336,7 @@ userok(int s, struct sockaddr_in *from, char *hostname,
 
 }
 
+// Bug bogus
 int
 hostOk(char *fromHost, int options)
 {

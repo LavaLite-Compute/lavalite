@@ -211,7 +211,7 @@ fill_load(float *load, loadCharType *loadval, int *busyBit, int nIdx)
 static void
 fillDefal (char *loadval, char *string, int num, float load)
 {
-    if ((load < INFINIT_LOAD) && (load > -INFINIT_LOAD))
+    if ((load < INFINITY) && (load > -INFINITY))
         sprintf(loadval, string, load);
     else {
         switch (num) {

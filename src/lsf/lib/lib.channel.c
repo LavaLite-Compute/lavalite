@@ -90,7 +90,7 @@ chanServSocket_(int type, u_short port, int backlog, int options)
         return -1;
     }
 
-    memset((char*)&sin, 0, sizeof(sin));
+    memset(&sin, 0, sizeof(sin));
     sin.sin_family      = AF_INET;
     sin.sin_port        = htons(port);
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -394,7 +394,7 @@ int chanRcvDgram_(int chfd, void *buf, size_t len,
 
 // Open TCP channel
 int
-chanOpen_(u_int iaddr, u_short port, int options)
+chanOpen_(struct sockaddr_in in_addr, uint16_t port, int options)
 {
     int i;
     int cc;
@@ -409,7 +409,7 @@ chanOpen_(u_int iaddr, u_short port, int options)
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    memcpy(&addr.sin_addr, &iaddr, sizeof(u_int));
+    addr.sin_addr = in_addr.sin_addr;
     addr.sin_port = port;
 
     channels[i].handle = socket(AF_INET, SOCK_STREAM, SOCK_CLOEXEC);

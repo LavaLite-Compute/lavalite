@@ -61,3 +61,4 @@ bool_t xdr_shortCInfo(XDR *, struct shortCInfo *, void*);
 bool_t xdr_cInfo(XDR *, struct cInfo *, struct packet_header *);
 bool_t xdr_resourceInfoReq(XDR *, struct resourceInfoReq *, struct packet_header *);
 bool_t xdr_resourceInfoReply (XDR *, struct resourceInfoReply *, void *);
+bool_t xdr_jRusage(XDR *, struct jRusage *, void *);

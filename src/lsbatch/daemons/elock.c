@@ -98,7 +98,7 @@ access:
              i++;
          if (buf[i] == ':') {
              buf[i] = '\0';
-             if (equalHost_(myhostnm, buf)) {
+             if (equal_host(myhostnm, buf)) {
 
                  i = 0;
                  while ( (cc=read(fd, &buf[i],1)) == 1)
@@ -136,7 +136,7 @@ access:
                return MASTER_FATAL;
            }
 
-           if (! equalHost_(mastername, myhostnm)) {
+           if (! equal_host(mastername, myhostnm)) {
                 ls_syslog(LOG_ERR, "%s: Local host <%s> is not master <%s>",
 		    fname, myhostnm, mastername);
                 return MASTER_RESIGN;

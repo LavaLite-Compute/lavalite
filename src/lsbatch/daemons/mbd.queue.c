@@ -505,7 +505,7 @@ hostQMember (char *host, struct qData *qp)
         return TRUE;
 
     for (i = 0; i < qp->numAskedPtr; i++)  {
-         if (equalHost_(host, qp->askedPtr[i].hData->host))
+         if (equal_host(host, qp->askedPtr[i].hData->host))
               return TRUE;
     }
     return FALSE;
@@ -547,7 +547,6 @@ getCheckList (struct infoReq *qInfoReq, char **hostList, char **userList)
 {
     char *sp;
     int numNames;
-    const char *officialName;
     struct gData *gp;
     struct passwd *pp;
     char **allHosts;
@@ -576,11 +575,11 @@ getCheckList (struct infoReq *qInfoReq, char **hostList, char **userList)
 
     if (qInfoReq->options & CHECK_HOST) {
         sp = qInfoReq->names[numNames];
-
+        struct ll_host hp;
         if (strcmp(sp, "all") == 0)
             *hostList = safeSave (sp);
-        else if ((officialName = getHostOfficialByName_(sp)) != NULL)
-            *hostList = safeSave ((char*)officialName);
+        else if (get_host_by_name(sp, &hp) == 0)
+            *hostList = safeSave(hp.name);
         else if ((gp = getHGrpData(sp)) != NULL)
             *hostList = getGroupMembers(gp, TRUE);
         else

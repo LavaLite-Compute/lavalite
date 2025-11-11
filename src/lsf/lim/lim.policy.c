@@ -134,7 +134,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "xdr_decisionReq", sockAdd2St
         goto Reply;
     }
 
-    fromHostPtr = get_node_by_name(plReq.preferredHosts[0]);
+    fromHostPtr = find_node_by_name(plReq.preferredHosts[0]);
     if (!fromHostPtr) {
         limReplyCode = LIME_NAUTH_HOST;
         goto Reply;
@@ -325,7 +325,7 @@ getEligibleSites(struct resVal *resValPtr, struct decisionReq *reqPtr,
         return -1;
 
     if (!fromHostPtr) {
-        fromHostPtr = get_node_by_name(reqPtr->preferredHosts[0]);
+        fromHostPtr = find_node_by_name(reqPtr->preferredHosts[0]);
         if (!fromHostPtr)
             return 0;
     }
@@ -1036,7 +1036,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_jobXfer");
 
     j = 0;
     for (i=0; i<jobXfer.numHosts; i++) {
-        candidate = get_node_by_cluster(myClusterPtr->hostList,
+        candidate = find_node_by_cluster(myClusterPtr->hostList,
                                    jobXfer.placeInfo[i].hostName);
         if (candidate == NULL)
             continue;
@@ -1262,7 +1262,7 @@ loadReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s
         goto Reply;
     }
 
-    fromHostPtr = get_node_by_name(ldReq.preferredHosts[0]);
+    fromHostPtr = find_node_by_name(ldReq.preferredHosts[0]);
     if (!fromHostPtr) {
         limReplyCode = LIME_NAUTH_HOST;
         goto Reply;

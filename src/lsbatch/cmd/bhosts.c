@@ -698,7 +698,7 @@ makeFields(struct hostInfoEnt *host,
             real  = getLoad(dispindex[j], host->realLoad, &index);
             load = (avail >= real)? (avail - real):(real - avail);
         }
-        if (load >= INFINIT_LOAD)
+        if (load >= INFINITY)
             sp = "- ";
         else {
             if (option == TRUE && (host->hStatus & HOST_STAT_BUSY)
@@ -776,7 +776,7 @@ getLoad(char *dispindex, float *loads, int *index)
             return (loads[i]);
         }
     }
-    return (INFINIT_LOAD);
+    return (INFINITY);
 
 }
 

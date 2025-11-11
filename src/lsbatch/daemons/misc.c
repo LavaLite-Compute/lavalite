@@ -550,7 +550,7 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
         if (((*reason & SUSP_PG_IT)
              || ((*reason & SUSP_LOAD_REASON) && (*subreasons) == PG))
             && loads[j].li[IT] < pgSuspIdleT / 60
-            && thresholds.loadSched[j][PG] != INFINIT_LOAD) {
+            && thresholds.loadSched[j][PG] != INFINITY) {
             resume = FALSE;
             *reason = SUSP_PG_IT;
             *subreasons = 0;
@@ -653,10 +653,10 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
         for (i = MEM + 1; resume &&
                  i < MIN(thresholds.nIdx, allLsInfo->numIndx);
              i++) {
-            if (loads[j].li[i] >= INFINIT_LOAD
-                || loads[j].li[i] <= -INFINIT_LOAD
-                || thresholds.loadSched[j][i] >= INFINIT_LOAD
-                || thresholds.loadSched[j][i] <= -INFINIT_LOAD)
+            if (loads[j].li[i] >= INFINITY
+                || loads[j].li[i] <= -INFINITY
+                || thresholds.loadSched[j][i] >= INFINITY
+                || thresholds.loadSched[j][i] <= -INFINITY)
                 continue;
 
             if (allLsInfo->resTable[i].orderType == INCR)  {

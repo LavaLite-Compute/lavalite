@@ -26,6 +26,7 @@ int get_host_by_name(const char *, struct ll_host *);
  * Returns 0 on success, -1 on failure (errno set).
  */
 int get_host_by_addr(const char *ip, struct ll_host *);
+int get_host_by_sockaddr(const struct sockaddr *, socklen_t, struct ll_host *);
 int equal_host(const char *, const char *);
 
 // sockaddr_in family of routines
@@ -35,3 +36,7 @@ int is_addrv4_zero(const struct sockaddr_in *);
 int is_addrv4_equal(const struct sockaddr_in *, const struct sockaddr_in *);
 int is_addrv6_zero(const struct sockaddr_in6 *);
 int is_addrv6_equal(const struct sockaddr_in6 *, const struct sockaddr_in6 *);
+
+// Handy wrappers
+int get_host_by_sockaddr_in(const struct sockaddr_in *, struct ll_host *);
+int get_host_by_sockaddr_in6(const struct sockaddr_in6 *, struct ll_host *);

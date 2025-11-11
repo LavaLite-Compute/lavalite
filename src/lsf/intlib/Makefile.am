@@ -15,4 +15,4 @@ libllcore_a_SOURCES = admin.c bitset.c cmdtime.c conf.c \
 	userok.c window.c tcl_stub.c listset.c
 
 # Data headers or tables shipped in the tarball
-EXTRA_DIST = listerr.def lsbitseterr.def
+#EXTRA_DIST = listerr.def lsbitseterr.def

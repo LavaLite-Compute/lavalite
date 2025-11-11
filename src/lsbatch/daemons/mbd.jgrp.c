@@ -1260,7 +1260,7 @@ isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
             for (i = 0; i < jpbw->numHostPtr; i++) {
                 if (jpbw->hPtr[i] == NULL)
                     return FALSE;
-                if (equalHost_(jobInfoReq->host, jpbw->hPtr[i]->host))
+                if (equal_host(jobInfoReq->host, jpbw->hPtr[i]->host))
                     break;
             }
             if (i >= jpbw->numHostPtr)

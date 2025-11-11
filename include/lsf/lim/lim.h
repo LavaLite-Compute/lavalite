@@ -538,9 +538,9 @@ struct hostNode *make_host_node(void);
 // end point if set during configuration.
 // These functions operate on already constructed ll_host in
 // the hostNode structure
-struct hostNode *get_node_by_sockaddr(const struct sockaddr_in *);
-struct hostNode *get_node_by_name(const char *);
-struct hostNode *get_node_by_cluster(struct hostNode *, const char *);
+struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *);
+struct hostNode *find_node_by_name(const char *);
+struct hostNode *find_node_by_cluster(struct hostNode *, const char *);
 
 #define  SWP_INTVL_CNT   45/exchIntvl
 #define  TMP_INTVL_CNT   120/exchIntvl

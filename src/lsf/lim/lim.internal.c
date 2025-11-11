@@ -60,7 +60,7 @@ masterRegister(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr
     if (equal_host(myHostPtr->hostName, masterReg.hostName))
         return;
 
-    hPtr = get_node_by_cluster(myClusterPtr->hostList, masterReg.hostName);
+    hPtr = find_node_by_cluster(myClusterPtr->hostList, masterReg.hostName);
     if (hPtr == NULL) {
         syslog(LOG_ERR, "\
 %s: Got master announcement from unused host %s; \
@@ -404,7 +404,7 @@ jobxferReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     }
 
     for (i = 0; i < jobXfer.numHosts; i++) {
-        if ((hPtr = get_node_by_name(jobXfer.placeInfo[i].hostName)) != NULL) {
+        if ((hPtr = find_node_by_name(jobXfer.placeInfo[i].hostName)) != NULL) {
             hPtr->use = jobXfer.placeInfo[i].numtask;
             updExtraLoad(&hPtr, jobXfer.resReq, 1);
         } else {
@@ -529,11 +529,11 @@ rcvConfInfo(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
         return;
     }
 
-    hPtr = get_node_by_sockaddr(from);
+    hPtr = find_node_by_sockaddr_in(from);
     if (!hPtr)
         return;
 
-    if (get_node_by_cluster(myClusterPtr->hostList, hPtr->hostName) == NULL) {
+    if (find_node_by_cluster(myClusterPtr->hostList, hPtr->hostName) == NULL) {
         ls_syslog(LOG_ERR, "%s: Got info from client-only host %s/%s",
                   fname, sockAdd2Str_(from), hPtr->hostName);
         return;

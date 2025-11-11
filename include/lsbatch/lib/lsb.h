@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: lsb.h,v 1.6 2007/08/15 22:18:47 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  *
@@ -15,10 +16,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-
-#ifndef _LSB_LIB_
-#define _LSB_LIB_
-
 #include "lsbatch.h"
 #include "lsf/lib/lib.common.h"
 #include "lsf/intlib/libllcore.h"
@@ -88,25 +85,18 @@ typedef struct lsbSubSpoolFile {
     char commandSpool[MAXFILENAMELEN];
 } LSB_SUB_SPOOL_FILE_T;
 
-extern int creat_p_socket(void);
 extern int serv_connect(char *, ushort, int);
-extern int getServerMsg(int, struct packet_header *, char **rep_buf);
 extern int callmbd(char *, char *, int, char **, struct packet_header *, int *,
 		       int (*)(), int *);
 extern int cmdCallSBD_(char *, char *, int, char **, struct packet_header *,
 		       int *);
 
 
-extern int PutQStr(FILE *, char *);
-extern int Q2Str(char *, char *);
 extern int authTicketTokens_(struct lsfAuth *, char *);
 
 extern char *getNextValue0(char **line, char, char);
 extern int readNextPacket(char **, int, struct packet_header *, int);
 extern void closeSession(int);
-extern void upperStr(char *, char *);
-extern char* getUnixSpoolDir(char *);
-extern char* getNTSpoolDir(char *);
 extern char *getMasterName(void);
 extern ushort get_mbd_port (void);
 extern ushort get_sbd_port (void);
@@ -116,9 +106,5 @@ extern int getCommonParams (struct submit  *, struct submitReq *,
 extern int getOtherParams (struct submit *, struct submitReq *,
                                    struct submitReply *, struct lsfAuth *,
                                    LSB_SUB_SPOOL_FILE_T*);
-extern int chUserRemoveSpoolFile( const char * hostName,
-				  const char * spoolFile);
 extern void prtBETime_(struct submit *);
 extern int runBatchEsub(struct lenData *, struct submit *);
-
-#endif

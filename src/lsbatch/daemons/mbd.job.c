@@ -422,9 +422,9 @@ chkAskedHosts(int inNumAskedHosts, char **inAskedHosts, int numProcessors,
     struct hData *hData;
     char hName[MAXHOSTNAMELEN];
     int len, priority;
-    const char *officialName;
     int allSpecified = FALSE;
     int firstHostIndex = -1;
+
 #define FIRST_HOST_PRIORITY (unsigned)-1/2
 
     if (logclass & (LC_EXEC))
@@ -556,8 +556,11 @@ chkAskedHosts(int inNumAskedHosts, char **inAskedHosts, int numProcessors,
                 FREEUP(gHosts);
             }
         } else {
-            if ((officialName = getHostOfficialByName_(hName)) == NULL
-                || (hData = getHostData ((char*)officialName)) == NULL
+            struct ll_host hp;
+            hp.name[0] = 0;
+            get_host_by_name(hName, &hp);
+            if (hp.name[0] == 0
+                || (hData = getHostData(hp.name)) == NULL
                 || strcmp (hData->host, LOST_AND_FOUND) == 0
                 || (hData->hStatus & HOST_STAT_REMOTE)) {
                 if (!returnBadHost)
@@ -991,7 +994,7 @@ selectJobs (struct jobInfoReq *jobInfoReq, struct jData ***jobDataList,
                     for (i = 0; i < jpbw->numHostPtr; i++) {
                         if (jpbw->hPtr[i] == NULL)
                             continue;
-                        if (equalHost_(jobInfoReq->host, jpbw->hPtr[i]->host))
+                        if (equal_host(jobInfoReq->host, jpbw->hPtr[i]->host))
                             break;
                     }
                     if (i >= jpbw->numHostPtr)
@@ -1087,7 +1090,7 @@ reorderSJL1 (struct jData *job)
     int found = FALSE;
 
     for (jp = jDataList[SJL]->forw; jp != jDataList[SJL]; jp = jp->forw) {
-        if (!equalHost_(jp->hPtr[0]->host, job->hPtr[0]->host)) {
+        if (!equal_host(jp->hPtr[0]->host, job->hPtr[0]->host)) {
             if (found == TRUE)
                 break;
             continue;
@@ -1997,16 +2000,14 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
     sbdPackage->rusageUpdateRate = rusageUpdateRate;
     sbdPackage->rusageUpdatePercent = rusageUpdatePercent;
     sbdPackage->jobTerminateInterval = jobTerminateInterval;
-    sbdPackage->nAdmins = num_managers;
-    sbdPackage->admins = calloc(num_managers, sizeof(char *));
+    // Bug one 1 hardcoded manager
+    sbdPackage->nAdmins = 1;
+    sbdPackage->admins = calloc(1, sizeof(char *));
     // num_managers = 1
-    for (int i = 0; i < num_managers; i++) {
-        sbdPackage->admins[i] = strdup(mbd_mgr->name[i]);
-        size += XDR_STRLEN(strlen(mbd_mgr->name[i]));
-    }
+    sbdPackage->admins[0] = strdup(mbd_mgr->name);
+    size += XDR_STRLEN(strlen(mbd_mgr->name));
 
     return size;
-
 }
 
 int
@@ -2602,7 +2603,7 @@ statusJob (struct statusReq *statusReq, struct hostent *hp, int *schedule)
         }
     }
 
-    if (jpbw->hPtr == NULL || !equalHost_(hp->h_name, jpbw->hPtr[0]->host)
+    if (jpbw->hPtr == NULL || !equal_host(hp->h_name, jpbw->hPtr[0]->host)
         || (statusReq->seq < jpbw->nextSeq
             && (jpbw->nextSeq - statusReq->seq) < MAX_SEQ_NUM/2) ) {
 
@@ -7409,7 +7410,7 @@ shouldResumeByRes (struct jData *jp)
             if (!JOB_PREEMPT_WAIT(jp)) {
                 rVal -= getReservedByWaitPRHQValue(j,jp->hPtr[i],jp->qPtr);
             }
-            if (rVal == INFINIT_LOAD || rVal == -INFINIT_LOAD) {
+            if (rVal == INFINITY || rVal == -INFINITY) {
                 returnCode = CANNOT_RESUME;
                 break;
             } else if (rVal < 0.0) {

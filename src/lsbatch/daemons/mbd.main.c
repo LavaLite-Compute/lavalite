@@ -1,5 +1,6 @@
 /* $Id: mbd.main.c,v 1.24 2007/08/15 22:18:45 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -96,7 +97,7 @@ struct jData *chkJList;
 struct hTab cpuFactors;
 struct gData *usergroups[MAX_GROUPS];
 struct gData *hostgroups[MAX_GROUPS];
-struct clientNode *clientList = NULL;
+static struct mbd_client_node *clientList;
 
 struct lsInfo *allLsInfo;
 struct hTab calDataList;
@@ -147,7 +148,6 @@ static time_t nextSchedTime = 0;
 // has to be equal to the base manager as returned by
 // ls_clusterinfo()
 struct mbd_manager *bmgr;
-int num_managers = 0;
 
 void setJobPriUpdIntvl(void);
 static void updateJobPriorityInPJL(void);
@@ -156,14 +156,14 @@ static void periodicCheck (void);
 static int authRequest(struct lsfAuth *, XDR *, struct packet_header *,
                        struct sockaddr_in *, struct sockaddr_in *,
                        char *, int);
-static int processClient(struct clientNode *, int *);
+static int processClient(struct mbd_client_node *, int *);
 
 static void clientIO(struct Masks *);
 static int forkOnRequest(mbdReqType);
 static void shutdownSbdConnections(void);
 static void processSbdNode(struct sbdNode *, int);
 static void setNextSchedTimeWhenJobFinish(void);
-static void acceptConnection(int);
+static int acceptConnection(int);
 
 extern void chanInactivate_(int);
 extern void chanActivate_(int);
@@ -367,7 +367,7 @@ main(int argc, char **argv)
         else
             lsb_CheckError = FATAL_ERR;
     }
-    if (!equalHost_ (masterHost, myhostnm)) {
+    if (!equal_host (masterHost, myhostnm)) {
         ls_syslog(LOG_ERR, "%s: Local host is not master <%s>",
                   fname,
                   masterHost);
@@ -401,6 +401,11 @@ main(int argc, char **argv)
     ls_syslog(LOG_INFO, ("%s: re-started"), "main");
     ls_syslog(LOG_DEBUG1, "main: maxSchedStay=%d freshPeriod=%d "
               "qAttributes=%x", maxSchedStay, freshPeriod, qAttributes);
+
+    if ((clientList = (struct mbd_client_node *) listCreate("")) == NULL) {
+        ls_syslog(LOG_ERR, "%s", __func__, "listCreate");
+        mbdDie(MASTER_FATAL);
+    }
 
     pollSbatchds(FIRST_START);
     lastSchedTime  = 0;
@@ -484,52 +489,41 @@ main(int argc, char **argv)
 
 }
 
-static void
+static int
 acceptConnection(int socket)
 {
     char                   fname[] = "acceptConnection";
     int                    s;
     struct sockaddr_in     from;
-    struct hostent         *hp;
-    struct clientNode      *client;
+    struct mbd_client_node      *client;
 
     s = chanAccept_(socket, (struct sockaddr_in *)&from);
     if (s == -1) {
         ls_syslog(LOG_ERR, "main", "accept");
-        return;
+        return -1;
     }
 
-    hp = (struct hostent *)getHostEntryByAddr_(&from.sin_addr);
-    if (hp == NULL) {
-        ls_syslog(LOG_WARNING,
-                  "%s: Request from unknown host <%s>: %M",
-                  fname,
+    struct ll_host hs;
+    get_host_by_sockaddr_in(&from, &hs);
+    if (hs.name[0] == 0) {
+        ls_syslog(LOG_WARNING, "%s: request from unknown host %s:", __func__,
                   sockAdd2Str_(&from));
         errorBack(s, LSBE_PERMISSION, &from);
         chanClose_(s);
-        return;
+        return -1;
     }
 
     if (logclass & (LC_COMM | LC_TRACE)) {
         ls_syslog(LOG_DEBUG1, "\
 %s: Received request from host <%s/%s> on socket <%d>",
-                  fname, hp->h_name, sockAdd2Str_(&from),
+                  fname, hs.name, sockAdd2Str_(&from),
                   chanSock_(s));
     }
 
-    memcpy((char *) &from.sin_addr,
-           (char *) hp->h_addr,
-           (int) hp->h_length);
-
-    if (logclass & (LC_COMM))
-        ls_syslog(LOG_DEBUG1, "%s: Official address is %s",
-                  fname, sockAdd2Str_(&from));
-
-    client = calloc(1, sizeof(struct clientNode));
-
+    client = calloc(1, sizeof(struct mbd_client_node));
     client->chanfd = s;
     client->from =  from;
-    client->fromHost = safeSave(hp->h_name);
+    client->fromHost = safeSave(hs.name);
     client->reqType = 0;
     client->lastTime = 0;
 
@@ -544,7 +538,7 @@ acceptConnection(int socket)
 static void
 clientIO(struct Masks *chanmask)
 {
-    struct clientNode *cliPtr, *nextClient;
+    struct mbd_client_node *cliPtr, *nextClient;
     struct sbdNode *sbdPtr, *nextSbdPtr;
     int exception;
 
@@ -564,7 +558,7 @@ clientIO(struct Masks *chanmask)
         }
     }
 
-    for (cliPtr=clientList->forw; cliPtr != clientList; cliPtr=nextClient) {
+    for (cliPtr = clientList->forw; cliPtr != clientList; cliPtr = nextClient) {
         int needFree;
         nextClient = cliPtr->forw;
         if (FD_ISSET(cliPtr->chanfd, &chanmask->emask)) {
@@ -591,7 +585,7 @@ clientIO(struct Masks *chanmask)
 }
 
 static int
-processClient(struct clientNode *client, int *needFree)
+processClient(struct mbd_client_node *client, int *needFree)
 {
     static char fname[]="processClient";
     struct Buffer *buf;
@@ -838,7 +832,7 @@ endLoop:
 }
 
 void
-shutDownClient(struct clientNode *client)
+shutDownClient(struct mbd_client_node *client)
 {
     if ((client->reqType == BATCH_STATUS_JOB ||
          client->reqType == BATCH_STATUS_MSG_ACK ||
@@ -964,7 +958,7 @@ periodicCheck (void)
             if (! lsb_CheckMode)
                 mbdDie(MASTER_FATAL);
         }
-        if (!equalHost_(masterHost, myhostnm)) {
+        if (!equal_host(masterHost, myhostnm)) {
             masterHost = myhostnm;
             mbdDie(MASTER_RESIGN);
         }
@@ -1107,7 +1101,7 @@ static void
 shutdownSbdConnections(void)
 {
     static char fname[] = "shutdownSbdConnections";
-    struct clientNode *cliPtr, *nextClient, *deleteCliPtr = NULL;
+    struct mbd_client_node *cliPtr, *nextClient, *deleteCliPtr = NULL;
     struct sbdNode *sbdPtr, *nextSbdPtr, *deleteSbdPtr = NULL;
     time_t oldest = now + 1;
 

@@ -196,34 +196,17 @@ extern char *getNextToken(char **sp);
 extern int getValPair(char **resReq, int *val1, int *val2);
 extern char *my_getopt (int nargc, char **nargv, char *ostr, char **errMsg);
 extern int putEnv(char *env, char *val);
-extern int Bind_(int, struct sockaddr *, int);
 extern const char* getCmdPathName_(const char *cmdStr, int* cmdLen);
 extern int replace1stCmd_(const char* oldCmdArgs, const char* newCmdArgs,
                           char* outCmdArgs, int outLen);
 extern const char* getLowestDir_(const char* filePath);
 extern void getLSFAdmins_(void);
 extern bool_t isLSFAdmin_(const char *name);
-extern int isAllowCross(char *paramValue);
-extern int isMasterCrossPlatform(void);
 extern int64_t atoi64_(const char *);
 
 extern void stripDomain_(char *);
-extern int equalHost_(const char *, const char *);
-extern char *sockAdd2Str_(struct sockaddr_in *);
 
-extern struct hostent *Gethostbyname_ (char *);
-extern struct hostent *Gethostbyaddr_(char *, int, int);
-
-extern char *getHostOfficialByName_(const char* hname);
-extern char *getHostOfficialByAddr_(const struct in_addr *addr);
-extern struct hostent *getHostEntryByName_(const char* hname);
-extern struct hostent *getHostEntryByAddr_(const struct in_addr *addr);
-extern struct in_addr *getHostFirstAddr_(const char* hname);
-
-extern const struct in_addr* refreshHostAddr_(const char* hname);
-extern const char* refreshHostName_(const struct in_addr *addr);
 extern const struct hostent* setHostEntry_(const struct hostent* hp);
-extern void updateHostCacheAttrib_(void);
 
 #define LOCAL_HATTRIB_UPDATE_INTERVAL        (30*60)
 #define HOSTNS_HATTRIB_UPDATE_INTERVAL       (24*60*60)
@@ -239,7 +222,6 @@ extern int daemonId;
 
 extern struct hostent *Gethostbyname_ex_ (char *, int options);
 
-extern int getAskedHosts_(char *, char ***, int *, int *, int);
 extern int lockHost_(time_t duration, char *hname);
 extern int unlockHost_(char *hname);
 

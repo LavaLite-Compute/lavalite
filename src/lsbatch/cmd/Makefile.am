@@ -13,7 +13,6 @@ bin_PROGRAMS = bbot \
     bjobs \
     bkill \
     bmgroup \
-    bmig \
     bmod \
     bparams \
     bpeek \
@@ -34,7 +33,6 @@ bhosts_SOURCES    = bhosts.c $(COMMON_CMD_SOURCES)
 bjobs_SOURCES     = bjobs.c $(COMMON_CMD_SOURCES)
 bkill_SOURCES     = bkill.c $(COMMON_CMD_SOURCES)
 bmgroup_SOURCES   = bmgroup.c $(COMMON_CMD_SOURCES)
-bmig_SOURCES      = bmig.c $(COMMON_CMD_SOURCES)
 bmod_SOURCES      = bmod.c $(COMMON_CMD_SOURCES)
 bparams_SOURCES   = bparams.c $(COMMON_CMD_SOURCES)
 bpeek_SOURCES     = bpeek.c $(COMMON_CMD_SOURCES)

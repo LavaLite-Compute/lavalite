@@ -15,15 +15,12 @@ man1_MANS = man1/lseligible.1 \
 	man1/lsloadadj.1 \
 	man1/lsmon.1 \
 	man1/lsplace.1 \
-	man1/lsrcp.1 \
 	man1/lstools.1 \
     man1/bbot.1 \
-	man1/bchkpnt.1 \
 	man1/bhosts.1 \
 	man1/bjobs.1 \
 	man1/bkill.1 \
 	man1/bmgroup.1 \
-	man1/bmig.1 \
 	man1/bmod.1 \
 	man1/bparams.1 \
 	man1/bpeek.1 \

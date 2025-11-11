@@ -1550,18 +1550,18 @@ ckResReserve (struct hData *hD, struct resVal *resValPtr, int *resource,
 
         *resource = jj;
 
-        if (resValPtr->val[jj] >= INFINIT_LOAD
+        if (resValPtr->val[jj] >= INFINITY
             || resValPtr->val[jj] < 0.01)
             continue;
         if (jj < allLsInfo->numIndx) {
-            if (fabs(hD->lsfLoad[jj] - INFINIT_LOAD) < 0.001 * INFINIT_LOAD) {
+            if (fabs(hD->lsfLoad[jj] - INFINITY) < 0.001 * INFINITY) {
 
                 return 0;
             }
 
             if (allLsInfo->resTable[jj].orderType == INCR) {
 
-                if (hD->loadStop[jj] < INFINIT_LOAD) {
+                if (hD->loadStop[jj] < INFINITY) {
                     useVal = (int)((hD->loadStop[jj]
                                     - hD->lsfLoad[jj])/ resValPtr->val[jj]);
                     if (useVal < 0)
@@ -1571,7 +1571,7 @@ ckResReserve (struct hData *hD, struct resVal *resValPtr, int *resource,
                 }
             } else {
 
-                if (hD->loadStop[jj] >= INFINIT_LOAD || hD->loadStop[jj] <= -INFINIT_LOAD)
+                if (hD->loadStop[jj] >= INFINITY || hD->loadStop[jj] <= -INFINITY)
                     useVal = (int) (hD->lsbLoad[jj]/ resValPtr->val[jj]);
                 else {
                     useVal = (int) ((hD->lsbLoad[jj] - hD->loadStop[jj])/resValPtr->val[jj]);
@@ -1593,12 +1593,12 @@ ckResReserve (struct hData *hD, struct resVal *resValPtr, int *resource,
             float rVal;
             struct resourceInstance *instance;
             rVal = getUsablePRHQValue(jj,hD,jp->qPtr,&instance);
-            if (rVal == -INFINIT_LOAD) {
+            if (rVal == -INFINITY) {
 
                 if (logclass & LC_SCHED)
                     ls_syslog (LOG_DEBUG2, "ckResReserve: Host <%s> doesn't have the resource <%s> specified", hD->host, allLsInfo->resTable[jj].name);
                 return 0;
-            } else if (rVal == INFINIT_LOAD) {
+            } else if (rVal == INFINITY) {
 
                 if (logclass & LC_SCHED)
                     ls_syslog (LOG_DEBUG2, "ckResReserve: Host <%s> doesn't have the resource <%s> available", hD->host, allLsInfo->resTable[jj].name);
@@ -1867,8 +1867,8 @@ overThreshold (float *load, float *thresh, int *reason)
     int i;
 
     for (i = 0; i < allLsInfo->numIndx; i++) {
-        if (load[i] >= INFINIT_LOAD || load[i] <= -INFINIT_LOAD
-            || (thresh[i] >= INFINIT_LOAD || thresh[i] <= -INFINIT_LOAD)) {
+        if (load[i] >= INFINITY || load[i] <= -INFINITY
+            || (thresh[i] >= INFINITY || thresh[i] <= -INFINITY)) {
             continue;
         }
         if (allLsInfo->resTable[i].orderType == INCR) {
@@ -3450,7 +3450,7 @@ getNumericLoadValue(const struct hData *hp, int lidx)
 
     if (NOT_NUMERIC(allLsInfo->resTable[lidx])) {
         ls_syslog(LOG_ERR, "%s, instance is not of numeric type.", fname);
-        return -INFINIT_LOAD;
+        return -INFINITY;
     }
 
     if ( !(allLsInfo->resTable[lidx].flags & RESF_SHARED) ) {
@@ -3461,14 +3461,14 @@ getNumericLoadValue(const struct hData *hp, int lidx)
         if ( !(strcmp(hp->instances[i]->resName,
                       allLsInfo->resTable[lidx].name))) {
             if (strcmp(hp->instances[i]->value, "-") == 0) {
-                return INFINIT_LOAD;
+                return INFINITY;
             }
             return (atof (hp->instances[i]->value));
         }
     }
 
     ls_syslog(LOG_ERR, "%s, instance name not found.", fname);
-    return -INFINIT_LOAD;
+    return -INFINITY;
 }
 
 static int
