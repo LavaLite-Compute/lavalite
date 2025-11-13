@@ -97,20 +97,18 @@ chanServSocket_(int type, u_short port, int backlog, int options)
 
     if (options & CHAN_OP_SOREUSE) {
         int one = 1;
-
-        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *) &one,
-                   sizeof (int));
+        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof (int));
     }
 
     if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-        (void)close(s);
+        close(s);
         lserrno = LSE_SOCK_SYS;
         return -2;
     }
 
     if (backlog > 0) {
         if (listen(s, backlog) < 0) {
-            (void)close(s);
+            close(s);
             lserrno = LSE_SOCK_SYS;
             return -3;
         }
@@ -125,12 +123,9 @@ chanServSocket_(int type, u_short port, int backlog, int options)
     return ch;
 }
 
-int
-chanClientSocket_(int domain, int type, int options)
+int chanClientSocket_(int domain, int type, int options)
 {
-    static char first=true;
-    static ushort port;
-    struct sockaddr_in cliaddr;
+    struct sockaddr_in cli_addr;
 
     if (domain != AF_INET) {
         lserrno = LSE_INTERNAL;
@@ -165,61 +160,10 @@ chanClientSocket_(int domain, int type, int options)
     }
     channels[ch].handle = s0;
 
-    if (options & CHAN_OP_PPORT) {
-        if  (first) {
-            first = false;
-            port = IPPORT_RESERVED - 1;
-        }
-        if (port < IPPORT_RESERVED/2) {
-            port = IPPORT_RESERVED - 1;
-        }
-    }
-
-    s0 = channels[ch].handle;
-    memset((char*)&cliaddr, 0, sizeof(cliaddr));
-    cliaddr.sin_family      = AF_INET;
-    cliaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    int i;
-    for (i=0; i < IPPORT_RESERVED/2; i++) {
-        if (options & CHAN_OP_PPORT) {
-            cliaddr.sin_port = htons(port);
-            port--;
-        } else
-            cliaddr.sin_port = htons(0);
-
-        if (bind(s0, (struct sockaddr *)&cliaddr, sizeof(cliaddr)) == 0)
-            break;
-
-        if (!(options & CHAN_OP_PPORT)) {
-
-            if (errno == EADDRINUSE) {
-                port = (ushort) (time(0) | getpid());
-                port = ((port < 1024) ? (port + 1024) : port);
-                cliaddr.sin_port = htons(port);
-                if (bind(s0, (struct sockaddr *)&cliaddr, sizeof(cliaddr)) == 0)
-                    break;
-            }
-
-            chanClose_(ch);
-            lserrno = LSE_SOCK_SYS;
-            return -1;
-        }
-        if (errno != EADDRINUSE && errno != EADDRNOTAVAIL) {
-            chanClose_(ch);
-            lserrno = LSE_SOCK_SYS;
-            return -1;
-        }
-
-        if ((options & CHAN_OP_PPORT) && port < IPPORT_RESERVED/2)
-            port = IPPORT_RESERVED - 1;
-    }
-
-    if ((options & CHAN_OP_PPORT) && i == IPPORT_RESERVED/2) {
-        chanClose_(ch);
-        lserrno = LSE_SOCK_SYS;
-        return -1;
-    }
+    memset(&cli_addr, 0, sizeof(struct sockaddr_in));
+    cli_addr.sin_family      = AF_INET;
+    cli_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    cli_addr.sin_port = 0;
 
     fcntl(s0, F_SETFD, (fcntl(s0, F_GETFD) | FD_CLOEXEC));
 
@@ -280,11 +224,9 @@ chanConnect_(int chfd, struct sockaddr_in *peer, int timeout, int options)
         return -1;
     }
 
-    if (logclass & (LC_COMM | LC_TRACE))
-        ls_syslog(LOG_DEBUG2,"chanConnect_: Connecting chan=%d to peer %s timeout %d",chfd, sockAdd2Str_(peer), timeout);
-
     if (channels[chfd].type == CH_TYPE_UDP) {
-        cc = connect(channels[chfd].handle, (struct sockaddr *) peer,
+        cc = connect(channels[chfd].handle,
+                     (struct sockaddr *) peer,
                      sizeof(struct sockaddr_in));
         if (SOCK_CALL_FAIL(cc)) {
             lserrno = LSE_CONN_SYS;

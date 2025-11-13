@@ -18,14 +18,11 @@
 
 #include "lsbatch/daemons/mbd.h"
 
-extern int isMasterCrossPlatform(void);
 extern void resetStaticSchedVariables(void);
 extern void cleanSbdNode(struct jData *);
 extern void uDataPtrTbInitialize();
 
 extern struct mbd_func_type mbd_func;
-
-extern int FY_MONTH;
 
 extern void freeUConf(struct userConf *, int);
 extern void freeHConf(struct hostConf *, int);
@@ -1563,9 +1560,8 @@ lostFoundQueue(void)
 }
 
 struct hData *
-lostFoundHost (void)
+lostFoundHost(void)
 {
-    static char fname[] = "lostFoundHost()";
     struct hData *lost;
     struct hData hp;
 
@@ -1672,6 +1668,18 @@ addUnixGrp (struct group *unixGrp, char *grpName,
 static void
 getClusterData(void)
 {
+    // Fundamental
+    clusterName = ls_getclustername();
+    if (clusterName == NULL) {
+        ls_syslog(LOG_ERR, "%s: ls_getclustername failed: %m", __func__);
+        if (! lsb_CheckMode)
+            mbdDie(MASTER_RESIGN);
+        else {
+            lsb_CheckError = FATAL_ERR;
+            return ;
+        }
+    }
+
     // Global clusterinfo
     clusterInfo = ls_clusterinfo(NULL, &numofclusters, NULL, 0, 0);
     if (clusterInfo == NULL) {
@@ -1709,7 +1717,7 @@ setManagers(struct clusterInfo *cluster)
     }
 
     if (getenv("LSB_MANAGER") == NULL) {
-        sprintf(buf, "%s", mbd_mgr->name[0]);
+        sprintf(buf, "%s", mbd_mgr->name);
         setenv("LSB_MANAGER", buf, 1);
     }
 }
@@ -2485,7 +2493,6 @@ initConfData (void)
 static struct lsConf *
 getFileConf (char *fileName, int fileType)
 {
-    static char fname[] = "getFileConf";
     struct lsConf *confPtr = NULL;
 
     confPtr = ls_getconf (fileName);
@@ -3928,7 +3935,7 @@ make_mbd_manager(void)
         syslog(LOG_ERR, "%s: getpwuid2(%d) failed: %m",
                __func__, mbd_mgr->uid);
         free(mbd_mgr);
-        return -1;
+        return NULL;
     }
 
     // for now we just keep one manager
@@ -3936,7 +3943,7 @@ make_mbd_manager(void)
 
     // Optional badge log for audit clarity
     syslog(LOG_INFO, "%s initialized: uid %d, gid %d, name %s",
-           __func__, mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name[0]);
+           __func__, mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name);
 
     return mbd_mgr;
 }

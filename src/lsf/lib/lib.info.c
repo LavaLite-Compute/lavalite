@@ -19,8 +19,8 @@
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.channel.h"
 
-struct masterInfo masterInfo_;
-int    masterknown_ = false;
+struct masterInfo masterInfo;
+int masterknown = false;
 
 static struct hostInfo *expandSHinfo(struct hostInfoReply *);
 static struct clusterInfo *expandSCinfo(struct clusterInfoReply *);
@@ -316,28 +316,21 @@ getname_(enum limReqCode limReqCode, char *name, int namesize)
             return -1;
         return 0;
     }
-    if (callLim_(limReqCode,
-                 NULL,
-                 NULL,
-                 &masterInfo_,
-                 xdr_masterInfo,
-                 NULL,
-                 _LOCAL_,
-                 NULL) < 0) {
+    if (callLim_(limReqCode, NULL, NULL, &masterInfo, xdr_masterInfo, NULL,
+                 _LOCAL_, NULL) < 0) {
         return -1;
     }
-    // Copy the master address
-    if (memcmp(&sockIds_[MASTER].sin_addr,
-               &masterInfo_.addr, sizeof(in_addr_t))) {
-        CLOSECD(limchans_[MASTER]);
-        CLOSECD(limchans_[TCP]);
-    }
+
+    // Set the master address
+    sockIds_[MASTER].sin_addr = masterInfo.addr.sin_addr;
+    CLOSECD(limchans_[MASTER]);
+    CLOSECD(limchans_[TCP]);
+
     // Copy the tcp address
-    memcpy(&sockIds_[TCP].sin_addr,
-           &masterInfo_.addr, sizeof(in_addr_t));
-    sockIds_[TCP].sin_port = masterInfo_.portno;
-    masterknown_ = true;
-    strncpy(name, masterInfo_.hostName, namesize);
+    sockIds_[TCP].sin_addr = masterInfo.addr.sin_addr;
+    sockIds_[TCP].sin_port = masterInfo.portno;
+    masterknown = true;
+    strncpy(name, masterInfo.hostName, namesize);
     name[namesize-1] = '\0';
 
     return 0;

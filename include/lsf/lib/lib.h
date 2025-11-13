@@ -27,48 +27,11 @@
 #include "lsf/lim/limout.h"
 #include "lsf/lib/lib.xdr.h"
 #include "lsf/lib/ll.host.h"
+#include "lsf/lib/ll.sysenv.h"
+#include "lsf/lib/lib.channel.h"
 
-#ifndef LOG_PRIMASK
-#define LOG_PRIMASK     0xf
-#define LOG_MASK(pri)   (1 << (pri))
-#define LOG_UPTO(pri)   ((1 << ((pri)+1)) - 1)
-#endif
-
-#ifndef LOG_PRI
-#define LOG_PRI(p)      ((p) & LOG_PRIMASK)
-#endif
-
-#define MIN_REF_NUM          1000
-#define MAX_REF_NUM          32760
-
-#define _NON_BLOCK_         0x01
-#define _LOCAL_             0x02
-#define _USE_TCP_           0x04
-#define _KEEP_CONNECT_      0x08
-#define _USE_PRIMARY_       0x10
-#define _USE_PPORT_         0x20
-#define _USE_UDP_           _LOCAL_
-
-#define PRIMARY    0
-#define MASTER     1
-#define UNBOUND    2
-#define TCP        3
-
-#define CLOSEFD(s) if ((s) >= 0) {close((s)); (s) = -1;}
-
-extern struct sockaddr_in sockIds_[];
-extern int limchans_[];
-
-extern struct config_param genParams_[];
-extern struct sockaddr_in limSockId_;
-extern struct sockaddr_in limTcpSockId_;
-extern struct masterInfo masterInfo_;
-extern int    masterknown_;
 extern char   *indexfilter_;
-extern char   *stripDomains_;
-
-extern int readconfenv_(struct config_param *, struct config_param *, char *);
-extern int ls_readconfenv(struct config_param *, char *);
+extern int ls_readconfenv(struct config_param *, const char *);
 
 extern int callLim_(enum limReqCode,
                     void *,

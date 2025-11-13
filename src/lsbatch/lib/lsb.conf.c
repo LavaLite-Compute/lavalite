@@ -34,33 +34,6 @@
 #define syslog(...) do { } while (0)
 #endif
 
-
-#define USEREQUIVALENT "userequivalent"
-#define USERMAPPING "usermap"
-
-#if 0
-#define LSB_NULL_POINTER_STR     "%s: %s is Null"
-#define LSB_FILE_PREMATUR_STR    "%s: File %s at line %d, premature EOF"
-#define LSB_EMPTY_SECTION_STR    "%s: File %s at line %d: Empty %s section"
-#define LSB_IN_QUEUE_ADMIN_STR   "in queue's administrator list"
-#define LSB_IN_QUEUE_HOST_STR    "in queue's HOSTS list"
-#define LSB_IN_SEND_RCV_STR      "in queue's SEND_TO or RCV_FROM list"
-
-#define NULL \
-    ( LSB_NULL_POINTER_STR)
-#define NULL \
-    ( LSB_FILE_PREMATUR_STR)
-#define NULL  \
-    ( LSB_EMPTY_SECTION_STR)
-#define NULL  \
-    ( LSB_IN_QUEUE_ADMIN_STR)
-#define NULL   \
-    ( LSB_IN_QUEUE_HOST_STR)
-#define NULL \
-    ( LSB_IN_SEND_RCV_STR)
-#define MAX_SELECTED_LOADS 4
-#endif
-
 static struct paramConf *pConf= NULL;
 static struct userConf *uConf = NULL;
 static struct hostConf *hConf = NULL;
@@ -941,7 +914,6 @@ lsb_readuser_ex (struct lsConf *conf, int options,
         struct sharedConf *sharedConf)
 {
     char   *fname;
-    static char pname[] = "lsb_readuser";
     char   *cp;
     char   *section;
     int    i, lineNum = 0;
@@ -1055,7 +1027,6 @@ lsb_readuser_ex (struct lsConf *conf, int options,
 static char
 do_Users (struct lsConf *conf, char *fname, int *lineNum, int options)
 {
-    static  char    pname[] = "do_Users";
     char *          linep;
     char *          grpSl = NULL;
     int             maxjobs;

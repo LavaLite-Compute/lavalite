@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lsf/lib/lib.h"
+#include "lsf/lib/lib.common.h"
 
 /* global max hostname length
  */
@@ -25,13 +25,14 @@ int get_host_by_name(const char *, struct ll_host *);
  * fills addr + name (reverse DNS if available, non-fatal if missing).
  * Returns 0 on success, -1 on failure (errno set).
  */
-int get_host_by_addr(const char *ip, struct ll_host *);
+int get_host_by_addrstr(const char *ip, struct ll_host *);
 int get_host_by_sockaddr(const struct sockaddr *, socklen_t, struct ll_host *);
 int equal_host(const char *, const char *);
 
 // sockaddr_in family of routines
 char *sockAdd2Str_(struct sockaddr_in *);
 int get_host_addrv4(const struct ll_host *, struct sockaddr_in *);
+int get_host_sinaddrv4(const struct ll_host *, struct sockaddr_in *);
 int is_addrv4_zero(const struct sockaddr_in *);
 int is_addrv4_equal(const struct sockaddr_in *, const struct sockaddr_in *);
 int is_addrv6_zero(const struct sockaddr_in6 *);

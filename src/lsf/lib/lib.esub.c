@@ -17,7 +17,7 @@
  *
  */
 #include "lsf/lib/lib.h"
-#include "lsf/lib/ll.params.h"
+#include "lsf/lib/ll.sysenv.h"
 
 #define ESUBNAME "esub"
 #define EEXECNAME "eexec"
@@ -37,7 +37,7 @@ runEsub_(struct lenData *ed, char *path)
 
     myargv[0] = esub;
     if (path == NULL) {
-        sprintf (esub, "%s/%s", genParams_[LSF_SERVERDIR].paramValue, ESUBNAME);
+        sprintf (esub, "%s/%s", genParams[LSF_SERVERDIR].paramValue, ESUBNAME);
         myargv[1] = NULL;
     } else {
         if (*path == '\0')
@@ -202,7 +202,7 @@ runEexec_(char *option, int job, struct lenData *eexec, char *path)
         else
             sprintf(eexecPath, "%s/%s", path, EEXECNAME);
     } else {
-        sprintf(eexecPath, "%s/%s", genParams_[LSF_SERVERDIR].paramValue, EEXECNAME);
+        sprintf(eexecPath, "%s/%s", genParams[LSF_SERVERDIR].paramValue, EEXECNAME);
     }
 
     if (logclass & LC_TRACE)
@@ -321,7 +321,7 @@ runEGroup_(char *type, char *gname)
     int uid;
     struct stat sbuf;
 
-    sprintf(egroupPath, "%s/%s", genParams_[LSF_SERVERDIR].paramValue,
+    sprintf(egroupPath, "%s/%s", genParams[LSF_SERVERDIR].paramValue,
             EGROUPNAME);
 
     argv[0] = egroupPath;

@@ -101,9 +101,9 @@ extern int sharedResConfigured_;
 #define AUTH_PARAM_DCE  "dce"
 #define AUTH_PARAM_EAUTH  "eauth"
 
-// Original FREEUP was bogus, if P is NULL no operation is performed.
+// If p is NULL no operation is performed by free
 // This is straight from the man page
-#define FREEUP(p) free(p);
+#define FREEUP(p) do { free(p); (p) = NULL; } while (0)
 
 #define STRNCPY(str1, str2, len)  { strncpy(str1, str2, len);   \
         str1[len -1] = '\0';                                    \

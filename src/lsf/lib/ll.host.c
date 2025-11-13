@@ -108,7 +108,7 @@ int get_host_by_name(const char *hostname, struct ll_host *hp)
     return 0;
 }
 
-int get_host_by_addr(const char *ip, struct ll_host *hp)
+int get_host_by_addrstr(const char *ip, struct ll_host *hp)
 {
     if (!ip || !*ip || !hp) {
         errno = EINVAL; return -1;
@@ -241,6 +241,20 @@ int get_host_addrv4(const struct ll_host *hp, struct sockaddr_in *out)
     return 0;
 }
 
+int
+get_host_sinaddrv4(const struct ll_host *hp, struct sockaddr_in *dst)
+{
+    if (!hp || !dst)
+        return -1;
+
+    // Preserve dst->sin_port, sin_family, zero, etc.
+    struct sockaddr_in *sin = (struct sockaddr_in *)&hp->sa;
+    dst->sin_addr = sin->sin_addr;
+
+    return 0;
+}
+
+
 int is_addrv4_zero(const struct sockaddr_in *addr)
 {
     if (! addr)
@@ -300,7 +314,10 @@ ls_getmyhostname(void)
 int
 equal_host(const char *host, const char *host0)
 {
-    return (strcmp(host, host0) == 0);
+    int cc = strcmp(host, host0);
+    if (cc == 0)
+        return true;
+    return false;
 }
 
 int

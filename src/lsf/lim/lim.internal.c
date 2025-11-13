@@ -50,7 +50,7 @@ masterRegister(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr
 
     if (masterReg.checkSum != myClusterPtr->checkSum
         && checkSumMismatch < 2
-        && (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL)) {
+        && (genParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL)) {
 
         syslog(LOG_WARNING, "%s: Sender %s may have different config.",
                __func__, masterReg.hostName);
@@ -206,8 +206,9 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 
     // send to
     struct sockaddr_in to_addr;
+    memset(&to_addr, 0, sizeof(struct sockaddr_in));
     to_addr.sin_family = AF_INET;
-    to_addr.sin_port = lim_port;
+    to_addr.sin_port = lim_udp_port;
 
     init_pack_hdr(&reqHdr);
     reqHdr.operation  = limReqCode;
@@ -259,13 +260,13 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 
     if (clPtr->masterKnown && !broadcast) {
         // Set the destination addr
-        get_host_addrv4(clPtr->masterPtr->v4_epoint, &to_addr);
+        get_host_sinaddrv4(clPtr->masterPtr->v4_epoint, &to_addr);
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG, "\
 %s: Sending request to LIM on %s: %m", __func__, sockAdd2Str_(&to_addr));
 
-        if (chanSendDgram_(limSock,
+        if (chanSendDgram_(lim_udp_sock,
                            buf1,
                            XDR_GETPOS(&xdrs1),
                            (struct sockaddr_in *)&to_addr) < 0)
@@ -310,8 +311,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
         if (hPtr == myHostPtr)
             continue;
 
-        // Set the destination addr
-        get_host_addrv4(clPtr->masterPtr->v4_epoint, &to_addr);
+        get_host_sinaddrv4(hPtr->v4_epoint, &to_addr);
 
         if (hPtr->infoValid == TRUE) {
 
@@ -330,7 +330,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                               __func__, hPtr->hostName,
                               sockAdd2Str_(&to_addr));
 
-                if (chanSendDgram_(limSock,
+                if (chanSendDgram_(lim_udp_sock,
                                    buf4,
                                    XDR_GETPOS(&xdrs4),
                                    (struct sockaddr_in *)&to_addr) < 0) {
@@ -342,7 +342,7 @@ announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                 hPtr->callElim = FALSE;
 
             } else {
-                if (chanSendDgram_(limSock,
+                if (chanSendDgram_(lim_udp_sock,
                                    buf1,
                                    XDR_GETPOS(&xdrs1),
                                    (struct sockaddr_in *)&to_addr) < 0)
@@ -359,7 +359,7 @@ announceMaster: Failed to send request 1 to LIM on %s: %m", hPtr->hostName);
                           hPtr->hostName, sockAdd2Str_(&to_addr),
                           hPtr->hostInactivityCount);
 
-            if (chanSendDgram_(limSock,
+            if (chanSendDgram_(lim_udp_sock,
                                buf2,
                                XDR_GETPOS(&xdrs2),
                                (struct sockaddr_in *)&to_addr) < 0)
@@ -456,7 +456,7 @@ wrongMaster(struct sockaddr_in *from, char *buf,
         ls_syslog(LOG_DEBUG, "%s: Sending to %s", __func__, sockAdd2Str_(from));
 
     if (s < 0)
-        cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs), (struct sockaddr_in *)from);
+        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs), (struct sockaddr_in *)from);
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs));
     if (cc < 0) {
@@ -674,7 +674,7 @@ sndConfInfo(struct sockaddr_in *to)
         ls_syslog(LOG_DEBUG, "%s: chanSendDgram_ info to %s",
                   fname,sockAdd2Str_(to));
 
-    if ( chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs),
+    if ( chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
                         (struct sockaddr_in *)to) < 0) {
 
         ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(to));
@@ -733,7 +733,7 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType )
 
     struct sockaddr_in to_addr;
     to_addr.sin_family = AF_INET;
-    to_addr.sin_port = lim_port;
+    to_addr.sin_port = lim_udp_port;
 
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
     init_pack_hdr(&reqHdr);
@@ -750,13 +750,13 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType )
     }
 
     // End point destination
-    get_host_addrv4(hPtr->v4_epoint, &to_addr);
+    get_host_sinaddrv4(hPtr->v4_epoint, &to_addr);
 
     ls_syslog(LOG_DEBUG, "\
 %s: Sending request %d to LIM on %s",
               __func__, infoType, sockAdd2Str_(&to_addr));
 
-    if (chanSendDgram_(limSock,
+    if (chanSendDgram_(lim_udp_sock,
                        buf,
                        XDR_GETPOS(&xdrs),
                        (struct sockaddr_in *)&to_addr) < 0)
@@ -792,7 +792,7 @@ probeMasterTcp(struct clusterNode *clPtr)
     struct sockaddr_in mlim_addr;
     memset(&mlim_addr, 0, sizeof(mlim_addr));
     mlim_addr.sin_family = AF_INET;
-    get_host_addrv4(hPtr->v4_epoint, &mlim_addr);
+    get_host_sinaddrv4(hPtr->v4_epoint, &mlim_addr);
     mlim_addr.sin_port = hPtr->statInfo.portno;
 
     int ch = chanClientSocket_(AF_INET, SOCK_STREAM, 0);

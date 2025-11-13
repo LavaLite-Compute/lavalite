@@ -25,9 +25,12 @@
 // Stability isn’t the absence of problems — it’s the ability
 // to recover gracefully.
 
-// Clarity over cleverness; minimal code, maximal intent
+// Simplicty and clarity over cleverness; minimal code, maximal intent
 // Mathematicians chase proofs; computer scientists chase models;
 //practitioners chase uptime.
+
+// VP-level engineer or not, we all leave a little time capsule
+// of “WTF” behind.
 
 // System headers
 #include <stdio.h>

@@ -27,7 +27,7 @@
 #define HAS_VSNPRINTF
 #endif
 
-extern struct config_param genParams_[];
+extern struct config_param genParams[];
 
 extern const char *err_str_(int errnum, const char *fmt, char *buf);
 

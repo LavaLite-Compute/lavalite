@@ -495,10 +495,6 @@ createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
             return -1;
         }
 
-        if (strncmp(sp, "DISPLAY=", 8) == 0) {
-
-            sp = chDisplay_(sp);
-        }
 
         for (p = sp; *p != '\0' && *p != '='; p++);
 

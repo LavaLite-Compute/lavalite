@@ -20,15 +20,9 @@
 #include "lsf/intlib/libllcore.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lim/limout.h"
+#include "lsf/lib/ll.sysenv.h"
+#include "lsf/lib/ll.host.h"
 
-#define LSF_AUTH            9
-#define LSF_USE_HOSTEQUIV   10
-#define LSF_ID_PORT         11
-#define _USE_TCP_           0x04
-extern struct config_param genParams_[];
-extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(), char *, int, struct packet_header *);
-
-#define LOOP_ADDR       0x7F000001
 #define SIZE 256
 #define TIMEOUT 4
 
@@ -73,7 +67,8 @@ auth_user(u_long in, u_short local, u_short remote)
     struct sigaction action, old_action;
 
     if (id_port == 0) {
-        authd_port = genParams_[LSF_ID_PORT].paramValue;
+        // Bug bogus
+        authd_port = "1234";
         if (authd_port != NULL) {
             if ((id_port = atoi(authd_port)) == 0) {
                 ls_syslog(LOG_ERR,
@@ -185,9 +180,6 @@ auth_user(u_long in, u_short local, u_short remote)
 
     if (sscanf(rbuf, "%hd,%hd: USERID :%*[^:]:%s",
                &rremote,&rlocal,ruser) < 3) {
-        ls_syslog(LOG_ERR,
-                  "%s: Authentication data format error rbuf=<%s> from %s",
-                  fname, rbuf, sockAdd2Str_(&saddr));
         return 0;
     }
     if ((remote != rremote) || (local != rlocal)) {
@@ -212,7 +204,7 @@ userok(int s, struct sockaddr_in *from, char *hostname,
     char                *authKind;
 
     if (debug) {
-        char lsfUserName[MAXLSFNAMELEN];
+        char lsfUserName[MAXLSFNAMELEN] = {0};
 
         if (getpwnam2(lsfUserName) == NULL) {
             return false;
@@ -225,7 +217,7 @@ userok(int s, struct sockaddr_in *from, char *hostname,
         }
     }
 
-    authKind = genParams_[LSF_AUTH].paramValue;
+    authKind = genParams[LSF_AUTH].paramValue;
     if (authKind != NULL) {
         if (strcmp(authKind, AUTH_PARAM_EAUTH))
             authKind = NULL;
@@ -238,7 +230,7 @@ userok(int s, struct sockaddr_in *from, char *hostname,
 
     remote = ntohs(from->sin_port);
 
-    authKind = genParams_[LSF_AUTH].paramValue;
+    authKind = genParams[LSF_AUTH].paramValue;
     if (authKind == NULL) {
         if (!debug) {
             if (remote >= IPPORT_RESERVED || remote < IPPORT_RESERVED/2) {
@@ -323,8 +315,8 @@ userok(int s, struct sockaddr_in *from, char *hostname,
 
         }
     }
-
-    if (genParams_[LSF_USE_HOSTEQUIV].paramValue) {
+    // Bug bogus
+    if (0) {
         strcpy(savedUser, auth->lsfUserName);
         user_ok = ruserok(hostname, 0, savedUser, savedUser);
         if (user_ok == -1) {

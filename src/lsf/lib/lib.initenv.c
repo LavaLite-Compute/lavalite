@@ -18,51 +18,56 @@
  */
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.channel.h"
-#include "lsf/lib/ll.params.h"
+#include "lsf/lib/ll.sysenv.h"
 
-struct config_param genParams_[] =
-{
-    {"LSF_CONFDIR", NULL},
-    {"LSF_SERVERDIR", NULL},
-    {"LSF_LIM_DEBUG", NULL},
-    {"LSF_RES_DEBUG", NULL},
-    {"LSF_STRIP_DOMAIN", NULL},
-    {"LSF_LIM_PORT", NULL},
-    {"LSF_RES_PORT", NULL},
-    {"LSF_LOG_MASK", NULL},
-    {"LSF_SERVER_HOSTS", NULL},
-    {"LSF_AUTH", NULL},
-    {"LSF_USE_HOSTEQUIV", NULL},
-    {"LSF_ID_PORT", NULL},
-    {"LSF_RES_TIMEOUT", NULL},
-    {"LSF_API_CONNTIMEOUT", NULL},
-    {"LSF_API_RECVTIMEOUT", NULL},
-    {"LSF_AM_OPTIONS", NULL},
-    {"LSF_TMPDIR", NULL},
-    {"LSF_LOGDIR", NULL},
-    {"LSF_SYMBOLIC_LINK", NULL},
-    {"LSF_MASTER_LIST", NULL},
-    {"LSF_MLS_LOG", NULL},
-    {"LSF_INTERACTIVE_STDERR", NULL},
-    {NULL, NULL}
+struct config_param genParams[LSF_PARAM_COUNT] = {
+    // Common
+    [LSF_CONFDIR]            = { "LSF_CONFDIR", NULL },
+    [LSF_SERVERDIR]          = { "LSF_SERVERDIR", NULL },
+    [LSF_LOGDIR]             = { "LSF_LOGDIR", NULL },
+    [LSF_LIM_DEBUG]          = { "LSF_LIM_DEBUG", NULL },
+    [LSF_LIM_PORT]           = { "LSF_LIM_PORT", NULL },
+    [LSF_RES_PORT]           = { "LSF_RES_PORT", NULL },
+    [LSF_LOG_MASK]           = { "LSF_LOG_MASK", NULL },
+    [LSF_MASTER_LIST]        = { "LSF_MASTER_LIST", NULL },
+
+    // LIM-specific
+    [LSF_DEBUG_LIM]          = { "LSF_DEBUG_LIM", NULL },
+    [LSF_TIME_LIM]           = { "LSF_TIME_LIM", NULL },
+    [LSF_LIM_IGNORE_CHECKSUM]= { "LSF_LIM_IGNORE_CHECKSUM",NULL },
+    [LSF_LIM_JACKUP_BUSY]    = { "LSF_LIM_JACKUP_BUSY",    NULL },
+
+    // LIB-specific
+    [LSF_SERVER_HOSTS]       = { "LSF_SERVER_HOSTS",       NULL },
+    [LSF_AUTH]               = { "LSF_AUTH",               NULL },
+    [LSF_API_CONNTIMEOUT]    = { "LSF_API_CONNTIMEOUT",    NULL },
+    [LSF_API_RECVTIMEOUT]    = { "LSF_API_RECVTIMEOUT",    NULL },
+    [LSF_INTERACTIVE_STDERR] = { "LSF_INTERACTIVE_STDERR", NULL },
+
+    // Legacy placeholder several code depend on this...
+    [LSF_NULL_PARAM]         = { NULL, NULL },
 };
 
-char *stripDomains_ = NULL;
+static_assert(LSF_PARAM_COUNT == (sizeof genParams/sizeof genParams[0]),
+              "genParams size must match ll_params_t count");
+
+
 int  errLineNum_ = 0;
-char *lsTmpDir_;
+char *lsTmpDir_ = "/tmp";
 
 static char **m_masterCandidates = NULL;
 static int m_numMasterCandidates, m_isMasterCandidate;
 
-static int setStripDomain_(char *);
 static int parseLine(char *line, char **keyPtr, char **valuePtr);
 static int matchEnv(char *, struct config_param *);
 static int setConfEnv(char *, char *, struct config_param *);
 // Lavalite
 static int check_ll_conf(const char *);
+int static readconfenv_(struct config_param *, struct config_param *,
+                        const char *);
 
 static int
-doEnvParams_ (struct config_param *plp)
+doEnvParams_(struct config_param *plp)
 {
     char *sp, *spp;
 
@@ -80,40 +85,6 @@ doEnvParams_ (struct config_param *plp)
         }
     }
     return 0;
-}
-
-char *
-getTempDir_(void)
-{
-    static char *sp = NULL;
-    char *tmpSp = NULL;
-    struct stat stb;
-
-    if (sp) {
-        return sp;
-    }
-
-    tmpSp = genParams_[LSF_TMPDIR].paramValue;
-    if ((tmpSp != NULL) && (stat(tmpSp, &stb) == 0)
-        && (S_ISDIR(stb.st_mode))) {
-        sp = tmpSp;
-    } else {
-
-        tmpSp = getenv("TMPDIR");
-        if ((tmpSp != NULL) && (stat(tmpSp, &stb) == 0)
-            && (S_ISDIR(stb.st_mode))) {
-
-            sp = putstr_( tmpSp );
-        }
-
-    }
-
-    if (sp == NULL) {
-        sp = "/tmp";
-    }
-
-    return sp;
-
 }
 
 int
@@ -149,33 +120,26 @@ initenv_(struct config_param *userEnv, char *pathname)
         return 0;
     }
 
-    if (readconfenv_(genParams_, userEnv, pathname) < 0)
+    if (readconfenv_(genParams, userEnv, pathname) < 0)
         return -1;
-    if (doEnvParams_(genParams_) < 0)
+    if (doEnvParams_(genParams) < 0)
         return -1;
     lsfenvset = true;
     if (doEnvParams_(userEnv) < 0)
         Error = 1;
 
-    if (! genParams_[LSF_CONFDIR].paramValue ||
-        ! genParams_[LSF_SERVERDIR].paramValue) {
+    if (! genParams[LSF_CONFDIR].paramValue ||
+        ! genParams[LSF_SERVERDIR].paramValue) {
         lserrno = LSE_BAD_ENV;
         return -1;
     }
 
-    if (genParams_[LSF_SERVER_HOSTS].paramValue != NULL) {
+    if (genParams[LSF_SERVER_HOSTS].paramValue != NULL) {
         char *sp;
-        for (sp=genParams_[LSF_SERVER_HOSTS].paramValue;*sp != '\0'; sp++)
+        for (sp = genParams[LSF_SERVER_HOSTS].paramValue;*sp != '\0'; sp++)
             if (*sp == '\"')
                 *sp = ' ';
     }
-
-    if (!setStripDomain_(genParams_[LSF_STRIP_DOMAIN].paramValue)) {
-        lserrno = LSE_MALLOC;
-        return -1;
-    }
-
-    lsTmpDir_ = getTempDir_();
 
     if (Error)
         return -1;
@@ -183,61 +147,34 @@ initenv_(struct config_param *userEnv, char *pathname)
     return 0;
 }
 
-int
-ls_readconfenv (struct config_param *paramList, char *confPath)
+int ls_readconfenv(struct config_param *paramList, const char *conf_path)
 {
-    return (readconfenv_(NULL, paramList, confPath));
+    return (readconfenv_(NULL, paramList, conf_path));
 }
 
-int
-readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *confPath)
+int static readconfenv_(struct config_param *conf_array,
+                        struct config_param *conf_array0,
+                        const char *path)
 {
     char *key;
     char *value;
     char *line;
     FILE *fp;
-    char filename[MAXFILENAMELEN];
+    char filename[PATH_MAX];
     struct config_param *plp;
     int lineNum = 0;
     int saveErrNo;
 
-    if (pList1)
-        for (plp = pList1; plp->paramName != NULL; plp++) {
-            if (plp->paramValue != NULL) {
-
-                lserrno = LSE_BAD_ARGS;
-                return -1;
-            }
-        }
-
-    if (pList2)
-        for (plp = pList2; plp->paramName != NULL; plp++) {
-            if (plp->paramValue != NULL) {
-
-                lserrno = LSE_BAD_ARGS;
-                return -1;
-            }
-        }
-    if (confPath) {
-        memset(filename,0, sizeof(filename));
-        ls_strcat(filename,sizeof(filename),confPath);
-        ls_strcat(filename,sizeof(filename),"/lsf.conf");
-        fp = fopen(filename, "r");
-    } else {
+    if (path == NULL) {
         char *ep = getenv("LSF_ENVDIR");
-        char buf[MAXFILENAMELEN];
-
         if (ep == NULL) {
-            sprintf(buf,"%s/lsf.conf",LSETCDIR);
-            fp = fopen(buf, "r");
-        } else {
-            memset(buf,0, sizeof(buf));
-            ls_strcat(buf,sizeof(buf),ep);
-            ls_strcat(buf,sizeof(buf),"/lsf.conf");
-            fp = fopen(buf, "r");
+            lserrno = LSE_LSFCONF;
+            return -1;
         }
+        sprintf(filename, "%s/lsf.conf", ep);
     }
 
+    fp = fopen(filename, "r");
     if (!fp) {
         lserrno = LSE_LSFCONF;
         return -1;
@@ -247,18 +184,18 @@ readconfenv_ (struct config_param *pList1, struct config_param *pList2, char *co
     errLineNum_ = 0;
     saveErrNo = 0;
     while ((line = getNextLineC_(fp, &lineNum, true)) != NULL) {
-        int cc;
-        cc = parseLine(line, &key, &value);
+
+        int cc = parseLine(line, &key, &value);
         if (cc < 0 && errLineNum_ == 0) {
             errLineNum_ = lineNum;
             saveErrNo = lserrno;
             continue;
         }
-        if (! matchEnv(key, pList1) && ! matchEnv(key, pList2))
+        if (! matchEnv(key, conf_array) && ! matchEnv(key, conf_array0))
             continue;
 
-        if (!setConfEnv(key, value, pList1)
-            || !setConfEnv(key, value, pList2)) {
+        if (!setConfEnv(key, value, conf_array)
+            || !setConfEnv(key, value, conf_array0)) {
             fclose(fp);
             return -1;
         }
@@ -367,35 +304,6 @@ setConfEnv (char *name, char *value, struct config_param *paramList)
     return 1;
 }
 
-static int
-setStripDomain_(char *d_str)
-{
-    char *cp, *sdi, *sdp;
-
-    if (stripDomains_ != NULL)
-        free(stripDomains_);
-    stripDomains_ = NULL;
-
-    if (d_str == NULL)
-        return 1;
-
-    if ((stripDomains_ = malloc(strlen(d_str) + 2)) == NULL)
-        return 0;
-
-    for (cp = d_str, sdp = sdi = stripDomains_ ; *cp ; ) {
-        while (*cp == ':')
-            cp++;
-        while (*cp && (*cp != ':'))
-            *++sdp = *cp++;
-        *sdi = (unsigned char)(sdp - sdi);
-        sdi += (*sdi + 1);
-        sdp = sdi;
-    }
-    *sdi = '\0';
-
-    return 1;
-}
-
 // Bug revisit the LSF_MASTER_LIST
 int
 initMasterList_(void)
@@ -403,7 +311,7 @@ initMasterList_(void)
     char *nameList;
     char *hname;
     int i;
-    char *paramValue = genParams_[LSF_MASTER_LIST].paramValue;
+    char *paramValue = genParams[LSF_MASTER_LIST].paramValue;
 
     if (m_masterCandidates) {
         return 0;

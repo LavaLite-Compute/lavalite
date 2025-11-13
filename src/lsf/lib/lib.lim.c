@@ -18,15 +18,30 @@
  */
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.channel.h"
-#include "lsf/lib/ll.params.h"
+#include "lsf/lib/ll.sysenv.h"
 #include "lsf/lib/ll.host.h"
 
 #define MAXMSGLEN  32*MSGSIZE
 #define CONNECT_TIMEOUT 5
 #define RECV_TIMEOUT    20
 
-struct sockaddr_in sockIds_[4];
-int  limchans_[4];
+struct sockaddr_in sockIds_[SOCK_COUNT] = {
+    [PRIMARY] = {0},
+    [MASTER] = {0},
+    [UNBOUND] = {0},
+    [TCP] = {0},
+};
+int  limchans_[SOCK_COUNT] = {
+    [PRIMARY] = -1,
+    [MASTER] = -1,
+    [UNBOUND] = -1,
+    [TCP] = -1,
+};
+static_assert((sizeof sockIds_/sizeof sockIds_[0]) == SOCK_COUNT,
+              "sockaddr_in sockIds_ must match lim_sock_t");
+static_assert((sizeof limchans_/sizeof limchans_[0]) == SOCK_COUNT,
+              "int limchans must match lim_sock_t");
+
 static int conntimeout_ = CONNECT_TIMEOUT;
 static int recvtimeout_ = RECV_TIMEOUT;
 
@@ -68,14 +83,14 @@ callLim_(enum limReqCode reqCode,
             return -1;
         first = false;
 
-        if (genParams_[LSF_API_CONNTIMEOUT].paramValue) {
-            conntimeout_ = atoi(genParams_[LSF_API_CONNTIMEOUT].paramValue);
+        if (genParams[LSF_API_CONNTIMEOUT].paramValue) {
+            conntimeout_ = atoi(genParams[LSF_API_CONNTIMEOUT].paramValue);
             if (conntimeout_ <= 0)
                 conntimeout_ =  CONNECT_TIMEOUT;
         }
 
-        if (genParams_[LSF_API_RECVTIMEOUT].paramValue) {
-            recvtimeout_ = atoi(genParams_[LSF_API_RECVTIMEOUT].paramValue);
+        if (genParams[LSF_API_RECVTIMEOUT].paramValue) {
+            recvtimeout_ = atoi(genParams[LSF_API_RECVTIMEOUT].paramValue);
             if (recvtimeout_ <= 0)
                 recvtimeout_ = RECV_TIMEOUT;
         }
@@ -83,8 +98,6 @@ callLim_(enum limReqCode reqCode,
 
     init_pack_hdr(&reqHdr);
     reqHdr.operation = reqCode;
-
-    reqHdr.sequence  = getRefNum_();
     reqHdr.version = CURRENT_PROTOCOL_VERSION;
 
     xdrmem_create(&xdrs, sbuf, sizeof(sbuf), XDR_ENCODE);
@@ -228,7 +241,7 @@ contact:
         return -1;
     case LIME_WRONG_MASTER:
         xdrmem_create(&xdrs, *rep_buf, MSGSIZE, XDR_DECODE);
-        if (!xdr_masterInfo(&xdrs, &masterInfo_, replyHdr)) {
+        if (!xdr_masterInfo(&xdrs, masterInfo, replyHdr)) {
             lserrno = LSE_BAD_XDR;
             xdr_destroy(&xdrs);
             FREEUP(*rep_buf);
@@ -245,11 +258,11 @@ contact:
             chaClose_(limchans_[TCP]);
             return -1;
         }
-        masterknown_ = true;
+        masterknown = true;
         memcpy((char *) &sockIds_[MASTER].sin_addr,
-               (char *) &masterInfo_.addr, sizeof(u_int));
+               (char *) masterInfo.addr, sizeof(u_int));
         memcpy((char *) &sockIds_[TCP].sin_addr,
-               (char *) &masterInfo_.addr, sizeof(u_int));
+               (char *) masterInfo.addr, sizeof(u_int));
         sockIds_[TCP].sin_port        = masterInfo_.portno;
         FREEUP(*rep_buf);
 
@@ -278,7 +291,8 @@ contact:
     return 0;
 }
 #endif
-/* KISS: connect -> RPC -> interpret minimal opcodes -> close (unless KEEP). */
+/* KISS: connect -> RPC -> interpret minimal opcodes -> close (unless KEEP).
+ */
 static int
 callLimTcp_(char *reqbuf,
             char **rep_buf,
@@ -378,12 +392,11 @@ static int
 callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
             char *host, int options)
 {
-    struct hostent *hp;
     int retried = 0;
     XDR   xdrs;
     enum limReplyCode limReplyCode;
     struct packet_header replyHdr;
-    char *sp = genParams_[LSF_SERVER_HOSTS].paramValue;
+    char *sp = genParams[LSF_SERVER_HOSTS].paramValue;
     int cc;
     static char connected;
     int id=-1;
@@ -393,16 +406,11 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
         id = PRIMARY;
     } else if (host != NULL) {
 
-        if (options & _USE_PRIMARY_) {
-            id = PRIMARY;
-            if (memcmp((char *)&sockIds_[PRIMARY].sin_addr,
-                       hp->h_addr, hp->h_length))
-                CLOSECD(limchans_[PRIMARY]);
-
-        } else {
-            id = UNBOUND;
-        }
-        memcpy((char *)&sockIds_[id].sin_addr, hp->h_addr, hp->h_length);
+        struct ll_host hs;
+        get_host_by_name(host, &hs);
+        id = UNBOUND;
+        struct sockaddr_in *sin = (struct sockaddr_in *)&hs.sa;
+        sockIds_[id].sin_addr = sin->sin_addr;
         sockIds_[id].sin_family = AF_INET;
         sockIds_[id].sin_port   = sockIds_[PRIMARY].sin_port;
     } else {
@@ -521,7 +529,7 @@ check:
         return -1;
 
     case LIME_WRONG_MASTER:
-        if (!xdr_masterInfo(&xdrs, &masterInfo_, &replyHdr)) {
+        if (!xdr_masterInfo(&xdrs, &masterInfo, &replyHdr)) {
             lserrno = LSE_BAD_XDR;
             xdr_destroy(&xdrs);
             return -1;
@@ -569,55 +577,34 @@ check:
 
 }
 
-static int
-createLimSock_(struct sockaddr_in *connaddr)
+static int createLimSock_(struct sockaddr_in *connaddr)
 {
     int chfd;
 
-    if (geteuid() == 0)
-        chfd = chanClientSocket_(AF_INET, SOCK_DGRAM, CHAN_OP_PPORT);
-    else
-        chfd = chanClientSocket_(AF_INET, SOCK_DGRAM, 0);
+    chfd = chanClientSocket_(AF_INET, SOCK_DGRAM, 0);
 
     if (connaddr && chanConnect_(chfd, connaddr, -1, 0) < 0)
         return -1;
 
     return chfd;
-
 }
 
-int
-initLimSock_()
+int initLimSock_(void)
 {
-    struct servent *sv;
-    ushort service_port;
 
     if (initenv_(NULL, NULL) <0)
         return -1;
 
-    if (genParams_[LSF_LIM_PORT].paramValue) {
-        if ((service_port = atoi(genParams_[LSF_LIM_PORT].paramValue)) != 0)
-            service_port = htons(service_port);
-        else
-        {
-            lserrno = LSE_LIM_NREG;
-            return -1;
-        }
-    } else if (genParams_[LSF_LIM_DEBUG].paramValue) {
-        service_port = htons(LIM_PORT);
-    } else {
-# if defined(_COMPANY_X_)
-        if ((service_port = get_port_number(LIM_SERVICE, (char *)NULL)) < 0) {
-            lserrno = LSE_LIM_NREG;
-            return -1;
-        }
-# else
-        if ((sv = getservbyname("lim", "udp")) == NULL) {
-            lserrno = LSE_LIM_NREG;
-            return -1;
-        }
-        service_port = sv->s_port;
-# endif
+    if (genParams[LSF_LIM_PORT].paramValue == NULL) {
+        lserrno = LSE_LIM_NREG;
+        return -1;
+    }
+
+    uint16_t service_port;
+    service_port = atoi(genParams[LSF_LIM_PORT].paramValue);
+    if (service_port <= 0) {
+        lserrno = LSE_SOCK_SYS;
+        return -1;
     }
 
     sockIds_[TCP].sin_family = AF_INET;
@@ -628,17 +615,17 @@ initLimSock_()
     localAddr = htonl(INADDR_LOOPBACK);
     sockIds_[PRIMARY].sin_family = AF_INET;
     sockIds_[PRIMARY].sin_addr.s_addr = localAddr;
-    sockIds_[PRIMARY].sin_port = (u_short) service_port;
+    sockIds_[PRIMARY].sin_port = htons(service_port);
     limchans_[PRIMARY] = -1;
 
     sockIds_[MASTER].sin_family = AF_INET;
     sockIds_[MASTER].sin_addr.s_addr = localAddr;
-    sockIds_[MASTER].sin_port = (u_short) service_port;
+    sockIds_[MASTER].sin_port = htons(service_port);
     limchans_[MASTER] = -1;
 
     sockIds_[UNBOUND].sin_family = AF_INET;
     sockIds_[UNBOUND].sin_addr.s_addr = localAddr;
-    sockIds_[UNBOUND].sin_port = (u_short) service_port;
+    sockIds_[UNBOUND].sin_port = htons(service_port);
     limchans_[UNBOUND] = -1;
 
     return 0;
@@ -728,9 +715,7 @@ err_return_(enum limReplyCode limReplyCode)
     }
 }
 
-
 #if 0
-
 int
 callLim_(enum limReqCode reqCode,
          void *dsend,
@@ -754,12 +739,12 @@ callLim_(enum limReqCode reqCode,
     if (!inited) {
         if (initLimSock_() < 0) goto out;
 
-        if (genParams_[LSF_API_CONNTIMEOUT].paramValue) {
-            conntimeout_ = atoi(genParams_[LSF_API_CONNTIMEOUT].paramValue);
+        if (genParams[LSF_API_CONNTIMEOUT].paramValue) {
+            conntimeout_ = atoi(genParams[LSF_API_CONNTIMEOUT].paramValue);
             if (conntimeout_ <= 0) conntimeout_ = CONNECT_TIMEOUT;
         }
-        if (genParams_[LSF_API_RECVTIMEOUT].paramValue) {
-            recvtimeout_ = atoi(genParams_[LSF_API_RECVTIMEOUT].paramValue);
+        if (genParams[LSF_API_RECVTIMEOUT].paramValue) {
+            recvtimeout_ = atoi(genParams[LSF_API_RECVTIMEOUT].paramValue);
             if (recvtimeout_ <= 0) recvtimeout_ = RECV_TIMEOUT;
         }
         inited = 1;

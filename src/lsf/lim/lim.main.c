@@ -19,10 +19,12 @@
 
 #include "lsf/lim/lim.h"
 
-int    limSock = -1;
-int    limTcpSock = -1;
-ushort  lim_port;
+// LIM uses both UDP and TCP protocols
+int    lim_udp_sock = -1;
+int    lim_tcp_sock = -1;
+ushort  lim_udp_port;
 ushort  lim_tcp_port;
+
 int probeTimeout = 2;
 short  resInactivityCount = 0;
 
@@ -56,8 +58,8 @@ static inline uint64_t now_ms(void);
 
 struct liStruct *li = NULL;
 int li_len = 0;
-
-struct config_param limParams[] =
+#if 0
+struct config_param genParams[] =
 {
     {"LSF_CONFDIR", NULL},
     {"LSF_LIM_DEBUG", NULL},
@@ -73,7 +75,7 @@ struct config_param limParams[] =
     {"LSF_REJECT_NONLSFHOST", NULL},
     {NULL, NULL},
 };
-
+#endif
 extern int chanIndex;
 
 static void initAndConfig(int);
@@ -153,20 +155,20 @@ main(int argc, char **argv)
     if (lim_debug)
         fprintf(stderr, "lim: reading configuration from %s/lsf.conf\n", env_dir);
 
-    if (initenv_(limParams, env_dir) < 0) {
+    if (initenv_(genParams, env_dir) < 0) {
 
         char *sp = getenv("LSF_LOGDIR");
         if (sp != NULL)
-            limParams[LSF_LOGDIR].paramValue = sp;
-        ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, lim_debug,
-                   limParams[LSF_LOG_MASK].paramValue);
+            genParams[LSF_LOGDIR].paramValue = sp;
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, lim_debug,
+                   genParams[LSF_LOG_MASK].paramValue);
         ls_syslog(LOG_ERR, "lim: initenv_ %s", env_dir);
-        open_log("lim", limParams[LSF_LOG_MASK].paramValue, true);
+        open_log("lim", genParams[LSF_LOG_MASK].paramValue, true);
         syslog(LOG_ERR, "lim: initenv_() failed %s", env_dir);
         lim_Exit("main");
     }
 
-    if (limParams[LSF_LIM_DEBUG].paramValue) {
+    if (genParams[LSF_LIM_DEBUG].paramValue) {
         lim_debug = true;
     }
 
@@ -176,17 +178,17 @@ main(int argc, char **argv)
         daemonize_();
     }
 
-    getLogClass_(limParams[LSF_DEBUG_LIM].paramValue,
-                 limParams[LSF_TIME_LIM].paramValue);
+    getLogClass_(genParams[LSF_DEBUG_LIM].paramValue,
+                 genParams[LSF_TIME_LIM].paramValue);
 
     if (lim_debug) {
-        ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
-        open_log("lim", limParams[LSF_LOG_MASK].paramValue, true);
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
+        open_log("lim", genParams[LSF_LOG_MASK].paramValue, true);
     } else {
         ls_openlog("lim",
-                limParams[LSF_LOGDIR].paramValue, false,
-                limParams[LSF_LOG_MASK].paramValue);
-        open_log("lim", limParams[LSF_LOG_MASK].paramValue, false);
+                genParams[LSF_LOGDIR].paramValue, false,
+                genParams[LSF_LOG_MASK].paramValue);
+        open_log("lim", genParams[LSF_LOG_MASK].paramValue, false);
     }
 
     if (initMasterList_() < 0) {
@@ -277,7 +279,7 @@ main(int argc, char **argv)
         if (nfiles <= 0)
             continue;
 
-        if (FD_ISSET(limSock, &chanmask.rmask)) {
+        if (FD_ISSET(lim_udp_sock, &chanmask.rmask)) {
             cc = process_udp_request();
             if (cc < 0) {
                 syslog(LOG_ERR, "%s: process_udp_request() failed: %m", __func__);
@@ -285,7 +287,7 @@ main(int argc, char **argv)
             }
         }
 
-        if (FD_ISSET(limTcpSock, &chanmask.rmask)) {
+        if (FD_ISSET(lim_tcp_sock, &chanmask.rmask)) {
             doAcceptConn();
         }
 
@@ -313,11 +315,11 @@ process_udp_request(void)
     memset(&from, 0, sizeof(from));
 
     struct packet_header reqHdr;
-    int cc = chanRcvDgram_(limSock, buf, sizeof(buf),
+    int cc = chanRcvDgram_(lim_udp_sock, buf, sizeof(buf),
                            (struct sockaddr_storage *)&from, -1);
     if (cc < 0) {
-        syslog(LOG_ERR, "%s: Error receiving data on limSock %d, cc=%d: %m",
-               __func__, limSock, cc);
+        syslog(LOG_ERR, "%s: Error receiving data on lim_udp_sock %d, cc=%d: %m",
+               __func__, lim_udp_sock, cc);
         return -1;
     }
 
@@ -370,7 +372,7 @@ process_udp_request(void)
         chkResReq(&xdrs, &from, &reqHdr);
         break;
     case LIM_GET_RESOUINFO:
-        resourceInfoReq(&xdrs, &from, &reqHdr, -1);
+        resourceInfoReq2(&xdrs, &from, &reqHdr, -1);
         break;
     case LIM_REBOOT:
         reconfigReq(&xdrs, &from, &reqHdr);
@@ -426,7 +428,7 @@ doAcceptConn(void)
     if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", __func__);
 
-    int ch = chanAccept_(limTcpSock, &from);
+    int ch = chanAccept_(lim_tcp_sock, &from);
     if (ch < 0) {
         ls_syslog(LOG_ERR, "%s: chanAccept_() failed: %m", __func__);
         return -1;
@@ -606,18 +608,12 @@ periodic(void)
 static void
 term_handler(int signum)
 {
-    static char fname[] = "term_handler";
-
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
-
     Signal_(signum, SIG_DFL);
 
-    ls_syslog(LOG_ERR, "%s: Received signal %d, exiting",
-            fname,
-            signum);
-    chanClose_(limSock);
-    chanClose_(limTcpSock);
+    ls_syslog(LOG_ERR, "%s: Received signal %d, exiting", __func__, signum);
+
+    chanClose_(lim_udp_sock);
+    chanClose_(lim_tcp_sock);
 
     if (elim_pid > 0) {
         kill(elim_pid, SIGTERM);
@@ -629,71 +625,61 @@ term_handler(int signum)
 }
 
 static void
-child_handler (int sig)
+child_handler(int sig)
 {
-    static char fname[] = "child_handler";
     int pid;
-    int status;
+    int saved_errno = errno;
 
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
-
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-        if (pid == elim_pid) {
-            ls_syslog(LOG_ERR, "%s: elim (pid=%d died (exit_code=%d,exit_sig=%d)",
-                    fname,
-                    (int)elim_pid,
-                    WEXITSTATUS (status),
-                    WIFSIGNALED (status) ? WTERMSIG (status) : 0);
-            elim_pid = -1;
-        }
-        if (pid == pimPid) {
-            if (logclass & LC_PIM)
-                ls_syslog(LOG_DEBUG, "child_handler: pim (pid=%d) died", pid);
-            pimPid = -1;
-        }
+    while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
+        ; // get the pid and check if it is MBD
     }
+    // waitpid() can reset the errno so whatever code that ran
+    // when SIGCHLD triggered may find unexpected errno
+    errno = saved_errno;
 }
 
 int
 initSock(int checkMode)
 {
-    struct sockaddr_in limTcpSockId;
+    struct sockaddr_in lim_addr;
 
-    lim_port = atoi(limParams[LSF_LIM_PORT].paramValue);
-    if (lim_port <= 0) {
+    lim_udp_port = atoi(genParams[LSF_LIM_PORT].paramValue);
+    if (lim_udp_port <= 0) {
         syslog(LOG_ERR, "%s: LSF_LIM_PORT <%s> must be a positive number",
-               __func__, limParams[LSF_LIM_PORT].paramValue);
+               __func__, genParams[LSF_LIM_PORT].paramValue);
         return -1;
     }
 
-
-    limSock = chanServSocket_(SOCK_DGRAM, lim_port, -1,  0);
-    if (limSock < 0) {
+    // LIM UDP channel
+    lim_udp_sock = chanServSocket_(SOCK_DGRAM, lim_udp_port, -1,  0);
+    if (lim_udp_sock < 0) {
         syslog(LOG_ERR, "%s: unable to create datagram socket port %d "
-               "another LIM running?: %m ", __func__, lim_port);
+               "another LIM running?: %m ", __func__, lim_udp_port);
         return -1;
     }
+    lim_udp_port = htons(lim_udp_port);
 
-    lim_port = htons(lim_port);
-
-    limTcpSock = chanServSocket_(SOCK_STREAM, 0, 10, 0);
-    if (limTcpSock < 0) {
+    // LIM TCP socket with
+    lim_tcp_sock = chanServSocket_(SOCK_STREAM, 0, SOMAXCONN, 0);
+    if (lim_tcp_sock < 0) {
         syslog(LOG_ERR, "%s: unable to create tcp socket port %d "
-               "another LIM running?: %m ", __func__, lim_port);
-        chanClose_(limTcpSock);
+               "another LIM running?: %m ", __func__, lim_udp_port);
+        chanClose_(lim_tcp_sock);
         return -1;
     }
-    socklen_t size = sizeof(limTcpSockId);
-    int cc = getsockname(chanSock_(limTcpSock),
-                         (struct sockaddr *)&limTcpSockId, &size);
+
+    socklen_t size = sizeof(struct sockaddr_in);
+    int cc = getsockname(chanSock_(lim_tcp_sock),
+                         (struct sockaddr *)&lim_addr, &size);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,
-               limTcpSock);
-        chanClose_(limTcpSock);
+               lim_tcp_sock);
+        chanClose_(lim_tcp_sock);
         return -1;
     }
-    lim_tcp_port = limTcpSockId.sin_port;
+    // LIM dynamic TCP port sent to slave lims and library which need
+    // to find the master lim
+    lim_tcp_port = lim_addr.sin_port;
 
     return 0;
 }
@@ -702,32 +688,30 @@ void
 errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
           enum limReplyCode replyCode, int chan)
 {
-    static char fname[] = "errorBack()";
-    char buf[MSGSIZE/4];
+    char buf[LL_BUFSIZ_64];
     struct packet_header replyHdr;
     XDR  xdrs2;
     int cc;
 
     init_pack_hdr(&replyHdr);
-    replyHdr.operation  = (short) replyCode;
+    replyHdr.operation  = (short)replyCode;
     replyHdr.sequence = reqHdr->sequence;
     replyHdr.length = 0;
+
     xdrmem_create(&xdrs2, buf, MSGSIZE/4, XDR_ENCODE);
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
+        ls_syslog(LOG_ERR, "%s: xdr_pack() failed: %m", __func__);
         xdr_destroy(&xdrs2);
         return;
     }
 
     if (chan < 0)
-        cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
         cc = chanWrite_(chan, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0)
-
-ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "chanSendDgram_/chanWrite_", limSock);
+        ls_syslog(LOG_ERR, "%s: socket write failed: %m", __func__);
 
     xdr_destroy(&xdrs2);
     return;
@@ -791,7 +775,7 @@ startPIM(int argc, char **argv)
 
     char daemonPath[PATH_MAX];
     snprintf(daemonPath, sizeof(daemonPath), "%s/pim",
-             limParams[LSF_SERVERDIR].paramValue);
+             genParams[LSF_SERVERDIR].paramValue);
     char *pargv[] = {daemonPath, NULL};
 
     execv(pargv[0], pargv);

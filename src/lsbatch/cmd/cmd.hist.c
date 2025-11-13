@@ -23,8 +23,7 @@ static int eventMatched = FALSE;
 void displayEvent(struct eventRec *, struct histReq *);
 static int isRequested(char *, char **);
 extern char *myGetOpt (int nargc, char **, char *);
-// Bug fix the includes
-extern int ls_readconfenv(struct config_param *, char *);
+
 int
 sysHist(int argc, char **argv, int opCode)
 {

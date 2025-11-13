@@ -19,7 +19,7 @@
 
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lib.h"
-#include "lsf/lib/ll.params.h"
+#include "lsf/lib/ll.sysenv.h"
 
 static int getEAuth(struct eauth *, char *);
 static char *getLSFAdmin(void);
@@ -51,7 +51,7 @@ getEAuth(struct eauth *eauth, char *host)
     char path[PATH_MAX];
     struct lenData ld;
 
-    sprintf(path, "%s/%s", genParams_[LSF_SERVERDIR].paramValue, EAUTHNAME);
+    sprintf(path, "%s/%s", genParams[LSF_SERVERDIR].paramValue, EAUTHNAME);
     argv[0] = path;
     argv[1] = "-c";
     argv[2] = host;
@@ -100,8 +100,8 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s ...", fname);
 
-    if (!(genParams_[LSF_AUTH].paramValue &&
-          !strcmp(genParams_[LSF_AUTH].paramValue, AUTH_PARAM_EAUTH)))
+    if (!(genParams[LSF_AUTH].paramValue &&
+          !strcmp(genParams[LSF_AUTH].paramValue, AUTH_PARAM_EAUTH)))
         return -1;
 
     eauth_client = getenv("LSF_EAUTH_CLIENT");
@@ -118,7 +118,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             (eauth_aux_status ? eauth_aux_status : "NULL"));
 
     memset(path,0,sizeof(path));
-    ls_strcat(path,sizeof(path),genParams_[LSF_SERVERDIR].paramValue);
+    ls_strcat(path,sizeof(path),genParams[LSF_SERVERDIR].paramValue);
     ls_strcat(path,sizeof(path),"/");
     ls_strcat(path,sizeof(path),EAUTHNAME);
 

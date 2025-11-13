@@ -787,7 +787,7 @@ uDataTableFree(UDATA_TABLE_T *uTab)
 
     if (!uTab)
        return;
-    FREEUP(uTab->_base_)
+    FREEUP(uTab->_base_);
     FREEUP(uTab);
     return;
 
@@ -796,8 +796,6 @@ uDataTableFree(UDATA_TABLE_T *uTab)
 void
 uDataTableAddEntry(UDATA_TABLE_T *this, struct uData *new)
 {
-    static char fname[] = "uDataTableAddEntry()";
-
     if (! this) {
 	this = uDataPtrTb = uDataTableCreate();
     }

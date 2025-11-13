@@ -209,49 +209,6 @@ putstr_(const char *s)
     return p;
 }
 
-short
-getRefNum_(void)
-{
-    static short reqRefNum = MIN_REF_NUM;
-
-    reqRefNum++;
-    if (reqRefNum >= MAX_REF_NUM)
-        reqRefNum = MIN_REF_NUM;
-    return reqRefNum;
-}
-
-char *
-chDisplay_(char *disp)
-{
-    char *sp, *hostName;
-    static char dspbuf[MAXHOSTNAMELEN+10];
-
-    sp = disp +8;
-    if (strncmp("unix:", sp, 5) == 0)
-        sp += 4;
-    else if (strncmp("localhost:", sp, 10) == 0)
-        sp += 9;
-
-    if (sp[0] == ':') {
-        if ((hostName = ls_getmyhostname()) == NULL)
-            return disp;
-        sprintf(dspbuf, "%s=%s%s", "DISPLAY", hostName, sp);
-        return dspbuf;
-    }
-
-    return disp;
-}
-
-void
-strToLower_(char *name)
-{
-    while (*name != '\0') {
-        *name = tolower(*name);
-        name++;
-    }
-
-}
-
 char *
 getNextToken(char **sp)
 {

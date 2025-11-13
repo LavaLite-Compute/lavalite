@@ -27,7 +27,7 @@ void lim_Exit(const char *fname)
 struct hostNode *find_node_by_name(const char *host_name)
 {
     for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
-        if (equal_host(host_name, h->hostName) == 0)
+        if (equal_host(host_name, h->hostName))
             return h;
     }
 
@@ -53,7 +53,7 @@ struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *from)
 struct hostNode *find_node_by_cluster(struct hostNode *hPtr, const char *host_name)
 {
     for (struct hostNode *h = hPtr; h; h = h->nextPtr) {
-        if (equal_host(host_name, h->hostName) == 0)
+        if (equal_host(host_name, h->hostName))
             return h;
     }
     return NULL;

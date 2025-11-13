@@ -22,7 +22,7 @@
  */
 #include "lsf/lib/lib.h"
 
-extern struct config_param genParams_[];
+extern struct config_param genParams[];
 static struct hTab hashTab;
 
 static int putin_(int, char *, int, char *, int, char *);

@@ -101,9 +101,6 @@ static int adjHostListOrder();
 
 extern int  convertNegNotation_(char**, struct HostsArray*);
 
-FILE * confOpen(char *filename, char *type);
-float mykey(void);
-
 static void setExtResourcesDefDefault(char *);
 static int setExtResourcesDef(char *);
 static int setExtResourcesLoc(char *, int);
@@ -112,8 +109,6 @@ extern struct extResInfo *getExtResourcesDef(char *);
 extern char *getExtResourcesLoc(char *);
 static char *getExtResourcesValDefault(char *);
 extern char *getExtResourcesVal(char *);
-
-#define VCL_VERSION     2
 
 int
 readShared(void)
@@ -134,13 +129,13 @@ readShared(void)
 
     initResTable();
 
-    sprintf(lsfile, "%s/lsf.shared", limParams[LSF_CONFDIR].paramValue);
+    sprintf(lsfile, "%s/lsf.shared", genParams[LSF_CONFDIR].paramValue);
 
     if (configCheckSum(lsfile, &lsfSharedCkSum) < 0) {
         ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "configCheckSum");
         return -1;
     }
-    fp = confOpen(lsfile, "r");
+    fp = fopen(lsfile, "r");
     if (!fp) {
         ls_syslog(LOG_ERR, "%s: Can't open configuration file <%s>: %m",
                   fname, lsfile);
@@ -1022,7 +1017,7 @@ doresources(FILE *fp, int *LineNum, char *lsfile)
             }
             allInfo.nRes++;
             nres++;
-            freeKeyList (keyList);
+            freeKeyList(keyList);
         }
     } else {
         ls_syslog(LOG_ERR, "%s: %s(%d: horizontal resource section not implemented yet", fname, lsfile, *LineNum);
@@ -1719,13 +1714,13 @@ readCluster2(struct clusterNode *clPtr)
     }
 
     sprintf(fileName, "%s/lsf.cluster.%s",
-            limParams[LSF_CONFDIR].paramValue, clPtr->clName);
+            genParams[LSF_CONFDIR].paramValue, clPtr->clName);
 
     if (configCheckSum(fileName, &clPtr->checkSum) < 0) {
         return -1;
     }
-    if ((clfp = confOpen(fileName, "r")) == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "confOpen", fileName);
+    if ((clfp = fopen(fileName, "r")) == NULL) {
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "fopen", fileName);
         return -1;
     }
 
@@ -2356,9 +2351,9 @@ setMyClusterName(void)
     ls_syslog(LOG_DEBUG, "setMyClusterName: searching cluster files ...");
     cluster = myClusterPtr->clName;
     sprintf(clusterFile, "%s/lsf.cluster.%s",
-            limParams[LSF_CONFDIR].paramValue, cluster);
+            genParams[LSF_CONFDIR].paramValue, cluster);
 
-    fp = confOpen(clusterFile, "r");
+    fp = fopen(clusterFile, "r");
     if (!fp) {
         if (!found && !mcServersSet) {
             ls_syslog(LOG_ERR, "%s: cannot open %s: %m", fname, clusterFile);
@@ -2483,11 +2478,9 @@ endfile:
 static void
 freeKeyList(struct keymap *keyList)
 {
-    int i;
-
-    for(i=0; keyList[i].key != NULL; i++)
+    for(int i = 0; keyList[i].key != NULL; i++)
         if (keyList[i].position != -1)
-            free(keyList[i].val);
+            FREEUP(keyList[i].val);
 }
 
 static int
@@ -2562,9 +2555,9 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
 
         while ((linep = getNextLineC_(clfp, LineNum, true)) != NULL) {
 
-            freeKeyList (keyList);
+            freeKeyList(keyList);
             for (i = 0; i < hostEntry.nRes; i++)
-                free (hostEntry.resList[i]);
+                FREEUP(hostEntry.resList[i]);
             hostEntry.nRes = 0;
 
             if (isSectionEnd(linep, lsfile, LineNum, "host")) {
@@ -2656,7 +2649,7 @@ dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile, int *LineNum)
 
             for (i=0; i < allInfo.numIndx; i++)
                 if (keyList[i].position != -1)
-                    free(keyList[i].val);
+                    FREEUP(keyList[i].val);
             n = 0;
             sp = keyList[RESOURCES].val;
             while ((word = getNextWord_(&sp)) != NULL) {
@@ -3881,10 +3874,8 @@ configCheckSum(char *file, u_short *checkSum)
     FILE *fp;
     char *line;
 
-    if ((fp = confOpen(file, "r")) == NULL) {
-
-  ls_syslog(LOG_ERR, "%s: cannot open %s: %m", fname, file)
-;
+    if ((fp = fopen(file, "r")) == NULL) {
+        ls_syslog(LOG_ERR, "%s: cannot open %s: %m", fname, file);
         return -1;
     }
     sum = 0;
@@ -3998,65 +3989,6 @@ doubleResTable (char *lsfile, int lineNum)
     allInfo.resTable = tempTable;
     sizeOfResTable *= 2;
     return 0;
-
-}
-
-#define DEFAULT_RETRY_MAX    0
-#define DEFAULT_RETRY_INT    30
-FILE *
-confOpen(char *filename, char *type)
-{
-    FILE *fp;
-    int max, interval;
-
-    if (limParams[LSF_CONF_RETRY_MAX].paramValue)
-        max = atoi(limParams[LSF_CONF_RETRY_MAX].paramValue);
-    else
-        max = DEFAULT_RETRY_MAX;
-
-    if (limParams[LSF_CONF_RETRY_INT].paramValue)
-        interval = atoi(limParams[LSF_CONF_RETRY_INT].paramValue);
-    else
-        interval = DEFAULT_RETRY_INT;
-
-    for (;;) {
-        fp = fopen(filename, type);
-        if (fp != NULL)
-            break;
-        if (errno == ENOENT && max >0) {
-            int sleeptime;
-            sleeptime = interval * mykey() * 1000;
-            ls_syslog(LOG_ERR, "%s: %m Still trying ...",
-                      filename);
-            millisleep_(sleeptime);
-            max--;
-            continue;
-        }
-        break;
-    }
-
-    return fp;
-
-}
-
-float
-mykey(void)
-{
-    int sum = 0;
-    char *myhostname = ls_getmyhostname();
-    int i;
-    float key;
-
-    for (i=0; myhostname[i] != 0; i++)
-        sum += myhostname[i];
-
-    i = sum % 'z' ;
-    if (i < 'A')
-        i += 'A';
-
-    key = (float) i / (float) 'Z' ;
-
-    return key;
 
 }
 

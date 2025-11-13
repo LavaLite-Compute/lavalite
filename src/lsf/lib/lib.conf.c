@@ -2063,6 +2063,7 @@ do_Clparams (FILE *clfp, char *lsfile, int *LineNum)
 }
 
 static void
+
 freeKeyList(struct keymap *keyList)
 {
     int i;

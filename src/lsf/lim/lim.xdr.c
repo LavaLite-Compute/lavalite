@@ -62,10 +62,10 @@ xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp, struct packet_header *hd
 
     if ( (xdrs->x_op == XDR_DECODE)
          &&
-         (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) ) {
+         (genParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) ) {
 
         if (myClusterPtr->checkSum != lvp->checkSum) {
-            if (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) {
+            if (genParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) {
                 ls_syslog(LOG_WARNING, "%s: Sender has a different configuration", fname);
             }
         }

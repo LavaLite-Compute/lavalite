@@ -18,14 +18,20 @@
  *
  */
 
-#include "lsf/lib/lib.h"
+//#include "lsf/lib/lib.h"
+
+#include "lsf/lib/lib.common.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lim/limout.h"
+#include "lsf/lib/lib.xdr.h"
+#include "lsf/lib/ll.host.h"
 
 enum chanState {CH_FREE,
-                CH_DISC,
-                CH_PRECONN,
-                CH_CONN,
-                CH_WAIT,
-                CH_INACTIVE
+    CH_DISC,
+    CH_PRECONN,
+    CH_CONN,
+    CH_WAIT,
+    CH_INACTIVE
 };
 
 enum chanType
@@ -37,7 +43,7 @@ enum chanType
     CH_TYPE_NAMEDPIPE
 };
 
-#define CHAN_OP_PPORT 0x01
+// Obsolete CHAN_OP_PPORT privilege port
 #define CHAN_OP_CONNECT	0x02
 #define CHAN_OP_RAW	0x04
 #define CHAN_OP_NONBLOCK 0x10
@@ -50,8 +56,7 @@ enum chan_block_mode {
 };
 
 #define INVALID_HANDLE  -1
-#define CLOSECD(c) { chanClose_((c)); (c) = INVALID_HANDLE; }
-
+#define CLOSECD(c) do { chanClose_((c)); (c) = INVALID_HANDLE; } while (0)
 #define CHAN_INIT_BUF(b)  memset((b), 0, sizeof(struct Buffer));
 
 struct Buffer {

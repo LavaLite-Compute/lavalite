@@ -1148,11 +1148,13 @@ getJUsable (struct jData *jp, int *numJUsable, int *nProc)
     int i, j, num, numReasons;
     int hReason;
     struct hData **thrown = NULL;
-    LIST_T *backfilleeList;
     int isWinDeadline, runLimit;
     time_t deadline;
     int numBackfillSlots = 0, numNonBackfillSlots = 0,
         numAvailNonBackfillSlots = 0;
+
+    // Bug remove backfill
+    LIST_T *backfilleeList = NULL;
 
     if ( jp == NULL && numJUsable == NULL && nProc == NULL) {
 
@@ -1353,7 +1355,10 @@ getJUsable (struct jData *jp, int *numJUsable, int *nProc)
         if (!hReason) {
             int svReason = jp->newReason;
 
-            numSlots = getHostJobSlots(jp, jUsable[i], &numAvailSlots, FALSE, &backfilleeList);
+            // Bug remove backfill
+            numSlots = getHostJobSlots(jp, jUsable[i],
+                                       &numAvailSlots, FALSE, NULL);
+
             numBackfillSlots = totalBackfillSlots(backfilleeList);
             numNonBackfillSlots = numSlots - numBackfillSlots;
             numAvailNonBackfillSlots = numAvailSlots - numBackfillSlots;

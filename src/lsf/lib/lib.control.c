@@ -18,7 +18,7 @@
  */
 
 #include "lsf/lib/lib.h"
-#include "lsf/lib/ll.params.h"
+#include "lsf/lib/ll.sysenv.h"
 
 static int
 setLockOnOff_(int on, time_t duration, char *hname)
@@ -143,7 +143,7 @@ ls_servavail(int servId, int nonblock)
     if (initenv_(NULL, NULL) < 0)
         return -1;
 
-    if (genParams_[LSF_LIM_DEBUG].paramValue == NULL) {
+    if (genParams[LSF_LIM_DEBUG].paramValue == NULL) {
         if (getuid() != 0) {
             lserrno = LSE_LIM_DENIED;
             return -1;

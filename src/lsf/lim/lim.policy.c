@@ -241,7 +241,7 @@ Reply1:
     }
 
     if (s < 0)
-        cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
@@ -897,15 +897,15 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
     enum limReqCode limReqCode;
     struct packet_header reqHdr;
 
-    if( limSock < 0 ) {
-        ls_syslog(LOG_ERR, "%s: invalid channel(limSock=%d)",
-                  fname,limSock);
+    if( lim_udp_sock < 0 ) {
+        ls_syslog(LOG_ERR, "%s: invalid channel(lim_udp_sock=%d)",
+                  fname,lim_udp_sock);
         return;
     }
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
-    addr.sin_port = lim_port;
+    addr.sin_port = lim_udp_port;
     limReqCode = LIM_JOB_XFER;
 
     if (child) {
@@ -929,7 +929,7 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
                       "loadAdj: tell master(%s) of job xfer (len=%d)",
                       sockAdd2Str_(&addr), len);
 
-        if (chanSendDgram_(limSock, buf, len, &addr) < 0 ) {
+        if (chanSendDgram_(lim_udp_sock, buf, len, &addr) < 0 ) {
             ls_syslog(LOG_ERR, "%s: Failed to tell master(%s of job xfer (len=%d): %m",
                       fname, sockAdd2Str_(&addr), len);
             xdr_destroy(&xdrs);
@@ -974,7 +974,7 @@ loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr, int num,
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG, "loadAdj: inform destination host %s (len=%d) of job xfer", sockAdd2Str_(&addr), len);
 
-        if (chanSendDgram_(limSock, buf, len, &addr) < 0 ) {
+        if (chanSendDgram_(lim_udp_sock, buf, len, &addr) < 0 ) {
             ls_syslog(LOG_ERR, "%s: Failed to inform destination host %s (len=%d of job xfer: %m", fname, sockAdd2Str_(&addr), len);
             xdr_destroy(&xdrs);
             return;
@@ -1141,7 +1141,7 @@ ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "parseResReq", resReq);
             }
             jackup(lidx, destHostPtr[j],  exval*dupfactor);
 
-            if (limParams[LSF_LIM_JACKUP_BUSY].paramValue != NULL) {
+            if (genParams[LSF_LIM_JACKUP_BUSY].paramValue != NULL) {
                 setBusyIndex(lidx, destHostPtr[j]);
             }
         }
@@ -1432,7 +1432,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
     FREEUP (reply.indicies);
 
     if (s < 0)
-        cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
@@ -1546,7 +1546,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         return;
     }
 
-    if (chanSendDgram_(limSock, (char *)&replyBuf, XDR_GETPOS(&xdrs2),  from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, (char *)&replyBuf, XDR_GETPOS(&xdrs2),  from) < 0) {
 
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);

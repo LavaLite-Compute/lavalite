@@ -63,7 +63,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         reconfig();
     }
-    if (chanSendDgram_(limSock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: Error sending reconfig acknowledgement to %s (len=%d: %m", fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
     }
     xdr_destroy(&xdrs2);
@@ -95,15 +95,15 @@ reconfig(void)
         millisleep_(2000);
     }
 
-    chanClose_(limSock);
-    chanClose_(limTcpSock);
+    chanClose_(lim_udp_sock);
+    chanClose_(lim_tcp_sock);
 
     pid = fork();
 
     switch (pid) {
     case 0:
         myargv[0] = getDaemonPath_("/lim",
-                                   limParams[LSF_SERVERDIR].paramValue);
+                                   genParams[LSF_SERVERDIR].paramValue);
         ls_syslog(LOG_DEBUG,"reconfig: reexecing from %s",myargv[0]);
 
         i = 1;
@@ -206,7 +206,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
-    if (chanSendDgram_(limSock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: Error sending shutdown acknowledgement to %s (len=%d, shutdown failed : %m",
             fname, sockAdd2Str_(from), XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
@@ -225,7 +225,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
 void
 shutdownLim(void)
 {
-    chanClose_(limSock);
+    chanClose_(lim_udp_sock);
 
     ls_syslog(LOG_ERR, "Lim shutting down: shutdown request received");
 
@@ -322,7 +322,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
 
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -388,7 +388,7 @@ limPortOk(struct sockaddr_in *from)
         return false;
     }
 
-    if (from->sin_port == lim_port)
+    if (from->sin_port == lim_udp_port)
         return true;
 
     return true;
@@ -454,10 +454,10 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     else {
         ls_strcat(logFileName, sizeof(logFileName), debugReq.logFileName);
 
-        if ( limParams[LSF_LOGDIR].paramValue
-             && *(limParams[LSF_LOGDIR].paramValue)) {
+        if ( genParams[LSF_LOGDIR].paramValue
+             && *(genParams[LSF_LOGDIR].paramValue)) {
             ls_strcat(lsfLogDir, sizeof(lsfLogDir),
-                      limParams[LSF_LOGDIR].paramValue);
+                      genParams[LSF_LOGDIR].paramValue);
         } else {
             lsfLogDir[0] = '\0';
         }
@@ -465,7 +465,7 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
     if (debugReq.options==1)
         doReopen();
     else if (debugReq.opCode == LIM_DEBUG) {
-        putMaskLevel(debugReq.level, &(limParams[LSF_LOG_MASK].paramValue));
+        putMaskLevel(debugReq.level, &(genParams[LSF_LOG_MASK].paramValue));
 
         if (debugReq.logClass >= 0)
             logclass = debugReq.logClass;
@@ -475,10 +475,10 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
             closelog();
             if (lim_debug)
                 ls_openlog(logFileName, lsfLogDir,
-                           true, limParams[LSF_LOG_MASK].paramValue);
+                           true, genParams[LSF_LOG_MASK].paramValue);
             else
                 ls_openlog(logFileName, lsfLogDir,
-                           false, limParams[LSF_LOG_MASK].paramValue);
+                           false, genParams[LSF_LOG_MASK].paramValue);
         }
 
     }
@@ -491,10 +491,10 @@ limDebugReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
             closelog();
             if (lim_debug)
                 ls_openlog(logFileName, lsfLogDir,
-                           true, limParams[LSF_LOG_MASK].paramValue);
+                           true, genParams[LSF_LOG_MASK].paramValue);
             else
                 ls_openlog(logFileName, lsfLogDir,
-                           false, limParams[LSF_LOG_MASK].paramValue);
+                           false, genParams[LSF_LOG_MASK].paramValue);
         }
     }
     limReplyCode = LIME_NO_ERR;
@@ -509,7 +509,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chanSendDgram_",
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -525,31 +525,31 @@ doReopen(void)
     struct config_param *plp;
     char *sp;
 
-    for (plp = limParams; plp->paramName != NULL; plp++) {
+    for (plp = genParams; plp->paramName != NULL; plp++) {
         if (plp->paramValue != NULL)
             FREEUP(plp->paramValue);
     }
-    if (initenv_(limParams, env_dir) < 0) {
+    if (initenv_(genParams, env_dir) < 0) {
 
         sp = getenv("LSF_LOGDIR");
         if (sp != NULL)
-            limParams[LSF_LOGDIR].paramValue = sp;
-        ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, lim_debug,
-                   limParams[LSF_LOG_MASK].paramValue);
+            genParams[LSF_LOGDIR].paramValue = sp;
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, lim_debug,
+                   genParams[LSF_LOG_MASK].paramValue);
 
-ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "ls_openlog", limParams[LSF_LOGDIR].paramValue);
+ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "ls_openlog", genParams[LSF_LOGDIR].paramValue);
         lim_Exit(fname);
     }
 
-    getLogClass_(limParams[LSF_DEBUG_LIM].paramValue,
-                 limParams[LSF_TIME_LIM].paramValue);
+    getLogClass_(genParams[LSF_DEBUG_LIM].paramValue,
+                 genParams[LSF_TIME_LIM].paramValue);
     closelog();
 
     if (lim_debug)
-        ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
     else
-        ls_openlog("lim", limParams[LSF_LOGDIR].paramValue, false,
-                   limParams[LSF_LOG_MASK].paramValue);
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, false,
+                   genParams[LSF_LOG_MASK].paramValue);
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "doReopen: logclass=%x", logclass);
 

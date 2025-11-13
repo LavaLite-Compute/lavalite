@@ -767,7 +767,7 @@ getusr(void)
             }
 
             if (!myClusterPtr->eLimArgv) {
-                char *path = malloc(strlen(limParams[LSF_SERVERDIR].paramValue) +
+                char *path = malloc(strlen(genParams[LSF_SERVERDIR].paramValue) +
                         strlen(ELIMNAME) + 8);
                 if (!path) {
 
@@ -775,7 +775,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
                     setUnkwnValues();
                     return;
                 }
-                strcpy(path, limParams[LSF_SERVERDIR].paramValue);
+                strcpy(path, genParams[LSF_SERVERDIR].paramValue);
                 strcat(path, "/");
                 strcat(path, ELIMNAME);
 

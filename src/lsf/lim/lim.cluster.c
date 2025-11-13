@@ -41,7 +41,7 @@ clientIO(struct Masks *chanmasks)
     int  i;
 
     for(i = 0; (i < chanIndex) && (i < 2*MAXCLIENTS); i++) {
-        if (i == limSock || i == limTcpSock)
+        if (i == lim_udp_sock || i == lim_tcp_sock)
             continue;
 
         if (FD_ISSET(i, &chanmasks->emask)) {
@@ -158,7 +158,6 @@ processMsg(int chanfd)
         chanFreeBuf_(buf);
         break;
     }
-
 }
 
 static void
@@ -203,7 +202,7 @@ Reply1:
         if (pid == 0) {
             int sock;
 
-            chanClose_(limSock);
+            chanClose_(lim_udp_sock);
 
             XDR_SETPOS(xdrs, oldpos);
             sock = chanSock_(chfd);
@@ -216,7 +215,7 @@ Reply1:
                             &clientMap[chfd]->from, hdr, chfd);
                 break;
             case LIM_GET_RESOUINFO:
-                resourceInfoReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
+                resourceInfoReq2(xdrs, &clientMap[chfd]->from, hdr, chfd);
                 break;
             case LIM_LOAD_REQ:
                 loadReq(xdrs, &clientMap[chfd]->from, hdr, chfd);

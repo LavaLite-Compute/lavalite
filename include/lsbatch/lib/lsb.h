@@ -17,16 +17,13 @@
  *
  */
 #include "lsbatch.h"
-#include "lsf/lib/lib.common.h"
-#include "lsf/intlib/libllcore.h"
-#include "lsf/intlib/intlibout.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/lib/lib.channel.h"
-#include "lsf/lib/lib.table.h"
+#include "lsf/intlib/list.h"
 #include "lsf/intlib/bitset.h"
-#include "lsf/intlib/listset.h"
+#include "lsf/intlib/intlibout.h"
+#include "lsf/intlib/tcl_stub.h"
+#include "lsf/intlib/jidx.h"
+#include "lsf/lib/lib.h"
 #include "lsbatch/daemons/daemonout.h"
-#include "lsf/lib/lib.xdr.h"
 #include "lsbatch/lib/lsb.xdr.h"
 
 #ifndef MIN

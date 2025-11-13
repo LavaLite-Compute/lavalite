@@ -18,8 +18,6 @@
  */
 
 #include "lsf/lim/lim.h"
-#include "lsf/lib/lib.xdr.h"
-#include "lsf/lib/lproto.h"
 
 struct shortLsInfo oldShortInfo;
 
@@ -50,7 +48,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_string");
         return;
     }
 
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
 
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -206,7 +204,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_pack_hdr");
         }
     }
 
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
 
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -249,7 +247,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_string");
         return;
     }
 
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
 
 ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "clusNameReq", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -302,7 +300,7 @@ masterInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
         }
     }
 
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: chanSendDgram to %s failed: %m", __func__,
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -483,7 +481,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_encodeMsg");
         free(hostInfoReply.hostMatrix);
 
     if (s < 0)
-        cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
@@ -538,7 +536,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
     }
 
     if (s < 0)
-        cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
@@ -603,7 +601,7 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "xdr_float");
         }
     }
 
-    if (chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chanSendDgram_",
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -696,8 +694,8 @@ getCShortInfo(struct packet_header *reqHdr)
 
 }
 
-void
-resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr, int s)
+void resourceInfoReq2(XDR *xdrs, struct sockaddr_in *from,
+                      struct packet_header *reqHdr, int s)
 {
     static char fname[] = "resourceInfoReq";
     char buf1[MSGSIZE];
@@ -759,7 +757,7 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHd
     }
 
     if (s < 0)
-        cc = chanSendDgram_(limSock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
         cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
 
@@ -779,8 +777,8 @@ resourceInfoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHd
 
 }
 
-static int
-checkResources (struct resourceInfoReq *resourceInfoReq, struct resourceInfoReply *reply, int *len)
+static int checkResources (struct resourceInfoReq *resourceInfoReq,
+                           struct resourceInfoReply *reply, int *len)
 {
     static char fname[] = "checkResources";
     int i, j, allResources = false, found = false;
@@ -815,7 +813,7 @@ checkResources (struct resourceInfoReq *resourceInfoReq, struct resourceInfoRepl
     if ((reply->resources = (struct lsSharedResourceInfo *)
          malloc (numHostResources * sizeof (struct lsSharedResourceInfo))) == NULL) {
 
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return LIME_NO_MEM;
     }
     *len = numHostResources * sizeof (struct lsSharedResourceInfo) +

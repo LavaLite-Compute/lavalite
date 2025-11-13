@@ -1989,7 +1989,7 @@ sbatchdJobs (struct sbdPackage *sbdPackage, struct hData *hData)
     }
     sbdPackage->numJobs = num;
     sbdPackage->mbdPid = getpid();
-    strcpy (sbdPackage->lsbManager, mbd_mgr->name[0]);
+    strcpy (sbdPackage->lsbManager, mbd_mgr->name);
     sbdPackage->managerId = mbd_mgr->uid;
     sbdPackage->sbdSleepTime = sbdSleepTime;
     sbdPackage->retryIntvl = retryIntvl;

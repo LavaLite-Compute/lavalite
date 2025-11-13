@@ -244,7 +244,7 @@ sendLoad(void)
 
         struct sockaddr_in to_addr;
         to_addr.sin_family = AF_INET;
-        to_addr.sin_port   = lim_port;
+        to_addr.sin_port   = lim_udp_port;
 
         get_host_addrv4(myClusterPtr->masterPtr->v4_epoint, &to_addr);
 
@@ -254,9 +254,9 @@ sendLoad(void)
             ls_syslog(LOG_DEBUG,
                       "sendLoad: sending to %s (len=%d,port=%d)",
                       sockAdd2Str_(&to_addr), XDR_GETPOS(&xdrs),
-                      ntohs(lim_port));
+                      ntohs(lim_udp_port));
 
-        if (chanSendDgram_(limSock, repBuf, XDR_GETPOS(&xdrs), &to_addr) < 0) {
+        if (chanSendDgram_(lim_udp_sock, repBuf, XDR_GETPOS(&xdrs), &to_addr) < 0) {
             ls_syslog(LOG_ERR, "%s: chanSendDgram_() to %s failed: %m", __func__,
                       sockAdd2Str_(&to_addr));
             xdr_destroy(&xdrs);
@@ -309,9 +309,9 @@ rcvLoad(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
 
     logcnt(0);
 
-    if (from->sin_port != lim_port) {
+    if (from->sin_port != lim_udp_port) {
         ls_syslog(LOG_ERR, "%s: Update not from LIM: <%s>, expected %d",
-                  fname, sockAdd2Str_(from), ntohs(lim_port));
+                  fname, sockAdd2Str_(from), ntohs(lim_udp_port));
         return;
     }
 
@@ -369,7 +369,7 @@ rcvLoadVector(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
 
         if ( (myClusterPtr->checkSum != loadVector->checkSum)
              && (checkSumMismatch < 5)
-             &&    (limParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) ) {
+             &&    (genParams[LSF_LIM_IGNORE_CHECKSUM].paramValue == NULL) ) {
             ls_syslog(LOG_WARNING, "%s: Sender %s may have different config?.",
                       fname, sockAdd2Str_(from));
             checkSumMismatch++;

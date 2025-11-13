@@ -49,6 +49,7 @@
 #include <dirent.h>
 
 #include "lsf.h"
+#include "lsf/lib/lib.h"
 #include "lsf/intlib/libllcore.h"
 #include "lsf/intlib/intlibout.h"
 #include "lsf/intlib/tcl_stub.h"
@@ -323,7 +324,7 @@ struct minSLimConfData {
     struct  resourceInstance **myHost_instances;
     struct  sharedResourceInstance *sharedResHead;
 };
-
+#if 0
 typedef enum {
     LSF_CONFDIR,
     LSF_LIM_DEBUG,
@@ -342,6 +343,7 @@ typedef enum {
     LSF_REJECT_NONLSFHOST,
     LSF_LIM_JACKUP_BUSY,
 } lim_params_t;
+#endif
 
 extern struct sharedResourceInstance *sharedResourceHead ;
 
@@ -349,13 +351,12 @@ extern struct sharedResourceInstance *sharedResourceHead ;
 
 extern int getpagesize(void);
 
-extern struct config_param limParams[];
 extern bool lim_debug;
 extern int lim_CheckMode;
 extern int lim_CheckError;
-extern int limSock;
-extern int limTcpSock;
-extern ushort lim_port;
+extern int lim_udp_sock;
+extern int lim_tcp_sock;
+extern ushort lim_udp_port;
 extern ushort lim_tcp_port;
 extern struct clusterNode *myClusterPtr;
 extern struct hostNode *myHostPtr;
@@ -445,7 +446,6 @@ extern void hostInfoReq(XDR *, struct hostNode *, struct sockaddr_in *,
 extern void infoReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
 extern void cpufReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void clusInfoReq(XDR *, struct sockaddr_in *, struct packet_header *);
-extern void resourceInfoReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
 extern void masterRegister(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void jobxferReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void rcvConfInfo(XDR *, struct sockaddr_in *, struct packet_header *);
@@ -541,6 +541,9 @@ struct hostNode *make_host_node(void);
 struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *);
 struct hostNode *find_node_by_name(const char *);
 struct hostNode *find_node_by_cluster(struct hostNode *, const char *);
+
+// Avoid the same function name as the data structure
+void resourceInfoReq2(XDR *, struct sockaddr_in *, struct packet_header *, int);
 
 #define  SWP_INTVL_CNT   45/exchIntvl
 #define  TMP_INTVL_CNT   120/exchIntvl

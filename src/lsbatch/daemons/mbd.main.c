@@ -19,7 +19,6 @@
 
 #include "lsbatch/daemons/mbd.h"
 
-#define MBD_THREAD_MIN_STACKSIZE  512
 #define POLL_INTERVAL MAX(msleeptime/10, 1)
 
 char errbuf[MAXLINELEN];
