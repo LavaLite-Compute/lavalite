@@ -14,11 +14,12 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
-//#include "lsf/lib/lib.h"
+// #include "lsf/lib/lib.h"
 
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
@@ -26,16 +27,9 @@
 #include "lsf/lib/lib.xdr.h"
 #include "lsf/lib/ll.host.h"
 
-enum chanState {CH_FREE,
-    CH_DISC,
-    CH_PRECONN,
-    CH_CONN,
-    CH_WAIT,
-    CH_INACTIVE
-};
+enum chanState { CH_FREE, CH_DISC, CH_PRECONN, CH_CONN, CH_WAIT, CH_INACTIVE };
 
-enum chanType
-{
+enum chanType {
     CH_TYPE_UDP,
     CH_TYPE_TCP,
     CH_TYPE_LOCAL,
@@ -44,27 +38,28 @@ enum chanType
 };
 
 // Obsolete CHAN_OP_PPORT privilege port
-#define CHAN_OP_CONNECT	0x02
-#define CHAN_OP_RAW	0x04
+#define CHAN_OP_CONNECT 0x02
+#define CHAN_OP_RAW 0x04
 #define CHAN_OP_NONBLOCK 0x10
 #define CHAN_OP_CLOEXEC 0x20
 #define CHAN_OP_SOREUSE 0x40
 
-enum chan_block_mode {
-    CHAN_MODE_BLOCK,
-    CHAN_MODE_NONBLOCK
-};
+enum chan_block_mode { CHAN_MODE_BLOCK, CHAN_MODE_NONBLOCK };
 
-#define INVALID_HANDLE  -1
-#define CLOSECD(c) do { chanClose_((c)); (c) = INVALID_HANDLE; } while (0)
-#define CHAN_INIT_BUF(b)  memset((b), 0, sizeof(struct Buffer));
+#define INVALID_HANDLE -1
+#define CLOSECD(c)                                                             \
+    do {                                                                       \
+        chanClose_((c));                                                       \
+        (c) = INVALID_HANDLE;                                                  \
+    } while (0)
+#define CHAN_INIT_BUF(b) memset((b), 0, sizeof(struct Buffer));
 
 struct Buffer {
-    struct Buffer  *forw;
-    struct Buffer  *back;
-    char  *data;
-    int    pos;
-    int    len;
+    struct Buffer *forw;
+    struct Buffer *back;
+    char *data;
+    int pos;
+    int len;
     int stashed;
 };
 
@@ -74,33 +69,31 @@ struct Masks {
     fd_set emask;
 };
 
-
 struct chanData {
-    int  handle;
+    int handle;
     enum chanType type;
     enum chanState state;
     enum chanState prestate;
     int chanerr;
     struct Buffer *send;
     struct Buffer *recv;
-
 };
 
-#define  CHANE_NOERR      0
-#define  CHANE_CONNECTED  1
-#define  CHANE_NOTCONN    2
-#define  CHANE_SYSCALL    3
-#define  CHANE_INTERNAL   4
-#define  CHANE_NOCHAN     5
-#define  CHANE_MALLOC     6
-#define  CHANE_BADHDR     7
-#define  CHANE_BADCHAN    8
-#define  CHANE_BADCHFD    9
-#define  CHANE_NOMSG      10
-#define  CHANE_CONNRESET  11
+#define CHANE_NOERR 0
+#define CHANE_CONNECTED 1
+#define CHANE_NOTCONN 2
+#define CHANE_SYSCALL 3
+#define CHANE_INTERNAL 4
+#define CHANE_NOCHAN 5
+#define CHANE_MALLOC 6
+#define CHANE_BADHDR 7
+#define CHANE_BADCHAN 8
+#define CHANE_BADCHFD 9
+#define CHANE_NOMSG 10
+#define CHANE_CONNRESET 11
 
-#define chanSend_  chanEnqueue_
-#define chanRecv_  chanDequeue_
+#define chanSend_ chanEnqueue_
+#define chanRecv_ chanDequeue_
 
 extern int chanInit_(void);
 extern int chanConnect_(int, struct sockaddr_in *, int, int);
@@ -117,13 +110,10 @@ extern int chanServSocket_(int, u_short, int, int);
 extern int chanAccept_(int, struct sockaddr_in *);
 
 extern int chanClientSocket_(int, int, int);
-extern int chanSendDgram_(int, char *, int , struct sockaddr_in *);
-int chanRcvDgram_(int , void *, size_t, struct sockaddr_storage *, int);
-extern int chanRpc_(int ,
-                    struct Buffer *,
-                    struct Buffer *,
-                    struct packet_header *,
-                    int);
+extern int chanSendDgram_(int, char *, int, struct sockaddr_in *);
+int chanRcvDgram_(int, void *, size_t, struct sockaddr_storage *, int);
+extern int chanRpc_(int, struct Buffer *, struct Buffer *,
+                    struct packet_header *, int);
 extern ssize_t chanRead_(int, void *, size_t);
 extern ssize_t chanReadNonBlock_(int, char *, int, int);
 extern ssize_t chanWrite_(int, void *, size_t);
@@ -131,7 +121,7 @@ extern ssize_t chanWrite_(int, void *, size_t);
 extern int chanAllocBuf_(struct Buffer **buf, int size);
 extern int chanFreeBuf_(struct Buffer *buf);
 extern int chanFreeStashedBuf_(struct Buffer *buf);
-extern int chanOpenSock_(int , int);
+extern int chanOpenSock_(int, int);
 extern int chanSetMode_(int, int);
 
 extern int chanIndex;

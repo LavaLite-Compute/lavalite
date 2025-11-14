@@ -12,24 +12,27 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/cmd/cmd.h"
 
-static int printErrMsg (LS_LONG_INT jobId, char *queue);
+static int printErrMsg(LS_LONG_INT jobId, char *queue);
 
-void
-usage (char *cmd)
+void usage(char *cmd)
 {
     fprintf(stderr, "Usage");
-    fprintf(stderr, ": %s [-h] [-V] [-q queue_name] [-u user_name |-u all] [-m host_name]\n               [-J job_name] dest_queue [jobId |  \"jobId[idxList]\" ...]\n", cmd);
+    fprintf(stderr,
+            ": %s [-h] [-V] [-q queue_name] [-u user_name |-u all] [-m "
+            "host_name]\n               [-J job_name] dest_queue [jobId |  "
+            "\"jobId[idxList]\" ...]\n",
+            cmd);
     exit(-1);
 }
 
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
     extern char *optarg;
     extern int optind;
@@ -37,11 +40,11 @@ main (int argc, char **argv)
     char *destQueue = NULL;
     int numJobs;
     LS_LONG_INT *jobIds;
-    int  i, cc, exitrc = 0;
+    int i, cc, exitrc = 0;
 
     if (lsb_init(argv[0]) < 0) {
-	lsb_perror("lsb_init");
-	exit(-1);
+        lsb_perror("lsb_init");
+        exit(-1);
     }
 
     while ((cc = getopt(argc, argv, "VhJ:q:u:m:")) != EOF) {
@@ -69,7 +72,7 @@ main (int argc, char **argv)
         case 'h':
         default:
             usage(argv[0]);
-       }
+        }
     }
 
     if (argc >= optind + 1) {
@@ -80,47 +83,43 @@ main (int argc, char **argv)
         printf(("The destination queue name must be specified.\n"));
         usage(argv[0]);
     }
-    numJobs = getJobIds (argc, argv, jobName, user, queue, host, &jobIds, 0);
+    numJobs = getJobIds(argc, argv, jobName, user, queue, host, &jobIds, 0);
 
     for (i = 0; i < numJobs; i++) {
-	if (lsb_switchjob (jobIds[i], destQueue) < 0) {
+        if (lsb_switchjob(jobIds[i], destQueue) < 0) {
             exitrc = -1;
-	    printErrMsg (jobIds[i], destQueue);
-        }
-        else
-	    printf(("Job <%s> is switched to queue <%s>\n"),
-		lsb_jobid2str(jobIds[i]), destQueue);
+            printErrMsg(jobIds[i], destQueue);
+        } else
+            printf(("Job <%s> is switched to queue <%s>\n"),
+                   lsb_jobid2str(jobIds[i]), destQueue);
     }
     exit(exitrc);
-
 }
 
-static int
-printErrMsg (LS_LONG_INT jobId, char *queue)
+static int printErrMsg(LS_LONG_INT jobId, char *queue)
 {
     char Job[80];
-    sprintf (Job, "%s <%s>", "Job", lsb_jobid2str(jobId));
+    sprintf(Job, "%s <%s>", "Job", lsb_jobid2str(jobId));
 
     switch (lsberrno) {
     case LSBE_BAD_USER:
     case LSBE_PROTOCOL:
     case LSBE_MBATCHD:
-        lsb_perror ("lsb_switchjob");
+        lsb_perror("lsb_switchjob");
         return (-1);
 
-   case LSBE_PERMISSION:
-        lsb_perror (Job);
+    case LSBE_PERMISSION:
+        lsb_perror(Job);
         return (-1);
 
     case LSBE_BAD_QUEUE:
     case LSBE_QUEUE_CLOSED:
     case LSBE_QUEUE_USE:
     case LSBE_QUEUE_HOST:
-        lsb_perror (queue);
+        lsb_perror(queue);
         return (-1);
     default:
-	lsb_perror (Job);
+        lsb_perror(Job);
         return (-1);
     }
-
 }

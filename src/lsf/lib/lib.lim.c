@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -21,9 +22,9 @@
 #include "lsf/lib/ll.sysenv.h"
 #include "lsf/lib/ll.host.h"
 
-#define MAXMSGLEN  32*MSGSIZE
+#define MAXMSGLEN 32 * MSGSIZE
 #define CONNECT_TIMEOUT 5
-#define RECV_TIMEOUT    20
+#define RECV_TIMEOUT 20
 
 struct sockaddr_in sockIds_[SOCK_COUNT] = {
     [PRIMARY] = {0},
@@ -31,15 +32,15 @@ struct sockaddr_in sockIds_[SOCK_COUNT] = {
     [UNBOUND] = {0},
     [TCP] = {0},
 };
-int  limchans_[SOCK_COUNT] = {
+int limchans_[SOCK_COUNT] = {
     [PRIMARY] = -1,
     [MASTER] = -1,
     [UNBOUND] = -1,
     [TCP] = -1,
 };
-static_assert((sizeof sockIds_/sizeof sockIds_[0]) == SOCK_COUNT,
+static_assert((sizeof sockIds_ / sizeof sockIds_[0]) == SOCK_COUNT,
               "sockaddr_in sockIds_ must match lim_sock_t");
-static_assert((sizeof limchans_/sizeof limchans_[0]) == SOCK_COUNT,
+static_assert((sizeof limchans_ / sizeof limchans_[0]) == SOCK_COUNT,
               "int limchans must match lim_sock_t");
 
 static int conntimeout_ = CONNECT_TIMEOUT;
@@ -49,28 +50,23 @@ extern char *inet_ntoa(struct in_addr);
 static u_int localAddr = 0;
 
 static int callLimTcp_(char *, char **, int, struct packet_header *, int);
-static int callLimUdp_(char *, char *, int, struct packet_header *, char *, int);
+static int callLimUdp_(char *, char *, int, struct packet_header *, char *,
+                       int);
 static int createLimSock_(struct sockaddr_in *);
 static int rcvreply_(int, char *, char);
 
 int lsf_lim_version = -1;
 
-int
-callLim_(enum limReqCode reqCode,
-         void *dsend,
-         bool_t (*xdr_sfunc)(),
-         void *drecv,
-         bool_t (*xdr_rfunc)(),
-         char *host,
-         int options,
-         struct packet_header *hdr)
+int callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
+             void *drecv, bool_t (*xdr_rfunc)(), char *host, int options,
+             struct packet_header *hdr)
 {
     struct packet_header reqHdr;
     struct packet_header replyHdr;
-    XDR    xdrs;
-    char   sbuf[LL_BUFSIZ_256];
-    char   rbuf[LL_BUFSIZ_4K];
-    char   *repBuf;
+    XDR xdrs;
+    char sbuf[LL_BUFSIZ_256];
+    char rbuf[LL_BUFSIZ_4K];
+    char *repBuf;
     enum limReplyCode limReplyCode;
     static char first = true;
     int reqLen;
@@ -78,7 +74,6 @@ callLim_(enum limReqCode reqCode,
     repBuf = NULL;
     masterLimDown = false;
     if (first) {
-
         if (initLimSock_() < 0)
             return -1;
         first = false;
@@ -86,7 +81,7 @@ callLim_(enum limReqCode reqCode,
         if (genParams[LSF_API_CONNTIMEOUT].paramValue) {
             conntimeout_ = atoi(genParams[LSF_API_CONNTIMEOUT].paramValue);
             if (conntimeout_ <= 0)
-                conntimeout_ =  CONNECT_TIMEOUT;
+                conntimeout_ = CONNECT_TIMEOUT;
         }
 
         if (genParams[LSF_API_RECVTIMEOUT].paramValue) {
@@ -112,7 +107,6 @@ callLim_(enum limReqCode reqCode,
     xdr_destroy(&xdrs);
 
     if (options & _USE_TCP_) {
-
         if (callLimTcp_(sbuf, &repBuf, reqLen, &replyHdr, options) < 0)
             return -1;
         if (replyHdr.length != 0)
@@ -137,12 +131,12 @@ callLim_(enum limReqCode reqCode,
 
     limReplyCode = replyHdr.operation;
 
-    lsf_lim_version = (int)replyHdr.version;
+    lsf_lim_version = (int) replyHdr.version;
 
     switch (limReplyCode) {
     case LIME_NO_ERR:
         if (drecv != NULL) {
-            if (! (*xdr_rfunc) (&xdrs, drecv, &replyHdr)) {
+            if (!(*xdr_rfunc)(&xdrs, drecv, &replyHdr)) {
                 xdr_destroy(&xdrs);
                 if (options & _USE_TCP_)
                     FREEUP(repBuf);
@@ -293,16 +287,12 @@ contact:
 #endif
 /* KISS: connect -> RPC -> interpret minimal opcodes -> close (unless KEEP).
  */
-static int
-callLimTcp_(char *reqbuf,
-            char **rep_buf,
-            int req_size,
-            struct packet_header *replyHdr,
-            int options)
+static int callLimTcp_(char *reqbuf, char **rep_buf, int req_size,
+                       struct packet_header *replyHdr, int options)
 {
     XDR xdrs;
-    struct Buffer sndbuf = { .data = reqbuf, .len = req_size };
-    struct Buffer rcvbuf = { 0 };
+    struct Buffer sndbuf = {.data = reqbuf, .len = req_size};
+    struct Buffer rcvbuf = {0};
     int cc;
 
     *rep_buf = NULL;
@@ -321,7 +311,8 @@ callLimTcp_(char *reqbuf,
         if (limchans_[TCP] < 0)
             return -1;
 
-        cc = chanConnect_(limchans_[TCP], &sockIds_[TCP], conntimeout_ * 1000, 0);
+        cc = chanConnect_(limchans_[TCP], &sockIds_[TCP], conntimeout_ * 1000,
+                          0);
         if (cc < 0) {
             if (errno == ECONNREFUSED)
                 lserrno = LSE_LIM_DOWN;
@@ -333,13 +324,14 @@ callLimTcp_(char *reqbuf,
         }
     }
 
-    cc = chanRpc_(limchans_[TCP], &sndbuf, &rcvbuf, replyHdr, recvtimeout_ * 1000);
+    cc = chanRpc_(limchans_[TCP], &sndbuf, &rcvbuf, replyHdr,
+                  recvtimeout_ * 1000);
     if (cc < 0) {
         CLOSECD(limchans_[TCP]);
         return -1;
     }
 
-    //caller owns rcvbuf.data from here
+    // caller owns rcvbuf.data from here
     *rep_buf = rcvbuf.data;
 
     // minimal opcode handling; library does not retry or adopt masters.
@@ -388,31 +380,29 @@ callLimTcp_(char *reqbuf,
     return 0;
 }
 
-static int
-callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
-            char *host, int options)
+static int callLimUdp_(char *reqbuf, char *repbuf, int len,
+                       struct packet_header *reqHdr, char *host, int options)
 {
     int retried = 0;
-    XDR   xdrs;
+    XDR xdrs;
     enum limReplyCode limReplyCode;
     struct packet_header replyHdr;
     char *sp = genParams[LSF_SERVER_HOSTS].paramValue;
     int cc;
     static char connected;
-    int id=-1;
+    int id = -1;
     char multicasting = false;
 
     if (options & _LOCAL_ && !sp) {
         id = PRIMARY;
     } else if (host != NULL) {
-
         struct ll_host hs;
         get_host_by_name(host, &hs);
         id = UNBOUND;
-        struct sockaddr_in *sin = (struct sockaddr_in *)&hs.sa;
+        struct sockaddr_in *sin = (struct sockaddr_in *) &hs.sa;
         sockIds_[id].sin_addr = sin->sin_addr;
         sockIds_[id].sin_family = AF_INET;
-        sockIds_[id].sin_port   = sockIds_[PRIMARY].sin_port;
+        sockIds_[id].sin_port = sockIds_[PRIMARY].sin_port;
     } else {
         if (limchans_[MASTER] >= 0 || sp == NULL) {
             id = MASTER;
@@ -420,23 +410,23 @@ callLimUdp_(char *reqbuf, char *repbuf, int len, struct packet_header *reqHdr,
             struct timeval timeout;
 
             timeout.tv_sec = 0;
-            timeout.tv_usec= 20000;
+            timeout.tv_usec = 20000;
 
             if (callLimUdp_(reqbuf, repbuf, len, reqHdr, ls_getmyhostname(),
-                            options|_NON_BLOCK_) < 0)
+                            options | _NON_BLOCK_) < 0)
                 return -1;
 
             multicasting = true;
         checkMultiCast:
             do {
                 timeout.tv_sec = 0;
-                timeout.tv_usec= 20000;
+                timeout.tv_usec = 20000;
                 if (rd_select_(chanSock_(limchans_[UNBOUND]), &timeout) > 0)
                     break;
-                host  = getNextWord_(&sp);
+                host = getNextWord_(&sp);
                 if (host) {
                     if (callLimUdp_(reqbuf, repbuf, len, reqHdr, host,
-                                    options|_NON_BLOCK_) < 0){
+                                    options | _NON_BLOCK_) < 0) {
                         continue;
                     }
                 }
@@ -454,13 +444,13 @@ contact:
         if (limchans_[id] < 0) {
             if ((limchans_[id] = createLimSock_(NULL)) < 0)
                 return -1;
-
         }
         connected = false;
         break;
     case UNBOUND:
         if (limchans_[id] < 0) {
-            if ((limchans_[id] = createLimSock_((struct sockaddr_in*)NULL)) < 0)
+            if ((limchans_[id] = createLimSock_((struct sockaddr_in *) NULL)) <
+                0)
                 return -1;
         }
         connected = false;
@@ -508,7 +498,7 @@ check:
     }
 
     xdrmem_create(&xdrs, repbuf, MSGSIZE, XDR_DECODE);
-    if(!xdr_pack_hdr(&xdrs, &replyHdr)) {
+    if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
         lserrno = LSE_BAD_XDR;
         xdr_destroy(&xdrs);
         return -1;
@@ -574,7 +564,6 @@ check:
     }
 
     return 0;
-
 }
 
 static int createLimSock_(struct sockaddr_in *connaddr)
@@ -591,8 +580,7 @@ static int createLimSock_(struct sockaddr_in *connaddr)
 
 int initLimSock_(void)
 {
-
-    if (initenv_(NULL, NULL) <0)
+    if (initenv_(NULL, NULL) < 0)
         return -1;
 
     if (genParams[LSF_LIM_PORT].paramValue == NULL) {
@@ -631,16 +619,14 @@ int initLimSock_(void)
     return 0;
 }
 
-static int
-rcvreply_(int sock, char *rep, char connected)
+static int rcvreply_(int sock, char *rep, char connected)
 {
     struct sockaddr_storage from;
 
-    return(chanRcvDgram_(sock, rep, MSGSIZE, &from, conntimeout_ *1000));
+    return (chanRcvDgram_(sock, rep, MSGSIZE, &from, conntimeout_ * 1000));
 }
 
-void
-err_return_(enum limReplyCode limReplyCode)
+void err_return_(enum limReplyCode limReplyCode)
 {
     switch (limReplyCode) {
     case LIME_BAD_RESREQ:

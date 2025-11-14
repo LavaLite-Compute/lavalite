@@ -17,10 +17,10 @@ All new code must follow this style.
 
 The repository contains a `.clang-format` file that defines the exact formatting rules.
 
-Before committing, format all modified files:
+Before committing, format all modified files using
 
 ```
-git clang-format
+clang-format
 ```
 
 Format a single file:
@@ -299,10 +299,10 @@ Use fixed-size integer types (`uint32_t`, `int64_t`, etc.) for protocol fields.
 * Small, readable diffs
 * Explicit is better than implicit
 
-When in doubt, run:
+When in doubt knock em out, run:
 
 ```
-git clang-format
+clang-format
 ```
 
 And trust the tool.

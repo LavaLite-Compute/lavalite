@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -25,14 +26,14 @@ int millisleep_(uint32_t ms)
 {
     struct timespec ts;
 
-    ts.tv_sec  = ms / 1000;
+    ts.tv_sec = ms / 1000;
     ts.tv_nsec = (ms % 1000) * 1000000L;
 
     /* CLOCK_MONOTONIC is immune to system time changes */
     int ret;
     do {
         ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, &ts);
-    } while (ret == EINTR);  /* restart if interrupted by a signal */
+    } while (ret == EINTR); /* restart if interrupted by a signal */
 
     return ret;
 }

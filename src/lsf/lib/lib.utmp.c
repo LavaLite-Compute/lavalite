@@ -13,25 +13,22 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/liblavalite.h"
 
 #define UTMP_FILENAME "/var/adm/utmpx"
 
-int
-createUtmpEntry( char* uname, pid_t job_pid, char* current_tty ) {
-
-    int err=0;
+int createUtmpEntry(char *uname, pid_t job_pid, char *current_tty)
+{
+    int err = 0;
 
     return err;
-
 }
 
-int
-removeUtmpEntry( pid_t job_pid) {
-
+int removeUtmpEntry(pid_t job_pid)
+{
     return 0;
-
 }

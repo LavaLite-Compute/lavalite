@@ -13,24 +13,21 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
 
 #define LOAD_INFO_THRESHOLD 75
 
-struct hostLoad *loadinfo_(char *resReq,
-                           struct decisionReq *loadReqPtr,
-                           char *fromhost,
-                           int *numHosts,
-                           char ***outnlist);
+struct hostLoad *loadinfo_(char *resReq, struct decisionReq *loadReqPtr,
+                           char *fromhost, int *numHosts, char ***outnlist);
 
 static char *namestofilter_(char **);
 
 extern int sharedResConfigured_;
-static char *
-namestofilter_(char **indxs)
+static char *namestofilter_(char **indxs)
 {
     int i, len;
     static char *filter;
@@ -48,34 +45,29 @@ namestofilter_(char **indxs)
 
     len += (i + 1);
 
-    if ( (filter = malloc(len)) == NULL) {
+    if ((filter = malloc(len)) == NULL) {
         lserrno = LSE_MALLOC;
         return NULL;
     }
 
-    filter[0]='\0';
-    for (i = 0; indxs[i]; i++)  {
+    filter[0] = '\0';
+    for (i = 0; indxs[i]; i++) {
         strcat(filter, indxs[i]);
         strcat(filter, ":");
     }
     return filter;
 }
 
-struct hostLoad *
-ls_loadinfo(char *resreq,
-            int *numhosts,
-            int options,
-            char *fromhost,
-            char **hostlist,
-            int listsize,
-            char ***indxnamelist)
+struct hostLoad *ls_loadinfo(char *resreq, int *numhosts, int options,
+                             char *fromhost, char **hostlist, int listsize,
+                             char ***indxnamelist)
 {
     static char fname[] = "ls_loadinfo";
     struct decisionReq loadReq;
     char *indexfilter;
     int i, j, *num;
     int one = 1;
-    char  tempresreq[MAXLINELEN];
+    char tempresreq[MAXLINELEN];
 
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -99,7 +91,7 @@ ls_loadinfo(char *resreq,
 
     loadReq.numHosts = *num;
 
-    if (! *num) {
+    if (!*num) {
         if (loadReq.ofWhat == OF_HOSTS)
             loadReq.numHosts = listsize;
         else
@@ -108,19 +100,18 @@ ls_loadinfo(char *resreq,
     }
 
     if (loadReq.ofWhat == OF_HOSTS) {
-        char clusterinlist=0;
+        char clusterinlist = 0;
 
         loadReq.numPrefs = listsize + 1;
-        loadReq.preferredHosts = (char **)
-            calloc(loadReq.numPrefs, sizeof (char *));
+        loadReq.preferredHosts =
+            (char **) calloc(loadReq.numPrefs, sizeof(char *));
         if (loadReq.preferredHosts == NULL) {
             lserrno = LSE_MALLOC;
             return NULL;
         }
 
         for (i = 1; i < loadReq.numPrefs; i++) {
-
-            loadReq.preferredHosts[i] = strdup(hostlist[i-1]);
+            loadReq.preferredHosts[i] = strdup(hostlist[i - 1]);
             clusterinlist = 1;
             if (loadReq.preferredHosts[i] == NULL) {
                 for (j = 1; j < i; j++)
@@ -151,7 +142,6 @@ ls_loadinfo(char *resreq,
         }
 
     } else {
-
         loadReq.numPrefs = 1;
         loadReq.preferredHosts = calloc(loadReq.numPrefs, sizeof(char *));
         if (loadReq.preferredHosts == NULL) {
@@ -169,8 +159,8 @@ ls_loadinfo(char *resreq,
 
     if (resreq && indexfilter) {
         if ((strlen(resreq) + strlen(indexfilter)) < MAXLINELEN - 8) {
-            char tmp[MAXLINELEN/2];
-            sprintf(tmp,"filter[%s]", indexfilter);
+            char tmp[MAXLINELEN / 2];
+            sprintf(tmp, "filter[%s]", indexfilter);
             strcpy(tempresreq, resreq);
             strcat(tempresreq, tmp);
             resreq = tempresreq;
@@ -179,7 +169,7 @@ ls_loadinfo(char *resreq,
             return NULL;
         }
     } else if (indexfilter) {
-        sprintf(tempresreq,"filter[%s]",indexfilter);
+        sprintf(tempresreq, "filter[%s]", indexfilter);
         resreq = tempresreq;
     }
 
@@ -191,46 +181,25 @@ ls_loadinfo(char *resreq,
     return loadinfo_(resreq, &loadReq, fromhost, num, indxnamelist);
 }
 
-struct hostLoad *
-ls_load(char *resreq, int *numhosts, int options, char *fromhost)
+struct hostLoad *ls_load(char *resreq, int *numhosts, int options,
+                         char *fromhost)
 {
     char **dummynl = NULL;
 
-    return ls_loadinfo(resreq,
-                       numhosts,
-                       options,
-                       fromhost,
-                       NULL,
-                       0,
-                       &dummynl);
-
+    return ls_loadinfo(resreq, numhosts, options, fromhost, NULL, 0, &dummynl);
 }
 
-struct hostLoad *
-ls_loadofhosts(char *resreq,
-               int *numhosts,
-               int options,
-               char *fromhost,
-               char **hostlist,
-               int listsize)
+struct hostLoad *ls_loadofhosts(char *resreq, int *numhosts, int options,
+                                char *fromhost, char **hostlist, int listsize)
 {
     char **dummynl = NULL;
 
-    return ls_loadinfo(resreq,
-                       numhosts,
-                       options,
-                       fromhost,
-                       hostlist,
-                       listsize,
+    return ls_loadinfo(resreq, numhosts, options, fromhost, hostlist, listsize,
                        &dummynl);
 }
 
-struct hostLoad *
-loadinfo_(char *resReq,
-          struct decisionReq *loadReqPtr,
-          char *fromhost,
-          int *numHosts,
-          char ***outnlist)
+struct hostLoad *loadinfo_(char *resReq, struct decisionReq *loadReqPtr,
+                           char *fromhost, int *numHosts, char ***outnlist)
 {
     static char fname[] = "loadinfo_";
     static struct loadReply loadReply;
@@ -241,7 +210,7 @@ loadinfo_(char *resReq,
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
-    if (loadReqPtr->numHosts <=0) {
+    if (loadReqPtr->numHosts <= 0) {
         lserrno = LSE_BAD_ARGS;
         goto error;
     }
@@ -263,38 +232,36 @@ loadinfo_(char *resReq,
     } else
         strcpy(loadReqPtr->resReq, " ");
 
-    loadReqPtr->resReq[MAXLINELEN-1] = '\0';
-    if (loadReqPtr->ofWhat == OF_HOSTS && loadReqPtr->numPrefs == 2
-        && loadReqPtr->numHosts == 1
-        && equal_host(loadReqPtr->preferredHosts[1],
-                      loadReqPtr->preferredHosts[0]))
+    loadReqPtr->resReq[MAXLINELEN - 1] = '\0';
+    if (loadReqPtr->ofWhat == OF_HOSTS && loadReqPtr->numPrefs == 2 &&
+        loadReqPtr->numHosts == 1 &&
+        equal_host(loadReqPtr->preferredHosts[1],
+                   loadReqPtr->preferredHosts[0]))
         options |= _LOCAL_;
     else
         options |= _USE_TCP_;
 
-    if (callLim_(LIM_LOAD_REQ, loadReqPtr, xdr_decisionReq,
-                 &loadReply, xdr_loadReply, NULL, options, NULL) < 0)
+    if (callLim_(LIM_LOAD_REQ, loadReqPtr, xdr_decisionReq, &loadReply,
+                 xdr_loadReply, NULL, options, NULL) < 0)
         goto error;
     if (loadReply.flags & LOAD_REPLY_SHARED_RESOURCE) {
         sharedResConfigured_ = true;
     }
-    for (i=0; i<loadReqPtr->numPrefs; i++)
+    for (i = 0; i < loadReqPtr->numPrefs; i++)
         FREEUP(loadReqPtr->preferredHosts[i]);
-    FREEUP (loadReqPtr->preferredHosts);
+    FREEUP(loadReqPtr->preferredHosts);
     *numHosts = loadReply.nEntry;
     *outnlist = loadReply.indicies;
     return (loadReply.loadMatrix);
 
 error:
-    for (i=0; i<loadReqPtr->numPrefs; i++)
+    for (i = 0; i < loadReqPtr->numPrefs; i++)
         FREEUP(loadReqPtr->preferredHosts[i]);
-    FREEUP (loadReqPtr->preferredHosts);
+    FREEUP(loadReqPtr->preferredHosts);
     return NULL;
-
 }
 
-int
-ls_loadadj(char *resreq, struct placeInfo *placeinfo, int listsize)
+int ls_loadadj(char *resreq, struct placeInfo *placeinfo, int listsize)
 {
     struct jobXfer loadadjReq;
 
@@ -311,14 +278,8 @@ ls_loadadj(char *resreq, struct placeInfo *placeinfo, int listsize)
     } else
         loadadjReq.resReq[0] = 0;
 
-    if (callLim_(LIM_LOAD_ADJ,
-                 &loadadjReq,
-                 xdr_jobXfer,
-                 NULL,
-                 NULL,
-                 NULL,
-                 _USE_TCP_,
-                 NULL) < 0) {
+    if (callLim_(LIM_LOAD_ADJ, &loadadjReq, xdr_jobXfer, NULL, NULL, NULL,
+                 _USE_TCP_, NULL) < 0) {
         return -1;
     }
 

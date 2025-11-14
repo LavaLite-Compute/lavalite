@@ -13,39 +13,38 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lim/lim.h"
 
-#define ABORT     1
-#define RX_HINFO  2
-#define RX_LINFO  3
+#define ABORT 1
+#define RX_HINFO 2
+#define RX_LINFO 3
 
-#define HINFO_TIMEOUT   120
-#define LINFO_TIMEOUT   60
+#define HINFO_TIMEOUT 120
+#define LINFO_TIMEOUT 60
 
-struct clientNode  *clientMap[2*MAXCLIENTS];
+struct clientNode *clientMap[2 * MAXCLIENTS];
 
 extern int chanIndex;
 
 static void processMsg(int);
-static void clientReq(XDR *, struct packet_header *, int );
+static void clientReq(XDR *, struct packet_header *, int);
 
 static void shutDownChan(int);
 
-void
-clientIO(struct Masks *chanmasks)
+void clientIO(struct Masks *chanmasks)
 {
-    static char fname[]="clientIO";
-    int  i;
+    static char fname[] = "clientIO";
+    int i;
 
-    for(i = 0; (i < chanIndex) && (i < 2*MAXCLIENTS); i++) {
+    for (i = 0; (i < chanIndex) && (i < 2 * MAXCLIENTS); i++) {
         if (i == lim_udp_sock || i == lim_tcp_sock)
             continue;
 
         if (FD_ISSET(i, &chanmasks->emask)) {
-
             if (clientMap[i])
                 ls_syslog(LOG_ERR, "%s: Lost connection with client <%s>",
                           fname, sockAdd2Str_(&clientMap[i]->from));
@@ -59,13 +58,12 @@ clientIO(struct Masks *chanmasks)
     }
 }
 
-static void
-processMsg(int chanfd)
+static void processMsg(int chanfd)
 {
-    static char fname[]="processMsg";
+    static char fname[] = "processMsg";
     struct Buffer *buf;
     struct packet_header hdr;
-    XDR  xdrs;
+    XDR xdrs;
 
     if (clientMap[chanfd] && clientMap[chanfd]->inprogress)
         return;
@@ -76,21 +74,22 @@ processMsg(int chanfd)
         return;
     }
 
-    ls_syslog(LOG_DEBUG,"%s: Received message with len %d on chan %d",
-              fname,buf->len, chanfd);
+    ls_syslog(LOG_DEBUG, "%s: Received message with len %d on chan %d", fname,
+              buf->len, chanfd);
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        ls_syslog(LOG_ERR, "%s: Bad header received",fname);
+        ls_syslog(LOG_ERR, "%s: Bad header received", fname);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);
         return;
     }
 
-    if ( (clientMap[chanfd] && hdr.operation >= FIRST_LIM_PRIV) ||
-         (!clientMap[chanfd] && hdr.operation < FIRST_INTER_CLUS) ){
-        ls_syslog(LOG_ERR, "%s: Invalid operation <%d> from client", fname, hdr.operation);
+    if ((clientMap[chanfd] && hdr.operation >= FIRST_LIM_PRIV) ||
+        (!clientMap[chanfd] && hdr.operation < FIRST_INTER_CLUS)) {
+        ls_syslog(LOG_ERR, "%s: Invalid operation <%d> from client", fname,
+                  hdr.operation);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);
@@ -98,27 +97,28 @@ processMsg(int chanfd)
     }
 
     if (hdr.operation >= FIRST_INTER_CLUS && !masterMe) {
-        ls_syslog(LOG_ERR, "%s: Intercluster request received, but I'm not master", fname);
+        ls_syslog(LOG_ERR,
+                  "%s: Intercluster request received, but I'm not master",
+                  fname);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
         chanFreeBuf_(buf);
         return;
     }
 
-    if ( !clientMap[chanfd]) {
-
+    if (!clientMap[chanfd]) {
         if (hdr.operation != LIM_CLUST_INFO) {
             struct sockaddr_in fromAddr;
             socklen_t fromLen = sizeof(struct sockaddr_in);
 
-            if (getpeername(chanSock_(chanfd),
-                            (struct sockaddr *)&fromAddr,
+            if (getpeername(chanSock_(chanfd), (struct sockaddr *) &fromAddr,
                             &fromLen) < 0) {
-                syslog(LOG_ERR, "%s: getpeername(%d) failed. %m",
-                       __func__, chanSock_(chanfd));
+                syslog(LOG_ERR, "%s: getpeername(%d) failed. %m", __func__,
+                       chanSock_(chanfd));
             }
 
-            ls_syslog(LOG_ERR, "%s: Protocol error received operation <%d> from %s",
+            ls_syslog(LOG_ERR,
+                      "%s: Protocol error received operation <%d> from %s",
                       fname, hdr.operation, sockAdd2Str_(&fromAddr));
             xdr_destroy(&xdrs);
             shutDownChan(chanfd);
@@ -128,9 +128,10 @@ processMsg(int chanfd)
     }
 
     if (logclass & LC_TRACE)
-        syslog(LOG_DEBUG, "%s: Received request <%d> ", __func__, hdr.operation);
+        syslog(LOG_DEBUG, "%s: Received request <%d> ", __func__,
+               hdr.operation);
 
-    switch(hdr.operation) {
+    switch (hdr.operation) {
     case LIM_LOAD_REQ:
     case LIM_GET_HOSTINFO:
     case LIM_PLACEMENT:
@@ -153,15 +154,14 @@ processMsg(int chanfd)
         break;
 
     default:
-        ls_syslog(LOG_ERR, "%s: Invalid operation <%d>",fname,hdr.operation);
+        ls_syslog(LOG_ERR, "%s: Invalid operation <%d>", fname, hdr.operation);
         xdr_destroy(&xdrs);
         chanFreeBuf_(buf);
         break;
     }
 }
 
-static void
-clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
+static void clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
 {
     struct decisionReq decisionRequest;
     int oldpos, i;
@@ -170,7 +170,7 @@ clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
 
     oldpos = XDR_GETPOS(xdrs);
 
-    if (! xdr_decisionReq(xdrs, &decisionRequest, hdr)) {
+    if (!xdr_decisionReq(xdrs, &decisionRequest, hdr)) {
         goto Reply1;
     }
 
@@ -182,60 +182,59 @@ clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
         }
     }
 
-    for(i = 0; i < decisionRequest.numPrefs; i++)
+    for (i = 0; i < decisionRequest.numPrefs; i++)
         free(decisionRequest.preferredHosts[i]);
     free(decisionRequest.preferredHosts);
 
 Reply1:
 
-    {
-        int pid = 0;
+{
+    int pid = 0;
 
-        pid = fork();
-        if (pid < 0) {
-            ls_syslog(LOG_ERR, "%s: fork() failed: %d", __func__);
-            xdr_destroy(xdrs);
-            shutDownChan(chfd);
-            return;
+    pid = fork();
+    if (pid < 0) {
+        ls_syslog(LOG_ERR, "%s: fork() failed: %d", __func__);
+        xdr_destroy(xdrs);
+        shutDownChan(chfd);
+        return;
+    }
+
+    if (pid == 0) {
+        int sock;
+
+        chanClose_(lim_udp_sock);
+
+        XDR_SETPOS(xdrs, oldpos);
+        sock = chanSock_(chfd);
+        if (io_block_(sock) < 0)
+            ls_syslog(LOG_ERR, "%s: io_block_() failed: %m", __func__);
+
+        switch (hdr->operation) {
+        case LIM_GET_HOSTINFO:
+            hostInfoReq(xdrs, clientMap[chfd]->fromHost, &clientMap[chfd]->from,
+                        hdr, chfd);
+            break;
+        case LIM_GET_RESOUINFO:
+            resourceInfoReq2(xdrs, &clientMap[chfd]->from, hdr, chfd);
+            break;
+        case LIM_LOAD_REQ:
+            loadReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
+            break;
+        case LIM_PLACEMENT:
+            placeReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
+            break;
+        case LIM_GET_INFO:
+            infoReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
+
+        default:
+            break;
         }
-
-        if (pid == 0) {
-            int sock;
-
-            chanClose_(lim_udp_sock);
-
-            XDR_SETPOS(xdrs, oldpos);
-            sock = chanSock_(chfd);
-            if (io_block_(sock) < 0)
-                ls_syslog(LOG_ERR, "%s: io_block_() failed: %m", __func__);
-
-            switch(hdr->operation) {
-            case LIM_GET_HOSTINFO:
-                hostInfoReq(xdrs, clientMap[chfd]->fromHost,
-                            &clientMap[chfd]->from, hdr, chfd);
-                break;
-            case LIM_GET_RESOUINFO:
-                resourceInfoReq2(xdrs, &clientMap[chfd]->from, hdr, chfd);
-                break;
-            case LIM_LOAD_REQ:
-                loadReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
-                break;
-            case LIM_PLACEMENT:
-                placeReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
-                break;
-            case LIM_GET_INFO:
-                infoReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
-
-            default:
-                break;
-            }
-            exit(0);
-        }
+        exit(0);
     }
 }
+}
 
-static void
-shutDownChan(int chanfd)
+static void shutDownChan(int chanfd)
 {
     chanClose_(chanfd);
     if (clientMap[chanfd]) {

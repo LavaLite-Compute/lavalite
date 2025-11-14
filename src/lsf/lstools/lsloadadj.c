@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -22,15 +23,14 @@
 
 static void usage(char *);
 
-extern int  optind, opterr;
+extern int optind, opterr;
 extern char *optarg;
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     static char fname[] = "lsloadadj/main";
     char *resreq = NULL;
-    struct placeInfo  placeadvice[MAXLISTSIZE];
+    struct placeInfo placeadvice[MAXLISTSIZE];
     char *p, *hname;
     int cc = 0;
     int achar;
@@ -43,10 +43,8 @@ main(int argc, char **argv)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     opterr = 0;
-    while ((achar = getopt(argc, argv, "VhR:")) != EOF)
-    {
-        switch (achar)
-        {
+    while ((achar = getopt(argc, argv, "VhR:")) != EOF) {
+        switch (achar) {
         case 'R':
             resreq = optarg;
             break;
@@ -59,17 +57,15 @@ main(int argc, char **argv)
         }
     }
 
-    for ( ; optind < argc ; optind++)
-    {
-        if (cc >= MAXLISTSIZE)
-        {
-            fprintf(stderr, "%s: too many hostnames (maximum %d\n",
-                    fname, MAXLISTSIZE);
+    for (; optind < argc; optind++) {
+        if (cc >= MAXLISTSIZE) {
+            fprintf(stderr, "%s: too many hostnames (maximum %d\n", fname,
+                    MAXLISTSIZE);
             usage(argv[0]);
         }
 
-        p = strchr(argv[optind],':');
-        if ( (p != NULL) && (*(p+1) != '\0') )  {
+        p = strchr(argv[optind], ':');
+        if ((p != NULL) && (*(p + 1) != '\0')) {
             *p++ = '\0';
             placeadvice[cc].numtask = atoi(p);
             if (errno == ERANGE) {
@@ -81,10 +77,8 @@ main(int argc, char **argv)
             placeadvice[cc].numtask = 1;
         }
 
-        if (!is_valid_host(argv[optind]))
-        {
-            fprintf(stderr, "%s: %s %s\n",
-                    fname,  "invalid hostname",
+        if (!is_valid_host(argv[optind])) {
+            fprintf(stderr, "%s: %s %s\n", fname, "invalid hostname",
                     argv[optind]);
             usage(argv[0]);
         }
@@ -92,7 +86,6 @@ main(int argc, char **argv)
     }
 
     if (cc == 0) {
-
         if ((hname = ls_getmyhostname()) == NULL) {
             ls_perror("ls_getmyhostname");
             exit(-1);
@@ -106,11 +99,13 @@ main(int argc, char **argv)
         ls_perror("lsloadadj");
         exit(-1);
     } else
-    exit(0);
+        exit(0);
 }
 
 static void usage(char *cmd)
 {
-    printf("Usage: %s [-h] [-V] [-R res_req] [host_name[:num_task] host_name[:num_task] ...]\n", cmd);
+    printf("Usage: %s [-h] [-V] [-R res_req] [host_name[:num_task] "
+           "host_name[:num_task] ...]\n",
+           cmd);
     exit(-1);
 }

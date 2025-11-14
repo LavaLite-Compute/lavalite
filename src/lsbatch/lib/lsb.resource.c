@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -21,12 +22,14 @@
 #include "lsbatch/daemons/daemonout.h"
 #include "lsf/lib/lib.h"
 
-struct lsbSharedResourceInfo *
-lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int options)
+struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
+                                                     int *numResources,
+                                                     char *hostName,
+                                                     int options)
 {
     static char fname[] = "lsb_sharedresourceinfo";
     static struct resourceInfoReply lsbResourceInfoReply;
-    struct resourceInfoReq  resourceInfoReq;
+    struct resourceInfoReq resourceInfoReq;
     int cc = 0, i;
     char *clusterName = NULL;
     static struct packet_header hdr;
@@ -35,37 +38,36 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     mbdReqType mbdReqtype;
     XDR xdrs, xdrs2;
 
-#define FREE_MEMORY \
-    { \
-        free(request_buf); \
-        free(resourceInfoReq.resourceNames); \
+#define FREE_MEMORY                                                            \
+    {                                                                          \
+        free(request_buf);                                                     \
+        free(resourceInfoReq.resourceNames);                                   \
     }
 
-#define FREE_REPLY_BUFFER \
-    { \
-        if (cc) \
-        free(reply_buf); \
+#define FREE_REPLY_BUFFER                                                      \
+    {                                                                          \
+        if (cc)                                                                \
+            free(reply_buf);                                                   \
     }
 
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if (lsbResourceInfoReply.numResources > 0)
-        xdr_lsffree(xdr_resourceInfoReply, (char *)&lsbResourceInfoReply, &hdr);
+        xdr_lsffree(xdr_resourceInfoReply, (char *) &lsbResourceInfoReply,
+                    &hdr);
 
-    if (numResources == NULL ||
-            *numResources < 0 ||
-            (resources == NULL && *numResources != 0) ||
-            (resources != NULL && *numResources == 0)) {
+    if (numResources == NULL || *numResources < 0 ||
+        (resources == NULL && *numResources != 0) ||
+        (resources != NULL && *numResources == 0)) {
         lsberrno = LSBE_BAD_ARG;
         return NULL;
     }
     resourceInfoReq.options = 0;
 
     if (*numResources == 0) {
-
         if ((resourceInfoReq.resourceNames =
-                    (char **) malloc(sizeof (char *))) == NULL) {
+                 (char **) malloc(sizeof(char *))) == NULL) {
             lsberrno = LSBE_NO_MEM;
             return NULL;
         }
@@ -74,16 +76,16 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
         cc += 2;
     } else {
         if ((resourceInfoReq.resourceNames =
-                    (char **) malloc (*numResources * sizeof(char *))) == NULL) {
+                 (char **) malloc(*numResources * sizeof(char *))) == NULL) {
             lsberrno = LSBE_NO_MEM;
             return NULL;
         }
         for (i = 0; i < *numResources; i++) {
-            if (resources[i] && strlen (resources[i]) + 1 < MAXLSFNAMELEN) {
+            if (resources[i] && strlen(resources[i]) + 1 < MAXLSFNAMELEN) {
                 resourceInfoReq.resourceNames[i] = resources[i];
                 cc += MAXLSFNAMELEN;
             } else {
-                free (resourceInfoReq.resourceNames);
+                free(resourceInfoReq.resourceNames);
                 lserrno = LSBE_BAD_RESOURCE;
                 return NULL;
             }
@@ -92,7 +94,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     }
     if (hostName != NULL) {
         if (ls_isclustername(hostName) <= 0) {
-            if (strlen (hostName) + 1 < MAXHOSTNAMELEN) {
+            if (strlen(hostName) + 1 < MAXHOSTNAMELEN) {
                 resourceInfoReq.hostName = hostName;
             } else {
                 lsberrno = LSBE_BAD_HOST;
@@ -107,15 +109,15 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
 
     mbdReqtype = BATCH_RESOURCE_INFO;
     cc = sizeof(struct resourceInfoReq) + cc + 100;
-    if ((request_buf = malloc (cc)) == NULL) {
+    if ((request_buf = malloc(cc)) == NULL) {
         lsberrno = LSBE_NO_MEM;
         return NULL;
     }
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char*)&resourceInfoReq, &hdr, xdr_resourceInfoReq,
-                0, NULL)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &resourceInfoReq, &hdr,
+                       xdr_resourceInfoReq, 0, NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         FREE_MEMORY;
@@ -123,8 +125,7 @@ lsb_sharedresourceinfo(char **resources, int *numResources, char *hostName, int 
     }
 
     if ((cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                    &hdr, NULL, NULL, NULL)) == -1)
-    {
+                      &hdr, NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         FREE_MEMORY;
         return NULL;

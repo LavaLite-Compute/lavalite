@@ -12,22 +12,22 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/daemons/daemons.h"
 
-#define BATCH_SLAVE_PORT        40001
+#define BATCH_SLAVE_PORT 40001
 static char *reserved;
 
 static int chuserId(uid_t);
 
-extern struct listEntry * mkListHeader (void);
-extern int shutdown (int, int);
+extern struct listEntry *mkListHeader(void);
+extern int shutdown(int, int);
 
-void
-die (int sig)
+void die(int sig)
 {
     char myhost[MAXHOSTNAMELEN];
 
@@ -35,7 +35,7 @@ die (int sig)
         releaseElogLock();
     }
 
-    if (gethostname(myhost, MAXHOSTNAMELEN) <0) {
+    if (gethostname(myhost, MAXHOSTNAMELEN) < 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "gethostname", myhost);
         strcpy(myhost, "localhost");
     }
@@ -46,27 +46,48 @@ die (int sig)
     } else {
         switch (sig) {
         case MASTER_RESIGN:
-            ls_syslog(LOG_INFO, ("Master daemon on host <%s> resigned; exiting"), myhost);
+            ls_syslog(LOG_INFO,
+                      ("Master daemon on host <%s> resigned; exiting"), myhost);
             break;
         case MASTER_RECONFIG:
-            ls_syslog(LOG_INFO, ("Master daemon on host <%s> exiting for reconfiguration"), myhost);
+            ls_syslog(
+                LOG_INFO,
+                ("Master daemon on host <%s> exiting for reconfiguration"),
+                myhost);
             break;
 
         case SLAVE_MEM:
-            ls_syslog(LOG_ERR, "Slave daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
-            lsb_merr1("Slave daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
+            ls_syslog(LOG_ERR,
+                      "Slave daemon on host <%s> failed in memory allocation; "
+                      "fatal error - exiting",
+                      myhost);
+            lsb_merr1("Slave daemon on host <%s> failed in memory allocation; "
+                      "fatal error - exiting",
+                      myhost);
             break;
         case MASTER_MEM:
-            ls_syslog(LOG_ERR, "Master daemon on host <%s> failed in memory allocation; fatal error - exiting", myhost);
+            ls_syslog(LOG_ERR,
+                      "Master daemon on host <%s> failed in memory allocation; "
+                      "fatal error - exiting",
+                      myhost);
             break;
         case SLAVE_FATAL:
-            ls_syslog(LOG_ERR, "Slave daemon on host <%s> dying; fatal error - see above messages for reason", myhost);
+            ls_syslog(LOG_ERR,
+                      "Slave daemon on host <%s> dying; fatal error - see "
+                      "above messages for reason",
+                      myhost);
             break;
         case MASTER_FATAL:
-            ls_syslog(LOG_ERR, "Master daemon on host <%s> dying; fatal error - see above messages for reason", myhost);
+            ls_syslog(LOG_ERR,
+                      "Master daemon on host <%s> dying; fatal error - see "
+                      "above messages for reason",
+                      myhost);
             break;
         case MASTER_CONF:
-            ls_syslog(LOG_ERR, "Master daemon on host <%s> died of bad configuration file", myhost);
+            ls_syslog(
+                LOG_ERR,
+                "Master daemon on host <%s> died of bad configuration file",
+                myhost);
             break;
         case SLAVE_RESTART:
             ls_syslog(LOG_ERR, "Slave daemon on host <%s> restarting", myhost);
@@ -75,7 +96,9 @@ die (int sig)
             ls_syslog(LOG_ERR, "Slave daemon on host <%s> shutdown", myhost);
             break;
         default:
-            ls_syslog(LOG_ERR, "Daemon on host <%s> exiting; cause code <%d> unknown", myhost, sig);
+            ls_syslog(LOG_ERR,
+                      "Daemon on host <%s> exiting; cause code <%d> unknown",
+                      myhost, sig);
             break;
         }
     }
@@ -85,20 +108,18 @@ die (int sig)
     exit(sig);
 }
 
-int
-portok (struct sockaddr_in *from)
+int portok(struct sockaddr_in *from)
 {
     if (from->sin_family != AF_INET) {
-        syslog(LOG_ERR, "%s: sin_family(%d) != AF_INET(%d)",
-               __func__, from->sin_family, AF_INET);
+        syslog(LOG_ERR, "%s: sin_family(%d) != AF_INET(%d)", __func__,
+               from->sin_family, AF_INET);
         return FALSE;
     }
 
     return TRUE;
 }
 
-int
-get_ports(void)
+int get_ports(void)
 {
     if (daemonParams[LSB_MBD_PORT].paramValue == NULL) {
         ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT is not in lsf.conf", __func__);
@@ -116,7 +137,6 @@ get_ports(void)
     if (daemonParams[LSB_SBD_PORT].paramValue == NULL) {
         ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT is not in lsf.conf", __func__);
         return -1;
-
     }
 
     sbd_port = atoi(daemonParams[LSB_SBD_PORT].paramValue);
@@ -130,15 +150,14 @@ get_ports(void)
     return 0;
 }
 
-uid_t
-chuser(uid_t uid)
+uid_t chuser(uid_t uid)
 {
     uid_t myuid;
     int errnoSv = errno;
 
     // Bug handle mbd_debug and sbd_debug
     if (1)
-        return(geteuid());
+        return (geteuid());
 
     if ((myuid = geteuid()) == uid)
         return myuid;
@@ -150,8 +169,7 @@ chuser(uid_t uid)
     return myuid;
 }
 
-static int
-chuserId (uid_t uid)
+static int chuserId(uid_t uid)
 {
     // Bug do nothing the mbatchd runs as administrator
     // the sbatch as root and should change get pid only the
@@ -187,8 +205,7 @@ chuserId (uid_t uid)
     return 0;
 }
 
-char *
-safeSave(char *str)
+char *safeSave(char *str)
 {
     char *sp;
 
@@ -201,11 +218,9 @@ safeSave(char *str)
     }
 
     return sp;
-
 }
 
-char *
-my_malloc(int len, char *fileName)
+char *my_malloc(int len, char *fileName)
 {
     static char fname[] = "my_malloc()";
     char *sp, *caller = fileName;
@@ -233,15 +248,13 @@ my_malloc(int len, char *fileName)
             relife();
     }
 
-    if (! reserved)
+    if (!reserved)
         reserved = malloc(MSGSIZE);
 
     return sp;
-
 }
 
-char *
-my_calloc(int nelem, int esize, char *fileName)
+char *my_calloc(int nelem, int esize, char *fileName)
 {
     static char fname[] = "my_calloc()";
     char *sp, *caller = fileName;
@@ -263,30 +276,27 @@ my_calloc(int nelem, int esize, char *fileName)
             return (my_calloc(nelem, esize, caller));
         }
 
-        ls_syslog(LOG_ERR, "%s", __func__, "calloc",
-                  caller, esize);
+        ls_syslog(LOG_ERR, "%s", __func__, "calloc", caller, esize);
         if (masterme)
             die(MASTER_MEM);
         else
             relife();
     }
 
-    if (! reserved)
+    if (!reserved)
         reserved = malloc(MSGSIZE);
 
     return sp;
-
 }
 
-void
-daemon_doinit (void)
+void daemon_doinit(void)
 {
-
-    if (! daemonParams[LSF_SERVERDIR].paramValue
-        ||! daemonParams[LSB_SHAREDIR].paramValue) {
-        syslog(LOG_ERR, "%s: One of the two following parameters "
-               "are undefined: %s %s", __func__,
-               daemonParams[LSF_SERVERDIR].paramName,
+    if (!daemonParams[LSF_SERVERDIR].paramValue ||
+        !daemonParams[LSB_SHAREDIR].paramValue) {
+        syslog(LOG_ERR,
+               "%s: One of the two following parameters "
+               "are undefined: %s %s",
+               __func__, daemonParams[LSF_SERVERDIR].paramName,
                daemonParams[LSB_SHAREDIR].paramName);
         if (masterme)
             die(MASTER_FATAL);
@@ -302,8 +312,7 @@ daemon_doinit (void)
         daemonParams[LSB_CRDIR].paramValue = safeSave(DEFAULT_CRDIR);
 }
 
-void
-relife(void)
+void relife(void)
 {
     int pid;
 
@@ -320,8 +329,8 @@ relife(void)
             close(i);
         millisleep_(3000);
 
-		char buf[LL_PATH_MAX];
-		sprintf(buf, "%s/sbatchd", daemonParams[LSF_SERVERDIR].paramValue);
+        char buf[LL_PATH_MAX];
+        sprintf(buf, "%s/sbatchd", daemonParams[LSF_SERVERDIR].paramValue);
 
         int i = 1;
         if (env_dir != NULL) {
@@ -337,15 +346,14 @@ relife(void)
 
         execve(margv[0], margv, environ);
         ls_syslog(LOG_ERR, "Cannot re-execute sbatchd: %m");
-        lsb_mperr( "sbatchd died in an accident, failed in re-execute");
+        lsb_mperr("sbatchd died in an accident, failed in re-execute");
         exit(-1);
     }
 
     die(SLAVE_RESTART);
 }
 
-struct listEntry *
-tmpListHeader (struct listEntry *listHeader)
+struct listEntry *tmpListHeader(struct listEntry *listHeader)
 {
     static struct listEntry *tmp = NULL;
 
@@ -359,54 +367,47 @@ tmpListHeader (struct listEntry *listHeader)
     listHeader->forw = listHeader;
     listHeader->back = listHeader;
     return tmp;
-
 }
 
-
-void
-freeWeek(windows_t *week[])
+void freeWeek(windows_t *week[])
 {
     windows_t *wp, *wpp;
     int j;
 
     for (j = 0; j < 8; j++) {
         for (wp = week[j]; wp; wp = wpp) {
-            wpp =  wp->nextwind;
+            wpp = wp->nextwind;
             if (wp)
-                free (wp);
+                free(wp);
         }
         week[j] = NULL;
     }
 }
 
-void
-errorBack(int chan, int replyCode, struct sockaddr_in *from)
+void errorBack(int chan, int replyCode, struct sockaddr_in *from)
 {
     struct packet_header replyHdr;
-    XDR  xdrs;
-    char errBuf[MSGSIZE/8];
+    XDR xdrs;
+    char errBuf[MSGSIZE / 8];
 
-    xdrmem_create(&xdrs, errBuf, MSGSIZE/8, XDR_ENCODE);
+    xdrmem_create(&xdrs, errBuf, MSGSIZE / 8, XDR_ENCODE);
 
     init_pack_hdr(&replyHdr);
 
     replyHdr.operation = replyCode;
     io_block_(chanSock_(chan));
-    if (xdr_encodeMsg (&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
+    if (xdr_encodeMsg(&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
         if (chanWrite_(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)
             ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_",
                       sockAdd2Str_(from));
     } else
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg",
-                  sockAdd2Str_(from));
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg", sockAdd2Str_(from));
 
     xdr_destroy(&xdrs);
     return;
-
 }
 
-void
-scaleByFactor(int *h32, int *l32, float cpuFactor)
+void scaleByFactor(int *h32, int *l32, float cpuFactor)
 {
     double limit, tmp;
 
@@ -415,26 +416,25 @@ scaleByFactor(int *h32, int *l32, float cpuFactor)
         return;
 
     limit = *h32;
-    limit *= (1<<16);
-    limit *= (1<<16);
+    limit *= (1 << 16);
+    limit *= (1 << 16);
     limit += *l32;
 
-    limit = limit/cpuFactor + 0.5;
+    limit = limit / cpuFactor + 0.5;
     if (limit < 1.0)
         limit = 1.0;
 
-    tmp = limit/(double)(1<<16);
-    tmp = tmp/(double)(1<<16);
+    tmp = limit / (double) (1 << 16);
+    tmp = tmp / (double) (1 << 16);
     *h32 = tmp;
-    tmp = (double) (*h32) * (double) (1<<16);
-    tmp *= (double) (1<<16);
+    tmp = (double) (*h32) * (double) (1 << 16);
+    tmp *= (double) (1 << 16);
     *l32 = limit - tmp;
 
     return;
 }
 
-struct tclLsInfo *
-getTclLsInfo(void)
+struct tclLsInfo *getTclLsInfo(void)
 {
     static char fname[] = "getTclLsInfo";
     int resNo, i;
@@ -443,74 +443,67 @@ getTclLsInfo(void)
         freeTclLsInfo(tclLsInfo, 0);
     }
 
-    tclLsInfo = (struct tclLsInfo *)my_malloc(sizeof(struct tclLsInfo ), fname);
+    tclLsInfo = (struct tclLsInfo *) my_malloc(sizeof(struct tclLsInfo), fname);
     tclLsInfo->numIndx = allLsInfo->numIndx;
-    tclLsInfo->indexNames = (char **)my_malloc (allLsInfo->numIndx *
-                                                sizeof (char *), fname);
+    tclLsInfo->indexNames =
+        (char **) my_malloc(allLsInfo->numIndx * sizeof(char *), fname);
     for (resNo = 0; resNo < allLsInfo->numIndx; resNo++)
         tclLsInfo->indexNames[resNo] = allLsInfo->resTable[resNo].name;
 
     tclLsInfo->nRes = 0;
-    tclLsInfo->resName = (char **)my_malloc(allLsInfo->nRes *sizeof(char*),
-                                            fname);
+    tclLsInfo->resName =
+        (char **) my_malloc(allLsInfo->nRes * sizeof(char *), fname);
     tclLsInfo->stringResBitMaps =
-        (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int), fname);
+        (int *) my_malloc(GET_INTNUM(allLsInfo->nRes) * sizeof(int), fname);
     tclLsInfo->numericResBitMaps =
-        (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int), fname);
+        (int *) my_malloc(GET_INTNUM(allLsInfo->nRes) * sizeof(int), fname);
 
-    for (i =0; i< GET_INTNUM(allLsInfo->nRes); i++) {
+    for (i = 0; i < GET_INTNUM(allLsInfo->nRes); i++) {
         tclLsInfo->stringResBitMaps[i] = 0;
         tclLsInfo->numericResBitMaps[i] = 0;
     }
     for (resNo = 0; resNo < allLsInfo->nRes; resNo++) {
-
-        if ((allLsInfo->resTable[resNo].flags & RESF_BUILTIN)
-            || ((allLsInfo->resTable[resNo].flags & RESF_DYNAMIC)
-                && (allLsInfo->resTable[resNo].flags & RESF_GLOBAL)))
+        if ((allLsInfo->resTable[resNo].flags & RESF_BUILTIN) ||
+            ((allLsInfo->resTable[resNo].flags & RESF_DYNAMIC) &&
+             (allLsInfo->resTable[resNo].flags & RESF_GLOBAL)))
             continue;
 
         if (allLsInfo->resTable[resNo].valueType == LS_STRING)
-            SET_BIT (tclLsInfo->nRes, tclLsInfo->stringResBitMaps);
+            SET_BIT(tclLsInfo->nRes, tclLsInfo->stringResBitMaps);
         if (allLsInfo->resTable[resNo].valueType == LS_NUMERIC)
-            SET_BIT (tclLsInfo->nRes, tclLsInfo->numericResBitMaps);
+            SET_BIT(tclLsInfo->nRes, tclLsInfo->numericResBitMaps);
         tclLsInfo->resName[tclLsInfo->nRes++] = allLsInfo->resTable[resNo].name;
     }
 
     return tclLsInfo;
-
 }
 
-struct resVal *
-checkThresholdCond (char *resReq)
+struct resVal *checkThresholdCond(char *resReq)
 {
     static char fname[] = "checkThresholdCond";
     struct resVal *resValPtr;
 
-    resValPtr = (struct resVal *)my_malloc (sizeof (struct resVal),
+    resValPtr = (struct resVal *) my_malloc(sizeof(struct resVal),
                                             "checkThresholdCond");
-    initResVal (resValPtr);
-    if (parseResReq (resReq, resValPtr, allLsInfo, PR_SELECT)
-        != PARSE_OK) {
-        lsbFreeResVal (&resValPtr);
+    initResVal(resValPtr);
+    if (parseResReq(resReq, resValPtr, allLsInfo, PR_SELECT) != PARSE_OK) {
+        lsbFreeResVal(&resValPtr);
         if (logclass & (LC_EXEC) && resReq)
-            ls_syslog(LOG_DEBUG1, "%s: parseResReq(%s) failed",
-                      fname, resReq);
+            ls_syslog(LOG_DEBUG1, "%s: parseResReq(%s) failed", fname, resReq);
         return NULL;
     }
     return resValPtr;
-
 }
 
-int *
-getResMaps(int nRes, char **resource)
+int *getResMaps(int nRes, char **resource)
 {
     int i, *temp, resNo;
 
     if (nRes < 0)
         return NULL;
 
-    temp = (int *) my_malloc (GET_INTNUM(allLsInfo->nRes) * sizeof (int),
-                              "getResMaps");
+    temp = (int *) my_malloc(GET_INTNUM(allLsInfo->nRes) * sizeof(int),
+                             "getResMaps");
 
     for (i = 0; i < GET_INTNUM(allLsInfo->nRes); i++)
         temp[i] = 0;
@@ -524,13 +517,12 @@ getResMaps(int nRes, char **resource)
         }
     }
     return temp;
-
 }
 
-int
-checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
-                   struct hostLoad *loads, int *reason, int *subreasons, int jAttrib,
-                   struct resVal *resumeCondVal, struct tclHostData *tclHostData)
+int checkResumeByLoad(LS_LONG_INT jobId, int num, struct thresholds thresholds,
+                      struct hostLoad *loads, int *reason, int *subreasons,
+                      int jAttrib, struct resVal *resumeCondVal,
+                      struct tclHostData *tclHostData)
 {
     static char fname[] = "checkResumeByLoad";
     int i, j;
@@ -538,7 +530,8 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
     int lastReason = *reason;
 
     if (logclass & (LC_SCHED | LC_EXEC))
-        ls_syslog(LOG_DEBUG3, "%s: reason=%x, subreasons=%d, numHosts=%d", fname, *reason, *subreasons, thresholds.nThresholds);
+        ls_syslog(LOG_DEBUG3, "%s: reason=%x, subreasons=%d, numHosts=%d",
+                  fname, *reason, *subreasons, thresholds.nThresholds);
 
     if (num <= 0)
         return FALSE;
@@ -547,23 +540,21 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
         if (loads[j].li == NULL)
             continue;
 
-        if (((*reason & SUSP_PG_IT)
-             || ((*reason & SUSP_LOAD_REASON) && (*subreasons) == PG))
-            && loads[j].li[IT] < pgSuspIdleT / 60
-            && thresholds.loadSched[j][PG] != INFINITY) {
+        if (((*reason & SUSP_PG_IT) ||
+             ((*reason & SUSP_LOAD_REASON) && (*subreasons) == PG)) &&
+            loads[j].li[IT] < pgSuspIdleT / 60 &&
+            thresholds.loadSched[j][PG] != INFINITY) {
             resume = FALSE;
             *reason = SUSP_PG_IT;
             *subreasons = 0;
-        }
-        else if (LS_ISUNAVAIL (loads[j].status)) {
+        } else if (LS_ISUNAVAIL(loads[j].status)) {
             resume = FALSE;
             *reason = SUSP_LOAD_UNAVAIL;
-        }
-        else if (LS_ISLOCKEDU (loads[j].status)
-                 && !(jAttrib & Q_ATTRIB_EXCLUSIVE)) {
+        } else if (LS_ISLOCKEDU(loads[j].status) &&
+                   !(jAttrib & Q_ATTRIB_EXCLUSIVE)) {
             resume = FALSE;
             *reason = SUSP_HOST_LOCK;
-        } else if (LS_ISLOCKEDM (loads[j].status)) {
+        } else if (LS_ISLOCKEDM(loads[j].status)) {
             resume = FALSE;
             *reason = SUSP_HOST_LOCK_MASTER;
         }
@@ -578,8 +569,8 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
         }
 
         if (resumeCondVal != NULL) {
-            if (evalResReq (resumeCondVal->selectStr,
-                            &tclHostData[j], DFT_FROMTYPE) == 1) {
+            if (evalResReq(resumeCondVal->selectStr, &tclHostData[j],
+                           DFT_FROMTYPE) == 1) {
                 resume = TRUE;
                 break;
             } else {
@@ -598,43 +589,35 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R15M;
-        }
-        else if (loads[j].li[R1M] > thresholds.loadSched[j][R1M]) {
+        } else if (loads[j].li[R1M] > thresholds.loadSched[j][R1M]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R1M;
-        }
-        else if (loads[j].li[R15S] > thresholds.loadSched[j][R15S]) {
+        } else if (loads[j].li[R15S] > thresholds.loadSched[j][R15S]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R15S;
-        }
-        else if (loads[j].li[UT] > thresholds.loadSched[j][UT]) {
+        } else if (loads[j].li[UT] > thresholds.loadSched[j][UT]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = UT;
-        }
-        else if (loads[j].li[PG] > thresholds.loadSched[j][PG]) {
+        } else if (loads[j].li[PG] > thresholds.loadSched[j][PG]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = PG;
-        }
-        else if (loads[j].li[IO] > thresholds.loadSched[j][IO]) {
+        } else if (loads[j].li[IO] > thresholds.loadSched[j][IO]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = IO;
-        }
-        else if (loads[j].li[LS] > thresholds.loadSched[j][LS]) {
+        } else if (loads[j].li[LS] > thresholds.loadSched[j][LS]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = LS;
-        }
-        else if (loads[j].li[IT] < thresholds.loadSched[j][IT]) {
+        } else if (loads[j].li[IT] < thresholds.loadSched[j][IT]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = IT;
-        }
-        else if (loads[j].li[MEM] < thresholds.loadSched[j][MEM]) {
+        } else if (loads[j].li[MEM] < thresholds.loadSched[j][MEM]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = MEM;
@@ -644,22 +627,19 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = TMP;
-        }
-        else if (loads[j].li[SWP] < thresholds.loadSched[j][SWP]) {
+        } else if (loads[j].li[SWP] < thresholds.loadSched[j][SWP]) {
             resume = FALSE;
             *reason = SUSP_LOAD_REASON;
             *subreasons = SWP;
         }
-        for (i = MEM + 1; resume &&
-                 i < MIN(thresholds.nIdx, allLsInfo->numIndx);
-             i++) {
-            if (loads[j].li[i] >= INFINITY
-                || loads[j].li[i] <= -INFINITY
-                || thresholds.loadSched[j][i] >= INFINITY
-                || thresholds.loadSched[j][i] <= -INFINITY)
+        for (i = MEM + 1;
+             resume && i < MIN(thresholds.nIdx, allLsInfo->numIndx); i++) {
+            if (loads[j].li[i] >= INFINITY || loads[j].li[i] <= -INFINITY ||
+                thresholds.loadSched[j][i] >= INFINITY ||
+                thresholds.loadSched[j][i] <= -INFINITY)
                 continue;
 
-            if (allLsInfo->resTable[i].orderType == INCR)  {
+            if (allLsInfo->resTable[i].orderType == INCR) {
                 if (loads[j].li[i] > thresholds.loadSched[j][i]) {
                     resume = FALSE;
                     *reason = SUSP_LOAD_REASON;
@@ -678,25 +658,24 @@ checkResumeByLoad (LS_LONG_INT jobId, int num, struct thresholds thresholds,
         *reason |= SUSP_MBD_LOCK;
 
     if ((logclass & (LC_SCHED | LC_EXEC)) && !resume)
-        ls_syslog(LOG_DEBUG2, "%s: Can't resume job %s; reason=%x, subreasons=%d", fname, lsb_jobid2str(jobId), *reason, *subreasons);
+        ls_syslog(LOG_DEBUG2,
+                  "%s: Can't resume job %s; reason=%x, subreasons=%d", fname,
+                  lsb_jobid2str(jobId), *reason, *subreasons);
 
     return resume;
-
 }
 
-void
-closeExceptFD(int except_)
+void closeExceptFD(int except_)
 {
     int i;
 
-    for (i = sysconf(_SC_OPEN_MAX) - 1; i >= 3 ; i--) {
+    for (i = sysconf(_SC_OPEN_MAX) - 1; i >= 3; i--) {
         if (i != except_)
             close(i);
     }
 }
 
-void
-freeLsfHostInfo (struct hostInfo  *hostInfo, int num)
+void freeLsfHostInfo(struct hostInfo *hostInfo, int num)
 {
     int i, j;
 
@@ -706,23 +685,21 @@ freeLsfHostInfo (struct hostInfo  *hostInfo, int num)
     for (i = 0; i < num; i++) {
         if (hostInfo[i].resources != NULL) {
             for (j = 0; j < hostInfo[i].nRes; j++)
-                FREEUP (hostInfo[i].resources[j]);
-            FREEUP (hostInfo[i].resources);
+                FREEUP(hostInfo[i].resources[j]);
+            FREEUP(hostInfo[i].resources);
         }
-        FREEUP (hostInfo[i].hostType);
-        FREEUP (hostInfo[i].hostModel);
+        FREEUP(hostInfo[i].hostType);
+        FREEUP(hostInfo[i].hostModel);
     }
-
 }
 
-void
-copyLsfHostInfo (struct hostInfo *to, struct hostInfo *from)
+void copyLsfHostInfo(struct hostInfo *to, struct hostInfo *from)
 {
     int i;
 
-    strcpy (to->hostName, from->hostName);
-    to->hostType = safeSave (from->hostType);
-    to->hostModel = safeSave (from->hostModel);
+    strcpy(to->hostName, from->hostName);
+    to->hostType = safeSave(from->hostType);
+    to->hostModel = safeSave(from->hostModel);
     to->cpuFactor = from->cpuFactor;
     to->maxCpus = from->maxCpus;
     to->maxMem = from->maxMem;
@@ -731,35 +708,29 @@ copyLsfHostInfo (struct hostInfo *to, struct hostInfo *from)
     to->nDisks = from->nDisks;
     to->nRes = from->nRes;
     if (from->nRes > 0) {
-        to->resources = (char **) my_malloc (from->nRes * sizeof (char *),
-                                             "copyLsfHostInfo");
+        to->resources =
+            (char **) my_malloc(from->nRes * sizeof(char *), "copyLsfHostInfo");
         for (i = 0; i < from->nRes; i++)
-            to->resources[i] = safeSave (from->resources[i]);
+            to->resources[i] = safeSave(from->resources[i]);
     } else
         to->resources = NULL;
 
     to->isServer = from->isServer;
     to->rexPriority = from->rexPriority;
-
 }
 
-void
-freeTclHostData (struct tclHostData *tclHostData)
+void freeTclHostData(struct tclHostData *tclHostData)
 {
-
     if (tclHostData == NULL)
         return;
-    FREEUP (tclHostData->resPairs);
-    FREEUP (tclHostData->loadIndex);
-
+    FREEUP(tclHostData->resPairs);
+    FREEUP(tclHostData->loadIndex);
 }
 
-void
-lsbFreeResVal (struct resVal **resVal)
+void lsbFreeResVal(struct resVal **resVal)
 {
-
     if (resVal == NULL || *resVal == NULL)
         return;
-    freeResVal (*resVal);
-    FREEUP (*resVal);
+    freeResVal(*resVal);
+    FREEUP(*resVal);
 }

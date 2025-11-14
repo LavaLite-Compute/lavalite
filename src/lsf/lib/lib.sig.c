@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -22,90 +23,33 @@
 #define SIGLOST SIGIO
 
 #if !defined(SIGWINCH) && defined(SIGWINDOW)
-#    define SIGWINCH SIGWINDOW
+#define SIGWINCH SIGWINDOW
 #endif
 
 /* Bug. Old gargabe to remove we have signal.h
  */
-int sig_map[] =
-{
-    0,
-    SIGHUP,
-    SIGINT,
-    SIGQUIT,
-    SIGILL,
-    SIGTRAP,
-    SIGIOT,
-    SIGEMT,
-    SIGFPE,
-    SIGKILL,
-    SIGBUS,
-    SIGSEGV,
-    SIGSYS,
-    SIGPIPE,
-    SIGALRM,
-    SIGTERM,
-    SIGSTOP,
-    SIGTSTP,
-    SIGCONT,
-    SIGCHLD,
-    SIGTTIN,
-    SIGTTOU,
-    SIGIO,
-    SIGXCPU,
-    SIGXFSZ,
-    SIGVTALRM,
-    SIGPROF,
-    SIGWINCH,
-    SIGLOST,
-    SIGUSR1,
-    SIGUSR2
-};
+int sig_map[] = {
+    0,       SIGHUP,    SIGINT,  SIGQUIT,  SIGILL,  SIGTRAP, SIGIOT,  SIGEMT,
+    SIGFPE,  SIGKILL,   SIGBUS,  SIGSEGV,  SIGSYS,  SIGPIPE, SIGALRM, SIGTERM,
+    SIGSTOP, SIGTSTP,   SIGCONT, SIGCHLD,  SIGTTIN, SIGTTOU, SIGIO,   SIGXCPU,
+    SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH, SIGLOST, SIGUSR1, SIGUSR2};
 
-char *sigSymbol[] = {       "",
-                            "HUP",
-                            "INT",
-                            "QUIT",
-                            "ILL",
-                            "TRAP",
-                            "IOT",
-                            "EMT",
-                            "FPE",
-                            "KILL",
-                            "BUS",
-                            "SEGV",
-                            "SYS",
-                            "PIPE",
-                            "ALRM",
-                            "TERM",
-                            "STOP",
-                            "TSTP",
-                            "CONT",
-                            "CHLD",
-                            "TTIN",
-                            "TTOU",
-                            "IO",
-                            "XCPU",
-                            "XFSZ",
-                            "VTALRM",
-                            "PROF",
-                            "WINCH",
-                            "LOST",
-                            "USR1",
-                            "USR2"
-};
+char *sigSymbol[] = {"",     "HUP",  "INT",  "QUIT", "ILL",    "TRAP", "IOT",
+                     "EMT",  "FPE",  "KILL", "BUS",  "SEGV",   "SYS",  "PIPE",
+                     "ALRM", "TERM", "STOP", "TSTP", "CONT",   "CHLD", "TTIN",
+                     "TTOU", "IO",   "XCPU", "XFSZ", "VTALRM", "PROF", "WINCH",
+                     "LOST", "USR1", "USR2"};
 
-int NSIG_MAP = (sizeof(sig_map)/sizeof(int));
+int NSIG_MAP = (sizeof(sig_map) / sizeof(int));
 
-int
-sig_encode(int sig)
+int sig_encode(int sig)
 {
     int i;
 
     if (sig < 0)
         return sig;
 
-    for (i = 0; i< NSIG_MAP; i++)
+    for (i = 0; i < NSIG_MAP; i++)
         if (sig_map[i] == sig)
             break;
     if (i == NSIG_MAP) {
@@ -117,8 +61,7 @@ sig_encode(int sig)
         return i;
 }
 
-int
-sig_decode(int sig)
+int sig_decode(int sig)
 {
     if (sig < 0)
         return sig;
@@ -134,8 +77,7 @@ sig_decode(int sig)
     return sig_map[sig];
 }
 
-int
-getSigVal(const char *sigString)
+int getSigVal(const char *sigString)
 {
     int sigVal, i;
     char sigSig[16];
@@ -147,7 +89,7 @@ getSigVal(const char *sigString)
 
     /* Silence the compiler about const value of sigString
      */
-    char *p = (char *)sigString;
+    char *p = (char *) sigString;
     if (isint_(p) == true) {
         if ((sigVal = atoi(sigString)) > NSIG)
             return -1;
@@ -157,30 +99,27 @@ getSigVal(const char *sigString)
 
     for (i = 0; i < NSIG_MAP; i++) {
         sprintf(sigSig, "%s%s", "SIG", sigSymbol[i]);
-        if ((strcmp(sigSymbol[i], sigString) == 0)
-            || (strcmp( sigSig, sigString) == 0))
+        if ((strcmp(sigSymbol[i], sigString) == 0) ||
+            (strcmp(sigSig, sigString) == 0))
             return sig_map[i];
     }
     return -1;
 }
 
-char *
-getSigSymbolList (void)
+char *getSigSymbolList(void)
 {
     static char list[512];
     int i;
 
     list[0] = '\0';
-    for (i=1; i<NSIG_MAP; i++) {
+    for (i = 1; i < NSIG_MAP; i++) {
         strcat(list, sigSymbol[i]);
         strcat(list, " ");
     }
     return list;
-
 }
 
-void
-Signal_(int sig, void (*handler)(int))
+void Signal_(int sig, void (*handler)(int))
 {
     struct sigaction act;
 
@@ -191,8 +130,7 @@ Signal_(int sig, void (*handler)(int))
     sigaction(sig, &act, NULL);
 }
 
-char *
-getSigSymbol (int sig)
+char *getSigSymbol(int sig)
 {
     static char symbol[30];
 
@@ -205,8 +143,7 @@ getSigSymbol (int sig)
     return symbol;
 }
 
-int
-blockALL_SIGS_(sigset_t *newMask, sigset_t *oldMask)
+int blockALL_SIGS_(sigset_t *newMask, sigset_t *oldMask)
 {
     sigfillset(newMask);
     sigdelset(newMask, SIGTRAP);

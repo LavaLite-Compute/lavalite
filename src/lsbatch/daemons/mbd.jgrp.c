@@ -12,62 +12,60 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/daemons/mbd.h"
 
-#define MAX_SPEC_LEN  200
+#define MAX_SPEC_LEN 200
 #define SET_STATUS(x, y) ((x) == (y)) ? 0 : ((x) = (y)) == (y)
 
 struct jgTreeNode *groupRoot;
 
 struct jgrpInfo {
-    struct nodeList  *jgrpList;
-    int    numNodes;
-    int    arraySize;
-    char   jobName[MAX_CMD_DESC_LEN];
+    struct nodeList *jgrpList;
+    int numNodes;
+    int arraySize;
+    char jobName[MAX_CMD_DESC_LEN];
     struct idxList *idxList;
-    char   allqueues;
-    char   allusers;
-    char   allhosts;
+    char allqueues;
+    char allusers;
+    char allhosts;
     struct gData *uGrp;
 };
 
-static void       printCounts(struct jgTreeNode *, FILE *);
-static int        printNode(struct jgTreeNode *, FILE *);
-static void       freeTreeNode(struct jgTreeNode *);
-static int        skipJgrpByReq (int, int);
-static int        storeToJgrpList(void *, struct jgrpInfo *, int);
-static int        makeTreeNodeList(struct jgTreeNode *, struct jobInfoReq *,
-                                   struct jgrpInfo *);
-static void       treeObserverEvalDep(TREE_OBSERVER_T *, void *, enum treeEventType);
-static TREE_OBSERVER_T * treeObserverCreate(char *, void *, TREE_EVENT_OP_T);
-static void       treeObserverInvoke(void *, enum treeEventType);
-static void       freeGrpNode(struct jgrpData *);
-static int isSelected ( struct jobInfoReq *,
-                        struct jData *,
-                        struct jgrpInfo *
-                      );
-static int makeJgrpInfo(struct jgTreeNode *, char *, struct jobInfoReq *, struct jgrpInfo *);
+static void printCounts(struct jgTreeNode *, FILE *);
+static int printNode(struct jgTreeNode *, FILE *);
+static void freeTreeNode(struct jgTreeNode *);
+static int skipJgrpByReq(int, int);
+static int storeToJgrpList(void *, struct jgrpInfo *, int);
+static int makeTreeNodeList(struct jgTreeNode *, struct jobInfoReq *,
+                            struct jgrpInfo *);
+static void treeObserverEvalDep(TREE_OBSERVER_T *, void *, enum treeEventType);
+static TREE_OBSERVER_T *treeObserverCreate(char *, void *, TREE_EVENT_OP_T);
+static void treeObserverInvoke(void *, enum treeEventType);
+static void freeGrpNode(struct jgrpData *);
+static int isSelected(struct jobInfoReq *, struct jData *, struct jgrpInfo *);
+static int makeJgrpInfo(struct jgTreeNode *, char *, struct jobInfoReq *,
+                        struct jgrpInfo *);
 char treeFile[48];
 LIST_T *treeObserverList;
 TREE_OBSERVER_T *treeObserverDep;
 
 extern float version;
 
-#define DEFAULT_LISTSIZE    200
+#define DEFAULT_LISTSIZE 200
 
-void
-treeInit()
+void treeInit()
 {
     static char fname[] = "treeInit";
     int mbdPid = getpid();
 
     groupRoot = treeNewNode(JGRP_NODE_GROUP);
     groupRoot->name = safeSave("/");
-    JGRP_DATA(groupRoot)->userId  = mbd_mgr->uid;
+    JGRP_DATA(groupRoot)->userId = mbd_mgr->uid;
     JGRP_DATA(groupRoot)->userName = safeSave("SYS");
     JGRP_DATA(groupRoot)->status = JGRP_ACTIVE;
     JGRP_DATA(groupRoot)->changeTime = INFINIT_INT;
@@ -76,27 +74,25 @@ treeInit()
 
     treeObserverList = listCreate("tree observer");
     if (treeObserverList == NULL) {
-        ls_syslog(LOG_ERR, "%s: failed to create tree observer list: %s",
-                  fname, listStrError(listerrno));
+        ls_syslog(LOG_ERR, "%s: failed to create tree observer list: %s", fname,
+                  listStrError(listerrno));
         mbdDie(MASTER_MEM);
     }
 
-    treeObserverDep = treeObserverCreate("tree eval dependence",
-                                         (void *)groupRoot,
-                                         treeObserverEvalDep);
+    treeObserverDep = treeObserverCreate(
+        "tree eval dependence", (void *) groupRoot, treeObserverEvalDep);
     if (treeObserverDep == NULL)
         mbdDie(MASTER_MEM);
 
-    listInsertEntryAtBack(treeObserverList, (LIST_ENTRY_T *)treeObserverDep);
-
+    listInsertEntryAtBack(treeObserverList, (LIST_ENTRY_T *) treeObserverDep);
 }
 
-static TREE_OBSERVER_T *
-treeObserverCreate(char *name, void *entry, TREE_EVENT_OP_T eventOp)
+static TREE_OBSERVER_T *treeObserverCreate(char *name, void *entry,
+                                           TREE_EVENT_OP_T eventOp)
 {
     struct treeObserver *observer;
 
-    observer = (TREE_OBSERVER_T *)calloc(1, sizeof(TREE_OBSERVER_T));
+    observer = (TREE_OBSERVER_T *) calloc(1, sizeof(TREE_OBSERVER_T));
     if (observer == NULL) {
         ls_syslog(LOG_ERR, "%s", __func__, "calloc");
         lsberrno = LIST_ERR_NOMEM;
@@ -110,59 +106,55 @@ treeObserverCreate(char *name, void *entry, TREE_EVENT_OP_T eventOp)
 
 Fail:
     FREEUP(observer);
-    return (TREE_OBSERVER_T *)NULL;
+    return (TREE_OBSERVER_T *) NULL;
 }
 
-static void
-treeObserverEvalDep(TREE_OBSERVER_T * obs, void *operEntry,
-                    enum treeEventType eventType)
+static void treeObserverEvalDep(TREE_OBSERVER_T *obs, void *operEntry,
+                                enum treeEventType eventType)
 {
     struct jgTreeNode *operand;
 
-    operand = (struct jgTreeNode *)operEntry;
+    operand = (struct jgTreeNode *) operEntry;
     switch (eventType) {
-        case TREE_EVENT_ADD:
-            break;
-        case TREE_EVENT_CLIP:
-            if (treeObserverDep->entry == operand ||
-                isAncestor(operand, treeObserverDep->entry))
-                obs->entry = (void *)treeNextSib(operand);
-            break;
-        case TREE_EVENT_CTRL:
-            if (treeObserverDep->entry == operand ||
-                isAncestor(operand, treeObserverDep->entry))
-                obs->entry = (void *) operand;
-            break;
-        case TREE_EVENT_NULL:
-            break;
+    case TREE_EVENT_ADD:
+        break;
+    case TREE_EVENT_CLIP:
+        if (treeObserverDep->entry == operand ||
+            isAncestor(operand, treeObserverDep->entry))
+            obs->entry = (void *) treeNextSib(operand);
+        break;
+    case TREE_EVENT_CTRL:
+        if (treeObserverDep->entry == operand ||
+            isAncestor(operand, treeObserverDep->entry))
+            obs->entry = (void *) operand;
+        break;
+    case TREE_EVENT_NULL:
+        break;
     }
     if (logclass & (LC_JGRP))
         ls_syslog(LOG_DEBUG1, "treeObserverEvalDep: obs->entry = <%s/%s>",
-                  jgrpNodeParentPath((struct jgTreeNode *)obs->entry), ((struct jgTreeNode *)obs->entry)->name);
+                  jgrpNodeParentPath((struct jgTreeNode *) obs->entry),
+                  ((struct jgTreeNode *) obs->entry)->name);
     return;
 }
 
-static void
-treeObserverInvoke(void *operand, enum treeEventType eventType)
+static void treeObserverInvoke(void *operand, enum treeEventType eventType)
 {
-    LIST_ITERATOR_T     iter;
-    LIST_ENTRY_T        *ent;
+    LIST_ITERATOR_T iter;
+    LIST_ENTRY_T *ent;
 
     LIST_ITERATOR_ZERO_OUT(&iter);
     listIteratorAttach(&iter, treeObserverList);
 
-    for (ent = listIteratorGetCurEntry(&iter);
-         ent != NULL;
-         listIteratorNext(&iter, &ent))
-    {
-        (((TREE_OBSERVER_T *)ent)->eventOp)((TREE_OBSERVER_T *)ent,
-                                            operand, eventType);
+    for (ent = listIteratorGetCurEntry(&iter); ent != NULL;
+         listIteratorNext(&iter, &ent)) {
+        (((TREE_OBSERVER_T *) ent)->eventOp)((TREE_OBSERVER_T *) ent, operand,
+                                             eventType);
     }
     return;
 }
 
-struct jgTreeNode *
-treeLexNext(struct jgTreeNode *node)
+struct jgTreeNode *treeLexNext(struct jgTreeNode *node)
 {
     struct jgTreeNode *parent;
 
@@ -172,7 +164,7 @@ treeLexNext(struct jgTreeNode *node)
         return node->child;
     if (node->right)
         return node->right;
-    parent = node->parent ;
+    parent = node->parent;
     while (parent) {
         if (parent->right)
             return parent->right;
@@ -181,8 +173,7 @@ treeLexNext(struct jgTreeNode *node)
     return NULL;
 }
 
-struct jgTreeNode *
-treeNextSib(struct jgTreeNode *node)
+struct jgTreeNode *treeNextSib(struct jgTreeNode *node)
 {
     if (node == NULL)
         return NULL;
@@ -196,8 +187,8 @@ treeNextSib(struct jgTreeNode *node)
     return NULL;
 }
 
-struct jgTreeNode *
-treeInsertChild(struct jgTreeNode *parent, struct jgTreeNode *child)
+struct jgTreeNode *treeInsertChild(struct jgTreeNode *parent,
+                                   struct jgTreeNode *child)
 {
     struct jgTreeNode *nPtr;
 
@@ -211,12 +202,11 @@ treeInsertChild(struct jgTreeNode *parent, struct jgTreeNode *child)
     } else
         parent->child = child;
 
-    nPtr=child;
+    nPtr = child;
     do {
-        nPtr->parent=parent;
-        nPtr=nPtr->right;
-    }
-    while (nPtr != NULL);
+        nPtr->parent = parent;
+        nPtr = nPtr->right;
+    } while (nPtr != NULL);
 
     if (child->nodeType == JGRP_NODE_JOB)
         updJgrpCountByJStatus(JOB_DATA(child), JOB_STAT_NULL,
@@ -224,12 +214,12 @@ treeInsertChild(struct jgTreeNode *parent, struct jgTreeNode *child)
     else
         updJgrpCountByOp(child, 1);
 
-    treeObserverInvoke((void *)child, TREE_EVENT_ADD);
+    treeObserverInvoke((void *) child, TREE_EVENT_ADD);
     return parent;
 }
 
-struct jgTreeNode *
-treeLinkSibling(struct jgTreeNode *sib1, struct jgTreeNode *sib2)
+struct jgTreeNode *treeLinkSibling(struct jgTreeNode *sib1,
+                                   struct jgTreeNode *sib2)
 {
     struct jgTreeNode *nPtr;
 
@@ -237,14 +227,14 @@ treeLinkSibling(struct jgTreeNode *sib1, struct jgTreeNode *sib2)
         return sib2;
     if (!sib2)
         return sib1;
-    for(nPtr=sib1; nPtr->right; nPtr=nPtr->right);
-    nPtr->right=sib2;
-    sib2->left=nPtr;
+    for (nPtr = sib1; nPtr->right; nPtr = nPtr->right)
+        ;
+    nPtr->right = sib2;
+    sib2->left = nPtr;
     return sib1;
 }
 
-void
-treeInsertLeft(struct jgTreeNode *node, struct jgTreeNode *subtree)
+void treeInsertLeft(struct jgTreeNode *node, struct jgTreeNode *subtree)
 {
     if (!node || !subtree)
         return;
@@ -261,18 +251,16 @@ treeInsertLeft(struct jgTreeNode *node, struct jgTreeNode *subtree)
     else
         updJgrpCountByOp(subtree, 1);
 
-    treeObserverInvoke((void *)subtree, TREE_EVENT_ADD);
-
+    treeObserverInvoke((void *) subtree, TREE_EVENT_ADD);
 }
 
-void
-treeInsertRight(struct jgTreeNode *node, struct jgTreeNode *subtree)
+void treeInsertRight(struct jgTreeNode *node, struct jgTreeNode *subtree)
 {
     if (!node || !subtree)
         return;
 
     subtree->right = node->right;
-    subtree->left  = node;
+    subtree->left = node;
     subtree->parent = node->parent;
     if (node->right)
         node->right->left = subtree;
@@ -284,14 +272,12 @@ treeInsertRight(struct jgTreeNode *node, struct jgTreeNode *subtree)
     else
         updJgrpCountByOp(subtree, 1);
 
-    treeObserverInvoke((void *)subtree, TREE_EVENT_ADD);
-
+    treeObserverInvoke((void *) subtree, TREE_EVENT_ADD);
 }
 
-struct jgTreeNode *
-treeClip(struct jgTreeNode *node)
+struct jgTreeNode *treeClip(struct jgTreeNode *node)
 {
-    if ( !node )
+    if (!node)
         return NULL;
     if (node->left)
         node->left->right = node->right;
@@ -306,41 +292,37 @@ treeClip(struct jgTreeNode *node)
     else
         updJgrpCountByOp(node, -1);
 
-    treeObserverInvoke((void *)node, TREE_EVENT_CLIP);
+    treeObserverInvoke((void *) node, TREE_EVENT_CLIP);
     node->parent = node->left = node->right = NULL;
 
     return node;
 }
 
-struct jgTreeNode *
-treeNewNode(int type)
+struct jgTreeNode *treeNewNode(int type)
 {
     struct jgTreeNode *node;
 
-    node = (struct jgTreeNode *) my_malloc(sizeof(struct jgTreeNode), "treeNewNode");
-    initObj((char *)node, sizeof(struct jgTreeNode));
+    node = (struct jgTreeNode *) my_malloc(sizeof(struct jgTreeNode),
+                                           "treeNewNode");
+    initObj((char *) node, sizeof(struct jgTreeNode));
     node->nodeType = type;
     if (type == JGRP_NODE_GROUP) {
-
-        node->ndInfo = (void *) my_malloc(sizeof (struct jgrpData),
-                                          "treeNewNode");
-        initObj((char *)JGRP_DATA(node), sizeof (struct jgrpData));
+        node->ndInfo =
+            (void *) my_malloc(sizeof(struct jgrpData), "treeNewNode");
+        initObj((char *) JGRP_DATA(node), sizeof(struct jgrpData));
         JGRP_DATA(node)->freeJgArray = (FREE_JGARRAY_FUNC_T) freeGrpNode;
         JGRP_DATA(node)->status = JGRP_UNDEFINED;
-    }
-    else if (type == JGRP_NODE_ARRAY) {
-        node->ndInfo = (void *) my_malloc(sizeof(struct jarray),
-                                          "treeNewNode");
-        initObj((char *)ARRAY_DATA(node), sizeof (struct jarray));
+    } else if (type == JGRP_NODE_ARRAY) {
+        node->ndInfo = (void *) my_malloc(sizeof(struct jarray), "treeNewNode");
+        initObj((char *) ARRAY_DATA(node), sizeof(struct jarray));
         ARRAY_DATA(node)->freeJgArray = (FREE_JGARRAY_FUNC_T) freeJarray;
     }
     return node;
 }
 
-void
-treeFree(struct jgTreeNode * node)
+void treeFree(struct jgTreeNode *node)
 {
-    struct jgTreeNode *ndPtr, *ndTmp ;
+    struct jgTreeNode *ndPtr, *ndTmp;
 
     ndPtr = node;
     while (ndPtr) {
@@ -349,14 +331,12 @@ treeFree(struct jgTreeNode * node)
         if (FIRST_CHILD(ndTmp)) {
             treeFree(FIRST_CHILD(ndTmp));
             freeTreeNode(ndTmp);
-        }
-        else
+        } else
             freeTreeNode(ndTmp);
     }
 }
 
-static void
-freeTreeNode(struct jgTreeNode *node)
+static void freeTreeNode(struct jgTreeNode *node)
 {
     if (!node)
         return;
@@ -364,17 +344,14 @@ freeTreeNode(struct jgTreeNode *node)
         FREEUP(node->name);
     if (node->nodeType == JGRP_NODE_JOB) {
         DESTROY_REF(node->ndInfo, destroyjDataRef);
-    }
-    else if (node->nodeType == JGRP_NODE_ARRAY) {
+    } else if (node->nodeType == JGRP_NODE_ARRAY) {
         freeJarray(ARRAY_DATA(node));
-    }
-    else
+    } else
         freeGrpNode(JGRP_DATA(node));
     FREEUP(node);
 }
 
-static void
-freeGrpNode(struct jgrpData *jgrpData)
+static void freeGrpNode(struct jgrpData *jgrpData)
 {
     if (!jgrpData)
         return;
@@ -383,15 +360,12 @@ freeGrpNode(struct jgrpData *jgrpData)
 
     if (jgrpData->numRef <= 0) {
         FREEUP(jgrpData);
-    }
-    else
+    } else
         jgrpData->status = JGRP_VOID;
 }
 
-void
-freeJarray(struct jarray *jarray)
+void freeJarray(struct jarray *jarray)
 {
-
     if (!jarray)
         return;
     if (jarray->userName)
@@ -400,13 +374,11 @@ freeJarray(struct jarray *jarray)
     jarray->jobArray = NULL;
     if (jarray->numRef <= 0) {
         FREEUP(jarray);
-    }
-    else
+    } else
         jarray->status = JGRP_VOID;
 }
 
-int
-isAncestor(struct jgTreeNode *x, struct jgTreeNode *y)
+int isAncestor(struct jgTreeNode *x, struct jgTreeNode *y)
 {
     struct jgTreeNode *ndPtr;
 
@@ -420,8 +392,7 @@ isAncestor(struct jgTreeNode *x, struct jgTreeNode *y)
     return FALSE;
 }
 
-int
-isChild(struct jgTreeNode *x, struct jgTreeNode *y)
+int isChild(struct jgTreeNode *x, struct jgTreeNode *y)
 {
     struct jgTreeNode *ndPtr;
 
@@ -435,39 +406,36 @@ isChild(struct jgTreeNode *x, struct jgTreeNode *y)
     return FALSE;
 }
 
-struct jgTreeNode *
-findTreeNode(struct jgTreeNode *node, char *name)
+struct jgTreeNode *findTreeNode(struct jgTreeNode *node, char *name)
 {
-    struct jgTreeNode  *nPtr;
+    struct jgTreeNode *nPtr;
 
     if (!node)
         return NULL;
 
-    for (nPtr = node; nPtr;   nPtr = nPtr->right) {
+    for (nPtr = node; nPtr; nPtr = nPtr->right) {
         if (strcmp(name, nPtr->name) == 0)
             return nPtr;
     }
     return NULL;
 }
 
-void
-initObj(char *obj, int len)
+void initObj(char *obj, int len)
 {
     char *ptr = obj;
     int i;
 
-    for (i = 0; i <  len; i++)
-        *ptr++ = 0 ;
+    for (i = 0; i < len; i++)
+        *ptr++ = 0;
 }
 
-char *
-parentGroup(char * group_spec)
+char *parentGroup(char *group_spec)
 {
     static char parentStr[MAXPATHLEN];
-    int    i;
+    int i;
 
     parentStr[0] = '\0';
-    if (!group_spec){
+    if (!group_spec) {
         lsberrno = LSBE_JGRP_BAD;
         return parentStr;
     }
@@ -479,27 +447,28 @@ parentGroup(char * group_spec)
 
     strcpy(parentStr, group_spec);
 
-    for (i = strlen(parentStr)-1; (i >= 0) && (parentStr[i] == '/'); i--);
+    for (i = strlen(parentStr) - 1; (i >= 0) && (parentStr[i] == '/'); i--)
+        ;
 
-    if (i < 0)  {
+    if (i < 0) {
         lsberrno = LSBE_JGRP_NULL;
         parentStr[0] = '\0';
         return parentStr;
     }
 
-    for (; (i >= 0) && (parentStr[i] != '/'); i--);
+    for (; (i >= 0) && (parentStr[i] != '/'); i--)
+        ;
 
-    parentStr[i+1] = '\0';
+    parentStr[i + 1] = '\0';
     return parentStr;
 }
 
-char *
-parentOfJob(char * group_spec)
+char *parentOfJob(char *group_spec)
 {
     static char parentStr[MAXPATHLEN];
-    int    i;
+    int i;
 
-    if (!group_spec){
+    if (!group_spec) {
         lsberrno = LSBE_JGRP_NULL;
         return NULL;
     }
@@ -511,20 +480,20 @@ parentOfJob(char * group_spec)
 
     strcpy(parentStr, group_spec);
 
-    for (i = strlen(parentStr)-1; (i >= 0) && (parentStr[i] != '/'); i--);
+    for (i = strlen(parentStr) - 1; (i >= 0) && (parentStr[i] != '/'); i--)
+        ;
 
-    parentStr[i+1] = '\0';
+    parentStr[i + 1] = '\0';
     return parentStr;
 }
 
-char *
-myName(char * group_spec)
+char *myName(char *group_spec)
 {
     static char myStr[MAXPATHLEN];
-    int    i;
+    int i;
 
     myStr[0] = '\0';
-    if (!group_spec){
+    if (!group_spec) {
         lsberrno = LSBE_JGRP_BAD;
         return myStr;
     }
@@ -536,26 +505,27 @@ myName(char * group_spec)
 
     strcpy(myStr, group_spec);
 
-    for (i = strlen(myStr)-1; (i >= 0) && (myStr[i] == '/'); i--);
+    for (i = strlen(myStr) - 1; (i >= 0) && (myStr[i] == '/'); i--)
+        ;
 
-    myStr[i+1] = '\0';
-    if (i < 0)  {
+    myStr[i + 1] = '\0';
+    if (i < 0) {
         lsberrno = LSBE_JGRP_BAD;
         return myStr;
     }
 
-    for (; (i >= 0) && (myStr[i] != '/'); i--);
+    for (; (i >= 0) && (myStr[i] != '/'); i--)
+        ;
 
-    return &myStr[i+1];
+    return &myStr[i + 1];
 }
 
-char *
-jgrpNodeParentPath(struct jgTreeNode * jgrpNode)
+char *jgrpNodeParentPath(struct jgTreeNode *jgrpNode)
 {
     static char fullPath[MAXPATHLEN];
     static char oldPath[MAXPATHLEN];
-    struct jgTreeNode * jgrpPtr;
-    int    first = TRUE;
+    struct jgTreeNode *jgrpPtr;
+    int first = TRUE;
 
     if (jgrpNode == NULL) {
         lsberrno = LSBE_JGRP_NULL;
@@ -569,16 +539,14 @@ jgrpNodeParentPath(struct jgTreeNode * jgrpNode)
     while (jgrpPtr) {
         strcpy(oldPath, fullPath);
 
-        if (!strcmp(jgrpPtr->name,"/"))
-            sprintf(fullPath,"/%s", oldPath);
+        if (!strcmp(jgrpPtr->name, "/"))
+            sprintf(fullPath, "/%s", oldPath);
         else {
             if (first == TRUE) {
-                sprintf(fullPath,"%s", jgrpPtr->name);
+                sprintf(fullPath, "%s", jgrpPtr->name);
                 first = FALSE;
-            }
-            else
-                sprintf(fullPath,"%s/%s", jgrpPtr->name, oldPath);
-
+            } else
+                sprintf(fullPath, "%s/%s", jgrpPtr->name, oldPath);
         }
         jgrpPtr = jgrpPtr->parent;
     }
@@ -586,12 +554,11 @@ jgrpNodeParentPath(struct jgTreeNode * jgrpNode)
     return fullPath;
 }
 
-int
-jgrpNodeParentPath_r(struct jgTreeNode * jgrpNode, char *fullPath)
+int jgrpNodeParentPath_r(struct jgTreeNode *jgrpNode, char *fullPath)
 {
     char oldPath[MAXPATHLEN];
-    struct jgTreeNode * jgrpPtr;
-    int    first = TRUE;
+    struct jgTreeNode *jgrpPtr;
+    int first = TRUE;
 
     if (jgrpNode == NULL || fullPath == NULL) {
         lsberrno = LSBE_JGRP_NULL;
@@ -605,49 +572,44 @@ jgrpNodeParentPath_r(struct jgTreeNode * jgrpNode, char *fullPath)
     while (jgrpPtr) {
         strcpy(oldPath, fullPath);
 
-        if (!strcmp(jgrpPtr->name,"/"))
-            sprintf(fullPath,"/%s", oldPath);
+        if (!strcmp(jgrpPtr->name, "/"))
+            sprintf(fullPath, "/%s", oldPath);
         else {
             if (first == TRUE) {
-                sprintf(fullPath,"%s", jgrpPtr->name);
+                sprintf(fullPath, "%s", jgrpPtr->name);
                 first = FALSE;
-            }
-            else
-                sprintf(fullPath,"%s/%s", jgrpPtr->name, oldPath);
-
+            } else
+                sprintf(fullPath, "%s/%s", jgrpPtr->name, oldPath);
         }
         jgrpPtr = jgrpPtr->parent;
     }
     return 0;
 }
 
-void
-printSubtree(struct jgTreeNode *root, FILE *out_file, int indent)
+void printSubtree(struct jgTreeNode *root, FILE *out_file, int indent)
 {
-
-    int    len, i;
-    char   space[MAX_SPEC_LEN];
+    int len, i;
+    char space[MAX_SPEC_LEN];
     struct jgTreeNode *gPtr;
 
     if (!root)
         return;
     len = printNode(root, out_file);
-    space[0]='\0' ;
-    for (i = 1; i <= (indent+len); i++)
-        strcat(space, " ") ;
+    space[0] = '\0';
+    for (i = 1; i <= (indent + len); i++)
+        strcat(space, " ");
 
     for (gPtr = root->child; gPtr; gPtr = gPtr->right) {
-        printSubtree(gPtr, out_file, indent+len);
+        printSubtree(gPtr, out_file, indent + len);
         if (gPtr->right)
             fprintf(out_file, "\n%s", space);
     }
 }
 
-void
-printTreeStruct(char *fileName)
+void printTreeStruct(char *fileName)
 {
     static char fname[] = "printTreeStruct";
-    FILE   *out_file , *fopen() ;
+    FILE *out_file, *fopen();
 
     if ((out_file = fopen(fileName, "w")) == NULL) {
         ls_syslog(LOG_ERR, "%s: can't open file %s: %m", fname, fileName);
@@ -662,32 +624,26 @@ printTreeStruct(char *fileName)
     FCLOSEUP(&out_file);
 }
 
-static int
-printNode(struct jgTreeNode *root, FILE *out_file)
+static int printNode(struct jgTreeNode *root, FILE *out_file)
 {
     char ss[MAX_SPEC_LEN];
     if (root->nodeType == JGRP_NODE_GROUP) {
         sprintf(ss, "%s(Root)", root->name);
-    }
-    else if (root->nodeType == JGRP_NODE_JOB) {
+    } else if (root->nodeType == JGRP_NODE_JOB) {
         sprintf(ss, "%s(J)", root->name);
-    }
-    else if ( root->nodeType == JGRP_NODE_ARRAY) {
+    } else if (root->nodeType == JGRP_NODE_ARRAY) {
         sprintf(ss, "%s(V)", root->name);
-    }
-    else
-        sprintf(ss, "<%lx>UNDEF:", (long)root);
-    fprintf(out_file, "%s", ss) ;
-    if (root->child!=0){
-        fprintf(out_file, "->") ;
-        return(strlen(ss)+2);
-    }
-    else
-        return(strlen(ss)) ;
+    } else
+        sprintf(ss, "<%lx>UNDEF:", (long) root);
+    fprintf(out_file, "%s", ss);
+    if (root->child != 0) {
+        fprintf(out_file, "->");
+        return (strlen(ss) + 2);
+    } else
+        return (strlen(ss));
 }
 
-static void
-printCounts(struct jgTreeNode *root, FILE *out_file)
+static void printCounts(struct jgTreeNode *root, FILE *out_file)
 {
     int i;
 
@@ -696,14 +652,13 @@ printCounts(struct jgTreeNode *root, FILE *out_file)
     while (root) {
         if (root->nodeType == JGRP_NODE_GROUP) {
             fprintf(out_file, "GROUP:%s\n", root->name);
-            for (i=0; i < NUM_JGRP_COUNTERS; i++)
+            for (i = 0; i < NUM_JGRP_COUNTERS; i++)
                 fprintf(out_file, "%d   ", JGRP_DATA(root)->counts[i]);
             fprintf(out_file, "\n");
 
-        }
-        else if (root->nodeType == JGRP_NODE_ARRAY) {
+        } else if (root->nodeType == JGRP_NODE_ARRAY) {
             fprintf(out_file, "ARRAY:%s\n", root->name);
-            for (i=0; i < NUM_JGRP_COUNTERS; i++)
+            for (i = 0; i < NUM_JGRP_COUNTERS; i++)
                 fprintf(out_file, "%d   ", ARRAY_DATA(root)->counts[i]);
             fprintf(out_file, "\n");
         }
@@ -712,12 +667,11 @@ printCounts(struct jgTreeNode *root, FILE *out_file)
     }
 }
 
-void
-putOntoTree(struct jData *jp, int jobType)
+void putOntoTree(struct jData *jp, int jobType)
 {
     static struct jgTreeNode *newj;
-    struct jgTreeNode  *parentNode;
-    struct jData    *jPtr;
+    struct jgTreeNode *parentNode;
+    struct jData *jPtr;
 
     parentNode = groupRoot;
     newj = treeNewNode(jp->nodeType);
@@ -727,11 +681,11 @@ putOntoTree(struct jData *jp, int jobType)
         newj->name = safeSave(jp->shared->jobBill.command);
 
     if (jp->nodeType == JGRP_NODE_JOB)
-        newj->ndInfo = (void *)createjDataRef(jp);
+        newj->ndInfo = (void *) createjDataRef(jp);
     else {
         ARRAY_DATA(newj)->jobArray = createjDataRef(jp);
         ARRAY_DATA(newj)->userId = jp->userId;
-        ARRAY_DATA(newj)->userName = safeSave (jp->userName);
+        ARRAY_DATA(newj)->userName = safeSave(jp->userName);
 
         if (jp->shared->jobBill.options2 & SUB2_HOST_UX)
             ARRAY_DATA(newj)->fromPlatform = AUTH_HOST_UX;
@@ -758,8 +712,7 @@ putOntoTree(struct jData *jp, int jobType)
         printTreeStruct(treeFile);
 }
 
-struct jgArrayBase *
-createJgArrayBaseRef (struct jgArrayBase *jgArrayBase)
+struct jgArrayBase *createJgArrayBaseRef(struct jgArrayBase *jgArrayBase)
 {
     if (jgArrayBase) {
         jgArrayBase->numRef++;
@@ -767,109 +720,105 @@ createJgArrayBaseRef (struct jgArrayBase *jgArrayBase)
     return jgArrayBase;
 }
 
-void
-destroyJgArrayBaseRef(struct jgArrayBase *jgArrayBase)
+void destroyJgArrayBaseRef(struct jgArrayBase *jgArrayBase)
 {
     if (jgArrayBase) {
         jgArrayBase->numRef--;
         if ((jgArrayBase->status == JGRP_VOID) && (jgArrayBase->numRef <= 0)) {
-
-            (* jgArrayBase->freeJgArray)((char *)jgArrayBase);
+            (*jgArrayBase->freeJgArray)((char *) jgArrayBase);
         }
     }
     return;
 }
 
-void
-checkJgrpDep(void)
+void checkJgrpDep(void)
 {
-    static char  fname[] = "checkJgrpDep";
+    static char fname[] = "checkJgrpDep";
     struct jgTreeNode *nPtr;
-    int    iterNum = 0;
-    time_t   entryTime;
-    int    change = TRUE;
+    int iterNum = 0;
+    time_t entryTime;
+    int change = TRUE;
 
     if (treeObserverDep->entry)
-        nPtr = (struct jgTreeNode *)treeObserverDep->entry;
+        nPtr = (struct jgTreeNode *) treeObserverDep->entry;
     else {
         nPtr = groupRoot;
-        treeObserverDep->entry = (void *)groupRoot;
+        treeObserverDep->entry = (void *) groupRoot;
     }
 
     if (logclass & LC_SCHED)
-        ls_syslog(LOG_DEBUG1, "%s: (Re-)entering checkJgrpDep at node <%s%s>;", fname, jgrpNodeParentPath(nPtr), nPtr->name);
+        ls_syslog(LOG_DEBUG1, "%s: (Re-)entering checkJgrpDep at node <%s%s>;",
+                  fname, jgrpNodeParentPath(nPtr), nPtr->name);
 
     entryTime = time(0);
 
 Entry:
-    if (! change)
+    if (!change)
         goto Exit;
     change = FALSE;
-    while(nPtr) {
+    while (nPtr) {
         switch (nPtr->nodeType) {
-            case JGRP_NODE_GROUP:
-                nPtr = treeLexNext(nPtr);
-                break;
-            case JGRP_NODE_JOB:
-            case JGRP_NODE_ARRAY: {
-                                      struct jData * jpbw;
+        case JGRP_NODE_GROUP:
+            nPtr = treeLexNext(nPtr);
+            break;
+        case JGRP_NODE_JOB:
+        case JGRP_NODE_ARRAY: {
+            struct jData *jpbw;
 
-                                      if (nPtr->nodeType == JGRP_NODE_JOB)
-                                          jpbw = JOB_DATA(nPtr);
-                                      else
-                                          jpbw = ARRAY_DATA(nPtr)->jobArray->nextJob;
+            if (nPtr->nodeType == JGRP_NODE_JOB)
+                jpbw = JOB_DATA(nPtr);
+            else
+                jpbw = ARRAY_DATA(nPtr)->jobArray->nextJob;
 
-                                      for (; jpbw; jpbw = jpbw->nextJob) {
-                                          iterNum ++;
-                                          if (!JOB_PEND(jpbw)) {
-                                              continue;
-                                          }
+            for (; jpbw; jpbw = jpbw->nextJob) {
+                iterNum++;
+                if (!JOB_PEND(jpbw)) {
+                    continue;
+                }
 
-                                          jpbw->jFlags &= ~(JFLAG_READY1 | JFLAG_READY2);
+                jpbw->jFlags &= ~(JFLAG_READY1 | JFLAG_READY2);
 
-                                          jpbw->jFlags |= JFLAG_READY1;
+                jpbw->jFlags |= JFLAG_READY1;
 
-                                          if (jpbw->jFlags & JFLAG_WAIT_SWITCH) {
-                                              jpbw->newReason = PEND_JOB_SWITCH;
-                                              continue;
-                                          }
+                if (jpbw->jFlags & JFLAG_WAIT_SWITCH) {
+                    jpbw->newReason = PEND_JOB_SWITCH;
+                    continue;
+                }
 
-                                          if (!jpbw->shared->dptRoot) {
-                                              jpbw->jFlags |= JFLAG_READY2;
-                                          }
-                                          else {
-                                              int depCond;
-                                              depCond=evalDepCond(jpbw->shared->dptRoot, jpbw);
-                                              if (depCond == DP_FALSE) {
-                                                  jpbw->newReason = PEND_JOB_DEPEND;
-                                              }
-                                              else if (depCond == DP_INVALID) {
-
-                                                  jpbw->newReason = PEND_JOB_DEP_INVALID;
-                                                  jpbw->jFlags |= JFLAG_DEPCOND_INVALID;
-                                              }
-                                              else if (depCond == DP_REJECT) {
-                                                  jpbw->newReason = PEND_JOB_DEP_REJECT;
-                                                  jpbw->jFlags |= JFLAG_DEPCOND_REJECT;
-                                              }
-                                              if (depCond == DP_TRUE) {
-                                                  jpbw->jFlags |= JFLAG_READY2;
-                                                  continue;
-                                              }
-                                          }
-                                      }
-                                      nPtr = treeLexNext(nPtr);
-                                      break;
-                                  }
-            default:
-                                  nPtr = treeLexNext(nPtr);
-                                  break;
+                if (!jpbw->shared->dptRoot) {
+                    jpbw->jFlags |= JFLAG_READY2;
+                } else {
+                    int depCond;
+                    depCond = evalDepCond(jpbw->shared->dptRoot, jpbw);
+                    if (depCond == DP_FALSE) {
+                        jpbw->newReason = PEND_JOB_DEPEND;
+                    } else if (depCond == DP_INVALID) {
+                        jpbw->newReason = PEND_JOB_DEP_INVALID;
+                        jpbw->jFlags |= JFLAG_DEPCOND_INVALID;
+                    } else if (depCond == DP_REJECT) {
+                        jpbw->newReason = PEND_JOB_DEP_REJECT;
+                        jpbw->jFlags |= JFLAG_DEPCOND_REJECT;
+                    }
+                    if (depCond == DP_TRUE) {
+                        jpbw->jFlags |= JFLAG_READY2;
+                        continue;
+                    }
+                }
+            }
+            nPtr = treeLexNext(nPtr);
+            break;
         }
-        iterNum ++;
+        default:
+            nPtr = treeLexNext(nPtr);
+            break;
+        }
+        iterNum++;
 
-        if (nPtr && (iterNum > 1000) && (time(0) - entryTime > 3))  {
+        if (nPtr && (iterNum > 1000) && (time(0) - entryTime > 3)) {
             if (logclass & LC_SCHED)
-                ls_syslog(LOG_DEBUG1, "%s: Stayed too long; leave at node <%s%s>;", fname, jgrpNodeParentPath(nPtr), nPtr->name);
+                ls_syslog(LOG_DEBUG1,
+                          "%s: Stayed too long; leave at node <%s%s>;", fname,
+                          jgrpNodeParentPath(nPtr), nPtr->name);
             goto Exit;
         }
     }
@@ -879,14 +828,14 @@ Entry:
 
     if (logclass & LC_JGRP)
         printTreeStruct(treeFile);
-Exit: if (nPtr)
-          treeObserverDep->entry = (void *)nPtr;
+Exit:
+    if (nPtr)
+        treeObserverDep->entry = (void *) nPtr;
     else
-        treeObserverDep->entry = (void *)groupRoot;
+        treeObserverDep->entry = (void *) groupRoot;
 }
 
-void
-updJgrpCountByJStatus(struct jData *job, int oldStatus, int newStatus)
+void updJgrpCountByJStatus(struct jData *job, int oldStatus, int newStatus)
 {
     struct jgTreeNode *gPtr = job->jgrpNode;
 
@@ -900,8 +849,7 @@ updJgrpCountByJStatus(struct jData *job, int oldStatus, int newStatus)
                 JGRP_DATA(gPtr)->counts[getIndexOfJStatus(newStatus)] += 1;
                 JGRP_DATA(gPtr)->counts[JGRP_COUNT_NJOBS] += 1;
             }
-        }
-        else if (gPtr->nodeType == JGRP_NODE_ARRAY) {
+        } else if (gPtr->nodeType == JGRP_NODE_ARRAY) {
             if (oldStatus != JOB_STAT_NULL) {
                 ARRAY_DATA(gPtr)->counts[getIndexOfJStatus(oldStatus)] -= 1;
                 ARRAY_DATA(gPtr)->counts[JGRP_COUNT_NJOBS] -= 1;
@@ -917,88 +865,82 @@ updJgrpCountByJStatus(struct jData *job, int oldStatus, int newStatus)
         printTreeStruct(treeFile);
 }
 
-int
-getIndexOfJStatus(int status)
+int getIndexOfJStatus(int status)
 {
     static char fname[] = "getIndexOfJStatus()";
 
-    switch (MASK_STATUS(status & ~JOB_STAT_UNKWN
-                        & ~JOB_STAT_PDONE & ~JOB_STAT_PERR)) {
-        case JOB_STAT_PEND:
-        case JOB_STAT_RUN|JOB_STAT_WAIT:
-            return JGRP_COUNT_PEND;
-        case JOB_STAT_PSUSP:
-            return JGRP_COUNT_NPSUSP;
-        case JOB_STAT_RUN :
-            return JGRP_COUNT_NRUN;
-        case JOB_STAT_SSUSP:
-            return JGRP_COUNT_NSSUSP;
-        case JOB_STAT_USUSP:
-            return JGRP_COUNT_NUSUSP;
-        case JOB_STAT_EXIT:
-        case JOB_STAT_EXIT|JOB_STAT_WAIT:
-            return JGRP_COUNT_NEXIT;
-        case JOB_STAT_DONE:
-        case JOB_STAT_DONE|JOB_STAT_WAIT:
-            return JGRP_COUNT_NDONE;
-        default:
+    switch (MASK_STATUS(status & ~JOB_STAT_UNKWN & ~JOB_STAT_PDONE &
+                        ~JOB_STAT_PERR)) {
+    case JOB_STAT_PEND:
+    case JOB_STAT_RUN | JOB_STAT_WAIT:
+        return JGRP_COUNT_PEND;
+    case JOB_STAT_PSUSP:
+        return JGRP_COUNT_NPSUSP;
+    case JOB_STAT_RUN:
+        return JGRP_COUNT_NRUN;
+    case JOB_STAT_SSUSP:
+        return JGRP_COUNT_NSSUSP;
+    case JOB_STAT_USUSP:
+        return JGRP_COUNT_NUSUSP;
+    case JOB_STAT_EXIT:
+    case JOB_STAT_EXIT | JOB_STAT_WAIT:
+        return JGRP_COUNT_NEXIT;
+    case JOB_STAT_DONE:
+    case JOB_STAT_DONE | JOB_STAT_WAIT:
+        return JGRP_COUNT_NDONE;
+    default:
 
-            ls_syslog(LOG_ERR, "%s: job status <%d> out of bound",
-                      fname, MASK_STATUS(status));
-            return 8;
+        ls_syslog(LOG_ERR, "%s: job status <%d> out of bound", fname,
+                  MASK_STATUS(status));
+        return 8;
     }
 }
 
-void
-updJgrpCountByOp(struct jgTreeNode *jgrp, int factor)
+void updJgrpCountByOp(struct jgTreeNode *jgrp, int factor)
 {
     struct jgTreeNode *parent;
     int i;
 
     for (parent = jgrp->parent; parent; parent = parent->parent) {
-        for (i=0; i < NUM_JGRP_COUNTERS; i++)
+        for (i = 0; i < NUM_JGRP_COUNTERS; i++)
             if (jgrp->nodeType == JGRP_NODE_GROUP) {
-                JGRP_DATA(parent)->counts[i] += factor*JGRP_DATA(jgrp)->counts[i];
-            }
-            else if (jgrp->nodeType == JGRP_NODE_ARRAY)
-                JGRP_DATA(parent)->counts[i] += factor*ARRAY_DATA(jgrp)->counts[i];
+                JGRP_DATA(parent)->counts[i] +=
+                    factor * JGRP_DATA(jgrp)->counts[i];
+            } else if (jgrp->nodeType == JGRP_NODE_ARRAY)
+                JGRP_DATA(parent)->counts[i] +=
+                    factor * ARRAY_DATA(jgrp)->counts[i];
     }
     return;
 }
 
-void
-resetJgrpCount(void)
+void resetJgrpCount(void)
 {
     struct jgTreeNode *jgrp;
-    struct jData      *jPtr;
-    int    i;
+    struct jData *jPtr;
+    int i;
 
     for (jgrp = groupRoot; jgrp; jgrp = treeLexNext(jgrp)) {
         if (jgrp->nodeType == JGRP_NODE_GROUP) {
-            for (i=0; i < NUM_JGRP_COUNTERS; i++)
+            for (i = 0; i < NUM_JGRP_COUNTERS; i++)
                 JGRP_DATA(jgrp)->counts[i] = 0;
-        }
-        else if (jgrp->nodeType == JGRP_NODE_ARRAY) {
+        } else if (jgrp->nodeType == JGRP_NODE_ARRAY) {
             for (jPtr = ARRAY_DATA(jgrp)->jobArray->nextJob; jPtr;
                  jPtr = jPtr->nextJob)
                 updJgrpCountByJStatus(jPtr, JOB_STAT_NULL, jPtr->jStatus);
-        }
-        else if (jgrp->nodeType == JGRP_NODE_JOB)
+        } else if (jgrp->nodeType == JGRP_NODE_JOB)
             updJgrpCountByJStatus(JOB_DATA(jgrp), JOB_STAT_NULL,
                                   JOB_DATA(jgrp)->jStatus);
     }
     return;
 }
 
-bool_t
-isSameUser(struct lsfAuth *auth, int userId, char *userName, int fromPlatform)
+bool_t isSameUser(struct lsfAuth *auth, int userId, char *userName,
+                  int fromPlatform)
 {
-
-    return(strcmp(auth->lsfUserName, userName) == 0);
+    return (strcmp(auth->lsfUserName, userName) == 0);
 }
 
-int
-jgrpPermitOk(struct lsfAuth *auth, struct jgTreeNode *jgrp)
+int jgrpPermitOk(struct lsfAuth *auth, struct jgTreeNode *jgrp)
 {
     struct jgTreeNode *nPtr;
 
@@ -1009,7 +951,6 @@ jgrpPermitOk(struct lsfAuth *auth, struct jgTreeNode *jgrp)
         return TRUE;
 
     if (auth->uid == 0 || isAuthManager(auth)) {
-
         return TRUE;
     }
 
@@ -1028,30 +969,27 @@ jgrpPermitOk(struct lsfAuth *auth, struct jgTreeNode *jgrp)
         }
         if (nPtr->nodeType == JGRP_NODE_JOB) {
             if (isSameUser(auth, JOB_DATA(nPtr)->userId,
-                           JOB_DATA(nPtr)->userName,
-                           0))
+                           JOB_DATA(nPtr)->userName, 0))
                 return TRUE;
         }
     }
     return FALSE;
 }
 
-bool_t
-isJobOwner(struct lsfAuth *auth, struct jData *job)
+bool_t isJobOwner(struct lsfAuth *auth, struct jData *job)
 {
     return isSameUser(auth, job->userId, job->userName, 0);
 }
 
-int
-selectJgrps (struct jobInfoReq *jobInfoReq, void **jgList, int *listSize)
+int selectJgrps(struct jobInfoReq *jobInfoReq, void **jgList, int *listSize)
 {
-    struct jgTreeNode  *parent;
+    struct jgTreeNode *parent;
     int retError = 0;
 
-    struct jgrpInfo  jgrp;
-    char   jobName[MAX_CMD_DESC_LEN];
+    struct jgrpInfo jgrp;
+    char jobName[MAX_CMD_DESC_LEN];
 
-    jgrp.allqueues = jgrp.allusers =  jgrp.allhosts = FALSE;
+    jgrp.allqueues = jgrp.allusers = jgrp.allhosts = FALSE;
     jgrp.uGrp = NULL;
     jgrp.jgrpList = NULL;
     jgrp.numNodes = 0;
@@ -1069,7 +1007,7 @@ selectJgrps (struct jobInfoReq *jobInfoReq, void **jgList, int *listSize)
     if (strcmp(jobInfoReq->userName, ALL_USERS) == 0)
         jgrp.allusers = TRUE;
     else
-        jgrp.uGrp = getUGrpData (jobInfoReq->userName);
+        jgrp.uGrp = getUGrpData(jobInfoReq->userName);
 
     if (jobInfoReq->host[0] == '\0')
         jgrp.allhosts = TRUE;
@@ -1081,8 +1019,8 @@ selectJgrps (struct jobInfoReq *jobInfoReq, void **jgList, int *listSize)
             jp->nodeType != JGRP_NODE_ARRAY)
             goto ret;
 
-        if (!storeToJgrpList((void *)ARRAY_DATA(jp->jgrpNode)->jobArray,
-                             &jgrp, JGRP_NODE_JOB))
+        if (!storeToJgrpList((void *) ARRAY_DATA(jp->jgrpNode)->jobArray, &jgrp,
+                             JGRP_NODE_JOB))
             return LSBE_NO_MEM;
         goto ret;
     }
@@ -1091,15 +1029,15 @@ selectJgrps (struct jobInfoReq *jobInfoReq, void **jgList, int *listSize)
     if ((strlen(jobInfoReq->jobName) == 1) && (jobInfoReq->jobName[0] == '/'))
         strcpy(jobName, "*");
     else
-        ls_strcat(jobName,sizeof(jobName),jobInfoReq->jobName);
-    if ((retError = makeJgrpInfo(parent, jobName, jobInfoReq, &jgrp))
-        != LSBE_NO_ERROR) {
+        ls_strcat(jobName, sizeof(jobName), jobInfoReq->jobName);
+    if ((retError = makeJgrpInfo(parent, jobName, jobInfoReq, &jgrp)) !=
+        LSBE_NO_ERROR) {
         return retError;
     }
     goto ret;
 ret:
     if (jgrp.numNodes > 0) {
-        *jgList =  (void *)jgrp.jgrpList;
+        *jgList = (void *) jgrp.jgrpList;
         *listSize = jgrp.numNodes;
         return LSBE_NO_ERROR;
     } else {
@@ -1107,18 +1045,14 @@ ret:
     }
 }
 
-static int
-makeJgrpInfo(struct jgTreeNode *parent,
-             char *jobName,
-             struct jobInfoReq *jobInfoReq,
-             struct jgrpInfo *jgrp)
+static int makeJgrpInfo(struct jgTreeNode *parent, char *jobName,
+                        struct jobInfoReq *jobInfoReq, struct jgrpInfo *jgrp)
 {
     int maxJLimit = 0;
     int retError;
 
-    if ((jgrp->idxList =
-         parseJobArrayIndex(jobName, &retError, &maxJLimit))
-        == NULL) {
+    if ((jgrp->idxList = parseJobArrayIndex(jobName, &retError, &maxJLimit)) ==
+        NULL) {
         if (retError != LSBE_NO_ERROR)
             return retError;
     }
@@ -1127,93 +1061,83 @@ makeJgrpInfo(struct jgTreeNode *parent,
         return LSBE_NO_JOB;
 
     strcpy(jgrp->jobName, jobName);
-    if ((retError = makeTreeNodeList(parent, jobInfoReq, jgrp))
-        != LSBE_NO_ERROR)
+    if ((retError = makeTreeNodeList(parent, jobInfoReq, jgrp)) !=
+        LSBE_NO_ERROR)
         return retError;
 
     return LSBE_NO_ERROR;
 }
 
-static int
-makeTreeNodeList(struct jgTreeNode *parent,
-                 struct jobInfoReq *jobInfoReq,
-                 struct jgrpInfo *jgrp)
+static int makeTreeNodeList(struct jgTreeNode *parent,
+                            struct jobInfoReq *jobInfoReq,
+                            struct jgrpInfo *jgrp)
 {
     struct jgTreeNode *nPtr;
 
     if (!parent)
         return LSBE_NO_ERROR;
 
-    for (nPtr = parent->child; nPtr; nPtr = nPtr->right){
+    for (nPtr = parent->child; nPtr; nPtr = nPtr->right) {
         if (strlen(jgrp->jobName) && !matchName(jgrp->jobName, nPtr->name))
             continue;
         switch (nPtr->nodeType) {
-            case JGRP_NODE_ARRAY:{
-                                     struct jData *jpbw;
-                                     if (jobInfoReq->options & JGRP_ARRAY_INFO) {
-                                         if (isSelected(jobInfoReq, ARRAY_DATA(nPtr)->jobArray,
-                                                        jgrp)
-                                             && (!storeToJgrpList(
-                                                                  (void *)ARRAY_DATA(nPtr)->jobArray,
-                                                                  jgrp, JGRP_NODE_JOB)))
-                                             return LSBE_NO_MEM;
-                                     }
-                                     else {
-                                         jpbw = ARRAY_DATA(nPtr)->jobArray->nextJob;
-                                         for ( ; jpbw; jpbw = jpbw->nextJob) {
-                                             if (isSelected(jobInfoReq, jpbw, jgrp)) {
-                                                 if (!storeToJgrpList((void *)jpbw, jgrp,
-                                                                      JGRP_NODE_JOB))
-                                                     return LSBE_NO_MEM;
-                                             }
-                                         }
-                                     }
-                                     break;
-                                 }
-            case JGRP_NODE_JOB:  {
-                                     struct jData *jpbw;
+        case JGRP_NODE_ARRAY: {
+            struct jData *jpbw;
+            if (jobInfoReq->options & JGRP_ARRAY_INFO) {
+                if (isSelected(jobInfoReq, ARRAY_DATA(nPtr)->jobArray, jgrp) &&
+                    (!storeToJgrpList((void *) ARRAY_DATA(nPtr)->jobArray, jgrp,
+                                      JGRP_NODE_JOB)))
+                    return LSBE_NO_MEM;
+            } else {
+                jpbw = ARRAY_DATA(nPtr)->jobArray->nextJob;
+                for (; jpbw; jpbw = jpbw->nextJob) {
+                    if (isSelected(jobInfoReq, jpbw, jgrp)) {
+                        if (!storeToJgrpList((void *) jpbw, jgrp,
+                                             JGRP_NODE_JOB))
+                            return LSBE_NO_MEM;
+                    }
+                }
+            }
+            break;
+        }
+        case JGRP_NODE_JOB: {
+            struct jData *jpbw;
 
-                                     if (jobInfoReq->options & JGRP_ARRAY_INFO)
-                                         continue;
+            if (jobInfoReq->options & JGRP_ARRAY_INFO)
+                continue;
 
-                                     jpbw = JOB_DATA(nPtr);
-                                     if (isSelected(jobInfoReq, jpbw, jgrp)) {
-                                         if (!storeToJgrpList((void *)jpbw, jgrp, JGRP_NODE_JOB))
-                                             return LSBE_NO_MEM;
-                                     }
-                                     break;
-                                 }
+            jpbw = JOB_DATA(nPtr);
+            if (isSelected(jobInfoReq, jpbw, jgrp)) {
+                if (!storeToJgrpList((void *) jpbw, jgrp, JGRP_NODE_JOB))
+                    return LSBE_NO_MEM;
+            }
+            break;
+        }
         }
     }
 
     return LSBE_NO_ERROR;
 }
 
-static int
-skipJgrpByReq (int options, int jStatus)
+static int skipJgrpByReq(int options, int jStatus)
 {
-    if (options & (ALL_JOB|JOBID_ONLY_ALL | JOBID_ONLY)) {
+    if (options & (ALL_JOB | JOBID_ONLY_ALL | JOBID_ONLY)) {
         return FALSE;
-    }
-    else if ((options & (CUR_JOB | LAST_JOB))
-             && (IS_START(jStatus) || IS_PEND(jStatus))) {
+    } else if ((options & (CUR_JOB | LAST_JOB)) &&
+               (IS_START(jStatus) || IS_PEND(jStatus))) {
         return FALSE;
-    }
-    else if ((options & PEND_JOB) && IS_PEND(jStatus)) {
+    } else if ((options & PEND_JOB) && IS_PEND(jStatus)) {
         return FALSE;
-    }
-    else if ((options & (SUSP_JOB | RUN_JOB)) && IS_START(jStatus)) {
+    } else if ((options & (SUSP_JOB | RUN_JOB)) && IS_START(jStatus)) {
         return FALSE;
-    }
-    else if ((options & DONE_JOB) && IS_FINISH(jStatus)) {
+    } else if ((options & DONE_JOB) && IS_FINISH(jStatus)) {
         return FALSE;
     }
     return TRUE;
 }
 
-static int
-isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
-           struct jgrpInfo *jgrp)
+static int isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
+                      struct jgrpInfo *jgrp)
 {
     static char fname[] = "isSelected()";
     int i;
@@ -1221,7 +1145,7 @@ isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
     char allusers = jgrp->allusers;
     char allhosts = jgrp->allhosts;
 
-    if (skipJgrpByReq (jobInfoReq->options, jpbw->jStatus))
+    if (skipJgrpByReq(jobInfoReq->options, jpbw->jStatus))
         return FALSE;
 
     if (!allqueues && strcmp(jpbw->qPtr->queue, jobInfoReq->queue) != 0)
@@ -1236,7 +1160,7 @@ isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
 
     if (!allhosts) {
         struct gData *gp;
-        if (IS_PEND (jpbw->jStatus))
+        if (IS_PEND(jpbw->jStatus))
             return FALSE;
 
         if (jpbw->hPtr == NULL) {
@@ -1245,7 +1169,7 @@ isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
                           fname, lsb_jobid2str(jpbw->jobId));
             return FALSE;
         }
-        gp = getHGrpData (jobInfoReq->host);
+        gp = getHGrpData(jobInfoReq->host);
         if (gp != NULL) {
             for (i = 0; i < jpbw->numHostPtr; i++) {
                 if (jpbw->hPtr[i] == NULL)
@@ -1255,8 +1179,7 @@ isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
             }
             if (i >= jpbw->numHostPtr)
                 return FALSE;
-        }
-        else {
+        } else {
             for (i = 0; i < jpbw->numHostPtr; i++) {
                 if (jpbw->hPtr[i] == NULL)
                     return FALSE;
@@ -1274,31 +1197,28 @@ isSelected(struct jobInfoReq *jobInfoReq, struct jData *jpbw,
             if (LSB_ARRAY_IDX(jpbw->jobId) < idx->start ||
                 LSB_ARRAY_IDX(jpbw->jobId) > idx->end)
                 continue;
-            if (((LSB_ARRAY_IDX(jpbw->jobId)-idx->start) % idx->step) == 0)
+            if (((LSB_ARRAY_IDX(jpbw->jobId) - idx->start) % idx->step) == 0)
                 return TRUE;
         }
         return FALSE;
-    }
-    else
+    } else
         return TRUE;
 }
 
-static int
-storeToJgrpList(void *ptr, struct jgrpInfo *jgrp, int type)
+static int storeToJgrpList(void *ptr, struct jgrpInfo *jgrp, int type)
 {
     if (jgrp->arraySize == 0) {
         jgrp->arraySize = DEFAULT_LISTSIZE;
-        jgrp->jgrpList = (struct  nodeList*)
-            calloc (jgrp->arraySize, sizeof (struct  nodeList));
+        jgrp->jgrpList = (struct nodeList *) calloc(jgrp->arraySize,
+                                                    sizeof(struct nodeList));
         if (jgrp->jgrpList == NULL)
             return FALSE;
     }
     if (jgrp->numNodes >= jgrp->arraySize) {
-
-        struct  nodeList *biglist;
+        struct nodeList *biglist;
         jgrp->arraySize *= 2;
-        biglist = (struct  nodeList *) realloc((char *)jgrp->jgrpList,
-                                               jgrp->arraySize * sizeof (struct  nodeList));
+        biglist = (struct nodeList *) realloc(
+            (char *) jgrp->jgrpList, jgrp->arraySize * sizeof(struct nodeList));
         if (biglist == NULL) {
             FREEUP(jgrp->jgrpList);
             jgrp->numNodes = 0;
@@ -1314,30 +1234,26 @@ storeToJgrpList(void *ptr, struct jgrpInfo *jgrp, int type)
     return TRUE;
 }
 
-char *
-fullJobName(struct jData *jp)
+char *fullJobName(struct jData *jp)
 {
     static char jobName[MAXPATHLEN];
 
     if (jp->jgrpNode) {
         sprintf(jobName, "%s", jp->jgrpNode->name);
-    }
-    else
+    } else
         jobName[0] = '\0';
 
     return jobName;
 }
 
-void
-fullJobName_r(struct jData *jp, char *jobName)
+void fullJobName_r(struct jData *jp, char *jobName)
 {
     if (jobName == NULL || jp == NULL) {
         return;
     }
     if (jp->jgrpNode) {
         sprintf(jobName, "%s", jp->jgrpNode->name);
-    }
-    else
+    } else
         jobName[0] = '\0';
 
     return;

@@ -12,22 +12,25 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/cmd/cmd.h"
 
-void
-usage (char *cmd)
+void usage(char *cmd)
 {
     fprintf(stderr, "Usage");
-    fprintf(stderr, ": %s [-h] [-V] [-f] [-m \"host_name ...\"]\n            [-u user_name |-u all] [-J job_name] [jobId | \"jobId[index_list]\" ...]\n", cmd);
+    fprintf(
+        stderr,
+        ": %s [-h] [-V] [-f] [-m \"host_name ...\"]\n            [-u user_name "
+        "|-u all] [-J job_name] [jobId | \"jobId[index_list]\" ...]\n",
+        cmd);
     exit(-1);
 }
 
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
     int cc, i, badHostIdx;
     char *user = NULL, *jobName = NULL;
@@ -36,8 +39,8 @@ main (int argc, char **argv)
     struct submig mig;
 
     if (lsb_init(argv[0]) < 0) {
-	lsb_perror("lsb_init");
-	exit(-1);
+        lsb_perror("lsb_init");
+        exit(-1);
     }
 
     mig.options = 0;
@@ -46,17 +49,18 @@ main (int argc, char **argv)
 
     while ((cc = getopt(argc, argv, "Vhfm:u:J:")) != EOF) {
         switch (cc) {
-	  case 'm':
+        case 'm':
             if (mig.numAskedHosts)
                 usage(argv[0]);
-            if (getAskedHosts_(optarg, &mig.askedHosts, &mig.numAskedHosts,
-			 &i, FALSE) < 0 && lserrno != LSE_BAD_HOST) {
-		ls_perror(NULL);
+            if (getAskedHosts_(optarg, &mig.askedHosts, &mig.numAskedHosts, &i,
+                               FALSE) < 0 &&
+                lserrno != LSE_BAD_HOST) {
+                ls_perror(NULL);
                 exit(-1);
             }
-	    if (mig.numAskedHosts == 0)
-		usage(argv[0]);
-	    break;
+            if (mig.numAskedHosts == 0)
+                usage(argv[0]);
+            break;
         case 'u':
             if (user)
                 usage(argv[0]);
@@ -68,31 +72,31 @@ main (int argc, char **argv)
         case 'J':
             jobName = optarg;
             break;
-	  case 'f':
-	    mig.options |= LSB_CHKPNT_FORCE;
-	    break;
-	  case 'V':
-	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-	    exit(0);
-	  case 'h':
-	  default:
+        case 'f':
+            mig.options |= LSB_CHKPNT_FORCE;
+            break;
+        case 'V':
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            exit(0);
+        case 'h':
+        default:
             usage(argv[0]);
         }
     }
 
-    numJobs = getJobIds (argc, argv, jobName, user, NULL, NULL, &jobIds, 0);
+    numJobs = getJobIds(argc, argv, jobName, user, NULL, NULL, &jobIds, 0);
 
     for (i = 0; i < numJobs; i++) {
-	mig.jobId = jobIds[i];
-	if (lsb_mig(&mig, &badHostIdx) < 0) {
-	    fprintf(stderr, "%s <%s>: ", "Job", lsb_jobid2str(jobIds[i]));
-	    if (lsberrno == LSBE_QUEUE_HOST || lsberrno == LSBE_BAD_HOST)
-		lsb_perror(mig.askedHosts[badHostIdx]);
-	    else
-		lsb_perror(NULL);
-	} else {
-	    printf(("Job <%s> is being migrated\n"), lsb_jobid2str(jobIds[i]));
-	}
+        mig.jobId = jobIds[i];
+        if (lsb_mig(&mig, &badHostIdx) < 0) {
+            fprintf(stderr, "%s <%s>: ", "Job", lsb_jobid2str(jobIds[i]));
+            if (lsberrno == LSBE_QUEUE_HOST || lsberrno == LSBE_BAD_HOST)
+                lsb_perror(mig.askedHosts[badHostIdx]);
+            else
+                lsb_perror(NULL);
+        } else {
+            printf(("Job <%s> is being migrated\n"), lsb_jobid2str(jobIds[i]));
+        }
     }
     exit(0);
 }

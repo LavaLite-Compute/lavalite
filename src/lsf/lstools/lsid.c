@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -21,15 +22,13 @@
 static void usage(char *);
 extern int errLineNum_;
 
-static void
-usage(char *cmd)
+static void usage(char *cmd)
 {
     fprintf(stderr, "Usage: %s [-h] [-V]\n", cmd);
     exit(-1);
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     char *Name;
     int achar;
@@ -40,7 +39,7 @@ main(int argc, char **argv)
     }
 
     while ((achar = getopt(argc, argv, "hV")) != EOF) {
-        switch(achar) {
+        switch (achar) {
         case 'h':
             usage(argv[0]);
             exit(0);
@@ -58,15 +57,13 @@ main(int argc, char **argv)
     if (Name == NULL) {
         if (lserrno == LSE_CONF_SYNTAX) {
             char lno[20];
-            sprintf (lno, "Line %d", errLineNum_);
+            sprintf(lno, "Line %d", errLineNum_);
             ls_perror(lno);
-        } else
-        {
+        } else {
             char buf[150];
 
-    sprintf(buf, "%s: %s failed", "lsid", "ls_getclustername")
-;
-            ls_perror( buf );
+            sprintf(buf, "%s: %s failed", "lsid", "ls_getclustername");
+            ls_perror(buf);
         }
         exit(-1);
     }
@@ -76,9 +73,8 @@ main(int argc, char **argv)
     if (Name == NULL) {
         char buf[150];
 
-    sprintf(buf, "%s: %s failed", "lsid", "ls_getmastername")
-;
-        ls_perror( buf );
+        sprintf(buf, "%s: %s failed", "lsid", "ls_getmastername");
+        ls_perror(buf);
         exit(-1);
     }
     printf("My master name is %s\n", Name);

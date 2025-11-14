@@ -13,14 +13,15 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-struct parameterInfo *
-lsb_parameterinfo (char **names, int *numUsers, int options)
+struct parameterInfo *lsb_parameterinfo(char **names, int *numUsers,
+                                        int options)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
@@ -47,7 +48,7 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
     if (names)
         infoReq.names = names;
     else {
-        if ((infoReq.names = (char **)malloc (sizeof(char *))) == NULL) {
+        if ((infoReq.names = (char **) malloc(sizeof(char *))) == NULL) {
             lsberrno = LSBE_NO_MEM;
             return NULL;
         }
@@ -59,34 +60,34 @@ lsb_parameterinfo (char **names, int *numUsers, int options)
 
     mbdReqtype = BATCH_PARAM_INFO;
     cc = sizeof(struct infoReq) + cc * MAXHOSTNAMELEN + cc + 100;
-    if ((request_buf = malloc (cc)) == NULL) {
+    if ((request_buf = malloc(cc)) == NULL) {
         lsberrno = LSBE_NO_MEM;
         return NULL;
     }
     xdrmem_create(&xdrs, request_buf, cc, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&infoReq, &hdr, xdr_infoReq, 0, NULL)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &infoReq, &hdr, xdr_infoReq, 0, NULL)) {
         xdr_destroy(&xdrs);
-        free (request_buf);
+        free(request_buf);
         lsberrno = LSBE_XDR;
         return NULL;
     }
 
-    if ((cc = callmbd (NULL,request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                       NULL, NULL, NULL)) == -1) {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
-        free (request_buf);
+        free(request_buf);
         return NULL;
     }
     xdr_destroy(&xdrs);
-    free (request_buf);
+    free(request_buf);
 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_USER) {
         xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
         reply = &paramInfo;
-        if(!xdr_parameterInfo (&xdrs, reply, &hdr)) {
+        if (!xdr_parameterInfo(&xdrs, reply, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs);
             if (cc)

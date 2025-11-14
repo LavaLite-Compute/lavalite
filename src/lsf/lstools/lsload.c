@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -28,23 +29,22 @@ extern char *wideformatHeader(char **, char);
 extern char **filterToNames(char *);
 extern int num_loadindex;
 
-void
-usage(const char *cmd)
+void usage(const char *cmd)
 {
     fprintf(stderr, "Usage: ");
-    fprintf(stderr, "%s [-h] [-V] [-N|-E] [-l | -w] [-R res_req] "
+    fprintf(stderr,
+            "%s [-h] [-V] [-N|-E] [-l | -w] [-R res_req] "
             "[-I index_list] [-n num_hosts] "
-            "[host_name ... | cluster_name ...]\n", cmd);
-    fprintf(stderr, "%s [-h] [-V] -s [ shared_resource_name ... ]\n",
+            "[host_name ... | cluster_name ...]\n",
             cmd);
+    fprintf(stderr, "%s [-h] [-V] -s [ shared_resource_name ... ]\n", cmd);
     exit(-1);
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     static char fname[] = "lsload:main";
-    int i,j, num, numneeded;
+    int i, j, num, numneeded;
     char *resreq = NULL;
     struct hostLoad *hosts;
     char *hostnames[MAXLISTSIZE];
@@ -53,8 +53,8 @@ main(int argc, char **argv)
     static char **loadval;
     char *indexfilter = NULL;
     char **nlp;
-    static char *defaultindex[]={"r15s", "r1m", "r15m", "ut", "pg", "ls",
-                                 "it", "tmp", "swp", "mem", NULL};
+    static char *defaultindex[] = {"r15s", "r1m", "r15m", "ut",  "pg", "ls",
+                                   "it",   "tmp", "swp",  "mem", NULL};
     int achar;
     char longFormat = FALSE;
     char wideFormat = FALSE;
@@ -77,7 +77,7 @@ main(int argc, char **argv)
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0) {
             usage(argv[0]);
-            exit (0);
+            exit(0);
         } else if (strcmp(argv[i], "-V") == 0) {
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
@@ -95,10 +95,10 @@ main(int argc, char **argv)
             }
             extView = TRUE;
             optind = i + 1;
-        } else if (strcmp(argv[i], "-R") == 0 || strcmp(argv[i], "-l") == 0
-                   || strcmp(argv[i], "-I") == 0 || strcmp(argv[i], "-N") == 0
-                   || strcmp(argv[i], "-E") == 0 || strcmp(argv[i], "-n") == 0
-                   || strcmp(argv[i], "-w") == 0 ) {
+        } else if (strcmp(argv[i], "-R") == 0 || strcmp(argv[i], "-l") == 0 ||
+                   strcmp(argv[i], "-I") == 0 || strcmp(argv[i], "-N") == 0 ||
+                   strcmp(argv[i], "-E") == 0 || strcmp(argv[i], "-n") == 0 ||
+                   strcmp(argv[i], "-w") == 0) {
             otherOption = TRUE;
             if (sOption == TRUE) {
                 usage(argv[0]);
@@ -109,13 +109,11 @@ main(int argc, char **argv)
 
     if (sOption == TRUE) {
         displayShareResource(argc, argv, optind, FALSE, extView);
-        return(0);
+        return (0);
     }
 
-    while ((achar = getopt(argc, argv, "R:I:NEln:w")) != EOF)
-    {
-        switch (achar)
-        {
+    while ((achar = getopt(argc, argv, "R:I:NEln:w")) != EOF) {
+        switch (achar) {
         case 'R':
             resreq = optarg;
             break;
@@ -159,25 +157,21 @@ main(int argc, char **argv)
         case 'h':
         default:
             usage(argv[0]);
-
         }
     }
 
-    for ( ; optind < argc ; optind++)
-    {
-        if (num>=MAXLISTSIZE) {
+    for (; optind < argc; optind++) {
+        if (num >= MAXLISTSIZE) {
             fprintf(stderr, "too many hosts specified maximum %d\n",
-                MAXLISTSIZE);
+                    MAXLISTSIZE);
             exit(-1);
         }
-        if ( (isClus = ls_isclustername(argv[optind])) < 0 ) {
+        if ((isClus = ls_isclustername(argv[optind])) < 0) {
             fprintf(stderr, "lsload: %s\n", ls_sysmsg());
             badHost = TRUE;
             continue;
-        } else if ( (isClus == 0) &&
-                    (!is_valid_host(argv[optind])) ) {
-            fprintf(stderr, "lsload: %s %s\n",
-                    "unknown host name" ,
+        } else if ((isClus == 0) && (!is_valid_host(argv[optind]))) {
+            fprintf(stderr, "lsload: %s %s\n", "unknown host name",
                     argv[optind]);
             badHost = TRUE;
             continue;
@@ -198,7 +192,10 @@ main(int argc, char **argv)
         nlp = NULL;
     }
 
-    TIMEIT(0, (hosts = ls_loadinfo(resreq, &numneeded, options, 0, hostnames, num, &nlp)), "ls_loadinfo");
+    TIMEIT(0,
+           (hosts = ls_loadinfo(resreq, &numneeded, options, 0, hostnames, num,
+                                &nlp)),
+           "ls_loadinfo");
 
     if (!hosts) {
         ls_perror("lsload");
@@ -207,29 +204,27 @@ main(int argc, char **argv)
 
     if (longFormat)
         printf("%s", formatHeader(nlp, longFormat));
+    else if (wideFormat)
+        printf("%s\n", wideformatHeader(nlp, longFormat));
     else
-        if (wideFormat)
-            printf("%s\n", wideformatHeader(nlp, longFormat));
-        else
-            printf("%s\n", formatHeader(nlp, longFormat));
+        printf("%s\n", formatHeader(nlp, longFormat));
 
-    if (!(loadval=(char **)malloc(num_loadindex*sizeof(char *)))) {
-        lserrno=LSE_MALLOC;
+    if (!(loadval = (char **) malloc(num_loadindex * sizeof(char *)))) {
+        lserrno = LSE_MALLOC;
         ls_perror("lsload");
         exit(-1);
     }
-    for (i=0;i < numneeded; i++) {
+    for (i = 0; i < numneeded; i++) {
         if (LS_ISUNAVAIL(hosts[i].status))
             strcpy(statusbuf, "unavail");
-        else
-        {
+        else {
             statusbuf[0] = '\0';
             if (LS_ISRESDOWN(hosts[i].status))
                 strcat(statusbuf, "-");
             if (LS_ISOKNRES(hosts[i].status)) {
                 strcat(statusbuf, "ok");
-            } else if (LS_ISBUSY(hosts[i].status)
-                       && !LS_ISLOCKED(hosts[i].status)) {
+            } else if (LS_ISBUSY(hosts[i].status) &&
+                       !LS_ISLOCKED(hosts[i].status)) {
                 strcat(statusbuf, "busy");
             } else {
                 strcat(statusbuf, "lock");
@@ -249,9 +244,7 @@ main(int argc, char **argv)
             retVal = makeShareField(hosts[i].hostName, FALSE, &shareNames,
                                     &shareValues, &formats);
             if (i == 0) {
-
                 if (retVal > 0) {
-
                     for (j = 0; j < retVal; j++) {
                         printf(formats[j], shareNames[j]);
                     }
@@ -264,13 +257,12 @@ main(int argc, char **argv)
 
         if (!LS_ISUNAVAIL(hosts[i].status)) {
             int nf;
-            if (wideFormat){
+            if (wideFormat) {
                 nf = makewideFields(&hosts[i], loadval, nlp);
-            }
-            else
+            } else
                 nf = makeFields(&hosts[i], loadval, nlp);
-            for(j = 0; j < nf; j++)
-                printf("%s",loadval[j]);
+            for (j = 0; j < nf; j++)
+                printf("%s", loadval[j]);
             if (retVal > 0) {
                 for (j = 0; j < retVal; j++) {
                     printf(formats[j], shareValues[j]);
@@ -279,5 +271,5 @@ main(int argc, char **argv)
         }
         putchar('\n');
     }
-    exit (0);
+    exit(0);
 }

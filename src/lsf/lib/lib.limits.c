@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.common.h"
@@ -21,8 +22,7 @@
 
 static int SHIFT_32 = 32;
 
-void
-rlimitEncode_(struct lsfLimit *lsflimit, struct rlimit *rlimit, int limit)
+void rlimitEncode_(struct lsfLimit *lsflimit, struct rlimit *rlimit, int limit)
 {
     int softok = false;
     int hardok = false;
@@ -60,31 +60,31 @@ rlimitEncode_(struct lsfLimit *lsflimit, struct rlimit *rlimit, int limit)
     }
 
     if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG3, "rlimitEncode_: limit %d rlim_cur %ld %x rlim_max %ld %x curl %d %x curh %d %x maxl %d %x maxh %d %x rlim_inf %d %x\r",
-                  limit, rlimit->rlim_cur, (unsigned int)rlimit->rlim_cur,
-                  rlimit->rlim_max, (unsigned int)rlimit->rlim_max,
-                  lsflimit->rlim_curl, lsflimit->rlim_curl,
-                  lsflimit->rlim_curh, lsflimit->rlim_curh,
-                  lsflimit->rlim_maxl, lsflimit->rlim_maxl,
-                  lsflimit->rlim_maxh, lsflimit->rlim_maxh,
-                  RLIM_INFINITY, RLIM_INFINITY);
-
+        ls_syslog(
+            LOG_DEBUG3,
+            "rlimitEncode_: limit %d rlim_cur %ld %x rlim_max %ld %x curl %d "
+            "%x curh %d %x maxl %d %x maxh %d %x rlim_inf %d %x\r",
+            limit, rlimit->rlim_cur, (unsigned int) rlimit->rlim_cur,
+            rlimit->rlim_max, (unsigned int) rlimit->rlim_max,
+            lsflimit->rlim_curl, lsflimit->rlim_curl, lsflimit->rlim_curh,
+            lsflimit->rlim_curh, lsflimit->rlim_maxl, lsflimit->rlim_maxl,
+            lsflimit->rlim_maxh, lsflimit->rlim_maxh, RLIM_INFINITY,
+            RLIM_INFINITY);
 }
 
-void
-rlimitDecode_(struct lsfLimit *lsflimit, struct rlimit *rlimit, int limit)
+void rlimitDecode_(struct lsfLimit *lsflimit, struct rlimit *rlimit, int limit)
 {
     int softok = false;
     int hardok = false;
 
-    if (lsflimit->rlim_curl == 0xffffffff && lsflimit->rlim_curh == 0x7fffffff)
-    {
+    if (lsflimit->rlim_curl == 0xffffffff &&
+        lsflimit->rlim_curh == 0x7fffffff) {
         rlimit->rlim_cur = RLIM_INFINITY;
         softok = true;
     }
 
-    if (lsflimit->rlim_maxl == 0xffffffff && lsflimit->rlim_maxh == 0x7fffffff)
-    {
+    if (lsflimit->rlim_maxl == 0xffffffff &&
+        lsflimit->rlim_maxh == 0x7fffffff) {
         rlimit->rlim_max = RLIM_INFINITY;
         hardok = true;
     }
@@ -117,14 +117,16 @@ rlimitDecode_(struct lsfLimit *lsflimit, struct rlimit *rlimit, int limit)
     }
 
     if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG3, "rlimitDecode_: limit %d rlim_cur %ld %x rlim_max %ld %x curl %d %x curh %d %x maxl %d %x maxh %d %x rlim_inf %d %x\r",
-                  limit, rlimit->rlim_cur, (unsigned int)rlimit->rlim_cur,
-                  rlimit->rlim_max, (unsigned int)rlimit->rlim_max,
-                  lsflimit->rlim_curl, lsflimit->rlim_curl,
-                  lsflimit->rlim_curh, lsflimit->rlim_curh,
-                  lsflimit->rlim_maxl, lsflimit->rlim_maxl,
-                  lsflimit->rlim_maxh, lsflimit->rlim_maxh,
-                  RLIM_INFINITY, RLIM_INFINITY);
+        ls_syslog(
+            LOG_DEBUG3,
+            "rlimitDecode_: limit %d rlim_cur %ld %x rlim_max %ld %x curl %d "
+            "%x curh %d %x maxl %d %x maxh %d %x rlim_inf %d %x\r",
+            limit, rlimit->rlim_cur, (unsigned int) rlimit->rlim_cur,
+            rlimit->rlim_max, (unsigned int) rlimit->rlim_max,
+            lsflimit->rlim_curl, lsflimit->rlim_curl, lsflimit->rlim_curh,
+            lsflimit->rlim_curh, lsflimit->rlim_maxl, lsflimit->rlim_maxl,
+            lsflimit->rlim_maxh, lsflimit->rlim_maxh, RLIM_INFINITY,
+            RLIM_INFINITY);
 
     if (limit == LSF_RLIMIT_NOFILE || limit == LSF_RLIMIT_OPEN_MAX) {
         int sys_max = sysconf(_SC_OPEN_MAX);

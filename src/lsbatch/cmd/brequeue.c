@@ -12,38 +12,39 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/cmd/cmd.h"
 
-void
-usage (char *cmd)
+void usage(char *cmd)
 {
     fprintf(stderr, "Usage");
     fprintf(stderr, ": %s [-deraH] [-h] [-V] [-u user_name | -u all]\n", cmd);
-    fprintf(stderr, "                [-J name_spec] [jobId | \"jobId[idxList]\" ...]\n ");
+    fprintf(
+        stderr,
+        "                [-J name_spec] [jobId | \"jobId[idxList]\" ...]\n ");
     exit(-1);
 }
 
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
     char *queue = NULL, *user = NULL, *host = NULL, *jobName = NULL;
     char Job[80];
     int numJobs;
     LS_LONG_INT *jobIds;
     struct jobrequeue reqJob;
-    int  i, cc, exitrc = 0;
+    int i, cc, exitrc = 0;
     int options1 = FALSE;
 
     if (lsb_init(argv[0]) < 0) {
-	lsb_perror("lsb_init");
-	exit(-1);
+        lsb_perror("lsb_init");
+        exit(-1);
     }
 
-    memset(&reqJob,0,sizeof(struct jobrequeue));
+    memset(&reqJob, 0, sizeof(struct jobrequeue));
 
     reqJob.status = JOB_STAT_PEND;
     reqJob.options |= REQUEUE_RUN;
@@ -53,71 +54,72 @@ main (int argc, char **argv)
     while ((cc = getopt(argc, argv, "deraHVhu:J:")) != EOF) {
         switch (cc) {
         case 'd':
-           if (!options1) {
-               reqJob.options = 0 ;
+            if (!options1) {
+                reqJob.options = 0;
                 reqJob.options |= REQUEUE_DONE;
                 if (!(options & DONE_JOB)) {
-                   options = 0 ;
+                    options = 0;
                     options |= DONE_JOB;
-               }
-               options1 = TRUE;
-           } else {
+                }
+                options1 = TRUE;
+            } else {
                 reqJob.options |= REQUEUE_DONE;
                 if (!(options & DONE_JOB)) {
                     options |= DONE_JOB;
-               }
-           }
-           break;
+                }
+            }
+            break;
         case 'e':
-           if (!options1) {
-               reqJob.options = 0 ;
+            if (!options1) {
+                reqJob.options = 0;
                 reqJob.options |= REQUEUE_EXIT;
                 if (!(options & DONE_JOB)) {
-                   options = 0 ;
+                    options = 0;
                     options |= DONE_JOB;
-               }
-               options1 = TRUE;
-           } else {
+                }
+                options1 = TRUE;
+            } else {
                 reqJob.options |= REQUEUE_EXIT;
                 if (!(options & DONE_JOB)) {
                     options |= DONE_JOB;
-               }
-           }
-           break;
+                }
+            }
+            break;
         case 'r':
-           if (!options1) {
-               reqJob.options = 0 ;
-               reqJob.options |= REQUEUE_RUN;
-               if (!(options & CUR_JOB)) {
-                  options = 0 ;
-                  options |= CUR_JOB;
-               }
-               options1 = TRUE;
-           } else {
+            if (!options1) {
+                reqJob.options = 0;
+                reqJob.options |= REQUEUE_RUN;
+                if (!(options & CUR_JOB)) {
+                    options = 0;
+                    options |= CUR_JOB;
+                }
+                options1 = TRUE;
+            } else {
                 reqJob.options |= REQUEUE_RUN;
                 if (!(options & CUR_JOB)) {
                     options |= CUR_JOB;
-               }
-           }
-           break;
+                }
+            }
+            break;
         case 'a':
 
-           reqJob.options = 0 ;
-           options = 0 ;
+            reqJob.options = 0;
+            options = 0;
             reqJob.options |= (REQUEUE_DONE | REQUEUE_EXIT | REQUEUE_RUN);
-            options |= (CUR_JOB|DONE_JOB);
-           break;
+            options |= (CUR_JOB | DONE_JOB);
+            break;
         case 'H':
 
-           reqJob.status = 0;
-           reqJob.status = JOB_STAT_PSUSP;
-           break;
-        case 'J': jobName = optarg;
+            reqJob.status = 0;
+            reqJob.status = JOB_STAT_PSUSP;
+            break;
+        case 'J':
+            jobName = optarg;
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             exit(0);
-	case 'u':
+        case 'u':
             if (user)
                 usage(argv[0]);
             if (strcmp(optarg, "all") == 0)
@@ -128,23 +130,21 @@ main (int argc, char **argv)
         case 'h':
         default:
             usage(argv[0]);
-       }
+        }
     }
 
-    numJobs = getJobIds (argc,argv,jobName,user,queue,host,&jobIds,options);
+    numJobs =
+        getJobIds(argc, argv, jobName, user, queue, host, &jobIds, options);
 
     for (i = 0; i < numJobs; i++) {
-       reqJob.jobId = jobIds[i] ;
-       if (lsb_requeuejob(&reqJob) < 0 ) {
-	    exitrc = -1;
-	    sprintf (Job,"%s <%s> ", "Job", lsb_jobid2str(jobIds[i]));
+        reqJob.jobId = jobIds[i];
+        if (lsb_requeuejob(&reqJob) < 0) {
+            exitrc = -1;
+            sprintf(Job, "%s <%s> ", "Job", lsb_jobid2str(jobIds[i]));
             lsb_perror(Job);
-	}
-	else {
-	    printf(("Job <%s> is being requeued \n"),
-		   lsb_jobid2str(jobIds[i]));
-	}
+        } else {
+            printf(("Job <%s> is being requeued \n"), lsb_jobid2str(jobIds[i]));
+        }
     }
     exit(exitrc);
-
 }

@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -22,62 +23,60 @@ extern int optind;
 extern char *optarg;
 extern char **environ;
 extern char *loginShell;
-extern int  optionFlag;
+extern int optionFlag;
 extern char optionFileName[MAXLSFNAMELEN];
-extern int sig_decode (int);
+extern int sig_decode(int);
 extern int isatty(int);
 
-extern  int setOption_ (int argc, char **argv, char *template,
-                      struct submit *req, int mask, int mask2, char **errMsg);
-extern  struct submit * parseOptFile_(char *filename,
-				      struct submit *req, char **errMsg);
+extern int setOption_(int argc, char **argv, char *template, struct submit *req,
+                      int mask, int mask2, char **errMsg);
+extern struct submit *parseOptFile_(char *filename, struct submit *req,
+                                    char **errMsg);
 extern void subUsage_(int, char **);
-static  int parseLine (char *line, int *embedArgc, char ***embedArgv, int option);
+static int parseLine(char *line, int *embedArgc, char ***embedArgv, int option);
 
 static int emptyCmd = TRUE;
 
-static int parseScript (FILE *from,  int *embedArgc,
-			char ***embedArgv, int option);
+static int parseScript(FILE *from, int *embedArgc, char ***embedArgv,
+                       int option);
 static int CopyCommand(char **, int);
 
-static int
-addLabel2RsrcReq(struct submit *subreq);
+static int addLabel2RsrcReq(struct submit *subreq);
 
-void sub_perror (char *);
+void sub_perror(char *);
 
 static char *commandline;
 
-#define SKIPSPACE(sp)      while (isspace(*(sp))) (sp)++;
-#define SCRIPT_WORD        "_USER_\\SCRIPT_"
-#define SCRIPT_WORD_END       "_USER_SCRIPT_"
+#define SKIPSPACE(sp)                                                          \
+    while (isspace(*(sp)))                                                     \
+        (sp)++;
+#define SCRIPT_WORD "_USER_\\SCRIPT_"
+#define SCRIPT_WORD_END "_USER_SCRIPT_"
 
-#define EMBED_INTERACT     0x01
-#define EMBED_OPTION_ONLY  0x02
-#define EMBED_BSUB         0x04
-#define EMBED_RESTART      0x10
-#define EMBED_QSUB         0x20
+#define EMBED_INTERACT 0x01
+#define EMBED_OPTION_ONLY 0x02
+#define EMBED_BSUB 0x04
+#define EMBED_RESTART 0x10
+#define EMBED_QSUB 0x20
 
-int
-do_sub (int argc, char **argv, int option)
+int do_sub(int argc, char **argv, int option)
 {
     static char fname[] = "do_sub";
-    struct submit  req;
-    struct submitReply  reply;
+    struct submit req;
+    struct submitReply reply;
     LS_LONG_INT jobId = -1;
 
     if (lsb_init(argv[0]) < 0) {
-	sub_perror("lsb_init");
-	fprintf(stderr, ". %s.\n",
-	    ("Job not submitted"));
-	return (-1);
+        sub_perror("lsb_init");
+        fprintf(stderr, ". %s.\n", ("Job not submitted"));
+        return (-1);
     }
 
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
-    if (fillReq (argc, argv, option, &req) < 0){
-	fprintf(stderr,  ". %s.\n",
-	    ("Job not submitted"));
+    if (fillReq(argc, argv, option, &req) < 0) {
+        fprintf(stderr, ". %s.\n", ("Job not submitted"));
         return (-1);
     }
 
@@ -85,21 +84,18 @@ do_sub (int argc, char **argv, int option)
 
     TIMEIT(0, (jobId = lsb_submit(&req, &reply)), "lsb_submit");
     if (jobId < 0) {
-        prtErrMsg (&req, &reply);
-        fprintf(stderr,  ". %s.\n",
-           ("Job not submitted"));
-        return(-1);
+        prtErrMsg(&req, &reply);
+        fprintf(stderr, ". %s.\n", ("Job not submitted"));
+        return (-1);
     }
 
     if (req.nxf)
         free(req.xf);
 
-    return(0);
-
+    return (0);
 }
 
-void
-prtBETime (struct submit req)
+void prtBETime(struct submit req)
 {
     static char fname[] = "prtBETime";
     char sp[60];
@@ -108,24 +104,21 @@ prtBETime (struct submit req)
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if (req.beginTime) {
-        strcpy( sp, ctime2(&req.beginTime));
-        fprintf(stderr, "%s %s\n",
-	    ("Job will be scheduled after"), sp);
+        strcpy(sp, ctime2(&req.beginTime));
+        fprintf(stderr, "%s %s\n", ("Job will be scheduled after"), sp);
     }
     if (req.termTime) {
-        strcpy( sp, ctime2(&req.termTime));
-        fprintf(stderr, "%s %s\n",
-	    ("Job will be terminated by"), sp);
+        strcpy(sp, ctime2(&req.termTime));
+        fprintf(stderr, "%s %s\n", ("Job will be terminated by"), sp);
     }
 }
 
-int
-fillReq (int argc, char **argv, int operate, struct submit *req)
+int fillReq(int argc, char **argv, int operate, struct submit *req)
 {
     static char fname[] = "fillReq";
     struct stat statBuf;
     char *template, **embedArgv;
-    int  i, embedArgc = 0, redirect = 0;
+    int i, embedArgc = 0, redirect = 0;
     int myArgc;
     char *myArgv0;
     static char chkDir[128];
@@ -136,18 +129,19 @@ fillReq (int argc, char **argv, int operate, struct submit *req)
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if (operate == CMD_BRESTART) {
-	req->options = SUB_RESTART;
+        req->options = SUB_RESTART;
         template = "E:w:B|f|x|N|h|m:q:b:t:c:W:F:D:S:C:M:V|G:a:";
     } else if (operate == CMD_BMODIFY) {
         req->options = SUB_MODIFY;
         template = "h|V|O|Tn|T:xn|x|rn|r|Bn|B|Nn|N|En|E:a:"
-	"wn|w:fn|f:kn|k:Rn|R:mn|m:Jn|J:isn|is:in|i:en|e:qn|q:bn|b:tn|t:spn|sp:sn|s:cn|c:Wn|W:Fn|F:Dn|D:Sn|S:Cn|C:Mn|M:on|o:nn|n:un|u:Pn|P:Ln|L:Xn|X:Zsn|Zs:Z:"
-        ;
+                   "wn|w:fn|f:kn|k:Rn|R:mn|m:Jn|J:isn|is:in|i:en|e:qn|q:bn|b:"
+                   "tn|t:spn|sp:sn|s:cn|c:Wn|W:Fn|F:Dn|D:Sn|S:Cn|C:Mn|M:on|o:"
+                   "nn|n:un|u:Pn|P:Ln|L:Xn|X:Zsn|Zs:Z:";
     } else if (operate == CMD_BSUB) {
-	req->options = 0;
+        req->options = 0;
         template = "E:T:a:"
-	"w:f:k:R:m:J:L:u:is:i:o:e:Zs|n:q:b:t:sp:s:c:v:p:W:F:D:S:C:M:O:P:Ip|Is|I|r|H|x|N|B|h|V|X:K|"
-        ;
+                   "w:f:k:R:m:J:L:u:is:i:o:e:Zs|n:q:b:t:sp:s:c:v:p:W:F:D:S:C:M:"
+                   "O:P:Ip|Is|I|r|H|x|N|B|h|V|X:K|";
     }
 
     req->options2 = 0;
@@ -157,13 +151,13 @@ fillReq (int argc, char **argv, int operate, struct submit *req)
     myArgv0 = (char *) NULL;
 
     req->beginTime = 0;
-    req->termTime  = 0;
+    req->termTime = 0;
     req->command = NULL;
     req->nxf = 0;
     req->numProcessors = 0;
     req->maxNumProcessors = 0;
     for (i = 0; i < LSF_RLIM_NLIMITS; i++)
-	req->rLimits[i] = DEFAULT_RLIMIT;
+        req->rLimits[i] = DEFAULT_RLIMIT;
     req->hostSpec = NULL;
     req->resReq = NULL;
     req->loginShell = NULL;
@@ -174,89 +168,85 @@ fillReq (int argc, char **argv, int operate, struct submit *req)
     if ((req->projectName = getenv("LSB_DEFAULTPROJECT")) != NULL)
         req->options |= SUB_PROJECT_NAME;
 
-    if (operate == CMD_BMODIFY){
+    if (operate == CMD_BMODIFY) {
         int index;
-        for(index=1; index<argc; index++){
-            if (strcmp(argv[index],"-k") == 0){
+        for (index = 1; index < argc; index++) {
+            if (strcmp(argv[index], "-k") == 0) {
                 break;
             }
         }
-        if ((index+1) < argc){
-            char *pCurChar = argv[index+1];
+        if ((index + 1) < argc) {
+            char *pCurChar = argv[index + 1];
             char *pCurWord = NULL;
 
-            while(*(pCurChar) == ' '){
+            while (*(pCurChar) == ' ') {
                 pCurChar++;
             }
-            pCurWord = strstr(pCurChar,"method=");
-            if ((pCurWord != NULL) && (pCurWord != pCurChar)){
+            pCurWord = strstr(pCurChar, "method=");
+            if ((pCurWord != NULL) && (pCurWord != pCurChar)) {
                 fprintf(stderr, "%s %s\n",
-	                ("Checkpoint method cannot be changed with bmod:"),
-                        argv[index+1]);
-                return(-1);
+                        ("Checkpoint method cannot be changed with bmod:"),
+                        argv[index + 1]);
+                return (-1);
             }
         }
     }
 
-    if (operate == CMD_BSUB){
+    if (operate == CMD_BSUB) {
         char *pChkpntMethodDir = NULL;
         char *pChkpntMethod = NULL;
         char *pConfigPath = NULL;
         char *pIsOutput = NULL;
 
-        struct config_param aParamList[] =
-        {
-        #define LSB_ECHKPNT_METHOD    0
-            {"LSB_ECHKPNT_METHOD",NULL},
-        #define LSB_ECHKPNT_METHOD_DIR    1
-            {"LSB_ECHKPNT_METHOD_DIR",NULL},
-        #define LSB_ECHKPNT_KEEP_OUTPUT    2
-            {"LSB_ECHKPNT_KEEP_OUTPUT",NULL},
-            {NULL, NULL}
-        };
+        struct config_param aParamList[] = {
+#define LSB_ECHKPNT_METHOD 0
+            {"LSB_ECHKPNT_METHOD", NULL},
+#define LSB_ECHKPNT_METHOD_DIR 1
+            {"LSB_ECHKPNT_METHOD_DIR", NULL},
+#define LSB_ECHKPNT_KEEP_OUTPUT 2
+            {"LSB_ECHKPNT_KEEP_OUTPUT", NULL},
+            {NULL, NULL}};
 
         pConfigPath = getenv("LSF_ENVDIR");
-	if (pConfigPath == NULL){
+        if (pConfigPath == NULL) {
             pConfigPath = "/etc";
-	}
+        }
 
         ls_readconfenv(aParamList, pConfigPath);
 
         pChkpntMethod = getenv("LSB_ECHKPNT_METHOD");
-        if ( pChkpntMethod == NULL ){
-
-            if ( aParamList[LSB_ECHKPNT_METHOD].paramValue != NULL){
-	        putEnv(aParamList[LSB_ECHKPNT_METHOD].paramName,
-	               aParamList[LSB_ECHKPNT_METHOD].paramValue);
+        if (pChkpntMethod == NULL) {
+            if (aParamList[LSB_ECHKPNT_METHOD].paramValue != NULL) {
+                putEnv(aParamList[LSB_ECHKPNT_METHOD].paramName,
+                       aParamList[LSB_ECHKPNT_METHOD].paramValue);
             }
             FREEUP(aParamList[LSB_ECHKPNT_METHOD].paramValue);
         }
 
         pChkpntMethodDir = getenv("LSB_ECHKPNT_METHOD_DIR");
-        if ( pChkpntMethodDir == NULL ){
-            if ( aParamList[LSB_ECHKPNT_METHOD_DIR].paramValue != NULL){
+        if (pChkpntMethodDir == NULL) {
+            if (aParamList[LSB_ECHKPNT_METHOD_DIR].paramValue != NULL) {
                 putEnv(aParamList[LSB_ECHKPNT_METHOD_DIR].paramName,
                        aParamList[LSB_ECHKPNT_METHOD_DIR].paramValue);
-	    }
-	    FREEUP(aParamList[LSB_ECHKPNT_METHOD_DIR].paramValue);
+            }
+            FREEUP(aParamList[LSB_ECHKPNT_METHOD_DIR].paramValue);
         }
 
         pIsOutput = getenv("LSB_ECHKPNT_KEEP_OUTPUT");
-        if ( pIsOutput == NULL ){
-            if ( aParamList[LSB_ECHKPNT_KEEP_OUTPUT].paramValue != NULL){
+        if (pIsOutput == NULL) {
+            if (aParamList[LSB_ECHKPNT_KEEP_OUTPUT].paramValue != NULL) {
                 putEnv(aParamList[LSB_ECHKPNT_KEEP_OUTPUT].paramName,
                        aParamList[LSB_ECHKPNT_KEEP_OUTPUT].paramValue);
             }
-	    FREEUP(aParamList[LSB_ECHKPNT_KEEP_OUTPUT].paramValue);
+            FREEUP(aParamList[LSB_ECHKPNT_KEEP_OUTPUT].paramValue);
         }
-
     }
 
-    if (setOption_ (argc, argv, template, req, ~0, ~0, NULL) == -1)
+    if (setOption_(argc, argv, template, req, ~0, ~0, NULL) == -1)
         return (-1);
 
-    if (operate == CMD_BSUB && (req->options & SUB_INTERACTIVE)
-            && (req->options & SUB_PTY)) {
+    if (operate == CMD_BSUB && (req->options & SUB_INTERACTIVE) &&
+        (req->options & SUB_PTY)) {
         if (req->options & SUB_PTY_SHELL)
             putenv(putstr_("LSB_SHMODE=y"));
         else
@@ -264,46 +254,40 @@ fillReq (int argc, char **argv, int operate, struct submit *req)
     }
     if (fstat(0, &statBuf) == 0)
 
-        if ((statBuf.st_mode & S_IFREG) == S_IFREG
-             || (statBuf.st_mode & S_IFLNK) == S_IFLNK) {
-
+        if ((statBuf.st_mode & S_IFREG) == S_IFREG ||
+            (statBuf.st_mode & S_IFLNK) == S_IFLNK) {
             redirect = (ftell(stdin) == 0) ? 1 : 0;
         }
 
     if (operate == CMD_BRESTART || operate == CMD_BMODIFY) {
-
-	if (argc == optind + 1)
+        if (argc == optind + 1)
             req->command = argv[optind];
         else if (argc == optind + 2) {
-
-		LS_LONG_INT arrayJobId;
-		if (getOneJobId (argv[optind+1], &arrayJobId, 0))
-		    return(-1);
-
-                   sprintf(chkDir, "%s/%s", argv[optind], lsb_jobidinstr(arrayJobId));
-
-                req->command = chkDir;
-            } else
-	        subUsage_(req->options, NULL);
-
-    } else {
-	if (myArgc > 0 && myArgv0 != NULL) {
-            emptyCmd = FALSE;
-	    argv[argc] = myArgv0;
-	    if (!CopyCommand(&argv[argc], myArgc))
-		return (-1);
-	}
-	else if (argc >= optind + 1) {
-
-            emptyCmd = FALSE;
-	    if (!CopyCommand(argv+optind, argc-optind-1))
-		return (-1);
-	} else
-            if (parseScript(stdin, &embedArgc, &embedArgv,
-                            EMBED_INTERACT|EMBED_BSUB) == -1)
+            LS_LONG_INT arrayJobId;
+            if (getOneJobId(argv[optind + 1], &arrayJobId, 0))
                 return (-1);
 
-	req->command = commandline;
+            sprintf(chkDir, "%s/%s", argv[optind], lsb_jobidinstr(arrayJobId));
+
+            req->command = chkDir;
+        } else
+            subUsage_(req->options, NULL);
+
+    } else {
+        if (myArgc > 0 && myArgv0 != NULL) {
+            emptyCmd = FALSE;
+            argv[argc] = myArgv0;
+            if (!CopyCommand(&argv[argc], myArgc))
+                return (-1);
+        } else if (argc >= optind + 1) {
+            emptyCmd = FALSE;
+            if (!CopyCommand(argv + optind, argc - optind - 1))
+                return (-1);
+        } else if (parseScript(stdin, &embedArgc, &embedArgv,
+                               EMBED_INTERACT | EMBED_BSUB) == -1)
+            return (-1);
+
+        req->command = commandline;
         SKIPSPACE(req->command);
         if (emptyCmd) {
             if (redirect)
@@ -315,15 +299,13 @@ fillReq (int argc, char **argv, int operate, struct submit *req)
     }
 
     if (embedArgc > 1 && operate == CMD_BSUB) {
-
         optind = 1;
 
-        if (setOption_ (embedArgc, embedArgv, template, req,
-			~req->options, ~req->options2, NULL) == -1)
+        if (setOption_(embedArgc, embedArgv, template, req, ~req->options,
+                       ~req->options2, NULL) == -1)
             return (-1);
 
         if (req->options2 & SUB2_JOB_CMD_SPOOL) {
-
             fprintf(stderr, ("-Zs is not supported for embeded job command"));
             return (-1);
         }
@@ -331,38 +313,38 @@ fillReq (int argc, char **argv, int operate, struct submit *req)
 
     if (optionFlag) {
         if (parseOptFile_(optionFileName, req, NULL) == NULL)
-	    return (-1);
-	optionFlag = FALSE;
+            return (-1);
+        optionFlag = FALSE;
     }
 
     if (operate == CMD_BSUB) {
-        if(addLabel2RsrcReq(req) != 0) {
+        if (addLabel2RsrcReq(req) != 0) {
             fprintf(stderr, "Set job mac label failed.");
-            return(-1);
+            return (-1);
         }
     }
 
     return 1;
 }
 
-static int
-parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
+static int parseScript(FILE *from, int *embedArgc, char ***embedArgv,
+                       int option)
 {
     static char fname[] = "parseScript";
-    char *buf, line[MAXLINELEN*10], *prompt;
+    char *buf, line[MAXLINELEN * 10], *prompt;
     register int ttyin = 0;
-    int length = 0, size = 10*MAXLINELEN;
+    int length = 0, size = 10 * MAXLINELEN;
     int i, j, lineLen;
-    char firstLine[MAXLINELEN*10];
+    char firstLine[MAXLINELEN * 10];
     char *sp;
     int notBourne = FALSE;
     int isBSUB = FALSE;
     static char szTmpShellCommands[] = "\n%s\n) > $LSB_CHKFILENAME.shell\n"
-			"chmod u+x $LSB_CHKFILENAME.shell\n"
-			"$LSB_JOBFILENAME.shell\n"
-			"saveExit=$?\n"
-			"/bin/rm -f $LSB_JOBFILENAME.shell\n"
-			"(exit $saveExit)\n";
+                                       "chmod u+x $LSB_CHKFILENAME.shell\n"
+                                       "$LSB_JOBFILENAME.shell\n"
+                                       "saveExit=$?\n"
+                                       "/bin/rm -f $LSB_JOBFILENAME.shell\n"
+                                       "(exit $saveExit)\n";
 
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -376,11 +358,11 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
     if (option & EMBED_INTERACT) {
         firstLine[0] = '\0';
         if ((buf = malloc(size)) == NULL) {
-    	    fprintf(stderr, "%s: %s failed\n", fname, "malloc");
-	    return (-1);
+            fprintf(stderr, "%s: %s failed\n", fname, "malloc");
+            return (-1);
         }
         ttyin = isatty(fileno(from));
-        if (ttyin){
+        if (ttyin) {
             printf(prompt);
             fflush(stdout);
         }
@@ -388,36 +370,33 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
 
     sp = line;
     lineLen = 0;
-    while (fgets (sp, 10 *MAXLINELEN - lineLen -1, from) != NULL) {
+    while (fgets(sp, 10 * MAXLINELEN - lineLen - 1, from) != NULL) {
         lineLen = strlen(line);
-	if (line[0] == '#') {
-	    if (strstr(line, "BSUB") != NULL) {
-	        isBSUB = TRUE;
+        if (line[0] == '#') {
+            if (strstr(line, "BSUB") != NULL) {
+                isBSUB = TRUE;
             }
         }
-	if ( isBSUB == TRUE ) {
-
+        if (isBSUB == TRUE) {
             isBSUB = FALSE;
-            if (line[lineLen-2] == '\\' && line[lineLen-1] == '\n') {
+            if (line[lineLen - 2] == '\\' && line[lineLen - 1] == '\n') {
                 lineLen -= 2;
                 sp = line + lineLen;
                 continue;
-	    }
+            }
         }
-        if (parseLine (line, embedArgc, embedArgv, option) == -1)
+        if (parseLine(line, embedArgc, embedArgv, option) == -1)
             return (-1);
 
         if (option & EMBED_INTERACT) {
-            if (!firstLine[0])
-            {
-
-	        sprintf (firstLine, "( cat <<%s\n%s", SCRIPT_WORD, line);
-	        strcpy(line, firstLine);
-	        notBourne = TRUE;
+            if (!firstLine[0]) {
+                sprintf(firstLine, "( cat <<%s\n%s", SCRIPT_WORD, line);
+                strcpy(line, firstLine);
+                notBourne = TRUE;
             }
             lineLen = strlen(line);
 
-            if (length + lineLen +MAXLINELEN+ 20 >= size) {
+            if (length + lineLen + MAXLINELEN + 20 >= size) {
                 size = size * 2;
                 if ((buf = (char *) realloc(buf, size)) == NULL) {
                     free(buf);
@@ -425,7 +404,7 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
                     return (-1);
                 }
             }
-            for (i=length, j=0; j<lineLen; i++, j++)
+            for (i = length, j = 0; j < lineLen; i++, j++)
                 buf[i] = line[j];
             length += lineLen;
 
@@ -441,15 +420,13 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
     if (option & EMBED_INTERACT) {
         buf[length] = '\0';
         if (firstLine[0] != '\n' && firstLine[0] != '\0') {
-
             if (notBourne == TRUE) {
-
-		if (length + strlen(szTmpShellCommands) + 1 >= size) {
-		    size = size + strlen(szTmpShellCommands) + 1;
-		    if (( buf = (char *) realloc(buf, size)) == NULL ) {
-			free(buf);
-			fprintf(stderr, "%s: %s failed\n", fname, "realloc");
-			return(-1);
+                if (length + strlen(szTmpShellCommands) + 1 >= size) {
+                    size = size + strlen(szTmpShellCommands) + 1;
+                    if ((buf = (char *) realloc(buf, size)) == NULL) {
+                        free(buf);
+                        fprintf(stderr, "%s: %s failed\n", fname, "realloc");
+                        return (-1);
                     }
                 }
                 sprintf(&buf[length], szTmpShellCommands, SCRIPT_WORD_END);
@@ -458,67 +435,64 @@ parseScript (FILE *from, int *embedArgc, char ***embedArgv, int option)
         commandline = buf;
     }
     return (0);
-
 }
 
-static int
-CopyCommand(char **from, int len)
+static int CopyCommand(char **from, int len)
 {
     int i, size;
     char *arg, *temP, *endArg, *endArg1, endChar = '\0';
-    char fname[]="CopyCommand";
-    int oldParenthesis=0;
+    char fname[] = "CopyCommand";
+    int oldParenthesis = 0;
 
     if (lsbParams[LSB_32_PAREN_ESC].paramValue) {
         oldParenthesis = 1;
     }
 
     for (i = 0, size = 0; from[i]; i++) {
-	size += strlen(from[i]) + 1 + 4;
+        size += strlen(from[i]) + 1 + 4;
     }
 
     size += 1 + 1;
 
     if ((commandline = (char *) malloc(size)) == NULL) {
-	fprintf(stderr, "%s: %s failed\n", fname, "malloc");
-	return (FALSE);
+        fprintf(stderr, "%s: %s failed\n", fname, "malloc");
+        return (FALSE);
     }
 
     if (lsbParams[LSB_API_QUOTE_CMD].paramValue == NULL) {
         strcpy(commandline, from[0]);
-	i = 1;
+        i = 1;
     } else {
-	if ((strcasecmp(lsbParams[LSB_API_QUOTE_CMD].paramValue, "yes") == 0)
-	    || ((strcasecmp(lsbParams[LSB_API_QUOTE_CMD].paramValue,
-	    						"y") == 0))) {
-	    memset(commandline, '\0', size);
-	    i = 0;
-	} else {
+        if ((strcasecmp(lsbParams[LSB_API_QUOTE_CMD].paramValue, "yes") == 0) ||
+            ((strcasecmp(lsbParams[LSB_API_QUOTE_CMD].paramValue, "y") == 0))) {
+            memset(commandline, '\0', size);
+            i = 0;
+        } else {
             strcpy(commandline, from[0]);
-	    i = 1;
-	}
+            i = 1;
+        }
     }
 
-    for(; from[i] != NULL ;i++) {
-	strcat(commandline, " ");
+    for (; from[i] != NULL; i++) {
+        strcat(commandline, " ");
 
         if (strchr(from[i], ' ')) {
             if (strchr(from[i], '"')) {
                 strcat(commandline, "'");
-		strcat(commandline, from[i]);
+                strcat(commandline, from[i]);
                 strcat(commandline, "'");
-	    } else {
-		if ( strchr(from[i], '$') ) {
-		    strcat(commandline, "'");
-		    strcat(commandline, from[i]);
-		    strcat(commandline, "'");
+            } else {
+                if (strchr(from[i], '$')) {
+                    strcat(commandline, "'");
+                    strcat(commandline, from[i]);
+                    strcat(commandline, "'");
                 } else {
                     strcat(commandline, "\"");
-		    strcat(commandline, from[i]);
+                    strcat(commandline, from[i]);
                     strcat(commandline, "\"");
                 }
             }
-   	} else {
+        } else {
             arg = putstr_(from[i]);
             temP = arg;
             while (*arg) {
@@ -529,7 +503,7 @@ CopyCommand(char **from, int len)
 
                 endArg1 = strchr(arg, '\\');
                 if (from[i][0] == '$') {
-		    strcat(commandline, "'");
+                    strcat(commandline, "'");
                 }
                 if (!endArg || (endArg1 && endArg > endArg1))
                     endArg = endArg1;
@@ -541,14 +515,14 @@ CopyCommand(char **from, int len)
                 if (!endArg || (endArg1 && endArg > endArg1))
                     endArg = endArg1;
 
-		if (endArg) {
+                if (endArg) {
                     endChar = *endArg;
                     *endArg = '\0';
                 }
                 strcat(commandline, arg);
-		if (from[i][0] == '$') {
-		    strcat(commandline, "'");
-	        }
+                if (from[i][0] == '$') {
+                    strcat(commandline, "'");
+                }
                 if (endArg) {
                     arg += strlen(arg) + 1;
                     if (endChar == '\\')
@@ -556,105 +530,93 @@ CopyCommand(char **from, int len)
                     else if (endChar == '"')
                         strcat(commandline, "\\\"");
                     else if (endChar == '\'')
-		        strcat(commandline, "\\\'");
+                        strcat(commandline, "\\\'");
                     else if (endChar == '(') {
-			 if (oldParenthesis == 0)
-                           strcat(commandline, "\\\(");
-			 else strcat(commandline,"(");
-                    }else if (endChar == ')') {
-			 if (oldParenthesis == 0)
-                           strcat(commandline, "\\)");
-			else strcat(commandline,")");
-		   }
+                        if (oldParenthesis == 0)
+                            strcat(commandline, "\\\(");
+                        else
+                            strcat(commandline, "(");
+                    } else if (endChar == ')') {
+                        if (oldParenthesis == 0)
+                            strcat(commandline, "\\)");
+                        else
+                            strcat(commandline, ")");
+                    }
                 } else
                     arg += strlen(arg);
             }
             free(temP);
-	}
+        }
     }
 
     return TRUE;
 }
 
-void
-prtErrMsg (struct submit *req, struct submitReply *reply)
+void prtErrMsg(struct submit *req, struct submitReply *reply)
 {
-    static char rNames [10][12] = {
-                              "CPULIMIT",
-                              "FILELIMIT",
-                              "DATALIMIT",
-                              "STACKLIMIT",
-                              "CORELIMIT",
-                              "MEMLIMIT",
-                              "",
-                              "",
-                              "",
-                              "RUNLIMIT"
-                              };
+    static char rNames[10][12] = {
+        "CPULIMIT", "FILELIMIT", "DATALIMIT", "STACKLIMIT", "CORELIMIT",
+        "MEMLIMIT", "",          "",          "",           "RUNLIMIT"};
     switch (lsberrno) {
     case LSBE_BAD_QUEUE:
     case LSBE_QUEUE_USE:
     case LSBE_QUEUE_CLOSED:
     case LSBE_EXCLUSIVE:
         if (req->options & SUB_QUEUE)
-            sub_perror (req->queue);
+            sub_perror(req->queue);
         else
-            sub_perror (reply->queue);
+            sub_perror(reply->queue);
         break;
 
     case LSBE_DEPEND_SYNTAX:
-	sub_perror (req->dependCond);
+        sub_perror(req->dependCond);
         break;
 
     case LSBE_NO_JOB:
     case LSBE_JGRP_NULL:
     case LSBE_ARRAY_NULL:
         if (reply->badJobId) {
-	        char *idStr = putstr_(req->command);
-	        sub_perror (idStr);
-			FREEUP(idStr);
+            char *idStr = putstr_(req->command);
+            sub_perror(idStr);
+            FREEUP(idStr);
         } else {
-	    if (strlen(reply->badJobName) == 0) {
-		sub_perror (req->jobName);
-	    }
-	    else
-                sub_perror (reply->badJobName);
+            if (strlen(reply->badJobName) == 0) {
+                sub_perror(req->jobName);
+            } else
+                sub_perror(reply->badJobName);
         }
         break;
     case LSBE_QUEUE_HOST:
     case LSBE_BAD_HOST:
-	sub_perror (req->askedHosts[reply->badReqIndx]);
+        sub_perror(req->askedHosts[reply->badReqIndx]);
         break;
     case LSBE_OVER_LIMIT:
-        sub_perror (rNames[reply->badReqIndx]);
+        sub_perror(rNames[reply->badReqIndx]);
         break;
 
     case LSBE_BAD_HOST_SPEC:
-        sub_perror (req->hostSpec);
+        sub_perror(req->hostSpec);
         break;
     default:
-	sub_perror(NULL);
+        sub_perror(NULL);
         break;
     }
 
     return;
-
 }
 
-static int
-parseLine (char *line, int *embedArgc, char ***embedArgv, int option)
+static int parseLine(char *line, int *embedArgc, char ***embedArgv, int option)
 {
 #define INCREASE 40
 
     static char **argBuf = NULL, *key;
-    static int  bufSize = 0;
-    char  fname[]="parseLine";
+    static int bufSize = 0;
+    char fname[] = "parseLine";
 
     char *sp, *sQuote, *dQuote, quoteMark;
 
     if (argBuf == NULL) {
-        if ((argBuf = (char **) malloc(INCREASE * sizeof(char *)))
-            == NULL) {
+        if ((argBuf = (char **) malloc(INCREASE * sizeof(char *))) == NULL) {
             fprintf(stderr, "%s: %s failed\n", fname, "malloc");
             return (-1);
         }
@@ -665,16 +627,13 @@ parseLine (char *line, int *embedArgc, char ***embedArgv, int option)
         if (option & EMBED_BSUB) {
             argBuf[0] = "bsub";
             key = "BSUB";
-        }
-        else if (option & EMBED_RESTART) {
+        } else if (option & EMBED_RESTART) {
             argBuf[0] = "brestart";
             key = "BRESTART";
-        }
-        else if (option & EMBED_QSUB) {
+        } else if (option & EMBED_QSUB) {
             argBuf[0] = "qsub";
             key = "QSUB";
-        }
-        else {
+        } else {
             fprintf(stderr, ("Invalid option"));
             return (-1);
         }
@@ -691,7 +650,7 @@ parseLine (char *line, int *embedArgc, char ***embedArgv, int option)
 
     ++line;
     SKIPSPACE(line);
-    if (strncmp (line, key, strlen(key)) == 0) {
+    if (strncmp(line, key, strlen(key)) == 0) {
         line += strlen(key);
         SKIPSPACE(line);
         if (*line != '-') {
@@ -712,13 +671,12 @@ parseLine (char *line, int *embedArgc, char ***embedArgv, int option)
 
             if (*embedArgc + 2 > bufSize) {
                 bufSize += INCREASE;
-                if ((argBuf = (char **) realloc(argBuf,
-                                             bufSize * sizeof(char *)))
-                    == NULL) {
+                if ((argBuf = (char **) realloc(
+                         argBuf, bufSize * sizeof(char *))) == NULL) {
                     fprintf(stderr, "%s: %s failed\n", fname, "realloc");
                     return (-1);
                 }
-		*embedArgv = argBuf;
+                *embedArgv = argBuf;
             }
             argBuf[*embedArgc] = putstr_(sp);
             (*embedArgc)++;
@@ -726,22 +684,16 @@ parseLine (char *line, int *embedArgc, char ***embedArgv, int option)
         }
     }
     return (0);
-
 }
 
-static int
-addLabel2RsrcReq(struct submit *subreq)
+static int addLabel2RsrcReq(struct submit *subreq)
 {
-    char * temp = NULL;
-    char * job_label = NULL;
-    char * req = NULL;
-    char * select = NULL,
-         * order = NULL,
-         * rusage = NULL,
-         * filter = NULL,
-         * span = NULL,
-         * same = NULL;
-    char * and_symbol = " && ";
+    char *temp = NULL;
+    char *job_label = NULL;
+    char *req = NULL;
+    char *select = NULL, *order = NULL, *rusage = NULL, *filter = NULL,
+         *span = NULL, *same = NULL;
+    char *and_symbol = " && ";
     int label_len, rsrcreq_len;
 
     if ((job_label = getenv("LSF_JOB_SECURITY_LABEL")) == NULL) {
@@ -761,7 +713,7 @@ addLabel2RsrcReq(struct submit *subreq)
 
     rsrcreq_len = strlen(subreq->resReq);
     req = strdup(subreq->resReq);
-    if ( req == NULL) {
+    if (req == NULL) {
         return -1;
     }
 
@@ -773,13 +725,12 @@ addLabel2RsrcReq(struct submit *subreq)
     same = strstr(req, "same[");
 
     if (select) {
-
         int size;
-        char * select_start = strchr(select, '[') + 1;
-        char * select_end = strchr(select, ']');
-        char * rest;
+        char *select_start = strchr(select, '[') + 1;
+        char *select_end = strchr(select, ']');
+        char *rest;
 
-        if(select_end == req + strlen(req) - 1) {
+        if (select_end == req + strlen(req) - 1) {
             rest = NULL;
         } else {
             rest = select_end + 1;
@@ -789,56 +740,55 @@ addLabel2RsrcReq(struct submit *subreq)
         req[select_end - req] = '\0';
 
         size = label_len + rsrcreq_len + strlen(and_symbol) + 10;
-        temp = (char *)calloc(1, size);
+        temp = (char *) calloc(1, size);
         if (temp == NULL) {
-            return(-1);
+            return (-1);
         }
 
         sprintf(temp, "%s%s(select[%s]) %s %s", job_label, and_symbol,
-                      select_start, (*req)?req:"", rest?rest:"");
+                select_start, (*req) ? req : "", rest ? rest : "");
 
-     } else if (   order != req
-                && rusage != req
-                && filter != req
-                && span != req
-                && same != req ) {
-
+    } else if (order != req && rusage != req && filter != req && span != req &&
+               same != req) {
         int size;
         char *select_start = req;
         char *rest = req + strlen(req);
 
-        if(order && order < rest) rest = order;
-        if(rusage && rusage < rest) rest = rusage;
-        if(filter && filter < rest) rest = filter;
-        if(span && span < rest) rest = span;
-        if(same && same < rest) rest = same;
+        if (order && order < rest)
+            rest = order;
+        if (rusage && rusage < rest)
+            rest = rusage;
+        if (filter && filter < rest)
+            rest = filter;
+        if (span && span < rest)
+            rest = span;
+        if (same && same < rest)
+            rest = same;
 
-        if(rest != (req + strlen(req))) {
-
+        if (rest != (req + strlen(req))) {
             req[rest - req - 1] = '\0';
         }
 
         size = label_len + rsrcreq_len + strlen(and_symbol) + 4;
-        temp = (char *)calloc(1, size);
+        temp = (char *) calloc(1, size);
         if (temp == NULL) {
-            return(-1);
+            return (-1);
         }
 
-        sprintf(temp, "%s%s(%s) %s", job_label, and_symbol,
-                      select_start, (rest==req+strlen(req))?"":rest);
+        sprintf(temp, "%s%s(%s) %s", job_label, and_symbol, select_start,
+                (rest == req + strlen(req)) ? "" : rest);
 
-     } else {
-
+    } else {
         int size;
         size = label_len + rsrcreq_len + 2;
-        temp = (char *)calloc(1, size);
+        temp = (char *) calloc(1, size);
         if (temp == NULL) {
-            return(-1);
+            return (-1);
         }
         sprintf(temp, "%s %s", job_label, req);
-     }
+    }
 
     subreq->resReq = temp;
     free(req);
-    return(0);
+    return (0);
 }

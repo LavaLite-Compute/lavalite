@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-int
-lsb_queuecontrol(char *queue, int operation)
+int lsb_queuecontrol(char *queue, int operation)
 {
     static struct controlReq qcReq;
     mbdReqType mbdReqtype;
@@ -32,7 +32,7 @@ lsb_queuecontrol(char *queue, int operation)
     struct lsfAuth auth;
 
     if (qcReq.name == NULL) {
-        qcReq.name = (char *) malloc (MAXHOSTNAMELEN);
+        qcReq.name = (char *) malloc(MAXHOSTNAMELEN);
         if (qcReq.name == NULL) {
             lsberrno = LSBE_NO_MEM;
             return -1;
@@ -75,14 +75,14 @@ lsb_queuecontrol(char *queue, int operation)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&qcReq, &hdr, xdr_controlReq, 0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &qcReq, &hdr, xdr_controlReq, 0,
+                       &auth)) {
         lsberrno = LSBE_XDR;
         return -1;
     }
 
-    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                       &hdr, NULL, NULL, NULL)) == -1)
-    {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         return -1;
     }

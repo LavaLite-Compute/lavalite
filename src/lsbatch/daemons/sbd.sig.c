@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -27,21 +28,21 @@
 #include <malloc.h>
 
 int setCmp(int *set1, int len1, int *set2, int len2);
-#define MAX_ARGS        16
+#define MAX_ARGS 16
 
-static int terminateAct(struct jobCard *, int, int, int, logType );
-int jRunSuspendAct(struct jobCard *, int ,int ,int, int, logType);
-static int jSuspResumeAct(struct jobCard *, int , int, logType);
-int resumeJob (struct jobCard * ,int ,int ,logType);
+static int terminateAct(struct jobCard *, int, int, int, logType);
+int jRunSuspendAct(struct jobCard *, int, int, int, int, logType);
+static int jSuspResumeAct(struct jobCard *, int, int, logType);
+int resumeJob(struct jobCard *, int, int, logType);
 
-static char      *getJobPgids(struct jobCard *);
-static char      *getJobPids(struct jobCard *);
+static char *getJobPgids(struct jobCard *);
+static char *getJobPids(struct jobCard *);
 void errorPostProcess(struct jobCard *, int, char *);
-char * exitFileSuffix ( int );
+char *exitFileSuffix(int);
 
 extern int rusageUpdateRate;
 extern int rusageUpdatePercent;
-static int jobsig1 (struct jobCard *jp, int sig, int forkSig);
+static int jobsig1(struct jobCard *jp, int sig, int forkSig);
 static int mykillpg(struct jobCard *, int);
 static int pgkillit(int, int);
 
@@ -56,10 +57,10 @@ void exeActCmd(struct jobCard *, char *, char *);
 #define ABS(a) ((a) < 0 ? -(a) : (a))
 #endif
 
-int sbdlog_newstatus (struct jobCard *jp);
+int sbdlog_newstatus(struct jobCard *jp);
 extern void copyJUsage(struct jRusage *to, struct jRusage *from);
-int jobSigLog (struct jobCard *jp, int finishStatus);
-char * exitFileSuffix ( int sigValue);
+int jobSigLog(struct jobCard *jp, int finishStatus);
+char *exitFileSuffix(int sigValue);
 
 int updateJRru(struct jRusage *jru, char *jobFile);
 
@@ -67,9 +68,8 @@ extern char *clusterName;
 
 extern int sbdParent(char *, struct jobCard *, int);
 
-int
-jobSigStart (struct jobCard *jp, int sigValue,
-             int actFlags, int actPeriod, logType logFlag)
+int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
+                logType logFlag)
 {
     static char fname[] = "sbd.sig.c/jobSigStart";
     int defSigValue;
@@ -78,273 +78,298 @@ jobSigStart (struct jobCard *jp, int sigValue,
     int cc;
 
     if (logclass & (LC_TRACE | LC_SIGNAL))
-        ls_syslog(LOG_DEBUG, "%s: Signal %s to job %s with actFlags=%d; reasons=%x, subresons=%d, sigValue=%d",
-                  fname, getLsbSigSymbol (sig_decode(sigValue)),
+        ls_syslog(LOG_DEBUG,
+                  "%s: Signal %s to job %s with actFlags=%d; reasons=%x, "
+                  "subresons=%d, sigValue=%d",
+                  fname, getLsbSigSymbol(sig_decode(sigValue)),
                   lsb_jobid2str(jp->jobSpecs.jobId), actFlags,
-		  jp->jobSpecs.reasons,
-                  jp->jobSpecs.subreasons, sigValue);
+                  jp->jobSpecs.reasons, jp->jobSpecs.subreasons, sigValue);
 
     defSigValue = sigValue;
 
-    if (   !(jp->jobSpecs.jStatus & JOB_STAT_ZOMBIE)
-        && IS_FINISH(jp->jobSpecs.jStatus))
+    if (!(jp->jobSpecs.jStatus & JOB_STAT_ZOMBIE) &&
+        IS_FINISH(jp->jobSpecs.jStatus))
         return 0;
 
     if (!JOB_STARTED(jp)) {
-        switch(sigValue) {
-            case SIGKILL:
-                jp->actStatus = ACT_NO;
-                return (jobsig(jp, SIGKILL, TRUE));
-            case SIG_TERM_USER:
-	    case SIG_KILL_REQUEUE:
-            case SIG_TERM_FORCE:
-                return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
-            case SIG_TERM_LOAD:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_WINDOW:
-                return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
-            case SIG_TERM_OTHER:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_RUNLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_RUNLIMIT, logFlag));
-            case SIG_TERM_DEADLINE:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_DEADLINE, logFlag));
-            case SIG_TERM_PROCESSLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_PROCESSLIMIT, logFlag));
-            case SIG_TERM_CPULIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_CPULIMIT, logFlag));
-            case SIG_TERM_MEMLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_MEMLIMIT, logFlag));
-            default:
-                return -1;
-	}
+        switch (sigValue) {
+        case SIGKILL:
+            jp->actStatus = ACT_NO;
+            return (jobsig(jp, SIGKILL, TRUE));
+        case SIG_TERM_USER:
+        case SIG_KILL_REQUEUE:
+        case SIG_TERM_FORCE:
+            return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
+        case SIG_TERM_LOAD:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_WINDOW:
+            return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
+        case SIG_TERM_OTHER:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_RUNLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_RUNLIMIT, logFlag));
+        case SIG_TERM_DEADLINE:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_DEADLINE, logFlag));
+        case SIG_TERM_PROCESSLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_PROCESSLIMIT, logFlag));
+        case SIG_TERM_CPULIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_CPULIMIT, logFlag));
+        case SIG_TERM_MEMLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_MEMLIMIT, logFlag));
+        default:
+            return -1;
+        }
     }
 
-    if ((jp->jobSpecs.actPid) && (isSigTerm(jp->jobSpecs.actValue)==TRUE))
+    if ((jp->jobSpecs.actPid) && (isSigTerm(jp->jobSpecs.actValue) == TRUE))
         return -1;
 
     if (jp->jobSpecs.actPid || (jp->jobSpecs.jStatus & JOB_STAT_MIG)) {
-
-        switch(sigValue) {
-            case SIGKILL:
-                jp->actStatus = ACT_NO;
-                if ((cc = jobsig(jp, SIGKILL, TRUE)) >= 0)
-                    jp->jobSpecs.jStatus &= ~JOB_STAT_MIG;
-                return cc;
-            case SIG_TERM_USER:
-	    case SIG_KILL_REQUEUE:
-            case SIG_TERM_FORCE:
-                return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
-            case SIG_TERM_LOAD:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_WINDOW:
-                return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
-            case SIG_TERM_OTHER:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_RUNLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_RUNLIMIT, logFlag));
-            case SIG_TERM_DEADLINE:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_DEADLINE, logFlag));
-            case SIG_TERM_PROCESSLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_PROCESSLIMIT, logFlag));
-            case SIG_TERM_CPULIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_CPULIMIT, logFlag));
-            case SIG_TERM_MEMLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_MEMLIMIT, logFlag));
-            default:
-                return -1;
-	    }
+        switch (sigValue) {
+        case SIGKILL:
+            jp->actStatus = ACT_NO;
+            if ((cc = jobsig(jp, SIGKILL, TRUE)) >= 0)
+                jp->jobSpecs.jStatus &= ~JOB_STAT_MIG;
+            return cc;
+        case SIG_TERM_USER:
+        case SIG_KILL_REQUEUE:
+        case SIG_TERM_FORCE:
+            return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
+        case SIG_TERM_LOAD:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_WINDOW:
+            return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
+        case SIG_TERM_OTHER:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_RUNLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_RUNLIMIT, logFlag));
+        case SIG_TERM_DEADLINE:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_DEADLINE, logFlag));
+        case SIG_TERM_PROCESSLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_PROCESSLIMIT, logFlag));
+        case SIG_TERM_CPULIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_CPULIMIT, logFlag));
+        case SIG_TERM_MEMLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_MEMLIMIT, logFlag));
+        default:
+            return -1;
+        }
     }
 
-    if ( (jp->jobSpecs.jStatus & JOB_STAT_RUN)
-          && jp->postJobStarted )  {
-
-       return -1;
+    if ((jp->jobSpecs.jStatus & JOB_STAT_RUN) && jp->postJobStarted) {
+        return -1;
     }
-    if (jp->jobSpecs.jStatus & JOB_STAT_RUN)  {
+    if (jp->jobSpecs.jStatus & JOB_STAT_RUN) {
         if (sigValue >= 0) {
             jp->actStatus = ACT_NO;
-            switch(sigValue) {
-                case SIGSTOP:
-                case SIGTSTP:
-                case SIGTTIN:
-                case SIGTTOU:
-                    if (jobsig(jp, sigValue, TRUE) < 0)
-                        return -1;
-                    SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
-                    jp->jobSpecs.reasons |= SUSP_USER_STOP;
-                    jp->notReported++;
-                    return 0;
-                default:
-                    return (jobsig(jp, sigValue, TRUE));
+            switch (sigValue) {
+            case SIGSTOP:
+            case SIGTSTP:
+            case SIGTTIN:
+            case SIGTTOU:
+                if (jobsig(jp, sigValue, TRUE) < 0)
+                    return -1;
+                SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
+                jp->jobSpecs.reasons |= SUSP_USER_STOP;
+                jp->notReported++;
+                return 0;
+            default:
+                return (jobsig(jp, sigValue, TRUE));
             }
         }
 
         switch (sigValue) {
-            case SIG_CHKPNT:
-            case SIG_CHKPNT_COPY:
-                jp->actStatus = ACT_NO;
-                jp->jobSpecs.chkPeriod = actPeriod;
-                if ((cc = jobact(jp, sigValue, NULL, actFlags, TRUE)) >= 0) {
+        case SIG_CHKPNT:
+        case SIG_CHKPNT_COPY:
+            jp->actStatus = ACT_NO;
+            jp->jobSpecs.chkPeriod = actPeriod;
+            if ((cc = jobact(jp, sigValue, NULL, actFlags, TRUE)) >= 0) {
+                jp->actStatus = ACT_START;
+                jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
+                if (actFlags & LSB_CHKPNT_MIG)
+                    jp->jobSpecs.jStatus |= JOB_STAT_MIG;
+                if (logFlag)
+                    jobSigLog(jp, 0);
+            }
+            return cc;
+        case SIG_SUSP_USER:
+            return (jRunSuspendAct(jp, sigValue, JOB_STAT_USUSP, SUSP_USER_STOP,
+                                   0, logFlag));
+        case SIG_SUSP_LOAD:
+            return (jRunSuspendAct(jp, sigValue, JOB_STAT_SSUSP, jp->actReasons,
+                                   jp->actSubReasons, logFlag));
+        case SIG_SUSP_WINDOW:
+            return (jRunSuspendAct(jp, sigValue, JOB_STAT_SSUSP,
+                                   SUSP_QUEUE_WINDOW, 0, logFlag));
+        case SIG_SUSP_OTHER:
+            return (jRunSuspendAct(jp, sigValue, JOB_STAT_SSUSP, jp->actReasons,
+                                   jp->actSubReasons, logFlag));
+        case SIG_RESUME_USER:
+        case SIG_RESUME_LOAD:
+        case SIG_RESUME_WINDOW:
+        case SIG_RESUME_OTHER:
+
+            jp->actStatus = ACT_NO;
+            actCmd = jp->jobSpecs.resumeActCmd;
+            defSigValue = getDefSigValue_(sigValue, actCmd);
+
+            if (sigValue != defSigValue) {
+                return (jobsig(jp, defSigValue,
+                               ((defSigValue == SIGKILL) ? TRUE : FALSE)));
+            } else {
+                if ((cc = jobact(jp, sigValue, actCmd, actFlags, TRUE)) >= 0) {
                     jp->actStatus = ACT_START;
                     jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
-                    if (actFlags & LSB_CHKPNT_MIG)
-                        jp->jobSpecs.jStatus |= JOB_STAT_MIG;
-                    if (logFlag) jobSigLog (jp, 0);
-                 }
-                return cc;
-            case SIG_SUSP_USER:
-                return (jRunSuspendAct(jp, sigValue,
-                        JOB_STAT_USUSP, SUSP_USER_STOP, 0, logFlag));
-            case SIG_SUSP_LOAD:
-                return (jRunSuspendAct(jp, sigValue,
-                        JOB_STAT_SSUSP, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_SUSP_WINDOW:
-                return (jRunSuspendAct(jp, sigValue,
-                        JOB_STAT_SSUSP, SUSP_QUEUE_WINDOW, 0, logFlag));
-            case SIG_SUSP_OTHER:
-                return (jRunSuspendAct(jp, sigValue,
-                        JOB_STAT_SSUSP, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_RESUME_USER:
-            case SIG_RESUME_LOAD:
-            case SIG_RESUME_WINDOW:
-            case SIG_RESUME_OTHER:
-
-                jp->actStatus = ACT_NO;
-                actCmd = jp->jobSpecs.resumeActCmd;
-                defSigValue = getDefSigValue_(sigValue, actCmd);
-
-                if (sigValue != defSigValue) {
-
-                    return (jobsig (jp, defSigValue, ((defSigValue == SIGKILL) ? TRUE : FALSE)));
-                } else {
-                    if ((cc = jobact(jp, sigValue, actCmd, actFlags, TRUE)) >= 0) {
-                        jp->actStatus = ACT_START;
-                        jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
-                        if (logFlag) jobSigLog (jp, 0);
-                    }
-                    return cc;
+                    if (logFlag)
+                        jobSigLog(jp, 0);
                 }
-            case SIG_TERM_USER:
-	    case SIG_KILL_REQUEUE:
-            case SIG_TERM_FORCE:
-                return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
-            case SIG_TERM_LOAD:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_WINDOW:
-                return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
-            case SIG_TERM_OTHER:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_RUNLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_RUNLIMIT, logFlag));
-            case SIG_TERM_DEADLINE:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_DEADLINE, logFlag));
-            case SIG_TERM_PROCESSLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_PROCESSLIMIT, logFlag));
-            case SIG_TERM_CPULIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_CPULIMIT, logFlag));
-            case SIG_TERM_MEMLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_MEMLIMIT, logFlag));
-	    }
+                return cc;
+            }
+        case SIG_TERM_USER:
+        case SIG_KILL_REQUEUE:
+        case SIG_TERM_FORCE:
+            return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
+        case SIG_TERM_LOAD:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_WINDOW:
+            return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
+        case SIG_TERM_OTHER:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_RUNLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_RUNLIMIT, logFlag));
+        case SIG_TERM_DEADLINE:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_DEADLINE, logFlag));
+        case SIG_TERM_PROCESSLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_PROCESSLIMIT, logFlag));
+        case SIG_TERM_CPULIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_CPULIMIT, logFlag));
+        case SIG_TERM_MEMLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_MEMLIMIT, logFlag));
+        }
     }
 
     if (IS_SUSP(jp->jobSpecs.jStatus)) {
         if (sigValue >= 0) {
-
             if (jp->regOpFlag & REG_SIGNAL)
-                return (jobsig (jp, sigValue, TRUE));
+                return (jobsig(jp, sigValue, TRUE));
 
             jp->actStatus = ACT_NO;
             if (sigValue >= 0) {
                 jobsig(jp, SIGCONT, FALSE);
 
                 return (jobsig(jp, sigValue, TRUE));
-	    }
-
-	}
+            }
+        }
 
         switch (sigValue) {
-            case SIGSTOP:
-            case SIGTSTP:
-            case SIGTTIN:
-            case SIGTTOU:
-                jp->actStatus = ACT_NO;
-                SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
-                jp->jobSpecs.reasons |= SUSP_USER_STOP;
-                jp->notReported++;
-                return 0;
-            case SIG_CHKPNT:
-            case SIG_CHKPNT_COPY:
+        case SIGSTOP:
+        case SIGTSTP:
+        case SIGTTIN:
+        case SIGTTOU:
+            jp->actStatus = ACT_NO;
+            SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
+            jp->jobSpecs.reasons |= SUSP_USER_STOP;
+            jp->notReported++;
+            return 0;
+        case SIG_CHKPNT:
+        case SIG_CHKPNT_COPY:
 
-                jp->actStatus = ACT_NO;
-                jp->jobSpecs.chkPeriod = actPeriod;
-                if ((cc = jobact(jp, sigValue, NULL, actFlags, TRUE)) >= 0) {
-                    jp->actStatus = ACT_START;
-                    jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
-                    if (actFlags & LSB_CHKPNT_MIG)
-                        jp->jobSpecs.jStatus |= JOB_STAT_MIG;
-                    if (logFlag) jobSigLog (jp, 0);
-                }
-                return cc;
+            jp->actStatus = ACT_NO;
+            jp->jobSpecs.chkPeriod = actPeriod;
+            if ((cc = jobact(jp, sigValue, NULL, actFlags, TRUE)) >= 0) {
+                jp->actStatus = ACT_START;
+                jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
+                if (actFlags & LSB_CHKPNT_MIG)
+                    jp->jobSpecs.jStatus |= JOB_STAT_MIG;
+                if (logFlag)
+                    jobSigLog(jp, 0);
+            }
+            return cc;
 
-            case SIG_SUSP_USER:
-                 SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
-                 jp->jobSpecs.reasons |= SUSP_USER_STOP;
-                 jp->notReported++;
-                 return 0;
-            case SIG_SUSP_LOAD:
-                 jp->jobSpecs.reasons |= jp->actReasons;
-                 jp->jobSpecs.subreasons = jp->actSubReasons;
-                 jp->notReported++;
-                 return 0;
-            case SIG_SUSP_WINDOW:
-                 jp->jobSpecs.reasons |= SUSP_QUEUE_WINDOW;
-                 jp->notReported++;
-                 return 0;
-            case SIG_SUSP_OTHER:
-                 jp->jobSpecs.reasons |= jp->actReasons;
-                 jp->jobSpecs.subreasons = jp->actSubReasons;
-                 jp->notReported++;
-                 return 0;
+        case SIG_SUSP_USER:
+            SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
+            jp->jobSpecs.reasons |= SUSP_USER_STOP;
+            jp->notReported++;
+            return 0;
+        case SIG_SUSP_LOAD:
+            jp->jobSpecs.reasons |= jp->actReasons;
+            jp->jobSpecs.subreasons = jp->actSubReasons;
+            jp->notReported++;
+            return 0;
+        case SIG_SUSP_WINDOW:
+            jp->jobSpecs.reasons |= SUSP_QUEUE_WINDOW;
+            jp->notReported++;
+            return 0;
+        case SIG_SUSP_OTHER:
+            jp->jobSpecs.reasons |= jp->actReasons;
+            jp->jobSpecs.subreasons = jp->actSubReasons;
+            jp->notReported++;
+            return 0;
 
-            case SIG_RESUME_USER:
-                return (jSuspResumeAct(jp, sigValue, SUSP_USER_STOP, logFlag));
-            case SIG_RESUME_LOAD:
-                return (jSuspResumeAct(jp, sigValue, (LOAD_REASONS), logFlag));
-            case SIG_RESUME_WINDOW:
-                return (jSuspResumeAct(jp, sigValue, SUSP_QUEUE_WINDOW, logFlag));
+        case SIG_RESUME_USER:
+            return (jSuspResumeAct(jp, sigValue, SUSP_USER_STOP, logFlag));
+        case SIG_RESUME_LOAD:
+            return (jSuspResumeAct(jp, sigValue, (LOAD_REASONS), logFlag));
+        case SIG_RESUME_WINDOW:
+            return (jSuspResumeAct(jp, sigValue, SUSP_QUEUE_WINDOW, logFlag));
 
-            case SIG_RESUME_OTHER:
-                return (jSuspResumeAct(jp, sigValue, (OTHER_REASONS), logFlag));
-            case SIG_TERM_USER:
-	    case SIG_KILL_REQUEUE:
-            case SIG_TERM_FORCE:
-                return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
-            case SIG_TERM_LOAD:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_WINDOW:
-                return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
-            case SIG_TERM_OTHER:
-                return (terminateAct(jp, sigValue, jp->actReasons, jp->actSubReasons, logFlag));
-            case SIG_TERM_RUNLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_RUNLIMIT, logFlag));
-            case SIG_TERM_DEADLINE:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_DEADLINE, logFlag));
-            case SIG_TERM_PROCESSLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_PROCESSLIMIT, logFlag));
-            case SIG_TERM_CPULIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_CPULIMIT, logFlag));
-            case SIG_TERM_MEMLIMIT:
-                return (terminateAct(jp, sigValue, SUSP_RES_LIMIT, SUB_REASON_MEMLIMIT, logFlag));
-
-	    }
+        case SIG_RESUME_OTHER:
+            return (jSuspResumeAct(jp, sigValue, (OTHER_REASONS), logFlag));
+        case SIG_TERM_USER:
+        case SIG_KILL_REQUEUE:
+        case SIG_TERM_FORCE:
+            return (terminateAct(jp, sigValue, SUSP_USER_STOP, 0, logFlag));
+        case SIG_TERM_LOAD:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_WINDOW:
+            return (terminateAct(jp, sigValue, SUSP_QUEUE_WINDOW, 0, logFlag));
+        case SIG_TERM_OTHER:
+            return (terminateAct(jp, sigValue, jp->actReasons,
+                                 jp->actSubReasons, logFlag));
+        case SIG_TERM_RUNLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_RUNLIMIT, logFlag));
+        case SIG_TERM_DEADLINE:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_DEADLINE, logFlag));
+        case SIG_TERM_PROCESSLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_PROCESSLIMIT, logFlag));
+        case SIG_TERM_CPULIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_CPULIMIT, logFlag));
+        case SIG_TERM_MEMLIMIT:
+            return (terminateAct(jp, sigValue, SUSP_RES_LIMIT,
+                                 SUB_REASON_MEMLIMIT, logFlag));
+        }
     }
     return 0;
 }
 
-static int
-terminateAct(struct jobCard *jp, int sigValue,
-             int reasons, int subReasons, logType logFlag)
+static int terminateAct(struct jobCard *jp, int sigValue, int reasons,
+                        int subReasons, logType logFlag)
 {
     int defSigValue, cc;
     char *actCmd;
@@ -355,21 +380,19 @@ terminateAct(struct jobCard *jp, int sigValue,
     }
 
     if (sigValue == SIG_KILL_REQUEUE) {
-	jp->jobSpecs.reasons |= EXIT_REQUEUE;
-	sigValue = SIG_TERM_USER;
+        jp->jobSpecs.reasons |= EXIT_REQUEUE;
+        sigValue = SIG_TERM_USER;
     }
     actCmd = jp->jobSpecs.terminateActCmd;
     defSigValue = getDefSigValue_(sigValue, jp->jobSpecs.terminateActCmd);
 
-    if (jp->regOpFlag & REG_SIGNAL
-	&& (actCmd[0] == '\0')) {
+    if (jp->regOpFlag & REG_SIGNAL && (actCmd[0] == '\0')) {
+        if (jp->jSupStatus == JSUPER_STAT_SUSP) {
+            mykillpg(jp, SIGCONT);
+            jp->jSupStatus = -1;
+        }
 
-	if (jp->jSupStatus == JSUPER_STAT_SUSP) {
-	    mykillpg(jp, SIGCONT);
-	    jp->jSupStatus = -1;
-	}
-
-        return (jobsig (jp, SIGKILL, TRUE));
+        return (jobsig(jp, SIGKILL, TRUE));
     }
 
     jp->actReasons = reasons;
@@ -377,24 +400,23 @@ terminateAct(struct jobCard *jp, int sigValue,
     jp->actStatus = ACT_NO;
 
     if (sigValue != defSigValue) {
-
-	if( sigValue == SIG_TERM_RUNLIMIT) {
-	    jobsig(jp, SIGQUIT, FALSE);
-	}
-        return (jobsig (jp, defSigValue, TRUE));
+        if (sigValue == SIG_TERM_RUNLIMIT) {
+            jobsig(jp, SIGQUIT, FALSE);
+        }
+        return (jobsig(jp, defSigValue, TRUE));
     } else {
         if ((cc = jobact(jp, sigValue, actCmd, 0, TRUE)) >= 0) {
             jp->actStatus = ACT_START;
             jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
-            if (logFlag) jobSigLog (jp, 0);
+            if (logFlag)
+                jobSigLog(jp, 0);
         }
         return cc;
     }
 }
 
-int
-jRunSuspendAct(struct jobCard *jp, int sigValue,
-               int jState, int reasons, int subReasons, logType logFlag)
+int jRunSuspendAct(struct jobCard *jp, int sigValue, int jState, int reasons,
+                   int subReasons, logType logFlag)
 {
     int cc;
     int defSigValue;
@@ -407,10 +429,8 @@ jRunSuspendAct(struct jobCard *jp, int sigValue,
     actCmd = jp->jobSpecs.suspendActCmd;
     defSigValue = getDefSigValue_(sigValue, actCmd);
 
-    if ((jp->regOpFlag & REG_SIGNAL)
-	&& (actCmd[0] == '\0')) {
-
-        if ((cc =  jobsig (jp, SIGSTOP, TRUE)) >= 0) {
+    if ((jp->regOpFlag & REG_SIGNAL) && (actCmd[0] == '\0')) {
+        if ((cc = jobsig(jp, SIGSTOP, TRUE)) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, jState);
             jp->jobSpecs.reasons |= reasons;
             jp->jobSpecs.subreasons = subReasons;
@@ -421,8 +441,7 @@ jRunSuspendAct(struct jobCard *jp, int sigValue,
     }
 
     if (sigValue != defSigValue) {
-
-        if ((cc =  jobsig (jp, defSigValue, TRUE)) >= 0) {
+        if ((cc = jobsig(jp, defSigValue, TRUE)) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, jState);
             jp->jobSpecs.reasons |= reasons;
             jp->jobSpecs.subreasons = subReasons;
@@ -435,74 +454,67 @@ jRunSuspendAct(struct jobCard *jp, int sigValue,
             jp->actStatus = ACT_START;
             jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
 
-            if (logFlag) jobSigLog (jp, 0);
+            if (logFlag)
+                jobSigLog(jp, 0);
         }
 
-	if (jp->regOpFlag != 0) {
-	    jp->jSupStatus = JSUPER_STAT_SUSP;
-	}
+        if (jp->regOpFlag != 0) {
+            jp->jSupStatus = JSUPER_STAT_SUSP;
+        }
 
         return cc;
     }
-
 }
 
-static int
-jSuspResumeAct(struct jobCard *jp, int sigValue, int suspendReasons,
-               logType logFlag)
+static int jSuspResumeAct(struct jobCard *jp, int sigValue, int suspendReasons,
+                          logType logFlag)
 {
-
     int defSigValue;
     char *actCmd;
 
     if (logclass & (LC_TRACE | LC_SIGNAL))
-        ls_syslog(LOG_DEBUG1,"jSuspResumeAct: job %s jobSpecs.reasons=%x sigValue=%d suspendReasons=%x",lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.reasons, sigValue, suspendReasons);
+        ls_syslog(LOG_DEBUG1,
+                  "jSuspResumeAct: job %s jobSpecs.reasons=%x sigValue=%d "
+                  "suspendReasons=%x",
+                  lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.reasons,
+                  sigValue, suspendReasons);
 
     jp->actStatus = ACT_NO;
     actCmd = jp->jobSpecs.resumeActCmd;
     defSigValue = getDefSigValue_(sigValue, actCmd);
 
     if (jp->jobSpecs.reasons & SUSP_MBD_LOCK) {
-
         if (sigValue == SIG_RESUME_USER) {
-            if (jp->actReasons & ~(SUSP_MBD_LOCK | SUSP_USER_STOP | SUSP_USER_RESUME | SUSP_SBD_STARTUP  )) {
-
-                 jp->jobSpecs.reasons = jp->actReasons & ~(SUSP_USER_STOP | SUSP_USER_RESUME);
-                 SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_SSUSP);
-                 return 0;
-            } else {
-
-                 return (resumeJob(jp, sigValue, suspendReasons, logFlag));
-            }
-        } else {
-
-             return (resumeJob(jp, sigValue, suspendReasons, logFlag));
-        }
-    } else {
-
-        if (jp->jobSpecs.reasons
-             & ~(suspendReasons | SUSP_USER_RESUME | SUSP_MBD_LOCK)) {
-
-            jp->jobSpecs.reasons &= ~suspendReasons;
-            if (sigValue == SIG_RESUME_USER)  {
+            if (jp->actReasons & ~(SUSP_MBD_LOCK | SUSP_USER_STOP |
+                                   SUSP_USER_RESUME | SUSP_SBD_STARTUP)) {
+                jp->jobSpecs.reasons =
+                    jp->actReasons & ~(SUSP_USER_STOP | SUSP_USER_RESUME);
                 SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_SSUSP);
                 return 0;
             } else {
-
-		return (resumeJob(jp, sigValue, suspendReasons, logFlag));
-	    }
+                return (resumeJob(jp, sigValue, suspendReasons, logFlag));
+            }
         } else {
-
             return (resumeJob(jp, sigValue, suspendReasons, logFlag));
         }
-
+    } else {
+        if (jp->jobSpecs.reasons &
+            ~(suspendReasons | SUSP_USER_RESUME | SUSP_MBD_LOCK)) {
+            jp->jobSpecs.reasons &= ~suspendReasons;
+            if (sigValue == SIG_RESUME_USER) {
+                SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_SSUSP);
+                return 0;
+            } else {
+                return (resumeJob(jp, sigValue, suspendReasons, logFlag));
+            }
+        } else {
+            return (resumeJob(jp, sigValue, suspendReasons, logFlag));
+        }
     }
-
 }
 
-int
-resumeJob (struct jobCard *jp, int sigValue, int suspendReasons,
-           logType logFlag)
+int resumeJob(struct jobCard *jp, int sigValue, int suspendReasons,
+              logType logFlag)
 {
     int cc;
     int defSigValue;
@@ -512,15 +524,13 @@ resumeJob (struct jobCard *jp, int sigValue, int suspendReasons,
     actCmd = jp->jobSpecs.resumeActCmd;
     defSigValue = getDefSigValue_(sigValue, actCmd);
 
-    if (jp->regOpFlag & REG_SIGNAL
-	&& (actCmd[0] == '\0')) {
+    if (jp->regOpFlag & REG_SIGNAL && (actCmd[0] == '\0')) {
+        if (jp->jSupStatus == JSUPER_STAT_SUSP) {
+            mykillpg(jp, SIGCONT);
+            jp->jSupStatus = -1;
+        }
 
-	if (jp->jSupStatus == JSUPER_STAT_SUSP) {
-	    mykillpg(jp, SIGCONT);
-	    jp->jSupStatus = -1;
-	}
-
-        if ((cc =  jobsig (jp, SIGCONT, FALSE)) >= 0) {
+        if ((cc = jobsig(jp, SIGCONT, FALSE)) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_RUN);
             jp->jobSpecs.reasons = 0;
             jp->notReported++;
@@ -529,7 +539,8 @@ resumeJob (struct jobCard *jp, int sigValue, int suspendReasons,
     }
 
     if (sigValue != defSigValue) {
-        if ((cc =  jobsig (jp, defSigValue, ((defSigValue == SIGKILL) ? TRUE : FALSE))) >= 0) {
+        if ((cc = jobsig(jp, defSigValue,
+                         ((defSigValue == SIGKILL) ? TRUE : FALSE))) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_RUN);
             jp->jobSpecs.reasons = 0;
             jp->notReported++;
@@ -540,84 +551,84 @@ resumeJob (struct jobCard *jp, int sigValue, int suspendReasons,
             jp->actStatus = ACT_START;
             jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
 
-            if (logFlag) jobSigLog (jp, 0);
+            if (logFlag)
+                jobSigLog(jp, 0);
         }
         return cc;
     }
-
 }
 
-int
-jobSigLog (struct jobCard *jp, int finishStatus)
+int jobSigLog(struct jobCard *jp, int finishStatus)
 {
     if (status_job(BATCH_STATUS_JOB, jp, jp->jobSpecs.jStatus,
-       finishStatus == 0 ? ERR_NO_ERROR : ERR_SYSACT_FAIL) < 0) {
+                   finishStatus == 0 ? ERR_NO_ERROR : ERR_SYSACT_FAIL) < 0) {
         jp->notReported++;
         return -1;
     } else {
-	if (jp->notReported > 0)
+        if (jp->notReported > 0)
             jp->notReported = 0;
         jp->actStatus = ACT_NO;
         return 0;
     }
 }
 
-int
-jobsig (struct jobCard *jp, int sig, int forkSig)
+int jobsig(struct jobCard *jp, int sig, int forkSig)
 {
     static char fname[] = "sbd.job/jobsig";
-    struct lsbMsgHdr 	pmMsgHdr;
-    struct lsbMsg    	pmMsg;
-    static int 		pmMsgId = 0;
-    char		Msgbuf[MSGSIZE];
-    int			msgStat;
+    struct lsbMsgHdr pmMsgHdr;
+    struct lsbMsg pmMsg;
+    static int pmMsgId = 0;
+    char Msgbuf[MSGSIZE];
+    int msgStat;
 
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC)) {
         if (sig == 0)
-            ls_syslog(LOG_DEBUG3, "%s: Send signal %d to job %s", fname,
-                                   sig, lsb_jobid2str(jp->jobSpecs.jobId));
+            ls_syslog(LOG_DEBUG3, "%s: Send signal %d to job %s", fname, sig,
+                      lsb_jobid2str(jp->jobSpecs.jobId));
         else
-            ls_syslog(LOG_DEBUG2, "%s: Send signal %d to job %s", fname,
-                                   sig, lsb_jobid2str(jp->jobSpecs.jobId));
+            ls_syslog(LOG_DEBUG2, "%s: Send signal %d to job %s", fname, sig,
+                      lsb_jobid2str(jp->jobSpecs.jobId));
     }
 
-    if ( (jp->regOpFlag & REG_SIGNAL) && sig ) {
-	pmMsgHdr.usrId = jp->jobSpecs.userId;
-	pmMsgHdr.msgId = pmMsgId++;
-	pmMsgHdr.jobId = jp->jobSpecs.jobId;
-	pmMsgHdr.src = "sbatchd";
-	pmMsgHdr.dest = "pm";
-	sprintf(Msgbuf, "SIGNAL %d", sig);
-	pmMsg.msg = Msgbuf;
-	pmMsg.header = &pmMsgHdr;
+    if ((jp->regOpFlag & REG_SIGNAL) && sig) {
+        pmMsgHdr.usrId = jp->jobSpecs.userId;
+        pmMsgHdr.msgId = pmMsgId++;
+        pmMsgHdr.jobId = jp->jobSpecs.jobId;
+        pmMsgHdr.src = "sbatchd";
+        pmMsgHdr.dest = "pm";
+        sprintf(Msgbuf, "SIGNAL %d", sig);
+        pmMsg.msg = Msgbuf;
+        pmMsg.header = &pmMsgHdr;
 
-	if ( (msgStat = msgSupervisor(&pmMsg, jp->client)) < 0 ) {
-	    ls_syslog(LOG_ERR, "%s: sending signal message to pm failed for job <%s>: %m", fname, lsb_jobid2str(jp->jobSpecs.jobId));
-	}
-	return msgStat;
+        if ((msgStat = msgSupervisor(&pmMsg, jp->client)) < 0) {
+            ls_syslog(
+                LOG_ERR,
+                "%s: sending signal message to pm failed for job <%s>: %m",
+                fname, lsb_jobid2str(jp->jobSpecs.jobId));
+        }
+        return msgStat;
     }
 
     if (sig == SIGSTOP) {
-	int stopSig;
+        int stopSig;
 
-	if (daemonParams[LSB_SIGSTOP].paramValue &&
-	    (stopSig = getSigVal(daemonParams[LSB_SIGSTOP].paramValue)) > 0) {
-	    sig = stopSig;
-	} else {
-	    if (jp->jobSpecs.numToHosts > 1 ||
-		(jp->jobSpecs.options & SUB_INTERACTIVE))
-		sig = SIGTSTP;
-	}
+        if (daemonParams[LSB_SIGSTOP].paramValue &&
+            (stopSig = getSigVal(daemonParams[LSB_SIGSTOP].paramValue)) > 0) {
+            sig = stopSig;
+        } else {
+            if (jp->jobSpecs.numToHosts > 1 ||
+                (jp->jobSpecs.options & SUB_INTERACTIVE))
+                sig = SIGTSTP;
+        }
     }
 
     if (sig == SIGKILL)
-        return jobsig1 (jp, sig, forkSig);
+        return jobsig1(jp, sig, forkSig);
 
     return (mykillpg(jp, sig));
 }
 
-static int
-jobsig1 (struct jobCard *jp, int sig, int forkSig)
+static int jobsig1(struct jobCard *jp, int sig, int forkSig)
 {
     static char fname[] = "jobsig1()";
     int preSig;
@@ -629,51 +640,49 @@ jobsig1 (struct jobCard *jp, int sig, int forkSig)
         preSig = SIGINT;
 
     if (mykillpg(jp, SIGCONT) < 0)
-	return -1;
+        return -1;
 
     if (forkSig) {
-	if ((pid = fork()) < 0)
-	    ls_syslog(LOG_ERR, "%s", __func__,
-		lsb_jobid2str(jp->jobSpecs.jobId), "fork");
+        if ((pid = fork()) < 0)
+            ls_syslog(LOG_ERR, "%s", __func__,
+                      lsb_jobid2str(jp->jobSpecs.jobId), "fork");
     }
 
     if (!forkSig || pid <= 0) {
-
         if (forkSig && pid == 0) {
-	    closeBatchSocket();
+            closeBatchSocket();
         }
 
-       if (jp->actSubReasons == SUB_REASON_CPULIMIT) {
+        if (jp->actSubReasons == SUB_REASON_CPULIMIT) {
 #ifdef SIGXCPU
             mykillpg(jp, SIGXCPU);
-	    millisleep_(jobTerminateInterval*1000);
+            millisleep_(jobTerminateInterval * 1000);
 #endif
 #ifdef SIGCPULIM
             mykillpg(jp, SIGCPULIM);
-	    millisleep_(jobTerminateInterval*1000);
+            millisleep_(jobTerminateInterval * 1000);
 #endif
         }
 
         if (mykillpg(jp, preSig) == 0) {
-	    millisleep_(jobTerminateInterval*1000);
-	    if (sig == SIGKILL) {
+            millisleep_(jobTerminateInterval * 1000);
+            if (sig == SIGKILL) {
                 if (mykillpg(jp, SIGTERM) == 0) {
-		    millisleep_(jobTerminateInterval*1000);
-		    mykillpg(jp, SIGKILL);
-		}
-	    } else {
-                millisleep_(jobTerminateInterval*1000);
+                    millisleep_(jobTerminateInterval * 1000);
+                    mykillpg(jp, SIGKILL);
+                }
+            } else {
+                millisleep_(jobTerminateInterval * 1000);
                 mykillpg(jp, SIGSTOP);
-	    }
-	}
-	if (forkSig && pid == 0)
-	    exit(0);
+            }
+        }
+        if (forkSig && pid == 0)
+            exit(0);
     }
     return 0;
 }
 
-static int
-mykillpg(struct jobCard *jp, int sig)
+static int mykillpg(struct jobCard *jp, int sig)
 {
     static char fname[] = "mykillpg";
     static int sbdPgid = -1;
@@ -685,42 +694,40 @@ mykillpg(struct jobCard *jp, int sig)
     char jobFileName[320];
 
     if (logclass & LC_SIGNAL)
-	ls_syslog(LOG_DEBUG,
-		  "mykillpg: Job <%s> pid %d pgid %d resstartpid %d sig %d",
-		  lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPid,
-		  jp->jobSpecs.jobPGid, jp->jobSpecs.restartPid, sig);
+        ls_syslog(LOG_DEBUG,
+                  "mykillpg: Job <%s> pid %d pgid %d resstartpid %d sig %d",
+                  lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPid,
+                  jp->jobSpecs.jobPGid, jp->jobSpecs.restartPid, sig);
 
     if (jp->jobSpecs.jobPGid == 0) {
+        if (jp->jobSpecs.options & SUB_RESTART) {
+            if (sig == SIGKILL)
+                sig = SIGTERM;
+            else if (sig == SIGSTOP)
+                sig = SIGTSTP;
+        }
 
-	if (jp->jobSpecs.options & SUB_RESTART) {
-
-	    if (sig == SIGKILL)
-		sig = SIGTERM;
-	    else if (sig == SIGSTOP)
-		sig = SIGTSTP;
-	}
-
-	if (kill(jp->jobSpecs.jobPid, sig) == 0) {
-	    kill(-jp->jobSpecs.jobPid, sig);
-	    return 0;
-	}
-	return (kill(-jp->jobSpecs.jobPid, sig));
+        if (kill(jp->jobSpecs.jobPid, sig) == 0) {
+            kill(-jp->jobSpecs.jobPid, sig);
+            return 0;
+        }
+        return (kill(-jp->jobSpecs.jobPid, sig));
     }
 
     if (jp->runRusage.npgids == 0) {
-	pgid = pgid0;
-	pgid[0] = jp->jobSpecs.jobPGid;
-	npgid = 1;
+        pgid = pgid0;
+        pgid[0] = jp->jobSpecs.jobPGid;
+        npgid = 1;
     } else {
-	pgid = jp->runRusage.pgid;
-	npgid = jp->runRusage.npgids;
+        pgid = jp->runRusage.pgid;
+        npgid = jp->runRusage.npgids;
     }
 
     if (jp->regOpFlag & REG_RUSAGE) {
         jru = &(jp->runRusage);
-    }
-    else {
-        TIMEIT(0, jru = getJInfo_(npgid, pgid, 0, jp->jobSpecs.jobPGid), "getJInfo_ in mykillpg");
+    } else {
+        TIMEIT(0, jru = getJInfo_(npgid, pgid, 0, jp->jobSpecs.jobPGid),
+               "getJInfo_ in mykillpg");
     }
 
     changed = FALSE;
@@ -730,37 +737,40 @@ mykillpg(struct jobCard *jp, int sig)
         ls_syslog(LOG_DEBUG3, "mykillpg: job file name = %s\n", jobFileName);
 
     if (jru) {
-
-        if (jru->npids >0) {
+        if (jru->npids > 0) {
             int j;
             if (sbdPgid < 0) {
-                sbdPgid =  getpgrp ();
+                sbdPgid = getpgrp();
             }
-            for (i=0; i<jru->npgids; i++) {
+            for (i = 0; i < jru->npgids; i++) {
                 if (sbdPgid == jru->pgid[i]) {
-                    ls_syslog(LOG_ERR, "%s: sbatchd's pgid <%d> is the same as job <%s>",
-			fname, sbdPgid, lsb_jobid2str(jp->jobSpecs.jobId));
-                    for (j=i; j < jru->npgids - 1; j++) {
-                        jru->pgid[j] = jru->pgid[j+1];
+                    ls_syslog(LOG_ERR,
+                              "%s: sbatchd's pgid <%d> is the same as job <%s>",
+                              fname, sbdPgid,
+                              lsb_jobid2str(jp->jobSpecs.jobId));
+                    for (j = i; j < jru->npgids - 1; j++) {
+                        jru->pgid[j] = jru->pgid[j + 1];
                     }
                     jru->npgids--;
                 }
             }
-       }
+        }
 
         fileStatus = access(jobFileName, F_OK | R_OK);
 
         if (fileStatus == 0) {
             status = updateJRru(jru, jobFileName);
             if (status == 0) {
-		if (logclass & LC_MPI) {
-	            ls_syslog(LOG_DEBUG3, "mykillpg: mem  = <%d>", jru->mem);
+                if (logclass & LC_MPI) {
+                    ls_syslog(LOG_DEBUG3, "mykillpg: mem  = <%d>", jru->mem);
                     ls_syslog(LOG_DEBUG3, "mykillpg: swap = <%d>", jru->swap);
-	            ls_syslog(LOG_DEBUG3, "mykillpg: utime  = <%d>",jru->utime);
-	            ls_syslog(LOG_DEBUG3, "mykillpg: stime  = <%d>",jru->stime);
-		}
+                    ls_syslog(LOG_DEBUG3, "mykillpg: utime  = <%d>",
+                              jru->utime);
+                    ls_syslog(LOG_DEBUG3, "mykillpg: stime  = <%d>",
+                              jru->stime);
+                }
             }
-	}
+        }
 
         if (jru->mem > jp->maxRusage.mem)
             jp->maxRusage.mem = jru->mem;
@@ -779,141 +789,140 @@ mykillpg(struct jobCard *jp, int sig)
             jru->stime = jp->maxRusage.stime;
         }
 
-	if (ABS(jru->mem - jp->mbdRusage.mem)
-            > jp->mbdRusage.mem / 100.0 * (float) rusageUpdatePercent) {
+        if (ABS(jru->mem - jp->mbdRusage.mem) >
+            jp->mbdRusage.mem / 100.0 * (float) rusageUpdatePercent) {
             changed = TRUE;
-        } else if (ABS(jru->swap - jp->mbdRusage.swap)
-                > jp->mbdRusage.swap / 100.0 * (float) rusageUpdatePercent) {
+        } else if (ABS(jru->swap - jp->mbdRusage.swap) >
+                   jp->mbdRusage.swap / 100.0 * (float) rusageUpdatePercent) {
             changed = TRUE;
-	} else if (ABS(jru->utime - jp->mbdRusage.utime)
-                > jp->mbdRusage.utime / 100.0 * (float) rusageUpdatePercent) {
+        } else if (ABS(jru->utime - jp->mbdRusage.utime) >
+                   jp->mbdRusage.utime / 100.0 * (float) rusageUpdatePercent) {
             changed = TRUE;
-	} else if (ABS(jru->stime - jp->mbdRusage.stime)
-                 > jp->mbdRusage.stime / 100.0 * (float) rusageUpdatePercent) {
+        } else if (ABS(jru->stime - jp->mbdRusage.stime) >
+                   jp->mbdRusage.stime / 100.0 * (float) rusageUpdatePercent) {
             changed = TRUE;
-	} else if (setCmp(jru->pgid, jru->npgids, jp->mbdRusage.pgid,
-			  jp->mbdRusage.npgids) == TRUE) {
+        } else if (setCmp(jru->pgid, jru->npgids, jp->mbdRusage.pgid,
+                          jp->mbdRusage.npgids) == TRUE) {
+            if (jru->npids != jp->mbdRusage.npids)
+                changed = TRUE;
+            else {
+                int *set1, *set2;
+                set1 = (int *) calloc(jru->npids, sizeof(int));
+                set2 = (int *) calloc(jp->mbdRusage.npids, sizeof(int));
+                if ((set1 == NULL) || (set2 == NULL)) {
+                    changed = TRUE;
+                } else {
+                    for (i = 0; i < jru->npids; i++) {
+                        set1[i] = jru->pidInfo[i].pid;
+                        set2[i] = jp->mbdRusage.pidInfo[i].pid;
+                    }
+                    if (!setCmp(set1, jru->npids, set2, jp->mbdRusage.npids))
+                        changed = TRUE;
+                }
+                FREEUP(set1);
+                FREEUP(set2);
+            }
+        } else {
+            changed = TRUE;
+        }
 
-	    if (jru->npids != jp->mbdRusage.npids)
-		changed = TRUE;
-	    else {
-		int *set1, *set2;
-		set1 = (int *) calloc (jru->npids, sizeof(int));
-		set2 = (int *) calloc (jp->mbdRusage.npids, sizeof(int));
-		if ((set1 == NULL) || (set2 == NULL)) {
-		    changed = TRUE;
-		} else {
-		    for (i=0; i<jru->npids; i++) {
-			set1[i] = jru->pidInfo[i].pid;
-			set2[i] = jp->mbdRusage.pidInfo[i].pid;
-		    }
-		    if (!setCmp(set1, jru->npids, set2, jp->mbdRusage.npids))
-			changed = TRUE;
-		}
-		FREEUP (set1);
-		FREEUP (set2);
-	    }
-	} else {
-	    changed = TRUE;
-	}
-
-	if (logclass & (LC_SIGNAL|LC_EXEC)) {
-	    ls_syslog(LOG_DEBUG, "mykillpg(): Job <%s> pgid %d mem %d swap %d utime %d stime %d rusageUpdatePercent %d current mem %d swap %d rusageUpdateRate %d changed %d needReportRU %d lastStatusMbdTime %d sbdSleepTime %d",
-		      lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPGid,
-		      jru->mem, jru->swap, jru->utime, jru->stime,
-		      rusageUpdatePercent, jp->mbdRusage.mem,
-		      jp->mbdRusage.swap, rusageUpdateRate, changed,
-		      jp->needReportRU, jp->lastStatusMbdTime, sbdSleepTime);
+        if (logclass & (LC_SIGNAL | LC_EXEC)) {
+            ls_syslog(LOG_DEBUG,
+                      "mykillpg(): Job <%s> pgid %d mem %d swap %d utime %d "
+                      "stime %d rusageUpdatePercent %d current mem %d swap %d "
+                      "rusageUpdateRate %d changed %d needReportRU %d "
+                      "lastStatusMbdTime %d sbdSleepTime %d",
+                      lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPGid,
+                      jru->mem, jru->swap, jru->utime, jru->stime,
+                      rusageUpdatePercent, jp->mbdRusage.mem,
+                      jp->mbdRusage.swap, rusageUpdateRate, changed,
+                      jp->needReportRU, jp->lastStatusMbdTime, sbdSleepTime);
             ls_syslog(LOG_DEBUG, "%s: npgids =%d", fname, jru->npgids);
-	    for (i = 0; i < jru->npgids; i++)
-		ls_syslog(LOG_DEBUG, "%s: pgid[%d]=%d", fname, i,
-			  jru->pgid[i]);
-	}
+            for (i = 0; i < jru->npgids; i++)
+                ls_syslog(LOG_DEBUG, "%s: pgid[%d]=%d", fname, i, jru->pgid[i]);
+        }
 
-	if (((changed || jp->needReportRU) && now - jp->lastStatusMbdTime >
-	     rusageUpdateRate * sbdSleepTime) ||
-	    (now - jp->lastStatusMbdTime >
-	     rusageUpdateRate * sbdSleepTime * 15)) {
-	    if (logclass & LC_SIGNAL)
-	        ls_syslog(LOG_DEBUG, "mykillpg(): Job <%s> will report",
-			  lsb_jobid2str(jp->jobSpecs.jobId));
+        if (((changed || jp->needReportRU) &&
+             now - jp->lastStatusMbdTime > rusageUpdateRate * sbdSleepTime) ||
+            (now - jp->lastStatusMbdTime >
+             rusageUpdateRate * sbdSleepTime * 15)) {
+            if (logclass & LC_SIGNAL)
+                ls_syslog(LOG_DEBUG, "mykillpg(): Job <%s> will report",
+                          lsb_jobid2str(jp->jobSpecs.jobId));
 
-	    jp->needReportRU = TRUE;
+            jp->needReportRU = TRUE;
 
-	    if (! (jp->regOpFlag & REG_RUSAGE))
-	      copyJUsage( &(jp->mbdRusage), jru);
-	}
+            if (!(jp->regOpFlag & REG_RUSAGE))
+                copyJUsage(&(jp->mbdRusage), jru);
+        }
 
-	if (! (jp->regOpFlag & REG_RUSAGE))
-	    copyJUsage( &(jp->runRusage), jru);
+        if (!(jp->regOpFlag & REG_RUSAGE))
+            copyJUsage(&(jp->runRusage), jru);
     }
 
     if (kill(jp->jobSpecs.jobPid, sig) == 0) {
+        if (logclass & LC_SIGNAL)
+            ls_syslog(LOG_DEBUG, "%s: Job %s kill(pid=%d) is good", fname,
+                      lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPid);
 
-	if (logclass & LC_SIGNAL)
-	    ls_syslog(LOG_DEBUG, "%s: Job %s kill(pid=%d) is good", fname,
-		      lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPid);
-
-	if (jp->runRusage.npgids > 0 && !(jp->regOpFlag & REG_RUSAGE)) {
-	    for (i = 0; i < jp->runRusage.npgids; i++)
-		pgkillit(jp->runRusage.pgid[i], sig);
-	} else {
-	    pgkillit(jp->jobSpecs.jobPGid, sig);
-	}
-	return 0;
+        if (jp->runRusage.npgids > 0 && !(jp->regOpFlag & REG_RUSAGE)) {
+            for (i = 0; i < jp->runRusage.npgids; i++)
+                pgkillit(jp->runRusage.pgid[i], sig);
+        } else {
+            pgkillit(jp->jobSpecs.jobPGid, sig);
+        }
+        return 0;
     } else {
         ls_syslog(LOG_DEBUG, "%s: Job %s kill(pid=%d) <%d> failed <%m>", fname,
-		  lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPid, sig);
-   }
+                  lsb_jobid2str(jp->jobSpecs.jobId), jp->jobSpecs.jobPid, sig);
+    }
 
     if (jp->runRusage.npgids > 0 && !(jp->regOpFlag & REG_RUSAGE)) {
-	int ndead = 0;
+        int ndead = 0;
 
-	for (i = 0; i < jp->runRusage.npgids; i++) {
-	    if (pgkillit(jp->runRusage.pgid[i], sig) < 0) {
-		ndead++;
-		if (logclass & LC_SIGNAL)
-		    ls_syslog(LOG_DEBUG,
-			      "%s: Job %s pgkillit(%d) are gone", fname,
-			      lsb_jobid2str(jp->jobSpecs.jobId),
-			      jp->runRusage.pgid[i]);
-	    }
-	}
-	if (ndead == jp->runRusage.npgids) {
-	    if (logclass & LC_SIGNAL)
-		ls_syslog(LOG_DEBUG, "%s: Job %s pgids all dead", fname,
-			  lsb_jobid2str(jp->jobSpecs.jobId));
-	    return -1;
-	}
+        for (i = 0; i < jp->runRusage.npgids; i++) {
+            if (pgkillit(jp->runRusage.pgid[i], sig) < 0) {
+                ndead++;
+                if (logclass & LC_SIGNAL)
+                    ls_syslog(LOG_DEBUG, "%s: Job %s pgkillit(%d) are gone",
+                              fname, lsb_jobid2str(jp->jobSpecs.jobId),
+                              jp->runRusage.pgid[i]);
+            }
+        }
+        if (ndead == jp->runRusage.npgids) {
+            if (logclass & LC_SIGNAL)
+                ls_syslog(LOG_DEBUG, "%s: Job %s pgids all dead", fname,
+                          lsb_jobid2str(jp->jobSpecs.jobId));
+            return -1;
+        }
     } else {
-	if (pgkillit(jp->jobSpecs.jobPGid, sig) < 0) {
-	    if (logclass & LC_SIGNAL)
-		ls_syslog(LOG_DEBUG, "%s: Job %s pgkillit(%d) is gone", fname,
-			  lsb_jobid2str(jp->jobSpecs.jobId),
-			  jp->jobSpecs.jobPGid);
-	    return -1;
-	}
+        if (pgkillit(jp->jobSpecs.jobPGid, sig) < 0) {
+            if (logclass & LC_SIGNAL)
+                ls_syslog(LOG_DEBUG, "%s: Job %s pgkillit(%d) is gone", fname,
+                          lsb_jobid2str(jp->jobSpecs.jobId),
+                          jp->jobSpecs.jobPGid);
+            return -1;
+        }
     }
 
     if (logclass & LC_SIGNAL)
-	ls_syslog(LOG_DEBUG,
-		  "%s: Job %s child gone, but some pgids still around, jru=%p",
-		  fname, lsb_jobid2str(jp->jobSpecs.jobId), jru);
+        ls_syslog(LOG_DEBUG,
+                  "%s: Job %s child gone, but some pgids still around, jru=%p",
+                  fname, lsb_jobid2str(jp->jobSpecs.jobId), jru);
 
     return 0;
 }
 
-int
-updateJRru(struct jRusage *jru, char *jobFile)
+int updateJRru(struct jRusage *jru, char *jobFile)
 {
     static char fname[] = "updateJRru()";
-    int  status;
+    int status;
     FILE *jrfPtr;
     struct jRusage tmpJru;
 
     jrfPtr = fopen(jobFile, "r");
     if (jrfPtr == NULL) {
-	ls_syslog(LOG_ERR, "%s", __func__, "fopen", jobFile);
+        ls_syslog(LOG_ERR, "%s", __func__, "fopen", jobFile);
         return -1;
     }
 
@@ -923,11 +932,11 @@ updateJRru(struct jRusage *jru, char *jobFile)
     tmpJru.stime = 0;
 
     status = fscanf(jrfPtr, "%d %d %d %d", &tmpJru.mem, &tmpJru.swap,
-		    &tmpJru.utime, &tmpJru.stime);
+                    &tmpJru.utime, &tmpJru.stime);
     if (status == 0) {
-	ls_syslog(LOG_ERR, "%s", __func__, "fscanf", jobFile);
+        ls_syslog(LOG_ERR, "%s", __func__, "fscanf", jobFile);
         FCLOSEUP(&jrfPtr);
-	return -1;
+        return -1;
     }
 
     jru->mem = tmpJru.mem;
@@ -939,8 +948,7 @@ updateJRru(struct jRusage *jru, char *jobFile)
 
     return 0;
 }
-int
-setCmp(int *set1, int len1, int *set2, int len2)
+int setCmp(int *set1, int len1, int *set2, int len2)
 {
     int i, j, start;
     int tmp;
@@ -949,7 +957,7 @@ setCmp(int *set1, int len1, int *set2, int len2)
         return FALSE;
     for (i = 0; i < len1; i++) {
         start = i;
-        for (j=start; j<len2; j++)
+        for (j = start; j < len2; j++)
             if (set1[i] == set2[j]) {
                 tmp = set2[j];
                 set2[j] = set2[i];
@@ -961,53 +969,50 @@ setCmp(int *set1, int len1, int *set2, int len2)
     return TRUE;
 }
 
-static int
-pgkillit(int pgid, int sig)
+static int pgkillit(int pgid, int sig)
 {
     return (kill(-pgid, sig));
 }
 
-int
-jobact (struct jobCard *jp, int actValue, char *actCmd, int actFlags, int forkSig)
+int jobact(struct jobCard *jp, int actValue, char *actCmd, int actFlags,
+           int forkSig)
 {
     static char fname[] = "jobact";
     pid_t pid;
-    char exitFile[MAXFILENAMELEN], msg[MAXLINELEN*2];
+    char exitFile[MAXFILENAMELEN], msg[MAXLINELEN * 2];
 
     jp->jobSpecs.actValue = actValue;
     jp->actFlags = actFlags;
 
     if (logclass & (LC_TRACE | LC_SCHED | LC_EXEC))
-            ls_syslog(LOG_DEBUG2, "%s: Send batch system signal %d to job %s", fname,
-                      actValue, lsb_jobid2str(jp->jobSpecs.jobId));
+        ls_syslog(LOG_DEBUG2, "%s: Send batch system signal %d to job %s",
+                  fname, actValue, lsb_jobid2str(jp->jobSpecs.jobId));
 
-    sprintf(exitFile, "%s/.%s.%s.%s", LSTMPDIR,
-        jp->jobSpecs.jobFile, lsb_jobidinstr(jp->jobSpecs.jobId), exitFileSuffix(actValue));
+    sprintf(exitFile, "%s/.%s.%s.%s", LSTMPDIR, jp->jobSpecs.jobFile,
+            lsb_jobidinstr(jp->jobSpecs.jobId), exitFileSuffix(actValue));
 
     if (unlink(exitFile) == -1 && errno != ENOENT) {
-        ls_syslog(LOG_ERR, "%s", __func__,
-	    lsb_jobid2str(jp->jobSpecs.jobId), "unlink", exitFile);
+        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
+                  "unlink", exitFile);
         return -1;
     }
 
     if ((pid = fork()) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__,
-                  lsb_jobid2str(jp->jobSpecs.jobId), "fork");
+        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
+                  "fork");
         return -1;
     } else if (pid == 0) {
+        int cc;
 
-	int cc;
-
-        if ((actValue == SIG_CHKPNT)
-            || (actValue == SIG_CHKPNT_COPY)
-            || (strcmp (actCmd, "SIG_CHKPNT") == 0)
-            || (strcmp (actCmd, "SIG_CHKPNT_COPY") == 0))
+        if ((actValue == SIG_CHKPNT) || (actValue == SIG_CHKPNT_COPY) ||
+            (strcmp(actCmd, "SIG_CHKPNT") == 0) ||
+            (strcmp(actCmd, "SIG_CHKPNT_COPY") == 0))
             putEnv(LS_EXEC_T, "CHKPNT");
         else
             putEnv(LS_EXEC_T, "JOB_CONTROLS");
 
-        cc =  postJobSetup(jp);
-        if (cc < 0 && !(cc == -2 && !JOB_STARTED(jp)) ) {
+        cc = postJobSetup(jp);
+        if (cc < 0 && !(cc == -2 && !JOB_STARTED(jp))) {
             ls_syslog(LOG_ERR, "%s", __func__,
                       lsb_jobid2str(jp->jobSpecs.jobId), "postJobSetup");
 
@@ -1019,20 +1024,18 @@ jobact (struct jobCard *jp, int actValue, char *actCmd, int actFlags, int forkSi
                 actFlags |= LSB_CHKPNT_COPY;
             }
             exeChkpnt(jp, actFlags, exitFile);
-        } else if ((strcmp (actCmd, "SIG_CHKPNT") == 0)
-                   || (strcmp (actCmd, "SIG_CHKPNT_COPY") == 0)) {
-
-            if (isSigTerm(actValue)==TRUE)
+        } else if ((strcmp(actCmd, "SIG_CHKPNT") == 0) ||
+                   (strcmp(actCmd, "SIG_CHKPNT_COPY") == 0)) {
+            if (isSigTerm(actValue) == TRUE)
                 exeChkpnt(jp, LSB_CHKPNT_KILL, exitFile);
             else
                 exeChkpnt(jp, LSB_CHKPNT_STOP, exitFile);
-         } else
+        } else
             exeActCmd(jp, actCmd, exitFile);
     }
 
     jp->jobSpecs.actPid = pid;
-    if (! (actValue == SIG_CHKPNT ||
-           actValue == SIG_CHKPNT_COPY))
+    if (!(actValue == SIG_CHKPNT || actValue == SIG_CHKPNT_COPY))
         return 0;
 
     if (jp->regOpFlag & REG_CHKPNT) {
@@ -1055,23 +1058,23 @@ jobact (struct jobCard *jp, int actValue, char *actCmd, int actFlags, int forkSi
         }
 
         pmMsg.msg = msg;
-        if ( (msgStat = msgSupervisor(&pmMsg, jp->client)) < 0) {
-            ls_syslog(LOG_ERR,
-                      "%s: sending signal message to pm failed for job <%s>: %m",
-                      fname, lsb_jobid2str(jp->jobSpecs.jobId));
+        if ((msgStat = msgSupervisor(&pmMsg, jp->client)) < 0) {
+            ls_syslog(
+                LOG_ERR,
+                "%s: sending signal message to pm failed for job <%s>: %m",
+                fname, lsb_jobid2str(jp->jobSpecs.jobId));
             return msgStat;
         }
     }
     return 0;
 }
 
-void
-exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
+void exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
 {
     static char fname[] = "exeActCmd";
     pid_t pid1, actCmdExecPid;
     int status;
-    char msg[MAXLINELEN*2];
+    char msg[MAXLINELEN * 2];
     char errMsg[MAXLINELEN];
     int i, maxfds;
     FILE *fp;
@@ -1080,7 +1083,7 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
     char suspSubReasons[128];
     char buf[MAXFILENAMELEN];
 
- /* */
+    /* */
 
     sprintf(jobIdStr, "%d", LSB_ARRAY_JOBID(jp->jobSpecs.jobId);
     putEnv ("LSB_JOBID", jobIdStr);
@@ -1091,15 +1094,14 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
     putEnv ("LSB_JOBPIDS", getJobPids(jp));
 
     if (jp->regOpFlag != 0) {
+        if (jp->jobSpecs.jobFile[0] == '/') {
+            sprintf(buf, "%s/.%s.pidInfo", LSTMPDIR,
+                    strrchr(jp->jobSpecs.jobFile, '/') + 1);
+        } else {
+            sprintf(buf, "%s/.%s.pidInfo", LSTMPDIR, jp->jobSpecs.jobFile);
+        }
 
-	if (jp->jobSpecs.jobFile[0] == '/') {
-	    sprintf(buf, "%s/.%s.pidInfo", LSTMPDIR,
-		    strrchr(jp->jobSpecs.jobFile, '/') + 1);
-	} else {
-	    sprintf(buf, "%s/.%s.pidInfo", LSTMPDIR, jp->jobSpecs.jobFile);
-	}
-
-	putEnv("LSB_PIDINFO_FILE", buf);
+        putEnv("LSB_PIDINFO_FILE", buf);
     }
 
     sprintf(suspendReasons, "%d", jp->actReasons);
@@ -1108,20 +1110,19 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
     putEnv ("LSB_SUSP_SUBREASONS", suspSubReasons);
 
     if ((pid1 = fork()) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__,
-	    lsb_jobid2str(jp->jobSpecs.jobId), "fork");
+        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
+                  "fork");
         goto Error;
     } else if (pid1 == 0) {
-
         sigset_t newmask;
         char *myargv[6];
 
-	chuser(batchId);
-	if (seteuid(jp->jobSpecs.execUid) < 0) {
-	    ls_syslog(LOG_ERR, "%s", __func__,
-		lsb_jobid2str(jp->jobSpecs.jobId), "setuid");
-	    exit(-1);
-	}
+        chuser(batchId);
+        if (seteuid(jp->jobSpecs.execUid) < 0) {
+            ls_syslog(LOG_ERR, "%s", __func__,
+                      lsb_jobid2str(jp->jobSpecs.jobId), "setuid");
+            exit(-1);
+        }
 
         for (i = 1; i < NSIG; i++)
             Signal_(i, SIG_DFL);
@@ -1131,7 +1132,7 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
 
         alarm(0);
 
-        i = open ("/dev/null", O_RDWR, 0);
+        i = open("/dev/null", O_RDWR, 0);
         dup2(i, 0);
         dup2(i, 1);
         dup2(i, 2);
@@ -1144,7 +1145,7 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
         myargv[2] = actCmd;
         myargv[3] = NULL;
 
-        lsfExecvp ("/bin/sh", myargv);
+        lsfExecvp("/bin/sh", myargv);
         goto Error;
     }
 
@@ -1154,11 +1155,11 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
 
     if (pid1 < 0) {
         sprintf(errMsg, I18N_JOB_FAIL_S_M, fname,
-	    lsb_jobid2str(jp->jobSpecs.jobId), "waitpid");
+                lsb_jobid2str(jp->jobSpecs.jobId), "waitpid");
         goto Error;
     } else {
         if (WEXITSTATUS(status)) {
-            exit (WEXITSTATUS(status));
+            exit(WEXITSTATUS(status));
         }
     }
 
@@ -1180,62 +1181,58 @@ exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
     exit (-1);
 }
 
-char *
-exitFileSuffix ( int sigValue)
+char *exitFileSuffix(int sigValue)
 {
     switch (sigValue) {
-        case SIG_CHKPNT:
-        case SIG_CHKPNT_COPY:
-            return "chk";
-        case SIG_SUSP_USER:
-        case SIG_SUSP_LOAD:
-        case SIG_SUSP_WINDOW:
-        case SIG_SUSP_OTHER:
-            return "suspend";
-        case SIG_RESUME_USER:
-        case SIG_RESUME_LOAD:
-        case SIG_RESUME_WINDOW:
-        case SIG_RESUME_OTHER:
-            return "resume";
-        case SIG_TERM_USER:
-        case SIG_KILL_REQUEUE:
-        case SIG_TERM_LOAD:
-        case SIG_TERM_WINDOW:
-        case SIG_TERM_OTHER:
-        case SIG_TERM_RUNLIMIT:
-        case SIG_TERM_DEADLINE:
-        case SIG_TERM_PROCESSLIMIT:
-        case SIG_TERM_CPULIMIT:
-        case SIG_TERM_MEMLIMIT:
-        case SIG_TERM_FORCE:
-            return "terminate";
-        default:
-            return "unknown";
+    case SIG_CHKPNT:
+    case SIG_CHKPNT_COPY:
+        return "chk";
+    case SIG_SUSP_USER:
+    case SIG_SUSP_LOAD:
+    case SIG_SUSP_WINDOW:
+    case SIG_SUSP_OTHER:
+        return "suspend";
+    case SIG_RESUME_USER:
+    case SIG_RESUME_LOAD:
+    case SIG_RESUME_WINDOW:
+    case SIG_RESUME_OTHER:
+        return "resume";
+    case SIG_TERM_USER:
+    case SIG_KILL_REQUEUE:
+    case SIG_TERM_LOAD:
+    case SIG_TERM_WINDOW:
+    case SIG_TERM_OTHER:
+    case SIG_TERM_RUNLIMIT:
+    case SIG_TERM_DEADLINE:
+    case SIG_TERM_PROCESSLIMIT:
+    case SIG_TERM_CPULIMIT:
+    case SIG_TERM_MEMLIMIT:
+    case SIG_TERM_FORCE:
+        return "terminate";
+    default:
+        return "unknown";
     }
 }
 
-static char *
-getJobPgids(struct jobCard *jp)
+static char *getJobPgids(struct jobCard *jp)
 {
     static char pgid[256];
     char pgidStr[10];
     int i;
 
     pgid[0] = '\0';
-    if (jp->runRusage.npgids >0 ) {
-        for (i=0; i<jp->runRusage.npgids; i++) {
-            sprintf(pgidStr, "%d ",jp->runRusage.pgid[i]);
+    if (jp->runRusage.npgids > 0) {
+        for (i = 0; i < jp->runRusage.npgids; i++) {
+            sprintf(pgidStr, "%d ", jp->runRusage.pgid[i]);
             strcat(pgid, pgidStr);
         }
     } else {
         sprintf(pgid, "%d", jp->jobSpecs.jobPGid);
     }
     return pgid;
-
 }
 
-static char *
-getJobPids(struct jobCard *jp)
+static char *getJobPids(struct jobCard *jp)
 {
     static char pid[512];
     char pidStr[10];
@@ -1243,8 +1240,8 @@ getJobPids(struct jobCard *jp)
 
     pid[0] = '\0';
     if (jp->runRusage.npids > 0) {
-        for (i=0; i<jp->runRusage.npids; i++) {
-            sprintf(pidStr, "%d ",jp->runRusage.pidInfo[i].pid);
+        for (i = 0; i < jp->runRusage.npids; i++) {
+            sprintf(pidStr, "%d ", jp->runRusage.pidInfo[i].pid);
             strcat(pid, pidStr);
         }
     } else {
@@ -1254,8 +1251,7 @@ getJobPids(struct jobCard *jp)
     return pid;
 }
 
-void
-execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
+void execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
 {
     static char fname[] = "execRestart()";
     struct jobSpecs *jspecs = &(jobCardPtr->jobSpecs);
@@ -1267,10 +1263,8 @@ execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
     char errMsg[MAXLINELEN];
     char pidStr[20], pgidStr[20];
 
-    char chkDir[MAXFILENAMELEN],
-         chkpntDir[MAXFILENAMELEN],
-         restartDir[MAXFILENAMELEN],
-         oldChkpntDir[MAXFILENAMELEN];
+    char chkDir[MAXFILENAMELEN], chkpntDir[MAXFILENAMELEN],
+        restartDir[MAXFILENAMELEN], oldChkpntDir[MAXFILENAMELEN];
     char oldJobId[20], newJobId[20];
     char *strPtr;
 
@@ -1279,22 +1273,20 @@ execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
     Signal_(SIGUSR1, SIG_IGN);
     Signal_(SIGUSR2, SIG_IGN);
 
-    if (((strPtr = strrchr(jspecs->chkpntDir, '/')) != NULL)
-         && (islongint_(strPtr+1))) {
-
+    if (((strPtr = strrchr(jspecs->chkpntDir, '/')) != NULL) &&
+        (islongint_(strPtr + 1))) {
         sprintf(chkpntDir, "%s", jspecs->chkpntDir);
         *strPtr = '\0';
         sprintf(chkDir, "%s", jspecs->chkpntDir);
 
-        sprintf(oldJobId, "%s", strPtr+1);
+        sprintf(oldJobId, "%s", strPtr + 1);
         sprintf(newJobId, "%s", lsb_jobidinstr(jspecs->jobId));
         *strPtr = '/';
     } else {
-        sprintf(errMsg, "Error in the chkpnt directory: %s",
-                jspecs->chkpntDir);
+        sprintf(errMsg, "Error in the chkpnt directory: %s", jspecs->chkpntDir);
         sbdSyslog(LOG_ERR, errMsg);
         jobSetupStatus(JOB_STAT_PEND, PEND_JOB_EXEC_INIT, jobCardPtr);
-        exit (-1);
+        exit(-1);
     }
 
     if (mychdir_(chkDir, hp) == 0) {
@@ -1305,8 +1297,7 @@ execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
         sprintf(oldChkpntDir, "%s/%s", chkDir, oldJobId);
     }
 
-    if (pipe(fds) == -1)
-    {
+    if (pipe(fds) == -1) {
         sprintf(errMsg, "restart_: pipe() failed for job <%s>: %s",
                 lsb_jobid2str(jobCardPtr->jobSpecs.jobId), strerror(errno));
         sbdSyslog(LOG_ERR, errMsg);
@@ -1316,14 +1307,13 @@ execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
 
     if ((pid = fork()) == -1) {
         sprintf(errMsg, I18N_JOB_FAIL_S_M, fname,
-            lsb_jobid2str(jobCardPtr->jobSpecs.jobId), "fork");
+                lsb_jobid2str(jobCardPtr->jobSpecs.jobId), "fork");
         sbdSyslog(LOG_ERR, errMsg);
         jobSetupStatus(JOB_STAT_PEND, PEND_SBD_NO_PROCESS, jobCardPtr);
         goto RestartError;
     }
 
     if (pid > 0) {
-
         char erestartMsg[MSGSIZE];
         char *sp = erestartMsg;
         int len = sizeof(erestartMsg);
@@ -1334,27 +1324,27 @@ execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
         erestartPid = pid;
         erestartPGid = jobCardPtr->jobSpecs.jobPGid;
 
-        errno = 0; sp = erestartMsg; erestartMsg[0] = '\0';
+        errno = 0;
+        sp = erestartMsg;
+        erestartMsg[0] = '\0';
 
-again:
-        while (((i = read(fds[0], sp, MSGSIZE)) < 0)
-            && (errno == EINTR));
+    again:
+        while (((i = read(fds[0], sp, MSGSIZE)) < 0) && (errno == EINTR))
+            ;
 
-        if ((i  > 0) && (errno == EINTR)) {
+        if ((i > 0) && (errno == EINTR)) {
             sp += i;
             goto again;
         }
-        if (i  > 0)
+        if (i > 0)
             sp += i;
         *sp = '\0';
 
-        if ((strlen (erestartMsg) == 0)
-           || (rcvPidPGid(erestartMsg, &erestartPid, &erestartPGid) != -1)) {
-
+        if ((strlen(erestartMsg) == 0) ||
+            (rcvPidPGid(erestartMsg, &erestartPid, &erestartPGid) != -1)) {
             jobCardPtr->jobSpecs.jobPGid = erestartPGid;
             jobSetupStatus(JOB_STAT_RUN, 0, jobCardPtr);
         } else {
-
             sprintf(errMsg, "%s: Unable to use (%d for job <%s>:(%s)"),
 		fname,
                 jobCardPtr->jobSpecs.restartPid,
@@ -1373,60 +1363,56 @@ again:
         }
         *sp = '\0';
 
-        if (strlen(erestartMsg) > 0 ) {
-            sprintf(errMsg, "%s: Messages: %s",
-		fname, erestartMsg);
+        if (strlen(erestartMsg) > 0) {
+            sprintf(errMsg, "%s: Messages: %s", fname, erestartMsg);
             sbdSyslog(LOG_ERR, errMsg);
         }
 
-        while ((pid = waitpid(pid, &status, 0)) < 0 &&
-               errno == EINTR);
+        while ((pid = waitpid(pid, &status, 0)) < 0 && errno == EINTR)
+            ;
 
         if (pid < 0) {
             sprintf(errMsg, I18N_JOB_FAIL_S_D_M, fname,
-		lsb_jobid2str(jobCardPtr->jobSpecs.jobId),
-		"waitpid",
-                jobCardPtr->jobSpecs.jobPGid);
+                    lsb_jobid2str(jobCardPtr->jobSpecs.jobId), "waitpid",
+                    jobCardPtr->jobSpecs.jobPGid);
             sbdSyslog(LOG_ERR, errMsg);
             goto RestartError;
         }
 
         exit(WEXITSTATUS(status));
 
-RestartError:
+    RestartError:
         if (rename(restartDir, oldChkpntDir) == -1) {
             sprintf(errMsg, "Unable to rename chkpnt directory %s to %s: %s.",
-                restartDir, oldChkpntDir, strerror(errno));
+                    restartDir, oldChkpntDir, strerror(errno));
             sbdSyslog(LOG_ERR, errMsg);
         }
         exit(-1);
-
     }
 
     i = 0;
     rargv[i++] = "erestart";
 
     if (jspecs->chkSig == SIG_CHKPNT_COPY)
-    rargv[i++] = "-c";
+        rargv[i++] = "-c";
 
     if (jspecs->options & SUB_RESTART_FORCE)
-    rargv[i++] = "-f";
+        rargv[i++] = "-f";
 
     rargv[i++] = restartDir;
     rargv[i] = NULL;
 
     {
-
-	char buf[8];
-	sprintf(buf, "%d", dup(2));
-	putEnv("LSB_STDERR_FD", buf);
+        char buf[8];
+        sprintf(buf, "%d", dup(2));
+        putEnv("LSB_STDERR_FD", buf);
     }
     close(fds[0]);
     dup2(fds[1], 2);
     close(fds[1]);
 
     sprintf(pidStr, "%d", jspecs->jobPid);
-    putEnv("LSB_RESTART_PID",  pidStr);
+    putEnv("LSB_RESTART_PID", pidStr);
 
     sprintf(pgidStr, "%d", jspecs->restartPid);
     putEnv("LSB_RESTART_PGID", pgidStr);
@@ -1439,11 +1425,9 @@ RestartError:
     lsfExecv(erestartPath, rargv);
     perror("execv(erestart) failed");
     exit(-1);
-
 }
 
-int
-rcvPidPGid(char *message, pid_t *Pid, pid_t *PGid)
+int rcvPidPGid(char *message, pid_t *Pid, pid_t *PGid)
 {
     char pidMsgHeader[MSGSIZE], pgidMsgHeader[MSGSIZE];
     char *pidMsgPtr, *pgidMsgPtr;
@@ -1451,25 +1435,22 @@ rcvPidPGid(char *message, pid_t *Pid, pid_t *PGid)
     sprintf(pidMsgHeader, "pid=");
     sprintf(pgidMsgHeader, "pgid=");
 
-    if (((pidMsgPtr = strstr(message, pidMsgHeader)) != NULL)
-        && (( pgidMsgPtr = strstr(message, pgidMsgHeader)) != NULL)) {
+    if (((pidMsgPtr = strstr(message, pidMsgHeader)) != NULL) &&
+        ((pgidMsgPtr = strstr(message, pgidMsgHeader)) != NULL)) {
         *Pid = atoi(pidMsgPtr + strlen(pidMsgHeader));
         *PGid = atoi(pgidMsgPtr + strlen(pgidMsgHeader));
         return 0;
     } else
         return -1;
-
 }
 
-void
-exeChkpnt(struct jobCard *jp, int chkFlags, char * exitFile)
+void exeChkpnt(struct jobCard *jp, int chkFlags, char *exitFile)
 {
-    static char fname[]="exeChkpnt";
+    static char fname[] = "exeChkpnt";
     char s[MAXFILENAMELEN], t[MAXFILENAMELEN];
 
-   char chkDir[MAXFILENAMELEN],
-         chkpntDir[MAXFILENAMELEN],
-         chkpntDirTmp[MAXFILENAMELEN];
+    char chkDir[MAXFILENAMELEN], chkpntDir[MAXFILENAMELEN],
+        chkpntDirTmp[MAXFILENAMELEN];
     char oldJobId[20], newJobId[20];
     char *strPtr, *p;
 
@@ -1477,11 +1458,11 @@ exeChkpnt(struct jobCard *jp, int chkFlags, char * exitFile)
     struct dirent *dp;
 
     pid_t pid1, echkpntPid;
-    char errMsg[MAXLINELEN], msg[MAXLINELEN*2];
+    char errMsg[MAXLINELEN], msg[MAXLINELEN * 2];
     int status;
     struct hostent *hp;
     FILE *fp;
-    int  argc;
+    int argc;
     char *argv[MAX_ARGS];
     char *echkpntPath;
     int fds[2];
@@ -1491,304 +1472,295 @@ exeChkpnt(struct jobCard *jp, int chkFlags, char * exitFile)
     int len = sizeof(errMsg);
 
     if (logclass & LC_EXEC) {
-	sprintf(msg, "%s: Entering the routin ..",fname);
-	sbdSyslog(LOG_DEBUG, msg);
+        sprintf(msg, "%s: Entering the routin ..", fname);
+        sbdSyslog(LOG_DEBUG, msg);
     }
 
-    if (jp->regOpFlag&REG_CHKPNT) {
+    if (jp->regOpFlag & REG_CHKPNT) {
+        struct lsbMsgHdr pmMsgHdr;
+        struct lsbMsg pmMsg;
 
-	struct lsbMsgHdr pmMsgHdr;
-	struct lsbMsg pmMsg;
+        int msgStat;
 
-	int msgStat;
+        pmMsgHdr.usrId = jp->jobSpecs.userId;
+        pmMsgHdr.msgId = 0;
+        pmMsgHdr.jobId = jp->jobSpecs.jobId;
+        pmMsgHdr.src = "sbatchd";
+        pmMsgHdr.dest = "pm";
 
-	pmMsgHdr.usrId = jp->jobSpecs.userId;
-	pmMsgHdr.msgId = 0;
-	pmMsgHdr.jobId = jp->jobSpecs.jobId;
-	pmMsgHdr.src = "sbatchd";
-	pmMsgHdr.dest = "pm";
+        if (chkFlags & LSB_CHKPNT_KILL) {
+            pmMsg.msg = "CHKPNT KILL";
+        } else {
+            pmMsg.msg = "CHKPNT";
+        }
 
-	if (chkFlags & LSB_CHKPNT_KILL) {
-	    pmMsg.msg = "CHKPNT KILL";
-	} else {
-	    pmMsg.msg = "CHKPNT";
-	}
+        pmMsg.header = &pmMsgHdr;
 
-	pmMsg.header = &pmMsgHdr;
-
-	if ( (msgStat = msgSupervisor(&pmMsg, jp->client)) < 0) {
-	    ls_syslog(LOG_ERR, "%s: sending signal message to pm failed for job <%s>: %m",
-	        fname, lsb_jobid2str(jp->jobSpecs.jobId));
-	    return;
-	}
+        if ((msgStat = msgSupervisor(&pmMsg, jp->client)) < 0) {
+            ls_syslog(
+                LOG_ERR,
+                "%s: sending signal message to pm failed for job <%s>: %m",
+                fname, lsb_jobid2str(jp->jobSpecs.jobId));
+            return;
+        }
 
         suspendUntilSignal(SIGURG);
-    }
-    else {
+    } else {
+        if (!(jp->jobSpecs.options & SUB_CHKPNTABLE)) {
+            if (jobsig(jp, SIGKILL, FALSE) == 0) {
+                if ((fp = fopen(exitFile, "w")) == NULL ||
+                    FCLOSEUP(&fp) == -1) {
+                    sprintf(errMsg,
+                            "Unable to write migration status into %s file: %s",
+                            exitFile, strerror(errno));
+                    goto Error;
+                }
+                exit(0);
+            }
 
-    if (!(jp->jobSpecs.options & SUB_CHKPNTABLE)) {
-	if (jobsig(jp, SIGKILL, FALSE) == 0) {
+            sprintf(errMsg, "Unable to send signal to job: %s",
+                    strerror(errno));
+            goto Error;
+        }
 
-	    if ((fp = fopen(exitFile, "w")) == NULL || FCLOSEUP(&fp) == -1) {
-		sprintf(errMsg, "Unable to write migration status into %s file: %s",
-		    exitFile, strerror(errno));
-		goto Error;
-	    }
-	    exit(0);
-	}
+        jobsig(jp, SIGCONT, FALSE);
 
-	sprintf(errMsg, "Unable to send signal to job: %s",
-	    strerror(errno));
-	goto Error;
-    }
+        if ((hp = (struct hostent *) getHostEntryByName_(
+                 jp->jobSpecs.fromHost)) == NULL) {
+            sprintf(errMsg, I18N_FUNC_S_FAIL, fname, "getHostEntryByName_",
+                    jp->jobSpecs.fromHost);
+            goto Error;
+        }
 
-    jobsig(jp, SIGCONT, FALSE);
+        if (((strPtr = strrchr(jp->jobSpecs.chkpntDir, '/')) != NULL) &&
+            (islongint_(strPtr + 1))) {
+            sprintf(chkpntDir, "%s", jp->jobSpecs.chkpntDir);
+            *strPtr = '\0';
+            sprintf(chkDir, "%s", jp->jobSpecs.chkpntDir);
 
-    if ((hp = (struct hostent *)getHostEntryByName_(jp->jobSpecs.fromHost)) == NULL) {
-        sprintf(errMsg, I18N_FUNC_S_FAIL, fname, "getHostEntryByName_",
-	    jp->jobSpecs.fromHost);
-        goto Error;
-    }
-
-    if (((strPtr = strrchr(jp->jobSpecs.chkpntDir, '/')) != NULL)
-         && (islongint_(strPtr+1))) {
-
-        sprintf(chkpntDir, "%s", jp->jobSpecs.chkpntDir);
-        *strPtr = '\0';
-        sprintf(chkDir, "%s", jp->jobSpecs.chkpntDir);
-
-        sprintf(oldJobId, "%s", strPtr+1);
+            sprintf(oldJobId, "%s", strPtr + 1);
 
             sprintf(newJobId, "%s", lsb_jobidinstr(jp->jobSpecs.jobId));
-        *strPtr = '/';
-    } else {
-        sprintf(errMsg, "%s, Error in the chkpnt directory: %s",
-	    fname,
-            jp->jobSpecs.chkpntDir);
-        goto Error;
-    }
+            *strPtr = '/';
+        } else {
+            sprintf(errMsg, "%s, Error in the chkpnt directory: %s", fname,
+                    jp->jobSpecs.chkpntDir);
+            goto Error;
+        }
 
-    if (mychdir_(chkDir, hp) < 0) {
-        sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "mychdir_", chkDir);
-        goto Error;
-    }
+        if (mychdir_(chkDir, hp) < 0) {
+            sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "mychdir_", chkDir);
+            goto Error;
+        }
 
-    sprintf(chkpntDir, "%s/%s", chkDir, newJobId);
-    sprintf(chkpntDirTmp, "%s.tmp", newJobId);
+        sprintf(chkpntDir, "%s/%s", chkDir, newJobId);
+        sprintf(chkpntDirTmp, "%s.tmp", newJobId);
 
-    if (mymkdir_(chkpntDirTmp, 0700, hp) == -1 && errno != EEXIST) {
-	sprintf(errMsg, "Unable to create directory %s: %s",
-		chkpntDirTmp, strerror(errno));
-	goto Error;
-    }
-    if (jp->jobSpecs.chkpntDir[0] == '/' &&
-        (p = strrchr(jp->jobSpecs.chkpntDir, '/')) &&
-        p != &(jp->jobSpecs.chkpntDir[0])) {
-        *p = '/';
-
-        if (mymkdir_(chkpntDirTmp, 0700, hp) < 0 && errno != EEXIST) {
-            sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "mymkdir_",
-		chkpntDirTmp);
+        if (mymkdir_(chkpntDirTmp, 0700, hp) == -1 && errno != EEXIST) {
+            sprintf(errMsg, "Unable to create directory %s: %s", chkpntDirTmp,
+                    strerror(errno));
+            goto Error;
+        }
+        if (jp->jobSpecs.chkpntDir[0] == '/' &&
+            (p = strrchr(jp->jobSpecs.chkpntDir, '/')) &&
+            p != &(jp->jobSpecs.chkpntDir[0])) {
             *p = '/';
-            goto Error;
+
+            if (mymkdir_(chkpntDirTmp, 0700, hp) < 0 && errno != EEXIST) {
+                sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "mymkdir_",
+                        chkpntDirTmp);
+                *p = '/';
+                goto Error;
+            }
+        } else {
+            if (mymkdir_(chkpntDirTmp, 0700, hp) < 0 && errno != EEXIST) {
+                sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "mymkdir_",
+                        chkpntDirTmp);
+                goto Error;
+            }
         }
-    } else {
-        if (mymkdir_(chkpntDirTmp, 0700, hp) < 0 && errno != EEXIST) {
-            sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "mymkdir_",
-		chkpntDirTmp);
-            goto Error;
+
+        argc = 0;
+        argv[argc++] = "echkpnt";
+
+        if (chkFlags & LSB_CHKPNT_COPY)
+            argv[argc++] = "-c";
+
+        if (chkFlags & LSB_CHKPNT_FORCE)
+            argv[argc++] = "-f";
+
+        if (chkFlags & LSB_CHKPNT_KILL)
+            argv[argc++] = "-k";
+
+        if (chkFlags & LSB_CHKPNT_STOP)
+            argv[argc++] = "-s";
+
+        argv[argc++] = "-d";
+        argv[argc++] = chkpntDirTmp;
+
+        sprintf(jobPGidStr, "%d", jp->jobSpecs.jobPGid);
+        argv[argc++] = jobPGidStr;
+
+        argv[argc] = NULL;
+
+        if ((echkpntPath = getEchkpntDir("/echkpnt")) == NULL) {
+            sprintf(errMsg, "%s: Unable to find the echkpnt executable", fname);
+            goto ChildError;
         }
-    }
 
-    argc = 0;
-    argv[argc++] = "echkpnt";
+        if (pipe(fds) == -1) {
+            sprintf(errMsg, I18N_JOB_FAIL_S_M, fname,
+                    lsb_jobid2str(jp->jobSpecs.jobId), "pipe");
+            goto ChildError;
+        }
 
-    if (chkFlags & LSB_CHKPNT_COPY)
-        argv[argc++] = "-c";
+        if ((pid1 = fork()) < 0) {
+            ls_syslog(LOG_ERR, "%s", __func__,
+                      lsb_jobid2str(jp->jobSpecs.jobId), "fork");
+            goto ChildError;
+        } else if (pid1 == 0) {
+            close(fds[0]);
+            dup2(fds[1], 2);
 
-    if (chkFlags & LSB_CHKPNT_FORCE)
-        argv[argc++] = "-f";
+            chuser(batchId);
 
-    if (chkFlags & LSB_CHKPNT_KILL)
-        argv[argc++] = "-k";
+            if (seteuid(jp->jobSpecs.execUid) < 0) {
+                fprintf(stderr, I18N_JOB_FAIL_S_D_M, fname,
+                        lsb_jobid2str(jp->jobSpecs.jobId), "setuid",
+                        jp->jobSpecs.execUid);
+                fflush(stderr);
+                fclose(stderr);
+                exit(-1);
+            }
 
-    if (chkFlags & LSB_CHKPNT_STOP)
-        argv[argc++] = "-s";
-
-    argv[argc++] = "-d";
-    argv[argc++] = chkpntDirTmp;
-
-    sprintf(jobPGidStr, "%d", jp->jobSpecs.jobPGid);
-    argv[argc++] = jobPGidStr;
-
-    argv[argc] = NULL;
-
-    if ((echkpntPath = getEchkpntDir("/echkpnt")) == NULL) {
-        sprintf(errMsg, "%s: Unable to find the echkpnt executable",
-	    fname);
-        goto ChildError;
-    }
-
-    if (pipe(fds) == -1)
-    {
-        sprintf(errMsg, I18N_JOB_FAIL_S_M, fname,
-		lsb_jobid2str(jp->jobSpecs.jobId), "pipe");
-        goto ChildError;
-    }
-
-    if ((pid1 = fork()) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__,
-	    lsb_jobid2str(jp->jobSpecs.jobId), "fork");
-        goto ChildError;
-    } else if (pid1 == 0) {
-        close(fds[0]);
-        dup2(fds[1], 2);
-
-	chuser(batchId);
-
-        if (seteuid(jp->jobSpecs.execUid) < 0) {
-            fprintf(stderr, I18N_JOB_FAIL_S_D_M, fname,
-		lsb_jobid2str(jp->jobSpecs.jobId),
-		"setuid",
-		jp->jobSpecs.execUid);
-            fflush(stderr);
-            fclose(stderr);
+            lsfExecv(echkpntPath, argv);
+            perror(_i18n_printf(I18N_FUNC_S_FAIL_M, fname, "execv", "echkpnt"));
             exit(-1);
         }
 
-        lsfExecv(echkpntPath,argv);
-        perror( _i18n_printf( I18N_FUNC_S_FAIL_M, fname,
-	    "execv", "echkpnt"));
-        exit(-1);
-    }
+        close(fds[1]);
+        echkpntPid = pid1;
 
-    close(fds[1]);
-    echkpntPid = pid1;
+        while ((i = read(fds[0], sp, len)) > 0) {
+            sp += i;
+            len -= i;
+        }
+        *sp = '\0';
 
-    while ((i = read(fds[0], sp, len)) > 0) {
-        sp += i;
-        len -= i;
-    }
-    *sp = '\0';
+        if ((strlen(errMsg) > 0) &&
+            (strstr(errMsg, "Checkpoint done") == NULL)) {
+            goto ChildError;
+        }
+        while ((pid1 = waitpid(echkpntPid, &status, 0)) < 0 && errno == EINTR)
+            ;
 
-    if ((strlen(errMsg) > 0) && (strstr(errMsg, "Checkpoint done") == NULL)) {
-       goto ChildError;
-    }
-    while ((pid1 = waitpid(echkpntPid, &status, 0)) < 0 && errno == EINTR);
-
-    if (pid1 < 0) {
-        sprintf(errMsg, I18N_JOB_FAIL_S_D_M, fname,
-	    lsb_jobid2str(jp->jobSpecs.jobId), "waitpid", (int)pid1);
-        goto ChildError;
-    } else {
-        if (WIFEXITED(status)) {
-	    if ( WEXITSTATUS(status) != 0 ) {
-                sprintf(msg, "%s: job <%s> exited with the exit code %d with <%s>",
-		        fname, lsb_jobid2str(jp->jobSpecs.jobId),
+        if (pid1 < 0) {
+            sprintf(errMsg, I18N_JOB_FAIL_S_D_M, fname,
+                    lsb_jobid2str(jp->jobSpecs.jobId), "waitpid", (int) pid1);
+            goto ChildError;
+        } else {
+            if (WIFEXITED(status)) {
+                if (WEXITSTATUS(status) != 0) {
+                    sprintf(
+                        msg,
+                        "%s: job <%s> exited with the exit code %d with <%s>",
+                        fname, lsb_jobid2str(jp->jobSpecs.jobId),
                         WEXITSTATUS(status), errMsg);
-	        sprintf(errMsg, msg);
-                goto ChildError;
-	    }
+                    sprintf(errMsg, msg);
+                    goto ChildError;
+                }
+            }
         }
-    }
 
-    dirp = opendir(chkpntDirTmp);
-    while ((dp = readdir(dirp)) != NULL) {
+        dirp = opendir(chkpntDirTmp);
+        while ((dp = readdir(dirp)) != NULL) {
+            if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+                continue;
 
-        if (strcmp(dp->d_name, ".") == 0 ||
-            strcmp(dp->d_name, "..") == 0)
-            continue;
+            sprintf(s, "%s/%s", chkpntDirTmp, dp->d_name);
+            sprintf(t, "%s/%s", newJobId, dp->d_name);
 
-        sprintf(s, "%s/%s", chkpntDirTmp, dp->d_name);
-        sprintf(t, "%s/%s", newJobId, dp->d_name);
-
-        if (rename(s, t) == -1) {
-            sprintf(errMsg, "%s: Unable to rename checkpoint file %s to %s: %s",
-                fname, s, t, strerror(errno));
-            (void) closedir(dirp);
-            goto Error;
+            if (rename(s, t) == -1) {
+                sprintf(errMsg,
+                        "%s: Unable to rename checkpoint file %s to %s: %s",
+                        fname, s, t, strerror(errno));
+                (void) closedir(dirp);
+                goto Error;
+            }
         }
+
+        (void) closedir(dirp);
+
+        if (strcmp(oldJobId, newJobId) != 0)
+            unlink(oldJobId);
+
+        rmDir(chkpntDirTmp);
     }
 
-    (void) closedir(dirp);
-
-    if (strcmp(oldJobId, newJobId) != 0)
-        unlink(oldJobId);
-
-    rmDir(chkpntDirTmp);
-
-    }
-
-    sprintf (s, "%s/chklog", newJobId);
+    sprintf(s, "%s/chklog", newJobId);
 
     if (writeChkLog(s, chkDir, jp, hp) == -1) {
-	sprintf(errMsg, "Unable to write to checkpoint log %s/%s: %s",
-		chkDir, s, lsb_sysmsg());
-	goto Error;
+        sprintf(errMsg, "Unable to write to checkpoint log %s/%s: %s", chkDir,
+                s, lsb_sysmsg());
+        goto Error;
     }
 
     chuser(batchId);
 
     if ((fp = fopen(exitFile, "w")) == NULL || FCLOSEUP(&fp) == -1) {
-	sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "fopen", exitFile);
-	goto Error;
+        sprintf(errMsg, I18N_FUNC_S_FAIL_M, fname, "fopen", exitFile);
+        goto Error;
     }
     exit(0);
 
-  ChildError:
+ChildError:
 
     rmDir(chkpntDirTmp);
 
-  Error:
+Error:
 
-    sprintf (msg, "We are unable to checkpoint your job %s <%s>.\nThe error is: %s",
-	lsb_jobid2str(SUBMIT_JID(jp)), jp->jobSpecs.command, errMsg);
+    sprintf(msg,
+            "We are unable to checkpoint your job %s <%s>.\nThe error is: %s",
+            lsb_jobid2str(SUBMIT_JID(jp)), jp->jobSpecs.command, errMsg);
 
-     if (jp->jobSpecs.options & SUB_MAIL_USER)
-         merr_user (jp->jobSpecs.mailUser, jp->jobSpecs.fromHost, msg,
-	     "error");
-     else
-	 merr_user (jp->jobSpecs.userName, jp->jobSpecs.fromHost, msg,
-	     "error");
+    if (jp->jobSpecs.options & SUB_MAIL_USER)
+        merr_user(jp->jobSpecs.mailUser, jp->jobSpecs.fromHost, msg, "error");
+    else
+        merr_user(jp->jobSpecs.userName, jp->jobSpecs.fromHost, msg, "error");
 
     if (jp->jobSpecs.jStatus & (JOB_STAT_SSUSP | JOB_STAT_USUSP))
-	jobsig(jp, SIGSTOP, FALSE);
+        jobsig(jp, SIGSTOP, FALSE);
 
-    exit (-1);
- /* WIN32  */
-
+    exit(-1);
+    /* WIN32  */
 }
 
-void
-sig_wakeup(int signo)
+void sig_wakeup(int signo)
 {
-return;
+    return;
 }
 
-void
-suspendUntilSignal(int signo)
+void suspendUntilSignal(int signo)
 {
     sigset_t sigMask;
 
-    Signal_(signo,  sig_wakeup);
+    Signal_(signo, sig_wakeup);
 
     sigfillset(&sigMask);
     sigdelset(&sigMask, signo);
     sigsuspend(&sigMask);
-
 }
 
-char *
-getEchkpntDir(char *name)
+char *getEchkpntDir(char *name)
 {
     static char echpnt_path[MAXPATHLEN];
     char *echkpnt_dir;
 
     if ((echkpnt_dir = getenv("LSF_ECHKPNTDIR")) == NULL)
-       if ((echkpnt_dir = daemonParams[LSF_SERVERDIR].paramValue) == NULL) {
+        if ((echkpnt_dir = daemonParams[LSF_SERVERDIR].paramValue) == NULL) {
           perror("Can't access echkpnt("));
           return NULL;
-       }
+        }
 
     strcpy(echpnt_path, echkpnt_dir);
     strcat(echpnt_path, name);
@@ -1798,11 +1770,10 @@ getEchkpntDir(char *name)
        return NULL;
     }
     return echpnt_path;
-
 }
 
-static int
-writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp, struct hostent *fromHp)
+static int writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp,
+                       struct hostent *fromHp)
 {
     struct jobNewLog *jobNewLog;
     struct jobStartLog *jobStartLog;
@@ -1813,10 +1784,10 @@ writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp, struct hostent *fromH
     lsberrno = LSBE_SYS_CALL;
 
     if ((fp = myfopen_(fn, "w", fromHp)) == NULL)
-	return -1;
+        return -1;
 
     jobNewLog = &logPtr.eventLog.jobNewLog;
-    logPtr.type =  EVENT_JOB_NEW;
+    logPtr.type = EVENT_JOB_NEW;
     strcpy(logPtr.version, LAVALITE_VERSION_STR);
     jobNewLog->jobId = LSB_ARRAY_JOBID(jp->jobSpecs.jobId);
     jobNewLog->idx = 0;
@@ -1835,8 +1806,8 @@ writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp, struct hostent *fromH
 
     jobNewLog->restartPid = jp->jobSpecs.jobPGid;
 
-    for(i = 0; i < LSF_RLIM_NLIMITS; i++)
-	jobNewLog->rLimits[i] = -1;
+    for (i = 0; i < LSF_RLIM_NLIMITS; i++)
+        jobNewLog->rLimits[i] = -1;
 
     strcpy(jobNewLog->hostSpec, "");
     jobNewLog->hostFactor = 1.0;
@@ -1869,18 +1840,19 @@ writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp, struct hostent *fromH
 
     jobNewLog->nxf = jp->jobSpecs.nxf;
     if (jobNewLog->nxf > 0) {
-	jobNewLog->xf = (struct xFile *) my_calloc(jp->jobSpecs.nxf,
-				       sizeof(struct xFile), "writeChkLog");
-	memcpy((char *) jobNewLog->xf, (char *) jp->jobSpecs.xf,
-		   sizeof(struct xFile) * jobNewLog->nxf);
+        jobNewLog->xf = (struct xFile *) my_calloc(
+            jp->jobSpecs.nxf, sizeof(struct xFile), "writeChkLog");
+        memcpy((char *) jobNewLog->xf, (char *) jp->jobSpecs.xf,
+               sizeof(struct xFile) * jobNewLog->nxf);
     }
     jobNewLog->loginShell = jp->jobSpecs.loginShell;
     jobNewLog->maxNumProcessors = jp->jobSpecs.maxNumProcessors;
-    jobNewLog->schedHostType = safeSave (jp->jobSpecs.schedHostType);;
+    jobNewLog->schedHostType = safeSave(jp->jobSpecs.schedHostType);
+    ;
 
     if ((jobNewLog->options2 & SUB2_IN_FILE_SPOOL) == SUB2_IN_FILE_SPOOL) {
-	strcpy(jobNewLog->inFileSpool, jp->jobSpecs.inFileSpool);
-	strcpy(jobNewLog->inFile, jp->jobSpecs.inFile);
+        strcpy(jobNewLog->inFileSpool, jp->jobSpecs.inFileSpool);
+        strcpy(jobNewLog->inFile, jp->jobSpecs.inFile);
     } else {
         strcpy(jobNewLog->inFileSpool, "");
     }
@@ -1888,7 +1860,7 @@ writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp, struct hostent *fromH
     if ((jobNewLog->options2 & SUB2_JOB_CMD_SPOOL) == SUB2_JOB_CMD_SPOOL)
         strcpy(jobNewLog->commandSpool, jp->jobSpecs.commandSpool);
     else
-	strcpy(jobNewLog->commandSpool, "");
+        strcpy(jobNewLog->commandSpool, "");
 
     if (jp->jobSpecs.jobSpoolDir != NULL) {
         strcpy(jobNewLog->jobSpoolDir, jp->jobSpecs.jobSpoolDir);
@@ -1901,13 +1873,13 @@ writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp, struct hostent *fromH
     eno = errno;
 
     if (jobNewLog->nxf > 0)
-	free(jobNewLog->xf);
+        free(jobNewLog->xf);
     free(jobNewLog->resReq);
 
     if (cc == -1) {
-	FCLOSEUP(&fp);
-	errno = eno;
-	return -1;
+        FCLOSEUP(&fp);
+        errno = eno;
+        return -1;
     }
 
     jobStartLog = &logPtr.eventLog.jobStartLog;
@@ -1927,24 +1899,22 @@ writeChkLog(char *fn, char *chkpntDir, struct jobCard *jp, struct hostent *fromH
     jobStartLog->queuePostCmd = jp->jobSpecs.postCmd;
 
     if (lsb_puteventrec(fp, &logPtr) == -1) {
-	eno = errno;
-	FCLOSEUP(&fp);
-	errno = eno;
-	return -1;
+        eno = errno;
+        FCLOSEUP(&fp);
+        errno = eno;
+        return -1;
     }
 
     return (FCLOSEUP(&fp));
-
 }
 
-int
-sbdlog_newstatus (struct jobCard *jp)
+int sbdlog_newstatus(struct jobCard *jp)
 {
     static char fname[] = "sbdlog_newstatus()";
     char logFile[MAXFILENAMELEN];
     struct eventRec logPtr;
-    int  eno;
-    struct sbdJobStatusLog    *jobStatusLog;
+    int eno;
+    struct sbdJobStatusLog *jobStatusLog;
     struct jobSpecs *job = &(jp->jobSpecs);
     FILE *fp;
 
@@ -1952,11 +1922,12 @@ sbdlog_newstatus (struct jobCard *jp)
 
     sprintf(logFile, "%s/.%s.sbd", LSTMPDIR, clusterName);
     if (mkdir(logFile, 0700) == -1 && errno != EEXIST) {
-        ls_syslog(LOG_ERR, "%s", __func__,
-	    lsb_jobid2str(jp->jobSpecs.jobId), "mkdir", logFile);
+        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
+                  "mkdir", logFile);
         return -1;
     }
-    sprintf(logFile, "%s/.%s.sbd/jobstatus.%s",LSTMPDIR, clusterName, lsb_jobidinstr(jp->jobSpecs.jobId));
+    sprintf(logFile, "%s/.%s.sbd/jobstatus.%s", LSTMPDIR, clusterName,
+            lsb_jobidinstr(jp->jobSpecs.jobId));
 
     lsberrno = LSBE_SYS_CALL;
 
@@ -1990,42 +1961,40 @@ sbdlog_newstatus (struct jobCard *jp)
     return (FCLOSEUP(&fp));
 }
 
-int
-sbdread_jobstatus (struct jobCard *jp)
+int sbdread_jobstatus(struct jobCard *jp)
 {
     char logFile[MAXFILENAMELEN];
     struct eventRec *logPtr;
 
-    int  line = INFINIT_INT;
-    struct sbdJobStatusLog    *jobStatusLog;
+    int line = INFINIT_INT;
+    struct sbdJobStatusLog *jobStatusLog;
     struct jobSpecs *job = &(jp->jobSpecs);
     FILE *fp;
 
-    sprintf(logFile, "%s/.%s.sbd/jobstatus.%s",LSTMPDIR, clusterName, lsb_jobidinstr(jp->jobSpecs.jobId));
+    sprintf(logFile, "%s/.%s.sbd/jobstatus.%s", LSTMPDIR, clusterName,
+            lsb_jobidinstr(jp->jobSpecs.jobId));
 
     lsberrno = LSBE_SYS_CALL;
 
     if ((fp = fopen(logFile, "r")) == NULL) {
-
-	int jobid32, jobid, idx;
-	jobid = LSB_ARRAY_JOBID(jp->jobSpecs.jobId);
-	idx = LSB_ARRAY_IDX(jp->jobSpecs.jobId);
-	jobid32 = (unsigned int)idx << 20 | jobid;
-	sprintf(logFile, "%s/.%s.sbd/jobstatus.%d",LSTMPDIR, clusterName, jobid32);
-	if((fp = fopen(logFile, "r")) == NULL) {
-	    return -1;
-	}
+        int jobid32, jobid, idx;
+        jobid = LSB_ARRAY_JOBID(jp->jobSpecs.jobId);
+        idx = LSB_ARRAY_IDX(jp->jobSpecs.jobId);
+        jobid32 = (unsigned int) idx << 20 | jobid;
+        sprintf(logFile, "%s/.%s.sbd/jobstatus.%d", LSTMPDIR, clusterName,
+                jobid32);
+        if ((fp = fopen(logFile, "r")) == NULL) {
+            return -1;
+        }
     }
-    if ((logPtr = lsb_geteventrec(fp, &line)) == NULL
-            || logPtr->type != EVENT_SBD_JOB_STATUS) {
-
+    if ((logPtr = lsb_geteventrec(fp, &line)) == NULL ||
+        logPtr->type != EVENT_SBD_JOB_STATUS) {
         FCLOSEUP(&fp);
         return -1;
     }
     jobStatusLog = &logPtr->eventLog.sbdJobStatusLog;
 
-    job->jobId = LSB_JOBID(jobStatusLog->jobId,
-			   jobStatusLog->idx);
+    job->jobId = LSB_JOBID(jobStatusLog->jobId, jobStatusLog->idx);
     job->jStatus = jobStatusLog->jStatus;
     job->reasons = jobStatusLog->reasons;
     job->subreasons = jobStatusLog->subreasons;
@@ -2040,4 +2009,3 @@ sbdread_jobstatus (struct jobCard *jp)
     FCLOSEUP(&fp);
     return 0;
 }
-

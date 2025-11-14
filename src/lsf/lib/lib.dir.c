@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -26,7 +27,7 @@ extern struct config_param genParams[];
 static struct hTab hashTab;
 
 static int putin_(int, char *, int, char *, int, char *);
-static int getMap_ (void);
+static int getMap_(void);
 static int tryPwd(char *path, char *pwdpath);
 static int netHostChdir(char *, struct hostent *);
 static char *mountNet_(struct hostent *);
@@ -34,15 +35,13 @@ static char *usePath(char *);
 
 char chosenPath[MAXPATHLEN];
 
-static char *
-usePath(char *path)
+static char *usePath(char *path)
 {
     strcpy(chosenPath, path);
     return chosenPath;
 }
 
-int
-mychdir_(char *path, struct hostent *hp)
+int mychdir_(char *path, struct hostent *hp)
 {
     char *goodpath = path;
     char *sp = NULL;
@@ -58,7 +57,7 @@ mychdir_(char *path, struct hostent *hp)
         if (netHostChdir(path, hp) == 0)
             return 0;
 
-    if (strstr(path, "/tmp_mnt" ) == path) {
+    if (strstr(path, "/tmp_mnt") == path) {
         sp = path + strlen("/tmp_mnt");
         if (chdir(usePath(sp)) == 0)
             return 0;
@@ -79,19 +78,19 @@ mychdir_(char *path, struct hostent *hp)
 
     chdir(filename);
 
-try:
-    if (path[0] != '/')
-        return -1;
+    try:
+        if (path[0] != '/')
+            return -1;
 
-    if ((goodpath=strstr(path,"/exp/lsf")) != NULL) {
+    if ((goodpath = strstr(path, "/exp/lsf")) != NULL) {
         if (chdir(usePath(goodpath)) == 0)
             return 0;
     }
 
-    if (strstr(path, "/tmp_mnt" ) == path) {
+    if (strstr(path, "/tmp_mnt") == path) {
         goodpath = path + strlen("/tmp_mnt");
     } else {
-        if (chdir(usePath(path)) ==0)
+        if (chdir(usePath(path)) == 0)
             return 0;
         sp = getenv("PWD");
         if (tryPwd(path, sp) == 0)
@@ -99,9 +98,9 @@ try:
     }
 
     if (goodpath == NULL)
-        goodpath = strchr(path+1, '/');
+        goodpath = strchr(path + 1, '/');
     else
-        goodpath = strchr(goodpath+1, '/');
+        goodpath = strchr(goodpath + 1, '/');
     if (goodpath != NULL) {
         if (chdir(usePath(goodpath)) == 0)
             return 0;
@@ -116,9 +115,7 @@ try:
     }
 
     hashEntryPtr = h_firstEnt_(&hashTab, &hashSearchPtr);
-    if (hashEntryPtr == NULL)
-    {
-
+    if (hashEntryPtr == NULL) {
         errno = ENOENT;
         return -1;
     }
@@ -130,7 +127,7 @@ try:
         hashEntryPtr = h_nextEnt_(&hashSearchPtr);
     }
 
-    goodpath = strchr(goodpath+1, '/');
+    goodpath = strchr(goodpath + 1, '/');
     if (goodpath == NULL) {
         return -1;
     }
@@ -146,7 +143,7 @@ try:
     if (chdir(usePath(goodpath)) == 0)
         return 0;
 
-    if ( strstr(path, "/tmp_mnt" ) != path)
+    if (strstr(path, "/tmp_mnt") != path)
         return -1;
 
     goodpath = path + strlen("/tmp_mnt");
@@ -155,30 +152,30 @@ try:
 
     strcpy(filename, goodpath);
 
-    sp = strchr(filename+1, '/');
+    sp = strchr(filename + 1, '/');
     if (sp == NULL)
         return -1;
 
-    goodpath = strchr(sp+1, '/');
+    goodpath = strchr(sp + 1, '/');
     if (goodpath == NULL)
         return -1;
 
-    if ((sp = strchr(goodpath+1, '/')) == NULL)
+    if ((sp = strchr(goodpath + 1, '/')) == NULL)
         return -1;
 
     *goodpath = '\0';
     strcat(filename, sp);
 
-    if (chdir(usePath(filename)) ==0)
+    if (chdir(usePath(filename)) == 0)
         return 0;
 
-    if ((sp = strchr(goodpath+1, '/')) == NULL)
+    if ((sp = strchr(goodpath + 1, '/')) == NULL)
         return -1;
 
     *goodpath = '\0';
     strcat(filename, sp);
 
-    if (chdir(usePath(filename)) ==0)
+    if (chdir(usePath(filename)) == 0)
         return 0;
 
     if (chdir(usePath(path)) == 0)
@@ -187,8 +184,7 @@ try:
     return -1;
 }
 
-static int
-tryPwd(char *path, char *pwdpath)
+static int tryPwd(char *path, char *pwdpath)
 {
     char *PA, *PAPB, *pa, *pb, *pc, *sp1;
     char filename[MAXFILENAMELEN];
@@ -200,23 +196,23 @@ tryPwd(char *path, char *pwdpath)
         return -1;
 
     strcpy(filename, pwdpath);
-    sp1 = strchr(filename+1, '/');
+    sp1 = strchr(filename + 1, '/');
     if (sp1 != NULL)
         *sp1 = '\0';
     PA = putstr_(filename);
     strcpy(filename, pwdpath);
     if (sp1 != NULL) {
-        sp1 = strchr(sp1+1, '/');
+        sp1 = strchr(sp1 + 1, '/');
         if (sp1 != NULL)
             *sp1 = '\0';
     }
     PAPB = putstr_(filename);
 
     pa = path;
-    pb = strchr(path+1, '/');
+    pb = strchr(path + 1, '/');
     if (pb == NULL)
         pb = pa;
-    pc = strchr(pb+1, '/');
+    pc = strchr(pb + 1, '/');
     if (pc == NULL)
         pc = pb;
 
@@ -255,11 +251,9 @@ tryPwd(char *path, char *pwdpath)
     free(PA);
     free(PAPB);
     return -1;
-
 }
 
-static
-int getMap_(void)
+static int getMap_(void)
 {
     char *domain;
     struct ypall_callback incallback;
@@ -272,10 +266,9 @@ int getMap_(void)
     return (yp_all(domain, "auto.master", &incallback));
 }
 
-static int
-putin_(int status, char *inkey, int inkeylen, char *inval, int invallen, char *indata)
+static int putin_(int status, char *inkey, int inkeylen, char *inval,
+                  int invallen, char *indata)
 {
-
     if (ypprot_err(status) != 0)
         return true;
 
@@ -283,13 +276,12 @@ putin_(int status, char *inkey, int inkeylen, char *inval, int invallen, char *i
     if (strcmp(inkey, "/-") == 0)
         return false;
 
-    (void)h_addEnt_(&hashTab, inkey, 0);
+    (void) h_addEnt_(&hashTab, inkey, 0);
 
     return false;
 }
 
-static int
-netHostChdir(char *path, struct hostent *hp)
+static int netHostChdir(char *path, struct hostent *hp)
 {
     char filename[MAXFILENAMELEN];
     char *mp;
@@ -308,15 +300,13 @@ netHostChdir(char *path, struct hostent *hp)
     if (hp == NULL)
         return -1;
 
-    if ((mp=mountNet_(hp)) == NULL)
+    if ((mp = mountNet_(hp)) == NULL)
         return -1;
     sprintf(filename, "%s%s", mp, path);
     return (chdir(usePath(filename)));
-
 }
 
-static char *
-mountNet_(struct hostent *hp)
+static char *mountNet_(struct hostent *hp)
 {
     char hostnamebuf[MAXHOSTNAMELEN];
     static char filename[MAXFILENAMELEN];
@@ -345,11 +335,9 @@ mountNet_(struct hostent *hp)
     }
 
     return NULL;
-
 }
 
-int
-myopen_(char *filename, int flags, int mode, struct hostent *hp)
+int myopen_(char *filename, int flags, int mode, struct hostent *hp)
 {
     char fnamebuf[MAXFILENAMELEN];
     int i;
@@ -359,29 +347,27 @@ myopen_(char *filename, int flags, int mode, struct hostent *hp)
         return (open(usePath(filename), flags, mode));
 
     if (AM_LAST)
-        if ((i=open(usePath(filename), flags, mode)) != -1)
+        if ((i = open(usePath(filename), flags, mode)) != -1)
             return i;
 
     if (strstr(filename, "/net/") == filename)
         return (open(usePath(filename), flags, mode));
 
-    if (strstr(filename, "/tmp_mnt/") ==filename)
+    if (strstr(filename, "/tmp_mnt/") == filename)
         return (open(usePath(filename), flags, mode));
 
-    if ((mp=mountNet_(hp)) == NULL)
+    if ((mp = mountNet_(hp)) == NULL)
         return (open(usePath(filename), flags, mode));
 
     sprintf(fnamebuf, "%s%s", mp, filename);
     i = open(usePath(fnamebuf), flags, mode);
-    if (i>=0)
+    if (i >= 0)
         return i;
 
     return (open(usePath(filename), flags, mode));
-
 }
 
-FILE *
-myfopen_(char *filename, char *type, struct hostent *hp)
+FILE *myfopen_(char *filename, char *type, struct hostent *hp)
 {
     char fnamebuf[MAXFILENAMELEN];
     FILE *fp;
@@ -391,13 +377,13 @@ myfopen_(char *filename, char *type, struct hostent *hp)
         return (fopen(usePath(filename), type));
 
     if (AM_LAST)
-        if ((fp = fopen(usePath(filename),type)) != NULL)
+        if ((fp = fopen(usePath(filename), type)) != NULL)
             return fp;
 
     if (strstr(filename, "/net/") == filename)
         return (fopen(usePath(filename), type));
 
-    if (strstr(filename, "/tmp_mnt/") ==filename)
+    if (strstr(filename, "/tmp_mnt/") == filename)
         return (fopen(usePath(filename), type));
 
     if ((mp = mountNet_(hp)) == NULL)
@@ -409,11 +395,9 @@ myfopen_(char *filename, char *type, struct hostent *hp)
         return fp;
 
     return (fopen(usePath(filename), type));
-
 }
 
-int
-mystat_(char *filename, struct stat *sbuf, struct hostent *hp)
+int mystat_(char *filename, struct stat *sbuf, struct hostent *hp)
 {
     char fnamebuf[MAXFILENAMELEN];
     int i;
@@ -423,29 +407,27 @@ mystat_(char *filename, struct stat *sbuf, struct hostent *hp)
         return (stat(usePath(filename), sbuf));
 
     if (AM_LAST)
-        if ((i=stat(usePath(filename), sbuf)) != -1)
+        if ((i = stat(usePath(filename), sbuf)) != -1)
             return i;
 
     if (strstr(filename, "/net/") == filename)
         return (stat(usePath(filename), sbuf));
 
-    if (strstr(filename, "/tmp_mnt/") ==filename)
+    if (strstr(filename, "/tmp_mnt/") == filename)
         return (stat(usePath(filename), sbuf));
 
-    if ((mp=mountNet_(hp)) == NULL)
+    if ((mp = mountNet_(hp)) == NULL)
         return (stat(usePath(filename), sbuf));
 
     sprintf(fnamebuf, "%s%s", mp, filename);
     i = stat(usePath(fnamebuf), sbuf);
-    if (i>=0)
+    if (i >= 0)
         return i;
 
     return (stat(usePath(filename), sbuf));
-
 }
 
-int
-mychmod_(char *filename, mode_t mode, struct hostent *hp)
+int mychmod_(char *filename, mode_t mode, struct hostent *hp)
 {
     char fnamebuf[MAXFILENAMELEN];
     int i;
@@ -455,29 +437,27 @@ mychmod_(char *filename, mode_t mode, struct hostent *hp)
         return (chmod(usePath(filename), mode));
 
     if (AM_LAST)
-        if ((i=chmod(usePath(filename), mode)) != -1)
+        if ((i = chmod(usePath(filename), mode)) != -1)
             return i;
 
     if (strstr(filename, "/net/") == filename)
         return (chmod(usePath(filename), mode));
 
-    if (strstr(filename, "/tmp_mnt/") ==filename)
+    if (strstr(filename, "/tmp_mnt/") == filename)
         return (chmod(usePath(filename), mode));
 
-    if ((mp=mountNet_(hp)) == NULL)
+    if ((mp = mountNet_(hp)) == NULL)
         return (chmod(usePath(filename), mode));
 
     sprintf(fnamebuf, "%s%s", mp, filename);
     i = chmod(usePath(fnamebuf), mode);
-    if (i>=0)
+    if (i >= 0)
         return i;
 
     return (chmod(usePath(filename), mode));
-
 }
 
-int
-myunlink_(char *filename, struct hostent *hp, int doMount)
+int myunlink_(char *filename, struct hostent *hp, int doMount)
 {
     char fnamebuf[MAXFILENAMELEN];
     int i;
@@ -487,32 +467,29 @@ myunlink_(char *filename, struct hostent *hp, int doMount)
         return (unlink(usePath(filename)));
 
     if (AM_LAST)
-        if ((i=unlink(usePath(filename))) != -1)
+        if ((i = unlink(usePath(filename))) != -1)
             return 1;
 
-    if(doMount) {
-
+    if (doMount) {
         if (strstr(filename, "/net/") == filename)
             return (unlink(usePath(filename)));
 
-        if (strstr(filename, "/tmp_mnt/") ==filename)
+        if (strstr(filename, "/tmp_mnt/") == filename)
             return (unlink(usePath(filename)));
 
-        if ((mp=mountNet_(hp)) == NULL) {
+        if ((mp = mountNet_(hp)) == NULL) {
             return 1;
         }
 
         sprintf(fnamebuf, "%s%s", mp, filename);
         i = unlink(usePath(fnamebuf));
-        if (i>=0)
+        if (i >= 0)
             return i;
     }
     return (unlink(usePath(filename)));
-
 }
 
-int
-mymkdir_(char *filename, mode_t mode, struct hostent *hp)
+int mymkdir_(char *filename, mode_t mode, struct hostent *hp)
 {
     char fnamebuf[MAXFILENAMELEN];
     int i;
@@ -522,7 +499,7 @@ mymkdir_(char *filename, mode_t mode, struct hostent *hp)
         return (mkdir(usePath(filename), mode));
 
     if (AM_LAST)
-        if ((i=mkdir(usePath(filename), mode)) != -1)
+        if ((i = mkdir(usePath(filename), mode)) != -1)
             return i;
 
     if (strstr(filename, "/net/") == filename)
@@ -531,42 +508,38 @@ mymkdir_(char *filename, mode_t mode, struct hostent *hp)
     if (strstr(filename, "/tmp_mnt/") == filename)
         return (mkdir(usePath(filename), mode));
 
-    if ((mp=mountNet_(hp)) == NULL)
+    if ((mp = mountNet_(hp)) == NULL)
         return (mkdir(usePath(filename), mode));
 
     sprintf(fnamebuf, "%s%s", mp, filename);
     i = mkdir(usePath(fnamebuf), mode);
-    if (i>=0)
+    if (i >= 0)
         return i;
 
     return (mkdir(usePath(filename), mode));
-
 }
 
-int
-myrename_(char *from, char *to, struct hostent *hp)
+int myrename_(char *from, char *to, struct hostent *hp)
 {
     char fnamebuf[MAXFILENAMELEN];
     char tnamebuf[MAXFILENAMELEN];
     int i;
     char *mp;
 
-    if (! hp || AM_NEVER)
+    if (!hp || AM_NEVER)
         return (rename(from, to));
 
     if (AM_LAST)
-        if ((i=rename(from, to)) != -1)
+        if ((i = rename(from, to)) != -1)
             return i;
 
-    if ((strstr(from, "/net/") == from) &&
-        (strstr(to,"/net") == to) )
+    if ((strstr(from, "/net/") == from) && (strstr(to, "/net") == to))
         return (rename(from, to));
 
-    if ((strstr(from, "/tmp_mnt/") == from) &&
-        (strstr(to,"/tmp_mnt/") == to) )
+    if ((strstr(from, "/tmp_mnt/") == from) && (strstr(to, "/tmp_mnt/") == to))
         return (rename(from, to));
 
-    if ((mp=mountNet_(hp)) == NULL)
+    if ((mp = mountNet_(hp)) == NULL)
         return (rename(from, to));
 
     if (from[0] == '/')
@@ -580,9 +553,8 @@ myrename_(char *from, char *to, struct hostent *hp)
         strcpy(tnamebuf, to);
 
     i = rename(fnamebuf, tnamebuf);
-    if (i>=0)
+    if (i >= 0)
         return i;
 
     return (rename(from, to));
-
 }

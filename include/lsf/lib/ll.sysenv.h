@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -48,8 +49,8 @@ typedef enum {
     LSF_INTERACTIVE_STDERR,
 
     // Legacy sentinel
-    LSF_NULL_PARAM,    // back-compatibility placeholder
-    LSF_PARAM_COUNT    // sentinel for array sizing
+    LSF_NULL_PARAM, // back-compatibility placeholder
+    LSF_PARAM_COUNT // sentinel for array sizing
 } ll_params_t;
 
 extern struct config_param genParams[];
@@ -66,11 +67,11 @@ typedef enum {
 } lim_sock_t;
 
 // Bug TCP flags indicating what entry to use in limchans_
-#define _NON_BLOCK_        0x01
-#define _LOCAL_            0x02
-#define _USE_TCP_          0x04
-#define _KEEP_CONNECT_      0x08
-#define _USE_UDP_           _LOCAL_
+#define _NON_BLOCK_ 0x01
+#define _LOCAL_ 0x02
+#define _USE_TCP_ 0x04
+#define _KEEP_CONNECT_ 0x08
+#define _USE_UDP_ _LOCAL_
 
 extern struct sockaddr_in sockIds_[];
 extern int limchans_[];

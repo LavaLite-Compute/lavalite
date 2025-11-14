@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -23,7 +24,7 @@ bool_t xdr_submitReq(XDR *, struct submitReq *, void *);
 bool_t xdr_submitMbdReply(XDR *, struct submitMbdReply *, void *);
 bool_t xdr_signalReq(XDR *, struct signalReq *, void *);
 bool_t xdr_lsbMsg(XDR *, struct lsbMsg *, void *);
-bool_t xdr_controlReq(XDR *, struct controlReq *,void *);
+bool_t xdr_controlReq(XDR *, struct controlReq *, void *);
 bool_t xdr_infoReq(XDR *, struct infoReq *, void *);
 bool_t xdr_parameterInfo(XDR *, struct parameterInfo *, void *);
 bool_t xdr_userInfoEnt(XDR *, struct userInfoEnt *, void *);
@@ -44,8 +45,8 @@ bool_t xdr_groupInfoReply(XDR *, struct groupInfoReply *, void *);
 bool_t xdr_groupInfoEnt(XDR *, struct groupInfoEnt *, void *);
 bool_t xdr_migReq(XDR *, struct migReq *, void *);
 bool_t xdr_xFile(XDR *, struct xFile *, void *);
-bool_t xdr_modifyReq(XDR *, struct  modifyReq *, void *);
-bool_t xdr_lsbShareResourceInfoReply(XDR *, struct  lsbShareResourceInfoReply *,
+bool_t xdr_modifyReq(XDR *, struct modifyReq *, void *);
+bool_t xdr_lsbShareResourceInfoReply(XDR *, struct lsbShareResourceInfoReply *,
                                      void *);
 bool_t xdr_runJobReq(XDR *, struct runJobRequest *, void *);
 bool_t xdr_jobAttrReq(XDR *, struct jobAttrInfoEnt *, void *);

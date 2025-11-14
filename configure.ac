@@ -137,7 +137,6 @@ AC_CONFIG_FILES([
   src/lsf/intlib/Makefile
   src/lsf/lstools/Makefile
   src/lsf/lim/Makefile
-  src/lsf/pim/Makefile
 ])
 
 dnl ---- LSBATCH module ----

@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -27,8 +28,7 @@ static __thread char ctime2_buf[LL_BUFSIZ_64];
  *   - no trailing '\n'
  *   - returns pointer to static buffer (like ctime)
  */
-const char *
-ctime2(const time_t *tp)
+const char *ctime2(const time_t *tp)
 {
     if (!tp) {
         lserrno = LSE_BAD_TIME;
@@ -58,7 +58,7 @@ const char *ctime3(const time_t *t)
     }
 
     struct tm tm;
-    if (! localtime_r(t, &tm)) {
+    if (!localtime_r(t, &tm)) {
         lserrno = LSE_BAD_TIME;
         return "";
     }
@@ -71,32 +71,31 @@ const char *ctime3(const time_t *t)
 
 /* Bug. Various miscellaneus functions more or less useful but mostly bogus
  * ready for removal as we have ctypes and string headers for the functionality.
-*/
+ */
 
-#define BADCH   ":"
+#define BADCH ":"
 
 extern int optind;
 extern char *optarg;
-extern int  opterr;
-extern int  optopt;
+extern int opterr;
+extern int optopt;
 
-#define PRINT_ERRMSG(errMsg, fmt, msg1, msg2)   \
-{                                           \
-    if (errMsg == NULL)                     \
-    fprintf(stderr, fmt, msg1, msg2);   \
-    else                                    \
-    sprintf(*errMsg, fmt, msg1, msg2);  \
-}
+#define PRINT_ERRMSG(errMsg, fmt, msg1, msg2)                                  \
+    {                                                                          \
+        if (errMsg == NULL)                                                    \
+            fprintf(stderr, fmt, msg1, msg2);                                  \
+        else                                                                   \
+            sprintf(*errMsg, fmt, msg1, msg2);                                 \
+    }
 
 struct LSFAdmins {
-    int     numAdmins;
-    char    **names;
+    int numAdmins;
+    char **names;
 } LSFAdmins;
 
 bool_t isLSFAdmin(const char *);
 
-char
-isanumber_(char *word)
+char isanumber_(char *word)
 {
     char **eptr;
     double number;
@@ -108,16 +107,14 @@ isanumber_(char *word)
         errno = 0;
 
     eptr = &word;
-    number = strtod (word, eptr);
-    if (**eptr == '\0' &&  errno != ERANGE)
+    number = strtod(word, eptr);
+    if (**eptr == '\0' && errno != ERANGE)
         if (number <= FLT_MAX && number > -FLT_MAX)
             return true;
     return false;
-
 }
 
-char
-islongint_(const char *word)
+char islongint_(const char *word)
 {
     long long int number;
 
@@ -138,12 +135,11 @@ islongint_(const char *word)
     return false;
 }
 
-int
-isdigitstr_(const char *string)
+int isdigitstr_(const char *string)
 {
     int i;
 
-    for(i = 0; i < strlen(string); i++) {
+    for (i = 0; i < strlen(string); i++) {
         if (!isdigit(string[i])) {
             return false;
         }
@@ -151,8 +147,7 @@ isdigitstr_(const char *string)
     return true;
 }
 
-int64_t
-atoi64_(const char *word)
+int64_t atoi64_(const char *word)
 {
     int64_t number;
 
@@ -170,8 +165,7 @@ atoi64_(const char *word)
     return 0;
 }
 
-char
-isint_(char *word)
+char isint_(char *word)
 {
     char **eptr;
     int number;
@@ -182,17 +176,15 @@ isint_(char *word)
     if (errno == ERANGE)
         errno = 0;
     eptr = &word;
-    number = strtol (word, eptr, 10);
-    if (**eptr == '\0' &&  errno != ERANGE) {
+    number = strtol(word, eptr, 10);
+    if (**eptr == '\0' && errno != ERANGE) {
         if (number <= INFINIT_INT && number > -INFINIT_INT)
             return true;
     }
     return false;
-
 }
 
-char *
-putstr_(const char *s)
+char *putstr_(const char *s)
 {
     char *p;
 
@@ -200,7 +192,7 @@ putstr_(const char *s)
         s = "";
     }
 
-    p = malloc(strlen(s)+1);
+    p = malloc(strlen(s) + 1);
     if (!p)
         return NULL;
 
@@ -209,8 +201,7 @@ putstr_(const char *s)
     return p;
 }
 
-char *
-getNextToken(char **sp)
+char *getNextToken(char **sp)
 {
     static char word[MAXLINELEN];
     char *cp;
@@ -236,11 +227,9 @@ getNextToken(char **sp)
 
     *sp += strlen(word);
     return word;
-
 }
 
-int
-getValPair(char **resReq, int *val1, int *val2)
+int getValPair(char **resReq, int *val1, int *val2)
 {
     char *token, *cp, *wd1 = NULL, *wd2 = NULL;
     int len;
@@ -251,7 +240,7 @@ getValPair(char **resReq, int *val1, int *val2)
     token = getNextToken(resReq);
     if (!token)
         return 0;
-    len = strlen (token);
+    len = strlen(token);
     if (len == 0)
         return 0;
     cp = token;
@@ -279,10 +268,9 @@ getValPair(char **resReq, int *val1, int *val2)
     return 0;
 }
 
-char *
-my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
+char *my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
 {
-    char svstr [256];
+    char svstr[256];
     char *cp1 = svstr;
     char *cp2 = svstr;
     char *optName;
@@ -298,19 +286,18 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
     }
     if (ostr == NULL)
         return NULL;
-    strcpy (svstr, ostr);
+    strcpy(svstr, ostr);
     num_arg = 0;
     optarg = NULL;
 
     while (*cp2) {
         int cp2len = strlen(cp2);
-        for (i=0; i<cp2len; i++) {
+        for (i = 0; i < cp2len; i++) {
             if (cp2[i] == '|') {
                 num_arg = 0;
                 cp2[i] = '\0';
                 break;
-            }
-            else if (cp2[i] == ':') {
+            } else if (cp2[i] == ':') {
                 num_arg = 1;
                 cp2[i] = '\0';
                 break;
@@ -319,10 +306,12 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
         if (i >= cp2len)
             return BADCH;
 
-        if (!strcmp (optName, cp1)) {
+        if (!strcmp(optName, cp1)) {
             if (num_arg) {
                 if (nargc <= optind + 1) {
-                    PRINT_ERRMSG (errMsg, ("%s: option requires an argument -- %s\n"), nargv[0], optName);
+                    PRINT_ERRMSG(errMsg,
+                                 ("%s: option requires an argument -- %s\n"),
+                                 nargv[0], optName);
                     return BADCH;
                 }
                 optarg = nargv[++optind];
@@ -331,8 +320,9 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
             return optName;
         } else if (!strncmp(optName, cp1, strlen(cp1))) {
             if (num_arg == 0) {
-                PRINT_ERRMSG (errMsg, ("%s: option cannot have an argument -- %s\n"),
-                              nargv[0], cp1);
+                PRINT_ERRMSG(errMsg,
+                             ("%s: option cannot have an argument -- %s\n"),
+                             nargv[0], cp1);
                 return BADCH;
             }
 
@@ -344,32 +334,28 @@ my_getopt(int nargc, char **nargv, char *ostr, char **errMsg)
         cp1 = &cp2[i];
         cp2 = ++cp1;
     }
-    PRINT_ERRMSG (errMsg, ("%s: illegal option -- %s\n"), nargv[0], optName);
+    PRINT_ERRMSG(errMsg, ("%s: illegal option -- %s\n"), nargv[0], optName);
     return BADCH;
-
 }
 
 int putEnv(char *env, char *val)
 {
-
     char *buf;
 
     buf = malloc(strlen(env) + strlen(val) + 4);
     if (buf == NULL)
         return -1;
     sprintf(buf, "%s=%s", env, val);
-    return(putenv(buf));
+    return (putenv(buf));
 }
 
-void
-init_pack_hdr(struct packet_header *hdr)
+void init_pack_hdr(struct packet_header *hdr)
 {
     memset(hdr, 0, PACKET_HEADER_SIZE);
     hdr->version = CURRENT_PROTOCOL_VERSION;
 }
 
-void *
-myrealloc(void *ptr, size_t size)
+void *myrealloc(void *ptr, size_t size)
 {
     if (ptr == NULL) {
         return malloc(size);
@@ -378,46 +364,44 @@ myrealloc(void *ptr, size_t size)
     }
 }
 
-int
-Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
+int Bind_(int sockfd, struct sockaddr *myaddr, int addrlen)
 {
     struct sockaddr_in *cliaddr;
     ushort port;
     int i;
 
-    cliaddr = (struct sockaddr_in *)myaddr;
+    cliaddr = (struct sockaddr_in *) myaddr;
     if (cliaddr->sin_port != 0)
-        return(bind(sockfd, myaddr, addrlen));
+        return (bind(sockfd, myaddr, addrlen));
     else {
-        for (i = 1 ; i <= BIND_RETRY_TIMES; i++) {
-            if (bind(sockfd, (struct sockaddr *)cliaddr, addrlen) == 0)
+        for (i = 1; i <= BIND_RETRY_TIMES; i++) {
+            if (bind(sockfd, (struct sockaddr *) cliaddr, addrlen) == 0)
                 return 0;
             else {
                 if (errno == EADDRINUSE) {
                     if (i == 1) {
                         port = (ushort) (time(0) | getpid());
                         port = ((port < 1024) ? (port + 1024) : port);
-                    }
-                    else {
+                    } else {
                         port++;
                         port = ((port < 1024) ? (port + 1024) : port);
                     }
-                    ls_syslog(LOG_ERR,("%s: retry <%d> times, port <%d> will be bound" ),
+                    ls_syslog(LOG_ERR,
+                              ("%s: retry <%d> times, port <%d> will be bound"),
                               "Bind_", i, port);
                     cliaddr->sin_port = htons(port);
-                }
-                else
+                } else
                     return -1;
             }
         }
-        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "Bind_", "bind", BIND_RETRY_TIMES);
+        ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", "Bind_", "bind",
+                  BIND_RETRY_TIMES);
         return -1;
     }
 }
-int
-isMasterCrossPlatform(void)
+int isMasterCrossPlatform(void)
 {
-    static char fname[] ="isMasterCrossPlatform()";
+    static char fname[] = "isMasterCrossPlatform()";
     char masterName[MAXHOSTNAMELEN], masterType[MAXLSFNAMELEN];
     char localType[MAXLSFNAMELEN];
     char *sp;
@@ -438,14 +422,14 @@ isMasterCrossPlatform(void)
     }
     strcpy(masterType, sp);
 
-    if ((sp = ls_gethosttype(NULL)) == NULL ) {
+    if ((sp = ls_gethosttype(NULL)) == NULL) {
         ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "ls_gethosttype");
         return false;
     }
     strcpy(localType, sp);
 
-    if ((!strncasecmp(masterType, "NT", 2) && strncasecmp(localType, "NT", 2))
-        ||
+    if ((!strncasecmp(masterType, "NT", 2) &&
+         strncasecmp(localType, "NT", 2)) ||
         (!strncasecmp(localType, "NT", 2) && strncasecmp(masterType, "NT", 2)))
         crossPlatform = true;
     else
@@ -453,29 +437,25 @@ isMasterCrossPlatform(void)
 
     return crossPlatform;
 }
-int
-isAllowCross(char *paramValue)
+int isAllowCross(char *paramValue)
 {
     int cross = true;
 
-    if (paramValue != NULL &&
-        !strcasecmp(paramValue, "NO"))
+    if (paramValue != NULL && !strcasecmp(paramValue, "NO"))
         cross = false;
 
     return cross;
 }
 
-const char*
-getCmdPathName_(const char *cmdStr, int* cmdLen)
+const char *getCmdPathName_(const char *cmdStr, int *cmdLen)
 {
-    char* pRealCmd;
-    char* sp1;
-    char* sp2;
+    char *pRealCmd;
+    char *sp1;
+    char *sp2;
 
-    for (pRealCmd = (char*)cmdStr; *pRealCmd == ' '
-         || *pRealCmd == '\t'
-         || *pRealCmd == '\n'
-         ; pRealCmd++);
+    for (pRealCmd = (char *) cmdStr;
+         *pRealCmd == ' ' || *pRealCmd == '\t' || *pRealCmd == '\n'; pRealCmd++)
+        ;
 
     if (pRealCmd[0] == '\'' || pRealCmd[0] == '"') {
         sp1 = &pRealCmd[1];
@@ -485,9 +465,8 @@ getCmdPathName_(const char *cmdStr, int* cmdLen)
 
         sp1 = pRealCmd;
         for (i = 0; sp1[i] != '\0'; i++) {
-            if (sp1[i] == ';' || sp1[i] == ' ' ||
-                sp1[i] == '&' || sp1[i] == '>' ||
-                sp1[i] == '<' || sp1[i] == '|' ||
+            if (sp1[i] == ';' || sp1[i] == ' ' || sp1[i] == '&' ||
+                sp1[i] == '>' || sp1[i] == '<' || sp1[i] == '|' ||
                 sp1[i] == '\t' || sp1[i] == '\n')
                 break;
         }
@@ -503,16 +482,15 @@ getCmdPathName_(const char *cmdStr, int* cmdLen)
     return sp1;
 }
 
-int
-replace1stCmd_(const char* oldCmdArgs, const char* newCmdArgs,
-               char* outCmdArgs, int outLen)
+int replace1stCmd_(const char *oldCmdArgs, const char *newCmdArgs,
+                   char *outCmdArgs, int outLen)
 {
     const char *sp1;
     const char *sp2;
     int len2;
     const char *sp3;
     char *curSp;
-    const char* newSp;
+    const char *newSp;
     int newLen;
     int len;
 
@@ -532,8 +510,7 @@ replace1stCmd_(const char* oldCmdArgs, const char* newCmdArgs,
     return 0;
 }
 
-const char*
-getLowestDir_(const char* filePath)
+const char *getLowestDir_(const char *filePath)
 {
     static char dirName[MAXFILENAMELEN];
     const char *sp1, *sp2;
@@ -547,9 +524,9 @@ getLowestDir_(const char* filePath)
     if (sp2 == NULL) {
         sp2 = filePath;
     }
-    len = (sp2 > sp1) ? sp2-filePath : sp1-filePath;
+    len = (sp2 > sp1) ? sp2 - filePath : sp1 - filePath;
 
-    if(len) {
+    if (len) {
         memcpy(dirName, filePath, len);
         dirName[len] = 0;
     } else {
@@ -559,10 +536,9 @@ getLowestDir_(const char* filePath)
     return dirName;
 }
 
-void
-getLSFAdmins_(void)
+void getLSFAdmins_(void)
 {
-    struct clusterInfo    *clusterInfo;
+    struct clusterInfo *clusterInfo;
     int i;
 
     clusterInfo = ls_clusterinfo(NULL, NULL, NULL, 0, 0);
@@ -582,12 +558,12 @@ getLSFAdmins_(void)
         return;
     }
 
-    for (i = 0; i < LSFAdmins.numAdmins; i ++) {
+    for (i = 0; i < LSFAdmins.numAdmins; i++) {
         LSFAdmins.names[i] = putstr_(clusterInfo->admins[i]);
         if (LSFAdmins.names[i] == NULL) {
             int j;
 
-            for (j = 0; j < i; j ++) {
+            for (j = 0; j < i; j++) {
                 FREEUP(LSFAdmins.names[j]);
             }
             FREEUP(LSFAdmins.names);
@@ -598,10 +574,9 @@ getLSFAdmins_(void)
     }
 }
 
-bool_t
-isLSFAdmin_(const char *name)
+bool_t isLSFAdmin_(const char *name)
 {
-    int    i;
+    int i;
 
     for (i = 0; i < LSFAdmins.numAdmins; i++) {
         if (strcmp(name, LSFAdmins.names[i]) == 0) {
@@ -610,11 +585,9 @@ isLSFAdmin_(const char *name)
     }
 
     return false;
-
 }
 
-int
-ls_strcat(char *trustedBuffer, int bufferLength, char *strToAdd)
+int ls_strcat(char *trustedBuffer, int bufferLength, char *strToAdd)
 {
     int start = strlen(trustedBuffer);
     int remainder = bufferLength - start;
@@ -624,21 +597,20 @@ ls_strcat(char *trustedBuffer, int bufferLength, char *strToAdd)
         return -1;
     }
 
-    for(i = 0; i < remainder; i++) {
-        trustedBuffer[start+i] = strToAdd[i];
-        if (strToAdd[i] == '\0' ) {
+    for (i = 0; i < remainder; i++) {
+        trustedBuffer[start + i] = strToAdd[i];
+        if (strToAdd[i] == '\0') {
             break;
         }
     }
     if (i == remainder) {
-        trustedBuffer[bufferLength-1] = '\0';
+        trustedBuffer[bufferLength - 1] = '\0';
         return -1;
     }
     return 0;
 }
 
-int
-get_uid(const char *user, uid_t *uid)
+int get_uid(const char *user, uid_t *uid)
 {
     struct passwd *pwd;
 
@@ -654,8 +626,7 @@ get_uid(const char *user, uid_t *uid)
     return LSE_NO_ERR;
 }
 
-struct passwd *
-getpwuid2(uid_t uid)
+struct passwd *getpwuid2(uid_t uid)
 {
     // 1K seams a lot but sysconf(_SC_GETPW_R_SIZE_MAX) returns it
     static __thread char buf[LL_BUFSIZ_1K];
@@ -671,16 +642,15 @@ getpwuid2(uid_t uid)
     return NULL;
 }
 
-struct passwd *
-getpwnam2(const char *name)
+struct passwd *getpwnam2(const char *name)
 {
     // 1K seams a lot but sysconf(_SC_GETPW_R_SIZE_MAX) returns it
     static __thread char buf[LL_BUFSIZ_1K];
     static __thread struct passwd pwd;
     struct passwd *result = NULL;
 
-    if (getpwnam_r(name, &pwd, buf, sizeof(buf), &result) == 0
-        && result != NULL) {
+    if (getpwnam_r(name, &pwd, buf, sizeof(buf), &result) == 0 &&
+        result != NULL) {
         return result;
     }
     return NULL;

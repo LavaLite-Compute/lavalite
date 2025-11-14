@@ -12,22 +12,22 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/cmd/cmd.h"
 
-extern int bsignal (int, char **);
+extern int bsignal(int, char **);
 extern int _lsb_recvtimeout;
 
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
     _lsb_recvtimeout = 30;
 
     if (bsignal(argc, argv) == 0) {
-	exit(-1);
+        exit(-1);
     }
     exit(0);
 }

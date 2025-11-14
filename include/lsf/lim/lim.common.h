@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -24,8 +25,8 @@ extern struct limLock limLock;
 
 void sendLoad(void);
 
-int  maxnLbHost;
-int  ncpus=1;
+int maxnLbHost;
+int ncpus = 1;
 
 float cpu_usage = 0.0;
 #ifdef MEAS
