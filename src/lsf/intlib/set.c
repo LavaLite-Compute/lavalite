@@ -17,11 +17,7 @@
  *
  */
 
-#include <stdlib.h>
 #include "lsf/intlib/llsys.h"
-
-#define false	0
-#define true	1
 
 void listSetFree( struct listSet *);
 struct listSet * listSetAlloc(int);

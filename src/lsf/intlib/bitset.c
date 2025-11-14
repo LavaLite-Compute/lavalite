@@ -716,7 +716,6 @@ LS_BITSET_OBSERVER_T *
 setObserverCreate(char *name, void *extra, LS_BITSET_ENTRY_SELECT_OP_T select,
                   ...)
 {
-    static char                          fname[] = "setObserverCreate";
     LS_BITSET_OBSERVER_T                 *observer;
     LS_BITSET_EVENT_TYPE_T               etype;
     LS_BITSET_EVENT_CALLBACK_FUNC_T      callback;

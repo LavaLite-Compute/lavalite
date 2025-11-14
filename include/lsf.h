@@ -32,6 +32,8 @@
 // VP-level engineer or not, we all leave a little time capsule
 // of “WTF” behind.
 
+// Nice, time to let the robot chew through the fossils
+
 // System headers
 #include <stdio.h>
 #include <string.h>
