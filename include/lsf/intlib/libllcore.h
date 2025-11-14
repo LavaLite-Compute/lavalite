@@ -3,9 +3,7 @@
  *  Copyright (C) LavaLite Contributors
  */
 
-/* Private module umbrella: fine to include config.h here because it is NOT
- * installed.
- */
+// Automake generated
 #include "config.h"
 
 /* System headers needed by multiple intlib .c files
@@ -48,12 +46,4 @@
 // data structure defintions for now
 #include "lsf/intlib/jidx.h"
 #include "lsf/intlib/tcl_stub.h"
-/* A maze... include list.h before bitset.h
-#include "lsf/intlib/list.h"
-#include "lsf/intlib/bitset.h"
-#include "lsf/intlib/resreq.h"
-#include "lsf/intlib/intlibout.h"
-#include "lsf/intlib/listset.h"
-#include "lsf/intlib/tokdefs.h"
- */
 void daemonize_(void);

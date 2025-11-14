@@ -63,7 +63,6 @@ static int              replay_logSwitch(char *, int);
 static int              replay_jobattrset(char *, int );
 
 static int replay_logSwitch(char *, int);
-extern bool_t memberOfVacateList(struct lsQueueEntry *, struct lsQueue *);
 
 static void             logFinishedjob(struct jData *);
 static void             log_loadIndex(void);

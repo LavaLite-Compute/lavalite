@@ -45,15 +45,3 @@ _Static_assert(sizeof(struct packet_header) == 20,
 // The procol buffers are marshaled use xdr
 // Use these macros to compute the right size of
 // the xdr buffer for its alignment ob 4 bytes boundary
-
-// Pad the n onject possible strlen(str)
-#define XDR_PADLEN(n)   (((4 - ((n) % 4)) % 4))
-#define XDR_STRLEN(n)   (4 + (n) + XDR_PADLEN(n))
-
-// The XDR stream, the data structure, the context and the
-// encode/decode function
-bool_t xdr_array_element(XDR *, void *, void *, bool_t (*)());
-
-// This is the type of the encode/decode function
-typedef bool_t (*xdr_func_t)(XDR *, void *, void*);
-

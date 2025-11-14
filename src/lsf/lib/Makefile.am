@@ -28,10 +28,8 @@ libll_a_SOURCES = lib.channel.c \
 	lib.load.c \
 	lib.lsf.c \
 	lib.misc.c \
-	lib.pim.c \
 	lib.place.c \
 	lib.priority.c \
-	lib.queue.c \
 	lib.rdwr.c \
 	lib.sig.c \
 	lib.syslog.c \

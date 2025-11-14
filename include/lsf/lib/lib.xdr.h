@@ -18,6 +18,17 @@
  *
  */
 
+// Pad the n onject possible strlen(str)
+#define XDR_PADLEN(n)   (((4 - ((n) % 4)) % 4))
+#define XDR_STRLEN(n)   (4 + (n) + XDR_PADLEN(n))
+
+// The XDR stream, the data structure, the context and the
+// encode/decode function
+bool_t xdr_array_element(XDR *, void *, void *, bool_t (*)());
+
+// This is the type of the encode/decode function
+typedef bool_t (*xdr_func_t)(XDR *, void *, void*);
+
 // Generic XDR functions used throught the system libraries
 bool_t xdr_time_t (XDR *, time_t *);
 bool_t xdr_lsfRusage(XDR *, struct lsfRusage *, void *);

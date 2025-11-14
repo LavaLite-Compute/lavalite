@@ -597,7 +597,6 @@ processClient(struct mbd_client_node *client, int *needFree)
     struct packet_header reqHdr;
     XDR xdrs;
     int statusReqCC = 0;
-    int hostOkFlag = 0;
 
     memset(&auth, 0, sizeof(auth));
     s = client->chanfd;
@@ -629,18 +628,13 @@ processClient(struct mbd_client_node *client, int *needFree)
                   sockAdd2Str_(&from), s);
     }
 
-    if( hostIsLocal(client->fromHost) ) {
-        hostOkFlag = hostOk(client->fromHost, LOCAL_ONLY);
-    } else {
-        hostOkFlag = hostOk(client->fromHost, 0);
-    }
+    // Bug write a function
+    bool_t ok = 1;
 
-    switch (hostOkFlag) {
+    switch (ok) {
     case -1:
-
         ls_syslog(LOG_WARNING, "%s: Request from non-LSF host <%s>",
-                  fname,
-                  sockAdd2Str_(&from));
+                  __func__, sockAdd2Str_(&from));
         errorBack(s, LSBE_NOLSF_HOST, &from);
         goto endLoop;
     default:

@@ -1,3 +1,4 @@
+#pragma once
 /* $Id: lib.table.h,v 1.2 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  *

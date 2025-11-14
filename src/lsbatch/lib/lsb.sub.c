@@ -207,11 +207,6 @@ lsb_submit(struct submit  *jobSubReq, struct submitReply *submitRep)
     if (getCommonParams (jobSubReq, &submitReq, submitRep) < 0)
         return -1;
 
-#ifdef INTER_DAEMON_AUTH
-
-    putEnv("LSF_EAUTH_AUX_PASS", "yes");
-#endif
-
     if ( (lsbParams[LSB_INTERACTIVE_STDERR].paramValue != NULL)
             && (strcasecmp(lsbParams[LSB_INTERACTIVE_STDERR].paramValue,
                     "y") == 0) ) {

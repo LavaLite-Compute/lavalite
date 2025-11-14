@@ -17,7 +17,6 @@
  *
  */
 #include "lsf/lib/lib.h"
-#include "lsf/lib/lib.words.h"
 
 char *
 getNextLine_(FILE *fp, int confFormat)

@@ -196,11 +196,15 @@ xdr_stringLen(XDR *xdrs, struct stringLen *str, struct packet_header *Hdr)
 bool_t
 xdr_lsfLimit (XDR *xdrs, struct lsfLimit *limits, struct packet_header *hdr)
 {
-    if (!(xdr_u_int(xdrs, (unsigned int*)&limits->rlim_curl) &&
-          xdr_u_int(xdrs, (unsigned int*)&limits->rlim_curh) &&
-          xdr_u_int(xdrs, (unsigned int*)&limits->rlim_maxl) &&
-          xdr_u_int(xdrs, (unsigned int*)&limits->rlim_maxh)))
+    if ( !xdr_int(xdrs, &limits->rlim_curl))
         return false;
+    if (! xdr_int(xdrs, &limits->rlim_curh))
+        return false;
+    if (! xdr_int(xdrs, &limits->rlim_maxl))
+        return false;
+    if (! xdr_int(xdrs, &limits->rlim_maxh))
+        return false;
+
     return true;
 }
 
