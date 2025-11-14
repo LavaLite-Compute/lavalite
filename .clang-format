@@ -1,0 +1,42 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+IndentCaseLabels: false
+
+# ------ Brace style ------
+BreakBeforeBraces: Linux
+# Linux style = exactly:
+# int f()
+# {
+# }
+
+AllowShortIfStatementsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortLoopsOnASingleLine: false
+
+# ------ Whitespace ------
+RemoveTrailingWhitespace: true
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+
+# ------ Includes ------
+SortIncludes: true
+IncludeBlocks: Preserve
+
+# ------ Columns ------
+ColumnLimit: 100
+
+# ------ Comments ------
+ReflowComments: true
+CommentPragmas: '^ IWYU pragma:'
+
+# ------ Misc ------
+DerivePointerAlignment: false
+PointerAlignment: Right
+KeepEmptyLinesAtTheStartOfBlocks: false
+UseCRLF: false
+FixNamespaceComments: false
