@@ -494,7 +494,7 @@ ls_syslog(int priority, const char *format, ...)
 #endif
 
 void
-open_log(const char *ident, const char *mask, bool debug)
+open_log(const char *ident, const char *mask, bool_t debug)
 {
     int lmask = get_log_mask(mask);
 

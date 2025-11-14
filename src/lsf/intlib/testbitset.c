@@ -20,7 +20,7 @@
 
 #include<stdio.h>
 #include"lsf.h"
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/llsys.h"
 
 static void test_1(void);
 static void test_2(void);

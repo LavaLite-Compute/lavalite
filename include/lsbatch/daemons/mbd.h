@@ -849,7 +849,7 @@ struct mbd_manager {
     char *name;
 };
 extern struct mbd_manager *mbd_mgr;
-extern bool is_manager(const char *);
+extern bool_t is_manager(const char *);
 
 #define CONF_COND 0x001
 
@@ -902,7 +902,7 @@ extern struct gData           *usergroups[];
 extern struct gData           *hostgroups[];
 extern struct profileCounters counters[];
 extern char                   errstr[];
-extern bool                   mbd_debug;
+extern bool_t                   mbd_debug;
 extern int                    errno;
 extern int                    nextId;
 extern int            numRemoteJobsInList;

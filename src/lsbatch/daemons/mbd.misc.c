@@ -1260,7 +1260,7 @@ mbdDie (int sig)
     die(sig);
 }
 
-bool
+bool_t
 is_manager(const char *user)
 {
     // Bug better way?

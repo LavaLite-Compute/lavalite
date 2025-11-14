@@ -1,4 +1,3 @@
-#pragma once
 /* $Id: lsf.h,v 1.18 2007/08/15 22:18:49 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -17,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
+#pragma once
 
 // Accept what the hardware gives you
 // make it fast, make it clear, make it stop
@@ -51,7 +51,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <dirent.h>
-#include <stdbool.h>
 #include <math.h>
 #include <float.h>
 #include <poll.h>
@@ -72,6 +71,7 @@
 
 // LavaLite
 #include "ll_user_limits.h"
+#include "ll_types.h"
 
 // Define 64 bit types
 typedef int64_t LS_LONG_INT;
@@ -695,7 +695,7 @@ const char *ctime2(const time_t *);
 const char *ctime3(const time_t *);
 struct passwd *getpwuid2(uid_t);
 struct passwd *getpwnam2(const char *);
-void open_log(const char *, const char *, bool);
+void open_log(const char *, const char *, bool_t);
 
 // Bug rethink this
 struct extResInfo {

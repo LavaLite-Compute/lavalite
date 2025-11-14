@@ -44,7 +44,7 @@ struct limLock limLock;
 char   myClusterName[MAXLSFNAMELEN];
 u_int  loadVecSeqNo=0;
 u_int  masterAnnSeqNo=0;
-bool lim_debug = false;
+bool_t lim_debug = false;
 int lim_CheckMode = 0;
 int lim_CheckError = 0;
 char *env_dir = NULL;

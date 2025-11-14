@@ -23,7 +23,7 @@
 
 char errbuf[MAXLINELEN];
 
-bool mbd_debug = 0;
+bool_t mbd_debug = 0;
 int lsb_CheckMode = 0;
 int lsb_CheckError = 0;
 

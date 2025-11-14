@@ -16,7 +16,7 @@
  *
  */
 
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/llsys.h"
 #include "lsf/intlib/listset.h"
 
 #define false	0

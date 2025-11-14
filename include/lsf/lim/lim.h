@@ -29,7 +29,6 @@
 #include <time.h>
 #include <math.h>
 #include <float.h>
-#include <stdbool.h>
 #include <signal.h>
 #include <pwd.h>
 #include <utmp.h>
@@ -50,7 +49,7 @@
 
 #include "lsf.h"
 #include "lsf/lib/lib.h"
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/llsys.h"
 #include "lsf/intlib/intlibout.h"
 #include "lsf/intlib/tcl_stub.h"
 #include "lsf/lib/lib.channel.h"
@@ -351,7 +350,7 @@ extern struct sharedResourceInstance *sharedResourceHead ;
 
 extern int getpagesize(void);
 
-extern bool lim_debug;
+extern bool_t lim_debug;
 extern int lim_CheckMode;
 extern int lim_CheckError;
 extern int lim_udp_sock;

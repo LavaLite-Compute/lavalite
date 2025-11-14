@@ -43,7 +43,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <dirent.h>
-#include <stdbool.h>
 #include <math.h>
 #include <float.h>
 #include <poll.h>

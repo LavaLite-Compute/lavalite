@@ -21,7 +21,7 @@
 // Clarity over cleverness; minimal code, maximal intent
 
 // Protocol function
-static bool marshal_packet_header(XDR *xdrs,
+static bool_t marshal_packet_header(XDR *xdrs,
                                   struct packet_header *header);
 
 bool_t
@@ -47,7 +47,7 @@ xdr_pack_hdr(XDR *xdrs, struct packet_header *header)
     return true;
 }
 
-static bool
+static bool_t
 marshal_packet_header(XDR *xdrs,
                       struct packet_header *header)
 {
