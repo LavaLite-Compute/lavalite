@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-int
-lsb_hostcontrol(char *host, int operation)
+int lsb_hostcontrol(char *host, int operation)
 {
     XDR xdrs;
     char request_buf[MSGSIZE];
@@ -31,7 +31,7 @@ lsb_hostcontrol(char *host, int operation)
     struct lsfAuth auth;
 
     if (hostControlReq.name == NULL) {
-        hostControlReq.name = (char *) malloc (MAXHOSTNAMELEN);
+        hostControlReq.name = (char *) malloc(MAXHOSTNAMELEN);
         if (hostControlReq.name == NULL) {
             lsberrno = LSBE_NO_MEM;
             return -1;
@@ -43,7 +43,7 @@ lsb_hostcontrol(char *host, int operation)
         return -1;
     }
     if (host)
-        if (strlen (host) >= MAXHOSTNAMELEN - 1) {
+        if (strlen(host) >= MAXHOSTNAMELEN - 1) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
@@ -79,22 +79,19 @@ lsb_hostcontrol(char *host, int operation)
 
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&xdrs, (char*) &hostControlReq, &hdr,
-                       xdr_controlReq, 0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &hostControlReq, &hdr, xdr_controlReq, 0,
+                       &auth)) {
         lsberrno = LSBE_XDR;
         return -1;
     }
 
     if (operation == HOST_REBOOT || operation == HOST_SHUTDOWN) {
-
         if ((cc = cmdCallSBD_(hostControlReq.name, request_buf,
-                              XDR_GETPOS(&xdrs), &reply_buf,
-                              &hdr, NULL)) == -1)
+                              XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL)) == -1)
             return -1;
     } else {
-
-        if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                           &hdr, NULL, NULL, NULL)) == -1)
+        if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
+                          &hdr, NULL, NULL, NULL)) == -1)
             return -1;
     }
 
@@ -105,5 +102,4 @@ lsb_hostcontrol(char *host, int operation)
         return 0;
     else
         return -1;
-
 }

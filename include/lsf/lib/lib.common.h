@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -43,7 +44,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <dirent.h>
-#include <stdbool.h>
 #include <math.h>
 #include <float.h>
 #include <poll.h>
@@ -68,7 +68,7 @@
 #define MSGSIZE BUFSIZ
 
 /* Public API headers
-*/
+ */
 #include "lsf.h"
 
 /* Some defines from the lava config.h which was manually
@@ -84,15 +84,15 @@
 #define RES_PORT 36002
 #define closesocket close
 #define CLOSESOCKET(s) close((s))
-#define SOCK_CALL_FAIL(c) ((c) < 0 )
-#define SOCK_INVALID(c) ((c) < 0 )
+#define SOCK_CALL_FAIL(c) ((c) < 0)
+#define SOCK_INVALID(c) ((c) < 0)
 #define CLOSEHANDLE close
 /* Bug. Garbage defines....
  */
-#define SOCK_READ_FIX  b_read_fix
+#define SOCK_READ_FIX b_read_fix
 #define SOCK_WRITE_FIX b_write_fix
-#define NB_SOCK_READ_FIX   nb_read_fix
-#define NB_SOCK_WRITE_FIX  nb_write_fix
+#define NB_SOCK_READ_FIX nb_read_fix
+#define NB_SOCK_WRITE_FIX nb_write_fix
 #define LSF_NSIG NSIG
 
 extern void Signal_(int, void (*f)(int));
@@ -100,29 +100,28 @@ extern char *get_username(void);
 
 // Lavalite
 
-#define LS_EMERG(fmt, ...)           \
+#define LS_EMERG(fmt, ...)                                                     \
     ls_syslog(LOG_EMERG, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_ALERT(fmt, ...) \
+#define LS_ALERT(fmt, ...)                                                     \
     ls_syslog(LOG_ALERT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_CRIT(fmt, ...) \
+#define LS_CRIT(fmt, ...)                                                      \
     ls_syslog(LOG_CRIT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_ERR(fmt, ...) \
+#define LS_ERR(fmt, ...)                                                       \
     ls_syslog(LOG_ERR, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_WARNING(fmt, ...) \
+#define LS_WARNING(fmt, ...)                                                   \
     ls_syslog(LOG_WARNING, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_NOTICE(fmt, ...) \
+#define LS_NOTICE(fmt, ...)                                                    \
     ls_syslog(LOG_NOTICE, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_INFO(fmt, ...) \
+#define LS_INFO(fmt, ...)                                                      \
     ls_syslog(LOG_INFO, "%s: " fmt, __func__, ##__VA_ARGS__)
 
-#define LS_DEBUG(fmt, ...) \
+#define LS_DEBUG(fmt, ...)                                                     \
     ls_syslog(LOG_DEBUG, "%s: " fmt, __func__, ##__VA_ARGS__)
-
 
 #endif /* _LIB_H_ */

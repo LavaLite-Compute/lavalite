@@ -13,36 +13,35 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 
-#define IO_TIMEOUT  2000 // milliseconds
+#define IO_TIMEOUT 2000 // milliseconds
 
 /* Time difference in microseconds
-*/
-static inline int64_t
-timespec_diff(struct timespec *a, struct timespec *b)
+ */
+static inline int64_t timespec_diff(struct timespec *a, struct timespec *b)
 {
-    return (int64_t)(a->tv_sec - b->tv_sec) * 1000000LL
-        + (int64_t)(a->tv_nsec - b->tv_nsec) / 1000LL;
+    return (int64_t) (a->tv_sec - b->tv_sec) * 1000000LL +
+           (int64_t) (a->tv_nsec - b->tv_nsec) / 1000LL;
 }
 
 /* Non blocking read fix
-*/
-ssize_t
-nb_read_fix(int s, void *vbuf, size_t len)
+ */
+ssize_t nb_read_fix(int s, void *vbuf, size_t len)
 {
-    if (len > (size_t)SSIZE_MAX) {
+    if (len > (size_t) SSIZE_MAX) {
         errno = EOVERFLOW;
         return -1;
     }
     if (len == 0)
         return 0;
 
-    unsigned char *p = (unsigned char *)vbuf;
+    unsigned char *p = (unsigned char *) vbuf;
     size_t remaining = len;
 
     struct timespec start;
@@ -53,8 +52,8 @@ nb_read_fix(int s, void *vbuf, size_t len)
         // Do read
         ssize_t cc = read(s, p, remaining);
         if (cc > 0) {
-            p += (size_t)cc;
-            remaining -= (size_t)cc;
+            p += (size_t) cc;
+            remaining -= (size_t) cc;
             // we could consider reset the timeout every time
             // we read some bytes.
             //  clock_gettime(CLOCK_MONOTONIC, &start);
@@ -66,18 +65,18 @@ nb_read_fix(int s, void *vbuf, size_t len)
         }
 
         /* Here we got  cc < 0
-        */
+         */
         assert(cc < 0);
         if (errno == EINTR)
             continue;
 
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             clock_gettime(CLOCK_MONOTONIC, &now);
-            if (timespec_diff(&now, &start) > (int64_t)IO_TIMEOUT * 1000LL) {
+            if (timespec_diff(&now, &start) > (int64_t) IO_TIMEOUT * 1000LL) {
                 errno = ETIMEDOUT;
                 return -1;
             }
-            int slice = IO_TIMEOUT / 20;      // small backoff
+            int slice = IO_TIMEOUT / 20; // small backoff
             if (slice < 1)
                 slice = 1;
             millisleep_(slice);
@@ -87,14 +86,13 @@ nb_read_fix(int s, void *vbuf, size_t len)
         return -1; // other error; errno preserved
     }
 
-    return (ssize_t)len;  // success: exactly len bytes read
+    return (ssize_t) len; // success: exactly len bytes read
 }
 
 // Modern version using clock_gettime() instead of gettimeofday()
-ssize_t
-nb_write_fix(int fd, const void *buf, size_t len)
+ssize_t nb_write_fix(int fd, const void *buf, size_t len)
 {
-    unsigned const char *buffer = (unsigned const char *)buf;
+    unsigned const char *buffer = (unsigned const char *) buf;
     size_t remaining = len;
     size_t total_written = 0;
     struct timespec start_time;
@@ -127,12 +125,12 @@ nb_write_fix(int fd, const void *buf, size_t len)
 
             // Real error occurred
             if (errno == EPIPE) {
-                lserrno = LSE_LOSTCON;  // Assuming this is still needed
+                lserrno = LSE_LOSTCON; // Assuming this is still needed
             }
             return -1;
         }
 
-check_timeout:
+    check_timeout:
         // This could be a compound statement in {}
         if (clock_gettime(CLOCK_MONOTONIC, &current_time) != 0) {
             return -1;
@@ -146,23 +144,22 @@ check_timeout:
         // Sleep briefly to avoid busy-waiting
         struct timespec sleep_time = {
             .tv_sec = 0,
-            .tv_nsec = (IO_TIMEOUT * 1000000LL) / 20  // nanoseconds
+            .tv_nsec = (IO_TIMEOUT * 1000000LL) / 20 // nanoseconds
         };
         nanosleep(&sleep_time, NULL);
     } // while ()
 
-    return (ssize_t)total_written;
+    return (ssize_t) total_written;
 }
 
 /* blocking read fixed amount of bytes
-*/
-ssize_t
-b_read_fix(int s, void *vbuf, size_t len)
+ */
+ssize_t b_read_fix(int s, void *vbuf, size_t len)
 {
     size_t total = 0;
     unsigned char *buf = vbuf;
 
-    if (len > (size_t)SSIZE_MAX) {
+    if (len > (size_t) SSIZE_MAX) {
         errno = EOVERFLOW;
         return -1;
     }
@@ -171,8 +168,8 @@ b_read_fix(int s, void *vbuf, size_t len)
         ssize_t cc = read(s, buf, len);
 
         if (cc > 0) {
-            buf += (size_t)cc;
-            len -= (size_t)cc;
+            buf += (size_t) cc;
+            len -= (size_t) cc;
             total += cc;
             continue;
         }
@@ -189,16 +186,15 @@ b_read_fix(int s, void *vbuf, size_t len)
         return -1;
     }
 
-    return (ssize_t)total;
+    return (ssize_t) total;
 }
 
-ssize_t
-b_write_fix(int s, const void *vbuf, size_t len)
+ssize_t b_write_fix(int s, const void *vbuf, size_t len)
 {
     const unsigned char *buf = vbuf;
     size_t total = 0;
 
-    if (len > (size_t)SSIZE_MAX) {
+    if (len > (size_t) SSIZE_MAX) {
         errno = EOVERFLOW;
         return -1;
     }
@@ -208,8 +204,8 @@ b_write_fix(int s, const void *vbuf, size_t len)
         ssize_t cc = write(s, buf, len);
 
         if (cc > 0) {
-            buf += (size_t)cc;
-            len -= (size_t)cc;
+            buf += (size_t) cc;
+            len -= (size_t) cc;
             total += cc;
             continue;
         }
@@ -222,7 +218,7 @@ b_write_fix(int s, const void *vbuf, size_t len)
         return -1;
     }
 
-    return (ssize_t)total;
+    return (ssize_t) total;
 }
 
 void unblocksig(int sig)
@@ -231,7 +227,7 @@ void unblocksig(int sig)
     sigset_t oldMask;
 
     sigemptyset(&blockMask);
-    sigaddset(&blockMask,sig);
+    sigaddset(&blockMask, sig);
     sigprocmask(SIG_UNBLOCK, &blockMask, &oldMask);
 }
 
@@ -244,8 +240,8 @@ void unblocksig(int sig)
  * Use of early returns - Avoids nested conditions
  * Modern C idioms - Designated initializers for the pollfd struct
  */
-int
-b_connect_(int s, const struct sockaddr *name, socklen_t namelen, int timeout_sec)
+int b_connect_(int s, const struct sockaddr *name, socklen_t namelen,
+               int timeout_sec)
 {
     int flags = fcntl(s, F_GETFL, 0);
     if (flags < 0)
@@ -268,10 +264,7 @@ b_connect_(int s, const struct sockaddr *name, socklen_t namelen, int timeout_se
     }
 
     // Initialize poll data structure
-    struct pollfd pfd = {
-        .fd = s,
-        .events = POLLOUT
-    };
+    struct pollfd pfd = {.fd = s, .events = POLLOUT};
 
     rc = poll(&pfd, 1, timeout_sec * 1000);
     if (rc <= 0) {
@@ -301,8 +294,7 @@ b_connect_(int s, const struct sockaddr *name, socklen_t namelen, int timeout_se
 /* Legacy, problematic should we use more then 1024 descriptors
  * in some other select() this will fail.
  */
-int
-rd_select_(int rd, struct timeval *timeout)
+int rd_select_(int rd, struct timeval *timeout)
 {
     int cc;
     fd_set rmask;
@@ -311,7 +303,7 @@ rd_select_(int rd, struct timeval *timeout)
         FD_ZERO(&rmask);
         FD_SET(rd, &rmask);
 
-        cc = select(rd+1, &rmask, (fd_set *)0, (fd_set *)0, timeout);
+        cc = select(rd + 1, &rmask, (fd_set *) 0, (fd_set *) 0, timeout);
         if (cc >= 0)
             return cc;
 
@@ -319,19 +311,14 @@ rd_select_(int rd, struct timeval *timeout)
             continue;
         return -1;
     }
-
 }
 
 /* Modern C version of rd_select() recommended, replacing
  * rd_select_() in deamons with the poll version.
  */
-int
-rd_poll_(int rd, struct timeval *timeout)
+int rd_poll_(int rd, struct timeval *timeout)
 {
-    struct pollfd pfd = {
-        .fd = rd,
-        .events = POLLIN
-    };
+    struct pollfd pfd = {.fd = rd, .events = POLLIN};
 
     // Convert timeval to milliseconds
     int timeout_ms = -1;
@@ -357,8 +344,7 @@ rd_poll_(int rd, struct timeval *timeout)
  * Can interfere with other subsystems, especially in multi-threaded daemons.
  * Makes debugging and signal handling more complex.
  */
-int
-b_accept_(int s, struct sockaddr *addr, socklen_t *addrlen)
+int b_accept_(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
     int cc;
 
@@ -369,8 +355,7 @@ b_accept_(int s, struct sockaddr *addr, socklen_t *addrlen)
     return cc;
 }
 
-int
-blockSigs_(int sig, sigset_t *blockMask, sigset_t *oldMask)
+int blockSigs_(int sig, sigset_t *blockMask, sigset_t *oldMask)
 {
     sigfillset(blockMask);
 
@@ -389,23 +374,22 @@ blockSigs_(int sig, sigset_t *blockMask, sigset_t *oldMask)
     sigdelset(blockMask, SIGTERM);
 
     return sigprocmask(SIG_BLOCK, blockMask, oldMask);
-
 }
-ssize_t
-nb_read_timeout(int fd, void *buf, size_t len, int timeout_sec)
+ssize_t nb_read_timeout(int fd, void *buf, size_t len, int timeout_sec)
 {
-    unsigned char *buffer = (unsigned char *)buf;
+    unsigned char *buffer = (unsigned char *) buf;
     size_t remaining = len;
     size_t total_read = 0;
     int timeout_ms = timeout_sec * 1000;
 
     while (remaining > 0) {
-        struct pollfd pfd = { .fd = fd, .events = POLLIN };
+        struct pollfd pfd = {.fd = fd, .events = POLLIN};
         int poll_result = poll(&pfd, 1, timeout_ms);
 
         // Handle poll errors
         if (poll_result < 0) {
-            if (errno == EINTR) continue;  // Interrupted by signal, retry
+            if (errno == EINTR)
+                continue; // Interrupted by signal, retry
             lserrno = LSE_SELECT_SYS;
             return -1;
         }
@@ -434,13 +418,13 @@ nb_read_timeout(int fd, void *buf, size_t len, int timeout_sec)
 
         // Handle read errors (bytes_read < 0)
         if (errno == EINTR)
-            continue;  // Interrupted, retry
+            continue; // Interrupted, retry
         if (errno == EAGAIN || errno == EWOULDBLOCK)
-            continue;  // Would block, poll again
+            continue; // Would block, poll again
 
         // Real error occurred
         return -1;
     }
 
-    return (ssize_t)total_read;
+    return (ssize_t) total_read;
 }

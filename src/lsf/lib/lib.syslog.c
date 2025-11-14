@@ -13,15 +13,16 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ * USA
  *
  */
 #include "lsf/lib/lib.h"
 
-#define LSF_LOG_MASK          7
+#define LSF_LOG_MASK 7
 
-#define DEF_LOG_MASK   LOG_INFO
-#define DEF_LOG_MASK_NAME   "LOG_WARNING"
+#define DEF_LOG_MASK LOG_INFO
+#define DEF_LOG_MASK_NAME "LOG_WARNING"
 
 #ifndef HAS_VSNPRINTF
 #define HAS_VSNPRINTF
@@ -37,11 +38,10 @@ int timinglevel = 0;
 static char logfile[MAXPATHLEN];
 static char logident[10];
 static int logmask;
-static enum {LOGTO_SYS, LOGTO_FILE, LOGTO_STDERR} log_dest;
+static enum { LOGTO_SYS, LOGTO_FILE, LOGTO_STDERR } log_dest;
 static int openLogFile(const char *, char *);
 
-char *
-argvmsg_(int argc, char **argv)
+char *argvmsg_(int argc, char **argv)
 {
     static char avbuffer[128];
     register char *bp = avbuffer;
@@ -50,24 +50,24 @@ argvmsg_(int argc, char **argv)
 
     ap = argv[0];
     while ((i < argc) && (bp < (avbuffer + sizeof(avbuffer) - 1))) {
-        if (! *ap) {
-            i ++;
+        if (!*ap) {
+            i++;
             if ((i < argc) && ((ap = argv[i]) != NULL)) {
                 *bp = ' ';
-                bp ++;
+                bp++;
             }
         } else {
             *bp = *ap;
-            bp ++;
-            ap ++;
+            bp++;
+            ap++;
         }
     }
     *bp = '\0';
     return avbuffer;
 }
 
-void
-ls_openlog(const char *ident, const char *path, int use_stderr, char *logMask)
+void ls_openlog(const char *ident, const char *path, int use_stderr,
+                char *logMask)
 {
     char *msg = NULL;
 
@@ -82,7 +82,6 @@ ls_openlog(const char *ident, const char *path, int use_stderr, char *logMask)
     }
 
     if (path && *path) {
-
         char *myname;
         FILE *lfp;
         struct stat st;
@@ -106,7 +105,7 @@ ls_openlog(const char *ident, const char *path, int use_stderr, char *logMask)
                         if ((lfp = fopen(logfile, "a")) != NULL) {
                             fclose(lfp);
                             if (!strcmp(ident, "res") ||
-                                (logmask >= LOG_UPTO(LOG_DEBUG)  &&
+                                (logmask >= LOG_UPTO(LOG_DEBUG) &&
                                  logmask <= LOG_UPTO(LOG_DEBUG3)))
                                 chmod(logfile, 0666);
                             else
@@ -118,11 +117,10 @@ ls_openlog(const char *ident, const char *path, int use_stderr, char *logMask)
                         }
                     }
                 } else if (S_ISREG(st.st_mode) && st.st_nlink == 1) {
-
                     if ((lfp = fopen(logfile, "a")) != NULL) {
                         fclose(lfp);
                         if (!strcmp(ident, "res") ||
-                            (logmask >= LOG_UPTO(LOG_DEBUG)  &&
+                            (logmask >= LOG_UPTO(LOG_DEBUG) &&
                              logmask <= LOG_UPTO(LOG_DEBUG3)))
                             chmod(logfile, 0666);
                         else
@@ -135,7 +133,6 @@ ls_openlog(const char *ident, const char *path, int use_stderr, char *logMask)
                 }
             }
         } else if (S_ISREG(st.st_mode) && st.st_nlink == 1) {
-
             if (openLogFile(ident, myname) == 0) {
                 if (msg != NULL)
                     ls_syslog(LOG_ERR, "%s", msg);
@@ -155,17 +152,14 @@ syslog:
 
     if (msg != NULL)
         ls_syslog(LOG_ERR, "%s", msg);
-
 }
 
-static int
-openLogFile(const char *ident, char *myname)
+static int openLogFile(const char *ident, char *myname)
 {
     FILE *lfp;
     struct stat st;
 
     if ((lfp = fopen(logfile, "a")) == NULL) {
-
         sprintf(logfile, "%s/%s.log.%s", lsTmpDir_, ident, myname);
         if (lstat(logfile, &st) < 0) {
             if (errno == ENOENT) {
@@ -176,7 +170,6 @@ openLogFile(const char *ident, char *myname)
                 return -1;
             }
         } else if (S_ISREG(st.st_mode) && st.st_nlink == 1) {
-
             if ((lfp = fopen(logfile, "a")) == NULL) {
                 return -1;
             }
@@ -188,9 +181,8 @@ openLogFile(const char *ident, char *myname)
     if (lfp != NULL) {
         fclose(lfp);
 
-        if (!strcmp(ident, "res") ||
-            (logmask >= LOG_UPTO(LOG_DEBUG)  &&
-             logmask <= LOG_UPTO(LOG_DEBUG3))) {
+        if (!strcmp(ident, "res") || (logmask >= LOG_UPTO(LOG_DEBUG) &&
+                                      logmask <= LOG_UPTO(LOG_DEBUG3))) {
             chmod(logfile, 0666);
         } else {
             chmod(logfile, 0644);
@@ -201,26 +193,22 @@ openLogFile(const char *ident, char *myname)
     return -1;
 }
 
-void
-ls_syslog (int level, const char *fmt, ...)
+void ls_syslog(int level, const char *fmt, ...)
 {
     int save_errno = errno;
     va_list ap;
 
     static char lastMsg[16384];
-    static int  counter = 0;
+    static int counter = 0;
 
     va_start(ap, fmt);
 
     if (log_dest == LOGTO_STDERR) {
-
         if ((logmask & LOG_MASK(level)) != 0) {
-
             errno = save_errno;
             verrlog_(level, stderr, fmt, ap);
         }
     } else if (logfile[0]) {
-
         if ((logmask & LOG_MASK(level)) != 0) {
             FILE *lfp;
             struct stat st;
@@ -228,7 +216,6 @@ ls_syslog (int level, const char *fmt, ...)
             if (lstat(logfile, &st) < 0) {
                 if (errno == ENOENT) {
                     if ((lfp = fopen(logfile, "a")) == NULL) {
-
                         if (log_dest == LOGTO_FILE) {
                             log_dest = LOGTO_SYS;
                             openlog(logident, LOG_PID, LOG_DAEMON);
@@ -245,7 +232,6 @@ ls_syslog (int level, const char *fmt, ...)
                     goto use_syslog;
                 }
             } else if (!(S_ISREG(st.st_mode) && st.st_nlink == 1)) {
-
                 if (log_dest == LOGTO_FILE) {
                     log_dest = LOGTO_SYS;
                     openlog(logident, LOG_PID, LOG_DAEMON);
@@ -264,7 +250,6 @@ ls_syslog (int level, const char *fmt, ...)
             }
 
             if (log_dest == LOGTO_SYS) {
-
                 closelog();
                 log_dest = LOGTO_FILE;
             }
@@ -300,15 +285,13 @@ ls_syslog (int level, const char *fmt, ...)
     va_end(ap);
 }
 
-void
-ls_closelog(void)
+void ls_closelog(void)
 {
     if (log_dest == LOGTO_SYS)
         closelog();
 }
 
-int
-ls_setlogmask(int maskpri)
+int ls_setlogmask(int maskpri)
 {
     int oldmask = logmask;
 
@@ -317,8 +300,7 @@ ls_setlogmask(int maskpri)
     return oldmask;
 }
 
-int
-getLogMask(char **msg, char *logMask)
+int getLogMask(char **msg, char *logMask)
 {
     static char msgbuf[MAXLINELEN];
 
@@ -370,17 +352,15 @@ getLogMask(char **msg, char *logMask)
     if (strcmp(logMask, "LOG_DEBUG3") == 0)
         return (LOG_UPTO(LOG_DEBUG3));
 
-    sprintf(msgbuf, "Invalid log mask %s defined, default to %s",
-            logMask, DEF_LOG_MASK_NAME);
+    sprintf(msgbuf, "Invalid log mask %s defined, default to %s", logMask,
+            DEF_LOG_MASK_NAME);
 
     *msg = msgbuf;
 
     return (LOG_UPTO(DEF_LOG_MASK));
-
 }
 
-int
-getLogClass_ (char *lsp, char *tsp)
+int getLogClass_(char *lsp, char *tsp)
 {
     char *word;
     int class = 0;
@@ -392,47 +372,47 @@ getLogClass_ (char *lsp, char *tsp)
         timinglevel = atoi(tsp);
 
     while (lsp != NULL && (word = getNextWord_(&lsp))) {
-        if (strcmp (word, "LC_SCHED") == 0)
+        if (strcmp(word, "LC_SCHED") == 0)
             class |= LC_SCHED;
-        if (strcmp (word, "LC_PEND") == 0)
+        if (strcmp(word, "LC_PEND") == 0)
             class |= LC_PEND;
-        if (strcmp (word, "LC_JLIMIT") == 0)
+        if (strcmp(word, "LC_JLIMIT") == 0)
             class |= LC_JLIMIT;
-        if (strcmp (word, "LC_EXEC") == 0)
+        if (strcmp(word, "LC_EXEC") == 0)
             class |= LC_EXEC;
-        if (strcmp (word, "LC_TRACE") == 0)
+        if (strcmp(word, "LC_TRACE") == 0)
             class |= LC_TRACE;
-        if (strcmp (word, "LC_COMM") == 0)
+        if (strcmp(word, "LC_COMM") == 0)
             class |= LC_COMM;
-        if (strcmp (word, "LC_XDR") == 0)
+        if (strcmp(word, "LC_XDR") == 0)
             class |= LC_XDR;
-        if (strcmp (word, "LC_CHKPNT") == 0)
+        if (strcmp(word, "LC_CHKPNT") == 0)
             class |= LC_CHKPNT;
-        if (strcmp (word, "LC_FILE") == 0)
+        if (strcmp(word, "LC_FILE") == 0)
             class |= LC_FILE;
-        if (strcmp (word, "LC_AUTH") == 0)
+        if (strcmp(word, "LC_AUTH") == 0)
             class |= LC_AUTH;
-        if (strcmp (word, "LC_HANG") == 0)
+        if (strcmp(word, "LC_HANG") == 0)
             class |= LC_HANG;
-        if (strcmp (word, "LC_SIGNAL") == 0)
+        if (strcmp(word, "LC_SIGNAL") == 0)
             class |= LC_SIGNAL;
-        if (strcmp (word, "LC_PIM") == 0)
+        if (strcmp(word, "LC_PIM") == 0)
             class |= LC_PIM;
-        if (strcmp (word, "LC_SYS") == 0)
+        if (strcmp(word, "LC_SYS") == 0)
             class |= LC_SYS;
-        if (strcmp (word, "LC_LOADINDX") == 0)
+        if (strcmp(word, "LC_LOADINDX") == 0)
             class |= LC_LOADINDX;
-        if (strcmp (word, "LC_JGRP") == 0)
+        if (strcmp(word, "LC_JGRP") == 0)
             class |= LC_JGRP;
-        if (strcmp (word, "LC_JARRAY") == 0)
+        if (strcmp(word, "LC_JARRAY") == 0)
             class |= LC_JARRAY;
-        if (strcmp (word, "LC_MPI") == 0)
+        if (strcmp(word, "LC_MPI") == 0)
             class |= LC_MPI;
-        if (strcmp (word, "LC_ELIM") == 0)
+        if (strcmp(word, "LC_ELIM") == 0)
             class |= LC_ELIM;
-        if (strcmp (word, "LC_M_LOG") == 0)
+        if (strcmp(word, "LC_M_LOG") == 0)
             class |= LC_M_LOG;
-        if (strcmp (word, "LC_PERFM") == 0)
+        if (strcmp(word, "LC_PERFM") == 0)
             class |= LC_PERFM;
     }
     logclass = class;
@@ -440,8 +420,8 @@ getLogClass_ (char *lsp, char *tsp)
     return 0;
 }
 
-void
-ls_closelog_ext() {
+void ls_closelog_ext()
+{
     logfile[0] = 0;
 }
 
@@ -449,28 +429,28 @@ ls_closelog_ext() {
 static int get_log_mask(const char *);
 
 #if 0
-#define LS_EMERG(fmt, ...)                                              \
+#define LS_EMERG(fmt, ...)                                                     \
     ls_syslog(LOG_EMERG, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_ALERT(fmt, ...) \
+#define LS_ALERT(fmt, ...)                                                     \
     ls_syslog(LOG_ALERT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_CRIT(fmt, ...) \
+#define LS_CRIT(fmt, ...)                                                      \
     ls_syslog(LOG_CRIT, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_ERR(fmt, ...) \
+#define LS_ERR(fmt, ...)                                                       \
     ls_syslog(LOG_ERR, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_WARNING(fmt, ...) \
+#define LS_WARNING(fmt, ...)                                                   \
     ls_syslog(LOG_WARNING, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_NOTICE(fmt, ...) \
+#define LS_NOTICE(fmt, ...)                                                    \
     ls_syslog(LOG_NOTICE, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
-#define LS_INFO(fmt, ...) \
+#define LS_INFO(fmt, ...)                                                      \
     ls_syslog(LOG_INFO, "%s: " fmt, __func__, ##__VA_ARGS__)
 
-#define LS_DEBUG(fmt, ...) \
+#define LS_DEBUG(fmt, ...)                                                     \
     ls_syslog(LOG_DEBUG, "%s: " fmt, __func__, ##__VA_ARGS__)
 
 
@@ -493,41 +473,35 @@ ls_syslog(int priority, const char *format, ...)
 }
 #endif
 
-void
-open_log(const char *ident, const char *mask, bool debug)
+void open_log(const char *ident, const char *mask, bool_t debug)
 {
     int lmask = get_log_mask(mask);
 
     setlogmask(LOG_UPTO(lmask));
 
     if (debug)
-        openlog(ident, LOG_NDELAY|LOG_PERROR|LOG_PID, LOG_DAEMON);
+        openlog(ident, LOG_NDELAY | LOG_PERROR | LOG_PID, LOG_DAEMON);
     else
-        openlog(ident, LOG_NDELAY|LOG_PID, LOG_DAEMON);
+        openlog(ident, LOG_NDELAY | LOG_PID, LOG_DAEMON);
 }
 
 // log level string → syslog mask mapping
-static int
-get_log_mask(const char *mask)
+static int get_log_mask(const char *mask)
 {
     static const struct {
         const char *name;
         int level;
     } log_levels[] = {
-        { "LOG_EMERG",   LOG_EMERG },
-        { "LOG_ALERT",   LOG_ALERT },
-        { "LOG_CRIT",    LOG_CRIT },
-        { "LOG_ERR",     LOG_ERR },
-        { "LOG_WARNING", LOG_WARNING },
-        { "LOG_NOTICE",  LOG_NOTICE },
-        { "LOG_INFO",    LOG_INFO },
-        { "LOG_DEBUG",   LOG_DEBUG },
+        {"LOG_EMERG", LOG_EMERG},     {"LOG_ALERT", LOG_ALERT},
+        {"LOG_CRIT", LOG_CRIT},       {"LOG_ERR", LOG_ERR},
+        {"LOG_WARNING", LOG_WARNING}, {"LOG_NOTICE", LOG_NOTICE},
+        {"LOG_INFO", LOG_INFO},       {"LOG_DEBUG", LOG_DEBUG},
     };
 
     if (mask == NULL)
         return LOG_UPTO(LOG_INFO);
 
-    for (size_t i = 0; i < sizeof(log_levels)/sizeof(log_levels[0]); ++i) {
+    for (size_t i = 0; i < sizeof(log_levels) / sizeof(log_levels[0]); ++i) {
         if (strcmp(mask, log_levels[i].name) == 0)
             return LOG_UPTO(log_levels[i].level);
     }

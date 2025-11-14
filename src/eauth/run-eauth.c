@@ -9,9 +9,9 @@ if (pid == 0) {
     exit(0);
 }
 
-    close(sv[1]);
-    char buffer[512];
-    read(sv[0], buffer, sizeof(buffer));
-    // pass buffer to mbatchd or validate it
-    close(sv[0]);
+close(sv[1]);
+char buffer[512];
+read(sv[0], buffer, sizeof(buffer));
+// pass buffer to mbatchd or validate it
+close(sv[0]);
 }

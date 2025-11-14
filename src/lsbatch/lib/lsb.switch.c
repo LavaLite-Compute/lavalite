@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-int
-lsb_switchjob (LS_LONG_INT jobId, char *queue)
+int lsb_switchjob(LS_LONG_INT jobId, char *queue)
 {
     struct jobSwitchReq jobSwitchReq;
     char request_buf[MSGSIZE];
@@ -35,7 +35,7 @@ lsb_switchjob (LS_LONG_INT jobId, char *queue)
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
-    if (queue && (strlen (queue) >= LL_BUFSIZ_32 - 1)) {
+    if (queue && (strlen(queue) >= LL_BUFSIZ_32 - 1)) {
         lsberrno = LSBE_BAD_QUEUE;
         return -1;
     }
@@ -44,21 +44,20 @@ lsb_switchjob (LS_LONG_INT jobId, char *queue)
         return -1;
 
     jobSwitchReq.jobId = jobId;
-    strcpy (jobSwitchReq.queue, queue);
+    strcpy(jobSwitchReq.queue, queue);
 
     mbdReqtype = BATCH_JOB_SWITCH;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&jobSwitchReq, &hdr, xdr_jobSwitchReq,
-                       0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &jobSwitchReq, &hdr, xdr_jobSwitchReq, 0,
+                       &auth)) {
         lsberrno = LSBE_XDR;
         return -1;
     }
 
-    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                       &hdr, NULL, NULL, NULL)) == -1)
-    {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         return -1;
     }

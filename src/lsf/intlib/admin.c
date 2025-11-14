@@ -13,11 +13,12 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/llsys.h"
 #include "lsf/intlib/intlibout.h"
 
 #define BADCH ":"
@@ -26,24 +27,22 @@ extern int errLineNum_;
 extern int optind;
 extern char *optarg;
 
-void
-parseAndDo (char *cmdBuf, int (*func)() )
+void parseAndDo(char *cmdBuf, int (*func)())
 {
 #define MAX_ARG 100
 
     extern int optind;
-    int  argc, i ;
+    int argc, i;
     char *argv[MAX_ARG];
 
     int see_string = 0;
 
     for (i = 0; i < MAX_ARG; i++) {
-
-        while(isspace(*cmdBuf) && !see_string)
+        while (isspace(*cmdBuf) && !see_string)
             cmdBuf++;
 
-        if (*cmdBuf == '"')
-        { cmdBuf++;
+        if (*cmdBuf == '"') {
+            cmdBuf++;
             see_string = 1;
         }
 
@@ -52,21 +51,17 @@ parseAndDo (char *cmdBuf, int (*func)() )
 
         argv[i] = cmdBuf;
 
-        while(*cmdBuf !='\0' && !isspace(*cmdBuf) && *cmdBuf != '"')
-        {
+        while (*cmdBuf != '\0' && !isspace(*cmdBuf) && *cmdBuf != '"') {
             cmdBuf++;
         }
 
-        while ( see_string && *cmdBuf != '"')
-        {
+        while (see_string && *cmdBuf != '"') {
             cmdBuf++;
-            if (*cmdBuf == '\0')
-            {
+            if (*cmdBuf == '\0') {
                 see_string = 0;
-                ls_perror ("Syntax Error of line parameter! \n");
+                ls_perror("Syntax Error of line parameter! \n");
                 exit(-1);
             }
-
         }
         if (see_string)
             see_string = 0;
@@ -83,70 +78,62 @@ parseAndDo (char *cmdBuf, int (*func)() )
     argc = i;
     optind = 1;
 
-    (*func) (argc, argv);
+    (*func)(argc, argv);
 }
 
-int
-adminCmdIndex(char *cmd, char *cmdList[])
+int adminCmdIndex(char *cmd, char *cmdList[])
 {
     int i;
-    static char quit[]="quit";
+    static char quit[] = "quit";
 
-    if (strcmp("q", cmd)==0)
-        cmd=quit;
+    if (strcmp("q", cmd) == 0)
+        cmd = quit;
 
-    for (i=0; cmdList[i] != NULL; i++)
+    for (i = 0; cmdList[i] != NULL; i++)
         if (strcmp(cmdList[i], cmd) == 0)
             return i;
     return -1;
-
 }
 
-void
-cmdsUsage(char *cmd, char *cmdList[], char *cmdInfo[])
+void cmdsUsage(char *cmd, char *cmdList[], char *cmdInfo[])
 {
-
     static char intCmds[] = " ";
     int i;
 
     fprintf(stderr, "\n");
     fprintf(stderr, "Usage");
-    fprintf(stderr, ": %s [-h] [-V] [command] [command_options] [command_args]\n\n", cmd);
+    fprintf(stderr,
+            ": %s [-h] [-V] [command] [command_options] [command_args]\n\n",
+            cmd);
     fprintf(stderr, "    where 'command' is:\n\n");
 
     for (i = 0; cmdList[i] != NULL; i++)
-        if (strstr(intCmds,cmdList[i]) == NULL )
+        if (strstr(intCmds, cmdList[i]) == NULL)
 
             fprintf(stderr, "    %-12.12s%s\n", cmdList[i], cmdInfo[i]);
     exit(-1);
 }
 
-void
-oneCmdUsage(int i, char *cmdList[], char *cmdSyntax[])
+void oneCmdUsage(int i, char *cmdList[], char *cmdSyntax[])
 {
     fprintf(stderr, "Usage");
     fprintf(stderr, ":    %-12.12s%s\n", cmdList[i], cmdSyntax[i]);
     fflush(stderr);
-
 }
 
-void
-cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
-        char *cmdSyntax[])
+void cmdHelp(int argc, char **argv, char *cmdList[], char *cmdInfo[],
+             char *cmdSyntax[])
 {
-
     static char intCmds[] = " ";
     int i, j = 0;
 
     if (argc <= optind) {
-
         fprintf(stderr, "\n%s\n\n", "Commands are : ");
 
-        for (i=0; cmdList[i] != NULL; i++) {
-
-            if (strstr(intCmds,cmdList[i]) == NULL ) {
+        for (i = 0; cmdList[i] != NULL; i++) {
+            if (strstr(intCmds, cmdList[i]) == NULL) {
                 j++;
-                fprintf(stderr, "%-12.12s",  cmdList[i]);
+                fprintf(stderr, "%-12.12s", cmdList[i]);
                 if (j % 6 == 0)
                     fprintf(stderr, "\n");
             }
@@ -159,21 +146,15 @@ cmdHelp (int argc, char **argv, char *cmdList[], char *cmdInfo[],
     for (; argc > optind; optind++)
         if ((i = adminCmdIndex(argv[optind], cmdList)) != -1) {
             oneCmdUsage(i, cmdList, cmdSyntax);
-            fprintf(stderr,
-                    "Function: %s\n\n",
-                    cmdInfo[i]);
+            fprintf(stderr, "Function: %s\n\n", cmdInfo[i]);
         } else
-            fprintf(stderr,
-                    "Invalid command <%s>\n\n",
-                    argv[optind]);
+            fprintf(stderr, "Invalid command <%s>\n\n", argv[optind]);
     fflush(stderr);
-
 }
 
-char *
-myGetOpt (int nargc, char **nargv, char *ostr)
+char *myGetOpt(int nargc, char **nargv, char *ostr)
 {
-    char svstr [256];
+    char svstr[256];
     char *cp1 = svstr;
     char *cp2 = svstr;
     char *optName;
@@ -189,19 +170,18 @@ myGetOpt (int nargc, char **nargv, char *ostr)
     }
     if (ostr == NULL)
         return NULL;
-    strcpy (svstr, ostr);
+    strcpy(svstr, ostr);
     num_arg = 0;
     optarg = NULL;
 
     while (*cp2) {
         int cp2len = strlen(cp2);
-        for (i=0; i<cp2len; i++) {
+        for (i = 0; i < cp2len; i++) {
             if (cp2[i] == '|') {
                 num_arg = 0;
                 cp2[i] = '\0';
                 break;
-            }
-            else if (cp2[i] == ':') {
+            } else if (cp2[i] == ':') {
                 num_arg = 1;
                 cp2[i] = '\0';
                 break;
@@ -210,11 +190,10 @@ myGetOpt (int nargc, char **nargv, char *ostr)
         if (i >= cp2len)
             return BADCH;
 
-        if (!strcmp (optName, cp1)) {
+        if (!strcmp(optName, cp1)) {
             if (num_arg) {
                 if (nargc <= optind + 1) {
-                    fprintf (stderr,
-                            "%s: option requires an argument -- %s\n",
+                    fprintf(stderr, "%s: option requires an argument -- %s\n",
                             nargv[0], optName);
                     return BADCH;
                 }
@@ -226,14 +205,11 @@ myGetOpt (int nargc, char **nargv, char *ostr)
         cp1 = &cp2[i];
         cp2 = ++cp1;
     }
-    fprintf (stderr, "%s: illegal option -- %s\n",
-            nargv[0], optName);
+    fprintf(stderr, "%s: illegal option -- %s\n", nargv[0], optName);
     return BADCH;
-
 }
 
-int
-getConfirm (char *msg)
+int getConfirm(char *msg)
 {
     char answer[MAXLINELEN];
     int i = 0;
@@ -247,28 +223,22 @@ getConfirm (char *msg)
         i = 0;
         while (answer[i] == ' ')
             i++;
-        if ((answer[i] == 'y' || answer[i] == 'n'
-                    || answer[i] == 'Y' || answer[i] == 'N')
-                && answer[i+1] == '\n')
+        if ((answer[i] == 'y' || answer[i] == 'n' || answer[i] == 'Y' ||
+             answer[i] == 'N') &&
+            answer[i + 1] == '\n')
             break;
     }
     return ((answer[i] == 'Y' || answer[i] == 'y'));
-
 }
 
-int
-checkConf(int verbose, int who)
+int checkConf(int verbose, int who)
 {
     char confCheckBuf[] = "RECONFIG_CHECK=true";
     pid_t pid;
     char *daemon, *lsfEnvDir;
-    static struct config_param lsfParams[] =
-    {
-        {"LSF_SERVERDIR", NULL},
-        {"LSF_CONFDIR", NULL},
-        {"LSB_CONFDIR", NULL},
-        {"LSB_SHAREDIR", NULL},
-        {NULL, NULL},
+    static struct config_param lsfParams[] = {
+        {"LSF_SERVERDIR", NULL}, {"LSF_CONFDIR", NULL}, {"LSB_CONFDIR", NULL},
+        {"LSB_SHAREDIR", NULL},  {NULL, NULL},
     };
     struct config_param *plp;
     int status;
@@ -282,7 +252,7 @@ checkConf(int verbose, int who)
     if (cc < 0) {
         if (lserrno == LSE_CONF_SYNTAX) {
             char lno[20];
-            sprintf (lno, "Line %d", errLineNum_);
+            sprintf(lno, "Line %d", errLineNum_);
             ls_perror(lno);
         } else
             ls_perror("initenv_");
@@ -300,8 +270,8 @@ checkConf(int verbose, int who)
     if (cc < 0)
         return EXIT_WARNING_ERROR;
 
-    if ((daemon = calloc(strlen(lsfParams[0].paramValue)+15,
-                         sizeof(char))) == NULL) {
+    if ((daemon = calloc(strlen(lsfParams[0].paramValue) + 15, sizeof(char))) ==
+        NULL) {
         perror("calloc");
         return EXIT_FATAL_ERROR;
     }
@@ -317,8 +287,7 @@ checkConf(int verbose, int who)
     }
 
     if (putenv(confCheckBuf)) {
-        fprintf(stderr,
-                "Failed to set environment variable RECONFIG_CHECK\n");
+        fprintf(stderr, "Failed to set environment variable RECONFIG_CHECK\n");
         free(daemon);
         return EXIT_FATAL_ERROR;
     }
@@ -345,7 +314,7 @@ checkConf(int verbose, int who)
                 exit(-1);
             }
         }
-        execlp(daemon, daemon, "-C", (char *)0);
+        execlp(daemon, daemon, "-C", (char *) 0);
         perror("execlp");
 
         exit(EXIT_RUN_ERROR);
@@ -361,43 +330,38 @@ checkConf(int verbose, int who)
 
     if (WIFEXITED(status) != 0 && WEXITSTATUS(status) != 0xf8)
         if (verbose)
-            fprintf(stderr, "---------------------------------------------------------\n");
+            fprintf(
+                stderr,
+                "---------------------------------------------------------\n");
 
     if (WIFEXITED(status) == 0) {
-        fprintf(stderr,
-                "Child process killed by signal.\n\n");
+        fprintf(stderr, "Child process killed by signal.\n\n");
         return EXIT_FATAL_ERROR;
     }
 
     switch (WEXITSTATUS(status)) {
-        case  0 :
-            fprintf(stderr,
-                    "No errors found.\n\n");
-            return EXIT_NO_ERROR;
+    case 0:
+        fprintf(stderr, "No errors found.\n\n");
+        return EXIT_NO_ERROR;
 
-        case  0xff :
-            fprintf(stderr,
-                    "There are fatal errors.\n\n");
-            return EXIT_FATAL_ERROR;
+    case 0xff:
+        fprintf(stderr, "There are fatal errors.\n\n");
+        return EXIT_FATAL_ERROR;
 
-        case  0xf8 :
-            fprintf(stderr,
-                    "Fail to run checking program \n\n");
-            return EXIT_FATAL_ERROR;
+    case 0xf8:
+        fprintf(stderr, "Fail to run checking program \n\n");
+        return EXIT_FATAL_ERROR;
 
-        case  0xfe :
-            fprintf(stderr,
-                    "No fatal errors found.\n\n");
-            fprintf(stderr,
-                    "Warning: Some configuration parameters may be incorrect.\n");
-            fprintf(stderr,
-                    "         They are either ignored or replaced by default values.\n\n");
-            return EXIT_WARNING_ERROR;
+    case 0xfe:
+        fprintf(stderr, "No fatal errors found.\n\n");
+        fprintf(stderr,
+                "Warning: Some configuration parameters may be incorrect.\n");
+        fprintf(stderr, "         They are either ignored or replaced by "
+                        "default values.\n\n");
+        return EXIT_WARNING_ERROR;
 
-        default :
-            fprintf(stderr,
-                    "Errors found.\n\n");
-            return EXIT_FATAL_ERROR;
+    default:
+        fprintf(stderr, "Errors found.\n\n");
+        return EXIT_FATAL_ERROR;
     }
-
 }

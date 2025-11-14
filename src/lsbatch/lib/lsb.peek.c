@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-char *
-lsb_peekjob (LS_LONG_INT jobid)
+char *lsb_peekjob(LS_LONG_INT jobid)
 {
     static char fname[] = "lsb_peekjob";
     struct jobPeekReq jobPeekReq;
@@ -33,7 +33,7 @@ lsb_peekjob (LS_LONG_INT jobid)
     static struct jobPeekReply jobPeekReply;
     struct lsfAuth auth;
     struct jobInfoEnt *jInfo;
-    char* pSpoolDirUnix = NULL;
+    char *pSpoolDirUnix = NULL;
     char lsfUserName[MAXLINELEN];
 
     if (jobid <= 0) {
@@ -51,15 +51,15 @@ lsb_peekjob (LS_LONG_INT jobid)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&jobPeekReq, &hdr, xdr_jobPeekReq, 0,
-                &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &jobPeekReq, &hdr, xdr_jobPeekReq, 0,
+                       &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return NULL;
     }
 
-    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                    &hdr, NULL, NULL, NULL)) == -1) {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         return NULL;
     }
@@ -73,7 +73,7 @@ lsb_peekjob (LS_LONG_INT jobid)
         struct stat st;
         xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
 
-        if(!xdr_jobPeekReply(&xdrs, &jobPeekReply, &hdr)) {
+        if (!xdr_jobPeekReply(&xdrs, &jobPeekReply, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs);
             if (cc) {
@@ -92,27 +92,23 @@ lsb_peekjob (LS_LONG_INT jobid)
         }
 
         if (logclass & LC_EXEC) {
-            ls_syslog(LOG_DEBUG, "%s: the jobReply.outfile is <%s>",
-                    fname, jobPeekReply.outFile);
+            ls_syslog(LOG_DEBUG, "%s: the jobReply.outfile is <%s>", fname,
+                      jobPeekReply.outFile);
         }
         pSpoolDirUnix = getUnixSpoolDir(jobPeekReply.pSpoolDir);
 
-        if ((pSpoolDirUnix != NULL)
-                && access(pSpoolDirUnix, W_OK) == 0) {
-
-            sprintf(fnBuf, "%s/%s", pSpoolDirUnix,
-                    jobPeekReply.outFile);
+        if ((pSpoolDirUnix != NULL) && access(pSpoolDirUnix, W_OK) == 0) {
+            sprintf(fnBuf, "%s/%s", pSpoolDirUnix, jobPeekReply.outFile);
         } else {
-            sprintf(fnBuf, "%s/.lsbatch/%s", pw->pw_dir,
-                    jobPeekReply.outFile);
+            sprintf(fnBuf, "%s/.lsbatch/%s", pw->pw_dir, jobPeekReply.outFile);
 
-            if (stat(fnBuf, &st) == -1){
+            if (stat(fnBuf, &st) == -1) {
                 pid_t pid;
                 int status;
 
-                if ( errno == ENOENT && pSpoolDirUnix !=NULL ) {
-                    if ( lsb_openjobinfo (jobid, NULL, NULL, NULL, NULL, 0) < 0
-                            || (jInfo=lsb_readjobinfo (NULL)) == NULL){
+                if (errno == ENOENT && pSpoolDirUnix != NULL) {
+                    if (lsb_openjobinfo(jobid, NULL, NULL, NULL, NULL, 0) < 0 ||
+                        (jInfo = lsb_readjobinfo(NULL)) == NULL) {
                         lsberrno = LSBE_LSBLIB;
                         return NULL;
                     }
@@ -132,7 +128,6 @@ lsb_peekjob (LS_LONG_INT jobid)
                         }
 #endif
                         exit(false);
-
                     }
                     if (pid == -1) {
                         return NULL;
@@ -142,17 +137,18 @@ lsb_peekjob (LS_LONG_INT jobid)
                         return NULL;
                     }
                     if (WEXITSTATUS(status) == true) {
-                        sprintf(fnBuf, "%s/%s", pSpoolDirUnix,jobPeekReply.outFile);
-                    }else {
+                        sprintf(fnBuf, "%s/%s", pSpoolDirUnix,
+                                jobPeekReply.outFile);
+                    } else {
                         sprintf(fnBuf, ".lsbatch/%s", jobPeekReply.outFile);
                     }
-                }else {
+                } else {
                     sprintf(fnBuf, ".lsbatch/%s", jobPeekReply.outFile);
                 }
             }
         }
         strcpy(jobPeekReply.outFile, fnBuf);
-        return(jobPeekReply.outFile);
+        return (jobPeekReply.outFile);
     }
 
     if (cc)

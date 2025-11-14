@@ -13,13 +13,13 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
 
-char **
-ls_placereq(char *resreq, int *numhosts, int options, char *fromhost)
+char **ls_placereq(char *resreq, int *numhosts, int options, char *fromhost)
 {
     struct decisionReq placeReq;
     int *num;
@@ -44,13 +44,8 @@ ls_placereq(char *resreq, int *numhosts, int options, char *fromhost)
     return placement_(resreq, &placeReq, fromhost, num);
 }
 
-char **
-ls_placeofhosts(char *resreq,
-                int *numhosts, int
-                options,
-                char *fromhost,
-                char **hostlist,
-                int listsize)
+char **ls_placeofhosts(char *resreq, int *numhosts, int options, char *fromhost,
+                       char **hostlist, int listsize)
 {
     struct decisionReq placeReq;
     int *num;
@@ -71,13 +66,13 @@ ls_placeofhosts(char *resreq,
     strcpy(placeReq.hostType, " ");
     placeReq.numHosts = *num;
 
-    if (! *num) {
+    if (!*num) {
         placeReq.numHosts = listsize;
         placeReq.options &= ~EXACT;
     }
 
     placeReq.numPrefs = listsize + 1;
-    placeReq.preferredHosts = calloc(placeReq.numPrefs,  sizeof (char *));
+    placeReq.preferredHosts = calloc(placeReq.numPrefs, sizeof(char *));
     if (placeReq.preferredHosts == NULL) {
         lserrno = LSE_MALLOC;
         return NULL;
@@ -85,7 +80,7 @@ ls_placeofhosts(char *resreq,
 
     int i;
     for (i = 1; i < placeReq.numPrefs; i++) {
-        placeReq.preferredHosts[i] = strdup(hostlist[i-1]);
+        placeReq.preferredHosts[i] = strdup(hostlist[i - 1]);
     }
 
     int j;
@@ -99,21 +94,18 @@ ls_placeofhosts(char *resreq,
     return placement_(resreq, &placeReq, fromhost, num);
 }
 
-char **
-placement_(char *resReq,
-           struct decisionReq *placeReqPtr,
-           char *fromhost,
-           int *numhosts)
+char **placement_(char *resReq, struct decisionReq *placeReqPtr, char *fromhost,
+                  int *numhosts)
 {
-    static struct placeReply  placeReply;
+    static struct placeReply placeReply;
     static char **hostnames;
-    int  numnames,i,j,k;
+    int numnames, i, j, k;
     char *hname;
 
     if (initenv_(NULL, NULL) < 0)
         return NULL;
 
-    if(placeReqPtr->numHosts <= 0) {
+    if (placeReqPtr->numHosts <= 0) {
         lserrno = LSE_BAD_ARGS;
         goto error;
     }
@@ -135,37 +127,36 @@ placement_(char *resReq,
     } else
         placeReqPtr->resReq[0] = '\0';
 
-    if (callLim_(LIM_PLACEMENT, placeReqPtr, xdr_decisionReq,
-                 &placeReply, xdr_placeReply, NULL, _USE_TCP_, NULL) < 0)
+    if (callLim_(LIM_PLACEMENT, placeReqPtr, xdr_decisionReq, &placeReply,
+                 xdr_placeReply, NULL, _USE_TCP_, NULL) < 0)
         goto error;
 
     for (i = 0; i < placeReqPtr->numPrefs; i++)
         FREEUP(placeReqPtr->preferredHosts[i]);
-    FREEUP (placeReqPtr->preferredHosts);
+    FREEUP(placeReqPtr->preferredHosts);
     *numhosts = placeReply.numHosts;
 
-    for (i=0, numnames =0; i < *numhosts; i++)
+    for (i = 0, numnames = 0; i < *numhosts; i++)
         numnames += placeReply.placeInfo[i].numtask;
 
     if (hostnames)
         free(hostnames);
-    hostnames = calloc (numnames , sizeof(char *));
+    hostnames = calloc(numnames, sizeof(char *));
     if (hostnames == NULL) {
         lserrno = LSE_MALLOC;
         return NULL;
     }
 
     for (i = 0, j = 0; i < *numhosts; i++)
-        for(k = 0; k < placeReply.placeInfo[i].numtask; k++)
+        for (k = 0; k < placeReply.placeInfo[i].numtask; k++)
             hostnames[j++] = placeReply.placeInfo[i].hostName;
 
     *numhosts = numnames;
     return hostnames;
 
 error:
-    for (i=0; i<placeReqPtr->numPrefs; i++)
+    for (i = 0; i < placeReqPtr->numPrefs; i++)
         FREEUP(placeReqPtr->preferredHosts[i]);
-    FREEUP (placeReqPtr->preferredHosts);
+    FREEUP(placeReqPtr->preferredHosts);
     return NULL;
-
 }

@@ -13,30 +13,30 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.common.h"
 
 #ifndef LSFRU_FIELD_ADD
-#define LSFRU_FIELD_ADD(a,b) \
-{ \
-    if ((a) < 0 || (b) < 0) { \
-        (a) = MAX((a), (b)); \
-    } else { \
-        (a) += (b); \
-    } \
-}
+#define LSFRU_FIELD_ADD(a, b)                                                  \
+    {                                                                          \
+        if ((a) < 0 || (b) < 0) {                                              \
+            (a) = MAX((a), (b));                                               \
+        } else {                                                               \
+            (a) += (b);                                                        \
+        }                                                                      \
+    }
 #endif
 
-void
-ls_ruunix2lsf(struct rusage *rusage, struct lsfRusage *lsfRusage)
+void ls_ruunix2lsf(struct rusage *rusage, struct lsfRusage *lsfRusage)
 {
-    lsfRusage->ru_utime = rusage->ru_utime.tv_sec
-        + rusage->ru_utime.tv_usec / 1000000.0;
+    lsfRusage->ru_utime =
+        rusage->ru_utime.tv_sec + rusage->ru_utime.tv_usec / 1000000.0;
 
-    lsfRusage->ru_stime = rusage->ru_stime.tv_sec
-        + rusage->ru_stime.tv_usec / 1000000.0;
+    lsfRusage->ru_stime =
+        rusage->ru_stime.tv_sec + rusage->ru_stime.tv_usec / 1000000.0;
 
     lsfRusage->ru_maxrss = rusage->ru_maxrss;
     lsfRusage->ru_ixrss = rusage->ru_ixrss;
@@ -61,58 +61,56 @@ ls_ruunix2lsf(struct rusage *rusage, struct lsfRusage *lsfRusage)
     lsfRusage->ru_exutime = -1.0;
 }
 
-void
-ls_rulsf2unix(struct lsfRusage *lsfRusage, struct rusage *rusage)
+void ls_rulsf2unix(struct lsfRusage *lsfRusage, struct rusage *rusage)
 {
-    rusage->ru_utime.tv_sec = MIN( lsfRusage->ru_utime, LONG_MAX );
-    rusage->ru_stime.tv_sec = MIN( lsfRusage->ru_stime, LONG_MAX );
+    rusage->ru_utime.tv_sec = MIN(lsfRusage->ru_utime, LONG_MAX);
+    rusage->ru_stime.tv_sec = MIN(lsfRusage->ru_stime, LONG_MAX);
 
-    rusage->ru_utime.tv_usec = MIN(( lsfRusage->ru_utime
-				- rusage->ru_utime.tv_sec) * 1000000, LONG_MAX);
-    rusage->ru_stime.tv_usec = MIN(( lsfRusage->ru_stime
-				- rusage->ru_stime.tv_sec) * 1000000, LONG_MAX);
+    rusage->ru_utime.tv_usec = MIN(
+        (lsfRusage->ru_utime - rusage->ru_utime.tv_sec) * 1000000, LONG_MAX);
+    rusage->ru_stime.tv_usec = MIN(
+        (lsfRusage->ru_stime - rusage->ru_stime.tv_sec) * 1000000, LONG_MAX);
 
-    rusage->ru_maxrss = MIN( lsfRusage->ru_maxrss, LONG_MAX );
-    rusage->ru_ixrss = MIN( lsfRusage->ru_ixrss, LONG_MAX );
-    rusage->ru_isrss = MIN( lsfRusage->ru_isrss, LONG_MAX );
+    rusage->ru_maxrss = MIN(lsfRusage->ru_maxrss, LONG_MAX);
+    rusage->ru_ixrss = MIN(lsfRusage->ru_ixrss, LONG_MAX);
+    rusage->ru_isrss = MIN(lsfRusage->ru_isrss, LONG_MAX);
 
-    rusage->ru_idrss = MIN( lsfRusage->ru_idrss, LONG_MAX );
-    rusage->ru_isrss = MIN( lsfRusage->ru_isrss, LONG_MAX );
-    rusage->ru_minflt = MIN( lsfRusage->ru_minflt, LONG_MAX );
-    rusage->ru_majflt = MIN( lsfRusage->ru_majflt, LONG_MAX );
-    rusage->ru_nswap = MIN( lsfRusage->ru_nswap, LONG_MAX );
-    rusage->ru_inblock = MIN( lsfRusage->ru_inblock, LONG_MAX );
-    rusage->ru_oublock = MIN( lsfRusage->ru_oublock, LONG_MAX );
+    rusage->ru_idrss = MIN(lsfRusage->ru_idrss, LONG_MAX);
+    rusage->ru_isrss = MIN(lsfRusage->ru_isrss, LONG_MAX);
+    rusage->ru_minflt = MIN(lsfRusage->ru_minflt, LONG_MAX);
+    rusage->ru_majflt = MIN(lsfRusage->ru_majflt, LONG_MAX);
+    rusage->ru_nswap = MIN(lsfRusage->ru_nswap, LONG_MAX);
+    rusage->ru_inblock = MIN(lsfRusage->ru_inblock, LONG_MAX);
+    rusage->ru_oublock = MIN(lsfRusage->ru_oublock, LONG_MAX);
 
-    rusage->ru_msgsnd = MIN( lsfRusage->ru_msgsnd, LONG_MAX );
-    rusage->ru_msgrcv = MIN( lsfRusage->ru_msgrcv, LONG_MAX );
-    rusage->ru_nsignals = MIN( lsfRusage->ru_nsignals, LONG_MAX );
-    rusage->ru_nvcsw = MIN( lsfRusage->ru_nvcsw, LONG_MAX );
-    rusage->ru_nivcsw = MIN( lsfRusage->ru_nivcsw, LONG_MAX );
-
+    rusage->ru_msgsnd = MIN(lsfRusage->ru_msgsnd, LONG_MAX);
+    rusage->ru_msgrcv = MIN(lsfRusage->ru_msgrcv, LONG_MAX);
+    rusage->ru_nsignals = MIN(lsfRusage->ru_nsignals, LONG_MAX);
+    rusage->ru_nvcsw = MIN(lsfRusage->ru_nvcsw, LONG_MAX);
+    rusage->ru_nivcsw = MIN(lsfRusage->ru_nivcsw, LONG_MAX);
 }
 
-int
-lsfRu2Str(FILE *log_fp, struct lsfRusage *lsfRu)
+int lsfRu2Str(FILE *log_fp, struct lsfRusage *lsfRu)
 {
-    return (fprintf(log_fp, " %1.6f %1.6f %1.0f %1.0f %1.0f %1.0f \
+    return (fprintf(
+        log_fp, " %1.6f %1.6f %1.0f %1.0f %1.0f %1.0f \
 %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f \
-%1.0f %1.0f %1.0f", lsfRu->ru_utime, lsfRu->ru_stime, lsfRu->ru_maxrss,
-        lsfRu->ru_ixrss, lsfRu->ru_ismrss, lsfRu->ru_idrss, lsfRu->ru_isrss,
-        lsfRu->ru_minflt, lsfRu->ru_majflt, lsfRu->ru_nswap, lsfRu->ru_inblock,
-        lsfRu->ru_oublock, lsfRu->ru_ioch, lsfRu->ru_msgsnd, lsfRu->ru_msgrcv,
-        lsfRu->ru_nsignals, lsfRu->ru_nvcsw, lsfRu->ru_nivcsw,
-        lsfRu->ru_exutime));
-
+%1.0f %1.0f %1.0f",
+        lsfRu->ru_utime, lsfRu->ru_stime, lsfRu->ru_maxrss, lsfRu->ru_ixrss,
+        lsfRu->ru_ismrss, lsfRu->ru_idrss, lsfRu->ru_isrss, lsfRu->ru_minflt,
+        lsfRu->ru_majflt, lsfRu->ru_nswap, lsfRu->ru_inblock, lsfRu->ru_oublock,
+        lsfRu->ru_ioch, lsfRu->ru_msgsnd, lsfRu->ru_msgrcv, lsfRu->ru_nsignals,
+        lsfRu->ru_nvcsw, lsfRu->ru_nivcsw, lsfRu->ru_exutime));
 }
 
-int
-str2lsfRu(char *line, struct lsfRusage *lsfRu, int *ccount)
+int str2lsfRu(char *line, struct lsfRusage *lsfRu, int *ccount)
 {
     int cc;
 
-    cc = sscanf(line, "%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-%lf %lf %lf%n", &(lsfRu->ru_utime), &(lsfRu->ru_stime), &(lsfRu->ru_maxrss),
+    cc = sscanf(
+        line, "%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
+%lf %lf %lf%n",
+        &(lsfRu->ru_utime), &(lsfRu->ru_stime), &(lsfRu->ru_maxrss),
         &(lsfRu->ru_ixrss), &(lsfRu->ru_ismrss), &(lsfRu->ru_idrss),
         &(lsfRu->ru_isrss), &(lsfRu->ru_minflt), &(lsfRu->ru_majflt),
         &(lsfRu->ru_nswap), &(lsfRu->ru_inblock), &(lsfRu->ru_oublock),
@@ -122,8 +120,7 @@ str2lsfRu(char *line, struct lsfRusage *lsfRu, int *ccount)
     return cc;
 }
 
-void
-cleanLsfRusage (struct lsfRusage *lsfRusage)
+void cleanLsfRusage(struct lsfRusage *lsfRusage)
 {
     lsfRusage->ru_utime = -1.0;
     lsfRusage->ru_stime = -1.0;
@@ -144,11 +141,9 @@ cleanLsfRusage (struct lsfRusage *lsfRusage)
     lsfRusage->ru_nvcsw = -1.0;
     lsfRusage->ru_nivcsw = -1.0;
     lsfRusage->ru_exutime = -1.0;
-
 }
 
-void
-cleanRusage (struct rusage *rusage)
+void cleanRusage(struct rusage *rusage)
 {
     rusage->ru_utime.tv_sec = -1;
     rusage->ru_utime.tv_usec = -1;

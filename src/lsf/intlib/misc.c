@@ -13,23 +13,23 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/llsys.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lib/lib.h"
 
-void
-putMaskLevel(int level, char **para)
+void putMaskLevel(int level, char **para)
 {
     level = level + LOG_DEBUG;
 
     if ((level >= LOG_DEBUG) && (level <= LOG_DEBUG3)) {
-        FREEUP (*para);
+        FREEUP(*para);
 
-        switch(level) {
+        switch (level) {
         case LOG_DEBUG:
             *para = putstr_("LOG_DEBUG");
             break;
@@ -48,17 +48,15 @@ putMaskLevel(int level, char **para)
 
 /* Bug. use strstr()
  */
-int
-matchName(char *pattern, char *name)
+int matchName(char *pattern, char *name)
 {
     int i, ip;
 
     if (!pattern || !name)
         return false;
 
-    ip = (int)strlen(pattern);
+    ip = (int) strlen(pattern);
     for (i = 0; i < ip && pattern[i] != '['; i++) {
-
         if (pattern[i] == '*')
             return true;
 
@@ -66,23 +64,22 @@ matchName(char *pattern, char *name)
             return false;
     };
 
-    if (name[i] == '\0' || name[i] == '[' )
+    if (name[i] == '\0' || name[i] == '[')
         return true;
 
     return false;
 }
 
-char **
-parseCommandArgs(char *comm, char *args)
+char **parseCommandArgs(char *comm, char *args)
 {
-    int argmax  = 10;
-    int argc    = 0;
-    int quote   = 0;
-    char *i     = args;
-    char *j     = args;
+    int argmax = 10;
+    int argc = 0;
+    int quote = 0;
+    char *i = args;
+    char *j = args;
     char **argv = NULL;
 
-    if ((argv = calloc(argmax, sizeof(char*))) == NULL)
+    if ((argv = calloc(argmax, sizeof(char *))) == NULL)
         goto END;
 
     if (comm)
@@ -101,7 +98,6 @@ parseCommandArgs(char *comm, char *args)
     argv[argc++] = i;
     do {
         switch (*j) {
-
         case ' ':
         case '\t':
             if (quote) {
@@ -113,7 +109,7 @@ parseCommandArgs(char *comm, char *args)
 
                 if (argc == argmax - 1) {
                     argmax *= 2;
-                    argv = (char**)realloc(argv, argmax * sizeof(char*));
+                    argv = (char **) realloc(argv, argmax * sizeof(char *));
                     if (!argv)
                         goto END;
                 }
@@ -158,10 +154,9 @@ END:
 /* Bug. The problem is not NULL is that fp can point to
  * invalid memory if you are sloppy.
  */
-int
-FCLOSEUP(FILE** fp)
+int FCLOSEUP(FILE **fp)
 {
-    if (! fp) {
+    if (!fp) {
         lserrno = LSE_FILE_CLOSE;
         return -1;
     }
@@ -172,11 +167,8 @@ FCLOSEUP(FILE** fp)
     return 0;
 }
 
-void
-openChildLog(const char *defLogFileName,
-             const char *confLogDir,
-             int use_stderr,
-             char **confLogMaskPtr)
+void openChildLog(const char *defLogFileName, const char *confLogDir,
+                  int use_stderr, char **confLogMaskPtr)
 {
 #define _RES_CHILD_LOGFILENAME "res"
     static char resChildLogMask[] = "LOG_DEBUG";
@@ -189,65 +181,60 @@ openChildLog(const char *defLogFileName,
     isResChild = !strcmp(defLogFileName, _RES_CHILD_LOGFILENAME);
 
     dbgEnv = getenv("DYN_DBG_LOGCLASS");
-    if( dbgEnv != NULL && dbgEnv[0] != '\0') {
+    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
         logclass = atoi(dbgEnv);
     }
 
     dbgEnv = getenv("DYN_DBG_LOGLEVEL");
-    if( dbgEnv != NULL && dbgEnv[0] != '\0') {
+    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
         putMaskLevel(atoi(dbgEnv), confLogMaskPtr);
     }
 
     dbgEnv = getenv("DYN_DBG_LOGFILENAME");
-    if( dbgEnv != NULL && dbgEnv[0] != '\0' ) {
+    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
         strcpy(logFileName, dbgEnv);
 
-        if( !isResChild ) {
+        if (!isResChild) {
             strcat(logFileName, "c");
         }
-    }
-    else {
+    } else {
         strcpy(logFileName, defLogFileName);
     }
 
     dbgEnv = getenv("DYN_DBG_LOGDIR");
-    if( dbgEnv != NULL && dbgEnv[0] != '\0') {
+    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
         logDir = dbgEnv;
-    }
-    else {
+    } else {
         logDir = (char *) confLogDir;
     }
 
-    if( use_stderr && isResChild ) {
-
+    if (use_stderr && isResChild) {
         logMask = resChildLogMask;
-    }
-    else {
+    } else {
         logMask = *confLogMaskPtr;
     }
 
-    ls_openlog(logFileName, logDir, use_stderr, logMask );
+    ls_openlog(logFileName, logDir, use_stderr, logMask);
 
 #undef _RES_CHILD_LOGFILENAME
 }
 
-void
-cleanDynDbgEnv(void)
+void cleanDynDbgEnv(void)
 {
-    if( getenv("DYN_DBG_LOGCLASS") ) {
+    if (getenv("DYN_DBG_LOGCLASS")) {
         putEnv("DYN_DBG_LOGCLASS", "");
     }
-    if( getenv("DYN_DBG_LOGLEVEL") ) {
+    if (getenv("DYN_DBG_LOGLEVEL")) {
         putEnv("DYN_DBG_LOGLEVEL", "");
     }
-    if( getenv("DYN_DBG_LOGDIR") ) {
+    if (getenv("DYN_DBG_LOGDIR")) {
         putEnv("DYN_DBG_LOGDIR", "");
     }
-    if( getenv("DYN_DBG_LOGFILENAME") ) {
+    if (getenv("DYN_DBG_LOGFILENAME")) {
         putEnv("DYN_DBG_LOGFILENAME", "");
     }
 }
 
-void
-displayEnhancementNames(void) {
+void displayEnhancementNames(void)
+{
 }

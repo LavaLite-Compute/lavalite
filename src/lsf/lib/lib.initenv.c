@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -22,37 +23,36 @@
 
 struct config_param genParams[LSF_PARAM_COUNT] = {
     // Common
-    [LSF_CONFDIR]            = { "LSF_CONFDIR", NULL },
-    [LSF_SERVERDIR]          = { "LSF_SERVERDIR", NULL },
-    [LSF_LOGDIR]             = { "LSF_LOGDIR", NULL },
-    [LSF_LIM_DEBUG]          = { "LSF_LIM_DEBUG", NULL },
-    [LSF_LIM_PORT]           = { "LSF_LIM_PORT", NULL },
-    [LSF_RES_PORT]           = { "LSF_RES_PORT", NULL },
-    [LSF_LOG_MASK]           = { "LSF_LOG_MASK", NULL },
-    [LSF_MASTER_LIST]        = { "LSF_MASTER_LIST", NULL },
+    [LSF_CONFDIR] = {"LSF_CONFDIR", NULL},
+    [LSF_SERVERDIR] = {"LSF_SERVERDIR", NULL},
+    [LSF_LOGDIR] = {"LSF_LOGDIR", NULL},
+    [LSF_LIM_DEBUG] = {"LSF_LIM_DEBUG", NULL},
+    [LSF_LIM_PORT] = {"LSF_LIM_PORT", NULL},
+    [LSF_RES_PORT] = {"LSF_RES_PORT", NULL},
+    [LSF_LOG_MASK] = {"LSF_LOG_MASK", NULL},
+    [LSF_MASTER_LIST] = {"LSF_MASTER_LIST", NULL},
 
     // LIM-specific
-    [LSF_DEBUG_LIM]          = { "LSF_DEBUG_LIM", NULL },
-    [LSF_TIME_LIM]           = { "LSF_TIME_LIM", NULL },
-    [LSF_LIM_IGNORE_CHECKSUM]= { "LSF_LIM_IGNORE_CHECKSUM",NULL },
-    [LSF_LIM_JACKUP_BUSY]    = { "LSF_LIM_JACKUP_BUSY",    NULL },
+    [LSF_DEBUG_LIM] = {"LSF_DEBUG_LIM", NULL},
+    [LSF_TIME_LIM] = {"LSF_TIME_LIM", NULL},
+    [LSF_LIM_IGNORE_CHECKSUM] = {"LSF_LIM_IGNORE_CHECKSUM", NULL},
+    [LSF_LIM_JACKUP_BUSY] = {"LSF_LIM_JACKUP_BUSY", NULL},
 
     // LIB-specific
-    [LSF_SERVER_HOSTS]       = { "LSF_SERVER_HOSTS",       NULL },
-    [LSF_AUTH]               = { "LSF_AUTH",               NULL },
-    [LSF_API_CONNTIMEOUT]    = { "LSF_API_CONNTIMEOUT",    NULL },
-    [LSF_API_RECVTIMEOUT]    = { "LSF_API_RECVTIMEOUT",    NULL },
-    [LSF_INTERACTIVE_STDERR] = { "LSF_INTERACTIVE_STDERR", NULL },
+    [LSF_SERVER_HOSTS] = {"LSF_SERVER_HOSTS", NULL},
+    [LSF_AUTH] = {"LSF_AUTH", NULL},
+    [LSF_API_CONNTIMEOUT] = {"LSF_API_CONNTIMEOUT", NULL},
+    [LSF_API_RECVTIMEOUT] = {"LSF_API_RECVTIMEOUT", NULL},
+    [LSF_INTERACTIVE_STDERR] = {"LSF_INTERACTIVE_STDERR", NULL},
 
     // Legacy placeholder several code depend on this...
-    [LSF_NULL_PARAM]         = { NULL, NULL },
+    [LSF_NULL_PARAM] = {NULL, NULL},
 };
 
-static_assert(LSF_PARAM_COUNT == (sizeof genParams/sizeof genParams[0]),
+static_assert(LSF_PARAM_COUNT == (sizeof genParams / sizeof genParams[0]),
               "genParams size must match ll_params_t count");
 
-
-int  errLineNum_ = 0;
+int errLineNum_ = 0;
 char *lsTmpDir_ = "/tmp";
 
 static char **m_masterCandidates = NULL;
@@ -66,15 +66,14 @@ static int check_ll_conf(const char *);
 int static readconfenv_(struct config_param *, struct config_param *,
                         const char *);
 
-static int
-doEnvParams_(struct config_param *plp)
+static int doEnvParams_(struct config_param *plp)
 {
     char *sp, *spp;
 
     if (!plp)
         return 0;
 
-    for (; plp->paramName != NULL ; plp++) {
+    for (; plp->paramName != NULL; plp++) {
         if ((sp = getenv(plp->paramName)) != NULL) {
             if (NULL == (spp = putstr_(sp))) {
                 lserrno = LSE_MALLOC;
@@ -87,8 +86,7 @@ doEnvParams_(struct config_param *plp)
     return 0;
 }
 
-int
-initenv_(struct config_param *userEnv, char *pathname)
+int initenv_(struct config_param *userEnv, char *pathname)
 {
     int Error = 0;
     char *envdir;
@@ -128,15 +126,15 @@ initenv_(struct config_param *userEnv, char *pathname)
     if (doEnvParams_(userEnv) < 0)
         Error = 1;
 
-    if (! genParams[LSF_CONFDIR].paramValue ||
-        ! genParams[LSF_SERVERDIR].paramValue) {
+    if (!genParams[LSF_CONFDIR].paramValue ||
+        !genParams[LSF_SERVERDIR].paramValue) {
         lserrno = LSE_BAD_ENV;
         return -1;
     }
 
     if (genParams[LSF_SERVER_HOSTS].paramValue != NULL) {
         char *sp;
-        for (sp = genParams[LSF_SERVER_HOSTS].paramValue;*sp != '\0'; sp++)
+        for (sp = genParams[LSF_SERVER_HOSTS].paramValue; *sp != '\0'; sp++)
             if (*sp == '\"')
                 *sp = ' ';
     }
@@ -153,8 +151,7 @@ int ls_readconfenv(struct config_param *paramList, const char *conf_path)
 }
 
 int static readconfenv_(struct config_param *conf_array,
-                        struct config_param *conf_array0,
-                        const char *path)
+                        struct config_param *conf_array0, const char *path)
 {
     char *key;
     char *value;
@@ -184,18 +181,17 @@ int static readconfenv_(struct config_param *conf_array,
     errLineNum_ = 0;
     saveErrNo = 0;
     while ((line = getNextLineC_(fp, &lineNum, true)) != NULL) {
-
         int cc = parseLine(line, &key, &value);
         if (cc < 0 && errLineNum_ == 0) {
             errLineNum_ = lineNum;
             saveErrNo = lserrno;
             continue;
         }
-        if (! matchEnv(key, conf_array) && ! matchEnv(key, conf_array0))
+        if (!matchEnv(key, conf_array) && !matchEnv(key, conf_array0))
             continue;
 
-        if (!setConfEnv(key, value, conf_array)
-            || !setConfEnv(key, value, conf_array0)) {
+        if (!setConfEnv(key, value, conf_array) ||
+            !setConfEnv(key, value, conf_array0)) {
             fclose(fp);
             return -1;
         }
@@ -209,18 +205,16 @@ int static readconfenv_(struct config_param *conf_array,
     return 0;
 }
 
-static int
-parseLine(char *line, char **keyPtr, char **valuePtr)
+static int parseLine(char *line, char **keyPtr, char **valuePtr)
 {
     char *sp = line;
-#define L_MAXLINELEN_4ENV (8*MAXLINELEN)
+#define L_MAXLINELEN_4ENV (8 * MAXLINELEN)
     static char key[L_MAXLINELEN_4ENV];
     static char value[L_MAXLINELEN_4ENV];
     char *word;
     char *cp;
 
-    if( strlen(sp)>= L_MAXLINELEN_4ENV-1 )
-    {
+    if (strlen(sp) >= L_MAXLINELEN_4ENV - 1) {
         lserrno = LSE_BAD_ENV;
         return -1;
     }
@@ -266,11 +260,9 @@ parseLine(char *line, char **keyPtr, char **valuePtr)
     }
 
     return 0;
-
 }
 
-static int
-matchEnv(char *name, struct config_param *paramList)
+static int matchEnv(char *name, struct config_param *paramList)
 {
     if (paramList == NULL)
         return false;
@@ -282,8 +274,7 @@ matchEnv(char *name, struct config_param *paramList)
     return false;
 }
 
-static int
-setConfEnv (char *name, char *value, struct config_param *paramList)
+static int setConfEnv(char *name, char *value, struct config_param *paramList)
 {
     if (paramList == NULL)
         return 1;
@@ -291,9 +282,9 @@ setConfEnv (char *name, char *value, struct config_param *paramList)
     if (value == NULL)
         value = "";
 
-    for ( ; paramList->paramName; paramList++) {
+    for (; paramList->paramName; paramList++) {
         if (strcmp(paramList->paramName, name) == 0) {
-            FREEUP (paramList->paramValue);
+            FREEUP(paramList->paramValue);
             paramList->paramValue = putstr_(value);
             if (paramList->paramValue == NULL) {
                 lserrno = LSE_MALLOC;
@@ -305,8 +296,7 @@ setConfEnv (char *name, char *value, struct config_param *paramList)
 }
 
 // Bug revisit the LSF_MASTER_LIST
-int
-initMasterList_(void)
+int initMasterList_(void)
 {
     char *nameList;
     char *hname;
@@ -317,7 +307,7 @@ initMasterList_(void)
         return 0;
     }
 
-    if (paramValue == NULL ) {
+    if (paramValue == NULL) {
         m_isMasterCandidate = true;
         return 0;
     }
@@ -362,7 +352,7 @@ initMasterList_(void)
         m_masterCandidates[i] = putstr_(hp.name);
     }
 
-   if (m_numMasterCandidates == 0) {
+    if (m_numMasterCandidates == 0) {
         lserrno = LSE_NO_HOST;
         return -1;
     }
@@ -376,14 +366,13 @@ initMasterList_(void)
     return 0;
 }
 
-short
-getMasterCandidateNoByName_(char *hname)
+short getMasterCandidateNoByName_(char *hname)
 {
     short count;
 
     for (count = 0; count < m_numMasterCandidates; count++) {
-        if ((m_masterCandidates[count] != NULL)
-            && equal_host(m_masterCandidates[count], hname)) {
+        if ((m_masterCandidates[count] != NULL) &&
+            equal_host(m_masterCandidates[count], hname)) {
             return count;
         }
     }
@@ -391,8 +380,7 @@ getMasterCandidateNoByName_(char *hname)
     return -1;
 }
 
-char *
-getMasterCandidateNameByNo_(short candidateNo)
+char *getMasterCandidateNameByNo_(short candidateNo)
 {
     if (candidateNo < m_numMasterCandidates)
         return m_masterCandidates[candidateNo];
@@ -400,27 +388,23 @@ getMasterCandidateNameByNo_(short candidateNo)
     return NULL;
 }
 
-int
-getNumMasterCandidates_(void)
+int getNumMasterCandidates_(void)
 {
     return m_numMasterCandidates;
 }
 
-int
-getIsMasterCandidate_(void)
+int getIsMasterCandidate_(void)
 {
     return m_isMasterCandidate;
 }
 
-void
-freeupMasterCandidate_(int index)
+void freeupMasterCandidate_(int index)
 {
     FREEUP(m_masterCandidates[index]);
     m_masterCandidates[index] = NULL;
 }
 
-static int
-check_ll_conf(const char *file)
+static int check_ll_conf(const char *file)
 {
     struct stat stat_buf;
     char buf[PATH_MAX];

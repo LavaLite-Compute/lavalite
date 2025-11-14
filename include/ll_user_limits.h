@@ -1,3 +1,23 @@
+/*
+ * LavaLite - High-Throughput / HPC Scheduler
+ *
+ * Copyright (C) 2025, LavaLite Contributors
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #pragma once
 
 // ===== User-facing caps (ABI + on-wire), fixed values =====
@@ -9,26 +29,26 @@
 #define LL_WIRE_STR_MAX 512
 
 // Short user-visible name (host types, models, queues, etc.)
-#define LL_NAME_MAX 64      // legacy MAXLSFNAMELEN
+#define LL_NAME_MAX 64 // legacy MAXLSFNAMELEN
 
 // Maximum number of simple resources referenced at once
-#define LL_SRES_MAX 32      // legacy MAXSRES
+#define LL_SRES_MAX 32 // legacy MAXSRES
 
 // Maximum length of a resource description
-#define LL_RES_DESC_MAX 256     // legacy MAXRESDESLEN
+#define LL_RES_DESC_MAX 256 // legacy MAXRESDESLEN
 
 // Number of built-in load indices
-#define LL_BUILTIN_INDEX_MAX 11      // legacy NBUILTINDEX
+#define LL_BUILTIN_INDEX_MAX 11 // legacy NBUILTINDEX
 
 // Host type/model catalogue sizes
-#define LL_HOSTTYPE_MAX 128     // legacy MAXTYPES
-#define LL_HOSTMODEL_MAX 128     // legacy MAXMODELS
+#define LL_HOSTTYPE_MAX 128  // legacy MAXTYPES
+#define LL_HOSTMODEL_MAX 128 // legacy MAXMODELS
 
 // Hostname string bound — fixed, not libc-dependent, Posix
 #define LL_HOSTNAME_MAX 255
 
 // File or path name bound — fixed, not tied to PATH_MAX
-#define LL_PATH_MAX PATH_MAX     // legacy MAXFILENAMELEN
+#define LL_PATH_MAX PATH_MAX // legacy MAXFILENAMELEN
 
 // Semantic widths for specific public struct fields
 #define LL_JOBNAME_LEN LL_LINE_MAX
@@ -36,20 +56,20 @@
 
 // ===== Legacy aliases kept ON (safe for migration) =====
 #ifndef MAXLINELEN
-#  define MAXLINELEN LL_LINE_MAX
+#define MAXLINELEN LL_LINE_MAX
 #endif
 #ifndef MAXLSFNAMELEN
-#  define MAXLSFNAMELEN LL_NAME_MAX
+#define MAXLSFNAMELEN LL_NAME_MAX
 #endif
 #ifndef MAXSRES
-#  define MAXSRES LL_SRES_MAX
+#define MAXSRES LL_SRES_MAX
 #endif
 #ifndef MAXRESDESLEN
-#  define MAXRESDESLEN LL_RES_DESC_MAX
+#define MAXRESDESLEN LL_RES_DESC_MAX
 #endif
 #ifndef NBUILTINDEX
-#  define NBUILTINDEX LL_BUILTIN_INDEX_MAX
+#define NBUILTINDEX LL_BUILTIN_INDEX_MAX
 #endif
 #ifndef MAXFILENAMELEN
-#  define MAXFILENAMELEN LL_PATH_MAX
+#define MAXFILENAMELEN LL_PATH_MAX
 #endif

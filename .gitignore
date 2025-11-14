@@ -54,7 +54,7 @@ src/eauth/.libs/*
 src/eauth/eauth
 src/eauth/eauth_client
 src/eauth/eauth_server
-bhist
+src/lsbatch/bhist/bhist
 badmin
 bbot
 bhosts
@@ -84,4 +84,3 @@ src/lsbatch/daemons/mbatchd
 src/lsbatch/daemons/sbatchd
 # Ignore cscope
 cscope*
-

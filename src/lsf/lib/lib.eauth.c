@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -24,8 +25,7 @@
 static int getEAuth(struct eauth *, char *);
 static char *getLSFAdmin(void);
 
-int
-getAuth_(struct lsfAuth *auth, char *host)
+int getAuth_(struct lsfAuth *auth, char *host)
 {
     auth->uid = getuid();
 
@@ -44,8 +44,7 @@ getAuth_(struct lsfAuth *auth, char *host)
 
 #define EAUTHNAME "eauth"
 
-static int
-getEAuth(struct eauth *eauth, char *host)
+static int getEAuth(struct eauth *eauth, char *host)
 {
     char *argv[4];
     char path[PATH_MAX];
@@ -82,8 +81,7 @@ getEAuth(struct eauth *eauth, char *host)
     return 0;
 }
 
-int
-verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
+int verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
 {
     static char fname[] = "verifyEAuth/lib.eauth.c";
     char path[MAXPATHLEN], uData[256], ok;
@@ -117,10 +115,10 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             (eauth_aux_data ? eauth_aux_data : "NULL"),
             (eauth_aux_status ? eauth_aux_status : "NULL"));
 
-    memset(path,0,sizeof(path));
-    ls_strcat(path,sizeof(path),genParams[LSF_SERVERDIR].paramValue);
-    ls_strcat(path,sizeof(path),"/");
-    ls_strcat(path,sizeof(path),EAUTHNAME);
+    memset(path, 0, sizeof(path));
+    ls_strcat(path, sizeof(path), genParams[LSF_SERVERDIR].paramValue);
+    ls_strcat(path, sizeof(path), "/");
+    ls_strcat(path, sizeof(path), EAUTHNAME);
 
     if (logclass & (LC_AUTH | LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: <%s> path <%s> connected=%d", fname, uData,
@@ -128,7 +126,7 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
 
     if (connected) {
         struct timeval tv;
-        fd_set  mask;
+        fd_set mask;
 
         FD_ZERO(&mask);
         FD_SET(out[0], &mask);
@@ -138,24 +136,22 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
 
         if ((cc = select(out[0] + 1, &mask, NULL, NULL, &tv)) > 0) {
             if (logclass & (LC_AUTH | LC_TRACE))
-                ls_syslog(LOG_DEBUG, "%s: <%s> got exception",
-                          fname, uData);
+                ls_syslog(LOG_DEBUG, "%s: <%s> got exception", fname, uData);
             connected = false;
             close(in[1]);
             close(out[0]);
         } else {
             if (cc < 0)
-                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "select", uData);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "select",
+                          uData);
         }
 
         if (logclass & (LC_AUTH | LC_TRACE))
-            ls_syslog(LOG_DEBUG, "%s: <%s> select returned cc=%d", fname,
-                      uData, cc);
-
+            ls_syslog(LOG_DEBUG, "%s: <%s> select returned cc=%d", fname, uData,
+                      cc);
     }
 
     if (!connected) {
-
         int pid;
         char *user;
 
@@ -166,13 +162,15 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         }
 
         if (pipe(in) < 0) {
-            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "pipe(in)", uData);
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "pipe(in)",
+                      uData);
             lserrno = LSE_SOCK_SYS;
             return -1;
         }
 
         if (pipe(out) < 0) {
-            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "pipe(out)", uData);
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "pipe(out)",
+                      uData);
             lserrno = LSE_SOCK_SYS;
             return -1;
         }
@@ -182,7 +180,8 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             struct passwd *pw;
 
             if ((pw = getpwnam2(user)) == NULL) {
-                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "getpwnam2", user);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "getpwnam2",
+                          user);
                 exit(-1);
             }
 
@@ -199,12 +198,14 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
 
             close(in[1]);
             if (dup2(in[0], 0) == -1) {
-                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "dup2(in[0])", uData);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname,
+                          "dup2(in[0])", uData);
             }
 
             close(out[0]);
             if (dup2(out[1], 1) == -1) {
-                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "dup2(out[1])", uData);
+                ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname,
+                          "dup2(out[1])", uData);
             }
 
             for (i = 3; i < sysconf(_SC_OPEN_MAX); i++)
@@ -215,7 +216,8 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             myargv[2] = NULL;
 
             execvp(myargv[0], myargv);
-            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "execvp", myargv[0]);
+            ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "execvp",
+                      myargv[0]);
             exit(-1);
         }
 
@@ -243,12 +245,12 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         connected = false;
         return -1;
     }
-    if(logclass & (LC_AUTH | LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: b_write_fix <%s> ok, cc=%d, i=%d",
-                  fname, uData, cc, i);
+    if (logclass & (LC_AUTH | LC_TRACE))
+        ls_syslog(LOG_DEBUG, "%s: b_write_fix <%s> ok, cc=%d, i=%d", fname,
+                  uData, cc, i);
 
-    if ((cc = b_write_fix(in[1], auth->k.eauth.data, auth->k.eauth.len))
-        != auth->k.eauth.len) {
+    if ((cc = b_write_fix(in[1], auth->k.eauth.data, auth->k.eauth.len)) !=
+        auth->k.eauth.len) {
         ls_syslog(LOG_ERR, "%s: b_write_fix <%s> failed, eauth.len=%d, cc=%d",
                   fname, uData, auth->k.eauth.len, cc);
         CLOSEHANDLE(in[1]);
@@ -256,14 +258,16 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
         connected = false;
         return -1;
     }
-    if(logclass & (LC_AUTH | LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: b_write_fix <%s> ok, eauth.len=%d, eauth.data=%.*s cc=%d:",
-                  fname, uData, auth->k.eauth.len,
-                  auth->k.eauth.len, auth->k.eauth.data,cc);
+    if (logclass & (LC_AUTH | LC_TRACE))
+        ls_syslog(
+            LOG_DEBUG,
+            "%s: b_write_fix <%s> ok, eauth.len=%d, eauth.data=%.*s cc=%d:",
+            fname, uData, auth->k.eauth.len, auth->k.eauth.len,
+            auth->k.eauth.data, cc);
 
     if ((cc = b_read_fix(out[0], &ok, 1)) != 1) {
-        ls_syslog(LOG_ERR, "%s: b_read_fix <%s> failed, cc=%d: %m",
-                  fname, uData, cc);
+        ls_syslog(LOG_ERR, "%s: b_read_fix <%s> failed, cc=%d: %m", fname,
+                  uData, cc);
         CLOSEHANDLE(in[1]);
         CLOSEHANDLE(out[0]);
         connected = false;
@@ -271,16 +275,15 @@ verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
     }
 
     if (ok != '1') {
-        ls_syslog(LOG_ERR, "%s: eauth <%s> len=%d failed, rc=%c",
-                  fname, uData, auth->k.eauth.len, ok);
+        ls_syslog(LOG_ERR, "%s: eauth <%s> len=%d failed, rc=%c", fname, uData,
+                  auth->k.eauth.len, ok);
         return -1;
     }
 
     return 0;
 }
 
-static char *
-getLSFAdmin(void)
+static char *getLSFAdmin(void)
 {
     static char admin[MAXLSFNAMELEN];
     static char fname[] = "getLSFAdmin";
@@ -301,12 +304,12 @@ getLSFAdmin(void)
         return NULL;
     }
 
-    lsfUserName = (clusterInfo->nAdmins == 0 ? clusterInfo->managerName :
-                   clusterInfo->admins[0]);
+    lsfUserName = (clusterInfo->nAdmins == 0 ? clusterInfo->managerName
+                                             : clusterInfo->admins[0]);
 
     if ((pw = getpwnam2(lsfUserName)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m",
-                  fname, "getpwnam2", lsfUserName);
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "getpwnam2",
+                  lsfUserName);
         return NULL;
     }
 
@@ -314,7 +317,7 @@ getLSFAdmin(void)
     return admin;
 }
 
-#define EAUTH_ENV_BUF_LEN       (MAXPATHLEN+32)
+#define EAUTH_ENV_BUF_LEN (MAXPATHLEN + 32)
 
 static int putEnvVar(char *buf, const char *envVar, const char *envValue)
 {
@@ -337,36 +340,29 @@ static int putEnvVar(char *buf, const char *envVar, const char *envValue)
     return 0;
 }
 
-int
-putEauthClientEnvVar(char *client)
+int putEauthClientEnvVar(char *client)
 {
     static char eauth_client[EAUTH_ENV_BUF_LEN];
 
     return putEnvVar(eauth_client, "LSF_EAUTH_CLIENT", client);
-
 }
 
-int
-putEauthServerEnvVar(char *server)
+int putEauthServerEnvVar(char *server)
 {
     static char eauth_server[EAUTH_ENV_BUF_LEN];
 
     return putEnvVar(eauth_server, "LSF_EAUTH_SERVER", server);
-
 }
 
 #ifdef INTER_DAEMON_AUTH
-int
-putEauthAuxDataEnvVar(char *value)
+int putEauthAuxDataEnvVar(char *value)
 {
     static char eauth_aux_auth_data[EAUTH_ENV_BUF_LEN];
 
     return putEnvVar(eauth_aux_auth_data, "LSF_EAUTH_AUX_DATA", value);
-
 }
 
-int
-putEauthAuxStatusEnvVar(char *value)
+int putEauthAuxStatusEnvVar(char *value)
 {
     static char eauth_aux_auth_status[EAUTH_ENV_BUF_LEN];
 

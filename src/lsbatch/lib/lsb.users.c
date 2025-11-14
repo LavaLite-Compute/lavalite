@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-struct userInfoEnt *
-lsb_userinfo (char **users, int *numUsers)
+struct userInfoEnt *lsb_userinfo(char **users, int *numUsers)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
@@ -42,42 +42,41 @@ lsb_userinfo (char **users, int *numUsers)
     }
 
     if (userInfoReq.names)
-        free (userInfoReq.names);
+        free(userInfoReq.names);
 
     if (numUsers == NULL || numReq == 0) {
         userInfoReq.numNames = 0;
-        if ((userInfoReq.names = (char **)malloc (sizeof(char *))) == NULL) {
+        if ((userInfoReq.names = (char **) malloc(sizeof(char *))) == NULL) {
             lsberrno = LSBE_NO_MEM;
             return NULL;
         }
         userInfoReq.names[0] = "";
         cc = 1;
-    }
-    else if (numReq == 1 && users == NULL) {
+    } else if (numReq == 1 && users == NULL) {
         if (getpwnam2(lsfUserName) == NULL) {
             return NULL;
         }
         userInfoReq.numNames = 1;
-        if ((userInfoReq.names = malloc (sizeof(char *))) == NULL) {
+        if ((userInfoReq.names = malloc(sizeof(char *))) == NULL) {
             lsberrno = LSBE_NO_MEM;
             return NULL;
         }
         userInfoReq.names[0] = lsfUserName;
         cc = 1;
-    }
-    else {
-        if ((userInfoReq.names = (char **) calloc
-             (numReq, sizeof(char*))) == NULL) {
+    } else {
+        if ((userInfoReq.names = (char **) calloc(numReq, sizeof(char *))) ==
+            NULL) {
             lsberrno = LSBE_NO_MEM;
             return NULL;
         }
         userInfoReq.numNames = numReq;
         for (i = 0; i < numReq; i++) {
-            if (users[i] && strlen (users[i]) + 1 < MAXHOSTNAMELEN)
+            if (users[i] && strlen(users[i]) + 1 < MAXHOSTNAMELEN)
                 userInfoReq.names[i] = users[i];
             else {
-                free (userInfoReq.names);
-                lsberrno = LSBE_BAD_USER;                        *numUsers = i;
+                free(userInfoReq.names);
+                lsberrno = LSBE_BAD_USER;
+                *numUsers = i;
                 return NULL;
             }
         }
@@ -87,7 +86,7 @@ lsb_userinfo (char **users, int *numUsers)
 
     mbdReqtype = BATCH_USER_INFO;
     cc = sizeof(struct infoReq) + cc * MAXHOSTNAMELEN + cc + 100;
-    if ((request_buf = malloc (cc)) == NULL) {
+    if ((request_buf = malloc(cc)) == NULL) {
         lsberrno = LSBE_NO_MEM;
         return NULL;
     }
@@ -95,28 +94,28 @@ lsb_userinfo (char **users, int *numUsers)
 
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&userInfoReq, &hdr, xdr_infoReq,
-                       0, NULL)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &userInfoReq, &hdr, xdr_infoReq, 0,
+                       NULL)) {
         xdr_destroy(&xdrs);
-        free (request_buf);
+        free(request_buf);
         lsberrno = LSBE_XDR;
         return NULL;
     }
 
-    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs),
-                       &reply_buf, &hdr, NULL, NULL, NULL)) == -1) {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
-        free (request_buf);
+        free(request_buf);
         return NULL;
     }
     xdr_destroy(&xdrs);
-    free (request_buf);
+    free(request_buf);
 
     lsberrno = hdr.operation;
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_BAD_USER) {
         xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
         reply = &userInfoReply;
-        if(!xdr_userInfoReply(&xdrs, reply, &hdr)) {
+        if (!xdr_userInfoReply(&xdrs, reply, &hdr)) {
             lsberrno = LSBE_XDR;
             xdr_destroy(&xdrs);
             if (cc)
@@ -131,7 +130,7 @@ lsb_userinfo (char **users, int *numUsers)
             return NULL;
         }
         *numUsers = reply->numUsers;
-        return(reply->users);
+        return (reply->users);
     }
 
     if (cc)

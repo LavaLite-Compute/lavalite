@@ -13,36 +13,32 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 
-#define LSF_DEBUG_CMD    0
-#define LSF_TIME_CMD     1
-#define LSF_CMD_LOGDIR   2
+#define LSF_DEBUG_CMD 0
+#define LSF_TIME_CMD 1
+#define LSF_CMD_LOGDIR 2
 #define LSF_CMD_LOG_MASK 3
 
 #ifdef LSF_LOG_MASK
 #undef LSF_LOG_MASK
 #endif
-#define LSF_LOG_MASK     4
+#define LSF_LOG_MASK 4
 
-int
-ls_initdebug(char *appName)
+int ls_initdebug(char *appName)
 {
     char *logMask;
     struct config_param *pPtr;
     struct config_param debParams[] = {
-        {"LSF_DEBUG_CMD", NULL},
-        {"LSF_TIME_CMD", NULL},
-        {"LSF_CMD_LOGDIR", NULL},
-        {"LSF_CMD_LOG_MASK", NULL},
-        {"LSF_LOG_MASK", NULL},
-        {NULL, NULL}
-    };
+        {"LSF_DEBUG_CMD", NULL},  {"LSF_TIME_CMD", NULL},
+        {"LSF_CMD_LOGDIR", NULL}, {"LSF_CMD_LOG_MASK", NULL},
+        {"LSF_LOG_MASK", NULL},   {NULL, NULL}};
 
     if (initenv_(debParams, NULL) < 0)
         return -1;
@@ -57,7 +53,7 @@ ls_initdebug(char *appName)
                    (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
     else {
         if (strrchr(appName, '/') != 0)
-            appName = strrchr(appName, '/')+1;
+            appName = strrchr(appName, '/') + 1;
         ls_openlog(appName, debParams[LSF_CMD_LOGDIR].paramValue,
                    (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
     }
@@ -66,8 +62,7 @@ ls_initdebug(char *appName)
                  debParams[LSF_TIME_CMD].paramValue);
 
     for (pPtr = debParams; pPtr->paramName != NULL; pPtr++)
-        FREEUP (pPtr->paramValue);
+        FREEUP(pPtr->paramValue);
 
     return 0;
-
 }

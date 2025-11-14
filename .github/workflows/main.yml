@@ -20,6 +20,22 @@ jobs:
           sudo apt-get install -y autoconf automake libtool build-essential
           sudo apt-get install -y libtirpc-dev python3-pytest
           sudo apt-get install -y libnsl-dev
+          sudo apt-get install -y clang-format
+
+      # ----- clang format enforcement -----
+      - name: Run clang-format check
+        run: |
+          # Apply formatting to all tracked C source/header files
+          git ls-files '*.c' '*.h' | xargs clang-format -i
+
+          # Fail CI if format doesn't pass
+          if ! git diff --quiet; then
+            echo "clang-format found format issues:"
+            git diff --stat
+            echo
+            echo "x Rerun clang-format locally and fix it"
+            exit 1
+          fi
 
       - name: Bootstrap project
         run: ./bootstrap  # or ./autogen.sh if that's your script

@@ -13,22 +13,21 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
 #include "lsf/lib/lib.table.h"
 
-static hEnt     *h_findEnt(const char *key, hLinks *hList);
+static hEnt *h_findEnt(const char *key, hLinks *hList);
 static unsigned int getAddr(hTab *tabPtr, const char *key);
-static void     resetTab(hTab *tabPtr);
+static void resetTab(hTab *tabPtr);
 
-void
-insList_(hLinks *elemPtr, hLinks *destPtr)
+void insList_(hLinks *elemPtr, hLinks *destPtr)
 {
-
-    if (elemPtr == (hLinks *) NULL || destPtr == (hLinks *) NULL
-        || !elemPtr || !destPtr || (elemPtr == destPtr)) {
+    if (elemPtr == (hLinks *) NULL || destPtr == (hLinks *) NULL || !elemPtr ||
+        !destPtr || (elemPtr == destPtr)) {
         return;
     }
 
@@ -36,27 +35,20 @@ insList_(hLinks *elemPtr, hLinks *destPtr)
     elemPtr->fwPtr = destPtr;
     destPtr->bwPtr->fwPtr = elemPtr;
     destPtr->bwPtr = elemPtr;
-
 }
 
-void
-remList_(hLinks *elemPtr)
+void remList_(hLinks *elemPtr)
 {
-
-    if (elemPtr == (hLinks *) NULL || elemPtr == elemPtr->bwPtr
-        || !elemPtr) {
+    if (elemPtr == (hLinks *) NULL || elemPtr == elemPtr->bwPtr || !elemPtr) {
         return;
     }
 
     elemPtr->fwPtr->bwPtr = elemPtr->bwPtr;
     elemPtr->bwPtr->fwPtr = elemPtr->fwPtr;
-
 }
 
-void
-initList_(hLinks *headPtr)
+void initList_(hLinks *headPtr)
 {
-
     if (headPtr == (hLinks *) NULL || !headPtr) {
         return;
     }
@@ -65,8 +57,7 @@ initList_(hLinks *headPtr)
     headPtr->fwPtr = headPtr;
 }
 
-void
-h_initTab_(hTab *tabPtr, int numSlots)
+void h_initTab_(hTab *tabPtr, int numSlots)
 {
     int i;
     hLinks *slotPtr;
@@ -86,23 +77,22 @@ h_initTab_(hTab *tabPtr, int numSlots)
         initList_(slotPtr);
 }
 
-void
-h_freeTab_(hTab *tabPtr, void (*freeFunc)(void *))
+void h_freeTab_(hTab *tabPtr, void (*freeFunc)(void *))
 {
     hLinks *hTabEnd, *slotPtr;
-    hEnt    *hEntPtr;
+    hEnt *hEntPtr;
 
     slotPtr = tabPtr->slotPtr;
     hTabEnd = &(slotPtr[tabPtr->size]);
 
-    for ( ;slotPtr < hTabEnd; slotPtr++) {
-        while ( slotPtr != slotPtr->bwPtr ) {
+    for (; slotPtr < hTabEnd; slotPtr++) {
+        while (slotPtr != slotPtr->bwPtr) {
             hEntPtr = (hEnt *) slotPtr->bwPtr;
             remList_((hLinks *) hEntPtr);
             FREEUP(hEntPtr->keyname);
-            if (hEntPtr->hData != (int *)NULL) {
+            if (hEntPtr->hData != (int *) NULL) {
                 if (freeFunc != NULL)
-                    (*freeFunc)((void *)hEntPtr->hData);
+                    (*freeFunc)((void *) hEntPtr->hData);
                 else {
                     free((char *) hEntPtr->hData);
                     hEntPtr->hData = (int *) NULL;
@@ -117,34 +107,30 @@ h_freeTab_(hTab *tabPtr, void (*freeFunc)(void *))
     tabPtr->numEnts = 0;
 }
 
-int
-h_TabEmpty_(hTab *tabPtr)
+int h_TabEmpty_(hTab *tabPtr)
 {
     return tabPtr->numEnts == 0;
 }
 
-void
-h_delTab_(hTab *tabPtr)
+void h_delTab_(hTab *tabPtr)
 {
-    h_freeTab_(tabPtr, (HTAB_DATA_DESTROY_FUNC_T)NULL);
+    h_freeTab_(tabPtr, (HTAB_DATA_DESTROY_FUNC_T) NULL);
 }
 
-hEnt *
-h_getEnt_(hTab *tabPtr, const char *key)
+hEnt *h_getEnt_(hTab *tabPtr, const char *key)
 
 {
-    if (tabPtr->numEnts == 0) return NULL;
-    return(h_findEnt(key, &(tabPtr->slotPtr[getAddr(tabPtr, key)])));
-
+    if (tabPtr->numEnts == 0)
+        return NULL;
+    return (h_findEnt(key, &(tabPtr->slotPtr[getAddr(tabPtr, key)])));
 }
 
-hEnt *
-h_addEnt_(hTab *tabPtr, const char *key, int *newPtr)
+hEnt *h_addEnt_(hTab *tabPtr, const char *key, int *newPtr)
 
 {
     hEnt *hEntPtr;
-    int     *keyPtr;
-    hLinks  *hList;
+    int *keyPtr;
+    hLinks *hList;
 
     keyPtr = (int *) key;
     hList = &(tabPtr->slotPtr[getAddr(tabPtr, (char *) keyPtr)]);
@@ -170,18 +156,17 @@ h_addEnt_(hTab *tabPtr, const char *key, int *newPtr)
         *newPtr = true;
 
     return hEntPtr;
-
 }
 
-hEnt *
-lh_addEnt_(hTab *tabPtr, char *key, int *newPtr)
+hEnt *lh_addEnt_(hTab *tabPtr, char *key, int *newPtr)
 
 {
     hEnt *hEntPtr;
-    int     *keyPtr;
-    hLinks  *hList;
+    int *keyPtr;
+    hLinks *hList;
 
-    if (tabPtr->size > 1) tabPtr->size = 1;
+    if (tabPtr->size > 1)
+        tabPtr->size = 1;
 
     keyPtr = (int *) key;
     hList = &(tabPtr->slotPtr[getAddr(tabPtr, (char *) keyPtr)]);
@@ -203,42 +188,33 @@ lh_addEnt_(hTab *tabPtr, char *key, int *newPtr)
         *newPtr = true;
 
     return hEntPtr;
-
 }
 
-void
-h_delEnt_(hTab *tabPtr, hEnt *hEntPtr)
+void h_delEnt_(hTab *tabPtr, hEnt *hEntPtr)
 {
-
     if (hEntPtr != (hEnt *) NULL) {
         remList_((hLinks *) hEntPtr);
         free(hEntPtr->keyname);
-        if (hEntPtr->hData != (int *)NULL)
-            free((char *)hEntPtr->hData);
+        if (hEntPtr->hData != (int *) NULL)
+            free((char *) hEntPtr->hData);
         free((char *) hEntPtr);
         tabPtr->numEnts--;
     }
-
 }
 
-void
-h_rmEnt_(hTab *tabPtr, hEnt *hEntPtr)
+void h_rmEnt_(hTab *tabPtr, hEnt *hEntPtr)
 {
-
     if (hEntPtr != (hEnt *) NULL) {
         remList_((hLinks *) hEntPtr);
         free(hEntPtr->keyname);
         free((char *) hEntPtr);
         tabPtr->numEnts--;
     }
-
 }
 
-hEnt *
-h_firstEnt_(hTab *tabPtr, sTab *sPtr)
+hEnt *h_firstEnt_(hTab *tabPtr, sTab *sPtr)
 
 {
-
     sPtr->tabPtr = tabPtr;
     sPtr->nIndex = 0;
     sPtr->hEntPtr = (hEnt *) NULL;
@@ -246,14 +222,11 @@ h_firstEnt_(hTab *tabPtr, sTab *sPtr)
     if (tabPtr->slotPtr) {
         return h_nextEnt_(sPtr);
     } else {
-
-        return((hEnt *) NULL);
+        return ((hEnt *) NULL);
     }
-
 }
 
-hEnt *
-h_nextEnt_(sTab *sPtr)
+hEnt *h_nextEnt_(sTab *sPtr)
 
 {
     hLinks *hList;
@@ -263,10 +236,10 @@ h_nextEnt_(sTab *sPtr)
 
     while (hEntPtr == (hEnt *) NULL || (hLinks *) hEntPtr == sPtr->hList) {
         if (sPtr->nIndex >= sPtr->tabPtr->size)
-            return((hEnt *) NULL);
+            return ((hEnt *) NULL);
         hList = &(sPtr->tabPtr->slotPtr[sPtr->nIndex]);
         sPtr->nIndex++;
-        if ( hList != hList->bwPtr ) {
+        if (hList != hList->bwPtr) {
             hEntPtr = (hEnt *) hList->bwPtr;
             sPtr->hList = hList;
             break;
@@ -276,11 +249,9 @@ h_nextEnt_(sTab *sPtr)
     sPtr->hEntPtr = (hEnt *) ((hLinks *) hEntPtr)->bwPtr;
 
     return hEntPtr;
-
 }
 
-static unsigned int
-getAddr(hTab *tabPtr, const char *key)
+static unsigned int getAddr(hTab *tabPtr, const char *key)
 {
     unsigned int ha = 0;
 
@@ -288,30 +259,25 @@ getAddr(hTab *tabPtr, const char *key)
         ha = (ha * 128 + *key++) % tabPtr->size;
 
     return ha;
-
 }
 
-static hEnt *
-h_findEnt(const char *key, hLinks *hList)
+static hEnt *h_findEnt(const char *key, hLinks *hList)
 {
     hEnt *hEntPtr;
 
-    for ( hEntPtr = (hEnt *) hList->bwPtr;
-          hEntPtr != (hEnt *) hList;
-          hEntPtr = (hEnt *) ((hLinks *) hEntPtr)->bwPtr) {
+    for (hEntPtr = (hEnt *) hList->bwPtr; hEntPtr != (hEnt *) hList;
+         hEntPtr = (hEnt *) ((hLinks *) hEntPtr)->bwPtr) {
         if (strcmp(hEntPtr->keyname, key) == 0)
             return hEntPtr;
     }
 
     return ((hEnt *) NULL);
-
 }
 
-static void
-resetTab(hTab *tabPtr)
+static void resetTab(hTab *tabPtr)
 {
     int lastSize, slot;
-    hLinks  *lastSlotPtr, *lastList;
+    hLinks *lastSlotPtr, *lastList;
     hEnt *hEntPtr;
 
     lastSlotPtr = tabPtr->slotPtr;
@@ -324,18 +290,15 @@ resetTab(hTab *tabPtr)
             hEntPtr = (hEnt *) lastList->bwPtr;
             remList_((hLinks *) hEntPtr);
             slot = getAddr(tabPtr, (char *) hEntPtr->keyname);
-            insList_((hLinks *) hEntPtr,
-                     (hLinks *) (&(tabPtr->slotPtr[slot])));
+            insList_((hLinks *) hEntPtr, (hLinks *) (&(tabPtr->slotPtr[slot])));
             tabPtr->numEnts++;
         }
     }
 
     free((char *) lastSlotPtr);
-
 }
 
-void
-h_delRef_(hTab *tabPtr, hEnt *hEntPtr)
+void h_delRef_(hTab *tabPtr, hEnt *hEntPtr)
 {
     if (hEntPtr != (hEnt *) NULL) {
         remList_((hLinks *) hEntPtr);
@@ -343,20 +306,18 @@ h_delRef_(hTab *tabPtr, hEnt *hEntPtr)
         free((char *) hEntPtr);
         tabPtr->numEnts--;
     }
-
 }
 
-void
-h_freeRefTab_(hTab *tabPtr)
+void h_freeRefTab_(hTab *tabPtr)
 {
     hLinks *hTabEnd, *slotPtr;
-    hEnt    *hEntPtr;
+    hEnt *hEntPtr;
 
     slotPtr = tabPtr->slotPtr;
     hTabEnd = &(slotPtr[tabPtr->size]);
 
-    for ( ;slotPtr < hTabEnd; slotPtr++) {
-        while ( slotPtr != slotPtr->bwPtr ) {
+    for (; slotPtr < hTabEnd; slotPtr++) {
+        while (slotPtr != slotPtr->bwPtr) {
             hEntPtr = (hEnt *) slotPtr->bwPtr;
             remList_((hLinks *) hEntPtr);
             FREEUP(hEntPtr->keyname);
@@ -367,11 +328,10 @@ h_freeRefTab_(hTab *tabPtr)
     free((char *) tabPtr->slotPtr);
     tabPtr->slotPtr = (hLinks *) NULL;
     tabPtr->numEnts = 0;
-
 }
 
 /* New hash table implementation
-*/
+ */
 #if 0
 
 #include <stdio.h>

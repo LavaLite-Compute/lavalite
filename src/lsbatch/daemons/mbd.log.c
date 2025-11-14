@@ -13,141 +13,142 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/daemons/mbd.h"
 
 #define SAFE_JID_GAP 100
-#define NULL_RES     "NRR"
-#define NULL_HOST    "NULL_HOST"
-#define SKIPSPACE(sp)      while (isspace(*(sp))) (sp)++;
+#define NULL_RES "NRR"
+#define NULL_HOST "NULL_HOST"
+#define SKIPSPACE(sp)                                                          \
+    while (isspace(*(sp)))                                                     \
+        (sp)++;
 
 time_t eventTime;
-extern int              sigNameToValue_ (char *sigString);
-extern char            *getLsbSigSymbol ( int );
-extern char            *getSigSymbol(int);
-extern void             chanFreeStashedBuf(struct Buffer *);
-extern int              chanAllocBuf_(struct Buffer **, int);
-static int              replay_event(char *, int);
-static struct jData *   checkJobInCore(LS_LONG_INT jobId);
+extern int sigNameToValue_(char *sigString);
+extern char *getLsbSigSymbol(int);
+extern char *getSigSymbol(int);
+extern void chanFreeStashedBuf(struct Buffer *);
+extern int chanAllocBuf_(struct Buffer **, int);
+static int replay_event(char *, int);
+static struct jData *checkJobInCore(LS_LONG_INT jobId);
 
-static int              replay_newjob(char *, int);
-static int              replay_startjob(char *, int, int);
-static int              replay_executejob(char *, int);
-static int              replay_startjobaccept(char *, int);
-static int              replay_newstat(char *, int);
-static int              replay_switchjob(char *, int);
-static int              replay_movejob(char *, int);
-static int              replay_qc(char *, int);
-static int              replay_hostcontrol(char *, int);
-static int              replay_mbdDie(char *, int);
-static int              replay_unfulfill(char *, int);
-static int              replay_loadIndex(char *, int);
-static int              replay_chkpnt(char *, int);
-static int              replay_mig(char *, int);
-static int              replay_mbdStart(char *, int);
-static int              replay_modifyjob(char *, int);
-static int              replay_modifyjob2(char *, int);
+static int replay_newjob(char *, int);
+static int replay_startjob(char *, int, int);
+static int replay_executejob(char *, int);
+static int replay_startjobaccept(char *, int);
+static int replay_newstat(char *, int);
+static int replay_switchjob(char *, int);
+static int replay_movejob(char *, int);
+static int replay_qc(char *, int);
+static int replay_hostcontrol(char *, int);
+static int replay_mbdDie(char *, int);
+static int replay_unfulfill(char *, int);
+static int replay_loadIndex(char *, int);
+static int replay_chkpnt(char *, int);
+static int replay_mig(char *, int);
+static int replay_mbdStart(char *, int);
+static int replay_modifyjob(char *, int);
+static int replay_modifyjob2(char *, int);
 
-static struct jData    *replay_jobdata(char *, int, char *);
-static int              replay_signaljob(char *, int);
-static int              replay_jobmsg(char *, int);
-static int              replay_jobmsgack(char *, int);
-static int              replay_jobsigact(char *, int);
-static int              replay_jobrequeue(char *, int);
-static int              replay_cleanjob(char *, int);
-static bool_t           replay_jobforce(char *, int);
-static int              replay_logSwitch(char *, int);
-static int              replay_jobattrset(char *, int );
+static struct jData *replay_jobdata(char *, int, char *);
+static int replay_signaljob(char *, int);
+static int replay_jobmsg(char *, int);
+static int replay_jobmsgack(char *, int);
+static int replay_jobsigact(char *, int);
+static int replay_jobrequeue(char *, int);
+static int replay_cleanjob(char *, int);
+static bool_t replay_jobforce(char *, int);
+static int replay_logSwitch(char *, int);
+static int replay_jobattrset(char *, int);
 
 static int replay_logSwitch(char *, int);
 
-static void             logFinishedjob(struct jData *);
-static void             log_loadIndex(void);
-static void             ckSchedHost (void);
-static int              checkJobStarter(char *, char *);
+static void logFinishedjob(struct jData *);
+static void log_loadIndex(void);
+static void ckSchedHost(void);
+static int checkJobStarter(char *, char *);
 
-static FILE            *log_fp     = NULL;
-static FILE            *joblog_fp  = NULL;
-static int              openEventFile(const char *);
-static int              putEventRec(char *);
-static int              putEventRecTime(char *, time_t);
-static int              putEventRec1(char *);
-static int              log_jobdata(struct jData *, char *, int);
-static int              createEvent0File(void);
-static int              renameElogFiles(void);
-static int              createAcct0File(void);
+static FILE *log_fp = NULL;
+static FILE *joblog_fp = NULL;
+static int openEventFile(const char *);
+static int putEventRec(char *);
+static int putEventRecTime(char *, time_t);
+static int putEventRec1(char *);
+static int log_jobdata(struct jData *, char *, int);
+static int createEvent0File(void);
+static int renameElogFiles(void);
+static int createAcct0File(void);
 
-void                    log_timeExpired(int, time_t);
+void log_timeExpired(int, time_t);
 static int canSwitch(struct eventRec *, struct jData *);
 static char *instrJobStarter1(char *, int, char *, char *, char *);
 
-int                     nextJobId_t = 1;
-time_t                  dieTime;
-static char             elogFname[MAXFILENAMELEN];
-static char             jlogFname[MAXFILENAMELEN];
+int nextJobId_t = 1;
+time_t dieTime;
+static char elogFname[MAXFILENAMELEN];
+static char jlogFname[MAXFILENAMELEN];
 
 static struct eventRec *logPtr;
 
-static int              logLoadIndex = TRUE;
+static int logLoadIndex = TRUE;
 
-extern int sigNameToValue_( char *);
+extern int sigNameToValue_(char *);
 
 extern float version;
 
 struct hostCtrlEvent {
-    time_t                time;
-    struct hostCtrlLog    *hostCtrlLog;
+    time_t time;
+    struct hostCtrlLog *hostCtrlLog;
 };
 
-static hTab    hostCtrlEvents;
+static hTab hostCtrlEvents;
 
-static void    initHostCtrlTable(void);
-static void    destroyHostCtrlTable(void);
-static void    destroyHostCtrlEvent(void *);
-static void    saveHostCtrlEvent(struct hostCtrlLog *, const time_t);
-static void    writeHostCtrlEvent(void);
-static void    log_hostStatusAtSwitch(const struct hostCtrlEvent *);
+static void initHostCtrlTable(void);
+static void destroyHostCtrlTable(void);
+static void destroyHostCtrlEvent(void *);
+static void saveHostCtrlEvent(struct hostCtrlLog *, const time_t);
+static void writeHostCtrlEvent(void);
+static void log_hostStatusAtSwitch(const struct hostCtrlEvent *);
 
 struct queueCtrlEvent {
-    time_t                 time;
-    struct queueCtrlLog    *queueCtrlLog;
+    time_t time;
+    struct queueCtrlLog *queueCtrlLog;
 };
 
-static hTab    closedQueueEvents;
-static hTab    inactiveQueueEvents;
+static hTab closedQueueEvents;
+static hTab inactiveQueueEvents;
 
-static void    initQueueCtrlTable(void);
-static void    destroyQueueCtrlTable(void);
-static void    destroyQueueCtrlEvent(void *);
-static void    saveQueueCtrlEvent(struct queueCtrlLog *, const time_t);
-static void    queueTableUpdate(hTab *, struct queueCtrlLog *);
-static void    writeQueueCtrlEvent(void);
-static void    log_queueStatusAtSwitch(const struct queueCtrlEvent *);
+static void initQueueCtrlTable(void);
+static void destroyQueueCtrlTable(void);
+static void destroyQueueCtrlEvent(void *);
+static void saveQueueCtrlEvent(struct queueCtrlLog *, const time_t);
+static void queueTableUpdate(hTab *, struct queueCtrlLog *);
+static void writeQueueCtrlEvent(void);
+static void log_queueStatusAtSwitch(const struct queueCtrlEvent *);
 
-extern time_t lsb_getAcctFileTime(char * fileName);
+extern time_t lsb_getAcctFileTime(char *fileName);
 
-static char    *getSignalSymbol(const struct signalReq *);
-static int     replay_arrayrequeue(struct jData *,
-                                   const struct signalLog *);
+static char *getSignalSymbol(const struct signalReq *);
+static int replay_arrayrequeue(struct jData *, const struct signalLog *);
 static int renameAcctLogFiles(int);
 
-int
-init_log(void)
+int init_log(void)
 {
-    static char    fname[] = "init_log";
-    char           first = TRUE;
-    int            ConfigError = 0;
-    int            lineNum = 0;
-    int            list;
-    int            i;
-    struct jData*  jp;
-    char           dirbuf[MAXPATHLEN];
-    char           infoDir[MAXPATHLEN];
-    struct stat    sbuf, ebuf;
-    struct hData*  hPtr;
+    static char fname[] = "init_log";
+    char first = TRUE;
+    int ConfigError = 0;
+    int lineNum = 0;
+    int list;
+    int i;
+    struct jData *jp;
+    char dirbuf[MAXPATHLEN];
+    char infoDir[MAXPATHLEN];
+    struct stat sbuf, ebuf;
+    struct hData *hPtr;
 
     mSchedStage = M_STAGE_REPLAY;
 
@@ -164,9 +165,10 @@ init_log(void)
     }
 
     if (sbuf.st_uid != mbd_mgr->uid) {
-        ls_syslog(LOG_ERR, "%s: Log directory <%s> not owned by LSF "
-                  " administrator <%s/%d> owner ID is %d", __func__,
-                  dirbuf, mbd_mgr->name, mbd_mgr->uid, sbuf.st_uid);
+        ls_syslog(LOG_ERR,
+                  "%s: Log directory <%s> not owned by LSF "
+                  " administrator <%s/%d> owner ID is %d",
+                  __func__, dirbuf, mbd_mgr->name, mbd_mgr->uid, sbuf.st_uid);
         if (mbd_debug == 0) {
             mbdDie(MASTER_FATAL);
         }
@@ -175,11 +177,10 @@ init_log(void)
     }
 
     if (sbuf.st_mode & 02) {
-
-        ls_syslog(LOG_ERR, "%s: Mode <%03o> not allowed for job log directory <%s>; the permission bits for others should be 05",
-                  fname,
-                  (int)sbuf.st_mode,
-                  dirbuf);
+        ls_syslog(LOG_ERR,
+                  "%s: Mode <%03o> not allowed for job log directory <%s>; the "
+                  "permission bits for others should be 05",
+                  fname, (int) sbuf.st_mode, dirbuf);
         if (mbd_debug == 0) {
             mbdDie(MASTER_FATAL);
         }
@@ -191,7 +192,6 @@ init_log(void)
 
     sprintf(infoDir, "%s/info", daemonParams[LSB_SHAREDIR].paramValue);
 
-
     if (mkdir(infoDir, 0700) == -1 && errno != EEXIST) {
         ls_syslog(LOG_ERR, "%s mkdir(%s) failed %m", __func__, infoDir);
         mbdDie(MASTER_FATAL);
@@ -201,7 +201,6 @@ init_log(void)
     log_fp = fopen(elogFname, "r");
 
     if (log_fp != NULL) {
-
         if (lsberrno == LSBE_EOF)
             lsberrno = LSBE_NO_ERROR;
 
@@ -223,8 +222,10 @@ init_log(void)
 
             eventTime = logPtr->eventTime;
             if (!replay_event(elogFname, lineNum) && first) {
-                ls_syslog(LOG_ERR, "%s: File %s at line %d: First replay_event "
-                          "failed; line ignored", __func__, elogFname, lineNum);
+                ls_syslog(LOG_ERR,
+                          "%s: File %s at line %d: First replay_event "
+                          "failed; line ignored",
+                          __func__, elogFname, lineNum);
                 first = FALSE;
             }
         }
@@ -254,9 +255,9 @@ init_log(void)
                 if (jp->jStatus & JOB_STAT_PEND)
                     continue;
                 updCounters(jp, JOB_STAT_PEND, !LOG_IT);
-                if ((jp->shared->jobBill.options & SUB_EXCLUSIVE)
-                    && IS_START (jp->jStatus)) {
-                    for (i = 0; i < jp->numHostPtr; i ++)
+                if ((jp->shared->jobBill.options & SUB_EXCLUSIVE) &&
+                    IS_START(jp->jStatus)) {
+                    for (i = 0; i < jp->numHostPtr; i++)
                         jp->hPtr[i]->hStatus |= HOST_STAT_EXCLUSIVE;
                 }
             }
@@ -272,7 +273,6 @@ init_log(void)
         }
     }
     if (!first) {
-
         if (switch_log() == -1)
             ConfigError = -1;
     }
@@ -289,8 +289,7 @@ init_log(void)
     return ConfigError;
 }
 
-static int
-replay_event(char *filename, int lineNum)
+static int replay_event(char *filename, int lineNum)
 {
     static char fname[] = "replay_event()";
 
@@ -351,55 +350,51 @@ replay_event(char *filename, int lineNum)
         return (replay_logSwitch(filename, lineNum));
     default:
         ls_syslog(LOG_ERR, "%s: File %s at line %d: Invalid event_type <%c>",
-                  fname,
-                  filename,
-                  lineNum,
-                  logPtr->type);
+                  fname, filename, lineNum, logPtr->type);
         return FALSE;
     }
 }
 
-static int
-replay_newjob(char *filename, int lineNum)
+static int replay_newjob(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_newjob";
-    struct jData           *job;
+    static char fname[] = "replay_newjob";
+    struct jData *job;
     struct idxList *idxList;
-    int                    error;
-    int    maxJLimit = 0;
+    int error;
+    int maxJLimit = 0;
 
     job = replay_jobdata(filename, lineNum, fname);
 
-    if ( (job->shared->jobBill.options & SUB_RESTART) ||
-         (idxList = parseJobArrayIndex(job->shared->jobBill.jobName, &error, &maxJLimit))
-         == NULL)
-        handleNewJob (job, JOB_REPLAY, logPtr->eventTime);
+    if ((job->shared->jobBill.options & SUB_RESTART) ||
+        (idxList = parseJobArrayIndex(job->shared->jobBill.jobName, &error,
+                                      &maxJLimit)) == NULL)
+        handleNewJob(job, JOB_REPLAY, logPtr->eventTime);
     else {
         handleNewJobArray(job, idxList, maxJLimit);
         freeIdxList(idxList);
     }
 
-    nextJobId_t = (int)job->jobId + 1;
+    nextJobId_t = (int) job->jobId + 1;
 
     if (nextJobId_t >= maxJobId)
         nextJobId_t = 1;
     return TRUE;
 }
 
-static int
-replay_switchjob(char *filename, int lineNum)
+static int replay_switchjob(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_switchjob";
-    struct jobSwitchReq     switchReq;
-    struct qData           *qfp, *qtp;
-    struct jData           *jp;
+    static char fname[] = "replay_switchjob";
+    struct jobSwitchReq switchReq;
+    struct qData *qfp, *qtp;
+    struct jData *jp;
 
     switchReq.jobId = LSB_JOBID(logPtr->eventLog.jobSwitchLog.jobId,
                                 logPtr->eventLog.jobSwitchLog.idx);
     strcpy(switchReq.queue, logPtr->eventLog.jobSwitchLog.queue);
 
     if ((jp = getJobData(switchReq.jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%s> not found in job list ",
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%s> not found in job list ",
                   fname, filename, lineNum, lsb_jobid2str(switchReq.jobId));
         return FALSE;
     }
@@ -407,67 +402,62 @@ replay_switchjob(char *filename, int lineNum)
 
     qtp = getQueueData(switchReq.queue);
     if (qtp == NULL) {
-        ls_syslog(LOG_DEBUG, "replay_switchjob: File %s at line %d: Destination queue <%s> not found, switching job <%s> to queue <%s>", filename, lineNum, switchReq.queue, lsb_jobid2str(switchReq.jobId), LOST_AND_FOUND);
+        ls_syslog(LOG_DEBUG,
+                  "replay_switchjob: File %s at line %d: Destination queue "
+                  "<%s> not found, switching job <%s> to queue <%s>",
+                  filename, lineNum, switchReq.queue,
+                  lsb_jobid2str(switchReq.jobId), LOST_AND_FOUND);
         qtp = getQueueData(LOST_AND_FOUND);
         if (qtp == NULL)
             qtp = lostFoundQueue();
     }
     jobInQueueEnd(jp, qtp);
 
-    if ( qfp != qtp ) {
-        if ((jp->shared->jobBill.options & SUB_CHKPNT_DIR )
-            && !(jp->shared->jobBill.options2 & SUB2_QUEUE_CHKPNT)) {
-
+    if (qfp != qtp) {
+        if ((jp->shared->jobBill.options & SUB_CHKPNT_DIR) &&
+            !(jp->shared->jobBill.options2 & SUB2_QUEUE_CHKPNT)) {
         } else {
-
-            if ( qfp->qAttrib & Q_ATTRIB_CHKPNT ) {
-                jp->shared->jobBill.options  &= ~ SUB_CHKPNT_DIR;
-                jp->shared->jobBill.options  &= ~ SUB_CHKPNT_PERIOD;
-                jp->shared->jobBill.options2 &= ~ SUB2_QUEUE_CHKPNT;
+            if (qfp->qAttrib & Q_ATTRIB_CHKPNT) {
+                jp->shared->jobBill.options &= ~SUB_CHKPNT_DIR;
+                jp->shared->jobBill.options &= ~SUB_CHKPNT_PERIOD;
+                jp->shared->jobBill.options2 &= ~SUB2_QUEUE_CHKPNT;
             }
 
             FREEUP(jp->shared->jobBill.chkpntDir);
 
-            if ( qtp->qAttrib & Q_ATTRIB_CHKPNT ) {
-
+            if (qtp->qAttrib & Q_ATTRIB_CHKPNT) {
                 char dir[MAXPATHLEN];
                 sprintf(dir, "%s/%s", qtp->chkpntDir, lsb_jobid2str(jp->jobId));
                 jp->shared->jobBill.chkpntDir = safeSave(dir);
                 jp->shared->jobBill.chkpntPeriod = qtp->chkpntPeriod;
-                jp->shared->jobBill.options  |= SUB_CHKPNT_DIR;
-                jp->shared->jobBill.options  |= SUB_CHKPNT_PERIOD;
+                jp->shared->jobBill.options |= SUB_CHKPNT_DIR;
+                jp->shared->jobBill.options |= SUB_CHKPNT_PERIOD;
                 jp->shared->jobBill.options2 |= SUB2_QUEUE_CHKPNT;
-            }
-            else
+            } else
                 jp->shared->jobBill.chkpntDir = safeSave("");
-
         }
     }
 
     if (qfp != qtp) {
-        if ((jp->shared->jobBill.options & SUB_RERUNNABLE )
-            && !(jp->shared->jobBill.options2 & SUB2_QUEUE_RERUNNABLE)) {
-
+        if ((jp->shared->jobBill.options & SUB_RERUNNABLE) &&
+            !(jp->shared->jobBill.options2 & SUB2_QUEUE_RERUNNABLE)) {
         } else {
+            jp->shared->jobBill.options &= ~SUB_RERUNNABLE;
+            jp->shared->jobBill.options2 &= ~SUB2_QUEUE_RERUNNABLE;
 
-            jp->shared->jobBill.options  &= ~ SUB_RERUNNABLE;
-            jp->shared->jobBill.options2 &= ~ SUB2_QUEUE_RERUNNABLE;
-
-            if ( qtp->qAttrib & Q_ATTRIB_RERUNNABLE ) {
-                jp->shared->jobBill.options  |= SUB_RERUNNABLE;
+            if (qtp->qAttrib & Q_ATTRIB_RERUNNABLE) {
+                jp->shared->jobBill.options |= SUB_RERUNNABLE;
                 jp->shared->jobBill.options2 |= SUB2_QUEUE_RERUNNABLE;
             }
         }
     }
 
     return TRUE;
-
 }
 
-static int
-replay_cleanjob(char *filename, int lineNum)
+static int replay_cleanjob(char *filename, int lineNum)
 {
-    LS_LONG_INT  jobId;
+    LS_LONG_INT jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobCleanLog.jobId,
                       logPtr->eventLog.jobCleanLog.idx);
@@ -475,15 +465,14 @@ replay_cleanjob(char *filename, int lineNum)
     return TRUE;
 }
 
-static int
-replay_movejob(char *filename, int lineNum)
+static int replay_movejob(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_movejob";
-    struct jobMoveReq       jobMoveReq;
-    int                     reply;
-    struct lsfAuth          auth;
+    static char fname[] = "replay_movejob";
+    struct jobMoveReq jobMoveReq;
+    int reply;
+    struct lsfAuth auth;
 
-    (void)memset((void *)&auth, '\0', sizeof (struct lsfAuth));
+    (void) memset((void *) &auth, '\0', sizeof(struct lsfAuth));
 
     auth.uid = logPtr->eventLog.jobMoveLog.userId;
     strcpy(auth.lsfUserName, logPtr->eventLog.jobMoveLog.userName);
@@ -498,28 +487,38 @@ replay_movejob(char *filename, int lineNum)
     case LSBE_NO_ERROR:
         return TRUE;
     case LSBE_NO_JOB:
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Cannot move job <%s>: job not found", fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Cannot move job <%s>: job not found",
+                  fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
         return FALSE;
     case LSBE_PERMISSION:
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Cannot move job <%s>: not operated by owner or manager", fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Cannot move job <%s>: not operated "
+                  "by owner or manager",
+                  fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
         return FALSE;
     case LSBE_JOB_STARTED:
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Cannot move job <%s>: job already started", fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
+        ls_syslog(
+            LOG_ERR,
+            "%s: File %s at line %d: Cannot move job <%s>: job already started",
+            fname, filename, lineNum, lsb_jobid2str(jobMoveReq.jobId));
         return FALSE;
     default:
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Wrong return code <%d> from movejob for job <%s>", fname, filename, lineNum, reply, lsb_jobid2str(jobMoveReq.jobId));
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Wrong return code <%d> from movejob "
+                  "for job <%s>",
+                  fname, filename, lineNum, reply,
+                  lsb_jobid2str(jobMoveReq.jobId));
         return FALSE;
     }
-
 }
 
-static int
-replay_startjob(char *filename, int lineNum, int preExecStart)
+static int replay_startjob(char *filename, int lineNum, int preExecStart)
 {
-    static char             fname[] = "replay_startjob";
-    struct jData            job, *jp;
-    struct jShared          shared;
-    int                     i;
+    static char fname[] = "replay_startjob";
+    struct jData job, *jp;
+    struct jShared shared;
+    int i;
 
     job.jobId = LSB_JOBID(logPtr->eventLog.jobStartLog.jobId,
                           logPtr->eventLog.jobStartLog.idx);
@@ -534,8 +533,7 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
     job.shared = &shared;
 
     if ((jp = getJobData(job.jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Job <%s> not found in job list",
-                  fname,
+        ls_syslog(LOG_ERR, "%s: Job <%s> not found in job list", fname,
                   lsb_jobid2str(job.jobId));
         return FALSE;
     }
@@ -544,18 +542,21 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
         job.hPtr = (struct hData **) my_calloc(job.numHostPtr,
                                                sizeof(struct hData *), fname);
     } else {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: The number of execution hosts is zero for job <%s>",
-                  fname,
-                  filename,
-                  lineNum,
-                  lsb_jobid2str(job.jobId));
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: The number of execution hosts is "
+                  "zero for job <%s>",
+                  fname, filename, lineNum, lsb_jobid2str(job.jobId));
         return FALSE;
     }
 
     for (i = 0; i < job.numHostPtr; i++) {
         job.hPtr[i] = getHostData(logPtr->eventLog.jobStartLog.execHosts[i]);
         if (job.hPtr[i] == NULL) {
-            ls_syslog(LOG_DEBUG, "replay_startjob: Execution host <%s> not found; saving job <%s> to host <%s>", logPtr->eventLog.jobStartLog.execHosts[i], lsb_jobid2str(job.jobId), LOST_AND_FOUND);
+            ls_syslog(LOG_DEBUG,
+                      "replay_startjob: Execution host <%s> not found; saving "
+                      "job <%s> to host <%s>",
+                      logPtr->eventLog.jobStartLog.execHosts[i],
+                      lsb_jobid2str(job.jobId), LOST_AND_FOUND);
             if ((job.hPtr[i] = getHostData(LOST_AND_FOUND)) == NULL)
                 job.hPtr[i] = lostFoundHost();
         }
@@ -572,9 +573,8 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
         FREEUP(jp->hPtr);
     jp->hPtr = job.hPtr;
 
-    if (!preExecStart
-        && (jp->shared->jobBill.options & SUB_PRE_EXEC)
-        && (jp->jStatus & JOB_STAT_PRE_EXEC)) {
+    if (!preExecStart && (jp->shared->jobBill.options & SUB_PRE_EXEC) &&
+        (jp->jStatus & JOB_STAT_PRE_EXEC)) {
         jp->jStatus &= ~JOB_STAT_PRE_EXEC;
         return TRUE;
     }
@@ -586,36 +586,33 @@ replay_startjob(char *filename, int lineNum, int preExecStart)
 
     jStatusChange(jp, job.jStatus, logPtr->eventTime, "replay_startjob");
 
-    if  (!preExecStart){
-
+    if (!preExecStart) {
         updHostLeftRusageMem(jp, -1);
     }
 
     if (jp->shared->jobBill.options & SUB_EXCLUSIVE)
-        for (i = 0; i < jp->numHostPtr; i ++)
+        for (i = 0; i < jp->numHostPtr; i++)
             jp->hPtr[i]->hStatus |= HOST_STAT_EXCLUSIVE;
 
     if (preExecStart)
         jp->jStatus |= JOB_STAT_PRE_EXEC;
 
     return TRUE;
-
 }
 
-static int
-replay_executejob(char *filename, int lineNum)
+static int replay_executejob(char *filename, int lineNum)
 {
-    static char            fname[] = "replay_executejob";
-    struct jobExecuteLog   *jobExecuteLog;
-    struct jData           *jp;
-    LS_LONG_INT            jobId;
+    static char fname[] = "replay_executejob";
+    struct jobExecuteLog *jobExecuteLog;
+    struct jData *jp;
+    LS_LONG_INT jobId;
 
     jobExecuteLog = &logPtr->eventLog.jobExecuteLog;
 
     jobId = LSB_JOBID(jobExecuteLog->jobId, jobExecuteLog->idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list",
-                  fname, jobExecuteLog->jobId);
+        ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list", fname,
+                  jobExecuteLog->jobId);
         return FALSE;
     }
     jp->execUid = jobExecuteLog->execUid;
@@ -637,56 +634,53 @@ replay_executejob(char *filename, int lineNum)
     jp->execUsername = safeSave(jobExecuteLog->execUsername);
 
     return TRUE;
-
 }
 
-static int
-replay_startjobaccept(char *filename, int lineNum)
+static int replay_startjobaccept(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_startjobaccept";
-    struct jobStartAcceptLog   *jobStartAcceptLog;
-    struct jData           *jp;
-    LS_LONG_INT            jobId;
+    static char fname[] = "replay_startjobaccept";
+    struct jobStartAcceptLog *jobStartAcceptLog;
+    struct jData *jp;
+    LS_LONG_INT jobId;
     jobStartAcceptLog = &logPtr->eventLog.jobStartAcceptLog;
     jobId = LSB_JOBID(jobStartAcceptLog->jobId, jobStartAcceptLog->idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list",
-                  fname, jobStartAcceptLog->jobId);
+        ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list", fname,
+                  jobStartAcceptLog->jobId);
         return FALSE;
     }
 
     jp->jobPGid = jobStartAcceptLog->jobPGid;
     jp->jobPid = jobStartAcceptLog->jobPid;
     if ((jp->jgrpNode->nodeType == JGRP_NODE_ARRAY) &&
-        (ARRAY_DATA(jp->jgrpNode)->jobArray->startTime == 0)){
+        (ARRAY_DATA(jp->jgrpNode)->jobArray->startTime == 0)) {
         ARRAY_DATA(jp->jgrpNode)->jobArray->startTime = jp->startTime;
     }
     return TRUE;
-
 }
 
-static int
-replay_newstat(char *filename, int lineNum)
+static int replay_newstat(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_newstat";
-    struct jData           *jp, *job;
-    struct jobStatusLog    *newStat;
+    static char fname[] = "replay_newstat";
+    struct jData *jp, *job;
+    struct jobStatusLog *newStat;
 
     newStat = &logPtr->eventLog.jobStatusLog;
 
     if ((jp = getJobData(LSB_JOBID(newStat->jobId, newStat->idx))) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list ",
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%d> not found in job list ",
                   fname, filename, lineNum, newStat->jobId);
         return FALSE;
     }
 
-    if ((IS_POST_DONE(newStat->jStatus))||(IS_POST_ERR(newStat->jStatus))) {
+    if ((IS_POST_DONE(newStat->jStatus)) || (IS_POST_ERR(newStat->jStatus))) {
         jp->jStatus = newStat->jStatus;
         jp->endTime = newStat->endTime;
         if ((jp->jgrpNode->nodeType == JGRP_NODE_ARRAY) &&
             ARRAY_DATA(jp->jgrpNode)->counts[JGRP_COUNT_NJOBS] ==
-            (ARRAY_DATA(jp->jgrpNode)->counts[JGRP_COUNT_NDONE] +
-             ARRAY_DATA(jp->jgrpNode)->counts[JGRP_COUNT_NEXIT])) {
+                (ARRAY_DATA(jp->jgrpNode)->counts[JGRP_COUNT_NDONE] +
+                 ARRAY_DATA(jp->jgrpNode)->counts[JGRP_COUNT_NEXIT])) {
             ARRAY_DATA(jp->jgrpNode)->jobArray->endTime = jp->endTime;
         }
         return TRUE;
@@ -698,17 +692,16 @@ replay_newstat(char *filename, int lineNum)
     } else
         jp->jStatus &= ~JOB_STAT_UNKWN;
 
-    if ((IS_START(jp->jStatus) && IS_PEND(newStat->jStatus))
-        || IS_FINISH(newStat->jStatus)) {
-
+    if ((IS_START(jp->jStatus) && IS_PEND(newStat->jStatus)) ||
+        IS_FINISH(newStat->jStatus)) {
         updHostLeftRusageMem(jp, 1);
     }
 
     if (IS_PEND(jp->jStatus) && IS_START(newStat->jStatus)) {
-        ls_syslog(LOG_ERR, "replay_newstat: Status of job <%s> transited from <%d> to <%d> without JOB_START event record; ignored",
-                  lsb_jobid2str(jp->jobId),
-                  jp->jStatus,
-                  newStat->jStatus);
+        ls_syslog(LOG_ERR,
+                  "replay_newstat: Status of job <%s> transited from <%d> to "
+                  "<%d> without JOB_START event record; ignored",
+                  lsb_jobid2str(jp->jobId), jp->jStatus, newStat->jStatus);
         return TRUE;
     }
     if (newStat->reason != EXIT_ZOMBIE_JOB) {
@@ -716,8 +709,7 @@ replay_newstat(char *filename, int lineNum)
         jp->oldReason = newStat->reason;
     }
     jp->subreasons = newStat->subreasons;
-    if ((newStat->jStatus & JOB_STAT_SSUSP)
-        && !(jp->jStatus & JOB_STAT_SSUSP))
+    if ((newStat->jStatus & JOB_STAT_SSUSP) && !(jp->jStatus & JOB_STAT_SSUSP))
         jp->ssuspTime = logPtr->eventTime;
 
     if (newStat->jStatus & (JOB_STAT_EXIT)) {
@@ -727,8 +719,7 @@ replay_newstat(char *filename, int lineNum)
         } else if (newStat->reason & EXIT_RERUN) {
             jp->newReason = EXIT_RERUN;
             jp->oldReason = EXIT_RERUN;
-        }
-        else if (newStat->reason & EXIT_ZOMBIE_JOB) {
+        } else if (newStat->reason & EXIT_ZOMBIE_JOB) {
             if ((job = getZombieJob(jp->jobId)) != NULL) {
                 offList((struct listEntry *) job);
                 freeJData(job);
@@ -745,21 +736,19 @@ replay_newstat(char *filename, int lineNum)
             if ((jp->shared->jobBill.options & SUB_RERUNNABLE)) {
                 return TRUE;
             }
-        } else if ( newStat->reason & EXIT_RESTART ) {
+        } else if (newStat->reason & EXIT_RESTART) {
             jp->shared->jobBill.options |= SUB_RESTART | SUB_RESTART_FORCE;
         } else
             jp->jStatus &= ~JOB_STAT_ZOMBIE;
-
     }
 
     if (IS_SUSP(newStat->jStatus) && IS_START(newStat->jStatus)) {
-        if (!(jp->newReason & SUSP_MBD_LOCK)
-            && shouldLockJob (jp, newStat->jStatus)) {
+        if (!(jp->newReason & SUSP_MBD_LOCK) &&
+            shouldLockJob(jp, newStat->jStatus)) {
             jp->newReason = newStat->reason | SUSP_MBD_LOCK;
             jp->oldReason = newStat->reason | SUSP_MBD_LOCK;
         }
-    }
-    else if (IS_FINISH(newStat->jStatus)) {
+    } else if (IS_FINISH(newStat->jStatus)) {
         jp->endTime = newStat->endTime;
         jp->cpuTime = newStat->cpuTime;
         jp->exitStatus = newStat->exitStatus;
@@ -769,27 +758,28 @@ replay_newstat(char *filename, int lineNum)
 
     if (IS_PEND(newStat->jStatus) && newStat->ru && !IS_FINISH(jp->jStatus)) {
         if (!jp->lsfRusage)
-            jp->lsfRusage = (struct lsfRusage *)
-                my_malloc(sizeof(struct lsfRusage), fname);
+            jp->lsfRusage =
+                (struct lsfRusage *) my_malloc(sizeof(struct lsfRusage), fname);
         memcpy((char *) jp->lsfRusage, (char *) &newStat->lsfRusage,
                sizeof(struct lsfRusage));
         jp->cpuTime = newStat->cpuTime;
     }
 
     return TRUE;
-
 }
 
-static int
-replay_qc(char *filename, int lineNum)
+static int replay_qc(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_qc";
-    int                     operation;
-    struct qData           *qp;
+    static char fname[] = "replay_qc";
+    int operation;
+    struct qData *qp;
 
     operation = logPtr->eventLog.queueCtrlLog.opCode;
     if ((qp = getQueueData(logPtr->eventLog.queueCtrlLog.queue)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Queue <%s> not found in queue list ", fname, filename, lineNum, logPtr->eventLog.queueCtrlLog.queue);
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Queue <%s> not found in queue list ",
+                  fname, filename, lineNum,
+                  logPtr->eventLog.queueCtrlLog.queue);
         return FALSE;
     }
     if (operation == QUEUE_OPEN)
@@ -801,23 +791,23 @@ replay_qc(char *filename, int lineNum)
     if (operation == QUEUE_INACTIVATE)
         qp->qStatus &= ~QUEUE_STAT_ACTIVE;
     return TRUE;
-
 }
 
-static int
-replay_hostcontrol(char *filename, int lineNum)
+static int replay_hostcontrol(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_hostcontrol";
-    int                     operation;
-    char                    host[MAXHOSTNAMELEN];
-    struct hData           *hp;
+    static char fname[] = "replay_hostcontrol";
+    int operation;
+    char host[MAXHOSTNAMELEN];
+    struct hData *hp;
 
     operation = logPtr->eventLog.hostCtrlLog.opCode;
     strcpy(host, logPtr->eventLog.hostCtrlLog.host);
 
     hp = getHostData(host);
     if (hp == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Host <%s> not found in host list ", fname, filename, lineNum, host);
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Host <%s> not found in host list ",
+                  fname, filename, lineNum, host);
         return FALSE;
     }
     if (operation == HOST_OPEN)
@@ -825,14 +815,12 @@ replay_hostcontrol(char *filename, int lineNum)
     if (operation == HOST_CLOSE)
         hp->hStatus |= HOST_STAT_DISABLED;
     return TRUE;
-
 }
 
-static int
-replay_mbdStart(char *filename, int lineNum)
+static int replay_mbdStart(char *filename, int lineNum)
 {
-    int                     list;
-    struct jData           *jpbw;
+    int list;
+    struct jData *jpbw;
 
     for (list = 0; list < NJLIST; list++) {
         for (jpbw = jDataList[list]->back; jpbw != jDataList[list];
@@ -844,31 +832,28 @@ replay_mbdStart(char *filename, int lineNum)
             jpbw->pendEvent.notModified = 0;
 
             eventPending = FALSE;
-
         }
     }
     return TRUE;
-
 }
 
-static int
-replay_mbdDie(char *filename, int lineNum)
+static int replay_mbdDie(char *filename, int lineNum)
 {
     dieTime = logPtr->eventTime;
     return TRUE;
 }
 
-static int
-replay_unfulfill(char *filename, int lineNum)
+static int replay_unfulfill(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_unfulfill";
-    LS_LONG_INT             jobId;
-    struct jData           *jp;
+    static char fname[] = "replay_unfulfill";
+    LS_LONG_INT jobId;
+    struct jData *jp;
 
     jobId = LSB_JOBID(logPtr->eventLog.unfulfillLog.jobId,
                       logPtr->eventLog.unfulfillLog.idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%s> not found in job list ",
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%s> not found in job list ",
                   fname, filename, lineNum, lsb_jobid2str(jobId));
         return FALSE;
     }
@@ -881,62 +866,60 @@ replay_unfulfill(char *filename, int lineNum)
     jp->chkpntPeriod = logPtr->eventLog.unfulfillLog.chkPeriod;
     jp->pendEvent.notModified = logPtr->eventLog.unfulfillLog.notModified;
 
-    if (jp->pendEvent.notSwitched ||
-        jp->pendEvent.sig != SIG_NULL ||
-        jp->pendEvent.sig1 != SIG_NULL ||
-        jp->pendEvent.notModified)
+    if (jp->pendEvent.notSwitched || jp->pendEvent.sig != SIG_NULL ||
+        jp->pendEvent.sig1 != SIG_NULL || jp->pendEvent.notModified)
         eventPending = TRUE;
 
     return TRUE;
 }
 
-static int
-replay_mig(char *filename, int lineNum)
+static int replay_mig(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_mig";
-    struct jData           *jp;
-    struct migLog          *migLog;
-    int                     i;
-    LS_LONG_INT             jobId;
+    static char fname[] = "replay_mig";
+    struct jData *jp;
+    struct migLog *migLog;
+    int i;
+    LS_LONG_INT jobId;
 
     migLog = &logPtr->eventLog.migLog;
 
     jobId = LSB_JOBID(migLog->jobId, migLog->idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list",
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%d> not found in job list",
                   fname, filename, lineNum, migLog->jobId);
         return FALSE;
     }
 
     if (jp->shared->jobBill.numAskedHosts) {
         for (i = 0; i < jp->shared->jobBill.numAskedHosts; i++)
-            FREEUP (jp->shared->jobBill.askedHosts[i]);
-        FREEUP (jp->shared->jobBill.askedHosts);
-        FREEUP (jp->askedPtr);
+            FREEUP(jp->shared->jobBill.askedHosts[i]);
+        FREEUP(jp->shared->jobBill.askedHosts);
+        FREEUP(jp->askedPtr);
         jp->numAskedPtr = 0;
     }
     jp->shared->jobBill.options &= ~SUB_HOST;
     jp->shared->jobBill.numAskedHosts = migLog->numAskedHosts;
 
     if (jp->shared->jobBill.numAskedHosts > 0) {
-        int  numAskedHosts = 0;
+        int numAskedHosts = 0;
         struct askedHost *askedHosts;
         int returnErr, badReqIndx, others;
 
-        jp->shared->jobBill.askedHosts = (char **) my_calloc(migLog->numAskedHosts,
-                                                             sizeof(char *), fname);
+        jp->shared->jobBill.askedHosts =
+            (char **) my_calloc(migLog->numAskedHosts, sizeof(char *), fname);
         for (i = 0; i < jp->shared->jobBill.numAskedHosts; i++)
             jp->shared->jobBill.askedHosts[i] = safeSave(migLog->askedHosts[i]);
         jp->shared->jobBill.options |= SUB_HOST;
 
-        returnErr = chkAskedHosts(jp->shared->jobBill.numAskedHosts,
-                                  jp->shared->jobBill.askedHosts,
-                                  jp->shared->jobBill.numProcessors, &numAskedHosts,
-                                  &askedHosts, &badReqIndx, &others, 0);
+        returnErr = chkAskedHosts(
+            jp->shared->jobBill.numAskedHosts, jp->shared->jobBill.askedHosts,
+            jp->shared->jobBill.numProcessors, &numAskedHosts, &askedHosts,
+            &badReqIndx, &others, 0);
         if (returnErr == LSBE_NO_ERROR) {
-            if (numAskedHosts  > 0) {
-                jp->askedPtr = (struct askedHost *) my_calloc (numAskedHosts,
-                                                               sizeof(struct askedHost), fname);
+            if (numAskedHosts > 0) {
+                jp->askedPtr = (struct askedHost *) my_calloc(
+                    numAskedHosts, sizeof(struct askedHost), fname);
                 for (i = 0; i < numAskedHosts; i++) {
                     jp->askedPtr[i].hData = askedHosts[i].hData;
                     jp->askedPtr[i].priority = askedHosts[i].priority;
@@ -953,20 +936,19 @@ replay_mig(char *filename, int lineNum)
 
     return TRUE;
 }
-static int
-replay_jobsigact(char *filename, int lineNum)
+static int replay_jobsigact(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_jobsigact";
-    struct jData           *jp;
-    int                     newActPid;
-    LS_LONG_INT             jobId;
+    static char fname[] = "replay_jobsigact";
+    struct jData *jp;
+    int newActPid;
+    LS_LONG_INT jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.sigactLog.jobId,
                       logPtr->eventLog.sigactLog.idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list",
-                  fname, filename, lineNum,
-                  logPtr->eventLog.sigactLog.jobId);
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%d> not found in job list",
+                  fname, filename, lineNum, logPtr->eventLog.sigactLog.jobId);
         return FALSE;
     }
     jp->newReason = logPtr->eventLog.sigactLog.reasons;
@@ -982,24 +964,23 @@ replay_jobsigact(char *filename, int lineNum)
 
     if ((logPtr->eventLog.sigactLog.actStatus == ACT_START)) {
         jp->actPid = newActPid;
-        jp->sigValue =  sigNameToValue_ (logPtr->eventLog.sigactLog.signalSymbol);
+        jp->sigValue = sigNameToValue_(logPtr->eventLog.sigactLog.signalSymbol);
         if (logPtr->eventLog.sigactLog.flags & LSB_CHKPNT_MIG)
             jp->jStatus |= JOB_STAT_MIG;
 
     } else if (logPtr->eventLog.sigactLog.actStatus == ACT_DONE ||
                logPtr->eventLog.sigactLog.actStatus == ACT_FAIL) {
-
         jp->actPid = 0;
         jp->sigValue = SIG_NULL;
         if (logPtr->eventLog.sigactLog.flags & LSB_CHKPNT_MIG) {
             jp->jStatus |= JOB_STAT_MIG;
 
-            if (!IS_PEND (jp->jStatus)) {
-
-                FREEUP (jp->schedHost);
-                jp->schedHost = safeSave (jp->hPtr[0]->hostType);
-                FREEUP (jp->shared->jobBill.schedHostType);
-                jp->shared->jobBill.schedHostType = safeSave (jp->hPtr[0]->hostType);
+            if (!IS_PEND(jp->jStatus)) {
+                FREEUP(jp->schedHost);
+                jp->schedHost = safeSave(jp->hPtr[0]->hostType);
+                FREEUP(jp->shared->jobBill.schedHostType);
+                jp->shared->jobBill.schedHostType =
+                    safeSave(jp->hPtr[0]->hostType);
             }
             jp->shared->jobBill.restartPid = jp->jobPid;
             jp->restartPid = jp->jobPid;
@@ -1008,55 +989,57 @@ replay_jobsigact(char *filename, int lineNum)
             jp->jStatus &= ~JOB_STAT_MIG;
 
         if (logPtr->eventLog.sigactLog.actStatus == ACT_DONE &&
-            ( (strcmp(logPtr->eventLog.sigactLog.signalSymbol, "SIG_CHKPNT") == 0)
-              || (strcmp(logPtr->eventLog.sigactLog.signalSymbol, "SIG_CHKPNT_COPY") == 0)))
+            ((strcmp(logPtr->eventLog.sigactLog.signalSymbol, "SIG_CHKPNT") ==
+              0) ||
+             (strcmp(logPtr->eventLog.sigactLog.signalSymbol,
+                     "SIG_CHKPNT_COPY") == 0)))
             jp->jStatus |= JOB_STAT_CHKPNTED_ONCE;
     } else {
         ls_syslog(LOG_ERR, "%s: Unknown status <%d> of action <%s> of Job <%s>",
-                  fname,
-                  logPtr->eventLog.sigactLog.actStatus,
+                  fname, logPtr->eventLog.sigactLog.actStatus,
                   logPtr->eventLog.sigactLog.signalSymbol,
                   lsb_jobid2str(jp->jobId));
     }
     return TRUE;
 }
 
-static int
-replay_jobrequeue(char *filename, int lineNum)
+static int replay_jobrequeue(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_jobrequeue";
-    struct jData           *jp;
-    LS_LONG_INT             jobId;
+    static char fname[] = "replay_jobrequeue";
+    struct jData *jp;
+    LS_LONG_INT jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobRequeueLog.jobId,
                       logPtr->eventLog.jobRequeueLog.idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Requeued job <%d> is not found in job list", fname, filename, lineNum, logPtr->eventLog.jobRequeueLog.jobId);
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Requeued job <%d> is not found in "
+                  "job list",
+                  fname, filename, lineNum,
+                  logPtr->eventLog.jobRequeueLog.jobId);
         return FALSE;
     }
     handleRequeueJob(jp, eventTime);
 
-    jp->endTime   = 0;
+    jp->endTime = 0;
 
     return TRUE;
-
 }
 
-static int
-replay_chkpnt(char *filename, int lineNum)
+static int replay_chkpnt(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_chkpnt";
-    struct jData           *jp;
-    int                     newChkPid;
-    LS_LONG_INT             jobId;
+    static char fname[] = "replay_chkpnt";
+    struct jData *jp;
+    int newChkPid;
+    LS_LONG_INT jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.chkpntLog.jobId,
                       logPtr->eventLog.chkpntLog.idx);
 
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list",
-                  fname, filename, lineNum,
-                  logPtr->eventLog.chkpntLog.jobId);
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%d> not found in job list",
+                  fname, filename, lineNum, logPtr->eventLog.chkpntLog.jobId);
         return FALSE;
     }
     jp->shared->jobBill.chkpntPeriod = logPtr->eventLog.chkpntLog.period;
@@ -1074,10 +1057,10 @@ replay_chkpnt(char *filename, int lineNum)
         jp->actPid = 0;
         if (logPtr->eventLog.chkpntLog.flags & LSB_CHKPNT_MIG) {
             jp->jStatus |= JOB_STAT_MIG;
-            FREEUP (jp->schedHost);
-            jp->schedHost = safeSave (jp->hPtr[0]->host);
-            FREEUP (jp->shared->jobBill.schedHostType);
-            jp->shared->jobBill.schedHostType = safeSave (jp->hPtr[0]->hostType);
+            FREEUP(jp->schedHost);
+            jp->schedHost = safeSave(jp->hPtr[0]->host);
+            FREEUP(jp->shared->jobBill.schedHostType);
+            jp->shared->jobBill.schedHostType = safeSave(jp->hPtr[0]->hostType);
 
             jp->shared->jobBill.restartPid = jp->jobPid;
             jp->restartPid = jp->jobPid;
@@ -1088,18 +1071,16 @@ replay_chkpnt(char *filename, int lineNum)
         if (logPtr->eventLog.chkpntLog.ok)
             jp->jStatus |= JOB_STAT_CHKPNTED_ONCE;
     } else {
-        ls_syslog(LOG_ERR, "%s: The actPid of Job <%s> cannot be 0",
-                  fname,
+        ls_syslog(LOG_ERR, "%s: The actPid of Job <%s> cannot be 0", fname,
                   lsb_jobid2str(jp->jobId));
     }
 
     return TRUE;
 }
 
-static int
-replay_loadIndex(char *filename, int lineNum)
+static int replay_loadIndex(char *filename, int lineNum)
 {
-    int                     i;
+    int i;
 
     if (logPtr->eventLog.loadIndexLog.nIdx != allLsInfo->numIndx) {
         logLoadIndex = TRUE;
@@ -1117,17 +1098,14 @@ replay_loadIndex(char *filename, int lineNum)
     return TRUE;
 }
 
-int
-log_modifyjob(struct modifyReq * modReq, struct lsfAuth *auth)
+int log_modifyjob(struct modifyReq *modReq, struct lsfAuth *auth)
 {
-    static char             fname[] = "log_modifyjob";
-    struct jobModLog        *jobModLog;
+    static char fname[] = "log_modifyjob";
+    struct jobModLog *jobModLog;
     int j;
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(modReq->jobId),
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(modReq->jobId),
                   "openEventFile");
         mbdDie(MASTER_FATAL);
     }
@@ -1138,93 +1116,82 @@ log_modifyjob(struct modifyReq * modReq, struct lsfAuth *auth)
     jobModLog->jobIdStr = modReq->jobIdStr;
     jobModLog->delOptions = modReq->delOptions;
     jobModLog->delOptions2 = modReq->delOptions2;
-    jobModLog->options    = modReq->submitReq.options;
-    jobModLog->options2   = modReq->submitReq.options2;
-    jobModLog->userId     = auth->uid;
-    jobModLog->userName   = auth->lsfUserName;
-    jobModLog->submitTime   = modReq->submitReq.submitTime;
-    jobModLog->umask   = modReq->submitReq.umask;
-    jobModLog->numProcessors   = modReq->submitReq.numProcessors;
-    jobModLog->beginTime   = modReq->submitReq.beginTime;
-    jobModLog->termTime   = modReq->submitReq.termTime;
-    jobModLog->sigValue   = modReq->submitReq.sigValue;
-    jobModLog->restartPid   = modReq->submitReq.restartPid;
-    jobModLog->jobName   = modReq->submitReq.jobName;
-    jobModLog->queue   = modReq->submitReq.queue;
-    jobModLog->numAskedHosts   = modReq->submitReq.numAskedHosts;
+    jobModLog->options = modReq->submitReq.options;
+    jobModLog->options2 = modReq->submitReq.options2;
+    jobModLog->userId = auth->uid;
+    jobModLog->userName = auth->lsfUserName;
+    jobModLog->submitTime = modReq->submitReq.submitTime;
+    jobModLog->umask = modReq->submitReq.umask;
+    jobModLog->numProcessors = modReq->submitReq.numProcessors;
+    jobModLog->beginTime = modReq->submitReq.beginTime;
+    jobModLog->termTime = modReq->submitReq.termTime;
+    jobModLog->sigValue = modReq->submitReq.sigValue;
+    jobModLog->restartPid = modReq->submitReq.restartPid;
+    jobModLog->jobName = modReq->submitReq.jobName;
+    jobModLog->queue = modReq->submitReq.queue;
+    jobModLog->numAskedHosts = modReq->submitReq.numAskedHosts;
     if (jobModLog->numAskedHosts > 0)
         jobModLog->askedHosts = modReq->submitReq.askedHosts;
-    jobModLog->resReq   = modReq->submitReq.resReq;
+    jobModLog->resReq = modReq->submitReq.resReq;
     for (j = 0; j < LSF_RLIM_NLIMITS; j++)
         jobModLog->rLimits[j] = modReq->submitReq.rLimits[j];
 
-    jobModLog->hostSpec   = modReq->submitReq.hostSpec;
-    jobModLog->dependCond   = modReq->submitReq.dependCond;
-    jobModLog->subHomeDir   = modReq->submitReq.subHomeDir;
-    jobModLog->inFile   = modReq->submitReq.inFile;
-    jobModLog->outFile   = modReq->submitReq.outFile;
-    jobModLog->errFile   = modReq->submitReq.errFile;
-    jobModLog->command   = modReq->submitReq.command;
-    jobModLog->inFileSpool   = modReq->submitReq.inFileSpool;
-    jobModLog->commandSpool   = modReq->submitReq.commandSpool;
-    jobModLog->chkpntPeriod   = modReq->submitReq.chkpntPeriod;
-    jobModLog->chkpntDir   = modReq->submitReq.chkpntDir;
-    jobModLog->nxf   = modReq->submitReq.nxf;
-    jobModLog->xf   = modReq->submitReq.xf;
-    jobModLog->jobFile   = modReq->submitReq.jobFile;
-    jobModLog->fromHost   = modReq->submitReq.fromHost;
-    jobModLog->cwd   = modReq->submitReq.cwd;
-    jobModLog->preExecCmd   = modReq->submitReq.preExecCmd;
-    jobModLog->mailUser   = modReq->submitReq.mailUser;
-    jobModLog->projectName   = modReq->submitReq.projectName;
-    jobModLog->niosPort   = modReq->submitReq.niosPort;
-    jobModLog->maxNumProcessors   = modReq->submitReq.maxNumProcessors;
-    jobModLog->loginShell   = modReq->submitReq.loginShell;
-    jobModLog->schedHostType   = modReq->submitReq.schedHostType;
+    jobModLog->hostSpec = modReq->submitReq.hostSpec;
+    jobModLog->dependCond = modReq->submitReq.dependCond;
+    jobModLog->subHomeDir = modReq->submitReq.subHomeDir;
+    jobModLog->inFile = modReq->submitReq.inFile;
+    jobModLog->outFile = modReq->submitReq.outFile;
+    jobModLog->errFile = modReq->submitReq.errFile;
+    jobModLog->command = modReq->submitReq.command;
+    jobModLog->inFileSpool = modReq->submitReq.inFileSpool;
+    jobModLog->commandSpool = modReq->submitReq.commandSpool;
+    jobModLog->chkpntPeriod = modReq->submitReq.chkpntPeriod;
+    jobModLog->chkpntDir = modReq->submitReq.chkpntDir;
+    jobModLog->nxf = modReq->submitReq.nxf;
+    jobModLog->xf = modReq->submitReq.xf;
+    jobModLog->jobFile = modReq->submitReq.jobFile;
+    jobModLog->fromHost = modReq->submitReq.fromHost;
+    jobModLog->cwd = modReq->submitReq.cwd;
+    jobModLog->preExecCmd = modReq->submitReq.preExecCmd;
+    jobModLog->mailUser = modReq->submitReq.mailUser;
+    jobModLog->projectName = modReq->submitReq.projectName;
+    jobModLog->niosPort = modReq->submitReq.niosPort;
+    jobModLog->maxNumProcessors = modReq->submitReq.maxNumProcessors;
+    jobModLog->loginShell = modReq->submitReq.loginShell;
+    jobModLog->schedHostType = modReq->submitReq.schedHostType;
 
     jobModLog->userPriority = modReq->submitReq.userPriority;
 
     if (putEventRec(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(modReq->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(modReq->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
     return 0;
-
 }
 
-int
-log_newjob(struct jData * job)
+int log_newjob(struct jData *job)
 {
-    static char             fname[] = "log_newjob";
+    static char fname[] = "log_newjob";
 
     return (log_jobdata(job, fname, EVENT_JOB_NEW));
 }
 
-static int
-replay_logSwitch(char *filename, int lineNum)
+static int replay_logSwitch(char *filename, int lineNum)
 {
     nextJobId_t = logPtr->eventLog.logSwitchLog.lastJobId;
     return TRUE;
-
 }
 
-static int
-log_jobdata(struct jData * job, char *fname1, int type)
+static int log_jobdata(struct jData *job, char *fname1, int type)
 {
-    static char             fname[] = "log_jobdata";
-    struct submitReq       *jobBill = &(job->shared->jobBill);
-    struct jobNewLog       *jobNewLog;
-    int                     j;
-    float                  *hostFactor;
+    static char fname[] = "log_jobdata";
+    struct submitReq *jobBill = &(job->shared->jobBill);
+    struct jobNewLog *jobNewLog;
+    int j;
+    float *hostFactor;
 
     if (openEventFile(fname1) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "openEventFile",
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "openEventFile",
                   fname1);
         if (type == EVENT_JOB_NEW)
             rmLogJobInfo_(job, FALSE);
@@ -1241,11 +1208,9 @@ log_jobdata(struct jData * job, char *fname1, int type)
     jobNewLog->options = jobBill->options;
     jobNewLog->options2 = jobBill->options2;
     if (jobNewLog->options2 & SUB2_USE_DEF_PROCLIMIT) {
-
         jobNewLog->numProcessors = 1;
         jobNewLog->maxNumProcessors = 1;
-    }
-    else {
+    } else {
         jobNewLog->numProcessors = jobBill->numProcessors;
         jobNewLog->maxNumProcessors = jobBill->maxNumProcessors;
     }
@@ -1270,11 +1235,8 @@ log_jobdata(struct jData * job, char *fname1, int type)
     if (jobNewLog->hostSpec[0] == '\0') {
         hostFactor = getHostFactor(jobBill->fromHost);
         if (hostFactor == NULL) {
-            ls_syslog(LOG_ERR,
-                      fname,
-                      lsb_jobid2str(job->jobId),
-                      "getHostFactor",
-                      jobBill->fromHost);
+            ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId),
+                      "getHostFactor", jobBill->fromHost);
             jobNewLog->hostFactor = 1.0;
         }
     } else if ((hostFactor = getModelFactor(jobNewLog->hostSpec)) == NULL) {
@@ -1282,10 +1244,7 @@ log_jobdata(struct jData * job, char *fname1, int type)
         if (hostFactor == NULL) {
             LS_LONG_INT tmpJobId;
             tmpJobId = jobNewLog->jobId;
-            ls_syslog(LOG_ERR,
-                      fname,
-                      lsb_jobid2str(tmpJobId),
-                      "getHostFactor",
+            ls_syslog(LOG_ERR, fname, lsb_jobid2str(tmpJobId), "getHostFactor",
                       jobBill->hostSpec);
             jobNewLog->hostFactor = 1.0;
         }
@@ -1300,7 +1259,7 @@ log_jobdata(struct jData * job, char *fname1, int type)
     strcpy(jobNewLog->fromHost, jobBill->fromHost);
     strcpy(jobNewLog->cwd, jobBill->cwd);
     strcpy(jobNewLog->subHomeDir, jobBill->subHomeDir);
-    strcpy(jobNewLog->chkpntDir,  jobBill->chkpntDir);
+    strcpy(jobNewLog->chkpntDir, jobBill->chkpntDir);
 
     if ((jobBill->options & SUB_IN_FILE) == SUB_IN_FILE)
         strcpy(jobNewLog->inFile, jobBill->inFile);
@@ -1352,7 +1311,6 @@ log_jobdata(struct jData * job, char *fname1, int type)
     jobNewLog->mailUser = jobBill->mailUser;
 
     if (strcmp(jobBill->projectName, "") == 0) {
-
         jobNewLog->projectName = getDefaultProject();
     } else
         jobNewLog->projectName = jobBill->projectName;
@@ -1365,10 +1323,7 @@ log_jobdata(struct jData * job, char *fname1, int type)
     jobNewLog->userPriority = jobBill->userPriority;
 
     if (putEventRec(fname1) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "putEventRec");
         if (type == EVENT_JOB_NEW)
             rmLogJobInfo_(job, FALSE);
         mbdDie(MASTER_FATAL);
@@ -1376,14 +1331,11 @@ log_jobdata(struct jData * job, char *fname1, int type)
     return 0;
 }
 
-void
-log_switchjob(struct jobSwitchReq * switchReq, int uid, char *userName)
+void log_switchjob(struct jobSwitchReq *switchReq, int uid, char *userName)
 {
-    static char             fname[] = "log_switchjob";
+    static char fname[] = "log_switchjob";
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(switchReq->jobId),
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(switchReq->jobId),
                   "openEventFile");
     }
     logPtr->type = EVENT_JOB_SWITCH;
@@ -1393,22 +1345,17 @@ log_switchjob(struct jobSwitchReq * switchReq, int uid, char *userName)
     logPtr->eventLog.jobSwitchLog.idx = LSB_ARRAY_IDX(switchReq->jobId);
     strcpy(logPtr->eventLog.jobSwitchLog.queue, switchReq->queue);
     if (putEventRec("log_switchjob") < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(switchReq->jobId),
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(switchReq->jobId),
                   "putEventRec");
     }
 }
 
-void
-log_movejob(struct jobMoveReq * moveReq, int uid, char *userName)
+void log_movejob(struct jobMoveReq *moveReq, int uid, char *userName)
 {
-    static char             fname[] = "log_movejob";
+    static char fname[] = "log_movejob";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(moveReq->jobId),
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(moveReq->jobId),
                   "openEventFile");
     }
     logPtr->type = EVENT_JOB_MOVE;
@@ -1419,26 +1366,19 @@ log_movejob(struct jobMoveReq * moveReq, int uid, char *userName)
     logPtr->eventLog.jobMoveLog.position = moveReq->position;
     logPtr->eventLog.jobMoveLog.base = moveReq->opCode;
     if (putEventRec("log_movejob") < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(moveReq->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(moveReq->jobId), "putEventRec");
     }
 }
 
-void
-log_startjob(struct jData * job, int preExecStart)
+void log_startjob(struct jData *job, int preExecStart)
 {
-    static char             fname[] = "log_startjob";
-    int                     i;
-    struct jobStartLog     *jobStartLog;
-    char                  **execHosts = NULL;
+    static char fname[] = "log_startjob";
+    int i;
+    struct jobStartLog *jobStartLog;
+    char **execHosts = NULL;
 
     if (openEventFile("log_startjob") < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "openEventFile");
         mbdDie(MASTER_FATAL);
     }
     if (preExecStart) {
@@ -1450,7 +1390,7 @@ log_startjob(struct jData * job, int preExecStart)
     jobStartLog->jobId = LSB_ARRAY_JOBID(job->jobId);
     jobStartLog->idx = LSB_ARRAY_IDX(job->jobId);
     jobStartLog->jStatus = JOB_STAT_RUN;
-    jobStartLog->jFlags  = 0;
+    jobStartLog->jFlags = 0;
     jobStartLog->numExHosts = job->numHostPtr;
     jobStartLog->jobPid = job->jobPid;
     jobStartLog->jobPGid = job->jobPGid;
@@ -1475,28 +1415,20 @@ log_startjob(struct jData * job, int preExecStart)
         jobStartLog->queuePostCmd = job->queuePostCmd;
 
     if (putEventRec(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
     if (execHosts)
         free(execHosts);
-
 }
 
-void
-log_executejob(struct jData * job)
+void log_executejob(struct jData *job)
 {
-    static char             fname[] = "log_executejob";
-    struct jobExecuteLog   *jobExecuteLog;
+    static char fname[] = "log_executejob";
+    struct jobExecuteLog *jobExecuteLog;
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "openEventFile");
         mbdDie(MASTER_FATAL);
     }
     logPtr->type = EVENT_JOB_EXECUTE;
@@ -1512,26 +1444,18 @@ log_executejob(struct jData * job)
     jobExecuteLog->execUsername = job->execUsername;
 
     if (putEventRec(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
-
 }
 
-void
-log_startjobaccept(struct jData * job)
+void log_startjobaccept(struct jData *job)
 {
-    static char             fname[] = "log_startjobaccept";
-    struct jobStartAcceptLog   *jobStartAcceptLog;
+    static char fname[] = "log_startjobaccept";
+    struct jobStartAcceptLog *jobStartAcceptLog;
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "openEventFile");
         mbdDie(MASTER_FATAL);
     }
     logPtr->type = EVENT_JOB_START_ACCEPT;
@@ -1547,24 +1471,17 @@ log_startjobaccept(struct jData * job)
         ARRAY_DATA(job->jgrpNode)->jobArray->startTime = job->startTime;
     }
     if (putEventRec("log_startjobaccept") < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
 }
 
-void
-log_newstatus(struct jData * job)
+void log_newstatus(struct jData *job)
 {
-    static char             fname[] = "log_newstatus";
+    static char fname[] = "log_newstatus";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "openEventFile");
         mbdDie(MASTER_FATAL);
     }
     if (job->jStatus & (JOB_STAT_EXIT | JOB_STAT_DONE)) {
@@ -1591,106 +1508,78 @@ log_newstatus(struct jData * job)
     logPtr->eventLog.jobStatusLog.jStatus &= MASK_INT_JOB_STAT;
 
     if (putEventRec(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
-    if (job->jStatus & JOB_STAT_DONE
-        || (job->jStatus & JOB_STAT_EXIT
-            && !(job->jStatus & JOB_STAT_ZOMBIE))) {
-        if (((IS_POST_DONE(job->jStatus))||(IS_POST_ERR(job->jStatus))) &&
+    if (job->jStatus & JOB_STAT_DONE ||
+        (job->jStatus & JOB_STAT_EXIT && !(job->jStatus & JOB_STAT_ZOMBIE))) {
+        if (((IS_POST_DONE(job->jStatus)) || (IS_POST_ERR(job->jStatus))) &&
             (job->jgrpNode->nodeType == JGRP_NODE_ARRAY &&
              ARRAY_DATA(job->jgrpNode)->counts[JGRP_COUNT_NJOBS] ==
-             (ARRAY_DATA(job->jgrpNode)->counts[JGRP_COUNT_NDONE] +
-              ARRAY_DATA(job->jgrpNode)->counts[JGRP_COUNT_NEXIT]))) {
+                 (ARRAY_DATA(job->jgrpNode)->counts[JGRP_COUNT_NDONE] +
+                  ARRAY_DATA(job->jgrpNode)->counts[JGRP_COUNT_NEXIT]))) {
             ARRAY_DATA(job->jgrpNode)->jobArray->endTime = job->endTime;
         }
         logFinishedjob(job);
     }
 }
 
-void
-log_mig(struct jData * jData, int uid, char *userName)
+void log_mig(struct jData *jData, int uid, char *userName)
 {
-    static char             fname[] = "log_mig";
+    static char fname[] = "log_mig";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "openEventFile");
     }
     logPtr->type = EVENT_MIG;
     logPtr->eventLog.migLog.jobId = LSB_ARRAY_JOBID(jData->jobId);
     logPtr->eventLog.migLog.idx = LSB_ARRAY_IDX(jData->jobId);
-    logPtr->eventLog.migLog.numAskedHosts = jData->shared->jobBill.numAskedHosts;
+    logPtr->eventLog.migLog.numAskedHosts =
+        jData->shared->jobBill.numAskedHosts;
     logPtr->eventLog.migLog.askedHosts = jData->shared->jobBill.askedHosts;
     logPtr->eventLog.migLog.userId = uid;
     strcpy(logPtr->eventLog.migLog.userName, userName);
 
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "putEventRec");
 }
 
-void
-log_jobrequeue(struct jData * jData)
+void log_jobrequeue(struct jData *jData)
 {
-    static char             fname[] = "log_jobrequeue";
+    static char fname[] = "log_jobrequeue";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "openeventfile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "openeventfile");
     }
     logPtr->type = EVENT_JOB_REQUEUE;
     logPtr->eventLog.jobRequeueLog.jobId = LSB_ARRAY_JOBID(jData->jobId);
     logPtr->eventLog.jobRequeueLog.idx = LSB_ARRAY_IDX(jData->jobId);
 
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "putEventRec");
 }
 
-void
-log_jobclean(struct jData * jData)
+void log_jobclean(struct jData *jData)
 {
-    static char             fname[] = "log_jobclean";
+    static char fname[] = "log_jobclean";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "openEventFile");
     }
     logPtr->type = EVENT_JOB_CLEAN;
     logPtr->eventLog.jobCleanLog.jobId = LSB_ARRAY_JOBID(jData->jobId);
     logPtr->eventLog.jobCleanLog.idx = LSB_ARRAY_IDX(jData->jobId);
 
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "putEventRec");
 }
 
-void
-log_chkpnt(struct jData * jData, int ok, int flags)
+void log_chkpnt(struct jData *jData, int ok, int flags)
 {
-    static char             fname[] = "log_chkpnt";
+    static char fname[] = "log_chkpnt";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "openEventFile");
     }
     logPtr->type = EVENT_CHKPNT;
     logPtr->eventLog.chkpntLog.jobId = LSB_ARRAY_JOBID(jData->jobId);
@@ -1701,22 +1590,16 @@ log_chkpnt(struct jData * jData, int ok, int flags)
     logPtr->eventLog.chkpntLog.flags = flags;
 
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "putEventRec");
 }
 
-void
-log_jobsigact (struct jData *jData, struct statusReq *statusReq, int sigFlags)
+void log_jobsigact(struct jData *jData, struct statusReq *statusReq,
+                   int sigFlags)
 {
-    static char             fname[] = "log_jobsigact";
+    static char fname[] = "log_jobsigact";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "openEventFile");
     }
     logPtr->type = EVENT_JOB_SIGACT;
     logPtr->eventLog.sigactLog.jobId = LSB_ARRAY_JOBID(jData->jobId);
@@ -1724,7 +1607,6 @@ log_jobsigact (struct jData *jData, struct statusReq *statusReq, int sigFlags)
     logPtr->eventLog.sigactLog.flags = sigFlags;
     logPtr->eventLog.sigactLog.period = jData->chkpntPeriod;
     if (statusReq == NULL) {
-
         logPtr->eventLog.sigactLog.jStatus = jData->jStatus;
         if (jData->newReason)
             logPtr->eventLog.sigactLog.reasons = jData->newReason;
@@ -1740,26 +1622,21 @@ log_jobsigact (struct jData *jData, struct statusReq *statusReq, int sigFlags)
         logPtr->eventLog.sigactLog.pid = statusReq->actPid;
         logPtr->eventLog.sigactLog.actStatus = statusReq->actStatus;
         logPtr->eventLog.sigactLog.flags = sigFlags;
-        logPtr->eventLog.sigactLog.signalSymbol = getLsbSigSymbol(statusReq->sigValue);
+        logPtr->eventLog.sigactLog.signalSymbol =
+            getLsbSigSymbol(statusReq->sigValue);
     }
 
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jData->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "putEventRec");
 }
 
-void
-log_queuestatus(struct qData * qp, int operation, int userId, char *userName)
+void log_queuestatus(struct qData *qp, int operation, int userId,
+                     char *userName)
 {
-    static char             fname[] = "log_queuestatus";
+    static char fname[] = "log_queuestatus";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  qp->queue,
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, qp->queue, "openEventFile");
     }
     logPtr->type = EVENT_QUEUE_CTRL;
     logPtr->eventLog.queueCtrlLog.opCode = operation;
@@ -1767,22 +1644,15 @@ log_queuestatus(struct qData * qp, int operation, int userId, char *userName)
     logPtr->eventLog.queueCtrlLog.userId = userId;
     strcpy(logPtr->eventLog.queueCtrlLog.userName, userName);
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  qp->queue,
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, qp->queue, "putEventRec");
 }
 
-void
-log_hoststatus(struct hData * hp, int operation, int userId, char *userName)
+void log_hoststatus(struct hData *hp, int operation, int userId, char *userName)
 {
-    static char             fname[] = "log_hoststatus";
+    static char fname[] = "log_hoststatus";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  hp->host,
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, hp->host, "openEventFile");
         mbdDie(MASTER_FATAL);
     }
     logPtr->type = EVENT_HOST_CTRL;
@@ -1791,17 +1661,13 @@ log_hoststatus(struct hData * hp, int operation, int userId, char *userName)
     logPtr->eventLog.hostCtrlLog.userId = userId;
     strcpy(logPtr->eventLog.hostCtrlLog.userName, userName);
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  hp->host,
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, hp->host, "putEventRec");
 }
 
-void
-log_mbdDie(int sig)
+void log_mbdDie(int sig)
 {
-    static char             fname[] = "log_mbdDie";
-    char                    hname[MAXHOSTNAMELEN];
+    static char fname[] = "log_mbdDie";
+    char hname[MAXHOSTNAMELEN];
 
     if (openEventFile(fname) < 0)
         return;
@@ -1818,16 +1684,12 @@ log_mbdDie(int sig)
     putEventRec(fname);
 }
 
-void
-log_unfulfill(struct jData * jp)
+void log_unfulfill(struct jData *jp)
 {
-    static char             fname[] = "log_unfulfill";
+    static char fname[] = "log_unfulfill";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jp->jobId),
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "openEventFile");
         return;
     }
     logPtr->type = EVENT_MBD_UNFULFILL;
@@ -1842,25 +1704,21 @@ log_unfulfill(struct jData * jp)
     logPtr->eventLog.unfulfillLog.notModified = jp->pendEvent.notModified;
 
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jp->jobId),
-                  "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "putEventRec");
 }
 
-static void
-log_loadIndex(void)
+static void log_loadIndex(void)
 {
-    static char             fname[] = "log_loadIndex";
-    int                     i;
-    static char            **names;
+    static char fname[] = "log_loadIndex";
+    int i;
+    static char **names;
 
     if (openEventFile(fname) < 0) {
         ls_syslog(LOG_ERR, fname, "openEventFile");
         mbdDie(MASTER_FATAL);
     }
     if (!names)
-        if (!(names = (char **)malloc(allLsInfo->numIndx*sizeof(char *)))) {
+        if (!(names = (char **) malloc(allLsInfo->numIndx * sizeof(char *)))) {
             ls_syslog(LOG_ERR, fname, "malloc");
             mbdDie(MASTER_FATAL);
         }
@@ -1875,30 +1733,29 @@ log_loadIndex(void)
         mbdDie(MASTER_FATAL);
     }
 }
-void
-log_jobForce(struct jData* job, int uid, char *userName)
+void log_jobForce(struct jData *job, int uid, char *userName)
 {
-    static char                 fname[] = "log_JobForce()";
-    int                         i;
-    struct jobForceRequestLog   jobForceRequestLog;
+    static char fname[] = "log_JobForce()";
+    int i;
+    struct jobForceRequestLog jobForceRequestLog;
 
-    memset((struct jobForceRequestLog *)&jobForceRequestLog, 0,
+    memset((struct jobForceRequestLog *) &jobForceRequestLog, 0,
            sizeof(struct jobForceRequestLog));
 
-    jobForceRequestLog.jobId        =  LSB_ARRAY_JOBID(job->jobId);
-    jobForceRequestLog.idx          =  LSB_ARRAY_IDX(job->jobId);
-    jobForceRequestLog.userId       =  uid;
+    jobForceRequestLog.jobId = LSB_ARRAY_JOBID(job->jobId);
+    jobForceRequestLog.idx = LSB_ARRAY_IDX(job->jobId);
+    jobForceRequestLog.userId = uid;
     strcpy(jobForceRequestLog.userName, userName);
-    jobForceRequestLog.numExecHosts =  job->numHostPtr;
-    jobForceRequestLog.execHosts    = (char **)my_calloc(job->numHostPtr,
-                                                         sizeof(char *),
-                                                         fname);
+    jobForceRequestLog.numExecHosts = job->numHostPtr;
+    jobForceRequestLog.execHosts =
+        (char **) my_calloc(job->numHostPtr, sizeof(char *), fname);
     for (i = 0; i < job->numHostPtr; i++) {
         jobForceRequestLog.execHosts[i] = job->hPtr[i]->host;
     }
 
-    jobForceRequestLog.options |= (job->jFlags & JFLAG_URGENT_NOSTOP) ?
-        RUNJOB_OPT_NOSTOP : RUNJOB_OPT_NORMAL;
+    jobForceRequestLog.options |= (job->jFlags & JFLAG_URGENT_NOSTOP)
+                                      ? RUNJOB_OPT_NOSTOP
+                                      : RUNJOB_OPT_NORMAL;
 
     if (openEventFile(fname) < 0) {
         ls_syslog(LOG_ERR, fname, "openEventFile");
@@ -1916,17 +1773,15 @@ log_jobForce(struct jData* job, int uid, char *userName)
     }
 
     FREEUP(jobForceRequestLog.execHosts);
-
 }
 
 // Blocking SIGCHLD around fopen() is unnecessary theater
-static int
-openEventFile(const char *fname)
+static int openEventFile(const char *fname)
 {
     long pos;
 
     log_fp = fopen(elogFname, "a+");
-    if (! log_fp) {
+    if (!log_fp) {
         ls_syslog(LOG_ERR, "%s: fopen(%s) failed: %m", __func__, elogFname);
         return -1;
     }
@@ -1946,10 +1801,9 @@ openEventFile(const char *fname)
     return 0;
 }
 
-static int
-putEventRec(char *fname)
+static int putEventRec(char *fname)
 {
-    int    ret = 0;
+    int ret = 0;
 
     now = time(0);
     logPtr->eventTime = now;
@@ -1958,21 +1812,18 @@ putEventRec(char *fname)
 
     return ret;
 }
-static int
-putEventRecTime(char *fname, time_t eventTime)
+static int putEventRecTime(char *fname, time_t eventTime)
 {
-    int    ret;
+    int ret;
 
     logPtr->eventTime = eventTime;
 
     ret = putEventRec1(fname);
 
     return ret;
-
 }
 
-static int
-putEventRec1(char *fname)
+static int putEventRec1(char *fname)
 {
     int ret;
     int cc;
@@ -1980,8 +1831,7 @@ putEventRec1(char *fname)
     ret = 0;
 
     if (lsb_puteventrec(log_fp, logPtr) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname, "lsb_puteventrec", lsb_sysmsg());
+        ls_syslog(LOG_ERR, fname, "lsb_puteventrec", lsb_sysmsg());
         ret = -1;
     }
 
@@ -1994,25 +1844,22 @@ putEventRec1(char *fname)
     }
 
     return ret;
-
 }
 
-static void
-logFinishedjob(struct jData * job)
+static void logFinishedjob(struct jData *job)
 {
-    static char                 fname[] = "logFinishedjob()";
-    struct submitReq       *jobBill = &(job->shared->jobBill);
-    struct jobFinishLog    *jobFinishLog;
-    int                     i;
-    float                  *hostFactor;
+    static char fname[] = "logFinishedjob()";
+    struct submitReq *jobBill = &(job->shared->jobBill);
+    struct jobFinishLog *jobFinishLog;
+    int i;
+    float *hostFactor;
 
-    if ( IS_POST_FINISH(job->jStatus) ) {
+    if (IS_POST_FINISH(job->jStatus)) {
         return;
     }
 
     if ((joblog_fp = fopen(jlogFname, "a")) == NULL) {
-        ls_syslog(LOG_ERR, fname, "fopen",
-                  jlogFname);
+        ls_syslog(LOG_ERR, fname, "fopen", jlogFname);
         return;
     }
     chmod(jlogFname, 0644);
@@ -2041,7 +1888,6 @@ logFinishedjob(struct jData * job)
     jobFinishLog->mailUser = jobBill->mailUser;
 
     if (strcmp(jobBill->projectName, "") == 0) {
-
         jobFinishLog->projectName = getDefaultProject();
     } else
         jobFinishLog->projectName = jobBill->projectName;
@@ -2091,8 +1937,8 @@ logFinishedjob(struct jData * job)
 
     jobFinishLog->numExHosts = job->numHostPtr;
     if (jobFinishLog->numExHosts > 0) {
-        jobFinishLog->execHosts = (char **) my_calloc(job->numHostPtr,
-                                                      sizeof(char *), "logFinishedjob");
+        jobFinishLog->execHosts = (char **) my_calloc(
+            job->numHostPtr, sizeof(char *), "logFinishedjob");
         for (i = 0; i < jobFinishLog->numExHosts; i++)
             jobFinishLog->execHosts[i] = job->hPtr[i]->host;
     }
@@ -2101,11 +1947,8 @@ logFinishedjob(struct jData * job)
     else {
         hostFactor = getHostFactor(jobFinishLog->fromHost);
         if (hostFactor == NULL) {
-            ls_syslog(LOG_ERR,
-                      fname,
-                      lsb_jobid2str(job->jobId),
-                      "getHostFactor",
-                      jobFinishLog->fromHost);
+            ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId),
+                      "getHostFactor", jobFinishLog->fromHost);
             jobFinishLog->hostFactor = 1.0;
         } else
             jobFinishLog->hostFactor = *hostFactor;
@@ -2127,10 +1970,7 @@ logFinishedjob(struct jData * job)
     jobFinishLog->maxRSwap = job->runRusage.swap;
 
     if (lsb_puteventrec(joblog_fp, logPtr) < 0)
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(job->jobId),
-                  "lsb_puteventrec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "lsb_puteventrec");
 
     if (jobFinishLog->numExHosts)
         free(jobFinishLog->execHosts);
@@ -2139,8 +1979,7 @@ logFinishedjob(struct jData * job)
     fclose(joblog_fp);
 }
 
-void
-switchELog (void)
+void switchELog(void)
 {
     if (numRemoveJobs >= maxjobnum) {
         if (switch_log() == 0)
@@ -2150,43 +1989,44 @@ switchELog (void)
     }
 }
 
-void
-checkAcctLog(void)
+void checkAcctLog(void)
 {
-    int                    needArchive = 0;
-    time_t                 now;
+    int needArchive = 0;
+    time_t now;
     struct stat jbuf;
-    static time_t          lastAcctCreationTime = -1;
+    static time_t lastAcctCreationTime = -1;
 
-#define DAYSECONDS      (24*60*60)
-#define KILOBYTE        1024
+#define DAYSECONDS (24 * 60 * 60)
+#define KILOBYTE 1024
 
     if (acctArchiveInDays > 0 || acctArchiveInSize > 0) {
-        if (stat(jlogFname, &jbuf) != 0){
+        if (stat(jlogFname, &jbuf) != 0) {
             lastAcctCreationTime = -1;
             return;
         }
 
-        if (acctArchiveInDays > 0){
+        if (acctArchiveInDays > 0) {
             now = time(0);
 
-            if (lastAcctCreationTime <= 0){
-
+            if (lastAcctCreationTime <= 0) {
                 lastAcctCreationTime = lsb_getAcctFileTime(jlogFname);
             }
 
-            if ((lastAcctCreationTime > 0) && ((now - lastAcctCreationTime) > (acctArchiveInDays*DAYSECONDS))) {
+            if ((lastAcctCreationTime > 0) &&
+                ((now - lastAcctCreationTime) >
+                 (acctArchiveInDays * DAYSECONDS))) {
                 needArchive = 1;
             }
         }
 
-        if ((!needArchive) && (acctArchiveInSize > 0) && (jbuf.st_size > (acctArchiveInSize*KILOBYTE))){
+        if ((!needArchive) && (acctArchiveInSize > 0) &&
+            (jbuf.st_size > (acctArchiveInSize * KILOBYTE))) {
             needArchive = 1;
         }
 
-        if (needArchive){
+        if (needArchive) {
             switchAcctLog();
-            if (acctArchiveInDays > 0){
+            if (acctArchiveInDays > 0) {
                 lastAcctCreationTime = now;
             }
         }
@@ -2204,16 +2044,12 @@ int switchAcctLog(void)
         goto Acct_exiterr;
     }
 
-    if (unlink(jlogFname) == -1 ) {
-        ls_syslog(LOG_ERR,
-                  "%s: unlink(%s) failed: %m",
-                  fname,
-                  jlogFname);
+    if (unlink(jlogFname) == -1) {
+        ls_syslog(LOG_ERR, "%s: unlink(%s) failed: %m", fname, jlogFname);
     }
 
     if ((joblog_fp = fopen(jlogFname, "a")) == NULL) {
-        ls_syslog(LOG_ERR, fname, "fopen",
-                  jlogFname);
+        ls_syslog(LOG_ERR, fname, "fopen", jlogFname);
         goto Acct_exiterr;
     }
 
@@ -2223,27 +2059,26 @@ int switchAcctLog(void)
     chmod(jlogFname, 0644);
     errno = errnoSv;
 
-    if ((totalAcctFile = renameAcctLogFiles(maxAcctArchiveNum)) > 0)  {
+    if ((totalAcctFile = renameAcctLogFiles(maxAcctArchiveNum)) > 0) {
         return 0;
     }
 
 Acct_exiterr:
-    lsb_merr( "Fail to switch lsb.acct; see mbatchd error log for details");
+    lsb_merr("Fail to switch lsb.acct; see mbatchd error log for details");
     return -1;
 }
 
-int
-switch_log(void)
+int switch_log(void)
 {
     static char fname[] = "switch_log";
-    char                    tmpfn[PATH_MAX];
-    int                     i, lineNum = 0, errnoSv;
-    LS_LONG_INT             jobId = 0;
-    FILE                   *efp, *tmpfp;
-    struct jData           *jp, *jarray;
-    long                   pos;
-    int                    preserved = FALSE;
-    int                    totalEventFile;
+    char tmpfn[PATH_MAX];
+    int i, lineNum = 0, errnoSv;
+    LS_LONG_INT jobId = 0;
+    FILE *efp, *tmpfp;
+    struct jData *jp, *jarray;
+    long pos;
+    int preserved = FALSE;
+    int totalEventFile;
 
     sprintf(tmpfn, "%s/lsb.events", daemonParams[LSB_SHAREDIR].paramValue);
     LS_INFO("switching event log file: %s", tmpfn);
@@ -2260,7 +2095,7 @@ switch_log(void)
         goto exiterr;
     }
 
-    if (fchmod(fileno(tmpfp),  0644) != 0) {
+    if (fchmod(fileno(tmpfp), 0644) != 0) {
         ls_syslog(LOG_ERR, "%s: fchmod on %s failed: %m", fname, tmpfn);
     }
 
@@ -2281,15 +2116,13 @@ switch_log(void)
     while (lsberrno != LSBE_EOF) {
         if ((logPtr = lsb_geteventrec(efp, &lineNum)) == NULL) {
             if (lsberrno != LSBE_EOF) {
-                ls_syslog(LOG_ERR, "%s: reading line %d in file %s: %s",
-                          fname, lineNum, elogFname, lsb_sysmsg());
+                ls_syslog(LOG_ERR, "%s: reading line %d in file %s: %s", fname,
+                          lineNum, elogFname, lsb_sysmsg());
                 if (lsberrno == LSBE_NO_MEM) {
-
                     mbdDie(MASTER_MEM);
                 }
 
             } else {
-
                 break;
             }
             continue;
@@ -2363,7 +2196,7 @@ switch_log(void)
             break;
         case EVENT_LOG_SWITCH:
         case EVENT_LOAD_INDEX:
-            preserved  = TRUE;
+            preserved = TRUE;
             break;
         case EVENT_JOB_EXECUTE:
             jobId = LSB_JOBID(logPtr->eventLog.jobExecuteLog.jobId,
@@ -2382,12 +2215,10 @@ switch_log(void)
                               logPtr->eventLog.jobMsgAckLog.idx);
             break;
         case EVENT_HOST_CTRL:
-            saveHostCtrlEvent(&(logPtr->eventLog.hostCtrlLog),
-                              eventTime);
+            saveHostCtrlEvent(&(logPtr->eventLog.hostCtrlLog), eventTime);
             break;
         case EVENT_QUEUE_CTRL:
-            saveQueueCtrlEvent(&(logPtr->eventLog.queueCtrlLog),
-                               eventTime);
+            saveQueueCtrlEvent(&(logPtr->eventLog.queueCtrlLog), eventTime);
             break;
         default:
             break;
@@ -2397,23 +2228,20 @@ switch_log(void)
 
         jp = checkJobInCore(jobId);
 
-        if ((preserved)
-            || (jarray != NULL
+        if ((preserved) || (jarray != NULL
 
-                && ( (canSwitch(logPtr, jp) == FALSE)
-                     || (logPtr->type == EVENT_JOB_NEW)
-                     || (logPtr->type == EVENT_JOB_MODIFY)
-                     || (logPtr->type == EVENT_JOB_MODIFY2)
-                     || (logPtr->type == EVENT_JOB_SWITCH)
-                     || (logPtr->type == EVENT_JOB_MOVE)
-                     || (logPtr->type == EVENT_JOB_CLEAN)))) {
-
+                            && ((canSwitch(logPtr, jp) == FALSE) ||
+                                (logPtr->type == EVENT_JOB_NEW) ||
+                                (logPtr->type == EVENT_JOB_MODIFY) ||
+                                (logPtr->type == EVENT_JOB_MODIFY2) ||
+                                (logPtr->type == EVENT_JOB_SWITCH) ||
+                                (logPtr->type == EVENT_JOB_MOVE) ||
+                                (logPtr->type == EVENT_JOB_CLEAN)))) {
             if (lsb_puteventrec(tmpfp, logPtr) == -1) {
-                ls_syslog(LOG_ERR,
-                          fname, "lsb_puteventrec", tmpfn);
+                ls_syslog(LOG_ERR, fname, "lsb_puteventrec", tmpfn);
 
                 FCLOSEUP(&efp);
-                unlink (tmpfn);
+                unlink(tmpfn);
                 goto exiterr;
             }
         }
@@ -2436,11 +2264,7 @@ switch_log(void)
 
     errno = errnoSv;
     if (i == -1) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  "rename",
-                  tmpfn,
-                  elogFname);
+        ls_syslog(LOG_ERR, fname, "rename", tmpfn, elogFname);
         goto exiterr;
     }
 
@@ -2450,23 +2274,23 @@ switch_log(void)
     writeQueueCtrlEvent();
     destroyQueueCtrlTable();
 
-    if ( mSchedStage == M_STAGE_REPLAY)
+    if (mSchedStage == M_STAGE_REPLAY)
         log_logSwitch(nextJobId_t);
     else
         log_logSwitch(nextJobId);
 
-    if ((totalEventFile = renameElogFiles()) > 0)  {
+    if ((totalEventFile = renameElogFiles()) > 0) {
+        if (fork() == 0) {
+            char indexFile[MAXFILENAMELEN];
 
-        if (fork() == 0 ) {
-            char  indexFile[MAXFILENAMELEN];
-
-            sprintf(indexFile, "%s/%s",
-                    daemonParams[LSB_SHAREDIR].paramValue,
+            sprintf(indexFile, "%s/%s", daemonParams[LSB_SHAREDIR].paramValue,
                     LSF_JOBIDINDEX_FILENAME);
 
-            if (updateJobIdIndexFile(indexFile, elogFname, totalEventFile) < 0) {
+            if (updateJobIdIndexFile(indexFile, elogFname, totalEventFile) <
+                0) {
                 if (lsberrno == LSBE_SYS_CALL)
-                    ls_syslog(LOG_ERR, "%s: updateJobIdIndexFile %s failed: %s %m",
+                    ls_syslog(LOG_ERR,
+                              "%s: updateJobIdIndexFile %s failed: %s %m",
                               fname, indexFile, lsb_sysmsg());
                 else
                     ls_syslog(LOG_ERR, "%s: updateJobIdIndexFile %s failed: %s",
@@ -2477,12 +2301,12 @@ switch_log(void)
         return 0;
     }
 exiterr:
-    lsb_merr( "Fail to switch lsb.events; see mbatchd error log for details");
+    lsb_merr("Fail to switch lsb.events; see mbatchd error log for details");
     return -1;
 }
 
-static int
-createAcct0File(void){
+static int createAcct0File(void)
+{
     static char fname[] = "createAcct0File";
     char acct0File[MAXFILENAMELEN];
     struct stat st;
@@ -2501,7 +2325,7 @@ createAcct0File(void){
         return -1;
     }
 
-    if ((acct0Ptr  = fopen(acct0File, "w")) == NULL) {
+    if ((acct0Ptr = fopen(acct0File, "w")) == NULL) {
         ls_syslog(LOG_ERR, fname, "fopen", acct0File);
         FCLOSEUP(&acctPtr);
         return -1;
@@ -2520,7 +2344,7 @@ createAcct0File(void){
                 return -1;
             }
             nread += cc;
-        } else if (feof(acctPtr)){
+        } else if (feof(acctPtr)) {
             break;
         } else {
             ls_syslog(LOG_ERR, fname, "fread", jlogFname);
@@ -2534,8 +2358,7 @@ createAcct0File(void){
     return 0;
 }
 
-static int
-createEvent0File (void)
+static int createEvent0File(void)
 {
     static char fname[] = "createEvent0File";
     char event0File[MAXFILENAMELEN];
@@ -2546,7 +2369,8 @@ createEvent0File (void)
     long int pos;
     FILE *eventPtr, *event0Ptr;
 
-    sprintf(event0File, "%s/lsb.events.0", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(event0File, "%s/lsb.events.0",
+            daemonParams[LSB_SHAREDIR].paramValue);
 
     stat(elogFname, &st);
     size = st.st_size;
@@ -2557,7 +2381,7 @@ createEvent0File (void)
         return -1;
     }
 
-    if ((event0Ptr  = fopen(event0File, "w")) == NULL) {
+    if ((event0Ptr = fopen(event0File, "w")) == NULL) {
         ls_syslog(LOG_ERR, fname, "fopen", event0File);
         FCLOSEUP(&eventPtr);
         return -1;
@@ -2589,7 +2413,7 @@ createEvent0File (void)
                 return -1;
             }
             nread += cc;
-        } else if (feof(eventPtr)){
+        } else if (feof(eventPtr)) {
             break;
         } else {
             ls_syslog(LOG_ERR, fname, "fread", elogFname);
@@ -2605,8 +2429,7 @@ createEvent0File (void)
     return 0;
 }
 
-static int
-renameElogFiles(void)
+static int renameElogFiles(void)
 {
     static char fname[] = "renameElogFiles";
     int i;
@@ -2633,8 +2456,7 @@ renameElogFiles(void)
                 daemonParams[LSB_SHAREDIR].paramValue, i + 1);
 
         if (rename(tmpfn, eventfn) == -1 && errno != ENOENT) {
-            ls_syslog(LOG_ERR, fname,
-                      "rename", tmpfn, eventfn);
+            ls_syslog(LOG_ERR, fname, "rename", tmpfn, eventfn);
             return -1;
         }
     }
@@ -2642,14 +2464,12 @@ renameElogFiles(void)
     return max;
 }
 
-void
-logJobInfo(struct submitReq * req, struct jData *jp, struct lenData * jf)
+void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
 {
     char logFn[PATH_MAX];
     FILE *fp;
 
-    sprintf(logFn, "%s/info/%s",
-            daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
             jp->shared->jobBill.jobFile);
 
     fp = fopen(logFn, "w");
@@ -2659,8 +2479,8 @@ logJobInfo(struct submitReq * req, struct jData *jp, struct lenData * jf)
     }
 
     if (fwrite(jf->data, 1, jf->len, fp) != jf->len) {
-        ls_syslog(LOG_ERR, "%s: fwrite(%s, len=%d failed: %m",
-                  __func__, logFn, jf->len);
+        ls_syslog(LOG_ERR, "%s: fwrite(%s, len=%d failed: %m", __func__, logFn,
+                  jf->len);
         fclose(fp);
         goto error;
     }
@@ -2675,8 +2495,7 @@ error:
     mbdDie(MASTER_FATAL);
 }
 
-int
-rmLogJobInfo_(struct jData *jp, int check)
+int rmLogJobInfo_(struct jData *jp, int check)
 {
     static char fname[] = "rmLogJobInfo_";
     static char logFn[PATH_MAX];
@@ -2693,60 +2512,48 @@ rmLogJobInfo_(struct jData *jp, int check)
         pwUser.pw_uid = jp->userId;
 
         if (req->options2 & SUB2_JOB_CMD_SPOOL) {
-
-            childRemoveSpoolFile(req->commandSpool,
-                                 FORK_REMOVE_SPOOL_FILE, &pwUser);
+            childRemoveSpoolFile(req->commandSpool, FORK_REMOVE_SPOOL_FILE,
+                                 &pwUser);
         }
 
         if (req->options2 & SUB2_IN_FILE_SPOOL) {
-
-            childRemoveSpoolFile(req->inFileSpool,
-                                 FORK_REMOVE_SPOOL_FILE, &pwUser);
+            childRemoveSpoolFile(req->inFileSpool, FORK_REMOVE_SPOOL_FILE,
+                                 &pwUser);
         }
     }
 
-
-    sprintf(logFn, "%s/info/%s",
-            daemonParams[LSB_SHAREDIR].paramValue, req->jobFile);
+    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+            req->jobFile);
 
     if (stat(logFn, &st) != 0) {
-        sprintf(logFn, "%s/info/%d",
-                daemonParams[LSB_SHAREDIR].paramValue,
+        sprintf(logFn, "%s/info/%d", daemonParams[LSB_SHAREDIR].paramValue,
                 LSB_ARRAY_JOBID(jp->jobId));
     }
 
     if (stat(logFn, &st) == 0) {
         if (unlink(logFn) == -1) {
             if (check == FALSE)
-                ls_syslog(LOG_ERR,
-                          fname,
-                          lsb_jobid2str(jp->jobId),
-                          "unlink",
+                ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "unlink",
                           logFn);
             return -1;
         }
     } else if (errno != ENOENT) {
         if (check == FALSE)
-            ls_syslog(LOG_ERR,
-                      fname,
-                      lsb_jobid2str(jp->jobId),
-                      "stat",
-                      logFn);
+            ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "stat", logFn);
         return -1;
     }
 
     return 0;
 }
 
-int
-readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
-               struct lenData *jf, struct lenData *aux_auth_data)
+int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
+                   struct lenData *jf, struct lenData *aux_auth_data)
 {
 #define ENVEND "$LSB_TRAPSIGS\n"
     static char fname[] = "readLogJobInfo()";
     char logFn[PATH_MAX];
     struct stat st;
-    int fd, i, numEnv,cc;
+    int fd, i, numEnv, cc;
     char *buf, *sp, *edata, *eventAttrs = NULL;
     char *newBuf;
 
@@ -2757,14 +2564,12 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     jf->len = 0;
     jf->data = NULL;
 
-    sprintf (logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
-             jpbw->shared->jobBill.jobFile);
-
+    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+            jpbw->shared->jobBill.jobFile);
 
     fd = open(logFn, O_RDONLY);
 
     if (fd < 0) {
-
         sprintf(logFn, "%s/info/%d", daemonParams[LSB_SHAREDIR].paramValue,
                 LSB_ARRAY_JOBID(jpbw->jobId));
         fd = open(logFn, O_RDONLY);
@@ -2772,10 +2577,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
     if (fd < 0) {
         if (errno != ENOENT) {
-            ls_syslog(LOG_ERR,
-                      fname,
-                      lsb_jobid2str(jpbw->jobId),
-                      "open",
+            ls_syslog(LOG_ERR, fname, lsb_jobid2str(jpbw->jobId), "open",
                       logFn);
         }
         return -1;
@@ -2785,11 +2587,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
     buf = calloc(st.st_size, sizeof(char));
     if ((cc = read(fd, buf, st.st_size)) != st.st_size) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jpbw->jobId),
-                  "read",
-                  logFn);
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jpbw->jobId), "read", logFn);
         close(fd);
         FREEUP(buf);
         return -1;
@@ -2798,22 +2596,23 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
     for (sp = buf + strlen(SHELLLINE), numEnv = 0;
          strncmp(sp, ENVEND, sizeof(ENVEND) - 1); numEnv++) {
-
         sp = strstr(sp, TAILCMD);
 
         if (sp == NULL) {
-            ls_syslog(LOG_ERR, "%s: Info file is corrupted for job <%d>; "
-                      " could not find %s (numEnv=%d", __func__,
-                      LSB_ARRAY_JOBID(jpbw->jobId), TAILCMD, numEnv);
+            ls_syslog(LOG_ERR,
+                      "%s: Info file is corrupted for job <%d>; "
+                      " could not find %s (numEnv=%d",
+                      __func__, LSB_ARRAY_JOBID(jpbw->jobId), TAILCMD, numEnv);
             FREEUP(buf);
             return -1;
         }
         sp = strchr(sp, '\n');
 
         if (sp == NULL) {
-            ls_syslog(LOG_ERR, "%s: Info file is corrupted for job <%d>; "
-                      "could not find newline character (numEnv=%d", __func__,
-                      LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
+            ls_syslog(LOG_ERR,
+                      "%s: Info file is corrupted for job <%d>; "
+                      "could not find newline character (numEnv=%d",
+                      __func__, LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
             FREEUP(buf);
             return -1;
         }
@@ -2824,14 +2623,12 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
         numEnv++;
 
     if (numEnv) {
-
         jobSpecs->env = (char **) my_calloc(numEnv, sizeof(char *), fname);
 
         jobSpecs->numEnv = 0;
 
         for (sp = buf + strlen(SHELLLINE), i = 0;
              strncmp(sp, ENVEND, sizeof(ENVEND) - 1);) {
-
             char *spp, *tailst;
             char saveChar;
 
@@ -2844,10 +2641,11 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
             spp = strchr(jobSpecs->env[i], '=');
             if (spp == NULL) {
-                ls_syslog(LOG_ERR, "%s: Info file seems corrupted "
+                ls_syslog(LOG_ERR,
+                          "%s: Info file seems corrupted "
                           "bad system syntax variable=%s in job=%d, trying "
-                          "to recover by skipping the variable", __func__,
-                          jobSpecs->env[i],
+                          "to recover by skipping the variable",
+                          __func__, jobSpecs->env[i],
                           LSB_ARRAY_JOBID(jpbw->jobId));
                 FREEUP(jobSpecs->env[i]);
             } else {
@@ -2860,15 +2658,16 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
             sp = strchr(tailst, '\n') + 1;
             if (sp == NULL) {
-                ls_syslog(LOG_ERR, "%s: Info file seems corrupted cannot locate "
-                          "new line, job=%d numEnv=%d", __func__,
-                          LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
+                ls_syslog(LOG_ERR,
+                          "%s: Info file seems corrupted cannot locate "
+                          "new line, job=%d numEnv=%d",
+                          __func__, LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
             }
         }
 
         if (jpbw->qPtr->jobStarter) {
             jobSpecs->env[i] = my_malloc(strlen(jpbw->qPtr->jobStarter) + 1 +
-                                         sizeof("LSB_JOB_STARTER="),
+                                             sizeof("LSB_JOB_STARTER="),
                                          "readLogJobInfo/job_starter");
             sprintf(jobSpecs->env[i], "LSB_JOB_STARTER=%s",
                     jpbw->qPtr->jobStarter);
@@ -2878,7 +2677,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
         if (eventAttrs) {
             jobSpecs->env[i] = safeSave(eventAttrs);
             ls_syslog(LOG_DEBUG, "%s", eventAttrs);
-            FREEUP (eventAttrs);
+            FREEUP(eventAttrs);
             i++;
         }
         jobSpecs->numEnv = i;
@@ -2893,15 +2692,18 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
         jobSpecs->eexec.len = atoi(sp);
         sp += strlen(sp) + 1;
         if (jobSpecs->eexec.len > 0) {
-            jobSpecs->eexec.data = my_malloc(jobSpecs->eexec.len,
-                                             "readLogJobinfo/eexec.data");
+            jobSpecs->eexec.data =
+                my_malloc(jobSpecs->eexec.len, "readLogJobinfo/eexec.data");
             memcpy(jobSpecs->eexec.data, sp, jobSpecs->eexec.len);
         } else {
             jobSpecs->eexec.len = 0;
             jobSpecs->eexec.data = NULL;
         }
     } else {
-        ls_syslog(LOG_DEBUG, "%s: File <%s> of job <%d> has no <%s>; assume it is a pre-2.2 file", fname, logFn, LSB_ARRAY_JOBID(jpbw->jobId), EDATASTART);
+        ls_syslog(LOG_DEBUG,
+                  "%s: File <%s> of job <%d> has no <%s>; assume it is a "
+                  "pre-2.2 file",
+                  fname, logFn, LSB_ARRAY_JOBID(jpbw->jobId), EDATASTART);
         jobSpecs->eexec.len = 0;
         jobSpecs->eexec.data = NULL;
     }
@@ -2909,9 +2711,7 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 #ifdef INTER_DAEMON_AUTH
 
     if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-
         getTGT(jpbw, aux_auth_data);
-
     }
 
 #endif
@@ -2921,8 +2721,9 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     sp = strstr(buf, EXITCMD);
 
     if (!sp) {
-
-        ls_syslog(LOG_ERR, "%s: failed to find EXITCMD tag in jobfile, for job <%d>", fname, LSB_ARRAY_JOBID(jpbw->jobId));
+        ls_syslog(LOG_ERR,
+                  "%s: failed to find EXITCMD tag in jobfile, for job <%d>",
+                  fname, LSB_ARRAY_JOBID(jpbw->jobId));
         return -1;
     }
 
@@ -2931,15 +2732,17 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
     if ((jpbw->qPtr->jobStarter != NULL) &&
         (jpbw->qPtr->jobStarter[0] != '\0')) {
-
         if (checkJobStarter(buf, jpbw->qPtr->jobStarter)) {
-
             jf->data = buf;
             jf->len = strlen(jf->data) + 1;
             return 0;
-        } else if ((newBuf = instrJobStarter1(buf, strlen(buf) + 1, CMDSTART,
-                                              WAITCLEANCMD, jpbw->qPtr->jobStarter)) == NULL) {
-            ls_syslog(LOG_ERR, "%s: Failed to insert job stater into jobfile data, job <%s>, queue <%s>",  fname, lsb_jobid2str(jpbw->jobId), jpbw->qPtr->queue);
+        } else if ((newBuf = instrJobStarter1(
+                        buf, strlen(buf) + 1, CMDSTART, WAITCLEANCMD,
+                        jpbw->qPtr->jobStarter)) == NULL) {
+            ls_syslog(LOG_ERR,
+                      "%s: Failed to insert job stater into jobfile data, job "
+                      "<%s>, queue <%s>",
+                      fname, lsb_jobid2str(jpbw->jobId), jpbw->qPtr->queue);
             FREEUP(buf);
             return -1;
         } else {
@@ -2951,14 +2754,12 @@ readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     }
 
     jf->data = buf;
-    jf->len = strlen(jf->data) +1;
+    jf->len = strlen(jf->data) + 1;
 
     return 0;
-
 }
 
-char *
-readJobInfoFile (struct jData *jp, int *len)
+char *readJobInfoFile(struct jData *jp, int *len)
 {
     static char fname[] = "readJobInfoFile";
     char logFn[MAXFILENAMELEN];
@@ -2971,16 +2772,12 @@ readJobInfoFile (struct jData *jp, int *len)
 
     fd = open(logFn, O_RDONLY);
     if (fd < 0) {
-
         sprintf(logFn, "%s/info/%d", daemonParams[LSB_SHAREDIR].paramValue,
                 LSB_ARRAY_JOBID(jp->jobId));
         fd = open(logFn, O_RDONLY);
     };
     if (fd < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  "open",
-                  logFn);
+        ls_syslog(LOG_ERR, fname, "open", logFn);
         return NULL;
     }
     fstat(fd, &st);
@@ -2988,11 +2785,7 @@ readJobInfoFile (struct jData *jp, int *len)
     buf = (char *) my_malloc(st.st_size, fname);
     *len = st.st_size;
     if (read(fd, buf, st.st_size) != st.st_size) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  lsb_jobid2str(jp->jobId),
-                  "read",
-                  logFn);
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "read", logFn);
         close(fd);
         free(buf);
         return NULL;
@@ -3002,13 +2795,11 @@ readJobInfoFile (struct jData *jp, int *len)
     return buf;
 }
 
-void
-writeJobInfoFile(struct jData *jp, char *jf, int len)
+void writeJobInfoFile(struct jData *jp, char *jf, int len)
 {
-
-    static char             fname[] = "writeJobInfoFile";
-    char                    logFn[MAXFILENAMELEN];
-    int                     fd, errnoSv;
+    static char fname[] = "writeJobInfoFile";
+    char logFn[MAXFILENAMELEN];
+    int fd, errnoSv;
 
     sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
             jp->shared->jobBill.jobFile);
@@ -3029,28 +2820,26 @@ writeJobInfoFile(struct jData *jp, char *jf, int len)
         unlink(logFn);
         close(fd);
         errno = errnoSv;
-        ls_syslog(LOG_ERR, fname, "fprintf",
-                  logFn, jf);
+        ls_syslog(LOG_ERR, fname, "fprintf", logFn, jf);
         mbdDie(MASTER_FATAL);
     }
 
     close(fd);
 }
 
-int
-replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
-                   int options)
+int replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
+                       int options)
 {
     static char fname[] = "replaceJobInfoFile";
     char jobFile[MAXFILENAMELEN], workFile[MAXFILENAMELEN], line[MAXLINELEN];
     char *ptr;
-    int  nbyte;
+    int nbyte;
     FILE *fdi, *fdo;
 
     sprintf(jobFile, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
             jobFileName);
-    sprintf(workFile, "%s/info/%s.tmp",
-            daemonParams[LSB_SHAREDIR].paramValue, jobFileName);
+    sprintf(workFile, "%s/info/%s.tmp", daemonParams[LSB_SHAREDIR].paramValue,
+            jobFileName);
 
     if ((fdi = fopen(jobFile, "r")) == NULL) {
         ls_syslog(LOG_ERR, fname, "fopen", jobFileName);
@@ -3063,11 +2852,11 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
         return -1;
     }
 
-    while ((ptr=fgets(line, MAXLINELEN, fdi)) != NULL) {
+    while ((ptr = fgets(line, MAXLINELEN, fdi)) != NULL) {
         if (strcmp(line, CMDSTART) != 0) {
             fputs(line, fdo);
         } else {
-            char outCmdArgs[2*MAXLINELEN];
+            char outCmdArgs[2 * MAXLINELEN];
             char *pFileCmdArgs;
 
             fputs(line, fdo);
@@ -3075,7 +2864,7 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
             if (options & REPLACE_1ST_CMD_ONLY) {
                 char *oldCmdArgs;
 
-                if ((ptr=fgets(line, MAXLINELEN, fdi)) == NULL) {
+                if ((ptr = fgets(line, MAXLINELEN, fdi)) == NULL) {
                     FCLOSEUP(&fdo);
                     FCLOSEUP(&fdi);
                     remove(workFile);
@@ -3095,16 +2884,16 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
                     oldCmdArgs = line;
                 }
 
-                if (replace1stCmd_(oldCmdArgs, newCommand,
-                                   outCmdArgs, sizeof(outCmdArgs)) < 0) {
+                if (replace1stCmd_(oldCmdArgs, newCommand, outCmdArgs,
+                                   sizeof(outCmdArgs)) < 0) {
                     FCLOSEUP(&fdo);
                     FCLOSEUP(&fdi);
                     remove(workFile);
-                    ls_syslog(LOG_ERR, "%s: The command line is too long when "
+                    ls_syslog(LOG_ERR,
+                              "%s: The command line is too long when "
                               " replacing the command of %s by the one of (%s)",
                               __func__, oldCmdArgs, newCommand);
                     return -1;
-
                 }
 
                 pFileCmdArgs = outCmdArgs;
@@ -3128,13 +2917,12 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
         return -1;
     }
 
-    while ((ptr=fgets(line, MAXLINELEN, fdi)) != NULL) {
+    while ((ptr = fgets(line, MAXLINELEN, fdi)) != NULL) {
         if (strcmp(line, CMDEND) == 0) {
-            ptr=fgets(line, MAXLINELEN, fdi);
+            ptr = fgets(line, MAXLINELEN, fdi);
             break;
         } else {
             if (options & REPLACE_1ST_CMD_ONLY) {
-
                 fputs(line, fdo);
             }
         }
@@ -3150,8 +2938,8 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
 
     fputs(WAITCLEANCMD, fdo);
 
-    while ((nbyte=fread(line,1, MAXLINELEN, fdi)) > 0)
-        if (fwrite(line,1, nbyte, fdo) != nbyte) {
+    while ((nbyte = fread(line, 1, MAXLINELEN, fdi)) > 0)
+        if (fwrite(line, 1, nbyte, fdo) != nbyte) {
             FCLOSEUP(&fdo);
             FCLOSEUP(&fdi);
             remove(workFile);
@@ -3165,10 +2953,9 @@ replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
     rename(workFile, jobFile);
     return 0;
 }
-void
-log_mbdStart(void)
+void log_mbdStart(void)
 {
-    char                    hname[MAXHOSTNAMELEN];
+    char hname[MAXHOSTNAMELEN];
     struct qData *qp;
     int num_queues, num_hosts;
 
@@ -3204,15 +2991,15 @@ log_mbdStart(void)
     putEventRec("log_mbdStart");
 }
 
-static int
-replay_modifyjob(char *filename, int lineNum)
+static int replay_modifyjob(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_modifyjob";
-    struct jData           *job, *jpbw;
+    static char fname[] = "replay_modifyjob";
+    struct jData *job, *jpbw;
 
-    job = replay_jobdata (filename, lineNum, fname);
-    if ((jpbw = getJobData (job->jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%s> not found in job list",
+    job = replay_jobdata(filename, lineNum, fname);
+    if ((jpbw = getJobData(job->jobId)) == NULL) {
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%s> not found in job list",
                   fname, filename, lineNum, lsb_jobid2str(job->jobId));
         return FALSE;
     }
@@ -3223,8 +3010,7 @@ replay_modifyjob(char *filename, int lineNum)
         treeClip(jpbw->jgrpNode);
         treeFree(jpbw->jgrpNode);
         putOntoTree(jpbw, JOB_NEW);
-    }
-    else {
+    } else {
         jpbw->runCount = 1;
     }
     if (jpbw->nodeType == JGRP_NODE_ARRAY) {
@@ -3232,19 +3018,18 @@ replay_modifyjob(char *filename, int lineNum)
         for (jPtr = jpbw->nextJob; jPtr != NULL; jPtr = jPtr->nextJob)
             updLocalJData(jPtr, jpbw);
     }
-    freeJData (job);
+    freeJData(job);
     return TRUE;
 }
 
-static int
-replay_modifyjob2(char *filename, int lineNum)
+static int replay_modifyjob2(char *filename, int lineNum)
 {
-    struct jobModLog       *jobModLog;
-    struct modifyReq        modifyReq;
-    struct lsfAuth          auth;
-    int                     j;
+    struct jobModLog *jobModLog;
+    struct modifyReq modifyReq;
+    struct lsfAuth auth;
+    int j;
 
-    (void)memset((void *)&auth, '\0', sizeof (auth));
+    (void) memset((void *) &auth, '\0', sizeof(auth));
 
     jobModLog = &logPtr->eventLog.jobModLog;
 
@@ -3286,46 +3071,49 @@ replay_modifyjob2(char *filename, int lineNum)
     modifyReq.submitReq.chkpntPeriod = jobModLog->chkpntPeriod;
     modifyReq.submitReq.chkpntDir = jobModLog->chkpntDir;
     modifyReq.submitReq.nxf = jobModLog->nxf;
-    modifyReq.submitReq.xf = jobModLog->xf ;
-    modifyReq.submitReq.jobFile = jobModLog->jobFile ;
-    modifyReq.submitReq.fromHost = jobModLog->fromHost ;
-    modifyReq.submitReq.cwd = jobModLog->cwd ;
-    modifyReq.submitReq.preExecCmd = jobModLog->preExecCmd ;
-    modifyReq.submitReq.mailUser = jobModLog->mailUser ;
-    modifyReq.submitReq.projectName = jobModLog->projectName ;
-    modifyReq.submitReq.niosPort = jobModLog->niosPort ;
-    modifyReq.submitReq.maxNumProcessors = jobModLog->maxNumProcessors ;
-    modifyReq.submitReq.loginShell = jobModLog->loginShell ;
-    modifyReq.submitReq.schedHostType = jobModLog->schedHostType ;
+    modifyReq.submitReq.xf = jobModLog->xf;
+    modifyReq.submitReq.jobFile = jobModLog->jobFile;
+    modifyReq.submitReq.fromHost = jobModLog->fromHost;
+    modifyReq.submitReq.cwd = jobModLog->cwd;
+    modifyReq.submitReq.preExecCmd = jobModLog->preExecCmd;
+    modifyReq.submitReq.mailUser = jobModLog->mailUser;
+    modifyReq.submitReq.projectName = jobModLog->projectName;
+    modifyReq.submitReq.niosPort = jobModLog->niosPort;
+    modifyReq.submitReq.maxNumProcessors = jobModLog->maxNumProcessors;
+    modifyReq.submitReq.loginShell = jobModLog->loginShell;
+    modifyReq.submitReq.schedHostType = jobModLog->schedHostType;
     modifyReq.submitReq.userPriority = jobModLog->userPriority;
 
     modifyJob(&modifyReq, NULL, &auth);
     return TRUE;
-
 }
 
-static struct jData    *
-replay_jobdata(char *filename, int lineNum, char *fname)
+static struct jData *replay_jobdata(char *filename, int lineNum, char *fname)
 {
-    struct jData           *job;
-    struct submitReq       *jobBill;
-    struct jobNewLog       *jobNewLog;
-    struct qData           *qp;
-    int                     i, errcode;
-    struct lsfAuth          auth;
+    struct jData *job;
+    struct submitReq *jobBill;
+    struct jobNewLog *jobNewLog;
+    struct qData *qp;
+    int i, errcode;
+    struct lsfAuth auth;
 
-    (void)memset((void *)&auth, '\0', sizeof (auth));
+    (void) memset((void *) &auth, '\0', sizeof(auth));
 
     jobNewLog = &logPtr->eventLog.jobNewLog;
 
     qp = getQueueData(jobNewLog->queue);
     if (qp == NULL) {
-        ls_syslog(LOG_DEBUG, "%s: File %s at line %d: Queue <%s> not found, saving job <%d> in queue <%s>", fname, filename, lineNum, jobNewLog->queue, jobNewLog->jobId, LOST_AND_FOUND);
+        ls_syslog(LOG_DEBUG,
+                  "%s: File %s at line %d: Queue <%s> not found, saving job "
+                  "<%d> in queue <%s>",
+                  fname, filename, lineNum, jobNewLog->queue, jobNewLog->jobId,
+                  LOST_AND_FOUND);
         qp = getQueueData(LOST_AND_FOUND);
         if (qp == NULL)
             qp = lostFoundQueue();
     }
-    job = initJData((struct jShared *) my_calloc(1, sizeof(struct jShared), "replay_jobdata"));
+    job = initJData((struct jShared *) my_calloc(1, sizeof(struct jShared),
+                                                 "replay_jobdata"));
 
     if (job->jobSpoolDir) {
         FREEUP(job->jobSpoolDir);
@@ -3338,12 +3126,9 @@ replay_jobdata(char *filename, int lineNum, char *fname)
     jobBill->options = jobNewLog->options;
     jobBill->options2 = jobNewLog->options2;
     if (jobBill->options2 & SUB2_USE_DEF_PROCLIMIT) {
-
-        jobBill->numProcessors =
-            jobBill->maxNumProcessors =
+        jobBill->numProcessors = jobBill->maxNumProcessors =
             (qp->defProcLimit > 0 ? qp->defProcLimit : 1);
-    }
-    else {
+    } else {
         jobBill->numProcessors = jobNewLog->numProcessors;
         jobBill->maxNumProcessors = jobNewLog->maxNumProcessors;
     }
@@ -3370,8 +3155,8 @@ replay_jobdata(char *filename, int lineNum, char *fname)
         job->dispTime = 0;
 
     job->userName = safeSave(jobNewLog->userName);
-    job->schedHost = safeSave (jobNewLog->schedHostType);
-    jobBill->schedHostType = safeSave (jobNewLog->schedHostType);
+    job->schedHost = safeSave(jobNewLog->schedHostType);
+    jobBill->schedHostType = safeSave(jobNewLog->schedHostType);
     jobBill->queue = safeSave(qp->queue);
     jobBill->fromHost = safeSave(jobNewLog->fromHost);
     jobBill->jobFile = safeSave(jobNewLog->jobFile);
@@ -3380,7 +3165,7 @@ replay_jobdata(char *filename, int lineNum, char *fname)
     jobBill->outFile = safeSave(jobNewLog->outFile);
     jobBill->errFile = safeSave(jobNewLog->errFile);
     jobBill->command = safeSave(jobNewLog->command);
-    job->jobSpoolDir = safeSave (jobNewLog->jobSpoolDir);
+    job->jobSpoolDir = safeSave(jobNewLog->jobSpoolDir);
 
     jobBill->inFileSpool = safeSave(jobNewLog->inFileSpool);
     jobBill->commandSpool = safeSave(jobNewLog->commandSpool);
@@ -3395,12 +3180,12 @@ replay_jobdata(char *filename, int lineNum, char *fname)
 
     jobBill->numAskedHosts = jobNewLog->numAskedHosts;
     if (jobBill->numAskedHosts > 0) {
-        int  numAskedHosts = 0;
+        int numAskedHosts = 0;
         struct askedHost *askedHosts;
         int returnErr, badReqIndx, others;
 
-        jobBill->askedHosts = (char **) my_calloc(jobBill->numAskedHosts,
-                                                  sizeof(char *), fname);
+        jobBill->askedHosts =
+            (char **) my_calloc(jobBill->numAskedHosts, sizeof(char *), fname);
         for (i = 0; i < jobBill->numAskedHosts; i++)
             jobBill->askedHosts[i] = safeSave(jobNewLog->askedHosts[i]);
 
@@ -3409,8 +3194,8 @@ replay_jobdata(char *filename, int lineNum, char *fname)
                                   &askedHosts, &badReqIndx, &others, 0);
         if (returnErr == LSBE_NO_ERROR) {
             if (numAskedHosts > 0) {
-                job->askedPtr = (struct askedHost *) my_calloc (numAskedHosts,
-                                                                sizeof(struct askedHost), fname);
+                job->askedPtr = (struct askedHost *) my_calloc(
+                    numAskedHosts, sizeof(struct askedHost), fname);
                 for (i = 0; i < numAskedHosts; i++) {
                     job->askedPtr[i].hData = askedHosts[i].hData;
                     job->askedPtr[i].priority = askedHosts[i].priority;
@@ -3423,7 +3208,6 @@ replay_jobdata(char *filename, int lineNum, char *fname)
     }
 
     if (strcmp(jobNewLog->projectName, "") == 0) {
-
         jobBill->projectName = safeSave(getDefaultProject());
     } else
         jobBill->projectName = safeSave(jobNewLog->projectName);
@@ -3439,32 +3223,34 @@ replay_jobdata(char *filename, int lineNum, char *fname)
     if (strcmp(jobBill->dependCond, "") == 0) {
         job->shared->dptRoot = NULL;
     } else {
-
         setIdxListContext(jobBill->jobName);
 
-        job->shared->dptRoot
-            = parseDepCond(jobBill->dependCond, &auth, &errcode,
-                           NULL, &job->jFlags, 0);
+        job->shared->dptRoot = parseDepCond(jobBill->dependCond, &auth,
+                                            &errcode, NULL, &job->jFlags, 0);
 
         freeIdxListContext();
 
-        if (!job->shared->dptRoot)  {
+        if (!job->shared->dptRoot) {
             job->jFlags |= JFLAG_DEPCOND_INVALID;
         } else
             job->jFlags &= ~JFLAG_DEPCOND_INVALID;
     }
 
-    if (jobBill->resReq  && jobBill->resReq[0] != '\0') {
+    if (jobBill->resReq && jobBill->resReq[0] != '\0') {
         int useLocal = TRUE;
         if (job->numAskedPtr > 0 || job->askedOthPrio >= 0)
             useLocal = FALSE;
 
         useLocal = useLocal ? USE_LOCAL : 0;
         if ((job->shared->resValPtr =
-             checkResReq (jobBill->resReq, useLocal | PARSE_XOR | CHK_TCL_SYNTAX)) == NULL)
+                 checkResReq(jobBill->resReq,
+                             useLocal | PARSE_XOR | CHK_TCL_SYNTAX)) == NULL)
 
-            ls_syslog(LOG_ERR, "%s: File %s at line %d: Bad resource requirment <%s> of Job <%s>", fname, filename, lineNum, jobBill->resReq, lsb_jobid2str(job->jobId));
-
+            ls_syslog(LOG_ERR,
+                      "%s: File %s at line %d: Bad resource requirment <%s> of "
+                      "Job <%s>",
+                      fname, filename, lineNum, jobBill->resReq,
+                      lsb_jobid2str(job->jobId));
     }
     jobBill->nxf = jobNewLog->nxf;
     if (jobBill->nxf > 0) {
@@ -3482,11 +3268,9 @@ replay_jobdata(char *filename, int lineNum, char *fname)
     job->jobPriority = jobBill->userPriority;
 
     return job;
-
 }
 
-void
-log_logSwitch(int lastJobId)
+void log_logSwitch(int lastJobId)
 {
     if (openEventFile("log_logSwitch") < 0) {
         ls_syslog(LOG_ERR, "%s: openEventFile() failed: %m", __func__);
@@ -3502,20 +3286,18 @@ log_logSwitch(int lastJobId)
     }
 }
 
-void
-log_signaljob(struct jData * jp, struct signalReq * signalReq, int userId,
-              char *userName)
+void log_signaljob(struct jData *jp, struct signalReq *signalReq, int userId,
+                   char *userName)
 {
-    static char             fname[] = "log_signaljob";
-    int  sigValue;
+    static char fname[] = "log_signaljob";
+    int sigValue;
     int defSigValue;
 
-    if ((signalReq->sigValue != SIG_DELETE_JOB)
-        && (signalReq->sigValue != SIG_KILL_REQUEUE)
-        && (signalReq->sigValue != SIG_ARRAY_REQUEUE)) {
-
-        defSigValue = getDefSigValue_(signalReq->sigValue,
-                                      jp->qPtr->terminateActCmd);
+    if ((signalReq->sigValue != SIG_DELETE_JOB) &&
+        (signalReq->sigValue != SIG_KILL_REQUEUE) &&
+        (signalReq->sigValue != SIG_ARRAY_REQUEUE)) {
+        defSigValue =
+            getDefSigValue_(signalReq->sigValue, jp->qPtr->terminateActCmd);
         if (defSigValue == signalReq->sigValue) {
             if (IS_PEND(jp->jStatus))
                 defSigValue = SIGKILL;
@@ -3525,8 +3307,7 @@ log_signaljob(struct jData * jp, struct signalReq * signalReq, int userId,
     }
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jp->jobId), "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "openEventFile");
         return;
     }
     logPtr->type = EVENT_JOB_SIGNAL;
@@ -3541,31 +3322,26 @@ log_signaljob(struct jData * jp, struct signalReq * signalReq, int userId,
         logPtr->eventLog.signalLog.signalSymbol = "KILLREQUEUE";
         logPtr->eventLog.signalLog.runCount = signalReq->chkPeriod;
     } else if (signalReq->sigValue == SIG_ARRAY_REQUEUE) {
-        logPtr->eventLog.signalLog.signalSymbol
-            = getSignalSymbol(signalReq);
+        logPtr->eventLog.signalLog.signalSymbol = getSignalSymbol(signalReq);
 
         logPtr->eventLog.signalLog.runCount = signalReq->actFlags;
     } else {
         sigValue = sig_encode(defSigValue);
-        logPtr->eventLog.signalLog.signalSymbol
-            = getSigSymbol(sigValue);
+        logPtr->eventLog.signalLog.signalSymbol = getSigSymbol(sigValue);
         logPtr->eventLog.signalLog.runCount = jp->runCount;
     }
 
     if (putEventRec("log_signaljob") < 0) {
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jp->jobId), "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
 }
 
-static char *
-getSignalSymbol(const struct signalReq *sigPtr)
+static char *getSignalSymbol(const struct signalReq *sigPtr)
 {
-    static char      nameBuf[32];
+    static char nameBuf[32];
 
     if (sigPtr->chkPeriod == JOB_STAT_PSUSP) {
-
         sprintf(nameBuf, "REQUEUE_PSUSP");
 
     } else {
@@ -3573,17 +3349,14 @@ getSignalSymbol(const struct signalReq *sigPtr)
     }
 
     return nameBuf;
-
 }
 
-void
-log_jobmsg(struct jData * jp, struct lsbMsg * jmsg, int userId)
+void log_jobmsg(struct jData *jp, struct lsbMsg *jmsg, int userId)
 {
-    static char             fname[] = "log_jobmsg";
+    static char fname[] = "log_jobmsg";
 
     if (openEventFile("log_jobmsg") < 0) {
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jp->jobId), "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "openEventFile");
         return;
     }
     logPtr->type = EVENT_JOB_MSG;
@@ -3597,35 +3370,30 @@ log_jobmsg(struct jData * jp, struct lsbMsg * jmsg, int userId)
     logPtr->eventLog.jobMsgLog.msg = safeSave(jmsg->msg);
 
     if (putEventRec("log_jobmsg") < 0) {
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jp->jobId), "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
 }
 
-void
-log_jobmsgack(struct bucket * bucket)
+void log_jobmsgack(struct bucket *bucket)
 {
-    static char             fname[] = "log_jobmsgack";
-    struct jData           *jp;
+    static char fname[] = "log_jobmsgack";
+    struct jData *jp;
 
     LSBMSG_DECL(header, jmsg);
 
     LSBMSG_INIT(header, jmsg);
     jp = getJobData(bucket->proto.jobId);
     if (jp == NULL) {
-        ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list ",
-                  fname,
+        ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list ", fname,
                   logPtr->eventLog.jobMsgAckLog.jobId);
     }
     if (openEventFile("log_donemsgjob") < 0) {
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jp->jobId), "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "openEventFile");
         return;
     }
     xdr_setpos(&bucket->xdrs, PACKET_HEADER_SIZE);
     if (!xdr_lsbMsg(&bucket->xdrs, &jmsg, NULL)) {
-
         return;
     }
     logPtr->type = EVENT_JOB_MSG_ACK;
@@ -3638,42 +3406,39 @@ log_jobmsgack(struct bucket * bucket)
     logPtr->eventLog.jobMsgAckLog.dest = safeSave(jmsg.header->dest);
     logPtr->eventLog.jobMsgAckLog.msg = safeSave(jmsg.msg);
     if (bucket->xdrs.x_op == XDR_DECODE && jmsg.msg)
-        FREEUP (jmsg.msg);
+        FREEUP(jmsg.msg);
 
     if (putEventRec("log_donemsgjob") < 0) {
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jp->jobId), "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "putEventRec");
         mbdDie(MASTER_FATAL);
     }
-
 }
 
-static int
-replay_signaljob(char *filename, int lineNum)
+static int replay_signaljob(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_signaljob";
-    struct jData           *jp;
-    LS_LONG_INT             jobId;
-    int                    cc;
+    static char fname[] = "replay_signaljob";
+    struct jData *jp;
+    LS_LONG_INT jobId;
+    int cc;
 
     jobId = LSB_JOBID(logPtr->eventLog.signalLog.jobId,
                       logPtr->eventLog.signalLog.idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list ",
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%d> not found in job list ",
                   fname, filename, lineNum, logPtr->eventLog.signalLog.jobId);
         return FALSE;
     }
 
-    cc = replay_arrayrequeue(jp,
-                             &(logPtr->eventLog.signalLog));
+    cc = replay_arrayrequeue(jp, &(logPtr->eventLog.signalLog));
     if (cc == 0) {
         return TRUE;
     }
 
     if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "DELETEJOB") == 0) {
         jp->pendEvent.sigDel = TRUE;
-    } else if (strcmp(logPtr->eventLog.signalLog.signalSymbol,
-                      "KILLREQUEUE")   == 0) {
+    } else if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "KILLREQUEUE") ==
+               0) {
         jp->pendEvent.sigDel |= DEL_ACTION_REQUEUE;
     } else {
         getSigVal(logPtr->eventLog.signalLog.signalSymbol);
@@ -3684,8 +3449,7 @@ replay_signaljob(char *filename, int lineNum)
     }
 
     if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "DELETEJOB") == 0) {
-
-        if (IS_FINISH(jp->jStatus)){
+        if (IS_FINISH(jp->jStatus)) {
             jp->runCount = logPtr->eventLog.signalLog.runCount;
 
         } else if (IS_PEND(jp->jStatus)) {
@@ -3707,26 +3471,23 @@ replay_signaljob(char *filename, int lineNum)
     return TRUE;
 }
 
-static int
-replay_arrayrequeue(struct jData *jPtr,
-                    const struct signalLog *sigLogPtr)
+static int replay_arrayrequeue(struct jData *jPtr,
+                               const struct signalLog *sigLogPtr)
 {
-    struct signalReq      sigReq;
-    char                  *p;
+    struct signalReq sigReq;
+    char *p;
 
     sigReq.sigValue = SIG_ARRAY_REQUEUE;
 
     p = sigLogPtr->signalSymbol;
 
     if (strcmp("REQUEUE_PSUSP", p) == 0) {
-
         sigReq.chkPeriod = JOB_STAT_PSUSP;
-        sigReq.actFlags   = sigLogPtr->runCount;
+        sigReq.actFlags = sigLogPtr->runCount;
 
     } else if (strcmp("REQUEUE_PEND", p) == 0) {
-
         sigReq.chkPeriod = JOB_STAT_PEND;
-        sigReq.actFlags  = sigLogPtr->runCount;
+        sigReq.actFlags = sigLogPtr->runCount;
 
     } else {
         return -1;
@@ -3735,45 +3496,44 @@ replay_arrayrequeue(struct jData *jPtr,
     arrayRequeue(jPtr, &sigReq, NULL);
 
     return 0;
-
 }
 
-static int
-replay_jobmsg(char *filename, int lineNum)
+static int replay_jobmsg(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_jobmsg";
-    int                     len;
-    struct jData           *jp;
-    struct bucket          *bucket;
-    struct Buffer          *buf;
-    struct lsbMsgHdr        jmHdr;
-    struct lsbMsg           jmsg;
-    struct packet_header        lsfHdr;
-    LS_LONG_INT             jobId;
+    static char fname[] = "replay_jobmsg";
+    int len;
+    struct jData *jp;
+    struct bucket *bucket;
+    struct Buffer *buf;
+    struct lsbMsgHdr jmHdr;
+    struct lsbMsg jmsg;
+    struct packet_header lsfHdr;
+    LS_LONG_INT jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobMsgLog.jobId,
                       logPtr->eventLog.jobMsgLog.idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list ",
-                  fname,
-                  filename,
-                  lineNum,
-                  logPtr->eventLog.jobMsgLog.jobId);
+        ls_syslog(LOG_ERR,
+                  "%s: File %s at line %d: Job <%d> not found in job list ",
+                  fname, filename, lineNum, logPtr->eventLog.jobMsgLog.jobId);
 
         return FALSE;
     }
 
     len = PACKET_HEADER_SIZE + 4 * sizeof(int) +
-        strlen(logPtr->eventLog.jobMsgLog.src) + 1 +
-        strlen(logPtr->eventLog.jobMsgLog.dest) + 1 +
-        strlen(logPtr->eventLog.jobMsgLog.msg) + 1;
+          strlen(logPtr->eventLog.jobMsgLog.src) + 1 +
+          strlen(logPtr->eventLog.jobMsgLog.dest) + 1 +
+          strlen(logPtr->eventLog.jobMsgLog.msg) + 1;
 
-    while (len % sizeof(char *)) len++;
+    while (len % sizeof(char *))
+        len++;
     len += sizeof(char *);
 
-    if (chanAllocBuf_(&buf, len) < 0) return FALSE;
+    if (chanAllocBuf_(&buf, len) < 0)
+        return FALSE;
     NEW_BUCKET(bucket, buf);
-    if (! bucket) return FALSE;
+    if (!bucket)
+        return FALSE;
 
     buf->len = len;
     bucket->proto.usrId = logPtr->eventLog.jobMsgLog.usrId;
@@ -3795,9 +3555,8 @@ replay_jobmsg(char *filename, int lineNum)
     jmsg.header = &jmHdr;
     jmsg.msg = logPtr->eventLog.jobMsgLog.msg;
 
-    if (!xdr_encodeMsg(&bucket->xdrs, (char *)&jmsg,
-                       &lsfHdr, xdr_lsbMsg, 0, NULL)) {
-
+    if (!xdr_encodeMsg(&bucket->xdrs, (char *) &jmsg, &lsfHdr, xdr_lsbMsg, 0,
+                       NULL)) {
         ls_syslog(LOG_ERR, fname, "xdr_encodeMsg");
         chanFreeBuf_(buf);
         return -1;
@@ -3807,26 +3566,22 @@ replay_jobmsg(char *filename, int lineNum)
     buf->stashed = TRUE;
 
     return TRUE;
-
 }
 
-static int
-replay_jobmsgack(char *filename, int lineNum)
+static int replay_jobmsgack(char *filename, int lineNum)
 {
-    static char             fname[] = "replay_jobmsgack";
-    struct jData           *jp;
-    struct bucket          *bucket;
-    int                     found;
-    LS_LONG_INT             jobId;
+    static char fname[] = "replay_jobmsgack";
+    struct jData *jp;
+    struct bucket *bucket;
+    int found;
+    LS_LONG_INT jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobMsgAckLog.jobId,
                       logPtr->eventLog.jobMsgAckLog.idx);
     if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list ",
-                  fname,
-                  filename,
-                  lineNum,
-                  logPtr->eventLog.jobMsgAckLog.jobId);
+        ls_syslog(
+            LOG_ERR, "%s: File %s at line %d: Job <%d> not found in job list ",
+            fname, filename, lineNum, logPtr->eventLog.jobMsgAckLog.jobId);
 
         return FALSE;
     }
@@ -3835,11 +3590,11 @@ replay_jobmsgack(char *filename, int lineNum)
 
     found = FALSE;
     while (1) {
-        if (bucket->forw == bucket) break;
+        if (bucket->forw == bucket)
+            break;
 
         if (bucket->proto.jobId == jobId &&
             bucket->proto.msgId == logPtr->eventLog.jobMsgAckLog.msgId) {
-
             found = TRUE;
             break;
         }
@@ -3847,7 +3602,6 @@ replay_jobmsgack(char *filename, int lineNum)
     }
 
     if (found) {
-
         bucket->bufstat = MSG_STAT_RCVD;
         QUEUE_REMOVE(bucket);
         chanFreeStashedBuf_(bucket->storage);
@@ -3859,8 +3613,7 @@ replay_jobmsgack(char *filename, int lineNum)
     return TRUE;
 }
 
-static void
-ckSchedHost (void)
+static void ckSchedHost(void)
 {
     static char fname[] = "ckSchedHost";
     int list;
@@ -3873,69 +3626,69 @@ ckSchedHost (void)
     for (list = 0; list < ALLJLIST; list++) {
         for (jp = jDataList[list]->forw; (jp != jDataList[list]);
              jp = jp->forw) {
-            if ((hp = getHostData (jp->shared->jobBill.fromHost)) != NULL) {
-                if (strcmp (jp->shared->jobBill.schedHostType, "") == 0
-                    || strcmp (jp->schedHost, "") == 0) {
+            if ((hp = getHostData(jp->shared->jobBill.fromHost)) != NULL) {
+                if (strcmp(jp->shared->jobBill.schedHostType, "") == 0 ||
+                    strcmp(jp->schedHost, "") == 0) {
                     free(jp->schedHost);
                     free(jp->shared->jobBill.schedHostType);
                     jp->schedHost = safeSave(hp->hostType);
                     jp->shared->jobBill.schedHostType = safeSave(hp->hostType);
                     if (logclass & LC_SCHED)
-                        ls_syslog(LOG_DEBUG3, "%s: job=%s fromHost=%s schedHost=%s", fname, lsb_jobid2str(jp->jobId), jp->shared->jobBill.fromHost, jp->schedHost);
+                        ls_syslog(LOG_DEBUG3,
+                                  "%s: job=%s fromHost=%s schedHost=%s", fname,
+                                  lsb_jobid2str(jp->jobId),
+                                  jp->shared->jobBill.fromHost, jp->schedHost);
                 }
             }
         }
     }
 }
 
-static bool_t
-replay_jobforce(char* file, int line)
+static bool_t replay_jobforce(char *file, int line)
 {
-
-    static char                fname[] = "replay_jobforce()";
-    struct jobForceRequestLog* jobForceRequestLog;
-    struct jData*              job;
-    LS_LONG_INT                jobId;
+    static char fname[] = "replay_jobforce()";
+    struct jobForceRequestLog *jobForceRequestLog;
+    struct jData *job;
+    LS_LONG_INT jobId;
 
     jobForceRequestLog = &(logPtr->eventLog.jobForceRequestLog),
 
-        jobId = LSB_JOBID(jobForceRequestLog->jobId, jobForceRequestLog->idx);
+    jobId = LSB_JOBID(jobForceRequestLog->jobId, jobForceRequestLog->idx);
     job = getJobData(jobId);
     if (job == NULL) {
-        ls_syslog(LOG_ERR, "%s: JobId <%d> at line <%d> cannot be found by master daemon",
-                  fname, jobForceRequestLog->jobId, line);
+        ls_syslog(
+            LOG_ERR,
+            "%s: JobId <%d> at line <%d> cannot be found by master daemon",
+            fname, jobForceRequestLog->jobId, line);
         return FALSE;
     }
 
-    job->jFlags |= (jobForceRequestLog->options & RUNJOB_OPT_NOSTOP) ?
-        JFLAG_URGENT_NOSTOP : JFLAG_URGENT;
+    job->jFlags |= (jobForceRequestLog->options & RUNJOB_OPT_NOSTOP)
+                       ? JFLAG_URGENT_NOSTOP
+                       : JFLAG_URGENT;
 
     return TRUE;
-
 }
 
-static int
-canSwitch(struct eventRec *logPtr, struct jData *jp)
+static int canSwitch(struct eventRec *logPtr, struct jData *jp)
 {
     if (jp) {
         if (jp->startTime > 0 && logPtr->eventTime < jp->startTime)
             return TRUE;
         else
             return FALSE;
-    }
-    else
+    } else
         return TRUE;
     return FALSE;
 }
 
-void
-log_jobattrset(struct jobAttrInfoEnt *jobAttr, int uid)
+void log_jobattrset(struct jobAttrInfoEnt *jobAttr, int uid)
 {
-    static char                fname[] = "log_jobattrset()";
+    static char fname[] = "log_jobattrset()";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jobAttr->jobId), "openEventFile");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jobAttr->jobId),
+                  "openEventFile");
     }
 
     logPtr->type = EVENT_JOB_ATTR_SET;
@@ -3946,24 +3699,24 @@ log_jobattrset(struct jobAttrInfoEnt *jobAttr, int uid)
     logPtr->eventLog.jobAttrSetLog.hostname = jobAttr->hostname;
 
     if (putEventRec(fname) < 0)
-        ls_syslog(LOG_ERR, fname,
-                  lsb_jobid2str(jobAttr->jobId), "putEventRec");
+        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jobAttr->jobId), "putEventRec");
 }
 
-static int
-replay_jobattrset(char *filename, int lineNum)
+static int replay_jobattrset(char *filename, int lineNum)
 {
-    static char                fname[] = "replay_jobattrset()";
-    struct jobAttrSetLog*      jobAttrSetLog;
-    struct jData*              job;
-    LS_LONG_INT                jobId;
+    static char fname[] = "replay_jobattrset()";
+    struct jobAttrSetLog *jobAttrSetLog;
+    struct jData *job;
+    LS_LONG_INT jobId;
 
     jobAttrSetLog = &(logPtr->eventLog.jobAttrSetLog);
 
     jobId = LSB_JOBID(jobAttrSetLog->jobId, jobAttrSetLog->idx);
     if ((job = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: JobId <%d> at line <%d> cannot be found by master daemon",
-                  fname, jobAttrSetLog->jobId, lineNum);
+        ls_syslog(
+            LOG_ERR,
+            "%s: JobId <%d> at line <%d> cannot be found by master daemon",
+            fname, jobAttrSetLog->jobId, lineNum);
         return FALSE;
     }
     job->port = (u_short) jobAttrSetLog->port;
@@ -3971,8 +3724,7 @@ replay_jobattrset(char *filename, int lineNum)
     return TRUE;
 }
 
-static struct jData *
-checkJobInCore(LS_LONG_INT jobId)
+static struct jData *checkJobInCore(LS_LONG_INT jobId)
 {
     struct jData *jp = NULL;
     struct listSet *ptr;
@@ -3981,40 +3733,39 @@ checkJobInCore(LS_LONG_INT jobId)
         return jp;
 
     for (ptr = voidJobList; ptr; ptr = ptr->next) {
-        if (jobId == ((struct jData *)ptr->elem)->jobId ||
-            jobId == LSB_ARRAY_JOBID(((struct jData *)ptr->elem)->jobId)) {
-            return((struct jData *)ptr->elem);
+        if (jobId == ((struct jData *) ptr->elem)->jobId ||
+            jobId == LSB_ARRAY_JOBID(((struct jData *) ptr->elem)->jobId)) {
+            return ((struct jData *) ptr->elem);
         }
     }
     return NULL;
 }
 
-static char *
-instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
+static char *instrJobStarter1(char *data, int datalen, char *begin, char *end,
+                              char *jstr)
 {
     static char fname[] = "instrJobStarter1()";
-    char        *jstr_header = NULL;
-    char        *jstr_tailer = NULL;
-    char        *ptr1 = NULL;
-    char        *ptr2 = NULL;
-    int         int_input = 0;
-    int         withKeyword = FALSE;
-    char        *tmpBuf;
+    char *jstr_header = NULL;
+    char *jstr_tailer = NULL;
+    char *ptr1 = NULL;
+    char *ptr2 = NULL;
+    int int_input = 0;
+    int withKeyword = FALSE;
+    char *tmpBuf;
 
     tmpBuf = (char *) malloc(datalen + strlen(jstr) + 1);
     if (tmpBuf == NULL) {
         ls_syslog(LOG_ERR, fname, "malloc", "tmpBuf");
         return NULL;
     }
-    memset((char *)tmpBuf, 0, datalen + strlen(jstr) + 1);
+    memset((char *) tmpBuf, 0, datalen + strlen(jstr) + 1);
 
     ptr1 = strstr(jstr, JOB_STARTER_KEYWORD);
     if (ptr1 == NULL) {
         withKeyword = FALSE;
-        jstr_header = (char *) malloc(strlen(jstr)+sizeof(char));
+        jstr_header = (char *) malloc(strlen(jstr) + sizeof(char));
         if (jstr_header == NULL) {
-            ls_syslog(LOG_ERR, fname, "malloc",
-                      "jstr_header");
+            ls_syslog(LOG_ERR, fname, "malloc", "jstr_header");
             FREEUP(tmpBuf);
             return NULL;
         } else {
@@ -4025,19 +3776,18 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
         withKeyword = TRUE;
         if (jstr == ptr1) {
             jstr_header = NULL;
-            jstr_tailer = ptr1+strlen(JOB_STARTER_KEYWORD);
+            jstr_tailer = ptr1 + strlen(JOB_STARTER_KEYWORD);
         } else {
-            jstr_header = (char *) malloc((ptr1-jstr)+sizeof(char));
+            jstr_header = (char *) malloc((ptr1 - jstr) + sizeof(char));
             if (jstr_header == NULL) {
-                ls_syslog(LOG_ERR, fname,
-                          "malloc","jstr_header");
+                ls_syslog(LOG_ERR, fname, "malloc", "jstr_header");
                 FREEUP(tmpBuf);
                 return NULL;
             } else {
-                memset(jstr_header, '\0', (ptr1-jstr)+sizeof(char));
-                strncpy(jstr_header, jstr, (ptr1-jstr));
+                memset(jstr_header, '\0', (ptr1 - jstr) + sizeof(char));
+                strncpy(jstr_header, jstr, (ptr1 - jstr));
             }
-            jstr_tailer = ptr1+strlen(JOB_STARTER_KEYWORD);
+            jstr_tailer = ptr1 + strlen(JOB_STARTER_KEYWORD);
         }
     }
 
@@ -4059,36 +3809,35 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
         return NULL;
     }
 
-    if ((ptr2 = strstr(ptr1, "\n$LSB_JOBFILENAME.shell"))!= NULL) {
+    if ((ptr2 = strstr(ptr1, "\n$LSB_JOBFILENAME.shell")) != NULL) {
         int_input = 1;
         ptr1 = ptr2;
     }
 
     ptr1 = ptr1 + sizeof(char);
 
-    strncat(tmpBuf, data, ptr1-data);
+    strncat(tmpBuf, data, ptr1 - data);
 
-    if (jstr_header != NULL){
+    if (jstr_header != NULL) {
         strncat(tmpBuf, jstr_header, strlen(jstr_header));
-        if (jstr_tailer[0]=='\0' && !withKeyword) {
-
+        if (jstr_tailer[0] == '\0' && !withKeyword) {
             strcat(tmpBuf, " ");
         }
     }
 
     if (int_input == 1)
-        ptr2 = strchr (ptr1, '\n');
+        ptr2 = strchr(ptr1, '\n');
     else
         ptr2 = strstr(ptr1, end);
 
     if (ptr2 == NULL) {
-        ls_syslog(LOG_ERR, fname, "strstr","WAITCLEANCMD");
+        ls_syslog(LOG_ERR, fname, "strstr", "WAITCLEANCMD");
         FREEUP(jstr_header);
         FREEUP(tmpBuf);
         return NULL;
     }
 
-    strncat(tmpBuf, ptr1, ptr2-ptr1);
+    strncat(tmpBuf, ptr1, ptr2 - ptr1);
 
     if (strlen(jstr_tailer) != 0) {
         strncat(tmpBuf, jstr_tailer, strlen(jstr_tailer));
@@ -4098,8 +3847,7 @@ instrJobStarter1(char *data, int  datalen, char *begin, char *end, char *jstr)
     return tmpBuf;
 }
 
-static int
-checkJobStarter(char *data, char *jStarter)
+static int checkJobStarter(char *data, char *jStarter)
 {
     char *ptr;
     char *header;
@@ -4107,7 +3855,6 @@ checkJobStarter(char *data, char *jStarter)
 
     ptr = strstr(jStarter, JOB_STARTER_KEYWORD);
     if (!ptr) {
-
         if (strstr(data, jStarter))
             return TRUE;
         else
@@ -4147,41 +3894,34 @@ checkJobStarter(char *data, char *jStarter)
     }
 }
 
-static void
-initHostCtrlTable(void)
+static void initHostCtrlTable(void)
 {
     h_initTab_(&hostCtrlEvents, 64);
-
 }
 
-static void
-destroyHostCtrlTable(void)
+static void destroyHostCtrlTable(void)
 {
     h_freeTab_(&hostCtrlEvents, destroyHostCtrlEvent);
-
 }
 
-static void
-destroyHostCtrlEvent(void *ptr)
+static void destroyHostCtrlEvent(void *ptr)
 {
     struct hostCtrlEvent *ctrlPtr;
 
-    ctrlPtr = (struct hostCtrlEvent *)ptr;
+    ctrlPtr = (struct hostCtrlEvent *) ptr;
 
     free(ctrlPtr->hostCtrlLog);
     free(ctrlPtr);
-
 }
 
-static void
-saveHostCtrlEvent(struct hostCtrlLog *hostCtrlLog,
-                  const time_t       eventTime)
+static void saveHostCtrlEvent(struct hostCtrlLog *hostCtrlLog,
+                              const time_t eventTime)
 {
-    static char             fname[] = "saveHostCtrlEvent";
-    hEnt                    *hEntry;
-    int                     new;
-    struct hData            *hPtr;
-    struct hostCtrlEvent    *ctrlPtr;
+    static char fname[] = "saveHostCtrlEvent";
+    hEnt *hEntry;
+    int new;
+    struct hData *hPtr;
+    struct hostCtrlEvent *ctrlPtr;
 
     if (hostCtrlLog->opCode != HOST_CLOSE) {
         return;
@@ -4192,137 +3932,104 @@ saveHostCtrlEvent(struct hostCtrlLog *hostCtrlLog,
         return;
     }
 
-    if (! (hPtr->hStatus & HOST_STAT_DISABLED)) {
+    if (!(hPtr->hStatus & HOST_STAT_DISABLED)) {
         return;
     }
 
     hEntry = h_getEnt_(&hostCtrlEvents, hostCtrlLog->host);
     if (hEntry == NULL) {
+        ctrlPtr = (struct hostCtrlEvent *) my_calloc(
+            1, sizeof(struct hostCtrlEvent), fname);
 
-        ctrlPtr =
-            (struct hostCtrlEvent *)
-            my_calloc(1,
-                      sizeof(struct hostCtrlEvent),
-                      fname);
-
-        ctrlPtr->hostCtrlLog =
-            (struct hostCtrlLog *)
-            my_calloc(1,
-                      sizeof(struct hostCtrlLog),
-                      fname);
+        ctrlPtr->hostCtrlLog = (struct hostCtrlLog *) my_calloc(
+            1, sizeof(struct hostCtrlLog), fname);
 
         ctrlPtr->time = eventTime;
-        memcpy(ctrlPtr->hostCtrlLog,
-               hostCtrlLog,
-               sizeof(struct hostCtrlLog));
+        memcpy(ctrlPtr->hostCtrlLog, hostCtrlLog, sizeof(struct hostCtrlLog));
 
-        hEntry = h_addEnt_(&hostCtrlEvents,
-                           ctrlPtr->hostCtrlLog->host,
-                           &new);
-        hEntry->hData = (int *)ctrlPtr;
+        hEntry = h_addEnt_(&hostCtrlEvents, ctrlPtr->hostCtrlLog->host, &new);
+        hEntry->hData = (int *) ctrlPtr;
 
     } else {
-
-        ctrlPtr = (struct hostCtrlEvent *)hEntry->hData;
+        ctrlPtr = (struct hostCtrlEvent *) hEntry->hData;
 
         ctrlPtr->time = eventTime;
-        memcpy((int *)ctrlPtr->hostCtrlLog,
-               (int *)hostCtrlLog,
+        memcpy((int *) ctrlPtr->hostCtrlLog, (int *) hostCtrlLog,
                sizeof(struct hostCtrlLog));
     }
-
 }
 
-static void
-writeHostCtrlEvent(void)
+static void writeHostCtrlEvent(void)
 {
-    struct hostCtrlEvent  *ctrlPtr;
-    hEnt                  *hEntry;
-    char                  *key;
+    struct hostCtrlEvent *ctrlPtr;
+    hEnt *hEntry;
+    char *key;
 
-    FOR_EACH_HTAB_ENTRY(key, hEntry, &hostCtrlEvents) {
-
-        ctrlPtr = (struct hostCtrlEvent *)hEntry->hData;
+    FOR_EACH_HTAB_ENTRY(key, hEntry, &hostCtrlEvents)
+    {
+        ctrlPtr = (struct hostCtrlEvent *) hEntry->hData;
 
         ctrlPtr->hostCtrlLog->opCode = HOST_CLOSE;
 
         log_hostStatusAtSwitch(ctrlPtr);
-
-    } END_FOR_EACH_HTAB_ENTRY;
-
+    }
+    END_FOR_EACH_HTAB_ENTRY;
 }
 
-static void
-log_hostStatusAtSwitch(const struct hostCtrlEvent *ctrlPtr)
+static void log_hostStatusAtSwitch(const struct hostCtrlEvent *ctrlPtr)
 {
-    static char    fname[] = "log_hostStatusAtSwitch";
+    static char fname[] = "log_hostStatusAtSwitch";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  ctrlPtr->hostCtrlLog->host,
-                  "openEventFile");
+        ls_syslog(LOG_ERR, fname, ctrlPtr->hostCtrlLog->host, "openEventFile");
         mbdDie(MASTER_FATAL);
     }
 
     logPtr->type = EVENT_HOST_CTRL;
 
-    logPtr->eventLog.hostCtrlLog.opCode
-        = ctrlPtr->hostCtrlLog->opCode;
+    logPtr->eventLog.hostCtrlLog.opCode = ctrlPtr->hostCtrlLog->opCode;
 
-    strcpy(logPtr->eventLog.hostCtrlLog.host,
-           ctrlPtr->hostCtrlLog->host);
+    strcpy(logPtr->eventLog.hostCtrlLog.host, ctrlPtr->hostCtrlLog->host);
 
-    logPtr->eventLog.hostCtrlLog.userId
-        = ctrlPtr->hostCtrlLog->userId;
+    logPtr->eventLog.hostCtrlLog.userId = ctrlPtr->hostCtrlLog->userId;
 
     strcpy(logPtr->eventLog.hostCtrlLog.userName,
            ctrlPtr->hostCtrlLog->userName);
 
     if (putEventRecTime(fname, ctrlPtr->time) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  ctrlPtr->hostCtrlLog->host,
+        ls_syslog(LOG_ERR, fname, ctrlPtr->hostCtrlLog->host,
                   "putEventRecTime");
     }
-
 }
 
-static void
-initQueueCtrlTable(void)
+static void initQueueCtrlTable(void)
 {
     h_initTab_(&closedQueueEvents, 64);
     h_initTab_(&inactiveQueueEvents, 64);
-
 }
 
-static void
-destroyQueueCtrlTable(void)
+static void destroyQueueCtrlTable(void)
 {
     h_freeTab_(&closedQueueEvents, destroyQueueCtrlEvent);
     h_freeTab_(&inactiveQueueEvents, destroyQueueCtrlEvent);
-
 }
 
-static void
-destroyQueueCtrlEvent(void *ptr)
+static void destroyQueueCtrlEvent(void *ptr)
 {
-    struct queueCtrlEvent    *ctrlPtr;
+    struct queueCtrlEvent *ctrlPtr;
 
-    ctrlPtr = (struct queueCtrlEvent *)ptr;
+    ctrlPtr = (struct queueCtrlEvent *) ptr;
 
     free(ctrlPtr->queueCtrlLog);
     free(ctrlPtr);
-
 }
-static void
-saveQueueCtrlEvent(struct queueCtrlLog *queueCtrlLog,
-                   const time_t        eventTime)
+static void saveQueueCtrlEvent(struct queueCtrlLog *queueCtrlLog,
+                               const time_t eventTime)
 {
-    struct qData    *qPtr;
+    struct qData *qPtr;
 
-    if ( (queueCtrlLog->opCode != QUEUE_CLOSED)
-         && (queueCtrlLog->opCode != QUEUE_INACTIVATE)) {
+    if ((queueCtrlLog->opCode != QUEUE_CLOSED) &&
+        (queueCtrlLog->opCode != QUEUE_INACTIVATE)) {
         return;
     }
 
@@ -4331,131 +4038,100 @@ saveQueueCtrlEvent(struct queueCtrlLog *queueCtrlLog,
         return;
     }
 
-    if ( (queueCtrlLog->opCode == QUEUE_CLOSED)
-         && ( ! (qPtr->qStatus & QUEUE_STAT_OPEN))) {
-
+    if ((queueCtrlLog->opCode == QUEUE_CLOSED) &&
+        (!(qPtr->qStatus & QUEUE_STAT_OPEN))) {
         queueTableUpdate(&closedQueueEvents, queueCtrlLog);
-
     }
 
-    if ( (queueCtrlLog->opCode == QUEUE_INACTIVATE)
-         && ( ! (qPtr->qStatus & QUEUE_STAT_ACTIVE))) {
-
+    if ((queueCtrlLog->opCode == QUEUE_INACTIVATE) &&
+        (!(qPtr->qStatus & QUEUE_STAT_ACTIVE))) {
         queueTableUpdate(&inactiveQueueEvents, queueCtrlLog);
-
     }
-
 }
 
-static void
-queueTableUpdate(hTab                 *tbPtr,
-                 struct queueCtrlLog  *queueCtrlLog)
+static void queueTableUpdate(hTab *tbPtr, struct queueCtrlLog *queueCtrlLog)
 {
-    static char              fname[] = "queueTableUpdate";
-    int                      new;
-    hEnt                     *hEntry;
-    struct queueCtrlEvent    *ctrlPtr;
+    static char fname[] = "queueTableUpdate";
+    int new;
+    hEnt *hEntry;
+    struct queueCtrlEvent *ctrlPtr;
 
     hEntry = h_getEnt_(tbPtr, queueCtrlLog->queue);
     if (hEntry == NULL) {
+        ctrlPtr = (struct queueCtrlEvent *) my_calloc(
+            1, sizeof(struct queueCtrlEvent), fname);
 
-        ctrlPtr =
-            (struct queueCtrlEvent *)
-            my_calloc(1,
-                      sizeof(struct queueCtrlEvent),
-                      fname);
-
-        ctrlPtr->queueCtrlLog =
-            (struct queueCtrlLog *)my_calloc(1,
-                                             sizeof(struct queueCtrlLog),
-                                             fname);
+        ctrlPtr->queueCtrlLog = (struct queueCtrlLog *) my_calloc(
+            1, sizeof(struct queueCtrlLog), fname);
         ctrlPtr->time = eventTime;
-        memcpy(ctrlPtr->queueCtrlLog,
-               queueCtrlLog,
+        memcpy(ctrlPtr->queueCtrlLog, queueCtrlLog,
                sizeof(struct queueCtrlLog));
 
-        hEntry = h_addEnt_(tbPtr,
-                           ctrlPtr->queueCtrlLog->queue,
-                           &new);
-        hEntry->hData = (int *)ctrlPtr;
+        hEntry = h_addEnt_(tbPtr, ctrlPtr->queueCtrlLog->queue, &new);
+        hEntry->hData = (int *) ctrlPtr;
 
     } else {
-
-        ctrlPtr = (struct queueCtrlEvent *)hEntry->hData;
+        ctrlPtr = (struct queueCtrlEvent *) hEntry->hData;
 
         ctrlPtr->time = eventTime;
-        memcpy((int *)ctrlPtr->queueCtrlLog,
-               (int *)queueCtrlLog,
+        memcpy((int *) ctrlPtr->queueCtrlLog, (int *) queueCtrlLog,
                sizeof(struct queueCtrlLog));
     }
-
 }
 
-static void
-writeQueueCtrlEvent(void)
+static void writeQueueCtrlEvent(void)
 {
-    struct queueCtrlEvent    *ctrlPtr;
-    hEnt                     *hEntry;
-    char                     *key;
+    struct queueCtrlEvent *ctrlPtr;
+    hEnt *hEntry;
+    char *key;
 
-    FOR_EACH_HTAB_ENTRY(key, hEntry, &closedQueueEvents) {
-
-        ctrlPtr = (struct queueCtrlEvent *)hEntry->hData;
+    FOR_EACH_HTAB_ENTRY(key, hEntry, &closedQueueEvents)
+    {
+        ctrlPtr = (struct queueCtrlEvent *) hEntry->hData;
 
         ctrlPtr->queueCtrlLog->opCode = QUEUE_CLOSED;
         log_queueStatusAtSwitch(ctrlPtr);
+    }
+    END_FOR_EACH_HTAB_ENTRY;
 
-    } END_FOR_EACH_HTAB_ENTRY;
-
-    FOR_EACH_HTAB_ENTRY(key, hEntry, &inactiveQueueEvents) {
-
-        ctrlPtr = (struct queueCtrlEvent *)hEntry->hData;
+    FOR_EACH_HTAB_ENTRY(key, hEntry, &inactiveQueueEvents)
+    {
+        ctrlPtr = (struct queueCtrlEvent *) hEntry->hData;
 
         ctrlPtr->queueCtrlLog->opCode = QUEUE_INACTIVATE;
         log_queueStatusAtSwitch(ctrlPtr);
-
-    } END_FOR_EACH_HTAB_ENTRY;
-
+    }
+    END_FOR_EACH_HTAB_ENTRY;
 }
 
-static void
-log_queueStatusAtSwitch(const struct queueCtrlEvent *ctrlPtr)
+static void log_queueStatusAtSwitch(const struct queueCtrlEvent *ctrlPtr)
 {
-    static char    fname[] = "log_queueStatusAtSwitch";
+    static char fname[] = "log_queueStatusAtSwitch";
 
     if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  ctrlPtr->queueCtrlLog->queue,
+        ls_syslog(LOG_ERR, fname, ctrlPtr->queueCtrlLog->queue,
                   "openEventFile");
         mbdDie(MASTER_FATAL);
     }
 
     logPtr->type = EVENT_QUEUE_CTRL;
 
-    logPtr->eventLog.queueCtrlLog.opCode
-        = ctrlPtr->queueCtrlLog->opCode;
+    logPtr->eventLog.queueCtrlLog.opCode = ctrlPtr->queueCtrlLog->opCode;
 
-    strcpy(logPtr->eventLog.queueCtrlLog.queue,
-           ctrlPtr->queueCtrlLog->queue);
+    strcpy(logPtr->eventLog.queueCtrlLog.queue, ctrlPtr->queueCtrlLog->queue);
 
-    logPtr->eventLog.queueCtrlLog.userId
-        = ctrlPtr->queueCtrlLog->userId;
+    logPtr->eventLog.queueCtrlLog.userId = ctrlPtr->queueCtrlLog->userId;
 
     strcpy(logPtr->eventLog.queueCtrlLog.userName,
            ctrlPtr->queueCtrlLog->userName);
 
     if (putEventRecTime(fname, ctrlPtr->time) < 0) {
-        ls_syslog(LOG_ERR,
-                  fname,
-                  ctrlPtr->queueCtrlLog->queue,
+        ls_syslog(LOG_ERR, fname, ctrlPtr->queueCtrlLog->queue,
                   "putEventRecTime");
     }
-
 }
 
-static int
-renameAcctLogFiles(int fileLimit)
+static int renameAcctLogFiles(int fileLimit)
 {
     static char fname[] = "renameAcctLogFiles";
     int i;
@@ -4467,7 +4143,7 @@ renameAcctLogFiles(int fileLimit)
         ls_syslog(LOG_DEBUG, "%s: Entering ... ", fname);
 
     i = 0;
-    if (fileLimit > 0){
+    if (fileLimit > 0) {
         do {
             sprintf(tmpfn, "%s/lsb.acct.%d",
                     daemonParams[LSB_SHAREDIR].paramValue, ++i);
@@ -4485,15 +4161,13 @@ renameAcctLogFiles(int fileLimit)
 
     max = i;
     while (i--) {
-
-        sprintf(tmpfn, "%s/lsb.acct.%d",
-                daemonParams[LSB_SHAREDIR].paramValue, i);
-        sprintf(acctfn, "%s/lsb.acct.%d",
-                daemonParams[LSB_SHAREDIR].paramValue, i + 1);
+        sprintf(tmpfn, "%s/lsb.acct.%d", daemonParams[LSB_SHAREDIR].paramValue,
+                i);
+        sprintf(acctfn, "%s/lsb.acct.%d", daemonParams[LSB_SHAREDIR].paramValue,
+                i + 1);
 
         if (rename(tmpfn, acctfn) == -1 && errno != ENOENT) {
-            ls_syslog(LOG_ERR, fname,
-                      "rename", tmpfn, acctfn);
+            ls_syslog(LOG_ERR, fname, "rename", tmpfn, acctfn);
             return -1;
         }
     }

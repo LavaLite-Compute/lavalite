@@ -24,7 +24,6 @@
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <termios.h>
 #include <dirent.h>
 #include <netinet/in.h>
@@ -46,4 +45,5 @@
 // data structure defintions for now
 #include "lsf/intlib/jidx.h"
 #include "lsf/intlib/tcl_stub.h"
+// Sneak this one for now
 void daemonize_(void);

@@ -1,0 +1,32 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+IndentCaseLabels: false
+
+BreakBeforeBraces: Linux
+
+AllowShortIfStatementsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortLoopsOnASingleLine: false
+
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+
+SortIncludes: false
+IncludeBlocks: Preserve
+
+ColumnLimit: 80
+
+ReflowComments: true
+CommentPragmas: '^ IWYU pragma:'
+
+DerivePointerAlignment: false
+PointerAlignment: Right
+
+KeepEmptyLinesAtTheStartOfBlocks: false
+UseCRLF: false
+FixNamespaceComments: false

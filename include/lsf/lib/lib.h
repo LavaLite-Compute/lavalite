@@ -14,7 +14,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -30,24 +31,15 @@
 #include "lsf/lib/ll.sysenv.h"
 #include "lsf/lib/lib.channel.h"
 
-extern char   *indexfilter_;
+extern char *indexfilter_;
 extern int ls_readconfenv(struct config_param *, const char *);
 
-extern int callLim_(enum limReqCode,
-                    void *,
-                    bool_t (*)(),
-                    void *,
-                    bool_t (*)(),
-                    char *,
-                    int,
-                    struct packet_header *);
+extern int callLim_(enum limReqCode, void *, bool_t (*)(), void *, bool_t (*)(),
+                    char *, int, struct packet_header *);
 
 extern int initLimSock_(void);
 extern void err_return_(enum limReplyCode);
-extern struct hostLoad *loadinfo_(char *,
-                                  struct decisionReq *,
-                                  char *,
-                                  int *,
+extern struct hostLoad *loadinfo_(char *, struct decisionReq *, char *, int *,
                                   char ***);
 extern struct hostent *Gethostbyname_(char *);
 extern short getRefNum_(void);
@@ -58,7 +50,7 @@ extern char **placement_(char *, struct decisionReq *, char *, int *);
 extern int sig_encode(int);
 extern int sig_decode(int);
 extern char *getSigSymbolList(void);
-extern char *getSigSymbol (int);
+extern char *getSigSymbol(int);
 
 extern void ls_errlog(FILE *fd, const char *fmt, ...);
 extern void ls_verrlog(FILE *fd, const char *fmt, va_list ap);

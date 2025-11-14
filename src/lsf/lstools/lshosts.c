@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -30,32 +31,29 @@ struct indexFmt {
     float scale;
 };
 
-struct indexFmt fmt1[] = {
-    { "r15s", "%6s",  "*%4.1f",   "%5.1f",      1.0 },
-    { "r1m",  "%6s",  "*%4.1f",   "%5.1f",      1.0 },
-    { "r15m", "%6s",  "*%4.1f",   "%5.1f",      1.0 },
-    { "ut",   "%5s", "*%3.0f%%", "%3.0f%%",  100.0},
-    { "pg",   "%6s", "*%4.1f",   "%4.1f",     1.0},
-    { "io",   "%6s", "*%4.0f",   "%4.0f",     1.0},
-    { "ls",   "%5s", "*%2.0f",   "%2.0f",     1.0},
-    { "it",   "%5s", "*%3.0f",   "%4.0f" ,     1.0},
-    { "tmp",  "%6s", "*%4.0fM",  "%4.0fM",     1.0},
-    { "swp",  "%6s", "*%3.0fM",  "%4.0fM",     1.0},
-    { "mem",  "%6s", "*%3.0fM",  "%4.0fM",     1.0},
-    { "dflt", "%7s", "*%6.1f"  , "%6.1f",      1.0 },
-    {  NULL,  "%7s", "*%6.1f"  , " %6.1f",      1.0 }
-}, *fmt;
+struct indexFmt fmt1[] = {{"r15s", "%6s", "*%4.1f", "%5.1f", 1.0},
+                          {"r1m", "%6s", "*%4.1f", "%5.1f", 1.0},
+                          {"r15m", "%6s", "*%4.1f", "%5.1f", 1.0},
+                          {"ut", "%5s", "*%3.0f%%", "%3.0f%%", 100.0},
+                          {"pg", "%6s", "*%4.1f", "%4.1f", 1.0},
+                          {"io", "%6s", "*%4.0f", "%4.0f", 1.0},
+                          {"ls", "%5s", "*%2.0f", "%2.0f", 1.0},
+                          {"it", "%5s", "*%3.0f", "%4.0f", 1.0},
+                          {"tmp", "%6s", "*%4.0fM", "%4.0fM", 1.0},
+                          {"swp", "%6s", "*%3.0fM", "%4.0fM", 1.0},
+                          {"mem", "%6s", "*%3.0fM", "%4.0fM", 1.0},
+                          {"dflt", "%7s", "*%6.1f", "%6.1f", 1.0},
+                          {NULL, "%7s", "*%6.1f", " %6.1f", 1.0}},
+                *fmt;
 
-static void
-usage(void)
+static void usage(void)
 {
     fprintf(stderr, "Usage: lshosts [-h] [-V] [-w | -l] [-R res_req] "
-            "[host_name ...]\n");
+                    "[host_name ...]\n");
     fprintf(stderr, "lshosts [-h] [-V] -s [static_resouce_name ...]\n");
 }
 
-static char *
-stripSpaces(char *field)
+static char *stripSpaces(char *field)
 {
     char *cp;
     int len, i;
@@ -66,15 +64,14 @@ stripSpaces(char *field)
 
     len = strlen(field);
     i = len - 1;
-    while((i > 0) && (field[i] == ' '))
+    while ((i > 0) && (field[i] == ' '))
         i--;
-    if (i < len-1)
+    if (i < len - 1)
         field[i] = '\0';
     return cp;
 }
 
-static void
-print_long(struct hostInfo *hostInfo)
+static void print_long(struct hostInfo *hostInfo)
 {
     int i;
     float *li;
@@ -84,47 +81,47 @@ print_long(struct hostInfo *hostInfo)
     int newIndexLen, retVal;
     char **indxnames = NULL;
     char **shareNames, **shareValues, **formats;
-    char strbuf1[30],strbuf2[30],strbuf3[30];
+    char strbuf1[30], strbuf2[30], strbuf3[30];
 
     if (first) {
         char tmpbuf[MAXLSFNAMELEN];
-        int  fmtid;
+        int fmtid;
 
-        if(!(fmt = malloc((hostInfo->numIndx+2)*sizeof (struct indexFmt)))) {
-            lserrno=LSE_MALLOC;
+        if (!(fmt =
+                  malloc((hostInfo->numIndx + 2) * sizeof(struct indexFmt)))) {
+            lserrno = LSE_MALLOC;
             ls_perror("print_long");
             exit(-1);
         }
-        for (i=0; i<NBUILTINDEX+2; i++)
-            fmt[i]=fmt1[i];
+        for (i = 0; i < NBUILTINDEX + 2; i++)
+            fmt[i] = fmt1[i];
 
         TIMEIT(0, (indxnames = ls_indexnames(NULL)), "ls_indexnames");
         if (indxnames == NULL) {
             ls_perror("ls_indexnames");
             exit(-1);
         }
-        for(i=0; indxnames[i]; i++) {
+        for (i = 0; indxnames[i]; i++) {
             if (i > MEM)
                 fmtid = MEM + 1;
             else
                 fmtid = i;
 
-            if ((fmtid == MEM +1) && (newIndexLen = strlen(indxnames[i])) >= 7) {
-                sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
+            if ((fmtid == MEM + 1) &&
+                (newIndexLen = strlen(indxnames[i])) >= 7) {
+                sprintf(newFmt, "%s%d%s", "%", newIndexLen + 1, "s");
                 sprintf(tmpbuf, newFmt, indxnames[i]);
-            }
-            else
+            } else
                 sprintf(tmpbuf, fmt[fmtid].hdr, indxnames[i]);
             strcat(line, tmpbuf);
         }
         first = false;
     }
 
-    printf("\n%s:  %s\n",
-           "HOST_NAME",
-           hostInfo->hostName);
+    printf("\n%s:  %s\n", "HOST_NAME", hostInfo->hostName);
     {
-        char *buf1, *buf2, *buf3, *buf4, *buf5, *buf6, *buf7, *buf8, *buf9, *buf10;
+        char *buf1, *buf2, *buf3, *buf4, *buf5, *buf6, *buf7, *buf8, *buf9,
+            *buf10;
 
         buf1 = putstr_("type");
         buf2 = putstr_("model");
@@ -135,9 +132,10 @@ print_long(struct hostInfo *hostInfo)
         buf7 = putstr_("maxswp");
         buf8 = putstr_("maxtmp");
         buf9 = putstr_("rexpri");
-        buf10= putstr_("server");
+        buf10 = putstr_("server");
 
-        printf("%-10.10s %11.11s %5.5s %5.5s %6.6s %6.6s %6.6s %6.6s %6.6s %6.6s\n",
+        printf("%-10.10s %11.11s %5.5s %5.5s %6.6s %6.6s %6.6s %6.6s %6.6s "
+               "%6.6s\n",
                buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9, buf10);
 
         FREEUP(buf1);
@@ -150,36 +148,37 @@ print_long(struct hostInfo *hostInfo)
         FREEUP(buf8);
         FREEUP(buf9);
         FREEUP(buf10);
-
     }
     if (hostInfo->isServer) {
-        sprintf(strbuf1,"%-10s",hostInfo->hostType);strbuf1[10]='\0';
-        sprintf(strbuf2,"%11s",hostInfo->hostModel);strbuf2[11]='\0';
-        sprintf(strbuf3,"%5.1f",hostInfo->cpuFactor);strbuf3[5]='\0';
-        printf("%-10s %11s %5s ",strbuf1,strbuf2,strbuf3);
+        sprintf(strbuf1, "%-10s", hostInfo->hostType);
+        strbuf1[10] = '\0';
+        sprintf(strbuf2, "%11s", hostInfo->hostModel);
+        strbuf2[11] = '\0';
+        sprintf(strbuf3, "%5.1f", hostInfo->cpuFactor);
+        strbuf3[5] = '\0';
+        printf("%-10s %11s %5s ", strbuf1, strbuf2, strbuf3);
         if (hostInfo->maxCpus > 0)
-            printf("%5d %6d %5dM %5dM %5dM %6d %6s\n",
-                   hostInfo->maxCpus, hostInfo->nDisks, hostInfo->maxMem,
-                   hostInfo->maxSwap, hostInfo->maxTmp,
-                   hostInfo->rexPriority, "Yes");
+            printf("%5d %6d %5dM %5dM %5dM %6d %6s\n", hostInfo->maxCpus,
+                   hostInfo->nDisks, hostInfo->maxMem, hostInfo->maxSwap,
+                   hostInfo->maxTmp, hostInfo->rexPriority, "Yes");
         else
-            printf("%5s %6s %6s %6s %6s %6d %6s\n",
-                   "-", "-", "-", "-", "-", hostInfo->rexPriority,
-                   "Yes");
+            printf("%5s %6s %6s %6s %6s %6d %6s\n", "-", "-", "-", "-", "-",
+                   hostInfo->rexPriority, "Yes");
     } else {
-        sprintf(strbuf1,"%-10s",hostInfo->hostType);strbuf1[10]='\0';
-        sprintf(strbuf2,"%11s",hostInfo->hostModel);strbuf2[11]='\0';
-        sprintf(strbuf3,"%5.1f",hostInfo->cpuFactor);strbuf3[5]='\0';
-        printf("%-10s %11s %5s ",strbuf1,strbuf2,strbuf3);
-        printf("%5s %6s %6s %6s %6s %6s %6s\n",
-               "-", "-", "-", "-", "-", "-",
+        sprintf(strbuf1, "%-10s", hostInfo->hostType);
+        strbuf1[10] = '\0';
+        sprintf(strbuf2, "%11s", hostInfo->hostModel);
+        strbuf2[11] = '\0';
+        sprintf(strbuf3, "%5.1f", hostInfo->cpuFactor);
+        strbuf3[5] = '\0';
+        printf("%-10s %11s %5s ", strbuf1, strbuf2, strbuf3);
+        printf("%5s %6s %6s %6s %6s %6s %6s\n", "-", "-", "-", "-", "-", "-",
                "No");
     }
 
     if (sharedResConfigured_ == true) {
         if ((retVal = makeShareField(hostInfo->hostName, true, &shareNames,
                                      &shareValues, &formats)) > 0) {
-
             for (i = 0; i < retVal; i++) {
                 printf(formats[i], shareNames[i]);
             }
@@ -193,12 +192,11 @@ print_long(struct hostInfo *hostInfo)
     }
 
     printf("\n");
-    printf("%s: ",
-           "RESOURCES");
+    printf("%s: ", "RESOURCES");
     if (hostInfo->nRes) {
         int first = true;
-        for (i=0; i < hostInfo->nRes; i++) {
-            if (! first)
+        for (i = 0; i < hostInfo->nRes; i++) {
+            if (!first)
                 printf(" ");
             else
                 printf("(");
@@ -207,12 +205,10 @@ print_long(struct hostInfo *hostInfo)
         }
         printf(")\n");
     } else {
-        printf("%s\n",
-               "Not defined");
+        printf("%s\n", "Not defined");
     }
 
-    printf("%s: ",
-           "RUN_WINDOWS");
+    printf("%s: ", "RUN_WINDOWS");
     if (hostInfo->isServer) {
         if (strcmp(hostInfo->windows, "-") == 0)
             printf(" (always open\n");
@@ -222,16 +218,16 @@ print_long(struct hostInfo *hostInfo)
         printf("Not applicable for client-only host\n");
     }
 
-    if (! hostInfo->isServer) {
+    if (!hostInfo->isServer) {
         printf("\n");
         return;
     }
 
     printf("\n");
     printf("LOAD_THRESHOLDS:");
-    printf("\n%s\n",line);
+    printf("\n%s\n", line);
     li = hostInfo->busyThreshold;
-    for(i = 0; indxnames[i]; i++) {
+    for (i = 0; indxnames[i]; i++) {
         char tmpfield[MAXLSFNAMELEN];
         int id;
         char *sp;
@@ -243,37 +239,35 @@ print_long(struct hostInfo *hostInfo)
         if (fabs(li[i]) >= (double) INFINITY)
             sp = "-";
         else {
-            sprintf(tmpfield, fmt[id].ok,  li[i] * fmt[id].scale);
+            sprintf(tmpfield, fmt[id].ok, li[i] * fmt[id].scale);
             sp = stripSpaces(tmpfield);
         }
-        if ((id == MEM + 1) && (newIndexLen = strlen(indxnames[i])) >= 7 ){
-            sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
+        if ((id == MEM + 1) && (newIndexLen = strlen(indxnames[i])) >= 7) {
+            sprintf(newFmt, "%s%d%s", "%", newIndexLen + 1, "s");
             printf(newFmt, sp);
-        }
-        else
+        } else
             printf(fmt[id].hdr, sp);
     }
 
     printf("\n");
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     static char fname[] = "lshosts/main";
-    char   *namebufs[256];
+    char *namebufs[256];
     struct hostInfo *hostinfo;
-    int    numhosts = 0;
-    int    i, j;
-    char   *resReq = NULL;
-    char   longformat = false;
-    char   longname = false;
-    char   staticResource = false, otherOption = false;
+    int numhosts = 0;
+    int i, j;
+    char *resReq = NULL;
+    char longformat = false;
+    char longname = false;
+    char staticResource = false, otherOption = false;
     int extView = false;
     int achar;
-    extern int  optind;
+    extern int optind;
     extern char *optarg;
-    int     options=0;
+    int options = 0;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -303,8 +297,8 @@ main(int argc, char **argv)
             }
             optind = i + 1;
             extView = true;
-        } else if (strcmp(argv[i], "-R") == 0 || strcmp(argv[i], "-l") == 0
-                   || strcmp(argv[i], "-w") == 0) {
+        } else if (strcmp(argv[i], "-R") == 0 || strcmp(argv[i], "-l") == 0 ||
+                   strcmp(argv[i], "-w") == 0) {
             otherOption = true;
             if (staticResource == true) {
                 usage();
@@ -314,14 +308,16 @@ main(int argc, char **argv)
     }
 
     if (staticResource == true) {
-        displayShareResource(argc, argv, optind, true, extView );
+        displayShareResource(argc, argv, optind, true, extView);
     } else {
         while ((achar = getopt(argc, argv, "R:lw")) != EOF) {
             switch (achar) {
             case 'R':
                 if (strlen(optarg) > MAXLINELEN) {
-                    printf(" %s", "The resource requirement string exceeds the maximum length of 512 characters. Specify a shorter resource requirement.\n");
-                    exit (-1);
+                    printf(" %s", "The resource requirement string exceeds the "
+                                  "maximum length of 512 characters. Specify a "
+                                  "shorter resource requirement.\n");
+                    exit(-1);
                 }
                 resReq = optarg;
                 break;
@@ -338,7 +334,7 @@ main(int argc, char **argv)
         }
 
         i = 0;
-        for ( ; optind < argc ; optind++) {
+        for (; optind < argc; optind++) {
             struct ll_host hp;
             int cc = get_host_by_name(argv[optind], &hp);
             if (cc < 0) {
@@ -350,15 +346,19 @@ main(int argc, char **argv)
         }
 
         if (i == 0) {
-            TIMEIT(0, (hostinfo = ls_gethostinfo(resReq, &numhosts, NULL, 0,
-                                                 options)), "ls_gethostinfo");
+            TIMEIT(0,
+                   (hostinfo =
+                        ls_gethostinfo(resReq, &numhosts, NULL, 0, options)),
+                   "ls_gethostinfo");
             if (hostinfo == NULL) {
                 ls_perror("ls_gethostinfo()");
                 exit(-1);
             }
         } else {
-            TIMEIT(0, (hostinfo = ls_gethostinfo(resReq, &numhosts, namebufs,
-                                                 i, 0)), "ls_gethostinfo");
+            TIMEIT(
+                0,
+                (hostinfo = ls_gethostinfo(resReq, &numhosts, namebufs, i, 0)),
+                "ls_gethostinfo");
             if (hostinfo == NULL) {
                 ls_perror("ls_gethostinfo");
                 exit(-1);
@@ -406,7 +406,8 @@ main(int argc, char **argv)
             buf8 = putstr_("server");
             buf9 = putstr_("RESOURCES");
 
-            printf("%-25.25s %10.10s %11.11s %5.5s %5.5s %6.6s %6.6s %6.6s %9.9s\n",
+            printf("%-25.25s %10.10s %11.11s %5.5s %5.5s %6.6s %6.6s %6.6s "
+                   "%9.9s\n",
                    buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9);
 
             FREEUP(buf1);
@@ -444,17 +445,17 @@ main(int argc, char **argv)
                        hostinfo[i].cpuFactor);
 
             if (hostinfo[i].maxCpus > 0)
-                printf("%5d",hostinfo[i].maxCpus);
+                printf("%5d", hostinfo[i].maxCpus);
             else
                 printf("%5.5s", "-");
 
             if (hostinfo[i].maxMem > 0)
-                printf(" %5dM",hostinfo[i].maxMem);
+                printf(" %5dM", hostinfo[i].maxMem);
             else
                 printf(" %6.6s", "-");
 
             if (hostinfo[i].maxSwap > 0)
-                printf(" %5dM",hostinfo[i].maxSwap);
+                printf(" %5dM", hostinfo[i].maxSwap);
             else
                 printf(" %6.6s", "-");
 
@@ -463,7 +464,7 @@ main(int argc, char **argv)
 
             first = true;
             for (j = 0; j < hostinfo[i].nRes; j++) {
-                if (! first)
+                if (!first)
                     printf(" ");
                 printf("%s", hostinfo[i].resources[j]);
                 first = false;

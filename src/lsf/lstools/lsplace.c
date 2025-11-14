@@ -13,20 +13,21 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
 
-void
-usage(const char *cmd)
+void usage(const char *cmd)
 {
-    fprintf(stderr, "usage: %s [-h] [-V] [-L] [-R res_req] [-n needed]"
-            "[-w wanted]\n [host_name ... ]\n", cmd);
+    fprintf(stderr,
+            "usage: %s [-h] [-V] [-L] [-R res_req] [-n needed]"
+            "[-w wanted]\n [host_name ... ]\n",
+            cmd);
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     static char fname[] = "lsplace/main";
     char *resreq = NULL;
@@ -36,8 +37,8 @@ main(int argc, char **argv)
     int needed = 1;
     int wanted = 1;
     int i;
-    char locality=false;
-    extern int  optind, opterr;
+    char locality = false;
+    extern int optind, opterr;
     extern char *optarg;
     int achar;
     char badHost = false;
@@ -53,7 +54,7 @@ main(int argc, char **argv)
     while ((achar = getopt(argc, argv, "VR:Lhn:w:")) != EOF) {
         switch (achar) {
         case 'L':
-            locality=true;
+            locality = true;
             break;
 
         case 'R':
@@ -61,15 +62,15 @@ main(int argc, char **argv)
             break;
 
         case 'n':
-            for (i = 0 ; optarg[i] ; i++)
-                if (! isdigit(optarg[i]))
+            for (i = 0; optarg[i]; i++)
+                if (!isdigit(optarg[i]))
                     usage(argv[0]);
             needed = atoi(optarg);
             break;
 
         case 'w':
-            for (i = 0 ; optarg[i] ; i++)
-                if (! isdigit(optarg[i]))
+            for (i = 0; optarg[i]; i++)
+                if (!isdigit(optarg[i]))
                     usage(argv[0]);
             wanted = atoi(optarg);
             break;
@@ -83,10 +84,10 @@ main(int argc, char **argv)
         }
     }
 
-    for ( ; optind < argc ; optind++) {
+    for (; optind < argc; optind++) {
         if (cc >= LL_BUFSIZ_256) {
-            fprintf(stderr, "%s: too many hosts specified max %d\n",
-                    argv[0], LL_BUFSIZ_256);
+            fprintf(stderr, "%s: too many hosts specified max %d\n", argv[0],
+                    LL_BUFSIZ_256);
             return -1;
         }
 
@@ -122,7 +123,7 @@ main(int argc, char **argv)
         desthosts = ls_placereq(resreq, &wanted, i, NULL);
     else
         desthosts = ls_placeofhosts(resreq, &wanted, i, 0, hostnames, cc);
-    if (! desthosts) {
+    if (!desthosts) {
         ls_perror("ls_placereq() failed");
         return -1;
     }

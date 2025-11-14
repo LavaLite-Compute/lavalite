@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -20,53 +21,52 @@
 
 #define MIN_CPU_TIME 0.0001
 
-#define SIGCHK   -1
-#define SIGDEL   -2
+#define SIGCHK -1
+#define SIGDEL -2
 #define SIGFORCE -3
 
-#define MAX_JOB_IDS  100
+#define MAX_JOB_IDS 100
 
-#define CMD_BSUB            1
-#define CMD_BRESTART        2
-#define CMD_BMODIFY         3
+#define CMD_BSUB 1
+#define CMD_BRESTART 2
+#define CMD_BMODIFY 3
 
-#define LONG_FORMAT     1
-#define WIDE_FORMAT     2
+#define LONG_FORMAT 1
+#define WIDE_FORMAT 2
 
-#define QUEUE_HIST      1
-#define HOST_HIST       2
-#define MBD_HIST        3
-#define SYS_HIST        4
+#define QUEUE_HIST 1
+#define HOST_HIST 2
+#define MBD_HIST 3
+#define SYS_HIST 4
 
-#define BJOBS_PRINT             1
-#define BHIST_PRINT_PRE_EXEC    2
-#define BHIST_PRINT_JOB_CMD     3
+#define BJOBS_PRINT 1
+#define BHIST_PRINT_PRE_EXEC 2
+#define BHIST_PRINT_JOB_CMD 3
 
 #ifndef MIN
-#define MIN(x,y)        ((x) < (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
 #ifndef MAX
-#define MAX(x,y)        ((x) > (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 #endif
 
-#define TRUNC_STR(s,len) \
-{ \
-    int mystrlen = strlen(s); \
-    if (mystrlen > (len)) \
-    {\
-        s[0] = '*';\
-         \
-        memmove((s) + 1, (s) + mystrlen + 1 - (len), (len)); \
-    }\
-}
+#define TRUNC_STR(s, len)                                                      \
+    {                                                                          \
+        int mystrlen = strlen(s);                                              \
+        if (mystrlen > (len)) {                                                \
+            s[0] = '*';                                                        \
+                                                                               \
+            memmove((s) + 1, (s) + mystrlen + 1 - (len), (len));               \
+        }                                                                      \
+    }
 
 struct histReq {
-    int    opCode;
-    char   **names;
+    int opCode;
+    char **names;
     time_t eventTime[2];
-    char   *eventFileName;
-    int    found;
+    char *eventFileName;
+    int found;
 };
 
 extern void prtLine(char *);
@@ -79,11 +79,11 @@ extern void prtJobStart(struct jobInfoEnt *, int, int, int);
 extern void prtJobFinish(struct jobInfoEnt *, struct jobInfoHead *);
 extern void prtAcctFinish(struct jobInfoEnt *);
 extern struct loadIndexLog *initLoadIndex(void);
-extern int fillReq (int, char **, int, struct submit *);
-extern void prtErrMsg (struct submit *, struct submitReply *);
+extern int fillReq(int, char **, int, struct submit *);
+extern void prtErrMsg(struct submit *, struct submitReply *);
 extern void prtBTTime(struct jobInfoEnt *);
 extern void prtJobReserv(struct jobInfoEnt *);
-extern void displayLong (struct jobInfoEnt *, struct jobInfoHead *, float);
+extern void displayLong(struct jobInfoEnt *, struct jobInfoHead *, float);
 
 extern int lsbMode_;
 
@@ -91,26 +91,26 @@ extern void prtBETime_(struct submit *);
 
 extern int supportJobNamePattern(char *);
 
-
-extern int  repeatedName(char *, char **, int);
-extern void jobInfoErr (LS_LONG_INT, char *, char *, char *, char *, int);
-extern int printThresholds (float *, float *, int *, int *, int, struct lsInfo *);
-extern void prtResourceLimit (int *, char *, float, int *);
-extern int  getNames (int, char **, int, char ***, int *, char *);
-extern int  getJobIds (int, char **, char *, char *, char *, char *, LS_LONG_INT **, int);
-extern int  getSpecJobIds (int, char **, LS_LONG_INT **, int *);
-extern int  getSpecIdxs (char *, int **);
-extern int  getOneJobId (char *, LS_LONG_INT *, int);
-extern int  gettimefor (char *toptarg, time_t *tTime);
-extern int  skipJob(int, int *, int);
+extern int repeatedName(char *, char **, int);
+extern void jobInfoErr(LS_LONG_INT, char *, char *, char *, char *, int);
+extern int printThresholds(float *, float *, int *, int *, int,
+                           struct lsInfo *);
+extern void prtResourceLimit(int *, char *, float, int *);
+extern int getNames(int, char **, int, char ***, int *, char *);
+extern int getJobIds(int, char **, char *, char *, char *, char *,
+                     LS_LONG_INT **, int);
+extern int getSpecJobIds(int, char **, LS_LONG_INT **, int *);
+extern int getSpecIdxs(char *, int **);
+extern int getOneJobId(char *, LS_LONG_INT *, int);
+extern int gettimefor(char *toptarg, time_t *tTime);
+extern int skipJob(int, int *, int);
 
 extern void prtWord(int, const char *, int);
 extern void prtWordL(int, const char *);
 extern char *prtValue(int, int);
 extern char *prtDash(int);
 
-
 extern int searchEventFile(struct histReq *, int *);
 extern int bmsg(int, char **);
 
-extern void bmove (int, char **, int);
+extern void bmove(int, char **, int);

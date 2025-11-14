@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-int
-lsb_msgjob(LS_LONG_INT jobId, char *msg)
+int lsb_msgjob(LS_LONG_INT jobId, char *msg)
 {
     struct lsbMsg jmsg;
     char src[LSB_MAX_SD_LENGTH];
@@ -57,15 +57,14 @@ lsb_msgjob(LS_LONG_INT jobId, char *msg)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&jmsg, &hdr, xdr_lsbMsg, 0,
-                       NULL)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &jmsg, &hdr, xdr_lsbMsg, 0, NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;
     }
 
-    cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                 &hdr, NULL, NULL, NULL);
+    cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL,
+                 NULL, NULL);
 
     if (cc < 0) {
         xdr_destroy(&xdrs);

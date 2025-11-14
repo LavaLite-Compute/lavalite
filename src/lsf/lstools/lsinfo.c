@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -25,8 +26,7 @@ static char *flagToStr(int);
 static char *orderTypeToStr(enum orderType);
 static char *valueTypeToStr(enum valueType);
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     struct lsInfo *lsInfo;
     int i, cc, nnames;
@@ -44,7 +44,7 @@ main(int argc, char **argv)
     }
 
     while ((cc = getopt(argc, argv, "VhlrmMt")) != EOF) {
-        switch(cc) {
+        switch (cc) {
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
@@ -61,7 +61,7 @@ main(int argc, char **argv)
             mFlag = true;
             break;
         case 'M':
-            mFlag  = true;
+            mFlag = true;
             mmFlag = true;
             break;
         case 'h':
@@ -70,7 +70,7 @@ main(int argc, char **argv)
         }
     }
 
-    for (nnames=0; optind < argc; optind++, nnames++)
+    for (nnames = 0; optind < argc; optind++, nnames++)
         namebufs[nnames] = argv[optind];
 
     if ((lsInfo = ls_info()) == NULL) {
@@ -87,13 +87,10 @@ main(int argc, char **argv)
         if (!longFormat) {
             char *buf1, *buf2, *buf3, *buf4;
 
-            buf1 = putstr_("RESOURCE_NAME"),
-                buf2 = putstr_("  TYPE "),
-                buf3 = putstr_("ORDER"),
-                buf4 = putstr_("DESCRIPTION"),
+            buf1 = putstr_("RESOURCE_NAME"), buf2 = putstr_("  TYPE "),
+            buf3 = putstr_("ORDER"), buf4 = putstr_("DESCRIPTION"),
 
-                printf("%-13.13s %7.7s  %5.5s  %s\n",
-                       buf1, buf2, buf3, buf4);
+            printf("%-13.13s %7.7s  %5.5s  %s\n", buf1, buf2, buf3, buf4);
 
             FREEUP(buf1);
             FREEUP(buf2);
@@ -101,12 +98,11 @@ main(int argc, char **argv)
             FREEUP(buf4);
         }
 
-        for (i=0; i < lsInfo->nRes; i++) {
+        for (i = 0; i < lsInfo->nRes; i++) {
             if (!nameInList(namebufs, nnames, lsInfo->resTable[i].name))
                 continue;
             if (!longFormat) {
-                printf("%-13.13s %7.7s %5.5s   %s\n",
-                       lsInfo->resTable[i].name,
+                printf("%-13.13s %7.7s %5.5s   %s\n", lsInfo->resTable[i].name,
                        valueTypeToStr(lsInfo->resTable[i].valueType),
                        orderTypeToStr(lsInfo->resTable[i].orderType),
                        lsInfo->resTable[i].des);
@@ -114,18 +110,16 @@ main(int argc, char **argv)
                 print_long(&(lsInfo->resTable[i]));
         }
 
-        for (i=0; i < nnames; i++)
+        for (i = 0; i < nnames; i++)
             if (namebufs[i])
-                printf("%s: Resource name not found\n",
-                       namebufs[i]);
-
+                printf("%s: Resource name not found\n", namebufs[i]);
     }
 
     if (tFlag) {
         if (rFlag)
             putchar('\n');
         puts("TYPE_NAME");
-        for (i=0;i<lsInfo->nTypes;i++)
+        for (i = 0; i < lsInfo->nTypes; i++)
             puts(lsInfo->hostTypes[i]);
     }
 
@@ -141,50 +135,43 @@ main(int argc, char **argv)
     exit(0);
 }
 
-static void
-usage(char *cmd)
+static void usage(char *cmd)
 {
-    fprintf(stderr, "Usage: %s [-h] [-V] [-l] [-r] [-m] [-M] [-t] [resource_name ...]\n", cmd);
+    fprintf(
+        stderr,
+        "Usage: %s [-h] [-V] [-l] [-r] [-m] [-M] [-t] [resource_name ...]\n",
+        cmd);
     exit(-1);
 }
 
-static void
-print_long(struct resItem *res)
+static void print_long(struct resItem *res)
 {
-
     char tempStr[15];
     static int first = true;
 
     if (first) {
-        printf("%s:  %s\n",
-               "RESOURCE_NAME",
-               res->name);
+        printf("%s:  %s\n", "RESOURCE_NAME", res->name);
         first = false;
     } else
-        printf("\n%s:  %s\n",
-               "RESOURCE_NAME",
-               res->name);
-    printf("DESCRIPTION: %s\n",res->des);
+        printf("\n%s:  %s\n", "RESOURCE_NAME", res->name);
+    printf("DESCRIPTION: %s\n", res->des);
 
     printf("%-7.7s ", "TYPE");
-    printf("%5s  ",   "ORDER");
-    printf("%9s ",    "INTERVAL");
-    printf("%8s ",    "BUILTIN");
-    printf("%8s ",    "DYNAMIC");
-    printf("%8s\n",   "RELEASE");
+    printf("%5s  ", "ORDER");
+    printf("%9s ", "INTERVAL");
+    printf("%8s ", "BUILTIN");
+    printf("%8s ", "DYNAMIC");
+    printf("%8s\n", "RELEASE");
 
-    sprintf(tempStr,"%d",res->interval);
-    printf("%-7.7s %5s  %9s %8s %8s %8s\n",
-           valueTypeToStr(res->valueType),
-           orderTypeToStr(res->orderType),
-           tempStr,
+    sprintf(tempStr, "%d", res->interval);
+    printf("%-7.7s %5s  %9s %8s %8s %8s\n", valueTypeToStr(res->valueType),
+           orderTypeToStr(res->orderType), tempStr,
            flagToStr(res->flags & RESF_BUILTIN),
            flagToStr(res->flags & RESF_DYNAMIC),
            flagToStr(res->flags & RESF_RELEASE));
 }
 
-static char
-*flagToStr(int flag)
+static char *flagToStr(int flag)
 {
     static char *sp = NULL;
     if (flag)
@@ -194,12 +181,11 @@ static char
     return sp;
 }
 
-static char
-*valueTypeToStr(enum valueType valtype)
+static char *valueTypeToStr(enum valueType valtype)
 {
     static char *type = NULL;
 
-    switch(valtype) {
+    switch (valtype) {
     case LS_NUMERIC:
         type = "Numeric";
         break;
@@ -213,11 +199,10 @@ static char
     return type;
 }
 
-static char
-*orderTypeToStr(enum orderType ordertype)
+static char *orderTypeToStr(enum orderType ordertype)
 {
     char *order;
-    switch(ordertype) {
+    switch (ordertype) {
     case INCR:
         order = "Inc";
         break;
@@ -231,22 +216,21 @@ static char
     return order;
 }
 
-static char
-nameInList(char **namelist, int listsize, char *name)
+static char nameInList(char **namelist, int listsize, char *name)
 {
     int i, j;
 
     if (listsize == 0)
         return true;
 
-    for (i=0; i < listsize; i++) {
+    for (i = 0; i < listsize; i++) {
         if (!namelist[i])
             continue;
         if (strcmp(name, namelist[i]) == 0) {
             namelist[i] = NULL;
 
-            for (j=i+1; j < listsize; j++) {
-                if(!namelist[j])
+            for (j = i + 1; j < listsize; j++) {
+                if (!namelist[j])
                     continue;
                 if (strcmp(name, namelist[j]) == 0)
                     namelist[j] = NULL;

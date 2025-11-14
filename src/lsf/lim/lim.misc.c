@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lim/lim.h"
@@ -32,7 +33,6 @@ struct hostNode *find_node_by_name(const char *host_name)
     }
 
     return NULL;
-
 }
 
 struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *from)
@@ -50,7 +50,8 @@ struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *from)
     return NULL;
 }
 
-struct hostNode *find_node_by_cluster(struct hostNode *hPtr, const char *host_name)
+struct hostNode *find_node_by_cluster(struct hostNode *hPtr,
+                                      const char *host_name)
 {
     for (struct hostNode *h = hPtr; h; h = h->nextPtr) {
         if (equal_host(host_name, h->hostName))
@@ -59,8 +60,7 @@ struct hostNode *find_node_by_cluster(struct hostNode *hPtr, const char *host_na
     return NULL;
 }
 
-int
-definedSharedResource(struct hostNode *host, struct lsInfo *allInfo)
+int definedSharedResource(struct hostNode *host, struct lsInfo *allInfo)
 {
     int i, j;
     char *resName;
@@ -68,7 +68,7 @@ definedSharedResource(struct hostNode *host, struct lsInfo *allInfo)
         resName = host->instances[i]->resName;
         for (j = 0; j < allInfo->nRes; j++) {
             if (strcmp(resName, allInfo->resTable[j].name) == 0) {
-                if (allInfo->resTable[j].flags &  RESF_SHARED)
+                if (allInfo->resTable[j].flags & RESF_SHARED)
                     return true;
             }
         }

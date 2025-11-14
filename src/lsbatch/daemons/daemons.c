@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -20,67 +21,63 @@
 
 // Bug LSB_CONFDIR is not used anymore in ll. Change the defines
 // to use enum like ll errors.
-struct config_param daemonParams[] = {
-    {"LSB_DEBUG", NULL},
-    {"LSB_CONFDIR", NULL},
-    {"LSF_SERVERDIR", NULL},
-    {"LSF_LOGDIR", NULL},
-    {"LSB_SHAREDIR", NULL},
-    {"LSB_MAILTO", NULL},
-    {"LSB_MAILPROG", NULL},
-    {"LSB_SBD_PORT", NULL},
-    {"LSB_MBD_PORT", NULL},
-    {"LSF_ID_PORT", NULL},
-    {"LSF_AUTH", NULL},
-    {"LSB_CRDIR", NULL},
-    {"LSF_USE_HOSTEQUIV", NULL},
-    {"LSF_ROOT_REX", NULL},
-    {"LSB_DEBUG_MBD", NULL},
-    {"LSB_DEBUG_SBD", NULL},
-    {"LSB_TIME_MBD", NULL},
-    {"LSB_TIME_SBD", NULL},
-    {"LSB_SIGSTOP", NULL},
-    {"LSF_LOG_MASK", NULL},
-    {"LSF_BINDIR", NULL},
-    {"LSB_MBD_CONNTIMEOUT", NULL},
-    {"LSB_SBD_CONNTIMEOUT", NULL},
-    {"LSF_CONFDIR", NULL},
-    {"LSB_MBD_MAILREPLAY", NULL},
-    {"LSB_MBD_MIGTOPEND", NULL},
-    {"LSB_SBD_READTIMEOUT", NULL},
-    {"LSB_MBD_BLOCK_SEND", NULL},
-    {"LSF_GETPWNAM_RETRY", NULL},
-    {"LSB_MEMLIMIT_ENFORCE", NULL},
-    {"LSB_BSUBI_OLD", NULL},
-    {"LSB_STOP_IGNORE_IT", NULL},
-    {"LSB_HJOB_PER_SESSION", NULL},
-    {"LSF_AUTH_DAEMONS", NULL},
-    {"LSB_REQUEUE_HOLD", NULL},
-    {"LSB_SMTP_SERVER", NULL},
-    {"LSB_MAILSERVER", NULL},
-    {"LSB_MAILSIZE_LIMIT", NULL},
-    {"LSB_REQUEUE_TO_BOTTOM", NULL},
-    {"LSB_ARRAY_SCHED_ORDER", NULL},
-    {"LSF_LIBDIR", NULL},
-    {"LSB_QPOST_EXEC_ENFORCE", NULL},
-    {"LSB_MIG2PEND", NULL},
-    {"LSB_UTMP", NULL},
-    {"LSB_JOB_CPULIMIT", NULL},
-    {"LSB_RENICE_NEVER_AT_RESTART", NULL},
-    {"LSF_MLS_LOG", NULL},
-    {"LSB_JOB_MEMLIMIT", NULL},
-    {"LSB_MOD_ALL_JOBS", NULL},
-    {"LSB_SET_TMPDIR", NULL},
-    {"LSB_PTILE_PACK", NULL},
-    {"LSB_SBD_FINISH_SLEEP", NULL},
-    {"LSB_VIRTUAL_SLOT",NULL},
-    {"LSB_STDOUT_DIRECT",NULL},
-    {NULL, NULL}
-};
+struct config_param daemonParams[] = {{"LSB_DEBUG", NULL},
+                                      {"LSB_CONFDIR", NULL},
+                                      {"LSF_SERVERDIR", NULL},
+                                      {"LSF_LOGDIR", NULL},
+                                      {"LSB_SHAREDIR", NULL},
+                                      {"LSB_MAILTO", NULL},
+                                      {"LSB_MAILPROG", NULL},
+                                      {"LSB_SBD_PORT", NULL},
+                                      {"LSB_MBD_PORT", NULL},
+                                      {"LSF_ID_PORT", NULL},
+                                      {"LSF_AUTH", NULL},
+                                      {"LSB_CRDIR", NULL},
+                                      {"LSF_USE_HOSTEQUIV", NULL},
+                                      {"LSF_ROOT_REX", NULL},
+                                      {"LSB_DEBUG_MBD", NULL},
+                                      {"LSB_DEBUG_SBD", NULL},
+                                      {"LSB_TIME_MBD", NULL},
+                                      {"LSB_TIME_SBD", NULL},
+                                      {"LSB_SIGSTOP", NULL},
+                                      {"LSF_LOG_MASK", NULL},
+                                      {"LSF_BINDIR", NULL},
+                                      {"LSB_MBD_CONNTIMEOUT", NULL},
+                                      {"LSB_SBD_CONNTIMEOUT", NULL},
+                                      {"LSF_CONFDIR", NULL},
+                                      {"LSB_MBD_MAILREPLAY", NULL},
+                                      {"LSB_MBD_MIGTOPEND", NULL},
+                                      {"LSB_SBD_READTIMEOUT", NULL},
+                                      {"LSB_MBD_BLOCK_SEND", NULL},
+                                      {"LSF_GETPWNAM_RETRY", NULL},
+                                      {"LSB_MEMLIMIT_ENFORCE", NULL},
+                                      {"LSB_BSUBI_OLD", NULL},
+                                      {"LSB_STOP_IGNORE_IT", NULL},
+                                      {"LSB_HJOB_PER_SESSION", NULL},
+                                      {"LSF_AUTH_DAEMONS", NULL},
+                                      {"LSB_REQUEUE_HOLD", NULL},
+                                      {"LSB_SMTP_SERVER", NULL},
+                                      {"LSB_MAILSERVER", NULL},
+                                      {"LSB_MAILSIZE_LIMIT", NULL},
+                                      {"LSB_REQUEUE_TO_BOTTOM", NULL},
+                                      {"LSB_ARRAY_SCHED_ORDER", NULL},
+                                      {"LSF_LIBDIR", NULL},
+                                      {"LSB_QPOST_EXEC_ENFORCE", NULL},
+                                      {"LSB_MIG2PEND", NULL},
+                                      {"LSB_UTMP", NULL},
+                                      {"LSB_JOB_CPULIMIT", NULL},
+                                      {"LSB_RENICE_NEVER_AT_RESTART", NULL},
+                                      {"LSF_MLS_LOG", NULL},
+                                      {"LSB_JOB_MEMLIMIT", NULL},
+                                      {"LSB_MOD_ALL_JOBS", NULL},
+                                      {"LSB_SET_TMPDIR", NULL},
+                                      {"LSB_PTILE_PACK", NULL},
+                                      {"LSB_SBD_FINISH_SLEEP", NULL},
+                                      {"LSB_VIRTUAL_SLOT", NULL},
+                                      {"LSB_STDOUT_DIRECT", NULL},
+                                      {NULL, NULL}};
 
-
-int
-init_ServSock (u_short port)
+int init_ServSock(u_short port)
 {
     int ch;
 
@@ -93,35 +90,33 @@ init_ServSock (u_short port)
     return ch;
 }
 
-int
-rcvJobFile(int chfd, struct lenData *jf)
+int rcvJobFile(int chfd, struct lenData *jf)
 {
     int cc;
 
     jf->data = NULL;
     jf->len = 0;
 
-    if ((cc = chanRead_(chfd, (void *)(&jf->len), NET_INTSIZE_)) !=
-	NET_INTSIZE_) {
-	ls_syslog(LOG_ERR, "%s: chanRead_() failed %m", __func__);
-	return -1;
+    if ((cc = chanRead_(chfd, (void *) (&jf->len), NET_INTSIZE_)) !=
+        NET_INTSIZE_) {
+        ls_syslog(LOG_ERR, "%s: chanRead_() failed %m", __func__);
+        return -1;
     }
 
     jf->len = ntohl(jf->len);
     jf->data = my_malloc(jf->len, "rcvJobFile");
 
     if ((cc = chanRead_(chfd, jf->data, jf->len)) != jf->len) {
-	ls_syslog(LOG_ERR, "%s", __func__, "chanRead_");
+        ls_syslog(LOG_ERR, "%s", __func__, "chanRead_");
         free(jf->data);
-	return -1;
+        return -1;
     }
 
     return 0;
 }
 
-int
-do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
-           struct packet_header *reqHdr )
+int do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
+               struct packet_header *reqHdr)
 {
     XDR xdrs2;
     struct Buffer *buf;
@@ -135,12 +130,11 @@ do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
     replyHdr.operation = READY_FOR_OP;
     replyHdr.length = 0;
 
-    xdrmem_create (&xdrs2, buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
+    xdrmem_create(&xdrs2, buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return -1;
-
     }
 
     buf->len = XDR_GETPOS(&xdrs2);
@@ -155,8 +149,8 @@ do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
     return 0;
 }
 
-void childRemoveSpoolFile(const char* spoolFile, int options,
-                          const struct passwd* pwUser)
+void childRemoveSpoolFile(const char *spoolFile, int options,
+                          const struct passwd *pwUser)
 {
     // Bug good bye spool
 #if 0

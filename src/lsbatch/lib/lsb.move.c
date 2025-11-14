@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-int
-lsb_movejob (LS_LONG_INT jobId, int *position, int operation)
+int lsb_movejob(LS_LONG_INT jobId, int *position, int operation)
 {
     struct jobMoveReq jobMoveReq;
     char request_buf[MSGSIZE];
@@ -36,7 +36,7 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int operation)
         return -1;
     }
 
-    if (position == NULL ) {
+    if (position == NULL) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
@@ -57,14 +57,15 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int operation)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobMoveReq, &hdr, xdr_jobMoveReq, 0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &jobMoveReq, &hdr, xdr_jobMoveReq, 0,
+                       &auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
         return -1;
     }
 
-    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                       &hdr, NULL, NULL, NULL)) == -1)    {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -80,7 +81,7 @@ lsb_movejob (LS_LONG_INT jobId, int *position, int operation)
                 free(reply_buf);
             return -1;
         }
-        *position = jobMoveReq.position ;
+        *position = jobMoveReq.position;
         xdr_destroy(&xdrs);
         if (cc)
             free(reply_buf);

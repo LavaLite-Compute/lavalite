@@ -9,11 +9,11 @@
 #endif
 
 struct ll_host {
-    int family;                 /* AF_INET / AF_INET6 */
+    int family; /* AF_INET / AF_INET6 */
     socklen_t salen;
-    struct sockaddr_storage sa;  /* canonical socket addr */
-    char name[LL_HOSTNAME_MAX];  /* canonical hostname or "" */
-    char addr[LL_HOSTNAME_MAX];  /* numeric IP string */
+    struct sockaddr_storage sa; /* canonical socket addr */
+    char name[LL_HOSTNAME_MAX]; /* canonical hostname or "" */
+    char addr[LL_HOSTNAME_MAX]; /* numeric IP string */
 };
 
 /* Lookup by hostname; fills addr + name (reverse-confirmed if available).

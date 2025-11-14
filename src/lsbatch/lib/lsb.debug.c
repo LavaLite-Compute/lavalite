@@ -13,17 +13,16 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-int
-lsb_debugReq (struct debugReq  *pdebug , char *host)
+int lsb_debugReq(struct debugReq *pdebug, char *host)
 {
-
-    static struct debugReq  debug;
+    static struct debugReq debug;
     mbdReqType mbdReqtype;
     XDR xdrs;
     char request_buf[MSGSIZE], hostName[MAXHOSTNAMELEN];
@@ -34,14 +33,14 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
     char *toHost = NULL;
 
     debug.opCode = pdebug->opCode;
-    debug.logClass  = pdebug->logClass;
-    debug.level  = pdebug->level;
+    debug.logClass = pdebug->logClass;
+    debug.level = pdebug->level;
     debug.options = pdebug->options;
     debug.hostName = hostName;
     strcpy(debug.logFileName, pdebug->logFileName);
 
     if (host) {
-        if (strlen (host) >= MAXHOSTNAMELEN - 1) {
+        if (strlen(host) >= MAXHOSTNAMELEN - 1) {
             lsberrno = LSBE_BAD_ARG;
             return -1;
         }
@@ -55,42 +54,37 @@ lsb_debugReq (struct debugReq  *pdebug , char *host)
         strcpy(debug.hostName, h);
     }
 
-    if ( debug.opCode == MBD_DEBUG
-         || debug.opCode == MBD_TIMING) {
-
+    if (debug.opCode == MBD_DEBUG || debug.opCode == MBD_TIMING) {
         mbdReqtype = BATCH_DEBUG;
         toHost = NULL;
     } else {
-
         mbdReqtype = CMD_SBD_DEBUG;
         toHost = host;
     }
 
-    if (authTicketTokens_(&auth, toHost) == -1){
+    if (authTicketTokens_(&auth, toHost) == -1) {
         return -1;
     }
 
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&hdr);
 
-    hdr.operation = (int)mbdReqtype;
+    hdr.operation = (int) mbdReqtype;
 
-    if (!xdr_encodeMsg(&xdrs, (char *)&debug, &hdr, xdr_debugReq, 0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &debug, &hdr, xdr_debugReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
         return -1;
     }
 
-    if ( debug.opCode == MBD_DEBUG || debug.opCode == MBD_TIMING) {
-        if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                        &hdr, NULL, NULL, NULL)) == -1) {
+    if (debug.opCode == MBD_DEBUG || debug.opCode == MBD_TIMING) {
+        if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
+                          &hdr, NULL, NULL, NULL)) == -1) {
             xdr_destroy(&xdrs);
             return -1;
         }
-    }
-    else {
-        if ((cc = cmdCallSBD_(debug.hostName, request_buf,
-                        XDR_GETPOS(&xdrs), &reply_buf,
-                        &hdr, NULL)) == -1) {
+    } else {
+        if ((cc = cmdCallSBD_(debug.hostName, request_buf, XDR_GETPOS(&xdrs),
+                              &reply_buf, &hdr, NULL)) == -1) {
             xdr_destroy(&xdrs);
             return -1;
         }

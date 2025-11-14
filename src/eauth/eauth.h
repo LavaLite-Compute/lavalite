@@ -35,12 +35,13 @@
  * @nonce: Random nonce to prevent replay attacks.
  */
 struct auth_token {
-    char user[EAUTH_MBUFSIZ];   // For logging and audit
-    uid_t uid;                  // For identity enforcement
-    gid_t gid;                  // For group-based access
-    char host[EAUTH_MBUFSIZ];   // For traceability
-    time_t timestamp;           // For freshness
-    char nonce[2 * EAUTH_MBUFSIZ + 1]; // Nonce for uniqueness and replay protection
+    char user[EAUTH_MBUFSIZ]; // For logging and audit
+    uid_t uid;                // For identity enforcement
+    gid_t gid;                // For group-based access
+    char host[EAUTH_MBUFSIZ]; // For traceability
+    time_t timestamp;         // For freshness
+    char nonce[2 * EAUTH_MBUFSIZ +
+               1]; // Nonce for uniqueness and replay protection
 };
 
 // Signature (detached from token)
@@ -49,7 +50,6 @@ struct auth_signature {
 };
 
 // API Prototypes
-
 
 /**
  * fill_auth_token - Populate an auth_token with current process context.
@@ -76,8 +76,7 @@ extern int fill_auth_token(struct auth_token *);
  *   0 on success.
  *  -1 on failure.
  */
-extern int sign_auth_token(const struct auth_token *,
-                           struct auth_signature *);
+extern int sign_auth_token(const struct auth_token *, struct auth_signature *);
 
 /**
  * serialize_auth - Format token and signature into a single payload string.
@@ -92,8 +91,7 @@ extern int sign_auth_token(const struct auth_token *,
  *   0 on success.
  *  -1 on failure.
  */
-extern int serialize_auth(char *,
-                          const struct auth_token *,
+extern int serialize_auth(char *, const struct auth_token *,
                           const struct auth_signature *);
 
 /**
@@ -114,8 +112,9 @@ extern int verify_auth_token(char *);
  * sanitize_payload - Remove trailing newline from a string.
  * @payload: Pointer to a null-terminated string, typically read via fgets().
  *
- * This function trims the newline character (if present) from the end of the string.
- * It is used to clean up input before parsing or signature verification.
+ * This function trims the newline character (if present) from the end of the
+ * string. It is used to clean up input before parsing or signature
+ * verification.
  */
 extern void sanitize_payload(char *);
 
@@ -123,9 +122,9 @@ extern void sanitize_payload(char *);
  * verify_user - Check if UID and GID in token exist on the host system.
  * @token: Pointer to a populated auth_token structure.
  *
- * This function verifies that the UID maps to a valid user, the username matches
- * the UID, and the GID maps to a valid group. It ensures the token refers to a
- * legitimate local identity.
+ * This function verifies that the UID maps to a valid user, the username
+ * matches the UID, and the GID maps to a valid group. It ensures the token
+ * refers to a legitimate local identity.
  *
  * Returns:
  *   0 if UID and GID are valid.

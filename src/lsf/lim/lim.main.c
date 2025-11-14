@@ -13,42 +13,43 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsf/lim/lim.h"
 
 // LIM uses both UDP and TCP protocols
-int    lim_udp_sock = -1;
-int    lim_tcp_sock = -1;
-ushort  lim_udp_port;
-ushort  lim_tcp_port;
+int lim_udp_sock = -1;
+int lim_tcp_sock = -1;
+ushort lim_udp_port;
+ushort lim_tcp_port;
 
 int probeTimeout = 2;
-short  resInactivityCount = 0;
+short resInactivityCount = 0;
 
 struct clusterNode *myClusterPtr;
 struct hostNode *myHostPtr;
-int   masterMe;
-int   nClusAdmins = 0;
-int   *clusAdminIds = NULL;
-int   *clusAdminGids = NULL;
-char  **clusAdminNames = NULL;
+int masterMe;
+int nClusAdmins = 0;
+int *clusAdminIds = NULL;
+int *clusAdminGids = NULL;
+char **clusAdminNames = NULL;
 
 int numMasterCandidates = -1;
 int isMasterCandidate;
 int limConfReady = false;
 
 struct limLock limLock;
-char   myClusterName[MAXLSFNAMELEN];
-u_int  loadVecSeqNo=0;
-u_int  masterAnnSeqNo=0;
-bool lim_debug = false;
+char myClusterName[MAXLSFNAMELEN];
+u_int loadVecSeqNo = 0;
+u_int masterAnnSeqNo = 0;
+bool_t lim_debug = false;
 int lim_CheckMode = 0;
 int lim_CheckError = 0;
 char *env_dir = NULL;
-int  numHostResources;
+int numHostResources;
 struct sharedResource **hostResources = NULL;
 u_short lsfSharedCkSum = 0;
 
@@ -85,7 +86,7 @@ static void usage(const char *);
 static int doAcceptConn(void);
 static void initSignals(void);
 static void periodic(void);
-static struct tclLsInfo * getTclLsInfo(void);
+static struct tclLsInfo *getTclLsInfo(void);
 static void initMiscLiStruct(void);
 
 extern struct extResInfo *getExtResourcesDef(char *);
@@ -94,35 +95,30 @@ extern char *getExtResourcesVal(char *);
 
 static int process_udp_request(void);
 
-static void
-usage(const char *cmd)
+static void usage(const char *cmd)
 {
-    fprintf(stderr,
-            "Usage: %s [OPTIONS]\n"
-            "  -d, --debug Run in foreground (no daemonize)\n"
-            "  -C, --check Configuration check (prints version, sets check mode)\n"
-            "  -V, --version     Print version and exit\n"
-            "  -e, --envdir DIR  Path to env dir \n"
-            "  -h, --help Show this help\n",
-            cmd);
+    fprintf(
+        stderr,
+        "Usage: %s [OPTIONS]\n"
+        "  -d, --debug Run in foreground (no daemonize)\n"
+        "  -C, --check Configuration check (prints version, sets check mode)\n"
+        "  -V, --version     Print version and exit\n"
+        "  -e, --envdir DIR  Path to env dir \n"
+        "  -h, --help Show this help\n",
+        cmd);
 }
 
 static struct option long_options[] = {
-    {"debug", no_argument,        0, 'd'},
-    {"envdir", required_argument, 0, 'e'},
-    {"version", no_argument,      0, 'V'},
-    {"check", no_argument,        0, 'C'},
-    {"help", no_argument,         0, 'h'},
-    {0, 0, 0, 0}
-};
+    {"debug", no_argument, 0, 'd'},   {"envdir", required_argument, 0, 'e'},
+    {"version", no_argument, 0, 'V'}, {"check", no_argument, 0, 'C'},
+    {"help", no_argument, 0, 'h'},    {0, 0, 0, 0}};
 
-
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     int cc;
 
-    while ((cc = getopt_long(argc, argv, "de:VCh", long_options, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "de:VCh", long_options, NULL)) !=
+           EOF) {
         switch (cc) {
         case 'd':
             lim_debug = true;
@@ -153,10 +149,10 @@ main(int argc, char **argv)
     }
 
     if (lim_debug)
-        fprintf(stderr, "lim: reading configuration from %s/lsf.conf\n", env_dir);
+        fprintf(stderr, "lim: reading configuration from %s/lsf.conf\n",
+                env_dir);
 
     if (initenv_(genParams, env_dir) < 0) {
-
         char *sp = getenv("LSF_LOGDIR");
         if (sp != NULL)
             genParams[LSF_LOGDIR].paramValue = sp;
@@ -173,7 +169,7 @@ main(int argc, char **argv)
     }
 
     if (lim_debug == false) {
-        for (int i = sysconf(_SC_OPEN_MAX); i >= 0 ; i--)
+        for (int i = sysconf(_SC_OPEN_MAX); i >= 0; i--)
             close(i);
         daemonize_();
     }
@@ -185,9 +181,8 @@ main(int argc, char **argv)
         ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
         open_log("lim", genParams[LSF_LOG_MASK].paramValue, true);
     } else {
-        ls_openlog("lim",
-                genParams[LSF_LOGDIR].paramValue, false,
-                genParams[LSF_LOG_MASK].paramValue);
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, false,
+                   genParams[LSF_LOG_MASK].paramValue);
         open_log("lim", genParams[LSF_LOG_MASK].paramValue, false);
     }
 
@@ -199,7 +194,9 @@ main(int argc, char **argv)
         lim_Exit("initMasterList");
     }
     if (lserrno == LSE_LIM_IGNORE) {
-        ls_syslog(LOG_WARNING, "Invalid or duplicated hostname in LSF_MASTER_LIST. Ignoring host");
+        ls_syslog(
+            LOG_WARNING,
+            "Invalid or duplicated hostname in LSF_MASTER_LIST. Ignoring host");
     }
     isMasterCandidate = getIsMasterCandidate_();
     numMasterCandidates = getNumMasterCandidates_();
@@ -211,7 +208,6 @@ main(int argc, char **argv)
     myHostPtr->hostInactivityCount = 0;
 
     if (lim_CheckMode) {
-
         if (lim_CheckError == EXIT_WARNING_ERROR) {
             ls_syslog(LOG_WARNING, "Checking Done. Warning(s/error(s) found.");
             return EXIT_WARNING_ERROR;
@@ -228,16 +224,18 @@ main(int argc, char **argv)
     initMiscLiStruct();
     initSignals();
 
-    syslog(LOG_INFO, "%s: Daemon running (tcp_port %d %s)",
-           __func__, ntohs(myHostPtr->statInfo.portno), LAVALITE_VERSION_STR);
+    syslog(LOG_INFO, "%s: Daemon running (tcp_port %d %s)", __func__,
+           ntohs(myHostPtr->statInfo.portno), LAVALITE_VERSION_STR);
 
     if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: sampleIntvl=%f exchIntvl=%f "
-                  "hostInactivityLimit=%d masterInactivityLimit=%d retryLimit=%d",
-                  __func__, sampleIntvl, exchIntvl, hostInactivityLimit,
-                  masterInactivityLimit, retryLimit);
+        ls_syslog(
+            LOG_DEBUG,
+            "%s: sampleIntvl=%f exchIntvl=%f "
+            "hostInactivityLimit=%d masterInactivityLimit=%d retryLimit=%d",
+            __func__, sampleIntvl, exchIntvl, hostInactivityLimit,
+            masterInactivityLimit, retryLimit);
 
-    if (! lim_debug)
+    if (!lim_debug)
         chdir("/tmp");
 
     // Every 5 seconds
@@ -253,7 +251,6 @@ main(int argc, char **argv)
     FD_ZERO(&allMask);
 
     for (;;) {
-
         sockmask.rmask = allMask;
 
         if (pimPid == -1) {
@@ -282,7 +279,8 @@ main(int argc, char **argv)
         if (FD_ISSET(lim_udp_sock, &chanmask.rmask)) {
             cc = process_udp_request();
             if (cc < 0) {
-                syslog(LOG_ERR, "%s: process_udp_request() failed: %m", __func__);
+                syslog(LOG_ERR, "%s: process_udp_request() failed: %m",
+                       __func__);
                 // continue the loop checking other descriptors
             }
         }
@@ -295,19 +293,16 @@ main(int argc, char **argv)
     }
 }
 
-
-static uint64_t
-now_ms(void)
+static uint64_t now_ms(void)
 {
     struct timespec ts;
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
 
-    return (uint64_t)ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL;
+    return (uint64_t) ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL;
 }
 
-static int
-process_udp_request(void)
+static int process_udp_request(void)
 {
     static char buf[BUFSIZ];
     struct sockaddr_in from;
@@ -316,17 +311,18 @@ process_udp_request(void)
 
     struct packet_header reqHdr;
     int cc = chanRcvDgram_(lim_udp_sock, buf, sizeof(buf),
-                           (struct sockaddr_storage *)&from, -1);
+                           (struct sockaddr_storage *) &from, -1);
     if (cc < 0) {
-        syslog(LOG_ERR, "%s: Error receiving data on lim_udp_sock %d, cc=%d: %m",
+        syslog(LOG_ERR,
+               "%s: Error receiving data on lim_udp_sock %d, cc=%d: %m",
                __func__, lim_udp_sock, cc);
         return -1;
     }
 
-    XDR  xdrs;
+    XDR xdrs;
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_DECODE);
     init_pack_hdr(&reqHdr);
-    if (! xdr_pack_hdr(&xdrs, &reqHdr)) {
+    if (!xdr_pack_hdr(&xdrs, &reqHdr)) {
         syslog(LOG_ERR, "%s: xdr_pack_hdr() failed %m", __func__);
         xdr_destroy(&xdrs);
         return -1;
@@ -416,10 +412,7 @@ process_udp_request(void)
     return 0;
 }
 
-
-
-static int
-doAcceptConn(void)
+static int doAcceptConn(void)
 {
     struct sockaddr_in from;
     struct hostNode *host;
@@ -437,15 +430,15 @@ doAcceptConn(void)
     struct ll_host hs;
     get_host_by_sockaddr_in(&from, &hs);
     if (hs.name[0] == 0) {
-        ls_syslog(LOG_ERR, "%s: unknown host from %s dropped",
-                  __func__, sockAdd2Str_(&from));
+        ls_syslog(LOG_ERR, "%s: unknown host from %s dropped", __func__,
+                  sockAdd2Str_(&from));
         chanClose_(ch);
         return -1;
     }
 
     host = find_node_by_sockaddr_in(&from);
     if (host == NULL) {
-        ls_syslog(LOG_WARNING,"\
+        ls_syslog(LOG_WARNING, "\
 %s: Received request from non-LSF host %s",
                   __func__, sockAdd2Str_(&from));
         chanClose_(ch);
@@ -454,8 +447,8 @@ doAcceptConn(void)
 
     client = calloc(1, sizeof(struct clientNode));
     if (!client) {
-        ls_syslog(LOG_ERR, "%s: Connection from %s dropped",
-                  __func__, sockAdd2Str_(&from));
+        ls_syslog(LOG_ERR, "%s: Connection from %s dropped", __func__,
+                  sockAdd2Str_(&from));
         chanClose_(ch);
         return -1;
     }
@@ -464,40 +457,38 @@ doAcceptConn(void)
     clientMap[client->chanfd] = client;
     client->inprogress = false;
     client->fromHost = host;
-    client->from  = from;
+    client->from = from;
     client->clientMasks = 0;
     client->reqbuf = NULL;
 
     return 0;
 }
 
-static void
-initSignals(void)
+static void initSignals(void)
 {
     sigset_t mask;
 
-    Signal_(SIGHUP,  term_handler);
-    Signal_(SIGINT,  term_handler);
-    Signal_(SIGTERM,  term_handler);
-    Signal_(SIGXCPU,  term_handler);
-    Signal_(SIGXFSZ,  term_handler);
-    Signal_(SIGPROF,  term_handler);
-    Signal_(SIGPWR,  term_handler);
-    Signal_(SIGUSR1,  term_handler);
-    Signal_(SIGUSR2,  term_handler);
-    Signal_(SIGCHLD,  child_handler);
+    Signal_(SIGHUP, term_handler);
+    Signal_(SIGINT, term_handler);
+    Signal_(SIGTERM, term_handler);
+    Signal_(SIGXCPU, term_handler);
+    Signal_(SIGXFSZ, term_handler);
+    Signal_(SIGPROF, term_handler);
+    Signal_(SIGPWR, term_handler);
+    Signal_(SIGUSR1, term_handler);
+    Signal_(SIGUSR2, term_handler);
+    Signal_(SIGCHLD, child_handler);
     Signal_(SIGPIPE, SIG_IGN);
 
     /* LIM is compiled with define NO_SIGALARM
-    */
+     */
     Signal_(SIGALRM, SIG_IGN);
 
     sigemptyset(&mask);
     sigprocmask(SIG_SETMASK, &mask, NULL);
 }
 
-static void
-initAndConfig(int checkMode)
+static void initAndConfig(int checkMode)
 {
     static char fname[] = "initAndConfig";
     int i;
@@ -505,7 +496,7 @@ initAndConfig(int checkMode)
 
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...; checkMode=%d",
-                fname, checkMode);
+                  fname, checkMode);
 
     initLiStruct();
     if (readShared() < 0) {
@@ -536,7 +527,7 @@ initAndConfig(int checkMode)
     initReadLoad(checkMode);
     initTypeModel(myHostPtr);
 
-    if (! checkMode) {
+    if (!checkMode) {
         initConfInfo();
         satIndex();
         loadIndex();
@@ -544,31 +535,30 @@ initAndConfig(int checkMode)
     if (chanInit_() < 0)
         lim_Exit("chanInit_");
 
-    for(i=0; i < 2*MAXCLIENTS; i++) {
-        clientMap[i]=NULL;
+    for (i = 0; i < 2 * MAXCLIENTS; i++) {
+        clientMap[i] = NULL;
     }
 
     {
         // Bug what is the purpose of this, set in the env
         // while processing the API so child picks it up?
         char *lsfLimLock = getenv("LSF_LIM_LOCK");
-        int  flag = -1;
-        time_t  lockTime =-1;
+        int flag = -1;
+        time_t lockTime = -1;
 
         if (lsfLimLock != NULL && lsfLimLock[0] != 0) {
-
             if (logclass & LC_TRACE) {
-                ls_syslog(LOG_DEBUG2, "%s: LSF_LIM_LOCK=<%s>", fname, lsfLimLock);
+                ls_syslog(LOG_DEBUG2, "%s: LSF_LIM_LOCK=<%s>", fname,
+                          lsfLimLock);
             }
             sscanf(lsfLimLock, "%d %ld", &flag, &lockTime);
             if (flag > 0) {
-
                 limLock.on = flag;
                 limLock.time = lockTime;
-                if ( LOCK_BY_USER(limLock.on)) {
+                if (LOCK_BY_USER(limLock.on)) {
                     myHostPtr->status[0] |= LIM_LOCKEDU;
                 }
-                if ( LOCK_BY_MASTER(limLock.on)) {
+                if (LOCK_BY_MASTER(limLock.on)) {
                     myHostPtr->status[0] |= LIM_LOCKEDM;
                 }
             }
@@ -587,12 +577,9 @@ initAndConfig(int checkMode)
     return;
 }
 
-
-static void
-periodic(void)
+static void periodic(void)
 {
-
-    //syslog(LOG_DEBUG, "%s: Entering this routine...", __func__);
+    // syslog(LOG_DEBUG, "%s: Entering this routine...", __func__);
 
     TIMEIT(0, readLoad(), "readLoad()");
 
@@ -604,9 +591,7 @@ periodic(void)
         checkHostWd();
 }
 
-
-static void
-term_handler(int signum)
+static void term_handler(int signum)
 {
     Signal_(signum, SIG_DFL);
 
@@ -624,8 +609,7 @@ term_handler(int signum)
     exit(0);
 }
 
-static void
-child_handler(int sig)
+static void child_handler(int sig)
 {
     int pid;
     int saved_errno = errno;
@@ -638,8 +622,7 @@ child_handler(int sig)
     errno = saved_errno;
 }
 
-int
-initSock(int checkMode)
+int initSock(int checkMode)
 {
     struct sockaddr_in lim_addr;
 
@@ -651,10 +634,12 @@ initSock(int checkMode)
     }
 
     // LIM UDP channel
-    lim_udp_sock = chanServSocket_(SOCK_DGRAM, lim_udp_port, -1,  0);
+    lim_udp_sock = chanServSocket_(SOCK_DGRAM, lim_udp_port, -1, 0);
     if (lim_udp_sock < 0) {
-        syslog(LOG_ERR, "%s: unable to create datagram socket port %d "
-               "another LIM running?: %m ", __func__, lim_udp_port);
+        syslog(LOG_ERR,
+               "%s: unable to create datagram socket port %d "
+               "another LIM running?: %m ",
+               __func__, lim_udp_port);
         return -1;
     }
     lim_udp_port = htons(lim_udp_port);
@@ -662,15 +647,17 @@ initSock(int checkMode)
     // LIM TCP socket with
     lim_tcp_sock = chanServSocket_(SOCK_STREAM, 0, SOMAXCONN, 0);
     if (lim_tcp_sock < 0) {
-        syslog(LOG_ERR, "%s: unable to create tcp socket port %d "
-               "another LIM running?: %m ", __func__, lim_udp_port);
+        syslog(LOG_ERR,
+               "%s: unable to create tcp socket port %d "
+               "another LIM running?: %m ",
+               __func__, lim_udp_port);
         chanClose_(lim_tcp_sock);
         return -1;
     }
 
     socklen_t size = sizeof(struct sockaddr_in);
-    int cc = getsockname(chanSock_(lim_tcp_sock),
-                         (struct sockaddr *)&lim_addr, &size);
+    int cc = getsockname(chanSock_(lim_tcp_sock), (struct sockaddr *) &lim_addr,
+                         &size);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,
                lim_tcp_sock);
@@ -684,21 +671,20 @@ initSock(int checkMode)
     return 0;
 }
 
-void
-errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
-          enum limReplyCode replyCode, int chan)
+void errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
+               enum limReplyCode replyCode, int chan)
 {
     char buf[LL_BUFSIZ_64];
     struct packet_header replyHdr;
-    XDR  xdrs2;
+    XDR xdrs2;
     int cc;
 
     init_pack_hdr(&replyHdr);
-    replyHdr.operation  = (short)replyCode;
+    replyHdr.operation = (short) replyCode;
     replyHdr.sequence = reqHdr->sequence;
     replyHdr.length = 0;
 
-    xdrmem_create(&xdrs2, buf, MSGSIZE/4, XDR_ENCODE);
+    xdrmem_create(&xdrs2, buf, MSGSIZE / 4, XDR_ENCODE);
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s: xdr_pack() failed: %m", __func__);
         xdr_destroy(&xdrs2);
@@ -716,27 +702,24 @@ errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
     xdr_destroy(&xdrs2);
     return;
 }
-static struct tclLsInfo *
-getTclLsInfo(void)
+static struct tclLsInfo *getTclLsInfo(void)
 {
     static char fname[] = "getTclLsInfo";
     static struct tclLsInfo *tclLsInfo;
     int i;
 
-    if ((tclLsInfo = (struct tclLsInfo *) malloc (sizeof (struct tclLsInfo )))
-            == NULL) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+    if ((tclLsInfo = (struct tclLsInfo *) malloc(sizeof(struct tclLsInfo))) ==
+        NULL) {
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return NULL;
     }
 
-    if ((tclLsInfo->indexNames = (char **)malloc (allInfo.numIndx *
-                    sizeof (char *))) == NULL) {
-
-ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
+    if ((tclLsInfo->indexNames =
+             (char **) malloc(allInfo.numIndx * sizeof(char *))) == NULL) {
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
         return NULL;
     }
-    for (i=0; i < allInfo.numIndx; i++) {
+    for (i = 0; i < allInfo.numIndx; i++) {
         tclLsInfo->indexNames[i] = allInfo.resTable[i].name;
     }
     tclLsInfo->numIndx = allInfo.numIndx;
@@ -746,16 +729,14 @@ ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "malloc");
     tclLsInfo->numericResBitMaps = shortInfo.numericResBitMaps;
 
     return tclLsInfo;
-
 }
 
-static void
-startPIM(int argc, char **argv)
+static void startPIM(int argc, char **argv)
 {
     int i;
     static time_t lastTime = 0;
 
-    if (time(NULL) - lastTime < 60*2)
+    if (time(NULL) - lastTime < 60 * 2)
         return;
 
     lastTime = time(NULL);
@@ -766,8 +747,7 @@ startPIM(int argc, char **argv)
         return;
     }
 
-
-    for(i = sysconf(_SC_OPEN_MAX); i>= 0; i--)
+    for (i = sysconf(_SC_OPEN_MAX); i >= 0; i--)
         close(i);
 
     for (i = 1; i < NSIG; i++)
@@ -783,73 +763,141 @@ startPIM(int argc, char **argv)
     exit(-1);
 }
 
-
-void
-initLiStruct(void)
+void initLiStruct(void)
 {
     if (!li) {
-        li_len=16;
+        li_len = 16;
 
-        li=(struct liStruct *)malloc(sizeof(struct liStruct)*li_len);
+        li = (struct liStruct *) malloc(sizeof(struct liStruct) * li_len);
     }
 
-    li[0].name="R15S"; li[0].increasing=1; li[0].delta[0]=0.30;
-    li[0].delta[1]=0.10; li[0].extraload[0]=0.20; li[0].extraload[1]=0.40;
-    li[0].valuesent=0.0; li[0].exchthreshold=0.25; li[0].sigdiff=0.10;
+    li[0].name = "R15S";
+    li[0].increasing = 1;
+    li[0].delta[0] = 0.30;
+    li[0].delta[1] = 0.10;
+    li[0].extraload[0] = 0.20;
+    li[0].extraload[1] = 0.40;
+    li[0].valuesent = 0.0;
+    li[0].exchthreshold = 0.25;
+    li[0].sigdiff = 0.10;
 
-    li[1].name="R1M"; li[1].increasing=1; li[1].delta[0]=0.15;
-    li[1].delta[1]=0.10; li[1].extraload[0]=0.20; li[1].extraload[1]=0.40;
-    li[1].valuesent=0.0; li[1].exchthreshold=0.25;  li[1].sigdiff=0.10;
+    li[1].name = "R1M";
+    li[1].increasing = 1;
+    li[1].delta[0] = 0.15;
+    li[1].delta[1] = 0.10;
+    li[1].extraload[0] = 0.20;
+    li[1].extraload[1] = 0.40;
+    li[1].valuesent = 0.0;
+    li[1].exchthreshold = 0.25;
+    li[1].sigdiff = 0.10;
 
-    li[2].name="R15M"; li[2].increasing=1; li[2].delta[0]=0.15;
-    li[2].delta[1]=0.10; li[2].extraload[0]=0.20; li[2].extraload[1]=0.40;
-    li[2].valuesent=0.0; li[2].exchthreshold=0.25; li[2].sigdiff=0.10;
+    li[2].name = "R15M";
+    li[2].increasing = 1;
+    li[2].delta[0] = 0.15;
+    li[2].delta[1] = 0.10;
+    li[2].extraload[0] = 0.20;
+    li[2].extraload[1] = 0.40;
+    li[2].valuesent = 0.0;
+    li[2].exchthreshold = 0.25;
+    li[2].sigdiff = 0.10;
 
-    li[3].name="UT"; li[3].increasing=1; li[3].delta[0]=1.00;
-    li[3].delta[1]=1.00; li[3].extraload[0]=0.10; li[3].extraload[1]=0.20;
-    li[3].valuesent=0.0; li[3].exchthreshold=0.15; li[3].sigdiff=0.10;
+    li[3].name = "UT";
+    li[3].increasing = 1;
+    li[3].delta[0] = 1.00;
+    li[3].delta[1] = 1.00;
+    li[3].extraload[0] = 0.10;
+    li[3].extraload[1] = 0.20;
+    li[3].valuesent = 0.0;
+    li[3].exchthreshold = 0.15;
+    li[3].sigdiff = 0.10;
 
-    li[4].name="PG"; li[4].increasing=1; li[4].delta[0]=2.5;
-    li[4].delta[1]=1.5; li[4].extraload[0]=0.8; li[4].extraload[1]=1.5;
-    li[4].valuesent=0.0; li[4].exchthreshold=1.0; li[4].sigdiff=5.0;
+    li[4].name = "PG";
+    li[4].increasing = 1;
+    li[4].delta[0] = 2.5;
+    li[4].delta[1] = 1.5;
+    li[4].extraload[0] = 0.8;
+    li[4].extraload[1] = 1.5;
+    li[4].valuesent = 0.0;
+    li[4].exchthreshold = 1.0;
+    li[4].sigdiff = 5.0;
 
-    li[5].name="IO"; li[5].increasing=1; li[5].delta[0]=80;
-    li[5].delta[1]=40; li[5].extraload[0]=15; li[5].extraload[1]=25.0;
-    li[5].valuesent=0.0; li[5].exchthreshold=25.0; li[5].sigdiff=5.0;
+    li[5].name = "IO";
+    li[5].increasing = 1;
+    li[5].delta[0] = 80;
+    li[5].delta[1] = 40;
+    li[5].extraload[0] = 15;
+    li[5].extraload[1] = 25.0;
+    li[5].valuesent = 0.0;
+    li[5].exchthreshold = 25.0;
+    li[5].sigdiff = 5.0;
 
-    li[6].name="LS"; li[6].increasing=1; li[6].delta[0]=3;
-    li[6].delta[1]=3; li[6].extraload[0]=0; li[6].extraload[1]=0;
-    li[6].valuesent=0.0; li[6].exchthreshold=0.0; li[6].sigdiff=1.0;
+    li[6].name = "LS";
+    li[6].increasing = 1;
+    li[6].delta[0] = 3;
+    li[6].delta[1] = 3;
+    li[6].extraload[0] = 0;
+    li[6].extraload[1] = 0;
+    li[6].valuesent = 0.0;
+    li[6].exchthreshold = 0.0;
+    li[6].sigdiff = 1.0;
 
-    li[7].name="IT"; li[7].increasing=0; li[7].delta[0]=6000;
-    li[7].delta[1]=6000; li[7].extraload[0]=0; li[7].extraload[1]=0;
-    li[7].valuesent=0.0; li[7].exchthreshold=1.0; li[7].sigdiff=5.0;
+    li[7].name = "IT";
+    li[7].increasing = 0;
+    li[7].delta[0] = 6000;
+    li[7].delta[1] = 6000;
+    li[7].extraload[0] = 0;
+    li[7].extraload[1] = 0;
+    li[7].valuesent = 0.0;
+    li[7].exchthreshold = 1.0;
+    li[7].sigdiff = 5.0;
 
-    li[8].name="TMP"; li[8].increasing=0; li[8].delta[0]=2;
-    li[8].delta[1]=2; li[8].extraload[0]=-0.2; li[8].extraload[1]=-0.5;
-    li[8].valuesent=0.0; li[8].exchthreshold=1.0; li[8].sigdiff=2.0;
+    li[8].name = "TMP";
+    li[8].increasing = 0;
+    li[8].delta[0] = 2;
+    li[8].delta[1] = 2;
+    li[8].extraload[0] = -0.2;
+    li[8].extraload[1] = -0.5;
+    li[8].valuesent = 0.0;
+    li[8].exchthreshold = 1.0;
+    li[8].sigdiff = 2.0;
 
-    li[9].name="SMP"; li[9].increasing=0; li[9].delta[0]=10;
-    li[9].delta[1]=10; li[9].extraload[0]=-0.5; li[9].extraload[1]=-1.5;
-    li[9].valuesent=0.0; li[9].exchthreshold=1.0; li[9].sigdiff=2.0;
+    li[9].name = "SMP";
+    li[9].increasing = 0;
+    li[9].delta[0] = 10;
+    li[9].delta[1] = 10;
+    li[9].extraload[0] = -0.5;
+    li[9].extraload[1] = -1.5;
+    li[9].valuesent = 0.0;
+    li[9].exchthreshold = 1.0;
+    li[9].sigdiff = 2.0;
 
-    li[10].name="MEM"; li[10].increasing=0; li[10].delta[0]=9000;
-    li[10].delta[1]=9000; li[10].extraload[0]=-0.5; li[10].extraload[1]=-1.0;
-    li[10].valuesent=0.0; li[10].exchthreshold=1.0; li[10].sigdiff=3.0;
+    li[10].name = "MEM";
+    li[10].increasing = 0;
+    li[10].delta[0] = 9000;
+    li[10].delta[1] = 9000;
+    li[10].extraload[0] = -0.5;
+    li[10].extraload[1] = -1.0;
+    li[10].valuesent = 0.0;
+    li[10].exchthreshold = 1.0;
+    li[10].sigdiff = 3.0;
 }
 
-static void
-initMiscLiStruct(void)
+static void initMiscLiStruct(void)
 {
     int i;
 
-    extraload=(float *)malloc(allInfo.numIndx*sizeof(float));
-    memset((char *)extraload, 0, allInfo.numIndx*sizeof(float));
-    li=(struct liStruct *)realloc(li,sizeof(struct liStruct)*allInfo.numIndx);
+    extraload = (float *) malloc(allInfo.numIndx * sizeof(float));
+    memset((char *) extraload, 0, allInfo.numIndx * sizeof(float));
+    li = (struct liStruct *) realloc(li,
+                                     sizeof(struct liStruct) * allInfo.numIndx);
     li_len = allInfo.numIndx;
     for (i = NBUILTINDEX; i < allInfo.numIndx; i++) {
-        li[i].delta[0]=9000;
-        li[i].delta[1]=9000; li[i].extraload[0]=0; li[i].extraload[1]=0;
-        li[i].valuesent=0.0; li[i].exchthreshold=0.0001; li[i].sigdiff=0.0001;
+        li[i].delta[0] = 9000;
+        li[i].delta[1] = 9000;
+        li[i].extraload[0] = 0;
+        li[i].extraload[1] = 0;
+        li[i].valuesent = 0.0;
+        li[i].exchthreshold = 0.0001;
+        li[i].sigdiff = 0.0001;
     }
 }

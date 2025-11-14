@@ -13,7 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsf/lib/lib.h"
@@ -27,51 +28,47 @@ struct indexFmt {
     char *busy;
     char *ok;
     float scale;
-    int  dispLen;
+    int dispLen;
     char *normFmt;
     char *expFmt;
 };
 
-struct indexFmt fmt[] = {
-    { "r15s", "%6s", "*%4.1", "%5.1", 1.0 ,  6, "f",   "g"},
-    { "r1m",  "%6s", "*%4.1", "%5.1", 1.0,   6, "f",   "g" },
-    { "r15m", "%6s", "*%4.1", "%5.1", 1.0,   6, "f",   "g" },
-    { "ut",   "%5s", "*%3.0", "%3.0", 100.0, 5, "f%%", "g%%"},
-    { "pg",   "%6s", "*%4.1", "%4.1", 1.0,   5, "f",   "g"},
-    { "io",   "%6s", "*%4.0", "%4.0", 1.0,   4, "f",   "g"},
-    { "ls",   "%4s", "*%2.0", "%3.0", 1.0,   3, "f",   "g"},
-    { "it",   "%6s", "*%4.0", "%5.0", 1.0,   5, "f",   "g"},
-    { "tmp",  "%6s", "*%3.0", "%4.0", 1.0,   5, "fM",  "fG"},
-    { "swp",  "%6s", "*%3.0", "%4.0", 1.0,   5, "fM",  "fG"},
-    { "mem",  "%6s", "*%4.0", "%5.0", 1.0,   5, "fM",  "fG"},
-    { "dflt", "%7s", "*%6.1", "%6.1", 1.0,   6, "f",   "g" },
-    {  NULL,  "%7s", "*%6.1", "%6.1", 1.0,   6, "f",   "g" }
-};
+struct indexFmt fmt[] = {{"r15s", "%6s", "*%4.1", "%5.1", 1.0, 6, "f", "g"},
+                         {"r1m", "%6s", "*%4.1", "%5.1", 1.0, 6, "f", "g"},
+                         {"r15m", "%6s", "*%4.1", "%5.1", 1.0, 6, "f", "g"},
+                         {"ut", "%5s", "*%3.0", "%3.0", 100.0, 5, "f%%", "g%%"},
+                         {"pg", "%6s", "*%4.1", "%4.1", 1.0, 5, "f", "g"},
+                         {"io", "%6s", "*%4.0", "%4.0", 1.0, 4, "f", "g"},
+                         {"ls", "%4s", "*%2.0", "%3.0", 1.0, 3, "f", "g"},
+                         {"it", "%6s", "*%4.0", "%5.0", 1.0, 5, "f", "g"},
+                         {"tmp", "%6s", "*%3.0", "%4.0", 1.0, 5, "fM", "fG"},
+                         {"swp", "%6s", "*%3.0", "%4.0", 1.0, 5, "fM", "fG"},
+                         {"mem", "%6s", "*%4.0", "%5.0", 1.0, 5, "fM", "fG"},
+                         {"dflt", "%7s", "*%6.1", "%6.1", 1.0, 6, "f", "g"},
+                         {NULL, "%7s", "*%6.1", "%6.1", 1.0, 6, "f", "g"}};
 
 struct indexFmt widefmt[] = {
-    { "r15s", "%6s", "*%4.1", "%5.1", 1.0 ,  6, "f",   "g"},
-    { "r1m",  "%6s", "*%4.1", "%5.1", 1.0,   6, "f",   "g" },
-    { "r15m", "%6s", "*%4.1", "%5.1", 1.0,   6, "f",   "g" },
-    { "ut",   "%5s", "*%3.0", "%3.0", 100.0, 5, "f%%", "g%%"},
-    { "pg",   "%6s", "*%4.1", "%4.1", 1.0,   5, "f",   "g"},
-    { "io",   "%6s", "*%4.0", "%4.0", 1.0,   4, "f",   "g"},
-    { "ls",   "%4s", "*%2.0", "%3.0", 1.0,   3, "f",   "g"},
-    { "it",   "%6s", "*%4.0", "%5.0", 1.0,   5, "f",   "g"},
-    { "tmp",  "%6s", "*%3.0", "%4.0", 1.0,   5, "fM",  "fG"},
-    { "swp",  "%6s", "*%3.0", "%4.0", 1.0,   5, "fM",  "fG"},
-    { "mem",  "%6s", "*%4.0", "%5.0", 1.0,   5, "fM",  "fG"},
-    { "dflt", "%14s", "*%6.1", "%6.1", 1.0,   13, "f",   "g" },
-    {  NULL,  "%14s", "*%6.1", "%6.1", 1.0,   13, "f",   "g" }
-};
+    {"r15s", "%6s", "*%4.1", "%5.1", 1.0, 6, "f", "g"},
+    {"r1m", "%6s", "*%4.1", "%5.1", 1.0, 6, "f", "g"},
+    {"r15m", "%6s", "*%4.1", "%5.1", 1.0, 6, "f", "g"},
+    {"ut", "%5s", "*%3.0", "%3.0", 100.0, 5, "f%%", "g%%"},
+    {"pg", "%6s", "*%4.1", "%4.1", 1.0, 5, "f", "g"},
+    {"io", "%6s", "*%4.0", "%4.0", 1.0, 4, "f", "g"},
+    {"ls", "%4s", "*%2.0", "%3.0", 1.0, 3, "f", "g"},
+    {"it", "%6s", "*%4.0", "%5.0", 1.0, 5, "f", "g"},
+    {"tmp", "%6s", "*%3.0", "%4.0", 1.0, 5, "fM", "fG"},
+    {"swp", "%6s", "*%3.0", "%4.0", 1.0, 5, "fM", "fG"},
+    {"mem", "%6s", "*%4.0", "%5.0", 1.0, 5, "fM", "fG"},
+    {"dflt", "%14s", "*%6.1", "%6.1", 1.0, 13, "f", "g"},
+    {NULL, "%14s", "*%6.1", "%6.1", 1.0, 13, "f", "g"}};
 
-#define DEFAULT_FMT  11
+#define DEFAULT_FMT 11
 
-static int
-nameToFmt( char *indx)
+static int nameToFmt(char *indx)
 {
     int i;
 
-    if (strcmp(indx,"swap") == 0)
+    if (strcmp(indx, "swap") == 0)
         indx = "swp";
     if (strcmp(indx, "login") == 0)
         indx = "ls";
@@ -84,17 +81,16 @@ nameToFmt( char *indx)
         if (strcmp(indx, fmt[i].name) == 0)
             return i;
     }
-    return (i-1);
+    return (i - 1);
 }
 
-char *
-formatHeader(char **dispindex, char longformat)
+char *formatHeader(char **dispindex, char longformat)
 {
     int i, fmtid, maxMem;
     char tmpbuf[MAXLSFNAMELEN];
     static char *line = NULL;
     static int first = true;
-#define HEADERLEN  132
+#define HEADERLEN 132
 
     if (first) {
         if ((line = calloc(HEADERLEN, sizeof(char))) == NULL) {
@@ -110,10 +106,9 @@ formatHeader(char **dispindex, char longformat)
     else
         sprintf(line, "HOST_NAME       status");
 
-    for(i = 0; dispindex[i]; i++) {
-
+    for (i = 0; dispindex[i]; i++) {
         fmtid = nameToFmt(dispindex[i]);
-        if (fmtid == DEFAULT_FMT){
+        if (fmtid == DEFAULT_FMT) {
             if ((maxMem - strlen(line)) < HEADERLEN) {
                 maxMem = 2 * maxMem;
                 if ((line = realloc(line, maxMem)) == NULL) {
@@ -124,25 +119,23 @@ formatHeader(char **dispindex, char longformat)
                 sprintf(tmpbuf, " %s", dispindex[i]);
             else
                 sprintf(tmpbuf, fmt[fmtid].hdr, dispindex[i]);
-        }
-        else
+        } else
             sprintf(tmpbuf, fmt[fmtid].hdr, dispindex[i]);
 
         strcat(line, tmpbuf);
     }
-    num_loadindex=i;
+    num_loadindex = i;
     return line;
 }
 
-char *
-wideformatHeader(char **dispindex, char longformat)
+char *wideformatHeader(char **dispindex, char longformat)
 {
     int i, fmtid, maxMem;
     char tmpbuf[MAXLSFNAMELEN];
     static char *line = NULL;
     static int first = true;
 
-#define HEADERLEN  132
+#define HEADERLEN 132
 
     if (first) {
         line = calloc(HEADERLEN, sizeof(char));
@@ -158,10 +151,9 @@ wideformatHeader(char **dispindex, char longformat)
     else
         sprintf(line, "HOST_NAME       status");
 
-    for(i = 0; dispindex[i]; i++) {
-
+    for (i = 0; dispindex[i]; i++) {
         fmtid = nameToFmt(dispindex[i]);
-        if (fmtid == DEFAULT_FMT){
+        if (fmtid == DEFAULT_FMT) {
             if ((maxMem - strlen(line)) < HEADERLEN) {
                 maxMem = 2 * maxMem;
                 if ((line = realloc(line, maxMem)) == NULL) {
@@ -172,18 +164,16 @@ wideformatHeader(char **dispindex, char longformat)
                 sprintf(tmpbuf, " %s", dispindex[i]);
             else
                 sprintf(tmpbuf, widefmt[fmtid].hdr, dispindex[i]);
-        }
-        else
+        } else
             sprintf(tmpbuf, widefmt[fmtid].hdr, dispindex[i]);
 
         strcat(line, tmpbuf);
     }
-    num_loadindex=i;
+    num_loadindex = i;
     return line;
 }
 
-char *
-stripSpaces(char *field)
+char *stripSpaces(char *field)
 {
     char *np, *cp, *sp;
     int len, i;
@@ -194,8 +184,8 @@ stripSpaces(char *field)
 
     if (*cp == '*') {
         sp = cp;
-        for (sp=sp+1; *sp==' '; sp++) {
-            *(sp-1) = ' ';
+        for (sp = sp + 1; *sp == ' '; sp++) {
+            *(sp - 1) = ' ';
             *sp = '*';
         }
 
@@ -205,45 +195,43 @@ stripSpaces(char *field)
 
     len = strlen(field);
     i = len - 1;
-    while((i > 0) && (field[i] == ' '))
+    while ((i > 0) && (field[i] == ' '))
         i--;
-    if (i < len-1)
+    if (i < len - 1)
         field[i] = '\0';
 
     return cp;
 }
 
-char **
-filterToNames(char *filter)
+char **filterToNames(char *filter)
 {
     char tmpname[MAXLSFNAMELEN];
     static char **names;
     static int namelen;
-    int i,j,k,len;
+    int i, j, k, len;
 
-    if (! names) {
+    if (!names) {
         namelen = 16;
-        names = calloc(namelen, sizeof (char *));
+        names = calloc(namelen, sizeof(char *));
     }
-    for(i = 0; names[i]; i++)
+    for (i = 0; names[i]; i++)
         free(names[i]);
     len = strlen(filter);
 
     i = 0;
     k = 0;
     while (i < len) {
-        for(j = 0; ((filter[i] != ':') && (filter[i] != '\0')); j++, i++)
+        for (j = 0; ((filter[i] != ':') && (filter[i] != '\0')); j++, i++)
             tmpname[j] = filter[i];
         i++;
         tmpname[j] = 0;
         names[k++] = putstr_(tmpname);
         if (k == namelen) {
-
-            if (! (names = realloc(names, namelen*2*sizeof(char *)))) {
+            if (!(names = realloc(names, namelen * 2 * sizeof(char *)))) {
                 lserrno = LSE_MALLOC;
                 ls_perror("realloc");
             }
-            memset(names + namelen, 0, namelen*sizeof(char *));
+            memset(names + namelen, 0, namelen * sizeof(char *));
             namelen <<= 1;
         }
     }
@@ -251,8 +239,7 @@ filterToNames(char *filter)
     return names;
 }
 
-int
-makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
+int makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
 {
     int j, id, nf;
     static char first = true;
@@ -263,14 +250,14 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
 
     if (first) {
         first = false;
-        for (j = 0; j < num_loadindex;j++)
+        for (j = 0; j < num_loadindex; j++)
             loadval[j] = calloc(MAXFIELDSIZE, sizeof(char));
-        if (loadval[j-1] == NULL)
+        if (loadval[j - 1] == NULL)
             ls_perror("calloc()");
     }
 
     nf = 0;
-    for(j = 0; dispindex[j]; j++, nf++) {
+    for (j = 0; dispindex[j]; j++, nf++) {
         int newIndexLen = 0;
 
         id = nameToFmt(dispindex[j]);
@@ -282,10 +269,9 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
         else {
             if (LS_ISBUSYON(host->status, j)) {
                 strcpy(firstFmt, fmt[id].busy);
-                sprintf(fmtField, "%s%s",firstFmt, fmt[id].normFmt);
+                sprintf(fmtField, "%s%s", firstFmt, fmt[id].normFmt);
                 sprintf(tmpfield, fmtField, host->li[j] * fmt[id].scale);
-            }
-            else {
+            } else {
                 strcpy(firstFmt, fmt[id].ok);
                 sprintf(fmtField, "%s%s", firstFmt, fmt[id].normFmt);
                 sprintf(tmpfield, fmtField, host->li[j] * fmt[id].scale);
@@ -297,34 +283,33 @@ makeFields(struct hostLoad *host, char *loadval[], char **dispindex)
                     sprintf(fmtField, "%s%s", firstFmt, fmt[id].expFmt);
                 else
                     sprintf(fmtField, "%s%s", firstFmt, fmt[id].normFmt);
-                if ((host->li[j] > 1024) &&
-                    ((!strcmp(fmt[id].name,"mem")) ||
-                     (!strcmp(fmt[id].name,"tmp")) ||
-                     (!strcmp(fmt[id].name,"swp"))))
-                    sprintf(tmpfield,fmtField,(host->li[j]*fmt[id].scale)/1024);
+                if ((host->li[j] > 1024) && ((!strcmp(fmt[id].name, "mem")) ||
+                                             (!strcmp(fmt[id].name, "tmp")) ||
+                                             (!strcmp(fmt[id].name, "swp"))))
+                    sprintf(tmpfield, fmtField,
+                            (host->li[j] * fmt[id].scale) / 1024);
                 else
-                    sprintf(tmpfield,fmtField, (host->li[j] * fmt[id].scale));
+                    sprintf(tmpfield, fmtField, (host->li[j] * fmt[id].scale));
             }
             sp = stripSpaces(tmpfield);
         }
-        if (id == DEFAULT_FMT && newIndexLen >= 7){
+        if (id == DEFAULT_FMT && newIndexLen >= 7) {
             char newFmt[LL_BUFSIZ_32];
             int len;
-            sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
+            sprintf(newFmt, "%s%d%s", "%", newIndexLen + 1, "s");
 
-            len = (newIndexLen+1) > strlen(sp) ? (newIndexLen+1): strlen(sp);
-            loadval[j] = realloc(loadval[j],  len+1);
+            len =
+                (newIndexLen + 1) > strlen(sp) ? (newIndexLen + 1) : strlen(sp);
+            loadval[j] = realloc(loadval[j], len + 1);
             sprintf(loadval[j], newFmt, sp);
-        }
-        else
+        } else
             sprintf(loadval[j], fmt[id].hdr, sp);
     }
 
     return nf;
 }
 
-int
-makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
+int makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
 {
     int j, id, nf;
     static char first = true;
@@ -335,14 +320,14 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
 
     if (first) {
         first = false;
-        for (j=0; j < num_loadindex;j++)
+        for (j = 0; j < num_loadindex; j++)
             loadval[j] = calloc(MAXFIELDSIZE, sizeof(char));
-        if (loadval[j-1] == NULL)
+        if (loadval[j - 1] == NULL)
             ls_perror("calloc()");
     }
 
     nf = 0;
-    for(j = 0; dispindex[j]; j++, nf++) {
+    for (j = 0; dispindex[j]; j++, nf++) {
         int newIndexLen = 0;
 
         id = nameToFmt(dispindex[j]);
@@ -354,10 +339,9 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
         else {
             if (LS_ISBUSYON(host->status, j)) {
                 strcpy(firstFmt, widefmt[id].busy);
-                sprintf(fmtField, "%s%s",firstFmt, widefmt[id].normFmt);
+                sprintf(fmtField, "%s%s", firstFmt, widefmt[id].normFmt);
                 sprintf(tmpfield, fmtField, host->li[j] * widefmt[id].scale);
-            }
-            else {
+            } else {
                 strcpy(firstFmt, widefmt[id].ok);
                 sprintf(fmtField, "%s%s", firstFmt, widefmt[id].normFmt);
                 sprintf(tmpfield, fmtField, host->li[j] * widefmt[id].scale);
@@ -370,25 +354,27 @@ makewideFields(struct hostLoad *host, char *loadval[], char **dispindex)
                 else
                     sprintf(fmtField, "%s%s", firstFmt, widefmt[id].normFmt);
                 if ((host->li[j] > 1024) &&
-                    ((!strcmp(widefmt[id].name,"mem")) ||
-                     (!strcmp(widefmt[id].name,"tmp")) ||
-                     (!strcmp(widefmt[id].name,"swp"))))
-                    sprintf(tmpfield,fmtField,(host->li[j]*widefmt[id].scale)/1024);
+                    ((!strcmp(widefmt[id].name, "mem")) ||
+                     (!strcmp(widefmt[id].name, "tmp")) ||
+                     (!strcmp(widefmt[id].name, "swp"))))
+                    sprintf(tmpfield, fmtField,
+                            (host->li[j] * widefmt[id].scale) / 1024);
                 else
-                    sprintf(tmpfield,fmtField, (host->li[j] * widefmt[id].scale));
+                    sprintf(tmpfield, fmtField,
+                            (host->li[j] * widefmt[id].scale));
             }
             sp = stripSpaces(tmpfield);
         }
-        if (id == DEFAULT_FMT && newIndexLen >= 7){
+        if (id == DEFAULT_FMT && newIndexLen >= 7) {
             char newFmt[LL_BUFSIZ_32];
             int len;
-            sprintf(newFmt, "%s%d%s", "%", newIndexLen+1, "s");
+            sprintf(newFmt, "%s%d%s", "%", newIndexLen + 1, "s");
 
-            len = (newIndexLen+1) > strlen(sp) ? (newIndexLen+1): strlen(sp);
-            loadval[j] = realloc(loadval[j],  len + 1);
+            len =
+                (newIndexLen + 1) > strlen(sp) ? (newIndexLen + 1) : strlen(sp);
+            loadval[j] = realloc(loadval[j], len + 1);
             sprintf(loadval[j], newFmt, sp);
-        }
-        else
+        } else
             sprintf(loadval[j], widefmt[id].hdr, sp);
     }
 

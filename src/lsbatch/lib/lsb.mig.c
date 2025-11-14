@@ -13,14 +13,14 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-int
-lsb_mig(struct submig *mig, int *badHostIdx)
+int lsb_mig(struct submig *mig, int *badHostIdx)
 {
     struct migReq migReq;
     char request_buf[MSGSIZE];
@@ -48,8 +48,8 @@ lsb_mig(struct submig *mig, int *badHostIdx)
         for (migReq.numAskedHosts = 0;
              migReq.numAskedHosts < mig->numAskedHosts;
              migReq.numAskedHosts++) {
-            if (strlen (mig->askedHosts[migReq.numAskedHosts])
-                >= MAXHOSTNAMELEN - 1) {
+            if (strlen(mig->askedHosts[migReq.numAskedHosts]) >=
+                MAXHOSTNAMELEN - 1) {
                 lsberrno = LSBE_BAD_HOST;
                 return -1;
             }
@@ -62,13 +62,13 @@ lsb_mig(struct submig *mig, int *badHostIdx)
     mbdReqtype = BATCH_JOB_MIG;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&migReq, &hdr, xdr_migReq, 0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &migReq, &hdr, xdr_migReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
         return -1;
     }
 
-    if ((cc = callmbd (NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                       &hdr, NULL, NULL, NULL)) == -1) {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) == -1) {
         xdr_destroy(&xdrs);
         return -1;
     }

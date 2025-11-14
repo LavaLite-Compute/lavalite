@@ -12,32 +12,44 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/daemons/daemons.h"
 
 #ifdef NO_MAIL
-void lsb_mperr (char *msg) {}
-void lsb_merr (char *s) {}
-void merr_user (char *user, char *host, char *msg, char *type) {}
-FILE * smail (char *to, char *tohost) {return fopen("/dev/null", "w");}
-void mclose (FILE *file) {fclose(file);}
+void lsb_mperr(char *msg)
+{
+}
+void lsb_merr(char *s)
+{
+}
+void merr_user(char *user, char *host, char *msg, char *type)
+{
+}
+FILE *smail(char *to, char *tohost)
+{
+    return fopen("/dev/null", "w");
+}
+void mclose(FILE *file)
+{
+    fclose(file);
+}
 
 #else
-void
-lsb_mperr (char *msg)
+void lsb_mperr(char *msg)
 {
     static char fname[] = "lsb_mperr()";
     char *p;
     char err[MAXLINELEN];
 
     if (lsb_CheckMode)
-	return;
+        return;
 
-    p=strchr(msg,'\n');
-    if(p != NULL )
+    p = strchr(msg, '\n');
+    if (p != NULL)
         *p = '\0';
 
     if (strerror(errno) != NULL && errno >= 0)
@@ -48,50 +60,44 @@ lsb_mperr (char *msg)
     lsb_merr2("%s: %s\n", msg, err);
 }
 
-void
-lsb_merr (char *s)
+void lsb_merr(char *s)
 {
     char fname[] = "lsb_merr";
     FILE *mail;
     char *myhostnm;
 
     if (lsb_CheckMode)
-	return;
+        return;
 
     if ((myhostnm = ls_getmyhostname()) == NULL) {
         ls_syslog(LOG_ERR, "%s", __func__, "ls_getmyhostname");
         if (masterme)
             die(MASTER_FATAL);
         else
-            die (SLAVE_FATAL);
+            die(SLAVE_FATAL);
     }
     if (lsbManager == NULL || (getpwlsfuser_(lsbManager)) == NULL) {
         if (lsbManager == NULL)
-            ls_syslog(LOG_ERR, "%s: LSF administrator name is NULL",
-		fname);
+            ls_syslog(LOG_ERR, "%s: LSF administrator name is NULL", fname);
         else
-            ls_syslog(LOG_ERR, "%s: Bad LSF administrator name <%s>",
-		fname,
-		lsbManager);
+            ls_syslog(LOG_ERR, "%s: Bad LSF administrator name <%s>", fname,
+                      lsbManager);
         if (masterme)
-            die (MASTER_FATAL);
+            die(MASTER_FATAL);
         else
-            die (SLAVE_FATAL);
+            die(SLAVE_FATAL);
     }
     mail = smail(lsbManager, myhostnm);
 
     if (masterme)
-        fprintf(mail, "Subject: mbatchd on %s: %s\n",
-	    myhostnm, s);
+        fprintf(mail, "Subject: mbatchd on %s: %s\n", myhostnm, s);
     else
-        fprintf(mail, "Subject: sbatchd on %s: %s\n",
-	    myhostnm, s);
+        fprintf(mail, "Subject: sbatchd on %s: %s\n", myhostnm, s);
 
     mclose(mail);
 }
 
-void
-merr_user (char *user, char *host, char *msg, char *type)
+void merr_user(char *user, char *host, char *msg, char *type)
 {
     char fname[] = "merr_user";
     FILE *mail;
@@ -99,22 +105,16 @@ merr_user (char *user, char *host, char *msg, char *type)
 
     if ((myhostnm = ls_getmyhostname()) == NULL) {
         ls_syslog(LOG_ERR, "%s", __func__, "ls_getmyhostname");
-	die(MASTER_FATAL);
+        die(MASTER_FATAL);
     }
 
     mail = smail(user, host);
-    fprintf(mail, "Subject: job %s report from %s\n",
-	type,
-	myhostnm);
-    fprintf(mail, "\n\nDear %s,\n\n%s\n\n",
-	user,
-	msg);
+    fprintf(mail, "Subject: job %s report from %s\n", type, myhostnm);
+    fprintf(mail, "\n\nDear %s,\n\n%s\n\n", user, msg);
     mclose(mail);
 }
 
-
-FILE *
-smail (char *to, char *tohost)
+FILE *smail(char *to, char *tohost)
 {
     char fname[] = "smail";
     FILE *fmail;
@@ -127,10 +127,11 @@ smail (char *to, char *tohost)
     uid_t userid;
 
     if (lsb_CheckMode)
-	return stderr;
+        return stderr;
 
     if ((to == NULL) || (tohost == NULL)) {
-        ls_syslog(LOG_ERR, "%s: Internal error: user name or host name is null", fname);
+        ls_syslog(LOG_ERR, "%s: Internal error: user name or host name is null",
+                  fname);
         return stderr;
     }
 
@@ -140,18 +141,19 @@ smail (char *to, char *tohost)
     }
 
     if (debug > 2)
-	return stderr;
+        return stderr;
 
-    if(pipe(maild) < 0) {
+    if (pipe(maild) < 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "pipe", osUserName);
         return stderr;
     }
     addr_process(toaddr, osUserName, tohost,
-			 daemonParams[LSB_MAILTO].paramValue);
+                 daemonParams[LSB_MAILTO].paramValue);
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: user=%s host=%s toaddr=%s spec=%s", fname,
-            osUserName, tohost, toaddr, daemonParams[LSB_MAILTO].paramValue);
-    switch(pid = fork()) {
+                  osUserName, tohost, toaddr,
+                  daemonParams[LSB_MAILTO].paramValue);
+    switch (pid = fork()) {
     case 0:
         if (maild[0] != 0) {
             close(0);
@@ -160,18 +162,18 @@ smail (char *to, char *tohost)
         }
         close(maild[1]);
 
-	sendmailp = daemonParams[LSB_MAILPROG].paramValue;
+        sendmailp = daemonParams[LSB_MAILPROG].paramValue;
 
-      userid = geteuid();
-      chuser(getuid());
-      setuid(userid);
+        userid = geteuid();
+        chuser(getuid());
+        setuid(userid);
 
-        sprintf(smcmd, "%s -oi -F%s -f%s %s", sendmailp,
-                       "'LSF'", lsbManager, toaddr);
+        sprintf(smcmd, "%s -oi -F%s -f%s %s", sendmailp, "'LSF'", lsbManager,
+                toaddr);
 
-        execle("/bin/sh", "sh", "-c", smcmd, (char *)0, environ);
+        execle("/bin/sh", "sh", "-c", smcmd, (char *) 0, environ);
         ls_syslog(LOG_ERR, "%s", __func__, "execle",
-            daemonParams[LSB_MAILPROG].paramValue);
+                  daemonParams[LSB_MAILPROG].paramValue);
         exit(-1);
 
     case -1:
@@ -184,7 +186,7 @@ smail (char *to, char *tohost)
         close(maild[0]);
     }
     fmail = fdopen(maild[1], "w");
-    if(fmail == NULL) {
+    if (fmail == NULL) {
         ls_syslog(LOG_ERR, "%s", __func__, "fdopen", osUserName);
         close(maild[1]);
         return stderr;
@@ -195,17 +197,15 @@ smail (char *to, char *tohost)
     fflush(fmail);
     if (ferror(fmail)) {
         fclose(fmail);
-        ls_syslog(LOG_ERR, "%s", __func__, "fprintf", "header",
-	    osUserName);
+        ls_syslog(LOG_ERR, "%s", __func__, "fprintf", "header", osUserName);
         return stderr;
     }
     return fmail;
 }
 
-void
-mclose (FILE *file)
+void mclose(FILE *file)
 {
-    if(file != stderr)
+    if (file != stderr)
         (void) fclose(file);
     else
         (void) fflush(file);

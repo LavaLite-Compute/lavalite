@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
@@ -33,14 +34,12 @@ char logfile[100];
 
 static int getAuth(char *);
 static int printUserName(void);
-static int vauth(char*, char*, int);
+static int vauth(char *, char *, int);
 
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
-
     if (initenv_(NULL, NULL) < 0)
-        exit (-1);
+        exit(-1);
 
 #if defined(DEBUG)
     sprintf(logfile, "%s/eauth.log", LSTMPDIR);
@@ -60,7 +59,6 @@ main (int argc, char **argv)
     }
 
     if (!strcmp(argv[1], "-c")) {
-
         if (setuid(getuid()) < 0) {
 #if defined(DEBUG)
             fclose(logfp);
@@ -82,7 +80,7 @@ main (int argc, char **argv)
         char client_addrTmp[1024];
         int uid, gid, client_port, datLen, cc;
 
-        for(;;){
+        for (;;) {
             fflush(stderr);
 
             memset(datBuf, 0, sizeof(datBuf));
@@ -90,24 +88,28 @@ main (int argc, char **argv)
             memset(client_addr, 0, sizeof(client_addr));
             memset(lsfUserNameTmp, 0, sizeof(lsfUserNameTmp));
             memset(client_addrTmp, 0, sizeof(client_addrTmp));
-            fgets(datBuf,sizeof(datBuf),stdin);
-            sscanf(datBuf, "%d %d %s %s %d %d", &uid, &gid,
-                   lsfUserNameTmp, client_addrTmp, &client_port, &datLen);
+            fgets(datBuf, sizeof(datBuf), stdin);
+            sscanf(datBuf, "%d %d %s %s %d %d", &uid, &gid, lsfUserNameTmp,
+                   client_addrTmp, &client_port, &datLen);
 
-            ls_strcat(lsfUserName,sizeof(lsfUserName),lsfUserNameTmp);
-            ls_strcat(client_addr,sizeof(client_addr),client_addrTmp);
+            ls_strcat(lsfUserName, sizeof(lsfUserName), lsfUserNameTmp);
+            ls_strcat(client_addr, sizeof(client_addr), client_addrTmp);
 
             memset(datBuf, 0, sizeof(datBuf));
-            if ((cc =fread(datBuf, 1, datLen, stdin)) != datLen) {
+            if ((cc = fread(datBuf, 1, datLen, stdin)) != datLen) {
 #if defined(DEBUG)
                 fprintf(logfp, "fread (%d) failed\n", datLen);
-                fprintf(logfp, "uid=%d, gid=%d, username=%s, client_addr=%s, client_port=%d, datLen=%d, cc=%d, dataBuf=%s\n", uid, gid, lsfUserName, client_addr, client_port, datLen, cc, datBuf);
+                fprintf(logfp,
+                        "uid=%d, gid=%d, username=%s, client_addr=%s, "
+                        "client_port=%d, datLen=%d, cc=%d, dataBuf=%s\n",
+                        uid, gid, lsfUserName, client_addr, client_port, datLen,
+                        cc, datBuf);
                 fclose(logfp);
 #endif
                 exit(-1);
             }
 
-            if(vauth(lsfUserName, datBuf, datLen) == -1) {
+            if (vauth(lsfUserName, datBuf, datLen) == -1) {
                 putchar('0');
             } else {
                 putchar('1');
@@ -122,9 +124,7 @@ main (int argc, char **argv)
     return (0);
 }
 
-
-static int
-getAuth(char *inst)
+static int getAuth(char *inst)
 {
 #if defined(DEBUG)
     fprintf(logfp, "======Call by client=====\n");
@@ -134,9 +134,7 @@ getAuth(char *inst)
     return (printUserName());
 }
 
-
-static int
-printUserName(void)
+static int printUserName(void)
 {
     char lsfUserName[MAXLSFNAMELEN];
     char *encUsername;
@@ -146,18 +144,18 @@ printUserName(void)
 #if defined(DEBUG)
         fprintf(logfp, "getLSFUser_ failed: %s!\n", ls_sysmsg());
 #endif
-        return(-1);
+        return (-1);
     }
 
-    if ((encUsername = encryptByKey_(NULL, lsfUserName)) == NULL){
+    if ((encUsername = encryptByKey_(NULL, lsfUserName)) == NULL) {
 #if defined(DEBUG)
-        fprintf(logfp, "encryptByKey_ (NULL, %s) failed!\n",  pw->pw_name);
+        fprintf(logfp, "encryptByKey_ (NULL, %s) failed!\n", pw->pw_name);
 
         return (-1);
 #endif
     }
-    memset(dataBuff,0,sizeof(dataBuff));
-    ls_strcat(dataBuff,sizeof(dataBuff),encUsername);
+    memset(dataBuff, 0, sizeof(dataBuff));
+    ls_strcat(dataBuff, sizeof(dataBuff), encUsername);
 
     free(encUsername);
 
@@ -170,22 +168,19 @@ printUserName(void)
     return 0;
 }
 
-static int
-vauth(char *lsfUserName, char *datBuf, int datLen)
+static int vauth(char *lsfUserName, char *datBuf, int datLen)
 {
-    char* authName;
-    char* authPass;
+    char *authName;
+    char *authPass;
     char *deUserName;
-
 
 #if defined(DEBUG)
     fprintf(logfp, "==========Call by server=========\n");
     fprintf(logfp, "LSF_EAUTH_KEY=NULL\n");
 #endif
 
-
     authName = datBuf;
-    if ((authPass = (char *)strchr(authName, (int)' ')) != NULL)
+    if ((authPass = (char *) strchr(authName, (int) ' ')) != NULL)
         *authPass++ = '\0';
 
     if ((deUserName = decryptByKey_(NULL, datBuf)) == NULL) {
@@ -203,9 +198,9 @@ vauth(char *lsfUserName, char *datBuf, int datLen)
         return (-1);
     }
 #if defined(DEBUG)
-    fprintf(logfp, "decrypt username success, dataBuf is %s, username is %s\n", datBuf, lsfUserName);
+    fprintf(logfp, "decrypt username success, dataBuf is %s, username is %s\n",
+            datBuf, lsfUserName);
     fflush(logfp);
 #endif
     return (0);
-
 }

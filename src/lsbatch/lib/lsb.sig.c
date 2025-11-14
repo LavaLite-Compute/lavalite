@@ -13,16 +13,17 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
 #include "lsbatch/lib/lsb.h"
 
-static int signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options);
+static int signalJob(int sigValue, LS_LONG_INT jobId, time_t period,
+                     int options);
 
-int
-lsb_signaljob(LS_LONG_INT jobId, int sigValue)
+int lsb_signaljob(LS_LONG_INT jobId, int sigValue)
 {
     if (sigValue < 0 || sigValue >= NSIG) {
         lsberrno = LSBE_BAD_SIGNAL;
@@ -31,8 +32,7 @@ lsb_signaljob(LS_LONG_INT jobId, int sigValue)
     return (signalJob(sigValue, jobId, 0, 0));
 }
 
-int
-lsb_chkpntjob(LS_LONG_INT jobId, time_t period, int options)
+int lsb_chkpntjob(LS_LONG_INT jobId, time_t period, int options)
 {
     int lsbOptions = 0;
 
@@ -51,8 +51,7 @@ lsb_chkpntjob(LS_LONG_INT jobId, time_t period, int options)
     return (signalJob(SIG_CHKPNT, jobId, period, lsbOptions));
 }
 
-int
-lsb_deletejob(LS_LONG_INT jobId, int times, int options)
+int lsb_deletejob(LS_LONG_INT jobId, int times, int options)
 {
     if (times < 0) {
         lsberrno = LSBE_BAD_ARG;
@@ -62,18 +61,15 @@ lsb_deletejob(LS_LONG_INT jobId, int times, int options)
         return (signalJob(SIG_KILL_REQUEUE, jobId, 0, 0));
     }
     return (signalJob(SIG_DELETE_JOB, jobId, times, options));
-
 }
 
-int
-lsb_forcekilljob(LS_LONG_INT jobId)
+int lsb_forcekilljob(LS_LONG_INT jobId)
 {
     return (signalJob(SIG_TERM_FORCE, jobId, 0, 0));
-
 }
 
-static int
-signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
+static int signalJob(int sigValue, LS_LONG_INT jobId, time_t period,
+                     int options)
 {
     struct signalReq signalReq;
     char request_buf[MSGSIZE];
@@ -100,16 +96,15 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
 
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&signalReq, &hdr, xdr_signalReq, 0,
-                &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &signalReq, &hdr, xdr_signalReq, 0,
+                       &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;
     }
 
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                    &hdr, NULL, NULL, NULL)) < 0)
-    {
+    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL, NULL, NULL)) < 0) {
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -125,13 +120,11 @@ signalJob (int sigValue, LS_LONG_INT jobId, time_t period, int options)
     else
         return -1;
 }
-int
-lsb_requeuejob(struct jobrequeue *reqPtr)
+int lsb_requeuejob(struct jobrequeue *reqPtr)
 {
     int cc;
 
-    if (reqPtr == NULL
-            || (*reqPtr).jobId <= 0) {
+    if (reqPtr == NULL || (*reqPtr).jobId <= 0) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
@@ -139,22 +132,18 @@ lsb_requeuejob(struct jobrequeue *reqPtr)
     /* For fun deference the pointer and then access its member
      * instead of the 'high level' ->
      */
-    if ((*reqPtr).status != JOB_STAT_PEND
-            && (*reqPtr).status != JOB_STAT_PSUSP) {
+    if ((*reqPtr).status != JOB_STAT_PEND &&
+        (*reqPtr).status != JOB_STAT_PSUSP) {
         (*reqPtr).status = JOB_STAT_PEND;
     }
 
-    if ((*reqPtr).options != REQUEUE_DONE
-            && (*reqPtr).options != REQUEUE_EXIT
-            && (*reqPtr).options != REQUEUE_RUN) {
-        (*reqPtr).options
-            |= (REQUEUE_DONE | REQUEUE_EXIT | REQUEUE_RUN);
+    if ((*reqPtr).options != REQUEUE_DONE &&
+        (*reqPtr).options != REQUEUE_EXIT && (*reqPtr).options != REQUEUE_RUN) {
+        (*reqPtr).options |= (REQUEUE_DONE | REQUEUE_EXIT | REQUEUE_RUN);
     }
 
-    cc = signalJob(SIG_ARRAY_REQUEUE,
-            (*reqPtr).jobId,
-            (*reqPtr).status,
-            (*reqPtr).options);
+    cc = signalJob(SIG_ARRAY_REQUEUE, (*reqPtr).jobId, (*reqPtr).status,
+                   (*reqPtr).options);
     if (cc == LSBE_NO_ERROR) {
         return 0;
     }

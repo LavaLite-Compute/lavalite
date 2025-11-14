@@ -12,132 +12,132 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 #include "lsbatch/cmd/cmd.h"
 
-extern int   optind;
+extern int optind;
 extern char *optarg;
 
-static void
-usage(char* name)
+static void usage(char *name)
 {
     fprintf(stderr, "Usage");
-    fprintf(stderr, ": %s [ -h ] [ -V ] [ -f ] [ -b ] -m host_name ... jobId", name);
+    fprintf(stderr, ": %s [ -h ] [ -V ] [ -f ] [ -b ] -m host_name ... jobId",
+            name);
     if (lsbMode_ & LSB_MODE_BATCH)
-	fprintf(stderr,  " | \"jobId[index]\"");
+        fprintf(stderr, " | \"jobId[index]\"");
     fprintf(stderr, "\n");
 }
 
-static int
-countHosts(char* buf)
+static int countHosts(char *buf)
 {
-    char*  p;
-    char*  u;
-    int    n = 0;
+    char *p;
+    char *u;
+    int n = 0;
 
     if (buf == NULL) {
-	usage("brun");
-	exit(-1);
+        usage("brun");
+        exit(-1);
     }
 
     p = buf;
 
     u = strtok(p, " \n\t");
-    ++n ;
+    ++n;
 
-    while(( u = strtok(NULL, " \n\t")))
-	++n;
+    while ((u = strtok(NULL, " \n\t")))
+        ++n;
 
-    return(n);
+    return (n);
 }
 
-int
-main(int argc, char** argv)
+int main(int argc, char **argv)
 {
-    char*                 hosts   = NULL;
-    struct runJobRequest  runJobRequest;
-    int                   cc;
-    int                   c;
-    bool_t                fFlag = FALSE;
-    bool_t		  bFlag = FALSE;
+    char *hosts = NULL;
+    struct runJobRequest runJobRequest;
+    int cc;
+    int c;
+    bool_t fFlag = FALSE;
+    bool_t bFlag = FALSE;
 
     if (lsb_init(argv[0]) < 0) {
-	lsb_perror("lsb_init");
-	exit (-1);
+        lsb_perror("lsb_init");
+        exit(-1);
     }
 
-    while((c = getopt(argc, argv, "m:fbhV")) != EOF) {
-	switch(c) {
-	case 'm':
-	    hosts = putstr_(optarg);
-	    if (hosts == NULL) {
-		perror("putstr_");
-		exit(-1);
-	    }
-	    break;
+    while ((c = getopt(argc, argv, "m:fbhV")) != EOF) {
+        switch (c) {
+        case 'm':
+            hosts = putstr_(optarg);
+            if (hosts == NULL) {
+                perror("putstr_");
+                exit(-1);
+            }
+            break;
         case 'f':
-	    fFlag = TRUE;
-	    break;
-	case 'b':
-	    bFlag = TRUE;
-	    break;
-	case 'V':
-	    fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-	    return (0);
-	case 'h':
-	    usage(argv[0]);
-	    exit(-1);
-	}
+            fFlag = TRUE;
+            break;
+        case 'b':
+            bFlag = TRUE;
+            break;
+        case 'V':
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return (0);
+        case 'h':
+            usage(argv[0]);
+            exit(-1);
+        }
     }
 
     if (argc <= optind) {
-	usage(argv[0]);
-	exit(-1);
+        usage(argv[0]);
+        exit(-1);
     }
 
-    memset((struct runJobRequest* )&runJobRequest, 0,
-	   sizeof(struct runJobRequest));
+    memset((struct runJobRequest *) &runJobRequest, 0,
+           sizeof(struct runJobRequest));
 
-    if (getOneJobId (argv[argc - 1], &(runJobRequest.jobId), 0)) {
-	usage(argv[0]);
-	exit(-1);
+    if (getOneJobId(argv[argc - 1], &(runJobRequest.jobId), 0)) {
+        usage(argv[0]);
+        exit(-1);
     }
     runJobRequest.numHosts = countHosts(hosts);
 
     if (runJobRequest.numHosts > 1) {
-	int     i;
+        int i;
 
-	runJobRequest.hostname = (char **)calloc(runJobRequest.numHosts,
-						 sizeof(char *));
-	if (runJobRequest.hostname == NULL) {
-	    perror("calloc");
-	    exit(-1);
-	}
+        runJobRequest.hostname =
+            (char **) calloc(runJobRequest.numHosts, sizeof(char *));
+        if (runJobRequest.hostname == NULL) {
+            perror("calloc");
+            exit(-1);
+        }
 
-	for (i = 0; i < runJobRequest.numHosts; i++) {
-	    while (isspace(*hosts)) hosts++;
-	    runJobRequest.hostname[i] = hosts;
-	    hosts += strlen(hosts) + 1;
-	}
+        for (i = 0; i < runJobRequest.numHosts; i++) {
+            while (isspace(*hosts))
+                hosts++;
+            runJobRequest.hostname[i] = hosts;
+            hosts += strlen(hosts) + 1;
+        }
     } else
-	runJobRequest.hostname = &hosts;
+        runJobRequest.hostname = &hosts;
 
-    runJobRequest.options = (fFlag == TRUE) ?
-	RUNJOB_OPT_NOSTOP : RUNJOB_OPT_NORMAL;
+    runJobRequest.options =
+        (fFlag == TRUE) ? RUNJOB_OPT_NOSTOP : RUNJOB_OPT_NORMAL;
 
     if (bFlag) {
-	runJobRequest.options |= RUNJOB_OPT_FROM_BEGIN;
+        runJobRequest.options |= RUNJOB_OPT_FROM_BEGIN;
     }
 
     cc = lsb_runjob(&runJobRequest);
     if (cc < 0) {
-	lsb_perror(("Failed to run the job"));
-	exit(-1);
+        lsb_perror(("Failed to run the job"));
+        exit(-1);
     }
 
     printf(("Job <%s> is being forced to run.\n"),
-	   lsb_jobid2str(runJobRequest.jobId));
+           lsb_jobid2str(runJobRequest.jobId));
     return (0);
 }

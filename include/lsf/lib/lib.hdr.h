@@ -14,10 +14,10 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
-
 
 // Include the lavalite protocol header and version
 #include "lsf/intlib/ll_bufsize.h"
@@ -25,7 +25,7 @@
 
 struct stringLen {
     char *name;
-    int   len;
+    int len;
 };
 
 struct lenData {
@@ -36,9 +36,7 @@ struct lenData {
 #define AUTH_HOST_UX 0x1
 
 // Lavalite authentication type
-typedef enum {
-	CLIENT_EAUTH = 1
-} auth_t;
+typedef enum { CLIENT_EAUTH = 1 } auth_t;
 
 struct lsfAuth {
     int uid;

@@ -17,8 +17,7 @@ static const char *cached_secret_key;
  *
  * Returns a pointer to the key string on success, or NULL on failure.
  */
-static const char *
-load_secret_key(void)
+static const char *load_secret_key(void)
 {
     // Return cached key if already loaded
     if (cached_secret_key)
@@ -43,8 +42,7 @@ load_secret_key(void)
 
 // Trims newline from input string read via fgets()
 // Ensures clean payload before signature verification
-void
-sanitize_payload(char *payload)
+void sanitize_payload(char *payload)
 {
     if (!payload)
         return;
@@ -54,7 +52,8 @@ sanitize_payload(char *payload)
 }
 
 /**
- * fill_auth_token - Populates an auth_token with system identity and randomness.
+ * fill_auth_token - Populates an auth_token with system identity and
+ * randomness.
  * @token: Pointer to the auth_token structure to fill.
  *
  * This function gathers user and host information, sets UID/GID,
@@ -62,8 +61,7 @@ sanitize_payload(char *payload)
  *
  * Returns 0 on success, -1 on failure.
  */
-int
-fill_auth_token(struct auth_token *token)
+int fill_auth_token(struct auth_token *token)
 {
     if (!token)
         return -1;
@@ -117,9 +115,7 @@ fill_auth_token(struct auth_token *token)
  *
  * Returns 0 on success, -1 on failure.
  */
-int
-sign_auth_token(const struct auth_token *token,
-                struct auth_signature *sig)
+int sign_auth_token(const struct auth_token *token, struct auth_signature *sig)
 {
     if (!token || !sig)
         return -1;
@@ -128,13 +124,8 @@ sign_auth_token(const struct auth_token *token,
     // The structure fields are separated by :
     char payload[2 * EAUTH_LBUFSIZ];
     memset(payload, 0, sizeof(payload));
-    sprintf(payload, "%s:%d:%d:%s:%ld:%s",
-            token->user,
-            token->uid,
-            token->gid,
-            token->host,
-            token->timestamp,
-            token->nonce);
+    sprintf(payload, "%s:%d:%d:%s:%ld:%s", token->user, token->uid, token->gid,
+            token->host, token->timestamp, token->nonce);
     printf("payload to sign: %s\n", payload);
     // Get the key which is common to all servers.
     const char *key = load_secret_key();
@@ -144,20 +135,19 @@ sign_auth_token(const struct auth_token *token,
     // Step 2: Generate HMAC-SHA256
     // Bug. make it thread safe.
     unsigned int len;
-    unsigned char *digest = HMAC(EVP_sha256(),  // Hash function (SHA-256)
-                                 key,  // Secret key
+    unsigned char *digest = HMAC(EVP_sha256(), // Hash function (SHA-256)
+                                 key,          // Secret key
                                  strlen(key),
-                                 (unsigned char *)payload, // Data to sign
-                                 strlen(payload),
-                                 NULL,
-                                 &len);
+                                 (unsigned char *) payload, // Data to sign
+                                 strlen(payload), NULL, &len);
     if (!digest || len == 0) {
         fprintf(stderr, "HMAC failed\n");
         return -1;
     }
 
     // Step 3: Convert to hex string
-    for (unsigned int i = 0; i < len && i * 2 < sizeof(sig->signature) - 1; i++) {
+    for (unsigned int i = 0; i < len && i * 2 < sizeof(sig->signature) - 1;
+         i++) {
         sprintf(&sig->signature[i * 2], "%02x", digest[i]);
     }
     sig->signature[len * 2] = 0;
@@ -165,19 +155,17 @@ sign_auth_token(const struct auth_token *token,
     return 0;
 }
 
-
 /**
- * serialize_auth - Combines an auth_token and its signature into a single string.
+ * serialize_auth - Combines an auth_token and its signature into a single
+ * string.
  * @payload: Output buffer to hold the serialized result.
  * @token: Pointer to the filled auth_token structure.
  * @sig: Pointer to the generated auth_signature structure.
  *
  * Returns 0 on success, -1 on failure.
  */
-int
-serialize_auth(char *payload,
-               const struct auth_token *token,
-               const struct auth_signature *sig)
+int serialize_auth(char *payload, const struct auth_token *token,
+                   const struct auth_signature *sig)
 {
     if (!payload || !token || !sig)
         return -1;
@@ -214,13 +202,12 @@ serialize_auth(char *payload,
  *
  * Returns 0 if valid, -1 if invalid or tampered.
  */
-int
-verify_auth_token(char *payload)
+int verify_auth_token(char *payload)
 {
     if (!payload)
         return -1;
 
-    //payload[strcspn(payload, "\n")] = 0;
+    // payload[strcspn(payload, "\n")] = 0;
 
     // Step 1: Copy payload to a mutable buffer
     char buf[EAUTH_LBUFSIZ * 2];
@@ -264,13 +251,8 @@ verify_auth_token(char *payload)
 
     char payload2[2 * EAUTH_LBUFSIZ];
     memset(payload2, 0, sizeof(payload2));
-    sprintf(payload2, "%s:%d:%d:%s:%ld:%s",
-            token.user,
-            token.uid,
-            token.gid,
-            token.host,
-            token.timestamp,
-            token.nonce);
+    sprintf(payload2, "%s:%d:%d:%s:%ld:%s", token.user, token.uid, token.gid,
+            token.host, token.timestamp, token.nonce);
     printf("payload to verify: %s\n", payload2);
 
     // Step 4: Recompute signature
@@ -295,7 +277,8 @@ verify_auth_token(char *payload)
 }
 
 /**
- * verify_user - Validates that the UID and GID in the auth_token exist on the system.
+ * verify_user - Validates that the UID and GID in the auth_token exist on the
+ * system.
  * @token: Pointer to a populated auth_token structure.
  *
  * This function checks:
@@ -307,8 +290,7 @@ verify_auth_token(char *payload)
  *   0 if both UID and GID are valid and consistent.
  *  -1 if any check fails.
  */
-int
-verify_user(struct auth_token *token)
+int verify_user(struct auth_token *token)
 {
     if (!token) {
         fprintf(stderr, "Null token passed to verify_user\n");

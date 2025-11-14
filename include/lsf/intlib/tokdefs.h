@@ -12,17 +12,52 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
 
-
 enum TOKEN_type {
-UNDEF,
-ICON, RCON, CCON, MON, TUE, WED, THU, FRI, SAT, SUN, JAN, FEB,
-MAR,  APR,  MAY,  JUN, JUL, AUG, SEP, OCT, NOV, DEC, YY,  FY, 
-WEEK, MONTH,QUARTER,    DAYS,    OR,  AND, LE,  GE,  EQ,  DOTS, 
-HH, MM, ESTRING,  NAME, RANGE, DATES, SZZZZ
+    UNDEF,
+    ICON,
+    RCON,
+    CCON,
+    MON,
+    TUE,
+    WED,
+    THU,
+    FRI,
+    SAT,
+    SUN,
+    JAN,
+    FEB,
+    MAR,
+    APR,
+    MAY,
+    JUN,
+    JUL,
+    AUG,
+    SEP,
+    OCT,
+    NOV,
+    DEC,
+    YY,
+    FY,
+    WEEK,
+    MONTH,
+    QUARTER,
+    DAYS,
+    OR,
+    AND,
+    LE,
+    GE,
+    EQ,
+    DOTS,
+    HH,
+    MM,
+    ESTRING,
+    NAME,
+    RANGE,
+    DATES,
+    SZZZZ
 };
-
-

@@ -13,10 +13,11 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+ USA
  *
  */
-#include "lsf/intlib/libllcore.h"
+#include "lsf/intlib/llsys.h"
 #include "lsf/lib/lproto.h"
 
 /* Bug. This is also garbage legacy. Probably originally the configuration was
@@ -25,14 +26,12 @@
  * Does not make sense that intlib includes lib.
  */
 
-char *
-getNextValue(char **line)
+char *getNextValue(char **line)
 {
     return (getNextValueQ_(line, '(', ')'));
 }
 
-int
-keyMatch (struct keymap *keyList, char *line, int exact)
+int keyMatch(struct keymap *keyList, char *line, int exact)
 {
     int pos = 0;
     int i;
@@ -59,13 +58,13 @@ keyMatch (struct keymap *keyList, char *line, int exact)
             }
             i++;
         }
-        if (! found)
+        if (!found)
             return false;
 
         pos++;
     }
 
-    if (! exact)
+    if (!exact)
         return true;
 
     i = 0;
@@ -78,8 +77,7 @@ keyMatch (struct keymap *keyList, char *line, int exact)
     return true;
 }
 
-int
-isSectionEnd(char *linep, char *lsfile, int *LineNum, char *sectionName)
+int isSectionEnd(char *linep, char *lsfile, int *LineNum, char *sectionName)
 {
     char *word;
 
@@ -88,50 +86,46 @@ isSectionEnd(char *linep, char *lsfile, int *LineNum, char *sectionName)
         return false;
 
     word = getNextWord_(&linep);
-    if (! word ) {
+    if (!word) {
         ls_syslog(LOG_ERR,
                   "%s %d: section %s ended without section name, ignored",
                   lsfile, *LineNum, sectionName);
         return true;
     }
 
-    if (strcasecmp (word, sectionName) != 0)
+    if (strcasecmp(word, sectionName) != 0)
         ls_syslog(LOG_ERR,
                   "%s%d: section %s ended with wrong section name %s, ignored",
                   lsfile, *LineNum, sectionName, word);
 
     return true;
-
 }
 
-char *
-getBeginLine(FILE *fp, int *LineNum)
+char *getBeginLine(FILE *fp, int *LineNum)
 {
     char *sp;
     char *wp;
 
     for (;;) {
         sp = getNextLineC_(fp, LineNum, true);
-        if (! sp)
+        if (!sp)
             return NULL;
 
         wp = getNextWord_(&sp);
         if (wp && (strcasecmp(wp, "begin") == 0))
             return sp;
     }
-
 }
 
-int
-readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
-            int *LineNum, int exact, char *section)
+int readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
+                int *LineNum, int exact, char *section)
 {
     char *key;
     char *value;
     char *sp, *sp1;
     char error = false;
     static char fname[] = "readHvalues";
-    int i=0;
+    int i = 0;
 
     sp = linep;
     key = getNextWord_(&linep);
@@ -163,23 +157,26 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
             *sp1 = '\0';
     }
     if (putValue(keyList, key, value) < 0) {
-        ls_syslog(LOG_ERR,
-                  "%s: %s %d: bad keyword %s in section %s, ignoring the section",
-                  fname,  lsfile, *LineNum, key, section);
+        ls_syslog(
+            LOG_ERR,
+            "%s: %s %d: bad keyword %s in section %s, ignoring the section",
+            fname, lsfile, *LineNum, key, section);
         doSkipSection(fp, LineNum, lsfile, section);
         return -1;
     }
 
     if ((linep = getNextLineC_(fp, LineNum, true)) != NULL) {
         if (isSectionEnd(linep, lsfile, LineNum, section)) {
-            if (! exact)
+            if (!exact)
                 return 0;
 
             i = 0;
             while (keyList[i].key != NULL) {
                 if (keyList[i].val == NULL) {
                     ls_syslog(LOG_ERR,
-                              "%s: %s %d: required keyword %s is missing in section %s, ignoring the section", fname, lsfile, *LineNum, keyList[i].key, section);
+                              "%s: %s %d: required keyword %s is missing in "
+                              "section %s, ignoring the section",
+                              fname, lsfile, *LineNum, keyList[i].key, section);
                     error = true;
                 }
                 i++;
@@ -199,23 +196,21 @@ readHvalues(struct keymap *keyList, char *linep, FILE *fp, char *lsfile,
         return readHvalues(keyList, linep, fp, lsfile, LineNum, exact, section);
     }
 
-    ls_syslog(LOG_ERR,
-              "%s: %s %d: Premature EOF in section %s",
-              fname, lsfile, *LineNum, section);
+    ls_syslog(LOG_ERR, "%s: %s %d: Premature EOF in section %s", fname, lsfile,
+              *LineNum, section);
     return -1;
 }
 
-int
-putValue(struct keymap *keyList, char *key, char *value)
+int putValue(struct keymap *keyList, char *key, char *value)
 {
     int i;
 
-    i=0;
+    i = 0;
     while (keyList[i].key != NULL) {
         if (strcasecmp(keyList[i].key, key) == 0) {
             if (keyList[i].val != NULL)
-                free (keyList[i].val);
-            if (strcmp (value, "-") == 0)
+                free(keyList[i].val);
+            if (strcmp(value, "-") == 0)
                 keyList[i].val = putstr_("");
             else
                 keyList[i].val = putstr_(value);
@@ -227,8 +222,7 @@ putValue(struct keymap *keyList, char *key, char *value)
     return -1;
 }
 
-void
-doSkipSection(FILE *fp, int *LineNum, char *lsfile, char *sectionName)
+void doSkipSection(FILE *fp, int *LineNum, char *lsfile, char *sectionName)
 {
     char *word;
     char *cp;
@@ -237,26 +231,26 @@ doSkipSection(FILE *fp, int *LineNum, char *lsfile, char *sectionName)
         word = getNextWord_(&cp);
         if (strcasecmp(word, "end") == 0) {
             word = getNextWord_(&cp);
-            if (! word) {
+            if (!word) {
                 ls_syslog(LOG_ERR,
                           "%s%d: Section ended without section name, ignored",
                           lsfile, *LineNum);
             } else {
                 if (strcasecmp(word, sectionName) != 0)
                     ls_syslog(LOG_ERR,
-                              "%s(%d: Section %s ended with wrong section name %s, ignored", lsfile, *LineNum, sectionName, word);
+                              "%s(%d: Section %s ended with wrong section name "
+                              "%s, ignored",
+                              lsfile, *LineNum, sectionName, word);
             }
             return;
         }
     }
 
-    ls_syslog(LOG_ERR, "%s: %s%d: premature EOF in section",  __func__,
-              lsfile, *LineNum);
-
+    ls_syslog(LOG_ERR, "%s: %s%d: premature EOF in section", __func__, lsfile,
+              *LineNum);
 }
 
-int
-mapValues(struct keymap *keyList, char *line)
+int mapValues(struct keymap *keyList, char *line)
 {
     int pos = 0;
     char *value;
@@ -272,21 +266,21 @@ mapValues(struct keymap *keyList, char *line)
     }
 
     while ((value = getNextValue(&line)) != NULL) {
-        i=0;
+        i = 0;
         found = false;
         while (keyList[i].key != NULL) {
             if (keyList[i].position != pos) {
                 i++;
                 continue;
             }
-            if (strcmp (value, "-") == 0)
+            if (strcmp(value, "-") == 0)
                 keyList[i].val = putstr_("");
             else
                 keyList[i].val = putstr_(value);
             found = true;
             break;
         }
-        if (! found)
+        if (!found)
             goto fail;
         pos++;
     }
@@ -297,8 +291,8 @@ mapValues(struct keymap *keyList, char *line)
     return 0;
 
 fail:
-    i=0;
-    while (keyList[i].key != NULL)  {
+    i = 0;
+    while (keyList[i].key != NULL) {
         if (keyList[i].val != NULL) {
             free(keyList[i].val);
             keyList[i].val = NULL;
@@ -307,11 +301,9 @@ fail:
         i++;
     }
     return -1;
-
 }
 
-int
-putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
+int putInLists(char *word, struct admins *admins, int *numAds, char *forWhat)
 {
     struct passwd *pw;
     static char fname[] = "putInLists";
@@ -323,9 +315,8 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
                   __func__, word);
         return 0;
     }
-    if (isInlist (admins->adminNames, pw->pw_name, admins->nAdmins)) {
-        ls_syslog(LOG_WARNING,
-                  "%s: Duplicate user name <%s> %s; ignored",
+    if (isInlist(admins->adminNames, pw->pw_name, admins->nAdmins)) {
+        ls_syslog(LOG_WARNING, "%s: Duplicate user name <%s> %s; ignored",
                   fname, word, forWhat);
         return 0;
     }
@@ -335,25 +326,25 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
     admins->nAdmins += 1;
 
     if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG, "putInLists: uid %d gid %d name <%s>",
-                  pw->pw_uid, pw->pw_gid, pw->pw_name);
+        ls_syslog(LOG_DEBUG, "putInLists: uid %d gid %d name <%s>", pw->pw_uid,
+                  pw->pw_gid, pw->pw_name);
 
     if (admins->nAdmins >= *numAds) {
         *numAds = *numAds * 2;
-        tempIds = (int *) realloc(admins->adminIds, *numAds * sizeof (int));
-        tempGids = (int *) realloc(admins->adminGIds, *numAds * sizeof (int));
-        tempNames = (char **) realloc(admins->adminNames, *numAds * sizeof (char *));
+        tempIds = (int *) realloc(admins->adminIds, *numAds * sizeof(int));
+        tempGids = (int *) realloc(admins->adminGIds, *numAds * sizeof(int));
+        tempNames =
+            (char **) realloc(admins->adminNames, *numAds * sizeof(char *));
         if (tempIds == NULL || tempGids == NULL || tempNames == NULL) {
+            FREEUP(tempIds);
+            FREEUP(tempGids);
+            FREEUP(tempNames);
 
-            FREEUP (tempIds);
-            FREEUP (tempGids);
-            FREEUP (tempNames);
-
-            FREEUP (admins->adminIds);
-            FREEUP (admins->adminGIds);
+            FREEUP(admins->adminIds);
+            FREEUP(admins->adminGIds);
             for (i = 0; i < admins->nAdmins; i++)
-                FREEUP (admins->adminNames[i]);
-            FREEUP (admins->adminNames);
+                FREEUP(admins->adminNames[i]);
+            FREEUP(admins->adminNames);
             admins->nAdmins = 0;
             lserrno = LSE_MALLOC;
             return -1;
@@ -366,17 +357,15 @@ putInLists (char *word, struct admins *admins, int *numAds, char *forWhat)
     return 0;
 }
 
-int
-isInlist (char **adminNames, char *userName, int actAds)
+int isInlist(char **adminNames, char *userName, int actAds)
 {
     int i;
 
     if (actAds == 0)
         return false;
     for (i = 0; i < actAds; i++) {
-        if (strcmp (adminNames[i], userName) == 0)
+        if (strcmp(adminNames[i], userName) == 0)
             return true;
     }
     return false;
-
 }
