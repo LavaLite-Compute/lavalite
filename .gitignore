@@ -84,4 +84,3 @@ src/lsbatch/daemons/mbatchd
 src/lsbatch/daemons/sbatchd
 # Ignore cscope
 cscope*
-
