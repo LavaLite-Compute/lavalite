@@ -300,13 +300,6 @@ extern char *parsewindow(char *, char *, int *, char *);
 extern int expandList_(char ***, int, char **);
 extern int expandList1_(char ***, int, int *, char **);
 
-extern void xdr_lsffree(bool_t (*)(), void *, struct packet_header *);
-
-extern int createUtmpEntry(char *, pid_t, char *);
-extern int removeUtmpEntry(pid_t);
-
-extern int createSpoolSubDir(const char *);
-
 /* Original wrapper had wrappers around POSIX calls to get user information.
  * LavaLite uses the POSIX calls directly whenever possible, but some wrappers
  * are maintained for convenience.

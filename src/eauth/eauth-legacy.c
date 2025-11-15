@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include "../lsf/lib/lproto.h"
 #include "../lsf/lib/lib.h"
-#include "../lsf/intlib/intlibout.h"
+#include "../lsf/lib/intlibout.h"
 #include "../lsf/lsf.h"
 #include "../config.h"
 

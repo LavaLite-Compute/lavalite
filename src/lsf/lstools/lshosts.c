@@ -18,7 +18,7 @@
  *
  */
 #include "lsf/lib/lib.h"
-#include "lsf/intlib/intlibout.h"
+#include "lsf/lib/intlibout.h"
 
 static void print_long(struct hostInfo *hostInfo);
 static char *stripSpaces(char *);

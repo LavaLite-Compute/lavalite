@@ -18,11 +18,11 @@
  *
  */
 #include "lsbatch.h"
-#include "lsf/intlib/list.h"
-#include "lsf/intlib/bitset.h"
-#include "lsf/intlib/intlibout.h"
-#include "lsf/intlib/tcl_stub.h"
-#include "lsf/intlib/jidx.h"
+#include "lsf/lib/list.h"
+#include "lsf/lib/bitset.h"
+#include "lsf/lib/intlibout.h"
+#include "lsf/lib/tcl_stub.h"
+#include "lsf/lib/jidx.h"
 #include "lsf/lib/lib.h"
 #include "lsbatch/daemons/daemonout.h"
 #include "lsbatch/lib/lsb.xdr.h"

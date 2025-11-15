@@ -50,9 +50,9 @@
 
 #include "lsf.h"
 #include "lsf/lib/lib.h"
-#include "lsf/intlib/llsys.h"
-#include "lsf/intlib/intlibout.h"
-#include "lsf/intlib/tcl_stub.h"
+#include "lsf/lib/llsys.h"
+#include "lsf/lib/intlibout.h"
+#include "lsf/lib/tcl_stub.h"
 #include "lsf/lib/lib.channel.h"
 #include "lsf/lib/lib.conf.h"
 #include "lsf/lim/limout.h"

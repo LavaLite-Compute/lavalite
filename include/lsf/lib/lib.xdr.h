@@ -31,6 +31,7 @@ bool_t xdr_array_element(XDR *, void *, void *, bool_t (*)());
 typedef bool_t (*xdr_func_t)(XDR *, void *, void *);
 
 // Generic XDR functions used throught the system libraries
+void xdr_lsffree(bool_t (*)(), void *, struct packet_header *);
 bool_t xdr_time_t(XDR *, time_t *);
 bool_t xdr_lsfRusage(XDR *, struct lsfRusage *, void *);
 bool_t xdr_lvector(XDR *, float *, uint32_t);
@@ -42,7 +43,7 @@ bool_t xdr_lsfLimit(XDR *, struct lsfLimit *, struct packet_header *);
 bool_t xdr_portno(XDR *, uint16_t *);
 bool_t xdr_sockaddr_in(XDR *, struct sockaddr_in *);
 
-// Procol related xdr
+// Protocol related xdr
 extern bool_t xdr_pack_hdr(XDR *, struct packet_header *);
 extern bool_t xdr_encodeMsg(XDR *, char *, struct packet_header *, bool_t (*)(),
                             int, struct lsfAuth *);

@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsf/intlib/llsys.h"
+#include "lsf/lib/llsys.h"
 #include "lsf/lib/lproto.h"
 
 static int getPtime(char *, char, time_t, char, time_t *);

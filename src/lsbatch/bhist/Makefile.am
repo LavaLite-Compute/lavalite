@@ -4,7 +4,7 @@
 include $(top_srcdir)/Make.common
 
 LIBS = ../lib/libllbat.a ../../lsf/lib/libll.a \
-	../../lsf/intlib/libllcore.a
+	../../lsf/lib/libllcore.a
 
 bin_PROGRAMS = bhist
 

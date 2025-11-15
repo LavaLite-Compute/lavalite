@@ -95,7 +95,6 @@ static TREE_OBSERVER_T *treeObserverCreate(char *name, void *entry,
     observer = (TREE_OBSERVER_T *) calloc(1, sizeof(TREE_OBSERVER_T));
     if (observer == NULL) {
         ls_syslog(LOG_ERR, "%s", __func__, "calloc");
-        lsberrno = LIST_ERR_NOMEM;
         goto Fail;
     }
 
@@ -143,7 +142,7 @@ static void treeObserverInvoke(void *operand, enum treeEventType eventType)
     LIST_ITERATOR_T iter;
     LIST_ENTRY_T *ent;
 
-    LIST_ITERATOR_ZERO_OUT(&iter);
+    memset(&iter, 0, sizeof(struct _listIterator));
     listIteratorAttach(&iter, treeObserverList);
 
     for (ent = listIteratorGetCurEntry(&iter); ent != NULL;

@@ -43,7 +43,8 @@
 
 // Buf we are rewriting the job arrays but we need the
 // data structure defintions for now
-#include "lsf/intlib/jidx.h"
-#include "lsf/intlib/tcl_stub.h"
+#include "lsf/lib/jidx.h"
+#include "lsf/lib/tcl_stub.h"
 // Sneak this one for now
 void daemonize_(void);
+void *ll_calloc(size_t, size_t);

@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsf/intlib/llsys.h"
-#include "lsf/intlib/intlibout.h"
+#include "lsf/lib/llsys.h"
+#include "lsf/lib/intlibout.h"
 
 #define BADCH ":"
 

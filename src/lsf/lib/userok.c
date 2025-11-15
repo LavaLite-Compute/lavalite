@@ -1,4 +1,4 @@
-/* $Id: lib.utmp.c,v 1.4 2007/08/15 22:18:51 tmizan Exp $
+/* $Id: userok.c,v 1.7 2007/08/15 22:18:49 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -17,18 +17,18 @@
  USA
  *
  */
-#include "lsf/lib/liblavalite.h"
 
-#define UTMP_FILENAME "/var/adm/utmpx"
+#include "lsf/lib/llsys.h"
+#include "lsf/lib/lib.hdr.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lib/ll.host.h"
 
-int createUtmpEntry(char *uname, pid_t job_pid, char *current_tty)
+bool_t userok(struct sockaddr_in *from, struct lsfAuth *auth)
 {
-    int err = 0;
-
-    return err;
-}
-
-int removeUtmpEntry(pid_t job_pid)
-{
-    return 0;
+    if (verifyEAuth_(auth, from) == -1) {
+        ls_syslog(LOG_ERR, "%s: eath authentication failed for %s/%s", __func__,
+                  auth->lsfUserName, sockAdd2Str_(from));
+        return false;
+    }
+    return true;
 }

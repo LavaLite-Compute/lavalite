@@ -21,6 +21,21 @@
 
 #include "lsf/lib/lproto.h"
 
+extern __thread int bitseterrno;
+
+typedef enum {
+    LS_BITSET_ERR_NOERR,
+    LS_BITSET_ERR_BADARG,
+    LS_BITSET_ERR_SETEMPTY,
+    LS_BITSET_ERR_NOMEM,
+    LS_BITSET_ERR_FUNC,
+    LS_BITSET_ERR_ISALREDY,
+    LS_BITSET_ERR_EINVAL,
+    LS_BITSET_ERR_NOOBSVR,
+    LS_BITSET_ERR_MAX,
+    LS_BITSET_ERR_LAST
+} ls_bitset_error_t;
+
 typedef struct _bitsetEvent LS_BITSET_EVENT_T;
 
 typedef struct {
@@ -95,16 +110,6 @@ enum bitState { SET_BIT_OFF, SET_BIT_ON };
 #define SET_IS_VALID(set) (set != NULL)
 
 #define SET_IS_EMPTY(set) (set->setNumElements == 0)
-
-#undef LS_BITSET_ERROR_CODE_ENTRY
-#define LS_BITSET_ERROR_CODE_ENTRY(Id, Desc) Id,
-
-extern int bitseterrno;
-
-enum _lsBitSetErrno_ {
-#include "lsbitseterr.def"
-    LS_BITSET_ERR_LAST
-};
 
 extern LS_BITSET_T *setCreate(const int, int (*getIndexByObject)(void *),
                               void *(*getObjectByIndex)(int), char *);

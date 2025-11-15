@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsf/intlib/llsys.h"
+#include "lsf/lib/llsys.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lib/lib.h"
 
@@ -217,22 +217,6 @@ void openChildLog(const char *defLogFileName, const char *confLogDir,
     ls_openlog(logFileName, logDir, use_stderr, logMask);
 
 #undef _RES_CHILD_LOGFILENAME
-}
-
-void cleanDynDbgEnv(void)
-{
-    if (getenv("DYN_DBG_LOGCLASS")) {
-        putEnv("DYN_DBG_LOGCLASS", "");
-    }
-    if (getenv("DYN_DBG_LOGLEVEL")) {
-        putEnv("DYN_DBG_LOGLEVEL", "");
-    }
-    if (getenv("DYN_DBG_LOGDIR")) {
-        putEnv("DYN_DBG_LOGDIR", "");
-    }
-    if (getenv("DYN_DBG_LOGFILENAME")) {
-        putEnv("DYN_DBG_LOGFILENAME", "");
-    }
 }
 
 void displayEnhancementNames(void)

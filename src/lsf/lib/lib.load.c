@@ -207,9 +207,6 @@ struct hostLoad *loadinfo_(char *resReq, struct decisionReq *loadReqPtr,
     char *hname;
     int options = 0;
 
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
-
     if (loadReqPtr->numHosts <= 0) {
         lserrno = LSE_BAD_ARGS;
         goto error;

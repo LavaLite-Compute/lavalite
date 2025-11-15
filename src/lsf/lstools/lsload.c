@@ -18,7 +18,7 @@
  *
  */
 #include "lsf/lib/lib.h"
-#include "lsf/intlib/intlibout.h"
+#include "lsf/lib/intlibout.h"
 
 #define MAXLISTSIZE 256
 
@@ -192,14 +192,10 @@ int main(int argc, char **argv)
         nlp = NULL;
     }
 
-    TIMEIT(0,
-           (hosts = ls_loadinfo(resreq, &numneeded, options, 0, hostnames, num,
-                                &nlp)),
-           "ls_loadinfo");
-
+    hosts = ls_loadinfo(resreq, &numneeded, options, 0, hostnames, num, &nlp);
     if (!hosts) {
         ls_perror("lsload");
-        exit(-10);
+        return -1;
     }
 
     if (longFormat)
@@ -209,7 +205,7 @@ int main(int argc, char **argv)
     else
         printf("%s\n", formatHeader(nlp, longFormat));
 
-    if (!(loadval = (char **) malloc(num_loadindex * sizeof(char *)))) {
+    if (!(loadval = calloc(num_loadindex, sizeof(char *)))) {
         lserrno = LSE_MALLOC;
         ls_perror("lsload");
         exit(-1);

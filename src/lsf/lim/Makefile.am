@@ -6,7 +6,7 @@
 include $(top_srcdir)/Make.common
 AM_CPPFLAGS += $(NO_SIGALARM)
 
-COMMON_LIBS = ../lib/libll.a ../intlib/libllcore.a
+COMMON_LIBS = ../lib/libll.a
 LDADD = $(COMMON_LIBS)
 
 sbin_PROGRAMS = lim

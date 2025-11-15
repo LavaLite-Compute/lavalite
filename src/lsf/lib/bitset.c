@@ -18,10 +18,10 @@
   *
   */
 
-#include "lsf/intlib/llsys.h"
-#include "lsf/intlib/list.h"
-#include "lsf/intlib/bitset.h"
-
+#include "lsf/lib/llsys.h"
+#include "lsf/lib/list.h"
+#include "lsf/lib/bitset.h"
+__thread int bitseterrno;
 static void setObserverDestroy(LS_BITSET_T *);
 static void observerDestroy(LS_BITSET_OBSERVER_T *);
 
@@ -616,11 +616,6 @@ void setIteratorDestroy(LS_BITSET_ITERATOR_T *iter)
     free(iter);
     iter = NULL;
 }
-
-int bitseterrno;
-
-#undef LS_BITSET_ERROR_CODE_ENTRY
-#define LS_BITSET_ERROR_CODE_ENTRY(Id, Desc) Desc,
 
 static char *bitSetErrList[] = {"No Error",
                                 "Bad Arguments",

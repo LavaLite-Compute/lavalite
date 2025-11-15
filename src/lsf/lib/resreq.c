@@ -17,8 +17,8 @@
  USA
  *
  */
-#include "lsf/intlib/llsys.h"
-#include "lsf/intlib/resreq.h"
+#include "lsf/lib/llsys.h"
+#include "lsf/lib/resreq.h"
 #include "lsf/lib/lproto.h"
 
 struct sections {

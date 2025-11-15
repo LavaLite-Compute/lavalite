@@ -21,7 +21,7 @@
 #include <ctype.h>
 #include <unistd.h>
 
-#include "../../lsf/intlib/intlibout.h"
+#include "../../lsf/lib/intlibout.h"
 
 #define NegtoZero(x) ((x < 0) ? 0 : x)
 #define topOrBot(x) (((x) == 1) ? "top" : "bottom")

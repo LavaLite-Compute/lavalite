@@ -134,7 +134,6 @@ dnl ---- LSF module ----
 AC_CONFIG_FILES([
   src/lsf/Makefile
   src/lsf/lib/Makefile
-  src/lsf/intlib/Makefile
   src/lsf/lstools/Makefile
   src/lsf/lim/Makefile
 ])

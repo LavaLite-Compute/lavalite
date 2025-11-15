@@ -18,7 +18,8 @@
  *
  */
 
-#include "lsf/intlib/llsys.h"
+#include "lsf/lib/llsys.h"
+#include "lsf/lib/listset.h"
 
 void listSetFree(struct listSet *);
 struct listSet *listSetAlloc(int);

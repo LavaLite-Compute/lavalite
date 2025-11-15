@@ -17,14 +17,13 @@
  USA
  *
  */
-#ifndef _LLCORE_INTLIBOUT_
-#define _LLCORE_INTLIBOUT_
+#pragma once
 
-#include "lsf/intlib/ll_bufsize.h"
-#include "lsf/intlib/resreq.h"
-#include "lsf/intlib/list.h"
-#include "lsf/intlib/bitset.h"
-#include "lsf/intlib/listset.h"
+#include "lsf/lib/ll_bufsize.h"
+#include "lsf/lib/resreq.h"
+#include "lsf/lib/list.h"
+#include "lsf/lib/bitset.h"
+#include "lsf/lib/listset.h"
 
 #define MINPASSWDLEN_LS (3)
 
@@ -52,15 +51,6 @@ struct listEntry {
     int entryData;
 };
 
-extern int mychdir_(char *, struct hostent *);
-extern int myopen_(char *, int, int, struct hostent *);
-extern FILE *myfopen_(char *, char *, struct hostent *);
-extern int mystat_(char *, struct stat *, struct hostent *);
-extern int mychmod_(char *, mode_t, struct hostent *);
-extern int mymkdir_(char *, mode_t, struct hostent *);
-extern int myunlink_(char *, struct hostent *, int);
-extern int myrename_(char *, char *, struct hostent *);
-extern char chosenPath[MAXPATHLEN];
 extern int addWindow(char *wordpair, windows_t *week[], char *context);
 extern void insertW(windows_t **window, float ohour, float chour);
 extern void checkWindow(struct dayhour *dayhour, char *active,
@@ -70,27 +60,15 @@ extern void delWindow(windows_t *wp);
 
 extern int userok(int, struct sockaddr_in *, char *, struct sockaddr_in *,
                   struct lsfAuth *, int);
-extern int hostOk(char *, int);
-extern int hostIsLocal(char *);
-extern int getHostAttribNonLim(char *hname, int updateIntvl);
-extern int timerIsExpired(struct timeval *);
-extern int wait3TmpFix_(int *, int, struct rusage *);
 extern int parseResReq(char *, struct resVal *, struct lsInfo *, int);
 extern void initParse(struct lsInfo *);
 extern int getResEntry(char *);
 extern void freeResVal(struct resVal *resVal);
 extern void initResVal(struct resVal *resVal);
 
-extern int hostValue(void);
-extern int getBootTime(time_t *);
-extern int procChangeUser_(char *);
-
 extern int matchName(char *, char *);
 extern char **parseCommandArgs(char *, char *);
 extern int FCLOSEUP(FILE **fp);
-extern void openChildLog(const char *defLogFileName, const char *confLogDir,
-                         int use_stderr, char **confLogMaskPtr);
-extern void cleanDynDbgEnv(void);
 
 extern struct listEntry *mkListHeader(void);
 extern void offList(struct listEntry *);
@@ -98,7 +76,3 @@ extern void inList(struct listEntry *, struct listEntry *);
 extern int getResourceNames(int, char **, int, char **);
 extern void displayShareResource(int, char **, int, int, int);
 extern int makeShareField(char *, int, char ***, char ***, char ***);
-extern char *getMAC(int *length);
-extern char *mac2hex(char *mac, int len);
-
-#endif

@@ -3,8 +3,7 @@
 #
 include $(top_srcdir)/Make.common
 
-COMMON_LIBS = ../lib/libllbat.a ../../lsf/lib/libll.a \
-    ../../lsf/intlib/libllcore.a -lm
+COMMON_LIBS = ../lib/libllbat.a ../../lsf/lib/libll.a -lm
 
 LDADD = $(COMMON_LIBS)
 

@@ -18,9 +18,16 @@
  *
  */
 
+// This file is a joke
+
+// WARNING:
+// This file is a historical 6K LOC blob.
+// New config logic should go into smaller lib/lsb.conf.* files.
+// This file is only being slowly drained.
+
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/lib/lsb.sig.h"
-#include "lsf/intlib/intlibout.h"
+#include "lsf/lib/intlibout.h"
 
 #ifndef LSBCONF_NOLOG
 #define LSBCONF_NOLOG 1

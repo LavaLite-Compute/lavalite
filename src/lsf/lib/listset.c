@@ -17,11 +17,11 @@
  *
  */
 
-#include "lsf/intlib/llsys.h"
-#include "lsf/intlib/listset.h"
+#include "lsf/lib/llsys.h"
+#include "lsf/lib/listset.h"
 
 void listSetFree(struct listSet *);
-struct listSet *listSetAlloc(long);
+struct listSet *listSetAlloc(int);
 
 struct listSet *FreeSet = NULL;
 
@@ -152,7 +152,7 @@ struct listSet *listSetDuplicate(struct listSet *set)
     return setHead;
 }
 
-int listSetMember(long elem, struct listSet *set)
+int listSetMember(int elem, struct listSet *set)
 {
     while (set) {
         if (set->elem == elem)
@@ -162,7 +162,7 @@ int listSetMember(long elem, struct listSet *set)
     return false;
 }
 
-struct listSet *listSetDel(long elem, struct listSet *set)
+struct listSet *listSetDel(int elem, struct listSet *set)
 {
     struct listSet *ptr, *ptmp;
 
@@ -190,7 +190,7 @@ struct listSet *listSetDel(long elem, struct listSet *set)
     return set;
 }
 
-struct listSet *listSetInsert(long elem, struct listSet *set)
+struct listSet *listSetInsert(int elem, struct listSet *set)
 {
     struct listSet *ptr, *ptmp;
 
@@ -269,7 +269,7 @@ struct listSet *listSetSub(struct listSet *set1, struct listSet *set2)
     return set1;
 }
 
-struct listSet *listSetAlloc(long elem)
+struct listSet *listSetAlloc(int elem)
 {
     struct listSet *ptr;
 
@@ -326,7 +326,7 @@ int listSetNumEle(struct listSet *set)
     return len;
 }
 
-struct listSet *listSetSelect(long start, long end, struct listSet *set)
+struct listSet *listSetSelect(int start, int end, struct listSet *set)
 {
     struct listSet *head = NULL, *low = NULL, *up = NULL, *ptr;
 
@@ -375,9 +375,9 @@ void listSetIteratorAttach(struct listSet *set, struct listSetIterator *iter)
 {
     iter->pos = set;
 }
-long *listSetIteratorBegin(struct listSetIterator *iter)
+int *listSetIteratorBegin(struct listSetIterator *iter)
 {
-    long *elem_addr;
+    int *elem_addr;
 
     elem_addr = &(iter->pos->elem);
     iter->pos = iter->pos->next;
@@ -385,9 +385,9 @@ long *listSetIteratorBegin(struct listSetIterator *iter)
     return elem_addr;
 }
 
-long *listSetIteratorGetNext(struct listSetIterator *iter)
+int *listSetIteratorGetNext(struct listSetIterator *iter)
 {
-    long *elem_addr;
+    int *elem_addr;
 
     if (iter->pos == NULL) {
         return NULL;
@@ -399,7 +399,7 @@ long *listSetIteratorGetNext(struct listSetIterator *iter)
     return elem_addr;
 }
 
-long *listSetIteratorEnd(struct listSetIterator *iter)
+int *listSetIteratorEnd(struct listSetIterator *iter)
 {
     return NULL;
 }
