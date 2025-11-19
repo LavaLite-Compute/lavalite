@@ -32,7 +32,7 @@ extern int sigNameToValue_(char *sigString);
 extern char *getLsbSigSymbol(int);
 extern char *getSigSymbol(int);
 extern void chanFreeStashedBuf(struct Buffer *);
-extern int chanAllocBuf_(struct Buffer **, int);
+extern int chan_alloc_buf(struct Buffer **, int);
 static int replay_event(char *, int);
 static struct jData *checkJobInCore(LS_LONG_INT jobId);
 
@@ -3529,7 +3529,7 @@ static int replay_jobmsg(char *filename, int lineNum)
         len++;
     len += sizeof(char *);
 
-    if (chanAllocBuf_(&buf, len) < 0)
+    if (chan_alloc_buf(&buf, len) < 0)
         return FALSE;
     NEW_BUCKET(bucket, buf);
     if (!bucket)
@@ -3558,7 +3558,7 @@ static int replay_jobmsg(char *filename, int lineNum)
     if (!xdr_encodeMsg(&bucket->xdrs, (char *) &jmsg, &lsfHdr, xdr_lsbMsg, 0,
                        NULL)) {
         ls_syslog(LOG_ERR, fname, "xdr_encodeMsg");
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         return -1;
     }
 

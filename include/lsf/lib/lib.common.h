@@ -76,23 +76,11 @@
  */
 #define NICE_LEAST -40
 #define NICE_MIDDLE 20
-#define DEF_REXPRIORITY 0
 #define LSTMPDIR lsTmpDir_
 #define LSDEVNULL "/dev/null"
 #define LL_CONF "/usr/local/etc"
-#define LIM_PORT 36000
-#define RES_PORT 36002
-#define closesocket close
-#define CLOSESOCKET(s) close((s))
-#define SOCK_CALL_FAIL(c) ((c) < 0)
-#define SOCK_INVALID(c) ((c) < 0)
-#define CLOSEHANDLE close
 /* Bug. Garbage defines....
  */
-#define SOCK_READ_FIX b_read_fix
-#define SOCK_WRITE_FIX b_write_fix
-#define NB_SOCK_READ_FIX nb_read_fix
-#define NB_SOCK_WRITE_FIX nb_write_fix
 #define LSF_NSIG NSIG
 
 extern void Signal_(int, void (*f)(int));

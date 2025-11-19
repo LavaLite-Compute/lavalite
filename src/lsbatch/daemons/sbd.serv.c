@@ -166,7 +166,7 @@ sendReply:
     relife();
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
     ls_syslog(LOG_ERR, "%s: Sending jobReply (len=%d to master failed: %m"),
 		  fname, XDR_GETPOS(&xdrs2));
     }
@@ -326,9 +326,9 @@ sendReply:
         relife();
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
-                  "chanWrite_");
+                  "chan_write");
     }
 
     xdr_destroy(&xdrs2);
@@ -464,9 +464,9 @@ sendReply:
         relife();
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
-                  "chanWrite_");
+                  "chan_write");
     }
 
     xdr_destroy(&xdrs2);
@@ -538,8 +538,8 @@ void do_probe(XDR *xdrs, int chfd, struct packet_header *reqHdr)
         relife();
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_");
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
     }
 
     xdr_destroy(&xdrs2);
@@ -718,7 +718,7 @@ Reply1:
         relife();
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
     ls_syslog(LOG_ERR, "%s: Sending jobReply (len=%d to master failed for job <%s>: %m"), fname, XDR_GETPOS(&xdrs2), lsb_jobid2str(jobSig.jobId));
     }
     if (jp != NULL)
@@ -841,7 +841,7 @@ void deliverMsg(struct bucket *bucket)
                       lsb_jobid2str(bucket->proto.jobId), mbuf->len,
                       cliPtr->chanfd);
 
-        nbytes = b_write_fix(chanSock_(cliPtr->chanfd), mbuf->data, mbuf->len);
+        nbytes = b_write_fix(chan_get_sock(cliPtr->chanfd), mbuf->data, mbuf->len);
 
         if (nbytes <= 0) {
             ls_syslog(LOG_ERR, "%s", __func__,
@@ -862,7 +862,7 @@ void deliverMsg(struct bucket *bucket)
         QUEUE_REMOVE(bucket);
         chanFreeStashedBuf_(mbuf);
     } else {
-        chanFreeBuf_(mbuf);
+        chan_free_buf(mbuf);
     }
 
     FREE_BUCKET(bucket);
@@ -902,8 +902,8 @@ void do_reboot(XDR *xdrs, int chfd, struct packet_header *reqHdr)
         return;
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_");
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
         xdr_destroy(&xdrs2);
         relife();
         return;
@@ -1060,7 +1060,7 @@ void do_sbdDebug(XDR *xdrs, int chfd, struct packet_header *reqHdr)
         return;
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s: Sending  reply to master failed : %m", fname);
         xdr_destroy(&xdrs2);
         return;
@@ -1094,7 +1094,7 @@ void do_shutdown(XDR *xdrs, int chfd, struct packet_header *reqHdr)
         return;
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s: Sending shutdown reply to master failed: %m",
                   fname);
         xdr_destroy(&xdrs2);
@@ -1403,9 +1403,9 @@ static int replyHdrWithRC(int rc, int chfd, int jobId)
         return -1;
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
-                  "chanWrite_");
+                  "chan_write");
         xdr_destroy(&xdrs2);
         return -1;
     }

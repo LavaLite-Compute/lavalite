@@ -58,8 +58,8 @@ static void process_tcp_request(int chanfd)
     struct packet_header hdr;
     XDR xdrs;
 
-    if (chanDequeue_(chanfd, &buf) < 0) {
-        ls_syslog(LOG_ERR, "%s: chanDequeue_() failed: %d", __func__, cherrno);
+    if (chan_dequeue(chanfd, &buf) < 0) {
+        ls_syslog(LOG_ERR, "%s: chan_dequeue() failed: %d", __func__, cherrno);
         shutDownChan(chanfd);
         return;
     }
@@ -72,7 +72,7 @@ static void process_tcp_request(int chanfd)
         ls_syslog(LOG_ERR, "%s: xdr_pack_hdr decode ", __func__);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         return;
     }
 
@@ -81,16 +81,16 @@ static void process_tcp_request(int chanfd)
         struct sockaddr_in from;
         socklen_t l = sizeof(struct sockaddr_in);
 
-        if (getpeername(chanSock_(chanfd), (struct sockaddr *) &from, &l) < 0) {
+        if (getpeername(chan_get_sock(chanfd), (struct sockaddr *) &from, &l) < 0) {
             syslog(LOG_ERR, "%s: getpeername(%d) failed. %m", __func__,
-                   chanSock_(chanfd));
+                   chan_get_sock(chanfd));
             memset(&from, 0, sizeof(struct sockaddr_in));
         }
         ls_syslog(LOG_ERR, "%s: protocol error received operation: %d from %s",
                   __func__, hdr.operation, sockAdd2Str_(&from));
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         return;
     }
 
@@ -111,26 +111,26 @@ static void process_tcp_request(int chanfd)
         loadadjReq(&xdrs, &clientMap[chanfd]->from, &hdr, chanfd);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         break;
     case LIM_PING:
         // This is a connect from a master that is trying to
         // take over mastership, it does not expect any reply
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         break;
     case LIM_GET_CLUSINFO:
         clusInfoReq(&xdrs, &clientMap[chanfd]->from, &hdr, chanfd);
         xdr_destroy(&xdrs);
         shutDownChan(chanfd);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         break;
     default:
         ls_syslog(LOG_ERR, "%s: invalid operation: %d", __func__,
                   hdr.operation);
         xdr_destroy(&xdrs);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         break;
     }
 }
@@ -176,12 +176,12 @@ Reply1:
     if (pid == 0) {
         int sock;
 
-        chanClose_(lim_udp_sock);
+        chan_close(lim_udp_sock);
 
         XDR_SETPOS(xdrs, oldpos);
-        sock = chanSock_(chfd);
-        if (io_block_(sock) < 0)
-            ls_syslog(LOG_ERR, "%s: io_block_() failed: %m", __func__);
+        sock = chan_get_sock(chfd);
+        if (io_block(sock) < 0)
+            ls_syslog(LOG_ERR, "%s: io_block() failed: %m", __func__);
 
         switch (hdr->operation) {
         case LIM_GET_HOSTINFO:
@@ -210,9 +210,9 @@ Reply1:
 
 static void shutDownChan(int chanfd)
 {
-    chanClose_(chanfd);
+    chan_close(chanfd);
     if (clientMap[chanfd]) {
-        chanFreeBuf_(clientMap[chanfd]->reqbuf);
+        chan_free_buf(clientMap[chanfd]->reqbuf);
         FREEUP(clientMap[chanfd]);
     }
 }

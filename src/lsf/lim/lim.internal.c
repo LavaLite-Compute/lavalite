@@ -264,7 +264,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 %s: Sending request to LIM on %s: %m",
                       __func__, sockAdd2Str_(&to_addr));
 
-        if (chanSendDgram_(lim_udp_sock, buf1, XDR_GETPOS(&xdrs1),
+        if (chan_send_dgram(lim_udp_sock, buf1, XDR_GETPOS(&xdrs1),
                            (struct sockaddr_in *) &to_addr) < 0)
             ls_syslog(LOG_ERR, "\
 %s: Failed to send request to LIM on %s: %m",
@@ -320,7 +320,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 %s: announcing SEND_ELIM_REQ to host %s %s",
                               __func__, hPtr->hostName, sockAdd2Str_(&to_addr));
 
-                if (chanSendDgram_(lim_udp_sock, buf4, XDR_GETPOS(&xdrs4),
+                if (chan_send_dgram(lim_udp_sock, buf4, XDR_GETPOS(&xdrs4),
                                    (struct sockaddr_in *) &to_addr) < 0) {
                     ls_syslog(LOG_ERR, "\
 %s: Failed to send request 1 to LIM on %s: %m",
@@ -330,7 +330,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                 hPtr->callElim = FALSE;
 
             } else {
-                if (chanSendDgram_(lim_udp_sock, buf1, XDR_GETPOS(&xdrs1),
+                if (chan_send_dgram(lim_udp_sock, buf1, XDR_GETPOS(&xdrs1),
                                    (struct sockaddr_in *) &to_addr) < 0)
                     ls_syslog(LOG_ERR, "\
 announceMaster: Failed to send request 1 to LIM on %s: %m",
@@ -344,7 +344,7 @@ announceMaster: Failed to send request 1 to LIM on %s: %m",
                           __func__, hPtr->hostName, sockAdd2Str_(&to_addr),
                           hPtr->hostInactivityCount);
 
-            if (chanSendDgram_(lim_udp_sock, buf2, XDR_GETPOS(&xdrs2),
+            if (chan_send_dgram(lim_udp_sock, buf2, XDR_GETPOS(&xdrs2),
                                (struct sockaddr_in *) &to_addr) < 0)
                 ls_syslog(LOG_ERR, "\
 %s: Failed to send request 2 to LIM on %s: %m",
@@ -433,10 +433,10 @@ void wrongMaster(struct sockaddr_in *from, char *buf,
         ls_syslog(LOG_DEBUG, "%s: Sending to %s", __func__, sockAdd2Str_(from));
 
     if (s < 0)
-        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
+        cc = chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
                             (struct sockaddr_in *) from);
     else
-        cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs));
+        cc = chan_write(s, buf, XDR_GETPOS(&xdrs));
     if (cc < 0) {
         ls_syslog(LOG_ERR, "%s: send to %s failed: %m", __func__,
                   sockAdd2Str_(from));
@@ -646,12 +646,12 @@ void sndConfInfo(struct sockaddr_in *to)
     }
 
     if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: chanSendDgram_ info to %s", fname,
+        ls_syslog(LOG_DEBUG, "%s: chan_send_dgram info to %s", fname,
                   sockAdd2Str_(to));
 
-    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
+    if (chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
                        (struct sockaddr_in *) to) < 0) {
-        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_",
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chan_send_dgram",
                   sockAdd2Str_(to));
         return;
     }
@@ -729,7 +729,7 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType)
 %s: Sending request %d to LIM on %s",
               __func__, infoType, sockAdd2Str_(&to_addr));
 
-    if (chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
+    if (chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
                        (struct sockaddr_in *) &to_addr) < 0)
         ls_syslog(LOG_ERR, "\
 %s: Failed to send request %d to LIM on %s: %m",
@@ -764,17 +764,17 @@ int probeMasterTcp(struct clusterNode *clPtr)
     get_host_sinaddrv4(hPtr->v4_epoint, &mlim_addr);
     mlim_addr.sin_port = hPtr->statInfo.portno;
 
-    int ch = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
+    int ch = chan_client_socket(AF_INET, SOCK_STREAM, 0);
     if (ch < 0) {
-        ls_syslog(LOG_ERR, "%s: %s failed: %m", __func__, "chanClientSocket_");
+        ls_syslog(LOG_ERR, "%s: %s failed: %m", __func__, "chan_client_socket");
         return -2;
     }
 
-    int rc = chanConnect_(ch, &mlim_addr, probeTimeout * 1000, 0);
+    int rc = chan_connect(ch, &mlim_addr, probeTimeout * 1000, 0);
     if (rc < 0) {
         ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", __func__,
                   sockAdd2Str_(&mlim_addr));
-        chanClose_(ch);
+        chan_close(ch);
         return -1;
     }
 
@@ -785,12 +785,12 @@ int probeMasterTcp(struct clusterNode *clPtr)
     if (rc < 0) {
         ls_syslog(LOG_ERR, "%s: failed send_packet_header() to %s %m", __func__,
                   sockAdd2Str_(&mlim_addr));
-        chanClose_(ch);
+        chan_close(ch);
         return -1;
     }
     // Bug just because the connect() succeeded does not mean
     // the lim is ok...
-    chanClose_(ch);
+    chan_close(ch);
 
     return rc;
 }

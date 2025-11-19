@@ -249,13 +249,13 @@ Reply1:
     }
 
     if (s < 0)
-        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
-        cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
+        cc = chan_write(s, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0) {
         ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname,
-                  "chanSendDgram_/chanWrite_", sockAdd2Str_(from));
+                  "chan_send_dgram/chan_write", sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         if (limReplyCode == LIME_NO_ERR)
             free(placeReply.placeInfo);
@@ -912,7 +912,7 @@ static void loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr,
                       "loadAdj: tell master(%s) of job xfer (len=%d)",
                       sockAdd2Str_(&addr), len);
 
-        if (chanSendDgram_(lim_udp_sock, buf, len, &addr) < 0) {
+        if (chan_send_dgram(lim_udp_sock, buf, len, &addr) < 0) {
             ls_syslog(LOG_ERR,
                       "%s: Failed to tell master(%s of job xfer (len=%d): %m",
                       fname, sockAdd2Str_(&addr), len);
@@ -961,7 +961,7 @@ static void loadAdj(struct jobXfer *jobXferPtr, struct hostNode **destHostPtr,
                 "loadAdj: inform destination host %s (len=%d) of job xfer",
                 sockAdd2Str_(&addr), len);
 
-        if (chanSendDgram_(lim_udp_sock, buf, len, &addr) < 0) {
+        if (chan_send_dgram(lim_udp_sock, buf, len, &addr) < 0) {
             ls_syslog(LOG_ERR,
                       "%s: Failed to inform destination host %s (len=%d of job "
                       "xfer: %m",
@@ -1062,7 +1062,7 @@ reply:
         return;
     }
 
-    if (chanWrite_(s, buf, XDR_GETPOS(&xdrs2)) < 0) {
+    if (chan_write(s, buf, XDR_GETPOS(&xdrs2)) < 0) {
         ls_syslog(
             LOG_ERR,
             "%s: Failed to send load adjustment decision to %s (len=%d: %m",
@@ -1419,9 +1419,9 @@ Reply1:
     FREEUP(reply.indicies);
 
     if (s < 0)
-        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
-        cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
+        cc = chan_write(s, buf, XDR_GETPOS(&xdrs2));
 
     free(buf);
 
@@ -1526,9 +1526,9 @@ Reply:
         return;
     }
 
-    if (chanSendDgram_(lim_udp_sock, (char *) &replyBuf, XDR_GETPOS(&xdrs2),
+    if (chan_send_dgram(lim_udp_sock, (char *) &replyBuf, XDR_GETPOS(&xdrs2),
                        from) < 0) {
-        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chanSendDgram_",
+        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chan_send_dgram",
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;

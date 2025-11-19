@@ -489,7 +489,7 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
     if ((daemonParams[LSB_BSUBI_OLD].paramValue ||
          !PURE_INTERACTIVE(jobSpecsPtr))) {
         xdrmem_create(&xdrs, buf, MSGSIZE, XDR_DECODE);
-        if (readDecodeHdr_(chfd, buf, chanRead_, &xdrs, &replyHdr) < 0) {
+        if (readDecodeHdr_(chfd, buf, chan_read, &xdrs, &replyHdr) < 0) {
             if (logclass & LC_EXEC)
                 ls_syslog(
                     LOG_DEBUG,
@@ -501,7 +501,7 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
 
         xdr_destroy(&xdrs);
 
-        chanClose_(chfd);
+        chan_close(chfd);
     }
 
     if (logclass & LC_EXEC)
@@ -660,7 +660,7 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
 
             if (logclass & LC_EXEC)
                 ls_syslog(LOG_DEBUG2, "%s: options=%x sock=%d shellPath=%s",
-                          fname, jobSpecsPtr->options, chanSock_(chfd),
+                          fname, jobSpecsPtr->options, chan_get_sock(chfd),
                           shellPath);
 
             putEnv("PATH",
@@ -3823,10 +3823,10 @@ int sbdParent(char *mode, struct jobCard *jCard, int chfd)
                   "%s: job <%s> mode <%s> hpipe[0]=%d, hpipe[1]=%d, "
                   "wrapPipe[0]=%d, wrapPipe[1]=%d, mbdHandle=%d",
                   fname, lsb_jobidinstr(jCard->jobSpecs.jobId), mode, hpipe[0],
-                  hpipe[1], wrapPipe[0], wrapPipe[1], chanSock_(chfd));
+                  hpipe[1], wrapPipe[0], wrapPipe[1], chan_get_sock(chfd));
 
     if (chfd >= 0) {
-        sprintf(hndlbuf, "%d:%d", hpipe[1], chanSock_(chfd));
+        sprintf(hndlbuf, "%d:%d", hpipe[1], chan_get_sock(chfd));
     } else {
         sprintf(hndlbuf, "%d:0", hpipe[1]);
     }
@@ -3939,7 +3939,7 @@ int sbdParent(char *mode, struct jobCard *jCard, int chfd)
     }
     close(wrapPipe[0]);
     if (chfd > 0) {
-        jCard->servSocket = chanSock_(batchSock);
+        jCard->servSocket = chan_get_sock(batchSock);
     }
 
     jCard->clusterName = clusterName;
@@ -4088,10 +4088,8 @@ void sbdChild(char *mode, char *arg)
     close(jCard.servSocket);
 
     if (strcmp(mode, "-s") == 0) {
-        chfd = chanOpenSock_(mbdHandle, CHAN_OP_RAW);
+        chfd = chan_open_sock(mbdHandle, CHAN_OP_RAW);
         if (chfd < 0) {
-            fprintf(stderr, I18N_FUNC_FAIL_ENO_D, fname, "chanOpenSock_",
-                    errno);
             exit(-1);
         }
         execJob(&jCard, chfd);

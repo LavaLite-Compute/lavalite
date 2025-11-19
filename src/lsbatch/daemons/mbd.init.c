@@ -371,8 +371,8 @@ int minit(int mbdInitFlags)
     updQueueList();
 
     if (mbdInitFlags == FIRST_START) {
-        if (chanInit_() < 0) {
-            ls_syslog(LOG_ERR, "%s", __func__, "chanInit_");
+        if (chan_init() < 0) {
+            ls_syslog(LOG_ERR, "%s", __func__, "chan_init");
             mbdDie(MASTER_FATAL);
         }
 

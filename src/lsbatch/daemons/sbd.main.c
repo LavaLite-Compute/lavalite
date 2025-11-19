@@ -414,7 +414,7 @@ int main(int argc, char **argv)
                 ls_syslog(LOG_DEBUG,
                           "main: Exception on statusChan <%d>, rmask <%x>",
                           statusChan, chanmask.rmask);
-            chanClose_(statusChan);
+            chan_close(statusChan);
             statusChan = -1;
         }
 
@@ -424,9 +424,9 @@ int main(int argc, char **argv)
             continue;
         }
 
-        s = chanAccept_(batchSock, &from);
+        s = chan_accept(batchSock, &from);
         if (s == -1) {
-            ls_syslog(LOG_ERR, "%s", __func__, "chanAccept_");
+            ls_syslog(LOG_ERR, "%s", __func__, "chan_accept");
             continue;
         }
 
@@ -434,7 +434,7 @@ int main(int argc, char **argv)
         if (!client) {
             ls_syslog(LOG_ERR, "%s", __func__, "malloc");
             ls_syslog(LOG_ERR, "%s: Unable to accept connection");
-            chanClose_(s);
+            chan_close(s);
             continue;
         }
 
@@ -488,10 +488,10 @@ static void processMsg(struct clientNode *client)
     XDR xdrs;
     int cc;
 
-    s = chanSock_(client->chanfd);
+    s = chan_get_sock(client->chanfd);
 
-    if (chanDequeue_(client->chanfd, &buf) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanDequeue_", cherrno);
+    if (chan_dequeue(client->chanfd, &buf) < 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_dequeue", cherrno);
         shutDownClient(client);
         return;
     }
@@ -501,7 +501,7 @@ static void processMsg(struct clientNode *client)
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
         shutDownClient(client);
         xdr_destroy(&xdrs);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         return;
     }
 
@@ -511,8 +511,8 @@ static void processMsg(struct clientNode *client)
         ls_syslog(LOG_DEBUG, "%s: received msg <%d>", fname, sbdReqtype);
 
     if (sbdReqtype != PREPARE_FOR_OP)
-        if (io_block_(s) < 0)
-            ls_syslog(LOG_ERR, "%s", __func__, "io_block_");
+        if (io_block(s) < 0)
+            ls_syslog(LOG_ERR, "%s", __func__, "io_block");
 
     if (sbdReqtype == MBD_NEW_JOB || sbdReqtype == MBD_SIG_JOB ||
         sbdReqtype == MBD_SWIT_JOB || sbdReqtype == MBD_PROBE ||
@@ -540,7 +540,7 @@ static void processMsg(struct clientNode *client)
                           sockAdd2Str_(&client->from));
                 shutDownClient(client);
                 xdr_destroy(&xdrs);
-                chanFreeBuf_(buf);
+                chan_free_buf(buf);
                 return;
             }
         } else {
@@ -550,7 +550,7 @@ static void processMsg(struct clientNode *client)
                           fname, sbdReqtype, sockAdd2Str_(&client->from));
                 shutDownClient(client);
                 xdr_destroy(&xdrs);
-                chanFreeBuf_(buf);
+                chan_free_buf(buf);
                 return;
             }
 #ifdef INTER_DAEMON_AUTH
@@ -560,7 +560,7 @@ static void processMsg(struct clientNode *client)
         if (get_new_master(&client->from) < 0) {
             errorBack(client->chanfd, LSBE_NOLSF_HOST, &client->from);
             shutDownClient(client);
-            chanFreeBuf_(buf);
+            chan_free_buf(buf);
             xdr_destroy(&xdrs);
             return;
         }
@@ -571,7 +571,7 @@ static void processMsg(struct clientNode *client)
                       sockAdd2Str_(&client->from), sbdReqtype);
             errorBack(client->chanfd, cc, &client->from);
             shutDownClient(client);
-            chanFreeBuf_(buf);
+            chan_free_buf(buf);
             xdr_destroy(&xdrs);
             return;
         }
@@ -652,14 +652,14 @@ static void processMsg(struct clientNode *client)
     }
 
     xdr_destroy(&xdrs);
-    chanFreeBuf_(buf);
+    chan_free_buf(buf);
     if (reqHdr.operation != PREPARE_FOR_OP && reqHdr.operation != RM_CONNECT)
         shutDownClient(client);
 }
 
 void shutDownClient(struct clientNode *client)
 {
-    chanClose_(client->chanfd);
+    chan_close(client->chanfd);
     offList((struct listEntry *) client);
 
     if (client->jp) {
@@ -869,8 +869,8 @@ void sinit(void)
         }
     }
 
-    if (chanInit_() < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanInit_");
+    if (chan_init() < 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_init");
         die(SLAVE_FATAL);
     }
 }
@@ -967,7 +967,7 @@ static int authCmdRequest(struct clientNode *client, XDR *xdrs,
     char fromHost[MAXHOSTNAMELEN];
     struct lsfAuth auth;
 
-    s = chanSock_(client->chanfd);
+    s = chan_get_sock(client->chanfd);
     struct ll_host hp;
     if (get_host_by_sockaddr_in(&client->from.sin_addr) < 0) {
         ls_syslog(LOG_ERR, "%s DNS lookup failed for %s", __func__,
@@ -1029,7 +1029,7 @@ static int authMbdRequest(struct clientNode *client, XDR *xdrs,
     struct lsfAuth auth;
     char buf[1024];
 
-    s = chanSock_(client->chanfd);
+    s = chan_get_sock(client->chanfd);
     struct ll_host hp;
     if (get_host_by_sockadd_in(&client->from.sin_addr) < 0) {
         ls_syslog(LOG_ERR, "%s DNS reverse lookup failed for %s", __func__,

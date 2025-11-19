@@ -56,7 +56,7 @@ int do_submitReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
 
     if (logclass & (LC_TRACE | LC_EXEC | LC_COMM))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...; host=%s, socket=%d",
-                  fname, hostName, chanSock_(chfd));
+                  fname, hostName, chan_get_sock(chfd));
 
     initSubmit(&first, &subReq, &submitReply);
 
@@ -220,8 +220,8 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     len = XDR_GETPOS(&xdrs2);
 
     {
-        if (chanWrite_(chfd, reply_buf, len) != len) {
-            ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_");
+        if (chan_write(chfd, reply_buf, len) != len) {
+            ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
             FREEUP(reply_buf);
             freeJobHead(&jobInfoHead);
             FREEUP(jgrplist);
@@ -258,8 +258,8 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         }
 
         {
-            if (chanWrite_(chfd, buf, len) != len) {
-                ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_");
+            if (chan_write(chfd, buf, len) != len) {
+                ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
                 FREEUP(buf);
                 FREEUP(jgrplist);
                 return -1;
@@ -269,7 +269,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     }
     FREEUP(jgrplist);
 
-    chanClose_(chfd);
+    chan_close(chfd);
     return 0;
 }
 
@@ -724,8 +724,8 @@ int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
         return -1;
     }
     cc = XDR_GETPOS(&xdrs2);
-    if ((chanWrite_(chfd, reply_buf, cc)) != cc) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_");
+    if ((chan_write(chfd, reply_buf, cc)) != cc) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
         xdr_destroy(&xdrs2);
         FREEUP(jobPeekReply.outFile);
         return -1;
@@ -769,7 +769,7 @@ Reply:
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         return -1;
@@ -853,7 +853,7 @@ Reply:
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         return -1;
@@ -906,7 +906,7 @@ Reply:
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         return -1;
@@ -999,7 +999,7 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
         free(hp.h_name);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         free(hp.h_name);
@@ -1081,7 +1081,7 @@ int do_chunkStatusReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         free(hp.h_name);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         free(hp.h_name);
@@ -1156,8 +1156,8 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         return -1;
     }
     cc = XDR_GETPOS(&xdrs2);
-    if (chanWrite_(chfd, reply_buf, cc) <= 0)
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", cc);
+    if (chan_write(chfd, reply_buf, cc) <= 0)
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", cc);
 
     free(reply_buf);
     xdr_destroy(&xdrs2);
@@ -1218,7 +1218,7 @@ int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(hostsReply.hosts);
@@ -1274,7 +1274,7 @@ int do_userInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
             free(userInfoReply.users);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
@@ -1366,7 +1366,7 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
         freeQueueInfoReply(&qInfoReply, replyStruct);
         FREEUP(reply_buf);
@@ -1440,8 +1440,8 @@ int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         return -1;
     }
 
-    if ((chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2))) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if ((chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2))) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         FREEUP(reply_buf);
         xdr_destroy(&xdrs2);
         freeGroupInfoReply(&groupInfoReply);
@@ -1498,8 +1498,8 @@ int do_paramInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         return -1;
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
         return -1;
@@ -1534,8 +1534,8 @@ int do_queueControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -1577,8 +1577,8 @@ int do_reconfigReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", replyHdr.operation);
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
     xdr_destroy(&xdrs2);
 
     ls_syslog(LOG_DEBUG, "%s: restart a new mbatchd", __func__);
@@ -1616,8 +1616,8 @@ checkout:
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", reply);
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
     xdr_destroy(&xdrs2);
     return 0;
 }
@@ -1646,8 +1646,8 @@ int do_jobSwitchReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -1684,8 +1684,8 @@ int do_jobMoveReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -1776,8 +1776,8 @@ static int sendBack(int reply, struct submitReq *submitReq,
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) != XDR_GETPOS(&xdrs2))
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) != XDR_GETPOS(&xdrs2))
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
     xdr_destroy(&xdrs2);
     return 0;
 }
@@ -1799,13 +1799,13 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
     if (jData->jobPid != 0)
         return;
 
-    if (exception == TRUE || chanRecv_(sbdPtr->chanfd, &buf) < 0) {
+    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         if (exception == TRUE)
             ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for job <%s>",
                       fname, sbdPtr->chanfd, lsb_jobid2str(jData->jobId));
         else
             ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                      "chanRecv_");
+                      "chan_dequeue");
 
         if (IS_START(jData->jStatus)) {
             jData->newReason = PEND_JOB_START_FAIL;
@@ -1858,8 +1858,8 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
         if (daemonParams[LSB_MBD_BLOCK_SEND].paramValue == NULL) {
             struct Buffer *replyBuf;
 
-            if (chanAllocBuf_(&replyBuf, sizeof(struct packet_header)) < 0) {
-                ls_syslog(LOG_ERR, "%s", __func__, "chanAllocBuf_");
+            if (chan_alloc_buf(&replyBuf, sizeof(struct packet_header)) < 0) {
+                ls_syslog(LOG_ERR, "%s", __func__, "chan_alloc_buf");
                 goto Leave;
             }
 
@@ -1867,17 +1867,17 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
 
             replyBuf->len = PACKET_HEADER_SIZE;
 
-            if (chanEnqueue_(sbdPtr->chanfd, replyBuf) < 0) {
+            if (chan_enqueue(sbdPtr->chanfd, replyBuf) < 0) {
                 ls_syslog(LOG_ERR, "%s", __func__, "chanEnqueue");
-                chanFreeBuf_(replyBuf);
+                chan_free_buf(replyBuf);
             } else {
                 sbdPtr->reqCode = MBD_NEW_JOB_KEEP_CHAN;
             }
         } else {
             hdr.operation = LSBE_NO_ERROR;
 
-            s = chanSock_(sbdPtr->chanfd);
-            io_block_(s);
+            s = chan_get_sock(sbdPtr->chanfd);
+            io_block(s);
 
             cc = send_packet_header(sbdPtr->chanfd, &hdr);
             if (cc < 0) {
@@ -1890,7 +1890,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
 Leave:
 
     xdr_destroy(&xdrs);
-    chanFreeBuf_(buf);
+    chan_free_buf(buf);
 }
 
 void doProbeReply(struct sbdNode *sbdPtr, int exception)
@@ -1904,12 +1904,12 @@ void doProbeReply(struct sbdNode *sbdPtr, int exception)
     if (logclass & LC_COMM)
         ls_syslog(LOG_DEBUG, "%s: Entering ...", fname);
 
-    if (exception == TRUE || chanRecv_(sbdPtr->chanfd, &buf) < 0) {
+    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         if (exception == TRUE)
             ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for host <%s>",
                       fname, sbdPtr->chanfd, toHost);
         else
-            ls_syslog(LOG_ERR, "%s", __func__, toHost, "chanRecv_");
+            ls_syslog(LOG_ERR, "%s", __func__, toHost, "chan_dequeue");
         sbdPtr->hData->flags |= HOST_NEEDPOLL;
         return;
     }
@@ -1941,7 +1941,7 @@ void doProbeReply(struct sbdNode *sbdPtr, int exception)
     }
 
     xdr_destroy(&xdrs);
-    chanFreeBuf_(buf);
+    chan_free_buf(buf);
 }
 
 void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
@@ -1961,13 +1961,13 @@ void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
 
         return;
 
-    if (exception == TRUE || chanRecv_(sbdPtr->chanfd, &buf) < 0) {
+    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         if (exception == TRUE)
             ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for job <%s>",
                       fname, sbdPtr->chanfd, lsb_jobid2str(jData->jobId));
         else
             ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                      "chanRecv_");
+                      "chan_dequeue");
         jData->pendEvent.notSwitched = TRUE;
         eventPending = TRUE;
         return;
@@ -2031,7 +2031,7 @@ void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
 Leave:
 
     xdr_destroy(&xdrs);
-    chanFreeBuf_(buf);
+    chan_free_buf(buf);
 }
 
 void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
@@ -2056,13 +2056,13 @@ void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
         return;
     }
 
-    if (exception == TRUE || chanRecv_(sbdPtr->chanfd, &buf) < 0) {
+    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         if (exception == TRUE)
             ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for job <%s>",
                       fname, sbdPtr->chanfd, lsb_jobid2str(jData->jobId));
         else
             ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                      "chanRecv_");
+                      "chan_dequeue");
         addPendSigEvent(sbdPtr);
         return;
     }
@@ -2122,7 +2122,7 @@ void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
 Leave:
 
     xdr_destroy(&xdrs);
-    chanFreeBuf_(buf);
+    chan_free_buf(buf);
 }
 
 static void addPendSigEvent(struct sbdNode *sbdPtr)
@@ -2326,8 +2326,8 @@ int do_debugReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
         return -1;
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -2401,7 +2401,7 @@ int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         freeShareResourceInfoReply(&resInfoReply);
         return -1;
     }
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
@@ -2492,8 +2492,8 @@ Reply:
         return -1;
     }
 
-    if (chanWrite_(chfd, reply_buf, XDR_GETPOS(&replyXdr)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_");
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&replyXdr)) <= 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
         xdr_destroy(&replyXdr);
         return -1;
     }
@@ -2548,8 +2548,8 @@ int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chanWrite_(s, reply_buf, XDR_GETPOS(&xdrs2)) != XDR_GETPOS(&xdrs2)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_");
+    if (chan_write(s, reply_buf, XDR_GETPOS(&xdrs2)) != XDR_GETPOS(&xdrs2)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -2581,7 +2581,7 @@ int authDaemonRequest(int chanfd, XDR *xdrs, struct packet_header *reqHdr,
         return LSBE_NO_ERROR;
 
     if (from_host == NULL) {
-        s = chanSock_(chanfd);
+        s = chan_get_sock(chanfd);
         from_len = sizeof(from);
         memset(&from, 0, from_len);
         if (getpeername(s, (struct sockaddr *) &from, &from_len) == -1) {
