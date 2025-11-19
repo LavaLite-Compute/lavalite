@@ -193,7 +193,7 @@ int send_packet_header(int chfd, struct packet_header *hdr)
     }
     xdr_destroy(&xdrs);
 
-    if (chanWrite_(chfd, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
+    if (chan_write(chfd, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
         lserrno = LSE_MSG_SYS;
         return -1;
     }
@@ -206,7 +206,7 @@ int recv_packet_header(int chfd, struct packet_header *hdr)
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
 
-    if (chanRead_(chfd, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
+    if (chan_read(chfd, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
         lserrno = LSE_MSG_SYS;
         return -1;
     }

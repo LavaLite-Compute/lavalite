@@ -103,7 +103,7 @@ void die(int sig)
         }
     }
 
-    shutdown(chanSock_(batchSock), 2);
+    shutdown(chan_get_sock(batchSock), 2);
 
     exit(sig);
 }
@@ -395,10 +395,10 @@ void errorBack(int chan, int replyCode, struct sockaddr_in *from)
     init_pack_hdr(&replyHdr);
 
     replyHdr.operation = replyCode;
-    io_block_(chanSock_(chan));
+    io_block(chan_get_sock(chan));
     if (xdr_encodeMsg(&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
-        if (chanWrite_(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)
-            ls_syslog(LOG_ERR, "%s", __func__, "chanWrite_",
+        if (chan_write(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)
+            ls_syslog(LOG_ERR, "%s", __func__, "chan_write",
                       sockAdd2Str_(from));
     } else
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg", sockAdd2Str_(from));

@@ -81,9 +81,9 @@ int init_ServSock(u_short port)
 {
     int ch;
 
-    ch = chanServSocket_(SOCK_STREAM, ntohs(port), 1024, CHAN_OP_SOREUSE);
+    ch = chan_listen_socket(SOCK_STREAM, ntohs(port), 1024, CHAN_OP_SOREUSE);
     if (ch < 0) {
-        ls_syslog(LOG_ERR, "init_ServSock", "chanServSocket_");
+        ls_syslog(LOG_ERR, "init_ServSock", "chan_listen_socket");
         return -1;
     }
 
@@ -97,17 +97,17 @@ int rcvJobFile(int chfd, struct lenData *jf)
     jf->data = NULL;
     jf->len = 0;
 
-    if ((cc = chanRead_(chfd, (void *) (&jf->len), NET_INTSIZE_)) !=
+    if ((cc = chan_read(chfd, (void *) (&jf->len), NET_INTSIZE_)) !=
         NET_INTSIZE_) {
-        ls_syslog(LOG_ERR, "%s: chanRead_() failed %m", __func__);
+        ls_syslog(LOG_ERR, "%s: chan_read() failed %m", __func__);
         return -1;
     }
 
     jf->len = ntohl(jf->len);
     jf->data = my_malloc(jf->len, "rcvJobFile");
 
-    if ((cc = chanRead_(chfd, jf->data, jf->len)) != jf->len) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanRead_");
+    if ((cc = chan_read(chfd, jf->data, jf->len)) != jf->len) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_read");
         free(jf->data);
         return -1;
     }
@@ -122,7 +122,7 @@ int do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
     struct Buffer *buf;
     struct packet_header replyHdr;
 
-    if (chanAllocBuf_(&buf, sizeof(struct packet_header)) < 0) {
+    if (chan_alloc_buf(&buf, sizeof(struct packet_header)) < 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "malloc");
         return -1;
     }
@@ -139,8 +139,8 @@ int do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
 
     buf->len = XDR_GETPOS(&xdrs2);
 
-    if (chanEnqueue_(chanfd, buf) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanEnqueue_");
+    if (chan_enqueue(chanfd, buf) < 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_enqueue");
         xdr_destroy(&xdrs2);
         return -1;
     }

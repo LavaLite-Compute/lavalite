@@ -164,8 +164,6 @@ static void processSbdNode(struct sbdNode *, int);
 static void setNextSchedTimeWhenJobFinish(void);
 static int acceptConnection(int);
 
-extern void chanInactivate_(int);
-extern void chanActivate_(int);
 extern int do_chunkStatusReq(XDR *, int, struct sockaddr_in *, int *,
                              struct packet_header *);
 extern int do_setJobAttr(XDR *, int, struct sockaddr_in *, char *,
@@ -483,7 +481,7 @@ static int acceptConnection(int socket)
     struct sockaddr_in from;
     struct mbd_client_node *client;
 
-    s = chanAccept_(socket, (struct sockaddr_in *) &from);
+    s = chan_accept(socket, (struct sockaddr_in *) &from);
     if (s == -1) {
         ls_syslog(LOG_ERR, "main", "accept");
         return -1;
@@ -495,14 +493,14 @@ static int acceptConnection(int socket)
         ls_syslog(LOG_WARNING, "%s: request from unknown host %s:", __func__,
                   sockAdd2Str_(&from));
         errorBack(s, LSBE_PERMISSION, &from);
-        chanClose_(s);
+        chan_close(s);
         return -1;
     }
 
     if (logclass & (LC_COMM | LC_TRACE)) {
         ls_syslog(LOG_DEBUG1, "\
 %s: Received request from host <%s/%s> on socket <%d>",
-                  fname, hs.name, sockAdd2Str_(&from), chanSock_(s));
+                  fname, hs.name, sockAdd2Str_(&from), chan_get_sock(s));
     }
 
     client = calloc(1, sizeof(struct mbd_client_node));
@@ -582,8 +580,8 @@ static int processClient(struct mbd_client_node *client, int *needFree)
     memset(&auth, 0, sizeof(auth));
     s = client->chanfd;
 
-    if (chanDequeue_(client->chanfd, &buf) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanDequeue_", cherrno);
+    if (chan_dequeue(client->chanfd, &buf) < 0) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_dequeue", cherrno);
         shutDownClient(client);
         return -1;
     }
@@ -592,7 +590,7 @@ static int processClient(struct mbd_client_node *client, int *needFree)
     if (!xdr_pack_hdr(&xdrs, &reqHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
         xdr_destroy(&xdrs);
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         shutDownClient(client);
         return -1;
     }
@@ -622,11 +620,11 @@ static int processClient(struct mbd_client_node *client, int *needFree)
     }
 
     if (reqHdr.operation != PREPARE_FOR_OP)
-        if (io_block_(chanSock_(s)) < 0)
-            ls_syslog(LOG_ERR, "%s", __func__, "io_block_");
+        if (io_block(chan_get_sock(s)) < 0)
+            ls_syslog(LOG_ERR, "%s", __func__, "io_block");
 
     socklen_t laddrLen = sizeof(laddr);
-    if (getsockname(chanSock_(s), (struct sockaddr *) &laddr, &laddrLen) ==
+    if (getsockname(chan_get_sock(s), (struct sockaddr *) &laddr, &laddrLen) ==
         -1) {
         ls_syslog(LOG_ERR, "%s", __func__, "getsockname");
         errorBack(s, LSBE_PROTOCOL, &from);
@@ -635,7 +633,7 @@ static int processClient(struct mbd_client_node *client, int *needFree)
     }
 
     if ((cc = authRequest(&auth, &xdrs, &reqHdr, &from, &laddr,
-                          client->fromHost, chanSock_(s))) != LSBE_NO_ERROR) {
+                          client->fromHost, chan_get_sock(s))) != LSBE_NO_ERROR) {
         errorBack(s, cc, &from);
         goto endLoop;
     }
@@ -651,7 +649,7 @@ static int processClient(struct mbd_client_node *client, int *needFree)
         }
 
         if (mbd_debug)
-            closeExceptFD(chanSock_(s));
+            closeExceptFD(chan_get_sock(s));
     }
 
     switch (mbdReqtype) {
@@ -660,7 +658,7 @@ static int processClient(struct mbd_client_node *client, int *needFree)
         if (do_readyOp(&xdrs, client->chanfd, &from, &reqHdr) < 0) {
             shutDownClient(client);
             xdr_destroy(&xdrs);
-            chanFreeBuf_(buf);
+            chan_free_buf(buf);
             return -1;
         }
         break;
@@ -812,14 +810,14 @@ static int processClient(struct mbd_client_node *client, int *needFree)
     }
 
     if (forkOnRequest(mbdReqtype)) {
-        chanFreeBuf_(buf);
+        chan_free_buf(buf);
         exit(0);
     }
 endLoop:
     client->reqType = mbdReqtype;
     client->lastTime = now;
     xdr_destroy(&xdrs);
-    chanFreeBuf_(buf);
+    chan_free_buf(buf);
     if ((reqHdr.operation != PREPARE_FOR_OP &&
          reqHdr.operation != BATCH_STATUS_JOB &&
          reqHdr.operation != BATCH_RUSAGE_JOB &&
@@ -841,7 +839,7 @@ void shutDownClient(struct mbd_client_node *client)
         client->lastTime)
         nSbdConnections--;
 
-    chanClose_(client->chanfd);
+    chan_close(client->chanfd);
     offList((struct listEntry *) client);
     if (client->fromHost)
         free(client->fromHost);
@@ -1166,7 +1164,7 @@ static void processSbdNode(struct sbdNode *sbdPtr, int exception)
                   sbdPtr->reqCode);
     }
 
-    chanClose_(sbdPtr->chanfd);
+    chan_close(sbdPtr->chanfd);
     offList((struct listEntry *) sbdPtr);
     FREEUP(sbdPtr);
     nSbdConnections--;

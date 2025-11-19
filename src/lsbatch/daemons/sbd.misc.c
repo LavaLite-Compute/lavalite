@@ -280,7 +280,7 @@ int rmDir(char *dir)
 void closeBatchSocket(void)
 {
     if (batchSock > 0) {
-        chanClose_(batchSock);
+        chan_close(batchSock);
         batchSock = -1;
     }
 }

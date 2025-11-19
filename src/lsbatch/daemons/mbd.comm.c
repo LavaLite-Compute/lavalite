@@ -719,8 +719,8 @@ static sbdReplyType callSBD(char *toHost, char *request_buf, int len,
                    sizeof(struct sbdNode));
             newSbdNode->chanfd = *sockPtr;
             newSbdNode->lastTime = now;
-            if (chanSetMode_(*sockPtr, CHAN_MODE_NONBLOCK) < 0) {
-                ls_syslog(LOG_ERR, "%s", __func__, "chanSetMode_", *sockPtr);
+            if (chan_set_mode(*sockPtr, CHAN_MODE_NONBLOCK) < 0) {
+                ls_syslog(LOG_ERR, "%s", __func__, "chan_set_mode", *sockPtr);
                 free(newSbdNode);
             } else {
                 inList((struct listEntry *) &sbdNodeList,

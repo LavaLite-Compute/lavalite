@@ -185,11 +185,11 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
     struct Buffer rcvbuf = {0};
 
     if (lim_chans[TCP] < 0) {
-        lim_chans[TCP] = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
+        lim_chans[TCP] = chan_client_socket(AF_INET, SOCK_STREAM, 0);
         if (lim_chans[TCP] < 0)
             return -1;
 
-        cc = chanConnect_(lim_chans[TCP], &sock_addr_in[TCP],
+        cc = chan_connect(lim_chans[TCP], &sock_addr_in[TCP],
                           conntimeout_ * 1000, 0);
         if (cc < 0) {
             if (errno == ECONNREFUSED)
@@ -202,7 +202,7 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
         }
     }
 
-    cc = chanRpc_(lim_chans[TCP], &sndbuf, &rcvbuf, reply_hdr,
+    cc = chan_rpc(lim_chans[TCP], &sndbuf, &rcvbuf, reply_hdr,
                   recvtimeout_ * 1000);
     if (cc < 0) {
         CLOSECD(lim_chans[TCP]);
@@ -246,12 +246,12 @@ static int callLimUDP_(char *req_buf, char *rep_buf, size_t len,
     (void) host;
 
     if (lim_chans[UDP] < 0) {
-        lim_chans[UDP] = chanClientSocket_(AF_INET, SOCK_DGRAM, 0);
+        lim_chans[UDP] = chan_client_socket(AF_INET, SOCK_DGRAM, 0);
         if (lim_chans[UDP] < 0)
             return -1;
     }
 
-    int cc = chanSendDgram_(lim_chans[UDP], req_buf, len, &sock_addr_in[UDP]);
+    int cc = chan_send_dgram(lim_chans[UDP], req_buf, len, &sock_addr_in[UDP]);
     if (cc < 0)
         return -1;
 
@@ -259,7 +259,7 @@ static int callLimUDP_(char *req_buf, char *rep_buf, size_t len,
         return 0;
 
     struct sockaddr_storage from;
-    cc = chanRcvDgram_(lim_chans[UDP], rep_buf, MSGSIZE, &from,
+    cc = chan_recv_dgram_(lim_chans[UDP], rep_buf, MSGSIZE, &from,
                        conntimeout_ * 1000);
     if (cc < 0)
         return -1;

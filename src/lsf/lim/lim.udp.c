@@ -45,7 +45,7 @@ void clusNameReq(XDR *xdrs, struct sockaddr_in *from,
         return;
     }
 
-    if (chanSendDgram_(lim_udp_sock, buf, xdr_getpos(&xdrs2), from) < 0) {
+    if (chan_send_dgram(lim_udp_sock, buf, xdr_getpos(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: chanWrite() failed: %m", __func__,
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -98,7 +98,7 @@ void masterInfoReq(XDR *xdrs, struct sockaddr_in *from,
         }
     }
 
-    int cc = chanSendDgram_(lim_udp_sock, buf, xdr_getpos(&xdrs2), from);
+    int cc = chan_send_dgram(lim_udp_sock, buf, xdr_getpos(&xdrs2), from);
     if (cc < 0) {
         ls_syslog(LOG_ERR, "%s: chanWrite() failed: %m", __func__,
                   sockAdd2Str_(from));
@@ -128,9 +128,9 @@ void pingReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr)
         return;
     }
 
-    int cc = chanSendDgram_(lim_udp_sock, buf, xdr_getpos(&xdrs2), from);
+    int cc = chan_send_dgram(lim_udp_sock, buf, xdr_getpos(&xdrs2), from);
     if (cc < 0) {
-        ls_syslog(LOG_ERR, "%s: chanWrite_() to %s failed: %m", __func__,
+        ls_syslog(LOG_ERR, "%s: chan_write() to %s failed: %m", __func__,
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         return;

@@ -43,7 +43,7 @@ enum chan_block_mode { CHAN_MODE_BLOCK, CHAN_MODE_NONBLOCK };
 #define INVALID_HANDLE -1
 #define CLOSECD(c)                                                             \
     do {                                                                       \
-        chanClose_((c));                                                       \
+        chan_close((c));                                                       \
         (c) = INVALID_HANDLE;                                                  \
     } while (0)
 #define CHAN_INIT_BUF(b) memset((b), 0, sizeof(struct Buffer));
@@ -54,7 +54,6 @@ struct Buffer {
     char *data;
     int pos;
     int len;
-    int stashed;
 };
 
 struct Masks {
@@ -64,62 +63,36 @@ struct Masks {
 };
 
 struct chanData {
-    int handle;
-    enum chanType type;
-    enum chanState state;
-    enum chanState prestate;
-    int chanerr;
+    int handle;          // the socket
+    enum chanType type;  // channel type UDP/TCP ...
+    enum chanState state;  // connectes, waiting, inactive...
     struct Buffer *send;
     struct Buffer *recv;
 };
 
-#define CHANE_NOERR 0
-#define CHANE_CONNECTED 1
-#define CHANE_NOTCONN 2
-#define CHANE_SYSCALL 3
-#define CHANE_INTERNAL 4
-#define CHANE_NOCHAN 5
-#define CHANE_MALLOC 6
-#define CHANE_BADHDR 7
-#define CHANE_BADCHAN 8
-#define CHANE_BADCHFD 9
-#define CHANE_NOMSG 10
-#define CHANE_CONNRESET 11
+//legacy
+int chanSelect_(struct Masks *, struct Masks *, struct timeval *);
 
-#define chanSend_ chanEnqueue_
-#define chanRecv_ chanDequeue_
-
-extern int chanInit_(void);
-extern int chanConnect_(int, struct sockaddr_in *, int, int);
-extern int chanOpen_(struct sockaddr_in, uint16_t, int);
-extern int chanEnqueue_(int chfd, struct Buffer *buf);
-extern int chanDequeue_(int chfd, struct Buffer **buf);
-
-extern int chanSelect_(struct Masks *, struct Masks *, struct timeval *);
-extern int chanClose_(int chfd);
-extern void chanCloseAll_(void);
-extern int chanSock_(int chfd);
-
-extern int chanServSocket_(int, u_short, int, int);
-extern int chanAccept_(int, struct sockaddr_in *);
-
-extern int chanClientSocket_(int, int, int);
-extern int chanRpc_(int, struct Buffer *, struct Buffer *,
-                    struct packet_header *, int);
-extern ssize_t chanRead_(int, void *, size_t);
-extern ssize_t chanReadNonBlock_(int, char *, int, int);
-extern ssize_t chanWrite_(int, void *, size_t);
-
-extern int chanAllocBuf_(struct Buffer **buf, int size);
-extern int chanFreeBuf_(struct Buffer *buf);
-extern int chanFreeStashedBuf_(struct Buffer *buf);
-extern int chanOpenSock_(int, int);
-extern int chanSetMode_(int, int);
-
-extern int chanIndex;
-extern int cherrno;
+int chan_init(void);
+int chan_close(int);
+int chan_connect(int, struct sockaddr_in *, int, int);
+int chan_enqueue(int, struct Buffer *);
+int chan_dequeue(int, struct Buffer **);
+int chan_listen_socket(int, u_short, int, int);
+int chan_accept(int, struct sockaddr_in *);
+int chan_client_socket(int, int, int);
+int chan_rpc(int, struct Buffer *, struct Buffer *,
+             struct packet_header *, int);
+ssize_t chan_read(int, void *, size_t);
+ssize_t chan_read_nonblock(int, char *, int, int);
+ssize_t chan_write(int, void *, size_t);
+int chan_alloc_buf(struct Buffer **, int);
+int chan_free_buf(struct Buffer *);
+int chan_open_sock(int, int);
+int chan_set_mode(int, int);
 int ll_dup_stdio(int);
-int io_non_block_(int);
-int io_block_(int);
-int chanSendDgram_(int, char *, size_t, struct sockaddr_in *);
-int chanRcvDgram_(int, void *, size_t, struct sockaddr_storage *, int);
+int io_non_block(int);
+int io_block(int);
+int chan_send_dgram(int, char *, size_t, struct sockaddr_in *);
+int chan_recv_dgram_(int, void *, size_t, struct sockaddr_storage *, int);
+int chan_get_sock(int);

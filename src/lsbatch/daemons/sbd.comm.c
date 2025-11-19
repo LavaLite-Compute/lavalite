@@ -221,7 +221,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
         timeval.tv_sec = 0;
         timeval.tv_usec = 0;
 
-        if (rd_select_(chanSock_(statusChan), &timeval) == 0) {
+        if (rd_select_(chan_get_sock(statusChan), &timeval) == 0) {
             jp->needReportRU = FALSE;
             jp->lastStatusMbdTime = now;
             return 0;
@@ -538,11 +538,11 @@ int msgSupervisor(struct lsbMsg *lsbMsg, struct clientNode *cliPtr)
         return -1;
     }
 
-    if ((cc = b_write_fix(chanSock_(cliPtr->chanfd), reqBuf,
+    if ((cc = b_write_fix(chan_get_sock(cliPtr->chanfd), reqBuf,
                           XDR_GETPOS(&xdrs))) != XDR_GETPOS(&xdrs)) {
         if (logclass & LC_COMM)
             ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix",
-                      chanSock_(cliPtr->chanfd), XDR_GETPOS(&xdrs));
+                      chan_get_sock(cliPtr->chanfd), XDR_GETPOS(&xdrs));
         xdr_destroy(&xdrs);
         return -1;
     }

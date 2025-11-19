@@ -52,13 +52,13 @@ int serv_connect(char *serv_host, ushort serv_port, int timeout)
     memcpy(&serv_addr.sin_addr, &sin->sin_addr, sizeof(struct in_addr));
     serv_addr.sin_port = serv_port;
 
-    chfd = chanClientSocket_(AF_INET, SOCK_STREAM, 0);
+    chfd = chan_client_socket(AF_INET, SOCK_STREAM, 0);
     if (chfd < 0) {
         lsberrno = LSBE_LSLIB;
         return -1;
     }
 
-    cc = chanConnect_(chfd, &serv_addr, timeout * 1000, 0);
+    cc = chan_connect(chfd, &serv_addr, timeout * 1000, 0);
     if (cc < 0) {
         // Some translation between lserrno and lsberrno
         switch (lserrno) {
@@ -68,7 +68,7 @@ int serv_connect(char *serv_host, ushort serv_port, int timeout)
         default:
             lsberrno = LSBE_SYS_CALL;
         }
-        chanClose_(chfd);
+        chan_close(chfd);
         return -1;
     }
 
@@ -146,7 +146,7 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG2, "callserver: Enqueue only");
 
-        if (chanSetMode_(serverSock, CHAN_MODE_NONBLOCK) < 0) {
+        if (chan_set_mode(serverSock, CHAN_MODE_NONBLOCK) < 0) {
             ls_syslog(LOG_ERR, "FUNC_FAIL_MM", "callserver", "chanSetMode");
             CLOSECD(serverSock);
             return -2;
@@ -155,8 +155,8 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
         if (postSndFunc)
             tsize += ((struct lenData *) postSndFuncArg)->len + NET_INTSIZE_;
 
-        if (chanAllocBuf_(&sndBuf, tsize) < 0) {
-            ls_syslog(LOG_ERR, "FUNC_D_FAIL_M", fname, "chanAllocBuf_", tsize);
+        if (chan_alloc_buf(&sndBuf, tsize) < 0) {
+            ls_syslog(LOG_ERR, "FUNC_D_FAIL_M", fname, "chan_alloc_buf", tsize);
             CLOSECD(serverSock);
             return -2;
         }
@@ -173,15 +173,15 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
                    ((struct lenData *) postSndFuncArg)->len);
         }
 
-        if (chanEnqueue_(serverSock, sndBuf) < 0) {
-            ls_syslog(LOG_ERR, "FUNC_FAIL_ENO_D", fname, "chanEnqueue_",
+        if (chan_enqueue(serverSock, sndBuf) < 0) {
+            ls_syslog(LOG_ERR, "FUNC_FAIL_ENO_D", fname, "chan_enqueue",
                       cherrno);
-            chanFreeBuf_(sndBuf);
+            chan_free_buf(sndBuf);
             CLOSECD(serverSock);
             return -2;
         }
     } else {
-        cc = chanRpc_(serverSock, &reqbuf, replyBufPtr, replyHdr,
+        cc = chan_rpc(serverSock, &reqbuf, replyBufPtr, replyHdr,
                       recv_timeout * 1000);
         if (cc < 0) {
             lsberrno = LSBE_LSLIB;
@@ -198,7 +198,7 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
     if (connectedSock) {
         *connectedSock = serverSock;
     } else {
-        chanClose_(serverSock);
+        chan_close(serverSock);
     }
 
     if (flags & CALL_SERVER_NO_WAIT_REPLY)
@@ -416,7 +416,7 @@ int readNextPacket(char **msgBuf, int timeout, struct packet_header *hdr,
         return -1;
     }
 
-    cc = chanRpc_(serverSock, NULL, &replyBuf, hdr, timeout * 1000);
+    cc = chan_rpc(serverSock, NULL, &replyBuf, hdr, timeout * 1000);
     if (cc < 0) {
         lsberrno = LSBE_LSLIB;
         return -1;
@@ -433,7 +433,7 @@ int readNextPacket(char **msgBuf, int timeout, struct packet_header *hdr,
 
 void closeSession(int serverSock)
 {
-    chanClose_(serverSock);
+    chan_close(serverSock);
 }
 
 int handShake_(int s, char client, int timeout)
@@ -462,7 +462,7 @@ int handShake_(int s, char client, int timeout)
         reqbuf.data = (char *) &buf;
         reqbuf.len = PACKET_HEADER_SIZE;
 
-        cc = chanRpc_(s, &reqbuf, &replybuf, &hdr, timeout * 1000);
+        cc = chan_rpc(s, &reqbuf, &replybuf, &hdr, timeout * 1000);
         if (cc < 0) {
             lsberrno = LSBE_LSLIB;
             return -1;

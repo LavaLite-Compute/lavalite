@@ -94,7 +94,7 @@ int initenv_(struct config_param *userEnv, char *pathname)
 
     /* Initialiaze the channel as first thing
      */
-    chanInit_();
+    chan_init();
 
     if ((envdir = getenv("LSF_ENVDIR")) != NULL)
         pathname = envdir;

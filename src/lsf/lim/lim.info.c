@@ -107,9 +107,9 @@ void clusInfoReq(XDR *xdrs, struct sockaddr_in *from,
         return;
     }
 
-    int cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
+    int cc = chan_write(s, buf, XDR_GETPOS(&xdrs2));
     if (cc < 0) {
-        ls_syslog(LOG_ERR, "%s: chanWrite_() to %s failed: %m", __func__,
+        ls_syslog(LOG_ERR, "%s: chan_write() to %s failed: %m", __func__,
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
         if (clusterInfoReply.clusterMatrix != NULL)
@@ -293,7 +293,7 @@ Reply1:
     if (limReplyCode == LIME_NO_ERR)
         free(hostInfoReply.hostMatrix);
 
-    cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
+    cc = chan_write(s, buf, XDR_GETPOS(&xdrs2));
     if (cc < 0) {
         ls_syslog(LOG_ERR, "%s: chanWrite() failed: %m", __func__,
                   sockAdd2Str_(from));
@@ -331,7 +331,7 @@ void infoReq(XDR *xdrs, struct sockaddr_in *from, struct packet_header *reqHdr,
         return;
     }
 
-    cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
+    cc = chan_write(s, buf, XDR_GETPOS(&xdrs2));
     if (cc < 0) {
         ls_syslog(LOG_ERR, "%s: chanWrite() failed: %m", __func__,
                   sockAdd2Str_(from));
@@ -479,7 +479,7 @@ void resourceInfoReq2(XDR *xdrs, struct sockaddr_in *from,
         return;
     }
 
-    cc = chanWrite_(s, buf, XDR_GETPOS(&xdrs2));
+    cc = chan_write(s, buf, XDR_GETPOS(&xdrs2));
     if (cc < 0) {
         ls_syslog(LOG_ERR,
                   "%s: failed sending lsresources reply to %s len=%d: %m",

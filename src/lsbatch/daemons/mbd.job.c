@@ -3053,7 +3053,7 @@ void cleanSbdNode(struct jData *jpbw)
          sbdPtr = nextSbdPtr) {
         nextSbdPtr = sbdPtr->forw;
         if (sbdPtr->jData == jpbw) {
-            chanClose_(sbdPtr->chanfd);
+            chan_close(sbdPtr->chanfd);
             offList((struct listEntry *) sbdPtr);
             FREEUP(sbdPtr);
             nSbdConnections--;
@@ -7608,15 +7608,15 @@ int mbdRcvJobFile(int chfd, struct lenData *jf)
 
     jf->data = NULL;
     jf->len = 0;
-    if ((cc = chanReadNonBlock_(chfd, (void *) (&jf->len), NET_INTSIZE_,
+    if ((cc = chan_read_nonblock(chfd, (void *) (&jf->len), NET_INTSIZE_,
                                 timeout)) != NET_INTSIZE_) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanReadNonBlock_");
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
         return -1;
     }
     jf->len = ntohl(jf->len);
     jf->data = my_calloc(1, jf->len, "mbdRcvJobFile");
-    if ((cc = chanReadNonBlock_(chfd, jf->data, jf->len, timeout)) != jf->len) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chanReadNonBlock_");
+    if ((cc = chan_read_nonblock(chfd, jf->data, jf->len, timeout)) != jf->len) {
+        ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
         free(jf->data);
         return -1;
     }
@@ -7814,7 +7814,7 @@ static void closeSbdConnect4ZombieJob(struct jData *jData)
          sbdPtr = nextSbdPtr) {
         nextSbdPtr = sbdPtr->forw;
         if (sbdPtr->jData == jData) {
-            chanClose_(sbdPtr->chanfd);
+            chan_close(sbdPtr->chanfd);
             offList((struct listEntry *) sbdPtr);
             FREEUP(sbdPtr);
             nSbdConnections--;

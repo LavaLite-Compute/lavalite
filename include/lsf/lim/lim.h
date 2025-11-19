@@ -79,6 +79,11 @@
 #define getDaemonPath_(name, dir) ((char *) NULL)
 #define saveDaemonDir_(dir) ((void) 0)
 
+/* How we name things:
+ * <subsystem>_<action>()   for exported subsystem functions
+ * <action>_<object>() for local handlers/processing functions
+ */
+
 /* Evaluate MAX or MIN ifdef it as they might be defined
  * in sys/params.h
  */

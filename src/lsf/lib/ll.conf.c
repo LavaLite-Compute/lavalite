@@ -1638,7 +1638,7 @@ static char do_Hosts(FILE *fp, char *fname, int *lineNum, struct lsInfo *info)
                 FREEUP(resList[j]);
             FREEUP(resList);
 
-            host.rexPriority = DEF_REXPRIORITY;
+            host.rexPriority = 0;
 
             if (keyList[REXPRI0].position != -1) {
                 host.rexPriority = atoi(keyList[REXPRI0].val);

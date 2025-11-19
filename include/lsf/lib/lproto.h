@@ -251,7 +251,7 @@ extern int b_accept_(int, struct sockaddr *, socklen_t *);
 extern int blockSigs_(int, sigset_t *, sigset_t *);
 
 extern int io_nonblock_(int);
-extern int io_block_(int);
+extern int io_block(int);
 extern void rlimitEncode_(struct lsfLimit *, struct rlimit *, int);
 extern void rlimitDecode_(struct lsfLimit *, struct rlimit *, int);
 

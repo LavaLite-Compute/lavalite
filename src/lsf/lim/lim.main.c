@@ -294,7 +294,7 @@ static int process_udp_request(void)
     memset(&from, 0, sizeof(from));
 
     struct packet_header reqHdr;
-    int cc = chanRcvDgram_(lim_udp_sock, buf, sizeof(buf),
+    int cc = chan_recv_dgram_(lim_udp_sock, buf, sizeof(buf),
                            (struct sockaddr_storage *) &from, -1);
     if (cc < 0) {
         syslog(LOG_ERR,
@@ -358,9 +358,9 @@ static int accept_connection(void)
     if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", __func__);
 
-    int ch = chanAccept_(lim_tcp_sock, &from);
+    int ch = chan_accept(lim_tcp_sock, &from);
     if (ch < 0) {
-        ls_syslog(LOG_ERR, "%s: chanAccept_() failed: %m", __func__);
+        ls_syslog(LOG_ERR, "%s: chan_accept() failed: %m", __func__);
         return -1;
     }
 
@@ -369,7 +369,7 @@ static int accept_connection(void)
     if (hs.name[0] == 0) {
         ls_syslog(LOG_ERR, "%s: unknown host from %s dropped", __func__,
                   sockAdd2Str_(&from));
-        chanClose_(ch);
+        chan_close(ch);
         return -1;
     }
 
@@ -378,7 +378,7 @@ static int accept_connection(void)
         ls_syslog(LOG_WARNING, "\
 %s: Received request from non-LSF host %s",
                   __func__, sockAdd2Str_(&from));
-        chanClose_(ch);
+        chan_close(ch);
         return -1;
     }
 
@@ -386,7 +386,7 @@ static int accept_connection(void)
     if (!client) {
         ls_syslog(LOG_ERR, "%s: Connection from %s dropped", __func__,
                   sockAdd2Str_(&from));
-        chanClose_(ch);
+        chan_close(ch);
         return -1;
     }
     client->chanfd = ch;
@@ -466,8 +466,8 @@ static void lim_init(int checkMode)
         satIndex();
         loadIndex();
     }
-    if (chanInit_() < 0)
-        lim_Exit("chanInit_");
+    if (chan_init() < 0)
+        lim_Exit("chan_init");
 
     max_clients = sysconf(_SC_OPEN_MAX);
     clientMap = calloc(1, sizeof(struct client_node **));
@@ -532,8 +532,8 @@ static void term_handler(int signum)
 
     ls_syslog(LOG_ERR, "%s: Received signal %d, exiting", __func__, signum);
 
-    chanClose_(lim_udp_sock);
-    chanClose_(lim_tcp_sock);
+    chan_close(lim_udp_sock);
+    chan_close(lim_tcp_sock);
 
     if (elim_pid > 0) {
         kill(elim_pid, SIGTERM);
@@ -569,7 +569,7 @@ int initSock(int checkMode)
     }
 
     // LIM UDP channel
-    lim_udp_sock = chanServSocket_(SOCK_DGRAM, lim_udp_port, -1, 0);
+    lim_udp_sock = chan_listen_socket(SOCK_DGRAM, lim_udp_port, -1, 0);
     if (lim_udp_sock < 0) {
         syslog(LOG_ERR,
                "%s: unable to create datagram socket port %d "
@@ -580,23 +580,23 @@ int initSock(int checkMode)
     lim_udp_port = htons(lim_udp_port);
 
     // LIM TCP socket with
-    lim_tcp_sock = chanServSocket_(SOCK_STREAM, 0, SOMAXCONN, 0);
+    lim_tcp_sock = chan_listen_socket(SOCK_STREAM, 0, SOMAXCONN, 0);
     if (lim_tcp_sock < 0) {
         syslog(LOG_ERR,
                "%s: unable to create tcp socket port %d "
                "another LIM running?: %m ",
                __func__, lim_udp_port);
-        chanClose_(lim_tcp_sock);
+        chan_close(lim_tcp_sock);
         return -1;
     }
 
     socklen_t size = sizeof(struct sockaddr_in);
-    int cc = getsockname(chanSock_(lim_tcp_sock), (struct sockaddr *) &lim_addr,
+    int cc = getsockname(chan_get_sock(lim_tcp_sock), (struct sockaddr *) &lim_addr,
                          &size);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,
                lim_tcp_sock);
-        chanClose_(lim_tcp_sock);
+        chan_close(lim_tcp_sock);
         return -1;
     }
     // LIM dynamic TCP port sent to slave lims and library which need
@@ -627,9 +627,9 @@ void errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
     }
 
     if (chan < 0)
-        cc = chanSendDgram_(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
     else
-        cc = chanWrite_(chan, buf, XDR_GETPOS(&xdrs2));
+        cc = chan_write(chan, buf, XDR_GETPOS(&xdrs2));
 
     if (cc < 0)
         ls_syslog(LOG_ERR, "%s: socket write failed: %m", __func__);
