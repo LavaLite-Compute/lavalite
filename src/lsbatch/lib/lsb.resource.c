@@ -38,6 +38,7 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
     mbdReqType mbdReqtype;
     XDR xdrs, xdrs2;
 
+    (void) options;
 #define FREE_MEMORY                                                            \
     {                                                                          \
         free(request_buf);                                                     \
@@ -93,17 +94,8 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
         resourceInfoReq.numResourceNames = *numResources;
     }
     if (hostName != NULL) {
-        if (ls_isclustername(hostName) <= 0) {
-            if (strlen(hostName) + 1 < MAXHOSTNAMELEN) {
-                resourceInfoReq.hostName = hostName;
-            } else {
-                lsberrno = LSBE_BAD_HOST;
-                return NULL;
-            }
-        } else {
-            clusterName = hostName;
-            cc += MAXHOSTNAMELEN;
-        }
+        clusterName = hostName;
+        cc += MAXHOSTNAMELEN;
     } else
         resourceInfoReq.hostName = " ";
 
@@ -144,7 +136,7 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
         xdr_destroy(&xdrs2);
         FREE_REPLY_BUFFER;
         *numResources = lsbResourceInfoReply.numResources;
-        return (lsbResourceInfoReply.resources);
+        return NULL;
     }
 
     FREE_REPLY_BUFFER;

@@ -1,4 +1,3 @@
-#pragma once
 /* $Id: lim.h,v 1.11 2007/08/15 22:18:53 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -18,6 +17,8 @@
  USA
  *
  */
+#pragma once
+
 #include "config.h"
 
 #include <stdio.h>
@@ -68,11 +69,9 @@
 #define INTERCLUSCACHEINTVL 60
 
 #define SBD_ACTIVE_TIME 60 * 5
-
 #define KEEPTIME 2
 
 #define MAXCANDHOSTS 10
-#define MAXCLIENTS 32
 
 #define WARNING_ERR EXIT_WARNING_ERROR
 
@@ -215,8 +214,7 @@ struct clusterNode {
     struct shortLsInfo *shortInfo;
 };
 
-struct clientNode {
-    char inprogress;
+struct client_node {
     enum limReqCode limReqCode;
     int clientMasks;
     int chanfd;
@@ -297,59 +295,9 @@ typedef struct sharedResourceInstance {
     struct sharedResourceInstance *nextPtr;
 } sharedResourceInstance;
 
-struct minSLimConfData {
-    int defaultRunElim;
-    int nClusAdmins;
-    int *clusAdminIds;
-    char **clusAdminNames;
-    float exchIntvl;
-    float sampleIntvl;
-    short hostInactivityLimit;
-    short masterInactivityLimit;
-    short retryLimit;
-    short keepTime;
-    struct resItem *allInfo_resTable;
-    int allInfo_nRes;
-    int allInfo_numIndx;
-    int allInfo_numUsrIndx;
-    u_short myCluster_checkSum;
-    char *myCluster_eLimArgs;
-    char *myHost_windows;
-    int numMyhost_weekpair[8];
-    windows_t *myHost_week[8];
-    time_t myHost_wind_edge;
-    float *myHost_busyThreshold;
-    int myHost_rexPriority;
-    int myHost_numInstances;
-    struct resourceInstance **myHost_instances;
-    struct sharedResourceInstance *sharedResHead;
-};
-#if 0
-typedef enum {
-    LSF_CONFDIR,
-    LSF_LIM_DEBUG,
-    LSF_SERVERDIR,
-    LSF_LOGDIR,
-    LSF_LIM_PORT,
-    LSF_RES_PORT,
-    LSF_DEBUG_LIM,
-    LSF_TIME_LIM,
-    LSF_LOG_MASK,
-    LSF_CONF_RETRY_MAX,
-    LSF_CONF_RETRY_INT,
-    LSF_LIM_RCVBUF,
-    LSF_LIM_IGNORE_CHECKSUM,
-    LSF_MASTER_LIST,
-    LSF_REJECT_NONLSFHOST,
-    LSF_LIM_JACKUP_BUSY,
-} lim_params_t;
-#endif
-
 extern struct sharedResourceInstance *sharedResourceHead;
 
 #define THRLDOK(inc, a, thrld) (inc ? a <= thrld : a >= thrld)
-
-extern int getpagesize(void);
 
 extern bool_t lim_debug;
 extern int lim_CheckMode;
@@ -396,8 +344,6 @@ extern struct shortLsInfo shortInfo;
 extern int clientHosts[];
 extern struct floatClientInfo floatClientPool;
 extern int ncpus;
-extern struct clientNode *clientMap[];
-
 extern pid_t elim_pid;
 extern pid_t pimPid;
 
@@ -410,6 +356,7 @@ extern u_short lsfSharedCkSum;
 extern int numMasterCandidates;
 extern int isMasterCandidate;
 extern int limConfReady;
+extern long max_clients;
 
 extern int readShared(void);
 extern int readCluster(int);
@@ -437,15 +384,9 @@ extern void lockReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern int limPortOk(struct sockaddr_in *);
 extern void servAvailReq(XDR *, struct hostNode *, struct sockaddr_in *,
                          struct packet_header *);
-
-extern void pingReq(XDR *, struct sockaddr_in *, struct packet_header *);
-extern void clusNameReq(XDR *, struct sockaddr_in *, struct packet_header *);
-extern void masterInfoReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void hostInfoReq(XDR *, struct hostNode *, struct sockaddr_in *,
                         struct packet_header *, int);
 extern void infoReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
-extern void cpufReq(XDR *, struct sockaddr_in *, struct packet_header *);
-extern void clusInfoReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void masterRegister(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void jobxferReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void rcvConfInfo(XDR *, struct sockaddr_in *, struct packet_header *);
@@ -509,7 +450,6 @@ extern int xdr_loadmatrix(XDR *, int, struct loadVectorStruct *,
                           struct packet_header *);
 extern int xdr_masterReg(XDR *, struct masterReg *, struct packet_header *);
 extern int xdr_statInfo(XDR *, struct statInfo *, struct packet_header *);
-extern void clientIO(struct Masks *);
 extern struct liStruct *li;
 extern int li_len;
 
@@ -528,6 +468,9 @@ extern int realMem(float);
 extern int numCpus(void);
 extern int queueLengthEx(float *, float *, float *);
 
+// LavaLite
+extern struct client_node **clientMap;
+
 // Make the hostNode fundamental node representation
 struct hostNode *make_host_node(void);
 
@@ -538,9 +481,17 @@ struct hostNode *make_host_node(void);
 struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *);
 struct hostNode *find_node_by_name(const char *);
 struct hostNode *find_node_by_cluster(struct hostNode *, const char *);
+int handle_tcp_client(struct Masks *);
 
 // Avoid the same function name as the data structure
 void resourceInfoReq2(XDR *, struct sockaddr_in *, struct packet_header *, int);
+// These 2 are UDP request to the local LIM
+void clusNameReq(XDR *, struct sockaddr_in *, struct packet_header *);
+void masterInfoReq(XDR *, struct sockaddr_in *, struct packet_header *);
+// This does not do anything, remove it
+void pingReq(XDR *, struct sockaddr_in *, struct packet_header *);
+// The rest of API processing is TCP
+void clusInfoReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
 
 #define SWP_INTVL_CNT 45 / exchIntvl
 #define TMP_INTVL_CNT 120 / exchIntvl

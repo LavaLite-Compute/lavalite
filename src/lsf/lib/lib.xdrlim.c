@@ -799,6 +799,7 @@ bool_t xdr_shortCInfo(XDR *xdrs, struct shortCInfo *clustInfoPtr, void *ctx)
               xdr_int(xdrs, &clustInfoPtr->adminIds[i])))
             return false;
     }
+    printf("pos: %d\n", xdr_getpos(xdrs));
     if (!xdr_int(xdrs, &clustInfoPtr->nRes))
         return false;
     if (xdrs->x_op == XDR_DECODE && clustInfoPtr->nRes) {

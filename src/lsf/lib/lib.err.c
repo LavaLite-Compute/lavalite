@@ -232,7 +232,7 @@ char *ls_sysmsg(void)
     return (ls_errmsg[lserrno]);
 }
 
-void ls_perror(char *usrMsg)
+void ls_perror(const char *usrMsg)
 {
     if (usrMsg) {
         fputs(usrMsg, stderr);

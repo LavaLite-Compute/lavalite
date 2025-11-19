@@ -2,21 +2,33 @@
 # Copyright (C) LavaLite Contributors
 #
 Begin Cluster
-ClusterName			# Keyword
+ClusterName
 lavalite
 End Cluster
 
 # Describes the operating system and hardware architecture.
 Begin HostType
-TYPENAME                        # Keyword
+TYPENAME
 x86_64_linux
+arm64_linux
+riscv64_linux
 End HostType
 
-# Describes the relative performance class of the host.
+# Describes a *logical* host class.
+# NOTE: LavaLite does NOT use MODEL/CPUFACTOR for scheduling.
+#       These names exist only for compatibility and display (lsload, lshosts).
 Begin HostModel
-MODELNAME  CPUFACTOR   ARCHITECTURE # keyword
-fast      100        (x86_64_linux)
+# MODELNAME    CPUFACTOR   ARCHITECTURE
+x86_default     100        (x86_64_linux)
+x86_gpu         100        (x86_64_linux)
+x86_highmem     100        (x86_64_linux)
+
+arm_default     100        (arm64_linux)
+arm_gpu         100        (arm64_linux)
+
+riscv_default   100        (riscv64_linux)
 End HostModel
+
 
 #   RESOURCENAME → symbolic name of the resource.
 #   TYPE         → Boolean (0/1), Numeric (int/float), or String (literal).
@@ -37,3 +49,14 @@ RESOURCENAME  TYPE     INTERVAL  INCREASING  DESCRIPTION
 #  load       Numeric  60        N           (System load average)
 #  latency    Numeric  300       N           (Network latency in ms)
 End Resource
+
+# This is how it will look like
+#Begin Resource
+# NAME         TYPE     SCOPE     TREND  UNIT   DESCRIPTION
+#fs             Boolean  Host      None   -     (File server)
+#scratch        Boolean  Host      None   -     (Scratch server)
+#lustre_cpu     Numeric  Host      None   -     (Load index)
+#lustre_mem     Numeric  Host      None   GB    (Mem used)
+#licenseZ       Numeric  Floating  Inc    seat  (FlexLM Z pool)
+#End Resource
+

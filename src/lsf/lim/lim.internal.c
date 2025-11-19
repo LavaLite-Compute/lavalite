@@ -778,16 +778,18 @@ int probeMasterTcp(struct clusterNode *clPtr)
         return -1;
     }
 
-    struct packet_header reqHdr;
-    init_pack_hdr(&reqHdr);
-    reqHdr.operation = LIM_PING;
-    rc = writeEncodeHdr_(ch, &reqHdr, chanWrite_);
+    struct packet_header hdr;
+    init_pack_hdr(&hdr);
+    hdr.operation = LIM_PING;
+    rc = send_packet_header(ch, &hdr);
     if (rc < 0) {
-        ls_syslog(LOG_ERR, "%s: failed writeEncodeHdr_() to %s %m", __func__,
+        ls_syslog(LOG_ERR, "%s: failed send_packet_header() to %s %m", __func__,
                   sockAdd2Str_(&mlim_addr));
         chanClose_(ch);
         return -1;
     }
+    // Bug just because the connect() succeeded does not mean
+    // the lim is ok...
     chanClose_(ch);
 
     return rc;
@@ -825,8 +827,8 @@ int lockHost(char *hostName, int request)
 
     lockReq.time = 0;
 
-    if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL, hostName, 0,
-                 NULL) < 0) {
+    if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL, NULL,
+                 _USE_TCP_, NULL) < 0) {
         ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", "lockHost", "callLim",
                   hostName);
         return -2;

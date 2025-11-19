@@ -1,4 +1,3 @@
-#pragma once
 /* $Id: lib.channel.h,v 1.3 2007/08/15 22:18:50 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -18,6 +17,7 @@
  USA
  *
  */
+#pragma once
 
 // #include "lsf/lib/lib.h"
 
@@ -110,8 +110,6 @@ extern int chanServSocket_(int, u_short, int, int);
 extern int chanAccept_(int, struct sockaddr_in *);
 
 extern int chanClientSocket_(int, int, int);
-extern int chanSendDgram_(int, char *, int, struct sockaddr_in *);
-int chanRcvDgram_(int, void *, size_t, struct sockaddr_storage *, int);
 extern int chanRpc_(int, struct Buffer *, struct Buffer *,
                     struct packet_header *, int);
 extern ssize_t chanRead_(int, void *, size_t);
@@ -129,3 +127,5 @@ extern int cherrno;
 int ll_dup_stdio(int);
 int io_non_block_(int);
 int io_block_(int);
+int chanSendDgram_(int, char *, size_t, struct sockaddr_in *);
+int chanRcvDgram_(int, void *, size_t, struct sockaddr_storage *, int);

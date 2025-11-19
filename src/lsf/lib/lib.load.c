@@ -38,7 +38,7 @@ static char *namestofilter_(char **indxs)
     for (i = 0, len = 0; indxs[i]; i++)
         len += strlen(indxs[i]);
 
-    if (!len || len > MAXLINELEN) {
+    if (!len || len > LL_LINE_MAX) {
         lserrno = LSE_BAD_ARGS;
         return NULL;
     }
@@ -62,15 +62,11 @@ struct hostLoad *ls_loadinfo(char *resreq, int *numhosts, int options,
                              char *fromhost, char **hostlist, int listsize,
                              char ***indxnamelist)
 {
-    static char fname[] = "ls_loadinfo";
     struct decisionReq loadReq;
     char *indexfilter;
     int i, j, *num;
     int one = 1;
-    char tempresreq[MAXLINELEN];
-
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
+    char tempresreq[LL_LINE_MAX];
 
     if (!indxnamelist) {
         lserrno = LSE_BAD_ARGS;
@@ -103,8 +99,7 @@ struct hostLoad *ls_loadinfo(char *resreq, int *numhosts, int options,
         char clusterinlist = 0;
 
         loadReq.numPrefs = listsize + 1;
-        loadReq.preferredHosts =
-            (char **) calloc(loadReq.numPrefs, sizeof(char *));
+        loadReq.preferredHosts = calloc(loadReq.numPrefs, sizeof(char *));
         if (loadReq.preferredHosts == NULL) {
             lserrno = LSE_MALLOC;
             return NULL;
@@ -158,8 +153,8 @@ struct hostLoad *ls_loadinfo(char *resreq, int *numhosts, int options,
         indexfilter = NULL;
 
     if (resreq && indexfilter) {
-        if ((strlen(resreq) + strlen(indexfilter)) < MAXLINELEN - 8) {
-            char tmp[MAXLINELEN / 2];
+        if ((strlen(resreq) + strlen(indexfilter)) < LL_LINE_MAX - 8) {
+            char tmp[LL_LINE_MAX / 2];
             sprintf(tmp, "filter[%s]", indexfilter);
             strcpy(tempresreq, resreq);
             strcat(tempresreq, tmp);
@@ -201,11 +196,9 @@ struct hostLoad *ls_loadofhosts(char *resreq, int *numhosts, int options,
 struct hostLoad *loadinfo_(char *resReq, struct decisionReq *loadReqPtr,
                            char *fromhost, int *numHosts, char ***outnlist)
 {
-    static char fname[] = "loadinfo_";
     static struct loadReply loadReply;
     int i;
     char *hname;
-    int options = 0;
 
     if (loadReqPtr->numHosts <= 0) {
         lserrno = LSE_BAD_ARGS;
@@ -225,21 +218,14 @@ struct hostLoad *loadinfo_(char *resReq, struct decisionReq *loadReqPtr,
     }
 
     if (resReq) {
-        strncpy(loadReqPtr->resReq, resReq, MAXLINELEN);
+        strncpy(loadReqPtr->resReq, resReq, LL_LINE_MAX);
     } else
         strcpy(loadReqPtr->resReq, " ");
 
-    loadReqPtr->resReq[MAXLINELEN - 1] = '\0';
-    if (loadReqPtr->ofWhat == OF_HOSTS && loadReqPtr->numPrefs == 2 &&
-        loadReqPtr->numHosts == 1 &&
-        equal_host(loadReqPtr->preferredHosts[1],
-                   loadReqPtr->preferredHosts[0]))
-        options |= _LOCAL_;
-    else
-        options |= _USE_TCP_;
+    loadReqPtr->resReq[LL_LINE_MAX - 1] = 0;
 
     if (callLim_(LIM_LOAD_REQ, loadReqPtr, xdr_decisionReq, &loadReply,
-                 xdr_loadReply, NULL, options, NULL) < 0)
+                 xdr_loadReply, NULL, _USE_TCP_, NULL) < 0)
         goto error;
     if (loadReply.flags & LOAD_REPLY_SHARED_RESOURCE) {
         sharedResConfigured_ = true;

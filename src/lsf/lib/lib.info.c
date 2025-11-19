@@ -26,7 +26,41 @@ int masterknown = false;
 static struct hostInfo *expandSHinfo(struct hostInfoReply *);
 static struct clusterInfo *expandSCinfo(struct clusterInfoReply *);
 static int copyAdmins_(struct clusterInfo *, struct shortCInfo *);
-static int getname_(enum limReqCode, char *, int);
+
+static int getname_(enum limReqCode limReqCode, char *name, int namesize)
+{
+    if (initenv_(NULL, NULL) < 0)
+        return -1;
+
+    if (limReqCode == LIM_GET_CLUSNAME) {
+        struct stringLen str;
+        str.name = name;
+        str.len = namesize;
+        if (callLim_(LIM_GET_CLUSNAME, NULL, NULL, &str, xdr_stringLen, NULL,
+                     _USE_UDP_, NULL) < 0)
+            return -1;
+        return 0;
+    }
+    assert(limReqCode == LIM_GET_MASTINFO);
+    if (callLim_(LIM_GET_MASTINFO, NULL, NULL, &masterInfo, xdr_masterInfo,
+                 NULL, _USE_UDP_, NULL) < 0) {
+        return -1;
+    }
+
+    // Set the master address
+    sock_addr_in[UDP].sin_addr = masterInfo.addr.sin_addr;
+    CLOSECD(lim_chans[UDP]);
+    CLOSECD(lim_chans[TCP]);
+
+    // Copy the tcp address
+    sock_addr_in[TCP].sin_addr = masterInfo.addr.sin_addr;
+    sock_addr_in[TCP].sin_port = masterInfo.portno;
+    masterknown = true;
+    strncpy(name, masterInfo.hostName, namesize);
+    name[namesize - 1] = 0;
+
+    return 0;
+}
 
 char *ls_getclustername(void)
 {
@@ -41,6 +75,20 @@ char *ls_getclustername(void)
             return NULL;
 
     return clName;
+}
+
+char *ls_getmastername(void)
+{
+    static char fname[] = "ls_getmastername";
+    static char master[MAXHOSTNAMELEN];
+
+    if (logclass & (LC_TRACE))
+        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
+
+    if (getname_(LIM_GET_MASTINFO, master, MAXHOSTNAMELEN) < 0)
+        return NULL;
+
+    return master;
 }
 
 int expandList1_(char ***tolist, int num, int *bitmMaps, char **keys)
@@ -270,7 +318,8 @@ struct clusterInfo *ls_clusterinfo(char *resReq, int *numclusters,
 
     clusterInfoReply.shortLsInfo = &shortlsInfo;
     if (callLim_(LIM_GET_CLUSINFO, &clusterInfoReq, xdr_clusterInfoReq,
-                 &clusterInfoReply, xdr_clusterInfoReply, NULL, 0, NULL) < 0)
+                 &clusterInfoReply, xdr_clusterInfoReply, NULL, _USE_TCP_,
+                 NULL) < 0)
         return NULL;
 
     if (numclusters != NULL)
@@ -278,55 +327,7 @@ struct clusterInfo *ls_clusterinfo(char *resReq, int *numclusters,
     return (expandSCinfo(&clusterInfoReply));
 }
 
-char *ls_getmastername(void)
-{
-    static char fname[] = "ls_getmastername";
-    static char master[MAXHOSTNAMELEN];
-
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
-
-    if (getname_(LIM_GET_MASTINFO, master, MAXHOSTNAMELEN) < 0)
-        return NULL;
-
-    return master;
-}
-
-static int getname_(enum limReqCode limReqCode, char *name, int namesize)
-{
-    if (initenv_(NULL, NULL) < 0)
-        return -1;
-
-    if (limReqCode == LIM_GET_CLUSNAME) {
-        struct stringLen str;
-        str.name = name;
-        str.len = namesize;
-        if (callLim_(limReqCode, NULL, NULL, &str, xdr_stringLen, NULL, _LOCAL_,
-                     NULL) < 0)
-            return -1;
-        return 0;
-    }
-    if (callLim_(limReqCode, NULL, NULL, &masterInfo, xdr_masterInfo, NULL,
-                 _LOCAL_, NULL) < 0) {
-        return -1;
-    }
-
-    // Set the master address
-    sockIds_[MASTER].sin_addr = masterInfo.addr.sin_addr;
-    CLOSECD(limchans_[MASTER]);
-    CLOSECD(limchans_[TCP]);
-
-    // Copy the tcp address
-    sockIds_[TCP].sin_addr = masterInfo.addr.sin_addr;
-    sockIds_[TCP].sin_port = masterInfo.portno;
-    masterknown = true;
-    strncpy(name, masterInfo.hostName, namesize);
-    name[namesize - 1] = '\0';
-
-    return 0;
-}
-
-char *ls_gethosttype(char *hostname)
+char *ls_gethosttype(const char *hostname)
 {
     struct hostInfo *hostinfo;
     static char hostType[MAXLSFNAMELEN];
@@ -335,7 +336,7 @@ char *ls_gethosttype(char *hostname)
         if ((hostname = ls_getmyhostname()) == NULL)
             return NULL;
 
-    hostinfo = ls_gethostinfo("-", NULL, &hostname, 1, 0);
+    hostinfo = ls_gethostinfo("-", NULL, (char **) &hostname, 1, 0);
     if (hostinfo == NULL)
         return NULL;
 
@@ -343,7 +344,7 @@ char *ls_gethosttype(char *hostname)
     return hostType;
 }
 
-char *ls_gethostmodel(char *hostname)
+char *ls_gethostmodel(const char *hostname)
 {
     struct hostInfo *hostinfo;
     static char hostModel[MAXLSFNAMELEN];
@@ -352,7 +353,7 @@ char *ls_gethostmodel(char *hostname)
         if ((hostname = ls_getmyhostname()) == NULL)
             return NULL;
 
-    hostinfo = ls_gethostinfo("-", NULL, &hostname, 1, 0);
+    hostinfo = ls_gethostinfo("-", NULL, (char **) &hostname, 1, 0);
     if (hostinfo == NULL)
         return NULL;
 
@@ -360,41 +361,38 @@ char *ls_gethostmodel(char *hostname)
     return hostModel;
 }
 
-float *ls_gethostfactor(char *hostname)
+float ls_gethostfactor(const char *hostname)
 {
     struct hostInfo *hostinfo;
-    static float cpufactor;
 
     if (hostname == NULL)
         if ((hostname = ls_getmyhostname()) == NULL)
-            return NULL;
+            return 0.0f;
 
-    hostinfo = ls_gethostinfo("-", NULL, &hostname, 1, 0);
+    hostinfo = ls_gethostinfo("-", NULL, (char **) &hostname, 1, 0);
     if (hostinfo == NULL)
-        return NULL;
+        return 0.0f;
 
-    cpufactor = hostinfo->cpuFactor;
-    return (&cpufactor);
+    return hostinfo->cpuFactor;
 }
 
-float *ls_getmodelfactor(char *modelname)
+float ls_getmodelfactor(const char *modelname)
 {
-    static float cpuf;
-    struct stringLen str;
-
     if (!modelname)
-        return (ls_gethostfactor(NULL));
+        return ls_gethostfactor(NULL);
 
     if (initenv_(NULL, NULL) < 0)
-        return NULL;
+        return 0.0f;
 
-    str.name = modelname;
+    float cpuf;
+    struct stringLen str;
+    str.name = (char *) modelname;
     str.len = MAXLSFNAMELEN;
-    if (callLim_(LIM_GET_CPUF, &str, xdr_stringLen, &cpuf, xdr_float, NULL, 0,
-                 NULL) < 0)
-        return NULL;
+    if (callLim_(LIM_GET_CPUF, &str, xdr_stringLen, &cpuf, xdr_float, NULL,
+                 _USE_TCP_, NULL) < 0)
+        return 0.0f;
 
-    return (&cpuf);
+    return cpuf;
 }
 
 static struct hostInfo *expandSHinfo(struct hostInfoReply *hostInfoReply)
@@ -491,8 +489,7 @@ struct hostInfo *ls_gethostinfo(char *resReq, int *numhosts, char **hostlist,
             lserrno = LSE_BAD_ARGS;
             return NULL;
         }
-        hostInfoReq.preferredHosts =
-            (char **) calloc(listsize + 1, sizeof(char *));
+        hostInfoReq.preferredHosts = calloc(listsize + 1, sizeof(char *));
         if (hostInfoReq.preferredHosts == NULL) {
             lserrno = LSE_MALLOC;
             return NULL;
@@ -562,13 +559,14 @@ struct lsInfo *ls_info(void)
                  NULL) < 0)
         return NULL;
 
-    return (&lsInfo);
+    return &lsInfo;
 }
 
 char **ls_indexnames(struct lsInfo *lsInfo)
 {
     static char **indicies = NULL;
-    int i, j;
+    int i;
+    int j;
 
     if (!lsInfo) {
         lsInfo = ls_info();
@@ -598,12 +596,6 @@ char **ls_indexnames(struct lsInfo *lsInfo)
     }
     indicies[j] = NULL;
     return indicies;
-}
-
-// Bug remove later we dont have multicluster
-int ls_isclustername(char *name)
-{
-    return 0;
 }
 
 struct lsSharedResourceInfo *ls_sharedresourceinfo(char **resources,
@@ -640,8 +632,7 @@ struct lsSharedResourceInfo *ls_sharedresourceinfo(char **resources,
         return NULL;
     }
     if (*numResources == 0 && resources == NULL) {
-        if ((resourceInfoReq.resourceNames =
-                 (char **) malloc(sizeof(char *))) == NULL) {
+        if ((resourceInfoReq.resourceNames = malloc(sizeof(char *))) == NULL) {
             lserrno = LSE_MALLOC;
             return NULL;
         }

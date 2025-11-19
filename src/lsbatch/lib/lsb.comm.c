@@ -507,26 +507,3 @@ int authTicketTokens_(struct lsfAuth *auth, char *toHost)
 
     return 0;
 }
-
-float *getCpuFactor(char *host, int name)
-{
-    float *tempPtr;
-
-Retry:
-    if (name == true)
-        tempPtr = ls_gethostfactor(host);
-    else
-        tempPtr = ls_getmodelfactor(host);
-    if (tempPtr == NULL) {
-        if (lserrno == LSE_TIME_OUT || lserrno == LSE_LIM_DOWN ||
-            lserrno == LSE_MASTR_UNKNW) {
-            fprintf(stderr,
-                    "LSF daemon (LIM) not responding ... still trying\n");
-            millisleep_(_lsb_conntimeout * 1000);
-            goto Retry;
-        }
-        lsberrno = LSBE_LSLIB;
-    }
-
-    return tempPtr;
-}

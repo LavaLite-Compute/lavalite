@@ -17,6 +17,11 @@
  USA
  *
  */
+
+/* This file existed only to satisfy theoretical LSF features that however
+ * almost nobody actually used
+ */
+
 #include "lsf/lim/lim.h"
 
 float *extraload;

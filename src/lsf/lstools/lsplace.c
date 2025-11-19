@@ -33,7 +33,6 @@ int main(int argc, char **argv)
     char *resreq = NULL;
     char *hostnames[LL_BUFSIZ_256];
     char **desthosts;
-    int cc = 0;
     int needed = 1;
     int wanted = 1;
     int i;
@@ -41,7 +40,6 @@ int main(int argc, char **argv)
     extern int optind, opterr;
     extern char *optarg;
     int achar;
-    char badHost = false;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
@@ -84,25 +82,16 @@ int main(int argc, char **argv)
         }
     }
 
+    int cc = 0;
     for (; optind < argc; optind++) {
-        if (cc >= LL_BUFSIZ_256) {
-            fprintf(stderr, "%s: too many hosts specified max %d\n", argv[0],
-                    LL_BUFSIZ_256);
-            return -1;
-        }
-
-        if (ls_isclustername(argv[optind]) <= 0 &&
-            !is_valid_host(argv[optind])) {
+        if (!is_valid_host(argv[optind])) {
             fprintf(stderr, "%s: %s %s\n", argv[0], "invalid hostname",
                     argv[optind]);
-            badHost = true;
-            continue;
+            return -1;
         }
         hostnames[cc] = argv[optind];
         cc++;
     }
-    if (cc == 0 && badHost)
-        exit(-1);
 
     if (needed == 0 || wanted == 0)
         wanted = 0;

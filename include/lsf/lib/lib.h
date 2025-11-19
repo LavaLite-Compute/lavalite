@@ -43,7 +43,6 @@ extern struct hostLoad *loadinfo_(char *, struct decisionReq *, char *, int *,
                                   char ***);
 extern struct hostent *Gethostbyname_(char *);
 extern short getRefNum_(void);
-extern void init_pack_hdr(struct packet_header *);
 
 extern char **placement_(char *, struct decisionReq *, char *, int *);
 

@@ -35,6 +35,7 @@ struct queueInfoEnt *lsb_queueinfo(char **queues, int *numQueues, char *hosts,
     static struct packet_header hdr;
     char *clusterName = NULL;
 
+    (void) options;
     if (qInfo != NULL) {
         for (i = 0; i < reply.numQueues; i++) {
             xdr_lsffree(xdr_queueInfoEnt, (char *) qInfo[i], &hdr);
@@ -104,18 +105,9 @@ struct queueInfoEnt *lsb_queueinfo(char **queues, int *numQueues, char *hosts,
     }
 
     if (hosts != NULL) {
-        if (ls_isclustername(hosts) <= 0) {
-            if (strlen(hosts) + 1 < MAXHOSTNAMELEN) {
-                queueInfoReq.options |= CHECK_HOST;
-                queueInfoReq.names[cc] = hosts;
-                cc++;
-            } else {
-                lsberrno = LSBE_BAD_HOST;
-                *numQueues = 0;
-                return NULL;
-            }
-        } else
-            clusterName = hosts;
+        queueInfoReq.options |= CHECK_HOST;
+        queueInfoReq.names[cc] = hosts;
+        cc++;
     }
     queueInfoReq.resReq = "";
 

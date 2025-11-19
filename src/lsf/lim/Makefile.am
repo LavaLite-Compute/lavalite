@@ -11,7 +11,8 @@ LDADD = $(COMMON_LIBS)
 
 sbin_PROGRAMS = lim
 
-lim_SOURCES = lim.cluster.c \
+lim_SOURCES = lim.tcp.c \
+    lim.udp.c \
 	lim.conf.c \
 	lim.control.c \
 	lim.info.c \

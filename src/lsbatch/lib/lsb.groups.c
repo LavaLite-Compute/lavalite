@@ -64,9 +64,6 @@ static struct groupInfoEnt *getGrpInfo(char **groups, int *numGroups,
 
     } else {
         for (i = 0; i < *numGroups; i++) {
-            if (ls_isclustername(groups[i]) <= 0 || (options & USER_GRP))
-                continue;
-
             options |= GRP_ALL;
             clusterName = groups[i];
         }
@@ -103,6 +100,8 @@ static int sendGrpReq(char *clusterName, int options, struct infoReq *groupInfo,
     struct packet_header hdr;
     mbdReqType mbdReqtype;
     int cc;
+
+    (void) options;
 
     xdr_lsffree(xdr_groupInfoReply, (char *) reply, &hdr);
 

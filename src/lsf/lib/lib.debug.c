@@ -31,7 +31,7 @@
 #endif
 #define LSF_LOG_MASK 4
 
-int ls_initdebug(char *appName)
+int ls_initdebug(const char *appName)
 {
     char *logMask;
     struct config_param *pPtr;

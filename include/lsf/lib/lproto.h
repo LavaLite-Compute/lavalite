@@ -168,10 +168,6 @@ extern int getAuth_(struct lsfAuth *, char *);
 extern int verifyEAuth_(struct lsfAuth *, struct sockaddr_in *);
 extern int putEauthClientEnvVar(char *);
 extern int putEauthServerEnvVar(char *);
-#ifdef INTER_DAEMON_AUTH
-extern int putEauthAuxDataEnvVar(char *);
-extern int putEauthAuxStatusEnvVar(char *);
-#endif
 
 extern int sig_encode(int);
 extern int sig_decode(int);
@@ -179,11 +175,6 @@ extern int getSigVal(const char *);
 extern char *getSigSymbolList(void);
 extern char *getSigSymbol(int);
 extern int blockALL_SIGS_(sigset_t *, sigset_t *);
-extern int encodeTermios_(XDR *, struct termios *);
-extern int decodeTermios_(XDR *, struct termios *);
-extern int rstty_(char *host);
-extern int rstty_async_(char *host);
-extern int do_rstty_(int, int, int);
 
 extern char isanumber_(char *);
 extern char islongint_(const char *);
@@ -207,24 +198,6 @@ extern const char *getLowestDir_(const char *filePath);
 extern void getLSFAdmins_(void);
 extern bool_t isLSFAdmin_(const char *name);
 extern int64_t atoi64_(const char *);
-
-extern void stripDomain_(char *);
-
-extern const struct hostent *setHostEntry_(const struct hostent *hp);
-
-#define LOCAL_HATTRIB_UPDATE_INTERVAL (30 * 60)
-#define HOSTNS_HATTRIB_UPDATE_INTERVAL (24 * 60 * 60)
-#define INFINITE_HATTRIB_UPDATE_INTERVAL (-1)
-
-extern int (*getHostAttribFuncP)(char *hname, int updateIntvl);
-extern int daemonId;
-
-#define DISABLE_HNAME_SERVER (0x0001)
-#define HOSTNS_NEED_MAPPING (0x0002)
-#define HOSTNS_REFRESH_CACHE (0x0004)
-#define HOSTNS_ENTRY_ONLY (0x0008)
-
-extern struct hostent *Gethostbyname_ex_(char *, int options);
 
 extern int lockHost_(time_t duration, char *hname);
 extern int unlockHost_(char *hname);
@@ -274,13 +247,9 @@ extern ssize_t b_read_fix(int, void *, size_t);
 extern ssize_t b_write_fix(int, const void *, size_t);
 extern int b_connect_(int, const struct sockaddr *, socklen_t, int);
 extern int rd_select_(int, struct timeval *);
-extern int rd_poll_(int, struct timeval *);
 extern int b_accept_(int, struct sockaddr *, socklen_t *);
 extern int blockSigs_(int, sigset_t *, sigset_t *);
 
-extern int readDecodeHdr_(int, char *, ssize_t (*readFunc)(), XDR *xdrs,
-                          struct packet_header *hdr);
-extern int writeEncodeHdr_(int, struct packet_header *, ssize_t (*)());
 extern int io_nonblock_(int);
 extern int io_block_(int);
 extern void rlimitEncode_(struct lsfLimit *, struct rlimit *, int);
@@ -307,3 +276,4 @@ extern int expandList1_(char ***, int, int *, char **);
 int get_uid(const char *, uid_t *);
 int millisleep_(uint32_t);
 int is_valid_host(const char *hname);
+int rd_poll(int, int);

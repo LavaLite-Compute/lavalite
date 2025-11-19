@@ -17,13 +17,7 @@
  USA
  *
  */
-
-// accept what the hardware gives you
-// make it fast, make it clear, make it stop
-// everything else is noise
-
-#ifndef LSBATCH_H
-#define LSBATCH_H
+#pragma once
 
 #include "lsf.h"
 
@@ -1460,7 +1454,6 @@ extern struct groupInfoEnt *lsb_usergrpinfo(char **, int *, int);
 extern struct parameterInfo *lsb_parameterinfo(char **, int *, int);
 extern LS_LONG_INT lsb_modify(struct submit *, struct submitReply *,
                               LS_LONG_INT);
-extern float *getCpuFactor(char *, int);
 extern char *lsb_suspreason(int, int, struct loadIndexLog *);
 extern char *lsb_pendreason(int, int *, struct jobInfoHead *,
                             struct loadIndexLog *);
@@ -1520,5 +1513,3 @@ struct jobInfoHead *lsb_openjobinfo2(LS_LONG_INT, const char *, const char *,
 #define LoadIndexLog load_index_log
 
 #endif /* LSBATCH_COMPAT_H */
-
-#endif

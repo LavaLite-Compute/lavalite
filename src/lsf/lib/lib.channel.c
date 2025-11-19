@@ -21,6 +21,8 @@
 
 #define DEFAULT_MAX_CHANNELS 1024
 
+// LIM protocol max frame
+#define MAXMSGLEN LL_BUFSIZ_4K
 #define CLOSEIT(i)                                                             \
     {                                                                          \
         close(channels[i].handle);                                             \
@@ -216,40 +218,46 @@ int chanConnect_(int chfd, struct sockaddr_in *peer, int timeout, int options)
 {
     int cc;
 
+    (void) options; // unused for now
+
     if (channels[chfd].state != CH_DISC) {
         lserrno = LSE_INTERNAL;
         return -1;
     }
 
-    if (channels[chfd].type == CH_TYPE_UDP) {
-        cc = connect(channels[chfd].handle, (struct sockaddr *) peer,
-                     sizeof(struct sockaddr_in));
-        if (SOCK_CALL_FAIL(cc)) {
-            lserrno = LSE_CONN_SYS;
-            return -1;
-        }
-        channels[chfd].state = CH_CONN;
-        return 0;
+    if (peer == NULL) {
+        lserrno = LSE_BAD_ARGS;
+        return -1;
     }
 
-    if (timeout >= 0) {
-        if (b_connect_(channels[chfd].handle, (struct sockaddr *) peer,
-                       sizeof(struct sockaddr_in), timeout / 1000) < 0) {
-            if (errno == ETIMEDOUT)
-                lserrno = LSE_TIME_OUT;
-            else
-                lserrno = LSE_CONN_SYS;
-            return -1;
-        }
-        channels[chfd].state = CH_CONN;
-        return 0;
+    if (channels[chfd].type == CH_TYPE_UDP) {
+        // No more connected UDP; use chanSendDgram_/chanRcvDgram_ instead.
+        lserrno = LSE_BAD_ARGS;
+        return -1;
     }
+
+    if (timeout < 0) {
+        // Old "just set CH_CONN" behavior is gone; this is now invalid.
+        lserrno = LSE_BAD_ARGS;
+        return -1;
+    }
+
+    cc = b_connect_(channels[chfd].handle, (struct sockaddr *) peer,
+                    sizeof(struct sockaddr_in), timeout);
+    if (cc < 0) {
+        if (errno == ETIMEDOUT)
+            lserrno = LSE_TIME_OUT;
+        else
+            lserrno = LSE_CONN_SYS;
+        return -1;
+    }
+
     channels[chfd].state = CH_CONN;
 
     return 0;
 }
 
-int chanSendDgram_(int chfd, char *buf, int len, struct sockaddr_in *peer)
+int chanSendDgram_(int chfd, char *buf, size_t len, struct sockaddr_in *peer)
 {
     int s = channels[chfd].handle;
     if (channels[chfd].type != CH_TYPE_UDP) {
@@ -671,20 +679,9 @@ ssize_t chanWrite_(int chfd, void *buf, size_t len)
 }
 
 int chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
-             struct packet_header *outhdr, int timeout)
+             struct packet_header *out_hdr, int timeout)
 {
-    static char fname[] = "chanRpc_";
-    XDR xdrs;
-    struct packet_header hdrBuf;
-    struct timeval timeval, *timep = NULL;
-    int cc;
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG1, "%s: Entering ... chfd=%d", fname, chfd);
-
     if (in) {
-        if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG1, "%s: sending %d bytes", fname, in->len);
         if (chanWrite_(chfd, in->data, in->len) != in->len)
             return -1;
 
@@ -692,11 +689,7 @@ int chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
             struct Buffer *buf = in->forw;
             int nlen = htonl(buf->len);
 
-            if (logclass & LC_COMM)
-                ls_syslog(LOG_DEBUG1, "%s: sending %d extra bytes", fname,
-                          nlen);
-            if (chanWrite_(chfd, (void *) (&nlen), NET_INTSIZE_) !=
-                NET_INTSIZE_)
+            if (chanWrite_(chfd, (void *) &nlen, NET_INTSIZE_) != NET_INTSIZE_)
                 return -1;
 
             if (chanWrite_(chfd, buf->data, buf->len) != buf->len)
@@ -708,15 +701,8 @@ int chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
         return 0;
     }
 
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG2, "%s: waiting for reply timeout=%d ms", fname,
-                  timeout);
-    if (timeout > 0) {
-        timeval.tv_sec = timeout / 1000;
-        timeval.tv_usec = timeout - timeval.tv_sec * 1000;
-        timep = &timeval;
-    }
-    if ((cc = rd_select_(channels[chfd].handle, timep)) <= 0) {
+    int cc = rd_poll(channels[chfd].handle, timeout * 1000);
+    if (cc <= 0) {
         if (cc == 0)
             lserrno = LSE_TIME_OUT;
         else
@@ -724,27 +710,19 @@ int chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
         return -1;
     }
 
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG2, "%s: reading reply header", fname);
-
-    xdrmem_create(&xdrs, (char *) &hdrBuf, PACKET_HEADER_SIZE, XDR_DECODE);
-    cc = readDecodeHdr_(chfd, (char *) &hdrBuf, chanRead_, &xdrs, outhdr);
+    cc = recv_packet_header(chfd, out_hdr);
     if (cc < 0) {
-        xdr_destroy(&xdrs);
         return -1;
     }
-    xdr_destroy(&xdrs);
 
-#define MAXMSGLEN (1 << 28)
-    if (outhdr->length > MAXMSGLEN) {
+    // Bug what is this for... auth the socket?
+    if (out_hdr->length > MAXMSGLEN) {
         lserrno = LSE_PROTOCOL;
         return -1;
     }
 
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG2, "%s: reading reply size=%d", fname,
-                  outhdr->length);
-    out->len = outhdr->length;
+    out->data = NULL;
+    out->len = out_hdr->length;
     if (out->len > 0) {
         if ((out->data = malloc(out->len)) == NULL) {
             lserrno = LSE_MALLOC;
@@ -753,16 +731,11 @@ int chanRpc_(int chfd, struct Buffer *in, struct Buffer *out,
 
         if ((cc = chanRead_(chfd, out->data, out->len)) != out->len) {
             FREEUP(out->data);
-            if (logclass & LC_COMM)
-                ls_syslog(LOG_DEBUG2, "%s: read only %d bytes", fname, cc);
             lserrno = LSE_MSG_SYS;
             return -1;
         }
-    } else
-        out->data = NULL;
+    }
 
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG1, "%s: Leaving...repy_size=%d", fname, out->len);
     return 0;
 }
 

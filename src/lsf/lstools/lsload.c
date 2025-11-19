@@ -58,10 +58,10 @@ int main(int argc, char **argv)
     int achar;
     char longFormat = FALSE;
     char wideFormat = FALSE;
-    char badHost = FALSE, sOption = FALSE, otherOption = FALSE;
+    char sOption = FALSE, otherOption = FALSE;
     int extView = FALSE;
     char **shareNames, **shareValues, **formats;
-    int isClus, retVal = 0;
+    int retVal = 0;
 
     num = 0;
     numneeded = 0;
@@ -166,22 +166,14 @@ int main(int argc, char **argv)
                     MAXLISTSIZE);
             exit(-1);
         }
-        if ((isClus = ls_isclustername(argv[optind])) < 0) {
-            fprintf(stderr, "lsload: %s\n", ls_sysmsg());
-            badHost = TRUE;
-            continue;
-        } else if ((isClus == 0) && (!is_valid_host(argv[optind]))) {
+        if (!is_valid_host(argv[optind])) {
             fprintf(stderr, "lsload: %s %s\n", "unknown host name",
                     argv[optind]);
-            badHost = TRUE;
-            continue;
+            return -1;
         }
         hostnames[num] = argv[optind];
         num++;
     }
-
-    if (num == 0 && badHost)
-        exit(-1);
 
     if (!longFormat) {
         if (indexfilter)

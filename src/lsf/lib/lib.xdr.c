@@ -130,6 +130,7 @@ bool_t xdr_time_t(XDR *xdrs, time_t *t)
     return xdr_int64_t(xdrs, (int64_t *) t);
 }
 
+#if 0
 int readDecodeHdr_(int s, char *buf, ssize_t (*readFunc)(), XDR *xdrs,
                    struct packet_header *hdr)
 {
@@ -146,14 +147,16 @@ int readDecodeHdr_(int s, char *buf, ssize_t (*readFunc)(), XDR *xdrs,
     return 0;
 }
 
-int writeEncodeHdr_(int s, struct packet_header *hdr, ssize_t (*writeFunc)())
+// Encode a packet header with XDR and write it out.
+// Returns number of bytes written (like write()), or -1 on error.
+ssize_t writeEncodeHdr_(int s, struct packet_header *hdr,
+                        ssize_t (*writeFunc)())
 {
     XDR xdrs;
     struct packet_header buf;
 
     init_pack_hdr(&buf);
-    hdr->length = 0;
-    xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE, XDR_ENCODE);
+    xdrmem_create(&xdrs, (char *)&buf, PACKET_HEADER_SIZE, XDR_ENCODE);
 
     if (!xdr_pack_hdr(&xdrs, hdr)) {
         lserrno = LSE_BAD_XDR;
@@ -163,11 +166,58 @@ int writeEncodeHdr_(int s, struct packet_header *hdr, ssize_t (*writeFunc)())
 
     xdr_destroy(&xdrs);
 
-    if ((*writeFunc)(s, (char *) &buf, PACKET_HEADER_SIZE) !=
-        PACKET_HEADER_SIZE) {
+    /* In theory, we should use XDR_GETPOS(&xdrs) to know how many bytes
+     * we actually encoded, but PACKET_HEADER_SIZE is fixed and aligned
+     * for the header, so writing the full buffer is fine.
+     */
+    int cc = (*writeFunc)(s, (char *) &buf, PACKET_HEADER_SIZE);
+    if (cc != PACKET_HEADER_SIZE) {
         lserrno = LSE_MSG_SYS;
-        return -2;
+        return -1;
     }
+
+    return cc;
+}
+#endif
+
+int send_packet_header(int chfd, struct packet_header *hdr)
+{
+    XDR xdrs;
+    char buf[PACKET_HEADER_SIZE];
+
+    xdrmem_create(&xdrs, buf, PACKET_HEADER_SIZE, XDR_ENCODE);
+    if (!xdr_pack_hdr(&xdrs, hdr)) {
+        xdr_destroy(&xdrs);
+        lserrno = LSE_BAD_XDR;
+        return -1;
+    }
+    xdr_destroy(&xdrs);
+
+    if (chanWrite_(chfd, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
+        lserrno = LSE_MSG_SYS;
+        return -1;
+    }
+
+    return 0;
+}
+
+int recv_packet_header(int chfd, struct packet_header *hdr)
+{
+    XDR xdrs;
+    char buf[PACKET_HEADER_SIZE];
+
+    if (chanRead_(chfd, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
+        lserrno = LSE_MSG_SYS;
+        return -1;
+    }
+
+    xdrmem_create(&xdrs, (char *) buf, PACKET_HEADER_SIZE, XDR_DECODE);
+    if (!xdr_pack_hdr(&xdrs, hdr)) {
+        xdr_destroy(&xdrs);
+        lserrno = LSE_BAD_XDR;
+        return -1;
+    }
+    xdr_destroy(&xdrs);
 
     return 0;
 }
@@ -307,26 +357,63 @@ bool_t xdr_array_element(XDR *xdrs,     // the stream
 
 bool_t xdr_lsfRusage(XDR *xdrs, struct lsfRusage *lsfRu, void *)
 {
-    if (!(xdr_double(xdrs, &lsfRu->ru_utime) &&
-          xdr_double(xdrs, &lsfRu->ru_stime) &&
-          xdr_double(xdrs, &lsfRu->ru_maxrss) &&
-          xdr_double(xdrs, &lsfRu->ru_ixrss) &&
-          xdr_double(xdrs, &lsfRu->ru_ismrss) &&
-          xdr_double(xdrs, &lsfRu->ru_idrss) &&
-          xdr_double(xdrs, &lsfRu->ru_isrss) &&
-          xdr_double(xdrs, &lsfRu->ru_minflt) &&
-          xdr_double(xdrs, &lsfRu->ru_majflt) &&
-          xdr_double(xdrs, &lsfRu->ru_nswap) &&
-          xdr_double(xdrs, &lsfRu->ru_inblock) &&
-          xdr_double(xdrs, &lsfRu->ru_oublock) &&
-          xdr_double(xdrs, &lsfRu->ru_ioch) &&
-          xdr_double(xdrs, &lsfRu->ru_msgsnd) &&
-          xdr_double(xdrs, &lsfRu->ru_msgrcv) &&
-          xdr_double(xdrs, &lsfRu->ru_nsignals) &&
-          xdr_double(xdrs, &lsfRu->ru_nvcsw) &&
-          xdr_double(xdrs, &lsfRu->ru_nivcsw) &&
-          xdr_double(xdrs, &lsfRu->ru_exutime)))
+    if (!xdr_double(xdrs, &lsfRu->ru_utime))
         return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_stime))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_maxrss))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_ixrss))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_ismrss))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_idrss))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_isrss))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_minflt))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_majflt))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_nswap))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_inblock))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_oublock))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_ioch))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_msgsnd))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_msgrcv))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_nsignals))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_nvcsw))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_nivcsw))
+        return false;
+
+    if (!xdr_double(xdrs, &lsfRu->ru_exutime))
+        return false;
+
     return true;
 }
 

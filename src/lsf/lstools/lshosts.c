@@ -346,23 +346,17 @@ int main(int argc, char **argv)
         }
 
         if (i == 0) {
-            TIMEIT(0,
-                   (hostinfo =
-                        ls_gethostinfo(resReq, &numhosts, NULL, 0, options)),
-                   "ls_gethostinfo");
+            hostinfo = ls_gethostinfo(resReq, &numhosts, NULL, 0, options);
             if (hostinfo == NULL) {
                 ls_perror("ls_gethostinfo()");
-                exit(-1);
+                return -1;
             }
-        } else {
-            TIMEIT(
-                0,
-                (hostinfo = ls_gethostinfo(resReq, &numhosts, namebufs, i, 0)),
-                "ls_gethostinfo");
-            if (hostinfo == NULL) {
-                ls_perror("ls_gethostinfo");
-                exit(-1);
-            }
+        }
+
+        hostinfo = ls_gethostinfo(resReq, &numhosts, namebufs, i, 0);
+        if (hostinfo == NULL) {
+            ls_perror("ls_gethostinfo");
+            return -1;
         }
 
         if (!longformat && !longname) {

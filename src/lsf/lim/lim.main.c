@@ -1,4 +1,4 @@
-/* $Id: lim.main.c,v 1.18 2007/08/15 22:18:54 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -25,6 +25,9 @@ int lim_udp_sock = -1;
 int lim_tcp_sock = -1;
 ushort lim_udp_port;
 ushort lim_tcp_port;
+// BUG use a list
+long max_clients;
+struct client_node **clientMap;
 
 int probeTimeout = 2;
 short resInactivityCount = 0;
@@ -59,31 +62,12 @@ static inline uint64_t now_ms(void);
 
 struct liStruct *li = NULL;
 int li_len = 0;
-#if 0
-struct config_param genParams[] =
-{
-    {"LSF_CONFDIR", NULL},
-    {"LSF_LIM_DEBUG", NULL},
-    {"LSF_SERVERDIR", NULL},
-    {"LSF_LOGDIR", NULL},
-    {"LSF_LIM_PORT", NULL},
-    {"LSF_RES_PORT", NULL},
-    {"LSF_DEBUG_LIM",NULL},
-    {"LSF_TIME_LIM",NULL},
-    {"LSF_LOG_MASK",NULL},
-    {"LSF_LIM_IGNORE_CHECKSUM", NULL},
-    {"LSF_MASTER_LIST", NULL},
-    {"LSF_REJECT_NONLSFHOST", NULL},
-    {NULL, NULL},
-};
-#endif
 extern int chanIndex;
 
-static void initAndConfig(int);
+static void lim_init(int);
 static void term_handler(int);
 static void child_handler(int);
 static void usage(const char *);
-static int doAcceptConn(void);
 static void initSignals(void);
 static void periodic(void);
 static struct tclLsInfo *getTclLsInfo(void);
@@ -94,6 +78,7 @@ extern char *getExtResourcesLoc(char *);
 extern char *getExtResourcesVal(char *);
 
 static int process_udp_request(void);
+static int accept_connection(void);
 
 static void usage(const char *cmd)
 {
@@ -144,7 +129,7 @@ int main(int argc, char **argv)
 
     if (env_dir == NULL) {
         if ((env_dir = getenv("LSF_ENVDIR")) == NULL) {
-            env_dir = LSETCDIR;
+            env_dir = LL_CONF;
         }
     }
 
@@ -201,7 +186,7 @@ int main(int argc, char **argv)
     isMasterCandidate = getIsMasterCandidate_();
     numMasterCandidates = getNumMasterCandidates_();
 
-    initAndConfig(lim_CheckMode);
+    lim_init(lim_CheckMode);
 
     masterMe = (myHostPtr->hostNo == 0);
 
@@ -281,15 +266,14 @@ int main(int argc, char **argv)
             if (cc < 0) {
                 syslog(LOG_ERR, "%s: process_udp_request() failed: %m",
                        __func__);
-                // continue the loop checking other descriptors
             }
         }
 
         if (FD_ISSET(lim_tcp_sock, &chanmask.rmask)) {
-            doAcceptConn();
+            accept_connection();
         }
 
-        clientIO(&chanmask);
+        handle_tcp_client(&chanmask);
     }
 }
 
@@ -337,65 +321,17 @@ static int process_udp_request(void)
     }
 
     switch (reqHdr.operation) {
-    case LIM_PLACEMENT:
-        placeReq(&xdrs, &from, &reqHdr, -1);
-        break;
-    case LIM_LOAD_REQ:
-        loadReq(&xdrs, &from, &reqHdr, -1);
-        break;
     case LIM_GET_CLUSNAME:
         clusNameReq(&xdrs, &from, &reqHdr);
         break;
     case LIM_GET_MASTINFO:
         masterInfoReq(&xdrs, &from, &reqHdr);
         break;
-    case LIM_GET_CLUSINFO:
-        clusInfoReq(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_PING:
-        pingReq(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_GET_HOSTINFO:
-        hostInfoReq(&xdrs, node, &from, &reqHdr, -1);
-        break;
-    case LIM_GET_INFO:
-        infoReq(&xdrs, &from, &reqHdr, -1);
-        break;
-    case LIM_GET_CPUF:
-        cpufReq(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_CHK_RESREQ:
-        chkResReq(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_GET_RESOUINFO:
-        resourceInfoReq2(&xdrs, &from, &reqHdr, -1);
-        break;
-    case LIM_REBOOT:
-        reconfigReq(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_SHUTDOWN:
-        shutdownReq(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_LOCK_HOST:
-        lockReq(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_DEBUGREQ:
-        limDebugReq(&xdrs, &from, &reqHdr);
-        break;
     case LIM_SERV_AVAIL:
         servAvailReq(&xdrs, node, &from, &reqHdr);
         break;
-    case LIM_LOAD_UPD:
-        rcvLoad(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_JOB_XFER:
-        jobxferReq(&xdrs, &from, &reqHdr);
-        break;
     case LIM_MASTER_ANN:
         masterRegister(&xdrs, &from, &reqHdr);
-        break;
-    case LIM_CONF_INFO:
-        rcvConfInfo(&xdrs, &from, &reqHdr);
         break;
     default:
         if (reqHdr.version <= CURRENT_PROTOCOL_VERSION) {
@@ -405,6 +341,8 @@ static int process_udp_request(void)
                    sockAdd2Str_(&from));
             break;
         }
+        ls_syslog(LOG_ERR, "%s: UDP request %d not supported anymore", __func__,
+                  reqHdr.operation);
     }
 
     xdr_destroy(&xdrs);
@@ -412,11 +350,10 @@ static int process_udp_request(void)
     return 0;
 }
 
-static int doAcceptConn(void)
+static int accept_connection(void)
 {
     struct sockaddr_in from;
     struct hostNode *host;
-    struct clientNode *client;
 
     if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", __func__);
@@ -445,7 +382,7 @@ static int doAcceptConn(void)
         return -1;
     }
 
-    client = calloc(1, sizeof(struct clientNode));
+    struct client_node *client = calloc(1, sizeof(struct client_node));
     if (!client) {
         ls_syslog(LOG_ERR, "%s: Connection from %s dropped", __func__,
                   sockAdd2Str_(&from));
@@ -455,7 +392,6 @@ static int doAcceptConn(void)
     client->chanfd = ch;
     // Bug create a list
     clientMap[client->chanfd] = client;
-    client->inprogress = false;
     client->fromHost = host;
     client->from = from;
     client->clientMasks = 0;
@@ -488,19 +424,17 @@ static void initSignals(void)
     sigprocmask(SIG_SETMASK, &mask, NULL);
 }
 
-static void initAndConfig(int checkMode)
+static void lim_init(int checkMode)
 {
-    static char fname[] = "initAndConfig";
-    int i;
     struct tclLsInfo *tclLsInfo;
 
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...; checkMode=%d",
-                  fname, checkMode);
+                  __func__, checkMode);
 
     initLiStruct();
     if (readShared() < 0) {
-        lim_Exit("initAndConfig");
+        lim_Exit("lim_init");
     }
 
     reCheckRes();
@@ -535,10 +469,9 @@ static void initAndConfig(int checkMode)
     if (chanInit_() < 0)
         lim_Exit("chanInit_");
 
-    for (i = 0; i < 2 * MAXCLIENTS; i++) {
-        clientMap[i] = NULL;
-    }
-
+    max_clients = sysconf(_SC_OPEN_MAX);
+    clientMap = calloc(1, sizeof(struct client_node **));
+    *clientMap = calloc(max_clients, sizeof(struct client_node *));
     {
         // Bug what is the purpose of this, set in the env
         // while processing the API so child picks it up?
@@ -548,7 +481,7 @@ static void initAndConfig(int checkMode)
 
         if (lsfLimLock != NULL && lsfLimLock[0] != 0) {
             if (logclass & LC_TRACE) {
-                ls_syslog(LOG_DEBUG2, "%s: LSF_LIM_LOCK=<%s>", fname,
+                ls_syslog(LOG_DEBUG2, "%s: LSF_LIM_LOCK=<%s>", __func__,
                           lsfLimLock);
             }
             sscanf(lsfLimLock, "%d %ld", &flag, &lockTime);
@@ -591,6 +524,8 @@ static void periodic(void)
         checkHostWd();
 }
 
+// Set an atomic variable to signal the exit
+// do nohing else in the handler
 static void term_handler(int signum)
 {
     Signal_(signum, SIG_DFL);

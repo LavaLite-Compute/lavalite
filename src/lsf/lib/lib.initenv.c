@@ -99,7 +99,7 @@ int initenv_(struct config_param *userEnv, char *pathname)
     if ((envdir = getenv("LSF_ENVDIR")) != NULL)
         pathname = envdir;
     else if (pathname == NULL)
-        pathname = LSETCDIR;
+        pathname = LL_CONF;
 
     if (check_ll_conf(pathname) < 0) {
         lserrno = LSE_BAD_ENV;
@@ -158,7 +158,6 @@ int static readconfenv_(struct config_param *conf_array,
     char *line;
     FILE *fp;
     char filename[PATH_MAX];
-    struct config_param *plp;
     int lineNum = 0;
     int saveErrNo;
 
@@ -420,3 +419,140 @@ static int check_ll_conf(const char *file)
 
     return 0;
 }
+
+#if 0
+// Lavalite line parser enable later
+int parse_env_line(const char *line,
+                   char *key, size_t key_len,
+                   char *value, size_t value_len)
+{
+    const char *p = line;
+    const char *eq;
+    const char *start;
+    const char *end;
+    size_t len;
+
+    if (!line || !key || !value || key_len == 0 || value_len == 0) {
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
+
+    // skip leading spaces
+    while (*p && isspace((unsigned char)*p))
+        p++;
+
+    // must contain '='
+    eq = strchr(p, '=');
+    if (!eq) {
+        lserrno = LSE_CONF_SYNTAX;
+        return -1;
+    }
+
+    // key is [p, eq)
+    start = p;
+    end = eq;
+
+    // no spaces in key (like old code semantics)
+    for (const char *t = start; t < end; t++) {
+        if (isspace((unsigned char)*t)) {
+            lserrno = LSE_CONF_SYNTAX;
+            return -1;
+        }
+    }
+
+    len = (size_t)(end - start);
+    if (len == 0 || len >= key_len) {
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
+
+    memcpy(key, start, len);
+    key[len] = '\0';
+
+    // move past '='
+    p = eq + 1;
+
+    // old parseLine: value cannot start with space or tab
+    if (*p == ' ' || *p == '\t') {
+        lserrno = LSE_CONF_SYNTAX;
+        return -1;
+    }
+
+    // empty value: KEY=
+    if (*p == '\0') {
+        if (value_len == 0) {
+            lserrno = LSE_BAD_ENV;
+            return -1;
+        }
+        value[0] = '\0';
+        return 0;
+    }
+
+    // quoted value: KEY="..."
+    if (*p == '"') {
+        p++;                    // skip opening quote
+        start = p;
+
+        while (*p && *p != '"')
+            p++;
+
+        if (*p != '"') {
+            // no closing quote
+            lserrno = LSE_CONF_SYNTAX;
+            return -1;
+        }
+
+        end = p;               // position of closing quote
+
+        len = (size_t)(end - start);
+        if (len >= value_len) {
+            lserrno = LSE_BAD_ENV;
+            return -1;
+        }
+
+        memcpy(value, start, len);
+        value[len] = '\0';
+
+        p++;                   // skip closing quote
+
+        // skip trailing spaces after closing quote
+        while (*p && isspace((unsigned char)*p))
+            p++;
+
+        // extra garbage after quoted value → syntax error
+        if (*p != '\0') {
+            lserrno = LSE_CONF_SYNTAX;
+            return -1;
+        }
+
+        return 0;
+    }
+
+    // unquoted value: read until space/tab or end
+    start = p;
+    while (*p && !isspace((unsigned char)*p))
+        p++;
+    end = p;
+
+    len = (size_t)(end - start);
+    if (len >= value_len) {
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
+
+    memcpy(value, start, len);
+    value[len] = '\0';
+
+    // skip trailing spaces
+    while (*p && isspace((unsigned char)*p))
+        p++;
+
+    // extra junk after value → syntax error
+    if (*p != '\0') {
+        lserrno = LSE_CONF_SYNTAX;
+        return -1;
+    }
+
+    return 0;
+}
+#endif

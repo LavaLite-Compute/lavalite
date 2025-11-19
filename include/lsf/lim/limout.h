@@ -50,64 +50,58 @@ struct jobXfer {
  */
 enum limReqCode {
     LIM_PLACEMENT = 1,
-    LIM_LOAD_REQ = 2,
-    LIM_LOAD_ADJ = 3,
-    LIM_GET_CLUSNAME = 4,
-    LIM_GET_MASTINFO = 5,
-    LIM_GET_HOSTINFO = 6,
-    LIM_GET_CPUF = 7,
-    LIM_GET_INFO = 8,
-    LIM_GET_CLUSINFO = 9,
-    LIM_PING = 10,
-    LIM_CHK_RESREQ = 11,
-    LIM_DEBUGREQ = 12,
-    LIM_GET_RESOUINFO = 13,
-
-#define FIRST_LIM_PRIV LIM_REBOOT
-    LIM_REBOOT = 50,
-    LIM_LOCK_HOST = 51,
-    LIM_SERV_AVAIL = 52,
-    LIM_SHUTDOWN = 53,
-
-#define FIRST_LIM_LIM LIM_LOAD_UPD
-    LIM_LOAD_UPD = 100,
-    LIM_JOB_XFER = 101,
-    LIM_MASTER_ANN = 102,
-    LIM_CONF_INFO = 103,
-
-#define FIRST_INTER_CLUS LIM_CLUST_INFO
-    LIM_CLUST_INFO = 200,
-    LIM_HINFO_REQ = 201,
-    LIM_HINFO_REPLY = 202,
-    LIM_LINFO_REQ = 203,
-    LIM_LINFO_REPLY = 204
+    LIM_LOAD_REQ,
+    LIM_LOAD_ADJ,
+    LIM_GET_CLUSNAME,
+    LIM_GET_MASTINFO,
+    LIM_GET_HOSTINFO,
+    LIM_GET_CPUF,
+    LIM_GET_INFO,
+    LIM_GET_CLUSINFO,
+    LIM_PING,
+    LIM_CHK_RESREQ,
+    LIM_DEBUGREQ,
+    LIM_GET_RESOUINFO,
+    LIM_REBOOT,
+    LIM_LOCK_HOST,
+    LIM_SERV_AVAIL,
+    LIM_SHUTDOWN,
+    LIM_LOAD_UPD,
+    LIM_JOB_XFER,
+    LIM_MASTER_ANN,
+    LIM_CONF_INFO,
+    LIM_CLUST_INFO,
+    LIM_HINFO_REQ,
+    LIM_HINFO_REPLY,
+    LIM_LINFO_REQ,
+    LIM_LINFO_REPLY,
+    LIM_PROTO_CNT // sentinel
 };
 
 enum limReplyCode {
     LIME_NO_ERR = 1,
-    LIME_WRONG_MASTER = 2,
-    LIME_BAD_RESREQ = 3,
-    LIME_NO_OKHOST = 4,
-    LIME_NO_ELHOST = 5,
-    LIME_BAD_DATA = 6,
-    LIME_BAD_REQ_CODE = 7,
-    LIME_MASTER_UNKNW = 8,
-    LIME_DENIED = 9,
-    LIME_IGNORED = 10,
-    LIME_UNKWN_HOST = 11,
-    LIME_UNKWN_MODEL = 12,
-    LIME_LOCKED_AL = 13,
-    LIME_NOT_LOCKED = 14,
-    LIME_BAD_SERVID = 15,
-    LIME_NAUTH_HOST = 16,
-    LIME_UNKWN_RNAME = 17,
-    LIME_UNKWN_RVAL = 18,
-    LIME_NO_ELCLUST = 20,
-    LIME_NO_MEM = 21,
-    LIME_BAD_FILTER = 22,
-    LIME_BAD_RESOURCE = 23,
-    LIME_NO_RESOURCE = 24,
-    LIME_CONF_NOTREADY = 25,
+    LIME_WRONG_MASTER,
+    LIME_BAD_RESREQ,
+    LIME_NO_OKHOST,
+    LIME_NO_ELHOST,
+    LIME_BAD_DATA,
+    LIME_BAD_REQ_CODE,
+    LIME_MASTER_UNKNW,
+    LIME_DENIED,
+    LIME_IGNORED,
+    LIME_UNKWN_HOST,
+    LIME_UNKWN_MODEL,
+    LIME_LOCKED_AL,
+    LIME_NOT_LOCKED,
+    LIME_BAD_SERVID,
+    LIME_NAUTH_HOST,
+    LIME_UNKWN_RNAME,
+    LIME_UNKWN_RVAL,
+    LIME_NO_MEM,
+    LIME_BAD_FILTER,
+    LIME_BAD_RESOURCE,
+    LIME_NO_RESOURCE,
+    LIME_ERR_CNT // sentinel
 };
 
 struct loadReply {
@@ -245,11 +239,8 @@ struct clusterList {
 #define LOCK_BY_USER(stat) (((stat) & LIM_LOCK_STAT_USER) != 0)
 #define LOCK_BY_MASTER(stat) (((stat) & LIM_LOCK_STAT_MASTER) != 0)
 
-#define WINDOW_RETRY 0
-#define WINDOW_OPEN 1
-#define WINDOW_CLOSE 2
-#define WINDOW_FAIL 3
-
+// Bug in lavalite we should call the master and tell it what host to
+// lock
 struct limLock {
     int uid;
     int on;

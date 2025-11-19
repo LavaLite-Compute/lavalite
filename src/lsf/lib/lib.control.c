@@ -45,14 +45,14 @@ static int setLockOnOff_(int on, time_t duration, char *hname)
     if (host == NULL)
         host = ls_getmyhostname();
 
-    if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL, host, 0,
-                 NULL) < 0)
+    if (callLim_(LIM_LOCK_HOST, &lockReq, xdr_limLock, NULL, NULL, host,
+                 _USE_TCP_, NULL) < 0)
         return -1;
 
     return 0;
 }
 
-int ls_limcontrol(char *hname, int operation)
+int ls_limcontrol(const char *hname, int operation)
 {
     enum limReqCode limReqCode;
     struct lsfAuth auth;
@@ -75,8 +75,8 @@ int ls_limcontrol(char *hname, int operation)
     putEauthServerEnvVar("lim");
     getAuth_(&auth, hname);
 
-    if (callLim_(limReqCode, &auth, xdr_lsfAuth, NULL, NULL, hname, 0, NULL) <
-        0)
+    if (callLim_(limReqCode, &auth, xdr_lsfAuth, NULL, NULL, hname, _USE_TCP_,
+                 NULL) < 0)
         return -1;
 
     return 0;
@@ -140,7 +140,7 @@ int ls_servavail(int servId, int nonblock)
             return -1;
         }
     }
-
+    options |= _USE_TCP_;
     if (callLim_(LIM_SERV_AVAIL, &servId, xdr_int, NULL, NULL,
                  ls_getmyhostname(), options, NULL) < 0)
         return -1;

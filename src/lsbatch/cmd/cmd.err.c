@@ -45,17 +45,10 @@ void jobInfoErr(LS_LONG_INT jobId, char *jobName, char *user, char *queue,
             strcat(hostOrQueue, queue);
         }
         if (host) {
-            if (ls_isclustername(host) <= 0) {
-                if (hostOrQueue[0] == '\0')
-                    strcpy(hostOrQueue, (" on host/group <"));
-                else
-                    strcat(hostOrQueue, ("> and on host/group <"));
-            } else {
-                if (hostOrQueue[0] == '\0')
-                    strcpy(hostOrQueue, (" in cluster <"));
-                else
-                    strcat(hostOrQueue, ("> and in cluster <"));
-            }
+            if (hostOrQueue[0] == '\0')
+                strcpy(hostOrQueue, (" on host/group <"));
+            else
+                strcat(hostOrQueue, ("> and on host/group <"));
             strcat(hostOrQueue, host);
         }
         if (hostOrQueue[0] != '\0')

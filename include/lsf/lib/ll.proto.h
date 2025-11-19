@@ -44,3 +44,6 @@ _Static_assert(sizeof(struct packet_header) == 20, "packet_header size drift!");
 // The procol buffers are marshaled use xdr
 // Use these macros to compute the right size of
 // the xdr buffer for its alignment ob 4 bytes boundary
+void init_pack_hdr(struct packet_header *);
+int send_packet_header(int, struct packet_header *);
+int recv_packet_header(int, struct packet_header *);

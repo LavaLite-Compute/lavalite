@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     }
     puts(LAVALITE_VERSION_STR);
 
-    TIMEIT(0, (Name = ls_getclustername()), "ls_getclustername");
+    Name = ls_getclustername();
     if (Name == NULL) {
         if (lserrno == LSE_CONF_SYNTAX) {
             char lno[20];
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     }
     printf("My cluster name is %s\n", Name);
 
-    TIMEIT(0, (Name = ls_getmastername()), "ls_getmastername");
+    Name = ls_getmastername();
     if (Name == NULL) {
         char buf[150];
 

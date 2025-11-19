@@ -1,22 +1,28 @@
 ## What Is LavaLite?
 
-LavaLite is a lightweight, high-throughput job scheduler designed for clusters that
-prioritize volume over parallelism. It does not focus on tightly coupled MPI
-workloads, LavaLite excels at managing thousands of short, independent jobs with
-minimal overhead.
+LavaLite is a modern, independent continuation of the original open-source
+Platform Lava / OpenLava scheduler. It is a from-scratch modernization,
+cleanup, and redesign effort built on that heritage—yet completely independent
+of Platform Computing, IBM, or any other vendor.
 
-LavaLite isn’t just about HPC—it’s also a natural fit for HTC workloads: massive job arrays,
-embarrassingly parallel tasks, and data-intensive pipelines. LavaLite isn’t just for
-supercomputers—it’s for bioinformatics labs, media farms, and cloud-scale batch systems too.
+LavaLite is a lightweight, high-throughput job scheduler designed for
+clusters that prioritize volume over parallelism. It does not target tightly
+coupled MPI workloads. Instead, it excels at running thousands of short,
+independent jobs with minimal overhead.
 
-LavaLite is also a powerful fit for AI workflows—whether you're training models across
-distributed GPUs, orchestrating hyperparameter sweeps, or managing inference pipelines
-at scale. Its lightweight design and scriptable interface make it ideal for researchers
-and engineers pushing the boundaries of machine learning.
+Beyond traditional HPC, LavaLite is a natural fit for HTC workloads:
+massive job arrays, embarrassingly parallel tasks, data-driven pipelines, and
+large-scale scientific workflows. It’s useful not only on supercomputers but
+also in bioinformatics labs, media render farms, and cloud batch systems.
 
-Inspired by Platform Lava 1.0 and refined with algorithmic insights from Donald Knuth’s
-teachings, LavaLite is built for speed, simplicity, and clarity. It’s not just a
-revival—it’s a reinvention.
+LavaLite is also a strong match for AI and machine-learning pipelines—from
+distributed GPU training to hyperparameter sweeps and inference farms. Its
+simple interface and lightweight design make it ideal for researchers and
+engineers pushing the limits of modern computational workloads.
+
+Inspired by Platform Lava 1.0 and refined with algorithmic principles drawn
+from Donald Knuth’s teachings, LavaLite is built for speed, simplicity, and
+clarity. It’s not just a revival—it’s a reinvention.
 
 ## Origins & Philosophy
 LavaLite is built on a clean, GPLv2-licensed foundation originally released by Platform Computing.
@@ -73,4 +79,3 @@ For issues and feature requests, please use the
 
 Maintainer: lavalite.compute@gmail.com
 Project email: livelite@lavalite-compute.io
-

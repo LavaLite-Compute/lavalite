@@ -85,8 +85,6 @@ struct hostInfoEnt *lsb_hostinfo_ex(char **hosts, int *numHosts, char *resReq,
             return NULL;
         }
         for (i = 0; i < numReq; i++) {
-            if (ls_isclustername(hosts[i]) <= 0)
-                continue;
             hostInfoReq.names[0] = "";
             hostInfoReq.numNames = 0;
             clusterName = hosts[i];

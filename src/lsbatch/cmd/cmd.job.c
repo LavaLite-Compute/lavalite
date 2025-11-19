@@ -799,28 +799,6 @@ void displayLong(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
     hostPtr = job->submit.hostSpec;
     hostFactor = 1.0;
 
-    if (job->numExHosts > 0 && (strcmp(job->exHosts[0], LOST_AND_FOUND) != 0) &&
-        !IS_PEND(job->status)) {
-        strcpy(hostName, job->exHosts[0]);
-
-        if ((sp = strstr(hostName, "@")) != NULL) {
-            *sp = '\0';
-
-            if (strcmp(hostName, hostPtr) == 0) {
-                if ((getFactor = getCpuFactor(hostName, TRUE)) == NULL) {
-                    prtLine("\n");
-                    fprintf(stderr,
-                            ("Cannot obtain execution host information: %s\n"),
-                            ls_errmsg[lserrno]);
-                    exit(-1);
-                } else {
-                    hostFactor = *getFactor;
-                    hostPtr = job->exHosts[0];
-                }
-            }
-        }
-    }
-
     TIMEIT(1, prtSubDetails(job, hostPtr, hostFactor), "prtSubDetails");
     if (job->numExHosts > 0 && job->reserveTime > 0) {
         TIMEIT(1, prtJobReserv(job), "prtJobReserv");

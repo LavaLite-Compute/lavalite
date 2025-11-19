@@ -63,9 +63,9 @@
 /* System XDR versionis the protocol version carried by the header
  */
 #define _XDR_VERSION_0_1_0 1
-/* Global message size is stdio BUFSIZ 8192 bytes
+/* Global message size
  */
-#define MSGSIZE BUFSIZ
+#define MSGSIZE LL_BUFSIZ_4K
 
 /* Public API headers
  */
@@ -79,7 +79,7 @@
 #define DEF_REXPRIORITY 0
 #define LSTMPDIR lsTmpDir_
 #define LSDEVNULL "/dev/null"
-#define LSETCDIR "/etc"
+#define LL_CONF "/usr/local/etc"
 #define LIM_PORT 36000
 #define RES_PORT 36002
 #define closesocket close

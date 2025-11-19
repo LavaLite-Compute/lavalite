@@ -315,19 +315,14 @@ int rd_select_(int rd, struct timeval *timeout)
 
 /* Modern C version of rd_select() recommended, replacing
  * rd_select_() in deamons with the poll version.
+ * The timeout is in milliseconds as poll() expects.
  */
-int rd_poll_(int rd, struct timeval *timeout)
+int rd_poll(int rd, int ms)
 {
     struct pollfd pfd = {.fd = rd, .events = POLLIN};
 
-    // Convert timeval to milliseconds
-    int timeout_ms = -1;
-    if (timeout) {
-        timeout_ms = timeout->tv_sec * 1000 + timeout->tv_usec / 1000;
-    }
-
     for (;;) {
-        int cc = poll(&pfd, 1, timeout_ms);
+        int cc = poll(&pfd, 1, ms);
 
         if (cc >= 0)
             return cc;
@@ -339,7 +334,7 @@ int rd_poll_(int rd, struct timeval *timeout)
     }
 }
 
-/* Remove lagacy problematic signal masking.
+/* Remove legacy problematic signal masking.
  * Affects the entire thread, not just the syscall.
  * Can interfere with other subsystems, especially in multi-threaded daemons.
  * Makes debugging and signal handling more complex.

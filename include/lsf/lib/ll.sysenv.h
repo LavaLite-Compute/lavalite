@@ -57,21 +57,21 @@ extern struct config_param genParams[];
 extern struct masterInfo masterInfo;
 extern int masterknown;
 
-// Indexes in the limchans array
+// Indexes in the limchans array based on transport
 typedef enum {
-    PRIMARY,
-    MASTER,
-    UNBOUND,
+    UDP,
     TCP,
     SOCK_COUNT // <-- sentinel
 } lim_sock_t;
 
-// Bug TCP flags indicating what entry to use in limchans_
-#define _NON_BLOCK_ 0x01
-#define _LOCAL_ 0x02
-#define _USE_TCP_ 0x04
+// Flags indicating what transport to use and its attributes
+#define _USE_UDP_ 0x01
+#define _USE_TCP_ 0x02
+#define _NON_BLOCK_ 0x04
 #define _KEEP_CONNECT_ 0x08
-#define _USE_UDP_ _LOCAL_
 
-extern struct sockaddr_in sockIds_[];
-extern int limchans_[];
+// historical alias; library now treats it purely as "use UDP"
+#define _LOCAL_ _USE_UDP_
+
+extern struct sockaddr_in sock_addr_in[];
+extern int lim_chans[];

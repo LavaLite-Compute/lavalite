@@ -19,6 +19,8 @@
  */
 #pragma once
 
+// If it needs more than a Unix syscall, a struct, and libc, rethink it.
+
 // Accept what the hardware gives you
 // make it fast, make it clear, make it stop
 // everything else is noise
@@ -34,6 +36,8 @@
 // of “WTF” behind.
 
 // Nice, time to let the robot chew through the fossils
+
+// Fossil in → LavaLite out
 
 // System headers
 #include <stdio.h>
@@ -156,15 +160,7 @@ typedef uint64_t LS_UNS_LONG_INT;
 
 #define SEND_TO_CLUSTERS 0x400
 
-#define FROM_MASTER 0x01
-
-#define KEEPUID 0x01
-
-#define RES_CMD_REBOOT 1
-#define RES_CMD_SHUTDOWN 2
-#define RES_CMD_LOGON 3
-#define RES_CMD_LOGOFF 4
-
+// lim control options
 #define LIM_CMD_REBOOT 1
 #define LIM_CMD_SHUTDOWN 2
 
@@ -518,10 +514,6 @@ struct jRusage {
 #define LSE_MLS_DOMINATE 98
 #define LSE_NERR 98
 
-#define LSE_ISBAD_RESREQ(s)                                                    \
-    (((s) == LSE_BAD_EXP) || ((s) == LSE_UNKWN_RESNAME) ||                     \
-     ((s) == LSE_UNKWN_RESVALUE))
-
 #define LSE_SYSCALL(s)                                                         \
     (((s) == LSE_SELECT_SYS) || ((s) == LSE_CONN_SYS) ||                       \
      ((s) == LSE_FILE_SYS) || ((s) == LSE_MSG_SYS) || ((s) == LSE_SOCK_SYS) || \
@@ -604,43 +596,36 @@ extern int timinglevel;
 extern int lsf_lim_version;
 extern int lsf_res_version;
 
-extern char **ls_placereq(char *resreq, int *numhosts, int options,
-                          char *fromhost);
-extern char **ls_placeofhosts(char *resreq, int *numhosts, int options,
-                              char *fromhost, char **hostlist, int listsize);
-extern char **ls_placeoftype(char *resreq, int *numhosts, int options,
-                             char *fromhost, char *hosttype);
-extern struct hostLoad *ls_load(char *resreq, int *numhosts, int options,
-                                char *fromhost);
-extern struct hostLoad *ls_loadofhosts(char *resreq, int *numhosts, int options,
-                                       char *fromhost, char **hostlist,
-                                       int listsize);
-extern struct hostLoad *ls_loadoftype(char *resreq, int *numhosts, int options,
-                                      char *fromhost, char *hosttype);
-extern struct hostLoad *ls_loadinfo(char *resreq, int *numhosts, int options,
-                                    char *fromhost, char **hostlist,
-                                    int listsize, char ***indxnamelist);
-extern int ls_loadadj(char *resreq, struct placeInfo *hostlist, int listsize);
+// Lavalite simple LIM API to get then name and status of the cluster
+// and the host, load and resource info
+extern char **ls_placereq(char *, int *, int, char *);
+extern char **ls_placeofhosts(char *, int *, int, char *, char **, int);
+extern struct hostLoad *ls_load(char *, int *, int, char *);
+extern struct hostLoad *ls_loadofhosts(char *, int *, int, char *, char **,
+                                       int);
+extern struct hostLoad *ls_loadinfo(char *, int *, int, char *, char **, int,
+                                    char ***);
+extern int ls_loadadj(char *, struct placeInfo *, int);
 extern char *ls_getclustername(void);
 extern struct clusterInfo *ls_clusterinfo(char *, int *, char **, int, int);
 extern struct lsSharedResourceInfo *ls_sharedresourceinfo(char **, int *,
                                                           char *, int);
-extern char *ls_getmastername(void);
-extern char *ls_getmyhostname(void);
 extern struct hostInfo *ls_gethostinfo(char *, int *, char **, int, int);
 extern struct lsInfo *ls_info(void);
+extern char *ls_getmastername(void);
+extern char *ls_getmyhostname(void);
 
 extern char **ls_indexnames(struct lsInfo *);
-extern int ls_isclustername(char *);
-extern char *ls_gethosttype(char *hostname);
-extern float *ls_getmodelfactor(char *modelname);
-extern float *ls_gethostfactor(char *hostname);
-extern char *ls_gethostmodel(char *hostname);
-extern int ls_lockhost(time_t duration);
+extern char *ls_gethosttype(const char *);
+extern float ls_getmodelfactor(const char *);
+extern float ls_gethostfactor(const char *);
+extern char *ls_gethostmodel(const char *);
+extern int ls_lockhost(time_t);
 extern int ls_unlockhost(void);
-extern int ls_limcontrol(char *hostname, int opCode);
+extern int ls_limcontrol(const char *, int);
+
 extern char *ls_sysmsg(void);
-extern void ls_perror(char *usrMsg);
+extern void ls_perror(const char *);
 
 extern struct lsConf *ls_getconf(char *);
 extern void ls_freeconf(struct lsConf *);
@@ -648,22 +633,23 @@ extern struct sharedConf *ls_readshared(char *);
 extern struct clusterConf *ls_readcluster(char *, struct lsInfo *);
 extern struct clusterConf *ls_readcluster_ex(char *, struct lsInfo *, int);
 
-extern int ls_initdebug(char *appName);
-extern void ls_syslog(int level, const char *fmt, ...)
+extern int ls_initdebug(const char *);
+
+extern void ls_syslog(int, const char *, ...)
 #if defined(__GNUC__) && defined(CHECK_ARGS)
     __attribute__((format(printf, 2, 3)))
 #endif
     ;
 
-extern void ls_errlog(FILE *fp, const char *fmt, ...)
+extern void ls_errlog(FILE *, const char *, ...)
 #if defined(__GNUC__) && defined(CHECK_ARGS)
     __attribute__((format(printf, 2, 3)))
 #endif
     ;
-extern void ls_verrlog(FILE *fp, const char *fmt, va_list ap);
+extern void ls_verrlog(FILE *, const char *, va_list);
 
 extern int ls_servavail(int, int);
-extern int ls_setpriority(int newPriority);
+extern int ls_setpriority(int);
 
 extern void cleanLsfRusage(struct lsfRusage *);
 extern void cleanRusage(struct rusage *);

@@ -17,9 +17,7 @@
  USA
  *
  */
-
-#ifndef _DAEMONOUT_H
-#define _DAEMONOUT_H
+#pragma once
 
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/lib/lsb.sig.h"
@@ -324,5 +322,3 @@ extern struct group *copyUnixGrp(struct group *);
 extern void freeGroupInfoReply(struct groupInfoReply *reply);
 
 extern void appendEData(struct lenData *jf, struct lenData *ed);
-
-#endif

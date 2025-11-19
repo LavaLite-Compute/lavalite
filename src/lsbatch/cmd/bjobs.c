@@ -329,22 +329,7 @@ static void do_options(int argc, char **argv, int *options, char **user,
     }
 
     if (Nflag) {
-        float *tempPtr;
-
-        *options |= DONE_JOB;
-        *format = LONG_FORMAT;
-        TIMEIT(0, (tempPtr = getCpuFactor(norOp, FALSE)), "getCpuFactor");
-        if (tempPtr == NULL)
-            if ((tempPtr = getCpuFactor(norOp, TRUE)) == NULL)
-                if (!isanumber_(norOp) || (*cpuFactor = atof(norOp)) <= 0) {
-                    fprintf(stderr,
-                            ("<%s> is neither a host model, nor a host name, "
-                             "nor a CPU factor\n"),
-                            norOp);
-                    exit(-1);
-                }
-        if (tempPtr)
-            *cpuFactor = *tempPtr;
+        *cpuFactor = ls_gethostfactor(norOp);
     }
 }
 
