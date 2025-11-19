@@ -1,7 +1,7 @@
 ## What Is LavaLite?
 
 LavaLite is a modern, independent continuation of the original open-source
-Platform Lava / OpenLava scheduler. It is a from-scratch modernization,
+Platform Lava scheduler. It is a from-scratch modernization,
 cleanup, and redesign effort built on that heritage—yet completely independent
 of Platform Computing, IBM, or any other vendor.
 
