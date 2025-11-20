@@ -32,7 +32,7 @@ static void process_tcp_request(int);
 
 int handle_tcp_client(struct Masks *chanmasks)
 {
-    for (int i = 0; (i < chanIndex) && (i < max_clients); i++) {
+    for (int i = 0; i < max_clients; i++) {
         if (i == lim_udp_sock || i == lim_tcp_sock)
             continue;
 
@@ -52,44 +52,44 @@ int handle_tcp_client(struct Masks *chanmasks)
     return 0;
 }
 
-static void process_tcp_request(int chanfd)
+static void process_tcp_request(int ch_id)
 {
     struct Buffer *buf;
     struct packet_header hdr;
     XDR xdrs;
 
-    if (chan_dequeue(chanfd, &buf) < 0) {
-        ls_syslog(LOG_ERR, "%s: chan_dequeue() failed: %d", __func__, cherrno);
-        shutDownChan(chanfd);
+    if (chan_dequeue(ch_id, &buf) < 0) {
+        LS_ERR("%s: chan_dequeue() failed", __func__);
+        shutDownChan(ch_id);
         return;
     }
 
     ls_syslog(LOG_DEBUG, "%s: Received message with len %d on chan %d",
-              __func__, buf->len, chanfd);
+              __func__, buf->len, ch_id);
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
         ls_syslog(LOG_ERR, "%s: xdr_pack_hdr decode ", __func__);
         xdr_destroy(&xdrs);
-        shutDownChan(chanfd);
+        shutDownChan(ch_id);
         chan_free_buf(buf);
         return;
     }
 
     // How did a tcp client ended up here?
-    if (!clientMap[chanfd]) {
+    if (!clientMap[ch_id]) {
         struct sockaddr_in from;
         socklen_t l = sizeof(struct sockaddr_in);
 
-        if (getpeername(chan_get_sock(chanfd), (struct sockaddr *) &from, &l) < 0) {
+        if (getpeername(chan_get_sock(ch_id), (struct sockaddr *) &from, &l) < 0) {
             syslog(LOG_ERR, "%s: getpeername(%d) failed. %m", __func__,
-                   chan_get_sock(chanfd));
+                   chan_get_sock(ch_id));
             memset(&from, 0, sizeof(struct sockaddr_in));
         }
         ls_syslog(LOG_ERR, "%s: protocol error received operation: %d from %s",
                   __func__, hdr.operation, sockAdd2Str_(&from));
         xdr_destroy(&xdrs);
-        shutDownChan(chanfd);
+        shutDownChan(ch_id);
         chan_free_buf(buf);
         return;
     }
@@ -103,27 +103,27 @@ static void process_tcp_request(int chanfd)
     case LIM_PLACEMENT:
     case LIM_GET_RESOUINFO:
     case LIM_GET_INFO:
-        clientMap[chanfd]->limReqCode = hdr.operation;
-        clientMap[chanfd]->reqbuf = buf;
-        clientReq(&xdrs, &hdr, chanfd);
+        clientMap[ch_id]->limReqCode = hdr.operation;
+        clientMap[ch_id]->reqbuf = buf;
+        clientReq(&xdrs, &hdr, ch_id);
         break;
     case LIM_LOAD_ADJ:
-        loadadjReq(&xdrs, &clientMap[chanfd]->from, &hdr, chanfd);
+        loadadjReq(&xdrs, &clientMap[ch_id]->from, &hdr, ch_id);
         xdr_destroy(&xdrs);
-        shutDownChan(chanfd);
+        shutDownChan(ch_id);
         chan_free_buf(buf);
         break;
     case LIM_PING:
         // This is a connect from a master that is trying to
         // take over mastership, it does not expect any reply
         xdr_destroy(&xdrs);
-        shutDownChan(chanfd);
+        shutDownChan(ch_id);
         chan_free_buf(buf);
         break;
     case LIM_GET_CLUSINFO:
-        clusInfoReq(&xdrs, &clientMap[chanfd]->from, &hdr, chanfd);
+        clusInfoReq(&xdrs, &clientMap[ch_id]->from, &hdr, ch_id);
         xdr_destroy(&xdrs);
-        shutDownChan(chanfd);
+        shutDownChan(ch_id);
         chan_free_buf(buf);
         break;
     default:
@@ -135,12 +135,12 @@ static void process_tcp_request(int chanfd)
     }
 }
 
-static void clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
+static void clientReq(XDR *xdrs, struct packet_header *hdr, int ch_id)
 {
     struct decisionReq decisionRequest;
     int oldpos, i;
 
-    clientMap[chfd]->clientMasks = 0;
+    clientMap[ch_id]->clientMasks = 0;
 
     oldpos = XDR_GETPOS(xdrs);
 
@@ -148,10 +148,10 @@ static void clientReq(XDR *xdrs, struct packet_header *hdr, int chfd)
         goto Reply1;
     }
 
-    clientMap[chfd]->clientMasks = 0;
+    clientMap[ch_id]->clientMasks = 0;
     for (i = 1; i < decisionRequest.numPrefs; i++) {
         if (!find_node_by_name(decisionRequest.preferredHosts[i])) {
-            clientMap[chfd]->clientMasks = 0;
+            clientMap[ch_id]->clientMasks = 0;
             break;
         }
     }
@@ -169,7 +169,7 @@ Reply1:
     if (pid < 0) {
         ls_syslog(LOG_ERR, "%s: fork() failed: %d", __func__);
         xdr_destroy(xdrs);
-        shutDownChan(chfd);
+        shutDownChan(ch_id);
         return;
     }
 
@@ -179,26 +179,26 @@ Reply1:
         chan_close(lim_udp_sock);
 
         XDR_SETPOS(xdrs, oldpos);
-        sock = chan_get_sock(chfd);
+        sock = chan_get_sock(ch_id);
         if (io_block(sock) < 0)
             ls_syslog(LOG_ERR, "%s: io_block() failed: %m", __func__);
 
         switch (hdr->operation) {
         case LIM_GET_HOSTINFO:
-            hostInfoReq(xdrs, clientMap[chfd]->fromHost, &clientMap[chfd]->from,
-                        hdr, chfd);
+            hostInfoReq(xdrs, clientMap[ch_id]->fromHost, &clientMap[ch_id]->from,
+                        hdr, ch_id);
             break;
         case LIM_GET_RESOUINFO:
-            resourceInfoReq2(xdrs, &clientMap[chfd]->from, hdr, chfd);
+            resourceInfoReq2(xdrs, &clientMap[ch_id]->from, hdr, ch_id);
             break;
         case LIM_LOAD_REQ:
-            loadReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
+            loadReq(xdrs, &clientMap[ch_id]->from, hdr, ch_id);
             break;
         case LIM_PLACEMENT:
-            placeReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
+            placeReq(xdrs, &clientMap[ch_id]->from, hdr, ch_id);
             break;
         case LIM_GET_INFO:
-            infoReq(xdrs, &clientMap[chfd]->from, hdr, chfd);
+            infoReq(xdrs, &clientMap[ch_id]->from, hdr, ch_id);
             break;
         default:
             break;
@@ -208,11 +208,11 @@ Reply1:
 }
 }
 
-static void shutDownChan(int chanfd)
+static void shutDownChan(int ch_id)
 {
-    chan_close(chanfd);
-    if (clientMap[chanfd]) {
-        chan_free_buf(clientMap[chanfd]->reqbuf);
-        FREEUP(clientMap[chanfd]);
+    chan_close(ch_id);
+    if (clientMap[ch_id]) {
+        chan_free_buf(clientMap[ch_id]->reqbuf);
+        FREEUP(clientMap[ch_id]);
     }
 }

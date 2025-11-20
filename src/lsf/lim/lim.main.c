@@ -62,7 +62,6 @@ static inline uint64_t now_ms(void);
 
 struct liStruct *li = NULL;
 int li_len = 0;
-extern int chanIndex;
 
 static void lim_init(int);
 static void term_handler(int);
@@ -389,9 +388,9 @@ static int accept_connection(void)
         chan_close(ch);
         return -1;
     }
-    client->chanfd = ch;
+    client->ch_id = ch;
     // Bug create a list
-    clientMap[client->chanfd] = client;
+    clientMap[client->ch_id] = client;
     client->fromHost = host;
     client->from = from;
     client->clientMasks = 0;

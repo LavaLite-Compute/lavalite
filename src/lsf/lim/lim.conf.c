@@ -2831,7 +2831,7 @@ static int dohosts(FILE *clfp, struct clusterNode *clPtr, char *lsfile,
             hostEntry.resList[n] = NULL;
             hostEntry.nRes = n;
 
-            hostEntry.rexPriority = DEF_REXPRIORITY;
+            hostEntry.rexPriority = 0;
             if (keyList[REXPRI_].position != -1) {
                 hostEntry.rexPriority = atoi(keyList[REXPRI_].val);
             }
@@ -3820,7 +3820,7 @@ static struct clusterNode *addCluster(char *clName, char *candlist)
     myClusterPtr->resClass = 0;
     myClusterPtr->typeClass = 0;
     myClusterPtr->modelClass = 0;
-    myClusterPtr->chanfd = -1;
+    myClusterPtr->ch_id = -1;
     myClusterPtr->numIndx = 0;
     myClusterPtr->numUsrIndx = 0;
     myClusterPtr->usrIndxClass = 0;

@@ -202,7 +202,7 @@ struct clusterNode {
     struct clusterNode *nextPtr;
     char *eLimArgs;
     char **eLimArgv;
-    int chanfd;
+    int ch_id;
     int numIndx;
     int numUsrIndx;
     int usrIndxClass;
@@ -222,7 +222,7 @@ struct clusterNode {
 struct client_node {
     enum limReqCode limReqCode;
     int clientMasks;
-    int chanfd;
+    int ch_id;
     struct hostNode *fromHost;
     struct sockaddr_in from;
     struct Buffer *reqbuf;
