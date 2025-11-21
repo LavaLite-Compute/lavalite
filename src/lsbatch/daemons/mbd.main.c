@@ -516,6 +516,7 @@ static int acceptConnection(int socket)
         ls_syslog(LOG_DEBUG1,
                   "%s: Accepted connection from host <%s> on channell <%d>",
                   fname, client->fromHost, client->chanfd);
+    return s;
 }
 
 static void clientIO(struct Masks *chanmask)
@@ -581,7 +582,7 @@ static int processClient(struct mbd_client_node *client, int *needFree)
     s = client->chanfd;
 
     if (chan_dequeue(client->chanfd, &buf) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_dequeue", cherrno);
+        ls_syslog(LOG_ERR, "%s: chan_dequeue failed :%m", __func__);
         shutDownClient(client);
         return -1;
     }

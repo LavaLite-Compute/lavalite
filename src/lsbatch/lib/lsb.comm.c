@@ -113,7 +113,7 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
 
     if (!(flags & CALL_SERVER_NO_HANDSHAKE)) {
         if (handShake_(serverSock, true, conn_timeout) < 0) {
-            CLOSECD(serverSock);
+            close(serverSock);
             if (logclass & LC_COMM)
                 ls_syslog(LOG_DEBUG,
                           "%s: handShake_(socket=%d, conn_timeout=%d) failed",
@@ -125,12 +125,12 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
             ls_syslog(LOG_DEBUG1, "%s: handShake_() succeeded", fname);
     }
 
-    CHAN_INIT_BUF(&reqbuf);
+    memset(&reqbuf, 0, sizeof(struct Buffer));
     reqbuf.len = req_size;
     reqbuf.data = req_buf;
 
     if (postSndFunc) {
-        CHAN_INIT_BUF(&reqbuf2);
+        memset(&reqbuf2, 0, sizeof(struct Buffer));
         reqbuf2.len = ((struct lenData *) postSndFuncArg)->len;
         reqbuf2.data = ((struct lenData *) postSndFuncArg)->data;
         reqbuf.forw = &reqbuf2;
@@ -148,7 +148,7 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
 
         if (chan_set_mode(serverSock, CHAN_MODE_NONBLOCK) < 0) {
             ls_syslog(LOG_ERR, "FUNC_FAIL_MM", "callserver", "chanSetMode");
-            CLOSECD(serverSock);
+            close(serverSock);
             return -2;
         }
 
@@ -157,7 +157,7 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
 
         if (chan_alloc_buf(&sndBuf, tsize) < 0) {
             ls_syslog(LOG_ERR, "FUNC_D_FAIL_M", fname, "chan_alloc_buf", tsize);
-            CLOSECD(serverSock);
+            close(serverSock);
             return -2;
         }
 
@@ -167,17 +167,16 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
         if (postSndFunc) {
             int nlen = htonl(((struct lenData *) postSndFuncArg)->len);
 
-            memcpy(sndBuf->data + req_size, (void *) (&nlen), NET_INTSIZE_);
-            memcpy((char *) sndBuf->data + req_size + NET_INTSIZE_,
-                   (char *) ((struct lenData *) postSndFuncArg)->data,
-                   ((struct lenData *) postSndFuncArg)->len);
+            memcpy(sndBuf->data + req_size, (void *)(&nlen), NET_INTSIZE_);
+            memcpy(sndBuf->data + req_size + NET_INTSIZE_,
+                   ((struct lenData *)postSndFuncArg)->data,
+                   ((struct lenData *)postSndFuncArg)->len);
         }
 
         if (chan_enqueue(serverSock, sndBuf) < 0) {
-            ls_syslog(LOG_ERR, "FUNC_FAIL_ENO_D", fname, "chan_enqueue",
-                      cherrno);
+            ls_syslog(LOG_ERR, "%s: chan_enqueue failed %m", __func__);
             chan_free_buf(sndBuf);
-            CLOSECD(serverSock);
+            close(serverSock);
             return -2;
         }
     } else {
@@ -185,7 +184,7 @@ int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
                       recv_timeout * 1000);
         if (cc < 0) {
             lsberrno = LSBE_LSLIB;
-            CLOSECD(serverSock);
+            close(serverSock);
             return -1;
         }
     }
@@ -423,7 +422,7 @@ int readNextPacket(char **msgBuf, int timeout, struct packet_header *hdr,
     }
 
     if (hdr->length == 0) {
-        CLOSECD(serverSock);
+        close(serverSock);
         lsberrno = LSBE_EOF;
         return -1;
     }
@@ -458,7 +457,7 @@ int handShake_(int s, char client, int timeout)
         }
         xdr_destroy(&xdrs);
 
-        CHAN_INIT_BUF(&reqbuf);
+        memset(&reqbuf, 0, sizeof(struct Buffer));
         reqbuf.data = (char *) &buf;
         reqbuf.len = PACKET_HEADER_SIZE;
 

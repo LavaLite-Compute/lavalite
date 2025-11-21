@@ -3563,7 +3563,6 @@ static int replay_jobmsg(char *filename, int lineNum)
     }
 
     QUEUE_APPEND(bucket, jp->hPtr[0]->msgq[MSG_STAT_QUEUED]);
-    buf->stashed = TRUE;
 
     return TRUE;
 }
@@ -3604,7 +3603,6 @@ static int replay_jobmsgack(char *filename, int lineNum)
     if (found) {
         bucket->bufstat = MSG_STAT_RCVD;
         QUEUE_REMOVE(bucket);
-        chanFreeStashedBuf_(bucket->storage);
         FREE_BUCKET(bucket);
     } else {
         return FALSE;

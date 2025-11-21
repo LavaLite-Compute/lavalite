@@ -21,7 +21,7 @@
 
 #include <stdio.h>
 #include "lsf.h"
-#include "lsf/lib/llsys.h"
+#include "lsf/lib/ll_sys.h"
 
 static void test_1(void);
 static void test_2(void);

@@ -182,7 +182,6 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
 
     int cc;
     struct Buffer sndbuf = {.data = reqbuf, .len = req_size};
-    struct Buffer rcvbuf = {0};
 
     if (lim_chans[TCP] < 0) {
         lim_chans[TCP] = chan_client_socket(AF_INET, SOCK_STREAM, 0);
@@ -195,17 +194,20 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
             if (errno == ECONNREFUSED)
                 lserrno = LSE_LIM_DOWN;
 
-            CLOSECD(lim_chans[TCP]);
+            chan_close(lim_chans[TCP]);
+            lim_chans[TCP] = -1;
             sock_addr_in[TCP].sin_addr.s_addr = 0;
             sock_addr_in[TCP].sin_port = 0;
             return -1;
         }
     }
 
+    struct Buffer rcvbuf = {0};
     cc = chan_rpc(lim_chans[TCP], &sndbuf, &rcvbuf, reply_hdr,
                   recvtimeout_ * 1000);
     if (cc < 0) {
-        CLOSECD(lim_chans[TCP]);
+        chan_close(lim_chans[TCP]);
+        lim_chans[TCP] = -1;
         return -1;
     }
 
@@ -216,8 +218,9 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
     case LIME_MASTER_UNKNW:
         // Remote told us our target is stale or unknown: drop cache.
         lserrno = LSE_MASTR_UNKNW;
-        FREEUP(rcvbuf.data);
-        CLOSECD(lim_chans[TCP]);
+        free(rcvbuf.data);
+        chan_close(lim_chans[TCP]);
+        lim_chans[TCP] = -1;
         sock_addr_in[TCP].sin_addr.s_addr = 0;
         sock_addr_in[TCP].sin_port = 0;
         return -1;
@@ -228,8 +231,10 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
 
     *rep_buf = rcvbuf.data;
 
-    if (!(options & _KEEP_CONNECT_))
-        CLOSECD(lim_chans[TCP]);
+    if (!(options & _KEEP_CONNECT_)) {
+        chan_close(lim_chans[TCP]);
+        lim_chans[TCP] = -1;
+    }
 
     return 0;
 }

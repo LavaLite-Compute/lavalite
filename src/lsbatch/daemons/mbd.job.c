@@ -6504,7 +6504,6 @@ static void sndJobMsgs(struct hData *hData, int *sigcnt)
         } else if (sndrc == LSBE_NO_JOB || sndrc == LSBE_JOB_FINISH) {
             QUEUE_REMOVE(bucket);
             log_jobmsgack(bucket);
-            chanFreeStashedBuf_(bucket->storage);
             FREE_BUCKET(bucket);
         } else {
             break;
@@ -6572,7 +6571,6 @@ EndSearch:
     if (found) {
         log_jobmsgack(bucket);
         QUEUE_REMOVE(bucket);
-        chanFreeStashedBuf_(bucket->storage);
         FREE_BUCKET(bucket);
     }
 

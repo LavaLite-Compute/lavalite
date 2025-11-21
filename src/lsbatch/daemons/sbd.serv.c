@@ -786,7 +786,6 @@ Reply1:
 
     QUEUE_APPEND(bucket, jmQueue);
     bucket->bufstat = MSG_STAT_QUEUED;
-    bucket->storage->stashed = TRUE;
 
     deliverMsg(bucket);
 }
@@ -815,7 +814,6 @@ void deliverMsg(struct bucket *bucket)
     }
 
     if (!found) {
-        chanFreeStashedBuf_(mbuf);
         QUEUE_REMOVE(bucket);
         FREE_BUCKET(bucket);
         return;
@@ -858,21 +856,10 @@ void deliverMsg(struct bucket *bucket)
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
                   "status_job");
 
-    if (mbuf->stashed) {
-        QUEUE_REMOVE(bucket);
-        chanFreeStashedBuf_(mbuf);
-    } else {
-        chan_free_buf(mbuf);
-    }
+    chan_free_buf(mbuf);
+
 
     FREE_BUCKET(bucket);
-
-    return;
-
-    if (!mbuf->stashed)
-        QUEUE_APPEND(bucket, jmQueue);
-    bucket->bufstat = MSG_STAT_QUEUED;
-    mbuf->stashed = TRUE;
 }
 
 void do_reboot(XDR *xdrs, int chfd, struct packet_header *reqHdr)

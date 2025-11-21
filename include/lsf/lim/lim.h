@@ -51,7 +51,7 @@
 
 #include "lsf.h"
 #include "lsf/lib/lib.h"
-#include "lsf/lib/llsys.h"
+#include "lsf/lib/ll_sys.h"
 #include "lsf/lib/intlibout.h"
 #include "lsf/lib/tcl_stub.h"
 #include "lsf/lib/lib.channel.h"

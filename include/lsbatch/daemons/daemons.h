@@ -425,7 +425,6 @@ struct bucket {
         struct bucket *bp, *bpnxt;                                             \
         for (bp = pred->forw; bp != pred; bp = bpnxt) {                        \
             bpnxt = bp->forw;                                                  \
-            chanFreeStashedBuf_(bp->storage);                                  \
             FREE_BUCKET(bp);                                                   \
         }                                                                      \
         FREE_BUCKET(pred);                                                     \

@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/lib/llsys.h"
+#include "lsf/lib/ll_sys.h"
 #include "lsf/lib/lproto.h"
 
 static void prtOneInstance(char *, struct lsSharedResourceInstance *);
