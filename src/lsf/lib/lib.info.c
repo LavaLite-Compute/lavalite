@@ -49,8 +49,10 @@ static int getname_(enum limReqCode limReqCode, char *name, int namesize)
 
     // Set the master address
     sock_addr_in[UDP].sin_addr = masterInfo.addr.sin_addr;
-    CLOSECD(lim_chans[UDP]);
-    CLOSECD(lim_chans[TCP]);
+    chan_close(lim_chans[UDP]);
+    lim_chans[UDP] = -1;
+    chan_close(lim_chans[TCP]);
+    lim_chans[TCP] = -1;
 
     // Copy the tcp address
     sock_addr_in[TCP].sin_addr = masterInfo.addr.sin_addr;

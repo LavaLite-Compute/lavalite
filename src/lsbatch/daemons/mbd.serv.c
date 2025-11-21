@@ -841,7 +841,6 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
                   lsb_jobid2str(jpbw->jobId), eventPending);
 
     QUEUE_APPEND(bucket, msgq);
-    bucket->storage->stashed = TRUE;
     reply = LSBE_NO_ERROR;
 
 Reply:
@@ -1868,7 +1867,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
             replyBuf->len = PACKET_HEADER_SIZE;
 
             if (chan_enqueue(sbdPtr->chanfd, replyBuf) < 0) {
-                ls_syslog(LOG_ERR, "%s", __func__, "chanEnqueue");
+                ls_syslog(LOG_ERR, "%s chan_enqueue() failed", __func__);
                 chan_free_buf(replyBuf);
             } else {
                 sbdPtr->reqCode = MBD_NEW_JOB_KEEP_CHAN;

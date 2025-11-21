@@ -40,17 +40,17 @@ enum chanType {
 
 enum chan_block_mode { CHAN_MODE_BLOCK, CHAN_MODE_NONBLOCK };
 
-#define INVALID_HANDLE -1
-#define CLOSECD(c)                                                             \
-    do {                                                                       \
-        chan_close((c));                                                       \
-        (c) = INVALID_HANDLE;                                                  \
-    } while (0)
-#define CHAN_INIT_BUF(b) memset((b), 0, sizeof(struct Buffer));
+struct chanData {
+    int handle;          // the socket
+    enum chanType type;  // channel type UDP/TCP ...
+    enum chanState state;  // connectes, waiting, inactive...
+    struct Buffer *send;
+    struct Buffer *recv;
+};
 
 struct Buffer {
-    struct Buffer *forw;
-    struct Buffer *back;
+    struct Buffer *forw; // move +1 on the x-axis
+    struct Buffer *back; // move -1
     char *data;
     int pos;
     int len;
@@ -60,14 +60,6 @@ struct Masks {
     fd_set rmask;
     fd_set wmask;
     fd_set emask;
-};
-
-struct chanData {
-    int handle;          // the socket
-    enum chanType type;  // channel type UDP/TCP ...
-    enum chanState state;  // connectes, waiting, inactive...
-    struct Buffer *send;
-    struct Buffer *recv;
 };
 
 //legacy

@@ -28,7 +28,7 @@
 // Stability isn’t the absence of problems — it’s the ability
 // to recover gracefully.
 
-// Simplicty and clarity over cleverness; minimal code, maximal intent
+// Simplicity and clarity over cleverness; minimal code, maximal intent
 // Mathematicians chase proofs; computer scientists chase models;
 // practitioners chase uptime.
 
