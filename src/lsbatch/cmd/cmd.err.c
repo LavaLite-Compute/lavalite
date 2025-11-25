@@ -19,7 +19,7 @@
 
 #include "lsbatch/cmd/cmd.h"
 
-void jobInfoErr(LS_LONG_INT jobId, char *jobName, char *user, char *queue,
+void jobInfoErr(int64_t jobId, char *jobName, char *user, char *queue,
                 char *host, int options)
 {
     char errMsg[MAXLINELEN / 2];

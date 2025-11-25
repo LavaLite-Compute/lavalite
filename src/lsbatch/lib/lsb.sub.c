@@ -86,10 +86,6 @@ typedef struct bException {
     bException_handler_t handler;
 } bException_t;
 
-extern char **environ;
-
-extern char *yyerr;
-
 extern int optind;
 extern char *optarg;
 extern char *my_getopt(int, char **, char *, char **);
@@ -103,15 +99,11 @@ extern int lsbMode_;
 static char *useracctmap = NULL;
 static struct lenData ed = {0, NULL};
 
-static LS_LONG_INT send_batch(struct submitReq *, struct lenData *,
+static int64_t send_batch(struct submitReq *, struct lenData *,
                               struct submitReply *, struct lsfAuth *);
 static int dependCondSyntax(char *);
 static int createJobInfoFile(struct submit *, struct lenData *);
-static LS_LONG_INT subRestart(struct submit *jobSubReq,
-                              struct submitReq *submitReq,
-                              struct submitReply *submitRep,
-                              struct lsfAuth *auth);
-static LS_LONG_INT subJob(struct submit *jobSubReq, struct submitReq *submitReq,
+static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
                           struct submitReply *submitRep, struct lsfAuth *auth);
 static int getUserInfo(struct submitReq *, struct submit *);
 static char *acctMapGet(int *, char *);
@@ -119,7 +111,7 @@ static char *acctMapGet(int *, char *);
 static int xdrSubReqSize(struct submitReq *req);
 
 int getChkDir(char *, char *);
-static void postSubMsg(struct submit *, LS_LONG_INT, struct submitReply *);
+static void postSubMsg(struct submit *, int64_t, struct submitReply *);
 static int readOptFile(char *filename, char *childLine);
 
 extern void makeCleanToRunEsub();
@@ -137,12 +129,12 @@ static int getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
                           int *badIdx, int checkHost);
 #define ESUBNAME "esub"
 
-LS_LONG_INT
+int64_t
 lsb_submit(struct submit *jobSubReq, struct submitReply *submitRep)
 {
     static char fname[] = "lsb_submit";
     struct submitReq submitReq;
-    LS_LONG_INT jobId = -1;
+    int64_t jobId = -1;
     char cwd[MAXFILENAMELEN];
     struct group *grpEntry;
     int loop;
@@ -223,10 +215,7 @@ lsb_submit(struct submit *jobSubReq, struct submitReply *submitRep)
         return -1;
     }
 
-    if (submitReq.options & SUB_RESTART)
-        jobId = subRestart(jobSubReq, &submitReq, submitRep, &auth);
-    else
-        jobId = subJob(jobSubReq, &submitReq, submitRep, &auth);
+    jobId = subJob(jobSubReq, &submitReq, submitRep, &auth);
 
     return jobId;
 }
@@ -397,7 +386,7 @@ int getCommonParams(struct submit *jobSubReq, struct submitReq *submitReq,
 
     return 0;
 }
-
+extern char **environ;
 static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
 {
     static char fname[] = "createJobInfoFile";
@@ -581,12 +570,11 @@ void appendEData(struct lenData *jf, struct lenData *ed)
     jf->len = strlen(jf->data) + 1 + ed->len;
 }
 
-static LS_LONG_INT send_batch(struct submitReq *submitReqPtr,
-                              struct lenData *jf,
-                              struct submitReply *submitReply,
-                              struct lsfAuth *auth)
+static int64_t send_batch(struct submitReq *submitReqPtr,
+                          struct lenData *jf,
+                          struct submitReply *submitReply,
+                          struct lsfAuth *auth)
 {
-    static char fname[] = "send_batch";
     mbdReqType mbdReqtype;
     XDR xdrs;
     char *request_buf;
@@ -595,17 +583,11 @@ static LS_LONG_INT send_batch(struct submitReq *submitReqPtr,
     int cc;
     struct packet_header hdr;
     struct submitMbdReply *reply;
-    LS_LONG_INT jobId;
-
-    if (logclass & (LC_TRACE | LC_EXEC))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
+    int64_t jobId;
 
     reqBufSize = xdrSubReqSize(submitReqPtr);
     reqBufSize += xdr_lsfAuthSize(auth);
-    if ((request_buf = (char *) malloc(reqBufSize)) == NULL) {
-        if (logclass & LC_EXEC)
-            ls_syslog(LOG_DEBUG, "%s: request_buf malloc (%d) failed: %m",
-                      fname, reqBufSize);
+    if ((request_buf = malloc(reqBufSize)) == NULL) {
         lsberrno = LSBE_NO_MEM;
         return -1;
     }
@@ -614,7 +596,11 @@ static LS_LONG_INT send_batch(struct submitReq *submitReqPtr,
     xdrmem_create(&xdrs, request_buf, reqBufSize, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) submitReqPtr, &hdr, xdr_submitReq, 0,
+    if (!xdr_encodeMsg(&xdrs,
+                       (char *)submitReqPtr,
+                       &hdr,
+                       xdr_submitReq,
+                       0,
                        auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
@@ -622,11 +608,9 @@ static LS_LONG_INT send_batch(struct submitReq *submitReqPtr,
         return -1;
     }
 
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                      NULL, sndJobFile_, (int *) jf)) < 0) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs),
+                       &reply_buf, &hdr, jf)) < 0) {
         xdr_destroy(&xdrs);
-        if (logclass & (LC_TRACE | LC_EXEC))
-            ls_syslog(LOG_DEBUG, "%s: callmbd() failed; cc=%d", fname, cc);
         free(request_buf);
         return -1;
     }
@@ -642,15 +626,14 @@ static LS_LONG_INT send_batch(struct submitReq *submitReqPtr,
         return -1;
     }
 
-    if ((reply = (struct submitMbdReply *) malloc(
-             sizeof(struct submitMbdReply))) == NULL) {
+    reply = calloc(1, sizeof(struct submitMbdReply));
+    if (reply == NULL) {
         lsberrno = LSBE_NO_MEM;
         free(reply);
         return -1;
     }
 
-    xdrmem_create(&xdrs, reply_buf, (cc), XDR_DECODE);
-
+    xdrmem_create(&xdrs, reply_buf, cc, XDR_DECODE);
     if (!xdr_submitMbdReply(&xdrs, reply, &hdr)) {
         lsberrno = LSBE_XDR;
         free(reply_buf);
@@ -673,9 +656,6 @@ static LS_LONG_INT send_batch(struct submitReq *submitReqPtr,
             lsberrno = LSBE_PROTOCOL;
         jobId = reply->jobId;
         free(reply);
-        if (logclass & (LC_TRACE | LC_EXEC))
-            ls_syslog(LOG_DEBUG1, "%s: mbd says job <%s> has been restarted",
-                      fname, lsb_jobid2str(jobId));
         return jobId;
     }
 
@@ -690,529 +670,6 @@ static int dependCondSyntax(char *dependCond)
     return 0;
 }
 
-static LS_LONG_INT subRestart(struct submit *jobSubReq,
-                              struct submitReq *submitReq,
-                              struct submitReply *submitRep,
-                              struct lsfAuth *auth)
-{
-    static char fname[] = "subRestart";
-    struct lenData jf;
-    struct jobNewLog *jobLog = NULL;
-    struct xFile *xFiles = NULL;
-    char resReq[MAXLINELEN], fromHost[MAXFILENAMELEN];
-    char mailUser[LL_BUFSIZ_32], projectName[LL_BUFSIZ_32];
-    char loginShell[LL_BUFSIZ_32], schedHostType[LL_BUFSIZ_32];
-    int length, line;
-    LS_LONG_INT jobId = -1;
-    char *ptr;
-    int childIoFd[2];
-    pid_t pid;
-    int status;
-    struct {
-        int error;
-        int eno;
-        int lserrno;
-        int lsberrno;
-    } err;
-    char chkPath[MAXFILENAMELEN];
-    struct linger linstr = {1, 5};
-
-    memset(chkPath, 0, MAXFILENAMELEN);
-    err.error = err.eno = err.lserrno = err.lsberrno = 0;
-
-    if (logclass & (LC_TRACE | LC_EXEC))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
-
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, childIoFd) < 0) {
-        lsberrno = LSBE_SYS_CALL;
-        return -1;
-    }
-
-    makeCleanToRunEsub();
-
-    pid = fork();
-    if (pid < 0) {
-        lsberrno = LSBE_SYS_CALL;
-        return -1;
-    } else if (pid == 0) {
-        uid_t uid;
-        char chklog[PATH_MAX];
-        FILE *fp;
-        struct eventRec *logPtr;
-        int exitVal = -1;
-
-        close(childIoFd[0]);
-
-        setsockopt(childIoFd[1], SOL_SOCKET, SO_LINGER, (char *) &linstr,
-                   sizeof(linstr));
-
-        uid = getuid();
-        if (setuid(uid) < 0) {
-            lsberrno = LSBE_BAD_USER;
-            goto sendErr;
-        }
-
-        if (getChkDir(jobSubReq->command, chkPath) == -1) {
-            lsberrno = LSBE_BAD_CHKLOG;
-        } else
-            sprintf(chklog, "%s/chklog", chkPath);
-
-        if (write(childIoFd[1], (char *) chkPath, sizeof(chkPath)) !=
-            sizeof(chkPath)) {
-            goto childExit;
-        }
-
-        if (lsberrno == LSBE_BAD_CHKLOG)
-            goto sendErr;
-
-        if (logclass & (LC_TRACE | LC_EXEC))
-            ls_syslog(LOG_DEBUG1, "%s: Child tries to open chklog file <%s>",
-                      fname, chklog);
-        if ((fp = fopen(chklog, "r")) == NULL) {
-            lsberrno = LSBE_BAD_CHKLOG;
-            goto sendErr;
-        }
-        if ((logPtr = lsb_geteventrec(fp, &line)) == NULL ||
-            logPtr->type != EVENT_JOB_NEW) {
-            lsberrno = LSBE_BAD_CHKLOG;
-            fclose(fp);
-            goto sendErr;
-        }
-        jobLog = &logPtr->eventLog.jobNewLog;
-
-        if (logclass & (LC_TRACE | LC_EXEC))
-            ls_syslog(LOG_DEBUG1, "%s: Child got job log from chklog file",
-                      fname);
-
-        err.error = false;
-        if (write(childIoFd[1], (char *) &err, sizeof(err)) != sizeof(err)) {
-            goto childExit;
-        }
-
-        if (write(childIoFd[1], (char *) &ed.len, sizeof(ed.len)) !=
-            sizeof(ed.len)) {
-            goto childExit;
-        }
-
-        if (ed.len > 0) {
-            if (write(childIoFd[1], (char *) ed.data, ed.len) != ed.len) {
-                goto childExit;
-            }
-        }
-
-        if (b_write_fix(childIoFd[1], (char *) jobLog,
-                        sizeof(struct jobNewLog)) != sizeof(struct jobNewLog)) {
-            goto childExit;
-        }
-        if ((length = strlen(jobLog->resReq) + 1) >= MAXLINELEN) {
-            goto childExit;
-        }
-        if (write(childIoFd[1], (char *) &length, sizeof(length)) !=
-            sizeof(length)) {
-            goto childExit;
-        }
-        if (write(childIoFd[1], jobLog->resReq, length) != length) {
-            goto childExit;
-        }
-        if ((jobLog->options & SUB_OTHER_FILES) && jobLog->nxf > 0) {
-            length = jobLog->nxf * sizeof(struct xFile);
-            if (write(childIoFd[1], (char *) jobLog->xf, length) != length) {
-                goto childExit;
-            }
-        }
-        if (jobLog->options & SUB_MAIL_USER) {
-            if ((length = strlen(jobLog->mailUser) + 1) >= LL_BUFSIZ_32)
-                goto childExit;
-            if (write(childIoFd[1], (char *) &length, sizeof(length)) !=
-                sizeof(length))
-                goto childExit;
-            if (write(childIoFd[1], jobLog->mailUser, length) != length)
-                goto childExit;
-        }
-
-        if (jobLog->options & SUB_PROJECT_NAME) {
-            if ((length = strlen(jobLog->projectName) + 1) >= LL_BUFSIZ_32)
-                goto childExit;
-            if (write(childIoFd[1], (char *) &length, sizeof(length)) !=
-                sizeof(length))
-                goto childExit;
-            if (write(childIoFd[1], jobLog->projectName, length) != length)
-                goto childExit;
-        }
-
-        if (jobLog->options & SUB_LOGIN_SHELL) {
-            if ((length = strlen(jobLog->loginShell) + 1) >= LL_BUFSIZ_32)
-                goto childExit;
-            if (write(childIoFd[1], (char *) &length, sizeof(length)) !=
-                sizeof(length))
-                goto childExit;
-            if (write(childIoFd[1], jobLog->loginShell, length) != length)
-                goto childExit;
-        }
-
-        if ((length = strlen(jobLog->schedHostType) + 1) >= LL_BUFSIZ_32)
-            goto childExit;
-        if (write(childIoFd[1], (char *) &length, sizeof(length)) !=
-            sizeof(length))
-            goto childExit;
-        if (write(childIoFd[1], jobLog->schedHostType, length) != length)
-            goto childExit;
-
-        if ((logPtr = lsb_geteventrec(fp, &line)) == NULL ||
-            logPtr->type != EVENT_JOB_START) {
-            goto childExit;
-        }
-        length = sizeof(logPtr->eventLog.jobStartLog.jobPGid);
-        if (write(childIoFd[1], (char *) &logPtr->eventLog.jobStartLog.jobPGid,
-                  length) != length) {
-            goto childExit;
-        }
-        if (logPtr->eventLog.jobStartLog.numExHosts <= 0) {
-            goto childExit;
-        }
-        length = strlen(logPtr->eventLog.jobStartLog.execHosts[0]) + 1;
-        if (length >= MAXHOSTNAMELEN) {
-            goto childExit;
-        }
-        if (write(childIoFd[1], (char *) &length, sizeof(length)) !=
-            sizeof(length)) {
-            goto childExit;
-        }
-        if (write(childIoFd[1], logPtr->eventLog.jobStartLog.execHosts[0],
-                  length) != length) {
-            goto childExit;
-        }
-        exitVal = 0;
-
-    childExit:
-        if (logclass & (LC_TRACE | LC_EXEC)) {
-            if (exitVal == 0)
-                ls_syslog(LOG_DEBUG1,
-                          "%s: Child succeeded in sending messages to parent",
-                          fname);
-            else
-                ls_syslog(LOG_DEBUG,
-                          "%s: Child failed in sending messages to parent",
-                          fname);
-        }
-        fclose(fp);
-        close(childIoFd[1]);
-        exit(exitVal);
-
-    sendErr:
-        err.error = true;
-        err.eno = errno;
-        err.lserrno = lserrno;
-        err.lsberrno = lsberrno;
-
-        if (write(childIoFd[1], (char *) &err, sizeof(err)) != sizeof(err)) {
-            close(childIoFd[1]);
-            exit(-1);
-        }
-        close(childIoFd[1]);
-        exit(0);
-    }
-
-    close(childIoFd[1]);
-
-    if (read(childIoFd[0], (char *) chkPath, sizeof(chkPath)) !=
-        sizeof(chkPath)) {
-        goto parentErr;
-    }
-
-    err.error = false;
-    if (read(childIoFd[0], (char *) &err, sizeof(err)) != sizeof(err)) {
-        goto parentErr;
-    }
-    if (err.error) {
-        errno = err.eno;
-        lserrno = err.lserrno;
-        lsberrno = err.lsberrno;
-        goto parentErr;
-    }
-
-    if (read(childIoFd[0], (char *) &ed.len, sizeof(ed.len)) !=
-        sizeof(ed.len)) {
-        goto parentErr;
-    }
-    if (ed.len > 0) {
-        if ((ed.data = (char *) malloc(ed.len)) == NULL)
-            goto parentErr;
-
-        if (b_read_fix(childIoFd[0], ed.data, ed.len) != ed.len) {
-            FREEUP(ed.data);
-            ed.len = 0;
-            goto parentErr;
-        }
-    } else
-        ed.data = NULL;
-
-    if ((jobLog = (struct jobNewLog *) malloc(sizeof(struct jobNewLog))) ==
-        NULL) {
-        goto parentErr;
-    }
-    if (b_read_fix(childIoFd[0], (char *) jobLog, sizeof(struct jobNewLog)) !=
-        sizeof(struct jobNewLog)) {
-        goto parentErr;
-    }
-    if (read(childIoFd[0], (char *) &length, sizeof(length)) !=
-        sizeof(length)) {
-        goto parentErr;
-    }
-    jobLog->resReq = resReq;
-    if (read(childIoFd[0], jobLog->resReq, length) != length) {
-        goto parentErr;
-    }
-    if ((jobLog->options & SUB_OTHER_FILES) && jobLog->nxf > 0) {
-        length = jobLog->nxf * sizeof(struct xFile);
-        if ((xFiles = (struct xFile *) malloc(length)) == NULL) {
-            goto parentErr;
-        }
-        jobLog->xf = xFiles;
-        if (read(childIoFd[0], (char *) jobLog->xf, length) != length) {
-            free(jobLog->xf);
-            goto parentErr;
-        }
-    }
-
-    if (jobLog->options & SUB_MAIL_USER) {
-        if (read(childIoFd[0], (char *) &length, sizeof(length)) !=
-            sizeof(length))
-            goto parentErr;
-        jobLog->mailUser = mailUser;
-        if (read(childIoFd[0], jobLog->mailUser, length) != length)
-            goto parentErr;
-    }
-
-    if (jobLog->options & SUB_PROJECT_NAME) {
-        if (read(childIoFd[0], (char *) &length, sizeof(length)) !=
-            sizeof(length))
-            goto parentErr;
-        jobLog->projectName = projectName;
-        if (read(childIoFd[0], jobLog->projectName, length) != length)
-            goto parentErr;
-    }
-
-    if (jobLog->options & SUB_LOGIN_SHELL) {
-        if (read(childIoFd[0], (char *) &length, sizeof(length)) !=
-            sizeof(length))
-            goto parentErr;
-        jobLog->loginShell = loginShell;
-        if (read(childIoFd[0], jobLog->loginShell, length) != length)
-            goto parentErr;
-    }
-    if (read(childIoFd[0], (char *) &length, sizeof(length)) != sizeof(length))
-        goto parentErr;
-    jobLog->schedHostType = schedHostType;
-    if (read(childIoFd[0], jobLog->schedHostType, length) != length)
-        goto parentErr;
-
-    length = sizeof(submitReq->restartPid);
-    if (read(childIoFd[0], (char *) &submitReq->restartPid, length) != length) {
-        goto parentErr;
-    }
-    if (read(childIoFd[0], (char *) &length, sizeof(length)) !=
-        sizeof(length)) {
-        goto parentErr;
-    }
-    submitReq->fromHost = fromHost;
-    if (read(childIoFd[0], submitReq->fromHost, length) != length) {
-        goto parentErr;
-    }
-
-    if (logclass & (LC_TRACE | LC_EXEC))
-        ls_syslog(LOG_DEBUG1, "%s: Parent got the job log from child", fname);
-
-    lsberrno = LSBE_BAD_CHKLOG;
-
-    if (strlen(jobLog->jobName) >= MAX_CMD_DESC_LEN)
-        goto parentErr;
-
-    if ((ptr = strchr(jobLog->jobName, '[')) != NULL &&
-        strrchr(jobSubReq->command, '/')) {
-        char element[10];
-        *ptr = '\0';
-        ptr = strrchr(jobSubReq->command, '/');
-        ptr++;
-        if (islongint_(ptr)) {
-            sprintf(element, "[%d]", LSB_ARRAY_IDX(atoi64_(ptr)));
-        }
-        strcat(jobLog->jobName, element);
-    }
-
-    if ((ptr = strchr(jobLog->jobName, '/')) != NULL) {
-        if (ptr == strrchr(jobLog->jobName, '/'))
-
-            sprintf(jobLog->jobName, "%s", ++ptr);
-    }
-
-    submitReq->jobName = jobLog->jobName;
-    submitReq->options |= SUB_JOB_NAME;
-
-    if (!(jobSubReq->options & SUB_QUEUE)) {
-        if (strlen(jobLog->queue) >= LL_BUFSIZ_32 - 1)
-            goto parentErr;
-        submitReq->queue = jobLog->queue;
-        submitReq->options |= SUB_QUEUE;
-    }
-
-    if (strlen(jobLog->resReq) >= MAXLINELEN - 1)
-        goto parentErr;
-    submitReq->resReq = jobLog->resReq;
-    if (jobLog->options & SUB_RES_REQ)
-        submitReq->options |= SUB_RES_REQ;
-
-    if (jobLog->numProcessors < 0)
-        goto parentErr;
-    submitReq->numProcessors = jobLog->numProcessors;
-
-    if (jobLog->maxNumProcessors < 0)
-        goto parentErr;
-    submitReq->maxNumProcessors = jobLog->maxNumProcessors;
-
-    if (strlen(jobLog->inFile) >= MAXFILENAMELEN - 1)
-        goto parentErr;
-    submitReq->inFile = jobLog->inFile;
-    if (jobLog->options & SUB_IN_FILE)
-        submitReq->options |= SUB_IN_FILE;
-
-    if (strlen(jobLog->outFile) >= MAXFILENAMELEN - 1)
-        goto parentErr;
-    submitReq->outFile = jobLog->outFile;
-    if (jobLog->options & SUB_OUT_FILE)
-        submitReq->options |= SUB_OUT_FILE;
-
-    if (strlen(jobLog->errFile) >= MAXFILENAMELEN - 1)
-        goto parentErr;
-    submitReq->errFile = jobLog->errFile;
-    if (jobLog->options & SUB_ERR_FILE)
-        submitReq->options |= SUB_ERR_FILE;
-
-    if (strlen(jobLog->inFileSpool) >= MAXFILENAMELEN)
-        goto parentErr;
-    submitReq->inFileSpool = jobLog->inFileSpool;
-    if (jobLog->options2 & SUB2_IN_FILE_SPOOL)
-        submitReq->options2 |= SUB2_IN_FILE_SPOOL;
-
-    if (strlen(jobLog->commandSpool) >= MAXFILENAMELEN)
-        goto parentErr;
-    submitReq->commandSpool = jobLog->commandSpool;
-    if (jobLog->options2 & SUB2_JOB_CMD_SPOOL)
-        submitReq->options2 |= SUB2_JOB_CMD_SPOOL;
-
-    if (strlen(jobLog->command) >= MAX_CMD_DESC_LEN)
-        goto parentErr;
-    submitReq->command = jobLog->command;
-
-    if (jobLog->userPriority > 0) {
-        submitReq->userPriority = jobLog->userPriority;
-    }
-
-    submitReq->chkpntPeriod = jobLog->chkpntPeriod;
-    if (jobLog->options & SUB_CHKPNT_PERIOD)
-        submitReq->options |= SUB_CHKPNT_PERIOD;
-
-    submitReq->options |= SUB_CHKPNT_DIR;
-    if (strlen(jobLog->chkpntDir) >= MAXFILENAMELEN - 1)
-        goto parentErr;
-    submitReq->chkpntDir = chkPath;
-
-    if (strlen(jobLog->jobFile) >= MAXFILENAMELEN - 1)
-        goto parentErr;
-    submitReq->jobFile = jobLog->jobFile;
-
-    submitReq->umask = jobLog->umask;
-
-    if (strlen(jobLog->cwd) >= MAXFILENAMELEN - 1)
-        goto parentErr;
-    submitReq->cwd = jobLog->cwd;
-
-    if (strlen(jobLog->subHomeDir) >= MAXFILENAMELEN - 1)
-        goto parentErr;
-    submitReq->subHomeDir = jobLog->subHomeDir;
-
-    submitReq->sigValue =
-        (jobLog->options & SUB_WINDOW_SIG) ? sig_encode(jobLog->sigValue) : 0;
-    if (submitReq->sigValue > 31 || submitReq->sigValue < 0)
-        goto parentErr;
-
-    if (jobLog->options & SUB_MAIL_USER) {
-        submitReq->mailUser = jobLog->mailUser;
-        submitReq->options |= SUB_MAIL_USER;
-    } else
-        submitReq->mailUser = "";
-
-    if (jobLog->options & SUB_PROJECT_NAME) {
-        submitReq->projectName = jobLog->projectName;
-        submitReq->options |= SUB_PROJECT_NAME;
-    } else
-        submitReq->projectName = "";
-
-    if (jobLog->options & SUB_LOGIN_SHELL) {
-        submitReq->loginShell = jobLog->loginShell;
-        submitReq->options |= SUB_LOGIN_SHELL;
-    } else
-        submitReq->loginShell = "";
-
-    if (jobLog->options & SUB_RERUNNABLE)
-        submitReq->options |= SUB_RERUNNABLE;
-
-    if (jobLog->options2 & SUB2_HOLD)
-        submitReq->options2 |= SUB2_HOLD;
-
-    if ((jobLog->options & SUB_OTHER_FILES) && jobLog->nxf > 0) {
-        submitReq->options |= SUB_OTHER_FILES;
-        submitReq->nxf = jobLog->nxf;
-        if (jobLog->nxf <= 0)
-            goto parentErr;
-        submitReq->xf = jobLog->xf;
-    } else {
-        submitReq->nxf = 0;
-    }
-    if (jobLog->schedHostType)
-        submitReq->schedHostType = jobLog->schedHostType;
-    else
-        submitReq->schedHostType = "";
-
-    close(childIoFd[0]);
-    if (waitpid(pid, &status, 0) < 0) {
-        lsberrno = LSBE_SYS_CALL;
-        goto leave;
-    }
-    if (createJobInfoFile(jobSubReq, &jf) == -1)
-        goto leave;
-
-    jobId = send_batch(submitReq, &jf, submitRep, auth);
-
-    if (jobId > 0) {
-        if (!getenv("BSUB_QUIET"))
-            postSubMsg(jobSubReq, jobId, submitRep);
-    }
-
-leave:
-
-    if (jobLog)
-        free(jobLog);
-    if (xFiles)
-        free(xFiles);
-    return jobId;
-
-parentErr:
-    if (logclass & (LC_TRACE | LC_EXEC))
-        ls_syslog(LOG_DEBUG,
-                  "%s: Parent failed in receiving messages from child", fname);
-    if (!err.error) {
-        lsberrno = LSBE_SYS_CALL;
-        err.eno = errno;
-    }
-    close(childIoFd[0]);
-    if (waitpid(pid, &status, 0) < 0)
-        lsberrno = LSBE_SYS_CALL;
-    else
-        errno = err.eno;
-    jobId = -1;
-    goto leave;
-}
 
 int getChkDir(char *givenDir, char *chkPath)
 {
@@ -1250,7 +707,7 @@ int getChkDir(char *givenDir, char *chkPath)
     }
 }
 
-static LS_LONG_INT subJob(struct submit *jobSubReq, struct submitReq *submitReq,
+static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
                           struct submitReply *submitRep, struct lsfAuth *auth)
 {
     char homeDir[MAXFILENAMELEN];
@@ -1258,7 +715,7 @@ static LS_LONG_INT subJob(struct submit *jobSubReq, struct submitReq *submitReq,
     char cmd[MAXLINELEN];
     struct lenData jf;
     LSB_SUB_SPOOL_FILE_T subSpoolFiles;
-    LS_LONG_INT jobId = -1;
+    int64_t jobId = -1;
 
     subSpoolFiles.inFileSpool[0] = 0;
     subSpoolFiles.commandSpool[0] = 0;
@@ -1981,7 +1438,7 @@ static int xdrSubReqSize(struct submitReq *req)
     return sz;
 }
 
-static void postSubMsg(struct submit *req, LS_LONG_INT jobId,
+static void postSubMsg(struct submit *req, int64_t jobId,
                        struct submitReply *reply)
 {
     if ((req->options & SUB_QUEUE) || (req->options & SUB_RESTART)) {

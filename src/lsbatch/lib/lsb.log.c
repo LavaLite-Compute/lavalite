@@ -86,10 +86,10 @@ static int readJobAttrSet(char *, struct jobAttrSetLog *);
 static void freeLogRec(struct eventRec *);
 
 struct eventRec *lsbGetNextJobEvent(struct eventLogHandle *, int *, int,
-                                    LS_LONG_INT *, struct jobIdIndexS *);
+                                    int64_t *, struct jobIdIndexS *);
 static struct eventRec *lsbGetNextJobRecFromFile(FILE *, int *, int,
-                                                 LS_LONG_INT *);
-static int checkJobEventAndJobId(char *, int, int, LS_LONG_INT *);
+                                                 int64_t *);
+static int checkJobEventAndJobId(char *, int, int, int64_t *);
 static int getEventTypeAndKind(char *, int *);
 static void readEventRecord(char *, struct eventRec *);
 int lsb_readeventrecord(char *, struct eventRec *);
@@ -100,7 +100,7 @@ int getJobIdIndexFromEventFile(char *, struct sortIntList *, time_t *);
 int getJobIdFromEvent(char *, int);
 int writeJobIdIndexToIndexFile(FILE *, struct sortIntList *, time_t);
 int updateJobIdIndexFile(char *, char *, int);
-int getNextFileNumFromIndexS(struct jobIdIndexS *, int, LS_LONG_INT *);
+int getNextFileNumFromIndexS(struct jobIdIndexS *, int, int64_t *);
 
 struct eventLogHandle *lsb_openelog(struct eventLogFile *, int *);
 struct eventRec *lsb_getelogrec(struct eventLogHandle *, int *);
@@ -2606,7 +2606,7 @@ void countLineNum(FILE *fp, long pos, int *lineNum)
 }
 
 struct eventRec *lsbGetNextJobEvent(struct eventLogHandle *ePtr, int *lineNum,
-                                    int numJobIds, LS_LONG_INT *jobIds,
+                                    int numJobIds, int64_t *jobIds,
                                     struct jobIdIndexS *indexS)
 {
     static char fname[] = "lsbGetNextJobEvent";
@@ -2686,7 +2686,7 @@ struct eventRec *lsbGetNextJobEvent(struct eventLogHandle *ePtr, int *lineNum,
 }
 
 struct eventRec *lsbGetNextJobRecFromFile(FILE *logFp, int *lineNum,
-                                          int numJobIds, LS_LONG_INT *jobIds)
+                                          int numJobIds, int64_t *jobIds)
 {
     static char fname[] = "lsbGetNextJobRecFromFile";
     int cc;
@@ -2780,7 +2780,7 @@ struct eventRec *lsbGetNextJobRecFromFile(FILE *logFp, int *lineNum,
 }
 
 int checkJobEventAndJobId(char *line, int eventType, int numJobIds,
-                          LS_LONG_INT *jobIds)
+                          int64_t *jobIds)
 {
     int cc;
     int eventJobId;
@@ -3442,7 +3442,7 @@ int updateJobIdIndexFile(char *indexFile, char *eventFile, int totalEventFile)
 }
 
 int getNextFileNumFromIndexS(struct jobIdIndexS *indexS, int numJobIds,
-                             LS_LONG_INT *jobIds)
+                             int64_t *jobIds)
 {
     int position;
     int i, j;

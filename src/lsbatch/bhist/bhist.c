@@ -61,7 +61,7 @@ extern struct eventLogHandle *lsb_openelog(struct eventLogFile *, int *);
 extern struct eventRec *lsb_getelogrec(struct eventLogHandle *, int *);
 extern void countLineNum(FILE *fp, long, int *);
 extern struct eventRec *lsbGetNextJobEvent(struct eventLogHandle *, int *, int,
-                                           LS_LONG_INT *, struct jobIdIndexS *);
+                                           int64_t *, struct jobIdIndexS *);
 
 struct hTab jobIdHT;
 struct jobRecord *jobRecordList;
@@ -2653,7 +2653,7 @@ static void printChronicleEventLog(struct eventRec *log, struct bhistReq *req)
     char prline[MAXLINELEN], tBuff[20];
     int i;
     char *hostPtr;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     char timeStampStr[64];
     struct eventRecord eventT;
     char *cp, *cp1;

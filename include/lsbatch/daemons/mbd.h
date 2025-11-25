@@ -235,7 +235,7 @@ struct jData {
     int userId;
     char *userName;
     struct uData *uPtr;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     float priority;
     int jStatus;
     time_t updStateTime;
@@ -627,13 +627,13 @@ struct hData {
 };
 
 struct sbdNode {
-    struct sbdNode *forw, *back;
+    struct sbdNode *forw;
+    struct sbdNode *back;
     int chanfd;
     struct jData *jData;
     struct hData *hData;
     sbdReqType reqCode;
     time_t lastTime;
-
     int sigVal;
     int sigFlags;
 };
@@ -1019,7 +1019,7 @@ extern int rmjobfile(struct jData *jData);
 extern void jStatusChange(struct jData *, int, time_t, char *);
 extern int findLastJob(int, struct jData *, struct jData **);
 extern void initJobIdHT(void);
-extern struct jData *getJobData(LS_LONG_INT jobId);
+extern struct jData *getJobData(int64_t jobId);
 extern void inPendJobList(struct jData *, int list, time_t);
 extern void inStartJobList(struct jData *);
 extern void inFinishJobList(struct jData *);
@@ -1027,7 +1027,7 @@ extern void jobInQueueEnd(struct jData *, struct qData *);
 extern struct jData *initJData(struct jShared *);
 extern void assignLoad(float *, float *, struct qData *, struct hData *);
 extern int resigJobs(int *resignal);
-extern void removeJob(LS_LONG_INT);
+extern void removeJob(int64_t);
 extern bool_t runJob(struct runJobRequest *, struct lsfAuth *);
 extern void addJobIdHT(struct jData *);
 extern struct jData *createjDataRef(struct jData *);
@@ -1047,9 +1047,9 @@ extern void freeJData(struct jData *);
 extern void handleJParameters(struct jData *, struct jData *,
                               struct submitReq *, int, int, int);
 extern void handleNewJob(struct jData *, int, int);
-extern void copyJobBill(struct submitReq *, struct submitReq *, LS_LONG_INT);
+extern void copyJobBill(struct submitReq *, struct submitReq *, int64_t);
 extern void inZomJobList(struct jData *, int);
-extern struct jData *getZombieJob(LS_LONG_INT);
+extern struct jData *getZombieJob(int64_t);
 extern int getNextJobId(void);
 extern void accumRunTime(struct jData *, int, time_t);
 extern void signalReplyCode(sbdReplyType reply, struct jData *jData,
@@ -1112,9 +1112,6 @@ extern int do_jobInfoReq(XDR *, int, struct sockaddr_in *,
                          struct packet_header *, int);
 extern int do_queueInfoReq(XDR *, int, struct sockaddr_in *,
                            struct packet_header *);
-extern int do_debugReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                       char *hostName, struct packet_header *reqHdr,
-                       struct lsfAuth *auth);
 extern int do_groupInfoReq(XDR *, int, struct sockaddr_in *,
                            struct packet_header *);
 extern int do_queueControlReq(XDR *, int, struct sockaddr_in *, char *,
@@ -1222,7 +1219,7 @@ extern struct hostAcct *addHAcct(struct hTab **, struct hData *, int, int, int,
                                  int);
 extern void checkQusable(struct qData *, int, int);
 extern void updHostLeftRusageMem(struct jData *, int);
-extern LS_LONG_INT getFileSystemFree(char *);
+extern int64_t getFileSystemFree(char *);
 
 extern int minit(int);
 extern struct qData *lostFoundQueue(void);
@@ -1292,14 +1289,6 @@ extern sbdReplyType signal_job(struct jData *jobPtr, struct jobSig *,
 extern sbdReplyType switch_job(struct jData *, int options);
 extern sbdReplyType msg_job(struct jData *, struct Buffer *, struct jobReply *);
 extern sbdReplyType probe_slave(struct hData *, char sendJobs);
-extern sbdReplyType rebootSbd(char *host);
-extern sbdReplyType shutdownSbd(char *host);
-#if defined(INTER_DAEMON_AUTH)
-extern int getDaemonAuth(struct lsfAuth *auth, char *toHost, char *client,
-                         char *server);
-extern void writeEauthAuxData(struct lenData *aux_auth_data);
-extern void removeFile(const char *envVar);
-#endif
 
 extern struct dptNode *parseDepCond(char *, struct lsfAuth *, int *, char **,
                                     int *, int);
@@ -1354,7 +1343,7 @@ extern void freeIdxList(struct idxList *);
 extern struct idxList *parseJobArrayIndex(char *, int *, int *);
 extern void handleNewJobArray(struct jData *, struct idxList *, int);
 extern void offArray(struct jData *);
-extern int getJobIdList(char *, int *, LS_LONG_INT **);
+extern int getJobIdList(char *, int *, int64_t **);
 extern int getJobIdIndexList(char *, int *, struct idxList **);
 extern struct jData *copyJData(struct jData *);
 extern struct jShared *copyJShared(struct jData *);

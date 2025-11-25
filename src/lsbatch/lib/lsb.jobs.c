@@ -1,108 +1,258 @@
-/* $Id: lsb.jobs.c,v 1.12 2007/08/15 22:18:47 tmizan Exp $
- * Copyright (C) 2007 Platform Computing Inc
+/* ------------------------------------------------------------------------
+ * LavaLite — High-Performance Job Scheduling Infrastructure
+ *
  * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
- *
- */
+ * ------------------------------------------------------------------------ */
 
 #include "lsbatch/lib/lsb.h"
 
 extern void copyJUsage(struct jRusage *to, struct jRusage *from);
-extern int _lsb_recvtimeout;
 
-static int mbdSock = -1;
+static int mbd_sock = -1;
 
-int lsb_openjobinfo(LS_LONG_INT jobId, const char *jobName,
-                    const char *userName, const char *queueName,
-                    const char *hostName, int options)
+/* Allocated once, reused across reads */
+static struct jobInfoReply jobInfoReply;
+static struct jobInfoEnt jobInfo;
+static struct submitReq submitReq;
+static int buffers_initialized = 0;
+
+/* Rusage state preserved across calls */
+static int npids = 0;
+static struct pidInfo *pidInfo = NULL;
+static int npgids = 0;
+static int *pgid = NULL;
+
+/* init_jobinfo_buffers() - Allocate reusable buffers
+ * Returns 0 on success, -1 on failure
+ */
+static int init_jobinfo_buffers(struct jobInfoReply *reply,
+                                struct submitReq *submit)
 {
-    struct jobInfoHead *jobInfoHead;
+    if (buffers_initialized)
+        return 0;
 
-    jobInfoHead = lsb_openjobinfo2(jobId, jobName, userName, queueName,
-                                   hostName, options);
-    if (!jobInfoHead)
+    submit->fromHost = malloc(MAXHOSTNAMELEN);
+    submit->jobFile = malloc(MAXFILENAMELEN);
+    submit->inFile = malloc(MAXFILENAMELEN);
+    submit->outFile = malloc(MAXFILENAMELEN);
+    submit->errFile = malloc(MAXFILENAMELEN);
+    submit->inFileSpool = malloc(MAXFILENAMELEN);
+    submit->commandSpool = malloc(MAXFILENAMELEN);
+    submit->hostSpec = malloc(MAXHOSTNAMELEN);
+    submit->chkpntDir = malloc(MAXFILENAMELEN);
+    submit->subHomeDir = malloc(MAXFILENAMELEN);
+    submit->cwd = malloc(MAXFILENAMELEN);
+    reply->userName = malloc(MAXLSFNAMELEN);
+
+    if (!submit->fromHost || !submit->jobFile || !submit->inFile ||
+        !submit->outFile || !submit->errFile || !submit->inFileSpool ||
+        !submit->commandSpool || !submit->hostSpec || !submit->chkpntDir ||
+        !submit->subHomeDir || !submit->cwd || !reply->userName) {
         return -1;
+    }
 
-    return jobInfoHead->numJobs;
+    submit->xf = NULL;
+    submit->nxf = 0;
+    submit->numAskedHosts = 0;
+    reply->numToHosts = 0;
+    reply->toHosts = NULL;
+    reply->jobBill = submit;
+
+    buffers_initialized = 1;
+
+    return 0;
 }
 
-struct jobInfoHead *lsb_openjobinfo2(LS_LONG_INT jobId, const char *jobName,
-                                     const char *userName,
-                                     const char *queueName,
-                                     const char *hostName, int options)
+/* free_previous_job() - Release per-job allocations before reading next
+ */
+
+static void free_previous_job(void)
 {
-    static int first = true;
-    static struct jobInfoReq jobInfoReq;
-    static struct jobInfoHead jobInfoHead;
-    mbdReqType mbdReqtype;
-    XDR xdrs, xdrs2;
-    char request_buf[MSGSIZE];
-    char *reply_buf, *clusterName = NULL;
-    int cc, aa;
+    int i;
+
+    if (jobInfoReply.numToHosts > 0) {
+        for (i = 0; i < jobInfoReply.numToHosts; i++)
+            FREEUP(jobInfoReply.toHosts[i]);
+        FREEUP(jobInfoReply.toHosts);
+        jobInfoReply.numToHosts = 0;
+    }
+
+    if (submitReq.xf) {
+        free(submitReq.xf);
+        submitReq.xf = NULL;
+    }
+
+    free(jobInfoReply.execHome);
+    free(jobInfoReply.execCwd);
+    free(jobInfoReply.execUsername);
+    free(jobInfoReply.parentGroup);
+    free(jobInfoReply.jName);
+}
+
+/* ========================================================================
+ * copy_job_info() - Map jobInfoReply to jobInfoEnt
+ *
+ * Direct field copy where names match, plus field renames:
+ *   numToHosts -> numExHosts, toHosts -> exHosts, userName -> user
+ * ======================================================================== */
+
+static void copy_job_info(struct jobInfoEnt *dst, struct jobInfoReply *src)
+{
+    int i;
+
+    dst->jobId = src->jobId;
+    dst->status = src->status;
+    dst->reasonTb = src->reasonTb;
+    dst->numReasons = src->numReasons;
+    dst->reasons = src->reasons;
+    dst->subreasons = src->subreasons;
+    dst->startTime = src->startTime;
+    dst->predictedStartTime = src->predictedStartTime;
+    dst->endTime = src->endTime;
+    dst->cpuTime = src->cpuTime;
+    dst->reserveTime = src->reserveTime;
+    dst->jobPid = src->jobPid;
+    dst->port = src->port;
+    dst->jobPriority = src->jobPriority;
+    dst->nIdx = src->nIdx;
+    dst->loadSched = src->loadSched;
+    dst->loadStop = src->loadStop;
+    dst->exitStatus = src->exitStatus;
+    dst->execUid = src->execUid;
+    dst->jType = src->jType;
+    dst->jRusageUpdateTime = src->jRusageUpdateTime;
+
+    /* Field renames */
+    dst->numExHosts = src->numToHosts;
+    dst->exHosts = src->toHosts;
+    dst->user = src->userName;
+
+    /* String pointers - shared, not copied */
+    dst->execHome = src->execHome;
+    dst->execCwd = src->execCwd;
+    dst->execUsername = src->execUsername;
+    dst->parentGroup = src->parentGroup;
+    dst->jName = src->jName;
+
+    /* Counters */
+    for (i = 0; i < NUM_JGRP_COUNTERS; i++)
+        dst->counter[i] = src->counter[i];
+
+    /* Fields from jobBill (submitReq) */
+    dst->submitTime = src->jobBill->submitTime;
+    dst->umask = src->jobBill->umask;
+    dst->cwd = src->jobBill->cwd;
+    dst->subHomeDir = src->jobBill->subHomeDir;
+    dst->fromHost = src->jobBill->fromHost;
+
+    /* Submit struct */
+    dst->submit.options = src->jobBill->options;
+    dst->submit.options2 = src->jobBill->options2;
+    dst->submit.numProcessors = src->jobBill->numProcessors;
+    dst->submit.maxNumProcessors = src->jobBill->maxNumProcessors;
+    dst->submit.jobName = src->jobBill->jobName;
+    dst->submit.command = src->jobBill->command;
+    dst->submit.resReq = src->jobBill->resReq;
+    dst->submit.queue = src->jobBill->queue;
+    dst->submit.inFile = src->jobBill->inFile;
+    dst->submit.outFile = src->jobBill->outFile;
+    dst->submit.errFile = src->jobBill->errFile;
+    dst->submit.beginTime = src->jobBill->beginTime;
+    dst->submit.termTime = src->jobBill->termTime;
+    dst->submit.userPriority = src->jobBill->userPriority;
+    dst->submit.hostSpec = src->jobBill->hostSpec;
+    dst->submit.sigValue = src->jobBill->sigValue;
+    dst->submit.chkpntDir = src->jobBill->chkpntDir;
+    dst->submit.dependCond = src->jobBill->dependCond;
+    dst->submit.preExecCmd = src->jobBill->preExecCmd;
+    dst->submit.chkpntPeriod = src->jobBill->chkpntPeriod;
+    dst->submit.numAskedHosts = src->jobBill->numAskedHosts;
+    dst->submit.askedHosts = src->jobBill->askedHosts;
+    dst->submit.projectName = src->jobBill->projectName;
+    dst->submit.mailUser = src->jobBill->mailUser;
+    dst->submit.loginShell = src->jobBill->loginShell;
+    dst->submit.nxf = src->jobBill->nxf;
+    dst->submit.xf = src->jobBill->xf;
+
+    for (i = 0; i < LSF_RLIM_NLIMITS; i++)
+        dst->submit.rLimits[i] = src->jobBill->rLimits[i];
+}
+
+
+/*
+ * lsb_openjobinfo() - Open streaming job query
+ */
+struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
+                                    const char *userName, const char *queueName,
+                                    const char *hostName, int options)
+{
+    static __thread struct jobInfoReq jobInfoReq;
+    static __thread struct jobInfoHead jobInfoHead;
+    static int req_initialized = 0;
+    XDR xdrs;
+    XDR xdrs2;
+    char request_buf[LL_BUFSIZ_1K];
+    char *reply_buf;
     struct packet_header hdr;
 
-    if (first) {
-        if (!(jobInfoReq.jobName = malloc(MAX_CMD_DESC_LEN)) ||
-            !(jobInfoReq.queue = malloc(LL_BUFSIZ_32)) ||
-            !(jobInfoReq.userName = malloc(LL_BUFSIZ_32)) ||
-            !(jobInfoReq.host = malloc(MAXHOSTNAMELEN))) {
+    /* Allocate request buffers once */
+    if (!req_initialized) {
+        jobInfoReq.jobName = malloc(MAX_CMD_DESC_LEN);
+        jobInfoReq.queue = malloc(LL_BUFSIZ_32);
+        jobInfoReq.userName = malloc(LL_BUFSIZ_32);
+        jobInfoReq.host = malloc(MAXHOSTNAMELEN);
+
+        if (!jobInfoReq.jobName || !jobInfoReq.queue ||
+            !jobInfoReq.userName || !jobInfoReq.host) {
             lsberrno = LSBE_SYS_CALL;
             return NULL;
         }
-        first = false;
+        req_initialized = 1;
     }
 
+    /* Build request - queue */
     if (queueName == NULL) {
         jobInfoReq.queue[0] = 0;
+    } else if (strlen(queueName) >= LL_BUFSIZ_32 - 1) {
+        lsberrno = LSBE_BAD_QUEUE;
+        return NULL;
     } else {
-        if (strlen(queueName) >= LL_BUFSIZ_32 - 1) {
-            lsberrno = LSBE_BAD_QUEUE;
-            return NULL;
-        }
         strcpy(jobInfoReq.queue, queueName);
     }
 
-    if (hostName == NULL) {
+    /* Host */
+    if (hostName == NULL)
         jobInfoReq.host[0] = 0;
-    } else {
+    else
         strcpy(jobInfoReq.host, hostName);
-    }
 
+    /* Job name */
     if (jobName == NULL) {
-        jobInfoReq.jobName[0] = '\0';
+        jobInfoReq.jobName[0] = 0;
+    } else if (strlen(jobName) >= MAX_CMD_DESC_LEN - 1) {
+        lsberrno = LSBE_BAD_JOB;
+        return NULL;
     } else {
-        if (strlen(jobName) >= MAX_CMD_DESC_LEN - 1) {
-            lsberrno = LSBE_BAD_JOB;
-            return NULL;
-        }
         strcpy(jobInfoReq.jobName, jobName);
     }
 
+    /* User name */
     if (userName == NULL) {
         struct passwd *pwd = getpwuid(getuid());
         strcpy(jobInfoReq.userName, pwd->pw_name);
+    } else if (strlen(userName) >= LL_BUFSIZ_32 - 1) {
+        lsberrno = LSBE_BAD_USER;
+        return NULL;
     } else {
-        if (strlen(userName) >= LL_BUFSIZ_32 - 1) {
-            lsberrno = LSBE_BAD_USER;
-            return NULL;
-        }
         strcpy(jobInfoReq.userName, userName);
     }
-    if ((options &
-         ~(JOBID_ONLY | JOBID_ONLY_ALL | HOST_NAME | NO_PEND_REASONS)) == 0)
+
+    /* Options */
+    if ((options & ~(JOBID_ONLY | JOBID_ONLY_ALL | HOST_NAME | NO_PEND_REASONS)) == 0)
         jobInfoReq.options = CUR_JOB;
     else
         jobInfoReq.options = options;
@@ -113,336 +263,206 @@ struct jobInfoHead *lsb_openjobinfo2(LS_LONG_INT jobId, const char *jobName,
     }
     jobInfoReq.jobId = jobId;
 
-    mbdReqtype = BATCH_JOB_INFO;
+    /* Encode */
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
+    hdr.operation = BATCH_JOB_INFO;
 
-    hdr.operation = mbdReqtype;
-    TIMEIT(1,
-           (aa = xdr_encodeMsg(&xdrs, (char *) &jobInfoReq, &hdr,
-                               xdr_jobInfoReq, 0, NULL)),
-           "xdr_encodeMsg");
-    if (aa == false) {
+    if (!xdr_encodeMsg(&xdrs, (char *)&jobInfoReq, &hdr, xdr_jobInfoReq, 0, NULL)) {
         lsberrno = LSBE_XDR;
-        return NULL;
-    }
-
-    TIMEIT(0,
-           (cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs),
-                         &reply_buf, &hdr, &mbdSock, NULL, NULL)),
-           "callmbd");
-    if (cc == -1) {
         xdr_destroy(&xdrs);
         return NULL;
     }
 
+    /* Open stream */
+    mbd_sock = open_mbd_stream(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr);
     xdr_destroy(&xdrs);
 
+    if (mbd_sock < 0)
+        return NULL;
+
     lsberrno = hdr.operation;
-    if (lsberrno == LSBE_NO_ERROR) {
-        xdrmem_create(&xdrs2, reply_buf, cc, XDR_DECODE);
-        if (!xdr_jobInfoHead(&xdrs2, &jobInfoHead, &hdr)) {
-            lsberrno = LSBE_XDR;
-            xdr_destroy(&xdrs2);
-            if (cc)
-                free(reply_buf);
-            return NULL;
-        }
-        xdr_destroy(&xdrs2);
-        if (cc)
-            free(reply_buf);
-        return (&jobInfoHead);
+    if (lsberrno != LSBE_NO_ERROR) {
+        free(reply_buf);
+        close_mbd_stream(mbd_sock);
+        mbd_sock = -1;
+        return NULL;
     }
 
-    if (cc)
+    /* Decode header
+     */
+    xdrmem_create(&xdrs2, reply_buf, hdr.length, XDR_DECODE);
+    if (!xdr_jobInfoHead(&xdrs2, &jobInfoHead, &hdr)) {
+        lsberrno = LSBE_XDR;
+        xdr_destroy(&xdrs2);
         free(reply_buf);
-    return NULL;
+        close_mbd_stream(mbd_sock);
+        mbd_sock = -1;
+        return NULL;
+    }
+    xdr_destroy(&xdrs2);
+    free(reply_buf);
+
+    return &jobInfoHead;
 }
 
-struct jobInfoEnt *lsb_readjobinfo(int *more)
+/* ========================================================================
+ * lsb_readjobinfo() - Read next job from stream
+ * ======================================================================== */
+
+struct jobInfoEnt *lsb_readjobinfo(void)
 {
     XDR xdrs;
-    int num, i, aa;
     struct packet_header hdr;
     char *buffer = NULL;
-    static struct jobInfoReply jobInfoReply;
-    static struct jobInfoEnt jobInfo;
-    static struct submitReq submitReq;
-    static int first = true;
+    int num;
+    static __thread struct jobInfoReply jobInfoReply;
+    static __thread struct jobInfoEnt jobInfo;
+    static __thread struct submitReq submitReq;
+    static __thread int buffers_initialized = 0;
 
-    static int npids = 0;
-    static struct pidInfo *pidInfo = NULL;
-    static int npgids = 0;
-    static int *pgid = NULL;
+    /* Init buffers on first use
+     */
+    if (init_jobinfo_buffers(&jobInfoReply, &submitReq) < 0) {
+        lsberrno = LSBE_NO_MEM;
+        return NULL;
+    }
 
-    TIMEIT(0, (num = readNextPacket(&buffer, _lsb_recvtimeout, &hdr, mbdSock)),
-           "readNextPacket");
+    /* Read next packet */
+    num = read_mbd_stream(mbd_sock, &buffer, &hdr);
     if (num < 0) {
-        closeSession(mbdSock);
+        close_mbd_stream(mbd_sock);
+        mbd_sock = -1;
         lsberrno = LSBE_EOF;
         return NULL;
     }
 
-    if (first) {
-        if ((submitReq.fromHost = malloc(MAXHOSTNAMELEN)) == NULL ||
-            (submitReq.jobFile = malloc(MAXFILENAMELEN)) == NULL ||
-            (submitReq.inFile = malloc(MAXFILENAMELEN)) == NULL ||
-            (submitReq.outFile = malloc(MAXFILENAMELEN)) == NULL ||
-            (submitReq.errFile = malloc(MAXFILENAMELEN)) == NULL ||
-            (submitReq.inFileSpool = malloc(MAXFILENAMELEN)) == NULL ||
-            (submitReq.commandSpool = malloc(MAXFILENAMELEN)) == NULL ||
-            (submitReq.hostSpec = malloc(MAXHOSTNAMELEN)) == NULL ||
-            (submitReq.chkpntDir = malloc(MAXFILENAMELEN)) == NULL ||
-            (submitReq.subHomeDir = malloc(MAXFILENAMELEN)) == NULL ||
-            (jobInfoReply.userName = malloc(MAXLSFNAMELEN)) == NULL ||
-            (submitReq.cwd = malloc(MAXFILENAMELEN)) == NULL) {
-            lsberrno = LSBE_NO_MEM;
-            FREEUP(submitReq.fromHost);
-            FREEUP(submitReq.jobFile);
-            FREEUP(submitReq.inFile);
-            FREEUP(submitReq.outFile);
-            FREEUP(submitReq.errFile);
-            FREEUP(submitReq.inFileSpool);
-            FREEUP(submitReq.commandSpool);
-            FREEUP(submitReq.hostSpec);
-            FREEUP(submitReq.chkpntDir);
-            FREEUP(submitReq.subHomeDir);
-            FREEUP(jobInfoReply.userName);
-            FREEUP(submitReq.cwd);
+    /* Free previous job's dynamic data */
+    free_previous_job();
 
-            free(buffer);
-            return NULL;
-        }
-
-        submitReq.xf = NULL;
-        submitReq.nxf = 0;
-        jobInfoReply.numToHosts = 0;
-        submitReq.numAskedHosts = 0;
-        first = false;
-    }
-
-    jobInfoReply.jobBill = &submitReq;
-
-    if (jobInfoReply.numToHosts > 0) {
-        for (i = 0; i < jobInfoReply.numToHosts; i++)
-            FREEUP(jobInfoReply.toHosts[i]);
-        FREEUP(jobInfoReply.toHosts);
-        jobInfoReply.numToHosts = 0;
-        jobInfoReply.toHosts = NULL;
-    }
-
-    if (submitReq.xf) {
-        free(submitReq.xf);
-        submitReq.xf = NULL;
-    }
-
-    FREEUP(jobInfoReply.execHome);
-    FREEUP(jobInfoReply.execCwd);
-    FREEUP(jobInfoReply.execUsername);
-    FREEUP(jobInfoReply.parentGroup);
-    FREEUP(jobInfoReply.jName);
-
-    TIMEIT(1, xdrmem_create(&xdrs, buffer, hdr.length, XDR_DECODE),
-           "xdrmem_create");
-    TIMEIT(1, (aa = xdr_jobInfoReply(&xdrs, &jobInfoReply, &hdr)),
-           "xdr_jobInfoReply");
-    if (aa == false) {
+    /* Decode */
+    xdrmem_create(&xdrs, buffer, hdr.length, XDR_DECODE);
+    if (!xdr_jobInfoReply(&xdrs, &jobInfoReply, &hdr)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         free(buffer);
-        jobInfoReply.toHosts = NULL;
-        jobInfoReply.numToHosts = 0;
         return NULL;
     }
-
-    TIMEIT(1, xdr_destroy(&xdrs), "xdr_destroy");
+    xdr_destroy(&xdrs);
     free(buffer);
-    jobInfo.jobId = jobInfoReply.jobId;
-    jobInfo.status = jobInfoReply.status;
-    jobInfo.numReasons = jobInfoReply.numReasons;
-    jobInfo.reasonTb = jobInfoReply.reasonTb;
-    jobInfo.reasons = jobInfoReply.reasons;
-    jobInfo.subreasons = jobInfoReply.subreasons;
-    jobInfo.startTime = jobInfoReply.startTime;
-    jobInfo.predictedStartTime = jobInfoReply.predictedStartTime;
-    jobInfo.endTime = jobInfoReply.endTime;
-    jobInfo.cpuTime = jobInfoReply.cpuTime;
-    jobInfo.numExHosts = jobInfoReply.numToHosts;
-    jobInfo.exHosts = jobInfoReply.toHosts;
-    jobInfo.nIdx = jobInfoReply.nIdx;
-    jobInfo.loadSched = jobInfoReply.loadSched;
-    jobInfo.loadStop = jobInfoReply.loadStop;
-    jobInfo.exitStatus = jobInfoReply.exitStatus;
-    jobInfo.reserveTime = jobInfoReply.reserveTime;
-    jobInfo.jobPid = jobInfoReply.jobPid;
-    jobInfo.port = jobInfoReply.port;
-    jobInfo.jobPriority = jobInfoReply.jobPriority;
 
-    jobInfo.user = jobInfoReply.userName;
+    /* Copy to output struct */
+    copy_job_info(&jobInfo, &jobInfoReply);
 
-    jobInfo.execUid = jobInfoReply.execUid;
-    jobInfo.execHome = jobInfoReply.execHome;
-    jobInfo.execCwd = jobInfoReply.execCwd;
-    jobInfo.execUsername = jobInfoReply.execUsername;
-
-    jobInfo.jType = jobInfoReply.jType;
-    jobInfo.parentGroup = jobInfoReply.parentGroup;
-    jobInfo.jName = jobInfoReply.jName;
-    for (i = 0; i < NUM_JGRP_COUNTERS; i++)
-        jobInfo.counter[i] = jobInfoReply.counter[i];
-
-    jobInfo.submitTime = jobInfoReply.jobBill->submitTime;
-    jobInfo.umask = jobInfoReply.jobBill->umask;
-    jobInfo.cwd = jobInfoReply.jobBill->cwd;
-    jobInfo.subHomeDir = jobInfoReply.jobBill->subHomeDir;
-    jobInfo.submit.options = jobInfoReply.jobBill->options;
-    jobInfo.submit.options2 = jobInfoReply.jobBill->options2;
-    jobInfo.submit.numProcessors = jobInfoReply.jobBill->numProcessors;
-    jobInfo.submit.maxNumProcessors = jobInfoReply.jobBill->maxNumProcessors;
-    jobInfo.submit.jobName = jobInfoReply.jobBill->jobName;
-    jobInfo.submit.command = jobInfoReply.jobBill->command;
-    jobInfo.submit.resReq = jobInfoReply.jobBill->resReq;
-    jobInfo.submit.queue = jobInfoReply.jobBill->queue;
-    jobInfo.fromHost = jobInfoReply.jobBill->fromHost;
-    jobInfo.submit.inFile = jobInfoReply.jobBill->inFile;
-    jobInfo.submit.outFile = jobInfoReply.jobBill->outFile;
-    jobInfo.submit.errFile = jobInfoReply.jobBill->errFile;
-    jobInfo.submit.beginTime = jobInfoReply.jobBill->beginTime;
-    jobInfo.submit.termTime = jobInfoReply.jobBill->termTime;
-    jobInfo.submit.userPriority = jobInfoReply.jobBill->userPriority;
-
-    for (i = 0; i < LSF_RLIM_NLIMITS; i++) {
-        jobInfo.submit.rLimits[i] = jobInfoReply.jobBill->rLimits[i];
-    }
-    jobInfo.submit.hostSpec = jobInfoReply.jobBill->hostSpec;
-    jobInfo.submit.sigValue = jobInfoReply.jobBill->sigValue;
-    jobInfo.submit.chkpntDir = jobInfoReply.jobBill->chkpntDir;
-    jobInfo.submit.dependCond = jobInfoReply.jobBill->dependCond;
-    jobInfo.submit.preExecCmd = jobInfoReply.jobBill->preExecCmd;
-    jobInfo.submit.chkpntPeriod = jobInfoReply.jobBill->chkpntPeriod;
-    jobInfo.submit.numAskedHosts = jobInfoReply.jobBill->numAskedHosts;
-    jobInfo.submit.askedHosts = jobInfoReply.jobBill->askedHosts;
-    jobInfo.submit.projectName = jobInfoReply.jobBill->projectName;
-    jobInfo.submit.mailUser = jobInfoReply.jobBill->mailUser;
-    jobInfo.submit.loginShell = jobInfoReply.jobBill->loginShell;
-    jobInfo.submit.nxf = jobInfoReply.jobBill->nxf;
-    jobInfo.submit.xf = jobInfoReply.jobBill->xf;
-
-    jobInfo.jRusageUpdateTime = jobInfoReply.jRusageUpdateTime;
+    /* Handle rusage - preserve across calls */
     jobInfo.runRusage.npids = npids;
     jobInfo.runRusage.pidInfo = pidInfo;
-
     jobInfo.runRusage.npgids = npgids;
     jobInfo.runRusage.pgid = pgid;
 
-    copyJUsage(&(jobInfo.runRusage), &jobInfoReply.runRusage);
+    copyJUsage(&jobInfo.runRusage, &jobInfoReply.runRusage);
 
     npids = jobInfo.runRusage.npids;
     pidInfo = jobInfo.runRusage.pidInfo;
-
     npgids = jobInfo.runRusage.npgids;
     pgid = jobInfo.runRusage.pgid;
 
+    /* Free reply's rusage copies */
     if (jobInfoReply.runRusage.npids > 0) {
-        FREEUP(jobInfoReply.runRusage.pidInfo);
+        free(jobInfoReply.runRusage.pidInfo);
         jobInfoReply.runRusage.npids = 0;
     }
-
     if (jobInfoReply.runRusage.npgids > 0) {
-        FREEUP(jobInfoReply.runRusage.pgid);
+        free(jobInfoReply.runRusage.pgid);
         jobInfoReply.runRusage.npgids = 0;
     }
-
-    // Bug mode was in the reserved part of the header
-    (void) more;
 
     return &jobInfo;
 }
 
-void lsb_closejobinfo()
+/* ========================================================================
+ * lsb_closejobinfo() - Close stream
+ * ======================================================================== */
+
+void lsb_closejobinfo(void)
 {
-    closeSession(mbdSock);
+    close_mbd_stream(mbd_sock);
+    mbd_sock = -1;
 }
 
-int lsb_runjob(struct runJobRequest *runJobRequest)
+/* ========================================================================
+ * lsb_runjob() - Force run a job (simple RPC)
+ * ======================================================================== */
+
+int lsb_runjob(struct runJobRequest *req)
 {
     XDR xdrs;
-    struct packet_header lsfHeader;
+    struct packet_header hdr;
     struct lsfAuth auth;
-    mbdReqType mbdReqType;
-    char request_buf[MSGSIZE / 2];
+    char request_buf[LL_BUFSIZ_1K];
     char *reply_buf;
-    int retVal;
     int cc;
 
-    if (runJobRequest == NULL || runJobRequest->numHosts == 0 ||
-        runJobRequest->hostname == NULL || runJobRequest->jobId < 0 ||
-        (runJobRequest->options != 0 &&
-         !(runJobRequest->options & (RUNJOB_OPT_NORMAL | RUNJOB_OPT_NOSTOP))))
-
-    {
+    if (!req || req->numHosts == 0 || !req->hostname || req->jobId < 0) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
 
-    if (!(runJobRequest->options & (RUNJOB_OPT_NORMAL | RUNJOB_OPT_NOSTOP))) {
-        runJobRequest->options |= RUNJOB_OPT_NORMAL;
+    if (req->options != 0 &&
+        !(req->options & (RUNJOB_OPT_NORMAL | RUNJOB_OPT_NOSTOP))) {
+        lsberrno = LSBE_BAD_ARG;
+        return -1;
     }
+
+    if (!(req->options & (RUNJOB_OPT_NORMAL | RUNJOB_OPT_NOSTOP)))
+        req->options |= RUNJOB_OPT_NORMAL;
 
     if (authTicketTokens_(&auth, NULL) == -1) {
         lsberrno = LSBE_LSBLIB;
         return -1;
     }
 
-    mbdReqType = BATCH_JOB_FORCE;
-
     xdrmem_create(&xdrs, request_buf, MSGSIZE / 2, XDR_ENCODE);
+    init_pack_hdr(&hdr);
+    hdr.operation = BATCH_JOB_FORCE;
 
-    init_pack_hdr(&lsfHeader);
-
-    lsfHeader.operation = mbdReqType;
-
-    if (!xdr_encodeMsg(&xdrs, (char *) runJobRequest, &lsfHeader, xdr_runJobReq,
-                       0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *)req, &hdr, xdr_runJobReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;
     }
 
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                      &lsfHeader, NULL, NULL, NULL)) == -1) {
-        xdr_destroy(&xdrs);
-        return -1;
-    }
-
+    cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL);
     xdr_destroy(&xdrs);
+    if (cc == -1)
+        return -1;
 
-    lsberrno = lsfHeader.operation;
+    lsberrno = hdr.operation;
 
-    if (lsberrno == LSBE_NO_ERROR)
-        retVal = 0;
+    if (cc > 0)
+        free(reply_buf);
+
+    return (lsberrno == LSBE_NO_ERROR) ? 0 : -1;
+}
+
+/* ========================================================================
+ * Job ID formatting helpers
+ * ======================================================================== */
+
+char *lsb_jobid2str(int64_t jobId)
+{
+    static char s[32];
+
+    if (LSB_ARRAY_IDX(jobId) == 0)
+        sprintf(s, "%d", LSB_ARRAY_JOBID(jobId));
     else
-        retVal = -1;
+        sprintf(s, "%d[%d]", LSB_ARRAY_JOBID(jobId), LSB_ARRAY_IDX(jobId));
 
-    return retVal;
+    return s;
 }
 
-char *lsb_jobid2str(LS_LONG_INT jobId)
+char *lsb_jobidinstr(int64_t jobId)
 {
-    static char string[32];
-
-    if (LSB_ARRAY_IDX(jobId) == 0) {
-        sprintf(string, "%d", LSB_ARRAY_JOBID(jobId));
-    } else {
-        sprintf(string, "%d[%d]", LSB_ARRAY_JOBID(jobId), LSB_ARRAY_IDX(jobId));
-    }
-
-    return string;
-}
-
-char *lsb_jobidinstr(LS_LONG_INT jobId)
-{
-    static char string[LL_BUFSIZ_32];
-
-    sprintf(string, "%ld", jobId);
-    return string;
+    static char s[LL_BUFSIZ_32];
+    sprintf(s, "%ld", jobId);
+    return s;
 }

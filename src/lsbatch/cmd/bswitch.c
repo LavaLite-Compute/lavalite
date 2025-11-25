@@ -19,7 +19,7 @@
 
 #include "lsbatch/cmd/cmd.h"
 
-static int printErrMsg(LS_LONG_INT jobId, char *queue);
+static int printErrMsg(int64_t jobId, char *queue);
 
 void usage(char *cmd)
 {
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
     char *queue = NULL, *user = NULL, *host = NULL, *jobName = NULL;
     char *destQueue = NULL;
     int numJobs;
-    LS_LONG_INT *jobIds;
+    int64_t *jobIds;
     int i, cc, exitrc = 0;
 
     if (lsb_init(argv[0]) < 0) {
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     exit(exitrc);
 }
 
-static int printErrMsg(LS_LONG_INT jobId, char *queue)
+static int printErrMsg(int64_t jobId, char *queue)
 {
     char Job[80];
     sprintf(Job, "%s <%s>", "Job", lsb_jobid2str(jobId));

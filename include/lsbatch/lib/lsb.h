@@ -59,6 +59,7 @@ extern struct config_param lsbParams[];
 extern int initenv_(struct config_param *, char *);
 extern int sig_encode(int);
 
+// Seconds
 #define DEFAULT_API_CONNTIMEOUT 10
 #define DEFAULT_API_RECVTIMEOUT 0
 
@@ -86,19 +87,11 @@ typedef struct lsbSubSpoolFile {
 } LSB_SUB_SPOOL_FILE_T;
 
 extern int serv_connect(char *, ushort, int);
-extern int callmbd(char *, char *, int, char **, struct packet_header *, int *,
-                   int (*)(), int *);
 extern int cmdCallSBD_(char *, char *, int, char **, struct packet_header *,
                        int *);
 
 extern int authTicketTokens_(struct lsfAuth *, char *);
 
-extern char *getNextValue0(char **line, char, char);
-extern int readNextPacket(char **, int, struct packet_header *, int);
-extern void closeSession(int);
-extern char *getMasterName(void);
-extern ushort get_mbd_port(void);
-extern ushort get_sbd_port(void);
 extern int getAuth(struct lsfAuth *);
 extern int getCommonParams(struct submit *, struct submitReq *,
                            struct submitReply *);
@@ -107,3 +100,8 @@ extern int getOtherParams(struct submit *, struct submitReq *,
                           LSB_SUB_SPOOL_FILE_T *);
 extern void prtBETime_(struct submit *);
 extern int runBatchEsub(struct lenData *, struct submit *);
+uint16_t get_mbd_port(void);
+uint16_t get_sbd_port(void);
+int call_mbd(void *, size_t, char **, struct packet_header *, struct lenData *);
+int open_mbd_stream(void *, size_t, char **, struct packet_header *);
+void close_mbd_stream(int);

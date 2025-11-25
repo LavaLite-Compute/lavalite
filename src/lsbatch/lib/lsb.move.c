@@ -20,7 +20,7 @@
 
 #include "lsbatch/lib/lsb.h"
 
-int lsb_movejob(LS_LONG_INT jobId, int *position, int operation)
+int lsb_movejob(int64_t jobId, int *position, int operation)
 {
     struct jobMoveReq jobMoveReq;
     char request_buf[MSGSIZE];
@@ -64,8 +64,8 @@ int lsb_movejob(LS_LONG_INT jobId, int *position, int operation)
         return -1;
     }
 
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                      NULL, NULL, NULL)) == -1) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs),
+                       &reply_buf, &hdr, NULL)) < 0) {
         xdr_destroy(&xdrs);
         return -1;
     }

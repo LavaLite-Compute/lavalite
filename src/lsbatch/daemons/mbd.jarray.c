@@ -244,7 +244,7 @@ void handleNewJobArray(struct jData *jarray, struct idxList *idxList,
     jPtr = jarray;
     for (idxPtr = idxList; idxPtr; idxPtr = idxPtr->next) {
         for (i = idxPtr->start; i <= idxPtr->end; i += idxPtr->step) {
-            if (getJobData(LSB_JOBID((LS_LONG_INT) jarray->jobId, i)))
+            if (getJobData(LSB_JOBID((int64_t) jarray->jobId, i)))
                 continue;
             jPtr->nextJob = copyJData(jarray);
             numJobs++;
@@ -252,7 +252,7 @@ void handleNewJobArray(struct jData *jarray, struct idxList *idxList,
 
             jPtr->nodeType = JGRP_NODE_JOB;
             jPtr->nextJob = NULL;
-            jPtr->jobId = LSB_JOBID((LS_LONG_INT) jarray->jobId, i);
+            jPtr->jobId = LSB_JOBID((int64_t) jarray->jobId, i);
             addJobIdHT(jPtr);
             inPendJobList(jPtr, PJL, 0);
             if (userPending) {
@@ -318,7 +318,7 @@ void offArray(struct jData *jp)
     updJgrpCountByJStatus(jp, jp->jStatus, JOB_STAT_NULL);
 }
 
-int inIdxList(LS_LONG_INT jobId, struct idxList *idxList)
+int inIdxList(int64_t jobId, struct idxList *idxList)
 {
     struct idxList *idx;
 
@@ -370,11 +370,11 @@ int getJobIdIndexList(char *jobIdStr, int *outJobId, struct idxList **idxListP)
 }
 
 #define MAX_JOB_IDS 50
-int getJobIdList(char *jobIdStr, int *numJobIds, LS_LONG_INT **jobIdList)
+int getJobIdList(char *jobIdStr, int *numJobIds, int64_t **jobIdList)
 {
     int jobId;
-    LS_LONG_INT lsbJobId;
-    LS_LONG_INT *temp, *jobIds;
+    int64_t lsbJobId;
+    int64_t *temp, *jobIds;
     struct idxList *idxListP = NULL, *idx;
     int sizeOfJobIdArray = MAX_JOB_IDS;
     int i, j, errCode;
@@ -388,7 +388,7 @@ int getJobIdList(char *jobIdStr, int *numJobIds, LS_LONG_INT **jobIdList)
     if (jobId <= 0)
         return LSBE_BAD_JOBID;
 
-    if ((jobIds = (LS_LONG_INT *) calloc(MAX_JOB_IDS, sizeof(LS_LONG_INT))) ==
+    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) ==
         NULL) {
         mbdDie(MASTER_MEM);
     }
@@ -405,8 +405,8 @@ int getJobIdList(char *jobIdStr, int *numJobIds, LS_LONG_INT **jobIdList)
             lsbJobId = LSB_JOBID(jobId, j);
             if (*numJobIds >= sizeOfJobIdArray) {
                 sizeOfJobIdArray += MAX_JOB_IDS;
-                if ((temp = (LS_LONG_INT *) realloc(
-                         jobIds, sizeOfJobIdArray * sizeof(LS_LONG_INT))) ==
+                if ((temp = (int64_t *) realloc(
+                         jobIds, sizeOfJobIdArray * sizeof(int64_t))) ==
                     NULL) {
                     mbdDie(MASTER_MEM);
                 }

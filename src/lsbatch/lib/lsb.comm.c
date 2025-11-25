@@ -1,5 +1,6 @@
-/* $Id: lsb.comm.c,v 1.11 2007/08/15 22:18:47 tmizan Exp $
- * Copyright (C) 2007 Platform Computing Inc
+/* ------------------------------------------------------------------------
+ * LavaLite — High-Performance Job Scheduling Infrastructure
+ *
  * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
@@ -10,28 +11,235 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
  *
- */
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * ------------------------------------------------------------------------ */
+
 #include "lsbatch/lib/lsb.h"
+#include "lsf/lib/lib.channel.h"
+#include "lsf/lib/ll.host.h"
+#include "lsf/lib/lib.xdr.h"
 
-extern struct hostent *my_gethostbyname(char *name);
-
+extern int logclass;
 extern int _lsb_conntimeout;
 extern int _lsb_recvtimeout;
-extern int _lsb_fakesetuid;
+extern int lsberrno;
 
-static int mbdTries(void);
+/* Resolve master with retry
+ */
+static char *resolve_master_with_retry(void)
+{
+    int retry = 3;
 
-int lsb_mbd_version = -1;
+    while (retry-- > 0) {
+        // ls_getmastername() returns __thread buffer
+        char *master = ls_getmastername();
+        if (master == NULL) {
+            fprintf(stderr, "LSF daemon (LIM) not responding ... still trying\n");
+            millisleep_(_lsb_conntimeout * 1000);
+            continue;
+        }
+        return master;
+    }
+    lsberrno = LSBE_LSLIB;
+    return NULL;
+}
+
+/*
+ * Pattern 1: Simple RPC - connect, send, receive, close
+ * Used by most API calls: lsb_runjob, lsb_signaljob, lsb_kill, etc.
+ */
+
+/* Synchronous RPC to MBD - single request/response, closes connection
+ *
+ * Args:
+ *   req      - XDR-encoded request buffer
+ *   req_len  - Length of request
+ *   reply    - Receives allocated reply buffer (caller must free)
+ *   hdr      - Receives packet header from reply
+ *   extra    - typically the job file, but could be any extra data
+ *              we want to be in the packet
+ *
+ * Returns: Number of bytes in reply on success, -1 on error
+ */
+int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
+             struct lenData *extra)
+{
+    uint16_t port;
+    int rc;
+
+   char *master = resolve_master_with_retry();
+   if (master == NULL) {
+        return -1;
+    }
+
+    port = get_mbd_port();
+    if (port == 0) {
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    int ch_id = serv_connect(master, port, _lsb_conntimeout);
+    if (ch_id < 0) {
+        lsberrno = LSBE_CONN_REFUSED;
+        return -1;
+    }
+
+    struct Buffer e;
+    struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
+    if (extra && extra->len > 0) {
+        e.data = extra->data;
+        e.len = extra->len;
+        e.forw = NULL;
+        req_buf.forw = &e;
+    }
+    struct Buffer reply_buf = {0};
+
+    rc = chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
+    chan_close(ch_id);
+    if (rc < 0) {
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    *reply = reply_buf.data;
+    return hdr->length;
+}
+
+/*
+ * Pattern 2: Streaming - open connection, read multiple records, close
+ * Used by job query APIs that can return thousands of records
+ */
+
+/* Open connection and send initial request, keep socket open for streaming
+ *
+ * This is for APIs like lsb_openjobinfo() that need to stream many records
+ * back from MBD without buffering them all in memory. The pattern is:
+ *
+ *   sock = open_mbd_stream(...)  // Send query, get first response
+ *   while (read_mbd_stream(...)) // Read records one at a time
+ *       process_record(...)
+ *   close_mbd_stream(sock)        // Clean up
+ *
+ * Args:
+ *   req      - XDR-encoded request buffer
+ *   req_len  - Length of request
+ *   reply    - Receives allocated reply buffer for first response
+ *   hdr      - Receives packet header from first response
+ *
+ * Returns: Socket fd on success (caller must close), -1 on error
+ */
+int open_mbd_stream(void *req, size_t req_len, char **reply,
+                    struct packet_header *hdr)
+{
+    char *master = resolve_master_with_retry();
+    if (master == NULL) {
+        return -1;
+    }
+
+    uint16_t port = get_mbd_port();
+    if (port == 0) {
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    int ch_id = serv_connect(master, port, _lsb_conntimeout);
+    if (ch_id < 0) {
+        lsberrno = LSBE_CONN_REFUSED;
+        return -1;
+    }
+
+    struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
+    struct Buffer reply_buf = {0};
+
+    int rc = chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
+    if (rc < 0) {
+        chan_close(ch_id);
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    *reply = reply_buf.data;
+
+    /* Return the id of the channel correspinding to the
+     * socket for subsequent reads
+     */
+    return ch_id;
+}
+
+/* Read one packet from socket with timeout
+ *
+ * Reads packet header, then payload. Allocates buffer for payload.
+ *
+ * Args:
+ *   buffer      - Receives allocated buffer (caller must free)
+ *   timeout_sec - Timeout in seconds
+ *   hdr         - Receives decoded packet header
+ *   sock        - Socket to read from
+ *
+ * Returns: Number of payload bytes on success, -1 on error
+ */
+int readNextPacket(char **msg_buf, int _lsb_recvtimeout,
+                   struct packet_header *hdr, int mbd_sock)
+{
+    struct Buffer reply_buf;
+
+    if (mbd_sock < 0) {
+        lsberrno = LSBE_CONN_NONEXIST;
+        return -1;
+    }
+
+    // timeout is in seconds
+    int cc = chan_rpc(mbd_sock, NULL, &reply_buf, hdr, _lsb_recvtimeout);
+    if (cc < 0) {
+        lsberrno = LSBE_LSLIB;
+        return -1;
+    }
+
+    if (hdr->length == 0) {
+        close(mbd_sock);
+        lsberrno = LSBE_EOF;
+        return -1;
+    }
+
+    *msg_buf = reply_buf.data;
+    return reply_buf.len;
+}
+
+/* Read next record from open stream
+ *
+ * Reads one packet from the stream. This is like fgets() - call it in a loop
+ * until it returns -1 to indicate end of stream or error.
+ *
+ * Args:
+ *   sock    - Socket fd from open_mbd_stream()
+ *   buffer  - Receives allocated buffer with packet data (caller must free)
+ *   hdr     - Receives packet header
+ *
+ * Returns: Number of bytes read on success, -1 on EOF or error
+ */
+int read_mbd_stream(int sock, char **buffer, struct packet_header *hdr)
+{
+    int rc;
+
+    if (sock < 0) {
+        lsberrno = LSBE_BAD_ARG;
+        return -1;
+    }
+
+    rc = readNextPacket(buffer, _lsb_recvtimeout, hdr, sock);
+    if (rc < 0) {
+        lsberrno = LSBE_EOF;
+        return -1;
+    }
+
+    return rc;
+}
 
 int serv_connect(char *serv_host, ushort serv_port, int timeout)
 {
-    int chfd;
     struct ll_host hs;
 
     int cc = get_host_by_name(serv_host, &hs);
@@ -50,15 +258,15 @@ int serv_connect(char *serv_host, ushort serv_port, int timeout)
     struct sockaddr_in *sin = (struct sockaddr_in *) &hs.sa;
 
     memcpy(&serv_addr.sin_addr, &sin->sin_addr, sizeof(struct in_addr));
-    serv_addr.sin_port = serv_port;
+    serv_addr.sin_port = htons(serv_port);
 
-    chfd = chan_client_socket(AF_INET, SOCK_STREAM, 0);
-    if (chfd < 0) {
+    int ch_id = chan_client_socket(AF_INET, SOCK_STREAM, 0);
+    if (ch_id < 0) {
         lsberrno = LSBE_LSLIB;
         return -1;
     }
 
-    cc = chan_connect(chfd, &serv_addr, timeout * 1000, 0);
+    cc = chan_connect(ch_id, &serv_addr, timeout * 1000, 0);
     if (cc < 0) {
         // Some translation between lserrno and lsberrno
         switch (lserrno) {
@@ -68,435 +276,128 @@ int serv_connect(char *serv_host, ushort serv_port, int timeout)
         default:
             lsberrno = LSBE_SYS_CALL;
         }
-        chan_close(chfd);
+        chan_close(ch_id);
         return -1;
     }
 
-    return chfd;
+    return ch_id;
 }
 
-int call_server(char *host, ushort serv_port, char *req_buf, int req_size,
-                char **rep_buf, struct packet_header *replyHdr,
-                int conn_timeout, int recv_timeout, int *connectedSock,
-                int (*postSndFunc)(), int *postSndFuncArg, int flags)
+/* Close streaming connection
+ *
+ * Args:
+ *   ch_id - Channle id from open_mbd_stream()
+ */
+void close_mbd_stream(int ch_id)
 {
-    int cc;
-    static char fname[] = "call_server";
-    struct Buffer *sndBuf;
-    struct Buffer reqbuf, reqbuf2, replybuf;
-    struct Buffer *replyBufPtr;
-    int serverSock;
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG1, "callserver: Entering this routine...");
-
-    *rep_buf = NULL;
-    lsberrno = LSBE_NO_ERROR;
-
-    if (!(flags & CALL_SERVER_USE_SOCKET)) {
-        if ((serverSock = serv_connect(host, serv_port, conn_timeout)) < 0)
-            return -2;
-    } else {
-        if (connectedSock == NULL) {
-            ls_syslog(LOG_ERR,
-                      "%s: CALL_SERVER_USE_SOCKET defined, but %s is NULL",
-                      fname, "connectedSock");
-            lsberrno = LSBE_BAD_ARG;
-            return -2;
-        }
-        serverSock = *connectedSock;
+    if (ch_id >= 0) {
+        chan_close(ch_id);
     }
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG1, "%s: serv_connect() get server sock <%d>", fname,
-                  serverSock);
-
-    if (!(flags & CALL_SERVER_NO_HANDSHAKE)) {
-        if (handShake_(serverSock, true, conn_timeout) < 0) {
-            close(serverSock);
-            if (logclass & LC_COMM)
-                ls_syslog(LOG_DEBUG,
-                          "%s: handShake_(socket=%d, conn_timeout=%d) failed",
-                          fname, serverSock, conn_timeout);
-            return -2;
-        }
-
-        if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG1, "%s: handShake_() succeeded", fname);
-    }
-
-    memset(&reqbuf, 0, sizeof(struct Buffer));
-    reqbuf.len = req_size;
-    reqbuf.data = req_buf;
-
-    if (postSndFunc) {
-        memset(&reqbuf2, 0, sizeof(struct Buffer));
-        reqbuf2.len = ((struct lenData *) postSndFuncArg)->len;
-        reqbuf2.data = ((struct lenData *) postSndFuncArg)->data;
-        reqbuf.forw = &reqbuf2;
-    }
-    if (flags & CALL_SERVER_NO_WAIT_REPLY)
-        replyBufPtr = NULL;
-    else
-        replyBufPtr = &replybuf;
-
-    if (flags & CALL_SERVER_ENQUEUE_ONLY) {
-        int tsize = req_size;
-
-        if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG2, "callserver: Enqueue only");
-
-        if (chan_set_mode(serverSock, CHAN_MODE_NONBLOCK) < 0) {
-            ls_syslog(LOG_ERR, "FUNC_FAIL_MM", "callserver", "chanSetMode");
-            close(serverSock);
-            return -2;
-        }
-
-        if (postSndFunc)
-            tsize += ((struct lenData *) postSndFuncArg)->len + NET_INTSIZE_;
-
-        if (chan_alloc_buf(&sndBuf, tsize) < 0) {
-            ls_syslog(LOG_ERR, "FUNC_D_FAIL_M", fname, "chan_alloc_buf", tsize);
-            close(serverSock);
-            return -2;
-        }
-
-        sndBuf->len = tsize;
-        memcpy((char *) sndBuf->data, (char *) req_buf, req_size);
-
-        if (postSndFunc) {
-            int nlen = htonl(((struct lenData *) postSndFuncArg)->len);
-
-            memcpy(sndBuf->data + req_size, (void *)(&nlen), NET_INTSIZE_);
-            memcpy(sndBuf->data + req_size + NET_INTSIZE_,
-                   ((struct lenData *)postSndFuncArg)->data,
-                   ((struct lenData *)postSndFuncArg)->len);
-        }
-
-        if (chan_enqueue(serverSock, sndBuf) < 0) {
-            ls_syslog(LOG_ERR, "%s: chan_enqueue failed %m", __func__);
-            chan_free_buf(sndBuf);
-            close(serverSock);
-            return -2;
-        }
-    } else {
-        cc = chan_rpc(serverSock, &reqbuf, replyBufPtr, replyHdr,
-                      recv_timeout * 1000);
-        if (cc < 0) {
-            lsberrno = LSBE_LSLIB;
-            close(serverSock);
-            return -1;
-        }
-    }
-
-    if (flags & CALL_SERVER_NO_WAIT_REPLY)
-        *rep_buf = NULL;
-    else
-        *rep_buf = replybuf.data;
-
-    if (connectedSock) {
-        *connectedSock = serverSock;
-    } else {
-        chan_close(serverSock);
-    }
-
-    if (flags & CALL_SERVER_NO_WAIT_REPLY)
-        return 0;
-    else
-        return (replyHdr->length);
 }
 
-uint16_t get_mbd_port(void)
+/*
+ * Async messaging for daemon-to-daemon communication
+ * Used by MBD <-> SBD communication for job execution
+ */
+
+/* Enqueue message to MBD (from SBD)
+ *
+ * This is asynchronous - message is queued and sent when channel is ready.
+ * Used by sbatchd to send job status updates, completion notifications, etc.
+ *
+ * Args:
+ *   chan_fd - Channel file descriptor
+ *   msg     - XDR-encoded message buffer
+ *   msg_len - Length of message
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int enqueue_to_mbd(int chan_id, void *msg, size_t msg_len)
 {
-    static uint16_t mbd_port = 0;
+    struct Buffer buf = {.data = msg, .len = msg_len, .forw = NULL};
 
-    if (mbd_port != 0)
-        return mbd_port;
-
-    if (!lsbParams[LSB_MBD_PORT].paramValue) {
-        mbd_port = 0;
-        lsberrno = LSBE_SERVICE;
-        return 0;
-    }
-    mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue);
-    mbd_port = htons(mbd_port);
-
-    return mbd_port;
-}
-
-uint16_t get_sbd_port(void)
-{
-    static uint16_t sbd_port;
-
-    if (sbd_port != 0)
-        return sbd_port;
-
-    if (!lsbParams[LSB_SBD_PORT].paramValue) {
-        sbd_port = 0;
-        lsberrno = LSBE_SERVICE;
-        return 0;
-    }
-
-    sbd_port = atoi(lsbParams[LSB_SBD_PORT].paramValue);
-    sbd_port = htons(sbd_port);
-
-    return sbd_port;
-}
-
-int callmbd(char *clusterName, char *request_buf, int requestlen,
-            char **reply_buf, struct packet_header *replyHdr, int *serverSock,
-            int (*postSndFunc)(), int *postSndFuncArg)
-{
-    static char fname[] = "callmbd";
-    char *masterHost;
-    ushort mbd_port;
-    int cc;
-    int num = 0;
-    int try = 0;
-    struct clusterInfo *clusterInfo;
-    XDR xdrs;
-    struct packet_header reqHdr;
-
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
-
-Retry:
-    try++;
-
-    if (clusterName == NULL) {
-        if ((masterHost = getMasterName()) == NULL) {
-            if (logclass & LC_TRACE)
-                ls_syslog(LOG_DEBUG1, "%s: getMasterName() failed", fname);
-            return -1;
-        }
-    } else {
-        clusterInfo = ls_clusterinfo(NULL, &num, &clusterName, 1, 0);
-
-        if (clusterInfo == NULL) {
-            if (logclass & LC_TRACE)
-                ls_syslog(LOG_DEBUG1, "%s: ls_clusterinfo() failed", fname);
-            lsberrno = LSBE_BAD_CLUSTER;
-            return -1;
-        }
-        if (clusterInfo[0].status & CLUST_STAT_OK)
-            masterHost = clusterInfo[0].masterName;
-        else {
-            lsberrno = LSBE_BAD_CLUSTER;
-            if (logclass & LC_TRACE)
-                ls_syslog(LOG_DEBUG1, "%s: Remote cluster not OK", fname);
-            return -1;
-        }
-    }
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG1, "%s: masterHost=%s", fname, masterHost);
-
-    xdrmem_create(&xdrs, request_buf, requestlen, XDR_DECODE);
-    if (!xdr_pack_hdr(&xdrs, &reqHdr)) {
-        ls_syslog(LOG_ERR, "FUNC_FAIL", fname, "xdr_pack_hdr");
-        xdr_destroy(&xdrs);
+    if (chan_id < 0 || msg == NULL || msg_len == 0) {
         return -1;
     }
 
-    mbd_port = get_mbd_port();
-    xdr_destroy(&xdrs);
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG1, "%s: mbd_port=%d", fname, ntohs(mbd_port));
-
-    cc = call_server(masterHost, mbd_port, request_buf, requestlen, reply_buf,
-                     replyHdr, _lsb_conntimeout, _lsb_recvtimeout, serverSock,
-                     postSndFunc, postSndFuncArg, 0);
-
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG3, "\
-                call_server: cc=%d lsberrno=%d lserrno=%d",
-                  cc, lsberrno, lserrno);
-    if (cc < 0) {
-        if (cc == -2 &&
-            (lsberrno == LSBE_CONN_TIMEOUT || lsberrno == LSBE_CONN_REFUSED ||
-             (lsberrno == LSBE_LSLIB &&
-              (lserrno == LSE_TIME_OUT || lserrno == LSE_LIM_DOWN ||
-               lserrno == LSE_MASTR_UNKNW || lserrno == LSE_MSG_SYS))) &&
-            try < mbdTries()) {
-            fprintf(stderr,
-                    "batch system daemon not responding ... still trying\n");
-            if (logclass & LC_TRACE)
-                ls_syslog(LOG_DEBUG1, "%s: callmbd() failed: %M", fname);
-
-            if (lsberrno == LSBE_CONN_REFUSED)
-                millisleep_(_lsb_conntimeout * 1000);
-
-            goto Retry;
-        }
+    if (chan_enqueue(chan_id, &buf) < 0) {
         return -1;
-    }
-
-    return cc;
-}
-
-int cmdCallSBD_(char *sbdHost, char *request_buf, int requestlen,
-                char **reply_buf, struct packet_header *replyHdr,
-                int *serverSock)
-{
-    static char fname[] = "cmdCallSBD_";
-    ushort sbdPort;
-    int cc;
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine... host=<%s>", fname,
-                  sbdHost);
-
-    sbdPort = get_sbd_port();
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: sbd_port=%d", fname, ntohs(sbdPort));
-
-    cc = call_server(sbdHost, sbdPort, request_buf, requestlen, reply_buf,
-                     replyHdr, _lsb_conntimeout,
-                     _lsb_recvtimeout ? _lsb_recvtimeout : 30, serverSock, NULL,
-                     NULL, CALL_SERVER_NO_HANDSHAKE);
-
-    if (cc < 0) {
-        if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG, "%s: cc=%d lsberrno=%d lserrno=%d", fname, cc,
-                      lsberrno, lserrno);
-        return -1;
-    }
-
-    return cc;
-}
-
-static int mbdTries(void)
-{
-    char *tries;
-    static int ntries = -1;
-
-    if (ntries >= 0)
-        return ntries;
-
-    if ((tries = getenv("LSB_NTRIES")) == NULL)
-        ntries = INFINIT_INT;
-    else
-        ntries = atoi(tries);
-
-    return ntries;
-}
-
-char *getMasterName(void)
-{
-    char *masterHost;
-    int try = 0;
-
-Retry:
-    try++;
-
-    if ((masterHost = ls_getmastername()) == NULL) {
-        if (try < mbdTries() &&
-            (lserrno == LSE_TIME_OUT || lserrno == LSE_LIM_DOWN ||
-             lserrno == LSE_MASTR_UNKNW)) {
-            fprintf(stderr,
-                    "LSF daemon (LIM) not responding ... still trying\n");
-            millisleep_(_lsb_conntimeout * 1000);
-            goto Retry;
-        }
-        lsberrno = LSBE_LSLIB;
-    }
-
-    return masterHost;
-}
-
-int readNextPacket(char **msgBuf, int timeout, struct packet_header *hdr,
-                   int serverSock)
-{
-    struct Buffer replyBuf;
-    int cc;
-
-    if (serverSock < 0) {
-        lsberrno = LSBE_CONN_NONEXIST;
-        return -1;
-    }
-
-    cc = chan_rpc(serverSock, NULL, &replyBuf, hdr, timeout * 1000);
-    if (cc < 0) {
-        lsberrno = LSBE_LSLIB;
-        return -1;
-    }
-
-    if (hdr->length == 0) {
-        close(serverSock);
-        lsberrno = LSBE_EOF;
-        return -1;
-    }
-    *msgBuf = replyBuf.data;
-    return replyBuf.len;
-}
-
-void closeSession(int serverSock)
-{
-    chan_close(serverSock);
-}
-
-int handShake_(int s, char client, int timeout)
-{
-    struct packet_header hdr, buf;
-    int cc;
-    XDR xdrs;
-    struct Buffer reqbuf, replybuf;
-
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG, "handShake_: Entering this routine...");
-
-    if (client) {
-        memset((char *) &hdr, 0, sizeof(struct packet_header));
-        hdr.operation = PREPARE_FOR_OP;
-        hdr.length = 0;
-        xdrmem_create(&xdrs, (char *) &buf, PACKET_HEADER_SIZE, XDR_ENCODE);
-        if (!xdr_pack_hdr(&xdrs, &hdr)) {
-            lsberrno = LSBE_XDR;
-            xdr_destroy(&xdrs);
-            return -1;
-        }
-        xdr_destroy(&xdrs);
-
-        memset(&reqbuf, 0, sizeof(struct Buffer));
-        reqbuf.data = (char *) &buf;
-        reqbuf.len = PACKET_HEADER_SIZE;
-
-        cc = chan_rpc(s, &reqbuf, &replybuf, &hdr, timeout * 1000);
-        if (cc < 0) {
-            lsberrno = LSBE_LSLIB;
-            return -1;
-        }
-        if (hdr.operation != READY_FOR_OP) {
-            xdr_destroy(&xdrs);
-            lsberrno = hdr.operation;
-            if (logclass & LC_TRACE)
-                ls_syslog(LOG_DEBUG1,
-                          "handShake_: mbatchd returned error code <%d>",
-                          hdr.operation);
-            return -1;
-        }
     }
 
     return 0;
 }
 
+/* Enqueue message to SBD (from MBD)
+ *
+ * This is asynchronous - message is queued and sent when channel is ready.
+ * Used by mbatchd to send job dispatch, signal, kill, etc.
+ *
+ * Args:
+ *   chan_id - Channel id of the socket file descriptor
+ *   msg     - XDR-encoded message buffer
+ *   msg_len - Length of message
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int enqueue_to_sbd(int chan_id, void *msg, size_t msg_len)
+{
+    struct Buffer buf = {.data = msg, .len = msg_len, .forw = NULL};
+
+    if (chan_id < 0 || msg == NULL || msg_len == 0) {
+        return -1;
+    }
+
+    if (chan_enqueue(chan_id, &buf) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/* Send ACK response
+ *
+ * Quick acknowledgment for async messages. Often better to use enqueue_mbd/sbd
+ * with a proper response message, but this is convenient for simple ACKs.
+ *
+ * Args:
+ *   chan_id - Channel id file descriptor
+ *   seq     - Sequence number to acknowledge
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int send_ack(int chan_id, uint32_t seq)
+{
+    struct packet_header ack = {
+        .sequence = seq,
+        .operation = BATCH_STATUS_ACK,
+        .length = 0
+    };
+
+    char buf[sizeof(struct packet_header)];
+    XDR xdrs;
+
+    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+
+    if (!xdr_pack_hdr(&xdrs, &ack)) {
+        xdr_destroy(&xdrs);
+        return -1;
+    }
+    xdr_destroy(&xdrs);
+
+    struct Buffer ack_buf = {.data = buf, .len = sizeof(buf), .forw = NULL};
+
+    return chan_enqueue(chan_id, &ack_buf);
+}
 int authTicketTokens_(struct lsfAuth *auth, char *toHost)
 {
     if (toHost == NULL) {
-        char *clusterName;
-        char buf[LL_BUFSIZ_256];
-
-        if ((toHost = getMasterName()) == NULL) {
+        char *master = resolve_master_with_retry();
+        if (master == NULL)
             return -1;
-        }
-        if ((clusterName = ls_getclustername()) == NULL) {
-            return -1;
-        }
-        sprintf(buf, "mbatchd@%s", clusterName);
-        putEnv("LSF_EAUTH_SERVER", buf);
-    } else
+        putEnv("LSF_EAUTH_SERVER", master);
+    } else {
         putEnv("LSF_EAUTH_SERVER", "sbatchd");
-
+    }
     putEnv("LSF_EAUTH_CLIENT", "user");
 
     if (getAuth_(auth, toHost) == -1) {

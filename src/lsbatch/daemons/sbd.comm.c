@@ -28,7 +28,7 @@
 extern int connTimeout;
 extern int readTimeout;
 extern int sbdLogMask;
-static int msgSbd(LS_LONG_INT, char *, sbdReqType, int (*)());
+static int msgSbd(int64_t, char *, sbdReqType, int (*)());
 extern int jRusageUpdatePeriod;
 
 int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
@@ -454,7 +454,7 @@ void sbdSyslog(int level, char *msg)
     }
 }
 
-static int msgSbd(LS_LONG_INT jobId, char *req, sbdReqType reqType,
+static int msgSbd(int64_t jobId, char *req, sbdReqType reqType,
                   int (*xdrFunc)())
 {
     static char fname[] = "msgSbd";

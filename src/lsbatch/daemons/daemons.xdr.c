@@ -21,8 +21,8 @@
 
 #define MAX_USER_NAME_LEN 64
 
-extern void jobId64To32(LS_LONG_INT, int *, int *);
-extern void jobId32To64(LS_LONG_INT *, int, int);
+extern void jobId64To32(int64_t, int *, int *);
+extern void jobId32To64(int64_t *, int, int);
 static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jp);
 
 bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
@@ -32,7 +32,7 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
     char *pTemp;
     int i, nLimits;
     int jobArrId, jobArrElemId;
-    LS_LONG_INT tmpJobId;
+    int64_t tmpJobId;
 
     if (xdrs->x_op == XDR_DECODE) {
         jobSpecs->numToHosts = 0;

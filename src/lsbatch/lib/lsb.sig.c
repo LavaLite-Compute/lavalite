@@ -20,10 +20,10 @@
 
 #include "lsbatch/lib/lsb.h"
 
-static int signalJob(int sigValue, LS_LONG_INT jobId, time_t period,
+static int signalJob(int sigValue, int64_t jobId, time_t period,
                      int options);
 
-int lsb_signaljob(LS_LONG_INT jobId, int sigValue)
+int lsb_signaljob(int64_t jobId, int sigValue)
 {
     if (sigValue < 0 || sigValue >= NSIG) {
         lsberrno = LSBE_BAD_SIGNAL;
@@ -32,7 +32,7 @@ int lsb_signaljob(LS_LONG_INT jobId, int sigValue)
     return (signalJob(sigValue, jobId, 0, 0));
 }
 
-int lsb_chkpntjob(LS_LONG_INT jobId, time_t period, int options)
+int lsb_chkpntjob(int64_t jobId, time_t period, int options)
 {
     int lsbOptions = 0;
 
@@ -51,7 +51,7 @@ int lsb_chkpntjob(LS_LONG_INT jobId, time_t period, int options)
     return (signalJob(SIG_CHKPNT, jobId, period, lsbOptions));
 }
 
-int lsb_deletejob(LS_LONG_INT jobId, int times, int options)
+int lsb_deletejob(int64_t jobId, int times, int options)
 {
     if (times < 0) {
         lsberrno = LSBE_BAD_ARG;
@@ -63,12 +63,12 @@ int lsb_deletejob(LS_LONG_INT jobId, int times, int options)
     return (signalJob(SIG_DELETE_JOB, jobId, times, options));
 }
 
-int lsb_forcekilljob(LS_LONG_INT jobId)
+int lsb_forcekilljob(int64_t jobId)
 {
     return (signalJob(SIG_TERM_FORCE, jobId, 0, 0));
 }
 
-static int signalJob(int sigValue, LS_LONG_INT jobId, time_t period,
+static int signalJob(int sigValue, int64_t jobId, time_t period,
                      int options)
 {
     struct signalReq signalReq;
@@ -103,8 +103,8 @@ static int signalJob(int sigValue, LS_LONG_INT jobId, time_t period,
         return -1;
     }
 
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                      NULL, NULL, NULL)) < 0) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                       NULL)) < 0) {
         xdr_destroy(&xdrs);
         return -1;
     }

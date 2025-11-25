@@ -64,7 +64,7 @@ int do_sub(int argc, char **argv, int option)
     static char fname[] = "do_sub";
     struct submit req;
     struct submitReply reply;
-    LS_LONG_INT jobId = -1;
+    int64_t jobId = -1;
 
     if (lsb_init(argv[0]) < 0) {
         sub_perror("lsb_init");
@@ -263,7 +263,7 @@ int fillReq(int argc, char **argv, int operate, struct submit *req)
         if (argc == optind + 1)
             req->command = argv[optind];
         else if (argc == optind + 2) {
-            LS_LONG_INT arrayJobId;
+            int64_t arrayJobId;
             if (getOneJobId(argv[optind + 1], &arrayJobId, 0))
                 return (-1);
 

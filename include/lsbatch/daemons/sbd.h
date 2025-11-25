@@ -116,12 +116,12 @@ struct clientNode {
     int chanfd;
     struct sockaddr_in from;
     int jobType;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     struct jobCard *jp;
 };
 
 struct jobSetup {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int jStatus;
     float cpuTime;
     int w_status;

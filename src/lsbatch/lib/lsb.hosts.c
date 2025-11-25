@@ -1,4 +1,4 @@
-/* $Id: lsb.hosts.c,v 1.4 2007/08/15 22:18:47 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -136,11 +136,8 @@ struct hostInfoEnt *lsb_hostinfo_ex(char **hosts, int *numHosts, char *resReq,
         return NULL;
     }
 
-    TIMEIT(0,
-           (cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs),
-                         &reply_buf, &hdr, NULL, NULL, NULL)),
-           "callmbd");
-    if (cc == -1) {
+    cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL);
+    if (cc < 0) {
         xdr_destroy(&xdrs);
         free(request_buf);
         return NULL;

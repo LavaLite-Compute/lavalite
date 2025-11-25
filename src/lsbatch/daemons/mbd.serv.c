@@ -24,7 +24,6 @@ extern int numLsbUsable;
 extern char *env_dir;
 extern int lsb_CheckMode;
 extern int lsb_CheckError;
-extern sbdReplyType callSbdDebug(struct debugReq *pdebug);
 
 extern char *jgrpNodeParentPath(struct jgTreeNode *);
 static int packJgrpInfo(struct jgTreeNode *, int, char **, int, int);
@@ -182,7 +181,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (jobInfoHead.numJobs > 0)
         jobInfoHead.jobIds =
-            (LS_LONG_INT *) my_calloc(listSize, sizeof(LS_LONG_INT), fname);
+            (int64_t *) my_calloc(listSize, sizeof(int64_t), fname);
     for (i = 0; i < listSize; i++) {
         if (!jgrplist[i].isJData)
             jobInfoHead.jobIds[i] = 0;
@@ -201,7 +200,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     }
 
     len = sizeof(struct jobInfoHead) +
-          jobInfoHead.numJobs * sizeof(LS_LONG_INT) +
+          jobInfoHead.numJobs * sizeof(int64_t) +
           jobInfoHead.numHosts * (sizeof(char *) + MAXHOSTNAMELEN) + 100;
 
     reply_buf = (char *) my_malloc(len, fname);
@@ -2140,200 +2139,6 @@ static void addPendSigEvent(struct sbdNode *sbdPtr)
 
     eventPending = TRUE;
 }
-// Bug the problem is not to have bugs not enable dynamic
-// debug. Who wants to see daemon debug beside developers?
-// Debugging code should never be part of the operational path.
-// The goal isn’t to sprinkle dynamic debug everywhere — the goal is to write
-// software that simply doesn’t need it once stabilized.
-int ctrlMbdDebug(struct debugReq *pdebug, struct lsfAuth *auth)
-{
-    static char fname[] = "ctrlMbdDebug";
-    int operation, level, newClass, options;
-    char logFileName[MAXLSFNAMELEN];
-    char lsfLogDir[MAXPATHLEN];
-    char *dir = NULL;
-
-    memset(logFileName, 0, sizeof(logFileName));
-    memset(lsfLogDir, 0, sizeof(lsfLogDir));
-
-    if (!isAuthManager(auth) && auth->uid != 0) {
-        ls_syslog(
-            LOG_CRIT,
-            "ctrlMbdDebug: uid <%d> not allowed to perform control operation",
-            auth->uid);
-        return LSBE_PERMISSION;
-    }
-
-    operation = pdebug->opCode;
-    level = pdebug->level;
-    newClass = pdebug->logClass;
-    options = pdebug->options;
-
-    if (pdebug->logFileName[0] != '\0') {
-        if (((dir = strrchr(pdebug->logFileName, '/')) != NULL) ||
-            ((dir = strrchr(pdebug->logFileName, '\\')) != NULL)) {
-            dir++;
-            ls_strcat(logFileName, sizeof(logFileName), dir);
-            *(--dir) = '\0';
-            ls_strcat(lsfLogDir, sizeof(lsfLogDir), pdebug->logFileName);
-        } else {
-            ls_strcat(logFileName, sizeof(logFileName), pdebug->logFileName);
-            if (daemonParams[LSF_LOGDIR].paramValue &&
-                *(daemonParams[LSF_LOGDIR].paramValue)) {
-                ls_strcat(lsfLogDir, sizeof(lsfLogDir),
-                          daemonParams[LSF_LOGDIR].paramValue);
-            } else {
-                lsfLogDir[0] = '\0';
-            }
-        }
-        ls_strcat(logFileName, sizeof(logFileName), ".mbatchd");
-    } else {
-        ls_strcat(logFileName, sizeof(logFileName), "mbatchd");
-        if (daemonParams[LSF_LOGDIR].paramValue &&
-            *(daemonParams[LSF_LOGDIR].paramValue)) {
-            ls_strcat(lsfLogDir, sizeof(lsfLogDir),
-                      daemonParams[LSF_LOGDIR].paramValue);
-        } else {
-            lsfLogDir[0] = '\0';
-        }
-    }
-
-    if (options == 1) {
-        struct config_param *plp;
-
-        for (plp = daemonParams; plp->paramName != NULL; plp++) {
-            if (plp->paramValue != NULL)
-                FREEUP(plp->paramValue);
-        }
-
-        if (initenv_(daemonParams, env_dir) < 0) {
-            ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue,
-                       (mbd_debug || lsb_CheckMode),
-                       daemonParams[LSF_LOG_MASK].paramValue);
-            ls_syslog(LOG_ERR, "%s", __func__, "initenv_");
-
-            if (!lsb_CheckMode)
-                mbdDie(MASTER_FATAL);
-            else
-                lsb_CheckError = FATAL_ERR;
-            return lsb_CheckError;
-        }
-
-        getLogClass_(daemonParams[LSB_DEBUG_MBD].paramValue,
-                     daemonParams[LSB_TIME_MBD].paramValue);
-
-        closelog();
-
-        if (lsb_CheckMode)
-            ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
-                       "LOG_WARN");
-        else if (mbd_debug)
-            ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
-                       daemonParams[LSF_LOG_MASK].paramValue);
-        else
-            ls_openlog("mbatchd", daemonParams[LSF_LOGDIR].paramValue, FALSE,
-                       daemonParams[LSF_LOG_MASK].paramValue);
-        if (logclass & LC_TRACE)
-            ls_syslog(LOG_DEBUG, "%s: logclass=%x", fname, logclass);
-
-        return LSBE_NO_ERROR;
-    }
-
-    if (operation == MBD_DEBUG) {
-        if (logclass & LC_TRACE)
-            ls_syslog(LOG_DEBUG,
-                      "ctrMbdDebug:filename= %s: newclass=%x, level = %d",
-                      logFileName, newClass, level);
-        putMaskLevel(level, &(daemonParams[LSF_LOG_MASK].paramValue));
-
-        if (logclass & LC_TRACE)
-            ls_syslog(LOG_DEBUG, "%s: LSF_LOG_MASK =%s", fname,
-                      daemonParams[LSF_LOG_MASK].paramValue);
-
-        if (newClass >= 0)
-            logclass = newClass;
-
-        if (pdebug->level >= 0) {
-            closelog();
-
-            if (mbd_debug)
-                ls_openlog(logFileName, lsfLogDir, TRUE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-            else
-                ls_openlog(logFileName, lsfLogDir, FALSE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-        }
-
-    } else if (operation == MBD_TIMING) {
-        if (level >= 0)
-            timinglevel = level;
-        if (pdebug->logFileName[0] != '\0') {
-            closelog();
-            if (mbd_debug)
-                ls_openlog(logFileName, lsfLogDir, TRUE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-            else
-                ls_openlog(logFileName, lsfLogDir, FALSE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-        }
-    } else {
-        ls_perror("No this debug command!\n");
-        return -1;
-    }
-
-    return LSBE_NO_ERROR;
-}
-
-int do_debugReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
-                struct packet_header *reqHdr, struct lsfAuth *auth)
-{
-    static char fname[] = "do_debugReq";
-    struct debugReq debugReq;
-    char reply_buf[MSGSIZE];
-    XDR xdrs2;
-    int reply;
-    struct packet_header replyHdr;
-
-    if (!xdr_debugReq(xdrs, &debugReq, reqHdr)) {
-        reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_debugReq");
-    } else {
-        if (debugReq.opCode == 1 || debugReq.opCode == 2)
-            reply = ctrlMbdDebug(&debugReq, auth);
-        else if (debugReq.opCode == 3 || debugReq.opCode == 4) {
-            reply = callSbdDebug(&debugReq);
-            if (reply == ERR_NO_ERROR)
-                reply = LSBE_NO_ERROR;
-            else
-                reply = LSBE_SBATCHD;
-        }
-
-        else {
-            ls_syslog(LOG_ERR, "%s: Bad operation <%d>", fname,
-                      debugReq.opCode);
-            return -1;
-        }
-    }
-
-    xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
-    replyHdr.operation = reply;
-
-    replyHdr.length = 0;
-    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
-        xdr_destroy(&xdrs2);
-        return -1;
-    }
-
-    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
-        xdr_destroy(&xdrs2);
-        return -1;
-    }
-    xdr_destroy(&xdrs2);
-    return 0;
-}
-
 int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                        struct packet_header *reqHdr)
 {

@@ -24,7 +24,7 @@
 
 
 static long chan_open_max;
-static struct chanData *channels;
+static __thread struct chan_data *channels;
 
 static void doread(int, struct Masks *);
 static void dowrite(int, struct Masks *);
@@ -35,19 +35,19 @@ static int chan_find_free(void);
 
 int chan_init(void)
 {
-    static bool_t first = true;
-
-    if (!first)
+    if (channels)
         return 0;
-    first = false;
 
     chan_open_max = sysconf(_SC_OPEN_MAX);
     if (chan_open_max < 0)
         return -1;
 
-    channels = calloc(chan_open_max, sizeof(struct chanData));
+    channels = calloc(chan_open_max, sizeof(struct chan_data));
     if (channels == NULL)
         return -1;
+
+    for (int i = 0; i < chan_open_max; i++)
+        channels[i].sock = -1;
 
     return 0;
 }
@@ -75,7 +75,7 @@ int chan_listen_socket(int type, u_short port, int backlog, int options)
 
     if (options & CHAN_OP_SOREUSE) {
         int one = 1;
-        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof(int));
+        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(int));
     }
 
     if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
@@ -92,7 +92,7 @@ int chan_listen_socket(int type, u_short port, int backlog, int options)
         }
     }
 
-    channels[ch].handle = s;
+    channels[ch].sock = s;
     channels[ch].state = CH_WAIT;
     if (type == SOCK_DGRAM)
         channels[ch].type = CH_TYPE_UDP;
@@ -126,17 +126,17 @@ int chan_client_socket(int domain, int type, int options)
     }
 
     channels[ch].state = CH_DISC;
-    channels[ch].handle = s;
+    channels[ch].sock = s;
     int s0 = ll_dup_stdio(s);
     if (s0 < 0) {
         close(s);
-        close(channels[ch].handle);
+        close(channels[ch].sock);
         channels[ch].state = CH_DISC;
-        channels[ch].handle = -1;
+        channels[ch].sock = -1;
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
-    channels[ch].handle = s0;
+    channels[ch].sock = s0;
 
     fcntl(s0, F_SETFD, (fcntl(s0, F_GETFD) | FD_CLOEXEC));
 
@@ -153,7 +153,7 @@ int chan_accept(int ch_id, struct sockaddr_in *from)
         return -1;
     }
 
-    s = accept4(channels[ch_id].handle, (struct sockaddr *) from, &len,
+    s = accept4(channels[ch_id].sock, (struct sockaddr *) from, &len,
                 SOCK_NONBLOCK | SOCK_CLOEXEC);
     if (s < 0) {
         lserrno = LSE_SOCK_SYS;
@@ -191,7 +191,7 @@ int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
         return -1;
     }
 
-    cc = b_connect_(channels[ch_id].handle, (struct sockaddr *) peer,
+    cc = b_connect_(channels[ch_id].sock, (struct sockaddr *) peer,
                     sizeof(struct sockaddr_in), timeout);
     if (cc < 0) {
         if (errno == ETIMEDOUT)
@@ -208,7 +208,7 @@ int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
 
 int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
 {
-    int s = channels[ch_id].handle;
+    int s = channels[ch_id].sock;
     if (channels[ch_id].type != CH_TYPE_UDP) {
         lserrno = LSE_INTERNAL;
         return -1;
@@ -233,7 +233,7 @@ int chan_recv_dgram_(int ch_id, void *buf, size_t len,
     int nReady, cc;
     socklen_t peersize = sizeof(struct sockaddr_storage);
 
-    sock = channels[ch_id].handle;
+    sock = channels[ch_id].sock;
 
     if (channels[ch_id].type != CH_TYPE_UDP) {
         lserrno = LSE_INTERNAL;
@@ -302,7 +302,7 @@ int chan_open_sock(int s, int options)
     }
 
     channels[i].type = CH_TYPE_TCP;
-    channels[i].handle = s;
+    channels[i].sock = s;
     channels[i].state = CH_CONN;
 
     if (options & CHAN_OP_RAW)
@@ -328,11 +328,11 @@ int chan_close(int ch_id)
         return -1;
     }
 
-    if (channels[ch_id].handle < 0) {
+    if (channels[ch_id].sock < 0) {
         lserrno = LSE_BAD_CHAN;
         return -1;
     }
-    close(channels[ch_id].handle);
+    close(channels[ch_id].sock);
 
     if (channels[ch_id].send) {
         for (buf = channels[ch_id].send->forw; buf != channels[ch_id].send;
@@ -354,7 +354,7 @@ int chan_close(int ch_id)
         free(channels[ch_id].recv);
     }
     channels[ch_id].state = CH_FREE;
-    channels[ch_id].handle = -1;
+    channels[ch_id].sock = -1;
     channels[ch_id].send = channels[ch_id].recv = NULL;
 
     return 0;
@@ -375,12 +375,12 @@ int chanSelect_(struct Masks *sockmask, struct Masks *chanmask,
         if (channels[i].state == CH_INACTIVE)
             continue;
 
-        if (channels[i].handle == -1)
+        if (channels[i].sock == -1)
             continue;
         if (channels[i].state == CH_FREE) {
             ls_syslog(LOG_ERR,
                       ("%s: channel %d has socket %d but in %s state!"), fname,
-                      i, channels[i].handle, "CH_FREE");
+                      i, channels[i].sock, "CH_FREE");
             continue;
         }
 
@@ -389,9 +389,9 @@ int chanSelect_(struct Masks *sockmask, struct Masks *chanmask,
 
         if (logclass & LC_COMM)
             ls_syslog(LOG_DEBUG3,
-                      "chanSelect_: Considering channel %d handle %d state %d "
+                      "chanSelect_: Considering channel %d sock %d state %d "
                       "type %d",
-                      i, channels[i].handle, (int) channels[i].state,
+                      i, channels[i].sock, (int) channels[i].state,
                       (int) channels[i].type);
 
         if (channels[i].type == CH_TYPE_TCP &&
@@ -400,19 +400,19 @@ int chanSelect_(struct Masks *sockmask, struct Masks *chanmask,
             continue;
 
         if (channels[i].state == CH_PRECONN) {
-            FD_SET(channels[i].handle, &(sockmask->wmask));
+            FD_SET(channels[i].sock, &(sockmask->wmask));
             continue;
         }
         if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG3, "chanSelect_: Adding channel %d handle %d ",
-                      i, channels[i].handle);
-        FD_SET(channels[i].handle, &(sockmask->rmask));
+            ls_syslog(LOG_DEBUG3, "chanSelect_: Adding channel %d sock %d ",
+                      i, channels[i].sock);
+        FD_SET(channels[i].sock, &(sockmask->rmask));
 
         if (channels[i].type != CH_TYPE_UDP)
-            FD_SET(channels[i].handle, &(sockmask->emask));
+            FD_SET(channels[i].sock, &(sockmask->emask));
 
         if (channels[i].send && channels[i].send->forw != channels[i].send)
-            FD_SET(channels[i].handle, &(sockmask->wmask));
+            FD_SET(channels[i].sock, &(sockmask->wmask));
     }
     maxfds = FD_SETSIZE;
 
@@ -426,48 +426,48 @@ int chanSelect_(struct Masks *sockmask, struct Masks *chanmask,
     FD_ZERO(&(chanmask->wmask));
     FD_ZERO(&(chanmask->emask));
     for (i = 0; i < chanIndex; i++) {
-        if (channels[i].handle == -1)
+        if (channels[i].sock == -1)
             continue;
 
-        if (FD_ISSET(channels[i].handle, &(sockmask->emask))) {
+        if (FD_ISSET(channels[i].sock, &(sockmask->emask))) {
             ls_syslog(LOG_DEBUG,
                       "chanSelect_: setting error mask for channel %d",
-                      channels[i].handle);
+                      channels[i].sock);
             FD_SET(i, &(chanmask->emask));
             continue;
         }
         if ((!channels[i].send || !channels[i].recv) &&
             (channels[i].state != CH_PRECONN)) {
-            if (FD_ISSET(channels[i].handle, &(sockmask->rmask)))
+            if (FD_ISSET(channels[i].sock, &(sockmask->rmask)))
                 FD_SET(i, &(chanmask->rmask));
-            if (FD_ISSET(channels[i].handle, &(sockmask->wmask)))
+            if (FD_ISSET(channels[i].sock, &(sockmask->wmask)))
                 FD_SET(i, &(chanmask->wmask));
             continue;
         }
 
         if (channels[i].state == CH_PRECONN) {
-            if (FD_ISSET(channels[i].handle, &(sockmask->wmask))) {
+            if (FD_ISSET(channels[i].sock, &(sockmask->wmask))) {
                 channels[i].state = CH_CONN;
                 channels[i].send = make_buf();
                 channels[i].recv = make_buf();
                 FD_SET(i, &(chanmask->wmask));
             }
         } else {
-            if (FD_ISSET(channels[i].handle, &(sockmask->rmask))) {
+            if (FD_ISSET(channels[i].sock, &(sockmask->rmask))) {
                 doread(i, chanmask);
                 if (!FD_ISSET(i, &(chanmask->rmask)) &&
                     !FD_ISSET(i, &(chanmask->emask)))
                     nReady--;
             }
             if ((channels[i].send->forw != channels[i].send) &&
-                FD_ISSET(channels[i].handle, &(sockmask->wmask))) {
+                FD_ISSET(channels[i].sock, &(sockmask->wmask))) {
                 dowrite(i, chanmask);
             }
             FD_SET(i, &(chanmask->wmask));
         }
-        FD_CLR(channels[i].handle, &(sockmask->rmask));
-        FD_CLR(channels[i].handle, &(sockmask->wmask));
-        FD_CLR(channels[i].handle, &(sockmask->emask));
+        FD_CLR(channels[i].sock, &(sockmask->rmask));
+        FD_CLR(channels[i].sock, &(sockmask->wmask));
+        FD_CLR(channels[i].sock, &(sockmask->emask));
     }
     return nReady;
 }
@@ -479,7 +479,7 @@ int chan_enqueue(int ch_id, struct Buffer *msg)
         return -1;
     }
 
-    if (channels[ch_id].handle == -1
+    if (channels[ch_id].sock == -1
         || channels[ch_id].state == CH_PRECONN) {
         lserrno = LSE_NO_CHAN;
         return -1;
@@ -496,7 +496,7 @@ int chan_dequeue(int ch_id, struct Buffer **buf)
         lserrno = LSE_BAD_CHAN;
         return -1;
     }
-    if (channels[ch_id].handle == -1 ||
+    if (channels[ch_id].sock == -1 ||
         channels[ch_id].state == CH_PRECONN) {
         lserrno = LSE_NO_CHAN;
         return -1;
@@ -513,22 +513,22 @@ int chan_dequeue(int ch_id, struct Buffer **buf)
 
 ssize_t chan_read_nonblock(int ch_id, char *buf, int len, int timeout)
 {
-    if (io_nonblock_(channels[ch_id].handle) < 0) {
+    if (io_nonblock_(channels[ch_id].sock) < 0) {
         lserrno = LSE_FILE_SYS;
         return -1;
     }
 
-    return nb_read_timeout(channels[ch_id].handle, buf, len, timeout);
+    return nb_read_timeout(channels[ch_id].sock, buf, len, timeout);
 }
 
 ssize_t chan_read(int ch_id, void *buf, size_t len)
 {
-    return b_read_fix(channels[ch_id].handle, buf, len);
+    return b_read_fix(channels[ch_id].sock, buf, len);
 }
 
 ssize_t chan_write(int ch_id, void *buf, size_t len)
 {
-    return (b_write_fix(channels[ch_id].handle, buf, len));
+    return (b_write_fix(channels[ch_id].sock, buf, len));
 }
 
 int chan_rpc(int ch_id, struct Buffer *in, struct Buffer *out,
@@ -553,8 +553,8 @@ int chan_rpc(int ch_id, struct Buffer *in, struct Buffer *out,
     if (!out) {
         return 0;
     }
-
-    int cc = rd_poll(channels[ch_id].handle, timeout * 1000);
+    // poll wants milliseconds
+    int cc = rd_poll(channels[ch_id].sock, timeout * 1000);
     if (cc <= 0) {
         if (cc == 0)
             lserrno = LSE_TIME_OUT;
@@ -599,7 +599,7 @@ int chan_get_sock(int ch_id)
         return -1;
     }
 
-    return (channels[ch_id].handle);
+    return (channels[ch_id].sock);
 }
 
 int chan_set_mode(int ch_id, int mode)
@@ -615,13 +615,13 @@ int chan_set_mode(int ch_id, int mode)
     }
 
     if (channels[ch_id].state == CH_FREE
-        || channels[ch_id].handle == -1) {
+        || channels[ch_id].sock == -1) {
         lserrno = LSE_BAD_CHAN;
         return -1;
     }
 
     if (mode == CHAN_MODE_NONBLOCK) {
-        if (io_nonblock_(channels[ch_id].handle) < 0) {
+        if (io_nonblock_(channels[ch_id].sock) < 0) {
             lserrno = LSE_SOCK_SYS;
             return -1;
         }
@@ -636,7 +636,7 @@ int chan_set_mode(int ch_id, int mode)
         return 0;
     }
 
-    if (io_block(channels[ch_id].handle) < 0) {
+    if (io_block(channels[ch_id].sock) < 0) {
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
@@ -676,7 +676,7 @@ static void doread(int ch_id, struct Masks *chanmask)
 
     errno = 0;
 
-    cc = read(channels[ch_id].handle, rcvbuf->data + rcvbuf->pos,
+    cc = read(channels[ch_id].sock, rcvbuf->data + rcvbuf->pos,
               rcvbuf->len - rcvbuf->pos);
     if (cc < 0) {
         // transient, try again later
@@ -736,7 +736,7 @@ static void dowrite(int ch_id, struct Masks *chanmask)
     else
         sendbuf = channels[ch_id].send->forw;
 
-    cc = write(channels[ch_id].handle, sendbuf->data + sendbuf->pos,
+    cc = write(channels[ch_id].sock, sendbuf->data + sendbuf->pos,
                sendbuf->len - sendbuf->pos);
 
     if (cc < 0) {
@@ -819,8 +819,7 @@ static void enqueueTail_(struct Buffer *entry, struct Buffer *pred)
 static int chan_find_free(void)
 {
     for (int i = 0; i < chan_open_max; i++) {
-        if (channels[i].handle == -1) {
-            channels[i].handle = -1;
+        if (channels[i].sock == -1) {
             channels[i].state = CH_FREE;
             channels[i].send = NULL;
             channels[i].recv = NULL;

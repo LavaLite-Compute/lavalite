@@ -23,14 +23,14 @@ extern int optind;
 extern char *optarg;
 extern char **environ;
 extern void sub_perror(char *usrMsg);
-extern int getJobIdList(char *, LS_LONG_INT **);
+extern int getJobIdList(char *, int64_t **);
 
 int main(int argc, char **argv)
 {
     struct submit req;
     struct submitReply reply;
     char *job;
-    LS_LONG_INT jobId = -1, *jobIdList = NULL;
+    int64_t jobId = -1, *jobIdList = NULL;
     int numJobIds;
     time_t beginTime, terminTime;
 

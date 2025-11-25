@@ -549,13 +549,13 @@ struct submit {
 
 struct submitReply {
     char *queue;
-    LS_LONG_INT badJobId;
+    int64_t badJobId;
     char *badJobName;
     int badReqIndx;
 };
 
 struct submig {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int options;
     int numAskedHosts;
     char **askedHosts;
@@ -616,7 +616,7 @@ struct submig {
 #define NUM_JGRP_COUNTERS 8
 
 struct jobAttrInfoEnt {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     u_short port;
     char hostname[MAXHOSTNAMELEN];
 };
@@ -631,13 +631,13 @@ struct jobAttrSetLog {
 
 struct jobInfoHead {
     int numJobs;
-    LS_LONG_INT *jobIds;
+    int64_t *jobIds;
     int numHosts;
     char **hostNames;
 };
 
 struct jobInfoEnt {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     char *user;
     int status;
     int *reasonTb;
@@ -840,7 +840,7 @@ struct groupInfoEnt {
 };
 
 struct runJobRequest {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int numHosts;
     char **hostname;
 #define RUNJOB_OPT_NORMAL 0x01
@@ -855,7 +855,7 @@ struct runJobRequest {
 #define REQUEUE_RUN 0x4
 
 struct jobrequeue {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int status;
     int options;
 };
@@ -1303,8 +1303,8 @@ struct jobIdIndexS {
     int curRow;
 
     time_t timeStamp;
-    LS_LONG_INT minJobId;
-    LS_LONG_INT maxJobId;
+    int64_t minJobId;
+    int64_t maxJobId;
     int totalJobIds;
     int *jobIds;
 };
@@ -1318,7 +1318,7 @@ struct sortIntList {
 #define LSB_MAX_SD_LENGTH 128
 struct lsbMsgHdr {
     int usrId;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int msgId;
     int type;
     char *src;
@@ -1389,8 +1389,6 @@ struct queueConf {
 
 extern int lsberrno;
 
-extern int lsb_mbd_version;
-
 #define PRINT_SHORT_NAMELIST 0x01
 #define PRINT_LONG_NAMELIST 0x02
 #define PRINT_MCPU_HOSTS 0x04
@@ -1420,8 +1418,7 @@ extern struct queueConf *lsb_readqueue(struct lsConf *, struct lsInfo *, int,
 extern void updateClusterConf(struct clusterConf *);
 
 extern int lsb_init(char *);
-extern struct jobInfoEnt *lsb_readjobinfo(int *);
-extern LS_LONG_INT lsb_submit(struct submit *, struct submitReply *);
+extern int64_t lsb_submit(struct submit *, struct submitReply *);
 
 extern void lsb_closejobinfo(void);
 
@@ -1430,30 +1427,30 @@ extern struct queueInfoEnt *lsb_queueinfo(char **queues, int *numQueues,
                                           char *host, char *userName,
                                           int options);
 extern int lsb_reconfig(int);
-extern int lsb_signaljob(LS_LONG_INT, int);
-extern int lsb_msgjob(LS_LONG_INT, char *);
-extern int lsb_chkpntjob(LS_LONG_INT, time_t, int);
-extern int lsb_deletejob(LS_LONG_INT, int, int);
-extern int lsb_forcekilljob(LS_LONG_INT);
+extern int lsb_signaljob(int64_t, int);
+extern int lsb_msgjob(int64_t, char *);
+extern int lsb_chkpntjob(int64_t, time_t, int);
+extern int lsb_deletejob(int64_t, int, int);
+extern int lsb_forcekilljob(int64_t);
 extern int lsb_requeuejob(struct jobrequeue *);
 extern char *lsb_sysmsg(void);
 extern void lsb_perror(char *);
 extern char *lsb_sperror(char *);
-extern char *lsb_peekjob(LS_LONG_INT);
+extern char *lsb_peekjob(int64_t);
 
 extern int lsb_mig(struct submig *, int *badHostIdx);
 
 extern struct hostInfoEnt *lsb_hostinfo(char **, int *);
 extern struct hostInfoEnt *lsb_hostinfo_ex(char **, int *, char *, int);
-extern int lsb_movejob(LS_LONG_INT jobId, int *, int);
-extern int lsb_switchjob(LS_LONG_INT jobId, char *queue);
+extern int lsb_movejob(int64_t jobId, int *, int);
+extern int lsb_switchjob(int64_t jobId, char *queue);
 extern int lsb_queuecontrol(char *, int);
 extern struct userInfoEnt *lsb_userinfo(char **, int *);
 extern struct groupInfoEnt *lsb_hostgrpinfo(char **, int *, int);
 extern struct groupInfoEnt *lsb_usergrpinfo(char **, int *, int);
 extern struct parameterInfo *lsb_parameterinfo(char **, int *, int);
-extern LS_LONG_INT lsb_modify(struct submit *, struct submitReply *,
-                              LS_LONG_INT);
+extern int64_t lsb_modify(struct submit *, struct submitReply *,
+                              int64_t);
 extern char *lsb_suspreason(int, int, struct loadIndexLog *);
 extern char *lsb_pendreason(int, int *, struct jobInfoHead *,
                             struct loadIndexLog *);
@@ -1465,13 +1462,13 @@ extern struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **, int *,
 
 extern int lsb_runjob(struct runJobRequest *);
 
-extern char *lsb_jobid2str(LS_LONG_INT);
-extern char *lsb_jobidinstr(LS_LONG_INT);
-extern void jobId32To64(LS_LONG_INT *, int, int);
-extern void jobId64To32(LS_LONG_INT, int *, int *);
+extern char *lsb_jobid2str(int64_t);
+extern char *lsb_jobidinstr(int64_t);
+extern void jobId32To64(int64_t *, int, int);
+extern void jobId64To32(int64_t, int *, int *);
 extern int lsb_setjobattr(int, struct jobAttrInfoEnt *);
 
-extern LS_LONG_INT lsb_rexecv(int, char **, char **, int *, int);
+extern int64_t lsb_rexecv(int, char **, char **, int *, int);
 extern int lsb_catch(const char *, int (*)(void *));
 extern void lsb_throw(const char *, void *);
 
@@ -1486,10 +1483,13 @@ int getTotalSortIntList(struct sortIntList *);
 
 int updateJobIdIndexFile(char *, char *, int);
 
-int lsb_openjobinfo(LS_LONG_INT, const char *, const char *, const char *,
-                    const char *, int);
-struct jobInfoHead *lsb_openjobinfo2(LS_LONG_INT, const char *, const char *,
-                                     const char *, const char *, int);
+struct jobInfoHead *lsb_openjobinfo(int64_t ,  // job_id
+                                    const char *, // job_name
+                                    const char *, // user_name
+                                    const char *, // queue_name
+                                    const char *, // host_name
+                                    int); // options like JOBID_ONLY ...
+struct jobInfoEnt *lsb_readjobinfo(void);
 
 /* ----------------------------------------------------------------------
  * Compatibility macros for legacy CamelCase identifiers.

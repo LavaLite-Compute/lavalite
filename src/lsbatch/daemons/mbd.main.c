@@ -695,12 +695,6 @@ static int processClient(struct mbd_client_node *client, int *needFree)
                                   &auth),
                "do_queueControlReq()");
         break;
-    case BATCH_DEBUG:
-        TIMEIT(0,
-               do_debugReq(&xdrs, s, &from, client->fromHost, &reqHdr, &auth),
-               "do_debugReq()");
-        break;
-
     case BATCH_RECONFIG:
         TIMEIT(0, do_reconfigReq(&xdrs, s, &from, client->fromHost, &reqHdr),
                "do_reconfigReq()");
@@ -1033,8 +1027,7 @@ static int authRequest(struct lsfAuth *auth, XDR *xdrs,
           reqType == BATCH_RECONFIG || reqType == BATCH_JOB_MIG ||
           reqType == BATCH_HOST_CTRL || reqType == BATCH_JOB_SWITCH ||
           reqType == BATCH_JOB_MOVE || reqType == BATCH_JOB_MODIFY ||
-          reqType == BATCH_DEBUG || reqType == BATCH_JOB_FORCE ||
-          reqType == BATCH_SET_JOB_ATTR))
+          reqType == BATCH_JOB_FORCE || reqType == BATCH_SET_JOB_ATTR))
         return LSBE_NO_ERROR;
 
     if (!xdr_lsfAuth(xdrs, auth, reqHdr)) {

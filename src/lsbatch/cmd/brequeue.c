@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     char *queue = NULL, *user = NULL, *host = NULL, *jobName = NULL;
     char Job[80];
     int numJobs;
-    LS_LONG_INT *jobIds;
+    int64_t *jobIds;
     struct jobrequeue reqJob;
     int i, cc, exitrc = 0;
     int options1 = FALSE;

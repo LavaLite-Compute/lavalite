@@ -20,7 +20,7 @@
 
 #include "lsbatch/lib/lsb.h"
 
-int lsb_switchjob(LS_LONG_INT jobId, char *queue)
+int lsb_switchjob(int64_t jobId, char *queue)
 {
     struct jobSwitchReq jobSwitchReq;
     char request_buf[MSGSIZE];
@@ -56,8 +56,8 @@ int lsb_switchjob(LS_LONG_INT jobId, char *queue)
         return -1;
     }
 
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                      NULL, NULL, NULL)) == -1) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                      NULL)) == -1) {
         xdr_destroy(&xdrs);
         return -1;
     }

@@ -1,5 +1,6 @@
-/* $Id: bjobs.c,v 1.7 2007/08/15 22:18:43 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +30,7 @@ static void do_options(int, char **, int *, char **, char **, char **, char **,
 static int skip_job(struct jobInfoEnt *);
 static void displayJobs(struct jobInfoEnt *, struct jobInfoHead *, int, int);
 
-static LS_LONG_INT *usrJids;
+static int64_t *usrJids;
 static int *numJobs;
 
 static int numJids = 0;
@@ -84,7 +85,7 @@ int main(int argc, char **argv)
     struct jobInfoHead *jInfoH;
     struct jobInfoEnt *job;
     int i;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int jobDisplayed = 0;
     float cpuFactor = -1;
     char prline[MAXLINELEN];
@@ -127,10 +128,7 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    TIMEIT(
-        0,
-        (jInfoH = lsb_openjobinfo2(jobId, jobName, user, queue, host, options)),
-        "lsb_openjobinfo_a");
+    jInfoH = lsb_openjobinfo(jobId, jobName, user, queue, host, options);
     if (jInfoH == NULL) {
         if (numJids >= 1) {
             for (i = 0; i < numJids; i++)
@@ -144,7 +142,7 @@ int main(int argc, char **argv)
     options &= ~NO_PEND_REASONS;
     jobDisplayed = 0;
     for (i = 0; i < jInfoH->numJobs; i++) {
-        TIMEIT(0, (job = lsb_readjobinfo(NULL)), "lsb_readjobinfo");
+        job = lsb_readjobinfo();
         if (job == NULL) {
             lsb_perror("lsb_readjobinfo");
             exit(-1);

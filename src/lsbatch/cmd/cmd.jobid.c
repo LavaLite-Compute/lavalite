@@ -28,7 +28,7 @@ static struct idxList *parseJobArrayIndex(char *);
 static int getJobIdIndexList(char *, int *, struct idxList **, int);
 
 int getJobIds(int argc, char **argv, char *jobName, char *user, char *queue,
-              char *host, LS_LONG_INT **jobIds0, int extOption)
+              char *host, int64_t **jobIds0, int extOption)
 {
     int numJobIds = 0;
     int options = LAST_JOB;
@@ -63,30 +63,28 @@ int getJobIds(int argc, char **argv, char *jobName, char *user, char *queue,
         options &= ~JOBID_ONLY;
     }
 
-    TIMEIT(0,
-           (jobInfoHead = lsb_openjobinfo2((LS_LONG_INT) 0, jobName, user,
-                                           queue, host, options)),
-           "lsb_openjobinfo");
+    jobInfoHead = lsb_openjobinfo(0, jobName, user,
+                                  queue, host, options);
     if (jobInfoHead == NULL) {
         jobInfoErr(0, jobName, user, queue, host, options);
         exit(-1);
     }
 
-    TIMEIT(0, lsb_closejobinfo(), "lsb_closejobinfo");
+    lsb_closejobinfo();
 
     *jobIds0 = jobInfoHead->jobIds;
     return (jobInfoHead->numJobs);
 }
 
-int getSpecJobIds(int argc, char **argv, LS_LONG_INT **jobIds0, int *options)
+int getSpecJobIds(int argc, char **argv, int64_t **jobIds0, int *options)
 {
     int numJobIds = 0;
-    static LS_LONG_INT *jobIds = NULL;
+    static int64_t *jobIds = NULL;
     int i;
     int j;
-    LS_LONG_INT *temp;
+    int64_t *temp;
     int jobId;
-    LS_LONG_INT lsbJobId;
+    int64_t lsbJobId;
     int sizeOfJobIdArray = MAX_JOB_IDS;
     struct idxList *idxListP = NULL, *idx;
     static char fName[] = "getSpecJobIds";
@@ -99,7 +97,7 @@ int getSpecJobIds(int argc, char **argv, LS_LONG_INT **jobIds0, int *options)
         return (0);
     }
 
-    if ((jobIds = (LS_LONG_INT *) calloc(MAX_JOB_IDS, sizeof(LS_LONG_INT))) ==
+    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) ==
         NULL) {
         perror("calloc");
         exit(-1);
@@ -114,7 +112,7 @@ int getSpecJobIds(int argc, char **argv, LS_LONG_INT **jobIds0, int *options)
             if (numJobIds >= sizeOfJobIdArray) {
                 sizeOfJobIdArray += MAX_JOB_IDS;
                 if ((jobIds = realloc(jobIds, sizeOfJobIdArray *
-                                                  sizeof(LS_LONG_INT))) ==
+                                                  sizeof(int64_t))) ==
                     NULL) {
                     fprintf(stderr, "%s: %s failed\n", fName, "malloc");
                     exit(-1);
@@ -142,8 +140,8 @@ int getSpecJobIds(int argc, char **argv, LS_LONG_INT **jobIds0, int *options)
                 lsbJobId = LSB_JOBID(jobId, j);
                 if (numJobIds >= sizeOfJobIdArray) {
                     sizeOfJobIdArray += MAX_JOB_IDS;
-                    if ((temp = (LS_LONG_INT *) realloc(
-                             jobIds, sizeOfJobIdArray * sizeof(LS_LONG_INT))) ==
+                    if ((temp = (int64_t *) realloc(
+                             jobIds, sizeOfJobIdArray * sizeof(int64_t))) ==
                         NULL) {
                         fprintf(stderr, "%s: %s failed\n", fName, "malloc");
                         exit(-1);
@@ -206,7 +204,7 @@ int getSpecIdxs(char *jobName, int **idxs0)
     return (numIdxs);
 }
 
-int getOneJobId(char *string, LS_LONG_INT *outJobId, int options)
+int getOneJobId(char *string, int64_t *outJobId, int options)
 {
     int jobId = 0;
     struct idxList *idxListP = NULL;
@@ -254,7 +252,7 @@ static int getJobIdIndexList(char *string, int *outJobId,
     if ((startP = strchr(string, '[')) == NULL) {
         if (!isint_(string)) {
             if (isdigitstr_(string) && islongint_(string)) {
-                LS_LONG_INT interJobId = 0;
+                int64_t interJobId = 0;
                 if ((interJobId = atoi64_(string)) > 0) {
                     strcpy(inJobIdStr, lsb_jobid2str(interJobId));
                 }
@@ -373,12 +371,12 @@ static struct idxList *parseJobArrayIndex(char *jobName)
 #endif
 }
 
-int getJobIdList(char *jobIdStr, LS_LONG_INT **jobIdList)
+int getJobIdList(char *jobIdStr, int64_t **jobIdList)
 {
     int numJobIds = 0;
     int jobId;
-    LS_LONG_INT lsbJobId;
-    LS_LONG_INT *temp, *jobIds;
+    int64_t lsbJobId;
+    int64_t *temp, *jobIds;
     struct idxList *idxListP = NULL, *idx;
     int sizeOfJobIdArray = MAX_JOB_IDS;
     int i, j;
@@ -390,7 +388,7 @@ int getJobIdList(char *jobIdStr, LS_LONG_INT **jobIdList)
     if (jobId <= 0)
         return (-1);
 
-    if ((jobIds = (LS_LONG_INT *) calloc(MAX_JOB_IDS, sizeof(LS_LONG_INT))) ==
+    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) ==
         NULL) {
         return (-1);
     }
@@ -407,8 +405,8 @@ int getJobIdList(char *jobIdStr, LS_LONG_INT **jobIdList)
             lsbJobId = LSB_JOBID(jobId, j);
             if (numJobIds >= sizeOfJobIdArray) {
                 sizeOfJobIdArray += MAX_JOB_IDS;
-                if ((temp = (LS_LONG_INT *) realloc(
-                         jobIds, sizeOfJobIdArray * sizeof(LS_LONG_INT))) ==
+                if ((temp = (int64_t *) realloc(
+                         jobIds, sizeOfJobIdArray * sizeof(int64_t))) ==
                     NULL) {
                     return (-1);
                 }

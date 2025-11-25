@@ -1,4 +1,4 @@
-/* $Id: lsb.misc.c,v 1.3 2007/08/15 22:18:47 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -21,7 +21,6 @@
 #include "lsbatch/lib/lsb.h"
 #include "lsf/lib/lib.table.h"
 
-#define MEMBERSTRLEN 20
 
 void initTab(struct hTab *tabPtr)
 {
@@ -30,9 +29,9 @@ void initTab(struct hTab *tabPtr)
     }
 }
 
-hEnt *addMemb(struct hTab *tabPtr, LS_LONG_INT member)
+hEnt *addMemb(struct hTab *tabPtr, int64_t member)
 {
-    char memberStr[MEMBERSTRLEN];
+    char memberStr[LL_BUFSIZ_32];
     hEnt *ent;
     int new;
 
@@ -47,9 +46,9 @@ hEnt *addMemb(struct hTab *tabPtr, LS_LONG_INT member)
     return NULL;
 }
 
-char remvMemb(struct hTab *tabPtr, LS_LONG_INT member)
+char remvMemb(struct hTab *tabPtr, int64_t member)
 {
-    char memberStr[MEMBERSTRLEN];
+    char memberStr[LL_BUFSIZ_32];
     hEnt *ent;
 
     if (tabPtr) {
@@ -65,9 +64,9 @@ char remvMemb(struct hTab *tabPtr, LS_LONG_INT member)
     return false;
 }
 
-hEnt *chekMemb(struct hTab *tabPtr, LS_LONG_INT member)
+hEnt *chekMemb(struct hTab *tabPtr, int64_t member)
 {
-    char memberStr[MEMBERSTRLEN];
+    char memberStr[LL_BUFSIZ_32];
     hEnt *ent = NULL;
 
     if (tabPtr) {
@@ -329,7 +328,7 @@ char *lsb_splitName(char *str, unsigned int *number)
     static char name[4 * MAXLINELEN];
     static int nameNum;
     int twoPartFlag;
-    int i, j;
+
 
     if (str == NULL || number == NULL) {
         ls_syslog(LOG_ERR, "%s: bad input.\n", fname);
@@ -337,9 +336,10 @@ char *lsb_splitName(char *str, unsigned int *number)
     }
 
     twoPartFlag = 0;
-    j = 0;
+    int j = 0;
 
-    for (i = 0; i < strlen(str); i++) {
+    size_t l = strlen(str);
+    for (size_t i = 0; i < l; i++) {
         if (str[i] != '*') {
             name[j] = str[i];
             j++;
@@ -518,7 +518,7 @@ NAMELIST *lsb_parseLongStr(char *string)
     static NAMELIST nameList;
     unsigned long numStr = strlen(string) / 2 + 1;
     char *prevStr, *curStr;
-    unsigned long numSameStr;
+    int numSameStr;
     int i;
 
     if (string == NULL || strlen(string) <= 0) {
@@ -601,7 +601,7 @@ NAMELIST *lsb_parseShortStr(char *string, int format)
     static char fname[] = "lsb_parseShortStr";
     static NAMELIST nameList;
     unsigned long numStr = strlen(string) / 2 + 1;
-    unsigned int numSameStr;
+    int numSameStr;
     char namestr[4 * MAXLINELEN];
     char *name;
     char *curStr;
@@ -717,13 +717,13 @@ char *getNTSpoolDir(char *spoolDir)
     return pTemp;
 }
 
-void jobId64To32(LS_LONG_INT interJobId, int *jobId, int *jobArrElemId)
+void jobId64To32(int64_t interJobId, int *jobId, int *jobArrElemId)
 {
     *jobArrElemId = LSB_ARRAY_IDX(interJobId);
     *jobId = LSB_ARRAY_JOBID(interJobId);
 }
 
-void jobId32To64(LS_LONG_INT *interJobId, int jobId, int jobArrElemId)
+void jobId32To64(int64_t *interJobId, int jobId, int jobArrElemId)
 {
     *interJobId = LSB_JOBID(jobId, jobArrElemId);
 }

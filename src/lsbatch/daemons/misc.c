@@ -132,7 +132,6 @@ int get_ports(void)
                   __func__, daemonParams[LSB_MBD_PORT].paramValue);
         return -1;
     }
-    mbd_port = htons(mbd_port);
 
     if (daemonParams[LSB_SBD_PORT].paramValue == NULL) {
         ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT is not in lsf.conf", __func__);
@@ -145,7 +144,6 @@ int get_ports(void)
                   __func__, daemonParams[LSB_SBD_PORT].paramValue);
         return -1;
     }
-    sbd_port = htons(sbd_port);
 
     return 0;
 }
@@ -519,7 +517,7 @@ int *getResMaps(int nRes, char **resource)
     return temp;
 }
 
-int checkResumeByLoad(LS_LONG_INT jobId, int num, struct thresholds thresholds,
+int checkResumeByLoad(int64_t jobId, int num, struct thresholds thresholds,
                       struct hostLoad *loads, int *reason, int *subreasons,
                       int jAttrib, struct resVal *resumeCondVal,
                       struct tclHostData *tclHostData)

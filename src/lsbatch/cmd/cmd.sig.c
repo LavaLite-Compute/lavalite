@@ -19,16 +19,16 @@
 
 #include "lsbatch/cmd/cmd.h"
 
-static int signalJobs(LS_LONG_INT *, int);
-static void prtSignaled(int, LS_LONG_INT);
+static int signalJobs(int64_t *, int);
+static void prtSignaled(int, int64_t);
 static int sigValue;
-static LS_LONG_INT sigJobId;
+static int64_t sigJobId;
 static char *sigUser, *sigQueue, *sigHost, *sigJobName;
 static time_t chkPeriod = LSB_CHKPERIOD_NOCHNG;
 static int chkOptions;
 static int runCount = 0;
 
-static int do_options(int argc, char **argv, LS_LONG_INT **jobIds,
+static int do_options(int argc, char **argv, int64_t **jobIds,
                       int signalValue);
 static void usage(char *cmd, int sig);
 
@@ -65,7 +65,7 @@ static void usage(char *cmd, int sig)
     exit(-1);
 }
 
-static int do_options(int argc, char **argv, LS_LONG_INT **jobIds,
+static int do_options(int argc, char **argv, int64_t **jobIds,
                       int signalValue)
 {
     extern char *optarg;
@@ -250,7 +250,7 @@ static int do_options(int argc, char **argv, LS_LONG_INT **jobIds,
 int bsignal(int argc, char **argv)
 {
     int numJobs;
-    LS_LONG_INT *jobIds;
+    int64_t *jobIds;
     int signalValue;
 
     if (lsb_init(argv[0]) < 0) {
@@ -283,7 +283,7 @@ int bsignal(int argc, char **argv)
     return (signalJobs(jobIds, numJobs));
 }
 
-static int signalJobs(LS_LONG_INT *jobIds, int numJobs)
+static int signalJobs(int64_t *jobIds, int numJobs)
 {
     int failsignal = FALSE, signaled = FALSE;
     int i, cc;
@@ -323,7 +323,7 @@ static int signalJobs(LS_LONG_INT *jobIds, int numJobs)
     return (signaled ? !failsignal : FALSE);
 }
 
-static void prtSignaled(int signalValue, LS_LONG_INT jobId)
+static void prtSignaled(int signalValue, int64_t jobId)
 {
     char *op;
 

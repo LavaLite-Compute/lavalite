@@ -35,41 +35,37 @@
 #define RSCHED_LISTSEARCH_BY_EXECJID 0
 #define RSCHED_LISTSEARCH_BY_EXECLUSNAME 1
 
+/* Library to daemon protocol operations
+ */
 typedef enum {
-
-    BATCH_JOB_SUB = 1,
-    BATCH_JOB_INFO = 2,
-    BATCH_JOB_PEEK = 3,
-    BATCH_JOB_SIG = 4,
-    BATCH_HOST_INFO = 5,
-    BATCH_QUE_INFO = 6,
-    BATCH_GRP_INFO = 7,
-    BATCH_QUE_CTRL = 8,
-    BATCH_RECONFIG = 9,
-    BATCH_HOST_CTRL = 10,
-    BATCH_JOB_SWITCH = 11,
-    BATCH_JOB_MOVE = 12,
-    BATCH_JOB_MIG = 13,
-    BATCH_STATUS_JOB = 15,
-    BATCH_SLAVE_RESTART = 16,
-    BATCH_USER_INFO = 17,
-    BATCH_PARAM_INFO = 20,
-    BATCH_JOB_MODIFY = 22,
-    BATCH_JOB_EXECED = 25,
-    BATCH_JOB_MSG = 27,
-    BATCH_STATUS_MSG_ACK = 28,
-    BATCH_DEBUG = 29,
-    BATCH_RESOURCE_INFO = 30,
-    BATCH_RUSAGE_JOB = 32,
-    BATCH_JOB_FORCE = 37,
-
-    BATCH_UNUSED_38 = 38,
-    BATCH_UNUSED_39 = 39,
-
-    BATCH_STATUS_CHUNK = 40,
-
-    BATCH_SET_JOB_ATTR = 90,
-
+    BATCH_STATUS_ACK = 1, //ack from daemon to daemon
+    BATCH_JOB_SUB,
+    BATCH_JOB_INFO,
+    BATCH_JOB_PEEK,
+    BATCH_JOB_SIG,
+    BATCH_HOST_INFO,
+    BATCH_QUE_INFO,
+    BATCH_GRP_INFO,
+    BATCH_QUE_CTRL,
+    BATCH_RECONFIG,
+    BATCH_HOST_CTRL,
+    BATCH_JOB_SWITCH,
+    BATCH_JOB_MOVE,
+    BATCH_JOB_MIG,
+    BATCH_STATUS_JOB,
+    BATCH_SLAVE_RESTART,
+    BATCH_USER_INFO,
+    BATCH_PARAM_INFO,
+    BATCH_JOB_MODIFY,
+    BATCH_JOB_EXECED,
+    BATCH_JOB_MSG,
+    BATCH_STATUS_MSG_ACK,
+    BATCH_RESOURCE_INFO,
+    BATCH_RUSAGE_JOB,
+    BATCH_JOB_FORCE,
+    BATCH_STATUS_CHUNK,
+    BATCH_SET_JOB_ATTR,
+    BATCH_LAST_OP
 } mbdReqType;
 
 #define SUB_RLIMIT_UNIT_IS_KB 0x80000000
@@ -133,14 +129,14 @@ struct submitReq {
 #define SCRIPT_WORD_END "_USER_SCRIPT_"
 
 struct submitMbdReply {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     char *queue;
     int badReqIndx;
     char *badJobName;
 };
 
 struct modifyReq {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     char *jobIdStr;
     int delOptions;
     int delOptions2;
@@ -150,14 +146,14 @@ struct modifyReq {
 struct jobInfoReq {
     int options;
     char *userName;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     char *jobName;
     char *queue;
     char *host;
 };
 
 struct jobInfoReply {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int status;
     int *reasonTb;
     int numReasons;
@@ -227,7 +223,7 @@ struct groupInfoReply {
 };
 
 struct jobPeekReq {
-    LS_LONG_INT jobId;
+    int64_t jobId;
 };
 
 struct jobPeekReply {
@@ -237,19 +233,19 @@ struct jobPeekReply {
 
 struct signalReq {
     int sigValue;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     time_t chkPeriod;
     int actFlags;
 };
 
 struct jobMoveReq {
     int opCode;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int position;
 };
 
 struct jobSwitchReq {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     char queue[MAXLSFNAMELEN];
 };
 
@@ -259,33 +255,28 @@ struct controlReq {
 };
 
 struct migReq {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int options;
     int numAskedHosts;
     char **askedHosts;
 };
 
 typedef enum {
-    MBD_NEW_JOB_KEEP_CHAN = 0,
-    MBD_NEW_JOB = 1,
-    MBD_SIG_JOB = 2,
-    MBD_SWIT_JOB = 3,
-    MBD_PROBE = 4,
-    MBD_REBOOT = 5,
-    MBD_SHUTDOWN = 6,
-    CMD_SBD_DEBUG = 7,
-    UNUSED_8 = 8,
-    MBD_MODIFY_JOB = 9,
-
-    SBD_JOB_SETUP = 100,
-    SBD_SYSLOG = 101,
-    SBD_DONE_MSG_JOB = 102,
-
-    RM_JOB_MSG = 200,
-    RM_CONNECT = 201,
-
-    CMD_SBD_REBOOT = 300,
-    CMD_SBD_SHUTDOWN = 301
+    MBD_NEW_JOB_KEEP_CHAN = 1,
+    MBD_NEW_JOB,
+    MBD_SIG_JOB,
+    MBD_SWIT_JOB,
+    MBD_PROBE,
+    CMD_SBD_DEBUG,
+    MBD_MODIFY_JOB,
+    SBD_JOB_SETUP,
+    SBD_SYSLOG,
+    SBD_DONE_MSG_JOB,
+    RM_JOB_MSG,
+    RM_CONNECT,
+    CMD_SBD_REBOOT,
+    CMD_SBD_SHUTDOWN,
+    SBD_LAST_OP
 } sbdReqType;
 
 struct lenDataList {
@@ -294,9 +285,9 @@ struct lenDataList {
 };
 
 extern void initTab(struct hTab *tabPtr);
-extern hEnt *addMemb(struct hTab *tabPtr, LS_LONG_INT member);
-extern char remvMemb(struct hTab *tabPtr, LS_LONG_INT member);
-extern hEnt *chekMemb(struct hTab *tabPtr, LS_LONG_INT member);
+extern hEnt *addMemb(struct hTab *tabPtr, int64_t member);
+extern char remvMemb(struct hTab *tabPtr, int64_t member);
+extern hEnt *chekMemb(struct hTab *tabPtr, int64_t member);
 extern hEnt *addMembStr(struct hTab *tabPtr, char *member);
 extern char remvMembStr(struct hTab *tabPtr, char *member);
 extern hEnt *chekMembStr(struct hTab *tabPtr, char *member);

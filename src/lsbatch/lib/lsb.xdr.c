@@ -448,7 +448,7 @@ bool_t xdr_jobInfoHead(XDR *xdrs, struct jobInfoHead *jobInfoHead, void *)
 {
     static char **hostNames = NULL;
     static int numJobs = 0, numHosts = 0;
-    static LS_LONG_INT *jobIds = NULL;
+    static int64_t *jobIds = NULL;
     char *sp;
     int *jobArrIds = NULL, *jobArrElemIds = NULL;
     int i;
@@ -474,8 +474,8 @@ bool_t xdr_jobInfoHead(XDR *xdrs, struct jobInfoHead *jobInfoHead, void *)
         if (jobInfoHead->numJobs > numJobs) {
             FREEUP(jobIds);
             numJobs = 0;
-            if ((jobIds = (LS_LONG_INT *) calloc(
-                     jobInfoHead->numJobs, sizeof(LS_LONG_INT))) == NULL) {
+            if ((jobIds = (int64_t *) calloc(
+                     jobInfoHead->numJobs, sizeof(int64_t))) == NULL) {
                 lsberrno = LSBE_NO_MEM;
                 return false;
             }

@@ -1,4 +1,4 @@
-/* $Id: lsb.groups.c,v 1.3 2007/08/15 22:18:47 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -99,7 +99,6 @@ static int sendGrpReq(char *clusterName, int options, struct infoReq *groupInfo,
     char *reply_buf;
     struct packet_header hdr;
     mbdReqType mbdReqtype;
-    int cc;
 
     (void) options;
 
@@ -115,8 +114,9 @@ static int sendGrpReq(char *clusterName, int options, struct infoReq *groupInfo,
         return -1;
     }
 
-    if ((cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                      &hdr, NULL, NULL, NULL)) == -1) {
+    int cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf,
+                      &hdr, NULL);
+    if (cc < 0) {
         xdr_destroy(&xdrs);
         return -1;
     }
