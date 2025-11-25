@@ -93,7 +93,7 @@ static bool_t clusterAdminFlag;
 static void setClusterAdmin(bool_t admin);
 static bool_t requestByClusterAdmin(void);
 
-void expandFileNameWithJobId(char *, char *, LS_LONG_INT);
+void expandFileNameWithJobId(char *, char *, int64_t);
 char *getJobAttaDataLocation(struct jData *, int);
 static void jobRequeueTimeUpdate(struct jData *, time_t);
 
@@ -144,7 +144,7 @@ int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     static char fname[] = "newJob";
     static struct jData *newjob;
     int returnErr;
-    LS_LONG_INT nextId;
+    int64_t nextId;
     char jobIdStr[20];
     struct lenData jf;
     struct hData *hData;
@@ -1103,7 +1103,7 @@ static int matchJobStatus(int options, struct jData *jobPtr)
 
 int findLastJob(int options, struct jData *jobPtr, struct jData **recentJob)
 {
-    LS_LONG_INT jobIdDiff;
+    int64_t jobIdDiff;
 
     if (!(options & LAST_JOB))
         return TRUE;
@@ -4003,7 +4003,7 @@ void initJobIdHT(void)
     h_initTab_(&jobIdHT, 50);
 }
 
-void removeJob(LS_LONG_INT jobId)
+void removeJob(int64_t jobId)
 {
     struct jData *zp, *jp;
     struct jgTreeNode *node;
@@ -4201,7 +4201,7 @@ void jobInQueueEnd(struct jData *job, struct qData *qp)
     return;
 }
 
-struct jData *getJobData(LS_LONG_INT jobId)
+struct jData *getJobData(int64_t jobId)
 {
     hEnt *ent;
 
@@ -4703,7 +4703,7 @@ int modifyJob(struct modifyReq *req, struct submitMbdReply *reply,
 {
     struct jData *jpbw, *jArray;
     int numJobIds = 0;
-    LS_LONG_INT *jobIdList = NULL;
+    int64_t *jobIdList = NULL;
     int returnErr, successfulOnce = FALSE;
     int i;
     int uid = auth->uid;
@@ -5705,7 +5705,7 @@ error:
     return NULL;
 }
 void copyJobBill(struct submitReq *subReq, struct submitReq *jobBill,
-                 LS_LONG_INT jobId)
+                 int64_t jobId)
 {
     int i;
 
@@ -6349,7 +6349,7 @@ static struct jData *isInZomJobList(struct hData *hData,
     return NULL;
 }
 
-struct jData *getZombieJob(LS_LONG_INT jobId)
+struct jData *getZombieJob(int64_t jobId)
 {
     struct jData *jData;
 
@@ -7373,7 +7373,7 @@ static void replaceString(char *s1, char *s2, char *s3)
     strcpy(s1, temp);
 }
 
-void expandFileNameWithJobId(char *out, char *in, LS_LONG_INT jobId)
+void expandFileNameWithJobId(char *out, char *in, int64_t jobId)
 {
     char jobIdStr[16];
     char indexStr[16];

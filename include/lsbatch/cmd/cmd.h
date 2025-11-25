@@ -92,16 +92,16 @@ extern void prtBETime_(struct submit *);
 extern int supportJobNamePattern(char *);
 
 extern int repeatedName(char *, char **, int);
-extern void jobInfoErr(LS_LONG_INT, char *, char *, char *, char *, int);
+extern void jobInfoErr(int64_t, char *, char *, char *, char *, int);
 extern int printThresholds(float *, float *, int *, int *, int,
                            struct lsInfo *);
 extern void prtResourceLimit(int *, char *, float, int *);
 extern int getNames(int, char **, int, char ***, int *, char *);
 extern int getJobIds(int, char **, char *, char *, char *, char *,
-                     LS_LONG_INT **, int);
-extern int getSpecJobIds(int, char **, LS_LONG_INT **, int *);
+                     int64_t **, int);
+extern int getSpecJobIds(int, char **, int64_t **, int *);
 extern int getSpecIdxs(char *, int **);
-extern int getOneJobId(char *, LS_LONG_INT *, int);
+extern int getOneJobId(char *, int64_t *, int);
 extern int gettimefor(char *toptarg, time_t *tTime);
 extern int skipJob(int, int *, int);
 

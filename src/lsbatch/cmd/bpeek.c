@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     char *queue = NULL;
     char *host = NULL;
     char *jobName = NULL;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int options;
     struct jobInfoEnt *jInfo;
     char *outFile;
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     if (cc < 0) {
         return -1;
     }
-    while ((jInfo = lsb_readjobinfo(NULL))) {
+    while ((jInfo = lsb_readjobinfo())) {
         ;
     }
     lsb_closejobinfo();

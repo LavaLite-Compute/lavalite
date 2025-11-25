@@ -81,7 +81,7 @@
 #include "ll_types.h"
 
 // Define 64 bit types
-typedef int64_t LS_LONG_INT;
+typedef int64_t int64_t;
 typedef uint64_t LS_UNS_LONG_INT;
 
 /* A little macro that abstracts the access to the process status returned

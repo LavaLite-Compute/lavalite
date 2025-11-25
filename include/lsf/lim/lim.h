@@ -430,7 +430,6 @@ extern int definedSharedResource(struct hostNode *, struct lsInfo *);
 
 extern void errorBack(struct sockaddr_in *, struct packet_header *,
                       enum limReplyCode, int);
-extern int initSock(int);
 extern void initLiStruct(void);
 
 extern void placeReq(XDR *, struct sockaddr_in *, struct packet_header *, int);

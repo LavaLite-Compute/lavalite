@@ -1,4 +1,4 @@
-/* $Id: lsb.init.c,v 1.6 2007/08/15 22:18:47 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -20,24 +20,25 @@
 
 #include "lsbatch/lib/lsb.h"
 
-struct config_param lsbParams[] = {{"LSB_DEBUG", NULL},
-                                   {"LSB_SHAREDIR", NULL},
-                                   {"LSB_SBD_PORT", NULL},
-                                   {"LSB_MBD_PORT", NULL},
-                                   {"LSB_DEBUG_CMD", NULL},
-                                   {"LSB_TIME_CMD", NULL},
-                                   {"LSB_CMD_LOGDIR", NULL},
-                                   {"LSB_CMD_LOG_MASK", NULL},
-                                   {"LSF_LOG_MASK", NULL},
-                                   {"LSB_API_CONNTIMEOUT", NULL},
-                                   {"LSB_API_RECVTIMEOUT", NULL},
-                                   {"LSF_SERVERDIR", NULL},
-                                   {"LSB_MODE", NULL},
-                                   {"LSB_SHORT_HOSTLIST", NULL},
-                                   {"LSF_INTERACTIVE_STDERR", NULL},
-                                   {"LSB_32_PAREN_ESC", NULL},
-                                   {"LSB_API_QUOTE_CMD", NULL},
-                                   {NULL, NULL}};
+struct config_param lsbParams[] = {
+    {"LSB_DEBUG", NULL},
+    {"LSB_SHAREDIR", NULL},
+    {"LSB_SBD_PORT", NULL},
+    {"LSB_MBD_PORT", NULL},
+    {"LSB_DEBUG_CMD", NULL},
+    {"LSB_TIME_CMD", NULL},
+    {"LSB_CMD_LOGDIR", NULL},
+    {"LSB_CMD_LOG_MASK", NULL},
+    {"LSF_LOG_MASK", NULL},
+    {"LSB_API_CONNTIMEOUT", NULL},
+    {"LSB_API_RECVTIMEOUT", NULL},
+    {"LSF_SERVERDIR", NULL},
+    {"LSB_MODE", NULL},
+    {"LSB_SHORT_HOSTLIST", NULL},
+    {"LSF_INTERACTIVE_STDERR", NULL},
+    {"LSB_32_PAREN_ESC", NULL},
+    {"LSB_API_QUOTE_CMD", NULL},
+    {NULL, NULL}};
 
 #ifdef LSF_LOG_MASK
 #undef LSF_LOG_MASK
@@ -109,4 +110,33 @@ int lsb_init(char *appName)
         return -1;
 
     return 0;
+}
+
+uint16_t get_mbd_port(void)
+{
+    uint16_t mbd_port = 0;
+
+    if (!lsbParams[LSB_MBD_PORT].paramValue) {
+        mbd_port = 0;
+        lsberrno = LSBE_SERVICE;
+        return 0;
+    }
+    mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue);
+
+    return mbd_port;
+}
+
+uint16_t get_sbd_port(void)
+{
+    uint16_t sbd_port;
+
+    if (!lsbParams[LSB_SBD_PORT].paramValue) {
+        sbd_port = 0;
+        lsberrno = LSBE_SERVICE;
+        return 0;
+    }
+
+    sbd_port = atoi(lsbParams[LSB_SBD_PORT].paramValue);
+
+    return sbd_port;
 }

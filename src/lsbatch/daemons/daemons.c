@@ -81,7 +81,7 @@ int init_ServSock(u_short port)
 {
     int ch;
 
-    ch = chan_listen_socket(SOCK_STREAM, ntohs(port), 1024, CHAN_OP_SOREUSE);
+    ch = chan_listen_socket(SOCK_STREAM, port, SOMAXCONN, CHAN_OP_SOREUSE);
     if (ch < 0) {
         ls_syslog(LOG_ERR, "init_ServSock", "chan_listen_socket");
         return -1;

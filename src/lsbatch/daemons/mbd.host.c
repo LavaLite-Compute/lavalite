@@ -291,7 +291,7 @@ struct hData *getHostData(const char *host)
 
     hostEnt = h_getEnt_(&hDataList, host);
     if (hostEnt != NULL)
-        return hostEnt->hData;
+        return (void *)hostEnt->hData;
 
     if (strcmp(host, LOST_AND_FOUND) == 0)
         return NULL;
@@ -715,22 +715,7 @@ void checkHWindow(void)
 int ctrlHost(struct controlReq *hcReq, struct hData *hData,
              struct lsfAuth *auth)
 {
-    sbdReplyType reply;
-
     switch (hcReq->opCode) {
-    case HOST_REBOOT:
-        reply = rebootSbd(hcReq->name);
-        if (reply == ERR_NO_ERROR)
-            return LSBE_NO_ERROR;
-        else
-            return LSBE_SBATCHD;
-
-    case HOST_SHUTDOWN:
-        reply = shutdownSbd(hcReq->name);
-        if (reply == ERR_NO_ERROR)
-            return LSBE_NO_ERROR;
-        else
-            return LSBE_SBATCHD;
 
     case HOST_OPEN:
         if (hData->hStatus & HOST_STAT_UNAVAIL)

@@ -63,7 +63,9 @@ static inline uint64_t now_ms(void);
 struct liStruct *li = NULL;
 int li_len = 0;
 
+// LavaLite
 static void lim_init(int);
+static int lim_init_sock(int);
 static void term_handler(int);
 static void child_handler(int);
 static void usage(const char *);
@@ -440,9 +442,10 @@ static void lim_init(int checkMode)
 
     setMyClusterName();
 
-    if (getenv("RECONFIG_CHECK") == NULL)
-        if (initSock(checkMode) < 0)
-            lim_Exit("initSock");
+    if (getenv("RECONFIG_CHECK") == NULL) {
+        if (lim_init_sock(checkMode) < 0)
+            lim_Exit("lim_init_sock");
+    }
 
     if (readCluster(checkMode) < 0)
         lim_Exit("readCluster");
@@ -556,7 +559,7 @@ static void child_handler(int sig)
     errno = saved_errno;
 }
 
-int initSock(int checkMode)
+static int lim_init_sock(int checkMode)
 {
     struct sockaddr_in lim_addr;
 
@@ -576,10 +579,9 @@ int initSock(int checkMode)
                __func__, lim_udp_port);
         return -1;
     }
-    lim_udp_port = htons(lim_udp_port);
 
     // LIM TCP socket with
-    lim_tcp_sock = chan_listen_socket(SOCK_STREAM, 0, SOMAXCONN, 0);
+    lim_tcp_sock = chan_listen_socket(SOCK_STREAM, 0, SOMAXCONN, CHAN_OP_SOREUSE);
     if (lim_tcp_sock < 0) {
         syslog(LOG_ERR,
                "%s: unable to create tcp socket port %d "
@@ -590,7 +592,8 @@ int initSock(int checkMode)
     }
 
     socklen_t size = sizeof(struct sockaddr_in);
-    int cc = getsockname(chan_get_sock(lim_tcp_sock), (struct sockaddr *) &lim_addr,
+    int cc = getsockname(chan_get_sock(lim_tcp_sock),
+                         (struct sockaddr *) &lim_addr,
                          &size);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,

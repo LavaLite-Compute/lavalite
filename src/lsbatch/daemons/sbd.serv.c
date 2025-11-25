@@ -1,4 +1,4 @@
-/* $Id: sbd.serv.c,v 1.9 2007/08/15 22:18:46 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -902,160 +902,6 @@ void do_reboot(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     return;
 }
 
-int ctrlSbdDebug(struct debugReq *pdebug)
-{
-    static char fname[] = "sbd.serv:ctrlSbdDebug()";
-    int operation, level, newClass, options;
-    char logFileName[MAXLSFNAMELEN];
-    char lsfLogDir[MAXPATHLEN];
-    char *dir = NULL;
-    char dynDbgEnv[MAXPATHLEN];
-
-    memset(logFileName, 0, sizeof(logFileName));
-    memset(lsfLogDir, 0, sizeof(lsfLogDir));
-
-    operation = pdebug->operation;
-    level = pdebug->level;
-    newClass = pdebug->logClass;
-    options = pdebug->options;
-
-    if (pdebug->logFileName[0] != '\0') {
-        if (((dir = strrchr(pdebug->logFileName, '/')) != NULL) ||
-            ((dir = strrchr(pdebug->logFileName, '\\')) != NULL)) {
-            dir++;
-            ls_strcat(logFileName, sizeof(logFileName), dir);
-            *(--dir) = '\0';
-            ls_strcat(lsfLogDir, sizeof(lsfLogDir), pdebug->logFileName);
-        } else {
-            ls_strcat(logFileName, sizeof(logFileName), pdebug->logFileName);
-            if (daemonParams[LSF_LOGDIR].paramValue &&
-                *(daemonParams[LSF_LOGDIR].paramValue)) {
-                ls_strcat(lsfLogDir, sizeof(lsfLogDir),
-                          daemonParams[LSF_LOGDIR].paramValue);
-            } else {
-                lsfLogDir[0] = '\0';
-            }
-        }
-        ls_strcat(logFileName, sizeof(logFileName), ".sbatchd");
-    } else {
-        ls_strcat(logFileName, sizeof(logFileName), "sbatchd");
-        if (daemonParams[LSF_LOGDIR].paramValue &&
-            *(daemonParams[LSF_LOGDIR].paramValue)) {
-            ls_strcat(lsfLogDir, sizeof(lsfLogDir),
-                      daemonParams[LSF_LOGDIR].paramValue);
-        } else {
-            lsfLogDir[0] = '\0';
-        }
-    }
-
-    if (options == 1) {
-        struct config_param *plp;
-        for (plp = daemonParams; plp->paramName != NULL; plp++) {
-            if (plp->paramValue != NULL)
-                FREEUP(plp->paramValue);
-        }
-
-        if (initenv_(daemonParams, env_dir) < 0) {
-            ls_openlog("sbatchd", daemonParams[LSF_LOGDIR].paramValue,
-                       (debug > 1), daemonParams[LSF_LOG_MASK].paramValue);
-            ls_syslog(LOG_ERR, "%s", __func__, "initenv_");
-            die(SLAVE_FATAL);
-            return -1;
-        }
-
-        getLogClass_(daemonParams[LSB_DEBUG_SBD].paramValue,
-                     daemonParams[LSB_TIME_SBD].paramValue);
-        closelog();
-        if (debug > 1)
-            ls_openlog("sbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
-                       daemonParams[LSF_LOG_MASK].paramValue);
-        else
-            ls_openlog("sbatchd", daemonParams[LSF_LOGDIR].paramValue, FALSE,
-                       daemonParams[LSF_LOG_MASK].paramValue);
-
-        if (logclass & LC_TRACE)
-            ls_syslog(LOG_DEBUG, "%s: logclass=%x", fname, logclass);
-
-        cleanDynDbgEnv();
-
-        return LSBE_NO_ERROR;
-    }
-
-    if (operation == SBD_DEBUG) {
-        putMaskLevel(level, &(daemonParams[LSF_LOG_MASK].paramValue));
-
-        if (newClass >= 0) {
-            logclass = newClass;
-
-            sprintf(dynDbgEnv, "%d", logclass);
-            putEnv("DYN_DBG_LOGCLASS", dynDbgEnv);
-        }
-
-        if (pdebug->level >= 0) {
-            closelog();
-
-            if (debug > 1)
-                ls_openlog(logFileName, lsfLogDir, TRUE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-            else
-                ls_openlog(logFileName, lsfLogDir, FALSE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-
-            putEnv("DYN_DBG_LOGDIR", lsfLogDir);
-            putEnv("DYN_DBG_LOGFILENAME", logFileName);
-            sprintf(dynDbgEnv, "%d", pdebug->level);
-            putEnv("DYN_DBG_LOGLEVEL", dynDbgEnv);
-        }
-    } else if (operation == SBD_TIMING) {
-        if (level >= 0)
-            timinglevel = level;
-        if (pdebug->logFileName[0] != '\0') {
-            if (debug > 1)
-                ls_openlog(logFileName, lsfLogDir, TRUE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-            else
-                ls_openlog(logFileName, lsfLogDir, FALSE,
-                           daemonParams[LSF_LOG_MASK].paramValue);
-        }
-    } else {
-        ls_perror("No this debug command!\n");
-        return -1;
-    }
-    return LSBE_NO_ERROR;
-}
-
-void do_sbdDebug(XDR *xdrs, int chfd, struct packet_header *reqHdr)
-{
-    static char fname[] = "do_sbdDebug";
-    struct debugReq debugReq;
-    char reply_buf[MSGSIZE / 8];
-    XDR xdrs2;
-    sbdReplyType reply;
-    struct packet_header replyHdr;
-
-    if (!xdr_debugReq(xdrs, &debugReq, reqHdr)) {
-        reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_debugReq");
-    } else
-        reply = ctrlSbdDebug(&debugReq);
-    xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 8, XDR_ENCODE);
-    init_pack_hdr(&replyHdr);
-    replyHdr.operation = reply;
-    if (!xdr_encodeMsg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
-        xdr_destroy(&xdrs2);
-        return;
-    }
-
-    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s: Sending  reply to master failed : %m", fname);
-        xdr_destroy(&xdrs2);
-        return;
-    }
-    xdr_destroy(&xdrs2);
-    return;
-}
-
 void do_shutdown(XDR *xdrs, int chfd, struct packet_header *reqHdr)
 {
     static char fname[] = "do_shutdown()";
@@ -1278,7 +1124,7 @@ void do_lsbMsg(XDR *xdrs, int s, struct packet_header *reqHdr)
     int found = FALSE;
     struct jobCard *jp = NULL;
     int ret, cnt;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int freeMsg = FALSE;
 
     if (logclass & LC_TRACE)
@@ -1375,7 +1221,7 @@ static int replyHdrWithRC(int rc, int chfd, int jobId)
     XDR xdrs2;
     char reply_buf[MSGSIZE];
     struct packet_header replyHdr;
-    LS_LONG_INT tmpJobId;
+    int64_t tmpJobId;
 
     init_pack_hdr(&replyHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);

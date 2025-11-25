@@ -1518,7 +1518,7 @@ static int send_results(struct jobCard *jp)
     char mailSizeStr[MAXFILENAMELEN];
     struct stat outfileStat;
     long mailSizeLimit = 0;
-    LS_LONG_INT submitJid;
+    int64_t submitJid;
     char jobIdStr[32];
 
     int copyStdoutFromLsbatch = TRUE;

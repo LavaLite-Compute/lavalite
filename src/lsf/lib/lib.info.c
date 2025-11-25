@@ -81,11 +81,7 @@ char *ls_getclustername(void)
 
 char *ls_getmastername(void)
 {
-    static char fname[] = "ls_getmastername";
-    static char master[MAXHOSTNAMELEN];
-
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
+    static __thread char master[MAXHOSTNAMELEN];
 
     if (getname_(LIM_GET_MASTINFO, master, MAXHOSTNAMELEN) < 0)
         return NULL;

@@ -23,8 +23,8 @@
 #include "bhist.h"
 
 extern void initTab(struct hTab *tabPtr);
-extern hEnt *addMemb(struct hTab *tabPtr, LS_LONG_INT member);
-extern char remvMemb(struct hTab *tabPtr, LS_LONG_INT member);
+extern hEnt *addMemb(struct hTab *tabPtr, int64_t member);
+extern char remvMemb(struct hTab *tabPtr, int64_t member);
 extern int matchName(char *, char *);
 
 static void inJobList(struct jobRecord *pred, struct jobRecord *entry);
@@ -578,7 +578,7 @@ struct jobRecord *read_startjob(struct eventRec *log)
     struct jobRecord *jobRecord;
     struct jobStartLog *jobStartLog;
     int i;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     hEnt *ent;
 
     if (log->type == EVENT_JOB_EXECUTE)
@@ -661,7 +661,7 @@ char read_newstat(struct eventRec *log)
     struct jobRecord *jobRecord;
     struct jobStatusLog *jobStatusLog;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = GET_JOBID(log->eventLog.jobStatusLog.jobId,
                       log->eventLog.jobStatusLog.idx);
@@ -707,7 +707,7 @@ char read_sigact(struct eventRec *log)
     struct jobRecord *jobRecord;
     struct sigactLog *sigactLog;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId =
         GET_JOBID(log->eventLog.sigactLog.jobId, log->eventLog.sigactLog.idx);
@@ -748,7 +748,7 @@ char read_jobrequeue(struct eventRec *log)
     struct eventRecord *event;
     struct jobRecord *jobRecord;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = GET_JOBID(log->eventLog.jobRequeueLog.jobId,
                       log->eventLog.jobRequeueLog.idx);
@@ -776,7 +776,7 @@ char read_chkpnt(struct eventRec *log)
     struct jobRecord *jobRecord;
     struct chkpntLog *chkLog;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId =
         GET_JOBID(log->eventLog.chkpntLog.jobId, log->eventLog.chkpntLog.idx);
@@ -813,7 +813,7 @@ char read_mig(struct eventRec *log)
     struct migLog *migLog;
     hEnt *ent;
     int i;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId =
         GET_JOBID(log->eventLog.sigactLog.jobId, log->eventLog.sigactLog.idx);
@@ -858,7 +858,7 @@ char read_signal(struct eventRec *log)
     struct eventRecord *event;
     struct jobRecord *jobRecord;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId =
         GET_JOBID(log->eventLog.signalLog.jobId, log->eventLog.signalLog.idx);
@@ -893,7 +893,7 @@ char read_jobstartaccept(struct eventRec *log)
     struct eventRecord *event;
     struct jobRecord *jobRecord;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = GET_JOBID(log->eventLog.jobStartAcceptLog.jobId,
                       log->eventLog.jobStartAcceptLog.idx);
@@ -922,7 +922,7 @@ char read_jobmsg(struct eventRec *log)
     struct eventRecord *event;
     struct jobRecord *jobRecord;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId =
         GET_JOBID(log->eventLog.jobMsgLog.jobId, log->eventLog.jobMsgLog.idx);
@@ -964,7 +964,7 @@ char read_jobmsgack(struct eventRec *log)
     struct eventRecord *event;
     struct jobRecord *jobRecord;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = GET_JOBID(log->eventLog.jobMsgAckLog.jobId,
                       log->eventLog.jobMsgAckLog.idx);
@@ -1008,7 +1008,7 @@ char read_switch(struct eventRec *log)
     struct eventRecord *event;
     struct jobRecord *jobRecord;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = GET_JOBID(log->eventLog.jobSwitchLog.jobId,
                       log->eventLog.jobSwitchLog.idx);
@@ -1044,7 +1044,7 @@ char read_jobmove(struct eventRec *log)
     struct eventRecord *event;
     struct jobRecord *jobRecord;
     hEnt *ent;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId =
         GET_JOBID(log->eventLog.jobMoveLog.jobId, log->eventLog.jobMoveLog.idx);
@@ -1100,7 +1100,7 @@ char read_jobforce(struct eventRec *log)
     struct eventRecord *event;
     hEnt *ent;
     struct jobRecord *jobRecord;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = GET_JOBID(log->eventLog.jobForceRequestLog.jobId,
                       log->eventLog.jobForceRequestLog.idx);
@@ -1289,8 +1289,8 @@ void parse_event(struct eventRec *log, struct bhistReq *Req)
                 oldjobnum = Req->numJobs;
                 Req->numJobs += getSpecIdxs(Req->jobName, &idxList);
                 if (Req->numJobs - oldjobnum > 0) {
-                    Req->jobIds = (LS_LONG_INT *) realloc(
-                        Req->jobIds, Req->numJobs * sizeof(LS_LONG_INT));
+                    Req->jobIds = (int64_t *) realloc(
+                        Req->jobIds, Req->numJobs * sizeof(int64_t));
                     if (Req->jobIds == NULL) {
                         perror("realloc");
                         exit(-1);
@@ -1408,7 +1408,7 @@ void parse_event(struct eventRec *log, struct bhistReq *Req)
     case EVENT_JOB_MODIFY2: {
         int array_jobId = 0, array_ele = 0;
         int numEles = 0, *idxList = NULL, i = 0;
-        LS_LONG_INT jobId;
+        int64_t jobId;
 
         numEles = getSpecIdxs(log->eventLog.jobModLog.jobIdStr, &idxList);
 
@@ -1433,7 +1433,7 @@ void parse_event(struct eventRec *log, struct bhistReq *Req)
             hEnt *hEntPtr = h_firstEnt_(&jobIdHT, &hashSearchPtr);
 
             while (hEntPtr) {
-                LS_LONG_INT tmpId;
+                int64_t tmpId;
                 int tmpArrId;
                 tmpId = atoi64_(hEntPtr->keyname);
                 tmpArrId = LSB_ARRAY_JOBID(tmpId);
@@ -1602,7 +1602,7 @@ static struct jobRecord *createJobRec(int jobId)
     return (newjobRecord);
 }
 
-int matchJobId(struct bhistReq *Req, LS_LONG_INT jobId)
+int matchJobId(struct bhistReq *Req, int64_t jobId)
 {
     int i;
 

@@ -30,7 +30,7 @@ static void usage(char *cmd)
 void bmove(int argc, char **argv, int opCode)
 {
     int position, reqPos;
-    LS_LONG_INT jobId = 0;
+    int64_t jobId = 0;
     int achar;
     extern int optind, opterr;
 

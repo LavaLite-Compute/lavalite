@@ -20,7 +20,7 @@
 
 #include "lsbatch/lib/lsb.h"
 
-int lsb_msgjob(LS_LONG_INT jobId, char *msg)
+int lsb_msgjob(int64_t jobId, char *msg)
 {
     struct lsbMsg jmsg;
     char src[LSB_MAX_SD_LENGTH];
@@ -63,9 +63,7 @@ int lsb_msgjob(LS_LONG_INT jobId, char *msg)
         return -1;
     }
 
-    cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL,
-                 NULL, NULL);
-
+    cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL);
     if (cc < 0) {
         xdr_destroy(&xdrs);
         return -1;

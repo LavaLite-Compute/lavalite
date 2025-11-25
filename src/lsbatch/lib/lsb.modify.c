@@ -21,15 +21,15 @@
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/lib/lsb.spool.h"
 
-static LS_LONG_INT sendModifyReq(struct modifyReq *, struct submitReply *,
+static int64_t sendModifyReq(struct modifyReq *, struct submitReply *,
                                  struct lsfAuth *);
 static int esubValModify(struct submit *);
 extern void makeCleanToRunEsub();
 extern void modifyJobInformation(struct submit *);
 
-LS_LONG_INT
+int64_t
 lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep,
-           LS_LONG_INT job)
+           int64_t job)
 {
     struct modifyReq modifyReq;
     int i;
@@ -38,7 +38,7 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep,
     char resReq[MAXLINELEN], cmd[MAXLINELEN];
     struct jobInfoEnt *jInfo;
     LSB_SUB_SPOOL_FILE_T subSpoolFiles;
-    LS_LONG_INT jobId = -1;
+    int64_t jobId = -1;
     int loop;
 
     subSpoolFiles.inFileSpool[0] = 0;
@@ -100,8 +100,8 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep,
         goto cleanup;
     }
 
-    if (lsb_openjobinfo(job, NULL, NULL, NULL, NULL, 0) >= 0 &&
-        (jInfo = lsb_readjobinfo(NULL)) != NULL) {
+    if (lsb_openjobinfo(job, NULL, NULL, NULL, NULL, 0) &&
+        (jInfo = lsb_readjobinfo()) != NULL) {
         if ((jobSubReq->termTime != 0 &&
              jobSubReq->termTime != DELETE_NUMBER) &&
             jobSubReq->beginTime == 0 &&
@@ -127,37 +127,10 @@ lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep,
 
 cleanup:
 
-    if (jobId < 0) {
-#if 0
-        const char* spoolHost;
-
-        // Bug we dont use spool
-        if (subSpoolFiles.inFileSpool[0]) {
-            spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.inFileSpool);
-            err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.inFileSpool);
-            if (err) {
-                fprintf(stderr,
-                        ("Modification failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
-                        subSpoolFiles.inFileSpool, spoolHost);
-            }
-        }
-
-        if (subSpoolFiles.commandSpool[0]) {
-            spoolHost = getSpoolHostBySpoolFile(subSpoolFiles.commandSpool);
-            err = chUserRemoveSpoolFile(spoolHost, subSpoolFiles.commandSpool);
-            if (err) {
-                fprintf(stderr,
-                        ("Modification failed, and the spooled file <%s> can not be removed on host <%s>, please manually remove it"),
-                        subSpoolFiles.commandSpool, spoolHost);
-            }
-        }
-#endif
-    }
-
     return jobId;
 }
 
-static LS_LONG_INT sendModifyReq(struct modifyReq *modifyReq,
+static int64_t sendModifyReq(struct modifyReq *modifyReq,
                                  struct submitReply *submitReply,
                                  struct lsfAuth *auth)
 {
@@ -165,10 +138,9 @@ static LS_LONG_INT sendModifyReq(struct modifyReq *modifyReq,
     XDR xdrs;
     char request_buf[2 * MSGSIZE];
     char *reply_buf;
-    int cc;
     struct packet_header hdr;
     struct submitMbdReply *reply;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     mbdReqtype = BATCH_JOB_MODIFY;
     xdrmem_create(&xdrs, request_buf, 2 * MSGSIZE, XDR_ENCODE);
@@ -179,8 +151,8 @@ static LS_LONG_INT sendModifyReq(struct modifyReq *modifyReq,
         lsberrno = LSBE_XDR;
         return -1;
     }
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                      NULL, NULL, NULL)) < 0) {
+    int cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL);
+    if (cc < 0) {
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -277,8 +249,7 @@ int lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
         lsberrno = LSBE_XDR;
         return -1;
     }
-    if (callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL,
-                NULL, NULL) < 0) {
+    if (call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL) < 0) {
         xdr_destroy(&xdrs);
         return -1;
     }

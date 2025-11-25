@@ -33,7 +33,6 @@ struct queueInfoEnt *lsb_queueinfo(char **queues, int *numQueues, char *hosts,
     char *reply_buf;
     int cc, i;
     static struct packet_header hdr;
-    char *clusterName = NULL;
 
     (void) options;
     if (qInfo != NULL) {
@@ -128,8 +127,8 @@ struct queueInfoEnt *lsb_queueinfo(char **queues, int *numQueues, char *hosts,
         return NULL;
     }
 
-    if ((cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                      &hdr, NULL, NULL, NULL)) == -1) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf,
+                      &hdr, NULL)) < 0) {
         xdr_destroy(&xdrs);
         free(request_buf);
         return NULL;

@@ -31,7 +31,6 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
     static struct resourceInfoReply lsbResourceInfoReply;
     struct resourceInfoReq resourceInfoReq;
     int cc = 0, i;
-    char *clusterName = NULL;
     static struct packet_header hdr;
     char *request_buf;
     char *reply_buf;
@@ -93,11 +92,7 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
         }
         resourceInfoReq.numResourceNames = *numResources;
     }
-    if (hostName != NULL) {
-        clusterName = hostName;
-        cc += MAXHOSTNAMELEN;
-    } else
-        resourceInfoReq.hostName = " ";
+    resourceInfoReq.hostName = " ";
 
     mbdReqtype = BATCH_RESOURCE_INFO;
     cc = sizeof(struct resourceInfoReq) + cc + 100;
@@ -116,8 +111,8 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
         return NULL;
     }
 
-    if ((cc = callmbd(clusterName, request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                      &hdr, NULL, NULL, NULL)) == -1) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf,
+                       &hdr, NULL)) == -1) {
         xdr_destroy(&xdrs);
         FREE_MEMORY;
         return NULL;

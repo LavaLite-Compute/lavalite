@@ -77,7 +77,7 @@ struct bhistReq {
     time_t searchTime[2];
     float cpuFactor;
     int numJobs;
-    LS_LONG_INT *jobIds;
+    int64_t *jobIds;
     char *jobName;
     int numLogFile;
     int numMinLogFile;
@@ -186,9 +186,9 @@ extern struct jobRecord *initJobList(void);
 extern void removeJobList(struct jobRecord *);
 extern struct jobInfoEnt *initJobInfo(void);
 extern char read_jobrequeue(struct eventRec *);
-extern int matchJobId(struct bhistReq *, LS_LONG_INT);
+extern int matchJobId(struct bhistReq *, int64_t);
 
-extern hEnt *chekMemb(struct hTab *tabPtr, LS_LONG_INT member);
+extern hEnt *chekMemb(struct hTab *tabPtr, int64_t member);
 extern void parse_event(struct eventRec *, struct bhistReq *);
 extern int bhistReqInit(struct bhistReq *);
 

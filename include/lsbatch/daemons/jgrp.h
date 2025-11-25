@@ -126,7 +126,7 @@ extern void updJgrpCountByOp(struct jgTreeNode *, int);
 extern char *myName(char *);
 extern void freeJarray(struct jarray *);
 extern void checkJgrpDep(void);
-extern int inIdxList(LS_LONG_INT, struct idxList *);
+extern int inIdxList(int64_t, struct idxList *);
 extern int matchName(char *, char *);
 extern struct jgTreeNode *treeNextSib(struct jgTreeNode *);
 extern char *jgrpNodeParentPath(struct jgTreeNode *);

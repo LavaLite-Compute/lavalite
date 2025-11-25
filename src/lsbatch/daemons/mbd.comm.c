@@ -1,5 +1,6 @@
-/* $Id: mbd.comm.c,v 1.8 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,28 +21,22 @@
 #include "lsbatch/daemons/mbd.h"
 
 extern int connTimeout;
-static sbdReplyType callSBD(char *, char *, int, char **,
-                            struct packet_header *, int (*)(),
-                            int *postSndFuncArg, struct hData *, char *, char *,
-                            int *, int *, int, struct sbdNode *, int *);
 
-#ifdef INTER_DAEMON_AUTH
-static int getMbdAuth(struct lsfAuth *, char *);
-#endif
+// enqueue a message to sbatchd
+static sbdReplyType call_sbd(char *, char *, int, struct sbdNode *);
 
 extern sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
                                struct jobReply *jobReply);
 
-struct sbdNode sbdNodeList = {&sbdNodeList, &sbdNodeList, 0, NULL, NULL, 0};
+// Inititlize the sbd node list
+struct sbdNode sbdNodeList = {
+    .forw = &sbdNodeList,
+    .back = &sbdNodeList
+};
+
 
 sbdReplyType start_job(struct jData *jDataPtr, struct qData *qp,
                        struct jobReply *jobReply)
-{
-    return (start_ajob(jDataPtr, qp, jobReply));
-}
-
-sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
-                        struct jobReply *jobReply)
 {
     static char fname[] = "start_job";
     struct jobSpecs jobSpecs;
@@ -50,15 +45,12 @@ sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
     char *reply_buf = NULL;
     XDR xdrs;
     sbdReplyType reply;
-    int cc, buflen, i;
-    static char lastHost[MAXHOSTNAMELEN];
+    int buflen, i;
     struct hData *hostData = jDataPtr->hPtr[0];
     char *toHost = jDataPtr->hPtr[0]->host;
     struct lenData jf;
     struct lenData aux_auth_data;
-    static int errcnt;
     struct sbdNode sbdNode;
-    int socket;
     struct lsfAuth *auth = NULL;
 
     if (logclass & (LC_SCHED | LC_EXEC))
@@ -102,22 +94,6 @@ sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
         }
     }
 
-#ifdef INTER_DAEMON_AUTH
-    struct lsfAuth auth_data;
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-        int ret;
-        writeEauthAuxData(&aux_auth_data);
-        ret = getMbdAuth(&auth_data, toHost);
-        removeFile("LSF_EAUTH_AUX_DATA");
-        if (ret < 0) {
-            freeJobSpecs(&jobSpecs);
-            free(jf.data);
-            return ERR_FAIL;
-        }
-        auth = &auth_data;
-    }
-#endif
-
     hdr.operation = MBD_NEW_JOB;
     buflen = sizeof(struct jobSpecs) + sizeof(struct sbdPackage) + 100 +
              jobSpecs.numToHosts * MAXHOSTNAMELEN +
@@ -126,9 +102,7 @@ sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
              jobSpecs.nxf * sizeof(struct xFile) + jobSpecs.eexec.len;
     for (i = 0; i < jobSpecs.numEnv; i++)
         buflen += strlen(jobSpecs.env[i]);
-#ifdef INTER_DAEMON_AUTH
-    buflen += xdr_lsfAuthSize(auth);
-#endif
+
     request_buf = (char *) my_malloc(buflen, fname);
     xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs, (char *) &jobSpecs, &hdr, xdr_jobSpecs, 0,
@@ -145,11 +119,7 @@ sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
     sbdNode.hData = hostData;
     sbdNode.reqCode = MBD_NEW_JOB;
 
-    reply =
-        callSBD(toHost, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                sndJobFile_, (int *) &jf, hostData, lastHost, fname, &errcnt,
-                &cc, CALL_SERVER_NO_WAIT_REPLY | CALL_SERVER_NO_HANDSHAKE,
-                &sbdNode, &socket);
+    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
 
     xdr_destroy(&xdrs);
     free(request_buf);
@@ -186,13 +156,10 @@ sbdReplyType switch_job(struct jData *jDataPtr, int options)
     char *reply_buf = NULL;
     XDR xdrs;
     sbdReplyType reply;
-    int buflen, cc;
-    static char lastHost[MAXHOSTNAMELEN];
-    static int errcnt;
+    int buflen;
     struct hData *HostData = jDataPtr->hPtr[0];
     char *toHost = jDataPtr->hPtr[0]->host;
     struct sbdNode sbdNode;
-    int socket;
     struct lsfAuth *auth = NULL;
 
     if (logclass & (LC_SIGNAL | LC_EXEC))
@@ -200,16 +167,6 @@ sbdReplyType switch_job(struct jData *jDataPtr, int options)
                   lsb_jobid2str(jDataPtr->jobId));
 
     packJobSpecs(jDataPtr, &jobSpecs);
-
-#ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getMbdAuth(&auth_data, toHost)) {
-            freeJobSpecs(&jobSpecs);
-            return ERR_FAIL;
-        }
-        auth = &auth_data;
-    }
-#endif
 
     if (options == TRUE) {
         hdr.operation = MBD_SWIT_JOB;
@@ -222,9 +179,7 @@ sbdReplyType switch_job(struct jData *jDataPtr, int options)
                  sizeof(float) +
              jobSpecs.nxf * sizeof(struct xFile);
     buflen = (buflen * 4) / 4;
-#ifdef INTER_DAEMON_AUTH
-    buflen += xdr_lsfAuthSize(auth);
-#endif
+
     request_buf = (char *) my_malloc(buflen, fname);
     xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs, (char *) &jobSpecs, &hdr, xdr_jobSpecs, 0,
@@ -244,10 +199,8 @@ sbdReplyType switch_job(struct jData *jDataPtr, int options)
         sbdNode.reqCode = MBD_MODIFY_JOB;
     }
 
-    reply = callSBD(toHost, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                    NULL, NULL, HostData, lastHost, fname, &errcnt, &cc,
-                    CALL_SERVER_NO_WAIT_REPLY | CALL_SERVER_NO_HANDSHAKE,
-                    &sbdNode, &socket);
+    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
+
     xdr_destroy(&xdrs);
     free(request_buf);
     freeJobSpecs(&jobSpecs);
@@ -274,18 +227,13 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
     static char fname[] = "signal_job";
     struct packet_header hdr;
     char request_buf[MSGSIZE];
-    char *reply_buf;
     XDR xdrs;
     sbdReqType reqCode;
     sbdReplyType reply;
     struct jobSig jobSig;
-    static char lastHost[MAXHOSTNAMELEN];
-    static int errcnt;
     struct hData *hostData = jp->hPtr[0];
     char *toHost = jp->hPtr[0]->host;
-    int cc;
     struct sbdNode sbdNode;
-    int socket;
     struct lsfAuth *auth = NULL;
 
     jobSig.jobId = jp->jobId;
@@ -300,16 +248,6 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
         ls_syslog(LOG_DEBUG, "%s: Job %s encoded sigValue %d actFlags %x",
                   fname, lsb_jobid2str(jobSig.jobId), jobSig.sigValue,
                   jobSig.actFlags);
-
-#ifdef INTER_DAEMON_AUTH
-    struct lsfAuth auth_data;
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getMbdAuth(&auth_data, toHost)) {
-            return ERR_FAIL;
-        }
-        auth = &auth_data;
-    }
-#endif
 
     reqCode = MBD_SIG_JOB;
     xdrmem_create(&xdrs, request_buf, MSGSIZE / 2, XDR_ENCODE);
@@ -326,10 +264,7 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
     sbdNode.sigVal = sendReq->sigValue;
     sbdNode.sigFlags = sendReq->actFlags;
 
-    reply = callSBD(toHost, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                    NULL, NULL, hostData, lastHost, fname, &errcnt, &cc,
-                    CALL_SERVER_NO_WAIT_REPLY | CALL_SERVER_NO_HANDSHAKE,
-                    &sbdNode, &socket);
+    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
     xdr_destroy(&xdrs);
 
     if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
@@ -358,25 +293,13 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
     return reply;
 }
 
+// Bug this function does not make any sense
 sbdReplyType msg_job(struct jData *jp, struct Buffer *mbuf,
                      struct jobReply *jobReply)
 {
-    static char fname[] = "msg_job";
-    struct packet_header hdr;
-    char *reply_buf;
-    sbdReplyType reply;
-    static char lastHost[MAXHOSTNAMELEN];
-    static int errcnt;
-    struct hData *hostData = jp->hPtr[0];
     char *toHost = jp->hPtr[0]->host;
-    int cc;
 
-    if (logclass & (LC_SIGNAL | LC_EXEC))
-        ls_syslog(LOG_DEBUG2, "%s: job=%s", fname, lsb_jobid2str(jp->jobId));
-
-    reply = callSBD(toHost, mbuf->data, mbuf->len, &reply_buf, &hdr, NULL, NULL,
-                    hostData, lastHost, fname, &errcnt, &cc, 0, NULL, NULL);
-
+    sbdReplyType reply = call_sbd(toHost, mbuf->data, mbuf->len, NULL);
     if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
         return reply;
 
@@ -389,15 +312,11 @@ sbdReplyType msg_job(struct jData *jp, struct Buffer *mbuf,
         break;
 
     default:
-        ls_syslog(
-            LOG_ERR,
-            "%s: Job <%s>: Illegal reply code <%d> from sbatchd on host <%s>",
-            fname, lsb_jobid2str(jp->jobId), reply, toHost);
+        ls_syslog(LOG_ERR, "%s: job <%s>: illegal reply code <%d> from host <%s>",
+                  __func__, lsb_jobid2str(jp->jobId), reply, toHost);
         reply = ERR_BAD_REPLY;
     }
 
-    if (reply_buf)
-        free(reply_buf);
     return reply;
 }
 
@@ -406,16 +325,12 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
     static char fname[] = "probe_slave";
     char *request_buf, *reply_buf = NULL;
     int buflen = 0;
-    static char lastHost[MAXHOSTNAMELEN];
-    static int errcnt = -1;
     struct sbdPackage sbdPackage;
     XDR xdrs;
-    int i, cc;
+    int i;
     sbdReplyType reply;
     struct packet_header hdr;
     char *toHost = hData->host;
-    int *sockPtr;
-    int socket;
     struct packet_header hdrBuf;
     struct sbdNode sbdNode;
     struct lsfAuth *auth = NULL;
@@ -425,15 +340,6 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
         ls_syslog(LOG_DEBUG, "%s: Probing <%s> sendJobs %d", fname, toHost,
                   sendJobs);
 
-#ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getMbdAuth(&auth_data, toHost)) {
-            return ERR_FAIL;
-        }
-        auth = &auth_data;
-    }
-#endif
-
     if (sendJobs) {
         if ((sbdPackage.numJobs = countNumSpecs(hData)) > 0)
             sbdPackage.jobs = (struct jobSpecs *) my_calloc(
@@ -442,14 +348,12 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
             sbdPackage.numJobs = 0;
             sbdPackage.jobs = NULL;
         }
+
         buflen = sbatchdJobs(&sbdPackage, hData);
-#ifdef INTER_DAEMON_AUTH
-        buflen += xdr_lsfAuthSize(auth);
-#endif
         hdr.operation = MBD_PROBE;
         request_buf = (char *) my_malloc(buflen, fname);
         xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
-        if (!xdr_encodeMsg(&xdrs, (char *) &sbdPackage, &hdr, xdr_sbdPackage, 0,
+        if (!xdr_encodeMsg(&xdrs,(char *)&sbdPackage, &hdr, xdr_sbdPackage, 0,
                            auth)) {
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
             xdr_destroy(&xdrs);
@@ -463,49 +367,24 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
                 free(sbdPackage.jobs);
             return ERR_FAIL;
         }
-        sockPtr = &socket;
     } else {
         hdr.operation = MBD_PROBE;
         hdr.length = 0;
-#ifdef INTER_DAEMON_AUTH
-        buflen = sizeof(hdrBuf);
-        buflen += xdr_lsfAuthSize(auth);
-        request_buf = (char *) my_malloc(buflen, fname);
-        xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
-#else
         request_buf = (char *) &hdrBuf;
         xdrmem_create(&xdrs, request_buf, sizeof(hdrBuf), XDR_ENCODE);
-#endif
+
         if (!xdr_pack_hdr(&xdrs, &hdr)) {
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
             xdr_destroy(&xdrs);
-#ifdef INTER_DAEMON_AUTH
-            free(request_buf);
-#endif
             return ERR_FAIL;
         }
-#ifdef INTER_DAEMON_AUTH
-        if (auth) {
-            if (!xdr_lsfAuth(&xdrs, auth, &hdr)) {
-                ls_syslog(LOG_ERR, "%s", __func__, "xdr_lsfAuth");
-                xdr_destroy(&xdrs);
-                free(request_buf);
-                return ERR_FAIL;
-            }
-        }
-#endif
-        sockPtr = NULL;
     }
 
     sbdNode.jData = NULL;
     sbdNode.hData = hData;
     sbdNode.reqCode = MBD_PROBE;
 
-    errcnt = -10;
-    reply = callSBD(toHost, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                    NULL, NULL, hData, lastHost, fname, &errcnt, &cc,
-                    CALL_SERVER_NO_WAIT_REPLY | CALL_SERVER_NO_HANDSHAKE,
-                    &sbdNode, sockPtr);
+    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
     xdr_destroy(&xdrs);
 
     if (sendJobs) {
@@ -518,11 +397,6 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
         if (sbdPackage.jobs)
             free(sbdPackage.jobs);
     }
-#ifdef INTER_DAEMON_AUTH
-    else {
-        free(request_buf);
-    }
-#endif
 
     if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
         return reply;
@@ -543,311 +417,46 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
     return reply;
 }
 
-sbdReplyType rebootSbd(char *host)
+/* Bug for now return sbdReplyType
+ */
+sbdReplyType call_sbd(char *toHost, char *request_buf, int len,
+                      struct sbdNode *sbdPtr)
 {
-    static char fname[] = "rebootSbd";
-    sbdReplyType reply;
-    char request_buf[MSGSIZE];
-    char *reply_buf;
-    XDR xdrs;
-    struct hData *hData;
-    static char lastHost[MAXHOSTNAMELEN];
-    static int errcnt;
-    struct packet_header hdr;
-    int cc;
-    struct lsfAuth *auth = NULL;
+    int ch_id = serv_connect(toHost, sbd_port, connTimeout);
+    if (ch_id < 0)
+        return ERR_UNREACH_SBD;
 
-#ifdef INTER_DAEMON_AUTH
-    struct lsfAuth auth_data;
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getMbdAuth(&auth_data, host)) {
-            return ERR_FAIL;
-        }
-        auth = &auth_data;
-    }
-#endif
-
-    hdr.operation = MBD_REBOOT;
-    xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs, NULL, &hdr, NULL, 0, auth)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
-        xdr_destroy(&xdrs);
+    // Make socket non-blocking for async I/O
+    if (io_nonblock_(ch_id) < 0) {
+        chan_close(ch_id);
+        lsberrno = LSBE_SYS_CALL;
         return ERR_FAIL;
     }
 
-    if ((hData = getHostData(host)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Failed to get hData of host <%s>", fname, host);
+    struct Buffer *buf;
+    if (chan_alloc_buf(&buf, len) < 0) {
+        chan_close(ch_id);
+        lsberrno = LSBE_NO_MEM;
+        return ERR_MEM;
+    }
+
+    memcpy(buf->data, request_buf, len);
+    buf->len = len;
+
+    if (chan_enqueue(ch_id, buf) < 0) {
+        chan_free_buf(buf);
+        chan_close(ch_id);
+        lsberrno = LSBE_SYS_CALL;
         return ERR_FAIL;
     }
 
-    reply =
-        callSBD(host, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL,
-                NULL, hData, lastHost, fname, &errcnt, &cc, 0, NULL, NULL);
-    xdr_destroy(&xdrs);
+    struct sbdNode *node = calloc(1, sizeof(struct sbdNode));
+    memcpy(node, sbdPtr, sizeof(struct sbdNode));
+    node->chanfd = ch_id;
+    node->lastTime = now;
 
-    if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
-        return reply;
+    inList((struct listEntry *)&sbdNodeList, (struct listEntry *) node);
+    nSbdConnections++;
 
-    if (reply != ERR_NO_ERROR)
-        ls_syslog(LOG_ERR,
-                  "%s: Illegal reply code <%d> from sbatchd on host <%s>",
-                  fname, reply, host);
-
-    return reply;
+    return ERR_NO_ERROR;  // Success - reply comes async
 }
-
-sbdReplyType shutdownSbd(char *host)
-{
-    static char fname[] = "shutdownSbd";
-    sbdReplyType reply;
-    char request_buf[MSGSIZE];
-    char *reply_buf;
-    XDR xdrs;
-    static char lastHost[MAXHOSTNAMELEN];
-    static int errcnt;
-    struct hData *hData;
-    struct packet_header hdr;
-    int cc;
-    struct lsfAuth *auth = NULL;
-
-#ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getMbdAuth(&auth_data, host)) {
-            return ERR_FAIL;
-        }
-        auth = &auth_data;
-    }
-#endif
-
-    hdr.operation = MBD_SHUTDOWN;
-    xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs, (char *) NULL, &hdr, NULL, 0, auth)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
-        xdr_destroy(&xdrs);
-        return ERR_FAIL;
-    }
-
-    if ((hData = getHostData(host)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Failed to get hData of host <%s>", fname, host);
-        return ERR_FAIL;
-    }
-
-    reply =
-        callSBD(host, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL,
-                NULL, hData, lastHost, fname, &errcnt, &cc, 0, NULL, NULL);
-    xdr_destroy(&xdrs);
-
-    if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
-        return reply;
-
-    hStatChange(hData, HOST_STAT_UNREACH);
-    if (reply != ERR_NO_ERROR)
-        ls_syslog(LOG_ERR,
-                  "%s: Illegal reply code <%d> from sbatchd on host <%s>",
-                  fname, reply, host);
-
-    return reply;
-}
-
-static sbdReplyType callSBD(char *toHost, char *request_buf, int len,
-                            char **reply_buf, struct packet_header *replyHdr,
-                            int (*postSndFunc)(), int *postSndFuncArg,
-                            struct hData *hPtr, char *lastHost, char *caller,
-                            int *cnt, int *cc, int callServerFlags,
-                            struct sbdNode *sbdPtr, int *sockPtr)
-{
-    static char fname[] = "callSBD";
-    struct sbdNode *newSbdNode;
-
-    if (daemonParams[LSB_MBD_BLOCK_SEND].paramValue == NULL &&
-        strcmp(caller, "msg_job") != 0)
-        callServerFlags |= CALL_SERVER_ENQUEUE_ONLY;
-
-    *cc = call_server(toHost, sbd_port, request_buf, len, reply_buf, replyHdr,
-                      connTimeout, 60 * 30, sockPtr, postSndFunc,
-                      postSndFuncArg, callServerFlags);
-    if (*cc < 0) {
-        if (*cc == -2) {
-            if (lsberrno != LSBE_CONN_REFUSED &&
-                lsberrno != LSBE_CONN_TIMEOUT &&
-                !(lsberrno == LSBE_LSLIB && lserrno == LSE_TIME_OUT)) {
-                return ERR_FAIL;
-            }
-            if (equal_host(toHost, lastHost)) {
-                *cnt = *cnt + 1;
-                if (*cnt >= 5) {
-                    ls_syslog(LOG_ERR,
-                              "%s: Failed to call sbatchd on host <%s>: %s",
-                              caller, toHost, lsb_sysmsg());
-                    ls_syslog(LOG_ERR, "The above failure repeated %d times",
-                              *cnt);
-                    *cnt = 0;
-                }
-            } else if (*cnt >= 0) {
-                strcpy(lastHost, toHost);
-                ls_syslog(LOG_ERR,
-                          "%s: Failed to call sbatchd on host <%s>: %s", caller,
-                          toHost, lsb_sysmsg());
-                *cnt = 1;
-            }
-            if (*cnt >= 0) {
-                hStatChange(hPtr, HOST_STAT_UNREACH);
-            }
-            return ERR_UNREACH_SBD;
-        }
-        lastHost[0] = '\0';
-
-        if (lsberrno == LSBE_NO_MEM)
-            mbdDie(MASTER_MEM);
-
-        if (*cnt >= 0)
-            hStatChange(hPtr, HOST_STAT_OK);
-        *cnt = 0;
-        return ERR_NULL;
-    }
-
-    lastHost[0] = '\0';
-    if (*cnt >= 0)
-        hStatChange(hPtr, HOST_STAT_OK);
-    *cnt = 0;
-
-    if (callServerFlags & CALL_SERVER_NO_WAIT_REPLY) {
-        if (sockPtr) {
-            newSbdNode =
-                (struct sbdNode *) my_malloc(sizeof(struct sbdNode), fname);
-            memcpy((char *) newSbdNode, (char *) sbdPtr,
-                   sizeof(struct sbdNode));
-            newSbdNode->chanfd = *sockPtr;
-            newSbdNode->lastTime = now;
-            if (chan_set_mode(*sockPtr, CHAN_MODE_NONBLOCK) < 0) {
-                ls_syslog(LOG_ERR, "%s", __func__, "chan_set_mode", *sockPtr);
-                free(newSbdNode);
-            } else {
-                inList((struct listEntry *) &sbdNodeList,
-                       (struct listEntry *) newSbdNode);
-                nSbdConnections++;
-            }
-        }
-        return ERR_NO_ERROR;
-    }
-
-    return replyHdr->operation;
-}
-
-sbdReplyType callSbdDebug(struct debugReq *pdebug)
-{
-    static char fname[] = "mbd.serv: callSbddebug()";
-    sbdReplyType reply;
-    char request_buf[MSGSIZE];
-    char *reply_buf;
-    XDR xdrs;
-    static char lastHost[MAXHOSTNAMELEN];
-    static int errcnt;
-    struct hData *hData;
-    struct packet_header hdr;
-    struct debugReq debug;
-    int cc;
-
-    hdr.operation = CMD_SBD_DEBUG;
-    xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-
-    debug.opCode = pdebug->opCode;
-    debug.level = pdebug->level;
-    debug.logClass = pdebug->logClass;
-    debug.options = pdebug->options;
-    strcpy(debug.logFileName, pdebug->logFileName);
-    debug.hostName = NULL;
-
-    if (!xdr_encodeMsg(&xdrs, (char *) &debug, &hdr, xdr_debugReq, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
-        xdr_destroy(&xdrs);
-    }
-
-    if ((hData = getHostData(pdebug->hostName)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Failed to get hData of host <%s>", fname,
-                  pdebug->hostName);
-        return ERR_FAIL;
-    }
-
-    reply = callSBD(pdebug->hostName, request_buf, XDR_GETPOS(&xdrs),
-                    &reply_buf, &hdr, NULL, NULL, hData, lastHost, fname,
-                    &errcnt, &cc, 0, NULL, NULL);
-    xdr_destroy(&xdrs);
-
-    if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
-        return reply;
-    if (reply != ERR_NO_ERROR)
-        ls_syslog(LOG_ERR,
-                  "%s: Illegal reply code <%d> from sbatchd on host <%s>",
-                  fname, reply, pdebug->hostName);
-    return reply;
-}
-
-#ifdef INTER_DAEMON_AUTH
-static int getMbdAuth(struct lsfAuth *auth, char *toHost)
-{
-    char buf[1024];
-
-    sprintf(buf, "mbatchd@%s", clusterName);
-    return getDaemonAuth(auth, toHost, buf, "sbatchd");
-}
-
-int getDaemonAuth(struct lsfAuth *auth, char *toHost, char *client,
-                  char *server)
-{
-    static char fname[] = "getDaemonAuth";
-    int rc;
-
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue == NULL)
-        return 0;
-
-    putEauthClientEnvVar(client);
-    putEauthServerEnvVar(server);
-
-    rc = getAuth_(auth, toHost);
-
-    if (rc) {
-        ls_syslog(LOG_ERR, "%s", __func__, "getAuth_");
-    }
-
-    return rc;
-}
-
-void writeEauthAuxData(struct lenData *aux_auth_data)
-{
-    static char fname[] = "writeEauthAuxData";
-
-    putEauthAuxDataEnvVar(NULL);
-
-    if (aux_auth_data->len) {
-        char *aux_file;
-        int aux_fd;
-
-        aux_file = createTmpFileName(".axmd");
-        aux_fd = open(aux_file, O_WRONLY | O_EXCL | O_CREAT,
-                      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-        if (aux_fd >= 0) {
-            if (write(aux_fd, aux_auth_data->data, aux_auth_data->len) ==
-                aux_auth_data->len) {
-                putEauthAuxDataEnvVar(aux_file);
-                close(aux_fd);
-            } else {
-                ls_syslog(LOG_ERR, "%s", __func__, "write");
-                close(aux_fd);
-                unlink(aux_file);
-            }
-        } else
-            ls_syslog(LOG_ERR, "%s", __func__, "open");
-
-        free(aux_auth_data->data);
-    }
-}
-
-void removeFile(const char *envVar)
-{
-    char *aux_file = getenv(envVar);
-    if (aux_file != NULL && strlen(aux_file) != 0) {
-        unlink(aux_file);
-    }
-}
-#endif

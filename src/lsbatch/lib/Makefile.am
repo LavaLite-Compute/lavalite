@@ -15,14 +15,13 @@ install-exec-hook:
 
 
 libllbat_a_SOURCES = lsb.comm.c \
+	lsb.jobs.c \
 	lsb.conf.c \
-	lsb.debug.c \
 	lsb.err.c \
 	lsb.groups.c \
 	lsb.hc.c \
 	lsb.hosts.c \
 	lsb.init.c \
-	lsb.jobs.c \
 	lsb.log.c \
 	lsb.mig.c \
 	lsb.misc.c \

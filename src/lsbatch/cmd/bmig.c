@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 {
     int cc, i, badHostIdx;
     char *user = NULL, *jobName = NULL;
-    LS_LONG_INT *jobIds;
+    int64_t *jobIds;
     int numJobs = 0;
     struct submig mig;
 

@@ -20,9 +20,8 @@
 
 #include "lsbatch/lib/lsb.h"
 
-char *lsb_peekjob(LS_LONG_INT jobid)
+char *lsb_peekjob(int64_t jobid)
 {
-    static char fname[] = "lsb_peekjob";
     struct jobPeekReq jobPeekReq;
     mbdReqType mbdReqtype;
     XDR xdrs;
@@ -58,8 +57,8 @@ char *lsb_peekjob(LS_LONG_INT jobid)
         return NULL;
     }
 
-    if ((cc = callmbd(NULL, request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                      NULL, NULL, NULL)) == -1) {
+    cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL);
+    if (cc < 0) {
         xdr_destroy(&xdrs);
         return NULL;
     }
@@ -91,65 +90,45 @@ char *lsb_peekjob(LS_LONG_INT jobid)
             return NULL;
         }
 
-        if (logclass & LC_EXEC) {
-            ls_syslog(LOG_DEBUG, "%s: the jobReply.outfile is <%s>", fname,
-                      jobPeekReply.outFile);
-        }
-        pSpoolDirUnix = getUnixSpoolDir(jobPeekReply.pSpoolDir);
+        sprintf(fnBuf, "%s/.lsbatch/%s", pw->pw_dir, jobPeekReply.outFile);
 
-        if ((pSpoolDirUnix != NULL) && access(pSpoolDirUnix, W_OK) == 0) {
-            sprintf(fnBuf, "%s/%s", pSpoolDirUnix, jobPeekReply.outFile);
-        } else {
-            sprintf(fnBuf, "%s/.lsbatch/%s", pw->pw_dir, jobPeekReply.outFile);
+        if (stat(fnBuf, &st) == -1) {
+            pid_t pid;
+            int status;
 
-            if (stat(fnBuf, &st) == -1) {
-                pid_t pid;
-                int status;
+            if (errno == ENOENT ) {
+                if (lsb_openjobinfo(jobid, NULL, NULL, NULL, NULL, 0)
+                    || (jInfo = lsb_readjobinfo()) == NULL) {
+                    lsberrno = LSBE_LSBLIB;
+                    return NULL;
+                }
+                lsb_closejobinfo();
 
-                if (errno == ENOENT && pSpoolDirUnix != NULL) {
-                    if (lsb_openjobinfo(jobid, NULL, NULL, NULL, NULL, 0) < 0 ||
-                        (jInfo = lsb_readjobinfo(NULL)) == NULL) {
-                        lsberrno = LSBE_LSBLIB;
-                        return NULL;
-                    }
-                    lsb_closejobinfo();
+                if ((pid = fork()) == 0) {
+                    // ssh read the job file
+                    exit(false);
+                }
+                if (pid == -1) {
+                    return NULL;
+                }
 
-                    if ((pid = fork()) == 0) {
-#if 0
-                        if (ls_initrex(1,0) < 0) {
-                            exit(false);
-                        }
-                        // Bug we need to rewrite bpeek and we dont support
-                        // remote execution anymore
-
-                        if (ls_rstat(jInfo->exHosts[0], pSpoolDirUnix, &st) == 0) {
-                            ls_donerex();
-                            exit(true);
-                        }
-#endif
-                        exit(false);
-                    }
-                    if (pid == -1) {
-                        return NULL;
-                    }
-
-                    if (waitpid(pid, &status, 0) == -1) {
-                        return NULL;
-                    }
-                    if (WEXITSTATUS(status) == true) {
-                        sprintf(fnBuf, "%s/%s", pSpoolDirUnix,
-                                jobPeekReply.outFile);
-                    } else {
-                        sprintf(fnBuf, ".lsbatch/%s", jobPeekReply.outFile);
-                    }
+                if (waitpid(pid, &status, 0) == -1) {
+                    return NULL;
+                }
+                if (WEXITSTATUS(status) == true) {
+                    sprintf(fnBuf, "%s/%s", pSpoolDirUnix,
+                            jobPeekReply.outFile);
                 } else {
                     sprintf(fnBuf, ".lsbatch/%s", jobPeekReply.outFile);
                 }
+            } else {
+                sprintf(fnBuf, ".lsbatch/%s", jobPeekReply.outFile);
             }
         }
         strcpy(jobPeekReply.outFile, fnBuf);
-        return (jobPeekReply.outFile);
     }
+
+    return jobPeekReply.outFile;
 
     if (cc)
         free(reply_buf);

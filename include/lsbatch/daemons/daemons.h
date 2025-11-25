@@ -17,9 +17,7 @@
  USA
  *
  */
-
-#ifndef DAEMONS_H
-#define DAEMONS_H
+#pragma once
 
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/daemons/daemonout.h"
@@ -174,30 +172,30 @@ extern char errbuf[MAXLINELEN];
 
 typedef enum {
     ERR_NO_ERROR = 1,
-    ERR_BAD_REQ = 2,
-    ERR_NO_JOB = 3,
-    ERR_NO_FILE = 4,
-    ERR_FORK_FAIL = 5,
-    ERR_NO_USER = 6,
-    ERR_LOCK_FAIL = 7,
-    ERR_NO_LIM = 8,
-    ERR_MEM = 9,
-    ERR_NULL = 10,
-    ERR_FAIL = 11,
-    ERR_BAD_REPLY = 12,
-    ERR_JOB_QUOTA = 13,
-    ERR_JOB_FINISH = 14,
-    ERR_CHKPNTING = 15,
-    ERR_ROOT_JOB = 16,
-    ERR_SYSACT_FAIL = 17,
-    ERR_SIG_RETRY = 18,
-    ERR_HOST_BOOT = 20,
-    ERR_PID_FAIL = 21,
-    ERR_SOCKETPAIR = 22,
-    ERR_UNREACH_SBD = 23,
-    ERR_JOB_RETURN = 24,
-    ERR_RESTARTING_FILE = 25,
-    ERR_HANDLE = 26
+    ERR_BAD_REQ,
+    ERR_NO_JOB,
+    ERR_NO_FILE,
+    ERR_FORK_FAIL,
+    ERR_NO_USER,
+    ERR_LOCK_FAIL,
+    ERR_NO_LIM,
+    ERR_MEM,
+    ERR_NULL,
+    ERR_FAIL,
+    ERR_BAD_REPLY,
+    ERR_JOB_QUOTA,
+    ERR_JOB_FINISH,
+    ERR_CHKPNTING,
+    ERR_ROOT_JOB,
+    ERR_SYSACT_FAIL,
+    ERR_SIG_RETRY,
+    ERR_HOST_BOOT,
+    ERR_PID_FAIL,
+    ERR_SOCKETPAIR,
+    ERR_UNREACH_SBD,
+    ERR_JOB_RETURN,
+    ERR_RESTARTING_FILE,
+    ERR_HANDLE
 } sbdReplyType;
 
 #define LOAD_REASONS                                                           \
@@ -212,7 +210,7 @@ struct thresholds {
 };
 
 struct jobSpecs {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     char jobName[MAXLINELEN];
     int jStatus;
     int reasons;
@@ -296,7 +294,7 @@ struct jobSpecs {
 };
 
 struct statusReq {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int jobPid;
     int jobPGid;
     int newStatus;
@@ -346,18 +344,18 @@ struct sbdPackage {
 };
 
 struct jobSig {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int sigValue;
     time_t chkPeriod;
     int actFlags;
     char *actCmd;
     int reasons;
     int subReasons;
-    LS_LONG_INT newJobId;
+    int64_t newJobId;
 };
 
 struct jobReply {
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int jobPid;
     int jobPGid;
     int jStatus;
@@ -372,7 +370,7 @@ enum _bufstat { MSG_STAT_QUEUED, MSG_STAT_SENT, MSG_STAT_RCVD };
 typedef struct proto proto_t;
 struct proto {
     int usrId;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int msgId;
     int type;
     int instance;
@@ -519,7 +517,7 @@ extern struct listEntry *tmpListHeader(struct listEntry *listHeader);
 extern struct tclLsInfo *getTclLsInfo(void);
 extern struct resVal *checkThresholdCond(char *);
 extern int *getResMaps(int, char **);
-extern int checkResumeByLoad(LS_LONG_INT, int, struct thresholds,
+extern int checkResumeByLoad(int64_t, int, struct thresholds,
                              struct hostLoad *, int *, int *, int,
                              struct resVal *, struct tclHostData *);
 extern void closeExceptFD(int);
@@ -561,5 +559,3 @@ extern void daemon_doinit(void);
 extern void scaleByFactor(int *, int *, float);
 extern int execNqsi(u_long, int, int, int *, char *, int, char *);
 extern void doDaemonHang(char *);
-
-#endif

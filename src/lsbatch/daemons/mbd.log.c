@@ -34,7 +34,7 @@ extern char *getSigSymbol(int);
 extern void chanFreeStashedBuf(struct Buffer *);
 extern int chan_alloc_buf(struct Buffer **, int);
 static int replay_event(char *, int);
-static struct jData *checkJobInCore(LS_LONG_INT jobId);
+static struct jData *checkJobInCore(int64_t jobId);
 
 static int replay_newjob(char *, int);
 static int replay_startjob(char *, int, int);
@@ -457,7 +457,7 @@ static int replay_switchjob(char *filename, int lineNum)
 
 static int replay_cleanjob(char *filename, int lineNum)
 {
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobCleanLog.jobId,
                       logPtr->eventLog.jobCleanLog.idx);
@@ -605,7 +605,7 @@ static int replay_executejob(char *filename, int lineNum)
     static char fname[] = "replay_executejob";
     struct jobExecuteLog *jobExecuteLog;
     struct jData *jp;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobExecuteLog = &logPtr->eventLog.jobExecuteLog;
 
@@ -641,7 +641,7 @@ static int replay_startjobaccept(char *filename, int lineNum)
     static char fname[] = "replay_startjobaccept";
     struct jobStartAcceptLog *jobStartAcceptLog;
     struct jData *jp;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     jobStartAcceptLog = &logPtr->eventLog.jobStartAcceptLog;
     jobId = LSB_JOBID(jobStartAcceptLog->jobId, jobStartAcceptLog->idx);
     if ((jp = getJobData(jobId)) == NULL) {
@@ -846,7 +846,7 @@ static int replay_mbdDie(char *filename, int lineNum)
 static int replay_unfulfill(char *filename, int lineNum)
 {
     static char fname[] = "replay_unfulfill";
-    LS_LONG_INT jobId;
+    int64_t jobId;
     struct jData *jp;
 
     jobId = LSB_JOBID(logPtr->eventLog.unfulfillLog.jobId,
@@ -879,7 +879,7 @@ static int replay_mig(char *filename, int lineNum)
     struct jData *jp;
     struct migLog *migLog;
     int i;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     migLog = &logPtr->eventLog.migLog;
 
@@ -941,7 +941,7 @@ static int replay_jobsigact(char *filename, int lineNum)
     static char fname[] = "replay_jobsigact";
     struct jData *jp;
     int newActPid;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.sigactLog.jobId,
                       logPtr->eventLog.sigactLog.idx);
@@ -1007,7 +1007,7 @@ static int replay_jobrequeue(char *filename, int lineNum)
 {
     static char fname[] = "replay_jobrequeue";
     struct jData *jp;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobRequeueLog.jobId,
                       logPtr->eventLog.jobRequeueLog.idx);
@@ -1031,7 +1031,7 @@ static int replay_chkpnt(char *filename, int lineNum)
     static char fname[] = "replay_chkpnt";
     struct jData *jp;
     int newChkPid;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.chkpntLog.jobId,
                       logPtr->eventLog.chkpntLog.idx);
@@ -1242,7 +1242,7 @@ static int log_jobdata(struct jData *job, char *fname1, int type)
     } else if ((hostFactor = getModelFactor(jobNewLog->hostSpec)) == NULL) {
         hostFactor = getHostFactor(jobNewLog->hostSpec);
         if (hostFactor == NULL) {
-            LS_LONG_INT tmpJobId;
+            int64_t tmpJobId;
             tmpJobId = jobNewLog->jobId;
             ls_syslog(LOG_ERR, fname, lsb_jobid2str(tmpJobId), "getHostFactor",
                       jobBill->hostSpec);
@@ -2073,7 +2073,7 @@ int switch_log(void)
     static char fname[] = "switch_log";
     char tmpfn[PATH_MAX];
     int i, lineNum = 0, errnoSv;
-    LS_LONG_INT jobId = 0;
+    int64_t jobId = 0;
     FILE *efp, *tmpfp;
     struct jData *jp, *jarray;
     long pos;
@@ -3418,7 +3418,7 @@ static int replay_signaljob(char *filename, int lineNum)
 {
     static char fname[] = "replay_signaljob";
     struct jData *jp;
-    LS_LONG_INT jobId;
+    int64_t jobId;
     int cc;
 
     jobId = LSB_JOBID(logPtr->eventLog.signalLog.jobId,
@@ -3508,7 +3508,7 @@ static int replay_jobmsg(char *filename, int lineNum)
     struct lsbMsgHdr jmHdr;
     struct lsbMsg jmsg;
     struct packet_header lsfHdr;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobMsgLog.jobId,
                       logPtr->eventLog.jobMsgLog.idx);
@@ -3573,7 +3573,7 @@ static int replay_jobmsgack(char *filename, int lineNum)
     struct jData *jp;
     struct bucket *bucket;
     int found;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobId = LSB_JOBID(logPtr->eventLog.jobMsgAckLog.jobId,
                       logPtr->eventLog.jobMsgAckLog.idx);
@@ -3647,7 +3647,7 @@ static bool_t replay_jobforce(char *file, int line)
     static char fname[] = "replay_jobforce()";
     struct jobForceRequestLog *jobForceRequestLog;
     struct jData *job;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobForceRequestLog = &(logPtr->eventLog.jobForceRequestLog),
 
@@ -3705,7 +3705,7 @@ static int replay_jobattrset(char *filename, int lineNum)
     static char fname[] = "replay_jobattrset()";
     struct jobAttrSetLog *jobAttrSetLog;
     struct jData *job;
-    LS_LONG_INT jobId;
+    int64_t jobId;
 
     jobAttrSetLog = &(logPtr->eventLog.jobAttrSetLog);
 
@@ -3722,7 +3722,7 @@ static int replay_jobattrset(char *filename, int lineNum)
     return TRUE;
 }
 
-static struct jData *checkJobInCore(LS_LONG_INT jobId)
+static struct jData *checkJobInCore(int64_t jobId)
 {
     struct jData *jp = NULL;
     struct listSet *ptr;

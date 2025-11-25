@@ -1,138 +1,77 @@
-#!/usr/bin/env bash
-# llctrl — ultra-thin wrapper around pdsh + ssh
-set -euo pipefail
+#!/usr/bin/env python3
+import sys
+import subprocess
+import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Defaults (overridable via env)
-: "${LL_SSH_USER:=lavalite-admin}"
-: "${LL_PARALLEL:=16}"          # fan-out
-: "${LL_TIMEOUT:=10}"           # seconds
-: "${LL_SSH_OPTS:=-o BatchMode=yes -o ConnectTimeout=5}"
-: "${LL_PDSH:=pdsh}"
-: "${LL_DSHBAK:=dshbak}"        # optional pretty output
+def ssh_command(host, command, timeout=10):
+    """Execute command on remote host via SSH"""
+    ssh_cmd = ['ssh', '-o', 'ConnectTimeout=5',
+               '-o', 'StrictHostKeyChecking=no',
+               host, command]
+    try:
+        result = subprocess.run(ssh_cmd,
+                                capture_output=True,
+                                text=True,
+                                timeout=timeout)
+        return (host, result.returncode, result.stdout, result.stderr)
+    except subprocess.TimeoutExpired:
+        return (host, 124, '', 'SSH timeout')
+    except Exception as e:
+        return (host, 255, '', str(e))
 
-usage() {
-  cat <<EOF
-Usage: llctrl [--hosts h1,h2|--file hosts.txt] [--parallel N] [--timeout S] [-v]
-              <target> <action> [args...]
+def run_parallel(hosts, command, parallel=16, timeout=10):
+    """Run command on multiple hosts in parallel"""
+    results = {}
+    with ThreadPoolExecutor(max_workers=parallel) as executor:
+        futures = {executor.submit(ssh_command, host, command, timeout): host
+                   for host in hosts}
 
-Targets/Actions:
-  lim     start|stop|restart|reload|config-check|status
-  sbatch  start|stop|restart|reload|config-check|status
-  host    drain <host> | undrain <host> | status
-  queue   enable <queue> | disable <queue> | status
-  cluster reconfig | status
+        for future in as_completed(futures):
+            host, rc, stdout, stderr = future.result()
+            results[host] = (rc, stdout, stderr)
+            if rc == 0:
+                print(f"[{host}] OK")
+            else:
+                print(f"[{host}] FAILED: {stderr}")
 
-Examples:
-  llctrl --hosts lim1,lim2 lim restart
-  llctrl --file workers.txt sbatch config-check
-  llctrl host drain worker3
-EOF
-  exit 3
-}
+    return results
 
-# Parse globals
-HOSTSPEC=""
-VERBOSE=0
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --hosts)   HOSTSPEC="-w $2"; shift 2;;
-    --file)    HOSTSPEC="-w ^$2"; shift 2;;
-    --parallel) LL_PARALLEL="$2"; shift 2;;
-    --timeout)  LL_TIMEOUT="$2"; shift 2;;
-    -v|--verbose) VERBOSE=1; shift;;
-    -h|--help) usage;;
-    --) shift; break;;
-    -* ) echo "Unknown option: $1" >&2; usage;;
-    * ) break;;
-  esac
-done
+def main():
+    parser = argparse.ArgumentParser(description='LavaLite control utility')
+    parser.add_argument('--hosts', help='Comma-separated host list')
+    parser.add_argument('--file', help='File with one host per line')
+    parser.add_argument('--parallel', type=int, default=16)
+    parser.add_argument('--timeout', type=int, default=10)
+    parser.add_argument('daemon', choices=['lim', 'sbatch'])
+    parser.add_argument('action', choices=['start', 'stop', 'restart',
+                                           'reload', 'status', 'config-check'])
 
-[[ $# -ge 2 ]] || usage
-TARGET="$1"; ACTION="$2"; shift 2
-ARGS=("$@")
+    args = parser.parse_args()
 
-require_pdsh() {
-  command -v "${LL_PDSH}" >/dev/null || { echo "pdsh not found"; exit 2; }
-}
+    # Get host list
+    if args.hosts:
+        hosts = [h.strip() for h in args.hosts.split(',')]
+    elif args.file:
+        with open(args.file) as f:
+            hosts = [line.strip() for line in f if line.strip()]
+    else:
+        print("Error: specify --hosts or --file", file=sys.stderr)
+        sys.exit(3)
 
-# Map target/action -> remote command string (quoted for remote shell)
-rcmd=""
-case "$TARGET" in
-  lim)
-    case "$ACTION" in
-      start)        rcmd='sudo systemctl start lavalite-lim';;
-      stop)         rcmd='sudo systemctl stop lavalite-lim';;
-      restart)      rcmd='sudo systemctl restart lavalite-lim';;
-      reload)       rcmd='sudo systemctl reload lavalite-lim';;
-      config-check) rcmd='sudo /usr/sbin/lavalite-lim --config-check';;
-      status)       rcmd='systemctl --no-pager --lines=0 status lavalite-lim';;
-      *) usage;;
-    esac;;
-  sbatch)
-    case "$ACTION" in
-      start)        rcmd='sudo systemctl start lavalite-sbatchd';;
-      stop)         rcmd='sudo systemctl stop lavalite-sbatchd';;
-      restart)      rcmd='sudo systemctl restart lavalite-sbatchd';;
-      reload)       rcmd='sudo systemctl reload lavalite-sbatchd';;
-      config-check) rcmd='sudo /usr/sbin/lavalite-sbatchd --config-check';;
-      status)       rcmd='systemctl --no-pager --lines=0 status lavalite-sbatchd';;
-      *) usage;;
-    esac;;
-  host)
-    # host-level ops usually hit *controller* only, so no pdsh fanout unless you want to.
-    # Here we expect a single host arg and we pass it to the controller-side CLI (future).
-    case "$ACTION" in
-      drain)   [[ ${#ARGS[@]} -eq 1 ]] || usage; rcmd="sudo /usr/sbin/lavalite-ctl host drain ${ARGS[0]}";;
-      undrain) [[ ${#ARGS[@]} -eq 1 ]] || usage; rcmd="sudo /usr/sbin/lavalite-ctl host undrain ${ARGS[0]}";;
-      status)  rcmd='sudo /usr/sbin/lavalite-ctl host status';;
-      *) usage;;
-    esac;;
-  queue)
-    case "$ACTION" in
-      enable)  [[ ${#ARGS[@]} -eq 1 ]] || usage; rcmd="sudo /usr/sbin/lavalite-ctl queue enable ${ARGS[0]}";;
-      disable) [[ ${#ARGS[@]} -eq 1 ]] || usage; rcmd="sudo /usr/sbin/lavalite-ctl queue disable ${ARGS[0]}";;
-      status)  rcmd='sudo /usr/sbin/lavalite-ctl queue status';;
-      *) usage;;
-    esac;;
-  cluster)
-    case "$ACTION" in
-      reconfig) rcmd='sudo /usr/sbin/lavalite-ctl cluster reconfig';;
-      status)   rcmd='sudo /usr/sbin/lavalite-ctl cluster status';;
-      *) usage;;
-    esac;;
-  *)
-    usage;;
-esac
+    # Build systemctl command
+    daemon_name = f'lavalite-{args.daemon}'
+    if args.action == 'config-check':
+        cmd = f'{daemon_name} --config-check'
+    else:
+        cmd = f'sudo systemctl {args.action} {daemon_name}'
 
-require_pdsh
-[[ -n "$HOSTSPEC" ]] || { echo "Specify --hosts or --file"; exit 3; }
+    # Execute
+    results = run_parallel(hosts, cmd, args.parallel, args.timeout)
 
-# Build pdsh command
-# -R ssh : use ssh module
-# -l user: remote user
-# -f N   : fan-out
-# -t S   : timeout
-# -S -i  : label stderr; print as results arrive
-PDSH_CMD=( "${LL_PDSH}" -R ssh -l "${LL_SSH_USER}" -f "${LL_PARALLEL}" -t "${LL_TIMEOUT}" -S -i )
-# ssh options for pdsh's ssh module via env
-export PDSH_SSH_ARGS_APPEND="${LL_SSH_OPTS}"
+    # Check for failures
+    failures = [h for h, (rc, _, _) in results.items() if rc != 0]
+    sys.exit(1 if failures else 0)
 
-# Full invocation
-CMD=( "${PDSH_CMD[@]}" ${HOSTSPEC} -- "${rcmd}" )
-
-(( VERBOSE )) && echo "+ ${CMD[*]}" >&2
-set +e
-"${CMD[@]}"
-rc=$?
-set -e
-
-# Optional pretty collation if available
-if command -v "${LL_DSHBAK}" >/dev/null; then
-  echo "---"
-  # dshbak reads PDSH output on stdin; re-run with capture if desired.
-  # (If you want, pipe pdsh to dshbak in one go; here we just best-effort.)
-fi
-
-# pdsh returns nonzero on any host failure/timeout; we pass it through.
-exit "$rc"
-
+if __name__ == '__main__':
+    main()

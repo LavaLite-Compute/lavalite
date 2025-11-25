@@ -1,4 +1,4 @@
-/* $Id: lib.channel.h,v 1.3 2007/08/15 22:18:50 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -40,8 +40,8 @@ enum chanType {
 
 enum chan_block_mode { CHAN_MODE_BLOCK, CHAN_MODE_NONBLOCK };
 
-struct chanData {
-    int handle;          // the socket
+struct chan_data {
+    int sock;       // the socket
     enum chanType type;  // channel type UDP/TCP ...
     enum chanState state;  // connectes, waiting, inactive...
     struct Buffer *send;
