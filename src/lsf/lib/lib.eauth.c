@@ -192,7 +192,7 @@ int verifyEAuth_(struct lsfAuth *auth, struct sockaddr_in *from)
             }
 
             for (i = 1; i < NSIG; i++)
-                Signal_(i, SIG_DFL);
+                signal_set(i, SIG_DFL);
 
             alarm(0);
 

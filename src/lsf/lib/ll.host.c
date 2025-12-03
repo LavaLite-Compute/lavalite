@@ -303,14 +303,14 @@ int is_addrv6_equal(const struct sockaddr_in6 *a, const struct sockaddr_in6 *b)
 // Handy wrappers
 int get_host_by_sockaddr_in(const struct sockaddr_in *from, struct ll_host *hp)
 {
-    return get_host_by_sockaddr((const struct sockaddr *) from, sizeof(*from),
+    return get_host_by_sockaddr((const struct sockaddr *)from, sizeof(*from),
                                 hp);
 }
 
 int get_host_by_sockaddr_in6(const struct sockaddr_in6 *from,
                              struct ll_host *hp)
 {
-    return get_host_by_sockaddr((const struct sockaddr *) from, sizeof(*from),
+    return get_host_by_sockaddr((const struct sockaddr *)from, sizeof(*from),
                                 hp);
 }
 

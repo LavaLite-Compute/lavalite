@@ -63,7 +63,7 @@ Reply:
         xdr_destroy(&xdrs2);
         reconfig();
     }
-    if (chan_send_dgram(lim_udp_sock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chan_send_dgram(lim_udp_chan, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(
             LOG_ERR,
             "%s: Error sending reconfig acknowledgement to %s (len=%d: %m",
@@ -96,8 +96,8 @@ void reconfig(void)
         millisleep_(2000);
     }
 
-    chan_close(lim_udp_sock);
-    chan_close(lim_tcp_sock);
+    chan_close(lim_udp_chan);
+    chan_close(lim_tcp_chan);
 
     pid = fork();
 
@@ -201,7 +201,7 @@ Reply:
         xdr_destroy(&xdrs2);
         return;
     }
-    if (chan_send_dgram(lim_udp_sock, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chan_send_dgram(lim_udp_chan, mbuf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR,
                   "%s: Error sending shutdown acknowledgement to %s (len=%d, "
                   "shutdown failed : %m",
@@ -220,7 +220,7 @@ Reply:
 
 void shutdownLim(void)
 {
-    chan_close(lim_udp_sock);
+    chan_close(lim_udp_chan);
 
     ls_syslog(LOG_ERR, "Lim shutting down: shutdown request received");
 
@@ -315,7 +315,7 @@ Reply:
         xdr_destroy(&xdrs2);
         return;
     }
-    if (chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chan_send_dgram(lim_udp_chan, buf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chan_send_dgram",
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);
@@ -488,7 +488,7 @@ Reply:
         xdr_destroy(&xdrs2);
         return;
     }
-    if (chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from) < 0) {
+    if (chan_send_dgram(lim_udp_chan, buf, XDR_GETPOS(&xdrs2), from) < 0) {
         ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "chan_send_dgram",
                   sockAdd2Str_(from));
         xdr_destroy(&xdrs2);

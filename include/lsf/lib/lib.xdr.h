@@ -1,4 +1,3 @@
-#pragma once
 /* $Id: lib.xdr.h,v 1.3 2007/08/15 22:18:51 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -18,6 +17,7 @@
  USA
  *
  */
+#pragma once
 
 // Pad the n onject possible strlen(str)
 #define XDR_PADLEN(n) (((4 - ((n) % 4)) % 4))
@@ -74,3 +74,7 @@ bool_t xdr_resourceInfoReq(XDR *, struct resourceInfoReq *,
                            struct packet_header *);
 bool_t xdr_resourceInfoReply(XDR *, struct resourceInfoReply *, void *);
 bool_t xdr_jRusage(XDR *, struct jRusage *, void *);
+bool_t xdr_wire_host_info(XDR *, struct wire_host_info *,
+                          struct packet_header *);
+bool_t xdr_host_info_reply(XDR *, struct host_info_reply *,
+                           struct packet_header *);

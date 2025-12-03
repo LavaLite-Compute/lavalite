@@ -51,7 +51,7 @@
 
 #include "lsf.h"
 #include "lsf/lib/lib.h"
-#include "lsf/lib/ll_sys.h"
+#include "lsf/lib/ll.sys.h"
 #include "lsf/lib/intlibout.h"
 #include "lsf/lib/tcl_stub.h"
 #include "lsf/lib/lib.channel.h"
@@ -221,11 +221,8 @@ struct clusterNode {
 
 struct client_node {
     enum limReqCode limReqCode;
-    int clientMasks;
     int ch_id;
-    struct hostNode *fromHost;
-    struct sockaddr_in from;
-    struct Buffer *reqbuf;
+    struct hostNode *from_host;
 };
 
 struct liStruct {
@@ -276,8 +273,6 @@ struct masterReg {
     int *resBitArray;
 };
 
-#define ANN_SLIMCONF_ALL_MIN (0x01)
-#define ANN_SLIMCONF_TO_ALL (0x02)
 struct masterAnnSLIMConf {
     int flags;
     short hostNo;
@@ -324,9 +319,7 @@ extern short retryLimit;
 extern short keepTime;
 extern int probeTimeout;
 extern short resInactivityCount;
-extern char jobxfer;
 extern short satper;
-extern float *extraload;
 extern int nClusAdmins;
 extern int *clusAdminIds;
 extern int *clusAdminGids;
@@ -389,17 +382,11 @@ extern void lockReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern int limPortOk(struct sockaddr_in *);
 extern void servAvailReq(XDR *, struct hostNode *, struct sockaddr_in *,
                          struct packet_header *);
-extern void hostInfoReq(XDR *, struct hostNode *, struct sockaddr_in *,
-                        struct packet_header *, int);
-extern void infoReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
 extern void masterRegister(XDR *, struct sockaddr_in *, struct packet_header *);
-extern void jobxferReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void rcvConfInfo(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void tellMasterWho(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void whoIsMaster(struct clusterNode *);
 extern void announceMaster(struct clusterNode *, char, char);
-extern void wrongMaster(struct sockaddr_in *, char *, struct packet_header *,
-                        int);
 extern void sndConfInfo(struct sockaddr_in *);
 extern void checkHostWd(void);
 extern void announceMasterToHost(struct hostNode *, int);
@@ -432,11 +419,8 @@ extern void errorBack(struct sockaddr_in *, struct packet_header *,
                       enum limReplyCode, int);
 extern void initLiStruct(void);
 
-extern void placeReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
-extern void loadadjReq(XDR *, struct sockaddr_in *, struct packet_header *,
-                       int);
 extern void updExtraLoad(struct hostNode **, char *, int);
-extern void loadReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
+
 extern int getEligibleSites(register struct resVal *, struct decisionReq *,
                             char, char *);
 extern int validHosts(char **, int, char *, int);
@@ -472,8 +456,13 @@ extern int realMem(float);
 extern int numCpus(void);
 extern int queueLengthEx(float *, float *, float *);
 
-// LavaLite
-extern struct client_node **clientMap;
+// Lavalite
+extern struct client_node **client_map;
+extern int lim_udp_chan;
+extern int lim_tcp_chan;
+extern int lim_timer_chan;
+extern uint16_t lim_udp_port;
+extern uint16_t lim_tcp_port;
 
 // Make the hostNode fundamental node representation
 struct hostNode *make_host_node(void);
@@ -485,17 +474,26 @@ struct hostNode *make_host_node(void);
 struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *);
 struct hostNode *find_node_by_name(const char *);
 struct hostNode *find_node_by_cluster(struct hostNode *, const char *);
-int handle_tcp_client(struct Masks *);
+int handle_tcp_client(int);
 
-// Avoid the same function name as the data structure
-void resourceInfoReq2(XDR *, struct sockaddr_in *, struct packet_header *, int);
 // These 2 are UDP request to the local LIM
 void clusNameReq(XDR *, struct sockaddr_in *, struct packet_header *);
 void masterInfoReq(XDR *, struct sockaddr_in *, struct packet_header *);
 // This does not do anything, remove it
 void pingReq(XDR *, struct sockaddr_in *, struct packet_header *);
 // The rest of API processing is TCP
-void clusInfoReq(XDR *, struct sockaddr_in *, struct packet_header *, int);
+void clusInfoReq(XDR *, struct client_node *, struct packet_header *) ;
+void loadReq(XDR *, struct client_node *, struct packet_header *);
+void hostInfoReq(XDR *, struct client_node *, struct packet_header *);
+// Avoid the same function name as the data structure
+void resourceInfoReq(XDR *, struct client_node *, struct packet_header *);
+void placeReq(XDR *, struct client_node *, struct packet_header *);
+void infoReq(XDR *, struct client_node *, struct packet_header *);
+void loadadjReq(XDR *, struct client_node *, struct packet_header *);
+void shutdown_client(struct client_node *);
+void wrongMaster(struct client_node *);
+void send_header(struct client_node *, struct packet_header *,
+                 enum limReplyCode);
 
 #define SWP_INTVL_CNT 45 / exchIntvl
 #define TMP_INTVL_CNT 120 / exchIntvl

@@ -22,6 +22,7 @@
 
 #define CPUSTATES 4
 #define ut_name ut_user
+extern float *extraload;
 
 static char buffer[MSGSIZE];
 static long long int main_mem, free_mem, shared_mem, buf_mem, cashed_mem;

@@ -119,7 +119,7 @@ char *getSigSymbolList(void)
     return list;
 }
 
-void Signal_(int sig, void (*handler)(int))
+void sigan_set(int sig, void (*handler)(int))
 {
     struct sigaction act;
 
@@ -150,4 +150,16 @@ int blockALL_SIGS_(sigset_t *newMask, sigset_t *oldMask)
     sigdelset(newMask, SIGEMT);
 
     return sigprocmask(SIG_BLOCK, newMask, oldMask);
+}
+
+void
+signal_set(int sig, void (*handler)(int))
+{
+    struct sigaction act;
+
+    act.sa_handler = handler;
+    act.sa_flags = 0;
+
+    sigemptyset(&act.sa_mask);
+    sigaddset(&act.sa_mask, sig);
 }

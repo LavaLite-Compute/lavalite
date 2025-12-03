@@ -249,6 +249,7 @@ static int callLimUDP_(char *req_buf, char *rep_buf, size_t len,
     // Legacy stuff remove later
     (void) reqHdr;
     (void) host;
+    (void) options;
 
     if (lim_chans[UDP] < 0) {
         lim_chans[UDP] = chan_client_socket(AF_INET, SOCK_DGRAM, 0);
@@ -260,12 +261,9 @@ static int callLimUDP_(char *req_buf, char *rep_buf, size_t len,
     if (cc < 0)
         return -1;
 
-    if (options & _NON_BLOCK_)
-        return 0;
-
     struct sockaddr_storage from;
-    cc = chan_recv_dgram_(lim_chans[UDP], rep_buf, MSGSIZE, &from,
-                       conntimeout_ * 1000);
+    cc = chan_recv_dgram(lim_chans[UDP], rep_buf, MSGSIZE, &from,
+                         conntimeout_ * 1000);
     if (cc < 0)
         return -1;
 

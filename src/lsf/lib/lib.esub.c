@@ -265,7 +265,7 @@ int runEexec_(char *option, int job, struct lenData *eexec, char *path)
         }
 
         for (i = 1; i < NSIG; i++)
-            Signal_(i, SIG_DFL);
+            signal_set(i, SIG_DFL);
 
         alarm(0);
 

@@ -233,7 +233,7 @@ enum orderType { INCR, DECR, NA };
 
 struct resItem {
     char name[MAXLSFNAMELEN];
-    char des[MAXRESDESLEN];
+    char des[LL_RES_DESC_MAX];
     enum valueType valueType;
     enum orderType orderType;
     int flags;
@@ -413,114 +413,89 @@ struct jRusage {
     int *pgid;
 };
 
-#define LSE_NO_ERR 0
-#define LSE_BAD_XDR 1
-#define LSE_MSG_SYS 2
-#define LSE_BAD_ARGS 3
-#define LSE_MASTR_UNKNW 4
-#define LSE_LIM_DOWN 5
-#define LSE_PROTOC_LIM 6
-#define LSE_SOCK_SYS 7
-#define LSE_ACCEPT_SYS 8
-#define LSE_BAD_TASKF 9
-#define LSE_NO_HOST 10
-#define LSE_NO_ELHOST 11
-#define LSE_TIME_OUT 12
-#define LSE_NIOS_DOWN 13
-#define LSE_LIM_DENIED 14
-#define LSE_LIM_IGNORE 15
-#define LSE_LIM_BADHOST 16
-#define LSE_LIM_ALOCKED 17
-#define LSE_LIM_NLOCKED 18
-#define LSE_LIM_BADMOD 19
-#define LSE_SIG_SYS 20
-#define LSE_BAD_EXP 21
-#define LSE_NORCHILD 22
-#define LSE_MALLOC 23
-#define LSE_LSFCONF 24
-#define LSE_BAD_ENV 25
-#define LSE_LIM_NREG 26
-#define LSE_RES_NREG 27
-#define LSE_RES_NOMORECONN 28
-#define LSE_BADUSER 29
-#define LSE_RES_ROOTSECURE 30
-#define LSE_RES_DENIED 31
-#define LSE_BAD_OPCODE 32
-#define LSE_PROTOC_RES 33
-#define LSE_RES_CALLBACK 34
-#define LSE_RES_NOMEM 35
-#define LSE_RES_FATAL 36
-#define LSE_RES_PTY 37
-#define LSE_RES_SOCK 38
-#define LSE_RES_FORK 39
-#define LSE_NOMORE_SOCK 40
-#define LSE_WDIR 41
-#define LSE_LOSTCON 42
-#define LSE_RES_INVCHILD 43
-#define LSE_RES_KILL 44
-#define LSE_PTYMODE 45
-#define LSE_BAD_HOST 46
-#define LSE_PROTOC_NIOS 47
-#define LSE_WAIT_SYS 48
-#define LSE_SETPARAM 49
-#define LSE_RPIDLISTLEN 50
-#define LSE_BAD_CLUSTER 51
-#define LSE_RES_VERSION 52
-#define LSE_EXECV_SYS 53
-#define LSE_RES_DIR 54
-#define LSE_RES_DIRW 55
-#define LSE_BAD_SERVID 56
-#define LSE_NLSF_HOST 57
-#define LSE_UNKWN_RESNAME 58
-#define LSE_UNKWN_RESVALUE 59
-#define LSE_TASKEXIST 60
-#define LSE_BAD_TID 61
-#define LSE_TOOMANYTASK 62
-#define LSE_LIMIT_SYS 63
-#define LSE_BAD_NAMELIST 64
-#define LSE_LIM_NOMEM 65
-#define LSE_NIO_INIT 66
-#define LSE_CONF_SYNTAX 67
-#define LSE_FILE_SYS 68
-#define LSE_CONN_SYS 69
-#define LSE_SELECT_SYS 70
-#define LSE_EOF 71
-#define LSE_ACCT_FORMAT 72
-#define LSE_BAD_TIME 73
-#define LSE_FORK 74
-#define LSE_PIPE 75
-#define LSE_ESUB 76
-#define LSE_EAUTH 77
-#define LSE_NO_FILE 78
-#define LSE_NO_CHAN 79
-#define LSE_BAD_CHAN 80
-#define LSE_INTERNAL 81
-#define LSE_PROTOCOL 82
-#define LSE_MISC_SYS 83
-#define LSE_RES_RUSAGE 84
-#define LSE_NO_RESOURCE 85
-#define LSE_BAD_RESOURCE 86
-#define LSE_RES_PARENT 87
-#define LSE_I18N_SETLC 88
-#define LSE_I18N_CATOPEN 89
-#define LSE_I18N_NOMEM 90
-#define LSE_NO_MEM 91
-#define LSE_FILE_CLOSE 92
-#define LSE_LIMCONF_NOTREADY 93
-#define LSE_MASTER_LIM_DOWN 94
-#define LSE_MLS_INVALID 95
-#define LSE_MLS_CLEARANCE 96
-#define LSE_MLS_RHOST 97
-#define LSE_MLS_DOMINATE 98
-#define LSE_NERR 98
+enum lse_errno {
+    LSE_NO_ERR = 0,
+    LSE_BAD_XDR,
+    LSE_MSG_SYS,
+    LSE_BAD_ARGS,
+    LSE_MASTR_UNKNW,
+    LSE_LIM_DOWN,
+    LSE_PROTOC_LIM,
+    LSE_SOCK_SYS,
+    LSE_ACCEPT_SYS,
+    LSE_NO_HOST,
+    LSE_NO_ELHOST,
+    LSE_TIME_OUT,
+    LSE_NIOS_DOWN,
+    LSE_LIM_DENIED,
+    LSE_LIM_IGNORE,
+    LSE_LIM_BADHOST,
+    LSE_LIM_ALOCKED,
+    LSE_LIM_NLOCKED,
+    LSE_LIM_BADMOD,
+    LSE_SIG_SYS,
+    LSE_BAD_EXP,
+    LSE_NORCHILD,
+    LSE_MALLOC,
+    LSE_LSFCONF,
+    LSE_BAD_ENV,
+    LSE_LIM_NREG,
+    LSE_RES_NREG,
+    LSE_RES_NOMORECONN,
+    LSE_BADUSER,
+    LSE_BAD_OPCODE,
+    LSE_PROTOC_RES,
+    LSE_NOMORE_SOCK,
+    LSE_LOSTCON,
+    LSE_BAD_HOST,
+    LSE_WAIT_SYS,
+    LSE_SETPARAM,
+    LSE_BAD_CLUSTER,
+    LSE_EXECV_SYS,
+    LSE_BAD_SERVID,
+    LSE_NLSF_HOST,
+    LSE_UNKWN_RESNAME,
+    LSE_UNKWN_RESVALUE,
+    LSE_TASKEXIST,
+    LSE_LIMIT_SYS,
+    LSE_BAD_NAMELIST,
+    LSE_LIM_NOMEM,
+    LSE_CONF_SYNTAX,
+    LSE_FILE_SYS,
+    LSE_CONN_SYS,
+    LSE_SELECT_SYS,
+    LSE_EOF,
+    LSE_ACCT_FORMAT,
+    LSE_BAD_TIME,
+    LSE_FORK,
+    LSE_PIPE,
+    LSE_ESUB,
+    LSE_EAUTH,
+    LSE_NO_FILE,
+    LSE_NO_CHAN,
+    LSE_BAD_CHAN,
+    LSE_INTERNAL,
+    LSE_PROTOCOL,
+    LSE_RES_RUSAGE,
+    LSE_NO_RESOURCE,
+    LSE_BAD_RESOURCE,
+    LSE_RES_PARENT,
+    LSE_NO_MEM,
+    LSE_FILE_CLOSE,
+    LSE_LIMCONF_NOTREADY,
+    LSE_MASTER_LIM_DOWN,
+    LSE_POLL_SYS,
+    LSE_NERR  /* Sentinel - must be last */
+};
+extern const char *ls_errmsg[];
+
 
 #define LSE_SYSCALL(s)                                                         \
     (((s) == LSE_SELECT_SYS) || ((s) == LSE_CONN_SYS) ||                       \
      ((s) == LSE_FILE_SYS) || ((s) == LSE_MSG_SYS) || ((s) == LSE_SOCK_SYS) || \
      ((s) == LSE_ACCEPT_SYS) || ((s) == LSE_SIG_SYS) ||                        \
-     ((s) == LSE_WAIT_SYS) || ((s) == LSE_EXECV_SYS) ||                        \
-     ((s) == LSE_LIMIT_SYS) || ((s) == LSE_PIPE) || ((s) == LSE_ESUB) ||       \
-     ((s) == LSE_MISC_SYS))
+     ((s) == LSE_WAIT_SYS) || ((s) == LSE_EXECV_SYS) ||                       \
+     ((s) ==LSE_LIMIT_SYS) || ((s) == LSE_PIPE) || ((s) == LSE_ESUB))
 
 #define TIMEIT(level, func, name)                                              \
     {                                                                          \
@@ -589,7 +564,6 @@ extern __thread int lserrno;
 
 extern int masterLimDown;
 extern int ls_nerr;
-extern char *ls_errmsg[];
 extern int logclass;
 extern int timinglevel;
 
@@ -624,7 +598,7 @@ extern int ls_lockhost(time_t);
 extern int ls_unlockhost(void);
 extern int ls_limcontrol(const char *, int);
 
-extern char *ls_sysmsg(void);
+extern const char *ls_sysmsg(void);
 extern void ls_perror(const char *);
 
 extern struct lsConf *ls_getconf(char *);
@@ -659,7 +633,7 @@ extern int ls_putacctrec(FILE *, struct lsfAcctRec *);
 extern int getBEtime(char *, char, time_t *);
 
 // LavaLite
-const char *ctime2(const time_t *);
+const char *ctime2(time_t *);
 const char *ctime3(const time_t *);
 struct passwd *getpwuid2(uid_t);
 struct passwd *getpwnam2(const char *);
@@ -672,4 +646,87 @@ struct extResInfo {
     char *interval;
     char *increasing;
     char *des;
+};
+
+// LavaLite
+
+/* Host information */
+struct host_info {
+    char hostname[MAXHOSTNAMELEN];
+    char arch[32];           /* x86_64, arm64, ppc64le, etc */
+    char vendor[32];         /* intel, amd, apple, ibm, etc */
+    int ncores;
+    int mem_mb;
+    int swap_mb;
+    int is_server;           /* can run jobs? */
+    int nres;
+    struct res_item *resources;
+};
+
+enum value_type {
+    RES_TYPE_NUMERIC,
+    RES_TYPE_STRING,
+    RES_TYPE_BOOLEAN
+};
+
+enum order_type {
+    ORDER_INCR,    /* higher is better (free memory, disk space) */
+    ORDER_DECR,    /* lower is better (load, temperature) */
+    ORDER_NA       /* no ordering (hostname, arch) */
+};
+
+struct res_item {
+    char name[MAXLSFNAMELEN];
+    char value[256];
+    enum value_type type;
+    enum order_type order;
+};
+
+/* Shared resource instance */
+struct shared_res_inst {
+    char hostname[MAXHOSTNAMELEN];  /* where this instance lives */
+    int total;
+    int available;
+    int reserved;
+};
+
+/* Shared resource definition */
+struct shared_res {
+    char name[MAXLSFNAMELEN];       /* e.g. "verilog_lic" */
+    char server[MAXHOSTNAMELEN];    /* license server (optional) */
+    int total_instances;
+    int available_instances;
+    int nlocations;
+    struct shared_res_inst *locations;
+};
+
+/* Cluster information */
+struct cluster_info {
+    char name[MAXLSFNAMELEN];
+    char master[MAXHOSTNAMELEN];
+    int nhosts;
+    struct host_info *hosts;
+    int nres_defined;
+    struct res_item *res_defs;
+    int nshared_res;
+    struct shared_res *shared_res;
+};
+
+/* Job resource usage */
+struct job_rusage {
+    int mem;
+    int swap;
+    int utime;
+    int stime;
+    int npids;
+    struct pid_info *pidinfo;
+    int npgids;
+    int *pgid;
+};
+
+struct pid_info {
+    int pid;
+    int ppid;
+    int pgid;
+    int jobid;
 };
