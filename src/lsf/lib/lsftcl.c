@@ -20,7 +20,7 @@
 
 #include <tcl.h>
 #include <netdb.h>
-#include "lsf/lib/ll_sys.h"
+#include "lsf/lib/ll.sys.h"
 #include "lsf/lib/lproto.h"
 
 static struct tclHostData *currHPtr;

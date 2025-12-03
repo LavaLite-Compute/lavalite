@@ -597,3 +597,54 @@ bool_t xdr_jRusage(XDR *xdrs, struct jRusage *runRusage, void *)
     }
     return true;
 }
+
+bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *info,
+                          struct packet_header *hdr)
+{
+    if (!xdr_string(xdrs, &info->hostName, LL_HOSTNAME_MAX))
+        return false;
+    if (!xdr_string(xdrs, &info->hostType, LL_NAME_MAX))
+        return false;
+    if (!xdr_string(xdrs, &info->hostModel, LL_NAME_MAX))
+        return false;
+    if (!xdr_float(xdrs, &info->cpuFactor))
+        return false;
+    if (!xdr_int(xdrs, &info->maxCpus))
+        return false;
+    if (!xdr_int(xdrs, &info->maxMem))
+        return false;
+    if (!xdr_int(xdrs, &info->maxSwap))
+        return false;
+    if (!xdr_int(xdrs, &info->maxTmp))
+        return false;
+    if (!xdr_int(xdrs, &info->nDisks))
+        return false;
+    if (!xdr_int(xdrs, &info->isServer))
+        return false;
+    if (!xdr_int(xdrs, &info->status))
+        return false;
+
+    return true;
+}
+
+bool_t xdr_host_info_reply(XDR *xdrs, struct host_info_reply *reply,
+                           struct packet_header *hdr)
+{
+    int i;
+
+    if (!xdr_int(xdrs, &reply->num_hosts))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE) {
+        reply->hosts = calloc(reply->num_hosts, sizeof(struct wire_host_info));
+        if (reply->hosts == NULL)
+            return false;
+    }
+
+    for (i = 0; i < reply->num_hosts; i++) {
+        if (!xdr_wire_host_info(xdrs, &reply->hosts[i], hdr))
+            return false;
+    }
+
+    return true;
+}

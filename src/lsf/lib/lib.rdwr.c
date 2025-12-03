@@ -240,8 +240,8 @@ void unblocksig(int sig)
  * Use of early returns - Avoids nested conditions
  * Modern C idioms - Designated initializers for the pollfd struct
  */
-int b_connect_(int s, const struct sockaddr *name, socklen_t namelen,
-               int timeout_sec)
+int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
+                    int timeout_sec)
 {
     int flags = fcntl(s, F_GETFL, 0);
     if (flags < 0)
@@ -291,31 +291,8 @@ int b_connect_(int s, const struct sockaddr *name, socklen_t namelen,
     return 0;
 }
 
-/* Legacy, problematic should we use more then 1024 descriptors
- * in some other select() this will fail.
- */
-int rd_select_(int rd, struct timeval *timeout)
-{
-    int cc;
-    fd_set rmask;
 
-    for (;;) {
-        FD_ZERO(&rmask);
-        FD_SET(rd, &rmask);
-
-        cc = select(rd + 1, &rmask, (fd_set *) 0, (fd_set *) 0, timeout);
-        if (cc >= 0)
-            return cc;
-
-        if (errno == EINTR)
-            continue;
-        return -1;
-    }
-}
-
-/* Modern C version of rd_select() recommended, replacing
- * rd_select_() in deamons with the poll version.
- * The timeout is in milliseconds as poll() expects.
+/* The timeout is in milliseconds as poll() expects.
  */
 int rd_poll(int rd, int ms)
 {
@@ -332,22 +309,6 @@ int rd_poll(int rd, int ms)
 
         return -1;
     }
-}
-
-/* Remove legacy problematic signal masking.
- * Affects the entire thread, not just the syscall.
- * Can interfere with other subsystems, especially in multi-threaded daemons.
- * Makes debugging and signal handling more complex.
- */
-int b_accept_(int s, struct sockaddr *addr, socklen_t *addrlen)
-{
-    int cc;
-
-    do {
-        cc = accept(s, addr, addrlen);
-    } while (cc < 0 && errno == EINTR);
-
-    return cc;
 }
 
 int blockSigs_(int sig, sigset_t *blockMask, sigset_t *oldMask)

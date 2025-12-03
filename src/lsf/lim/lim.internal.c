@@ -264,7 +264,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 %s: Sending request to LIM on %s: %m",
                       __func__, sockAdd2Str_(&to_addr));
 
-        if (chan_send_dgram(lim_udp_sock, buf1, XDR_GETPOS(&xdrs1),
+        if (chan_send_dgram(lim_udp_chan, buf1, XDR_GETPOS(&xdrs1),
                            (struct sockaddr_in *) &to_addr) < 0)
             ls_syslog(LOG_ERR, "\
 %s: Failed to send request to LIM on %s: %m",
@@ -320,7 +320,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 %s: announcing SEND_ELIM_REQ to host %s %s",
                               __func__, hPtr->hostName, sockAdd2Str_(&to_addr));
 
-                if (chan_send_dgram(lim_udp_sock, buf4, XDR_GETPOS(&xdrs4),
+                if (chan_send_dgram(lim_udp_chan, buf4, XDR_GETPOS(&xdrs4),
                                    (struct sockaddr_in *) &to_addr) < 0) {
                     ls_syslog(LOG_ERR, "\
 %s: Failed to send request 1 to LIM on %s: %m",
@@ -330,7 +330,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                 hPtr->callElim = FALSE;
 
             } else {
-                if (chan_send_dgram(lim_udp_sock, buf1, XDR_GETPOS(&xdrs1),
+                if (chan_send_dgram(lim_udp_chan, buf1, XDR_GETPOS(&xdrs1),
                                    (struct sockaddr_in *) &to_addr) < 0)
                     ls_syslog(LOG_ERR, "\
 announceMaster: Failed to send request 1 to LIM on %s: %m",
@@ -344,7 +344,7 @@ announceMaster: Failed to send request 1 to LIM on %s: %m",
                           __func__, hPtr->hostName, sockAdd2Str_(&to_addr),
                           hPtr->hostInactivityCount);
 
-            if (chan_send_dgram(lim_udp_sock, buf2, XDR_GETPOS(&xdrs2),
+            if (chan_send_dgram(lim_udp_chan, buf2, XDR_GETPOS(&xdrs2),
                                (struct sockaddr_in *) &to_addr) < 0)
                 ls_syslog(LOG_ERR, "\
 %s: Failed to send request 2 to LIM on %s: %m",
@@ -356,95 +356,6 @@ announceMaster: Failed to send request 1 to LIM on %s: %m",
     xdr_destroy(&xdrs2);
     xdr_destroy(&xdrs4);
 
-    return;
-}
-
-void jobxferReq(XDR *xdrs, struct sockaddr_in *from,
-                struct packet_header *reqHdr)
-{
-    static char fname[] = "jobxferReq()";
-    struct hostNode *hPtr;
-    struct jobXfer jobXfer;
-    int i;
-
-    if (!limPortOk(from))
-        return;
-
-    struct sockaddr_in addr;
-    get_host_addrv4(myClusterPtr->masterPtr->v4_epoint, &addr);
-
-    if (myClusterPtr->masterKnown && myClusterPtr->masterPtr &&
-        is_addrv4_equal(&addr, from) == 0) {
-        myClusterPtr->masterInactivityCount = 0;
-    }
-
-    if (!xdr_jobXfer(xdrs, &jobXfer, reqHdr)) {
-        ls_syslog(LOG_ERR, "%s: xdr_jobXfer() failed: %m", __func__);
-        return;
-    }
-
-    for (i = 0; i < jobXfer.numHosts; i++) {
-        if ((hPtr = find_node_by_name(jobXfer.placeInfo[i].hostName)) != NULL) {
-            hPtr->use = jobXfer.placeInfo[i].numtask;
-            updExtraLoad(&hPtr, jobXfer.resReq, 1);
-        } else {
-            ls_syslog(LOG_ERR, "%s: %s not found in jobxferReq", fname,
-                      jobXfer.placeInfo[i].hostName);
-        }
-    }
-
-    return;
-}
-
-void wrongMaster(struct sockaddr_in *from, char *buf,
-                 struct packet_header *reqHdr, int s)
-{
-    enum limReplyCode limReplyCode;
-    XDR xdrs;
-    struct packet_header replyHdr;
-    struct masterInfo masterInfo;
-    int cc;
-    char *replyStruct;
-
-    if (myClusterPtr->masterKnown) {
-        limReplyCode = LIME_WRONG_MASTER;
-        strcpy(masterInfo.hostName, myClusterPtr->masterPtr->hostName);
-        get_host_addrv4(myClusterPtr->masterPtr->v4_epoint, &masterInfo.addr);
-        masterInfo.portno = myClusterPtr->masterPtr->statInfo.portno;
-        replyStruct = (char *) &masterInfo;
-    } else {
-        limReplyCode = LIME_MASTER_UNKNW;
-        replyStruct = NULL;
-    }
-
-    xdrmem_create(&xdrs, buf, MSGSIZE, XDR_ENCODE);
-    init_pack_hdr(&replyHdr);
-    replyHdr.operation = (short) limReplyCode;
-    replyHdr.sequence = reqHdr->sequence;
-
-    if (!xdr_encodeMsg(&xdrs, replyStruct, &replyHdr, xdr_masterInfo, 0,
-                       NULL)) {
-        ls_syslog(LOG_ERR, "%s: xdr_encodeMsg() failed: %m", __func__);
-        xdr_destroy(&xdrs);
-        return;
-    }
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: Sending to %s", __func__, sockAdd2Str_(from));
-
-    if (s < 0)
-        cc = chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
-                            (struct sockaddr_in *) from);
-    else
-        cc = chan_write(s, buf, XDR_GETPOS(&xdrs));
-    if (cc < 0) {
-        ls_syslog(LOG_ERR, "%s: send to %s failed: %m", __func__,
-                  sockAdd2Str_(from));
-        xdr_destroy(&xdrs);
-        return;
-    }
-
-    xdr_destroy(&xdrs);
     return;
 }
 
@@ -649,7 +560,7 @@ void sndConfInfo(struct sockaddr_in *to)
         ls_syslog(LOG_DEBUG, "%s: chan_send_dgram info to %s", fname,
                   sockAdd2Str_(to));
 
-    if (chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
+    if (chan_send_dgram(lim_udp_chan, buf, XDR_GETPOS(&xdrs),
                        (struct sockaddr_in *) to) < 0) {
         ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chan_send_dgram",
                   sockAdd2Str_(to));
@@ -729,7 +640,7 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType)
 %s: Sending request %d to LIM on %s",
               __func__, infoType, sockAdd2Str_(&to_addr));
 
-    if (chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs),
+    if (chan_send_dgram(lim_udp_chan, buf, XDR_GETPOS(&xdrs),
                        (struct sockaddr_in *) &to_addr) < 0)
         ls_syslog(LOG_ERR, "\
 %s: Failed to send request %d to LIM on %s: %m",

@@ -21,6 +21,7 @@
 #include "lsf/lim/lim.h"
 
 #define MAXIDLETIME 15552000
+extern float *extraload;
 
 float k_hz;
 static FILE *lim_popen(char **, char *);
@@ -328,7 +329,7 @@ void readLoad(void)
     static float avrun15m = 0.0;
     static float smpages;
     static float smkbps;
-    float extrafactor;
+    float extrafactor = 0.0;
     float cpu_usage = 0.0;
     static float swap;
     static float instant_ut;
@@ -409,13 +410,6 @@ checkExchange:
     if (++readCount2 < (exchIntvl / sampleIntvl))
         return;
     readCount2 = 0;
-
-    if (jobxfer) {
-        extrafactor = (float) jobxfer / (float) keepTime;
-        jobxfer--;
-    } else {
-        extrafactor = 0;
-    }
 
     myHostPtr->loadIndex[R15S] = avrun15 + extraload[R15S] * extrafactor;
     myHostPtr->loadIndex[R1M] = avrun1m + extraload[R1M] * extrafactor;
@@ -535,7 +529,7 @@ static FILE *lim_popen(char **argv, char *mode)
         for (i = 2; i < sysconf(_SC_OPEN_MAX); i++)
             close(i);
         for (i = 1; i < NSIG; i++)
-            Signal_(i, SIG_DFL);
+            signal_set(i, SIG_DFL);
 
         execvp(argv[0], argv);
         ls_syslog(LOG_ERR, "%s: execvp() failed: %m", argv[0]);
@@ -704,12 +698,11 @@ void getusr(void)
     static time_t lastStart;
     static char first = true;
     int i, nfds;
-    struct timeval timeout;
     int size;
     struct sharedResourceInstance *tmpSharedRes;
     struct timeval t, expire;
     struct timeval time0 = {0, 0};
-    int bw, scc;
+    int bw;
 
     if (first) {
         for (i = 0; i < NBUILTINDEX; i++)
@@ -836,11 +829,15 @@ void getusr(void)
 
         return;
     }
-
-    timeout.tv_sec = 0;
+    struct timeval timeout;
+    timeout.tv_sec  = 0;
     timeout.tv_usec = 5;
 
-    if ((nfds = rd_select_(fileno(fp), &timeout)) < 0) {
+    // Initialize poll data structure
+    struct pollfd pfd = {.fd = fileno(fp), .events = POLLOUT};
+    int tm = 60;
+
+    if ((nfds = poll(&pfd, 1, tm * 1000)) < 0) {
         ls_syslog(LOG_ERR, "%s: %s failed: %m", fname, "rd_select_");
         lim_pclose(fp);
         fp = NULL;
@@ -939,9 +936,9 @@ void getusr(void)
                     if (timercmp(&timeout, &time0, <)) {
                         timerclear(&timeout);
                     }
-                    scc = rd_select_(fileno(fp), &timeout);
+                    // scc = rd_select_(fileno(fp), &timeout);
                 }
-
+                int scc = 0;
                 if (scanerrno != EAGAIN || scc <= 0) {
                     ls_syslog(
                         LOG_ERR,

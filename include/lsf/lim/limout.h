@@ -247,3 +247,38 @@ struct limLock {
     time_t time;
     char lsfUserName[LL_NAME_MAX];
 };
+
+// Lavalite
+
+// In limout.h - clean wire protocol structs
+struct wire_host_info {
+    char *hostName;
+    char *hostType;
+    char *hostModel;
+    float cpuFactor;
+    int maxCpus;
+    int maxMem;
+    int maxSwap;
+    int maxTmp;
+    int nDisks;
+    int isServer;
+    int status;
+};
+
+struct wire_load_info {
+    char *host_name;
+    float load_indices[NBUILTINDEX];  // r15s r1m r15m ut pg io ls it tmp swp mem
+    int status;
+};
+
+// For hostinfo request
+struct host_info_reply {
+    int num_hosts;
+    struct wire_host_info *hosts;
+};
+
+// For load request
+struct load_reply {
+    int nHost;
+    struct wire_load_info *hosts;
+};

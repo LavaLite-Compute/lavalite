@@ -1,4 +1,4 @@
-/* $Id: lib.err.c,v 1.9 2007/08/15 22:18:50 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -21,109 +21,83 @@
 
 __thread int lserrno = LSE_NO_ERR;
 int masterLimDown = false;
-int ls_nerr = LSE_NERR;
 
-char *ls_errmsg[] = {
-    /* 0 */ "Error 0",
-    /* 1 */ "XDR operation error",
-    /* 2 */ "Failed in sending/receiving a message",
-    /* 3 */ "Bad arguments",
-    /* 4 */ "Cannot locate master LIM now, try later",
-    /* 5 */ "LIM is down; try later",
-    /* 6 */ "LIM protocol error",
-    /* 7 */ "A socket operation has failed",
-    /* 8 */ "Failed in an accept system call",
-    /* 9 */ "Bad LSF task configuration file format",
-    /* 10 */ "Not enough host(s) currently eligible",
-    /* 11 */ "No host is eligible",
-    /* 12 */ "Communication time out",
-    /* 13 */ "Nios has not been started",
-    /* 14 */ "Operation permission denied by LIM",
-    /* 15 */ "Operation ignored by LIM",
-    /* 16 */ "Host name not recognizable by LIM",
-    /* 17 */ "Host already locked",
-    /* 18 */ "Host was not locked",
-    /* 19 */ "Unknown host model",
-    /* 20 */ "A signal related system call failed",
-    /* 21 */ "Bad resource requirement syntax",
-    /* 22 */ "No remote child",
-    /* 23 */ "Memory allocation failed",
-    /* 24 */ "Unable to open file lsf.conf",
-    /* 25 */ "Bad configuration environment, something missing in lsf.conf?",
-    /* 26 */ "Lim is not a registered service",
-    /* 27 */ "Res is not a registered service",
-    /* 28 */ "RES is serving too many connections",
-    /* 29 */ "Bad user ID",
-    /* 30 */ "Root user rejected",
-    /* 31 */ "User permission denied",
-    /* 32 */ "Bad operation code",
-    /* 33 */ "Protocol error with RES",
-    /* 34 */ "RES callback fails; see RES error log for more details",
-    /* 35 */ "RES malloc fails",
-    /* 36 */ "Fatal error in RES; check RES error log for more details",
-    /* 37 */ "RES cannot alloc pty",
-    /* 38 */ "RES cannot allocate socketpair as stdin/stdout/stderr for task",
-    /* 39 */ "RES fork fails",
-    /* 40 */ "Running out of privileged socks",
-    /* 41 */ "getwd failed",
-    /* 42 */ "Connection is lost",
-    /* 43 */ "No such remote child",
-    /* 44 */ "Permission denied",
-    /* 45 */ "Ptymode inconsistency on ls_rtask",
-    /* 46 */ "Bad host name",
-    /* 47 */ "NIOS protocol error",
-    /* 48 */ "A wait system call failed",
-    /* 49 */ "Bad parameters for setstdin",
-    /* 50 */ "Insufficient list length for returned rpids",
-    /* 51 */ "Invalid cluster name",
-    /* 52 */ "Incompatible versions of tty params",
-    /* 53 */ "Failed in a execv() system call",
-    /* 54 */ "No such directory",
-    /* 55 */ "Directory may not be accessible",
-    /* 56 */ "Invalid service Id",
-    /* 57 */ "Request from a non-LSF host rejected",
-    /* 58 */ "Unknown resource name",
-    /* 59 */ "Unknown resource value",
-    /* 60 */ "Task already exists",
-    /* 61 */ "Task does not exist",
-    /* 62 */ "Task table is full",
-    /* 63 */ "A resource limit system call failed",
-    /* 64 */ "Bad index name list",
-    /* 65 */ "LIM malloc failed",
-    /* 66 */ "NIO not initialized",
-    /* 67 */ "Bad syntax in lsf.conf",
-    /* 68 */ "File operation failed",
-    /* 69 */ "A connect sys call failed",
-    /* 70 */ "A select system call failed",
-    /* 71 */ "End of file",
-    /* 72 */ "Bad lsf accounting record format",
-    /* 73 */ "Bad time specification",
-    /* 74 */ "Unable to fork child",
-    /* 75 */ "Failed to setup pipe",
-    /* 76 */ "Unable to access esub/eexec file",
-    /* 77 */ "External authentication failed",
-    /* 78 */ "Cannot open file",
-    /* 79 */ "Out of communication channels",
-    /* 80 */ "Bad communication channel",
-    /* 81 */ "Internal library error",
-    /* 82 */ "Protocol error with server",
-    /* 83 */ "A system call failed",
-    /* 84 */ "Failed to get rusage",
-    /* 85 */ "No shared resources",
-    /* 86 */ "Bad resource name",
-    /* 87 */ "Failed to contact RES parent",
-    /* 88 */ "i18n setlocale failed",
-    /* 89 */ "i18n catopen failed",
-    /* 90 */ "i18n malloc failed",
-    /* 91 */ "Cannot allocate memory",
-    /* 92 */ "Close a NULL-FILE pointer",
-    /* 93 */ "Slave LIM configuration is not ready yet",
-    /* 94 */ "Master LIM is down; try later",
-    /* 95 */ "Requested label is not valid",
-    /* 96 */ "Requested label is above your allowed range",
-    /* 97 */ "Request label rejected by /etc/rhost.conf",
-    /* 98 */ "Request label doesn't dominate current label",
+const char *ls_errmsg[] = {
+    [LSE_NO_ERR] = "No error",
+    [LSE_BAD_XDR] = "XDR operation error",
+    [LSE_MSG_SYS] = "Failed in sending/receiving a message",
+    [LSE_BAD_ARGS] = "Bad arguments",
+    [LSE_MASTR_UNKNW] = "Cannot locate master LIM now, try later",
+    [LSE_LIM_DOWN] = "LIM is down; try later",
+    [LSE_PROTOC_LIM] = "LIM protocol error",
+    [LSE_SOCK_SYS] = "A socket operation has failed",
+    [LSE_ACCEPT_SYS] = "Failed in an accept system call",
+    [LSE_NO_HOST] = "Not enough host(s) currently eligible",
+    [LSE_NO_ELHOST] = "No host is eligible",
+    [LSE_TIME_OUT] = "Communication time out",
+    [LSE_NIOS_DOWN] = "Nios has not been started",
+    [LSE_LIM_DENIED] = "Operation permission denied by LIM",
+    [LSE_LIM_IGNORE] = "Operation ignored by LIM",
+    [LSE_LIM_BADHOST] = "Host name not recognizable by LIM",
+    [LSE_LIM_ALOCKED] = "Host already locked",
+    [LSE_LIM_NLOCKED] = "Host was not locked",
+    [LSE_LIM_BADMOD] = "Unknown host model",
+    [LSE_SIG_SYS] = "A signal related system call failed",
+    [LSE_BAD_EXP] = "Bad resource requirement syntax",
+    [LSE_NORCHILD] = "No remote child",
+    [LSE_MALLOC] = "Memory allocation failed",
+    [LSE_LSFCONF] = "Unable to open file lsf.conf",
+    [LSE_BAD_ENV] = "Bad configuration environment, something missing in lsf.conf?",
+    [LSE_LIM_NREG] = "LIM is not a registered service",
+    [LSE_RES_NREG] = "RES is not a registered service",
+    [LSE_RES_NOMORECONN] = "RES is serving too many connections",
+    [LSE_BADUSER] = "Bad user ID",
+    [LSE_BAD_OPCODE] = "Bad operation code",
+    [LSE_PROTOC_RES] = "Protocol error with RES",
+    [LSE_NOMORE_SOCK] = "Running out of privileged socks",
+    [LSE_LOSTCON] = "Connection is lost",
+    [LSE_BAD_HOST] = "Bad host name",
+    [LSE_WAIT_SYS] = "A wait system call failed",
+    [LSE_SETPARAM] = "Bad parameters for setstdin",
+    [LSE_BAD_CLUSTER] = "Invalid cluster name",
+    [LSE_EXECV_SYS] = "Failed in a execv() system call",
+    [LSE_BAD_SERVID] = "Invalid service Id",
+    [LSE_NLSF_HOST] = "Request from a non-LSF host rejected",
+    [LSE_UNKWN_RESNAME] = "Unknown resource name",
+    [LSE_UNKWN_RESVALUE] = "Unknown resource value",
+    [LSE_TASKEXIST] = "Task already exists",
+    [LSE_LIMIT_SYS] = "A resource limit system call failed",
+    [LSE_BAD_NAMELIST] = "Bad index name list",
+    [LSE_LIM_NOMEM] = "LIM malloc failed",
+    [LSE_CONF_SYNTAX] = "Bad syntax in lsf.conf",
+    [LSE_FILE_SYS] = "File operation failed",
+    [LSE_CONN_SYS] = "A connect sys call failed",
+    [LSE_SELECT_SYS] = "A select system call failed",
+    [LSE_EOF] = "End of file",
+    [LSE_ACCT_FORMAT] = "Bad lsf accounting record format",
+    [LSE_BAD_TIME] = "Bad time specification",
+    [LSE_FORK] = "Unable to fork child",
+    [LSE_PIPE] = "Failed to setup pipe",
+    [LSE_ESUB] = "Unable to access esub/eexec file",
+    [LSE_EAUTH] = "External authentication failed",
+    [LSE_NO_FILE] = "Cannot open file",
+    [LSE_NO_CHAN] = "Out of communication channels",
+    [LSE_BAD_CHAN] = "Bad communication channel",
+    [LSE_INTERNAL] = "Internal library error",
+    [LSE_PROTOCOL] = "Protocol error with server",
+    [LSE_RES_RUSAGE] = "Failed to get rusage",
+    [LSE_NO_RESOURCE] = "No shared resources",
+    [LSE_BAD_RESOURCE] = "Bad resource name",
+    [LSE_RES_PARENT] = "Failed to contact RES parent",
+    [LSE_NO_MEM] = "Cannot allocate memory",
+    [LSE_FILE_CLOSE] = "Close a NULL-FILE pointer",
+    [LSE_LIMCONF_NOTREADY] = "Slave LIM configuration is not ready yet",
+    [LSE_MASTER_LIM_DOWN] = "Master LIM is down; try later",
+    [LSE_POLL_SYS] = "A poll system call failed",
 };
+
+_Static_assert(sizeof(ls_errmsg) / sizeof(ls_errmsg[0]) == LSE_NERR,
+               "ls_errmsg array size must match LSE_NERR");
 
 void ls_errlog(FILE *fp, const char *fmt, ...)
 {
@@ -206,30 +180,17 @@ void verrlog_(int level, FILE *fp, const char *fmt, va_list ap)
     lastime = now;
 }
 
-char *ls_sysmsg(void)
+// Bug remove it
+const char *ls_sysmsg(void)
 {
-    static char buf[256];
-    int save_errno = errno;
+    static __thread char buf[256];
 
-    if (lserrno >= ls_nerr || lserrno < 0) {
+    if (lserrno >= LSE_NERR || lserrno < 0) {
         sprintf(buf, "Error %d", lserrno);
         return buf;
     }
 
-    if (LSE_SYSCALL(lserrno)) {
-        if (strerror(save_errno) != NULL && save_errno > 0)
-            sprintf(buf, "%s: %s", ls_errmsg[lserrno], strerror(save_errno));
-        else
-            sprintf(buf, ("%s: unknown system error %d"), ls_errmsg[lserrno],
-                    save_errno);
-        return buf;
-    }
-
-    if ((lserrno == LSE_LIM_DOWN) && (masterLimDown == true)) {
-        return (ls_errmsg[LSE_MASTER_LIM_DOWN]);
-    }
-
-    return (ls_errmsg[lserrno]);
+    return ls_errmsg[lserrno];
 }
 
 void ls_perror(const char *usrMsg)

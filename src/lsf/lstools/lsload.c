@@ -1,263 +1,98 @@
-/* $Id: lsload.c,v 1.5 2007/08/15 22:18:55 tmizan Exp $
- * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+/* lsload.c - display static host information
+ * Copyright (C) 2024-2025 LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
- *
  */
+
 #include "lsf/lib/lib.h"
-#include "lsf/lib/intlibout.h"
 
-#define MAXLISTSIZE 256
 
-extern int makeFields(struct hostLoad *, char *loadval[], char **);
-extern int makewideFields(struct hostLoad *, char *loadval[], char **);
-extern char *formatHeader(char **, char);
-extern char *wideformatHeader(char **, char);
-extern char **filterToNames(char *);
-extern int num_loadindex;
 
-void usage(const char *cmd)
+static void usage(void)
 {
-    fprintf(stderr, "Usage: ");
-    fprintf(stderr,
-            "%s [-h] [-V] [-N|-E] [-l | -w] [-R res_req] "
-            "[-I index_list] [-n num_hosts] "
-            "[host_name ... | cluster_name ...]\n",
-            cmd);
-    fprintf(stderr, "%s [-h] [-V] -s [ shared_resource_name ... ]\n", cmd);
+    fprintf(stderr, "Usage: lsload [-h] [-V] [host_name ...]\n");
     exit(-1);
+}
+
+static const char *status_str(int status)
+{
+    if (LS_ISUNAVAIL(status))
+        return "unavail";
+    if (LS_ISBUSY(status))
+        return "busy";
+    if (LS_ISLOCKED(status))
+        return "locked";
+    if (LS_ISOKNRES(status))
+        return "ok";
+    return "unknown";
 }
 
 int main(int argc, char **argv)
 {
-    static char fname[] = "lsload:main";
-    int i, j, num, numneeded;
-    char *resreq = NULL;
-    struct hostLoad *hosts;
-    char *hostnames[MAXLISTSIZE];
-    char statusbuf[20];
-    int options = 0;
-    static char **loadval;
-    char *indexfilter = NULL;
-    char **nlp;
-    static char *defaultindex[] = {"r15s", "r1m", "r15m", "ut",  "pg", "ls",
-                                   "it",   "tmp", "swp",  "mem", NULL};
-    int achar;
-    char longFormat = FALSE;
-    char wideFormat = FALSE;
-    char sOption = FALSE, otherOption = FALSE;
-    int extView = FALSE;
-    char **shareNames, **shareValues, **formats;
-    int retVal = 0;
-
-    num = 0;
-    numneeded = 0;
-    opterr = 0;
+    struct wire_load_info *loads;
+    int numhosts = 0;
+    int i;
+    int opt;
 
     if (ls_initdebug(argv[0]) < 0) {
         ls_perror("ls_initdebug");
         exit(-1);
     }
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
-    for (i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-h") == 0) {
-            usage(argv[0]);
-            exit(0);
-        } else if (strcmp(argv[i], "-V") == 0) {
-            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+    while ((opt = getopt(argc, argv, "hV")) != -1) {
+        switch (opt) {
+        case 'h':
+            usage();
             return 0;
-        } else if (strcmp(argv[i], "-s") == 0) {
-            if (otherOption == TRUE) {
-                usage(argv[0]);
-                exit(-1);
-            }
-            sOption = TRUE;
-            optind = i + 1;
-        } else if (strcmp(argv[i], "-e") == 0) {
-            if (otherOption == TRUE || sOption == FALSE) {
-                usage(argv[0]);
-                exit(-1);
-            }
-            extView = TRUE;
-            optind = i + 1;
-        } else if (strcmp(argv[i], "-R") == 0 || strcmp(argv[i], "-l") == 0 ||
-                   strcmp(argv[i], "-I") == 0 || strcmp(argv[i], "-N") == 0 ||
-                   strcmp(argv[i], "-E") == 0 || strcmp(argv[i], "-n") == 0 ||
-                   strcmp(argv[i], "-w") == 0) {
-            otherOption = TRUE;
-            if (sOption == TRUE) {
-                usage(argv[0]);
-                exit(-1);
-            }
-        }
-    }
-
-    if (sOption == TRUE) {
-        displayShareResource(argc, argv, optind, FALSE, extView);
-        return (0);
-    }
-
-    while ((achar = getopt(argc, argv, "R:I:NEln:w")) != EOF) {
-        switch (achar) {
-        case 'R':
-            resreq = optarg;
-            break;
-        case 'I':
-            indexfilter = optarg;
-            break;
-
-        case 'N':
-            if (options & EFFECTIVE)
-                usage(argv[0]);
-            options = NORMALIZE;
-            break;
-
-        case 'E':
-            if (options & NORMALIZE)
-                usage(argv[0]);
-            options = EFFECTIVE;
-            break;
-        case 'n':
-            numneeded = atoi(optarg);
-            if (numneeded <= 0)
-                usage(argv[0]);
-            break;
-
-        case 'l':
-            longFormat = TRUE;
-            if (wideFormat == TRUE)
-                usage(argv[0]);
-            break;
-
-        case 'w':
-            wideFormat = TRUE;
-            if (longFormat == TRUE)
-                usage(argv[0]);
-            break;
-
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            exit(0);
-
-        case 'h':
+            return 0;
         default:
-            usage(argv[0]);
+            usage();
         }
     }
 
-    for (; optind < argc; optind++) {
-        if (num >= MAXLISTSIZE) {
-            fprintf(stderr, "too many hosts specified maximum %d\n",
-                    MAXLISTSIZE);
-            exit(-1);
-        }
-        if (!is_valid_host(argv[optind])) {
-            fprintf(stderr, "lsload: %s %s\n", "unknown host name",
-                    argv[optind]);
-            return -1;
-        }
-        hostnames[num] = argv[optind];
-        num++;
+    // Remaining args are hostnames (if any)
+    char **hostnames = NULL;
+    int nhosts = argc - optind;
+    if (nhosts > 0) {
+        hostnames = &argv[optind];
     }
 
-    if (!longFormat) {
-        if (indexfilter)
-            nlp = filterToNames(indexfilter);
-        else
-            nlp = defaultindex;
-    } else {
-        nlp = NULL;
-    }
-
-    hosts = ls_loadinfo(resreq, &numneeded, options, 0, hostnames, num, &nlp);
-    if (!hosts) {
-        ls_perror("lsload");
+    loads = ls_load(NULL, &numhosts, 0, NULL);
+    if (loads == NULL) {
+        ls_perror("ls_get_load_info");
         return -1;
     }
 
-    if (longFormat)
-        printf("%s", formatHeader(nlp, longFormat));
-    else if (wideFormat)
-        printf("%s\n", wideformatHeader(nlp, longFormat));
-    else
-        printf("%s\n", formatHeader(nlp, longFormat));
+    // Print header
+    printf("%-15s %8s %6s %6s %6s %5s %5s %4s %4s %4s %7s %7s %7s\n",
+           "HOST_NAME", "status", "r15s", "r1m", "r15m", "ut",
+           "pg", "io", "ls", "it", "tmp", "swp", "mem");
 
-    if (!(loadval = calloc(num_loadindex, sizeof(char *)))) {
-        lserrno = LSE_MALLOC;
-        ls_perror("lsload");
-        exit(-1);
+    // Print each host's load
+    for (i = 0; i < numhosts; i++) {
+        struct wire_load_info *l = &loads[i];
+        float *li = l->loadIndices;
+
+        printf("%-15s %8s %6.1f %6.1f %6.1f %4.0f%% %5.1f %4.0f %4.0f "
+               "%4.0f %6.0fM %6.0fM %6.0fM\n",
+               l->hostname,
+               status_str(l->status),
+               li[R15S],
+               li[R1M],
+               li[R15M],
+               li[UT] * 100.0,
+               li[PG],
+               li[IO],
+               li[LS],
+               li[IT],
+               li[TMP],
+               li[SWP],
+               li[MEM]);
     }
-    for (i = 0; i < numneeded; i++) {
-        if (LS_ISUNAVAIL(hosts[i].status))
-            strcpy(statusbuf, "unavail");
-        else {
-            statusbuf[0] = '\0';
-            if (LS_ISRESDOWN(hosts[i].status))
-                strcat(statusbuf, "-");
-            if (LS_ISOKNRES(hosts[i].status)) {
-                strcat(statusbuf, "ok");
-            } else if (LS_ISBUSY(hosts[i].status) &&
-                       !LS_ISLOCKED(hosts[i].status)) {
-                strcat(statusbuf, "busy");
-            } else {
-                strcat(statusbuf, "lock");
-                if (LS_ISLOCKEDU(hosts[i].status)) {
-                    strcat(statusbuf, "U");
-                }
-                if (LS_ISLOCKEDW(hosts[i].status)) {
-                    strcat(statusbuf, "W");
-                }
-                if (LS_ISLOCKEDM(hosts[i].status)) {
-                    strcat(statusbuf, "M");
-                }
-            }
-        }
 
-        if (longFormat) {
-            retVal = makeShareField(hosts[i].hostName, FALSE, &shareNames,
-                                    &shareValues, &formats);
-            if (i == 0) {
-                if (retVal > 0) {
-                    for (j = 0; j < retVal; j++) {
-                        printf(formats[j], shareNames[j]);
-                    }
-                }
-                putchar('\n');
-            }
-            printf("%-23s %6s", hosts[i].hostName, statusbuf);
-        } else
-            printf("%-15.15s %6s", hosts[i].hostName, statusbuf);
-
-        if (!LS_ISUNAVAIL(hosts[i].status)) {
-            int nf;
-            if (wideFormat) {
-                nf = makewideFields(&hosts[i], loadval, nlp);
-            } else
-                nf = makeFields(&hosts[i], loadval, nlp);
-            for (j = 0; j < nf; j++)
-                printf("%s", loadval[j]);
-            if (retVal > 0) {
-                for (j = 0; j < retVal; j++) {
-                    printf(formats[j], shareValues[j]);
-                }
-            }
-        }
-        putchar('\n');
-    }
-    exit(0);
+    return 0;
 }

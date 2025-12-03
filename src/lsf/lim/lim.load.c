@@ -267,7 +267,7 @@ void sendLoad(void)
                       sockAdd2Str_(&to_addr), XDR_GETPOS(&xdrs),
                       ntohs(lim_udp_port));
 
-        if (chan_send_dgram(lim_udp_sock, repBuf, XDR_GETPOS(&xdrs), &to_addr) <
+        if (chan_send_dgram(lim_udp_chan, repBuf, XDR_GETPOS(&xdrs), &to_addr) <
             0) {
             ls_syslog(LOG_ERR, "%s: chan_send_dgram() to %s failed: %m",
                       __func__, sockAdd2Str_(&to_addr));

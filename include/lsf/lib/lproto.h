@@ -1,5 +1,4 @@
-#pragma once
-/* $Id: lproto.h,v 1.9 2007/08/15 22:18:51 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -18,6 +17,7 @@
  USA
  *
  */
+#pragma once
 
 #include "lsf/lib/lib.table.h"
 #include "lsf/lib/lib.hdr.h"
@@ -245,9 +245,6 @@ extern ssize_t nb_write_fix(int, const void *, size_t);
 extern ssize_t nb_read_timeout(int, void *, size_t, int);
 extern ssize_t b_read_fix(int, void *, size_t);
 extern ssize_t b_write_fix(int, const void *, size_t);
-extern int b_connect_(int, const struct sockaddr *, socklen_t, int);
-extern int rd_select_(int, struct timeval *);
-extern int b_accept_(int, struct sockaddr *, socklen_t *);
 extern int blockSigs_(int, sigset_t *, sigset_t *);
 
 extern int io_nonblock_(int);
@@ -277,3 +274,4 @@ int get_uid(const char *, uid_t *);
 int millisleep_(uint32_t);
 int is_valid_host(const char *hname);
 int rd_poll(int, int);
+int connect_timeout(int, const struct sockaddr *, socklen_t, int);

@@ -16,9 +16,7 @@
  USA
  *
  */
-
-#ifndef _LIB_COMMON__
-#define _LIB_COMMON_
+#pragma once
 
 /* This file is created by automake
  */
@@ -83,8 +81,7 @@
  */
 #define LSF_NSIG NSIG
 
-extern void Signal_(int, void (*f)(int));
-extern char *get_username(void);
+void signal_set(int, void (*f)(int));
 
 // Lavalite
 
@@ -111,5 +108,3 @@ extern char *get_username(void);
 
 #define LS_DEBUG(fmt, ...)                                                     \
     ls_syslog(LOG_DEBUG, "%s: " fmt, __func__, ##__VA_ARGS__)
-
-#endif /* _LIB_H_ */

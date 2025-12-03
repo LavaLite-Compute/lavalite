@@ -84,6 +84,7 @@ struct builtIn builtInRes[] = {
     {NULL, NULL, LS_NUMERIC, INCR, TYPE1, 0}};
 
 struct sharedConf *sConf = NULL;
+
 static struct lsInfo lsinfo;
 struct clusterConf *cConf = NULL;
 static struct clusterInfo clinfo;

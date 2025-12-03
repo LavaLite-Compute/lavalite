@@ -20,7 +20,6 @@ lim_SOURCES = lim.tcp.c \
 	lim.load.c \
 	lim.main.c \
 	lim.misc.c \
-	lim.policy.c \
 	lim.rload.c \
 	lim.xdr.c \
     lim.linux.c

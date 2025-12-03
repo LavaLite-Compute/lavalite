@@ -1,4 +1,4 @@
-/* $Id: lib.misc.c,v 1.5 2007/08/15 22:18:50 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -28,13 +28,14 @@ static __thread char ctime2_buf[LL_BUFSIZ_64];
  *   - no trailing '\n'
  *   - returns pointer to static buffer (like ctime)
  */
-const char *ctime2(const time_t *tp)
+const char *ctime2(time_t *tp)
 {
-    if (!tp) {
-        lserrno = LSE_BAD_TIME;
-        return "";
-    }
+    time_t t;
 
+    if (!tp) {
+        t = time(NULL);
+        tp = &t;
+    }
     struct tm tm;
     if (!localtime_r(tp, &tm)) {
         lserrno = LSE_BAD_TIME;

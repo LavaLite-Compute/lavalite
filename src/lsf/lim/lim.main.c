@@ -21,13 +21,17 @@
 #include "lsf/lim/lim.h"
 
 // LIM uses both UDP and TCP protocols
-int lim_udp_sock = -1;
-int lim_tcp_sock = -1;
-ushort lim_udp_port;
-ushort lim_tcp_port;
-// BUG use a list
-long max_clients;
-struct client_node **clientMap;
+int lim_udp_chan = -1;
+int lim_tcp_chan = -1;
+int lim_timer_chan = -1;
+uint16_t lim_udp_port;
+uint16_t lim_tcp_port;
+
+// LavaLite epoll file descriptor
+static int efd;
+static struct epoll_event *lim_events;
+// This have the same size and chan_open_max
+struct client_node **client_map;
 
 int probeTimeout = 2;
 short resInactivityCount = 0;
@@ -62,14 +66,18 @@ static inline uint64_t now_ms(void);
 
 struct liStruct *li = NULL;
 int li_len = 0;
+float *extraload;
 
 // LavaLite
 static void lim_init(int);
-static int lim_init_sock(int);
+static int lim_init_network(int);
+static int lim_init_chans(void);
+static int lim_create_epoll();
+static int lim_create_clients();
 static void term_handler(int);
 static void child_handler(int);
 static void usage(const char *);
-static void initSignals(void);
+static void init_signals(void);
 static void periodic(void);
 static struct tclLsInfo *getTclLsInfo(void);
 static void initMiscLiStruct(void);
@@ -208,7 +216,7 @@ int main(int argc, char **argv)
     }
 
     initMiscLiStruct();
-    initSignals();
+    init_signals();
 
     syslog(LOG_INFO, "%s: Daemon running (tcp_port %d %s)", __func__,
            ntohs(myHostPtr->statInfo.portno), LAVALITE_VERSION_STR);
@@ -227,54 +235,49 @@ int main(int argc, char **argv)
     // Every 5 seconds
     periodic();
 
-    // This is the 5 seconds counter to next periodic
-    uint64_t tick_ms = 5000;
-    uint64_t next_tick = now_ms() + tick_ms;
-
-    struct Masks sockmask;
-    struct Masks chanmask;
-    fd_set allMask;
-    FD_ZERO(&allMask);
-
     for (;;) {
-        sockmask.rmask = allMask;
 
         if (pimPid == -1) {
             startPIM(argc, argv);
         }
 
-        // select timeout ever 2 seconds if no network io
-        struct timeval timeout = {.tv_sec = 2, .tv_usec = 0};
+        // select timeout ever 5 seconds if no network io
+        int timeout = 5 * 1000;
 
-        int nfiles = chanSelect_(&sockmask, &chanmask, &timeout);
-        if (nfiles < 0) {
+        int nready = chan_epoll(efd, lim_events, chan_open_max, timeout);
+        if (nready < 0) {
             if (errno != EINTR) {
                 syslog(LOG_ERR, "%s: network I/O %m", __func__);
             }
         }
 
-        uint64_t now = now_ms();
-        if (now >= next_tick) {
-            periodic();
-            next_tick += tick_ms;
-        }
-
-        if (nfiles <= 0)
+        if (nready <= 0)
             continue;
 
-        if (FD_ISSET(lim_udp_sock, &chanmask.rmask)) {
-            cc = process_udp_request();
-            if (cc < 0) {
-                syslog(LOG_ERR, "%s: process_udp_request() failed: %m",
-                       __func__);
+        for (int i = 0; i < nready; i++) {
+            struct epoll_event *e = &lim_events[i];
+            int ch_id = e->data.u32;
+
+            if (ch_id == lim_timer_chan) {
+                uint64_t expirations;
+                read(chan_sock(ch_id), &expirations, sizeof(expirations));
+                LS_DEBUG("timer run %s", ctime2(NULL));
+                periodic();
+                continue;
             }
-        }
 
-        if (FD_ISSET(lim_tcp_sock, &chanmask.rmask)) {
-            accept_connection();
-        }
+            if (ch_id == lim_udp_chan) {
+                process_udp_request();
+                continue;
+            }
 
-        handle_tcp_client(&chanmask);
+            if (ch_id == lim_tcp_chan) {
+                accept_connection();
+                continue;
+            }
+
+            handle_tcp_client(ch_id);
+        }
     }
 }
 
@@ -295,12 +298,12 @@ static int process_udp_request(void)
     memset(&from, 0, sizeof(from));
 
     struct packet_header reqHdr;
-    int cc = chan_recv_dgram_(lim_udp_sock, buf, sizeof(buf),
-                           (struct sockaddr_storage *) &from, -1);
+    int cc = chan_recv_dgram(lim_udp_chan, buf, sizeof(buf),
+                              (struct sockaddr_storage *) &from, -1);
     if (cc < 0) {
         syslog(LOG_ERR,
-               "%s: Error receiving data on lim_udp_sock %d, cc=%d: %m",
-               __func__, lim_udp_sock, cc);
+               "%s: Error receiving data on lim_udp_chan %d, cc=%d: %m",
+               __func__, lim_udp_chan, cc);
         return -1;
     }
 
@@ -359,18 +362,9 @@ static int accept_connection(void)
     if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", __func__);
 
-    int ch = chan_accept(lim_tcp_sock, &from);
-    if (ch < 0) {
+    int ch_id = chan_accept(lim_tcp_chan, &from);
+    if (ch_id < 0) {
         ls_syslog(LOG_ERR, "%s: chan_accept() failed: %m", __func__);
-        return -1;
-    }
-
-    struct ll_host hs;
-    get_host_by_sockaddr_in(&from, &hs);
-    if (hs.name[0] == 0) {
-        ls_syslog(LOG_ERR, "%s: unknown host from %s dropped", __func__,
-                  sockAdd2Str_(&from));
-        chan_close(ch);
         return -1;
     }
 
@@ -379,47 +373,50 @@ static int accept_connection(void)
         ls_syslog(LOG_WARNING, "\
 %s: Received request from non-LSF host %s",
                   __func__, sockAdd2Str_(&from));
-        chan_close(ch);
+        chan_close(ch_id);
         return -1;
     }
 
+    // set the accepted socket in the epoll fd
     struct client_node *client = calloc(1, sizeof(struct client_node));
     if (!client) {
         ls_syslog(LOG_ERR, "%s: Connection from %s dropped", __func__,
                   sockAdd2Str_(&from));
-        chan_close(ch);
+        chan_close(ch_id);
         return -1;
     }
-    client->ch_id = ch;
+
     // Bug create a list
-    clientMap[client->ch_id] = client;
-    client->fromHost = host;
-    client->from = from;
-    client->clientMasks = 0;
-    client->reqbuf = NULL;
+    client_map[ch_id] = client;
+    // We only need the channel id and the host node
+    client->ch_id = ch_id;
+    client->from_host = host;
+
+    // Set the socket under efd and map the client pointer
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    ev.data.u32 = ch_id;
+    epoll_ctl(efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev);
 
     return 0;
 }
 
-static void initSignals(void)
+static void init_signals(void)
 {
     sigset_t mask;
 
-    Signal_(SIGHUP, term_handler);
-    Signal_(SIGINT, term_handler);
-    Signal_(SIGTERM, term_handler);
-    Signal_(SIGXCPU, term_handler);
-    Signal_(SIGXFSZ, term_handler);
-    Signal_(SIGPROF, term_handler);
-    Signal_(SIGPWR, term_handler);
-    Signal_(SIGUSR1, term_handler);
-    Signal_(SIGUSR2, term_handler);
-    Signal_(SIGCHLD, child_handler);
-    Signal_(SIGPIPE, SIG_IGN);
-
-    /* LIM is compiled with define NO_SIGALARM
-     */
-    Signal_(SIGALRM, SIG_IGN);
+    signal_set(SIGHUP, term_handler);
+    signal_set(SIGINT, term_handler);
+    signal_set(SIGTERM, term_handler);
+    signal_set(SIGXCPU, term_handler);
+    signal_set(SIGXFSZ, term_handler);
+    signal_set(SIGPROF, term_handler);
+    signal_set(SIGPWR, term_handler);
+    signal_set(SIGUSR1, term_handler);
+    signal_set(SIGUSR2, term_handler);
+    signal_set(SIGCHLD, child_handler);
+    signal_set(SIGPIPE, SIG_IGN);
+    signal_set(SIGALRM, SIG_IGN);
 
     sigemptyset(&mask);
     sigprocmask(SIG_SETMASK, &mask, NULL);
@@ -443,8 +440,8 @@ static void lim_init(int checkMode)
     setMyClusterName();
 
     if (getenv("RECONFIG_CHECK") == NULL) {
-        if (lim_init_sock(checkMode) < 0)
-            lim_Exit("lim_init_sock");
+        if (lim_init_network(checkMode) < 0)
+            lim_Exit("lim_init_network");
     }
 
     if (readCluster(checkMode) < 0)
@@ -471,9 +468,6 @@ static void lim_init(int checkMode)
     if (chan_init() < 0)
         lim_Exit("chan_init");
 
-    max_clients = sysconf(_SC_OPEN_MAX);
-    clientMap = calloc(1, sizeof(struct client_node **));
-    *clientMap = calloc(max_clients, sizeof(struct client_node *));
     {
         // Bug what is the purpose of this, set in the env
         // while processing the API so child picks it up?
@@ -530,12 +524,12 @@ static void periodic(void)
 // do nohing else in the handler
 static void term_handler(int signum)
 {
-    Signal_(signum, SIG_DFL);
+    signal_set(signum, SIG_DFL);
 
     ls_syslog(LOG_ERR, "%s: Received signal %d, exiting", __func__, signum);
 
-    chan_close(lim_udp_sock);
-    chan_close(lim_tcp_sock);
+    chan_close(lim_udp_chan);
+    chan_close(lim_tcp_chan);
 
     if (elim_pid > 0) {
         kill(elim_pid, SIGTERM);
@@ -559,7 +553,50 @@ static void child_handler(int sig)
     errno = saved_errno;
 }
 
-static int lim_init_sock(int checkMode)
+static int add_listener(int efd, int fd, int ch_id)
+{
+    struct epoll_event ev = {
+        .events = EPOLLIN,
+        .data.u32 = ch_id
+    };
+
+    if (epoll_ctl(efd, EPOLL_CTL_ADD, fd, &ev) < 0)
+        return -1;
+
+    return 0;
+}
+
+static int lim_init_network(int checkMode)
+{
+    lim_init_chans();
+    lim_create_epoll();
+    lim_create_clients();
+
+    if (add_listener(efd, chan_sock(lim_udp_chan), lim_udp_chan) < 0) {
+        syslog(LOG_ERR, "Failed to add UDP listener: %m");
+        goto cleanup;
+    }
+
+    if (add_listener(efd, chan_sock(lim_tcp_chan), lim_tcp_chan) < 0) {
+        LS_ERR("%s: Failed to add TCP listener: %m", __func__);
+        goto cleanup;
+    }
+
+    if (add_listener(efd, chan_sock(lim_timer_chan), lim_timer_chan) < 0) {
+        LS_ERR("%s: Failed to add timer: %m", __func__);
+        goto cleanup;
+    }
+
+    return 0;
+
+cleanup:
+    chan_close(lim_udp_chan);
+    chan_close(lim_tcp_chan);
+    close(lim_timer_chan);
+    return -1;
+}
+
+static int lim_init_chans(void)
 {
     struct sockaddr_in lim_addr;
 
@@ -569,10 +606,11 @@ static int lim_init_sock(int checkMode)
                __func__, genParams[LSF_LIM_PORT].paramValue);
         return -1;
     }
+    // make sure you called chan_init() before
 
     // LIM UDP channel
-    lim_udp_sock = chan_listen_socket(SOCK_DGRAM, lim_udp_port, -1, 0);
-    if (lim_udp_sock < 0) {
+    lim_udp_chan = chan_listen_socket(SOCK_DGRAM, lim_udp_port, -1, 0);
+    if (lim_udp_chan < 0) {
         syslog(LOG_ERR,
                "%s: unable to create datagram socket port %d "
                "another LIM running?: %m ",
@@ -581,29 +619,73 @@ static int lim_init_sock(int checkMode)
     }
 
     // LIM TCP socket with
-    lim_tcp_sock = chan_listen_socket(SOCK_STREAM, 0, SOMAXCONN, CHAN_OP_SOREUSE);
-    if (lim_tcp_sock < 0) {
+    lim_tcp_chan = chan_listen_socket(SOCK_STREAM, 0, SOMAXCONN, CHAN_OP_SOREUSE);
+    if (lim_tcp_chan < 0) {
         syslog(LOG_ERR,
                "%s: unable to create tcp socket port %d "
                "another LIM running?: %m ",
                __func__, lim_udp_port);
-        chan_close(lim_tcp_sock);
+        chan_close(lim_tcp_chan);
+        chan_close(lim_udp_chan);
         return -1;
     }
 
     socklen_t size = sizeof(struct sockaddr_in);
-    int cc = getsockname(chan_get_sock(lim_tcp_sock),
+    int cc = getsockname(chan_sock(lim_tcp_chan),
                          (struct sockaddr *) &lim_addr,
                          &size);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,
-               lim_tcp_sock);
-        chan_close(lim_tcp_sock);
+               lim_tcp_chan);
+        chan_close(lim_tcp_chan);
+        chan_close(lim_tcp_chan);
         return -1;
     }
+
     // LIM dynamic TCP port sent to slave lims and library which need
     // to find the master lim
     lim_tcp_port = lim_addr.sin_port;
+
+    // This is not a channel, just a fake name for the time
+    // that goes in the data structure
+    lim_timer_chan = chan_create_timer(5);
+    if (lim_timer_chan < 0) {
+        chan_close(lim_tcp_chan);
+        chan_close(lim_tcp_chan);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int lim_create_epoll(void)
+{
+    // epoll file descriptor
+    efd = epoll_create1(0);
+    if (efd < 0) {
+        LS_ERR("%s: epoll_create1() failed: %m", __func__);
+        chan_close(lim_tcp_chan);
+        chan_close(lim_tcp_chan);
+        return -1;
+    }
+
+    // The global array of epoll_event
+    lim_events = calloc(chan_open_max, sizeof(struct epoll_event));
+    if (lim_events == NULL) {
+        LS_ERR("%s: calloc failed %m", __func__);
+        chan_close(lim_tcp_chan);
+        chan_close(lim_tcp_chan);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int lim_create_clients(void)
+{
+    // Init the array of all clients as the same size
+    // like the channels array
+    client_map = calloc(chan_open_max, sizeof(struct client_node *));
 
     return 0;
 }
@@ -629,7 +711,7 @@ void errorBack(struct sockaddr_in *from, struct packet_header *reqHdr,
     }
 
     if (chan < 0)
-        cc = chan_send_dgram(lim_udp_sock, buf, XDR_GETPOS(&xdrs2), from);
+        cc = chan_send_dgram(lim_udp_chan, buf, XDR_GETPOS(&xdrs2), from);
     else
         cc = chan_write(chan, buf, XDR_GETPOS(&xdrs2));
 
@@ -688,7 +770,7 @@ static void startPIM(int argc, char **argv)
         close(i);
 
     for (i = 1; i < NSIG; i++)
-        Signal_(i, SIG_DFL);
+        signal_set(i, SIG_DFL);
 
     char daemonPath[PATH_MAX];
     snprintf(daemonPath, sizeof(daemonPath), "%s/pim",
@@ -837,4 +919,22 @@ static void initMiscLiStruct(void)
         li[i].exchthreshold = 0.0001;
         li[i].sigdiff = 0.0001;
     }
+}
+
+void shutdown_client(struct client_node *client)
+{
+    if (!client)
+        return;
+
+    // Remove ef from epoll listening socket
+    epoll_ctl(efd, EPOLL_CTL_DEL, chan_sock(client->ch_id), NULL);
+
+    // Close channel
+    chan_close(client->ch_id);
+
+    // Remove from client map
+    client_map[client->ch_id] = NULL;
+
+    // Free client
+    free(client);
 }
