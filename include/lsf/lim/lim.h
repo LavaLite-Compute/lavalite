@@ -1,4 +1,4 @@
-/* $Id: lim.h,v 1.11 2007/08/15 22:18:53 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -477,21 +477,19 @@ struct hostNode *find_node_by_cluster(struct hostNode *, const char *);
 int handle_tcp_client(int);
 
 // These 2 are UDP request to the local LIM
-void clusNameReq(XDR *, struct sockaddr_in *, struct packet_header *);
-void masterInfoReq(XDR *, struct sockaddr_in *, struct packet_header *);
+void cluster_name_req(XDR *, struct sockaddr_in *, struct packet_header *);
+void master_info_req(XDR *, struct sockaddr_in *, struct packet_header *);
 // This does not do anything, remove it
-void pingReq(XDR *, struct sockaddr_in *, struct packet_header *);
+void ping_req(XDR *, struct sockaddr_in *, struct packet_header *);
 // The rest of API processing is TCP
-void clusInfoReq(XDR *, struct client_node *, struct packet_header *) ;
-void loadReq(XDR *, struct client_node *, struct packet_header *);
-void hostInfoReq(XDR *, struct client_node *, struct packet_header *);
+void clus_info_req(XDR *, struct client_node *, struct packet_header *);
+void load_req(XDR *, struct client_node *, struct packet_header *);
+void host_info_req(XDR *, struct client_node *, struct packet_header *);
 // Avoid the same function name as the data structure
-void resourceInfoReq(XDR *, struct client_node *, struct packet_header *);
-void placeReq(XDR *, struct client_node *, struct packet_header *);
-void infoReq(XDR *, struct client_node *, struct packet_header *);
-void loadadjReq(XDR *, struct client_node *, struct packet_header *);
+void resource_info_req(XDR *, struct client_node *, struct packet_header *);
+void info_req(XDR *, struct client_node *, struct packet_header *);
 void shutdown_client(struct client_node *);
-void wrongMaster(struct client_node *);
+void wrong_master(struct client_node *);
 void send_header(struct client_node *, struct packet_header *,
                  enum limReplyCode);
 

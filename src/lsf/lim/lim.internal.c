@@ -265,7 +265,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                       __func__, sockAdd2Str_(&to_addr));
 
         if (chan_send_dgram(lim_udp_chan, buf1, XDR_GETPOS(&xdrs1),
-                           (struct sockaddr_in *) &to_addr) < 0)
+                            (struct sockaddr_in *) &to_addr) < 0)
             ls_syslog(LOG_ERR, "\
 %s: Failed to send request to LIM on %s: %m",
                       __func__, sockAdd2Str_(&to_addr));
@@ -321,7 +321,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
                               __func__, hPtr->hostName, sockAdd2Str_(&to_addr));
 
                 if (chan_send_dgram(lim_udp_chan, buf4, XDR_GETPOS(&xdrs4),
-                                   (struct sockaddr_in *) &to_addr) < 0) {
+                                    (struct sockaddr_in *) &to_addr) < 0) {
                     ls_syslog(LOG_ERR, "\
 %s: Failed to send request 1 to LIM on %s: %m",
                               __func__, hPtr->hostName);
@@ -331,7 +331,7 @@ void announceMaster(struct clusterNode *clPtr, char broadcast, char all)
 
             } else {
                 if (chan_send_dgram(lim_udp_chan, buf1, XDR_GETPOS(&xdrs1),
-                                   (struct sockaddr_in *) &to_addr) < 0)
+                                    (struct sockaddr_in *) &to_addr) < 0)
                     ls_syslog(LOG_ERR, "\
 announceMaster: Failed to send request 1 to LIM on %s: %m",
                               hPtr->hostName);
@@ -345,7 +345,7 @@ announceMaster: Failed to send request 1 to LIM on %s: %m",
                           hPtr->hostInactivityCount);
 
             if (chan_send_dgram(lim_udp_chan, buf2, XDR_GETPOS(&xdrs2),
-                               (struct sockaddr_in *) &to_addr) < 0)
+                                (struct sockaddr_in *) &to_addr) < 0)
                 ls_syslog(LOG_ERR, "\
 %s: Failed to send request 2 to LIM on %s: %m",
                           __func__, hPtr->hostName);
@@ -561,7 +561,7 @@ void sndConfInfo(struct sockaddr_in *to)
                   sockAdd2Str_(to));
 
     if (chan_send_dgram(lim_udp_chan, buf, XDR_GETPOS(&xdrs),
-                       (struct sockaddr_in *) to) < 0) {
+                        (struct sockaddr_in *) to) < 0) {
         ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "chan_send_dgram",
                   sockAdd2Str_(to));
         return;
@@ -641,7 +641,7 @@ void announceMasterToHost(struct hostNode *hPtr, int infoType)
               __func__, infoType, sockAdd2Str_(&to_addr));
 
     if (chan_send_dgram(lim_udp_chan, buf, XDR_GETPOS(&xdrs),
-                       (struct sockaddr_in *) &to_addr) < 0)
+                        (struct sockaddr_in *) &to_addr) < 0)
         ls_syslog(LOG_ERR, "\
 %s: Failed to send request %d to LIM on %s: %m",
                   __func__, infoType, sockAdd2Str_(&to_addr));

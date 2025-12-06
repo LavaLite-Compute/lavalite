@@ -1,5 +1,4 @@
-#pragma once
-/* $Id: limout.h,v 1.6 2007/08/15 22:18:54 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -18,6 +17,7 @@
  USA
  *
  */
+#pragma once
 
 #include "lsf/lib/lib.hdr.h"
 
@@ -78,6 +78,7 @@ enum limReqCode {
     LIM_PROTO_CNT // sentinel
 };
 
+// LIM reply codes
 enum limReplyCode {
     LIME_NO_ERR = 1,
     LIME_WRONG_MASTER,
@@ -251,34 +252,95 @@ struct limLock {
 // Lavalite
 
 // In limout.h - clean wire protocol structs
+
+// For ls_gethostinfo()
 struct wire_host_info {
-    char *hostName;
-    char *hostType;
-    char *hostModel;
-    float cpuFactor;
-    int maxCpus;
-    int maxMem;
-    int maxSwap;
-    int maxTmp;
-    int nDisks;
-    int isServer;
-    int status;
-};
-
-struct wire_load_info {
     char *host_name;
-    float load_indices[NBUILTINDEX];  // r15s r1m r15m ut pg io ls it tmp swp mem
+    char *host_type;
+    char *host_model;
+    float cpu_factor;
+    int max_cpus;
+    int max_mem;
+    int max_swap;
+    int max_tmp;
+    int num_disks;
+    int is_server;
     int status;
 };
 
-// For hostinfo request
-struct host_info_reply {
+struct wire_host_info_reply {
     int num_hosts;
     struct wire_host_info *hosts;
 };
 
-// For load request
-struct load_reply {
-    int nHost;
+// For ls_loadinfo()
+struct wire_load_info {
+    char *host_name;
+    float load_indices[NBUILTINDEX]; // r15s r1m r15m ut pg io ls it tmp swp mem
+    int status[NBUILTINDEX];         // status per index
+};
+
+struct wire_load_info_reply {
+    int num_hosts;
     struct wire_load_info *hosts;
+};
+
+struct wire_res_item {
+    char name[MAXLSFNAMELEN];
+    char des[LL_RES_DESC_MAX];
+    enum valueType value_type;
+    enum orderType order_type;
+    int flags;
+    int interval;
+};
+
+/* host type	meaning
+ *-----------------------
+ * LINUX64	64-bit Linux
+ * WINDOWS	Windows nodes
+ * AARCH64	ARM servers
+ */
+struct wire_host_type {
+    char name[MAXLSFNAMELEN];
+};
+
+/*
+ *  host model	arch	cpuFactor	meaning
+ * ------------------------------------------------
+ * intel-xeon-e5	x86_64	1.0	baseline
+ * amd-epyc-rome	x86_64	1.4	faster
+ * graviton2	arm64	0.9	slower per-core
+ * nvidia-grace	armv9	1.8	fast ARM
+ */
+struct wire_host_model {
+    char model[MAXLSFNAMELEN];
+    char arch[MAXLSFNAMELEN];
+    int ref;
+    float cpu_factor;
+};
+
+struct wire_lsinfo_reply {
+    int n_res;
+    struct wire_res_item *res_table; /* [n_res] */
+    int n_types;
+    struct wire_host_type *host_types; /* [n_types] */
+    int n_models;
+    struct wire_host_model *host_models; /* [n_models] */
+    int num_indx;
+    int num_usr_indx;
+};
+
+// ls_clusterinfo()
+struct wire_cluster_info {
+    char cluster_name[MAXLSFNAMELEN];
+    int status;
+    char master_name[MAXHOSTNAMELEN];
+    char manager_name[MAXLSFNAMELEN];
+    int manager_id;
+    int num_servers;
+    int num_clients;
+};
+
+struct wire_cluster_info_reply {
+    struct wire_cluster_info cluster;
 };

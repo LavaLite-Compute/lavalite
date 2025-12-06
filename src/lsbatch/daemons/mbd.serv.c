@@ -199,8 +199,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         jobInfoHead.numHosts = numofhosts;
     }
 
-    len = sizeof(struct jobInfoHead) +
-          jobInfoHead.numJobs * sizeof(int64_t) +
+    len = sizeof(struct jobInfoHead) + jobInfoHead.numJobs * sizeof(int64_t) +
           jobInfoHead.numHosts * (sizeof(char *) + MAXHOSTNAMELEN) + 100;
 
     reply_buf = (char *) my_malloc(len, fname);

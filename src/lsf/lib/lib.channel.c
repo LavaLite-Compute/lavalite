@@ -20,7 +20,7 @@
 #include "lsf/lib/lib.channel.h"
 
 // LIM protocol max frame
-#define MAXMSGLEN LL_BUFSIZ_4K
+#define MAXMSGLEN LL_BUFSIZ_32K
 
 long chan_open_max;
 struct chan_data *channels;
@@ -55,8 +55,7 @@ int chan_init(void)
     return 0;
 }
 
-int
-chan_sock(int ch_id)
+int chan_sock(int ch_id)
 {
     if (ch_id < 0 || ch_id > chan_open_max) {
         lserrno = LSE_BAD_CHAN;
@@ -90,10 +89,10 @@ int chan_listen_socket(int type, u_short port, int backlog, int options)
 
     if (options & CHAN_OP_SOREUSE) {
         int one = 1;
-        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(int));
+        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *) &one, sizeof(int));
     }
 
-    if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+    if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
         close(s);
         lserrno = LSE_SOCK_SYS;
         return -2;
@@ -126,7 +125,7 @@ int chan_client_socket(int domain, int type, int options)
         return -1;
     }
 
-    int s = socket(domain, type|SOCK_CLOEXEC, 0);
+    int s = socket(domain, type | SOCK_CLOEXEC, 0);
     if (s < 0) {
         lserrno = LSE_SOCK_SYS;
         return -1;
@@ -194,12 +193,12 @@ int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
 
 int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
 {
-    if (! chan_is_udp(channels[ch_id].type)) {
+    if (!chan_is_udp(channels[ch_id].type)) {
         lserrno = LSE_INTERNAL;
         return -1;
     }
 
-    ssize_t cc = sendto(chan_sock(ch_id), buf, len, 0, (struct sockaddr *)peer,
+    ssize_t cc = sendto(chan_sock(ch_id), buf, len, 0, (struct sockaddr *) peer,
                         sizeof(struct sockaddr_in));
     if (cc < 0) {
         lserrno = LSE_MSG_SYS;
@@ -215,7 +214,7 @@ int chan_recv_dgram(int ch_id, void *buf, size_t len,
 {
     // We can receive dgram packets on both client udp but
     // also on listening if we are master lim
-    if (! chan_is_udp(channels[ch_id].type)) {
+    if (!chan_is_udp(channels[ch_id].type)) {
         lserrno = LSE_INTERNAL;
         return -1;
     }
@@ -233,7 +232,7 @@ int chan_recv_dgram(int ch_id, void *buf, size_t len,
         return -1;
     }
 
-    cc = recvfrom(sock, buf, len, 0, (struct sockaddr *)peer, &peersize);
+    cc = recvfrom(sock, buf, len, 0, (struct sockaddr *) peer, &peersize);
     if (cc < 0) {
         lserrno = LSE_MSG_SYS;
         return -1;
@@ -296,8 +295,8 @@ int chan_close(int ch_id)
         }
         free(channels[ch_id].send);
     }
-    if (channels[ch_id].recv
-        && channels[ch_id].recv != channels[ch_id].recv->forw) {
+    if (channels[ch_id].recv &&
+        channels[ch_id].recv != channels[ch_id].recv->forw) {
         for (buf = channels[ch_id].recv->forw; buf != channels[ch_id].recv;
              buf = nextbuf) {
             nextbuf = buf->forw;
@@ -315,7 +314,7 @@ int chan_close(int ch_id)
 
 int chan_enqueue(int ch_id, struct Buffer *msg)
 {
-    if (! chan_is_valid(ch_id))
+    if (!chan_is_valid(ch_id))
         return -1;
 
     enqueueTail_(msg, channels[ch_id].send);
@@ -324,7 +323,7 @@ int chan_enqueue(int ch_id, struct Buffer *msg)
 
 int chan_dequeue(int ch_id, struct Buffer **buf)
 {
-    if (! chan_is_valid(ch_id))
+    if (!chan_is_valid(ch_id))
         return -1;
 
     if (channels[ch_id].recv->forw == channels[ch_id].recv) {
@@ -424,7 +423,7 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
     int cc = epoll_wait(ef, events, max_events, tm);
     if (cc == 0) // timeout
         return 0;
-    if (cc < 0)  {
+    if (cc < 0) {
         // dont do magic with EINTR or whatever else, caller knows the best
         return -1;
     }
@@ -436,9 +435,8 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
         // clean channel specific events for the caller
         chan->chan_events = CHAN_EPOLLNONE;
 
-        if ((e->events & EPOLLERR)
-            || (e->events & EPOLLHUP)
-            || (e->events & EPOLLRDHUP)) {
+        if ((e->events & EPOLLERR) || (e->events & EPOLLHUP) ||
+            (e->events & EPOLLRDHUP)) {
             chan->chan_events = CHAN_EPOLLERR;
             continue;
         }
@@ -497,9 +495,7 @@ static void doread(struct chan_data *chan)
 
     // Still reading header
     if (rcvbuf->len == PACKET_HEADER_SIZE && rcvbuf->pos < PACKET_HEADER_SIZE) {
-
-        cc = read(chan->sock,
-                  rcvbuf->data + rcvbuf->pos,
+        cc = read(chan->sock, rcvbuf->data + rcvbuf->pos,
                   PACKET_HEADER_SIZE - rcvbuf->pos);
         if (cc < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
@@ -528,8 +524,8 @@ static void doread(struct chan_data *chan)
 
             if (hdr.length > 0) {
                 // Extend buffer for payload
-                char *payload = realloc(rcvbuf->data,
-                                        PACKET_HEADER_SIZE + hdr.length);
+                char *payload =
+                    realloc(rcvbuf->data, PACKET_HEADER_SIZE + hdr.length);
                 if (!payload) {
                     chan->chan_events = CHAN_EPOLLERR;
                     return;
@@ -579,8 +575,7 @@ static void dowrite(struct chan_data *chan)
 
     sendbuf = chan->send->forw;
 
-    cc = write(chan->sock,
-               sendbuf->data + sendbuf->pos,
+    cc = write(chan->sock, sendbuf->data + sendbuf->pos,
                sendbuf->len - sendbuf->pos);
 
     if (cc < 0) {
@@ -636,7 +631,7 @@ int chan_alloc_buf(struct Buffer **buf, int size)
 
 int chan_free_buf(struct Buffer *buf)
 {
-    if (! buf)
+    if (!buf)
         return 0;
     if (buf->data)
         free(buf->data);
@@ -723,8 +718,7 @@ int chan_create_timer(int seconds)
 
 static inline bool_t chan_is_udp(enum chanType t)
 {
-    if (t != CHAN_TYPE_UDP_CLIENT
-        && t != CHAN_TYPE_UDP_LISTEN)
+    if (t != CHAN_TYPE_UDP_CLIENT && t != CHAN_TYPE_UDP_LISTEN)
         return false;
 
     return true;

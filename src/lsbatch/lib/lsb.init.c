@@ -20,25 +20,24 @@
 
 #include "lsbatch/lib/lsb.h"
 
-struct config_param lsbParams[] = {
-    {"LSB_DEBUG", NULL},
-    {"LSB_SHAREDIR", NULL},
-    {"LSB_SBD_PORT", NULL},
-    {"LSB_MBD_PORT", NULL},
-    {"LSB_DEBUG_CMD", NULL},
-    {"LSB_TIME_CMD", NULL},
-    {"LSB_CMD_LOGDIR", NULL},
-    {"LSB_CMD_LOG_MASK", NULL},
-    {"LSF_LOG_MASK", NULL},
-    {"LSB_API_CONNTIMEOUT", NULL},
-    {"LSB_API_RECVTIMEOUT", NULL},
-    {"LSF_SERVERDIR", NULL},
-    {"LSB_MODE", NULL},
-    {"LSB_SHORT_HOSTLIST", NULL},
-    {"LSF_INTERACTIVE_STDERR", NULL},
-    {"LSB_32_PAREN_ESC", NULL},
-    {"LSB_API_QUOTE_CMD", NULL},
-    {NULL, NULL}};
+struct config_param lsbParams[] = {{"LSB_DEBUG", NULL},
+                                   {"LSB_SHAREDIR", NULL},
+                                   {"LSB_SBD_PORT", NULL},
+                                   {"LSB_MBD_PORT", NULL},
+                                   {"LSB_DEBUG_CMD", NULL},
+                                   {"LSB_TIME_CMD", NULL},
+                                   {"LSB_CMD_LOGDIR", NULL},
+                                   {"LSB_CMD_LOG_MASK", NULL},
+                                   {"LSF_LOG_MASK", NULL},
+                                   {"LSB_API_CONNTIMEOUT", NULL},
+                                   {"LSB_API_RECVTIMEOUT", NULL},
+                                   {"LSF_SERVERDIR", NULL},
+                                   {"LSB_MODE", NULL},
+                                   {"LSB_SHORT_HOSTLIST", NULL},
+                                   {"LSF_INTERACTIVE_STDERR", NULL},
+                                   {"LSB_32_PAREN_ESC", NULL},
+                                   {"LSB_API_QUOTE_CMD", NULL},
+                                   {NULL, NULL}};
 
 #ifdef LSF_LOG_MASK
 #undef LSF_LOG_MASK

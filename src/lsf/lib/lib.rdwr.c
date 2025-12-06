@@ -291,7 +291,6 @@ int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
     return 0;
 }
 
-
 /* The timeout is in milliseconds as poll() expects.
  */
 int rd_poll(int rd, int ms)

@@ -111,8 +111,8 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
         return NULL;
     }
 
-    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                       &hdr, NULL)) == -1) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                       NULL)) == -1) {
         xdr_destroy(&xdrs);
         FREE_MEMORY;
         return NULL;

@@ -236,7 +236,6 @@ int main(int argc, char **argv)
     periodic();
 
     for (;;) {
-
         if (pimPid == -1) {
             startPIM(argc, argv);
         }
@@ -299,7 +298,7 @@ static int process_udp_request(void)
 
     struct packet_header reqHdr;
     int cc = chan_recv_dgram(lim_udp_chan, buf, sizeof(buf),
-                              (struct sockaddr_storage *) &from, -1);
+                             (struct sockaddr_storage *) &from, -1);
     if (cc < 0) {
         syslog(LOG_ERR,
                "%s: Error receiving data on lim_udp_chan %d, cc=%d: %m",
@@ -326,10 +325,10 @@ static int process_udp_request(void)
 
     switch (reqHdr.operation) {
     case LIM_GET_CLUSNAME:
-        clusNameReq(&xdrs, &from, &reqHdr);
+        cluster_name_req(&xdrs, &from, &reqHdr);
         break;
     case LIM_GET_MASTINFO:
-        masterInfoReq(&xdrs, &from, &reqHdr);
+        master_info_req(&xdrs, &from, &reqHdr);
         break;
     case LIM_SERV_AVAIL:
         servAvailReq(&xdrs, node, &from, &reqHdr);
@@ -555,10 +554,7 @@ static void child_handler(int sig)
 
 static int add_listener(int efd, int fd, int ch_id)
 {
-    struct epoll_event ev = {
-        .events = EPOLLIN,
-        .data.u32 = ch_id
-    };
+    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = ch_id};
 
     if (epoll_ctl(efd, EPOLL_CTL_ADD, fd, &ev) < 0)
         return -1;
@@ -619,7 +615,8 @@ static int lim_init_chans(void)
     }
 
     // LIM TCP socket with
-    lim_tcp_chan = chan_listen_socket(SOCK_STREAM, 0, SOMAXCONN, CHAN_OP_SOREUSE);
+    lim_tcp_chan =
+        chan_listen_socket(SOCK_STREAM, 0, SOMAXCONN, CHAN_OP_SOREUSE);
     if (lim_tcp_chan < 0) {
         syslog(LOG_ERR,
                "%s: unable to create tcp socket port %d "
@@ -631,8 +628,7 @@ static int lim_init_chans(void)
     }
 
     socklen_t size = sizeof(struct sockaddr_in);
-    int cc = getsockname(chan_sock(lim_tcp_chan),
-                         (struct sockaddr *) &lim_addr,
+    int cc = getsockname(chan_sock(lim_tcp_chan), (struct sockaddr *) &lim_addr,
                          &size);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,

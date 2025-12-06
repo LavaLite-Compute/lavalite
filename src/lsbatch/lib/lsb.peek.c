@@ -96,9 +96,9 @@ char *lsb_peekjob(int64_t jobid)
             pid_t pid;
             int status;
 
-            if (errno == ENOENT ) {
-                if (lsb_openjobinfo(jobid, NULL, NULL, NULL, NULL, 0)
-                    || (jInfo = lsb_readjobinfo()) == NULL) {
+            if (errno == ENOENT) {
+                if (lsb_openjobinfo(jobid, NULL, NULL, NULL, NULL, 0) ||
+                    (jInfo = lsb_readjobinfo()) == NULL) {
                     lsberrno = LSBE_LSBLIB;
                     return NULL;
                 }

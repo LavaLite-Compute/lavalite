@@ -1,4 +1,4 @@
-/* $Id: lsf.h,v 1.18 2007/08/15 22:18:49 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -39,6 +39,7 @@
 
 // Fossil in → LavaLite out
 
+#include <config.h>
 // System headers
 #include <stdio.h>
 #include <string.h>
@@ -485,17 +486,16 @@ enum lse_errno {
     LSE_LIMCONF_NOTREADY,
     LSE_MASTER_LIM_DOWN,
     LSE_POLL_SYS,
-    LSE_NERR  /* Sentinel - must be last */
+    LSE_NERR /* Sentinel - must be last */
 };
 extern const char *ls_errmsg[];
-
 
 #define LSE_SYSCALL(s)                                                         \
     (((s) == LSE_SELECT_SYS) || ((s) == LSE_CONN_SYS) ||                       \
      ((s) == LSE_FILE_SYS) || ((s) == LSE_MSG_SYS) || ((s) == LSE_SOCK_SYS) || \
      ((s) == LSE_ACCEPT_SYS) || ((s) == LSE_SIG_SYS) ||                        \
-     ((s) == LSE_WAIT_SYS) || ((s) == LSE_EXECV_SYS) ||                       \
-     ((s) ==LSE_LIMIT_SYS) || ((s) == LSE_PIPE) || ((s) == LSE_ESUB))
+     ((s) == LSE_WAIT_SYS) || ((s) == LSE_EXECV_SYS) ||                        \
+     ((s) == LSE_LIMIT_SYS) || ((s) == LSE_PIPE) || ((s) == LSE_ESUB))
 
 #define TIMEIT(level, func, name)                                              \
     {                                                                          \
@@ -589,7 +589,6 @@ extern struct lsInfo *ls_info(void);
 extern char *ls_getmastername(void);
 extern char *ls_getmyhostname(void);
 
-extern char **ls_indexnames(struct lsInfo *);
 extern char *ls_gethosttype(const char *);
 extern float ls_getmodelfactor(const char *);
 extern float ls_gethostfactor(const char *);
@@ -653,26 +652,22 @@ struct extResInfo {
 /* Host information */
 struct host_info {
     char hostname[MAXHOSTNAMELEN];
-    char arch[32];           /* x86_64, arm64, ppc64le, etc */
-    char vendor[32];         /* intel, amd, apple, ibm, etc */
+    char arch[32];   /* x86_64, arm64, ppc64le, etc */
+    char vendor[32]; /* intel, amd, apple, ibm, etc */
     int ncores;
     int mem_mb;
     int swap_mb;
-    int is_server;           /* can run jobs? */
+    int is_server; /* can run jobs? */
     int nres;
     struct res_item *resources;
 };
 
-enum value_type {
-    RES_TYPE_NUMERIC,
-    RES_TYPE_STRING,
-    RES_TYPE_BOOLEAN
-};
+enum value_type { RES_TYPE_NUMERIC, RES_TYPE_STRING, RES_TYPE_BOOLEAN };
 
 enum order_type {
-    ORDER_INCR,    /* higher is better (free memory, disk space) */
-    ORDER_DECR,    /* lower is better (load, temperature) */
-    ORDER_NA       /* no ordering (hostname, arch) */
+    ORDER_INCR, /* higher is better (free memory, disk space) */
+    ORDER_DECR, /* lower is better (load, temperature) */
+    ORDER_NA    /* no ordering (hostname, arch) */
 };
 
 struct res_item {
@@ -684,7 +679,7 @@ struct res_item {
 
 /* Shared resource instance */
 struct shared_res_inst {
-    char hostname[MAXHOSTNAMELEN];  /* where this instance lives */
+    char hostname[MAXHOSTNAMELEN]; /* where this instance lives */
     int total;
     int available;
     int reserved;
@@ -692,8 +687,8 @@ struct shared_res_inst {
 
 /* Shared resource definition */
 struct shared_res {
-    char name[MAXLSFNAMELEN];       /* e.g. "verilog_lic" */
-    char server[MAXHOSTNAMELEN];    /* license server (optional) */
+    char name[MAXLSFNAMELEN];    /* e.g. "verilog_lic" */
+    char server[MAXHOSTNAMELEN]; /* license server (optional) */
     int total_instances;
     int available_instances;
     int nlocations;

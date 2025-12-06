@@ -29,11 +29,7 @@ extern sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
                                struct jobReply *jobReply);
 
 // Inititlize the sbd node list
-struct sbdNode sbdNodeList = {
-    .forw = &sbdNodeList,
-    .back = &sbdNodeList
-};
-
+struct sbdNode sbdNodeList = {.forw = &sbdNodeList, .back = &sbdNodeList};
 
 sbdReplyType start_job(struct jData *jDataPtr, struct qData *qp,
                        struct jobReply *jobReply)
@@ -312,7 +308,8 @@ sbdReplyType msg_job(struct jData *jp, struct Buffer *mbuf,
         break;
 
     default:
-        ls_syslog(LOG_ERR, "%s: job <%s>: illegal reply code <%d> from host <%s>",
+        ls_syslog(LOG_ERR,
+                  "%s: job <%s>: illegal reply code <%d> from host <%s>",
                   __func__, lsb_jobid2str(jp->jobId), reply, toHost);
         reply = ERR_BAD_REPLY;
     }
@@ -353,7 +350,7 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
         hdr.operation = MBD_PROBE;
         request_buf = (char *) my_malloc(buflen, fname);
         xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
-        if (!xdr_encodeMsg(&xdrs,(char *)&sbdPackage, &hdr, xdr_sbdPackage, 0,
+        if (!xdr_encodeMsg(&xdrs, (char *) &sbdPackage, &hdr, xdr_sbdPackage, 0,
                            auth)) {
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
             xdr_destroy(&xdrs);
@@ -455,8 +452,8 @@ sbdReplyType call_sbd(char *toHost, char *request_buf, int len,
     node->chanfd = ch_id;
     node->lastTime = now;
 
-    inList((struct listEntry *)&sbdNodeList, (struct listEntry *) node);
+    inList((struct listEntry *) &sbdNodeList, (struct listEntry *) node);
     nSbdConnections++;
 
-    return ERR_NO_ERROR;  // Success - reply comes async
+    return ERR_NO_ERROR; // Success - reply comes async
 }

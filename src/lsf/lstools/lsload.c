@@ -6,92 +6,111 @@
  * published by the Free Software Foundation.
  */
 
-#include "lsf/lib/lib.h"
+#include <lsf.h>
 
+#define LOAD_COL_WIDTH 8 // width for each numeric/load column
 
-
-static void usage(void)
+static void print_load_value(int index, const float *li, int unavailable)
 {
-    fprintf(stderr, "Usage: lsload [-h] [-V] [host_name ...]\n");
-    exit(-1);
+    char buf[32];
+
+    if (unavailable) {
+        snprintf(buf, sizeof(buf), "-");
+        printf(" %*s", LOAD_COL_WIDTH, buf);
+        return;
+    }
+
+    switch (index) {
+    case 0: /* r15s */
+    case 1: /* r1m */
+    case 2: /* r15m */
+        snprintf(buf, sizeof(buf), "%.1f", li[index]);
+        break;
+
+    case 3: /* ut CPU % */
+        snprintf(buf, sizeof(buf), "%.0f%%", li[index]);
+        break;
+
+    case 4: /* pg */
+    case 5: /* io */
+    case 6: /* ls */
+        snprintf(buf, sizeof(buf), "%.1f", li[index]);
+        break;
+
+    case 7: /* it % */
+        snprintf(buf, sizeof(buf), "%.0f%%", li[index]);
+        break;
+
+    case 8:  /* tmp GB */
+    case 9:  /* swp GB */
+    case 10: /* mem GB */
+        snprintf(buf, sizeof(buf), "%.0fG", li[index]);
+        break;
+
+    default:
+        snprintf(buf, sizeof(buf), "-");
+        break;
+    }
+
+    printf(" %*s", LOAD_COL_WIDTH, buf);
 }
 
-static const char *status_str(int status)
+static void format_status(const int *status, char *buf, size_t buflen)
 {
-    if (LS_ISUNAVAIL(status))
-        return "unavail";
-    if (LS_ISBUSY(status))
-        return "busy";
-    if (LS_ISLOCKED(status))
-        return "locked";
-    if (LS_ISOKNRES(status))
-        return "ok";
-    return "unknown";
+    if (!status) {
+        snprintf(buf, buflen, "-");
+        return;
+    }
+
+    if (LS_ISUNAVAIL(status)) {
+        snprintf(buf, buflen, "unavail");
+        return;
+    }
+
+    snprintf(buf, buflen, "ok");
 }
 
 int main(int argc, char **argv)
 {
-    struct wire_load_info *loads;
-    int numhosts = 0;
-    int i;
-    int opt;
+    struct hostLoad *hload;
+    int num_hosts = 0;
+    int options = 0;
+    char *resreq = NULL;
+    char *fromhost = NULL;
+    char status_buf[32];
+    int i, j;
 
-    if (ls_initdebug(argv[0]) < 0) {
-        ls_perror("ls_initdebug");
-        exit(-1);
+    static const char *load_headers[] = {"r15s", "r1m", "r15m", "ut",
+                                         "pg",   "io",  "ls",   "it",
+                                         "tmp",  "swp", "mem"};
+
+    hload = ls_load(resreq, &num_hosts, options, fromhost);
+    if (!hload) {
+        ls_perror("ls_load");
+        return 1;
     }
 
-    while ((opt = getopt(argc, argv, "hV")) != -1) {
-        switch (opt) {
-        case 'h':
-            usage();
-            return 0;
-        case 'V':
-            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            return 0;
-        default:
-            usage();
+    /* Header line */
+    printf("%-16s %-10s", "HOST_NAME", "status");
+    for (i = 0; i < 11; i++) {
+        printf(" %*s", LOAD_COL_WIDTH, load_headers[i]);
+    }
+    printf("\n");
+
+    /* Data lines */
+    for (i = 0; i < num_hosts; i++) {
+        int unavailable;
+
+        format_status(hload[i].status, status_buf, sizeof(status_buf));
+        unavailable = (status_buf[0] != 'o'); /* not 'ok' */
+
+        printf("%-16s %-10s", hload[i].hostName, status_buf);
+
+        for (j = 0; j < 11 /* NBUILTINDEX-1 */; j++) {
+            print_load_value(j, hload[i].li, unavailable);
         }
-    }
 
-    // Remaining args are hostnames (if any)
-    char **hostnames = NULL;
-    int nhosts = argc - optind;
-    if (nhosts > 0) {
-        hostnames = &argv[optind];
-    }
-
-    loads = ls_load(NULL, &numhosts, 0, NULL);
-    if (loads == NULL) {
-        ls_perror("ls_get_load_info");
-        return -1;
-    }
-
-    // Print header
-    printf("%-15s %8s %6s %6s %6s %5s %5s %4s %4s %4s %7s %7s %7s\n",
-           "HOST_NAME", "status", "r15s", "r1m", "r15m", "ut",
-           "pg", "io", "ls", "it", "tmp", "swp", "mem");
-
-    // Print each host's load
-    for (i = 0; i < numhosts; i++) {
-        struct wire_load_info *l = &loads[i];
-        float *li = l->loadIndices;
-
-        printf("%-15s %8s %6.1f %6.1f %6.1f %4.0f%% %5.1f %4.0f %4.0f "
-               "%4.0f %6.0fM %6.0fM %6.0fM\n",
-               l->hostname,
-               status_str(l->status),
-               li[R15S],
-               li[R1M],
-               li[R15M],
-               li[UT] * 100.0,
-               li[PG],
-               li[IO],
-               li[LS],
-               li[IT],
-               li[TMP],
-               li[SWP],
-               li[MEM]);
+        printf("\n");
     }
 
     return 0;

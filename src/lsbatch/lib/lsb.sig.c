@@ -20,8 +20,7 @@
 
 #include "lsbatch/lib/lsb.h"
 
-static int signalJob(int sigValue, int64_t jobId, time_t period,
-                     int options);
+static int signalJob(int sigValue, int64_t jobId, time_t period, int options);
 
 int lsb_signaljob(int64_t jobId, int sigValue)
 {
@@ -68,8 +67,7 @@ int lsb_forcekilljob(int64_t jobId)
     return (signalJob(SIG_TERM_FORCE, jobId, 0, 0));
 }
 
-static int signalJob(int sigValue, int64_t jobId, time_t period,
-                     int options)
+static int signalJob(int sigValue, int64_t jobId, time_t period, int options)
 {
     struct signalReq signalReq;
     char request_buf[MSGSIZE];

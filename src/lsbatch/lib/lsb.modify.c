@@ -22,14 +22,13 @@
 #include "lsbatch/lib/lsb.spool.h"
 
 static int64_t sendModifyReq(struct modifyReq *, struct submitReply *,
-                                 struct lsfAuth *);
+                             struct lsfAuth *);
 static int esubValModify(struct submit *);
 extern void makeCleanToRunEsub();
 extern void modifyJobInformation(struct submit *);
 
-int64_t
-lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep,
-           int64_t job)
+int64_t lsb_modify(struct submit *jobSubReq, struct submitReply *submitRep,
+                   int64_t job)
 {
     struct modifyReq modifyReq;
     int i;
@@ -131,8 +130,8 @@ cleanup:
 }
 
 static int64_t sendModifyReq(struct modifyReq *modifyReq,
-                                 struct submitReply *submitReply,
-                                 struct lsfAuth *auth)
+                             struct submitReply *submitReply,
+                             struct lsfAuth *auth)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;

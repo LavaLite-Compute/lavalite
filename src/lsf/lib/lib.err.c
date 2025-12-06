@@ -47,7 +47,8 @@ const char *ls_errmsg[] = {
     [LSE_NORCHILD] = "No remote child",
     [LSE_MALLOC] = "Memory allocation failed",
     [LSE_LSFCONF] = "Unable to open file lsf.conf",
-    [LSE_BAD_ENV] = "Bad configuration environment, something missing in lsf.conf?",
+    [LSE_BAD_ENV] =
+        "Bad configuration environment, something missing in lsf.conf?",
     [LSE_LIM_NREG] = "LIM is not a registered service",
     [LSE_RES_NREG] = "RES is not a registered service",
     [LSE_RES_NOMORECONN] = "RES is serving too many connections",

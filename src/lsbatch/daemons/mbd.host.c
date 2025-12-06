@@ -291,7 +291,7 @@ struct hData *getHostData(const char *host)
 
     hostEnt = h_getEnt_(&hDataList, host);
     if (hostEnt != NULL)
-        return (void *)hostEnt->hData;
+        return (void *) hostEnt->hData;
 
     if (strcmp(host, LOST_AND_FOUND) == 0)
         return NULL;
@@ -716,7 +716,6 @@ int ctrlHost(struct controlReq *hcReq, struct hData *hData,
              struct lsfAuth *auth)
 {
     switch (hcReq->opCode) {
-
     case HOST_OPEN:
         if (hData->hStatus & HOST_STAT_UNAVAIL)
             return LSBE_SBATCHD;

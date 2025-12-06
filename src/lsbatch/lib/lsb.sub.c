@@ -100,11 +100,11 @@ static char *useracctmap = NULL;
 static struct lenData ed = {0, NULL};
 
 static int64_t send_batch(struct submitReq *, struct lenData *,
-                              struct submitReply *, struct lsfAuth *);
+                          struct submitReply *, struct lsfAuth *);
 static int dependCondSyntax(char *);
 static int createJobInfoFile(struct submit *, struct lenData *);
 static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
-                          struct submitReply *submitRep, struct lsfAuth *auth);
+                      struct submitReply *submitRep, struct lsfAuth *auth);
 static int getUserInfo(struct submitReq *, struct submit *);
 static char *acctMapGet(int *, char *);
 
@@ -129,8 +129,7 @@ static int getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
                           int *badIdx, int checkHost);
 #define ESUBNAME "esub"
 
-int64_t
-lsb_submit(struct submit *jobSubReq, struct submitReply *submitRep)
+int64_t lsb_submit(struct submit *jobSubReq, struct submitReply *submitRep)
 {
     static char fname[] = "lsb_submit";
     struct submitReq submitReq;
@@ -570,10 +569,8 @@ void appendEData(struct lenData *jf, struct lenData *ed)
     jf->len = strlen(jf->data) + 1 + ed->len;
 }
 
-static int64_t send_batch(struct submitReq *submitReqPtr,
-                          struct lenData *jf,
-                          struct submitReply *submitReply,
-                          struct lsfAuth *auth)
+static int64_t send_batch(struct submitReq *submitReqPtr, struct lenData *jf,
+                          struct submitReply *submitReply, struct lsfAuth *auth)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
@@ -596,11 +593,7 @@ static int64_t send_batch(struct submitReq *submitReqPtr,
     xdrmem_create(&xdrs, request_buf, reqBufSize, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs,
-                       (char *)submitReqPtr,
-                       &hdr,
-                       xdr_submitReq,
-                       0,
+    if (!xdr_encodeMsg(&xdrs, (char *) submitReqPtr, &hdr, xdr_submitReq, 0,
                        auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
@@ -608,8 +601,8 @@ static int64_t send_batch(struct submitReq *submitReqPtr,
         return -1;
     }
 
-    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs),
-                       &reply_buf, &hdr, jf)) < 0) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, jf)) <
+        0) {
         xdr_destroy(&xdrs);
         free(request_buf);
         return -1;
@@ -670,7 +663,6 @@ static int dependCondSyntax(char *dependCond)
     return 0;
 }
 
-
 int getChkDir(char *givenDir, char *chkPath)
 {
     char *strPtr;
@@ -708,7 +700,7 @@ int getChkDir(char *givenDir, char *chkPath)
 }
 
 static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
-                          struct submitReply *submitRep, struct lsfAuth *auth)
+                      struct submitReply *submitRep, struct lsfAuth *auth)
 {
     char homeDir[MAXFILENAMELEN];
     char resReq[MAXLINELEN];

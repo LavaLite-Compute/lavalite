@@ -1471,8 +1471,7 @@ void updHostLeftRusageMem(struct jData *jobP, int order)
     }
 }
 
-int64_t
-getFileSystemFree(char *path)
+int64_t getFileSystemFree(char *path)
 {
     struct statvfs buf;
     if (statvfs(path, &buf) < 0) {

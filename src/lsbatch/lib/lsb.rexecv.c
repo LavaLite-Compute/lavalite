@@ -491,8 +491,7 @@ int fillReq2(int argc, char **argv, int operate, struct submit *req)
     return 0;
 }
 
-int64_t
-lsb_rexecv(int argc, char **argv, char **env, int *fds, int options)
+int64_t lsb_rexecv(int argc, char **argv, char **env, int *fds, int options)
 {
     struct submit req;
     struct submitReply reply;

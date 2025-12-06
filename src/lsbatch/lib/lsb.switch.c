@@ -57,7 +57,7 @@ int lsb_switchjob(int64_t jobId, char *queue)
     }
 
     if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                      NULL)) == -1) {
+                       NULL)) == -1) {
         xdr_destroy(&xdrs);
         return -1;
     }

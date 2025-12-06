@@ -42,6 +42,7 @@ config.sub
 lsadmin
 lsacct
 lseligible
+lsclusters
 lshosts
 lsid
 lsinfo

@@ -634,7 +634,8 @@ static int processClient(struct mbd_client_node *client, int *needFree)
     }
 
     if ((cc = authRequest(&auth, &xdrs, &reqHdr, &from, &laddr,
-                          client->fromHost, chan_get_sock(s))) != LSBE_NO_ERROR) {
+                          client->fromHost, chan_get_sock(s))) !=
+        LSBE_NO_ERROR) {
         errorBack(s, cc, &from);
         goto endLoop;
     }

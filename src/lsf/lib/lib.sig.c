@@ -152,8 +152,7 @@ int blockALL_SIGS_(sigset_t *newMask, sigset_t *oldMask)
     return sigprocmask(SIG_BLOCK, newMask, oldMask);
 }
 
-void
-signal_set(int sig, void (*handler)(int))
+void signal_set(int sig, void (*handler)(int))
 {
     struct sigaction act;
 

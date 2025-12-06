@@ -1,4 +1,4 @@
-/* $Id: lib.xdr.h,v 1.3 2007/08/15 22:18:51 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -74,7 +74,22 @@ bool_t xdr_resourceInfoReq(XDR *, struct resourceInfoReq *,
                            struct packet_header *);
 bool_t xdr_resourceInfoReply(XDR *, struct resourceInfoReply *, void *);
 bool_t xdr_jRusage(XDR *, struct jRusage *, void *);
+// wire it the ll naming for bytes on the wire in network format
+// host info
 bool_t xdr_wire_host_info(XDR *, struct wire_host_info *,
                           struct packet_header *);
-bool_t xdr_host_info_reply(XDR *, struct host_info_reply *,
-                           struct packet_header *);
+bool_t xdr_wire_host_info_reply(XDR *, struct wire_host_info_reply *,
+                                struct packet_header *);
+// host load info
+bool_t xdr_wire_load_info(XDR *, struct wire_load_info *);
+bool_t xdr_wire_load_info_reply(XDR *, struct wire_load_info_reply *);
+
+// ls_info()
+bool_t xdr_wire_res_item(XDR *, struct wire_res_item *);
+bool_t xdr_wire_host_type(XDR *, struct wire_host_type *);
+bool_t xdr_wire_host_model(XDR *, struct wire_host_model *);
+bool_t xdr_wire_lsinfo_reply(XDR *, struct wire_lsinfo_reply *);
+
+// ls_clusterinfo()
+bool_t xdr_wire_cluster_info(XDR *, struct wire_cluster_info *);
+bool_t xdr_wire_cluster_info_reply(XDR *, struct wire_cluster_info_reply *);

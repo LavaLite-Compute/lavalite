@@ -517,9 +517,9 @@ extern struct listEntry *tmpListHeader(struct listEntry *listHeader);
 extern struct tclLsInfo *getTclLsInfo(void);
 extern struct resVal *checkThresholdCond(char *);
 extern int *getResMaps(int, char **);
-extern int checkResumeByLoad(int64_t, int, struct thresholds,
-                             struct hostLoad *, int *, int *, int,
-                             struct resVal *, struct tclHostData *);
+extern int checkResumeByLoad(int64_t, int, struct thresholds, struct hostLoad *,
+                             int *, int *, int, struct resVal *,
+                             struct tclHostData *);
 extern void closeExceptFD(int);
 extern void freeLsfHostInfo(struct hostInfo *, int);
 extern void copyLsfHostInfo(struct hostInfo *, struct hostInfo *);
