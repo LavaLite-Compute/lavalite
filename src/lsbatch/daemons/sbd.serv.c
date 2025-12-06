@@ -839,7 +839,8 @@ void deliverMsg(struct bucket *bucket)
                       lsb_jobid2str(bucket->proto.jobId), mbuf->len,
                       cliPtr->chanfd);
 
-        nbytes = b_write_fix(chan_get_sock(cliPtr->chanfd), mbuf->data, mbuf->len);
+        nbytes =
+            b_write_fix(chan_get_sock(cliPtr->chanfd), mbuf->data, mbuf->len);
 
         if (nbytes <= 0) {
             ls_syslog(LOG_ERR, "%s", __func__,
@@ -857,7 +858,6 @@ void deliverMsg(struct bucket *bucket)
                   "status_job");
 
     chan_free_buf(mbuf);
-
 
     FREE_BUCKET(bucket);
 }

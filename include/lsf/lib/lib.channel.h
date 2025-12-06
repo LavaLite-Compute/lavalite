@@ -32,8 +32,8 @@ enum chanType {
     CHAN_TYPE_TCP_LISTEN,  // listening TCP socket waiting for connections
     CHAN_TYPE_TCP_CONNECT, // connected/accepted tcp channel
     CHAN_TYPE_TCP_CLIENT,  // stateless TCP client channel
-    CHAN_TYPE_UDP_CLIENT,   // stateless UDP client channel
-    CHAN_TYPE_TIMER         // channel for timerfd
+    CHAN_TYPE_UDP_CLIENT,  // stateless UDP client channel
+    CHAN_TYPE_TIMER        // channel for timerfd
 };
 
 // epoll output type for a channel, if all data are read/written
@@ -49,11 +49,11 @@ typedef enum {
 } chan_epoll_t;
 
 struct chan_data {
-    int sock;       // the socket
-    enum chanType type;  // channel type UDP/TCP ...
+    int sock;           // the socket
+    enum chanType type; // channel type UDP/TCP ...
     struct Buffer *send;
     struct Buffer *recv;
-    chan_epoll_t chan_events;  // output
+    chan_epoll_t chan_events; // output
 };
 
 struct Buffer {
@@ -77,8 +77,8 @@ int chan_dequeue(int, struct Buffer **);
 int chan_listen_socket(int, u_short, int, int);
 int chan_accept(int, struct sockaddr_in *);
 int chan_client_socket(int, int, int);
-int chan_rpc(int, struct Buffer *, struct Buffer *,
-             struct packet_header *, int);
+int chan_rpc(int, struct Buffer *, struct Buffer *, struct packet_header *,
+             int);
 ssize_t chan_read(int, void *, size_t);
 ssize_t chan_read_nonblock(int, char *, int, int);
 ssize_t chan_write(int, void *, size_t);

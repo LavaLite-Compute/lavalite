@@ -114,8 +114,7 @@ static int sendGrpReq(char *clusterName, int options, struct infoReq *groupInfo,
         return -1;
     }
 
-    int cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                      &hdr, NULL);
+    int cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL);
     if (cc < 0) {
         xdr_destroy(&xdrs);
         return -1;

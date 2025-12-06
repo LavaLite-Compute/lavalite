@@ -21,7 +21,6 @@
 #include "lsbatch/lib/lsb.h"
 #include "lsf/lib/lib.table.h"
 
-
 void initTab(struct hTab *tabPtr)
 {
     if (tabPtr) {
@@ -328,7 +327,6 @@ char *lsb_splitName(char *str, unsigned int *number)
     static char name[4 * MAXLINELEN];
     static int nameNum;
     int twoPartFlag;
-
 
     if (str == NULL || number == NULL) {
         ls_syslog(LOG_ERR, "%s: bad input.\n", fname);

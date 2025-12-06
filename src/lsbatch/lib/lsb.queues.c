@@ -127,8 +127,8 @@ struct queueInfoEnt *lsb_queueinfo(char **queues, int *numQueues, char *hosts,
         return NULL;
     }
 
-    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf,
-                      &hdr, NULL)) < 0) {
+    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
+                       NULL)) < 0) {
         xdr_destroy(&xdrs);
         free(request_buf);
         return NULL;

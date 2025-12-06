@@ -7607,13 +7607,14 @@ int mbdRcvJobFile(int chfd, struct lenData *jf)
     jf->data = NULL;
     jf->len = 0;
     if ((cc = chan_read_nonblock(chfd, (void *) (&jf->len), NET_INTSIZE_,
-                                timeout)) != NET_INTSIZE_) {
+                                 timeout)) != NET_INTSIZE_) {
         ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
         return -1;
     }
     jf->len = ntohl(jf->len);
     jf->data = my_calloc(1, jf->len, "mbdRcvJobFile");
-    if ((cc = chan_read_nonblock(chfd, jf->data, jf->len, timeout)) != jf->len) {
+    if ((cc = chan_read_nonblock(chfd, jf->data, jf->len, timeout)) !=
+        jf->len) {
         ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
         free(jf->data);
         return -1;

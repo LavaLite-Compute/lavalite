@@ -182,7 +182,6 @@ static void copy_job_info(struct jobInfoEnt *dst, struct jobInfoReply *src)
         dst->submit.rLimits[i] = src->jobBill->rLimits[i];
 }
 
-
 /*
  * lsb_openjobinfo() - Open streaming job query
  */
@@ -206,8 +205,8 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
         jobInfoReq.userName = malloc(LL_BUFSIZ_32);
         jobInfoReq.host = malloc(MAXHOSTNAMELEN);
 
-        if (!jobInfoReq.jobName || !jobInfoReq.queue ||
-            !jobInfoReq.userName || !jobInfoReq.host) {
+        if (!jobInfoReq.jobName || !jobInfoReq.queue || !jobInfoReq.userName ||
+            !jobInfoReq.host) {
             lsberrno = LSBE_SYS_CALL;
             return NULL;
         }
@@ -252,7 +251,8 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
     }
 
     /* Options */
-    if ((options & ~(JOBID_ONLY | JOBID_ONLY_ALL | HOST_NAME | NO_PEND_REASONS)) == 0)
+    if ((options &
+         ~(JOBID_ONLY | JOBID_ONLY_ALL | HOST_NAME | NO_PEND_REASONS)) == 0)
         jobInfoReq.options = CUR_JOB;
     else
         jobInfoReq.options = options;
@@ -267,14 +267,16 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     hdr.operation = BATCH_JOB_INFO;
 
-    if (!xdr_encodeMsg(&xdrs, (char *)&jobInfoReq, &hdr, xdr_jobInfoReq, 0, NULL)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReq, &hdr, xdr_jobInfoReq, 0,
+                       NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return NULL;
     }
 
     /* Open stream */
-    mbd_sock = open_mbd_stream(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr);
+    mbd_sock =
+        open_mbd_stream(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr);
     xdr_destroy(&xdrs);
 
     if (mbd_sock < 0)
@@ -425,7 +427,7 @@ int lsb_runjob(struct runJobRequest *req)
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_JOB_FORCE;
 
-    if (!xdr_encodeMsg(&xdrs, (char *)req, &hdr, xdr_runJobReq, 0, &auth)) {
+    if (!xdr_encodeMsg(&xdrs, (char *) req, &hdr, xdr_runJobReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;

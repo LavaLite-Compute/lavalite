@@ -1449,8 +1449,7 @@ extern struct userInfoEnt *lsb_userinfo(char **, int *);
 extern struct groupInfoEnt *lsb_hostgrpinfo(char **, int *, int);
 extern struct groupInfoEnt *lsb_usergrpinfo(char **, int *, int);
 extern struct parameterInfo *lsb_parameterinfo(char **, int *, int);
-extern int64_t lsb_modify(struct submit *, struct submitReply *,
-                              int64_t);
+extern int64_t lsb_modify(struct submit *, struct submitReply *, int64_t);
 extern char *lsb_suspreason(int, int, struct loadIndexLog *);
 extern char *lsb_pendreason(int, int *, struct jobInfoHead *,
                             struct loadIndexLog *);
@@ -1483,12 +1482,12 @@ int getTotalSortIntList(struct sortIntList *);
 
 int updateJobIdIndexFile(char *, char *, int);
 
-struct jobInfoHead *lsb_openjobinfo(int64_t ,  // job_id
+struct jobInfoHead *lsb_openjobinfo(int64_t,      // job_id
                                     const char *, // job_name
                                     const char *, // user_name
                                     const char *, // queue_name
                                     const char *, // host_name
-                                    int); // options like JOBID_ONLY ...
+                                    int);         // options like JOBID_ONLY ...
 struct jobInfoEnt *lsb_readjobinfo(void);
 
 /* ----------------------------------------------------------------------

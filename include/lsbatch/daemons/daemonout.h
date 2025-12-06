@@ -38,7 +38,7 @@
 /* Library to daemon protocol operations
  */
 typedef enum {
-    BATCH_STATUS_ACK = 1, //ack from daemon to daemon
+    BATCH_STATUS_ACK = 1, // ack from daemon to daemon
     BATCH_JOB_SUB,
     BATCH_JOB_INFO,
     BATCH_JOB_PEEK,

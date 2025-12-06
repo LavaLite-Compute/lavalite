@@ -176,6 +176,7 @@ struct hostLoad *ls_loadinfo(char *resreq, int *numhosts, int options,
     return loadinfo_(resreq, &loadReq, fromhost, num, indxnamelist);
 }
 
+#if 0
 struct hostLoad *ls_load(char *resreq, int *numhosts, int options,
                          char *fromhost)
 {
@@ -183,7 +184,7 @@ struct hostLoad *ls_load(char *resreq, int *numhosts, int options,
 
     return ls_loadinfo(resreq, numhosts, options, fromhost, NULL, 0, &dummynl);
 }
-
+#endif
 struct hostLoad *ls_loadofhosts(char *resreq, int *numhosts, int options,
                                 char *fromhost, char **hostlist, int listsize)
 {

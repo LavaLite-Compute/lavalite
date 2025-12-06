@@ -20,7 +20,7 @@
 // lim_info.c - LIM request handlers
 // Simplified: dump all data, let clients filter
 
-void wrongMaster(struct client_node *node)
+void wrong_master(struct client_node *node)
 {
     enum limReplyCode limReplyCode;
     XDR xdrs;
@@ -49,7 +49,7 @@ void wrongMaster(struct client_node *node)
     init_pack_hdr(&hdr);
     hdr.operation = limReplyCode;
 
-    if (!xdr_encodeMsg(&xdrs, (char *)&reply_buf, &hdr, xdr_masterInfo, 0,
+    if (!xdr_encodeMsg(&xdrs, (char *) &reply_buf, &hdr, xdr_masterInfo, 0,
                        NULL)) {
         LS_ERR("xdr_encodeMsg() failed");
         xdr_destroy(&xdrs);
@@ -57,7 +57,8 @@ void wrongMaster(struct client_node *node)
     }
 
     if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: Sending to %s", __func__, sockAdd2Str_(&addr));
+        ls_syslog(LOG_DEBUG, "%s: Sending to %s", __func__,
+                  sockAdd2Str_(&addr));
 
     cc = chan_write(node->ch_id, buf, XDR_GETPOS(&xdrs));
     if (cc < 0) {
@@ -92,13 +93,13 @@ void send_header(struct client_node *client, struct packet_header *reqHdr,
     shutdown_client(client);
 }
 
-void hostInfoReq(XDR *xdrs, struct client_node *client,
-                 struct packet_header *req_hdr)
+void host_info_req(XDR *xdrs, struct client_node *client,
+                   struct packet_header *req_hdr)
 {
-    struct host_info_reply reply;
+    struct wire_host_info_reply reply;
 
     if (!masterMe) {
-        wrongMaster(client);
+        wrong_master(client);
         return;
     }
 
@@ -115,22 +116,21 @@ void hostInfoReq(XDR *xdrs, struct client_node *client,
     // Fill
     int i = 0;
     for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
-
         struct wire_host_info *info = &reply.hosts[i];
         ++i;
 
-        info->hostName = strdup(h->hostName);
-        info->hostType = strdup(h->statInfo.hostType);
-        info->hostModel = strdup(h->statInfo.hostArch);
-         // Look up cpuFactor from global table
-        info->cpuFactor = allInfo.cpuFactor[h->hModelNo];
+        info->host_name = strdup(h->hostName);
+        info->host_type = strdup(h->statInfo.hostType);
+        info->host_model = strdup(h->statInfo.hostArch);
+        // Look up cpuFactor from global table
+        info->cpu_factor = allInfo.cpuFactor[h->hModelNo];
 
-        info->maxCpus = h->statInfo.maxCpus;
-        info->maxMem = h->statInfo.maxMem;
-        info->maxSwap = h->statInfo.maxSwap;
-        info->maxTmp = h->statInfo.maxTmp;
-        info->nDisks = h->statInfo.nDisks;
-        info->isServer = 1; // or check some flag
+        info->max_cpus = h->statInfo.maxCpus;
+        info->max_mem = h->statInfo.maxMem;
+        info->max_swap = h->statInfo.maxSwap;
+        info->max_tmp = h->statInfo.maxTmp;
+        info->num_disks = h->statInfo.nDisks;
+        info->is_server = 1; // or check some flag
     }
 
     XDR xdrs2;
@@ -141,7 +141,8 @@ void hostInfoReq(XDR *xdrs, struct client_node *client,
     init_pack_hdr(&hdr);
     hdr.operation = LIME_NO_ERR;
 
-    xdr_encodeMsg(&xdrs2, (char *)&reply, &hdr, xdr_host_info_reply, 0, NULL);
+    xdr_encodeMsg(&xdrs2, (char *) &reply, &hdr, xdr_wire_host_info_reply, 0,
+                  NULL);
 
     int cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
     if (cc < 0) {
@@ -156,9 +157,242 @@ void hostInfoReq(XDR *xdrs, struct client_node *client,
     xdr_destroy(&xdrs2);
 }
 
-// resourceInfoReq - return all resource info
-void resourceInfoReq(XDR *xdrs, struct client_node *client,
-                     struct packet_header *reqHdr)
+static int lsinfo_to_wire(const struct lsInfo *src,
+                          struct wire_lsinfo_reply *dst)
+{
+    int i;
+
+    if (src == NULL || dst == NULL) {
+        LS_ERR("invalid arguments");
+        return -1;
+    }
+
+    memset(dst, 0, sizeof(*dst));
+
+    dst->n_res = src->nRes;
+
+    if (dst->n_res > 0) {
+        dst->res_table =
+            calloc((size_t) dst->n_res, sizeof(struct wire_res_item));
+
+        if (dst->res_table == NULL) {
+            LS_ERR("calloc(res_table) failed");
+            return -1;
+        }
+
+        for (i = 0; i < dst->n_res; i++) {
+            struct wire_res_item *wr;
+            const struct resItem *r;
+
+            wr = &dst->res_table[i];
+            r = &src->resTable[i];
+
+            memset(wr, 0, sizeof(*wr));
+
+            snprintf(wr->name, sizeof(wr->name), "%s", r->name);
+
+            snprintf(wr->des, sizeof(wr->des), "%s", r->des);
+
+            wr->value_type = r->valueType;
+            wr->order_type = r->orderType;
+            wr->flags = r->flags;
+            wr->interval = r->interval;
+        }
+    }
+
+    dst->n_types = src->nTypes;
+
+    if (dst->n_types > 0) {
+        dst->host_types =
+            calloc((size_t) dst->n_types, sizeof(struct wire_host_type));
+
+        if (dst->host_types == NULL) {
+            LS_ERR("calloc(host_types) failed");
+            return -1;
+        }
+
+        for (i = 0; i < dst->n_types; i++) {
+            struct wire_host_type *ht;
+
+            ht = &dst->host_types[i];
+            memset(ht, 0, sizeof(*ht));
+
+            snprintf(ht->name, sizeof(ht->name), "%s", src->hostTypes[i]);
+        }
+    }
+
+    dst->n_models = src->nModels;
+
+    if (dst->n_models > 0) {
+        dst->host_models =
+            calloc((size_t) dst->n_models, sizeof(struct wire_host_model));
+
+        if (dst->host_models == NULL) {
+            LS_ERR("calloc(host_models) failed");
+            return -1;
+        }
+
+        for (i = 0; i < dst->n_models; i++) {
+            struct wire_host_model *hm;
+
+            hm = &dst->host_models[i];
+            memset(hm, 0, sizeof(*hm));
+
+            snprintf(hm->model, sizeof(hm->model), "%s", src->hostModels[i]);
+
+            snprintf(hm->arch, sizeof(hm->arch), "%s", src->hostArchs[i]);
+
+            hm->ref = src->modelRefs[i];
+            hm->cpu_factor = src->cpuFactor[i];
+        }
+    }
+
+    dst->num_indx = src->numIndx;
+    dst->num_usr_indx = src->numUsrIndx;
+
+    return 0;
+}
+
+static void wire_lsinfo_free(struct wire_lsinfo_reply *wi)
+{
+    if (wi == NULL) {
+        LS_WARNING("called with NULL pointer");
+        return;
+    }
+
+    free(wi->res_table);
+    wi->res_table = NULL;
+
+    free(wi->host_types);
+    wi->host_types = NULL;
+
+    free(wi->host_models);
+    wi->host_models = NULL;
+
+    wi->n_res = 0;
+    wi->n_types = 0;
+    wi->n_models = 0;
+    wi->num_indx = 0;
+    wi->num_usr_indx = 0;
+}
+
+// infoReq - generic cluster info
+void info_req(XDR *xdrs, struct client_node *client,
+              struct packet_header *req_hdr)
+{
+    char buf[LL_BUFSIZ_16K];
+    XDR xdrs2;
+    enum limReplyCode limReplyCode;
+    struct wire_lsinfo_reply reply;
+    int cc;
+
+    struct sockaddr_in addr;
+    get_host_addrv4(client->from_host->v4_epoint, &addr);
+
+    (void) xdrs; // request body unused for now
+
+    limReplyCode = LIME_NO_ERR;
+
+    memset(&reply, 0, sizeof(reply));
+    // Convert the canonical in-memory lsInfo (allInfo)
+    // into the wire-level reply structure.
+    if (lsinfo_to_wire(&allInfo, &reply) < 0) {
+        LS_ERR("lsinfo_to_wire() to %s failed", sockAdd2Str_(&addr));
+        // We do not send a partial reply.
+        return;
+    }
+
+    xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
+
+    struct packet_header reply_hdr;
+    init_pack_hdr(&reply_hdr);
+    reply_hdr.operation = limReplyCode;
+
+    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &reply_hdr,
+                       xdr_wire_lsinfo_reply, 0, NULL)) {
+        LS_ERR("xdr_encodeMsg to %s failed", sockAdd2Str_(&addr));
+        xdr_destroy(&xdrs2);
+        wire_lsinfo_free(&reply);
+        return;
+    }
+
+    cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
+    if (cc < 0) {
+        LS_ERR("chan_write() to %s failed", sockAdd2Str_(&addr));
+        xdr_destroy(&xdrs2);
+        wire_lsinfo_free(&reply);
+        return;
+    }
+
+    xdr_destroy(&xdrs2);
+    wire_lsinfo_free(&reply);
+}
+
+// ls_load()
+void load_req(XDR *xdrs, struct client_node *client,
+              struct packet_header *req_hdr)
+{
+    struct wire_load_info_reply reply;
+    XDR xdrs2;
+    char buf[LL_BUFSIZ_4K];
+    struct packet_header hdr;
+
+    if (!masterMe) {
+        wrong_master(client);
+        return;
+    }
+
+    // Count hosts
+    int num_hosts = 0;
+    for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
+        num_hosts++;
+    }
+
+    // Allocate
+    reply.num_hosts = num_hosts;
+    reply.hosts = calloc(num_hosts, sizeof(struct wire_load_info));
+    if (!reply.hosts) {
+        LS_ERR("calloc failed");
+        send_header(client, req_hdr, LIME_NO_MEM);
+        return;
+    }
+
+    // Fill the wire structure
+    int i = 0;
+    for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
+        struct wire_load_info *host = &reply.hosts[i];
+        ++i;
+        host->host_name = strdup(h->hostName); // Fixed: was comma, need strdup
+
+        memcpy(host->load_indices, h->loadIndex, NBUILTINDEX * sizeof(float));
+        memcpy(host->status, h->status, NBUILTINDEX * sizeof(int));
+    }
+
+    // Encode and send
+    xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
+    init_pack_hdr(&hdr);
+    hdr.operation = LIME_NO_ERR;
+
+    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &hdr, xdr_wire_load_info_reply,
+                       0, NULL)) {
+        LS_ERR("xdr_encodeMsg failed");
+        free(reply.hosts);
+        xdr_destroy(&xdrs2);
+        return;
+    }
+
+    int cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
+    if (cc < 0) {
+        LS_ERR("chan_write() failed");
+        // fall through
+    }
+
+    free(reply.hosts);
+    xdr_destroy(&xdrs2);
+}
+
+void resource_info_req(XDR *xdrs, struct client_node *client,
+                       struct packet_header *reqHdr)
 {
 #if 0
     struct resourceInfoReq req;
@@ -175,7 +409,7 @@ void resourceInfoReq(XDR *xdrs, struct client_node *client,
     // Free request data
     // for now leaked it
     if (!masterMe) {
-        wrongMaster(client);
+        wrong_master(client);
         return;
     }
 
@@ -209,327 +443,80 @@ void resourceInfoReq(XDR *xdrs, struct client_node *client,
 #endif
 }
 
-// loadReq - return load info for all hosts
-void loadReq(XDR *xdrs, struct client_node *client,
-             struct packet_header *reqHdr)
+// LIM_GET_CLUSINFO
+void clus_info_req(XDR *xdrs, struct client_node *client,
+                   struct packet_header *req_hdr)
 {
-#if 0
-    struct loadReq req;
-    struct loadReply reply;
-    struct packet_header replyHdr;
-    char *buf;
     XDR xdrs2;
-    int bufSize;
-
-    if (!xdr_loadReq(xdrs, &req, reqHdr)) {
-        send_header(client, reqHdr, LIME_BAD_DATA);
-        return;
-    }
-
-    // Free request
-    for (int i = 0; i < req.numPrefs; i++)
-        free(req.preferredHosts[i]);
-    free(req.preferredHosts);
+    char buf[LL_BUFSIZ_16K];
+    struct packet_header reply_hdr;
+    struct wire_cluster_info_reply reply;
+    enum limReplyCode limReplyCode;
+    int cc;
 
     if (!masterMe) {
-        char tmpBuf[MSGSIZE];
-        wrongMaster(client);
+        wrong_master(client);
         return;
     }
 
-    // Return load for all hosts
-    reply.nEntry = allInfo.numHosts;
-    reply.loadMatrix = calloc(reply.nEntry, sizeof(float *));
+    limReplyCode = LIME_NO_ERR;
 
-    if (!reply.loadMatrix) {
-        syslog(LOG_ERR, "%s: calloc failed: %m", __func__);
-        send_header(client, reqHdr, LIME_NO_MEM);
-        return;
+    // Initialize everything, including the nested cluster struct.
+    memset(&reply, 0, sizeof(reply));
+
+    // Safe defaults so XDR never sees uninitialized data.
+    reply.cluster.status = CLUST_STAT_UNAVAIL;
+
+    snprintf(reply.cluster.cluster_name, sizeof(reply.cluster.cluster_name),
+             "%s", myClusterPtr->clName);
+
+    snprintf(reply.cluster.master_name, sizeof(reply.cluster.master_name), "%s",
+             "master_unknown");
+
+    snprintf(reply.cluster.manager_name, sizeof(reply.cluster.manager_name),
+             "%s", "manager_unknown");
+
+    // Availability comes only from cluster status bits now.
+    if (myClusterPtr->status & CLUST_INFO_AVAIL) {
+        reply.cluster.status = CLUST_STAT_OK;
     }
 
-    for (int i = 0; i < reply.nEntry; i++) {
-        reply.loadMatrix[i] = calloc(allInfo.numIndx, sizeof(float));
-        if (!reply.loadMatrix[i]) {
-            syslog(LOG_ERR, "%s: calloc failed: %m", __func__);
-            for (int j = 0; j < i; j++)
-                free(reply.loadMatrix[j]);
-            free(reply.loadMatrix);
-            send_header(client, reqHdr, LIME_NO_MEM);
-            return;
-        }
-        memcpy(reply.loadMatrix[i], hostNodes[i]->loadIndex,
-               allInfo.numIndx * sizeof(float));
+    // Master name: if we know it, overwrite the default.
+    if (myClusterPtr->masterPtr != NULL) {
+        snprintf(reply.cluster.master_name, sizeof(reply.cluster.master_name),
+                 "%s", myClusterPtr->masterPtr->hostName);
     }
 
-    bufSize = MSGSIZE + reply.nEntry * allInfo.numIndx * sizeof(float);
-    buf = malloc(bufSize);
-    if (!buf) {
-        syslog(LOG_ERR, "%s: malloc failed: %m", __func__);
-        for (int i = 0; i < reply.nEntry; i++)
-            free(reply.loadMatrix[i]);
-        free(reply.loadMatrix);
-        send_header(client, reqHdr, LIME_NO_MEM);
-        return;
+    if (myClusterPtr->managerName != NULL) {
+        snprintf(reply.cluster.manager_name, sizeof(reply.cluster.manager_name),
+                 "%s", myClusterPtr->managerName);
     }
 
-    xdrmem_create(&xdrs2, buf, bufSize, XDR_ENCODE);
-    init_pack_hdr(&replyHdr);
-    replyHdr.operation = LIME_NO_ERR;
-    replyHdr.sequence = reqHdr->sequence;
+    reply.cluster.manager_id = myClusterPtr->managerId;
+    reply.cluster.num_servers = myClusterPtr->numHosts;
+    reply.cluster.num_clients = myClusterPtr->numClients;
 
-    if (!xdr_encodeMsg(&xdrs2, &reply, &replyHdr, xdr_loadReply, 0, NULL)) {
-        syslog(LOG_ERR, "%s: xdr_encodeMsg failed", __func__);
-        xdr_destroy(&xdrs2);
-        free(buf);
-        for (int i = 0; i < reply.nEntry; i++)
-            free(reply.loadMatrix[i]);
-        free(reply.loadMatrix);
-        shutdown_client(client);
-        return;
-    }
-
-    if (chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2)) < 0) {
-        syslog(LOG_ERR, "%s: chan_write failed: %m", __func__);
-    }
-
-    xdr_destroy(&xdrs2);
-    free(buf);
-    for (int i = 0; i < reply.nEntry; i++)
-        free(reply.loadMatrix[i]);
-    free(reply.loadMatrix);
-    shutdown_client(client);
-#endif
-}
-
-// placeReq - placement request (dump all hosts)
-void placeReq(XDR *xdrs, struct client_node *client,
-              struct packet_header *reqHdr)
-{
-#if 0
-    struct decisionReq req;
-    struct placeReply reply;
-    struct packet_header replyHdr;
-    char *buf;
-    XDR xdrs2;
-    int bufSize;
-
-    if (!xdr_decisionReq(xdrs, &req, reqHdr)) {
-        send_header(client, reqHdr, LIME_BAD_DATA);
-        return;
-    }
-
-    for (int i = 0; i < req.numPrefs; i++)
-        free(req.preferredHosts[i]);
-    free(req.preferredHosts);
-
-    if (!masterMe) {
-        char tmpBuf[MSGSIZE];
-        wrongMaster(client);
-        return;
-    }
-
-    // Return all hosts as candidates
-    reply.numHosts = allInfo.numHosts;
-    reply.hostNames = calloc(reply.numHosts, sizeof(char *));
-
-    if (!reply.hostNames) {
-        syslog(LOG_ERR, "%s: calloc failed: %m", __func__);
-        send_header(client, reqHdr, LIME_NO_MEM);
-        return;
-    }
-
-    for (int i = 0; i < reply.numHosts; i++) {
-        reply.hostNames[i] = strdup(hostNodes[i]->hostName);
-    }
-
-    bufSize = MSGSIZE + reply.numHosts * MAXHOSTNAMELEN;
-    buf = malloc(bufSize);
-    if (!buf) {
-        syslog(LOG_ERR, "%s: malloc failed: %m", __func__);
-        for (int i = 0; i < reply.numHosts; i++)
-            free(reply.hostNames[i]);
-        free(reply.hostNames);
-        send_header(client, reqHdr, LIME_NO_MEM);
-        return;
-    }
-
-    xdrmem_create(&xdrs2, buf, bufSize, XDR_ENCODE);
-    init_pack_hdr(&replyHdr);
-    replyHdr.operation = LIME_NO_ERR;
-    replyHdr.sequence = reqHdr->sequence;
-
-    if (!xdr_encodeMsg(&xdrs2, &reply, &replyHdr, xdr_placeReply, 0, NULL)) {
-        syslog(LOG_ERR, "%s: xdr_encodeMsg failed", __func__);
-        xdr_destroy(&xdrs2);
-        free(buf);
-        for (int i = 0; i < reply.numHosts; i++)
-            free(reply.hostNames[i]);
-        free(reply.hostNames);
-        shutdown_client(client);
-        return;
-    }
-
-    if (chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2)) < 0) {
-        syslog(LOG_ERR, "%s: chan_write failed: %m", __func__);
-    }
-
-    xdr_destroy(&xdrs2);
-    free(buf);
-    for (int i = 0; i < reply.numHosts; i++)
-        free(reply.hostNames[i]);
-    free(reply.hostNames);
-    shutdown_client(client);
-#endif
-}
-
-// infoReq - generic cluster info
-void infoReq(XDR *xdrs, struct client_node *client,
-             struct packet_header *reqHdr)
-{
-#if 0
-    struct infoReq req;
-    struct clusterInfo reply;
-    struct packet_header replyHdr;
-    char buf[MSGSIZE * 2];
-    XDR xdrs2;
-
-    if (!xdr_infoReq(xdrs, &req, reqHdr)) {
-        send_header(client, reqHdr, LIME_BAD_DATA);
-        return;
-    }
-
-    if (!masterMe) {
-        char tmpBuf[MSGSIZE];
-        wrongMaster(client);
-        return;
-    }
-
-    // Fill in cluster info
-    reply.masterName = myClusterPtr->masterPtr->hostName;
-    reply.managerName = myClusterPtr->managerId;
-    reply.numServers = allInfo.numHosts;
-    reply.numClients = 0;  // Count if needed
-    reply.nRes = allInfo.nRes;
-    reply.nTypes = allInfo.nTypes;
-    reply.nModels = allInfo.nModels;
-    reply.numIndx = allInfo.numIndx;
-    reply.numUsrIndx = allInfo.numUsrIndx;
-    reply.resTable = allInfo.resTable;
+    struct sockaddr_in addr;
+    get_host_addrv4(client->from_host->v4_epoint, &addr);
 
     xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
-    init_pack_hdr(&replyHdr);
-    replyHdr.operation = LIME_NO_ERR;
-    replyHdr.sequence = reqHdr->sequence;
-
-    if (!xdr_encodeMsg(&xdrs2, &reply, &replyHdr, xdr_clusterInfo, 0, NULL)) {
-        syslog(LOG_ERR, "%s: xdr_encodeMsg failed", __func__);
-        xdr_destroy(&xdrs2);
-        shutdown_client(client);
-        return;
-    }
-
-    if (chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2)) < 0) {
-        syslog(LOG_ERR, "%s: chan_write failed: %m", __func__);
-    }
-
-    xdr_destroy(&xdrs2);
-    shutdown_client(client);
-#endif
-}
-void loadadjReq(XDR *xdrs, struct client_node *client, struct packet_header *hdr)
-{
-}
-// LIM_GET_CLUSINFO
-void clusInfoReq(XDR *xdrs, struct client_node *from, struct packet_header *rhd)
-{
-#if 0
-    XDR xdrs2;
-    char buf[LL_BUFSIZ_4K];
-    struct packet_header reply_hdr;
-    struct clusterInfoReply clusterInfoReply;
-    struct clusterInfoReq clusterInfoReq;
-
-    if (!masterMe) {
-        wrongMaster(client);
-        return;
-    }
-
-    memset(&clusterInfoReq, 0, sizeof(clusterInfoReq));
-    if (!xdr_clusterInfoReq(xdrs, &clusterInfoReq, reqHdr)) {
-        ls_syslog(LOG_WARNING, "%s: xdr_clusterInfoReq() failed: %m", __func__);
-        // Bug we should set lserrno limReplyCode = LIME_BAD_DATA;
-        // and return -1 just like system calls.
-        return;
-    }
-
-    clusterInfoReply.shortLsInfo = getCShortInfo(reqHdr);
-
-    clusterInfoReply.nClus = 1;
-    clusterInfoReply.clusterMatrix = calloc(1, sizeof(struct shortCInfo));
-
-    strcpy(clusterInfoReply.clusterMatrix[0].clName, myClusterPtr->clName);
-
-    clusterInfoReply.clusterMatrix[0].status = CLUST_STAT_UNAVAIL;
-    if ((myClusterPtr->status & CLUST_INFO_AVAIL) &&
-        (masterMe || (!masterMe && myClusterPtr->masterPtr != NULL))) {
-        clusterInfoReply.clusterMatrix[0].status = CLUST_STAT_OK;
-        strcpy(clusterInfoReply.clusterMatrix[0].masterName,
-               myClusterPtr->masterPtr->hostName);
-
-        strcpy(clusterInfoReply.clusterMatrix[0].managerName,
-               myClusterPtr->managerName);
-
-        clusterInfoReply.clusterMatrix[0].managerId = myClusterPtr->managerId;
-        clusterInfoReply.clusterMatrix[0].numServers = myClusterPtr->numHosts;
-        clusterInfoReply.clusterMatrix[0].numClients = myClusterPtr->numClients;
-        clusterInfoReply.clusterMatrix[0].resClass = myClusterPtr->resClass;
-        clusterInfoReply.clusterMatrix[0].typeClass = myClusterPtr->typeClass;
-        clusterInfoReply.clusterMatrix[0].modelClass = myClusterPtr->modelClass;
-        clusterInfoReply.clusterMatrix[0].numIndx = myClusterPtr->numIndx;
-        clusterInfoReply.clusterMatrix[0].numUsrIndx = myClusterPtr->numUsrIndx;
-        clusterInfoReply.clusterMatrix[0].usrIndxClass =
-            myClusterPtr->usrIndxClass;
-        clusterInfoReply.clusterMatrix[0].nAdmins = myClusterPtr->nAdmins;
-        clusterInfoReply.clusterMatrix[0].adminIds = myClusterPtr->adminIds;
-        clusterInfoReply.clusterMatrix[0].admins = myClusterPtr->admins;
-        clusterInfoReply.clusterMatrix[0].nRes = allInfo.nRes;
-        clusterInfoReply.clusterMatrix[0].resBitMaps = myClusterPtr->resBitMaps;
-        clusterInfoReply.clusterMatrix[0].nTypes = allInfo.nTypes;
-        clusterInfoReply.clusterMatrix[0].hostTypeBitMaps =
-            myClusterPtr->hostTypeBitMaps;
-        clusterInfoReply.clusterMatrix[0].nModels = allInfo.nModels;
-        clusterInfoReply.clusterMatrix[0].hostModelBitMaps =
-            myClusterPtr->hostModelBitMaps;
-    }
 
     init_pack_hdr(&reply_hdr);
-    reply_hdr.operation = LIME_NO_ERR;
-    reply_hdr.sequence = reqHdr->sequence;
+    reply_hdr.operation = limReplyCode;
 
-    xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
-
-    if (!xdr_encodeMsg(&xdrs2, (char *) &clusterInfoReply, &reply_hdr,
-                       xdr_clusterInfoReply, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s: xdr_pack_hdr() failed: %m", __func__);
-        if (clusterInfoReply.clusterMatrix != NULL)
-            free(clusterInfoReply.clusterMatrix);
+    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &reply_hdr,
+                       xdr_wire_cluster_info_reply, 0, NULL)) {
+        LS_ERR("xdr_encodeMsg() to %s failed", sockAdd2Str_(&addr));
         xdr_destroy(&xdrs2);
         return;
     }
 
-    int cc = chan_write(s, buf, XDR_GETPOS(&xdrs2));
+    cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
     if (cc < 0) {
-        ls_syslog(LOG_ERR, "%s: chan_write() to %s failed: %m", __func__,
-                  sockAdd2Str_(from));
+        LS_ERR("chan_write() to %s failed", sockAdd2Str_(&addr));
         xdr_destroy(&xdrs2);
-        if (clusterInfoReply.clusterMatrix != NULL)
-            free(clusterInfoReply.clusterMatrix);
         return;
     }
-
-    if (clusterInfoReply.clusterMatrix != NULL)
-        free(clusterInfoReply.clusterMatrix);
 
     xdr_destroy(&xdrs2);
-#endif
 }

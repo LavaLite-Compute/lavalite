@@ -37,7 +37,8 @@ static char *resolve_master_with_retry(void)
         // ls_getmastername() returns __thread buffer
         char *master = ls_getmastername();
         if (master == NULL) {
-            fprintf(stderr, "LSF daemon (LIM) not responding ... still trying\n");
+            fprintf(stderr,
+                    "LSF daemon (LIM) not responding ... still trying\n");
             millisleep_(_lsb_conntimeout * 1000);
             continue;
         }
@@ -70,8 +71,8 @@ int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
     uint16_t port;
     int rc;
 
-   char *master = resolve_master_with_retry();
-   if (master == NULL) {
+    char *master = resolve_master_with_retry();
+    if (master == NULL) {
         return -1;
     }
 
@@ -154,7 +155,8 @@ int open_mbd_stream(void *req, size_t req_len, char **reply,
     struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
     struct Buffer reply_buf = {0};
 
-    int rc = chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
+    int rc =
+        chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
     if (rc < 0) {
         chan_close(ch_id);
         lsberrno = LSBE_PROTOCOL;
@@ -368,10 +370,7 @@ int enqueue_to_sbd(int chan_id, void *msg, size_t msg_len)
 int send_ack(int chan_id, uint32_t seq)
 {
     struct packet_header ack = {
-        .sequence = seq,
-        .operation = BATCH_STATUS_ACK,
-        .length = 0
-    };
+        .sequence = seq, .operation = BATCH_STATUS_ACK, .length = 0};
 
     char buf[sizeof(struct packet_header)];
     XDR xdrs;

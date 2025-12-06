@@ -458,7 +458,7 @@ bool_t xdr_lenData(XDR *xdrs, struct lenData *ld)
     }
 
     sp = ld->data;
-    if (!xdr_bytes(xdrs, &sp, (u_int *) &ld->len, ld->len)) {
+    if (!xdr_bytes(xdrs, &sp, (uint32_t *) &ld->len, ld->len)) {
         if (xdrs->x_op == XDR_DECODE)
             FREEUP(ld->data);
         return false;
@@ -487,7 +487,8 @@ bool_t xdr_lsfAuth(XDR *xdrs, struct lsfAuth *auth, struct packet_header *hdr)
         return false;
 
     sp = auth->k.eauth.data;
-    if (!xdr_bytes(xdrs, &sp, (u_int *) &auth->k.eauth.len, auth->k.eauth.len))
+    if (!xdr_bytes(xdrs, &sp, (uint32_t *) &auth->k.eauth.len,
+                   auth->k.eauth.len))
         return false;
 
     if (xdrs->x_op == XDR_ENCODE) {
@@ -601,25 +602,25 @@ bool_t xdr_jRusage(XDR *xdrs, struct jRusage *runRusage, void *)
 bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *info,
                           struct packet_header *hdr)
 {
-    if (!xdr_string(xdrs, &info->hostName, LL_HOSTNAME_MAX))
+    if (!xdr_string(xdrs, &info->host_name, LL_HOSTNAME_MAX))
         return false;
-    if (!xdr_string(xdrs, &info->hostType, LL_NAME_MAX))
+    if (!xdr_string(xdrs, &info->host_type, LL_NAME_MAX))
         return false;
-    if (!xdr_string(xdrs, &info->hostModel, LL_NAME_MAX))
+    if (!xdr_string(xdrs, &info->host_model, LL_NAME_MAX))
         return false;
-    if (!xdr_float(xdrs, &info->cpuFactor))
+    if (!xdr_float(xdrs, &info->cpu_factor))
         return false;
-    if (!xdr_int(xdrs, &info->maxCpus))
+    if (!xdr_int(xdrs, &info->max_cpus))
         return false;
-    if (!xdr_int(xdrs, &info->maxMem))
+    if (!xdr_int(xdrs, &info->max_mem))
         return false;
-    if (!xdr_int(xdrs, &info->maxSwap))
+    if (!xdr_int(xdrs, &info->max_swap))
         return false;
-    if (!xdr_int(xdrs, &info->maxTmp))
+    if (!xdr_int(xdrs, &info->max_tmp))
         return false;
-    if (!xdr_int(xdrs, &info->nDisks))
+    if (!xdr_int(xdrs, &info->num_disks))
         return false;
-    if (!xdr_int(xdrs, &info->isServer))
+    if (!xdr_int(xdrs, &info->is_server))
         return false;
     if (!xdr_int(xdrs, &info->status))
         return false;
@@ -627,8 +628,8 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *info,
     return true;
 }
 
-bool_t xdr_host_info_reply(XDR *xdrs, struct host_info_reply *reply,
-                           struct packet_header *hdr)
+bool_t xdr_wire_host_info_reply(XDR *xdrs, struct wire_host_info_reply *reply,
+                                struct packet_header *hdr)
 {
     int i;
 
@@ -647,4 +648,219 @@ bool_t xdr_host_info_reply(XDR *xdrs, struct host_info_reply *reply,
     }
 
     return true;
+}
+
+bool_t xdr_wire_load_info(XDR *xdrs, struct wire_load_info *wp)
+{
+    if (!xdr_string(xdrs, &wp->host_name, MAXHOSTNAMELEN)) {
+        return false;
+    }
+
+    if (!xdr_vector(xdrs, (char *) wp->load_indices, NBUILTINDEX, sizeof(float),
+                    (xdrproc_t) xdr_float)) {
+        return false;
+    }
+
+    if (!xdr_vector(xdrs, (char *) wp->status, NBUILTINDEX, sizeof(int),
+                    (xdrproc_t) xdr_int)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool_t xdr_wire_load_info_reply(XDR *xdrs, struct wire_load_info_reply *rp)
+{
+    int i;
+
+    if (rp == NULL)
+        return false;
+
+    if (!xdr_int(xdrs, &rp->num_hosts))
+        return false;
+
+    switch (xdrs->x_op) {
+    case XDR_DECODE:
+        if (rp->num_hosts <= 0) {
+            rp->hosts = NULL;
+            return true;
+        }
+
+        rp->hosts =
+            calloc((size_t) rp->num_hosts, sizeof(struct wire_load_info));
+        if (rp->hosts == NULL)
+            return false;
+
+        for (i = 0; i < rp->num_hosts; i++) {
+            if (!xdr_wire_load_info(xdrs, &rp->hosts[i]))
+                return false;
+        }
+        return true;
+
+    case XDR_ENCODE:
+        if (rp->num_hosts <= 0)
+            return true;
+
+        if (rp->hosts == NULL)
+            return false;
+
+        for (i = 0; i < rp->num_hosts; i++) {
+            if (!xdr_wire_load_info(xdrs, &rp->hosts[i]))
+                return false;
+        }
+        return true;
+
+    default:
+        // We are not using XDR_FREE here yet – keep it simple for now.
+        return false;
+    }
+}
+
+bool_t xdr_wire_res_item(XDR *xdrs, struct wire_res_item *wr)
+{
+    if (!xdr_opaque(xdrs, wr->name, MAXLSFNAMELEN))
+        return false;
+    if (!xdr_opaque(xdrs, wr->des, LL_RES_DESC_MAX))
+        return false;
+    if (!xdr_enum(xdrs, (enum_t *) &wr->value_type))
+        return false;
+    if (!xdr_enum(xdrs, (enum_t *) &wr->order_type))
+        return false;
+    if (!xdr_int(xdrs, &wr->flags))
+        return false;
+    if (!xdr_int(xdrs, &wr->interval))
+        return false;
+
+    return true;
+}
+
+bool_t xdr_wire_host_type(XDR *xdrs, struct wire_host_type *ht)
+{
+    return xdr_opaque(xdrs, ht->name, MAXLSFNAMELEN);
+}
+
+bool_t xdr_wire_host_model(XDR *xdrs, struct wire_host_model *hm)
+{
+    if (!xdr_opaque(xdrs, hm->model, MAXLSFNAMELEN))
+        return false;
+    if (!xdr_opaque(xdrs, hm->arch, MAXLSFNAMELEN))
+        return false;
+    if (!xdr_int(xdrs, &hm->ref))
+        return false;
+    if (!xdr_float(xdrs, &hm->cpu_factor))
+        return false;
+
+    return true;
+}
+
+bool_t xdr_wire_lsinfo_reply(XDR *xdrs, struct wire_lsinfo_reply *r)
+{
+    int i;
+
+    // resources
+    if (!xdr_int(xdrs, &r->n_res)) {
+        return false;
+    }
+
+    if (xdrs->x_op == XDR_DECODE && r->n_res > 0 && r->res_table == NULL) {
+        r->res_table = calloc((size_t) r->n_res, sizeof(struct wire_res_item));
+        if (r->res_table == NULL) {
+            return false;
+        }
+    }
+
+    for (i = 0; i < r->n_res; i++) {
+        if (!xdr_wire_res_item(xdrs, &r->res_table[i])) {
+            return false;
+        }
+    }
+
+    /* host types */
+    if (!xdr_int(xdrs, &r->n_types)) {
+        return false;
+    }
+
+    if (xdrs->x_op == XDR_DECODE && r->n_types > 0 && r->host_types == NULL) {
+        r->host_types =
+            calloc((size_t) r->n_types, sizeof(struct wire_host_type));
+        if (r->host_types == NULL) {
+            return false;
+        }
+    }
+
+    for (i = 0; i < r->n_types; i++) {
+        if (!xdr_wire_host_type(xdrs, &r->host_types[i])) {
+            return false;
+        }
+    }
+
+    // host models
+    if (!xdr_int(xdrs, &r->n_models)) {
+        return false;
+    }
+
+    if (xdrs->x_op == XDR_DECODE && r->n_models > 0 && r->host_models == NULL) {
+        r->host_models =
+            calloc((size_t) r->n_models, sizeof(struct wire_host_model));
+        if (r->host_models == NULL) {
+            return false;
+        }
+    }
+
+    for (i = 0; i < r->n_models; i++) {
+        if (!xdr_wire_host_model(xdrs, &r->host_models[i])) {
+            return false;
+        }
+    }
+
+    // scalar fields
+    if (!xdr_int(xdrs, &r->num_indx)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &r->num_usr_indx)) {
+        return false;
+    }
+
+    return true;
+}
+
+// ls_clusterinfo()
+
+bool_t xdr_wire_cluster_info(XDR *xdrs, struct wire_cluster_info *ci)
+{
+    if (!xdr_opaque(xdrs, ci->cluster_name, LL_NAME_MAX)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &ci->status)) {
+        return false;
+    }
+
+    if (!xdr_opaque(xdrs, ci->master_name, MAXHOSTNAMELEN)) {
+        return false;
+    }
+
+    if (!xdr_opaque(xdrs, ci->manager_name, LL_NAME_MAX)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &ci->manager_id)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &ci->num_servers)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &ci->num_clients)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool_t xdr_wire_cluster_info_reply(XDR *xdrs, struct wire_cluster_info_reply *r)
+{
+    return xdr_wire_cluster_info(xdrs, &r->cluster);
 }

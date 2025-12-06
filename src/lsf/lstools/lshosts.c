@@ -5,8 +5,8 @@
  * it under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
  */
-#include "lsf/lib/lib.h"
 
+#include <lsf.h>
 
 static void usage(void)
 {
@@ -51,32 +51,24 @@ int main(int argc, char **argv)
         return -1;
     }
     // Print header
-    printf("%-15s %-13s %-15s %6s %6s %8s %8s %6s\n",
-           "HOST_NAME", "type", "model", "cpuf", "ncpus",
-           "maxmem", "maxswp", "server");
+    printf("%-15s %-13s %-15s %6s %6s %8s %8s %6s\n", "HOST_NAME", "type",
+           "model", "cpuf", "ncpus", "maxmem", "maxswp", "server");
 
     // Print each host
-   for (int i = 0; i < numhosts; i++) {
-       struct hostInfo *h = &hosts[i];
+    for (int i = 0; i < numhosts; i++) {
+        struct hostInfo *h = &hosts[i];
 
-       const char *hostName =
-           (h->hostName[0] != '\0') ? h->hostName : "-";
-       const char *hostType =
-           (h->hostType && h->hostType[0]) ? h->hostType : "-";
-       const char *hostModel =
-           (h->hostModel && h->hostModel[0]) ? h->hostModel : "-";
-       const char *server = h->isServer ? "Yes" : "No";
+        const char *hostName = (h->hostName[0] != '\0') ? h->hostName : "-";
+        const char *hostType =
+            (h->hostType && h->hostType[0]) ? h->hostType : "-";
+        const char *hostModel =
+            (h->hostModel && h->hostModel[0]) ? h->hostModel : "-";
+        const char *server = h->isServer ? "Yes" : "No";
 
-       printf("%-15s %-13s %-15s %6.1f %6d %8d %8d %6s\n",
-              hostName,
-              hostType,
-              hostModel,
-              h->cpuFactor,
-              h->maxCpus > 0 ? h->maxCpus : 0,
-              h->maxMem,
-              h->maxSwap,
-              server);
-   }
+        printf("%-15s %-13s %-15s %6.1f %6d %8d %8d %6s\n", hostName, hostType,
+               hostModel, h->cpuFactor, h->maxCpus > 0 ? h->maxCpus : 0,
+               h->maxMem, h->maxSwap, server);
+    }
 
     return 0;
 }

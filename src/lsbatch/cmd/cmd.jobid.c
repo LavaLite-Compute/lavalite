@@ -63,8 +63,7 @@ int getJobIds(int argc, char **argv, char *jobName, char *user, char *queue,
         options &= ~JOBID_ONLY;
     }
 
-    jobInfoHead = lsb_openjobinfo(0, jobName, user,
-                                  queue, host, options);
+    jobInfoHead = lsb_openjobinfo(0, jobName, user, queue, host, options);
     if (jobInfoHead == NULL) {
         jobInfoErr(0, jobName, user, queue, host, options);
         exit(-1);
@@ -97,8 +96,7 @@ int getSpecJobIds(int argc, char **argv, int64_t **jobIds0, int *options)
         return (0);
     }
 
-    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) ==
-        NULL) {
+    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) == NULL) {
         perror("calloc");
         exit(-1);
     }
@@ -112,8 +110,7 @@ int getSpecJobIds(int argc, char **argv, int64_t **jobIds0, int *options)
             if (numJobIds >= sizeOfJobIdArray) {
                 sizeOfJobIdArray += MAX_JOB_IDS;
                 if ((jobIds = realloc(jobIds, sizeOfJobIdArray *
-                                                  sizeof(int64_t))) ==
-                    NULL) {
+                                                  sizeof(int64_t))) == NULL) {
                     fprintf(stderr, "%s: %s failed\n", fName, "malloc");
                     exit(-1);
                 }
@@ -388,8 +385,7 @@ int getJobIdList(char *jobIdStr, int64_t **jobIdList)
     if (jobId <= 0)
         return (-1);
 
-    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) ==
-        NULL) {
+    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) == NULL) {
         return (-1);
     }
 
@@ -406,8 +402,7 @@ int getJobIdList(char *jobIdStr, int64_t **jobIdList)
             if (numJobIds >= sizeOfJobIdArray) {
                 sizeOfJobIdArray += MAX_JOB_IDS;
                 if ((temp = (int64_t *) realloc(
-                         jobIds, sizeOfJobIdArray * sizeof(int64_t))) ==
-                    NULL) {
+                         jobIds, sizeOfJobIdArray * sizeof(int64_t))) == NULL) {
                     return (-1);
                 }
                 jobIds = temp;

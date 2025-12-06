@@ -23,6 +23,6 @@
 int lsb_reconfig(int configFlag)
 {
     (void) (configFlag);
-    //Bug obsolete
+    // Bug obsolete
     return LSBE_NO_ERROR;
 }

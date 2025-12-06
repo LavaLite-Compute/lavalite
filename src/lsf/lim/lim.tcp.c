@@ -17,7 +17,6 @@
  *
  */
 
-
 #include "lsf/lim/lim.h"
 
 static void process_tcp_request(struct client_node *client)
@@ -45,34 +44,26 @@ static void process_tcp_request(struct client_node *client)
     if (logclass & LC_TRACE)
         LS_DEBUG("operation %d", hdr.operation);
 
+    // the client data structure is owned by this
+    // layer so the callers should not free it
     switch (hdr.operation) {
     case LIM_LOAD_REQ:
-        loadReq(&xdrs, client, &hdr);
+        load_req(&xdrs, client, &hdr);
         xdr_destroy(&xdrs);
         shutdown_client(client);
         break;
     case LIM_GET_HOSTINFO:
-        hostInfoReq(&xdrs, client, &hdr);
-        xdr_destroy(&xdrs);
-        shutdown_client(client);
-        break;
-    case LIM_PLACEMENT:
-        placeReq(&xdrs, client, &hdr);
+        host_info_req(&xdrs, client, &hdr);
         xdr_destroy(&xdrs);
         shutdown_client(client);
         break;
     case LIM_GET_RESOUINFO:
-        resourceInfoReq(&xdrs, client, &hdr);
+        resource_info_req(&xdrs, client, &hdr);
         xdr_destroy(&xdrs);
         shutdown_client(client);
         break;
     case LIM_GET_INFO:
-        infoReq(&xdrs, client, &hdr);
-        xdr_destroy(&xdrs);
-        shutdown_client(client);
-        break;
-    case LIM_LOAD_ADJ:
-        loadadjReq(&xdrs, client, &hdr);
+        info_req(&xdrs, client, &hdr);
         xdr_destroy(&xdrs);
         shutdown_client(client);
         break;
@@ -82,7 +73,7 @@ static void process_tcp_request(struct client_node *client)
         shutdown_client(client);
         break;
     case LIM_GET_CLUSINFO:
-        clusInfoReq(&xdrs, client, &hdr);
+        clus_info_req(&xdrs, client, &hdr);
         xdr_destroy(&xdrs);
         shutdown_client(client);
         break;
@@ -97,10 +88,8 @@ static void process_tcp_request(struct client_node *client)
 // Called from epoll loop when TCP client has data ready
 int handle_tcp_client(int ch_id)
 {
-
     // hash/list the ch_id it later if really needed
     for (int i = 0; i < chan_open_max; i++) {
-
         if (client_map[i] == NULL)
             continue;
 

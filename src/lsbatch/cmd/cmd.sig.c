@@ -28,8 +28,7 @@ static time_t chkPeriod = LSB_CHKPERIOD_NOCHNG;
 static int chkOptions;
 static int runCount = 0;
 
-static int do_options(int argc, char **argv, int64_t **jobIds,
-                      int signalValue);
+static int do_options(int argc, char **argv, int64_t **jobIds, int signalValue);
 static void usage(char *cmd, int sig);
 
 static void usage(char *cmd, int sig)
@@ -65,8 +64,7 @@ static void usage(char *cmd, int sig)
     exit(-1);
 }
 
-static int do_options(int argc, char **argv, int64_t **jobIds,
-                      int signalValue)
+static int do_options(int argc, char **argv, int64_t **jobIds, int signalValue)
 {
     extern char *optarg;
     extern int optind;

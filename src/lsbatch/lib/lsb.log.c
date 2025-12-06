@@ -87,8 +87,7 @@ static void freeLogRec(struct eventRec *);
 
 struct eventRec *lsbGetNextJobEvent(struct eventLogHandle *, int *, int,
                                     int64_t *, struct jobIdIndexS *);
-static struct eventRec *lsbGetNextJobRecFromFile(FILE *, int *, int,
-                                                 int64_t *);
+static struct eventRec *lsbGetNextJobRecFromFile(FILE *, int *, int, int64_t *);
 static int checkJobEventAndJobId(char *, int, int, int64_t *);
 static int getEventTypeAndKind(char *, int *);
 static void readEventRecord(char *, struct eventRec *);

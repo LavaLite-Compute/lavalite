@@ -388,8 +388,7 @@ int getJobIdList(char *jobIdStr, int *numJobIds, int64_t **jobIdList)
     if (jobId <= 0)
         return LSBE_BAD_JOBID;
 
-    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) ==
-        NULL) {
+    if ((jobIds = (int64_t *) calloc(MAX_JOB_IDS, sizeof(int64_t))) == NULL) {
         mbdDie(MASTER_MEM);
     }
 
@@ -406,8 +405,7 @@ int getJobIdList(char *jobIdStr, int *numJobIds, int64_t **jobIdList)
             if (*numJobIds >= sizeOfJobIdArray) {
                 sizeOfJobIdArray += MAX_JOB_IDS;
                 if ((temp = (int64_t *) realloc(
-                         jobIds, sizeOfJobIdArray * sizeof(int64_t))) ==
-                    NULL) {
+                         jobIds, sizeOfJobIdArray * sizeof(int64_t))) == NULL) {
                     mbdDie(MASTER_MEM);
                 }
                 jobIds = temp;

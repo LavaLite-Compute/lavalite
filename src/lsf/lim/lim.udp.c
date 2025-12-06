@@ -21,8 +21,8 @@
 #include "lsf/lim/lim.h"
 
 // This is UDP
-void clusNameReq(XDR *xdrs, struct sockaddr_in *from,
-                 struct packet_header *reqHdr)
+void cluster_name_req(XDR *xdrs, struct sockaddr_in *from,
+                      struct packet_header *reqHdr)
 {
     XDR xdrs2;
     char buf[MSGSIZE];
@@ -56,8 +56,8 @@ void clusNameReq(XDR *xdrs, struct sockaddr_in *from,
 }
 
 // This is UDP
-void masterInfoReq(XDR *xdrs, struct sockaddr_in *from,
-                   struct packet_header *reqHdr)
+void master_info_req(XDR *xdrs, struct sockaddr_in *from,
+                     struct packet_header *reqHdr)
 {
     XDR xdrs2;
     char buf[LL_BUFSIZ_64];

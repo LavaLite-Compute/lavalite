@@ -97,8 +97,8 @@ extern int printThresholds(float *, float *, int *, int *, int,
                            struct lsInfo *);
 extern void prtResourceLimit(int *, char *, float, int *);
 extern int getNames(int, char **, int, char ***, int *, char *);
-extern int getJobIds(int, char **, char *, char *, char *, char *,
-                     int64_t **, int);
+extern int getJobIds(int, char **, char *, char *, char *, char *, int64_t **,
+                     int);
 extern int getSpecJobIds(int, char **, int64_t **, int *);
 extern int getSpecIdxs(char *, int **);
 extern int getOneJobId(char *, int64_t *, int);
