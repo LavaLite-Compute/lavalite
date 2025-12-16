@@ -13,36 +13,69 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
- *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA  02110-1301, USA
  */
 
 #include "lsbatch/lib/lsb.h"
 
-struct config_param lsbParams[] = {{"LSB_DEBUG", NULL},
-                                   {"LSB_SHAREDIR", NULL},
-                                   {"LSB_SBD_PORT", NULL},
-                                   {"LSB_MBD_PORT", NULL},
-                                   {"LSB_DEBUG_CMD", NULL},
-                                   {"LSB_TIME_CMD", NULL},
-                                   {"LSB_CMD_LOGDIR", NULL},
-                                   {"LSB_CMD_LOG_MASK", NULL},
-                                   {"LSF_LOG_MASK", NULL},
-                                   {"LSB_API_CONNTIMEOUT", NULL},
-                                   {"LSB_API_RECVTIMEOUT", NULL},
-                                   {"LSF_SERVERDIR", NULL},
-                                   {"LSB_MODE", NULL},
-                                   {"LSB_SHORT_HOSTLIST", NULL},
-                                   {"LSF_INTERACTIVE_STDERR", NULL},
-                                   {"LSB_32_PAREN_ESC", NULL},
-                                   {"LSB_API_QUOTE_CMD", NULL},
-                                   {NULL, NULL}};
+struct config_param lsbParams[LSB_PARAM_COUNT] =
+{
+    [LSB_DEBUG]                = { "LSB_DEBUG", NULL },
+    [LSB_CONFDIR]              = { "LSB_CONFDIR", NULL },
+    [LSB_SHAREDIR]             = { "LSB_SHAREDIR", NULL },
+    [LSB_MAILTO]               = { "LSB_MAILTO", NULL },
+    [LSB_MAILPROG]             = { "LSB_MAILPROG", NULL },
+    [LSB_SBD_PORT]             = { "LSB_SBD_PORT", NULL },
+    [LSB_MBD_PORT]             = { "LSB_MBD_PORT", NULL },
+    [LSB_DEBUG_MBD]            = { "LSB_DEBUG_MBD", NULL },
+    [LSB_DEBUG_SBD]            = { "LSB_DEBUG_SBD", NULL },
+    [LSB_TIME_MBD]             = { "LSB_TIME_MBD", NULL },
+    [LSB_TIME_SBD]             = { "LSB_TIME_SBD", NULL },
+    [LSB_SIGSTOP]              = { "LSB_SIGSTOP", NULL },
+    [LSB_MBD_CONNTIMEOUT]      = { "LSB_MBD_CONNTIMEOUT", NULL },
+    [LSB_SBD_CONNTIMEOUT]      = { "LSB_SBD_CONNTIMEOUT", NULL },
+    [LSB_MBD_MAILREPLAY]       = { "LSB_MBD_MAILREPLAY", NULL },
+    [LSB_MBD_MIGTOPEND]        = { "LSB_MBD_MIGTOPEND", NULL },
+    [LSB_SBD_READTIMEOUT]      = { "LSB_SBD_READTIMEOUT", NULL },
+    [LSB_MBD_BLOCK_SEND]       = { "LSB_MBD_BLOCK_SEND", NULL },
+    [LSB_MEMLIMIT_ENFORCE]     = { "LSB_MEMLIMIT_ENFORCE", NULL },
+    [LSB_BSUBI_OLD]            = { "LSB_BSUBI_OLD", NULL },
+    [LSB_STOP_IGNORE_IT]       = { "LSB_STOP_IGNORE_IT", NULL },
+    [LSB_HJOB_PER_SESSION]     = { "LSB_HJOB_PER_SESSION", NULL },
+    [LSB_REQUEUE_HOLD]         = { "LSB_REQUEUE_HOLD", NULL },
+    [LSB_SMTP_SERVER]          = { "LSB_SMTP_SERVER", NULL },
+    [LSB_MAILSERVER]           = { "LSB_MAILSERVER", NULL },
+    [LSB_MAILSIZE_LIMIT]       = { "LSB_MAILSIZE_LIMIT", NULL },
+    [LSB_REQUEUE_TO_BOTTOM]    = { "LSB_REQUEUE_TO_BOTTOM", NULL },
+    [LSB_ARRAY_SCHED_ORDER]    = { "LSB_ARRAY_SCHED_ORDER", NULL },
+    [LSB_QPOST_EXEC_ENFORCE]   = { "LSB_QPOST_EXEC_ENFORCE", NULL },
+    [LSB_MIG2PEND]             = { "LSB_MIG2PEND", NULL },
+    [LSB_UTMP]                 = { "LSB_UTMP", NULL },
+    [LSB_JOB_CPULIMIT]         = { "LSB_JOB_CPULIMIT", NULL },
+    [LSB_JOB_MEMLIMIT]         = { "LSB_JOB_MEMLIMIT", NULL },
+    [LSB_MOD_ALL_JOBS]         = { "LSB_MOD_ALL_JOBS", NULL },
+    [LSB_SET_TMPDIR]           = { "LSB_SET_TMPDIR", NULL },
+    [LSB_PTILE_PACK]           = { "LSB_PTILE_PACK", NULL },
+    [LSB_STDOUT_DIRECT]        = { "LSB_STDOUT_DIRECT", NULL },
+    [LSB_NO_FORK]              = { "LSB_NO_FORK", NULL },
+    [LSB_DEBUG_CMD]            = { "LSB_DEBUG_CMD", NULL },
+    [LSB_TIME_CMD]             = { "LSB_TIME_CMD", NULL },
+    [LSB_CMD_LOGDIR]           = { "LSB_CMD_LOGDIR", NULL },
+    [LSB_CMD_LOG_MASK]         = { "LSB_CMD_LOG_MASK", NULL },
+    [LSB_API_CONNTIMEOUT]      = { "LSB_API_CONNTIMEOUT", NULL },
+    [LSB_API_RECVTIMEOUT]      = { "LSB_API_RECVTIMEOUT", NULL },
+    [LSB_SERVERDIR]            = { "LSB_SERVERDIR", NULL },
+    [LSB_SHORT_HOSTLIST]       = { "LSB_SHORT_HOSTLIST", NULL },
+    [LSB_INTERACTIVE_STDERR]   = { "LSB_INTERACTIVE_STDERR", NULL },
+     // Legacy placeholder several code depend on this...
+    [LSB_NULL_PARAM] = {NULL, NULL},
+};
 
-#ifdef LSF_LOG_MASK
-#undef LSF_LOG_MASK
-#endif
-#define LSF_LOG_MASK 8
+_Static_assert(
+    (sizeof(lsbParams) / sizeof(lsbParams[0])) == LSB_PARAM_COUNT,
+    "lsbParams[] size mismatch vs enum daemon_param_id"
+);
 
 int _lsb_conntimeout = DEFAULT_API_CONNTIMEOUT;
 int _lsb_recvtimeout = DEFAULT_API_RECVTIMEOUT;

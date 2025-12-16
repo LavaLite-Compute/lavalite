@@ -149,7 +149,7 @@ void do_newjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
 sendReply:
     xdr_lsffree(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
 #ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         if (getSbdAuth(&auth_data))
             ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
         else
@@ -173,7 +173,7 @@ sendReply:
 
     xdr_destroy(&xdrs2);
 
-    if (reply == ERR_NO_ERROR && !daemonParams[LSB_BSUBI_OLD].paramValue &&
+    if (reply == ERR_NO_ERROR && !lsbParams[LSB_BSUBI_OLD].paramValue &&
         PURE_INTERACTIVE(&jp->jobSpecs)) {
         if (status_job(BATCH_STATUS_JOB, jp, jp->jobSpecs.jStatus,
                        ERR_NO_ERROR) < 0) {
@@ -312,7 +312,7 @@ sendReply:
     }
 
 #ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         if (getSbdAuth(&auth_data))
             ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
         else
@@ -450,7 +450,7 @@ sendReply:
     }
 
 #ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         if (getSbdAuth(&auth_data))
             ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
         else
@@ -525,7 +525,7 @@ void do_probe(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
 
 #ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         if (getSbdAuth(&auth_data))
             ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
         else
@@ -705,7 +705,7 @@ Reply1:
     }
 
 #ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         if (getSbdAuth(&auth_data))
             ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
         else
@@ -840,7 +840,7 @@ void deliverMsg(struct bucket *bucket)
                       cliPtr->chanfd);
 
         nbytes =
-            b_write_fix(chan_get_sock(cliPtr->chanfd), mbuf->data, mbuf->len);
+            b_write_fix(chan_sock(cliPtr->chanfd), mbuf->data, mbuf->len);
 
         if (nbytes <= 0) {
             ls_syslog(LOG_ERR, "%s", __func__,

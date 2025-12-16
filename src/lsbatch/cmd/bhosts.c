@@ -91,19 +91,27 @@ static char wflag = FALSE;
 static char fomt[LL_BUFSIZ_128];
 static int nameToFmt(char *indx);
 
-void usage(void)
+static void usage(void)
 {
-    fprintf(stderr, "bhosts: Usage: [-h] [-V] [-R res_req] "
-                    "[-w | -l] [host_name ... | cluster_name]\n");
+    fprintf(stderr,
+            "bhosts: Usage:\n"
+            "  bhosts [-h] [-V]\n"
+            "  bhosts [-R res_req] [-w | -l] [host_name ... | cluster_name]\n"
+            "  bhosts -s [resource_name ...]\n");
 }
 
 int main(int argc, char **argv)
 {
-    int i, cc, local = FALSE;
-    struct hostInfoEnt *hInfo;
-    char **hosts = NULL, **hostPoint, *resReq = NULL;
-    char lflag = FALSE, sOption = FALSE, otherOption = FALSE;
+    int opt;
+    int local = FALSE;
     int numHosts;
+    char lflag = FALSE;
+    char sOption = FALSE;
+    char otherOption = FALSE;
+    char *resReq = NULL;
+    char **hosts = NULL;
+    char **hostPoint = NULL;
+    struct hostInfoEnt *hInfo;
 
     _lsb_recvtimeout = 30;
 
@@ -112,66 +120,88 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    for (i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-h") == 0) {
+    // One clean getopt() pass
+    while ((opt = getopt(argc, argv, "hVR:slw")) != -1) {
+        switch (opt) {
+        case 'h':
             usage();
             return 0;
-        } else if (strcmp(argv[i], "-V") == 0) {
+
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
-        } else if (strcmp(argv[i], "-s") == 0) {
-            if (otherOption == TRUE) {
-                usage();
-                return 0;
-            }
-            sOption = TRUE;
-            optind = i + 1;
-        } else if (strcmp(argv[i], "-R") == 0 || strcmp(argv[i], "-l") == 0 ||
-                   strcmp(argv[i], "-w") == 0) {
-            otherOption = TRUE;
-            if (sOption == TRUE) {
+
+        case 's':
+            // -s (shared resources) is exclusive with -R/-l/-w
+            if (otherOption) {
                 usage();
                 return -1;
             }
+            sOption = TRUE;
+            break;
+
+        case 'R':
+            if (sOption) {
+                usage();
+                return -1;
+            }
+            resReq = optarg;
+            otherOption = TRUE;
+            break;
+
+        case 'l':
+            if (sOption) {
+                usage();
+                return -1;
+            }
+            if (wflag) {
+                usage();
+                return -1;
+            }
+            lflag = TRUE;
+            otherOption = TRUE;
+            break;
+
+        case 'w':
+            if (sOption) {
+                usage();
+                return -1;
+            }
+            if (lflag) {
+                usage();
+                return -1;
+            }
+            wflag = TRUE;
+            otherOption = TRUE;
+            break;
+
+        default:
+            usage();
+            return -1;
         }
     }
 
+    // Shared resource mode: delegate and exit
     if (sOption) {
         displayShareRes(argc, argv, optind);
-        return (0);
+        return 0;
     }
-    while ((cc = getopt(argc, argv, "lwR:")) != EOF) {
-        switch (cc) {
-        case 'l':
-            lflag = TRUE;
-            if (wflag)
-                usage();
-            break;
-        case 'w':
-            wflag = TRUE;
-            if (lflag)
-                usage();
-            break;
-        case 'R':
-            resReq = optarg;
-            break;
-        default:
-            usage();
-        }
-    }
+
+    // Host / cluster arguments
     numHosts = getNames(argc, argv, optind, &hosts, &local, "host");
+
     if ((local && numHosts == 1) || !numHosts)
         hostPoint = NULL;
     else
         hostPoint = hosts;
-    TIMEIT(0, (hInfo = lsb_hostinfo_ex(hostPoint, &numHosts, resReq, 0)),
-           "lsb_hostinfo");
+
+    hInfo = lsb_hostinfo(hostPoint, &numHosts, resReq, 0);
     if (!hInfo) {
         if (lsberrno == LSBE_BAD_HOST && hostPoint)
             lsb_perror(hosts[numHosts]);
         else
             lsb_perror(NULL);
-        exit(-1);
+        return -1;
     }
 
     if (numHosts > 1 && resReq == NULL)
@@ -181,8 +211,10 @@ int main(int argc, char **argv)
         prtHostsLong(numHosts, hInfo);
     else
         prtHostsShort(numHosts, hInfo);
-    exit(0);
+
+    return 0;
 }
+
 
 static void prtHostsLong(int numReply, struct hostInfoEnt *hInfo)
 {

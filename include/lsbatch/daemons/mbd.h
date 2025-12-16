@@ -1,4 +1,3 @@
-#pragma once
 /* $Id: mbd.h,v 1.28 2007/08/15 22:18:45 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -13,11 +12,10 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
- *
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
+#pragma once
 
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/daemons/daemonout.h"
@@ -748,8 +746,7 @@ struct mbd_client_node {
     struct mbd_client_node *forw;
     struct mbd_client_node *back;
     int chanfd;
-    struct sockaddr_in from;
-    char *fromHost;
+    struct ll_host host;
     mbdReqType reqType;
     time_t lastTime;
 };
@@ -806,18 +803,6 @@ typedef enum profCounterType {
                 }                                                              \
             }                                                                  \
     }
-
-// LavaLite model, cleant and most honest approach model — codify
-// the assumption that the daemon is launched by the cluster admin,
-// and make that identity explicit and reusable.
-// One user, fixed identity, zero UID gymnastics.
-struct mbd_manager {
-    uid_t uid;
-    gid_t gid;
-    char *name;
-};
-extern struct mbd_manager *mbd_mgr;
-extern bool_t is_manager(const char *);
 
 #define CONF_COND 0x001
 
@@ -936,8 +921,9 @@ extern int nSbdConnections;
 extern int maxSbdConnections;
 extern int maxJobPerSession;
 
-extern struct hostInfo *lsfHostInfo;
-extern int numLsfHosts;
+// LavaLite global host list as returned by lsb_gethostinfo()
+extern struct hostInfo *host_list;
+extern int host_count;
 
 extern float maxCpuFactor;
 extern int freedSomeReserveSlot;
@@ -958,7 +944,6 @@ extern void getTclHostData(struct tclHostData *, struct hData *,
                            struct hData *);
 extern int getLsbHostNames(char ***);
 extern void getLsbHostInfo(void);
-extern int getLsbHostLoad(void);
 extern int getHostsByResReq(struct resVal *, int *, struct hData **,
                             struct hData ***, struct hData *, int *);
 
@@ -968,7 +953,7 @@ extern void adjLsbLoad(struct jData *, int, bool_t);
 extern int countHostJobs(struct hData *hData);
 extern void getLsbResourceInfo(void);
 extern struct resVal *getReserveValues(struct resVal *, struct resVal *);
-extern void getLsfHostInfo(int);
+extern void load_host_list(void);
 extern struct hData *getHostByType(char *);
 
 extern void checkQWindow(void);
@@ -1145,11 +1130,6 @@ extern int do_runJobReq(XDR *, int, struct sockaddr_in *, struct lsfAuth *,
 extern int getQUsable(struct qData *);
 extern void allocateRemote(struct jData *, int);
 extern void setExecHostsAcceptInterval(struct jData *);
-#if defined(INTER_DAEMON_AUTH)
-extern int authDaemonRequest(int chfd, XDR *xdrs, struct packet_header *reqHdr,
-                             struct sockaddr_in *from_host, char *client,
-                             char *server);
-#endif
 
 extern int requeueEParse(struct requeueEStruct **, char *, int *);
 extern int fill_requeueHist(struct rqHistory **, int *, struct hData *);
@@ -1221,7 +1201,6 @@ extern void checkQusable(struct qData *, int, int);
 extern void updHostLeftRusageMem(struct jData *, int);
 extern int64_t getFileSystemFree(char *);
 
-extern int minit(int);
 extern struct qData *lostFoundQueue(void);
 extern struct hData *lostFoundHost(void);
 extern void freeHData(struct hData *, char delete);
@@ -1422,3 +1401,23 @@ extern void updateTimeWindow(struct timeWindow *);
 // LavaLite
 struct hData *getHostData(const char *host);
 void shutDownClient(struct mbd_client_node *);
+
+// LavaLite model, cleant and most honest approach model — codify
+// the assumption that the daemon is launched by the cluster admin,
+// and make that identity explicit and reusable.
+// One user, fixed identity, zero UID gymnastics.
+struct mbd_manager {
+    uid_t uid;
+    gid_t gid;
+    char *name;
+};
+extern struct mbd_manager *mbd_mgr;
+extern bool_t is_manager(const char *);
+// Lavalite
+extern int mbd_chan;
+extern int mbd_efd;
+extern uint16_t mbd_port;
+extern struct epoll_event *mbd_events;
+extern int mbd_max_events;
+
+int mbd_init(int);

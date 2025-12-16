@@ -3421,6 +3421,7 @@ int findBestHosts(struct jData *jp, struct resVal *resValPtr, int needed,
     return numHosts;
 }
 
+// Bug garbage to be thrown away
 static void getRawLsbLoad(int ncandidates, struct candHost *hosts)
 {
     static char fname[] = "getRawLsbLoad";
@@ -3437,8 +3438,7 @@ static void getRawLsbLoad(int ncandidates, struct candHost *hosts)
         hostNames[i] = hosts[i].hData->host;
     }
 
-    newHostLoad =
-        ls_loadofhosts("-:server", &num, 0, NULL, hostNames, ncandidates);
+    newHostLoad = ls_load(NULL, &num, 0, NULL);
     FREEUP(hostNames);
     if (newHostLoad != NULL) {
         for (i = 0; i < num; i++) {
@@ -4091,10 +4091,6 @@ int scheduleAndDispatchJobs()
                 lastSharedResourceUpdateTime = now_disp;
             }
 
-            TIMEIT(0, returnCode = getLsbHostLoad(), "getLsbHostLoad()");
-            if (returnCode != 0) {
-                return -1;
-            }
             lastUpdTime = now_disp;
             newLoadInfo = TRUE;
         }

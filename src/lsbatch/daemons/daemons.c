@@ -1,5 +1,6 @@
-/* $Id: daemons.c,v 1.11 2007/08/15 22:18:44 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,64 +19,6 @@
  */
 
 #include "lsbatch/daemons/daemons.h"
-
-// Bug LSB_CONFDIR is not used anymore in ll. Change the defines
-// to use enum like ll errors.
-struct config_param daemonParams[] = {{"LSB_DEBUG", NULL},
-                                      {"LSB_CONFDIR", NULL},
-                                      {"LSF_SERVERDIR", NULL},
-                                      {"LSF_LOGDIR", NULL},
-                                      {"LSB_SHAREDIR", NULL},
-                                      {"LSB_MAILTO", NULL},
-                                      {"LSB_MAILPROG", NULL},
-                                      {"LSB_SBD_PORT", NULL},
-                                      {"LSB_MBD_PORT", NULL},
-                                      {"LSF_ID_PORT", NULL},
-                                      {"LSF_AUTH", NULL},
-                                      {"LSB_CRDIR", NULL},
-                                      {"LSF_USE_HOSTEQUIV", NULL},
-                                      {"LSF_ROOT_REX", NULL},
-                                      {"LSB_DEBUG_MBD", NULL},
-                                      {"LSB_DEBUG_SBD", NULL},
-                                      {"LSB_TIME_MBD", NULL},
-                                      {"LSB_TIME_SBD", NULL},
-                                      {"LSB_SIGSTOP", NULL},
-                                      {"LSF_LOG_MASK", NULL},
-                                      {"LSF_BINDIR", NULL},
-                                      {"LSB_MBD_CONNTIMEOUT", NULL},
-                                      {"LSB_SBD_CONNTIMEOUT", NULL},
-                                      {"LSF_CONFDIR", NULL},
-                                      {"LSB_MBD_MAILREPLAY", NULL},
-                                      {"LSB_MBD_MIGTOPEND", NULL},
-                                      {"LSB_SBD_READTIMEOUT", NULL},
-                                      {"LSB_MBD_BLOCK_SEND", NULL},
-                                      {"LSF_GETPWNAM_RETRY", NULL},
-                                      {"LSB_MEMLIMIT_ENFORCE", NULL},
-                                      {"LSB_BSUBI_OLD", NULL},
-                                      {"LSB_STOP_IGNORE_IT", NULL},
-                                      {"LSB_HJOB_PER_SESSION", NULL},
-                                      {"LSF_AUTH_DAEMONS", NULL},
-                                      {"LSB_REQUEUE_HOLD", NULL},
-                                      {"LSB_SMTP_SERVER", NULL},
-                                      {"LSB_MAILSERVER", NULL},
-                                      {"LSB_MAILSIZE_LIMIT", NULL},
-                                      {"LSB_REQUEUE_TO_BOTTOM", NULL},
-                                      {"LSB_ARRAY_SCHED_ORDER", NULL},
-                                      {"LSF_LIBDIR", NULL},
-                                      {"LSB_QPOST_EXEC_ENFORCE", NULL},
-                                      {"LSB_MIG2PEND", NULL},
-                                      {"LSB_UTMP", NULL},
-                                      {"LSB_JOB_CPULIMIT", NULL},
-                                      {"LSB_RENICE_NEVER_AT_RESTART", NULL},
-                                      {"LSF_MLS_LOG", NULL},
-                                      {"LSB_JOB_MEMLIMIT", NULL},
-                                      {"LSB_MOD_ALL_JOBS", NULL},
-                                      {"LSB_SET_TMPDIR", NULL},
-                                      {"LSB_PTILE_PACK", NULL},
-                                      {"LSB_SBD_FINISH_SLEEP", NULL},
-                                      {"LSB_VIRTUAL_SLOT", NULL},
-                                      {"LSB_STDOUT_DIRECT", NULL},
-                                      {NULL, NULL}};
 
 int init_ServSock(u_short port)
 {

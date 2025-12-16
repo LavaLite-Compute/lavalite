@@ -1407,9 +1407,9 @@ static void initUData(struct uData *uData)
     uData->gPtr = NULL;
     uData->gData = NULL;
     uData->reasonTb = (int **) my_calloc(2, sizeof(int *), fname);
-    uData->reasonTb[0] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
-    uData->reasonTb[1] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
-    for (i = 0; i <= numLsfHosts + 1; i++) {
+    uData->reasonTb[0] = (int *) my_calloc(host_count + 2, sizeof(int), fname);
+    uData->reasonTb[1] = (int *) my_calloc(host_count + 2, sizeof(int), fname);
+    for (i = 0; i <= host_count + 1; i++) {
         uData->reasonTb[0][i] = 0;
         uData->reasonTb[1][i] = 0;
     }
@@ -1446,15 +1446,15 @@ void updHostLeftRusageMem(struct jData *jobP, int order)
             for (numHost = 0; numHost < jobP->numHostPtr; numHost++) {
                 if (jobP->hPtr[numHost]->leftRusageMem == INFINITY) {
                     int i;
-                    getLsfHostInfo(FALSE);
-                    for (i = 0; i < numLsfHosts; i++) {
-                        if (strcmp(lsfHostInfo[i].hostName,
+                    load_host_list();
+                    for (i = 0; i < host_count; i++) {
+                        if (strcmp(host_list[i].hostName,
                                    jobP->hPtr[numHost]->host) == 0)
                             break;
                     }
-                    if (i < numLsfHosts && lsfHostInfo[i].maxMem != 0)
+                    if (i < host_count && host_list[i].maxMem != 0)
                         jobP->hPtr[numHost]->leftRusageMem =
-                            lsfHostInfo[i].maxMem;
+                            host_list[i].maxMem;
                     else
                         return;
                 }

@@ -631,7 +631,7 @@ static int shouldStop1(struct hostLoad *loadV)
     if (loadV->li[IT] < 1.0)
         return TRUE;
 
-    if (daemonParams[LSB_STOP_IGNORE_IT].paramValue != NULL) {
+    if (lsbParams[LSB_STOP_IGNORE_IT].paramValue != NULL) {
         return TRUE;
     }
     return FALSE;
@@ -1148,7 +1148,7 @@ static int getTclHostData(struct hostLoad *load,
 {
     static char fname[] = "getTclHostData";
     static time_t lastUpdHostInfo = 0;
-    static int numLsfHosts = 0;
+    static int host_count = 0;
     static struct hostInfo *hostInfo = NULL;
     struct hostInfo *temp;
     int i, num;
@@ -1160,9 +1160,9 @@ static int getTclHostData(struct hostLoad *load,
             return -1;
         }
         if (hostInfo != NULL) {
-            freeLsfHostInfo(hostInfo, numLsfHosts);
+            freeLsfHostInfo(hostInfo, host_count);
             FREEUP(hostInfo);
-            numLsfHosts = 0;
+            host_count = 0;
         }
 
         hostInfo =
@@ -1179,18 +1179,18 @@ static int getTclHostData(struct hostLoad *load,
                           hostInfo[i].maxTmp, hostInfo[i].nDisks);
             }
         }
-        numLsfHosts = num;
+        host_count = num;
         lastUpdHostInfo = now;
     }
     if (freeMem == TRUE) {
         FREEUP(tclHostData->resBitMaps);
         FREEUP(tclHostData->loadIndex);
     }
-    for (i = 0; i < numLsfHosts; i++) {
+    for (i = 0; i < host_count; i++) {
         if (equal_host(hostInfo[i].hostName, load->hostName))
             break;
     }
-    if (i == numLsfHosts) {
+    if (i == host_count) {
         ls_syslog(LOG_ERR, "%s: Host <%s> is not used by the batch system",
                   fname, load->hostName);
         return -1;

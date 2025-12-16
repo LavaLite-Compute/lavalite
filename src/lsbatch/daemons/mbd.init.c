@@ -11,9 +11,8 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
 
@@ -95,7 +94,6 @@ static struct gData *addUnixGrp(struct group *, char *, char *,
 static void parseAUids(struct qData *, char *);
 
 static void getClusterData(void);
-static void setManagers(struct clusterInfo *);
 static void setAllusers(struct qData *, struct admins *);
 
 static void createTmpGData(struct groupInfoEnt *, int, int,
@@ -128,7 +126,6 @@ static void fillSharedConf(struct sharedConf *);
 static void createDefQueue(void);
 static void freeGrp(struct gData *);
 static int validHostSpec(char *);
-static void getMaxCpufactor(void);
 static int parseFirstHostErr(int, char *, char *, struct qData *,
                              struct askedHost *, int);
 
@@ -146,9 +143,10 @@ static void checkReqHistory(struct jData *jp);
 
 static void rebuildUsersSets(void);
 // LavaLite
-static struct mbd_manager *make_mbd_manager(void);
+static struct mbd_manager *mbd_init_manager(void);
+static int mbd_init_networking(void);
 
-int minit(int mbdInitFlags)
+int mbd_init(int mbdInitFlags)
 {
     static char fname[] = "minit";
     struct hData *hPtr;
@@ -158,29 +156,28 @@ int minit(int mbdInitFlags)
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
-    mbd_mgr = make_mbd_manager();
+    mbd_mgr = mbd_init_manager();
     if (mbd_mgr == NULL) {
-        LS_ERR("%s: make_mbd_mamager() failed %m");
+        LS_ERR("mbd_init_manager() failed");
         LS_ERR("Bad configuration environment, something missing in lsf.conf?");
         return -1;
     }
 
-    syslog(LOG_INFO, "%s: batch manager is name %d uid %s", __func__,
-           mbd_mgr->uid, mbd_mgr->name);
+    LS_INFO("batch manager is name %d uid %s", mbd_mgr->uid, mbd_mgr->name);
 
     if (mbdInitFlags == FIRST_START) {
-        Signal_(SIGTERM, terminate_handler);
-        Signal_(SIGINT, terminate_handler);
-        Signal_(SIGCHLD, child_handler);
-        Signal_(SIGALRM, SIG_IGN);
-        Signal_(SIGHUP, SIG_IGN);
-        Signal_(SIGPIPE, SIG_IGN);
-        Signal_(SIGCHLD, child_handler);
+        signal_set(SIGTERM, terminate_handler);
+        signal_set(SIGINT, terminate_handler);
+        signal_set(SIGCHLD, child_handler);
+        signal_set(SIGALRM, SIG_IGN);
+        signal_set(SIGHUP, SIG_IGN);
+        signal_set(SIGPIPE, SIG_IGN);
+        signal_set(SIGCHLD, child_handler);
 
         if (!(mbd_debug || lsb_CheckMode)) {
-            Signal_(SIGTTOU, SIG_IGN);
-            Signal_(SIGTTIN, SIG_IGN);
-            Signal_(SIGTSTP, SIG_IGN);
+            signal_set(SIGTTOU, SIG_IGN);
+            signal_set(SIGTTIN, SIG_IGN);
+            signal_set(SIGTSTP, SIG_IGN);
         }
 
         for (list = 0; list < ALLJLIST; list++) {
@@ -222,20 +219,7 @@ int minit(int mbdInitFlags)
 
     TIMEIT(0, allLsInfo = ls_info(), "minit_ls_info");
     if (allLsInfo == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "ls_info");
-        if (lsb_CheckMode) {
-            lsb_CheckError = FATAL_ERR;
-            return 0;
-        } else
-            mbdDie(MASTER_FATAL);
-    } else {
-        for (i = allLsInfo->nModels; i < LL_HOSTMODEL_MAX; i++)
-            allLsInfo->cpuFactor[i] = 1.0;
-    }
-
-    TIMEIT(0, getLsfHostInfo(TRUE), "minit_getLsfHostInfo");
-    if (lsfHostInfo == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "minit_getLsfHostInfo");
+        LS_ERR("ls_info() failed");
         if (lsb_CheckMode) {
             lsb_CheckError = FATAL_ERR;
             return 0;
@@ -243,26 +227,7 @@ int minit(int mbdInitFlags)
             mbdDie(MASTER_FATAL);
     }
 
-    if (logclass & (LC_M_LOG)) {
-        ls_syslog(LOG_DEBUG, "Hosts returned by getLsfHostInfo:");
-        for (i = 0; i < numLsfHosts; i++) {
-            ls_syslog(LOG_DEBUG, "lsfHostInfo[%d].hostName = %s", i,
-                      lsfHostInfo[i].hostName);
-        }
-    }
-
-    for (i = 0; i < numLsfHosts; i++) {
-        if (equal_host(masterHost, lsfHostInfo[i].hostName)) {
-            if (lsfHostInfo[i].isServer != TRUE) {
-                if (!lsb_CheckMode) {
-                    ls_syslog(LOG_ERR, "%s: Master host <%s> is not a server",
-                              fname, lsfHostInfo[i].hostName);
-                    mbdDie(MASTER_RESIGN);
-                }
-            }
-            break;
-        }
-    }
+    load_host_list();
 
     if (mbdInitFlags == FIRST_START) {
         initParse(allLsInfo);
@@ -304,39 +269,6 @@ int minit(int mbdInitFlags)
     TIMEIT(0, readHostConf(mbdInitFlags), "minit_readHostConf");
     getLsbResourceInfo();
 
-    if ((hPtr = getHostData(masterHost)) == NULL ||
-        !(hPtr->flags & HOST_UPDATE)) {
-        if (lsb_CheckMode) {
-            if ((realMaster = ls_getmastername()) == NULL) {
-                ls_syslog(LOG_ERR, "%s", __func__, "ls_getmastername");
-                lsb_CheckError = FATAL_ERR;
-                return 0;
-            } else if (realMaster != masterHost) {
-                ls_syslog(LOG_WARNING,
-                          "%s: Host <%s> is not defined in the Host section of "
-                          "the lsb.hosts file",
-                          fname, masterHost);
-                lsb_CheckError = WARNING_ERR;
-                return 0;
-            } else {
-                ls_syslog(LOG_ERR,
-                          "%s: Master host <%s> is not defined in the Host "
-                          "section of the lsb.hosts file",
-                          fname, masterHost);
-                lsb_CheckError = FATAL_ERR;
-                return 0;
-            }
-        } else {
-            ls_syslog(LOG_ERR,
-                      "%s: Master host <%s> is not defined in the Host section "
-                      "of the lsb.hosts file",
-                      fname, masterHost);
-            mbdDie(MASTER_FATAL);
-        }
-    }
-
-    getLsbHostLoad();
-
     copyGroups(TRUE);
 
     if (defaultHostSpec != NULL && !validHostSpec(defaultHostSpec)) {
@@ -360,10 +292,10 @@ int minit(int mbdInitFlags)
         FREEUP(hReasonTb);
     }
     hReasonTb = (int **) my_calloc(2, sizeof(int *), fname);
-    hReasonTb[0] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
-    hReasonTb[1] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
+    hReasonTb[0] = (int *) my_calloc(host_count + 2, sizeof(int), fname);
+    hReasonTb[1] = (int *) my_calloc(host_count + 2, sizeof(int), fname);
 
-    for (i = 0; i <= numLsfHosts + 1; i++) {
+    for (i = 0; i <= host_count + 1; i++) {
         hReasonTb[0][i] = 0;
         hReasonTb[1][i] = 0;
     }
@@ -386,9 +318,9 @@ int minit(int mbdInitFlags)
         }
 
         if (getenv("RECONFIG_CHECK") == NULL) {
-            batchSock = init_ServSock(mbd_port);
-            if (batchSock < 0) {
-                ls_syslog(LOG_ERR, "%s", __func__, "init_ServSock");
+            int cc = mbd_init_networking();
+            if (cc < 0) {
+                LS_ERR("init_mbd_chan() failed");
                 if (!lsb_CheckMode)
                     mbdDie(MASTER_FATAL);
                 else
@@ -417,8 +349,6 @@ int minit(int mbdInitFlags)
         }
     }
 
-    getMaxCpufactor();
-
     return 0;
 }
 
@@ -428,7 +358,7 @@ static int readHostConf(int mbdInitFlags)
     static char fileName[MAXFILENAMELEN];
 
     if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF) {
-        sprintf(fileName, "%s/lsb.hosts", daemonParams[LSF_CONFDIR].paramValue);
+        sprintf(fileName, "%s/lsb.hosts", genParams[LSF_CONFDIR].paramValue);
         hostFileConf = getFileConf(fileName, PARAM_FILE);
         if (hostFileConf == NULL && lserrno == LSE_NO_FILE) {
             ls_syslog(LOG_ERR,
@@ -547,7 +477,7 @@ static void readUserConf(int mbdInitFlags)
     memset((void *) &sharedConf, 0, sizeof(struct sharedConf));
 
     if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF) {
-        sprintf(fileName, "%s/lsb.users", daemonParams[LSF_CONFDIR].paramValue,
+        sprintf(fileName, "%s/lsb.users", genParams[LSF_CONFDIR].paramValue,
                 clusterName);
 
         userFileConf = getFileConf(fileName, USER_FILE);
@@ -620,7 +550,7 @@ static void readQueueConf(int mbdInitFlags)
 
     if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF) {
         sprintf(fileName, "%s/lsb.queues",
-                daemonParams[LSF_CONFDIR].paramValue);
+                genParams[LSF_CONFDIR].paramValue);
 
         queueFileConf = getFileConf(fileName, QUEUE_FILE);
         if (queueFileConf == NULL && lserrno == LSE_NO_FILE) {
@@ -670,7 +600,7 @@ static void readQueueConf(int mbdInitFlags)
 
     if (!numQueues) {
         syslog(LOG_WARNING, "%s: File %s/lsb.queues: No valid queue defined",
-               __func__, daemonParams[LSF_CONFDIR].paramValue);
+               __func__, genParams[LSF_CONFDIR].paramValue);
         lsb_CheckError = WARNING_ERR;
     }
 
@@ -683,7 +613,7 @@ static void readQueueConf(int mbdInitFlags)
                        "%s: File %s/lsb.params: Invalid queue "
                        "name <%s> specified by parameter DEFAULT_QUEUE; "
                        "ignoring <%s>",
-                       __func__, daemonParams[LSF_CONFDIR].paramValue, word,
+                       __func__, genParams[LSF_CONFDIR].paramValue, word,
                        word);
                 lsb_CheckError = WARNING_ERR;
             } else {
@@ -698,7 +628,7 @@ static void readQueueConf(int mbdInitFlags)
 
     syslog(LOG_WARNING,
            "%s: File %s/lsb.queues: No valid default queue defined", __func__,
-           daemonParams[LSF_CONFDIR].paramValue);
+           genParams[LSF_CONFDIR].paramValue);
     lsb_CheckError = WARNING_ERR;
 
     if ((qp = getQueueData("default")) != NULL) {
@@ -873,14 +803,6 @@ static void addHost(struct hostInfo *hI, struct hData *hD, char *filename,
     if (new) {
         newEnt->hData = (int *) hData;
         numofhosts++;
-
-        if (daemonParams[LSB_VIRTUAL_SLOT].paramValue) {
-            if (!strcasecmp("y", daemonParams[LSB_VIRTUAL_SLOT].paramValue)) {
-                if (hData->maxJobs > 0 && hData->maxJobs < INFINIT_INT)
-                    hData->numCPUs = hData->maxJobs;
-            }
-        }
-
         if (hData->numCPUs > 0)
             numofprocs += hData->numCPUs;
         else
@@ -1352,7 +1274,7 @@ static void readParamConf(int mbdInitFlags)
 
     if (mbdInitFlags == FIRST_START || mbdInitFlags == RECONFIG_CONF) {
         sprintf(fileName, "%s/lsb.params",
-                daemonParams[LSF_CONFDIR].paramValue);
+                genParams[LSF_CONFDIR].paramValue);
         paramFileConf = getFileConf(fileName, PARAM_FILE);
         if (paramFileConf == NULL && lserrno == LSE_NO_FILE) {
             ls_syslog(LOG_ERR, "\
@@ -1487,9 +1409,9 @@ static struct qData *initQData(void)
     qp->askedOthPrio = -1;
 
     qp->reasonTb = (int **) my_calloc(2, sizeof(int *), fname);
-    qp->reasonTb[0] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
-    qp->reasonTb[1] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
-    for (i = 0; i <= numLsfHosts + 1; i++) {
+    qp->reasonTb[0] = (int *) my_calloc(host_count + 2, sizeof(int), fname);
+    qp->reasonTb[1] = (int *) my_calloc(host_count + 2, sizeof(int), fname);
+    for (i = 0; i <= host_count + 1; i++) {
         qp->reasonTb[0][i] = 0;
         qp->reasonTb[1][i] = 0;
     }
@@ -1700,36 +1622,6 @@ static void getClusterData(void)
             mbdDie(MASTER_RESIGN);
         return;
     }
-
-    // LavaLite has a single cluster
-    setManagers(clusterInfo);
-}
-
-static void setManagers(struct clusterInfo *cluster)
-{
-    char buf[LL_BUFSIZ_32];
-
-    if (cluster->nAdmins < 1) {
-        ls_syslog(LOG_ERR, "%s: no cluster admins defined in LIM?", __func__);
-        mbdDie(MASTER_FATAL);
-    }
-
-    if (mbd_mgr->uid != cluster->adminIds[0]) {
-        ls_syslog(LOG_ERR, "%s: daemon UID %d is not cluster admin UID %d (%s)",
-                  __func__, mbd_mgr->uid, cluster->adminIds[0],
-                  cluster->admins[0]);
-        mbdDie(MASTER_FATAL);
-    }
-
-    if (getenv("LSB_MANAGERID") == NULL) {
-        sprintf(buf, "%d", mbd_mgr->uid);
-        setenv("LSB_MANAGERID", buf, 1);
-    }
-
-    if (getenv("LSB_MANAGER") == NULL) {
-        sprintf(buf, "%s", mbd_mgr->name);
-        setenv("LSB_MANAGER", buf, 1);
-    }
 }
 
 static void setParams(struct paramConf *paramConf)
@@ -1877,23 +1769,23 @@ static void addHostData(int numHosts, struct hostInfoEnt *hosts)
         return;
     }
     for (i = 0; i < numHosts; i++) {
-        for (j = 0; j < numLsfHosts; j++) {
-            if (equal_host(hosts[i].host, lsfHostInfo[j].hostName))
+        for (j = 0; j < host_count; j++) {
+            if (equal_host(hosts[i].host, host_list[j].hostName))
                 break;
         }
-        if (j == numLsfHosts) {
+        if (j == host_count) {
             ls_syslog(LOG_ERR,
                       "%s: Host <%s> is not used by the batch system; ignored",
                       fname, hosts[i].host);
             continue;
         }
-        if (lsfHostInfo[j].isServer != TRUE) {
+        if (host_list[j].isServer != TRUE) {
             ls_syslog(LOG_ERR, "%s: Host <%s> is not a server; ignoring", fname,
                       hosts[i].host);
             continue;
         }
 
-        if (!is_valid_host(lsfHostInfo[j].hostName)) {
+        if (!is_valid_host(host_list[j].hostName)) {
             ls_syslog(LOG_ERR, "%s: Host <%s> is not a valid host; ignoring",
                       fname, hosts[i].host);
             continue;
@@ -1903,7 +1795,7 @@ static void addHostData(int numHosts, struct hostInfoEnt *hosts)
 
         copyHostInfo(&hostConf->hosts[i], &hPtr);
 
-        addHost(&lsfHostInfo[j], &hPtr, fname, TRUE);
+        addHost(&host_list[j], &hPtr, fname, TRUE);
     }
 }
 
@@ -2056,11 +1948,11 @@ static void addQData(struct queueConf *queueConf, int mbdInitFlags)
                 FREEUP(oldQp->reasonTb[0]);
                 FREEUP(oldQp->reasonTb[1]);
                 oldQp->reasonTb[0] =
-                    (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
+                    (int *) my_calloc(host_count + 2, sizeof(int), fname);
                 oldQp->reasonTb[1] =
-                    (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
+                    (int *) my_calloc(host_count + 2, sizeof(int), fname);
 
-                for (j = 0; j < numLsfHosts + 2; j++) {
+                for (j = 0; j < host_count + 2; j++) {
                     oldQp->reasonTb[0][j] = 0;
                     oldQp->reasonTb[1][j] = 0;
                 }
@@ -2626,12 +2518,12 @@ static void addDefaultHost(void)
     int i;
     struct hData hData;
 
-    for (i = 0; i < numLsfHosts; i++) {
-        if (lsfHostInfo[i].isServer != TRUE)
+    for (i = 0; i < host_count; i++) {
+        if (host_list[i].isServer != TRUE)
             continue;
         initHData(&hData);
-        hData.host = lsfHostInfo[i].hostName;
-        addHost(&lsfHostInfo[i], &hData, "addDefaultHost", TRUE);
+        hData.host = host_list[i].hostName;
+        addHost(&host_list[i], &hData, "addDefaultHost", TRUE);
     }
 }
 
@@ -2729,12 +2621,12 @@ static void updHostList(void)
 
     FREEUP(removedHDataArray);
     removedHDataArray = (struct hData **) my_calloc(
-        numLsfHosts + 2, sizeof(struct hData *), "updHostList");
+        host_count + 2, sizeof(struct hData *), "updHostList");
 
     free(hDataPtrTb);
     hDataPtrTb = (struct hData **) my_calloc(
-        numLsfHosts + 2, sizeof(struct hData *), "updHostList");
-    for (i = 0; i < numLsfHosts + 1; i++)
+        host_count + 2, sizeof(struct hData *), "updHostList");
+    for (i = 0; i < host_count + 1; i++)
         hDataPtrTb[i] = 0;
 
     if ((lost_and_found = getHostData(LOST_AND_FOUND)) == NULL)
@@ -2770,12 +2662,6 @@ static void updHostList(void)
         hPtr->hostId = numofhosts;
         hDataPtrTb[numofhosts] = hPtr;
 
-        if (daemonParams[LSB_VIRTUAL_SLOT].paramValue) {
-            if (!strcasecmp("y", daemonParams[LSB_VIRTUAL_SLOT].paramValue)) {
-                if (hPtr->maxJobs > 0 && hPtr->maxJobs < INFINIT_INT)
-                    hPtr->numCPUs = hPtr->maxJobs;
-            }
-        }
         if (hPtr->numCPUs > 0)
             numofprocs += hPtr->numCPUs;
         else
@@ -2912,11 +2798,11 @@ static void updUserList(int mbdInitFlags)
             FREEUP(uData->reasonTb[0]);
             FREEUP(uData->reasonTb[1]);
             uData->reasonTb[0] =
-                (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
+                (int *) my_calloc(host_count + 2, sizeof(int), fname);
             uData->reasonTb[1] =
-                (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
+                (int *) my_calloc(host_count + 2, sizeof(int), fname);
 
-            for (j = 0; j < numLsfHosts + 2; j++) {
+            for (j = 0; j < host_count + 2; j++) {
                 uData->reasonTb[0][j] = 0;
                 uData->reasonTb[1][j] = 0;
             }
@@ -3117,8 +3003,8 @@ static int parseQHosts(struct qData *qp, char *hosts)
 static void fillClusterConf(struct clusterConf *clusterConf)
 {
     clusterConf->clinfo = clusterInfo;
-    clusterConf->numHosts = numLsfHosts;
-    clusterConf->hosts = lsfHostInfo;
+    clusterConf->numHosts = host_count;
+    clusterConf->hosts = host_list;
 }
 
 static void fillSharedConf(struct sharedConf *sConf)
@@ -3143,6 +3029,7 @@ static void freeGrp(struct gData *grpPtr)
 
 static int validHostSpec(char *hostSpec)
 {
+
     if (hostSpec == NULL)
         return FALSE;
 
@@ -3151,222 +3038,6 @@ static int validHostSpec(char *hostSpec)
             return FALSE;
     }
     return TRUE;
-}
-
-static void getMaxCpufactor()
-{
-    int i;
-
-    for (i = 1; i <= numofhosts; i++) {
-        if (hDataPtrTb[i]->cpuFactor > maxCpuFactor) {
-            maxCpuFactor = hDataPtrTb[i]->cpuFactor;
-        }
-    }
-}
-
-void mbdReConf(int mbdInitFlags)
-{
-    char fname[] = "mbdReConf";
-    struct hData *hPtr;
-    int i, j;
-    struct hostConf tempHostConf;
-
-    ls_syslog(LOG_ERR, "mbdReConf: start");
-    reconfig = TRUE;
-
-    TIMEIT(0, allLsInfo = ls_info(), "minit_ls_info");
-    if (allLsInfo == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "ls_info");
-        mbdDie(MASTER_FATAL);
-    } else {
-        for (i = allLsInfo->nModels; i < LL_HOSTMODEL_MAX; i++)
-            allLsInfo->cpuFactor[i] = 1.0;
-    }
-
-    initParse(allLsInfo);
-    tclLsInfo = getTclLsInfo();
-    initTcl(tclLsInfo);
-
-    TIMEIT(0, getLsfHostInfo(TRUE), "mbdReConf_getLsfHostInfo");
-    if (lsfHostInfo == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "minit_getLsfHostInfo");
-        mbdDie(MASTER_FATAL);
-    }
-
-    getClusterData();
-
-    cleanup(mbdInitFlags);
-
-    if (mbdInitFlags != WINDOW_CONF) {
-        ls_freeconf(paramFileConf);
-        paramFileConf = NULL;
-    }
-    TIMEIT(0, readParamConf(mbdInitFlags), "mbdReConf_readParamConf");
-
-    checkAcctLog();
-
-    uDataTableFree(uDataPtrTb);
-    uDataPtrTbInitialize();
-
-    if (mbdInitFlags != WINDOW_CONF) {
-        ls_freeconf(userFileConf);
-        userFileConf = NULL;
-    }
-    freeUConf(userConf, FALSE);
-
-    freeWorkUser(TRUE);
-    defUser = FALSE;
-
-    allUsersSet =
-        setCreate(MAX_GROUPS, getIndexByuData, getuDataByIndex, "All User Set");
-    if (allUsersSet == NULL) {
-        ls_syslog(LOG_ERR, "%s: failed to create all user set: %s", fname,
-                  setPerror(bitseterrno));
-        mbdDie(MASTER_MEM);
-    }
-
-    setAllowObservers(allUsersSet);
-
-    uGrpAllSet = setCreate(MAX_GROUPS, getIndexByuData, getuDataByIndex, "\
-Set of user groups containing 'all' users");
-
-    uGrpAllAncestorSet =
-        setCreate(MAX_GROUPS, getIndexByuData, getuDataByIndex, "\
-Ancestor user groups of 'all' user groups");
-    if (uGrpAllAncestorSet == NULL || uGrpAllSet == NULL) {
-        ls_syslog(LOG_ERR,
-                  "%s: failed to create the set of  'all;' user groups: %s",
-                  fname, setPerror(bitseterrno));
-        mbdDie(MASTER_MEM);
-    }
-
-    TIMEIT(0, readUserConf(mbdInitFlags), "mbdReConf_readUserConf");
-
-    if (mbdInitFlags != WINDOW_CONF) {
-        ls_freeconf(hostFileConf);
-        hostFileConf = NULL;
-    }
-
-    tempHostConf.numHosts = hostConf->numHosts;
-    if ((tempHostConf.hosts = (struct hostInfoEnt *) malloc(
-             hostConf->numHosts * sizeof(struct hostInfoEnt))) == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "malloc",
-                  hostConf->numHosts * sizeof(struct hostInfoEnt));
-        mbdDie(MASTER_RESIGN);
-    }
-    memcpy((void *) tempHostConf.hosts, (void *) hostConf->hosts,
-           hostConf->numHosts * sizeof(struct hostInfoEnt));
-    for (i = 0; i < hostConf->numHosts; i++) {
-        tempHostConf.hosts[i].host = putstr_(hostConf->hosts[i].host);
-        if ((hPtr = getHostData(hostConf->hosts[i].host))) {
-            tempHostConf.hosts[i].hStatus = hPtr->hStatus;
-        }
-    }
-
-    freeWorkHost(FALSE);
-
-    TIMEIT(0, readHostConf(mbdInitFlags), "mbdReConf_readHostConf");
-
-    for (i = 0; i < hostConf->numHosts; i++) {
-        for (j = 0; j < tempHostConf.numHosts; j++) {
-            if (equal_host(tempHostConf.hosts[j].host,
-                           hostConf->hosts[i].host)) {
-                if (tempHostConf.hosts[j].hStatus & HOST_STAT_DISABLED) {
-                    if ((hPtr = getHostData(tempHostConf.hosts[j].host))) {
-                        hPtr->hStatus = tempHostConf.hosts[j].hStatus;
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
-    for (i = 0; i < tempHostConf.numHosts; i++) {
-        free(tempHostConf.hosts[i].host);
-    }
-    free(tempHostConf.hosts);
-
-    if (numResources > 0)
-        freeSharedResource();
-
-    getLsbResourceInfo();
-
-    if ((hPtr = getHostData(masterHost)) == NULL ||
-        !(hPtr->flags & HOST_UPDATE)) {
-        ls_syslog(LOG_ERR,
-                  "%s: Master host <%s> is not defined in the Host section of "
-                  "the lsb.hosts file",
-                  fname, masterHost);
-        mbdDie(MASTER_FATAL);
-    }
-
-    mbdReconfPRMO();
-
-    getLsbHostLoad();
-    getLsbHostInfo();
-    copyGroups(TRUE);
-
-    for (i = 0; i < numLsfHosts; i++) {
-        if (equal_host(masterHost, lsfHostInfo[i].hostName)) {
-            if (lsfHostInfo[i].isServer != TRUE) {
-                ls_syslog(LOG_ERR, "%s: Master host <%s> is not a server",
-                          fname, lsfHostInfo[i].hostName);
-                mbdDie(MASTER_RESIGN);
-            }
-            break;
-        }
-    }
-
-    if (defaultHostSpec != NULL && !validHostSpec(defaultHostSpec)) {
-        ls_syslog(LOG_ERR,
-                  "%s: Invalid system defined DEFAULT_HOST_SPEC <%s>; ignored",
-                  fname, defaultHostSpec);
-        free(defaultHostSpec);
-        free(paramConf->param->defaultHostSpec);
-        lsb_CheckError = WARNING_ERR;
-    }
-
-    if (mbdInitFlags != WINDOW_CONF) {
-        ls_freeconf(queueFileConf);
-        queueFileConf = NULL;
-    }
-    freeQConf(queueConf, TRUE);
-    freeWorkQueue(FALSE);
-
-    fillClusterConf(&clusterConf);
-    updateClusterConf(&clusterConf);
-    TIMEIT(0, readQueueConf(mbdInitFlags), "minit_readQueueConf");
-
-    if (hReasonTb != NULL) {
-        free(hReasonTb[0]);
-        free(hReasonTb[1]);
-        free(hReasonTb);
-    }
-    hReasonTb = (int **) my_calloc(2, sizeof(int *), fname);
-    hReasonTb[0] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
-    hReasonTb[1] = (int *) my_calloc(numLsfHosts + 2, sizeof(int), fname);
-
-    for (i = 0; i <= numLsfHosts + 1; i++) {
-        hReasonTb[0][i] = 0;
-        hReasonTb[1][i] = 0;
-    }
-
-    copyGroups(FALSE);
-    updUserList(mbdInitFlags);
-    updHostList();
-    updQueueList();
-
-    getMaxCpufactor();
-
-    rebuildUsersSets();
-
-    rebuildCounters();
-
-    reconfig = FALSE;
-    mSchedStage = 0;
-
-    ls_syslog(LOG_DEBUG, "mbdReConf: done");
-    return;
 }
 
 void cleanup(int mbdInitFlags)
@@ -3880,7 +3551,7 @@ setCreate",
 
 // Make the batch system manager
 // One user, fixed identity, zero UID gymnastics
-static struct mbd_manager *make_mbd_manager(void)
+static struct mbd_manager *mbd_init_manager(void)
 {
     mbd_mgr = calloc(1, sizeof(struct mbd_manager));
     mbd_mgr->uid = getuid();
@@ -3901,4 +3572,48 @@ static struct mbd_manager *make_mbd_manager(void)
            mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name);
 
     return mbd_mgr;
+}
+
+
+static int mbd_init_networking(void)
+{
+    long open_max = sysconf(_SC_OPEN_MAX);
+
+    mbd_chan = chan_listen_socket(SOCK_STREAM,
+                                  mbd_port,
+                                  SOMAXCONN,
+                                  CHAN_OP_SOREUSE);
+    if (mbd_chan < 0) {
+        LS_ERR("chan_listen_socket() failed");
+        return -1;
+    }
+
+    mbd_efd = epoll_create1(EPOLL_CLOEXEC);
+    if (mbd_efd < 0) {
+        LS_ERR("epoll_create1() failed");
+        chan_close(mbd_chan);
+        return -1;
+    }
+
+    // Set the MBD listening channel into the event structure
+    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = mbd_chan};
+
+    int cc = epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(mbd_chan), &ev);
+    if (cc < 0) {
+        LS_ERR("epoll_ctl() failed");
+        chan_close(mbd_chan);
+        close(mbd_efd);
+        return -1;
+    }
+
+    mbd_max_events = (int)open_max;
+    mbd_events = calloc(mbd_max_events, sizeof(struct epoll_event));
+    if (mbd_events == NULL) {
+        LS_ERR("calloc num_events %d failed", mbd_max_events);
+        chan_close(mbd_chan);
+        close(mbd_efd);
+        return -1;
+    }
+
+    return 0;
 }

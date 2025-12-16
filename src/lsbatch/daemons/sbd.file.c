@@ -105,7 +105,7 @@ int rcpFile(struct jobSpecs *jp, struct xFile *xf, char *host, int op,
         dup2(i, 0);
 
         for (i = 1; i < NSIG; i++)
-            Signal_(i, SIG_DFL);
+            signal_set(i, SIG_DFL);
 
         sigemptyset(&newmask);
         sigprocmask(SIG_SETMASK, &newmask, NULL);
@@ -120,8 +120,8 @@ int rcpFile(struct jobSpecs *jp, struct xFile *xf, char *host, int op,
             seteuid(jp->execUid);
         }
 
-        if (daemonParams[LSF_BINDIR].paramValue != NULL)
-            sprintf(rcpCmd, "%s/lsrcp", daemonParams[LSF_BINDIR].paramValue);
+        if (lsbParams[LSF_BINDIR].paramValue != NULL)
+            sprintf(rcpCmd, "%s/lsrcp", lsbParams[LSF_BINDIR].paramValue);
         else
             sprintf(rcpCmd, "lsrcp");
 

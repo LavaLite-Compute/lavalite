@@ -400,79 +400,35 @@ struct lsInfo *ls_info(void)
 }
 
 // Garbage to be thrown away...
-struct lsSharedResourceInfo *ls_sharedresourceinfo(char **resources,
-                                                   int *numResources,
-                                                   char *hostName, int options)
+struct lsSharedResourceInfo *
+ls_sharedresourceinfo(char **resources, int *numResources,
+                      char *hostName, int options)
 {
-    static char fname[] = "ls_sharedresourceinfo";
-    static struct resourceInfoReq resourceInfoReq;
-    int cc, i;
-    static struct resourceInfoReply resourceInfoReply;
-    static struct packet_header replyHdr;
-    static int first = true;
+    struct lsSharedResourceInfo *info;
 
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
+    /* LavaLite for now: no shared/floating resources are implemented.
+     * Return an empty list, but treat it as a successful call.
+     * Caller must handle numResources == 0 gracefully.
+     */
 
-    if (first == true) {
-        resourceInfoReply.numResources = 0;
-        resourceInfoReq.resourceNames = NULL;
-        resourceInfoReq.numResourceNames = 0;
-        resourceInfoReq.hostName = NULL;
-        first = false;
+    if (numResources != NULL) {
+        *numResources = 0;
     }
 
-    if (resourceInfoReply.numResources > 0)
-        xdr_lsffree(xdr_resourceInfoReply, (char *) &resourceInfoReply,
-                    &replyHdr);
-    FREEUP(resourceInfoReq.resourceNames);
-    FREEUP(resourceInfoReq.hostName);
+    /* Allocate a dummy one-element array so callers can safely free() it.
+     * numResources == 0 ensures nobody indexes info[0].
+     */
+    info = calloc(1, sizeof(struct lsSharedResourceInfo));
 
-    if (numResources == NULL || *numResources < 0 ||
-        (resources == NULL && *numResources > 0)) {
-        lserrno = LSE_BAD_ARGS;
-        return NULL;
-    }
-    if (*numResources == 0 && resources == NULL) {
-        if ((resourceInfoReq.resourceNames = malloc(sizeof(char *))) == NULL) {
-            lserrno = LSE_MALLOC;
-            return NULL;
-        }
-        resourceInfoReq.resourceNames[0] = "";
-        resourceInfoReq.numResourceNames = 1;
-    } else {
-        if ((resourceInfoReq.resourceNames =
-                 malloc(*numResources * sizeof(char *))) == NULL) {
-            lserrno = LSE_MALLOC;
-            return NULL;
-        }
-        for (i = 0; i < *numResources; i++) {
-            if (resources[i] && strlen(resources[i]) + 1 < MAXLSFNAMELEN)
-                resourceInfoReq.resourceNames[i] = resources[i];
-            else {
-                FREEUP(resourceInfoReq.resourceNames);
-                lserrno = LSE_BAD_RESOURCE;
-                *numResources = i;
-                return NULL;
-            }
-            resourceInfoReq.numResourceNames = *numResources;
-        }
-    }
-    if (hostName != NULL) {
-        resourceInfoReq.hostName = putstr_(hostName);
-    } else
-        resourceInfoReq.hostName = putstr_(" ");
+    info[0].resourceName = NULL;
+    info[0].nInstances   = 0;
+    info[0].instances    = NULL;
 
-    cc = callLim_(LIM_GET_RESOUINFO, &resourceInfoReq, xdr_resourceInfoReq,
-                  &resourceInfoReply, xdr_resourceInfoReply, NULL, _USE_TCP_,
-                  &replyHdr);
-    if (cc < 0) {
-        return NULL;
-    }
+    // shared resources not implemented yet; returning empty list
 
-    *numResources = resourceInfoReply.numResources;
-    return resourceInfoReply.resources;
+    return info;
 }
+
 char *ls_gethosttype(const char *hostname)
 {
     struct hostInfo *hostinfo;

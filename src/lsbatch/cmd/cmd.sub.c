@@ -444,10 +444,6 @@ static int CopyCommand(char **from, int len)
     char fname[] = "CopyCommand";
     int oldParenthesis = 0;
 
-    if (lsbParams[LSB_32_PAREN_ESC].paramValue) {
-        oldParenthesis = 1;
-    }
-
     for (i = 0, size = 0; from[i]; i++) {
         size += strlen(from[i]) + 1 + 4;
     }

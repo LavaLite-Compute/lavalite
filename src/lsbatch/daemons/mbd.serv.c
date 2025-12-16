@@ -55,7 +55,7 @@ int do_submitReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
 
     if (logclass & (LC_TRACE | LC_EXEC | LC_COMM))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...; host=%s, socket=%d",
-                  fname, hostName, chan_get_sock(chfd));
+                  fname, hostName, chan_sock(chfd));
 
     initSubmit(&first, &subReq, &submitReply);
 
@@ -150,6 +150,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     jobInfoHead.hostNames = NULL;
     jobInfoHead.jobIds = NULL;
 
+    memset(&jobInfoReq, 0, sizeof(struct jobInfoReq));
     if (!xdr_jobInfoReq(xdrs, &jobInfoReq, reqHdr)) {
         reply = LSBE_XDR;
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobInfoReq");
@@ -1178,8 +1179,9 @@ int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     char *replyStruct;
     int count;
     int reply;
-    struct infoReq hostsReq;
     struct hostDataReply hostsReply;
+
+    struct infoReq hostsReq = {0};
 
     hostsReply.numHosts = 0;
     hostsReply.hosts = NULL;
@@ -1322,7 +1324,7 @@ int xdrsize_QueueInfoReply(struct queueInfoReply *qInfoReply)
 }
 
 int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                    struct packet_header *reqHdr)
+                    struct packet_header *req_hdr)
 {
     XDR xdrs2;
     struct infoReq qInfoReq;
@@ -1330,14 +1332,14 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     int reply;
     char *reply_buf;
     int len = 0;
-    struct packet_header replyHdr;
-    char *replyStruct;
+    struct packet_header reply_hdr;
+    char *reply_struct;
 
     qInfoReply.numQueues = 0;
     qInfoReply.queues = (struct queueInfoEnt *) my_calloc(
         numofqueues, sizeof(struct queueInfoEnt), "do_queueInfoReq");
 
-    if (!xdr_infoReq(xdrs, &qInfoReq, reqHdr)) {
+    if (!xdr_infoReq(xdrs, &qInfoReq, req_hdr)) {
         reply = LSBE_XDR;
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_infoReq");
         len = 100;
@@ -1348,29 +1350,36 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         len += xdrsize_QueueInfoReply(&qInfoReply);
     }
 
-    reply_buf = (char *) my_malloc(len, "do_queueInfoReq");
+    reply_buf = calloc(len, sizeof(char));
     xdrmem_create(&xdrs2, reply_buf, len, XDR_ENCODE);
-    replyHdr.operation = reply;
+    init_pack_hdr(&reply_hdr);
+
+    reply_hdr.operation = reply;
     if (reply == LSBE_NO_ERROR || reply == LSBE_BAD_QUEUE)
-        replyStruct = (char *) &qInfoReply;
+        reply_struct = (char *) &qInfoReply;
     else
-        replyStruct = (char *) 0;
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_queueInfoReply, 0,
-                       NULL)) {
+        reply_struct = NULL;
+
+    if (! xdr_encodeMsg(&xdrs2,
+                        reply_struct,
+                        &reply_hdr,
+                        xdr_queueInfoReply,
+                        0,
+                        NULL)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
-        freeQueueInfoReply(&qInfoReply, replyStruct);
+        freeQueueInfoReply(&qInfoReply, reply_struct);
         FREEUP(reply_buf);
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
-        freeQueueInfoReply(&qInfoReply, replyStruct);
+        freeQueueInfoReply(&qInfoReply, reply_struct);
         FREEUP(reply_buf);
         xdr_destroy(&xdrs2);
         return -1;
     }
-    freeQueueInfoReply(&qInfoReply, replyStruct);
+    freeQueueInfoReply(&qInfoReply, reply_struct);
     FREEUP(reply_buf);
     xdr_destroy(&xdrs2);
     return 0;
@@ -1852,7 +1861,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
 
         log_startjobaccept(jData);
 
-        if (daemonParams[LSB_MBD_BLOCK_SEND].paramValue == NULL) {
+        if (lsbParams[LSB_MBD_BLOCK_SEND].paramValue == NULL) {
             struct Buffer *replyBuf;
 
             if (chan_alloc_buf(&replyBuf, sizeof(struct packet_header)) < 0) {
@@ -1873,7 +1882,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
         } else {
             hdr.operation = LSBE_NO_ERROR;
 
-            s = chan_get_sock(sbdPtr->chanfd);
+            s = chan_sock(sbdPtr->chanfd);
             io_block(s);
 
             cc = send_packet_header(sbdPtr->chanfd, &hdr);
@@ -2380,11 +2389,11 @@ int authDaemonRequest(int chanfd, XDR *xdrs, struct packet_header *reqHdr,
     struct sockaddr_in from;
     struct lsfAuth auth;
 
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue == NULL)
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue == NULL)
         return LSBE_NO_ERROR;
 
     if (from_host == NULL) {
-        s = chan_get_sock(chanfd);
+        s = chan_sock(chanfd);
         from_len = sizeof(from);
         memset(&from, 0, from_len);
         if (getpeername(s, (struct sockaddr *) &from, &from_len) == -1) {

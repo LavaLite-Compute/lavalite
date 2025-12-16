@@ -148,11 +148,11 @@ FILE *smail(char *to, char *tohost)
         return stderr;
     }
     addr_process(toaddr, osUserName, tohost,
-                 daemonParams[LSB_MAILTO].paramValue);
+                 lsbParams[LSB_MAILTO].paramValue);
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG1, "%s: user=%s host=%s toaddr=%s spec=%s", fname,
                   osUserName, tohost, toaddr,
-                  daemonParams[LSB_MAILTO].paramValue);
+                  lsbParams[LSB_MAILTO].paramValue);
     switch (pid = fork()) {
     case 0:
         if (maild[0] != 0) {
@@ -162,7 +162,7 @@ FILE *smail(char *to, char *tohost)
         }
         close(maild[1]);
 
-        sendmailp = daemonParams[LSB_MAILPROG].paramValue;
+        sendmailp = lsbParams[LSB_MAILPROG].paramValue;
 
         userid = geteuid();
         chuser(getuid());
@@ -173,7 +173,7 @@ FILE *smail(char *to, char *tohost)
 
         execle("/bin/sh", "sh", "-c", smcmd, (char *) 0, environ);
         ls_syslog(LOG_ERR, "%s", __func__, "execle",
-                  daemonParams[LSB_MAILPROG].paramValue);
+                  lsbParams[LSB_MAILPROG].paramValue);
         exit(-1);
 
     case -1:

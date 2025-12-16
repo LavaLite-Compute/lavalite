@@ -97,10 +97,8 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    TIMEIT(0,
-           do_options(argc, argv, &options, &user, &queue, &host, &jobName,
-                      &cpuFactor, &format, &projectName),
-           "do_options");
+    do_options(argc, argv, &options, &user, &queue, &host, &jobName,
+               &cpuFactor, &format, &projectName);
 
     if ((format == LONG_FORMAT) && (options & PEND_JOB))
         options |= HOST_NAME;

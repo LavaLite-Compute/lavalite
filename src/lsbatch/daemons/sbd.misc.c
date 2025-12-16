@@ -174,10 +174,10 @@ void child_handler(int sig)
                 jobCard->notReported++;
 
                 if (sbd_finish_sleep < 0) {
-                    if (daemonParams[LSB_SBD_FINISH_SLEEP].paramValue) {
+                    if (lsbParams[LSB_SBD_FINISH_SLEEP].paramValue) {
                         errno = 0;
                         sbd_finish_sleep =
-                            atoi(daemonParams[LSB_SBD_FINISH_SLEEP].paramValue);
+                            atoi(lsbParams[LSB_SBD_FINISH_SLEEP].paramValue);
                         if (errno)
                             sbd_finish_sleep = 1000;
                     } else {

@@ -25,7 +25,6 @@
 extern int logclass;
 extern int _lsb_conntimeout;
 extern int _lsb_recvtimeout;
-extern int lsberrno;
 
 /* Resolve master with retry
  */

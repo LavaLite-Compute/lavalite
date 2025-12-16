@@ -1,4 +1,4 @@
-/* $Id: lsbatch.h,v 1.34 2007/08/15 22:18:43 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -292,164 +292,156 @@ struct lsb_events {
 
 #define LSB_MODE_BATCH 0x1
 
-#define LSBE_NO_ERROR 00
-#define LSBE_NO_JOB 01
-#define LSBE_NOT_STARTED 02
-#define LSBE_JOB_STARTED 03
-#define LSBE_JOB_FINISH 04
-#define LSBE_STOP_JOB 05
-#define LSBE_DEPEND_SYNTAX 6
-#define LSBE_EXCLUSIVE 7
-#define LSBE_ROOT 8
-#define LSBE_MIGRATION 9
-#define LSBE_J_UNCHKPNTABLE 10
-#define LSBE_NO_OUTPUT 11
-#define LSBE_NO_JOBID 12
-#define LSBE_ONLY_INTERACTIVE 13
-#define LSBE_NO_INTERACTIVE 14
+typedef enum {
+    LSBE_NO_ERROR = 0,
+    LSBE_NO_JOB,
+    LSBE_NOT_STARTED,
+    LSBE_JOB_STARTED,
+    LSBE_JOB_FINISH,
+    LSBE_STOP_JOB,
+    LSBE_DEPEND_SYNTAX,
+    LSBE_EXCLUSIVE,
+    LSBE_ROOT,
+    LSBE_MIGRATION,
+    LSBE_J_UNCHKPNTABLE,
+    LSBE_NO_OUTPUT,
+    LSBE_NO_JOBID,
+    LSBE_ONLY_INTERACTIVE,
+    LSBE_NO_INTERACTIVE,
 
-#define LSBE_NO_USER 15
-#define LSBE_BAD_USER 16
-#define LSBE_PERMISSION 17
-#define LSBE_BAD_QUEUE 18
-#define LSBE_QUEUE_NAME 19
-#define LSBE_QUEUE_CLOSED 20
-#define LSBE_QUEUE_WINDOW 21
-#define LSBE_QUEUE_USE 22
-#define LSBE_BAD_HOST 23
-#define LSBE_PROC_NUM 24
-#define LSBE_RESERVE1 25
-#define LSBE_RESERVE2 26
-#define LSBE_NO_GROUP 27
-#define LSBE_BAD_GROUP 28
-#define LSBE_QUEUE_HOST 29
-#define LSBE_UJOB_LIMIT 30
-#define LSBE_NO_HOST 31
+    LSBE_NO_USER,
+    LSBE_BAD_USER,
+    LSBE_PERMISSION,
+    LSBE_BAD_QUEUE,
+    LSBE_QUEUE_NAME,
+    LSBE_QUEUE_CLOSED,
+    LSBE_QUEUE_WINDOW,
+    LSBE_QUEUE_USE,
+    LSBE_BAD_HOST,
+    LSBE_PROC_NUM,
+    LSBE_RESERVE1,
+    LSBE_RESERVE2,
+    LSBE_NO_GROUP,
+    LSBE_BAD_GROUP,
+    LSBE_QUEUE_HOST,
+    LSBE_UJOB_LIMIT,
+    LSBE_NO_HOST,
 
-#define LSBE_BAD_CHKLOG 32
-#define LSBE_PJOB_LIMIT 33
-#define LSBE_NOLSF_HOST 34
+    LSBE_BAD_CHKLOG,
+    LSBE_PJOB_LIMIT,
+    LSBE_NOLSF_HOST,
 
-#define LSBE_BAD_ARG 35
-#define LSBE_BAD_TIME 36
-#define LSBE_START_TIME 37
-#define LSBE_BAD_LIMIT 38
-#define LSBE_OVER_LIMIT 39
-#define LSBE_BAD_CMD 40
-#define LSBE_BAD_SIGNAL 41
-#define LSBE_BAD_JOB 42
-#define LSBE_QJOB_LIMIT 43
+    LSBE_BAD_ARG,
+    LSBE_BAD_TIME,
+    LSBE_START_TIME,
+    LSBE_BAD_LIMIT,
+    LSBE_OVER_LIMIT,
+    LSBE_BAD_CMD,
+    LSBE_BAD_SIGNAL,
+    LSBE_BAD_JOB,
+    LSBE_QJOB_LIMIT,
 
-#define LSBE_UNKNOWN_EVENT 44
-#define LSBE_EVENT_FORMAT 45
-#define LSBE_EOF 46
+    LSBE_UNKNOWN_EVENT,
+    LSBE_EVENT_FORMAT,
+    LSBE_EOF,
 
-#define LSBE_MBATCHD 47
-#define LSBE_SBATCHD 48
-#define LSBE_LSBLIB 49
-#define LSBE_LSLIB 50
-#define LSBE_SYS_CALL 51
-#define LSBE_NO_MEM 52
-#define LSBE_SERVICE 53
-#define LSBE_NO_ENV 54
-#define LSBE_CHKPNT_CALL 55
-#define LSBE_NO_FORK 56
+    LSBE_MBATCHD,
+    LSBE_SBATCHD,
+    LSBE_LSBLIB,
+    LSBE_LSLIB,
+    LSBE_SYS_CALL,
+    LSBE_NO_MEM,
+    LSBE_SERVICE,
+    LSBE_NO_ENV,
+    LSBE_CHKPNT_CALL,
+    LSBE_NO_FORK,
 
-#define LSBE_PROTOCOL 57
-#define LSBE_XDR 58
-#define LSBE_PORT 59
-#define LSBE_TIME_OUT 60
-#define LSBE_CONN_TIMEOUT 61
-#define LSBE_CONN_REFUSED 62
-#define LSBE_CONN_EXIST 63
-#define LSBE_CONN_NONEXIST 64
-#define LSBE_SBD_UNREACH 65
-#define LSBE_OP_RETRY 66
-#define LSBE_USER_JLIMIT 67
+    LSBE_PROTOCOL,
+    LSBE_XDR,
+    LSBE_PORT,
+    LSBE_TIME_OUT,
+    LSBE_CONN_TIMEOUT,
+    LSBE_CONN_REFUSED,
+    LSBE_CONN_EXIST,
+    LSBE_CONN_NONEXIST,
+    LSBE_SBD_UNREACH,
+    LSBE_OP_RETRY,
+    LSBE_USER_JLIMIT,
 
-#define LSBE_JOB_MODIFY 68
-#define LSBE_JOB_MODIFY_ONCE 69
+    LSBE_JOB_MODIFY,
+    LSBE_JOB_MODIFY_ONCE,
 
-#define LSBE_J_UNREPETITIVE 70
-#define LSBE_BAD_CLUSTER 71
+    LSBE_J_UNREPETITIVE,
+    LSBE_BAD_CLUSTER,
 
-#define LSBE_JOB_MODIFY_USED 72
+    LSBE_JOB_MODIFY_USED,
 
-#define LSBE_HJOB_LIMIT 73
+    LSBE_HJOB_LIMIT,
 
-#define LSBE_NO_JOBMSG 74
+    LSBE_NO_JOBMSG,
 
-#define LSBE_BAD_RESREQ 75
+    LSBE_BAD_RESREQ,
 
-#define LSBE_NO_ENOUGH_HOST 76
+    LSBE_NO_ENOUGH_HOST,
 
-#define LSBE_CONF_FATAL 77
-#define LSBE_CONF_WARNING 78
+    LSBE_CONF_FATAL,
+    LSBE_CONF_WARNING,
 
-#define LSBE_NO_RESOURCE 79
-#define LSBE_BAD_RESOURCE 80
-#define LSBE_INTERACTIVE_RERUN 81
-#define LSBE_PTY_INFILE 82
-#define LSBE_BAD_SUBMISSION_HOST 83
-#define LSBE_LOCK_JOB 84
-#define LSBE_UGROUP_MEMBER 85
-#define LSBE_OVER_RUSAGE 86
-#define LSBE_BAD_HOST_SPEC 87
-#define LSBE_BAD_UGROUP 88
-#define LSBE_ESUB_ABORT 89
-#define LSBE_EXCEPT_ACTION 90
-#define LSBE_JOB_DEP 91
-#define LSBE_JGRP_NULL 92
-#define LSBE_JGRP_BAD 93
-#define LSBE_JOB_ARRAY 94
-#define LSBE_JOB_SUSP 95
-#define LSBE_JOB_FORW 96
-#define LSBE_BAD_IDX 97
-#define LSBE_BIG_IDX 98
-#define LSBE_ARRAY_NULL 99
-#define LSBE_JOB_EXIST 100
-#define LSBE_JOB_ELEMENT 101
-#define LSBE_BAD_JOBID 102
-#define LSBE_MOD_JOB_NAME 103
+    LSBE_NO_RESOURCE,
+    LSBE_BAD_RESOURCE,
+    LSBE_INTERACTIVE_RERUN,
+    LSBE_PTY_INFILE,
+    LSBE_BAD_SUBMISSION_HOST,
+    LSBE_LOCK_JOB,
+    LSBE_UGROUP_MEMBER,
+    LSBE_OVER_RUSAGE,
+    LSBE_BAD_HOST_SPEC,
+    LSBE_BAD_UGROUP,
+    LSBE_ESUB_ABORT,
+    LSBE_EXCEPT_ACTION,
+    LSBE_JOB_DEP,
+    LSBE_JGRP_NULL,
+    LSBE_JGRP_BAD,
+    LSBE_JOB_ARRAY,
+    LSBE_JOB_SUSP,
+    LSBE_JOB_FORW,
+    LSBE_BAD_IDX,
+    LSBE_BIG_IDX,
+    LSBE_ARRAY_NULL,
+    LSBE_JOB_EXIST,
+    LSBE_JOB_ELEMENT,
+    LSBE_BAD_JOBID,
+    LSBE_MOD_JOB_NAME,
 
-#define LSBE_PREMATURE 104
+    LSBE_PREMATURE,
 
-#define LSBE_BAD_PROJECT_GROUP 105
+    LSBE_BAD_PROJECT_GROUP,
 
-#define LSBE_NO_HOST_GROUP 106
-#define LSBE_NO_USER_GROUP 107
-#define LSBE_INDEX_FORMAT 108
+    LSBE_NO_HOST_GROUP,
+    LSBE_NO_USER_GROUP,
+    LSBE_INDEX_FORMAT,
 
-#define LSBE_SP_SRC_NOT_SEEN 109
-#define LSBE_SP_FAILED_HOSTS_LIM 110
-#define LSBE_SP_COPY_FAILED 111
-#define LSBE_SP_FORK_FAILED 112
-#define LSBE_SP_CHILD_DIES 113
-#define LSBE_SP_CHILD_FAILED 114
-#define LSBE_SP_FIND_HOST_FAILED 115
-#define LSBE_SP_SPOOLDIR_FAILED 116
-#define LSBE_SP_DELETE_FAILED 117
+    LSBE_BAD_USER_PRIORITY,
+    LSBE_NO_JOB_PRIORITY,
+    LSBE_JOB_REQUEUED,
 
-#define LSBE_BAD_USER_PRIORITY 118
-#define LSBE_NO_JOB_PRIORITY 119
-#define LSBE_JOB_REQUEUED 120
+    LSBE_MULTI_FIRST_HOST,
+    LSBE_HG_FIRST_HOST,
+    LSBE_HP_FIRST_HOST,
+    LSBE_OTHERS_FIRST_HOST,
 
-#define LSBE_MULTI_FIRST_HOST 121
-#define LSBE_HG_FIRST_HOST 122
-#define LSBE_HP_FIRST_HOST 123
-#define LSBE_OTHERS_FIRST_HOST 124
+    LSBE_PROC_LESS,
+    LSBE_MOD_MIX_OPTS,
+    LSBE_MOD_CPULIMIT,
+    LSBE_MOD_MEMLIMIT,
+    LSBE_MOD_ERRFILE,
+    LSBE_LOCKED_MASTER,
+    LSBE_DEP_ARRAY_SIZE,
 
-#define LSBE_PROC_LESS 125
-#define LSBE_MOD_MIX_OPTS 126
-#define LSBE_MOD_CPULIMIT 127
-#define LSBE_MOD_MEMLIMIT 128
-#define LSBE_MOD_ERRFILE 129
-#define LSBE_LOCKED_MASTER 130
-#define LSBE_DEP_ARRAY_SIZE 131
-#define LSBE_NUM_ERR 131
+    LSBE_NUM_ERR  /* must remain last */
+} lsb_error_t;
 
-#define PREPARE_FOR_OP 1024
-#define READY_FOR_OP 1023
+extern __thread lsb_error_t lsberrno;
 
 #define SUB_JOB_NAME 0x01
 #define SUB_QUEUE 0x02
@@ -1387,8 +1379,6 @@ struct queueConf {
 #define IS_POST_ERR(s) (((s) & JOB_STAT_PERR) == JOB_STAT_PERR)
 #define IS_POST_FINISH(s) (IS_POST_DONE(s) || IS_POST_ERR(s))
 
-extern int lsberrno;
-
 #define PRINT_SHORT_NAMELIST 0x01
 #define PRINT_LONG_NAMELIST 0x02
 #define PRINT_MCPU_HOSTS 0x04
@@ -1440,8 +1430,6 @@ extern char *lsb_peekjob(int64_t);
 
 extern int lsb_mig(struct submig *, int *badHostIdx);
 
-extern struct hostInfoEnt *lsb_hostinfo(char **, int *);
-extern struct hostInfoEnt *lsb_hostinfo_ex(char **, int *, char *, int);
 extern int lsb_movejob(int64_t jobId, int *, int);
 extern int lsb_switchjob(int64_t jobId, char *queue);
 extern int lsb_queuecontrol(char *, int);
@@ -1489,6 +1477,7 @@ struct jobInfoHead *lsb_openjobinfo(int64_t,      // job_id
                                     const char *, // host_name
                                     int);         // options like JOBID_ONLY ...
 struct jobInfoEnt *lsb_readjobinfo(void);
+struct hostInfoEnt *lsb_hostinfo(char **, int *, char *, int);
 
 /* ----------------------------------------------------------------------
  * Compatibility macros for legacy CamelCase identifiers.

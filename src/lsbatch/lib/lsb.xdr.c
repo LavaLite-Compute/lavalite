@@ -225,32 +225,35 @@ bool_t xdr_modifyReq(XDR *xdrs, struct modifyReq *modifyReq, void *)
     return true;
 }
 
-bool_t xdr_jobInfoReq(XDR *xdrs, struct jobInfoReq *jobInfoReq, void *)
+bool_t xdr_jobInfoReq(XDR *xdrs, struct jobInfoReq *req, void *unused)
 {
-    int jobArrId, jobArrElemId;
+    (void)unused;
 
-    if (!xdr_var_string(xdrs, &jobInfoReq->userName))
-        return false;
+    // options
+    if (!xdr_int(xdrs, &req->options))
+        return FALSE;
 
-    if (xdrs->x_op == XDR_ENCODE) {
-        jobId64To32(jobInfoReq->jobId, &jobArrId, &jobArrElemId);
-    }
-    if (!(xdr_int(xdrs, &jobArrId) && xdr_int(xdrs, &(jobInfoReq->options)) &&
-          xdr_var_string(xdrs, &jobInfoReq->queue)))
-        return false;
+    // userName
+    if (!xdr_string(xdrs, &req->userName, LL_BUFSIZ_32))
+        return FALSE;
 
-    if (!xdr_var_string(xdrs, &jobInfoReq->host))
-        return false;
-    if (!xdr_var_string(xdrs, &jobInfoReq->jobName))
-        return false;
-    if (!xdr_int(xdrs, &jobArrElemId)) {
-        return false;
-    }
-    if (xdrs->x_op == XDR_DECODE) {
-        jobId32To64(&jobInfoReq->jobId, jobArrId, jobArrElemId);
-    }
+    // jobId as true 64-bit
+    if (!xdr_int64_t(xdrs, &req->jobId))
+        return FALSE;
 
-    return true;
+    // jobName
+    if (!xdr_string(xdrs, &req->jobName, LL_BUFSIZ_256))
+        return FALSE;
+
+    // queue
+    if (!xdr_string(xdrs, &req->queue, LL_BUFSIZ_32))
+        return FALSE;
+
+    // host
+    if (!xdr_string(xdrs, &req->host, MAXHOSTNAMELEN))
+        return FALSE;
+
+    return TRUE;
 }
 
 bool_t xdr_signalReq(XDR *xdrs, struct signalReq *signalReq, void *)
@@ -753,253 +756,351 @@ bool_t xdr_jobInfoReply(XDR *xdrs, struct jobInfoReply *jobInfoReply, void *)
     return true;
 }
 
-bool_t xdr_queueInfoReply(XDR *xdrs, struct queueInfoReply *qInfoReply, void *)
+bool_t xdr_queueInfoReply(XDR *xdrs, struct queueInfoReply *reply, void *unused)
 {
     int i;
-    static int memSize = 0;
-    static struct queueInfoEnt *qInfo = NULL;
-    static int nIdx = 0;
-    static float *loadStop = NULL, *loadSched = NULL;
 
-    if (!(xdr_int(xdrs, &(qInfoReply->numQueues)) &&
-          xdr_int(xdrs, &(qInfoReply->badQueue)) &&
-          xdr_int(xdrs, &qInfoReply->nIdx)))
+    (void)unused;
+
+    // numQueues, badQueue, nIdx
+    if (!xdr_int(xdrs, &reply->numQueues))
         return false;
 
+    if (!xdr_int(xdrs, &reply->badQueue))
+        return false;
+
+    if (!xdr_int(xdrs, &reply->nIdx))
+        return false;
+
+    if (reply->numQueues < 0 || reply->nIdx < 0)
+        return false;
+
+    /*
+     * DECODE: allocate array of queueInfoEnt if needed.
+     *
+     * KISS assumption:
+     *  - Caller passes a zero-initialized struct for DECODE
+     *  - Caller is responsible for freeing reply->queues and
+     *    all nested fields later with a dedicated free helper.
+     */
     if (xdrs->x_op == XDR_DECODE) {
-        if (qInfoReply->numQueues > memSize) {
-            for (i = 0; i < memSize; i++) {
-                FREEUP(qInfo[i].queue);
-                FREEUP(qInfo[i].hostSpec);
-            }
-            FREEUP(qInfo);
-
-            memSize = 0;
-            if (!(qInfo = (struct queueInfoEnt *) calloc(
-                      qInfoReply->numQueues, sizeof(struct queueInfoEnt))))
-                return false;
-
-            for (i = 0; i < qInfoReply->numQueues; i++) {
-                qInfo[i].queue = NULL;
-                qInfo[i].hostSpec = NULL;
-                memSize = i + 1;
-                if (!(qInfo[i].queue = malloc(LL_BUFSIZ_32)) ||
-                    !(qInfo[i].hostSpec = malloc(LL_BUFSIZ_32)))
-                    return false;
-            }
-        }
-
-        for (i = 0; i < qInfoReply->numQueues; i++) {
-            FREEUP(qInfo[i].description);
-            FREEUP(qInfo[i].userList);
-            FREEUP(qInfo[i].hostList);
-            FREEUP(qInfo[i].windows);
-            FREEUP(qInfo[i].windowsD);
-            FREEUP(qInfo[i].defaultHostSpec);
-            FREEUP(qInfo[i].admins);
-            FREEUP(qInfo[i].preCmd);
-            FREEUP(qInfo[i].postCmd);
-            FREEUP(qInfo[i].requeueEValues);
-            FREEUP(qInfo[i].resReq);
-            FREEUP(qInfo[i].resumeCond);
-            FREEUP(qInfo[i].stopCond);
-            FREEUP(qInfo[i].jobStarter);
-            FREEUP(qInfo[i].chkpntDir);
-
-            FREEUP(qInfo[i].suspendActCmd);
-            FREEUP(qInfo[i].resumeActCmd);
-            FREEUP(qInfo[i].terminateActCmd);
-        }
-
-        qInfoReply->queues = qInfo;
-
-        if (qInfoReply->numQueues * qInfoReply->nIdx > nIdx &&
-            qInfoReply->numQueues > 0) {
-            if (allocLoadIdx(&loadSched, &loadStop, &nIdx,
-                             qInfoReply->numQueues * qInfoReply->nIdx) == -1)
+        if (reply->numQueues == 0) {
+            reply->queues = NULL;
+        } else {
+            reply->queues = (struct queueInfoEnt *)calloc(
+                reply->numQueues, sizeof(struct queueInfoEnt));
+            if (!reply->queues)
                 return false;
         }
     }
 
-    for (i = 0; i < qInfoReply->numQueues; i++) {
-        if (xdrs->x_op == XDR_DECODE) {
-            qInfoReply->queues[i].loadSched =
-                loadSched + (i * qInfoReply->nIdx);
-            qInfoReply->queues[i].loadStop = loadStop + (i * qInfoReply->nIdx);
+    /* Encode/decode each queueInfoEnt */
+    for (i = 0; i < reply->numQueues; i++) {
+        struct queueInfoEnt *q = &reply->queues[i];
+
+        if (xdrs->x_op == XDR_DECODE && reply->nIdx > 0) {
+            /* Each queue gets its own loadSched/loadStop arrays */
+            q->nIdx = reply->nIdx;
+
+            q->loadSched = (float *)malloc(reply->nIdx * sizeof(float));
+            if (!q->loadSched)
+                return false;
+
+            q->loadStop = (float *)malloc(reply->nIdx * sizeof(float));
+            if (!q->loadStop)
+                return false;
         }
 
-        if (!xdr_array_element(xdrs, &(qInfoReply->queues[i]),
-                               &qInfoReply->nIdx, xdr_queueInfoEnt))
+        /* Pass nIdx down if xdr_queueInfoEnt needs it */
+        if (!xdr_queueInfoEnt(xdrs, q, &reply->nIdx))
             return false;
     }
 
     return true;
 }
 
-bool_t xdr_queueInfoEnt(XDR *xdrs, struct queueInfoEnt *qInfo, void *ctx)
+bool_t xdr_queueInfoEnt(XDR *xdrs, struct queueInfoEnt *q, void *ctx)
 {
-    char *sp;
-    int i;
-    int j;
+    int i, j;
+    int nIdx = 0;
 
-    if (xdrs->x_op == XDR_FREE) {
-        if (qInfo->chkpntDir != 0) {
-            FREEUP(qInfo->chkpntDir);
-        }
-        return true;
+    if (ctx != NULL) {
+        nIdx = *(int *)ctx;
+    } else {
+        nIdx = q->nIdx;
     }
 
-    sp = qInfo->queue;
+    if (nIdx < 0) {
+        return false;
+    }
+
     if (xdrs->x_op == XDR_DECODE) {
-        sp[0] = '\0';
-        qInfo->suspendActCmd = NULL;
-        qInfo->resumeActCmd = NULL;
-        qInfo->terminateActCmd = NULL;
+        q->nIdx = nIdx;
     }
-    if (!(xdr_string(xdrs, &sp, LL_BUFSIZ_32) &&
-          xdr_var_string(xdrs, &qInfo->description)))
-        return false;
 
-    if (!(xdr_var_string(xdrs, &qInfo->userList)))
+    /* queue name + description */
+    if (!xdr_string(xdrs, &q->queue, LL_BUFSIZ_32)) {
         return false;
+    }
 
-    if (!(xdr_var_string(xdrs, &qInfo->hostList)))
+    if (!xdr_string(xdrs, &q->description, LL_BUFSIZ_256)) {
         return false;
+    }
 
-    if (!(xdr_var_string(xdrs, &qInfo->windows)))
+    /* basic string fields */
+    if (!xdr_string(xdrs, &q->userList, LL_BUFSIZ_256)) {
         return false;
+    }
 
-    sp = qInfo->hostSpec;
-    if (xdrs->x_op == XDR_DECODE)
-        sp[0] = '\0';
-    if (!(xdr_string(xdrs, &sp, LL_BUFSIZ_32)))
+    if (!xdr_string(xdrs, &q->hostList, LL_BUFSIZ_256)) {
         return false;
+    }
 
+    if (!xdr_string(xdrs, &q->windows, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    /* hostSpec */
+    if (!xdr_string(xdrs, &q->hostSpec, LL_BUFSIZ_32)) {
+        return false;
+    }
+
+    /* rLimits */
     for (i = 0; i < LSF_RLIM_NLIMITS; i++) {
-        if (!(xdr_int(xdrs, &qInfo->rLimits[i])))
+        if (!xdr_int(xdrs, &q->rLimits[i])) {
             return false;
+        }
     }
 
-    qInfo->nIdx = *(int *) ctx;
-    for (i = 0; i < qInfo->nIdx; i++) {
-        if (!(xdr_float(xdrs, &(qInfo->loadSched[i]))) ||
-            !(xdr_float(xdrs, &(qInfo->loadStop[i]))))
+    /* loadSched / loadStop: arrays of nIdx floats.
+     * For DECODE, arrays are allocated by the caller (xdr_queueInfoReply). */
+    if (nIdx > 0) {
+        if (q->loadSched == NULL || q->loadStop == NULL) {
             return false;
+        }
+
+        for (i = 0; i < nIdx; i++) {
+            if (!xdr_float(xdrs, &q->loadSched[i])) {
+                return false;
+            }
+            if (!xdr_float(xdrs, &q->loadStop[i])) {
+                return false;
+            }
+        }
     }
 
-    if (!(xdr_int(xdrs, &qInfo->priority) && xdr_short(xdrs, &qInfo->nice) &&
-          xdr_int(xdrs, &qInfo->userJobLimit) &&
-          xdr_float(xdrs, &qInfo->procJobLimit) &&
-          xdr_int(xdrs, &qInfo->qAttrib) && xdr_int(xdrs, &qInfo->qStatus) &&
-          xdr_int(xdrs, &qInfo->maxJobs) && xdr_int(xdrs, &qInfo->numJobs) &&
-          xdr_int(xdrs, &qInfo->numPEND) && xdr_int(xdrs, &qInfo->numRUN) &&
-          xdr_int(xdrs, &qInfo->numSSUSP) && xdr_int(xdrs, &qInfo->numUSUSP) &&
-          xdr_int(xdrs, &qInfo->mig) && xdr_int(xdrs, &qInfo->acceptIntvl) &&
-          xdr_int(xdrs, &qInfo->schedDelay))) {
+    /* scalar fields / counters */
+    if (!xdr_int(xdrs, &q->priority)) {
         return false;
     }
 
-    if (!(xdr_var_string(xdrs, &qInfo->windowsD) &&
-          xdr_var_string(xdrs, &qInfo->defaultHostSpec)))
+    if (!xdr_short(xdrs, &q->nice)) {
         return false;
+    }
 
-    if (!(xdr_int(xdrs, &qInfo->procLimit) &&
-          xdr_var_string(xdrs, &qInfo->admins) &&
-          xdr_var_string(xdrs, &qInfo->preCmd) &&
-          xdr_var_string(xdrs, &qInfo->postCmd) &&
-          xdr_var_string(xdrs, &qInfo->requeueEValues) &&
-          xdr_int(xdrs, &qInfo->hostJobLimit)))
+    if (!xdr_int(xdrs, &q->userJobLimit)) {
         return false;
+    }
 
-    if (!(xdr_var_string(xdrs, &qInfo->resReq) &&
-          xdr_int(xdrs, &qInfo->numRESERVE) &&
-          xdr_int(xdrs, &qInfo->slotHoldTime) &&
-          xdr_var_string(xdrs, &qInfo->resumeCond) &&
-          xdr_var_string(xdrs, &qInfo->stopCond) &&
-          xdr_var_string(xdrs, &qInfo->jobStarter) &&
-          xdr_var_string(xdrs, &qInfo->suspendActCmd) &&
-          xdr_var_string(xdrs, &qInfo->resumeActCmd) &&
-          xdr_var_string(xdrs, &qInfo->terminateActCmd)))
+    if (!xdr_float(xdrs, &q->procJobLimit)) {
         return false;
+    }
 
+    if (!xdr_int(xdrs, &q->qAttrib)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->qStatus)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->maxJobs)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->numJobs)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->numPEND)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->numRUN)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->numSSUSP)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->numUSUSP)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->mig)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->acceptIntvl)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->schedDelay)) {
+        return false;
+    }
+
+    /* more strings */
+    if (!xdr_string(xdrs, &q->windowsD, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->defaultHostSpec, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->procLimit)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->admins, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->preCmd, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->postCmd, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->requeueEValues, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->hostJobLimit)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->resReq, LL_BUFSIZ_512)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->numRESERVE)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->slotHoldTime)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->resumeCond, LL_BUFSIZ_512)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->stopCond, LL_BUFSIZ_512)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->jobStarter, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->suspendActCmd, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->resumeActCmd, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    if (!xdr_string(xdrs, &q->terminateActCmd, LL_BUFSIZ_256)) {
+        return false;
+    }
+
+    /* signal map */
     for (j = 0; j < LSB_SIG_NUM; j++) {
-        if (!xdr_int(xdrs, &qInfo->sigMap[j]))
+        if (!xdr_int(xdrs, &q->sigMap[j])) {
             return false;
+        }
     }
 
-    if (!(xdr_var_string(xdrs, &qInfo->chkpntDir) &&
-          xdr_int(xdrs, &qInfo->chkpntPeriod)))
+    /* checkpoint info */
+    if (!xdr_string(xdrs, &q->chkpntDir, LL_BUFSIZ_256)) {
         return false;
+    }
 
+    if (!xdr_int(xdrs, &q->chkpntPeriod)) {
+        return false;
+    }
+
+    /* default limits */
     for (i = 0; i < LSF_RLIM_NLIMITS; i++) {
-        if (!(xdr_int(xdrs, &qInfo->defLimits[i])))
+        if (!xdr_int(xdrs, &q->defLimits[i])) {
             return false;
+        }
     }
 
-    if (!(xdr_int(xdrs, &qInfo->minProcLimit) &&
-          xdr_int(xdrs, &qInfo->defProcLimit))) {
+    if (!xdr_int(xdrs, &q->minProcLimit)) {
+        return false;
+    }
+
+    if (!xdr_int(xdrs, &q->defProcLimit)) {
         return false;
     }
 
     return true;
 }
 
-bool_t xdr_infoReq(XDR *xdrs, struct infoReq *infoReq, void *)
+bool_t xdr_infoReq(XDR *xdrs, struct infoReq *info_req, void *unused)
 {
-    int i;
-    static int memSize = 0;
-    static char **names = NULL, *resReq = NULL;
+    (void)unused;
 
-    if (!(xdr_int(xdrs, &(infoReq->options))))
+    if (!xdr_int(xdrs, &info_req->options))
         return false;
 
-    if (!(xdr_int(xdrs, &(infoReq->numNames))))
+    if (!xdr_int(xdrs, &info_req->numNames))
         return false;
 
-    if (xdrs->x_op == XDR_DECODE) {
-        if (names) {
-            for (i = 0; i < memSize; i++)
-                FREEUP(names[i]);
-        }
-        if (infoReq->numNames + 2 > memSize) {
-            FREEUP(names);
+    if (info_req->numNames < 0)
+        return false;
 
-            memSize = infoReq->numNames + 2;
-            if ((names = (char **) calloc(memSize, sizeof(char *))) == NULL) {
-                memSize = 0;
+    switch (xdrs->x_op) {
+    case XDR_ENCODE:
+        for (int i = 0; i < info_req->numNames; i++) {
+            if (!xdr_string(xdrs, &info_req->names[i], LL_BUFSIZ_64))
                 return false;
-            }
         }
-        infoReq->names = names;
+        break;
+
+    case XDR_DECODE: {
+        int n = info_req->numNames;
+
+        info_req->names = calloc((size_t)n, sizeof(char *));
+        if (info_req->names == NULL)
+                return false;
+        for (int i = 0; i < info_req->numNames; i++) {
+            if (!xdr_string(xdrs, &info_req->names[i], LL_BUFSIZ_64))
+                return false;
+        }
+        break;
     }
 
-    for (i = 0; i < infoReq->numNames; i++)
-        if (!(xdr_var_string(xdrs, &infoReq->names[i])))
-            return false;
+    case XDR_FREE:
+        // do later
+        return true;
 
-    if (infoReq->options & CHECK_HOST) {
-        if (!(xdr_var_string(xdrs, &infoReq->names[i])))
-            return false;
-        i++;
-    }
-    if (infoReq->options & CHECK_USER) {
-        if (!(xdr_var_string(xdrs, &infoReq->names[i])))
-            return false;
-    }
-
-    if (xdrs->x_op == XDR_DECODE) {
-        FREEUP(resReq);
-    }
-
-    if (!xdr_var_string(xdrs, &infoReq->resReq))
+    default:
         return false;
-
-    if (xdrs->x_op == XDR_DECODE) {
-        resReq = infoReq->resReq;
     }
+
+    if (!xdr_string(xdrs, &info_req->resReq, LL_BUFSIZ_64))
+        return false;
 
     return true;
 }
+
 
 bool_t xdr_hostDataReply(XDR *xdrs, struct hostDataReply *hostDataReply, void *)
 {

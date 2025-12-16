@@ -157,22 +157,22 @@ int main(int argc, char **argv)
         }
     }
 
-    if (initenv_(daemonParams, env_dir) < 0) {
-        ls_openlog("sbatchd", daemonParams[LSF_LOGDIR].paramValue, (debug > 1),
-                   daemonParams[LSF_LOG_MASK].paramValue);
+    if (initenv_(lsbParams, env_dir) < 0) {
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, (debug > 1),
+                   lsbParams[LSF_LOG_MASK].paramValue);
         ls_syslog(LOG_ERR, "%s", __func__, "initenv_");
         die(SLAVE_FATAL);
     }
 
-    if ((daemonParams[LSB_STDOUT_DIRECT].paramValue != NULL) &&
-        (daemonParams[LSB_STDOUT_DIRECT].paramValue[0] == 'y' ||
-         daemonParams[LSB_STDOUT_DIRECT].paramValue[0] == 'Y')) {
+    if ((lsbParams[LSB_STDOUT_DIRECT].paramValue != NULL) &&
+        (lsbParams[LSB_STDOUT_DIRECT].paramValue[0] == 'y' ||
+         lsbParams[LSB_STDOUT_DIRECT].paramValue[0] == 'Y')) {
         lsbStdoutDirect = TRUE;
     }
 
     ls_syslog(LOG_WARNING, "%s: LSB_STDOUT_DIRECT configured as <%s>.", fname,
-              (daemonParams[LSB_STDOUT_DIRECT].paramValue)
-                  ? daemonParams[LSB_STDOUT_DIRECT].paramValue
+              (lsbParams[LSB_STDOUT_DIRECT].paramValue)
+                  ? lsbParams[LSB_STDOUT_DIRECT].paramValue
                   : "NULL");
     ls_syslog(LOG_WARNING, "%s: lsbStdoutDirect = %d", fname, lsbStdoutDirect);
 
@@ -196,8 +196,8 @@ int main(int argc, char **argv)
         }
     }
 
-    if (!debug && isint_(daemonParams[LSB_DEBUG].paramValue)) {
-        debug = atoi(daemonParams[LSB_DEBUG].paramValue);
+    if (!debug && isint_(lsbParams[LSB_DEBUG].paramValue)) {
+        debug = atoi(lsbParams[LSB_DEBUG].paramValue);
         if (debug <= 0 || debug > 3)
             debug = 1;
     }
@@ -233,74 +233,74 @@ int main(int argc, char **argv)
         daemonize_();
     }
 
-    getLogClass_(daemonParams[LSB_DEBUG_SBD].paramValue,
-                 daemonParams[LSB_TIME_SBD].paramValue);
+    getLogClass_(lsbParams[LSB_DEBUG_SBD].paramValue,
+                 lsbParams[LSB_TIME_SBD].paramValue);
 
     if (debug > 1)
-        ls_openlog("sbatchd", daemonParams[LSF_LOGDIR].paramValue, TRUE,
-                   daemonParams[LSF_LOG_MASK].paramValue);
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, TRUE,
+                   lsbParams[LSF_LOG_MASK].paramValue);
     else
-        ls_openlog("sbatchd", daemonParams[LSF_LOGDIR].paramValue, FALSE,
-                   daemonParams[LSF_LOG_MASK].paramValue);
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, FALSE,
+                   lsbParams[LSF_LOG_MASK].paramValue);
 
     if (logclass)
         ls_syslog(LOG_DEBUG3, "%s: logclass=%x", fname, logclass);
 
-    sbdLogMask = getLogMask(&msg, daemonParams[LSF_LOG_MASK].paramValue);
+    sbdLogMask = getLogMask(&msg, lsbParams[LSF_LOG_MASK].paramValue);
     if (msg != NULL)
         ls_syslog(LOG_ERR, "%s: %s", fname, msg);
 
-    if (isint_(daemonParams[LSB_SBD_CONNTIMEOUT].paramValue))
-        connTimeout = atoi(daemonParams[LSB_SBD_CONNTIMEOUT].paramValue);
+    if (isint_(lsbParams[LSB_SBD_CONNTIMEOUT].paramValue))
+        connTimeout = atoi(lsbParams[LSB_SBD_CONNTIMEOUT].paramValue);
     else
         connTimeout = 6;
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: connTimeout=%d", fname, connTimeout);
 
-    if (isint_(daemonParams[LSB_SBD_READTIMEOUT].paramValue))
-        readTimeout = atoi(daemonParams[LSB_SBD_READTIMEOUT].paramValue);
+    if (isint_(lsbParams[LSB_SBD_READTIMEOUT].paramValue))
+        readTimeout = atoi(lsbParams[LSB_SBD_READTIMEOUT].paramValue);
     else
         readTimeout = 20;
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "%s: readTimeout=%d", fname, readTimeout);
 
-    if ((daemonParams[LSF_GETPWNAM_RETRY].paramValue != NULL) &&
-        (isint_(daemonParams[LSF_GETPWNAM_RETRY].paramValue)))
-        getpwnam2Retry = atoi(daemonParams[LSF_GETPWNAM_RETRY].paramValue);
+    if ((lsbParams[LSF_GETPWNAM_RETRY].paramValue != NULL) &&
+        (isint_(lsbParams[LSF_GETPWNAM_RETRY].paramValue)))
+        getpwnam2Retry = atoi(lsbParams[LSF_GETPWNAM_RETRY].paramValue);
 
-    if (daemonParams[LSB_MEMLIMIT_ENFORCE].paramValue != NULL) {
-        if (!strcasecmp(daemonParams[LSB_MEMLIMIT_ENFORCE].paramValue, "y")) {
+    if (lsbParams[LSB_MEMLIMIT_ENFORCE].paramValue != NULL) {
+        if (!strcasecmp(lsbParams[LSB_MEMLIMIT_ENFORCE].paramValue, "y")) {
             lsbMemEnforce = TRUE;
         }
     }
 
     lsbJobCpuLimit = -1;
-    if (daemonParams[LSB_JOB_CPULIMIT].paramValue != NULL) {
-        if (!strcasecmp(daemonParams[LSB_JOB_CPULIMIT].paramValue, "y")) {
+    if (lsbParams[LSB_JOB_CPULIMIT].paramValue != NULL) {
+        if (!strcasecmp(lsbParams[LSB_JOB_CPULIMIT].paramValue, "y")) {
             lsbJobCpuLimit = 1;
-        } else if (!strcasecmp(daemonParams[LSB_JOB_CPULIMIT].paramValue,
+        } else if (!strcasecmp(lsbParams[LSB_JOB_CPULIMIT].paramValue,
                                "n")) {
             lsbJobCpuLimit = 0;
         } else {
             ls_syslog(LOG_ERR,
                       "%s: LSB_JOB_CPULIMIT <%s> in lsf.conf is invalid. Valid "
                       "values are y|Y or n|N; ignoring the parameter.",
-                      fname, daemonParams[LSB_JOB_CPULIMIT].paramValue);
+                      fname, lsbParams[LSB_JOB_CPULIMIT].paramValue);
         }
     }
 
     lsbJobMemLimit = -1;
-    if (daemonParams[LSB_JOB_MEMLIMIT].paramValue != NULL) {
-        if (!strcasecmp(daemonParams[LSB_JOB_MEMLIMIT].paramValue, "y")) {
+    if (lsbParams[LSB_JOB_MEMLIMIT].paramValue != NULL) {
+        if (!strcasecmp(lsbParams[LSB_JOB_MEMLIMIT].paramValue, "y")) {
             lsbJobMemLimit = 1;
-        } else if (!strcasecmp(daemonParams[LSB_JOB_MEMLIMIT].paramValue,
+        } else if (!strcasecmp(lsbParams[LSB_JOB_MEMLIMIT].paramValue,
                                "n")) {
             lsbJobMemLimit = 0;
         } else {
             ls_syslog(LOG_ERR,
                       "%s: LSB_JOB_MEMLIMIT <%s> in lsf.conf is invalid. Valid "
                       "values are y|Y or n|N; ignoring the parameter.",
-                      fname, daemonParams[LSB_JOB_MEMLIMIT].paramValue);
+                      fname, lsbParams[LSB_JOB_MEMLIMIT].paramValue);
         }
     }
 
@@ -488,7 +488,7 @@ static void processMsg(struct clientNode *client)
     XDR xdrs;
     int cc;
 
-    s = chan_get_sock(client->chanfd);
+    s = chan_sock(client->chanfd);
 
     if (chan_dequeue(client->chanfd, &buf) < 0) {
         ls_syslog(LOG_ERR, "%s", __func__, "chan_dequeue", cherrno);
@@ -519,7 +519,7 @@ static void processMsg(struct clientNode *client)
         sbdReqtype == MBD_REBOOT || sbdReqtype == MBD_SHUTDOWN ||
         sbdReqtype == MBD_MODIFY_JOB) {
 #ifdef INTER_DAEMON_AUTH
-        if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+        if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
             char *aux_file, aux_file_buf[MAXPATHLEN];
 
             putEauthAuxDataEnvVar(NULL);
@@ -706,7 +706,7 @@ void start_master(void)
 
     lastTime = now;
     margv[0] =
-        getDaemonPath_("/mbatchd", daemonParams[LSF_SERVERDIR].paramValue);
+        getDaemonPath_("/mbatchd", lsbParams[LSF_SERVERDIR].paramValue);
 
     i = 1;
     if (debug) {
@@ -796,17 +796,17 @@ void sinit(void)
     die(SLAVE_FATAL);
     }
 
-    Signal_(SIGALRM, SIG_IGN);
-    Signal_(SIGHUP, SIG_IGN);
+    signal_set(SIGALRM, SIG_IGN);
+    signal_set(SIGHUP, SIG_IGN);
 
-    Signal_(SIGTERM, die);
-    Signal_(SIGINT, die);
-    Signal_(SIGCHLD, child_handler);
-    Signal_(SIGPIPE, SIG_IGN);
+    signal_set(SIGTERM, die);
+    signal_set(SIGINT, die);
+    signal_set(SIGCHLD, child_handler);
+    signal_set(SIGPIPE, SIG_IGN);
     if (!debug) {
-        Signal_(SIGTTOU, SIG_IGN);
-        Signal_(SIGTTIN, SIG_IGN);
-        Signal_(SIGTSTP, SIG_IGN);
+        signal_set(SIGTTOU, SIG_IGN);
+        signal_set(SIGTTIN, SIG_IGN);
+        signal_set(SIGTSTP, SIG_IGN);
     }
 
     jobQueHead = (struct jobCard *) mkListHeader();
@@ -967,7 +967,7 @@ static int authCmdRequest(struct clientNode *client, XDR *xdrs,
     char fromHost[MAXHOSTNAMELEN];
     struct lsfAuth auth;
 
-    s = chan_get_sock(client->chanfd);
+    s = chan_sock(client->chanfd);
     struct ll_host hp;
     if (get_host_by_sockaddr_in(&client->from.sin_addr) < 0) {
         ls_syslog(LOG_ERR, "%s DNS lookup failed for %s", __func__,
@@ -1029,7 +1029,7 @@ static int authMbdRequest(struct clientNode *client, XDR *xdrs,
     struct lsfAuth auth;
     char buf[1024];
 
-    s = chan_get_sock(client->chanfd);
+    s = chan_sock(client->chanfd);
     struct ll_host hp;
     if (get_host_by_sockadd_in(&client->from.sin_addr) < 0) {
         ls_syslog(LOG_ERR, "%s DNS reverse lookup failed for %s", __func__,

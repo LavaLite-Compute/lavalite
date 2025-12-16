@@ -152,9 +152,9 @@ int init_log(void)
 
     mSchedStage = M_STAGE_REPLAY;
 
-    sprintf(elogFname, "%s/lsb.events", daemonParams[LSB_SHAREDIR].paramValue);
-    sprintf(jlogFname, "%s/lsb.acct", daemonParams[LSB_SHAREDIR].paramValue);
-    sprintf(dirbuf, "%s", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(elogFname, "%s/lsb.events", lsbParams[LSB_SHAREDIR].paramValue);
+    sprintf(jlogFname, "%s/lsb.acct", lsbParams[LSB_SHAREDIR].paramValue);
+    sprintf(dirbuf, "%s", lsbParams[LSB_SHAREDIR].paramValue);
 
     if (stat(dirbuf, &sbuf) < 0) {
         ls_syslog(LOG_ERR, "%s: stat(%s) failed: %m", __func__, dirbuf);
@@ -190,7 +190,7 @@ int init_log(void)
 
     getElogLock();
 
-    sprintf(infoDir, "%s/info", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(infoDir, "%s/info", lsbParams[LSB_SHAREDIR].paramValue);
 
     if (mkdir(infoDir, 0700) == -1 && errno != EEXIST) {
         ls_syslog(LOG_ERR, "%s mkdir(%s) failed %m", __func__, infoDir);
@@ -2080,7 +2080,7 @@ int switch_log(void)
     int preserved = FALSE;
     int totalEventFile;
 
-    sprintf(tmpfn, "%s/lsb.events", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(tmpfn, "%s/lsb.events", lsbParams[LSB_SHAREDIR].paramValue);
     LS_INFO("switching event log file: %s", tmpfn);
 
     if (createEvent0File() == -1) {
@@ -2088,7 +2088,7 @@ int switch_log(void)
         goto exiterr;
     }
 
-    sprintf(tmpfn, "%s/lsb.events.tmp", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(tmpfn, "%s/lsb.events.tmp", lsbParams[LSB_SHAREDIR].paramValue);
 
     if ((tmpfp = fopen(tmpfn, "w")) == NULL) {
         ls_syslog(LOG_ERR, fname, "fopen", tmpfn);
@@ -2283,7 +2283,7 @@ int switch_log(void)
         if (fork() == 0) {
             char indexFile[MAXFILENAMELEN];
 
-            sprintf(indexFile, "%s/%s", daemonParams[LSB_SHAREDIR].paramValue,
+            sprintf(indexFile, "%s/%s", lsbParams[LSB_SHAREDIR].paramValue,
                     LSF_JOBIDINDEX_FILENAME);
 
             if (updateJobIdIndexFile(indexFile, elogFname, totalEventFile) <
@@ -2314,7 +2314,7 @@ static int createAcct0File(void)
     FILE *acctPtr, *acct0Ptr;
     int nread, cc, size;
 
-    sprintf(acct0File, "%s/lsb.acct.0", daemonParams[LSB_SHAREDIR].paramValue);
+    sprintf(acct0File, "%s/lsb.acct.0", lsbParams[LSB_SHAREDIR].paramValue);
 
     stat(jlogFname, &st);
     size = st.st_size;
@@ -2370,7 +2370,7 @@ static int createEvent0File(void)
     FILE *eventPtr, *event0Ptr;
 
     sprintf(event0File, "%s/lsb.events.0",
-            daemonParams[LSB_SHAREDIR].paramValue);
+            lsbParams[LSB_SHAREDIR].paramValue);
 
     stat(elogFname, &st);
     size = st.st_size;
@@ -2441,7 +2441,7 @@ static int renameElogFiles(void)
     i = 0;
     do {
         sprintf(tmpfn, "%s/lsb.events.%d",
-                daemonParams[LSB_SHAREDIR].paramValue, ++i);
+                lsbParams[LSB_SHAREDIR].paramValue, ++i);
     } while (stat(tmpfn, &st) == 0);
 
     if (errno != ENOENT) {
@@ -2451,9 +2451,9 @@ static int renameElogFiles(void)
     max = i;
     while (i--) {
         sprintf(tmpfn, "%s/lsb.events.%d",
-                daemonParams[LSB_SHAREDIR].paramValue, i);
+                lsbParams[LSB_SHAREDIR].paramValue, i);
         sprintf(eventfn, "%s/lsb.events.%d",
-                daemonParams[LSB_SHAREDIR].paramValue, i + 1);
+                lsbParams[LSB_SHAREDIR].paramValue, i + 1);
 
         if (rename(tmpfn, eventfn) == -1 && errno != ENOENT) {
             ls_syslog(LOG_ERR, fname, "rename", tmpfn, eventfn);
@@ -2469,7 +2469,7 @@ void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
     char logFn[PATH_MAX];
     FILE *fp;
 
-    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(logFn, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
             jp->shared->jobBill.jobFile);
 
     fp = fopen(logFn, "w");
@@ -2522,11 +2522,11 @@ int rmLogJobInfo_(struct jData *jp, int check)
         }
     }
 
-    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(logFn, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
             req->jobFile);
 
     if (stat(logFn, &st) != 0) {
-        sprintf(logFn, "%s/info/%d", daemonParams[LSB_SHAREDIR].paramValue,
+        sprintf(logFn, "%s/info/%d", lsbParams[LSB_SHAREDIR].paramValue,
                 LSB_ARRAY_JOBID(jp->jobId));
     }
 
@@ -2564,13 +2564,13 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     jf->len = 0;
     jf->data = NULL;
 
-    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(logFn, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
             jpbw->shared->jobBill.jobFile);
 
     fd = open(logFn, O_RDONLY);
 
     if (fd < 0) {
-        sprintf(logFn, "%s/info/%d", daemonParams[LSB_SHAREDIR].paramValue,
+        sprintf(logFn, "%s/info/%d", lsbParams[LSB_SHAREDIR].paramValue,
                 LSB_ARRAY_JOBID(jpbw->jobId));
         fd = open(logFn, O_RDONLY);
     }
@@ -2710,7 +2710,7 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
 #ifdef INTER_DAEMON_AUTH
 
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         getTGT(jpbw, aux_auth_data);
     }
 
@@ -2767,12 +2767,12 @@ char *readJobInfoFile(struct jData *jp, int *len)
     int fd;
     char *buf;
 
-    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(logFn, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
             jp->shared->jobBill.jobFile);
 
     fd = open(logFn, O_RDONLY);
     if (fd < 0) {
-        sprintf(logFn, "%s/info/%d", daemonParams[LSB_SHAREDIR].paramValue,
+        sprintf(logFn, "%s/info/%d", lsbParams[LSB_SHAREDIR].paramValue,
                 LSB_ARRAY_JOBID(jp->jobId));
         fd = open(logFn, O_RDONLY);
     };
@@ -2801,12 +2801,12 @@ void writeJobInfoFile(struct jData *jp, char *jf, int len)
     char logFn[MAXFILENAMELEN];
     int fd, errnoSv;
 
-    sprintf(logFn, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(logFn, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
             jp->shared->jobBill.jobFile);
 
     fd = open(logFn, O_CREAT | O_TRUNC | O_WRONLY, 0600);
     if (fd < 0) {
-        sprintf(logFn, "%s/info/%d", daemonParams[LSB_SHAREDIR].paramValue,
+        sprintf(logFn, "%s/info/%d", lsbParams[LSB_SHAREDIR].paramValue,
                 LSB_ARRAY_JOBID(jp->jobId));
         fd = open(logFn, O_CREAT | O_TRUNC | O_WRONLY, 0600);
     }
@@ -2836,9 +2836,9 @@ int replaceJobInfoFile(char *jobFileName, char *newCommand, char *jobStarter,
     int nbyte;
     FILE *fdi, *fdo;
 
-    sprintf(jobFile, "%s/info/%s", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(jobFile, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
             jobFileName);
-    sprintf(workFile, "%s/info/%s.tmp", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(workFile, "%s/info/%s.tmp", lsbParams[LSB_SHAREDIR].paramValue,
             jobFileName);
 
     if ((fdi = fopen(jobFile, "r")) == NULL) {
@@ -4144,12 +4144,12 @@ static int renameAcctLogFiles(int fileLimit)
     if (fileLimit > 0) {
         do {
             sprintf(tmpfn, "%s/lsb.acct.%d",
-                    daemonParams[LSB_SHAREDIR].paramValue, ++i);
+                    lsbParams[LSB_SHAREDIR].paramValue, ++i);
         } while ((stat(tmpfn, &st) == 0) && (i < fileLimit));
     } else {
         do {
             sprintf(tmpfn, "%s/lsb.acct.%d",
-                    daemonParams[LSB_SHAREDIR].paramValue, ++i);
+                    lsbParams[LSB_SHAREDIR].paramValue, ++i);
         } while (stat(tmpfn, &st) == 0);
     }
 
@@ -4159,9 +4159,9 @@ static int renameAcctLogFiles(int fileLimit)
 
     max = i;
     while (i--) {
-        sprintf(tmpfn, "%s/lsb.acct.%d", daemonParams[LSB_SHAREDIR].paramValue,
+        sprintf(tmpfn, "%s/lsb.acct.%d", lsbParams[LSB_SHAREDIR].paramValue,
                 i);
-        sprintf(acctfn, "%s/lsb.acct.%d", daemonParams[LSB_SHAREDIR].paramValue,
+        sprintf(acctfn, "%s/lsb.acct.%d", lsbParams[LSB_SHAREDIR].paramValue,
                 i + 1);
 
         if (rename(tmpfn, acctfn) == -1 && errno != ENOENT) {

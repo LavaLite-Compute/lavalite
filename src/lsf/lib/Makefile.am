@@ -38,7 +38,6 @@ libll_a_SOURCES = \
     lib.initenv.c \
     lib.lim.c \
     lib.limits.c \
-    lib.load.c \
     lib.lsf.c \
     lib.misc.c \
     lib.place.c \

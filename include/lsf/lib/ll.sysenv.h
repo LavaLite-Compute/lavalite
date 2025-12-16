@@ -34,6 +34,7 @@ typedef enum {
     LSF_RES_PORT,
     LSF_LOG_MASK,
     LSF_MASTER_LIST,
+    LSF_ROOT_REX,
 
     // LIM-specific
     LSF_DEBUG_LIM,

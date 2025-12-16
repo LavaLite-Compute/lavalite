@@ -805,54 +805,47 @@ void getLsbHostInfo(void)
     if (logclass & (LC_TRACE | LC_SCHED))
         ls_syslog(LOG_DEBUG3, "%s: Entering this routine...", fname);
 
-    getLsfHostInfo(FALSE);
+    load_host_list();
 
     numofprocs = 0;
-    for (i = 0; i < numLsfHosts; i++) {
+    for (i = 0; i < host_count; i++) {
         struct hData *hD;
         bool_t isChanged = FALSE;
-        if (lsfHostInfo[i].isServer != TRUE)
+        if (host_list[i].isServer != TRUE)
             continue;
 
-        if ((hD = getHostData(lsfHostInfo[i].hostName)) == NULL) {
+        if ((hD = getHostData(host_list[i].hostName)) == NULL) {
             if (logclass & LC_TRACE)
                 ls_syslog(LOG_DEBUG2, "%s: Host <%s> not found", fname,
-                          lsfHostInfo[i].hostName);
+                          host_list[i].hostName);
             continue;
         }
 
-        isChanged = (hD->cpuFactor != lsfHostInfo[i].cpuFactor ||
+        isChanged = (hD->cpuFactor != host_list[i].cpuFactor ||
 
-                     (hD->numCPUs != lsfHostInfo[i].maxCpus &&
-                      hD->numCPUs != 0 && lsfHostInfo[i].maxCpus != 0) ||
-                     hD->maxMem != lsfHostInfo[i].maxMem ||
-                     hD->maxSwap != lsfHostInfo[i].maxSwap ||
-                     hD->maxTmp != lsfHostInfo[i].maxTmp ||
-                     strcmp(hD->hostType, lsfHostInfo[i].hostType) != 0 ||
-                     strcmp(hD->hostModel, lsfHostInfo[i].hostModel) != 0);
-        hD->cpuFactor = lsfHostInfo[i].cpuFactor;
-        if (lsfHostInfo[i].maxCpus <= 0) {
+                     (hD->numCPUs != host_list[i].maxCpus &&
+                      hD->numCPUs != 0 && host_list[i].maxCpus != 0) ||
+                     hD->maxMem != host_list[i].maxMem ||
+                     hD->maxSwap != host_list[i].maxSwap ||
+                     hD->maxTmp != host_list[i].maxTmp ||
+                     strcmp(hD->hostType, host_list[i].hostType) != 0 ||
+                     strcmp(hD->hostModel, host_list[i].hostModel) != 0);
+        hD->cpuFactor = host_list[i].cpuFactor;
+        if (host_list[i].maxCpus <= 0) {
             hD->numCPUs = 1;
         } else
-            hD->numCPUs = lsfHostInfo[i].maxCpus;
+            hD->numCPUs = host_list[i].maxCpus;
 
         if (hD->flags & HOST_AUTOCONF_MXJ) {
             hD->maxJobs = hD->numCPUs;
         }
 
-        if (daemonParams[LSB_VIRTUAL_SLOT].paramValue) {
-            if (!strcasecmp("y", daemonParams[LSB_VIRTUAL_SLOT].paramValue)) {
-                if (hD->maxJobs > 0 && hD->maxJobs < INFINIT_INT) {
-                    hD->numCPUs = hD->maxJobs;
-                }
-            }
-        }
         numofprocs += hD->numCPUs;
         FREEUP(hD->hostType);
-        hD->hostType = safeSave(lsfHostInfo[i].hostType);
+        hD->hostType = safeSave(host_list[i].hostType);
         FREEUP(hD->hostModel);
-        hD->hostModel = safeSave(lsfHostInfo[i].hostModel);
-        hD->maxMem = lsfHostInfo[i].maxMem;
+        hD->hostModel = safeSave(host_list[i].hostModel);
+        hD->maxMem = host_list[i].maxMem;
         if (hD->leftRusageMem == INFINITY && hD->maxMem != 0) {
             hD->leftRusageMem = hD->maxMem;
             if (logclass & LC_TRACE)
@@ -860,12 +853,12 @@ void getLsbHostInfo(void)
                           fname, hD->host, hD->leftRusageMem);
         }
 
-        hD->maxSwap = lsfHostInfo[i].maxSwap;
-        hD->maxTmp = lsfHostInfo[i].maxTmp;
-        hD->nDisks = lsfHostInfo[i].nDisks;
+        hD->maxSwap = host_list[i].maxSwap;
+        hD->maxTmp = host_list[i].maxTmp;
+        hD->nDisks = host_list[i].nDisks;
         FREEUP(hD->resBitMaps);
         hD->resBitMaps =
-            getResMaps(lsfHostInfo[i].nRes, lsfHostInfo[i].resources);
+            getResMaps(host_list[i].nRes, host_list[i].resources);
 
         if (isChanged && hD->maxMem > 0 && hD->maxMem < INFINIT_INT &&
             hD->maxSwap > 0 && hD->maxSwap < INFINIT_INT && hD->maxTmp > 0 &&
@@ -874,10 +867,10 @@ void getLsbHostInfo(void)
                 ls_syslog(LOG_DEBUG2,
                           "%s: host <%s> ncpus <%d> maxmem <%d> maxswp <%u> "
                           "maxtmp <%u> ndisk <%d>",
-                          fname, lsfHostInfo[i].hostName,
-                          lsfHostInfo[i].maxCpus, lsfHostInfo[i].maxMem,
-                          lsfHostInfo[i].maxSwap, lsfHostInfo[i].maxTmp,
-                          lsfHostInfo[i].nDisks);
+                          fname, host_list[i].hostName,
+                          host_list[i].maxCpus, host_list[i].maxMem,
+                          host_list[i].maxSwap, host_list[i].maxTmp,
+                          host_list[i].nDisks);
             }
         }
     }
@@ -888,80 +881,6 @@ void getLsbHostInfo(void)
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG2, "%s: Leaving this routine...", fname);
-}
-
-int getLsbHostLoad(void)
-{
-    static char fname[] = "getLsbHostLoad";
-    static int errorcnt = 0;
-    struct hostLoad *hosts;
-    int i, numhosts = 0, num = 0, j;
-    struct hData *hD;
-    struct jData *jpbw;
-    char **hostNames;
-
-    if (logclass & (LC_TRACE | LC_SCHED))
-        ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
-
-    if ((numhosts = getLsbHostNames(&hostNames)) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "getLsbHostNames");
-        mbdDie(MASTER_FATAL);
-    }
-
-    hosts = ls_loadofhosts("-:server", &num, EFFECTIVE | LOCAL_ONLY, NULL,
-                           hostNames, numhosts);
-
-    if (hosts == NULL) {
-        if (lserrno == LSE_LIM_DOWN) {
-            ls_syslog(LOG_ERR, "%s: failed, lim is down", __func__);
-            mbdDie(MASTER_FATAL);
-        }
-
-        errorcnt++;
-        if (errorcnt > MAX_FAIL) {
-            ls_syslog(LOG_ERR, "%s: failed for %d times: %M", __func__,
-                      errorcnt);
-            mbdDie(MASTER_FATAL);
-        }
-        return -1;
-    }
-
-    errorcnt = 0;
-
-    if (num < numhosts)
-        ls_syslog(LOG_ERR, "%s: LIM only returns %d hosts, but mbatchd has %d",
-                  fname, num, numhosts);
-
-    for (i = 0; i < num; i++) {
-        if (logclass & LC_SCHED)
-            ls_syslog(LOG_DEBUG3, "%s: <%s> host status %x", fname,
-                      hosts[i].hostName, hosts[i].status[0]);
-
-        if ((hD = getHostData(hosts[i].hostName)) == NULL) {
-            ls_syslog(LOG_ERR, "%s", __func__, "getHostData",
-                      hosts[i].hostName);
-            mbdDie(MASTER_FATAL);
-        }
-
-        if (!LS_ISUNAVAIL(hosts[i].status))
-            hD->hStatus &= ~HOST_STAT_NO_LIM;
-
-        for (j = 0; j < allLsInfo->numIndx; j++) {
-            hD->lsfLoad[j] = hosts[i].li[j];
-            hD->lsbLoad[j] = hosts[i].li[j];
-        }
-        for (j = 0; j < 1 + GET_INTNUM(allLsInfo->numIndx); j++)
-            hD->limStatus[j] = hosts[i].status[j];
-        hD->flags |= HOST_UPDATE_LOAD;
-    }
-
-    for (jpbw = jDataList[SJL]->back; (jpbw != jDataList[SJL]);
-         jpbw = jpbw->back) {
-        adjLsbLoad(jpbw, FALSE, TRUE);
-    }
-
-    setHostBLStatus();
-    return 0;
 }
 
 int getHostsByResReq(struct resVal *resValPtr, int *num, struct hData **hosts,
@@ -1371,110 +1290,27 @@ struct resVal *getReserveValues(struct resVal *jobResVal,
     return &resVal;
 }
 
-static void setHostBLStatus(void)
+void load_host_list(void)
 {
-    int k, i;
-    sTab hashSearchPtr;
-    hEnt *hashEntryPtr;
-    struct hData *hData;
-
-    hashEntryPtr = h_firstEnt_(&hDataList, &hashSearchPtr);
-    while (hashEntryPtr) {
-        hData = (struct hData *) hashEntryPtr->hData;
-
-        hashEntryPtr = h_nextEnt_(&hashSearchPtr);
-        if (strcmp(hData->host, LOST_AND_FOUND) == 0 ||
-            hData->limStatus == NULL || hData->lsbLoad == NULL)
-            continue;
-
-        hData->hStatus &= ~HOST_STAT_BUSY;
-        hData->hStatus &= ~HOST_STAT_LOCKED;
-        hData->hStatus &= ~HOST_STAT_LOCKED_MASTER;
-
-        for (i = 0; i < GET_INTNUM(allLsInfo->numIndx); i++) {
-            hData->busyStop[i] = 0;
-            hData->busySched[i] = 0;
-        }
-        if (LS_ISLOCKEDU(hData->limStatus))
-            hData->hStatus |= HOST_STAT_LOCKED;
-
-        if (LS_ISLOCKEDM(hData->limStatus)) {
-            hData->hStatus |= HOST_STAT_LOCKED_MASTER;
-        }
-        for (k = 0; k < allLsInfo->numIndx; k++) {
-            if (hData->lsbLoad[k] >= INFINITY || hData->lsbLoad[k] <= -INFINITY)
-                continue;
-            if (allLsInfo->resTable[k].orderType == INCR) {
-                if (hData->lsfLoad[k] >= hData->loadStop[k]) {
-                    hData->hStatus |= HOST_STAT_BUSY;
-                    SET_BIT(k, hData->busyStop);
-                }
-                if (hData->lsbLoad[k] >= hData->loadSched[k]) {
-                    hData->hStatus |= HOST_STAT_BUSY;
-                    SET_BIT(k, hData->busySched);
-                }
-            } else {
-                if (hData->lsfLoad[k] <= hData->loadStop[k]) {
-                    hData->hStatus |= HOST_STAT_BUSY;
-                    SET_BIT(k, hData->busyStop);
-                }
-                if (hData->lsbLoad[k] <= hData->loadSched[k]) {
-                    hData->hStatus |= HOST_STAT_BUSY;
-                    SET_BIT(k, hData->busySched);
-                }
-            }
-        }
+    // LavaLite ls_gethostinfo ignores all the paramers
+    // since mbd is now started by lim this call should never fail
+    host_list = ls_gethostinfo(NULL, &host_count, NULL, 0, 0);
+    if (host_list == NULL) {
+        LS_ERR("ls_gethostinfo() failed");
+        mbdDie(MASTER_FATAL);
     }
-}
-
-void getLsfHostInfo(int retry)
-{
-#define UPDATE_INTERVAL (10 * 60)
-    static char fname[] = "getLsfHostInfo";
-    struct hostInfo *hostList;
-    int i, numHosts;
-
-    TIMEIT(0, hostList = ls_gethostinfo("-", &numHosts, NULL, 0, LOCAL_ONLY),
-           fname);
-
-    for (i = 0;
-         i < 3 && hostList == NULL && lserrno == LSE_TIME_OUT && retry == TRUE;
-         i++) {
-        millisleep_(6000);
-        TIMEIT(0,
-               hostList = ls_gethostinfo("-", &numHosts, NULL, 0, LOCAL_ONLY),
-               fname);
-    }
-    if (hostList == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "ls_gethostinfo");
-        return;
-    }
-
-    if (lsfHostInfo != NULL) {
-        freeLsfHostInfo(lsfHostInfo, numLsfHosts);
-        numLsfHosts = 0;
-        FREEUP(lsfHostInfo);
-    }
-
-    lsfHostInfo = (struct hostInfo *) my_malloc(
-        numHosts * sizeof(struct hostInfo), fname);
-    for (i = 0; i < numHosts; i++) {
-        copyLsfHostInfo(&lsfHostInfo[i], &hostList[i]);
-    }
-
-    numLsfHosts = numHosts;
 }
 
 struct hostInfo *getLsfHostData(char *host)
 {
     int i;
 
-    if (lsfHostInfo == NULL || numLsfHosts <= 0 || host == NULL)
+    if (host_list == NULL || host_count <= 0 || host == NULL)
         return NULL;
 
-    for (i = 0; i < numLsfHosts; i++) {
-        if (equal_host(host, lsfHostInfo[i].hostName))
-            return &lsfHostInfo[i];
+    for (i = 0; i < host_count; i++) {
+        if (equal_host(host, host_list[i].hostName))
+            return &host_list[i];
     }
     return NULL;
 }
@@ -1538,13 +1374,7 @@ static void getAHostInfo(struct hData *hp)
         hp->maxJobs = hp->numCPUs;
     }
 
-    if (daemonParams[LSB_VIRTUAL_SLOT].paramValue) {
-        if (!strcasecmp("y", daemonParams[LSB_VIRTUAL_SLOT].paramValue)) {
-            if (hp->maxJobs > 0 && hp->maxJobs < INFINIT_INT) {
-                hp->numCPUs = hp->maxJobs;
-            }
-        }
-    }
+
     numofprocs += (hp->numCPUs - oldMaxCpus);
     FREEUP(hp->hostType);
     hp->hostType = safeSave(hostInfo[0].hostType);
@@ -1557,18 +1387,18 @@ static void getAHostInfo(struct hData *hp)
     FREEUP(hp->resBitMaps);
     hp->resBitMaps = getResMaps(hostInfo[0].nRes, hostInfo[0].resources);
 
-    for (i = 0; i < numLsfHosts; i++) {
-        if (strcmp(lsfHostInfo[i].hostName, hostInfo[0].hostName) != 0)
+    for (i = 0; i < host_count; i++) {
+        if (strcmp(host_list[i].hostName, hostInfo[0].hostName) != 0)
             continue;
-        FREEUP(lsfHostInfo[i].hostType);
-        FREEUP(lsfHostInfo[i].hostModel);
-        if (lsfHostInfo[i].resources != NULL) {
-            for (j = 0; j < lsfHostInfo[i].nRes; j++) {
-                FREEUP(lsfHostInfo[i].resources[j]);
+        FREEUP(host_list[i].hostType);
+        FREEUP(host_list[i].hostModel);
+        if (host_list[i].resources != NULL) {
+            for (j = 0; j < host_list[i].nRes; j++) {
+                FREEUP(host_list[i].resources[j]);
             }
-            FREEUP(lsfHostInfo[i].resources);
+            FREEUP(host_list[i].resources);
         }
-        copyLsfHostInfo(&lsfHostInfo[i], hostInfo);
+        copyLsfHostInfo(&host_list[i], hostInfo);
         break;
     }
 

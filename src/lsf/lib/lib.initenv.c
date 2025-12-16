@@ -31,7 +31,7 @@ struct config_param genParams[LSF_PARAM_COUNT] = {
     [LSF_RES_PORT] = {"LSF_RES_PORT", NULL},
     [LSF_LOG_MASK] = {"LSF_LOG_MASK", NULL},
     [LSF_MASTER_LIST] = {"LSF_MASTER_LIST", NULL},
-
+    [LSF_ROOT_REX] = {"LSF_ROOT_REX", NULL},
     // LIM-specific
     [LSF_DEBUG_LIM] = {"LSF_DEBUG_LIM", NULL},
     [LSF_TIME_LIM] = {"LSF_TIME_LIM", NULL},

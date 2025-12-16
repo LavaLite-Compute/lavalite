@@ -103,7 +103,8 @@ void die(int sig)
         }
     }
 
-    shutdown(chan_get_sock(batchSock), 2);
+    // Bug fix this
+    // shutdown(chan_sock(batchSock), 2);
 
     exit(sig);
 }
@@ -121,27 +122,27 @@ int portok(struct sockaddr_in *from)
 
 int get_ports(void)
 {
-    if (daemonParams[LSB_MBD_PORT].paramValue == NULL) {
+    if (lsbParams[LSB_MBD_PORT].paramValue == NULL) {
         ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT is not in lsf.conf", __func__);
         return -1;
     }
 
-    mbd_port = atoi(daemonParams[LSB_MBD_PORT].paramValue);
+    mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue);
     if (mbd_port <= 0) {
         ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT <%s> must be a positive number",
-                  __func__, daemonParams[LSB_MBD_PORT].paramValue);
+                  __func__, lsbParams[LSB_MBD_PORT].paramValue);
         return -1;
     }
 
-    if (daemonParams[LSB_SBD_PORT].paramValue == NULL) {
+    if (lsbParams[LSB_SBD_PORT].paramValue == NULL) {
         ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT is not in lsf.conf", __func__);
         return -1;
     }
 
-    sbd_port = atoi(daemonParams[LSB_SBD_PORT].paramValue);
+    sbd_port = atoi(lsbParams[LSB_SBD_PORT].paramValue);
     if (sbd_port <= 0) {
         ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT <%s> must be a positive number",
-                  __func__, daemonParams[LSB_SBD_PORT].paramValue);
+                  __func__, lsbParams[LSB_SBD_PORT].paramValue);
         return -1;
     }
 
@@ -289,25 +290,23 @@ char *my_calloc(int nelem, int esize, char *fileName)
 
 void daemon_doinit(void)
 {
-    if (!daemonParams[LSF_SERVERDIR].paramValue ||
-        !daemonParams[LSB_SHAREDIR].paramValue) {
+    if (!lsbParams[LSF_SERVERDIR].paramValue ||
+        !lsbParams[LSB_SHAREDIR].paramValue) {
         syslog(LOG_ERR,
                "%s: One of the two following parameters "
                "are undefined: %s %s",
-               __func__, daemonParams[LSF_SERVERDIR].paramName,
-               daemonParams[LSB_SHAREDIR].paramName);
+               __func__, lsbParams[LSF_SERVERDIR].paramName,
+               lsbParams[LSB_SHAREDIR].paramName);
         if (masterme)
             die(MASTER_FATAL);
         else
             die(SLAVE_FATAL);
     }
 
-    if (daemonParams[LSB_MAILTO].paramValue == NULL)
-        daemonParams[LSB_MAILTO].paramValue = safeSave(DEFAULT_MAILTO);
-    if (daemonParams[LSB_MAILPROG].paramValue == NULL)
-        daemonParams[LSB_MAILPROG].paramValue = safeSave(DEFAULT_MAILPROG);
-    if (daemonParams[LSB_CRDIR].paramValue == NULL)
-        daemonParams[LSB_CRDIR].paramValue = safeSave(DEFAULT_CRDIR);
+    if (lsbParams[LSB_MAILTO].paramValue == NULL)
+        lsbParams[LSB_MAILTO].paramValue = safeSave(DEFAULT_MAILTO);
+    if (lsbParams[LSB_MAILPROG].paramValue == NULL)
+        lsbParams[LSB_MAILPROG].paramValue = safeSave(DEFAULT_MAILPROG);
 }
 
 void relife(void)
@@ -328,7 +327,7 @@ void relife(void)
         millisleep_(3000);
 
         char buf[LL_PATH_MAX];
-        sprintf(buf, "%s/sbatchd", daemonParams[LSF_SERVERDIR].paramValue);
+        sprintf(buf, "%s/sbatchd", lsbParams[LSF_SERVERDIR].paramValue);
 
         int i = 1;
         if (env_dir != NULL) {
@@ -393,7 +392,7 @@ void errorBack(int chan, int replyCode, struct sockaddr_in *from)
     init_pack_hdr(&replyHdr);
 
     replyHdr.operation = replyCode;
-    io_block(chan_get_sock(chan));
+    io_block(chan_sock(chan));
     if (xdr_encodeMsg(&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
         if (chan_write(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)
             ls_syslog(LOG_ERR, "%s", __func__, "chan_write",

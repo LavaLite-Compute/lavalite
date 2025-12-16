@@ -445,9 +445,9 @@ static void createJobTmpDir(struct jobCard *jobCardPtr)
 
     umask(previousUmask);
 
-    if (daemonParams[LSB_SET_TMPDIR].paramValue != NULL) {
+    if (lsbParams[LSB_SET_TMPDIR].paramValue != NULL) {
         if ((tmpDirName[0] != 0) &&
-            !strcasecmp(daemonParams[LSB_SET_TMPDIR].paramValue, "y")) {
+            !strcasecmp(lsbParams[LSB_SET_TMPDIR].paramValue, "y")) {
             putEnv("TMPDIR", tmpDirName);
         }
     }
@@ -486,7 +486,7 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
         jobSetupStatus(JOB_STAT_PEND, PEND_JOB_NO_FILE, jobCardPtr);
     }
 
-    if ((daemonParams[LSB_BSUBI_OLD].paramValue ||
+    if ((lsbParams[LSB_BSUBI_OLD].paramValue ||
          !PURE_INTERACTIVE(jobSpecsPtr))) {
         xdrmem_create(&xdrs, buf, MSGSIZE, XDR_DECODE);
         if (readDecodeHdr_(chfd, buf, chan_read, &xdrs, &replyHdr) < 0) {
@@ -574,9 +574,9 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
     }
 
     for (i = 1; i < NSIG; i++)
-        (void) Signal_(i, SIG_DFL);
+        (void) signal_set(i, SIG_DFL);
 
-    (void) Signal_(SIGHUP, SIG_IGN);
+    (void) signal_set(SIGHUP, SIG_IGN);
 
     sigemptyset(&newmask);
     sigprocmask(SIG_SETMASK, &newmask, NULL);
@@ -598,7 +598,7 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
     }
 
     if (!(jobCardPtr->jobSpecs.options & SUB_RESTART)) {
-        if (!(!daemonParams[LSB_BSUBI_OLD].paramValue &&
+        if (!(!lsbParams[LSB_BSUBI_OLD].paramValue &&
               PURE_INTERACTIVE(&jobCardPtr->jobSpecs) &&
               !UID_MAPPED(jobCardPtr))) {
             jobSetupStatus(JOB_STAT_RUN, 0, jobCardPtr);
@@ -660,7 +660,7 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
 
             if (logclass & LC_EXEC)
                 ls_syslog(LOG_DEBUG2, "%s: options=%x sock=%d shellPath=%s",
-                          fname, jobSpecsPtr->options, chan_get_sock(chfd),
+                          fname, jobSpecsPtr->options, chan_sock(chfd),
                           shellPath);
 
             putEnv("PATH",
@@ -698,7 +698,7 @@ static char **execArgs(struct jobSpecs *jp, char **execArgv)
     static char *argv[64];
     static char debugStr[10];
 
-    argv[i++] = getDaemonPath_("/res", daemonParams[LSF_SERVERDIR].paramValue);
+    argv[i++] = getDaemonPath_("/res", lsbParams[LSF_SERVERDIR].paramValue);
     if (debug) {
         sprintf(debugStr, "-%d", debug);
         argv[i++] = debugStr;
@@ -956,9 +956,9 @@ int setJobEnv(struct jobCard *jp)
         char tmppath[MAXPATHLEN];
 
         sprintf(tmppath, "/bin:/usr/bin:/sbin:/usr/sbin");
-        if (daemonParams[LSF_BINDIR].paramValue != NULL) {
+        if (lsbParams[LSF_BINDIR].paramValue != NULL) {
             strcat(tmppath, ":");
-            strcat(tmppath, daemonParams[LSF_BINDIR].paramValue);
+            strcat(tmppath, lsbParams[LSF_BINDIR].paramValue);
         }
         putEnv("PATH", tmppath);
     } else {
@@ -967,15 +967,15 @@ int setJobEnv(struct jobCard *jp)
         char *envpath;
         int cc = TRUE;
 
-        if (daemonParams[LSF_BINDIR].paramValue != NULL) {
+        if (lsbParams[LSF_BINDIR].paramValue != NULL) {
             envpath = getenv("PATH");
             if (envpath != NULL) {
-                len = strlen(daemonParams[LSF_BINDIR].paramValue);
-                cc = strncmp(envpath, daemonParams[LSF_BINDIR].paramValue, len);
+                len = strlen(lsbParams[LSF_BINDIR].paramValue);
+                cc = strncmp(envpath, lsbParams[LSF_BINDIR].paramValue, len);
                 if (cc != 0)
                     len += strlen(envpath) + 2;
             } else {
-                len = strlen(daemonParams[LSF_BINDIR].paramValue) + 2;
+                len = strlen(lsbParams[LSF_BINDIR].paramValue) + 2;
             }
             if (cc != 0) {
                 tmppath = malloc(len);
@@ -983,7 +983,7 @@ int setJobEnv(struct jobCard *jp)
                     ls_syslog(LOG_ERR, "%s", __func__, "malloc");
                     exit(-1);
                 }
-                strcpy(tmppath, daemonParams[LSF_BINDIR].paramValue);
+                strcpy(tmppath, lsbParams[LSF_BINDIR].paramValue);
                 if (envpath != NULL) {
                     strcat(tmppath, ":");
                     strcat(tmppath, envpath);
@@ -1012,18 +1012,18 @@ int setJobEnv(struct jobCard *jp)
 
     putEnv("LSF_ENVDIR", env_dir);
 
-    if (daemonParams[LSF_SERVERDIR].paramValue != NULL) {
-        putEnv("LSF_SERVERDIR", daemonParams[LSF_SERVERDIR].paramValue);
+    if (lsbParams[LSF_SERVERDIR].paramValue != NULL) {
+        putEnv("LSF_SERVERDIR", lsbParams[LSF_SERVERDIR].paramValue);
     }
-    if (daemonParams[LSF_BINDIR].paramValue != NULL) {
-        putEnv("LSF_BINDIR", daemonParams[LSF_BINDIR].paramValue);
+    if (lsbParams[LSF_BINDIR].paramValue != NULL) {
+        putEnv("LSF_BINDIR", lsbParams[LSF_BINDIR].paramValue);
     }
-    if (daemonParams[LSF_LIBDIR].paramValue != NULL) {
+    if (lsbParams[LSF_LIBDIR].paramValue != NULL) {
         char path[MAXFILENAMELEN];
 
-        putEnv("LSF_LIBDIR", daemonParams[LSF_LIBDIR].paramValue);
+        putEnv("LSF_LIBDIR", lsbParams[LSF_LIBDIR].paramValue);
 
-        sprintf(path, "%s/%s", daemonParams[LSF_LIBDIR].paramValue, "uid");
+        sprintf(path, "%s/%s", lsbParams[LSF_LIBDIR].paramValue, "uid");
         putEnv("XLSF_UIDDIR", path);
     }
 
@@ -1539,8 +1539,8 @@ static int send_results(struct jobCard *jp)
 
     sprintf(mailSizeStr, "%lld", outfileStat.st_size);
 
-    if (daemonParams[LSB_MAILSIZE_LIMIT].paramValue != NULL) {
-        mailSizeLimit = atol(daemonParams[LSB_MAILSIZE_LIMIT].paramValue);
+    if (lsbParams[LSB_MAILSIZE_LIMIT].paramValue != NULL) {
+        mailSizeLimit = atol(lsbParams[LSB_MAILSIZE_LIMIT].paramValue);
 
         if (mailSizeLimit <= 0) {
             ls_syslog(LOG_ERR,
@@ -2203,7 +2203,7 @@ struct jobCard *addJob(struct jobSpecs *jobSpecs, int mbdVersion)
         }
     renewJobStat(jp);
 
-    if (!(daemonParams[LSB_RENICE_NEVER_AT_RESTART].paramValue)) {
+    if (!(lsbParams[LSB_RENICE_NEVER_AT_RESTART].paramValue)) {
         if (reniceJob(jp) < 0)
             ls_syslog(LOG_DEBUG, "%s: renice job <%s> failed", fname,
                       lsb_jobid2str(jp->jobSpecs.jobId));
@@ -2463,7 +2463,7 @@ void refreshJob(struct jobSpecs *jobSpecs)
 
         jp->needReportRU = TRUE;
 
-        if (!(daemonParams[LSB_RENICE_NEVER_AT_RESTART].paramValue)) {
+        if (!(lsbParams[LSB_RENICE_NEVER_AT_RESTART].paramValue)) {
             if (reniceJob(jp) < 0)
                 ls_syslog(LOG_DEBUG, "refreshJob: reniceJob job <%s> failed",
                           lsb_jobid2str(jp->jobSpecs.jobId));
@@ -2955,7 +2955,7 @@ static void runQPre(struct jobCard *jp, char **variables)
         ls_syslog(LOG_ERR, "pipe() error");
     }
 
-    (void) Signal_(SIGCHLD, SIG_DFL);
+    (void) signal_set(SIGCHLD, SIG_DFL);
 
     if ((pid = fork()) == 0) {
         sigset_t newmask;
@@ -2975,7 +2975,7 @@ static void runQPre(struct jobCard *jp, char **variables)
         chdir("/tmp");
 
         for (i = 1; i < NSIG; i++)
-            Signal_(i, SIG_DFL);
+            signal_set(i, SIG_DFL);
 
         sigemptyset(&newmask);
         sigprocmask(SIG_SETMASK, &newmask, NULL);
@@ -2983,10 +2983,10 @@ static void runQPre(struct jobCard *jp, char **variables)
         alarm(0);
 
         strcpy(tmpStr, "/bin:/usr/bin:/sbin:/usr/sbin:");
-        if (daemonParams[LSF_BINDIR].paramValue != NULL) {
-            if (strlen(daemonParams[LSF_BINDIR].paramValue) <
+        if (lsbParams[LSF_BINDIR].paramValue != NULL) {
+            if (strlen(lsbParams[LSF_BINDIR].paramValue) <
                 (MAXLINELEN - 31)) {
-                strcat(tmpStr, daemonParams[LSF_BINDIR].paramValue);
+                strcat(tmpStr, lsbParams[LSF_BINDIR].paramValue);
             }
         }
         putEnv("PATH", tmpStr);
@@ -3123,7 +3123,7 @@ int runQPost(struct jobCard *jp)
 
     if (jp->jobSpecs.preCmd && jp->jobSpecs.preCmd[0] != '\0') {
         if (!(jp->execJobFlag & JOB_EXEC_QPRE_KNOWN) &&
-            !(daemonParams[LSB_QPOST_EXEC_ENFORCE].paramValue)) {
+            !(lsbParams[LSB_QPOST_EXEC_ENFORCE].paramValue)) {
             chuser(batchId);
             if (logclass & LC_EXEC)
                 ls_syslog(LOG_DEBUG,
@@ -3139,7 +3139,7 @@ int runQPost(struct jobCard *jp)
         }
 
         if (!(jp->execJobFlag & JOB_EXEC_QPRE_OK) &&
-            !(daemonParams[LSB_QPOST_EXEC_ENFORCE].paramValue)) {
+            !(lsbParams[LSB_QPOST_EXEC_ENFORCE].paramValue)) {
             chuser(batchId);
             if (logclass & LC_EXEC)
                 ls_syslog(LOG_DEBUG,
@@ -3199,7 +3199,7 @@ int runQPost(struct jobCard *jp)
     chdir("/tmp");
 
     for (i = 1; i < NSIG; i++)
-        Signal_(i, SIG_DFL);
+        signal_set(i, SIG_DFL);
 
     sigemptyset(&newmask);
     sigprocmask(SIG_SETMASK, &newmask, NULL);
@@ -3207,9 +3207,9 @@ int runQPost(struct jobCard *jp)
     alarm(0);
 
     strcpy(tmpStr, "/bin:/usr/bin:/sbin:/usr/sbin:");
-    if (daemonParams[LSF_BINDIR].paramValue != NULL) {
-        if (strlen(daemonParams[LSF_BINDIR].paramValue) < (MAXLINELEN - 31)) {
-            strcat(tmpStr, daemonParams[LSF_BINDIR].paramValue);
+    if (lsbParams[LSF_BINDIR].paramValue != NULL) {
+        if (strlen(lsbParams[LSF_BINDIR].paramValue) < (MAXLINELEN - 31)) {
+            strcat(tmpStr, lsbParams[LSF_BINDIR].paramValue);
         }
     }
     putEnv("PATH", tmpStr);
@@ -3286,9 +3286,9 @@ int postJobSetup(struct jobCard *jp)
     closeBatchSocket();
     sbdChildCloseChan(-1);
 
-    Signal_(SIGCHLD, SIG_DFL);
-    Signal_(SIGTERM, SIG_IGN);
-    Signal_(SIGINT, SIG_IGN);
+    signal_set(SIGCHLD, SIG_DFL);
+    signal_set(SIGTERM, SIG_IGN);
+    signal_set(SIGINT, SIG_IGN);
 
     if (setsid() == -1) {
         if (getpid() != getpgrp()) {
@@ -3383,9 +3383,9 @@ void runUPre(struct jobCard *jp)
         }
 
         for (i = 1; i < NSIG; i++)
-            (void) Signal_(i, SIG_DFL);
+            (void) signal_set(i, SIG_DFL);
 
-        (void) Signal_(SIGHUP, SIG_IGN);
+        (void) signal_set(SIGHUP, SIG_IGN);
 
         execl("/bin/sh", "/bin/sh", "-c", jp->jobSpecs.preExecCmd, NULL);
         sprintf(errMsg, I18N_JOB_FAIL_S_M, fname,
@@ -3823,10 +3823,10 @@ int sbdParent(char *mode, struct jobCard *jCard, int chfd)
                   "%s: job <%s> mode <%s> hpipe[0]=%d, hpipe[1]=%d, "
                   "wrapPipe[0]=%d, wrapPipe[1]=%d, mbdHandle=%d",
                   fname, lsb_jobidinstr(jCard->jobSpecs.jobId), mode, hpipe[0],
-                  hpipe[1], wrapPipe[0], wrapPipe[1], chan_get_sock(chfd));
+                  hpipe[1], wrapPipe[0], wrapPipe[1], chan_sock(chfd));
 
     if (chfd >= 0) {
-        sprintf(hndlbuf, "%d:%d", hpipe[1], chan_get_sock(chfd));
+        sprintf(hndlbuf, "%d:%d", hpipe[1], chan_sock(chfd));
     } else {
         sprintf(hndlbuf, "%d:0", hpipe[1]);
     }
@@ -3853,7 +3853,7 @@ int sbdParent(char *mode, struct jobCard *jCard, int chfd)
     }
 
     sbdChildArgs[cc++] =
-        getDaemonPath_("/daemons.wrap", daemonParams[LSF_SERVERDIR].paramValue);
+        getDaemonPath_("/daemons.wrap", lsbParams[LSF_SERVERDIR].paramValue);
     putEnv("LSF_EXEC", "sbatchd");
     sbdChildArgs[cc++] = "-d";
     sbdChildArgs[cc++] = env_dir;
@@ -3939,7 +3939,7 @@ int sbdParent(char *mode, struct jobCard *jCard, int chfd)
     }
     close(wrapPipe[0]);
     if (chfd > 0) {
-        jCard->servSocket = chan_get_sock(batchSock);
+        jCard->servSocket = chan_sock(batchSock);
     }
 
     jCard->clusterName = clusterName;
@@ -4007,11 +4007,11 @@ void sbdChild(char *mode, char *arg)
 
     daemon_doinit();
 
-    getLogClass_(daemonParams[LSB_DEBUG_SBD].paramValue,
-                 daemonParams[LSB_TIME_SBD].paramValue);
+    getLogClass_(lsbParams[LSB_DEBUG_SBD].paramValue,
+                 lsbParams[LSB_TIME_SBD].paramValue);
 
-    openChildLog("sbatchdc", daemonParams[LSF_LOGDIR].paramValue, (debug > 1),
-                 &(daemonParams[LSF_LOG_MASK].paramValue));
+    openChildLog("sbatchdc", lsbParams[LSF_LOGDIR].paramValue, (debug > 1),
+                 &(lsbParams[LSF_LOG_MASK].paramValue));
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: mode <%s> sbdHandle=%d mbdHandle=%d", fname,

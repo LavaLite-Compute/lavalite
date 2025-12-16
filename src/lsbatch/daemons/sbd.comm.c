@@ -125,7 +125,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
         seq = 1;
 
 #ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         if (getSbdAuth(&auth_data)) {
             ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
             return -1;
@@ -221,7 +221,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
         timeval.tv_sec = 0;
         timeval.tv_usec = 0;
 
-        if (rd_select_(chan_get_sock(statusChan), &timeval) == 0) {
+        if (rd_select_(chan_sock(statusChan), &timeval) == 0) {
             jp->needReportRU = FALSE;
             jp->lastStatusMbdTime = now;
             return 0;
@@ -477,7 +477,7 @@ static int msgSbd(int64_t jobId, char *req, sbdReqType reqType,
     }
 
     for (retryInterval = 5, cc = -1; cc != 0;) {
-        initenv_(daemonParams, env_dir);
+        initenv_(lsbParams, env_dir);
         get_ports();
 
         if ((myhostnm = ls_getmyhostname()) == NULL) {
@@ -538,11 +538,11 @@ int msgSupervisor(struct lsbMsg *lsbMsg, struct clientNode *cliPtr)
         return -1;
     }
 
-    if ((cc = b_write_fix(chan_get_sock(cliPtr->chanfd), reqBuf,
+    if ((cc = b_write_fix(chan_sock(cliPtr->chanfd), reqBuf,
                           XDR_GETPOS(&xdrs))) != XDR_GETPOS(&xdrs)) {
         if (logclass & LC_COMM)
             ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix",
-                      chan_get_sock(cliPtr->chanfd), XDR_GETPOS(&xdrs));
+                      chan_sock(cliPtr->chanfd), XDR_GETPOS(&xdrs));
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -558,7 +558,7 @@ int getSbdAuth(struct lsfAuth *auth)
     int rc;
     char buf[1024];
 
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue == NULL)
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue == NULL)
         return 0;
 
     putEauthClientEnvVar("sbatchd");
@@ -598,7 +598,7 @@ int sendUnreportedStatus(struct chunkStatusReq *chunkStatusReq)
         return -1;
 
 #ifdef INTER_DAEMON_AUTH
-    if (daemonParams[LSF_AUTH_DAEMONS].paramValue) {
+    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
         if (getSbdAuth(&auth_data)) {
             ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
             return -1;

@@ -63,7 +63,7 @@ int getElock(void)
     }
 
 #define EVENT_LOCK_FILE "#lsb.event.lock"
-    sprintf(lockfile, "%s/%s", daemonParams[LSB_SHAREDIR].paramValue,
+    sprintf(lockfile, "%s/%s", lsbParams[LSB_SHAREDIR].paramValue,
             EVENT_LOCK_FILE);
 
 access:

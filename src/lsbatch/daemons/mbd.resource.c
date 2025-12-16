@@ -211,6 +211,10 @@ static void initHostInstances(int num)
     hEnt *hashEntryPtr;
     struct hData *hData;
 
+    // Bug toilet rule
+    if (num <= 0)
+        return;
+
     hashEntryPtr = h_firstEnt_(&hDataList, &hashSearchPtr);
     while (hashEntryPtr) {
         hData = (struct hData *) hashEntryPtr->hData;

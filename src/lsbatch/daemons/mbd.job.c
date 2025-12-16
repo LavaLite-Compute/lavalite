@@ -1,5 +1,6 @@
-/* $Id: mbd.job.c,v 1.26 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) 2024-2025 LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -163,7 +164,7 @@ int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     hData = getHostData(subReq->fromHost);
     if (hData == NULL) {
         if ((hinfo = getLsfHostData(subReq->fromHost)) == NULL) {
-            getLsfHostInfo(FALSE);
+            load_host_list();
             hinfo = getLsfHostData(subReq->fromHost);
         }
         if (hinfo == NULL) {
@@ -4983,8 +4984,8 @@ static int modifyAJob(struct modifyReq *req, struct submitMbdReply *reply,
 
     if (IS_START(jpbw->jStatus) &&
         (req->submitReq.rLimits[LSF_RLIMIT_CPU] != DEFAULT_RLIMIT) &&
-        ((daemonParams[LSB_JOB_CPULIMIT].paramValue == NULL) ||
-         strcasecmp(daemonParams[LSB_JOB_CPULIMIT].paramValue, "y"))) {
+        ((lsbParams[LSB_JOB_CPULIMIT].paramValue == NULL) ||
+         strcasecmp(lsbParams[LSB_JOB_CPULIMIT].paramValue, "y"))) {
         int limit, ret;
 
         ret = normalCpuLimit(jpbw, req->submitReq, &limit);
@@ -4998,8 +4999,8 @@ static int modifyAJob(struct modifyReq *req, struct submitMbdReply *reply,
         (req->submitReq.rLimits[LSF_RLIMIT_RSS] != DEFAULT_RLIMIT) &&
         (req->submitReq.rLimits[LSF_RLIMIT_RSS] !=
          jpbw->shared->jobBill.rLimits[LSF_RLIMIT_RSS]) &&
-        ((daemonParams[LSB_JOB_MEMLIMIT].paramValue == NULL) ||
-         strcasecmp(daemonParams[LSB_JOB_MEMLIMIT].paramValue, "y"))) {
+        ((lsbParams[LSB_JOB_MEMLIMIT].paramValue == NULL) ||
+         strcasecmp(lsbParams[LSB_JOB_MEMLIMIT].paramValue, "y"))) {
         return LSBE_MOD_MEMLIMIT;
     }
 

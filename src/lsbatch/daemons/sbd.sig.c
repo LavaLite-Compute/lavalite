@@ -612,8 +612,8 @@ int jobsig(struct jobCard *jp, int sig, int forkSig)
     if (sig == SIGSTOP) {
         int stopSig;
 
-        if (daemonParams[LSB_SIGSTOP].paramValue &&
-            (stopSig = getSigVal(daemonParams[LSB_SIGSTOP].paramValue)) > 0) {
+        if (lsbParams[LSB_SIGSTOP].paramValue &&
+            (stopSig = getSigVal(lsbParams[LSB_SIGSTOP].paramValue)) > 0) {
             sig = stopSig;
         } else {
             if (jp->jobSpecs.numToHosts > 1 ||
@@ -1125,7 +1125,7 @@ void exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile)
         }
 
         for (i = 1; i < NSIG; i++)
-            Signal_(i, SIG_DFL);
+            signal_set(i, SIG_DFL);
 
         sigemptyset(&newmask);
         sigprocmask(SIG_SETMASK, &newmask, NULL);
@@ -1268,10 +1268,10 @@ void execRestart(struct jobCard *jobCardPtr, struct hostent *hp)
     char oldJobId[20], newJobId[20];
     char *strPtr;
 
-    Signal_(SIGTERM, SIG_IGN);
-    Signal_(SIGINT, SIG_IGN);
-    Signal_(SIGUSR1, SIG_IGN);
-    Signal_(SIGUSR2, SIG_IGN);
+    signal_set(SIGTERM, SIG_IGN);
+    signal_set(SIGINT, SIG_IGN);
+    signal_set(SIGUSR1, SIG_IGN);
+    signal_set(SIGUSR2, SIG_IGN);
 
     if (((strPtr = strrchr(jspecs->chkpntDir, '/')) != NULL) &&
         (islongint_(strPtr + 1))) {
@@ -1744,7 +1744,7 @@ void suspendUntilSignal(int signo)
 {
     sigset_t sigMask;
 
-    Signal_(signo, sig_wakeup);
+    signal_set(signo, sig_wakeup);
 
     sigfillset(&sigMask);
     sigdelset(&sigMask, signo);
@@ -1757,7 +1757,7 @@ char *getEchkpntDir(char *name)
     char *echkpnt_dir;
 
     if ((echkpnt_dir = getenv("LSF_ECHKPNTDIR")) == NULL)
-        if ((echkpnt_dir = daemonParams[LSF_SERVERDIR].paramValue) == NULL) {
+        if ((echkpnt_dir = lsbParams[LSF_SERVERDIR].paramValue) == NULL) {
           perror("Can't access echkpnt("));
           return NULL;
         }

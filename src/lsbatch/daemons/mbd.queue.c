@@ -24,11 +24,7 @@ struct hTab jobIdHT;
 struct hTab jgrpIdHT;
 
 static int isDefQueue(char *);
-
 static int checkHU(char *, char *, struct qData *);
-
-static int getCheckList(struct infoReq *, char **, char **);
-
 static time_t runWindowCloseTime(struct qData *);
 
 void inQueueList(struct qData *entry)
@@ -163,10 +159,6 @@ int checkQueues(struct infoReq *queueInfoReqPtr,
         queueInfoReqPtr->numNames = 1;
         defaultQ = TRUE;
     }
-
-    if ((checkRet = getCheckList(queueInfoReqPtr, &checkHosts, &checkUsers)) !=
-        LSBE_NO_ERROR)
-        return checkRet;
 
     for (j = 0; j < queueInfoReqPtr->numNames; j++) {
         for (qp = qDataList->back; (qp != qDataList); qp = next) {
@@ -520,76 +512,6 @@ static int checkHU(char *hostList, char *userList, struct qData *qp)
             if (!gMember(sp, qp->uGPtr))
 
                 return LSBE_QUEUE_USE;
-
-    return LSBE_NO_ERROR;
-}
-
-static int getCheckList(struct infoReq *qInfoReq, char **hostList,
-                        char **userList)
-{
-    char *sp;
-    int numNames;
-    struct gData *gp;
-    struct passwd *pp;
-    char **allHosts;
-    int numAllHosts, i;
-
-    *hostList = NULL;
-    *userList = NULL;
-    numNames = qInfoReq->numNames;
-
-    if (qInfoReq->options & CHECK_USER) {
-        sp = qInfoReq->names[numNames];
-        ++numNames;
-
-        if (strcmp(sp, "all") == 0)
-            *userList = safeSave(sp);
-        else if ((pp = getpwnam2(sp)) != NULL) {
-            if (!is_manager(sp) && pp->pw_uid != 0) {
-                *userList = safeSave(sp);
-            }
-        } else if ((gp = getUGrpData(sp)) != NULL)
-            *userList = getGroupMembers(gp, TRUE);
-        else
-            *userList = safeSave(sp);
-    }
-
-    if (qInfoReq->options & CHECK_HOST) {
-        sp = qInfoReq->names[numNames];
-        struct ll_host hp;
-        if (strcmp(sp, "all") == 0)
-            *hostList = safeSave(sp);
-        else if (get_host_by_name(sp, &hp) == 0)
-            *hostList = safeSave(hp.name);
-        else if ((gp = getHGrpData(sp)) != NULL)
-            *hostList = getGroupMembers(gp, TRUE);
-        else
-            return LSBE_BAD_HOST;
-
-        if (hostList == NULL) {
-            return LSBE_BAD_HOST;
-        }
-        if (strcmp(*hostList, "all") == 0) {
-            FREEUP(*hostList);
-            if ((numAllHosts = getLsbHostNames(&allHosts)) <= 0) {
-                ls_syslog(LOG_ERR, "getCheckList: Unable to obtain host list");
-                return LSBE_BAD_HOST;
-            }
-            (*hostList) =
-                (char *) my_malloc(numAllHosts * MAXLSFNAMELEN, "getCheckList");
-            if (*hostList == NULL) {
-                ls_syslog(LOG_ERR, "getCheckList", "my_malloc");
-                return LSBE_BAD_HOST;
-            }
-            (*hostList)[0] = '\0';
-            for (i = 0; i < numAllHosts; i++) {
-                strcat(*hostList, allHosts[i]);
-                if (i < numAllHosts - 1) {
-                    strcat(*hostList, " ");
-                }
-            }
-        }
-    }
 
     return LSBE_NO_ERROR;
 }

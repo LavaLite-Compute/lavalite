@@ -200,10 +200,10 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
 
     /* Allocate request buffers once */
     if (!req_initialized) {
-        jobInfoReq.jobName = malloc(MAX_CMD_DESC_LEN);
-        jobInfoReq.queue = malloc(LL_BUFSIZ_32);
-        jobInfoReq.userName = malloc(LL_BUFSIZ_32);
-        jobInfoReq.host = malloc(MAXHOSTNAMELEN);
+        jobInfoReq.userName = calloc(LL_BUFSIZ_32, sizeof(char));
+        jobInfoReq.jobName = calloc(LL_BUFSIZ_256, sizeof(char));
+        jobInfoReq.queue = calloc(LL_BUFSIZ_32, sizeof(char));
+        jobInfoReq.host = calloc(MAXHOSTNAMELEN, sizeof(char));
 
         if (!jobInfoReq.jobName || !jobInfoReq.queue || !jobInfoReq.userName ||
             !jobInfoReq.host) {
@@ -265,6 +265,7 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
 
     /* Encode */
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
+    init_pack_hdr(&hdr);
     hdr.operation = BATCH_JOB_INFO;
 
     if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReq, &hdr, xdr_jobInfoReq, 0,
