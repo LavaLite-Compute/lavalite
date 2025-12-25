@@ -8,7 +8,7 @@
 
 #include <lsf.h>
 
-#define LOAD_COL_WIDTH 8 // width for each numeric/load column
+#define LOAD_COL_WIDTH 6  /* width for each numeric/load column */
 
 static void print_load_value(int index, const float *li, int unavailable)
 {
@@ -31,9 +31,9 @@ static void print_load_value(int index, const float *li, int unavailable)
         snprintf(buf, sizeof(buf), "%.0f%%", li[index]);
         break;
 
-    case 4: /* pg */
-    case 5: /* io */
-    case 6: /* ls */
+    case 4: /* pg (pages/s) */
+    case 5: /* io (page-io/s) */
+    case 6: /* ls (login sessions; currently 0) */
         snprintf(buf, sizeof(buf), "%.1f", li[index]);
         break;
 
@@ -41,11 +41,15 @@ static void print_load_value(int index, const float *li, int unavailable)
         snprintf(buf, sizeof(buf), "%.0f%%", li[index]);
         break;
 
-    case 8:  /* tmp GB */
-    case 9:  /* swp GB */
-    case 10: /* mem GB */
-        snprintf(buf, sizeof(buf), "%.0fG", li[index]);
+    case 8:  /* tmp: MB -> GB */
+    case 9:  /* swp: MB -> GB */
+    case 10: /* mem: MB -> GB */ {
+        double gb = (double)li[index] / 1024.0;
+
+        /* Classic lsload style: integer GB like "120G" */
+        snprintf(buf, sizeof(buf), "%.0fG", gb);
         break;
+    }
 
     default:
         snprintf(buf, sizeof(buf), "-");
@@ -80,9 +84,12 @@ int main(int argc, char **argv)
     char status_buf[32];
     int i, j;
 
-    static const char *load_headers[] = {"r15s", "r1m", "r15m", "ut",
-                                         "pg",   "io",  "ls",   "it",
-                                         "tmp",  "swp", "mem"};
+    /* Headers: keep names compatible (no G suffix here) */
+    static const char *load_headers[] = {
+        "r15s", "r1m",  "r15m", "ut",
+        "pg",   "io",   "ls",   "it",
+        "tmp",  "swp",  "mem"
+    };
 
     hload = ls_load(resreq, &num_hosts, options, fromhost);
     if (!hload) {

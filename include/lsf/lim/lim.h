@@ -492,6 +492,7 @@ void shutdown_client(struct client_node *);
 void wrong_master(struct client_node *);
 void send_header(struct client_node *, struct packet_header *,
                  enum limReplyCode);
+void lim_proc_init_read_load(int);
 
 #define SWP_INTVL_CNT 45 / exchIntvl
 #define TMP_INTVL_CNT 120 / exchIntvl

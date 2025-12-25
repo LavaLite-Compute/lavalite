@@ -4363,7 +4363,7 @@ int initTypeModel(struct hostNode *me)
     strcpy(me->statInfo.hostType, allInfo.hostTypes[me->hTypeNo]);
 
     if (me->hModelNo == DETECTMODELTYPE) {
-        const char *arch = getHostModel();
+        const char *arch = "x86_64";
 
         me->hModelNo = archNameToNo(arch);
         if (me->hModelNo < 0) {

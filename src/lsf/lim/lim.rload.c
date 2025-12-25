@@ -317,189 +317,37 @@ time_t getXIdle()
 
 void readLoad(void)
 {
-    int i, busyBits = 0;
-    double etime;
-    double itime;
-    static int readCount0 = 10000;
-    static int readCount1 = 5;
-    static int readCount2 = 1500;
-    static float avrun15 = 0.0;
-    float ql;
-    static float avrun1m = 0.0;
-    static float avrun15m = 0.0;
-    static float smpages;
-    static float smkbps;
-    float extrafactor = 0.0;
-    float cpu_usage = 0.0;
-    static float swap;
-    static float instant_ut;
-    static int loginses;
+    int i;
 
-    TIMEIT(0, getusr(), "getusr()");
+    /* 1. Refresh local host load indexes from /proc */
+    lim_proc_read_load();
 
-    if (++readCount0 < (5.0 / sampleIntvl)) {
-        goto checkExchange;
-    }
+    /* 2. For now, we don't derive "busy" from thresholds.
+     *    Just clear the LIM_BUSY summary bit.
+     */
+    myHostPtr->status[0] &= ~LIM_BUSY;
 
-    readCount0 = 0;
-
-    if (queueLengthEx(&avrun15, &avrun1m, &avrun15m) < 0) {
-        ql = queueLength();
-        smooth(&avrun15, ql, EXP3);
-        smooth(&avrun1m, ql, EXP12);
-        smooth(&avrun15m, ql, EXP180);
-    }
-
-    if (++readCount1 < 3)
-        goto checkExchange;
-
-    readCount1 = 0;
-
-    cpuTime(&itime, &etime);
-
-    instant_ut = 1.0 - itime / etime;
-    smooth(&cpu_usage, instant_ut, EXP4);
-    etime /= k_hz;
-    etime = etime / ncpus;
-
-    TIMEIT(0, smpages = getpaging(etime), "getpaging");
-    TIMEIT(0, smkbps = getIoRate(etime), "getIoRate");
-    TIMEIT(0, myHostPtr->loadIndex[IT] = idletime(&loginses), "idletime");
-    TIMEIT(0, swap = getswap(), "getswap");
-    TIMEIT(0, myHostPtr->loadIndex[TMP] = tmpspace(), "tmpspace");
-    TIMEIT(0, myHostPtr->loadIndex[MEM] = realMem(0.0), "realMem");
-
-    if (overRide[UT] < INFINITY)
-        cpu_usage = overRide[UT];
-
-    if (overRide[PG] < INFINITY)
-        smpages = overRide[PG];
-
-    if (overRide[IO] < INFINITY)
-        smkbps = overRide[IO];
-
-    if (overRide[IT] < INFINITY)
-        myHostPtr->loadIndex[IT] = overRide[IT];
-
-    if (overRide[SWP] < INFINITY)
-        swap = overRide[SWP];
-
-    if (overRide[TMP] < INFINITY)
-        myHostPtr->loadIndex[TMP] = overRide[TMP];
-
-    if (overRide[R15S] < INFINITY)
-        avrun15 = overRide[R15S];
-
-    if (overRide[R15S] < INFINITY)
-        avrun15 = overRide[R15S];
-
-    if (overRide[R1M] < INFINITY)
-        avrun1m = overRide[R1M];
-
-    if (overRide[R15M] < INFINITY)
-        avrun15m = overRide[R15M];
-
-    if (overRide[LS] < INFINITY)
-        loginses = overRide[LS];
-
-    if (overRide[MEM] < INFINITY)
-        myHostPtr->loadIndex[MEM] = overRide[MEM];
-
-checkExchange:
-
-    if (++readCount2 < (exchIntvl / sampleIntvl))
-        return;
-    readCount2 = 0;
-
-    myHostPtr->loadIndex[R15S] = avrun15 + extraload[R15S] * extrafactor;
-    myHostPtr->loadIndex[R1M] = avrun1m + extraload[R1M] * extrafactor;
-    myHostPtr->loadIndex[R15M] = avrun15m + extraload[R15M] * extrafactor;
-
-    myHostPtr->loadIndex[UT] = cpu_usage + extraload[UT] * extrafactor;
-    if (myHostPtr->loadIndex[UT] > 1.0)
-        myHostPtr->loadIndex[UT] = 1.0;
-    myHostPtr->loadIndex[PG] = smpages + extraload[PG] * extrafactor;
-    if (myHostPtr->statInfo.nDisks)
-        myHostPtr->loadIndex[IO] = smkbps + extraload[IO] * extrafactor;
-    else
-        myHostPtr->loadIndex[IO] = smkbps;
-    myHostPtr->loadIndex[LS] = loginses + extraload[LS] * extrafactor;
-    myHostPtr->loadIndex[IT] += extraload[IT] * extrafactor;
-    if (myHostPtr->loadIndex[IT] < 0)
-        myHostPtr->loadIndex[IT] = 0;
-    myHostPtr->loadIndex[SWP] = swap + extraload[SWP] * extrafactor;
-    if (myHostPtr->loadIndex[SWP] < 0)
-        myHostPtr->loadIndex[SWP] = 0;
-    myHostPtr->loadIndex[TMP] += extraload[TMP] * extrafactor;
-    if (myHostPtr->loadIndex[TMP] < 0)
-        myHostPtr->loadIndex[TMP] = 0;
-
-    myHostPtr->loadIndex[MEM] += extraload[MEM] * extrafactor;
-    if (myHostPtr->loadIndex[MEM] < 0)
-        myHostPtr->loadIndex[MEM] = 0;
-
-    for (i = 0; i < allInfo.numIndx; i++) {
-        if (i == R15S || i == R1M || i == R15M) {
-            li[i].value = normalizeRq(myHostPtr->loadIndex[i], 1, ncpus) - 1;
-        } else {
-            li[i].value = myHostPtr->loadIndex[i];
-        }
-    }
-
-    for (i = 0; i < allInfo.numIndx; i++) {
-        if ((li[i].increasing && fabs(li[i].value - INFINITY) < 1.0) ||
-            (!li[i].increasing && fabs(li[i].value + INFINITY) < 1.0)) {
-            continue;
-        }
-
-        if (!THRLDOK(li[i].increasing, li[i].value, li[i].satvalue)) {
-            SET_BIT(i + INTEGER_BITS, myHostPtr->status);
-            myHostPtr->status[0] |= LIM_BUSY;
-        } else
-            CLEAR_BIT(i + INTEGER_BITS, myHostPtr->status);
-    }
-    for (i = 0; i < GET_INTNUM(allInfo.numIndx); i++)
-        busyBits += myHostPtr->status[i + 1];
-    if (!busyBits)
-        myHostPtr->status[0] &= ~LIM_BUSY;
-
+    /* 3. User lock handling stays for now */
     if (LOCK_BY_USER(limLock.on)) {
         if (time(0) > limLock.time) {
             limLock.on &= ~LIM_LOCK_STAT_USER;
             limLock.time = 0;
             mustSendLoad = true;
-            myHostPtr->status[0] = myHostPtr->status[0] & ~LIM_LOCKEDU;
+            myHostPtr->status[0] &= ~LIM_LOCKEDU;
         } else {
-            myHostPtr->status[0] = myHostPtr->status[0] | LIM_LOCKEDU;
+            myHostPtr->status[0] |= LIM_LOCKEDU;
         }
     }
 
     myHostPtr->loadMask = 0;
 
+    /* 4. Send current load to the master */
     TIMEIT(0, sendLoad(), "sendLoad()");
 
+    /* 5. Export raw values to uloadIndex for clients */
     for (i = 0; i < allInfo.numIndx; i++) {
-        if (myHostPtr->loadIndex[i] < 0.0f && i < NBUILTINDEX) {
-            myHostPtr->loadIndex[i] = 0.0;
-        }
-
-        if (i == R15S || i == R1M || i == R15M) {
-            float rawql;
-
-            rawql = myHostPtr->loadIndex[i];
-            myHostPtr->loadIndex[i] =
-                normalizeRq(rawql,
-                            (myHostPtr->hModelNo >= 0)
-                                ? shortInfo.cpuFactors[myHostPtr->hModelNo]
-                                : 1.0,
-                            ncpus);
-            myHostPtr->uloadIndex[i] = rawql;
-        } else {
-            myHostPtr->uloadIndex[i] = myHostPtr->loadIndex[i];
-        }
+        myHostPtr->uloadIndex[i] = myHostPtr->loadIndex[i];
     }
-
-    return;
 }
 
 static FILE *lim_popen(char **argv, char *mode)
@@ -1114,20 +962,16 @@ int saveSBValue(char *name, char *value)
 
 void initConfInfo(void)
 {
-    static char fname[] = "initConfInfo()";
-    char *sp;
+   long n = sysconf(_SC_NPROCESSORS_ONLN);
 
-    if ((sp = getenv("LSF_NCPUS")) != NULL)
-        myHostPtr->statInfo.maxCpus = atoi(sp);
-    else
-        myHostPtr->statInfo.maxCpus = numCpus();
-    if (myHostPtr->statInfo.maxCpus <= 0) {
-        ls_syslog(LOG_ERR, "%s: Invalid num of CPUs %d. Default to 1", fname,
-                  myHostPtr->statInfo.maxCpus);
-        myHostPtr->statInfo.maxCpus = 1;
+    if (n < 1) {
+        LS_INFO("sysconf(_SC_NPROCESSORS_ONLN) returned %ld, using 1", n);
+        ncpus = 1;
+    } else {
+        ncpus = (int)n;
     }
 
-    ncpus = myHostPtr->statInfo.maxCpus;
+    LS_INFO("Running on %d CPUS", ncpus);
 
     myHostPtr->statInfo.portno = lim_tcp_port;
     myHostPtr->statInfo.hostNo = myHostPtr->hostNo;

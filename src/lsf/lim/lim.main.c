@@ -456,7 +456,8 @@ static void lim_init(int checkMode)
         lim_Exit("initTcl");
     initParse(&allInfo);
 
-    initReadLoad(checkMode);
+    // Initliaze the load indexes
+    lim_proc_init_read_load(checkMode);
     initTypeModel(myHostPtr);
 
     if (!checkMode) {
