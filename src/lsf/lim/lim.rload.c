@@ -315,6 +315,8 @@ time_t getXIdle()
         return (t - lastTime);
 }
 
+// LavaLite bug move common functions together
+extern void lim_proc_read_load(void);
 void readLoad(void)
 {
     int i;

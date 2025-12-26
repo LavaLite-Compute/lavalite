@@ -50,9 +50,6 @@ static int callLimUDP_(char *, char *, size_t, struct packet_header *, char *,
 
 int32_t lsf_lim_version = -1;
 
-// Global, defined elsewhere; we just clear it here.
-extern bool_t masterLimDown;
-
 int callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
              void *drecv, bool_t (*xdr_rfunc)(), char *host, int options,
              struct packet_header *hdr)
@@ -64,7 +61,6 @@ int callLim_(enum limReqCode reqCode, void *dsend, bool_t (*xdr_sfunc)(),
     // host parameter is legacy we always talk to local LIM for UDP
     (void) host;
 
-    masterLimDown = false;
 
     // We require a transport flag
     if (!(options & (_USE_UDP_ | _USE_TCP_))) {

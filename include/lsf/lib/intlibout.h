@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "lsf/lib/ll_bufsize.h"
+#include "lsf/lib/ll.bufsiz.h"
 #include "lsf/lib/resreq.h"
 #include "lsf/lib/list.h"
 #include "lsf/lib/bitset.h"

@@ -31,9 +31,11 @@
 #endif
 #define LSF_LOG_MASK 4
 
+// LavaLite this is legacy we dont want to print/debug library just follow
+// the signature contract
 int ls_initdebug(const char *appName)
 {
-    char *logMask;
+    const char *logMask;
     struct config_param *pPtr;
     struct config_param debParams[] = {
         {"LSF_DEBUG_CMD", NULL},  {"LSF_TIME_CMD", NULL},
@@ -50,16 +52,13 @@ int ls_initdebug(const char *appName)
 
     if (appName == NULL)
         ls_openlog("lscmd", debParams[LSF_CMD_LOGDIR].paramValue,
-                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
+                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), 0, logMask);
     else {
         if (strrchr(appName, '/') != 0)
             appName = strrchr(appName, '/') + 1;
         ls_openlog(appName, debParams[LSF_CMD_LOGDIR].paramValue,
-                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), logMask);
+                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), 0, logMask);
     }
-
-    getLogClass_(debParams[LSF_DEBUG_CMD].paramValue,
-                 debParams[LSF_TIME_CMD].paramValue);
 
     for (pPtr = debParams; pPtr->paramName != NULL; pPtr++)
         FREEUP(pPtr->paramValue);

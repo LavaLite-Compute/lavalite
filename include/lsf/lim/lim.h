@@ -58,6 +58,7 @@
 #include "lsf/lib/lib.conf.h"
 #include "lsf/lim/limout.h"
 #include "lsf/lib/lib.xdr.h"
+#include "lsf/lib/ll.syslog.h"
 
 #define EXCHINTVL 15
 #define SAMPLINTVL 5

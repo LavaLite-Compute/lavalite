@@ -32,7 +32,6 @@ libll_a_SOURCES = \
     lib.cwd.c \
     lib.debug.c \
     lib.eauth.c \
-    lib.err.c \
     lib.esub.c \
     lib.info.c \
     lib.initenv.c \
@@ -44,7 +43,7 @@ libll_a_SOURCES = \
     lib.priority.c \
     lib.rdwr.c \
     lib.sig.c \
-    lib.syslog.c \
+    ll.syslog.c \
     lib.table.c \
     lib.words.c \
     lib.xdr.c \

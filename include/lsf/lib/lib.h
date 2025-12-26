@@ -13,16 +13,14 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
- *
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
 /* Bug. This function contains lots of crap.
  */
 
-#include "lsf/lib/ll_bufsize.h"
+#include "lsf/lib/ll.bufsiz.h"
 #include "lsf/lib/lib.common.h"
 #include "lsf/lib/lproto.h"
 #include "lsf/lim/limout.h"
@@ -30,6 +28,9 @@
 #include "lsf/lib/ll.host.h"
 #include "lsf/lib/ll.sysenv.h"
 #include "lsf/lib/lib.channel.h"
+
+// LavaLite parachute
+extern __thread int lserrno;
 
 extern char *indexfilter_;
 extern int ls_readconfenv(struct config_param *, const char *);

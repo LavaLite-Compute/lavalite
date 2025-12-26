@@ -562,7 +562,6 @@ extern const char *ls_errmsg[];
 // lserrno is per thread
 extern __thread int lserrno;
 
-extern int masterLimDown;
 extern int ls_nerr;
 extern int logclass;
 extern int timinglevel;

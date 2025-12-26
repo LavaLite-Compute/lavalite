@@ -1,4 +1,3 @@
-#pragma once
 /*
  * Copyright (C) LavaLite Contributors
  *
@@ -18,6 +17,7 @@
  *
  */
 
+#pragma once
 /* Library parameters defining entry in genParams_[] array
  * every system components has its own array of these variables
  * but in different order as some variables are specific to a

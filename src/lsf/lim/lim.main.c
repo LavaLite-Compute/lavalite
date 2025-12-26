@@ -151,9 +151,8 @@ int main(int argc, char **argv)
         if (sp != NULL)
             genParams[LSF_LOGDIR].paramValue = sp;
         ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, lim_debug,
-                   genParams[LSF_LOG_MASK].paramValue);
+                   0, genParams[LSF_LOG_MASK].paramValue);
         ls_syslog(LOG_ERR, "lim: initenv_ %s", env_dir);
-        open_log("lim", genParams[LSF_LOG_MASK].paramValue, true);
         syslog(LOG_ERR, "lim: initenv_() failed %s", env_dir);
         lim_Exit("main");
     }
@@ -168,16 +167,11 @@ int main(int argc, char **argv)
         daemonize_();
     }
 
-    getLogClass_(genParams[LSF_DEBUG_LIM].paramValue,
-                 genParams[LSF_TIME_LIM].paramValue);
-
     if (lim_debug) {
-        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
-        open_log("lim", genParams[LSF_LOG_MASK].paramValue, true);
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, 0, "LOG_DEBUG");
     } else {
-        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, false,
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, false, 0,
                    genParams[LSF_LOG_MASK].paramValue);
-        open_log("lim", genParams[LSF_LOG_MASK].paramValue, false);
     }
 
     if (initMasterList_() < 0) {

@@ -457,10 +457,10 @@ void limDebugReq(XDR *xdrs, struct sockaddr_in *from,
         if (debugReq.level >= 0 || debugReq.logFileName[0] != '\0') {
             closelog();
             if (lim_debug)
-                ls_openlog(logFileName, lsfLogDir, true,
+                ls_openlog(logFileName, lsfLogDir, 1, 0,
                            genParams[LSF_LOG_MASK].paramValue);
             else
-                ls_openlog(logFileName, lsfLogDir, false,
+                ls_openlog(logFileName, lsfLogDir, false, 0,
                            genParams[LSF_LOG_MASK].paramValue);
         }
 
@@ -470,10 +470,10 @@ void limDebugReq(XDR *xdrs, struct sockaddr_in *from,
         if (debugReq.logFileName[0] != '\0') {
             closelog();
             if (lim_debug)
-                ls_openlog(logFileName, lsfLogDir, true,
+                ls_openlog(logFileName, lsfLogDir, true, 0,
                            genParams[LSF_LOG_MASK].paramValue);
             else
-                ls_openlog(logFileName, lsfLogDir, false,
+                ls_openlog(logFileName, lsfLogDir, false, 0,
                            genParams[LSF_LOG_MASK].paramValue);
         }
     }
@@ -511,7 +511,7 @@ static void doReopen(void)
         sp = getenv("LSF_LOGDIR");
         if (sp != NULL)
             genParams[LSF_LOGDIR].paramValue = sp;
-        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, lim_debug,
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, lim_debug, 0,
                    genParams[LSF_LOG_MASK].paramValue);
 
         ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", fname, "ls_openlog",
@@ -519,14 +519,12 @@ static void doReopen(void)
         lim_Exit(fname);
     }
 
-    getLogClass_(genParams[LSF_DEBUG_LIM].paramValue,
-                 genParams[LSF_TIME_LIM].paramValue);
     closelog();
 
     if (lim_debug)
-        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, "LOG_DEBUG");
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, 0, "LOG_DEBUG");
     else
-        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, false,
+        ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, false, 0,
                    genParams[LSF_LOG_MASK].paramValue);
     if (logclass & (LC_TRACE))
         ls_syslog(LOG_DEBUG, "doReopen: logclass=%x", logclass);

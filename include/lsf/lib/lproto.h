@@ -253,11 +253,6 @@ extern void rlimitEncode_(struct lsfLimit *, struct rlimit *, int);
 extern void rlimitDecode_(struct lsfLimit *, struct rlimit *, int);
 
 extern void verrlog_(int level, FILE *fp, const char *fmt, va_list ap);
-extern int getLogClass_(char *, char *);
-extern int getLogMask(char **, char *);
-extern void ls_openlog(const char *, const char *, int, char *);
-extern void ls_closelog(void);
-extern int ls_setlogmask(int maskpri);
 
 extern void initkeylist(struct keymap *, int, int, struct lsInfo *);
 extern void freekeyval(struct keymap *);

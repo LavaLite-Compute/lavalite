@@ -167,56 +167,10 @@ int FCLOSEUP(FILE **fp)
     return 0;
 }
 
+// Old stuff
 void openChildLog(const char *defLogFileName, const char *confLogDir,
                   int use_stderr, char **confLogMaskPtr)
 {
-#define _RES_CHILD_LOGFILENAME "res"
-    static char resChildLogMask[] = "LOG_DEBUG";
-    char *dbgEnv;
-    char logFileName[MAXFILENAMELEN];
-    char *logDir;
-    char *logMask;
-    int isResChild;
-
-    isResChild = !strcmp(defLogFileName, _RES_CHILD_LOGFILENAME);
-
-    dbgEnv = getenv("DYN_DBG_LOGCLASS");
-    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
-        logclass = atoi(dbgEnv);
-    }
-
-    dbgEnv = getenv("DYN_DBG_LOGLEVEL");
-    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
-        putMaskLevel(atoi(dbgEnv), confLogMaskPtr);
-    }
-
-    dbgEnv = getenv("DYN_DBG_LOGFILENAME");
-    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
-        strcpy(logFileName, dbgEnv);
-
-        if (!isResChild) {
-            strcat(logFileName, "c");
-        }
-    } else {
-        strcpy(logFileName, defLogFileName);
-    }
-
-    dbgEnv = getenv("DYN_DBG_LOGDIR");
-    if (dbgEnv != NULL && dbgEnv[0] != '\0') {
-        logDir = dbgEnv;
-    } else {
-        logDir = (char *) confLogDir;
-    }
-
-    if (use_stderr && isResChild) {
-        logMask = resChildLogMask;
-    } else {
-        logMask = *confLogMaskPtr;
-    }
-
-    ls_openlog(logFileName, logDir, use_stderr, logMask);
-
-#undef _RES_CHILD_LOGFILENAME
 }
 
 void displayEnhancementNames(void)
