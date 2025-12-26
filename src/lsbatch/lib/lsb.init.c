@@ -125,13 +125,10 @@ int lsb_init(char *appName)
 
     if (appName == NULL)
         ls_openlog("bcmd", lsbParams[LSB_CMD_LOGDIR].paramValue,
-                   (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), logMask);
+                   (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), 0, logMask);
     else
         ls_openlog(appName, lsbParams[LSB_CMD_LOGDIR].paramValue,
-                   (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), logMask);
-
-    getLogClass_(lsbParams[LSB_DEBUG_CMD].paramValue,
-                 lsbParams[LSB_TIME_CMD].paramValue);
+                   (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), 0, logMask);
 
     if (bExceptionTabInit()) {
         lsberrno = LSBE_LSBLIB;

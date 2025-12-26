@@ -228,7 +228,7 @@ int main(int argc, char **argv)
     if (initenv_(lsbParams, env_dir) < 0) {
         ls_openlog("mbatchd", lsbParams[LSF_LOGDIR].paramValue,
                    (mbd_debug || lsb_CheckMode),
-                   lsbParams[LSF_LOG_MASK].paramValue);
+                   0, lsbParams[LSF_LOG_MASK].paramValue);
         LS_ERR("mbatchd initenv failed, "
                "Bad configuration environment, missing in lsf.conf?");
         return -1;
@@ -1069,14 +1069,14 @@ static void mbd_init_log(void)
 
     // Initialize LavaLite logging
     if (check) {
-        ls_openlog("mbatchd", log_dir, true, (char *)log_mask);
+        ls_openlog("mbatchd", log_dir, true, 0, (char *)log_mask);
         LS_INFO("Starting mbatchd in check mode, console logging only");
     } else if (debug) {
-        ls_openlog("mbatchd", log_dir, true, (char *)log_mask);
+        ls_openlog("mbatchd", log_dir, true, 0, (char *)log_mask);
         LS_INFO("Starting mbatchd in debug mode");
     } else {
         /* Normal production daemon case */
-        ls_openlog("mbatchd", log_dir, false, (char *)log_mask);
+        ls_openlog("mbatchd", log_dir, false, 0, (char *)log_mask);
     }
 
     LS_INFO("Logging initialized: dir=%s mask=%s debug=%d check=%d",

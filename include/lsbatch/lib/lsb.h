@@ -28,6 +28,7 @@
 #include "lsf/lib/lib.h"
 #include "lsbatch/daemons/daemonout.h"
 #include "lsbatch/lib/lsb.xdr.h"
+#include "lsf/lib/ll.syslog.h"
 
 #ifndef MIN
 #define MIN(a, b)                                                              \
