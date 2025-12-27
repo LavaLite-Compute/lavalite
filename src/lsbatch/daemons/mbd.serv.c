@@ -1326,64 +1326,91 @@ int xdrsize_QueueInfoReply(struct queueInfoReply *qInfoReply)
 int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                     struct packet_header *req_hdr)
 {
+    (void)from;
+
     XDR xdrs2;
-    struct infoReq qInfoReq;
-    struct queueInfoReply qInfoReply;
-    int reply;
-    char *reply_buf;
-    int len = 0;
     struct packet_header reply_hdr;
-    char *reply_struct;
+    char *reply_buf = NULL;
+    char *reply_struct = NULL;
+    int reply = LSBE_NO_ERROR;
+    int len = 0;
+    int rc = 0;
 
+    /* Preallocate queue array; we expect checkQueues() to fill this */
+    struct queueInfoReply qInfoReply = {0};
     qInfoReply.numQueues = 0;
-    qInfoReply.queues = (struct queueInfoEnt *) my_calloc(
-        numofqueues, sizeof(struct queueInfoEnt), "do_queueInfoReq");
-
-    if (!xdr_infoReq(xdrs, &qInfoReq, req_hdr)) {
-        reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_infoReq");
-        len = 100;
-    } else {
-        reply = checkQueues(&qInfoReq, &qInfoReply);
-
-        len = sizeof(struct packet_header);
-        len += xdrsize_QueueInfoReply(&qInfoReply);
+    qInfoReply.queues = calloc(numofqueues,
+                               sizeof(struct queueInfoEnt));
+    if (qInfoReply.queues == NULL) {
+        ls_syslog(LOG_ERR, "%s: my_calloc() failed", __func__);
+        return -1;
     }
 
-    reply_buf = calloc(len, sizeof(char));
-    xdrmem_create(&xdrs2, reply_buf, len, XDR_ENCODE);
-    init_pack_hdr(&reply_hdr);
+    // Decode request
+    struct infoReq qInfoReq = {0};
+    if (!xdr_infoReq(xdrs, &qInfoReq, req_hdr)) {
+        reply = LSBE_XDR;
+        ls_syslog(LOG_ERR, "%s: xdr_infoReq() failed", __func__);
 
+        /* Header-only reply, no body */
+        len = (int)sizeof(struct packet_header);
+    } else {
+        /* Build reply payload */
+        reply = checkQueues(&qInfoReq, &qInfoReply);
+
+        if (reply == LSBE_NO_ERROR || reply == LSBE_BAD_QUEUE) {
+            len = (int)sizeof(struct packet_header);
+            len += xdrsize_QueueInfoReply(&qInfoReply);
+        } else {
+            /* Errors: header only */
+            len = (int)sizeof(struct packet_header);
+        }
+    }
+
+    reply_buf = calloc((size_t)len, 1);
+    if (reply_buf == NULL) {
+        ls_syslog(LOG_ERR, "%s: calloc(%d) failed", __func__, len);
+        freeQueueInfoReply(&qInfoReply, NULL);
+        return -1;
+    }
+
+    xdrmem_create(&xdrs2, reply_buf, (u_int)len, XDR_ENCODE);
+    init_pack_hdr(&reply_hdr);
     reply_hdr.operation = reply;
+
     if (reply == LSBE_NO_ERROR || reply == LSBE_BAD_QUEUE)
-        reply_struct = (char *) &qInfoReply;
+        reply_struct = (char *)&qInfoReply;
     else
         reply_struct = NULL;
 
-    if (! xdr_encodeMsg(&xdrs2,
-                        reply_struct,
-                        &reply_hdr,
-                        xdr_queueInfoReply,
-                        0,
-                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
-        freeQueueInfoReply(&qInfoReply, reply_struct);
-        FREEUP(reply_buf);
-        xdr_destroy(&xdrs2);
-        return -1;
+    if (!xdr_encodeMsg(&xdrs2,
+                       reply_struct,
+                       &reply_hdr,
+                       xdr_queueInfoReply,
+                       0,
+                       NULL)) {
+        ls_syslog(LOG_ERR, "%s: xdr_encodeMsg() failed", __func__);
+        rc = -1;
+        goto out;
     }
+
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
-        freeQueueInfoReply(&qInfoReply, reply_struct);
-        FREEUP(reply_buf);
-        xdr_destroy(&xdrs2);
-        return -1;
+        ls_syslog(LOG_ERR,
+                  "%s: chan_write(%d) failed",
+                  __func__,
+                  (int)XDR_GETPOS(&xdrs2));
+        rc = -1;
+        goto out;
     }
+
+out:
     freeQueueInfoReply(&qInfoReply, reply_struct);
     FREEUP(reply_buf);
     xdr_destroy(&xdrs2);
-    return 0;
+
+    return rc;
 }
+
 
 int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                     struct packet_header *reqHdr)

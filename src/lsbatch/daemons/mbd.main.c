@@ -1055,8 +1055,8 @@ mbd_check_not_root(void)
 
 static void mbd_init_log(void)
 {
-    const char *log_dir = lsbParams[LSF_LOGDIR].paramValue;
-    const char *log_mask = lsbParams[LSF_LOG_MASK].paramValue;
+    const char *log_dir = genParams[LSF_LOGDIR].paramValue;
+    const char *log_mask = genParams[LSF_LOG_MASK].paramValue;
 
     bool_t debug = mbd_debug;
     bool_t check = lsb_CheckMode;

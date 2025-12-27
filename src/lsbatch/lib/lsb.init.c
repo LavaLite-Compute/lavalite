@@ -86,10 +86,14 @@ int lsbMode_ = LSB_MODE_BATCH;
 extern int bExceptionTabInit(void);
 extern int mySubUsage_(void *);
 
+// LavaLite we dont want the library to log. The library has to follow
+// a contract based on it interface that's all
 int lsb_init(char *appName)
 {
     static int lsbenvset = false;
-    char *logMask;
+
+    // Unused
+    (void)appName;
 
     if (lsbenvset)
         return 0;
@@ -117,26 +121,6 @@ int lsb_init(char *appName)
     }
 
     lsbenvset = true;
-
-    if (lsbParams[LSB_CMD_LOG_MASK].paramValue != NULL)
-        logMask = lsbParams[LSB_CMD_LOG_MASK].paramValue;
-    else
-        logMask = lsbParams[LSF_LOG_MASK].paramValue;
-
-    if (appName == NULL)
-        ls_openlog("bcmd", lsbParams[LSB_CMD_LOGDIR].paramValue,
-                   (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), 0, logMask);
-    else
-        ls_openlog(appName, lsbParams[LSB_CMD_LOGDIR].paramValue,
-                   (lsbParams[LSB_CMD_LOGDIR].paramValue == NULL), 0, logMask);
-
-    if (bExceptionTabInit()) {
-        lsberrno = LSBE_LSBLIB;
-        return -1;
-    }
-
-    if (lsb_catch("LSB_BAD_BSUBARGS", mySubUsage_))
-        return -1;
 
     return 0;
 }
