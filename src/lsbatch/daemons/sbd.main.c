@@ -17,15 +17,7 @@
  *
  */
 
-#include <stdlib.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "lsbatch/daemons/sbd.h"
-
-#include "../../lsf/lib/lsi18n.h"
-
-#include <malloc.h>
 
 extern void do_sbdDebug(XDR *xdrs, int chfd, struct packet_header *reqHdr);
 
@@ -37,9 +29,6 @@ static void houseKeeping(void);
 static int authCmdRequest(struct clientNode *client, XDR *xdrs,
                           struct packet_header *reqHdr);
 static int isLSFAdmin(struct lsfAuth *auth);
-#ifdef INTER_DAEMON_AUTH
-static int authMbdRequest(struct clientNode *, XDR *, struct packet_header *);
-#endif
 static int get_new_master(struct sockaddr_in *from);
 
 extern void do_modifyjob(XDR *, int, struct packet_header *);
@@ -158,7 +147,7 @@ int main(int argc, char **argv)
     }
 
     if (initenv_(lsbParams, env_dir) < 0) {
-        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, (debug > 1),
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, (debug > 1), 0,
                    lsbParams[LSF_LOG_MASK].paramValue);
         ls_syslog(LOG_ERR, "%s", __func__, "initenv_");
         die(SLAVE_FATAL);
@@ -237,10 +226,10 @@ int main(int argc, char **argv)
                  lsbParams[LSB_TIME_SBD].paramValue);
 
     if (debug > 1)
-        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, TRUE,
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, TRUE, 0,
                    lsbParams[LSF_LOG_MASK].paramValue);
     else
-        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, FALSE,
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, FALSE, 0,
                    lsbParams[LSF_LOG_MASK].paramValue);
 
     if (logclass)

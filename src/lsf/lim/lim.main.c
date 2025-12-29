@@ -641,7 +641,7 @@ static int lim_init_chans(void)
     // that goes in the data structure
     lim_timer_chan = chan_create_timer(5);
     if (lim_timer_chan < 0) {
-        chan_close(lim_tcp_chan);
+        chan_close(lim_udp_chan);
         chan_close(lim_tcp_chan);
         return -1;
     }

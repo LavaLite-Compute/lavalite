@@ -304,8 +304,8 @@ int main(int argc, char **argv)
             struct epoll_event *ev = &mbd_events[i];
             int ch_id = (int)ev->data.u32;
 
-            houseKeeping(&hsKeeping);
-            periodicCheck();
+            //houseKeeping(&hsKeeping);
+            //periodicCheck();
             if (nevents == 0)
                 continue;
 
@@ -336,7 +336,6 @@ static int mbd_accept_connection(int socket)
         LS_ERR("chan_accept() failed");
         return -1;
     }
-
     struct ll_host hs;
     memset(&hs, 0, sizeof(struct ll_host));
     get_host_by_sockaddr_in(&from, &hs);
@@ -348,6 +347,7 @@ static int mbd_accept_connection(int socket)
         return -1;
     }
 
+    // Make sure the new socket is accepted by chan_epoll
     struct epoll_event ev = {.events = EPOLLIN, .data.u32 = ch_id};
 
     int cc = epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev);
@@ -605,6 +605,13 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
         TIMEIT(0, do_runJobReq(&xdrs, ch_id, &from, &auth, &req_hdr),
                "do_runJobReq()");
         break;
+    case SBD_REGISTER:
+        int cc = do_sbd_register(&xdrs, client, &req_hdr);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        if (cc < 0)
+            shutDownClient(client);
+        return 0;
     default:
         // No error back to unkown client
         if (req_hdr.version <= CURRENT_PROTOCOL_VERSION)
@@ -619,30 +626,17 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
         exit(0);
     }
 endLoop:
-    client->reqType = req_hdr.operation;
-    client->lastTime = now;
     xdr_destroy(&xdrs);
     chan_free_buf(buf);
-    if ((req_hdr.operation != PREPARE_FOR_OP &&
-         req_hdr.operation != BATCH_STATUS_JOB &&
-         req_hdr.operation != BATCH_RUSAGE_JOB &&
-         req_hdr.operation != BATCH_STATUS_MSG_ACK &&
-         req_hdr.operation != BATCH_STATUS_CHUNK) ||
-        statusReqCC < 0) {
-        shutDownClient(client);
-        return -1;
-    }
+    shutDownClient(client);
+
     return 0;
 }
 
 void shutDownClient(struct mbd_client_node *client)
 {
-    if ((client->reqType == BATCH_STATUS_JOB ||
-         client->reqType == BATCH_STATUS_MSG_ACK ||
-         client->reqType == BATCH_RUSAGE_JOB ||
-         client->reqType == BATCH_STATUS_CHUNK) &&
-        client->lastTime)
-        nSbdConnections--;
+    if (! client)
+        return;
 
     chan_close(client->chanfd);
     offList((struct listEntry *) client);
@@ -774,17 +768,6 @@ static void periodicCheck(void)
         last_tryControlJobs = now;
 
         TIMEIT(0, tryResume(), "tryResume()");
-    }
-    // Bug garbage
-    if (now - last_checkConf > condCheckTime) {
-        if (winConf == FALSE && updAllConfCond() == TRUE)
-            winConf = TRUE;
-        if (dispatch == FALSE && winConf == TRUE) {
-            readNumber++;
-            pollSbatchds(WINDOW_CONF);
-            winConf = FALSE;
-        }
-        last_checkConf = now;
     }
     if (now - last_hostInfoRefreshTime > 10 * 60) {
         getLsbHostInfo();

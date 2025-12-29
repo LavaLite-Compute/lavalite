@@ -29,9 +29,6 @@
 #define GET_LOW(s, word) (s = word & 0x0000ffff)
 #define GET_HIGH(s, word) (s = (word >> 16) & 0x0000ffff)
 
-#define PREPARE_FOR_OP 1024
-#define READY_FOR_OP 1023
-
 #define RSCHED_LISTSEARCH_BY_EXECJID 0
 #define RSCHED_LISTSEARCH_BY_EXECLUSNAME 1
 
@@ -65,8 +62,13 @@ typedef enum {
     BATCH_JOB_FORCE,
     BATCH_STATUS_CHUNK,
     BATCH_SET_JOB_ATTR,
+    SBD_REGISTER,
     BATCH_LAST_OP
 } mbdReqType;
+
+typedef enum {
+    SBD_REGISTER_REPLY = 1 //success reply for SBD_REGISTER; not LSBE_xxx
+} mbd_reply_t;
 
 #define SUB_RLIMIT_UNIT_IS_KB 0x80000000
 
@@ -311,5 +313,4 @@ extern void freeUnixGrp(struct group *);
 extern struct group *copyUnixGrp(struct group *);
 
 extern void freeGroupInfoReply(struct groupInfoReply *reply);
-
 extern void appendEData(struct lenData *jf, struct lenData *ed);

@@ -7,7 +7,7 @@ COMMON_LIBS = ../lib/libllbat.a ../../lsf/lib/libll.a -lm
 
 LDADD = $(COMMON_LIBS)
 
-sbin_PROGRAMS = mbatchd
+sbin_PROGRAMS = mbatchd sbatchd
 mbatchd_SOURCES = mbd.main.c \
 	mbd.comm.c \
 	mbd.host.c \
@@ -31,5 +31,9 @@ mbatchd_SOURCES = mbd.main.c \
 	daemons.c \
 	daemons.xdr.c
 
+sbatchd_SOURCES =  sbatchd.main.c sbatchd.network.c \
+                   sbatchd.mbd.c
+
 mbatchd_DEPENDENCIES = $(COMMON_LIBS)
+sbatchd_DEPENDENCIES = $(COMMON_LIBS)
 

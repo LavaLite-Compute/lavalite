@@ -58,40 +58,6 @@ int rcvJobFile(int chfd, struct lenData *jf)
     return 0;
 }
 
-int do_readyOp(XDR *xdrs, int chanfd, struct sockaddr_in *from,
-               struct packet_header *reqHdr)
-{
-    XDR xdrs2;
-    struct Buffer *buf;
-    struct packet_header replyHdr;
-
-    if (chan_alloc_buf(&buf, sizeof(struct packet_header)) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "malloc");
-        return -1;
-    }
-    init_pack_hdr(&replyHdr);
-    replyHdr.operation = READY_FOR_OP;
-    replyHdr.length = 0;
-
-    xdrmem_create(&xdrs2, buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
-    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
-        xdr_destroy(&xdrs2);
-        return -1;
-    }
-
-    buf->len = XDR_GETPOS(&xdrs2);
-
-    if (chan_enqueue(chanfd, buf) < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_enqueue");
-        xdr_destroy(&xdrs2);
-        return -1;
-    }
-
-    xdr_destroy(&xdrs2);
-    return 0;
-}
-
 void childRemoveSpoolFile(const char *spoolFile, int options,
                           const struct passwd *pwUser)
 {
@@ -208,4 +174,47 @@ Error:
     }
 Done:
 #endif
+}
+
+int enqueue_header_reply(int efd, int ch_id, int rc)
+{
+    struct Buffer *reply_buf;
+    if (chan_alloc_buf(&reply_buf, PACKET_HEADER_SIZE)) {
+        LS_ERR("Failed to to allocate buffer");
+        return -1;
+    }
+
+    struct packet_header hdr;
+    init_pack_hdr(&hdr);
+    hdr.operation = rc;
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, reply_buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
+
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+        LS_ERR("enqueue_header_reply: xdr_pack_hdr failed");
+        xdr_destroy(&xdrs);
+        chan_free_buf(reply_buf);
+        return -1;
+    }
+
+    reply_buf->len = xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    if (chan_enqueue(ch_id, reply_buf) < 0) {
+        LS_ERR("enqueue_header_reply: chan_enqueue failed");
+        chan_free_buf(reply_buf);
+        return -1;
+    }
+
+    struct epoll_event ev;
+    ev.events = EPOLLIN | EPOLLOUT;
+    ev.data.u32 = (uint32_t)ch_id;
+
+    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
+        LS_ERR("enqueue_header_reply: epoll_ctl MOD fd: %d", chan_sock(ch_id));
+        return -1;
+    }
+
+    return 0;
 }

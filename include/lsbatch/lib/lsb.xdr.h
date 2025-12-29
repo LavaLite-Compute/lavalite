@@ -1,4 +1,3 @@
-#pragma once
 /* $Id: lsb.xdr.h,v 1.11 2007/08/15 22:18:48 tmizan Exp $
  * Copyright (C) 2007 Platform Computing Inc
  *
@@ -17,6 +16,7 @@
  USA
  *
  */
+#pragma once
 
 #include "lsbatch/lib/lsb.h"
 
@@ -50,3 +50,10 @@ bool_t xdr_lsbShareResourceInfoReply(XDR *, struct lsbShareResourceInfoReply *,
                                      void *);
 bool_t xdr_runJobReq(XDR *, struct runJobRequest *, void *);
 bool_t xdr_jobAttrReq(XDR *, struct jobAttrInfoEnt *, void *);
+
+// LavaLite sbd register with mbd
+struct wire_sbd_register {
+    char hostname[MAXHOSTNAMELEN];
+};
+
+bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);

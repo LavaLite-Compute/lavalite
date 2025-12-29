@@ -21,8 +21,6 @@
 #include "lsbatch/lib/lsb.h"
 #include "lsbatch/daemons/daemonout.h"
 #include "lsbatch/daemons/daemons.h"
-#include "lsf/lib/lib.rf.h"
-#include "lsf/lib/lib.osal.h"
 
 #define NULLFILE "/dev/null"
 #define JOBFILEEXT ""

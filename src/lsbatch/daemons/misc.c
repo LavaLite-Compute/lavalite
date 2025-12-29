@@ -122,27 +122,27 @@ int portok(struct sockaddr_in *from)
 
 int get_ports(void)
 {
-    if (lsbParams[LSB_MBD_PORT].paramValue == NULL) {
+    if (genParams[LSB_MBD_PORT].paramValue == NULL) {
         ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT is not in lsf.conf", __func__);
         return -1;
     }
 
-    mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue);
+    mbd_port = atoi(genParams[LSB_MBD_PORT].paramValue);
     if (mbd_port <= 0) {
         ls_syslog(LOG_ERR, "%s: LSB_MBD_PORT <%s> must be a positive number",
-                  __func__, lsbParams[LSB_MBD_PORT].paramValue);
+                  __func__, genParams[LSB_MBD_PORT].paramValue);
         return -1;
     }
 
-    if (lsbParams[LSB_SBD_PORT].paramValue == NULL) {
+    if (genParams[LSB_SBD_PORT].paramValue == NULL) {
         ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT is not in lsf.conf", __func__);
         return -1;
     }
 
-    sbd_port = atoi(lsbParams[LSB_SBD_PORT].paramValue);
+    sbd_port = atoi(genParams[LSB_SBD_PORT].paramValue);
     if (sbd_port <= 0) {
         ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT <%s> must be a positive number",
-                  __func__, lsbParams[LSB_SBD_PORT].paramValue);
+                  __func__, genParams[LSB_SBD_PORT].paramValue);
         return -1;
     }
 

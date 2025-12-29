@@ -91,3 +91,4 @@ int io_block(int);
 int chan_send_dgram(int, char *, size_t, struct sockaddr_in *);
 int chan_recv_dgram(int, void *, size_t, struct sockaddr_storage *, int);
 int chan_create_timer(int); // seconds for the timerfd
+struct Buffer *chan_make_buf(void);

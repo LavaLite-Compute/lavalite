@@ -32,6 +32,7 @@ struct config_param genParams[LSF_PARAM_COUNT] = {
     [LSF_LOG_MASK] = {"LSF_LOG_MASK", NULL},
     [LSF_MASTER_LIST] = {"LSF_MASTER_LIST", NULL},
     [LSF_ROOT_REX] = {"LSF_ROOT_REX", NULL},
+
     // LIM-specific
     [LSF_DEBUG_LIM] = {"LSF_DEBUG_LIM", NULL},
     [LSF_TIME_LIM] = {"LSF_TIME_LIM", NULL},
@@ -44,6 +45,16 @@ struct config_param genParams[LSF_PARAM_COUNT] = {
     [LSF_API_CONNTIMEOUT] = {"LSF_API_CONNTIMEOUT", NULL},
     [LSF_API_RECVTIMEOUT] = {"LSF_API_RECVTIMEOUT", NULL},
     [LSF_INTERACTIVE_STDERR] = {"LSF_INTERACTIVE_STDERR", NULL},
+
+    // SBD
+    [LSB_SBD_PORT] = {"LSB_SBD_PORT", NULL},
+    [LSB_DEBUG_SBD] = {"LSB_DEBUG_SBD", NULL},
+    [LSB_TIME_SBD] = {"LSB_TIME_SBD", NULL},
+    [LSB_SBD_CONNTIMEOUT] = {"LSB_SBD_CONNTIMEOUT", NULL},
+    [LSB_SBD_READTIMEOUT] = {"LSB_SBD_READTIMEOUT", NULL},
+
+    // MBD
+    [LSB_MBD_PORT] = {"LSB_MBD_PORT", NULL},
 
     // Legacy placeholder several code depend on this...
     [LSF_NULL_PARAM] = {NULL, NULL},

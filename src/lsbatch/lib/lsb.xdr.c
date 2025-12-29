@@ -1800,3 +1800,12 @@ bool_t xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, void *)
 
     return true;
 }
+
+
+bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
+{
+    if (msg == NULL)
+        return false;
+
+    return xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname));
+}

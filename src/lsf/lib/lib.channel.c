@@ -24,9 +24,9 @@
 
 long chan_open_max;
 struct chan_data *channels;
-
+static int epoll_fd;
 static void doread(struct chan_data *);
-static void dowrite(struct chan_data *);
+static void dowrite(struct chan_data *, int);
 static struct Buffer *make_buf(void);
 static void enqueueTail_(struct Buffer *, struct Buffer *);
 static void dequeue_(struct Buffer *);
@@ -420,6 +420,9 @@ int chan_rpc(int ch_id, struct Buffer *in, struct Buffer *out,
 // does not expose epoll flags directly.
 int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
 {
+    // we may need access to the global ef in other parts of the code
+    epoll_fd = ef;
+
     int cc = epoll_wait(ef, events, max_events, tm);
     if (cc == 0) // timeout
         return 0;
@@ -431,6 +434,7 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
     for (int i = 0; i < cc; i++) {
         struct epoll_event *e = &events[i];
         struct chan_data *chan = &channels[e->data.u32];
+        int ch_id = e->data.u32;
 
         // clean channel specific events for the caller
         chan->chan_events = CHAN_EPOLLNONE;
@@ -458,9 +462,11 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
             doread(chan);
             continue;
         }
+
         if (e->events & EPOLLOUT) {
-            dowrite(chan);
+            dowrite(chan, ch_id);
         }
+
     }
     return cc;
 }
@@ -565,7 +571,7 @@ static void doread(struct chan_data *chan)
     }
 }
 
-static void dowrite(struct chan_data *chan)
+static void dowrite(struct chan_data *chan, int chan_id)
 {
     struct Buffer *sendbuf;
     int cc;
@@ -597,9 +603,22 @@ static void dowrite(struct chan_data *chan)
         dequeue_(sendbuf);
         free(sendbuf->data);
         free(sendbuf);
+        // Remove from epoll EPOLLOUT only when the whole list
+        // is all empty
+        if (chan->send->forw == chan->send) {
+            struct epoll_event ev;
+            memset(&ev, 0, sizeof(ev));
+            ev.events  = EPOLLIN;
+            ev.data.u32 = (uint32_t)chan_id;
+            epoll_ctl(epoll_fd, EPOLL_CTL_MOD, chan_sock(chan_id), &ev);
+        }
     }
 }
 
+struct Buffer *chan_make_buf(void)
+{
+    return make_buf();
+}
 static struct Buffer *make_buf(void)
 {
     struct Buffer *newbuf;

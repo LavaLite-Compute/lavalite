@@ -26,18 +26,12 @@ struct config_param lsbParams[LSB_PARAM_COUNT] =
     [LSB_SHAREDIR]             = { "LSB_SHAREDIR", NULL },
     [LSB_MAILTO]               = { "LSB_MAILTO", NULL },
     [LSB_MAILPROG]             = { "LSB_MAILPROG", NULL },
-    [LSB_SBD_PORT]             = { "LSB_SBD_PORT", NULL },
-    [LSB_MBD_PORT]             = { "LSB_MBD_PORT", NULL },
     [LSB_DEBUG_MBD]            = { "LSB_DEBUG_MBD", NULL },
-    [LSB_DEBUG_SBD]            = { "LSB_DEBUG_SBD", NULL },
     [LSB_TIME_MBD]             = { "LSB_TIME_MBD", NULL },
-    [LSB_TIME_SBD]             = { "LSB_TIME_SBD", NULL },
     [LSB_SIGSTOP]              = { "LSB_SIGSTOP", NULL },
     [LSB_MBD_CONNTIMEOUT]      = { "LSB_MBD_CONNTIMEOUT", NULL },
-    [LSB_SBD_CONNTIMEOUT]      = { "LSB_SBD_CONNTIMEOUT", NULL },
     [LSB_MBD_MAILREPLAY]       = { "LSB_MBD_MAILREPLAY", NULL },
     [LSB_MBD_MIGTOPEND]        = { "LSB_MBD_MIGTOPEND", NULL },
-    [LSB_SBD_READTIMEOUT]      = { "LSB_SBD_READTIMEOUT", NULL },
     [LSB_MBD_BLOCK_SEND]       = { "LSB_MBD_BLOCK_SEND", NULL },
     [LSB_MEMLIMIT_ENFORCE]     = { "LSB_MEMLIMIT_ENFORCE", NULL },
     [LSB_BSUBI_OLD]            = { "LSB_BSUBI_OLD", NULL },
@@ -98,6 +92,7 @@ int lsb_init(char *appName)
     if (lsbenvset)
         return 0;
 
+    // LavaLite this call will fill genParams as well
     if (initenv_(lsbParams, NULL) < 0) {
         lsberrno = LSBE_LSLIB;
         return -1;
@@ -129,12 +124,12 @@ uint16_t get_mbd_port(void)
 {
     uint16_t mbd_port = 0;
 
-    if (!lsbParams[LSB_MBD_PORT].paramValue) {
+    if (!genParams[LSB_MBD_PORT].paramValue) {
         mbd_port = 0;
         lsberrno = LSBE_SERVICE;
         return 0;
     }
-    mbd_port = atoi(lsbParams[LSB_MBD_PORT].paramValue);
+    mbd_port = atoi(genParams[LSB_MBD_PORT].paramValue);
 
     return mbd_port;
 }
@@ -143,13 +138,13 @@ uint16_t get_sbd_port(void)
 {
     uint16_t sbd_port;
 
-    if (!lsbParams[LSB_SBD_PORT].paramValue) {
+    if (!genParams[LSB_SBD_PORT].paramValue) {
         sbd_port = 0;
         lsberrno = LSBE_SERVICE;
         return 0;
     }
 
-    sbd_port = atoi(lsbParams[LSB_SBD_PORT].paramValue);
+    sbd_port = atoi(genParams[LSB_SBD_PORT].paramValue);
 
     return sbd_port;
 }

@@ -28,7 +28,7 @@ extern int _lsb_recvtimeout;
 
 /* Resolve master with retry
  */
-static char *resolve_master_with_retry(void)
+char *resolve_master_with_retry(void)
 {
     int retry = 3;
 

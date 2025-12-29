@@ -49,6 +49,16 @@ typedef enum {
     LSF_API_RECVTIMEOUT,
     LSF_INTERACTIVE_STDERR,
 
+    // SBD spefific parameters
+    LSB_SBD_PORT,
+    LSB_DEBUG_SBD,
+    LSB_TIME_SBD,
+    LSB_SBD_CONNTIMEOUT,
+    LSB_SBD_READTIMEOUT,
+
+    // MBD
+    LSB_MBD_PORT,
+
     // Legacy sentinel
     LSF_NULL_PARAM, // back-compatibility placeholder
     LSF_PARAM_COUNT // sentinel for array sizing

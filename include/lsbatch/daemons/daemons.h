@@ -1,4 +1,4 @@
-/* $Id: daemons.h,v 1.14 2007/08/15 22:18:44 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -463,8 +463,6 @@ extern void errorBack(int, int, struct sockaddr_in *);
 extern int init_ServSock(u_short port);
 extern int server_reply(int, char *, int);
 extern int rcvJobFile(int, struct lenData *);
-extern int do_readyOp(XDR *xdrs, int, struct sockaddr_in *,
-                      struct packet_header *);
 
 #define FORK_REMOVE_SPOOL_FILE (0x1)
 #define CALL_RES_IF_NEEDED (0x2)
@@ -486,5 +484,5 @@ extern float normalizeRq_(float rawql, float cpuFactor, int nprocs);
 extern void daemon_doinit(void);
 
 extern void scaleByFactor(int *, int *, float);
-extern int execNqsi(u_long, int, int, int *, char *, int, char *);
-extern void doDaemonHang(char *);
+// LavaLite
+int enqueue_header_reply(int, int, int);

@@ -1,6 +1,6 @@
-#pragma once
 /*  Copyright (C) LavaLite Contributors
  */
+#pragma once
 
 /*
  * Protocol Version Encoding

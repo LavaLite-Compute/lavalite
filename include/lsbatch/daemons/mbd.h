@@ -581,7 +581,7 @@ struct hData {
     int hostId;
     char *hostType;
     char *hostModel;
-    // struct    hostent hostEnt;
+    struct mbd_client_node *sbd_node;
     float cpuFactor;
     int numCPUs;
     float *loadSched;
@@ -1420,4 +1420,6 @@ extern uint16_t mbd_port;
 extern struct epoll_event *mbd_events;
 extern int mbd_max_events;
 
+// LavaLite
 int mbd_init(int);
+int do_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);

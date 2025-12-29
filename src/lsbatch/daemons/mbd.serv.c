@@ -1,5 +1,6 @@
-/* $Id: mbd.serv.c,v 1.29 2007/08/15 22:18:46 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,6 +19,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/sbatchd.h"
 
 static unsigned int msgcnt = 0;
 extern int numLsbUsable;
@@ -35,10 +37,6 @@ static void freeJobHead(struct jobInfoHead *);
 static void freeJobInfoReply(struct jobInfoReply *);
 static void freeShareResourceInfoReply(struct lsbShareResourceInfoReply *);
 static int xdrsize_QueueInfoReply(struct queueInfoReply *);
-#ifdef INTER_DAEMON_AUTH
-static int authSbdRequest(struct sbdNode *, XDR *, struct packet_header *,
-                          struct sockaddr_in *);
-#endif
 
 extern void closeSession(int);
 
@@ -922,17 +920,6 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
     int reply;
     struct hData *hData;
     struct packet_header replyHdr;
-
-#ifdef INTER_DAEMON_AUTH
-    if (authSbdRequest(NULL, xdrs, reqHdr, from) != LSBE_NO_ERROR) {
-        ls_syslog(LOG_ERR,
-                  "%s: Received status report from unauthenticated host <%s>",
-                  fname, sockAdd2Str_(from));
-        if (reqHdr->operation != BATCH_RUSAGE_JOB)
-            errorBack(chfd, LSBE_PERMISSION, from);
-        return -1;
-    }
-#endif
 
     if (!portok(from)) {
         ls_syslog(LOG_ERR, "%s: Received status report from bad port <%s>",
@@ -2396,55 +2383,37 @@ int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
     return 0;
 }
 
-#ifdef INTER_DAEMON_AUTH
-static int authSbdRequest(struct sbdNode *sbdPtr, XDR *xdrs,
-                          struct packet_header *reqHdr,
-                          struct sockaddr_in *from_host)
+int
+do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
+                struct packet_header *hdr)
 {
-    char buf[1024];
+    (void)hdr;
 
-    sprintf(buf, "mbatchd@%s", clusterName);
-    return authDaemonRequest(sbdPtr ? sbdPtr->chanfd : -1, xdrs, reqHdr,
-                             from_host, "sbatchd", buf);
+    struct wire_sbd_register req;
+    memset(&req, 0, sizeof(req));
+
+    if (!xdr_wire_sbd_register(xdrs, &req)) {
+        LS_ERR("SBD_REGISTER decode failed");
+        return enqueue_header_reply(mbd_efd, client->chanfd, LSBE_XDR);
+    }
+
+    char hostname[MAXHOSTNAMELEN];
+    memcpy(hostname, req.hostname, sizeof(hostname));
+    hostname[sizeof(hostname) - 1] = 0;
+
+    struct hData *h = getHostData(hostname);
+    if (h == NULL) {
+        LS_ERR("SBD_REGISTER from unknown host %s", hostname);
+        return enqueue_header_reply(mbd_efd, client->chanfd, LSBE_BAD_HOST);
+    }
+
+    // offlist the client and adopt it in the hData
+    offList((struct listEntry *)client);
+    h->sbd_node = client;
+
+    LS_INFO("sbatchd register hostname=%s canon=%s addr=%s ch_id=%d",
+            hostname, h->sbd_node->host.name, h->sbd_node->host.addr,
+            h->sbd_node->chanfd);
+
+    return enqueue_header_reply(mbd_efd, client->chanfd, SBD_REGISTER_REPLY);
 }
-
-int authDaemonRequest(int chanfd, XDR *xdrs, struct packet_header *reqHdr,
-                      struct sockaddr_in *from_host, char *client, char *server)
-{
-    static char fname[] = "authDaemonRequest";
-    int s, rc, from_len;
-    struct sockaddr_in from;
-    struct lsfAuth auth;
-
-    if (lsbParams[LSF_AUTH_DAEMONS].paramValue == NULL)
-        return LSBE_NO_ERROR;
-
-    if (from_host == NULL) {
-        s = chan_sock(chanfd);
-        from_len = sizeof(from);
-        memset(&from, 0, from_len);
-        if (getpeername(s, (struct sockaddr *) &from, &from_len) == -1) {
-            ls_syslog(LOG_ERR, "%s", __func__, "getpeername");
-            return LSBE_SYS_CALL;
-        }
-    } else {
-        memcpy(&from, from_host, sizeof(from));
-    }
-
-    if (!xdr_lsfAuth(xdrs, &auth, reqHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_lsfAuth");
-        return LSBE_XDR;
-    }
-
-    putEauthClientEnvVar(client);
-    putEauthServerEnvVar(server);
-    rc = verifyEAuth_(&auth, &from);
-    if (rc == -1) {
-        ls_syslog(LOG_ERR, "%s", __func__, "verifyEAuth");
-        return LSBE_PERMISSION;
-    }
-
-    return LSBE_NO_ERROR;
-}
-
-#endif
