@@ -18,9 +18,7 @@
  * ------------------------------------------------------------------------
  */
 
-#pragma once
-
-#include "lsf/lib/ll_hash.h"
+#include "lsf/lib/ll.hash.h"
 
 // Return 1 if n is prime, 0 otherwise.
 // Used to ensure the hash-table bucket count is a prime number.
@@ -146,9 +144,6 @@ int ll_hash_init(struct ll_hash *ht, size_t initial_buckets)
 
     initial_buckets = ll_next_prime(initial_buckets);
 
-    if (max_load_factor <= 0.0)
-        max_load_factor = 0.75;
-
     ht->buckets = calloc(initial_buckets, sizeof(*ht->buckets));
     if (!ht->buckets)
         return -1;
@@ -168,7 +163,7 @@ struct ll_hash *ll_hash_create(size_t initial_buckets)
     if (!ht)
         return NULL;
 
-    if (ll_hash_init(ht, initial_buckets, 0.0) < 0) {
+    if (ll_hash_init(ht, initial_buckets) < 0) {
         free(ht);
         return NULL;
     }

@@ -134,18 +134,6 @@ int get_ports(void)
         return -1;
     }
 
-    if (genParams[LSB_SBD_PORT].paramValue == NULL) {
-        ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT is not in lsf.conf", __func__);
-        return -1;
-    }
-
-    sbd_port = atoi(genParams[LSB_SBD_PORT].paramValue);
-    if (sbd_port <= 0) {
-        ls_syslog(LOG_ERR, "%s: LSB_SBD_PORT <%s> must be a positive number",
-                  __func__, genParams[LSB_SBD_PORT].paramValue);
-        return -1;
-    }
-
     return 0;
 }
 

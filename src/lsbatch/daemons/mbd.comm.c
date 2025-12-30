@@ -414,46 +414,66 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
     return reply;
 }
 
-/* Bug for now return sbdReplyType
- */
+// LavaLite use existing connection to sbd
 sbdReplyType call_sbd(char *toHost, char *request_buf, int len,
                       struct sbdNode *sbdPtr)
 {
-    int ch_id = serv_connect(toHost, sbd_port, connTimeout);
-    if (ch_id < 0)
-        return ERR_UNREACH_SBD;
+    (void)toHost;    // routing is via hData->sbd_node now
 
-    // Make socket non-blocking for async I/O
-    if (io_nonblock_(ch_id) < 0) {
-        chan_close(ch_id);
+    struct hData *hData = sbdPtr->hData;
+    if (hData == NULL) {
+        LS_CRIT("NULL hData in sbdPtr");
+        abort();
+    }
+
+    struct mbd_client_node *client;
+    client = hData->sbd_node;
+    if (client == NULL) {
+        // This should never happen if the scheduler did its job.
+        LS_CRIT("no sbatchd connection for host <%s>", hData->host);
+        abort();
+    }
+
+    int ch_id = client->chanfd;
+    if (ch_id < 0) {
+        LS_CRIT("invalid chanfd %d for host <%s>", ch_id, hData->host);
+        abort();
+    }
+
+    // From here down, behave like the original call_sbd,
+    // just without serv_connect() / io_nonblock_.
+
+    struct Buffer *buf;
+    chan_alloc_buf(&buf, len);
+    if (buf == NULL) {
+        LS_ERR("chan_alloc_buf(%d) failed for host <%s>", len, hData->host);
         lsberrno = LSBE_SYS_CALL;
         return ERR_FAIL;
     }
 
-    struct Buffer *buf;
-    if (chan_alloc_buf(&buf, len) < 0) {
-        chan_close(ch_id);
-        lsberrno = LSBE_NO_MEM;
-        return ERR_MEM;
-    }
-
-    memcpy(buf->data, request_buf, len);
+    memcpy(buf->data, request_buf, (size_t)len);
     buf->len = len;
 
     if (chan_enqueue(ch_id, buf) < 0) {
+        LS_ERR("chan_enqueue(%d) failed for host <%s>", ch_id, hData->host);
         chan_free_buf(buf);
         chan_close(ch_id);
         lsberrno = LSBE_SYS_CALL;
         return ERR_FAIL;
     }
 
-    struct sbdNode *node = calloc(1, sizeof(struct sbdNode));
-    memcpy(node, sbdPtr, sizeof(struct sbdNode));
-    node->chanfd = ch_id;
-    node->lastTime = now;
+    struct sbdNode *node = calloc(1, sizeof(*node));
+    if (node == NULL) {
+        LS_CRIT("calloc(struct sbdNode) failed for host <%s>", hData->host);
+        abort();
+    }
 
-    inList((struct listEntry *) &sbdNodeList, (struct listEntry *) node);
+    *node = *sbdPtr;             // struct copy
+    node->chanfd = ch_id;
+    node->lastTime = time(NULL);
+
+    inList((struct listEntry *)&sbdNodeList, (struct listEntry *)node);
     nSbdConnections++;
 
-    return ERR_NO_ERROR; // Success - reply comes async
+    return ERR_NO_ERROR;
 }

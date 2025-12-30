@@ -148,15 +148,8 @@ void do_newjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
 
 sendReply:
     xdr_lsffree(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
-#ifdef INTER_DAEMON_AUTH
-    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getSbdAuth(&auth_data))
-            ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
-        else
-            auth = &auth_data;
-    }
-#endif
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
+
     init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     replyStruct = (reply == ERR_NO_ERROR) ? (char *) &jobReply : (char *) NULL;

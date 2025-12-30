@@ -27,7 +27,6 @@ static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jp);
 
 bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
 {
-    static char fname[] = "xdr_jobSpecs";
     char *sp[15];
     char *pTemp;
     int i, nLimits;
@@ -197,8 +196,7 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
     }
 
     if (xdrs->x_op == XDR_DECODE && jobSpecs->numToHosts) {
-        jobSpecs->toHosts =
-            (char **) my_calloc(jobSpecs->numToHosts, sizeof(char *), fname);
+        jobSpecs->toHosts = calloc(jobSpecs->numToHosts, sizeof(char *));
     }
 
     for (i = 0; i < jobSpecs->numToHosts; i++) {
@@ -220,8 +218,7 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
     }
 
     if (xdrs->x_op == XDR_DECODE && jobSpecs->nxf > 0) {
-        jobSpecs->xf = (struct xFile *) my_calloc(jobSpecs->nxf,
-                                                  sizeof(struct xFile), fname);
+        jobSpecs->xf = calloc(jobSpecs->nxf, sizeof(struct xFile));
     }
 
     for (i = 0; i < jobSpecs->nxf; i++) {
@@ -260,8 +257,7 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
         return FALSE;
 
     if (xdrs->x_op == XDR_DECODE && jobSpecs->numEnv) {
-        jobSpecs->env =
-            (char **) my_calloc(jobSpecs->numEnv, sizeof(char *), fname);
+        jobSpecs->env = calloc(jobSpecs->numEnv, sizeof(char *));
     }
 
     for (i = 0; i < jobSpecs->numEnv; i++) {
@@ -527,44 +523,6 @@ bool_t xdr_statusReq(XDR *xdrs, struct statusReq *statusReq,
     return TRUE;
 }
 
-bool_t xdr_chunkStatusReq(XDR *xdrs, struct chunkStatusReq *chunkStatusReq,
-                          struct packet_header *hdr)
-{
-    static char fname[] = "xdr_chunkStatusReq";
-    int i;
-
-    if (xdrs->x_op == XDR_DECODE) {
-        chunkStatusReq->numStatusReqs = 0;
-        chunkStatusReq->statusReqs = NULL;
-    }
-
-    if (xdrs->x_op == XDR_FREE) {
-        for (i = 0; i < chunkStatusReq->numStatusReqs; i++) {
-            xdr_lsffree(xdr_statusReq, (char *) chunkStatusReq->statusReqs[i],
-                        hdr);
-            FREEUP(chunkStatusReq->statusReqs[i]);
-        }
-        FREEUP(chunkStatusReq->statusReqs);
-        return TRUE;
-    }
-    if (!xdr_int(xdrs, &chunkStatusReq->numStatusReqs)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "numStatusReqs");
-        return FALSE;
-    }
-    if (xdrs->x_op == XDR_DECODE && chunkStatusReq->numStatusReqs) {
-        chunkStatusReq->statusReqs = (struct statusReq **) my_calloc(
-            chunkStatusReq->numStatusReqs, sizeof(struct statusReq *), fname);
-        for (i = 0; i < chunkStatusReq->numStatusReqs; i++) {
-            chunkStatusReq->statusReqs[i] = (struct statusReq *) my_calloc(
-                1, sizeof(struct statusReq), fname);
-        }
-    }
-    for (i = 0; i < chunkStatusReq->numStatusReqs; i++) {
-        xdr_statusReq(xdrs, chunkStatusReq->statusReqs[i], hdr);
-    }
-    return TRUE;
-}
-
 bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *sbdPackage,
                       struct packet_header *hdr)
 {
@@ -649,7 +607,6 @@ bool_t xdr_sbdPackage1(XDR *xdrs, struct sbdPackage *sbdPackage,
 
 static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jobSpecs)
 {
-    static char fname[] = "xdr_thresholds";
     int i, j;
 
     if (xdrs->x_op == XDR_DECODE) {
@@ -674,15 +631,15 @@ static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jobSpecs)
         return FALSE;
     }
     if (xdrs->x_op == XDR_DECODE) {
-        jobSpecs->thresholds.loadSched = (float **) my_calloc(
-            jobSpecs->thresholds.nThresholds, sizeof(float *), fname);
-        jobSpecs->thresholds.loadStop = (float **) my_calloc(
-            jobSpecs->thresholds.nThresholds, sizeof(float *), fname);
+        jobSpecs->thresholds.loadSched = calloc(jobSpecs->thresholds.nThresholds,
+                                                sizeof(float *));
+        jobSpecs->thresholds.loadStop = calloc(
+            jobSpecs->thresholds.nThresholds, sizeof(float *));
         for (i = 0; i < jobSpecs->thresholds.nThresholds; i++) {
-            jobSpecs->thresholds.loadSched[i] = (float *) my_calloc(
-                jobSpecs->thresholds.nIdx, sizeof(float), fname);
-            jobSpecs->thresholds.loadStop[i] = (float *) my_calloc(
-                jobSpecs->thresholds.nIdx, sizeof(float), fname);
+            jobSpecs->thresholds.loadSched[i] = calloc(
+                jobSpecs->thresholds.nIdx, sizeof(float));
+            jobSpecs->thresholds.loadStop[i] = calloc(
+                jobSpecs->thresholds.nIdx, sizeof(float));
         }
     }
 

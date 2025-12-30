@@ -52,5 +52,8 @@ libll_a_SOURCES = \
     ll.conf.c \
     ll.host.c \
     ll.timer.c \
-    tcl_stub.c
+    tcl_stub.c \
+    ll.list.c \
+    ll.hash.c \
+    ll.stack.c
 

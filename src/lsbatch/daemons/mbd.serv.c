@@ -2410,6 +2410,8 @@ do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     // offlist the client and adopt it in the hData
     offList((struct listEntry *)client);
     h->sbd_node = client;
+    // a back pointer to the hData using the current client connection
+    h->sbd_node->host_node = h;
 
     LS_INFO("sbatchd register hostname=%s canon=%s addr=%s ch_id=%d",
             hostname, h->sbd_node->host.name, h->sbd_node->host.addr,

@@ -749,6 +749,7 @@ struct mbd_client_node {
     struct ll_host host;
     mbdReqType reqType;
     time_t lastTime;
+    struct hData *host_node; // Pointer to the hData using this connection
 };
 
 struct condData {

@@ -2708,14 +2708,6 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
         jobSpecs->eexec.data = NULL;
     }
 
-#ifdef INTER_DAEMON_AUTH
-
-    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
-        getTGT(jpbw, aux_auth_data);
-    }
-
-#endif
-
     i = 0;
 
     sp = strstr(buf, EXITCMD);

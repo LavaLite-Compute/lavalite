@@ -17,8 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  * ------------------------------------------------------------------------ */
 
-#include <stdlib.h>
-#include "ll_list.h"
+#include "lsf/lib/ll.list.h"
 
 void ll_list_init(struct ll_list *lst)
 {

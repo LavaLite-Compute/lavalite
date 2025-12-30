@@ -27,10 +27,6 @@
 #define FATAL_ERR -1
 #define WARNING_ERR -2
 
-#define MBATCHD_SERV "mbatchd"
-#define MBATCHD_QUERY "mbatchd_query"
-#define SBATCHD_SERV "sbatchd"
-
 #define MASK_INT_JOB_STAT 0x000FFFFF
 #define MASK_STATUS(s) ((s) & MASK_INT_JOB_STAT)
 
@@ -401,7 +397,6 @@ extern int maxJobId;
 extern int lsb_CheckMode;
 extern int lsb_CheckError;
 extern ushort mbd_port;
-extern ushort sbd_port;
 extern int batchSock;
 extern char masterme;
 extern char *masterHost;
