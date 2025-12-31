@@ -21,7 +21,13 @@ enum {
     LL_BUFSIZ_8K = 8192,
     LL_BUFSIZ_16K = 16384,
     LL_BUFSIZ_32K = 32768,
-    LL_BUFSIZ_64K = 65536
+    LL_BUFSIZ_64K = 65536,
+    /* Maximum size of a single environment variable stored in job spec.
+     * 2 MiB is practically unlimited for real systems (EDA/Lmod etc.) while
+     * still preventing pathological allocations caused by corrupt jobfiles.
+     * This matches ARG_MAX ~= 2MB on Rocky9/Ubuntu24.x.
+     */
+    LL_ENVVAR_MAX = (2u * 1024u * 1024u)
 };
 
 /* Utility macro for kibibytes

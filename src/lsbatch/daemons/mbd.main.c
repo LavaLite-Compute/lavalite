@@ -165,7 +165,6 @@ void setJobPriUpdIntvl(void);
 static void updateJobPriorityInPJL(void);
 static void houseKeeping(int *);
 static void periodicCheck(void);
-static void shutdownSbdConnections(void);
 static void processSbdNode(struct sbdNode *, int);
 
 extern int do_chunkStatusReq(XDR *, int, struct sockaddr_in *, int *,
@@ -222,13 +221,13 @@ int main(int argc, char **argv)
         case 'h':
         default:
             usage();
+            return -1;
         }
     }
 
     if (initenv_(lsbParams, env_dir) < 0) {
-        ls_openlog("mbatchd", lsbParams[LSF_LOGDIR].paramValue,
-                   (mbd_debug || lsb_CheckMode),
-                   0, lsbParams[LSF_LOG_MASK].paramValue);
+        // That's the most we can do...
+        ls_openlog("mbatchd", "/var/log/lavalite", true, 0, "LOG_ERR");
         LS_ERR("mbatchd initenv failed, "
                "Bad configuration environment, missing in lsf.conf?");
         return -1;
@@ -285,20 +284,23 @@ int main(int argc, char **argv)
     for (;;) {
         int nevents;
 
-        // Bug reconsider
-        // shutdownSbdConnections();
-
-        if ((time(NULL) - lastElockTouch) >= msleeptime) {
+        time_t now = time(NULL);
+        if ((now - lastElockTouch) >= msleeptime) {
             // create a timer fd
             touchElogLock();
             lastElockTouch = now;
         }
+        // Schedule now
+        scheduleAndDispatchJobs();
 
-        int mbd_timeout = -1;
-        nevents = chan_epoll(mbd_efd, mbd_events, mbd_max_events, mbd_timeout);
+        int mbd_timeout = 10 * 1000;
+        nevents = chan_epoll(mbd_efd, mbd_events, mbd_max_events,
+                             mbd_timeout);
         if (nevents < 0) {
-            if (errno != EINTR)
-            continue;
+              if (errno == EINTR)
+                  continue;
+              LS_ERR("chan_epoll(%d) failed", mbd_efd);
+              continue;
         }
         for (i = 0; i < nevents; i++) {
             struct epoll_event *ev = &mbd_events[i];
@@ -306,8 +308,6 @@ int main(int argc, char **argv)
 
             //houseKeeping(&hsKeeping);
             //periodicCheck();
-            if (nevents == 0)
-                continue;
 
             if (ch_id == mbd_chan) {
                 mbd_accept_connection(mbd_chan);
@@ -396,10 +396,10 @@ static void mbd_handle_client(int ch_id)
             continue;
 
         if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
-            shutDownClient(client);
+            shutdown_mbd_client(client);
             return;
         }
-
+        // Now dispatch the current client request,
         mbd_dispatch_client(client);
         return;
     }
@@ -419,7 +419,7 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
 
     if (chan_dequeue(client->chanfd, &buf) < 0) {
         ls_syslog(LOG_ERR, "%s: chan_dequeue failed :%m", __func__);
-        shutDownClient(client);
+        shutdown_mbd_client(client);
         return -1;
     }
 
@@ -428,7 +428,7 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        shutDownClient(client);
+        shutdown_mbd_client(client);
         return -1;
     }
 
@@ -609,8 +609,12 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
         int cc = do_sbd_register(&xdrs, client, &req_hdr);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        if (cc < 0)
-            shutDownClient(client);
+        if (cc < 0) {
+            struct hData *host_data = client->host_node;
+            shutdown_mbd_client(client);
+            if (host_data)
+                host_data->sbd_node = NULL;
+        }
         return 0;
     default:
         // No error back to unkown client
@@ -628,12 +632,12 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
 endLoop:
     xdr_destroy(&xdrs);
     chan_free_buf(buf);
-    shutDownClient(client);
+    shutdown_mbd_client(client);
 
     return 0;
 }
 
-void shutDownClient(struct mbd_client_node *client)
+void shutdown_mbd_client(struct mbd_client_node *client)
 {
     if (! client)
         return;
@@ -889,66 +893,11 @@ static bool_t is_mbd_read_only_req(mbdReqType req)
     }
 }
 
-
-static void shutdownSbdConnections(void)
-{
-    static char fname[] = "shutdownSbdConnections";
-    struct mbd_client_node *cliPtr, *nextClient, *deleteCliPtr = NULL;
-    struct sbdNode *sbdPtr, *nextSbdPtr, *deleteSbdPtr = NULL;
-    time_t oldest = now + 1;
-
-    if (nSbdConnections < maxSbdConnections)
-        return;
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: nSbdConnections=%d maxSbdConnections=%d",
-                  fname, nSbdConnections, maxSbdConnections);
-
-    for (cliPtr = clientList->forw; cliPtr != clientList; cliPtr = nextClient) {
-        nextClient = cliPtr->forw;
-        if (cliPtr->reqType == BATCH_STATUS_JOB ||
-            cliPtr->reqType == BATCH_STATUS_MSG_ACK ||
-            cliPtr->reqType == BATCH_RUSAGE_JOB ||
-            cliPtr->reqType == BATCH_STATUS_CHUNK) {
-            if (cliPtr->lastTime < oldest) {
-                deleteCliPtr = cliPtr;
-                oldest = cliPtr->lastTime;
-            }
-        }
-    }
-
-    if (deleteCliPtr) {
-        shutDownClient(deleteCliPtr);
-        return;
-    }
-
-    for (sbdPtr = sbdNodeList.forw; sbdPtr != &sbdNodeList;
-         sbdPtr = nextSbdPtr) {
-        nextSbdPtr = sbdPtr->forw;
-
-        if (sbdPtr->lastTime < oldest) {
-            if (deleteSbdPtr == NULL ||
-                sbdPtr->reqCode >= deleteSbdPtr->reqCode) {
-                deleteSbdPtr = sbdPtr;
-                oldest = sbdPtr->lastTime;
-            }
-        }
-    }
-
-    if (deleteSbdPtr) {
-        processSbdNode(deleteSbdPtr, TRUE);
-    }
-}
-
 static void processSbdNode(struct sbdNode *sbdPtr, int exception)
 {
-    static char fname[] = "processSbdNode";
-
     switch (sbdPtr->reqCode) {
     case MBD_NEW_JOB:
         doNewJobReply(sbdPtr, exception);
-        if (sbdPtr->reqCode == MBD_NEW_JOB_KEEP_CHAN)
-            return;
         break;
     case MBD_PROBE:
         doProbeReply(sbdPtr, exception);
@@ -960,17 +909,26 @@ static void processSbdNode(struct sbdNode *sbdPtr, int exception)
         doSignalJobReply(sbdPtr, exception);
         break;
     case MBD_NEW_JOB_KEEP_CHAN:
+        // Obsolete as we are now always connected
         if (logclass & LC_COMM)
-            ls_syslog(LOG_DEBUG1, "%s: MBD_NEW_JOB_KEEP_CHAN", fname);
+            LS_DEBUG("MBD_NEW_JOB_KEEP_CHAN");
         break;
     default:
-        ls_syslog(LOG_ERR, "%s: Unsupported sbdNode request %d", fname,
-                  sbdPtr->reqCode);
+        LS_ERR("unsupported sbdNode request %d", sbdPtr->reqCode);
+    }
+
+    // We encounter an exception on the channel with sbd
+    // close it down the sbd now has to reconnect again, perhaps
+    // it just rebooted
+    if (exception) {
+        // we dont need a back ponter here as this must be sbd
+        shutdown_mbd_client(sbdPtr->hData->sbd_node);
+        sbdPtr->hData->sbd_node = NULL;
     }
 
     chan_close(sbdPtr->chanfd);
     offList((struct listEntry *) sbdPtr);
-    FREEUP(sbdPtr);
+    free(sbdPtr);
     nSbdConnections--;
 }
 

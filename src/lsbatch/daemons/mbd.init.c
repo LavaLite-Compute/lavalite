@@ -448,6 +448,8 @@ struct hData *initHData(struct hData *hData)
     hData->pxySJL = NULL;
     hData->pxyRsvJL = NULL;
     hData->leftRusageMem = INFINITY;
+    // LavaLite mbd now keeps a permanent connection to sbd
+    hData->sbd_node = NULL;
 
     return hData;
 }

@@ -417,6 +417,7 @@ bool_t xdr_lsfRusage(XDR *xdrs, struct lsfRusage *lsfRu, void *)
     return true;
 }
 
+// Obsolete by xdr_string_raw
 bool_t xdr_var_string(XDR *xdrs, char **str)
 {
     if (xdrs->x_op == XDR_ENCODE) {
@@ -863,4 +864,63 @@ bool_t xdr_wire_cluster_info(XDR *xdrs, struct wire_cluster_info *ci)
 bool_t xdr_wire_cluster_info_reply(XDR *xdrs, struct wire_cluster_info_reply *r)
 {
     return xdr_wire_cluster_info(xdrs, &r->cluster);
+}
+
+// LavaLite encode and decode string without bells and whistles
+bool_t
+xdr_string_raw(XDR *xdrs, char **sp, uint32_t max_len)
+{
+    uint32_t len = 0;
+
+    switch (xdrs->x_op) {
+
+    case XDR_ENCODE:
+        if (*sp != NULL)
+            len = (uint32_t)strlen(*sp);
+
+        if (len > max_len)
+            return false;
+
+        if (!xdr_uint32_t(xdrs, &len))
+            return false;
+
+        if (len == 0)
+            return true;
+
+        return xdr_opaque(xdrs, *sp, len);
+
+    case XDR_DECODE:
+        if (!xdr_uint32_t(xdrs, &len))
+            return false;
+
+        if (len == 0) {
+            *sp = NULL;
+            return true;
+        }
+
+        if (len > max_len)
+            return false;
+
+        *sp = malloc(len + 1);
+        if (*sp == NULL)
+            return false;
+
+        if (!xdr_opaque(xdrs, *sp, len)) {
+            free(*sp);
+            *sp = NULL;
+            return false;
+        }
+
+        (*sp)[len] = 0;
+        return true;
+
+    case XDR_FREE:
+        if (*sp != NULL) {
+            free(*sp);
+            *sp = NULL;
+        }
+        return true;
+    }
+
+    return false;
 }

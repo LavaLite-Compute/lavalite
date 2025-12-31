@@ -1091,7 +1091,6 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     struct sbdPackage sbdPackage;
     int cc;
     struct hData *hData;
-    int i;
 
     if (!portok(from)) {
         ls_syslog(LOG_ERR, "%s: Received status report from bad port <%s>",
@@ -1131,9 +1130,6 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         free(reply_buf);
-        for (i = 0; i < sbdPackage.nAdmins; i++)
-            FREEUP(sbdPackage.admins[i]);
-        FREEUP(sbdPackage.admins);
         for (cc = 0; cc < sbdPackage.numJobs; cc++)
             freeJobSpecs(&sbdPackage.jobs[cc]);
         if (sbdPackage.jobs)
@@ -1146,9 +1142,6 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     free(reply_buf);
     xdr_destroy(&xdrs2);
-    for (i = 0; i < sbdPackage.nAdmins; i++)
-        FREEUP(sbdPackage.admins[i]);
-    FREEUP(sbdPackage.admins);
     for (cc = 0; cc < sbdPackage.numJobs; cc++)
         freeJobSpecs(&sbdPackage.jobs[cc]);
     if (sbdPackage.jobs)
@@ -2401,21 +2394,21 @@ do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     memcpy(hostname, req.hostname, sizeof(hostname));
     hostname[sizeof(hostname) - 1] = 0;
 
-    struct hData *h = getHostData(hostname);
-    if (h == NULL) {
+    struct hData *host_data = getHostData(hostname);
+    if (host_data == NULL) {
         LS_ERR("SBD_REGISTER from unknown host %s", hostname);
         return enqueue_header_reply(mbd_efd, client->chanfd, LSBE_BAD_HOST);
     }
 
     // offlist the client and adopt it in the hData
     offList((struct listEntry *)client);
-    h->sbd_node = client;
+    host_data->sbd_node = client;
     // a back pointer to the hData using the current client connection
-    h->sbd_node->host_node = h;
+    host_data->sbd_node->host_node = host_data;
 
     LS_INFO("sbatchd register hostname=%s canon=%s addr=%s ch_id=%d",
-            hostname, h->sbd_node->host.name, h->sbd_node->host.addr,
-            h->sbd_node->chanfd);
+            hostname, host_data->sbd_node->host.name,
+            host_data->sbd_node->host.addr, host_data->sbd_node->chanfd);
 
     return enqueue_header_reply(mbd_efd, client->chanfd, SBD_REGISTER_REPLY);
 }

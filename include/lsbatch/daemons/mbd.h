@@ -993,7 +993,6 @@ extern int switchJobArray(struct jobSwitchReq *, struct lsfAuth *);
 extern int sbatchdJobs(struct sbdPackage *, struct hData *);
 extern int countNumSpecs(struct hData *hData);
 extern void packJobSpecs(struct jData *, struct jobSpecs *);
-extern void freeJobSpecs(struct jobSpecs *);
 extern int peekJob(struct jobPeekReq *, struct jobPeekReply *,
                    struct lsfAuth *);
 extern int migJob(struct migReq *, struct submitMbdReply *, struct lsfAuth *);
@@ -1401,7 +1400,7 @@ extern void updateTimeWindow(struct timeWindow *);
 
 // LavaLite
 struct hData *getHostData(const char *host);
-void shutDownClient(struct mbd_client_node *);
+void shutdown_mbd_client(struct mbd_client_node *);
 
 // LavaLite model, cleant and most honest approach model — codify
 // the assumption that the daemon is launched by the cluster admin,

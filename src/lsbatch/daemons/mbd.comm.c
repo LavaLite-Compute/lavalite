@@ -31,119 +31,127 @@ extern sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
 // Inititlize the sbd node list
 struct sbdNode sbdNodeList = {.forw = &sbdNodeList, .back = &sbdNodeList};
 
-sbdReplyType start_job(struct jData *jDataPtr, struct qData *qp,
+sbdReplyType start_job(struct jData *job,
+                       struct qData *qp,
                        struct jobReply *jobReply)
 {
-    static char fname[] = "start_job";
-    struct jobSpecs jobSpecs;
-    char *request_buf = NULL;
-    struct packet_header hdr;
-    char *reply_buf = NULL;
-    XDR xdrs;
-    sbdReplyType reply;
-    int buflen, i;
-    struct hData *hostData = jDataPtr->hPtr[0];
-    char *toHost = jDataPtr->hPtr[0]->host;
-    struct lenData jf;
-    struct lenData aux_auth_data;
-    struct sbdNode sbdNode;
-    struct lsfAuth *auth = NULL;
+    struct hData *host_node = job->hPtr[0];
 
-    if (logclass & (LC_SCHED | LC_EXEC))
-        ls_syslog(LOG_DEBUG2, "%s: job=%s", fname,
-                  lsb_jobid2str(jDataPtr->jobId));
+    if (host_node->sbd_node == NULL
+        || host_node->sbd_node->chanfd == -1) {
+        errno = ECONNREFUSED; // make %m meaningful
+        LS_ERR("sbd on the node %s is not connected cannot schedule",
+               host_node->host);
+        return ERR_UNREACH_SBD;
 
-    packJobSpecs(jDataPtr, &jobSpecs);
-
-    if (pjobSpoolDir != NULL) {
-        if (jDataPtr->jobSpoolDir == NULL) {
-            strcpy(jobSpecs.jobSpoolDir, pjobSpoolDir);
-            jDataPtr->jobSpoolDir = safeSave(pjobSpoolDir);
-
-        } else if (strcmp(pjobSpoolDir, jDataPtr->jobSpoolDir) != 0) {
-            strcpy(jobSpecs.jobSpoolDir, pjobSpoolDir);
-            FREEUP(jDataPtr->jobSpoolDir);
-            jDataPtr->jobSpoolDir = safeSave(pjobSpoolDir);
-        }
-    } else {
-        if (jDataPtr->jobSpoolDir != NULL) {
-            jobSpecs.jobSpoolDir[0] = '\0';
-            FREEUP(jDataPtr->jobSpoolDir);
-        }
     }
+    LS_DEBUG("job %s", lsb_jobid2str(job->jobId));
 
-    if (readLogJobInfo(&jobSpecs, jDataPtr, &jf, &aux_auth_data) == -1) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jDataPtr->jobId),
-                  "readLogJobInfo");
+    struct jobSpecs jobSpecs;
+    memset(&jobSpecs, 0, sizeof(jobSpecs));
+    packJobSpecs(job, &jobSpecs);
+
+    struct lenData jf = {0};
+    if (readLogJobInfo(&jobSpecs, job, &jf, NULL) == -1) {
+        LS_ERR("failed to read job file for %s", lsb_jobid2str(job->jobId));
         freeJobSpecs(&jobSpecs);
+        if (jf.data)
+            free(jf.data);
         return ERR_NO_FILE;
     }
 
-    if (jobSpecs.options & SUB_RESTART) {
-        char *tmp;
-        if (strchr(jobSpecs.jobFile, '.') != strrchr(jobSpecs.jobFile, '.')) {
-            tmp = strstr(jobSpecs.jobFile, lsb_jobid2str(jobSpecs.jobId));
-            if (tmp != NULL) {
-                --tmp;
-                *tmp = '\0';
-            }
-        }
-    }
-
+    struct packet_header hdr;
     hdr.operation = MBD_NEW_JOB;
-    buflen = sizeof(struct jobSpecs) + sizeof(struct sbdPackage) + 100 +
-             jobSpecs.numToHosts * MAXHOSTNAMELEN +
-             jobSpecs.thresholds.nThresholds * jobSpecs.thresholds.nIdx * 2 *
-                 sizeof(float) +
-             jobSpecs.nxf * sizeof(struct xFile) + jobSpecs.eexec.len;
-    for (i = 0; i < jobSpecs.numEnv; i++)
+    // Quoqe tu, Brute
+    size_t buflen = LL_BUFSIZ_64K;
+    for (int i = 0; i < jobSpecs.numEnv; i++)
         buflen += strlen(jobSpecs.env[i]);
 
-    request_buf = (char *) my_malloc(buflen, fname);
+    buflen += jobSpecs.jobFileData.len;
+    buflen += jobSpecs.eexec.len;
+
+    /*
+     * Guardrail: the total job payload should never exceed
+     * base + maximum allowed environment size.
+     * If this trips, either the jobfile is corrupted or future code
+     * introduced a regresssion in sizing — both worth catching early.
+     */
+    if (buflen > (size_t)(LL_ENVVAR_MAX + LL_BUFSIZ_64K)) {
+        LS_ERR("%s: jobspec too large (%zu bytes), refusing to send to sbatchd",
+               __func__, buflen);
+        return ERR_JOB_TOO_LARGE;
+    }
+
+
+    XDR xdrs;
+    char *request_buf = calloc(buflen, sizeof(char));
+    if (request_buf == NULL) {
+        LS_ERR("calloc(%d) for job %s failed",
+               buflen, lsb_jobid2str(job->jobId));
+        freeJobSpecs(&jobSpecs);
+        if (jf.data != NULL)
+            free(jf.data);
+        return ERR_MEM;
+    }
+
     xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobSpecs, &hdr, xdr_jobSpecs, 0,
-                       auth)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+
+    // No auth no because the sbd already authenticated during its
+    // registration with mbd
+    if (!xdr_encodeMsg(&xdrs,
+                       (char *)&jobSpecs,
+                       &hdr,
+                       xdr_jobSpecs,
+                       0,
+                       NULL)) {
+        printf("xdr_get_pos %d\n", xdr_getpos(&xdrs));
+        LS_ERR("xdr_encodeMsg failed for job %s", lsb_jobid2str(job->jobId));
         xdr_destroy(&xdrs);
         free(request_buf);
         freeJobSpecs(&jobSpecs);
-        free(jf.data);
+        if (jf.data)
+            free(jf.data);
         return ERR_FAIL;
     }
 
-    sbdNode.jData = jDataPtr;
-    sbdNode.hData = hostData;
+    struct sbdNode sbdNode = {0};
+    sbdNode.jData = job;
+    // Go and launch on the first allocated job
+    sbdNode.hData = job->hPtr[0];
     sbdNode.reqCode = MBD_NEW_JOB;
 
-    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
+    // call_sbd on the host node selected by the scheduler
+    // note this node must be connected to mbd as it its sbd
+    // must have registered previously with mbd. otherwise
+    // we must fail.
+    sbdReplyType reply = call_sbd(job->hPtr[0]->host,
+                                  request_buf,
+                                  XDR_GETPOS(&xdrs),
+                                  &sbdNode);
 
     xdr_destroy(&xdrs);
     free(request_buf);
     freeJobSpecs(&jobSpecs);
-    free(jf.data);
+    if (jf.data)
+        free(jf.data);
 
     if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
         return reply;
 
-    if (reply == ERR_NO_ERROR) {
-        jobReply->jobId = jDataPtr->jobId;
-        jobReply->jobPid = 0;
-        jobReply->jobPGid = 0;
-        jobReply->jStatus = jobSpecs.jStatus;
-        jobReply->jStatus &= ~JOB_STAT_MIG;
-        if (jobSpecs.options & SUB_PRE_EXEC)
-            SET_STATE(jobReply->jStatus, JOB_STAT_RUN | JOB_STAT_PRE_EXEC);
-        else
-            SET_STATE(jobReply->jStatus, JOB_STAT_RUN);
-    }
-
-    if (reply_buf)
-        free(reply_buf);
+    jobReply->jobId = job->jobId;
+    jobReply->jobPid = 0;
+    jobReply->jobPGid = 0;
+    jobReply->jStatus = jobSpecs.jStatus;
+    jobReply->jStatus &= ~JOB_STAT_MIG;
+    if (jobSpecs.options & SUB_PRE_EXEC)
+        SET_STATE(jobReply->jStatus, JOB_STAT_RUN | JOB_STAT_PRE_EXEC);
+    else
+        SET_STATE(jobReply->jStatus, JOB_STAT_RUN);
 
     return reply;
 }
 
-sbdReplyType switch_job(struct jData *jDataPtr, int options)
+sbdReplyType switch_job(struct jData *job, int options)
 {
     static char fname[] = "switch_job";
     struct jobSpecs jobSpecs;
@@ -153,30 +161,24 @@ sbdReplyType switch_job(struct jData *jDataPtr, int options)
     XDR xdrs;
     sbdReplyType reply;
     int buflen;
-    struct hData *HostData = jDataPtr->hPtr[0];
-    char *toHost = jDataPtr->hPtr[0]->host;
+    struct hData *HostData = job->hPtr[0];
+    char *toHost = job->hPtr[0]->host;
     struct sbdNode sbdNode;
     struct lsfAuth *auth = NULL;
 
     if (logclass & (LC_SIGNAL | LC_EXEC))
         ls_syslog(LOG_DEBUG2, "%s: job=%s", fname,
-                  lsb_jobid2str(jDataPtr->jobId));
+                  lsb_jobid2str(job->jobId));
 
-    packJobSpecs(jDataPtr, &jobSpecs);
+    packJobSpecs(job, &jobSpecs);
 
     if (options == TRUE) {
         hdr.operation = MBD_SWIT_JOB;
     } else {
         hdr.operation = MBD_MODIFY_JOB;
     }
-    buflen = sizeof(struct jobSpecs) + sizeof(struct sbdPackage) + 100 +
-             jobSpecs.numToHosts * MAXHOSTNAMELEN +
-             jobSpecs.thresholds.nThresholds * jobSpecs.thresholds.nIdx * 2 *
-                 sizeof(float) +
-             jobSpecs.nxf * sizeof(struct xFile);
-    buflen = (buflen * 4) / 4;
-
-    request_buf = (char *) my_malloc(buflen, fname);
+    buflen = LL_BUFSIZ_32K;
+    request_buf = calloc(buflen, sizeof(char));
     xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
     if (!xdr_encodeMsg(&xdrs, (char *) &jobSpecs, &hdr, xdr_jobSpecs, 0,
                        auth)) {
@@ -187,7 +189,7 @@ sbdReplyType switch_job(struct jData *jDataPtr, int options)
         return ERR_FAIL;
     }
 
-    sbdNode.jData = jDataPtr;
+    sbdNode.jData = job;
     sbdNode.hData = HostData;
     if (options == TRUE) {
         sbdNode.reqCode = MBD_SWIT_JOB;
@@ -208,7 +210,7 @@ sbdReplyType switch_job(struct jData *jDataPtr, int options)
         ls_syslog(LOG_ERR,
                   "%s: Job <%s>: Illegal reply code <%d> from host <%s>, "
                   "switch job failed",
-                  fname, lsb_jobid2str(jDataPtr->jobId), reply, toHost);
+                  fname, lsb_jobid2str(job->jobId), reply, toHost);
     }
 
     if (reply_buf)
@@ -355,9 +357,6 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
             xdr_destroy(&xdrs);
             free(request_buf);
-            for (i = 0; i < sbdPackage.nAdmins; i++)
-                FREEUP(sbdPackage.admins[i]);
-            FREEUP(sbdPackage.admins);
             for (i = 0; i < sbdPackage.numJobs; i++)
                 freeJobSpecs(&sbdPackage.jobs[i]);
             if (sbdPackage.jobs)
@@ -386,9 +385,6 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
 
     if (sendJobs) {
         free(request_buf);
-        for (i = 0; i < sbdPackage.nAdmins; i++)
-            FREEUP(sbdPackage.admins[i]);
-        FREEUP(sbdPackage.admins);
         for (i = 0; i < sbdPackage.numJobs; i++)
             freeJobSpecs(&sbdPackage.jobs[i]);
         if (sbdPackage.jobs)
@@ -474,6 +470,17 @@ sbdReplyType call_sbd(char *toHost, char *request_buf, int len,
 
     inList((struct listEntry *)&sbdNodeList, (struct listEntry *)node);
     nSbdConnections++;
+
+    // Enable epollout
+    struct epoll_event ev;
+    ev.data.fd = ch_id;
+    ev.events = EPOLLIN | EPOLLOUT | EPOLLERR;
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, ch_id, &ev) < 0) {
+        LS_ERR("epoll_ctl(EPOLLOUT) failed for host <%s>, fd=%d",
+        return ERR_FAIL;
+    }
+
 
     return ERR_NO_ERROR;
 }

@@ -50,16 +50,6 @@ int ls_initdebug(const char *appName)
     else
         logMask = debParams[LSF_LOG_MASK].paramValue;
 
-    if (appName == NULL)
-        ls_openlog("lscmd", debParams[LSF_CMD_LOGDIR].paramValue,
-                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), 0, logMask);
-    else {
-        if (strrchr(appName, '/') != 0)
-            appName = strrchr(appName, '/') + 1;
-        ls_openlog(appName, debParams[LSF_CMD_LOGDIR].paramValue,
-                   (debParams[LSF_CMD_LOGDIR].paramValue == NULL), 0, logMask);
-    }
-
     for (pPtr = debParams; pPtr->paramName != NULL; pPtr++)
         FREEUP(pPtr->paramValue);
 

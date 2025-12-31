@@ -47,7 +47,7 @@ int rcvJobFile(int chfd, struct lenData *jf)
     }
 
     jf->len = ntohl(jf->len);
-    jf->data = my_malloc(jf->len, "rcvJobFile");
+    jf->data = calloc(jf->len, sizeof(char));
 
     if ((cc = chan_read(chfd, jf->data, jf->len)) != jf->len) {
         ls_syslog(LOG_ERR, "%s", __func__, "chan_read");
@@ -217,4 +217,36 @@ int enqueue_header_reply(int efd, int ch_id, int rc)
     }
 
     return 0;
+}
+// Used by both mbd and sbd
+void freeJobSpecs(struct jobSpecs *spec)
+{
+    int i;
+
+    if (spec->toHosts != NULL) {
+        free(spec->toHosts);
+        spec->toHosts = NULL;
+        spec->numToHosts = 0;
+    }
+
+    if (spec->env != NULL && spec->numEnv > 0) {
+        for (i = 0; i < spec->numEnv; i++) {
+            FREEUP(spec->env[i]);
+        }
+        FREEUP(spec->env);
+        spec->env = NULL;
+        spec->numEnv = 0;
+    }
+
+    if (spec->eexec.len > 0 && spec->eexec.data != NULL) {
+        FREEUP(spec->eexec.data);
+        spec->eexec.data = NULL;
+        spec->eexec.len = 0;
+    }
+
+    if (spec->jobFileData.len > 0 && spec->jobFileData.data != NULL) {
+        FREEUP(spec->jobFileData.data);
+        spec->jobFileData.data = NULL;
+        spec->jobFileData.len = 0;
+    }
 }

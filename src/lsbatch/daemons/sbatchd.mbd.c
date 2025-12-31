@@ -102,8 +102,7 @@ int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
         goto send_reply;
     }
 
-    LS_DEBUG("MBD_NEW_JOB: jobId=%u jobFile=%s spoolDir=%s",
-             spec.jobId, spec.jobFile, spec.jobSpoolDir);
+    LS_DEBUG("MBD_NEW_JOB: jobId=%u jobFile=%s", spec.jobId, spec.jobFile);
 
     // 2) duplicate NEW_JOB? just echo our view
     struct sbd_job *job;
@@ -237,12 +236,6 @@ static void sbd_child_exec_job(struct jobSpecs *specs)
              sizeof(script_path),
              "%s",
              specs->jobFile);
-
-    if (specs->execHome[0] != '\0') {
-        (void)chdir(specs->execHome);
-    } else if (specs->jobSpoolDir[0] != '\0') {
-        (void)chdir(specs->jobSpoolDir);
-    }
 
     char *argv[3];
 

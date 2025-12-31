@@ -120,7 +120,8 @@ typedef enum {
     ERR_UNREACH_SBD,
     ERR_JOB_RETURN,
     ERR_RESTARTING_FILE,
-    ERR_HANDLE
+    ERR_HANDLE,
+    ERR_JOB_TOO_LARGE
 } sbdReplyType;
 
 #define LOAD_REASONS                                                           \
@@ -133,90 +134,65 @@ struct thresholds {
     float **loadStop;
     float **loadSched;
 };
-
+// LavaLite job specification with the job file
 struct jobSpecs {
-    int64_t jobId;
-    char jobName[MAXLINELEN];
-    int jStatus;
-    int reasons;
-    int subreasons;
-    int userId;
-    char userName[MAXLSFNAMELEN];
-    int options;
-    int jobPid;
-    int jobPGid;
-    char queue[MAXLSFNAMELEN];
-    int priority;
-    short nice;
-    char fromHost[MAXHOSTNAMELEN];
-    char resReq[MAXLINELEN];
-    time_t startTime;
-    int runTime;
-    int numToHosts;
-    char **toHosts;
-    struct thresholds thresholds;
-    int jAttrib;
-    int sigValue;
-    struct lsfLimit lsfLimits[LSF_RLIM_NLIMITS];
-    time_t termTime;
-    char windows[MAXLINELEN];
-    char subHomeDir[MAXFILENAMELEN];
-    char command[MAXLINELEN];
-    char jobFile[MAXFILENAMELEN];
-    char inFile[MAXFILENAMELEN];
-    char outFile[MAXFILENAMELEN];
-    char errFile[MAXFILENAMELEN];
-    int umask;
-    char cwd[MAXFILENAMELEN];
-    int restartPid;
+    int64_t jobId;                    // unique job identifier (cluster-wide)
+    char    jobName[MAXLINELEN];      // user-visible job name
 
-    int nxf;
-    struct xFile *xf;
+    int     jStatus;                  // scheduler job status flags (JOB_STAT_*)
+    int     reasons;                  // why job is pending / suspended (legacy semantics)
+    int     subreasons;               // finer-grained reasons (optional; may be deprecated)
 
-    time_t submitTime;
+    int     userId;                   // submitting user uid
+    char    userName[MAXLSFNAMELEN];  // submitting username
 
-    char chkpntDir[MAXFILENAMELEN];
-    int chkSig;
-    int actPid;
-    time_t chkPeriod;
-    time_t migThresh;
-    time_t lastSSuspTime;
+    int     options;                  // submission options (SUB_*)
+    int     jobPid;                   // process-id of running job (set by sbatchd)
+    int     jobPGid;                  // process group-id of job (leader is child)
 
-    char preExecCmd[MAXLINELEN];
+    char    queue[MAXLSFNAMELEN];     // queue name (policy entry)
+    int     priority;                 // internal scheduling priority
 
-    float lastCpuTime;
-    char mailUser[MAXLINELEN];
-    char clusterName[MAXLSFNAMELEN];
-    int numEnv;
-    char **env;
-    struct lenData eexec;
-    char projectName[MAXLSFNAMELEN];
-    char preCmd[MAXLINELEN];
-    char postCmd[MAXLINELEN];
-    char execCwd[MAXFILENAMELEN];
-    char execHome[MAXFILENAMELEN];
-    int execUid;
-    char requeueEValues[MAXLINELEN];
-    int niosPort;
-    char resumeCond[MAXLINELEN];
-    char stopCond[MAXLINELEN];
+    char    fromHost[MAXHOSTNAMELEN]; // submission host / routing source
 
-    char suspendActCmd[MAXLINELEN];
-    char resumeActCmd[MAXLINELEN];
-    char terminateActCmd[MAXLINELEN];
-    int sigMap[LSB_SIG_NUM];
-    int actValue;
-    char *loginShell;
-    int maxNumProcessors;
-    char *schedHostType;
-    char *execHosts;
-    int options2;
-    char jobSpoolDir[MAXPATHLEN];
-    char inFileSpool[MAXFILENAMELEN];
-    char commandSpool[MAXFILENAMELEN];
-    int userPriority;
-    char execUsername[MAXLSFNAMELEN];
+    time_t  startTime;                // time job actually started
+    int     runTime;                  // runtime used so far (seconds)
+
+    int     numToHosts;   // number of candidate execution hosts
+    char  **toHosts;      // list of exec hostnames build MPI hostfile
+
+    int     jAttrib;                  // job attributes bitmask (ATTR_*)
+    int     sigValue;                 // signal value used for control actions
+
+    time_t  termTime;     // planned termination time or checkpoint deadline
+
+    char    subHomeDir[MAXFILENAMELEN]; // submission-side $HOME
+    char    command[MAXLINELEN];        // original command line
+
+    char   jobFile[MAXFILENAMELEN]; // script name/path
+    struct lenData jobFileData; // inline script content (blob received via XDR)
+
+    char    inFile[MAXFILENAMELEN];     // stdin redirect path
+    char    outFile[MAXFILENAMELEN];    // stdout redirect path
+    char    errFile[MAXFILENAMELEN];    // stderr redirect path
+
+    int     umask;                     // umask for job execution
+    char    cwd[MAXFILENAMELEN];       // job working directory at submission
+
+    time_t  submitTime;                // job submission timestamp
+
+    char    preExecCmd[MAXLINELEN];    // command run before job exec
+
+    int     numEnv;      // number of env vars passed
+    char  **env;        // environment array (NULL-terminated pairs no required)
+
+    struct lenData eexec;              // encrypted exec string
+    char    projectName[MAXLSFNAMELEN];// project/accounting tag
+
+    char    preCmd[MAXLINELEN];        // optional pre-run wrapper
+    char    postCmd[MAXLINELEN];       // optional post-run wrapper
 };
+
 
 struct statusReq {
     int64_t jobId;
@@ -264,8 +240,6 @@ struct sbdPackage {
     int rusageUpdateRate;
     int rusageUpdatePercent;
     int jobTerminateInterval;
-    int nAdmins;
-    char **admins;
 };
 
 struct jobSig {
@@ -481,3 +455,5 @@ extern void daemon_doinit(void);
 extern void scaleByFactor(int *, int *, float);
 // LavaLite
 int enqueue_header_reply(int, int, int);
+// Bug fix this extern the function is in mbd.h
+void freeJobSpecs(struct jobSpecs *);

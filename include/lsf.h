@@ -607,18 +607,20 @@ extern struct clusterConf *ls_readcluster_ex(char *, struct lsInfo *, int);
 
 extern int ls_initdebug(const char *);
 
-extern void ls_syslog(int, const char *, ...)
-#if defined(__GNUC__) && defined(CHECK_ARGS)
-    __attribute__((format(printf, 2, 3)))
-#endif
-    ;
+// LavaLite logging
+int ls_openlog(const char *,   // identity
+               const char *,   // logdir
+               int,            // to_stderr
+               int,            // to_syslog
+               const char *);  // log mask
 
-extern void ls_errlog(FILE *, const char *, ...)
+void ls_syslog(int, const char *, ...)
 #if defined(__GNUC__) && defined(CHECK_ARGS)
     __attribute__((format(printf, 2, 3)))
 #endif
     ;
-extern void ls_verrlog(FILE *, const char *, va_list);
+void ls_set_time_level(const char *);
+void ls_closelog(void);
 
 extern int ls_servavail(int, int);
 extern int ls_setpriority(int);

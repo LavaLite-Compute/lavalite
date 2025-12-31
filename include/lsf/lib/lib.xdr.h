@@ -93,3 +93,6 @@ bool_t xdr_wire_lsinfo_reply(XDR *, struct wire_lsinfo_reply *);
 // ls_clusterinfo()
 bool_t xdr_wire_cluster_info(XDR *, struct wire_cluster_info *);
 bool_t xdr_wire_cluster_info_reply(XDR *, struct wire_cluster_info_reply *);
+
+// strings
+bool_t xdr_string_raw(XDR *, char **, uint32_t);

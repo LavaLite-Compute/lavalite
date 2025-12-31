@@ -176,7 +176,6 @@ void ls_set_time_level(const char *time_value)
         timinglevel = 0;
 }
 
-
 void ls_syslog(int level, const char *fmt, ...)
 {
     va_list ap;

@@ -2550,124 +2550,154 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
                    struct lenData *jf, struct lenData *aux_auth_data)
 {
 #define ENVEND "$LSB_TRAPSIGS\n"
-    static char fname[] = "readLogJobInfo()";
     char logFn[PATH_MAX];
     struct stat st;
-    int fd, i, numEnv, cc;
-    char *buf, *sp, *edata, *eventAttrs = NULL;
+    int fd;
+    int i;
+    int numEnv;
+    int cc;
+    char *buf;
+    char *sp;
+    char *edata;
+    char *eventAttrs = NULL;
     char *newBuf;
+
+    (void)aux_auth_data;
 
     jobSpecs->numEnv = 0;
     jobSpecs->env = NULL;
+
     jobSpecs->eexec.len = 0;
     jobSpecs->eexec.data = NULL;
+
+    jobSpecs->jobFileData.len = 0;
+    jobSpecs->jobFileData.data = NULL;
+
     jf->len = 0;
     jf->data = NULL;
 
-    sprintf(logFn, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
-            jpbw->shared->jobBill.jobFile);
+    snprintf(logFn, sizeof(logFn),
+             "%s/info/%s",
+             lsbParams[LSB_SHAREDIR].paramValue,
+             jpbw->shared->jobBill.jobFile);
 
     fd = open(logFn, O_RDONLY);
-
     if (fd < 0) {
-        sprintf(logFn, "%s/info/%d", lsbParams[LSB_SHAREDIR].paramValue,
-                LSB_ARRAY_JOBID(jpbw->jobId));
+        snprintf(logFn, sizeof(logFn),
+                 "%s/info/%d",
+                 lsbParams[LSB_SHAREDIR].paramValue,
+                 LSB_ARRAY_JOBID(jpbw->jobId));
         fd = open(logFn, O_RDONLY);
     }
 
     if (fd < 0) {
         if (errno != ENOENT) {
-            ls_syslog(LOG_ERR, fname, lsb_jobid2str(jpbw->jobId), "open",
-                      logFn);
+            LS_ERR("job %s open(%s) failed", lsb_jobid2str(jpbw->jobId), logFn);
         }
         return -1;
     }
 
-    fstat(fd, &st);
+    if (fstat(fd, &st) < 0) {
+        LS_ERR("job %s fstat(%s) failed", lsb_jobid2str(jpbw->jobId), logFn);
+        close(fd);
+        return -1;
+    }
 
-    buf = calloc(st.st_size, sizeof(char));
-    if ((cc = read(fd, buf, st.st_size)) != st.st_size) {
-        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jpbw->jobId), "read", logFn);
+    buf = calloc((size_t)st.st_size, sizeof(char));
+    if (buf == NULL) {
+        LS_ERR("job %s calloc(%ld) failed",
+               lsb_jobid2str(jpbw->jobId), (long)st.st_size);
+        close(fd);
+        return -1;
+    }
+
+    cc = (int)read(fd, buf, (size_t)st.st_size);
+    if (cc != st.st_size) {
+        LS_ERR("job %s read(%s) failed",
+               lsb_jobid2str(jpbw->jobId), logFn);
         close(fd);
         FREEUP(buf);
         return -1;
     }
     close(fd);
 
+    // count ENV lines till ENVEND which is the LSB_TRAPSIGS
     for (sp = buf + strlen(SHELLLINE), numEnv = 0;
          strncmp(sp, ENVEND, sizeof(ENVEND) - 1); numEnv++) {
-        sp = strstr(sp, TAILCMD);
 
+        sp = strstr(sp, TAILCMD);
         if (sp == NULL) {
-            ls_syslog(LOG_ERR,
-                      "%s: Info file is corrupted for job <%d>; "
-                      " could not find %s (numEnv=%d",
-                      __func__, LSB_ARRAY_JOBID(jpbw->jobId), TAILCMD, numEnv);
+            LS_ERR("corrupted info file for job %d: missing %s (numEnv=%d)",
+                   LSB_ARRAY_JOBID(jpbw->jobId), TAILCMD, numEnv);
             FREEUP(buf);
             return -1;
         }
-        sp = strchr(sp, '\n');
 
+        sp = strchr(sp, '\n');
         if (sp == NULL) {
-            ls_syslog(LOG_ERR,
-                      "%s: Info file is corrupted for job <%d>; "
-                      "could not find newline character (numEnv=%d",
-                      __func__, LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
+            LS_ERR("corrupted info file for job %d: missing newline (numEnv=%d)",
+                  LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
             FREEUP(buf);
             return -1;
         }
         sp++;
     }
 
+    // defaults
+    jobSpecs->env = NULL;
+    jobSpecs->numEnv = 0;
+
     if (jpbw->qPtr->jobStarter)
         numEnv++;
 
-    if (numEnv) {
-        jobSpecs->env = (char **) my_calloc(numEnv, sizeof(char *), fname);
-
+    if (numEnv > 0) {
+        jobSpecs->env = calloc(numEnv, sizeof(char *));
         jobSpecs->numEnv = 0;
 
         for (sp = buf + strlen(SHELLLINE), i = 0;
              strncmp(sp, ENVEND, sizeof(ENVEND) - 1);) {
+
             char *spp, *tailst;
             char saveChar;
 
             tailst = strstr(sp, TAILCMD);
+            if (tailst == NULL) {
+                LS_ERR("%s: corrupted info file for job %d: missing %s in ENV section",
+                       __func__, LSB_ARRAY_JOBID(jpbw->jobId), TAILCMD);
+                break;
+            }
             saveChar = *tailst;
-            *tailst = '\0';
+            *tailst = 0;
 
             jobSpecs->env[i] = safeSave(sp);
             *tailst = saveChar;
 
             spp = strchr(jobSpecs->env[i], '=');
             if (spp == NULL) {
-                ls_syslog(LOG_ERR,
-                          "%s: Info file seems corrupted "
-                          "bad system syntax variable=%s in job=%d, trying "
-                          "to recover by skipping the variable",
-                          __func__, jobSpecs->env[i],
-                          LSB_ARRAY_JOBID(jpbw->jobId));
+                LS_ERR("corrupted info file: bad env var \"%s\" in job %d, skipping",
+                       jobSpecs->env[i], LSB_ARRAY_JOBID(jpbw->jobId));
                 FREEUP(jobSpecs->env[i]);
             } else {
+                /* shift dopo = e spazio */
                 spp += 2;
-                for (; *spp != '\0'; spp++)
+                for (; *spp != 0; spp++)
                     *(spp - 1) = *spp;
-                *(spp - 1) = '\0';
+                *(spp - 1) = 0;
                 i++;
             }
 
-            sp = strchr(tailst, '\n') + 1;
+            sp = strchr(tailst, '\n');
             if (sp == NULL) {
-                ls_syslog(LOG_ERR,
-                          "%s: Info file seems corrupted cannot locate "
-                          "new line, job=%d numEnv=%d",
-                          __func__, LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
+                LS_ERR("corrupted info file: cannot find newline, job=%d numEnv=%d",
+                       LSB_ARRAY_JOBID(jpbw->jobId), numEnv);
+                break;
             }
+            sp++;
         }
 
         if (jpbw->qPtr->jobStarter) {
             jobSpecs->env[i] = my_malloc(strlen(jpbw->qPtr->jobStarter) + 1 +
-                                             sizeof("LSB_JOB_STARTER="),
+                                         sizeof("LSB_JOB_STARTER="),
                                          "readLogJobInfo/job_starter");
             sprintf(jobSpecs->env[i], "LSB_JOB_STARTER=%s",
                     jpbw->qPtr->jobStarter);
@@ -2676,80 +2706,86 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
         if (eventAttrs) {
             jobSpecs->env[i] = safeSave(eventAttrs);
-            ls_syslog(LOG_DEBUG, "%s", eventAttrs);
+            LS_DEBUG("%s", eventAttrs);
             FREEUP(eventAttrs);
             i++;
         }
-        jobSpecs->numEnv = i;
-    } else {
-        jobSpecs->env = NULL;
-        jobSpecs->numEnv = 0;
-    }
-    edata = strstr(buf, EDATASTART);
 
+        jobSpecs->numEnv = i;
+    }
+
+    /* eexec */
+    edata = strstr(buf, EDATASTART);
     if (edata) {
         sp = edata + sizeof(EDATASTART) - 1;
         jobSpecs->eexec.len = atoi(sp);
         sp += strlen(sp) + 1;
+
         if (jobSpecs->eexec.len > 0) {
             jobSpecs->eexec.data =
-                my_malloc(jobSpecs->eexec.len, "readLogJobinfo/eexec.data");
+                my_malloc(jobSpecs->eexec.len, "readLogJobInfo/eexec.data");
             memcpy(jobSpecs->eexec.data, sp, jobSpecs->eexec.len);
         } else {
             jobSpecs->eexec.len = 0;
             jobSpecs->eexec.data = NULL;
         }
     } else {
-        ls_syslog(LOG_DEBUG,
-                  "%s: File <%s> of job <%d> has no <%s>; assume it is a "
-                  "pre-2.2 file",
-                  fname, logFn, LSB_ARRAY_JOBID(jpbw->jobId), EDATASTART);
+        LS_DEBUG("jobfile %s (job %d) has no %s; assuming legacy pre-2.2",
+                 logFn, LSB_ARRAY_JOBID(jpbw->jobId), EDATASTART);
         jobSpecs->eexec.len = 0;
         jobSpecs->eexec.data = NULL;
     }
 
-    i = 0;
-
+    /* tag EXITCMD: delimita il jobfile vero e proprio */
     sp = strstr(buf, EXITCMD);
-
     if (!sp) {
-        ls_syslog(LOG_ERR,
-                  "%s: failed to find EXITCMD tag in jobfile, for job <%d>",
-                  fname, LSB_ARRAY_JOBID(jpbw->jobId));
+        LS_ERR("failed to find EXITCMD tag in jobfile for job %d",
+               LSB_ARRAY_JOBID(jpbw->jobId));
+        FREEUP(buf);
         return -1;
     }
 
     sp += strlen(EXITCMD);
-    *sp = '\0';
+    *sp = 0;
+
+    /* a questo punto buf contiene il jobfile “logico” fino a EXITCMD.
+     * prima lo passavamo via jf; ora lo mettiamo in jobFileData.
+     */
 
     if ((jpbw->qPtr->jobStarter != NULL) &&
-        (jpbw->qPtr->jobStarter[0] != '\0')) {
+        (jpbw->qPtr->jobStarter[0] != 0)) {
+
         if (checkJobStarter(buf, jpbw->qPtr->jobStarter)) {
-            jf->data = buf;
-            jf->len = strlen(jf->data) + 1;
-            return 0;
-        } else if ((newBuf = instrJobStarter1(
-                        buf, strlen(buf) + 1, CMDSTART, WAITCLEANCMD,
-                        jpbw->qPtr->jobStarter)) == NULL) {
-            ls_syslog(LOG_ERR,
-                      "%s: Failed to insert job stater into jobfile data, job "
-                      "<%s>, queue <%s>",
-                      fname, lsb_jobid2str(jpbw->jobId), jpbw->qPtr->queue);
-            FREEUP(buf);
-            return -1;
-        } else {
-            FREEUP(buf);
-            jf->data = newBuf;
-            jf->len = strlen(jf->data) + 1;
+            jobSpecs->jobFileData.data = buf;
+            jobSpecs->jobFileData.len = (int)strlen(buf) + 1;
             return 0;
         }
+
+        newBuf = instrJobStarter1(buf,
+                                  (int)strlen(buf) + 1,
+                                  CMDSTART,
+                                  WAITCLEANCMD,
+                                  jpbw->qPtr->jobStarter);
+        if (newBuf == NULL) {
+            LS_ERR("failed to insert job starter into jobfile, job %s, queue %s",
+                   lsb_jobid2str(jpbw->jobId), jpbw->qPtr->queue);
+            FREEUP(buf);
+            return -1;
+        }
+
+        FREEUP(buf);
+        jobSpecs->jobFileData.data = newBuf;
+        jobSpecs->jobFileData.len = (int)strlen(newBuf) + 1;
+        return 0;
     }
 
-    jf->data = buf;
-    jf->len = strlen(jf->data) + 1;
+    // Now we set the job file in the job spec
+    jobSpecs->jobFileData.data = buf;
+    jobSpecs->jobFileData.len = (int)strlen(buf) + 1;
 
     return 0;
 }
+
 
 char *readJobInfoFile(struct jData *jp, int *len)
 {

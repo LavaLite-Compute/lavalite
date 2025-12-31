@@ -653,7 +653,6 @@ void shutDownClient(struct clientNode *client)
 
     if (client->jp) {
         client->jp->client = NULL;
-
         client->jp->regOpFlag &= REG_RUSAGE;
     }
     FREEUP(client);

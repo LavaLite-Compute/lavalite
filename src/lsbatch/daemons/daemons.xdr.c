@@ -1,5 +1,6 @@
-/* $Id: daemons.xdr.c,v 1.9 2007/08/15 22:18:44 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -12,8 +13,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA
  *
  */
 
@@ -23,334 +24,185 @@
 
 extern void jobId64To32(int64_t, int *, int *);
 extern void jobId32To64(int64_t *, int, int);
-static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jp);
 
-bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *ctx)
+bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
 {
-    char *sp[15];
-    char *pTemp;
-    int i, nLimits;
-    int jobArrId, jobArrElemId;
-    int64_t tmpJobId;
+    int jobArrId = 0;
+    int jobArrElemId = 0;
+    int i;
+
+    (void)unused;
 
     if (xdrs->x_op == XDR_DECODE) {
-        jobSpecs->numToHosts = 0;
-        jobSpecs->toHosts = NULL;
-        jobSpecs->nxf = 0;
-        jobSpecs->xf = NULL;
-        jobSpecs->numEnv = 0;
-        jobSpecs->env = NULL;
-        jobSpecs->eexec.len = 0;
-        jobSpecs->eexec.data = NULL;
-        jobSpecs->loginShell = NULL;
-        jobSpecs->schedHostType = NULL;
-        jobSpecs->execHosts = NULL;
+        spec->numToHosts = 0;
+        spec->toHosts = NULL;
+
+        spec->numEnv = 0;
+        spec->env = NULL;
+
+        spec->jobFileData.len = 0;
+        spec->jobFileData.data = NULL;
+
+        spec->eexec.len = 0;
+        spec->eexec.data = NULL;
     }
 
+    // jobId: 64 bit su struct, due int sul wire
+    if (xdrs->x_op == XDR_ENCODE)
+        jobId64To32(spec->jobId, &jobArrId, &jobArrElemId);
+
+    if (!xdr_int(xdrs, &jobArrId))
+        return false;
+    if (!xdr_int(xdrs, &jobArrElemId))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE)
+        jobId32To64(&spec->jobId, jobArrId, jobArrElemId);
+
+    // campi base e stringhe fisse
+    if (!xdr_opaque(xdrs, spec->jobName, LL_BUFSIZ_512))
+        return false;
+
+    if (!xdr_int(xdrs, &spec->jStatus))
+        return false;
+    if (!xdr_int(xdrs, &spec->reasons))
+        return false;
+    if (!xdr_int(xdrs, &spec->subreasons))
+        return false;
+
+    if (!xdr_int(xdrs, &spec->userId))
+        return false;
+    if (!xdr_opaque(xdrs, spec->userName, LL_BUFSIZ_64))
+        return false;
+
+    if (!xdr_int(xdrs, &spec->options))
+        return false;
+    if (!xdr_int(xdrs, &spec->jobPid))
+        return false;
+    if (!xdr_int(xdrs, &spec->jobPGid))
+        return false;
+
+    if (!xdr_opaque(xdrs, spec->queue, LL_BUFSIZ_64))
+        return false;
+    if (!xdr_int(xdrs, &spec->priority))
+        return false;
+
+    if (!xdr_opaque(xdrs, spec->fromHost, MAXHOSTNAMELEN))
+        return false;
+
+    if (!xdr_time_t(xdrs, &spec->startTime))
+        return false;
+    if (!xdr_int(xdrs, &spec->runTime))
+        return false;
+
+    // toHosts: numero + array di stringhe
+    if (!xdr_int(xdrs, &spec->numToHosts))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE) {
+        if (spec->numToHosts > 0) {
+            spec->toHosts = calloc((size_t)spec->numToHosts, sizeof(char *));
+            if (spec->toHosts == NULL)
+                return false;
+        } else {
+            spec->toHosts = NULL;
+        }
+    }
+
+    for (i = 0; i < spec->numToHosts; i++) {
+        if (!xdr_string_raw(xdrs,
+                            &spec->toHosts[i],
+                            (uint32_t)(MAXHOSTNAMELEN - 1))) {
+            return false;
+        }
+    }
+
+    if (!xdr_int(xdrs, &spec->jAttrib))
+        return false;
+    if (!xdr_int(xdrs, &spec->sigValue))
+        return false;
+
+    if (!xdr_time_t(xdrs, &spec->termTime))
+        return false;
+
+    if (!xdr_opaque(xdrs, spec->subHomeDir, PATH_MAX))
+        return false;
+    if (!xdr_opaque(xdrs, spec->command, LL_BUFSIZ_512))
+        return false;
+
+    // job script: nome + blob inline
+    if (!xdr_opaque(xdrs, spec->jobFile, PATH_MAX))
+        return false;
+
+    if (!xdr_lenData(xdrs, &spec->jobFileData))
+        return false;
+
+    // file I/O
+    if (!xdr_opaque(xdrs, spec->inFile, PATH_MAX))
+        return false;
+    if (!xdr_opaque(xdrs, spec->outFile, PATH_MAX))
+        return false;
+    if (!xdr_opaque(xdrs, spec->errFile, PATH_MAX))
+        return false;
+
+    if (!xdr_int(xdrs, &spec->umask))
+        return false;
+    if (!xdr_opaque(xdrs, spec->cwd, PATH_MAX))
+        return false;
+
+    if (!xdr_time_t(xdrs, &spec->submitTime))
+        return false;
+
+    if (!xdr_opaque(xdrs, spec->preExecCmd, LL_BUFSIZ_512))
+        return false;
+
+    // environment: numEnv + array di stringhe
+    if (!xdr_int(xdrs, &spec->numEnv))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE) {
+        if (spec->numEnv > 0) {
+            spec->env = calloc((size_t)spec->numEnv, sizeof(char *));
+            if (spec->env == NULL)
+                return false;
+        } else {
+            spec->env = NULL;
+        }
+    }
+
+    for (i = 0; i < spec->numEnv; i++) {
+        if (!xdr_string_raw(xdrs,
+                            &spec->env[i],
+                            (uint32_t)(LL_ENVVAR_MAX - 1))) {
+            return false;
+        }
+    }
+
+    // eexec blob
+    if (!xdr_lenData(xdrs, &spec->eexec))
+        return false;
+
+    if (!xdr_opaque(xdrs, spec->projectName, LL_BUFSIZ_64))
+        return false;
+
+    if (!xdr_opaque(xdrs, spec->preCmd, LL_BUFSIZ_512))
+        return false;
+    if (!xdr_opaque(xdrs, spec->postCmd, LL_BUFSIZ_512))
+        return false;
+
+    // per XDR_FREE: a questo punto xdr_string_raw ha già liberato
+    // ogni elemento di toHosts/env; qui liberiamo solo gli array.
     if (xdrs->x_op == XDR_FREE) {
-        for (i = 0; i < jobSpecs->numToHosts; i++) {
-            FREEUP(jobSpecs->toHosts[i]);
-        }
-        FREEUP(jobSpecs->toHosts);
+        free(spec->toHosts);
+        spec->toHosts = NULL;
+        spec->numToHosts = 0;
 
-        for (i = 0; i < jobSpecs->numEnv; i++)
-            FREEUP(jobSpecs->env[i]);
-        FREEUP(jobSpecs->env);
-
-        FREEUP(jobSpecs->xf);
-        FREEUP(jobSpecs->loginShell);
-        FREEUP(jobSpecs->schedHostType);
-        FREEUP(jobSpecs->execHosts);
-        if (!xdr_thresholds(xdrs, jobSpecs) ||
-            !xdr_lenData(xdrs, &jobSpecs->eexec))
-            return FALSE;
-        return TRUE;
+        free(spec->env);
+        spec->env = NULL;
+        spec->numEnv = 0;
     }
 
-    if (xdrs->x_op == XDR_ENCODE) {
-        jobId64To32(jobSpecs->jobId, &jobArrId, &jobArrElemId);
-    }
-    if (!xdr_int(xdrs, &jobArrId)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "jobId");
-        return FALSE;
-    }
-
-    if (!(xdr_int(xdrs, &jobSpecs->userId) &&
-          xdr_int(xdrs, &jobSpecs->options) &&
-          xdr_short(xdrs, &jobSpecs->nice) &&
-          xdr_int(xdrs, &jobSpecs->priority) &&
-          xdr_int(xdrs, &jobSpecs->chkSig) &&
-          xdr_int(xdrs, &jobSpecs->actPid) &&
-          xdr_time_t(xdrs, &jobSpecs->chkPeriod) &&
-          xdr_time_t(xdrs, &jobSpecs->migThresh) &&
-          xdr_time_t(xdrs, &jobSpecs->lastSSuspTime) &&
-          xdr_float(xdrs, &jobSpecs->lastCpuTime))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "userId");
-        return FALSE;
-    }
-
-    nLimits = LSF_RLIM_NLIMITS;
-    tmpJobId = jobArrId;
-    if (!xdr_int(xdrs, &nLimits)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId), "xdr_int",
-                  "nLimits");
-        return FALSE;
-    }
-
-    for (i = 0; i < nLimits && i < LSF_RLIM_NLIMITS; i++) {
-        if (!xdr_lsfLimit(xdrs, &jobSpecs->lsfLimits[i], NULL)) {
-            ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
-                      "xdr_lsfLimit");
-            return FALSE;
-        }
-    }
-
-    if (nLimits > LSF_RLIM_NLIMITS) {
-        for (i = LSF_RLIM_NLIMITS; i < nLimits; i++) {
-            struct lsfLimit lsfLimit;
-            if (!xdr_lsfLimit(xdrs, &lsfLimit, NULL)) {
-                ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
-                          "xdr_lsfLimit");
-                return FALSE;
-            }
-        }
-    }
-
-    if (!(xdr_int(xdrs, &jobSpecs->jStatus) &&
-          xdr_int(xdrs, &jobSpecs->reasons) &&
-          xdr_int(xdrs, &jobSpecs->subreasons) &&
-          xdr_time_t(xdrs, &jobSpecs->termTime) &&
-          xdr_time_t(xdrs, &jobSpecs->startTime) &&
-          xdr_int(xdrs, &jobSpecs->runTime) &&
-          xdr_time_t(xdrs, &jobSpecs->submitTime) &&
-          xdr_int(xdrs, &jobSpecs->jobPid) &&
-          xdr_int(xdrs, &jobSpecs->jobPGid) &&
-          xdr_int(xdrs, &jobSpecs->restartPid) &&
-          xdr_int(xdrs, &jobSpecs->sigValue) &&
-          xdr_int(xdrs, &jobSpecs->umask) &&
-          xdr_int(xdrs, &jobSpecs->jAttrib))) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId), "xdr_int",
-                  "jStatus");
-        return FALSE;
-    }
-
-    sp[0] = jobSpecs->jobFile;
-    sp[1] = jobSpecs->inFile;
-    sp[2] = jobSpecs->outFile;
-    sp[3] = jobSpecs->errFile;
-    sp[4] = jobSpecs->chkpntDir;
-    sp[5] = jobSpecs->cwd;
-    sp[6] = jobSpecs->subHomeDir;
-    sp[7] = jobSpecs->command;
-    sp[8] = jobSpecs->jobName;
-    sp[9] = jobSpecs->preExecCmd;
-    sp[10] = jobSpecs->fromHost;
-    sp[11] = jobSpecs->resReq;
-
-    if (xdrs->x_op == XDR_DECODE)
-        for (i = 0; i < 11; i++)
-            sp[i][0] = '\0';
-    if (!(xdr_string(xdrs, &sp[0], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[1], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[2], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[3], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[4], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[5], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[6], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[7], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[8], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[9], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[10], MAXHOSTNAMELEN))) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId), "xdr_int",
-                  "jobFile");
-        return FALSE;
-    }
-    if (xdrs->x_op == XDR_DECODE)
-        sp[11][0] = '\0';
-    if (!xdr_string(xdrs, &sp[11], MAXLINELEN)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId), "xdr_int",
-                  "jobFile");
-        return FALSE;
-    }
-
-    sp[12] = jobSpecs->queue;
-    sp[13] = jobSpecs->windows;
-    sp[14] = jobSpecs->userName;
-
-    if (xdrs->x_op == XDR_DECODE)
-        for (i = 12; i < 15; i++)
-            sp[i][0] = '\0';
-
-    if (!(xdr_string(xdrs, &sp[12], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[13], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[14], MAXLSFNAMELEN))) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId), "xdr_int",
-                  "jobFile");
-        return FALSE;
-    }
-
-    if (!xdr_int(xdrs, &jobSpecs->numToHosts)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId), "xdr_int",
-                  "numToHosts");
-        return FALSE;
-    }
-
-    if (xdrs->x_op == XDR_DECODE && jobSpecs->numToHosts) {
-        jobSpecs->toHosts = calloc(jobSpecs->numToHosts, sizeof(char *));
-    }
-
-    for (i = 0; i < jobSpecs->numToHosts; i++) {
-        if (!xdr_var_string(xdrs, &jobSpecs->toHosts[i])) {
-            ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
-                      "xdr_var_string", "toHosts");
-            return FALSE;
-        }
-    }
-
-    if (!xdr_thresholds(xdrs, jobSpecs))
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
-                  "xdr_thresholds");
-
-    if (!xdr_int(xdrs, &jobSpecs->nxf)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId), "xdr_int",
-                  "nxf");
-        return FALSE;
-    }
-
-    if (xdrs->x_op == XDR_DECODE && jobSpecs->nxf > 0) {
-        jobSpecs->xf = calloc(jobSpecs->nxf, sizeof(struct xFile));
-    }
-
-    for (i = 0; i < jobSpecs->nxf; i++) {
-        if (!xdr_array_element(xdrs, &(jobSpecs->xf[i]), NULL, xdr_xFile)) {
-            ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(tmpJobId),
-                      "xdr_arrayElement", "xf");
-            return FALSE;
-        }
-    }
-
-    sp[0] = jobSpecs->mailUser;
-    sp[1] = jobSpecs->clusterName;
-    sp[2] = jobSpecs->projectName;
-    sp[3] = jobSpecs->preCmd;
-    sp[4] = jobSpecs->postCmd;
-    sp[5] = jobSpecs->execCwd;
-    sp[6] = jobSpecs->execHome;
-    sp[7] = jobSpecs->requeueEValues;
-
-    if (xdrs->x_op == XDR_DECODE) {
-        for (i = 0; i < 8; i++)
-            sp[i][0] = '\0';
-    }
-
-    if (!(xdr_string(xdrs, &sp[0], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[1], MAXLSFNAMELEN) &&
-          xdr_string(xdrs, &sp[2], MAXLSFNAMELEN) &&
-          xdr_string(xdrs, &sp[3], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[4], MAXLINELEN) &&
-          xdr_string(xdrs, &sp[5], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[6], MAXFILENAMELEN) &&
-          xdr_string(xdrs, &sp[7], MAXLINELEN) &&
-          xdr_int(xdrs, &jobSpecs->execUid) &&
-          xdr_int(xdrs, &jobSpecs->maxNumProcessors) &&
-          xdr_int(xdrs, &jobSpecs->numEnv)))
-        return FALSE;
-
-    if (xdrs->x_op == XDR_DECODE && jobSpecs->numEnv) {
-        jobSpecs->env = calloc(jobSpecs->numEnv, sizeof(char *));
-    }
-
-    for (i = 0; i < jobSpecs->numEnv; i++) {
-        if (!xdr_var_string(xdrs, &jobSpecs->env[i]))
-            return FALSE;
-    }
-
-    if (!xdr_lenData(xdrs, &jobSpecs->eexec))
-        return FALSE;
-
-    if (!xdr_int(xdrs, &jobSpecs->niosPort))
-        return FALSE;
-    sp[0] = jobSpecs->resumeCond;
-    sp[1] = jobSpecs->stopCond;
-    sp[2] = jobSpecs->suspendActCmd;
-    sp[3] = jobSpecs->resumeActCmd;
-    sp[4] = jobSpecs->terminateActCmd;
-
-    if (xdrs->x_op == XDR_DECODE) {
-        sp[0][0] = '\0';
-        sp[1][0] = '\0';
-    }
-    if (!(xdr_string(xdrs, &sp[0], MAXLINELEN)) ||
-        !(xdr_string(xdrs, &sp[1], MAXLINELEN)))
-        return FALSE;
-
-    if (xdrs->x_op == XDR_DECODE) {
-        for (i = 2; i < 5; i++)
-            sp[i][0] = '\0';
-    }
-
-    for (i = 2; i < 5; i++)
-        if (!(xdr_string(xdrs, &sp[i], MAXLINELEN)))
-            return FALSE;
-
-    for (i = 0; i < LSB_SIG_NUM; i++)
-        if (!(xdr_int(xdrs, &jobSpecs->sigMap[i])))
-            return FALSE;
-
-    if (!(xdr_int(xdrs, &jobSpecs->actValue)))
-        return FALSE;
-
-    if (!xdr_var_string(xdrs, &jobSpecs->loginShell))
-        return FALSE;
-
-    if (!xdr_var_string(xdrs, &jobSpecs->schedHostType))
-        return FALSE;
-
-    if (!xdr_var_string(xdrs, &jobSpecs->execHosts))
-        return FALSE;
-
-    if (!xdr_int(xdrs, &jobSpecs->options2)) {
-        return FALSE;
-    }
-
-    pTemp = jobSpecs->jobSpoolDir;
-    if (!(xdr_string(xdrs, &pTemp, MAXPATHLEN))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_string", "jobSpoolDir");
-        return FALSE;
-    }
-
-    if (!(xdr_int(xdrs, &jobArrElemId))) {
-        return FALSE;
-    }
-
-    if (xdrs->x_op == XDR_DECODE) {
-        jobId32To64(&jobSpecs->jobId, jobArrId, jobArrElemId);
-    }
-
-    sp[0] = jobSpecs->inFileSpool;
-    sp[1] = jobSpecs->commandSpool;
-
-    if (!(xdr_string(xdrs, &sp[0], MAXFILENAMELEN))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_string", "inFileSpool");
-        return FALSE;
-    }
-    if (!(xdr_string(xdrs, &sp[1], MAXFILENAMELEN))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_string", "commandSpool");
-        return FALSE;
-    }
-
-    if (!(xdr_int(xdrs, &jobSpecs->userPriority))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "userPriority");
-        return FALSE;
-    }
-
-    sp[0] = jobSpecs->execUsername;
-    if (!(xdr_string(xdrs, &sp[0], MAXLSFNAMELEN))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_string", "execUsername");
-        return FALSE;
-    }
-
-    return TRUE;
+    return true;
 }
 
 bool_t xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *hdr)
@@ -523,136 +375,114 @@ bool_t xdr_statusReq(XDR *xdrs, struct statusReq *statusReq,
     return TRUE;
 }
 
-bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *sbdPackage,
+bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,
                       struct packet_header *hdr)
 {
     int i;
-    char *sp;
 
-    sp = sbdPackage->lsbManager;
+    (void)hdr;
+
+    /* scalar fields in struct order */
+
+    if (!xdr_int(xdrs, &pkg->managerId))
+        return false;
+
+    if (!xdr_opaque(xdrs, pkg->lsbManager, MAXLSFNAMELEN))
+        return false;
+
     if (xdrs->x_op == XDR_DECODE)
-        sp[0] = '\0';
-    if (!(xdr_int(xdrs, &sbdPackage->mbdPid) &&
-          xdr_int(xdrs, &sbdPackage->retryIntvl) &&
-          xdr_int(xdrs, &sbdPackage->preemPeriod) &&
-          xdr_int(xdrs, &sbdPackage->pgSuspIdleT) &&
-          xdr_int(xdrs, &sbdPackage->maxJobs) &&
-          xdr_int(xdrs, &sbdPackage->sbdSleepTime) &&
-          xdr_int(xdrs, &sbdPackage->managerId) &&
-          xdr_int(xdrs, &sbdPackage->numJobs) &&
-          xdr_string(xdrs, &sp, MAXLSFNAMELEN))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "lsbManager");
-        return FALSE;
-    }
+        pkg->lsbManager[MAXLSFNAMELEN - 1] = 0;
 
-    if (xdrs->x_op == XDR_ENCODE) {
-        for (i = 0; i < sbdPackage->numJobs; i++)
-            if (!xdr_array_element(xdrs, &(sbdPackage->jobs[i]), NULL,
-                                   xdr_jobSpecs))
-                return FALSE;
+    if (!xdr_int(xdrs, &pkg->mbdPid))
+        return false;
 
-        if (!xdr_sbdPackage1(xdrs, sbdPackage, hdr))
-            return FALSE;
-    }
+    if (!xdr_int(xdrs, &pkg->sbdSleepTime))
+        return false;
 
-    return TRUE;
-}
+    if (!xdr_int(xdrs, &pkg->retryIntvl))
+        return false;
 
-bool_t xdr_sbdPackage1(XDR *xdrs, struct sbdPackage *sbdPackage,
-                       struct packet_header *hdr)
-{
-    int i;
+    if (!xdr_int(xdrs, &pkg->preemPeriod))
+        return false;
 
-    if (!(xdr_int(xdrs, &sbdPackage->uJobLimit))) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "uJobLimit");
-        return FALSE;
-    }
+    if (!xdr_int(xdrs, &pkg->pgSuspIdleT))
+        return false;
 
-    if (!(xdr_int(xdrs, &sbdPackage->rusageUpdateRate) &&
-          xdr_int(xdrs, &sbdPackage->rusageUpdatePercent)))
-        return FALSE;
+    if (!xdr_int(xdrs, &pkg->maxJobs))
+        return false;
 
-    if (!xdr_int(xdrs, &sbdPackage->jobTerminateInterval)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "jobTerminateInterval");
-        return FALSE;
-    }
+    if (!xdr_int(xdrs, &pkg->numJobs))
+        return false;
 
-    if (xdrs->x_op == XDR_ENCODE || (xdrs->x_op != XDR_FREE)) {
-        if (!xdr_int(xdrs, &sbdPackage->nAdmins))
-            return FALSE;
+    /* jobs array */
 
-        if (xdrs->x_op == XDR_DECODE && sbdPackage->nAdmins > 0) {
-            sbdPackage->admins =
-                (char **) calloc(sbdPackage->nAdmins, sizeof(char *));
-            if (sbdPackage->admins == NULL) {
-                sbdPackage->nAdmins = 0;
-                return FALSE;
+    switch (xdrs->x_op) {
+
+    case XDR_ENCODE:
+        for (i = 0; i < pkg->numJobs; i++) {
+            if (!xdr_jobSpecs(xdrs, &pkg->jobs[i], hdr))
+                return false;
+        }
+        break;
+
+    case XDR_DECODE:
+        // pkg->jobs is expected to be NULL on entry
+        if (pkg->jobs != NULL) {
+            LS_ERR("xdr_sbdPackage: DECODE called with non-NULL jobs");
+            return false;
+        }
+
+        if (pkg->numJobs > 0) {
+            pkg->jobs = calloc((size_t)pkg->numJobs,
+                               sizeof(struct jobSpecs));
+            if (pkg->jobs == NULL) {
+                LS_ERR("calloc(%d, jobSpecs) failed", pkg->numJobs);
+                pkg->numJobs = 0;
+                return false;
+            }
+
+            for (i = 0; i < pkg->numJobs; i++) {
+                memset(&pkg->jobs[i], 0, sizeof(struct jobSpecs));
+                if (!xdr_jobSpecs(xdrs, &pkg->jobs[i], hdr)) {
+                    int j;
+                    for (j = 0; j < i; j++)
+                        freeJobSpecs(&pkg->jobs[j]);
+                    FREEUP(pkg->jobs);
+                    pkg->jobs = NULL;
+                    pkg->numJobs = 0;
+                    return false;
+                }
             }
         }
-        for (i = 0; i < sbdPackage->nAdmins; i++) {
-            if (!xdr_var_string(xdrs, &sbdPackage->admins[i]))
-                return FALSE;
+        break;
+
+    case XDR_FREE:
+        if (pkg->jobs != NULL && pkg->numJobs > 0) {
+            for (i = 0; i < pkg->numJobs; i++)
+                freeJobSpecs(&pkg->jobs[i]);
+            FREEUP(pkg->jobs);
         }
+        pkg->jobs = NULL;
+        pkg->numJobs = 0;
+        break;
+
+    default:
+        return false;
     }
 
-    if (xdrs->x_op == XDR_FREE) {
-        for (i = 0; i < sbdPackage->nAdmins; i++) {
-            FREEUP(sbdPackage->admins[i]);
-        }
-        FREEUP(sbdPackage->admins);
-    }
+    /* tail scalars */
 
-    return TRUE;
-}
+    if (!xdr_int(xdrs, &pkg->uJobLimit))
+        return false;
 
-static int xdr_thresholds(XDR *xdrs, struct jobSpecs *jobSpecs)
-{
-    int i, j;
+    if (!xdr_int(xdrs, &pkg->rusageUpdateRate))
+        return false;
 
-    if (xdrs->x_op == XDR_DECODE) {
-        jobSpecs->thresholds.loadSched = NULL;
-        jobSpecs->thresholds.loadStop = NULL;
-    }
+    if (!xdr_int(xdrs, &pkg->rusageUpdatePercent))
+        return false;
 
-    if (xdrs->x_op == XDR_FREE) {
-        for (i = 0; i < jobSpecs->thresholds.nThresholds; i++) {
-            FREEUP(jobSpecs->thresholds.loadSched[i]);
-            FREEUP(jobSpecs->thresholds.loadStop[i]);
-        }
-        FREEUP(jobSpecs->thresholds.loadSched);
-        FREEUP(jobSpecs->thresholds.loadStop);
-        return TRUE;
-    }
+    if (!xdr_int(xdrs, &pkg->jobTerminateInterval))
+        return false;
 
-    if (!(xdr_int(xdrs, &jobSpecs->thresholds.nIdx) &&
-          xdr_int(xdrs, &jobSpecs->thresholds.nThresholds))) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jobSpecs->jobId),
-                  "xdr_int", "nIdx/nThresholds");
-        return FALSE;
-    }
-    if (xdrs->x_op == XDR_DECODE) {
-        jobSpecs->thresholds.loadSched = calloc(jobSpecs->thresholds.nThresholds,
-                                                sizeof(float *));
-        jobSpecs->thresholds.loadStop = calloc(
-            jobSpecs->thresholds.nThresholds, sizeof(float *));
-        for (i = 0; i < jobSpecs->thresholds.nThresholds; i++) {
-            jobSpecs->thresholds.loadSched[i] = calloc(
-                jobSpecs->thresholds.nIdx, sizeof(float));
-            jobSpecs->thresholds.loadStop[i] = calloc(
-                jobSpecs->thresholds.nIdx, sizeof(float));
-        }
-    }
-
-    for (j = 0; j < jobSpecs->thresholds.nThresholds; j++) {
-        for (i = 0; i < jobSpecs->thresholds.nIdx; i++) {
-            if (!(xdr_float(xdrs, &jobSpecs->thresholds.loadStop[j][i]) &&
-                  xdr_float(xdrs, &jobSpecs->thresholds.loadSched[j][i]))) {
-                ls_syslog(LOG_ERR, "%s", __func__,
-                          lsb_jobid2str(jobSpecs->jobId), "xdr_float",
-                          "loadStop/loadSched");
-                return FALSE;
-            }
-        }
-    }
-    return TRUE;
+    return true;
 }
