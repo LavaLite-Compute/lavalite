@@ -1,42 +1,65 @@
 ## What Is LavaLite?
 
 LavaLite is a modern, independent continuation of the original open-source
-Platform Lava scheduler. It is a from-scratch modernization,
-cleanup, and redesign effort built on that heritage—yet completely independent
-of Platform Computing, IBM, or any other vendor.
+Platform Lava scheduler. It reimplements that heritage from scratch — cleaned up,
+modernized, and redesigned — while remaining completely independent of
+Platform Computing, IBM, NVIDIA, or any other vendor.
 
-LavaLite is a lightweight, high-throughput job scheduler designed for
-clusters that prioritize volume over parallelism. It does not target tightly
-coupled MPI workloads. Instead, it excels at running thousands of short,
-independent jobs with minimal overhead.
+LavaLite is a lightweight, high-throughput job scheduler built for clusters
+where job volume matters more than parallel execution. It does not target
+tightly coupled MPI workloads; instead, it excels at running thousands of short,
+independent jobs with minimal overhead and predictable behavior.
 
-Beyond traditional HPC, LavaLite is a natural fit for HTC workloads:
-massive job arrays, embarrassingly parallel tasks, data-driven pipelines, and
-large-scale scientific workflows. It’s useful not only on supercomputers but
-also in bioinformatics labs, media render farms, and cloud batch systems.
+Beyond traditional HPC, LavaLite is a natural fit for HTC workloads: massive job
+arrays, embarrassingly parallel tasks, data-driven pipelines, and large-scale
+scientific workflows. It performs well on supercomputers, research clusters,
+bioinformatics labs, media render farms, and cloud batch environments.
 
-LavaLite is also a strong match for AI and machine-learning pipelines—from
-distributed GPU training to hyperparameter sweeps and inference farms. Its
-simple interface and lightweight design make it ideal for researchers and
-engineers pushing the limits of modern computational workloads.
+LavaLite is also well-suited for AI and machine-learning pipelines — from
+distributed GPU training to hyperparameter sweeps and inference farms.
+Its straightforward interface and low runtime overhead make it ideal for
+researchers and engineers pushing modern computational throughput.
 
-Inspired by Platform Lava 1.0 and refined with algorithmic principles drawn
-from Donald Knuth’s teachings, LavaLite is built for speed, simplicity, and
-clarity. It’s not just a revival—it’s a reinvention.
+Inspired by Platform Lava 1.0 and refined using classical algorithmic discipline,
+LavaLite is designed for **speed, simplicity, and clarity**.
+It is not a clone — it is a clean **reimplementation and a reinvention**.
+
+### MPI Workloads
+
+LavaLite can run MPI workloads through standard job submission. The scheduler
+allocates `-n` hosts for the job, and the user (or their workflow tools)
+constructs an MPI hostfile at runtime based on the provided allocation.
+This model supports distributed GPU training, multi-node inference, and
+other MPI-based workloads without requiring tight parallel scheduling.
+
+A simple hostfile template mechanism is planned, allowing users to define
+how allocated nodes should be rendered into `mpirun`-compatible hostfiles.
+
+## GPU Support & Data Center Modeling (Planned)
+
+LavaLite’s architecture makes GPU-aware scheduling and data center modeling
+natural extensions of the core system. These capabilities are planned as
+**near-future development**, building on the lightweight dispatch model already in place:
+
+- **GPU visibility and accounting** (host-level and job-level)
+- **device allocation masks** for CUDA, MIG, and ROCm
+- **GPU resource selection policies** (constraints, device classes, vendor extensions)
+- **rack-aware and topology-aware placement**, improving bandwidth locality
+- scheduling models that incorporate **NUMA domains, racks, rows, power zones, and cooling limits**
+- **template-based hostfile generation** for GPU-based MPI workloads
+
+These features will extend LavaLite beyond HTC workloads to support **GPU-intensive AI
+training and data center–scale resource management**, while keeping scheduling behavior
+**clear, predictable, and easy to reason about.**
+
 
 ## Origins & Philosophy
-LavaLite is built on a clean, GPLv2-licensed foundation originally released by Platform Computing.
-It maintains a clear lineage and avoids legacy entanglements, focusing instead on clarity,
-performance, and modern design.
+LavaLite builds on the GPLv2-licensed foundation originally released by Platform Computing. It maintains a clear lineage while avoiding historical entanglements, focusing instead on clarity, performance, and modern design.
 
-Our philosophy draws from the algorithmic elegance championed by **Donald Knuth**, especially the
-principles laid out in *The Art of Computer Programming*. LavaLite is optimized for
-**high-throughput computing (HTC)**— is engineered for speed,
-simplicity, and transparency. LavaLite still support MPI workloads by generating dymic hostfile if needed.
+Our approach is shaped by the rigor of classical algorithm design, as exemplified in Donald Knuth’s The Art of Computer Programming. LavaLite is optimized for
+high-throughput computing (HTC) and engineered for speed, simplicity, and transparency.
 
-LavaLite isn’t a clone. It’s a clean slate.
-
-We aim for speed and simplicity, built on the algorithmic elegance that inspired our design.
+LavaLite is not a clone — it is a clean reimplementation guided by the principles that inspired its lineage. The goal is direct: well-understood behavior, minimal overhead, and algorithms that remain readable years later.
 
 ## Getting started
 
@@ -59,6 +82,17 @@ allows multiple versions to coexist seamlessly. Multiple version can be
 supported using for example environmental modules, which is the recommended
 approach for managing HPC software.
 
+## Documentation
+
+LavaLite documentation is evolving and currently hosted in the repository:
+
+- https://github.com/LavaLite-Compute/lavalite/tree/master/docs/projects
+
+These documents outline internal design notes, early interfaces, and ongoing
+development directions. They are actively maintained as core functionality
+stabilizes.
+
+
 ## Roadmap
 
 - Clean, modular scheduler core
@@ -71,6 +105,16 @@ approach for managing HPC software.
 ## License
 LavaLite is licensed under the GNU General Public License v2. All contributions must be
 compatible with GPLv2.
+
+
+## References
+
+- *The C Programming Language*, Brian W. Kernighan and Dennis M. Ritchie. Prentice Hall, 2nd Edition, 1988.
+- *Advanced Programming in the UNIX Environment*, W. Richard Stevens, Stephen A. Rago. Addison-Wesley, 3rd Edition, 2013.
+- *TCP/IP Illustrated, Volume 1: The Protocols*, W. Richard Stevens. Addison-Wesley, 1st Edition, 1994.
+- ISO/IEC 9899:1999 — Programming Languages — C (C99). International Organization for Standardization.
+- IEEE Std 1003.1 — POSIX.1-2017 — Standard for Information Technology — Portable Operating System Interface. The Open Group / IEEE.
+- *The Art of Computer Programming*, Donald E. Knuth. Addison-Wesley. All rights reserved to the author.
 
 ## Contact
 
