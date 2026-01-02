@@ -37,8 +37,10 @@ static void freeJobHead(struct jobInfoHead *);
 static void freeJobInfoReply(struct jobInfoReply *);
 static void freeShareResourceInfoReply(struct lsbShareResourceInfoReply *);
 static int xdrsize_QueueInfoReply(struct queueInfoReply *);
-
 extern void closeSession(int);
+
+// LavaLite
+static void mbd_reset_sbd_job_list(struct hData *);
 
 int do_submitReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
                  struct packet_header *reqHdr, struct sockaddr_in *laddr,
@@ -2411,4 +2413,201 @@ do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
             host_data->sbd_node->host.addr, host_data->sbd_node->chanfd);
 
     return enqueue_header_reply(mbd_efd, client->chanfd, SBD_REGISTER_REPLY);
+}
+
+int sbd_handle_new_job_reply(struct mbd_client_node *client,
+                             XDR *xdrs,
+                             struct packet_header *hdr)
+{
+    struct jobReply jobReply;
+
+
+    struct hData *host_node = client->host_node;
+    if (host_node == NULL) {
+        LS_ERR("SBD NEW_JOB reply with NULL host_node (chanfd=%d)",
+               client->chanfd);
+        // Hard invariant violation: this should never happen.
+        abort();
+    }
+
+    const char *host_name = host_node->host;
+    /*
+     * hdr->operation is an sbdReplyType:
+     *   ERR_NO_ERROR, ERR_BAD_REQ
+
+     *
+     * In the current protocol, a jobReply payload is sent only on
+     * ERR_NO_ERROR. For error codes we log and return for now.
+     */
+
+    if (hdr->operation != ERR_NO_ERROR) {
+        LS_ERR("SBD NEW_JOB failed on host %s, reply_code=%d",
+               host_name, hdr->operation);
+
+        /*
+         * TODO:
+         *   Extend the protocol to include jobId also on error, or
+         *   maintain a pending-job queue per SBD so we can map this
+         *   error back to a specific job and update its state.
+         */
+        return -1;
+    }
+
+    memset(&jobReply, 0, sizeof(jobReply));
+
+    if (!xdr_jobReply(xdrs, &jobReply, hdr)) {
+        LS_ERR("xdr_jobReply decode failed for SBD NEW_JOB reply from host %s",
+               host_name);
+        return -1;
+    }
+
+    // Map jobId -> job descriptor.
+    struct jData *job;
+    job = getJobData((int64_t)jobReply.jobId);
+    if (job == NULL) {
+        LS_ERR("SBD NEW_JOB reply for unknown jobId=%u from host %s",
+               jobReply.jobId, host_name);
+        return -1;
+    }
+
+    // Ignore replies for jobs that are no longer in START state.
+    if (!IS_START(job->jStatus)) {
+        return 0;
+    }
+
+    job->jobPid  = jobReply.jobPid;
+    job->jobPGid = jobReply.jobPGid;
+    job->jStatus = jobReply.jStatus; // typically JOB_STAT_RUN
+
+    log_startjobaccept(job);
+
+    /*
+     * Acknowledge back to sbatchd so it can unblock.
+     * We only send a small packet_header over the LavaLite channel.
+     * No more blocking send path, everything is queued via chan_enqueue().
+     */
+    mbd_enqueue_hdr(client, LSBE_NO_ERROR);
+
+    return 0;
+}
+
+int sbd_handle_disconnect(struct mbd_client_node *client)
+{
+    struct hData *host_node = client->host_node;
+
+    /*
+     * Hard invariant:
+     *     if this function is entered, this client MUST be the SBD
+     *     connection for its host.
+     *
+     * Any violation indicates internal consistency failure, not
+     * a runtime recoverable case.
+     */
+    if (host_node == NULL) {
+        LS_ERR("sbd_handle_disconnect called with NULL host_node (chanfd=%d)",
+               client->chanfd);
+        abort();
+    }
+
+    if (host_node->sbd_node != client) {
+        LS_ERR("sbd_handle_disconnect invariant violated: "
+               "host->sbd_node (%p) != client (%p) for host %s",
+               (void *)host_node->sbd_node,
+               (void *)client,
+               host_node->host);
+        abort();
+    }
+
+    // Break the association first, then reset pending jobs.
+    client->host_node = NULL;
+
+    mbd_reset_sbd_job_list(host_node);
+    /*
+     * Delegate channel close, unlink from client list, and free()
+     * to the generic shutdown helper.
+     */
+    shutdown_mbd_client(client);
+
+    return 0;
+}
+
+static void mbd_reset_sbd_job_list(struct hData *host_node)
+{
+    struct mbd_sbd_job *sj;
+
+    struct ll_list *l = &host_node->sbd_job_list;
+    while ((sj = (struct mbd_sbd_job *)ll_list_pop(l)) != NULL) {
+        struct jData *job;
+
+        if (sj == NULL) {
+            LS_ERR("no sbd job in sbd_job_list?");
+            //* Corrupt list, but do not crash the whole daemon.
+            continue;
+        }
+
+        job = getJobData(sj->job->jobId);
+        if (job != NULL && IS_START(job->jStatus)) {
+            job->newReason = PEND_JOB_START_FAIL;
+            jStatusChange(job, JOB_STAT_PEND, LOG_IT, __func__);
+        }
+
+        free(sj);
+    }
+}
+
+int mbd_enqueue_hdr(struct mbd_client_node *client, int operation)
+{
+    struct Buffer *buf;
+    XDR xdrs;
+    struct packet_header hdr;
+    int chfd = client->chanfd;
+
+    if (chan_alloc_buf(&buf, sizeof(struct packet_header)) < 0) {
+        LS_ERR("chan_alloc_buf failed for header reply on chanfd=%d", chfd);
+        return -1;
+    }
+
+    xdrmem_create(&xdrs,
+                  buf->data,
+                  sizeof(struct packet_header),
+                  XDR_ENCODE);
+
+    init_pack_hdr(&hdr);
+    hdr.operation = operation;
+
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+        LS_ERR("xdr_pack_hdr failed for header reply on chanfd=%d", chfd);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    buf->len = XDR_GETPOS(&xdrs);
+    xdr_destroy(&xdrs);
+
+    if (chan_enqueue(chfd, buf) < 0) {
+        LS_ERR("chan_enqueue failed for header reply on chanfd=%d", chfd);
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    /*
+     * Ensure the epoll loop is watching for writable events now that
+     * there is pending output on this channel. This calls
+     * into the channel/epoll layer to set EPOLLOUT.
+     */
+    struct epoll_event ev;
+
+    memset(&ev, 0, sizeof(ev));
+    ev.events = EPOLLIN | EPOLLOUT;   /* readable + writable */
+    ev.data.u32 = (uint32_t)chfd;     /* or whatever you already use */
+
+    if (epoll_ctl(mbd_efd, EPOLL_CTL_MOD, chan_sock(chfd), &ev) < 0) {
+        LS_ERR("epoll_ctl(EPOLL_CTL_MOD, EPOLLIN|EPOLLOUT) failed for chanfd=%d",
+               chfd);
+        // Bug we should free what we have allocated
+        return -1;
+    }
+
+    return 0;
 }

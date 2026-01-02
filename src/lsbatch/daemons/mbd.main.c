@@ -156,10 +156,12 @@ static void mbd_init_log(void);
 static int mbd_accept_connection(int);
 static void mbd_handle_client(int);
 static int mbd_dispatch_client(struct mbd_client_node *);
+static int mbd_dispatch_sbd(struct mbd_client_node *);
 static int mbd_auth_client_request(struct lsfAuth *, XDR *,
                                    struct packet_header *, struct sockaddr_in *);
 static bool_t mbd_should_fork(mbdReqType);
 static bool_t is_mbd_read_only_req(mbdReqType);
+static int mbd_handle_sbd_chan(struct mbd_client_node *);
 
 void setJobPriUpdIntvl(void);
 static void updateJobPriorityInPJL(void);
@@ -373,36 +375,107 @@ static int mbd_accept_connection(int socket)
 
 static void mbd_handle_client(int ch_id)
 {
-    struct mbd_client_node *client;
-    struct sbdNode *sbd;
-
-    for (sbd = sbdNodeList.forw; sbd != &sbdNodeList; sbd = sbd->forw) {
-
-        if (sbd->chanfd != ch_id)
-            continue;
-
-        if (channels[ch_id].chan_events == CHAN_EPOLLERR)
-            processSbdNode(sbd, true);
-        else
-            processSbdNode(sbd, false);
-        // one channel at the time
-        return;
-    }
-
-    for (client = clientList->forw; client != clientList;
+    for (struct mbd_client_node *client = clientList->forw;
+         client != clientList;
          client = client->forw) {
 
         if (client->chanfd != ch_id)
             continue;
 
+        // Here hets a little assymetric with non sbd client
+        // handling. If there is an exception on the channel with
+        // sbd we have to handle it inside this called because beside
+        // just shutting down the client we haev to do other operations
+        // like clean up caches, jobs states etc
+        // so the asymmetry is intentional and correct.
+        if (client->host_node) {
+            // handle the sbd client
+            mbd_dispatch_sbd(client);
+            return;
+        }
+
+        // This is an ordinary client so we can just shut him down
         if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
             shutdown_mbd_client(client);
             return;
         }
+
         // Now dispatch the current client request,
         mbd_dispatch_client(client);
         return;
     }
+
+    // No client found for this channel id: internal inconsistency.
+    LS_ERR("mbd_handle_client: no client found for chanfd=%d", ch_id);
+    abort();
+}
+
+static int mbd_dispatch_sbd(struct mbd_client_node *client)
+{
+    struct Buffer *buf;
+
+    struct hData *host_node = client->host_node;
+    if (host_node == NULL) {
+        LS_ERR("mbd_dispatch_sbd called with NULL host_node (chanfd=%d)",
+               client->chanfd);
+        abort();
+    }
+
+    int ch_id = client->chanfd;
+    // handle the exception on the channel
+    if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
+        LS_ERR("epoll error on SBD channel for host %s (chanfd=%d)",
+               host_node->host, ch_id);
+        sbd_handle_disconnect(client);
+        return -1;
+    }
+
+    if (chan_dequeue(ch_id, &buf) < 0) {
+        LS_ERR("%s: chan_dequeue failed for SBD chanfd=%d", __func__, ch_id);
+        sbd_handle_disconnect(client);
+        return -1;
+    }
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
+
+    struct packet_header sbd_hdr;
+    if (!xdr_pack_hdr(&xdrs, &sbd_hdr)) {
+        LS_ERR("xdr_pack_hdr failed for SBD chanfd=%d", ch_id);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        sbd_handle_disconnect(client);
+        return -1;
+    }
+
+    /*
+     * replyHdr.operation is sbdReplyType:
+     *   ERR_NO_ERROR, ERR_BAD_REQ, ERR_START_FAIL, ...
+     *
+     * Right now, we only care about NEW_JOB replies.
+     * Later we can add more cases for other SBD RPCs.
+     */
+    switch (sbd_hdr.operation) {
+        case ERR_NO_ERROR:
+            sbd_handle_new_job_reply(client, &xdrs, &sbd_hdr);
+            break;
+    case ERR_BAD_REQ:
+    case ERR_MEM:
+    case ERR_FORK_FAIL:
+        LS_ERR("SBD NEW_JOB failed on host %s, reply_code=%d",
+               client->host_node->host, sbd_hdr.operation);
+        /* For now, keep the SBD connection open. */
+        break;
+    default:
+        LS_ERR("unexpected SBD reply code=%d from host %s",
+               sbd_hdr.operation, client->host_node->host);
+        break;
+    }
+
+    xdr_destroy(&xdrs);
+    chan_free_buf(buf);
+
+    return 0;
 }
 
 static int mbd_dispatch_client(struct mbd_client_node *client)

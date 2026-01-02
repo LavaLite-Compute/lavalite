@@ -21,6 +21,7 @@
 #include "lsbatch/daemons/daemonout.h"
 #include "lsbatch/daemons/daemons.h"
 #include "lsbatch/daemons/jgrp.h"
+#include "lsf/lib/ll.list.h"
 
 typedef struct shareProtoFuncs SHARE_PROTO_FUNCS_T;
 typedef struct shareHolderPolicy SHARE_HOLDER_POLICY_T;
@@ -581,7 +582,8 @@ struct hData {
     int hostId;
     char *hostType;
     char *hostModel;
-    struct mbd_client_node *sbd_node;
+    struct mbd_client_node *sbd_node; // TCP connection to sbd
+    struct ll_list sbd_job_list;  // all jobs associated with this sbd
     float cpuFactor;
     int numCPUs;
     float *loadSched;
@@ -622,6 +624,11 @@ struct hData {
     LIST_T *pxySJL;
     LIST_T *pxyRsvJL;
     float leftRusageMem;
+};
+
+struct mbd_sbd_job {
+    struct ll_list_entry next_job;
+    struct jData *job;
 };
 
 struct sbdNode {
@@ -1423,3 +1430,8 @@ extern int mbd_max_events;
 // LavaLite
 int mbd_init(int);
 int do_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);
+int sbd_handle_new_job_reply(struct mbd_client_node *,
+                             XDR *,
+                             struct packet_header *);
+int sbd_handle_disconnect(struct mbd_client_node *);
+int mbd_enqueue_hdr(struct mbd_client_node *, int);

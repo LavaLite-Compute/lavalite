@@ -23,7 +23,7 @@
 extern int connTimeout;
 
 // enqueue a message to sbatchd
-static sbdReplyType call_sbd(char *, char *, int, struct sbdNode *);
+static sbdReplyType call_sbd(struct hData *, char *, int);
 
 extern sbdReplyType start_ajob(struct jData *jDataPtr, struct qData *qp,
                                struct jobReply *jobReply);
@@ -35,8 +35,13 @@ sbdReplyType start_job(struct jData *job,
                        struct qData *qp,
                        struct jobReply *jobReply)
 {
+    // This is the node where sbd lives and where we are
+    // going to send this job
     struct hData *host_node = job->hPtr[0];
 
+    // Bail if we dont have a connection to this sbd
+    // in this case we should not be here to begin with
+    // but that is a scheduling issue
     if (host_node->sbd_node == NULL
         || host_node->sbd_node->chanfd == -1) {
         errno = ECONNREFUSED; // make %m meaningful
@@ -45,6 +50,7 @@ sbdReplyType start_job(struct jData *job,
         return ERR_UNREACH_SBD;
 
     }
+
     LS_DEBUG("job %s", lsb_jobid2str(job->jobId));
 
     struct jobSpecs jobSpecs;
@@ -82,7 +88,6 @@ sbdReplyType start_job(struct jData *job,
         return ERR_JOB_TOO_LARGE;
     }
 
-
     XDR xdrs;
     char *request_buf = calloc(buflen, sizeof(char));
     if (request_buf == NULL) {
@@ -104,7 +109,6 @@ sbdReplyType start_job(struct jData *job,
                        xdr_jobSpecs,
                        0,
                        NULL)) {
-        printf("xdr_get_pos %d\n", xdr_getpos(&xdrs));
         LS_ERR("xdr_encodeMsg failed for job %s", lsb_jobid2str(job->jobId));
         xdr_destroy(&xdrs);
         free(request_buf);
@@ -114,21 +118,11 @@ sbdReplyType start_job(struct jData *job,
         return ERR_FAIL;
     }
 
-    struct sbdNode sbdNode = {0};
-    sbdNode.jData = job;
-    // Go and launch on the first allocated job
-    sbdNode.hData = job->hPtr[0];
-    sbdNode.reqCode = MBD_NEW_JOB;
-
     // call_sbd on the host node selected by the scheduler
     // note this node must be connected to mbd as it its sbd
     // must have registered previously with mbd. otherwise
     // we must fail.
-    sbdReplyType reply = call_sbd(job->hPtr[0]->host,
-                                  request_buf,
-                                  XDR_GETPOS(&xdrs),
-                                  &sbdNode);
-
+    sbdReplyType reply = call_sbd(host_node, request_buf, xdr_getpos(&xdrs));
     xdr_destroy(&xdrs);
     free(request_buf);
     freeJobSpecs(&jobSpecs);
@@ -147,6 +141,20 @@ sbdReplyType start_job(struct jData *job,
         SET_STATE(jobReply->jStatus, JOB_STAT_RUN | JOB_STAT_PRE_EXEC);
     else
         SET_STATE(jobReply->jStatus, JOB_STAT_RUN);
+
+    // Build the cache pointer to jData
+    struct mbd_sbd_job *sj;
+    sj = calloc(1, sizeof(struct mbd_sbd_job));
+    if (!sj) {
+        errno = ENOMEM;
+        LS_ERR("failed to allocate mbd_sbd_job for %s",
+               lsb_jobid2str(job->jobId));
+        reply = ERR_MEM;
+        return reply;
+    }
+
+    sj->job = job;
+    ll_list_append(&host_node->sbd_job_list, &sj->next_job);
 
     return reply;
 }
@@ -197,7 +205,7 @@ sbdReplyType switch_job(struct jData *job, int options)
         sbdNode.reqCode = MBD_MODIFY_JOB;
     }
 
-    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
+    reply = call_sbd(sbdNode.hData, request_buf, XDR_GETPOS(&xdrs));
 
     xdr_destroy(&xdrs);
     free(request_buf);
@@ -262,7 +270,7 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
     sbdNode.sigVal = sendReq->sigValue;
     sbdNode.sigFlags = sendReq->actFlags;
 
-    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
+    reply = call_sbd(sbdNode.hData, request_buf, XDR_GETPOS(&xdrs));
     xdr_destroy(&xdrs);
 
     if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
@@ -297,7 +305,7 @@ sbdReplyType msg_job(struct jData *jp, struct Buffer *mbuf,
 {
     char *toHost = jp->hPtr[0]->host;
 
-    sbdReplyType reply = call_sbd(toHost, mbuf->data, mbuf->len, NULL);
+    sbdReplyType reply = call_sbd(jp->hPtr[0], mbuf->data, mbuf->len);
     if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
         return reply;
 
@@ -331,7 +339,6 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
     struct packet_header hdr;
     char *toHost = hData->host;
     struct packet_header hdrBuf;
-    struct sbdNode sbdNode;
     struct lsfAuth *auth = NULL;
 
     memset(&xdrs, 0, sizeof(XDR));
@@ -380,7 +387,7 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
     sbdNode.hData = hData;
     sbdNode.reqCode = MBD_PROBE;
 
-    reply = call_sbd(toHost, request_buf, XDR_GETPOS(&xdrs), &sbdNode);
+    reply = call_sbd(hData, request_buf, XDR_GETPOS(&xdrs));
     xdr_destroy(&xdrs);
 
     if (sendJobs) {
@@ -411,28 +418,21 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
 }
 
 // LavaLite use existing connection to sbd
-sbdReplyType call_sbd(char *toHost, char *request_buf, int len,
-                      struct sbdNode *sbdPtr)
+sbdReplyType call_sbd(struct hData *host_node, char *request_buf, int len)
 {
-    (void)toHost;    // routing is via hData->sbd_node now
-
-    struct hData *hData = sbdPtr->hData;
-    if (hData == NULL) {
-        LS_CRIT("NULL hData in sbdPtr");
-        abort();
-    }
 
     struct mbd_client_node *client;
-    client = hData->sbd_node;
+    client = host_node->sbd_node;
     if (client == NULL) {
-        // This should never happen if the scheduler did its job.
-        LS_CRIT("no sbatchd connection for host <%s>", hData->host);
+        // This should never happen if the scheduler did its job
+        // The caller should have detected this situation already
+        LS_CRIT("no sbatchd connection for host <%s>", host_node->host);
         abort();
     }
 
     int ch_id = client->chanfd;
     if (ch_id < 0) {
-        LS_CRIT("invalid chanfd %d for host <%s>", ch_id, hData->host);
+        LS_CRIT("invalid chanfd %d for host <%s>", ch_id, host_node->host);
         abort();
     }
 
@@ -442,7 +442,7 @@ sbdReplyType call_sbd(char *toHost, char *request_buf, int len,
     struct Buffer *buf;
     chan_alloc_buf(&buf, len);
     if (buf == NULL) {
-        LS_ERR("chan_alloc_buf(%d) failed for host <%s>", len, hData->host);
+        LS_ERR("chan_alloc_buf(%d) failed for host <%s>", len, host_node->host);
         lsberrno = LSBE_SYS_CALL;
         return ERR_FAIL;
     }
@@ -451,36 +451,27 @@ sbdReplyType call_sbd(char *toHost, char *request_buf, int len,
     buf->len = len;
 
     if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue(%d) failed for host <%s>", ch_id, hData->host);
+        LS_ERR("chan_enqueue(%d) failed for host <%s>", ch_id, host_node->host);
         chan_free_buf(buf);
         chan_close(ch_id);
         lsberrno = LSBE_SYS_CALL;
         return ERR_FAIL;
     }
 
-    struct sbdNode *node = calloc(1, sizeof(*node));
-    if (node == NULL) {
-        LS_CRIT("calloc(struct sbdNode) failed for host <%s>", hData->host);
-        abort();
-    }
-
-    *node = *sbdPtr;             // struct copy
-    node->chanfd = ch_id;
-    node->lastTime = time(NULL);
-
-    inList((struct listEntry *)&sbdNodeList, (struct listEntry *)node);
-    nSbdConnections++;
-
-    // Enable epollout
+    // Enable epollout so dowrite() will send the Buffer out
+    // to connected sbd
     struct epoll_event ev;
+    memset(&ev, 0, sizeof(struct epoll_event));
     ev.data.fd = ch_id;
     ev.events = EPOLLIN | EPOLLOUT | EPOLLERR;
 
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, ch_id, &ev) < 0) {
-        LS_ERR("epoll_ctl(EPOLLOUT) failed for host <%s>, fd=%d",
+    if (epoll_ctl(mbd_efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
+        LS_ERR("epoll_ctl(EPOLLOUT) failed for host=%s ch_id=%d",
+               host_node->host, ch_id);
+        // Bug here we have to cleanup at least the current buffer and
+        // dequeue it from the channel
         return ERR_FAIL;
     }
-
 
     return ERR_NO_ERROR;
 }

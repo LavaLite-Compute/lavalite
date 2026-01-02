@@ -450,7 +450,7 @@ struct hData *initHData(struct hData *hData)
     hData->leftRusageMem = INFINITY;
     // LavaLite mbd now keeps a permanent connection to sbd
     hData->sbd_node = NULL;
-
+    ll_list_init(&hData->sbd_job_list);
     return hData;
 }
 
@@ -2626,8 +2626,7 @@ static void updHostList(void)
         host_count + 2, sizeof(struct hData *), "updHostList");
 
     free(hDataPtrTb);
-    hDataPtrTb = (struct hData **) my_calloc(
-        host_count + 2, sizeof(struct hData *), "updHostList");
+    hDataPtrTb = calloc(host_count + 2, sizeof(struct hData *));
     for (i = 0; i < host_count + 1; i++)
         hDataPtrTb[i] = 0;
 

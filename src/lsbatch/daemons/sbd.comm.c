@@ -124,16 +124,6 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
     if (seq >= MAX_SEQ_NUM)
         seq = 1;
 
-#ifdef INTER_DAEMON_AUTH
-    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getSbdAuth(&auth_data)) {
-            ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
-            return -1;
-        }
-        auth = &auth_data;
-    }
-#endif
-
     len = 1024 + ALIGNWORD_(sizeof(struct statusReq));
 
     len += ALIGNWORD_(strlen(statusReq.execHome)) + 4 +
@@ -145,10 +135,6 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
 
     for (i = 0; i < statusReq.runRusage.npgids; i++)
         len += ALIGNWORD_(sizeof(int)) + 4;
-
-#ifdef INTER_DAEMON_AUTH
-    len += xdr_lsfAuthSize(auth);
-#endif
 
     if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG, "%s: The length of the job message is: <%d>",
@@ -551,31 +537,6 @@ int msgSupervisor(struct lsbMsg *lsbMsg, struct clientNode *cliPtr)
     return 0;
 }
 
-#ifdef INTER_DAEMON_AUTH
-int getSbdAuth(struct lsfAuth *auth)
-{
-    static char fname[] = "getSbdAuth";
-    int rc;
-    char buf[1024];
-
-    if (lsbParams[LSF_AUTH_DAEMONS].paramValue == NULL)
-        return 0;
-
-    putEauthClientEnvVar("sbatchd");
-    sprintf(buf, "mbatchd@%s", clusterName);
-    putEauthServerEnvVar(buf);
-
-    rc = getAuth_(auth, masterHost);
-
-    if (rc) {
-        ls_syslog(LOG_ERR, "%s", __func__, "getAuth_");
-    }
-
-    return rc;
-}
-
-#endif
-
 int sendUnreportedStatus(struct chunkStatusReq *chunkStatusReq)
 {
     static char fname[] = "sendUnreportedStatus";
@@ -597,16 +558,6 @@ int sendUnreportedStatus(struct chunkStatusReq *chunkStatusReq)
     if (masterHost == NULL)
         return -1;
 
-#ifdef INTER_DAEMON_AUTH
-    if (lsbParams[LSF_AUTH_DAEMONS].paramValue) {
-        if (getSbdAuth(&auth_data)) {
-            ls_syslog(LOG_ERR, "%s", __func__, "getSbdAuth");
-            return -1;
-        }
-        auth = &auth_data;
-    }
-#endif
-
     len =
         ALIGNWORD_(sizeof(struct chunkStatusReq)) +
         ALIGNWORD_(sizeof(struct statusReq *) * chunkStatusReq->numStatusReqs);
@@ -623,10 +574,6 @@ int sendUnreportedStatus(struct chunkStatusReq *chunkStatusReq)
 
         for (j = 0; j < chunkStatusReq->statusReqs[i]->runRusage.npgids; j++)
             len += ALIGNWORD_(sizeof(int)) + 4;
-
-#ifdef INTER_DAEMON_AUTH
-        len += xdr_lsfAuthSize(auth);
-#endif
     }
 
     if (logclass & (LC_TRACE | LC_COMM))
