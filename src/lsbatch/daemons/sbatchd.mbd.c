@@ -22,6 +22,15 @@ extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 static int sbd_handle_mbd_new_job(int, XDR *, struct packet_header *);
 static sbdReplyType sbd_spawn_job(struct jobSpecs *, struct jobReply *);
 static void sbd_child_exec_job(struct jobSpecs *);
+static void sbd_child_open_log(const struct jobSpecs *);
+static int sbd_set_job_env(const struct jobSpecs *);
+static int sbd_set_ids(const struct jobSpecs *);
+static void sbd_reset_signals(void);
+static int sbd_run_qpre(const struct jobSpecs *);
+static int sbd_run_upre(const struct jobSpecs *);
+static int sbd_make_work_dir(const struct jobSpecs *, char *, size_t);
+static int sbd_enter_work_dir(const struct jobSpecs *, const char *);
+static int sbd_redirect_stdio(const struct jobSpecs *);
 
 // the ch_id in input is the channel we have opened with mbatchd
 //
@@ -187,6 +196,7 @@ static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
         chan_close(sbd_timer_chan);
         // child becomes leader of its own group
         setpgid(0, 0);
+        // Now run...
         sbd_child_exec_job(specs);
         _exit(127);   /* not reached unless exec fails */
     }
@@ -209,47 +219,100 @@ static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
     reply_out->jobPGid = job->pgid;
     reply_out->jStatus = job->spec.jStatus;
 
-    LS_INFO("spawned job <%s> pid=%d", job->job_id, job->pid);
+    LS_INFO("spawned job <%d> pid=%d", job->job_id, job->pid);
 
     return ERR_NO_ERROR;
 }
 
+
 static void sbd_child_exec_job(struct jobSpecs *specs)
 {
-    struct lenData jf;
-    char script_path[PATH_MAX];
+    sbd_child_open_log(specs);
 
-    memset(&jf, 0, sizeof(jf));
-
-    specs->jobPid  = getpid();
+    specs->jobPid = getpid();
     specs->jobPGid = specs->jobPid;
 
-    // Bogus read the job file as part of jobSpec
-#if 0
-    if (rcvJobFile(chfd, &jf) == -1) {
-        LS_ERR("rcvJobFile failed for job <%s>",
-               lsb_jobid2str(specs->jobId));
-        _exit(1);
-    }
-#endif
-    snprintf(script_path,
-             sizeof(script_path),
-             "%s",
-             specs->jobFile);
-
-    char *argv[3];
-
-    argv[0] = (char *)"/bin/sh";
-    argv[1] = script_path;
-    argv[2] = NULL;
-
-    execv("/bin/sh", argv);
-
-    fprintf(stderr,
-            "sbatchd: unable to exec jobfile <%s> for job <%s>: %s\n",
-            script_path,
+    LS_INFO("job <%s> starting: command=<%s> jobfile=<%s>",
             lsb_jobid2str(specs->jobId),
-            strerror(errno));
+            specs->command,
+            specs->jobFile);
+
+    LS_INFO("job <%s> switching to uid=%d user=%s",
+        lsb_jobid2str(specs->jobId),
+        specs->userId,
+        specs->userName);
+
+    if (sbd_set_ids(specs) < 0) {
+        LS_ERR("set ids failed for job <%s>", lsb_jobid2str(specs->jobId));
+        _exit(127);
+    }
+
+    if (sbd_set_job_env(specs) < 0) {
+        LS_ERR("set job env failed for job <%s>", lsb_jobid2str(specs->jobId));
+        _exit(127);
+    }
+
+    umask(specs->umask);
+    char work_dir[PATH_MAX];
+
+    LS_INFO("job <%s>: child setup starting",
+            lsb_jobid2str(specs->jobId));
+
+    if (sbd_make_work_dir(specs, work_dir, sizeof(work_dir)) < 0)
+        _exit(127);
+
+    if (sbd_enter_work_dir(specs, work_dir) < 0)
+        _exit(127);
+
+    if (sbd_redirect_stdio(specs) < 0)
+        _exit(127);
+
+    LS_INFO("job <%s>: executing command: %s",
+            lsb_jobid2str(specs->jobId), specs->command);
+
+    sbd_reset_signals();
+
+    if (sbd_run_qpre(specs) < 0) {
+        LS_ERR("qpre failed for job <%s>", lsb_jobid2str(specs->jobId));
+        _exit(127);
+    }
+
+    if ((specs->options & SUB_PRE_EXEC) != 0) {
+        if (sbd_run_upre(specs) < 0) {
+            LS_ERR("upre failed for job <%s>", lsb_jobid2str(specs->jobId));
+            _exit(127);
+        }
+    }
+
+    {
+#if 0
+        char *argv[4];
+
+        argv[0] = (char *)"/bin/sh";
+        argv[1] = (char *)"-c";
+        argv[2] = specs->command;
+        argv[3] = NULL;
+
+        execv("/bin/sh", argv);
+#endif
+
+        LS_INFO("job <%s>: about to exec: /bin/sh -c <%s> PATH=<%s>",
+                lsb_jobid2str(specs->jobId),
+                specs->command,
+                getenv("PATH") ? getenv("PATH") : "(null)");
+
+        char *argv[3];
+
+        argv[0] = (char *)"/bin/sleep";
+        argv[1] = (char *)"3600";
+        argv[2] = NULL;
+
+        execv(argv[0], argv);
+    }
+
+    LS_ERR("exec failed for job <%s> command=<%s>",
+           lsb_jobid2str(specs->jobId),
+           specs->command);
 
     _exit(127);
 }
@@ -420,3 +483,223 @@ print_one_job(struct ll_list_entry *entry)
             (int) job->pid);
 }
 #endif
+
+static void sbd_child_open_log(const struct jobSpecs *specs)
+{
+    char daemon_id[LL_BUFSIZ_64];
+
+    snprintf(daemon_id, sizeof(daemon_id), "sbatchd-%ld", (long)specs->jobId);
+    ls_openlog(daemon_id,
+               genParams[LSF_LOGDIR].paramValue,
+               true,
+               0,
+               "LOG_DEBUG");
+}
+
+static int sbd_set_job_env(const struct jobSpecs *specs)
+{
+    char val[LL_BUFSIZ_64];
+    int i;
+
+    if (setenv("LSB_SUB_HOST", specs->fromHost, 1) < 0)
+        return -1;
+
+    snprintf(val, sizeof(val), "%ld", (long)specs->jobId);
+    if (setenv("LSB_JOBID", val, 1) < 0)
+        return -1;
+
+    if (setenv("LSB_QUEUE", specs->queue, 1) < 0)
+        return -1;
+
+    if (setenv("LSB_JOBNAME", specs->jobName, 1) < 0)
+        return -1;
+
+    snprintf(val, sizeof(val), "%d", (int)getpid());
+    if (setenv("LS_JOBPID", val, 1) < 0)
+        return -1;
+
+    /*
+     * User-supplied environment.
+     * Expect entries in KEY=VALUE form.
+     */
+    for (i = 0; i < specs->numEnv; i++) {
+        char *e;
+        char *eq;
+
+        e = specs->env[i];
+        if (e == NULL)
+            continue;
+
+        eq = strchr(e, '=');
+        if (eq == NULL)
+            continue;
+
+        *eq = '\0';
+        if (setenv(e, eq + 1, 1) < 0) {
+            *eq = '=';
+            return -1;
+        }
+        *eq = '=';
+    }
+
+    return 0;
+}
+
+static int sbd_set_ids(const struct jobSpecs *specs)
+{
+
+    // Single-user debug mode: sbatchd runs as the submitting user.
+    // Do not attempt initgroups/setgid/setuid (will EPERM as non-root).
+    // Identity is already the local user in this mode.
+    if (sbd_debug)
+        return 0;
+
+    struct passwd *pw = getpwnam(specs->userName);
+    if (pw == NULL)
+        pw = getpwuid((uid_t)specs->userId);
+    if (pw == NULL) {
+        errno = ENOENT;
+        return -1;
+    }
+
+    if (initgroups(pw->pw_name, pw->pw_gid) < 0)
+        return -1;
+
+    if (setgid(pw->pw_gid) < 0)
+        return -1;
+
+    if (setuid((uid_t)specs->userId) < 0)
+        return -1;
+
+    return 0;
+}
+
+static void sbd_reset_signals(void)
+{
+    for (int i = 1; i < NSIG; i++)
+        signal(i, SIG_DFL);
+
+    signal(SIGHUP, SIG_IGN);
+
+    sigset_t newmask;
+    sigemptyset(&newmask);
+    sigprocmask(SIG_SETMASK, &newmask, NULL);
+
+    alarm(0);
+}
+
+static int sbd_run_qpre(const struct jobSpecs *specs)
+{
+    (void)specs;
+    return 0;
+}
+
+static int sbd_run_upre(const struct jobSpecs *specs)
+{
+    (void)specs;
+    return 0;
+}
+
+static int sbd_make_work_dir(const struct jobSpecs *specs,
+                             char *work_dir, size_t len)
+{
+    int rc;
+    char base[PATH_MAX];
+
+    LS_INFO("job <%s>: creating work directory",
+            lsb_jobid2str(specs->jobId));
+
+    if (specs->subHomeDir[0] == '\0') {
+        LS_ERR("job <%s>: subHomeDir is empty",
+               lsb_jobid2str(specs->jobId));
+        errno = ENOENT;
+        return -1;
+    }
+
+    rc = snprintf(base, sizeof(base), "%s/.lsbatch", specs->subHomeDir);
+    if (rc < 0 || (size_t)rc >= sizeof(base)) {
+        LS_ERR("job <%s>: .lsbatch path too long",
+               lsb_jobid2str(specs->jobId));
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    if (mkdir(base, 0700) < 0 && errno != EEXIST) {
+        LS_ERR("job <%s>: mkdir(%s) failed",
+               lsb_jobid2str(specs->jobId), base);
+        return -1;
+    }
+
+    rc = snprintf(work_dir, len, "%s/.lsbatch/%ld",
+                  specs->subHomeDir, (long)specs->jobId);
+    if (rc < 0 || (size_t)rc >= len) {
+        LS_ERR("job <%s>: work dir path too long",
+               lsb_jobid2str(specs->jobId));
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    if (mkdir(work_dir, 0700) < 0 && errno != EEXIST) {
+        LS_ERR("job <%s>: mkdir(%s) failed",
+               lsb_jobid2str(specs->jobId), work_dir);
+        return -1;
+    }
+
+    LS_INFO("job <%s>: work directory ready: %s",
+            lsb_jobid2str(specs->jobId), work_dir);
+
+    return 0;
+}
+
+static int sbd_enter_work_dir(const struct jobSpecs *specs,
+                              const char *work_dir)
+{
+    LS_INFO("job <%s>: entering work directory %s",
+            lsb_jobid2str(specs->jobId), work_dir);
+
+    if (chdir(work_dir) < 0) {
+        LS_ERR("job <%s>: chdir(%s) failed",
+               lsb_jobid2str(specs->jobId), work_dir);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int sbd_redirect_stdio(const struct jobSpecs *specs)
+{
+    int fd;
+
+    LS_INFO("job <%s>: redirecting stdout/stderr to work directory",
+            lsb_jobid2str(specs->jobId));
+
+    fd = open("stdout", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        LS_ERR("job <%s>: open(stdout) failed",
+               lsb_jobid2str(specs->jobId));
+        return -1;
+    }
+    if (dup2(fd, STDOUT_FILENO) < 0) {
+        LS_ERR("job <%s>: dup2(stdout) failed",
+               lsb_jobid2str(specs->jobId));
+        close(fd);
+        return -1;
+    }
+    close(fd);
+
+    fd = open("stderr", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        LS_ERR("job <%s>: open(stderr) failed",
+               lsb_jobid2str(specs->jobId));
+        return -1;
+    }
+    if (dup2(fd, STDERR_FILENO) < 0) {
+        LS_ERR("job <%s>: dup2(stderr) failed",
+               lsb_jobid2str(specs->jobId));
+        close(fd);
+        return -1;
+    }
+    close(fd);
+
+    return 0;
+}

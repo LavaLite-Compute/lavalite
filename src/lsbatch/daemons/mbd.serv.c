@@ -2408,6 +2408,12 @@ do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     // a back pointer to the hData using the current client connection
     host_data->sbd_node->host_node = host_data;
 
+    // now insert into hash based on chanfd for fast retrieval
+    char key[LL_BUFSIZ_32];
+
+    snprintf(key, sizeof(key), "%d", client->chanfd);
+    ll_hash_insert(&hdata_by_chan, key, host_data, 1);
+
     LS_INFO("sbatchd register hostname=%s canon=%s addr=%s ch_id=%d",
             hostname, host_data->sbd_node->host.name,
             host_data->sbd_node->host.addr, host_data->sbd_node->chanfd);
@@ -2434,7 +2440,6 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
     /*
      * hdr->operation is an sbdReplyType:
      *   ERR_NO_ERROR, ERR_BAD_REQ
-
      *
      * In the current protocol, a jobReply payload is sent only on
      * ERR_NO_ERROR. For error codes we log and return for now.
@@ -2479,6 +2484,9 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
     job->jobPGid = jobReply.jobPGid;
     job->jStatus = jobReply.jStatus; // typically JOB_STAT_RUN
 
+    LS_DEBUG("handler io message for job %s pid %d status 0x%x",
+             lsb_jobid2str(job->jobId), job->jobPid, job->jStatus);
+
     log_startjobaccept(job);
 
     /*
@@ -2517,11 +2525,16 @@ int sbd_handle_disconnect(struct mbd_client_node *client)
                host_node->host);
         abort();
     }
+    LS_DEBUG("closing connection with host %s", host_node->host);
 
     // Break the association first, then reset pending jobs.
     client->host_node = NULL;
 
     mbd_reset_sbd_job_list(host_node);
+    char key[LL_BUFSIZ_32];
+
+    snprintf(key, sizeof(key), "%d", client->chanfd);
+    ll_hash_remove(&hdata_by_chan, key);
     /*
      * Delegate channel close, unlink from client list, and free()
      * to the generic shutdown helper.

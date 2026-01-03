@@ -182,7 +182,7 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
     if (!xdr_lenData(xdrs, &spec->eexec))
         return false;
 
-    if (!xdr_opaque(xdrs, spec->projectName, LL_BUFSIZ_64))
+    if (!xdr_opaque(xdrs, spec->projectName, LL_BUFSIZ_512))
         return false;
 
     if (!xdr_opaque(xdrs, spec->preCmd, LL_BUFSIZ_512))

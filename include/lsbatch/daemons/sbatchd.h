@@ -98,32 +98,3 @@ int sbd_state_to_jstatus(enum sbd_job_state);
 
 // Refresh job status from mbd
 void sbd_job_sync_jstatus(struct sbd_job *);
-
-// ---- execution path primitives ----
-
-// Receive job file/script payload for this job.
-// (wrapper around the old rcvJobFile semantics, but cleaner)
-sbdReplyType sbd_recv_job_file(struct sbd_job *job);
-
-// Initialise paths: cwd, spool dir, stdout/stderr files.
-// For now this can be a stub; later we make it real.
-sbdReplyType sbd_init_paths(struct sbd_job *job);
-
-// Set uid/gid and groups based on spec; run job as user.
-sbdReplyType sbd_set_ids(const struct jobSpecs *spec);
-
-// Set process group for the job (child side).
-sbdReplyType sbd_set_pgid(struct sbd_job *job, pid_t pid);
-
-// Set environment for the job (LSB_*, resources, etc.).
-sbdReplyType sbd_set_env(struct sbd_job *job);
-
-// Queue pre-exec hook; can be stubbed but interface should exist.
-sbdReplyType sbd_run_qpre(struct sbd_job *job);
-
-// Core exec: fork, in child do ids/pgid/paths/env/pre, then exec.
-// On success, fills job->pid, job->pgid, state, start_time.
-sbdReplyType sbd_job_exec(struct sbd_job *job, int chfd);
-
-// Simply iterating function
-void sbd_job_foreach(void (*fn)(struct ll_list_entry *));

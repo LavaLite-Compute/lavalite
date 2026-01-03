@@ -347,6 +347,9 @@ int mbd_init(int mbdInitFlags)
         if (!lsb_CheckMode) {
             TIMEIT(0, init_log(), "init_log()");
         }
+
+        // LavaLite initilize mbd hash tables
+        mbd_init_tables();
     }
 
     return 0;
@@ -3613,6 +3616,16 @@ static int mbd_init_networking(void)
         LS_ERR("calloc num_events %d failed", mbd_max_events);
         chan_close(mbd_chan);
         close(mbd_efd);
+        return -1;
+    }
+
+    return 0;
+}
+
+int mbd_init_tables(void)
+{
+    if (ll_hash_init(&hdata_by_chan, 101) < 0) {
+        LS_ERR("failed to init hdata_by_chan");
         return -1;
     }
 

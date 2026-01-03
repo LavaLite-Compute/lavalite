@@ -137,20 +137,20 @@ struct thresholds {
 // LavaLite job specification with the job file
 struct jobSpecs {
     int64_t jobId;                    // unique job identifier (cluster-wide)
-    char    jobName[MAXLINELEN];      // user-visible job name
+    char    jobName[LL_BUFSIZ_512];      // user-visible job name
 
     int     jStatus;                  // scheduler job status flags (JOB_STAT_*)
     int     reasons;                  // why job is pending / suspended (legacy semantics)
     int     subreasons;               // finer-grained reasons (optional; may be deprecated)
 
     int     userId;                   // submitting user uid
-    char    userName[MAXLSFNAMELEN];  // submitting username
+    char    userName[LL_BUFSIZ_64] ;  // submitting username
 
     int     options;                  // submission options (SUB_*)
     int     jobPid;                   // process-id of running job (set by sbatchd)
     int     jobPGid;                  // process group-id of job (leader is child)
 
-    char    queue[MAXLSFNAMELEN];     // queue name (policy entry)
+    char    queue[LL_BUFSIZ_64];     // queue name (policy entry)
     int     priority;                 // internal scheduling priority
 
     char    fromHost[MAXHOSTNAMELEN]; // submission host / routing source
@@ -166,31 +166,31 @@ struct jobSpecs {
 
     time_t  termTime;     // planned termination time or checkpoint deadline
 
-    char    subHomeDir[MAXFILENAMELEN]; // submission-side $HOME
-    char    command[MAXLINELEN];        // original command line
+    char    subHomeDir[PATH_MAX]; // submission-side $HOME
+    char    command[LL_BUFSIZ_512];        // original command line
 
-    char   jobFile[MAXFILENAMELEN]; // script name/path
+    char   jobFile[PATH_MAX]; // script name/path
     struct lenData jobFileData; // inline script content (blob received via XDR)
 
-    char    inFile[MAXFILENAMELEN];     // stdin redirect path
-    char    outFile[MAXFILENAMELEN];    // stdout redirect path
-    char    errFile[MAXFILENAMELEN];    // stderr redirect path
+    char    inFile[PATH_MAX];     // stdin redirect path
+    char    outFile[PATH_MAX];    // stdout redirect path
+    char    errFile[PATH_MAX];    // stderr redirect path
 
     int     umask;                     // umask for job execution
-    char    cwd[MAXFILENAMELEN];       // job working directory at submission
+    char    cwd[PATH_MAX];       // job working directory at submission
 
     time_t  submitTime;                // job submission timestamp
 
-    char    preExecCmd[MAXLINELEN];    // command run before job exec
+    char    preExecCmd[LL_BUFSIZ_512];    // command run before job exec
 
     int     numEnv;      // number of env vars passed
     char  **env;        // environment array (NULL-terminated pairs no required)
 
     struct lenData eexec;              // encrypted exec string
-    char    projectName[MAXLSFNAMELEN];// project/accounting tag
+    char    projectName[LL_BUFSIZ_512];// project/accounting tag
 
-    char    preCmd[MAXLINELEN];        // optional pre-run wrapper
-    char    postCmd[MAXLINELEN];       // optional post-run wrapper
+    char    preCmd[LL_BUFSIZ_512];        // optional pre-run wrapper
+    char    postCmd[LL_BUFSIZ_512];       // optional post-run wrapper
 };
 
 

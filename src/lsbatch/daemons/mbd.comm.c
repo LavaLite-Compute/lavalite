@@ -383,6 +383,7 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
         }
     }
 
+    struct sbdNode sbdNode;
     sbdNode.jData = NULL;
     sbdNode.hData = hData;
     sbdNode.reqCode = MBD_PROBE;

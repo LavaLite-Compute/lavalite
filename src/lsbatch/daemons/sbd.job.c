@@ -552,11 +552,6 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
         jobSetupStatus(JOB_STAT_PEND, PEND_JOB_EXEC_INIT, jobCardPtr);
     }
 
-#if 0
-    if (acctMapOk(jobCardPtr) < 0)
-	jobSetupStatus(JOB_STAT_PEND, PEND_RMT_PERMISSION, jobCardPtr);
-#endif
-
     if ((fromHp = (struct hostent *) getHostEntryByName_(
              jobSpecsPtr->fromHost)) == NULL) {
         jobSetupStatus(JOB_STAT_PEND, PEND_JOB_EXEC_INIT, jobCardPtr);
@@ -1034,24 +1029,7 @@ int setJobEnv(struct jobCard *jp)
     sprintf(val, "%d", jp->w_status);
     putEnv("LSB_JOBEXIT_STAT", val);
 
-#ifdef INTER_DAEMON_AUTH
-    if (jp) {
-        static char bufUid[MAXFILENAMELEN];
-        static char bufGid[MAXFILENAMELEN];
-
-        sprintf(bufUid, "LSB_EEXEC_REAL_UID=%d", jp->jobSpecs.execUid);
-        sprintf(bufGid, "LSB_EEXEC_REAL_GID=%d", jp->execGid);
-        putenv(bufUid);
-        putenv(bufGid);
-    }
-#endif
     runEexec_("", jp->jobSpecs.jobId, &jp->jobSpecs.eexec, NULL);
-#ifdef INTER_DAEMON_AUTH
-    if (jp) {
-        putenv("LSB_EEXEC_REAL_UID=");
-        putenv("LSB_EEXEC_REAL_GID=");
-    }
-#endif
     return 0;
 }
 

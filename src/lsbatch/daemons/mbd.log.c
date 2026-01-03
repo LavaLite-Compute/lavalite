@@ -2550,17 +2550,6 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
                    struct lenData *jf, struct lenData *aux_auth_data)
 {
 #define ENVEND "$LSB_TRAPSIGS\n"
-    char logFn[PATH_MAX];
-    struct stat st;
-    int fd;
-    int i;
-    int numEnv;
-    int cc;
-    char *buf;
-    char *sp;
-    char *edata;
-    char *eventAttrs = NULL;
-    char *newBuf;
 
     (void)aux_auth_data;
 
@@ -2576,12 +2565,13 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     jf->len = 0;
     jf->data = NULL;
 
+    char logFn[PATH_MAX];
     snprintf(logFn, sizeof(logFn),
              "%s/info/%s",
              lsbParams[LSB_SHAREDIR].paramValue,
              jpbw->shared->jobBill.jobFile);
 
-    fd = open(logFn, O_RDONLY);
+    int fd = open(logFn, O_RDONLY);
     if (fd < 0) {
         snprintf(logFn, sizeof(logFn),
                  "%s/info/%d",
@@ -2597,21 +2587,24 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
         return -1;
     }
 
+    struct stat st;
     if (fstat(fd, &st) < 0) {
         LS_ERR("job %s fstat(%s) failed", lsb_jobid2str(jpbw->jobId), logFn);
         close(fd);
         return -1;
     }
 
-    buf = calloc((size_t)st.st_size, sizeof(char));
+    char *buf = calloc((size_t)st.st_size + 1, sizeof(char));
     if (buf == NULL) {
         LS_ERR("job %s calloc(%ld) failed",
                lsb_jobid2str(jpbw->jobId), (long)st.st_size);
         close(fd);
         return -1;
     }
+    // belt and suspenders
+    buf[st.st_size] = 0;
 
-    cc = (int)read(fd, buf, (size_t)st.st_size);
+    int cc = (int)read(fd, buf, (size_t)st.st_size);
     if (cc != st.st_size) {
         LS_ERR("job %s read(%s) failed",
                lsb_jobid2str(jpbw->jobId), logFn);
@@ -2621,6 +2614,8 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     }
     close(fd);
 
+    int numEnv;
+    char *sp;
     // count ENV lines till ENVEND which is the LSB_TRAPSIGS
     for (sp = buf + strlen(SHELLLINE), numEnv = 0;
          strncmp(sp, ENVEND, sizeof(ENVEND) - 1); numEnv++) {
@@ -2651,6 +2646,7 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
         numEnv++;
 
     if (numEnv > 0) {
+        int i;
         jobSpecs->env = calloc(numEnv, sizeof(char *));
         jobSpecs->numEnv = 0;
 
@@ -2704,6 +2700,7 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
             i++;
         }
 
+        char *eventAttrs = NULL;
         if (eventAttrs) {
             jobSpecs->env[i] = safeSave(eventAttrs);
             LS_DEBUG("%s", eventAttrs);
@@ -2715,7 +2712,7 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     }
 
     /* eexec */
-    edata = strstr(buf, EDATASTART);
+    char *edata = strstr(buf, EDATASTART);
     if (edata) {
         sp = edata + sizeof(EDATASTART) - 1;
         jobSpecs->eexec.len = atoi(sp);
@@ -2761,11 +2758,11 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
             return 0;
         }
 
-        newBuf = instrJobStarter1(buf,
-                                  (int)strlen(buf) + 1,
-                                  CMDSTART,
-                                  WAITCLEANCMD,
-                                  jpbw->qPtr->jobStarter);
+        char *newBuf = instrJobStarter1(buf,
+                                        (int)strlen(buf) + 1,
+                                        CMDSTART,
+                                        WAITCLEANCMD,
+                                        jpbw->qPtr->jobStarter);
         if (newBuf == NULL) {
             LS_ERR("failed to insert job starter into jobfile, job %s, queue %s",
                    lsb_jobid2str(jpbw->jobId), jpbw->qPtr->queue);
@@ -2782,6 +2779,9 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
     // Now we set the job file in the job spec
     jobSpecs->jobFileData.data = buf;
     jobSpecs->jobFileData.len = (int)strlen(buf) + 1;
+
+    // assert for development
+    assert(jobSpecs->jobFileData.len <= st.st_size + 1);
 
     return 0;
 }

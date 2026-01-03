@@ -39,6 +39,8 @@
 
 // Fossil in → LavaLite out
 
+// True man reads the man page, that’s why it’s called man
+
 #include <config.h>
 // System headers
 #include <stdio.h>

@@ -27,6 +27,9 @@ static void sbd_init_log(void);
 static int sbd_init_network(void);
 static void sbd_periodic(void);
 static int sbd_job_init(void);
+static void sbd_init_signals(void);
+static void sbd_reap_children(void);
+static void sbd_maybe_reap_children(void);
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -41,6 +44,10 @@ int sbd_mbd_chan = -1;
 int sbd_efd;
 static struct epoll_event *sbd_events;
 static int max_events;
+
+// Handler sets these variables to signal events
+static volatile sig_atomic_t sbd_got_sigchld = 0;
+static volatile sig_atomic_t sbd_terminate = 0;
 
 static struct option long_options[] = {
     {"debug", no_argument, 0, 'd'},
@@ -104,13 +111,28 @@ static void
 sbd_run_daemon(void)
 {
     while (1) {
+
+        if (sbd_terminate) {
+            LS_INFO("terminate requested, exiting");
+            exit(0);
+        }
+
+        if (sbd_got_sigchld) {
+            sbd_got_sigchld = 0;
+            sbd_reap_children();
+        }
+        sbd_maybe_reap_children();
+
         sbd_timer = -1;
         int nready = chan_epoll(sbd_efd, sbd_events, max_events, sbd_timer);
+        sbd_maybe_reap_children();
+
         if (nready < 0) {
-            if (errno != EINTR) {
-                LS_ERR("network I/O");
-                sleep(1);
-            }
+            if (errno == EINTR)
+                continue;
+            LS_ERR("network I/O");
+            sleep(1);
+            continue;
         }
 
          for (int i = 0; i < nready; i++) {
@@ -148,6 +170,8 @@ static int sbd_init(const char *sbatch)
     if (initenv_(genParams, NULL) < 0) {
         return -1;
     }
+
+    sbd_init_signals();
 
     sbd_init_log();
 
@@ -311,4 +335,54 @@ static int sbd_job_init(void)
     }
 
     return 0;
+}
+
+static void terminate_handler(int sig)
+{
+    (void)sig;
+    sbd_terminate = 1;
+}
+
+static void child_handler(int sig)
+{
+    (void)sig;
+    sbd_got_sigchld = 1;
+}
+
+static void sbd_init_signals(void)
+{
+     signal_set(SIGTERM, terminate_handler);
+     signal_set(SIGINT, terminate_handler);
+     signal_set(SIGCHLD, child_handler);
+}
+
+static void sbd_reap_children(void)
+{
+    int status;
+    pid_t pid;
+
+    for (;;) {
+        pid = waitpid(-1, &status, WNOHANG);
+        if (pid <= 0)
+            break;
+
+        if (WIFEXITED(status)) {
+            LS_INFO("child exited: pid=%d status=%d",
+                    (int)pid, WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            LS_INFO("child killed: pid=%d sig=%d",
+                    (int)pid, WTERMSIG(status));
+        } else {
+            LS_INFO("child state change: pid=%d status=0x%x",
+                    (int)pid, (unsigned)status);
+        }
+    }
+}
+
+static void sbd_maybe_reap_children(void)
+{
+    if (!sbd_got_sigchld)
+        return;
+    sbd_got_sigchld = 0;
+    sbd_reap_children();
 }

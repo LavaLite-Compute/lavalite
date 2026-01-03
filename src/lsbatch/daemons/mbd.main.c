@@ -150,6 +150,8 @@ struct epoll_event *mbd_events;
 int mbd_chan;
 uint16_t mbd_port;
 char mbd_host[MAXHOSTNAMELEN];
+// hash hData by channel id
+struct ll_hash hdata_by_chan;
 
 static void mbd_check_not_root(void);
 static void mbd_init_log(void);
@@ -375,6 +377,28 @@ static int mbd_accept_connection(int socket)
 
 static void mbd_handle_client(int ch_id)
 {
+    LS_DEBUG("ch_id=%d sock=%d events=0x%x",
+             ch_id, channels[ch_id].sock, channels[ch_id].chan_events);
+
+    // See if it is an sbd node
+    char key[LL_BUFSIZ_32];
+    struct hData *host_data;
+
+    snprintf(key, sizeof(key), "%d", ch_id);
+    host_data = ll_hash_search(&hdata_by_chan, key);
+    // Here hets a little assymetric with non sbd client
+    // handling. If there is an exception on the channel with
+    // sbd we have to handle it inside this called because beside
+    // just shutting down the client we haev to do other operations
+    // like clean up caches, jobs states etc
+    // so the asymmetry is intentional and correct.
+    if (host_data) {
+        // handle the sbd client
+        LS_DEBUG("the client is an sbd %s", host_data->host);
+        mbd_dispatch_sbd(host_data->sbd_node);
+        return;
+    }
+
     for (struct mbd_client_node *client = clientList->forw;
          client != clientList;
          client = client->forw) {
@@ -382,20 +406,12 @@ static void mbd_handle_client(int ch_id)
         if (client->chanfd != ch_id)
             continue;
 
-        // Here hets a little assymetric with non sbd client
-        // handling. If there is an exception on the channel with
-        // sbd we have to handle it inside this called because beside
-        // just shutting down the client we haev to do other operations
-        // like clean up caches, jobs states etc
-        // so the asymmetry is intentional and correct.
-        if (client->host_node) {
-            // handle the sbd client
-            mbd_dispatch_sbd(client);
-            return;
-        }
+        LS_DEBUG("found the client %p ch_id=%d sock=%d events=0x%x",
+                 client, ch_id, channels[ch_id].sock, channels[ch_id].chan_events);
 
         // This is an ordinary client so we can just shut him down
         if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
+            LS_DEBUG("the client is a being shutdown");
             shutdown_mbd_client(client);
             return;
         }
@@ -407,7 +423,6 @@ static void mbd_handle_client(int ch_id)
 
     // No client found for this channel id: internal inconsistency.
     LS_ERR("mbd_handle_client: no client found for chanfd=%d", ch_id);
-    abort();
 }
 
 static int mbd_dispatch_sbd(struct mbd_client_node *client)

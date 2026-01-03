@@ -22,6 +22,7 @@
 #include "lsbatch/daemons/daemons.h"
 #include "lsbatch/daemons/jgrp.h"
 #include "lsf/lib/ll.list.h"
+#include "lsf/lib/ll.hash.h"
 
 typedef struct shareProtoFuncs SHARE_PROTO_FUNCS_T;
 typedef struct shareHolderPolicy SHARE_HOLDER_POLICY_T;
@@ -1428,6 +1429,7 @@ extern struct epoll_event *mbd_events;
 extern int mbd_max_events;
 
 // LavaLite
+
 int mbd_init(int);
 int do_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);
 int sbd_handle_new_job_reply(struct mbd_client_node *,
@@ -1435,3 +1437,6 @@ int sbd_handle_new_job_reply(struct mbd_client_node *,
                              struct packet_header *);
 int sbd_handle_disconnect(struct mbd_client_node *);
 int mbd_enqueue_hdr(struct mbd_client_node *, int);
+int mbd_init_tables(void);
+
+extern struct ll_hash hdata_by_chan;
