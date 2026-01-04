@@ -156,9 +156,11 @@ void signal_set(int sig, void (*handler)(int))
 {
     struct sigaction act;
 
+    memset(&act, 0, sizeof(act));
     act.sa_handler = handler;
     act.sa_flags = 0;
-
     sigemptyset(&act.sa_mask);
-    sigaddset(&act.sa_mask, sig);
+
+    if (sigaction(sig, &act, NULL) < 0)
+        LS_WARNING("sigaction(%d) failed", sig);
 }

@@ -136,10 +136,15 @@ sbd_run_daemon(void)
         }
 
          for (int i = 0; i < nready; i++) {
-             int ch_id = sbd_events[i].data.u32;
-             uint32_t ev = sbd_events[i].events;
+            struct epoll_event *ev = &sbd_events[i];
+            int ch_id = (int)ev->data.u32;
 
-             LS_DEBUG("epoll: ch_id=%d events=0x%x", ch_id, ev);
+             LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
+                      ch_id, channels[ch_id].chan_events, ev->events);
+
+             // True skip partually read channels
+             if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
+                 continue;
 
              if (ch_id == sbd_timer_chan) {
                  uint64_t expirations;
@@ -151,6 +156,7 @@ sbd_run_daemon(void)
 
              if (ch_id == sbd_mbd_chan) {
                  sbd_handle_mbd(ch_id);
+                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
 
@@ -165,9 +171,7 @@ static void sbd_periodic(void)
 
 static int sbd_init(const char *sbatch)
 {
-    // Use base library genparams and add the SBD variables
-    // to them
-    if (initenv_(genParams, NULL) < 0) {
+    if (initenv_(lsbParams, NULL) < 0) {
         return -1;
     }
 
@@ -345,15 +349,16 @@ static void terminate_handler(int sig)
 
 static void child_handler(int sig)
 {
-    (void)sig;
     sbd_got_sigchld = 1;
+    LS_ERR("got signal %d", sig);
 }
 
 static void sbd_init_signals(void)
 {
-     signal_set(SIGTERM, terminate_handler);
-     signal_set(SIGINT, terminate_handler);
-     signal_set(SIGCHLD, child_handler);
+    LS_INFO("initializing signals");
+    signal_set(SIGTERM, terminate_handler);
+    signal_set(SIGINT, terminate_handler);
+    signal_set(SIGCHLD, child_handler);
 }
 
 static void sbd_reap_children(void)
@@ -363,8 +368,15 @@ static void sbd_reap_children(void)
 
     for (;;) {
         pid = waitpid(-1, &status, WNOHANG);
-        if (pid <= 0)
+        if (pid <= 0) {
+            if (pid < 0) {
+                if (errno == EINTR)
+                    continue;
+                if (errno != ECHILD)
+                    LS_ERR("waitpid(-1) failed");
+            }
             break;
+        }
 
         if (WIFEXITED(status)) {
             LS_INFO("child exited: pid=%d status=%d",
@@ -378,6 +390,7 @@ static void sbd_reap_children(void)
         }
     }
 }
+
 
 static void sbd_maybe_reap_children(void)
 {

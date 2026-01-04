@@ -312,6 +312,12 @@ int main(int argc, char **argv)
 
             //houseKeeping(&hsKeeping);
             //periodicCheck();
+             LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
+                      ch_id, channels[ch_id].chan_events, ev->events);
+
+             // True skip partually read channels
+             if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
+                 continue;
 
             if (ch_id == mbd_chan) {
                 mbd_accept_connection(mbd_chan);

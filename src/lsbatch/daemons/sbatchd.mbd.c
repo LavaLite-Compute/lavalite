@@ -31,6 +31,8 @@ static int sbd_run_upre(const struct jobSpecs *);
 static int sbd_make_work_dir(const struct jobSpecs *, char *, size_t);
 static int sbd_enter_work_dir(const struct jobSpecs *, const char *);
 static int sbd_redirect_stdio(const struct jobSpecs *);
+static int sbd_materialize_jobfile(struct jobSpecs *, const char *,
+                                   char *, size_t);
 
 // the ch_id in input is the channel we have opened with mbatchd
 //
@@ -194,6 +196,7 @@ static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
         // child goes and runs the job
         chan_close(sbd_chan);
         chan_close(sbd_timer_chan);
+        chan_close(sbd_mbd_chan);
         // child becomes leader of its own group
         setpgid(0, 0);
         // Now run...
@@ -224,11 +227,11 @@ static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
     return ERR_NO_ERROR;
 }
 
-
 static void sbd_child_exec_job(struct jobSpecs *specs)
 {
     sbd_child_open_log(specs);
 
+    // Track pid/pgid in the spec for the parent/mbd protocol.
     specs->jobPid = getpid();
     specs->jobPGid = specs->jobPid;
 
@@ -238,85 +241,120 @@ static void sbd_child_exec_job(struct jobSpecs *specs)
             specs->jobFile);
 
     LS_INFO("job <%s> switching to uid=%d user=%s",
-        lsb_jobid2str(specs->jobId),
-        specs->userId,
-        specs->userName);
+            lsb_jobid2str(specs->jobId),
+            specs->userId,
+            specs->userName);
 
+    // Drop privileges / set ids first.
     if (sbd_set_ids(specs) < 0) {
         LS_ERR("set ids failed for job <%s>", lsb_jobid2str(specs->jobId));
         _exit(127);
     }
 
+    // Populate the job environment (LSB_*, user env, etc).
     if (sbd_set_job_env(specs) < 0) {
         LS_ERR("set job env failed for job <%s>", lsb_jobid2str(specs->jobId));
         _exit(127);
     }
 
+    // Apply requested umask for the job.
     umask(specs->umask);
-    char work_dir[PATH_MAX];
 
-    LS_INFO("job <%s>: child setup starting",
-            lsb_jobid2str(specs->jobId));
+    // 1) Enter the execution working directory (today: $HOME/.lsbatch/...).
+    {
+        char work_dir[PATH_MAX];
 
-    if (sbd_make_work_dir(specs, work_dir, sizeof(work_dir)) < 0)
-        _exit(127);
+        if (sbd_make_work_dir(specs, work_dir, sizeof(work_dir)) < 0)
+            _exit(127);
 
-    if (sbd_enter_work_dir(specs, work_dir) < 0)
-        _exit(127);
+        LS_INFO("job <%s>: child setup starting path %s",
+                lsb_jobid2str(specs->jobId), work_dir);
 
-    if (sbd_redirect_stdio(specs) < 0)
-        _exit(127);
-
-    LS_INFO("job <%s>: executing command: %s",
-            lsb_jobid2str(specs->jobId), specs->command);
-
-    sbd_reset_signals();
-
-    if (sbd_run_qpre(specs) < 0) {
-        LS_ERR("qpre failed for job <%s>", lsb_jobid2str(specs->jobId));
-        _exit(127);
+        if (sbd_enter_work_dir(specs, work_dir) < 0)
+            _exit(127);
     }
 
-    if ((specs->options & SUB_PRE_EXEC) != 0) {
-        if (sbd_run_upre(specs) < 0) {
-            LS_ERR("upre failed for job <%s>", lsb_jobid2str(specs->jobId));
+    // 2) Materialize the job script under the sbatchd local working directory
+    //    (LSB_SHAREDIR/sbatchd/<unixtime.jobid>/job.sh) and remember its path.
+    {
+        const char *sharedir = lsbParams[LSB_SHAREDIR].paramValue;
+        char sbd_local_wkdir[PATH_MAX];
+        char jobpath[PATH_MAX];
+
+        // Create per-job directory under LSB_SHAREDIR (ignore EEXIST).
+        // <sharedir>/sbatchd/<specs->jobFile> where jobFile is "unixtime.jobid".
+        if (snprintf(sbd_local_wkdir, sizeof(sbd_local_wkdir),
+                     "%s/sbatchd/%s", sharedir, specs->jobFile) >=
+            (int)sizeof(sbd_local_wkdir)) {
+            LS_ERR("job <%s>: local workdir path too long",
+                   lsb_jobid2str(specs->jobId));
+            _exit(127);
+        }
+
+        LS_INFO("job <%s>: sbd_local_wkdir=<%s> jobpath=<%s>",
+                lsb_jobid2str(specs->jobId), sbd_local_wkdir, jobpath);
+
+        if (mkdir(sbd_local_wkdir, 0700) < 0 && errno != EEXIST) {
+            LS_ERR("job <%s>: mkdir(%s) failed: %s",
+                   lsb_jobid2str(specs->jobId),
+                   sbd_local_wkdir,
+                   strerror(errno));
+            _exit(127);
+        }
+
+        if (sbd_materialize_jobfile(specs,
+                                    sbd_local_wkdir,
+                                    jobpath,
+                                    sizeof(jobpath)) < 0) {
+            LS_ERR("job <%s>: materialize jobfile failed: %s",
+                   lsb_jobid2str(specs->jobId),
+                   strerror(errno));
+            _exit(127);
+        }
+
+        // 3) Redirect stdio after jobfile creation so system errors don't land
+        //    in user stdout/stderr in early setup.
+        if (sbd_redirect_stdio(specs) < 0)
+            _exit(127);
+
+        // Reset signals after stdio setup, before running any hooks/exec.
+        sbd_reset_signals();
+
+        // Queue pre-exec hook (admin-side).
+        if (sbd_run_qpre(specs) < 0) {
+            LS_ERR("qpre failed for job <%s>", lsb_jobid2str(specs->jobId));
+            _exit(127);
+        }
+
+        // User pre-exec hook (submission-side).
+        if ((specs->options & SUB_PRE_EXEC) != 0) {
+            if (sbd_run_upre(specs) < 0) {
+                LS_ERR("upre failed for job <%s>", lsb_jobid2str(specs->jobId));
+                _exit(127);
+            }
+        }
+
+        // Exec the materialized script. We keep cwd as set above.
+        LS_INFO("job <%s>: exec /bin/sh %s",
+                lsb_jobid2str(specs->jobId), jobpath);
+
+        {
+            char *argv[2];
+
+            argv[0] = jobpath;
+            argv[1] = NULL;
+
+            execv(argv[0], argv);
+
+            LS_ERR("job <%s>: execv(%s) failed: errno=%d (%s)",
+                   lsb_jobid2str(specs->jobId),
+                   argv[0],
+                   errno,
+                   strerror(errno));
             _exit(127);
         }
     }
-
-    {
-#if 0
-        char *argv[4];
-
-        argv[0] = (char *)"/bin/sh";
-        argv[1] = (char *)"-c";
-        argv[2] = specs->command;
-        argv[3] = NULL;
-
-        execv("/bin/sh", argv);
-#endif
-
-        LS_INFO("job <%s>: about to exec: /bin/sh -c <%s> PATH=<%s>",
-                lsb_jobid2str(specs->jobId),
-                specs->command,
-                getenv("PATH") ? getenv("PATH") : "(null)");
-
-        char *argv[3];
-
-        argv[0] = (char *)"/bin/sleep";
-        argv[1] = (char *)"3600";
-        argv[2] = NULL;
-
-        execv(argv[0], argv);
-    }
-
-    LS_ERR("exec failed for job <%s> command=<%s>",
-           lsb_jobid2str(specs->jobId),
-           specs->command);
-
-    _exit(127);
 }
-
 
 void sbd_job_sync_jstatus(struct sbd_job *job)
 {
@@ -700,6 +738,79 @@ static int sbd_redirect_stdio(const struct jobSpecs *specs)
         return -1;
     }
     close(fd);
+
+    return 0;
+}
+
+static int write_all(int fd, const char *buf, size_t len)
+{
+    size_t off = 0;
+
+    while (off < len) {
+        ssize_t n = write(fd, buf + off, len - off);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            return -1;
+        }
+        off += (size_t)n;
+    }
+    return 0;
+}
+
+static int sbd_materialize_jobfile(struct jobSpecs *specs,
+                                   const char *work_dir,
+                                   char *jobpath, size_t jobpath_sz)
+{
+    int fd;
+    char tmp[PATH_MAX];
+    size_t len;
+
+    if (!specs || !work_dir || !jobpath || jobpath_sz == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (!specs->jobFileData.data || specs->jobFileData.len <= 1) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (snprintf(jobpath, jobpath_sz, "%s/job.sh", work_dir) >= (int)jobpath_sz) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    if (snprintf(tmp, sizeof(tmp), "%s.tmp", jobpath) >= (int)sizeof(tmp)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (fd < 0)
+        return -1;
+
+    // jobFileData.len includes trailing 0; don't write it
+    len = (size_t)specs->jobFileData.len - 1;
+
+    if (write_all(fd, specs->jobFileData.data, len) < 0) {
+        close(fd);
+        unlink(tmp);
+        return -1;
+    }
+
+    if (close(fd) < 0) {
+        unlink(tmp);
+        return -1;
+    }
+
+    if (chmod(tmp, 0700) < 0) {
+        unlink(tmp);
+        return -1;
+    }
+
+    if (rename(tmp, jobpath) < 0) {
+        unlink(tmp);
+        return -1;
+    }
 
     return 0;
 }
