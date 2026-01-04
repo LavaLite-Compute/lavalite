@@ -63,8 +63,9 @@ int getElock(void)
     }
 
 #define EVENT_LOCK_FILE "#lsb.event.lock"
-    sprintf(lockfile, "%s/%s", lsbParams[LSB_SHAREDIR].paramValue,
-            EVENT_LOCK_FILE);
+    char dirbuf[MAXPATHLEN];
+    sprintf(dirbuf, "%s/mbatchd", lsbParams[LSB_SHAREDIR].paramValue);
+    sprintf(lockfile, "%s/%s", dirbuf, EVENT_LOCK_FILE);
 
 access:
 

@@ -1,4 +1,4 @@
-/* $Id: lsb.sub.c,v 1.12 2007/08/15 22:18:48 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -102,7 +102,6 @@ static struct lenData ed = {0, NULL};
 static int64_t send_batch(struct submitReq *, struct lenData *,
                           struct submitReply *, struct lsfAuth *);
 static int dependCondSyntax(char *);
-static int createJobInfoFile(struct submit *, struct lenData *);
 static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
                       struct submitReply *submitRep, struct lsfAuth *auth);
 static int getUserInfo(struct submitReq *, struct submit *);
@@ -128,6 +127,8 @@ extern char *extractStringValue(char *line);
 static int getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
                           int *badIdx, int checkHost);
 #define ESUBNAME "esub"
+// LavaLite
+static int createJobInfoFile(struct submit *, struct lenData *);
 
 int64_t lsb_submit(struct submit *jobSubReq, struct submitReply *submitRep)
 {
@@ -382,176 +383,6 @@ int getCommonParams(struct submit *jobSubReq, struct submitReq *submitReq,
 
     if (logclass & (LC_TRACE | LC_EXEC))
         ls_syslog(LOG_DEBUG, "%s: Okay", fname);
-
-    return 0;
-}
-extern char **environ;
-static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
-{
-    static char fname[] = "createJobInfoFile";
-    char **ep;
-    char *sp, num[LL_BUFSIZ_32], *p, *oldp;
-    int size = MSGSIZE, length = 0, len, len1, numEnv = 0, noEqual;
-
-    int tsoptlen;
-
-    tsoptlen = 0;
-
-    if (logclass & (LC_TRACE | LC_EXEC))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
-
-    length = sizeof(CMDSTART) + sizeof(TRAPSIGCMD) + sizeof(WAITCLEANCMD) +
-             sizeof(EXITCMD) + strlen(jobSubReq->command) + tsoptlen +
-             sizeof(LSBNUMENV) + sizeof(ENVSSTART) + sizeof(EDATASTART) +
-             sizeof(SHELLLINE) + 1 + LL_BUFSIZ_32 * 2 + ed.len;
-
-    jf->len = 0;
-    size = MAX(length, MSGSIZE);
-    if ((jf->data = (char *) malloc(size)) == NULL) {
-        lsberrno = LSBE_NO_MEM;
-        return -1;
-    }
-    jf->data[0] = '\0';
-    strcat(jf->data, SHELLLINE);
-
-    if (useracctmap) {
-        strcat(jf->data, "LSB_ACCT_MAP='");
-        strcat(jf->data, useracctmap);
-        strcat(jf->data, "'; export LSB_ACCT_MAP\n");
-        length += 14 + strlen(useracctmap) + 24;
-        free(useracctmap);
-        useracctmap = NULL;
-    }
-
-    strcat(jf->data, "LSF_VERSION='");
-    /* Bug decide what to print here
-     */
-    sprintf(num, "%d", 1);
-    strcat(jf->data, num);
-    strcat(jf->data, "'; export LSF_VERSION\n");
-    length += 13 + strlen(num) + 23;
-
-    for (ep = environ; *ep; ep++) {
-        noEqual = false;
-        if (logclass & (LC_TRACE | LC_EXEC)) {
-            ls_syslog(LOG_DEBUG, "%s: environment variable <%s>", fname, *ep);
-        }
-
-        if (!strncmp(*ep, "LSB_JOBID=", 10) ||
-            !strncmp(*ep, "LSB_HOSTS=", 10) ||
-            !strncmp(*ep, "LSB_QUEUE=", 10) ||
-            !strncmp(*ep, "LSB_JOBNAME=", 12) ||
-            !strncmp(*ep, "LSB_TRAPSIGS=", 13) ||
-            !strncmp(*ep, "LSB_JOBFILENAME=", 16) ||
-            !strncmp(*ep, "LSB_RESTART=", 12) ||
-            !strncmp(*ep, "LSB_EXIT_PRE_ABORT=", 19) ||
-            !strncmp(*ep, "LSB_EXIT_REQUEUE=", 17) ||
-            !strncmp(*ep, "LS_JOBPID=", 10) ||
-            !strncmp(*ep, "LSB_INTERACTIVE=", 16) ||
-            !strncmp(*ep, "LSB_ACCT_MAP=", 13) ||
-            !strncmp(*ep, "LSB_JOB_STARTER=", 16) ||
-            !strncmp(*ep, "LSB_EVENT_ATTRIB=", 17) ||
-            !strncmp(*ep, "LSF_VERSION=", 12) || !strncmp(*ep, "LSB_SUB_", 8) ||
-            !strncmp(*ep, "HOME=", 5) || !strncmp(*ep, "PWD=", 4) ||
-            !strncmp(*ep, "USER=", 5)) {
-            continue;
-        }
-
-        if (!(jobSubReq->options & SUB_INTERACTIVE)) {
-            if (!strncmp(*ep, "TERMCAP=", 8) || !strncmp(*ep, "TERM=", 5))
-                continue;
-        }
-
-        sp = putstr_(*ep);
-        oldp = sp;
-        if (!sp) {
-            FREEUP(sp);
-            lsberrno = LSBE_NO_MEM;
-            return -1;
-        }
-
-        for (p = sp; *p != '\0' && *p != '='; p++)
-            ;
-
-        if (*p == '\0') {
-            noEqual = true;
-            if (logclass & (LC_TRACE | LC_EXEC)) {
-                ls_syslog(LOG_DEBUG,
-                          "%s: environment variable <%s> doesn't have '='",
-                          fname, sp);
-            }
-        } else {
-            *p = '\0';
-        }
-
-        if (noEqual == true) {
-            len1 = 2;
-        } else {
-            len1 = strlen(p + 1) + 1;
-        }
-        if ((length += (len = strlen(sp) + len1 + sizeof(TAILCMD) + strlen(sp) +
-                              1)) > size) {
-            char *newp = (char *) realloc(
-                jf->data, (size += (len > MSGSIZE ? len : MSGSIZE)));
-            if (newp == NULL) {
-                if (noEqual != true)
-                    *p = '=';
-                lsberrno = LSBE_NO_MEM;
-                FREEUP(oldp);
-                free(jf->data);
-                return -1;
-            }
-            jf->data = newp;
-        }
-        strcat(jf->data, sp);
-        strcat(jf->data, "='");
-        if (noEqual == true) {
-            strcat(jf->data, "\0");
-        } else {
-            strcat(jf->data, p + 1);
-        }
-        strcat(jf->data, TAILCMD);
-        strcat(jf->data, sp);
-        strcat(jf->data, "\n");
-        if (noEqual != true) {
-            *p = '=';
-        }
-        if (logclass & (LC_TRACE | LC_EXEC)) {
-            ls_syslog(LOG_DEBUG, "%s:length=%d, size=%d, jf->len=%d, numEnv=%d",
-                      fname, length, size, strlen(jf->data), ++numEnv);
-        }
-        FREEUP(oldp);
-    }
-
-    if ((length +=
-         (len = sizeof(TRAPSIGCMD) + sizeof(CMDSTART) +
-                strlen(jobSubReq->command) + tsoptlen + sizeof(WAITCLEANCMD) +
-                sizeof(EXITCMD) + sizeof(EDATASTART) + ed.len
-
-                + LL_BUFSIZ_32)) > size) {
-        char *newp = (char *) realloc(
-            jf->data, (size += (len > MSGSIZE ? len : MSGSIZE)));
-        if (newp == NULL) {
-            lsberrno = LSBE_NO_MEM;
-            FREEUP(jf->data);
-            return -1;
-        }
-        jf->data = newp;
-    }
-    if (logclass & (LC_TRACE | LC_EXEC)) {
-        ls_syslog(LOG_DEBUG, "%s:length=%d, size=%d, jf->len=%d, numEnv=%d",
-                  fname, length, size, strlen(jf->data), numEnv);
-    }
-
-    strcat(jf->data, TRAPSIGCMD);
-    strcat(jf->data, CMDSTART);
-
-    strcat(jf->data, jobSubReq->command);
-
-    strcat(jf->data, WAITCLEANCMD);
-    strcat(jf->data, EXITCMD);
-
-    appendEData(jf, &ed);
 
     return 0;
 }
@@ -4134,4 +3965,393 @@ static int getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
 
     fprintf(stderr, "-m option not implemented yet\n");
     return 1;
+}
+
+// LavaLite
+
+// Keep your daemonout.h defines:
+// SHELLLINE, CMDSTART, WAITCLEANCMD, EXITCMD, TRAPSIGCMD, EDATASTART, etc.
+
+struct ll_buf {
+    char *data;
+    size_t len;
+    size_t cap;
+};
+
+static int ll_buf_grow(struct ll_buf *, size_t);
+static int ll_buf_append_mem(struct ll_buf *, const void *, size_t);
+static int ll_buf_append_str(struct ll_buf *, const char *);
+static bool_t is_ascii_alpha(int);
+static bool_t is_ascii_digit(int);
+static bool_t is_ascii_ident_start(int);
+static bool_t is_ascii_ident_char(int);
+static bool_t is_sh_ident(const char *, size_t);
+static bool_t is_exported_bash_func_name(const char *, size_t);
+static bool_t value_has_newline(const char *);
+static bool_t env_name_has_prefix(const char *, size_t, const char *);
+static bool_t env_is_denied(const char *, size_t, bool_t);
+static int ll_buf_append_sh_export(struct ll_buf *, const char *,
+                                   size_t , const char *);
+
+static int ll_buf_grow(struct ll_buf *b, size_t need)
+{
+    size_t want;
+    char *p;
+
+    if (b->cap - b->len >= need) {
+        return 0;
+    }
+
+    if (need > SIZE_MAX - b->len) {
+        return -1;
+    }
+
+    want = b->cap ? b->cap : LL_BUFSIZ_4K;
+
+    while (want < b->len + need) {
+        if (want > SIZE_MAX - LL_BUFSIZ_4K) {
+            return -1;
+        }
+        want += LL_BUFSIZ_4K;
+    }
+
+    p = realloc(b->data, want);
+    if (p == NULL) {
+        return -1;
+    }
+
+    b->data = p;
+    b->cap = want;
+    return 0;
+}
+
+static int ll_buf_append_mem(struct ll_buf *b, const void *p, size_t n)
+{
+    if (ll_buf_grow(b, n + 1) < 0) {
+        return -1;
+    }
+
+    memcpy(b->data + b->len, p, n);
+    b->len += n;
+    b->data[b->len] = '\0';
+    return 0;
+}
+
+static int ll_buf_append_str(struct ll_buf *b, const char *s)
+{
+    return ll_buf_append_mem(b, s, strlen(s));
+}
+
+static bool_t is_ascii_alpha(int c)
+{
+    return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
+}
+
+static bool_t is_ascii_digit(int c)
+{
+    return (c >= '0' && c <= '9');
+}
+
+static bool_t is_ascii_ident_start(int c)
+{
+    return (is_ascii_alpha(c) || c == '_');
+}
+
+static bool_t is_ascii_ident_char(int c)
+{
+    return (is_ascii_alpha(c) || is_ascii_digit(c) || c == '_');
+}
+
+static bool_t is_sh_ident(const char *s, size_t n)
+{
+    size_t i;
+    unsigned char c;
+
+    if (s == NULL || n == 0) {
+        return false;
+    }
+
+    c = (unsigned char)s[0];
+    if (!is_ascii_ident_start((int)c)) {
+        return false;
+    }
+
+    for (i = 1; i < n; i++) {
+        c = (unsigned char)s[i];
+        if (!is_ascii_ident_char((int)c)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool_t is_exported_bash_func_name(const char *name, size_t n)
+{
+    // BASH_FUNC_<fname>%%  (bash exported function marker)
+    if (n < 12) {
+        return false;
+    }
+
+    if (strncmp(name, "BASH_FUNC_", 10) != 0) {
+        return false;
+    }
+
+    return (name[n - 2] == '%' && name[n - 1] == '%');
+}
+
+static bool_t value_has_newline(const char *v)
+{
+    return (v != NULL && strchr(v, '\n') != NULL);
+}
+
+static bool_t env_name_has_prefix(const char *name, size_t n, const char *prefix)
+{
+    size_t pn;
+
+    pn = strlen(prefix);
+    if (n < pn) {
+        return false;
+    }
+
+    return (strncmp(name, prefix, pn) == 0);
+}
+
+static bool_t env_is_denied(const char *name, size_t n, bool_t interactive)
+{
+    static const char *deny_exact[] = {
+        "HOME", "PWD", "USER"
+    };
+    static const char *deny_prefix[] = {
+        "LSB_JOBID",
+        "LSB_HOSTS",
+        "LSB_QUEUE",
+        "LSB_JOBNAME",
+        "LSB_TRAPSIGS",
+        "LSB_JOBFILENAME",
+        "LSB_RESTART",
+        "LSB_EXIT_PRE_ABORT",
+        "LSB_EXIT_REQUEUE",
+        "LS_JOBPID",
+        "LSB_INTERACTIVE",
+        "LSB_JOB_STARTER",
+        "LSB_EVENT_ATTRIB",
+        "LSF_VERSION",
+        "LSB_SUB_"
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(deny_exact) / sizeof(deny_exact[0]); i++) {
+        if (n == strlen(deny_exact[i]) && strncmp(name, deny_exact[i], n) == 0) {
+            return true;
+        }
+    }
+
+    for (i = 0; i < sizeof(deny_prefix) / sizeof(deny_prefix[0]); i++) {
+        if (env_name_has_prefix(name, n, deny_prefix[i])) {
+            return true;
+        }
+    }
+
+    // Do not propagate interactive session variables for batch jobs
+    if (!interactive) {
+        // Already present
+        if (n == 4 && strncmp(name, "TERM", 4) == 0) {
+            return true;
+        }
+        if (n == 7 && strncmp(name, "TERMCAP", 7) == 0) {
+            return true;
+        }
+
+        // Batch: drop desktop/session noise
+        static const char *deny_batch_exact[] = {
+            "DISPLAY",
+            "WAYLAND_DISPLAY",
+            "XAUTHORITY",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "SESSION_MANAGER",
+            "WINDOWID",
+            "XMODIFIERS",
+            "GTK_MODULES",
+            "QT_IM_MODULE",
+            "QT_ACCESSIBILITY",
+            "IM_CONFIG_CHECK_ENV",
+            "IM_CONFIG_PHASE",
+            "GDMSESSION",
+            "DESKTOP_SESSION",
+            "XDG_SESSION_DESKTOP",
+            "XDG_SESSION_TYPE",
+            "XDG_SESSION_CLASS",
+            "XDG_CURRENT_DESKTOP",
+            "GNOME_DESKTOP_SESSION_ID",
+            "GNOME_SHELL_SESSION_MODE",
+            "GNOME_SETUP_DISPLAY",
+            "GJS_DEBUG_OUTPUT",
+            "GJS_DEBUG_TOPICS",
+            "JOURNAL_STREAM",
+            "INVOCATION_ID",
+            "SYSTEMD_EXEC_PID",
+            "MANAGERPID",
+            "PS1",
+            "SHLVL",
+            "OLDPWD",
+            "XTERM_VERSION",
+            "XTERM_SHELL",
+            "XTERM_LOCALE",
+            "PAGER",
+            "LS_COLORS",
+            "MEMORY_PRESSURE_WRITE",
+            "MEMORY_PRESSURE_WATCH",
+            "CLUTTER_DISABLE_MIPMAPPED_TEXT",
+            "GSM_SKIP_SSH_AGENT_WORKAROUND",
+            "_"
+        };
+        static const char *deny_batch_prefix[] = {
+            "XDG_",
+            "GNOME_",
+            "GJS_",
+            "__LMOD_REF_COUNT_",
+            "_ModuleTable"
+        };
+
+        for (i = 0; i < sizeof(deny_batch_exact) / sizeof(deny_batch_exact[0]); i++) {
+            if (n == strlen(deny_batch_exact[i])
+                && strncmp(name, deny_batch_exact[i], n) == 0) {
+                return true;
+            }
+        }
+
+        for (i = 0; i < sizeof(deny_batch_prefix) / sizeof(deny_batch_prefix[0]); i++) {
+            if (env_name_has_prefix(name, n, deny_batch_prefix[i])) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static int ll_buf_append_sh_export(struct ll_buf *b, const char *name,
+                                   size_t n, const char *value)
+{
+    // Emits: NAME='...'; export NAME\n
+    // Value must be non-NULL and must not contain '\n' (enforced by caller).
+    const char *p;
+
+    if (ll_buf_append_mem(b, name, n) < 0) {
+        return -1;
+    }
+    if (ll_buf_append_str(b, "='") < 0) {
+        return -1;
+    }
+
+    if (value == NULL)
+        value = "";
+
+    for (p = value; *p != '\0'; p++) {
+        if (*p == '\'') {
+            if (ll_buf_append_str(b, "'\\''") < 0) { // close, escape, reopen
+                return -1;
+            }
+            continue;
+        }
+        if (ll_buf_append_mem(b, p, 1) < 0) {
+            return -1;
+        }
+    }
+
+    if (ll_buf_append_str(b, "'; export ") < 0) {
+        return -1;
+    }
+    if (ll_buf_append_mem(b, name, n) < 0) {
+        return -1;
+    }
+    if (ll_buf_append_str(b, "\n") < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
+{
+    struct ll_buf b;
+    char **ep;
+    bool_t interactive;
+
+    memset(&b, 0, sizeof(b));
+
+    interactive = (jobSubReq->options & SUB_INTERACTIVE) ? true : false;
+
+    // Header
+    if (ll_buf_append_str(&b, SHELLLINE) < 0) {
+        lsberrno = LSBE_NO_MEM;
+        free(b.data);
+        return -1;
+    }
+
+    // Environment block (optional label; keep your marker if you want)
+    if (ll_buf_append_str(&b, ENVSSTART) < 0) {
+        lsberrno = LSBE_NO_MEM;
+        free(b.data);
+        return -1;
+    }
+
+    for (ep = environ; ep != NULL && *ep != NULL; ep++) {
+        const char *e = *ep;
+        const char *eq;
+        const char *name;
+        const char *val;
+        size_t nlen;
+
+        eq = strchr(e, '=');
+        if (eq == NULL) {
+            continue;
+        }
+
+        name = e;
+        nlen = (size_t)(eq - e);
+        val = eq + 1;
+
+        // Contract: valid identifier
+        if (!is_sh_ident(name, nlen)) {
+            continue;
+        }
+
+        // Contract: skip bash exported functions
+        if (is_exported_bash_func_name(name, nlen)) {
+            continue;
+        }
+
+        // Keep old skip list behavior (LSB_* etc)
+        if (env_is_denied(name, nlen, interactive)) {
+            continue;
+        }
+
+        // Contract: skip multiline values
+        if (value_has_newline(val)) {
+            continue;
+        }
+
+        if (ll_buf_append_sh_export(&b, name, nlen, val) < 0) {
+            lsberrno = LSBE_NO_MEM;
+            free(b.data);
+            return -1;
+        }
+    }
+
+    // Job execution body
+    if (ll_buf_append_str(&b, TRAPSIGCMD) < 0 ||
+        ll_buf_append_str(&b, CMDSTART) < 0 ||
+        ll_buf_append_str(&b, jobSubReq->command) < 0 ||
+        ll_buf_append_str(&b, WAITCLEANCMD) < 0 ||
+        ll_buf_append_str(&b, EXITCMD) < 0) {
+        lsberrno = LSBE_NO_MEM;
+        free(b.data);
+        return -1;
+    }
+
+    jf->data = b.data;
+    jf->len = (int)b.len;
+    return 0;
 }

@@ -145,19 +145,21 @@ int init_log(void)
     int list;
     int i;
     struct jData *jp;
-    char dirbuf[MAXPATHLEN];
+
     char infoDir[MAXPATHLEN];
     struct stat sbuf, ebuf;
     struct hData *hPtr;
 
     mSchedStage = M_STAGE_REPLAY;
 
-    sprintf(elogFname, "%s/lsb.events", lsbParams[LSB_SHAREDIR].paramValue);
-    sprintf(jlogFname, "%s/lsb.acct", lsbParams[LSB_SHAREDIR].paramValue);
-    sprintf(dirbuf, "%s", lsbParams[LSB_SHAREDIR].paramValue);
+    char dirbuf[MAXPATHLEN];
+    sprintf(dirbuf, "%s/mbatchd", lsbParams[LSB_SHAREDIR].paramValue);
+
+    sprintf(elogFname, "%s/lsb.events", dirbuf);
+    sprintf(jlogFname, "%s/lsb.acct", dirbuf);
 
     if (stat(dirbuf, &sbuf) < 0) {
-        ls_syslog(LOG_ERR, "%s: stat(%s) failed: %m", __func__, dirbuf);
+        LS_ERR("stat(%s) failed", dirbuf);
         if (!lsb_CheckMode) {
             mbdDie(MASTER_FATAL);
         }
