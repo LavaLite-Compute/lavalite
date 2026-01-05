@@ -29,7 +29,7 @@ static int sbd_job_init(void);
 static void sbd_init_signals(void);
 static void sbd_reap_children(void);
 static void sbd_maybe_reap_children(void);
-static struct sbd_job *sbd_job_find_by_pid(pid_t);
+static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
 static void job_status_report(void);
 static void job_finish_checking(void);
@@ -50,7 +50,7 @@ static int max_events;
 
 // Handler sets these variables to signal events
 static volatile sig_atomic_t sbd_got_sigchld = 0;
-static volatile sig_atomic_t sbd_terminate = 0;
+static volatile sig_atomic_t sbd_croak = 0;
 
 static struct option long_options[] = {
     {"debug", no_argument, 0, 'd'},
@@ -116,7 +116,7 @@ sbd_run_daemon(void)
 {
     while (1) {
 
-        if (sbd_terminate) {
+        if (sbd_croak) {
             LS_INFO("terminate requested, exiting");
             exit(0);
         }
@@ -154,7 +154,7 @@ sbd_run_daemon(void)
              LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
                       ch_id, channels[ch_id].chan_events, ev->events);
 
-             // True skip partually read channels
+             // True skip partially read channels
              if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
                  continue;
 
@@ -196,6 +196,7 @@ sbd_run_daemon(void)
 
 static int sbd_init(const char *sbatch)
 {
+    // initenv will load genParams as well
     if (initenv_(lsbParams, NULL) < 0) {
         return -1;
     }
@@ -304,6 +305,7 @@ sbd_init_network(void)
     }
     max_events = (int)max_open;
 
+    // epoll_event array used as part of the interface to chan_epoll
     sbd_events = calloc(max_events, sizeof(struct epoll_event));
     if (sbd_events == NULL) {
         LS_ERR("faild to calloc epoll_events");
@@ -343,7 +345,6 @@ sbd_init_network(void)
         return -1;
     }
 
-
     LS_INFO("sbatchd listening on port %d chan: %d, epoll_fd: %d timer: %dsec",
             sbd_port, sbd_chan, sbd_efd, sbd_timer);
 
@@ -352,7 +353,6 @@ sbd_init_network(void)
 
 static int sbd_job_init(void)
 {
-
     // list is a plain global struct; just initialize its fields
     ll_list_init(&sbd_job_list);
 
@@ -366,13 +366,13 @@ static int sbd_job_init(void)
     return 0;
 }
 
-static void terminate_handler(int sig)
+static void sbd_croak_handler(int sig)
 {
     (void)sig;
-    sbd_terminate = 1;
+    sbd_croak = 1;
 }
 
-static void child_handler(int sig)
+static void sbd_child_handler(int sig)
 {
     (void)sig;
     sbd_got_sigchld = 1;
@@ -381,9 +381,9 @@ static void child_handler(int sig)
 static void sbd_init_signals(void)
 {
     LS_INFO("initializing signals");
-    signal_set(SIGTERM, terminate_handler);
-    signal_set(SIGINT, terminate_handler);
-    signal_set(SIGCHLD, child_handler);
+    signal_set(SIGTERM, sbd_croak_handler);
+    signal_set(SIGINT, sbd_croak_handler);
+    signal_set(SIGCHLD, sbd_child_handler);
 }
 
 static void sbd_reap_children(void)
@@ -403,15 +403,24 @@ static void sbd_reap_children(void)
             break;
         }
 
-        struct sbd_job *job = sbd_job_find_by_pid(pid);
+        struct sbd_job *job = sbd_find_job_by_pid(pid);
         if (job == NULL) {
             LS_WARNING("reaped unknown child pid=%d status=0x%x",
                        (int)pid, (unsigned)status);
             continue;
         }
 
+        // this should impossible
+        if (job->pid != pid) {
+            LS_ERR("job %"PRId64" pid mismatch: job->pid=%d waitpid=%d",
+                   job->job_id, (int)job->pid, (int)pid);
+            abort();
+        }
+
+        // fill the job exit status value from wait
+        // into the job structure
         job->exit_status = status;
-        job->exit_status_valid = TRUE;
+        job->exit_status_valid = true;
 
         if (WIFEXITED(status)) {
             job->state = SBD_JOB_EXITED;
@@ -423,9 +432,6 @@ static void sbd_reap_children(void)
             job->state = SBD_JOB_KILLED;
             job->spec.jStatus = JOB_STAT_EXIT;
         }
-
-        if (job->not_reported == 0)
-            job->not_reported = 1;
 
         LS_INFO("job %"PRId64 "finished pid=%d jStatus=0x%x status=0x%x",
                 job->job_id, (int)pid, job->spec.jStatus, (unsigned)status);
@@ -471,9 +477,6 @@ static void job_status_report(void)
         if (job->missing)
             continue;
 
-        if (job->not_reported <= 0)
-            continue;
-
         if (job->spec.startTime > 0 &&
             now < job->spec.startTime + 10)
             continue;
@@ -492,31 +495,54 @@ static void job_status_report(void)
     }
 }
 
-static void job_finish_checking(void)
+static void
+job_finish_checking(void)
 {
-    struct ll_list_entry *e, *next;
+    struct ll_list_entry *e;
 
-    for (e = sbd_job_list.head; e; e = next) {
-        next = e->next;
+    for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
-        if (!job->exit_status_valid)
+        if (job->missing)
             continue;
 
-        /*
-         * Try to report finish to mbd.
-         * Skeleton for now.
-         *
-         * if (sbd_report_job_finish(job) == 0) {
-         *     sbd_job_remove(job);
-         *     sbd_job_free(job);
-         * }
-         */
+        // pid_sent is the hard gate: mbd must have recorded pid/pgid first.
+        if (!job->pid_acked) {
+            LS_DEBUG("job %"PRId64" not ready: pid not acked yet", job->job_id);
+            continue;
+        }
+
+        // Send job execute once we have pid ack and we have not emitted execute.
+        // This is what causes mbd to log JOB_EXECUTE and store exec metadata.
+        if (!job->execute_sent) {
+            int rc = sbd_enqueue_execute(sbd_mbd_chan, job);
+            if (rc == 0) {
+                job->execute_sent = TRUE;
+                LS_INFO("job %"PRId64" execute enqueued", job->job_id);
+            } else {
+                LS_WARNING("job %"PRId64" execute enqueue failed", job->job_id);
+            }
+            // Do not attempt finish in the same pass unless execute is sent.
+            // This preserves event ordering even for very short jobs.
+            continue;
+        }
+
+        // After execute is sent, we can send finish once we have an exit status.
+        if (job->exit_status_valid && !job->finish_sent) {
+            int rc = sbd_enqueue_finish(sbd_mbd_chan, job);
+            if (rc == 0) {
+                job->finish_sent = TRUE;
+                LS_INFO("job %"PRId64" finish enqueued", job->job_id);
+            } else {
+                LS_WARNING("job %"PRId64" finish enqueue failed", job->job_id);
+            }
+        }
     }
 }
 
+
 // We reaped a child find to which sbd_job does belong
-static struct sbd_job *sbd_job_find_by_pid(pid_t pid)
+static struct sbd_job *sbd_find_job_by_pid(pid_t pid)
 {
     struct ll_list_entry *e;
 

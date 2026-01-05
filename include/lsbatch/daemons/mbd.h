@@ -1430,6 +1430,9 @@ extern int mbd_max_events;
 
 // LavaLite
 
+// hData hashed by channel id connected to that sbd
+extern struct ll_hash hdata_by_chan;
+
 int mbd_init(int);
 int do_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);
 int sbd_handle_new_job_reply(struct mbd_client_node *,
@@ -1438,5 +1441,5 @@ int sbd_handle_new_job_reply(struct mbd_client_node *,
 int sbd_handle_disconnect(struct mbd_client_node *);
 int mbd_enqueue_hdr(struct mbd_client_node *, int);
 int mbd_init_tables(void);
-
-extern struct ll_hash hdata_by_chan;
+int mbd_send_new_job_ack(struct mbd_client_node *,
+                         const struct new_job_ack *);

@@ -439,7 +439,6 @@ extern void childRemoveSpoolFile(const char *, int, const struct passwd *);
 
 extern int xdr_statusReq(XDR *, struct statusReq *, struct packet_header *);
 extern int xdr_sbdPackage(XDR *, struct sbdPackage *, struct packet_header *);
-int xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *);
 extern int xdr_sbdPackage1(XDR *xdrs, struct sbdPackage *,
                            struct packet_header *);
 extern int xdr_jobReply(XDR *xdrs, struct jobReply *jobReply,
@@ -453,7 +452,18 @@ extern float normalizeRq_(float rawql, float cpuFactor, int nprocs);
 extern void daemon_doinit(void);
 
 extern void scaleByFactor(int *, int *, float);
+
+
 // LavaLite
+// ack we have received the pid of the new job
+struct new_job_ack {
+    int64_t job_id; // job identifier being acknowledged
+    int seq;
+};
+
+bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *);
+bool_t xdr_new_job_ack(XDR *, struct new_job_ack *, struct packet_header *);
+
 int enqueue_header_reply(int, int, int);
 // Bug fix this extern the function is in mbd.h
 void freeJobSpecs(struct jobSpecs *);

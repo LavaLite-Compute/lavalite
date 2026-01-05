@@ -62,13 +62,11 @@ typedef enum {
     BATCH_JOB_FORCE,
     BATCH_STATUS_CHUNK,
     BATCH_SET_JOB_ATTR,
-    SBD_REGISTER,
+    SBD_REGISTER,         // send registration request to mbd
+    SBD_REGISTER_REPLY,   // reply to sbd the reistration was received
+    BATCH_NEW_JOB_ACK,    // ack mbd got the pid for the new job
     BATCH_LAST_OP
 } mbdReqType;
-
-typedef enum {
-    SBD_REGISTER_REPLY = 1 //success reply for SBD_REGISTER; not LSBE_xxx
-} mbd_reply_t;
 
 #define SUB_RLIMIT_UNIT_IS_KB 0x80000000
 

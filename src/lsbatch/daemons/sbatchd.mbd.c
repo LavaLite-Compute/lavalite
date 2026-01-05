@@ -33,6 +33,8 @@ static int sbd_enter_work_dir(const struct jobSpecs *, const char *);
 static int sbd_redirect_stdio(const struct jobSpecs *);
 static int sbd_materialize_jobfile(struct jobSpecs *, const char *,
                                    char *, size_t);
+static int sbd_handle_mbd_new_job_ack(int, XDR *, struct packet_header *);
+static struct sbd_job *sbd_find_job_by_jid(int64_t);
 
 // the ch_id in input is the channel we have opened with mbatchd
 //
@@ -83,6 +85,9 @@ int sbd_handle_mbd(int ch_id)
     switch (hdr.operation) {
     case MBD_NEW_JOB:
         sbd_handle_mbd_new_job(ch_id, &xdrs, &hdr);
+        break;
+    case BATCH_NEW_JOB_ACK:
+        sbd_handle_mbd_new_job_ack(ch_id, &xdrs, &hdr);
         break;
     default:
         break;
@@ -136,41 +141,9 @@ send_reply:
     /* free heap members inside spec that xdr allocated */
     xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
-    XDR xdrs2;
-    char reply_buf[LL_BUFSIZ_4K];
-    xdrmem_create(&xdrs2, reply_buf, LL_BUFSIZ_4K, XDR_ENCODE);
+    // send the reply to mbd
+    sbd_enqueue_reply(sbd_mbd_chan, reply_code, &job_reply);
 
-    struct packet_header reply_hdr;
-    init_pack_hdr(&reply_hdr);
-    // back to mbd
-    reply_hdr.operation = reply_code;
-
-    char *reply_struct;
-    if (reply_code == ERR_NO_ERROR) {
-        reply_struct = (char *)&job_reply;
-    } else {
-        reply_struct = NULL;
-    }
-
-    if (!xdr_encodeMsg(&xdrs2,
-                       reply_struct,
-                       &reply_hdr,
-                       xdr_jobReply,
-                       0,
-                       NULL)) {
-        LS_ERR("xdr_jobReply encode failed");
-        xdr_destroy(&xdrs2);
-        return -1;
-    }
-
-    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        LS_ERR("chan_write jobReply (len=%d) failed",
-               XDR_GETPOS(&xdrs2));
-        xdr_destroy(&xdrs2);
-        return -1;
-    }
-
-    xdr_destroy(&xdrs2);
     return 0;
 }
 
@@ -383,6 +356,66 @@ sbd_job_insert(struct sbd_job *job)
     LS_DEBUG("inserted job_id=%d", job->job_id);
 }
 
+static int
+sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
+{
+    struct new_job_ack ack;
+    memset(&ack, 0, sizeof(ack));
+
+    if (!xdr_new_job_ack(xdrs, &ack, hdr)) {
+        LS_ERR("xdr_new_job_ack decode failed");
+        return -1;
+    }
+
+    // check the status of the operation
+    if (hdr->operation != LSBE_NO_ERROR) {
+        LS_ERR("job %"PRId64" new_job_ack error rc=%d seq=%d",
+               ack.job_id, hdr->operation, ack.seq);
+        // For now keep job around; retry policy later.
+        return -1;
+    }
+
+    struct sbd_job *job = sbd_find_job_by_jid(ack.job_id);
+    if (job == NULL) {
+        LS_WARNING("new_job_ack for unknown job %"PRId64, ack.job_id);
+        return -1;
+    }
+
+    // the sequence number is not used for now
+    if (job->pid_acked == true) {
+        LS_DEBUG("job %"PRId64" duplicate pid ack (seq=%d)",
+                 job->job_id, ack.seq);
+        return -1;
+    }
+
+    // This ack means: mbd has recorded pid/pgid for this job.
+    job->pid_acked = true;
+    job->start_ack_time = time(NULL);
+    LS_INFO("job %"PRId64" pid/pgid acked by mbd (seq=%d)",
+            job->job_id, ack.seq);
+
+    assert(job->execute_sent == false);
+    // Now send the execute snapshot (old jobSetupStatus(JOB_STAT_RUN,...)).
+    if (sbd_enqueue_execute(sbd_mbd_chan, job) < 0) {
+        LS_ERR("job %"PRId64" enqueue execute failed", job->job_id);
+        return -1;
+    }
+    job->execute_sent = true;
+    LS_DEBUG("job %"PRId64" execute sent to mbd", job->job_id);
+
+    // Optional fast path: if the job already exited, try to enqueue finish now.
+    // Do NOT call global job_finish_checking() blindly; just handle this job.
+    if (job->exit_status_valid && !job->finish_sent) {
+        if (sbd_enqueue_finish(sbd_mbd_chan, job) < 0) {
+            LS_ERR("job %"PRId64" enqueue finish failed", job->job_id);
+            return -1;
+        }
+        job->finish_sent = true;
+        LS_DEBUG("job %"PRId64" finish sent to mbd (fast path)", job->job_id);
+    }
+
+    return 0;
+}
 
 /* ----------------------------------------------------------------------
  * simple lookup by jobId
@@ -783,4 +816,17 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
     }
 
     return 0;
+}
+
+static struct sbd_job *sbd_find_job_by_jid(int64_t job_id)
+{
+    struct ll_list_entry *e;
+
+    for (e = sbd_job_list.head; e; e = e->next) {
+        struct sbd_job *job = (struct sbd_job *)e;
+        if (job->job_id == job_id)
+            return job;
+    }
+    return NULL;
+
 }

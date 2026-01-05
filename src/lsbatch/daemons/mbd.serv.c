@@ -2494,7 +2494,9 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
      * We only send a small packet_header over the LavaLite channel.
      * No more blocking send path, everything is queued via chan_enqueue().
      */
-    mbd_enqueue_hdr(client, LSBE_NO_ERROR);
+    struct new_job_ack ack;
+    ack.job_id = job->jobId;
+    mbd_send_new_job_ack(client, &ack);   // enqueue, non-blocking
 
     return 0;
 }
@@ -2619,6 +2621,72 @@ int mbd_enqueue_hdr(struct mbd_client_node *client, int operation)
         LS_ERR("epoll_ctl(EPOLL_CTL_MOD, EPOLLIN|EPOLLOUT) failed for chanfd=%d",
                chfd);
         // Bug we should free what we have allocated
+        return -1;
+    }
+
+    return 0;
+}
+
+// Send an explicit NEW_JOB ACK to sbatchd.
+// This is a queued write (non-blocking at the call site).
+//
+// Wire:
+//   hdr.operation = BATCH_NEW_JOB_ACK
+//   payload       = struct new_job_ack (XDR)
+//
+// Notes:
+// - new_job_ack carries jobId (and seq placeholder).
+// - We keep this small and self-contained: header + payload in one buffer.
+//
+int
+mbd_send_new_job_ack(struct mbd_client_node *client,
+                     const struct new_job_ack *ack)
+{
+    XDR xdrs;
+    struct packet_header hdr;
+
+    if (client == NULL || ack == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    // Small fixed envelope: packet header + a tiny XDR struct.
+    // If you later extend new_job_ack, bump this conservatively.
+    size_t cap = LL_BUFSIZ_256;
+
+    struct Buffer *buf;
+    if (chan_alloc_buf(&buf, cap) < 0) {
+        LS_ERR("chan_alloc_buf failed for NEW_JOB_ACK (chanfd=%d)",
+               client->chanfd);
+        return -1;
+    }
+
+    xdrmem_create(&xdrs, buf->data, cap, XDR_ENCODE);
+
+    init_pack_hdr(&hdr);
+    hdr.operation = BATCH_NEW_JOB_ACK;
+
+    // Encode header + payload as one message.
+    if (!xdr_encodeMsg(&xdrs,
+                       (char *)ack,
+                       &hdr,
+                       xdr_new_job_ack,
+                       0,
+                       NULL)) {
+        LS_ERR("xdr_new_job_ack encode failed (job=%"PRId64" chanfd=%d)",
+               ack->job_id, client->chanfd);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    buf->len = (size_t)XDR_GETPOS(&xdrs);
+    xdr_destroy(&xdrs);
+
+    if (chan_enqueue(client->chanfd, buf) < 0) {
+        LS_ERR("chan_enqueue failed for NEW_JOB_ACK (job=%"PRId64" chanfd=%d)",
+               ack->job_id, client->chanfd);
+        chan_free_buf(buf);
         return -1;
     }
 

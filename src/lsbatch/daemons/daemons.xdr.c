@@ -486,3 +486,21 @@ bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,
 
     return true;
 }
+
+// LavaLite
+bool_t
+xdr_new_job_ack(XDR *xdrs, struct new_job_ack *ack, struct packet_header *hdr)
+{
+    (void)hdr;
+
+    if (xdrs == NULL || ack == NULL)
+        return false;
+
+    if (!xdr_int64_t(xdrs, &ack->job_id))
+        return false;
+
+    if (!xdr_int(xdrs, &ack->seq))
+        return false;
+
+    return true;
+}

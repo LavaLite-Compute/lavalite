@@ -68,13 +68,16 @@ struct sbd_job {
     pid_t pgid;                       // process group id
     enum sbd_job_state state;         // sbatchd-local state
 
+    bool_t start_acked;     // MBD confirmed receipt of job PID/PGID
+    bool_t pid_acked;        // child sent job setup information
+    bool_t execute_sent;    // execute/update status already sent to MBD
+    bool_t finish_sent;     // terminal status already sent to MBD
+    time_t start_ack_time;  // time when start ACK was received (optional)
+
     int exit_status;                  // raw waitpid() status
     bool_t exit_status_valid;         // waitpid() status captured successfully
 
-    int not_reported;                 // retry counter / pending-report flag
-    time_t last_status_mbd_time;      // last successful status report time
-
-    char exec_username[MAXLSFNAMELEN];// exec username for statusReq
+    char exec_username[LL_BUFSIZ_64];// exec username for statusReq
     int delivered_msg_id;             // message id (0 for now)
 
     struct lsfRusage lsf_rusage;      // zero for now; later from cgroupv2
@@ -112,3 +115,9 @@ void sbd_job_sync_jstatus(struct sbd_job *);
 // Make a copy of jobSpecs for the lifetime of the job
 int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
 void jobSpecs_free(struct jobSpecs *);
+
+// network function that enqueue the data for mbd
+int sbd_enqueue_reply(int, int, const struct jobReply *);
+int sbd_enqueue_execute(int, struct sbd_job *);
+int sbd_enqueue_finish(int, struct sbd_job *);
+int chan_enable_write(int);

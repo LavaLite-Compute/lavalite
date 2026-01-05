@@ -460,7 +460,6 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
 
         if (e->events & EPOLLIN) {
             doread(chan);
-            continue;
         }
 
         if (e->events & EPOLLOUT) {
