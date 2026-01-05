@@ -2561,7 +2561,7 @@ static void mbd_reset_sbd_job_list(struct hData *host_node)
         job = getJobData(sj->job->jobId);
         if (job != NULL && IS_START(job->jStatus)) {
             job->newReason = PEND_JOB_START_FAIL;
-            jStatusChange(job, JOB_STAT_PEND, LOG_IT, __func__);
+            jStatusChange(job, JOB_STAT_PEND, LOG_IT, (char *)__func__);
         }
 
         free(sj);

@@ -89,8 +89,8 @@ static char *instrJobStarter1(char *, int, char *, char *, char *);
 
 int nextJobId_t = 1;
 time_t dieTime;
-static char elogFname[MAXFILENAMELEN];
-static char jlogFname[MAXFILENAMELEN];
+static char elogFname[PATH_MAX];
+static char jlogFname[PATH_MAX];
 
 static struct eventRec *logPtr;
 
@@ -136,6 +136,10 @@ static char *getSignalSymbol(const struct signalReq *);
 static int replay_arrayrequeue(struct jData *, const struct signalLog *);
 static int renameAcctLogFiles(int);
 
+// LavaLite
+static int build_log_path(char *, size_t,
+                          const char *, const char *);
+
 int init_log(void)
 {
     static char fname[] = "init_log";
@@ -145,18 +149,27 @@ int init_log(void)
     int list;
     int i;
     struct jData *jp;
-
-    char infoDir[MAXPATHLEN];
     struct stat sbuf, ebuf;
     struct hData *hPtr;
 
     mSchedStage = M_STAGE_REPLAY;
 
+    // We expect this directory to exist already
     char dirbuf[MAXPATHLEN];
     sprintf(dirbuf, "%s/mbatchd", lsbParams[LSB_SHAREDIR].paramValue);
 
-    sprintf(elogFname, "%s/lsb.events", dirbuf);
-    sprintf(jlogFname, "%s/lsb.acct", dirbuf);
+    // Build mbd log file paths under LSB_SHAREDIR
+    if (build_log_path(elogFname, sizeof(elogFname),
+                       dirbuf, "lsb.events") < 0) {
+        LS_ERR("failed to build events log path");
+        return -1;
+    }
+
+    if (build_log_path(jlogFname, sizeof(jlogFname),
+                       dirbuf, "lsb.acct") < 0) {
+        LS_ERR("failed to build accounting log path");
+        return -1;
+    }
 
     if (stat(dirbuf, &sbuf) < 0) {
         LS_ERR("stat(%s) failed", dirbuf);
@@ -190,9 +203,16 @@ int init_log(void)
         ConfigError = -1;
     }
 
+    // Get the current mbatchd lock
     getElogLock();
 
-    sprintf(infoDir, "%s/info", lsbParams[LSB_SHAREDIR].paramValue);
+    char infoDir[PATH_MAX];
+    // Create the info directory under LSB_SHAREDIR
+    if (build_log_path(infoDir, sizeof(infoDir),
+                       dirbuf, "info") < 0) {
+        LS_ERR("failed to build info directory path");
+        return -1;
+    }
 
     if (mkdir(infoDir, 0700) == -1 && errno != EEXIST) {
         ls_syslog(LOG_ERR, "%s mkdir(%s) failed %m", __func__, infoDir);
@@ -2471,7 +2491,7 @@ void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
     char logFn[PATH_MAX];
     FILE *fp;
 
-    sprintf(logFn, "%s/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
+    sprintf(logFn, "%s/mbatchd/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
             jp->shared->jobBill.jobFile);
 
     fp = fopen(logFn, "w");
@@ -2569,14 +2589,14 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
     char logFn[PATH_MAX];
     snprintf(logFn, sizeof(logFn),
-             "%s/info/%s",
+             "%s/mbatchd/info/%s",
              lsbParams[LSB_SHAREDIR].paramValue,
              jpbw->shared->jobBill.jobFile);
 
     int fd = open(logFn, O_RDONLY);
     if (fd < 0) {
         snprintf(logFn, sizeof(logFn),
-                 "%s/info/%d",
+                 "%s/mbatchd/info/%d",
                  lsbParams[LSB_SHAREDIR].paramValue,
                  LSB_ARRAY_JOBID(jpbw->jobId));
         fd = open(logFn, O_RDONLY);
@@ -4200,4 +4220,29 @@ static int renameAcctLogFiles(int fileLimit)
         }
     }
     return max;
+}
+
+// Build an absolute log file path under the given directory.
+// Fails if the resulting path does not fit in the destination buffer.
+static int
+build_log_path(char *dst, size_t dstsz,
+               const char *dir, const char *leaf)
+{
+    int n;
+
+    n = snprintf(dst, dstsz, "%s/%s", dir, leaf);
+    if (n < 0) {
+        // snprintf failed (should not happen, but be defensive)
+        LS_ERR("snprintf failed building log path");
+        return -1;
+    }
+
+    if ((size_t)n >= dstsz) {
+        // Path truncated: destination buffer too small
+        errno = 0;
+        LS_ERR("log path too long: %s/%s", dir, leaf);
+        return -1;
+    }
+
+    return 0;
 }

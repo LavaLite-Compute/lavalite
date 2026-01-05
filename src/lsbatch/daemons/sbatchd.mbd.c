@@ -113,7 +113,7 @@ int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
         goto send_reply;
     }
 
-    LS_DEBUG("MBD_NEW_JOB: jobId=%u jobFile=%s", spec.jobId, spec.jobFile);
+    LS_DEBUG("MBD_NEW_JOB: jobId=%ld jobFile=%s", spec.jobId, spec.jobFile);
 
     // 2) duplicate NEW_JOB? just echo our view
     struct sbd_job *job;
@@ -186,8 +186,7 @@ static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
     // use posix_spawn
     pid_t pid = fork();
     if (pid < 0) {
-        LS_ERR("fork failed for job <%s>",
-               lsb_jobid2str(specs->jobId));
+        LS_ERR("fork failed for job %ld", specs->jobId);
         sbd_job_free(job);
         return ERR_FORK_FAIL;
     }
@@ -207,11 +206,11 @@ static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
     // parent
     job->pid = pid;
     job->pgid  = pid;
-    job->start_time = time(NULL);
     job->state = SBD_JOB_RUNNING;
     job->spec.jobPid  = pid;
     job->spec.jobPGid = pid;
     job->spec.jStatus = JOB_STAT_RUN;
+    job->spec.startTime = 0;
 
     // register job locally BEFORE telling mbd
     sbd_job_insert(job);
@@ -360,35 +359,6 @@ void sbd_job_sync_jstatus(struct sbd_job *job)
 {
 
 }
-/* ----------------------------------------------------------------------
- * allocate + init a new sbd_job from specs
- * does NOT insert into list/hash
- * -------------------------------------------------------------------- */
-struct sbd_job *
-sbd_job_create(const struct jobSpecs *specs)
-{
-    struct sbd_job *job;
-
-    job = calloc(1, sizeof(*job));
-    if (job == NULL) {
-        LS_ERR("calloc sbd_job failed for jobId=%u", specs->jobId);
-        return NULL;
-    }
-
-    /* copy full wire spec — we own this now */
-    job->job_id = specs->jobId;
-    job->spec   = *specs;      /* structure copy */
-    job->pid    = -1;
-    job->pgid   = -1;
-
-    job->state  = SBD_JOB_PENDING;
-    job->exit_status_valid = false;
-    job->exit_status = 0;
-    job->start_time = 0;
-
-    return job;
-}
-
 
 /* ----------------------------------------------------------------------
  * insert job into global list + hash
@@ -400,7 +370,7 @@ sbd_job_insert(struct sbd_job *job)
     char keybuf[32];
     enum ll_hash_status rc;
 
-    snprintf(keybuf, sizeof(keybuf), "%d", job->job_id);
+    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
 
     rc = ll_hash_insert(sbd_job_hash, keybuf, job, 0);
     if (rc != LL_HASH_INSERTED) {
@@ -436,7 +406,7 @@ sbd_job_unlink(struct sbd_job *job)
 {
     char keybuf[32];
 
-    snprintf(keybuf, sizeof(keybuf), "%d", job->job_id);
+    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
 
     ll_hash_remove(sbd_job_hash, keybuf);
     ll_list_remove(&sbd_job_list, &job->list);

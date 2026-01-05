@@ -160,7 +160,7 @@ sendReply:
     }
 
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-    ls_syslog(LOG_ERR, "%s: Sending jobReply (len=%d to master failed: %m"),
+        ls_syslog(LOG_ERR, "%s: Sending jobReply (len=%d to master failed: %m"),
 		  fname, XDR_GETPOS(&xdrs2));
     }
 

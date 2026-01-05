@@ -50,7 +50,7 @@ int sbd_handle_mbd(int);
 // Basic sbatchd job states.
 // Keep it small; mbd already has its own view.
 enum sbd_job_state {
-    SBD_JOB_PENDING = 0,          // received, not yet forked
+    SBD_JOB_NEW = 0,          // received, not yet forked
     SBD_JOB_RUNNING,              // forked/exec'd, still alive
     SBD_JOB_EXITED,               // exited normally
     SBD_JOB_FAILED,               // failed before/at exec
@@ -60,15 +60,25 @@ enum sbd_job_state {
 // sbatchd-local view of a job.
 // This replaces the old jobCard horror.
 struct sbd_job {
-    struct ll_list_entry list;    // intrusive link in global job list
-    int          job_id;          // jobId
-    struct jobSpecs spec;         // full job description as received
-    pid_t        pid;             // main job pid (child)
-    pid_t        pgid;            // process group id
-    enum sbd_job_state state;     // sbatchd-local state
-    time_t       start_time;      // when we exec'd
-    int          exit_status;     // waitpid() status
-    bool_t       exit_status_valid;
+    struct ll_list_entry list;        // intrusive link in global job list
+    int64_t job_id;                   // jobId
+    struct jobSpecs spec;             // full job description as received
+
+    pid_t pid;                        // main job pid (child)
+    pid_t pgid;                       // process group id
+    enum sbd_job_state state;         // sbatchd-local state
+
+    int exit_status;                  // raw waitpid() status
+    bool_t exit_status_valid;         // waitpid() status captured successfully
+
+    int not_reported;                 // retry counter / pending-report flag
+    time_t last_status_mbd_time;      // last successful status report time
+
+    char exec_username[MAXLSFNAMELEN];// exec username for statusReq
+    int delivered_msg_id;             // message id (0 for now)
+
+    struct lsfRusage lsf_rusage;      // zero for now; later from cgroupv2
+    bool_t missing;                   // set if job data/spool is inconsistent
 };
 
 // Global containers (defined in sbd.job.c or sbd.main.c)
@@ -98,3 +108,7 @@ int sbd_state_to_jstatus(enum sbd_job_state);
 
 // Refresh job status from mbd
 void sbd_job_sync_jstatus(struct sbd_job *);
+
+// Make a copy of jobSpecs for the lifetime of the job
+int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
+void jobSpecs_free(struct jobSpecs *);

@@ -17,22 +17,6 @@
 
 #include "lsbatch/daemons/sbatchd.h"
 
-/*
- * Simple wire struct for registration.
- * Put this in sbatchd.h if not already there:
- *
- * struct wire_sbd_register {
- *     char hostname[MAXHOSTNAMELEN];
- * };
- *
- * bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
- * {
- *     return xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname));
- * }
- */
-
-#include "lsbatch/daemons/sbatchd.h"
-
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 extern int efd;               /* epoll fd from sbatchd.main.c */
 
