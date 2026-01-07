@@ -419,7 +419,7 @@ void jobSetupStatus(int jStatus, int pendReason, struct jobCard *jp)
     while (msgSbd(jp->jobSpecs.jobId, (char *) &jsetup, SBD_JOB_SETUP,
                   xdr_jobSetup) == -1) {
         ls_syslog(LOG_DEBUG, "%s: Job %s msgSbd() failed", fname,
-    c              lsb_jobid2str(jp->jobSpecs.jobId));
+                  lsb_jobid2str(jp->jobSpecs.jobId));
         millisleep_(10000);
     }
 

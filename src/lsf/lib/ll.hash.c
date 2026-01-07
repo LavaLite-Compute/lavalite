@@ -216,6 +216,7 @@ enum ll_hash_status ll_hash_insert(struct ll_hash *ht,
     return LL_HASH_INSERTED;
 }
 
+// return the pointer hashed at char *key
 void *ll_hash_search(struct ll_hash *ht, const char *key)
 {
     size_t idx;

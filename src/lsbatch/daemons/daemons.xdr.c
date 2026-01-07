@@ -488,8 +488,9 @@ bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,
 }
 
 // LavaLite
-bool_t
-xdr_new_job_ack(XDR *xdrs, struct new_job_ack *ack, struct packet_header *hdr)
+bool_t xdr_job_status_ack(XDR *xdrs,
+                          struct job_status_ack *ack,
+                          struct packet_header *hdr)
 {
     (void)hdr;
 
@@ -499,7 +500,10 @@ xdr_new_job_ack(XDR *xdrs, struct new_job_ack *ack, struct packet_header *hdr)
     if (!xdr_int64_t(xdrs, &ack->job_id))
         return false;
 
-    if (!xdr_int(xdrs, &ack->seq))
+    if (!xdr_int32_t(xdrs, &ack->seq))
+        return false;
+
+    if (!xdr_int32_t(xdrs, &ack->acked_op))
         return false;
 
     return true;

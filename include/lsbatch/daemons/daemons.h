@@ -455,15 +455,28 @@ extern void scaleByFactor(int *, int *, float);
 
 
 // LavaLite
-// ack we have received the pid of the new job
-struct new_job_ack {
+
+// an ack that we have received the lastest status from sbd
+// sbd enforces the porder job_reply -> job_execute -> job_finish
+// with some rusage update between job_execute and job_finish
+struct job_status_ack {
     int64_t job_id; // job identifier being acknowledged
-    int seq;
+    int32_t seq;    // correlation sequence
+    int32_t acked_op; // opcode being acknowledged (e.g. BATCH_STATUS_JOB)
 };
 
 bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *);
-bool_t xdr_new_job_ack(XDR *, struct new_job_ack *, struct packet_header *);
+bool_t xdr_job_status_ack(XDR *,
+                          struct job_status_ack *,
+                          struct packet_header *);
 
 int enqueue_header_reply(int, int, int);
+// xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
+int enqueue_payload(int, int, void *, bool_t (*xdr_func)());
+
 // Bug fix this extern the function is in mbd.h
 void freeJobSpecs(struct jobSpecs *);
+
+// add EPOLLOUT in an epoll_fd related to a channel ch_id
+// epoll_fd is typicall the epoll the daemon is listening on
+int chan_enable_write(int epoll_fd, int ch_id);

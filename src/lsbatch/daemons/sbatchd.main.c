@@ -31,8 +31,8 @@ static void sbd_reap_children(void);
 static void sbd_maybe_reap_children(void);
 static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
-static void job_status_report(void);
 static void job_finish_checking(void);
+static void job_pipeline_drive(void);
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -177,7 +177,7 @@ sbd_run_daemon(void)
                  sbd_reap_children();
                  job_finish_checking();
                  job_status_checking();
-                 job_status_report();
+                 job_pipeline_drive();
                  // rest the state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
@@ -465,33 +465,49 @@ static void job_status_checking(void)
     }
 }
 
-static void job_status_report(void)
+static void job_pipeline_drive(void)
 {
-    time_t now = time(NULL);
     struct ll_list_entry *e;
+    time_t now = time(NULL);
 
-    // NOTE: ll_list_entry must remain the first field (list base object idiom)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
         if (job->missing)
             continue;
 
-        if (job->spec.startTime > 0 &&
-            now < job->spec.startTime + 10)
+        // Stage gate: until MBD has ACKed the NEW_JOB reply (pid/pgid committed),
+        // do not send execute/finish. This preserves ordering and avoids "ghost"
+        // execute/finish for jobs MBD hasn't recorded yet.
+        if (!job->pid_acked)
             continue;
 
-        /*
-         * Try resend status snapshot.
-         * Skeleton for now.
-         *
-         * if (sbd_send_status(job) == 0) {
-         *     job->not_reported = 0;
-         *     job->last_status_mbd_time = now;
-         * } else {
-         *     job->not_reported++;
-         * }
-         */
+        // Send execute exactly once.
+        if (!job->execute_acked) {
+            if (sbd_enqueue_execute(sbd_mbd_chan, job) < 0) {
+                LS_ERR("job %"PRId64" enqueue execute failed", job->job_id);
+                // Your current recovery policy: kill channel so it re-registers.
+                // Returning here is enough if caller closes channel on error.
+                return;
+            }
+            job->execute_acked = TRUE;
+            LS_INFO("job %"PRId64" execute enqueued", job->job_id);
+
+            // Do not send finish in same tick; preserve ordering for short jobs.
+            continue;
+        }
+
+        // After execute, send finish once we have exit status.
+        if (job->exit_status_valid && !job->finish_acked) {
+            if (sbd_enqueue_finish(sbd_mbd_chan, job) < 0) {
+                LS_ERR("job %"PRId64" enqueue finish failed", job->job_id);
+                return;
+            }
+            job->finish_acked = TRUE;
+            LS_INFO("job %"PRId64" finish enqueued", job->job_id);
+        }
+
+        (void)now; // silence unused if you keep 'now' for later extensions
     }
 }
 
@@ -514,10 +530,10 @@ job_finish_checking(void)
 
         // Send job execute once we have pid ack and we have not emitted execute.
         // This is what causes mbd to log JOB_EXECUTE and store exec metadata.
-        if (!job->execute_sent) {
+        if (!job->execute_acked) {
             int rc = sbd_enqueue_execute(sbd_mbd_chan, job);
             if (rc == 0) {
-                job->execute_sent = TRUE;
+                job->execute_acked = TRUE;
                 LS_INFO("job %"PRId64" execute enqueued", job->job_id);
             } else {
                 LS_WARNING("job %"PRId64" execute enqueue failed", job->job_id);
@@ -528,10 +544,10 @@ job_finish_checking(void)
         }
 
         // After execute is sent, we can send finish once we have an exit status.
-        if (job->exit_status_valid && !job->finish_sent) {
+        if (job->exit_status_valid && !job->finish_acked) {
             int rc = sbd_enqueue_finish(sbd_mbd_chan, job);
             if (rc == 0) {
-                job->finish_sent = TRUE;
+                job->finish_acked = TRUE;
                 LS_INFO("job %"PRId64" finish enqueued", job->job_id);
             } else {
                 LS_WARNING("job %"PRId64" finish enqueue failed", job->job_id);

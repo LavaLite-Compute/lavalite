@@ -38,6 +38,7 @@ static void freeJobInfoReply(struct jobInfoReply *);
 static void freeShareResourceInfoReply(struct lsbShareResourceInfoReply *);
 static int xdrsize_QueueInfoReply(struct queueInfoReply *);
 extern void closeSession(int);
+static bool_t mbd_status_reply_means_committed(int);
 
 // LavaLite
 static void mbd_reset_sbd_job_list(struct hData *);
@@ -976,6 +977,7 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
             return 0;
         return -1;
     }
+    // Create a reply that contains the job_id of the processed hob
 
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
@@ -2427,7 +2429,6 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
 {
     struct jobReply jobReply;
 
-
     struct hData *host_node = client->host_node;
     if (host_node == NULL) {
         LS_ERR("SBD NEW_JOB reply with NULL host_node (chanfd=%d)",
@@ -2446,8 +2447,8 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
      */
 
     if (hdr->operation != ERR_NO_ERROR) {
-        LS_ERR("SBD NEW_JOB failed on host %s, reply_code=%d",
-               host_name, hdr->operation);
+        LS_ERR("SBD NEW_JOB failed on host %s, reply_code=%s",
+               host_name, mbd_op_str(hdr->operation));
 
         /*
          * TODO:
@@ -2463,8 +2464,13 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
     if (!xdr_jobReply(xdrs, &jobReply, hdr)) {
         LS_ERR("xdr_jobReply decode failed for SBD NEW_JOB reply from host %s",
                host_name);
+        //jStatusChange(jData, JOB_STAT_PEND, LOG_IT, fname);
+        // maybe close the connection with sbd?
         return -1;
     }
+
+    LS_INFO("mbd job=%"PRId64" operation %s from %s", jobReply.jobId,
+            mbd_op_str(hdr->operation), host_name);
 
     // Map jobId -> job descriptor.
     struct jData *job;
@@ -2484,9 +2490,6 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
     job->jobPGid = jobReply.jobPGid;
     job->jStatus = jobReply.jStatus; // typically JOB_STAT_RUN
 
-    LS_DEBUG("handler io message for job %s pid %d status 0x%x",
-             lsb_jobid2str(job->jobId), job->jobPid, job->jStatus);
-
     log_startjobaccept(job);
 
     /*
@@ -2494,12 +2497,144 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
      * We only send a small packet_header over the LavaLite channel.
      * No more blocking send path, everything is queued via chan_enqueue().
      */
-    struct new_job_ack ack;
+    struct job_status_ack ack;
     ack.job_id = job->jobId;
-    mbd_send_new_job_ack(client, &ack);   // enqueue, non-blocking
+    ack.acked_op = ERR_NO_ERROR;
+
+    if (mbd_send_job_ack(client, BATCH_NEW_JOB_ACK, &ack) < 0) {
+        LS_ERR("mbd failed enqueue job "PRId64" operation %s from %s",
+               ack.job_id, mbd_op_str(hdr->operation), host_name);
+    }
+
+    LS_INFO("mbd job=%"PRId64" op=%s rc=%s acked",
+            ack.job_id, mbd_op_str(hdr->operation));
 
     return 0;
 }
+/*
+ * Handle statusReq messages coming from sbatchd.
+ *
+ * This handler is used for both legacy status updates and
+ * pipeline milestones (EXECUTE / FINISH).
+ *
+ * The semantic stage is identified by hdr->operation.
+ * The core transition is driven by statusReq.newStatus.
+ */
+
+int
+sbd_handle_job_status(struct mbd_client_node *client,
+                      XDR *xdrs,
+                      struct packet_header *hdr)
+{
+    int reply;
+    int schedule;
+
+    if (client == NULL || xdrs == NULL || hdr == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    schedule = 0;
+    reply = LSBE_NO_ERROR;
+
+    struct statusReq status_req;
+    if (!xdr_statusReq(xdrs, &status_req, hdr)) {
+        LS_ERR("xdr_statusReq failed");
+        return -1;
+    }
+
+    const char host_name = client->host_node->host;
+    LS_INFO("mbd job=%"PRId64" operation %s from %s", status_req.jobId,
+            mbd_op_str(hdr->operation), host_name);
+
+    // Temporary: reuse the old handlers to update MBD state.
+    // IMPORTANT: do not do host/port checks here; trust
+    // client->host/client->host_node.
+    switch (hdr->operation) {
+    case BATCH_STATUS_JOB:
+    case BATCH_JOB_EXECUTE:
+    case BATCH_JOB_FINISH: {
+        struct hostent hp;
+        memset(&hp, 0, sizeof(hp));
+        // do NOT strdup/free here; borrow the stable string
+        hp.h_name = client->host.name;
+        reply = statusJob(&status_req, &hp, &schedule);
+        break;
+    }
+    case BATCH_RUSAGE_JOB: {
+        struct hostent hp;
+
+        memset(&hp, 0, sizeof(hp));
+        hp.h_name = client->host.name;
+        reply = rusageJob(&status_req, &hp);
+
+        // Historically rusage may have been "no reply"
+        // just free and return based on reply.
+        xdr_lsffree(xdr_statusReq, (char *)&status_req, hdr);
+        return (reply == LSBE_NO_ERROR) ? 0 : -1;
+    }
+
+    default:
+        LS_ERR("Unknown status op %d", hdr->operation);
+        reply = LSBE_PROTOCOL;
+        break;
+    }
+
+    // Free request now that handlers have consumed it.
+    xdr_lsffree(xdr_statusReq, (char *)&status_req, hdr);
+
+    if (!mbd_status_reply_means_committed(reply)) {
+        LS_ERR("status op %s failed (%d) for job %"PRId64" from %s",
+               mbd_op_str(hdr->operation), reply, status_req.jobId, host_name);
+        return -1;   // no ACK
+    }
+
+    // New protocol ACK: always ACK status messages that are part of
+    // the strict ordering.
+    // job_id: take it from status_req
+    struct job_status_ack ack;
+    ack.job_id = status_req.jobId;
+    ack.seq = hdr->sequence;
+    /*
+     * ACK the committed pipeline stage.
+     *
+     * ack.acked_op echoes the incoming opcode so that sbatchd
+     * can advance the correct pipeline step (PID / EXECUTE / FINISH).
+     */
+
+    ack.acked_op = hdr->operation;
+
+    // Close the channel in case of error
+    if (mbd_send_job_ack(client, hdr->operation, &ack) < 0) {
+        LS_ERR("mbd failed enqueue job=%"PRId64" operation %s from %s",
+               ack.job_id, mbd_op_str(hdr->operation), host_name);
+        return -1;
+    }
+
+    LS_INFO("mbd job=%"PRId64" op=%s rc=%s acked",
+            ack.job_id,
+            mbd_op_str(hdr->operation),
+            mbd_op_str(reply));
+
+    return 0;
+}
+
+// Return true only if the job status update was successfully committed in MBD.
+// An ACK means "state applied and durable"; on errors we do not ACK and force
+// sbatchd to reconnect to avoid advancing past a failed transition.
+static bool_t
+mbd_status_reply_means_committed(int reply)
+{
+    switch (reply) {
+    case LSBE_NO_ERROR:
+    case LSBE_STOP_JOB:
+    case LSBE_LOCK_JOB:
+        return true;
+    default:
+        return false;
+    }
+}
+
 
 int sbd_handle_disconnect(struct mbd_client_node *client)
 {
@@ -2532,6 +2667,7 @@ int sbd_handle_disconnect(struct mbd_client_node *client)
     // Break the association first, then reset pending jobs.
     client->host_node = NULL;
 
+    // clean up the job list
     mbd_reset_sbd_job_list(host_node);
     char key[LL_BUFSIZ_32];
 
@@ -2639,56 +2775,65 @@ int mbd_enqueue_hdr(struct mbd_client_node *client, int operation)
 // - We keep this small and self-contained: header + payload in one buffer.
 //
 int
-mbd_send_new_job_ack(struct mbd_client_node *client,
-                     const struct new_job_ack *ack)
+mbd_send_job_ack(struct mbd_client_node *client,
+                 int operation,
+                 const struct job_status_ack *ack)
 {
     XDR xdrs;
-    struct packet_header hdr;
 
     if (client == NULL || ack == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    // Small fixed envelope: packet header + a tiny XDR struct.
-    // If you later extend new_job_ack, bump this conservatively.
-    size_t cap = LL_BUFSIZ_256;
-
-    struct Buffer *buf;
-    if (chan_alloc_buf(&buf, cap) < 0) {
-        LS_ERR("chan_alloc_buf failed for NEW_JOB_ACK (chanfd=%d)",
-               client->chanfd);
+    int cc = enqueue_payload(client->chanfd,
+                             operation,
+                             ack,
+                             xdr_job_status_ack);
+    if (cc < 0) {
+        LS_ERR("enqueue_payload for job %"PRId64" ack failed",
+               ack->job_id);
         return -1;
     }
-
-    xdrmem_create(&xdrs, buf->data, cap, XDR_ENCODE);
-
-    init_pack_hdr(&hdr);
-    hdr.operation = BATCH_NEW_JOB_ACK;
-
-    // Encode header + payload as one message.
-    if (!xdr_encodeMsg(&xdrs,
-                       (char *)ack,
-                       &hdr,
-                       xdr_new_job_ack,
-                       0,
-                       NULL)) {
-        LS_ERR("xdr_new_job_ack encode failed (job=%"PRId64" chanfd=%d)",
-               ack->job_id, client->chanfd);
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    buf->len = (size_t)XDR_GETPOS(&xdrs);
-    xdr_destroy(&xdrs);
-
-    if (chan_enqueue(client->chanfd, buf) < 0) {
-        LS_ERR("chan_enqueue failed for NEW_JOB_ACK (job=%"PRId64" chanfd=%d)",
-               ack->job_id, client->chanfd);
-        chan_free_buf(buf);
-        return -1;
-    }
+    // Ensure epoll wakes up and dowrite() drains the queue.
+    chan_enable_write(mbd_efd, client->chanfd);
 
     return 0;
+}
+
+const char *
+mbd_op_str(int op)
+{
+    switch (op) {
+    /* sbatchd → mbatchd pipeline / status ops */
+    case BATCH_JOB_EXECUTE:
+        return "BATCH_JOB_EXECUTE";
+    case BATCH_JOB_FINISH:
+        return "BATCH_JOB_FINISH";
+    case BATCH_STATUS_JOB:
+        return "BATCH_STATUS_JOB";
+    case BATCH_RUSAGE_JOB:
+        return "BATCH_RUSAGE_JOB";
+
+    /* ACK / control */
+    case BATCH_NEW_JOB_ACK:
+        return "BATCH_NEW_JOB_ACK";
+    case BATCH_STATUS_MSG_ACK:
+        return "BATCH_STATUS_MSG_ACK";
+
+    /* protocol / reply codes */
+    case LSBE_NO_ERROR:
+        return "LSBE_NO_ERROR";
+    case ERR_NO_ERROR:
+        return "ERR_NO_ERROR";
+    case ERR_BAD_REQ:
+        return "ERR_BAD_REQ";
+    case ERR_MEM:
+        return "ERR_MEM";
+    case ERR_FORK_FAIL:
+        return "ERR_FORK_FAIL";
+
+    default:
+        return "UNKNOWN_OP";
+    }
 }

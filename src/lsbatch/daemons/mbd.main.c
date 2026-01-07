@@ -401,6 +401,7 @@ static void mbd_handle_client(int ch_id)
     if (host_data) {
         // handle the sbd client
         LS_DEBUG("the client is an sbd %s", host_data->host);
+        // dispatch the payload decoder
         mbd_dispatch_sbd(host_data->sbd_node);
         return;
     }
@@ -431,6 +432,20 @@ static void mbd_handle_client(int ch_id)
     LS_ERR("mbd_handle_client: no client found for chanfd=%d", ch_id);
 }
 
+/*
+ * sbatchd → mbatchd status protocol:
+ *
+ *   - BATCH_STATUS_JOB    : generic status update (legacy path)
+ *   - BATCH_JOB_EXECUTE   : pipeline milestone (EXECUTE)
+ *   - BATCH_JOB_FINISH    : pipeline milestone (FINISH)
+ *
+ * All three carry the same statusReq payload.
+ * The opcode identifies the pipeline stage; statusReq.newStatus
+ * drives the core state transition.
+ *
+ * mbatchd ACKs each message with ack.acked_op = hdr->operation
+ * after the event is committed to lsb.events.
+ */
 static int mbd_dispatch_sbd(struct mbd_client_node *client)
 {
     struct Buffer *buf;
@@ -468,7 +483,7 @@ static int mbd_dispatch_sbd(struct mbd_client_node *client)
         sbd_handle_disconnect(client);
         return -1;
     }
-
+    LS_INFO("sbd %s operation %s", host_node->host, mbd_op_str(sbd_hdr.operation));
     /*
      * replyHdr.operation is sbdReplyType:
      *   ERR_NO_ERROR, ERR_BAD_REQ, ERR_START_FAIL, ...
@@ -477,9 +492,16 @@ static int mbd_dispatch_sbd(struct mbd_client_node *client)
      * Later we can add more cases for other SBD RPCs.
      */
     switch (sbd_hdr.operation) {
-        case ERR_NO_ERROR:
-            sbd_handle_new_job_reply(client, &xdrs, &sbd_hdr);
-            break;
+    case ERR_NO_ERROR:
+        sbd_handle_new_job_reply(client, &xdrs, &sbd_hdr);
+        break;
+    case BATCH_STATUS_JOB:
+    case BATCH_JOB_EXECUTE:
+    case BATCH_JOB_FINISH:
+        // could be from sbd_enqueue_execute or from
+        // sbd_enqueue_finish the jobSpecs.jStatus will tell
+        sbd_handle_job_status(client, &xdrs, &sbd_hdr);
+        break;
     case ERR_BAD_REQ:
     case ERR_MEM:
     case ERR_FORK_FAIL:
@@ -1003,7 +1025,7 @@ static void processSbdNode(struct sbdNode *sbdPtr, int exception)
         doSignalJobReply(sbdPtr, exception);
         break;
     case MBD_NEW_JOB_KEEP_CHAN:
-        // Obsolete as we are now always connected
+        // Obsolete in LavaLite as we are now always connected
         if (logclass & LC_COMM)
             LS_DEBUG("MBD_NEW_JOB_KEEP_CHAN");
         break;

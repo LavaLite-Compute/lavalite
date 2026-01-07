@@ -26,8 +26,6 @@ extern int _lsb_recvtimeout;
 // LavaLite define it as external for now as I dont want to include
 // all the stuff from lib.h
 extern char *resolve_master_with_retry(void);
-// xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
-static int sbd_enqueue_msg(int, int, void *, bool_t (*xdr_func)());
 
 // Create a permanent channel to mbd
 int sbd_connect_mbd(void)
@@ -141,7 +139,10 @@ int sbd_mbd_register(void)
 }
 
 // xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
-int sbd_enqueue_reply(int chfd, int reply_code,
+// this function runs right upona job start we will be async waiting to
+// mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
+// the pid to the events file
+int sbd_enqueue_reply(int ch_id, int reply_code,
                       const struct jobReply *job_reply)
 {
     char *reply_struct;
@@ -156,43 +157,24 @@ int sbd_enqueue_reply(int chfd, int reply_code,
         reply_struct = NULL;
     }
 
-    struct Buffer *buf;
-    if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
-        LS_ERR("chan_alloc_buf failed for jobReply");
+    int cc = enqueue_payload(ch_id,
+                             reply_code,
+                             &reply_struct,
+                             xdr_jobReply);
+    if (cc < 0) {
+        LS_ERR("enqueue_payload for job %"PRId64" finish failed",
+               job_reply->jobId);
         return -1;
     }
+    // Ensure epoll wakes up and dowrite() drains the queue.
+    chan_enable_write(sbd_mbd_chan, ch_id);
 
-    XDR xdrs;
-    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
-
-    struct packet_header reply_hdr;
-    init_pack_hdr(&reply_hdr);
-    reply_hdr.operation = reply_code;
-
-    if (!xdr_encodeMsg(&xdrs,
-                       reply_struct,
-                       &reply_hdr,
-                       xdr_jobReply,
-                       0,
-                       NULL)) {
-        LS_ERR("xdr_jobReply encode failed");
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    buf->len = (size_t)XDR_GETPOS(&xdrs);
-    xdr_destroy(&xdrs);
-
-    if (chan_enqueue(chfd, buf) < 0) {
-        LS_ERR("chan_enqueue jobReply failed (len=%zu)", buf->len);
-        chan_free_buf(buf);
-        return -1;
-    }
+    LS_INFO("sent job=%"PRId64" pid= %s to mbd", job_reply->jobId);
 
     return 0;
 }
 
+// This is invoke at afer mbd ack the pid with BATCH_NEW_JOB_ACK
 int
 sbd_enqueue_execute(int ch_id, struct sbd_job *job)
 {
@@ -206,7 +188,7 @@ sbd_enqueue_execute(int ch_id, struct sbd_job *job)
         abort();
     }
 
-    if (job->execute_sent) {
+    if (job->execute_acked) {
         LS_ERR("job %"PRId64" execute already sent (bug)", job->job_id);
         abort();
     }
@@ -259,39 +241,17 @@ sbd_enqueue_execute(int ch_id, struct sbd_job *job)
     // seq: keep 1 for now; wire per-job seq later if needed
     req.seq = 1;
 
-    struct Buffer *buf;
-    if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
-        LS_ERR("chan_alloc_buf failed for execute");
+    int cc = enqueue_payload(sbd_mbd_chan,
+                             BATCH_STATUS_JOB,
+                             &req,
+                             xdr_statusReq);
+    if (cc < 0) {
+        LS_ERR("enqueue_payload for job %"PRId64" finish failed",
+               job->job_id);
         return -1;
     }
-
-    XDR xdrs;
-    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
-
-    struct packet_header hdr;
-    init_pack_hdr(&hdr);
-    hdr.operation = BATCH_STATUS_JOB;
-
-    if (!xdr_encodeMsg(&xdrs,
-                       (char *)&req,
-                       &hdr,
-                       xdr_statusReq,
-                       0,
-                       NULL)) {
-        LS_ERR("xdr_statusReq encode failed for job %"PRId64, job->job_id);
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    buf->len = (size_t)XDR_GETPOS(&xdrs);
-    xdr_destroy(&xdrs);
-
-    if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue execute failed for job %"PRId64, job->job_id);
-        chan_free_buf(buf);
-        return -1;
-    }
+    // Ensure epoll wakes up and dowrite() drains the queue.
+    chan_enable_write(sbd_mbd_chan, ch_id);
 
     LS_INFO("job %"PRId64" execute enqueued pid=%d user=%s cwd=%s",
             job->job_id, job->spec.jobPid, job->exec_username, job->spec.cwd);
@@ -312,12 +272,12 @@ sbd_enqueue_finish(int ch_id, struct sbd_job *job)
         abort();
     }
 
-    if (!job->execute_sent) {
+    if (!job->execute_acked) {
         LS_ERR("job %"PRId64" finish before execute_sent (bug)", job->job_id);
         abort();
     }
 
-    if (job->finish_sent) {
+    if (job->finish_acked) {
         LS_ERR("job %"PRId64" finish already sent (bug)", job->job_id);
         abort();
     }
@@ -377,91 +337,21 @@ sbd_enqueue_finish(int ch_id, struct sbd_job *job)
     req.sigValue  = 0;
     req.actStatus = 0;
 
-    int cc = sbd_enqueue_msg(ch_id,
+    int cc = enqueue_payload(ch_id,
                              BATCH_STATUS_JOB,
                              &req,
                              xdr_statusReq);
     if (cc < 0) {
-        LS_ERR("sbd_enqueue_msg for job %"PRId64" finish failed",
+        LS_ERR("enqueue_payload for job %"PRId64" finish failed",
                job->job_id);
         return -1;
     }
 
+    // Ensure epoll wakes up and dowrite() drains the queue.
+    chan_enable_write(sbd_mbd_chan, ch_id);
+
     LS_INFO("job %"PRId64" finish enqueued newStatus=0x%x exitStatus=0x%x",
             job->job_id, new_status, (unsigned)job->exit_status);
-
-    return 0;
-}
-
-// enqueue helper
-static int
-sbd_enqueue_msg(int ch_id, int op, void *payload,
-                bool_t (*xdr_func)())
-{
-    struct Buffer *buf;
-
-    if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d", op);
-        return -1;
-    }
-
-    XDR xdrs;
-    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
-
-    struct packet_header hdr;
-    init_pack_hdr(&hdr);
-    hdr.operation = op;
-
-    // xdr_encodeMsg() uses old-style
-    // bool_t (*xdr_func)() so we keep the same type.
-    if (!xdr_encodeMsg(&xdrs,
-                       (char *)payload,
-                       &hdr,
-                       xdr_func,
-                       0,
-                       NULL)) {
-        LS_ERR("xdr_encodeMsg failed op=%d", op);
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    buf->len = (size_t)XDR_GETPOS(&xdrs);
-    xdr_destroy(&xdrs);
-
-    if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed op=%d len=%zu", op, buf->len);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_enable_write(sbd_mbd_chan);
-
-    return 0;
-}
-
-int
-chan_enable_write(int ch_id)
-{
-    struct epoll_event ev;
-    uint32_t want;
-
-    want = EPOLLIN | EPOLLRDHUP;
-
-    // if you track this: only add EPOLLOUT when send queue is non-empty
-    want |= EPOLLOUT;
-
-    memset(&ev, 0, sizeof(ev));
-    ev.events = want;
-    ev.data.u32 = (uint32_t)ch_id;
-
-    // add to sbd_efd EPOLLOUT so dowrite() will dispatch the message
-    if (epoll_ctl(sbd_efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
-        LS_ERR("epoll_ctl MOD enable write failed ch_id=%d sock=%d",
-               ch_id, chan_sock(ch_id));
-        return -1;
-    }
 
     return 0;
 }

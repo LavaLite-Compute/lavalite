@@ -57,31 +57,86 @@ enum sbd_job_state {
     SBD_JOB_KILLED                // killed by signal
 };
 
+/*
+ * sbatchd → mbatchd pipeline steps.
+ *
+ * All steps are ACK-driven and represent events that mbatchd has
+ * logged/committed in lsb.events (source of truth).
+ *
+ * sbatchd must assume messages can be lost until the corresponding ACK
+ * is received.
+ */
+enum sbd_job_step {
+    SBD_STEP_NONE = 0,
+
+    // mbd logged/committed pid+pgid snapshot (BATCH_NEW_JOB_ACK)
+    SBD_STEP_PID_COMMITTED,
+
+    // mbd logged/committed EXECUTE event (BATCH_JOB_EXECUTE_ACK, or equivalent)
+    SBD_STEP_EXECUTE_COMMITTED,
+
+    // mbd logged/committed FINISH event (BATCH_JOB_FINISH_ACK, or equivalent)
+    SBD_STEP_FINISH_COMMITTED
+};
+
 // sbatchd-local view of a job.
 // This replaces the old jobCard horror.
 struct sbd_job {
     struct ll_list_entry list;        // intrusive link in global job list
-    int64_t job_id;                   // jobId
-    struct jobSpecs spec;             // full job description as received
 
-    pid_t pid;                        // main job pid (child)
-    pid_t pgid;                       // process group id
-    enum sbd_job_state state;         // sbatchd-local state
+    int64_t job_id;                   // global jobId (stable, assigned by mbd)
+    struct jobSpecs spec;             // job specification as received from mbd
+                                      // (jobFile, command, resources, etc.)
 
-    bool_t start_acked;     // MBD confirmed receipt of job PID/PGID
-    bool_t pid_acked;        // child sent job setup information
-    bool_t execute_sent;    // execute/update status already sent to MBD
-    bool_t finish_sent;     // terminal status already sent to MBD
-    time_t start_ack_time;  // time when start ACK was received (optional)
+    pid_t pid;                        // main job PID (child spawned by sbatchd)
+    pid_t pgid;                       // process group ID for the job
+
+    enum sbd_job_state state;     // sbatchd-local job state (not wire-visible)
+
+    /*
+     * pid_acked (PID_COMMITTED):
+     *   Set to TRUE when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
+     *   This ACK means mbd has *committed* (logged) the pid/pgid snapshot
+     *   for this job in its event log (lsb.events is the source of truth).
+     *
+     *   Protocol ordering gate:
+     *     - EXECUTE and FINISH must not be emitted before pid_acked.
+     */
+    bool_t pid_acked;
+    time_t pid_ack_time;         // time when pid_acked was set (diagnostics)
+
+    /*
+     * execute_acked (EXECUTE_COMMITTED):
+     *   Set to TRUE when sbatchd processes the ACK for the EXECUTE event,
+     *   meaning mbd has logged/committed the EXECUTE record for this job.
+     *
+     *   Ordering:
+     *     - execute_acked implies pid_acked.
+     */
+    bool_t execute_acked;
+
+    /*
+     * finish_acked (FINISH_COMMITTED):
+     *   Set to TRUE when sbatchd processes the ACK for the FINISH event,
+     *   meaning mbd has logged/committed the terminal record for this job.
+     *
+     *   Ordering:
+     *     - finish_acked implies execute_acked.
+     *     - FINISH is only eligible once exit_status_valid is true.
+     */
+    bool_t finish_acked;
 
     int exit_status;                  // raw waitpid() status
-    bool_t exit_status_valid;         // waitpid() status captured successfully
+    bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
 
-    char exec_username[LL_BUFSIZ_64];// exec username for statusReq
-    int delivered_msg_id;             // message id (0 for now)
+    char exec_username[LL_BUFSIZ_64]; // execution username (used in statusReq)
 
-    struct lsfRusage lsf_rusage;      // zero for now; later from cgroupv2
-    bool_t missing;                   // set if job data/spool is inconsistent
+    struct lsfRusage lsf_rusage;  // resource usage snapshot (zero for now;
+                                  // later populated from cgroupv2)
+
+    bool_t missing;      // TRUE if job data/spool is inconsistent or lost
+    // steps in the pipeline of the job process
+    enum sbd_job_step step;  // committed protocol milestone (ACK-driven)
 };
 
 // Global containers (defined in sbd.job.c or sbd.main.c)
@@ -120,4 +175,3 @@ void jobSpecs_free(struct jobSpecs *);
 int sbd_enqueue_reply(int, int, const struct jobReply *);
 int sbd_enqueue_execute(int, struct sbd_job *);
 int sbd_enqueue_finish(int, struct sbd_job *);
-int chan_enable_write(int);

@@ -176,6 +176,7 @@ Done:
 #endif
 }
 
+// enqueue header used by daemons
 int enqueue_header_reply(int efd, int ch_id, int rc)
 {
     struct Buffer *reply_buf;
@@ -249,4 +250,71 @@ void freeJobSpecs(struct jobSpecs *spec)
         spec->jobFileData.data = NULL;
         spec->jobFileData.len = 0;
     }
+}
+
+// enqueue message this function is shared by daemons
+int enqueue_payload(int ch_id, int op, void *payload, bool_t (*xdr_func)())
+{
+    struct Buffer *buf;
+
+    if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
+        LS_ERR("chan_alloc_buf failed op=%d", op);
+        return -1;
+    }
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
+
+    struct packet_header hdr;
+    init_pack_hdr(&hdr);
+    hdr.operation = op;
+
+    // xdr_encodeMsg() uses old-style
+    // bool_t (*xdr_func)() so we keep the same type.
+    if (!xdr_encodeMsg(&xdrs,
+                       (char *)payload,
+                       &hdr,
+                       xdr_func,
+                       0,
+                       NULL)) {
+        LS_ERR("xdr_encodeMsg failed op=%d", op);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    buf->len = (size_t)XDR_GETPOS(&xdrs);
+    xdr_destroy(&xdrs);
+
+    if (chan_enqueue(ch_id, buf) < 0) {
+        LS_ERR("chan_enqueue failed op=%d len=%zu", op, buf->len);
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    return 0;
+}
+int
+chan_enable_write(int epoll_fd, int ch_id)
+{
+    struct epoll_event ev;
+    uint32_t want;
+
+    want = EPOLLIN | EPOLLRDHUP;
+
+    // if you track this: only add EPOLLOUT when send queue is non-empty
+    want |= EPOLLOUT;
+
+    memset(&ev, 0, sizeof(ev));
+    ev.events = want;
+    ev.data.u32 = (uint32_t)ch_id;
+
+    // add to sbd_efd EPOLLOUT so dowrite() will dispatch the message
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
+        LS_ERR("epoll_ctl MOD enable write failed ch_id=%d sock=%d",
+               ch_id, chan_sock(ch_id));
+        return -1;
+    }
+
+    return 0;
 }
