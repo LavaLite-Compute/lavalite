@@ -62,12 +62,11 @@ typedef enum {
     BATCH_JOB_FORCE,
     BATCH_STATUS_CHUNK,
     BATCH_SET_JOB_ATTR,
-    SBD_REGISTER,         // send registration request to mbd
-    SBD_REGISTER_REPLY,   // reply to sbd the reistration was received
-    BATCH_NEW_JOB_ACK,    // ack mbd got the pid for the new job
-    BATCH_JOB_STATUS_ACK, // ack a status from sbd sending payload with job_id
-    BATCH_JOB_EXECUTE,
-    BATCH_JOB_FINISH,
+    BATCH_SBD_REGISTER,         // send registration request to mbd
+    BATCH_SBD_REGISTER_REPLY,   // reply to sbd the reistration was received
+    BATCH_NEW_JOB_ACK,          // ack mbd got the pid for the new job
+    BATCH_JOB_EXECUTE, // sbd send to advance the pipeline to execute_acked
+    BATCH_JOB_FINISH,  // sbd send the last state of job life pipeline
     BATCH_LAST_OP
 } mbdReqType;
 

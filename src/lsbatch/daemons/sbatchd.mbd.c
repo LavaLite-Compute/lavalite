@@ -34,7 +34,8 @@ static int sbd_redirect_stdio(const struct jobSpecs *);
 static int sbd_materialize_jobfile(struct jobSpecs *, const char *,
                                    char *, size_t);
 static int sbd_handle_mbd_new_job_ack(int, XDR *, struct packet_header *);
-static int sbd_handle_mbd_job_ack(int, XDR *, struct packet_header *);
+static int sbd_handle_mbd_job_execute(int, XDR *, struct packet_header *);
+static int sbd_handle_mbd_job_finish(int, XDR *, struct packet_header *);
 static struct sbd_job *sbd_find_job_by_jid(int64_t);
 
 // the ch_id in input is the channel we have opened with mbatchd
@@ -95,11 +96,11 @@ int sbd_handle_mbd(int ch_id)
         // we can send a new event sbd_enqueue_execute
         sbd_handle_mbd_new_job_ack(ch_id, &xdrs, &hdr);
         break;
-    case BATCH_JOB_STATUS_ACK:
-        // mbd is ack either sbd_enqueue_execute
-        // or sbd_enqueue_finish we will find out
-        // from the context of the job
-        sbd_handle_mbd_job_ack(ch_id, &xdrs, &hdr);
+    case BATCH_JOB_EXECUTE:
+        sbd_handle_mbd_job_execute(ch_id, &xdrs, &hdr);
+        break;
+    case BATCH_JOB_FINISH:
+        sbd_handle_mbd_job_finish(ch_id, &xdrs, &hdr);
         break;
     default:
         break;
@@ -434,8 +435,13 @@ static int sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
     return 0;
 }
 
-static int sbd_handle_mbd_job_ack(int ch_id, XDR *xdrs,
-                                  struct packet_header *hdr)
+static int sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs,
+                                      struct packet_header *hdr)
+{
+    return 0;
+}
+static int sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs,
+                                     struct packet_header *hdr)
 {
     return 0;
 }

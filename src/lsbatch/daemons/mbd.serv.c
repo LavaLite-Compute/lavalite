@@ -2380,6 +2380,7 @@ int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
     return 0;
 }
 
+// LavaLite
 int
 do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
                 struct packet_header *hdr)
@@ -2420,7 +2421,9 @@ do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
             hostname, host_data->sbd_node->host.name,
             host_data->sbd_node->host.addr, host_data->sbd_node->chanfd);
 
-    return enqueue_header_reply(mbd_efd, client->chanfd, SBD_REGISTER_REPLY);
+    return enqueue_header_reply(mbd_efd,
+                                client->chanfd,
+                                BATCH_SBD_REGISTER_REPLY);
 }
 
 int sbd_handle_new_job_reply(struct mbd_client_node *client,
@@ -2568,7 +2571,7 @@ sbd_handle_job_status(struct mbd_client_node *client,
         hp.h_name = client->host.name;
         reply = rusageJob(&status_req, &hp);
 
-        // Historically rusage may have been "no reply"
+        // Historically rusage there is no reply
         // just free and return based on reply.
         xdr_lsffree(xdr_statusReq, (char *)&status_req, hdr);
         return (reply == LSBE_NO_ERROR) ? 0 : -1;

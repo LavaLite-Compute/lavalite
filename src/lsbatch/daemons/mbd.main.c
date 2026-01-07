@@ -392,10 +392,10 @@ static void mbd_handle_client(int ch_id)
 
     snprintf(key, sizeof(key), "%d", ch_id);
     host_data = ll_hash_search(&hdata_by_chan, key);
-    // Here hets a little assymetric with non sbd client
+    // Here its a little assymetric with non sbd client
     // handling. If there is an exception on the channel with
-    // sbd we have to handle it inside this called because beside
-    // just shutting down the client we haev to do other operations
+    // sbd we have to handle it inside this calle because beside
+    // just shutting down the client we have to do other operations
     // like clean up caches, jobs states etc
     // so the asymmetry is intentional and correct.
     if (host_data) {
@@ -438,18 +438,18 @@ static void mbd_handle_client(int ch_id)
  *   - BATCH_STATUS_JOB    : generic status update (legacy path)
  *   - BATCH_JOB_EXECUTE   : pipeline milestone (EXECUTE)
  *   - BATCH_JOB_FINISH    : pipeline milestone (FINISH)
+ *   - BATCH_RUSAGE_JOB    : periodic resource usage
  *
  * All three carry the same statusReq payload.
  * The opcode identifies the pipeline stage; statusReq.newStatus
  * drives the core state transition.
+ * The fourth is just the job resource usage.
  *
  * mbatchd ACKs each message with ack.acked_op = hdr->operation
  * after the event is committed to lsb.events.
  */
 static int mbd_dispatch_sbd(struct mbd_client_node *client)
 {
-    struct Buffer *buf;
-
     struct hData *host_node = client->host_node;
     if (host_node == NULL) {
         LS_ERR("mbd_dispatch_sbd called with NULL host_node (chanfd=%d)",
@@ -466,6 +466,7 @@ static int mbd_dispatch_sbd(struct mbd_client_node *client)
         return -1;
     }
 
+    struct Buffer *buf;
     if (chan_dequeue(ch_id, &buf) < 0) {
         LS_ERR("%s: chan_dequeue failed for SBD chanfd=%d", __func__, ch_id);
         sbd_handle_disconnect(client);
@@ -498,6 +499,7 @@ static int mbd_dispatch_sbd(struct mbd_client_node *client)
     case BATCH_STATUS_JOB:
     case BATCH_JOB_EXECUTE:
     case BATCH_JOB_FINISH:
+    case BATCH_RUSAGE_JOB:
         // could be from sbd_enqueue_execute or from
         // sbd_enqueue_finish the jobSpecs.jStatus will tell
         sbd_handle_job_status(client, &xdrs, &sbd_hdr);
@@ -721,7 +723,7 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
         TIMEIT(0, do_runJobReq(&xdrs, ch_id, &from, &auth, &req_hdr),
                "do_runJobReq()");
         break;
-    case SBD_REGISTER:
+    case BATCH_SBD_REGISTER:
         int cc = do_sbd_register(&xdrs, client, &req_hdr);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);

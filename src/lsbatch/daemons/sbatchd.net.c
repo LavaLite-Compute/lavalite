@@ -88,7 +88,7 @@ int sbd_mbd_register(void)
 
     struct packet_header hdr;
     init_pack_hdr(&hdr);
-    hdr.operation = SBD_REGISTER;
+    hdr.operation = BATCH_SBD_REGISTER;
 
     char request_buf[LL_BUFSIZ_4K];
     XDR xdrs_req;
@@ -122,7 +122,7 @@ int sbd_mbd_register(void)
         return -1;
     }
 
-    if (hdr.operation != SBD_REGISTER_REPLY ) {
+    if (hdr.operation != BATCH_SBD_REGISTER_REPLY ) {
         LS_ERR("mbd registration failed error: %d", lsberrno);
         if (reply_buf.data != NULL)
             free(reply_buf.data);
