@@ -2501,6 +2501,7 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
      * No more blocking send path, everything is queued via chan_enqueue().
      */
     struct job_status_ack ack;
+    memset(&ack, 0, sizeof(struct job_status_ack));
     ack.job_id = job->jobId;
     ack.acked_op = ERR_NO_ERROR;
 
@@ -2546,7 +2547,7 @@ sbd_handle_job_status(struct mbd_client_node *client,
         return -1;
     }
 
-    const char host_name = client->host_node->host;
+    const char *host_name = client->host_node->host;
     LS_INFO("mbd job=%"PRId64" operation %s from %s", status_req.jobId,
             mbd_op_str(hdr->operation), host_name);
 
@@ -2638,7 +2639,6 @@ mbd_status_reply_means_committed(int reply)
     }
 }
 
-
 int sbd_handle_disconnect(struct mbd_client_node *client)
 {
     struct hData *host_node = client->host_node;
@@ -2685,6 +2685,24 @@ int sbd_handle_disconnect(struct mbd_client_node *client)
     return 0;
 }
 
+int mbd_handle_slave_restart(struct mbd_client_node *client,
+                             struct packet_header *reqHdr,
+                             XDR *xdr_in)
+{
+    struct ll_host hs;
+    struct hData *h;
+    struct sbdPackage pkg;
+
+    // 1) authenticate/portok + map host
+    // 2) find host hData
+    // 3) hStatChange(h, 0) etc.
+    // 4) pkg.numJobs = countNumSpecs(h)
+    // 5) pkg.jobs = calloc(...)
+    // 6) fill pkg via sbatchdJobs(&pkg, h)
+    // 7) reply using enqueue_payload(client->chanfd, BATCH_SLAVE_RESTART_REPLY, &pkg, xdr_sbdPackage)
+    // 8) free pkg.jobs (and freeJobSpecs)
+}
+
 static void mbd_reset_sbd_job_list(struct hData *host_node)
 {
     struct mbd_sbd_job *sj;
@@ -2711,21 +2729,20 @@ static void mbd_reset_sbd_job_list(struct hData *host_node)
 
 int mbd_enqueue_hdr(struct mbd_client_node *client, int operation)
 {
-    struct Buffer *buf;
-    XDR xdrs;
-    struct packet_header hdr;
     int chfd = client->chanfd;
-
+    struct Buffer *buf;
     if (chan_alloc_buf(&buf, sizeof(struct packet_header)) < 0) {
         LS_ERR("chan_alloc_buf failed for header reply on chanfd=%d", chfd);
         return -1;
     }
 
+    XDR xdrs;
     xdrmem_create(&xdrs,
                   buf->data,
                   sizeof(struct packet_header),
                   XDR_ENCODE);
 
+    struct packet_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = operation;
 
@@ -2751,7 +2768,6 @@ int mbd_enqueue_hdr(struct mbd_client_node *client, int operation)
      * into the channel/epoll layer to set EPOLLOUT.
      */
     struct epoll_event ev;
-
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLOUT;   /* readable + writable */
     ev.data.u32 = (uint32_t)chfd;     /* or whatever you already use */
@@ -2782,8 +2798,6 @@ mbd_send_job_ack(struct mbd_client_node *client,
                  int operation,
                  const struct job_status_ack *ack)
 {
-    XDR xdrs;
-
     if (client == NULL || ack == NULL) {
         errno = EINVAL;
         return -1;
@@ -2791,15 +2805,26 @@ mbd_send_job_ack(struct mbd_client_node *client,
 
     int cc = enqueue_payload(client->chanfd,
                              operation,
-                             ack,
+                             (void *)ack,
                              xdr_job_status_ack);
     if (cc < 0) {
         LS_ERR("enqueue_payload for job %"PRId64" ack failed",
                ack->job_id);
         return -1;
     }
-    // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_enable_write(mbd_efd, client->chanfd);
+
+    int chfd = client->chanfd;
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.events = EPOLLIN | EPOLLOUT;   /* readable + writable */
+    ev.data.u32 = (uint32_t)chfd;     /* or whatever you already use */
+
+    if (epoll_ctl(mbd_efd, EPOLL_CTL_MOD, chan_sock(chfd), &ev) < 0) {
+        LS_ERR("epoll_ctl(EPOLL_CTL_MOD, EPOLLIN|EPOLLOUT) failed for chanfd=%d",
+               chfd);
+        // Bug we should free what we have allocated
+        return -1;
+    }
 
     return 0;
 }

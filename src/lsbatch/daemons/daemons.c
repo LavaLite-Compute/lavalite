@@ -294,27 +294,3 @@ int enqueue_payload(int ch_id, int op, void *payload, bool_t (*xdr_func)())
 
     return 0;
 }
-int
-chan_enable_write(int epoll_fd, int ch_id)
-{
-    struct epoll_event ev;
-    uint32_t want;
-
-    want = EPOLLIN | EPOLLRDHUP;
-
-    // if you track this: only add EPOLLOUT when send queue is non-empty
-    want |= EPOLLOUT;
-
-    memset(&ev, 0, sizeof(ev));
-    ev.events = want;
-    ev.data.u32 = (uint32_t)ch_id;
-
-    // add to sbd_efd EPOLLOUT so dowrite() will dispatch the message
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
-        LS_ERR("epoll_ctl MOD enable write failed ch_id=%d sock=%d",
-               ch_id, chan_sock(ch_id));
-        return -1;
-    }
-
-    return 0;
-}

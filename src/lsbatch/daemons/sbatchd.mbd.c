@@ -154,9 +154,15 @@ send_reply:
     /* free heap members inside spec that xdr allocated */
     xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
-    // send the reply to mbdo
-    sbd_enqueue_reply(sbd_mbd_chan, reply_code, &job_reply);
-
+    // send the reply to mbd
+    sbd_enqueue_reply(reply_code, &job_reply);
+    /*
+    int cc = chan_write(sbd_mbd_chan, &job_reply, LL_BUFSIZ_4K);
+    if (cc < 0) {
+        LS_ERR("chan_write fails");
+        return -1;
+    }
+    */
     return 0;
 }
 
@@ -383,7 +389,7 @@ static int sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
     }
 
     // check the status of the operation
-    if (hdr->operation != LSBE_NO_ERROR) {
+    if (hdr->operation != BATCH_NEW_JOB_ACK) {
         LS_ERR("job %"PRId64" new_job_ack error rc=%d seq=%d",
                ack.job_id, hdr->operation, ack.seq);
         // For now keep job around; retry policy later.
@@ -413,36 +419,135 @@ static int sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
             job->job_id, ack.seq);
 
     assert(job->execute_acked == false);
-    // Now send the execute snapshot (old jobSetupStatus(JOB_STAT_RUN,...)).
-    if (sbd_enqueue_execute(sbd_mbd_chan, job) < 0) {
-        LS_ERR("job %"PRId64" enqueue execute failed", job->job_id);
+    LS_DEBUG("job %"PRId64" BATCH_JOB_EXECUTE enqueue to mbd", job->job_id);
+
+    return 0;
+}
+
+static int
+sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
+{
+    if (xdrs == NULL || hdr == NULL) {
+        errno = EINVAL;
         return -1;
     }
-    job->execute_acked = true;
-    LS_DEBUG("job %"PRId64" execute sent to mbd", job->job_id);
 
-    // Optional fast path: if the job already exited, try to enqueue finish now.
-    // Do NOT call global job_finish_checking() blindly; just handle this job.
-    if (job->exit_status_valid && !job->finish_acked) {
-        if (sbd_enqueue_finish(sbd_mbd_chan, job) < 0) {
-            LS_ERR("job %"PRId64" enqueue finish failed", job->job_id);
-            return -1;
-        }
-        job->finish_acked = true;
-        LS_DEBUG("job %"PRId64" finish sent to mbd (fast path)", job->job_id);
+    struct job_status_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    /*
+     * ACK payload: mbd echoes the committed stage.
+     * Here we expect ack.acked_op == BATCH_JOB_EXECUTE.
+     */
+    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
+        LS_ERR("xdr_job_status_ack failed for EXECUTE ack");
+        return -1;
     }
 
+    if (ack.acked_op != BATCH_JOB_EXECUTE) {
+        LS_ERR("EXECUTE ack mismatch: hdr.op=%d acked_op=%d job=%"PRId64,
+               hdr->operation, ack.acked_op, ack.job_id);
+        return -1;
+    }
+
+    struct sbd_job *job;
+    job = sbd_find_job_by_jid(ack.job_id);
+    if (job == NULL) {
+        /*
+         * This can happen after a restart or if the job was already cleaned.
+         * Treat as non-fatal: mbd has committed; we just have nothing to do.
+         */
+        LS_INFO("EXECUTE ack for unknown job=%"PRId64" (seq=%d) ignored",
+                ack.job_id, ack.seq);
+        return 0;
+    }
+
+    if (!job->pid_acked) {
+        /*
+         * Strict ordering violation: execute_acked implies pid_acked.
+         * This should never happen if mbd is enforcing the pipeline.
+         */
+        LS_ERR("job=%"PRId64" EXECUTE ack before PID ack (state=%d step=%d)",
+               job->job_id, job->state, job->step);
+        return -1;
+    }
+
+    if (job->execute_acked) {
+        LS_DEBUG("job=%"PRId64" duplicate EXECUTE ack ignored", job->job_id);
+        return 0;
+    }
+
+    job->execute_acked = TRUE;
+    job->step = SBD_STEP_EXECUTE_COMMITTED;
+
+    LS_INFO("job=%"PRId64" BATCH_JOB_EXECUTE committed to mbd", job->job_id);
+
     return 0;
 }
 
-static int sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs,
-                                      struct packet_header *hdr)
+static int
+sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
-    return 0;
-}
-static int sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs,
-                                     struct packet_header *hdr)
-{
+    if (xdrs == NULL || hdr == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    struct job_status_ack ack;
+    memset(&ack, 0, sizeof(ack));
+
+    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
+        LS_ERR("xdr_job_status_ack failed for FINISH ack");
+        return -1;
+    }
+
+    if (ack.acked_op != BATCH_JOB_FINISH) {
+        LS_ERR("FINISH ack mismatch: hdr.op=%d acked_op=%d job=%"PRId64,
+               hdr->operation, ack.acked_op, ack.job_id);
+        return -1;
+    }
+
+    struct sbd_job *job;
+    job = sbd_find_job_by_jid(ack.job_id);
+    if (job == NULL) {
+        LS_INFO("FINISH ack for unknown job=%"PRId64" (seq=%d) ignored",
+                ack.job_id, ack.seq);
+        return 0;
+    }
+
+    if (!job->pid_acked || !job->execute_acked) {
+        LS_ERR("job=%"PRId64" FINISH ack out of order (pid_acked=%d execute_acked=%d)",
+               job->job_id, job->pid_acked, job->execute_acked);
+        return -1;
+    }
+
+    if (job->finish_acked) {
+        LS_DEBUG("job=%"PRId64" duplicate FINISH ack ignored", job->job_id);
+        return 0;
+    }
+
+    /*
+     * FINISH is only eligible once we have a terminal status locally.
+     * If this triggers, it means we emitted FINISH too early or state got lost.
+     */
+    if (!job->exit_status_valid && !job->missing) {
+        LS_ERR("job=%"PRId64" BATCH_JOB_FINISH committed but exit_status not captured",
+               job->job_id);
+        abort();
+        // later on we can mark this job as missing and continue the
+        // clean up process
+    }
+
+    job->finish_acked = true;
+    job->step = SBD_STEP_FINISH_COMMITTED;
+
+    LS_INFO("job=%"PRId64" BATCH_JOB_FINISH committed by mbd; cleaning up",
+            job->job_id);
+
+    /*
+     * Now it is safe to destroy the sbatchd-side job record/spool:
+     * mbd event log is the source of truth, and FINISH is committed.
+     */
+    sbd_job_free(job);
     return 0;
 }
 

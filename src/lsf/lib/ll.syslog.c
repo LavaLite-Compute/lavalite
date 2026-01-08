@@ -205,9 +205,10 @@ void ls_syslog(int level, const char *fmt, ...)
      * "Dec 19 16:13:16 2025 [LOG_INFO] message text"
      */
     n = snprintf(line, sizeof(line),
-                 "%s [%s] %s\n",
+                 "%s [%s] %d %s\n",
                  ts,
                  level_str(level),
+                 getpid(),
                  msg);
 
     if (n < 0)

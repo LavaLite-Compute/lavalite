@@ -114,6 +114,7 @@ struct sbd_job {
      *     - execute_acked implies pid_acked.
      */
     bool_t execute_acked;
+    bool_t execute_sent;
 
     /*
      * finish_acked (FINISH_COMMITTED):
@@ -125,6 +126,7 @@ struct sbd_job {
      *     - FINISH is only eligible once exit_status_valid is true.
      */
     bool_t finish_acked;
+    bool_t finish_sent;
 
     int exit_status;                  // raw waitpid() status
     bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
@@ -171,7 +173,6 @@ void sbd_job_sync_jstatus(struct sbd_job *);
 int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
 void jobSpecs_free(struct jobSpecs *);
 
-// network function that enqueue the data for mbd
-int sbd_enqueue_reply(int, int, const struct jobReply *);
-int sbd_enqueue_execute(int, struct sbd_job *);
-int sbd_enqueue_finish(int, struct sbd_job *);
+int sbd_enqueue_reply(int, const struct jobReply *);
+int sbd_enqueue_execute(struct sbd_job *);
+int sbd_enqueue_finish( struct sbd_job *);

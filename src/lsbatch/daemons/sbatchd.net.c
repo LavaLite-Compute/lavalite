@@ -26,6 +26,7 @@ extern int _lsb_recvtimeout;
 // LavaLite define it as external for now as I dont want to include
 // all the stuff from lib.h
 extern char *resolve_master_with_retry(void);
+static int chan_enable_write(void);
 
 // Create a permanent channel to mbd
 int sbd_connect_mbd(void)
@@ -142,41 +143,39 @@ int sbd_mbd_register(void)
 // this function runs right upona job start we will be async waiting to
 // mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
 // the pid to the events file
-int sbd_enqueue_reply(int ch_id, int reply_code,
-                      const struct jobReply *job_reply)
+int sbd_enqueue_reply(int reply_code, const struct jobReply *job_reply)
 {
     char *reply_struct;
 
+    reply_struct = NULL;
     if (reply_code == ERR_NO_ERROR) {
         if (job_reply == NULL) {
             errno = EINVAL;
             return -1;
         }
         reply_struct = (char *)job_reply;
-    } else {
-        reply_struct = NULL;
     }
 
-    int cc = enqueue_payload(ch_id,
+    int cc = enqueue_payload(sbd_mbd_chan,
                              reply_code,
-                             &reply_struct,
+                             reply_struct,
                              xdr_jobReply);
     if (cc < 0) {
-        LS_ERR("enqueue_payload for job %"PRId64" finish failed",
+        LS_ERR("enqueue_payload for job %"PRId64" reply failed",
                job_reply->jobId);
         return -1;
     }
-    // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_enable_write(sbd_mbd_chan, ch_id);
 
-    LS_INFO("sent job=%"PRId64" pid= %s to mbd", job_reply->jobId);
+    chan_enable_write();
+
+    LS_INFO("sent job=%"PRId64" pid=%d to mbd", job_reply->jobId,
+            job_reply->jobPid);
 
     return 0;
 }
 
 // This is invoke at afer mbd ack the pid with BATCH_NEW_JOB_ACK
-int
-sbd_enqueue_execute(int ch_id, struct sbd_job *job)
+int sbd_enqueue_execute(struct sbd_job *job)
 {
     if (job == NULL) {
         errno = EINVAL;
@@ -242,16 +241,16 @@ sbd_enqueue_execute(int ch_id, struct sbd_job *job)
     req.seq = 1;
 
     int cc = enqueue_payload(sbd_mbd_chan,
-                             BATCH_STATUS_JOB,
+                             BATCH_JOB_EXECUTE,
                              &req,
                              xdr_statusReq);
     if (cc < 0) {
-        LS_ERR("enqueue_payload for job %"PRId64" finish failed",
+        LS_ERR("enqueue_payload for job %"PRId64" BATCH_JOB_EXECUTE failed",
                job->job_id);
         return -1;
     }
-    // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_enable_write(sbd_mbd_chan, ch_id);
+
+    chan_enable_write();
 
     LS_INFO("job %"PRId64" execute enqueued pid=%d user=%s cwd=%s",
             job->job_id, job->spec.jobPid, job->exec_username, job->spec.cwd);
@@ -259,8 +258,7 @@ sbd_enqueue_execute(int ch_id, struct sbd_job *job)
     return 0;
 }
 
-int
-sbd_enqueue_finish(int ch_id, struct sbd_job *job)
+int sbd_enqueue_finish(struct sbd_job *job)
 {
     if (job == NULL) {
         errno = EINVAL;
@@ -337,21 +335,36 @@ sbd_enqueue_finish(int ch_id, struct sbd_job *job)
     req.sigValue  = 0;
     req.actStatus = 0;
 
-    int cc = enqueue_payload(ch_id,
-                             BATCH_STATUS_JOB,
+    int cc = enqueue_payload(sbd_mbd_chan,
+                             BATCH_JOB_FINISH,
                              &req,
                              xdr_statusReq);
     if (cc < 0) {
-        LS_ERR("enqueue_payload for job %"PRId64" finish failed",
+        LS_ERR("enqueue_payload for job %"PRId64" BATCH_JOB_FINISH failed",
                job->job_id);
         return -1;
     }
 
     // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_enable_write(sbd_mbd_chan, ch_id);
+    chan_enable_write();
 
     LS_INFO("job %"PRId64" finish enqueued newStatus=0x%x exitStatus=0x%x",
             job->job_id, new_status, (unsigned)job->exit_status);
+
+    return 0;
+}
+
+static int
+chan_enable_write(void)
+{
+    struct epoll_event ev;
+    ev.events = EPOLLIN|EPOLLOUT;
+    ev.data.u32 = (uint32_t)sbd_mbd_chan;
+
+    if (epoll_ctl(sbd_efd, EPOLL_CTL_MOD, chan_sock(sbd_mbd_chan), &ev) < 0) {
+        LS_ERR("epoll_ctl() failed to add sbd chan");
+        return -1;
+    }
 
     return 0;
 }

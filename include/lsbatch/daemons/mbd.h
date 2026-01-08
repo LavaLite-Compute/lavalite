@@ -1447,4 +1447,7 @@ int mbd_init_tables(void);
 int mbd_send_job_ack(struct mbd_client_node *,
                      int,
                      const struct job_status_ack *);
+int mbd_handle_slave_restart(struct mbd_client_node *,
+                             struct packet_header *,
+                             XDR *);
 const char *mbd_op_str(int);

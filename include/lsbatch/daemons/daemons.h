@@ -476,7 +476,3 @@ int enqueue_payload(int, int, void *, bool_t (*xdr_func)());
 
 // Bug fix this extern the function is in mbd.h
 void freeJobSpecs(struct jobSpecs *);
-
-// add EPOLLOUT in an epoll_fd related to a channel ch_id
-// epoll_fd is typicall the epoll the daemon is listening on
-int chan_enable_write(int epoll_fd, int ch_id);

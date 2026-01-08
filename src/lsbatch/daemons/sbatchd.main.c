@@ -32,7 +32,7 @@ static void sbd_maybe_reap_children(void);
 static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
 static void job_finish_checking(void);
-static void job_pipeline_drive(void);
+static void job_execute_drive(void);
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -121,10 +121,6 @@ sbd_run_daemon(void)
             exit(0);
         }
 
-        if (sbd_got_sigchld) {
-            sbd_got_sigchld = 0;
-            sbd_reap_children();
-        }
         sbd_maybe_reap_children();
 
         // SIGCHLD-driven fast path: try to finish/report immediately.
@@ -132,6 +128,8 @@ sbd_run_daemon(void)
 
         // We pass -1 as the timer channel will ring
         int nready = chan_epoll(sbd_efd, sbd_events, max_events, -1);
+        // save the epoll errno as the coming reap children can change it
+        int epoll_errno = errno;
 
         // In case SIGCHLD arrived while we were blocked in epoll.
         sbd_maybe_reap_children();
@@ -140,8 +138,9 @@ sbd_run_daemon(void)
         job_finish_checking();
 
         if (nready < 0) {
-            if (errno == EINTR)
+            if (epoll_errno == EINTR)
                 continue;
+            errno = epoll_errno;
             LS_ERR("network I/O");
             sleep(1);
             continue;
@@ -154,18 +153,19 @@ sbd_run_daemon(void)
              LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
                       ch_id, channels[ch_id].chan_events, ev->events);
 
-             // True skip partially read channels
-             if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
-                 continue;
 
              if (ch_id == sbd_timer_chan) {
                  uint64_t expirations;
                  ssize_t cc = read(chan_sock(ch_id), &expirations,
                                    sizeof(expirations));
                  if (cc < 0) {
-                      if (errno != EINTR)
-                          LS_ERR("timer read failed");
-                      // fall through: still do maintenance
+                     if (errno == EINTR) {
+                         LS_ERR("timer interrepted, do maintainance");
+                         goto timer_maintenance;
+                     }
+                     LS_ERR("timer read failed, do maintenance");
+                     goto timer_maintenance;
+                     // fall through: still do maintenance
                  }
                  if ((size_t)cc != sizeof(expirations)) {
                      LS_ERR("timer short read: %zd bytes", cc);
@@ -174,20 +174,28 @@ sbd_run_daemon(void)
                  LS_DEBUG("timer run %s", ctime2(NULL));
                  // Periodic maintenance: legacy job_checking + status_report.
                  // always run
+             timer_maintenance:
                  sbd_reap_children();
+                 job_execute_drive();
                  job_finish_checking();
                  job_status_checking();
-                 job_pipeline_drive();
                  // rest the state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
+
+             // True skip partially read channels
+             if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
+                 continue;
 
              if (ch_id == sbd_mbd_chan) {
                  sbd_handle_mbd(ch_id);
                  // reset the channel state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
+             }
+             if (ch_id == sbd_chan) {
+                 LS_DEBUG("This is the listening sbd channel");
              }
 
          }
@@ -325,7 +333,7 @@ sbd_init_network(void)
     }
 
     // for now
-    sbd_timer = 30 * 1000;
+    sbd_timer = 10;
     // this function is in the channel library.
     sbd_timer_chan = chan_create_timer(sbd_timer);
     if (sbd_timer_chan < 0) {
@@ -395,6 +403,7 @@ static void sbd_reap_children(void)
         pid = waitpid(-1, &status, WNOHANG);
         if (pid <= 0) {
             if (pid < 0) {
+
                 if (errno == EINTR)
                     continue;
                 if (errno != ECHILD)
@@ -433,7 +442,7 @@ static void sbd_reap_children(void)
             job->spec.jStatus = JOB_STAT_EXIT;
         }
 
-        LS_INFO("job %"PRId64 "finished pid=%d jStatus=0x%x status=0x%x",
+        LS_INFO("job %"PRId64 " finished pid=%d jStatus=0x%x status=0x%x",
                 job->job_id, (int)pid, job->spec.jStatus, (unsigned)status);
     }
 }
@@ -465,10 +474,10 @@ static void job_status_checking(void)
     }
 }
 
-static void job_pipeline_drive(void)
+static void
+job_execute_drive(void)
 {
     struct ll_list_entry *e;
-    time_t now = time(NULL);
 
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
@@ -476,38 +485,25 @@ static void job_pipeline_drive(void)
         if (job->missing)
             continue;
 
-        // Stage gate: until MBD has ACKed the NEW_JOB reply (pid/pgid committed),
-        // do not send execute/finish. This preserves ordering and avoids "ghost"
-        // execute/finish for jobs MBD hasn't recorded yet.
-        if (!job->pid_acked)
-            continue;
-
-        // Send execute exactly once.
-        if (!job->execute_acked) {
-            if (sbd_enqueue_execute(sbd_mbd_chan, job) < 0) {
-                LS_ERR("job %"PRId64" enqueue execute failed", job->job_id);
-                // Your current recovery policy: kill channel so it re-registers.
-                // Returning here is enough if caller closes channel on error.
-                return;
-            }
-            job->execute_acked = TRUE;
-            LS_INFO("job %"PRId64" execute enqueued", job->job_id);
-
-            // Do not send finish in same tick; preserve ordering for short jobs.
+        if (!job->pid_acked) {
+            LS_DEBUG("job %"PRId64" not ready: pid not acked yet", job->job_id);
             continue;
         }
 
-        // After execute, send finish once we have exit status.
-        if (job->exit_status_valid && !job->finish_acked) {
-            if (sbd_enqueue_finish(sbd_mbd_chan, job) < 0) {
-                LS_ERR("job %"PRId64" enqueue finish failed", job->job_id);
-                return;
-            }
-            job->finish_acked = TRUE;
-            LS_INFO("job %"PRId64" finish enqueued", job->job_id);
+        if (job->execute_sent) {
+            LS_DEBUG("job %"PRId64" BATCH_JOB_EXECUTE sent already", job->job_id);
+            continue;
         }
 
-        (void)now; // silence unused if you keep 'now' for later extensions
+        if (!job->execute_sent) {
+            if (sbd_enqueue_execute(job) < 0) {
+                LS_ERR("job %"PRId64" enqueue BATCH_JOB_EXECUTE failed", job->job_id);
+                return;
+            }
+            job->execute_sent = true;
+            LS_INFO("job %"PRId64" BATCH_JOB_EXECUTE enqueued", job->job_id);
+            continue;   // do not send FINISH in same tick
+        }
     }
 }
 
@@ -528,26 +524,23 @@ job_finish_checking(void)
             continue;
         }
 
-        // Send job execute once we have pid ack and we have not emitted execute.
-        // This is what causes mbd to log JOB_EXECUTE and store exec metadata.
         if (!job->execute_acked) {
-            int rc = sbd_enqueue_execute(sbd_mbd_chan, job);
-            if (rc == 0) {
-                job->execute_acked = TRUE;
-                LS_INFO("job %"PRId64" execute enqueued", job->job_id);
-            } else {
-                LS_WARNING("job %"PRId64" execute enqueue failed", job->job_id);
-            }
+            LS_DEBUG("job %"PRId64" not acked JOB_BATCH_EXECUTE yet",
+                     job->job_id);
             // Do not attempt finish in the same pass unless execute is sent.
-            // This preserves event ordering even for very short jobs.
+            continue;
+        }
+
+        if (! job->exit_status_valid) {
+            LS_DEBUG("job %"PRId64" has not finished yet", job->job_id);
             continue;
         }
 
         // After execute is sent, we can send finish once we have an exit status.
-        if (job->exit_status_valid && !job->finish_acked) {
-            int rc = sbd_enqueue_finish(sbd_mbd_chan, job);
+        if (!job->finish_sent) {
+            int rc = sbd_enqueue_finish(job);
             if (rc == 0) {
-                job->finish_acked = TRUE;
+                job->finish_sent = true;
                 LS_INFO("job %"PRId64" finish enqueued", job->job_id);
             } else {
                 LS_WARNING("job %"PRId64" finish enqueue failed", job->job_id);
