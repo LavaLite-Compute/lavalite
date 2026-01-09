@@ -243,7 +243,12 @@ int sbd_enqueue_register(int ch_id)
         return -1;
     }
 
+    // Always rememeber to enable EPOLLOUT on the main sbd_efd
+    // to have dowrite() to send out the request
+    chan_enable_write();
+
     LS_INFO("sbd register: enqueued request as host: %s", host);
+
     return 0;
 }
 
@@ -256,9 +261,10 @@ int sbd_enqueue_reply(int reply_code, const struct jobReply *job_reply)
     char *reply_struct;
 
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready(void)) {
-        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
-                 job->job_id;
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
+            job_reply->jobId);
+        return -1;
     }
 
     reply_struct = NULL;
@@ -293,6 +299,13 @@ int sbd_enqueue_execute(struct sbd_job *job)
 {
     if (job == NULL) {
         errno = EINVAL;
+        return -1;
+    }
+
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
+                job->job_id);
         return -1;
     }
 
@@ -380,9 +393,10 @@ int sbd_enqueue_finish(struct sbd_job *job)
     }
 
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready(void)) {
-        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
-                 job->job_id;
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
+                job->job_id);
+        return -1;
     }
 
     if (!job->pid_acked) {

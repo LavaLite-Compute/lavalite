@@ -882,3 +882,10 @@ int chan_connect_finish(int ch_id)
 
     return 0;
 }
+
+int chan_sock_error(int ch_id)
+{
+    int err = rdwr_sock_error(chan_sock(ch_id));
+
+    return err;
+}

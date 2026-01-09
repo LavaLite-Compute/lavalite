@@ -94,3 +94,4 @@ int chan_create_timer(int); // seconds for the timerfd
 struct Buffer *chan_make_buf(void);
 int chan_connect_begin(int, struct sockaddr_in *, int);
 int chan_connect_finish(int);
+int chan_sock_error(int);

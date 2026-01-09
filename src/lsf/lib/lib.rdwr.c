@@ -459,3 +459,16 @@ int connect_finish(int s)
 
     return 0;
 }
+int rdwr_sock_error(int fd)
+{
+    int err;
+    socklen_t len;
+
+    err = 0;
+    len = sizeof(err);
+
+    if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0)
+        return -1;
+
+    return err; // 0 == no pending socket error
+}

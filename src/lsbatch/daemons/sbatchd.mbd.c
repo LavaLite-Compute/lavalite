@@ -20,7 +20,7 @@
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 
 static int sbd_handle_mbd_new_job(int, XDR *, struct packet_header *);
-static sbdReplyType sbd_spawn_job(struct jobSpecs *, struct jobReply *);
+static sbdReplyType sbd_spawn_job(struct sbd_job *, struct jobReply *);
 static void sbd_child_exec_job(struct jobSpecs *);
 static void sbd_child_open_log(const struct jobSpecs *);
 static int sbd_set_job_env(const struct jobSpecs *);
@@ -47,7 +47,8 @@ int sbd_handle_mbd(int ch_id)
     LS_DEBUG("processing mbd request");
 
     if (chan->chan_events == CHAN_EPOLLERR) {
-        LS_ERR("lost connection with mbd on channel %d", ch_id);
+        LS_ERRX("lost connection with mbd on channel %d socket err %d",
+                ch_id, chan_sock_error(ch_id));
         sbd_mbd_link_down();
         return -1;
     }
@@ -145,8 +146,14 @@ int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
         goto send_reply;
     }
 
+    // allocate sbatchd-local job object
+    job = sbd_job_create(&spec);
+    if (job == NULL) {
+        return ERR_MEM;
+    }
+
     // 3) new job: spawn child, register it, fill job_reply
-    reply_code = sbd_spawn_job(&spec, &job_reply);
+    reply_code = sbd_spawn_job(job, &job_reply);
 
 send_reply:
     /* free heap members inside spec that xdr allocated */
@@ -155,31 +162,29 @@ send_reply:
     // Copy the structures
     job->job_reply = job_reply;
     job->reply_code = reply_code;
-    // send the reply to mbd
+    // send the reply to mbd, note the child has been forked and
+    // presumed running at this stage
     int cc = sbd_enqueue_reply(reply_code, &job_reply);
     if (cc < 0) {
         LS_ERR("job %"PRId64" enqueue jobReply failed",
                job->job_id);
-    } else {
-        job->reply_sent = true;
+        return 0;
     }
+
+    // We have enqueued successfully the JobReply to mbd
+    // if mbd goes down while we are trying to notify it
+    // the reply_sent flag will be cleaned in sbd_mbd_link_down()
+    job->reply_sent = true;
 
     return 0;
 }
 
-static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
-                                  struct jobReply *reply_out)
+static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_out)
 {
-    // allocate sbatchd-local job object
-    struct sbd_job *job = sbd_job_create(specs);
-    if (job == NULL) {
-        return ERR_MEM;
-    }
-
     // use posix_spawn
     pid_t pid = fork();
     if (pid < 0) {
-        LS_ERR("fork failed for job %ld", specs->jobId);
+        LS_ERR("fork failed for job %ld", job->spec.jobId);
         sbd_job_free(job);
         return ERR_FORK_FAIL;
     }
@@ -192,7 +197,7 @@ static sbdReplyType sbd_spawn_job(struct jobSpecs *specs,
         // child becomes leader of its own group
         setpgid(0, 0);
         // Now run...
-        sbd_child_exec_job(specs);
+        sbd_child_exec_job(&job->spec);
         _exit(127);   /* not reached unless exec fails */
     }
 
@@ -417,12 +422,13 @@ static int sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
     job->pid_acked = true;
     job->pid_ack_time = time(NULL);
 
+    // PID/PGID acknowledged by mbd.
+    // EXECUTE will be enqueued later by the main loop (job_execute_drive).
     job->step = SBD_STEP_PID_COMMITTED;
     LS_INFO("job %"PRId64" SBD_STEP_PID_COMMITTED pid/pgid acked by mbd seq=%d",
             job->job_id, ack.seq);
 
     assert(job->execute_acked == false);
-    LS_DEBUG("job %"PRId64" BATCH_JOB_EXECUTE enqueue to mbd", job->job_id);
 
     return 0;
 }
@@ -971,7 +977,8 @@ static struct sbd_job *sbd_find_job_by_jid(int64_t job_id)
     }
     return job;
 }
-static void
+
+void
 sbd_mbd_link_down(void)
 {
     if (sbd_mbd_chan >= 0)
@@ -985,7 +992,7 @@ sbd_mbd_link_down(void)
         struct sbd_job *job = (struct sbd_job *)e;
 
         if (!job->pid_acked)
-            job->pid_reply_sent = FALSE;
+            job->reply_sent = FALSE;
         if (!job->execute_acked)
             job->execute_sent = FALSE;
         if (!job->finish_acked)

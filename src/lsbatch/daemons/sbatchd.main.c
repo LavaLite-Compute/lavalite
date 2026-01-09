@@ -33,6 +33,7 @@ static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
 static void job_finish_drive(void);
 static void job_execute_drive(void);
+static void sbd_reply_drive(void);
 static void sbd_mbd_reconnect_try(void);
 static bool_t sbd_drive_mbd_link(int, struct epoll_event *);
 
@@ -182,7 +183,7 @@ sbd_run_daemon(void)
              timer_maintenance:
                  sbd_reap_children();
                  sbd_mbd_reconnect_try();
-                 sbd_drive_reply();
+                 sbd_reply_drive();
                  job_execute_drive();
                  job_finish_drive();
                  job_status_checking();
@@ -237,7 +238,7 @@ sbd_run_daemon(void)
  *   true  -> event was handled (caller should continue)
  *   false -> not the MBD channel
  */
-static bool_t sbd_mbd_drive_link(int ch_id, struct epoll_event *ev)
+static bool_t sbd_drive_mbd_link(int ch_id, struct epoll_event *ev)
 {
     // First thing first, check it is a sbd_mbd_chan
     if (ch_id != sbd_mbd_chan)
@@ -308,7 +309,7 @@ static bool_t sbd_mbd_drive_link(int ch_id, struct epoll_event *ev)
 }
 
 // Check if mbd is connected
-inline bool sbd_mbd_link_ready(void)
+bool_t sbd_mbd_link_ready(void)
 {
     return (sbd_mbd_chan >= 0 && !sbd_mbd_connecting);
 }
@@ -629,12 +630,12 @@ static void job_status_checking(void)
     }
 }
 
-static void sbd_drive_reply(void)
+// Drive the jobReply to mbd after we have sbd created a new job
+static void sbd_reply_drive(void)
 {
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready(void)) {
-        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
-                 job->job_id);
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
         return;
     }
 
@@ -665,9 +666,8 @@ static void sbd_drive_reply(void)
 static void job_execute_drive(void)
 {
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready(void)) {
-        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
-                 job->job_id);
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
         return;
     }
 
@@ -706,11 +706,9 @@ static void job_execute_drive(void)
 static void
 job_finish_drive(void)
 {
-
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready(void)) {
-        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
-                 job->job_id);
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
         return;
     }
 

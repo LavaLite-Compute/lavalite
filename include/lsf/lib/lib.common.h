@@ -108,3 +108,6 @@ void signal_set(int, void (*f)(int));
 
 #define LS_DEBUG(fmt, ...)                                                     \
     ls_syslog(LOG_DEBUG, "%s: " fmt, __func__, ##__VA_ARGS__)
+
+#define LS_ERRX(fmt, ...)                                                       \
+    ls_syslog(LOG_ERR, "%s: " fmt, __func__, ##__VA_ARGS__)

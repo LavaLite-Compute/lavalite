@@ -45,7 +45,8 @@ extern bool_t sbd_mbd_connecting;
 int sbd_connect_mbd(void);
 int sbd_nb_connect_mbd(bool_t *);
 int sbd_enqueue_register(int);
-inline bool sbd_mbd_link_ready(void);
+bool_t sbd_mbd_link_ready(void);
+void sbd_mbd_link_down(void);
 
 // handle mbd messagges
 int sbd_handle_mbd(int);
