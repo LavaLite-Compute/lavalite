@@ -48,6 +48,30 @@ char *resolve_master_with_retry(void)
 }
 
 /*
+ * resolve_master_try()
+ *
+ * Non-blocking attempt to obtain the current master name from LIM.
+ *
+ * This function performs a single ls_getmastername() call and returns
+ * immediately. It does NOT sleep or retry; retries/backoff are handled
+ * by the caller (typically via timerfd in the main loop).
+ *
+ * Return values:
+ *   pointer to thread-local master name string on success
+ *   NULL on failure; lsberrno is set
+ */
+char *
+resolve_master_try(void)
+{
+    char *master = ls_getmastername();
+    if (master == NULL) {
+        lsberrno = LSBE_LSLIB;
+        return NULL;
+    }
+    return master;
+}
+
+/*
  * Pattern 1: Simple RPC - connect, send, receive, close
  * Used by most API calls: lsb_runjob, lsb_signaljob, lsb_kill, etc.
  */

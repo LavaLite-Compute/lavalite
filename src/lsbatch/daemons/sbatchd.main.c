@@ -31,8 +31,10 @@ static void sbd_reap_children(void);
 static void sbd_maybe_reap_children(void);
 static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
-static void job_finish_checking(void);
+static void job_finish_drive(void);
 static void job_execute_drive(void);
+static void sbd_mbd_reconnect_try(void);
+static bool_t sbd_drive_mbd_link(int, struct epoll_event *);
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -47,6 +49,9 @@ int sbd_mbd_chan = -1;
 int sbd_efd;
 static struct epoll_event *sbd_events;
 static int max_events;
+// Connection variables
+bool_t connected = false;
+bool_t sbd_mbd_connecting = false;
 
 // Handler sets these variables to signal events
 static volatile sig_atomic_t sbd_got_sigchld = 0;
@@ -124,7 +129,7 @@ sbd_run_daemon(void)
         sbd_maybe_reap_children();
 
         // SIGCHLD-driven fast path: try to finish/report immediately.
-        job_finish_checking();
+        job_finish_drive();
 
         // We pass -1 as the timer channel will ring
         int nready = chan_epoll(sbd_efd, sbd_events, max_events, -1);
@@ -135,7 +140,7 @@ sbd_run_daemon(void)
         sbd_maybe_reap_children();
 
         // Another quick finish pass after epoll wakeup.
-        job_finish_checking();
+        job_finish_drive();
 
         if (nready < 0) {
             if (epoll_errno == EINTR)
@@ -176,13 +181,24 @@ sbd_run_daemon(void)
                  // always run
              timer_maintenance:
                  sbd_reap_children();
+                 sbd_mbd_reconnect_try();
+                 sbd_drive_reply();
                  job_execute_drive();
-                 job_finish_checking();
+                 job_finish_drive();
                  job_status_checking();
                  // rest the state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
+
+             /* If the event is not for sbd_mbd_chan -> return false
+              * If not connecting -> return false (let the existing
+              * sbd_handle_mbd() path handle it)
+              *
+              * If connecting ->handle EPOLLOUT/ERR and return true
+              */
+             if (sbd_drive_mbd_link(ch_id, ev))
+                 continue;
 
              // True skip partially read channels
              if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
@@ -201,7 +217,146 @@ sbd_run_daemon(void)
          }
     }
 }
+/*
+ * sbd_drive_mbd_link()
+ *
+ * Drive the MBD link state machine from the main epoll loop.
+ *
+ * While connecting:
+ * - EPOLLERR/HUP/RDHUP => connect failed: close channel, mark link down.
+ * - EPOLLOUT           => connect finished: verify SO_ERROR, then switch
+ *                         epoll interest to EPOLLIN and proceed to registration.
+ *
+ * While connected:
+ * - Delegate to sbd_handle_mbd() to read/process messages.
+ *
+ * Reconnect is NOT performed here. On failure we mark the link down and
+ * the periodic timer maintenance (or reconnect timer) will start a new attempt.
+ *
+ * Return values:
+ *   true  -> event was handled (caller should continue)
+ *   false -> not the MBD channel
+ */
+static bool_t sbd_mbd_drive_link(int ch_id, struct epoll_event *ev)
+{
+    // First thing first, check it is a sbd_mbd_chan
+    if (ch_id != sbd_mbd_chan)
+        return false;
 
+    // Bail if we are not in the connecting process
+    if (!sbd_mbd_connecting)
+        return false;
+
+    // During connect, errors/hup mean "attempt failed".
+    if (ev->events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
+        LS_ERR("mbd link: connect failed (kernel_events=0x%x)", ev->events);
+
+        chan_close(ch_id);
+        sbd_mbd_chan = -1;
+        sbd_mbd_connecting = false;
+
+        channels[ch_id].chan_events = CHAN_EPOLLNONE;
+        return true;
+    }
+
+    // Connect completion: must verify SO_ERROR via chan_connect_finish().
+    if (ev->events & EPOLLOUT) {
+        LS_DEBUG("mbd link: connect completion (EPOLLOUT)");
+
+        if (chan_connect_finish(ch_id) < 0) {
+            LS_ERR("mbd link: connect_finish failed: %m");
+
+            chan_close(ch_id);
+            sbd_mbd_chan = -1;
+            sbd_mbd_connecting = false;
+
+            channels[ch_id].chan_events = CHAN_EPOLLNONE;
+            return true;
+        }
+
+        struct epoll_event ev2;
+        ev2.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
+        ev2.data.u32 = (uint32_t)ch_id;
+
+        if (epoll_ctl(sbd_efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev2) < 0) {
+            LS_ERR("mbd link: epoll_ctl MOD failed after connect: %m");
+
+            chan_close(ch_id);
+            sbd_mbd_chan = -1;
+            sbd_mbd_connecting = false;
+
+            channels[ch_id].chan_events = CHAN_EPOLLNONE;
+            return true;
+        }
+        // change the gloabal status sbd connecting
+        sbd_mbd_connecting = false;
+
+        LS_INFO("mbd link: connected ch=%d, enqueue registration", ch_id);
+
+        // Enqueue registration request here (async).
+        sbd_enqueue_register(ch_id);
+
+        channels[ch_id].chan_events = CHAN_EPOLLNONE;
+        return true;
+    }
+
+    // Still connecting, nothing to do for this event.
+    LS_DEBUG("mbd link: still connecting (kernel_events=0x%x)", ev->events);
+
+    channels[ch_id].chan_events = CHAN_EPOLLNONE;
+    return true;
+}
+
+// Check if mbd is connected
+inline bool sbd_mbd_link_ready(void)
+{
+    return (sbd_mbd_chan >= 0 && !sbd_mbd_connecting);
+}
+
+/*
+ * sbd_mbd_reconnect_try()
+ *
+ * Attempt a single non-blocking reconnect to MBD.
+ *
+ * This function never blocks and never sleeps. It is safe to call from
+ * the periodic timer maintenance path.
+ *
+ * If a connect attempt is started, sbd_mbd_chan is set and
+ * sbd_mbd_connecting reflects whether we are waiting for EPOLLOUT.
+ *
+ * If the connect completes immediately, the registration request can be
+ * enqueued here.
+ */
+static void
+sbd_mbd_reconnect_try(void)
+{
+    if (sbd_mbd_chan >= 0)
+        return;
+
+    if (sbd_mbd_connecting)
+        return;
+
+    bool_t connected = false;
+    int ch = sbd_nb_connect_mbd(&connected);
+    if (ch < 0) {
+        LS_DEBUG("mbd link: reconnect try failed");
+        return;
+    }
+
+    sbd_mbd_chan = ch;
+    sbd_mbd_connecting = connected ? false : true;
+
+    LS_INFO("mbd link: reconnect started ch=%d connecting=%d",
+            sbd_mbd_chan, sbd_mbd_connecting);
+
+    if (connected) {
+        // Connected immediately: enqueue registration request now (async).
+        sbd_enqueue_register(sbd_mbd_chan);
+    }
+}
+
+// Exit only if the daemon cannot run its main loop.
+// Never exit for control-plane/network unavailability.
 static int sbd_init(const char *sbatch)
 {
     // initenv will load genParams as well
@@ -224,11 +379,17 @@ static int sbd_init(const char *sbatch)
         return -1;
     }
 
+    bool_t connected = false;
     // global channel to mbd
-    sbd_mbd_chan = sbd_connect_mbd();
+    sbd_mbd_chan = sbd_nb_connect_mbd(&connected);
     if (sbd_mbd_chan < 0) {
-        LS_ERR("failed to connect to mbd");
-        return -1;
+        LS_ERR("mbd link: initial connect attempt failed");
+        sbd_mbd_chan = -1;
+        sbd_mbd_connecting = false;
+    } else {
+        sbd_mbd_connecting = connected ? false : true;
+        LS_INFO("mbd link: init ch=%d connecting=%d",
+                sbd_mbd_chan, sbd_mbd_connecting);
     }
 
     // initialize the lists and hashes
@@ -236,12 +397,6 @@ static int sbd_init(const char *sbatch)
         // Bug handle this
     }
 
-    if (sbd_mbd_register() < 0) {
-        LS_ERR("failed to register with mbd");
-        return -1;
-        sbd_mbd_chan = -1;
-        // could almost abort()
-    }
     // Green light we can start to operate
 
     return 0;
@@ -333,7 +488,7 @@ sbd_init_network(void)
     }
 
     // for now
-    sbd_timer = 10;
+    sbd_timer = 10; // seconds
     // this function is in the channel library.
     sbd_timer_chan = chan_create_timer(sbd_timer);
     if (sbd_timer_chan < 0) {
@@ -474,9 +629,48 @@ static void job_status_checking(void)
     }
 }
 
-static void
-job_execute_drive(void)
+static void sbd_drive_reply(void)
 {
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready(void)) {
+        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
+                 job->job_id);
+        return;
+    }
+
+    struct ll_list_entry *e;
+
+    for (e = sbd_job_list.head; e; e = e->next) {
+        struct sbd_job *job = (struct sbd_job *)e;
+
+        if (job->pid_acked)
+            continue;
+
+        if (job->reply_sent)
+            continue;
+
+        if (sbd_enqueue_reply(job->reply_code, &job->job_reply) < 0) {
+            LS_ERR("job %"PRId64" enqueue PID snapshot failed",
+                   job->job_id);
+            continue;
+        }
+
+        job->reply_sent = TRUE;
+        LS_DEBUG("job %"PRId64" PID snapshot enqueued (awaiting ACK)",
+                 job->job_id);
+    }
+
+}
+
+static void job_execute_drive(void)
+{
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready(void)) {
+        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
+                 job->job_id);
+        return;
+    }
+
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {
@@ -491,13 +685,15 @@ job_execute_drive(void)
         }
 
         if (job->execute_sent) {
-            LS_DEBUG("job %"PRId64" BATCH_JOB_EXECUTE sent already", job->job_id);
+            LS_DEBUG("job %"PRId64" BATCH_JOB_EXECUTE sent already",
+                     job->job_id);
             continue;
         }
 
         if (!job->execute_sent) {
             if (sbd_enqueue_execute(job) < 0) {
-                LS_ERR("job %"PRId64" enqueue BATCH_JOB_EXECUTE failed", job->job_id);
+                LS_ERR("job %"PRId64" enqueue BATCH_JOB_EXECUTE failed",
+                       job->job_id);
                 return;
             }
             job->execute_sent = true;
@@ -508,8 +704,16 @@ job_execute_drive(void)
 }
 
 static void
-job_finish_checking(void)
+job_finish_drive(void)
 {
+
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready(void)) {
+        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
+                 job->job_id);
+        return;
+    }
+
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {

@@ -383,3 +383,79 @@ ssize_t nb_read_timeout(int fd, void *buf, size_t len, int timeout_sec)
 
     return (ssize_t) total_read;
 }
+
+/*
+ * connect_begin()
+ *
+ * Start a non-blocking TCP connect on an already-created socket.
+ *
+ * The socket is put into O_NONBLOCK mode and connect() is issued.
+ *
+ * Return values:
+ *   0  - connection completed immediately
+ *   1  - connection in progress (errno == EINPROGRESS); caller must wait
+ *        for EPOLLOUT / EPOLLERR and then call connect_finish()
+ *  -1  - immediate failure; errno is set
+ *
+ * Notes:
+ * - This function NEVER blocks.
+ * - The socket is left in non-blocking mode permanently.
+ * - Connection timeout is NOT handled here; it must be enforced by
+ *   the caller using epoll + timerfd.
+ */
+int connect_begin(int s, const struct sockaddr *name, socklen_t namelen)
+{
+    int flags;
+
+    flags = fcntl(s, F_GETFL, 0);
+    if (flags < 0)
+        return -1;
+
+    if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0)
+        return -1;
+
+    if (connect(s, name, namelen) == 0)
+        return 0;
+
+    if (errno == EINPROGRESS)
+        return 1;
+
+    return -1;
+}
+
+/*
+ * connect_finish()
+ *
+ * Complete a non-blocking connect() attempt.
+ *
+ * This function must be called after epoll signals EPOLLOUT or EPOLLERR
+ * on a socket for which connect_begin() previously returned 1.
+ *
+ * It checks the final result of the connection attempt using
+ * getsockopt(SO_ERROR).
+ *
+ * Return values:
+ *   0  - connection established successfully
+ *  -1  - connection failed; errno is set to the underlying socket error
+ *
+ * Notes:
+ * - EPOLLOUT alone does NOT guarantee a successful connection.
+ * - The SO_ERROR check performed here is mandatory to distinguish
+ *   success from failure (e.g. ECONNREFUSED).
+ * - This function does NOT block.
+ */
+int connect_finish(int s)
+{
+    int err = 0;
+    socklen_t errlen = sizeof(err);
+
+    if (getsockopt(s, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0)
+        return -1;
+
+    if (err != 0) {
+        errno = err;
+        return -1;
+    }
+
+    return 0;
+}

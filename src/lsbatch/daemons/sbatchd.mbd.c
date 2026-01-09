@@ -48,9 +48,7 @@ int sbd_handle_mbd(int ch_id)
 
     if (chan->chan_events == CHAN_EPOLLERR) {
         LS_ERR("lost connection with mbd on channel %d", ch_id);
-        chan_close(ch_id);
-        // change the state of our connections to mbd
-        sbd_mbd_chan = -1;
+        sbd_mbd_link_down();
         return -1;
     }
 
@@ -154,15 +152,18 @@ send_reply:
     /* free heap members inside spec that xdr allocated */
     xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
+    // Copy the structures
+    job->job_reply = job_reply;
+    job->reply_code = reply_code;
     // send the reply to mbd
-    sbd_enqueue_reply(reply_code, &job_reply);
-    /*
-    int cc = chan_write(sbd_mbd_chan, &job_reply, LL_BUFSIZ_4K);
+    int cc = sbd_enqueue_reply(reply_code, &job_reply);
     if (cc < 0) {
-        LS_ERR("chan_write fails");
-        return -1;
+        LS_ERR("job %"PRId64" enqueue jobReply failed",
+               job->job_id);
+    } else {
+        job->reply_sent = true;
     }
-    */
+
     return 0;
 }
 
@@ -303,6 +304,12 @@ static void sbd_child_exec_job(struct jobSpecs *specs)
             _exit(127);
         }
 
+        // Exec the materialized script. We keep cwd as set above.
+        // do this before we dup the descriptor otherwise the job stderr
+        // will have this message
+        LS_INFO("job <%s>: exec /bin/sh %s",
+                lsb_jobid2str(specs->jobId), jobpath);
+
         // 3) Redirect stdio after jobfile creation so system errors don't land
         //    in user stdout/stderr in early setup.
         if (sbd_redirect_stdio(specs) < 0)
@@ -324,10 +331,6 @@ static void sbd_child_exec_job(struct jobSpecs *specs)
                 _exit(127);
             }
         }
-
-        // Exec the materialized script. We keep cwd as set above.
-        LS_INFO("job <%s>: exec /bin/sh %s",
-                lsb_jobid2str(specs->jobId), jobpath);
 
         {
             char *argv[2];
@@ -547,7 +550,7 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
      * Now it is safe to destroy the sbatchd-side job record/spool:
      * mbd event log is the source of truth, and FINISH is committed.
      */
-    sbd_job_free(job);
+    sbd_job_destroy(job);
     return 0;
 }
 
@@ -569,16 +572,17 @@ sbd_job_lookup(int job_id)
  * does NOT free job memory
  * -------------------------------------------------------------------- */
 void
-sbd_job_unlink(struct sbd_job *job)
+sbd_job_destroy(struct sbd_job *job)
 {
     char keybuf[32];
 
-    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
+    snprintf(keybuf, sizeof(keybuf), "%"PRId64, job->job_id);
 
     ll_hash_remove(sbd_job_hash, keybuf);
     ll_list_remove(&sbd_job_list, &job->list);
-}
 
+    sbd_job_free(job);
+}
 
 /* ----------------------------------------------------------------------
  * free job memory
@@ -586,6 +590,9 @@ sbd_job_unlink(struct sbd_job *job)
 void
 sbd_job_free(struct sbd_job *job)
 {
+    if (job == NULL)
+        return;
+
     free(job);
 }
 
@@ -963,4 +970,27 @@ static struct sbd_job *sbd_find_job_by_jid(int64_t job_id)
         return NULL;
     }
     return job;
+}
+static void
+sbd_mbd_link_down(void)
+{
+    if (sbd_mbd_chan >= 0)
+        chan_close(sbd_mbd_chan);
+
+    sbd_mbd_chan = -1;
+    sbd_mbd_connecting = false;
+
+    struct ll_list_entry *e;
+    for (e = sbd_job_list.head; e; e = e->next) {
+        struct sbd_job *job = (struct sbd_job *)e;
+
+        if (!job->pid_acked)
+            job->pid_reply_sent = FALSE;
+        if (!job->execute_acked)
+            job->execute_sent = FALSE;
+        if (!job->finish_acked)
+            job->finish_sent = FALSE;
+    }
+
+    LS_ERR("mbd link down: cleared pending sent flags for resend");
 }

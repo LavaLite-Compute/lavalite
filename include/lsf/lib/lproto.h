@@ -270,3 +270,5 @@ int millisleep_(uint32_t);
 int is_valid_host(const char *hname);
 int rd_poll(int, int);
 int connect_timeout(int, const struct sockaddr *, socklen_t, int);
+int connect_begin(int, const struct sockaddr *, socklen_t);
+int connect_finish(int);

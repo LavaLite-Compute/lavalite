@@ -112,6 +112,28 @@ int chan_listen_socket(int type, u_short port, int backlog, int options)
     return ch;
 }
 
+/*
+ * chan_client_socket()
+ *
+ * Allocate a new channel and create the underlying client socket.
+ *
+ * This function creates a socket(2), associates it with a free channel
+ * slot, and sets the channel type (TCP or UDP client).
+ *
+ * Return values:
+ *   >=0  channel id on success
+ *   -1   on failure; lserrno is set
+ *
+ * Notes:
+ * - This function only creates the socket and channel binding; it does
+ *   NOT connect. Connection is performed separately via
+ *   chan_connect_begin()/chan_connect_finish() (or the UDP send/recv
+ *   datagram path).
+ * - The socket is created with CLOEXEC. Non-blocking mode is typically
+ *   enabled by connect_begin() for TCP connect flows.
+ * - The caller is responsible for closing the channel on failure paths
+ *   after this returns success.
+ */
 int chan_client_socket(int domain, int type, int options)
 {
     if (domain != AF_INET) {
@@ -132,6 +154,7 @@ int chan_client_socket(int domain, int type, int options)
     }
 
     channels[ch].sock = s;
+    channels[ch].chan_events = CHAN_EPOLLNONE;
     if (type == SOCK_STREAM)
         channels[ch].type = CHAN_TYPE_TCP_CLIENT;
     else
@@ -673,6 +696,18 @@ static void enqueueTail_(struct Buffer *entry, struct Buffer *pred)
     pred->back = entry;
 }
 
+/*
+ * chan_find_free()
+ *
+ * Find a free channel slot.
+ *
+ * A channel slot is considered free if channels[i].sock == -1.
+ * This function clears send/recv pointers for the returned slot.
+ *
+ * Return values:
+ *   channel index on success
+ *   -1 if no free slots are available
+ */
 static int chan_find_free(void)
 {
     for (int i = 0; i < chan_open_max; i++) {
@@ -755,4 +790,95 @@ static inline bool_t chan_is_valid(int ch_id)
     }
 
     return true;
+}
+
+/*
+ * chan_connect_begin()
+ *
+ * Channel-level wrapper for initiating a non-blocking TCP connect.
+ *
+ * This function starts a TCP connection attempt on a channel of type
+ * CHAN_TYPE_TCP_CLIENT using a non-blocking connect().
+ *
+ * Return values:
+ *   0  - connection completed immediately
+ *   1  - connection in progress; caller must wait for EPOLLOUT /
+ *        EPOLLERR on the channel socket and then call
+ *        chan_connect_finish()
+ *  -1  - immediate failure; lserrno is set
+ *
+ * Notes:
+ * - This function NEVER blocks.
+ * - The socket is left in non-blocking mode permanently.
+ * - Connection timeout is NOT handled here; it must be enforced by
+ *   the event loop using epoll + timerfd.
+ * - The caller is responsible for installing EPOLLOUT|EPOLLERR
+ *   interest when the return value is 1.
+ */
+int chan_connect_begin(int ch_id, struct sockaddr_in *peer, int options)
+{
+    int cc;
+
+    (void) options; // unused for now
+
+    if (channels[ch_id].type != CHAN_TYPE_TCP_CLIENT) {
+        lserrno = LSE_INTERNAL;
+        return -1;
+    }
+    if (peer == NULL) {
+        lserrno = LSE_BAD_ARGS;
+        return -1;
+    }
+
+    cc = connect_begin(channels[ch_id].sock,
+                       (struct sockaddr *)peer,
+                       sizeof(*peer));
+    if (cc == 0)
+        return 0;
+
+    if (cc == 1)
+        return 1;
+
+    lserrno = LSE_CONN_SYS;
+    return -1;
+}
+/*
+ * chan_connect_finish()
+ *
+ * Channel-level wrapper for completing a non-blocking TCP connect.
+ *
+ * This function must be called when epoll reports EPOLLOUT or EPOLLERR
+ * on a channel socket that is in the process of connecting.
+ *
+ * It validates the channel, retrieves the underlying socket, and
+ * delegates the final connection check to connect_finish().
+ *
+ * Return values:
+ *   0  - connection established successfully
+ *  -1  - connection failed; lserrno is set
+ *
+ * Notes:
+ * - Connection timeouts are NOT handled here; they are enforced by the
+ *   event loop using a timerfd.
+ * - On failure, the caller is expected to close the channel and
+ *   schedule a reconnect.
+ */
+int chan_connect_finish(int ch_id)
+{
+    if (channels[ch_id].type != CHAN_TYPE_TCP_CLIENT) {
+        lserrno = LSE_INTERNAL;
+        return -1;
+    }
+
+    int fd = chan_sock(ch_id);
+    if (fd < 0)
+        return -1;
+
+    if (connect_finish(fd) < 0) {
+        // Timeout is enforced by the event loop (timerfd), not here.
+        lserrno = LSE_CONN_SYS;
+        return -1;
+    }
+
+    return 0;
 }

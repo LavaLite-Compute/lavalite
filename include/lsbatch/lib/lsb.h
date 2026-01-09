@@ -139,3 +139,4 @@ int call_mbd(void *, size_t, char **, struct packet_header *, struct lenData *);
 int open_mbd_stream(void *, size_t, char **, struct packet_header *);
 void close_mbd_stream(int);
 char *resolve_master_with_retry(void);
+char *resolve_master_try(void);

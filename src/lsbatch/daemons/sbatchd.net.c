@@ -28,7 +28,113 @@ extern int _lsb_recvtimeout;
 extern char *resolve_master_with_retry(void);
 static int chan_enable_write(void);
 
-// Create a permanent channel to mbd
+/*
+ * sbd_nb_connect_mbd()
+ *
+ * Create a TCP client channel to MBD and initiate a non-blocking connect.
+ *
+ * Master name is obtained via resolve_master_try() and resolved to IPv4
+ * using get_host_by_name(). IPv6 is intentionally out of scope for now.
+ *
+ * On success, the channel socket is registered with epoll:
+ * - If connect completes immediately, EPOLLIN|EPOLLERR|EPOLLRDHUP is used
+ *   and *connected is set to TRUE.
+ * - If connect is in progress, EPOLLOUT|EPOLLERR|EPOLLRDHUP is used and
+ *   *connected is set to FALSE (caller will finish on EPOLLOUT).
+ *
+ * Return values:
+ *   >=0  channel id on success
+ *   -1   on failure; lsberrno/lserrno is set
+ */
+int
+sbd_nb_connect_mbd(bool_t *connected)
+{
+    if (connected != NULL)
+        *connected = false;
+
+    char *master = resolve_master_try();
+    if (master == NULL)
+        return -1;
+
+    uint16_t port = get_mbd_port();
+    if (port == 0) {
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    struct ll_host hp;
+    memset(&hp, 0, sizeof(hp));
+    if (get_host_by_name(master, &hp) < 0) {
+        // Keep mapping simple for now; get_host_by_name() can set lserrno.
+        lsberrno = LSBE_LSLIB;
+        return -1;
+    }
+
+    if (hp.family != AF_INET) {
+        // IPv6 out of scope for now
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    // Convert ll_host sockaddr_storage -> sockaddr_in and set port.
+    struct sockaddr_in peer;
+    memset(&peer, 0, sizeof(peer));
+    peer = *(struct sockaddr_in *)&hp.sa;
+    peer.sin_port = htons(port);
+
+    int ch_id = chan_client_socket(AF_INET, SOCK_STREAM, 0);
+    if (ch_id < 0)
+        return -1;
+
+    // LavaLite gives the client the buffers
+    channels[ch_id].send = chan_make_buf();
+    channels[ch_id].recv = chan_make_buf();
+
+    if (channels[ch_id].send == NULL || channels[ch_id].recv == NULL) {
+        lserrno = LSE_NO_MEM;
+        chan_close(ch_id);
+        return -1;
+    }
+
+    int rc = connect_begin(chan_sock(ch_id),
+                           (struct sockaddr *)&peer,
+                           sizeof(peer));
+    if (rc < 0) {
+        lserrno = LSE_CONN_SYS;
+        chan_close(ch_id);
+        return -1;
+    }
+
+    struct epoll_event ev;
+    if (rc == 0) {
+        if (connected != NULL)
+            *connected = true;
+
+        ev.events = EPOLLIN | EPOLLERR | EPOLLRDHUP;
+        ev.data.u32 = (uint32_t)ch_id;
+
+        if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev) < 0) {
+            LS_ERR("epoll_ctl() failed to add mbd chan");
+            chan_close(ch_id);
+            return -1;
+        }
+
+        return ch_id;
+    }
+
+    ev.events = EPOLLOUT | EPOLLERR | EPOLLRDHUP;
+    ev.data.u32 = (uint32_t)ch_id;
+
+    if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev) < 0) {
+        LS_ERR("epoll_ctl() failed to add mbd connecting chan");
+        chan_close(ch_id);
+        return -1;
+    }
+
+    return ch_id;
+}
+
+// Create a permanent channel to mbd using a blocking connect
 int sbd_connect_mbd(void)
 {
     char *master = resolve_master_with_retry();
@@ -75,9 +181,20 @@ int sbd_connect_mbd(void)
  *     return xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname));
  * }
  */
-int sbd_mbd_register(void)
+/*
+ * sbd_enqueue_register()
+ *
+ * Enqueue an SBD registration request to MBD on an already-connected channel.
+ *
+ * This is non-blocking: it encodes the request into a heap-backed Buffer and
+ * queues it on the channel send path. The epoll-driven dowrite() will flush it.
+ *
+ * The reply (BATCH_SBD_REGISTER_REPLY) is handled asynchronously in sbd_handle_mbd().
+ */
+int sbd_enqueue_register(int ch_id)
 {
     char host[MAXHOSTNAMELEN];
+
     if (gethostname(host, sizeof(host)) < 0) {
         LS_ERR("cannot get local hostname: %m");
         snprintf(host, sizeof(host), "unknown");
@@ -91,51 +208,42 @@ int sbd_mbd_register(void)
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_SBD_REGISTER;
 
-    char request_buf[LL_BUFSIZ_4K];
-    XDR xdrs_req;
-    xdrmem_create(&xdrs_req, request_buf, sizeof(request_buf), XDR_ENCODE);
+    struct Buffer *buf = NULL;
+    if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
+        LS_ERR("sbd register: chan_alloc_buf failed");
+        return -1;
+    }
 
-    if (!xdr_encodeMsg(&xdrs_req,
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
+
+    if (!xdr_encodeMsg(&xdrs,
                        (char *)&req,
                        &hdr,
                        xdr_wire_sbd_register,
                        0,
                        NULL)) {
+        LS_ERR("sbd register: xdr_encodeMsg failed");
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
         lsberrno = LSBE_XDR;
-        xdr_destroy(&xdrs_req);
         return -1;
     }
 
-    struct Buffer req_buf = {
-        .data = request_buf,
-        .len  = (size_t)xdr_getpos(&xdrs_req),
-        .forw = NULL
-    };
-    struct Buffer reply_buf = {0};
+    buf->len = (size_t)xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
 
-    // do blocking io with mbd reply_buf must be not NULL so the call
-    // will wait for a reply, we only want back the header for how
-    int cc = chan_rpc(sbd_mbd_chan, &req_buf, &reply_buf, &hdr,
-                      _lsb_recvtimeout * 1000);
-    xdr_destroy(&xdrs_req);
-    if (cc < 0) {
-        lsberrno = LSBE_SYS_CALL;
+    /*
+     * Queue for send. This must append buf to the channel send queue and
+     * ensure EPOLLOUT interest is enabled so dowrite() will run.
+     */
+    if (chan_enqueue(ch_id, buf) < 0) {
+        LS_ERR("sbd register: send enqueue failed");
+        chan_free_buf(buf);
         return -1;
     }
 
-    if (hdr.operation != BATCH_SBD_REGISTER_REPLY ) {
-        LS_ERR("mbd registration failed error: %d", lsberrno);
-        if (reply_buf.data != NULL)
-            free(reply_buf.data);
-        return -1;
-    }
-
-    if (reply_buf.data != NULL)
-        free(reply_buf.data);
-
-
-    LS_INFO("sbatchd registered with mbd as host: %s", host);
-
+    LS_INFO("sbd register: enqueued request as host: %s", host);
     return 0;
 }
 
@@ -146,6 +254,12 @@ int sbd_mbd_register(void)
 int sbd_enqueue_reply(int reply_code, const struct jobReply *job_reply)
 {
     char *reply_struct;
+
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready(void)) {
+        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
+                 job->job_id;
+    }
 
     reply_struct = NULL;
     if (reply_code == ERR_NO_ERROR) {
@@ -263,6 +377,12 @@ int sbd_enqueue_finish(struct sbd_job *job)
     if (job == NULL) {
         errno = EINVAL;
         return -1;
+    }
+
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready(void)) {
+        LS_DEBUG("mbd link not ready, skip EXEC enqueue for job %ld",
+                 job->job_id;
     }
 
     if (!job->pid_acked) {

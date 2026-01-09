@@ -39,9 +39,13 @@ extern int sbd_chan;
 extern int sbd_timer_chan;
 // channel to mbd, sbd is a permanent client of mbd
 extern int sbd_mbd_chan;
+extern bool_t connected;
+extern bool_t sbd_mbd_connecting;
 
-int sbd_mbd_register(void);
 int sbd_connect_mbd(void);
+int sbd_nb_connect_mbd(bool_t *);
+int sbd_enqueue_register(int);
+inline bool sbd_mbd_link_ready(void);
 
 // handle mbd messagges
 int sbd_handle_mbd(int);
@@ -104,7 +108,9 @@ struct sbd_job {
      */
     bool_t pid_acked;
     time_t pid_ack_time;         // time when pid_acked was set (diagnostics)
-
+    struct jobReply job_reply; // the JobReply structure to mbd
+    int reply_code;       // the reply code from sbd_spawn_job()
+    bool_t reply_sent;    // if the reply was sent out (enqueued)
     /*
      * execute_acked (EXECUTE_COMMITTED):
      *   Set to TRUE when sbatchd processes the ACK for the EXECUTE event,
@@ -155,13 +161,10 @@ struct sbd_job *sbd_job_lookup(int job_id);
 struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
 
 // Insert job into global list + hash.
-void sbd_job_insert(struct sbd_job *job);
-
-// Remove job from global list + hash (does not free()).
-void sbd_job_unlink(struct sbd_job *job);
-
-// Free job structure and any attached resources.
-void sbd_job_free(struct sbd_job *job);
+void sbd_job_insert(struct sbd_job *);
+// Remove and destroy job from global list + hash + free.
+void sbd_job_destroy(struct sbd_job *);
+void sbd_job_free(struct sbd_job *);
 
 // Mapping between sbatchd state and lsbatch.h JOB_STAT_* bitmask
 int sbd_state_to_jstatus(enum sbd_job_state);
@@ -176,3 +179,4 @@ void jobSpecs_free(struct jobSpecs *);
 int sbd_enqueue_reply(int, const struct jobReply *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
+bool_t sbd_mbd_link_ready(void);
