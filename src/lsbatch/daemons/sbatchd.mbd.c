@@ -162,6 +162,12 @@ send_reply:
     // Copy the structures
     job->job_reply = job_reply;
     job->reply_code = reply_code;
+
+    // even if the return code is not ERR_NO_ERROR we still
+    // want to write is as mbd has to ack the error state
+    if (sbd_job_record_write(job) < 0)
+        LS_ERRX("job %"PRId64": record write failed at start", job->job_id);
+
     // send the reply to mbd, note the child has been forked and
     // presumed running at this stage
     int cc = sbd_enqueue_reply(reply_code, &job_reply);
@@ -275,21 +281,55 @@ static void sbd_child_exec_job(struct jobSpecs *specs)
     //    (LSB_SHAREDIR/sbatchd/<unixtime.jobid>/job.sh) and remember its path.
     {
         const char *sharedir = lsbParams[LSB_SHAREDIR].paramValue;
+        char sbd_root[PATH_MAX];
+        char sbd_jfiles[PATH_MAX];
         char sbd_local_wkdir[PATH_MAX];
         char jobpath[PATH_MAX];
 
-        // Create per-job directory under LSB_SHAREDIR (ignore EEXIST).
-        // <sharedir>/sbatchd/<specs->jobFile> where jobFile is "unixtime.jobid".
+        // Build:
+        //   <sharedir>/sbatchd
+        //   <sharedir>/sbatchd/jfiles
+        //   <sharedir>/sbatchd/jfiles/<specs->jobFile>
+        if (snprintf(sbd_root, sizeof(sbd_root), "%s/sbatchd", sharedir) >=
+            (int)sizeof(sbd_root)) {
+            LS_ERR("job <%s>: sbatchd root path too long",
+                   lsb_jobid2str(specs->jobId));
+            _exit(127);
+        }
+
+        if (snprintf(sbd_jfiles, sizeof(sbd_jfiles), "%s/jfiles", sbd_root) >=
+            (int)sizeof(sbd_jfiles)) {
+            LS_ERR("job <%s>: sbatchd jfiles path too long",
+                   lsb_jobid2str(specs->jobId));
+            _exit(127);
+        }
+
         if (snprintf(sbd_local_wkdir, sizeof(sbd_local_wkdir),
-                     "%s/sbatchd/%s", sharedir, specs->jobFile) >=
+                     "%s/%s", sbd_jfiles, specs->jobFile) >=
             (int)sizeof(sbd_local_wkdir)) {
             LS_ERR("job <%s>: local workdir path too long",
                    lsb_jobid2str(specs->jobId));
             _exit(127);
         }
 
-        LS_INFO("job <%s>: sbd_local_wkdir=<%s> jobpath=<%s>",
-                lsb_jobid2str(specs->jobId), sbd_local_wkdir, jobpath);
+        // Create parent directories (ignore EEXIST).
+        if (mkdir(sbd_root, 0700) < 0 && errno != EEXIST) {
+            LS_ERR("job <%s>: mkdir(%s) failed: %s",
+                   lsb_jobid2str(specs->jobId),
+                   sbd_root,
+                   strerror(errno));
+            _exit(127);
+        }
+        if (mkdir(sbd_jfiles, 0700) < 0 && errno != EEXIST) {
+            LS_ERR("job <%s>: mkdir(%s) failed: %s",
+                   lsb_jobid2str(specs->jobId),
+                   sbd_jfiles,
+                   strerror(errno));
+            _exit(127);
+        }
+
+        LS_INFO("job <%s>: sbd_local_wkdir=<%s>",
+                lsb_jobid2str(specs->jobId), sbd_local_wkdir);
 
         if (mkdir(sbd_local_wkdir, 0700) < 0 && errno != EEXIST) {
             LS_ERR("job <%s>: mkdir(%s) failed: %s",
@@ -310,13 +350,13 @@ static void sbd_child_exec_job(struct jobSpecs *specs)
         }
 
         // Exec the materialized script. We keep cwd as set above.
-        // do this before we dup the descriptor otherwise the job stderr
-        // will have this message
-        LS_INFO("job <%s>: exec /bin/sh %s",
+        // Do this before we dup the descriptor otherwise the job stderr
+        // will have this message.
+        LS_INFO("job <%s>: exec %s",
                 lsb_jobid2str(specs->jobId), jobpath);
 
-        // 3) Redirect stdio after jobfile creation so system errors don't land
-        //    in user stdout/stderr in early setup.
+        // Redirect stdio after jobfile creation so system errors don't land
+        // in user stdout/stderr in early setup.
         if (sbd_redirect_stdio(specs) < 0)
             _exit(127);
 
@@ -421,6 +461,10 @@ static int sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
     // This ack means: mbd has recorded pid/pgid for this job.
     job->pid_acked = true;
     job->pid_ack_time = time(NULL);
+    // write the job record
+    if (sbd_job_record_write(job) < 0)
+         LS_ERRX("job %"PRId64": record write failed after pid_acked",
+                 job->job_id);
 
     // PID/PGID acknowledged by mbd.
     // EXECUTE will be enqueued later by the main loop (job_execute_drive).
@@ -486,7 +530,11 @@ sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     job->execute_acked = TRUE;
+
     job->step = SBD_STEP_EXECUTE_COMMITTED;
+    if (sbd_job_record_write(job) < 0)
+        LS_ERRX("job %"PRId64": record write failed after execute_acked",
+                job->job_id);
 
     LS_INFO("job=%"PRId64" BATCH_JOB_EXECUTE committed to mbd", job->job_id);
 
@@ -547,10 +595,19 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     job->finish_acked = true;
-    job->step = SBD_STEP_FINISH_COMMITTED;
-
     LS_INFO("job=%"PRId64" BATCH_JOB_FINISH committed by mbd; cleaning up",
             job->job_id);
+
+    // wite the acked
+    if (sbd_job_record_write(job) < 0)
+        LS_ERRX("job %"PRId64": record write failed after finish_acked", job->job_id);
+
+    // and remove the job record right away
+    if (0 && sbd_job_record_remove(job->job_id) < 0)
+        LS_ERRX("job %"PRId64": record remove failed", job->job_id);
+
+    job->step = SBD_STEP_FINISH_COMMITTED;
+
 
     /*
      * Now it is safe to destroy the sbatchd-side job record/spool:
@@ -892,7 +949,7 @@ static int sbd_redirect_stdio(const struct jobSpecs *specs)
     return 0;
 }
 
-static int write_all(int fd, const char *buf, size_t len)
+int write_all(int fd, const char *buf, size_t len)
 {
     size_t off = 0;
 
@@ -947,6 +1004,12 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
         return -1;
     }
 
+    if (fsync(fd) < 0) {
+        close(fd);
+        unlink(tmp);
+        return -1;
+    }
+
     if (close(fd) < 0) {
         unlink(tmp);
         return -1;
@@ -978,6 +1041,31 @@ static struct sbd_job *sbd_find_job_by_jid(int64_t job_id)
     return job;
 }
 
+/*
+ * sbd_mbd_link_down()
+ *
+ * Handle loss of the mbd connection.
+ *
+ * This function is the single authority for transitioning sbatchd into
+ * "disconnected" state with respect to mbd. It:
+ *
+ *   - Closes and invalidates the mbd channel.
+ *   - Clears per-job "sent" flags (reply/execute/finish) for any protocol
+ *     steps that have not yet been ACKed by mbd, making them eligible
+ *     for resend once the connection is re-established.
+ *   - Persists the updated per-job state immediately to disk so that
+ *     resend eligibility survives sbatchd restart.
+ *
+ * Important invariants:
+ *   - ACKed protocol steps (pid_acked, execute_acked, finish_acked) are
+ *     never reverted.
+ *   - Only non-ACKed "sent" flags are cleared.
+ *   - Job records are rewritten for every affected job to keep on-disk
+ *     state consistent with in-memory resend logic.
+ *
+ * This function may be called multiple times; it is idempotent with
+ * respect to protocol state.
+ */
 void
 sbd_mbd_link_down(void)
 {
@@ -997,7 +1085,10 @@ sbd_mbd_link_down(void)
             job->execute_sent = FALSE;
         if (!job->finish_acked)
             job->finish_sent = FALSE;
+        // Write the latest job record
+        if (sbd_job_record_write(job) < 0)
+            LS_ERRX("job %"PRId64": record write failed after link_down", job->job_id);
     }
 
-    LS_ERR("mbd link down: cleared pending sent flags for resend");
+    LS_ERR("mbd link down: cleared pending sent flags for resend and record");
 }

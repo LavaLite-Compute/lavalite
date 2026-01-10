@@ -148,11 +148,31 @@ struct sbd_job {
     enum sbd_job_step step;  // committed protocol milestone (ACK-driven)
 };
 
+// Struct sbd job state to save the minimum status of the job to the
+// state file for the purpose of reloading it if/when the sbd restarts
+struct sbd_job_record {
+    int64_t job_id;
+
+    pid_t pid;
+    pid_t pgid;
+
+    bool_t reply_committed;    // PID_COMMITTED (op30)
+    bool_t execute_committed;  // EXECUTE committed (op31)
+    bool_t finish_committed;   // FINISH committed (op32)
+
+    bool_t finished_locally;   // we reaped it
+    int    exit_status;        // raw waitpid() status
+};
+
+
 // Global containers (defined in sbd.job.c or sbd.main.c)
 extern struct ll_list sbd_job_list;   // intrusive list of all active jobs
 extern struct ll_hash *sbd_job_hash;  // key: job_id -> value: struct sbd_job*
 
 // ---- sbd_job workers ----
+
+// sbd write helper make sure all buffer is drained
+int write_all(int fd, const char *, size_t);
 
 // Look up a job by jobId (NULL if not found).
 struct sbd_job *sbd_job_lookup(int job_id);
@@ -181,3 +201,15 @@ int sbd_enqueue_reply(int, const struct jobReply *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
 bool_t sbd_mbd_link_ready(void);
+
+// sbd record function
+int sbd_job_record_dir_init(void);
+
+int sbd_job_record_load_all(void);
+int sbd_job_record_write(struct sbd_job *);
+int sbd_job_record_path(int64_t, char *, size_t);
+int sbd_job_record_remove(int64_t);
+
+// sbd has command to qyery its internal status
+int handlle_sbd_accept(int);
+int sbd_reply_hdr_only(int, int, struct packet_header *);

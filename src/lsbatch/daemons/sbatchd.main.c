@@ -43,7 +43,7 @@ struct ll_hash *sbd_job_hash;
 
 static uint16_t sbd_port;
 // sbd_can to talk to external clients like monitors
-int sbd_chan;
+int sbd_listen_chan;
 static int sbd_timer;
 int sbd_timer_chan;
 int sbd_mbd_chan = -1;
@@ -211,11 +211,26 @@ sbd_run_daemon(void)
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
-             if (ch_id == sbd_chan) {
-                 LS_DEBUG("This is the listening sbd channel");
+             if (ch_id == sbd_listen_chan) {
+                 handlle_sbd_accept(ch_id);
+                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
+                 continue;
+             }
+             // just to do it a bit different let's use a switch
+             switch (channels[ch_id].chan_events) {
+
+             case CHAN_EPOLLIN:
+             case CHAN_EPOLLERR:
+                 handle_sbd_client(ch_id);
+                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
+                 break;
+
+             case CHAN_EPOLLNONE:
+             default:
+                 break;
              }
 
-         }
+        }
     }
 }
 /*
@@ -364,6 +379,20 @@ static int sbd_init(const char *sbatch)
     if (initenv_(lsbParams, NULL) < 0) {
         return -1;
     }
+    // Initialize persistent job state storage early.
+    // If we can't create/validate the state directory, we cannot guarantee
+    // restart-safe job tracking, so fail fast before allocating resources.
+    if (sbd_job_record_dir_init() < 0) {
+        LS_ERR("failed to initialize persistent state storage");
+        return -1;
+    }
+
+    // Still early, but after paths are known.
+    // Reconstruct jobs seen before last shutdown.
+    if (sbd_job_record_load_all() < 0) {
+        LS_ERR("failed to load persistent job state");
+        return -1;
+    }
 
     sbd_init_signals();
 
@@ -448,9 +477,9 @@ sbd_init_network(void)
     }
 
     // now open the sbd server channel
-    sbd_chan = chan_listen_socket(SOCK_STREAM, sbd_port,
+    sbd_listen_chan = chan_listen_socket(SOCK_STREAM, sbd_port,
                                   SOMAXCONN, CHAN_OP_SOREUSE);
-    if (sbd_chan < 0) {
+    if (sbd_listen_chan < 0) {
         LS_ERR("Failed to initialize the sbd channel, another sbd running?");
         return -1;
     }
@@ -459,7 +488,7 @@ sbd_init_network(void)
     sbd_efd = epoll_create1(EPOLL_CLOEXEC);
     if (sbd_efd < 0) {
         LS_ERR("epoll_create1() failed: %m");
-        chan_close(sbd_chan);
+        chan_close(sbd_listen_chan);
         return -1;
     }
 
@@ -474,17 +503,17 @@ sbd_init_network(void)
     if (sbd_events == NULL) {
         LS_ERR("faild to calloc epoll_events");
         close(sbd_efd);
-        chan_close(sbd_chan);
+        chan_close(sbd_listen_chan);
         return -1;
     }
 
     // sbd main channel
-    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = (uint32_t)sbd_chan};
-    if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_chan), &ev) < 0) {
+    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = (uint32_t)sbd_listen_chan};
+    if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_listen_chan), &ev) < 0) {
         LS_ERR("epoll_ctl() failed to add sbd chan");
         free(sbd_events);
         close(sbd_efd);
-        chan_close(sbd_chan);
+        chan_close(sbd_listen_chan);
         return -1;
     }
 
@@ -495,7 +524,7 @@ sbd_init_network(void)
     if (sbd_timer_chan < 0) {
         free(sbd_events);
         close(sbd_efd);
-        chan_close(sbd_chan);
+        chan_close(sbd_listen_chan);
         return -1;
     }
 
@@ -505,12 +534,12 @@ sbd_init_network(void)
     if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_timer_chan), &ev) < 0) {
         LS_ERR("epoll_ctl() failed to add sbd chan");
         close(sbd_efd);
-        chan_close(sbd_chan);
+        chan_close(sbd_listen_chan);
         return -1;
     }
 
     LS_INFO("sbatchd listening on port %d chan: %d, epoll_fd: %d timer: %dsec",
-            sbd_port, sbd_chan, sbd_efd, sbd_timer);
+            sbd_port, sbd_listen_chan, sbd_efd, sbd_timer);
 
     return 0;
 }
@@ -698,7 +727,10 @@ static void job_execute_drive(void)
             }
             job->execute_sent = true;
             LS_INFO("job %"PRId64" BATCH_JOB_EXECUTE enqueued", job->job_id);
-            continue;   // do not send FINISH in same tick
+            if (sbd_job_record_write(job) < 0)
+                LS_ERRX("job %"PRId64": record write failed after reply_sent",
+                        job->job_id);
+            continue;
         }
     }
 }
@@ -743,6 +775,10 @@ job_finish_drive(void)
             int rc = sbd_enqueue_finish(job);
             if (rc == 0) {
                 job->finish_sent = true;
+                /* maybe job->state/step too */
+                if (sbd_job_record_write(job) < 0)
+                    LS_ERRX("job %"PRId64": record write failed after reap",
+                            job->job_id);
                 LS_INFO("job %"PRId64" finish enqueued", job->job_id);
             } else {
                 LS_WARNING("job %"PRId64" finish enqueue failed", job->job_id);

@@ -40,4 +40,5 @@ libllbat_a_SOURCES = lsb.comm.c \
 	lsb.sub.c \
 	lsb.switch.c \
 	lsb.users.c \
-	lsb.xdr.c
+	lsb.xdr.c  \
+    lsb.sbd.c
