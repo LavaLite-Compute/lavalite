@@ -63,6 +63,11 @@ main(int argc, char **argv)
         return 2;
     }
 
+    if (lsb_init(argv[0]) < 0) {
+        lsb_perror("lsb_init");
+        return -1;
+    }
+
     for (int i = 1; i < argc; i++) {
         const char *host = argv[i];
         struct sbdJobInfo *jobs = NULL;

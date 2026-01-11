@@ -42,10 +42,8 @@ sbdReplyType start_job(struct jData *job,
     // Bail if we dont have a connection to this sbd
     // in this case we should not be here to begin with
     // but that is a scheduling issue
-    if (host_node->sbd_node == NULL
-        || host_node->sbd_node->chanfd == -1) {
-        errno = ECONNREFUSED; // make %m meaningful
-        LS_ERR("sbd on the node %s is not connected cannot schedule",
+    if (host_node->sbd_node == NULL) {
+        LS_ERRX("sbd on the node %s is not connected cannot schedule",
                host_node->host);
         return ERR_UNREACH_SBD;
 

@@ -28,11 +28,10 @@
 
 #include "lsbatch/lib/lsb.sbdproto.h"
 
-// Upper bound for jobs returned by sbatchd.
-// This is a safety limit for XDR decoding, not an expected workload size.
-#ifndef SBD_JOBS_MAX
-#define SBD_JOBS_MAX 8192
-#endif
+// defined in lsb.init.c but never declared in any header
+// prehistoric C
+extern int _lsb_conntimeout;
+extern int _lsb_recvtimeout;
 
 bool_t
 xdr_sbdJobsListReq(XDR *xdrs, struct sbdJobsListReq *p,
@@ -41,12 +40,12 @@ xdr_sbdJobsListReq(XDR *xdrs, struct sbdJobsListReq *p,
     (void)hdr;
 
     if (!xdrs || !p)
-        return FALSE;
+        return false;
 
-    if (!xdr_int(xdrs, &p->flags))
-        return FALSE;
+    if (!xdr_int32_t(xdrs, &p->flags))
+        return false;
 
-    return TRUE;
+    return true;
 }
 
 bool_t xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
@@ -55,49 +54,49 @@ bool_t xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
     (void)hdr;
 
     if (!xdrs || !p)
-        return FALSE;
+        return false;
 
     if (!xdr_int64_t(xdrs, &p->job_id))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->pid))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->pgid))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->state))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->step))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->pid_acked))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->execute_acked))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->finish_acked))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->reply_sent))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->execute_sent))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->finish_sent))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->exit_status_valid))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->exit_status))
-        return FALSE;
+        return false;
 
     if (!xdr_int32_t(xdrs, &p->missing))
-        return FALSE;
+        return false;
 
     // Optional string. Server may set NULL; encode as empty string to
     // keep decoding simple. Decoder side may get allocated memory.
@@ -107,19 +106,18 @@ bool_t xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
     }
 
     if (!xdr_string(xdrs, &p->job_file, LL_BUFSIZ_4K))
-        return FALSE;
+        return false;
 
-    return TRUE;
+    return true;
 }
 
-bool_t
-xdr_sbdJobsListReply(XDR *xdrs, struct sbdJobsListReply *p,
-                     struct packet_header *hdr)
+bool_t xdr_sbdJobsListReply(XDR *xdrs, struct sbdJobsListReply *p,
+                            struct packet_header *hdr)
 {
     (void)hdr;
 
     if (!xdrs || !p)
-        return FALSE;
+        return false;
 
     // Variable-length array of sbdJobInfo
     if (!xdr_array(xdrs,
@@ -128,14 +126,13 @@ xdr_sbdJobsListReply(XDR *xdrs, struct sbdJobsListReply *p,
                    SBD_JOBS_MAX,
                    sizeof(struct sbdJobInfo),
                    (xdrproc_t)xdr_sbdJobInfo)) {
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
-int
-sbd_job_info(const char *host, struct sbdJobInfo **jobs, int *num)
+int sbd_job_info(const char *host, struct sbdJobInfo **jobs, int *num)
 {
     if (!host || !*host || !jobs || !num) {
         lsberrno = LSBE_PROTOCOL;
@@ -181,7 +178,7 @@ sbd_job_info(const char *host, struct sbdJobInfo **jobs, int *num)
         return -1;
     }
 
-    xdrmem_create(&xdrs, reply, (u_int)reply_len, XDR_DECODE);
+    xdrmem_create(&xdrs, reply, (uint32_t)reply_len, XDR_DECODE);
     if (!xdr_sbdJobsListReply(&xdrs, &rep, &hdr)) {
         xdr_destroy(&xdrs);
         free(reply);
@@ -197,8 +194,7 @@ sbd_job_info(const char *host, struct sbdJobInfo **jobs, int *num)
     return 0;
 }
 
-void
-sbd_job_info_free(struct sbdJobInfo *jobs, int num)
+void sbd_job_info_free(struct sbdJobInfo *jobs, int num)
 {
     struct sbdJobsListReply rep;
 
@@ -210,4 +206,49 @@ sbd_job_info_free(struct sbdJobInfo *jobs, int num)
     rep.jobs_len = (u_int)num;
 
     xdr_free((xdrproc_t)xdr_sbdJobsListReply, (char *)&rep);
+}
+
+// API
+int call_sbd_host(const char *host, void *req, size_t req_len,
+                  char **reply, struct packet_header *hdr,
+                  struct lenData *extra)
+{
+    if (!host || host[0] == '\0' || !req || req_len == 0 || !reply || !hdr) {
+        errno = EINVAL;
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    uint16_t port = get_sbd_port();
+    if (port == 0) {
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    int ch_id = serv_connect(host, port, _lsb_conntimeout);
+    if (ch_id < 0) {
+        lsberrno = LSBE_CONN_REFUSED;
+        return -1;
+    }
+
+    struct Buffer e;
+    struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
+    if (extra && extra->len > 0) {
+        e.data = extra->data;
+        e.len = extra->len;
+        e.forw = NULL;
+        req_buf.forw = &e;
+    }
+
+    struct Buffer reply_buf = {0};
+    int rc = chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
+    chan_close(ch_id);
+
+    if (rc < 0) {
+        lsberrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    *reply = reply_buf.data;
+    return hdr->length;
 }

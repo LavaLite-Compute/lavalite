@@ -137,6 +137,15 @@ int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
     job = sbd_job_lookup(spec.jobId);
     if (job != NULL) {
 
+        LS_WARNING("MBD_NEW_JOB duplicate: job=%"PRId64" state=%d step=%d "
+                   "pid=%ld pgid=%ld jStatus=%d",
+                   (int64_t)job->job_id,
+                   (int)job->state,
+                   (int)job->step,
+                   (long)job->pid,
+                   (long)job->pgid,
+                   (int)job->spec.jStatus);
+
         job_reply.jobId   = job->job_id;
         job_reply.jobPid  = job->pid;
         job_reply.jobPGid = job->pgid;
@@ -162,6 +171,7 @@ send_reply:
     // Copy the structures
     job->job_reply = job_reply;
     job->reply_code = reply_code;
+    job->spec.runTime = time(NULL);
 
     // even if the return code is not ERR_NO_ERROR we still
     // want to write is as mbd has to ack the error state
@@ -197,7 +207,7 @@ static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_ou
 
     if (pid == 0) {
         // child goes and runs the job
-        chan_close(sbd_chan);
+        chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
         // child becomes leader of its own group
@@ -731,14 +741,18 @@ print_one_job(struct ll_list_entry *entry)
 
 static void sbd_child_open_log(const struct jobSpecs *specs)
 {
-    char daemon_id[LL_BUFSIZ_64];
+     /*
+      * We inherit log_fd and the log configuration from the parent (fork).
+      * Do NOT call ls_openlog() here, otherwise you re-open and/or change
+      * the log identity and create per-job log files again.
+      */
+    char tag[LL_BUFSIZ_64];
 
-    snprintf(daemon_id, sizeof(daemon_id), "sbatchd-%ld", (long)specs->jobId);
-    ls_openlog(daemon_id,
-               genParams[LSF_LOGDIR].paramValue,
-               true,
-               0,
-               "LOG_DEBUG");
+    snprintf(tag, sizeof(tag),
+             "child job=%ld", (long)specs->jobId);
+    // tag the logfile messages saying who we are as we share
+    // the log file with parent and other children
+    ls_setlogtag(tag);
 }
 
 static int sbd_set_job_env(const struct jobSpecs *specs)

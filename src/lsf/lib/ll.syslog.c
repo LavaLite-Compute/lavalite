@@ -17,6 +17,7 @@ static char log_ident[LL_BUFSIZ_32];
 static const char *level_str(int);
 static int get_level_str(const char *);
 static void build_timestamp(char *, size_t);
+static void write_record(int fd, const char *, size_t);
 
 __thread int lserrno = LSE_NO_ERR;
 // Just to link...
@@ -101,6 +102,10 @@ const char *ls_errmsg[] = {
 _Static_assert(sizeof(ls_errmsg) / sizeof(ls_errmsg[0]) == LSE_NERR,
                "ls_errmsg array size must match LSE_NERR");
 
+// tag to indicate if child or parent useful after we fork
+// and use the same log file
+static char log_tag[LL_BUFSIZ_64];
+
 int ls_openlog(const char *ident,
                const char *logdir,
                int to_stderr,
@@ -184,9 +189,11 @@ void ls_syslog(int level, const char *fmt, ...)
     int n;
     int fd = log_fd;   /* snapshot: may be -1 */
 
-    // no logger configured: stderr is our safety net
-    if (fd < 0 && !log_to_stderr && !log_to_syslog)
-        fd = STDERR_FILENO;
+    // no logger configured return, sorry no implicit
+    // logging to stderr but definite behaviour
+    // ls_openlog()/ls_syslog()/ls_closelog()
+    if (fd < 0)
+        return;
 
     // ignore messages above current mask
     if (level > log_min_level)
@@ -202,15 +209,25 @@ void ls_syslog(int level, const char *fmt, ...)
     build_timestamp(ts, sizeof(ts));
 
     /* final formatted line:
-     * "Dec 19 16:13:16 2025 [LOG_INFO] message text"
+     * "Dec 19 16:13:16 2025 [LOG_INFO] tag pid message text"
      */
-    n = snprintf(line, sizeof(line),
-                 "%s [%s] %d %s\n",
-                 ts,
-                 level_str(level),
-                 getpid(),
-                 msg);
 
+    if (log_tag[0] != '\0') {
+        n = snprintf(line, sizeof(line),
+                     "%s [%s] %s %d %s\n",
+                     ts,
+                     level_str(level),
+                     log_tag,
+                     getpid(),
+                     msg);
+    } else {
+        n = snprintf(line, sizeof(line),
+                     "%s [%s] %d %s\n",
+                     ts,
+                     level_str(level),
+                     getpid(),
+                     msg);
+    }
     if (n < 0)
         return;
 
@@ -218,11 +235,14 @@ void ls_syslog(int level, const char *fmt, ...)
     if (len >= sizeof(line))
         len = sizeof(line) - 1;
 
-    // primary sink
-    write(fd, line, len);
+    // primary sink protect ourselves from fd < 0 is the caller
+    // did not initialized the log
+    flock(fd, LOCK_EX);
+    write_record(fd, line, len);
+    flock(fd, LOCK_UN);
 
     // mirror to stderr if requested
-    if (log_to_stderr && fd != STDERR_FILENO)
+    if (log_to_stderr)
         write(STDERR_FILENO, line, len);
 
     // syslog mirror without our timestamp
@@ -364,4 +384,28 @@ void ls_perror(const char *usrMsg)
 
     fputs(ls_sysmsg(), stderr);
     fputc('\n', stderr);
+}
+
+void ls_setlogtag(const char *tag)
+{
+    if (!tag || !*tag) {
+        log_tag[0] = 0;
+        return;
+    }
+
+    snprintf(log_tag, sizeof(log_tag), "%s", tag);
+}
+
+static void write_record(int fd, const char *buf, size_t len)
+{
+    while (len > 0) {
+        ssize_t n = write(fd, buf, len);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            return;
+        }
+        buf += (size_t)n;
+        len -= (size_t)n;
+    }
 }

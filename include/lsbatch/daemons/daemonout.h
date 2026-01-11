@@ -64,6 +64,7 @@ typedef enum {
     BATCH_SET_JOB_ATTR,
     BATCH_SBD_REGISTER,         // send registration request to mbd
     BATCH_SBD_REGISTER_REPLY,   // reply to sbd the reistration was received
+    BATCH_NEW_JOB_REPLY,     // sbd reply to NEW_JOB (ERR_* in hdr.reserved)
     BATCH_NEW_JOB_ACK,          // ack mbd got the pid for the new job
     BATCH_JOB_EXECUTE, // sbd send to advance the pipeline to execute_acked
     BATCH_JOB_FINISH,  // sbd send the last state of job life pipeline

@@ -37,6 +37,7 @@
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <sys/epoll.h>
+#include <sys/file.h>
 
 /* Public header
  */

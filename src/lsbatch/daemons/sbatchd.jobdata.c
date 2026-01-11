@@ -212,6 +212,8 @@ fail:
 }
 
 // LavaLite sbd saved state record processing
+// state dir is where the image of running jobs on this
+// sbd are
 static char sbd_state_dir[PATH_MAX];
 
 int
@@ -290,7 +292,7 @@ int sbd_job_record_path(int64_t job_id, char *buf, size_t bufsz)
         return -1;
     }
 
-    LS_INFO("install job record %s", buf);
+    LS_INFO("job record %s", buf);
 
     return 0;
 }
@@ -313,26 +315,21 @@ sbd_job_record_remove(int64_t job_id)
     return 0;
 }
 
-int
-sbd_job_record_write(struct sbd_job *job)
+int sbd_job_record_write(struct sbd_job *job)
 {
-    char final_path[PATH_MAX];
-    char tmp_path[PATH_MAX];
-    char buf[LL_BUFSIZ_2K];
-    int fd;
-    int n;
-
     if (!job) {
         errno = EINVAL;
         LS_ERRX("sbd_job_record_write: invalid job pointer");
         return -1;
     }
 
+    char final_path[PATH_MAX];
     if (sbd_job_record_path(job->job_id, final_path, sizeof(final_path)) < 0) {
         LS_ERRX("job %"PRId64": record path build failed", job->job_id);
         return -1;
     }
 
+    char tmp_path[PATH_MAX];
     if (snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%ld",
                  final_path, (long)getpid()) >= (int)sizeof(tmp_path)) {
         errno = ENAMETOOLONG;
@@ -342,36 +339,37 @@ sbd_job_record_write(struct sbd_job *job)
 
     LS_INFO("job %"PRId64": record write start: %s", job->job_id, final_path);
 
-    n = snprintf(buf, sizeof(buf),
-                 "version=1\n"
-                 "job_id=%"PRId64"\n"
-                 "pid=%ld\n"
-                 "pgid=%ld\n"
-                 "state=%d\n"
-                 "step=%d\n"
-                 "pid_acked=%d\n"
-                 "execute_acked=%d\n"
-                 "finish_acked=%d\n"
-                 "reply_sent=%d\n"
-                 "execute_sent=%d\n"
-                 "finish_sent=%d\n"
-                 "exit_status_valid=%d\n"
-                 "exit_status=%d\n"
-                 "missing=%d\n",
-                 job->job_id,
-                 (long)job->pid,
-                 (long)job->pgid,
-                 (int)job->state,
-                 (int)job->step,
-                 job->pid_acked ? 1 : 0,
-                 job->execute_acked ? 1 : 0,
-                 job->finish_acked ? 1 : 0,
-                 job->reply_sent ? 1 : 0,
-                 job->execute_sent ? 1 : 0,
-                 job->finish_sent ? 1 : 0,
-                 job->exit_status_valid ? 1 : 0,
-                 job->exit_status,
-                 job->missing ? 1 : 0);
+    char buf[LL_BUFSIZ_2K];
+    int n = snprintf(buf, sizeof(buf),
+                     "version=1\n"
+                     "job_id=%"PRId64"\n"
+                     "pid=%ld\n"
+                     "pgid=%ld\n"
+                     "state=%d\n"
+                     "step=%d\n"
+                     "pid_acked=%d\n"
+                     "reply_sent=%d\n"
+                     "execute_sent=%d\n"
+                     "execute_acked=%d\n"
+                     "finish_sent=%d\n"
+                     "finish_acked=%d\n"
+                     "exit_status_valid=%d\n"
+                     "exit_status=%d\n"
+                     "missing=%d\n",
+                     job->job_id,
+                     (long)job->pid,
+                     (long)job->pgid,
+                     (int)job->state,
+                     (int)job->step,
+                     job->pid_acked ? 1 : 0,
+                     job->reply_sent ? 1 : 0,
+                     job->execute_sent ? 1 : 0,
+                     job->execute_acked ? 1 : 0,
+                     job->finish_sent ? 1 : 0,
+                     job->finish_acked ? 1 : 0,
+                     job->exit_status_valid ? 1 : 0,
+                     job->exit_status,
+                     job->missing ? 1 : 0);
 
     if (n < 0) {
         errno = EINVAL;
@@ -384,12 +382,16 @@ sbd_job_record_write(struct sbd_job *job)
         return -1;
     }
 
-    fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    int fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0) {
         LS_ERRX("job %"PRId64": open(%s) failed: errno=%d (%s)",
                 job->job_id, tmp_path, errno, strerror(errno));
         return -1;
     }
+
+    // Typicall C pattern for reliability writing, the rename
+    // is atomic on POSIX systems
+    // write to temp file → fsync() → close → rename(temp, final)
 
     if (write_all(fd, buf, (size_t)n) < 0) {
         int eno = errno;
@@ -429,19 +431,25 @@ sbd_job_record_write(struct sbd_job *job)
         return -1;
     }
 
-    LS_INFO("job %"PRId64": record written pid=%ld pgid=%ld state=%d step=%d "
-            "acked p=%d e=%d f=%d sent r=%d e=%d f=%d exitv=%d exit=%d missing=%d",
+    LS_INFO("job %"PRId64": record written "
+            "pid=%ld pgid=%ld "
+            "state=%d step=%d "
+            "pid_acked=%d "
+            "reply_sent=%d execute_sent=%d finish_sent=%d "
+            "execute_acked=%d finish_acked=%d "
+            "exit_status_valid=%d exit_status=%d "
+            "missing=%d",
             job->job_id,
             (long)job->pid,
             (long)job->pgid,
             (int)job->state,
             (int)job->step,
             job->pid_acked ? 1 : 0,
-            job->execute_acked ? 1 : 0,
-            job->finish_acked ? 1 : 0,
             job->reply_sent ? 1 : 0,
             job->execute_sent ? 1 : 0,
             job->finish_sent ? 1 : 0,
+            job->execute_acked ? 1 : 0,
+            job->finish_acked ? 1 : 0,
             job->exit_status_valid ? 1 : 0,
             job->exit_status,
             job->missing ? 1 : 0);
@@ -453,21 +461,14 @@ int
 sbd_job_record_load_all(void)
 {
     DIR *dir;
-    struct dirent *de;
-    char path[PATH_MAX];
-    int count = 0;
-
-    if (sbd_job_record_dir(path, sizeof(path)) < 0) {
-        LS_ERR("failed to get sbd job state directory");
-        return -1;
-    }
-
-    dir = opendir(path);
+    dir = opendir(sbd_state_dir);
     if (!dir) {
-        LS_ERR("opendir(%s) failed", path);
+        LS_ERR("opendir(%s) failed", sbd_state_dir);
         return -1;
     }
 
+    int count = 0;
+    struct dirent *de;
     while ((de = readdir(dir)) != NULL) {
         int64_t job_id;
         struct sbd_job *job;
@@ -505,5 +506,136 @@ sbd_job_record_load_all(void)
     closedir(dir);
 
     LS_INFO("loaded %d job(s) from sbd state directory", count);
+    return 0;
+}
+
+int
+sbd_job_record_read(int64_t job_id, struct sbd_job *job)
+{
+    char path[PATH_MAX];
+    FILE *fp;
+    char line[LL_BUFSIZ_512];
+    int version = 0;
+    int64_t file_job_id = 0;
+
+    if (!job) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (sbd_job_record_path(job_id, path, sizeof(path)) < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    fp = fopen(path, "r");
+    if (!fp)
+        return -1;
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        char *eq = strchr(line, '=');
+        char *key;
+        char *val;
+
+        if (!eq)
+            continue;
+
+        *eq = 0;
+        key = line;
+        val = eq + 1;
+
+        if (strcmp(key, "version") == 0) {
+            version = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "job_id") == 0) {
+            file_job_id = (int64_t)strtoll(val, NULL, 10);
+            continue;
+        }
+
+        if (strcmp(key, "pid") == 0) {
+            job->pid = (pid_t)atol(val);
+            job->spec.jobPid = (int)job->pid;
+            continue;
+        }
+
+        if (strcmp(key, "pgid") == 0) {
+            job->pgid = (pid_t)atol(val);
+            job->spec.jobPGid = (int)job->pgid;
+            continue;
+        }
+
+        if (strcmp(key, "state") == 0) {
+            job->state = (enum sbd_job_state)atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "step") == 0) {
+            job->step = (enum sbd_job_step)atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "pid_acked") == 0) {
+            job->pid_acked = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "reply_sent") == 0) {
+            job->reply_sent = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "execute_sent") == 0) {
+            job->execute_sent = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "execute_acked") == 0) {
+            job->execute_acked = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "finish_sent") == 0) {
+            job->finish_sent = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "finish_acked") == 0) {
+            job->finish_acked = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "exit_status_valid") == 0) {
+            job->exit_status_valid = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "exit_status") == 0) {
+            job->exit_status = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "missing") == 0) {
+            job->missing = atoi(val);
+            continue;
+        }
+    }
+
+    fclose(fp);
+
+    if (version != 1) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (file_job_id != job_id) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    job->job_id = job_id;
+    job->spec.jobId = job_id;
+
     return 0;
 }

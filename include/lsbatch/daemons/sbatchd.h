@@ -33,7 +33,7 @@ extern int sbd_debug;
 // chan epoll
 extern int sbd_efd;
 // the sbd channel to talk to its own clients
-extern int sbd_chan;
+extern int sbd_listen_chan;
 // sbd has a timer to driver periodic operation and this is the
 // associated channel
 extern int sbd_timer_chan;
@@ -202,14 +202,23 @@ int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
 bool_t sbd_mbd_link_ready(void);
 
-// sbd record function
+// sbd record function to save the state of jobs from
+// sbd point of view restore the latest state after
+// restart
 int sbd_job_record_dir_init(void);
-
 int sbd_job_record_load_all(void);
+int sbd_job_record_read(int64_t, struct sbd_job *);
 int sbd_job_record_write(struct sbd_job *);
 int sbd_job_record_path(int64_t, char *, size_t);
 int sbd_job_record_remove(int64_t);
 
-// sbd has command to qyery its internal status
-int handlle_sbd_accept(int);
+// sbd has command to query its internal status
+int handle_sbd_accept(int);
+int handle_sbd_client(int);
 int sbd_reply_hdr_only(int, int, struct packet_header *);
+
+// Use the xdr_func() signiture without argument otherwise we should
+// use void * and every xdr function will have to take it and cast it
+// to its own xdr data structure
+int sbd_reply_payload(int, int, struct packet_header *,
+                      void *, bool_t (*xdr_func)());

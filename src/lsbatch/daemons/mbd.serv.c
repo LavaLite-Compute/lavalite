@@ -2669,18 +2669,20 @@ int sbd_handle_disconnect(struct mbd_client_node *client)
 
     // Break the association first, then reset pending jobs.
     client->host_node = NULL;
+    // invalidate the pointer as the sbd is down
+    host_node->sbd_node = NULL;
 
-    // clean up the job list
-    mbd_reset_sbd_job_list(host_node);
+    // clean up the job list we are no longer sure we
+    // have to clean up the list of sbd goes down
+    // mbd_reset_sbd_job_list(host_node);
     char key[LL_BUFSIZ_32];
 
     snprintf(key, sizeof(key), "%d", client->chanfd);
     ll_hash_remove(&hdata_by_chan, key);
-    /*
-     * Delegate channel close, unlink from client list, and free()
-     * to the generic shutdown helper.
-     */
-    shutdown_mbd_client(client);
+
+    // hose the client
+    chan_close(client->chanfd);
+    free(client);
 
     return 0;
 }

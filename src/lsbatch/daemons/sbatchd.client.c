@@ -21,11 +21,11 @@
 static int do_sbd_jobs_list(int, XDR *, struct packet_header *);
 static void sbd_jobinfo_fill(struct sbdJobInfo *, struct sbd_job *);
 
-int handlle_sbd_accept(int listen_chan)
+int handle_sbd_accept(int listen_chan)
 {
     struct sockaddr_in from;
 
-    ch_id = chan_accept(listen_chan, (struct sockaddr_in *)&from);
+    int ch_id = chan_accept(listen_chan, (struct sockaddr_in *)&from);
     if (ch_id < 0) {
         LS_ERR("chan_accept() failed");
         return -1;
@@ -45,7 +45,7 @@ int handlle_sbd_accept(int listen_chan)
     ev.events =  EPOLLIN | EPOLLRDHUP | EPOLLERR;
     ev.data.u32 = ch_id;
 
-    int cc = epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev);
+    int cc = epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev);
     if (cc < 0) {
         LS_ERR("epoll_ctl() failed");
         chan_close(ch_id);
@@ -71,8 +71,7 @@ int handlle_sbd_accept(int listen_chan)
  *
  * No per-client state is kept; epoll + channel id are sufficient.
  */
-int
-handle_sbd_client(int ch_id)
+int handle_sbd_client(int ch_id)
 {
     struct Buffer *buf = NULL;
     XDR xdrs;
@@ -146,8 +145,7 @@ handle_sbd_client(int ch_id)
     chan_close(ch_id);
     return rc;
 }
-static int
-do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
+static int do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
     struct sbdJobsListReq req;
     memset(&req, 0, sizeof(req));
@@ -161,7 +159,7 @@ do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     // Count jobs
-    int n = ll_list_count();
+    int n = ll_list_count(&sbd_job_list);
     if (n > SBD_JOBS_MAX)
         n = SBD_JOBS_MAX;
 
@@ -174,6 +172,7 @@ do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
         }
 
         uint32_t i = 0;
+        struct ll_list_entry *e;
         for (e = sbd_job_list.head; e && i < n; e = e->next, i++) {
             struct sbd_job *job = (struct sbd_job *)e;
             sbd_jobinfo_fill(&arr[i], job);
@@ -184,12 +183,15 @@ do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
     rep.jobs_val = arr;
 
     // Send reply with XDR; on success, free XDR-managed memory.
-    if (sbd_send_reply(ch_id,
-                       LSBE_NO_ERROR,
-                       hdr,
-                       &rep,
-                       xdr_sbdJobsListReply) < 0) {
-        // fallthrough to free
+    if (sbd_reply_payload(ch_id,
+                          LSBE_NO_ERROR,
+                          hdr,
+                          &rep,
+                          xdr_sbdJobsListReply) < 0) {
+        LS_ERR("failed in sbd_send_reply to client");
+        // Free nested strings/array using XDR free.
+        xdr_free((xdrproc_t)xdr_sbdJobsListReply, (char *)&rep);
+        return -1;
     }
 
     // Free nested strings/array using XDR free.
@@ -203,8 +205,7 @@ do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
  * Send a reply that contains only a packet_header (no payload).
  * Used for simple error returns (LSBE_* in hdr.operation).
  */
-int
-sbd_reply_hdr_only(int ch_id, int rc, struct packet_header *req_hdr)
+int sbd_reply_hdr_only(int ch_id, int rc, struct packet_header *req_hdr)
 {
     struct Buffer *buf;
     XDR xdrs;
@@ -233,7 +234,7 @@ sbd_reply_hdr_only(int ch_id, int rc, struct packet_header *req_hdr)
     buf->len = XDR_GETPOS(&xdrs);
     xdr_destroy(&xdrs);
 
-    if (chan_enqueue_buf(ch_id, buf) < 0) {   // <-- rename if needed
+    if (chan_enqueue(ch_id, buf) < 0) {   // <-- rename if needed
         LS_ERR("chan_enqueue_buf failed for sbd reply hdr-only ch=%d", ch_id);
         chan_free_buf(buf);
         return -1;
@@ -248,15 +249,9 @@ sbd_reply_hdr_only(int ch_id, int rc, struct packet_header *req_hdr)
  * Send a reply with packet_header + XDR payload encoded by xdr_func().
  * rc goes into hdr.operation (LSBE_NO_ERROR or LSBE_*).
  */
-int
-sbd_reply_payload(int ch_id, int rc, struct packet_header *req_hdr,
-                  void *payload, bool_t (*xdr_func)(XDR *, void *,
-                                                   struct packet_header *))
+int sbd_reply_payload(int ch_id, int rc, struct packet_header *req_hdr,
+                      void *payload, bool_t (*xdr_func)())
 {
-    struct Buffer *buf;
-    XDR xdrs;
-    struct packet_header out;
-
     if (!req_hdr || !xdr_func) {
         errno = EINVAL;
         return -1;
@@ -267,15 +262,18 @@ sbd_reply_payload(int ch_id, int rc, struct packet_header *req_hdr,
      * If you already have a buf-sizing helper (like chan_alloc_buf + grow),
      * use that. For now, just allocate based on hdr.length if you have it.
      */
-    size_t cap = LL_BUFSIZ_6K;
+    size_t cap = LL_BUFSIZ_8K;
+    struct Buffer *buf;
 
     if (chan_alloc_buf(&buf, cap) < 0) {
         LS_ERR("chan_alloc_buf failed for sbd reply payload ch=%d", ch_id);
         return -1;
     }
 
-    xdrmem_create(&xdrs, buf->data, buf->cap, XDR_ENCODE);
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf->data, buf->len, XDR_ENCODE);
 
+    struct packet_header out;
     init_pack_hdr(&out);
     out.operation = rc;
     out.sequence = req_hdr->sequence;
@@ -307,7 +305,7 @@ sbd_reply_payload(int ch_id, int rc, struct packet_header *req_hdr,
 
     xdr_destroy(&xdrs);
 
-    if (chan_enqueue_buf(ch_id, buf) < 0) {   // <-- rename if needed
+    if (chan_enqueue(ch_id, buf) < 0) {
         LS_ERR("chan_enqueue_buf failed for sbd reply payload ch=%d", ch_id);
         chan_free_buf(buf);
         return -1;
@@ -342,8 +340,5 @@ sbd_jobinfo_fill(struct sbdJobInfo *out, struct sbd_job *job)
 
     out->missing = job->missing ? 1 : 0;
 
-    if (job->spec.jobFile)
-        out->job_file = strdup(job->spec.jobFile);
-    else
-        out->job_file = strdup("");
+    out->job_file = strdup(job->spec.jobFile);
 }

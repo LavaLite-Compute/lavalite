@@ -36,6 +36,7 @@ static void job_execute_drive(void);
 static void sbd_reply_drive(void);
 static void sbd_mbd_reconnect_try(void);
 static bool_t sbd_drive_mbd_link(int, struct epoll_event *);
+static bool_t sbd_pid_alive(pid_t);
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -43,7 +44,7 @@ struct ll_hash *sbd_job_hash;
 
 static uint16_t sbd_port;
 // sbd_can to talk to external clients like monitors
-int sbd_listen_chan;
+int sbd_listen_chan = -1;
 static int sbd_timer;
 int sbd_timer_chan;
 int sbd_mbd_chan = -1;
@@ -107,7 +108,7 @@ int main(int argc, char **argv)
 
     int rc = sbd_init("sbatchd");
     if (rc < 0) {
-        fprintf(stderr, "sbatchd: lsb_init() failed: %s\n", ls_sysmsg());
+        fprintf(stderr, "sbatchd: sbd_init() failed: %s\n", ls_sysmsg());
         return 1;
     }
 
@@ -205,14 +206,17 @@ sbd_run_daemon(void)
              if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
                  continue;
 
+             // There is an event on the permament channel
+             // connection with mbd
              if (ch_id == sbd_mbd_chan) {
                  sbd_handle_mbd(ch_id);
                  // reset the channel state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
+             // There is an event on the sbd listening channel
              if (ch_id == sbd_listen_chan) {
-                 handlle_sbd_accept(ch_id);
+                 handle_sbd_accept(ch_id);
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
@@ -221,6 +225,7 @@ sbd_run_daemon(void)
 
              case CHAN_EPOLLIN:
              case CHAN_EPOLLERR:
+                 // Handle the even on an accepted sbd channel
                  handle_sbd_client(ch_id);
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  break;
@@ -379,20 +384,6 @@ static int sbd_init(const char *sbatch)
     if (initenv_(lsbParams, NULL) < 0) {
         return -1;
     }
-    // Initialize persistent job state storage early.
-    // If we can't create/validate the state directory, we cannot guarantee
-    // restart-safe job tracking, so fail fast before allocating resources.
-    if (sbd_job_record_dir_init() < 0) {
-        LS_ERR("failed to initialize persistent state storage");
-        return -1;
-    }
-
-    // Still early, but after paths are known.
-    // Reconstruct jobs seen before last shutdown.
-    if (sbd_job_record_load_all() < 0) {
-        LS_ERR("failed to load persistent job state");
-        return -1;
-    }
 
     sbd_init_signals();
 
@@ -427,6 +418,19 @@ static int sbd_init(const char *sbatch)
         // Bug handle this
     }
 
+    // Initialize persistent job state storage early.
+    // If we can't create/validate the state directory, we cannot guarantee
+    // restart-safe job tracking, so fail fast before allocating resources.
+    if (sbd_job_record_dir_init() < 0) {
+        LS_ERR("failed to initialize persistent state storage");
+        return -1;
+    }
+    // Reconstruct jobs seen before last shutdown.
+    if (sbd_job_record_load_all() < 0) {
+        LS_ERR("failed to load persistent job state");
+        return -1;
+    }
+
     // Green light we can start to operate
 
     return 0;
@@ -453,6 +457,10 @@ static void sbd_init_log(void)
         // Normal production daemon case
         ls_openlog("sbatchd", log_dir, false, 0, log_mask);
     }
+
+    // tag the log messages as we share on log file with
+    // children
+    ls_setlogtag("parent");
 
     LS_INFO("sbatchd logging initialized: dir=%s mask=%s debug=%d",
             log_dir, log_mask, debug);
@@ -649,12 +657,21 @@ static void job_status_checking(void)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
-        if (job->state == SBD_JOB_RUNNING &&
-            job->spec.startTime > 0) {
+        if (job->state != SBD_JOB_RUNNING)
+            continue;
 
-            job->spec.runTime = (int)(now - job->spec.startTime);
-            if (job->spec.runTime < 0)
-                job->spec.runTime = 0;
+        job->spec.runTime = (int)(now - job->spec.startTime);
+        if (job->spec.runTime < 0)
+            job->spec.runTime = 0;
+
+        if (!sbd_pid_alive(job->pid)) {
+            LS_WARNING("job %"PRId64": pid %ld not alive after restart?",
+                       job->job_id, (long)job->pid);
+             job->exit_status_valid = true;
+             job->exit_status = 0;      // placeholder for now
+             job->finish_sent = false;  // ensue finish_drive enqueues
+             // for now
+             job->spec.jStatus = JOB_STAT_DONE;
         }
     }
 }
@@ -735,8 +752,7 @@ static void job_execute_drive(void)
     }
 }
 
-static void
-job_finish_drive(void)
+static void job_finish_drive(void)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
@@ -775,7 +791,7 @@ job_finish_drive(void)
             int rc = sbd_enqueue_finish(job);
             if (rc == 0) {
                 job->finish_sent = true;
-                /* maybe job->state/step too */
+                // log the job record
                 if (sbd_job_record_write(job) < 0)
                     LS_ERRX("job %"PRId64": record write failed after reap",
                             job->job_id);
@@ -799,4 +815,18 @@ static struct sbd_job *sbd_find_job_by_pid(pid_t pid)
             return job;
     }
     return NULL;
+}
+
+static bool_t sbd_pid_alive(pid_t pid)
+{
+    if (pid <= 0)
+        return false;
+
+    if (kill(pid, 0) == 0)
+        return true;
+
+    if (errno == EPERM)
+        return true;   // exists, just not permitted
+
+    return false; // ESRCH or other -> treat as not alive
 }

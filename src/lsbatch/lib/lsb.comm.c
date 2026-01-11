@@ -94,7 +94,7 @@ int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
     uint16_t port;
     int rc;
 
-    char *master = resolve_master_with_retry();
+    const char *master = resolve_master_with_retry();
     if (master == NULL) {
         return -1;
     }
@@ -158,7 +158,7 @@ int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
 int open_mbd_stream(void *req, size_t req_len, char **reply,
                     struct packet_header *hdr)
 {
-    char *master = resolve_master_with_retry();
+    const char *master = resolve_master_with_retry();
     if (master == NULL) {
         return -1;
     }
@@ -263,7 +263,7 @@ int read_mbd_stream(int sock, char **buffer, struct packet_header *hdr)
     return rc;
 }
 
-int serv_connect(char *serv_host, ushort serv_port, int timeout)
+int serv_connect(const char *serv_host, ushort serv_port, int timeout)
 {
     struct ll_host hs;
 

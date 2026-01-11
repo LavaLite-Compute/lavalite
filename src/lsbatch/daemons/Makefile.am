@@ -32,7 +32,8 @@ mbatchd_SOURCES = mbd.main.c \
 	daemons.xdr.c
 
 sbatchd_SOURCES =  sbatchd.main.c sbatchd.net.c \
-                   sbatchd.mbd.c daemons.xdr.c daemons.c sbatchd.jobdata.c
+                   sbatchd.mbd.c sbatchd.client.c \
+                   daemons.xdr.c daemons.c sbatchd.jobdata.c
 
 mbatchd_DEPENDENCIES = $(COMMON_LIBS)
 sbatchd_DEPENDENCIES = $(COMMON_LIBS)

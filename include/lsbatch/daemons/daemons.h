@@ -118,10 +118,8 @@ typedef enum {
     ERR_PID_FAIL,
     ERR_SOCKETPAIR,
     ERR_UNREACH_SBD,
-    ERR_JOB_RETURN,
-    ERR_RESTARTING_FILE,
-    ERR_HANDLE,
-    ERR_JOB_TOO_LARGE
+    ERR_JOB_TOO_LARGE,
+    ERR_DUP_JOB
 } sbdReplyType;
 
 #define LOAD_REASONS                                                           \

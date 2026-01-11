@@ -460,7 +460,8 @@ static int mbd_dispatch_sbd(struct mbd_client_node *client)
     int ch_id = client->chanfd;
     // handle the exception on the channel
     if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
-        LS_ERR("epoll error on SBD channel for host %s (chanfd=%d)",
+        // Use the X version as errno could have been changed
+        LS_ERRX("epoll error on SBD channel for host %s (chanfd=%d)",
                host_node->host, ch_id);
         sbd_handle_disconnect(client);
         return -1;
@@ -504,6 +505,7 @@ static int mbd_dispatch_sbd(struct mbd_client_node *client)
         // sbd_enqueue_finish the jobSpecs.jStatus will tell
         sbd_handle_job_status(client, &xdrs, &sbd_hdr);
         break;
+    return -1;
     case ERR_BAD_REQ:
     case ERR_MEM:
     case ERR_FORK_FAIL:

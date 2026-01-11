@@ -622,6 +622,7 @@ void ls_syslog(int, const char *, ...)
 #endif
     ;
 void ls_set_time_level(const char *);
+void ls_setlogtag(const char *);
 void ls_closelog(void);
 
 extern int ls_servavail(int, int);

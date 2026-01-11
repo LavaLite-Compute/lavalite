@@ -1,4 +1,4 @@
-/* $Id: lsb.h,v 1.6 2007/08/15 22:18:47 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -119,9 +119,7 @@ typedef struct lsbSubSpoolFile {
     char commandSpool[MAXFILENAMELEN];
 } LSB_SUB_SPOOL_FILE_T;
 
-extern int serv_connect(char *, ushort, int);
-extern int cmdCallSBD_(char *, char *, int, char **, struct packet_header *,
-                       int *);
+extern int serv_connect(const char *, ushort, int);
 
 extern int authTicketTokens_(struct lsfAuth *, char *);
 
