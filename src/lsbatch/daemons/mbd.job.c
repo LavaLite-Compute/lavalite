@@ -1922,18 +1922,9 @@ int sbatchdJobs(struct sbdPackage *pkg, struct hData *hData)
             packJobSpecs(jp, spec);
 
             if (!(jp->jStatus & JOB_STAT_ZOMBIE)) {
-                struct lenData jf;
-
-                jf.len = 0;
-                jf.data = NULL;
-
-                if (readLogJobInfo(spec, jp, &jf, NULL) == -1) {
-                    LS_ERR("readLogJobInfo for job (%s) failed",
-                           lsb_jobid2str(jp->jobId));
-                }
-
-                if (jf.data != NULL) {
-                    FREEUP(jf.data);
+                if (read_job_file(spec, jp) == -1) {
+                    LS_ERRX("read_job_info for job %s failed",
+                            lsb_jobid2str(jp->jobId));
                 }
             }
 

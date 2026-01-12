@@ -4273,6 +4273,8 @@ static int ll_buf_append_sh_export(struct ll_buf *b, const char *name,
     return 0;
 }
 
+static int ll_buf_append_job_exit_tail(struct ll_buf *);
+
 static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
 {
     struct ll_buf b;
@@ -4341,17 +4343,50 @@ static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
     }
 
     // Job execution body
-    if (ll_buf_append_str(&b, TRAPSIGCMD) < 0 ||
-        ll_buf_append_str(&b, CMDSTART) < 0 ||
-        ll_buf_append_str(&b, jobSubReq->command) < 0 ||
-        ll_buf_append_str(&b, WAITCLEANCMD) < 0 ||
-        ll_buf_append_str(&b, EXITCMD) < 0) {
+    if (ll_buf_append_str(&b, TRAPSIGCMD) < 0
+        || ll_buf_append_str(&b, CMDSTART) < 0
+        || ll_buf_append_str(&b, jobSubReq->command) < 0
+        || ll_buf_append_job_exit_tail(&b) < 0) {
         lsberrno = LSBE_NO_MEM;
         free(b.data);
         return -1;
     }
 
+
     jf->data = b.data;
     jf->len = (int)b.len;
+    return 0;
+}
+
+// Writes exit status as: "exit_code unix_timestamp\n"
+// File name: exit.status.$LAVALITE_JOB_ID
+// Uses atomic rename within the same directory.
+static int
+ll_buf_append_job_exit_tail(struct ll_buf *b)
+{
+    if (ll_buf_append_str(b, "\nExitStat=$?\n") < 0)
+        return -1;
+
+    if (ll_buf_append_str(b, "timestamp=$(date +%s)\n") < 0)
+        return -1;
+
+    if (ll_buf_append_str(b,
+        "out=\"$LAVALITE_JOB_STATE_DIR/exit.status.$LAVALITE_JOB_ID\"\n") < 0)
+        return -1;
+
+    if (ll_buf_append_str(b,
+        "tmp=\"$LAVALITE_JOB_STATE_DIR/.exit.status.$LAVALITE_JOB_ID.$$\"\n") < 0)
+        return -1;
+
+    if (ll_buf_append_str(b,
+        "(umask 077; echo \"$ExitStat $timestamp\" > \"$tmp\") && mv -f \"$tmp\" \"$out\"\n") < 0)
+        return -1;
+
+    if (ll_buf_append_str(b, "rm -f \"$tmp\" 2>/dev/null || true\n") < 0)
+        return -1;
+
+    if (ll_buf_append_str(b, "exit $ExitStat\n") < 0)
+        return -1;
+
     return 0;
 }

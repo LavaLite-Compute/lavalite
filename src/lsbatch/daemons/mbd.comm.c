@@ -55,12 +55,9 @@ sbdReplyType start_job(struct jData *job,
     memset(&jobSpecs, 0, sizeof(jobSpecs));
     packJobSpecs(job, &jobSpecs);
 
-    struct lenData jf = {0};
-    if (readLogJobInfo(&jobSpecs, job, &jf, NULL) == -1) {
+    if (read_job_file(&jobSpecs, job) == -1) {
         LS_ERR("failed to read job file for %s", lsb_jobid2str(job->jobId));
         freeJobSpecs(&jobSpecs);
-        if (jf.data)
-            free(jf.data);
         return ERR_NO_FILE;
     }
 
@@ -92,8 +89,6 @@ sbdReplyType start_job(struct jData *job,
         LS_ERR("calloc(%d) for job %s failed",
                buflen, lsb_jobid2str(job->jobId));
         freeJobSpecs(&jobSpecs);
-        if (jf.data != NULL)
-            free(jf.data);
         return ERR_MEM;
     }
 
@@ -111,8 +106,6 @@ sbdReplyType start_job(struct jData *job,
         xdr_destroy(&xdrs);
         free(request_buf);
         freeJobSpecs(&jobSpecs);
-        if (jf.data)
-            free(jf.data);
         return ERR_FAIL;
     }
 
@@ -124,8 +117,6 @@ sbdReplyType start_job(struct jData *job,
     xdr_destroy(&xdrs);
     free(request_buf);
     freeJobSpecs(&jobSpecs);
-    if (jf.data)
-        free(jf.data);
 
     if (reply == ERR_NULL || reply == ERR_FAIL || reply == ERR_UNREACH_SBD)
         return reply;

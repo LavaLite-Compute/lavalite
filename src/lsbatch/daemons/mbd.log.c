@@ -2568,6 +2568,201 @@ int rmLogJobInfo_(struct jData *jp, int check)
     return 0;
 }
 
+int read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
+{
+#define ENVEND "$LSB_TRAPSIGS\n"
+
+    jobSpecs->numEnv = 0;
+    jobSpecs->env = NULL;
+
+    jobSpecs->eexec.len = 0;
+    jobSpecs->eexec.data = NULL;
+
+    jobSpecs->jobFileData.len = 0;
+    jobSpecs->jobFileData.data = NULL;
+
+    char logFn[PATH_MAX];
+    snprintf(logFn, sizeof(logFn),
+             "%s/mbatchd/info/%s",
+             lsbParams[LSB_SHAREDIR].paramValue,
+             job->shared->jobBill.jobFile);
+
+    int fd = open(logFn, O_RDONLY);
+    if (fd < 0) {
+        snprintf(logFn, sizeof(logFn),
+                 "%s/mbatchd/info/%d",
+                 lsbParams[LSB_SHAREDIR].paramValue,
+                 LSB_ARRAY_JOBID(job->jobId));
+        fd = open(logFn, O_RDONLY);
+    }
+
+    if (fd < 0) {
+        if (errno != ENOENT) {
+            LS_ERR("job %s open(%s) failed", lsb_jobid2str(job->jobId), logFn);
+        }
+        return -1;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        LS_ERR("job %s fstat(%s) failed", lsb_jobid2str(job->jobId), logFn);
+        close(fd);
+        return -1;
+    }
+
+    char *buf = calloc((size_t)st.st_size + 1, 1);
+    if (buf == NULL) {
+        LS_ERR("job %s calloc(%ld) failed",
+               lsb_jobid2str(job->jobId), (long)st.st_size);
+        close(fd);
+        return -1;
+    }
+
+    ssize_t cc = read(fd, buf, (size_t)st.st_size);
+    if (cc != st.st_size) {
+        LS_ERR("job %s read(%s) failed",
+               lsb_jobid2str(job->jobId), logFn);
+        close(fd);
+        FREEUP(buf);
+        return -1;
+    }
+    close(fd);
+
+    buf[st.st_size] = 0;
+
+    /*
+     * Count env vars: scan lines until ENVEND marker ($LSB_TRAPSIGS\n).
+     * Each env line is expected to contain TAILCMD (e.g. "'; export ").
+     */
+    int numEnv = 0;
+    char *sp;
+
+    /*
+     * Count the number of exported environment variables recorded
+     * in the jobfile.
+     *
+     * The jobfile format emits one shell export per line in the form:
+     *     NAME='value'; export NAME\n
+     *
+     * The environment section starts immediately after SHELLLINE and
+     * terminates at the ENVEND marker ("$LSB_TRAPSIGS\n").
+     *
+     * We scan line-by-line until ENVEND and count entries so we can
+     * allocate jobSpecs->env[] with the correct size before parsing.
+     */
+    for (sp = buf + strlen(SHELLLINE), numEnv = 0;
+         strncmp(sp, ENVEND, sizeof(ENVEND) - 1) != 0;
+         numEnv++) {
+
+        sp = strstr(sp, TAILCMD);
+        if (sp == NULL) {
+            LS_ERR("corrupted info file for job %d: missing %s (numEnv=%d)",
+                   LSB_ARRAY_JOBID(job->jobId), TAILCMD, numEnv);
+            FREEUP(buf);
+            return -1;
+        }
+
+        sp = strchr(sp, '\n');
+        if (sp == NULL) {
+            LS_ERR("corrupted info file for job %d: missing newline (numEnv=%d)",
+                   LSB_ARRAY_JOBID(job->jobId), numEnv);
+            FREEUP(buf);
+            return -1;
+        }
+        sp++;
+    }
+
+    /*
+     * Parse env vars (optional).
+     * Keep jobStarter env injection for now to avoid breaking callers.
+     */
+    if (job->qPtr->jobStarter)
+        numEnv++;
+
+    if (numEnv > 0) {
+        int i;
+
+        jobSpecs->env = calloc((size_t)numEnv, sizeof(char *));
+        if (jobSpecs->env == NULL) {
+            LS_ERR("job %s calloc(env[%d]) failed",
+                   lsb_jobid2str(job->jobId), numEnv);
+            FREEUP(buf);
+            return -1;
+        }
+
+        for (sp = buf + strlen(SHELLLINE), i = 0;
+             strncmp(sp, ENVEND, sizeof(ENVEND) - 1) != 0;) {
+
+            char *tailst;
+            char saveChar;
+            char *spp;
+
+            tailst = strstr(sp, TAILCMD);
+            if (tailst == NULL) {
+                LS_ERR("%s: corrupted info file for job %d: missing %s in ENV section",
+                       __func__, LSB_ARRAY_JOBID(job->jobId), TAILCMD);
+                break;
+            }
+
+            saveChar = *tailst;
+            *tailst = 0;
+
+            jobSpecs->env[i] = safeSave(sp);
+
+            *tailst = saveChar;
+
+            spp = strchr(jobSpecs->env[i], '=');
+            if (spp == NULL) {
+                LS_ERR("corrupted info file: bad env var \"%s\" in job %d, skipping",
+                       jobSpecs->env[i], LSB_ARRAY_JOBID(job->jobId));
+                FREEUP(jobSpecs->env[i]);
+            } else {
+                /* shift after = and space */
+                spp += 2;
+                for (; *spp != 0; spp++)
+                    *(spp - 1) = *spp;
+                *(spp - 1) = 0;
+                i++;
+            }
+
+            sp = strchr(tailst, '\n');
+            if (sp == NULL) {
+                LS_ERR("corrupted info file: cannot find newline, job=%d numEnv=%d",
+                       LSB_ARRAY_JOBID(job->jobId), numEnv);
+                break;
+            }
+            sp++;
+        }
+
+        if (job->qPtr->jobStarter) {
+            jobSpecs->env[i] = my_malloc(strlen(job->qPtr->jobStarter) + 1 +
+                                         sizeof("LSB_JOB_STARTER="),
+                                         "readLogJobInfo/job_starter");
+            sprintf(jobSpecs->env[i], "LSB_JOB_STARTER=%s",
+                    job->qPtr->jobStarter);
+            i++;
+        }
+
+        jobSpecs->numEnv = i;
+    }
+
+    /*
+     * No eexec/edata parsing.
+     * No EXITCMD delimiter.
+     * No jobfile rewriting.
+     *
+     * We keep the entire file as the jobfile body.
+     */
+    jobSpecs->jobFileData.data = buf;
+    jobSpecs->jobFileData.len = (int)strlen(buf) + 1;
+
+    assert(jobSpecs->jobFileData.len <= (int)st.st_size + 1);
+
+    return 0;
+}
+
+
+# if 0
 int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
                    struct lenData *jf, struct lenData *aux_auth_data)
 {
@@ -2733,6 +2928,9 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
         jobSpecs->numEnv = i;
     }
 
+    jobSpecs->eexec.len = 0;
+    jobSpecs->eexec.data = NULL;
+
     /* eexec */
     char *edata = strstr(buf, EDATASTART);
     if (edata) {
@@ -2748,13 +2946,7 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
             jobSpecs->eexec.len = 0;
             jobSpecs->eexec.data = NULL;
         }
-    } else {
-        LS_DEBUG("jobfile %s (job %d) has no %s; assuming legacy pre-2.2",
-                 logFn, LSB_ARRAY_JOBID(jpbw->jobId), EDATASTART);
-        jobSpecs->eexec.len = 0;
-        jobSpecs->eexec.data = NULL;
     }
-
     /* tag EXITCMD: delimita il jobfile vero e proprio */
     sp = strstr(buf, EXITCMD);
     if (!sp) {
@@ -2807,7 +2999,7 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
     return 0;
 }
-
+#endif
 
 char *readJobInfoFile(struct jData *jp, int *len)
 {

@@ -584,6 +584,8 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
     if (!job->pid_acked || !job->execute_acked) {
         LS_ERR("job=%"PRId64" FINISH ack out of order (pid_acked=%d execute_acked=%d)",
                job->job_id, job->pid_acked, job->execute_acked);
+        // catch early problems
+        assert(0);
         return -1;
     }
 
@@ -612,12 +614,11 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
     if (sbd_job_record_write(job) < 0)
         LS_ERRX("job %"PRId64": record write failed after finish_acked", job->job_id);
 
-    // and remove the job record right away
+    // Keep the record on the file for debug for right now
     if (0 && sbd_job_record_remove(job->job_id) < 0)
         LS_ERRX("job %"PRId64": record remove failed", job->job_id);
 
     job->step = SBD_STEP_FINISH_COMMITTED;
-
 
     /*
      * Now it is safe to destroy the sbatchd-side job record/spool:
@@ -630,8 +631,7 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
 /* ----------------------------------------------------------------------
  * simple lookup by jobId
  * -------------------------------------------------------------------- */
-struct sbd_job *
-sbd_job_lookup(int job_id)
+struct sbd_job *sbd_job_lookup(int job_id)
 {
     char keybuf[LL_BUFSIZ_32];
 
@@ -639,13 +639,11 @@ sbd_job_lookup(int job_id)
     return ll_hash_search(sbd_job_hash, keybuf);
 }
 
-
 /* ----------------------------------------------------------------------
  * unlink (remove) a job from list + hash
  * does NOT free job memory
  * -------------------------------------------------------------------- */
-void
-sbd_job_destroy(struct sbd_job *job)
+void sbd_job_destroy(struct sbd_job *job)
 {
     char keybuf[32];
 
@@ -661,8 +659,9 @@ sbd_job_destroy(struct sbd_job *job)
  * free job memory
  * -------------------------------------------------------------------- */
 void
-sbd_job_free(struct sbd_job *job)
+sbd_job_free(void *e)
 {
+    struct sbd_job *job = e;
     if (job == NULL)
         return;
 
@@ -767,6 +766,10 @@ static int sbd_set_job_env(const struct jobSpecs *specs)
     if (setenv("LSB_JOBID", val, 1) < 0)
         return -1;
 
+    if (setenv("LAVALITE_JOB_ID", val, 1) < 0) {
+        return -1;
+    }
+
     if (setenv("LSB_QUEUE", specs->queue, 1) < 0)
         return -1;
 
@@ -777,6 +780,8 @@ static int sbd_set_job_env(const struct jobSpecs *specs)
     if (setenv("LS_JOBPID", val, 1) < 0)
         return -1;
 
+    if (setenv("LAVALITE_JOB_STATE_DIR", sbd_state_dir, 1) < 0)
+        return -1;
     /*
      * User-supplied environment.
      * Expect entries in KEY=VALUE form.
@@ -1094,11 +1099,11 @@ sbd_mbd_link_down(void)
         struct sbd_job *job = (struct sbd_job *)e;
 
         if (!job->pid_acked)
-            job->reply_sent = FALSE;
+            job->reply_sent = false;
         if (!job->execute_acked)
-            job->execute_sent = FALSE;
+            job->execute_sent = false;
         if (!job->finish_acked)
-            job->finish_sent = FALSE;
+            job->finish_sent = false;
         // Write the latest job record
         if (sbd_job_record_write(job) < 0)
             LS_ERRX("job %"PRId64": record write failed after link_down", job->job_id);

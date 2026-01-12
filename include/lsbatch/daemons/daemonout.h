@@ -122,7 +122,6 @@ struct submitReq {
 #define ENVSSTART "# LSBATCH: Environments\n"
 #define LSBNUMENV "#LSB_NUM_ENV="
 #define EDATASTART "# LSBATCH: edata\n"
-#define EXITCMD "exit `expr $? \"|\" $ExitStat`\n"
 #define WAITCLEANCMD "\nExitStat=$?\nwait\n# LSBATCH: End user input\ntrue\n"
 #define TAILCMD "'; export "
 #define TRAPSIGCMD "$LSB_TRAPSIGS\n$LSB_RCP1\n$LSB_RCP2\n$LSB_RCP3\n"

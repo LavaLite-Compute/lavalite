@@ -214,7 +214,7 @@ fail:
 // LavaLite sbd saved state record processing
 // state dir is where the image of running jobs on this
 // sbd are
-static char sbd_state_dir[PATH_MAX];
+char sbd_state_dir[PATH_MAX];
 
 int
 sbd_job_record_dir_init(void)
@@ -297,8 +297,7 @@ int sbd_job_record_path(int64_t job_id, char *buf, size_t bufsz)
     return 0;
 }
 
-int
-sbd_job_record_remove(int64_t job_id)
+int sbd_job_record_remove(int64_t job_id)
 {
     char path[PATH_MAX];
 
@@ -342,33 +341,35 @@ int sbd_job_record_write(struct sbd_job *job)
     char buf[LL_BUFSIZ_2K];
     int n = snprintf(buf, sizeof(buf),
                      "version=1\n"
-                     "job_id=%"PRId64"\n"
+                     "job_id=%ld\n"
                      "pid=%ld\n"
                      "pgid=%ld\n"
                      "state=%d\n"
                      "step=%d\n"
-                     "pid_acked=%d\n"
                      "reply_sent=%d\n"
+                     "pid_acked=%d\n"
                      "execute_sent=%d\n"
                      "execute_acked=%d\n"
                      "finish_sent=%d\n"
                      "finish_acked=%d\n"
                      "exit_status_valid=%d\n"
                      "exit_status=%d\n"
+                     "end_time=%ld\n"
                      "missing=%d\n",
                      job->job_id,
                      (long)job->pid,
                      (long)job->pgid,
                      (int)job->state,
                      (int)job->step,
-                     job->pid_acked ? 1 : 0,
                      job->reply_sent ? 1 : 0,
+                     job->pid_acked ? 1 : 0,
                      job->execute_sent ? 1 : 0,
                      job->execute_acked ? 1 : 0,
                      job->finish_sent ? 1 : 0,
                      job->finish_acked ? 1 : 0,
                      job->exit_status_valid ? 1 : 0,
                      job->exit_status,
+                     job->end_time,
                      job->missing ? 1 : 0);
 
     if (n < 0) {
@@ -434,31 +435,28 @@ int sbd_job_record_write(struct sbd_job *job)
     LS_INFO("job %"PRId64": record written "
             "pid=%ld pgid=%ld "
             "state=%d step=%d "
-            "pid_acked=%d "
-            "reply_sent=%d execute_sent=%d finish_sent=%d "
+            "reply_sent=%d pid_acked=%d "
+            "execute_sent=%d finish_sent=%d "
             "execute_acked=%d finish_acked=%d "
             "exit_status_valid=%d exit_status=%d "
+            "end_time=%ld "
             "missing=%d",
             job->job_id,
             (long)job->pid,
             (long)job->pgid,
             (int)job->state,
             (int)job->step,
-            job->pid_acked ? 1 : 0,
-            job->reply_sent ? 1 : 0,
-            job->execute_sent ? 1 : 0,
-            job->finish_sent ? 1 : 0,
-            job->execute_acked ? 1 : 0,
-            job->finish_acked ? 1 : 0,
-            job->exit_status_valid ? 1 : 0,
-            job->exit_status,
+            job->reply_sent ? 1 : 0, job->pid_acked ? 1 : 0,
+            job->execute_sent ? 1 : 0, job->finish_sent ? 1 : 0,
+            job->execute_acked ? 1 : 0, job->finish_acked ? 1 : 0,
+            job->exit_status_valid ? 1 : 0, job->exit_status,
+            job->end_time,
             job->missing ? 1 : 0);
 
     return 0;
 }
 
-int
-sbd_job_record_load_all(void)
+int sbd_job_record_load_all(void)
 {
     DIR *dir;
     dir = opendir(sbd_state_dir);
@@ -476,8 +474,12 @@ sbd_job_record_load_all(void)
         if (strncmp(de->d_name, "job.", 4) != 0)
             continue;
 
-        job_id = atoll(de->d_name + 4);
-        if (job_id <= 0)
+        const char *s = de->d_name + 4;
+        char *end = NULL;
+
+        errno = 0;
+        job_id = strtoll(s, &end, 10);
+        if (errno != 0 || end == s || *end != 0 || job_id <= 0)
             continue;
 
         job = calloc(1, sizeof(*job));
@@ -636,6 +638,89 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
 
     job->job_id = job_id;
     job->spec.jobId = job_id;
+
+    return 0;
+}
+
+// After we replayed the jobs some jobs have been ack finished
+// already we dont want to keep those job in the working list.
+// Do it here so we separate the responsibilities between reading
+// the job from disk and the list/hash cleaning.
+//
+// ensure jobs with finish_acked set never reach job_finish_drive
+void sbd_cleanup_job_list(void)
+{
+    struct ll_list_entry *e;
+    struct ll_list_entry *e2;
+
+    for (e = sbd_job_list.head; e;) {
+        e2 = e->next;
+        struct sbd_job *job = (struct sbd_job *)e;
+
+        // the status finished was not deliver to mbd
+        // so in the main loop we check if the pid
+        // is still around
+        if (! job->finish_acked) {
+            assert(job->finish_sent == 0);
+            assert(job->exit_status_valid == false);
+            // advance
+            e = e2;
+            continue;
+        }
+        // this means we delivered the job status exit
+        // to mbatch alread, but we keep the file around
+        // for some times before cleaning it
+        LS_INFO("job %ld was acked to mbd already", job->job_id);
+        assert(job->finish_sent == 1);
+        assert(job->exit_status_valid == true);
+        // remove the job from the disk and free it from memory
+        // later we may want to keep the job around for some time...
+        // perhaps...
+        sbd_job_record_remove(job->job_id);
+        sbd_job_destroy(job);
+        // next!
+        e = e2;
+    }
+}
+
+int sbd_read_exit_status_file(int job_id, int *exit_code, time_t *done_time)
+{
+    char path[PATH_MAX];
+    char buf[LL_BUFSIZ_128];
+    int fd;
+    ssize_t n;
+    int code;
+    // time_t may not be an int
+    int64_t ts;
+
+    int l =  snprintf(path, sizeof(path),
+                      "%s/exit.status.%d",
+                      sbd_state_dir, job_id);
+    if (l < 0 || (size_t)l >= sizeof(path)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return -1;
+
+    n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+
+    if (n <= 0)
+        return -1;
+
+    buf[n] = 0;
+
+    if (sscanf(buf, "%d %ld", &code, &ts) != 2)
+        return -1;
+
+    if (exit_code)
+        *exit_code = code;
+
+    if (done_time)
+        *done_time = (time_t)ts;
 
     return 0;
 }

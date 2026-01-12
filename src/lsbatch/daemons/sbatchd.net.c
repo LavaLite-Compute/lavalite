@@ -311,25 +311,29 @@ int sbd_enqueue_execute(struct sbd_job *job)
 
     if (!job->pid_acked) {
         LS_ERR("job %"PRId64" execute before pid_acked (bug)", job->job_id);
-        abort();
+        assert(0);
+        return -1;
     }
 
     if (job->execute_acked) {
         LS_ERR("job %"PRId64" execute already sent (bug)", job->job_id);
-        abort();
+        assert(0);
+        return -1;
     }
 
     if (job->spec.jobPid <= 0 || job->spec.jobPGid <= 0) {
         LS_ERR("job %"PRId64" bad pid/pgid pid=%d pgid=%d (bug)",
                job->job_id, job->spec.jobPid, job->spec.jobPGid);
-        abort();
+        assert(0);
+        return -1;
     }
 
     if (job->exec_username[0] == 0 || job->spec.cwd[0] == 0
         || job->spec.subHomeDir[0] == 0) {
         LS_ERR("job %"PRId64" missing execute fields user/cwd/home (bug)",
                job->job_id);
-        abort();
+        assert(0);
+        return -1;
     }
 
     struct statusReq req;
@@ -399,24 +403,40 @@ int sbd_enqueue_finish(struct sbd_job *job)
         return -1;
     }
 
+    if (! job->reply_sent) {
+        LS_ERRX("job %"PRId64" not reply_sent before? (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
     if (!job->pid_acked) {
-        LS_ERR("job %"PRId64" finish before pid_acked (bug)", job->job_id);
-        abort();
+        LS_ERR("job %"PRId64" not pid_acked before? (bug)", job->job_id);
+        assert(0);
+        return -1;
     }
 
     if (!job->execute_acked) {
-        LS_ERR("job %"PRId64" finish before execute_sent (bug)", job->job_id);
-        abort();
+        LS_ERRX("job %"PRId64" not executed_acked before ? (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (job->finish_sent) {
+        LS_ERRX("job %"PRId64" sending finish_sent again? (bug)", job->job_id);
+        assert(0);
+        return -1;
     }
 
     if (job->finish_acked) {
-        LS_ERR("job %"PRId64" finish already sent (bug)", job->job_id);
-        abort();
+        LS_ERR("job %"PRId64" finish_acked already sent (bug)", job->job_id);
+        assert(0);
+        return -1;
     }
 
     if (!job->exit_status_valid) {
         LS_ERR("job %"PRId64" finish without exit_status (bug)", job->job_id);
-        abort();
+        assert(0);
+        return -1;
     }
 
     int new_status;
@@ -427,7 +447,8 @@ int sbd_enqueue_finish(struct sbd_job *job)
     } else {
         LS_ERR("job %"PRId64" finish with bad jStatus=0x%x (bug)",
                job->job_id, job->spec.jStatus);
-        abort();
+        assert(0);
+        return -1;
     }
 
     struct statusReq req;
@@ -457,7 +478,7 @@ int sbd_enqueue_finish(struct sbd_job *job)
     req.numExecHosts = 0;
     req.execHosts  = NULL;
 
-    // raw waitpid() status like old jp->w_status
+    // plain exit code (0..255) from job wrapper
     req.exitStatus = job->exit_status;
 
     // rusage later

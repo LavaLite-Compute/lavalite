@@ -37,6 +37,7 @@ static void sbd_reply_drive(void);
 static void sbd_mbd_reconnect_try(void);
 static bool_t sbd_drive_mbd_link(int, struct epoll_event *);
 static bool_t sbd_pid_alive(pid_t);
+static void sbd_cleanup(void);
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -108,7 +109,9 @@ int main(int argc, char **argv)
 
     int rc = sbd_init("sbatchd");
     if (rc < 0) {
-        fprintf(stderr, "sbatchd: sbd_init() failed: %s\n", ls_sysmsg());
+        // print also the lserrno just in case
+        LS_ERRX("sbatchd: sbd_init() failed %s", ls_sysmsg());
+        sbd_cleanup();
         return 1;
     }
 
@@ -117,10 +120,96 @@ int main(int argc, char **argv)
 
     return 0;
 }
+// Exit only if the daemon cannot run its main loop.
+// Never exit for control-plane/network unavailability.
+static int sbd_init(const char *sbatch)
+{
+    // initenv will load genParams as well
+    if (initenv_(lsbParams, NULL) < 0) {
+        return -1;
+    }
+
+    // first thing first open the log so we can see messages
+    // from the daemon right from the start
+    sbd_init_log();
+
+    sbd_init_signals();
+
+    if (sbd_init_network() < 0) {
+        LS_ERR("failed to initialize my network");
+        return -1;
+    }
+
+    // The appname is useless but the api still wants it
+    if (lsb_init("sbd") < 0) {
+        LS_ERR("failed to initialize the batch library");
+        return -1;
+    }
+
+    bool_t connected = false;
+    // global channel to mbd
+    sbd_mbd_chan = sbd_nb_connect_mbd(&connected);
+    if (sbd_mbd_chan < 0) {
+        LS_ERR("mbd link: initial connect attempt failed");
+        sbd_mbd_chan = -1;
+        sbd_mbd_connecting = false;
+    } else {
+        sbd_mbd_connecting = connected ? false : true;
+        LS_INFO("mbd link: init ch=%d connecting=%d",
+                sbd_mbd_chan, sbd_mbd_connecting);
+    }
+
+    // initialize the lists and hashes
+    if (sbd_job_init() < 0) {
+        // Bug handle this
+    }
+
+    // Initialize persistent job state storage early.
+    // If we can't create/validate the state directory, we cannot guarantee
+    // restart-safe job tracking, so fail fast before allocating resources.
+    if (sbd_job_record_dir_init() < 0) {
+        LS_ERR("failed to initialize persistent state storage");
+        return -1;
+    }
+    // Reconstruct jobs seen before last shutdown.
+    if (sbd_job_record_load_all() < 0) {
+        LS_ERR("failed to load persistent job state");
+        return -1;
+    }
+
+    // Remove from the internal data structure jobs that
+    // were already reported to mbd. We don't want to carry
+    // duplicate status for now as we assert it in multiple
+    // places
+    sbd_cleanup_job_list();
+
+    // Green light we can start to operate
+
+    return 0;
+}
 
 static void
 sbd_run_daemon(void)
 {
+     /*
+     * One-time status reconciliation after restart.
+     *
+     * After reloading job records from disk, some jobs may have already
+     * finished while sbatchd was down. In that case their PIDs are no longer
+     * alive, but their final status (DONE vs EXIT) has not yet been derived.
+     *
+     * job_status_checking() performs this reconciliation:
+     *   - detects jobs whose PID is no longer alive,
+     *   - reads the sidecar exit-status file written by the job wrapper,
+     *   - sets exit_status / exit_status_valid,
+     *   - derives JOB_STAT_DONE or JOB_STAT_EXIT in job->spec.jStatus.
+     *
+     * This must run once before entering the main loop so that
+     * job_finish_drive() never attempts to enqueue a FINISH message for
+     * a job whose final status has not been decided yet.
+     */
+    job_status_checking();
+
     while (1) {
 
         if (sbd_croak) {
@@ -376,66 +465,6 @@ sbd_mbd_reconnect_try(void)
     }
 }
 
-// Exit only if the daemon cannot run its main loop.
-// Never exit for control-plane/network unavailability.
-static int sbd_init(const char *sbatch)
-{
-    // initenv will load genParams as well
-    if (initenv_(lsbParams, NULL) < 0) {
-        return -1;
-    }
-
-    sbd_init_signals();
-
-    sbd_init_log();
-
-    if (sbd_init_network() < 0) {
-        LS_ERR("failed to initialize my network");
-        return -1;
-    }
-
-    // The appname is useless but the api still wants it
-    if (lsb_init("sbd") < 0) {
-        LS_ERR("failed to initialize the batch library");
-        return -1;
-    }
-
-    bool_t connected = false;
-    // global channel to mbd
-    sbd_mbd_chan = sbd_nb_connect_mbd(&connected);
-    if (sbd_mbd_chan < 0) {
-        LS_ERR("mbd link: initial connect attempt failed");
-        sbd_mbd_chan = -1;
-        sbd_mbd_connecting = false;
-    } else {
-        sbd_mbd_connecting = connected ? false : true;
-        LS_INFO("mbd link: init ch=%d connecting=%d",
-                sbd_mbd_chan, sbd_mbd_connecting);
-    }
-
-    // initialize the lists and hashes
-    if (sbd_job_init() < 0) {
-        // Bug handle this
-    }
-
-    // Initialize persistent job state storage early.
-    // If we can't create/validate the state directory, we cannot guarantee
-    // restart-safe job tracking, so fail fast before allocating resources.
-    if (sbd_job_record_dir_init() < 0) {
-        LS_ERR("failed to initialize persistent state storage");
-        return -1;
-    }
-    // Reconstruct jobs seen before last shutdown.
-    if (sbd_job_record_load_all() < 0) {
-        LS_ERR("failed to load persistent job state");
-        return -1;
-    }
-
-    // Green light we can start to operate
-
-    return 0;
-}
-
 static void sbd_init_log(void)
 {
     const char *log_dir = genParams[LSF_LOGDIR].paramValue;
@@ -616,13 +645,15 @@ static void sbd_reap_children(void)
         if (job->pid != pid) {
             LS_ERR("job %"PRId64" pid mismatch: job->pid=%d waitpid=%d",
                    job->job_id, (int)job->pid, (int)pid);
-            abort();
+            assert(0);
+            continue;
         }
 
         // fill the job exit status value from wait
         // into the job structure
         job->exit_status = status;
         job->exit_status_valid = true;
+        job->end_time = time(NULL);
 
         if (WIFEXITED(status)) {
             job->state = SBD_JOB_EXITED;
@@ -667,11 +698,27 @@ static void job_status_checking(void)
         if (!sbd_pid_alive(job->pid)) {
             LS_WARNING("job %"PRId64": pid %ld not alive after restart?",
                        job->job_id, (long)job->pid);
-             job->exit_status_valid = true;
-             job->exit_status = 0;      // placeholder for now
              job->finish_sent = false;  // ensue finish_drive enqueues
-             // for now
-             job->spec.jStatus = JOB_STAT_DONE;
+             // read the exit code from the exit status file of the job
+             // created by the job file
+             int exit_code;
+             time_t done_time;
+             int cc = sbd_read_exit_status_file(job->job_id,
+                                                &exit_code,
+                                                &done_time);
+             if (cc < 0) {
+                 LS_ERR("failed to read job %ld exist status assume "
+                        "JOB_STAT_EXIT", job->job_id);
+                 exit_code = 1;
+             }
+             job->exit_status_valid = true;
+             job->exit_status = exit_code;
+             // Derive final status bits from exit code
+             job->spec.jStatus &= ~(JOB_STAT_DONE | JOB_STAT_EXIT);
+             if (exit_code == 0)
+                 job->spec.jStatus |= JOB_STAT_DONE;
+             else
+                 job->spec.jStatus |= JOB_STAT_EXIT;
         }
     }
 }
@@ -829,4 +876,20 @@ static bool_t sbd_pid_alive(pid_t pid)
         return true;   // exists, just not permitted
 
     return false; // ESRCH or other -> treat as not alive
+}
+
+// sbd_init() failed so as a good coding hygiene we clean up file
+// descriptors and buffers
+static void
+sbd_cleanup(void)
+{
+    chan_close(sbd_listen_chan);
+    chan_close(sbd_timer_chan);
+    chan_close(sbd_efd);
+    // free the hash but not the job entries
+    ll_hash_free(sbd_job_hash, NULL, NULL);
+    // use clear so that we dont free the pointer that
+    // is in the static area and not on the heap
+    ll_list_clear(&sbd_job_list, sbd_job_free);
+    ls_closelog();
 }

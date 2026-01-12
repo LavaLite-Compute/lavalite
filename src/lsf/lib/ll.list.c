@@ -119,8 +119,9 @@ struct ll_list_entry *ll_list_dequeue(struct ll_list *lst)
     return ll_list_pop(lst);
 }
 
+// free the entries and reinitialize the list
 void ll_list_clear(struct ll_list *lst,
-                   void (*cleanup)(struct ll_list_entry *ent))
+                   void (*cleanup)(void *))
 {
     struct ll_list_entry *e = lst->head;
     struct ll_list_entry *next;
@@ -141,7 +142,7 @@ void ll_list_clear(struct ll_list *lst,
 }
 
 void ll_list_free(struct ll_list *lst,
-                  void (*cleanup)(struct ll_list_entry *ent))
+                  void (*cleanup)(void *))
 {
     if (!lst)
         return;

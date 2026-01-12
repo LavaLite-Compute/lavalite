@@ -1250,8 +1250,6 @@ extern void checkAcctLog(void);
 extern int switchAcctLog(void);
 extern void logJobInfo(struct submitReq *, struct jData *, struct lenData *);
 extern int rmLogJobInfo_(struct jData *, int);
-extern int readLogJobInfo(struct jobSpecs *, struct jData *, struct lenData *,
-                          struct lenData *);
 extern void log_signaljob(struct jData *, struct signalReq *, int, char *);
 extern void log_jobmsg(struct jData *, struct lsbMsg *, int);
 extern void log_jobmsgack(struct bucket *);
@@ -1451,3 +1449,4 @@ int mbd_handle_slave_restart(struct mbd_client_node *,
                              struct packet_header *,
                              XDR *);
 const char *mbd_op_str(int);
+int read_job_file(struct jobSpecs *, struct jData *);

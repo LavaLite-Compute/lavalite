@@ -71,7 +71,10 @@ struct ll_list_entry *ll_list_dequeue(struct ll_list *lst);
 
 // Free the list object itself (if heap-allocated), optionally applying a
 // cleanup callback to each entry (e.g., to free container structs).
-void ll_list_free(struct ll_list *lst, void (*cleanup)(struct ll_list_entry *));
+void ll_list_free(struct ll_list *lst, void (*cleanup)(void *));
+
+// Free the entries and reinitialize the list
+void ll_list_clear(struct ll_list *, void (*cleanup)(void *));
 
 // Simple forward iteration helper but just optional sugar.
 // Caller-supplied callback runs from head → tail.

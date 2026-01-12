@@ -42,6 +42,11 @@ extern int sbd_mbd_chan;
 extern bool_t connected;
 extern bool_t sbd_mbd_connecting;
 
+// LavaLite sbd saved state record processing
+// state dir is where the image of running jobs on this
+// sbd are
+extern char sbd_state_dir[PATH_MAX];
+
 int sbd_connect_mbd(void);
 int sbd_nb_connect_mbd(bool_t *);
 int sbd_enqueue_register(int);
@@ -137,7 +142,7 @@ struct sbd_job {
 
     int exit_status;                  // raw waitpid() status
     bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
-
+    time_t end_time;     // job finish time
     char exec_username[LL_BUFSIZ_64]; // execution username (used in statusReq)
 
     struct lsfRusage lsf_rusage;  // resource usage snapshot (zero for now;
@@ -162,6 +167,7 @@ struct sbd_job_record {
 
     bool_t finished_locally;   // we reaped it
     int    exit_status;        // raw waitpid() status
+    time_t end_time;  // if the job has finih record the time
 };
 
 
@@ -185,7 +191,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
 void sbd_job_insert(struct sbd_job *);
 // Remove and destroy job from global list + hash + free.
 void sbd_job_destroy(struct sbd_job *);
-void sbd_job_free(struct sbd_job *);
+void sbd_job_free(void *);
 
 // Mapping between sbatchd state and lsbatch.h JOB_STAT_* bitmask
 int sbd_state_to_jstatus(enum sbd_job_state);
@@ -211,6 +217,7 @@ int sbd_job_record_read(int64_t, struct sbd_job *);
 int sbd_job_record_write(struct sbd_job *);
 int sbd_job_record_path(int64_t, char *, size_t);
 int sbd_job_record_remove(int64_t);
+void sbd_cleanup_job_list(void);
 
 // sbd has command to query its internal status
 int handle_sbd_accept(int);
@@ -222,3 +229,4 @@ int sbd_reply_hdr_only(int, int, struct packet_header *);
 // to its own xdr data structure
 int sbd_reply_payload(int, int, struct packet_header *,
                       void *, bool_t (*xdr_func)());
+int sbd_read_exit_status_file(int, int *, time_t *);
