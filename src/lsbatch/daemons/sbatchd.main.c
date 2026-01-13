@@ -155,7 +155,7 @@ static int sbd_init(const char *sbatch)
         sbd_mbd_connecting = false;
     } else {
         sbd_mbd_connecting = connected ? false : true;
-        LS_INFO("mbd link: init ch=%d connecting=%d",
+        LS_INFO("mbd link: init sbd_mbd_chan: %d connecting: %d",
                 sbd_mbd_chan, sbd_mbd_connecting);
     }
 
@@ -575,8 +575,9 @@ sbd_init_network(void)
         return -1;
     }
 
-    LS_INFO("sbatchd listening on port %d chan: %d, epoll_fd: %d timer: %dsec",
-            sbd_port, sbd_listen_chan, sbd_efd, sbd_timer);
+    LS_INFO("sbatchd listening on port %d sbd_listen_chan: %d, epoll_fd: %d "
+            "sbd_timer_chan: %d timer: %dsec",
+            sbd_port, sbd_listen_chan, sbd_efd, sbd_timer_chan, sbd_timer);
 
     return 0;
 }

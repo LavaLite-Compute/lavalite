@@ -13,11 +13,13 @@ static int log_to_stderr;
 static int log_to_syslog;
 static int log_min_level;
 static char log_ident[LL_BUFSIZ_32];
+static char log_path[PATH_MAX];
 
 static const char *level_str(int);
 static int get_level_str(const char *);
 static void build_timestamp(char *, size_t);
 static void write_record(int fd, const char *, size_t);
+static void ls_reopen_log(void);
 
 __thread int lserrno = LSE_NO_ERR;
 // Just to link...
@@ -112,12 +114,8 @@ int ls_openlog(const char *ident,
                int to_syslog,
                const char *mask)
 {
-    char path[LL_BUFSIZ_256];
+    //1. resolve ident
     const char *name;
-    const char *host;
-    int fd;
-
-    /* 1. resolve ident */
     if (ident && *ident)
         name = ident;
     else
@@ -126,16 +124,17 @@ int ls_openlog(const char *ident,
     snprintf(log_ident, sizeof(log_ident), "%s", name);
 
     /* 2. resolve hostname now, so stderr/syslog have it too */
-    host = ls_getmyhostname();
+    const char *host = ls_getmyhostname();
     if (!host || !*host)
         host = "unknown";
 
     // 3. configure base behaviour
-    log_min_level = LOG_INFO;
     log_min_level  = get_level_str(mask);
     log_to_stderr  = to_stderr ? 1 : 0;
     log_to_syslog  = to_syslog ? 1 : 0;
     log_fd         = -1;
+    log_path[0] = 0;
+
     /* 4. optional syslog mirror, independent of file logging */
     if (log_to_syslog) {
         openlog(log_ident, LOG_NDELAY | LOG_PID, LOG_DAEMON);
@@ -157,15 +156,20 @@ int ls_openlog(const char *ident,
         return 0;
     }
 
+    char path[PATH_MAX];
     /* 6. normal file logging path */
-    snprintf(path, sizeof(path), "%s/%s.log.%s",
-             logdir, log_ident, host);
+    int cc = snprintf(path, sizeof(path), "%s/%s.log.%s",
+                      logdir, log_ident, host);
+    if (cc < 0 || cc >= (int)sizeof(path))
+        return -1;
 
-    fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    int fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
     if (fd < 0)
         return -1;   /* caller can decide if this is fatal */
 
     log_fd = fd;
+    snprintf(log_path, sizeof(log_path), "%s", path);
+
     return 0;
 }
 
@@ -187,12 +191,11 @@ void ls_syslog(int level, const char *fmt, ...)
     char msg[LL_BUFSIZ_1K];
     char line[LL_BUFSIZ_4K];
     int n;
-    int fd = log_fd;   /* snapshot: may be -1 */
 
     // no logger configured return, sorry no implicit
     // logging to stderr but definite behaviour
     // ls_openlog()/ls_syslog()/ls_closelog()
-    if (fd < 0)
+    if (log_fd < 0)
         return;
 
     // ignore messages above current mask
@@ -205,7 +208,7 @@ void ls_syslog(int level, const char *fmt, ...)
     va_end(ap);
 
     // build timestamp
-    char ts[LL_BUFSIZ_32];
+    char ts[LL_BUFSIZ_64];
     build_timestamp(ts, sizeof(ts));
 
     /* final formatted line:
@@ -235,12 +238,17 @@ void ls_syslog(int level, const char *fmt, ...)
     if (len >= sizeof(line))
         len = sizeof(line) - 1;
 
-    // primary sink protect ourselves from fd < 0 is the caller
-    // did not initialized the log
-    flock(fd, LOCK_EX);
-    write_record(fd, line, len);
-    flock(fd, LOCK_UN);
+    // when negative we still want to write to stderr or syslog
+    // if they are configured
+    if (log_fd >= 0) {
+        struct stat st;
+        if (fstat(log_fd, &st) == 0 && st.st_nlink == 0)
+            ls_reopen_log();
 
+        flock(log_fd, LOCK_EX);
+        write_record(log_fd, line, len);
+        flock(log_fd, LOCK_UN);
+    }
     // mirror to stderr if requested
     if (log_to_stderr)
         write(STDERR_FILENO, line, len);
@@ -248,6 +256,21 @@ void ls_syslog(int level, const char *fmt, ...)
     // syslog mirror without our timestamp
     if (log_to_syslog)
         syslog(level, "%s", msg);
+}
+
+static void ls_reopen_log(void)
+{
+    if (log_path[0] == '\0')
+        return;
+
+    int newfd = open(log_path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
+    if (newfd < 0)
+        return;
+
+    if (log_fd >= 0)
+        close(log_fd);
+
+    log_fd = newfd;
 }
 
 
@@ -300,19 +323,27 @@ static int get_level_str(const char *name)
 
 static void build_timestamp(char *buf, size_t bufsz)
 {
-    time_t now;
+    struct timespec ts;
     struct tm tm_buf;
-    struct tm *tm_ptr;
 
-    now = time(NULL);
-    tm_ptr = localtime_r(&now, &tm_buf);
-    if (tm_ptr == NULL) {
+    if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
         buf[0] = '\0';
         return;
     }
 
-    /* "Dec 19 16:13:16 2025" */
-    strftime(buf, bufsz, "%b %e %T %Y", tm_ptr);
+    if (localtime_r(&ts.tv_sec, &tm_buf) == NULL) {
+        buf[0] = '\0';
+        return;
+    }
+    /* "Dec 19 16:13:16.123" */
+    snprintf(buf, bufsz,
+             "%.3s %2d %02d:%02d:%02d.%03ld",
+             "JanFebMarAprMayJunJulAugSepOctNovDec" + tm_buf.tm_mon * 3,
+             tm_buf.tm_mday,
+             tm_buf.tm_hour,
+             tm_buf.tm_min,
+             tm_buf.tm_sec,
+             ts.tv_nsec / 1000000);
 }
 
 /* Map syslog level value -> string name.
