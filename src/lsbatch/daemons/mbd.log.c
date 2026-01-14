@@ -2504,7 +2504,13 @@ void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
     char job_file[PATH_MAX];
     FILE *fp;
 
-    sprintf(job_file, "%s", info_dir, jp->shared->jobBill.jobFile);
+    int n = snprintf(job_file, sizeof(job_file), "%s/%s", info_dir,
+                     jp->shared->jobBill.jobFile);
+    if (n < 0 || n >= (int)sizeof(job_file)) {
+        LS_ERR("job_file path too long (dir=%s file=%s)",
+               info_dir, jp->shared->jobBill.jobFile);
+        return;
+    }
 
     fp = fopen(job_file, "w");
     if (fp == NULL) {
