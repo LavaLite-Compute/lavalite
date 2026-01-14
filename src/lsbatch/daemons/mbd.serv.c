@@ -70,8 +70,13 @@ int do_submitReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
         convertRLimit(subReq.rLimits, 1);
     }
 
-    reply =
-        newJob(&subReq, &submitReply, chfd, auth, schedule, dispatch, jobData);
+    reply = newJob(&subReq,
+                   &submitReply,
+                   chfd,
+                   auth,
+                   schedule,
+                   dispatch,
+                   jobData);
 sendback:
     if (reply != 0 || submitReply.jobId <= 0) {
         if (logclass & (LC_TRACE | LC_EXEC)) {

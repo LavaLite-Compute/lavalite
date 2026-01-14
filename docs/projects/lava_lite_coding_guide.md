@@ -35,6 +35,27 @@ We avoid:
 When in doubt, ask what Unix and K&R would do — and do that.
 
 ---
+## C Modules and State
+
+Each C translation unit (`.c` file) is treated as a self-contained module.
+
+Module state is stored in `static` variables and is private to the translation unit.
+Functions operating on module state are considered module "methods" and **must not**
+pretend to be pure or reusable.
+
+As a rule:
+- functions that operate on module state take `void` and use the module globals directly
+- functions that take parameters must be genuinely reusable and must not rely on module globals
+
+This avoids "fake functional purity": functions that appear pure or parameter-driven
+but secretly depend on global state or perform irreversible side effects
+(logging, I/O, process termination).
+
+The translation unit itself acts as the namespace.
+Explicit namespacing or artificial abstraction is avoided in favor of clarity,
+explicit lifecycle, and honest semantics.
+
+---
 
 # 1. Project Architectural Invariants
 
@@ -293,6 +314,21 @@ Do not use:
 `SortIncludes: false` in `.clang-format` preserves ordering intentionally.
 
 ---
+## Comments
+
+Code must be readable without comments.
+
+Comments are **not** used to explain what the code does, line by line, or to restate obvious logic.
+Such comments inevitably become obsolete and misleading.
+
+Comments are allowed **only** to document:
+- invariants that are not visible from the local code
+- design decisions and rationale ("why", not "what")
+- non-obvious constraints or intentional limitations
+- counterintuitive behavior that must not be "cleaned up"
+
+Comments must describe **rules**, **contracts**, or **assumptions**, not control flow.
+If a comment can be removed without losing essential information, it should not exist.
 
 # 3. Miscellaneous rules
 

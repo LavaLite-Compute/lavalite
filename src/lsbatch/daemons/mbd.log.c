@@ -1,4 +1,4 @@
-/* $Id: mbd.log.c,v 1.23 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -91,6 +91,7 @@ int nextJobId_t = 1;
 time_t dieTime;
 static char elogFname[PATH_MAX];
 static char jlogFname[PATH_MAX];
+static char info_dir[PATH_MAX];
 
 static struct eventRec *logPtr;
 
@@ -137,6 +138,7 @@ static int replay_arrayrequeue(struct jData *, const struct signalLog *);
 static int renameAcctLogFiles(int);
 
 // LavaLite
+static void mbd_init_log_paths(void);
 static int build_log_path(char *, size_t,
                           const char *, const char *);
 
@@ -154,70 +156,10 @@ int init_log(void)
 
     mSchedStage = M_STAGE_REPLAY;
 
-    // We expect this directory to exist already
-    char dirbuf[MAXPATHLEN];
-    sprintf(dirbuf, "%s/mbatchd", lsbParams[LSB_SHAREDIR].paramValue);
-
-    // Build mbd log file paths under LSB_SHAREDIR
-    if (build_log_path(elogFname, sizeof(elogFname),
-                       dirbuf, "lsb.events") < 0) {
-        LS_ERR("failed to build events log path");
-        return -1;
-    }
-
-    if (build_log_path(jlogFname, sizeof(jlogFname),
-                       dirbuf, "lsb.acct") < 0) {
-        LS_ERR("failed to build accounting log path");
-        return -1;
-    }
-
-    if (stat(dirbuf, &sbuf) < 0) {
-        LS_ERR("stat(%s) failed", dirbuf);
-        if (!lsb_CheckMode) {
-            mbdDie(MASTER_FATAL);
-        }
-        ConfigError = -1;
-    }
-
-    if (sbuf.st_uid != mbd_mgr->uid) {
-        ls_syslog(LOG_ERR,
-                  "%s: Log directory <%s> not owned by LSF "
-                  " administrator <%s/%d> owner ID is %d",
-                  __func__, dirbuf, mbd_mgr->name, mbd_mgr->uid, sbuf.st_uid);
-        if (mbd_debug == 0) {
-            mbdDie(MASTER_FATAL);
-        }
-
-        ConfigError = -1;
-    }
-
-    if (sbuf.st_mode & 02) {
-        ls_syslog(LOG_ERR,
-                  "%s: Mode <%03o> not allowed for job log directory <%s>; the "
-                  "permission bits for others should be 05",
-                  fname, (int) sbuf.st_mode, dirbuf);
-        if (mbd_debug == 0) {
-            mbdDie(MASTER_FATAL);
-        }
-
-        ConfigError = -1;
-    }
+    mbd_init_log_paths();
 
     // Get the current mbatchd lock
     getElogLock();
-
-    char infoDir[PATH_MAX];
-    // Create the info directory under LSB_SHAREDIR
-    if (build_log_path(infoDir, sizeof(infoDir),
-                       dirbuf, "info") < 0) {
-        LS_ERR("failed to build info directory path");
-        return -1;
-    }
-
-    if (mkdir(infoDir, 0700) == -1 && errno != EEXIST) {
-        ls_syslog(LOG_ERR, "%s mkdir(%s) failed %m", __func__, infoDir);
-        mbdDie(MASTER_FATAL);
-    }
 
     stat(elogFname, &ebuf);
     log_fp = fopen(elogFname, "r");
@@ -374,6 +316,77 @@ static int replay_event(char *filename, int lineNum)
         ls_syslog(LOG_ERR, "%s: File %s at line %d: Invalid event_type <%c>",
                   fname, filename, lineNum, logPtr->type);
         return FALSE;
+    }
+}
+
+static void mbd_init_log_paths(void)
+{
+    char dirbuf[PATH_MAX];
+    struct stat sbuf;
+
+    /*
+     * Invariant:
+     * The mbatchd working directory is NOT created by the daemon.
+     * It must exist and be owned by the LavaLite administrator.
+     * Creation is the responsibility of the installer or sysadmin.
+     */
+    snprintf(dirbuf, sizeof(dirbuf), "%s/mbatchd",
+             lsbParams[LSB_SHAREDIR].paramValue);
+
+    if (stat(dirbuf, &sbuf) < 0) {
+        LS_ERR("stat(%s) failed", dirbuf);
+        if (!lsb_CheckMode) {
+            mbdDie(MASTER_FATAL);
+        }
+        return;
+    }
+
+    if (sbuf.st_uid != mbd_mgr->uid) {
+        ls_syslog(LOG_ERR,
+                  "%s: Log directory <%s> not owned by LavaLite "
+                  "administrator <%s/%d> owner ID is %d",
+                  __func__, dirbuf,
+                  mbd_mgr->name, mbd_mgr->uid,
+                  sbuf.st_uid);
+        if (mbd_debug == 0) {
+            mbdDie(MASTER_FATAL);
+        }
+        return;
+    }
+
+    if (sbuf.st_mode & 02) {
+        ls_syslog(LOG_ERR,
+                  "%s: Mode <%03o> not allowed for job log directory <%s>; "
+                  "permission bits for others should be 05",
+                  __func__, (int)sbuf.st_mode, dirbuf);
+        if (mbd_debug == 0) {
+            mbdDie(MASTER_FATAL);
+        }
+        return;
+    }
+
+    if (build_log_path(elogFname, sizeof(elogFname),
+                       dirbuf, "lsb.events") < 0) {
+        LS_ERR("failed to build events log path");
+        mbdDie(MASTER_FATAL);
+    }
+
+    if (build_log_path(jlogFname, sizeof(jlogFname),
+                       dirbuf, "lsb.acct") < 0) {
+        LS_ERR("failed to build accounting log path");
+        mbdDie(MASTER_FATAL);
+    }
+
+    if (build_log_path(info_dir, sizeof(info_dir),
+                       dirbuf, "info") < 0) {
+        LS_ERR("failed to build info directory path");
+        mbdDie(MASTER_FATAL);
+    }
+
+    if (mkdir(info_dir, 0700) == -1 && errno != EEXIST) {
+        ls_syslog(LOG_ERR, "%s: mkdir(%s) failed %m",
+                  __func__, info_dir);
+        mbdDie(MASTER_FATAL);
     }
 }
 
@@ -2488,21 +2501,19 @@ static int renameElogFiles(void)
 
 void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
 {
-    char logFn[PATH_MAX];
+    char job_file[PATH_MAX];
     FILE *fp;
 
-    sprintf(logFn, "%s/mbatchd/info/%s", lsbParams[LSB_SHAREDIR].paramValue,
-            jp->shared->jobBill.jobFile);
+    sprintf(job_file, "%s", info_dir, jp->shared->jobBill.jobFile);
 
-    fp = fopen(logFn, "w");
+    fp = fopen(job_file, "w");
     if (fp == NULL) {
-        LS_ERR("%s: fopen faileds(%s)", __func__, logFn);
+        LS_ERR("fopen %s failed", job_file);
         mbdDie(MASTER_FATAL);
     }
 
     if (fwrite(jf->data, 1, jf->len, fp) != jf->len) {
-        ls_syslog(LOG_ERR, "%s: fwrite(%s, len=%d failed: %m", __func__, logFn,
-                  jf->len);
+        LS_ERR("fwrite %s, len %d failed", job_file, jf->len);
         fclose(fp);
         goto error;
     }
@@ -2513,7 +2524,7 @@ void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
 
 error:
 
-    unlink(logFn);
+    unlink(job_file);
     mbdDie(MASTER_FATAL);
 }
 
