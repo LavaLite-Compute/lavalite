@@ -993,7 +993,7 @@ sbd_redirect_stdio(const struct jobSpecs *specs)
         path = expanded;
     }
 
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd < 0) {
         LS_ERR("job <%s>: open(stdout=%s) failed: %m",
                lsb_jobid2str(specs->jobId), path);
@@ -1019,7 +1019,7 @@ sbd_redirect_stdio(const struct jobSpecs *specs)
         path = expanded;
     }
 
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd < 0) {
         LS_ERR("job <%s>: open(stderr=%s) failed: %m",
                lsb_jobid2str(specs->jobId), path);
