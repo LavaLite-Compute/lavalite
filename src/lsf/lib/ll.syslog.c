@@ -327,15 +327,15 @@ static void build_timestamp(char *buf, size_t bufsz)
     struct tm tm_buf;
 
     if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
-        buf[0] = '\0';
+        buf[0] = 0;
         return;
     }
 
     if (localtime_r(&ts.tv_sec, &tm_buf) == NULL) {
-        buf[0] = '\0';
+        buf[0] = 0;
         return;
     }
-    /* "Dec 19 16:13:16.123" */
+    //* "Dec 19 16:13:16.123"
     snprintf(buf, bufsz,
              "%.3s %2d %02d:%02d:%02d.%03ld",
              "JanFebMarAprMayJunJulAugSepOctNovDec" + tm_buf.tm_mon * 3,
@@ -439,4 +439,20 @@ static void write_record(int fd, const char *buf, size_t len)
         buf += (size_t)n;
         len -= (size_t)n;
     }
+}
+/*
+ * Enable or disable mirroring log lines to the process stderr.
+ *
+ * This is a debugging convenience feature. When enabled, log messages are
+ * written to the normal log sink and also mirrored to stderr.
+ *
+ * Callers that redirect STDERR_FILENO (e.g. job execution children) should
+ * disable stderr mirroring to avoid leaking daemon logs into user output.
+ */
+void ls_set_log_to_stderr(int enabled)
+{
+    if (enabled)
+        log_to_stderr  = 1;
+    else
+        log_to_stderr  = 0;
 }

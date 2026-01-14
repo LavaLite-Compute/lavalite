@@ -624,6 +624,7 @@ void ls_syslog(int, const char *, ...)
 void ls_set_time_level(const char *);
 void ls_setlogtag(const char *);
 void ls_closelog(void);
+void ls_set_log_to_stderr(int);
 
 extern int ls_servavail(int, int);
 extern int ls_setpriority(int);

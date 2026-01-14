@@ -144,6 +144,7 @@ struct sbd_job {
     bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
     time_t end_time;     // job finish time
     char exec_username[LL_BUFSIZ_64]; // execution username (used in statusReq)
+    char exec_cwd[PATH_MAX];   // execution working directory
 
     struct lsfRusage lsf_rusage;  // resource usage snapshot (zero for now;
                                   // later populated from cgroupv2)

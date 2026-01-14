@@ -19,52 +19,109 @@
 
 static int dup_str_array(char ***, char *const *, int);
 static int dup_len_data(struct lenData *, const struct lenData *);
+static int sbd_job_prepare_exec_fields(struct sbd_job *);
 
+/*
+ * Create and initialize a new sbatchd job object from a received jobSpecs.
+ *
+ * This function allocates a struct sbd_job, performs a deep copy of the
+ * job specification as received from mbd, initializes all sbatchd-local
+ * execution and pipeline state, and prepares derived execution fields
+ * (such as decoded execution working directory).
+ *
+ * On success, the returned job object is fully initialized, validated,
+ * and ready to be inserted into sbatchd internal data structures.
+ *
+ * On failure, all allocated resources are released and NULL is returned.
+ *
+ * This function does not start execution, spawn processes, or change
+ * working directory; it only prepares the in-memory job representation.
+ */
 struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
 {
     struct sbd_job *job = calloc(1, sizeof(*job));
     if (job == NULL) {
-        LS_ERR("%s: calloc sbd_job failed: %m", __func__);
+        LS_ERR("calloc sbd_job failed: %m");
         return NULL;
     }
 
-    // Copy the job specs as we need then during the lifetime
-    // of the job to advance its pipeline
+    // Copy job specifications as received from mbd.
+    // These fields remain stable for the lifetime of the job.
     if (jobSpecs_deep_copy(&job->spec, spec) < 0) {
-        LS_ERR("%s: jobSpecs_deep_copy failed for jobId=%" PRId64,
-               __func__, spec->jobId);
+        LS_ERR("jobSpecs_deep_copy failed for jobId=%"PRId64": %m",
+               spec->jobId);
         free(job);
         return NULL;
     }
 
-    // even if we calloc, let's do explicit initialization
+    /*
+     * Explicit initialization of execution and pipeline state.
+     * calloc() already zeroed the structure, but we want this to
+     * remain correct even if initialization changes in the future.
+     */
     job->job_id = spec->jobId;
     job->pid = -1;
     job->pgid = -1;
-    // calloc did it but we want to explicitly init all members
-    memset(&job->job_reply, 0, sizeof(struct jobReply));
-    job->reply_sent = false;
-    job->reply_code = ERR_NO_ERROR;
+
+    memset(&job->job_reply, 0, sizeof(job->job_reply));
+    memset(&job->lsf_rusage, 0, sizeof(job->lsf_rusage));
+
     job->state = SBD_JOB_NEW;
+    job->reply_code = ERR_NO_ERROR;
+    job->reply_sent = false;
+
     job->pid_acked = false;
     job->pid_ack_time = 0;
     job->execute_acked = false;
     job->execute_sent = false;
     job->finish_acked = false;
     job->finish_sent = false;
-    job->exit_status_valid = false;
+
     job->exit_status = 0;
     job->exit_status_valid = false;
-    memset(&job->lsf_rusage, 0, sizeof(job->lsf_rusage));
+
     job->missing = false;
     job->step = SBD_STEP_NONE;
+
+    // Initialize execution identity fields explicitly
+    job->exec_username[0] = 0;
+    job->exec_cwd[0] = 0;
 
     strlcpy(job->exec_username, spec->userName,
             sizeof(job->exec_username));
 
+    // Prepare decoded execution fields (cwd reconstruction, validation).
+    // This must succeed for the job to be runnable.
+    if (sbd_job_prepare_exec_fields(job) < 0) {
+        LS_ERR("job %"PRId64" failed to prepare execution fields: %m",
+               spec->jobId);
+        jobSpecs_free(&job->spec);
+        free(job);
+        return NULL;
+    }
+
+    // Execution invariants: must hold after preparation
+    assert(job->exec_username[0] != 0);
+    assert(job->spec.subHomeDir[0] != 0);
+    assert(job->exec_cwd[0] != 0);
+
     return job;
 }
 
+/*
+ * Duplicate an array of strings.
+ *
+ * This function allocates and deep-copies an array of NUL-terminated
+ * strings from the source array into a newly allocated destination
+ * array.
+ *
+ * The destination pointer is set to a newly allocated array of string
+ * pointers, each pointing to an independently allocated copy of the
+ * corresponding source string.
+ *
+ * On failure, any partially allocated memory is released and an error
+ * is returned.
+ */
 static int dup_str_array(char ***dstp, char *const *src, int n)
 {
     int i;
@@ -101,6 +158,17 @@ static int dup_str_array(char ***dstp, char *const *src, int n)
     return 0;
 }
 
+/*
+ * Duplicate a length-prefixed data buffer.
+ *
+ * This function deep-copies the contents of a lenData structure,
+ * including allocation of a new data buffer of the specified length.
+ *
+ * The destination lenData is fully independent from the source and
+ * may be safely modified or freed without affecting the source.
+ *
+ * On failure, no partial state is left in the destination.
+ */
 static int dup_len_data(struct lenData *dst, const struct lenData *src)
 {
     dst->len = 0;
@@ -121,6 +189,17 @@ static int dup_len_data(struct lenData *dst, const struct lenData *src)
     return 0;
 }
 
+/*
+ * Release all dynamically allocated resources associated with a jobSpecs.
+ *
+ * This function frees any heap-allocated members contained within the
+ * jobSpecs structure (such as string arrays and data buffers) and
+ * resets the structure to a safe state.
+ *
+ * The jobSpecs structure itself is not freed.
+ *
+ * It is safe to call this function on a partially initialized jobSpecs.
+ */
 void jobSpecs_free(struct jobSpecs *spec)
 {
     int i;
@@ -211,13 +290,20 @@ fail:
     return -1;
 }
 
-// LavaLite sbd saved state record processing
-// state dir is where the image of running jobs on this
-// sbd are
+/*
+ * Initialize the base directory used for sbatchd job records.
+ *
+ * This function ensures that the directory hierarchy used to persist
+ * sbatchd job records exists and is ready for use.
+ *
+ * It is intended to be called once during sbatchd startup.
+ *
+ * On failure, sbatchd should treat this as a fatal initialization error.
+ */
+
 char sbd_state_dir[PATH_MAX];
 
-int
-sbd_job_record_dir_init(void)
+int sbd_job_record_dir_init(void)
 {
     const char *sharedir;
     char sbd_root[PATH_MAX];
@@ -274,6 +360,20 @@ sbd_job_record_dir_init(void)
     return 0;
 }
 
+/*
+ * Construct the filesystem path for a sbatchd job record directory.
+ *
+ * This function formats the path corresponding to the given job ID
+ * into the provided buffer.
+ *
+ * The resulting path identifies the directory or file location used
+ * by sbatchd to store persistent job state for the specified job.
+ *
+ * The buffer must be large enough to hold the full path including
+ * the terminating NUL character.
+ *
+ * On success, the buffer contains a NUL-terminated path string.
+ */
 int sbd_job_record_path(int64_t job_id, char *buf, size_t bufsz)
 {
     if (!buf || bufsz == 0) {
@@ -721,6 +821,91 @@ int sbd_read_exit_status_file(int job_id, int *exit_code, time_t *done_time)
 
     if (done_time)
         *done_time = (time_t)ts;
+
+    return 0;
+}
+
+/*
+ * Prepare execution-related fields for a newly created sbatchd job.
+ *
+ * This function validates mandatory identity fields and reconstructs
+ * the execution working directory from the encoded cwd representation
+ * received from mbd.
+ *
+ * CWD encoding rules:
+ *   - spec.cwd == ""        -> execution cwd is the user's home directory
+ *   - spec.cwd is relative -> execution cwd is subHomeDir + "/" + spec.cwd
+ *   - spec.cwd is absolute -> execution cwd is spec.cwd
+ *
+ * This function does not chdir(). The caller is responsible for changing
+ * directory and applying fallback logic (/tmp) in the execution path.
+ */
+static int
+sbd_job_prepare_exec_fields(struct sbd_job *job)
+{
+    const char *cwd;
+    const char *home;
+    int n;
+
+    if (job == NULL) {
+        LS_ERR("job is NULL (bug)");
+        errno = EINVAL;
+        return -1;
+    }
+
+    // exec_username is required for status reporting and execution context
+    if (job->exec_username[0] == 0) {
+        LS_ERR("job %"PRId64" missing exec_username (bug)",
+               job->job_id);
+        errno = EINVAL;
+        return -1;
+    }
+
+    // subHomeDir is required to decode home-relative cwd encodings
+    if (job->spec.subHomeDir[0] == 0) {
+        LS_ERR("job %"PRId64" missing subHomeDir (bug)",
+               job->job_id);
+        errno = EINVAL;
+        return -1;
+    }
+
+    cwd = job->spec.cwd;
+    home = job->spec.subHomeDir;
+
+    // Decode the cwd encoding into an execution directory path
+    // An empty spec.cwd is valid and means "home"
+    if (cwd[0] == 0) {
+        n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", home);
+        if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
+            LS_ERR("job %"PRId64" exec_cwd overflow for home=%s (bug)",
+                   job->job_id, home);
+            errno = ENAMETOOLONG;
+            return -1;
+        }
+        return 0;
+    }
+
+    // Absolute cwd: use as-is
+    if (cwd[0] == '/') {
+        n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", cwd);
+        if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
+            LS_ERR("job %"PRId64" exec_cwd overflow for cwd=%s (bug)",
+                   job->job_id, cwd);
+            errno = ENAMETOOLONG;
+            return -1;
+        }
+        return 0;
+    }
+
+    // Relative cwd: interpret as relative to user's home directory
+    n = snprintf(job->exec_cwd, sizeof(job->exec_cwd),
+                 "%s/%s", home, cwd);
+    if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
+        LS_ERR("job %"PRId64" exec_cwd overflow for home=%s cwd=%s (bug)",
+               job->job_id, home, cwd);
+        errno = ENAMETOOLONG;
+        return -1;
+    }
 
     return 0;
 }

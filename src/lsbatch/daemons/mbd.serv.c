@@ -2672,9 +2672,10 @@ int sbd_handle_disconnect(struct mbd_client_node *client)
     // invalidate the pointer as the sbd is down
     host_node->sbd_node = NULL;
 
-    // clean up the job list we are no longer sure we
-    // have to clean up the list of sbd goes down
-    // mbd_reset_sbd_job_list(host_node);
+    // dont reset the job list as jobs are still running
+    // on the host they should probably go into UNKNWN state
+    if (0)
+        mbd_reset_sbd_job_list(host_node);
     char key[LL_BUFSIZ_32];
 
     snprintf(key, sizeof(key), "%d", client->chanfd);
