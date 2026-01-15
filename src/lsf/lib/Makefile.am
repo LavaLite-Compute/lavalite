@@ -6,9 +6,6 @@ include $(top_srcdir)/Make.common
 # Shared library (libtool). This will also produce a static .a unless you
 # configure with --disable-static.
 lib_LIBRARIES = libll.a
-#libll_la_LDFLAGS = -version-info 0:0:0 -no-undefined
-#libll_a_LIBADD  = $(TIRPC_LIB) # if liblsf.a itself needs tirpc
-libll_a_LIBADD  = $(TIRPC_LIB) # if liblsf.a itself needs tirpc
 
 # List your real .c files here (no Tcl/yy). Examples shown:
 # libll_la_SOURCES

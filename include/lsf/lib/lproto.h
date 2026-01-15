@@ -273,3 +273,4 @@ int connect_timeout(int, const struct sockaddr *, socklen_t, int);
 int connect_begin(int, const struct sockaddr *, socklen_t);
 int connect_finish(int);
 int rdwr_sock_error(int);
+size_t ll_strlcpy(char *, const char *, size_t);

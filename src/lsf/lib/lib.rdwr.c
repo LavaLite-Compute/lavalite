@@ -1,4 +1,4 @@
-/* $Id: lib.rdwr.c,v 1.3 2007/08/15 22:18:51 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -471,4 +471,27 @@ int rdwr_sock_error(int fd)
         return -1;
 
     return err; // 0 == no pending socket error
+}
+
+// ARM does not have strlcpy() and we dont want to use
+// libbsd as another dependency
+size_t ll_strlcpy(char *dst, const char *src, size_t size)
+{
+    size_t srclen;
+
+    if (size == 0)
+        return strlen(src);
+
+    srclen = strlen(src);
+
+    if (srclen < size) {
+        memcpy(dst, src, srclen);
+        dst[srclen] = 0;
+        return srclen;
+    }
+
+    // truncated
+    memcpy(dst, src, size - 1);
+    dst[size - 1] = 0;
+    return srclen;
 }
