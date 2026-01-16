@@ -88,7 +88,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     job->exec_cwd[0] = 0;
 
     strlcpy(job->exec_username, spec->userName,
-            sizeof(job->exec_username));
+    sizeof(job->exec_username));
 
     // Prepare decoded execution fields (cwd reconstruction, validation).
     // This must succeed for the job to be runnable.
@@ -408,6 +408,15 @@ int sbd_job_record_remove(int64_t job_id)
         return -1;
     }
 
+    if (unlink(path) < 0)
+        return -1;
+
+    int l =  snprintf(path, sizeof(path), "%s/exit.status.%ld",
+                      sbd_state_dir, job_id);
+    if (l < 0 || (size_t)l >= sizeof(path)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
     if (unlink(path) < 0)
         return -1;
 

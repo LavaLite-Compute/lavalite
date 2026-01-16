@@ -102,6 +102,9 @@ int sbd_handle_mbd(int ch_id)
     case BATCH_JOB_FINISH:
         sbd_handle_mbd_job_finish(ch_id, &xdrs, &hdr);
         break;
+    case BATCH_JOB_SIGNAL:
+        sbd_handle_signal_job(ch_id, &xdrs, &hdr);
+        break;
     default:
         break;
     }

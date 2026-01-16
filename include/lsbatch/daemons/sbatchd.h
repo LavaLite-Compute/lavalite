@@ -231,3 +231,5 @@ int sbd_reply_hdr_only(int, int, struct packet_header *);
 int sbd_reply_payload(int, int, struct packet_header *,
                       void *, bool_t (*xdr_func)());
 int sbd_read_exit_status_file(int, int *, time_t *);
+int sbd_enqueue_signal_job_reply(int, struct packet_header *,
+                                 struct wire_job_sig_reply *);

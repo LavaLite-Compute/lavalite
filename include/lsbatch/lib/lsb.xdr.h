@@ -57,3 +57,19 @@ struct wire_sbd_register {
 };
 
 bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
+
+// Job signal protocol
+struct wire_job_sig_req {
+    int64_t job_id;
+    int32_t sig;
+    int32_t flags;
+};
+
+struct wire_job_sig_reply {
+    int64_t job_id;
+    int32_t rc;           // 0 ok, else errno-like or your enum
+    int32_t detail_errno; // optional: errno from kill()
+};
+
+bool_t xdr_wire_job_sig_req(XDR *, struct wire_job_sig_req *);
+bool_t xdr_wire_job_sig_reply(XDR *, struct wire_job_sig_reply *);

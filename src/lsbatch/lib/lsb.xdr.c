@@ -256,34 +256,49 @@ bool_t xdr_jobInfoReq(XDR *xdrs, struct jobInfoReq *req, void *unused)
     return TRUE;
 }
 
-bool_t xdr_signalReq(XDR *xdrs, struct signalReq *signalReq, void *)
+bool_t
+xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
 {
-    int jobArrId, jobArrElemId;
+    int job_arr_id = 0;
+    int job_arr_elem_id = 0;
 
-    if (xdrs->x_op == XDR_ENCODE) {
-        jobId64To32(signalReq->jobId, &jobArrId, &jobArrElemId);
-    }
-    if (!(xdr_int(xdrs, &(signalReq->sigValue)) && xdr_int(xdrs, &jobArrId)))
-        return false;
+    (void)hdr;
 
-    if (signalReq->sigValue == SIG_CHKPNT ||
-        signalReq->sigValue == SIG_DELETE_JOB ||
-        signalReq->sigValue == SIG_ARRAY_REQUEUE) {
-        if (!(xdr_time_t(xdrs, &(signalReq->chkPeriod)) &&
-              xdr_int(xdrs, &(signalReq->actFlags)))) {
-            return false;
+    if (xdrs == NULL || req == NULL)
+        return FALSE;
+
+    if (xdrs->x_op == XDR_ENCODE)
+        jobId64To32(req->jobId, &job_arr_id, &job_arr_elem_id);
+
+    if (!xdr_int(xdrs, &req->sigValue))
+        return FALSE;
+
+    if (!xdr_int(xdrs, &job_arr_id))
+        return FALSE;
+
+    /*
+     * MVP: only SIG_ARRAY_REQUEUE carries extra fields.
+     * (Checkpointing and legacy delete are not supported.)
+     */
+    if (req->sigValue == SIG_ARRAY_REQUEUE) {
+        if (!xdr_time_t(xdrs, &req->chkPeriod))
+            return FALSE;
+        if (!xdr_int(xdrs, &req->actFlags))
+            return FALSE;
+    } else {
+        if (xdrs->x_op == XDR_DECODE) {
+            req->chkPeriod = 0;
+            req->actFlags = 0;
         }
     }
 
-    if (!xdr_int(xdrs, &jobArrElemId)) {
-        return false;
-    }
+    if (!xdr_int(xdrs, &job_arr_elem_id))
+        return FALSE;
 
-    if (xdrs->x_op == XDR_DECODE) {
-        jobId32To64(&signalReq->jobId, jobArrId, jobArrElemId);
-    }
+    if (xdrs->x_op == XDR_DECODE)
+        jobId32To64(&req->jobId, job_arr_id, job_arr_elem_id);
 
-    return true;
+    return TRUE;
 }
 
 bool_t xdr_lsbMsg(XDR *xdrs, struct lsbMsg *m, void *)
@@ -1808,4 +1823,28 @@ bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
         return false;
 
     return xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname));
+}
+
+bool_t xdr_wire_job_sig_req(XDR *xdrs, struct wire_job_sig_req *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->sig))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->flags))
+        return false;
+
+    return true;
+}
+
+bool_t xdr_wire_job_sig_reply(XDR *xdrs, struct wire_job_sig_reply *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->rc))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->detail_errno))
+        return false;
+
+    return true;
 }

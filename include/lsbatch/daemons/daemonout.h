@@ -68,6 +68,8 @@ typedef enum {
     BATCH_NEW_JOB_ACK,          // ack mbd got the pid for the new job
     BATCH_JOB_EXECUTE, // sbd send to advance the pipeline to execute_acked
     BATCH_JOB_FINISH,  // sbd send the last state of job life pipeline
+    BATCH_JOB_SIGNAL,  // mbd send signal for a job to sbd
+    BATCH_JOB_SIGNAL_REPLY, // sbd reply BATCH_JOB_SIGNAL
     BATCH_LAST_OP
 } mbdReqType;
 

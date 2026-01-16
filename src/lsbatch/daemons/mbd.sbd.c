@@ -18,13 +18,16 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
-#include "lsbatch/daemons/sbatchd.h"
 
 static bool_t mbd_status_reply_means_committed(int);
 static void mbd_reset_sbd_job_list(struct hData *);
-
+static int mbd_batch_job_signal_reply(struct mbd_client_node *,
+                                      XDR *,
+                                      struct packet_header *);
 
 // LavaLite
+// this is still a client-like request coming through the client handler
+// after this call the connection becomes a permanent sbd connection.
 int
 do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
                 struct packet_header *hdr)
@@ -68,6 +71,102 @@ do_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     return enqueue_header_reply(mbd_efd,
                                 client->chanfd,
                                 BATCH_SBD_REGISTER_REPLY);
+}
+
+/*
+ * sbatchd → mbatchd status protocol:
+ *
+ *   - BATCH_STATUS_JOB    : generic status update (legacy path)
+ *   - BATCH_JOB_EXECUTE   : pipeline milestone (EXECUTE)
+ *   - BATCH_JOB_FINISH    : pipeline milestone (FINISH)
+ *   - BATCH_RUSAGE_JOB    : periodic resource usage
+ *   - BATCH_JOB_SIGNAL_REPLY
+ *
+ * All three carry the same statusReq payload.
+ * The opcode identifies the pipeline stage; statusReq.newStatus
+ * drives the core state transition.
+ * The fourth is just the job resource usage.
+ *
+ * mbatchd ACKs each message with ack.acked_op = hdr->operation
+ * after the event is committed to lsb.events.
+ */
+int mbd_dispatch_sbd(struct mbd_client_node *client)
+{
+    struct hData *host_node = client->host_node;
+    if (host_node == NULL) {
+        LS_ERR("mbd_dispatch_sbd called with NULL host_node (chanfd=%d)",
+               client->chanfd);
+        abort();
+    }
+
+    int ch_id = client->chanfd;
+    // handle the exception on the channel
+    if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
+        // Use the X version as errno could have been changed
+        LS_ERRX("epoll error on SBD channel for host %s (chanfd=%d)",
+               host_node->host, ch_id);
+        sbd_handle_disconnect(client);
+        return -1;
+    }
+
+    struct Buffer *buf;
+    if (chan_dequeue(ch_id, &buf) < 0) {
+        LS_ERR("%s: chan_dequeue failed for SBD chanfd=%d", __func__, ch_id);
+        sbd_handle_disconnect(client);
+        return -1;
+    }
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
+
+    struct packet_header sbd_hdr;
+    if (!xdr_pack_hdr(&xdrs, &sbd_hdr)) {
+        LS_ERR("xdr_pack_hdr failed for SBD chanfd=%d", ch_id);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        sbd_handle_disconnect(client);
+        return -1;
+    }
+    LS_INFO("sbd %s operation %s", host_node->host, mbd_op_str(sbd_hdr.operation));
+    /*
+     * replyHdr.operation is sbdReplyType:
+     *   ERR_NO_ERROR, ERR_BAD_REQ, ERR_START_FAIL, ...
+     *
+     * Right now, we only care about NEW_JOB replies.
+     * Later we can add more cases for other SBD RPCs.
+     */
+    switch (sbd_hdr.operation) {
+    case ERR_NO_ERROR:
+        sbd_handle_new_job_reply(client, &xdrs, &sbd_hdr);
+        break;
+    case BATCH_STATUS_JOB:
+    case BATCH_JOB_EXECUTE:
+    case BATCH_JOB_FINISH:
+    case BATCH_RUSAGE_JOB:
+        // could be from sbd_enqueue_execute or from
+        // sbd_enqueue_finish the jobSpecs.jStatus will tell
+        sbd_handle_job_status(client, &xdrs, &sbd_hdr);
+        break;
+    case BATCH_JOB_SIGNAL_REPLY:
+        mbd_batch_job_signal_reply(client, &xdrs, &sbd_hdr);
+        break;
+    case ERR_BAD_REQ:
+    case ERR_MEM:
+    case ERR_FORK_FAIL:
+        LS_ERR("SBD NEW_JOB failed on host %s, reply_code=%d",
+               client->host_node->host, sbd_hdr.operation);
+        /* For now, keep the SBD connection open. */
+        break;
+    default:
+        LS_ERR("unexpected SBD reply code=%d from host %s",
+               sbd_hdr.operation, client->host_node->host);
+        break;
+    }
+
+    xdr_destroy(&xdrs);
+    chan_free_buf(buf);
+
+    return 0;
 }
 
 int sbd_handle_new_job_reply(struct mbd_client_node *client,
@@ -220,8 +319,8 @@ sbd_handle_job_status(struct mbd_client_node *client,
         // just free and return based on reply.
         xdr_lsffree(xdr_statusReq, (char *)&status_req, hdr);
         return (reply == LSBE_NO_ERROR) ? 0 : -1;
+        break;
     }
-
     default:
         LS_ERR("Unknown status op %d", hdr->operation);
         reply = LSBE_PROTOCOL;
@@ -518,7 +617,171 @@ mbd_op_str(int op)
     }
 }
 
-int mbd_send_signal_to_sbd(struct jData *job, struct signalReq *req)
+int signal_pending_job(int ch_id, struct jData *job, struct signalReq *req,
+                       struct lsfAuth *auth)
 {
+    (void)auth;
+    struct wire_job_sig_reply sig_reply;
+    memset(&sig_reply, 0, sizeof(sig_reply));
+    sig_reply.job_id = job->jobId;
+    sig_reply.rc = LSBE_NO_ERROR;
+    sig_reply.detail_errno = 0;
+
+    if (!IS_PEND(job->jStatus)) {
+        sig_reply.rc = LSBE_JOB_FINISH;
+        goto reply;
+    }
+
+    switch (req->sigValue) {
+    case SIG_TERM_USER:
+    case SIGTERM:
+    case SIGINT:
+        job->newReason = EXIT_NORMAL;
+        jStatusChange(job, JOB_STAT_EXIT, LOG_IT, (char *)__func__);
+        sig_reply.rc = LSBE_NO_ERROR;
+        break;
+    default:
+        LS_INFO("signal %d to job %"PRId64" not supported", req->sigValue,
+                job->jobId);
+        sig_reply.rc = LSBE_BAD_SIGNAL;
+        break;
+    }
+
+reply:
+    // This enqueue goes back to the batch library lsb_signaljob()
+    if (enqueue_payload(ch_id,
+                        BATCH_JOB_SIGNAL_REPLY,
+                        &sig_reply,
+                        xdr_wire_job_sig_reply) < 0) {
+        LS_ERR("enqueue BATCH_JOB_SIGNAL_REPLY failed pending job_id=%ld rc=%d",
+               sig_reply.job_id, sig_reply.rc);
+        return -1;
+    }
+
+    return 0;
+}
+
+int signal_running_job(int ch_id, struct jData *job, struct signalReq *req,
+                       struct lsfAuth *auth)
+{
+    struct hData *host = job->hPtr[0];
+    if (!host) {
+        lsberrno = LSBE_BAD_HOST;
+        assert(0);
+        return -1;
+    }
+    if (!host->sbd_node) {
+        lsberrno = LSBE_SBD_UNREACH;
+        assert(0);
+        return -1;
+    }
+
+    int chan = host->sbd_node->chanfd;
+    if (chan < 0) {
+        lsberrno = LSBE_SBD_UNREACH;
+        assert(0);
+        return -1;
+    }
+
+    /*
+     * Minimal in-memory bookkeeping: remember a signal is pending.
+     * (No retry engine yet; reply handler will clear it.)
+     */
+    job->pendEvent.sig = req->sigValue;
+
+    /*
+     * Build and enqueue the request to sbatchd.
+     */
+    struct wire_job_sig_req wreq;
+    memset(&wreq, 0, sizeof(wreq));
+    wreq.job_id = job->jobId;
+    wreq.sig = req->sigValue;
+    wreq.flags = 0;
+
+    LS_INFO("signal request job=%s user=%s sig=%d",
+            lsb_jobid2str(job->jobId),
+            auth->lsfUserName,
+            req->sigValue);
+
+    // This enqueue goes to sbd
+    if (enqueue_payload(chan,
+                        BATCH_JOB_SIGNAL,
+                        &wreq,
+                        xdr_wire_job_sig_req) < 0) {
+        LS_ERR("enqueue BATCH_JOB_SIGNAL failed job=%s sig=%d",
+               lsb_jobid2str(job->jobId), req->sigValue);
+        lserrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    // This enqueue goes back to the library
+    struct wire_job_sig_reply sig_reply;
+    memset(&sig_reply, 0, sizeof(sig_reply));
+    sig_reply.job_id = job->jobId;
+    sig_reply.rc = LSBE_NO_ERROR;
+    sig_reply.detail_errno = 0;
+
+    if (enqueue_payload(ch_id,
+                        BATCH_JOB_SIGNAL_REPLY,
+                        &sig_reply,
+                        xdr_wire_job_sig_reply) < 0) {
+        LS_ERR("enqueue BATCH_JOB_SIGNAL_REPLY failed started job_id=%ld rc=%d",
+               sig_reply.job_id, sig_reply.rc);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int
+mbd_batch_job_signal_reply(struct mbd_client_node *client, XDR *xdrs,
+                           struct packet_header *sbd_hdr)
+{
+    struct wire_job_sig_reply rep;
+    struct jData *jp;
+
+    (void)client;
+    (void)sbd_hdr;
+
+    if (!xdrs) {
+        lsberrno = LSBE_BAD_ARG;
+        return -1;
+    }
+
+    memset(&rep, 0, sizeof(rep));
+
+    if (!xdr_wire_job_sig_reply(xdrs, &rep)) {
+        LS_ERR("decode BATCH_JOB_SIGNAL_REPLY failed");
+        lsberrno = LSBE_XDR;
+        return -1;
+    }
+
+    jp = getJobData(rep.job_id);
+    if (!jp) {
+        LS_INFO("signal reply for unknown job_id=%"PRId64" rc=%d errno=%d",
+                rep.job_id, rep.rc, rep.detail_errno);
+        return 0;
+    }
+
+    /* request completed (no retry engine yet) */
+    jp->pendEvent.sig = SIG_NULL;
+
+    if (rep.rc == LSBE_NO_ERROR) {
+        LS_INFO("signal delivered job=%s", lsb_jobid2str(jp->jobId));
+        return 0;
+    }
+
+    if (rep.rc == LSBE_NO_JOB) {
+        if (!IS_FINISH(jp->jStatus)) {
+            jp->newReason = EXIT_NORMAL;
+            jStatusChange(jp, JOB_STAT_EXIT, LOG_IT, (char *)__func__);
+        }
+        LS_INFO("signal reply no job -> exit job=%s", lsb_jobid2str(jp->jobId));
+        return 0;
+    }
+
+    LS_ERR("signal reply failed job=%s rc=%d errno=%d",
+           lsb_jobid2str(jp->jobId), rep.rc, rep.detail_errno);
+
     return 0;
 }

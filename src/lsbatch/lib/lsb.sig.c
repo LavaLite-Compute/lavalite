@@ -1,4 +1,4 @@
-/* $Id: lsb.sig.c,v 1.3 2007/08/15 22:18:48 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -20,131 +20,118 @@
 
 #include "lsbatch/lib/lsb.h"
 
-static int signalJob(int sigValue, int64_t jobId, time_t period, int options);
+#include "lsbatch/lib/lsb.h"
 
-int lsb_signaljob(int64_t jobId, int sigValue)
+static int lsb_send_job_signal_req(int sig_value, int64_t job_id);
+
+int
+lsb_signaljob(int64_t job_id, int sig_value)
 {
-    if (sigValue < 0 || sigValue >= NSIG) {
+    if (sig_value <= 0 || sig_value >= NSIG) {
         lsberrno = LSBE_BAD_SIGNAL;
         return -1;
     }
-    return (signalJob(sigValue, jobId, 0, 0));
-}
 
-int lsb_chkpntjob(int64_t jobId, time_t period, int options)
-{
-    int lsbOptions = 0;
-
-    if (period < LSB_CHKPERIOD_NOCHNG) {
+    if (job_id <= 0) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
 
-    if (options & LSB_CHKPNT_KILL)
-        lsbOptions |= LSB_CHKPNT_KILL;
-    if (options & LSB_CHKPNT_FORCE)
-        lsbOptions |= LSB_CHKPNT_FORCE;
-    if (options & LSB_CHKPNT_STOP)
-        lsbOptions |= LSB_CHKPNT_STOP;
-
-    return (signalJob(SIG_CHKPNT, jobId, period, lsbOptions));
+    return lsb_send_job_signal_req(sig_value, job_id);
 }
 
-int lsb_deletejob(int64_t jobId, int times, int options)
+static int
+lsb_send_job_signal_req(int sig_value, int64_t job_id)
 {
-    if (times < 0) {
-        lsberrno = LSBE_BAD_ARG;
-        return -1;
-    }
-    if (options & LSB_KILL_REQUEUE) {
-        return (signalJob(SIG_KILL_REQUEUE, jobId, 0, 0));
-    }
-    return (signalJob(SIG_DELETE_JOB, jobId, times, options));
-}
-
-int lsb_forcekilljob(int64_t jobId)
-{
-    return (signalJob(SIG_TERM_FORCE, jobId, 0, 0));
-}
-
-static int signalJob(int sigValue, int64_t jobId, time_t period, int options)
-{
-    struct signalReq signalReq;
-    char request_buf[MSGSIZE];
-    char *reply_buf;
+    struct signalReq signal_req;
+    char request_buf[LL_BUFSIZ_4K];
+    char *reply_buf = NULL;
     XDR xdrs;
-    mbdReqType mbdReqtype;
     int cc;
-    struct packet_header hdr;
+    struct packet_header packet_hdr;
     struct lsfAuth auth;
 
-    signalReq.jobId = jobId;
+    memset(&signal_req, 0, sizeof(signal_req));
+
+    signal_req.jobId = job_id;
+    signal_req.sigValue = sig_encode(sig_value);
+    signal_req.chkPeriod = 0;
+    signal_req.actFlags = 0;
 
     if (authTicketTokens_(&auth, NULL) == -1)
         return -1;
 
-    signalReq.sigValue = sigValue;
-    signalReq.chkPeriod = period;
-    signalReq.actFlags = options;
+    xdrmem_create(&xdrs, request_buf, sizeof(request_buf), XDR_ENCODE);
 
-    signalReq.sigValue = sig_encode(signalReq.sigValue);
+    init_pack_hdr(&packet_hdr);
+    packet_hdr.operation = BATCH_JOB_SIG;
 
-    mbdReqtype = BATCH_JOB_SIG;
-    xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
-
-    init_pack_hdr(&hdr);
-    hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &signalReq, &hdr, xdr_signalReq, 0,
+    if (!xdr_encodeMsg(&xdrs,
+                       (char *)&signal_req,
+                       &packet_hdr,
+                       xdr_signalReq,
+                       0,
                        &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;
     }
 
-    if ((cc = call_mbd(request_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr,
-                       NULL)) < 0) {
-        xdr_destroy(&xdrs);
-        return -1;
-    }
+    cc = call_mbd(request_buf,
+                  XDR_GETPOS(&xdrs),
+                  &reply_buf,
+                  &packet_hdr,
+                  NULL);
 
     xdr_destroy(&xdrs);
 
-    if (cc)
+    if (cc < 0) {
+        if (reply_buf)
+            free(reply_buf);
+        return -1;
+    }
+
+    if (reply_buf)
         free(reply_buf);
 
-    lsberrno = hdr.operation;
+    lsberrno = packet_hdr.operation;
+
     if (lsberrno == LSBE_NO_ERROR || lsberrno == LSBE_JOB_DEP)
         return 0;
-    else
-        return -1;
+
+    return -1;
 }
-int lsb_requeuejob(struct jobrequeue *reqPtr)
+
+int
+lsb_requeuejob(struct jobrequeue *req)
 {
     int cc;
 
-    if (reqPtr == NULL || (*reqPtr).jobId <= 0) {
+    if (req == NULL || req->jobId <= 0) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }
 
-    /* For fun deference the pointer and then access its member
-     * instead of the 'high level' ->
+    /*
+     * Normalize status: only PEND or PSUSP are allowed.
      */
-    if ((*reqPtr).status != JOB_STAT_PEND &&
-        (*reqPtr).status != JOB_STAT_PSUSP) {
-        (*reqPtr).status = JOB_STAT_PEND;
-    }
+    if (req->status != JOB_STAT_PEND
+        && req->status != JOB_STAT_PSUSP)
+        req->status = JOB_STAT_PEND;
 
-    if ((*reqPtr).options != REQUEUE_DONE &&
-        (*reqPtr).options != REQUEUE_EXIT && (*reqPtr).options != REQUEUE_RUN) {
-        (*reqPtr).options |= (REQUEUE_DONE | REQUEUE_EXIT | REQUEUE_RUN);
-    }
+    /*
+     * Normalize options: must include at least one valid flag.
+     */
+    if (req->options != REQUEUE_DONE
+        && req->options != REQUEUE_EXIT
+        && req->options != REQUEUE_RUN)
+        req->options |= (REQUEUE_DONE | REQUEUE_EXIT | REQUEUE_RUN);
 
-    cc = signalJob(SIG_ARRAY_REQUEUE, (*reqPtr).jobId, (*reqPtr).status,
-                   (*reqPtr).options);
-    if (cc == LSBE_NO_ERROR) {
+    cc = lsb_send_job_signal_req(SIG_ARRAY_REQUEUE,
+                                 req->jobId);
+
+    if (cc == 0)
         return 0;
-    }
 
     return -1;
 }

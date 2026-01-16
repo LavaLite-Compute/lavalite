@@ -158,12 +158,10 @@ static void mbd_init_log(void);
 static int mbd_accept_connection(int);
 static void mbd_handle_client(int);
 static int mbd_dispatch_client(struct mbd_client_node *);
-static int mbd_dispatch_sbd(struct mbd_client_node *);
 static int mbd_auth_client_request(struct lsfAuth *, XDR *,
                                    struct packet_header *, struct sockaddr_in *);
 static bool_t mbd_should_fork(mbdReqType);
 static bool_t is_mbd_read_only_req(mbdReqType);
-static int mbd_handle_sbd_chan(struct mbd_client_node *);
 
 void setJobPriUpdIntvl(void);
 static void updateJobPriorityInPJL(void);
@@ -432,99 +430,6 @@ static void mbd_handle_client(int ch_id)
     LS_ERR("mbd_handle_client: no client found for chanfd=%d", ch_id);
 }
 
-/*
- * sbatchd → mbatchd status protocol:
- *
- *   - BATCH_STATUS_JOB    : generic status update (legacy path)
- *   - BATCH_JOB_EXECUTE   : pipeline milestone (EXECUTE)
- *   - BATCH_JOB_FINISH    : pipeline milestone (FINISH)
- *   - BATCH_RUSAGE_JOB    : periodic resource usage
- *
- * All three carry the same statusReq payload.
- * The opcode identifies the pipeline stage; statusReq.newStatus
- * drives the core state transition.
- * The fourth is just the job resource usage.
- *
- * mbatchd ACKs each message with ack.acked_op = hdr->operation
- * after the event is committed to lsb.events.
- */
-static int mbd_dispatch_sbd(struct mbd_client_node *client)
-{
-    struct hData *host_node = client->host_node;
-    if (host_node == NULL) {
-        LS_ERR("mbd_dispatch_sbd called with NULL host_node (chanfd=%d)",
-               client->chanfd);
-        abort();
-    }
-
-    int ch_id = client->chanfd;
-    // handle the exception on the channel
-    if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
-        // Use the X version as errno could have been changed
-        LS_ERRX("epoll error on SBD channel for host %s (chanfd=%d)",
-               host_node->host, ch_id);
-        sbd_handle_disconnect(client);
-        return -1;
-    }
-
-    struct Buffer *buf;
-    if (chan_dequeue(ch_id, &buf) < 0) {
-        LS_ERR("%s: chan_dequeue failed for SBD chanfd=%d", __func__, ch_id);
-        sbd_handle_disconnect(client);
-        return -1;
-    }
-
-    XDR xdrs;
-    xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
-
-    struct packet_header sbd_hdr;
-    if (!xdr_pack_hdr(&xdrs, &sbd_hdr)) {
-        LS_ERR("xdr_pack_hdr failed for SBD chanfd=%d", ch_id);
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        sbd_handle_disconnect(client);
-        return -1;
-    }
-    LS_INFO("sbd %s operation %s", host_node->host, mbd_op_str(sbd_hdr.operation));
-    /*
-     * replyHdr.operation is sbdReplyType:
-     *   ERR_NO_ERROR, ERR_BAD_REQ, ERR_START_FAIL, ...
-     *
-     * Right now, we only care about NEW_JOB replies.
-     * Later we can add more cases for other SBD RPCs.
-     */
-    switch (sbd_hdr.operation) {
-    case ERR_NO_ERROR:
-        sbd_handle_new_job_reply(client, &xdrs, &sbd_hdr);
-        break;
-    case BATCH_STATUS_JOB:
-    case BATCH_JOB_EXECUTE:
-    case BATCH_JOB_FINISH:
-    case BATCH_RUSAGE_JOB:
-        // could be from sbd_enqueue_execute or from
-        // sbd_enqueue_finish the jobSpecs.jStatus will tell
-        sbd_handle_job_status(client, &xdrs, &sbd_hdr);
-        break;
-    return -1;
-    case ERR_BAD_REQ:
-    case ERR_MEM:
-    case ERR_FORK_FAIL:
-        LS_ERR("SBD NEW_JOB failed on host %s, reply_code=%d",
-               client->host_node->host, sbd_hdr.operation);
-        /* For now, keep the SBD connection open. */
-        break;
-    default:
-        LS_ERR("unexpected SBD reply code=%d from host %s",
-               sbd_hdr.operation, client->host_node->host);
-        break;
-    }
-
-    xdr_destroy(&xdrs);
-    chan_free_buf(buf);
-
-    return 0;
-}
-
 static int mbd_dispatch_client(struct mbd_client_node *client)
 {
     struct Buffer *buf;
@@ -614,9 +519,17 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
                "do_submitReq()");
         break;
     case BATCH_JOB_SIG:
-        TIMEIT(0,
-               do_signalReq(&xdrs, ch_id, &from, NULL, &req_hdr, &auth),
+        TIMEIT(0, do_signalReq(&xdrs, ch_id, &from, NULL, &req_hdr, &auth),
                "do_signalReq()");
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        if (cc < 0) {
+            struct hData *host_data = client->host_node;
+            shutdown_mbd_client(client);
+            if (host_data)
+                host_data->sbd_node = NULL;
+        }
+        return 0;
         break;
     case BATCH_JOB_MSG:
         NEW_BUCKET(bucket, buf);

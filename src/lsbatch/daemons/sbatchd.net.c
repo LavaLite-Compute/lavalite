@@ -509,6 +509,31 @@ int sbd_enqueue_finish(struct sbd_job *job)
     return 0;
 }
 
+int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
+                                 struct wire_job_sig_reply *rep)
+{
+    if (!rep) {
+        lserrno = LSBE_BAD_ARG;
+        return -1;
+    }
+
+    int rc = enqueue_payload(ch_id,
+                             BATCH_JOB_SIGNAL_REPLY,
+                             rep,
+                             xdr_wire_job_sig_reply);
+    if (rc < 0) {
+        LS_ERR("enqueue signal job reply failed job_id=%"PRId64,
+               rep->job_id);
+        lserrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    // Ensure epoll wakes up and dowrite() drains the queue.
+    chan_enable_write();
+
+    return 0;
+}
+
 static int
 chan_enable_write(void)
 {

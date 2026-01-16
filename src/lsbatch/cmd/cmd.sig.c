@@ -1,4 +1,4 @@
-/* $Id: cmd.sig.c,v 1.5 2007/08/15 22:18:44 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -288,15 +288,7 @@ static int signalJobs(int64_t *jobIds, int numJobs)
     char msg[80];
 
     for (i = 0; i < numJobs; i++) {
-        if (sigValue == SIGCHK)
-            cc = lsb_chkpntjob(jobIds[i], chkPeriod, chkOptions);
-        else if (sigValue == SIGDEL)
-            cc = lsb_deletejob(jobIds[i], runCount, 0);
-        else if (sigValue == SIGFORCE)
-            cc = lsb_forcekilljob(jobIds[i]);
-        else
-            cc = lsb_signaljob(jobIds[i], sigValue);
-
+        cc = lsb_signaljob(jobIds[i], sigValue);
         if (cc < 0) {
             if (sigValue == SIGCHK && lsberrno == LSBE_NOT_STARTED &&
                 chkPeriod != LSB_CHKPERIOD_NOCHNG) {

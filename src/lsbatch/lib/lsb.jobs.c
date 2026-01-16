@@ -453,7 +453,7 @@ int lsb_runjob(struct runJobRequest *req)
 
 char *lsb_jobid2str(int64_t jobId)
 {
-    static char s[32];
+    static char s[LL_BUFSIZ_32];
 
     if (LSB_ARRAY_IDX(jobId) == 0)
         sprintf(s, "%d", LSB_ARRAY_JOBID(jobId));

@@ -1294,6 +1294,9 @@ int migJob(struct migReq *req, struct submitMbdReply *reply,
     return LSBE_NO_ERROR;
 }
 
+#if 0
+// This is just for doc purpose for the new job signaling
+// now done using mbd_signal_job()
 int signalJob(struct signalReq *signalReq, struct lsfAuth *auth)
 {
     struct jData *jpbw;
@@ -1488,6 +1491,56 @@ int signalJob(struct signalReq *signalReq, struct lsfAuth *auth)
         }
     }
     return reply;
+}
+#endif
+
+int mbd_signal_job(int ch_id,
+                   struct jData *job,
+                   struct signalReq *req,
+                   struct lsfAuth *auth)
+{
+    struct jData *jp;
+
+    if (req == NULL || job == NULL)
+        return LSBE_BAD_ARG;
+
+    LS_DEBUG("signal <%d> job <%s>", req->sigValue, lsb_jobid2str(req->jobId));
+
+    job = getJobData(req->jobId);
+    if (jp == NULL)
+        return LSBE_NO_JOB;
+
+    if (auth) {
+        if (auth->uid != 0 &&
+            !jgrpPermitOk(auth, jp->jgrpNode) &&
+            !isAuthQueAd(jp->qPtr, auth)) {
+            return LSBE_PERMISSION;
+        }
+    }
+
+    /*
+     * Record user intent in lsb.events before we try to contact sbatchd.
+     * This matches the model intent log first.
+     */
+    log_signaljob(job, req, auth->uid, auth->lsfUserName);
+
+    int st = MASK_STATUS(jp->jStatus);
+
+    if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
+        signal_pending_job(ch_id, jp, req, auth);
+        return 0;
+    }
+
+    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
+        st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
+        st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
+        st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
+        st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
+        return LSBE_JOB_FINISH;
+    }
+
+    signal_running_job(ch_id, jp, req, auth);
+    return 0;
 }
 
 int sigPFjob(struct jData *jData, int sigValue, time_t chkPeriod, int logIt)
