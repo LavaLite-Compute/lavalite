@@ -63,7 +63,7 @@ LavaLite is not a clone — it is a clean reimplementation guided by the princip
 
 ## Getting started
 
-LavaLite currently supports **Rocky Linux 8**, **Rocky Linux  9** and **Ubuntu 24.02**.
+LavaLite currently supports **Rocky Linux 8**, **Rocky Linux  9** and **Ubuntu 24.04**.
 Compatibility with other distributions (e.g., Debian, AlmaLinux) is
 planned for future releases.
 
