@@ -468,7 +468,7 @@ bool_t xdr_job_status_ack(XDR *,
                           struct job_status_ack *,
                           struct packet_header *);
 
-int enqueue_header_reply(int, int, int);
+int enqueue_header_reply(int, int);
 // xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
 int enqueue_payload(int, int, void *, bool_t (*xdr_func)());
 

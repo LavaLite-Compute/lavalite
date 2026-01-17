@@ -742,13 +742,13 @@ int do_signalReq(XDR *xdrs, int ch_id, struct sockaddr_in *from, char *hostName,
 
     struct signalReq signalReq;
     if (!xdr_signalReq(xdrs, &signalReq, reqHdr)) {
-        return enqueue_header_reply(mbd_efd, ch_id, LSBE_XDR);
+        return enqueue_header_reply(ch_id, LSBE_XDR);
     }
 
     struct jData *job;
     if ((job = getJobData(signalReq.jobId)) == NULL) {
         LS_INFO("job %s unknown to mbd", lsb_jobid2str(signalReq.jobId));
-        return enqueue_header_reply(mbd_efd, ch_id, LSBE_NO_JOB);
+        return enqueue_header_reply(ch_id, LSBE_NO_JOB);
     }
 
     int reply;

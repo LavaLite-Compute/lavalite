@@ -757,7 +757,7 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
 // the job from disk and the list/hash cleaning.
 //
 // ensure jobs with finish_acked set never reach job_finish_drive
-void sbd_cleanup_job_list(void)
+void sbd_prune_acked_jobs(void)
 {
     struct ll_list_entry *e;
     struct ll_list_entry *e2;
@@ -770,8 +770,7 @@ void sbd_cleanup_job_list(void)
         // so in the main loop we check if the pid
         // is still around
         if (! job->finish_acked) {
-            assert(job->finish_sent == 0);
-            assert(job->exit_status_valid == false);
+            LS_INFO("job: %ld not finish_acked yet", job->job_id);
             // advance
             e = e2;
             continue;

@@ -56,6 +56,7 @@ void sbd_mbd_link_down(void);
 // handle mbd messagges
 int sbd_handle_mbd(int);
 
+#define DEFAUL_RESEND_TIMER_SEC 3
 
 // Basic sbatchd job states.
 // Keep it small; mbd already has its own view.
@@ -65,28 +66,6 @@ enum sbd_job_state {
     SBD_JOB_EXITED,               // exited normally
     SBD_JOB_FAILED,               // failed before/at exec
     SBD_JOB_KILLED                // killed by signal
-};
-
-/*
- * sbatchd → mbatchd pipeline steps.
- *
- * All steps are ACK-driven and represent events that mbatchd has
- * logged/committed in lsb.events (source of truth).
- *
- * sbatchd must assume messages can be lost until the corresponding ACK
- * is received.
- */
-enum sbd_job_step {
-    SBD_STEP_NONE = 0,
-
-    // mbd logged/committed pid+pgid snapshot (BATCH_NEW_JOB_ACK)
-    SBD_STEP_PID_COMMITTED,
-
-    // mbd logged/committed EXECUTE event (BATCH_JOB_EXECUTE_ACK, or equivalent)
-    SBD_STEP_EXECUTE_COMMITTED,
-
-    // mbd logged/committed FINISH event (BATCH_JOB_FINISH_ACK, or equivalent)
-    SBD_STEP_FINISH_COMMITTED
 };
 
 // sbatchd-local view of a job.
@@ -150,8 +129,6 @@ struct sbd_job {
                                   // later populated from cgroupv2)
 
     bool_t missing;      // TRUE if job data/spool is inconsistent or lost
-    // steps in the pipeline of the job process
-    enum sbd_job_step step;  // committed protocol milestone (ACK-driven)
 };
 
 // Struct sbd job state to save the minimum status of the job to the
@@ -218,7 +195,7 @@ int sbd_job_record_read(int64_t, struct sbd_job *);
 int sbd_job_record_write(struct sbd_job *);
 int sbd_job_record_path(int64_t, char *, size_t);
 int sbd_job_record_remove(int64_t);
-void sbd_cleanup_job_list(void);
+void sbd_prune_acked_jobs(void);
 
 // sbd has command to query its internal status
 int handle_sbd_accept(int);

@@ -26,7 +26,6 @@ extern int _lsb_recvtimeout;
 // LavaLite define it as external for now as I dont want to include
 // all the stuff from lib.h
 extern char *resolve_master_with_retry(void);
-static int chan_enable_write(void);
 
 /*
  * sbd_nb_connect_mbd()
@@ -245,7 +244,7 @@ int sbd_enqueue_register(int ch_id)
 
     // Always rememeber to enable EPOLLOUT on the main sbd_efd
     // to have dowrite() to send out the request
-    chan_enable_write();
+    chan_set_write_interest(ch_id, true);
 
     LS_INFO("sbd register: enqueued request as host: %s", host);
 
@@ -263,7 +262,7 @@ int sbd_enqueue_reply(int reply_code, const struct jobReply *job_reply)
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
         LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
-            job_reply->jobId);
+                job_reply->jobId);
         return -1;
     }
 
@@ -286,7 +285,7 @@ int sbd_enqueue_reply(int reply_code, const struct jobReply *job_reply)
         return -1;
     }
 
-    chan_enable_write();
+    chan_set_write_interest(sbd_mbd_chan, true);
 
     LS_INFO("sent job=%"PRId64" pid=%d to mbd", job_reply->jobId,
             job_reply->jobPid);
@@ -322,7 +321,7 @@ int sbd_enqueue_execute(struct sbd_job *job)
     }
 
     if (job->spec.jobPid <= 0 || job->spec.jobPGid <= 0) {
-        LS_ERR("job %"PRId64" bad pid/pgid pid=%d pgid=%d (bug)",
+        LS_ERR("job %ld bad pid/pgid pid=%d pgid=%d (bug)",
                job->job_id, job->spec.jobPid, job->spec.jobPGid);
         assert(0);
         return -1;
@@ -330,9 +329,8 @@ int sbd_enqueue_execute(struct sbd_job *job)
 
     if (job->exec_username[0] == 0 || job->spec.cwd[0] == 0
         || job->spec.subHomeDir[0] == 0) {
-        LS_ERR("job %"PRId64" missing execute fields user/cwd/home (bug)",
+        LS_ERR("job %ld missing execute fields user/cwd/home (sbd restarted?)",
                job->job_id);
-        assert(0);
         return -1;
     }
 
@@ -381,7 +379,7 @@ int sbd_enqueue_execute(struct sbd_job *job)
         return -1;
     }
 
-    chan_enable_write();
+    chan_set_write_interest(sbd_mbd_chan, true);
 
     LS_INFO("job %"PRId64" execute enqueued pid=%d user=%s cwd=%s",
             job->job_id, job->spec.jobPid, job->exec_username, job->spec.cwd);
@@ -501,7 +499,7 @@ int sbd_enqueue_finish(struct sbd_job *job)
     }
 
     // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_enable_write();
+    chan_set_write_interest(sbd_mbd_chan, true);
 
     LS_INFO("job %"PRId64" finish enqueued newStatus=0x%x exitStatus=0x%x",
             job->job_id, new_status, (unsigned)job->exit_status);
@@ -529,22 +527,7 @@ int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
     }
 
     // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_enable_write();
-
-    return 0;
-}
-
-static int
-chan_enable_write(void)
-{
-    struct epoll_event ev;
-    ev.events = EPOLLIN|EPOLLOUT;
-    ev.data.u32 = (uint32_t)sbd_mbd_chan;
-
-    if (epoll_ctl(sbd_efd, EPOLL_CTL_MOD, chan_sock(sbd_mbd_chan), &ev) < 0) {
-        LS_ERR("epoll_ctl() failed to add sbd chan");
-        return -1;
-    }
+    chan_set_write_interest(sbd_mbd_chan, true);
 
     return 0;
 }

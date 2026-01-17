@@ -3552,19 +3552,6 @@ void log_signaljob(struct jData *jp, struct signalReq *signalReq, int userId,
     int sigValue;
     int defSigValue;
 
-    if ((signalReq->sigValue != SIG_DELETE_JOB) &&
-        (signalReq->sigValue != SIG_KILL_REQUEUE) &&
-        (signalReq->sigValue != SIG_ARRAY_REQUEUE)) {
-        defSigValue =
-            getDefSigValue_(signalReq->sigValue, jp->qPtr->terminateActCmd);
-        if (defSigValue == signalReq->sigValue) {
-            if (IS_PEND(jp->jStatus))
-                defSigValue = SIGKILL;
-            else
-                return;
-        }
-    }
-
     if (openEventFile(fname) < 0) {
         ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "openEventFile");
         return;

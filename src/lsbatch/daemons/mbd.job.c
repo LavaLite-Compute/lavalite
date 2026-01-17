@@ -1499,35 +1499,23 @@ int mbd_signal_job(int ch_id,
                    struct signalReq *req,
                    struct lsfAuth *auth)
 {
-    struct jData *jp;
-
     if (req == NULL || job == NULL)
         return LSBE_BAD_ARG;
 
     LS_DEBUG("signal <%d> job <%s>", req->sigValue, lsb_jobid2str(req->jobId));
 
-    job = getJobData(req->jobId);
-    if (jp == NULL)
-        return LSBE_NO_JOB;
-
     if (auth) {
-        if (auth->uid != 0 &&
-            !jgrpPermitOk(auth, jp->jgrpNode) &&
-            !isAuthQueAd(jp->qPtr, auth)) {
+        if (auth->uid != 0
+            && auth->uid != mbd_mgr->uid
+            && auth->uid != job->userId) {
             return LSBE_PERMISSION;
         }
     }
 
-    /*
-     * Record user intent in lsb.events before we try to contact sbatchd.
-     * This matches the model intent log first.
-     */
-    log_signaljob(job, req, auth->uid, auth->lsfUserName);
-
-    int st = MASK_STATUS(jp->jStatus);
+    int st = MASK_STATUS(job->jStatus);
 
     if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
-        signal_pending_job(ch_id, jp, req, auth);
+        signal_pending_job(ch_id, job, req, auth);
         return 0;
     }
 
@@ -1539,7 +1527,8 @@ int mbd_signal_job(int ch_id,
         return LSBE_JOB_FINISH;
     }
 
-    signal_running_job(ch_id, jp, req, auth);
+    signal_running_job(ch_id, job, req, auth);
+
     return 0;
 }
 

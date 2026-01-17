@@ -18,7 +18,7 @@
  */
 
 #pragma once
-/* Library parameters defining entry in genParams_[] array
+/* Library parameters defining entry in genParams[] array
  * every system components has its own array of these variables
  * but in different order as some variables are specific to a
  * different component
@@ -55,6 +55,7 @@ typedef enum {
     LSB_TIME_SBD,
     LSB_SBD_CONNTIMEOUT,
     LSB_SBD_READTIMEOUT,
+    LSB_SBD_RESEND_TIMER,
 
     // MBD
     LSB_MBD_PORT,

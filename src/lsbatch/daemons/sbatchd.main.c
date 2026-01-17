@@ -55,6 +55,7 @@ static int max_events;
 // Connection variables
 bool_t connected = false;
 bool_t sbd_mbd_connecting = false;
+static int sbd_resend_timer;
 
 // Handler sets these variables to signal events
 static volatile sig_atomic_t sbd_got_sigchld = 0;
@@ -181,7 +182,7 @@ static int sbd_init(const char *sbatch)
     // were already reported to mbd. We don't want to carry
     // duplicate status for now as we assert it in multiple
     // places
-    sbd_cleanup_job_list();
+    sbd_prune_acked_jobs();
 
     // Green light we can start to operate
 
@@ -229,9 +230,6 @@ sbd_run_daemon(void)
 
         // In case SIGCHLD arrived while we were blocked in epoll.
         sbd_maybe_reap_children();
-
-        // Another quick finish pass after epoll wakeup.
-        job_finish_drive();
 
         if (nready < 0) {
             if (epoll_errno == EINTR)
@@ -564,6 +562,10 @@ sbd_init_network(void)
         chan_close(sbd_listen_chan);
         return -1;
     }
+    sbd_resend_timer = DEFAUL_RESEND_TIMER_SEC;
+    if (genParams[LSB_RESEND_TIMER])
+        sbd_resend_timer = atoi(1genParams[LSB_RESEND_TIMER].paramValue);
+    LS_INFO("sbd_resend_timer set to %d secs", sbd_resend_timer);
 
     //sbd timer channel
     ev.events = EPOLLIN;
@@ -733,6 +735,8 @@ static void sbd_reply_drive(void)
         return;
     }
 
+    time_t now = time(NULL);
+    int resend_sec = sbd_timer * sbd_resent_timer;
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {
@@ -741,17 +745,21 @@ static void sbd_reply_drive(void)
         if (job->pid_acked)
             continue;
 
-        if (job->reply_sent)
+        if (job->reply_sent
+            && (now - job->reply_last_send) < resend_sec) {
             continue;
+        }
 
         if (sbd_enqueue_reply(job->reply_code, &job->job_reply) < 0) {
-            LS_ERR("job %"PRId64" enqueue PID snapshot failed",
+            LS_ERR("job %ld enqueue PID snapshot failed",
                    job->job_id);
             continue;
         }
 
-        job->reply_sent = TRUE;
-        LS_DEBUG("job %"PRId64" PID snapshot enqueued (awaiting ACK)",
+        job->reply_last_send = now;
+        job->reply_sent = true;
+
+        LS_DEBUG("job %ld PID snapshot enqueued (awaiting ACK)",
                  job->job_id);
     }
 
@@ -765,8 +773,9 @@ static void job_execute_drive(void)
         return;
     }
 
+    int resend_sec = sbd_timer * sbd_resent_timer;
+    time_t now = time(NULL);
     struct ll_list_entry *e;
-
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
@@ -774,27 +783,31 @@ static void job_execute_drive(void)
             continue;
 
         if (!job->pid_acked) {
-            LS_DEBUG("job %"PRId64" not ready: pid not acked yet", job->job_id);
+            LS_DEBUG("job %ld not ready: pid not acked yet", job->job_id);
             continue;
         }
 
-        if (job->execute_sent) {
-            LS_DEBUG("job %"PRId64" BATCH_JOB_EXECUTE sent already",
-                     job->job_id);
+        if (job->execute_acked)
+            continue;
+
+        if (job->execute_sent
+            && (now - job->execute_last_sent) < resend_sec) {
             continue;
         }
 
-        if (!job->execute_sent) {
-            if (sbd_enqueue_execute(job) < 0) {
-                LS_ERR("job %"PRId64" enqueue BATCH_JOB_EXECUTE failed",
-                       job->job_id);
-                return;
-            }
-            job->execute_sent = true;
-            LS_INFO("job %"PRId64" BATCH_JOB_EXECUTE enqueued", job->job_id);
-            if (sbd_job_record_write(job) < 0)
-                LS_ERRX("job %"PRId64": record write failed after reply_sent",
-                        job->job_id);
+        if (sbd_enqueue_execute(job) < 0) {
+            LS_ERR("job %"PRId64" enqueue BATCH_JOB_EXECUTE failed",
+                   job->job_id);
+            continue;
+        }
+
+        job->execute_sent = true;
+        job->execute_last_sent = now;
+        LS_INFO("job %ld BATCH_JOB_EXECUTE enqueued", job->job_id);
+
+        if (sbd_job_record_write(job) < 0) {
+            LS_ERRX("job %ld record write failed after reply_sent",
+                    job->job_id);
             continue;
         }
     }
@@ -808,6 +821,8 @@ static void job_finish_drive(void)
         return;
     }
 
+    int resend_sec = sbd_timer * sbd_resent_timer;
+    time_t now = time(NULL);
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {
@@ -818,35 +833,42 @@ static void job_finish_drive(void)
 
         // pid_sent is the hard gate: mbd must have recorded pid/pgid first.
         if (!job->pid_acked) {
-            LS_DEBUG("job %"PRId64" not ready: pid not acked yet", job->job_id);
+            LS_DEBUG("job %ld not ready: pid not acked yet", job->job_id);
             continue;
         }
 
         if (!job->execute_acked) {
-            LS_DEBUG("job %"PRId64" not acked JOB_BATCH_EXECUTE yet",
+            LS_DEBUG("job %ld not acked JOB_BATCH_EXECUTE yet",
                      job->job_id);
             // Do not attempt finish in the same pass unless execute is sent.
             continue;
         }
 
         if (! job->exit_status_valid) {
-            LS_DEBUG("job %"PRId64" has not finished yet", job->job_id);
+            LS_DEBUG("job %ld has not finished yet", job->job_id);
             continue;
         }
 
-        // After execute is sent, we can send finish once we have an exit status.
-        if (!job->finish_sent) {
-            int rc = sbd_enqueue_finish(job);
-            if (rc == 0) {
-                job->finish_sent = true;
-                // log the job record
-                if (sbd_job_record_write(job) < 0)
-                    LS_ERRX("job %"PRId64": record write failed after reap",
-                            job->job_id);
-                LS_INFO("job %"PRId64" finish enqueued", job->job_id);
-            } else {
-                LS_WARNING("job %"PRId64" finish enqueue failed", job->job_id);
-            }
+        if (job->job_finish_acked)
+            continue;
+
+        if (job->finish_send
+            && (now - job->last_finish_sent) < resend_sec)
+            continue;
+
+        int cc = sbd_enqueue_finish(job);
+        if (cc < 0) {
+            LS_WARNING("job %ld finish enqueue failed", job->job_id);
+            continue;
+        }
+        job->finish_sent = true;
+        job->last_finish_sent = now;
+        LS_INFO("job %ld finish enqueued", job->job_id);
+        // log the job record
+        if (sbd_job_record_write(job) < 0) {
+            LS_ERRX("job %ld record write failed after reap",
+                    job->job_id);
+            continue;
         }
     }
 }

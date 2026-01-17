@@ -141,7 +141,7 @@ int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
     job = sbd_job_lookup(spec.jobId);
     if (job != NULL) {
 
-        LS_WARNING("MBD_NEW_JOB duplicate: job=%"PRId64" state=%d step=%d "
+        LS_WARNING("MBD_NEW_JOB duplicate: job=%ld state=%d step=%d "
                    "pid=%ld pgid=%ld jStatus=%d",
                    (int64_t)job->job_id,
                    (int)job->state,
@@ -180,14 +180,13 @@ send_reply:
     // even if the return code is not ERR_NO_ERROR we still
     // want to write is as mbd has to ack the error state
     if (sbd_job_record_write(job) < 0)
-        LS_ERRX("job %"PRId64": record write failed at start", job->job_id);
+        LS_ERRX("job %ld record write failed at start", job->job_id);
 
     // send the reply to mbd, note the child has been forked and
     // presumed running at this stage
     int cc = sbd_enqueue_reply(reply_code, &job_reply);
     if (cc < 0) {
-        LS_ERR("job %"PRId64" enqueue jobReply failed",
-               job->job_id);
+        LS_ERR("job %ld enqueue jobReply failed", job->job_id);
         return 0;
     }
 

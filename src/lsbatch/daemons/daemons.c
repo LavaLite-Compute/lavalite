@@ -176,24 +176,26 @@ Done:
 #endif
 }
 
+
 // enqueue header used by daemons
-int enqueue_header_reply(int efd, int ch_id, int rc)
+int
+enqueue_header_reply(int ch_id, int rc)
 {
     struct Buffer *reply_buf;
+    struct packet_header hdr;
+    XDR xdrs;
+
     if (chan_alloc_buf(&reply_buf, PACKET_HEADER_SIZE)) {
-        LS_ERR("Failed to to allocate buffer");
+        LS_ERR("Failed to allocate buffer");
         return -1;
     }
 
-    struct packet_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = rc;
 
-    XDR xdrs;
     xdrmem_create(&xdrs, reply_buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
-
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("enqueue_header_reply: xdr_pack_hdr failed");
+        LS_ERR("xdr_pack_hdr failed");
         xdr_destroy(&xdrs);
         chan_free_buf(reply_buf);
         return -1;
@@ -203,22 +205,19 @@ int enqueue_header_reply(int efd, int ch_id, int rc)
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(ch_id, reply_buf) < 0) {
-        LS_ERR("enqueue_header_reply: chan_enqueue failed");
+        LS_ERR("chan_enqueue failed");
         chan_free_buf(reply_buf);
         return -1;
     }
 
-    struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLOUT;
-    ev.data.u32 = (uint32_t)ch_id;
-
-    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
-        LS_ERR("enqueue_header_reply: epoll_ctl MOD fd: %d", chan_sock(ch_id));
+    if (chan_set_write_interest(ch_id, true) < 0) {
+        LS_ERR("chan_set_write_interest failed");
         return -1;
     }
 
     return 0;
 }
+
 // Used by both mbd and sbd
 void freeJobSpecs(struct jobSpecs *spec)
 {
