@@ -388,6 +388,7 @@ static void mbd_init_log_paths(void)
                   __func__, info_dir);
         mbdDie(MASTER_FATAL);
     }
+    LS_INFO("created info dir %s", info_dir);
 }
 
 static int replay_newjob(char *filename, int lineNum)

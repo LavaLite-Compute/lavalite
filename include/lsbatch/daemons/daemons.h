@@ -474,3 +474,4 @@ int enqueue_payload(int, int, void *, bool_t (*xdr_func)());
 
 // Bug fix this extern the function is in mbd.h
 void freeJobSpecs(struct jobSpecs *);
+const char *batch_op2str(int);

@@ -218,11 +218,6 @@ sbd_run_daemon(void)
             exit(0);
         }
 
-        sbd_maybe_reap_children();
-
-        // SIGCHLD-driven fast path: try to finish/report immediately.
-        job_finish_drive();
-
         // We pass -1 as the timer channel will ring
         int nready = chan_epoll(sbd_efd, sbd_events, max_events, -1);
         // save the epoll errno as the coming reap children can change it
@@ -246,7 +241,6 @@ sbd_run_daemon(void)
 
              LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
                       ch_id, channels[ch_id].chan_events, ev->events);
-
 
              if (ch_id == sbd_timer_chan) {
                  uint64_t expirations;
@@ -421,6 +415,19 @@ bool_t sbd_mbd_link_ready(void)
     return (sbd_mbd_chan >= 0 && !sbd_mbd_connecting);
 }
 
+void
+sbd_mbd_shutdown(void)
+{
+    LS_INFO("mbd connection shutdown");
+
+    if (sbd_mbd_chan >= 0) {
+        chan_close(sbd_mbd_chan);
+        sbd_mbd_chan = -1;
+    }
+
+    sbd_mbd_connecting = false;
+}
+
 /*
  * sbd_mbd_reconnect_try()
  *
@@ -562,9 +569,11 @@ sbd_init_network(void)
         chan_close(sbd_listen_chan);
         return -1;
     }
-    sbd_resend_timer = DEFAUL_RESEND_TIMER_SEC;
-    if (genParams[LSB_RESEND_TIMER])
-        sbd_resend_timer = atoi(1genParams[LSB_RESEND_TIMER].paramValue);
+
+    // timout is in second
+    sbd_resend_timer = DEFAUL_RESEND_ACK_TIMEOUT;
+    if (genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue)
+        sbd_resend_timer = atoi(genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue);
     LS_INFO("sbd_resend_timer set to %d secs", sbd_resend_timer);
 
     //sbd timer channel
@@ -577,9 +586,10 @@ sbd_init_network(void)
         return -1;
     }
 
-    LS_INFO("sbatchd listening on port %d sbd_listen_chan: %d, epoll_fd: %d "
-            "sbd_timer_chan: %d timer: %dsec",
-            sbd_port, sbd_listen_chan, sbd_efd, sbd_timer_chan, sbd_timer);
+    LS_INFO("sbatchd listening on port=%d sbd_listen_chan=%d, epoll_fd=%d "
+            "sbd_timer_chan=%d timer=%dsec sbd_resend_timer=%d",
+            sbd_port, sbd_listen_chan, sbd_efd, sbd_timer_chan, sbd_timer,
+            sbd_resend_timer);
 
     return 0;
 }
@@ -646,7 +656,7 @@ static void sbd_reap_children(void)
 
         // this should impossible
         if (job->pid != pid) {
-            LS_ERR("job %"PRId64" pid mismatch: job->pid=%d waitpid=%d",
+            LS_ERR("job %ld pid mismatch: job->pid=%d waitpid=%d",
                    job->job_id, (int)job->pid, (int)pid);
             assert(0);
             continue;
@@ -699,9 +709,8 @@ static void job_status_checking(void)
             job->spec.runTime = 0;
 
         if (!sbd_pid_alive(job->pid)) {
-            LS_WARNING("job %"PRId64": pid %ld not alive after restart?",
+            LS_WARNING("job %ld pid %ld not alive after restart?",
                        job->job_id, (long)job->pid);
-             job->finish_sent = false;  // ensue finish_drive enqueues
              // read the exit code from the exit status file of the job
              // created by the job file
              int exit_code;
@@ -714,6 +723,7 @@ static void job_status_checking(void)
                         "JOB_STAT_EXIT", job->job_id);
                  exit_code = 1;
              }
+             job->finish_last_send = 0;
              job->exit_status_valid = true;
              job->exit_status = exit_code;
              // Derive final status bits from exit code
@@ -736,7 +746,7 @@ static void sbd_reply_drive(void)
     }
 
     time_t now = time(NULL);
-    int resend_sec = sbd_timer * sbd_resent_timer;
+    int resend_sec = sbd_timer * sbd_resend_timer;
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {
@@ -745,22 +755,22 @@ static void sbd_reply_drive(void)
         if (job->pid_acked)
             continue;
 
-        if (job->reply_sent
-            && (now - job->reply_last_send) < resend_sec) {
+        // retry sending the job reply
+        if ((now - job->reply_last_send) < resend_sec) {
             continue;
         }
 
-        if (sbd_enqueue_reply(job->reply_code, &job->job_reply) < 0) {
-            LS_ERR("job %ld enqueue PID snapshot failed",
-                   job->job_id);
+        if (sbd_enqueue_new_job_reply(job) < 0) {
+            LS_ERR("job %ld enqueue PID snapshot failed", job->job_id);
             continue;
         }
+        LS_INFO("job %ld BATCH_NEW_JOB_REPLY enqueued", job->job_id);
 
+        if (sbd_job_record_write(job) < 0) {
+            LS_ERR("job %ld record write failed", job->job_id);
+            continue;
+        }
         job->reply_last_send = now;
-        job->reply_sent = true;
-
-        LS_DEBUG("job %ld PID snapshot enqueued (awaiting ACK)",
-                 job->job_id);
     }
 
 }
@@ -773,7 +783,7 @@ static void job_execute_drive(void)
         return;
     }
 
-    int resend_sec = sbd_timer * sbd_resent_timer;
+    int resend_sec = sbd_timer * sbd_resend_timer;
     time_t now = time(NULL);
     struct ll_list_entry *e;
     for (e = sbd_job_list.head; e; e = e->next) {
@@ -790,8 +800,7 @@ static void job_execute_drive(void)
         if (job->execute_acked)
             continue;
 
-        if (job->execute_sent
-            && (now - job->execute_last_sent) < resend_sec) {
+        if ((now - job->execute_last_send) < resend_sec) {
             continue;
         }
 
@@ -801,15 +810,14 @@ static void job_execute_drive(void)
             continue;
         }
 
-        job->execute_sent = true;
-        job->execute_last_sent = now;
         LS_INFO("job %ld BATCH_JOB_EXECUTE enqueued", job->job_id);
 
         if (sbd_job_record_write(job) < 0) {
-            LS_ERRX("job %ld record write failed after reply_sent",
-                    job->job_id);
+            LS_ERR("job %ld record write failed", job->job_id);
             continue;
         }
+        // after persist
+        job->execute_last_send = now;
     }
 }
 
@@ -821,7 +829,7 @@ static void job_finish_drive(void)
         return;
     }
 
-    int resend_sec = sbd_timer * sbd_resent_timer;
+    int resend_sec = sbd_timer * sbd_resend_timer;
     time_t now = time(NULL);
     struct ll_list_entry *e;
 
@@ -849,11 +857,10 @@ static void job_finish_drive(void)
             continue;
         }
 
-        if (job->job_finish_acked)
+        if (job->finish_acked)
             continue;
 
-        if (job->finish_send
-            && (now - job->last_finish_sent) < resend_sec)
+        if ((now - job->finish_last_send) < resend_sec)
             continue;
 
         int cc = sbd_enqueue_finish(job);
@@ -861,15 +868,14 @@ static void job_finish_drive(void)
             LS_WARNING("job %ld finish enqueue failed", job->job_id);
             continue;
         }
-        job->finish_sent = true;
-        job->last_finish_sent = now;
-        LS_INFO("job %ld finish enqueued", job->job_id);
-        // log the job record
+
+        LS_INFO("job %ld BATCH_JOB_FINISH enqueued", job->job_id);
+
         if (sbd_job_record_write(job) < 0) {
-            LS_ERRX("job %ld record write failed after reap",
-                    job->job_id);
+            LS_ERR("job %ld record write failed", job->job_id);
             continue;
         }
+        job->finish_last_send = now;
     }
 }
 

@@ -173,9 +173,17 @@ int chan_accept(int ch_id, struct sockaddr_in *from)
         return -1;
     }
 
-    s = accept4(channels[ch_id].sock, (struct sockaddr *) from, &len,
-                SOCK_NONBLOCK | SOCK_CLOEXEC);
-    if (s < 0) {
+    while (1) {
+        s = accept4(channels[ch_id].sock, (struct sockaddr *) from, &len,
+                    SOCK_NONBLOCK | SOCK_CLOEXEC);
+        if (s >= 0)
+            break;
+
+        // The system call was interrupted by a signal that was caught  be‐
+        // fore a valid connection arrived;
+        if (errno == EINTR)
+            continue;
+
         lserrno = LSE_SOCK_SYS;
         return -1;
     }

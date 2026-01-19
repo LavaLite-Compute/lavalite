@@ -48,7 +48,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     // Copy job specifications as received from mbd.
     // These fields remain stable for the lifetime of the job.
     if (jobSpecs_deep_copy(&job->spec, spec) < 0) {
-        LS_ERR("jobSpecs_deep_copy failed for jobId=%"PRId64": %m",
+        LS_ERR("jobSpecs_deep_copy failed for jobId=%ld %m",
                spec->jobId);
         free(job);
         return NULL;
@@ -68,20 +68,21 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
 
     job->state = SBD_JOB_NEW;
     job->reply_code = ERR_NO_ERROR;
-    job->reply_sent = false;
+    job->reply_last_send = 0;
 
     job->pid_acked = false;
     job->pid_ack_time = 0;
+
     job->execute_acked = false;
-    job->execute_sent = false;
+    job->execute_last_send = 0;
+
     job->finish_acked = false;
-    job->finish_sent = false;
+    job->finish_last_send = 0;
 
     job->exit_status = 0;
     job->exit_status_valid = false;
 
     job->missing = false;
-    job->step = SBD_STEP_NONE;
 
     // Initialize execution identity fields explicitly
     job->exec_username[0] = 0;
@@ -93,7 +94,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     // Prepare decoded execution fields (cwd reconstruction, validation).
     // This must succeed for the job to be runnable.
     if (sbd_job_prepare_exec_fields(job) < 0) {
-        LS_ERR("job %"PRId64" failed to prepare execution fields: %m",
+        LS_ERR("job %ld failed to prepare execution fields: %m",
                spec->jobId);
         jobSpecs_free(&job->spec);
         free(job);
@@ -386,7 +387,7 @@ int sbd_job_record_path(int64_t job_id, char *buf, size_t bufsz)
     }
 
     // <state>/job.<jobid>
-    if (snprintf(buf, bufsz, "%s/job.%"PRId64, sbd_state_dir, job_id) >=
+    if (snprintf(buf, bufsz, "%s/job.%ld", sbd_state_dir, job_id) >=
         (int)bufsz) {
         errno = ENAMETOOLONG;
         return -1;
@@ -400,19 +401,32 @@ int sbd_job_record_path(int64_t job_id, char *buf, size_t bufsz)
 int sbd_job_record_remove(int64_t job_id)
 {
     char path[PATH_MAX];
+    // Leave the files now for debugging
+    return 0;
 
     LS_INFO("removing job %ld", job_id);
 
+    // remove the job file
     if (sbd_job_record_path(job_id, path, sizeof(path)) < 0) {
         LS_ERR("failed to remove path %s for job %ld", path, job_id);
         return -1;
     }
-
     if (unlink(path) < 0)
         return -1;
 
+    // remove the exit status file
     int l =  snprintf(path, sizeof(path), "%s/exit.status.%ld",
                       sbd_state_dir, job_id);
+    if (l < 0 || (size_t)l >= sizeof(path)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    if (unlink(path) < 0)
+        return -1;
+
+    // remove the go file
+    l =  snprintf(path, sizeof(path), "%s/go.%ld",
+                  sbd_state_dir, job_id);
     if (l < 0 || (size_t)l >= sizeof(path)) {
         errno = ENAMETOOLONG;
         return -1;
@@ -433,7 +447,7 @@ int sbd_job_record_write(struct sbd_job *job)
 
     char final_path[PATH_MAX];
     if (sbd_job_record_path(job->job_id, final_path, sizeof(final_path)) < 0) {
-        LS_ERRX("job %"PRId64": record path build failed", job->job_id);
+        LS_ERRX("job %ld record path build failed", job->job_id);
         return -1;
     }
 
@@ -441,11 +455,11 @@ int sbd_job_record_write(struct sbd_job *job)
     if (snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%ld",
                  final_path, (long)getpid()) >= (int)sizeof(tmp_path)) {
         errno = ENAMETOOLONG;
-        LS_ERRX("job %"PRId64": record tmp path too long", job->job_id);
+        LS_ERR("job %ld record tmp path too long", job->job_id);
         return -1;
     }
 
-    LS_INFO("job %"PRId64": record write start: %s", job->job_id, final_path);
+    LS_INFO("job %ld record write start: %s", job->job_id, final_path);
 
     char buf[LL_BUFSIZ_2K];
     int n = snprintf(buf, sizeof(buf),
@@ -454,12 +468,8 @@ int sbd_job_record_write(struct sbd_job *job)
                      "pid=%ld\n"
                      "pgid=%ld\n"
                      "state=%d\n"
-                     "step=%d\n"
-                     "reply_sent=%d\n"
                      "pid_acked=%d\n"
-                     "execute_sent=%d\n"
                      "execute_acked=%d\n"
-                     "finish_sent=%d\n"
                      "finish_acked=%d\n"
                      "exit_status_valid=%d\n"
                      "exit_status=%d\n"
@@ -469,12 +479,8 @@ int sbd_job_record_write(struct sbd_job *job)
                      (long)job->pid,
                      (long)job->pgid,
                      (int)job->state,
-                     (int)job->step,
-                     job->reply_sent ? 1 : 0,
                      job->pid_acked ? 1 : 0,
-                     job->execute_sent ? 1 : 0,
                      job->execute_acked ? 1 : 0,
-                     job->finish_sent ? 1 : 0,
                      job->finish_acked ? 1 : 0,
                      job->exit_status_valid ? 1 : 0,
                      job->exit_status,
@@ -483,19 +489,18 @@ int sbd_job_record_write(struct sbd_job *job)
 
     if (n < 0) {
         errno = EINVAL;
-        LS_ERRX("job %"PRId64": record format failed", job->job_id);
+        LS_ERRX("job %ld record format failed", job->job_id);
         return -1;
     }
     if ((size_t)n >= sizeof(buf)) {
         errno = ENAMETOOLONG;
-        LS_ERRX("job %"PRId64": record buffer too small", job->job_id);
+        LS_ERR("job %ld record buffer too small", job->job_id);
         return -1;
     }
 
     int fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0) {
-        LS_ERRX("job %"PRId64": open(%s) failed: errno=%d (%s)",
-                job->job_id, tmp_path, errno, strerror(errno));
+        LS_ERR("job %ld open(%s) failed", job->job_id, tmp_path);
         return -1;
     }
 
@@ -504,48 +509,35 @@ int sbd_job_record_write(struct sbd_job *job)
     // write to temp file → fsync() → close → rename(temp, final)
 
     if (write_all(fd, buf, (size_t)n) < 0) {
-        int eno = errno;
+        LS_ERR("job %ld write(%s) failed", job->job_id, tmp_path);
         close(fd);
         unlink(tmp_path);
-        errno = eno;
-        LS_ERRX("job %"PRId64": write(%s) failed: errno=%d (%s)",
-                job->job_id, tmp_path, errno, strerror(errno));
         return -1;
     }
 
     if (fsync(fd) < 0) {
-        int eno = errno;
+        LS_ERRX("job %ld fsync(%s) failed", job->job_id, tmp_path);
         close(fd);
         unlink(tmp_path);
-        errno = eno;
-        LS_ERRX("job %"PRId64": fsync(%s) failed: errno=%d (%s)",
-                job->job_id, tmp_path, errno, strerror(errno));
         return -1;
     }
 
     if (close(fd) < 0) {
-        int eno = errno;
+        LS_ERR("job %ld close(%s) failed", job->job_id, tmp_path);
         unlink(tmp_path);
-        errno = eno;
-        LS_ERRX("job %"PRId64": close(%s) failed: errno=%d (%s)",
-                job->job_id, tmp_path, errno, strerror(errno));
         return -1;
     }
 
     if (rename(tmp_path, final_path) < 0) {
-        int eno = errno;
+        LS_ERR("job %ld rename(%s -> %s) failed", job->job_id,
+               tmp_path, final_path);+
         unlink(tmp_path);
-        errno = eno;
-        LS_ERRX("job %"PRId64": rename(%s -> %s) failed: errno=%d (%s)",
-                job->job_id, tmp_path, final_path, errno, strerror(errno));
         return -1;
     }
 
-    LS_INFO("job %"PRId64": record written "
+    LS_INFO("job %ld record written "
             "pid=%ld pgid=%ld "
-            "state=%d step=%d "
-            "reply_sent=%d pid_acked=%d "
-            "execute_sent=%d finish_sent=%d "
+            "state=%d "
             "execute_acked=%d finish_acked=%d "
             "exit_status_valid=%d exit_status=%d "
             "end_time=%ld "
@@ -554,11 +546,11 @@ int sbd_job_record_write(struct sbd_job *job)
             (long)job->pid,
             (long)job->pgid,
             (int)job->state,
-            (int)job->step,
-            job->reply_sent ? 1 : 0, job->pid_acked ? 1 : 0,
-            job->execute_sent ? 1 : 0, job->finish_sent ? 1 : 0,
-            job->execute_acked ? 1 : 0, job->finish_acked ? 1 : 0,
-            job->exit_status_valid ? 1 : 0, job->exit_status,
+            job->pid_acked ? 1 : 0,
+            job->execute_acked ? 1 : 0,
+            job->finish_acked ? 1 : 0,
+            job->exit_status_valid ? 1 : 0
+            , job->exit_status,
             job->end_time,
             job->missing ? 1 : 0);
 
@@ -682,33 +674,13 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
             continue;
         }
 
-        if (strcmp(key, "step") == 0) {
-            job->step = (enum sbd_job_step)atoi(val);
-            continue;
-        }
-
         if (strcmp(key, "pid_acked") == 0) {
             job->pid_acked = atoi(val);
             continue;
         }
 
-        if (strcmp(key, "reply_sent") == 0) {
-            job->reply_sent = atoi(val);
-            continue;
-        }
-
-        if (strcmp(key, "execute_sent") == 0) {
-            job->execute_sent = atoi(val);
-            continue;
-        }
-
         if (strcmp(key, "execute_acked") == 0) {
             job->execute_acked = atoi(val);
-            continue;
-        }
-
-        if (strcmp(key, "finish_sent") == 0) {
-            job->finish_sent = atoi(val);
             continue;
         }
 
@@ -778,8 +750,8 @@ void sbd_prune_acked_jobs(void)
         // this means we delivered the job status exit
         // to mbatch alread, but we keep the file around
         // for some times before cleaning it
-        LS_INFO("job %ld was acked to mbd already", job->job_id);
-        assert(job->finish_sent == 1);
+        LS_INFO("job %ld was acked by mbd already", job->job_id);
+
         assert(job->exit_status_valid == true);
         // remove the job from the disk and free it from memory
         // later we may want to keep the job around for some time...
@@ -848,8 +820,7 @@ int sbd_read_exit_status_file(int job_id, int *exit_code, time_t *done_time)
  * This function does not chdir(). The caller is responsible for changing
  * directory and applying fallback logic (/tmp) in the execution path.
  */
-static int
-sbd_job_prepare_exec_fields(struct sbd_job *job)
+static int sbd_job_prepare_exec_fields(struct sbd_job *job)
 {
     const char *cwd;
     const char *home;
@@ -863,7 +834,7 @@ sbd_job_prepare_exec_fields(struct sbd_job *job)
 
     // exec_username is required for status reporting and execution context
     if (job->exec_username[0] == 0) {
-        LS_ERR("job %"PRId64" missing exec_username (bug)",
+        LS_ERR("job %ld missing exec_username (bug)",
                job->job_id);
         errno = EINVAL;
         return -1;
@@ -871,7 +842,7 @@ sbd_job_prepare_exec_fields(struct sbd_job *job)
 
     // subHomeDir is required to decode home-relative cwd encodings
     if (job->spec.subHomeDir[0] == 0) {
-        LS_ERR("job %"PRId64" missing subHomeDir (bug)",
+        LS_ERR("job %ld missing subHomeDir (bug)",
                job->job_id);
         errno = EINVAL;
         return -1;
@@ -885,7 +856,7 @@ sbd_job_prepare_exec_fields(struct sbd_job *job)
     if (cwd[0] == 0) {
         n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", home);
         if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
-            LS_ERR("job %"PRId64" exec_cwd overflow for home=%s (bug)",
+            LS_ERR("job %ld exec_cwd overflow for home=%s (bug)",
                    job->job_id, home);
             errno = ENAMETOOLONG;
             return -1;
@@ -897,7 +868,7 @@ sbd_job_prepare_exec_fields(struct sbd_job *job)
     if (cwd[0] == '/') {
         n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", cwd);
         if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
-            LS_ERR("job %"PRId64" exec_cwd overflow for cwd=%s (bug)",
+            LS_ERR("job %ld exec_cwd overflow for cwd=%s (bug)",
                    job->job_id, cwd);
             errno = ENAMETOOLONG;
             return -1;
@@ -909,9 +880,71 @@ sbd_job_prepare_exec_fields(struct sbd_job *job)
     n = snprintf(job->exec_cwd, sizeof(job->exec_cwd),
                  "%s/%s", home, cwd);
     if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
-        LS_ERR("job %"PRId64" exec_cwd overflow for home=%s cwd=%s (bug)",
+        LS_ERR("job %ld exec_cwd overflow for home=%s cwd=%s (bug)",
                job->job_id, home, cwd);
         errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    return 0;
+}
+
+int sbd_go_path(int64_t job_id, char *buf, size_t buflen)
+{
+    int n;
+
+    if (!buf || buflen == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    n = snprintf(buf, buflen, "%s/go.%ld", sbd_state_dir, (long)job_id);
+    if (n < 0 || (size_t)n >= buflen) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    return 0;
+}
+
+int sbd_go_write(int64_t job_id)
+{
+    char path[PATH_MAX];
+    char tmp[PATH_MAX];
+    int fd;
+    int n;
+    time_t now;
+
+    if (sbd_go_path(job_id, path, sizeof(path)) < 0)
+        return -1;
+
+    n = snprintf(tmp, sizeof(tmp), "%s/.go.%ld.%ld",
+                 sbd_state_dir, (long)job_id, (long)getpid());
+    if (n < 0 || n >= (int)sizeof(tmp)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    if (fd < 0)
+        return -1;
+
+    now = time(NULL);
+    dprintf(fd, "%ld\n", (long)now);
+
+    if (fsync(fd) < 0) {
+        close(fd);
+        unlink(tmp);
+        return -1;
+    }
+
+    if (close(fd) < 0) {
+        unlink(tmp);
+        return -1;
+    }
+
+    if (rename(tmp, path) < 0) {
+        unlink(tmp);
         return -1;
     }
 

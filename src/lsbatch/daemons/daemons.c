@@ -293,3 +293,117 @@ int enqueue_payload(int ch_id, int op, void *payload, bool_t (*xdr_func)())
 
     return 0;
 }
+
+const char *batch_op2str(int op)
+{
+    switch (op) {
+
+    case BATCH_STATUS_ACK:
+        return "BATCH_STATUS_ACK";
+
+    case BATCH_JOB_SUB:
+        return "BATCH_JOB_SUB";
+
+    case BATCH_JOB_INFO:
+        return "BATCH_JOB_INFO";
+
+    case BATCH_JOB_PEEK:
+        return "BATCH_JOB_PEEK";
+
+    case BATCH_JOB_SIG:
+        return "BATCH_JOB_SIG";
+
+    case BATCH_HOST_INFO:
+        return "BATCH_HOST_INFO";
+
+    case BATCH_QUE_INFO:
+        return "BATCH_QUE_INFO";
+
+    case BATCH_GRP_INFO:
+        return "BATCH_GRP_INFO";
+
+    case BATCH_QUE_CTRL:
+        return "BATCH_QUE_CTRL";
+
+    case BATCH_RECONFIG:
+        return "BATCH_RECONFIG";
+
+    case BATCH_HOST_CTRL:
+        return "BATCH_HOST_CTRL";
+
+    case BATCH_JOB_SWITCH:
+        return "BATCH_JOB_SWITCH";
+
+    case BATCH_JOB_MOVE:
+        return "BATCH_JOB_MOVE";
+
+    case BATCH_JOB_MIG:
+        return "BATCH_JOB_MIG";
+
+    case BATCH_STATUS_JOB:
+        return "BATCH_STATUS_JOB";
+
+    case BATCH_SLAVE_RESTART:
+        return "BATCH_SLAVE_RESTART";
+
+    case BATCH_USER_INFO:
+        return "BATCH_USER_INFO";
+
+    case BATCH_PARAM_INFO:
+        return "BATCH_PARAM_INFO";
+
+    case BATCH_JOB_MODIFY:
+        return "BATCH_JOB_MODIFY";
+
+    case BATCH_JOB_EXECED:
+        return "BATCH_JOB_EXECED";
+
+    case BATCH_JOB_MSG:
+        return "BATCH_JOB_MSG";
+
+    case BATCH_STATUS_MSG_ACK:
+        return "BATCH_STATUS_MSG_ACK";
+
+    case BATCH_RESOURCE_INFO:
+        return "BATCH_RESOURCE_INFO";
+
+    case BATCH_RUSAGE_JOB:
+        return "BATCH_RUSAGE_JOB";
+
+    case BATCH_JOB_FORCE:
+        return "BATCH_JOB_FORCE";
+
+    case BATCH_STATUS_CHUNK:
+        return "BATCH_STATUS_CHUNK";
+
+    case BATCH_SET_JOB_ATTR:
+        return "BATCH_SET_JOB_ATTR";
+
+    case BATCH_SBD_REGISTER:
+        return "BATCH_SBD_REGISTER";
+
+    case BATCH_SBD_REGISTER_REPLY:
+        return "BATCH_SBD_REGISTER_REPLY";
+
+    case BATCH_NEW_JOB_REPLY:
+        return "BATCH_NEW_JOB_REPLY";
+
+    case BATCH_NEW_JOB_ACK:
+        return "BATCH_NEW_JOB_ACK";
+
+    case BATCH_JOB_EXECUTE:
+        return "BATCH_JOB_EXECUTE";
+
+    case BATCH_JOB_FINISH:
+        return "BATCH_JOB_FINISH";
+
+    case BATCH_JOB_SIGNAL:
+        return "BATCH_JOB_SIGNAL";
+
+    case BATCH_JOB_SIGNAL_REPLY:
+        return "BATCH_JOB_SIGNAL_REPLY";
+
+    default:
+        return "BATCH_<UNKNOWN>";
+    }
+}

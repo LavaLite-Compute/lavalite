@@ -52,7 +52,7 @@ struct config_param genParams[LSF_PARAM_COUNT] = {
     [LSB_TIME_SBD] = {"LSB_TIME_SBD", NULL},
     [LSB_SBD_CONNTIMEOUT] = {"LSB_SBD_CONNTIMEOUT", NULL},
     [LSB_SBD_READTIMEOUT] = {"LSB_SBD_READTIMEOUT", NULL},
-    [LSB_SBD_RESEND_TIMER] = {"LSB_SBD_RESEND_TIMER", NULL},
+    [LSB_SBD_RESEND_ACK_TIMEOUT] = {"LSB_SBD_RESEND_ACK_TIMEOUT", NULL},
     // MBD
     [LSB_MBD_PORT] = {"LSB_MBD_PORT", NULL},
 
@@ -567,3 +567,73 @@ int parse_env_line(const char *line,
     return 0;
 }
 #endif
+
+// will create ll.util.h when we have time
+bool_t ll_atoi(const char *s, int *out)
+{
+    char *end;
+    long v;
+
+    if (!s || !out)
+        return false;
+
+    // Skip leading whitespace explicitly so empty/space-only strings fail cleanly
+    while (*s && isspace((unsigned char)*s))
+        s++;
+
+    if (*s == '\0')
+        return false;
+
+    errno = 0;
+    v = strtol(s, &end, 10);
+
+    if (end == s)
+        return false;
+
+    // Allow trailing whitespace only; reject any other junk
+    while (*end && isspace((unsigned char)*end))
+        end++;
+
+    if (*end != '\0')
+        return false;
+
+    if (errno == ERANGE || v < INT_MIN || v > INT_MAX)
+        return false;
+
+    *out = (int)v;
+    return true;
+}
+
+bool_t
+ll_atoll(const char *s, int64_t *out)
+{
+    char *end;
+    long long v;
+
+    if (!s || !out)
+        return false;
+
+    while (*s && isspace((unsigned char)*s))
+        s++;
+
+    if (*s == '\0')
+        return false;
+
+    errno = 0;
+    v = strtoll(s, &end, 10);
+
+    if (end == s)
+        return false;
+
+    while (*end && isspace((unsigned char)*end))
+        end++;
+
+    if (*end != '\0')
+        return false;
+
+    if (errno == ERANGE || v < (long long)INT64_MIN || v > (long long)INT64_MAX)
+        return false;
+
+    *out = (int64_t)v;
+    return true;
+}

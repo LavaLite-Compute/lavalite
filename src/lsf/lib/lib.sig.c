@@ -158,7 +158,8 @@ void signal_set(int sig, void (*handler)(int))
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = handler;
-    act.sa_flags = SA_RESTART;
+    // relay on the default behaviour
+    // act.sa_flags = SA_RESTART;
     sigemptyset(&act.sa_mask);
 
     if (sigaction(sig, &act, NULL) < 0)

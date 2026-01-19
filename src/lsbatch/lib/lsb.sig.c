@@ -54,7 +54,7 @@ lsb_send_job_signal_req(int sig_value, int64_t job_id)
     memset(&signal_req, 0, sizeof(signal_req));
 
     signal_req.jobId = job_id;
-    signal_req.sigValue = sig_encode(sig_value);
+    signal_req.sigValue = sig_value;
     signal_req.chkPeriod = 0;
     signal_req.actFlags = 0;
 

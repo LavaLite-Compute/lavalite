@@ -252,43 +252,31 @@ int sbd_enqueue_register(int ch_id)
 }
 
 // xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
-// this function runs right upona job start we will be async waiting to
+// this function runs right upon a job start we will be async waiting to
 // mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
 // the pid to the events file
-int sbd_enqueue_reply(int reply_code, const struct jobReply *job_reply)
+int sbd_enqueue_new_job_reply(struct sbd_job *job)
 {
-    char *reply_struct;
-
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
         LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
-                job_reply->jobId);
+                job->job_id);
         return -1;
     }
 
-    reply_struct = NULL;
-    if (reply_code == ERR_NO_ERROR) {
-        if (job_reply == NULL) {
-            errno = EINVAL;
-            return -1;
-        }
-        reply_struct = (char *)job_reply;
-    }
-
     int cc = enqueue_payload(sbd_mbd_chan,
-                             reply_code,
-                             reply_struct,
+                             BATCH_NEW_JOB_REPLY,
+                             &job->job_reply,
                              xdr_jobReply);
     if (cc < 0) {
-        LS_ERR("enqueue_payload for job %"PRId64" reply failed",
-               job_reply->jobId);
+        LS_ERR("enqueue_payload for job %ld reply failed", job->job_id);
         return -1;
     }
 
     chan_set_write_interest(sbd_mbd_chan, true);
 
-    LS_INFO("sent job=%"PRId64" pid=%d to mbd", job_reply->jobId,
-            job_reply->jobPid);
+    LS_INFO("sent job=%ld pid=%d pgid=%d to mbd", job->job_id,
+            job->pid, job->pgid);
 
     return 0;
 }
@@ -309,13 +297,13 @@ int sbd_enqueue_execute(struct sbd_job *job)
     }
 
     if (!job->pid_acked) {
-        LS_ERR("job %"PRId64" execute before pid_acked (bug)", job->job_id);
+        LS_ERR("job %ld execute before pid_acked (bug)", job->job_id);
         assert(0);
         return -1;
     }
 
     if (job->execute_acked) {
-        LS_ERR("job %"PRId64" execute already sent (bug)", job->job_id);
+        LS_ERR("job %ld execute already sent (bug)", job->job_id);
         assert(0);
         return -1;
     }
@@ -331,7 +319,8 @@ int sbd_enqueue_execute(struct sbd_job *job)
         || job->spec.subHomeDir[0] == 0) {
         LS_ERR("job %ld missing execute fields user/cwd/home (sbd restarted?)",
                job->job_id);
-        return -1;
+        // Best-effort: job is already running; still notify mbd so it can
+        // transition to JOB_STAT_RUN. Empty strings are acceptable.
     }
 
     struct statusReq req;
@@ -374,14 +363,14 @@ int sbd_enqueue_execute(struct sbd_job *job)
                              &req,
                              xdr_statusReq);
     if (cc < 0) {
-        LS_ERR("enqueue_payload for job %"PRId64" BATCH_JOB_EXECUTE failed",
+        LS_ERR("enqueue_payload for job %ld BATCH_JOB_EXECUTE failed",
                job->job_id);
         return -1;
     }
 
     chan_set_write_interest(sbd_mbd_chan, true);
 
-    LS_INFO("job %"PRId64" execute enqueued pid=%d user=%s cwd=%s",
+    LS_INFO("job %ld execute enqueued pid=%d user=%s cwd=%s",
             job->job_id, job->spec.jobPid, job->exec_username, job->spec.cwd);
 
     return 0;
@@ -401,38 +390,26 @@ int sbd_enqueue_finish(struct sbd_job *job)
         return -1;
     }
 
-    if (! job->reply_sent) {
-        LS_ERRX("job %"PRId64" not reply_sent before? (bug)", job->job_id);
+    if (! job->pid_acked) {
+        LS_ERR("job %ld not pid_acked before? (bug)", job->job_id);
         assert(0);
         return -1;
     }
 
-    if (!job->pid_acked) {
-        LS_ERR("job %"PRId64" not pid_acked before? (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (!job->execute_acked) {
-        LS_ERRX("job %"PRId64" not executed_acked before ? (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (job->finish_sent) {
-        LS_ERRX("job %"PRId64" sending finish_sent again? (bug)", job->job_id);
+    if (! job->execute_acked) {
+        LS_ERRX("job %ld not executed_acked before ? (bug)", job->job_id);
         assert(0);
         return -1;
     }
 
     if (job->finish_acked) {
-        LS_ERR("job %"PRId64" finish_acked already sent (bug)", job->job_id);
+        LS_ERR("job %ld finish_acked already sent (bug)", job->job_id);
         assert(0);
         return -1;
     }
 
-    if (!job->exit_status_valid) {
-        LS_ERR("job %"PRId64" finish without exit_status (bug)", job->job_id);
+    if (! job->exit_status_valid) {
+        LS_ERR("job %ld finish without exit_status (bug)", job->job_id);
         assert(0);
         return -1;
     }
@@ -443,7 +420,7 @@ int sbd_enqueue_finish(struct sbd_job *job)
     } else if (job->spec.jStatus & JOB_STAT_EXIT) {
         new_status = JOB_STAT_EXIT;
     } else {
-        LS_ERR("job %"PRId64" finish with bad jStatus=0x%x (bug)",
+        LS_ERR("job %ld finish with bad jStatus=0x%x (bug)",
                job->job_id, job->spec.jStatus);
         assert(0);
         return -1;
@@ -493,7 +470,7 @@ int sbd_enqueue_finish(struct sbd_job *job)
                              &req,
                              xdr_statusReq);
     if (cc < 0) {
-        LS_ERR("enqueue_payload for job %"PRId64" BATCH_JOB_FINISH failed",
+        LS_ERR("enqueue_payload for job %ld BATCH_JOB_FINISH failed",
                job->job_id);
         return -1;
     }
@@ -501,7 +478,7 @@ int sbd_enqueue_finish(struct sbd_job *job)
     // Ensure epoll wakes up and dowrite() drains the queue.
     chan_set_write_interest(sbd_mbd_chan, true);
 
-    LS_INFO("job %"PRId64" finish enqueued newStatus=0x%x exitStatus=0x%x",
+    LS_INFO("job %ld finish enqueued newStatus=0x%x exitStatus=0x%x",
             job->job_id, new_status, (unsigned)job->exit_status);
 
     return 0;
@@ -520,8 +497,7 @@ int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
                              rep,
                              xdr_wire_job_sig_reply);
     if (rc < 0) {
-        LS_ERR("enqueue signal job reply failed job_id=%"PRId64,
-               rep->job_id);
+        LS_ERR("enqueue signal job reply failed job_id=%ld", rep->job_id);
         lserrno = LSBE_PROTOCOL;
         return -1;
     }

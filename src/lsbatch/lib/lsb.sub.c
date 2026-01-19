@@ -4274,6 +4274,7 @@ static int ll_buf_append_sh_export(struct ll_buf *b, const char *name,
 }
 
 static int ll_buf_append_job_exit_tail(struct ll_buf *);
+static int ll_buf_append_job_go_gate(struct ll_buf *);
 
 static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
 {
@@ -4344,6 +4345,7 @@ static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
 
     // Job execution body
     if (ll_buf_append_str(&b, TRAPSIGCMD) < 0
+        || ll_buf_append_job_go_gate(&b) < 0
         || ll_buf_append_str(&b, CMDSTART) < 0
         || ll_buf_append_str(&b, jobSubReq->command) < 0
         || ll_buf_append_job_exit_tail(&b) < 0) {
@@ -4361,8 +4363,7 @@ static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
 // Writes exit status as: "exit_code unix_timestamp\n"
 // File name: exit.status.$LAVALITE_JOB_ID
 // Uses atomic rename within the same directory.
-static int
-ll_buf_append_job_exit_tail(struct ll_buf *b)
+static int ll_buf_append_job_exit_tail(struct ll_buf *b)
 {
     if (ll_buf_append_str(b, "\nExitStat=$?\n") < 0)
         return -1;
@@ -4386,6 +4387,21 @@ ll_buf_append_job_exit_tail(struct ll_buf *b)
         return -1;
 
     if (ll_buf_append_str(b, "exit $ExitStat\n") < 0)
+        return -1;
+
+    return 0;
+}
+
+static int ll_buf_append_job_go_gate(struct ll_buf *b)
+{
+    if (ll_buf_append_str(b,
+        "go=\"$LAVALITE_JOB_STATE_DIR/go.$LAVALITE_JOB_ID\"\n") < 0)
+        return -1;
+
+    if (ll_buf_append_str(b,
+        "while [ ! -f \"$go\" ]; do\n"
+        "    sleep 1\n"
+        "done\n") < 0)
         return -1;
 
     return 0;

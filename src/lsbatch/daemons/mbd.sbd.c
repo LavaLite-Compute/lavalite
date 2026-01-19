@@ -135,7 +135,7 @@ int mbd_dispatch_sbd(struct mbd_client_node *client)
      * Later we can add more cases for other SBD RPCs.
      */
     switch (sbd_hdr.operation) {
-    case ERR_NO_ERROR:
+    case BATCH_NEW_JOB_REPLY:
         sbd_handle_new_job_reply(client, &xdrs, &sbd_hdr);
         break;
     case BATCH_STATUS_JOB:
@@ -183,16 +183,9 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
     }
 
     const char *host_name = host_node->host;
-    /*
-     * hdr->operation is an sbdReplyType:
-     *   ERR_NO_ERROR, ERR_BAD_REQ
-     *
-     * In the current protocol, a jobReply payload is sent only on
-     * ERR_NO_ERROR. For error codes we log and return for now.
-     */
 
-    if (hdr->operation != ERR_NO_ERROR) {
-        LS_ERR("SBD NEW_JOB failed on host %s, reply_code=%s",
+    if (hdr->operation != BATCH_NEW_JOB_REPLY) {
+        LS_ERR("BATCH_NEW_JOB_REPLY failed on host %s, reply_code=%s",
                host_name, mbd_op_str(hdr->operation));
 
         /*
@@ -214,7 +207,7 @@ int sbd_handle_new_job_reply(struct mbd_client_node *client,
         return -1;
     }
 
-    LS_INFO("mbd job=%"PRId64" operation %s from %s", jobReply.jobId,
+    LS_INFO("mbd job=%ld operation %s from %s", jobReply.jobId,
             mbd_op_str(hdr->operation), host_name);
 
     // Map jobId -> job descriptor.
@@ -592,6 +585,12 @@ mbd_op_str(int op)
         return "BATCH_STATUS_JOB";
     case BATCH_RUSAGE_JOB:
         return "BATCH_RUSAGE_JOB";
+    case  BATCH_NEW_JOB_REPLY:
+        return "BATCH_NEW_JOB_REPLY";
+    case BATCH_JOB_SIGNAL:
+        return "BATCH_JOB_SIGNAL";
+    case BATCH_JOB_SIGNAL_REPLY:
+        return "BATCH_JOB_SIGNAL_REPLY";
 
     /* ACK / control */
     case BATCH_NEW_JOB_ACK:

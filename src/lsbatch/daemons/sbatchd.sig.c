@@ -21,8 +21,7 @@ extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 static void sbd_signal_job(struct sbd_job *,
                            int, struct wire_job_sig_reply *);
 
-int
-sbd_handle_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
+int sbd_handle_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
 {
     if (!xdr || !hdr) {
         lserrno = LSBE_BAD_ARG;
