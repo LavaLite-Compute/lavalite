@@ -1855,10 +1855,7 @@ xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
     if (!xdrs || !jf)
         return false;
 
-    if (!xdr_int(xdrs, (int *)&jf->len))
-        return false;
-
-    if (jf->len < 0)
+    if (!xdr_uint32_t(xdrs, &jf->len))
         return false;
 
     if (xdrs->x_op == XDR_FREE) {

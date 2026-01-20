@@ -90,8 +90,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     job->exec_username[0] = 0;
     job->exec_cwd[0] = 0;
 
-    strlcpy(job->exec_username, spec->userName,
-    sizeof(job->exec_username));
+    strcpy(job->exec_username, spec->userName);
 
     // Prepare decoded execution fields (cwd reconstruction, validation).
     // This must succeed for the job to be runnable.

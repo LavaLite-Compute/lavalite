@@ -260,8 +260,6 @@ sbd_run_daemon(void)
                      // fall through: still do maintenance
                  }
                  LS_DEBUG("timer run %s", ctime2(NULL));
-                 // Periodic maintenance: legacy job_checking + status_report.
-                 // always run
              timer_maintenance:
                  sbd_reap_children();
                  sbd_mbd_reconnect_try();

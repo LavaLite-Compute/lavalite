@@ -366,7 +366,7 @@ int chan_dequeue(int ch_id, struct Buffer **buf)
     return 0;
 }
 
-ssize_t chan_read_nonblock(int ch_id, char *buf, int len, int timeout)
+ssize_t chan_read_nonblock(int ch_id, void *buf, size_t len, int timeout)
 {
     if (io_nonblock_(channels[ch_id].sock) < 0) {
         lserrno = LSE_FILE_SYS;

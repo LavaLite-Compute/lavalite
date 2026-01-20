@@ -4209,6 +4209,17 @@ static bool_t env_is_denied(const char *name, size_t n, bool_t interactive)
             "MEMORY_PRESSURE_WATCH",
             "CLUTTER_DISABLE_MIPMAPPED_TEXT",
             "GSM_SKIP_SSH_AGENT_WORKAROUND",
+            "INSIDE_EMACS",
+            "EDITOR",
+            "SSH_AUTH_SOCK",
+            "CFLAGS",
+            "CPPFLAGS",
+            "PKG_CONFIG",
+            "PKG_CONFIG_PATH",
+            "DEBUGINFOD_URLS",
+            "MANPATH",
+            "LINES",
+            "COLUMNS",
             "_"
         };
         static const char *deny_batch_prefix[] = {
@@ -4348,9 +4359,14 @@ static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
         }
     }
 
+    if (ll_buf_append_str(&b, ENVEND) < 0) {
+        lsberrno = LSBE_NO_MEM;
+        free(b.data);
+        return -1;
+    }
+
     // Job execution body
-    if (ll_buf_append_str(&b, TRAPSIGCMD) < 0
-        || ll_buf_append_job_go_gate(&b) < 0
+    if (ll_buf_append_job_go_gate(&b) < 0
         || ll_buf_append_str(&b, CMDSTART) < 0
         || ll_buf_append_str(&b, jobSubReq->command) < 0
         || ll_buf_append_job_exit_tail(&b) < 0) {
@@ -4360,7 +4376,7 @@ static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
     }
 
     jf->data = b.data;
-    jf->len = (int)b.len;
+    jf->len = (uint32_t)b.len;
 
     return 0;
 }

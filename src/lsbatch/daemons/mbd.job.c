@@ -7481,20 +7481,27 @@ void setNewSub(struct jData *jpbw, struct jData *job, struct submitReq *subReq,
 static int mbdRcvJobFile(int chfd, struct wire_job_file *jf)
 {
     int timeout = RECV_JOBFILE_TIMEOUT;
-    int cc;
 
     jf->data = NULL;
     jf->len = 0;
-    if ((cc = chan_read_nonblock(chfd, (void *) (&jf->len), NET_INTSIZE_,
-                                 timeout)) != NET_INTSIZE_) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
+
+    uint32_t netlen;
+    ssize_t cc = chan_read_nonblock(chfd, &netlen, sizeof(netlen), timeout);
+    if (cc != (ssize_t)sizeof(netlen)) {
+        LS_ERR("chan_read_nonblock header %u failed", sizeof(netlen));
         return -1;
     }
-    jf->len = ntohl(jf->len);
-    jf->data = my_calloc(1, jf->len, "mbdRcvJobFile");
-    if ((cc = chan_read_nonblock(chfd, jf->data, jf->len, timeout)) !=
-        jf->len) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
+
+    jf->len = ntohl(netlen);
+    jf->data = calloc(jf->len, sizeof(char));
+    if (!jf->data) {
+        LS_ERR("calloc jobfile %zu failed", jf->len);
+        return -1;
+    }
+
+    cc = chan_read_nonblock(chfd, jf->data, jf->len, timeout);
+    if (cc != (ssize_t)jf->len) {
+        LS_ERR("chan_read_nonblock payload %u failed", jf->len);
         free(jf->data);
         return -1;
     }

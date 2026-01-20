@@ -80,7 +80,7 @@ bool_t xdr_wire_job_sig_reply(XDR *, struct wire_job_sig_reply *);
  * data: after decode, data[len] is guaranteed 0 for local convenience
  */
 struct wire_job_file {
-    int32_t len;
+    uint32_t len;
     char   *data;
 };
 

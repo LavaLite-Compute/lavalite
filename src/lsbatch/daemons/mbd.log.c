@@ -2589,8 +2589,6 @@ int rmLogJobInfo_(struct jData *jp, int check)
 
 int read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
 {
-#define ENVEND "$LSB_TRAPSIGS\n"
-
     jobSpecs->numEnv = 0;
     jobSpecs->env = NULL;
 

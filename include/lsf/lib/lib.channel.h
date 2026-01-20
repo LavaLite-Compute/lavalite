@@ -80,7 +80,7 @@ int chan_client_socket(int, int, int);
 int chan_rpc(int, struct Buffer *, struct Buffer *, struct packet_header *,
              int);
 ssize_t chan_read(int, void *, size_t);
-ssize_t chan_read_nonblock(int, char *, int, int);
+ssize_t chan_read_nonblock(int, void *, size_t, int);
 ssize_t chan_write(int, void *, size_t);
 int chan_alloc_buf(struct Buffer **, int);
 int chan_free_buf(struct Buffer *);

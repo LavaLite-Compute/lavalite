@@ -122,6 +122,7 @@ struct submitReq {
 #define CMDSTART "# LSBATCH: User input\n"
 #define CMDEND "# LSBATCH: End user input\n"
 #define ENVSSTART "# LSBATCH: Environments\n"
+#define ENVEND "# LSBATCH: ENVEND\n"
 #define LSBNUMENV "#LSB_NUM_ENV="
 #define EDATASTART "# LSBATCH: edata\n"
 #define WAITCLEANCMD "\nExitStat=$?\nwait\n# LSBATCH: End user input\ntrue\n"
