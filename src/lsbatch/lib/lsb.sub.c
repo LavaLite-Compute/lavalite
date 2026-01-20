@@ -99,7 +99,7 @@ extern int lsbMode_;
 static char *useracctmap = NULL;
 static struct lenData ed = {0, NULL};
 
-static int64_t send_batch(struct submitReq *, struct lenData *,
+static int64_t send_batch(struct submitReq *, struct wire_job_file *,
                           struct submitReply *, struct lsfAuth *);
 static int dependCondSyntax(char *);
 static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
@@ -128,7 +128,7 @@ static int getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
                           int *badIdx, int checkHost);
 #define ESUBNAME "esub"
 // LavaLite
-static int createJobInfoFile(struct submit *, struct lenData *);
+static int create_job_file(struct submit *, struct wire_job_file *);
 
 int64_t lsb_submit(struct submit *jobSubReq, struct submitReply *submitRep)
 {
@@ -400,7 +400,8 @@ void appendEData(struct lenData *jf, struct lenData *ed)
     jf->len = strlen(jf->data) + 1 + ed->len;
 }
 
-static int64_t send_batch(struct submitReq *submitReqPtr, struct lenData *jf,
+static int64_t send_batch(struct submitReq *submitReqPtr,
+                          struct wire_job_file *jf,
                           struct submitReply *submitReply, struct lsfAuth *auth)
 {
     mbdReqType mbdReqtype;
@@ -424,7 +425,11 @@ static int64_t send_batch(struct submitReq *submitReqPtr, struct lenData *jf,
     xdrmem_create(&xdrs, request_buf, reqBufSize, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) submitReqPtr, &hdr, xdr_submitReq, 0,
+    if (!xdr_encodeMsg(&xdrs,
+                       (char *)submitReqPtr,
+                       &hdr,
+                       xdr_submitReq,
+                       0,
                        auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
@@ -536,7 +541,6 @@ static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
     char homeDir[MAXFILENAMELEN];
     char resReq[MAXLINELEN];
     char cmd[MAXLINELEN];
-    struct lenData jf;
     LSB_SUB_SPOOL_FILE_T subSpoolFiles;
     int64_t jobId = -1;
 
@@ -552,7 +556,8 @@ static int64_t subJob(struct submit *jobSubReq, struct submitReq *submitReq,
         goto cleanup;
     }
 
-    if (createJobInfoFile(jobSubReq, &jf) == -1) {
+    struct wire_job_file jf;
+    if (create_job_file(jobSubReq, &jf) == -1) {
         goto cleanup;
     }
 
@@ -4033,7 +4038,7 @@ static int ll_buf_append_mem(struct ll_buf *b, const void *p, size_t n)
 
     memcpy(b->data + b->len, p, n);
     b->len += n;
-    b->data[b->len] = '\0';
+    b->data[b->len] = 0;
     return 0;
 }
 
@@ -4276,7 +4281,7 @@ static int ll_buf_append_sh_export(struct ll_buf *b, const char *name,
 static int ll_buf_append_job_exit_tail(struct ll_buf *);
 static int ll_buf_append_job_go_gate(struct ll_buf *);
 
-static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
+static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
 {
     struct ll_buf b;
     char **ep;
@@ -4354,9 +4359,9 @@ static int createJobInfoFile(struct submit *jobSubReq, struct lenData *jf)
         return -1;
     }
 
-
     jf->data = b.data;
     jf->len = (int)b.len;
+
     return 0;
 }
 

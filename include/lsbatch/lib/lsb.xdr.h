@@ -73,3 +73,15 @@ struct wire_job_sig_reply {
 
 bool_t xdr_wire_job_sig_req(XDR *, struct wire_job_sig_req *);
 bool_t xdr_wire_job_sig_reply(XDR *, struct wire_job_sig_reply *);
+
+/* job file wire representation
+ *
+ * len: number of bytes on wire / disk (no trailing 0)
+ * data: after decode, data[len] is guaranteed 0 for local convenience
+ */
+struct wire_job_file {
+    int32_t len;
+    char   *data;
+};
+
+bool_t xdr_wire_job_file(XDR *, struct wire_job_file *);

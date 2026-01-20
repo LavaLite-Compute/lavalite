@@ -101,7 +101,7 @@ static void jobRequeueTimeUpdate(struct jData *, time_t);
 static bool_t clusterAdminFlag;
 static void setClusterAdmin(bool_t admin);
 static bool_t requestByClusterAdmin();
-static int mbdRcvJobFile(int, struct lenData *);
+static int mbdRcvJobFile(int, struct wire_job_file *);
 
 static void closeSbdConnect4ZombieJob(struct jData *);
 extern int glMigToPendFlag;
@@ -147,7 +147,6 @@ int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     int returnErr;
     int64_t nextId;
     char jobIdStr[20];
-    struct lenData jf;
     struct hData *hData;
     struct hostInfo *hinfo;
     char hostType[MAXHOSTNAMELEN];
@@ -226,6 +225,7 @@ int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         }
     }
 
+    struct wire_job_file jf;
     if ((mbdRcvJobFile(chan, &jf)) == -1) {
         ls_syslog(LOG_ERR, "%s: mbdRcvJobFile failed for user ID <%d>: %M",
                   __func__, auth->uid);
@@ -2019,8 +2019,8 @@ void packJobSpecs(struct jData *job, struct jobSpecs *spec)
     spec->eexec.len = 0;
     spec->eexec.data = NULL;
 
-    spec->jobFileData.len = 0;
-    spec->jobFileData.data = NULL;
+    spec->job_file_data.len = 0;
+    spec->job_file_data.data = NULL;
 
     spec->numToHosts = 0;
     spec->toHosts = NULL;
@@ -2092,11 +2092,11 @@ void packJobSpecs(struct jData *job, struct jobSpecs *spec)
 
     /* jobFile name (array jobs keep .<index> suffix) */
     if (LSB_ARRAY_IDX(job->jobId) != 0) {
-        sprintf(spec->jobFile, "%s.%d",
+        sprintf(spec->job_file, "%s.%d",
                 job->shared->jobBill.jobFile,
                 LSB_ARRAY_IDX(job->jobId));
     } else {
-        sprintf(spec->jobFile, "%s", job->shared->jobBill.jobFile);
+        sprintf(spec->job_file, "%s", job->shared->jobBill.jobFile);
     }
 
     /* I/O paths */
@@ -7478,7 +7478,7 @@ void setNewSub(struct jData *jpbw, struct jData *job, struct submitReq *subReq,
 }
 
 #define RECV_JOBFILE_TIMEOUT 5
-int mbdRcvJobFile(int chfd, struct lenData *jf)
+static int mbdRcvJobFile(int chfd, struct wire_job_file *jf)
 {
     int timeout = RECV_JOBFILE_TIMEOUT;
     int cc;

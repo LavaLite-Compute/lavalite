@@ -1,4 +1,4 @@
-/* $Id: lsb.xdr.c,v 1.22 2007/08/15 22:18:48 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -1845,6 +1845,57 @@ bool_t xdr_wire_job_sig_reply(XDR *xdrs, struct wire_job_sig_reply *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->detail_errno))
         return false;
+
+    return true;
+}
+
+bool_t
+xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
+{
+    if (!xdrs || !jf)
+        return false;
+
+    if (!xdr_int(xdrs, (int *)&jf->len))
+        return false;
+
+    if (jf->len < 0)
+        return false;
+
+    if (xdrs->x_op == XDR_FREE) {
+        free(jf->data);
+        jf->data = NULL;
+        jf->len = 0;
+        return true;
+    }
+
+    if (jf->len == 0) {
+        jf->data = NULL;
+        return true;
+    }
+
+    if (xdrs->x_op == XDR_DECODE) {
+        // one extra byte so it will become as C string
+        jf->data = malloc((size_t)jf->len + 1);
+        if (!jf->data)
+            return false;
+        // local convenience only so we can use the blob as C string
+        jf->data[jf->len] = 0;
+    }
+
+    if (xdrs->x_op == XDR_ENCODE && !jf->data)
+        return false;
+
+    if (!xdr_opaque(xdrs, jf->data, (unsigned int)jf->len)) {
+        if (xdrs->x_op == XDR_DECODE) {
+            free(jf->data);
+            jf->data = NULL;
+            jf->len = 0;
+        }
+        return false;
+    }
+
+    if (xdrs->x_op == XDR_DECODE)
+        jf->data[jf->len] = 0;
 
     return true;
 }

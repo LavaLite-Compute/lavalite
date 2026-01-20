@@ -244,10 +244,10 @@ void freeJobSpecs(struct jobSpecs *spec)
         spec->eexec.len = 0;
     }
 
-    if (spec->jobFileData.len > 0 && spec->jobFileData.data != NULL) {
-        FREEUP(spec->jobFileData.data);
-        spec->jobFileData.data = NULL;
-        spec->jobFileData.len = 0;
+    if (spec->job_file_data.len > 0 && spec->job_file_data.data != NULL) {
+        FREEUP(spec->job_file_data.data);
+        spec->job_file_data.data = NULL;
+        spec->job_file_data.len = 0;
     }
 }
 

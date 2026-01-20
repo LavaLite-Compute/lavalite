@@ -2500,7 +2500,8 @@ static int renameElogFiles(void)
     return max;
 }
 
-void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
+void logJobInfo(struct submitReq *req, struct jData *jp,
+                struct wire_job_file *jf)
 {
     char job_file[PATH_MAX];
     FILE *fp;
@@ -2596,8 +2597,8 @@ int read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
     jobSpecs->eexec.len = 0;
     jobSpecs->eexec.data = NULL;
 
-    jobSpecs->jobFileData.len = 0;
-    jobSpecs->jobFileData.data = NULL;
+    jobSpecs->job_file_data.len = 0;
+    jobSpecs->job_file_data.data = NULL;
 
     char logFn[PATH_MAX];
     snprintf(logFn, sizeof(logFn),
@@ -2771,10 +2772,8 @@ int read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
      *
      * We keep the entire file as the jobfile body.
      */
-    jobSpecs->jobFileData.data = buf;
-    jobSpecs->jobFileData.len = (int)strlen(buf) + 1;
-
-    assert(jobSpecs->jobFileData.len <= (int)st.st_size + 1);
+    jobSpecs->job_file_data.data = buf;
+    jobSpecs->job_file_data.len = (int32_t)st.st_size;
 
     return 0;
 }

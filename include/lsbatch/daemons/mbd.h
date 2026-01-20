@@ -1247,7 +1247,6 @@ extern void switchELog(void);
 extern int switch_log(void);
 extern void checkAcctLog(void);
 extern int switchAcctLog(void);
-extern void logJobInfo(struct submitReq *, struct jData *, struct lenData *);
 extern int rmLogJobInfo_(struct jData *, int);
 extern void log_signaljob(struct jData *, struct signalReq *, int, char *);
 extern void log_jobmsg(struct jData *, struct lsbMsg *, int);
@@ -1459,3 +1458,4 @@ int signal_running_job(int,
                        struct jData *,
                        struct signalReq *,
                        struct lsfAuth *);
+void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);

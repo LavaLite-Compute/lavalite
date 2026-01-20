@@ -167,8 +167,8 @@ struct jobSpecs {
     char    subHomeDir[PATH_MAX]; // submission-side $HOME
     char    command[LL_BUFSIZ_512];        // original command line
 
-    char   jobFile[PATH_MAX]; // script name/path
-    struct lenData jobFileData; // inline script content (blob received via XDR)
+    char   job_file[PATH_MAX]; // script name/path
+    struct wire_job_file job_file_data; // inline script content (blob received via XDR)
 
     char    inFile[PATH_MAX];     // stdin redirect path
     char    outFile[PATH_MAX];    // stdout redirect path

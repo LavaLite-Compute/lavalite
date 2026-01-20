@@ -335,5 +335,5 @@ sbd_jobinfo_fill(struct sbdJobInfo *out, struct sbd_job *job)
 
     out->missing = job->missing ? 1 : 0;
 
-    out->job_file = strdup(job->spec.jobFile);
+    out->job_file = strdup(job->spec.job_file);
 }

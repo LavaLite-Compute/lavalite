@@ -19,7 +19,7 @@
 
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 
-static void sbd_handle_mbd_new_job(int, XDR *, struct packet_header *);
+static void sbd_handle_new_job(int, XDR *, struct packet_header *);
 static sbdReplyType sbd_spawn_job(struct sbd_job *, struct jobReply *);
 static void sbd_child_exec_job(struct sbd_job *);
 static void sbd_child_open_log(const struct jobSpecs *);
@@ -32,9 +32,9 @@ static int sbd_enter_work_dir(const struct sbd_job *);
 static int sbd_redirect_stdio(const struct jobSpecs *);
 static int sbd_materialize_jobfile(struct jobSpecs *, const char *,
                                    char *, size_t);
-static void sbd_handle_mbd_new_job_ack(int, XDR *, struct packet_header *);
-static void sbd_handle_mbd_job_execute(int, XDR *, struct packet_header *);
-static void sbd_handle_mbd_job_finish(int, XDR *, struct packet_header *);
+static void sbd_handle_new_job_ack(int, XDR *, struct packet_header *);
+static void sbd_handle_job_execute(int, XDR *, struct packet_header *);
+static void sbd_handle_job_finish(int, XDR *, struct packet_header *);
 static struct sbd_job *sbd_find_job_by_jid(int64_t);
 static int sbd_expand_stdio_path(const struct jobSpecs *, const char *,
                                  char *, size_t);
@@ -88,19 +88,19 @@ int sbd_handle_mbd(int ch_id)
     switch (hdr.operation) {
     case MBD_NEW_JOB:
         // a new job from mbd has arrived
-        sbd_handle_mbd_new_job(ch_id, &xdrs, &hdr);
+        sbd_handle_new_job(ch_id, &xdrs, &hdr);
         break;
     case BATCH_NEW_JOB_ACK:
         // this indicate the ack of the previous job_reply
         // has reached the mbd who logged in the events
         // we can send a new event sbd_enqueue_execute
-        sbd_handle_mbd_new_job_ack(ch_id, &xdrs, &hdr);
+        sbd_handle_new_job_ack(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_EXECUTE:
-        sbd_handle_mbd_job_execute(ch_id, &xdrs, &hdr);
+        sbd_handle_job_execute(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_FINISH:
-        sbd_handle_mbd_job_finish(ch_id, &xdrs, &hdr);
+        sbd_handle_job_finish(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_SIGNAL:
         sbd_handle_signal_job(ch_id, &xdrs, &hdr);
@@ -118,8 +118,8 @@ int sbd_handle_mbd(int ch_id)
 }
 
 
-static void  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
-                                    struct packet_header *req_hdr)
+static void  sbd_handle_new_job(int chfd, XDR *xdrs,
+                                struct packet_header *req_hdr)
 {
     sbdReplyType reply_code;
 
@@ -138,7 +138,7 @@ static void  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
         return;
     }
 
-    LS_DEBUG("MBD_NEW_JOB: jobId=%ld jobFile=%s", spec.jobId, spec.jobFile);
+    LS_DEBUG("MBD_NEW_JOB: jobId=%ld job_file=%s", spec.jobId, spec.job_file);
 
     // 2) duplicate NEW_JOB? just echo our view
     struct sbd_job *job;
@@ -288,8 +288,8 @@ sbd_child_exec_job(struct sbd_job *job)
     specs->jobPid = getpid();
     specs->jobPGid = specs->jobPid;
 
-    LS_INFO("job %ld starting: command=<%s> jobfile=<%s>",
-            job->job_id, specs->command, specs->jobFile);
+    LS_INFO("job %ld starting: command=<%s> job_file=<%s>",
+            job->job_id, specs->command, specs->job_file);
 
     LS_INFO("job %ld switching to uid=%d user=%s",
             job->job_id, specs->userId, specs->userName);
@@ -327,7 +327,7 @@ sbd_child_exec_job(struct sbd_job *job)
         }
 
         if (snprintf(sbd_local_wkdir, sizeof(sbd_local_wkdir),
-                     "%s/%s", sbd_jfiles, specs->jobFile) >=
+                     "%s/%s", sbd_jfiles, specs->job_file) >=
             (int)sizeof(sbd_local_wkdir)) {
             LS_ERR("job %ld local workdir path too long", job->job_id);
             _exit(127);
@@ -446,8 +446,8 @@ sbd_job_insert(struct sbd_job *job)
 
 // Process the BATCH_NEW_JOB_ACK the fact that mbd has received the pid
 // and log into the lsb.events
-static void sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
-                                       struct packet_header *hdr)
+static void sbd_handle_new_job_ack(int ch_id, XDR *xdrs,
+                                   struct packet_header *hdr)
 {
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -505,8 +505,8 @@ static void sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
     assert(job->execute_acked == false);
 }
 
-static void sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs,
-                                       struct packet_header *hdr)
+static void sbd_handle_job_execute(int ch_id, XDR *xdrs,
+                                   struct packet_header *hdr)
 {
     if (xdrs == NULL || hdr == NULL) {
         errno = EINVAL;
@@ -568,8 +568,8 @@ static void sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs,
     return;
 }
 
-static void sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs,
-                                      struct packet_header *hdr)
+static void sbd_handle_job_finish(int ch_id, XDR *xdrs,
+                                  struct packet_header *hdr)
 {
     if (xdrs == NULL || hdr == NULL) {
         errno = EINVAL;
@@ -1090,7 +1090,8 @@ int write_all(int fd, const char *buf, size_t len)
 
 static int sbd_materialize_jobfile(struct jobSpecs *specs,
                                    const char *work_dir,
-                                   char *jobpath, size_t jobpath_sz)
+                                   char *jobpath,
+                                   size_t jobpath_sz)
 {
     int fd;
     char tmp[PATH_MAX];
@@ -1100,7 +1101,7 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
         errno = EINVAL;
         return -1;
     }
-    if (!specs->jobFileData.data || specs->jobFileData.len <= 1) {
+    if (!specs->job_file_data.data || specs->job_file_data.len <= 1) {
         errno = EINVAL;
         return -1;
     }
@@ -1118,10 +1119,11 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
     if (fd < 0)
         return -1;
 
-    // jobFileData.len includes trailing 0; don't write it
-    len = (size_t)specs->jobFileData.len - 1;
+    // jobFileData.len is the size of the blob we got from
+    // mnd
+    len = (size_t)specs->job_file_data.len;
 
-    if (write_all(fd, specs->jobFileData.data, len) < 0) {
+    if (write_all(fd, specs->job_file_data.data, len) < 0) {
         close(fd);
         unlink(tmp);
         return -1;

@@ -68,7 +68,7 @@ sbdReplyType start_job(struct jData *job,
     for (int i = 0; i < jobSpecs.numEnv; i++)
         buflen += strlen(jobSpecs.env[i]);
 
-    buflen += jobSpecs.jobFileData.len;
+    buflen += jobSpecs.job_file_data.len;
     buflen += jobSpecs.eexec.len;
 
     /*

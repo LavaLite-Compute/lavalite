@@ -20,6 +20,8 @@
 static int dup_str_array(char ***, char *const *, int);
 static int dup_len_data(struct lenData *, const struct lenData *);
 static int sbd_job_prepare_exec_fields(struct sbd_job *);
+static int dup_job_file_data(struct wire_job_file *,
+                             const struct wire_job_file *);
 
 /*
  * Create and initialize a new sbatchd job object from a received jobSpecs.
@@ -159,18 +161,28 @@ static int dup_str_array(char ***dstp, char *const *src, int n)
     return 0;
 }
 
-/*
- * Duplicate a length-prefixed data buffer.
- *
- * This function deep-copies the contents of a lenData structure,
- * including allocation of a new data buffer of the specified length.
- *
- * The destination lenData is fully independent from the source and
- * may be safely modified or freed without affecting the source.
- *
- * On failure, no partial state is left in the destination.
- */
 static int dup_len_data(struct lenData *dst, const struct lenData *src)
+{
+    dst->len = 0;
+    dst->data = NULL;
+
+    if (src == NULL)
+        return 0;
+
+    if (src->len <= 0 || src->data == NULL)
+        return 0;
+
+    dst->data = malloc((size_t)src->len);
+    if (dst->data == NULL)
+        return -1;
+
+    memcpy(dst->data, src->data, (size_t)src->len);
+    dst->len = src->len;
+    return 0;
+}
+
+static int dup_job_file_data(struct wire_job_file *dst,
+                             const struct wire_job_file *src)
 {
     dst->len = 0;
     dst->data = NULL;
@@ -224,9 +236,9 @@ void jobSpecs_free(struct jobSpecs *spec)
     }
     spec->numEnv = 0;
 
-    free(spec->jobFileData.data);
-    spec->jobFileData.data = NULL;
-    spec->jobFileData.len = 0;
+    free(spec->job_file_data.data);
+    spec->job_file_data.data = NULL;
+    spec->job_file_data.len = 0;
 
     free(spec->eexec.data);
     spec->eexec.data = NULL;
@@ -261,7 +273,7 @@ int jobSpecs_deep_copy(struct jobSpecs *dst, const struct jobSpecs *src)
 
     dst->toHosts = NULL;
     dst->env = NULL;
-    dst->jobFileData.data = NULL;
+    dst->job_file_data.data = NULL;
     dst->eexec.data = NULL;
 
     if (dup_str_array(&dst->toHosts, src->toHosts, src->numToHosts) < 0) {
@@ -274,8 +286,8 @@ int jobSpecs_deep_copy(struct jobSpecs *dst, const struct jobSpecs *src)
         goto fail;
     }
 
-    if (dup_len_data(&dst->jobFileData, &src->jobFileData) < 0) {
-        LS_ERR("%s: failed to copy jobFileData: %m", __func__);
+    if (dup_job_file_data(&dst->job_file_data, &src->job_file_data) < 0) {
+        LS_ERR("%s: failed to copy job_file_data: %m", __func__);
         goto fail;
     }
 
