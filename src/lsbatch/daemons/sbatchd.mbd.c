@@ -19,7 +19,7 @@
 
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 
-static int sbd_handle_mbd_new_job(int, XDR *, struct packet_header *);
+static void sbd_handle_new_job(int, XDR *, struct packet_header *);
 static sbdReplyType sbd_spawn_job(struct sbd_job *, struct jobReply *);
 static void sbd_child_exec_job(struct sbd_job *);
 static void sbd_child_open_log(const struct jobSpecs *);
@@ -32,9 +32,9 @@ static int sbd_enter_work_dir(const struct sbd_job *);
 static int sbd_redirect_stdio(const struct jobSpecs *);
 static int sbd_materialize_jobfile(struct jobSpecs *, const char *,
                                    char *, size_t);
-static int sbd_handle_mbd_new_job_ack(int, XDR *, struct packet_header *);
-static int sbd_handle_mbd_job_execute(int, XDR *, struct packet_header *);
-static int sbd_handle_mbd_job_finish(int, XDR *, struct packet_header *);
+static void sbd_handle_new_job_ack(int, XDR *, struct packet_header *);
+static void sbd_handle_job_execute(int, XDR *, struct packet_header *);
+static void sbd_handle_job_finish(int, XDR *, struct packet_header *);
 static struct sbd_job *sbd_find_job_by_jid(int64_t);
 static int sbd_expand_stdio_path(const struct jobSpecs *, const char *,
                                  char *, size_t);
@@ -82,25 +82,32 @@ int sbd_handle_mbd(int ch_id)
         return -1;
     }
 
-    LS_DEBUG("mbd requesting operation %d", hdr.operation);
+    LS_DEBUG("mbd requesting operation %s", batch_op2str(hdr.operation));
 
     // sbd handler
     switch (hdr.operation) {
     case MBD_NEW_JOB:
         // a new job from mbd has arrived
-        sbd_handle_mbd_new_job(ch_id, &xdrs, &hdr);
+        sbd_handle_new_job(ch_id, &xdrs, &hdr);
         break;
     case BATCH_NEW_JOB_ACK:
         // this indicate the ack of the previous job_reply
         // has reached the mbd who logged in the events
         // we can send a new event sbd_enqueue_execute
-        sbd_handle_mbd_new_job_ack(ch_id, &xdrs, &hdr);
+        sbd_handle_new_job_ack(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_EXECUTE:
-        sbd_handle_mbd_job_execute(ch_id, &xdrs, &hdr);
+        sbd_handle_job_execute(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_FINISH:
-        sbd_handle_mbd_job_finish(ch_id, &xdrs, &hdr);
+        sbd_handle_job_finish(ch_id, &xdrs, &hdr);
+        break;
+    case BATCH_JOB_SIGNAL:
+        sbd_handle_signal_job(ch_id, &xdrs, &hdr);
+        break;
+    case BATCH_SBD_REGISTER_REPLY:
+        // informational only; no action required
+        LS_INFO("received %s from mbd", batch_op2str(hdr.operation));
         break;
     default:
         break;
@@ -111,8 +118,8 @@ int sbd_handle_mbd(int ch_id)
 }
 
 
-int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
-                            struct packet_header *req_hdr)
+static void  sbd_handle_new_job(int chfd, XDR *xdrs,
+                                struct packet_header *req_hdr)
 {
     sbdReplyType reply_code;
 
@@ -127,22 +134,21 @@ int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
     // 1) decode jobSpecs from mbd
     if (!xdr_jobSpecs((XDR *)xdrs, &spec, req_hdr)) {
         LS_ERR("xdr_jobSpecs failed");
-        reply_code = ERR_BAD_REQ;
-        goto send_reply;
+        sbd_mbd_shutdown();
+        return;
     }
 
-    LS_DEBUG("MBD_NEW_JOB: jobId=%ld jobFile=%s", spec.jobId, spec.jobFile);
+    LS_DEBUG("MBD_NEW_JOB: jobId=%ld job_file=%s", spec.jobId, spec.job_file);
 
     // 2) duplicate NEW_JOB? just echo our view
     struct sbd_job *job;
     job = sbd_job_lookup(spec.jobId);
     if (job != NULL) {
 
-        LS_WARNING("MBD_NEW_JOB duplicate: job=%"PRId64" state=%d step=%d "
+        LS_WARNING("MBD_NEW_JOB duplicate: job=%ld state=%d "
                    "pid=%ld pgid=%ld jStatus=%d",
                    (int64_t)job->job_id,
                    (int)job->state,
-                   (int)job->step,
                    (long)job->pid,
                    (long)job->pgid,
                    (int)job->spec.jStatus);
@@ -151,49 +157,51 @@ int  sbd_handle_mbd_new_job(int chfd, XDR *xdrs,
         job_reply.jobPid  = job->pid;
         job_reply.jobPGid = job->pgid;
         job_reply.jStatus = job->spec.jStatus;
+        job->job_reply = job_reply;
 
-        reply_code = ERR_NO_ERROR;
-        goto send_reply;
+        if (sbd_enqueue_new_job_reply(job) < 0) {
+            LS_ERR("job %ld enqueue duplicate new job reply failed", job->job_id);
+            sbd_mbd_shutdown();
+        }
+        return;
     }
 
     // allocate sbatchd-local job object
     job = sbd_job_create(&spec);
     if (job == NULL) {
-        return ERR_MEM;
+        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+        LS_ERR("MBD_NEW_JOB: job %ld create failed", (long)spec.jobId);
+        sbd_mbd_shutdown();
+        return;
     }
 
     // 3) new job: spawn child, register it, fill job_reply
     reply_code = sbd_spawn_job(job, &job_reply);
 
-send_reply:
     /* free heap members inside spec that xdr allocated */
     xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
     // Copy the structures
     job->job_reply = job_reply;
+    // This is fundamental for mbd to tell if the job
+    // started running or there was some sbd problem
     job->reply_code = reply_code;
     job->spec.runTime = time(NULL);
 
-    // even if the return code is not ERR_NO_ERROR we still
-    // want to write is as mbd has to ack the error state
-    if (sbd_job_record_write(job) < 0)
-        LS_ERRX("job %"PRId64": record write failed at start", job->job_id);
-
     // send the reply to mbd, note the child has been forked and
     // presumed running at this stage
-    int cc = sbd_enqueue_reply(reply_code, &job_reply);
+    int cc = sbd_enqueue_new_job_reply(job);
     if (cc < 0) {
-        LS_ERR("job %"PRId64" enqueue jobReply failed",
-               job->job_id);
-        return 0;
+        LS_ERR("job %ld enqueue jobReply failed", job->job_id);
+        sbd_mbd_shutdown();
+        return;
     }
 
-    // We have enqueued successfully the JobReply to mbd
-    // if mbd goes down while we are trying to notify it
-    // the reply_sent flag will be cleaned in sbd_mbd_link_down()
-    job->reply_sent = true;
-
-    return 0;
+    if (sbd_job_record_write(job) < 0) {
+        LS_ERRX("job %ld record write failed at start", job->job_id);
+        sbd_mbd_shutdown();
+        return;
+    }
 }
 
 static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_out)
@@ -280,21 +288,21 @@ sbd_child_exec_job(struct sbd_job *job)
     specs->jobPid = getpid();
     specs->jobPGid = specs->jobPid;
 
-    LS_INFO("job %"PRId64" starting: command=<%s> jobfile=<%s>",
-            job->job_id, specs->command, specs->jobFile);
+    LS_INFO("job %ld starting: command=<%s> job_file=<%s>",
+            job->job_id, specs->command, specs->job_file);
 
-    LS_INFO("job %"PRId64" switching to uid=%d user=%s",
+    LS_INFO("job %ld switching to uid=%d user=%s",
             job->job_id, specs->userId, specs->userName);
 
     // Drop privileges / set ids first.
     if (sbd_set_ids(specs) < 0) {
-        LS_ERR("set ids failed for job %"PRId64, job->job_id);
+        LS_ERR("set ids failed for job %ld, job->job_id");
         _exit(127);
     }
 
     // Populate the job environment (LSB_*, user env, etc).
     if (sbd_set_job_env(specs) < 0) {
-        LS_ERR("set job env failed for job %"PRId64, job->job_id);
+        LS_ERR("set job env failed for job %ld", job->job_id);
         _exit(127);
     }
 
@@ -308,41 +316,41 @@ sbd_child_exec_job(struct sbd_job *job)
 
         if (snprintf(sbd_root, sizeof(sbd_root), "%s/sbatchd", sharedir) >=
             (int)sizeof(sbd_root)) {
-            LS_ERR("job %"PRId64": sbatchd root path too long", job->job_id);
+            LS_ERR("job %ld sbatchd root path too long", job->job_id);
             _exit(127);
         }
 
         if (snprintf(sbd_jfiles, sizeof(sbd_jfiles), "%s/jfiles", sbd_root) >=
             (int)sizeof(sbd_jfiles)) {
-            LS_ERR("job %"PRId64": sbatchd jfiles path too long", job->job_id);
+            LS_ERR("job %ld sbatchd jfiles path too long", job->job_id);
             _exit(127);
         }
 
         if (snprintf(sbd_local_wkdir, sizeof(sbd_local_wkdir),
-                     "%s/%s", sbd_jfiles, specs->jobFile) >=
+                     "%s/%s", sbd_jfiles, specs->job_file) >=
             (int)sizeof(sbd_local_wkdir)) {
-            LS_ERR("job %"PRId64": local workdir path too long", job->job_id);
+            LS_ERR("job %ld local workdir path too long", job->job_id);
             _exit(127);
         }
 
         // Create parent directories (ignore EEXIST).
         if (mkdir(sbd_root, 0700) < 0 && errno != EEXIST) {
-            LS_ERR("job %"PRId64": mkdir(%s) failed: %m",
+            LS_ERR("job %ld mkdir(%s) failed: %m",
                    job->job_id, sbd_root);
             _exit(127);
         }
 
         if (mkdir(sbd_jfiles, 0700) < 0 && errno != EEXIST) {
-            LS_ERR("job %"PRId64": mkdir(%s) failed: %m",
+            LS_ERR("job %ld mkdir(%s) failed: %m",
                    job->job_id, sbd_jfiles);
             _exit(127);
         }
 
-        LS_INFO("job %"PRId64": sbd_local_wkdir=<%s>",
+        LS_INFO("job %ld sbd_local_wkdir=<%s>",
                 job->job_id, sbd_local_wkdir);
 
         if (mkdir(sbd_local_wkdir, 0700) < 0 && errno != EEXIST) {
-            LS_ERR("job %"PRId64": mkdir(%s) failed: %m",
+            LS_ERR("job %ld mkdir(%s) failed: %m",
                    job->job_id, sbd_local_wkdir);
             _exit(127);
         }
@@ -351,7 +359,7 @@ sbd_child_exec_job(struct sbd_job *job)
                                     sbd_local_wkdir,
                                     jobpath,
                                     sizeof(jobpath)) < 0) {
-            LS_ERR("job %"PRId64": materialize jobfile failed: %m",
+            LS_ERR("job %ld materialize jobfile failed: %m",
                    job->job_id);
             _exit(127);
         }
@@ -360,17 +368,17 @@ sbd_child_exec_job(struct sbd_job *job)
         umask(specs->umask);
 
         // Enter the execution working directory (or /tmp fallback).
-        LS_INFO("job %"PRId64": child setup starting cwd %s",
+        LS_INFO("job %ld child setup starting cwd %s",
                 job->job_id, job->exec_cwd);
 
         if (sbd_enter_work_dir(job) < 0) {
-            LS_ERR("job %"PRId64": failed to enter cwd %s (and /tmp fallback)",
+            LS_ERR("job %ld failed to enter cwd %s (and /tmp fallback)",
                    job->job_id, job->exec_cwd);
             _exit(127);
         }
 
         // Exec the materialized script. We keep cwd as set above.
-        LS_INFO("job %"PRId64": exec %s",
+        LS_INFO("job %ld exec %s",
                 job->job_id, jobpath);
 
         // Reset signals before running hooks and before exec.
@@ -378,14 +386,14 @@ sbd_child_exec_job(struct sbd_job *job)
 
         // Queue pre-exec hook (admin-side).
         if (sbd_run_qpre(specs) < 0) {
-            LS_ERR("qpre failed for job %"PRId64, job->job_id);
+            LS_ERR("qpre failed for job %ld", job->job_id);
             _exit(127);
         }
 
         // User pre-exec hook (submission-side).
         if ((specs->options & SUB_PRE_EXEC) != 0) {
             if (sbd_run_upre(specs) < 0) {
-                LS_ERR("upre failed for job %"PRId64, job->job_id);
+                LS_ERR("upre failed for job %ld", job->job_id);
                 _exit(127);
             }
         }
@@ -406,7 +414,7 @@ sbd_child_exec_job(struct sbd_job *job)
 
             execv(argv[0], argv);
 
-            LS_ERR("job %"PRId64": execv(%s) failed: %m",
+            LS_ERR("job %ld execv(%s) failed: %m",
                    job->job_id, argv[0]);
             _exit(127);
         }
@@ -438,64 +446,71 @@ sbd_job_insert(struct sbd_job *job)
 
 // Process the BATCH_NEW_JOB_ACK the fact that mbd has received the pid
 // and log into the lsb.events
-static int sbd_handle_mbd_new_job_ack(int ch_id, XDR *xdrs,
-                                      struct packet_header *hdr)
+static void sbd_handle_new_job_ack(int ch_id, XDR *xdrs,
+                                   struct packet_header *hdr)
 {
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
 
     if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
         LS_ERR("xdr_new_job_ack decode failed");
-        return -1;
+        return;
     }
 
     // check the status of the operation
     if (hdr->operation != BATCH_NEW_JOB_ACK) {
-        LS_ERR("job %"PRId64" new_job_ack error rc=%d seq=%d",
+        LS_ERR("job %ld new_job_ack error rc=%d seq=%d",
                ack.job_id, hdr->operation, ack.seq);
         // For now keep job around; retry policy later.
-        return -1;
+        return;
     }
 
     // go and retrieve the job_id base in its hash
     struct sbd_job *job = sbd_find_job_by_jid(ack.job_id);
     if (job == NULL) {
-        LS_WARNING("new_job_ack for unknown job %"PRId64, ack.job_id);
-        return -1;
+        LS_WARNING("new_job_ack for unknown job %ld", ack.job_id);
+        return;
     }
 
     // the sequence number is not used for now
     if (job->pid_acked == true) {
-        LS_DEBUG("job %"PRId64" duplicate pid ack (seq=%d)",
+        LS_DEBUG("job %ld duplicate pid ack (seq=%d)",
                  job->job_id, ack.seq);
-        return -1;
+        return;
     }
 
     // This ack means: mbd has recorded pid/pgid for this job.
     job->pid_acked = true;
-    job->pid_ack_time = time(NULL);
     // write the job record
-    if (sbd_job_record_write(job) < 0)
-         LS_ERRX("job %"PRId64": record write failed after pid_acked",
+    if (sbd_job_record_write(job) < 0) {
+         LS_ERRX("job %ld record write failed after pid_acked",
                  job->job_id);
+        // force sbd re transmission of the reply data
+        job->pid_ack_time = 0;
+        return;
+    }
+
+    if (sbd_go_write(job->job_id) < 0) {
+        LS_ERR("job %ld go file write failed", job->job_id);
+        sbd_mbd_shutdown();
+        return;
+    }
+    LS_INFO("job %ld go file written", job->job_id);
+    job->pid_ack_time = time(NULL);
 
     // PID/PGID acknowledged by mbd.
     // EXECUTE will be enqueued later by the main loop (job_execute_drive).
-    job->step = SBD_STEP_PID_COMMITTED;
-    LS_INFO("job %"PRId64" SBD_STEP_PID_COMMITTED pid/pgid acked by mbd seq=%d",
-            job->job_id, ack.seq);
+    LS_INFO("job %ld pid/pgid acked by mbd", job->job_id);
 
     assert(job->execute_acked == false);
-
-    return 0;
 }
 
-static int
-sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
+static void sbd_handle_job_execute(int ch_id, XDR *xdrs,
+                                   struct packet_header *hdr)
 {
     if (xdrs == NULL || hdr == NULL) {
         errno = EINVAL;
-        return -1;
+        return;
     }
 
     struct job_status_ack ack;
@@ -506,13 +521,13 @@ sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
      */
     if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
         LS_ERR("xdr_job_status_ack failed for EXECUTE ack");
-        return -1;
+        return;
     }
 
     if (ack.acked_op != BATCH_JOB_EXECUTE) {
-        LS_ERR("EXECUTE ack mismatch: hdr.op=%d acked_op=%d job=%"PRId64,
+        LS_ERR("EXECUTE ack mismatch: hdr.op=%d acked_op=%d job=%ld",
                hdr->operation, ack.acked_op, ack.job_id);
-        return -1;
+        return;
     }
 
     struct sbd_job *job;
@@ -522,9 +537,9 @@ sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
          * This can happen after a restart or if the job was already cleaned.
          * Treat as non-fatal: mbd has committed; we just have nothing to do.
          */
-        LS_INFO("EXECUTE ack for unknown job=%"PRId64" (seq=%d) ignored",
+        LS_INFO("EXECUTE ack for unknown job=%ld (seq=%d) ignored",
                 ack.job_id, ack.seq);
-        return 0;
+        return;
     }
 
     if (!job->pid_acked) {
@@ -532,34 +547,33 @@ sbd_handle_mbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
          * Strict ordering violation: execute_acked implies pid_acked.
          * This should never happen if mbd is enforcing the pipeline.
          */
-        LS_ERR("job=%"PRId64" EXECUTE ack before PID ack (state=%d step=%d)",
-               job->job_id, job->state, job->step);
-        return -1;
+        LS_ERR("job=%ld BATCH_JOB_EXECUTE ack before PID ack state=0x%x",
+               job->job_id, job->state);
+        return;
     }
 
     if (job->execute_acked) {
-        LS_DEBUG("job=%"PRId64" duplicate EXECUTE ack ignored", job->job_id);
-        return 0;
+        LS_DEBUG("job=%ld duplicate EXECUTE ack ignored", job->job_id);
+        return;
     }
 
-    job->execute_acked = TRUE;
+    job->execute_acked = true;
 
-    job->step = SBD_STEP_EXECUTE_COMMITTED;
     if (sbd_job_record_write(job) < 0)
-        LS_ERRX("job %"PRId64": record write failed after execute_acked",
+        LS_ERRX("job %ld record write failed after execute_acked",
                 job->job_id);
 
-    LS_INFO("job=%"PRId64" BATCH_JOB_EXECUTE committed to mbd", job->job_id);
+    LS_INFO("job=%ld BATCH_JOB_EXECUTE committed to mbd", job->job_id);
 
-    return 0;
+    return;
 }
 
-static int
-sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
+static void sbd_handle_job_finish(int ch_id, XDR *xdrs,
+                                  struct packet_header *hdr)
 {
     if (xdrs == NULL || hdr == NULL) {
         errno = EINVAL;
-        return -1;
+        return;
     }
 
     struct job_status_ack ack;
@@ -567,34 +581,33 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
 
     if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
         LS_ERR("xdr_job_status_ack failed for FINISH ack");
-        return -1;
+        return;
     }
 
     if (ack.acked_op != BATCH_JOB_FINISH) {
-        LS_ERR("FINISH ack mismatch: hdr.op=%d acked_op=%d job=%"PRId64,
+        LS_ERR("FINISH ack mismatch: hdr.op=%d acked_op=%d job=%ld",
                hdr->operation, ack.acked_op, ack.job_id);
-        return -1;
+        return;
     }
 
     struct sbd_job *job;
     job = sbd_find_job_by_jid(ack.job_id);
     if (job == NULL) {
-        LS_INFO("FINISH ack for unknown job=%"PRId64" (seq=%d) ignored",
-                ack.job_id, ack.seq);
-        return 0;
+        LS_INFO("FINISH ack for unknown job=%ld ignored", ack.job_id);
+        return;
     }
 
     if (!job->pid_acked || !job->execute_acked) {
-        LS_ERR("job=%"PRId64" FINISH ack out of order (pid_acked=%d execute_acked=%d)",
+        LS_ERR("job=%ld FINISH ack out of order (pid_acked=%d execute_acked=%d)",
                job->job_id, job->pid_acked, job->execute_acked);
         // catch early problems
         assert(0);
-        return -1;
+        return;
     }
 
     if (job->finish_acked) {
-        LS_DEBUG("job=%"PRId64" duplicate FINISH ack ignored", job->job_id);
-        return 0;
+        LS_DEBUG("job=%ld duplicate FINISH ack ignored", job->job_id);
+        return;
     }
 
     /*
@@ -602,7 +615,7 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
      * If this triggers, it means we emitted FINISH too early or state got lost.
      */
     if (!job->exit_status_valid && !job->missing) {
-        LS_ERR("job=%"PRId64" BATCH_JOB_FINISH committed but exit_status not captured",
+        LS_ERR("job=%ld BATCH_JOB_FINISH committed but exit_status not captured",
                job->job_id);
         abort();
         // later on we can mark this job as missing and continue the
@@ -610,25 +623,21 @@ sbd_handle_mbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     job->finish_acked = true;
-    LS_INFO("job=%"PRId64" BATCH_JOB_FINISH committed by mbd; cleaning up",
+    LS_INFO("job=%ld BATCH_JOB_FINISH committed by mbd; cleaning up",
             job->job_id);
 
     // wite the acked
     if (sbd_job_record_write(job) < 0)
-        LS_ERRX("job %"PRId64": record write failed after finish_acked", job->job_id);
+        LS_ERRX("job %ld record write failed after finish_acked", job->job_id);
 
-    // Keep the record on the file for debug for right now
-    if (0 && sbd_job_record_remove(job->job_id) < 0)
-        LS_ERRX("job %"PRId64": record remove failed", job->job_id);
-
-    job->step = SBD_STEP_FINISH_COMMITTED;
+    if (sbd_job_record_remove(job->job_id) < 0)
+        LS_ERR("job %ld record remove failed", job->job_id);
 
     /*
      * Now it is safe to destroy the sbatchd-side job record/spool:
      * mbd event log is the source of truth, and FINISH is committed.
      */
     sbd_job_destroy(job);
-    return 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -650,7 +659,7 @@ void sbd_job_destroy(struct sbd_job *job)
 {
     char keybuf[32];
 
-    snprintf(keybuf, sizeof(keybuf), "%"PRId64, job->job_id);
+    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
 
     ll_hash_remove(sbd_job_hash, keybuf);
     ll_list_remove(&sbd_job_list, &job->list);
@@ -689,57 +698,6 @@ sbd_job_foreach(void (*fn)(struct ll_list_entry *))
 {
     ll_list_foreach(&sbd_job_list, fn);
 }
-
-#if 0
-static const char *
-sbd_state_name(enum sbd_job_state st)
-{
-    switch (st) {
-    case SBD_JOB_PENDING:
-        return "PENDING";
-    case SBD_JOB_RUNNING:
-        return "RUNNING";
-    case SBD_JOB_EXITED:
-        return "EXITED";
-    case SBD_JOB_FAILED:
-        return "FAILED";
-    case SBD_JOB_KILLED:
-        return "KILLED";
-    default:
-        return "UNKNOWN";
-    }
-}
-
-void sbd_print_all_jobs(void)
-{
-    LS_INFO("---- current jobs ----");
-    sbd_job_foreach(print_one_job);
-    LS_INFO("---- end ----");
-}
-static void
-print_one_job(struct ll_list_entry *entry)
-{
-    struct sbd_job *job;
-
-    job = (struct sbd_job *) entry;
-
-    /* placeholder: use spec.jobFile as job_name
-       when you add job_name to sbd_job, replace here */
-    const char *job_name;
-
-    if (job->spec.jobFile[0] != '\0') {
-        job_name = job->spec.jobFile;
-    } else {
-        job_name = "<unnamed>";
-    }
-
-    LS_INFO("job_id=%d  name=%s  state=%s  pid=%d",
-            job->job_id,
-            job_name,
-            sbd_state_name(job->state),
-            (int) job->pid);
-}
-#endif
 
 static void sbd_child_open_log(const struct jobSpecs *specs)
 {
@@ -1085,7 +1043,7 @@ sbd_expand_stdio_path(const struct jobSpecs *specs,
 
         // Handle supported tokens
         if (tmpl[i + 1] == 'J' || tmpl[i + 1] == 'I') {
-            int n = snprintf(out + pos, outsz - pos, "%"PRId64, specs->jobId);
+            int n = snprintf(out + pos, outsz - pos, "%ld", specs->jobId);
             if (n < 0 || (size_t)n >= outsz - pos) {
                 errno = ENAMETOOLONG;
                 return -1;
@@ -1132,7 +1090,8 @@ int write_all(int fd, const char *buf, size_t len)
 
 static int sbd_materialize_jobfile(struct jobSpecs *specs,
                                    const char *work_dir,
-                                   char *jobpath, size_t jobpath_sz)
+                                   char *jobpath,
+                                   size_t jobpath_sz)
 {
     int fd;
     char tmp[PATH_MAX];
@@ -1142,7 +1101,7 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
         errno = EINVAL;
         return -1;
     }
-    if (!specs->jobFileData.data || specs->jobFileData.len <= 1) {
+    if (!specs->job_file_data.data || specs->job_file_data.len <= 1) {
         errno = EINVAL;
         return -1;
     }
@@ -1160,10 +1119,11 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
     if (fd < 0)
         return -1;
 
-    // jobFileData.len includes trailing 0; don't write it
-    len = (size_t)specs->jobFileData.len - 1;
+    // jobFileData.len is the size of the blob we got from
+    // mnd
+    len = (size_t)specs->job_file_data.len;
 
-    if (write_all(fd, specs->jobFileData.data, len) < 0) {
+    if (write_all(fd, specs->job_file_data.data, len) < 0) {
         close(fd);
         unlink(tmp);
         return -1;
@@ -1244,15 +1204,11 @@ sbd_mbd_link_down(void)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
-        if (!job->pid_acked)
-            job->reply_sent = false;
-        if (!job->execute_acked)
-            job->execute_sent = false;
-        if (!job->finish_acked)
-            job->finish_sent = false;
+        job->reply_last_send = job->execute_last_send
+            = job->finish_last_send = 0;
         // Write the latest job record
         if (sbd_job_record_write(job) < 0)
-            LS_ERRX("job %"PRId64": record write failed after link_down", job->job_id);
+            LS_ERRX("job %ld record write failed after link_down", job->job_id);
     }
 
     LS_ERR("mbd link down: cleared pending sent flags for resend and record");

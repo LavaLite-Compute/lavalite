@@ -169,6 +169,34 @@ if (!host) {
 }
 ```
 
+### Logging and error reporting (LS_XXX macros)
+
+All logging in LavaLite **must** use the `LS_XXX` macros (`LS_ERR`, `LS_WARN`,
+`LS_INFO`, `LS_DEBUG`, etc.).
+
+These macros **already and automatically** include:
+- the function name (`__func__`)
+- the system error description (`%m`, when applicable)
+
+As a consequence:
+- **Do not** embed `__func__` in log messages
+- **Do not** append `%m` or `strerror(errno)` manually
+- Log messages must contain **only semantic information**, not plumbing
+
+Correct usage:
+
+`LS_ERR("sbd not connected host=%s job=%s", host->host, job_id);`
+
+Incorrect usage:
+
+`LS_ERR("%s: sbd not connected host=%s job=%s %m", func, host->host, job_id);`
+
+
+Repeating function names or error strings leads to duplicated, noisy logs and
+violates the project logging invariants. All contributors must assume that
+
+`LS_XXX` macros always provide full contextual information.
+
 ---
 
 ## 1.6 Authentication & request identity (`eauth`)

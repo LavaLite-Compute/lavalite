@@ -34,6 +34,20 @@ If you contribute, you become part of that responsibility.
 
 ---
 
+## Language
+
+All code, comments, commit messages, documentation, and issue discussions
+must be written in **English**.
+
+LavaLite aims to be a global, community‑driven project. English is the
+lingua franca of software development and ensures that contributors from
+any country can understand, review, and maintain the codebase.
+
+Mixed‑language comments (e.g., Chinese, Italian, etc.) are not allowed.
+They fragment the project, slow onboarding, and make long‑term
+maintenance harder. Keep the codebase accessible and consistent.
+---
+
 ## Workflow
 
 1. Fork the repository

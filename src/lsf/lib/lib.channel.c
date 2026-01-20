@@ -173,9 +173,17 @@ int chan_accept(int ch_id, struct sockaddr_in *from)
         return -1;
     }
 
-    s = accept4(channels[ch_id].sock, (struct sockaddr *) from, &len,
-                SOCK_NONBLOCK | SOCK_CLOEXEC);
-    if (s < 0) {
+    while (1) {
+        s = accept4(channels[ch_id].sock, (struct sockaddr *) from, &len,
+                    SOCK_NONBLOCK | SOCK_CLOEXEC);
+        if (s >= 0)
+            break;
+
+        // The system call was interrupted by a signal that was caught  be‐
+        // fore a valid connection arrived;
+        if (errno == EINTR)
+            continue;
+
         lserrno = LSE_SOCK_SYS;
         return -1;
     }
@@ -358,7 +366,7 @@ int chan_dequeue(int ch_id, struct Buffer **buf)
     return 0;
 }
 
-ssize_t chan_read_nonblock(int ch_id, char *buf, int len, int timeout)
+ssize_t chan_read_nonblock(int ch_id, void *buf, size_t len, int timeout)
 {
     if (io_nonblock_(channels[ch_id].sock) < 0) {
         lserrno = LSE_FILE_SYS;
@@ -628,11 +636,7 @@ static void dowrite(struct chan_data *chan, int chan_id)
         // Remove from epoll EPOLLOUT only when the whole list
         // is all empty
         if (chan->send->forw == chan->send) {
-            struct epoll_event ev;
-            memset(&ev, 0, sizeof(ev));
-            ev.events  = EPOLLIN;
-            ev.data.u32 = (uint32_t)chan_id;
-            epoll_ctl(epoll_fd, EPOLL_CTL_MOD, chan_sock(chan_id), &ev);
+            chan_set_write_interest(chan_id, false);
         }
     }
 }
@@ -888,4 +892,29 @@ int chan_sock_error(int ch_id)
     int err = rdwr_sock_error(chan_sock(ch_id));
 
     return err;
+}
+
+int chan_set_write_interest(int ch_id, bool_t on)
+{
+    // epoll_fd is process-global: each daemon has a single epoll instance,
+    // initialized by chan_epoll() before any channel I/O.
+    if (epoll_fd < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.events = EPOLLIN;
+    if (on) {
+        ev.events |= EPOLLOUT;
+    }
+    ev.data.u32 = (uint32_t)ch_id;
+
+    // The epoll_fd is set globally by the chan_epoll
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
+        return -1;
+    }
+
+    return 0;
 }

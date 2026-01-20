@@ -6,13 +6,11 @@ AM_CFLAGS   = -Wall -Wextra -g -O0
 
 lib_LIBRARIES = libllbat.a
 #libllbat_la_LDFLAGS = -version-info 0:0:0 -no-undefined
-#libllbat_la_LIBADD  = $(TIRPC_LIB)
 
 # Create a symlink for legacy compatibility
 install-exec-hook:
 	@echo "Creating compatibility symlink liblsbatch.la -> libllbat.so"
 	cd $(DESTDIR)$(libdir) && ln -sf libllbat.a liblsbatch.a
-
 
 libllbat_a_SOURCES = lsb.comm.c \
 	lsb.jobs.c \

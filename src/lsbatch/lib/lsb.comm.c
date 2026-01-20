@@ -89,7 +89,7 @@ resolve_master_try(void)
  * Returns: Number of bytes in reply on success, -1 on error
  */
 int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
-             struct lenData *extra)
+             struct wire_job_file *jf)
 {
     uint16_t port;
     int rc;
@@ -113,9 +113,9 @@ int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
 
     struct Buffer e;
     struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
-    if (extra && extra->len > 0) {
-        e.data = extra->data;
-        e.len = extra->len;
+    if (jf && jf->len > 0) {
+        e.data = jf->data;
+        e.len = jf->len;
         e.forw = NULL;
         req_buf.forw = &e;
     }

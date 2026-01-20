@@ -325,20 +325,15 @@ sbd_jobinfo_fill(struct sbdJobInfo *out, struct sbd_job *job)
     out->pgid = (int32_t)job->pgid;
 
     out->state = (int32_t)job->state;
-    out->step  = (int32_t)job->step;
 
     out->pid_acked     = job->pid_acked ? 1 : 0;
     out->execute_acked = job->execute_acked ? 1 : 0;
     out->finish_acked  = job->finish_acked ? 1 : 0;
-
-    out->reply_sent   = job->reply_sent ? 1 : 0;
-    out->execute_sent = job->execute_sent ? 1 : 0;
-    out->finish_sent  = job->finish_sent ? 1 : 0;
 
     out->exit_status_valid = job->exit_status_valid ? 1 : 0;
     out->exit_status       = (int32_t)job->exit_status;
 
     out->missing = job->missing ? 1 : 0;
 
-    out->job_file = strdup(job->spec.jobFile);
+    out->job_file = strdup(job->spec.job_file);
 }

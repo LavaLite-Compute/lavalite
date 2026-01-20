@@ -13,6 +13,5 @@ install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
 	$(MKDIR_P) $(DESTDIR)$(localstatedir)/log
 	$(MKDIR_P) $(DESTDIR)$(localstatedir)/work
-	$(MKDIR_P) $(DESTDIR)$(localstatedir)/work/info
 
 EXTRA_DIST = Make.common

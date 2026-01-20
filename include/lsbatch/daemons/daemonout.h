@@ -68,6 +68,8 @@ typedef enum {
     BATCH_NEW_JOB_ACK,          // ack mbd got the pid for the new job
     BATCH_JOB_EXECUTE, // sbd send to advance the pipeline to execute_acked
     BATCH_JOB_FINISH,  // sbd send the last state of job life pipeline
+    BATCH_JOB_SIGNAL,  // mbd send signal for a job to sbd
+    BATCH_JOB_SIGNAL_REPLY, // sbd reply BATCH_JOB_SIGNAL
     BATCH_LAST_OP
 } mbdReqType;
 
@@ -120,6 +122,7 @@ struct submitReq {
 #define CMDSTART "# LSBATCH: User input\n"
 #define CMDEND "# LSBATCH: End user input\n"
 #define ENVSSTART "# LSBATCH: Environments\n"
+#define ENVEND "# LSBATCH: ENVEND\n"
 #define LSBNUMENV "#LSB_NUM_ENV="
 #define EDATASTART "# LSBATCH: edata\n"
 #define WAITCLEANCMD "\nExitStat=$?\nwait\n# LSBATCH: End user input\ntrue\n"

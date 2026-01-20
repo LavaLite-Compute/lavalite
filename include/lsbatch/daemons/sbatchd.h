@@ -52,10 +52,13 @@ int sbd_nb_connect_mbd(bool_t *);
 int sbd_enqueue_register(int);
 bool_t sbd_mbd_link_ready(void);
 void sbd_mbd_link_down(void);
+void sbd_mbd_shutdown(void);
 
 // handle mbd messagges
 int sbd_handle_mbd(int);
 
+// timeout is in second
+#define DEFAUL_RESEND_ACK_TIMEOUT 3
 
 // Basic sbatchd job states.
 // Keep it small; mbd already has its own view.
@@ -65,28 +68,6 @@ enum sbd_job_state {
     SBD_JOB_EXITED,               // exited normally
     SBD_JOB_FAILED,               // failed before/at exec
     SBD_JOB_KILLED                // killed by signal
-};
-
-/*
- * sbatchd → mbatchd pipeline steps.
- *
- * All steps are ACK-driven and represent events that mbatchd has
- * logged/committed in lsb.events (source of truth).
- *
- * sbatchd must assume messages can be lost until the corresponding ACK
- * is received.
- */
-enum sbd_job_step {
-    SBD_STEP_NONE = 0,
-
-    // mbd logged/committed pid+pgid snapshot (BATCH_NEW_JOB_ACK)
-    SBD_STEP_PID_COMMITTED,
-
-    // mbd logged/committed EXECUTE event (BATCH_JOB_EXECUTE_ACK, or equivalent)
-    SBD_STEP_EXECUTE_COMMITTED,
-
-    // mbd logged/committed FINISH event (BATCH_JOB_FINISH_ACK, or equivalent)
-    SBD_STEP_FINISH_COMMITTED
 };
 
 // sbatchd-local view of a job.
@@ -116,7 +97,7 @@ struct sbd_job {
     time_t pid_ack_time;         // time when pid_acked was set (diagnostics)
     struct jobReply job_reply; // the JobReply structure to mbd
     int reply_code;       // the reply code from sbd_spawn_job()
-    bool_t reply_sent;    // if the reply was sent out (enqueued)
+    time_t reply_last_send; // last time we tried to sent the reply
     /*
      * execute_acked (EXECUTE_COMMITTED):
      *   Set to TRUE when sbatchd processes the ACK for the EXECUTE event,
@@ -126,8 +107,7 @@ struct sbd_job {
      *     - execute_acked implies pid_acked.
      */
     bool_t execute_acked;
-    bool_t execute_sent;
-
+    time_t execute_last_send; // last time we tried to send execute status
     /*
      * finish_acked (FINISH_COMMITTED):
      *   Set to TRUE when sbatchd processes the ACK for the FINISH event,
@@ -138,7 +118,7 @@ struct sbd_job {
      *     - FINISH is only eligible once exit_status_valid is true.
      */
     bool_t finish_acked;
-    bool_t finish_sent;
+    time_t finish_last_send; // last time we tried to send finish status
 
     int exit_status;                  // raw waitpid() status
     bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
@@ -150,8 +130,6 @@ struct sbd_job {
                                   // later populated from cgroupv2)
 
     bool_t missing;      // TRUE if job data/spool is inconsistent or lost
-    // steps in the pipeline of the job process
-    enum sbd_job_step step;  // committed protocol milestone (ACK-driven)
 };
 
 // Struct sbd job state to save the minimum status of the job to the
@@ -204,7 +182,7 @@ void sbd_job_sync_jstatus(struct sbd_job *);
 int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
 void jobSpecs_free(struct jobSpecs *);
 
-int sbd_enqueue_reply(int, const struct jobReply *);
+int sbd_enqueue_new_job_reply(struct sbd_job *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
 bool_t sbd_mbd_link_ready(void);
@@ -218,7 +196,10 @@ int sbd_job_record_read(int64_t, struct sbd_job *);
 int sbd_job_record_write(struct sbd_job *);
 int sbd_job_record_path(int64_t, char *, size_t);
 int sbd_job_record_remove(int64_t);
-void sbd_cleanup_job_list(void);
+void sbd_prune_acked_jobs(void);
+int sbd_go_path(int64_t, char *, size_t);
+int sbd_go_write(int64_t);
+
 
 // sbd has command to query its internal status
 int handle_sbd_accept(int);
@@ -231,3 +212,7 @@ int sbd_reply_hdr_only(int, int, struct packet_header *);
 int sbd_reply_payload(int, int, struct packet_header *,
                       void *, bool_t (*xdr_func)());
 int sbd_read_exit_status_file(int, int *, time_t *);
+int sbd_enqueue_signal_job_reply(int, struct packet_header *,
+                                 struct wire_job_sig_reply *);
+// sbatchd.sig.c handlers
+int sbd_handle_signal_job(int, XDR *, struct packet_header *);

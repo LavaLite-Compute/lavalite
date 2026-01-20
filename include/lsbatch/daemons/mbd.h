@@ -1,4 +1,4 @@
-/* $Id: mbd.h,v 1.28 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -993,7 +993,6 @@ extern int newJob(struct submitReq *, struct submitMbdReply *, int,
 extern int chkAskedHosts(int, char **, int, int *, struct askedHost **, int *,
                          int *, int);
 extern int selectJobs(struct jobInfoReq *, struct jData ***, int *);
-extern int signalJob(struct signalReq *, struct lsfAuth *);
 extern int statusJob(struct statusReq *, struct hostent *, int *);
 extern int rusageJob(struct statusReq *, struct hostent *);
 extern int statusMsgAck(struct statusReq *);
@@ -1248,7 +1247,6 @@ extern void switchELog(void);
 extern int switch_log(void);
 extern void checkAcctLog(void);
 extern int switchAcctLog(void);
-extern void logJobInfo(struct submitReq *, struct jData *, struct lenData *);
 extern int rmLogJobInfo_(struct jData *, int);
 extern void log_signaljob(struct jData *, struct signalReq *, int, char *);
 extern void log_jobmsg(struct jData *, struct lsbMsg *, int);
@@ -1432,6 +1430,7 @@ extern int mbd_max_events;
 extern struct ll_hash hdata_by_chan;
 
 int mbd_init(int);
+int mbd_dispatch_sbd(struct mbd_client_node *);
 int do_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);
 int sbd_handle_new_job_reply(struct mbd_client_node *,
                              XDR *,
@@ -1450,3 +1449,13 @@ int mbd_handle_slave_restart(struct mbd_client_node *,
                              XDR *);
 const char *mbd_op_str(int);
 int read_job_file(struct jobSpecs *, struct jData *);
+int mbd_signal_job(int, struct jData *, struct signalReq *, struct lsfAuth *);
+int signal_pending_job(int,
+                       struct jData *,
+                       struct signalReq *,
+                       struct lsfAuth *);
+int signal_running_job(int,
+                       struct jData *,
+                       struct signalReq *,
+                       struct lsfAuth *);
+void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);

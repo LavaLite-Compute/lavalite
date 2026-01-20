@@ -101,7 +101,7 @@ static void jobRequeueTimeUpdate(struct jData *, time_t);
 static bool_t clusterAdminFlag;
 static void setClusterAdmin(bool_t admin);
 static bool_t requestByClusterAdmin();
-static int mbdRcvJobFile(int, struct lenData *);
+static int mbdRcvJobFile(int, struct wire_job_file *);
 
 static void closeSbdConnect4ZombieJob(struct jData *);
 extern int glMigToPendFlag;
@@ -147,7 +147,6 @@ int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
     int returnErr;
     int64_t nextId;
     char jobIdStr[20];
-    struct lenData jf;
     struct hData *hData;
     struct hostInfo *hinfo;
     char hostType[MAXHOSTNAMELEN];
@@ -226,6 +225,7 @@ int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
         }
     }
 
+    struct wire_job_file jf;
     if ((mbdRcvJobFile(chan, &jf)) == -1) {
         ls_syslog(LOG_ERR, "%s: mbdRcvJobFile failed for user ID <%d>: %M",
                   __func__, auth->uid);
@@ -1294,6 +1294,9 @@ int migJob(struct migReq *req, struct submitMbdReply *reply,
     return LSBE_NO_ERROR;
 }
 
+#if 0
+// This is just for doc purpose for the new job signaling
+// now done using mbd_signal_job()
 int signalJob(struct signalReq *signalReq, struct lsfAuth *auth)
 {
     struct jData *jpbw;
@@ -1488,6 +1491,45 @@ int signalJob(struct signalReq *signalReq, struct lsfAuth *auth)
         }
     }
     return reply;
+}
+#endif
+
+int mbd_signal_job(int ch_id,
+                   struct jData *job,
+                   struct signalReq *req,
+                   struct lsfAuth *auth)
+{
+    if (req == NULL || job == NULL)
+        return LSBE_BAD_ARG;
+
+    LS_DEBUG("signal <%d> job <%s>", req->sigValue, lsb_jobid2str(req->jobId));
+
+    if (auth) {
+        if (auth->uid != 0
+            && auth->uid != mbd_mgr->uid
+            && auth->uid != job->userId) {
+            return LSBE_PERMISSION;
+        }
+    }
+
+    int st = MASK_STATUS(job->jStatus);
+
+    if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
+        signal_pending_job(ch_id, job, req, auth);
+        return 0;
+    }
+
+    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
+        st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
+        st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
+        st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
+        st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
+        return LSBE_JOB_FINISH;
+    }
+
+    signal_running_job(ch_id, job, req, auth);
+
+    return 0;
 }
 
 int sigPFjob(struct jData *jData, int sigValue, time_t chkPeriod, int logIt)
@@ -1977,8 +2019,8 @@ void packJobSpecs(struct jData *job, struct jobSpecs *spec)
     spec->eexec.len = 0;
     spec->eexec.data = NULL;
 
-    spec->jobFileData.len = 0;
-    spec->jobFileData.data = NULL;
+    spec->job_file_data.len = 0;
+    spec->job_file_data.data = NULL;
 
     spec->numToHosts = 0;
     spec->toHosts = NULL;
@@ -2050,11 +2092,11 @@ void packJobSpecs(struct jData *job, struct jobSpecs *spec)
 
     /* jobFile name (array jobs keep .<index> suffix) */
     if (LSB_ARRAY_IDX(job->jobId) != 0) {
-        sprintf(spec->jobFile, "%s.%d",
+        sprintf(spec->job_file, "%s.%d",
                 job->shared->jobBill.jobFile,
                 LSB_ARRAY_IDX(job->jobId));
     } else {
-        sprintf(spec->jobFile, "%s", job->shared->jobBill.jobFile);
+        sprintf(spec->job_file, "%s", job->shared->jobBill.jobFile);
     }
 
     /* I/O paths */
@@ -7436,23 +7478,30 @@ void setNewSub(struct jData *jpbw, struct jData *job, struct submitReq *subReq,
 }
 
 #define RECV_JOBFILE_TIMEOUT 5
-int mbdRcvJobFile(int chfd, struct lenData *jf)
+static int mbdRcvJobFile(int chfd, struct wire_job_file *jf)
 {
     int timeout = RECV_JOBFILE_TIMEOUT;
-    int cc;
 
     jf->data = NULL;
     jf->len = 0;
-    if ((cc = chan_read_nonblock(chfd, (void *) (&jf->len), NET_INTSIZE_,
-                                 timeout)) != NET_INTSIZE_) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
+
+    uint32_t netlen;
+    ssize_t cc = chan_read_nonblock(chfd, &netlen, sizeof(netlen), timeout);
+    if (cc != (ssize_t)sizeof(netlen)) {
+        LS_ERR("chan_read_nonblock header %u failed", sizeof(netlen));
         return -1;
     }
-    jf->len = ntohl(jf->len);
-    jf->data = my_calloc(1, jf->len, "mbdRcvJobFile");
-    if ((cc = chan_read_nonblock(chfd, jf->data, jf->len, timeout)) !=
-        jf->len) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_read_nonblock");
+
+    jf->len = ntohl(netlen);
+    jf->data = calloc(jf->len, sizeof(char));
+    if (!jf->data) {
+        LS_ERR("calloc jobfile %zu failed", jf->len);
+        return -1;
+    }
+
+    cc = chan_read_nonblock(chfd, jf->data, jf->len, timeout);
+    if (cc != (ssize_t)jf->len) {
+        LS_ERR("chan_read_nonblock payload %u failed", jf->len);
         free(jf->data);
         return -1;
     }

@@ -176,24 +176,26 @@ Done:
 #endif
 }
 
+
 // enqueue header used by daemons
-int enqueue_header_reply(int efd, int ch_id, int rc)
+int
+enqueue_header_reply(int ch_id, int rc)
 {
     struct Buffer *reply_buf;
+    struct packet_header hdr;
+    XDR xdrs;
+
     if (chan_alloc_buf(&reply_buf, PACKET_HEADER_SIZE)) {
-        LS_ERR("Failed to to allocate buffer");
+        LS_ERR("Failed to allocate buffer");
         return -1;
     }
 
-    struct packet_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = rc;
 
-    XDR xdrs;
     xdrmem_create(&xdrs, reply_buf->data, PACKET_HEADER_SIZE, XDR_ENCODE);
-
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("enqueue_header_reply: xdr_pack_hdr failed");
+        LS_ERR("xdr_pack_hdr failed");
         xdr_destroy(&xdrs);
         chan_free_buf(reply_buf);
         return -1;
@@ -203,22 +205,19 @@ int enqueue_header_reply(int efd, int ch_id, int rc)
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(ch_id, reply_buf) < 0) {
-        LS_ERR("enqueue_header_reply: chan_enqueue failed");
+        LS_ERR("chan_enqueue failed");
         chan_free_buf(reply_buf);
         return -1;
     }
 
-    struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLOUT;
-    ev.data.u32 = (uint32_t)ch_id;
-
-    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
-        LS_ERR("enqueue_header_reply: epoll_ctl MOD fd: %d", chan_sock(ch_id));
+    if (chan_set_write_interest(ch_id, true) < 0) {
+        LS_ERR("chan_set_write_interest failed");
         return -1;
     }
 
     return 0;
 }
+
 // Used by both mbd and sbd
 void freeJobSpecs(struct jobSpecs *spec)
 {
@@ -245,10 +244,10 @@ void freeJobSpecs(struct jobSpecs *spec)
         spec->eexec.len = 0;
     }
 
-    if (spec->jobFileData.len > 0 && spec->jobFileData.data != NULL) {
-        FREEUP(spec->jobFileData.data);
-        spec->jobFileData.data = NULL;
-        spec->jobFileData.len = 0;
+    if (spec->job_file_data.len > 0 && spec->job_file_data.data != NULL) {
+        FREEUP(spec->job_file_data.data);
+        spec->job_file_data.data = NULL;
+        spec->job_file_data.len = 0;
     }
 }
 
@@ -293,4 +292,118 @@ int enqueue_payload(int ch_id, int op, void *payload, bool_t (*xdr_func)())
     }
 
     return 0;
+}
+
+const char *batch_op2str(int op)
+{
+    switch (op) {
+
+    case BATCH_STATUS_ACK:
+        return "BATCH_STATUS_ACK";
+
+    case BATCH_JOB_SUB:
+        return "BATCH_JOB_SUB";
+
+    case BATCH_JOB_INFO:
+        return "BATCH_JOB_INFO";
+
+    case BATCH_JOB_PEEK:
+        return "BATCH_JOB_PEEK";
+
+    case BATCH_JOB_SIG:
+        return "BATCH_JOB_SIG";
+
+    case BATCH_HOST_INFO:
+        return "BATCH_HOST_INFO";
+
+    case BATCH_QUE_INFO:
+        return "BATCH_QUE_INFO";
+
+    case BATCH_GRP_INFO:
+        return "BATCH_GRP_INFO";
+
+    case BATCH_QUE_CTRL:
+        return "BATCH_QUE_CTRL";
+
+    case BATCH_RECONFIG:
+        return "BATCH_RECONFIG";
+
+    case BATCH_HOST_CTRL:
+        return "BATCH_HOST_CTRL";
+
+    case BATCH_JOB_SWITCH:
+        return "BATCH_JOB_SWITCH";
+
+    case BATCH_JOB_MOVE:
+        return "BATCH_JOB_MOVE";
+
+    case BATCH_JOB_MIG:
+        return "BATCH_JOB_MIG";
+
+    case BATCH_STATUS_JOB:
+        return "BATCH_STATUS_JOB";
+
+    case BATCH_SLAVE_RESTART:
+        return "BATCH_SLAVE_RESTART";
+
+    case BATCH_USER_INFO:
+        return "BATCH_USER_INFO";
+
+    case BATCH_PARAM_INFO:
+        return "BATCH_PARAM_INFO";
+
+    case BATCH_JOB_MODIFY:
+        return "BATCH_JOB_MODIFY";
+
+    case BATCH_JOB_EXECED:
+        return "BATCH_JOB_EXECED";
+
+    case BATCH_JOB_MSG:
+        return "BATCH_JOB_MSG";
+
+    case BATCH_STATUS_MSG_ACK:
+        return "BATCH_STATUS_MSG_ACK";
+
+    case BATCH_RESOURCE_INFO:
+        return "BATCH_RESOURCE_INFO";
+
+    case BATCH_RUSAGE_JOB:
+        return "BATCH_RUSAGE_JOB";
+
+    case BATCH_JOB_FORCE:
+        return "BATCH_JOB_FORCE";
+
+    case BATCH_STATUS_CHUNK:
+        return "BATCH_STATUS_CHUNK";
+
+    case BATCH_SET_JOB_ATTR:
+        return "BATCH_SET_JOB_ATTR";
+
+    case BATCH_SBD_REGISTER:
+        return "BATCH_SBD_REGISTER";
+
+    case BATCH_SBD_REGISTER_REPLY:
+        return "BATCH_SBD_REGISTER_REPLY";
+
+    case BATCH_NEW_JOB_REPLY:
+        return "BATCH_NEW_JOB_REPLY";
+
+    case BATCH_NEW_JOB_ACK:
+        return "BATCH_NEW_JOB_ACK";
+
+    case BATCH_JOB_EXECUTE:
+        return "BATCH_JOB_EXECUTE";
+
+    case BATCH_JOB_FINISH:
+        return "BATCH_JOB_FINISH";
+
+    case BATCH_JOB_SIGNAL:
+        return "BATCH_JOB_SIGNAL";
+
+    case BATCH_JOB_SIGNAL_REPLY:
+        return "BATCH_JOB_SIGNAL_REPLY";
+
+    default:
+        return "BATCH_<UNKNOWN>";
+    }
 }

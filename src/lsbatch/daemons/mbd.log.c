@@ -388,6 +388,7 @@ static void mbd_init_log_paths(void)
                   __func__, info_dir);
         mbdDie(MASTER_FATAL);
     }
+    LS_INFO("created info dir %s", info_dir);
 }
 
 static int replay_newjob(char *filename, int lineNum)
@@ -2499,15 +2500,17 @@ static int renameElogFiles(void)
     return max;
 }
 
-void logJobInfo(struct submitReq *req, struct jData *jp, struct lenData *jf)
+void logJobInfo(struct submitReq *req, struct jData *jp,
+                struct wire_job_file *jf)
 {
     char job_file[PATH_MAX];
     FILE *fp;
 
-    int n = snprintf(job_file, "%s/%s", info_dir, jp->shared->jobBill.jobFile);
+    int n = snprintf(job_file, sizeof(job_file), "%s/%s", info_dir,
+                     jp->shared->jobBill.jobFile);
     if (n < 0 || n >= (int)sizeof(job_file)) {
-        ls_syslog(LOG_ERR, "%s: job_file path too long (dir=%s file=%s)",
-                  __func__, info_dir, jp->shared->jobBill.jobFile);
+        LS_ERR("job_file path too long (dir=%s file=%s)",
+               info_dir, jp->shared->jobBill.jobFile);
         return;
     }
 
@@ -2586,16 +2589,14 @@ int rmLogJobInfo_(struct jData *jp, int check)
 
 int read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
 {
-#define ENVEND "$LSB_TRAPSIGS\n"
-
     jobSpecs->numEnv = 0;
     jobSpecs->env = NULL;
 
     jobSpecs->eexec.len = 0;
     jobSpecs->eexec.data = NULL;
 
-    jobSpecs->jobFileData.len = 0;
-    jobSpecs->jobFileData.data = NULL;
+    jobSpecs->job_file_data.len = 0;
+    jobSpecs->job_file_data.data = NULL;
 
     char logFn[PATH_MAX];
     snprintf(logFn, sizeof(logFn),
@@ -2769,10 +2770,8 @@ int read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
      *
      * We keep the entire file as the jobfile body.
      */
-    jobSpecs->jobFileData.data = buf;
-    jobSpecs->jobFileData.len = (int)strlen(buf) + 1;
-
-    assert(jobSpecs->jobFileData.len <= (int)st.st_size + 1);
+    jobSpecs->job_file_data.data = buf;
+    jobSpecs->job_file_data.len = (int32_t)st.st_size;
 
     return 0;
 }
@@ -3550,19 +3549,6 @@ void log_signaljob(struct jData *jp, struct signalReq *signalReq, int userId,
     static char fname[] = "log_signaljob";
     int sigValue;
     int defSigValue;
-
-    if ((signalReq->sigValue != SIG_DELETE_JOB) &&
-        (signalReq->sigValue != SIG_KILL_REQUEUE) &&
-        (signalReq->sigValue != SIG_ARRAY_REQUEUE)) {
-        defSigValue =
-            getDefSigValue_(signalReq->sigValue, jp->qPtr->terminateActCmd);
-        if (defSigValue == signalReq->sigValue) {
-            if (IS_PEND(jp->jStatus))
-                defSigValue = SIGKILL;
-            else
-                return;
-        }
-    }
 
     if (openEventFile(fname) < 0) {
         ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "openEventFile");

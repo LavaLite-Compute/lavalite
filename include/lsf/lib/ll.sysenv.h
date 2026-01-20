@@ -18,7 +18,7 @@
  */
 
 #pragma once
-/* Library parameters defining entry in genParams_[] array
+/* Library parameters defining entry in genParams[] array
  * every system components has its own array of these variables
  * but in different order as some variables are specific to a
  * different component
@@ -55,6 +55,7 @@ typedef enum {
     LSB_TIME_SBD,
     LSB_SBD_CONNTIMEOUT,
     LSB_SBD_READTIMEOUT,
+    LSB_SBD_RESEND_ACK_TIMEOUT,
 
     // MBD
     LSB_MBD_PORT,
@@ -86,3 +87,11 @@ typedef enum {
 
 extern struct sockaddr_in sock_addr_in[];
 extern int lim_chans[];
+
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+
+bool_t ll_atoi(const char *, int *);
+bool_t ll_atoll(const char *, int64_t *);

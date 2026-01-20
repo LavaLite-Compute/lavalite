@@ -40,8 +40,8 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
         spec->numEnv = 0;
         spec->env = NULL;
 
-        spec->jobFileData.len = 0;
-        spec->jobFileData.data = NULL;
+        spec->job_file_data.len = 0;
+        spec->job_file_data.data = NULL;
 
         spec->eexec.len = 0;
         spec->eexec.data = NULL;
@@ -131,10 +131,10 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
         return false;
 
     // job script: nome + blob inline
-    if (!xdr_opaque(xdrs, spec->jobFile, PATH_MAX))
+    if (!xdr_opaque(xdrs, spec->job_file, PATH_MAX))
         return false;
 
-    if (!xdr_lenData(xdrs, &spec->jobFileData))
+    if (!xdr_wire_job_file(xdrs, &spec->job_file_data))
         return false;
 
     // file I/O

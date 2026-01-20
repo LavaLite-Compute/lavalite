@@ -133,7 +133,9 @@ extern void prtBETime_(struct submit *);
 extern int runBatchEsub(struct lenData *, struct submit *);
 uint16_t get_mbd_port(void);
 uint16_t get_sbd_port(void);
-int call_mbd(void *, size_t, char **, struct packet_header *, struct lenData *);
+struct wire_job_file;
+int call_mbd(void *, size_t, char **, struct packet_header *,
+             struct wire_job_file *);
 int open_mbd_stream(void *, size_t, char **, struct packet_header *);
 void close_mbd_stream(int);
 char *resolve_master_with_retry(void);
