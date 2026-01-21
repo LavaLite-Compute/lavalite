@@ -138,6 +138,11 @@ static int rusgMatch(struct resVal *resValPtr, const char *resName);
 static int switchAJob(struct jobSwitchReq *, struct lsfAuth *, struct qData *);
 static int moveAJob(struct jobMoveReq *, int log, struct lsfAuth *);
 
+// LavaLite
+static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
+static void free_sig_bucket_table(struct ll_hash *);
+static int enqueue_sig_buckets(struct ll_hash *, int32_t);
+
 int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
            struct lsfAuth *auth, int *schedule, int dispatch,
            struct jData **jobData)
@@ -1493,44 +1498,6 @@ int signalJob(struct signalReq *signalReq, struct lsfAuth *auth)
     return reply;
 }
 #endif
-
-int mbd_signal_job(int ch_id,
-                   struct jData *job,
-                   struct signalReq *req,
-                   struct lsfAuth *auth)
-{
-    if (req == NULL || job == NULL)
-        return LSBE_BAD_ARG;
-
-    LS_DEBUG("signal <%d> job <%s>", req->sigValue, lsb_jobid2str(req->jobId));
-
-    if (auth) {
-        if (auth->uid != 0
-            && auth->uid != mbd_mgr->uid
-            && auth->uid != job->userId) {
-            return LSBE_PERMISSION;
-        }
-    }
-
-    int st = MASK_STATUS(job->jStatus);
-
-    if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
-        signal_pending_job(ch_id, job, req, auth);
-        return 0;
-    }
-
-    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
-        st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
-        st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
-        st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
-        st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
-        return LSBE_JOB_FINISH;
-    }
-
-    signal_running_job(ch_id, job, req, auth);
-
-    return 0;
-}
 
 int sigPFjob(struct jData *jData, int sigValue, time_t chkPeriod, int logIt)
 {
@@ -5509,7 +5476,7 @@ struct resVal *checkResReq(char *resReq, int checkOptions)
     if (checkOptions & USE_LOCAL)
         options = (PR_ALL | PR_BATCH | PR_DEFFROMTYPE);
     else
-        options = (PR_ALL | PR_BATCH);
+        options = (PR_ALL | PR_ATCH);
 
     if (checkOptions & PARSE_XOR)
         options |= PR_XOR;
@@ -7825,4 +7792,267 @@ static int checkSubHost(struct jData *job)
     }
 
     return LSBE_NO_ERROR;
+}
+
+// Lavalite
+int mbd_signal_job(int ch_id,
+                   struct jData *job,
+                   struct signalReq *req,
+                   struct lsfAuth *auth)
+{
+    if (req == NULL || job == NULL)
+        return LSBE_BAD_ARG;
+
+    LS_DEBUG("signal <%d> job <%s>", req->sigValue, lsb_jobid2str(req->jobId));
+
+    if (auth) {
+        if (auth->uid != 0
+            && auth->uid != mbd_mgr->uid
+            && auth->uid != job->userId) {
+            return LSBE_PERMISSION;
+        }
+    }
+
+    int st = MASK_STATUS(job->jStatus);
+
+    if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
+        signal_pending_job(ch_id, job, req, auth);
+        return 0;
+    }
+
+    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
+        st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
+        st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
+        st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
+        st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
+        return LSBE_JOB_FINISH;
+    }
+
+    signal_running_job(ch_id, job, req, auth);
+
+    return 0;
+}
+
+int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
+{
+    if (!req)
+        return LSBE_BAD_ARG;
+
+    LS_DEBUG("signal jobs for uid %d/%s sig=%d",
+             auth ? auth->uid : -1,
+             auth ? auth->lsfUserName : "?",
+             req->sigValue);
+
+    struct ll_hash *ht = ll_hash_create(101);
+    if (!ht)
+        return LSBE_NO_MEM;
+
+    int lists[] = {PJL, SJL};
+    int nl = (int)(sizeof(lists) / sizeof(lists[0]));
+    for (int i = 0; i < nl; i++) {
+        int list = lists[i];
+        struct jData *job;
+        struct jData *next;
+
+        for (job = jDataList[list]->back; job != jDataList[list]; job = next) {
+            next = job->back;
+
+            // permission filter
+            if (auth && auth->uid != 0 && auth->uid != mbd_mgr->uid) {
+                if (auth->uid != job->userId)
+                    continue;
+            }
+
+            // Skip finished
+            int st = MASK_STATUS(job->jStatus);
+            if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
+                st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
+                st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
+                st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
+                st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
+                continue;
+            }
+
+            // PEND/PSUSP: old per-job handling
+            if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
+                int64_t save = req->jobId;
+                req->jobId = job->jobId;
+                (void)mbd_signal_job(ch_id, job, req, auth);
+                req->jobId = save;
+                continue;
+            }
+
+            // RUN/USUSP/etc: bucket by host
+            struct hData *host = NULL;
+            if (job->hPtr)
+                host = job->hPtr[0];
+
+            if (!host) {
+                LS_ERR("bkill 0: job %s has no host, skip",
+                       lsb_jobid2str(job->jobId));
+                continue;
+            }
+
+            if (!host->sbd_node || host->sbd_node->chanfd < 0) {
+                LS_ERR("bkill 0: job %s host %s sbd unreachable, skip",
+                       lsb_jobid2str(job->jobId), host->host);
+                continue;
+            }
+
+            struct sig_host_bucket *b = ll_hash_search(ht, host->host);
+            if (!b) {
+                b = calloc(1, sizeof(*b));
+                if (!b) {
+                    free_sig_bucket_table(ht);
+                    return LSBE_NO_MEM;
+                }
+                b->host = host;
+
+                enum ll_hash_status rc = ll_hash_insert(ht, host->host, b, 0);
+                if (rc != LL_HASH_INSERTED) {
+                    free(b);
+                    free_sig_bucket_table(ht);
+                    return LSBE_NO_MEM;
+                }
+            }
+
+            if (bucket_add_jobid(b, job->jobId) < 0) {
+                free_sig_bucket_table(ht);
+                return LSBE_NO_MEM;
+            }
+
+            // optional: per-job log here if you want
+            // log_signaljob(job, req, auth->uid, auth->lsfUserName);
+        }
+    }
+
+    // If we never bucketed anything, either there were no jobs, or only PEND jobs.
+    // Decide semantics: for bkill 0, I'd return NO_JOB if nothing matched anywhere,
+    // but if you already signaled pending jobs above, you may return NO_ERROR.
+    int rc;
+    if (ht->nentries == 0) {
+        free_sig_bucket_table(ht);
+        return LSBE_NO_ERROR;   // because PEND jobs may have been handled
+    }
+
+    rc = enqueue_sig_buckets(ht, req->sigValue);
+    free_sig_bucket_table(ht);
+    return rc;
+}
+
+static int enqueue_sig_buckets(struct ll_hash *ht, int32_t sig)
+{
+    int queued_hosts_ok = 0;
+
+    for (size_t i = 0; i < ht->nbuckets; i++) {
+        struct ll_hash_entry *e = ht->buckets[i];
+
+        while (e) {
+            struct sig_host_bucket *b = e->value;
+
+            if (b && b->n > 0) {
+                if (mbd_sbd_signal_many(b->host, sig, 0, b->job_ids, b->n) == 0)
+                    ++queued_hosts_ok;
+            }
+
+            e = e->next;
+        }
+    }
+
+    if (queued_hosts_ok == 0)
+        return LSBE_SBD_UNREACH;
+
+    return LSBE_NO_ERROR;
+}
+
+
+#define SIG_MANY_CHUNK 2048
+int
+mbd_sbd_signal_many(struct sig_host_bucket *b, int32_t sig, int32_t flags)
+{
+    uint32_t off = 0;
+    int chan;
+
+    if (!b || !b->host || !b->host->sbd_node)
+        return -1;
+
+    chan = b->host->sbd_node->chanfd;
+    if (chan < 0)
+        return -1;
+
+    if (!b->job_ids || b->n == 0)
+        return 0;
+
+    while (off < b->n) {
+        uint32_t n = b->n - off;
+        if (n > SIG_MANY_CHUNK)
+            n = SIG_MANY_CHUNK;
+
+        struct wire_job_sig_req *reqs = calloc(n, sizeof(*reqs));
+        if (!reqs)
+            return -1;
+
+        for (uint32_t i = 0; i < n; i++) {
+            reqs[i].job_id = b->job_ids[off + i];
+            reqs[i].sig = sig;
+            reqs[i].flags = flags;
+        }
+
+        struct signal_many_jobs m;
+        m.nreq = n;
+        m.req = reqs;
+
+        if (enqueue_payload_sized(chan,
+                                 BATCH_JOB_SIG_MANY,
+                                 &m,
+                                 (bool_t (*)())xdr_signal_many_jobs,
+                                 LL_BUFSIZ_64K) < 0) {
+            free(reqs);
+            return -1;
+        }
+
+        free(reqs);
+        off += n;
+    }
+
+    return 0;
+}
+
+static int bucket_add_jobid(struct sig_host_bucket *b, int64_t job_id)
+{
+    if (b->n == b->cap) {
+        uint32_t newcap = b->cap ? b->cap * 2 : 32;
+        int64_t *p = realloc(b->job_ids, (size_t)newcap * sizeof(*p));
+        if (!p)
+            return -1;
+        b->job_ids = p;
+        b->cap = newcap;
+    }
+
+    b->job_ids[b->n++] = job_id;
+    return 0;
+}
+
+static void free_sig_bucket_table(struct ll_hash *ht)
+{
+    if (!ht)
+        return;
+
+    for (size_t i = 0; i < ht->nbuckets; i++) {
+        struct ll_hash_entry *e = ht->buckets[i];
+
+        while (e) {
+            struct ll_hash_entry *next = e->next;
+            struct sig_host_bucket *b = e->value;
+
+            if (b) {
+                free(b->job_ids);
+                free(b);
+            }
+
+            e = next;
+        }
+    }
+
+    ll_hash_free(ht, NULL, NULL);
 }

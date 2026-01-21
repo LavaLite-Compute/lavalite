@@ -149,7 +149,7 @@ parse_signal(const char *s, int *out)
         return 0;
     }
     if (strcasecmp(buf, "stop") == 0) {
-        *out = SIGSTOP;
+        *out = SIGTST;
         return 0;
     }
     if (strcasecmp(buf, "cont") == 0 || strcasecmp(buf, "continue") == 0) {

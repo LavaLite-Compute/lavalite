@@ -1450,6 +1450,7 @@ int mbd_handle_slave_restart(struct mbd_client_node *,
 const char *mbd_op_str(int);
 int read_job_file(struct jobSpecs *, struct jData *);
 int mbd_signal_job(int, struct jData *, struct signalReq *, struct lsfAuth *);
+int mbd_signal_all_jobs(int, struct signalReq *, struct lsfAuth *);
 int signal_pending_job(int,
                        struct jData *,
                        struct signalReq *,
@@ -1459,3 +1460,11 @@ int signal_running_job(int,
                        struct signalReq *,
                        struct lsfAuth *);
 void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);
+
+// job signaling
+struct sig_host_bucket {
+    struct hData *host; // the host node where the jobids are
+    int64_t *job_ids;   // jobids in the backet
+    uint32_t n;         // num jobs in the backet
+    uint32_t cap;       // grow cap of the bucket
+};

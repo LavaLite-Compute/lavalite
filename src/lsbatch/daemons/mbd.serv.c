@@ -745,6 +745,11 @@ int do_signalReq(XDR *xdrs, int ch_id, struct sockaddr_in *from, char *hostName,
         return enqueue_header_reply(ch_id, LSBE_XDR);
     }
 
+    if (signalReq.jobId == 0) {
+        int cc = mbd_signal_all_jobs(ch_id, &signalReq, auth);
+        return cc;
+    }
+
     struct jData *job;
     if ((job = getJobData(signalReq.jobId)) == NULL) {
         LS_INFO("job %s unknown to mbd", lsb_jobid2str(signalReq.jobId));

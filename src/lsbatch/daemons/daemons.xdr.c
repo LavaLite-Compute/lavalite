@@ -508,3 +508,33 @@ bool_t xdr_job_status_ack(XDR *xdrs,
 
     return true;
 }
+bool_t
+xdr_signal_many_jobs(XDR *xdrs, struct signal_many_jobs *m)
+{
+    uint32_t i;
+
+    if (!xdr_uint32_t(xdrs, &m->nreq))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE) {
+        if (m->nreq == 0) {
+            m->req = NULL;
+            return true;
+        }
+
+        m->req = calloc(m->nreq, sizeof(struct wire_job_sig_req));
+        if (!m->req)
+            return false;
+    }
+
+    for (i = 0; i < m->nreq; i++) {
+        if (!xdr_int64_t(xdrs, &m->req[i].job_id))
+            return false;
+        if (!xdr_int32_t(xdrs, &m->req[i].sig))
+            return false;
+        if (!xdr_int32_t(xdrs, &m->req[i].flags))
+            return false;
+    }
+
+    return true;
+}

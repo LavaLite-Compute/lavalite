@@ -70,6 +70,7 @@ typedef enum {
     BATCH_JOB_FINISH,  // sbd send the last state of job life pipeline
     BATCH_JOB_SIGNAL,  // mbd send signal for a job to sbd
     BATCH_JOB_SIGNAL_REPLY, // sbd reply BATCH_JOB_SIGNAL
+    BATCH_JOB_SIGNAL_MANY,
     BATCH_LAST_OP
 } mbdReqType;
 
