@@ -1448,17 +1448,19 @@ int mbd_handle_slave_restart(struct mbd_client_node *,
                              struct packet_header *,
                              XDR *);
 const char *mbd_op_str(int);
-int read_job_file(struct jobSpecs *, struct jData *);
+int mbd_read_job_file(struct jobSpecs *, struct jData *);
 int mbd_signal_job(int, struct jData *, struct signalReq *, struct lsfAuth *);
 int mbd_signal_all_jobs(int, struct signalReq *, struct lsfAuth *);
-int signal_pending_job(int,
-                       struct jData *,
-                       struct signalReq *,
-                       struct lsfAuth *);
-int signal_running_job(int,
-                       struct jData *,
-                       struct signalReq *,
-                       struct lsfAuth *);
+int mbd_signal_pending_job(int,
+                           struct jData *,
+                           struct signalReq *,
+                           struct lsfAuth *);
+int mbd_signal_running_job(int,
+                           struct jData *,
+                           struct signalReq *,
+                           struct lsfAuth *);
+int mbd_job_signal_reply(struct mbd_client_node *, XDR *, struct packet_header *);
+
 void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);
 
 // job signaling

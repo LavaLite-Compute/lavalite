@@ -508,33 +508,43 @@ bool_t xdr_job_status_ack(XDR *xdrs,
 
     return true;
 }
-bool_t
-xdr_signal_many_jobs(XDR *xdrs, struct signal_many_jobs *m)
-{
-    uint32_t i;
 
-    if (!xdr_uint32_t(xdrs, &m->nreq))
+// mbd-sbd
+bool_t xdr_sig_sbd_jobs(XDR *xdrs, struct xdr_sig_sbd_jobs *sj)
+{
+    if (!xdr_int32_t(xdrs, &sj->sig))
         return false;
 
-    if (xdrs->x_op == XDR_DECODE) {
-        if (m->nreq == 0) {
-            m->req = NULL;
-            return true;
-        }
+    if (!xdr_int32_t(xdrs, &sj->flags))
+        return false;
 
-        m->req = calloc(m->nreq, sizeof(struct wire_job_sig_req));
-        if (!m->req)
+    if (!xdr_uint32_t(xdrs, &sj->n))
+        return false;
+
+    for (uint32_t i = 0; i < sj->n; i++) {
+        uint64_t v;
+
+        if (xdrs->x_op == XDR_ENCODE)
+            v = (uint64_t)sj->job_ids[i];
+
+        if (!xdr_uint64_t(xdrs, &v))
             return false;
+
+        if (xdrs->x_op == XDR_DECODE)
+            sj->job_ids[i] = (int64_t)v;
     }
 
-    for (i = 0; i < m->nreq; i++) {
-        if (!xdr_int64_t(xdrs, &m->req[i].job_id))
-            return false;
-        if (!xdr_int32_t(xdrs, &m->req[i].sig))
-            return false;
-        if (!xdr_int32_t(xdrs, &m->req[i].flags))
-            return false;
-    }
+    return true;
+}
 
+// sbd-mbd
+bool_t xdr_wire_job_sig_reply(XDR *xdrs, struct wire_job_sig_reply *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->rc))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->detail_errno))
+        return false;
     return true;
 }

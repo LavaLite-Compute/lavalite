@@ -342,6 +342,45 @@ Do not use:
 `SortIncludes: false` in `.clang-format` preserves ordering intentionally.
 
 ---
+
+## 2.8 Variable naming
+
+For clarity, consistency, and easy navigation across the codebase, exported
+functions must follow strict, daemon-specific naming conventions.
+
+All functions **exported by `mbatchd`** (i.e. declared in `mbatchd.h` and
+implemented in `mbatchd.*.c`) **must begin with the `mbd_` prefix**.
+Likewise, all functions **exported by `sbatchd`** (declared in `sbatchd.h` and
+implemented in `sbatchd.*.c`) **must begin with the `sbd_` prefix**.
+
+This rule applies **only to externally visible APIs**.
+Internal `static` helper functions are free to use concise, context-local names
+and **do not follow this prefix rule**.
+
+Examples:
+```
+- int mbd_signal_running_job(...)
+- int sbd_handle_new_job(...)
+```
+
+This convention makes daemon boundaries explicit, prevents symbol collisions, and allows readers (and tools) to immediately identify ownership and call direction within the system.
+
+### No `POST_DONE` (ever)
+
+In the new `mbatchd.job.c`, the `POST_DONE` state is **forbidden** and
+must be removed completely. There must be **zero** semantic, structural,
+or behavioral traces of `POST_DONE` anywhere in the pipeline.
+
+- Do not introduce `POST_DONE` as a status, sub-status, transitional
+state, flag, alias, or “temporary” workaround.
+- Do not preserve compatibility shims that keep the concept alive under
+a different name.
+- Any logic previously relying on `POST_DONE` must be expressed using
+explicit, meaningful states (e.g. `DONE` / `EXIT`) and clear transitions.
+
+Goal: the job state machine remains small, unambiguous, and mechanically
+verifiable—no “after done but not done” limbo states.
+
 ## Comments
 
 Code must be readable without comments.
@@ -357,6 +396,7 @@ Comments are allowed **only** to document:
 
 Comments must describe **rules**, **contracts**, or **assumptions**, not control flow.
 If a comment can be removed without losing essential information, it should not exist.
+
 
 # 3. Miscellaneous rules
 

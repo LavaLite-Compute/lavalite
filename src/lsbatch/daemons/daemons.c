@@ -251,18 +251,26 @@ void freeJobSpecs(struct jobSpecs *spec)
     }
 }
 
-// enqueue message this function is shared by daemons
+
 int enqueue_payload(int ch_id, int op, void *payload, bool_t (*xdr_func)())
+{
+    return enqueue_payload_bufsiz(ch_id, op, payload, xdr_func, LL_BUFSIZ_4K);
+}
+
+
+// enqueue message this function is shared by daemons
+int enqueue_payload_bufsiz(int ch_id, int op,
+                            void *payload, bool_t (*xdr_func)(), size_t bufsiz)
 {
     struct Buffer *buf;
 
-    if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d", op);
+    if (chan_alloc_buf(&buf, bufsiz) < 0) {
+        LS_ERR("chan_alloc_buf failed op=%d bufsiz %d", op, bufsiz);
         return -1;
     }
 
     XDR xdrs;
-    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
+    xdrmem_create(&xdrs, buf->data, bufsiz, XDR_ENCODE);
 
     struct packet_header hdr;
     init_pack_hdr(&hdr);

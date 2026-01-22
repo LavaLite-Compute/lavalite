@@ -55,7 +55,7 @@ sbdReplyType start_job(struct jData *job,
     memset(&jobSpecs, 0, sizeof(jobSpecs));
     packJobSpecs(job, &jobSpecs);
 
-    if (read_job_file(&jobSpecs, job) == -1) {
+    if (mbd_read_job_file(&jobSpecs, job) == -1) {
         LS_ERR("failed to read job file for %s", lsb_jobid2str(job->jobId));
         freeJobSpecs(&jobSpecs);
         return ERR_NO_FILE;

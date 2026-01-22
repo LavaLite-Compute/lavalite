@@ -471,7 +471,27 @@ bool_t xdr_job_status_ack(XDR *,
 int enqueue_header_reply(int, int);
 // xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
 int enqueue_payload(int, int, void *, bool_t (*xdr_func)());
+int enqueue_payload_bufsiz(int, int, void *,
+                           bool_t (*xdr_func)(), size_t bufsz);
 
 // Bug fix this extern the function is in mbd.h
 void freeJobSpecs(struct jobSpecs *);
 const char *batch_op2str(int);
+
+// a simple view of the job we decided to signal
+struct xdr_sig_sbd_jobs {
+    int32_t sig;
+    int32_t flags;
+    uint32_t n;
+    int64_t *job_ids;
+};
+bool_t xdr_sig_sbd_jobs(XDR *, struct xdr_sig_sbd_jobs *);
+
+// sbd to mbd
+struct wire_job_sig_reply {
+    int64_t job_id;
+    int32_t rc;            // LSBE_*
+    int32_t detail_errno;  // errno from kill/killpg or 0
+};
+
+bool_t xdr_wire_job_sig_reply(XDR *, struct wire_job_sig_reply *);

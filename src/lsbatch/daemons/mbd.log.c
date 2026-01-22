@@ -2587,7 +2587,7 @@ int rmLogJobInfo_(struct jData *jp, int check)
     return 0;
 }
 
-int read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
+int mbd_read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
 {
     jobSpecs->numEnv = 0;
     jobSpecs->env = NULL;

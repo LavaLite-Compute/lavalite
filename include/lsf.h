@@ -41,6 +41,8 @@
 
 // True man reads the man page, that’s why it’s called man
 
+// Yes. Someone has suffered here before.
+
 #include <config.h>
 // System headers
 #include <stdio.h>

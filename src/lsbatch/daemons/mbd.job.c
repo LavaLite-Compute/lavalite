@@ -142,6 +142,7 @@ static int moveAJob(struct jobMoveReq *, int log, struct lsfAuth *);
 static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
 static void free_sig_bucket_table(struct ll_hash *);
 static int enqueue_sig_buckets(struct ll_hash *, int32_t);
+static int signal_sbd_jobs(struct sig_host_bucket *, int32_t, int32_t);
 
 int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
            struct lsfAuth *auth, int *schedule, int dispatch,
@@ -1931,7 +1932,7 @@ int sbatchdJobs(struct sbdPackage *pkg, struct hData *hData)
             packJobSpecs(jp, spec);
 
             if (!(jp->jStatus & JOB_STAT_ZOMBIE)) {
-                if (read_job_file(spec, jp) == -1) {
+                if (mbd_read_job_file(spec, jp) == -1) {
                     LS_ERRX("read_job_info for job %s failed",
                             lsb_jobid2str(jp->jobId));
                 }
@@ -5476,7 +5477,7 @@ struct resVal *checkResReq(char *resReq, int checkOptions)
     if (checkOptions & USE_LOCAL)
         options = (PR_ALL | PR_BATCH | PR_DEFFROMTYPE);
     else
-        options = (PR_ALL | PR_ATCH);
+        options = (PR_ALL | PR_BATCH);
 
     if (checkOptions & PARSE_XOR)
         options |= PR_XOR;
@@ -7815,9 +7816,11 @@ int mbd_signal_job(int ch_id,
 
     int st = MASK_STATUS(job->jStatus);
 
+    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT)
+        return LSBE_JOB_FINISH;
+
     if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
-        signal_pending_job(ch_id, job, req, auth);
-        return 0;
+        return mbd_signal_pending_job(ch_id, job, req, auth);
     }
 
     if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
@@ -7828,9 +7831,7 @@ int mbd_signal_job(int ch_id,
         return LSBE_JOB_FINISH;
     }
 
-    signal_running_job(ch_id, job, req, auth);
-
-    return 0;
+    return mbd_signal_running_job(ch_id, job, req, auth);
 }
 
 int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
@@ -7847,6 +7848,7 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
     if (!ht)
         return LSBE_NO_MEM;
 
+    bool_t pend_sig = false;
     int lists[] = {PJL, SJL};
     int nl = (int)(sizeof(lists) / sizeof(lists[0]));
     for (int i = 0; i < nl; i++) {
@@ -7865,11 +7867,10 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
 
             // Skip finished
             int st = MASK_STATUS(job->jStatus);
-            if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
-                st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
-                st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
-                st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
-                st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
+            if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT) {
+                LS_ERRX("job %s in state 0x%x should not be in list %d",
+                        lsb_jobid2str(job->jobId), st, list);
+                assert(0);
                 continue;
             }
 
@@ -7877,8 +7878,10 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
             if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
                 int64_t save = req->jobId;
                 req->jobId = job->jobId;
-                (void)mbd_signal_job(ch_id, job, req, auth);
+                // Signal a pending job
+                mbd_signal_pending_job(ch_id, job, req, auth);
                 req->jobId = save;
+                pend_sig = true;
                 continue;
             }
 
@@ -7886,6 +7889,8 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
             struct hData *host = NULL;
             if (job->hPtr)
                 host = job->hPtr[0];
+
+            assert(host != NULL && IS_START(st));
 
             if (!host) {
                 LS_ERR("bkill 0: job %s has no host, skip",
@@ -7921,23 +7926,30 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
                 return LSBE_NO_MEM;
             }
 
-            // optional: per-job log here if you want
-            // log_signaljob(job, req, auth->uid, auth->lsfUserName);
+            log_signaljob(job, req, auth->uid, auth->lsfUserName);
         }
     }
 
-    // If we never bucketed anything, either there were no jobs, or only PEND jobs.
-    // Decide semantics: for bkill 0, I'd return NO_JOB if nothing matched anywhere,
-    // but if you already signaled pending jobs above, you may return NO_ERROR.
+    // If no entries in hash table and no pending jobs were signalled
+    // there are no jobs for this uid
     int rc;
-    if (ht->nentries == 0) {
+    if (ht->nentries == 0 && !pend_sig) {
         free_sig_bucket_table(ht);
-        return LSBE_NO_ERROR;   // because PEND jobs may have been handled
+        return LSBE_NO_JOB;
     }
 
-    rc = enqueue_sig_buckets(ht, req->sigValue);
-    free_sig_bucket_table(ht);
-    return rc;
+    // Only pending jobs were signaled
+    if (ht->nentries == 0 && pend_sig) {
+        free_sig_bucket_table(ht);
+        return LSBE_NO_ERROR;
+    }
+
+    // There are some hosts with running jobs to signal
+    if (ht->nentries) {
+        rc = enqueue_sig_buckets(ht, req->sigValue);
+        free_sig_bucket_table(ht);
+        return rc;
+    }
 }
 
 static int enqueue_sig_buckets(struct ll_hash *ht, int32_t sig)
@@ -7949,9 +7961,10 @@ static int enqueue_sig_buckets(struct ll_hash *ht, int32_t sig)
 
         while (e) {
             struct sig_host_bucket *b = e->value;
+            assert(b);
 
-            if (b && b->n > 0) {
-                if (mbd_sbd_signal_many(b->host, sig, 0, b->job_ids, b->n) == 0)
+            if (b->n > 0) {
+                if (signal_sbd_jobs(b, sig, 0) == 0)
                     ++queued_hosts_ok;
             }
 
@@ -7965,56 +7978,35 @@ static int enqueue_sig_buckets(struct ll_hash *ht, int32_t sig)
     return LSBE_NO_ERROR;
 }
 
-
 #define SIG_MANY_CHUNK 2048
-int
-mbd_sbd_signal_many(struct sig_host_bucket *b, int32_t sig, int32_t flags)
+static int signal_sbd_jobs(struct sig_host_bucket *b, int32_t sig, int32_t flags)
 {
     uint32_t off = 0;
-    int chan;
-
-    if (!b || !b->host || !b->host->sbd_node)
-        return -1;
-
-    chan = b->host->sbd_node->chanfd;
-    if (chan < 0)
-        return -1;
-
-    if (!b->job_ids || b->n == 0)
-        return 0;
+    int chan = b->host->sbd_node->chanfd;
 
     while (off < b->n) {
         uint32_t n = b->n - off;
         if (n > SIG_MANY_CHUNK)
             n = SIG_MANY_CHUNK;
 
-        struct wire_job_sig_req *reqs = calloc(n, sizeof(*reqs));
-        if (!reqs)
+        struct xdr_sig_sbd_jobs sj = {
+            .sig = sig,
+            .flags = flags,
+            .n = n,
+            .job_ids = &b->job_ids[off],
+        };
+
+        if (enqueue_payload_bufsiz(chan,
+                                   BATCH_JOB_SIGNAL_MANY,
+                                   &sj,
+                                   xdr_sig_sbd_jobs,
+                                   LL_BUFSIZ_64K) < 0)
             return -1;
 
-        for (uint32_t i = 0; i < n; i++) {
-            reqs[i].job_id = b->job_ids[off + i];
-            reqs[i].sig = sig;
-            reqs[i].flags = flags;
-        }
-
-        struct signal_many_jobs m;
-        m.nreq = n;
-        m.req = reqs;
-
-        if (enqueue_payload_sized(chan,
-                                 BATCH_JOB_SIG_MANY,
-                                 &m,
-                                 (bool_t (*)())xdr_signal_many_jobs,
-                                 LL_BUFSIZ_64K) < 0) {
-            free(reqs);
-            return -1;
-        }
-
-        free(reqs);
         off += n;
     }
 
+    chan_set_write_interest(chan, true);
     return 0;
 }
 
