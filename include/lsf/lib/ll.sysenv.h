@@ -95,3 +95,5 @@ extern int lim_chans[];
 
 bool_t ll_atoi(const char *, int *);
 bool_t ll_atoll(const char *, int64_t *);
+const char *ll_sig_to_str(int);
+int ll_str_to_sig(const char *);

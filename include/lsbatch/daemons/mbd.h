@@ -1432,13 +1432,13 @@ extern struct ll_hash hdata_by_chan;
 int mbd_init(int);
 int mbd_dispatch_sbd(struct mbd_client_node *);
 int do_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);
-int sbd_handle_new_job_reply(struct mbd_client_node *,
+int mbd_handle_new_job_reply(struct mbd_client_node *,
                              XDR *,
                              struct packet_header *);
-int sbd_handle_job_status(struct mbd_client_node *,
+int mbd_handle_job_status(struct mbd_client_node *,
                           XDR *,
                           struct packet_header *);
-int sbd_handle_disconnect(struct mbd_client_node *);
+int mbd_handle_sbd_disconnect(struct mbd_client_node *);
 int mbd_enqueue_hdr(struct mbd_client_node *, int);
 int mbd_init_tables(void);
 int mbd_send_job_ack(struct mbd_client_node *,

@@ -163,19 +163,8 @@ parse_signal(const char *s, int *out)
 static int
 parse_jobid(const char *s, int64_t *out)
 {
-    char *end = NULL;
-    long long v;
+    if (! ll_atoll(s, out))
+        return false;
 
-    if (s == NULL || *s == '\0')
-        return -1;
-
-    errno = 0;
-    v = strtoll(s, &end, 10);
-    if (errno != 0 || end == s || *end != '\0')
-        return -1;
-    if (v <= 0)
-        return -1;
-
-    *out = (int64_t)v;
     return 0;
 }

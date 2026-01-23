@@ -174,7 +174,6 @@ extern int sig_decode(int);
 extern int getSigVal(const char *);
 extern char *getSigSymbolList(void);
 extern char *getSigSymbol(int);
-extern int blockALL_SIGS_(sigset_t *, sigset_t *);
 
 extern char isanumber_(char *);
 extern char islongint_(const char *);

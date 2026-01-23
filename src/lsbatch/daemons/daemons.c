@@ -260,7 +260,7 @@ int enqueue_payload(int ch_id, int op, void *payload, bool_t (*xdr_func)())
 
 // enqueue message this function is shared by daemons
 int enqueue_payload_bufsiz(int ch_id, int op,
-                            void *payload, bool_t (*xdr_func)(), size_t bufsiz)
+                           void *payload, bool_t (*xdr_func)(), size_t bufsiz)
 {
     struct Buffer *buf;
 

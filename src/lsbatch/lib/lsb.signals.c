@@ -1,4 +1,4 @@
-/* $Id: lsb.signals.c,v 1.5 2007/08/22 19:39:38 cchen Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -85,15 +85,13 @@ static int defaultSigValue[] = {
     SIGKILL,  SIGKILL,    SIGKILL,         SIGKILL,        SIGKILL,
 };
 
+// Bug survive just to compile but nothing else
 int sigNameToValue_(char *sigString)
 {
-    int i, sigValue;
+    int i;
 
     if ((sigString == NULL) || (sigString[0] == '\0'))
         return INFINIT_INT;
-
-    if ((sigValue = getSigVal(sigString)) > 0)
-        return sigValue;
 
     for (i = 0; i < LSB_SIG_NUM; i++)
         if (strcmp(lsbSigSymbol[i], sigString) == 0)
@@ -102,6 +100,8 @@ int sigNameToValue_(char *sigString)
     return INFINIT_INT;
 }
 
+// Bug survive only to comile today 221/1/2026
+
 char *getLsbSigSymbol(int sigValue)
 {
     static char symbol[30];
@@ -109,7 +109,7 @@ char *getLsbSigSymbol(int sigValue)
     symbol[0] = '\0';
 
     if (sigValue >= 0) {
-        return ((char *) getSigSymbol(sigValue));
+        return "";
     } else {
         if (-sigValue < LSB_SIG_NUM)
             strcpy(symbol, lsbSigSymbol[-sigValue]);

@@ -101,14 +101,14 @@ int mbd_dispatch_sbd(struct mbd_client_node *client)
         // Use the X version as errno could have been changed
         LS_ERRX("epoll error on SBD channel for host %s (chanfd=%d)",
                host_node->host, ch_id);
-        sbd_handle_disconnect(client);
+        mbd_handle_sbd_disconnect(client);
         return -1;
     }
 
     struct Buffer *buf;
     if (chan_dequeue(ch_id, &buf) < 0) {
         LS_ERR("%s: chan_dequeue failed for SBD chanfd=%d", __func__, ch_id);
-        sbd_handle_disconnect(client);
+        mbd_handle_sbd_disconnect(client);
         return -1;
     }
 
@@ -120,7 +120,7 @@ int mbd_dispatch_sbd(struct mbd_client_node *client)
         LS_ERR("xdr_pack_hdr failed for SBD chanfd=%d", ch_id);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        sbd_handle_disconnect(client);
+        mbd_handle_sbd_disconnect(client);
         return -1;
     }
     LS_INFO("sbd %s operation %s", host_node->host,
@@ -258,10 +258,9 @@ int mbd_handle_new_job_reply(struct mbd_client_node *client,
  * The core transition is driven by statusReq.newStatus.
  */
 
-int
-mbd_handle_job_status(struct mbd_client_node *client,
-                      XDR *xdrs,
-                      struct packet_header *hdr)
+int mbd_handle_job_status(struct mbd_client_node *client,
+                          XDR *xdrs,
+                          struct packet_header *hdr)
 {
     int reply;
     int schedule;
@@ -372,7 +371,7 @@ mbd_status_reply_means_committed(int reply)
     }
 }
 
-int sbd_handle_disconnect(struct mbd_client_node *client)
+int mbd_handle_sbd_disconnect(struct mbd_client_node *client)
 {
     struct hData *host_node = client->host_node;
 
@@ -385,13 +384,13 @@ int sbd_handle_disconnect(struct mbd_client_node *client)
      * a runtime recoverable case.
      */
     if (host_node == NULL) {
-        LS_ERR("sbd_handle_disconnect called with NULL host_node (chanfd=%d)",
+        LS_ERR("mbd_handle_sbd_disconnect called with NULL host_node (chanfd=%d)",
                client->chanfd);
         abort();
     }
 
     if (host_node->sbd_node != client) {
-        LS_ERR("sbd_handle_disconnect invariant violated: "
+        LS_ERR("mbd_handle_sbd_disconnect invariant violated: "
                "host->sbd_node (%p) != client (%p) for host %s",
                (void *)host_node->sbd_node,
                (void *)client,
@@ -662,7 +661,8 @@ int mbd_signal_running_job(int ch_id, struct jData *job, struct signalReq *req,
         return LSBE_BAD_HOST;
     }
     if (!host->sbd_node) {
-        assert(0);
+        errno = EAGAIN;
+        LS_ERR("sbd on node %s is disconnected", host->host);
         return LSBE_SBD_UNREACH;
     }
 

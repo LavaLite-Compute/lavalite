@@ -232,7 +232,7 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
     struct lsfAuth *auth = NULL;
 
     jobSig.jobId = jp->jobId;
-    jobSig.sigValue = sig_encode(sendReq->sigValue);
+    jobSig.sigValue = sendReq->sigValue;
     jobSig.actFlags = sendReq->actFlags;
     jobSig.chkPeriod = sendReq->chkPeriod;
     jobSig.actCmd = sendReq->actCmd;

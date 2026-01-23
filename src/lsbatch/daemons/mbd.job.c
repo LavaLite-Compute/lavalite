@@ -7823,13 +7823,7 @@ int mbd_signal_job(int ch_id,
         return mbd_signal_pending_job(ch_id, job, req, auth);
     }
 
-    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
-        st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
-        st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
-        st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
-        st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
-        return LSBE_JOB_FINISH;
-    }
+    assert(IS_START(st));
 
     return mbd_signal_running_job(ch_id, job, req, auth);
 }
@@ -7840,15 +7834,13 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
         return LSBE_BAD_ARG;
 
     LS_DEBUG("signal jobs for uid %d/%s sig=%d",
-             auth ? auth->uid : -1,
-             auth ? auth->lsfUserName : "?",
-             req->sigValue);
+             auth->uid, auth->lsfUserName, req->sigValue);
 
     struct ll_hash *ht = ll_hash_create(101);
     if (!ht)
         return LSBE_NO_MEM;
 
-    bool_t pend_sig = false;
+    int  matched = 0;
     int lists[] = {PJL, SJL};
     int nl = (int)(sizeof(lists) / sizeof(lists[0]));
     for (int i = 0; i < nl; i++) {
@@ -7864,6 +7856,8 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
                 if (auth->uid != job->userId)
                     continue;
             }
+            // at least one jonb belonging the uid found
+            ++matched;
 
             // Skip finished
             int st = MASK_STATUS(job->jStatus);
@@ -7879,9 +7873,12 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
                 int64_t save = req->jobId;
                 req->jobId = job->jobId;
                 // Signal a pending job
-                mbd_signal_pending_job(ch_id, job, req, auth);
+                int cc = mbd_signal_pending_job(ch_id, job, req, auth);
+                if (cc != LSBE_NO_ERROR) {
+                    LS_ERR("failed to signal pending job %s",
+                           lsb_jobid2str(job->jobId));
+                }
                 req->jobId = save;
-                pend_sig = true;
                 continue;
             }
 
@@ -7930,26 +7927,26 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
         }
     }
 
-    // If no entries in hash table and no pending jobs were signalled
-    // there are no jobs for this uid
-    int rc;
-    if (ht->nentries == 0 && !pend_sig) {
+    // BUG(MVP): bkill 0 is a bulk operation but the API returns a single
+    // lsberrno.
+    // We currently return LSBE_NO_ERROR as long as we matched at least one job,
+    // even if some jobs could not be signalled (no host, SBD unreachable,
+    // race: job finishes while we signal, etc.).
+    // For MVP the operator must run bjobs to verify results.
+    // Later we must record per-job / per-host outcomes and expose
+    // them via bkill -l and/or export to external monitoring.
+
+    if (matched == 0) {
         free_sig_bucket_table(ht);
         return LSBE_NO_JOB;
     }
 
-    // Only pending jobs were signaled
-    if (ht->nentries == 0 && pend_sig) {
-        free_sig_bucket_table(ht);
-        return LSBE_NO_ERROR;
-    }
+    if (ht->nentries > 0)
+        enqueue_sig_buckets(ht, req->sigValue);
 
-    // There are some hosts with running jobs to signal
-    if (ht->nentries) {
-        rc = enqueue_sig_buckets(ht, req->sigValue);
-        free_sig_bucket_table(ht);
-        return rc;
-    }
+    free_sig_bucket_table(ht);
+
+    return LSBE_NO_ERROR;
 }
 
 static int enqueue_sig_buckets(struct ll_hash *ht, int32_t sig)

@@ -1,103 +1,371 @@
-# Contributing to LavaLite
+# LavaLite C Coding & Project Invariants Guide
 
-Thank you for your interest in contributing to **LavaLite**.
+This document defines the **official C coding style** and **architectural invariants** for the LavaLite project.
 
-LavaLite is a clean rewrite built on the ideas of Platform Lava 1.0 (2007), not its implementations.
-We maintain strict code hygiene, independent lineage, and modern design.
+It serves as:
+- a coding guide
+- a design reference
+- an onboarding document
+- a consistency contract across the codebase
 
-If you contribute, you become part of that responsibility.
-
----
-
-## What We Expect
-
-- **Clarity over cleverness**
-  Make code boring, readable, correct, and fast.
-
-- **No legacy imports**
-  Do *not* reintroduce OpenLava, Volclava, or Platform code.
-  We reuse concepts, not code.
-
-- **GPLv2 compatibility**
-  All contributions must be legally compatible.
-  Provenance matters.
-
-- **Stay within the architecture**
-  Respect layer boundaries: `wire_*`, `chan_*`, `ll_*`, daemons.
-  No direct `write()` in daemons.
-
-- **Follow the coding guide** *(mandatory)*
-  The coding + invariants guide is here:
-  `docs/projects/lavalite_coding_guide.md`
-
-  When in doubt, ask what Unix and K&R would do — and do that.
+All new code **must** follow this guide. Pull requests that diverge may be rejected or asked to revise before merge.
 
 ---
 
-## Language
+# 0. Philosophy
 
-All code, comments, commit messages, documentation, and issue discussions
-must be written in **English**.
+LavaLite prioritizes:
 
-LavaLite aims to be a global, community‑driven project. English is the
-lingua franca of software development and ensures that contributors from
-any country can understand, review, and maintain the codebase.
+- clarity
+- explicitness
+- readability
+- testability
+- scheduling correctness
 
-Mixed‑language comments (e.g., Chinese, Italian, etc.) are not allowed.
-They fragment the project, slow onboarding, and make long‑term
-maintenance harder. Keep the codebase accessible and consistent.
----
+We avoid:
 
-## Workflow
+- legacy OpenLava/LSF quirks
+- magic macros
+- implicit behavior
+- clever but opaque constructs
 
-1. Fork the repository
-2. Create a focused branch for your change
-3. Run `clang-format` on every `.c` and `.h`
-4. Ensure your change respects architectural invariants
-5. Write meaningful commit messages
-6. Open a pull request
+> Consistency beats ingenuity.
+> Readable code ships; clever code breaks.
 
-Small commits with clear intent are preferred over large speculative changes.
+When in doubt, ask what Unix and K&R would do — and do that.
 
 ---
 
-## Testing
+## C Modules and State
+
+Each C translation unit (`.c` file) is treated as a self-contained module.
+
+Module state is stored in `static` variables and is private to the translation unit.
+Functions operating on module state are considered module "methods" and **must not** pretend to be pure or reusable.
+
+Rules:
+
+- functions that operate on module state take `void` and use module globals directly
+- functions that take parameters must be genuinely reusable and must not rely on module globals
+
+The translation unit itself acts as the namespace.
+Explicit namespacing or artificial abstraction is avoided.
+
+---
+
+# 1. Project Architectural Invariants
+
+These invariants define the **design boundaries** of LavaLite.
+Code that violates these rules is considered incorrect even if it compiles.
+
+---
+
+## 1.1 Layering and boundaries
+
+| Layer | Responsibility | Must NOT do |
+|--------|---------------|-------------|
+| wire_* | protocol structs, XDR encode/decode | scheduling logic |
+| chan_* | networking channel: fd mgmt, epoll, buffered writes | scheduling logic, job selection |
+| ll_*   | helper library, translation between wire and internal structs | socket I/O, XDR |
+| Daemons (mbatchd, lim, sbatchd) | scheduling, job lifecycle, mastership | write(), send(), direct socket I/O |
+
+Layering rule:
 
 ```
-./configure
-make
-make check
+wire_*   <-->   ll_*   <-->   mbatchd / lim / sbatchd
+          ^           ^
+        chan_*     external API: ls_* / lsb_*
 ```
 
-Tests should be small, direct, and reproducible.
-If the change affects job logic, scheduling, or message passing, add or update tests accordingly.
+Nothing jumps layers.
 
 ---
 
-## Documentation
+## 1.2 Channels and message sending
 
-If your change affects behavior, update:
+Daemons **never call write(), send(), or chan_write()** directly.
 
-- man pages where relevant
-- `docs/projects/` if behavior or invariants evolve
-- the coding guide only when core rules change
-  *(not for stylistic preferences)*
+All outbound messaging must use:
+
+```
+struct chan_buf *buf = chan_alloc_buf(ch, len);
+memcpy(buf->data, payload, len);
+chan_enqueue(ch, buf);
+```
+
+Actual network I/O happens only inside the channel subsystem.
+
+**Summary**
+
+| Allowed in daemons | Forbidden |
+|-------------------|-----------|
+| chan_alloc_buf()  | write()   |
+| chan_enqueue()    | send()    |
+| memcpy(payload)   | chan_write() |
+| async send via epoll | blocking I/O |
 
 ---
 
-## Behavior Over Style
+## 1.3 Scheduling invariants (start_job)
 
-Format changes without behavioral changes are discouraged unless they fix drift from `.clang-format`.
+A job **must not start** unless the SBD for the target node is fully connected:
 
-If you touch code, improve clarity.
-If you change behavior, document it.
-If you refactor, simplify.
+```
+host_node->sbd_node != NULL
+host_node->sbd_node->chanfd != -1
+```
+
+If violated:
+
+```
+LS_ERR("sbd on node %s is not connected cannot schedule", host_node->host);
+return ERR_UNREACH_SBD;
+```
+
+On SBD disconnect:
+
+- free mbd_client_node / sbd node
+- set `hData->sbd_node = NULL`
+- scheduler must mark the node as non-runnable
+
+**Hard invariant:**
+No job enters RUN state without an active SBD.
 
 ---
 
-## Final Words
+## 1.4 Host identity and trust model
 
-LavaLite is a modern HPC system, not a museum.
-We honor the past by writing better code, not by copying old code.
+Rules:
 
-Welcome aboard.
+- never trust remote-supplied hostnames
+- scheduler always uses canonical host
+- identity depends on canonicalization
+
+---
+
+## 1.5 Error handling invariant
+
+Use thread-local `lserrno`.
+Do not use deprecated `cherrno`.
+
+Logging must use `LS_XXX` macros.
+They already include `__func__` and `%m`.
+
+Correct:
+
+```
+LS_ERR("sbd not connected host=%s job=%s", host->host, job_id);
+```
+
+Incorrect:
+
+```
+LS_ERR("%s: sbd not connected host=%s job=%s %m", func, host->host, job_id);
+```
+
+---
+
+## 1.6 Authentication & request identity (eauth)
+
+Token contains:
+
+- user, uid, gid
+- host of origin
+- timestamp
+- nonce
+
+Future invariant:
+No scheduling or job operation without validated identity.
+
+---
+
+# 2. C Coding Style
+
+LavaLite follows strict `.clang-format`.
+Do not hand-format code.
+
+---
+
+## 2.1 Formatting usage
+
+```
+clang-format -i src/file.c
+find . -name '*.[ch]' -exec clang-format -i {} +
+```
+
+---
+
+## 2.2 Indentation & layout
+
+- indent: 4 spaces
+- no tabs
+- 80-column soft limit
+- always use braces
+
+---
+
+## 2.3 Functions and prototypes
+
+In `.c`:
+
+```
+int ll_queue_init(struct ll_queue *q)
+{
+    ...
+}
+```
+
+In `.h`:
+
+```
+int ll_queue_init(struct ll_queue *);
+```
+
+---
+
+## 2.4 Pointer style
+
+```
+char *name;
+struct hData *host;
+```
+
+---
+
+## 2.5 Variable declarations
+
+- one variable per line
+
+---
+
+## 2.6 Boolean type
+
+- use bool_t
+- use true/false lowercase
+
+---
+
+## 2.7 Include order
+
+```
+#include <system headers>
+
+#include "own_header.h"
+#include "other_header.h"
+```
+
+---
+
+## 2.8 Naming conventions
+
+Exported daemon APIs:
+
+- mbd_* for mbatchd
+- sbd_* for sbatchd
+
+Internal static helpers use short names.
+
+### No POST_DONE (ever)
+
+Forbidden.
+Must not exist in any form.
+
+---
+
+## 2.9 Macros and Ternary Operators
+
+### Rules
+
+- Avoid macros unless structurally necessary
+- Macros must not hide logic or contain control flow
+- Prefer enum or static const over macros
+- Avoid ternary operators
+- Allowed only for trivial, side-effect-free expressions
+- Never use ternaries for branching or error handling
+
+### Rationale
+
+Macro and ternary operators are not banned, but they are controlled. Both
+constructs are easy to abuse and tend to produce “clever” code that hides logic,
+breaks readability, and complicates debugging. LLMs in particular overuse them and generate
+opaque expressions that violate LavaLite’s clarity requirements. Use macros only
+when they behave like constants (bit flags, protocol values) and never to wrap logic or create
+hidden control flow. Use ternaries only for trivial, side-effect-free expressions where the
+intent is obvious. If a macro or ternary makes the code harder to scan, harder to reason about,
+or harder to maintain, rewrite it. The goal is explicit, boring, maintainable C — not cute tricks.
+
+---
+
+## Comments
+
+Comments document:
+
+- invariants
+- design decisions
+- non-obvious constraints
+- counterintuitive behavior
+
+Comments do not restate control flow.
+
+---
+
+# 3. Miscellaneous rules
+
+- avoid complex macros
+- prefer enum/static const
+- internal functions should be static
+- functions should be short
+- avoid clever tricks
+- do not reinvent memory/logging subsystems
+
+---
+
+# 4. Provenance & legal considerations
+
+- avoid names implying derivation
+- rewrite legacy behavior
+- never copy proprietary implementations
+
+---
+
+# 5. Quick checklist before commit
+
+- clang-format applied
+- no write/send in daemons
+- all outbound messages use chan_alloc_buf + chan_enqueue
+- start_job checks SBD connected
+- canonical host used
+- lserrno set before errors
+- pointer style correct
+- one variable per line
+- no tabs or trailing whitespace
+- layering respected
+
+---
+
+# 6. Welcome
+
+Write code that is:
+
+- boring
+- readable
+- correct
+- fast
+
+When unsure, delete or simplify.
+
+```
+clang-format
+```
+
+is your friend.
+
+```
+chan_enqueue
+```
+
+is your safety rope.
+
+Failing tests are feedback, not criticism.
+
+Let’s build something serious.

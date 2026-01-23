@@ -97,8 +97,6 @@ static struct eventRec *logPtr;
 
 static int logLoadIndex = TRUE;
 
-extern int sigNameToValue_(char *);
-
 extern float version;
 
 struct hostCtrlEvent {
@@ -972,6 +970,7 @@ static int replay_mig(char *filename, int lineNum)
 
     return TRUE;
 }
+// Lavalite we dont use sigaction
 static int replay_jobsigact(char *filename, int lineNum)
 {
     static char fname[] = "replay_jobsigact";
@@ -1629,6 +1628,7 @@ void log_chkpnt(struct jData *jData, int ok, int flags)
         ls_syslog(LOG_ERR, fname, lsb_jobid2str(jData->jobId), "putEventRec");
 }
 
+// Bug lavalite no sigacton
 void log_jobsigact(struct jData *jData, struct statusReq *statusReq,
                    int sigFlags)
 {
@@ -1658,8 +1658,8 @@ void log_jobsigact(struct jData *jData, struct statusReq *statusReq,
         logPtr->eventLog.sigactLog.pid = statusReq->actPid;
         logPtr->eventLog.sigactLog.actStatus = statusReq->actStatus;
         logPtr->eventLog.sigactLog.flags = sigFlags;
-        logPtr->eventLog.sigactLog.signalSymbol =
-            getLsbSigSymbol(statusReq->sigValue);
+        logPtr->eventLog.sigactLog.signalSymbol ="";
+
     }
 
     if (putEventRec(fname) < 0)
@@ -3543,15 +3543,11 @@ void log_logSwitch(int lastJobId)
     }
 }
 
-void log_signaljob(struct jData *jp, struct signalReq *signalReq, int userId,
+void log_signaljob(struct jData *jp, struct signalReq *req, int userId,
                    char *userName)
 {
-    static char fname[] = "log_signaljob";
-    int sigValue;
-    int defSigValue;
-
-    if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "openEventFile");
+    if (openEventFile(__func__) < 0) {
+        LS_ERR("failed openEventFile job %s", lsb_jobid2str(jp->jobId));
         return;
     }
     logPtr->type = EVENT_JOB_SIGNAL;
@@ -3559,24 +3555,12 @@ void log_signaljob(struct jData *jp, struct signalReq *signalReq, int userId,
     logPtr->eventLog.signalLog.idx = LSB_ARRAY_IDX(jp->jobId);
     logPtr->eventLog.signalLog.userId = userId;
     strcpy(logPtr->eventLog.signalLog.userName, userName);
-    if (signalReq->sigValue == SIG_DELETE_JOB) {
-        logPtr->eventLog.signalLog.signalSymbol = "DELETEJOB";
-        logPtr->eventLog.signalLog.runCount = signalReq->chkPeriod;
-    } else if (signalReq->sigValue == SIG_KILL_REQUEUE) {
-        logPtr->eventLog.signalLog.signalSymbol = "KILLREQUEUE";
-        logPtr->eventLog.signalLog.runCount = signalReq->chkPeriod;
-    } else if (signalReq->sigValue == SIG_ARRAY_REQUEUE) {
-        logPtr->eventLog.signalLog.signalSymbol = getSignalSymbol(signalReq);
 
-        logPtr->eventLog.signalLog.runCount = signalReq->actFlags;
-    } else {
-        sigValue = sig_encode(defSigValue);
-        logPtr->eventLog.signalLog.signalSymbol = getSigSymbol(sigValue);
-        logPtr->eventLog.signalLog.runCount = jp->runCount;
-    }
+    logPtr->eventLog.signalLog.signalSymbol = ll_sig_to_str(req->sigValue);
+    logPtr->eventLog.signalLog.runCount = jp->runCount;
 
-    if (putEventRec("log_signaljob") < 0) {
-        ls_syslog(LOG_ERR, fname, lsb_jobid2str(jp->jobId), "putEventRec");
+    if (putEventRec(__func__) < 0) {
+        LS_ERR("failed putEventRec job %s", lsb_jobid2str(jp->jobId));
         mbdDie(MASTER_FATAL);
     }
 }
@@ -3660,59 +3644,24 @@ void log_jobmsgack(struct bucket *bucket)
 
 static int replay_signaljob(char *filename, int lineNum)
 {
-    static char fname[] = "replay_signaljob";
-    struct jData *jp;
-    int64_t jobId;
-    int cc;
+    int job_id = LSB_JOBID(logPtr->eventLog.signalLog.jobId,
+                           logPtr->eventLog.signalLog.idx);
 
-    jobId = LSB_JOBID(logPtr->eventLog.signalLog.jobId,
-                      logPtr->eventLog.signalLog.idx);
-    if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR,
-                  "%s: File %s at line %d: Job <%d> not found in job list ",
-                  fname, filename, lineNum, logPtr->eventLog.signalLog.jobId);
+    struct jData *job = getJobData(job_id);
+    if (! job) {
+        LS_ERR("Unknown job %d", logPtr->eventLog.signalLog.jobId);
         return FALSE;
     }
 
-    cc = replay_arrayrequeue(jp, &(logPtr->eventLog.signalLog));
-    if (cc == 0) {
-        return TRUE;
+    int sig = ll_str_to_sig(logPtr->eventLog.signalLog.signalSymbol);
+    if (sig < 0) {
+        // legacy or unsupported pseudo-signal
+        // ignore safely
+        LS_DEBUG("legacy or unsupported pseudo-signal for job  %d",
+                 logPtr->eventLog.signalLog.jobId);
+        return true;
     }
-
-    if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "DELETEJOB") == 0) {
-        jp->pendEvent.sigDel = TRUE;
-    } else if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "KILLREQUEUE") ==
-               0) {
-        jp->pendEvent.sigDel |= DEL_ACTION_REQUEUE;
-    } else {
-        getSigVal(logPtr->eventLog.signalLog.signalSymbol);
-    }
-
-    if (jp->nodeType == JGRP_NODE_ARRAY) {
-        return TRUE;
-    }
-
-    if (strcmp(logPtr->eventLog.signalLog.signalSymbol, "DELETEJOB") == 0) {
-        if (IS_FINISH(jp->jStatus)) {
-            jp->runCount = logPtr->eventLog.signalLog.runCount;
-
-        } else if (IS_PEND(jp->jStatus)) {
-            if (logPtr->eventLog.signalLog.runCount == 0) {
-                jp->runCount = 1;
-                jStatusChange(jp, JOB_STAT_EXIT, logPtr->eventTime, fname);
-            } else
-                jp->runCount = logPtr->eventLog.signalLog.runCount;
-
-        } else {
-            if (logPtr->eventLog.signalLog.runCount == 0) {
-                jp->runCount = 1;
-                jp->pendEvent.sig = SIGKILL;
-                eventPending = TRUE;
-            } else
-                jp->runCount = logPtr->eventLog.signalLog.runCount + 1;
-        }
-    }
-    return TRUE;
+    return true;
 }
 
 static int replay_arrayrequeue(struct jData *jPtr,
