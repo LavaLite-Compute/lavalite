@@ -19,6 +19,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 extern int connTimeout;
 

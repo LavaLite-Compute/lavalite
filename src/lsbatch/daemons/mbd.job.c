@@ -19,6 +19,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 #define SUSP_CAN_PREEMPT_FOR_RSRC(s) !((s)->jStatus & JOB_STAT_USUSP)
 
@@ -1701,8 +1702,9 @@ void signalReplyCode(sbdReplyType reply, struct jData *jData, int sigValue,
         break;
     default:
 
-        if ((isSigTerm(sigValue)) && !(jData->jStatus & JOB_STAT_ZOMBIE) &&
-            (UNREACHABLE(jData->hPtr[0]->hStatus))) {
+        if ((sigValue == SIGTERM || sigValue== SIGKILL)
+            && !(jData->jStatus & JOB_STAT_ZOMBIE)
+            && (UNREACHABLE(jData->hPtr[0]->hStatus))) {
             if (sigValue != SIG_TERM_FORCE) {
                 jData->newReason = EXIT_KILL_ZOMBIE;
                 jData->jStatus |= JOB_STAT_ZOMBIE;
@@ -1714,7 +1716,7 @@ void signalReplyCode(sbdReplyType reply, struct jData *jData, int sigValue,
         }
 
         if ((sigValue >= 0) ||
-            (isSigTerm(sigValue) && (sigValue != SIG_TERM_FORCE)) ||
+            (sigValue ==  SIGTERM && (sigValue != SIG_TERM_FORCE)) ||
             (sigValue == SIG_RESUME_USER) || (sigValue == SIG_SUSP_USER) ||
             (sigValue == SIG_TERM_USER)) {
             eventPending = TRUE;
@@ -1764,10 +1766,7 @@ void jobStatusSignal(sbdReplyType reply, struct jData *jData, int sigValue,
         } else {
             actCmd = jData->qPtr->suspendActCmd;
         }
-        if (((actCmd != NULL) && (actCmd[0] != '\0')) &&
-            ((sigNameToValue_(actCmd) == INFINIT_INT) ||
-             (sigNameToValue_(actCmd) < 0)) &&
-            (jData->qPtr->sigMap[-sigValue] == 0))
+        if (actCmd != NULL)
             break;
 
     case SIGSTOP:
@@ -1790,16 +1789,7 @@ void jobStatusSignal(sbdReplyType reply, struct jData *jData, int sigValue,
         } else {
             actCmd = jData->qPtr->resumeActCmd;
         }
-        if (((actCmd != NULL) && (actCmd[0] != '\0')) &&
-            ((sigNameToValue_(actCmd) == INFINIT_INT) ||
-             (sigNameToValue_(actCmd) < 0))
-
-            &&
-            !((jobReply->actPid == 0) && (jobReply->jStatus & JOB_STAT_SSUSP) &&
-              (jData->jStatus & JOB_STAT_USUSP))) {
-            break;
-        }
-
+        break;
     case SIGCONT:
 
         if (jData->jStatus & JOB_STAT_USUSP) {
@@ -2687,7 +2677,7 @@ static char terminatePendingEvent(struct jData *jpbw)
 {
     struct sbdNode *sbdPtr, *nextSbdPtr;
 
-    if (isSigTerm(jpbw->pendEvent.sig))
+    if (jpbw->pendEvent.sig == SIGKILL || jpbw->pendEvent.sig == SIGTERM)
         return TRUE;
 
     for (sbdPtr = sbdNodeList.forw; sbdPtr != &sbdNodeList;
@@ -7325,6 +7315,14 @@ bool_t checkUserPriority(struct jData *jp, int userPriority, int *errnum)
 
     return TRUE;
 }
+bool_t is_manager(const char *user)
+{
+    // Bug better way?
+    if (strcmp(user, mbd_mgr->name) == 0)
+        return true;
+    return false;
+}
+
 
 static void jobRequeueTimeUpdate(struct jData *jPtr, time_t t)
 {
@@ -7795,253 +7793,31 @@ static int checkSubHost(struct jData *job)
     return LSBE_NO_ERROR;
 }
 
-// Lavalite
-int mbd_signal_job(int ch_id,
-                   struct jData *job,
-                   struct signalReq *req,
-                   struct lsfAuth *auth)
+// LavaLite meaningless hacks to make it compile
+int
+isSigTerm (int sigValue)
 {
-    if (req == NULL || job == NULL)
-        return LSBE_BAD_ARG;
-
-    LS_DEBUG("signal <%d> job <%s>", req->sigValue, lsb_jobid2str(req->jobId));
-
-    if (auth) {
-        if (auth->uid != 0
-            && auth->uid != mbd_mgr->uid
-            && auth->uid != job->userId) {
-            return LSBE_PERMISSION;
-        }
+    switch (sigValue) {
+        case SIG_DELETE_JOB:
+        case SIG_TERM_USER:
+        case SIG_TERM_LOAD:
+        case SIG_TERM_WINDOW:
+        case SIG_TERM_OTHER:
+        case SIG_TERM_RUNLIMIT:
+        case SIG_TERM_DEADLINE:
+        case SIG_TERM_PROCESSLIMIT:
+        case SIG_TERM_CPULIMIT:
+        case SIG_TERM_MEMLIMIT:
+        case SIG_TERM_FORCE:
+        case SIG_KILL_REQUEUE:
+            return(TRUE);
+        default:
+            return (FALSE);
     }
-
-    int st = MASK_STATUS(job->jStatus);
-
-    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT)
-        return LSBE_JOB_FINISH;
-
-    if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
-        return mbd_signal_pending_job(ch_id, job, req, auth);
-    }
-
-    assert(IS_START(st));
-
-    return mbd_signal_running_job(ch_id, job, req, auth);
 }
-
-int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
+int
+sigNameToValue_ (char *sigString)
 {
-    if (!req)
-        return LSBE_BAD_ARG;
 
-    LS_DEBUG("signal jobs for uid %d/%s sig=%d",
-             auth->uid, auth->lsfUserName, req->sigValue);
-
-    struct ll_hash *ht = ll_hash_create(101);
-    if (!ht)
-        return LSBE_NO_MEM;
-
-    int  matched = 0;
-    int lists[] = {PJL, SJL};
-    int nl = (int)(sizeof(lists) / sizeof(lists[0]));
-    for (int i = 0; i < nl; i++) {
-        int list = lists[i];
-        struct jData *job;
-        struct jData *next;
-
-        for (job = jDataList[list]->back; job != jDataList[list]; job = next) {
-            next = job->back;
-
-            // permission filter
-            if (auth && auth->uid != 0 && auth->uid != mbd_mgr->uid) {
-                if (auth->uid != job->userId)
-                    continue;
-            }
-            // at least one jonb belonging the uid found
-            ++matched;
-
-            // Skip finished
-            int st = MASK_STATUS(job->jStatus);
-            if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT) {
-                LS_ERRX("job %s in state 0x%x should not be in list %d",
-                        lsb_jobid2str(job->jobId), st, list);
-                assert(0);
-                continue;
-            }
-
-            // PEND/PSUSP: old per-job handling
-            if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
-                int64_t save = req->jobId;
-                req->jobId = job->jobId;
-                // Signal a pending job
-                int cc = mbd_signal_pending_job(ch_id, job, req, auth);
-                if (cc != LSBE_NO_ERROR) {
-                    LS_ERR("failed to signal pending job %s",
-                           lsb_jobid2str(job->jobId));
-                }
-                req->jobId = save;
-                continue;
-            }
-
-            // RUN/USUSP/etc: bucket by host
-            struct hData *host = NULL;
-            if (job->hPtr)
-                host = job->hPtr[0];
-
-            assert(host != NULL && IS_START(st));
-
-            if (!host) {
-                LS_ERR("bkill 0: job %s has no host, skip",
-                       lsb_jobid2str(job->jobId));
-                continue;
-            }
-
-            if (!host->sbd_node || host->sbd_node->chanfd < 0) {
-                LS_ERR("bkill 0: job %s host %s sbd unreachable, skip",
-                       lsb_jobid2str(job->jobId), host->host);
-                continue;
-            }
-
-            struct sig_host_bucket *b = ll_hash_search(ht, host->host);
-            if (!b) {
-                b = calloc(1, sizeof(*b));
-                if (!b) {
-                    free_sig_bucket_table(ht);
-                    return LSBE_NO_MEM;
-                }
-                b->host = host;
-
-                enum ll_hash_status rc = ll_hash_insert(ht, host->host, b, 0);
-                if (rc != LL_HASH_INSERTED) {
-                    free(b);
-                    free_sig_bucket_table(ht);
-                    return LSBE_NO_MEM;
-                }
-            }
-
-            if (bucket_add_jobid(b, job->jobId) < 0) {
-                free_sig_bucket_table(ht);
-                return LSBE_NO_MEM;
-            }
-
-            log_signaljob(job, req, auth->uid, auth->lsfUserName);
-        }
-    }
-
-    // BUG(MVP): bkill 0 is a bulk operation but the API returns a single
-    // lsberrno.
-    // We currently return LSBE_NO_ERROR as long as we matched at least one job,
-    // even if some jobs could not be signalled (no host, SBD unreachable,
-    // race: job finishes while we signal, etc.).
-    // For MVP the operator must run bjobs to verify results.
-    // Later we must record per-job / per-host outcomes and expose
-    // them via bkill -l and/or export to external monitoring.
-
-    if (matched == 0) {
-        free_sig_bucket_table(ht);
-        return LSBE_NO_JOB;
-    }
-
-    if (ht->nentries > 0)
-        enqueue_sig_buckets(ht, req->sigValue);
-
-    free_sig_bucket_table(ht);
-
-    return LSBE_NO_ERROR;
-}
-
-static int enqueue_sig_buckets(struct ll_hash *ht, int32_t sig)
-{
-    int queued_hosts_ok = 0;
-
-    for (size_t i = 0; i < ht->nbuckets; i++) {
-        struct ll_hash_entry *e = ht->buckets[i];
-
-        while (e) {
-            struct sig_host_bucket *b = e->value;
-            assert(b);
-
-            if (b->n > 0) {
-                if (signal_sbd_jobs(b, sig, 0) == 0)
-                    ++queued_hosts_ok;
-            }
-
-            e = e->next;
-        }
-    }
-
-    if (queued_hosts_ok == 0)
-        return LSBE_SBD_UNREACH;
-
-    return LSBE_NO_ERROR;
-}
-
-#define SIG_MANY_CHUNK 2048
-static int signal_sbd_jobs(struct sig_host_bucket *b, int32_t sig, int32_t flags)
-{
-    uint32_t off = 0;
-    int chan = b->host->sbd_node->chanfd;
-
-    while (off < b->n) {
-        uint32_t n = b->n - off;
-        if (n > SIG_MANY_CHUNK)
-            n = SIG_MANY_CHUNK;
-
-        struct xdr_sig_sbd_jobs sj = {
-            .sig = sig,
-            .flags = flags,
-            .n = n,
-            .job_ids = &b->job_ids[off],
-        };
-
-        if (enqueue_payload_bufsiz(chan,
-                                   BATCH_JOB_SIGNAL_MANY,
-                                   &sj,
-                                   xdr_sig_sbd_jobs,
-                                   LL_BUFSIZ_64K) < 0)
-            return -1;
-
-        off += n;
-    }
-
-    chan_set_write_interest(chan, true);
-    return 0;
-}
-
-static int bucket_add_jobid(struct sig_host_bucket *b, int64_t job_id)
-{
-    if (b->n == b->cap) {
-        uint32_t newcap = b->cap ? b->cap * 2 : 32;
-        int64_t *p = realloc(b->job_ids, (size_t)newcap * sizeof(*p));
-        if (!p)
-            return -1;
-        b->job_ids = p;
-        b->cap = newcap;
-    }
-
-    b->job_ids[b->n++] = job_id;
-    return 0;
-}
-
-static void free_sig_bucket_table(struct ll_hash *ht)
-{
-    if (!ht)
-        return;
-
-    for (size_t i = 0; i < ht->nbuckets; i++) {
-        struct ll_hash_entry *e = ht->buckets[i];
-
-        while (e) {
-            struct ll_hash_entry *next = e->next;
-            struct sig_host_bucket *b = e->value;
-
-            if (b) {
-                free(b->job_ids);
-                free(b);
-            }
-
-            e = next;
-        }
-    }
-
-    ll_hash_free(ht, NULL, NULL);
+    return INFINIT_INT;
 }

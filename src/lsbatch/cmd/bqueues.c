@@ -23,7 +23,6 @@ void load2Str();
 static void prtQueuesLong(int, struct queueInfoEnt *);
 static void prtQueuesShort(int, struct queueInfoEnt *);
 static char wflag = FALSE;
-extern int terminateWhen_(int *, char *);
 
 #define QUEUE_NAME_LENGTH 15
 #define QUEUE_PRIO_LENGTH 4
@@ -420,9 +419,7 @@ static void prtQueuesLong(int numQueues, struct queueInfoEnt *queueInfo)
         if (printFlag || printFlag1 || printFlag2)
             printf("\n");
 
-        printFlag = terminateWhen_(qp->sigMap, "USER");
-        printFlag1 = terminateWhen_(qp->sigMap, "WINDOW");
-        printFlag2 = terminateWhen_(qp->sigMap, "LOAD");
+        printFlag = printFlag1 = printFlag2 = false;
 
         if (printFlag | printFlag1 | printFlag2) {
             printf(("TERMINATE_WHEN = "));

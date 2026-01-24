@@ -507,3 +507,50 @@ int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
 
     return 0;
 }
+
+/*
+ * sbd_mbd_link_down()
+ *
+ * Handle loss of the mbd connection.
+ *
+ * This function is the single authority for transitioning sbatchd into
+ * "disconnected" state with respect to mbd. It:
+ *
+ *   - Closes and invalidates the mbd channel.
+ *   - Clears per-job "sent" flags (reply/execute/finish) for any protocol
+ *     steps that have not yet been ACKed by mbd, making them eligible
+ *     for resend once the connection is re-established.
+ *   - Persists the updated per-job state immediately to disk so that
+ *     resend eligibility survives sbatchd restart.
+ *
+ * Important invariants:
+ *   - ACKed protocol steps (pid_acked, execute_acked, finish_acked) are
+ *     never reverted.
+ *   - Only non-ACKed "sent" flags are cleared.
+ *   - Job records are rewritten for every affected job to keep on-disk
+ *     state consistent with in-memory resend logic.
+ *
+ * This function may be called multiple times; it is idempotent with
+ * respect to protocol state.
+ */
+void sbd_mbd_link_down(void)
+{
+    if (sbd_mbd_chan >= 0)
+        chan_close(sbd_mbd_chan);
+
+    sbd_mbd_chan = -1;
+    sbd_mbd_connecting = false;
+
+    struct ll_list_entry *e;
+    for (e = sbd_job_list.head; e; e = e->next) {
+        struct sbd_job *job = (struct sbd_job *)e;
+
+        job->reply_last_send = job->execute_last_send
+            = job->finish_last_send = 0;
+        // Write the latest job record
+        if (sbd_job_record_write(job) < 0)
+            LS_ERRX("job %ld record write failed after link_down", job->job_id);
+    }
+
+    LS_ERR("mbd link down: cleared pending sent flags for resend and record");
+}

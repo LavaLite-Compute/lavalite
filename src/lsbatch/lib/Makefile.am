@@ -34,7 +34,6 @@ libllbat_a_SOURCES = lsb.comm.c \
 	lsb.reconfig.c \
 	lsb.resource.c \
 	lsb.sig.c \
-	lsb.signals.c \
 	lsb.sub.c \
 	lsb.switch.c \
 	lsb.users.c \

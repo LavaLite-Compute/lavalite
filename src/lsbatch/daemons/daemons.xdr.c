@@ -542,6 +542,8 @@ bool_t xdr_wire_job_sig_reply(XDR *xdrs, struct wire_job_sig_reply *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
+     if (!xdr_int32_t(xdrs, &p->sig))
+         return false;
     if (!xdr_int32_t(xdrs, &p->rc))
         return false;
     if (!xdr_int32_t(xdrs, &p->detail_errno))

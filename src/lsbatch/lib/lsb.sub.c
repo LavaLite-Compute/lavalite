@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -915,9 +916,9 @@ int getOtherParams(struct submit *user_submit_request,
 
     strcpy(submitReq->subHomeDir, pw->pw_dir);
 
-    submitReq->sigValue = (user_submit_request->options & SUB_WINDOW_SIG)
-                              ? sig_encode(user_submit_request->sigValue)
-                              : 0;
+    // Bug what is this for?
+
+    submitReq->sigValue = 0;
     if (submitReq->sigValue > 31 || submitReq->sigValue < 0) {
         lsberrno = LSBE_BAD_SIGNAL;
         return -1;
@@ -1933,10 +1934,9 @@ int setOption_(int argc, char **argv, char *template, struct submit *req,
 
                 if (!(mask & SUB_WINDOW_SIG))
                     break;
-                if ((req->sigValue = getSigVal(optarg)) < 0) {
-                    PRINT_ERRMSG1(errMsg, "%s: Illegal signal value", optarg);
-                    return -1;
-                }
+                // Bug this is probably what signal to send when
+                // the run queue widnod closes
+                req->sigValue = 0;
                 req->options |= SUB_WINDOW_SIG;
             }
             break;

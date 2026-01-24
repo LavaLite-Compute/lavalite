@@ -65,7 +65,7 @@ void treeInit()
 
     groupRoot = treeNewNode(JGRP_NODE_GROUP);
     groupRoot->name = safeSave("/");
-    JGRP_DATA(groupRoot)->userId = mbd_mgr->uid;
+    JGRP_DATA(groupRoot)->userId = 0;
     JGRP_DATA(groupRoot)->userName = safeSave("SYS");
     JGRP_DATA(groupRoot)->status = JGRP_ACTIVE;
     JGRP_DATA(groupRoot)->changeTime = INFINIT_INT;

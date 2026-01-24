@@ -490,6 +490,7 @@ bool_t xdr_sig_sbd_jobs(XDR *, struct xdr_sig_sbd_jobs *);
 // sbd to mbd
 struct wire_job_sig_reply {
     int64_t job_id;
+    int sig;  // POSIX signal that was requested/delivered
     int32_t rc;            // LSBE_*
     int32_t detail_errno;  // errno from kill/killpg or 0
 };

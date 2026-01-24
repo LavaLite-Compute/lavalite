@@ -17,6 +17,7 @@
  *
  */
 
+
 #include "lsbatch/cmd/cmd.h"
 
 static int signalJobs(int64_t *, int);
@@ -109,7 +110,6 @@ static int do_options(int argc, char **argv, int64_t **jobIds, int signalValue)
                         "l");
                 usage(argv[0], signalValue);
             }
-            puts(getSigSymbolList());
             exit(-1);
         case 's':
             if (signalValue != SIGKILL) {
@@ -121,10 +121,6 @@ static int do_options(int argc, char **argv, int64_t **jobIds, int signalValue)
                 usage(argv[0], signalValue);
                 exit(-1);
             } else {
-                if ((sigValue = getSigVal(optarg)) < 0) {
-                    fprintf(stderr, ("%s: Illegal signal value\n"), optarg);
-                    exit(-1);
-                }
                 sigflg = TRUE;
             }
             break;

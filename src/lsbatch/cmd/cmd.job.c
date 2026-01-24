@@ -307,9 +307,9 @@ void prtSubDetails(struct jobInfoEnt *job, char *hostPtr, float hostFactor)
         }
     }
 
+    // Bug unsuded useful?
     if (job->submit.options & SUB_WINDOW_SIG) {
-        sprintf(prline, ", %s <%d>", "Signal Value",
-                sig_decode(job->submit.sigValue));
+        sprintf(prline, ", %s <%d>", "Signal Value", job->submit.sigValue);
         prtLine(prline);
     }
 

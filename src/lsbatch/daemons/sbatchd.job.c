@@ -19,10 +19,8 @@
 
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 
-static void sbd_handle_new_job(int, XDR *, struct packet_header *);
 static sbdReplyType sbd_spawn_job(struct sbd_job *, struct jobReply *);
 static void sbd_child_exec_job(struct sbd_job *);
-static void sbd_child_open_log(const struct jobSpecs *);
 static int sbd_set_job_env(const struct jobSpecs *);
 static int sbd_set_ids(const struct jobSpecs *);
 static void sbd_reset_signals(void);
@@ -32,94 +30,273 @@ static int sbd_enter_work_dir(const struct sbd_job *);
 static int sbd_redirect_stdio(const struct jobSpecs *);
 static int sbd_materialize_jobfile(struct jobSpecs *, const char *,
                                    char *, size_t);
-static void sbd_handle_new_job_ack(int, XDR *, struct packet_header *);
-static void sbd_handle_job_execute(int, XDR *, struct packet_header *);
-static void sbd_handle_job_finish(int, XDR *, struct packet_header *);
 static struct sbd_job *sbd_find_job_by_jid(int64_t);
 static int sbd_expand_stdio_path(const struct jobSpecs *, const char *,
                                  char *, size_t);
+static void sbd_killpg_job(struct sbd_job *, int, struct wire_job_sig_reply *);
+static int sbd_job_prepare_exec_fields(struct sbd_job *);
+static int dup_str_array(char ***, char *const *, int);
+static int dup_len_data(struct lenData *, const struct lenData *);
+static int dup_job_file_data(struct wire_job_file *,
+                             const struct wire_job_file *);
 
-// the ch_id in input is the channel we have opened with mbatchd
-//
-int sbd_handle_mbd(int ch_id)
+struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
 {
-    struct chan_data *chan = &channels[ch_id];
+    struct sbd_job *job = calloc(1, sizeof(*job));
+    if (job == NULL) {
+        LS_ERR("calloc sbd_job failed: %m");
+        return NULL;
+    }
 
-    LS_DEBUG("processing mbd request");
+    // Copy job specifications as received from mbd.
+    // These fields remain stable for the lifetime of the job.
+    if (jobSpecs_deep_copy(&job->spec, spec) < 0) {
+        LS_ERR("jobSpecs_deep_copy failed for jobId=%ld %m",
+               spec->jobId);
+        free(job);
+        return NULL;
+    }
 
-    if (chan->chan_events == CHAN_EPOLLERR) {
-        LS_ERRX("lost connection with mbd on channel %d socket err %d",
-                ch_id, chan_sock_error(ch_id));
-        sbd_mbd_link_down();
+    /*
+     * Explicit initialization of execution and pipeline state.
+     * calloc() already zeroed the structure, but we want this to
+     * remain correct even if initialization changes in the future.
+     */
+    job->job_id = spec->jobId;
+    job->pid = -1;
+    job->pgid = -1;
+
+    memset(&job->job_reply, 0, sizeof(job->job_reply));
+    memset(&job->lsf_rusage, 0, sizeof(job->lsf_rusage));
+
+    job->state = SBD_JOB_NEW;
+    job->reply_code = ERR_NO_ERROR;
+    job->reply_last_send = 0;
+
+    job->pid_acked = false;
+    job->pid_ack_time = 0;
+
+    job->execute_acked = false;
+    job->execute_last_send = 0;
+
+    job->finish_acked = false;
+    job->finish_last_send = 0;
+
+    job->exit_status = 0;
+    job->exit_status_valid = false;
+
+    job->missing = false;
+
+    // Initialize execution identity fields explicitly
+    job->exec_username[0] = 0;
+    job->exec_cwd[0] = 0;
+
+    strcpy(job->exec_username, spec->userName);
+
+    // Prepare decoded execution fields (cwd reconstruction, validation).
+    // This must succeed for the job to be runnable.
+    if (sbd_job_prepare_exec_fields(job) < 0) {
+        LS_ERR("job %ld failed to prepare execution fields: %m",
+               spec->jobId);
+        jobSpecs_free(&job->spec);
+        free(job);
+        return NULL;
+    }
+
+    // Execution invariants: must hold after preparation
+    assert(job->exec_username[0] != 0);
+    assert(job->spec.subHomeDir[0] != 0);
+    assert(job->exec_cwd[0] != 0);
+
+    return job;
+}
+/*
+ * Prepare execution-related fields for a newly created sbatchd job.
+ *
+ * This function validates mandatory identity fields and reconstructs
+ * the execution working directory from the encoded cwd representation
+ * received from mbd.
+ *
+ * CWD encoding rules:
+ *   - spec.cwd == ""        -> execution cwd is the user's home directory
+ *   - spec.cwd is relative -> execution cwd is subHomeDir + "/" + spec.cwd
+ *   - spec.cwd is absolute -> execution cwd is spec.cwd
+ *
+ * This function does not chdir(). The caller is responsible for changing
+ * directory and applying fallback logic (/tmp) in the execution path.
+ */
+static int sbd_job_prepare_exec_fields(struct sbd_job *job)
+{
+    const char *cwd;
+    const char *home;
+    int n;
+
+    if (job == NULL) {
+        LS_ERR("job is NULL (bug)");
+        errno = EINVAL;
         return -1;
     }
 
-    if (chan->chan_events != CHAN_EPOLLIN) {
-        // channel is not ready
+    // exec_username is required for status reporting and execution context
+    if (job->exec_username[0] == 0) {
+        LS_ERR("job %ld missing exec_username (bug)",
+               job->job_id);
+        errno = EINVAL;
+        return -1;
+    }
+
+    // subHomeDir is required to decode home-relative cwd encodings
+    if (job->spec.subHomeDir[0] == 0) {
+        LS_ERR("job %ld missing subHomeDir (bug)",
+               job->job_id);
+        errno = EINVAL;
+        return -1;
+    }
+
+    cwd = job->spec.cwd;
+    home = job->spec.subHomeDir;
+
+    // Decode the cwd encoding into an execution directory path
+    // An empty spec.cwd is valid and means "home"
+    if (cwd[0] == 0) {
+        n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", home);
+        if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
+            LS_ERR("job %ld exec_cwd overflow for home=%s (bug)",
+                   job->job_id, home);
+            errno = ENAMETOOLONG;
+            return -1;
+        }
         return 0;
     }
 
-    // Get the packet header from the channel first
-    struct Buffer *buf;
-    if (chan_dequeue(ch_id, &buf) < 0) {
-        LS_ERR("chan_dequeue() failed");
+    // Absolute cwd: use as-is
+    if (cwd[0] == '/') {
+        n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", cwd);
+        if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
+            LS_ERR("job %ld exec_cwd overflow for cwd=%s (bug)",
+                   job->job_id, cwd);
+            errno = ENAMETOOLONG;
+            return -1;
+        }
+        return 0;
+    }
+
+    // Relative cwd: interpret as relative to user's home directory
+    n = snprintf(job->exec_cwd, sizeof(job->exec_cwd),
+                 "%s/%s", home, cwd);
+    if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
+        LS_ERR("job %ld exec_cwd overflow for home=%s cwd=%s (bug)",
+               job->job_id, home, cwd);
+        errno = ENAMETOOLONG;
         return -1;
     }
 
-    if (!buf || buf->len < PACKET_HEADER_SIZE) {
-        LS_ERR("short header from mbd on channel %d: len=%zu",
-               ch_id, buf ? buf->len : 0);
-        return -1;
-    }
-
-    XDR xdrs;
-    struct packet_header hdr;
-    // Allocate the buffer data based on what was sent
-    xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
-    if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed");
-        xdr_destroy(&xdrs);
-        return -1;
-    }
-
-    LS_DEBUG("mbd requesting operation %s", batch_op2str(hdr.operation));
-
-    // sbd handler
-    switch (hdr.operation) {
-    case MBD_NEW_JOB:
-        // a new job from mbd has arrived
-        sbd_handle_new_job(ch_id, &xdrs, &hdr);
-        break;
-    case BATCH_NEW_JOB_ACK:
-        // this indicate the ack of the previous job_reply
-        // has reached the mbd who logged in the events
-        // we can send a new event sbd_enqueue_execute
-        sbd_handle_new_job_ack(ch_id, &xdrs, &hdr);
-        break;
-    case BATCH_JOB_EXECUTE:
-        sbd_handle_job_execute(ch_id, &xdrs, &hdr);
-        break;
-    case BATCH_JOB_FINISH:
-        sbd_handle_job_finish(ch_id, &xdrs, &hdr);
-        break;
-    case BATCH_JOB_SIGNAL:
-        sbd_handle_signal_job(ch_id, &xdrs, &hdr);
-        break;
-    case BATCH_SBD_REGISTER_REPLY:
-        // informational only; no action required
-        LS_INFO("received %s from mbd", batch_op2str(hdr.operation));
-        break;
-    default:
-        break;
-    }
-
-    xdr_destroy(&xdrs);
     return 0;
 }
 
+/*
+ * Release all dynamically allocated resources associated with a jobSpecs.
+ *
+ * This function frees any heap-allocated members contained within the
+ * jobSpecs structure (such as string arrays and data buffers) and
+ * resets the structure to a safe state.
+ *
+ * The jobSpecs structure itself is not freed.
+ *
+ * It is safe to call this function on a partially initialized jobSpecs.
+ */
+void jobSpecs_free(struct jobSpecs *spec)
+{
+    int i;
 
-static void  sbd_handle_new_job(int chfd, XDR *xdrs,
-                                struct packet_header *req_hdr)
+    if (spec == NULL)
+        return;
+
+    if (spec->toHosts != NULL) {
+        for (i = 0; i < spec->numToHosts; i++)
+            free(spec->toHosts[i]);
+        free(spec->toHosts);
+        spec->toHosts = NULL;
+    }
+    spec->numToHosts = 0;
+
+    if (spec->env != NULL) {
+        for (i = 0; i < spec->numEnv; i++)
+            free(spec->env[i]);
+        free(spec->env);
+        spec->env = NULL;
+    }
+    spec->numEnv = 0;
+
+    free(spec->job_file_data.data);
+    spec->job_file_data.data = NULL;
+    spec->job_file_data.len = 0;
+
+    free(spec->eexec.data);
+    spec->eexec.data = NULL;
+    spec->eexec.len = 0;
+}
+
+/*
+ * Deep-copy helpers for jobSpecs decoded by XDR.
+ * Safe for zero-initialized structs.
+ */
+int jobSpecs_deep_copy(struct jobSpecs *dst, const struct jobSpecs *src)
+{
+    if (dst == NULL || src == NULL) {
+        LS_ERR("%s: invalid arguments", __func__);
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (src->numToHosts > 0 && src->toHosts == NULL) {
+        LS_ERR("numToHosts=%d but toHosts is NULL", src->numToHosts);
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (src->numEnv > 0 && src->env == NULL) {
+        LS_ERR("numEnv=%d but env is NULL", src->numEnv);
+        errno = EINVAL;
+        return -1;
+    }
+
+    *dst = *src;
+
+    dst->toHosts = NULL;
+    dst->env = NULL;
+    dst->job_file_data.data = NULL;
+    dst->eexec.data = NULL;
+
+    if (dup_str_array(&dst->toHosts, src->toHosts, src->numToHosts) < 0) {
+        LS_ERR("%s: failed to copy toHosts: %m", __func__);
+        goto fail;
+    }
+
+    if (dup_str_array(&dst->env, src->env, src->numEnv) < 0) {
+        LS_ERR("%s: failed to copy env: %m", __func__);
+        goto fail;
+    }
+
+    if (dup_job_file_data(&dst->job_file_data, &src->job_file_data) < 0) {
+        LS_ERR("%s: failed to copy job_file_data: %m", __func__);
+        goto fail;
+    }
+
+    if (dup_len_data(&dst->eexec, &src->eexec) < 0) {
+        LS_ERR("%s: failed to copy eexec: %m", __func__);
+        goto fail;
+    }
+
+    return 0;
+
+fail:
+    jobSpecs_free(dst);
+    return -1;
+}
+
+// Job managers
+void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
 {
     sbdReplyType reply_code;
 
@@ -204,6 +381,282 @@ static void  sbd_handle_new_job(int chfd, XDR *xdrs,
     }
 }
 
+void sbd_new_job_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
+{
+    struct job_status_ack ack;
+    memset(&ack, 0, sizeof(ack));
+
+    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
+        LS_ERR("xdr_new_job_ack decode failed");
+        return;
+    }
+
+    // check the status of the operation
+    if (hdr->operation != BATCH_NEW_JOB_ACK) {
+        LS_ERR("job %ld new_job_ack error rc=%d seq=%d",
+               ack.job_id, hdr->operation, ack.seq);
+        // For now keep job around; retry policy later.
+        return;
+    }
+
+    // go and retrieve the job_id base in its hash
+    struct sbd_job *job = sbd_find_job_by_jid(ack.job_id);
+    if (job == NULL) {
+        LS_WARNING("new_job_ack for unknown job %ld", ack.job_id);
+        return;
+    }
+
+    // the sequence number is not used for now
+    if (job->pid_acked == true) {
+        LS_DEBUG("job %ld duplicate pid ack (seq=%d)",
+                 job->job_id, ack.seq);
+        return;
+    }
+
+    // This ack means: mbd has recorded pid/pgid for this job.
+    job->pid_acked = true;
+    // write the job record
+    if (sbd_job_record_write(job) < 0) {
+         LS_ERRX("job %ld record write failed after pid_acked",
+                 job->job_id);
+        // force sbd re transmission of the reply data
+        job->pid_ack_time = 0;
+        return;
+    }
+
+    if (sbd_go_write(job->job_id) < 0) {
+        LS_ERR("job %ld go file write failed", job->job_id);
+        sbd_mbd_shutdown();
+        return;
+    }
+    LS_INFO("job %ld go file written", job->job_id);
+    job->pid_ack_time = time(NULL);
+
+    // PID/PGID acknowledged by mbd.
+    // EXECUTE will be enqueued later by the main loop (job_execute_drive).
+    LS_INFO("job %ld pid/pgid acked by mbd", job->job_id);
+
+    assert(job->execute_acked == false);
+}
+
+void sbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
+{
+    if (xdrs == NULL || hdr == NULL) {
+        errno = EINVAL;
+        return;
+    }
+
+    struct job_status_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    /*
+     * ACK payload: mbd echoes the committed stage.
+     * Here we expect ack.acked_op == BATCH_JOB_EXECUTE.
+     */
+    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
+        LS_ERR("xdr_job_status_ack failed for EXECUTE ack");
+        return;
+    }
+
+    if (ack.acked_op != BATCH_JOB_EXECUTE) {
+        LS_ERR("EXECUTE ack mismatch: hdr.op=%d acked_op=%d job=%ld",
+               hdr->operation, ack.acked_op, ack.job_id);
+        return;
+    }
+
+    struct sbd_job *job;
+    job = sbd_find_job_by_jid(ack.job_id);
+    if (job == NULL) {
+        /*
+         * This can happen after a restart or if the job was already cleaned.
+         * Treat as non-fatal: mbd has committed; we just have nothing to do.
+         */
+        LS_INFO("EXECUTE ack for unknown job=%ld (seq=%d) ignored",
+                ack.job_id, ack.seq);
+        return;
+    }
+
+    if (!job->pid_acked) {
+        /*
+         * Strict ordering violation: execute_acked implies pid_acked.
+         * This should never happen if mbd is enforcing the pipeline.
+         */
+        LS_ERR("job=%ld BATCH_JOB_EXECUTE ack before PID ack state=0x%x",
+               job->job_id, job->state);
+        return;
+    }
+
+    if (job->execute_acked) {
+        LS_DEBUG("job=%ld duplicate EXECUTE ack ignored", job->job_id);
+        return;
+    }
+
+    job->execute_acked = true;
+
+    if (sbd_job_record_write(job) < 0)
+        LS_ERRX("job %ld record write failed after execute_acked",
+                job->job_id);
+
+    LS_INFO("job=%ld BATCH_JOB_EXECUTE committed to mbd", job->job_id);
+
+    return;
+}
+
+void sbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
+{
+    if (xdrs == NULL || hdr == NULL) {
+        errno = EINVAL;
+        return;
+    }
+
+    struct job_status_ack ack;
+    memset(&ack, 0, sizeof(ack));
+
+    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
+        LS_ERR("xdr_job_status_ack failed for FINISH ack");
+        return;
+    }
+
+    if (ack.acked_op != BATCH_JOB_FINISH) {
+        LS_ERR("FINISH ack mismatch: hdr.op=%d acked_op=%d job=%ld",
+               hdr->operation, ack.acked_op, ack.job_id);
+        return;
+    }
+
+    struct sbd_job *job;
+    job = sbd_find_job_by_jid(ack.job_id);
+    if (job == NULL) {
+        LS_INFO("FINISH ack for unknown job=%ld ignored", ack.job_id);
+        return;
+    }
+
+    if (!job->pid_acked || !job->execute_acked) {
+        LS_ERR("job=%ld FINISH ack out of order (pid_acked=%d execute_acked=%d)",
+               job->job_id, job->pid_acked, job->execute_acked);
+        // catch early problems
+        assert(0);
+        return;
+    }
+
+    if (job->finish_acked) {
+        LS_DEBUG("job=%ld duplicate FINISH ack ignored", job->job_id);
+        return;
+    }
+
+    /*
+     * FINISH is only eligible once we have a terminal status locally.
+     * If this triggers, it means we emitted FINISH too early or state got lost.
+     */
+    if (!job->exit_status_valid && !job->missing) {
+        LS_ERR("job=%ld BATCH_JOB_FINISH committed but exit_status not captured",
+               job->job_id);
+        abort();
+        // later on we can mark this job as missing and continue the
+        // clean up process
+    }
+
+    job->finish_acked = true;
+    LS_INFO("job=%ld BATCH_JOB_FINISH committed by mbd; cleaning up",
+            job->job_id);
+
+    // wite the acked
+    if (sbd_job_record_write(job) < 0)
+        LS_ERRX("job %ld record write failed after finish_acked", job->job_id);
+
+    if (sbd_job_record_remove(job->job_id) < 0)
+        LS_ERR("job %ld record remove failed", job->job_id);
+
+    /*
+     * Now it is safe to destroy the sbatchd-side job record/spool:
+     * mbd event log is the source of truth, and FINISH is committed.
+     */
+    sbd_job_destroy(job);
+}
+
+int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
+{
+    if (!xdr || !hdr) {
+        lserrno = LSBE_BAD_ARG;
+        return -1;
+    }
+
+    struct wire_job_sig_req req;
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_job_sig_req(xdr, &req)) {
+        LS_ERR("decode BATCH_JOB_SIGNAL failed");
+        lserrno = LSBE_XDR;
+        return -1;
+    }
+
+    struct wire_job_sig_reply rep;
+    memset(&rep, 0, sizeof(rep));
+    rep.job_id = req.job_id;
+    rep.sig = req.sig;
+
+    struct sbd_job *job = sbd_job_lookup(req.job_id);
+    if (!job) {
+        LS_INFO("signal for unknown job_id=%ld", req.job_id);
+        rep.rc = LSBE_NO_JOB;
+        rep.detail_errno = 0;
+        sbd_enqueue_signal_job_reply(ch_id, hdr, &rep);
+        return 0;
+    }
+
+    // Go and POSIX signal him
+    sbd_killpg_job(job, req.sig, &rep);
+
+    if (rep.rc == LSBE_NO_ERROR) {
+        LS_INFO("signal delivered job_id=%ld sig=%d pid=%d pgid=%d",
+                req.job_id, req.sig, job->pid, job->pgid);
+    } else {
+        LS_ERR("signal failed job_id=%ld sig=%d pid=%d pgid=%d rc=%d errno=%d",
+               req.job_id, req.sig, job->pid, job->pgid,
+               rep.rc, rep.detail_errno);
+    }
+
+    if (sbd_enqueue_signal_job_reply(ch_id, hdr, &rep) < 0)
+        return -1;
+
+    return 0;
+}
+
+static void sbd_killpg_job(struct sbd_job *job, int sig,
+                           struct wire_job_sig_reply *rep)
+{
+    rep->rc = LSBE_NO_ERROR;
+    rep->detail_errno = 0;
+
+    if (job->pgid > 0) {
+        if (killpg(job->pgid, sig) < 0) {
+            // detail_errno is the return code from the system call
+            // the rc is the return code that goes to is logged by
+            // mbd, the return code that would expected by the library
+            rep->detail_errno = errno;
+            if (errno == ESRCH)
+                rep->rc = LSBE_NO_JOB;
+            else
+                rep->rc = LSBE_SYS_CALL;
+        }
+        return;
+    }
+
+    if (job->pid <= 0) {
+        LS_ERR("signal invariant violated job_id=%ld pid=%d pgid=%d state=%d",
+               job->job_id, job->pid, job->pgid, job->state);
+        assert(0);
+        rep->rc = LSBE_SYS_CALL;
+        rep->detail_errno = EINVAL;
+        return;
+    }
+
+    if (kill(job->pid, sig) < 0) {
+        rep->detail_errno = errno;
+        if (errno == ESRCH)
+            rep->rc = LSBE_NO_JOB;
+        else
+            rep->rc = LSBE_SYS_CALL;
+        return;
+    }
+}
 static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_out)
 {
     // use posix_spawn
@@ -219,8 +672,6 @@ static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_ou
         chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
-        // child becomes leader of its own group
-        setpgid(0, 0);
         // Now run...
         sbd_child_exec_job(job);
         _exit(127);   /* not reached unless exec fails */
@@ -249,39 +700,64 @@ static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_ou
     return ERR_NO_ERROR;
 }
 
-/*
- * Execute a job in the sbatchd child process.
- *
- * This function runs exclusively in the forked child created by sbatchd
- * to execute a job. It performs all per-job execution setup that must
- * occur after fork() and before exec().
- *
- * Responsibilities:
- *   - Initialize child-side logging.
- *   - Record job PID and process group ID for protocol reporting.
- *   - Drop privileges and switch to the execution user.
- *   - Construct and populate the job execution environment.
- *   - Apply the job umask.
- *   - Enter the decoded execution working directory (job->exec_cwd),
- *     with a fallback to /tmp if the directory is not accessible.
- *   - Materialize the job wrapper/script under the sbatchd local
- *     execution area.
- *   - Redirect standard input, output, and error according to job
- *     specifications.
- *   - Reset signal handlers to defaults.
- *   - Run administrator and user pre-exec hooks.
- *   - Exec the materialized job script.
- *
- * Any failure during setup is treated as fatal and causes the child
- * process to exit immediately with a non-zero status.
- *
- * This function never returns on success.
- */
-static void
-sbd_child_exec_job(struct sbd_job *job)
-{
-    struct jobSpecs *specs = &job->spec;
 
+void sbd_job_insert(struct sbd_job *job)
+{
+    char keybuf[32];
+    enum ll_hash_status rc;
+
+    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
+
+    rc = ll_hash_insert(sbd_job_hash, keybuf, job, 0);
+    if (rc != LL_HASH_INSERTED) {
+        LS_ERR("ll_hash_insert failed for job_id=%d", job->job_id);
+        return;
+    }
+
+    ll_list_append(&sbd_job_list, &job->list);
+
+    LS_DEBUG("inserted job_id=%d", job->job_id);
+}
+
+struct sbd_job *sbd_job_lookup(int job_id)
+{
+    char keybuf[LL_BUFSIZ_32];
+
+    snprintf(keybuf, sizeof(keybuf), "%d", job_id);
+    return ll_hash_search(sbd_job_hash, keybuf);
+}
+
+void sbd_job_destroy(struct sbd_job *job)
+{
+    char keybuf[32];
+
+    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
+
+    ll_hash_remove(sbd_job_hash, keybuf);
+    ll_list_remove(&sbd_job_list, &job->list);
+
+    sbd_job_free(job);
+}
+
+/* ----------------------------------------------------------------------
+ * free job memory
+ * -------------------------------------------------------------------- */
+void
+sbd_job_free(void *e)
+{
+    struct sbd_job *job = e;
+    if (job == NULL)
+        return;
+
+    free(job);
+}
+
+static void sbd_child_exec_job(struct sbd_job *job)
+{
+    // child becomes leader of its own group
+    setpgid(0, 0);
+
+    struct jobSpecs *specs = &job->spec;
     sbd_child_open_log(specs);
 
     // Track pid/pgid in the spec for the parent/mbd protocol.
@@ -419,300 +895,6 @@ sbd_child_exec_job(struct sbd_job *job)
             _exit(127);
         }
     }
-}
-
-/* ----------------------------------------------------------------------
- * insert job into global list + hash
- * assumes caller already allocated job
- * -------------------------------------------------------------------- */
-void
-sbd_job_insert(struct sbd_job *job)
-{
-    char keybuf[32];
-    enum ll_hash_status rc;
-
-    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
-
-    rc = ll_hash_insert(sbd_job_hash, keybuf, job, 0);
-    if (rc != LL_HASH_INSERTED) {
-        LS_ERR("ll_hash_insert failed for job_id=%d", job->job_id);
-        return;
-    }
-
-    ll_list_append(&sbd_job_list, &job->list);
-
-    LS_DEBUG("inserted job_id=%d", job->job_id);
-}
-
-// Process the BATCH_NEW_JOB_ACK the fact that mbd has received the pid
-// and log into the lsb.events
-static void sbd_handle_new_job_ack(int ch_id, XDR *xdrs,
-                                   struct packet_header *hdr)
-{
-    struct job_status_ack ack;
-    memset(&ack, 0, sizeof(ack));
-
-    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
-        LS_ERR("xdr_new_job_ack decode failed");
-        return;
-    }
-
-    // check the status of the operation
-    if (hdr->operation != BATCH_NEW_JOB_ACK) {
-        LS_ERR("job %ld new_job_ack error rc=%d seq=%d",
-               ack.job_id, hdr->operation, ack.seq);
-        // For now keep job around; retry policy later.
-        return;
-    }
-
-    // go and retrieve the job_id base in its hash
-    struct sbd_job *job = sbd_find_job_by_jid(ack.job_id);
-    if (job == NULL) {
-        LS_WARNING("new_job_ack for unknown job %ld", ack.job_id);
-        return;
-    }
-
-    // the sequence number is not used for now
-    if (job->pid_acked == true) {
-        LS_DEBUG("job %ld duplicate pid ack (seq=%d)",
-                 job->job_id, ack.seq);
-        return;
-    }
-
-    // This ack means: mbd has recorded pid/pgid for this job.
-    job->pid_acked = true;
-    // write the job record
-    if (sbd_job_record_write(job) < 0) {
-         LS_ERRX("job %ld record write failed after pid_acked",
-                 job->job_id);
-        // force sbd re transmission of the reply data
-        job->pid_ack_time = 0;
-        return;
-    }
-
-    if (sbd_go_write(job->job_id) < 0) {
-        LS_ERR("job %ld go file write failed", job->job_id);
-        sbd_mbd_shutdown();
-        return;
-    }
-    LS_INFO("job %ld go file written", job->job_id);
-    job->pid_ack_time = time(NULL);
-
-    // PID/PGID acknowledged by mbd.
-    // EXECUTE will be enqueued later by the main loop (job_execute_drive).
-    LS_INFO("job %ld pid/pgid acked by mbd", job->job_id);
-
-    assert(job->execute_acked == false);
-}
-
-static void sbd_handle_job_execute(int ch_id, XDR *xdrs,
-                                   struct packet_header *hdr)
-{
-    if (xdrs == NULL || hdr == NULL) {
-        errno = EINVAL;
-        return;
-    }
-
-    struct job_status_ack ack;
-    memset(&ack, 0, sizeof(ack));
-    /*
-     * ACK payload: mbd echoes the committed stage.
-     * Here we expect ack.acked_op == BATCH_JOB_EXECUTE.
-     */
-    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
-        LS_ERR("xdr_job_status_ack failed for EXECUTE ack");
-        return;
-    }
-
-    if (ack.acked_op != BATCH_JOB_EXECUTE) {
-        LS_ERR("EXECUTE ack mismatch: hdr.op=%d acked_op=%d job=%ld",
-               hdr->operation, ack.acked_op, ack.job_id);
-        return;
-    }
-
-    struct sbd_job *job;
-    job = sbd_find_job_by_jid(ack.job_id);
-    if (job == NULL) {
-        /*
-         * This can happen after a restart or if the job was already cleaned.
-         * Treat as non-fatal: mbd has committed; we just have nothing to do.
-         */
-        LS_INFO("EXECUTE ack for unknown job=%ld (seq=%d) ignored",
-                ack.job_id, ack.seq);
-        return;
-    }
-
-    if (!job->pid_acked) {
-        /*
-         * Strict ordering violation: execute_acked implies pid_acked.
-         * This should never happen if mbd is enforcing the pipeline.
-         */
-        LS_ERR("job=%ld BATCH_JOB_EXECUTE ack before PID ack state=0x%x",
-               job->job_id, job->state);
-        return;
-    }
-
-    if (job->execute_acked) {
-        LS_DEBUG("job=%ld duplicate EXECUTE ack ignored", job->job_id);
-        return;
-    }
-
-    job->execute_acked = true;
-
-    if (sbd_job_record_write(job) < 0)
-        LS_ERRX("job %ld record write failed after execute_acked",
-                job->job_id);
-
-    LS_INFO("job=%ld BATCH_JOB_EXECUTE committed to mbd", job->job_id);
-
-    return;
-}
-
-static void sbd_handle_job_finish(int ch_id, XDR *xdrs,
-                                  struct packet_header *hdr)
-{
-    if (xdrs == NULL || hdr == NULL) {
-        errno = EINVAL;
-        return;
-    }
-
-    struct job_status_ack ack;
-    memset(&ack, 0, sizeof(ack));
-
-    if (!xdr_job_status_ack(xdrs, &ack, hdr)) {
-        LS_ERR("xdr_job_status_ack failed for FINISH ack");
-        return;
-    }
-
-    if (ack.acked_op != BATCH_JOB_FINISH) {
-        LS_ERR("FINISH ack mismatch: hdr.op=%d acked_op=%d job=%ld",
-               hdr->operation, ack.acked_op, ack.job_id);
-        return;
-    }
-
-    struct sbd_job *job;
-    job = sbd_find_job_by_jid(ack.job_id);
-    if (job == NULL) {
-        LS_INFO("FINISH ack for unknown job=%ld ignored", ack.job_id);
-        return;
-    }
-
-    if (!job->pid_acked || !job->execute_acked) {
-        LS_ERR("job=%ld FINISH ack out of order (pid_acked=%d execute_acked=%d)",
-               job->job_id, job->pid_acked, job->execute_acked);
-        // catch early problems
-        assert(0);
-        return;
-    }
-
-    if (job->finish_acked) {
-        LS_DEBUG("job=%ld duplicate FINISH ack ignored", job->job_id);
-        return;
-    }
-
-    /*
-     * FINISH is only eligible once we have a terminal status locally.
-     * If this triggers, it means we emitted FINISH too early or state got lost.
-     */
-    if (!job->exit_status_valid && !job->missing) {
-        LS_ERR("job=%ld BATCH_JOB_FINISH committed but exit_status not captured",
-               job->job_id);
-        abort();
-        // later on we can mark this job as missing and continue the
-        // clean up process
-    }
-
-    job->finish_acked = true;
-    LS_INFO("job=%ld BATCH_JOB_FINISH committed by mbd; cleaning up",
-            job->job_id);
-
-    // wite the acked
-    if (sbd_job_record_write(job) < 0)
-        LS_ERRX("job %ld record write failed after finish_acked", job->job_id);
-
-    if (sbd_job_record_remove(job->job_id) < 0)
-        LS_ERR("job %ld record remove failed", job->job_id);
-
-    /*
-     * Now it is safe to destroy the sbatchd-side job record/spool:
-     * mbd event log is the source of truth, and FINISH is committed.
-     */
-    sbd_job_destroy(job);
-}
-
-/* ----------------------------------------------------------------------
- * simple lookup by jobId
- * -------------------------------------------------------------------- */
-struct sbd_job *sbd_job_lookup(int job_id)
-{
-    char keybuf[LL_BUFSIZ_32];
-
-    snprintf(keybuf, sizeof(keybuf), "%d", job_id);
-    return ll_hash_search(sbd_job_hash, keybuf);
-}
-
-/* ----------------------------------------------------------------------
- * unlink (remove) a job from list + hash
- * does NOT free job memory
- * -------------------------------------------------------------------- */
-void sbd_job_destroy(struct sbd_job *job)
-{
-    char keybuf[32];
-
-    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
-
-    ll_hash_remove(sbd_job_hash, keybuf);
-    ll_list_remove(&sbd_job_list, &job->list);
-
-    sbd_job_free(job);
-}
-
-/* ----------------------------------------------------------------------
- * free job memory
- * -------------------------------------------------------------------- */
-void
-sbd_job_free(void *e)
-{
-    struct sbd_job *job = e;
-    if (job == NULL)
-        return;
-
-    free(job);
-}
-
-
-/* ----------------------------------------------------------------------
- * foreach wrapper — executes fn(entry)
- * fn must cast entry back to struct sbd_job:
- *
- *   static void dump_job(struct ll_list_entry *e) {
- *       struct sbd_job *j = (struct sbd_job *) e;
- *       LS_INFO("job %d pid=%d state=%d", j->job_id, j->pid, j->state);
- *   }
- *
- *   sbd_job_foreach(dump_job);
- *
- * -------------------------------------------------------------------- */
-void
-sbd_job_foreach(void (*fn)(struct ll_list_entry *))
-{
-    ll_list_foreach(&sbd_job_list, fn);
-}
-
-static void sbd_child_open_log(const struct jobSpecs *specs)
-{
-     /*
-      * We inherit log_fd and the log configuration from the parent (fork).
-      * Do NOT call ls_openlog() here, otherwise you re-open and/or change
-      * the log identity and create per-job log files again.
-      */
-    char tag[LL_BUFSIZ_64];
-
-    snprintf(tag, sizeof(tag),
-             "child job=%ld", (long)specs->jobId);
-    // tag the logfile messages saying who we are as we share
-    // the log file with parent and other children
-    ls_setlogtag(tag);
 }
 
 static int sbd_set_job_env(const struct jobSpecs *specs)
@@ -1165,51 +1347,93 @@ static struct sbd_job *sbd_find_job_by_jid(int64_t job_id)
     }
     return job;
 }
-
 /*
- * sbd_mbd_link_down()
+ * Duplicate an array of strings.
  *
- * Handle loss of the mbd connection.
+ * This function allocates and deep-copies an array of NUL-terminated
+ * strings from the source array into a newly allocated destination
+ * array.
  *
- * This function is the single authority for transitioning sbatchd into
- * "disconnected" state with respect to mbd. It:
+ * The destination pointer is set to a newly allocated array of string
+ * pointers, each pointing to an independently allocated copy of the
+ * corresponding source string.
  *
- *   - Closes and invalidates the mbd channel.
- *   - Clears per-job "sent" flags (reply/execute/finish) for any protocol
- *     steps that have not yet been ACKed by mbd, making them eligible
- *     for resend once the connection is re-established.
- *   - Persists the updated per-job state immediately to disk so that
- *     resend eligibility survives sbatchd restart.
- *
- * Important invariants:
- *   - ACKed protocol steps (pid_acked, execute_acked, finish_acked) are
- *     never reverted.
- *   - Only non-ACKed "sent" flags are cleared.
- *   - Job records are rewritten for every affected job to keep on-disk
- *     state consistent with in-memory resend logic.
- *
- * This function may be called multiple times; it is idempotent with
- * respect to protocol state.
+ * On failure, any partially allocated memory is released and an error
+ * is returned.
  */
-void
-sbd_mbd_link_down(void)
+static int dup_str_array(char ***dstp, char *const *src, int n)
 {
-    if (sbd_mbd_chan >= 0)
-        chan_close(sbd_mbd_chan);
+    int i;
 
-    sbd_mbd_chan = -1;
-    sbd_mbd_connecting = false;
+    *dstp = NULL;
 
-    struct ll_list_entry *e;
-    for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
+    if (n <= 0 || src == NULL)
+        return 0;
 
-        job->reply_last_send = job->execute_last_send
-            = job->finish_last_send = 0;
-        // Write the latest job record
-        if (sbd_job_record_write(job) < 0)
-            LS_ERRX("job %ld record write failed after link_down", job->job_id);
+    // Allocate one extra slot and NULL-terminate defensively.
+    char **v = calloc((size_t)n + 1, sizeof(char *));
+    if (v == NULL)
+        return -1;
+
+    for (i = 0; i < n; i++) {
+        if (src[i] == NULL) {
+            v[i] = NULL;
+            continue;
+        }
+
+        v[i] = strdup(src[i]);
+        if (v[i] == NULL) {
+            int j;
+
+            for (j = 0; j < i; j++)
+                free(v[j]);
+            free(v);
+            return -1;
+        }
     }
 
-    LS_ERR("mbd link down: cleared pending sent flags for resend and record");
+    v[n] = NULL;
+    *dstp = v;
+    return 0;
+}
+
+static int dup_len_data(struct lenData *dst, const struct lenData *src)
+{
+    dst->len = 0;
+    dst->data = NULL;
+
+    if (src == NULL)
+        return 0;
+
+    if (src->len <= 0 || src->data == NULL)
+        return 0;
+
+    dst->data = malloc((size_t)src->len);
+    if (dst->data == NULL)
+        return -1;
+
+    memcpy(dst->data, src->data, (size_t)src->len);
+    dst->len = src->len;
+    return 0;
+}
+
+static int dup_job_file_data(struct wire_job_file *dst,
+                             const struct wire_job_file *src)
+{
+    dst->len = 0;
+    dst->data = NULL;
+
+    if (src == NULL)
+        return 0;
+
+    if (src->len <= 0 || src->data == NULL)
+        return 0;
+
+    dst->data = malloc((size_t)src->len);
+    if (dst->data == NULL)
+        return -1;
+
+    memcpy(dst->data, src->data, (size_t)src->len);
+    dst->len = src->len;
+    return 0;
 }

@@ -56,6 +56,13 @@ void sbd_mbd_shutdown(void);
 
 // handle mbd messagges
 int sbd_handle_mbd(int);
+void sbd_new_job(int chfd, XDR *, struct packet_header *);
+void sbd_new_job_ack(int, XDR *, struct packet_header *);
+void sbd_job_execute(int, XDR *, struct packet_header *);
+void sbd_job_finish(int ch_id, XDR *, struct packet_header *);
+int sbd_signal_job(int, XDR *, struct packet_header *);
+int sbd_enqueue_signal_job_reply(int, struct packet_header *,
+                                 struct wire_job_sig_reply *);
 
 // timeout is in second
 #define DEFAUL_RESEND_ACK_TIMEOUT 3
@@ -182,7 +189,7 @@ void sbd_job_sync_jstatus(struct sbd_job *);
 int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
 void jobSpecs_free(struct jobSpecs *);
 
-int sbd_enqueue_new_job_reply(struct sbd_job *);
+int sbd_eue_new_job_reply(struct sbd_job *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
 bool_t sbd_mbd_link_ready(void);
@@ -197,7 +204,6 @@ int sbd_job_record_write(struct sbd_job *);
 int sbd_job_record_path(int64_t, char *, size_t);
 int sbd_job_record_remove(int64_t);
 void sbd_prune_acked_jobs(void);
-int sbd_go_path(int64_t, char *, size_t);
 int sbd_go_write(int64_t);
 
 
@@ -212,7 +218,4 @@ int sbd_reply_hdr_only(int, int, struct packet_header *);
 int sbd_reply_payload(int, int, struct packet_header *,
                       void *, bool_t (*xdr_func)());
 int sbd_read_exit_status_file(int, int *, time_t *);
-int sbd_enqueue_signal_job_reply(int, struct packet_header *,
-                                 struct wire_job_sig_reply *);
-// sbatchd.sig.c handlers
-int sbd_handle_signal_job(int, XDR *, struct packet_header *);
+void sbd_child_open_log(const struct jobSpecs *);

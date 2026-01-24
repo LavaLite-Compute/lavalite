@@ -519,15 +519,11 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
                "do_submitReq()");
         break;
     case BATCH_JOB_SIG:
-        TIMEIT(0, do_signalReq(&xdrs, ch_id, &from, NULL, &req_hdr, &auth),
-               "do_signalReq()");
+        cc = mbd_handle_signal_req(&xdrs, client, &req_hdr, &auth);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         if (cc < 0) {
-            struct hData *host_data = client->host_node;
-            shutdown_mbd_client(client);
-            if (host_data)
-                host_data->sbd_node = NULL;
+            mbd_sbd_disconnect(client);
         }
         return 0;
         break;
@@ -639,7 +635,7 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
                "do_runJobReq()");
         break;
     case BATCH_SBD_REGISTER:
-        int cc = do_sbd_register(&xdrs, client, &req_hdr);
+        int cc = mbd_sbd_register(&xdrs, client, &req_hdr);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         if (cc < 0) {

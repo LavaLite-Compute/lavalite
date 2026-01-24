@@ -19,6 +19,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 #define SAFE_JID_GAP 100
 #define NULL_RES "NRR"

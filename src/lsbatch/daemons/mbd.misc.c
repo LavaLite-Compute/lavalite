@@ -1,4 +1,4 @@
-/* $Id: mbd.misc.c,v 1.22 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1248,14 +1248,6 @@ void mbdDie(int sig)
     log_mbdDie(sig);
 
     die(sig);
-}
-
-bool_t is_manager(const char *user)
-{
-    // Bug better way?
-    if (strcmp(user, mbd_mgr->name) == 0)
-        return true;
-    return false;
 }
 
 int isAuthManagerExt(struct lsfAuth *auth)
