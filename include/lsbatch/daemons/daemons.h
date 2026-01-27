@@ -95,6 +95,10 @@ extern char errbuf[MAXLINELEN];
 #define lsb_mperr3(fmt, a1, a2, a3)                                            \
     sprintf(errbuf, fmt, a1, a2, a3), lsb_mperr(errbuf)
 
+// LavaLite
+const char *job_state_str(int);
+const char *mbd_op_str(mbdReqType);
+
 typedef enum {
     ERR_NO_ERROR = 1,
     ERR_BAD_REQ,

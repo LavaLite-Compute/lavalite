@@ -63,7 +63,7 @@ sbdReplyType start_job(struct jData *job,
     }
 
     struct packet_header hdr;
-    hdr.operation = MBD_NEW_JOB;
+    hdr.operation = BATCH_NEW_JOB;
     // Quoqe tu, Brute
     size_t buflen = LL_BUFSIZ_64K;
     for (int i = 0; i < jobSpecs.numEnv; i++)

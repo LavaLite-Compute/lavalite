@@ -302,7 +302,7 @@ int enqueue_payload_bufsiz(int ch_id, int op,
     return 0;
 }
 
-const char *batch_op2str(int op)
+const char * mbd_op_str(mbdReqType op)
 {
     switch (op) {
 
@@ -390,20 +390,29 @@ const char *batch_op2str(int op)
     case BATCH_SBD_REGISTER:
         return "BATCH_SBD_REGISTER";
 
-    case BATCH_SBD_REGISTER_REPLY:
-        return "BATCH_SBD_REGISTER_REPLY";
+    case BATCH_SBD_REGISTER_ACK:
+        return "BATCH_SBD_REGISTER_ACK";
 
+    case BATCH_NEW_JOB:
+        return "BATCH_NEW_JOB";
+    // mbd sbd new protocol
     case BATCH_NEW_JOB_REPLY:
         return "BATCH_NEW_JOB_REPLY";
 
-    case BATCH_NEW_JOB_ACK:
-        return "BATCH_NEW_JOB_ACK";
+    case BATCH_NEW_JOB_REPLY_ACK:
+        return "BATCH_NEW_JOB_REPLY_ACK";
 
     case BATCH_JOB_EXECUTE:
         return "BATCH_JOB_EXECUTE";
 
+    case BATCH_JOB_EXECUTE_ACK:
+        return "BATCH_JOB_EXECUTE_ACK";
+
     case BATCH_JOB_FINISH:
         return "BATCH_JOB_FINISH";
+
+    case BATCH_JOB_FINISH_ACK:
+        return "BATCH_JOB_FINISH_ACK";
 
     case BATCH_JOB_SIGNAL:
         return "BATCH_JOB_SIGNAL";
@@ -411,7 +420,45 @@ const char *batch_op2str(int op)
     case BATCH_JOB_SIGNAL_REPLY:
         return "BATCH_JOB_SIGNAL_REPLY";
 
+    case BATCH_JOB_SIGNAL_MANY:
+        return "BATCH_JOB_SIGNAL_MANY";
+
+    case BATCH_JOB_SIGNAL_MANY_REPLY:
+        return "BATCH_JOB_SIGNAL_MANY_REPLY";
+
+    case BATCH_LAST_OP:
+        return "BATCH_LAST_OP";
+
     default:
-        return "BATCH_<UNKNOWN>";
+        return "UNKNOWN_MBD_OP";
     }
+}
+
+const char * job_state_str(int status)
+{
+    if (status & JOB_STAT_DONE)
+        return "JOB_STAT_DONE";
+
+    if (status & JOB_STAT_EXIT)
+        return "JOB_STAT_EXIT";
+
+    if (status & JOB_STAT_RUN)
+        return "JOB_STAT_RUN";
+
+    if (status & JOB_STAT_USUSP)
+        return "JOB_STAT_USUSP";
+
+    if (status & JOB_STAT_SSUSP)
+        return "JOB_STAT_SSUSP";
+
+    if (status & JOB_STAT_PSUSP)
+        return "JOB_STAT_PSUSP";
+
+    if (status & JOB_STAT_PEND)
+        return "JOB_STAT_PEND";
+
+    if (status == JOB_STAT_NULL)
+        return "JOB_STAT_NULL";
+
+    return "UNKNOWN_STATE";
 }

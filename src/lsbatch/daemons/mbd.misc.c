@@ -18,6 +18,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 #define CHECKQUSABLE(qp, oldReason, newReason)                                 \
     {                                                                          \
@@ -1221,7 +1222,6 @@ void mbdDie(int sig)
     struct jData *jpbw;
     int list;
     sigset_t newmask;
-    char myhostname[MAXHOSTNAMELEN], *myhostp = myhostname;
 
     sigemptyset(&newmask);
     sigaddset(&newmask, SIGCHLD);
@@ -1252,17 +1252,6 @@ void mbdDie(int sig)
 
 int isAuthManagerExt(struct lsfAuth *auth)
 {
-    int crossPlatforms;
-
-    if (auth->options >= 0) {
-        if (auth->options & AUTH_HOST_UX)
-            crossPlatforms = FALSE;
-        else
-            crossPlatforms = TRUE;
-        if (crossPlatforms)
-            return FALSE;
-    }
-
     return (is_manager(auth->lsfUserName));
 }
 

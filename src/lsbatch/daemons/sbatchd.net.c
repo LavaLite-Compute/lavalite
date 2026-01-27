@@ -323,44 +323,44 @@ int sbd_enqueue_execute(struct sbd_job *job)
         // transition to JOB_STAT_RUN. Empty strings are acceptable.
     }
 
-    struct statusReq req;
-    memset(&req, 0, sizeof(req));
+    struct statusReq status_req;
+    memset(&status_req, 0, sizeof(status_req));
 
-    req.jobId     = job->job_id;
-    req.jobPid    = job->spec.jobPid;
-    req.jobPGid   = job->spec.jobPGid;
+    status_req.jobId     = job->job_id;
+    status_req.jobPid    = job->spec.jobPid;
+    status_req.jobPGid   = job->spec.jobPGid;
     // this is now fundamental for mbd that has acked the pid
     // the job now must transition to JOB_STAT_EXECUTE
-    req.newStatus = JOB_STAT_RUN;
+    status_req.newStatus = JOB_STAT_RUN;
 
-    req.reason     = 0;
-    req.subreasons = 0;
+    status_req.reason     = 0;
+    status_req.subreasons = 0;
 
-    req.execUid = job->spec.userId;
+    status_req.execUid = job->spec.userId;
 
-    // statusReq uses pointers: point at stable storage in job/spec
-    req.execHome     = job->spec.subHomeDir;
-    req.execCwd      = job->spec.cwd;
-    req.execUsername = job->exec_username;
+    // status_req uses pointers: point at stable storage in job/spec
+    status_req.execHome     = job->spec.subHomeDir;
+    status_req.execCwd      = job->spec.cwd;
+    status_req.execUsername = job->exec_username;
 
-    req.queuePreCmd  = "";
-    req.queuePostCmd = "";
-    req.msgId        = 0;
+    status_req.queuePreCmd  = "";
+    status_req.queuePostCmd = "";
+    status_req.msgId        = 0;
 
-    req.sbdReply   = ERR_NO_ERROR;
-    req.actPid     = 0;
-    req.numExecHosts = 0;
-    req.execHosts  = NULL;
-    req.exitStatus = 0;
-    req.sigValue   = 0;
-    req.actStatus  = 0;
+    status_req.sbdReply   = ERR_NO_ERROR;
+    status_req.actPid     = 0;
+    status_req.numExecHosts = 0;
+    status_req.execHosts  = NULL;
+    status_req.exitStatus = 0;
+    status_req.sigValue   = 0;
+    status_req.actStatus  = 0;
 
     // seq: keep 1 for now; wire per-job seq later if needed
-    req.seq = 1;
+    status_req.seq = 1;
 
     int cc = enqueue_payload(sbd_mbd_chan,
                              BATCH_JOB_EXECUTE,
-                             &req,
+                             &status_req,
                              xdr_statusReq);
     if (cc < 0) {
         LS_ERR("enqueue_payload for job %ld BATCH_JOB_EXECUTE failed",

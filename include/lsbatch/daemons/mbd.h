@@ -323,7 +323,6 @@ struct jData {
     char *jobSpoolDir;
     struct hData **rsrcPreemptHPtr;
     int numRsrcPreemptHPtr;
-
     struct groupCandHosts *groupCands;
     int numOfGroups;
     int reservedGrp;
@@ -331,6 +330,7 @@ struct jData {
     int *inEligibleGroups;
     int numSlotsReserve;
     int numAvailSlotsReserve;
+    time_t execute_time;
 };
 
 #define JOB_HAS_CANDHOSTS(Job) ((Job)->candPtr != NULL)

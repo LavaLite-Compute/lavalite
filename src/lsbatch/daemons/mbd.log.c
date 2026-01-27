@@ -132,7 +132,6 @@ static void log_queueStatusAtSwitch(const struct queueCtrlEvent *);
 
 extern time_t lsb_getAcctFileTime(char *fileName);
 
-static char *getSignalSymbol(const struct signalReq *);
 static int replay_arrayrequeue(struct jData *, const struct signalLog *);
 static int renameAcctLogFiles(int);
 
@@ -143,14 +142,13 @@ static int build_log_path(char *, size_t,
 
 int init_log(void)
 {
-    static char fname[] = "init_log";
-    char first = TRUE;
+    char first = true;
     int ConfigError = 0;
     int lineNum = 0;
     int list;
     int i;
     struct jData *jp;
-    struct stat sbuf, ebuf;
+    struct stat ebuf;
     struct hData *hPtr;
 
     mSchedStage = M_STAGE_REPLAY;
@@ -637,38 +635,36 @@ static int replay_startjob(char *filename, int lineNum, int preExecStart)
 
 static int replay_executejob(char *filename, int lineNum)
 {
-    static char fname[] = "replay_executejob";
-    struct jobExecuteLog *jobExecuteLog;
-    struct jData *jp;
-    int64_t jobId;
+    struct jobExecuteLog *jobExecuteLog = &logPtr->eventLog.jobExecuteLog;
 
-    jobExecuteLog = &logPtr->eventLog.jobExecuteLog;
+    int64_t jobId = LSB_JOBID(jobExecuteLog->jobId, jobExecuteLog->idx);
 
-    jobId = LSB_JOBID(jobExecuteLog->jobId, jobExecuteLog->idx);
-    if ((jp = getJobData(jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: Job <%d> not found in job list", fname,
-                  jobExecuteLog->jobId);
-        return FALSE;
+    struct jData *job;
+    if ((job = getJobData(jobId)) == NULL) {
+        LS_ERR("job=%d not found", jobExecuteLog->jobId);
+        return false;
     }
-    jp->execUid = jobExecuteLog->execUid;
-    jp->jobPGid = jobExecuteLog->jobPGid;
+    job->execUid = jobExecuteLog->execUid;
+    job->jobPGid = jobExecuteLog->jobPGid;
 
     if (jobExecuteLog->jobPid != 0)
-        jp->jobPid = jobExecuteLog->jobPid;
+        job->jobPid = jobExecuteLog->jobPid;
 
-    if (jp->execHome)
-        FREEUP(jp->execHome);
-    jp->execHome = safeSave(jobExecuteLog->execHome);
+    if (job->execHome)
+        free(job->execHome);
+    job->execHome = safeSave(jobExecuteLog->execHome);
 
-    if (jp->execCwd)
-        FREEUP(jp->execCwd);
-    jp->execCwd = safeSave(jobExecuteLog->execCwd);
+    if (job->execCwd)
+        free(job->execCwd);
+    job->execCwd = safeSave(jobExecuteLog->execCwd);
 
-    if (jp->execUsername)
-        FREEUP(jp->execUsername);
-    jp->execUsername = safeSave(jobExecuteLog->execUsername);
+    if (job->execUsername)
+        free(job->execUsername);
 
-    return TRUE;
+    job->execUsername = safeSave(jobExecuteLog->execUsername);
+    job->execute_time = time(NULL);
+
+    return true;
 }
 
 static int replay_startjobaccept(char *filename, int lineNum)
@@ -1514,10 +1510,8 @@ void log_startjobaccept(struct jData *job)
 
 void log_newstatus(struct jData *job)
 {
-    static char fname[] = "log_newstatus";
-
-    if (openEventFile(fname) < 0) {
-        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "openEventFile");
+    if (openEventFile((char *)__func__) < 0) {
+        LS_ERR("failed processing openEventFile() job=%s ", lsb_jobid2str(job->jobId));
         mbdDie(MASTER_FATAL);
     }
     if (job->jStatus & (JOB_STAT_EXIT | JOB_STAT_DONE)) {
@@ -1543,8 +1537,8 @@ void log_newstatus(struct jData *job)
 
     logPtr->eventLog.jobStatusLog.jStatus &= MASK_INT_JOB_STAT;
 
-    if (putEventRec(fname) < 0) {
-        ls_syslog(LOG_ERR, fname, lsb_jobid2str(job->jobId), "putEventRec");
+    if (putEventRec((char *)__func__) < 0) {
+        LS_ERR("failed processing putEventRec() job=%s ", lsb_jobid2str(job->jobId));
         mbdDie(MASTER_FATAL);
     }
     if (job->jStatus & JOB_STAT_DONE ||
@@ -3557,27 +3551,14 @@ void log_signaljob(struct jData *jp, struct signalReq *req, int userId,
     logPtr->eventLog.signalLog.userId = userId;
     strcpy(logPtr->eventLog.signalLog.userName, userName);
 
-    logPtr->eventLog.signalLog.signalSymbol = ll_sig_to_str(req->sigValue);
+    logPtr->eventLog.signalLog.signalSymbol
+        = (char *)ll_sig_to_str(req->sigValue);
     logPtr->eventLog.signalLog.runCount = jp->runCount;
 
-    if (putEventRec(__func__) < 0) {
+    if (putEventRec((char *)__func__) < 0) {
         LS_ERR("failed putEventRec job %s", lsb_jobid2str(jp->jobId));
         mbdDie(MASTER_FATAL);
     }
-}
-
-static char *getSignalSymbol(const struct signalReq *sigPtr)
-{
-    static char nameBuf[32];
-
-    if (sigPtr->chkPeriod == JOB_STAT_PSUSP) {
-        sprintf(nameBuf, "REQUEUE_PSUSP");
-
-    } else {
-        sprintf(nameBuf, "REQUEUE_PEND");
-    }
-
-    return nameBuf;
 }
 
 void log_jobmsg(struct jData *jp, struct lsbMsg *jmsg, int userId)
@@ -3658,8 +3639,9 @@ static int replay_signaljob(char *filename, int lineNum)
     if (sig < 0) {
         // legacy or unsupported pseudo-signal
         // ignore safely
-        LS_DEBUG("legacy or unsupported pseudo-signal for job  %d",
-                 logPtr->eventLog.signalLog.jobId);
+        LS_ERRX("legacy or unsupported signal %s for job  %d",
+                logPtr->eventLog.signalLog.signalSymbol,
+                logPtr->eventLog.signalLog.jobId);
         return true;
     }
     return true;

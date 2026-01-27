@@ -381,7 +381,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     }
 }
 
-void sbd_new_job_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -392,7 +392,7 @@ void sbd_new_job_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     // check the status of the operation
-    if (hdr->operation != BATCH_NEW_JOB_ACK) {
+    if (hdr->operation != BATCH_NEW_JOB_REPLY_ACK) {
         LS_ERR("job %ld new_job_ack error rc=%d seq=%d",
                ack.job_id, hdr->operation, ack.seq);
         // For now keep job around; retry policy later.
@@ -439,7 +439,7 @@ void sbd_new_job_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     assert(job->execute_acked == false);
 }
 
-void sbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
     if (xdrs == NULL || hdr == NULL) {
         errno = EINVAL;
@@ -501,7 +501,7 @@ void sbd_job_execute(int ch_id, XDR *xdrs, struct packet_header *hdr)
     return;
 }
 
-void sbd_job_finish(int ch_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
     if (xdrs == NULL || hdr == NULL) {
         errno = EINVAL;
@@ -589,6 +589,7 @@ int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
 
     struct wire_job_sig_reply rep;
     memset(&rep, 0, sizeof(rep));
+    // send back the jobid and signal we are delivering
     rep.job_id = req.job_id;
     rep.sig = req.sig;
 
@@ -615,6 +616,9 @@ int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
 
     if (sbd_enqueue_signal_job_reply(ch_id, hdr, &rep) < 0)
         return -1;
+
+    LS_INFO("signal enqueued job_id=%ld sig=%d pid=%d pgid=%d",
+            req.job_id, req.sig, job->pid, job->pgid);
 
     return 0;
 }

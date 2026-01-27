@@ -57,9 +57,9 @@ void sbd_mbd_shutdown(void);
 // handle mbd messagges
 int sbd_handle_mbd(int);
 void sbd_new_job(int chfd, XDR *, struct packet_header *);
-void sbd_new_job_ack(int, XDR *, struct packet_header *);
-void sbd_job_execute(int, XDR *, struct packet_header *);
-void sbd_job_finish(int ch_id, XDR *, struct packet_header *);
+void sbd_new_job_reply_ack(int, XDR *, struct packet_header *);
+void sbd_job_execute_ack(int, XDR *, struct packet_header *);
+void sbd_job_finish_ack(int ch_id, XDR *, struct packet_header *);
 int sbd_signal_job(int, XDR *, struct packet_header *);
 int sbd_enqueue_signal_job_reply(int, struct packet_header *,
                                  struct wire_job_sig_reply *);
@@ -189,7 +189,7 @@ void sbd_job_sync_jstatus(struct sbd_job *);
 int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
 void jobSpecs_free(struct jobSpecs *);
 
-int sbd_eue_new_job_reply(struct sbd_job *);
+int sbd_enqueue_new_job_reply(struct sbd_job *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
 bool_t sbd_mbd_link_ready(void);

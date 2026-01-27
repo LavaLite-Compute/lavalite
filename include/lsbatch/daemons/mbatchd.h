@@ -27,8 +27,6 @@
 extern struct hostInfo *host_list;
 extern int host_count;
 
-
-
 // LavaLite model, cleant and most honest approach model — codify
 // the assumption that the daemon is launched by the cluster admin,
 // and make that identity explicit and reusable.
@@ -60,29 +58,29 @@ int mbd_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);
 int mbd_new_job_reply(struct mbd_client_node *,
                       XDR *,
                       struct packet_header *);
-int mbd_job_status(struct mbd_client_node *,
-                   XDR *,
-                   struct packet_header *);
+int mbd_set_status_execute(struct mbd_client_node *, XDR *,
+                           struct packet_header *);
+int mbd_set_status_finish(struct mbd_client_node *, XDR *,
+                          struct packet_header *);
+int mbd_set_rusage_update(struct mbd_client_node *, XDR *,
+                          struct packet_header *);
 int mbd_sbd_disconnect(struct mbd_client_node *);
 int mbd_enqueue_hdr(struct mbd_client_node *, int);
 int mbd_init_tables(void);
-int mbd_send_job_ack(struct mbd_client_node *,
-                     int,
-                     const struct job_status_ack *);
+int mbd_send_event_ack(struct mbd_client_node *, int,
+                       const struct job_status_ack *);
 int mbd_handle_slave_restart(struct mbd_client_node *,
                              struct packet_header *,
                              XDR *);
-const char *mbd_op_str(int);
 int mbd_read_job_file(struct jobSpecs *, struct jData *);
-int mbd_signal_job(int, struct jData *, struct signalReq *, struct lsfAuth *);
+int mbd_handle_signal_req(XDR *, struct mbd_client_node *,
+                          struct packet_header *, struct lsfAuth *);
 int mbd_signal_all_jobs(int, struct signalReq *, struct lsfAuth *);
-int mbd_signal_pending_job(int,
-                           struct jData *,
-                           struct signalReq *,
+int mbd_signal_pending_job(struct jData *,  struct signalReq *,
                            struct lsfAuth *);
-int mbd_signal_running_job(int,
-                           struct jData *,
-                           struct signalReq *,
+int mbd_finish_pend_job(struct jData *);
+int mbd_stop_pend_job(struct jData *);
+int mbd_signal_running_job(struct jData *, struct signalReq *,
                            struct lsfAuth *);
 int mbd_job_signal_reply(struct mbd_client_node *, XDR *, struct packet_header *);
 void mbd_job_status_change(struct jData *, int, time_t, const char *);

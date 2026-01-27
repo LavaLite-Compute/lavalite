@@ -96,8 +96,11 @@ main(int argc, char **argv)
             lsb_perror(msg);
             continue;
         }
-
-        printf("Job <%s> is being signaled\n", lsb_jobid2str(jobid));
+        if (jobid == 0) {
+            printf(" All your jobs are being signaled\n");
+        } else {
+            printf("Job <%s> is being signaled\n", lsb_jobid2str(jobid));
+        }
         signaled = true;
     }
 
@@ -109,9 +112,6 @@ main(int argc, char **argv)
 static int
 parse_signal(const char *s, int *out)
 {
-    char buf[32];
-    size_t i, n;
-
     if (s == NULL || *s == '\0')
         return -1;
 
@@ -126,37 +126,33 @@ parse_signal(const char *s, int *out)
             return -1;
         if (v <= 0 || v >= NSIG)
             return -1;
-
+        // Note that we don't map numberical signals so
+        // SIGSTOP is not mapped to SIGTSTP
         *out = (int)v;
         return 0;
     }
 
-    // normalize to lowercase
-    n = strlen(s);
-    if (n >= sizeof(buf))
-        return -1;
-
-    for (i = 0; i < n; i++)
-        buf[i] = (char)tolower((unsigned char)s[i]);
-    buf[n] = '\0';
-
-    if (strcasecmp(buf, "kill") == 0) {
+    if (strcasecmp(s, "kill") == 0) {
         *out = SIGKILL;
         return 0;
     }
-    if (strcasecmp(buf, "term") == 0 || strcasecmp(buf, "terminate") == 0) {
+    if (strcasecmp(s, "term") == 0 || strcasecmp(s, "terminate") == 0) {
         *out = SIGTERM;
         return 0;
     }
-    if (strcasecmp(buf, "stop") == 0) {
+    if (strcasecmp(s, "stop") == 0) {
         *out = SIGTSTP;
         return 0;
     }
-    if (strcasecmp(buf, "cont") == 0 || strcasecmp(buf, "continue") == 0) {
+    if (strcasecmp(s, "cont") == 0 || strcasecmp(s, "continue") == 0) {
         *out = SIGCONT;
         return 0;
     }
-
+    if (strcasecmp(s, "int") == 0) {
+        *out = SIGINT;
+        return 0;
+    }
+    // Unsupported for now
     return -1;
 }
 

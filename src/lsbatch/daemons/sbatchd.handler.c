@@ -62,32 +62,32 @@ int sbd_handle_mbd(int ch_id)
         return -1;
     }
 
-    LS_DEBUG("mbd requesting operation %s", batch_op2str(hdr.operation));
+    LS_DEBUG("mbd requesting operation %s", mbd_op_str(hdr.operation));
 
     // sbd handler
     switch (hdr.operation) {
-    case MBD_NEW_JOB:
+    case BATCH_NEW_JOB:
         // a new job from mbd has arrived
         sbd_new_job(ch_id, &xdrs, &hdr);
         break;
-    case BATCH_NEW_JOB_ACK:
+    case BATCH_NEW_JOB_REPLY_ACK:
         // this indicate the ack of the previous job_reply
         // has reached the mbd who logged in the events
         // we can send a new event sbd_enqueue_execute
-        sbd_new_job_ack(ch_id, &xdrs, &hdr);
+        sbd_new_job_reply_ack(ch_id, &xdrs, &hdr);
         break;
-    case BATCH_JOB_EXECUTE:
-        sbd_job_execute(ch_id, &xdrs, &hdr);
+    case BATCH_JOB_EXECUTE_ACK:
+        sbd_job_execute_ack(ch_id, &xdrs, &hdr);
         break;
-    case BATCH_JOB_FINISH:
-        sbd_job_finish(ch_id, &xdrs, &hdr);
+    case BATCH_JOB_FINISH_ACK:
+        sbd_job_finish_ack(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_SIGNAL:
         sbd_signal_job(ch_id, &xdrs, &hdr);
         break;
-    case BATCH_SBD_REGISTER_REPLY:
+    case BATCH_SBD_REGISTER_ACK:
         // informational only; no action required
-        LS_INFO("received %s from mbd", batch_op2str(hdr.operation));
+        LS_INFO("received ack %s from mbd", mbd_op_str(hdr.operation));
         break;
     default:
         break;

@@ -18,6 +18,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 #define POLL_INTERVAL MAX(msleeptime / 10, 1)
 
@@ -522,9 +523,6 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
         cc = mbd_handle_signal_req(&xdrs, client, &req_hdr, &auth);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        if (cc < 0) {
-            mbd_sbd_disconnect(client);
-        }
         return 0;
         break;
     case BATCH_JOB_MSG:
@@ -639,6 +637,7 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         if (cc < 0) {
+            assert(client->host_node != NULL);
             struct hData *host_data = client->host_node;
             shutdown_mbd_client(client);
             if (host_data)

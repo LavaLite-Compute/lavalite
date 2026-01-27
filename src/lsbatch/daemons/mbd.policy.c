@@ -1,4 +1,4 @@
-/* $Id: mbd.policy.c,v 1.18 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  *
  * This program is free software; you can redistribute it and/or modify
@@ -456,7 +456,7 @@ static int readyToDisp(struct jData *jpbw, int *numAvailSlots)
     } else if ((deadline = jpbw->qPtr->runWinCloseTime) > 0 &&
                jobCantFinshBeforeDeadline(jpbw, deadline)) {
         if (logclass & (LC_SCHED | LC_PEND)) {
-            char *timebuf = ctime2(&deadline);
+            char *timebuf = ctime(&deadline);
             timebuf[strlen(timebuf) - 1] = '\0';
             ls_syslog(LOG_DEBUG2,
                       "%s: job <%s> can't finish before deadline: %s", fname,
