@@ -501,24 +501,42 @@ int mbd_handle_signal_req(XDR *xdrs,
         return 0;
     }
 
-    // the client here is the library
-    if (IS_FINISH(job->jStatus)) {
+    // State/signal semantic gates
+    // Job is already done
+    if ((job->jStatus & JOB_STAT_DONE) || (job->jStatus & JOB_STAT_EXIT)) {
         if (enqueue_header_reply(client->chanfd, LSBE_JOB_FINISH) < 0)
             return -1;
         return 0;
     }
 
+    // Signal is STOP but the job is already stopped
     if ((signal_req.sigValue == SIGSTOP || signal_req.sigValue == SIGTSTP)
-        && IS_SUSP(job->jStatus)) {
+        && ((job->jStatus & JOB_STAT_USUSP)
+            || (job->jStatus & JOB_STAT_SSUSP)
+            || (job->jStatus & JOB_STAT_PSUSP))) {
+        LS_DEBUG("job=%s state %s suspended already", lsb_jobid2str(job->jobId),
+                 job_state_str(job->jStatus));
         if (enqueue_header_reply(client->chanfd, LSBE_JOB_SUSP) < 0)
             return -1;
         return 0;
 
     }
+    // Signal is CONT but the job is PEND or RUN, nothing to continue
+    if (signal_req.sigValue == SIGCONT
+        && ((job->jStatus & JOB_STAT_PEND) || (job->jStatus & JOB_STAT_RUN))) {
+        // SIGCONT on PEND or RUN is a semantic no-op:
+        // - do not emit signaljob/newstatus noise
+        // - return success to the library
+        LS_DEBUG("job=%s state %s: SIGCONT no-op",
+                 lsb_jobid2str(job->jobId),
+                 job_state_str(job->jStatus));
+        if (enqueue_header_reply(client->chanfd, LSBE_NO_ERROR) < 0)
+            return -1;
+        return 0;
+    }
 
-    // this is the lsberror the result of the signal operation
     int cc;
-    if (IS_PEND(job->jStatus)) {
+    if ((job->jStatus & JOB_STAT_PEND) || (job->jStatus & JOB_STAT_PSUSP)) {
         // MUST be pending list: do not guess
         cc = mbd_signal_pending_job(job, &signal_req, auth);
         if (enqueue_header_reply(client->chanfd, cc) < 0)
@@ -565,6 +583,7 @@ static int finish_pend_job(struct jData *job)
             lsb_jobid2str(job->jobId), job->jStatus, JOB_STAT_EXIT);
 
     job->endTime = time(NULL);
+    job->numReasons = job->newReason = job->subreasons = 0;
     SET_STATE(job->jStatus, JOB_STAT_EXIT);
 
     offJobList(job, PJL);
@@ -582,7 +601,9 @@ static int stop_pend_job(struct jData *job)
         return LSBE_NO_ERROR; // is alread JOB_STAT_PSUSP no opp
 
     SET_STATE(job->jStatus, JOB_STAT_PSUSP);
-
+    job->newReason = PEND_USER_STOP;
+    job->subreasons = 0;
+    job->numReasons = 1;
     LS_INFO("job %s new state JOB_STAT_PSUSP", lsb_jobid2str(job->jobId));
 
     log_newstatus(job);
@@ -600,6 +621,7 @@ static int resume_pend_job(struct jData *job)
     LS_INFO("job %s state %s ", lsb_jobid2str(job->jobId),
             job_state_str(job->jStatus));
 
+    job->numReasons = job->newReason = job->subreasons = 0;
     log_newstatus(job);
 
     return 0;

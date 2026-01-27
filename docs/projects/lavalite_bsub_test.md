@@ -94,15 +94,47 @@ Expected:
 
 ---
 
-### A7 – Unsupported Signal on Pending
+### A7: HUP on Pending Job (Cancel)
 
-Command:
-bkill -s HUP JOBID
+**Goal:** Verify `SIGHUP` is accepted by `bkill` and cancels a pending/held job.
 
-Expected:
-- LSBE_BAD_SIGNAL (or equivalent)
+**Setup:**
+- Submit a held job:
+  - `bsub -H sleep 3600`
+- Confirm state:
+  - `bjobs JOBID` → `PSUSP`
+
+**Action:**
+- `bkill -s HUP JOBID`
+
+**Expected:**
+- Command succeeds: `Job <JOBID> is being signaled`
+- `bjobs -a JOBID` shows `EXIT` (or your chosen final state for cancelled pending jobs)
+- `EXEC_HOST` remains `-`
+- After restarting `mbatchd`, job remains `EXIT` (not `ZOMBI`)
+- No crash, no protocol errors
+
+---
+
+### A8: Unsupported Numeric Signal
+
+**Goal:** Verify that unsupported numeric signals are rejected.
+
+**Setup:**
+- Submit a pending job:
+  - `bsub sleep 3600`
+- Confirm state:
+  - `bjobs JOBID` → `PEND`
+
+**Action:**
+- `bkill -s 23 JOBID`
+
+**Expected:**
+- Command fails with error (e.g. `invalid signal` or equivalent)
+- No state change:
+  - `bjobs JOBID` remains `PEND`
+- No `JOB_STATUS` event logged
 - No crash
-- State unchanged
 
 ---
 

@@ -1515,6 +1515,13 @@ void log_newstatus(struct jData *job)
         mbdDie(MASTER_FATAL);
     }
     if (job->jStatus & (JOB_STAT_EXIT | JOB_STAT_DONE)) {
+        // For finished jobs, JOB_STATUS reason/subreasons must be in
+        // the EXIT/DONE domain.
+        // Do not serialize pend jobing-domain reasons (e.g. 607) or they can
+        // be misinterpreted during replay
+        // (e.g. as EXIT_ZOMBIE/EXIT_KILL_ZOMBIE), causing bogus ZOMBI status.
+        logPtr->eventLog.jobStatusLog.reason = 0;
+        logPtr->eventLog.jobStatusLog.subreasons = 0;
         now = time(0);
         job->endTime = now;
     }

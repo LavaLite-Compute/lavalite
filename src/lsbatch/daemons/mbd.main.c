@@ -461,11 +461,8 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
     struct sockaddr_in from;
     get_host_addrv4(&client->host, &from);
 
-    //    if (logclass & (LC_COMM | LC_TRACE)) {
-    if (1) {
-        LS_DEBUG("Received request %d from %s channel <%d>",
-                 req_hdr.operation, sockAdd2Str_(&from), ch_id);
-    }
+    LS_DEBUG("Received request %s from %s channel <%d>",
+             mbd_op_str(req_hdr.operation), sockAdd2Str_(&from), ch_id);
 
     // Bug write a function
     bool_t ok = 1;

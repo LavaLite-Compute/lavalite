@@ -148,3 +148,23 @@ uint16_t get_sbd_port(void)
 
     return sbd_port;
 }
+
+int ll_validate_jobid(const char *s, int64_t *out)
+{
+    long v;
+
+    if (!s || !*s)
+        return -1;
+
+    // remember the ll_atoll returns bool_t
+    if (!ll_atoll(s, &v))
+        return -1;
+
+    if (v < 0)
+        return -1;
+
+    if (out)
+        *out = v;
+
+    return 0;
+}
