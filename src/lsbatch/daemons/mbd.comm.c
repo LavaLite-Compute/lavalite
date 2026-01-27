@@ -19,6 +19,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 extern int connTimeout;
 
@@ -55,14 +56,14 @@ sbdReplyType start_job(struct jData *job,
     memset(&jobSpecs, 0, sizeof(jobSpecs));
     packJobSpecs(job, &jobSpecs);
 
-    if (read_job_file(&jobSpecs, job) == -1) {
+    if (mbd_read_job_file(&jobSpecs, job) == -1) {
         LS_ERR("failed to read job file for %s", lsb_jobid2str(job->jobId));
         freeJobSpecs(&jobSpecs);
         return ERR_NO_FILE;
     }
 
     struct packet_header hdr;
-    hdr.operation = MBD_NEW_JOB;
+    hdr.operation = BATCH_NEW_JOB;
     // Quoqe tu, Brute
     size_t buflen = LL_BUFSIZ_64K;
     for (int i = 0; i < jobSpecs.numEnv; i++)
@@ -232,7 +233,7 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
     struct lsfAuth *auth = NULL;
 
     jobSig.jobId = jp->jobId;
-    jobSig.sigValue = sig_encode(sendReq->sigValue);
+    jobSig.sigValue = sendReq->sigValue;
     jobSig.actFlags = sendReq->actFlags;
     jobSig.chkPeriod = sendReq->chkPeriod;
     jobSig.actCmd = sendReq->actCmd;

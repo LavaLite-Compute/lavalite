@@ -1,4 +1,4 @@
-/* $Id: daemonout.h,v 1.18 2007/08/15 22:18:44 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -62,14 +62,22 @@ typedef enum {
     BATCH_JOB_FORCE,
     BATCH_STATUS_CHUNK,
     BATCH_SET_JOB_ATTR,
-    BATCH_SBD_REGISTER,         // send registration request to mbd
-    BATCH_SBD_REGISTER_REPLY,   // reply to sbd the reistration was received
-    BATCH_NEW_JOB_REPLY,     // sbd reply to NEW_JOB (ERR_* in hdr.reserved)
-    BATCH_NEW_JOB_ACK,          // ack mbd got the pid for the new job
-    BATCH_JOB_EXECUTE, // sbd send to advance the pipeline to execute_acked
-    BATCH_JOB_FINISH,  // sbd send the last state of job life pipeline
-    BATCH_JOB_SIGNAL,  // mbd send signal for a job to sbd
-    BATCH_JOB_SIGNAL_REPLY, // sbd reply BATCH_JOB_SIGNAL
+    BATCH_SBD_REGISTER,
+    BATCH_SBD_REGISTER_ACK,
+    // Avoid a new enum even if tempted because then the
+    // operation number will collide unless we change type
+    // for this, so for now it is ok
+    BATCH_NEW_JOB,        // from mbd to sbd
+    BATCH_NEW_JOB_REPLY,  // from sbd to mbd reply, got the pid, pipeline move
+    BATCH_NEW_JOB_REPLY_ACK,  // from mbd to sbd ack, pipeline move
+    BATCH_JOB_EXECUTE,    // from sbd to mbd job excuting go barrier passed
+    BATCH_JOB_EXECUTE_ACK, // from mbd to sbd ack execute
+    BATCH_JOB_FINISH,      // from sbd to mbd
+    BATCH_JOB_FINISH_ACK,  // from mbd to sbd, pipeline move to end
+    BATCH_JOB_SIGNAL,      // from mbd to sbd interrupt
+    BATCH_JOB_SIGNAL_REPLY, // from sbd to mbd reply signal action
+    BATCH_JOB_SIGNAL_MANY,  // not MVP
+    BATCH_JOB_SIGNAL_MANY_REPLY, // not MVP
     BATCH_LAST_OP
 } mbdReqType;
 

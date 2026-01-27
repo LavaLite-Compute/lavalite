@@ -44,7 +44,7 @@ Functions operating on module state are considered module "methods" and **must n
 pretend to be pure or reusable.
 
 As a rule:
-- functions that operate on module state take `void` and use the module globals directly
+- functions that operate on module state must take `void` and use the module globals directly
 - functions that take parameters must be genuinely reusable and must not rely on module globals
 
 This avoids "fake functional purity": functions that appear pure or parameter-driven
@@ -169,6 +169,9 @@ if (!host) {
 }
 ```
 
+Functions must either return -1 and set lserrno, or return a well-defined project error code. Mixing styles is forbidden.
+
+
 ### Logging and error reporting (LS_XXX macros)
 
 All logging in LavaLite **must** use the `LS_XXX` macros (`LS_ERR`, `LS_WARN`,
@@ -205,6 +208,15 @@ LavaLite provides a **signed authentication token system** for user identity enf
 This layer is implemented and tested, but **not yet integrated into request processing**.
 Once integrated, it will authenticate users before job submission or job operations.
 
+Identity must be cryptographically provable, not topologically assumed.
+
+In other words identity must be cryptographically provable and must not rely
+solely on network location, IP address, hostname resolution, or cluster
+membership (e.g., being listed in lsb.hosts). Trusting a request only because it
+originates from inside the cluster network or from a known host is
+insufficient. Identity must be validated through signed tokens or other
+cryptographic proof that cannot be forged or replayed.
+
 ### Concepts
 
 A token contains:
@@ -232,6 +244,126 @@ Once integrated:
 > Daemons will authenticate each other using signed tokens to prevent unauthorized cluster control.
 
 ---
+
+## 1.7 Job State Machine Invariant
+
+The LavaLite job state machine must be **explicit, minimal, and mechanically verifiable**.
+
+### Core principles
+
+- Job states are explicit.
+- State transitions are explicit.
+- No state is inferred.
+- No state is derived indirectly.
+- No helper may "compute" a state transition implicitly.
+
+The system must never rely on:
+- derived states
+- hidden commit functions
+- side-effect-based transitions
+- implicit promotion or demotion of states
+
+If a job moves from one state to another, the transition must be:
+
+1. clearly visible in code
+2. traceable in logs
+3. justified by a specific event (signal, status update, completion, etc.)
+
+---
+
+### No implicit transitions
+
+Functions such as:
+
+```
+mbd_commit_job_state(...)
+```
+
+or similar abstractions that "decide" the final state internally
+are forbidden in the new architecture.
+
+State changes must be written explicitly:
+
+```
+job->jStatus = RUN;
+```
+
+or
+
+```
+job->jStatus = DONE;
+```
+
+with the surrounding logic making the reason unambiguous.
+
+---
+
+### Transitions are events, not calculations
+
+A job state change must always correspond to a real system event:
+
+- submission
+- scheduling
+- SBD acknowledgment
+- signal delivery
+- process exit
+- resource update
+- explicit user action
+
+The state machine must never "adjust itself" based on
+derived assumptions or inferred conditions.
+
+---
+
+### Minimal state model
+
+The state machine must remain small and understandable.
+
+Adding a new state requires:
+
+- a documented justification
+- explicit transition rules
+- defined entry conditions
+- defined exit conditions
+
+No transitional limbo states are allowed.
+
+If a state cannot be clearly described in one sentence,
+it does not belong in the system.
+
+---
+
+### Mechanical reasoning requirement
+
+At any point in time, given:
+
+- the job record
+- the last processed event
+- the current state
+
+a developer must be able to reason about the system
+without guessing hidden side effects.
+
+If reasoning requires inspecting multiple helper functions
+to discover implicit transitions, the design is wrong.
+
+---
+
+### Summary
+
+The LavaLite job state machine must be:
+
+- explicit
+- deterministic
+- small
+- event-driven
+- audit-friendly
+
+No magic.
+No derivation.
+No ghosts of legacy behavior.
+
+
 
 # 2. C Coding Style
 
@@ -342,6 +474,47 @@ Do not use:
 `SortIncludes: false` in `.clang-format` preserves ordering intentionally.
 
 ---
+
+## 2.8 Variable naming
+
+For clarity, consistency, and easy navigation across the codebase, exported
+functions must follow strict, daemon-specific naming conventions.
+
+All functions **exported by `mbatchd`** (i.e. declared in `mbatchd.h` and
+implemented in `mbatchd.*.c`) **must begin with the `mbd_` prefix**.
+Likewise, all functions **exported by `sbatchd`** (declared in `sbatchd.h` and
+implemented in `sbatchd.*.c`) **must begin with the `sbd_` prefix**.
+
+This rule applies **only to externally visible APIs**.
+Internal `static` helper functions are free to use concise, context-local names
+and **do not follow this prefix rule**.
+
+Examples:
+```
+- int mbd_signal_running_job(...)
+- int sbd_handle_new_job(...)
+```
+
+This convention makes daemon boundaries explicit, prevents symbol collisions, and allows readers (and tools) to immediately identify ownership and call direction within the system.
+
+### No `POST_DONE` (ever)
+
+In the new `mbatchd.job.c`, the `POST_DONE` state is **forbidden** and
+must be removed completely. There must be **zero** semantic, structural,
+or behavioral traces of `POST_DONE` anywhere in the pipeline.
+
+- Do not introduce `POST_DONE` as a status, sub-status, transitional
+state, flag, alias, or “temporary” workaround.
+- Do not preserve compatibility shims that keep the concept alive under
+a different name.
+- Any logic previously relying on `POST_DONE` must be expressed using
+explicit, meaningful states (e.g. `DONE` / `EXIT`) and clear transitions.
+
+Goal: the job state machine remains small, unambiguous, and mechanically
+verifiable—no “after done but not done” limbo states.
+
+
+
 ## Comments
 
 Code must be readable without comments.
@@ -357,6 +530,7 @@ Comments are allowed **only** to document:
 
 Comments must describe **rules**, **contracts**, or **assumptions**, not control flow.
 If a comment can be removed without losing essential information, it should not exist.
+
 
 # 3. Miscellaneous rules
 

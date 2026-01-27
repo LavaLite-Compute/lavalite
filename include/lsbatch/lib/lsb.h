@@ -140,3 +140,5 @@ int open_mbd_stream(void *, size_t, char **, struct packet_header *);
 void close_mbd_stream(int);
 char *resolve_master_with_retry(void);
 char *resolve_master_try(void);
+// LavaLite
+int ll_validate_jobid(const char *, int64_t *);

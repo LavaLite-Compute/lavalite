@@ -1367,12 +1367,12 @@ struct queueConf {
 
 #define IS_PEND(s) (((s) & JOB_STAT_PEND) || ((s) & JOB_STAT_PSUSP))
 
-#define IS_START(s)                                                            \
+#define IS_START(s) \
     (((s) & JOB_STAT_RUN) || ((s) & JOB_STAT_SSUSP) || ((s) & JOB_STAT_USUSP))
 
 #define IS_FINISH(s) (((s) & JOB_STAT_DONE) || ((s) & JOB_STAT_EXIT))
 
-#define IS_SUSP(s)                                                             \
+#define IS_SUSP(s) \
     (((s) & JOB_STAT_PSUSP) || ((s) & JOB_STAT_SSUSP) || ((s) & JOB_STAT_USUSP))
 
 #define IS_POST_DONE(s) (((s) & JOB_STAT_PDONE) == JOB_STAT_PDONE)

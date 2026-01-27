@@ -26,7 +26,10 @@ bin_PROGRAMS = bbot \
 # Source and linker definitions
 COMMON_CMD_SOURCES = cmd.misc.c cmd.move.c cmd.jobid.c cmd.prt.c \
 	cmd.bhc.c cmd.err.c cmd.job.c cmd.sub.c \
-	cmd.bqc.c  cmd.hist.c  cmd.sig.c
+	cmd.bqc.c  cmd.hist.c
+#COMMON_CMD_SOURCES = cmd.misc.c cmd.move.c cmd.jobid.c cmd.prt.c \
+#	cmd.bhc.c cmd.err.c cmd.job.c cmd.sub.c \
+#	cmd.bqc.c  cmd.hist.c  cmd.sig.c
 bbot_SOURCES      = bbot.c $(COMMON_CMD_SOURCES)
 bhosts_SOURCES    = bhosts.c $(COMMON_CMD_SOURCES)
 bjobs_SOURCES     = bjobs.c $(COMMON_CMD_SOURCES)

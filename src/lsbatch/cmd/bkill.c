@@ -31,7 +31,7 @@ usage(const char *cmd)
     fprintf(stderr, "Usage: %s -s SIGNAL jobid [jobid ...]\n", cmd);
     fprintf(stderr, "       %s --signal SIGNAL jobid [jobid ...]\n", cmd);
     fprintf(stderr, "\n");
-    fprintf(stderr, "SIGNAL: kill | term | stop | cont | <number>\n");
+    fprintf(stderr, "SIGNAL: kill | term | stop | cont | hup|  <number>\n");
 }
 
 int
@@ -46,6 +46,7 @@ main(int argc, char **argv)
 
     int sig = SIGTERM;
     int cc;
+
     while ((cc = getopt_long(argc, argv, "s:hV", longopts, NULL)) != -1) {
         switch (cc) {
         case 's':
@@ -75,19 +76,35 @@ main(int argc, char **argv)
         return -1;
     }
 
+    // Validate all jobids first (tight parsing; no partial execution).
+    for (int i = optind; i < argc; i++) {
+        int64_t tmp;
+
+        if (ll_validate_jobid(argv[i], &tmp) < 0) {
+            fprintf(stderr, "%s: invalid jobid '%s'\n", argv[0], argv[i]);
+            usage(argv[0]);
+            return -1;
+        }
+    }
+
     if (lsb_init(argv[0]) < 0) {
         lsb_perror("lsb_init");
         return -1;
     }
 
-    bool_t signaled = 0;
+    bool_t signaled = false;
+
     for (; optind < argc; optind++) {
+        long long tmp;
         int64_t jobid;
 
-        if (parse_jobid(argv[optind], &jobid) < 0) {
+        if (ll_validate_jobid(argv[optind], &tmp) < 0) {
+            // Should not happen due to pre-validation above.
             fprintf(stderr, "%s: invalid jobid '%s'\n", argv[0], argv[optind]);
-            continue;
+            return -1;
         }
+
+        jobid = (int64_t)tmp;
 
         if (lsb_signaljob(jobid, sig) < 0) {
             char msg[128];
@@ -97,21 +114,23 @@ main(int argc, char **argv)
             continue;
         }
 
-        printf("Job <%s> is being signaled\n", lsb_jobid2str(jobid));
+        if (jobid == 0)
+            printf("All your jobs are being signaled\n");
+        else
+            printf("Job <%s> is being signaled\n", lsb_jobid2str(jobid));
+
         signaled = true;
     }
 
-    if (! signaled)
+    if (!signaled)
         return -1;
+
     return 0;
 }
 
 static int
 parse_signal(const char *s, int *out)
 {
-    char buf[32];
-    size_t i, n;
-
     if (s == NULL || *s == '\0')
         return -1;
 
@@ -126,56 +145,45 @@ parse_signal(const char *s, int *out)
             return -1;
         if (v <= 0 || v >= NSIG)
             return -1;
-
+        // Note that we don't map numberical signals so
+        // SIGSTOP is not mapped to SIGTSTP
         *out = (int)v;
         return 0;
     }
 
-    // normalize to lowercase
-    n = strlen(s);
-    if (n >= sizeof(buf))
-        return -1;
-
-    for (i = 0; i < n; i++)
-        buf[i] = (char)tolower((unsigned char)s[i]);
-    buf[n] = '\0';
-
-    if (strcasecmp(buf, "kill") == 0) {
+    if (strcasecmp(s, "kill") == 0) {
         *out = SIGKILL;
         return 0;
     }
-    if (strcasecmp(buf, "term") == 0 || strcasecmp(buf, "terminate") == 0) {
+    if (strcasecmp(s, "term") == 0 || strcasecmp(s, "terminate") == 0) {
         *out = SIGTERM;
         return 0;
     }
-    if (strcasecmp(buf, "stop") == 0) {
-        *out = SIGSTOP;
+    if (strcasecmp(s, "stop") == 0) {
+        *out = SIGTSTP;
         return 0;
     }
-    if (strcasecmp(buf, "cont") == 0 || strcasecmp(buf, "continue") == 0) {
+    if (strcasecmp(s, "cont") == 0 || strcasecmp(s, "continue") == 0) {
         *out = SIGCONT;
         return 0;
     }
-
+    if (strcasecmp(s, "int") == 0) {
+        *out = SIGINT;
+        return 0;
+    }
+    if (strcasecmp(s, "hup") == 0) {
+        *out = SIGHUP;
+        return 0;
+    }
+    // Unsupported for now
     return -1;
 }
 
 static int
 parse_jobid(const char *s, int64_t *out)
 {
-    char *end = NULL;
-    long long v;
+    if (! ll_atoll(s, out))
+        return false;
 
-    if (s == NULL || *s == '\0')
-        return -1;
-
-    errno = 0;
-    v = strtoll(s, &end, 10);
-    if (errno != 0 || end == s || *end != '\0')
-        return -1;
-    if (v <= 0)
-        return -1;
-
-    *out = (int64_t)v;
     return 0;
 }

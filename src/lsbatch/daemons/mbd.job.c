@@ -19,6 +19,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 #define SUSP_CAN_PREEMPT_FOR_RSRC(s) !((s)->jStatus & JOB_STAT_USUSP)
 
@@ -137,6 +138,12 @@ static int rusgMatch(struct resVal *resValPtr, const char *resName);
 
 static int switchAJob(struct jobSwitchReq *, struct lsfAuth *, struct qData *);
 static int moveAJob(struct jobMoveReq *, int log, struct lsfAuth *);
+
+// LavaLite
+static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
+static void free_sig_bucket_table(struct ll_hash *);
+static int enqueue_sig_buckets(struct ll_hash *, int32_t);
+static int signal_sbd_jobs(struct sig_host_bucket *, int32_t, int32_t);
 
 int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
            struct lsfAuth *auth, int *schedule, int dispatch,
@@ -1494,44 +1501,6 @@ int signalJob(struct signalReq *signalReq, struct lsfAuth *auth)
 }
 #endif
 
-int mbd_signal_job(int ch_id,
-                   struct jData *job,
-                   struct signalReq *req,
-                   struct lsfAuth *auth)
-{
-    if (req == NULL || job == NULL)
-        return LSBE_BAD_ARG;
-
-    LS_DEBUG("signal <%d> job <%s>", req->sigValue, lsb_jobid2str(req->jobId));
-
-    if (auth) {
-        if (auth->uid != 0
-            && auth->uid != mbd_mgr->uid
-            && auth->uid != job->userId) {
-            return LSBE_PERMISSION;
-        }
-    }
-
-    int st = MASK_STATUS(job->jStatus);
-
-    if (st == JOB_STAT_PEND || st == JOB_STAT_PSUSP) {
-        signal_pending_job(ch_id, job, req, auth);
-        return 0;
-    }
-
-    if (st == JOB_STAT_DONE || st == JOB_STAT_EXIT ||
-        st == (JOB_STAT_PDONE | JOB_STAT_DONE) ||
-        st == (JOB_STAT_PDONE | JOB_STAT_EXIT) ||
-        st == (JOB_STAT_PERR | JOB_STAT_DONE) ||
-        st == (JOB_STAT_PERR | JOB_STAT_EXIT)) {
-        return LSBE_JOB_FINISH;
-    }
-
-    signal_running_job(ch_id, job, req, auth);
-
-    return 0;
-}
-
 int sigPFjob(struct jData *jData, int sigValue, time_t chkPeriod, int logIt)
 {
     static char fname[] = "sigPFjob";
@@ -1733,8 +1702,9 @@ void signalReplyCode(sbdReplyType reply, struct jData *jData, int sigValue,
         break;
     default:
 
-        if ((isSigTerm(sigValue)) && !(jData->jStatus & JOB_STAT_ZOMBIE) &&
-            (UNREACHABLE(jData->hPtr[0]->hStatus))) {
+        if ((sigValue == SIGTERM || sigValue== SIGKILL)
+            && !(jData->jStatus & JOB_STAT_ZOMBIE)
+            && (UNREACHABLE(jData->hPtr[0]->hStatus))) {
             if (sigValue != SIG_TERM_FORCE) {
                 jData->newReason = EXIT_KILL_ZOMBIE;
                 jData->jStatus |= JOB_STAT_ZOMBIE;
@@ -1746,7 +1716,7 @@ void signalReplyCode(sbdReplyType reply, struct jData *jData, int sigValue,
         }
 
         if ((sigValue >= 0) ||
-            (isSigTerm(sigValue) && (sigValue != SIG_TERM_FORCE)) ||
+            (sigValue ==  SIGTERM && (sigValue != SIG_TERM_FORCE)) ||
             (sigValue == SIG_RESUME_USER) || (sigValue == SIG_SUSP_USER) ||
             (sigValue == SIG_TERM_USER)) {
             eventPending = TRUE;
@@ -1796,10 +1766,7 @@ void jobStatusSignal(sbdReplyType reply, struct jData *jData, int sigValue,
         } else {
             actCmd = jData->qPtr->suspendActCmd;
         }
-        if (((actCmd != NULL) && (actCmd[0] != '\0')) &&
-            ((sigNameToValue_(actCmd) == INFINIT_INT) ||
-             (sigNameToValue_(actCmd) < 0)) &&
-            (jData->qPtr->sigMap[-sigValue] == 0))
+        if (actCmd != NULL)
             break;
 
     case SIGSTOP:
@@ -1822,16 +1789,7 @@ void jobStatusSignal(sbdReplyType reply, struct jData *jData, int sigValue,
         } else {
             actCmd = jData->qPtr->resumeActCmd;
         }
-        if (((actCmd != NULL) && (actCmd[0] != '\0')) &&
-            ((sigNameToValue_(actCmd) == INFINIT_INT) ||
-             (sigNameToValue_(actCmd) < 0))
-
-            &&
-            !((jobReply->actPid == 0) && (jobReply->jStatus & JOB_STAT_SSUSP) &&
-              (jData->jStatus & JOB_STAT_USUSP))) {
-            break;
-        }
-
+        break;
     case SIGCONT:
 
         if (jData->jStatus & JOB_STAT_USUSP) {
@@ -1964,7 +1922,7 @@ int sbatchdJobs(struct sbdPackage *pkg, struct hData *hData)
             packJobSpecs(jp, spec);
 
             if (!(jp->jStatus & JOB_STAT_ZOMBIE)) {
-                if (read_job_file(spec, jp) == -1) {
+                if (mbd_read_job_file(spec, jp) == -1) {
                     LS_ERRX("read_job_info for job %s failed",
                             lsb_jobid2str(jp->jobId));
                 }
@@ -2719,7 +2677,7 @@ static char terminatePendingEvent(struct jData *jpbw)
 {
     struct sbdNode *sbdPtr, *nextSbdPtr;
 
-    if (isSigTerm(jpbw->pendEvent.sig))
+    if (jpbw->pendEvent.sig == SIGKILL || jpbw->pendEvent.sig == SIGTERM)
         return TRUE;
 
     for (sbdPtr = sbdNodeList.forw; sbdPtr != &sbdNodeList;
@@ -7357,6 +7315,14 @@ bool_t checkUserPriority(struct jData *jp, int userPriority, int *errnum)
 
     return TRUE;
 }
+bool_t is_manager(const char *user)
+{
+    // Bug better way?
+    if (strcmp(user, mbd_mgr->name) == 0)
+        return true;
+    return false;
+}
+
 
 static void jobRequeueTimeUpdate(struct jData *jPtr, time_t t)
 {
@@ -7825,4 +7791,33 @@ static int checkSubHost(struct jData *job)
     }
 
     return LSBE_NO_ERROR;
+}
+
+// LavaLite meaningless hacks to make it compile
+int
+isSigTerm (int sigValue)
+{
+    switch (sigValue) {
+        case SIG_DELETE_JOB:
+        case SIG_TERM_USER:
+        case SIG_TERM_LOAD:
+        case SIG_TERM_WINDOW:
+        case SIG_TERM_OTHER:
+        case SIG_TERM_RUNLIMIT:
+        case SIG_TERM_DEADLINE:
+        case SIG_TERM_PROCESSLIMIT:
+        case SIG_TERM_CPULIMIT:
+        case SIG_TERM_MEMLIMIT:
+        case SIG_TERM_FORCE:
+        case SIG_KILL_REQUEUE:
+            return(TRUE);
+        default:
+            return (FALSE);
+    }
+}
+int
+sigNameToValue_ (char *sigString)
+{
+
+    return INFINIT_INT;
 }

@@ -30,13 +30,12 @@ mbatchd_SOURCES = mbd.main.c \
 	mail.c \
 	daemons.c \
 	daemons.xdr.c \
-	mbd.sbd.c
+    mbatchd.handler.c \
+    mbatchd.job.c
 
-
-sbatchd_SOURCES =  sbatchd.main.c sbatchd.net.c \
-                   sbatchd.mbd.c sbatchd.client.c \
-                   daemons.xdr.c daemons.c sbatchd.jobdata.c \
-                   sbatchd.sig.c
+sbatchd_SOURCES =  sbatchd.main.c sbatchd.handler.c sbatchd.net.c \
+                   sbatchd.job.c sbatchd.client.c \
+                   daemons.xdr.c daemons.c sbatchd.log.c
 
 mbatchd_DEPENDENCIES = $(COMMON_LIBS)
 sbatchd_DEPENDENCIES = $(COMMON_LIBS)

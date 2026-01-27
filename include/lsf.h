@@ -41,6 +41,11 @@
 
 // True man reads the man page, that’s why it’s called man
 
+// Yes. Someone has suffered here before.
+
+// Here’s a pointer. Here’s a number. Convert it. Don’t complain.”
+
+
 #include <config.h>
 // System headers
 #include <stdio.h>

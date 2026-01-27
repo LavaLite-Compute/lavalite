@@ -568,6 +568,7 @@ int parse_env_line(const char *line,
 }
 #endif
 
+// yaai yet another a atoi
 // will create ll.util.h when we have time
 bool_t ll_atoi(const char *s, int *out)
 {

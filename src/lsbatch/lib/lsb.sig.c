@@ -32,7 +32,8 @@ lsb_signaljob(int64_t job_id, int sig_value)
         return -1;
     }
 
-    if (job_id <= 0) {
+    // job_id 0 means all the jobs
+    if (job_id < 0) {
         lsberrno = LSBE_BAD_ARG;
         return -1;
     }

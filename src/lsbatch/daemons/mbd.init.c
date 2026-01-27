@@ -1,5 +1,6 @@
-/* $Id: mbd.init.c,v 1.22 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,6 +18,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 extern void resetStaticSchedVariables(void);
 extern void cleanSbdNode(struct jData *);
@@ -142,9 +144,6 @@ static void checkAskedHostList(struct jData *jp);
 static void checkReqHistory(struct jData *jp);
 
 static void rebuildUsersSets(void);
-// LavaLite
-static struct mbd_manager *mbd_init_manager(void);
-static int mbd_init_networking(void);
 
 int mbd_init(int mbdInitFlags)
 {
@@ -3551,83 +3550,4 @@ setCreate",
         }
     }
     END_FOR_EACH_HTAB_ENTRY;
-}
-
-// Make the batch system manager
-// One user, fixed identity, zero UID gymnastics
-static struct mbd_manager *mbd_init_manager(void)
-{
-    mbd_mgr = calloc(1, sizeof(struct mbd_manager));
-    mbd_mgr->uid = getuid();
-    mbd_mgr->gid = getgid();
-
-    struct passwd *pw = getpwuid2(mbd_mgr->uid);
-    if (!pw || !pw->pw_name) {
-        syslog(LOG_ERR, "%s: getpwuid2(%d) failed: %m", __func__, mbd_mgr->uid);
-        free(mbd_mgr);
-        return NULL;
-    }
-
-    // for now we just keep one manager
-    mbd_mgr->name = strdup(pw->pw_name);
-
-    // Optional badge log for audit clarity
-    syslog(LOG_INFO, "%s initialized: uid %d, gid %d, name %s", __func__,
-           mbd_mgr->uid, mbd_mgr->gid, mbd_mgr->name);
-
-    return mbd_mgr;
-}
-
-
-static int mbd_init_networking(void)
-{
-    long open_max = sysconf(_SC_OPEN_MAX);
-
-    mbd_chan = chan_listen_socket(SOCK_STREAM,
-                                  mbd_port,
-                                  SOMAXCONN,
-                                  CHAN_OP_SOREUSE);
-    if (mbd_chan < 0) {
-        LS_ERR("chan_listen_socket() failed");
-        return -1;
-    }
-
-    mbd_efd = epoll_create1(EPOLL_CLOEXEC);
-    if (mbd_efd < 0) {
-        LS_ERR("epoll_create1() failed");
-        chan_close(mbd_chan);
-        return -1;
-    }
-
-    // Set the MBD listening channel into the event structure
-    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = mbd_chan};
-
-    int cc = epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(mbd_chan), &ev);
-    if (cc < 0) {
-        LS_ERR("epoll_ctl() failed");
-        chan_close(mbd_chan);
-        close(mbd_efd);
-        return -1;
-    }
-
-    mbd_max_events = (int)open_max;
-    mbd_events = calloc(mbd_max_events, sizeof(struct epoll_event));
-    if (mbd_events == NULL) {
-        LS_ERR("calloc num_events %d failed", mbd_max_events);
-        chan_close(mbd_chan);
-        close(mbd_efd);
-        return -1;
-    }
-
-    return 0;
-}
-
-int mbd_init_tables(void)
-{
-    if (ll_hash_init(&hdata_by_chan, 101) < 0) {
-        LS_ERR("failed to init hdata_by_chan");
-        return -1;
-    }
-
-    return 0;
 }

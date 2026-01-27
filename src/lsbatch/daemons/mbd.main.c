@@ -18,6 +18,7 @@
  */
 
 #include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
 #define POLL_INTERVAL MAX(msleeptime / 10, 1)
 
@@ -460,11 +461,8 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
     struct sockaddr_in from;
     get_host_addrv4(&client->host, &from);
 
-    //    if (logclass & (LC_COMM | LC_TRACE)) {
-    if (1) {
-        LS_DEBUG("Received request %d from %s channel <%d>",
-                 req_hdr.operation, sockAdd2Str_(&from), ch_id);
-    }
+    LS_DEBUG("Received request %s from %s channel <%d>",
+             mbd_op_str(req_hdr.operation), sockAdd2Str_(&from), ch_id);
 
     // Bug write a function
     bool_t ok = 1;
@@ -519,16 +517,9 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
                "do_submitReq()");
         break;
     case BATCH_JOB_SIG:
-        TIMEIT(0, do_signalReq(&xdrs, ch_id, &from, NULL, &req_hdr, &auth),
-               "do_signalReq()");
+        cc = mbd_handle_signal_req(&xdrs, client, &req_hdr, &auth);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        if (cc < 0) {
-            struct hData *host_data = client->host_node;
-            shutdown_mbd_client(client);
-            if (host_data)
-                host_data->sbd_node = NULL;
-        }
         return 0;
         break;
     case BATCH_JOB_MSG:
@@ -639,10 +630,11 @@ static int mbd_dispatch_client(struct mbd_client_node *client)
                "do_runJobReq()");
         break;
     case BATCH_SBD_REGISTER:
-        int cc = do_sbd_register(&xdrs, client, &req_hdr);
+        int cc = mbd_sbd_register(&xdrs, client, &req_hdr);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         if (cc < 0) {
+            assert(client->host_node != NULL);
             struct hData *host_data = client->host_node;
             shutdown_mbd_client(client);
             if (host_data)

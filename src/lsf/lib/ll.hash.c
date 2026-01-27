@@ -182,7 +182,7 @@ enum ll_hash_status ll_hash_insert(struct ll_hash *ht,
     if (!ht || !key || ht->nbuckets == 0)
         return LL_HASH_EXISTS;
 
-    (void)ll_hash_maybe_grow(ht);
+    ll_hash_maybe_grow(ht);
 
     idx = ll_bucket_index(key, ht->nbuckets);
 

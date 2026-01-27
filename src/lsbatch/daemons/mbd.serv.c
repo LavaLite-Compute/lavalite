@@ -736,30 +736,6 @@ int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     return 0;
 }
 
-int do_signalReq(XDR *xdrs, int ch_id, struct sockaddr_in *from, char *hostName,
-                 struct packet_header *reqHdr, struct lsfAuth *auth)
-{
-
-    struct signalReq signalReq;
-    if (!xdr_signalReq(xdrs, &signalReq, reqHdr)) {
-        return enqueue_header_reply(ch_id, LSBE_XDR);
-    }
-
-    struct jData *job;
-    if ((job = getJobData(signalReq.jobId)) == NULL) {
-        LS_INFO("job %s unknown to mbd", lsb_jobid2str(signalReq.jobId));
-        return enqueue_header_reply(ch_id, LSBE_NO_JOB);
-    }
-
-    int reply;
-    reply = mbd_signal_job(ch_id, job, &signalReq, auth);
-    if (reply != LSBE_NO_ERROR)  {
-        LS_ERR("failed deliver signal %d to job %s", signalReq.sigValue,
-               lsb_jobid2str(job->jobId));
-    }
-
-    return 0;
-}
 
 int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
               struct sockaddr_in *from, char *hostName,

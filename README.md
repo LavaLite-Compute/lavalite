@@ -1,28 +1,19 @@
-## What Is LavaLite?
+## What Is **LavaLite**?
 
-LavaLite is a modern, independent continuation of the original open-source
-Platform Lava scheduler. It reimplements that heritage from scratch — cleaned up,
-modernized, and redesigned — while remaining completely independent of
-Platform Computing, IBM, NVIDIA, or any other vendor.
+## What Is **LavaLite**?
 
-LavaLite is a lightweight, high-throughput job scheduler built for clusters
-where job volume matters more than parallel execution. It does not target
-tightly coupled MPI workloads; instead, it excels at running thousands of short,
-independent jobs with minimal overhead and predictable behavior.
+**LavaLite** is a modern, independent, open‑source continuation of the original open‑source Platform Lava
+scheduler. It preserves the lineage but not the baggage: the old codebase serves as historical documentation, not a blueprint. We kept the ideas that worked, removed the subsystems that never did, and rewrote the rest with modern clarity and scale in mind. The goal is simple — a scheduler that can run millions of jobs reliably while staying small, predictable, and easy to reason about. **LavaLite** is its own system now: leaner, cleaner, and built for real throughput, while remaining completely independent of Platform Computing, IBM, NVIDIA, or any other vendor.
 
-Beyond traditional HPC, LavaLite is a natural fit for HTC workloads: massive job
-arrays, embarrassingly parallel tasks, data-driven pipelines, and large-scale
-scientific workflows. It performs well on supercomputers, research clusters,
-bioinformatics labs, media render farms, and cloud batch environments.
+**LavaLite** is a lightweight, high‑throughput job scheduler built for clusters where job volume matters more than tightly coupled parallel execution. It excels at running thousands of short, independent jobs with minimal overhead and consistent behavior.
 
-LavaLite is also well-suited for AI and machine-learning pipelines — from
-distributed GPU training to hyperparameter sweeps and inference farms.
-Its straightforward interface and low runtime overhead make it ideal for
-researchers and engineers pushing modern computational throughput.
+Beyond traditional HPC, **LavaLite** is a natural fit for HTC workloads: massive job arrays, embarrassingly parallel tasks, data‑driven pipelines, and large‑scale scientific workflows. It performs well on supercomputers, research clusters, bioinformatics labs, media render farms, and cloud batch environments.
 
-Inspired by Platform Lava 1.0 and refined using classical algorithmic discipline,
-LavaLite is designed for **speed, simplicity, and clarity**.
-It is not a clone — it is a clean **reimplementation and a reinvention**.
+**LavaLite** is also well‑suited for AI and machine‑learning pipelines — from distributed GPU training to hyperparameter sweeps and inference farms. Its straightforward interface and low runtime overhead make it ideal for researchers and engineers pushing modern computational throughput.
+
+Inspired by Platform Lava 1.0 and refined using classical algorithmic discipline, **LavaLite** is designed for **speed, simplicity, and clarity**. It is not a clone — it is a clean **reimplementation and a reinvention**.
+
+**LavaLite originates from the last GPLv2‑licensed Platform Lava 1.0 codebase and evolves independently from there.**
 
 ### MPI Workloads
 

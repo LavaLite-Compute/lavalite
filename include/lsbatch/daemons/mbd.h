@@ -323,7 +323,6 @@ struct jData {
     char *jobSpoolDir;
     struct hData **rsrcPreemptHPtr;
     int numRsrcPreemptHPtr;
-
     struct groupCandHosts *groupCands;
     int numOfGroups;
     int reservedGrp;
@@ -331,6 +330,7 @@ struct jData {
     int *inEligibleGroups;
     int numSlotsReserve;
     int numAvailSlotsReserve;
+    time_t execute_time;
 };
 
 #define JOB_HAS_CANDHOSTS(Job) ((Job)->candPtr != NULL)
@@ -1405,57 +1405,3 @@ extern void updateTimeWindow(struct timeWindow *);
 // LavaLite
 struct hData *getHostData(const char *host);
 void shutdown_mbd_client(struct mbd_client_node *);
-
-// LavaLite model, cleant and most honest approach model — codify
-// the assumption that the daemon is launched by the cluster admin,
-// and make that identity explicit and reusable.
-// One user, fixed identity, zero UID gymnastics.
-struct mbd_manager {
-    uid_t uid;
-    gid_t gid;
-    char *name;
-};
-extern struct mbd_manager *mbd_mgr;
-extern bool_t is_manager(const char *);
-// Lavalite
-extern int mbd_chan;
-extern int mbd_efd;
-extern uint16_t mbd_port;
-extern struct epoll_event *mbd_events;
-extern int mbd_max_events;
-
-// LavaLite
-
-// hData hashed by channel id connected to that sbd
-extern struct ll_hash hdata_by_chan;
-
-int mbd_init(int);
-int mbd_dispatch_sbd(struct mbd_client_node *);
-int do_sbd_register(XDR *, struct mbd_client_node *, struct packet_header *);
-int sbd_handle_new_job_reply(struct mbd_client_node *,
-                             XDR *,
-                             struct packet_header *);
-int sbd_handle_job_status(struct mbd_client_node *,
-                          XDR *,
-                          struct packet_header *);
-int sbd_handle_disconnect(struct mbd_client_node *);
-int mbd_enqueue_hdr(struct mbd_client_node *, int);
-int mbd_init_tables(void);
-int mbd_send_job_ack(struct mbd_client_node *,
-                     int,
-                     const struct job_status_ack *);
-int mbd_handle_slave_restart(struct mbd_client_node *,
-                             struct packet_header *,
-                             XDR *);
-const char *mbd_op_str(int);
-int read_job_file(struct jobSpecs *, struct jData *);
-int mbd_signal_job(int, struct jData *, struct signalReq *, struct lsfAuth *);
-int signal_pending_job(int,
-                       struct jData *,
-                       struct signalReq *,
-                       struct lsfAuth *);
-int signal_running_job(int,
-                       struct jData *,
-                       struct signalReq *,
-                       struct lsfAuth *);
-void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);
