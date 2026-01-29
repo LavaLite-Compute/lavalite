@@ -136,8 +136,6 @@ int sbd_job_record_path(int64_t job_id, char *buf, size_t bufsz)
         return -1;
     }
 
-    LS_INFO("job record %s", buf);
-
     return 0;
 }
 
@@ -145,7 +143,6 @@ int sbd_job_record_remove(int64_t job_id)
 {
     char path[PATH_MAX];
     // Leave the files now for debugging
-    return 0;
 
     LS_INFO("removing job %ld", job_id);
 
@@ -180,6 +177,35 @@ int sbd_job_record_remove(int64_t job_id)
     return 0;
 }
 
+int sbd_jobfile_remove(struct sbd_job *job)
+{
+    char jfile_dir[PATH_MAX];
+    char jfile_path[PATH_MAX];
+
+    // job file directory
+    if (snprintf(jfile_dir, sizeof(jfile_dir), "%s/jfiles",
+                 sbd_state_dir, job_id) >= (int)jfile_dir) {
+        errno = ENAMETOOLONG;
+        return -1;
+     }
+
+    // the direcotry where the jon file in installed
+    int l = snprint(jfile_path, siseof(jfile_path),"%s/%s", jfile_dir,
+                    job.spec->job_file);
+    if (l < 0 || (size_t) >= sizeof(jfile_path)) {
+        error = ENAMETOOLONG;
+        return -1;
+    }
+
+    char job_file[PATH_MAX];
+    l = snprintf(job_file, sizeof(job_file), "%s/job.sh", jfile_pat);
+
+    if (unlink(job_path) < 0)
+        return -1;
+
+     return 0;
+}
+
 int sbd_job_record_write(struct sbd_job *job)
 {
     if (!job) {
@@ -204,12 +230,18 @@ int sbd_job_record_write(struct sbd_job *job)
 
     LS_INFO("job %ld record write start: %s", job->job_id, final_path);
 
+    int pid_acked         = (job->pid_acked != 0);
+    int execute_acked     = (job->execute_acked != 0);
+    int finish_acked      = (job->finish_acked != 0);
+    int exit_status_valid = (job->exit_status_valid != 0);
+    int missing           = (job->missing != 0);
+
     char buf[LL_BUFSIZ_2K];
     int n = snprintf(buf, sizeof(buf),
                      "version=1\n"
                      "job_id=%ld\n"
-                     "pid=%ld\n"
-                     "pgid=%ld\n"
+                     "pid=%d\n"
+                     "pgid=%d\n"
                      "state=%d\n"
                      "pid_acked=%d\n"
                      "execute_acked=%d\n"
@@ -219,16 +251,16 @@ int sbd_job_record_write(struct sbd_job *job)
                      "end_time=%ld\n"
                      "missing=%d\n",
                      job->job_id,
-                     (long)job->pid,
-                     (long)job->pgid,
-                     (int)job->state,
-                     job->pid_acked ? 1 : 0,
-                     job->execute_acked ? 1 : 0,
-                     job->finish_acked ? 1 : 0,
-                     job->exit_status_valid ? 1 : 0,
+                     job->pid,
+                     job->pgid,
+                     job->state,
+                     pid_acked,
+                     execute_acked,
+                     finish_acked,
+                     exit_status_valid,
                      job->exit_status,
                      job->end_time,
-                     job->missing ? 1 : 0);
+                     missing ? 1 : 0);
 
     if (n < 0) {
         errno = EINVAL;
@@ -278,24 +310,21 @@ int sbd_job_record_write(struct sbd_job *job)
         return -1;
     }
 
-    LS_INFO("job %ld record written "
-            "pid=%ld pgid=%ld "
-            "state=%d "
-            "execute_acked=%d finish_acked=%d "
-            "exit_status_valid=%d exit_status=%d "
-            "end_time=%ld "
-            "missing=%d",
+    // exact copy of what is printed in the buffer
+    LS_INFO("job %ld record written pid=%d pgid=%d state=%d pid_acked=%d "
+            "execute_acked=%d finish_acked=%d exit_status_valid=%d exit_status=%d "
+            "end_time=%ld missing=%d",
             job->job_id,
-            (long)job->pid,
-            (long)job->pgid,
-            (int)job->state,
-            job->pid_acked ? 1 : 0,
-            job->execute_acked ? 1 : 0,
-            job->finish_acked ? 1 : 0,
-            job->exit_status_valid ? 1 : 0
-            , job->exit_status,
+            job->pid,
+            job->pgid,
+            job->state,
+            pid_acked,
+            execute_acked,
+            finish_acked,
+            exit_status_valid,
+            job->exit_status,
             job->end_time,
-            job->missing ? 1 : 0);
+            missing);
 
     return 0;
 }

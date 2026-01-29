@@ -211,6 +211,8 @@ sbd_run_daemon(void)
      */
     job_status_checking();
 
+    LS_INFO("sbd enter main loop");
+
     while (1) {
 
         if (sbd_croak) {
@@ -239,9 +241,6 @@ sbd_run_daemon(void)
             struct epoll_event *ev = &sbd_events[i];
             int ch_id = (int)ev->data.u32;
 
-             LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
-                      ch_id, channels[ch_id].chan_events, ev->events);
-
              if (ch_id == sbd_timer_chan) {
                  uint64_t expirations;
                  ssize_t cc = read(chan_sock(ch_id), &expirations,
@@ -259,7 +258,6 @@ sbd_run_daemon(void)
                      LS_ERR("timer short read: %zd bytes", cc);
                      // fall through: still do maintenance
                  }
-                 LS_DEBUG("timer run %s", ctime2(NULL));
              timer_maintenance:
                  sbd_reap_children();
                  sbd_mbd_reconnect_try();
@@ -349,7 +347,7 @@ static bool_t sbd_drive_mbd_link(int ch_id, struct epoll_event *ev)
 
     // During connect, errors/hup mean "attempt failed".
     if (ev->events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
-        LS_ERR("mbd link: connect failed (kernel_events=0x%x)", ev->events);
+        // LS_ERR("mbd link: connect failed (kernel_events=0x%x)", ev->events);
 
         chan_close(ch_id);
         sbd_mbd_chan = -1;
@@ -459,9 +457,13 @@ sbd_mbd_reconnect_try(void)
     sbd_mbd_chan = ch;
     sbd_mbd_connecting = connected ? false : true;
 
-    LS_INFO("mbd link: reconnect started ch=%d connecting=%d",
-            sbd_mbd_chan, sbd_mbd_connecting);
-
+    static time_t last_time;
+    time_t t = time(NULL);
+    if (t - last_time >= 60) {
+        LS_INFO("mbd link: reconnect started ch=%d connecting=%d",
+                sbd_mbd_chan, sbd_mbd_connecting);
+        last_time = t;
+    }
     if (connected) {
         // Connected immediately: enqueue registration request now (async).
         sbd_enqueue_register(sbd_mbd_chan);
@@ -508,13 +510,14 @@ sbd_init_network(void)
         return -1;
     }
 
+    int t;
     // create the listining port and the sbd channel
-    sbd_port = (uint16_t)atoi(genParams[LSB_SBD_PORT].paramValue);
-    if (sbd_port <= 0) {
-        LS_ERR("the LSB_SBD_PORT is not defined correcly %s",
+    if (! ll_atoi(genParams[LSB_SBD_PORT].paramValue, &t)) {
+        LS_ERR("the LSB_SBD_PORT is not defined correcly %s, cannot run",
                genParams[LSB_SBD_PORT].paramValue);
         return -1;
     }
+    sbd_port = (uint16_t)t;
 
     // now open the sbd server channel
     sbd_listen_chan = chan_listen_socket(SOCK_STREAM, sbd_port,
@@ -548,7 +551,9 @@ sbd_init_network(void)
     }
 
     // sbd main channel
-    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = (uint32_t)sbd_listen_chan};
+    struct epoll_event ev = {.events = EPOLLIN,
+        .data.u32 =(uint32_t)sbd_listen_chan};
+
     if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_listen_chan), &ev) < 0) {
         LS_ERR("epoll_ctl() failed to add sbd chan");
         free(sbd_events);
@@ -558,7 +563,19 @@ sbd_init_network(void)
     }
 
     // for now
-    sbd_timer = 10; // seconds
+    t = 0;
+    sbd_timer = DEFAULT_SBD_OPERATION_TIMER; // seconds
+    if (genParams[LSB_SBD_OPERATION_TIMER].paramValue) {
+        if (! ll_atoi(genParams[LSB_SBD_OPERATION_TIMER].paramValue, &t)) {
+            LS_ERR("invalid LSB_SBD_OPERATION_TIME=%s using default %d",
+                   genParams[LSB_SBD_OPERATION_TIMER].paramValue, sbd_timer);
+        } else if (t <= 0) {
+            LS_ERR("invalid LSB_SBD_OPERATION_TIME=%s using default %d",
+                   genParams[LSB_SBD_OPERATION_TIMER].paramValue, sbd_timer);
+        } else {
+            sbd_timer = t;
+        }
+    }
     // this function is in the channel library.
     sbd_timer_chan = chan_create_timer(sbd_timer);
     if (sbd_timer_chan < 0) {
@@ -569,9 +586,20 @@ sbd_init_network(void)
     }
 
     // timout is in second
+    // Bug do: LSB_OPERATION_TIMER
     sbd_resend_timer = DEFAUL_RESEND_ACK_TIMEOUT;
-    if (genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue)
-        sbd_resend_timer = atoi(genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue);
+    if (genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue) {
+        if (! ll_atoi(genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue, &t)) {
+            LS_ERR("invalid LSB_SBD_RESEND_ACK_TIMEOUT=%s using default %d",
+                   genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue, sbd_timer);
+
+        } else if (t <= 0) {
+            LS_ERR("LSB_SBD_RESEND_ACK_TIMEOUT=%s must be > 0 using default %d",
+                   genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue, sbd_timer);
+        } else {
+            sbd_resend_timer = t;
+        }
+    }
     LS_INFO("sbd_resend_timer set to %d secs", sbd_resend_timer);
 
     //sbd timer channel
@@ -677,7 +705,7 @@ static void sbd_reap_children(void)
             job->spec.jStatus = JOB_STAT_EXIT;
         }
 
-        LS_INFO("job %"PRId64 " finished pid=%d jStatus=0x%x status=0x%x",
+        LS_INFO("job %ld finished pid=%d jStatus=0x%x status=0x%x",
                 job->job_id, (int)pid, job->spec.jStatus, (unsigned)status);
     }
 }
@@ -737,9 +765,15 @@ static void job_status_checking(void)
 // Drive the jobReply to mbd after we have sbd created a new job
 static void sbd_reply_drive(void)
 {
+    static time_t last_time;
+
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
+        time_t t = time(NULL);
+        if (t - last_time >= 60) {
+            LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
+            last_time = t;
+        }
         return;
     }
 
@@ -764,10 +798,6 @@ static void sbd_reply_drive(void)
         }
         LS_INFO("job %ld BATCH_NEW_JOB_REPLY enqueued", job->job_id);
 
-        if (sbd_job_record_write(job) < 0) {
-            LS_ERR("job %ld record write failed", job->job_id);
-            continue;
-        }
         job->reply_last_send = now;
     }
 
@@ -777,7 +807,6 @@ static void job_execute_drive(void)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
         return;
     }
 
@@ -810,10 +839,6 @@ static void job_execute_drive(void)
 
         LS_INFO("job %ld BATCH_JOB_EXECUTE enqueued", job->job_id);
 
-        if (sbd_job_record_write(job) < 0) {
-            LS_ERR("job %ld record write failed", job->job_id);
-            continue;
-        }
         // after persist
         job->execute_last_send = now;
     }
@@ -823,7 +848,6 @@ static void job_finish_drive(void)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
         return;
     }
 
@@ -869,10 +893,6 @@ static void job_finish_drive(void)
 
         LS_INFO("job %ld BATCH_JOB_FINISH enqueued", job->job_id);
 
-        if (sbd_job_record_write(job) < 0) {
-            LS_ERR("job %ld record write failed", job->job_id);
-            continue;
-        }
         job->finish_last_send = now;
     }
 }

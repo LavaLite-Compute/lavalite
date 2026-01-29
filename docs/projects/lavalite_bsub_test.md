@@ -140,17 +140,34 @@ Expected:
 
 ## B. Running Job Tests
 
+### B0 Submit job in Hold
+
+Command:
+bsub -H -o /dev/null sleep 86400
+
+Release:
+bkill -s cont <jobid>
+
+Expected:
+  STAT=RUN
+
+Signal:
+bkill -s term <jobid>
+
+Expected:
+EXIT
+
 ### B1 – Submit Running Job
 
 Command:
-bsub -o /dev/null sleep 86400
+bsub -o /dev/null sleep 10
 
 Wait until:
 bjobs JOBID
 
 Expected:
 - STAT=RUN
-- EXEC_HOST populated
+- STAT= DONE after 10 secs
 
 ---
 

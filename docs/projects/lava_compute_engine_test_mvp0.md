@@ -1,6 +1,47 @@
 # Lava Compute Engine – MVP Test Plan (v0.1.0)
 
-Replace `JOBID` with the real numeric job id.
+## Introduction
+
+This document defines the validation plan for the v0.1.0 MVP.
+The goal is to verify signal semantics, state transitions, restart determinism,
+multi-host correctness, and stress stability before tagging the release.
+
+## Engineering Invariants
+
+The following invariants must hold at all times and across daemon restarts:
+
+1. **State Exclusivity**
+   - A job must have exactly one primary state at any time
+     (PEND, PSUSP, RUN, USUSP/SSUSP, EXIT, DONE).
+   - No illegal state combinations.
+
+2. **Deterministic Restart**
+   - After mbatchd or sbatchd restart, job state must remain identical.
+   - Replay must not introduce new transitions.
+   - No unintended ZOMBI resurrection.
+
+3. **Signal Idempotency**
+   - Repeated STOP/CONT/KILL must not create duplicate transitions.
+   - No-op signals must not emit JOB_STATUS events.
+
+4. **Domain Separation**
+   - Pending-domain reasons must never mutate EXIT semantics.
+   - EXIT/DONE reason fields must not affect state during replay.
+   - Generally reason fields must not implicitly mutate job state during replay.
+
+5. **Transport vs Semantic Errors**
+   - LSBE_* codes represent semantic result.
+   - -1 is reserved for transport/internal failure only.
+
+6. **No Silent State Mutation**
+   - State transitions must originate only from explicit actions
+     (signal, scheduler decision, daemon event).
+
+7. **Eventually Terminal Lifecycle**
+   - Under stress, all jobs must eventually reach EXIT or DONE.
+   - No job may remain indefinitely in intermediate state.
+
+## Scope
 
 This document validates:
 
@@ -12,9 +53,20 @@ This document validates:
 
 ---
 
+### A. Pending Job Tests
+### B. Running Job Tests
+### C. Finished Job Tests
+### D. Restart Stability
+### E. Multi-Host
+### F. Stress
+
+---
+
 # A. Pending Job Tests
 
 ## A1 – Submit Held Job (Atomic PSUSP)
+
+Replace `JOBID` with the real numeric job id.
 
 Command:
 bsub -H -o /dev/null sleep 86400

@@ -25,8 +25,6 @@ int sbd_handle_mbd(int ch_id)
 {
     struct chan_data *chan = &channels[ch_id];
 
-    LS_DEBUG("processing mbd request");
-
     if (chan->chan_events == CHAN_EPOLLERR) {
         LS_ERRX("lost connection with mbd on channel %d socket err %d",
                 ch_id, chan_sock_error(ch_id));

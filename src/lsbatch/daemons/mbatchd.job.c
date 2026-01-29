@@ -150,7 +150,7 @@ int mbd_new_job_reply(struct mbd_client_node *client,
                ack.job_id, mbd_op_str(hdr->operation), host_name);
     }
 
-    LS_INFO("mbd job=%ld op=%s rc=%s acked",
+    LS_INFO("mbd job=%ld op=%s acked",
             ack.job_id, mbd_op_str(hdr->operation));
 
     return 0;
@@ -300,6 +300,8 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
 
     // Log terminal status change.
     log_newstatus(job);
+
+    updCounters(job, current_status, job->endTime);
 
     LS_INFO("job %s FINISH commit %s (current=0x%x new=0x%x) from %s",
             lsb_jobid2str(job->jobId),
@@ -729,6 +731,7 @@ int mbd_job_signal_reply(struct mbd_client_node *client, XDR *xdrs,
         return 0;
     }
 
+    int current_status = job->jStatus;
     switch (rep.sig) {
         // We send TSTP as default for sigstop so the application can
         // catch it it wants
@@ -742,7 +745,7 @@ int mbd_job_signal_reply(struct mbd_client_node *client, XDR *xdrs,
         job->newReason |= SUSP_USER_STOP;
         SET_STATE(job->jStatus, JOB_STAT_USUSP);
         log_newstatus(job);
-        assert(job->jStatus & JOB_STAT_RUN);
+        updCounters(job, current_status, time(NULL));
         return 0;
 
     case SIGCONT:

@@ -1,4 +1,4 @@
-/* $Id: lib.initenv.c,v 1.7 2007/08/15 22:18:50 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -53,6 +53,7 @@ struct config_param genParams[LSF_PARAM_COUNT] = {
     [LSB_SBD_CONNTIMEOUT] = {"LSB_SBD_CONNTIMEOUT", NULL},
     [LSB_SBD_READTIMEOUT] = {"LSB_SBD_READTIMEOUT", NULL},
     [LSB_SBD_RESEND_ACK_TIMEOUT] = {"LSB_SBD_RESEND_ACK_TIMEOUT", NULL},
+    [LSB_SBD_OPERATION_TIMER] = {"LSB_SBD_OPERATION_TIMER", NULL},
     // MBD
     [LSB_MBD_PORT] = {"LSB_MBD_PORT", NULL},
 

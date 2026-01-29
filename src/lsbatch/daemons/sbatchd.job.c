@@ -565,6 +565,8 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     if (sbd_job_record_remove(job->job_id) < 0)
         LS_ERR("job %ld record remove failed", job->job_id);
 
+    if (sbd_jobfile_remove(job->job_id) < 0)
+        LS_ERR("job %ld job file  remove failed", job->job_id);
     /*
      * Now it is safe to destroy the sbatchd-side job record/spool:
      * mbd event log is the source of truth, and FINISH is committed.

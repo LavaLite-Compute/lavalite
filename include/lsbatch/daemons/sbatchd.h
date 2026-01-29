@@ -65,7 +65,8 @@ int sbd_enqueue_signal_job_reply(int, struct packet_header *,
                                  struct wire_job_sig_reply *);
 
 // timeout is in second
-#define DEFAUL_RESEND_ACK_TIMEOUT 3
+#define DEFAULT_SBD_OPERATION_TIMER 1
+#define DEFAUL_RESEND_ACK_TIMEOUT 1
 
 // Basic sbatchd job states.
 // Keep it small; mbd already has its own view.
