@@ -85,13 +85,6 @@ AC_CONFIG_FILES([
 
 dnl ---- Dependencies ----
 
-dnl Check for ncurses library
-AC_CHECK_LIB([ncurses], [initscr], [
-  LIBS="$LIBS -lncurses"
-], [
-  AC_MSG_ERROR([Cannot build LavaLite without libncurses])
-])
-
 dnl libtirpc (XDR)
 CPPFLAGS="$CPPFLAGS -I/usr/include/tirpc"
 AC_CHECK_HEADERS([rpc/xdr.h], [], [
