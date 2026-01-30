@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsbatch/daemons/sbatchd.h"
+#include "lsbatch/daemons/sbd.h"
 
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 extern int efd;               /* epoll fd from sbatchd.main.c */
@@ -169,7 +169,7 @@ int sbd_connect_mbd(void)
 
 /*
  * Simple wire struct for registration.
- * Put this in sbatchd.h if not already there:
+ * Put this in sbd.h if not already there:
  *
  * struct wire_sbd_register {
  *     char hostname[256];

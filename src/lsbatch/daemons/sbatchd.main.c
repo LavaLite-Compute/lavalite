@@ -15,12 +15,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsbatch/daemons/sbatchd.h"
+#include "lsbatch/daemons/sbd.h"
 
 // some vars
 int sbd_debug;
 
-// sbatchd main loop
+// sbd main loop
 static void sbd_run_daemon(void);
 static int sbd_init(const char *);
 static void sbd_init_log(void);
@@ -104,14 +104,14 @@ int main(int argc, char **argv)
     }
 
     if (!getenv("LSF_ENVDIR")) {
-        fprintf(stderr, "sbatchd: LSF_ENVDIR must be defined\n");
+        fprintf(stderr, "sbd: LSF_ENVDIR must be defined\n");
         return -1;
     }
 
-    int rc = sbd_init("sbatchd");
+    int rc = sbd_init("sbd");
     if (rc < 0) {
         // print also the lserrno just in case
-        LS_ERRX("sbatchd: sbd_init() failed %s", ls_sysmsg());
+        LS_ERRX("sbd: sbd_init() failed %s", ls_sysmsg());
         sbd_cleanup();
         return 1;
     }
@@ -196,7 +196,7 @@ sbd_run_daemon(void)
      * One-time status reconciliation after restart.
      *
      * After reloading job records from disk, some jobs may have already
-     * finished while sbatchd was down. In that case their PIDs are no longer
+     * finished while sbd was down. In that case their PIDs are no longer
      * alive, but their final status (DONE vs EXIT) has not yet been derived.
      *
      * job_status_checking() performs this reconciliation:
@@ -485,18 +485,18 @@ static void sbd_init_log(void)
 
     // Initialize LavaLite logging
     if (debug) {
-        ls_openlog("sbatchd", log_dir, true, 0, log_mask);
-        LS_INFO("Starting sbatchd in debug mode");
+        ls_openlog("sbd", log_dir, true, 0, log_mask);
+        LS_INFO("Starting sbd in debug mode");
     } else {
         // Normal production daemon case
-        ls_openlog("sbatchd", log_dir, false, 0, log_mask);
+        ls_openlog("sbd", log_dir, false, 0, log_mask);
     }
 
     // tag the log messages as we share on log file with
     // children
     ls_setlogtag("parent");
 
-    LS_INFO("sbatchd logging initialized: dir=%s mask=%s debug=%d",
+    LS_INFO("sbd logging initialized: dir=%s mask=%s debug=%d",
             log_dir, log_mask, debug);
 
 }
@@ -612,7 +612,7 @@ sbd_init_network(void)
         return -1;
     }
 
-    LS_INFO("sbatchd listening on port=%d sbd_listen_chan=%d, epoll_fd=%d "
+    LS_INFO("sbd listening on port=%d sbd_listen_chan=%d, epoll_fd=%d "
             "sbd_timer_chan=%d timer=%dsec sbd_resend_timer=%d",
             sbd_port, sbd_listen_chan, sbd_efd, sbd_timer_chan, sbd_timer,
             sbd_resend_timer);

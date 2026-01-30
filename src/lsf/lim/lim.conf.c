@@ -550,7 +550,7 @@ static char dotypelist(FILE *fp, int *LineNum, char *lsfile)
             if (!addHostType(keyList[0].val))
                 lim_CheckError = WARNING_ERR;
 
-            free(keyList[0].val);
+            FREEUP(keyList[0].val);
         }
     } else {
         ls_syslog(LOG_ERR,
@@ -720,9 +720,9 @@ static char dohostmodel(FILE *fp, int *LineNum, char *lsfile)
             }
 
         next_value:
-            free(keyList[0].val);
-            free(keyList[1].val);
-            free(keyList[2].val);
+            FREEUP(keyList[0].val);
+            FREEUP(keyList[1].val);
+            FREEUP(keyList[2].val);
         }
     } else {
         ls_syslog(LOG_ERR,
@@ -3174,25 +3174,25 @@ void freeHostNodes(struct hostNode *host_node, int allList)
     struct hostNode *next;
 
     while (host_node) {
-        free(host_node->v4_epoint);
-        free(host_node->hostName);
-        free(host_node->windows);
+        FREEUP(host_node->v4_epoint);
+        FREEUP(host_node->hostName);
+        FREEUP(host_node->windows);
 
         if (allList == false) {
             for (i = 0; i < 8; i++)
-                free(host_node->week[i]);
+                FREEUP(host_node->week[i]);
         }
-        free(host_node->busyThreshold);
-        free(host_node->loadIndex);
-        free(host_node->uloadIndex);
-        free(host_node->resBitMaps);
-        free(host_node->DResBitMaps);
-        free(host_node->status);
-        free(host_node->instances);
+        FREEUP(host_node->busyThreshold);
+        FREEUP(host_node->loadIndex);
+        FREEUP(host_node->uloadIndex);
+        FREEUP(host_node->resBitMaps);
+        FREEUP(host_node->DResBitMaps);
+        FREEUP(host_node->status);
+        FREEUP(host_node->instances);
 
         next = host_node->nextPtr;
 
-        free(host_node);
+        FREEUP(host_node);
 
         if (allList == true)
             host_node = next;

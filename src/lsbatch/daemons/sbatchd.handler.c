@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsbatch/daemons/sbatchd.h"
+#include "lsbatch/daemons/sbd.h"
 
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 

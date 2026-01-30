@@ -1,5 +1,5 @@
 #
-# Copyright (C) LavaLite Contributors
+# Copyright (C) LavaCore Contributors
 #
 
 # Reuse shared flags and libs (AM_CPPFLAGS, TIRPC_LIB, etc.)

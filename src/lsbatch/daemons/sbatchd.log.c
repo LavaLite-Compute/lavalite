@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsbatch/daemons/sbatchd.h"
+#include "lsbatch/daemons/sbd.h"
 static int sbd_go_path(int64_t, char *, size_t);
 
 void sbd_child_open_log(const struct jobSpecs *specs)

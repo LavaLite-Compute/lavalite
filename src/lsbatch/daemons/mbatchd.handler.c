@@ -19,7 +19,7 @@
 
 #include "lsbatch/daemons/mbd.h"
 #include "lsbatch/daemons/mbatchd.h"
-#include "lsbatch/daemons/sbatchd.h"
+#include "lsbatch/daemons/sbd.h"
 
 // These are the top handlers of sbd events
 int mbd_dispatch_sbd(struct mbd_client_node *client)

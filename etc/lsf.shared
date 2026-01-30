@@ -1,9 +1,8 @@
-# $Id: lsf.shared,v 1.1.4.4 2006/04/28 21:36:01 mblack Exp $
-# Copyright (C) LavaLite Contributors
+# Copyright (C) LavaCore Contributors
 #
 Begin Cluster
 ClusterName
-lavalite
+lavacore
 End Cluster
 
 # Describes the operating system and hardware architecture.
@@ -15,18 +14,18 @@ riscv64_linux
 End HostType
 
 # Describes a *logical* host class.
-# NOTE: LavaLite does NOT use MODEL/CPUFACTOR for scheduling.
+# NOTE: LavaCore does NOT use MODEL/CPUFACTOR for scheduling.
 #       These names exist only for compatibility and display (lsload, lshosts).
 Begin HostModel
-# MODELNAME    CPUFACTOR   ARCHITECTURE
+MODELNAME    CPUFACTOR   ARCHITECTURE
 x86_default     100        (x86_64_linux)
-x86_gpu         100        (x86_64_linux)
-x86_highmem     100        (x86_64_linux)
+x86_gpu         100        (x86_64_gpu)
+x86_highmem     100        (x86_64_highmem)
 
-arm_default     100        (arm64_linux)
-arm_gpu         100        (arm64_linux)
+arm_default     100        (arm64_default)
+arm_gpu         100        (arm64_gpu)
 
-riscv_default   100        (riscv64_linux)
+riscv_default   100        (riscv_default)
 End HostModel
 
 

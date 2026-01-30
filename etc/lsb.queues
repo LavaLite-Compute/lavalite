@@ -1,5 +1,5 @@
 # Queue definition profile. This file affects the scheduling behavior of the
-# LavaLite Batch system on jobs submitted to queues.  Each queue is defined in a
+# LavaCore Batch system on jobs submitted to queues.  Each queue is defined in a
 # Queue section enclosed by Begin Queue and End Queue
 
 # Queues with higher PRIORITY (larger values) are searched first

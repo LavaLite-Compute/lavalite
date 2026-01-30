@@ -1,5 +1,4 @@
-/* $Id: sbd.h,v 1.8 2007/08/15 22:18:46 tmizan Exp $
- * Copyright (C) 2007 Platform Computing Inc
+/*
  * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,289 +12,212 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
- USA
- *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA  02110-1301, USA
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/daemons/daemonout.h"
+#pragma once
+
+#include "lsf/lib/ll.sys.h"
+#include "lsf/lib/ll.sysenv.h"
+#include "lsf/lib/lproto.h"
+#include "lsf/lib/ll.host.h"
+#include "lsf/lib/lib.channel.h"
+#include "lsbatch/lib/lsb.xdr.h"
+#include "lsbatch/lib/lsb.h"      // jobSpecs, sbdReplyType
+#include "lsf/lib/ll.list.h"      // struct ll_list, struct ll_list_entry
+#include "lsf/lib/ll.hash.h"      // struct ll_hash
 #include "lsbatch/daemons/daemons.h"
 
-#define NULLFILE "/dev/null"
-#define JOBFILEEXT ""
+extern int sbd_debug;
+// chan epoll
+extern int sbd_efd;
+// the sbd channel to talk to its own clients
+extern int sbd_listen_chan;
+// sbd has a timer to driver periodic operation and this is the
+// associated channel
+extern int sbd_timer_chan;
+// channel to mbd, sbd is a permanent client of mbd
+extern int sbd_mbd_chan;
+extern bool_t connected;
+extern bool_t sbd_mbd_connecting;
 
-#define JOBFILE_CREATED -1
+// LavaLite sbd saved state record processing
+// state dir is where the image of running jobs on this
+// sbd are
+extern char sbd_state_dir[PATH_MAX];
+extern char sbd_jfiles_dir[PATH_MAX];
 
-enum { JSUPER_STAT_SUSP };
+int sbd_connect_mbd(void);
+int sbd_nb_connect_mbd(bool_t *);
+int sbd_enqueue_register(int);
+bool_t sbd_mbd_link_ready(void);
+void sbd_mbd_link_down(void);
+void sbd_mbd_shutdown(void);
 
-struct jobCard {
-    struct jobCard *forw, *back;
-    gid_t execGid;
-    char execUsername[MAXLSFNAMELEN];
-    int notReported;
-    time_t windEdge;
-    windows_t *week[8];
+// handle mbd messagges
+int sbd_handle_mbd(int);
+void sbd_new_job(int chfd, XDR *, struct packet_header *);
+void sbd_new_job_reply_ack(int, XDR *, struct packet_header *);
+void sbd_job_execute_ack(int, XDR *, struct packet_header *);
+void sbd_job_finish_ack(int ch_id, XDR *, struct packet_header *);
+int sbd_signal_job(int, XDR *, struct packet_header *);
+int sbd_enqueue_signal_job_reply(int, struct packet_header *,
+                                 struct wire_job_sig_reply *);
 
-    char active;
-    char timeExpire;
-    char missing;
-    char mbdRestarted;
-    time_t windWarnTime;
-    int runTime;
-    int w_status;
-    /* pre-exec report flag */
-    float cpuTime;
-    time_t lastChkpntTime;
-    int migCnt;
-    struct jobSpecs jobSpecs;
-    struct lsfRusage lsfRusage;
-    int needReportRU;
-    int cleanupPid;
-    int collectedChild;
-    int execJobFlag;
-#define JOB_EXEC_QPRE_OK 0x1
-#define JOB_EXEC_QPRE_KNOWN 0x2
-#define JOB_EXEC_STARTED 0x4
+// timeout is in second
+#define DEFAULT_SBD_OPERATION_TIMER 1
+#define DEFAUL_RESEND_ACK_TIMEOUT 1
 
-    char *stdinFile;
-
-    time_t lastStatusMbdTime;
-
-    struct jRusage runRusage;
-    struct jRusage mbdRusage;
-
-    struct jRusage maxRusage;
-
-    int delieveredMsgId;
-    struct clientNode *client;
-    int regOpFlag;
-    bool_t newPam;
-    struct jRusage wrkRusage;
-    int jSupStatus;
-#define REG_CHKPNT 0x1
-#define REG_SIGNAL 0x2
-#define REG_RUSAGE 0x4
-#define REG_NICE 0x8
-    struct resVal *resumeCondVal;
-    struct resVal *stopCondVal;
-    int actFlags;
-    int actStatus;
-    int actReasons;
-    int actSubReasons;
-    int exitPid;
-    int jobDone;
-    time_t lastCheck;
-    char *actCmd;
-    char *exitFile;
-    char *clusterName;
-    int servSocket;
-    int crossPlatforms;
-    char *spooledExec;
-    char postJobStarted;
-    char userJobSucc;
+// Basic sbatchd job states.
+// Keep it small; mbd already has its own view.
+enum sbd_job_state {
+    SBD_JOB_NEW = 0,          // received, not yet forked
+    SBD_JOB_RUNNING,              // forked/exec'd, still alive
+    SBD_JOB_EXITED,               // exited normally
+    SBD_JOB_FAILED,               // failed before/at exec
+    SBD_JOB_KILLED                // killed by signal
 };
 
-typedef enum { NO_SIGLOG, SIGLOG } logType;
+// sbatchd-local view of a job.
+// This replaces the old jobCard horror.
+struct sbd_job {
+    struct ll_list_entry list;        // intrusive link in global job list
 
-#define JOB_RUNNING(jp)                                                        \
-    (((jp)->jobSpecs.jStatus & JOB_STAT_RUN) && (JOB_STARTED(jp)))
+    int64_t job_id;                   // global jobId (stable, assigned by mbd)
+    struct jobSpecs spec;             // job specification as received from mbd
+                                      // (jobFile, command, resources, etc.)
 
-#define FILE_ERRNO(errno)                                                      \
-    (errno == ENOENT || errno == EPERM || errno == EACCES || errno == ELOOP || \
-     errno == ENAMETOOLONG || errno == ENOTDIR || errno == EBADF ||            \
-     errno == EFAULT || errno == EEXIST || errno == ENFILE ||                  \
-     errno == EINVAL || errno == EISDIR || errno == ENOSPC ||                  \
-     errno == ENXIO || errno == EROFS || errno == ETXTBSY)
+    pid_t pid;                        // main job PID (child spawned by sbatchd)
+    pid_t pgid;                       // process group ID for the job
 
-struct clientNode {
-    struct clientNode *forw;
-    struct clientNode *back;
-    int chanfd;
-    struct sockaddr_in from;
-    int jobType;
-    int64_t jobId;
-    struct jobCard *jp;
+    enum sbd_job_state state;     // sbatchd-local job state (not wire-visible)
+
+    /*
+     * pid_acked (PID_COMMITTED):
+     *   Set to TRUE when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
+     *   This ACK means mbd has *committed* (logged) the pid/pgid snapshot
+     *   for this job in its event log (lsb.events is the source of truth).
+     *
+     *   Protocol ordering gate:
+     *     - EXECUTE and FINISH must not be emitted before pid_acked.
+     */
+    bool_t pid_acked;
+    time_t pid_ack_time;         // time when pid_acked was set (diagnostics)
+    struct jobReply job_reply; // the JobReply structure to mbd
+    int reply_code;       // the reply code from sbd_spawn_job()
+    time_t reply_last_send; // last time we tried to sent the reply
+    /*
+     * execute_acked (EXECUTE_COMMITTED):
+     *   Set to TRUE when sbatchd processes the ACK for the EXECUTE event,
+     *   meaning mbd has logged/committed the EXECUTE record for this job.
+     *
+     *   Ordering:
+     *     - execute_acked implies pid_acked.
+     */
+    bool_t execute_acked;
+    time_t execute_last_send; // last time we tried to send execute status
+    /*
+     * finish_acked (FINISH_COMMITTED):
+     *   Set to TRUE when sbatchd processes the ACK for the FINISH event,
+     *   meaning mbd has logged/committed the terminal record for this job.
+     *
+     *   Ordering:
+     *     - finish_acked implies execute_acked.
+     *     - FINISH is only eligible once exit_status_valid is true.
+     */
+    bool_t finish_acked;
+    time_t finish_last_send; // last time we tried to send finish status
+
+    int exit_status;                  // raw waitpid() status
+    bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
+    time_t end_time;     // job finish time
+    char exec_username[LL_BUFSIZ_64]; // execution username (used in statusReq)
+    char exec_cwd[PATH_MAX];   // execution working directory
+
+    struct lsfRusage lsf_rusage;  // resource usage snapshot (zero for now;
+                                  // later populated from cgroupv2)
+
+    bool_t missing;      // TRUE if job data/spool is inconsistent or lost
 };
 
-struct jobSetup {
-    int64_t jobId;
-    int jStatus;
-    float cpuTime;
-    int w_status;
-    struct lsfRusage lsfRusage;
-    int reason;
-    int jobPid;
-    int jobPGid;
-    int execGid;
-    int execUid;
-    char execUsername[MAXLSFNAMELEN];
-    char execHome[MAXFILENAMELEN];
-    char execCwd[MAXFILENAMELEN];
-    int execJobFlag;
+// Struct sbd job state to save the minimum status of the job to the
+// state file for the purpose of reloading it if/when the sbd restarts
+struct sbd_job_record {
+    int64_t job_id;
 
-#define LSB_PRE_ABORT 99
+    pid_t pid;
+    pid_t pgid;
+
+    bool_t reply_committed;    // PID_COMMITTED (op30)
+    bool_t execute_committed;  // EXECUTE committed (op31)
+    bool_t finish_committed;   // FINISH committed (op32)
+
+    bool_t finished_locally;   // we reaped it
+    int    exit_status;        // raw waitpid() status
+    time_t end_time;  // if the job has finih record the time
 };
 
-struct jobSyslog {
-    int logLevel;
-    char msg[MAXLINELEN];
-};
 
-#define UID_MAPPED(jp) (strcmp((jp)->jobSpecs.userName, (jp)->execUsername))
+// Global containers (defined in sbd.job.c or sbd.main.c)
+extern struct ll_list sbd_job_list;   // intrusive list of all active jobs
+extern struct ll_hash *sbd_job_hash;  // key: job_id -> value: struct sbd_job*
 
-#define SUBMIT_JID(jp) ((jp)->jobSpecs.jobId)
+// ---- sbd_job workers ----
 
-#define PURE_INTERACTIVE(jobSpecsPtr)                                          \
-    (((jobSpecsPtr)->options & SUB_INTERACTIVE) &&                             \
-     !((jobSpecsPtr)->options &                                                \
-       (SUB_IN_FILE | SUB_OUT_FILE | SUB_ERR_FILE)) &&                         \
-     !((jobSpecsPtr)->preCmd && (jobSpecsPtr)->preCmd[0] != '\0' &&            \
-       (jobSpecsPtr)->postCmd && (jobSpecsPtr)->postCmd[0] != '\0'))
+// sbd write helper make sure all buffer is drained
+int write_all(int fd, const char *, size_t);
 
-#define OTHER_REASONS (SUSP_ADMIN_STOP | SUSP_RES_RESERVE)
+// Look up a job by jobId (NULL if not found).
+struct sbd_job *sbd_job_lookup(int job_id);
 
-#define SUSP_USER(jp) ((jp)->jobSpecs.reasons & SUSP_USER_STOP)
+// Allocate + initialise a new sbd_job from jobSpecs.
+// Does not insert into list/hash.
+struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
 
-#define SUSP_WINDOW(jp) ((jp)->jobSpecs.reasons & SUSP_QUEUE_WINDOW)
+// Insert job into global list + hash.
+void sbd_job_insert(struct sbd_job *);
+// Remove and destroy job from global list + hash + free.
+void sbd_job_destroy(struct sbd_job *);
+void sbd_job_free(void *);
 
-#define SUSP_LOAD(jp) ((jp)->jobSpecs.reasons & (LOAD_REASONS))
+// Mapping between sbatchd state and lsbatch.h JOB_STAT_* bitmask
+int sbd_state_to_jstatus(enum sbd_job_state);
 
-#define SUSP_OTHER(jp) ((jp)->jobSpecs.reasons & (OTHER_REASONS))
+// Refresh job status from mbd
+void sbd_job_sync_jstatus(struct sbd_job *);
 
-#define JOB_STARTED(jp)                                                        \
-    (((jp)->execJobFlag & JOB_EXEC_STARTED) ||                                 \
-     (!daemonParams[LSB_BSUBI_OLD].paramValue &&                               \
-      PURE_INTERACTIVE(&(jp)->jobSpecs)))
+// Make a copy of jobSpecs for the lifetime of the job
+int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
+void jobSpecs_free(struct jobSpecs *);
 
-extern int mbdPid;
-extern int jobcnt;
-extern int maxJobs;
-extern int uJobLimit;
-extern int pgSuspIdleT;
-extern int listenNqs;
-extern windows_t *host_week[8];
-extern time_t host_windEdge;
-extern char host_active;
-extern char master_unknown;
-extern char myStatus;
+int sbd_enqueue_new_job_reply(struct sbd_job *);
+int sbd_enqueue_execute(struct sbd_job *);
+int sbd_enqueue_finish( struct sbd_job *);
+bool_t sbd_mbd_link_ready(void);
 
-#define NO_LIM 0x0001
+// sbd record function to save the state of jobs from
+// sbd point of view restore the latest state after
+// restart
+int sbd_job_record_dir_init(void);
+int sbd_job_record_load_all(void);
+int sbd_job_record_read(int64_t, struct sbd_job *);
+int sbd_job_record_write(struct sbd_job *);
+int sbd_job_record_remove(struct sbd_job *);
+int sbd_jobfile_remove(struct sbd_job *);
+void sbd_prune_acked_jobs(void);
+int sbd_go_write(int64_t);
 
-extern char need_checkfinish;
-extern int failcnt;
-extern float myFactor;
-extern int pgSuspIdleT;
-extern char *env_dir;
-extern time_t bootTime;
 
-extern struct listEntry *jobQue;
-extern struct jobCard *jobQueHead;
-extern struct jobTable *joblist[];
-extern struct clientNode *clientList;
-extern struct bucket *jmQueue;
+// sbd has command to query its internal status
+int handle_sbd_accept(int);
+int handle_sbd_client(int);
+int sbd_reply_hdr_only(int, int, struct packet_header *);
 
-extern int statusChan;
-
-extern void start_master(void);
-extern void shutDownClient(struct clientNode *);
-
-extern void do_newjob(XDR *xdrs, int s, struct packet_header *);
-extern void do_switchjob(XDR *xdrs, int s, struct packet_header *);
-extern void do_sigjob(XDR *xdrs, int s, struct packet_header *);
-extern void do_probe(XDR *xdrs, int s, struct packet_header *);
-extern void do_reboot(XDR *xdrs, int s, struct packet_header *);
-extern void do_shutdown(XDR *xdrs, int s, struct packet_header *);
-extern void do_jobSetup(XDR *xdrs, int s, struct packet_header *);
-extern void do_jobSyslog(XDR *xdrs, int s, struct packet_header *);
-extern void do_jobMsg(struct bucket *, XDR *, int s, struct packet_header *);
-extern void do_rmConn(XDR *, int, struct packet_header *, struct clientNode *);
-extern void do_lsbMsg(XDR *, int s, struct packet_header *);
-extern void deliverMsg(struct bucket *);
-
-extern void getJobsState(struct sbdPackage *sbdPackage);
-extern int status_job(mbdReqType, struct jobCard *, int, sbdReplyType);
-extern void sbdSyslog(int, char *);
-extern void jobSetupStatus(int, int, struct jobCard *);
-extern int msgSupervisor(struct lsbMsg *, struct clientNode *);
-#ifdef INTER_DAEMON_AUTH
-extern int getSbdAuth(struct lsfAuth *);
-#endif
-extern int sendUnreportedStatus(struct chunkStatusReq *chunkStatusReq);
-
-extern struct jobCard *addJob(struct jobSpecs *, int);
-extern void refreshJob(struct jobSpecs *);
-extern sbdReplyType job_exec(struct jobCard *jobCardPtr, int);
-extern void status_report(void);
-extern int job_finish(struct jobCard *, int);
-extern void setRunLimit(struct jobCard *, int);
-extern void inJobLink(struct jobCard *);
-extern void deallocJobCard(struct jobCard *);
-extern void freeToHostsEtc(struct jobSpecs *);
-extern void saveSpecs(struct jobSpecs *, struct jobSpecs *);
-extern void renewJobStat(struct jobCard *jp);
-extern void jobGone(struct jobCard *jp);
-extern void preJobStatus(struct jobCard *jp, int sfd);
-extern int setIds(struct jobCard *jobCardPtr);
-extern void preExecFinish(struct jobCard *);
-extern void jobGone(struct jobCard *jp);
-extern int setJobEnv(struct jobCard *);
-extern int runQPost(struct jobCard *);
-extern int acctMapOk(struct jobCard *);
-extern int acctMapTo(struct jobCard *);
-extern int postJobSetup(struct jobCard *);
-extern void runUPre(struct jobCard *);
-extern int reniceJob(struct jobCard *);
-extern int updateRUsageFromSuper(struct jobCard *jp, char *mbuf);
-extern void sbdChild(char *, char *);
-extern int initJobCard(struct jobCard *jp, struct jobSpecs *jobSpecs, int *);
-extern void freeThresholds(struct thresholds *);
-extern void saveThresholds(struct jobSpecs *, struct thresholds *);
-extern void unlockHosts(struct jobCard *, int);
-extern int lockHosts(struct jobCard *);
-
-extern void job_checking(void);
-extern int job_resume(struct jobCard *);
-extern void checkFinish(void);
-extern void setInclRs(struct jobSpecs *jobSpecs, int reason);
-extern void resetInclRs(struct jobSpecs *jobSpecs, int reason);
-extern int testInclRs(struct jobSpecs *jobSpecs, int reason);
-
-extern int chkpntJob(struct jobCard *, int);
-extern void execRestart(struct jobCard *jobCardPtr, struct hostent *hp);
-
-extern int rmJobBufFiles(struct jobCard *);
-extern void writePreJobFail(struct jobCard *jp);
-
-extern int appendJobFile(struct jobCard *jobCard, char *header,
-                         struct hostent *hp, char *errMsg);
-extern int initPaths(struct jobCard *jp, struct hostent *fromHp,
-                     struct lenData *jf);
-extern int rcpFile(struct jobSpecs *, struct xFile *, char *, int, char *);
-extern void delCredFiles(void);
-extern void jobFileExitStatus(struct jobCard *jobCard);
-extern int isAbsolutePathSub(struct jobCard *, const char *);
-extern int isAbsolutePathExec(const char *);
-
-extern void milliSleep(int msec);
-extern char window_ok(struct jobCard *jobPtr);
-extern void child_handler(int);
-extern void shout_err(struct jobCard *jobPtr, char *);
-extern int fcp(char *, char *, struct hostent *);
-extern int rmDir(char *);
-extern void closeBatchSocket(void);
-extern void getManagerId(struct sbdPackage *);
-
-bool_t xdr_jobSetup(XDR *, struct jobSetup *, struct packet_header *);
-bool_t xdr_jobSyslog(XDR *, struct jobSyslog *, struct packet_header *);
-bool_t xdr_jobCard(XDR *, struct jobCard *, struct packet_header *);
-extern int sizeofJobCard(struct jobCard *);
-
-extern int jobSigStart(struct jobCard *jp, int sigValue, int actFlags,
-                       int actPeriod, logType logFlag);
-extern int jobact(struct jobCard *, int, char *, int, int);
-extern int jobsig(struct jobCard *jobTable, int sig, int forkKill);
-extern int sbdread_jobstatus(struct jobCard *jp);
-extern int sbdCheckUnreportedStatus();
-extern void exeActCmd(struct jobCard *jp, char *actCmd, char *exitFile);
-extern void exeChkpnt(struct jobCard *jp, int chkFlags, char *exitFile);
+// Use the xdr_func() signiture without argument otherwise we should
+// use void * and every xdr function will have to take it and cast it
+// to its own xdr data structure
+int sbd_reply_payload(int, int, struct packet_header *,
+                      void *, bool_t (*xdr_func)());
+int sbd_read_exit_status_file(int, int *, time_t *);
+void sbd_child_open_log(const struct jobSpecs *);

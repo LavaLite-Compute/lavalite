@@ -1,4 +1,4 @@
-/* $Id: lib.conf.c,v 1.6 2007/08/15 22:18:50 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
