@@ -862,22 +862,15 @@ static void job_finish_drive(void)
             continue;
 
         // pid_sent is the hard gate: mbd must have recorded pid/pgid first.
-        if (!job->pid_acked) {
-            LS_DEBUG("job %ld not ready: pid not acked yet", job->job_id);
+        if (!job->pid_acked)
             continue;
-        }
 
-        if (!job->execute_acked) {
-            LS_DEBUG("job %ld not acked JOB_BATCH_EXECUTE yet",
-                     job->job_id);
-            // Do not attempt finish in the same pass unless execute is sent.
+        if (!job->execute_acked)
             continue;
-        }
 
-        if (! job->exit_status_valid) {
-            LS_DEBUG("job %ld has not finished yet", job->job_id);
+
+        if (! job->exit_status_valid)
             continue;
-        }
 
         if (job->finish_acked)
             continue;

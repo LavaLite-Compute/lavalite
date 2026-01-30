@@ -46,6 +46,7 @@ void sbd_child_open_log(const struct jobSpecs *specs)
  */
 
 char sbd_state_dir[PATH_MAX];
+char sbd_jfiles_dir[PATH_MAX];
 
 int sbd_job_record_dir_init(void)
 {
@@ -74,22 +75,27 @@ int sbd_job_record_dir_init(void)
         return -1;
     }
 
+    int l = snprintf(sbd_jfiles_dir, sizeof(sbd_jfiles_dir),
+                     "%s/jfiles", sbd_root);
+    if (l < 0 || (size_t)l >= sizeof(sbd_jfiles_dir)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sbd_init_state: job files path too long");
+        return -1;
+    }
+
     // Create <sharedir>/sbatchd and <sharedir>/sbatchd/state (ignore EEXIST).
     if (mkdir(sbd_root, 0700) < 0 && errno != EEXIST) {
-        LS_ERR("sbd_init_state: mkdir(%s) failed: %s",
-               sbd_root, strerror(errno));
+        LS_ERR("sbd_init_state: mkdir(%s) failed", sbd_root);
         return -1;
     }
 
     if (mkdir(sbd_state_dir, 0700) < 0 && errno != EEXIST) {
-        LS_ERR("sbd_init_state: mkdir(%s) failed: %s",
-               sbd_state_dir, strerror(errno));
+        LS_ERR("sbd_init_state: mkdir(%s) failed", sbd_state_dir);
         return -1;
     }
 
     if (stat(sbd_state_dir, &st) < 0) {
-        LS_ERR("sbd_init_state: stat(%s) failed: %s",
-               sbd_state_dir, strerror(errno));
+        LS_ERR("sbd_init_state: stat(%s) failed", sbd_state_dir);
         return -1;
     }
 
@@ -100,107 +106,88 @@ int sbd_job_record_dir_init(void)
         return -1;
     }
 
-    LS_INFO("sbd state dir: %s", sbd_state_dir);
+    if (mkdir(sbd_jfiles_dir, 0700) < 0 && errno != EEXIST) {
+        LS_ERR("sbd_jfiles_state: mkdir(%s) failed", sbd_jfiles_dir);
+        return -1;
+    }
+
+    if (stat(sbd_jfiles_dir, &st) < 0) {
+        LS_ERR("sbd_jfiles_state: stat(%s) failed", sbd_jfiles_dir);
+        return -1;
+    }
+
+    if (!S_ISDIR(st.st_mode)) {
+        errno = ENOTDIR;
+        LS_ERR("sbd_init_state: %s exists but is not a directory",
+               sbd_jfiles_dir);
+        return -1;
+    }
+
+    LS_INFO("sbd_state_dir=%s sbd_jfile_dir=%s", sbd_state_dir, sbd_jfiles_dir);
     return 0;
 }
 
-/*
- * Construct the filesystem path for a sbatchd job record directory.
- *
- * This function formats the path corresponding to the given job ID
- * into the provided buffer.
- *
- * The resulting path identifies the directory or file location used
- * by sbatchd to store persistent job state for the specified job.
- *
- * The buffer must be large enough to hold the full path including
- * the terminating NUL character.
- *
- * On success, the buffer contains a NUL-terminated path string.
- */
-int sbd_job_record_path(int64_t job_id, char *buf, size_t bufsz)
-{
-    if (!buf || bufsz == 0) {
-        errno = EINVAL;
-        return -1;
-    }
-    if (sbd_state_dir[0] == '\0') {
-        errno = EINVAL;
-        return -1;
-    }
-
-    // <state>/job.<jobid>
-    if (snprintf(buf, bufsz, "%s/job.%ld", sbd_state_dir, job_id) >=
-        (int)bufsz) {
-        errno = ENAMETOOLONG;
-        return -1;
-    }
-
-    return 0;
-}
-
-int sbd_job_record_remove(int64_t job_id)
+int sbd_job_record_remove(struct sbd_job *job)
 {
     char path[PATH_MAX];
     // Leave the files now for debugging
 
+    int64_t job_id = job->job_id;
     LS_INFO("removing job %ld", job_id);
 
-    // remove the job file
-    if (sbd_job_record_path(job_id, path, sizeof(path)) < 0) {
-        LS_ERR("failed to remove path %s for job %ld", path, job_id);
-        return -1;
-    }
-    if (unlink(path) < 0)
-        return -1;
-
-    // remove the exit status file
-    int l =  snprintf(path, sizeof(path), "%s/exit.status.%ld",
-                      sbd_state_dir, job_id);
+    // state file
+    int l = snprintf(path, sizeof(path), "%s/job.%ld", sbd_state_dir, job_id);
     if (l < 0 || (size_t)l >= sizeof(path)) {
         errno = ENAMETOOLONG;
+        LS_ERR("sprint %s failed", path);
         return -1;
     }
-    if (unlink(path) < 0)
+    if (unlink(path) < 0) {
+        LS_ERR("failed remove state file %s for job %ld", path, job_id);
         return -1;
+    }
+
+    // remove the exit status file
+    l =  snprintf(path, sizeof(path), "%s/exit.status.%ld",
+                  sbd_state_dir, job_id);
+    if (l < 0 || (size_t)l >= sizeof(path)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sprint %s failed", path);
+        return -1;
+    }
+    if (unlink(path) < 0) {
+        LS_ERR("failed remove exit file %s for job %ld", path, job_id);
+        return -1;
+    }
 
     // remove the go file
     l =  snprintf(path, sizeof(path), "%s/go.%ld",
                   sbd_state_dir, job_id);
     if (l < 0 || (size_t)l >= sizeof(path)) {
         errno = ENAMETOOLONG;
+        LS_ERR("sprint %s failed", path);
         return -1;
     }
-    if (unlink(path) < 0)
+    if (unlink(path) < 0) {
+        LS_ERR("failed remove go file %s for job %ld", path, job_id);
         return -1;
+    }
 
     return 0;
 }
 
 int sbd_jobfile_remove(struct sbd_job *job)
 {
-    char jfile_dir[PATH_MAX];
-    char jfile_path[PATH_MAX];
-
-    // job file directory
-    if (snprintf(jfile_dir, sizeof(jfile_dir), "%s/jfiles",
-                 sbd_state_dir, job_id) >= (int)jfile_dir) {
+    char job_file[PATH_MAX];
+    int l = snprintf(job_file, sizeof(job_file),
+                     "%s/%s/job.%ld", sbd_jfiles_dir, job->spec.job_file,
+                     job->job_id);
+    if (l < 0 || (size_t)l >= PATH_MAX) {
         errno = ENAMETOOLONG;
-        return -1;
-     }
-
-    // the direcotry where the jon file in installed
-    int l = snprint(jfile_path, siseof(jfile_path),"%s/%s", jfile_dir,
-                    job.spec->job_file);
-    if (l < 0 || (size_t) >= sizeof(jfile_path)) {
-        error = ENAMETOOLONG;
         return -1;
     }
 
-    char job_file[PATH_MAX];
-    l = snprintf(job_file, sizeof(job_file), "%s/job.sh", jfile_pat);
-
-    if (unlink(job_path) < 0)
+    if (unlink(job_file) < 0)
         return -1;
 
      return 0;
@@ -214,21 +201,28 @@ int sbd_job_record_write(struct sbd_job *job)
         return -1;
     }
 
-    char final_path[PATH_MAX];
-    if (sbd_job_record_path(job->job_id, final_path, sizeof(final_path)) < 0) {
-        LS_ERRX("job %ld record path build failed", job->job_id);
+    int64_t job_id = job->job_id;
+
+    // Single-writer invariant: sbatchd writes job records from the main loop only.
+    // tmp name is job-addressable for post-mortem; no O_EXCL to avoid stale
+    // tmp bricking after SIGKILL.
+    char path[PATH_MAX];
+    int l = snprintf(path, sizeof(path), "%s/job.%ld", sbd_state_dir, job_id);
+    if (l < 0 || (size_t)l >= sizeof(path)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sprint %s failed", path);
         return -1;
     }
 
     char tmp_path[PATH_MAX];
-    if (snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%ld",
-                 final_path, (long)getpid()) >= (int)sizeof(tmp_path)) {
+    l = snprintf(tmp_path, sizeof(tmp_path), "%s/tmp.%ld", sbd_state_dir, job_id);
+    if (l < 0 || (size_t)l >= (int)sizeof(tmp_path)) {
         errno = ENAMETOOLONG;
         LS_ERR("job %ld record tmp path too long", job->job_id);
         return -1;
     }
 
-    LS_INFO("job %ld record write start: %s", job->job_id, final_path);
+    //LS_INFO("job %ld record write start: %s", job->job_id, path);
 
     int pid_acked         = (job->pid_acked != 0);
     int execute_acked     = (job->execute_acked != 0);
@@ -303,9 +297,9 @@ int sbd_job_record_write(struct sbd_job *job)
         return -1;
     }
 
-    if (rename(tmp_path, final_path) < 0) {
+    if (rename(tmp_path, path) < 0) {
         LS_ERR("job %ld rename(%s -> %s) failed", job->job_id,
-               tmp_path, final_path);+
+               tmp_path, path);
         unlink(tmp_path);
         return -1;
     }
@@ -397,9 +391,10 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
         errno = EINVAL;
         return -1;
     }
-
-    if (sbd_job_record_path(job_id, path, sizeof(path)) < 0) {
-        errno = EINVAL;
+    int l = snprintf(path, sizeof(path), "%s/job.%ld", sbd_state_dir, job_id);
+    if (l < 0 || (size_t)l >= sizeof(path)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sprint %s failed", path);
         return -1;
     }
 
@@ -528,7 +523,7 @@ void sbd_prune_acked_jobs(void)
         // remove the job from the disk and free it from memory
         // later we may want to keep the job around for some time...
         // perhaps...
-        sbd_job_record_remove(job->job_id);
+        sbd_job_record_remove(job);
         sbd_job_destroy(job);
         // next!
         e = e2;

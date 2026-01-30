@@ -708,8 +708,9 @@ int mbd_job_signal_reply(struct mbd_client_node *client, XDR *xdrs,
         return 0;
     }
 
-    LS_INFO("processing signal ack job_id=%ld sig=%d rc=%d errno=%d",
-            rep.job_id, rep.sig, rep.rc, rep.detail_errno);
+    LS_INFO("processing signal ack job_id=%ld jStatus=%s sig=%d rc=%d errno=%d",
+            rep.job_id, job_state_str(job->jStatus),
+            rep.sig, rep.rc, rep.detail_errno);
 
     if (rep.rc != LSBE_NO_ERROR) {
         // what is the status of the job?
@@ -755,9 +756,9 @@ int mbd_job_signal_reply(struct mbd_client_node *client, XDR *xdrs,
             return 0;
         }
         job->newReason &= ~SUSP_USER_STOP;
-        job->jStatus &= (JOB_STAT_USUSP | JOB_STAT_SSUSP);
         SET_STATE(job->jStatus, JOB_STAT_RUN);
         log_newstatus(job);
+        updCounters(job, current_status, time(NULL));
         return 0;
 
     default:

@@ -26,7 +26,7 @@ int sbd_handle_mbd(int ch_id)
     struct chan_data *chan = &channels[ch_id];
 
     if (chan->chan_events == CHAN_EPOLLERR) {
-        LS_ERRX("lost connection with mbd on channel %d socket err %d",
+        LS_ERRX("lost connection with mbd on channel=%d socket err=%d",
                 ch_id, chan_sock_error(ch_id));
         sbd_mbd_link_down();
         return -1;
@@ -45,7 +45,7 @@ int sbd_handle_mbd(int ch_id)
     }
 
     if (!buf || buf->len < PACKET_HEADER_SIZE) {
-        LS_ERR("short header from mbd on channel %d: len=%zu",
+        LS_ERR("short header from mbd on channel=%d: len=%zu",
                ch_id, buf ? buf->len : 0);
         return -1;
     }
@@ -60,7 +60,7 @@ int sbd_handle_mbd(int ch_id)
         return -1;
     }
 
-    LS_DEBUG("mbd requesting operation %s", mbd_op_str(hdr.operation));
+    LS_DEBUG("mbd requesting operation=%s", mbd_op_str(hdr.operation));
 
     // sbd handler
     switch (hdr.operation) {
@@ -85,7 +85,7 @@ int sbd_handle_mbd(int ch_id)
         break;
     case BATCH_SBD_REGISTER_ACK:
         // informational only; no action required
-        LS_INFO("received ack %s from mbd", mbd_op_str(hdr.operation));
+        LS_INFO("received ack=%s from mbd", mbd_op_str(hdr.operation));
         break;
     default:
         break;

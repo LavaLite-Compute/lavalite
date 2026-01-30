@@ -46,6 +46,7 @@ extern bool_t sbd_mbd_connecting;
 // state dir is where the image of running jobs on this
 // sbd are
 extern char sbd_state_dir[PATH_MAX];
+extern char sbd_jfiles_dir[PATH_MAX];
 
 int sbd_connect_mbd(void);
 int sbd_nb_connect_mbd(bool_t *);
@@ -202,8 +203,8 @@ int sbd_job_record_dir_init(void);
 int sbd_job_record_load_all(void);
 int sbd_job_record_read(int64_t, struct sbd_job *);
 int sbd_job_record_write(struct sbd_job *);
-int sbd_job_record_path(int64_t, char *, size_t);
-int sbd_job_record_remove(int64_t);
+int sbd_job_record_remove(struct sbd_job *);
+int sbd_jobfile_remove(struct sbd_job *);
 void sbd_prune_acked_jobs(void);
 int sbd_go_write(int64_t);
 

@@ -291,13 +291,13 @@ int sbd_enqueue_execute(struct sbd_job *job)
 
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
+        LS_INFO("mbd link not ready, skip job=%ld and sbd_mbd_reconnect_try",
                 job->job_id);
         return -1;
     }
 
     if (!job->pid_acked) {
-        LS_ERR("job %ld execute before pid_acked (bug)", job->job_id);
+        LS_ERR("job=%ld execute before pid_acked (bug)", job->job_id);
         assert(0);
         return -1;
     }
@@ -363,15 +363,16 @@ int sbd_enqueue_execute(struct sbd_job *job)
                              &status_req,
                              xdr_statusReq);
     if (cc < 0) {
-        LS_ERR("enqueue_payload for job %ld BATCH_JOB_EXECUTE failed",
-               job->job_id);
+        LS_ERR("enqueue_payload for job %ld op=%s failed",
+               job->job_id, mbd_op_str(BATCH_JOB_EXECUTE));
         return -1;
     }
 
     chan_set_write_interest(sbd_mbd_chan, true);
 
-    LS_INFO("job %ld execute enqueued pid=%d user=%s cwd=%s",
-            job->job_id, job->spec.jobPid, job->exec_username, job->spec.cwd);
+    LS_INFO("job=%ld pid=%d pgid=%d op=%s user=%s cwd=%s",
+            job->job_id, job->spec.jobPid, mbd_op_str(BATCH_JOB_EXECUTE),
+            job->exec_username, job->spec.cwd);
 
     return 0;
 }
@@ -391,25 +392,25 @@ int sbd_enqueue_finish(struct sbd_job *job)
     }
 
     if (! job->pid_acked) {
-        LS_ERR("job %ld not pid_acked before? (bug)", job->job_id);
+        LS_ERR("job=%ld not pid_acked before? (bug)", job->job_id);
         assert(0);
         return -1;
     }
 
     if (! job->execute_acked) {
-        LS_ERRX("job %ld not executed_acked before ? (bug)", job->job_id);
+        LS_ERRX("job=%ld not executed_acked before ? (bug)", job->job_id);
         assert(0);
         return -1;
     }
 
     if (job->finish_acked) {
-        LS_ERR("job %ld finish_acked already sent (bug)", job->job_id);
+        LS_ERR("job=%ld finish_acked already sent (bug)", job->job_id);
         assert(0);
         return -1;
     }
 
     if (! job->exit_status_valid) {
-        LS_ERR("job %ld finish without exit_status (bug)", job->job_id);
+        LS_ERR("job=%ld finish without exit_status (bug)", job->job_id);
         assert(0);
         return -1;
     }
@@ -420,7 +421,7 @@ int sbd_enqueue_finish(struct sbd_job *job)
     } else if (job->spec.jStatus & JOB_STAT_EXIT) {
         new_status = JOB_STAT_EXIT;
     } else {
-        LS_ERR("job %ld finish with bad jStatus=0x%x (bug)",
+        LS_ERR("job=%ld finish with bad jStatus=0x%x (bug)",
                job->job_id, job->spec.jStatus);
         assert(0);
         return -1;
@@ -478,8 +479,9 @@ int sbd_enqueue_finish(struct sbd_job *job)
     // Ensure epoll wakes up and dowrite() drains the queue.
     chan_set_write_interest(sbd_mbd_chan, true);
 
-    LS_INFO("job %ld finish enqueued newStatus=0x%x exitStatus=0x%x",
-            job->job_id, new_status, (unsigned)job->exit_status);
+    LS_INFO("job=%ld pid=%d pgid=%d op=%s exitStatus=0x%x",
+            job->job_id, job->pid, job->pgid, mbd_op_str(BATCH_JOB_FINISH),
+            job->exit_status);
 
     return 0;
 }
@@ -504,6 +506,9 @@ int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
 
     // Ensure epoll wakes up and dowrite() drains the queue.
     chan_set_write_interest(sbd_mbd_chan, true);
+
+    LS_INFO("job=%ld op=%s sig=%d", rep->job_id,
+            mbd_op_str(BATCH_JOB_SIGNAL_REPLY), rep->sig);
 
     return 0;
 }

@@ -28,8 +28,7 @@ static int sbd_run_qpre(const struct jobSpecs *);
 static int sbd_run_upre(const struct jobSpecs *);
 static int sbd_enter_work_dir(const struct sbd_job *);
 static int sbd_redirect_stdio(const struct jobSpecs *);
-static int sbd_materialize_jobfile(struct jobSpecs *, const char *,
-                                   char *, size_t);
+static int sbd_materialize_jobfile(struct jobSpecs *, const char *);
 static struct sbd_job *sbd_find_job_by_jid(int64_t);
 static int sbd_expand_stdio_path(const struct jobSpecs *, const char *,
                                  char *, size_t);
@@ -434,7 +433,8 @@ void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 
     // PID/PGID acknowledged by mbd.
     // EXECUTE will be enqueued later by the main loop (job_execute_drive).
-    LS_INFO("job %ld pid/pgid acked by mbd", job->job_id);
+    LS_INFO("job %ld pid=%d pgi=%d BATCH_JOB_REPLY acked by mbd", job->job_id,
+            job->pid, job->pgid);
 
     assert(job->execute_acked == false);
 }
@@ -496,7 +496,8 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
         LS_ERRX("job %ld record write failed after execute_acked",
                 job->job_id);
 
-    LS_INFO("job=%ld BATCH_JOB_EXECUTE committed to mbd", job->job_id);
+    LS_INFO("job=%ld pid=%d pgid=%d op=%s acked mbd", job->job_id,
+            job->pid, job->pgid, mbd_op_str(BATCH_JOB_EXECUTE_ACK));
 
     return;
 }
@@ -538,7 +539,8 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     if (job->finish_acked) {
-        LS_DEBUG("job=%ld duplicate FINISH ack ignored", job->job_id);
+        LS_DEBUG("job=%ld pid=%d pgid=%d duplicate FINISH ack ignored",
+                 job->job_id, job->pid, job->pgid);
         return;
     }
 
@@ -547,25 +549,25 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
      * If this triggers, it means we emitted FINISH too early or state got lost.
      */
     if (!job->exit_status_valid && !job->missing) {
-        LS_ERR("job=%ld BATCH_JOB_FINISH committed but exit_status not captured",
-               job->job_id);
+        LS_ERR("job=%ld pid=%d pgid=%d BATCH_JOB_FINISH acked exit_status "
+               "not captured", job->job_id, job->pid, job->pgid);
         abort();
         // later on we can mark this job as missing and continue the
         // clean up process
     }
 
     job->finish_acked = true;
-    LS_INFO("job=%ld BATCH_JOB_FINISH committed by mbd; cleaning up",
-            job->job_id);
+    LS_INFO("job=%ld pid=%d pgid=%d BATCH_JOB_FINISH acked by mbd; cleaning up",
+            job->job_id, job->pid, job->pgid);
 
     // wite the acked
     if (sbd_job_record_write(job) < 0)
         LS_ERRX("job %ld record write failed after finish_acked", job->job_id);
 
-    if (sbd_job_record_remove(job->job_id) < 0)
+    if (sbd_job_record_remove(job) < 0)
         LS_ERR("job %ld record remove failed", job->job_id);
 
-    if (sbd_jobfile_remove(job->job_id) < 0)
+    if (sbd_jobfile_remove(job) < 0)
         LS_ERR("job %ld job file  remove failed", job->job_id);
     /*
      * Now it is safe to destroy the sbatchd-side job record/spool:
@@ -778,7 +780,8 @@ static void sbd_child_exec_job(struct sbd_job *job)
 
     // Drop privileges / set ids first.
     if (sbd_set_ids(specs) < 0) {
-        LS_ERR("set ids failed for job %ld, job->job_id");
+        LS_ERR("set ids failed job=%ld pid=%d pgid=%d", job->job_id, job->pid,
+               job->pgid);
         _exit(127);
     }
 
@@ -790,61 +793,36 @@ static void sbd_child_exec_job(struct sbd_job *job)
 
     // Materialize the job script under the sbatchd local working directory.
     {
-        const char *sharedir = lsbParams[LSB_SHAREDIR].paramValue;
-        char sbd_root[PATH_MAX];
-        char sbd_jfiles[PATH_MAX];
-        char sbd_local_wkdir[PATH_MAX];
-        char jobpath[PATH_MAX];
-
-        if (snprintf(sbd_root, sizeof(sbd_root), "%s/sbatchd", sharedir) >=
-            (int)sizeof(sbd_root)) {
-            LS_ERR("job %ld sbatchd root path too long", job->job_id);
-            _exit(127);
-        }
-
-        if (snprintf(sbd_jfiles, sizeof(sbd_jfiles), "%s/jfiles", sbd_root) >=
-            (int)sizeof(sbd_jfiles)) {
-            LS_ERR("job %ld sbatchd jfiles path too long", job->job_id);
-            _exit(127);
-        }
-
-        if (snprintf(sbd_local_wkdir, sizeof(sbd_local_wkdir),
-                     "%s/%s", sbd_jfiles, specs->job_file) >=
-            (int)sizeof(sbd_local_wkdir)) {
+        char jfile_dir[PATH_MAX];
+        int l = snprintf(jfile_dir, sizeof(sbd_jfiles_dir),
+                         "%s/%s", sbd_jfiles_dir, specs->job_file);
+        if (l < 0 || l >= (size_t)sizeof(jfile_dir)) {
             LS_ERR("job %ld local workdir path too long", job->job_id);
             _exit(127);
         }
 
-        // Create parent directories (ignore EEXIST).
-        if (mkdir(sbd_root, 0700) < 0 && errno != EEXIST) {
+        if (mkdir(jfile_dir, 0700) < 0 && errno != EEXIST) {
             LS_ERR("job %ld mkdir(%s) failed: %m",
-                   job->job_id, sbd_root);
+                   job->job_id, jfile_dir);
             _exit(127);
         }
 
-        if (mkdir(sbd_jfiles, 0700) < 0 && errno != EEXIST) {
-            LS_ERR("job %ld mkdir(%s) failed: %m",
-                   job->job_id, sbd_jfiles);
+        // This is what we want to exec
+        char jfile[PATH_MAX];
+        l = snprintf(jfile, sizeof(jfile), "%s/job.sh", jfile_dir);
+        if (l < 0 || (size_t)l > sizeof(jfile)) {
+            errno = ENAMETOOLONG;
             _exit(127);
         }
 
-        LS_INFO("job %ld sbd_local_wkdir=<%s>",
-                job->job_id, sbd_local_wkdir);
-
-        if (mkdir(sbd_local_wkdir, 0700) < 0 && errno != EEXIST) {
-            LS_ERR("job %ld mkdir(%s) failed: %m",
-                   job->job_id, sbd_local_wkdir);
-            _exit(127);
-        }
-
-        if (sbd_materialize_jobfile(specs,
-                                    sbd_local_wkdir,
-                                    jobpath,
-                                    sizeof(jobpath)) < 0) {
+        l = sbd_materialize_jobfile(specs, jfile);
+        if (l < 0) {
             LS_ERR("job %ld materialize jobfile failed: %m",
                    job->job_id);
             _exit(127);
         }
+
+        LS_INFO("job=%ld jobfile=%s", job->job_id, jfile);
 
         // Apply requested umask for the job.
         umask(specs->umask);
@@ -858,10 +836,6 @@ static void sbd_child_exec_job(struct sbd_job *job)
                    job->job_id, job->exec_cwd);
             _exit(127);
         }
-
-        // Exec the materialized script. We keep cwd as set above.
-        LS_INFO("job %ld exec %s",
-                job->job_id, jobpath);
 
         // Reset signals before running hooks and before exec.
         sbd_reset_signals();
@@ -891,7 +865,7 @@ static void sbd_child_exec_job(struct sbd_job *job)
 
             char *argv[2];
 
-            argv[0] = jobpath;
+            argv[0] = jfile;
             argv[1] = NULL;
 
             execv(argv[0], argv);
@@ -1277,41 +1251,22 @@ int write_all(int fd, const char *buf, size_t len)
 }
 
 static int sbd_materialize_jobfile(struct jobSpecs *specs,
-                                   const char *work_dir,
-                                   char *jobpath,
-                                   size_t jobpath_sz)
+                                   const char *jfile)
 {
-    int fd;
     char tmp[PATH_MAX];
-    size_t len;
-
-    if (!specs || !work_dir || !jobpath || jobpath_sz == 0) {
-        errno = EINVAL;
-        return -1;
-    }
-    if (!specs->job_file_data.data || specs->job_file_data.len <= 1) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    if (snprintf(jobpath, jobpath_sz, "%s/job.sh", work_dir) >= (int)jobpath_sz) {
-        errno = ENAMETOOLONG;
-        return -1;
-    }
-    if (snprintf(tmp, sizeof(tmp), "%s.tmp", jobpath) >= (int)sizeof(tmp)) {
+    if (snprintf(tmp, sizeof(tmp), "%s.tmp", jfile) >= (size_t)sizeof(tmp)) {
         errno = ENAMETOOLONG;
         return -1;
     }
 
-    fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0)
         return -1;
 
-    // jobFileData.len is the size of the blob we got from
-    // mnd
-    len = (size_t)specs->job_file_data.len;
+    size_t len = (size_t)specs->job_file_data.len;
 
     if (write_all(fd, specs->job_file_data.data, len) < 0) {
+        LS_ERR("failed write=%s len=%ld", tmp, len);
         close(fd);
         unlink(tmp);
         return -1;
@@ -1333,7 +1288,7 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
         return -1;
     }
 
-    if (rename(tmp, jobpath) < 0) {
+    if (rename(tmp, jfile) < 0) {
         unlink(tmp);
         return -1;
     }
