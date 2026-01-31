@@ -54,7 +54,7 @@ struct hostNode *find_node_by_cluster(struct hostNode *hPtr,
                                       const char *host_name)
 {
     for (struct hostNode *h = hPtr; h; h = h->nextPtr) {
-        if (equal_host(host_name, h->hostName))
+        if (strcasecmp(host_name, h->hostName) == 0)
             return h;
     }
     return NULL;

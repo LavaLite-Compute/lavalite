@@ -1,4 +1,4 @@
-/* $Id: lim.load.c,v 1.6 2007/08/15 22:18:54 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -39,6 +39,11 @@ extern int maxnLbHost;
 static void rcvLoadVector(XDR *, struct sockaddr_in *, struct packet_header *);
 static void logcnt(int);
 static void copyResValues(struct loadVectorStruct, struct hostNode *);
+
+// LavaCore
+static void copy_load_to_hostnode(const struct wire_load_update *,
+                                  struct hostNode *);
+static void print_load(const char *, float *);
 
 void sendLoad(void)
 {
@@ -610,4 +615,149 @@ float normalizeRq(float rawql, float cpuFactor, int nprocs)
         return 0.0;
 
     return nrq;
+}
+
+// LavaCore
+int send_load_update(void)
+{
+    XDR xdrs;
+    struct sockaddr_in to_addr;
+    int len;
+
+    if (masterMe)
+        return 0;
+
+    if (!myClusterPtr->masterKnown || myClusterPtr->masterPtr == NULL) {
+        LS_WARNING("%s: master unknown, not sending load", __func__);
+        return 0;
+    }
+
+    struct wire_load_update w;
+    memset(&w, 0, sizeof(w));
+    w.hostNo = (uint32_t)myHostPtr->hostNo;
+    w.seqNo = (uint32_t)loadVecSeqNo++;
+    w.status0 = (uint32_t)myHostPtr->status[0];
+    w.nidx = LIM_LOAD_NIDX;
+
+    /* Copy the 11 indices in the same order as your allInfo index table */
+    for (int i = 0; i < LIM_NIDX; i++)
+        w.li[i] = myHostPtr->loadIndex[i];
+
+    struct packet_header hdr;
+    init_pack_hdr(&hdr);
+    // new opcode
+    hdr.operation = LIM_LOAD_UPD2;
+    hdr.sequence = 0;
+
+    char buf[LL_BUSIZ_256];
+    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+        LS_ERR("encode hdr failed", __func__);
+        xdr_destroy(&xdrs);
+        return -1;
+    }
+
+    if (!xdr_wire_load_update(&xdrs, &w)) {
+        LS_ERR("load update encode failed");
+        xdr_destroy(&xdrs);
+        return -1;
+    }
+
+    int len = xdr_getpos(&xdrs);
+
+    memset(&to_addr, 0, sizeof(to_addr));
+    to_addr.sin_family = AF_INET;
+    to_addr.sin_port = lim_udp_port;
+    get_host_addrv4(myClusterPtr->masterPtr->v4_epoint, &to_addr);
+
+    LS_DEBUG("sending load to %s len=%d",sockAdd2Str_(&to_addr), len);
+
+    if (chan_send_dgram(lim_udp_chan, buf, len, &to_addr) < 0) {
+        LS_ERR("send to %s failed", sockAdd2Str_(&to_addr));
+        xdr_destroy(&xdrs);
+        return -1;
+    }
+
+    xdr_destroy(&xdrs);
+    return 0;
+}
+
+void rcv_load_update(XDR *xdrs, struct sockaddr_in *from, struct packet_header *hdr)
+{
+    struct wire_load_update w;
+    struct hostNode *hPtr;
+
+    (void)hdr;
+
+    if (!masterMe) {
+        LS_DEBUG("got load upd but I'm not master");
+        return;
+    }
+
+    if (from->sin_port != lim_udp_port) {
+        LS_ERR("update not from lim udp port: from=%s expected=%d",
+               sockAdd2Str_(from), ntohs(lim_udp_port));
+        return;
+    }
+
+    memset(&w, 0, sizeof(w));
+    if (!xdr_wire_load_update(xdrs, &w)) {
+        LS_ERR("decode failed from=%s", sockAdd2Str_(from));
+        return;
+    }
+
+    hPtr = find_node_by_hostno(myClusterPtr->hostList, (int)w.hostNo);
+    if (hPtr == NULL) {
+        LS_ERR("%s: unknown hostNo=%u from=%s",
+               __func__, w.hostNo, sockAdd2Str_(from));
+        return;
+    }
+
+    LS_INFO("load from %s hostNo=%d seq=%u", hPtr->hostName,
+            hPtr->hostNo, w.seqNo);
+
+    copy_load_to_hostnode(&w, hPtr);
+}
+
+static void copy_load_to_hostnode(const struct wire_load_update *w,
+                                  struct hostNode *hPtr)
+{
+    hPtr->hostInactivityCount = 0;
+
+    hPtr->status[0] = (int)w->status0;
+    hPtr->status[0] &= ~LIM_LOCKEDM;
+
+    if (w->nidx > 0) {
+        for (int i = 0; i < (int)w->nidx; i++)
+            hPtr->loadIndex[i] = w->li[i];
+    }
+
+    hPtr->lastSeqNo = w->seqNo;
+    hPtr->infoValid = true;
+}
+static const char *lim_load_name[LIM_NIDX] = {
+    [R15S] = "r15s",
+    [R1M]  = "r1m",
+    [R15M] = "r15m",
+    [UT]   = "ut",
+    [PG]   = "pg",
+    [IO]   = "io",
+    [LS]   = "ls",
+    [IT]   = "it",
+    [TMP]  = "tmp",
+    [SWP]  = "swp",
+    [MEM]  = "mem"
+};
+
+static void
+print_load(const char *prefix, float *li)
+{
+    LS_DEBUG("%s r15s=%.2f r1m=%.2f r15m=%.2f ut=%.1f pg=%.2f io=%.2f "
+             "ls=%.2f it=%.2f tmp=%.0f swp=%.0f mem=%.0f",
+             prefix,
+             li[R15S], li[R1M], li[R15M],
+             li[UT], li[PG], li[IO],
+             li[LS], li[IT],
+             li[TMP], li[SWP], li[MEM]);
 }

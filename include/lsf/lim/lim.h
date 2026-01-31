@@ -502,3 +502,26 @@ void lim_proc_init_read_load(int);
 #define EXP6 0.846481725
 #define EXP12 0.920044415
 #define EXP180 0.994459848
+
+// LavaCore
+struct master_register {
+    char     cluster[LL_BUFSIZ_32];
+    char     hostname[MAXHOSTNAMELEN];
+    uint32_t host_num;
+    uint32_t seqno;
+    uint16_t tcp_port;
+};
+
+struct wire_load_update {
+    uint32_t host_num;
+    uint32_t seqNo;
+    uint32_t status0;
+    uint32_t nidx;
+    float li[LIM_LOAD_NIDX];
+};
+
+void annouce_master_register(struct clusterNode *);
+bool_t xdr_master_register(XDR *, struct master_register *);
+void master_register_recv(XDR *, struct sockaddr_in *, struct packet_header *);
+int send_load_update(void);
+void rcv_load_update(XDR *, struct sockaddr_in *, struct packet_header *);

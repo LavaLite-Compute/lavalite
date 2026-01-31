@@ -119,19 +119,22 @@ typedef uint64_t LS_UNS_LONG_INT;
 #endif
 
 // 11 load indexes collected by lim on every cluster machine
-#define R15S 0
-#define R1M 1
-#define R15M 2
-#define UT 3
-#define PG 4
-#define IO 5
-#define LS 6
-#define IT 7
-#define TMP 8
-#define SWP 9
-#define MEM 10
-#define USR1 11
-#define USR2 12
+enum lim_load_index {
+    R15S = 0,
+    R1M  = 1,
+    R15M = 2,
+    UT   = 3,
+    PG   = 4,
+    IO   = 5,
+    LS   = 6,
+    IT   = 7,
+    TMP  = 8,
+    SWP  = 9,
+    MEM  = 10,
+    LIM_NIDX = 11,   // number of built-in indices
+    USR1 = 11,
+    USR2 = 12
+};
 
 #define INFINIT_INT 0x7fffffff
 #define INFINIT_LONG_INT 0x7fffffff

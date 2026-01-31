@@ -253,8 +253,14 @@ int main(int argc, char **argv)
 
             if (ch_id == lim_timer_chan) {
                 uint64_t expirations;
+                static time_t last_timer;
+                time_t t = time(NULL);
+
                 read(chan_sock(ch_id), &expirations, sizeof(expirations));
-                LS_DEBUG("timer run %s", ctime2(NULL));
+                if (t  - last_timer > 60) {
+                    LS_DEBUG("timer run %s", ctime2(NULL));
+                    last_timer = t;
+                }
                 periodic();
                 continue;
             }
@@ -329,6 +335,15 @@ static int process_udp_request(void)
         break;
     case LIM_MASTER_ANN:
         masterRegister(&xdrs, &from, &reqHdr);
+        break;
+    case LIM_MASTER_REGISTER:
+        master_register_recv(&xdrs, &from, &reqHdr);
+        break;
+    case LIM_LOAD_UPD:
+        rcvLoad(&xdrs, &from, &reqHdr);
+        break;
+    case LIM_LOAD_UPD2:
+        rcv_load_update(&xdrs, &from, &reqHdr);
         break;
     default:
         if (reqHdr.version <= CURRENT_PROTOCOL_VERSION) {
@@ -502,16 +517,13 @@ static void lim_init(int checkMode)
 
 static void periodic(void)
 {
-    // syslog(LOG_DEBUG, "%s: Entering this routine...", __func__);
-
-    TIMEIT(0, readLoad(), "readLoad()");
+    readLoad();
 
     if (masterMe) {
-        announceMaster(myClusterPtr, 1, false);
+        // announceMaster(myClusterPtr, 1, false);
+        announce_master_register(myClusterPtr);
     }
 
-    if (0)
-        checkHostWd();
 }
 
 // Set an atomic variable to signal the exit

@@ -75,6 +75,8 @@ enum limReqCode {
     LIM_HINFO_REPLY,
     LIM_LINFO_REQ,
     LIM_LINFO_REPLY,
+    LIM_MASTER_REGISTER, // LavaCore
+    LIM_LOAD_UPD2,
     LIM_PROTO_CNT // sentinel
 };
 

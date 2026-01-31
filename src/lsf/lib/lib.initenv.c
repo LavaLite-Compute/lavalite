@@ -173,14 +173,15 @@ int static readconfenv_(struct config_param *conf_array,
     int lineNum = 0;
     int saveErrNo;
 
+    if (path == NULL)
+        path = getenv("LSF_ENVDIR");
+
     if (path == NULL) {
-        char *ep = getenv("LSF_ENVDIR");
-        if (ep == NULL) {
-            lserrno = LSE_LSFCONF;
-            return -1;
-        }
-        sprintf(filename, "%s/lsf.conf", ep);
+        lserrno = LSE_LSFCONF;
+        return -1;
     }
+
+    sprintf(filename, "%s/lsf.conf", path);
 
     fp = fopen(filename, "r");
     if (!fp) {

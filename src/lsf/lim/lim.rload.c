@@ -344,7 +344,8 @@ void readLoad(void)
     myHostPtr->loadMask = 0;
 
     /* 4. Send current load to the master */
-    TIMEIT(0, sendLoad(), "sendLoad()");
+    //TIMEIT(0, sendLoad(), "sendLoad()");
+    send_load_update();
 
     /* 5. Export raw values to uloadIndex for clients */
     for (i = 0; i < allInfo.numIndx; i++) {

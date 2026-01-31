@@ -747,3 +747,147 @@ int lockHost(char *hostName, int request)
 
     return 0;
 }
+
+void announce_master_register(struct clusterNode *cl)
+{
+    struct hostNode *h;
+    XDR xdrs;
+    char buf[LL_BUFSIZ_256];
+    struct sockaddr_in to;
+
+    struct master_register reg;
+    memset(&reg, 0, sizeof(reg));
+    strncpy(reg.cluster,  myClusterPtr->clName, sizeof(reg.cluster) - 1);
+    strncpy(reg.hostname, myHostPtr->hostName, sizeof(reg.hostname) - 1);
+    reg.host_num = myHostPtr->hostNo;
+    reg.seqno    = masterAnnSeqNo++;
+    reg.tcp_port = myHostPtr->statInfo.portno;
+
+    struct packet_header hdr;
+    init_pack_hdr(&hdr);
+    hdr.operation = LIM_MASTER_REGISTER;
+    hdr.sequence  = reg.seqno;
+
+    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+
+    if (! xdr_pack_hdr(&xdrs, &hdr)) {
+        LS_ERR("hdr encode failed");
+        xdr_destroy(&xdrs);
+        return;
+    }
+
+    if (! xdr_master_register(&xdrs, &reg)) {
+        LS_ERR("master resigster encode failed");
+        xdr_destroy(&xdrs);
+        return;
+    }
+
+    for (h = cl->hostList; h; h = h->nextPtr) {
+
+        if (h == myHostPtr)
+            continue;
+
+        memset(&to, 0, sizeof(to));
+        to.sin_family = AF_INET;
+        to.sin_port   = lim_udp_port;
+
+        get_host_sinaddrv4(h->v4_epoint, &to);
+
+        chan_send_dgram(lim_udp_chan,
+                        buf,
+                        XDR_GETPOS(&xdrs),
+                        &to);
+    }
+
+    xdr_destroy(&xdrs);
+}
+void
+master_register_recv(XDR *xdrs,
+                     struct sockaddr_in *from,
+                     struct packet_header *hdr)
+{
+    if (!limPortOk(from)) {
+        LS_ERR("master_register: invalid source port");
+        return;
+    }
+
+    struct master_register reg;
+    if (!xdr_master_register(xdrs, &reg)) {
+        LS_ERR("master_register: decode failed");
+        return;
+    }
+
+    LS_DEBUG("master_register: from=%s host=%s hostNo=%u seq=%u port=%u",
+             sockAdd2Str_(from),
+             reg.hostname,
+             reg.host_num,
+             reg.seqno,
+             reg.tcp_port);
+
+    if (strcmp(reg.cluster, myClusterPtr->clName) != 0) {
+        LS_WARNING("master_register: cluster mismatch %s (mine=%s)",
+                   reg.cluster,
+                   myClusterPtr->clName);
+        return;
+    }
+
+    struct hostNode *hPtr;
+    hPtr = find_node_by_cluster(myClusterPtr->hostList,
+                                reg.hostname);
+
+    if (hPtr == NULL) {
+        LS_ERR("master_register: unknown host %s", reg.hostname);
+        return;
+    }
+
+    if (hPtr->hostNo != reg.host_num) {
+        LS_WARNING("master_register: hostNo mismatch for %s "
+                   "(local=%d remote=%u)",
+                   hPtr->hostName,
+                   hPtr->hostNo,
+                   reg.host_num);
+    }
+
+    /* If sender has lower hostNo, it wins */
+    if (hPtr->hostNo < myHostPtr->hostNo) {
+
+        if (!myClusterPtr->masterKnown
+            || myClusterPtr->masterPtr != hPtr) {
+
+            LS_INFO("new master is %s (hostNo=%d)",
+                    hPtr->hostName,
+                    hPtr->hostNo);
+        }
+
+        myClusterPtr->masterPtr = hPtr;
+        myClusterPtr->masterKnown = 1;
+        myClusterPtr->masterInactivityCount = 0;
+
+        masterMe = 0;
+
+        hPtr->lastSeqNo = reg.seqno;
+        hPtr->statInfo.portno = reg.tcp_port;
+
+        return;
+    }
+
+    /* If I have lower hostNo, I win */
+    if (myHostPtr->hostNo < hPtr->hostNo) {
+
+        if (masterMe == 0) {
+            LS_INFO("Reasserting master role (hostNo=%d)",
+                    myHostPtr->hostNo);
+        }
+
+        masterMe = 1;
+        myClusterPtr->masterPtr = myHostPtr;
+        myClusterPtr->masterKnown = 1;
+        myClusterPtr->masterInactivityCount = 0;
+
+        return;
+    }
+
+    /* Same hostNo case (should never happen) */
+    LS_ERR("master_register: identical hostNo conflict %d",
+           myHostPtr->hostNo);
+}
