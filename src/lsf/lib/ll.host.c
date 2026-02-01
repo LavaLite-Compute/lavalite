@@ -253,6 +253,7 @@ int get_host_addrv4(const struct ll_host *hp, struct sockaddr_in *out)
     }
 
     const struct sockaddr_in *src = (const struct sockaddr_in *) &hp->sa;
+    // Watch out here we obliterate all existing members of sockaddr_in
     memcpy(out, src, sizeof(*out));
 
     return 0;

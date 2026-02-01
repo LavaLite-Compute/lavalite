@@ -1,4 +1,4 @@
-/* $Id: lim.misc.c,v 1.8 2007/08/15 22:18:54 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -47,6 +47,15 @@ struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *from)
             return h;
     }
 
+    return NULL;
+}
+
+struct hostNode *find_node_by_hostNo(int hostNo)
+{
+    for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
+        if (h->hostNo == hostNo)
+            return h;
+    }
     return NULL;
 }
 

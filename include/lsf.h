@@ -132,8 +132,6 @@ enum lim_load_index {
     SWP  = 9,
     MEM  = 10,
     LIM_NIDX = 11,   // number of built-in indices
-    USR1 = 11,
-    USR2 = 12
 };
 
 #define INFINIT_INT 0x7fffffff

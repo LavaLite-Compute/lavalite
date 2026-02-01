@@ -1,4 +1,4 @@
-/* $Id: lim.internal.c,v 1.10 2007/08/15 22:18:53 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -748,26 +748,23 @@ int lockHost(char *hostName, int request)
     return 0;
 }
 
-void announce_master_register(struct clusterNode *cl)
+void master_beacon_send(struct clusterNode *cl)
 {
-    struct hostNode *h;
-    XDR xdrs;
-    char buf[LL_BUFSIZ_256];
-    struct sockaddr_in to;
-
-    struct master_register reg;
-    memset(&reg, 0, sizeof(reg));
-    strncpy(reg.cluster,  myClusterPtr->clName, sizeof(reg.cluster) - 1);
-    strncpy(reg.hostname, myHostPtr->hostName, sizeof(reg.hostname) - 1);
-    reg.host_num = myHostPtr->hostNo;
-    reg.seqno    = masterAnnSeqNo++;
-    reg.tcp_port = myHostPtr->statInfo.portno;
+    struct master_beacon bcn;
+    memset(&bcn, 0, sizeof(bcn));
+    strncpy(bcn.cluster,  myClusterPtr->clName, sizeof(bcn.cluster) - 1);
+    strncpy(bcn.hostname, myHostPtr->hostName, sizeof(bcn.hostname) - 1);
+    bcn.hostNo = myHostPtr->hostNo;
+    bcn.seqno    = masterAnnSeqNo++;
+    bcn.tcp_port = myHostPtr->statInfo.portno;
 
     struct packet_header hdr;
     init_pack_hdr(&hdr);
-    hdr.operation = LIM_MASTER_REGISTER;
-    hdr.sequence  = reg.seqno;
+    hdr.operation = LIM_MASTER_BEACON;
+    hdr.sequence  = bcn.seqno;
 
+    XDR xdrs;
+    char buf[LL_BUFSIZ_256];
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
 
     if (! xdr_pack_hdr(&xdrs, &hdr)) {
@@ -776,20 +773,33 @@ void announce_master_register(struct clusterNode *cl)
         return;
     }
 
-    if (! xdr_master_register(&xdrs, &reg)) {
+    if (! xdr_master_beacon(&xdrs, &bcn)) {
         LS_ERR("master resigster encode failed");
         xdr_destroy(&xdrs);
         return;
     }
 
+    struct hostNode *h;
     for (h = cl->hostList; h; h = h->nextPtr) {
 
         if (h == myHostPtr)
             continue;
 
+        if (h->hostInactivityCount >= SLAVE_MISSING_LOAD_TICKS) {
+            if (h->infoValid) {
+                LS_INFO("slave=%s missing load (ticks=%d)",
+                        h->hostName, h->hostInactivityCount);
+            }
+            h->infoValid = false;
+            h->status[0] |= LIM_UNAVAIL;
+        }
+
+        h->hostInactivityCount++;
+
+        struct sockaddr_in to;
         memset(&to, 0, sizeof(to));
         to.sin_family = AF_INET;
-        to.sin_port   = lim_udp_port;
+        to.sin_port   = htons(lim_udp_port);
 
         get_host_sinaddrv4(h->v4_epoint, &to);
 
@@ -802,54 +812,51 @@ void announce_master_register(struct clusterNode *cl)
     xdr_destroy(&xdrs);
 }
 void
-master_register_recv(XDR *xdrs,
+master_beacon_recv(XDR *xdrs,
                      struct sockaddr_in *from,
                      struct packet_header *hdr)
 {
     if (!limPortOk(from)) {
-        LS_ERR("master_register: invalid source port");
-        return;
+        LS_DEBUG("source port is not lim=%s", sockAdd2Str_(from));
     }
 
-    struct master_register reg;
-    if (!xdr_master_register(xdrs, &reg)) {
-        LS_ERR("master_register: decode failed");
-        return;
-    }
-
-    LS_DEBUG("master_register: from=%s host=%s hostNo=%u seq=%u port=%u",
-             sockAdd2Str_(from),
-             reg.hostname,
-             reg.host_num,
-             reg.seqno,
-             reg.tcp_port);
-
-    if (strcmp(reg.cluster, myClusterPtr->clName) != 0) {
-        LS_WARNING("master_register: cluster mismatch %s (mine=%s)",
-                   reg.cluster,
-                   myClusterPtr->clName);
+    struct master_beacon bcn;
+    if (! xdr_master_beacon(xdrs, &bcn)) {
+        LS_ERR("beacon decode failed");
         return;
     }
 
     struct hostNode *hPtr;
-    hPtr = find_node_by_cluster(myClusterPtr->hostList,
-                                reg.hostname);
-
+    hPtr = find_node_by_hostNo(bcn.hostNo);
     if (hPtr == NULL) {
-        LS_ERR("master_register: unknown host %s", reg.hostname);
+        LS_ERR("got beacon from unknown host=%s", bcn.hostname);
         return;
     }
 
-    if (hPtr->hostNo != reg.host_num) {
-        LS_WARNING("master_register: hostNo mismatch for %s "
+    LS_DEBUG("from=%s host=%s hostNo=%u seq=%u port=%u",
+             sockAdd2Str_(from),
+             bcn.hostname,
+             bcn.hostNo,
+             bcn.seqno,
+             bcn.tcp_port);
+
+    if (strcmp(bcn.cluster, myClusterPtr->clName) != 0) {
+        LS_WARNING("master beacon: cluster mismatch %s (mine=%s)",
+                   bcn.cluster,
+                   myClusterPtr->clName);
+        return;
+    }
+
+    if (hPtr->hostNo != bcn.hostNo) {
+        LS_WARNING("master beacon: hostNo mismatch for %s "
                    "(local=%d remote=%u)",
                    hPtr->hostName,
                    hPtr->hostNo,
-                   reg.host_num);
+                   bcn.hostNo);
     }
 
-    /* If sender has lower hostNo, it wins */
-    if (hPtr->hostNo < myHostPtr->hostNo) {
+    // If sender has lower hostNo, it wins
+    if (myHostPtr->hostNo > hPtr->hostNo) {
 
         if (!myClusterPtr->masterKnown
             || myClusterPtr->masterPtr != hPtr) {
@@ -865,13 +872,13 @@ master_register_recv(XDR *xdrs,
 
         masterMe = 0;
 
-        hPtr->lastSeqNo = reg.seqno;
-        hPtr->statInfo.portno = reg.tcp_port;
+        hPtr->lastSeqNo = bcn.seqno;
+        hPtr->statInfo.portno = bcn.tcp_port;
 
         return;
     }
 
-    /* If I have lower hostNo, I win */
+    // If I have lower hostNo, I win
     if (myHostPtr->hostNo < hPtr->hostNo) {
 
         if (masterMe == 0) {
@@ -888,6 +895,6 @@ master_register_recv(XDR *xdrs,
     }
 
     /* Same hostNo case (should never happen) */
-    LS_ERR("master_register: identical hostNo conflict %d",
+    LS_ERR("master beacon: identical hostNo conflict %d",
            myHostPtr->hostNo);
 }

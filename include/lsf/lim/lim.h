@@ -379,7 +379,7 @@ extern void reconfigReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void shutdownReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void limDebugReq(XDR *, struct sockaddr_in *, struct packet_header *);
 extern void lockReq(XDR *, struct sockaddr_in *, struct packet_header *);
-extern int limPortOk(struct sockaddr_in *);
+extern int limPortOk(const struct sockaddr_in *);
 extern void servAvailReq(XDR *, struct hostNode *, struct sockaddr_in *,
                          struct packet_header *);
 extern void masterRegister(XDR *, struct sockaddr_in *, struct packet_header *);
@@ -474,6 +474,7 @@ struct hostNode *make_host_node(void);
 struct hostNode *find_node_by_sockaddr_in(const struct sockaddr_in *);
 struct hostNode *find_node_by_name(const char *);
 struct hostNode *find_node_by_cluster(struct hostNode *, const char *);
+struct hostNode *find_node_by_hostNo(int);
 int handle_tcp_client(int);
 
 // These 2 are UDP request to the local LIM
@@ -504,24 +505,31 @@ void lim_proc_init_read_load(int);
 #define EXP180 0.994459848
 
 // LavaCore
-struct master_register {
+
+struct master_beacon {
     char     cluster[LL_BUFSIZ_32];
     char     hostname[MAXHOSTNAMELEN];
-    uint32_t host_num;
+    uint32_t hostNo;
     uint32_t seqno;
     uint16_t tcp_port;
 };
 
 struct wire_load_update {
-    uint32_t host_num;
+    uint32_t hostNo;
     uint32_t seqNo;
     uint32_t status0;
     uint32_t nidx;
-    float li[LIM_LOAD_NIDX];
+    float li[LIM_NIDX];
 };
 
-void annouce_master_register(struct clusterNode *);
-bool_t xdr_master_register(XDR *, struct master_register *);
-void master_register_recv(XDR *, struct sockaddr_in *, struct packet_header *);
+#define MASTER_INVALID_TICKS 3
+#define SLAVE_MISSING_LOAD_TICKS 3
+
+void master_beacon_send(struct clusterNode *);
+void master_beacon_recv(XDR *, struct sockaddr_in *, struct packet_header *);
+bool_t xdr_master_beacon(XDR *, struct master_beacon *);
+void read_load(void);
 int send_load_update(void);
 void rcv_load_update(XDR *, struct sockaddr_in *, struct packet_header *);
+bool_t xdr_wire_load_update(XDR *, struct wire_load_update *);
+void lim_proc_read_load(void);

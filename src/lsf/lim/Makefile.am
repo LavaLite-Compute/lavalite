@@ -22,5 +22,5 @@ lim_SOURCES = lim.tcp.c \
 	lim.misc.c \
 	lim.rload.c \
 	lim.xdr.c \
-    lim.linux.c
+    lim.proc.c
 

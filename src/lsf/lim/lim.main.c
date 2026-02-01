@@ -62,7 +62,6 @@ u_short lsfSharedCkSum = 0;
 
 pid_t pimPid = -1;
 static void startPIM(int, char **);
-static inline uint64_t now_ms(void);
 
 struct liStruct *li = NULL;
 int li_len = 0;
@@ -85,9 +84,12 @@ static void initMiscLiStruct(void);
 extern struct extResInfo *getExtResourcesDef(char *);
 extern char *getExtResourcesLoc(char *);
 extern char *getExtResourcesVal(char *);
-
+// LavaCore
 static int process_udp_request(void);
 static int accept_connection(void);
+static void periodic_master(void);
+static void periodic_slave(void);
+static bool_t is_master_valid(const struct clusterNode *);
 
 static void usage(const char *cmd)
 {
@@ -129,7 +131,7 @@ int main(int argc, char **argv)
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            return 9;
+            return -1;
         default:
             usage(argv[0]);
             return -1;
@@ -280,15 +282,6 @@ int main(int argc, char **argv)
     }
 }
 
-static uint64_t now_ms(void)
-{
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return (uint64_t) ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL;
-}
-
 static int process_udp_request(void)
 {
     static char buf[BUFSIZ];
@@ -315,14 +308,6 @@ static int process_udp_request(void)
         return -1;
     }
 
-    struct hostNode *node = find_node_by_sockaddr_in(&from);
-    if (node == NULL) {
-        syslog(LOG_ERR, "%s: received request %d from unknown host %s",
-               __func__, reqHdr.operation, sockAdd2Str_(&from));
-        xdr_destroy(&xdrs);
-        return -1;
-    }
-
     switch (reqHdr.operation) {
     case LIM_GET_CLUSNAME:
         cluster_name_req(&xdrs, &from, &reqHdr);
@@ -331,18 +316,18 @@ static int process_udp_request(void)
         master_info_req(&xdrs, &from, &reqHdr);
         break;
     case LIM_SERV_AVAIL:
-        servAvailReq(&xdrs, node, &from, &reqHdr);
+        servAvailReq(&xdrs, NULL, &from, &reqHdr);
         break;
     case LIM_MASTER_ANN:
         masterRegister(&xdrs, &from, &reqHdr);
         break;
-    case LIM_MASTER_REGISTER:
-        master_register_recv(&xdrs, &from, &reqHdr);
+    case LIM_MASTER_BEACON:
+        master_beacon_recv(&xdrs, &from, &reqHdr);
         break;
     case LIM_LOAD_UPD:
         rcvLoad(&xdrs, &from, &reqHdr);
         break;
-    case LIM_LOAD_UPD2:
+    case LIM_LOAD_REPORT:
         rcv_load_update(&xdrs, &from, &reqHdr);
         break;
     default:
@@ -517,13 +502,50 @@ static void lim_init(int checkMode)
 
 static void periodic(void)
 {
-    readLoad();
+    lim_proc_read_load();
 
-    if (masterMe) {
-        // announceMaster(myClusterPtr, 1, false);
-        announce_master_register(myClusterPtr);
+    if (masterMe)
+        periodic_master();
+    else
+        periodic_slave();
+}
+
+static void periodic_master(void)
+{
+    if (!masterMe)
+        return;
+
+    master_beacon_send(myClusterPtr);
+}
+
+static void periodic_slave(void)
+{
+    myClusterPtr->masterInactivityCount++;
+
+    if (!is_master_valid(myClusterPtr)) {
+        if (myClusterPtr->masterKnown) {
+            LS_INFO("master invalid (ticks=%d)",
+                    myClusterPtr->masterInactivityCount);
+        }
+        myClusterPtr->masterKnown = 0;
+        myClusterPtr->masterPtr = NULL;
     }
 
+    send_load_update();
+}
+
+static bool_t is_master_valid(const struct clusterNode *c)
+{
+    if (!c->masterKnown)
+        return false;
+
+    if (c->masterInactivityCount >= MASTER_INVALID_TICKS)
+        return false;
+
+    if (c->masterPtr == NULL)
+        return false;
+
+    return true;
 }
 
 // Set an atomic variable to signal the exit

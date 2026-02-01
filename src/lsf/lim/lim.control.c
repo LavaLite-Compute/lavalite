@@ -331,6 +331,12 @@ void servAvailReq(XDR *xdrs, struct hostNode *hPtr, struct sockaddr_in *from,
     static char fname[] = "servAvailReq()";
     int servId;
 
+    if (hPtr == NULL) {
+        // MVP: UDP sender identity unreliable under NAT.
+        // We only care about the service availability payload itself.
+        LS_DEBUG("%s: node unresolved (UDP/NAT), ignoring host association");
+    }
+
     if (hPtr != NULL && hPtr != myHostPtr) {
         ls_syslog(LOG_WARNING, "%s: Request from non-local host: <%s>", fname,
                   hPtr->hostName);
@@ -366,18 +372,18 @@ void servAvailReq(XDR *xdrs, struct hostNode *hPtr, struct sockaddr_in *from,
     return;
 }
 
-int limPortOk(struct sockaddr_in *from)
+int limPortOk(const struct sockaddr_in *from)
 {
     if (from->sin_family != AF_INET) {
         ls_syslog(LOG_ERR, "%s: %s sin_family != AF_INET", "limPortOk",
-                  sockAdd2Str_(from));
+                  sockAdd2Str_((struct sockaddr_in *)from));
         return false;
     }
 
-    if (from->sin_port == lim_udp_port)
+    if (from->sin_port == ntohs(lim_udp_port))
         return true;
 
-    return true;
+    return false;
 }
 
 static int userNameOk(uid_t uid, const char *lsfUserName)

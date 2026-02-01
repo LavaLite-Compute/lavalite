@@ -1,4 +1,4 @@
-/* $Id: lim.rload.c,v 1.8 2007/08/15 22:18:54 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -317,6 +317,8 @@ time_t getXIdle()
 
 // LavaLite bug move common functions together
 extern void lim_proc_read_load(void);
+
+
 void readLoad(void)
 {
     int i;
@@ -344,7 +346,6 @@ void readLoad(void)
     myHostPtr->loadMask = 0;
 
     /* 4. Send current load to the master */
-    //TIMEIT(0, sendLoad(), "sendLoad()");
     send_load_update();
 
     /* 5. Export raw values to uloadIndex for clients */
