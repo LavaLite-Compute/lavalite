@@ -176,6 +176,7 @@ enum lim_load_index {
 #define INTEGER_BITS 32
 #define GET_INTNUM(i) ((i) / INTEGER_BITS + 1)
 
+#define LIM_OK      0
 #define LIM_UNAVAIL 0x00010000
 #define LIM_LOCKEDU 0x00020000
 #define LIM_LOCKEDW 0x00040000
