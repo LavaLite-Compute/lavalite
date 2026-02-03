@@ -50,6 +50,14 @@ static int getEAuth(struct eauth *eauth, char *host)
     char path[PATH_MAX];
     struct lenData ld;
 
+    // Bug untill we install the correct eauth
+    ld.data = "1";
+    ld.len = 2;
+    memcpy(eauth->data, ld.data, ld.len);
+    eauth->data[ld.len] = '\0';
+    eauth->len = ld.len;
+    return 0;
+
     sprintf(path, "%s/%s", genParams[LSF_SERVERDIR].paramValue, EAUTHNAME);
     argv[0] = path;
     argv[1] = "-c";

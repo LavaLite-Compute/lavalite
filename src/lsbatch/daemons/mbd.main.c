@@ -860,7 +860,7 @@ static int mbd_auth_client_request(struct lsfAuth *auth,
     sprintf(buf, "mbatchd@%s", clusterName);
     putEauthServerEnvVar(buf);
 
-    // Bug lavalite simulate euath works
+    // Bug lavalite simulate eauth works
     return LSBE_NO_ERROR;
 
     switch (reqType) {
@@ -890,6 +890,8 @@ static int mbd_auth_client_request(struct lsfAuth *auth,
 static bool_t mbd_should_fork(mbdReqType req)
 {
     const char *no_fork = lsbParams[LSB_NO_FORK].paramValue;
+    // Bug MVP if mbd forks than it core dumps, undesirable
+    return false;
 
     if (no_fork)
         return false;

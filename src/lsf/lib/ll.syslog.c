@@ -140,7 +140,7 @@ int ls_openlog(const char *ident,
         openlog(log_ident, LOG_NDELAY | LOG_PID, LOG_DAEMON);
         setlogmask(LOG_UPTO(log_min_level));
     }
-
+    int fd;
     /* 5. LSF_LOGDIR missing → fallback only (stderr/syslog) */
     if (logdir == NULL || *logdir == '\0') {
 
@@ -153,6 +153,7 @@ int ls_openlog(const char *ident,
                 log_ident, host);
 
         /* no file sink, but logging works */
+        fd = STDERR_FILENO;
         return 0;
     }
 
@@ -163,9 +164,13 @@ int ls_openlog(const char *ident,
     if (cc < 0 || cc >= (int)sizeof(path))
         return -1;
 
-    int fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
-    if (fd < 0)
-        return -1;   /* caller can decide if this is fatal */
+    fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    if (fd < 0) {
+        dprintf(STDERR_FILENO,
+                "%s: failed to open %s logging to stderr only (host=%s) %s \n",
+                log_ident, path, host, strerror(errno));
+        fd = STDERR_FILENO;
+    }
 
     log_fd = fd;
     snprintf(log_path, sizeof(log_path), "%s", path);

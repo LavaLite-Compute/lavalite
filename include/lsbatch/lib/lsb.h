@@ -61,7 +61,7 @@ extern int sig_encode(int);
 
 // Seconds
 #define DEFAULT_API_CONNTIMEOUT 10
-#define DEFAULT_API_RECVTIMEOUT 0
+#define DEFAULT_API_RECVTIMEOUT 10
 
 typedef enum lsb_params {
     // Shared daemon / library parameters */

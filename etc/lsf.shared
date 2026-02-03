@@ -28,34 +28,10 @@ arm_gpu         100        (arm64_gpu)
 riscv_default   100        (riscv_default)
 End HostModel
 
-
-#   RESOURCENAME → symbolic name of the resource.
-#   TYPE         → Boolean (0/1), Numeric (int/float), or String (literal).
-#   INTERVAL     → update period (seconds). Use "()" for static resources.
-#   INCREASING   → Y = higher is better, N = lower is better, () = not applicable.
-#   DESCRIPTION  → short note for admins.
-#
-# Guidelines:
-#   - Boolean flags mark host roles (fs, cs).
-#   - Numeric resources like gpu are usually fixed per host.
-#   - License counts may vary, but still fit as Numeric with Y (more is better).
 Begin Resource
 RESOURCENAME  TYPE     INTERVAL  INCREASING  DESCRIPTION
    fs         Boolean  ()        ()          (File server)
    cs         Boolean  ()        ()          (Compute server)
-#   gpu        Numeric  ()        Y           (Number of GPUs)
-#   licenseZ   Numeric  120       Y           (Available Z licenses)
-#  load       Numeric  60        N           (System load average)
-#  latency    Numeric  300       N           (Network latency in ms)
-End Resource
+End Resources
 
-# This is how it will look like
-#Begin Resource
-# NAME         TYPE     SCOPE     TREND  UNIT   DESCRIPTION
-#fs             Boolean  Host      None   -     (File server)
-#scratch        Boolean  Host      None   -     (Scratch server)
-#lustre_cpu     Numeric  Host      None   -     (Load index)
-#lustre_mem     Numeric  Host      None   GB    (Mem used)
-#licenseZ       Numeric  Floating  Inc    seat  (FlexLM Z pool)
-#End Resource
 
