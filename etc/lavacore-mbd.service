@@ -1,0 +1,27 @@
+[Unit]
+Description=LavaCore MBD daemon
+After=network-online.target lavacore-lim.service
+Wants=network-online.target
+Requires=lavacore-lim.service
+BindsTo=lavacore-lim.service
+StartLimitIntervalSec=30
+StartLimitBurst=5
+
+
+[Service]
+Type=simple
+User=lavacore
+Group=lavacore
+# Required for all daemons. Adjust if your config lives elsewhere.
+Environment=LSF_ENVDIR=/opt/lavalite/etc
+
+# Use stable symlink path: /opt/lavacore -> /opt/lavacore-<version>
+ExecStart=/opt/lavacore/sbin/mbd
+Restart=on-failure
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=20
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

@@ -60,9 +60,6 @@ int numHostResources;
 struct sharedResource **hostResources = NULL;
 u_short lsfSharedCkSum = 0;
 
-pid_t pimPid = -1;
-static void startPIM(int, char **);
-
 struct liStruct *li = NULL;
 int li_len = 0;
 float *extraload;
@@ -163,12 +160,6 @@ int main(int argc, char **argv)
         lim_debug = true;
     }
 
-    if (lim_debug == false) {
-        for (int i = sysconf(_SC_OPEN_MAX); i >= 0; i--)
-            close(i);
-        daemonize_();
-    }
-
     if (lim_debug) {
         ls_openlog("lim", genParams[LSF_LOGDIR].paramValue, true, 0, "LOG_DEBUG");
     } else {
@@ -232,9 +223,6 @@ int main(int argc, char **argv)
     periodic();
 
     for (;;) {
-        if (pimPid == -1) {
-            startPIM(argc, argv);
-        }
 
         // select timeout ever 5 seconds if no network io
         int timeout = 5 * 1000;
@@ -773,38 +761,6 @@ static struct tclLsInfo *getTclLsInfo(void)
     tclLsInfo->numericResBitMaps = shortInfo.numericResBitMaps;
 
     return tclLsInfo;
-}
-
-static void startPIM(int argc, char **argv)
-{
-    int i;
-    static time_t lastTime = 0;
-
-    if (time(NULL) - lastTime < 60 * 2)
-        return;
-
-    lastTime = time(NULL);
-
-    if ((pimPid = fork())) {
-        if (pimPid < 0)
-            syslog(LOG_ERR, "%s: failed %m", __func__);
-        return;
-    }
-
-    for (i = sysconf(_SC_OPEN_MAX); i >= 0; i--)
-        close(i);
-
-    for (i = 1; i < NSIG; i++)
-        signal_set(i, SIG_DFL);
-
-    char daemonPath[PATH_MAX];
-    snprintf(daemonPath, sizeof(daemonPath), "%s/pim",
-             genParams[LSF_SERVERDIR].paramValue);
-    char *pargv[] = {daemonPath, NULL};
-
-    execv(pargv[0], pargv);
-    syslog(LOG_ERR, "%s: failed %m", __func__);
-    exit(-1);
 }
 
 void initLiStruct(void)

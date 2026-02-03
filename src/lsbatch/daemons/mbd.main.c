@@ -187,7 +187,7 @@ static void usage(void)
             "  -h, --help         Show this help message and exit\n"
             "  -V, --version      Show version information and exit\n"
             "  -C, --reconfig     Check configuration\n"
-            "  -d, --debug        Run in debug mode, no daemonize\n"
+            "  -d, --debug        Run in debug mode\n"
             "  -E, --env VAR      Set environment variable LSF_ENVDIR\n");
 }
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},

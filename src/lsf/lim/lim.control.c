@@ -222,17 +222,7 @@ void shutdownLim(void)
 {
     chan_close(lim_udp_chan);
 
-    ls_syslog(LOG_ERR, "Lim shutting down: shutdown request received");
-
-    if (elim_pid > 0) {
-        kill(elim_pid, SIGTERM);
-        millisleep_(2000);
-    }
-
-    if (pimPid > 0) {
-        kill(pimPid, SIGTERM);
-        millisleep_(2000);
-    }
+    LS_ERRX("Lim shutting down: shutdown request received");
 
     exit(EXIT_NO_ERROR);
 }

@@ -45,8 +45,7 @@ extern char *resolve_master_with_retry(void);
  *   >=0  channel id on success
  *   -1   on failure; lsberrno/lserrno is set
  */
-int
-sbd_nb_connect_mbd(bool_t *connected)
+int sbd_nb_connect_mbd(bool_t *connected)
 {
     if (connected != NULL)
         *connected = false;

@@ -500,3 +500,4 @@ struct wire_job_sig_reply {
 };
 
 bool_t xdr_wire_job_sig_reply(XDR *, struct wire_job_sig_reply *);
+int check_sharedir_access(const char *);

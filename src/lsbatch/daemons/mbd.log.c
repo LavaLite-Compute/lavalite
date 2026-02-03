@@ -319,47 +319,13 @@ static int replay_event(char *filename, int lineNum)
 static void mbd_init_log_paths(void)
 {
     char dirbuf[PATH_MAX];
-    struct stat sbuf;
 
-    /*
-     * Invariant:
-     * The mbatchd working directory is NOT created by the daemon.
-     * It must exist and be owned by the LavaLite administrator.
-     * Creation is the responsibility of the installer or sysadmin.
-     */
     snprintf(dirbuf, sizeof(dirbuf), "%s/mbatchd",
              lsbParams[LSB_SHAREDIR].paramValue);
 
-    if (stat(dirbuf, &sbuf) < 0) {
-        LS_ERR("stat(%s) failed", dirbuf);
-        if (!lsb_CheckMode) {
-            mbdDie(MASTER_FATAL);
-        }
-        return;
-    }
-
-    if (sbuf.st_uid != mbd_mgr->uid) {
-        ls_syslog(LOG_ERR,
-                  "%s: Log directory <%s> not owned by LavaLite "
-                  "administrator <%s/%d> owner ID is %d",
-                  __func__, dirbuf,
-                  mbd_mgr->name, mbd_mgr->uid,
-                  sbuf.st_uid);
-        if (mbd_debug == 0) {
-            mbdDie(MASTER_FATAL);
-        }
-        return;
-    }
-
-    if (sbuf.st_mode & 02) {
-        ls_syslog(LOG_ERR,
-                  "%s: Mode <%03o> not allowed for job log directory <%s>; "
-                  "permission bits for others should be 05",
-                  __func__, (int)sbuf.st_mode, dirbuf);
-        if (mbd_debug == 0) {
-            mbdDie(MASTER_FATAL);
-        }
-        return;
+    if (mkdir(dirbuf, 0700) == -1 && errno != EEXIST) {
+        LS_ERR("mkdir(%s) failed %m", dirbuf);
+        mbdDie(MASTER_FATAL);
     }
 
     if (build_log_path(elogFname, sizeof(elogFname),

@@ -462,3 +462,35 @@ const char * job_state_str(int status)
 
     return "UNKNOWN_STATE";
 }
+
+int check_sharedir_access(const char *sharedir)
+{
+    struct stat st;
+
+    if (sharedir == NULL || *sharedir == '\0') {
+        LS_ERR("LSB_SHAREDIR not set");
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
+
+    if (stat(sharedir, &st) < 0) {
+        LS_ERR("stat(%s) failed: %m", sharedir);
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
+
+    if (!S_ISDIR(st.st_mode)) {
+        LS_ERR("%s exists but is not a directory", sharedir);
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
+
+    if (access(sharedir, W_OK | X_OK) < 0) {
+        LS_ERR("%s not writable/searchable by uid=%d: %m",
+               sharedir, (int)geteuid());
+        lserrno = LSE_BAD_ENV;
+        return -1;
+    }
+
+    return 0;
+}

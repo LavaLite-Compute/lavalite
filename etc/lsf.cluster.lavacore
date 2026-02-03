@@ -1,0 +1,28 @@
+# Copyright (C) LavaCore Contributors
+
+Begin   ClusterAdmins
+Administrators = lavacore
+End    ClusterAdmins
+
+# Cluster host definitions.
+# Each entry maps a host to a model and type as defined in lsf.shared.
+# - type: architecture (e.g. x86_64, arm64)
+# - model: hardware attributes (e.g. cores, memory)
+# These are naming conventions only — not enforced semantics.
+Begin	Host
+HOSTNAME     model         type       server  r15m   RESOURCES
+buntu24      x86_default x86_64_linux    1     64.5    (cs)
+worker1      x86_default x86_64_linux    1     64.5    (cs)
+# yourhost   fast x86_64_linux    1     64.5    (fs cs)
+# yourhost   fast x86_64_linux    1     64.5    (fs cs)
+End     Host
+
+# External resources collected by ELIM and mapped to hosts.
+# 'default' → each host runs ELIM and maintains its own value
+# 'all'     → shared value collected by master host
+# Begin ResourceMap
+# RESOURCENAME  LOCATION
+# gpu     [default]    # Host-local GPU count, e.g. from nvidia-smi
+# licenseZ [all]        # Cluster-wide license pool, e.g. from FlexLM
+# End ResourceMap
+

@@ -74,7 +74,7 @@ static void usage(const char *cmd)
     fprintf(
         stderr,
         "Usage: %s [OPTIONS]\n"
-        "  -d, --debug Run in foreground (no daemonize)\n"
+        "  -d, --debug Run in foreground\n"
         "  -V, --version     Print version and exit\n"
         "  -e, --envdir DIR  Path to env dir \n"
         "  -h, --help Show this help\n",
@@ -133,6 +133,12 @@ static int sbd_init(const char *sbatch)
     // first thing first open the log so we can see messages
     // from the daemon right from the start
     sbd_init_log();
+
+    if (check_sharedir_access(lsbParams[LSB_SHAREDIR].paramValue) < 0) {
+        LS_ERR("cannot access working directory %s",
+               lsbParams[LSB_SHAREDIR].paramValue);
+        return -1;
+    }
 
     sbd_init_signals();
 

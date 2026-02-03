@@ -152,8 +152,11 @@ int mbd_init(int mbdInitFlags)
     int list, i;
     char *realMaster;
 
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
+    if (check_sharedir_access(lsbParams[LSB_SHAREDIR].paramValue) < 0) {
+        LS_ERR("cannot access working directory %s",
+               lsbParams[LSB_SHAREDIR].paramValue);
+        return -1;
+    }
 
     mbd_mgr = mbd_init_manager();
     if (mbd_mgr == NULL) {

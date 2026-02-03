@@ -1,0 +1,24 @@
+[Unit]
+Description=LavaCore sbd daemon
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=30
+StartLimitBurst=5
+
+[Service]
+Type=simple
+
+# Required for all daemons. Adjust if your config lives elsewhere.
+Environment=LSF_ENVDIR=/opt/lavalite/etc
+
+# Use stable symlink path: /opt/lavacore -> /opt/lavacore-<version>
+ExecStart=/opt/lavacore/sbin/sbd
+
+KillMode=control-group
+GuessMainPID=no
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
