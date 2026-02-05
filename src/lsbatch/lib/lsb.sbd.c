@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) LavaLite Contributors
  *
@@ -95,17 +94,13 @@ bool_t xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
     if (!xdr_int32_t(xdrs, &p->exit_status))
         return false;
 
-    if (!xdr_int32_t(xdrs, &p->missing))
+    if (! xdr_opaque(xdrs, &p->cwd, LL_BUFSIZ_32))
         return false;
 
-    // Optional string. Server may set NULL; encode as empty string to
-    // keep decoding simple. Decoder side may get allocated memory.
-    if (xdrs->x_op == XDR_ENCODE) {
-        if (p->job_file == NULL)
-            p->job_file = (char *)"";
-    }
+    if (! xdr_opaque(xdrs, &p->cwd, PATH_MAX))
+        return false;
 
-    if (!xdr_string(xdrs, &p->job_file, LL_BUFSIZ_4K))
+    if (! xdr_opaque(xdrs, &p->cwd, PATH_MAX))
         return false;
 
     return true;

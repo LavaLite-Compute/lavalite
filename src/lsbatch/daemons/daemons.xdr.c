@@ -59,7 +59,6 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
     if (xdrs->x_op == XDR_DECODE)
         jobId32To64(&spec->jobId, jobArrId, jobArrElemId);
 
-    // campi base e stringhe fisse
     if (!xdr_opaque(xdrs, spec->jobName, LL_BUFSIZ_512))
         return false;
 

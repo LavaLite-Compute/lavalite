@@ -86,8 +86,6 @@ struct sbdJobInfo {
     int32_t exit_status_valid;
     int32_t exit_status;
 
-    int32_t missing;
-
     char cwd[PATH_MAX];
     char home_dir[PATH_MAX];
     char user_name[PATH_MAX];
