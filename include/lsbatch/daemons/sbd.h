@@ -76,7 +76,7 @@ struct sbd_job {
 
     int64_t job_id;                   // global jobId (stable, assigned by mbd)
     // job spec sent from mbd are unmutable
-    const struct jobSpecs spec;             // job specification as received from mbd
+    struct jobSpecs spec;             // job specification as received from mbd
                                       // (jobFile, command, resources, etc.)
 
     pid_t pid;                        // main job PID (child spawned by sbatchd)
@@ -96,7 +96,7 @@ struct sbd_job {
      *     - EXECUTE and FINISH must not be emitted before pid_acked.
      */
     bool_t pid_acked;
-    time_t pid_ack_time;         // time when pid_acked was set (diagnostics)
+    time_t time_pid_acked;         // time when pid_acked was set (diagnostics)
     time_t reply_last_send; // last time we tried to sent the reply
     /*
      * execute_acked (EXECUTE_COMMITTED):
@@ -107,6 +107,7 @@ struct sbd_job {
      *     - execute_acked implies pid_acked.
      */
     bool_t execute_acked;
+    time_t time_execute_acked;
     time_t execute_last_send; // last time we tried to send execute status
     /*
      * finish_acked (FINISH_COMMITTED):
@@ -118,6 +119,7 @@ struct sbd_job {
      *     - FINISH is only eligible once exit_status_valid is true.
      */
     bool_t finish_acked;
+    time_t time_finish_acked;
     time_t finish_last_send; // last time we tried to send finish status
 
     int exit_status;                  // raw waitpid() status
@@ -170,10 +172,6 @@ void sbd_job_free(void *);
 
 // Refresh job status from mbd
 void sbd_job_sync_jstatus(struct sbd_job *);
-
-// Make a copy of jobSpecs for the lifetime of the job
-int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
-void jobSpecs_free(struct jobSpecs *);
 
 int sbd_enqueue_new_job_reply(struct sbd_job *);
 int sbd_enqueue_execute(struct sbd_job *);

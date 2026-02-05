@@ -320,11 +320,11 @@ static void mbd_init_log_paths(void)
 {
     char dirbuf[PATH_MAX];
 
-    snprintf(dirbuf, sizeof(dirbuf), "%s/mb",
+    snprintf(dirbuf, sizeof(dirbuf), "%s/mbd",
              lsbParams[LSB_SHAREDIR].paramValue);
 
     if (mkdir(dirbuf, 0700) == -1 && errno != EEXIST) {
-        LS_ERR("mkdir(%s) failed %m", dirbuf);
+        LS_ERR("mkdir(%s) failed", dirbuf);
         mbdDie(MASTER_FATAL);
     }
 

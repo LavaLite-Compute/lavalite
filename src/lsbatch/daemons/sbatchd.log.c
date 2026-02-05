@@ -241,8 +241,11 @@ int sbd_job_record_write(struct sbd_job *job)
                      "pid=%d\n"
                      "pgid=%d\n"
                      "pid_acked=%d\n"
+                     "time_pid_acked=%ld\n"
                      "execute_acked=%d\n"
+                     "time_execute_acked=%ld\n"
                      "finish_acked=%d\n"
+                     "time_finish_acked=%ld\n"
                      "exit_status_valid=%d\n"
                      "exit_status=%d\n"
                      "end_time=%ld\n"
@@ -255,8 +258,11 @@ int sbd_job_record_write(struct sbd_job *job)
                      job->pid,
                      job->pgid,
                      pid_acked,
+                     (long)job->time_pid_acked,
                      execute_acked,
+                     (long)job->time_execute_acked,
                      finish_acked,
+                     (long)job->time_finish_acked,
                      exit_status_valid,
                      job->exit_status,
                      job->end_time,
@@ -504,6 +510,21 @@ int sbd_job_record_read(int64_t job_id, struct sbd_job *job)
             ll_strlcpy(job->jobfile_key, val, PATH_MAX);
             continue;
         }
+
+        if (strcmp(key, "time_pid_acked") == 0) {
+            job->time_pid_acked = atol(val);
+            continue;
+        }
+
+        if (strcmp(key, "time_execute_acked") == 0) {
+            job->time_execute_acked = atol(val);
+            continue;
+        }
+
+        if (strcmp(key, "time_finish_acked") == 0) {
+            job->time_pid_acked = atol(val);
+            continue;
+        }
     }
 
     fclose(fp);
@@ -533,6 +554,9 @@ void sbd_prune_acked_jobs(void)
 {
     struct ll_list_entry *e;
     struct ll_list_entry *e2;
+
+    // Bug find a policy to purge these files periodically
+    return;
 
     for (e = sbd_job_list.head; e;) {
         e2 = e->next;

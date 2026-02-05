@@ -4382,7 +4382,7 @@ static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
 }
 
 // Writes exit status as: "exit_code unix_timestamp\n"
-// File name: exit.status.$LAVALITE_JOB_ID
+// File name: exit.status.$LAVACORE_JOB_ID
 // Uses atomic rename within the same directory.
 static int ll_buf_append_job_exit_tail(struct ll_buf *b)
 {
@@ -4393,11 +4393,11 @@ static int ll_buf_append_job_exit_tail(struct ll_buf *b)
         return -1;
 
     if (ll_buf_append_str(b,
-        "out=\"$LAVALITE_JOB_STATE_DIR/exit.status.$LAVALITE_JOB_ID\"\n") < 0)
+        "out=\"$LAVACORE_JOB_STATE_DIR/exit.status.$LAVACORE_JOB_ID\"\n") < 0)
         return -1;
 
     if (ll_buf_append_str(b,
-        "tmp=\"$LAVALITE_JOB_STATE_DIR/.exit.status.$LAVALITE_JOB_ID.$$\"\n") < 0)
+        "tmp=\"$LAVACORE_JOB_STATE_DIR/.exit.status.$LAVACORE_JOB_ID.$$\"\n") < 0)
         return -1;
 
     if (ll_buf_append_str(b,
@@ -4416,7 +4416,7 @@ static int ll_buf_append_job_exit_tail(struct ll_buf *b)
 static int ll_buf_append_job_go_gate(struct ll_buf *b)
 {
     if (ll_buf_append_str(b,
-        "go=\"$LAVALITE_JOB_STATE_DIR/go.$LAVALITE_JOB_ID\"\n") < 0)
+        "go=\"$LAVACORE_JOB_STATE_DIR/go.$LAVACORE_JOB_ID\"\n") < 0)
         return -1;
 
     if (ll_buf_append_str(b,

@@ -268,8 +268,8 @@ int sbd_enqueue_new_job_reply(struct sbd_job *job)
     job_reply.jobId   = job->job_id;
     job_reply.jobPid  = job->pid;
     job_reply.jobPGid = job->pgid;
-    // this is JOB_STAT_RUN as received by the mbd
-    job_reply.jStatus = job->spec.jStatus;
+    // note that mbd sends us JOB_STAT_PEND
+    job_reply.jStatus = job->spec.jStatus = JOB_STAT_RUN;
 
     int cc = enqueue_payload(sbd_mbd_chan,
                              BATCH_NEW_JOB_REPLY,
@@ -315,7 +315,7 @@ int sbd_enqueue_execute(struct sbd_job *job)
         return -1;
     }
 
-    if (job->spec.jobPid <= 0 || job->spec.jobPGid <= 0) {
+    if (job->pid <= 0 || job->pgid <= 0) {
         LS_ERR("job %ld bad pid/pgid pid=%d pgid=%d (bug)",
                job->job_id, job->spec.jobPid, job->spec.jobPGid);
         assert(0);

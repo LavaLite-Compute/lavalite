@@ -32,9 +32,9 @@ static void sbd_reap_children(void);
 static void sbd_maybe_reap_children(void);
 static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
+static void job_reply_drive(void);
 static void job_finish_drive(void);
 static void job_execute_drive(void);
-static void sbd_reply_drive(void);
 static void sbd_mbd_reconnect_try(void);
 static bool_t sbd_drive_mbd_link(int, struct epoll_event *);
 static bool_t sbd_pid_alive(pid_t);
@@ -268,7 +268,7 @@ sbd_run_daemon(void)
              timer_maintenance:
                  sbd_reap_children();
                  sbd_mbd_reconnect_try();
-                 sbd_reply_drive();
+                 job_reply_drive();
                  job_execute_drive();
                  job_finish_drive();
                  job_status_checking();
@@ -722,32 +722,40 @@ static void job_status_checking(void)
     // NOTE: ll_list_entry must remain the first field (list base object idiom)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
+        static time_t last_missing_warning;
+
+        if (job->finish_acked > 0)
+            continue;
 
         if (!sbd_pid_alive(job->pid)) {
-            LS_WARNING("job %ld pid %ld not alive after restart?",
-                       job->job_id, (long)job->pid);
-             // read the exit code from the exit status file of the job
-             // created by the job file
-             int exit_code;
-             time_t done_time;
-             int cc = sbd_read_exit_status_file(job->job_id,
-                                                &exit_code,
-                                                &done_time);
-             if (cc < 0) {
-                 LS_ERR("failed to read job %ld exist status assume "
-                        "JOB_STAT_EXIT", job->job_id);
-                 exit_code = 1;
-             }
-             job->finish_last_send = 0;
-             job->exit_status_valid = true;
-             job->exit_status = exit_code;
-             // Derive final status bits from exit code
+            if (now - last_missing_warning > 300) {
+                LS_WARNING("job %ld pid %ld not alive after restart?",
+                           job->job_id, (long)job->pid);
+                last_missing_warning = now;
+            }
+            // read the exit code from the exit status file of the job
+            // created by the job file
+            int exit_code;
+            time_t done_time;
+            int cc = sbd_read_exit_status_file(job->job_id,
+                                               &exit_code,
+                                               &done_time);
+            if (cc < 0) {
+                LS_ERR("failed to read job %ld exist status assume "
+                       "JOB_STAT_EXIT", job->job_id);
+                exit_code = 1;
+            }
+            job->finish_last_send = 0;
+            job->time_finish_acked = now;
+            job->exit_status_valid = true;
+            job->exit_status = exit_code;
+            // Derive final status bits from exit code
         }
     }
 }
 
 // Drive the jobReply to mbd after we have sbd created a new job
-static void sbd_reply_drive(void)
+static void job_reply_drive(void)
 {
     static time_t last_time;
 
@@ -845,7 +853,6 @@ static void job_finish_drive(void)
 
         if (!job->execute_acked)
             continue;
-
 
         if (! job->exit_status_valid)
             continue;

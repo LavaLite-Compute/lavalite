@@ -29,7 +29,7 @@ void setLockOwnerPid(void)
 }
 
 extern int msleeptime;
-static char lockfile[MAXFILENAMELEN];
+static char lockfile[PATH_MAX];
 static char gotLock = FALSE;
 
 void getElogLock(void)
@@ -44,31 +44,28 @@ void getElogLock(void)
 
 int getElock(void)
 {
-    static char fname[] = "getElock";
     int force = 0;
     int retry;
     char *myhostnm, *mastername;
     struct stat statbuf;
     time_t lastmodtime;
-    char first = TRUE;
     char buf[MAXHOSTNAMELEN + 8];
-    int lock_fd = -1;
+
 
     if (lsb_CheckMode)
         return 0;
 
     if ((myhostnm = ls_getmyhostname()) == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "ls_getmyhostname");
+        LS_ERR("ls_getmyhostname failed");
         return MASTER_FATAL;
     }
 
 #define EVENT_LOCK_FILE "#lsb.event.lock"
-    char dirbuf[MAXPATHLEN];
-    sprintf(dirbuf, "%s/mbatchd", lsbParams[LSB_SHAREDIR].paramValue);
-    sprintf(lockfile, "%s/%s", dirbuf, EVENT_LOCK_FILE);
-
+    sprintf(lockfile, "%s/mbd/%s", lsbParams[LSB_SHAREDIR].paramValue,
+            EVENT_LOCK_FILE);
 access:
 
+    int lock_fd = -1;
     if (force)
         lock_fd = open(lockfile, O_RDWR | O_CREAT | O_TRUNC, 0644);
     else
@@ -78,16 +75,18 @@ access:
         sprintf(buf, "%s:%d", myhostnm, (int) getpid());
         write(lock_fd, buf, strlen(buf));
         close(lock_fd);
-        ls_syslog(LOG_INFO, ("%s: Got lock file"), fname);
+        LS_INFO("Got lock file");
         gotLock = TRUE;
         return 0;
     } else if (errno == EEXIST) {
-        int fd, cc, i, pid;
+        int fd;
+        int cc;
+        int i;
+        int pid;
 
         fd = open(lockfile, O_RDONLY, 0444);
         if (fd < 0) {
-            ls_syslog(LOG_ERR, "%s: Can't open existing lock file <%s>: %m",
-                      fname, lockfile);
+            LS_ERR("can't open existing lock file %s", lockfile);
             return MASTER_FATAL;
         }
         i = 0;
@@ -102,11 +101,8 @@ access:
                 buf[i] = '\0';
                 pid = atoi(buf);
                 if (kill(pid, 0) < 0) {
-                    ls_syslog(
-                        LOG_ERR,
-                        "%s: Last owner of lock file was on this host with pid "
-                        "<%d>; attempting to take over lock file",
-                        fname, pid);
+                    LS_ERRX("Last owner of lock file was on this host with pid=%d",
+                            pid);
                     close(fd);
                     force = 1;
                     goto access;
@@ -116,12 +112,13 @@ access:
         close(fd);
 
         if (stat(lockfile, &statbuf) < 0) {
-            ls_syslog(LOG_ERR, "%s", __func__, "stat", lockfile);
+            LS_ERR("stat on %s failed", lockfile);
             return MASTER_FATAL;
         }
         lastmodtime = statbuf.st_mtime;
         retry = 0;
 
+        char first = true;
         while (1) {
             int j;
             millisleep_(msleeptime * 1000 / 2);
@@ -132,38 +129,32 @@ access:
                 mastername = ls_getmastername();
             }
             if (mastername == NULL) {
-                ls_syslog(LOG_ERR, "%s: Can't get master host name: %M", fname);
+                LS_ERR("can't get master host name");
                 return MASTER_FATAL;
             }
 
             if (!equal_host(mastername, myhostnm)) {
-                ls_syslog(LOG_ERR, "%s: Local host <%s> is not master <%s>",
-                          fname, myhostnm, mastername);
+                LS_ERR("local host=%s is not master=%s", myhostnm, mastername);
                 return MASTER_RESIGN;
             }
 
             if (stat(lockfile, &statbuf) < 0) {
                 if (errno == ENOENT)
                     goto access;
-                ls_syslog(LOG_ERR, "%s", __func__, "stat", lockfile);
+                LS_ERR("stat on %s failed", lockfile);
                 return MASTER_FATAL;
             }
             if (statbuf.st_mtime == lastmodtime) {
                 if (retry > 4) {
-                    ls_syslog(LOG_ERR,
-                              "%s: Previous mbatchd appears dead; attempting "
-                              "to take over lock file",
-                              fname);
+                    LS_ERR("previous mbatchd appears dead; attempting "
+                           "to take over lock file");
                     force = 1;
                     goto access;
                 } else
                     retry++;
             } else {
                 if (first) {
-                    ls_syslog(LOG_ERR,
-                              "%s: Another mbatchd is accessing lock file; "
-                              "waiting ...",
-                              fname);
+                    LS_ERRX("Another mb/d is accessing lock file waiting ...");
                     first = FALSE;
                 }
                 lastmodtime = statbuf.st_mtime;
@@ -171,8 +162,7 @@ access:
             }
         }
     } else {
-        ls_syslog(LOG_ERR, "%s: Failed in opening lock file <%s>: %m", fname,
-                  lockfile);
+        LS_ERR("failed in opening lock file %s", lockfile);
         return MASTER_FATAL;
     }
 }

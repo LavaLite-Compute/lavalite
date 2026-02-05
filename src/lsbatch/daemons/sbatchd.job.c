@@ -38,6 +38,8 @@ static int dup_str_array(char ***, char *const *, int);
 static int dup_len_data(struct lenData *, const struct lenData *);
 static int dup_job_file_data(struct wire_job_file *,
                              const struct wire_job_file *);
+static int jobSpecs_deep_copy(struct jobSpecs *, const struct jobSpecs *);
+static void jobSpecs_free(struct jobSpecs *);
 
 struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
 {
@@ -69,12 +71,14 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
 
     job->reply_last_send = 0;
     job->pid_acked = false;
-    job->pid_ack_time = 0;
+    job->time_pid_acked = 0;
 
     job->execute_acked = false;
+    job->time_execute_acked = 0;
     job->execute_last_send = 0;
 
     job->finish_acked = false;
+    job->time_finish_acked = 0;
     job->finish_last_send = 0;
 
     job->exit_status = 0;
@@ -85,8 +89,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     job->exec_cwd[0] = 0;
 
     if (build_runtime_spec(job) < 0) {
-        LS_ERR("job %ld failed decoding exec cwd: %m",
-               spec->jobId);
+        LS_ERR("job %ld failed build_runtime_spec", spec->jobId);
         jobSpecs_free(&job->spec);
         free(job);
         return NULL;
@@ -111,8 +114,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
  */
 static int build_runtime_spec(struct sbd_job *job)
 {
-    // exec_user is required for status reporting and execution context
-    if (job->exec_user[0] == 0) {
+    if (job->spec.userName[0] == 0) {
         LS_ERR("job %ld missing exec_user (bug)",
                job->job_id);
         errno = EINVAL;
@@ -141,11 +143,9 @@ static int build_runtime_spec(struct sbd_job *job)
             errno = ENAMETOOLONG;
             return -1;
         }
-        return 0;
-    }
 
-    // Absolute cwd: use as-is
-    if (cwd[0] == '/') {
+    } else if (cwd[0] == '/') {
+        // Absolute cwd: use as-is
         n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", cwd);
         if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
             LS_ERR("job %ld exec_cwd overflow for cwd=%s (bug)",
@@ -153,22 +153,22 @@ static int build_runtime_spec(struct sbd_job *job)
             errno = ENAMETOOLONG;
             return -1;
         }
-        return 0;
-    }
 
-    // Relative cwd: interpret as relative to user's home directory
-    n = snprintf(job->exec_cwd, sizeof(job->exec_cwd),
-                 "%s/%s", home, cwd);
-    if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
-        LS_ERR("job %ld exec_cwd overflow for home=%s cwd=%s (bug)",
-               job->job_id, home, cwd);
-        errno = ENAMETOOLONG;
-        return -1;
+    } else {
+        // Relative cwd: interpret as relative to user's home directory
+        n = snprintf(job->exec_cwd, sizeof(job->exec_cwd),
+                     "%s/%s", home, cwd);
+        if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
+            LS_ERR("job %ld exec_cwd overflow for home=%s cwd=%s (bug)",
+                   job->job_id, home, cwd);
+            errno = ENAMETOOLONG;
+            return -1;
+        }
     }
 
     job->exec_uid = job->spec.userId;
     ll_strlcpy(job->exec_user, job->spec.userName, LL_BUFSIZ_32);
-    ll_strlcpy(job->exec_home, job->spec.subHomeDir, PATH_MAX);
+    ll_strlcpy(job->exec_home, home, PATH_MAX);
     ll_strlcpy(job->jobfile_key, job->spec.job_file, PATH_MAX);
 
     return 0;
@@ -185,7 +185,7 @@ static int build_runtime_spec(struct sbd_job *job)
  *
  * It is safe to call this function on a partially initialized jobSpecs.
  */
-void jobSpecs_free(struct jobSpecs *spec)
+static void jobSpecs_free(struct jobSpecs *spec)
 {
     int i;
 
@@ -221,14 +221,9 @@ void jobSpecs_free(struct jobSpecs *spec)
  * Deep-copy helpers for jobSpecs decoded by XDR.
  * Safe for zero-initialized structs.
  */
-int jobSpecs_deep_copy(struct jobSpecs *dst, const struct jobSpecs *src)
+static int jobSpecs_deep_copy(struct jobSpecs *dst,
+                              const struct jobSpecs *src)
 {
-    if (dst == NULL || src == NULL) {
-        LS_ERR("%s: invalid arguments", __func__);
-        errno = EINVAL;
-        return -1;
-    }
-
     if (src->numToHosts > 0 && src->toHosts == NULL) {
         LS_ERR("numToHosts=%d but toHosts is NULL", src->numToHosts);
         errno = EINVAL;
@@ -381,12 +376,13 @@ void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 
     // This ack means: mbd has recorded pid/pgid for this job.
     job->pid_acked = true;
+    job->time_pid_acked = time(NULL);
     // write the job record
     if (sbd_job_record_write(job) < 0) {
          LS_ERRX("job %ld record write failed after pid_acked",
                  job->job_id);
         // force sbd re transmission of the reply data
-        job->pid_ack_time = 0;
+         job->reply_last_send = 0;
         return;
     }
 
@@ -396,7 +392,7 @@ void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
         return;
     }
     LS_INFO("job %ld go file written", job->job_id);
-    job->pid_ack_time = time(NULL);
+    job->time_pid_acked = time(NULL);
 
     // PID/PGID acknowledged by mbd.
     // EXECUTE will be enqueued later by the main loop (job_execute_drive).
@@ -458,6 +454,7 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     job->execute_acked = true;
+    job->time_execute_acked = time(NULL);
 
     if (sbd_job_record_write(job) < 0)
         LS_ERRX("job %ld record write failed after execute_acked",
@@ -522,6 +519,7 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     job->finish_acked = true;
+    job->time_finish_acked = time(NULL);
     LS_INFO("job=%ld pid=%d pgid=%d BATCH_JOB_FINISH acked by mbd; cleaning up",
             job->job_id, job->pid, job->pgid);
 
@@ -529,16 +527,18 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     if (sbd_job_record_write(job) < 0)
         LS_ERRX("job %ld record write failed after finish_acked", job->job_id);
 
-    if (sbd_job_record_remove(job) < 0)
+    // Bug find a policy to remove these files periodically
+    if (0 && sbd_job_record_remove(job) < 0)
         LS_ERR("job %ld record remove failed", job->job_id);
 
-    if (sbd_jobfile_remove(job) < 0)
+    if (0 && sbd_jobfile_remove(job) < 0)
         LS_ERR("job %ld job file  remove failed", job->job_id);
     /*
      * Now it is safe to destroy the sbatchd-side job record/spool:
      * mbd event log is the source of truth, and FINISH is committed.
      */
-    sbd_job_destroy(job);
+    if (0)
+        sbd_job_destroy(job);
 }
 
 int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
@@ -645,7 +645,8 @@ static sbdReplyType spawn_job(struct sbd_job *job)
         chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
-        // Now run...
+        // Now run... the spec used by the job is a copy
+        // of the spec sent by mbd
         child_exec_job(job);
         _exit(127);   /* not reached unless exec fails */
     }
@@ -843,7 +844,7 @@ static int set_job_env(const struct jobSpecs *specs)
     if (setenv("LSB_JOBID", val, 1) < 0)
         return -1;
 
-    if (setenv("LAVALITE_JOB_ID", val, 1) < 0) {
+    if (setenv("LAVACORE_JOB_ID", val, 1) < 0) {
         return -1;
     }
 
@@ -857,7 +858,7 @@ static int set_job_env(const struct jobSpecs *specs)
     if (setenv("LS_JOBPID", val, 1) < 0)
         return -1;
 
-    if (setenv("LAVALITE_JOB_STATE_DIR", sbd_state_dir, 1) < 0)
+    if (setenv("LAVACORE_JOB_STATE_DIR", sbd_state_dir, 1) < 0)
         return -1;
     /*
      * User-supplied environment.
