@@ -324,16 +324,14 @@ sbd_jobinfo_fill(struct sbdJobInfo *out, struct sbd_job *job)
     out->pid  = (int32_t)job->pid;
     out->pgid = (int32_t)job->pgid;
 
-    out->state = (int32_t)job->state;
-
     out->pid_acked     = job->pid_acked ? 1 : 0;
     out->execute_acked = job->execute_acked ? 1 : 0;
     out->finish_acked  = job->finish_acked ? 1 : 0;
 
     out->exit_status_valid = job->exit_status_valid ? 1 : 0;
-    out->exit_status       = (int32_t)job->exit_status;
+    out->exit_status = job->exit_status;
 
-    out->missing = job->missing ? 1 : 0;
-
-    out->job_file = strdup(job->spec.job_file);
+    ll_strlcpy(out->cwd, job->exec_cwd, PATH_MAX);
+    ll_strlcpy(out->home_dir, job->exec_home, PATH_MAX);
+    ll_strlcpy(out->user_name, job->exec_user, LL_BUFSIZ_32);
 }

@@ -19,21 +19,21 @@
 
 extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 
-static sbdReplyType sbd_spawn_job(struct sbd_job *, struct jobReply *);
-static void sbd_child_exec_job(struct sbd_job *);
-static int sbd_set_job_env(const struct jobSpecs *);
-static int sbd_set_ids(const struct jobSpecs *);
-static void sbd_reset_signals(void);
-static int sbd_run_qpre(const struct jobSpecs *);
-static int sbd_run_upre(const struct jobSpecs *);
-static int sbd_enter_work_dir(const struct sbd_job *);
-static int sbd_redirect_stdio(const struct jobSpecs *);
-static int sbd_materialize_jobfile(struct jobSpecs *, const char *);
-static struct sbd_job *sbd_find_job_by_jid(int64_t);
-static int sbd_expand_stdio_path(const struct jobSpecs *, const char *,
+static sbdReplyType spawn_job(struct sbd_job *);
+static void child_exec_job(struct sbd_job *);
+static int set_job_env(const struct jobSpecs *);
+static int set_ids(const struct jobSpecs *);
+static void reset_signals(void);
+static int run_qpre(const struct jobSpecs *);
+static int run_upre(const struct jobSpecs *);
+static int enter_work_dir(const struct sbd_job *);
+static int redirect_stdio(const struct jobSpecs *);
+static int materialize_jobfile(struct jobSpecs *, const char *);
+static struct sbd_job *find_job_by_jid(int64_t);
+static int expand_stdio_path(const struct jobSpecs *, const char *,
                                  char *, size_t);
-static void sbd_killpg_job(struct sbd_job *, int, struct wire_job_sig_reply *);
-static int sbd_job_prepare_exec_fields(struct sbd_job *);
+static void killpg_job(struct sbd_job *, int, struct wire_job_sig_reply *);
+static int build_runtime_spec(struct sbd_job *);
 static int dup_str_array(char ***, char *const *, int);
 static int dup_len_data(struct lenData *, const struct lenData *);
 static int dup_job_file_data(struct wire_job_file *,
@@ -65,13 +65,9 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     job->pid = -1;
     job->pgid = -1;
 
-    memset(&job->job_reply, 0, sizeof(job->job_reply));
     memset(&job->lsf_rusage, 0, sizeof(job->lsf_rusage));
 
-    job->state = SBD_JOB_NEW;
-    job->reply_code = ERR_NO_ERROR;
     job->reply_last_send = 0;
-
     job->pid_acked = false;
     job->pid_ack_time = 0;
 
@@ -84,18 +80,12 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     job->exit_status = 0;
     job->exit_status_valid = false;
 
-    job->missing = false;
-
     // Initialize execution identity fields explicitly
-    job->exec_username[0] = 0;
+    job->exec_user[0] = 0;
     job->exec_cwd[0] = 0;
 
-    strcpy(job->exec_username, spec->userName);
-
-    // Prepare decoded execution fields (cwd reconstruction, validation).
-    // This must succeed for the job to be runnable.
-    if (sbd_job_prepare_exec_fields(job) < 0) {
-        LS_ERR("job %ld failed to prepare execution fields: %m",
+    if (build_runtime_spec(job) < 0) {
+        LS_ERR("job %ld failed decoding exec cwd: %m",
                spec->jobId);
         jobSpecs_free(&job->spec);
         free(job);
@@ -103,15 +93,13 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     }
 
     // Execution invariants: must hold after preparation
-    assert(job->exec_username[0] != 0);
+    assert(job->exec_user[0] != 0);
     assert(job->spec.subHomeDir[0] != 0);
     assert(job->exec_cwd[0] != 0);
 
     return job;
 }
 /*
- * Prepare execution-related fields for a newly created sbatchd job.
- *
  * This function validates mandatory identity fields and reconstructs
  * the execution working directory from the encoded cwd representation
  * received from mbd.
@@ -120,25 +108,12 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
  *   - spec.cwd == ""        -> execution cwd is the user's home directory
  *   - spec.cwd is relative -> execution cwd is subHomeDir + "/" + spec.cwd
  *   - spec.cwd is absolute -> execution cwd is spec.cwd
- *
- * This function does not chdir(). The caller is responsible for changing
- * directory and applying fallback logic (/tmp) in the execution path.
  */
-static int sbd_job_prepare_exec_fields(struct sbd_job *job)
+static int build_runtime_spec(struct sbd_job *job)
 {
-    const char *cwd;
-    const char *home;
-    int n;
-
-    if (job == NULL) {
-        LS_ERR("job is NULL (bug)");
-        errno = EINVAL;
-        return -1;
-    }
-
-    // exec_username is required for status reporting and execution context
-    if (job->exec_username[0] == 0) {
-        LS_ERR("job %ld missing exec_username (bug)",
+    // exec_user is required for status reporting and execution context
+    if (job->exec_user[0] == 0) {
+        LS_ERR("job %ld missing exec_user (bug)",
                job->job_id);
         errno = EINVAL;
         return -1;
@@ -152,8 +127,9 @@ static int sbd_job_prepare_exec_fields(struct sbd_job *job)
         return -1;
     }
 
-    cwd = job->spec.cwd;
-    home = job->spec.subHomeDir;
+    const char *cwd = job->spec.cwd;
+    const char *home = job->spec.subHomeDir;
+    int n;
 
     // Decode the cwd encoding into an execution directory path
     // An empty spec.cwd is valid and means "home"
@@ -189,6 +165,11 @@ static int sbd_job_prepare_exec_fields(struct sbd_job *job)
         errno = ENAMETOOLONG;
         return -1;
     }
+
+    job->exec_uid = job->spec.userId;
+    ll_strlcpy(job->exec_user, job->spec.userName, LL_BUFSIZ_32);
+    ll_strlcpy(job->exec_home, job->spec.subHomeDir, PATH_MAX);
+    ll_strlcpy(job->jobfile_key, job->spec.job_file, PATH_MAX);
 
     return 0;
 }
@@ -303,10 +284,6 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     struct jobSpecs spec;
     memset(&spec, 0, sizeof(spec));
 
-    // reply constructed by sbd
-    struct jobReply job_reply;
-    memset(&job_reply, 0, sizeof(job_reply));
-
     // 1) decode jobSpecs from mbd
     if (!xdr_jobSpecs((XDR *)xdrs, &spec, req_hdr)) {
         LS_ERR("xdr_jobSpecs failed");
@@ -321,19 +298,12 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     job = sbd_job_lookup(spec.jobId);
     if (job != NULL) {
 
-        LS_WARNING("MBD_NEW_JOB duplicate: job=%ld state=%d "
+        LS_WARNING("MBD_NEW_JOB duplicate: job=%ld "
                    "pid=%ld pgid=%ld jStatus=%d",
                    (int64_t)job->job_id,
-                   (int)job->state,
                    (long)job->pid,
                    (long)job->pgid,
                    (int)job->spec.jStatus);
-
-        job_reply.jobId   = job->job_id;
-        job_reply.jobPid  = job->pid;
-        job_reply.jobPGid = job->pgid;
-        job_reply.jStatus = job->spec.jStatus;
-        job->job_reply = job_reply;
 
         if (sbd_enqueue_new_job_reply(job) < 0) {
             LS_ERR("job %ld enqueue duplicate new job reply failed", job->job_id);
@@ -352,17 +322,14 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     }
 
     // 3) new job: spawn child, register it, fill job_reply
-    reply_code = sbd_spawn_job(job, &job_reply);
+    reply_code = spawn_job(job);
+    if (reply_code != ERR_NO_ERROR) {
+        // Bug return enqueue to mbd
+        assert(0);
+    }
 
-    /* free heap members inside spec that xdr allocated */
+    // free heap members inside spec that xdr allocated
     xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
-
-    // Copy the structures
-    job->job_reply = job_reply;
-    // This is fundamental for mbd to tell if the job
-    // started running or there was some sbd problem
-    job->reply_code = reply_code;
-    job->spec.runTime = time(NULL);
 
     // send the reply to mbd, note the child has been forked and
     // presumed running at this stage
@@ -399,7 +366,7 @@ void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     // go and retrieve the job_id base in its hash
-    struct sbd_job *job = sbd_find_job_by_jid(ack.job_id);
+    struct sbd_job *job = find_job_by_jid(ack.job_id);
     if (job == NULL) {
         LS_WARNING("new_job_ack for unknown job %ld", ack.job_id);
         return;
@@ -464,7 +431,7 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     struct sbd_job *job;
-    job = sbd_find_job_by_jid(ack.job_id);
+    job = find_job_by_jid(ack.job_id);
     if (job == NULL) {
         /*
          * This can happen after a restart or if the job was already cleaned.
@@ -480,8 +447,8 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
          * Strict ordering violation: execute_acked implies pid_acked.
          * This should never happen if mbd is enforcing the pipeline.
          */
-        LS_ERR("job=%ld BATCH_JOB_EXECUTE ack before PID ack state=0x%x",
-               job->job_id, job->state);
+        LS_ERR("job=%ld BATCH_JOB_EXECUTE acked before PID ack state=0x%x",
+               job->job_id);
         return;
     }
 
@@ -524,7 +491,7 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 
     struct sbd_job *job;
-    job = sbd_find_job_by_jid(ack.job_id);
+    job = find_job_by_jid(ack.job_id);
     if (job == NULL) {
         LS_INFO("FINISH ack for unknown job=%ld ignored", ack.job_id);
         return;
@@ -548,12 +515,10 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
      * FINISH is only eligible once we have a terminal status locally.
      * If this triggers, it means we emitted FINISH too early or state got lost.
      */
-    if (!job->exit_status_valid && !job->missing) {
+    if (!job->exit_status_valid) {
         LS_ERR("job=%ld pid=%d pgid=%d BATCH_JOB_FINISH acked exit_status "
                "not captured", job->job_id, job->pid, job->pgid);
         abort();
-        // later on we can mark this job as missing and continue the
-        // clean up process
     }
 
     job->finish_acked = true;
@@ -607,7 +572,7 @@ int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
     }
 
     // Go and POSIX signal him
-    sbd_killpg_job(job, req.sig, &rep);
+    killpg_job(job, req.sig, &rep);
 
     if (rep.rc == LSBE_NO_ERROR) {
         LS_INFO("signal delivered job_id=%ld sig=%d pid=%d pgid=%d",
@@ -627,8 +592,8 @@ int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
     return 0;
 }
 
-static void sbd_killpg_job(struct sbd_job *job, int sig,
-                           struct wire_job_sig_reply *rep)
+static void killpg_job(struct sbd_job *job, int sig,
+                       struct wire_job_sig_reply *rep)
 {
     rep->rc = LSBE_NO_ERROR;
     rep->detail_errno = 0;
@@ -648,8 +613,8 @@ static void sbd_killpg_job(struct sbd_job *job, int sig,
     }
 
     if (job->pid <= 0) {
-        LS_ERR("signal invariant violated job_id=%ld pid=%d pgid=%d state=%d",
-               job->job_id, job->pid, job->pgid, job->state);
+        LS_ERR("signal invariant violated job_id=%ld pid=%d pgid=%d",
+               job->job_id, job->pid, job->pgid);
         assert(0);
         rep->rc = LSBE_SYS_CALL;
         rep->detail_errno = EINVAL;
@@ -665,7 +630,7 @@ static void sbd_killpg_job(struct sbd_job *job, int sig,
         return;
     }
 }
-static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_out)
+static sbdReplyType spawn_job(struct sbd_job *job)
 {
     // use posix_spawn
     pid_t pid = fork();
@@ -681,27 +646,16 @@ static sbdReplyType sbd_spawn_job(struct sbd_job *job, struct jobReply *reply_ou
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
         // Now run...
-        sbd_child_exec_job(job);
+        child_exec_job(job);
         _exit(127);   /* not reached unless exec fails */
     }
 
     // parent
     job->pid = pid;
     job->pgid  = pid;
-    job->state = SBD_JOB_RUNNING;
-    job->spec.jobPid  = pid;
-    job->spec.jobPGid = pid;
-    job->spec.jStatus = JOB_STAT_RUN;
-    job->spec.startTime = 0;
 
     // register job locally BEFORE telling mbd
     sbd_job_insert(job);
-
-    memset(reply_out, 0, sizeof(*reply_out));
-    reply_out->jobId   = job->job_id;
-    reply_out->jobPid  = job->pid;
-    reply_out->jobPGid = job->pgid;
-    reply_out->jStatus = job->spec.jStatus;
 
     LS_INFO("spawned job <%d> pid=%d", job->job_id, job->pid);
 
@@ -760,7 +714,7 @@ sbd_job_free(void *e)
     free(job);
 }
 
-static void sbd_child_exec_job(struct sbd_job *job)
+static void child_exec_job(struct sbd_job *job)
 {
     // child becomes leader of its own group
     setpgid(0, 0);
@@ -779,14 +733,14 @@ static void sbd_child_exec_job(struct sbd_job *job)
             job->job_id, specs->userId, specs->userName);
 
     // Drop privileges / set ids first.
-    if (sbd_set_ids(specs) < 0) {
+    if (set_ids(specs) < 0) {
         LS_ERR("set ids failed job=%ld pid=%d pgid=%d", job->job_id, job->pid,
                job->pgid);
         _exit(127);
     }
 
     // Populate the job environment (LSB_*, user env, etc).
-    if (sbd_set_job_env(specs) < 0) {
+    if (set_job_env(specs) < 0) {
         LS_ERR("set job env failed for job %ld", job->job_id);
         _exit(127);
     }
@@ -815,7 +769,7 @@ static void sbd_child_exec_job(struct sbd_job *job)
             _exit(127);
         }
 
-        l = sbd_materialize_jobfile(specs, jfile);
+        l = materialize_jobfile(specs, jfile);
         if (l < 0) {
             LS_ERR("job %ld materialize jobfile failed: %m",
                    job->job_id);
@@ -831,24 +785,24 @@ static void sbd_child_exec_job(struct sbd_job *job)
         LS_INFO("job %ld child setup starting cwd %s",
                 job->job_id, job->exec_cwd);
 
-        if (sbd_enter_work_dir(job) < 0) {
+        if (enter_work_dir(job) < 0) {
             LS_ERR("job %ld failed to enter cwd %s (and /tmp fallback)",
                    job->job_id, job->exec_cwd);
             _exit(127);
         }
 
         // Reset signals before running hooks and before exec.
-        sbd_reset_signals();
+        reset_signals();
 
         // Queue pre-exec hook (admin-side).
-        if (sbd_run_qpre(specs) < 0) {
+        if (run_qpre(specs) < 0) {
             LS_ERR("qpre failed for job %ld", job->job_id);
             _exit(127);
         }
 
         // User pre-exec hook (submission-side).
         if ((specs->options & SUB_PRE_EXEC) != 0) {
-            if (sbd_run_upre(specs) < 0) {
+            if (run_upre(specs) < 0) {
                 LS_ERR("upre failed for job %ld", job->job_id);
                 _exit(127);
             }
@@ -860,7 +814,7 @@ static void sbd_child_exec_job(struct sbd_job *job)
             // not leak into job output.
             ls_set_log_to_stderr(0);
 
-            if (sbd_redirect_stdio(specs) < 0)
+            if (redirect_stdio(specs) < 0)
                 _exit(127);
 
             char *argv[2];
@@ -877,7 +831,7 @@ static void sbd_child_exec_job(struct sbd_job *job)
     }
 }
 
-static int sbd_set_job_env(const struct jobSpecs *specs)
+static int set_job_env(const struct jobSpecs *specs)
 {
     char val[LL_BUFSIZ_64];
     int i;
@@ -932,7 +886,7 @@ static int sbd_set_job_env(const struct jobSpecs *specs)
     return 0;
 }
 
-static int sbd_set_ids(const struct jobSpecs *specs)
+static int set_ids(const struct jobSpecs *specs)
 {
 
     // Single-user debug mode: sbatchd runs as the submitting user.
@@ -961,7 +915,7 @@ static int sbd_set_ids(const struct jobSpecs *specs)
     return 0;
 }
 
-static void sbd_reset_signals(void)
+static void reset_signals(void)
 {
     for (int i = 1; i < NSIG; i++)
         signal(i, SIG_DFL);
@@ -975,13 +929,13 @@ static void sbd_reset_signals(void)
     alarm(0);
 }
 
-static int sbd_run_qpre(const struct jobSpecs *specs)
+static int run_qpre(const struct jobSpecs *specs)
 {
     (void)specs;
     return 0;
 }
 
-static int sbd_run_upre(const struct jobSpecs *specs)
+static int run_upre(const struct jobSpecs *specs)
 {
     (void)specs;
     return 0;
@@ -1002,8 +956,7 @@ static int sbd_run_upre(const struct jobSpecs *specs)
  * On failure (both chdir attempts fail), an error is returned and the
  * caller is expected to terminate the child process.
  */
-static int
-sbd_enter_work_dir(const struct sbd_job *job)
+static int enter_work_dir(const struct sbd_job *job)
 {
     if (job == NULL) {
         LS_ERR("job is NULL (bug)");
@@ -1059,8 +1012,7 @@ sbd_enter_work_dir(const struct sbd_job *job)
  *  - Any failure to open or duplicate file descriptors is considered fatal
  *    and causes the function to return an error.
  */
-static int
-sbd_redirect_stdio(const struct jobSpecs *specs)
+static int redirect_stdio(const struct jobSpecs *specs)
 {
     int fd;
     const char *path;
@@ -1078,8 +1030,8 @@ sbd_redirect_stdio(const struct jobSpecs *specs)
     // Redirect stdin: user-specified input file or /dev/null
     path = "/dev/null";
     if (specs->inFile[0] != 0) {
-        if (sbd_expand_stdio_path(specs, specs->inFile,
-                                  expanded, sizeof(expanded)) < 0) {
+        if (expand_stdio_path(specs, specs->inFile,
+                              expanded, sizeof(expanded)) < 0) {
             LS_ERR("job <%s>: stdin path expansion failed for %s: %m",
                    lsb_jobid2str(specs->jobId), specs->inFile);
             return -1;
@@ -1104,8 +1056,8 @@ sbd_redirect_stdio(const struct jobSpecs *specs)
     // Redirect stdout: user-specified output file or "stdout" in cwd
     path = "stdout";
     if (specs->outFile[0] != 0) {
-        if (sbd_expand_stdio_path(specs, specs->outFile,
-                                  expanded, sizeof(expanded)) < 0) {
+        if (expand_stdio_path(specs, specs->outFile,
+                              expanded, sizeof(expanded)) < 0) {
             LS_ERR("job <%s>: stdout path expansion failed for %s: %m",
                    lsb_jobid2str(specs->jobId), specs->outFile);
             return -1;
@@ -1130,8 +1082,8 @@ sbd_redirect_stdio(const struct jobSpecs *specs)
     // Redirect stderr: user-specified error file or "stderr" in cwd
     path = "stderr";
     if (specs->errFile[0] != 0) {
-        if (sbd_expand_stdio_path(specs, specs->errFile,
-                                  expanded, sizeof(expanded)) < 0) {
+        if (expand_stdio_path(specs, specs->errFile,
+                              expanded, sizeof(expanded)) < 0) {
             LS_ERR("job <%s>: stderr path expansion failed for %s: %m",
                    lsb_jobid2str(specs->jobId), specs->errFile);
             return -1;
@@ -1168,10 +1120,9 @@ sbd_redirect_stdio(const struct jobSpecs *specs)
  * On success, writes a NUL-terminated string to out and returns 0.
  * On failure (overflow), returns -1 with errno set.
  */
-static int
-sbd_expand_stdio_path(const struct jobSpecs *specs,
-                      const char *tmpl,
-                      char *out, size_t outsz)
+static int expand_stdio_path(const struct jobSpecs *specs,
+                             const char *tmpl,
+                             char *out, size_t outsz)
 {
     size_t i;
     size_t pos;
@@ -1250,8 +1201,7 @@ int write_all(int fd, const char *buf, size_t len)
     return 0;
 }
 
-static int sbd_materialize_jobfile(struct jobSpecs *specs,
-                                   const char *jfile)
+static int materialize_jobfile(struct jobSpecs *specs, const char *jfile)
 {
     char tmp[PATH_MAX];
     if (snprintf(tmp, sizeof(tmp), "%s.tmp", jfile) >= (size_t)sizeof(tmp)) {
@@ -1296,7 +1246,7 @@ static int sbd_materialize_jobfile(struct jobSpecs *specs,
     return 0;
 }
 
-static struct sbd_job *sbd_find_job_by_jid(int64_t job_id)
+static struct sbd_job *find_job_by_jid(int64_t job_id)
 {
     char job_key[LL_BUFSIZ_32];
 

@@ -118,6 +118,7 @@ Notes:
 - `../configure` refers to the script generated in the source tree.
 - All build artifacts remain in `build_rocky9`.
 - The build directory can be deleted safely without affecting the source.
+- By default lavacore will install into ```/opt/lavacore-0.1.0```
 
 ---
 
@@ -132,8 +133,20 @@ sudo make install
 After installation, you may create a version-independent symlink:
 
 ```bash
-sudo ln -s /opt/lavacore-0.1.0 /opt/lavacore
+sudo ln -sfn /opt/lavacore-0.1.0 /opt/lavacore
 ```
+
+This symlink provides a stable logical installation path.
+
+Future upgrades can install a new version (e.g. `/opt/lavacore-0.1.1`)
+and update the symlink to point to the new directory without modifying:
+
+- systemd service files
+- configuration paths
+- environment variables
+- module files
+
+All configuration should reference `/opt/lavacore`, not the versioned directory.
 
 ---
 
@@ -195,18 +208,31 @@ Verify ownership before starting services.
 
 ## 5. Configuration (Legacy LSF_* Naming)
 
-Copy template configuration:
+Configuration files are not installed automatically by `make install`.
+They must be copied manually to prevent accidental overwriting during upgrades.
+
+Change directory to the source tree and copy the configuration templates:
 
 ```bash
-sudo cp /opt/lavacore-0.1.0/etc/lsf.conf.template \
-        /opt/lavacore-0.1.0/etc/lsf.conf
+cd ~/lavalite
+sudo cp -n etc/lsf* etc/lsb* /opt/lavacore-0.1.0/etc/
 ```
 
-Minimal required variable:
+The `-n` flag prevents overwriting existing configuration files.
 
-```
-LSF_ENVDIR=/opt/lavacore-0.1.0/etc
-```
+The `LSF_*` and `LSB_*` naming is retained for continuity with legacy Lava installations.
+
+The configuration layout reflects the conceptual lineage from Platform Lava.
+
+---
+
+### Core Configuration Files
+
+#### **lsf.conf**
+
+This is the primary configuration file.
+
+If you use the default installation paths, no changes are required.
 
 Common variables:
 
@@ -217,7 +243,71 @@ LSF_LOGDIR=/opt/lavacore-0.1.0/var/log
 LSB_SHAREDIR=/opt/lavacore-0.1.0/var/work
 ```
 
-The `LSF_*` and `LSB_*` naming is retained for continuity with legacy Lava installations.
+---
+
+#### **lsf.shared**
+
+Defines cluster-wide shared parameters.
+
+Defaults are suitable for an initial installation.
+The default cluster name is `lavacore`.
+
+---
+
+#### **lsf.cluster.lavacore**
+
+Defines cluster membership and administrative settings.
+
+You must configure:
+
+- The cluster administrator (typically the `lavacore` user)
+- The list of hosts in the cluster
+
+Reasonable defaults are provided.
+
+---
+
+#### **lsb.hosts**
+
+Defines batch hosts known to the system.
+
+Each host must be explicitly listed.
+
+The `MXJ` parameter specifies how many jobs may run concurrently on a host.
+
+---
+
+#### **lsb.queues**
+
+Defines batch queues.
+
+Reasonable defaults are provided for initial testing.
+
+---
+
+#### **lsb.params**
+
+Defines batch system parameters.
+
+Defaults are suitable for initial validation.
+
+---
+
+### Minimal Required Environment Variable
+
+```
+LSF_ENVDIR=/opt/lavacore-0.1.0/etc
+```
+
+The `LSF_ENVDIR` variable **must** be set in the environment of:
+
+- All daemons
+- All client commands (`lsid`, `lsload`, `bjobs`, etc.)
+
+It specifies the directory containing the master configuration file (`lsf.conf`).
+
+Using an environment module to manage this variable is recommended.
+An example module file is included in the Appendix.
 
 ---
 
@@ -375,7 +465,7 @@ Verify:
 
 ```bash
 module -t list
-env | grep LSF
+lavacore/0.1.0
 ```
 
 ---

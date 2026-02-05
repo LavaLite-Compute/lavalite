@@ -1037,16 +1037,16 @@ static void mbd_init_log(void)
 
     // Initialize LavaLite logging
     if (check) {
-        ls_openlog("mbatchd", log_dir, true, 0, (char *)log_mask);
+        ls_openlog("mbd", log_dir, true, 0, (char *)log_mask);
         LS_INFO("Starting mbatchd in check mode, console logging only");
     } else if (debug) {
-        ls_openlog("mbatchd", log_dir, true, 0, (char *)log_mask);
+        ls_openlog("mbd", log_dir, true, 0, (char *)log_mask);
         LS_INFO("Starting mbatchd in debug mode");
     } else {
         /* Normal production daemon case */
-        ls_openlog("mbatchd", log_dir, false, 0, (char *)log_mask);
+        ls_openlog("mbd", log_dir, false, 0, (char *)log_mask);
     }
 
-    LS_INFO("Logging initialized: dir=%s mask=%s debug=%d check=%d",
+    LS_INFO("mbd logging initialized: dir=%s mask=%s debug=%d check=%d",
             log_dir, log_mask, debug, check);
 }

@@ -12,7 +12,8 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA  02110-1301, USA
  */
 
 #include "lsbatch/daemons/sbd.h"
@@ -700,19 +701,8 @@ static void sbd_reap_children(void)
         job->exit_status_valid = true;
         job->end_time = time(NULL);
 
-        if (WIFEXITED(status)) {
-            job->state = SBD_JOB_EXITED;
-            if (WEXITSTATUS(status) == 0)
-                job->spec.jStatus = JOB_STAT_DONE;
-            else
-                job->spec.jStatus = JOB_STAT_EXIT;
-        } else if (WIFSIGNALED(status)) {
-            job->state = SBD_JOB_KILLED;
-            job->spec.jStatus = JOB_STAT_EXIT;
-        }
-
-        LS_INFO("job %ld finished pid=%d jStatus=0x%x status=0x%x",
-                job->job_id, (int)pid, job->spec.jStatus, (unsigned)status);
+        LS_INFO("job %ld finished pid=%d exit_status=0x%x",
+                job->job_id, (int)pid, job->exit_status);
     }
 }
 
@@ -733,13 +723,6 @@ static void job_status_checking(void)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
-        if (job->state != SBD_JOB_RUNNING)
-            continue;
-
-        job->spec.runTime = (int)(now - job->spec.startTime);
-        if (job->spec.runTime < 0)
-            job->spec.runTime = 0;
-
         if (!sbd_pid_alive(job->pid)) {
             LS_WARNING("job %ld pid %ld not alive after restart?",
                        job->job_id, (long)job->pid);
@@ -759,11 +742,6 @@ static void job_status_checking(void)
              job->exit_status_valid = true;
              job->exit_status = exit_code;
              // Derive final status bits from exit code
-             job->spec.jStatus &= ~(JOB_STAT_DONE | JOB_STAT_EXIT);
-             if (exit_code == 0)
-                 job->spec.jStatus |= JOB_STAT_DONE;
-             else
-                 job->spec.jStatus |= JOB_STAT_EXIT;
         }
     }
 }
@@ -822,9 +800,6 @@ static void job_execute_drive(void)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
-        if (job->missing)
-            continue;
-
         if (!job->pid_acked) {
             LS_DEBUG("job %ld not ready: pid not acked yet", job->job_id);
             continue;
@@ -863,9 +838,6 @@ static void job_finish_drive(void)
 
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
-
-        if (job->missing)
-            continue;
 
         // pid_sent is the hard gate: mbd must have recorded pid/pgid first.
         if (!job->pid_acked)

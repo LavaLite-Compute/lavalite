@@ -69,30 +69,23 @@ int sbd_enqueue_signal_job_reply(int, struct packet_header *,
 #define DEFAULT_SBD_OPERATION_TIMER 1
 #define DEFAUL_RESEND_ACK_TIMEOUT 1
 
-// Basic sbatchd job states.
-// Keep it small; mbd already has its own view.
-enum sbd_job_state {
-    SBD_JOB_NEW = 0,          // received, not yet forked
-    SBD_JOB_RUNNING,              // forked/exec'd, still alive
-    SBD_JOB_EXITED,               // exited normally
-    SBD_JOB_FAILED,               // failed before/at exec
-    SBD_JOB_KILLED                // killed by signal
-};
-
 // sbatchd-local view of a job.
 // This replaces the old jobCard horror.
 struct sbd_job {
     struct ll_list_entry list;        // intrusive link in global job list
 
     int64_t job_id;                   // global jobId (stable, assigned by mbd)
-    struct jobSpecs spec;             // job specification as received from mbd
+    // job spec sent from mbd are unmutable
+    const struct jobSpecs spec;             // job specification as received from mbd
                                       // (jobFile, command, resources, etc.)
 
     pid_t pid;                        // main job PID (child spawned by sbatchd)
     pid_t pgid;                       // process group ID for the job
-
-    enum sbd_job_state state;     // sbatchd-local job state (not wire-visible)
-
+    char exec_user[LL_BUFSIZ_32];
+    char exec_home[PATH_MAX];
+    char exec_cwd[PATH_MAX];   // execution working directory
+    uid_t exec_uid;
+    char jobfile_key[PATH_MAX];
     /*
      * pid_acked (PID_COMMITTED):
      *   Set to TRUE when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
@@ -104,8 +97,6 @@ struct sbd_job {
      */
     bool_t pid_acked;
     time_t pid_ack_time;         // time when pid_acked was set (diagnostics)
-    struct jobReply job_reply; // the JobReply structure to mbd
-    int reply_code;       // the reply code from sbd_spawn_job()
     time_t reply_last_send; // last time we tried to sent the reply
     /*
      * execute_acked (EXECUTE_COMMITTED):
@@ -132,13 +123,9 @@ struct sbd_job {
     int exit_status;                  // raw waitpid() status
     bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
     time_t end_time;     // job finish time
-    char exec_username[LL_BUFSIZ_64]; // execution username (used in statusReq)
-    char exec_cwd[PATH_MAX];   // execution working directory
 
     struct lsfRusage lsf_rusage;  // resource usage snapshot (zero for now;
                                   // later populated from cgroupv2)
-
-    bool_t missing;      // TRUE if job data/spool is inconsistent or lost
 };
 
 // Struct sbd job state to save the minimum status of the job to the
@@ -180,9 +167,6 @@ void sbd_job_insert(struct sbd_job *);
 // Remove and destroy job from global list + hash + free.
 void sbd_job_destroy(struct sbd_job *);
 void sbd_job_free(void *);
-
-// Mapping between sbatchd state and lsbatch.h JOB_STAT_* bitmask
-int sbd_state_to_jstatus(enum sbd_job_state);
 
 // Refresh job status from mbd
 void sbd_job_sync_jstatus(struct sbd_job *);

@@ -155,7 +155,7 @@ int init_log(void)
 
     mbd_init_log_paths();
 
-    // Get the current mbatchd lock
+    // Get the current mbd lock
     getElogLock();
 
     stat(elogFname, &ebuf);
@@ -320,7 +320,7 @@ static void mbd_init_log_paths(void)
 {
     char dirbuf[PATH_MAX];
 
-    snprintf(dirbuf, sizeof(dirbuf), "%s/mbatchd",
+    snprintf(dirbuf, sizeof(dirbuf), "%s/mb",
              lsbParams[LSB_SHAREDIR].paramValue);
 
     if (mkdir(dirbuf, 0700) == -1 && errno != EEXIST) {
@@ -2068,7 +2068,7 @@ int switchAcctLog(void)
     }
 
 Acct_exiterr:
-    lsb_merr("Fail to switch lsb.acct; see mbatchd error log for details");
+    lsb_merr("Fail to switch lsb.acct; see mbd error log for details");
     return -1;
 }
 
@@ -2305,7 +2305,7 @@ int switch_log(void)
         return 0;
     }
 exiterr:
-    lsb_merr("Fail to switch lsb.events; see mbatchd error log for details");
+    lsb_merr("Fail to switch lsb.events; see mbd error log for details");
     return -1;
 }
 
@@ -2568,14 +2568,14 @@ int mbd_read_job_file(struct jobSpecs *jobSpecs, struct jData *job)
 
     char logFn[PATH_MAX];
     snprintf(logFn, sizeof(logFn),
-             "%s/mbatchd/info/%s",
+             "%s/mbd/info/%s",
              lsbParams[LSB_SHAREDIR].paramValue,
              job->shared->jobBill.jobFile);
 
     int fd = open(logFn, O_RDONLY);
     if (fd < 0) {
         snprintf(logFn, sizeof(logFn),
-                 "%s/mbatchd/info/%d",
+                 "%s/mbd/info/%d",
                  lsbParams[LSB_SHAREDIR].paramValue,
                  LSB_ARRAY_JOBID(job->jobId));
         fd = open(logFn, O_RDONLY);
@@ -2767,14 +2767,14 @@ int readLogJobInfo(struct jobSpecs *jobSpecs, struct jData *jpbw,
 
     char logFn[PATH_MAX];
     snprintf(logFn, sizeof(logFn),
-             "%s/mbatchd/info/%s",
+             "%s/mbd/info/%s",
              lsbParams[LSB_SHAREDIR].paramValue,
              jpbw->shared->jobBill.jobFile);
 
     int fd = open(logFn, O_RDONLY);
     if (fd < 0) {
         snprintf(logFn, sizeof(logFn),
-                 "%s/mbatchd/info/%d",
+                 "%s/mbd/info/%d",
                  lsbParams[LSB_SHAREDIR].paramValue,
                  LSB_ARRAY_JOBID(jpbw->jobId));
         fd = open(logFn, O_RDONLY);

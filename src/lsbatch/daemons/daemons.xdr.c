@@ -256,41 +256,43 @@ bool_t xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *hdr)
 bool_t xdr_jobReply(XDR *xdrs, struct jobReply *jobReply,
                     struct packet_header *hdr)
 {
-    int jobArrId, jobArrElemId;
+    int jobArrId;
+    int jobArrElemId;
+
     if (xdrs->x_op == XDR_ENCODE) {
         jobId64To32(jobReply->jobId, &jobArrId, &jobArrElemId);
     }
     if (!xdr_int(xdrs, &jobArrId))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobReply->jobPid))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobReply->jobPGid))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobReply->actPid))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobReply->jStatus))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobReply->reasons))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobReply->actValue))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobReply->actStatus))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jobArrElemId)) {
-        return FALSE;
+        return false;
     }
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobReply->jobId, jobArrId, jobArrElemId);
     }
-    return TRUE;
+    return true;
 }
 
 bool_t xdr_statusReq(XDR *xdrs, struct statusReq *statusReq,

@@ -263,9 +263,17 @@ int sbd_enqueue_new_job_reply(struct sbd_job *job)
         return -1;
     }
 
+    struct jobReply job_reply;
+    memset(&job_reply, 0, sizeof(struct jobReply));
+    job_reply.jobId   = job->job_id;
+    job_reply.jobPid  = job->pid;
+    job_reply.jobPGid = job->pgid;
+    // this is JOB_STAT_RUN as received by the mbd
+    job_reply.jStatus = job->spec.jStatus;
+
     int cc = enqueue_payload(sbd_mbd_chan,
                              BATCH_NEW_JOB_REPLY,
-                             &job->job_reply,
+                             &job_reply,
                              xdr_jobReply);
     if (cc < 0) {
         LS_ERR("enqueue_payload for job %ld reply failed", job->job_id);
@@ -314,20 +322,19 @@ int sbd_enqueue_execute(struct sbd_job *job)
         return -1;
     }
 
-    if (job->exec_username[0] == 0 || job->spec.cwd[0] == 0
-        || job->spec.subHomeDir[0] == 0) {
-        LS_ERR("job %ld missing execute fields user/cwd/home (sbd restarted?)",
-               job->job_id);
-        // Best-effort: job is already running; still notify mbd so it can
-        // transition to JOB_STAT_RUN. Empty strings are acceptable.
+    if (job->exec_cwd[0] == 0
+        || job->exec_home[0] == 0
+        || job->exec_user[0] == 0) {
+        LS_ERR("job %ld missing execute fields user/cwd/home", job->job_id);
+        assert(0);
     }
 
     struct statusReq status_req;
     memset(&status_req, 0, sizeof(status_req));
 
     status_req.jobId     = job->job_id;
-    status_req.jobPid    = job->spec.jobPid;
-    status_req.jobPGid   = job->spec.jobPGid;
+    status_req.jobPid    = job->pid;
+    status_req.jobPGid   = job->pgid;
     // this is now fundamental for mbd that has acked the pid
     // the job now must transition to JOB_STAT_EXECUTE
     status_req.newStatus = JOB_STAT_RUN;
@@ -335,12 +342,12 @@ int sbd_enqueue_execute(struct sbd_job *job)
     status_req.reason     = 0;
     status_req.subreasons = 0;
 
-    status_req.execUid = job->spec.userId;
-
     // status_req uses pointers: point at stable storage in job/spec
-    status_req.execHome     = job->spec.subHomeDir;
-    status_req.execCwd      = job->spec.cwd;
-    status_req.execUsername = job->exec_username;
+    // use the runtime value derived from the specs
+    status_req.execHome     = job->exec_home;
+    status_req.execCwd      = job->exec_cwd;
+    status_req.execUid = job->exec_uid;
+    status_req.execUsername = job->exec_user;
 
     status_req.queuePreCmd  = "";
     status_req.queuePostCmd = "";
@@ -370,19 +377,15 @@ int sbd_enqueue_execute(struct sbd_job *job)
     chan_set_write_interest(sbd_mbd_chan, true);
 
     LS_INFO("job=%ld pid=%d pgid=%d op=%s user=%s cwd=%s",
-            job->job_id, job->spec.jobPid, mbd_op_str(BATCH_JOB_EXECUTE),
-            job->exec_username, job->spec.cwd);
+            job->job_id, job->spec.jobPid, job->spec.jobPGid,
+	    mbd_op_str(BATCH_JOB_EXECUTE), job->exec_user,
+	    job->spec.cwd);
 
     return 0;
 }
 
 int sbd_enqueue_finish(struct sbd_job *job)
 {
-    if (job == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
         LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
@@ -415,34 +418,28 @@ int sbd_enqueue_finish(struct sbd_job *job)
     }
 
     int new_status;
-    if (job->spec.jStatus & JOB_STAT_DONE) {
+    if (WIFEXITED(job->exit_status) && WEXITSTATUS(job->exit_status) == 0) {
         new_status = JOB_STAT_DONE;
-    } else if (job->spec.jStatus & JOB_STAT_EXIT) {
-        new_status = JOB_STAT_EXIT;
     } else {
-        LS_ERR("job=%ld finish with bad jStatus=0x%x (bug)",
-               job->job_id, job->spec.jStatus);
-        assert(0);
-        return -1;
+        new_status = JOB_STAT_EXIT;
     }
 
     struct statusReq req;
     memset(&req, 0, sizeof(req));
 
     req.jobId     = job->job_id;
-    req.jobPid    = job->spec.jobPid;
-    req.jobPGid   = job->spec.jobPGid;
+    req.jobPid    = job->pid;
+    req.jobPGid   = job->pgid;
     req.newStatus = new_status;
 
     req.reason     = 0;
     req.subreasons = 0;
 
-    req.execUid = job->spec.userId;
-
-    // optional but harmless: keep exec fields, they are stable storage
-    req.execHome     = job->spec.subHomeDir;
-    req.execCwd      = job->spec.cwd;
-    req.execUsername = job->exec_username;
+    // runtime specs
+    req.execHome = job->exec_home;
+    req.execCwd = job->exec_cwd;
+    req.execUid = job->exec_uid;
+    req.execUsername = job->exec_user;
 
     req.queuePreCmd  = "";
     req.queuePostCmd = "";

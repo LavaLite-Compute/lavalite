@@ -88,7 +88,9 @@ struct sbdJobInfo {
 
     int32_t missing;
 
-    char *job_file;  /* specs->jobFile, optional */
+    char cwd[PATH_MAX];
+    char home_dir[PATH_MAX];
+    char user_name[PATH_MAX];
 };
 
 /*

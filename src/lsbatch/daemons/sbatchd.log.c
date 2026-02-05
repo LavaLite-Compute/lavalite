@@ -61,10 +61,10 @@ int sbd_job_record_dir_init(void)
         return -1;
     }
 
-    if (snprintf(sbd_root, sizeof(sbd_root), "%s/sbatchd", sharedir) >=
+    if (snprintf(sbd_root, sizeof(sbd_root), "%s/sbd", sharedir) >=
         (int)sizeof(sbd_root)) {
         errno = ENAMETOOLONG;
-        LS_ERR("sbd_init_state: sbatchd root path too long");
+        LS_ERR("sbd_init_state: sbd root path too long");
         return -1;
     }
 
@@ -83,7 +83,7 @@ int sbd_job_record_dir_init(void)
         return -1;
     }
 
-    // Create <sharedir>/sbatchd and <sharedir>/sbatchd/state (ignore EEXIST).
+    // Create <sharedir>/sbd and <sharedir>/sbd/state (ignore EEXIST).
     if (mkdir(sbd_root, 0700) < 0 && errno != EEXIST) {
         LS_ERR("sbd_init_state: mkdir(%s) failed", sbd_root);
         return -1;
@@ -176,12 +176,22 @@ int sbd_job_record_remove(struct sbd_job *job)
     return 0;
 }
 
+// Bug when sbd restart we lost the jobfile because we dont
+// have the unix time as it gets logged we should reconstruct
+// it from the jobid
 int sbd_jobfile_remove(struct sbd_job *job)
 {
+    char job_file_dir[PATH_MAX];
+    int l = snprintf(job_file_dir, sizeof(job_file_dir),
+                     "%s/%s", sbd_jfiles_dir, job->jobfile_key);
+    if (l < 0 || (size_t)l >= PATH_MAX) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
     char job_file[PATH_MAX];
-    int l = snprintf(job_file, sizeof(job_file),
-                     "%s/%s/job.%ld", sbd_jfiles_dir, job->spec.job_file,
-                     job->job_id);
+    l = snprintf(job_file, sizeof(job_file),
+                 "%s/%s/job.sh", sbd_jfiles_dir, job->jobfile_key);
     if (l < 0 || (size_t)l >= PATH_MAX) {
         errno = ENAMETOOLONG;
         return -1;
@@ -190,20 +200,17 @@ int sbd_jobfile_remove(struct sbd_job *job)
     if (unlink(job_file) < 0)
         return -1;
 
+    if (rmdir(job_file_dir) < 0)
+        return -1;
+
      return 0;
 }
 
 int sbd_job_record_write(struct sbd_job *job)
 {
-    if (!job) {
-        errno = EINVAL;
-        LS_ERRX("sbd_job_record_write: invalid job pointer");
-        return -1;
-    }
-
     int64_t job_id = job->job_id;
 
-    // Single-writer invariant: sbatchd writes job records from the main loop only.
+    // Single-writer invariant: sbd writes job records from the main loop only.
     // tmp name is job-addressable for post-mortem; no O_EXCL to avoid stale
     // tmp bricking after SIGKILL.
     char path[PATH_MAX];
@@ -222,13 +229,10 @@ int sbd_job_record_write(struct sbd_job *job)
         return -1;
     }
 
-    //LS_INFO("job %ld record write start: %s", job->job_id, path);
-
     int pid_acked         = (job->pid_acked != 0);
     int execute_acked     = (job->execute_acked != 0);
     int finish_acked      = (job->finish_acked != 0);
     int exit_status_valid = (job->exit_status_valid != 0);
-    int missing           = (job->missing != 0);
 
     char buf[LL_BUFSIZ_2K];
     int n = snprintf(buf, sizeof(buf),
@@ -236,25 +240,31 @@ int sbd_job_record_write(struct sbd_job *job)
                      "job_id=%ld\n"
                      "pid=%d\n"
                      "pgid=%d\n"
-                     "state=%d\n"
                      "pid_acked=%d\n"
                      "execute_acked=%d\n"
                      "finish_acked=%d\n"
                      "exit_status_valid=%d\n"
                      "exit_status=%d\n"
                      "end_time=%ld\n"
-                     "missing=%d\n",
+                     "exec_cwd=%s\n"
+                     "exec_home=%s\n"
+                     "exec_uid=%u\n"
+                     "exec_user=%s\n"
+                     "jobfile_key=%s\n",
                      job->job_id,
                      job->pid,
                      job->pgid,
-                     job->state,
                      pid_acked,
                      execute_acked,
                      finish_acked,
                      exit_status_valid,
                      job->exit_status,
                      job->end_time,
-                     missing ? 1 : 0);
+                     job->exec_cwd,
+                     job->exec_home,
+                     job->exec_uid,
+                     job->exec_user,
+                     job->jobfile_key);
 
     if (n < 0) {
         errno = EINVAL;
@@ -303,22 +313,31 @@ int sbd_job_record_write(struct sbd_job *job)
         unlink(tmp_path);
         return -1;
     }
+    int dfd = open(sbd_state_dir, O_RDONLY | O_DIRECTORY);
+    if (dfd >= 0) {
+        fsync(dfd);
+        close(dfd);
+    }
 
     // exact copy of what is printed in the buffer
-    LS_INFO("job %ld record written pid=%d pgid=%d state=%d pid_acked=%d "
-            "execute_acked=%d finish_acked=%d exit_status_valid=%d exit_status=%d "
-            "end_time=%ld missing=%d",
+    LS_INFO("job %ld record written pid=%d pgid=%d pid_acked=%d "
+            "execute_acked=%d finish_acked=%d exit_status_valid=%d "
+            "exit_status=%d end_time=%ld exec_cwd=%s exec_home=%s "
+            "exec_uid=%d exec_user=%s jobfile_key=%s",
             job->job_id,
             job->pid,
             job->pgid,
-            job->state,
             pid_acked,
             execute_acked,
             finish_acked,
             exit_status_valid,
             job->exit_status,
             job->end_time,
-            missing);
+            job->exec_cwd,
+            job->exec_home,
+            job->exec_uid,
+            job->exec_user,
+            job->jobfile_key);
 
     return 0;
 }
@@ -365,7 +384,7 @@ int sbd_job_record_load_all(void)
 
         /*
          * At this point:
-         *  - job contains last known sbatchd-local state
+         *  - job contains last known sbd local state
          *  - mbd is the source of truth; this is only to survive restart
          */
         sbd_job_insert(job);
@@ -378,8 +397,7 @@ int sbd_job_record_load_all(void)
     return 0;
 }
 
-int
-sbd_job_record_read(int64_t job_id, struct sbd_job *job)
+int sbd_job_record_read(int64_t job_id, struct sbd_job *job)
 {
     char path[PATH_MAX];
     FILE *fp;
@@ -414,6 +432,9 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
         key = line;
         val = eq + 1;
 
+        // hose the \n fgets keeps it
+        val[strcspn(val, "\r\n")] = 0;
+
         if (strcmp(key, "version") == 0) {
             version = atoi(val);
             continue;
@@ -426,18 +447,11 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
 
         if (strcmp(key, "pid") == 0) {
             job->pid = (pid_t)atol(val);
-            job->spec.jobPid = (int)job->pid;
             continue;
         }
 
         if (strcmp(key, "pgid") == 0) {
             job->pgid = (pid_t)atol(val);
-            job->spec.jobPGid = (int)job->pgid;
-            continue;
-        }
-
-        if (strcmp(key, "state") == 0) {
-            job->state = (enum sbd_job_state)atoi(val);
             continue;
         }
 
@@ -466,8 +480,28 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
             continue;
         }
 
-        if (strcmp(key, "missing") == 0) {
-            job->missing = atoi(val);
+        if (strcmp(key, "exec_cwd") == 0) {
+            ll_strlcpy(job->exec_cwd, val, PATH_MAX);
+            continue;
+        }
+
+        if (strcmp(key, "exec_home") == 0) {
+            ll_strlcpy(job->exec_home, val, PATH_MAX);
+            continue;
+        }
+
+        if (strcmp(key, "exec_uid") == 0) {
+            job->exec_uid = atoi(val);
+            continue;
+        }
+
+        if (strcmp(key, "exec_user") == 0) {
+            ll_strlcpy(job->exec_user, val, LL_BUFSIZ_32);
+            continue;
+        }
+
+        if (strcmp(key, "jobfile_key") == 0) {
+            ll_strlcpy(job->jobfile_key, val, PATH_MAX);
             continue;
         }
     }
@@ -485,7 +519,6 @@ sbd_job_record_read(int64_t job_id, struct sbd_job *job)
     }
 
     job->job_id = job_id;
-    job->spec.jobId = job_id;
 
     return 0;
 }
@@ -524,6 +557,7 @@ void sbd_prune_acked_jobs(void)
         // later we may want to keep the job around for some time...
         // perhaps...
         sbd_job_record_remove(job);
+        sbd_jobfile_remove(job);
         sbd_job_destroy(job);
         // next!
         e = e2;

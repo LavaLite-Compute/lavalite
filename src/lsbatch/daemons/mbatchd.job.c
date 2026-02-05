@@ -182,8 +182,8 @@ int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
         LS_INFO("job %s EXECUTE duplicate from %s, first message at %s",
                 lsb_jobid2str(job->jobId), client->host_node->host,
                 ctime2(&job->execute_time));
-        assert(0);
-        return LSBE_NO_ERROR;
+        // send ack regadless
+        goto send_ack;
     }
 
     int st = MASK_STATUS(job->jStatus & ~JOB_STAT_UNKWN);
@@ -209,6 +209,7 @@ int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
     log_executejob(job);
     job->execute_time = time(NULL);
 
+send_ack:
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(struct job_status_ack));
     ack.job_id = job->jobId;
