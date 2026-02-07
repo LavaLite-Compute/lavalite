@@ -170,7 +170,9 @@ For production-style deployments, keep the account non-login.
 
 ## 4. Installation Layout
 
-The installation tree will look like:
+## 4. Installation Layout and Runtime Ownership Model
+
+After installation, the tree looks like:
 
 ```
 /opt/lavacore-0.1.0
@@ -185,25 +187,152 @@ The installation tree will look like:
     └── work
 ```
 
-Ensure runtime directories are owned by the service user:
+This section defines the ownership and permissions required for a correct
+multi-user installation.
+
+---
+
+### 4.1 Service users and privilege boundaries
+
+LavaCore runs with two different privilege models:
+
+- `lim` and `mbd` run as the **service user** (typically `lavacore`).
+  They must be able to create and append their log and state files.
+
+- `sbd` starts as **root** because it must be able to `setuid()` to the
+  submitting user when launching jobs. During job launch, SBD prepares
+  per-job directories as root and then drops privileges to the job user.
+
+This privilege split is intentional and affects directory ownership.
+
+---
+
+### 4.2 Directory roles
+
+The runtime tree is split by purpose:
+
+#### `var/log` (daemon logs)
+- Contains log files written by the daemons.
+- Must be writable by the service user (`lim` and `mbd`).
+- Log files may be readable by other users for debugging and support
+  (policy decision), but only the daemon user must be able to create them.
+
+#### `var/work` (runtime state)
+- Contains daemon state and per-job runtime files.
+- Some subdirectories are service-owned, and some are root-owned.
+- Per-job directories are user-owned.
+
+---
+
+### 4.3 Ownership and permissions (symbolic description)
+
+The following rules must hold:
+
+#### `/opt/lavacore-0.1.0/var`
+- Owner: `root`
+- Others: must have execute/search permission so daemons and tools can traverse.
+  (i.e. "others can traverse this directory".)
+
+#### `var/log`
+- Owner: service user (`lavacore`)
+- Service user must have:
+  - `S_IWUSR` (write) on the directory so it can create log files
+  - `S_IXUSR` (search) on the directory so it can open files within it
+- Other users may have:
+  - `S_IRGRP`/`S_IROTH` (read) on log files if you want world-readable logs
+  - but they do not need write permission
+
+#### `var/work`
+- Owner: `root`
+- Daemons and tools must be able to traverse it (execute/search bit for others).
+
+#### `var/work/mbd`
+- Owner: service user (`lavacore`)
+- Service user must have:
+  - `S_IWUSR` + `S_IXUSR` on the directory
+- This directory stores MBD runtime files (events, state, etc.) and must be
+  writable by MBD.
+
+#### `var/work/sbd`
+- Owner: `root`
+- Must be traversable by other users and daemons (execute/search for group/other).
+  This directory is a protected spool root; users do not write here directly.
+
+#### `var/work/sbd/state`
+- Owner: `root`
+- Must be traversable by other users (execute/search), but not listable by them.
+  Users must not be able to enumerate other job keys.
+- Per-job state is stored under per-job subdirectories created by SBD and
+  owned by the submitting user.
+
+#### `var/work/sbd/jfiles`
+- Owner: `root`
+- Must be traversable by other users (execute/search), but not listable by them.
+  Users must not be able to enumerate other job keys.
+- Per-job jobfile directories are created by SBD as root and then chowned to
+  the submitting user.
+
+#### `var/work/sbd/jfiles/<job_key>`
+- Owner: submitting user
+- Must be accessible only to that user:
+  - user has `S_IRUSR` + `S_IWUSR` + `S_IXUSR`
+  - group/other have no permissions
+- Contains `job.sh` and any per-job runtime files.
+
+---
+
+### 4.4 Do NOT chown the entire `var/` tree
+
+Do not run a blanket recursive ownership change on `var/`.
+Different parts of the runtime tree intentionally have different owners
+(service user vs root vs submitting users).
+
+Incorrect ownership will cause failures such as:
+
+- `lim`/`mbd` cannot create log files under `var/log`
+- `mbd` cannot write state/event files under `var/work/mbd`
+- `sbd` cannot create protected spool directories correctly
+- job launch fails after `setuid()` because the submitter cannot traverse
+  or access per-job directories
+
+---
+
+### 4.5 Recommended ownership commands (minimal and explicit)
+
+Set service-owned log directory:
 
 ```bash
-sudo chown -R lavacore:lavacore /opt/lavacore-0.1.0/var
+sudo chown -R lavacore:lavacore /opt/lavacore-0.1.0/var/log
 ```
 
-This step is mandatory.
+Set MBD runtime directory:
 
-The `lim` and `mbd` daemons run as the `lavacore` user.
-If ownership is incorrect:
+```bash
+sudo mkdir -p /opt/lavacore-0.1.0/var/work/mbd
+sudo chown -R lavacore:lavacore /opt/lavacore-0.1.0/var/work/mbd
+```
 
-- Log files cannot be created in `var/log`
-- State and event files cannot be written in `var/work`
-- `mbd` will fail during initialization
+SBD runtime directories are created by SBD on first start. They must remain
+root-owned, and must be traversable (searchable) by non-root users so that
+per-job directories owned by the submitter are reachable.
 
-Note: `sbd` runs as root, but correct ownership of the runtime
-directories is still required for consistent cluster operation.
+---
 
-Verify ownership before starting services.
+### 4.6 Verification checklist
+
+**Verify ownership before starting services**
+
+Before starting services, verify:
+
+- `var/log` is writable by the service user
+- `var/work/mbd` is writable by the service user
+- `var/work/sbd` is root-owned
+- `var/work/sbd/state` and `var/work/sbd/jfiles` are root-owned and searchable
+  by non-root users (traversable), but not listable
+- per-job directories created under `.../sbd/state/` and `.../sbd/jfiles/`
+  are owned by the submitting user and only accessible to that user
+
+
 ---
 
 ## 5. Configuration (Legacy LSF_* Naming)
@@ -330,32 +459,112 @@ High availability will be addressed in future versions.
 
 ---
 
-## 7. Install systemd Service Files
+## 7. Install and Enable systemd Service Files
 
-Copy service templates:
+LavaCore daemons are managed via systemd.
+Each daemon has a dedicated unit file:
+
+- `lavacore-lim.service`
+- `lavacore-sbd.service`
+- `lavacore-mbd.service` (master only)
+
+---
+
+### 7.1 Install Unit Files
+
+Copy the service templates:
 
 ```bash
 sudo cp lavalite/etc/lavacore-*.service /etc/systemd/system/
 ```
 
-Reload systemd:
+Reload systemd so it picks up the new units:
 
 ```bash
 sudo systemctl daemon-reload
 ```
 
-Enable services:
+---
+
+### 7.2 Startup Ordering and Cluster Semantics
+
+**LIM must always start first.**
+
+The current architecture assumes:
+
+- No LIM failover support
+- A single master LIM instance
+- MBD depends on LIM for cluster membership and host communication
+- SBD depends on LIM for node-level coordination
+
+The master LIM is therefore the first process that must be running in the cluster.
+
+Startup dependency is enforced in the unit files using:
+
+```
+Requires=lavacore-lim.service
+After=lavacore-lim.service
+```
+
+This guarantees:
+
+- `lavacore-mbd` will not start unless `lavacore-lim` is active
+- `lavacore-mbd` is started only after `lavacore-lim`
+- `lavacore-sbd` starts only after `lavacore-lim`
+
+---
+
+### 7.3 Enable Services
+
+Enable LIM and SBD on all nodes:
 
 ```bash
 sudo systemctl enable lavacore-lim
 sudo systemctl enable lavacore-sbd
 ```
 
-On the master only:
+On the master node only, also enable MBD:
 
 ```bash
 sudo systemctl enable lavacore-mbd
 ```
+
+---
+
+### 7.4 Starting the Cluster
+
+On the master:
+
+```bash
+sudo systemctl start lavacore-lim
+sudo systemctl start lavacore-mbd
+```
+
+On worker nodes:
+
+```bash
+sudo systemctl start lavacore-lim
+sudo systemctl start lavacore-sbd
+```
+
+Verify status:
+
+```bash
+systemctl status lavacore-lim
+systemctl status lavacore-mbd
+systemctl status lavacore-sbd
+```
+
+---
+
+### 7.5 Important Notes
+
+- Always ensure `lavacore-lim` is running before starting `lavacore-mbd`.
+- Restarting LIM while MBD is active is currently unsupported and may lead to inconsistent cluster state.
+- In this version, the master LIM is the single source of truth.
+
+Future versions may introduce failover or quorum-based master election,
+but this release assumes a single authoritative LIM instance.
 
 ---
 

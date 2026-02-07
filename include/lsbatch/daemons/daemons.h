@@ -126,6 +126,13 @@ typedef enum {
     ERR_DUP_JOB
 } sbdReplyType;
 
+// Hertz
+enum time_sec {
+    SECS_PER_MIN  = 60,
+    SECS_PER_HOUR = 60 * SECS_PER_MIN,
+    SECS_PER_DAY  = 24 * SECS_PER_HOUR
+};
+
 #define LOAD_REASONS                                                           \
     (SUSP_LOAD_REASON | SUSP_QUE_STOP_COND | SUSP_QUE_RESUME_COND |            \
      SUSP_PG_IT | SUSP_LOAD_UNAVAIL | SUSP_HOST_LOCK | SUSP_HOST_LOCK_MASTER)

@@ -607,8 +607,7 @@ bool_t ll_atoi(const char *s, int *out)
     return true;
 }
 
-bool_t
-ll_atoll(const char *s, int64_t *out)
+bool_t ll_atoll(const char *s, int64_t *out)
 {
     char *end;
     long long v;

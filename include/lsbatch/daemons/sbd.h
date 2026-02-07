@@ -42,11 +42,8 @@ extern int sbd_mbd_chan;
 extern bool_t connected;
 extern bool_t sbd_mbd_connecting;
 
-// LavaLite sbd saved state record processing
-// state dir is where the image of running jobs on this
-// sbd are
-extern char sbd_state_dir[PATH_MAX];
-extern char sbd_jfiles_dir[PATH_MAX];
+// LavaLite sbd root dir working directory for jobs
+extern char sbd_root_dir[PATH_MAX];
 
 int sbd_connect_mbd(void);
 int sbd_nb_connect_mbd(bool_t *);
@@ -76,8 +73,7 @@ struct sbd_job {
 
     int64_t job_id;                   // global jobId (stable, assigned by mbd)
     // job spec sent from mbd are unmutable
-    struct jobSpecs spec;             // job specification as received from mbd
-                                      // (jobFile, command, resources, etc.)
+    struct jobSpecs specs;             // job specification as received from mbd
 
     pid_t pid;                        // main job PID (child spawned by sbatchd)
     pid_t pgid;                       // process group ID for the job
@@ -85,7 +81,8 @@ struct sbd_job {
     char exec_home[PATH_MAX];
     char exec_cwd[PATH_MAX];   // execution working directory
     uid_t exec_uid;
-    char jobfile_key[PATH_MAX];
+    gid_t exec_gid;
+    char jobfile[PATH_MAX]; // copy of the job_file from mbd jobSpecs
     /*
      * pid_acked (PID_COMMITTED):
      *   Set to TRUE when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
@@ -109,6 +106,7 @@ struct sbd_job {
     bool_t execute_acked;
     time_t time_execute_acked;
     time_t execute_last_send; // last time we tried to send execute status
+    int retry_exit_count;
     /*
      * finish_acked (FINISH_COMMITTED):
      *   Set to TRUE when sbatchd processes the ACK for the FINISH event,
@@ -183,12 +181,12 @@ bool_t sbd_mbd_link_ready(void);
 // restart
 int sbd_job_record_dir_init(void);
 int sbd_job_record_load_all(void);
-int sbd_job_record_read(int64_t, struct sbd_job *);
+int sbd_job_record_read(struct sbd_job *, char *);
 int sbd_job_record_write(struct sbd_job *);
 int sbd_job_record_remove(struct sbd_job *);
 int sbd_jobfile_remove(struct sbd_job *);
 void sbd_prune_acked_jobs(void);
-int sbd_go_write(int64_t);
+int sbd_go_write(struct sbd_job *);
 
 
 // sbd has command to query its internal status
@@ -201,5 +199,5 @@ int sbd_reply_hdr_only(int, int, struct packet_header *);
 // to its own xdr data structure
 int sbd_reply_payload(int, int, struct packet_header *,
                       void *, bool_t (*xdr_func)());
-int sbd_read_exit_status_file(int, int *, time_t *);
+int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
 void sbd_child_open_log(const struct jobSpecs *);

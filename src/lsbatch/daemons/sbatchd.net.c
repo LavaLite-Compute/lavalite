@@ -269,7 +269,7 @@ int sbd_enqueue_new_job_reply(struct sbd_job *job)
     job_reply.jobPid  = job->pid;
     job_reply.jobPGid = job->pgid;
     // note that mbd sends us JOB_STAT_PEND
-    job_reply.jStatus = job->spec.jStatus = JOB_STAT_RUN;
+    job_reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
 
     int cc = enqueue_payload(sbd_mbd_chan,
                              BATCH_NEW_JOB_REPLY,
@@ -317,7 +317,7 @@ int sbd_enqueue_execute(struct sbd_job *job)
 
     if (job->pid <= 0 || job->pgid <= 0) {
         LS_ERR("job %ld bad pid/pgid pid=%d pgid=%d (bug)",
-               job->job_id, job->spec.jobPid, job->spec.jobPGid);
+               job->job_id, job->specs.jobPid, job->specs.jobPGid);
         assert(0);
         return -1;
     }
@@ -377,9 +377,9 @@ int sbd_enqueue_execute(struct sbd_job *job)
     chan_set_write_interest(sbd_mbd_chan, true);
 
     LS_INFO("job=%ld pid=%d pgid=%d op=%s user=%s cwd=%s",
-            job->job_id, job->spec.jobPid, job->spec.jobPGid,
+            job->job_id, job->specs.jobPid, job->specs.jobPGid,
 	    mbd_op_str(BATCH_JOB_EXECUTE), job->exec_user,
-	    job->spec.cwd);
+	    job->specs.cwd);
 
     return 0;
 }

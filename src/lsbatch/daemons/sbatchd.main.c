@@ -126,6 +126,8 @@ int main(int argc, char **argv)
 // Never exit for control-plane/network unavailability.
 static int sbd_init(const char *sbatch)
 {
+    umask(0077);
+
     // initenv will load genParams as well
     if (initenv_(lsbParams, NULL) < 0) {
         return -1;
@@ -466,7 +468,7 @@ sbd_mbd_reconnect_try(void)
 
     static time_t last_time;
     time_t t = time(NULL);
-    if (t - last_time >= 60) {
+    if (t - last_time >= SECS_PER_MIN) {
         LS_INFO("mbd link: reconnect started ch=%d connecting=%d",
                 sbd_mbd_chan, sbd_mbd_connecting);
         last_time = t;
@@ -528,7 +530,7 @@ sbd_init_network(void)
 
     // now open the sbd server channel
     sbd_listen_chan = chan_listen_socket(SOCK_STREAM, sbd_port,
-                                  SOMAXCONN, CHAN_OP_SOREUSE);
+                                         SOMAXCONN, CHAN_OP_SOREUSE);
     if (sbd_listen_chan < 0) {
         LS_ERR("Failed to initialize the sbd channel, another sbd running?");
         return -1;
@@ -727,30 +729,30 @@ static void job_status_checking(void)
         if (job->finish_acked > 0)
             continue;
 
-        if (!sbd_pid_alive(job->pid)) {
-            if (now - last_missing_warning > 300) {
-                LS_WARNING("job %ld pid %ld not alive after restart?",
-                           job->job_id, (long)job->pid);
-                last_missing_warning = now;
-            }
-            // read the exit code from the exit status file of the job
-            // created by the job file
-            int exit_code;
-            time_t done_time;
-            int cc = sbd_read_exit_status_file(job->job_id,
-                                               &exit_code,
-                                               &done_time);
-            if (cc < 0) {
-                LS_ERR("failed to read job %ld exist status assume "
-                       "JOB_STAT_EXIT", job->job_id);
-                exit_code = 1;
-            }
+        if (sbd_pid_alive(job->pid))
+            continue;
+
+        int exit_code;
+        time_t done_time;
+        int cc = sbd_read_exit_status_file(job, &exit_code, &done_time);
+        if (cc < 0) {
+
+            job->retry_exit_count++;
+
+            if (job->retry_exit_count < 3)
+                continue;
+
             job->finish_last_send = 0;
             job->time_finish_acked = now;
             job->exit_status_valid = true;
-            job->exit_status = exit_code;
-            // Derive final status bits from exit code
+            job->exit_status = 1;
+            continue;
         }
+
+        job->finish_last_send = 0;
+        job->time_finish_acked = now;
+        job->exit_status_valid = true;
+        job->exit_status = exit_code;
     }
 }
 
@@ -762,7 +764,7 @@ static void job_reply_drive(void)
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
         time_t t = time(NULL);
-        if (t - last_time >= 60) {
+        if (t - last_time >= SECS_PER_MIN) {
             LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
             last_time = t;
         }
@@ -821,8 +823,7 @@ static void job_execute_drive(void)
         }
 
         if (sbd_enqueue_execute(job) < 0) {
-            LS_ERR("job %"PRId64" enqueue BATCH_JOB_EXECUTE failed",
-                   job->job_id);
+            LS_ERR("job %ld enqueue BATCH_JOB_EXECUTE failed", job->job_id);
             continue;
         }
 
