@@ -4,5 +4,4 @@
 Begin Parameters
 DEFAULT_QUEUE  = system   # default job queue name
 MBD_SLEEP_TIME = 1        # mbatchd scheduling interval (1 secs is default)
-SBD_SLEEP_TIME = 2        # sbatchd scheduling interval (2 secs is default)
 End Parameters

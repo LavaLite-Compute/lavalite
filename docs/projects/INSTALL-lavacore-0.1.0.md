@@ -5,6 +5,7 @@ This document describes how to build and install **LavaCore 0.1.0** from the Git
 Follow the steps exactly and in order to obtain a working installation.
 
 Status: **Developer Preview (Alpha)**
+This is an Alpha preview focused on validating core scheduler semantics and multi-host behavior.
 
 This preview is intended to validate protocol design, architecture, and basic scheduler functionality.
 It runs real jobs and executes real workloads, but it does not yet include failover or production-grade security.
@@ -361,6 +362,10 @@ This is daemon-private state.
 
 ### 4.5 Recommended ownership commands (minimal and explicit)
 
+The lavacore system user must own all service-managed runtime directories
+under $LAVACORE_TOP/var, except for SBD per-job directories which are
+managed dynamically.
+
 Set service-owned log directory:
 
 ```bash
@@ -371,12 +376,14 @@ Set MBD runtime directory:
 
 ```bash
 sudo mkdir -p /opt/lavacore-0.1.0/var/work/mbd
-sudo chown -R lavacore:lavacore /opt/lavacore-0.1.0/var/work/mbd
+sudo chown -R lavacore:lavacore /opt/lavacore-0.1.0/var/work
 ```
 
-SBD runtime directories are created by SBD on first start. They must remain
-root-owned, and must be traversable (searchable) by non-root users so that
-per-job directories owned by the submitter are reachable.
+SBD runtime directories are created by SBD on first start. They remain
+root-owned. The parent directories must be searchable (+x) so that
+non-root job owners can access their per-job subdirectories.
+
+No manual chown of per-job directories is required or supported.
 
 ---
 
@@ -384,16 +391,58 @@ per-job directories owned by the submitter are reachable.
 
 **Verify ownership before starting services**
 
-Before starting services, verify:
+Before starting services, verify the following:
 
-- `var/log` is writable by the service user
-- `var/work/mbd` is writable by the service user
-- `var/work/sbd` is root-owned
-- `var/work/sbd/state` and `var/work/sbd/jfiles` are root-owned and searchable
-  by non-root users (traversable), but not listable
-- per-job directories created under `.../sbd/state/` and `.../sbd/jfiles/`
-  are owned by the submitting user and only accessible to that user
+- `/opt/lavacore-0.1.0/var` is owned by `root` and traversable.
+- `var/log` exists and is writable by the service user (`lavacore`).
+- `var/work/mbd` exists and is writable by the service user (`lavacore`).
 
+The `var/work/sbd` directory is not manually created during installation.
+It is created automatically by `lavacore-sbd` on first startup.
+
+Do not manually create or modify:
+
+    var/work/sbd
+    var/work/sbd/state
+    var/work/sbd/jobs
+
+These directories are part of SBD's protected runtime area and are
+initialized by the daemon itself.
+
+---
+
+**Verify ownership after SBD startup**
+
+After starting `lavacore-sbd`, verify:
+
+- `var/work/sbd` exists and is owned by `root`.
+- `var/work/sbd/state` exists and is owned by `root`, mode typically `0755`.
+- `var/work/sbd/jobs` exists and is owned by `root`, mode typically `0755`.
+
+No manual ownership correction should be required.
+
+---
+
+**Verify per-job directories after submitting a job**
+
+After submitting at least one job, verify:
+
+`
+    var/work/sbd/jobs/<jobfile>/
+`
+
+- Owned by the submitting user.
+- Mode `0700`.
+
+    `var/work/sbd/state/<jobfile>/`
+
+- Owned by the daemon identity (root in normal mode).
+- Mode `0700`.
+- Contains the authoritative `state` file.
+
+Per-job directories must not be world-accessible.
+
+If ownership adjustments are necessary, the installation is incorrect.
 
 ---
 
@@ -406,7 +455,7 @@ Change directory to the source tree and copy the configuration templates:
 
 ```bash
 cd ~/lavalite
-sudo cp -n etc/lsf* etc/lsb* /opt/lavacore-0.1.0/etc/
+sudo cp --update=none etc/lsf* etc/lsb* /opt/lavacore-0.1.0/etc/
 ```
 
 The `-n` flag prevents overwriting existing configuration files.
@@ -537,16 +586,93 @@ Each daemon has a dedicated unit file:
 Copy the service templates:
 
 ```bash
-sudo cp lavalite/etc/lavacore-*.service /etc/systemd/system/
+cd ~/lavalite
+sudo cp etc/lavacore-*.service /etc/systemd/system/
 ```
 
-Reload systemd so it picks up the new units:
+## Service Configuration Verification
 
-```bash
-sudo systemctl daemon-reload
-```
+Before enabling or starting the services, verify that each unit file
+references the correct binary paths, user identity, and environment
+variables.
+
+Incorrect unit configuration may cause daemons to run under the wrong
+identity or start the wrong component.
 
 ---
+
+## lavacore-lim.service
+
+The LIM daemon must run as the dedicated `lavacore` system user.
+
+Verify:
+
+```
+ExecStart=/opt/lavacore/sbin/lim
+User=lavacore
+Group=lavacore
+Environment=LSF_ENVDIR=/opt/lavacore/etc
+```
+
+Ensure that:
+
+- The binary path is `/opt/lavacore/sbin/lim`
+- The `User` and `Group` are both set to `lavacore`
+
+If any path or directive is incorrect, fix the unit file before proceeding.
+
+---
+
+## lavacore-mbd.service
+
+The MBD daemon must also run as the `lavacore` system user.
+
+Verify:
+
+```
+ExecStart=/opt/lavacore/sbin/mbd
+User=lavacore
+Group=lavacore
+Environment=LSF_ENVDIR=/opt/lavacore/etc
+```
+
+Ensure that:
+
+- The binary path is `/opt/lavacore/sbin/mbd`
+- No reference to `/opt/lavalite` exists
+- `User=lavacore` is present
+- `Group=lavacore` is present
+
+Incorrect configuration may result in improper ownership of logs,
+state files, or cluster metadata.
+
+---
+
+## lavacore-sbd.service
+
+The SBD daemon **must run as root**.
+
+Do **not** define a `User=` directive in this unit.
+
+Verify:
+
+```
+ExecStart=/opt/lavacore/sbin/sbd
+Environment=LSF_ENVDIR=/opt/lavacore/etc
+```
+
+Ensure that:
+
+- The binary path is `/opt/lavacore/sbin/sbd`
+- There is **no** `User=` directive
+- There is **no** `Group=` directive
+- No reference to `/opt/lavalite` exists
+
+Running `sbd` under a non-root user will prevent proper
+`setuid()` transitions and job execution.
+
+---
+
 
 ### 7.2 Startup Ordering and Cluster Semantics
 
@@ -699,6 +825,28 @@ A proper authentication mechanism has been designed but is not yet integrated in
 The design is based on a cryptographic signature of a shared secret combined with a nonce to prevent replay attacks. Integration and full validation will be included in a future release.
 
 ---
+#### Host availability: `lsload` is authoritative (MVP)
+
+In the current MVP, `lsload` is the authoritative source of host availability.
+If LIM on a host is not reachable, `lsload` will report the host as `unavail`
+and no load indices will be shown.
+
+`bhosts` currently reflects the scheduler’s local host table and may be
+optimistic (e.g., showing `ok`) even when a host is unreachable. This is a
+temporary behavior while the legacy “daemon connection-driven host state”
+logic is being rebuilt.
+
+**Operator rule (MVP):**
+- Use `lsload` to determine whether a host is up and reachable.
+- If `lsload` shows a host as `unavail`, do not expect jobs to dispatch there.
+
+This will be tightened in a later release so that `bhosts` status is derived
+directly from LIM reachability and/or recent load reports, matching `lsload`.
+
+#### `bsub -m` (host selection)
+
+`bsub -m <host>` is planned but not available in the current MVP.
+The command will return an error and the job will not be submitted.
 
 ## Appendix: Environment Modules (Optional)
 

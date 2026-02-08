@@ -1,21 +1,19 @@
 #
-# Hosts listed here must use canonical hostnames (as returned by gethostbyname).
-# Only these hosts will be used by Batch. No wildcards, models, or reserved words.
-
-# MXJ is the maximum number of jobs which can run on the host at one time.
-# JL/U is the maximum number of jobs belonging to a user that can run on the
-# host at one time.  The default is no limit.
-
-# DISPATCH_WINDOW is the time windows when the host is available to run
-# batch jobs.  The default dispatch window is always open.
-
-# Load indices are legacy; static limits (MXJ, jobs/user) now govern resource
-# sharing. Legacy support remains.
+# Hosts listed here must use canonical hostnames (as resolved by DNS).
+# Only hosts explicitly listed in this file are eligible for batch dispatch.
+#
+# Host Capacity
+#
+# MXJ - Maximum number of concurrent batch jobs allowed on this host.
+#
+# MXJ is the only supported host-level scheduling parameter.
+# Scheduling decisions are based solely on MXJ capacity.
+#
 
 Begin Host
-HOST_NAME     MXJ JL/U   DISPATCH_WINDOW  # Keywords
-#machine      64   1      ()
-default       !    ()     ()    ()# Example
+HOST_NAME   MXJ
+buntu24      4
+worker1      6
 End Host
 
 # Hosts can be grouped and referenced by queues.

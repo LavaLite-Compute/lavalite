@@ -13,7 +13,7 @@ Type=simple
 User=lavacore
 Group=lavacore
 # Required for all daemons. Adjust if your config lives elsewhere.
-Environment=LSF_ENVDIR=/opt/lavalite/etc
+Environment=LSF_ENVDIR=/opt/lavacore/etc
 
 # Use stable symlink path: /opt/lavacore -> /opt/lavacore-<version>
 ExecStart=/opt/lavacore/sbin/mbd
