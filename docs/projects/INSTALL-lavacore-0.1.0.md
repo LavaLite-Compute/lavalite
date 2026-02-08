@@ -184,7 +184,12 @@ After installation, the tree looks like:
 ├── share
 └── var
     ├── log
-    └── work
+    work
+├── mbd
+│   └── info
+└── sbd
+    ├── jobs
+    └── state
 ```
 
 This section defines the ownership and permissions required for a correct
@@ -206,21 +211,63 @@ LavaCore runs with two different privilege models:
 This privilege split is intentional and affects directory ownership.
 
 ---
-
 ### 4.2 Directory roles
 
 The runtime tree is split by purpose:
 
 #### `var/log` (daemon logs)
 - Contains log files written by the daemons.
-- Must be writable by the service user (`lim` and `mbd`).
-- Log files may be readable by other users for debugging and support
-  (policy decision), but only the daemon user must be able to create them.
+- Must be writable by the service user (`lavacore` for `lim` and `mbd`).
+- Log files may be readable by other users (policy decision), but only
+  the service user must be able to create and rotate them.
 
-#### `var/work` (runtime state)
+---
+
+#### `var/work` (runtime state and spools)
 - Contains daemon state and per-job runtime files.
-- Some subdirectories are service-owned, and some are root-owned.
-- Per-job directories are user-owned.
+- Top-level is root-owned.
+- Subdirectories are split by daemon responsibility.
+
+---
+
+#### `var/work/sbd`
+- Owner: `root`
+- Protected spool root for SBD.
+- Users must not write here directly.
+- Must be traversable (execute/search) so paths like
+  `.../sbd/jobs/<jobfile>` can be accessed when appropriate.
+
+---
+
+#### `var/work/sbd/jobs`
+- Owner: `root`
+- Container directory for per-job runtime space.
+- Users must not create entries here directly.
+- Per-job directories are created by SBD and then chowned
+  to the submitting user.
+
+Contains:
+
+    var/work/sbd/jobs/<jobfile>/
+        job.sh
+        go
+        exit (optional)
+
+---
+
+#### `var/work/sbd/state`
+- Owner: `root`
+- Container directory for authoritative SBD protocol state.
+- Users must not create entries here directly.
+- Per-job state directories are created by SBD and remain daemon-owned.
+
+Contains:
+
+    var/work/sbd/state/<jobfile>/
+        state
+
+This directory contains durable protocol state only.
+It is restart-safe and not part of the user-facing API.
 
 ---
 
@@ -230,64 +277,79 @@ The following rules must hold:
 
 #### `/opt/lavacore-0.1.0/var`
 - Owner: `root`
-- Others: must have execute/search permission so daemons and tools can traverse.
-  (i.e. "others can traverse this directory".)
+- Must be traversable by daemons and tools.
+
+---
 
 #### `var/log`
 - Owner: service user (`lavacore`)
 - Service user must have:
-  - `S_IWUSR` (write) on the directory so it can create log files
-  - `S_IXUSR` (search) on the directory so it can open files within it
-- Other users may have:
-  - `S_IRGRP`/`S_IROTH` (read) on log files if you want world-readable logs
-  - but they do not need write permission
-
-#### `var/work`
-- Owner: `root`
-- Daemons and tools must be able to traverse it (execute/search bit for others).
-
-#### `var/work/mbd`
-- Owner: service user (`lavacore`)
-- Service user must have:
-  - `S_IWUSR` + `S_IXUSR` on the directory
-- This directory stores MBD runtime files (events, state, etc.) and must be
-  writable by MBD.
-
-#### `var/work/sbd`
-- Owner: `root`
-- Must be traversable by other users and daemons (execute/search for group/other).
-  This directory is a protected spool root; users do not write here directly.
-
-#### `var/work/sbd/state`
-- Owner: `root`
-- Must be traversable by other users (execute/search), but not listable by them.
-  Users must not be able to enumerate other job keys.
-- Per-job state is stored under per-job subdirectories created by SBD and
-  owned by the submitting user.
-
-#### `var/work/sbd/jfiles`
-- Owner: `root`
-- Must be traversable by other users (execute/search), but not listable by them.
-  Users must not be able to enumerate other job keys.
-- Per-job jobfile directories are created by SBD as root and then chowned to
-  the submitting user.
-
-#### `var/work/sbd/jfiles/<job_key>`
-- Owner: submitting user
-- Must be accessible only to that user:
-  - user has `S_IRUSR` + `S_IWUSR` + `S_IXUSR`
-  - group/other have no permissions
-- Contains `job.sh` and any per-job runtime files.
+  - `S_IWUSR`
+  - `S_IXUSR`
+- Other users may have read access to log files (policy decision).
 
 ---
 
-### 4.4 Do NOT chown the entire `var/` tree
+#### `var/work`
+- Owner: `root`
+- Must be traversable.
 
-Do not run a blanket recursive ownership change on `var/`.
-Different parts of the runtime tree intentionally have different owners
-(service user vs root vs submitting users).
+---
 
-Incorrect ownership will cause failures such as:
+#### `var/work/sbd`
+- Owner: `root`
+- Mode typically `0755`
+- Users must not write here.
+
+---
+
+#### `var/work/sbd/jobs`
+- Owner: `root`
+- Mode typically `0755`
+
+Per-job directory:
+
+    var/work/sbd/jobs/<jobfile>
+
+- Owner: submitting user
+- Mode: `0700`
+- Contains:
+  - `job.sh`
+  - `go`
+  - `exit` (optional)
+
+This is user runtime space.
+
+---
+
+#### `var/work/sbd/state`
+- Owner: `root`
+- Mode typically `0755`
+
+Per-job directory:
+
+    var/work/sbd/state/<jobfile>
+
+- Owner: daemon identity
+  - `root` in normal mode
+  - debug user in `sbd_debug`
+- Mode: `0700`
+- Contains:
+  - `state` (authoritative protocol record)
+
+This is daemon-private state.
+
+---
+
+### Design rationale
+
+- `jobs/` = user runtime artifacts (debug-friendly).
+- `state/` = durable daemon truth (restart-safe).
+- Clear separation avoids mixing user-visible files with protocol state.
+- Cleanup is delayed (~1 hour after `finish_acked`) to allow post-mortem inspection.
+
+
+### Incorrect ownership will cause failures such as:
 
 - `lim`/`mbd` cannot create log files under `var/log`
 - `mbd` cannot write state/event files under `var/work/mbd`

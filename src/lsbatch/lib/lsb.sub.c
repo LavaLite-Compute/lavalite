@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
@@ -3972,9 +3971,9 @@ static int getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
     return 1;
 }
 
-// LavaLite
+// LavaCore
 
-// Keep your daemonout.h defines:
+// Keep daemonout.h defines:
 // SHELLLINE, CMDSTART, WAITCLEANCMD, EXITCMD, TRAPSIGCMD, EDATASTART, etc.
 
 struct ll_buf {
@@ -4295,7 +4294,6 @@ static int ll_buf_append_job_go_gate(struct ll_buf *);
 static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
 {
     struct ll_buf b;
-    char **ep;
     bool_t interactive;
 
     memset(&b, 0, sizeof(b));
@@ -4316,6 +4314,7 @@ static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
         return -1;
     }
 
+    char **ep;
     for (ep = environ; ep != NULL && *ep != NULL; ep++) {
         const char *e = *ep;
         const char *eq;

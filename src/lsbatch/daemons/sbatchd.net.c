@@ -548,10 +548,10 @@ void sbd_mbd_link_down(void)
 
         job->reply_last_send = job->execute_last_send
             = job->finish_last_send = 0;
-        // Write the latest job record
-        if (sbd_job_record_write(job) < 0)
-            LS_ERRX("job %ld record write failed after link_down", job->job_id);
+        // Write the latest job state
+        if (sbd_job_state_write(job) < 0)
+            LS_ERRX("job %ld state write failed after link_down", job->job_id);
     }
 
-    LS_ERR("mbd link down: cleared pending sent flags for resend and record");
+    LS_ERR("mbd link down: cleared pending sent flags for resend and state");
 }

@@ -44,6 +44,8 @@ extern bool_t sbd_mbd_connecting;
 
 // LavaLite sbd root dir working directory for jobs
 extern char sbd_root_dir[PATH_MAX];
+extern char sbd_state_dir[PATH_MAX];
+extern char sbd_job_dir[PATH_MAX];
 
 int sbd_connect_mbd(void);
 int sbd_nb_connect_mbd(bool_t *);
@@ -130,7 +132,7 @@ struct sbd_job {
 
 // Struct sbd job state to save the minimum status of the job to the
 // state file for the purpose of reloading it if/when the sbd restarts
-struct sbd_job_record {
+struct sbd_job_state {
     int64_t job_id;
 
     pid_t pid;
@@ -179,11 +181,11 @@ bool_t sbd_mbd_link_ready(void);
 // sbd record function to save the state of jobs from
 // sbd point of view restore the latest state after
 // restart
-int sbd_job_record_dir_init(void);
-int sbd_job_record_load_all(void);
-int sbd_job_record_read(struct sbd_job *, char *);
-int sbd_job_record_write(struct sbd_job *);
-int sbd_job_record_remove(struct sbd_job *);
+int sbd_workspace_init(void);
+int sbd_job_state_load_all(void);
+int sbd_job_state_read(struct sbd_job *, char *);
+int sbd_job_state_write(struct sbd_job *);
+int sbd_job_remove(struct sbd_job *);
 int sbd_jobfile_remove(struct sbd_job *);
 void sbd_prune_acked_jobs(void);
 int sbd_go_write(struct sbd_job *);

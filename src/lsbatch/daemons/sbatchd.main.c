@@ -177,12 +177,12 @@ static int sbd_init(const char *sbatch)
     // Initialize persistent job state storage early.
     // If we can't create/validate the state directory, we cannot guarantee
     // restart-safe job tracking, so fail fast before allocating resources.
-    if (sbd_job_record_dir_init() < 0) {
+    if (sbd_workspace_init() < 0) {
         LS_ERR("failed to initialize persistent state storage");
         return -1;
     }
     // Reconstruct jobs seen before last shutdown.
-    if (sbd_job_record_load_all() < 0) {
+    if (sbd_job_state_load_all() < 0) {
         LS_ERR("failed to load persistent job state");
         return -1;
     }
@@ -204,7 +204,7 @@ sbd_run_daemon(void)
      /*
      * One-time status reconciliation after restart.
      *
-     * After reloading job records from disk, some jobs may have already
+     * After reloading job states from disk, some jobs may have already
      * finished while sbd was down. In that case their PIDs are no longer
      * alive, but their final status (DONE vs EXIT) has not yet been derived.
      *
@@ -274,6 +274,7 @@ sbd_run_daemon(void)
                  job_execute_drive();
                  job_finish_drive();
                  job_status_checking();
+                 sbd_prune_acked_jobs();
                  // rest the state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
@@ -724,7 +725,6 @@ static void job_status_checking(void)
     // NOTE: ll_list_entry must remain the first field (list base object idiom)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
-        static time_t last_missing_warning;
 
         if (job->finish_acked > 0)
             continue;
