@@ -4,4 +4,7 @@
 Begin Parameters
 DEFAULT_QUEUE  = system   # default job queue name
 MBD_SLEEP_TIME = 1        # mbatchd scheduling interval (1 secs is default)
+# MAX_SCHED_STAY limits how long the scheduler loop stays active before exiting.
+# If your mbd/scheduler is exiting after being idle, uncomment this and set it.
+# MAX_SCHED_STAY = 86400
 End Parameters

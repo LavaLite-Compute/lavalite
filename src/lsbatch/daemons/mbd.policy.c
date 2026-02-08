@@ -1254,31 +1254,32 @@ static struct candHost *getJUsable(struct jData *jp, int *numJUsable,
     }
 
     num = numHosts;
-    if ((!jp->qPtr->resValPtr ||
-         !(jp->qPtr->qAttrib & Q_ATTRIB_NO_HOST_TYPE)) &&
-        !jp->shared->resValPtr && jp->numAskedPtr == 0) {
-        numHosts = 0;
-        for (i = 0; i < num; i++) {
-            INC_CNT(PROF_CNT_secondLoopGetJUsable);
-            if (strcmp(jp->schedHost, jUsable[i]->hostType) == 0) {
-                if (numHosts != i) {
-                    jUsable[numHosts] = jUsable[i];
+    if (0) { // LavaCore does not support host type
+        if ((!jp->qPtr->resValPtr ||
+             !(jp->qPtr->qAttrib & Q_ATTRIB_NO_HOST_TYPE)) &&
+            !jp->shared->resValPtr && jp->numAskedPtr == 0) {
+            numHosts = 0;
+            for (i = 0; i < num; i++) {
+                INC_CNT(PROF_CNT_secondLoopGetJUsable);
+                if (strcmp(jp->schedHost, jUsable[i]->hostType) == 0) {
+                    if (numHosts != i) {
+                        jUsable[numHosts] = jUsable[i];
+                    }
+                    numHosts++;
+                } else {
+                    jUnusable[numReasons] = jUsable[i];
+                    jReasonTb[numReasons++] = PEND_HOST_SCHED_TYPE;
+                    if (logclass & (LC_SCHED | LC_PEND))
+                        ls_syslog(LOG_DEBUG2,
+                                  "%s: Host %s isn't eligible; reason=%d "
+                                  "schedHost=%s hostType=%s",
+                                  fname, jUsable[i]->host,
+                                  jReasonTb[numReasons - 1], jp->schedHost,
+                                  jUsable[i]->hostType);
                 }
-                numHosts++;
-            } else {
-                jUnusable[numReasons] = jUsable[i];
-                jReasonTb[numReasons++] = PEND_HOST_SCHED_TYPE;
-                if (logclass & (LC_SCHED | LC_PEND))
-                    ls_syslog(LOG_DEBUG2,
-                              "%s: Host %s isn't eligible; reason=%d "
-                              "schedHost=%s hostType=%s",
-                              fname, jUsable[i]->host,
-                              jReasonTb[numReasons - 1], jp->schedHost,
-                              jUsable[i]->hostType);
             }
         }
     }
-
     num = numHosts;
     if (jp->shared->resValPtr || jp->qPtr->resValPtr) {
         int noUse;

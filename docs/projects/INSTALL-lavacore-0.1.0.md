@@ -455,7 +455,7 @@ Change directory to the source tree and copy the configuration templates:
 
 ```bash
 cd ~/lavalite
-sudo cp --update=none etc/lsf* etc/lsb* /opt/lavacore-0.1.0/etc/
+sudo cp etc/lsf* etc/lsb* /opt/lavacore-0.1.0/etc/
 ```
 
 The `-n` flag prevents overwriting existing configuration files.
