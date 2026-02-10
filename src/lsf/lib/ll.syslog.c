@@ -173,6 +173,8 @@ int ls_openlog(const char *ident,
     }
 
     log_fd = fd;
+
+    fchmod(log_fd, 0644);
     snprintf(log_path, sizeof(log_path), "%s", path);
 
     return 0;

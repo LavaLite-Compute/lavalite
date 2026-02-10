@@ -112,7 +112,7 @@ int sbd_workspace_init(void)
     return 0;
 }
 
-int sbd_job_remove(struct sbd_job *job)
+int sbd_job_cleanup_files(struct sbd_job *job)
 {
     static const char *const job_files[] = {
         "job.sh",
@@ -353,7 +353,7 @@ int sbd_job_state_load_all(void)
         if (l < 0 || (size_t)l >= sizeof(state_path))
             continue;
 
-        struct sbd_job *job = calloc(1, sizeof(sizeof(struct sbd_job)));
+        struct sbd_job *job = calloc(1, (sizeof(struct sbd_job)));
         if (!job)
             continue;
 
@@ -504,8 +504,8 @@ void sbd_prune_acked_jobs(void)
     struct ll_list_entry *e2;
 
     // Bug find a policy to purge these files periodically
-    return;
 
+    time_t now = time(NULL);
     for (e = sbd_job_list.head; e;) {
         e2 = e->next;
         struct sbd_job *job = (struct sbd_job *)e;
@@ -526,12 +526,12 @@ void sbd_prune_acked_jobs(void)
 
         assert(job->exit_status_valid == true);
 
-        if ((now - job->time_finish_acked) < SECS_PER_HOUR) {
+        if ((now - job->time_finish_acked) < SECS_PER_MIN) {
             e = e2;
             continue;
         }
-
-        sbd_job_remove(job);
+        LS_INFO("time expired clean now");
+        sbd_job_cleanup_files(job);
         sbd_job_destroy(job);
         // next!
         e = e2;

@@ -92,5 +92,7 @@ int sbd_handle_mbd(int ch_id)
     }
 
     xdr_destroy(&xdrs);
+    chan_free_buf(buf);
+
     return 0;
 }

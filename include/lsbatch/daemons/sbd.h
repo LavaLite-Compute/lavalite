@@ -53,6 +53,7 @@ int sbd_enqueue_register(int);
 bool_t sbd_mbd_link_ready(void);
 void sbd_mbd_link_down(void);
 void sbd_mbd_shutdown(void);
+void free_job_specs(struct jobSpecs *);
 
 // handle mbd messagges
 int sbd_handle_mbd(int);
@@ -185,8 +186,7 @@ int sbd_workspace_init(void);
 int sbd_job_state_load_all(void);
 int sbd_job_state_read(struct sbd_job *, char *);
 int sbd_job_state_write(struct sbd_job *);
-int sbd_job_remove(struct sbd_job *);
-int sbd_jobfile_remove(struct sbd_job *);
+int sbd_job_cleanup_files(struct sbd_job *);
 void sbd_prune_acked_jobs(void);
 int sbd_go_write(struct sbd_job *);
 

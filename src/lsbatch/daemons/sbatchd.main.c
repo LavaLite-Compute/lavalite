@@ -225,8 +225,7 @@ sbd_run_daemon(void)
     while (1) {
 
         if (sbd_croak) {
-            LS_INFO("terminate requested, exiting");
-            exit(0);
+            break;
         }
 
         // We pass -1 as the timer channel will ring
@@ -324,7 +323,13 @@ sbd_run_daemon(void)
 
         }
     }
+
+    LS_INFO("terminate requested, exiting");
+    chan_close(sbd_listen_chan);
+    chan_close(sbd_timer_chan);
+    chan_close(sbd_mbd_chan);
 }
+
 /*
  * sbd_drive_mbd_link()
  *

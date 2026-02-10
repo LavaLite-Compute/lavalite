@@ -326,8 +326,7 @@ int chan_close(int ch_id)
         }
         free(channels[ch_id].send);
     }
-    if (channels[ch_id].recv &&
-        channels[ch_id].recv != channels[ch_id].recv->forw) {
+    if (channels[ch_id].recv) {
         for (buf = channels[ch_id].recv->forw; buf != channels[ch_id].recv;
              buf = nextbuf) {
             nextbuf = buf->forw;

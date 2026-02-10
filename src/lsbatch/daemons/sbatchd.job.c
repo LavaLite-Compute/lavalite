@@ -38,7 +38,6 @@ static int dup_len_data(struct lenData *, const struct lenData *);
 static int dup_job_file_data(struct wire_job_file *,
                              const struct wire_job_file *);
 static int copy_job_specs(struct jobSpecs *, const struct jobSpecs *);
-static void free_job_specs(struct jobSpecs *);
 static int make_job_dir(struct sbd_job *);
 static int materialize_jobfile(struct sbd_job *);
 static int set_job_identity(struct sbd_job *);
@@ -235,7 +234,7 @@ static int set_job_identity(struct sbd_job *job)
     return 0;
 }
 
-static void free_job_specs(struct jobSpecs *spec)
+void free_job_specs(struct jobSpecs *spec)
 {
     int i;
 
@@ -747,6 +746,7 @@ void sbd_job_free(void *e)
     if (job == NULL)
         return;
 
+    free_job_specs(&job->specs);
     free(job);
 }
 
