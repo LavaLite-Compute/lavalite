@@ -26,6 +26,8 @@ static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
 static int finish_pend_job(struct jData *);
 static int stop_pend_job(struct jData *);
 static int resume_pend_job(struct jData *);
+static void mbd_requeue_start_failed(struct jData *, struct hData *);
+static void mbd_clear_exec_context(struct jData *);
 
 // LavaLite
 // this is still a client-like request coming through the client handler
@@ -72,6 +74,14 @@ mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
 
     return enqueue_header_reply(client->chanfd, BATCH_SBD_REGISTER_ACK);
 }
+/*
+ * Protocol rule: after we successfully decode a reply that includes jobId,
+ * we must always enqueue the matching *_ACK to stop SBD retries.
+ *
+ * ACK is delivery control, not state approval: duplicates/late/out-of-state
+ * replies are ACKed and then ignored. If decode fails, we cannot ACK because
+ * jobId is unknown (until jobId/req_id is carried in the header).
+ */
 
 int mbd_new_job_reply(struct mbd_client_node *client,
                       XDR *xdrs,
@@ -92,13 +102,6 @@ int mbd_new_job_reply(struct mbd_client_node *client,
     if (hdr->operation != BATCH_NEW_JOB_REPLY) {
         LS_ERR("BATCH_NEW_JOB_REPLY failed on host %s, reply_code=%s",
                host_name, mbd_op_str(hdr->operation));
-
-        /*
-         * TODO:
-         *   Extend the protocol to include jobId also on error, or
-         *   maintain a pending-job queue per SBD so we can map this
-         *   error back to a specific job and update its state.
-         */
         return -1;
     }
 
@@ -112,38 +115,49 @@ int mbd_new_job_reply(struct mbd_client_node *client,
         return -1;
     }
 
-    LS_INFO("mbd job=%ld operation %s from %s", jobReply.jobId,
+    // save the jobid we are acking and operating on
+    int64_t ack_job_id = jobReply.jobId;
+
+    LS_INFO("mbd job=%ld operation %s from %s", ack_job_id,
             mbd_op_str(hdr->operation), host_name);
 
     // Map jobId -> job descriptor.
     struct jData *job;
     job = getJobData((int64_t)jobReply.jobId);
     if (job == NULL) {
-        LS_ERR("SBD NEW_JOB reply for unknown jobId=%u from host %s",
-               jobReply.jobId, host_name);
-        return -1;
+        LS_ERR("operation %s reply for unknown jobId=%u from host %s",
+               mbd_op_str(hdr->operation), ack_job_id, host_name);
+        goto send_ack;
     }
 
     // Ignore replies for jobs that are no longer in START state.
     if (!IS_START(job->jStatus)) {
-        return 0;
+        goto send_ack;
     }
 
-    job->jobPid  = jobReply.jobPid;
-    job->jobPGid = jobReply.jobPGid;
-    job->jStatus = jobReply.jStatus; // typically JOB_STAT_RUN
+    if (jobReply.jStatus == JOB_STAT_PEND) {
+        mbd_requeue_start_failed(job, host_node);
+        goto send_ack;
+    }
 
-    log_startjobaccept(job);
+    if (jobReply.jStatus == JOB_STAT_RUN) {
+        job->jobPid  = jobReply.jobPid;
+        job->jobPGid = jobReply.jobPGid;
+        job->jStatus = JOB_STAT_RUN;
+        log_startjobaccept(job);
+        goto send_ack;
+    }
 
     /*
      * Acknowledge back to sbatchd so it can unblock.
      * We only send a small packet_header over the LavaLite channel.
      * No more blocking send path, everything is queued via chan_enqueue().
      */
+send_ack:
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(struct job_status_ack));
-    ack.job_id = job->jobId;
-    ack.acked_op = ERR_NO_ERROR;
+    ack.job_id = ack_job_id;  // from decoded payload
+    ack.acked_op = hdr->operation; // the op being acknowledged
 
     if (mbd_send_event_ack(client, BATCH_NEW_JOB_REPLY_ACK, &ack) < 0) {
         LS_ERR("mbd failed enqueue job %ld operation %s from %s",
@@ -166,15 +180,19 @@ int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
         return -1;
     }
 
+    struct hData *host_node = client->host_node;
+    const char *host_name = host_node->host;
+
+    LS_INFO("operation %s job %ld from %s (state=0x%x)",
+            mbd_op_str(hdr->operation), status_req.jobId,
+            host_name, status_req.newStatus);
+
     struct jData *job = getJobData(status_req.jobId);
     if (job == NULL) {
-        return enqueue_header_reply(client->chanfd, LSBE_NO_JOB);
+        LS_ERR("operation %s reply for unknown jobId=%u from host %s",
+               mbd_op_str(hdr->operation), status_req.jobId, host_name);
+        goto send_ack;
     }
-
-    const char *host_name = client->host_node->host;
-
-    LS_INFO("job %s EXECUTE from %s (state=0x%x)",
-            lsb_jobid2str(job->jobId), host_name, job->jStatus);
 
     // Handle duplicate job execute messages in theory should
     // not happened
@@ -212,7 +230,7 @@ int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
 send_ack:
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(struct job_status_ack));
-    ack.job_id = job->jobId;
+    ack.job_id = status_req.jobId;
     ack.acked_op = hdr->operation;
 
     if (mbd_send_event_ack(client, BATCH_JOB_EXECUTE_ACK, &ack) < 0) {
@@ -237,15 +255,21 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
         return -1;
     }
 
-    struct jData *job = getJobData(status_req.jobId);
-    if (job == NULL)
-        return enqueue_header_reply(client->chanfd, LSBE_NO_JOB);
+    struct hData *host_node = client->host_node;
+    const char *host_name = host_node->host;
 
-    const char *host_name = client->host_node->host;
+    struct jData *job = getJobData(status_req.jobId);
+    if (job == NULL) {
+        LS_ERR("operation %s reply for unknown jobId=%u from host %s",
+               mbd_op_str(hdr->operation), status_req.jobId, host_name);
+        goto send_ack;
+    }
+
     int current_status = job->jStatus;
 
-    LS_INFO("job %s FINISH from %s current=0x%x incoming=0x%x exit=%d",
-            lsb_jobid2str(job->jobId),
+    LS_INFO("operation %s job %s from %s current=0x%x incoming=0x%x exit=%d",
+            mbd_op_str(hdr->operation),
+            lsb_jobid2str(status_req.jobId),
             host_name,
             current_status,
             status_req.newStatus,
@@ -255,7 +279,7 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
     if (job->endTime > 0
         || (current_status & (JOB_STAT_DONE | JOB_STAT_EXIT)) != 0) {
         LS_INFO("job %s FINISH duplicate ignored (state=0x%x endTime=%s)",
-                lsb_jobid2str(job->jobId),
+                lsb_jobid2str(status_req.jobId),
                 current_status,
                 (char *)ctime2(&job->endTime));
         goto send_ack;
@@ -305,7 +329,7 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
     updCounters(job, current_status, job->endTime);
 
     LS_INFO("job %s FINISH commit %s (current=0x%x new=0x%x) from %s",
-            lsb_jobid2str(job->jobId),
+            lsb_jobid2str(status_req.jobId),
             (job->jStatus & JOB_STAT_DONE) ? "DONE" : "EXIT",
             current_status,
             job->jStatus,
@@ -315,7 +339,7 @@ send_ack:
         struct job_status_ack ack;
 
         memset(&ack, 0, sizeof(ack));
-        ack.job_id = job->jobId;
+        ack.job_id = status_req.jobId;
         ack.seq = hdr->sequence;
         ack.acked_op = hdr->operation;
 
@@ -970,8 +994,88 @@ int mbd_init_tables(void)
     return 0;
 }
 
-// ---------- The space of static functions
+// Requeue a START job back to PEND due to start failure on a host.
+// Must be idempotent: duplicates should not double-move lists or double-update counters.
+static void mbd_requeue_start_failed(struct jData *job, struct hData *host)
+{
+    int old_status;
+    time_t now;
 
+    (void)host;
+
+    // If already pending, just stamp reason (duplicate/late reply) and return.
+    if (IS_PEND(job->jStatus)) {
+        job->newReason = PEND_JOB_START_FAIL;
+        job->subreasons = 0;
+        return;
+    }
+
+    old_status = job->jStatus;
+    now = time(NULL);
+
+    // Roll base status back to PEND (clear start/run/finish bits you don't want to keep)
+    job->jStatus &= ~(JOB_STAT_RUN | JOB_STAT_SSUSP | JOB_STAT_USUSP |
+                      JOB_STAT_PSUSP | JOB_STAT_DONE | JOB_STAT_EXIT);
+    job->jStatus = JOB_STAT_PEND;
+
+    // Reason for requeue
+    job->newReason = PEND_JOB_START_FAIL;
+    job->subreasons = 0;
+
+    // Clear per-attempt state after marking PEND (so cleanCandHosts() will run)
+    mbd_clear_exec_context(job);
+
+    // Move list membership: SJL -> PJL
+    offJobList(job, SJL);
+    inPendJobList(job, PJL, 0);
+
+    // Bookkeeping
+    job->requeueTime = now;
+    log_newstatus(job);
+    updCounters(job, old_status, now);
+}
+// Bug dinousaurs
+extern void cleanCandHosts(struct jData *);
+
+// Clear per-dispatch / per-attempt execution context.
+// This must be safe to call even if the job is already partially cleared.
+static void mbd_clear_exec_context(struct jData *job)
+{
+    // Runtime identity / sequencing
+    job->jobPid = 0;
+    job->jobPGid = 0;
+    job->nextSeq = 1;
+
+    // Execution metadata learned during the run attempt
+    FREEUP(job->execCwd);
+    FREEUP(job->execHome);
+    FREEUP(job->execUsername);
+    job->execUid = 0;
+
+    // Queue hook expansions / per-dispatch strings
+    FREEUP(job->queuePreCmd);
+    FREEUP(job->queuePostCmd);
+
+    // Assigned execution hosts for this attempt
+    FREEUP(job->hPtr);
+    job->numHostPtr = 0;
+
+    FREEUP(job->execHosts);
+    FREEUP(job->schedHost);
+
+    // Pending-event / signal bookkeeping should not leak across attempts
+    memset(&job->pendEvent, 0, sizeof(job->pendEvent));
+
+    // Scheduler candidate state: clear "ready/processed" and free candidate arrays
+    // (cleanCandHosts() is guarded by IS_PEND(job->jStatus) in your current code,
+    // so caller should set JOB_STAT_PEND first, or you can remove that guard later.)
+    cleanCandHosts(job);
+
+    // Optional: if you decide these are per-attempt only, clear them here.
+    // job->actPid = 0;
+    // job->sigValue = 0;
+    // job->execute_time = 0;
+}
 
 static void mbd_reset_sbd_job_list(struct hData *host_node)
 {

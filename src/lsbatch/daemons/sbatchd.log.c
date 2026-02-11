@@ -514,7 +514,6 @@ void sbd_prune_acked_jobs(void)
         // so in the main loop we check if the pid
         // is still around
         if (! job->finish_acked) {
-            LS_INFO("job: %ld not finish_acked yet", job->job_id);
             // advance
             e = e2;
             continue;
@@ -522,7 +521,6 @@ void sbd_prune_acked_jobs(void)
         // this means we delivered the job status exit
         // to mbatch alread, but we keep the file around
         // for some times before cleaning it
-        LS_INFO("job %ld was acked by mbd already", job->job_id);
 
         assert(job->exit_status_valid == true);
 
@@ -530,7 +528,7 @@ void sbd_prune_acked_jobs(void)
             e = e2;
             continue;
         }
-        LS_INFO("time expired clean now");
+        LS_INFO("job %ld time expired clean now", job->job_id);
         sbd_job_cleanup_files(job);
         sbd_job_destroy(job);
         // next!

@@ -174,7 +174,7 @@ void sbd_job_free(void *);
 // Refresh job status from mbd
 void sbd_job_sync_jstatus(struct sbd_job *);
 
-int sbd_enqueue_new_job_reply(struct sbd_job *);
+int sbd_enqueue_new_job_reply(struct sbd_job *, struct jobReply *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
 bool_t sbd_mbd_link_ready(void);

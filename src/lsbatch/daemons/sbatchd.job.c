@@ -335,7 +335,8 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
         return;
     }
 
-    LS_DEBUG("MBD_NEW_JOB: jobId=%ld job_file=%s", spec.jobId, spec.job_file);
+    LS_DEBUG("operation=%s jobId=%ld job_file=%s",
+             mbd_op_str(req_hdr->operation), spec.jobId, spec.job_file);
 
     // 2) duplicate NEW_JOB? just echo our view
     struct sbd_job *job;
@@ -349,8 +350,16 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
                    (long)job->pgid,
                    (int)job->specs.jStatus);
 
-        if (sbd_enqueue_new_job_reply(job) < 0) {
-            LS_ERR("job %ld enqueue duplicate new job reply failed", job->job_id);
+        struct jobReply reply;
+        memset(&reply, 0, sizeof(struct jobReply));
+        reply.jobId = job->job_id;
+        reply.jobPid = job->pid;
+        reply.jobPGid = job->pgid;
+        reply.jStatus = job->specs.jStatus;
+
+        if (sbd_enqueue_new_job_reply(job, &reply) < 0) {
+            LS_ERR("job=%ld enqueue duplicate new job reply failed",
+                   job->job_id);
             sbd_mbd_shutdown();
         }
         return;
@@ -360,7 +369,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     job = sbd_job_create(&spec);
     if (job == NULL) {
         xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
-        LS_ERR("MBD_NEW_JOB: job %ld create failed", (long)spec.jobId);
+        LS_ERR("operation=%s job=%ld create failed", (long)spec.jobId);
         sbd_mbd_shutdown();
         return;
     }
@@ -368,16 +377,36 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     // 3) new job: spawn child, register it, fill job_reply
     reply_code = spawn_job(job);
     if (reply_code != ERR_NO_ERROR) {
-        // Bug return enqueue to mbd
-        assert(0);
+        struct jobReply reply;
+        memset(&reply, 0, sizeof(struct jobReply));
+        reply.jobId = spec.jobId;
+        reply.jobPid = reply.jobPGid = 0;
+        reply.jStatus = JOB_STAT_PEND;
+
+        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+
+        if (sbd_enqueue_new_job_reply(job, &reply)) {
+            LS_ERR("operation=%s job=%ld enqueue jobReply failed", job->job_id);
+            sbd_mbd_shutdown();
+        }
+        sbd_job_free(job);
+
+        return;
     }
 
     // free heap members inside spec that xdr allocated
     xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
+    struct jobReply reply;
+    memset(&reply, 0, sizeof(struct jobReply));
+    reply.jobId   = job->job_id;
+    reply.jobPid  = job->pid;
+    reply.jobPGid = job->pgid;
+    reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
+
     // send the reply to mbd, note the child has been forked and
     // presumed running at this stage
-    int cc = sbd_enqueue_new_job_reply(job);
+    int cc = sbd_enqueue_new_job_reply(job, &reply);
     if (cc < 0) {
         LS_ERR("job %ld enqueue jobReply failed", job->job_id);
         sbd_mbd_shutdown();
@@ -674,7 +703,6 @@ static sbdReplyType spawn_job(struct sbd_job *job)
     pid_t pid = fork();
     if (pid < 0) {
         LS_ERR("fork failed for job %ld", job->specs.jobId);
-        sbd_job_free(job);
         return ERR_FORK_FAIL;
     }
 

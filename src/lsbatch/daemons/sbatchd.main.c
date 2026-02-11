@@ -791,8 +791,15 @@ static void job_reply_drive(void)
             continue;
         }
 
-        if (sbd_enqueue_new_job_reply(job) < 0) {
-            LS_ERR("job %ld enqueue PID snapshot failed", job->job_id);
+        struct jobReply reply;
+        memset(&reply, 0, sizeof(struct jobReply));
+        reply.jobId   = job->job_id;
+        reply.jobPid  = job->pid;
+        reply.jobPGid = job->pgid;
+        reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
+
+        if (sbd_enqueue_new_job_reply(job, &reply) < 0) {
+            LS_ERR("job %ld BATCH_NEW_JOB_REPLY enqueue failed", job->job_id);
             continue;
         }
         LS_INFO("job %ld BATCH_NEW_JOB_REPLY enqueued", job->job_id);

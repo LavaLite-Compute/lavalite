@@ -254,7 +254,7 @@ int sbd_enqueue_register(int ch_id)
 // this function runs right upon a job start we will be async waiting to
 // mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
 // the pid to the events file
-int sbd_enqueue_new_job_reply(struct sbd_job *job)
+int sbd_enqueue_new_job_reply(struct sbd_job *job, struct jobReply *reply)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
@@ -263,17 +263,9 @@ int sbd_enqueue_new_job_reply(struct sbd_job *job)
         return -1;
     }
 
-    struct jobReply job_reply;
-    memset(&job_reply, 0, sizeof(struct jobReply));
-    job_reply.jobId   = job->job_id;
-    job_reply.jobPid  = job->pid;
-    job_reply.jobPGid = job->pgid;
-    // note that mbd sends us JOB_STAT_PEND
-    job_reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
-
     int cc = enqueue_payload(sbd_mbd_chan,
                              BATCH_NEW_JOB_REPLY,
-                             &job_reply,
+                             reply,
                              xdr_jobReply);
     if (cc < 0) {
         LS_ERR("enqueue_payload for job %ld reply failed", job->job_id);
