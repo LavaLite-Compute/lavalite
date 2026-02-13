@@ -928,14 +928,14 @@ static enum candRetCode getCandHosts(struct jData *jpbw)
 
 static int getLsbUsable(void)
 {
-    static char fname[] = "getLsbUsable";
-    int i, nLsbUsable = 0, numReasons = 0, ldReason;
-    struct hData *hData;
-    int hReason;
+    int nLsbUsable = numReasons = ldReason;
 
     INC_CNT(PROF_CNT_getLsbUsable);
 
-    for (i = 1; i <= numofhosts; i++) {
+    struct hData *hData;
+    for (int i = 1; i <= numofhosts; i++) {
+        int hReason;
+
         hReason = 0;
         hData = hDataPtrTb[i];
         if (hData == NULL) {
@@ -951,6 +951,11 @@ static int getLsbUsable(void)
             hData->acceptTime = 0;
 
         hData->numDispJobs = 0;
+
+        if (now - hData->last_disable_time > 60) {
+            hData->hstatus &= ~HOST_STAT_DISABLE;
+            hData->last_disable_time = 0;
+        }
 
         if (OUT_SCHED_RS(hReasonTb[1][i]) &&
             HOST_UNUSABLE_DUE_TO_H_REASON(hReasonTb[1][i])) {

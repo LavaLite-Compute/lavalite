@@ -91,8 +91,8 @@ int mbd_new_job_reply(struct mbd_client_node *client,
 
     struct hData *host_node = client->host_node;
     if (host_node == NULL) {
-        LS_ERR("SBD NEW_JOB reply with NULL host_node (chanfd=%d)",
-               client->chanfd);
+        LS_ERR("operation=%s with NULL host_node (chanfd=%d)",
+               mbd_op_str(hdr->operation), client->chanfd);
         // Hard invariant violation: this should never happen.
         abort();
     }
@@ -100,16 +100,16 @@ int mbd_new_job_reply(struct mbd_client_node *client,
     const char *host_name = host_node->host;
 
     if (hdr->operation != BATCH_NEW_JOB_REPLY) {
-        LS_ERR("BATCH_NEW_JOB_REPLY failed on host %s, reply_code=%s",
-               host_name, mbd_op_str(hdr->operation));
+        LS_ERR("operation=%s failed on host %s", mbd_op_str(hdr->operation),
+               host_name);
         return -1;
     }
 
     memset(&jobReply, 0, sizeof(jobReply));
 
     if (!xdr_jobReply(xdrs, &jobReply, hdr)) {
-        LS_ERR("xdr_jobReply decode failed for SBD NEW_JOB reply from host %s",
-               host_name);
+        LS_ERR("operation=%s xdr_jobReply decode failed from host %s",
+               mbd_op_str(hdr->operation), host_name);
         //jStatusChange(jData, JOB_STAT_PEND, LOG_IT, fname);
         // maybe close the connection with sbd?
         return -1;
@@ -125,7 +125,7 @@ int mbd_new_job_reply(struct mbd_client_node *client,
     struct jData *job;
     job = getJobData((int64_t)jobReply.jobId);
     if (job == NULL) {
-        LS_ERR("operation %s reply for unknown jobId=%u from host %s",
+        LS_ERR("operation %s reply for unknown jobId=%ld from host %s",
                mbd_op_str(hdr->operation), ack_job_id, host_name);
         goto send_ack;
     }
@@ -183,13 +183,13 @@ int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
     struct hData *host_node = client->host_node;
     const char *host_name = host_node->host;
 
-    LS_INFO("operation %s job %ld from %s (state=0x%x)",
+    LS_INFO("operation=%s job=%ld from=%s (state=0x%x)",
             mbd_op_str(hdr->operation), status_req.jobId,
             host_name, status_req.newStatus);
 
     struct jData *job = getJobData(status_req.jobId);
     if (job == NULL) {
-        LS_ERR("operation %s reply for unknown jobId=%u from host %s",
+        LS_ERR("operation=%s reply for unknown jobId=%ld from host=%s",
                mbd_op_str(hdr->operation), status_req.jobId, host_name);
         goto send_ack;
     }
@@ -238,8 +238,8 @@ send_ack:
                ack.job_id, mbd_op_str(hdr->operation), host_name);
     }
 
-    LS_INFO("mbd job=%ld op=%s rc=%s acked", ack.job_id,
-            mbd_op_str(hdr->operation));
+    LS_INFO("operation=%s job=%ld acked", mbd_op_str(hdr->operation),
+            ack.job_id);
 
     return LSBE_NO_ERROR;
 }
@@ -260,7 +260,7 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
 
     struct jData *job = getJobData(status_req.jobId);
     if (job == NULL) {
-        LS_ERR("operation %s reply for unknown jobId=%u from host %s",
+        LS_ERR("operation=%s unknown jobId=%ld from host %s",
                mbd_op_str(hdr->operation), status_req.jobId, host_name);
         goto send_ack;
     }
@@ -996,12 +996,13 @@ int mbd_init_tables(void)
 
 // Requeue a START job back to PEND due to start failure on a host.
 // Must be idempotent: duplicates should not double-move lists or double-update counters.
-static void mbd_requeue_start_failed(struct jData *job, struct hData *host)
+static void mbd_requeue_start_failed(struct jData *job, struct hData *host_node)
 {
     int old_status;
     time_t now;
 
-    (void)host;
+    host_node->hstatus |= HOST_STAT_DISABLED;
+    host_node->last_disable_time = time(NULL);
 
     // If already pending, just stamp reason (duplicate/late reply) and return.
     if (IS_PEND(job->jStatus)) {
@@ -1022,9 +1023,6 @@ static void mbd_requeue_start_failed(struct jData *job, struct hData *host)
     job->newReason = PEND_JOB_START_FAIL;
     job->subreasons = 0;
 
-    // Clear per-attempt state after marking PEND (so cleanCandHosts() will run)
-    mbd_clear_exec_context(job);
-
     // Move list membership: SJL -> PJL
     offJobList(job, SJL);
     inPendJobList(job, PJL, 0);
@@ -1033,10 +1031,11 @@ static void mbd_requeue_start_failed(struct jData *job, struct hData *host)
     job->requeueTime = now;
     log_newstatus(job);
     updCounters(job, old_status, now);
-}
-// Bug dinousaurs
-extern void cleanCandHosts(struct jData *);
 
+    mbd_clear_exec_context(job);
+}
+// Bug
+extern void cleanCandHosts(struct jData *job);
 // Clear per-dispatch / per-attempt execution context.
 // This must be safe to call even if the job is already partially cleared.
 static void mbd_clear_exec_context(struct jData *job)

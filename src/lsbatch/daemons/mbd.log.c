@@ -136,7 +136,6 @@ static int replay_arrayrequeue(struct jData *, const struct signalLog *);
 static int renameAcctLogFiles(int);
 
 // LavaLite
-static void mbd_init_log_paths(void);
 static int build_log_path(char *, size_t,
                           const char *, const char *);
 
@@ -152,8 +151,6 @@ int init_log(void)
     struct hData *hPtr;
 
     mSchedStage = M_STAGE_REPLAY;
-
-    mbd_init_log_paths();
 
     // Get the current mbd lock
     getElogLock();
@@ -316,7 +313,7 @@ static int replay_event(char *filename, int lineNum)
     }
 }
 
-static void mbd_init_log_paths(void)
+void mbd_init_log_paths(void)
 {
     char dirbuf[PATH_MAX];
 

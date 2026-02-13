@@ -111,10 +111,8 @@ int main(int argc, char **argv)
 
     int rc = sbd_init("sbd");
     if (rc < 0) {
-        // print also the lserrno just in case
-        LS_ERRX("sbd: sbd_init() failed %s", ls_sysmsg());
-        sbd_cleanup();
-        return 1;
+        LS_ERR("sbd: fatal error during initialization - see previous messages");
+        return -1;
     }
 
     // Run sbd run
@@ -171,7 +169,8 @@ static int sbd_init(const char *sbatch)
 
     // initialize the lists and hashes
     if (sbd_job_init() < 0) {
-        // Bug handle this
+        LS_ERRX("sbd_job_init failed");
+        return -1;
     }
 
     // Initialize persistent job state storage early.
@@ -923,11 +922,49 @@ sbd_cleanup(void)
 {
     chan_close(sbd_listen_chan);
     chan_close(sbd_timer_chan);
-    chan_close(sbd_efd);
+    close(sbd_efd);
     // free the hash but not the job entries
     ll_hash_free(sbd_job_hash, NULL, NULL);
     // use clear so that we dont free the pointer that
     // is in the static area and not on the heap
-    ll_list_clear(&sbd_job_list, sbd_job_free);
+    struct ll_list_entry *e;
+    while ((e = ll_list_pop(&sbd_job_list))) {
+        struct sbd_job *j = (struct sbd_job *)e;
+        sbd_job_free(j);
+    }
+    ll_list_init(&sbd_job_list);
     ls_closelog();
+}
+
+void sbd_fatal(enum sbd_fatal_cause cause)
+{
+    switch (cause) {
+    case SBD_FATAL_STORAGE:
+        // Disk / FS / permission / ENOSPC / IO error.
+        // We cannot guarantee restart-safe semantics anymore.
+        LS_ERRX("FATAL: storage durability failure; refusing to continue");
+        break;
+
+    case SBD_FATAL_INVARIANT:
+        LS_ERRX("FATAL: internal invariant violated");
+        break;
+
+    case SBD_FATAL_PROTO:
+        LS_ERRX("FATAL: protocol violation");
+        break;
+
+    case SBD_FATAL_OOM:
+        LS_ERRX("FATAL: out of memory");
+        break;
+
+    default:
+        LS_ERRX("FATAL: unknown cause=%d", (int)cause);
+        break;
+    }
+
+    // Optional: best-effort close MBD channel so logs are clear.
+    sbd_cleanup();
+
+    // Fail-fast: let systemd restart; avoids half-working daemon.
+    _exit(1);
 }

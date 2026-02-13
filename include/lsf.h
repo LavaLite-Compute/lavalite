@@ -37,7 +37,7 @@
 
 // Nice, time to let the robot chew through the fossils
 
-// Fossil in → LavaLite out
+// Fossil in → LavaCore out
 
 // True man reads the man page, that’s why it’s called man
 
@@ -45,6 +45,11 @@
 
 // Here’s a pointer. Here’s a number. Convert it. Don’t complain.”
 
+// LavaCore Principle #7: If you don't handle errors, errors will handle you.
+
+// Refactor: eliminate implicit bitfield inference.
+// Move to explicit, structured semantics.
+// From bitfield nausea to structure.
 
 #include <config.h>
 // System headers
@@ -624,7 +629,7 @@ int ls_openlog(const char *,   // identity
                const char *);  // log mask
 
 void ls_syslog(int, const char *, ...)
-#if defined(__GNUC__) && defined(CHECK_ARGS)
+#if defined(__GNUC__)
     __attribute__((format(printf, 2, 3)))
 #endif
     ;

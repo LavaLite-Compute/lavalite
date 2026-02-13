@@ -492,50 +492,6 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
     return 0;
 }
 
-// After we replayed the jobs some jobs have been ack finished
-// already we dont want to keep those job in the working list.
-// Do it here so we separate the responsibilities between reading
-// the job from disk and the list/hash cleaning.
-//
-// ensure jobs with finish_acked set never reach job_finish_drive
-void sbd_prune_acked_jobs(void)
-{
-    struct ll_list_entry *e;
-    struct ll_list_entry *e2;
-
-    // Bug find a policy to purge these files periodically
-
-    time_t now = time(NULL);
-    for (e = sbd_job_list.head; e;) {
-        e2 = e->next;
-        struct sbd_job *job = (struct sbd_job *)e;
-
-        // the status finished was not deliver to mbd
-        // so in the main loop we check if the pid
-        // is still around
-        if (! job->finish_acked) {
-            // advance
-            e = e2;
-            continue;
-        }
-        // this means we delivered the job status exit
-        // to mbatch alread, but we keep the file around
-        // for some times before cleaning it
-
-        assert(job->exit_status_valid == true);
-
-        if ((now - job->time_finish_acked) < SECS_PER_MIN) {
-            e = e2;
-            continue;
-        }
-        LS_INFO("job %ld time expired clean now", job->job_id);
-        sbd_job_cleanup_files(job);
-        sbd_job_destroy(job);
-        // next!
-        e = e2;
-    }
-}
-
 int sbd_read_exit_status_file(struct sbd_job *job,
                               int *exit_code,
                               time_t *done_time)

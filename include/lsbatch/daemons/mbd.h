@@ -1405,3 +1405,4 @@ extern void updateTimeWindow(struct timeWindow *);
 // LavaLite
 struct hData *getHostData(const char *host);
 void shutdown_mbd_client(struct mbd_client_node *);
+void mbd_init_log_paths(void);

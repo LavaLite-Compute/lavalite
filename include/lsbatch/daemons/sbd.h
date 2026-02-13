@@ -167,9 +167,8 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
 
 // Insert job into global list + hash.
 void sbd_job_insert(struct sbd_job *);
-// Remove and destroy job from global list + hash + free.
-void sbd_job_destroy(struct sbd_job *);
-void sbd_job_free(void *);
+// Get rid of job's memory
+void sbd_job_free(struct sbd_job *);
 
 // Refresh job status from mbd
 void sbd_job_sync_jstatus(struct sbd_job *);
@@ -203,3 +202,12 @@ int sbd_reply_payload(int, int, struct packet_header *,
                       void *, bool_t (*xdr_func)());
 int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
 void sbd_child_open_log(const struct jobSpecs *);
+
+enum sbd_fatal_cause {
+    SBD_FATAL_STORAGE = 1,
+    SBD_FATAL_INVARIANT,
+    SBD_FATAL_PROTO,
+    SBD_FATAL_OOM,
+};
+
+void sbd_fatal(enum sbd_fatal_cause);

@@ -238,6 +238,10 @@ int main(int argc, char **argv)
 
     // init log
     mbd_init_log();
+    // init the lsb.events log paths and dirs as
+    // we can call mbdDie which wants to use it
+    mbd_init_log_paths();
+
     // mbd don't want root
     mbd_check_not_root();
 

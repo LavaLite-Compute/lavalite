@@ -96,7 +96,7 @@ int handle_sbd_client(int ch_id)
     }
 
     if (!buf || buf->len < PACKET_HEADER_SIZE) {
-        LS_ERR("short request from sbd client ch=%d: len=%zu",
+        LS_ERR("short request from sbd client ch=%d: len=%d",
                ch_id, buf ? buf->len : 0);
         if (buf)
             chan_free_buf(buf);
