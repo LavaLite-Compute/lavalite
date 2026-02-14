@@ -118,9 +118,6 @@ int mbd_new_job_reply(struct mbd_client_node *client,
     // save the jobid we are acking and operating on
     int64_t ack_job_id = jobReply.jobId;
 
-    LS_INFO("mbd job=%ld operation %s from %s", ack_job_id,
-            mbd_op_str(hdr->operation), host_name);
-
     // Map jobId -> job descriptor.
     struct jData *job;
     job = getJobData((int64_t)jobReply.jobId);
@@ -164,8 +161,7 @@ send_ack:
                ack.job_id, mbd_op_str(hdr->operation), host_name);
     }
 
-    LS_INFO("mbd job=%ld op=%s acked",
-            ack.job_id, mbd_op_str(hdr->operation));
+    LS_INFO("mbd job=%ld op=%s acked", ack.job_id, mbd_op_str(hdr->operation));
 
     return 0;
 }
@@ -1001,7 +997,7 @@ static void mbd_requeue_start_failed(struct jData *job, struct hData *host_node)
     int old_status;
     time_t now;
 
-    host_node->hstatus |= HOST_STAT_DISABLED;
+    host_node->hStatus |= HOST_STAT_DISABLED;
     host_node->last_disable_time = time(NULL);
 
     // If already pending, just stamp reason (duplicate/late reply) and return.

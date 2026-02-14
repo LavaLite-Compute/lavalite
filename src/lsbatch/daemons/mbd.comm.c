@@ -63,6 +63,7 @@ sbdReplyType start_job(struct jData *job,
     }
 
     struct packet_header hdr;
+    memset(&hdr, 0, sizeof(struct packet_header));
     hdr.operation = BATCH_NEW_JOB;
     // Quoqe tu, Brute
     size_t buflen = LL_BUFSIZ_64K;
@@ -87,7 +88,7 @@ sbdReplyType start_job(struct jData *job,
     XDR xdrs;
     char *request_buf = calloc(buflen, sizeof(char));
     if (request_buf == NULL) {
-        LS_ERR("calloc(%d) for job %s failed",
+        LS_ERR("calloc(%zu) for job %s failed",
                buflen, lsb_jobid2str(job->jobId));
         freeJobSpecs(&jobSpecs);
         return ERR_MEM;
@@ -145,14 +146,14 @@ sbdReplyType start_job(struct jData *job,
 
     sj->job = job;
     ll_list_append(&host_node->sbd_job_list, &sj->next_job);
+    job->newReason = job->subreasons = 0;
 
     return reply;
 }
 
 sbdReplyType switch_job(struct jData *job, int options)
 {
-    static char fname[] = "switch_job";
-    struct jobSpecs jobSpecs;
+
     char *request_buf = NULL;
     struct packet_header hdr;
     char *reply_buf = NULL;
@@ -164,10 +165,7 @@ sbdReplyType switch_job(struct jData *job, int options)
     struct sbdNode sbdNode;
     struct lsfAuth *auth = NULL;
 
-    if (logclass & (LC_SIGNAL | LC_EXEC))
-        ls_syslog(LOG_DEBUG2, "%s: job=%s", fname,
-                  lsb_jobid2str(job->jobId));
-
+    struct jobSpecs jobSpecs;
     packJobSpecs(job, &jobSpecs);
 
     if (options == TRUE) {
@@ -175,12 +173,17 @@ sbdReplyType switch_job(struct jData *job, int options)
     } else {
         hdr.operation = MBD_MODIFY_JOB;
     }
+
     buflen = LL_BUFSIZ_32K;
     request_buf = calloc(buflen, sizeof(char));
     xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobSpecs, &hdr, xdr_jobSpecs, 0,
+    if (!xdr_encodeMsg(&xdrs,
+                       (char *)&jobSpecs,
+                       &hdr,
+                       xdr_jobSpecs,
+                       0,
                        auth)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+        LS_ERR("xdr_encodeMsg failed");
         xdr_destroy(&xdrs);
         free(request_buf);
         freeJobSpecs(&jobSpecs);
@@ -205,10 +208,8 @@ sbdReplyType switch_job(struct jData *job, int options)
         return reply;
 
     if (reply != ERR_NO_ERROR) {
-        ls_syslog(LOG_ERR,
-                  "%s: Job <%s>: Illegal reply code <%d> from host <%s>, "
-                  "switch job failed",
-                  fname, lsb_jobid2str(job->jobId), reply, toHost);
+        LS_ERR("job=%s illegal  code=%d from host=%s",
+               lsb_jobid2str(job->jobId), reply, toHost);
     }
 
     if (reply_buf)

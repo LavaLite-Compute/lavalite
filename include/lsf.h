@@ -587,17 +587,14 @@ extern int lsf_res_version;
 // and the host, load and resource info
 extern char **ls_placereq(char *, int *, int, char *);
 extern char **ls_placeofhosts(char *, int *, int, char *, char **, int);
-extern struct hostLoad *ls_load(char *, int *, int, char *);
 extern struct hostLoad *ls_loadofhosts(char *, int *, int, char *, char **,
                                        int);
 extern struct hostLoad *ls_loadinfo(char *, int *, int, char *, char **, int,
                                     char ***);
 extern int ls_loadadj(char *, struct placeInfo *, int);
 extern char *ls_getclustername(void);
-extern struct clusterInfo *ls_clusterinfo(char *, int *, char **, int, int);
 extern struct lsSharedResourceInfo *ls_sharedresourceinfo(char **, int *,
                                                           char *, int);
-extern struct hostInfo *ls_gethostinfo(char *, int *, char **, int, int);
 extern struct lsInfo *ls_info(void);
 extern char *ls_getmastername(void);
 extern char *ls_getmyhostname(void);
@@ -742,3 +739,15 @@ struct pid_info {
     int pgid;
     int jobid;
 };
+
+struct hostInfo *ls_gethostinfo(char *, int *, char **, int, int);
+void ls_freehostinfo(struct hostInfo **, int);
+
+struct hostLoad *ls_load(char *, int *, int, char *);
+void ls_freeload(struct hostLoad *, int);
+
+struct clusterInfo *ls_clusterinfo(char *, int *, char **, int, int);
+void ls_freeclusterinfo(struct clusterInfo **, int);
+
+int ls_getclustername_r(char *, size_t);
+int ls_getmastername_r(char *, size_t);

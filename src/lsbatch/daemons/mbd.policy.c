@@ -928,10 +928,15 @@ static enum candRetCode getCandHosts(struct jData *jpbw)
 
 static int getLsbUsable(void)
 {
-    int nLsbUsable = numReasons = ldReason;
+    int nLsbUsable;
+    int numReasons;
+    int ldReason;
+
+    nLsbUsable = numReasons = ldReason = 0;
 
     INC_CNT(PROF_CNT_getLsbUsable);
 
+    time_t t = time(NULL);
     struct hData *hData;
     for (int i = 1; i <= numofhosts; i++) {
         int hReason;
@@ -939,8 +944,6 @@ static int getLsbUsable(void)
         hReason = 0;
         hData = hDataPtrTb[i];
         if (hData == NULL) {
-            ls_syslog(LOG_ERR, "%s: Got a NULL hData in hDataPtrTb[%d]", fname,
-                      i);
             continue;
         }
         if (hData->hStatus & HOST_STAT_REMOTE)
@@ -952,8 +955,8 @@ static int getLsbUsable(void)
 
         hData->numDispJobs = 0;
 
-        if (now - hData->last_disable_time > 60) {
-            hData->hstatus &= ~HOST_STAT_DISABLE;
+        if (t - hData->last_disable_time > SECS_PER_MIN) {
+            hData->hStatus &= ~HOST_STAT_DISABLED;
             hData->last_disable_time = 0;
         }
 
@@ -993,25 +996,9 @@ static int getLsbUsable(void)
             nLsbUsable += hData->numCPUs;
         }
 
-        if (logclass & (LC_SCHED | LC_PEND)) {
-            if (hReason)
-                ls_syslog(LOG_DEBUG2, "%s: Host <%s> isn't eligible; reason=%d",
-                          fname, hData->host, hReason);
-            else
-                ls_syslog(LOG_DEBUG3, "%s: Got one eligible host <%s>", fname,
-                          hData->host);
-        }
     }
 
-    if (logclass & (LC_SCHED | LC_PEND)) {
-        if (nLsbUsable == 0)
-            ls_syslog(LOG_DEBUG1,
-                      "%s: Got no eligible host; numReasons=%d, numofhosts=%d",
-                      fname, numReasons, numofhosts);
-        else
-            ls_syslog(LOG_DEBUG1, "%s: Got %d eligible CPUs; numReasons=%d",
-                      fname, nLsbUsable, numReasons);
-    }
+    LS_INFO("got %d num usable hosts for scheduling", nLsbUsable);
 
     return nLsbUsable;
 }

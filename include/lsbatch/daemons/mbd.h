@@ -585,6 +585,7 @@ struct hData {
     char *hostModel;
     struct mbd_client_node *sbd_node; // TCP connection to sbd
     struct ll_list sbd_job_list;  // all jobs associated with this sbd
+    time_t last_disable_time;
     float cpuFactor;
     int numCPUs;
     float *loadSched;

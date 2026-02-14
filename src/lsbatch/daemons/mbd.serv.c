@@ -58,7 +58,6 @@ int do_submitReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
 
     if (!xdr_submitReq(xdrs, &subReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_submitReq");
         goto sendback;
     }
 
@@ -155,7 +154,6 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     memset(&jobInfoReq, 0, sizeof(struct jobInfoReq));
     if (!xdr_jobInfoReq(xdrs, &jobInfoReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobInfoReq");
     }
     if (jobInfoReq.host[0] != '\0' && getHGrpData(jobInfoReq.host) == NULL &&
         !is_valid_host(jobInfoReq.host) &&
@@ -213,7 +211,6 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                        xdr_jobInfoHead, 0, NULL)) {
         FREEUP(reply_buf);
         freeJobHead(&jobInfoHead);
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg", "jobInfoHead");
         xdr_destroy(&xdrs2);
         FREEUP(jgrplist);
         return -1;
@@ -222,7 +219,6 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     {
         if (chan_write(chfd, reply_buf, len) != len) {
-            ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
             FREEUP(reply_buf);
             freeJobHead(&jobInfoHead);
             FREEUP(jgrplist);
@@ -245,7 +241,6 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
             ((len = packJobInfo((struct jData *) jgrplist[i].info,
                                 listSize - 1 - i, &buf, schedule,
                                 jobInfoReq.options, reqHdr->version)) < 0)) {
-            ls_syslog(LOG_ERR, "%s", __func__, "packJobInfo");
             FREEUP(jgrplist);
             return -1;
         }
@@ -253,14 +248,12 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
             ((len = packJgrpInfo((struct jgTreeNode *) jgrplist[i].info,
                                  listSize - 1 - i, &buf, schedule,
                                  reqHdr->version)) < 0)) {
-            ls_syslog(LOG_ERR, "%s", __func__, "packJgrpInfo");
             FREEUP(jgrplist);
             return -1;
         }
 
         {
             if (chan_write(chfd, buf, len) != len) {
-                ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
                 FREEUP(buf);
                 FREEUP(jgrplist);
                 return -1;
@@ -310,15 +303,12 @@ static int packJgrpInfo(struct jgTreeNode *jgNode, int remain, char **replyBuf,
           sizeof(int) + strlen(jobInfoReply.parentGroup) +
           strlen(jobInfoReply.jName) + (NUM_JGRP_COUNTERS + 1) * sizeof(int);
 
-    len = (len * 4) / 4;
-
     request_buf = (char *) my_malloc(len, "packJgrpInfo");
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
 
     hdr.version = version;
     if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg", "jobInfoReply");
         xdr_destroy(&xdrs);
         FREEUP(request_buf);
         return -1;
@@ -552,7 +542,6 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
         loadSched = (float *) malloc(allLsInfo->numIndx * sizeof(float *));
         loadStop = (float *) malloc(allLsInfo->numIndx * sizeof(float *));
         if ((!loadSched) || (!loadStop)) {
-            ls_syslog(LOG_ERR, "%s", __func__, "malloc");
             mbdDie(MASTER_FATAL);
         }
     }
@@ -670,7 +659,6 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
 
     if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg", "jobInfoReply");
         xdr_destroy(&xdrs);
         freeJobInfoReply(&jobInfoReply);
         FREEUP(reasonTb);
@@ -706,7 +694,6 @@ int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     jobPeekReply.outFile = NULL;
     if (!xdr_jobPeekReq(xdrs, &jobPeekReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobPeekReq");
     } else {
         reply = peekJob(&jobPeekReq, &jobPeekReply, auth);
     }
@@ -719,14 +706,12 @@ int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
         replyStruct = (char *) 0;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobPeekReply, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         FREEUP(jobPeekReply.outFile);
         return -1;
     }
     cc = XDR_GETPOS(&xdrs2);
     if ((chan_write(chfd, reply_buf, cc)) != cc) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
         xdr_destroy(&xdrs2);
         FREEUP(jobPeekReply.outFile);
         return -1;
@@ -741,7 +726,6 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
               struct sockaddr_in *from, char *hostName,
               struct packet_header *reqHdr, struct lsfAuth *auth)
 {
-    static char fname[] = "do_jobMsg";
     char reply_buf[MSGSIZE];
     XDR xdrs2;
     int reply;
@@ -754,12 +738,8 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
 
     LSBMSG_INIT(header, jmsg);
 
-    if (logclass & (LC_TRACE | LC_SIGNAL))
-        ls_syslog(LOG_DEBUG1, "%s: Entering this routine ...", fname);
-
     if (!xdr_lsbMsg(xdrs, &jmsg, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_lsbMsg");
         goto Reply;
     }
 
@@ -774,7 +754,6 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
     if (!xdr_encodeMsg(&bucket->xdrs, (char *) &jmsg, &sndhdr, xdr_lsbMsg, 0,
                        NULL)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         goto Reply;
     }
     xdr_destroy(&bucket->xdrs);
@@ -795,9 +774,6 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
     msgq = jpbw->hPtr[0]->msgq[MSG_STAT_QUEUED];
     eventPending = TRUE;
 
-    if (logclass & (LC_SIGNAL))
-        ls_syslog(LOG_DEBUG2, "%s: A message for job %s; eP=%d", fname,
-                  lsb_jobid2str(jpbw->jobId), eventPending);
 
     QUEUE_APPEND(bucket, msgq);
     reply = LSBE_NO_ERROR;
@@ -807,12 +783,10 @@ Reply:
     replyHdr.operation = reply;
 
     if (!xdr_encodeMsg(&xdrs2, (char *) NULL, &replyHdr, xdr_int, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -839,7 +813,6 @@ int do_migReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
 
     if (!xdr_migReq(xdrs, &migReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_migReq");
         migReq.numAskedHosts = 0;
         goto Reply;
     }
@@ -860,12 +833,10 @@ Reply:
     }
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_submitMbdReply, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -894,8 +865,6 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
     struct ll_host hs;
     get_host_by_sockaddr_in(from, &hs);
     if (hs.name[0] == 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "getHostEntryByAddr_",
-                  sockAdd2Str_(from));
         if (reqHdr->operation != BATCH_RUSAGE_JOB)
             errorBack(chfd, LSBE_BAD_HOST, from);
         return -1;
@@ -909,7 +878,6 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
 
     if (!xdr_statusReq(xdrs, &statusReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_statusReq");
     } else {
         switch (reqHdr->operation) {
         case BATCH_STATUS_MSG_ACK:
@@ -922,8 +890,6 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
             reply = rusageJob(&statusReq, &hp);
             break;
         default:
-            ls_syslog(LOG_ERR, "%s: Unknown request %d", __func__,
-                      reqHdr->operation);
             reply = LSBE_PROTOCOL;
         }
     }
@@ -942,13 +908,11 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
     replyHdr.operation = reply;
     replyHdr.length = 0;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", reply);
         xdr_destroy(&xdrs2);
         free(hp.h_name);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
         xdr_destroy(&xdrs2);
         free(hp.h_name);
         return -1;
@@ -966,80 +930,6 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
 int do_chunkStatusReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                       int *schedule, struct packet_header *reqHdr)
 {
-#if 0
-    static char             fname[] = "do_chunkStatusReq()";
-    char                    reply_buf[MSGSIZE];
-    XDR                     xdrs2;
-    struct chunkStatusReq   chunkStatusReq;
-    int                     reply;
-    struct hData           *hData;
-    struct hostent         *hp;
-    struct hostent          hpBuf;
-    struct packet_header        replyHdr;
-    int i = 0;
-
-#ifdef INTER_DAEMON_AUTH
-    if (authSbdRequest(NULL, xdrs, reqHdr, from) != LSBE_NO_ERROR) {
-        ls_syslog(LOG_ERR, "%s: Received status report from unauthenticated host <%s>",
-                  fname, sockAdd2Str_(from));
-        errorBack(chfd, LSBE_PERMISSION, from);
-        return -1;
-    }
-#endif
-
-    if (!portok(from)) {
-        ls_syslog(LOG_ERR, "%s: Received status report from bad port <%s>",
-                  fname,
-                  sockAdd2Str_(from));
-        errorBack(chfd, LSBE_PORT, from);
-        return -1;
-    }
-
-    struct ll_host hs;
-    get_host_by_sockaddr_in(from, &hs);
-    if (hs.name[0] == 0) {
-        ls_syslog(LOG_ERR, "%s: reverse DNS failed from %s", __func__,
-                  sockAdd2Str_(from));
-        errorBack(chfd, LSBE_BAD_HOST, from);
-        return -1;
-    }
-
-    if (!xdr_chunkStatusReq(xdrs, &chunkStatusReq, reqHdr)) {
-        reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_chunkStatusReq");
-    } else {
-
-        for (i=0; i<chunkStatusReq.numStatusReqs; i++) {
-
-            statusJob(chunkStatusReq.statusReqs[i], &hpBuf, schedule);
-        }
-
-        reply = LSBE_NO_ERROR;
-    }
-
-    xdr_lsffree(xdr_chunkStatusReq, (char *) &chunkStatusReq, reqHdr);
-
-    xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
-    replyHdr.operation = reply;
-    replyHdr.length = 0;
-    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr",
-                  reply);
-        xdr_destroy(&xdrs2);
-        free(hp.h_name);
-        return -1;
-    }
-    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix");
-        xdr_destroy(&xdrs2);
-        free(hp.h_name);
-        return -1;
-    }
-    xdr_destroy(&xdrs2);
-
-    if ((hData = getHostData(hpBuf.h_name)) != NULL)
-        hStatChange(hData, 0);
-#endif
     return 0;
 }
 
@@ -1065,14 +955,11 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     struct ll_host hs;
     get_host_by_sockaddr_in(from, &hs);
     if (hs.name[0] == 0) {
-        ls_syslog(LOG_ERR, "%s get_host_by_sockaddr_in failed ", __func__,
-                  sockAdd2Str_(from));
         errorBack(chfd, LSBE_BAD_HOST, from);
         return -1;
     }
 
     if ((hData = getHostData(hs.name)) == NULL) {
-        ls_syslog(LOG_ERR, "%s: getHostDatas() failed", __func__, hs.name);
         errorBack(chfd, LSBE_BAD_HOST, from);
         return -1;
     }
@@ -1090,7 +977,6 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     replyHdr.operation = reply;
     if (!xdr_encodeMsg(&xdrs2, (char *) &sbdPackage, &replyHdr, xdr_sbdPackage,
                        0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         free(reply_buf);
         for (cc = 0; cc < sbdPackage.numJobs; cc++)
@@ -1101,8 +987,7 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     }
     cc = XDR_GETPOS(&xdrs2);
     if (chan_write(chfd, reply_buf, cc) <= 0)
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", cc);
-
+        ;
     free(reply_buf);
     xdr_destroy(&xdrs2);
     for (cc = 0; cc < sbdPackage.numJobs; cc++)
@@ -1115,7 +1000,6 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                    struct packet_header *reqHdr)
 {
-    static char fname[] = "do_hostInfoReq()";
     char *reply_buf;
     XDR xdrs2;
     struct packet_header replyHdr;
@@ -1130,20 +1014,13 @@ int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     hostsReply.hosts = NULL;
     if (!xdr_infoReq(xdrs, &hostsReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_infoReq");
     } else {
         reply = checkHosts(&hostsReq, &hostsReply);
     }
 
-    if (logclass & (LC_EXEC)) {
-        int i;
-        for (i = 0; i < hostsReply.numHosts; i++)
-            ls_syslog(LOG_DEBUG, "%s, host[%d]'s name is %s", fname, i,
-                      hostsReply.hosts[i].host);
-    }
     count = hostsReply.numHosts *
-                (sizeof(struct hostInfoEnt) + MAXLINELEN + MAXHOSTNAMELEN +
-                 hostsReply.nIdx * 4 * sizeof(float)) +
+        (sizeof(struct hostInfoEnt) + MAXLINELEN + MAXHOSTNAMELEN +
+         hostsReply.nIdx * 4 * sizeof(float)) +
             100;
     reply_buf = (char *) my_malloc(count, "do_hostInfoReq");
     xdrmem_create(&xdrs2, reply_buf, count, XDR_ENCODE);
@@ -1154,14 +1031,12 @@ int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         replyStruct = (char *) 0;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_hostDataReply, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         FREEUP(hostsReply.hosts);
         FREEUP(reply_buf);
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(hostsReply.hosts);
         FREEUP(reply_buf);
@@ -1188,7 +1063,6 @@ int do_userInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     userInfoReply.users = NULL;
     if (!xdr_infoReq(xdrs, &userInfoReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_infoReq");
     } else {
         count = userInfoReq.numNames == 0 ? uDataList.numEnts
                                           : userInfoReq.numNames;
@@ -1208,7 +1082,6 @@ int do_userInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         replyStruct = (char *) 0;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_userInfoReply, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
         FREEUP(userInfoReply.users);
@@ -1217,7 +1090,6 @@ int do_userInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
         FREEUP(userInfoReply.users);
@@ -1285,7 +1157,6 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     qInfoReply.queues = calloc(numofqueues,
                                sizeof(struct queueInfoEnt));
     if (qInfoReply.queues == NULL) {
-        ls_syslog(LOG_ERR, "%s: my_calloc() failed", __func__);
         return -1;
     }
 
@@ -1293,8 +1164,6 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     struct infoReq qInfoReq = {0};
     if (!xdr_infoReq(xdrs, &qInfoReq, req_hdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s: xdr_infoReq() failed", __func__);
-
         /* Header-only reply, no body */
         len = (int)sizeof(struct packet_header);
     } else {
@@ -1312,7 +1181,6 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     reply_buf = calloc((size_t)len, 1);
     if (reply_buf == NULL) {
-        ls_syslog(LOG_ERR, "%s: calloc(%d) failed", __func__, len);
         freeQueueInfoReply(&qInfoReply, NULL);
         return -1;
     }
@@ -1332,16 +1200,11 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                        xdr_queueInfoReply,
                        0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s: xdr_encodeMsg() failed", __func__);
         rc = -1;
         goto out;
     }
 
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR,
-                  "%s: chan_write(%d) failed",
-                  __func__,
-                  (int)XDR_GETPOS(&xdrs2));
         rc = -1;
         goto out;
     }
@@ -1372,7 +1235,6 @@ int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_infoReq(xdrs, &groupInfoReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_infoReq");
     }
 
     if (groupInfoReq.options & HOST_GRP) {
@@ -1409,7 +1271,6 @@ int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_groupInfoReply, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         FREEUP(reply_buf);
         xdr_destroy(&xdrs2);
         freeGroupInfoReply(&groupInfoReply);
@@ -1417,7 +1278,6 @@ int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     }
 
     if ((chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2))) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         FREEUP(reply_buf);
         xdr_destroy(&xdrs2);
         freeGroupInfoReply(&groupInfoReply);
@@ -1445,7 +1305,6 @@ int do_paramInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_infoReq(xdrs, &infoReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_infoReq");
     } else
         checkParams(&infoReq, &paramInfo);
     reply = LSBE_NO_ERROR;
@@ -1468,14 +1327,12 @@ int do_paramInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     replyStruct = (char *) &paramInfo;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_parameterInfo, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
         return -1;
     }
 
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
         return -1;
@@ -1497,7 +1354,6 @@ int do_queueControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_controlReq(xdrs, &bqcReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_controlReq");
     } else {
         reply = ctrlQueue(&bqcReq, auth);
     }
@@ -1506,12 +1362,10 @@ int do_queueControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     replyHdr.operation = reply;
     replyHdr.length = 0;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", reply);
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -1530,10 +1384,8 @@ int do_mbdShutDown(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
     replyHdr.operation = LSBE_NO_ERROR;
     replyHdr.length = 0;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", replyHdr.operation);
     }
     if (b_write_fix(s, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
     xdr_destroy(&xdrs2);
     millisleep_(3000);
     mbdDie(MASTER_RECONFIG);
@@ -1551,13 +1403,11 @@ int do_reconfigReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     replyHdr.operation = LSBE_NO_ERROR;
     replyHdr.length = 0;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", replyHdr.operation);
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
-    xdr_destroy(&xdrs2);
+        ;
+        xdr_destroy(&xdrs2);
 
-    ls_syslog(LOG_DEBUG, "%s: restart a new mbatchd", __func__);
     mbdDie(MASTER_RECONFIG);
 
     return 0;
@@ -1576,7 +1426,6 @@ int do_hostControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_controlReq(xdrs, &hostControlReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_controlReq");
         goto checkout;
     }
     hData = getHostData(hostControlReq.name);
@@ -1590,10 +1439,10 @@ checkout:
     replyHdr.operation = reply;
     replyHdr.length = 0;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", reply);
+        ;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0)
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
+        ;
     xdr_destroy(&xdrs2);
     return 0;
 }
@@ -1610,7 +1459,6 @@ int do_jobSwitchReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_jobSwitchReq(xdrs, &jobSwitchReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobSwitchReq");
     } else {
         reply = switchJobArray(&jobSwitchReq, auth);
     }
@@ -1618,12 +1466,10 @@ int do_jobSwitchReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     replyHdr.operation = reply;
     replyHdr.length = 0;
     if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr", reply);
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -1643,7 +1489,6 @@ int do_jobMoveReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
 
     if (!xdr_jobMoveReq(xdrs, &jobMoveReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobMoveReq");
     } else {
         reply = moveJobArray(&jobMoveReq, TRUE, auth);
     }
@@ -1656,12 +1501,10 @@ int do_jobMoveReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     }
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobMoveReq, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -1681,7 +1524,6 @@ int do_modifyReq(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
 
     if (!xdr_modifyReq(xdrs, &modifyReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_modifyReq");
         goto sendback;
     }
 
@@ -1737,23 +1579,29 @@ static void initSubmit(int *first, struct submitReq *subReq,
 static int sendBack(int reply, struct submitReq *submitReq,
                     struct submitMbdReply *submitReply, int chfd)
 {
-    char reply_buf[MSGSIZE / 2];
+    char reply_buf[LL_BUFSIZ_64];
     XDR xdrs2;
     struct packet_header replyHdr;
 
     if (submitReq->nxf > 0)
         FREEUP(submitReq->xf);
 
-    xdrmem_create(&xdrs2, reply_buf, MSGSIZE / 2, XDR_ENCODE);
+    xdrmem_create(&xdrs2, reply_buf, sizeof(reply_buf), XDR_ENCODE);
+    memset(&replyHdr, 0, sizeof(struct packet_header));
+
     replyHdr.operation = reply;
-    if (!xdr_encodeMsg(&xdrs2, (char *) submitReply, &replyHdr,
-                       xdr_submitMbdReply, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+    if (!xdr_encodeMsg(&xdrs2,
+                       (char *)submitReply,
+                       &replyHdr,
+                       xdr_submitMbdReply,
+                       0,
+                       NULL)) {
+        LS_ERR("xdr_encodeMsg failed");
         xdr_destroy(&xdrs2);
         return -1;
     }
-    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) != XDR_GETPOS(&xdrs2))
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write", XDR_GETPOS(&xdrs2));
+    if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) != xdr_getpos(&xdrs2))
+        LS_ERR("chan_write %d bytes faild", xdr_getpos(&xdrs2));
     xdr_destroy(&xdrs2);
     return 0;
 }
@@ -1776,13 +1624,6 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
         return;
 
     if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
-        if (exception == TRUE)
-            ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for job <%s>",
-                      fname, sbdPtr->chanfd, lsb_jobid2str(jData->jobId));
-        else
-            ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                      "chan_dequeue");
-
         if (IS_START(jData->jStatus)) {
             jData->newReason = PEND_JOB_START_FAIL;
             jStatusChange(jData, JOB_STAT_PEND, LOG_IT, fname);
@@ -1793,8 +1634,6 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
     if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                  "xdr_pack_hdr");
 
         if (IS_START(jData->jStatus)) {
             jData->newReason = PEND_JOB_START_FAIL;
@@ -1816,8 +1655,6 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
     }
 
     if (!xdr_jobReply(&xdrs, &jobReply, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                  "xdr_jobReply");
         if (IS_START(jData->jStatus)) {
             jData->newReason = PEND_JOB_START_FAIL;
             jStatusChange(jData, JOB_STAT_PEND, LOG_IT, fname);
@@ -1835,7 +1672,6 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
             struct Buffer *replyBuf;
 
             if (chan_alloc_buf(&replyBuf, sizeof(struct packet_header)) < 0) {
-                ls_syslog(LOG_ERR, "%s", __func__, "chan_alloc_buf");
                 goto Leave;
             }
 
@@ -1844,7 +1680,6 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
             replyBuf->len = PACKET_HEADER_SIZE;
 
             if (chan_enqueue(sbdPtr->chanfd, replyBuf) < 0) {
-                ls_syslog(LOG_ERR, "%s chan_enqueue() failed", __func__);
                 chan_free_buf(replyBuf);
             } else {
                 sbdPtr->reqCode = MBD_NEW_JOB_KEEP_CHAN;
@@ -1857,8 +1692,6 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
 
             cc = send_packet_header(sbdPtr->chanfd, &hdr);
             if (cc < 0) {
-                ls_syslog(LOG_ERR, "%s: send_packet_header failed: %m",
-                          __func__, lsb_jobid2str(jData->jobId));
             }
         }
     }
@@ -1871,21 +1704,11 @@ Leave:
 
 void doProbeReply(struct sbdNode *sbdPtr, int exception)
 {
-    static char fname[] = "doProbeReply";
     struct packet_header replyHdr;
     XDR xdrs;
-    char *toHost = sbdPtr->hData->host;
     struct Buffer *buf;
 
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: Entering ...", fname);
-
     if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
-        if (exception == TRUE)
-            ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for host <%s>",
-                      fname, sbdPtr->chanfd, toHost);
-        else
-            ls_syslog(LOG_ERR, "%s", __func__, toHost, "chan_dequeue");
         sbdPtr->hData->flags |= HOST_NEEDPOLL;
         return;
     }
@@ -1893,27 +1716,12 @@ void doProbeReply(struct sbdNode *sbdPtr, int exception)
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
     if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, toHost, "xdr_pack_hdr");
         sbdPtr->hData->flags |= HOST_NEEDPOLL;
     } else {
-#ifdef INTER_DAEMON_AUTH
-        if (authSbdRequest(sbdPtr, &xdrs, &replyHdr, NULL) != LSBE_NO_ERROR) {
-            ls_syslog(LOG_ERR, "%s", __func__, toHost, "authSbdRequest");
-            sbdPtr->hData->flags |= HOST_NEEDPOLL;
-        } else {
-#endif
 
-            if (replyHdr.operation != ERR_NO_ERROR) {
-                ls_syslog(LOG_ERR, "%s: sbatchd replied <%d> for host <%s>",
-                          fname, replyHdr.operation, toHost);
-            } else {
-                if (logclass & LC_COMM)
-                    ls_syslog(LOG_DEBUG, "%s: Got ok probe reply from <%s>",
-                              fname, toHost);
-            }
-#ifdef INTER_DAEMON_AUTH
+        if (replyHdr.operation != ERR_NO_ERROR) {
+        } else {
         }
-#endif
     }
 
     xdr_destroy(&xdrs);
@@ -1922,28 +1730,17 @@ void doProbeReply(struct sbdNode *sbdPtr, int exception)
 
 void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
 {
-    static char fname[] = "doSwitchJobReply";
     struct packet_header replyHdr;
     XDR xdrs;
     struct jData *jData = sbdPtr->jData;
-    char *toHost = sbdPtr->hData->host;
     struct jobReply jobReply;
     struct Buffer *buf;
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: Entering ...", fname);
 
     if (!IS_START(jData->jStatus))
 
         return;
 
     if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
-        if (exception == TRUE)
-            ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for job <%s>",
-                      fname, sbdPtr->chanfd, lsb_jobid2str(jData->jobId));
-        else
-            ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                      "chan_dequeue");
         jData->pendEvent.notSwitched = TRUE;
         eventPending = TRUE;
         return;
@@ -1952,56 +1749,25 @@ void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
     if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                  "xdr_pack_hdr");
         jData->pendEvent.notSwitched = TRUE;
         eventPending = TRUE;
         goto Leave;
     }
-
-#ifdef INTER_DAEMON_AUTH
-    if (authSbdRequest(sbdPtr, &xdrs, &replyHdr, NULL) != LSBE_NO_ERROR) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                  "authSbdRequest");
-        jData->pendEvent.notSwitched = TRUE;
-        eventPending = TRUE;
-        goto Leave;
-    }
-#endif
 
     switch (replyHdr.operation) {
     case ERR_NO_ERROR:
         if (!xdr_jobReply(&xdrs, &jobReply, &replyHdr) ||
             jData->jobId != jobReply.jobId) {
-            if (jData->jobId != jobReply.jobId)
-                ls_syslog(LOG_ERR, "%s: Got bad jobId <%s> for job <%s>", fname,
-                          lsb_jobid2str(jobReply.jobId),
-                          lsb_jobid2str(jData->jobId));
-            else
-                ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                          "xdr_jobReply");
         }
         break;
     case ERR_NO_JOB:
         job_abort(jData, JOB_MISSING);
-        ls_syslog(LOG_INFO,
-                  ("%s: Job <%s> was missing by sbatchd on host <%s>\n"), fname,
-                  lsb_jobid2str(jData->jobId), toHost);
-
         break;
     case ERR_JOB_FINISH:
         break;
     case ERR_BAD_REQ:
-        ls_syslog(
-            LOG_ERR,
-            "%s: Job <%s>: sbatchd on host <%s> complained of bad request",
-            fname, lsb_jobid2str(jData->jobId), toHost);
         break;
     default:
-        ls_syslog(
-            LOG_ERR,
-            "%s: Job <%s>: Illegal reply code <%d> from sbatchd on host <%s>",
-            fname, lsb_jobid2str(jData->jobId), replyHdr.operation, toHost);
     }
 
 Leave:
@@ -2012,16 +1778,12 @@ Leave:
 
 void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
 {
-    static char fname[] = "doSignalJobReply";
     struct packet_header replyHdr;
     XDR xdrs;
     struct jData *jData = sbdPtr->jData;
 
     struct jobReply jobReply;
     struct Buffer *buf;
-
-    if (logclass & LC_COMM)
-        ls_syslog(LOG_DEBUG, "%s: Entering ...", fname);
 
     if (IS_FINISH(jData->jStatus)) {
         return;
@@ -2033,12 +1795,6 @@ void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
     }
 
     if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
-        if (exception == TRUE)
-            ls_syslog(LOG_ERR, "%s: Exception bit of <%d> is set for job <%s>",
-                      fname, sbdPtr->chanfd, lsb_jobid2str(jData->jobId));
-        else
-            ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                      "chan_dequeue");
         addPendSigEvent(sbdPtr);
         return;
     }
@@ -2046,16 +1802,9 @@ void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
     if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                  "xdr_pack_hdr");
         addPendSigEvent(sbdPtr);
         goto Leave;
     }
-
-    if (logclass & LC_SIGNAL)
-        ls_syslog(LOG_DEBUG, "%s: Job <%s> sigVal %d got reply code=%d", fname,
-                  lsb_jobid2str(jData->jobId), sbdPtr->sigVal,
-                  replyHdr.operation);
 
     signalReplyCode(replyHdr.operation, jData, sbdPtr->sigVal,
                     sbdPtr->sigFlags);
@@ -2064,12 +1813,6 @@ void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
     case ERR_NO_ERROR:
         if (!xdr_jobReply(&xdrs, &jobReply, &replyHdr) ||
             jData->jobId != jobReply.jobId) {
-            if (jData->jobId != jobReply.jobId)
-                ls_syslog(LOG_ERR, "%s: Got bad jobId <%s> for job <%s>", fname,
-                          lsb_jobid2str(jobReply.jobId), jData->jobId);
-            else
-                ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jData->jobId),
-                          "xdr_jobReply");
             addPendSigEvent(sbdPtr);
         } else {
             jobStatusSignal(replyHdr.operation, jData, sbdPtr->sigVal,
@@ -2132,7 +1875,6 @@ int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_resourceInfoReq(xdrs, &resInfoReq, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_resourceInfoReq");
         len = MSGSIZE;
     } else {
         if (numResources == 0) {
@@ -2168,14 +1910,12 @@ int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         replyStruct = (char *) 0;
     if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr,
                        xdr_lsbShareResourceInfoReply, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
         freeShareResourceInfoReply(&resInfoReply);
         return -1;
     }
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&xdrs2)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "b_write_fix", XDR_GETPOS(&xdrs2));
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
         freeShareResourceInfoReply(&resInfoReply);
@@ -2245,7 +1985,6 @@ int do_runJobReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     if (!xdr_runJobReq(xdrs, &runJobRequest, reqHeader)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_runJobReq");
         goto Reply;
     }
 
@@ -2260,13 +1999,11 @@ Reply:
     lsfHeader.operation = reply;
 
     if (!xdr_encodeMsg(&replyXdr, NULL, &lsfHeader, xdr_int, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&replyXdr);
         return -1;
     }
 
     if (chan_write(chfd, reply_buf, XDR_GETPOS(&replyXdr)) <= 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
         xdr_destroy(&replyXdr);
         return -1;
     }
@@ -2287,20 +2024,13 @@ int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
 
     if (!xdr_jobAttrReq(xdrs, &jobAttr, reqHdr)) {
         reply = LSBE_XDR;
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobAttrReq");
     } else {
         if ((job = getJobData(jobAttr.jobId)) == NULL) {
             reply = LSBE_NO_JOB;
-            ls_syslog(LOG_DEBUG, "do_setJobAttr: no such job (%s)",
-                      lsb_jobid2str(jobAttr.jobId));
         } else if (IS_FINISH(job->jStatus)) {
             reply = LSBE_JOB_FINISH;
-            ls_syslog(LOG_DEBUG, "do_setJobAttr: job (%s) finished already",
-                      lsb_jobid2str(jobAttr.jobId));
         } else if (!isJobOwner(auth, job)) {
             reply = LSBE_PERMISSION;
-            ls_syslog(LOG_DEBUG, "do_setJobAttr: no permission for job (%s)",
-                      lsb_jobid2str(jobAttr.jobId));
         } else if (IS_START(job->jStatus)) {
             reply = LSBE_NO_ERROR;
             job->port = jobAttr.port;
@@ -2308,8 +2038,6 @@ int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
             log_jobattrset(&jobAttr, auth->uid);
         } else {
             reply = LSBE_JOB_MODIFY;
-            ls_syslog(LOG_DEBUG, "do_setJobAttr: job (%s) is not modified",
-                      lsb_jobid2str(jobAttr.jobId));
         }
     }
 
@@ -2317,12 +2045,10 @@ int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
     replyHdr.operation = reply;
     if (!xdr_encodeMsg(&xdrs2, (char *) &jobAttr, &replyHdr, xdr_jobAttrReq, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
         xdr_destroy(&xdrs2);
         return -1;
     }
     if (chan_write(s, reply_buf, XDR_GETPOS(&xdrs2)) != XDR_GETPOS(&xdrs2)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_write");
         xdr_destroy(&xdrs2);
         return -1;
     }

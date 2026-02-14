@@ -95,8 +95,6 @@ bool_t xdr_loadvector(XDR *xdrs, struct loadVectorStruct *lvp,
                                                  sizeof(struct resPair));
             if (resPairs == NULL) {
                 lvp->numResPairs = 0;
-                ls_syslog(LOG_ERR, "%s: %s(%d) failed: %m", fname, "malloc",
-                          lvp->numResPairs * sizeof(struct resPair));
                 return false;
             }
             lvp->resPairs = resPairs;

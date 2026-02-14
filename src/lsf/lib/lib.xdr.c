@@ -600,7 +600,7 @@ bool_t xdr_jRusage(XDR *xdrs, struct jRusage *runRusage, void *)
     return true;
 }
 
-bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *info,
+bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host *info,
                           struct packet_header *hdr)
 {
     if (!xdr_string(xdrs, &info->host_name, LL_HOSTNAME_MAX))
@@ -629,8 +629,8 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *info,
     return true;
 }
 
-bool_t xdr_wire_host_info_reply(XDR *xdrs, struct wire_host_info_reply *reply,
-                                struct packet_header *hdr)
+bool_t xdr_wire_host_reply(XDR *xdrs, struct wire_host_reply *reply,
+                           struct packet_header *hdr)
 {
     int i;
 
@@ -638,7 +638,7 @@ bool_t xdr_wire_host_info_reply(XDR *xdrs, struct wire_host_info_reply *reply,
         return false;
 
     if (xdrs->x_op == XDR_DECODE) {
-        reply->hosts = calloc(reply->num_hosts, sizeof(struct wire_host_info));
+        reply->hosts = calloc(reply->num_hosts, sizeof(struct wire_host));
         if (reply->hosts == NULL)
             return false;
     }
@@ -651,7 +651,7 @@ bool_t xdr_wire_host_info_reply(XDR *xdrs, struct wire_host_info_reply *reply,
     return true;
 }
 
-bool_t xdr_wire_load_info(XDR *xdrs, struct wire_load_info *wp)
+bool_t xdr_wire_load(XDR *xdrs, struct wire_load *wp)
 {
     if (!xdr_string(xdrs, &wp->host_name, MAXHOSTNAMELEN)) {
         return false;
@@ -670,7 +670,7 @@ bool_t xdr_wire_load_info(XDR *xdrs, struct wire_load_info *wp)
     return true;
 }
 
-bool_t xdr_wire_load_info_reply(XDR *xdrs, struct wire_load_info_reply *rp)
+bool_t xdr_wire_load_reply(XDR *xdrs, struct wire_load_reply *rp)
 {
     int i;
 
@@ -688,12 +688,12 @@ bool_t xdr_wire_load_info_reply(XDR *xdrs, struct wire_load_info_reply *rp)
         }
 
         rp->hosts =
-            calloc((size_t) rp->num_hosts, sizeof(struct wire_load_info));
+            calloc((size_t) rp->num_hosts, sizeof(struct wire_load));
         if (rp->hosts == NULL)
             return false;
 
         for (i = 0; i < rp->num_hosts; i++) {
-            if (!xdr_wire_load_info(xdrs, &rp->hosts[i]))
+            if (!xdr_wire_load(xdrs, &rp->hosts[i]))
                 return false;
         }
         return true;
@@ -706,7 +706,7 @@ bool_t xdr_wire_load_info_reply(XDR *xdrs, struct wire_load_info_reply *rp)
             return false;
 
         for (i = 0; i < rp->num_hosts; i++) {
-            if (!xdr_wire_load_info(xdrs, &rp->hosts[i]))
+            if (!xdr_wire_load(xdrs, &rp->hosts[i]))
                 return false;
         }
         return true;
@@ -717,7 +717,7 @@ bool_t xdr_wire_load_info_reply(XDR *xdrs, struct wire_load_info_reply *rp)
     }
 }
 
-bool_t xdr_wire_res_item(XDR *xdrs, struct wire_res_item *wr)
+bool_t xdr_wire_res(XDR *xdrs, struct wire_res *wr)
 {
     if (!xdr_opaque(xdrs, wr->name, MAXLSFNAMELEN))
         return false;
@@ -754,7 +754,7 @@ bool_t xdr_wire_host_model(XDR *xdrs, struct wire_host_model *hm)
     return true;
 }
 
-bool_t xdr_wire_lsinfo_reply(XDR *xdrs, struct wire_lsinfo_reply *r)
+bool_t xdr_wire_lsinfo(XDR *xdrs, struct wire_lsinfo *r)
 {
     int i;
 
@@ -764,14 +764,14 @@ bool_t xdr_wire_lsinfo_reply(XDR *xdrs, struct wire_lsinfo_reply *r)
     }
 
     if (xdrs->x_op == XDR_DECODE && r->n_res > 0 && r->res_table == NULL) {
-        r->res_table = calloc((size_t) r->n_res, sizeof(struct wire_res_item));
+        r->res_table = calloc((size_t) r->n_res, sizeof(struct wire_res));
         if (r->res_table == NULL) {
             return false;
         }
     }
 
     for (i = 0; i < r->n_res; i++) {
-        if (!xdr_wire_res_item(xdrs, &r->res_table[i])) {
+        if (!xdr_wire_res(xdrs, &r->res_table[i])) {
             return false;
         }
     }
@@ -859,11 +859,6 @@ bool_t xdr_wire_cluster_info(XDR *xdrs, struct wire_cluster_info *ci)
     }
 
     return true;
-}
-
-bool_t xdr_wire_cluster_info_reply(XDR *xdrs, struct wire_cluster_info_reply *r)
-{
-    return xdr_wire_cluster_info(xdrs, &r->cluster);
 }
 
 // LavaLite encode and decode string without bells and whistles

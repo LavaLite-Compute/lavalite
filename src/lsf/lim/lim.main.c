@@ -247,7 +247,7 @@ int main(int argc, char **argv)
                 time_t t = time(NULL);
 
                 read(chan_sock(ch_id), &expirations, sizeof(expirations));
-                if (t  - last_timer > 60) {
+                if (t  - last_timer > 60 * 15) {
                     LS_DEBUG("timer run %s", ctime2(NULL));
                     last_timer = t;
                 }

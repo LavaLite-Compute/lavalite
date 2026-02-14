@@ -22,6 +22,17 @@
 struct masterInfo masterInfo;
 int masterknown = false;
 
+static struct wire_host_reply *query_lim_hosts(void);
+static void query_lim_host_free(struct wire_host_reply *);
+
+static struct wire_load_reply *query_lim_load(void);
+static void query_lim_load_free(struct wire_load_reply *);
+
+static struct wire_cluster_info *query_lim_clusterinfo(void);
+
+static struct wire_lsinfo *query_lim_lsinfo(void);
+static void wire_lsinfo_free(struct wire_lsinfo *);
+
 static int getname_(enum limReqCode limReqCode, char *name, int namesize)
 {
     if (initenv_(NULL, NULL) < 0)
@@ -59,13 +70,24 @@ static int getname_(enum limReqCode limReqCode, char *name, int namesize)
     return 0;
 }
 
+// Obsolete the non reentering version.
+int ls_getclustername_r(char *buf, size_t buflen)
+{
+    if (buf == NULL || buflen == 0) {
+        lserrno = LSE_BAD_ARGS;
+        return -1;
+    }
+
+    if (getname_(LIM_GET_CLUSNAME, buf, (int)buflen) < 0)
+        return -1;
+
+    buf[buflen - 1] = 0;
+    return 0;
+}
+
 char *ls_getclustername(void)
 {
-    static char fname[] = "ls_getclustername";
     static char clName[MAXLSFNAMELEN];
-
-    if (logclass & (LC_TRACE))
-        ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     if (clName[0] == '\0')
         if (getname_(LIM_GET_CLUSNAME, clName, MAXLSFNAMELEN) < 0)
@@ -74,9 +96,23 @@ char *ls_getclustername(void)
     return clName;
 }
 
+int ls_getmastername_r(char *buf, size_t buflen)
+{
+    if (buf == NULL || buflen == 0) {
+        lserrno = LSE_BAD_ARGS;
+        return -1;
+    }
+
+    if (getname_(LIM_GET_MASTINFO, buf, (int)buflen) < 0)
+        return -1;
+
+    buf[buflen - 1] = 0;
+    return 0;
+}
+
 char *ls_getmastername(void)
 {
-    static __thread char master[MAXHOSTNAMELEN];
+    static char master[MAXHOSTNAMELEN];
 
     if (getname_(LIM_GET_MASTINFO, master, MAXHOSTNAMELEN) < 0)
         return NULL;
@@ -84,75 +120,14 @@ char *ls_getmastername(void)
     return master;
 }
 
-static struct wire_cluster_info_reply *query_lim_clusterinfo(void)
-{
-    static __thread struct wire_cluster_info_reply reply;
-    int cc;
-
-    memset(&reply, 0, sizeof(reply));
-
-    cc = callLim_(LIM_GET_CLUSINFO, NULL, NULL, &reply,
-                  xdr_wire_cluster_info_reply, NULL, _USE_TCP_, NULL);
-
-    if (cc < 0) {
-        lserrno = LSE_MSG_SYS;
-        return NULL;
-    }
-
-    return &reply;
-}
-
-struct clusterInfo *
-wire_clusterinfo_to_clusterInfo(const struct wire_cluster_info_reply *wr,
-                                int *num_clusters)
-{
-    if (wr == NULL || num_clusters == NULL) {
-        lserrno = LSE_BAD_ARGS;
-        return NULL;
-    }
-
-    // We only have one cluster in the reply.
-    *num_clusters = 1;
-
-    struct clusterInfo *ci = calloc(1, sizeof(*ci));
-    if (!ci) {
-        lserrno = LSE_MALLOC;
-        return NULL;
-    }
-
-    const struct wire_cluster_info *wc = &wr->cluster;
-
-    snprintf(ci->clusterName, sizeof(ci->clusterName), "%s", wc->cluster_name);
-
-    snprintf(ci->masterName, sizeof(ci->masterName), "%s", wc->master_name);
-
-    snprintf(ci->managerName, sizeof(ci->managerName), "%s", wc->manager_name);
-
-    ci->status = wc->status;
-    ci->managerId = wc->manager_id;
-    ci->numServers = wc->num_servers;
-    ci->numClients = wc->num_clients;
-
-    // Future-proofing: all extended fields empty
-    ci->nRes = ci->nTypes = ci->nModels = ci->nAdmins = 0;
-    ci->resources = ci->hostTypes = ci->hostModels = NULL;
-    ci->adminIds = NULL;
-    ci->admins = NULL;
-
-    return ci;
-}
-
 struct clusterInfo *ls_clusterinfo(char *resReq, int *numclusters,
                                    char **clusterList, int listsize,
                                    int options)
 {
-    struct wire_cluster_info_reply *wr;
-    struct clusterInfo *ci;
-
-    (void) resReq;
-    (void) clusterList;
-    (void) listsize;
-    (void) options;
+    (void)resReq;
+    (void)clusterList;
+    (void)listsize;
+    (void)options;
 
     if (numclusters == NULL) {
         lserrno = LSE_BAD_ARGS;
@@ -160,59 +135,127 @@ struct clusterInfo *ls_clusterinfo(char *resReq, int *numclusters,
     }
 
     *numclusters = 0;
-
-    wr = query_lim_clusterinfo();
+    struct wire_cluster_info *wr = query_lim_clusterinfo();
     if (wr == NULL) {
         return NULL;
     }
 
-    ci = wire_clusterinfo_to_clusterInfo(wr, numclusters);
-    if (ci == NULL) {
-        /* lserrno already set by translator */
+    struct clusterInfo *ci = calloc(1, sizeof(*ci));
+    if (!ci) {
+        lserrno = LSE_MALLOC;
+        free(wr);
         return NULL;
     }
+
+    *numclusters = 1;
+    snprintf(ci->clusterName, sizeof(ci->clusterName), "%s", wr->cluster_name);
+    snprintf(ci->masterName, sizeof(ci->masterName), "%s", wr->master_name);
+    snprintf(ci->managerName, sizeof(ci->managerName), "%s", wr->manager_name);
+
+    ci->status = wr->status;
+    ci->managerId = wr->manager_id;
+    ci->numServers = wr->num_servers;
+    ci->numClients = wr->num_clients;
+
+    // Future-proofing: all extended fields empty
+    ci->nRes = ci->nTypes = ci->nModels = ci->nAdmins = 0;
+    ci->resources = ci->hostTypes = ci->hostModels = NULL;
+    ci->adminIds = NULL;
+    ci->admins = NULL;
+
+    free(wr);
 
     return ci;
 }
 
-static struct wire_host_info_reply *query_lim_hosts(void)
+void ls_freeclusterinfo(struct clusterInfo **cis, int numclusters)
 {
-    static __thread struct wire_host_info_reply reply;
+    struct clusterInfo *ci;
 
-    int cc = callLim_(LIM_GET_HOSTINFO,         // operation
-                      NULL,                     // no data to send
-                      NULL,                     // no data xdr
-                      &reply,                   // reply from lim
-                      xdr_wire_host_info_reply, // xdr the reply
-                      NULL,                     // hostname unused
-                      _USE_TCP_,                // transport
-                      NULL);                    // packet header in output
-    if (cc < 0) {
-        lserrno = LSE_MSG_SYS;
+    if (cis == NULL || *cis == NULL)
+        return;
+
+    ci = *cis;
+
+    for (int i = 0; i < numclusters; i++) {
+        int j;
+
+        if (ci[i].resources != NULL) {
+            for (j = 0; j < ci[i].nRes; j++) {
+                free(ci[i].resources[j]);
+            }
+            free(ci[i].resources);
+        }
+
+        if (ci[i].hostTypes != NULL) {
+            for (j = 0; j < ci[i].nTypes; j++) {
+                free(ci[i].hostTypes[j]);
+            }
+            free(ci[i].hostTypes);
+        }
+
+        if (ci[i].hostModels != NULL) {
+            for (j = 0; j < ci[i].nModels; j++) {
+                free(ci[i].hostModels[j]);
+            }
+            free(ci[i].hostModels);
+        }
+
+        if (ci[i].admins != NULL) {
+            for (j = 0; j < ci[i].nAdmins; j++) {
+                free(ci[i].admins[j]);
+            }
+            free(ci[i].admins);
+        }
+
+        if (ci[i].adminIds != NULL) {
+            free(ci[i].adminIds);
+        }
+    }
+
+    free(ci);
+    *cis = NULL;
+}
+
+static struct wire_cluster_info *query_lim_clusterinfo(void)
+{
+    struct wire_cluster_info *reply;
+
+    reply = calloc(1, sizeof(struct wire_cluster_info));
+    if (reply == NULL) {
         return NULL;
     }
 
-    return &reply;
+    int cc = callLim_(LIM_GET_CLUSINFO, NULL, NULL, reply,
+                      xdr_wire_cluster_info, NULL, _USE_TCP_, NULL);
+
+    if (cc < 0) {
+        lserrno = LSE_MSG_SYS;
+        free(reply);
+        return NULL;
+    }
+
+    return reply;
 }
 
 struct hostInfo *ls_gethostinfo(char *resReq, int *numhosts, char **hostlist,
                                 int listsize, int options)
 {
-    struct wire_host_info_reply *reply;
-    struct hostInfo *api_hosts;
-
-    /* Ignore resReq, hostlist, listsize for now - just get all hosts */
-
-    /* Query LIM for all hosts */
-    reply = query_lim_hosts();
+    // Query LIM for all hosts
+    struct wire_host_reply *reply = query_lim_hosts();
     if (!reply) {
         *numhosts = 0;
         return NULL;
     }
 
-    /* Convert wire format to API format
-     */
+    // Convert wire format to API format
+
+    struct hostInfo *api_hosts;
     api_hosts = calloc(reply->num_hosts, sizeof(struct hostInfo));
+    if (api_hosts == NULL) {
+        query_lim_host_free(reply);
+        NULL;
+    }
 
     for (int i = 0; i < reply->num_hosts; i++) {
         strcpy(api_hosts[i].hostName, reply->hosts[i].host_name);
@@ -233,30 +276,56 @@ struct hostInfo *ls_gethostinfo(char *resReq, int *numhosts, char **hostlist,
         api_hosts[i].rexPriority = 0;
     }
 
-    free(reply->hosts);
     *numhosts = reply->num_hosts;
+    query_lim_host_free(reply);
+
     return api_hosts;
 }
 
-static struct wire_load_info_reply *query_lim_load(void)
+void ls_freehostinfo(struct hostInfo **hosts, int numhosts)
 {
-    static __thread struct wire_load_info_reply reply;
+    if (!hosts || !*hosts)
+        return;
 
-    int cc = callLim_(LIM_LOAD_REQ, NULL, NULL, &reply,
-                      xdr_wire_load_info_reply, NULL, _USE_TCP_, NULL);
+    for (int i = 0; i < numhosts; i++) {
+        free((*hosts)[i].hostType);
+        free((*hosts)[i].hostModel);
+    }
 
-    if (cc < 0) {
-        lserrno = LSE_MSG_SYS;
+    free(*hosts);
+    *hosts = NULL;
+}
+
+static struct wire_host_reply *query_lim_hosts(void)
+{
+    struct wire_host_reply *reply;
+
+    reply = calloc(1, sizeof(struct wire_host_reply));
+    if (reply == NULL) {
         return NULL;
     }
 
-    return &reply;
+    int cc = callLim_(LIM_GET_HOSTINFO,         // operation
+                      NULL,                     // no data to send
+                      NULL,                     // no data xdr
+                      reply,                   // reply from lim
+                      xdr_wire_host_reply, // xdr the reply
+                      NULL,                     // hostname unused
+                      _USE_TCP_,                // transport
+                      NULL);                    // packet header in output
+    if (cc < 0) {
+        lserrno = LSE_MSG_SYS;
+        free(reply);
+        return NULL;
+    }
+
+    return reply;
 }
 
 struct hostLoad *ls_load(char *resreq, int *numhosts, int options,
                          char *fromhost)
 {
-    struct wire_load_info_reply *reply;
+    struct wire_load_reply *reply;
     struct hostLoad *api_loads;
 
     // Ignore resreq, fromhost for now - get all loads
@@ -291,15 +360,57 @@ struct hostLoad *ls_load(char *resreq, int *numhosts, int options,
     }
 
     *numhosts = reply->num_hosts;
-    free(reply->hosts);
+    // fre library functions
+    query_lim_load_free(reply);
 
     return api_loads;
 }
 
-// LavaLite ls_info()
-static struct lsInfo *
-wire_lsinfo_to_lsinfo(const struct wire_lsinfo_reply *reply)
+void ls_freeload(struct hostLoad *loads, int numhosts)
 {
+    if (loads == NULL)
+        return;
+
+    for (int i = 0; i < numhosts; i++) {
+        free(loads[i].status);
+        free(loads[i].li);
+    }
+
+    free(loads);
+}
+
+static struct wire_load_reply *query_lim_load(void)
+{
+    struct wire_load_reply *reply;
+
+    reply = calloc(1, sizeof(struct wire_load_reply));
+    if (reply == NULL) {
+        return NULL;
+    }
+
+    int cc = callLim_(LIM_LOAD_REQ,
+                      NULL,
+                      NULL,
+                      reply,
+                      xdr_wire_load_reply,
+                      NULL,
+                      _USE_TCP_,
+                      NULL);
+    if (cc < 0) {
+        lserrno = LSE_MSG_SYS;
+        return NULL;
+    }
+
+    return reply;
+}
+
+struct lsInfo *ls_info(void)
+{
+    struct wire_lsinfo *reply = query_lim_lsinfo();
+    if (!reply) {
+        return NULL;
+    }
+
     struct lsInfo *info;
     int i;
 
@@ -308,17 +419,16 @@ wire_lsinfo_to_lsinfo(const struct wire_lsinfo_reply *reply)
         return NULL;
     }
 
-    /* Resources */
     info->nRes = reply->n_res;
     if (info->nRes > 0) {
-        info->resTable = calloc((size_t) info->nRes, sizeof(struct resItem));
+        info->resTable = calloc((size_t)info->nRes, sizeof(struct resItem));
         if (!info->resTable) {
             free(info);
             return NULL;
         }
 
         for (i = 0; i < info->nRes; i++) {
-            const struct wire_res_item *wr = &reply->res_table[i];
+            struct wire_res *wr = &reply->res_table[i];
             struct resItem *r = &info->resTable[i];
 
             memset(r, 0, sizeof(*r));
@@ -333,7 +443,6 @@ wire_lsinfo_to_lsinfo(const struct wire_lsinfo_reply *reply)
         }
     }
 
-    // Host types
     info->nTypes = reply->n_types;
     if (info->nTypes > LL_HOSTTYPE_MAX) {
         info->nTypes = LL_HOSTTYPE_MAX;
@@ -351,7 +460,7 @@ wire_lsinfo_to_lsinfo(const struct wire_lsinfo_reply *reply)
     }
 
     for (i = 0; i < info->nModels; i++) {
-        const struct wire_host_model *hm = &reply->host_models[i];
+        struct wire_host_model *hm = &reply->host_models[i];
 
         snprintf(info->hostModels[i], sizeof(info->hostModels[i]), "%s",
                  hm->model);
@@ -366,37 +475,55 @@ wire_lsinfo_to_lsinfo(const struct wire_lsinfo_reply *reply)
     info->numIndx = reply->num_indx;
     info->numUsrIndx = reply->num_usr_indx;
 
+    wire_lsinfo_free(reply);
+
     return info;
 }
 
-static struct wire_lsinfo_reply *query_lim_lsinfo(void)
+
+static struct wire_lsinfo *query_lim_lsinfo(void)
 {
-    static __thread struct wire_lsinfo_reply reply;
+    struct wire_lsinfo *reply;
 
-    if (callLim_(LIM_GET_INFO, NULL, NULL, &reply, xdr_wire_lsinfo_reply, NULL,
-                 _USE_TCP_, NULL) < 0)
+    reply = calloc(1, sizeof(struct wire_lsinfo));
+
+    if (callLim_(LIM_GET_INFO, NULL, NULL, reply, xdr_wire_lsinfo, NULL,
+                 _USE_TCP_, NULL) < 0) {
+        free(reply);
         return NULL;
+    }
 
-    return &reply;
+    return reply;
 }
 
-struct lsInfo *ls_info(void)
+void ls_info_free(struct lsInfo **info)
 {
-    struct wire_lsinfo_reply *reply;
-    struct lsInfo *info;
+    if (info == NULL || *info == NULL)
+        return;
 
-    reply = query_lim_lsinfo();
-    if (!reply) {
-        return NULL;
-    }
+    if ((*info)->resTable != NULL)
+        free((*info)->resTable);
 
-    info = wire_lsinfo_to_lsinfo(reply);
-    if (!info) {
-        lserrno = LSE_NO_MEM;
-        return NULL;
-    }
+    free(*info);
+    *info = NULL;
+}
 
-    return info;
+
+static void wire_lsinfo_free(struct wire_lsinfo *wr)
+{
+    if (wr == NULL)
+        return;
+
+    if (wr->res_table != NULL)
+        free(wr->res_table);
+
+    if (wr->host_types != NULL)
+        free(wr->host_types);
+
+    if (wr->host_models != NULL)
+        free(wr->host_models);
+
+    free(wr);
 }
 
 // Garbage to be thrown away...
@@ -495,4 +622,36 @@ float ls_getmodelfactor(const char *modelname)
         return 0.0f;
 
     return cpuf;
+}
+
+static void query_lim_host_free(struct wire_host_reply *reply)
+{
+    if (reply == NULL)
+        return;
+
+    for (int i = 0; i < reply->num_hosts; i++) {
+        free(reply->hosts[i].host_name);
+        free(reply->hosts[i].host_type);
+        free(reply->hosts[i].host_model);
+    }
+    free(reply->hosts);
+    free(reply);
+}
+
+static void query_lim_load_free(struct wire_load_reply *reply)
+{
+    if (reply == NULL)
+        return;
+
+    if (reply->hosts == NULL)
+        return;
+
+    for (int i = 0; i < reply->num_hosts; i++) {
+        free(reply->hosts[i].host_name); // allocated by xdr_string()
+        reply->hosts[i].host_name = NULL;
+    }
+    free(reply->hosts);
+    reply->hosts = NULL;
+
+    free(reply);
 }

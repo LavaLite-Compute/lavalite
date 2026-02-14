@@ -380,6 +380,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     // 3) new job: spawn child, register it, fill job_reply
     reply_code = spawn_job(job);
     if (reply_code != ERR_NO_ERROR) {
+        LS_ERR("faild to spawn job=%ld", spec.jobId);
         struct jobReply reply;
         memset(&reply, 0, sizeof(struct jobReply));
         reply.jobId = spec.jobId;
@@ -390,7 +391,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
 
         xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
-        if (sbd_enqueue_new_job_reply(job, &reply)) {
+        if (sbd_enqueue_new_job_reply(job, &reply) < 0) {
             LS_ERR("operation=%s job=%ld enqueue jobReply failed",
                    mbd_op_str(req_hdr->operation), job->job_id);
             sbd_mbd_shutdown();
@@ -422,9 +423,8 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     }
 
     if (sbd_job_state_write(job) < 0) {
-        LS_ERRX("job %ld state write failed at start", job->job_id);
+        LS_ERRX("job=%ld state write failed", job->job_id);
         sbd_fatal(SBD_FATAL_STORAGE);
-        return;
     }
 }
 
@@ -465,10 +465,8 @@ void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     job->time_pid_acked = time(NULL);
     // write the job state
     if (sbd_job_state_write(job) < 0) {
-         LS_ERRX("job %ld state write failed after pid_acked",
-                 job->job_id);
-        // force sbd re transmission of the reply data
-         job->reply_last_send = 0;
+        LS_ERR("job=%ld state write failed", job->job_id);
+        sbd_fatal(SBD_FATAL_STORAGE);
         return;
     }
 
@@ -543,8 +541,10 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     job->execute_acked = true;
     job->time_execute_acked = time(NULL);
 
-    if (sbd_job_state_write(job) < 0)
-        LS_ERRX("job=%ld state write failed after execute_acked", job->job_id);
+    if (sbd_job_state_write(job) < 0) {
+        LS_ERR("job=%ld state write failed", job->job_id);
+        sbd_fatal(SBD_FATAL_STORAGE);
+    }
 
     LS_INFO("operation=%s job=%ld pid=%d pgid=%d acked",
             mbd_op_str(hdr->operation), job->job_id, job->pid, job->pgid);
@@ -610,9 +610,10 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
             job->job_id, job->pid, job->pgid);
 
     // wite the acked
-    if (sbd_job_state_write(job) < 0)
-        LS_ERRX("job %ld state write failed after finish_acked", job->job_id);
-
+    if (sbd_job_state_write(job) < 0) {
+        LS_ERRX("job=%ld state write failed", job->job_id);
+        sbd_fatal(SBD_FATAL_STORAGE);
+    }
 }
 
 int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
@@ -749,8 +750,6 @@ void sbd_job_insert(struct sbd_job *job)
     }
 
     ll_list_append(&sbd_job_list, &job->list);
-
-    LS_DEBUG("inserted job_id=%ld", job->job_id);
 }
 
 struct sbd_job *sbd_job_lookup(int job_id)
@@ -806,7 +805,7 @@ void sbd_prune_acked_jobs(void)
 
         assert(job->exit_status_valid == true);
 
-        if ((now - job->time_finish_acked) < SECS_PER_MIN) {
+        if ((now - job->time_finish_acked) < SECS_PER_MIN * 2) {
             e = e2;
             continue;
         }

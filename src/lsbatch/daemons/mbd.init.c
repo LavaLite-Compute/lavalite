@@ -406,7 +406,7 @@ struct hData *initHData(struct hData *hData)
     int i;
 
     if (hData == NULL) {
-        hData = (struct hData *) my_malloc(sizeof(struct hData), "initHData");
+        hData = calloc(1, sizeof(struct hData));
     }
 
     hData->host = NULL;
@@ -419,7 +419,7 @@ struct hData *initHData(struct hData *hData)
     hData->sbdFail = 0;
     hData->hStatus = HOST_STAT_OK;
     hData->uJobLimit = INFINIT_INT;
-    hData->uAcct = (struct hTab *) NULL;
+    hData->uAcct = NULL;
     hData->maxJobs = INFINIT_INT;
     hData->numJobs = 0;
     hData->numRUN = 0;

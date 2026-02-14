@@ -45,22 +45,24 @@ static float checkOrTakeAvailableByPreemptPRHQValue(int index, float value,
 
 void getLsbResourceInfo(void)
 {
-    static char fname[] = "getLsbresourceInfo";
-    int i, numRes = 0;
-    struct lsSharedResourceInfo *resourceInfo;
+    if (0) {
+        static char fname[] = "getLsbresourceInfo";
+        int i, numRes = 0;
+        struct lsSharedResourceInfo *resourceInfo;
 
-    if (logclass & LC_TRACE)
-        ls_syslog(LOG_DEBUG3, "%s: Entering ...", fname);
+        if (logclass & LC_TRACE)
+            ls_syslog(LOG_DEBUG3, "%s: Entering ...", fname);
 
-    if ((resourceInfo = ls_sharedresourceinfo(NULL, &numRes, NULL, 0)) ==
-        NULL) {
-        return;
+        if ((resourceInfo = ls_sharedresourceinfo(NULL, &numRes, NULL, 0)) ==
+            NULL) {
+            return;
+        }
+        if (numResources > 0)
+            freeSharedResource();
+        initHostInstances(numRes);
+        for (i = 0; i < numRes; i++)
+            addSharedResource(&resourceInfo[i]);
     }
-    if (numResources > 0)
-        freeSharedResource();
-    initHostInstances(numRes);
-    for (i = 0; i < numRes; i++)
-        addSharedResource(&resourceInfo[i]);
 }
 
 static void addSharedResource(struct lsSharedResourceInfo *lsResourceInfo)
@@ -94,7 +96,6 @@ static void addSharedResource(struct lsSharedResourceInfo *lsResourceInfo)
             sharedResources,
             (numResources + 1) * sizeof(struct sharedResource *));
     if (temp == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "realloc");
         mbdDie(MASTER_MEM);
     }
     sharedResources = (struct sharedResource **) temp;
@@ -1125,7 +1126,6 @@ static struct qPRValues *addQPRValues(int index, struct hData *hPtr,
                                             (pRIPtr->nQPRValues + 1) *
                                                 sizeof(struct qPRValues));
     if (temp == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "realloc");
         mbdDie(MASTER_MEM);
     }
     pRIPtr->qPRValues = (struct qPRValues *) temp;

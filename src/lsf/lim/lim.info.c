@@ -96,7 +96,7 @@ void send_header(struct client_node *client, struct packet_header *reqHdr,
 void host_info_req(XDR *xdrs, struct client_node *client,
                    struct packet_header *req_hdr)
 {
-    struct wire_host_info_reply reply;
+    struct wire_host_reply reply;
 
     if (!masterMe) {
         wrong_master(client);
@@ -111,12 +111,12 @@ void host_info_req(XDR *xdrs, struct client_node *client,
 
     // Allocate
     reply.num_hosts = num_hosts;
-    reply.hosts = calloc(num_hosts, sizeof(struct wire_host_info));
+    reply.hosts = calloc(num_hosts, sizeof(struct wire_host));
 
     // Fill
     int i = 0;
     for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
-        struct wire_host_info *info = &reply.hosts[i];
+        struct wire_host *info = &reply.hosts[i];
         ++i;
 
         info->host_name = strdup(h->hostName);
@@ -141,7 +141,7 @@ void host_info_req(XDR *xdrs, struct client_node *client,
     init_pack_hdr(&hdr);
     hdr.operation = LIME_NO_ERR;
 
-    xdr_encodeMsg(&xdrs2, (char *) &reply, &hdr, xdr_wire_host_info_reply, 0,
+    xdr_encodeMsg(&xdrs2, (char *)&reply, &hdr, xdr_wire_host_reply, 0,
                   NULL);
 
     int cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
@@ -158,7 +158,7 @@ void host_info_req(XDR *xdrs, struct client_node *client,
 }
 
 static int lsinfo_to_wire(const struct lsInfo *src,
-                          struct wire_lsinfo_reply *dst)
+                          struct wire_lsinfo *dst)
 {
     int i;
 
@@ -173,7 +173,7 @@ static int lsinfo_to_wire(const struct lsInfo *src,
 
     if (dst->n_res > 0) {
         dst->res_table =
-            calloc((size_t) dst->n_res, sizeof(struct wire_res_item));
+            calloc((size_t) dst->n_res, sizeof(struct wire_res));
 
         if (dst->res_table == NULL) {
             LS_ERR("calloc(res_table) failed");
@@ -181,7 +181,7 @@ static int lsinfo_to_wire(const struct lsInfo *src,
         }
 
         for (i = 0; i < dst->n_res; i++) {
-            struct wire_res_item *wr;
+            struct wire_res *wr;
             const struct resItem *r;
 
             wr = &dst->res_table[i];
@@ -253,7 +253,7 @@ static int lsinfo_to_wire(const struct lsInfo *src,
     return 0;
 }
 
-static void wire_lsinfo_free(struct wire_lsinfo_reply *wi)
+static void wire_lsinfo_free(struct wire_lsinfo *wi)
 {
     if (wi == NULL) {
         LS_WARNING("called with NULL pointer");
@@ -283,13 +283,13 @@ void info_req(XDR *xdrs, struct client_node *client,
     char buf[LL_BUFSIZ_16K];
     XDR xdrs2;
     enum limReplyCode limReplyCode;
-    struct wire_lsinfo_reply reply;
+    struct wire_lsinfo reply;
     int cc;
 
     struct sockaddr_in addr;
     get_host_addrv4(client->from_host->v4_epoint, &addr);
 
-    (void) xdrs; // request body unused for now
+    (void)xdrs; // request body unused for now
 
     limReplyCode = LIME_NO_ERR;
 
@@ -309,7 +309,7 @@ void info_req(XDR *xdrs, struct client_node *client,
     reply_hdr.operation = limReplyCode;
 
     if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &reply_hdr,
-                       xdr_wire_lsinfo_reply, 0, NULL)) {
+                       xdr_wire_lsinfo, 0, NULL)) {
         LS_ERR("xdr_encodeMsg to %s failed", sockAdd2Str_(&addr));
         xdr_destroy(&xdrs2);
         wire_lsinfo_free(&reply);
@@ -332,7 +332,7 @@ void info_req(XDR *xdrs, struct client_node *client,
 void load_req(XDR *xdrs, struct client_node *client,
               struct packet_header *req_hdr)
 {
-    struct wire_load_info_reply reply;
+    struct wire_load_reply reply;
     XDR xdrs2;
     char buf[LL_BUFSIZ_4K];
     struct packet_header hdr;
@@ -350,7 +350,7 @@ void load_req(XDR *xdrs, struct client_node *client,
 
     // Allocate
     reply.num_hosts = num_hosts;
-    reply.hosts = calloc(num_hosts, sizeof(struct wire_load_info));
+    reply.hosts = calloc(num_hosts, sizeof(struct wire_load));
     if (!reply.hosts) {
         LS_ERR("calloc failed");
         send_header(client, req_hdr, LIME_NO_MEM);
@@ -360,7 +360,7 @@ void load_req(XDR *xdrs, struct client_node *client,
     // Fill the wire structure
     int i = 0;
     for (struct hostNode *h = myClusterPtr->hostList; h; h = h->nextPtr) {
-        struct wire_load_info *host = &reply.hosts[i];
+        struct wire_load *host = &reply.hosts[i];
         ++i;
         host->host_name = strdup(h->hostName); // Fixed: was comma, need strdup
 
@@ -373,7 +373,7 @@ void load_req(XDR *xdrs, struct client_node *client,
     init_pack_hdr(&hdr);
     hdr.operation = LIME_NO_ERR;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &hdr, xdr_wire_load_info_reply,
+    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &hdr, xdr_wire_load_reply,
                        0, NULL)) {
         LS_ERR("xdr_encodeMsg failed");
         free(reply.hosts);
@@ -447,71 +447,69 @@ void resource_info_req(XDR *xdrs, struct client_node *client,
 void clus_info_req(XDR *xdrs, struct client_node *client,
                    struct packet_header *req_hdr)
 {
-    XDR xdrs2;
-    char buf[LL_BUFSIZ_16K];
-    struct packet_header reply_hdr;
-    struct wire_cluster_info_reply reply;
-    enum limReplyCode limReplyCode;
-    int cc;
-
     if (!masterMe) {
         wrong_master(client);
         return;
     }
 
+    enum limReplyCode limReplyCode;
     limReplyCode = LIME_NO_ERR;
 
     // Initialize everything, including the nested cluster struct.
-    memset(&reply, 0, sizeof(reply));
+    struct wire_cluster_info reply;
+    memset(&reply, 0, sizeof(struct wire_cluster_info));
 
     // Safe defaults so XDR never sees uninitialized data.
-    reply.cluster.status = CLUST_STAT_UNAVAIL;
+    reply.status = CLUST_STAT_UNAVAIL;
 
-    snprintf(reply.cluster.cluster_name, sizeof(reply.cluster.cluster_name),
+    snprintf(reply.cluster_name, sizeof(reply.cluster_name),
              "%s", myClusterPtr->clName);
 
-    snprintf(reply.cluster.master_name, sizeof(reply.cluster.master_name), "%s",
+    snprintf(reply.master_name, sizeof(reply.master_name), "%s",
              "master_unknown");
 
-    snprintf(reply.cluster.manager_name, sizeof(reply.cluster.manager_name),
+    snprintf(reply.manager_name, sizeof(reply.manager_name),
              "%s", "manager_unknown");
 
     // Availability comes only from cluster status bits now.
     if (myClusterPtr->status & CLUST_INFO_AVAIL) {
-        reply.cluster.status = CLUST_STAT_OK;
+        reply.status = CLUST_STAT_OK;
     }
 
     // Master name: if we know it, overwrite the default.
     if (myClusterPtr->masterPtr != NULL) {
-        snprintf(reply.cluster.master_name, sizeof(reply.cluster.master_name),
+        snprintf(reply.master_name, sizeof(reply.master_name),
                  "%s", myClusterPtr->masterPtr->hostName);
     }
 
     if (myClusterPtr->managerName != NULL) {
-        snprintf(reply.cluster.manager_name, sizeof(reply.cluster.manager_name),
+        snprintf(reply.manager_name, sizeof(reply.manager_name),
                  "%s", myClusterPtr->managerName);
     }
 
-    reply.cluster.manager_id = myClusterPtr->managerId;
-    reply.cluster.num_servers = myClusterPtr->numHosts;
-    reply.cluster.num_clients = myClusterPtr->numClients;
+    reply.manager_id = myClusterPtr->managerId;
+    reply.num_servers = myClusterPtr->numHosts;
+    reply.num_clients = myClusterPtr->numClients;
 
     struct sockaddr_in addr;
     get_host_addrv4(client->from_host->v4_epoint, &addr);
 
+    XDR xdrs2;
+    char buf[LL_BUFSIZ_512];
     xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
 
+    struct packet_header reply_hdr;
     init_pack_hdr(&reply_hdr);
     reply_hdr.operation = limReplyCode;
 
     if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &reply_hdr,
-                       xdr_wire_cluster_info_reply, 0, NULL)) {
+                       xdr_wire_cluster_info, 0, NULL)) {
         LS_ERR("xdr_encodeMsg() to %s failed", sockAdd2Str_(&addr));
         xdr_destroy(&xdrs2);
         return;
     }
 
-    cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
+    int cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
     if (cc < 0) {
         LS_ERR("chan_write() to %s failed", sockAdd2Str_(&addr));
         xdr_destroy(&xdrs2);
