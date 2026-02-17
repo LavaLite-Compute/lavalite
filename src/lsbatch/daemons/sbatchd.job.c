@@ -394,7 +394,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
         if (sbd_enqueue_new_job_reply(job, &reply) < 0) {
             LS_ERR("operation=%s job=%ld enqueue jobReply failed",
                    mbd_op_str(req_hdr->operation), job->job_id);
-            sbd_mbd_shutdown();
+            sbd_fatal(SBD_FATAL_OOM);
         }
         sbd_job_cleanup_files(job);
         ll_list_remove(&sbd_job_list, &job->list);
@@ -410,6 +410,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     reply.jobId   = job->job_id;
     reply.jobPid  = job->pid;
     reply.jobPGid = job->pgid;
+
     // tell mbd the job is running
     reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
 
@@ -418,9 +419,10 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     int cc = sbd_enqueue_new_job_reply(job, &reply);
     if (cc < 0) {
         LS_ERR("job %ld enqueue jobReply failed", job->job_id);
-        sbd_mbd_shutdown();
+        sbd_fatal(SBD_FATAL_OOM);
         return;
     }
+    job->reply_last_send = time(NULL);
 
     if (sbd_job_state_write(job) < 0) {
         LS_ERRX("job=%ld state write failed", job->job_id);
@@ -616,15 +618,11 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     }
 }
 
-int sbd_signal_job(int ch_id, XDR *xdr, struct packet_header *hdr)
+int sbd_job_signal(int ch_id, XDR *xdr, struct packet_header *hdr)
 {
-    if (!xdr || !hdr) {
-        lserrno = LSBE_BAD_ARG;
-        return -1;
-    }
-
     struct wire_job_sig_req req;
     memset(&req, 0, sizeof(req));
+
     if (!xdr_wire_job_sig_req(xdr, &req)) {
         LS_ERR("decode BATCH_JOB_SIGNAL failed");
         lserrno = LSBE_XDR;
@@ -1466,4 +1464,62 @@ static int make_job_state_dir(struct sbd_job *job)
         return -1;
     }
     return 0;
+}
+
+void sbd_ack_register(int chan_id, XDR *xdrs, struct packet_header *hdr)
+{
+    struct wire_sbd_register reg_ack;
+
+    memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
+    if (!xdr_wire_sbd_register(xdrs, &reg_ack)) {
+        LS_ERR("xdr_wire_sbd_register decode failed");
+        return;
+    }
+
+    if (reg_ack.num_jobs == 0) {
+        LS_INFO("no jobs registerd this host");
+        return;
+    }
+
+    for (int i = 0; i < reg_ack.num_jobs; i++) {
+        struct sbd_job *job;
+        struct wire_sbd_job *wj = &reg_ack.jobs[i];
+
+        job = find_job_by_jid(wj->job_id);
+        if (job == NULL) {
+            // job state is not known to sbd
+            if (sbd_enqueue_job_unknown(job, wj->job_id) < 0) {
+                sbd_fatal(SBD_FATAL_ENQUEUE);
+            }
+        }
+        // job must have a pid
+        assert(job->pid > 0);
+        // job exists on sbd
+        if (job->pid <= 0) {
+            LS_EMERG("register: invariant violation: job=%ld exists but pid=%d",
+                     job->job_id, (int)job->pid);
+            sbd_fatal(SBD_FATAL_INVARIANT);
+            return;
+        }
+
+        if (wj->pid > 0) {
+            if (wj->pid != job->pid) {
+                LS_EMERG("register: pid mismatch job=%ld mbd_pid=%d sbd_pid=%d",
+                         (long)wj->job_id, (int)wj->pid, (int)job->pid);
+                sbd_fatal(SBD_FATAL_INVARIANT);
+                return;
+            }
+            // common steady-state
+            continue;
+        }
+        // wj->pid == 0
+        // MBD lost pid knowledge (restart/packet loss/etc). Force resend.
+        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d last_send=%d",
+                (long)wj->job_id, (int)job->pid, job->pid_acked,
+                job->reply_last_send);
+
+        job->pid_acked = 0;
+        job->reply_last_send = 0;
+        continue;
+    }
 }

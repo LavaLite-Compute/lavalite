@@ -81,8 +81,10 @@ int mbd_dispatch_sbd(struct mbd_client_node *client)
         break;
     case BATCH_JOB_SIGNAL_REPLY:
         mbd_job_signal_reply(client, &xdrs, &sbd_hdr);
-    break;
-
+        break;
+    case BATCH_JOB_UNKNOWN:
+        mbd_job_state_unknown(client, &xdrs, &sbd_hdr);
+        break;
     default:
         LS_ERR("unexpected SBD protocol code=%d from host %s",
                sbd_hdr.operation, client->host.name);

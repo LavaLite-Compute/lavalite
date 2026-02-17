@@ -18,7 +18,7 @@
 #include "lsbatch/daemons/mbd.h"
 #include "lsbatch/daemons/mbatchd.h"
 
-static void mbd_reset_sbd_job_list(struct hData *);
+static void reset_sbd_job_list(struct hData *);
 static int enqueue_sig_buckets(struct ll_hash *, int32_t);
 static int signal_sbd_jobs(struct sig_host_bucket *, int32_t, int32_t);
 static void free_sig_bucket_table(struct ll_hash *);
@@ -26,8 +26,9 @@ static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
 static int finish_pend_job(struct jData *);
 static int stop_pend_job(struct jData *);
 static int resume_pend_job(struct jData *);
-static void mbd_requeue_start_failed(struct jData *, struct hData *);
-static void mbd_clear_exec_context(struct jData *);
+static void requeue_start_failed(struct jData *, struct hData *);
+static void clear_exec_context(struct jData *);
+static void get_sbd_jobs(struct hData *, struct wire_sbd_register *);
 
 // LavaLite
 // this is still a client-like request coming through the client handler
@@ -38,16 +39,16 @@ mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
 {
     (void)hdr;
 
-    struct wire_sbd_register req;
-    memset(&req, 0, sizeof(req));
+    struct wire_sbd_register reg;
+    memset(&reg, 0, sizeof(struct wire_sbd_register));
 
-    if (!xdr_wire_sbd_register(xdrs, &req)) {
+    if (!xdr_wire_sbd_register(xdrs, &reg)) {
         LS_ERR("SBD_REGISTER decode failed");
         return enqueue_header_reply(client->chanfd, LSBE_XDR);
     }
 
     char hostname[MAXHOSTNAMELEN];
-    memcpy(hostname, req.hostname, sizeof(hostname));
+    memcpy(hostname, reg.hostname, sizeof(hostname));
     hostname[sizeof(hostname) - 1] = 0;
 
     struct hData *host_data = getHostData(hostname);
@@ -68,11 +69,20 @@ mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     snprintf(key, sizeof(key), "%d", client->chanfd);
     ll_hash_insert(&hdata_by_chan, key, host_data, 1);
 
+    // build an authoritative RUN list for that host, including whether
+    // mbd already has the pid for each run job
+    struct wire_sbd_register reg_ack;
+    memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
+    get_sbd_jobs(host_data, &reg_ack);
+
     LS_INFO("sbatchd register hostname=%s canon=%s addr=%s ch_id=%d",
             hostname, host_data->sbd_node->host.name,
             host_data->sbd_node->host.addr, host_data->sbd_node->chanfd);
 
-    return enqueue_header_reply(client->chanfd, BATCH_SBD_REGISTER_ACK);
+    enqueue_payload(client->chanfd,
+                    BATCH_SBD_REGISTER_ACK,
+                    &reg,
+                    xdr_wire_sbd_register);
 }
 /*
  * Protocol rule: after we successfully decode a reply that includes jobId,
@@ -133,7 +143,7 @@ int mbd_new_job_reply(struct mbd_client_node *client,
     }
 
     if (jobReply.jStatus == JOB_STAT_PEND) {
-        mbd_requeue_start_failed(job, host_node);
+        requeue_start_failed(job, host_node);
         goto send_ack;
     }
 
@@ -410,7 +420,7 @@ int mbd_sbd_disconnect(struct mbd_client_node *client)
     // dont reset the job list as jobs are still running
     // on the host they should probably go into UNKNWN state
     if (0)
-        mbd_reset_sbd_job_list(host_node);
+        reset_sbd_job_list(host_node);
     char key[LL_BUFSIZ_32];
 
     snprintf(key, sizeof(key), "%d", client->chanfd);
@@ -912,6 +922,12 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
     // return codes to just one return number
     return LSBE_NO_ERROR;
 }
+
+void mbd_job_state_unknown(struct mbd_client_node *client, XDR *xdrs,
+                           struct packet_header *sbd_hdr)
+{
+}
+
 // Make the batch system manager
 // One user, fixed identity, zero UID gymnastics
 struct mbd_manager *mbd_init_manager(void)
@@ -992,7 +1008,7 @@ int mbd_init_tables(void)
 
 // Requeue a START job back to PEND due to start failure on a host.
 // Must be idempotent: duplicates should not double-move lists or double-update counters.
-static void mbd_requeue_start_failed(struct jData *job, struct hData *host_node)
+static void requeue_start_failed(struct jData *job, struct hData *host_node)
 {
     int old_status;
     time_t now;
@@ -1028,13 +1044,14 @@ static void mbd_requeue_start_failed(struct jData *job, struct hData *host_node)
     log_newstatus(job);
     updCounters(job, old_status, now);
 
-    mbd_clear_exec_context(job);
+    clear_exec_context(job);
 }
+
 // Bug
 extern void cleanCandHosts(struct jData *job);
 // Clear per-dispatch / per-attempt execution context.
 // This must be safe to call even if the job is already partially cleared.
-static void mbd_clear_exec_context(struct jData *job)
+static void clear_exec_context(struct jData *job)
 {
     // Runtime identity / sequencing
     job->jobPid = 0;
@@ -1072,7 +1089,7 @@ static void mbd_clear_exec_context(struct jData *job)
     // job->execute_time = 0;
 }
 
-static void mbd_reset_sbd_job_list(struct hData *host_node)
+static void reset_sbd_job_list(struct hData *host_node)
 {
     struct mbd_sbd_job *sj;
 
@@ -1191,4 +1208,41 @@ static void free_sig_bucket_table(struct ll_hash *ht)
     }
 
     ll_hash_free(ht, NULL, NULL);
+}
+
+static void get_sbd_jobs(struct hData *host_node, struct wire_sbd_register *reg)
+{
+    struct jData *job;
+
+
+    int num_jobs = 0;
+    for (job = jDataList[SJL]->back; job != jDataList[SJL]; job = job->back) {
+        if (job->hPtr[0] == host_node)
+            ++num_jobs;
+    }
+
+    reg->num_jobs = 0;
+    reg->jobs = NULL;
+    if (num_jobs == 0)
+        return;
+
+    reg->jobs = calloc(num_jobs, sizeof(struct wire_sbd_job));
+    if (reg->jobs == NULL) {
+        LS_EMERG("calloc %d failed", num_jobs * sizeof(struct wire_sbd_job));
+        mbdDie(MASTER_FATAL);
+    }
+
+    reg->num_jobs = num_jobs;
+    int i = 0;
+    for (job = jDataList[SJL]->back; job != jDataList[SJL]; job = job->back) {
+
+        if (job->hPtr[0] != host_node)
+            continue;
+
+        reg->jobs[i].job_id = job->jobId;
+        reg->jobs[i].pid = job->jobPid;
+        LS_INFO("job=%ld pid=%d sent to sbd",
+                reg->jobs[i].job_id, reg->jobs[i].pid);
+        ++i;
+    }
 }

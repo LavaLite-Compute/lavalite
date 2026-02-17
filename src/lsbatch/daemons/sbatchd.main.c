@@ -956,6 +956,9 @@ void sbd_fatal(enum sbd_fatal_cause cause)
     case SBD_FATAL_OOM:
         LS_ERRX("FATAL: out of memory");
         break;
+    case SBD_FATAL_ENQUEUE:
+        LS_ERRX("FATAL: failed enqueue message to mbd");
+        break;
 
     default:
         LS_ERRX("FATAL: unknown cause=%d", (int)cause);

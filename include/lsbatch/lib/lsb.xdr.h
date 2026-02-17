@@ -51,9 +51,19 @@ bool_t xdr_lsbShareResourceInfoReply(XDR *, struct lsbShareResourceInfoReply *,
 bool_t xdr_runJobReq(XDR *, struct runJobRequest *, void *);
 bool_t xdr_jobAttrReq(XDR *, struct jobAttrInfoEnt *, void *);
 
-// LavaLite sbd register with mbd
 struct wire_sbd_register {
     char hostname[MAXHOSTNAMELEN];
+    int num_jobs;
+    struct wire_sbd_job *jobs;
+
+};
+
+#define WIRE_SBD_REGISTER_MAX_JOBS 4096
+
+// LavaCore sbd register with mbd
+struct wire_sbd_job {
+    int64_t job_id;
+    int32_t pid;
 };
 
 bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
@@ -78,3 +88,9 @@ struct wire_job_file {
 };
 
 bool_t xdr_wire_job_file(XDR *, struct wire_job_file *);
+
+struct wire_job_state {
+    int64_t job_id;
+    int state;
+};
+bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *);

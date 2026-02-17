@@ -51,6 +51,8 @@
 // Move to explicit, structured semantics.
 // From bitfield nausea to structure.
 
+// Explicit. Verbose. Clear. Implicit nothing.
+
 #include <config.h>
 // System headers
 #include <stdio.h>

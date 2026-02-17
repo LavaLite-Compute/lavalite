@@ -425,7 +425,8 @@ const char * mbd_op_str(mbdReqType op)
 
     case BATCH_JOB_SIGNAL_MANY_REPLY:
         return "BATCH_JOB_SIGNAL_MANY_REPLY";
-
+    case BATCH_JOB_UNKNOWN:
+        return "BATCH_JOB_UNKNOWN";
     case BATCH_LAST_OP:
         return "BATCH_LAST_OP";
 

@@ -1816,13 +1816,68 @@ bool_t xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, void *)
     return true;
 }
 
-
-bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
+static bool_t
+xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *j)
 {
-    if (msg == NULL)
+    if (j == NULL)
         return false;
 
-    return xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname));
+    if (! xdr_int64_t(xdrs, &j->job_id))
+        return false;
+    if (! xdr_int32_t(xdrs, &j->pid))
+        return false;
+
+    return true;
+}
+
+bool_t
+xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
+{
+    if (xdrs == NULL || msg == NULL)
+        return false;
+
+    if (! xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname)))
+        return false;
+
+    if (! xdr_int32_t(xdrs, &msg->num_jobs))
+        return false;
+
+    if (msg->num_jobs < 0 || msg->num_jobs > WIRE_SBD_REGISTER_MAX_JOBS)
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE) {
+
+        if (msg->num_jobs == 0) {
+            msg->jobs = NULL;
+            return true;
+        }
+
+
+        msg->jobs = calloc((size_t)msg->num_jobs,
+                           sizeof(struct wire_sbd_job));
+        if (msg->jobs == NULL)
+            return false;
+    }
+
+    for (int i = 0; i < msg->num_jobs; i++) {
+        if (! xdr_int64_t(xdrs, &msg->jobs[i].job_id))
+            return false;
+        if (! xdr_int32_t(xdrs, &msg->jobs[i].pid))
+            return false;
+    }
+
+    return true;
+}
+
+void
+wire_sbd_register_free(struct wire_sbd_register *msg)
+{
+    if (msg == NULL)
+        return;
+
+    free(msg->jobs);
+    msg->jobs = NULL;
+    msg->num_jobs = 0;
 }
 
 bool_t xdr_wire_job_sig_req(XDR *xdrs, struct wire_job_sig_req *p)
@@ -1881,6 +1936,18 @@ xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
 
     if (xdrs->x_op == XDR_DECODE)
         jf->data[jf->len] = 0;
+
+    return true;
+}
+
+bool_t
+xdr_wire_job_state(XDR *xdrs, struct wire_job_state *js)
+{
+    if (!xdr_int64_t(xdrs, &js->job_id))
+        return false;
+
+    if (!xdr_int(xdrs, &js->state))
+        return false;
 
     return true;
 }

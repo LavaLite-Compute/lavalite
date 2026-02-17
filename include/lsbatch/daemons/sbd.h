@@ -61,9 +61,10 @@ void sbd_new_job(int chfd, XDR *, struct packet_header *);
 void sbd_new_job_reply_ack(int, XDR *, struct packet_header *);
 void sbd_job_execute_ack(int, XDR *, struct packet_header *);
 void sbd_job_finish_ack(int ch_id, XDR *, struct packet_header *);
-int sbd_signal_job(int, XDR *, struct packet_header *);
+int sbd_job_signal(int, XDR *, struct packet_header *);
 int sbd_enqueue_signal_job_reply(int, struct packet_header *,
                                  struct wire_job_sig_reply *);
+void sbd_ack_register(int, XDR *, struct packet_header *);
 
 // timeout is in second
 #define DEFAULT_SBD_OPERATION_TIMER 1
@@ -96,7 +97,7 @@ struct sbd_job {
      *     - EXECUTE and FINISH must not be emitted before pid_acked.
      */
     bool_t pid_acked;
-    time_t time_pid_acked;         // time when pid_acked was set (diagnostics)
+    time_t time_pid_acked;  // time when pid_acked was set (diagnostics)
     time_t reply_last_send; // last time we tried to sent the reply
     /*
      * execute_acked (EXECUTE_COMMITTED):
@@ -176,6 +177,7 @@ void sbd_job_sync_jstatus(struct sbd_job *);
 int sbd_enqueue_new_job_reply(struct sbd_job *, struct jobReply *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
+int sbd_enqueue_job_unknown(int, int64_t);
 bool_t sbd_mbd_link_ready(void);
 
 // sbd record function to save the state of jobs from
@@ -208,6 +210,7 @@ enum sbd_fatal_cause {
     SBD_FATAL_INVARIANT,
     SBD_FATAL_PROTO,
     SBD_FATAL_OOM,
+    SBD_FATAL_ENQUEUE
 };
 
 void sbd_fatal(enum sbd_fatal_cause);

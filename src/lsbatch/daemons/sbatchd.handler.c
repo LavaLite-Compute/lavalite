@@ -45,7 +45,7 @@ int sbd_handle_mbd(int ch_id)
     }
 
     if (!buf || buf->len < PACKET_HEADER_SIZE) {
-        LS_ERR("short header from mbd on channel=%d: len=%zu",
+        LS_ERR("short header from mbd on channel=%d: len=%d",
                ch_id, buf ? buf->len : 0);
         return -1;
     }
@@ -81,11 +81,10 @@ int sbd_handle_mbd(int ch_id)
         sbd_job_finish_ack(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_SIGNAL:
-        sbd_signal_job(ch_id, &xdrs, &hdr);
+        sbd_job_signal(ch_id, &xdrs, &hdr);
         break;
     case BATCH_SBD_REGISTER_ACK:
-        // informational only; no action required
-        LS_INFO("received ack=%s from mbd", mbd_op_str(hdr.operation));
+        sbd_ack_register(ch_id, &xdrs, &hdr);
         break;
     default:
         break;

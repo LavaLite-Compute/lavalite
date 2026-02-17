@@ -283,11 +283,6 @@ int sbd_enqueue_new_job_reply(struct sbd_job *job, struct jobReply *reply)
 // This is invoke at afer mbd ack the pid with BATCH_NEW_JOB_ACK
 int sbd_enqueue_execute(struct sbd_job *job)
 {
-    if (job == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
         LS_INFO("mbd link not ready, skip job=%ld and sbd_mbd_reconnect_try",
@@ -497,6 +492,35 @@ int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
 
     LS_INFO("job=%ld op=%s sig=%d", rep->job_id,
             mbd_op_str(BATCH_JOB_SIGNAL_REPLY), rep->sig);
+
+    return 0;
+}
+
+int sbd_enqueue_job_unknown(int chan_id, int64_t job_id)
+{
+    if (!sbd_mbd_link_ready()) {
+        LS_INFO("unknown job=%ld: mbd link not ready", (long)job_id);
+        return -1;
+    }
+
+    struct wire_job_state js;
+    memset(&js, 0, sizeof(struct wire_job_state));
+    js.job_id = job_id;
+    // ignore state job job state unknown
+    js.state = -1;
+
+    int cc = enqueue_payload(chan_id,
+                             BATCH_JOB_UNKNOWN,
+                             &js,
+                             xdr_wire_job_state);
+    if (cc < 0) {
+        LS_ERR("unknown job=%ld enqueue failed", (long)job_id);
+        return -1;
+    }
+
+    chan_set_write_interest(chan_id, true);
+
+    LS_INFO("unknown job=%ld reported to mbd", (long)job_id);
 
     return 0;
 }
