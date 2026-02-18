@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+ * Copyright (C) LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -350,7 +350,7 @@ int mbd_init(int mbdInitFlags)
             TIMEIT(0, init_log(), "init_log()");
         }
 
-        // LavaLite initilize mbd hash tables
+        // LavaCore initilize mbd hash tables
         mbd_init_tables();
     }
 
@@ -453,7 +453,7 @@ struct hData *initHData(struct hData *hData)
     hData->pxySJL = NULL;
     hData->pxyRsvJL = NULL;
     hData->leftRusageMem = INFINITY;
-    // LavaLite mbd now keeps a permanent connection to sbd
+    // LavaCore mbd now keeps a permanent connection to sbd
     hData->sbd_node = NULL;
     ll_list_init(&hData->sbd_job_list);
     return hData;

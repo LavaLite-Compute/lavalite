@@ -1,5 +1,5 @@
 /*
- * Copyright (C) LavaLite Contributors
+ * Copyright (C) LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -23,7 +23,7 @@ extern int efd;               /* epoll fd from sbatchd.main.c */
 // Library stuff not in any header file
 extern int _lsb_conntimeout;
 extern int _lsb_recvtimeout;
-// LavaLite define it as external for now as I dont want to include
+// LavaCore define it as external for now as I dont want to include
 // all the stuff from lib.h
 extern char *resolve_master_with_retry(void);
 
@@ -84,7 +84,7 @@ int sbd_nb_connect_mbd(bool_t *connected)
     if (ch_id < 0)
         return -1;
 
-    // LavaLite gives the client the buffers
+    // LavaCore gives the client the buffers
     channels[ch_id].send = chan_make_buf();
     channels[ch_id].recv = chan_make_buf();
 
@@ -151,7 +151,7 @@ int sbd_connect_mbd(void)
         lsberrno = LSBE_CONN_REFUSED;
         return -1;
     }
-    // LavaLite give the client the buffers
+    // LavaCore give the client the buffers
     channels[ch_id].send = chan_make_buf();
     channels[ch_id].recv = chan_make_buf();
 

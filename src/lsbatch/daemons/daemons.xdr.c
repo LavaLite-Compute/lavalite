@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+ * Copyright (C) LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -488,7 +488,7 @@ bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,
     return true;
 }
 
-// LavaLite
+// LavaCore
 bool_t xdr_job_status_ack(XDR *xdrs,
                           struct job_status_ack *ack,
                           struct packet_header *hdr)

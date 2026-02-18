@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) 2024-2025 LavaLite Contributors
+ * Copyright (C) 2024-2025 LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -139,7 +139,7 @@ static int rusgMatch(struct resVal *resValPtr, const char *resName);
 static int switchAJob(struct jobSwitchReq *, struct lsfAuth *, struct qData *);
 static int moveAJob(struct jobMoveReq *, int log, struct lsfAuth *);
 
-// LavaLite
+// LavaCore
 static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
 static void free_sig_bucket_table(struct ll_hash *);
 static int enqueue_sig_buckets(struct ll_hash *, int32_t);
@@ -5598,13 +5598,14 @@ void copyJobBill(struct submitReq *subReq, struct submitReq *jobBill,
     if (subReq->options & SUB_OUT_FILE)
         jobBill->outFile = safeSave(subReq->outFile);
     else
-        jobBill->outFile = safeSave("/dev/null");
+        jobBill->outFile = safeSave("");
+
     if (subReq->options & SUB_ERR_FILE)
         jobBill->errFile = safeSave(subReq->errFile);
     else if (subReq->options & SUB_OUT_FILE)
         jobBill->errFile = safeSave(jobBill->outFile);
     else
-        jobBill->errFile = safeSave("/dev/null");
+        jobBill->errFile = safeSave("");
 
     if (subReq->options2 & SUB2_IN_FILE_SPOOL) {
         jobBill->inFileSpool = safeSave(subReq->inFileSpool);
@@ -7793,7 +7794,7 @@ static int checkSubHost(struct jData *job)
     return LSBE_NO_ERROR;
 }
 
-// LavaLite meaningless hacks to make it compile
+// LavaCore meaningless hacks to make it compile
 int
 isSigTerm (int sigValue)
 {

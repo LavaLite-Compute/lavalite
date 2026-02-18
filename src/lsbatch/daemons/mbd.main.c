@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+ * Copyright (C) LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -138,7 +138,7 @@ static struct jData *jobData = NULL;
 static time_t lastSchedTime = 0;
 static time_t nextSchedTime = 0;
 
-// LavaLite
+// LavaCore
 // bmgr of the entire batch system
 // has to be equal to the base manager as returned by
 // ls_clusterinfo()
@@ -940,7 +940,7 @@ static void processSbdNode(struct sbdNode *sbdPtr, int exception)
         doSignalJobReply(sbdPtr, exception);
         break;
     case MBD_NEW_JOB_KEEP_CHAN:
-        // Obsolete in LavaLite as we are now always connected
+        // Obsolete in LavaCore as we are now always connected
         if (logclass & LC_COMM)
             LS_DEBUG("MBD_NEW_JOB_KEEP_CHAN");
         break;
@@ -1039,7 +1039,7 @@ static void mbd_init_log(void)
     if (!log_mask)
         log_mask = "LOG_INFO"; /* sane default */
 
-    // Initialize LavaLite logging
+    // Initialize LavaCore logging
     if (check) {
         ls_openlog("mbd", log_dir, true, 0, (char *)log_mask);
         LS_INFO("Starting mbatchd in check mode, console logging only");

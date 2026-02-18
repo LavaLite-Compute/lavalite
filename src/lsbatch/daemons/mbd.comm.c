@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+ * Copyright (C) LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -409,7 +409,7 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
     return reply;
 }
 
-// LavaLite use existing connection to sbd
+// LavaCore use existing connection to sbd
 sbdReplyType call_sbd(struct hData *host_node, char *request_buf, int len)
 {
 

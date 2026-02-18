@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+ * Copyright (C) LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -135,7 +135,7 @@ extern time_t lsb_getAcctFileTime(char *fileName);
 static int replay_arrayrequeue(struct jData *, const struct signalLog *);
 static int renameAcctLogFiles(int);
 
-// LavaLite
+// LavaCore
 static int build_log_path(char *, size_t,
                           const char *, const char *);
 
@@ -1791,7 +1791,7 @@ static int openEventFile(const char *fname)
 
     if ((pos = ftell(log_fp)) == 0) {
         time_t t = time(NULL);
-        fprintf(log_fp, "# LavaLite log created %s\n", ctime2(&t));
+        fprintf(log_fp, "# LavaCore log created %s\n", ctime2(&t));
     }
 
     chmod(elogFname, 0644);

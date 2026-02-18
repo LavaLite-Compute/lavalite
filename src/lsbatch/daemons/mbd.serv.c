@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+ * Copyright (C) LavaCore Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -926,7 +926,7 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
     return 0;
 }
 
-// LavaLite does not support chunk jobs
+// LavaCore does not support chunk jobs
 int do_chunkStatusReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                       int *schedule, struct packet_header *reqHdr)
 {
