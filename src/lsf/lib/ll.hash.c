@@ -270,8 +270,7 @@ void *ll_hash_remove(struct ll_hash *ht, const char *key)
 }
 
 void ll_hash_for_each(struct ll_hash *ht,
-                      void (*fn)(struct ll_hash_entry *ent, void *user),
-                      void *user)
+                      void (*fn)(const char *key, void *value))
 {
     size_t i;
 
@@ -282,36 +281,30 @@ void ll_hash_for_each(struct ll_hash *ht,
         struct ll_hash_entry *e = ht->buckets[i];
 
         while (e) {
-            struct ll_hash_entry *next = e->next;
-
-            // Safe because if fn() removes e via ll_hash_remove(), we never
-            // touch *e again. 'next' remains valid.
-            fn(e, user);
-            e = next;
+            fn(e->key, e->value);
+            e = e->next;
         }
     }
 }
 
-// Remove all entries from the hash table but keep the table object and its
-// bucket array. Frees each entry node and its key string. An optional cleanup
-// callback can free or otherwise release user-provided value pointers.
-void ll_hash_clear(struct ll_hash *ht,
-                   void (*cleanup)(struct ll_hash_entry *ent, void *user),
-                   void *user)
+void ll_hash_free(struct ll_hash *ht, void (*cleanup)(void *))
 {
-    size_t i;
-
-    if (!ht || !ht->buckets)
+    if (!ht)
         return;
 
-    for (i = 0; i < ht->nbuckets; i++) {
+    if (!ht->buckets) {
+        free(ht);
+        return;
+    }
+
+    for (size_t i = 0; i < ht->nbuckets; i++) {
         struct ll_hash_entry *ent = ht->buckets[i];
 
         while (ent) {
             struct ll_hash_entry *next = ent->next;
 
             if (cleanup)
-                cleanup(ent, user);
+                cleanup(ent);
 
             free(ent->key);
             free(ent);
@@ -321,21 +314,7 @@ void ll_hash_clear(struct ll_hash *ht,
 
         ht->buckets[i] = NULL;
     }
-
     ht->nentries = 0;
-}
-
-// Free a hash table created with ll_hash_create().
-// Calls ll_hash_clear() to release all entries and run the optional cleanup
-// callback, then frees the bucket array and the ll_hash object itself.
-void ll_hash_free(struct ll_hash *ht,
-                  void (*cleanup)(struct ll_hash_entry *ent, void *user),
-                  void *user)
-{
-    if (!ht)
-        return;
-
-    ll_hash_clear(ht, cleanup, user);
     free(ht->buckets);
     free(ht);
 }

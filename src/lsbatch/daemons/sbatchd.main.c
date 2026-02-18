@@ -104,6 +104,14 @@ int main(int argc, char **argv)
         }
     }
 
+    if (sbd_debug == false
+        && geteuid() != 0) {
+        openlog("sbd", LOG_CONS |LOG_NOWAIT|LOG_PERROR| LOG_PID, LOG_AUTH);
+        syslog(LOG_ERR, "Only root wants to run sbd.");
+        closelog();
+        return -1;
+    }
+
     if (!getenv("LSF_ENVDIR")) {
         fprintf(stderr, "sbd: LSF_ENVDIR must be defined\n");
         return -1;
@@ -924,13 +932,18 @@ sbd_cleanup(void)
     chan_close(sbd_timer_chan);
     close(sbd_efd);
     // free the hash but not the job entries
-    ll_hash_free(sbd_job_hash, NULL, NULL);
+    ll_hash_free(sbd_job_hash, NULL);
     // use clear so that we dont free the pointer that
     // is in the static area and not on the heap
     struct ll_list_entry *e;
     while ((e = ll_list_pop(&sbd_job_list))) {
-        struct sbd_job *j = (struct sbd_job *)e;
-        sbd_job_free(j);
+        struct sbd_job *job = (struct sbd_job *)e;
+        char keybuf[LL_BUFSIZ_32];
+        snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
+        ll_hash_remove(sbd_job_hash, keybuf);
+        ll_list_remove(&sbd_job_list, &job->list);
+        free_job_specs(&job->specs);
+        free(job);
     }
     ll_list_init(&sbd_job_list);
     ls_closelog();

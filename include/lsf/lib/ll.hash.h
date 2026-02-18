@@ -95,20 +95,9 @@ void *ll_hash_remove(struct ll_hash *, const char *);
 // Call fn(entry, user) for every entry in the table.
 // Safe for deletion of the CURRENT entry inside the callback.
 // Not safe for arbitrary modification of other entries.
-void ll_hash_for_each(struct ll_hash *ht,
-                      void (*fn)(struct ll_hash_entry *, void *user),
-                      void *user);
-
-// Remove all entries but keep the hash table object and bucket array.
-// Frees each entry and its key. Optional cleanup callback can free user values.
-// After this call the table is empty and reusable.
-void ll_hash_clear(struct ll_hash *ht,
-                   void (*cleanup)(struct ll_hash_entry *, void *user),
-                   void *user);
+void ll_hash_for_each(struct ll_hash *ht, void (*fn)(const char *, void *));
 
 // Free a heap-allocated hash table created with ll_hash_create().
 // Internally calls ll_hash_clear() to release entries, then frees the bucket
 // array and the ll_hash object itself.
-void ll_hash_free(struct ll_hash *ht,
-                  void (*cleanup)(struct ll_hash_entry *, void *),
-                  void *);
+void ll_hash_free(struct ll_hash *, void (*cleanup)(void *));

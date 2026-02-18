@@ -168,8 +168,6 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
 
 // Insert job into global list + hash.
 void sbd_job_insert(struct sbd_job *);
-// Get rid of job's memory
-void sbd_job_free(struct sbd_job *);
 
 // Refresh job status from mbd
 void sbd_job_sync_jstatus(struct sbd_job *);

@@ -1207,7 +1207,7 @@ static void free_sig_bucket_table(struct ll_hash *ht)
         }
     }
 
-    ll_hash_free(ht, NULL, NULL);
+    ll_hash_free(ht, NULL);
 }
 
 static void get_sbd_jobs(struct hData *host_node, struct wire_sbd_register *reg)

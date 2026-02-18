@@ -398,7 +398,11 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
         }
         sbd_job_cleanup_files(job);
         ll_list_remove(&sbd_job_list, &job->list);
-        sbd_job_free(job);
+        char keybuf[LL_BUFSIZ_32];
+        snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
+        ll_hash_remove(sbd_job_hash, keybuf);
+        free_job_specs(&job->specs);
+        free(job);
         return;
     }
 
@@ -759,17 +763,6 @@ struct sbd_job *sbd_job_lookup(int job_id)
 }
 
 // we suppose the caller is already iterating on the job list
-void sbd_job_free(struct sbd_job *job)
-{
-    char keybuf[32];
-
-    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
-
-    ll_hash_remove(sbd_job_hash, keybuf);
-
-    free_job_specs(&job->specs);
-    free(job);
-}
 
 // After we replayed the jobs some jobs have been ack finished
 // already we dont want to keep those job in the working list.
@@ -807,9 +800,19 @@ void sbd_prune_acked_jobs(void)
             e = e2;
             continue;
         }
+
         LS_INFO("job %ld time expired clean now", job->job_id);
         sbd_job_cleanup_files(job);
-        sbd_job_free(job);
+        // job free is explicit as there are other ways
+        // in which we traverse the list or pop from it
+        // so explicitly is better
+        char keybuf[32];
+        snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
+        ll_hash_remove(sbd_job_hash, keybuf);
+        ll_list_remove(&sbd_job_list, &job->list);
+        free_job_specs(&job->specs);
+        free(job);
+
         // next!
         e = e2;
     }
@@ -1129,34 +1132,6 @@ static int cd_work_dir(const struct sbd_job *job)
     return 0;
 }
 
-/*
- * Redirect standard input, output, and error for a job.
- *
- * Semantics:
- *  - stdin:
- *      * If an input file was specified (-i), stdin is redirected from it.
- *      * Otherwise, stdin is redirected from /dev/null.
- *
- *  - stdout:
- *      * If an output file was specified (-o), stdout is redirected there.
- *      * Otherwise, stdout is redirected to a file named "stdout" in the
- *        current working directory.
- *
- *  - stderr:
- *      * If an error file was specified (-e), stderr is redirected there.
- *      * Otherwise, stderr is redirected to a file named "stderr" in the
- *        current working directory.
- *
- * Notes:
- *  - The child process must have already chdir()'d into the effective execution
- *    working directory (exec_cwd or fallback /tmp). All relative stdio paths
- *    and default output files are resolved relative to that directory.
- *  - Absolute paths are used as-is.
- *  - Relative paths are resolved against the current process working directory.
- *  - %J and %I are expanded in user-specified stdio file paths.
- *  - Any failure to open or duplicate file descriptors is considered fatal
- *    and causes the function to return an error.
- */
 static int redirect_stdio(const struct jobSpecs *specs)
 {
     int fd;
@@ -1488,7 +1463,7 @@ void sbd_ack_register(int chan_id, XDR *xdrs, struct packet_header *hdr)
         job = find_job_by_jid(wj->job_id);
         if (job == NULL) {
             // job state is not known to sbd
-            if (sbd_enqueue_job_unknown(job, wj->job_id) < 0) {
+            if (sbd_enqueue_job_unknown(chan_id, wj->job_id) < 0) {
                 sbd_fatal(SBD_FATAL_ENQUEUE);
             }
         }
@@ -1514,7 +1489,7 @@ void sbd_ack_register(int chan_id, XDR *xdrs, struct packet_header *hdr)
         }
         // wj->pid == 0
         // MBD lost pid knowledge (restart/packet loss/etc). Force resend.
-        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d last_send=%d",
+        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d last_send=%ld",
                 (long)wj->job_id, (int)job->pid, job->pid_acked,
                 job->reply_last_send);
 
