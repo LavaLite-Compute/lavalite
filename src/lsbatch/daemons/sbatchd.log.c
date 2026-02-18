@@ -17,6 +17,53 @@
 
 #include "lsbatch/daemons/sbd.h"
 
+static int get_root_dir(char *root_dir, size_t len)
+{
+    int l;
+
+    if (!root_dir || len == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (sbd_debug) {
+        const char *tmp = getenv("TMPDIR");
+        if (!tmp || tmp[0] == 0)
+            tmp = "/tmp";
+
+        l = snprintf(root_dir, len, "%s/lavacore-sbd.%ld",
+                     tmp, (long)getuid());
+        if (l < 0 || l >= (int)len) {
+            errno = ENAMETOOLONG;
+            LS_ERR("get_root_dir: tmp root path too long");
+            return -1;
+        }
+
+        if (mkdir(root_dir, 0700) < 0 && errno != EEXIST) {
+            LS_ERR("mkdir(%s) failed", root_dir);
+            return -1;
+        }
+
+        return 0;
+    }
+
+    const char *share_dir = lsbParams[LSB_SHAREDIR].paramValue;
+    if (!share_dir || share_dir[0] == 0) {
+        errno = EINVAL;
+        LS_ERR("get_root_dir: LSB_SHAREDIR is not set");
+        return -1;
+    }
+
+    l = snprintf(root_dir, len, "%s/sbd", share_dir);
+    if (l < 0 || l >= (int)len) {
+        errno = ENAMETOOLONG;
+        LS_ERR("get_root_dir: sbd root path too long");
+        return -1;
+    }
+
+    return 0;
+}
+
 void sbd_child_open_log(const struct jobSpecs *specs)
 {
      /*
@@ -39,14 +86,14 @@ char sbd_state_dir[PATH_MAX];
 
 int sbd_workspace_init(void)
 {
-    const char *sharedir = lsbParams[LSB_SHAREDIR].paramValue;
-    if (!sharedir || sharedir[0] == '\0') {
-        errno = EINVAL;
-        LS_ERR("sbd_workspace_init: LSB_SHAREDIR is not set");
+    char root_dir[PATH_MAX];
+
+    if (get_root_dir(root_dir, PATH_MAX) < 0) {
+        LS_ERR("get_root_dir failed");
         return -1;
     }
 
-    if (snprintf(sbd_root_dir, sizeof(sbd_root_dir), "%s/sbd", sharedir) >=
+    if (snprintf(sbd_root_dir, sizeof(sbd_root_dir), "%s/sbd", root_dir) >=
         (int)sizeof(sbd_root_dir)) {
         errno = ENAMETOOLONG;
         LS_ERR("sbd_workspace_init: sbd root path too long");
