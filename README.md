@@ -1,9 +1,13 @@
 
 ## What Is **LavaCore**?
 
-**LavaCore** is a modern, independent, open-source workload scheduler derived from the last GPLv2-licensed release of Platform Lava 1.0. The historical codebase serves as reference material, not as a direct continuation. LavaCore is a clean reimplementation with a redesigned core and simplified architecture.
+**LavaCore** is a modern, independent, open-source workload scheduler derived from the last GPLv2-licensed release of Platform Lava 1.0. The historical codebase serves as reference material, not as a direct continuation.
 
-LavaCore is built for high-throughput computing (HTC) environments where job volume and predictable behavior are more critical than tightly coupled parallel execution. It is optimized for running large numbers of short, independent jobs with minimal scheduling overhead.
+LavaCore is a clean reimplementation with a redesigned core and a simplified,
+deterministic architecture built from scratch—while still preserving the conceptual lessons and operational patterns that proved effective in the original.
+
+LavaCore is built for high-throughput and high-performance computing (HTC/HPC)
+environments where job volume and predictable behavior are critical. It is optimized for running large numbers of short, independent jobs with minimal scheduling overhead.
 
 The system is designed around a deterministic architecture:
 
@@ -23,7 +27,7 @@ The project evolves independently and focuses on:
 - Minimal subsystem coupling
 - High sustained throughput
 
-LavaCore is not a feature clone of legacy systems. It is a deliberately constrained design aimed at reducing combinatorial complexity while maintaining scalability.
+**LavaCore is not a feature clone of legacy systems. It is a deliberately constrained design aimed at reducing combinatorial complexity while maintaining scalability.**
 
 
 ### MPI Workloads
