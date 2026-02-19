@@ -1134,90 +1134,80 @@ static int cd_work_dir(const struct sbd_job *job)
 
 static int redirect_stdio(const struct jobSpecs *specs)
 {
-    int fd;
-    const char *path;
+    LS_INFO("job=%ld redirecting stdin/stdout/stderr", specs->jobId);
+
+    char path[PATH_MAX];
     char expanded[PATH_MAX];
-
-    if (specs == NULL) {
-        LS_ERR("sbd_redirect_stdio: specs is NULL (bug)");
-        errno = EINVAL;
-        return -1;
-    }
-
-    LS_INFO("job <%s>: redirecting stdin/stdout/stderr",
-            lsb_jobid2str(specs->jobId));
-
     // Redirect stdin: user-specified input file or /dev/null
-    path = "/dev/null";
+    strcpy(path, "/dev/null");
     if (specs->inFile[0] != 0) {
         if (expand_stdio_path(specs, specs->inFile,
                               expanded, sizeof(expanded)) < 0) {
-            LS_ERR("job <%s>: stdin path expansion failed for %s: %m",
-                   lsb_jobid2str(specs->jobId), specs->inFile);
+            LS_ERR("job=%ld stdin path expansion failed file=%s",
+                   specs->jobId, specs->inFile);
             return -1;
         }
-        path = expanded;
+        snprintf(path, PATH_MAX, "%s", expanded);
     }
+    LS_DEBUG("job=%ld stdin=%s", specs->jobId, path);
 
-    fd = open(path, O_RDONLY);
+    int fd = open(path, O_RDONLY);
     if (fd < 0) {
-        LS_ERR("job <%s>: open(stdin=%s) failed",
-               lsb_jobid2str(specs->jobId), path);
+        LS_ERR("job=%ld: open(stdin=%s) failed", specs->jobId, path);
         return -1;
     }
     if (dup2(fd, STDIN_FILENO) < 0) {
-        LS_ERR("job <%s>: dup2(stdin) failed", lsb_jobid2str(specs->jobId));
+        LS_ERR("job=%ld: dup2(stdin) failed", specs->jobId);
         close(fd);
         return -1;
     }
     close(fd);
 
-    // Redirect stdout: user-specified output file or "stdout" in cwd
-    path = "stdout";
+    // Redirect stdout: user-specified output file or "stdout.jobId" in cwd
+    snprintf(path, sizeof(path), "stdout.%ld", specs->jobId);
     if (specs->outFile[0] != 0) {
         if (expand_stdio_path(specs, specs->outFile,
                               expanded, sizeof(expanded)) < 0) {
-            LS_ERR("job <%s>: stdout path expansion failed for %s: %m",
-                   lsb_jobid2str(specs->jobId), specs->outFile);
+            LS_ERR("job=%ld stdout path expansion failed file=%s",
+                   specs->jobId, specs->outFile);
             return -1;
         }
-        path = expanded;
+        snprintf(path, PATH_MAX, "%s", expanded);
     }
+    LS_DEBUG("job=%ld stdout=%s", specs->jobId, path);
 
-    fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        LS_ERR("job <%s>: open(stdout=%s) failed",
-               lsb_jobid2str(specs->jobId), path);
+        LS_ERR("job=%ld open(stdout=%s) failed", specs->jobId, path);
         return -1;
     }
     if (dup2(fd, STDOUT_FILENO) < 0) {
-        LS_ERR("job <%s>: dup2(stdout) failed",
-               lsb_jobid2str(specs->jobId));
+        LS_ERR("job=%ld dup2(stdout) failed", specs->jobId);
         close(fd);
         return -1;
     }
     close(fd);
 
-    // Redirect stderr: user-specified error file or "stderr" in cwd
-    path = "stderr";
+    // Redirect stderr: user-specified error file or "stderr.jobId" in cwd
+    snprintf(path, sizeof(path), "stderr.%ld", specs->jobId);
     if (specs->errFile[0] != 0) {
         if (expand_stdio_path(specs, specs->errFile,
                               expanded, sizeof(expanded)) < 0) {
-            LS_ERR("job <%s>: stderr path expansion failed for %s: %m",
-                   lsb_jobid2str(specs->jobId), specs->errFile);
+            LS_ERR("job=%ld stderr path expansion failed for %s",
+                   specs->jobId, specs->errFile);
             return -1;
         }
-        path = expanded;
+        snprintf(path, PATH_MAX, "%s", expanded);
     }
+    LS_DEBUG("job=%ld stderr=%s", specs->jobId, path);
 
-    fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        LS_ERR("job <%s>: open(stderr=%s) failed", lsb_jobid2str(specs->jobId),
-               path);
+        LS_ERR("job=%ld open(stderr=%s) failed", specs->jobId, path);
         return -1;
     }
     if (dup2(fd, STDERR_FILENO) < 0) {
-        LS_ERR("job <%s>: dup2(stderr) failed", lsb_jobid2str(specs->jobId));
+        LS_ERR("job=%ld dup2(stderr) failed", specs->jobId);
         close(fd);
         return -1;
     }

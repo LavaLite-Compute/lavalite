@@ -1228,7 +1228,7 @@ static void get_sbd_jobs(struct hData *host_node, struct wire_sbd_register *reg)
 
     reg->jobs = calloc(num_jobs, sizeof(struct wire_sbd_job));
     if (reg->jobs == NULL) {
-        LS_EMERG("calloc %d failed", num_jobs * sizeof(struct wire_sbd_job));
+        LS_ERR("calloc %d failed", num_jobs * sizeof(struct wire_sbd_job));
         mbdDie(MASTER_FATAL);
     }
 
