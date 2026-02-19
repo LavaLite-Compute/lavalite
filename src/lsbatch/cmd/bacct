@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+import argparse
+import shlex
+import sys
+import time
+
+
+def ts(t):
+    if t <= 0:
+        return "unknown"
+    return time.strftime("%a %b %d %H:%M:%S", time.localtime(t))
+
+
+def parse_job_finish_tokens(toks):
+    i = 0
+    rec = {}
+
+    def get_int():
+        nonlocal i
+        v = int(toks[i])
+        i += 1
+        return v
+
+    def get_float():
+        nonlocal i
+        v = float(toks[i])
+        i += 1
+        return v
+
+    def get_str():
+        nonlocal i
+        v = toks[i]
+        i += 1
+        return v
+
+    rec["jobId"] = get_int()
+    rec["userId"] = get_int()
+    rec["options"] = get_int()
+    rec["numProcessors"] = get_int()
+    rec["submitTime"] = get_int()
+    rec["beginTime"] = get_int()
+    rec["termTime"] = get_int()
+    rec["startTime"] = get_int()
+
+    rec["userName"] = get_str()
+    rec["queue"] = get_str()
+    rec["resReq"] = get_str()
+    rec["dependCond"] = get_str()
+    rec["preExecCmd"] = get_str()
+    rec["fromHost"] = get_str()
+    rec["cwd"] = get_str()
+    rec["inFile"] = get_str()
+    rec["outFile"] = get_str()
+    rec["errFile"] = get_str()
+    rec["jobFile"] = get_str()
+
+    n = get_int()
+    asked = []
+    while n > 0:
+        asked.append(get_str())
+        n -= 1
+    rec["askedHosts"] = asked
+
+    n = get_int()
+    ex = []
+    while n > 0:
+        ex.append(get_str())
+        n -= 1
+    rec["execHosts"] = ex
+
+    rec["jStatus"] = get_int()
+    rec["hostFactor"] = get_float()
+    rec["jobName"] = get_str()
+    rec["command"] = get_str()
+    rec["mailUser"] = get_str()
+    rec["projectName"] = get_str()
+    rec["exitStatus"] = get_int()
+    rec["maxNumProcessors"] = get_int()
+    rec["loginShell"] = get_str()
+    rec["idx"] = get_int()
+    rec["maxRMem"] = get_int()
+    rec["maxRSwap"] = get_int()
+    rec["inFileSpool"] = get_str()
+    rec["commandSpool"] = get_str()
+
+    return rec
+
+
+def read_last_finish(path, jobid):
+    last = None
+    with open(path, "r", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line.startswith('"JOB_FINISH"'):
+                continue
+            toks = shlex.split(line, posix=True)
+            if len(toks) < 5:
+                continue
+            try:
+                jid = int(toks[3])
+            except ValueError:
+                continue
+            if jid != jobid:
+                continue
+            last = toks
+    return last
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("jobid", type=int)
+    ap.add_argument("--acct", default="/opt/lavacore-0.1.0/var/work/mbd/lsb.acct")
+    args = ap.parse_args()
+
+    toks = read_last_finish(args.acct, args.jobid)
+    if toks is None:
+        print(f"bacct: job {args.jobid} not found", file=sys.stderr)
+        return 1
+
+    event_time = int(toks[2])
+    payload = toks[3:]
+    rec = parse_job_finish_tokens(payload)
+
+    status = "DONE" if rec["exitStatus"] == 0 else "EXIT"
+
+    # Header
+    print(f"Job <{rec['jobId']}>, User <{rec['userName']}>, Project <{rec['projectName']}>, Status <{status}>, Queue <{rec['queue']}>")
+    print(f"Submitted from host <{rec['fromHost']}>, CWD <{rec['cwd']}>, Command <{rec['command']}>")
+
+    # Executed hosts
+    if rec["execHosts"]:
+        hosts = " ".join(f"<{h}>" for h in rec["execHosts"])
+        print(f"Executed on host(s) {hosts}")
+    else:
+        print("Executed on host(s) <unknown>")
+
+    print()
+
+    submit = rec["submitTime"]
+    start = rec["startTime"]
+    finish = event_time
+
+    print(f"Submitted at {ts(submit)}")
+    print(f"Started   at {ts(start)}")
+    print(f"Finished  at {ts(finish)}")
+    print()
+
+    wait = start - submit if start > 0 else 0
+    run = finish - start if start > 0 else 0
+    turnaround = finish - submit if submit > 0 else 0
+
+    print("Summary (seconds):")
+    print(f"    WAIT       : {wait}")
+    print(f"    RUN        : {run}")
+    print(f"    TURNAROUND : {turnaround}")
+    print()
+
+    print(f"Exit Status: {rec['exitStatus']}")
+    print(f"Max Memory : {rec['maxRMem']} MB" if rec["maxRMem"] > 0 else "Max Memory : N/A")
+    print(f"Swap Used  : {rec['maxRSwap']} MB" if rec["maxRSwap"] > 0 else "Swap Used  : N/A")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

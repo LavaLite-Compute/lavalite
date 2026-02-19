@@ -2234,9 +2234,6 @@ static int writeJobFinish(FILE *log_fp, struct jobFinishLog *jobFinishLog)
     if (addQStr(log_fp, jobFinishLog->command) < 0)
         return LSBE_SYS_CALL;
 
-    if (lsfRu2Str(log_fp, &jobFinishLog->lsfRusage) < 0)
-        return LSBE_SYS_CALL;
-
     if (addQStr(log_fp, jobFinishLog->mailUser) < 0)
         return LSBE_SYS_CALL;
 

@@ -90,18 +90,6 @@ void ls_rulsf2unix(struct lsfRusage *lsfRusage, struct rusage *rusage)
     rusage->ru_nivcsw = MIN(lsfRusage->ru_nivcsw, LONG_MAX);
 }
 
-int lsfRu2Str(FILE *log_fp, struct lsfRusage *lsfRu)
-{
-    return (fprintf(
-        log_fp, " %1.6f %1.6f %1.0f %1.0f %1.0f %1.0f \
-%1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f %1.0f \
-%1.0f %1.0f %1.0f",
-        lsfRu->ru_utime, lsfRu->ru_stime, lsfRu->ru_maxrss, lsfRu->ru_ixrss,
-        lsfRu->ru_ismrss, lsfRu->ru_idrss, lsfRu->ru_isrss, lsfRu->ru_minflt,
-        lsfRu->ru_majflt, lsfRu->ru_nswap, lsfRu->ru_inblock, lsfRu->ru_oublock,
-        lsfRu->ru_ioch, lsfRu->ru_msgsnd, lsfRu->ru_msgrcv, lsfRu->ru_nsignals,
-        lsfRu->ru_nvcsw, lsfRu->ru_nivcsw, lsfRu->ru_exutime));
-}
 
 int str2lsfRu(char *line, struct lsfRusage *lsfRu, int *ccount)
 {
