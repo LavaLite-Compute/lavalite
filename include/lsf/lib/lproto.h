@@ -201,9 +201,6 @@ extern int64_t atoi64_(const char *);
 extern int lockHost_(time_t duration, char *hname);
 extern int unlockHost_(char *hname);
 
-extern int lsfRu2Str(FILE *, struct lsfRusage *);
-extern int str2lsfRu(char *, struct lsfRusage *, int *);
-
 extern char *getNextLineC_(FILE *, int *, int);
 extern char *getNextLine_(FILE *, int);
 extern char *getNextWord_(char **);

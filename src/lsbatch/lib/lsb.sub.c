@@ -3971,7 +3971,7 @@ static int getAskedHosts_(char *optarg, char ***askedHosts, int *numAskedHosts,
     return 1;
 }
 
-// LavaCore
+// LavaLite
 
 // Keep daemonout.h defines:
 // SHELLLINE, CMDSTART, WAITCLEANCMD, EXITCMD, TRAPSIGCMD, EDATASTART, etc.

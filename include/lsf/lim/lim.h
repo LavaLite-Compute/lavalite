@@ -504,7 +504,7 @@ void lim_proc_init_read_load(int);
 #define EXP12 0.920044415
 #define EXP180 0.994459848
 
-// LavaCore
+// LavaLite
 
 struct master_beacon {
     char     cluster[LL_BUFSIZ_32];

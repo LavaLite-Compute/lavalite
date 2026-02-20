@@ -1,8 +1,8 @@
-# Copyright (C) Lava Core Contributors
+# Copyright (C) LavaLite Contributors
 
-AC_INIT([lavacore], [0.1.0], [https://github.com/LavaLiteProject/LavaLite/issues])
+AC_INIT([lavalite], [0.1.0], [https://github.com/LavaLiteProject/LavaLite/issues])
 AC_CONFIG_HEADERS([config.h])
-AC_PREFIX_DEFAULT([/opt/lavacore-0.1.0])
+AC_PREFIX_DEFAULT([/opt/lavalite-0.1.0])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 

@@ -109,7 +109,7 @@ def read_last_finish(path, jobid):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("jobid", type=int)
-    ap.add_argument("--acct", default="/opt/lavacore-0.1.0/var/work/mbd/lsb.acct")
+    ap.add_argument("--acct", default="/opt/lavalite-0.1.0/var/work/mbd/lsb.acct")
     args = ap.parse_args()
 
     toks = read_last_finish(args.acct, args.jobid)

@@ -207,7 +207,7 @@ bool_t xdr_lvector(XDR *xdrs, float *li, uint32_t nIndices)
     return xdr_vector(xdrs, (char *) li, (uint32_t) nIndices,
                       (uint32_t) sizeof(*li), (xdrproc_t) xdr_float);
 }
-// LavaCore
+// LavaLite
 bool_t xdr_master_beacon(XDR *xdrs, struct master_beacon *reg)
 {
     if (!xdr_opaque(xdrs, reg->cluster, sizeof(reg->cluster)))

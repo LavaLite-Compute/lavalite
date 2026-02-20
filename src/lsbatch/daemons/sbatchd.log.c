@@ -1,5 +1,5 @@
 /*
- * Copyright (C) LavaCore Contributors
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@ static int get_root_dir(char *root_dir, size_t len)
         if (!tmp || tmp[0] == 0)
             tmp = "/tmp";
 
-        l = snprintf(root_dir, len, "%s/lavacore-sbd.%ld",
+        l = snprintf(root_dir, len, "%s/lavalite-sbd.%ld",
                      tmp, (long)getuid());
         if (l < 0 || l >= (int)len) {
             errno = ENAMETOOLONG;

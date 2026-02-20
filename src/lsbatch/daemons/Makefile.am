@@ -1,5 +1,5 @@
 #
-# Copyright (C) LavaCore Contributors
+# Copyright (C) LavaLite Contributors
 #
 include $(top_srcdir)/Make.common
 

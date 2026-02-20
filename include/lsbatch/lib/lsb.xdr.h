@@ -60,7 +60,7 @@ struct wire_sbd_register {
 
 #define WIRE_SBD_REGISTER_MAX_JOBS 4096
 
-// LavaCore sbd register with mbd
+// LavaLite sbd register with mbd
 struct wire_sbd_job {
     int64_t job_id;
     int32_t pid;

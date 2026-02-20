@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) 2024-2025 LavaCore Contributors
+ * Copyright (C) 2024-2025 LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -139,7 +139,7 @@ static int rusgMatch(struct resVal *resValPtr, const char *resName);
 static int switchAJob(struct jobSwitchReq *, struct lsfAuth *, struct qData *);
 static int moveAJob(struct jobMoveReq *, int log, struct lsfAuth *);
 
-// LavaCore
+// LavaLite
 static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
 static void free_sig_bucket_table(struct ll_hash *);
 static int enqueue_sig_buckets(struct ll_hash *, int32_t);
@@ -2389,9 +2389,7 @@ handleJobJCCA:
                         jpbw->restartPid = jpbw->jobPid;
 
                         if (!jpbw->lsfRusage) {
-                            jpbw->lsfRusage = (struct lsfRusage *) my_malloc(
-                                sizeof(struct lsfRusage), fname);
-                            cleanLsfRusage(jpbw->lsfRusage);
+                            jpbw->lsfRusage = calloc(1, sizeof(struct lsfRusage));
                         }
                     } else {
                         jpbw->jStatus &= ~JOB_STAT_MIG;
@@ -2499,9 +2497,7 @@ handleJobJCCA:
     if (statusReq->newStatus & JOB_STAT_PEND) {
         if (IS_START(jpbw->jStatus)) {
             if (!jpbw->lsfRusage) {
-                jpbw->lsfRusage = (struct lsfRusage *) my_malloc(
-                    sizeof(struct lsfRusage), fname);
-                cleanLsfRusage(jpbw->lsfRusage);
+                jpbw->lsfRusage = calloc(1, sizeof(struct lsfRusage));
             }
             accumulateRU(jpbw, statusReq);
         }
@@ -7794,7 +7790,7 @@ static int checkSubHost(struct jData *job)
     return LSBE_NO_ERROR;
 }
 
-// LavaCore meaningless hacks to make it compile
+// LavaLite meaningless hacks to make it compile
 int
 isSigTerm (int sigValue)
 {

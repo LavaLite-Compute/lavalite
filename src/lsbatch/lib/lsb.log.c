@@ -1,4 +1,4 @@
-/* $Id: lsb.log.c,v 1.16 2007/08/15 22:18:47 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
@@ -983,12 +983,6 @@ static int readJobStatus(char *line, struct jobStatusLog *jobStatusLog)
 
     line += ccount + 1;
 
-    if (jobStatusLog->ru) {
-        if ((cc = str2lsfRu(line, &jobStatusLog->lsfRusage, &ccount)) != 19)
-            return LSBE_EVENT_FORMAT;
-        line += ccount + 1;
-    }
-
     cc = sscanf(line, "%d%n", &(jobStatusLog->exitStatus), &ccount);
     if (cc != 1)
         return LSBE_EVENT_FORMAT;
@@ -1379,9 +1373,6 @@ static int readJobFinish(char *line, struct jobFinishLog *jobFinishLog,
 
     copyQStr(line, MAX_CMD_DESC_LEN, 0, jobFinishLog->jobName);
     copyQStr(line, MAX_CMD_DESC_LEN, 0, jobFinishLog->command);
-
-    if ((cc = str2lsfRu(line, &jobFinishLog->lsfRusage, &ccount)) != 19)
-        return LSBE_EVENT_FORMAT;
 
     jobFinishLog->cpuTime = (float) (jobFinishLog->lsfRusage.ru_utime +
                                      jobFinishLog->lsfRusage.ru_stime);
@@ -1958,9 +1949,6 @@ static int writeJobStatus(FILE *log_fp, struct jobStatusLog *jobStatusLog)
 
     if (fprintf(log_fp, " %d", jobStatusLog->ru) < 0)
         return LSBE_SYS_CALL;
-    if (jobStatusLog->ru)
-        if (lsfRu2Str(log_fp, &jobStatusLog->lsfRusage) < 0)
-            return LSBE_SYS_CALL;
     if (fprintf(log_fp, " %d", jobStatusLog->exitStatus) < 0)
         return LSBE_SYS_CALL;
 

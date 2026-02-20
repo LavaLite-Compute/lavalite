@@ -40,7 +40,7 @@ static void rcvLoadVector(XDR *, struct sockaddr_in *, struct packet_header *);
 static void logcnt(int);
 static void copyResValues(struct loadVectorStruct, struct hostNode *);
 
-// LavaCore
+// LavaLite
 static void copy_load_to_hostnode(const struct wire_load_update *,
                                   struct hostNode *);
 static void print_load(const struct hostNode *);
@@ -617,7 +617,7 @@ float normalizeRq(float rawql, float cpuFactor, int nprocs)
     return nrq;
 }
 
-// LavaCore
+// LavaLite
 int send_load_update(void)
 {
     if (masterMe)

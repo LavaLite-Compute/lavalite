@@ -37,7 +37,7 @@
 
 // Nice, time to let the robot chew through the fossils
 
-// Fossil in → LavaCore out
+// Fossil in → LavaLite out
 
 // True man reads the man page, that’s why it’s called man
 
@@ -45,7 +45,7 @@
 
 // Here’s a pointer. Here’s a number. Convert it. Don’t complain.”
 
-// LavaCore Principle #7: If you don't handle errors, errors will handle you.
+// LavaLite Principle #7: If you don't handle errors, errors will handle you.
 
 // Refactor: eliminate implicit bitfield inference.
 // Move to explicit, structured semantics.
@@ -640,11 +640,7 @@ void ls_set_log_to_stderr(int);
 extern int ls_servavail(int, int);
 extern int ls_setpriority(int);
 
-extern void cleanLsfRusage(struct lsfRusage *);
 extern void cleanRusage(struct rusage *);
-
-extern struct lsfAcctRec *ls_getacctrec(FILE *, int *);
-extern int ls_putacctrec(FILE *, struct lsfAcctRec *);
 extern int getBEtime(char *, char, time_t *);
 
 // LavaLite

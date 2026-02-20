@@ -1246,7 +1246,7 @@ static struct candHost *getJUsable(struct jData *jp, int *numJUsable,
     }
 
     num = numHosts;
-    if (0) { // LavaCore does not support host type
+    if (0) { // LavaLite does not support host type
         if ((!jp->qPtr->resValPtr ||
              !(jp->qPtr->qAttrib & Q_ATTRIB_NO_HOST_TYPE)) &&
             !jp->shared->resValPtr && jp->numAskedPtr == 0) {

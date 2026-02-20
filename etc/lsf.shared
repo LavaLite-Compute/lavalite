@@ -1,8 +1,8 @@
-# Copyright (C) LavaCore Contributors
+# Copyright (C) LavaLite Contributors
 #
 Begin Cluster
 ClusterName
-lavacore
+lavalite
 End Cluster
 
 # Describes the operating system and hardware architecture.
@@ -14,7 +14,7 @@ riscv64_linux
 End HostType
 
 # Describes a *logical* host class.
-# NOTE: LavaCore does NOT use MODEL/CPUFACTOR for scheduling.
+# NOTE: LavaLite does NOT use MODEL/CPUFACTOR for scheduling.
 #       These names exist only for compatibility and display (lsload, lshosts).
 Begin HostModel
 MODELNAME    CPUFACTOR   ARCHITECTURE

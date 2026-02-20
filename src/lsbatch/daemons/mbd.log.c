@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaCore Contributors
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -135,7 +135,7 @@ extern time_t lsb_getAcctFileTime(char *fileName);
 static int replay_arrayrequeue(struct jData *, const struct signalLog *);
 static int renameAcctLogFiles(int);
 
-// LavaCore
+// LavaLite
 static int build_log_path(char *, size_t,
                           const char *, const char *);
 
@@ -321,7 +321,7 @@ void mbd_init_log_paths(void)
              lsbParams[LSB_SHAREDIR].paramValue);
 
     if (mkdir(dirbuf, 0700) == -1 && errno != EEXIST) {
-        LS_ERR("mkdir(%s) failed", dirbuf);
+        LS_ERxoR("mkdir(%s) failed", dirbuf);
         mbdDie(MASTER_FATAL);
     }
 
@@ -1791,7 +1791,7 @@ static int openEventFile(const char *fname)
 
     if ((pos = ftell(log_fp)) == 0) {
         time_t t = time(NULL);
-        fprintf(log_fp, "# LavaCore log created %s\n", ctime2(&t));
+        fprintf(log_fp, "# LavaLite log created %s\n", ctime2(&t));
     }
 
     chmod(elogFname, 0644);
@@ -1961,12 +1961,6 @@ static void logFinishedjob(struct jData *job)
 
     strcpy(jobFinishLog->command, jobBill->command);
     jobFinishLog->loginShell = jobBill->loginShell;
-
-    if (job->lsfRusage != NULL)
-        jobFinishLog->lsfRusage = *(job->lsfRusage);
-    else
-        cleanLsfRusage(&jobFinishLog->lsfRusage);
-
     jobFinishLog->maxRMem = job->runRusage.mem;
     jobFinishLog->maxRSwap = job->runRusage.swap;
 

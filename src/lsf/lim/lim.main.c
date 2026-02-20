@@ -81,7 +81,7 @@ static void initMiscLiStruct(void);
 extern struct extResInfo *getExtResourcesDef(char *);
 extern char *getExtResourcesLoc(char *);
 extern char *getExtResourcesVal(char *);
-// LavaCore
+// LavaLite
 static int process_udp_request(void);
 static int accept_connection(void);
 static void periodic_master(void);

@@ -373,7 +373,7 @@ hEnt *findHost(char *hname)
 void pollSbatchds(int mbdRunFlag)
 {
     (void)mbdRunFlag;
-    // LavaCore implement polling over permanent connection
+    // LavaLite implement polling over permanent connection
 }
 
 int countHostJobs(struct hData *hData)
@@ -1136,7 +1136,7 @@ struct resVal *getReserveValues(struct resVal *jobResVal,
 
 void load_host_list(void)
 {
-    // LavaCore ls_gethostinfo ignores all the paramers
+    // LavaLite ls_gethostinfo ignores all the paramers
     // since mbd is now started by lim this call should never fail
     host_list = ls_gethostinfo(NULL, &host_count, NULL, 0, 0);
     if (host_list == NULL) {

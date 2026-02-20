@@ -1,5 +1,5 @@
 /*
- * Copyright (C) LavaCore Contributors
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -505,7 +505,7 @@ static void sbd_init_log(void)
     if (!log_mask)
         log_mask = "LOG_INFO"; /* sane default */
 
-    // Initialize LavaCore logging
+    // Initialize LavaLite logging
     if (debug) {
         ls_openlog("sbd", log_dir, true, 0, log_mask);
         LS_INFO("Starting sbd in debug mode");

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) LavaCore Contributors
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@ static void requeue_start_failed(struct jData *, struct hData *);
 static void clear_exec_context(struct jData *);
 static void get_sbd_jobs(struct hData *, struct wire_sbd_register *);
 
-// LavaCore
+// LavaLite
 // this is still a client-like request coming through the client handler
 // after this call the connection becomes a permanent sbd connection.
 int
@@ -157,7 +157,7 @@ int mbd_new_job_reply(struct mbd_client_node *client,
 
     /*
      * Acknowledge back to sbatchd so it can unblock.
-     * We only send a small packet_header over the LavaCore channel.
+     * We only send a small packet_header over the LavaLite channel.
      * No more blocking send path, everything is queued via chan_enqueue().
      */
 send_ack:

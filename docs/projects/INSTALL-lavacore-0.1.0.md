@@ -198,7 +198,19 @@ multi-user installation.
 
 ---
 
-### 4.1 Service users and privilege boundaries
+### 4.1 Set Runtime Directory Ownership
+
+The LavaLite daemons run under the `lavalite` service account.
+Runtime directories must therefore be writable by this user.
+
+Set ownership as follows:
+
+```bash
+sudo chown -R lavalite:lavalite /opt/lavalite/var/log
+sudo chown -R lavalite:lavalite /opt/lavalite/var/work
+```
+
+### 4.2 Service users and privilege boundaries
 
 LavaCore runs with two different privilege models:
 
@@ -212,7 +224,7 @@ LavaCore runs with two different privilege models:
 This privilege split is intentional and affects directory ownership.
 
 ---
-### 4.2 Directory roles
+### 4.3 Directory roles
 
 The runtime tree is split by purpose:
 
