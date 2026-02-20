@@ -322,7 +322,7 @@ fail:
 }
 
 // Job managers
-void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
+void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
 {
     sbdReplyType reply_code;
 
@@ -359,8 +359,8 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
         reply.jobPGid = job->pgid;
         reply.jStatus = job->specs.jStatus;
 
-        if (sbd_enqueue_new_job_reply(job, &reply) < 0) {
-            LS_ERR("job=%ld enqueue duplicate new job reply failed",
+        if (sbd_job_new_reply(chan_fd, job, &reply) < 0) {
+            LS_ERR("job=%ld enqueuexs duplicate new job reply failed",
                    job->job_id);
             sbd_mbd_shutdown();
         }
@@ -391,7 +391,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
 
         xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
-        if (sbd_enqueue_new_job_reply(job, &reply) < 0) {
+        if (sbd_job_new_reply(chan_fd, job, &reply) < 0) {
             LS_ERR("operation=%s job=%ld enqueue jobReply failed",
                    mbd_op_str(req_hdr->operation), job->job_id);
             sbd_fatal(SBD_FATAL_OOM);
@@ -420,7 +420,7 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
 
     // send the reply to mbd, note the child has been forked and
     // presumed running at this stage
-    int cc = sbd_enqueue_new_job_reply(job, &reply);
+    int cc = sbd_job_new_reply(chan_fd, job, &reply);
     if (cc < 0) {
         LS_ERR("job %ld enqueue jobReply failed", job->job_id);
         sbd_fatal(SBD_FATAL_OOM);
@@ -434,8 +434,10 @@ void sbd_new_job(int chfd, XDR *xdrs, struct packet_header *req_hdr)
     }
 }
 
-void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_job_new_reply_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
 {
+    (void)chan_fd;
+
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
 
@@ -494,11 +496,6 @@ void sbd_new_job_reply_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 
 void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
-    if (xdrs == NULL || hdr == NULL) {
-        errno = EINVAL;
-        return;
-    }
-
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
     /*
@@ -560,11 +557,6 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 
 void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
-    if (xdrs == NULL || hdr == NULL) {
-        errno = EINVAL;
-        return;
-    }
-
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
 
@@ -615,14 +607,14 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     LS_INFO("job=%ld pid=%d pgid=%d BATCH_JOB_FINISH acked by mbd; cleaning up",
             job->job_id, job->pid, job->pgid);
 
-    // wite the acked
+    // write the acked
     if (sbd_job_state_write(job) < 0) {
         LS_ERRX("job=%ld state write failed", job->job_id);
         sbd_fatal(SBD_FATAL_STORAGE);
     }
 }
 
-int sbd_job_signal(int ch_id, XDR *xdr, struct packet_header *hdr)
+int sbd_job_signal(int chan_fd, XDR *xdr, struct packet_header *hdr)
 {
     struct wire_job_sig_req req;
     memset(&req, 0, sizeof(req));
@@ -644,7 +636,7 @@ int sbd_job_signal(int ch_id, XDR *xdr, struct packet_header *hdr)
         LS_INFO("signal for unknown job_id=%ld", req.job_id);
         rep.rc = LSBE_NO_JOB;
         rep.detail_errno = 0;
-        sbd_enqueue_signal_job_reply(ch_id, hdr, &rep);
+        sbd_job_signal_reply(chan_fd, hdr, &rep);
         return 0;
     }
 
@@ -660,7 +652,7 @@ int sbd_job_signal(int ch_id, XDR *xdr, struct packet_header *hdr)
                rep.rc, rep.detail_errno);
     }
 
-    if (sbd_enqueue_signal_job_reply(ch_id, hdr, &rep) < 0)
+    if (sbd_job_signal_reply(chan_fd, hdr, &rep) < 0)
         return -1;
 
     LS_INFO("signal enqueued job_id=%ld sig=%d pid=%d pgid=%d",
@@ -1431,7 +1423,7 @@ static int make_job_state_dir(struct sbd_job *job)
     return 0;
 }
 
-void sbd_ack_register(int chan_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
 {
     struct wire_sbd_register reg_ack;
 
@@ -1453,7 +1445,7 @@ void sbd_ack_register(int chan_id, XDR *xdrs, struct packet_header *hdr)
         job = find_job_by_jid(wj->job_id);
         if (job == NULL) {
             // job state is not known to sbd
-            if (sbd_enqueue_job_unknown(chan_id, wj->job_id) < 0) {
+            if (sbd_enqueue_job_unknown(chan_fd, wj->job_id) < 0) {
                 sbd_fatal(SBD_FATAL_ENQUEUE);
             }
         }

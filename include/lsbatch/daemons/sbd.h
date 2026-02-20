@@ -47,24 +47,32 @@ extern char sbd_root_dir[PATH_MAX];
 extern char sbd_state_dir[PATH_MAX];
 extern char sbd_job_dir[PATH_MAX];
 
-int sbd_connect_mbd(void);
-int sbd_nb_connect_mbd(bool_t *);
-int sbd_enqueue_register(int);
+int sbd_mbd_connect(void);
+int sbd_mbd_nb_connect(bool_t *);
+int sbd_register(int);
 bool_t sbd_mbd_link_ready(void);
 void sbd_mbd_link_down(void);
 void sbd_mbd_shutdown(void);
-void free_job_specs(struct jobSpecs *);
 
 // handle mbd messagges
-int sbd_handle_mbd(int);
-void sbd_new_job(int chfd, XDR *, struct packet_header *);
-void sbd_new_job_reply_ack(int, XDR *, struct packet_header *);
+// daemon + object + action
+struct sbd_job;
+int sbd_mbd_handle(int);
+void sbd_job_new(int chfd, XDR *, struct packet_header *);
+int sbd_job_new_reply(int, struct sbd_job *, struct jobReply *);
+void sbd_job_new_reply_ack(int, XDR *, struct packet_header *);
+
+int sbd_job_execute(int, struct sbd_job *);
 void sbd_job_execute_ack(int, XDR *, struct packet_header *);
-void sbd_job_finish_ack(int ch_id, XDR *, struct packet_header *);
+
+int sbd_job_finish(int, struct sbd_job *);
+void sbd_job_finish_ack(int, XDR *, struct packet_header *);
+
 int sbd_job_signal(int, XDR *, struct packet_header *);
-int sbd_enqueue_signal_job_reply(int, struct packet_header *,
-                                 struct wire_job_sig_reply *);
-void sbd_ack_register(int, XDR *, struct packet_header *);
+int sbd_job_signal_reply(int, struct packet_header *,
+                         struct wire_job_sig_reply *);
+void sbd_register_ack(int, XDR *, struct packet_header *);
+void free_job_specs(struct jobSpecs *);
 
 // timeout is in second
 #define DEFAULT_SBD_OPERATION_TIMER 1

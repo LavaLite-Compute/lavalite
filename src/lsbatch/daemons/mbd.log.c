@@ -680,11 +680,11 @@ static int replay_newstat(char *filename, int lineNum)
         return TRUE;
     }
 
-    if (newStat->jStatus & JOB_STAT_UNKWN) {
-        jp->jStatus |= JOB_STAT_UNKWN;
+    if (newStat->jStatus & JOB_STAT_UNKNOWN) {
+        jp->jStatus |= JOB_STAT_UNKNOWN;
         return TRUE;
     } else
-        jp->jStatus &= ~JOB_STAT_UNKWN;
+        jp->jStatus &= ~JOB_STAT_UNKNOWN;
 
     if ((IS_START(jp->jStatus) && IS_PEND(newStat->jStatus)) ||
         IS_FINISH(newStat->jStatus)) {
@@ -1500,8 +1500,8 @@ void log_newstatus(struct jData *job)
     if ((logPtr->eventLog.jobStatusLog.ru = (job->lsfRusage != NULL)))
         logPtr->eventLog.jobStatusLog.lsfRusage = *(job->lsfRusage);
 
-    if (job->jStatus & JOB_STAT_UNKWN)
-        logPtr->eventLog.jobStatusLog.jStatus = JOB_STAT_UNKWN;
+    if (job->jStatus & JOB_STAT_UNKNOWN)
+        logPtr->eventLog.jobStatusLog.jStatus = JOB_STAT_UNKNOWN;
     else
         logPtr->eventLog.jobStatusLog.jStatus = job->jStatus;
 

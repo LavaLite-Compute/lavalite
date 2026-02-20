@@ -397,7 +397,7 @@ static void mbd_handle_client(int ch_id)
     host_data = ll_hash_search(&hdata_by_chan, key);
     // Here its a little assymetric with non sbd client
     // handling. If there is an exception on the channel with
-    // sbd we have to handle it inside this calle because beside
+    // sbd we have to handle it inside this call because beside
     // just shutting down the client we have to do other operations
     // like clean up caches, jobs states etc
     // so the asymmetry is intentional and correct.

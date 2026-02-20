@@ -110,7 +110,7 @@
 #define JOB_STAT_PDONE (0x80)
 #define JOB_STAT_PERR (0x100)
 #define JOB_STAT_WAIT (0x200)
-#define JOB_STAT_UNKWN 0x10000
+#define JOB_STAT_UNKNOWN 0x10000
 
 typedef enum {
     EVENT_NULL = 0,

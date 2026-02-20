@@ -1099,7 +1099,7 @@ static int matchJobStatus(int options, struct jData *jobPtr)
     if ((options & PEND_JOB) && IS_PEND(jobPtr->jStatus))
         return TRUE;
     if ((options & SUSP_JOB) && IS_SUSP(jobPtr->jStatus) &&
-        !(jobPtr->jStatus & JOB_STAT_UNKWN))
+        !(jobPtr->jStatus & JOB_STAT_UNKNOWN))
         return TRUE;
     if ((options & RUN_JOB) && (jobPtr->jStatus & JOB_STAT_RUN))
         return TRUE;
@@ -1991,7 +1991,7 @@ void packJobSpecs(struct jData *job, struct jobSpecs *spec)
     else
         strcpy(spec->jobName, job->shared->jobBill.command);
 
-    spec->jStatus = job->jStatus & ~JOB_STAT_UNKWN;
+    spec->jStatus = job->jStatus & ~JOB_STAT_UNKNOWN;
     spec->reasons = job->newReason;
     spec->subreasons = job->subreasons;
 
@@ -2483,8 +2483,8 @@ handleJobJCCA:
             jpbw->ssuspTime = now;
     }
 
-    if ((MASK_STATUS(jpbw->jStatus & ~JOB_STAT_UNKWN) ==
-         MASK_STATUS(statusReq->newStatus & ~JOB_STAT_UNKWN)) &&
+    if ((MASK_STATUS(jpbw->jStatus & ~JOB_STAT_UNKNOWN) ==
+         MASK_STATUS(statusReq->newStatus & ~JOB_STAT_UNKNOWN)) &&
         !((jpbw->jStatus & JOB_STAT_PRE_EXEC) &&
           IS_RUN_JOB_CMD(statusReq->newStatus))) {
         if (jpbw->newReason & SUSP_MBD_LOCK)
@@ -2725,8 +2725,8 @@ void jStatusChange(struct jData *jData, int newStatus, time_t eventTime,
     int freeExec = FALSE;
     time_t now = time(NULL);
 
-    if (MASK_STATUS(newStatus & ~JOB_STAT_UNKWN) ==
-        MASK_STATUS(oldStatus & ~JOB_STAT_UNKWN))
+    if (MASK_STATUS(newStatus & ~JOB_STAT_UNKNOWN) ==
+        MASK_STATUS(oldStatus & ~JOB_STAT_UNKNOWN))
         return;
 
     newStatus = MASK_STATUS(newStatus);
@@ -6571,7 +6571,7 @@ void tryResume(void)
     for (jp = jDataList[SJL]->back; jp != jDataList[SJL]; jp = next) {
         next = jp->back;
 
-        if (jp->jStatus & JOB_STAT_UNKWN)
+        if (jp->jStatus & JOB_STAT_UNKNOWN)
             continue;
         if (!IS_SUSP(jp->jStatus))
             continue;
@@ -7599,7 +7599,7 @@ int arrayRequeue(struct jData *jArray, struct signalReq *sigPtr,
             requeueSuccess = TRUE;
 
         } else if ((IS_START(jPtr->jStatus) ||
-                    (jPtr->jStatus & JOB_STAT_UNKWN)) &&
+                    (jPtr->jStatus & JOB_STAT_UNKNOWN)) &&
                    (sigPtr->actFlags & REQUEUE_RUN)) {
             jPtr->pendEvent.sig = SIG_KILL_REQUEUE;
             jPtr->pendEvent.sigDel = DEL_ACTION_REQUEUE;

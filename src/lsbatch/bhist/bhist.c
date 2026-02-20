@@ -651,7 +651,7 @@ static char *getEventStatus(struct eventRecord *event)
                                                              3183
                                                            */
         break;
-    case JOB_STAT_UNKWN:
+    case JOB_STAT_UNKNOWN:
         strcpy(status,
                (_i18n_msg_get(
                    ls_catd, NL_SETN, 3184,

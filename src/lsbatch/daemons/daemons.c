@@ -20,43 +20,6 @@
 
 #include "lsbatch/daemons/daemons.h"
 
-int init_ServSock(u_short port)
-{
-    int ch;
-
-    ch = chan_listen_socket(SOCK_STREAM, port, SOMAXCONN, CHAN_OP_SOREUSE);
-    if (ch < 0) {
-        ls_syslog(LOG_ERR, "init_ServSock", "chan_listen_socket");
-        return -1;
-    }
-
-    return ch;
-}
-
-int rcvJobFile(int chfd, struct lenData *jf)
-{
-    int cc;
-
-    jf->data = NULL;
-    jf->len = 0;
-
-    if ((cc = chan_read(chfd, (void *) (&jf->len), NET_INTSIZE_)) !=
-        NET_INTSIZE_) {
-        ls_syslog(LOG_ERR, "%s: chan_read() failed %m", __func__);
-        return -1;
-    }
-
-    jf->len = ntohl(jf->len);
-    jf->data = calloc(jf->len, sizeof(char));
-
-    if ((cc = chan_read(chfd, jf->data, jf->len)) != jf->len) {
-        ls_syslog(LOG_ERR, "%s", __func__, "chan_read");
-        free(jf->data);
-        return -1;
-    }
-
-    return 0;
-}
 
 void childRemoveSpoolFile(const char *spoolFile, int options,
                           const struct passwd *pwUser)
@@ -265,7 +228,7 @@ int enqueue_payload_bufsiz(int ch_id, int op,
     struct Buffer *buf;
 
     if (chan_alloc_buf(&buf, bufsiz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d bufsiz %d", op, bufsiz);
+        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", op, bufsiz);
         return -1;
     }
 
@@ -294,7 +257,7 @@ int enqueue_payload_bufsiz(int ch_id, int op,
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed op=%d len=%zu", op, buf->len);
+        LS_ERR("chan_enqueue failed op=%d len=%d", op, buf->len);
         chan_free_buf(buf);
         return -1;
     }

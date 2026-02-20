@@ -60,8 +60,8 @@ void updCounters(struct jData *jData, int oldStatus, time_t eventTime)
     if (IS_FINISH(oldStatus))
         return;
 
-    if (MASK_STATUS(jData->jStatus & ~JOB_STAT_UNKWN) ==
-        MASK_STATUS(oldStatus & ~JOB_STAT_UNKWN))
+    if (MASK_STATUS(jData->jStatus & ~JOB_STAT_UNKNOWN) ==
+        MASK_STATUS(oldStatus & ~JOB_STAT_UNKNOWN))
         return;
 
     if (IS_PEND(jData->jStatus) && IS_PEND(oldStatus))
@@ -70,7 +70,7 @@ void updCounters(struct jData *jData, int oldStatus, time_t eventTime)
     num = jData->numHostPtr;
     numReq = jData->shared->jobBill.maxNumProcessors;
 
-    switch (MASK_STATUS(jData->jStatus & ~JOB_STAT_UNKWN)) {
+    switch (MASK_STATUS(jData->jStatus & ~JOB_STAT_UNKNOWN)) {
     case JOB_STAT_RUN:
         if ((oldStatus & JOB_STAT_PEND) || (oldStatus & JOB_STAT_PSUSP)) {
             updQaccount(jData, -numReq + num, -numReq, num, 0, 0, 0);
@@ -237,7 +237,7 @@ void updSwitchJob(struct jData *jp, struct qData *qfp, struct qData *qtp,
         }
         break;
     case JOB_STAT_RUN:
-    case (JOB_STAT_RUN | JOB_STAT_UNKWN):
+    case (JOB_STAT_RUN | JOB_STAT_UNKNOWN):
         jp->qPtr = qfp;
 
         if (mSchedStage != M_STAGE_REPLAY) {
@@ -254,7 +254,7 @@ void updSwitchJob(struct jData *jp, struct qData *qfp, struct qData *qtp,
         }
         break;
     case JOB_STAT_SSUSP:
-    case (JOB_STAT_SSUSP | JOB_STAT_UNKWN):
+    case (JOB_STAT_SSUSP | JOB_STAT_UNKNOWN):
         jp->qPtr = qfp;
 
         if (mSchedStage != M_STAGE_REPLAY) {
@@ -271,7 +271,7 @@ void updSwitchJob(struct jData *jp, struct qData *qfp, struct qData *qtp,
         }
         break;
     case JOB_STAT_USUSP:
-    case (JOB_STAT_USUSP | JOB_STAT_UNKWN):
+    case (JOB_STAT_USUSP | JOB_STAT_UNKNOWN):
         jp->qPtr = qfp;
 
         if (mSchedStage != M_STAGE_REPLAY) {
@@ -1295,7 +1295,7 @@ void updResCounters(struct jData *jData, int newStatus)
     num = jData->numHostPtr;
     numReq = jData->shared->jobBill.maxNumProcessors;
 
-    switch (MASK_STATUS(jData->jStatus & ~JOB_STAT_UNKWN)) {
+    switch (MASK_STATUS(jData->jStatus & ~JOB_STAT_UNKNOWN)) {
     case JOB_STAT_SSUSP:
         if (!(jData->jStatus & JOB_STAT_RESERVE) &&
             (newStatus & JOB_STAT_RESERVE) && IS_START(newStatus)) {

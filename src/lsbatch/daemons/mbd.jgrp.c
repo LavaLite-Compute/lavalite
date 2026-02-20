@@ -868,7 +868,7 @@ int getIndexOfJStatus(int status)
 {
     static char fname[] = "getIndexOfJStatus()";
 
-    switch (MASK_STATUS(status & ~JOB_STAT_UNKWN & ~JOB_STAT_PDONE &
+    switch (MASK_STATUS(status & ~JOB_STAT_UNKNOWN & ~JOB_STAT_PDONE &
                         ~JOB_STAT_PERR)) {
     case JOB_STAT_PEND:
     case JOB_STAT_RUN | JOB_STAT_WAIT:

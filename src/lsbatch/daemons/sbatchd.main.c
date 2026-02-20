@@ -32,7 +32,7 @@ static void sbd_reap_children(void);
 static void sbd_maybe_reap_children(void);
 static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
-static void job_reply_drive(void);
+static void job_new_drive(void);
 static void job_finish_drive(void);
 static void job_execute_drive(void);
 static void sbd_mbd_reconnect_try(void);
@@ -164,7 +164,7 @@ static int sbd_init(const char *sbatch)
 
     bool_t connected = false;
     // global channel to mbd
-    sbd_mbd_chan = sbd_nb_connect_mbd(&connected);
+    sbd_mbd_chan = sbd_mbd_nb_connect(&connected);
     if (sbd_mbd_chan < 0) {
         LS_ERR("mbd link: initial connect attempt failed");
         sbd_mbd_chan = -1;
@@ -276,7 +276,7 @@ sbd_run_daemon(void)
              timer_maintenance:
                  sbd_reap_children();
                  sbd_mbd_reconnect_try();
-                 job_reply_drive();
+                 job_new_drive();
                  job_execute_drive();
                  job_finish_drive();
                  job_status_checking();
@@ -286,12 +286,6 @@ sbd_run_daemon(void)
                  continue;
              }
 
-             /* If the event is not for sbd_mbd_chan -> return false
-              * If not connecting -> return false (let the existing
-              * sbd_handle_mbd() path handle it)
-              *
-              * If connecting ->handle EPOLLOUT/ERR and return true
-              */
              if (sbd_drive_mbd_link(ch_id, ev))
                  continue;
 
@@ -302,7 +296,7 @@ sbd_run_daemon(void)
              // There is an event on the permament channel
              // connection with mbd
              if (ch_id == sbd_mbd_chan) {
-                 sbd_handle_mbd(ch_id);
+                 sbd_mbd_handle(ch_id);
                  // reset the channel state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
@@ -348,7 +342,7 @@ sbd_run_daemon(void)
  *                         epoll interest to EPOLLIN and proceed to registration.
  *
  * While connected:
- * - Delegate to sbd_handle_mbd() to read/process messages.
+ * - Delegate to sbd_mbd_handle() to read/process messages.
  *
  * Reconnect is NOT performed here. On failure we mark the link down and
  * the periodic timer maintenance (or reconnect timer) will start a new attempt.
@@ -414,7 +408,7 @@ static bool_t sbd_drive_mbd_link(int ch_id, struct epoll_event *ev)
         LS_INFO("mbd link: connected ch=%d, enqueue registration", ch_id);
 
         // Enqueue registration request here (async).
-        sbd_enqueue_register(ch_id);
+        sbd_register(ch_id);
 
         channels[ch_id].chan_events = CHAN_EPOLLNONE;
         return true;
@@ -470,7 +464,7 @@ sbd_mbd_reconnect_try(void)
         return;
 
     bool_t connected = false;
-    int ch = sbd_nb_connect_mbd(&connected);
+    int ch = sbd_mbd_nb_connect(&connected);
     if (ch < 0) {
         LS_DEBUG("mbd link: reconnect try failed");
         return;
@@ -488,7 +482,7 @@ sbd_mbd_reconnect_try(void)
     }
     if (connected) {
         // Connected immediately: enqueue registration request now (async).
-        sbd_enqueue_register(sbd_mbd_chan);
+        sbd_register(sbd_mbd_chan);
     }
 }
 
@@ -768,8 +762,7 @@ static void job_status_checking(void)
     }
 }
 
-// Drive the jobReply to mbd after we have sbd created a new job
-static void job_reply_drive(void)
+static void job_new_drive(void)
 {
     static time_t last_time;
 
@@ -805,11 +798,11 @@ static void job_reply_drive(void)
         reply.jobPGid = job->pgid;
         reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
 
-        if (sbd_enqueue_new_job_reply(job, &reply) < 0) {
-            LS_ERR("job %ld BATCH_NEW_JOB_REPLY enqueue failed", job->job_id);
+        if (sbd_job_new_reply(sbd_mbd_chan, job, &reply) < 0) {
+            LS_ERR("job %ld sbd_job_new_reply enqueue failed", job->job_id);
             continue;
         }
-        LS_INFO("job %ld BATCH_NEW_JOB_REPLY enqueued", job->job_id);
+        LS_INFO("job %ld", job->job_id);
 
         job->reply_last_send = now;
     }
@@ -841,7 +834,7 @@ static void job_execute_drive(void)
             continue;
         }
 
-        if (sbd_enqueue_execute(job) < 0) {
+        if (sbd_job_execute(sbd_mbd_chan, job) < 0) {
             LS_ERR("job %ld enqueue BATCH_JOB_EXECUTE failed", job->job_id);
             continue;
         }
@@ -883,7 +876,7 @@ static void job_finish_drive(void)
         if ((now - job->finish_last_send) < resend_sec)
             continue;
 
-        int cc = sbd_enqueue_finish(job);
+        int cc = sbd_job_finish(sbd_mbd_chan, job);
         if (cc < 0) {
             LS_WARNING("job %ld finish enqueue failed", job->job_id);
             continue;

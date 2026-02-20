@@ -632,7 +632,7 @@ char *get_status(struct jobInfoEnt *job)
     case JOB_STAT_DONE | JOB_STAT_PERR:
         status = "DONE";
         break;
-    case JOB_STAT_UNKWN:
+    case JOB_STAT_UNKNOWN:
         status = "UNKWN";
         break;
     default:

@@ -21,7 +21,7 @@ extern int sbd_mbd_chan;      /* defined in sbatchd.main.c */
 
 // the ch_id in input is the channel we have opened with mbatchd
 //
-int sbd_handle_mbd(int ch_id)
+int sbd_mbd_handle(int ch_id)
 {
     struct chan_data *chan = &channels[ch_id];
 
@@ -66,13 +66,13 @@ int sbd_handle_mbd(int ch_id)
     switch (hdr.operation) {
     case BATCH_NEW_JOB:
         // a new job from mbd has arrived
-        sbd_new_job(ch_id, &xdrs, &hdr);
+        sbd_job_new(ch_id, &xdrs, &hdr);
         break;
     case BATCH_NEW_JOB_REPLY_ACK:
         // this indicate the ack of the previous job_reply
         // has reached the mbd who logged in the events
         // we can send a new event sbd_enqueue_execute
-        sbd_new_job_reply_ack(ch_id, &xdrs, &hdr);
+        sbd_job_new_reply_ack(ch_id, &xdrs, &hdr);
         break;
     case BATCH_JOB_EXECUTE_ACK:
         sbd_job_execute_ack(ch_id, &xdrs, &hdr);
@@ -84,7 +84,7 @@ int sbd_handle_mbd(int ch_id)
         sbd_job_signal(ch_id, &xdrs, &hdr);
         break;
     case BATCH_SBD_REGISTER_ACK:
-        sbd_ack_register(ch_id, &xdrs, &hdr);
+        sbd_register_ack(ch_id, &xdrs, &hdr);
         break;
     default:
         break;

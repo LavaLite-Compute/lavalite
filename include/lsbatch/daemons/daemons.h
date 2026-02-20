@@ -438,9 +438,7 @@ int initTcl(struct tclLsInfo *);
 extern void freeWeek(windows_t **);
 extern void errorBack(int, int, struct sockaddr_in *);
 
-extern int init_ServSock(u_short port);
 extern int server_reply(int, char *, int);
-extern int rcvJobFile(int, struct lenData *);
 
 #define FORK_REMOVE_SPOOL_FILE (0x1)
 #define CALL_RES_IF_NEEDED (0x2)

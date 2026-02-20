@@ -405,8 +405,8 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
     jobInfoReply.cpuTime = jobData->cpuTime;
     jobInfoReply.numToHosts = jobData->numHostPtr;
 
-    if (jobData->jStatus & JOB_STAT_UNKWN)
-        jobInfoReply.status = JOB_STAT_UNKWN;
+    if (jobData->jStatus & JOB_STAT_UNKNOWN)
+        jobInfoReply.status = JOB_STAT_UNKNOWN;
     else
         jobInfoReply.status = jobData->jStatus;
     jobInfoReply.status &= MASK_INT_JOB_STAT;

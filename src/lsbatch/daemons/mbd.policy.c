@@ -183,7 +183,7 @@ static int reservePreemptResources(struct jData *jp, int numHosts,
 
 #define CANNOT_BE_PREEMPTED_FOR_RSRC(s)                                        \
     ((s->jFlags & JFLAG_URGENT) || (s->jFlags & JFLAG_URGENT_NOSTOP) ||        \
-     (s->jStatus & JOB_STAT_UNKWN))
+     (s->jStatus & JOB_STAT_UNKNOWN))
 
 static int readyToDisp(struct jData *jpbw, int *numAvailSlots);
 static enum candRetCode getCandHosts(struct jData *);
@@ -998,8 +998,12 @@ static int getLsbUsable(void)
 
     }
 
-    LS_INFO("got %d num usable hosts for scheduling", nLsbUsable);
-
+    static time_t last_host_info_time;
+    t = time(NULL);
+    if (t - last_host_info_time >= SECS_PER_MIN * 3) {
+        LS_INFO("got %d num usable hosts for scheduling", nLsbUsable);
+        last_host_info_time = t;
+    }
     return nLsbUsable;
 }
 

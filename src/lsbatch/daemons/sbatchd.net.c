@@ -45,7 +45,7 @@ extern char *resolve_master_with_retry(void);
  *   >=0  channel id on success
  *   -1   on failure; lsberrno/lserrno is set
  */
-int sbd_nb_connect_mbd(bool_t *connected)
+int sbd_mbd_nb_connect(bool_t *connected)
 {
     if (connected != NULL)
         *connected = false;
@@ -133,7 +133,7 @@ int sbd_nb_connect_mbd(bool_t *connected)
 }
 
 // Create a permanent channel to mbd using a blocking connect
-int sbd_connect_mbd(void)
+int sbd_mbd_connect(void)
 {
     char *master = resolve_master_with_retry();
     if (master == NULL) {
@@ -179,17 +179,8 @@ int sbd_connect_mbd(void)
  *     return xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname));
  * }
  */
-/*
- * sbd_enqueue_register()
- *
- * Enqueue an SBD registration request to MBD on an already-connected channel.
- *
- * This is non-blocking: it encodes the request into a heap-backed Buffer and
- * queues it on the channel send path. The epoll-driven dowrite() will flush it.
- *
- * The reply (BATCH_SBD_REGISTER_REPLY) is handled asynchronously in sbd_handle_mbd().
- */
-int sbd_enqueue_register(int ch_id)
+
+int sbd_register(int ch_id)
 {
     char host[MAXHOSTNAMELEN];
 
@@ -254,7 +245,7 @@ int sbd_enqueue_register(int ch_id)
 // this function runs right upon a job start we will be async waiting to
 // mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
 // the pid to the events file
-int sbd_enqueue_new_job_reply(struct sbd_job *job, struct jobReply *reply)
+int sbd_job_new_reply(int chan_fd, struct sbd_job *job, struct jobReply *reply)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
@@ -263,7 +254,7 @@ int sbd_enqueue_new_job_reply(struct sbd_job *job, struct jobReply *reply)
         return -1;
     }
 
-    int cc = enqueue_payload(sbd_mbd_chan,
+    int cc = enqueue_payload(chan_fd,
                              BATCH_NEW_JOB_REPLY,
                              reply,
                              xdr_jobReply);
@@ -281,7 +272,7 @@ int sbd_enqueue_new_job_reply(struct sbd_job *job, struct jobReply *reply)
 }
 
 // This is invoke at afer mbd ack the pid with BATCH_NEW_JOB_ACK
-int sbd_enqueue_execute(struct sbd_job *job)
+int sbd_job_execute(int chan_fd, struct sbd_job *job)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
@@ -371,7 +362,7 @@ int sbd_enqueue_execute(struct sbd_job *job)
     return 0;
 }
 
-int sbd_enqueue_finish(struct sbd_job *job)
+int sbd_job_finish(int chan_fd, struct sbd_job *job)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
@@ -449,10 +440,7 @@ int sbd_enqueue_finish(struct sbd_job *job)
     req.sigValue  = 0;
     req.actStatus = 0;
 
-    int cc = enqueue_payload(sbd_mbd_chan,
-                             BATCH_JOB_FINISH,
-                             &req,
-                             xdr_statusReq);
+    int cc = enqueue_payload(chan_fd, BATCH_JOB_FINISH, &req, xdr_statusReq);
     if (cc < 0) {
         LS_ERR("enqueue_payload for job %ld BATCH_JOB_FINISH failed",
                job->job_id);
@@ -469,15 +457,15 @@ int sbd_enqueue_finish(struct sbd_job *job)
     return 0;
 }
 
-int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
-                                 struct wire_job_sig_reply *rep)
+int sbd_job_signal_reply(int chan_fd, struct packet_header *hdr,
+                         struct wire_job_sig_reply *rep)
 {
     if (!rep) {
         lserrno = LSBE_BAD_ARG;
         return -1;
     }
 
-    int rc = enqueue_payload(ch_id,
+    int rc = enqueue_payload(chan_fd,
                              BATCH_JOB_SIGNAL_REPLY,
                              rep,
                              xdr_wire_job_sig_reply);
@@ -496,10 +484,10 @@ int sbd_enqueue_signal_job_reply(int ch_id, struct packet_header *hdr,
     return 0;
 }
 
-int sbd_enqueue_job_unknown(int chan_id, int64_t job_id)
+int sbd_enqueue_job_unknown(int chan_fd, int64_t job_id)
 {
     if (!sbd_mbd_link_ready()) {
-        LS_INFO("unknown job=%ld: mbd link not ready", (long)job_id);
+        LS_INFO("unknown job=%ld: mbd link not ready", job_id);
         return -1;
     }
 
@@ -509,18 +497,18 @@ int sbd_enqueue_job_unknown(int chan_id, int64_t job_id)
     // ignore state job job state unknown
     js.state = -1;
 
-    int cc = enqueue_payload(chan_id,
+    int cc = enqueue_payload(chan_fd,
                              BATCH_JOB_UNKNOWN,
                              &js,
                              xdr_wire_job_state);
     if (cc < 0) {
-        LS_ERR("unknown job=%ld enqueue failed", (long)job_id);
+        LS_ERR("unknown job=%ld enqueue failed", job_id);
         return -1;
     }
 
-    chan_set_write_interest(chan_id, true);
+    chan_set_write_interest(chan_fd, true);
 
-    LS_INFO("unknown job=%ld reported to mbd", (long)job_id);
+    LS_INFO("unknown job=%ld reported to mbd", job_id);
 
     return 0;
 }

@@ -210,7 +210,7 @@ int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
         goto send_ack;
     }
 
-    int st = MASK_STATUS(job->jStatus & ~JOB_STAT_UNKWN);
+    int st = MASK_STATUS(job->jStatus & ~JOB_STAT_UNKNOWN);
     assert(st == JOB_STAT_RUN || st == JOB_STAT_USUSP || st == JOB_STAT_SSUSP);
 
     // Copy the execute cwd and home
@@ -307,7 +307,7 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
 
     // Clear transient flags.
     job->jStatus &= ~JOB_STAT_MIG;
-    job->jStatus &= ~JOB_STAT_UNKWN;
+    job->jStatus &= ~JOB_STAT_UNKNOWN;
 
     job->pendEvent.sig1 = SIG_NULL;
     job->pendEvent.sig = SIG_NULL;

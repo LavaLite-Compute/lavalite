@@ -180,9 +180,9 @@ void releaseElogLock(void)
     if (gotLock) {
         ul_val = unlink(lockfile);
         if (ul_val != 0) {
-            ls_syslog(LOG_ERR, "%s", __func__, "unlink", lockfile);
+            LS_ERR("unlink lockfile=%s failed", lockfile);
         } else
-            ls_syslog(LOG_INFO, ("%s: Released lock file"), "releaseElogLock");
+            LS_INFO("released lock file=%s", lockfile);
     }
 }
 
@@ -208,35 +208,34 @@ int touchElock(void)
     } while ((lock_fd < 0) && (errno == EINTR) && (i++ < 10));
 
     if (lock_fd < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "open", lockfile);
+        LS_ERR("open file=%s failed", lockfile);
         return MASTER_FATAL;
     }
 
     if (lseek(lock_fd, 0, SEEK_SET) != 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "lseek", lockfile, lock_fd);
+        LS_ERR("lseek file=%s failed", lockfile);
         return MASTER_FATAL;
     }
 
     cc = read(lock_fd, buf, 1);
     if (cc < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "read", lockfile, lock_fd);
-
+        LS_ERR("read file=%s failed", lockfile);
         return MASTER_FATAL;
     }
 
     if (lseek(lock_fd, 0, SEEK_SET) != 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "lseek", lockfile, lock_fd);
+        LS_ERR("lseek back file=%s", lockfile);
         return MASTER_FATAL;
     }
 
     cc = write(lock_fd, buf, 1);
     if (cc < 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "write", lockfile);
+        LS_ERR("write file=%s failed", lockfile);
         return MASTER_FATAL;
     }
 
     if (close(lock_fd) != 0) {
-        ls_syslog(LOG_ERR, "%s", __func__, "close", lockfile);
+        LS_ERR("close %s failed", lockfile);
     }
 
     return 0;

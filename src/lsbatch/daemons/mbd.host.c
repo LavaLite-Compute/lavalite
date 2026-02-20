@@ -399,7 +399,7 @@ static void initHostStat(void)
 
     for (jpbw = jDataList[SJL]->back; jpbw != jDataList[SJL];
          jpbw = jpbw->back) {
-        if (jpbw->jStatus & JOB_STAT_UNKWN && jpbw->hPtr) {
+        if (jpbw->jStatus & JOB_STAT_UNKNOWN && jpbw->hPtr) {
             jpbw->hPtr[0]->hStatus |= HOST_STAT_UNREACH;
             jpbw->hPtr[0]->sbdFail = 1;
         }
@@ -462,13 +462,13 @@ static void hostJobs(struct hData *hp, int stateTransit)
             continue;
 
         if ((stateTransit == UNREACH_OK || stateTransit == UNAVAIL_OK) &&
-            (jpbw->jStatus & JOB_STAT_UNKWN)) {
-            jpbw->jStatus &= ~JOB_STAT_UNKWN;
+            (jpbw->jStatus & JOB_STAT_UNKNOWN)) {
+            jpbw->jStatus &= ~JOB_STAT_UNKNOWN;
             log_newstatus(jpbw);
             continue;
         }
-        if (stateTransit == OK_UNREACH && !(jpbw->jStatus & JOB_STAT_UNKWN)) {
-            jpbw->jStatus |= JOB_STAT_UNKWN;
+        if (stateTransit == OK_UNREACH && !(jpbw->jStatus & JOB_STAT_UNKNOWN)) {
+            jpbw->jStatus |= JOB_STAT_UNKNOWN;
             log_newstatus(jpbw);
             continue;
         }
