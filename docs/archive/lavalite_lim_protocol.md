@@ -1,6 +1,6 @@
-# LavaCore LIM Protocol
+# LavaLite LIM Protocol
 
-The **LavaCore Load Information Manager (LIM)** protocol provides
+The **LavaLite Load Information Manager (LIM)** protocol provides
 lightweight, connectionless, UDP-based telemetry between cluster nodes.
 
 The design is intentionally minimal:
@@ -295,4 +295,4 @@ Not yet implemented:
 - Persistent cluster state
 
 This implementation establishes the distributed LIM baseline
-for LavaCore.
+for LavaLite.

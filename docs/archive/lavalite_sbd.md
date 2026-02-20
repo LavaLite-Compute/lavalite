@@ -2,7 +2,7 @@
 ## ACK-Driven, Snapshot-Based, Restart-Safe
 
 This document describes the **protocol and state model** of the current
-`sbd` (SBD) implementation in LavaCore Edition.
+`sbd` (SBD) implementation in LavaLite Edition.
 
 The design is fully ACK-driven, restart-safe by construction,
 and explicitly separates:

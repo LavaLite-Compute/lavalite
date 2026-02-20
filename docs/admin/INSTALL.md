@@ -1,6 +1,6 @@
-# INSTALL-lavacore-0.1.0.md
+# INSTALL-lavalite-0.1.0.md
 
-This document describes how to build and install **LavaCore 0.1.0** from the Git repository.
+This document describes how to build and install **LavaLite 0.1.0** from the Git repository.
 
 Follow the steps exactly and in order to obtain a working installation.
 
@@ -24,7 +24,7 @@ It runs real jobs and executes real workloads, but it does not yet include failo
 
 ## Repository Naming
 
-At the time of writing, the LavaCore source repository directory is still named:
+At the time of writing, the LavaLite source repository directory is still named:
 
 ```
 lavalite
@@ -32,9 +32,9 @@ lavalite
 
 This is expected and does not affect functionality.
 
-- **Product name:** LavaCore
-- **Git tag:** `lavacore-0.1.0`
-- **Installation prefix:** `/opt/lavacore-0.1.0`
+- **Product name:** LavaLite
+- **Git tag:** `lavalite-0.1.0`
+- **Installation prefix:** `/opt/lavalite-0.1.0`
 - **Source directory:** `lavalite`
 
 All steps in this document assume the source directory is named `lavalite`.
@@ -50,23 +50,23 @@ Clone the repository:
 ```bash
 git clone https://github.com/LavaLite-Compute/lavalite.git
 cd lavalite
-git checkout lavacore-0.1.0
+git checkout lavalite-0.1.0
 ```
 
 Checkout the release tag:
 
 ```bash
-git checkout -b release-0.1.0 lavacore-0.1.0
+git checkout -b release-0.1.0 lavalite-0.1.0
 ```
 
-This creates a local branch from the `lavacore-0.1.0` tag to avoid detached
+This creates a local branch from the `lavalite-0.1.0` tag to avoid detached
 HEAD mode.
 
 ---
 
 ## 2. Build (Out-of-Tree / VPATH Build)
 
-LavaCore uses a standard autotools build system.
+LavaLite uses a standard autotools build system.
 
 Out-of-tree builds keep generated files separate from the source tree and allow multiple platform builds.
 
@@ -111,7 +111,7 @@ Run configure from the build directory:
 
 ```bash
 cd ~/lavalite/build_rocky9
-../configure --prefix=/opt/lavacore-0.1.0
+../configure --prefix=/opt/lavalite-0.1.0
 ```
 
 Notes:
@@ -119,7 +119,7 @@ Notes:
 - `../configure` refers to the script generated in the source tree.
 - All build artifacts remain in `build_rocky9`.
 - The build directory can be deleted safely without affecting the source.
-- By default lavacore will install into ```/opt/lavacore-0.1.0```
+- By default lavalite will install into ```/opt/lavalite-0.1.0```
 
 ---
 
@@ -134,12 +134,12 @@ sudo make install
 After installation, you may create a version-independent symlink:
 
 ```bash
-sudo ln -sfn /opt/lavacore-0.1.0 /opt/lavacore
+sudo ln -sfn /opt/lavalite-0.1.0 /opt/lavalite
 ```
 
 This symlink provides a stable logical installation path.
 
-Future upgrades can install a new version (e.g. `/opt/lavacore-0.1.1`)
+Future upgrades can install a new version (e.g. `/opt/lavalite-0.1.1`)
 and update the symlink to point to the new directory without modifying:
 
 - systemd service files
@@ -147,21 +147,21 @@ and update the symlink to point to the new directory without modifying:
 - environment variables
 - module files
 
-All configuration should reference `/opt/lavacore`, not the versioned directory.
+All configuration should reference `/opt/lavalite`, not the versioned directory.
 
 ---
 
 ## 3. Create Service User and Group
 
 ```bash
-sudo groupadd -r lavacore
-sudo useradd -r -g lavacore -s /usr/sbin/nologin -d /opt/lavacore lavacore
+sudo groupadd -r lavalite
+sudo useradd -r -g lavalite -s /usr/sbin/nologin -d /opt/lavalite lavalite
 ```
 
 Verify:
 
 ```bash
-id lavacore
+id lavalite
 ```
 
 For development environments, the shell may be temporarily enabled.
@@ -176,7 +176,7 @@ For production-style deployments, keep the account non-login.
 After installation, the tree looks like:
 
 ```
-/opt/lavacore-0.1.0
+/opt/lavalite-0.1.0
 ├── bin
 ├── etc
 ├── include
@@ -212,9 +212,9 @@ sudo chown -R lavalite:lavalite /opt/lavalite/var/work
 
 ### 4.2 Service users and privilege boundaries
 
-LavaCore runs with two different privilege models:
+LavaLite runs with two different privilege models:
 
-- `lim` and `mbd` run as the **service user** (typically `lavacore`).
+- `lim` and `mbd` run as the **service user** (typically `lavalite`).
   They must be able to create and append their log and state files.
 
 - `sbd` starts as **root** because it must be able to `setuid()` to the
@@ -230,7 +230,7 @@ The runtime tree is split by purpose:
 
 #### `var/log` (daemon logs)
 - Contains log files written by the daemons.
-- Must be writable by the service user (`lavacore` for `lim` and `mbd`).
+- Must be writable by the service user (`lavalite` for `lim` and `mbd`).
 - Log files may be readable by other users (policy decision), but only
   the service user must be able to create and rotate them.
 
@@ -288,14 +288,14 @@ It is restart-safe and not part of the user-facing API.
 
 The following rules must hold:
 
-#### `/opt/lavacore-0.1.0/var`
+#### `/opt/lavalite-0.1.0/var`
 - Owner: `root`
 - Must be traversable by daemons and tools.
 
 ---
 
 #### `var/log`
-- Owner: service user (`lavacore`)
+- Owner: service user (`lavalite`)
 - Service user must have:
   - `S_IWUSR`
   - `S_IXUSR`
@@ -374,21 +374,21 @@ This is daemon-private state.
 
 ### 4.5 Recommended ownership commands (minimal and explicit)
 
-The lavacore system user must own all service-managed runtime directories
-under $LAVACORE_TOP/var, except for SBD per-job directories which are
+The lavalite system user must own all service-managed runtime directories
+under $LAVALITE_TOP/var, except for SBD per-job directories which are
 managed dynamically.
 
 Set service-owned log directory:
 
 ```bash
-sudo chown -R lavacore:lavacore /opt/lavacore-0.1.0/var/log
+sudo chown -R lavalite:lavalite /opt/lavalite-0.1.0/var/log
 ```
 
 Set MBD runtime directory:
 
 ```bash
-sudo mkdir -p /opt/lavacore-0.1.0/var/work/mbd
-sudo chown -R lavacore:lavacore /opt/lavacore-0.1.0/var/work
+sudo mkdir -p /opt/lavalite-0.1.0/var/work/mbd
+sudo chown -R lavalite:lavalite /opt/lavalite-0.1.0/var/work
 ```
 
 SBD runtime directories are created by SBD on first start. They remain
@@ -405,12 +405,12 @@ No manual chown of per-job directories is required or supported.
 
 Before starting services, verify the following:
 
-- `/opt/lavacore-0.1.0/var` is owned by `root` and traversable.
-- `var/log` exists and is writable by the service user (`lavacore`).
-- `var/work/mbd` exists and is writable by the service user (`lavacore`).
+- `/opt/lavalite-0.1.0/var` is owned by `root` and traversable.
+- `var/log` exists and is writable by the service user (`lavalite`).
+- `var/work/mbd` exists and is writable by the service user (`lavalite`).
 
 The `var/work/sbd` directory is not manually created during installation.
-It is created automatically by `lavacore-sbd` on first startup.
+It is created automatically by `lavalite-sbd` on first startup.
 
 Do not manually create or modify:
 
@@ -425,7 +425,7 @@ initialized by the daemon itself.
 
 **Verify ownership after SBD startup**
 
-After starting `lavacore-sbd`, verify:
+After starting `lavalite-sbd`, verify:
 
 - `var/work/sbd` exists and is owned by `root`.
 - `var/work/sbd/state` exists and is owned by `root`, mode typically `0755`.
@@ -467,7 +467,7 @@ Change directory to the source tree and copy the configuration templates:
 
 ```bash
 cd ~/lavalite
-sudo cp etc/lsf* etc/lsb* /opt/lavacore-0.1.0/etc/
+sudo cp etc/lsf* etc/lsb* /opt/lavalite-0.1.0/etc/
 ```
 
 The `-n` flag prevents overwriting existing configuration files.
@@ -489,10 +489,10 @@ If you use the default installation paths, no changes are required.
 Common variables:
 
 ```
-LSF_CONFDIR=/opt/lavacore-0.1.0/etc
-LSF_SERVERDIR=/opt/lavacore-0.1.0/sbin
-LSF_LOGDIR=/opt/lavacore-0.1.0/var/log
-LSB_SHAREDIR=/opt/lavacore-0.1.0/var/work
+LSF_CONFDIR=/opt/lavalite-0.1.0/etc
+LSF_SERVERDIR=/opt/lavalite-0.1.0/sbin
+LSF_LOGDIR=/opt/lavalite-0.1.0/var/log
+LSB_SHAREDIR=/opt/lavalite-0.1.0/var/work
 ```
 
 ---
@@ -502,17 +502,17 @@ LSB_SHAREDIR=/opt/lavacore-0.1.0/var/work
 Defines cluster-wide shared parameters.
 
 Defaults are suitable for an initial installation.
-The default cluster name is `lavacore`.
+The default cluster name is `lavalite`.
 
 ---
 
-#### **lsf.cluster.lavacore**
+#### **lsf.cluster.lavalite**
 
 Defines cluster membership and administrative settings.
 
 You must configure:
 
-- The cluster administrator (typically the `lavacore` user)
+- The cluster administrator (typically the `lavalite` user)
 - The list of hosts in the cluster
 
 Reasonable defaults are provided.
@@ -548,7 +548,7 @@ Defaults are suitable for initial validation.
 ### Minimal Required Environment Variable
 
 ```
-LSF_ENVDIR=/opt/lavacore-0.1.0/etc
+LSF_ENVDIR=/opt/lavalite-0.1.0/etc
 ```
 
 The `LSF_ENVDIR` variable **must** be set in the environment of:
@@ -565,16 +565,16 @@ An example module file is included in the Appendix.
 
 ## 6. Cluster Roles (Important)
 
-LavaCore uses a master/worker model.
+LavaLite uses a master/worker model.
 
-- **Master host**: runs `lavacore-lim` and `lavacore-mbd`
-- **Worker hosts**: run `lavacore-lim` and `lavacore-sbd`
+- **Master host**: runs `lavalite-lim` and `lavalite-mbd`
+- **Worker hosts**: run `lavalite-lim` and `lavalite-sbd`
 
 Important constraints for this preview:
 
 - Only **one master** is supported.
-- `lavacore-mbd` must be started manually on the designated master.
-- `lavacore-mbd` must **not** be started on worker nodes.
+- `lavalite-mbd` must be started manually on the designated master.
+- `lavalite-mbd` must **not** be started on worker nodes.
 - Failover is not supported in this release.
 
 The purpose of this preview is to validate protocol behavior and scheduler functionality.
@@ -584,12 +584,12 @@ High availability will be addressed in future versions.
 
 ## 7. Install and Enable systemd Service Files
 
-LavaCore daemons are managed via systemd.
+LavaLite daemons are managed via systemd.
 Each daemon has a dedicated unit file:
 
-- `lavacore-lim.service`
-- `lavacore-sbd.service`
-- `lavacore-mbd.service` (master only)
+- `lavalite-lim.service`
+- `lavalite-sbd.service`
+- `lavalite-mbd.service` (master only)
 
 ---
 
@@ -599,7 +599,7 @@ Copy the service templates:
 
 ```bash
 cd ~/lavalite
-sudo cp etc/lavacore-*.service /etc/systemd/system/
+sudo cp etc/lavalite-*.service /etc/systemd/system/
 ```
 
 ## Service Configuration Verification
@@ -613,54 +613,54 @@ identity or start the wrong component.
 
 ---
 
-## lavacore-lim.service
+## lavalite-lim.service
 
-The LIM daemon must run as the dedicated `lavacore` system user.
+The LIM daemon must run as the dedicated `lavalite` system user.
 
 Verify:
 
 ```
-ExecStart=/opt/lavacore/sbin/lim
-User=lavacore
-Group=lavacore
-Environment=LSF_ENVDIR=/opt/lavacore/etc
+ExecStart=/opt/lavalite/sbin/lim
+User=lavalite
+Group=lavalite
+Environment=LSF_ENVDIR=/opt/lavalite/etc
 ```
 
 Ensure that:
 
-- The binary path is `/opt/lavacore/sbin/lim`
-- The `User` and `Group` are both set to `lavacore`
+- The binary path is `/opt/lavalite/sbin/lim`
+- The `User` and `Group` are both set to `lavalite`
 
 If any path or directive is incorrect, fix the unit file before proceeding.
 
 ---
 
-## lavacore-mbd.service
+## lavalite-mbd.service
 
-The MBD daemon must also run as the `lavacore` system user.
+The MBD daemon must also run as the `lavalite` system user.
 
 Verify:
 
 ```
-ExecStart=/opt/lavacore/sbin/mbd
-User=lavacore
-Group=lavacore
-Environment=LSF_ENVDIR=/opt/lavacore/etc
+ExecStart=/opt/lavalite/sbin/mbd
+User=lavalite
+Group=lavalite
+Environment=LSF_ENVDIR=/opt/lavalite/etc
 ```
 
 Ensure that:
 
-- The binary path is `/opt/lavacore/sbin/mbd`
+- The binary path is `/opt/lavalite/sbin/mbd`
 - No reference to `/opt/lavalite` exists
-- `User=lavacore` is present
-- `Group=lavacore` is present
+- `User=lavalite` is present
+- `Group=lavalite` is present
 
 Incorrect configuration may result in improper ownership of logs,
 state files, or cluster metadata.
 
 ---
 
-## lavacore-sbd.service
+## lavalite-sbd.service
 
 The SBD daemon **must run as root**.
 
@@ -669,13 +669,13 @@ Do **not** define a `User=` directive in this unit.
 Verify:
 
 ```
-ExecStart=/opt/lavacore/sbin/sbd
-Environment=LSF_ENVDIR=/opt/lavacore/etc
+ExecStart=/opt/lavalite/sbin/sbd
+Environment=LSF_ENVDIR=/opt/lavalite/etc
 ```
 
 Ensure that:
 
-- The binary path is `/opt/lavacore/sbin/sbd`
+- The binary path is `/opt/lavalite/sbin/sbd`
 - There is **no** `User=` directive
 - There is **no** `Group=` directive
 - No reference to `/opt/lavalite` exists
@@ -702,15 +702,15 @@ The master LIM is therefore the first process that must be running in the cluste
 Startup dependency is enforced in the unit files using:
 
 ```
-Requires=lavacore-lim.service
-After=lavacore-lim.service
+Requires=lavalite-lim.service
+After=lavalite-lim.service
 ```
 
 This guarantees:
 
-- `lavacore-mbd` will not start unless `lavacore-lim` is active
-- `lavacore-mbd` is started only after `lavacore-lim`
-- `lavacore-sbd` starts only after `lavacore-lim`
+- `lavalite-mbd` will not start unless `lavalite-lim` is active
+- `lavalite-mbd` is started only after `lavalite-lim`
+- `lavalite-sbd` starts only after `lavalite-lim`
 
 ---
 
@@ -719,14 +719,14 @@ This guarantees:
 Enable LIM and SBD on all nodes:
 
 ```bash
-sudo systemctl enable lavacore-lim
-sudo systemctl enable lavacore-sbd
+sudo systemctl enable lavalite-lim
+sudo systemctl enable lavalite-sbd
 ```
 
 On the master node only, also enable MBD:
 
 ```bash
-sudo systemctl enable lavacore-mbd
+sudo systemctl enable lavalite-mbd
 ```
 
 ---
@@ -736,30 +736,30 @@ sudo systemctl enable lavacore-mbd
 On the master:
 
 ```bash
-sudo systemctl start lavacore-lim
-sudo systemctl start lavacore-mbd
+sudo systemctl start lavalite-lim
+sudo systemctl start lavalite-mbd
 ```
 
 On worker nodes:
 
 ```bash
-sudo systemctl start lavacore-lim
-sudo systemctl start lavacore-sbd
+sudo systemctl start lavalite-lim
+sudo systemctl start lavalite-sbd
 ```
 
 Verify status:
 
 ```bash
-systemctl status lavacore-lim
-systemctl status lavacore-mbd
-systemctl status lavacore-sbd
+systemctl status lavalite-lim
+systemctl status lavalite-mbd
+systemctl status lavalite-sbd
 ```
 
 ---
 
 ### 7.5 Important Notes
 
-- Always ensure `lavacore-lim` is running before starting `lavacore-mbd`.
+- Always ensure `lavalite-lim` is running before starting `lavalite-mbd`.
 - Restarting LIM while MBD is active is currently unsupported and may lead to inconsistent cluster state.
 - In this version, the master LIM is the single source of truth.
 
@@ -773,23 +773,23 @@ but this release assumes a single authoritative LIM instance.
 On master:
 
 ```bash
-sudo systemctl start lavacore-lim
-sudo systemctl start lavacore-mbd
+sudo systemctl start lavalite-lim
+sudo systemctl start lavalite-mbd
 ```
 
 On workers:
 
 ```bash
-sudo systemctl start lavacore-lim
-sudo systemctl start lavacore-sbd
+sudo systemctl start lavalite-lim
+sudo systemctl start lavalite-sbd
 ```
 
 Verify:
 
 ```bash
-systemctl status lavacore-lim
-systemctl status lavacore-mbd
-systemctl status lavacore-sbd
+systemctl status lavalite-lim
+systemctl status lavalite-mbd
+systemctl status lavalite-sbd
 ```
 
 ---
@@ -804,15 +804,15 @@ lsload
 Check logs:
 
 ```bash
-ls /opt/lavacore-0.1.0/var/log
+ls /opt/lavalite-0.1.0/var/log
 ```
 
 Check systemd logs if needed:
 
 ```bash
-journalctl -u lavacore-lim
-journalctl -u lavacore-mbd
-journalctl -u lavacore-sbd
+journalctl -u lavalite-lim
+journalctl -u lavalite-mbd
+journalctl -u lavalite-sbd
 ```
 
 Workers should transition from `unavail` to `ok` once registered.
@@ -866,37 +866,37 @@ Example module file (`0.1.0.lua`):
 
 ```lua
 help([[
-LavaCore 0.1.0
+LavaLite 0.1.0
 ]])
 
-whatis("Name: LavaCore")
+whatis("Name: LavaLite")
 whatis("Version: 0.1.0")
 whatis("Category: HPC/HTC Workload Manager")
 
-family("lavacore")
+family("lavalite")
 
-local root = "/opt/lavacore-0.1.0"
+local root = "/opt/lavalite-0.1.0"
 
 prepend_path("PATH", pathJoin(root, "bin"))
 prepend_path("PATH", pathJoin(root, "sbin"))
 prepend_path("LD_LIBRARY_PATH", pathJoin(root, "lib"))
 prepend_path("MANPATH", pathJoin(root, "share", "man"))
 
-setenv("LAVACORE_HOME", root)
+setenv("LAVALITE_HOME", root)
 setenv("LSF_ENVDIR", pathJoin(root, "etc"))
 ```
 
 Load module:
 
 ```bash
-module load lavacore
+module load lavalite
 ```
 
 Verify:
 
 ```bash
 module -t list
-lavacore/0.1.0
+lavalite/0.1.0
 ```
 
 ---

@@ -58,7 +58,7 @@ Example history:
 ```
 "JOB_START" "1" 1771086493 102 4 0 0 100.0 1 "zos" "" "" 0 0
 "JOB_START_ACCEPT" "1" 1771086493 102 7691 7691 0
-"JOB_EXECUTE" "1" 1771086494 102 -1 7691 "/home/lavalite" "/home/lavacore" "lavacore" 7691 0
+"JOB_EXECUTE" "1" 1771086494 102 -1 7691 "/home/lavalite" "/home/lavalite" "lavalite" 7691 0
 ```
 
 There is no JOB_STAT_EXECUTE state.
@@ -240,7 +240,7 @@ M2:
   pid absent
   Meaning: job was dispatched (JOB_STAT_RUN) but PID was never recorded.
 
-Any "job unknown" report is not a runtime state in current LavaCore.
+Any "job unknown" report is not a runtime state in current LavaLite.
 Treat it as corruption / wrong cluster / stale state:
 log error, ignore, and require operator cleanup.
 

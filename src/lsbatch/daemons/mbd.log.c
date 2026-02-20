@@ -321,7 +321,7 @@ void mbd_init_log_paths(void)
              lsbParams[LSB_SHAREDIR].paramValue);
 
     if (mkdir(dirbuf, 0700) == -1 && errno != EEXIST) {
-        LS_ERxoR("mkdir(%s) failed", dirbuf);
+        LS_ERR("mkdir(%s) failed", dirbuf);
         mbdDie(MASTER_FATAL);
     }
 

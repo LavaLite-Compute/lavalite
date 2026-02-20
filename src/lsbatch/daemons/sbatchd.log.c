@@ -54,7 +54,7 @@ static int get_root_dir(char *root_dir, size_t len)
         return -1;
     }
 
-    l = snprintf(root_dir, len, "%s/sbd", share_dir);
+    l = snprintf(root_dir, len, "%s", share_dir);
     if (l < 0 || l >= (int)len) {
         errno = ENAMETOOLONG;
         LS_ERR("get_root_dir: sbd root path too long");

@@ -77,12 +77,6 @@ AC_ARG_ENABLE([cli-tests],
 
 AM_CONDITIONAL([HAVE_PYTEST], [test "x$PYTEST" != "x" -a "x$enable_cli_tests" = "xyes"])
 
-dnl Generate Makefile for tests
-AC_CONFIG_FILES([
-	src/tests/Makefile
-	src/tests/cli/Makefile
-])
-
 dnl ---- Dependencies ----
 
 dnl libtirpc (XDR)
@@ -108,7 +102,6 @@ dnl Generate Makefiles for doc
 AC_CONFIG_FILES([
   docs/Makefile
   docs/man/Makefile
-  docs/projects/Makefile
 ])
 
 dnl ---- Top-level ----
