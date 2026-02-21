@@ -69,3 +69,4 @@ src/lsbatch/daemons/mbd
 src/lsbatch/daemons/sbd
 # Ignore cscope
 cscope*
+src/lsf/pylib/__pycache__/

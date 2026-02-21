@@ -3,7 +3,23 @@ import argparse
 import shlex
 import sys
 import time
+import os
+import os
+import sys
 
+envdir = os.environ.get("LSF_ENVDIR", "").strip()
+if not envdir:
+    raise SystemExit("bacct: $LSF_ENVDIR is not set")
+
+prefix = os.path.dirname(envdir.rstrip("/"))
+pylib = os.path.join(prefix, "share", "lavalite", "pylib")
+
+if not os.path.isfile(os.path.join(pylib, "llpaths.py")):
+    raise SystemExit(f"bacct: missing {pylib}/llpaths.py (install broken)")
+
+sys.path.insert(0, pylib)
+
+from llpaths import lsb_acct, LLConfigError
 
 def ts(t):
     if t <= 0:
@@ -109,10 +125,19 @@ def read_last_finish(path, jobid):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("jobid", type=int)
-    ap.add_argument("--acct", default="/opt/lavalite-0.1.0/var/work/mbd/lsb.acct")
+    ap.add_argument("--acct", default=None,
+                    help="Path to lsb.acct (default: derived from $LSF_ENVDIR/lsf.conf)")
     args = ap.parse_args()
 
-    toks = read_last_finish(args.acct, args.jobid)
+    if args.acct is None:
+        try:
+            acct_path = lsb_acct()
+        except LLConfigError as e:
+            raise SystemExit(f"bacct: {e}")
+    else:
+        acct_path = args.acct
+
+    toks = read_last_finish(acct_path, args.jobid)
     if toks is None:
         print(f"bacct: job {args.jobid} not found", file=sys.stderr)
         return 1
@@ -123,11 +148,9 @@ def main():
 
     status = "DONE" if rec["exitStatus"] == 0 else "EXIT"
 
-    # Header
     print(f"Job <{rec['jobId']}>, User <{rec['userName']}>, Project <{rec['projectName']}>, Status <{status}>, Queue <{rec['queue']}>")
     print(f"Submitted from host <{rec['fromHost']}>, CWD <{rec['cwd']}>, Command <{rec['command']}>")
 
-    # Executed hosts
     if rec["execHosts"]:
         hosts = " ".join(f"<{h}>" for h in rec["execHosts"])
         print(f"Executed on host(s) {hosts}")

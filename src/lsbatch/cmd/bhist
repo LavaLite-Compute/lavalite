@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 
-import sys
+import argparse
 import shlex
 import datetime
+import os
+import sys
 
-LSB_EVENTS = "/opt/lavalite/var/work/mbd/lsb.events"
+envdir = os.environ.get("LSF_ENVDIR", "").strip()
+if not envdir:
+    raise SystemExit("bhist: $LSF_ENVDIR is not set")
+
+prefix = os.path.dirname(envdir.rstrip("/"))
+pylib = os.path.join(prefix, "share", "lavalite", "pylib")
+
+if not os.path.isfile(os.path.join(pylib, "llpaths.py")):
+    raise SystemExit(f"bhist: missing {pylib}/llpaths.py (install broken)")
+
+sys.path.insert(0, pylib)
+
+from llpaths import lsb_events, LLConfigError
 
 JOB_STAT_PEND    = 0x01
 JOB_STAT_RUN     = 0x04
@@ -72,19 +86,27 @@ def extract_project_command(tok):
     return "default", "?"
 
 
-# ----------------------------------------------------
-
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("jobid", nargs="?", type=int)
+    ap.add_argument("--events", default=None,
+                    help="Path to lsb.events (default: derived from $LSF_ENVDIR/lsf.conf)")
+    args = ap.parse_args()
 
-    wanted_job = None
-    if len(sys.argv) == 2:
-        wanted_job = int(sys.argv[1])
+    if args.events is None:
+        try:
+            events_path = lsb_events()
+        except LLConfigError as e:
+            raise SystemExit(f"bhist: {e}")
+    else:
+        events_path = args.events
+
+    wanted_job = args.jobid
 
     jobs = {}
     order = []
 
-    with open(LSB_EVENTS) as f:
-
+    with open(events_path, "r", errors="replace") as f:
         for line in f:
 
             line = line.strip()
@@ -184,7 +206,7 @@ def main():
                 ts = tok[2]
                 jstat = int(tok[4])
 
-                cpu = int(float(tok[7]))   # real CPU time from log
+                cpu = int(float(tok[7]))
                 end_time = int(tok[8])
 
                 runtime = 0
@@ -192,17 +214,17 @@ def main():
                     runtime = end_time - job["start_time"]
 
                 if jstat & JOB_STAT_DONE:
-                      job["status"] = "DONE"
+                    job["status"] = "DONE"
 
-                      job["timeline"].append(
-                          "%s: Done successfully. The CPU time used is %d seconds."
-                          % (fmt_time(ts), cpu)
-                      )
+                    job["timeline"].append(
+                        "%s: Done successfully. The CPU time used is %d seconds."
+                        % (fmt_time(ts), cpu)
+                    )
 
-                      job["timeline"].append(
-                          "%s: The run time was %d seconds."
-                          % (fmt_time(ts), runtime)
-                      )
+                    job["timeline"].append(
+                        "%s: The run time was %d seconds."
+                        % (fmt_time(ts), runtime)
+                    )
                 elif jstat & JOB_STAT_EXIT:
                     job["status"] = "EXIT"
 
@@ -218,8 +240,6 @@ def main():
                 elif jstat & JOB_STAT_UNKNOWN:
                     job["status"] = "UNKNOWN"
 
-    # -------- print --------
-
     first = True
     for jid in order:
 
@@ -228,6 +248,7 @@ def main():
 
         print_job(jobs[jid])
         first = False
+
 
 if __name__ == "__main__":
     main()
