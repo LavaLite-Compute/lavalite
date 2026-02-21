@@ -1448,6 +1448,7 @@ void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
             if (sbd_enqueue_job_unknown(chan_fd, wj->job_id) < 0) {
                 sbd_fatal(SBD_FATAL_ENQUEUE);
             }
+            continue;
         }
         // job must have a pid
         assert(job->pid > 0);
@@ -1456,7 +1457,7 @@ void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
             LS_EMERG("register: invariant violation: job=%ld exists but pid=%d",
                      job->job_id, (int)job->pid);
             sbd_fatal(SBD_FATAL_INVARIANT);
-            return;
+            continue;
         }
 
         if (wj->pid > 0) {

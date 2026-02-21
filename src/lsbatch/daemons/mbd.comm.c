@@ -133,19 +133,6 @@ sbdReplyType start_job(struct jData *job,
     else
         SET_STATE(jobReply->jStatus, JOB_STAT_RUN);
 
-    // Build the cache pointer to jData
-    struct mbd_sbd_job *sj;
-    sj = calloc(1, sizeof(struct mbd_sbd_job));
-    if (!sj) {
-        errno = ENOMEM;
-        LS_ERR("failed to allocate mbd_sbd_job for %s",
-               lsb_jobid2str(job->jobId));
-        reply = ERR_MEM;
-        return reply;
-    }
-
-    sj->job = job;
-    ll_list_append(&host_node->sbd_job_list, &sj->next_job);
     job->newReason = job->subreasons = 0;
 
     return reply;

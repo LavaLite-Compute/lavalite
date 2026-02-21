@@ -455,7 +455,6 @@ struct hData *initHData(struct hData *hData)
     hData->leftRusageMem = INFINITY;
     // LavaLite mbd now keeps a permanent connection to sbd
     hData->sbd_node = NULL;
-    ll_list_init(&hData->sbd_job_list);
     return hData;
 }
 

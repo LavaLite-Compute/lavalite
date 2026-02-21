@@ -18,7 +18,6 @@
 #include "lsbatch/daemons/mbd.h"
 #include "lsbatch/daemons/mbatchd.h"
 
-static void reset_sbd_job_list(struct hData *);
 static int enqueue_sig_buckets(struct ll_hash *, int32_t);
 static int signal_sbd_jobs(struct sig_host_bucket *, int32_t, int32_t);
 static void free_sig_bucket_table(struct ll_hash *);
@@ -28,14 +27,13 @@ static int stop_pend_job(struct jData *);
 static int resume_pend_job(struct jData *);
 static void requeue_start_failed(struct jData *, struct hData *);
 static void clear_exec_context(struct jData *);
-static void get_sbd_jobs(struct hData *, struct wire_sbd_register *);
+static void build_sbd_run_list(struct hData *, struct wire_sbd_register *);
 
 // LavaLite
 // this is still a client-like request coming through the client handler
 // after this call the connection becomes a permanent sbd connection.
-int
-mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
-                 struct packet_header *hdr)
+int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
+                     struct packet_header *hdr)
 {
     (void)hdr;
 
@@ -73,16 +71,22 @@ mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     // mbd already has the pid for each run job
     struct wire_sbd_register reg_ack;
     memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
-    get_sbd_jobs(host_data, &reg_ack);
+    build_sbd_run_list(host_data, &reg_ack);
 
-    LS_INFO("sbatchd register hostname=%s canon=%s addr=%s ch_id=%d",
+    host_data->hStatus &= ~HOST_STAT_UNREACH;
+    LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d status=%s",
             hostname, host_data->sbd_node->host.name,
-            host_data->sbd_node->host.addr, host_data->sbd_node->chanfd);
+            host_data->sbd_node->host.addr,
+            host_data->sbd_node->chanfd, hstat_to_str(host_data->hStatus));
 
     enqueue_payload(client->chanfd,
                     BATCH_SBD_REGISTER_ACK,
-                    &reg,
+                    &reg_ack,
                     xdr_wire_sbd_register);
+
+    chan_set_write_interest(client->chanfd, true);
+
+    return 0;
 }
 /*
  * Protocol rule: after we successfully decode a reply that includes jobId,
@@ -410,48 +414,34 @@ int mbd_sbd_disconnect(struct mbd_client_node *client)
                host_node->host);
         abort();
     }
-    LS_INFO("closing connection with host %s", host_node->host);
+
+    host_node->hStatus = HOST_STAT_UNREACH;
+    LS_INFO("closing connection with host=%s state=%s", host_node->host,
+            hstat_to_str(host_node->hStatus));
 
     // Break the association first, then reset pending jobs.
     client->host_node = NULL;
     // invalidate the pointer as the sbd is down
     host_node->sbd_node = NULL;
 
-    // dont reset the job list as jobs are still running
-    // on the host they should probably go into UNKNWN state
-    if (0)
-        reset_sbd_job_list(host_node);
-    char key[LL_BUFSIZ_32];
+    struct jData *job;
+    for (job = jDataList[SJL]->back; job != jDataList[SJL]; job = job->back) {
 
+        if (job->hPtr[0] != host_node)
+            continue;
+
+         job->jStatus |= JOB_STAT_UNKNOWN;
+         job->newReason = PEND_SBD_UNREACH;
+         log_newstatus(job);
+    }
+
+    char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", client->chanfd);
     ll_hash_remove(&hdata_by_chan, key);
 
     // hose the client
     chan_close(client->chanfd);
     free(client);
-
-    return 0;
-}
-
-int mbd_slave_restart(struct mbd_client_node *client,
-                      struct packet_header *reqHdr,
-                      XDR *xdr_in)
-{
-    struct ll_host hs;
-    struct hData *host_node;
-    struct sbdPackage pkg;
-
-    (void)hs;
-    (void)host_node;
-    (void)pkg;
-    // 1) authenticate/portok + map host
-    // 2) find host hData
-    // 3) hStatChange(h, 0) etc.
-    // 4) pkg.numJobs = countNumSpecs(h)
-    // 5) pkg.jobs = calloc(...)
-    // 6) fill pkg via sbatchdJobs(&pkg, h)
-    // 7) reply using enqueue_payload(client->chanfd, BATCH_SLAVE_RESTART_REPLY, &pkg, xdr_sbdPackage)
-    // 8) free pkg.jobs (and freeJobSpecs)
 
     return 0;
 }
@@ -475,18 +465,7 @@ int mbd_send_event_ack(struct mbd_client_node *client,
         return -1;
     }
 
-    int chfd = client->chanfd;
-    struct epoll_event ev;
-    memset(&ev, 0, sizeof(ev));
-    ev.events = EPOLLIN | EPOLLOUT;   /* readable + writable */
-    ev.data.u32 = (uint32_t)chfd;     /* or whatever you already use */
-
-    if (epoll_ctl(mbd_efd, EPOLL_CTL_MOD, chan_sock(chfd), &ev) < 0) {
-        LS_ERR("epoll_ctl(EPOLL_CTL_MOD, EPOLLIN|EPOLLOUT) failed for chanfd=%d",
-               chfd);
-        // Bug we should free what we have allocated
-        return -1;
-    }
+    chan_set_write_interest(client->chanfd, true);
 
     return 0;
 }
@@ -739,9 +718,18 @@ int mbd_job_signal_reply(struct mbd_client_node *client, XDR *xdrs,
         return 0;
     }
 
-    LS_INFO("processing signal ack job_id=%ld jStatus=%s sig=%d rc=%d errno=%d",
-            rep.job_id, job_state_str(job->jStatus),
-            rep.sig, rep.rc, rep.detail_errno);
+    LS_INFO("job_id=%ld jStatus=%s sig=%d rc=%d errno=%d", rep.job_id,
+            job_state_str(job->jStatus), rep.sig, rep.rc, rep.detail_errno);
+
+    if (rep.rc == LSBE_NO_JOB) {
+        LS_ERRX("failed: SBD reports LSBE_NO_JOB job_id=%ld sig=%d "
+                "set JOB_STAT_UNKNOWN reason=PEND_SYS_UNABLE", rep.job_id, rep.sig);
+        job->jStatus |= JOB_STAT_UNKNOWN;
+        job->newReason = PEND_SYS_UNABLE;
+        log_newstatus(job);
+
+        return 0;
+    }
 
     if (rep.rc != LSBE_NO_ERROR) {
         // what is the status of the job?
@@ -926,6 +914,28 @@ int mbd_signal_all_jobs(int ch_id, struct signalReq *req, struct lsfAuth *auth)
 void mbd_job_state_unknown(struct mbd_client_node *client, XDR *xdrs,
                            struct packet_header *sbd_hdr)
 {
+    struct wire_job_state wjs;
+    memset(&wjs, 0, sizeof(struct wire_job_state));
+
+    if (! xdr_wire_job_state(xdrs, &wjs)) {
+        LS_ERR("xdr_wire_job_state failed");
+        lserrno = LSBE_XDR;
+        return;
+    }
+
+    struct jData *job = getJobData(wjs.job_id);
+    if (!job) {
+        // this is basically impossible because we just sent it
+        LS_ERRX("job_id=%ld", wjs.job_id);
+        return;
+    }
+
+    job->jStatus |= JOB_STAT_UNKNOWN;
+    job->newReason = PEND_SYS_UNABLE;
+    log_newstatus(job);
+
+    LS_INFO("sbd job missing job_id=%ld set state=%s",
+            wjs.job_id, job_state_str(job->jStatus));
 }
 
 // Make the batch system manager
@@ -1089,30 +1099,6 @@ static void clear_exec_context(struct jData *job)
     // job->execute_time = 0;
 }
 
-static void reset_sbd_job_list(struct hData *host_node)
-{
-    struct mbd_sbd_job *sj;
-
-    struct ll_list *l = &host_node->sbd_job_list;
-    while ((sj = (struct mbd_sbd_job *)ll_list_pop(l)) != NULL) {
-        struct jData *job;
-
-        if (sj == NULL) {
-            LS_ERR("no sbd job in sbd_job_list?");
-            //* Corrupt list, but do not crash the whole daemon.
-            continue;
-        }
-
-        job = getJobData(sj->job->jobId);
-        if (job != NULL && IS_START(job->jStatus)) {
-            job->newReason = PEND_JOB_START_FAIL;
-            jStatusChange(job, JOB_STAT_PEND, LOG_IT, (char *)__func__);
-        }
-
-        free(sj);
-    }
-}
-
 static int enqueue_sig_buckets(struct ll_hash *ht, int32_t sig)
 {
     int queued_hosts_ok = 0;
@@ -1210,7 +1196,8 @@ static void free_sig_bucket_table(struct ll_hash *ht)
     ll_hash_free(ht, NULL);
 }
 
-static void get_sbd_jobs(struct hData *host_node, struct wire_sbd_register *reg)
+static void build_sbd_run_list(struct hData *host_node,
+                               struct wire_sbd_register *reg)
 {
     struct jData *job;
 
@@ -1228,7 +1215,7 @@ static void get_sbd_jobs(struct hData *host_node, struct wire_sbd_register *reg)
 
     reg->jobs = calloc(num_jobs, sizeof(struct wire_sbd_job));
     if (reg->jobs == NULL) {
-        LS_ERR("calloc %d failed", num_jobs * sizeof(struct wire_sbd_job));
+        LS_ERR("calloc %ld failed", num_jobs * sizeof(struct wire_sbd_job));
         mbdDie(MASTER_FATAL);
     }
 
@@ -1243,6 +1230,14 @@ static void get_sbd_jobs(struct hData *host_node, struct wire_sbd_register *reg)
         reg->jobs[i].pid = job->jobPid;
         LS_INFO("job=%ld pid=%d sent to sbd",
                 reg->jobs[i].job_id, reg->jobs[i].pid);
+
+        if (job->jStatus & JOB_STAT_UNKNOWN) {
+            job->jStatus |= JOB_STAT_RUN;
+            job->jStatus &=~ JOB_STAT_UNKNOWN;
+            job->newReason = 0;
+            log_newstatus(job);
+        }
+
         ++i;
     }
 }

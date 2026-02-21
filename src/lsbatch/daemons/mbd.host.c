@@ -1,5 +1,6 @@
-/* $Id: mbd.host.c,v 1.15 2007/08/15 22:18:45 tmizan Exp $
+/*
  * Copyright (C) 2007 Platform Computing Inc
+ * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -1252,4 +1253,39 @@ static void getAHostInfo(struct hData *hp)
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG2, "%s: Leaving this routine...", fname);
+}
+
+const char *hstat_to_str(int s)
+{
+    if (s & HOST_STAT_UNREACH)
+        return "HOST_STAT_UNREACH";
+
+    if (s & HOST_STAT_UNAVAIL)
+        return "HOST_STAT_UNAVAIL";
+
+    if (s & HOST_STAT_DISABLED)
+        return "HOST_STAT_DISABLED";
+
+    if (s & HOST_STAT_BUSY)
+        return "HOST_STAT_BUSY";
+
+    if (s & HOST_STAT_FULL)
+        return "HOST_STAT_FULL";
+
+    if (s & HOST_STAT_LOCKED)
+        return "HOST_STAT_LOCKED";
+
+    if (s & HOST_STAT_EXCLUSIVE)
+        return "HOST_STAT_EXCLUSIVE";
+
+    if (s & HOST_STAT_NO_LIM)
+        return "HOST_STAT_NO_LIM";
+
+    if (s & HOST_STAT_LOCKED_MASTER)
+        return "HOST_STAT_LOCKED_MASTER";
+
+    if (s & HOST_STAT_WIND)
+        return "HOST_STAT_WIND";
+
+    return "HOST_STAT_OK";
 }

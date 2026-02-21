@@ -69,9 +69,6 @@ int mbd_enqueue_hdr(struct mbd_client_node *, int);
 int mbd_init_tables(void);
 int mbd_send_event_ack(struct mbd_client_node *, int,
                        const struct job_status_ack *);
-int mbd_handle_slave_restart(struct mbd_client_node *,
-                             struct packet_header *,
-                             XDR *);
 int mbd_read_job_file(struct jobSpecs *, struct jData *);
 int mbd_handle_signal_req(XDR *, struct mbd_client_node *,
                           struct packet_header *, struct lsfAuth *);

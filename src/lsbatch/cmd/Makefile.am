@@ -22,7 +22,7 @@ bin_PROGRAMS = bbot \
     bswitch \
     btop \
     busers
-bin_SCRIPTS = bacct
+bin_SCRIPTS = bacct bhist
 # Source and linker definitions
 COMMON_CMD_SOURCES = cmd.misc.c cmd.move.c cmd.jobid.c cmd.prt.c \
 	cmd.bhc.c cmd.err.c cmd.job.c cmd.sub.c \

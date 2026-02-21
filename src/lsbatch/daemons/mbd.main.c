@@ -157,8 +157,8 @@ struct ll_hash hdata_by_chan;
 static void mbd_check_not_root(void);
 static void mbd_init_log(void);
 static int mbd_accept_connection(int);
-static void mbd_handle_client(int);
-static int mbd_dispatch_client(struct mbd_client_node *);
+static void mbd_client_handle(int);
+static int mbd_client_dispatch(struct mbd_client_node *);
 static int mbd_auth_client_request(struct lsfAuth *, XDR *,
                                    struct packet_header *, struct sockaddr_in *);
 static bool_t mbd_should_fork(mbdReqType);
@@ -331,7 +331,7 @@ int main(int argc, char **argv)
             // which updates channels[ch_id].chan_events
             if (channels[ch_id].chan_events == CHAN_EPOLLIN
                 || channels[ch_id].chan_events == CHAN_EPOLLERR) {
-                mbd_handle_client(ch_id);
+                mbd_client_handle(ch_id);
                 // we have consumed the packet
                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
             }
@@ -384,7 +384,7 @@ static int mbd_accept_connection(int socket)
     return ch_id;
 }
 
-static void mbd_handle_client(int ch_id)
+static void mbd_client_handle(int ch_id)
 {
     LS_DEBUG("ch_id=%d sock=%d events=0x%x",
              ch_id, channels[ch_id].sock, channels[ch_id].chan_events);
@@ -427,15 +427,15 @@ static void mbd_handle_client(int ch_id)
         }
 
         // Now dispatch the current client request,
-        mbd_dispatch_client(client);
+        mbd_client_dispatch(client);
         return;
     }
 
     // No client found for this channel id: internal inconsistency.
-    LS_ERR("mbd_handle_client: no client found for chanfd=%d", ch_id);
+    LS_ERR("no client found for chanfd=%d", ch_id);
 }
 
-static int mbd_dispatch_client(struct mbd_client_node *client)
+static int mbd_client_dispatch(struct mbd_client_node *client)
 {
     struct Buffer *buf;
     struct bucket *bucket;

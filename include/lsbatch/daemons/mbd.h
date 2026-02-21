@@ -584,7 +584,6 @@ struct hData {
     char *hostType;
     char *hostModel;
     struct mbd_client_node *sbd_node; // TCP connection to sbd
-    struct ll_list sbd_job_list;  // all jobs associated with this sbd
     time_t last_disable_time;
     float cpuFactor;
     int numCPUs;
@@ -1407,3 +1406,4 @@ extern void updateTimeWindow(struct timeWindow *);
 struct hData *getHostData(const char *host);
 void shutdown_mbd_client(struct mbd_client_node *);
 void mbd_init_log_paths(void);
+const char *hstat_to_str(int);
