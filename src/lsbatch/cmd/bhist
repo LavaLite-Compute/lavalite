@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+
+import sys
+import shlex
+import datetime
+
+LSB_EVENTS = "/opt/lavalite/var/work/mbd/lsb.events"
+
+JOB_STAT_PEND    = 0x01
+JOB_STAT_RUN     = 0x04
+JOB_STAT_EXIT    = 0x20
+JOB_STAT_DONE    = 0x40
+JOB_STAT_UNKNOWN = 0x10000
+
+
+def fmt_time(t):
+    dt = datetime.datetime.fromtimestamp(int(t))
+    return dt.strftime("%a %b %d %H:%M:%S")
+
+
+def parse(line):
+    return shlex.split(line)
+
+
+def new_job_struct(jobid):
+    return {
+        "jobId": jobid,
+        "user": "?",
+        "queue": "?",
+        "project": "default",
+        "submit_host": "?",
+        "cwd": "?",
+        "command": "?",
+        "exec_host": "?",
+        "status": "UNKNOWN",
+        "start_time": None,
+        "timeline": [],
+    }
+
+
+def print_job(job):
+
+    print("Job <%d>, User <%s>, Project <%s>, Status <%s>, Queue <%s>"
+          % (job["jobId"], job["user"],
+             job["project"], job["status"],
+             job["queue"]))
+
+    print("Submitted from host <%s>, CWD <%s>, Command <%s>"
+          % (job["submit_host"],
+             job["cwd"],
+             job["command"]))
+
+    print("")
+
+    for l in job["timeline"]:
+        print(l)
+
+    print("")
+
+
+def extract_project_command(tok):
+
+    arch_i = -1
+    for i in range(len(tok)):
+        if "_linux" in tok[i]:
+            arch_i = i
+            break
+
+    if arch_i >= 5:
+        return tok[arch_i - 2], tok[arch_i - 5]
+
+    return "default", "?"
+
+
+# ----------------------------------------------------
+
+def main():
+
+    wanted_job = None
+    if len(sys.argv) == 2:
+        wanted_job = int(sys.argv[1])
+
+    jobs = {}
+    order = []
+
+    with open(LSB_EVENTS) as f:
+
+        for line in f:
+
+            line = line.strip()
+            if not line.startswith('"'):
+                continue
+
+            tok = parse(line)
+            ev = tok[0]
+
+            if ev not in (
+                "JOB_NEW",
+                "JOB_START",
+                "JOB_EXECUTE",
+                "JOB_SIGNAL",
+                "JOB_STATUS"
+            ):
+                continue
+
+            jobid = int(tok[3])
+
+            if wanted_job and jobid != wanted_job:
+                continue
+
+            if jobid not in jobs:
+                jobs[jobid] = new_job_struct(jobid)
+                order.append(jobid)
+
+            job = jobs[jobid]
+
+            # ---------- JOB_NEW ----------
+            if ev == "JOB_NEW":
+
+                ts = tok[2]
+
+                job["user"] = tok[13]
+                job["queue"] = tok[28]
+                job["submit_host"] = tok[30]
+                job["cwd"] = tok[31]
+
+                proj, cmd = extract_project_command(tok)
+                job["project"] = proj
+                job["command"] = cmd
+
+                job["status"] = "PEND"
+
+                job["timeline"].append(
+                    "%s: Submitted from host <%s>, to Queue <%s>"
+                    % (fmt_time(ts),
+                       job["submit_host"],
+                       job["queue"])
+                )
+
+                job["timeline"].append(
+                    "%s: Job was queued." % fmt_time(ts)
+                )
+
+            # ---------- JOB_START ----------
+            elif ev == "JOB_START":
+
+                ts = tok[2]
+                host = tok[9]
+
+                job["exec_host"] = host
+                job["start_time"] = int(ts)
+                job["status"] = "RUN"
+
+                job["timeline"].append(
+                    "%s: Dispatched to <%s>"
+                    % (fmt_time(ts), host)
+                )
+
+            # ---------- JOB_EXECUTE ----------
+            elif ev == "JOB_EXECUTE":
+
+                ts = tok[2]
+
+                job["timeline"].append(
+                    "%s: Started on <%s>"
+                    % (fmt_time(ts), job["exec_host"])
+                )
+
+            # ---------- JOB_SIGNAL ----------
+            elif ev == "JOB_SIGNAL":
+
+                ts = tok[2]
+                sig = tok[6]
+                user = tok[8]
+
+                job["timeline"].append(
+                    "%s: Job was signaled (%s) by <%s>"
+                    % (fmt_time(ts), sig, user)
+                )
+
+            # ---------- JOB_STATUS ----------
+            elif ev == "JOB_STATUS":
+
+                ts = tok[2]
+                jstat = int(tok[4])
+
+                cpu = int(float(tok[7]))   # real CPU time from log
+                end_time = int(tok[8])
+
+                runtime = 0
+                if job["start_time"] is not None:
+                    runtime = end_time - job["start_time"]
+
+                if jstat & JOB_STAT_DONE:
+                      job["status"] = "DONE"
+
+                      job["timeline"].append(
+                          "%s: Done successfully. The CPU time used is %d seconds."
+                          % (fmt_time(ts), cpu)
+                      )
+
+                      job["timeline"].append(
+                          "%s: The run time was %d seconds."
+                          % (fmt_time(ts), runtime)
+                      )
+                elif jstat & JOB_STAT_EXIT:
+                    job["status"] = "EXIT"
+
+                    job["timeline"].append(
+                        "%s: Exited. The CPU time used is %d seconds."
+                        % (fmt_time(ts), cpu)
+                    )
+
+                    job["timeline"].append(
+                        "%s: The run time was %d seconds."
+                        % (fmt_time(ts), runtime)
+                    )
+                elif jstat & JOB_STAT_UNKNOWN:
+                    job["status"] = "UNKNOWN"
+
+    # -------- print --------
+
+    first = True
+    for jid in order:
+
+        if not first:
+            print("------------------------------------------------")
+
+        print_job(jobs[jid])
+        first = False
+
+if __name__ == "__main__":
+    main()
