@@ -417,7 +417,7 @@ struct hData *initHData(struct hData *hData)
     hData->numCPUs = 1;
     hData->hostType = NULL;
     hData->sbdFail = 0;
-    hData->hStatus = HOST_STAT_OK;
+    hData->hStatus = HOST_STAT_UNREACH;
     hData->uJobLimit = INFINIT_INT;
     hData->uAcct = NULL;
     hData->maxJobs = INFINIT_INT;
@@ -773,34 +773,9 @@ static void addHost(struct hostInfo *hI, struct hData *hD, char *filename,
         hData->busySched[i] = 0;
     }
     hData->flags |= HOST_UPDATE;
-
-    if (hD->windows) {
-        char *sp = hD->windows;
-
-        hData->windows = safeSave(hD->windows);
-        *(hData->windows) = '\0';
-        while ((word = getNextWord_(&sp)) != NULL) {
-            char *save;
-            save = safeSave(word);
-            if (addWindow(word, hData->week, hD->host) < 0) {
-                ls_syslog(LOG_ERR, "%s: Bad time expression <%s>; ignored.",
-                          fname, word);
-                lsb_CheckError = WARNING_ERR;
-                freeWeek(hData->week);
-                free(save);
-                continue;
-            }
-            hData->windEdge = now;
-            if (*(hData->windows) != '\0')
-                strcat(hData->windows, " ");
-            strcat(hData->windows, save);
-            free(save);
-        }
-    } else {
-        hData->windEdge = 0;
-        hData->hStatus = HOST_STAT_OK;
-    }
-
+    hData->windEdge = 0;
+    // LavaLite start unreach before sbd register
+    hData->hStatus = HOST_STAT_UNREACH;
     hData->limStatus = (int *) my_malloc(
         (1 + GET_INTNUM(allLsInfo->numIndx)) * sizeof(int), fname);
     for (i = 0; i < 1 + GET_INTNUM(allLsInfo->numIndx); i++)
