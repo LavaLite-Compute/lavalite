@@ -788,7 +788,7 @@ void sbd_prune_acked_jobs(void)
 
         assert(job->exit_status_valid == true);
 
-        if ((now - job->time_finish_acked) < SECS_PER_MIN * 2) {
+        if ((now - job->time_finish_acked) < SECS_PER_HOUR) {
             e = e2;
             continue;
         }

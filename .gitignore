@@ -62,6 +62,8 @@ bswitch
 btop
 busers
 read_shared
+stdout.*
+stderr.*
 # Ignore binary daemons
 .libs/*
 src/lsf/lim/lim
