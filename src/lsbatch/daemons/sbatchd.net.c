@@ -355,7 +355,7 @@ int sbd_job_execute(int chan_fd, struct sbd_job *job)
     chan_set_write_interest(sbd_mbd_chan, true);
 
     LS_INFO("job=%ld pid=%d pgid=%d op=%s user=%s cwd=%s",
-            job->job_id, job->specs.jobPid, job->specs.jobPGid,
+            job->job_id, job->pid, job->pgid,
 	    mbd_op_str(BATCH_JOB_EXECUTE), job->exec_user,
 	    job->specs.cwd);
 

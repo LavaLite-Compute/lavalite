@@ -710,7 +710,7 @@ static void sbd_reap_children(void)
         job->exit_status_valid = true;
         job->end_time = time(NULL);
 
-        LS_INFO("job %ld finished pid=%d exit_status=0x%x",
+        LS_INFO("job=%ld finished pid=%d exit_status=0x%x",
                 job->job_id, (int)pid, job->exit_status);
     }
 }
@@ -752,6 +752,10 @@ static void job_status_checking(void)
             job->time_finish_acked = now;
             job->exit_status_valid = true;
             job->exit_status = 1;
+            LS_ERR("job=%ld sbd_read_exit_status_file %d time declare exited "
+                   "exit_status_valid=%d exit_stats=0x%x", job->job_id,
+                   job->retry_exit_count, job->exit_status_valid,
+                   job->exit_status);
             continue;
         }
 
@@ -759,6 +763,8 @@ static void job_status_checking(void)
         job->time_finish_acked = now;
         job->exit_status_valid = true;
         job->exit_status = exit_code;
+        LS_ERR("job=%ld read exit file exit_status_valid=%d exit_stats=0x%x",
+               job->job_id, job->exit_status_valid, job->exit_status);
     }
 }
 

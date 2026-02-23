@@ -277,13 +277,9 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
 
     int current_status = job->jStatus;
 
-    LS_INFO("operation %s job %s from %s current=0x%x incoming=0x%x exit=%d",
-            mbd_op_str(hdr->operation),
-            lsb_jobid2str(status_req.jobId),
-            host_name,
-            current_status,
-            status_req.newStatus,
-            status_req.exitStatus);
+    LS_INFO("operation=%s job=%ld from=%s current=0x%x incoming=0x%x exit=%d",
+            mbd_op_str(hdr->operation), status_req.jobId, host_name,
+            current_status, status_req.newStatus, status_req.exitStatus);
 
     // Duplicate FINISH: normal (resend/replay). ACK always.
     if (job->endTime > 0
@@ -338,12 +334,10 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
 
     updCounters(job, current_status, job->endTime);
 
-    LS_INFO("job %s FINISH commit %s (current=0x%x new=0x%x) from %s",
-            lsb_jobid2str(status_req.jobId),
+    LS_INFO("job %ld commit %s (current=0x%x new=0x%x)",
+            status_req.jobId,
             (job->jStatus & JOB_STAT_DONE) ? "DONE" : "EXIT",
-            current_status,
-            job->jStatus,
-            host_name);
+            current_status, job->jStatus);
 
 send_ack:
         struct job_status_ack ack;

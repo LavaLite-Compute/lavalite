@@ -355,7 +355,7 @@ int sbd_job_state_write(struct sbd_job *job)
     }
 
     // exact copy of what is printed in the buffer
-    LS_INFO("job %ld state written pid=%d pgid=%d pid_acked=%d "
+    LS_INFO("job=%ld pid=%d pgid=%d pid_acked=%d "
             "execute_acked=%d finish_acked=%d exit_status_valid=%d "
             "exit_status=%d end_time=%ld exec_cwd=%s exec_home=%s "
             "exec_uid=%d exec_user=%s jobfile=%s",
@@ -427,6 +427,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
     if (!fp)
         return -1;
 
+    bool_t got_job_id = false;
     char line[LL_BUFSIZ_512];
     while (fgets(line, sizeof(line), fp) != NULL) {
         char *eq = strchr(line, '=');
@@ -450,6 +451,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
 
         if (strcmp(key, "job_id") == 0) {
             job->job_id = (int64_t)strtoll(val, NULL, 10);
+            got_job_id = true;
             continue;
         }
 
@@ -524,14 +526,16 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
         }
 
         if (strcmp(key, "time_finish_acked") == 0) {
-            job->time_pid_acked = atol(val);
+            job->time_finish_acked = atol(val);
             continue;
         }
     }
 
     fclose(fp);
 
-    if (version != 1) {
+    if (version != 1 || got_job_id == false) {
+        LS_ERRX("wrong version %d or we did not get the job_id=%ld?",
+                version, job->job_id);
         errno = EINVAL;
         return -1;
     }
@@ -554,11 +558,14 @@ int sbd_read_exit_status_file(struct sbd_job *job,
     }
 
     int fd = open(path, O_RDONLY);
-    if (fd < 0)
+    if (fd < 0) {
+        LS_ERR("job=%d open=%s failed", job->job_id, path);
         return -1;
-
+    }
     char buf[LL_BUFSIZ_128];
-    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    ssize_t n = read(fd, buf, sizeof(buf) - 1); {
+        LS_ERR("job=%d read %d failed", job->job_id, n);
+    }
     close(fd);
 
     if (n <= 0)
@@ -567,8 +574,10 @@ int sbd_read_exit_status_file(struct sbd_job *job,
     buf[n] = 0;
     int code;
     int64_t ts;
-    if (sscanf(buf, "%d %ld", &code, &ts) != 2)
+    if (sscanf(buf, "%d %ld", &code, &ts) != 2) {
+        LS_ERR("job=%ld sscanf failed");
         return -1;
+    }
 
     if (exit_code)
         *exit_code = code;

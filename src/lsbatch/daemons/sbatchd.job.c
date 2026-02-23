@@ -604,7 +604,7 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 
     job->finish_acked = true;
     job->time_finish_acked = time(NULL);
-    LS_INFO("job=%ld pid=%d pgid=%d BATCH_JOB_FINISH acked by mbd; cleaning up",
+    LS_INFO("job=%ld pid=%d pgid=%d BATCH_JOB_FINISH acked by mbd",
             job->job_id, job->pid, job->pgid);
 
     // write the acked
@@ -788,7 +788,14 @@ void sbd_prune_acked_jobs(void)
 
         assert(job->exit_status_valid == true);
 
-        if ((now - job->time_finish_acked) < SECS_PER_HOUR) {
+        if (job->time_finish_acked <= 0) {
+            LS_ERRX("job=%ld state finish_acked=1 but time_finish_acked=%ld",
+                    job->job_id, job->time_finish_acked);
+            e = e2;
+            continue;
+        }
+
+        if ((now - job->time_finish_acked) < SECS_PER_DAY) {
             e = e2;
             continue;
         }

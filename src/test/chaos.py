@@ -71,19 +71,26 @@ def is_up(kind):
     name = PROC_NAMES[kind]
     return len(list_pids_by_name(name)) > 0
 
-
 def kill_one(kind):
     name = PROC_NAMES[kind]
     pids = list_pids_by_name(name)
     if not pids:
         return False
-    pid = random.choice(pids)
-    try:
-        os.kill(pid, signal.SIGKILL)
-    except ProcessLookupError:
-        return False
-    return True
 
+    pid = random.choice(pids)
+
+    # Use sudo to kill root-owned daemons while staying unprivileged overall
+    if sudo_kill(pid):
+        return True
+
+    # If it raced / pid vanished, treat as “not killed” (same semantics as before)
+    # You can optionally print stderr when verbose.
+    return False
+
+def sudo_kill(pid):
+    # -n = non-interactive (fail instead of prompting for password)
+    cp = run(["sudo", "-n", "kill", "-9", str(pid)], timeout=DEFAULT_TIMEOUT)
+    return cp.returncode == 0
 
 def submit_one(queue, cmd):
     cp = must_run(
@@ -103,9 +110,7 @@ def submit_one(queue, cmd):
 
 
 def main():
-    if os.geteuid() != 0:
-        raise SystemExit("chaos: must be run as root")
-
+# must have LSF_ENVDIR
     envdir = os.environ.get("LSF_ENVDIR", "").strip()
     if not envdir:
         raise SystemExit("chaos: $LSF_ENVDIR is not set")
@@ -125,11 +130,16 @@ def main():
                     help="Comma list: lim,mbd,sbd")
     ap.add_argument("--sample", type=int, default=0,
                     help="Verify/print only last N jobids (0 = all)")
-    ap.add_argument("-v", "--verbose", action="store_true",
-                    help="Progress + submit/kill/skip lines")
+    ap.add_argument("-v", "--verbose", action="store_true", default=True)
+    ap.add_argument("-q", "--quiet", action="store_true",
+                    help="Disable progress output")
     ap.add_argument("--bhist", action="store_true",
                     help="At end, run bhist and print output for verified jobs")
     args = ap.parse_args()
+
+    # run in quite mode
+    if args.quiet:
+        args.verbose = False
 
     # Parse kinds (KISS)
     kinds = []

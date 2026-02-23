@@ -1488,6 +1488,9 @@ void log_newstatus(struct jData *job)
         now = time(0);
         job->endTime = now;
     }
+    LS_ERRX("Enter jid=%ld job->jStatus=0x%x event.jStatus=0x%x",
+            job->jobId,  job->jStatus, logPtr->eventLog.jobStatusLog.jStatus);
+
     logPtr->type = EVENT_JOB_STATUS;
     logPtr->eventLog.jobStatusLog.jobId = LSB_ARRAY_JOBID(job->jobId);
     logPtr->eventLog.jobStatusLog.idx = LSB_ARRAY_IDX(job->jobId);
@@ -1507,10 +1510,16 @@ void log_newstatus(struct jData *job)
 
     logPtr->eventLog.jobStatusLog.jStatus &= MASK_INT_JOB_STAT;
 
+    LS_ERRX("before puteventrec jid=%ld job->jStatus=0x%x event.jStatus=0x%x",
+            job->jobId,  job->jStatus, logPtr->eventLog.jobStatusLog.jStatus);
+
     if (putEventRec((char *)__func__) < 0) {
         LS_ERR("failed processing putEventRec() job=%s ", lsb_jobid2str(job->jobId));
         mbdDie(MASTER_FATAL);
     }
+    LS_ERRX("after puteventrec jid=%ld job->jStatus=0x%x",
+            job->jobId,  job->jStatus);
+
     if (job->jStatus & JOB_STAT_DONE ||
         (job->jStatus & JOB_STAT_EXIT && !(job->jStatus & JOB_STAT_ZOMBIE))) {
         if (((IS_POST_DONE(job->jStatus)) || (IS_POST_ERR(job->jStatus))) &&
@@ -2074,6 +2083,10 @@ int switch_log(void)
     long pos;
     int preserved = FALSE;
     int totalEventFile;
+
+    // LavaLite do not switch
+    LS_ERRX("lavalite does not switch");
+    return 0;
 
     sprintf(tmpfn, "%s/lsb.events", lsbParams[LSB_SHAREDIR].paramValue);
     LS_INFO("switching event log file: %s", tmpfn);
