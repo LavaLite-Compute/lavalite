@@ -32,6 +32,6 @@ Begin Resource
 RESOURCENAME  TYPE     INTERVAL  INCREASING  DESCRIPTION
    fs         Boolean  ()        ()          (File server)
    cs         Boolean  ()        ()          (Compute server)
-End Resources
+End Resource
 
 
