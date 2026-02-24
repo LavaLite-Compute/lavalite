@@ -37,7 +37,7 @@ static void job_finish_drive(void);
 static void job_execute_drive(void);
 static void sbd_mbd_reconnect_try(void);
 static bool_t sbd_drive_mbd_link(int, struct epoll_event *);
-static bool_t sbd_pid_alive(pid_t);
+static bool_t sbd_pid_alive(struct sbd_job *);
 static void sbd_cleanup(void);
 
 // List and table of all jobs
@@ -208,23 +208,6 @@ static int sbd_init(const char *sbatch)
 static void
 sbd_run_daemon(void)
 {
-     /*
-     * One-time status reconciliation after restart.
-     *
-     * After reloading job states from disk, some jobs may have already
-     * finished while sbd was down. In that case their PIDs are no longer
-     * alive, but their final status (DONE vs EXIT) has not yet been derived.
-     *
-     * job_status_checking() performs this reconciliation:
-     *   - detects jobs whose PID is no longer alive,
-     *   - reads the sidecar exit-status file written by the job wrapper,
-     *   - sets exit_status / exit_status_valid,
-     *   - derives JOB_STAT_DONE or JOB_STAT_EXIT in job->spec.jStatus.
-     *
-     * This must run once before entering the main loop so that
-     * job_finish_drive() never attempts to enqueue a FINISH message for
-     * a job whose final status has not been decided yet.
-     */
     job_status_checking();
 
     LS_INFO("sbd enter main loop");
@@ -508,9 +491,7 @@ static void sbd_init_log(void)
         ls_openlog("sbd", log_dir, false, 0, log_mask);
     }
 
-    // tag the log messages as we share on log file with
-    // children
-    ls_setlogtag("parent");
+    ls_setlogtag("");
 
     LS_INFO("sbd logging initialized: dir=%s mask=%s debug=%d",
             log_dir, log_mask, debug);
@@ -698,7 +679,7 @@ static void sbd_reap_children(void)
 
         // this should impossible
         if (job->pid != pid) {
-            LS_ERR("job %ld pid mismatch: job->pid=%d waitpid=%d",
+            LS_ERR("job=%ld pid mismatch: job->pid=%d waitpid=%d",
                    job->job_id, (int)job->pid, (int)pid);
             assert(0);
             continue;
@@ -710,7 +691,7 @@ static void sbd_reap_children(void)
         job->exit_status_valid = true;
         job->end_time = time(NULL);
 
-        LS_INFO("job=%ld finished pid=%d exit_status=0x%x",
+        LS_INFO("job=%ld reaped pid=%d exit_status=0x%x",
                 job->job_id, (int)pid, job->exit_status);
     }
 }
@@ -732,10 +713,13 @@ static void job_status_checking(void)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *)e;
 
+        if (job->exit_status_valid)
+            continue;
+
         if (job->finish_acked > 0)
             continue;
 
-        if (sbd_pid_alive(job->pid))
+        if (sbd_pid_alive(job))
             continue;
 
         int exit_code;
@@ -763,8 +747,8 @@ static void job_status_checking(void)
         job->time_finish_acked = now;
         job->exit_status_valid = true;
         job->exit_status = exit_code;
-        LS_ERR("job=%ld read exit file exit_status_valid=%d exit_stats=0x%x",
-               job->job_id, job->exit_status_valid, job->exit_status);
+        LS_ERRX("job=%ld read exit file exit_status_valid=%d exit_stats=0x%x",
+                job->job_id, job->exit_status_valid, job->exit_status);
     }
 }
 
@@ -805,10 +789,10 @@ static void job_new_drive(void)
         reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
 
         if (sbd_job_new_reply(sbd_mbd_chan, job, &reply) < 0) {
-            LS_ERR("job %ld sbd_job_new_reply enqueue failed", job->job_id);
+            LS_ERR("job=%ld sbd_job_new_reply enqueue failed", job->job_id);
             continue;
         }
-        LS_INFO("job %ld", job->job_id);
+        LS_INFO("job=%ld", job->job_id);
 
         job->reply_last_send = now;
     }
@@ -829,7 +813,7 @@ static void job_execute_drive(void)
         struct sbd_job *job = (struct sbd_job *)e;
 
         if (!job->pid_acked) {
-            LS_DEBUG("job %ld not ready: pid not acked yet", job->job_id);
+            LS_DEBUG("job=%ld not ready: pid not acked yet", job->job_id);
             continue;
         }
 
@@ -841,11 +825,11 @@ static void job_execute_drive(void)
         }
 
         if (sbd_job_execute(sbd_mbd_chan, job) < 0) {
-            LS_ERR("job %ld enqueue BATCH_JOB_EXECUTE failed", job->job_id);
+            LS_ERR("job=%ld enqueue BATCH_JOB_EXECUTE failed", job->job_id);
             continue;
         }
 
-        LS_INFO("job %ld BATCH_JOB_EXECUTE enqueued", job->job_id);
+        LS_INFO("job=%ld BATCH_JOB_EXECUTE enqueued", job->job_id);
 
         // after persist
         job->execute_last_send = now;
@@ -884,11 +868,11 @@ static void job_finish_drive(void)
 
         int cc = sbd_job_finish(sbd_mbd_chan, job);
         if (cc < 0) {
-            LS_WARNING("job %ld finish enqueue failed", job->job_id);
+            LS_WARNING("job=%ld finish enqueue failed", job->job_id);
             continue;
         }
 
-        LS_INFO("job %ld BATCH_JOB_FINISH enqueued", job->job_id);
+        LS_INFO("job=%ld BATCH_JOB_FINISH enqueued", job->job_id);
 
         job->finish_last_send = now;
     }
@@ -908,18 +892,33 @@ static struct sbd_job *sbd_find_job_by_pid(pid_t pid)
     return NULL;
 }
 
-static bool_t sbd_pid_alive(pid_t pid)
+static bool_t
+sbd_pid_alive(struct sbd_job *job)
 {
-    if (pid <= 0)
-        return false;
+    pid_t target;
 
-    if (kill(pid, 0) == 0)
+    if (job->pgid > 1)
+        target = -job->pgid;     // probe process group
+    else if (job->pid > 1)
+        target = job->pid;       // fallback
+    else
+        return true;             // unknown -> do not claim dead
+
+    if (kill(target, 0) == 0)
         return true;
 
-    if (errno == EPERM)
-        return true;   // exists, just not permitted
+    int err = errno;
+    LS_DEBUG("job=%ld pid=%d pgid=%d target=%d errno=%d %s",
+             job->job_id, job->pid, job->pgid, target,
+             err, strerror(err));
 
-    return false; // ESRCH or other -> treat as not alive
+    if (err == ESRCH)
+        return false;
+
+    if (err == EPERM)
+        return true;
+
+    return true;                 // not proof of death
 }
 
 // sbd_init() failed so as a good coding hygiene we clean up file

@@ -71,6 +71,7 @@ def is_up(kind):
     name = PROC_NAMES[kind]
     return len(list_pids_by_name(name)) > 0
 
+
 def kill_one(kind):
     name = PROC_NAMES[kind]
     pids = list_pids_by_name(name)
@@ -87,10 +88,12 @@ def kill_one(kind):
     # You can optionally print stderr when verbose.
     return False
 
+
 def sudo_kill(pid):
     # -n = non-interactive (fail instead of prompting for password)
     cp = run(["sudo", "-n", "kill", "-9", str(pid)], timeout=DEFAULT_TIMEOUT)
     return cp.returncode == 0
+
 
 def submit_one(queue, cmd):
     cp = must_run(
@@ -110,7 +113,9 @@ def submit_one(queue, cmd):
 
 
 def main():
-# must have LSF_ENVDIR
+    start_ts = time.time()
+
+    # must have LSF_ENVDIR
     envdir = os.environ.get("LSF_ENVDIR", "").strip()
     if not envdir:
         raise SystemExit("chaos: $LSF_ENVDIR is not set")
@@ -244,9 +249,11 @@ def main():
         # bacct may legitimately not have it yet; do not hard-fail.
         run(BACCT + [str(jid)], timeout=10.0)
 
+    elapsed = time.time() - start_ts
+
     print(
         f"chaos: done (submitted {len(jobids)} jobs, killed {kills}, "
-        f"skipped {skipped}, bhist_fail={bad})"
+        f"skipped {skipped}, bhist_fail={bad}, wallclock={elapsed:.3f}s)"
     )
 
     if bad != 0:

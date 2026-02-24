@@ -103,19 +103,19 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
     assert(job->exec_cwd[0] != 0);
 
     if (make_job_dir(job) < 0) {
-        LS_ERR("failed to make working dir for job %ld", job->job_id);
+        LS_ERR("job=%ld failed to make working dir", job->job_id);
         free(job);
         return NULL;
     }
 
     if (materialize_jobfile(job) < 0) {
-        LS_ERR("job %ld materialize jobfile failed", job->job_id);
+        LS_ERR("job=%ld materialize jobfile failed", job->job_id);
         free(job);
         return NULL;
     }
 
     if (make_job_state_dir(job) < 0) {
-        LS_ERR("job %ld make job state dir failed", job->job_id);
+        LS_ERR("job=%ld make job state dir failed", job->job_id);
         free(job);
         return NULL;
     }
@@ -139,7 +139,7 @@ struct sbd_job *sbd_job_create(const struct jobSpecs *spec)
 static int build_runtime_spec(struct sbd_job *job)
 {
     if (job->specs.userName[0] == 0) {
-        LS_ERR("job %ld missing exec_user (bug)",
+        LS_ERR("job=%ld missing exec_user (bug)",
                job->job_id);
         errno = EINVAL;
         return -1;
@@ -147,7 +147,7 @@ static int build_runtime_spec(struct sbd_job *job)
 
     // subHomeDir is required to decode home-relative cwd encodings
     if (job->specs.subHomeDir[0] == 0) {
-        LS_ERR("job %ld missing subHomeDir (bug)",
+        LS_ERR("job=%ld missing subHomeDir (bug)",
                job->job_id);
         errno = EINVAL;
         return -1;
@@ -162,7 +162,7 @@ static int build_runtime_spec(struct sbd_job *job)
     if (cwd[0] == 0) {
         n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", home);
         if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
-            LS_ERR("job %ld exec_cwd overflow for home=%s (bug)",
+            LS_ERR("job=%ld exec_cwd overflow for home=%s (bug)",
                    job->job_id, home);
             errno = ENAMETOOLONG;
             return -1;
@@ -172,7 +172,7 @@ static int build_runtime_spec(struct sbd_job *job)
         // Absolute cwd: use as-is
         n = snprintf(job->exec_cwd, sizeof(job->exec_cwd), "%s", cwd);
         if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
-            LS_ERR("job %ld exec_cwd overflow for cwd=%s (bug)",
+            LS_ERR("job=%ld exec_cwd overflow for cwd=%s (bug)",
                    job->job_id, cwd);
             errno = ENAMETOOLONG;
             return -1;
@@ -183,7 +183,7 @@ static int build_runtime_spec(struct sbd_job *job)
         n = snprintf(job->exec_cwd, sizeof(job->exec_cwd),
                      "%s/%s", home, cwd);
         if (n < 0 || n >= (int)sizeof(job->exec_cwd)) {
-            LS_ERR("job %ld exec_cwd overflow for home=%s cwd=%s (bug)",
+            LS_ERR("job=%ld exec_cwd overflow for home=%s cwd=%s (bug)",
                    job->job_id, home, cwd);
             errno = ENAMETOOLONG;
             return -1;
@@ -191,13 +191,14 @@ static int build_runtime_spec(struct sbd_job *job)
     }
 
     if (set_job_identity(job) < 0) {
-        LS_ERR("failed to set job %ld identity uid %d", job->job_id,
+        LS_ERR("failed to set job=%ld identity uid %d", job->job_id,
                job->specs.userId);
         return -1;
     }
 
     ll_strlcpy(job->exec_home, home, PATH_MAX);
     ll_strlcpy(job->jobfile, job->specs.job_file, PATH_MAX);
+    ll_strlcpy(job->command, job->specs.command, LL_BUFSIZ_512);
 
     return 0;
 }
@@ -337,7 +338,7 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
         return;
     }
 
-    LS_DEBUG("operation=%s jobId=%ld job_file=%s",
+    LS_DEBUG("operation=%s job=%ld job_file=%s",
              mbd_op_str(req_hdr->operation), spec.jobId, spec.job_file);
 
     // 2) duplicate NEW_JOB? just echo our view
@@ -422,7 +423,7 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
     // presumed running at this stage
     int cc = sbd_job_new_reply(chan_fd, job, &reply);
     if (cc < 0) {
-        LS_ERR("job %ld enqueue jobReply failed", job->job_id);
+        LS_ERR("job=%ld enqueue jobReply failed", job->job_id);
         sbd_fatal(SBD_FATAL_OOM);
         return;
     }
@@ -448,7 +449,7 @@ void sbd_job_new_reply_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
 
     // check the status of the operation
     if (hdr->operation != BATCH_NEW_JOB_REPLY_ACK) {
-        LS_ERR("job %ld new_job_ack error rc=%d seq=%d",
+        LS_ERR("job=%ld new_job_ack error rc=%d seq=%d",
                ack.job_id, hdr->operation, ack.seq);
         // For now keep job around; retry policy later.
         return;
@@ -457,13 +458,13 @@ void sbd_job_new_reply_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
     // go and retrieve the job_id base in its hash
     struct sbd_job *job = find_job_by_jid(ack.job_id);
     if (job == NULL) {
-        LS_WARNING("new_job_ack for unknown job %ld", ack.job_id);
+        LS_WARNING("new_job_ack for unknown job=%ld", ack.job_id);
         return;
     }
 
     // the sequence number is not used for now
     if (job->pid_acked == true) {
-        LS_DEBUG("job %ld duplicate pid ack (seq=%d)",
+        LS_DEBUG("job=%ld duplicate pid ack (seq=%d)",
                  job->job_id, ack.seq);
         return;
     }
@@ -479,16 +480,16 @@ void sbd_job_new_reply_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
     }
 
     if (sbd_go_write(job) < 0) {
-        LS_ERR("job %ld go file write failed", job->job_id);
+        LS_ERR("job=%ld go file write failed", job->job_id);
         sbd_mbd_shutdown();
         return;
     }
-    LS_INFO("job %ld go file written", job->job_id);
+    LS_INFO("job=%ld go file written", job->job_id);
     job->time_pid_acked = time(NULL);
 
     // PID/PGID acknowledged by mbd.
     // EXECUTE will be enqueued later by the main loop (job_execute_drive).
-    LS_INFO("job %ld pid=%d pgi=%d BATCH_JOB_REPLY acked by mbd", job->job_id,
+    LS_INFO("job=%ld pid=%d pgi=%d BATCH_JOB_REPLY acked by mbd", job->job_id,
             job->pid, job->pgid);
 
     assert(job->execute_acked == false);
@@ -705,7 +706,7 @@ static sbdReplyType spawn_job(struct sbd_job *job)
     // use posix_spawn
     pid_t pid = fork();
     if (pid < 0) {
-        LS_ERR("fork failed for job %ld", job->specs.jobId);
+        LS_ERR("fork failed for job=%ld", job->specs.jobId);
         return ERR_FORK_FAIL;
     }
 
@@ -724,7 +725,8 @@ static sbdReplyType spawn_job(struct sbd_job *job)
     job->pid = pid;
     job->pgid  = pid;
 
-    LS_INFO("spawned job=%ld pid=%d", job->job_id, job->pid);
+    LS_INFO("spawned job=%ld pid=%d jobfile=%s command=%s",
+            job->job_id, job->pid, job->jobfile, job->command);
 
     return ERR_NO_ERROR;
 }
@@ -800,7 +802,7 @@ void sbd_prune_acked_jobs(void)
             continue;
         }
 
-        LS_INFO("job %ld time expired clean now", job->job_id);
+        LS_INFO("job=%ld time expired clean now", job->job_id);
         sbd_job_cleanup_files(job);
         // job free is explicit as there are other ways
         // in which we traverse the list or pop from it
@@ -829,17 +831,17 @@ static void child_exec_job(struct sbd_job *job)
     specs->jobPid = getpid();
     specs->jobPGid = specs->jobPid;
 
-    LS_INFO("job %ld starting: command=<%s> job_file=<%s>",
-            job->job_id, specs->command, specs->job_file);
+    LS_INFO("job=%ld starting: command=<%s> job_file=<%s>",
+            job->job_id, job->command, job->jobfile);
 
     // Populate the job environment (LSB_*, user env, etc).
     if (set_job_env(job) < 0) {
-        LS_ERR("set job env failed for job %ld", job->job_id);
+        LS_ERR("set job env failed for job=%ld", job->job_id);
         _exit(127);
     }
 
     if (cd_work_dir(job) < 0) {
-        LS_ERR("job %ld failed to enter cwd %s (and /tmp fallback)",
+        LS_ERR("job=%ld failed to enter cwd %s (and /tmp fallback)",
                job->job_id, job->exec_cwd);
         _exit(127);
     }
@@ -859,14 +861,14 @@ static void child_exec_job(struct sbd_job *job)
 
     // Queue pre-exec hook (admin-side).
     if (run_qpre(specs) < 0) {
-        LS_ERR("qpre failed for job %ld", job->job_id);
+        LS_ERR("qpre failed for job=%ld", job->job_id);
         _exit(127);
     }
 
     // User pre-exec hook (submission-side).
     if ((specs->options & SUB_PRE_EXEC) != 0) {
         if (run_upre(specs) < 0) {
-            LS_ERR("upre failed for job %ld", job->job_id);
+            LS_ERR("upre failed for job=%ld", job->job_id);
             _exit(127);
         }
     }
@@ -893,7 +895,7 @@ static void child_exec_job(struct sbd_job *job)
 
     execv(argv[0], argv);
 
-    LS_ERR("job %ld execv(%s) failed", job->job_id, argv[0]);
+    LS_ERR("job=%ld execv(%s) failed", job->job_id, argv[0]);
     _exit(127);
 }
 
@@ -902,9 +904,9 @@ static int make_job_dir(struct sbd_job *job)
     char job_dir[PATH_MAX];
 
     int l = snprintf(job_dir, sizeof(job_dir),
-                     "%s/%s", sbd_job_dir, job->specs.job_file);
+                     "%s/%s", sbd_job_dir, job->jobfile);
     if (l < 0 || l >= (size_t)sizeof(job_dir)) {
-        LS_ERR("job %ld job_dir too long", job->job_id);
+        LS_ERR("job=%ld job_dir too long", job->job_id);
         return -1;
     }
 
@@ -1002,7 +1004,7 @@ static int set_job_env(const struct sbd_job *job)
         return -1;
 
     char val[LL_BUFSIZ_64];
-    snprintf(val, sizeof(val), "%ld", (long)specs->jobId);
+    snprintf(val, sizeof(val), "%ld", specs->jobId);
     if (setenv("LSB_JOBID", val, 1) < 0)
         return -1;
 
@@ -1017,15 +1019,22 @@ static int set_job_env(const struct sbd_job *job)
     if (setenv("LSB_JOBDIR", jobdir, 1) < 0)
         return -1;
 
+    if (setenv("LSF_ENVDIR", getenv("LSF_ENVDIR"), 1) < 0)
+        return -1;
+
     if (setenv("LSB_QUEUE", specs->queue, 1) < 0)
         return -1;
 
     if (setenv("LSB_JOBNAME", specs->jobName, 1) < 0)
         return -1;
 
-    snprintf(val, sizeof(val), "%ld", (long)getpid());
+    snprintf(val, sizeof(val), "%d", job->pid);
     if (setenv("LSB_JOBPID", val, 1) < 0)
         return -1;
+
+    LS_DEBUG("LSB_JOBID=%ld LSB_JOBPID=%d LSB_SUB_HOST=%s LSB_JOBDIR=%s "
+             " LSB_QUEUE=%s LSB_JOBNAME=%s", job->job_id, job->pid,
+             specs->fromHost, jobdir, specs->queue, specs->jobName);
 
     for (int i = 0; i < specs->numEnv; i++) {
         const char *e = specs->env[i];

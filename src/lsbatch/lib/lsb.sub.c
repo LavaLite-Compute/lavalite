@@ -203,13 +203,6 @@ int64_t lsb_submit(struct submit *jobSubReq, struct submitReply *submitRep)
     if (getCommonParams(jobSubReq, &submitReq, submitRep) < 0)
         return -1;
 
-    if ((lsbParams[LSB_INTERACTIVE_STDERR].paramValue != NULL) &&
-        (strcasecmp(lsbParams[LSB_INTERACTIVE_STDERR].paramValue, "y") == 0)) {
-        if (putEnv("LSF_INTERACTIVE_STDERR", "y") < 0) {
-            ls_syslog(LOG_ERR, "%s: %s(%s) failed", fname, "putenv");
-        }
-    }
-
     struct lsfAuth auth;
     if (authTicketTokens_(&auth, NULL) == -1) {
         return -1;
@@ -2713,7 +2706,6 @@ static int checkLimit(int limit, int factor)
 
 int runBatchEsub(struct lenData *ed, struct submit *jobSubReq)
 {
-    static char fname[] = "runBatchEsub";
 
     char *subRLimitName[LSF_RLIM_NLIMITS] = {
         "LSB_SUB_RLIMIT_CPU",    "LSB_SUB_RLIMIT_FSIZE",
@@ -3034,8 +3026,6 @@ int runBatchEsub(struct lenData *ed, struct submit *jobSubReq)
     putEnv("LSB_SUB_PARM_FILE", parmFile);
 
     if ((cc = runEsub_(ed, NULL)) < 0) {
-        if (logclass & LC_TRACE)
-            ls_syslog(LOG_DEBUG, "%s: runEsub_() failed %d: %M", fname, cc);
         if (cc == -2) {
             char *deltaFileName = NULL;
             struct stat stbuf;
@@ -3600,14 +3590,12 @@ void modifyJobInformation(struct submit *jobSubReq)
                                                &jobSubReq->numAskedHosts,
                                                &badIdx, false) < 0) {
                                 jobSubReq->options &= ~SUB_HOST;
-                                ls_syslog(LOG_WARNING, ls_sysmsg());
                             } else {
                                 jobSubReq->options |= SUB_HOST;
                             }
                         }
                         break;
                     default:
-                        ls_syslog(LOG_WARNING, MSG_BAD_ENVAR2s, fname, key);
                         break;
                     }
                     break;
@@ -3615,7 +3603,6 @@ void modifyJobInformation(struct submit *jobSubReq)
             }
 
             if (!validKey) {
-                ls_syslog(LOG_WARNING, MSG_BAD_ENVAR2s, fname, key);
             }
         }
         fclose(fp);
@@ -4364,7 +4351,6 @@ static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
         return -1;
     }
 
-    // Job execution body
     if (ll_buf_append_job_go_gate(&b) < 0
         || ll_buf_append_str(&b, CMDSTART) < 0
         || ll_buf_append_str(&b, jobSubReq->command) < 0
@@ -4380,29 +4366,14 @@ static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
     return 0;
 }
 
-static int ll_buf_append_job_exit_tail(struct ll_buf *b)
+static int
+ll_buf_append_job_exit_tail(struct ll_buf *b)
 {
     if (ll_buf_append_str(b, "\nExitStat=$?\n") < 0)
         return -1;
 
-    if (ll_buf_append_str(b, "timestamp=$(date +%s)\n") < 0)
-        return -1;
-
     if (ll_buf_append_str(b,
-        "out=\"$LSB_JOBDIR/exit\"\n") < 0)
-        return -1;
-
-    if (ll_buf_append_str(b,
-        "tmp=\"$LSB_JOBDIR/.exit.$$\"\n") < 0)
-        return -1;
-
-    if (ll_buf_append_str(b,
-        "(umask 077; echo \"$ExitStat $timestamp\" > \"$tmp\") && "
-        "mv -f \"$tmp\" \"$out\"\n") < 0)
-        return -1;
-
-    if (ll_buf_append_str(b,
-        "rm -f \"$tmp\" 2>/dev/null || true\n") < 0)
+        "echo \"$ExitStat $(date +%s)\" > \"$LSB_JOBDIR/exit\"\n") < 0)
         return -1;
 
     if (ll_buf_append_str(b, "exit $ExitStat\n") < 0)

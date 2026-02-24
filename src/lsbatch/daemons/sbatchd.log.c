@@ -285,11 +285,11 @@ int sbd_job_state_write(struct sbd_job *job)
                      job->pid,
                      job->pgid,
                      pid_acked,
-                     (long)job->time_pid_acked,
+                     job->time_pid_acked,
                      execute_acked,
-                     (long)job->time_execute_acked,
+                     job->time_execute_acked,
                      finish_acked,
-                     (long)job->time_finish_acked,
+                     job->time_finish_acked,
                      exit_status_valid,
                      job->exit_status,
                      job->end_time,
@@ -298,7 +298,6 @@ int sbd_job_state_write(struct sbd_job *job)
                      job->exec_uid,
                      job->exec_user,
                      job->jobfile);
-
     if (n < 0) {
         errno = EINVAL;
         LS_ERRX("job %ld state format failed", job->job_id);
@@ -559,12 +558,13 @@ int sbd_read_exit_status_file(struct sbd_job *job,
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
-        LS_ERR("job=%d open=%s failed", job->job_id, path);
+        LS_ERR("job=%ld open=%s failed", job->job_id, path);
         return -1;
     }
     char buf[LL_BUFSIZ_128];
-    ssize_t n = read(fd, buf, sizeof(buf) - 1); {
-        LS_ERR("job=%d read %d failed", job->job_id, n);
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    if (n < 0) {
+        LS_ERR("job=%ld read=%ld failed", job->job_id, n);
     }
     close(fd);
 
@@ -575,7 +575,7 @@ int sbd_read_exit_status_file(struct sbd_job *job,
     int code;
     int64_t ts;
     if (sscanf(buf, "%d %ld", &code, &ts) != 2) {
-        LS_ERR("job=%ld sscanf failed");
+        LS_ERR("job=%ld sscanf failed", job->job_id);
         return -1;
     }
 

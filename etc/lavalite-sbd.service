@@ -14,7 +14,8 @@ Environment=LSF_ENVDIR=/opt/lavalite/etc
 # Use stable symlink path: /opt/lavalite -> /opt/lavalite-<version>
 ExecStart=/opt/lavalite/sbin/sbd
 
-KillMode=control-group
+# Jobs must outlive sbd restarts. Do not change to control-group.
+KillMode=process
 GuessMainPID=no
 Restart=on-failure
 RestartSec=3
