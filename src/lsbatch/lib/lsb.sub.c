@@ -4276,7 +4276,6 @@ static int ll_buf_append_sh_export(struct ll_buf *b, const char *name,
 }
 
 static int ll_buf_append_job_exit_tail(struct ll_buf *);
-static int ll_buf_append_job_go_gate(struct ll_buf *);
 
 static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
 {
@@ -4351,8 +4350,7 @@ static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
         return -1;
     }
 
-    if (ll_buf_append_job_go_gate(&b) < 0
-        || ll_buf_append_str(&b, CMDSTART) < 0
+    if (ll_buf_append_str(&b, CMDSTART) < 0
         || ll_buf_append_str(&b, jobSubReq->command) < 0
         || ll_buf_append_job_exit_tail(&b) < 0) {
         lsberrno = LSBE_NO_MEM;
@@ -4377,21 +4375,6 @@ ll_buf_append_job_exit_tail(struct ll_buf *b)
         return -1;
 
     if (ll_buf_append_str(b, "exit $ExitStat\n") < 0)
-        return -1;
-
-    return 0;
-}
-
-static int ll_buf_append_job_go_gate(struct ll_buf *b)
-{
-    if (ll_buf_append_str(b,
-        "go=\"$LSB_JOBDIR/go\"\n") < 0)
-        return -1;
-
-    if (ll_buf_append_str(b,
-        "while [ ! -f \"$go\" ]; do\n"
-        "    sleep 1\n"
-        "done\n") < 0)
         return -1;
 
     return 0;

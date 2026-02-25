@@ -196,8 +196,6 @@ int sbd_job_state_read(struct sbd_job *, char *);
 int sbd_job_state_write(struct sbd_job *);
 int sbd_job_cleanup_files(struct sbd_job *);
 void sbd_prune_acked_jobs(void);
-int sbd_go_write(struct sbd_job *);
-
 
 // sbd has command to query its internal status
 int handle_sbd_accept(int);

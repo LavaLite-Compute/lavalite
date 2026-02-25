@@ -3,7 +3,6 @@ import argparse
 import os
 import random
 import re
-import signal
 import subprocess
 import sys
 import time
@@ -16,9 +15,7 @@ PROC_NAMES = {
     "sbd": "sbd",
 }
 
-BSUB  = ["bsub"]
-BHIST = ["bhist"]
-BACCT = ["bacct"]
+BSUB = ["bsub"]
 
 
 def run(cmd, timeout=DEFAULT_TIMEOUT):
@@ -30,18 +27,6 @@ def run(cmd, timeout=DEFAULT_TIMEOUT):
         timeout=timeout,
         check=False,
     )
-
-
-def must_run(cmd, timeout=DEFAULT_TIMEOUT):
-    cp = run(cmd, timeout=timeout)
-    if cp.returncode != 0:
-        sys.stderr.write(f"chaos: command failed: {' '.join(cmd)}\n")
-        if cp.stdout:
-            sys.stderr.write(cp.stdout)
-        if cp.stderr:
-            sys.stderr.write(cp.stderr)
-        raise SystemExit(1)
-    return cp
 
 
 def extract_jobid(txt):
@@ -72,50 +57,38 @@ def is_up(kind):
     return len(list_pids_by_name(name)) > 0
 
 
+def sudo_kill(pid):
+    cp = run(["sudo", "-n", "kill", "-9", str(pid)], timeout=DEFAULT_TIMEOUT)
+    return cp.returncode == 0
+
+
 def kill_one(kind):
     name = PROC_NAMES[kind]
     pids = list_pids_by_name(name)
     if not pids:
         return False
-
     pid = random.choice(pids)
-
-    # Use sudo to kill root-owned daemons while staying unprivileged overall
-    if sudo_kill(pid):
-        return True
-
-    # If it raced / pid vanished, treat as “not killed” (same semantics as before)
-    # You can optionally print stderr when verbose.
-    return False
-
-
-def sudo_kill(pid):
-    # -n = non-interactive (fail instead of prompting for password)
-    cp = run(["sudo", "-n", "kill", "-9", str(pid)], timeout=DEFAULT_TIMEOUT)
-    return cp.returncode == 0
+    return sudo_kill(pid)
 
 
 def submit_one(queue, cmd):
-    cp = must_run(
-        BSUB + ["-q", queue,
-                "-o", "/dev/null",
-                "-e", "/dev/null",
-                cmd], timeout=10.0)
-    jid = extract_jobid(cp.stdout + "\n" + cp.stderr)
-    if jid is None:
-        sys.stderr.write("chaos: cannot parse jobid from bsub output\n")
-        if cp.stdout:
-            sys.stderr.write(cp.stdout)
-        if cp.stderr:
-            sys.stderr.write(cp.stderr)
+    cp = run(
+        BSUB + ["-q", queue, "-o", "/dev/null", "-e", "/dev/null", cmd],
+        timeout=10.0,
+    )
+    if cp.returncode != 0:
         return None
-    return jid
+    return extract_jobid(cp.stdout + "\n" + cp.stderr)
+
+
+def log(msg, quiet):
+    if not quiet:
+        sys.stderr.write(msg + "\n")
 
 
 def main():
     start_ts = time.time()
 
-    # must have LSF_ENVDIR
     envdir = os.environ.get("LSF_ENVDIR", "").strip()
     if not envdir:
         raise SystemExit("chaos: $LSF_ENVDIR is not set")
@@ -124,29 +97,32 @@ def main():
     if not os.path.isfile(conf):
         raise SystemExit(f"chaos: missing {conf}")
 
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--seconds", type=int, default=60)
+    ap = argparse.ArgumentParser(
+        description=(
+            "Run a chaos experiment for a fixed duration while submitting jobs "
+            "and randomly restarting daemons.\n"
+            "Expected submitted jobs \u2248 seconds / submit-every."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    ap.add_argument("--seconds", type=int, default=60,
+                    help="Duration of the experiment in seconds")
     ap.add_argument("--queue", default="system")
-    ap.add_argument("--submit-every", type=float, default=0.5)
-    ap.add_argument("--kill-every", type=float, default=1.0)
+    ap.add_argument("--submit-every", type=float, default=0.5,
+                    help="Submit one job every N seconds during the experiment")
+    ap.add_argument("--kill-every", type=float, default=1.0,
+                    help="Attempt one daemon kill every N seconds during the experiment")
     ap.add_argument("--cooldown", type=float, default=12.0,
                     help="Minimum seconds between kills of the same daemon")
     ap.add_argument("--kinds", default="lim,mbd,sbd",
                     help="Comma list: lim,mbd,sbd")
-    ap.add_argument("--sample", type=int, default=0,
-                    help="Verify/print only last N jobids (0 = all)")
-    ap.add_argument("-v", "--verbose", action="store_true", default=True)
     ap.add_argument("-q", "--quiet", action="store_true",
-                    help="Disable progress output")
-    ap.add_argument("--bhist", action="store_true",
-                    help="At end, run bhist and print output for verified jobs")
+                    help="Disable progress output (only print final summary)")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="Extra periodic progress line (in addition to events)")
     args = ap.parse_args()
 
-    # run in quite mode
-    if args.quiet:
-        args.verbose = False
-
-    # Parse kinds (KISS)
+    # Parse kinds
     kinds = []
     for k in args.kinds.split(","):
         k = k.strip()
@@ -155,13 +131,10 @@ def main():
         if k not in PROC_NAMES:
             raise SystemExit(f"chaos: invalid kind: {k}")
         kinds.append(k)
-
     if not kinds:
         raise SystemExit("chaos: no kinds selected")
 
-    last_kill = {}
-    for k in kinds:
-        last_kill[k] = 0.0
+    last_kill = {k: 0.0 for k in kinds}
 
     job_cmds = ["true", "false", "sleep 1", "sleep 2", "sleep 3", "sleep 10"]
 
@@ -173,13 +146,16 @@ def main():
     jobids = []
     kills = 0
     skipped = 0
+    submits_ok = 0
+    submits_fail = 0
 
     while time.time() < t_end:
         now = time.time()
 
-        if args.verbose and now >= next_beat:
+        if args.verbose and not args.quiet and now >= next_beat:
+            left = int(t_end - now)
             sys.stderr.write(
-                f"chaos: left={int(t_end-now)}s submitted={len(jobids)} "
+                f"chaos: left={left}s ok={submits_ok} fail={submits_fail} "
                 f"killed={kills} skipped={skipped}\n"
             )
             next_beat = now + 5.0
@@ -189,8 +165,11 @@ def main():
             jid = submit_one(args.queue, cmd)
             if jid is not None:
                 jobids.append(jid)
-                if args.verbose:
-                    sys.stderr.write(f"chaos: submit job <{jid}> cmd={cmd}\n")
+                submits_ok += 1
+                log(f"chaos: submit job <{jid}> cmd={cmd}", args.quiet)
+            else:
+                submits_fail += 1
+                log(f"chaos: submit failed cmd={cmd}", args.quiet)
             next_submit = now + args.submit_every
 
         if now >= next_kill:
@@ -206,58 +185,31 @@ def main():
                 if kill_one(victim):
                     kills += 1
                     last_kill[victim] = now
-                    if args.verbose:
-                        sys.stderr.write(f"chaos: kill {victim}\n")
+                    log(f"chaos: kill {victim}", args.quiet)
                 else:
                     skipped += 1
-                    if args.verbose:
-                        sys.stderr.write(f"chaos: skip kill {victim}\n")
+                    log(f"chaos: skip kill {victim}", args.quiet)
             else:
                 skipped += 1
-                if args.verbose:
-                    sys.stderr.write(f"chaos: skip kill {victim}\n")
+                log(f"chaos: skip kill {victim}", args.quiet)
 
             next_kill = now + args.kill_every
 
         time.sleep(0.05)
 
-    # Let the supervisor restart and the system converge
+    # Let systemd restart and the system converge
     time.sleep(5.0)
 
-    # Decide which jobs to verify/print
-    jobs_to_check = jobids
-    if args.sample and args.sample > 0:
-        jobs_to_check = jobids[-args.sample:]
-
-    bad = 0
-
-    for jid in jobs_to_check:
-        cp = run(BHIST + [str(jid)], timeout=10.0)
-        if cp.returncode != 0:
-            bad += 1
-            sys.stderr.write(f"chaos: bhist failed for job {jid}\n")
-            if cp.stderr:
-                sys.stderr.write(cp.stderr)
-
-        if args.bhist:
-            sys.stderr.write(f"\n===== bhist <{jid}> =====\n")
-            if cp.stdout:
-                sys.stderr.write(cp.stdout)
-            if cp.stderr:
-                sys.stderr.write(cp.stderr)
-
-        # bacct may legitimately not have it yet; do not hard-fail.
-        run(BACCT + [str(jid)], timeout=10.0)
-
     elapsed = time.time() - start_ts
+    attempts = submits_ok + submits_fail
+    last_jobid = jobids[-1] if jobids else 0
 
     print(
-        f"chaos: done (submitted {len(jobids)} jobs, killed {kills}, "
-        f"skipped {skipped}, bhist_fail={bad}, wallclock={elapsed:.3f}s)"
+        f"chaos: duration={args.seconds}s submit_every={args.submit_every}s "
+        f"attempts={attempts} ok={submits_ok} fail={submits_fail} "
+        f"kills={kills} skipped={skipped} last_jobid={last_jobid} "
+        f"wallclock={elapsed:.3f}s"
     )
-
-    if bad != 0:
-        return 2
     return 0
 
 

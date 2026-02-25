@@ -479,14 +479,6 @@ void sbd_job_new_reply_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
         return;
     }
 
-    if (sbd_go_write(job) < 0) {
-        LS_ERR("job=%ld go file write failed", job->job_id);
-        sbd_mbd_shutdown();
-        return;
-    }
-    LS_INFO("job=%ld go file written", job->job_id);
-    job->time_pid_acked = time(NULL);
-
     // PID/PGID acknowledged by mbd.
     // EXECUTE will be enqueued later by the main loop (job_execute_drive).
     LS_INFO("job=%ld pid=%d pgi=%d BATCH_JOB_REPLY acked by mbd", job->job_id,
@@ -517,12 +509,8 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     struct sbd_job *job;
     job = find_job_by_jid(ack.job_id);
     if (job == NULL) {
-        /*
-         * This can happen after a restart or if the job was already cleaned.
-         * Treat as non-fatal: mbd has committed; we just have nothing to do.
-         */
-        LS_INFO("operation=%s ack for unknown job=%ld (seq=%d) ignored",
-                mbd_op_str(hdr->operation), ack.job_id, ack.seq);
+        LS_INFO("operation=%s ack for unknown job=%ld ignored",
+                mbd_op_str(hdr->operation), ack.job_id);
         return;
     }
 
@@ -1450,7 +1438,7 @@ void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
     }
 
     if (reg_ack.num_jobs == 0) {
-        LS_INFO("no jobs registerd this host");
+        LS_INFO("no jobs registered on this host");
         return;
     }
 
@@ -1484,13 +1472,17 @@ void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
                 return;
             }
             // common steady-state
+            LS_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d "
+                    "execute_acked=%d", job->job_id, job->pid,
+                    job->pid_acked, job->execute_acked);
+
             continue;
         }
         // wj->pid == 0
         // MBD lost pid knowledge (restart/packet loss/etc). Force resend.
-        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d last_send=%ld",
-                (long)wj->job_id, (int)job->pid, job->pid_acked,
-                job->reply_last_send);
+        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d "
+                "replay_acked=%d", wj->job_id, job->pid,
+                job->pid_acked, job->execute_acked);
 
         job->pid_acked = 0;
         job->reply_last_send = 0;
