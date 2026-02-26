@@ -5601,7 +5601,7 @@ void copyJobBill(struct submitReq *subReq, struct submitReq *jobBill,
     else if (subReq->options & SUB_OUT_FILE)
         jobBill->errFile = safeSave(jobBill->outFile);
     else
-        jobBill->errFile = safeSave("");
+        jobBill->errFile = safeSave("/dev/null");
 
     if (subReq->options2 & SUB2_IN_FILE_SPOOL) {
         jobBill->inFileSpool = safeSave(subReq->inFileSpool);

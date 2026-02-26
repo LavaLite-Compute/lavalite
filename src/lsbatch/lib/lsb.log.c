@@ -1529,13 +1529,7 @@ int lsb_puteventrec(FILE *log_fp, struct eventRec *logPtr)
             writeJobStartAccept(log_fp, &(logPtr->eventLog.jobStartAcceptLog));
         break;
     case EVENT_JOB_STATUS:
-        LS_ERRX("before writeJobStatus job=%d status=0x%x",
-                (&(logPtr->eventLog.jobStatusLog))->jobId,
-                (&(logPtr->eventLog.jobStatusLog))->jStatus);
         lsberrno = writeJobStatus(log_fp, &(logPtr->eventLog.jobStatusLog));
-        LS_ERRX("after writeJobStatus job=%d status=0x%x",
-                (&(logPtr->eventLog.jobStatusLog))->jobId,
-                (&(logPtr->eventLog.jobStatusLog))->jStatus);
         break;
     case EVENT_SBD_JOB_STATUS:
         lsberrno =

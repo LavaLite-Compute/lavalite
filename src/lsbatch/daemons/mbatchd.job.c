@@ -624,7 +624,7 @@ static int resume_pend_job(struct jData *job)
 
     SET_STATE(job->jStatus, JOB_STAT_PEND);
 
-    LS_INFO("job %s state %s ", lsb_jobid2str(job->jobId),
+    LS_INFO("job=%s state %s ", lsb_jobid2str(job->jobId),
             job_state_str(job->jStatus));
 
     job->numReasons = job->newReason = job->subreasons = 0;
@@ -924,12 +924,35 @@ void mbd_job_state_unknown(struct mbd_client_node *client, XDR *xdrs,
         return;
     }
 
-    job->jStatus |= JOB_STAT_UNKNOWN;
-    job->newReason = PEND_SYS_UNABLE;
-    log_newstatus(job);
+    if (job->jobPid > 0) {
+        job->jStatus |= JOB_STAT_UNKNOWN;
+        job->newReason = PEND_SYS_UNABLE;
+        log_newstatus(job);
+        LS_ERRX("job=%ld pid=%d is missing set state=%s",
+                job->jobId, job->jobPGid, job_state_str(job->jStatus));
+        return;
+    }
 
-    LS_INFO("sbd job missing job_id=%ld set state=%s",
-            wjs.job_id, job_state_str(job->jStatus));
+    int old_status = job->jStatus;
+    job->jStatus = JOB_STAT_PEND;
+
+    // Reason for requeue
+    job->newReason = 0;
+    job->subreasons = 0;
+
+    // Move list membership: SJL -> PJL
+    offJobList(job, SJL);
+    inPendJobList(job, PJL, 0);
+
+    // Bookkeeping
+    job->requeueTime = time(NULL);
+    log_newstatus(job);
+    updCounters(job, old_status, now);
+
+    clear_exec_context(job);
+
+    LS_INFO("job=%ld unknown to sbd goes back to %s", job->jobId,
+            job_state_str(job->jStatus));
 }
 
 // Make the batch system manager

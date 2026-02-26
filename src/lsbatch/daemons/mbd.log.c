@@ -1488,8 +1488,6 @@ void log_newstatus(struct jData *job)
         now = time(0);
         job->endTime = now;
     }
-    LS_ERRX("Enter jid=%ld job->jStatus=0x%x event.jStatus=0x%x",
-            job->jobId,  job->jStatus, logPtr->eventLog.jobStatusLog.jStatus);
 
     logPtr->type = EVENT_JOB_STATUS;
     logPtr->eventLog.jobStatusLog.jobId = LSB_ARRAY_JOBID(job->jobId);
@@ -1510,15 +1508,10 @@ void log_newstatus(struct jData *job)
 
     logPtr->eventLog.jobStatusLog.jStatus &= MASK_INT_JOB_STAT;
 
-    LS_ERRX("before puteventrec jid=%ld job->jStatus=0x%x event.jStatus=0x%x",
-            job->jobId,  job->jStatus, logPtr->eventLog.jobStatusLog.jStatus);
-
     if (putEventRec((char *)__func__) < 0) {
         LS_ERR("failed processing putEventRec() job=%s ", lsb_jobid2str(job->jobId));
         mbdDie(MASTER_FATAL);
     }
-    LS_ERRX("after puteventrec jid=%ld job->jStatus=0x%x",
-            job->jobId,  job->jStatus);
 
     if (job->jStatus & JOB_STAT_DONE ||
         (job->jStatus & JOB_STAT_EXIT && !(job->jStatus & JOB_STAT_ZOMBIE))) {
@@ -2237,7 +2230,6 @@ int switch_log(void)
         jp = checkJobInCore(jobId);
 
         if ((preserved) || (jarray != NULL
-
                             && ((canSwitch(logPtr, jp) == FALSE) ||
                                 (logPtr->type == EVENT_JOB_NEW) ||
                                 (logPtr->type == EVENT_JOB_MODIFY) ||

@@ -703,6 +703,7 @@ static sbdReplyType spawn_job(struct sbd_job *job)
         chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
+        close_range(3, ~0U, 0);
         // Now run... the spec used by the job is a copy
         // of the spec sent by mbd
         child_exec_job(job);
@@ -1084,8 +1085,6 @@ static void reset_signals(void)
 {
     for (int i = 1; i < NSIG; i++)
         signal(i, SIG_DFL);
-
-    signal(SIGHUP, SIG_IGN);
 
     sigset_t newmask;
     sigemptyset(&newmask);

@@ -176,9 +176,6 @@ extern int do_setJobAttr(XDR *, int, struct sockaddr_in *, char *,
                          struct packet_header *, struct lsfAuth *);
 
 
-extern void chanCloseAllBut_(int);
-extern int initLimSock_(void);
-
 static void usage(void)
 {
     fprintf(stderr,
@@ -315,8 +312,8 @@ int main(int argc, char **argv)
 
             //houseKeeping(&hsKeeping);
             //periodicCheck();
-             LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
-                      ch_id, channels[ch_id].chan_events, ev->events);
+            //LS_DEBUG("epoll: ch_id=%d chan_events=%d kernel_events 0x%x",
+            //ch_id, channels[ch_id].chan_events, ev->events);
 
              // True skip partually read channels
              if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
