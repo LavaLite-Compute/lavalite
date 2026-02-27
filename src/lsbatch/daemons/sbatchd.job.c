@@ -24,8 +24,7 @@ static void child_exec_job(struct sbd_job *);
 static int set_job_env(const struct sbd_job *);
 static int set_user_id(const struct sbd_job *);
 static void reset_signals(void);
-static int run_qpre(const struct jobSpecs *);
-static int run_upre(const struct jobSpecs *);
+static void reset_except_fd(int);
 static int cd_work_dir(const struct sbd_job *);
 static int redirect_stdio(const struct jobSpecs *);
 static struct sbd_job *find_job_by_jid(int64_t);
@@ -699,11 +698,16 @@ static sbdReplyType spawn_job(struct sbd_job *job)
     }
 
     if (pid == 0) {
+        // child becomes leader of its own group
+        setpgid(0, 0);
         // child goes and runs the job
         chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
-        close_range(3, ~0U, 0);
+        int log_fd = ls_getlogfd();
+        reset_except_fd(log_fd);
+        reset_signals();
+
         // Now run... the spec used by the job is a copy
         // of the spec sent by mbd
         child_exec_job(job);
@@ -810,12 +814,13 @@ void sbd_prune_acked_jobs(void)
 
 static void child_exec_job(struct sbd_job *job)
 {
-    // child becomes leader of its own group
-    setpgid(0, 0);
+    char tag[LL_BUFSIZ_64];
+    snprintf(tag, sizeof(tag), "child job=%ld", job->job_id);
+    // tag the logfile messages saying who we are as we share
+    // the log file with parent and other children
+    ls_setlogtag(tag);
 
     struct jobSpecs *specs = &job->specs;
-    sbd_child_open_log(specs);
-
     // Track pid/pgid in the spec for the parent/mbd protocol.
     specs->jobPid = getpid();
     specs->jobPGid = specs->jobPid;
@@ -845,23 +850,7 @@ static void child_exec_job(struct sbd_job *job)
     // Apply umask for the job.
     umask(job->specs.umask);
 
-    // Reset signals before running hooks and before exec.
-    reset_signals();
-
     // Queue pre-exec hook (admin-side).
-    if (run_qpre(specs) < 0) {
-        LS_ERR("qpre failed for job=%ld", job->job_id);
-        _exit(127);
-    }
-
-    // User pre-exec hook (submission-side).
-    if ((specs->options & SUB_PRE_EXEC) != 0) {
-        if (run_upre(specs) < 0) {
-            LS_ERR("upre failed for job=%ld", job->job_id);
-            _exit(127);
-        }
-    }
-
     char jobfile_path[PATH_MAX];
     int l = snprintf(jobfile_path, sizeof(jobfile_path), "%s/%s/job.sh",
                      sbd_job_dir, job->jobfile);
@@ -1017,7 +1006,7 @@ static int set_job_env(const struct sbd_job *job)
     if (setenv("LSB_JOBNAME", specs->jobName, 1) < 0)
         return -1;
 
-    snprintf(val, sizeof(val), "%d", job->pid);
+    snprintf(val, sizeof(val), "%d", getpid());
     if (setenv("LSB_JOBPID", val, 1) < 0)
         return -1;
 
@@ -1083,26 +1072,18 @@ static int set_user_id(const struct sbd_job *job)
 
 static void reset_signals(void)
 {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_DFL;
+
     for (int i = 1; i < NSIG; i++)
-        signal(i, SIG_DFL);
+        sigaction(i, &sa, NULL);
 
     sigset_t newmask;
     sigemptyset(&newmask);
     sigprocmask(SIG_SETMASK, &newmask, NULL);
 
     alarm(0);
-}
-
-static int run_qpre(const struct jobSpecs *specs)
-{
-    (void)specs;
-    return 0;
-}
-
-static int run_upre(const struct jobSpecs *specs)
-{
-    (void)specs;
-    return 0;
 }
 
 static int cd_work_dir(const struct sbd_job *job)
@@ -1487,4 +1468,29 @@ void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
         job->reply_last_send = 0;
         continue;
     }
+}
+
+static void reset_except_fd(int except_fd)
+{
+    DIR *d = opendir("/proc/self/fd");
+    if (!d) {
+        //* fallback
+        long maxfd = sysconf(_SC_OPEN_MAX);
+        if (maxfd < 0) maxfd = 1024;
+        for (int fd = 3; fd < (int)maxfd; fd++) {
+            if (fd != except_fd)
+                close(fd);
+        }
+        return;
+    }
+    int dfd = dirfd(d);
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        if (e->d_name[0] == '.')
+            continue;
+        int fd = atoi(e->d_name);
+        if (fd >= 3 && fd != except_fd && fd != dfd)
+            close(fd);
+    }
+    closedir(d);
 }

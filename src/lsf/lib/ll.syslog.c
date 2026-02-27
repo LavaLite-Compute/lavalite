@@ -114,68 +114,49 @@ int ls_openlog(const char *ident,
                int to_syslog,
                const char *mask)
 {
-    //1. resolve ident
-    const char *name;
-    if (ident && *ident)
-        name = ident;
-    else
-        name = "lavalite";
 
-    snprintf(log_ident, sizeof(log_ident), "%s", name);
+    if (ident == NULL)
+        return -1;
 
-    /* 2. resolve hostname now, so stderr/syslog have it too */
+    if (logdir == NULL || *logdir == '\0')
+        return -1;   /* configuration error */
+
+    snprintf(log_ident, sizeof(log_ident), "%s", ident);
+
     const char *host = ls_getmyhostname();
     if (!host || !*host)
         host = "unknown";
 
-    // 3. configure base behaviour
-    log_min_level  = get_level_str(mask);
-    log_to_stderr  = to_stderr ? 1 : 0;
-    log_to_syslog  = to_syslog ? 1 : 0;
-    log_fd         = -1;
-    log_path[0] = 0;
-
-    /* 4. optional syslog mirror, independent of file logging */
-    if (log_to_syslog) {
-        openlog(log_ident, LOG_NDELAY | LOG_PID, LOG_DAEMON);
-        setlogmask(LOG_UPTO(log_min_level));
-    }
-    int fd;
-    /* 5. LSF_LOGDIR missing → fallback only (stderr/syslog) */
-    if (logdir == NULL || *logdir == '\0') {
-
-        if (!log_to_stderr)
-            log_to_stderr = 1;
-
-        /* stderr still includes host in prefix via ls_syslog macros */
-        dprintf(STDERR_FILENO,
-                "%s: LSF_LOGDIR not set, logging to stderr only (host=%s)\n",
-                log_ident, host);
-
-        /* no file sink, but logging works */
-        fd = STDERR_FILENO;
-        return 0;
-    }
+    log_min_level = get_level_str(mask);
 
     char path[PATH_MAX];
-    /* 6. normal file logging path */
-    int cc = snprintf(path, sizeof(path), "%s/%s.log.%s",
-                      logdir, log_ident, host);
-    if (cc < 0 || cc >= (int)sizeof(path))
+    snprintf(path, sizeof(path), "%s/%s.log.%s", logdir, log_ident, host);
+
+    int fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    if (fd < 0)
+        return -1;
+    /*
+     * Normalize descriptor:
+     * guarantee fd >= 3
+     */
+    int norm = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+    close(fd);
+
+    if (norm < 0)
         return -1;
 
-    fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
-    if (fd < 0) {
-        dprintf(STDERR_FILENO,
-                "%s: failed to open %s logging to stderr only (host=%s) %s \n",
-                log_ident, path, host, strerror(errno));
-        fd = STDERR_FILENO;
-    }
-
-    log_fd = fd;
+    log_fd = norm;
 
     fchmod(log_fd, 0644);
     snprintf(log_path, sizeof(log_path), "%s", path);
+
+    if (to_stderr)
+        log_to_stderr;
+
+    if (to_syslog) {
+        openlog(log_ident, LOG_NDELAY | LOG_PID, LOG_DAEMON);
+        setlogmask(LOG_UPTO(log_min_level));
+    }
 
     return 0;
 }
@@ -462,4 +443,9 @@ void ls_set_log_to_stderr(int enabled)
         log_to_stderr  = 1;
     else
         log_to_stderr  = 0;
+}
+
+int ls_getlogfd(void)
+{
+    return log_fd;
 }

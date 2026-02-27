@@ -208,7 +208,6 @@ int sbd_reply_hdr_only(int, int, struct packet_header *);
 int sbd_reply_payload(int, int, struct packet_header *,
                       void *, bool_t (*xdr_func)());
 int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
-void sbd_child_open_log(const struct jobSpecs *);
 
 enum sbd_fatal_cause {
     SBD_FATAL_STORAGE = 1,

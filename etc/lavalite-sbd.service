@@ -1,9 +1,9 @@
 [Unit]
 Description=LavaLite sbd daemon
-Wants=network-online.target
-After=network-online.target
-StartLimitIntervalSec=30
-StartLimitBurst=5
+Wants=network-online.target remote-fs.target
+After=network-online.target remote-fs.target
+StartLimitIntervalSec=0
+RestartSec=2 # or any time period
 
 [Service]
 Type=simple

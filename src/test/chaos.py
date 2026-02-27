@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 import argparse
+import datetime
 import os
 import random
 import re
+import socket
 import subprocess
 import sys
 import time
 
+# Chaos tool contract:
+# - caller username exists uniformly on all hosts
+# - ssh is non-interactive (keys)
+# - sudo -n works on all target hosts
+# - systemd is configured for aggressive restarts (e.g. StartLimitIntervalSec=0)
+
 DEFAULT_TIMEOUT = 5.0
+BSUB_TIMEOUT = 15.0
+SSH_CONNECT_TIMEOUT = 3
 
 PROC_NAMES = {
     "lim": "lim",
@@ -15,18 +25,88 @@ PROC_NAMES = {
     "sbd": "sbd",
 }
 
+# Single source of truth:
+# - kinds controls what can be killed
+# - remote-capable policy is fixed (avoid a second list that can drift)
+REMOTE_CAPABLE = {"lim", "sbd"}   # mbd is local-only by default
+
 BSUB = ["bsub"]
+LOCAL_HOST = socket.gethostname()
+
+
+def ts_now():
+    now = datetime.datetime.now()
+    return now.strftime("%b %d %H:%M:%S.") + f"{int(now.microsecond / 1000):03d}"
+
+
+def log(msg):
+    sys.stderr.write(f"{ts_now()} {msg}\n")
 
 
 def run(cmd, timeout=DEFAULT_TIMEOUT):
-    return subprocess.run(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        timeout=timeout,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout if e.stdout is not None else ""
+        err = e.stderr if e.stderr is not None else ""
+        if not err:
+            err = f"timeout after {timeout:.1f}s"
+        return subprocess.CompletedProcess(cmd, 124, out, err)
+
+
+def ssh_prefix(host):
+    if host == LOCAL_HOST:
+        return []
+
+    return [
+        "ssh",
+        "-o", "BatchMode=yes",
+        "-o", "ConnectionAttempts=1",
+        "-o", f"ConnectTimeout={SSH_CONNECT_TIMEOUT}",
+        "-o", "StrictHostKeyChecking=accept-new",
+        host,
+    ]
+
+
+def run_on_host(host, cmd, timeout=DEFAULT_TIMEOUT):
+    return run(ssh_prefix(host) + cmd, timeout=timeout)
+
+
+def read_hosts_file(path):
+    # Format: one host per line. Comments allowed.
+    hosts = []
+
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            hosts.append(line.split()[0])
+
+    return hosts
+
+
+def parse_kinds(s):
+    kinds = []
+    for x in s.split(","):
+        x = x.strip()
+        if not x:
+            continue
+        if x not in PROC_NAMES:
+            raise SystemExit(f"chaos: invalid kind: {x}")
+        kinds.append(x)
+
+    if not kinds:
+        raise SystemExit("chaos: no kinds selected")
+
+    return kinds
 
 
 def extract_jobid(txt):
@@ -36,59 +116,50 @@ def extract_jobid(txt):
     return int(m.group(1))
 
 
-def list_pids_by_name(name):
-    cp = run(["pgrep", "-x", name], timeout=DEFAULT_TIMEOUT)
-    if cp.returncode != 0:
-        return []
-    out = cp.stdout.strip()
-    if not out:
-        return []
-    pids = []
-    for s in out.split():
-        try:
-            pids.append(int(s))
-        except ValueError:
-            pass
-    return pids
-
-
-def is_up(kind):
-    name = PROC_NAMES[kind]
-    return len(list_pids_by_name(name)) > 0
-
-
-def sudo_kill(pid):
-    cp = run(["sudo", "-n", "kill", "-9", str(pid)], timeout=DEFAULT_TIMEOUT)
-    return cp.returncode == 0
-
-
-def kill_one(kind):
-    name = PROC_NAMES[kind]
-    pids = list_pids_by_name(name)
-    if not pids:
-        return False
-    pid = random.choice(pids)
-    return sudo_kill(pid)
-
-
 def submit_one(queue, cmd):
     cp = run(
         BSUB + ["-q", queue, "-o", "/dev/null", "-e", "/dev/null", cmd],
-        timeout=10.0,
+        timeout=BSUB_TIMEOUT,
     )
     if cp.returncode != 0:
         return None
     return extract_jobid(cp.stdout + "\n" + cp.stderr)
 
 
-def log(msg, quiet):
-    if not quiet:
-        sys.stderr.write(msg + "\n")
+def list_pids(host, name):
+    cp = run_on_host(host, ["pgrep", "-x", name], timeout=DEFAULT_TIMEOUT)
+    if cp.returncode != 0:
+        return []
+
+    out = cp.stdout.strip()
+    if not out:
+        return []
+
+    pids = []
+    for s in out.split():
+        try:
+            pids.append(int(s))
+        except ValueError:
+            pass
+
+    return pids
+
+
+def is_up(host, kind):
+    return len(list_pids(host, PROC_NAMES[kind])) > 0
+
+
+def kill_one(host, kind):
+    pids = list_pids(host, PROC_NAMES[kind])
+    if not pids:
+        return False
+
+    pid = random.choice(pids)
+    cp = run_on_host(host, ["sudo", "-n", "kill", "-9", str(pid)], timeout=DEFAULT_TIMEOUT)
+    return cp.returncode == 0
 
 
 def main():
-    start_ts = time.time()
-
     envdir = os.environ.get("LSF_ENVDIR", "").strip()
     if not envdir:
         raise SystemExit("chaos: $LSF_ENVDIR is not set")
@@ -98,117 +169,93 @@ def main():
         raise SystemExit(f"chaos: missing {conf}")
 
     ap = argparse.ArgumentParser(
-        description=(
-            "Run a chaos experiment for a fixed duration while submitting jobs "
-            "and randomly restarting daemons.\n"
-            "Expected submitted jobs \u2248 seconds / submit-every."
-        ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="Chaos test: submit jobs and randomly kill daemons across hosts.",
     )
-    ap.add_argument("--seconds", type=int, default=60,
-                    help="Duration of the experiment in seconds")
+    ap.add_argument("--hosts-file", required=True,
+                    help="Host list file (one host per line)")
+    ap.add_argument("--seconds", type=int, default=60)
     ap.add_argument("--queue", default="system")
-    ap.add_argument("--submit-every", type=float, default=0.5,
-                    help="Submit one job every N seconds during the experiment")
-    ap.add_argument("--kill-every", type=float, default=1.0,
-                    help="Attempt one daemon kill every N seconds during the experiment")
-    ap.add_argument("--cooldown", type=float, default=12.0,
-                    help="Minimum seconds between kills of the same daemon")
+    ap.add_argument("--submit-every", type=float, default=1.0)
+    ap.add_argument("--kill-every", type=float, default=1.0)
     ap.add_argument("--kinds", default="lim,mbd,sbd",
                     help="Comma list: lim,mbd,sbd")
-    ap.add_argument("-q", "--quiet", action="store_true",
-                    help="Disable progress output (only print final summary)")
-    ap.add_argument("-v", "--verbose", action="store_true",
-                    help="Extra periodic progress line (in addition to events)")
     args = ap.parse_args()
 
-    # Parse kinds
-    kinds = []
-    for k in args.kinds.split(","):
-        k = k.strip()
-        if not k:
-            continue
-        if k not in PROC_NAMES:
-            raise SystemExit(f"chaos: invalid kind: {k}")
-        kinds.append(k)
-    if not kinds:
-        raise SystemExit("chaos: no kinds selected")
+    hosts = read_hosts_file(args.hosts_file)
+    if not hosts:
+        raise SystemExit("chaos: empty host list")
 
-    last_kill = {k: 0.0 for k in kinds}
+    kinds = parse_kinds(args.kinds)
 
     job_cmds = ["true", "false", "sleep 1", "sleep 2", "sleep 3", "sleep 10"]
 
     t_end = time.time() + args.seconds
-    next_submit = 0.0
-    next_kill = 0.0
-    next_beat = 0.0
+    next_submit = time.time()
+    next_kill = time.time()
 
-    jobids = []
-    kills = 0
-    skipped = 0
     submits_ok = 0
     submits_fail = 0
+    kills_ok = 0
+    kills_skip = 0
+    jobids = []
+
+    last_killed = None  # (kind, host) to avoid pathological immediate repeats
 
     while time.time() < t_end:
         now = time.time()
 
-        if args.verbose and not args.quiet and now >= next_beat:
-            left = int(t_end - now)
-            sys.stderr.write(
-                f"chaos: left={left}s ok={submits_ok} fail={submits_fail} "
-                f"killed={kills} skipped={skipped}\n"
-            )
-            next_beat = now + 5.0
-
         if now >= next_submit:
             cmd = random.choice(job_cmds)
             jid = submit_one(args.queue, cmd)
+
             if jid is not None:
-                jobids.append(jid)
                 submits_ok += 1
-                log(f"chaos: submit job <{jid}> cmd={cmd}", args.quiet)
+                jobids.append(jid)
+                log(f"chaos: submit job <{jid}> cmd={cmd}")
             else:
                 submits_fail += 1
-                log(f"chaos: submit failed cmd={cmd}", args.quiet)
+                log(f"chaos: submit failed cmd={cmd}")
+
             next_submit = now + args.submit_every
 
         if now >= next_kill:
-            victim = random.choice(kinds)
+            victim_kind = random.choice(kinds)
 
-            can_kill = True
-            if (now - last_kill[victim]) < args.cooldown:
-                can_kill = False
-            elif not is_up(victim):
-                can_kill = False
-
-            if can_kill:
-                if kill_one(victim):
-                    kills += 1
-                    last_kill[victim] = now
-                    log(f"chaos: kill {victim}", args.quiet)
-                else:
-                    skipped += 1
-                    log(f"chaos: skip kill {victim}", args.quiet)
+            if victim_kind in REMOTE_CAPABLE:
+                victim_host = random.choice(hosts) if hosts else LOCAL_HOST
             else:
-                skipped += 1
-                log(f"chaos: skip kill {victim}", args.quiet)
+                victim_host = LOCAL_HOST
 
-            next_kill = now + args.kill_every
+            pair = (victim_kind, victim_host)
+            if last_killed == pair and random.random() < 0.7:
+                # Avoid hammering the exact same pair repeatedly.
+                next_kill = now + (args.kill_every * random.uniform(0.3, 0.8))
+            else:
+                if not is_up(victim_host, victim_kind):
+                    kills_skip += 1
+                    log(f"chaos: skip kill {victim_kind} host={victim_host} (down)")
+                else:
+                    if kill_one(victim_host, victim_kind):
+                        kills_ok += 1
+                        last_killed = pair
+                        log(f"chaos: kill {victim_kind} host={victim_host}")
+                    else:
+                        kills_skip += 1
+                        log(f"chaos: skip kill {victim_kind} host={victim_host} (fail)")
+
+                # Jitter makes the test less “metronomic” without pretending
+                # we know systemd restart policy.
+                next_kill = now + (args.kill_every * random.uniform(0.5, 1.5))
 
         time.sleep(0.05)
 
-    # Let systemd restart and the system converge
     time.sleep(5.0)
 
-    elapsed = time.time() - start_ts
-    attempts = submits_ok + submits_fail
     last_jobid = jobids[-1] if jobids else 0
-
     print(
-        f"chaos: duration={args.seconds}s submit_every={args.submit_every}s "
-        f"attempts={attempts} ok={submits_ok} fail={submits_fail} "
-        f"kills={kills} skipped={skipped} last_jobid={last_jobid} "
-        f"wallclock={elapsed:.3f}s"
+        f"chaos: duration={args.seconds}s ok={submits_ok} fail={submits_fail} "
+        f"killed={kills_ok} skipped={kills_skip} last_jobid={last_jobid}"
     )
     return 0
 

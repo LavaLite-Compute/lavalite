@@ -5591,40 +5591,21 @@ void copyJobBill(struct submitReq *subReq, struct submitReq *jobBill,
         jobBill->inFile = safeSave(subReq->inFile);
     else
         jobBill->inFile = safeSave("/dev/null");
+
     if (subReq->options & SUB_OUT_FILE)
         jobBill->outFile = safeSave(subReq->outFile);
     else
-        jobBill->outFile = safeSave("");
+        jobBill->outFile = safeSave("/dev/null");
 
     if (subReq->options & SUB_ERR_FILE)
         jobBill->errFile = safeSave(subReq->errFile);
-    else if (subReq->options & SUB_OUT_FILE)
-        jobBill->errFile = safeSave(jobBill->outFile);
     else
         jobBill->errFile = safeSave("/dev/null");
-
-    if (subReq->options2 & SUB2_IN_FILE_SPOOL) {
-        jobBill->inFileSpool = safeSave(subReq->inFileSpool);
-        jobBill->inFile = safeSave(subReq->inFile);
-    } else {
-        jobBill->inFileSpool = safeSave("/dev/null");
-    }
-
-    if (subReq->options2 & SUB2_JOB_CMD_SPOOL)
-        jobBill->commandSpool = safeSave(subReq->commandSpool);
-    else
-        jobBill->commandSpool = safeSave("");
 
     if (subReq->options & SUB_HOST_SPEC)
         jobBill->hostSpec = safeSave(subReq->hostSpec);
     else
         jobBill->hostSpec = safeSave("");
-
-    if (subReq->options & SUB_CHKPNT_DIR) {
-        jobBill->chkpntDir = safeSave(subReq->chkpntDir);
-    } else {
-        jobBill->chkpntDir = safeSave("");
-    }
 
     if (subReq->nxf > 0) {
         jobBill->xf = (struct xFile *) my_calloc(

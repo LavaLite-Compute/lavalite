@@ -1,12 +1,10 @@
 [Unit]
 Description=LavaLite mbd daemon
-After=network-online.target lavalite-lim.service
-Wants=network-online.target
+Wants=network-online.target remote-fs.target
+After=network-online.target remote-fs.target lavalite-lim.service
 Requires=lavalite-lim.service
-BindsTo=lavalite-lim.service
-StartLimitIntervalSec=30
-StartLimitBurst=5
-
+StartLimitIntervalSec=0
+RestartSec=2 # or any time interval
 
 [Service]
 Type=simple
@@ -22,6 +20,7 @@ RestartSec=2
 KillSignal=SIGTERM
 TimeoutStopSec=20
 LimitNOFILE=8192
+LimitCORE=infinity
 
 [Install]
 WantedBy=multi-user.target

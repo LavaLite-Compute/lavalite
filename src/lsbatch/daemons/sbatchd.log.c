@@ -64,22 +64,6 @@ static int get_root_dir(char *root_dir, size_t len)
     return 0;
 }
 
-void sbd_child_open_log(const struct jobSpecs *specs)
-{
-     /*
-      * We inherit log_fd and the log configuration from the parent (fork).
-      * Do NOT call ls_openlog() here, otherwise you re-open and/or change
-      * the log identity and create per-job log files again.
-      */
-    char tag[LL_BUFSIZ_64];
-
-    snprintf(tag, sizeof(tag),
-             "child job=%ld", (long)specs->jobId);
-    // tag the logfile messages saying who we are as we share
-    // the log file with parent and other children
-    ls_setlogtag(tag);
-}
-
 char sbd_root_dir[PATH_MAX];
 char sbd_job_dir[PATH_MAX];
 char sbd_state_dir[PATH_MAX];

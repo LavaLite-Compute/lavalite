@@ -4128,7 +4128,8 @@ static bool_t env_is_denied(const char *name, size_t n, bool_t interactive)
         "LSB_JOB_STARTER",
         "LSB_EVENT_ATTRIB",
         "LSF_VERSION",
-        "LSB_SUB_"
+        "LSB_SUB_",
+        "LSB_JOBDIR"
     };
     size_t i;
 

@@ -626,6 +626,7 @@ int ls_openlog(const char *,   // identity
                int,            // to_stderr
                int,            // to_syslog
                const char *);  // log mask
+int ls_getlogfd(void);
 
 void ls_syslog(int, const char *, ...)
 #if defined(__GNUC__)
