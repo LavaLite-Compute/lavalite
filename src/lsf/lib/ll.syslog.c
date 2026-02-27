@@ -151,7 +151,7 @@ int ls_openlog(const char *ident,
     snprintf(log_path, sizeof(log_path), "%s", path);
 
     if (to_stderr)
-        log_to_stderr;
+        log_to_stderr = 1;
 
     if (to_syslog) {
         openlog(log_ident, LOG_NDELAY | LOG_PID, LOG_DAEMON);

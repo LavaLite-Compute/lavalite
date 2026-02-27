@@ -4,7 +4,6 @@ Wants=network-online.target remote-fs.target
 After=network-online.target remote-fs.target lavalite-lim.service
 Requires=lavalite-lim.service
 StartLimitIntervalSec=0
-RestartSec=2 # or any time interval
 
 [Service]
 Type=simple
@@ -12,14 +11,13 @@ User=lavalite
 Group=lavalite
 # Required for all daemons. Adjust if your config lives elsewhere.
 Environment=LSF_ENVDIR=/opt/lavalite/etc
-
 # Use stable symlink path: /opt/lavalite -> /opt/lavalite-<version>
 ExecStart=/opt/lavalite/sbin/mbd
 Restart=on-failure
 RestartSec=2
 KillSignal=SIGTERM
 TimeoutStopSec=20
-LimitNOFILE=8192
+LimitNOFILE=65536
 LimitCORE=infinity
 
 [Install]

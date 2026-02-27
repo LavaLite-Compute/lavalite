@@ -3,23 +3,20 @@ Description=LavaLite sbd daemon
 Wants=network-online.target remote-fs.target
 After=network-online.target remote-fs.target
 StartLimitIntervalSec=0
-RestartSec=2 # or any time period
 
 [Service]
 Type=simple
-
 # Required for all daemons. Adjust if your config lives elsewhere.
 Environment=LSF_ENVDIR=/opt/lavalite/etc
-
 # Use stable symlink path: /opt/lavalite -> /opt/lavalite-<version>
 ExecStart=/opt/lavalite/sbin/sbd
-
 # Jobs must outlive sbd restarts. Do not change to control-group.
 KillMode=process
 GuessMainPID=no
 Restart=on-failure
-RestartSec=3
 LimitNOFILE=65536
+LimitCORE=infinity
+RestartSec=2 # or any time period
 
 [Install]
 WantedBy=multi-user.target

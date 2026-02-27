@@ -1389,7 +1389,6 @@ int gettimefor(char *toptarg, time_t *tTime)
 int setOption_(int argc, char **argv, char *template, struct submit *req,
                int mask, int mask2, char **errMsg)
 {
-    int eflag = 0, oflag = 0;
     int badIdx, v1, v2;
     char *sp, *cp;
     char savearg[MAXLINELEN];
@@ -1742,9 +1741,6 @@ int setOption_(int argc, char **argv, char *template, struct submit *req,
             }
             break;
         case 'o':
-            req->options2 |= SUB2_MODIFY_RUN_JOB;
-            checkSubDelOption(SUB_OUT_FILE, "on");
-
             if (!(mask & SUB_OUT_FILE))
                 break;
 
@@ -1754,13 +1750,6 @@ int setOption_(int argc, char **argv, char *template, struct submit *req,
             }
             req->outFile = optarg;
             req->options |= SUB_OUT_FILE;
-            oflag = 1;
-            if (eflag) {
-                if (strcmp(req->outFile, req->errFile) == 0) {
-                    req->options &= ~SUB_ERR_FILE;
-                    req->errFile = "";
-                }
-            }
             break;
 
         case 'u':
@@ -1780,9 +1769,6 @@ int setOption_(int argc, char **argv, char *template, struct submit *req,
             break;
 
         case 'e':
-            req->options2 |= SUB2_MODIFY_RUN_JOB;
-            checkSubDelOption(SUB_ERR_FILE, "en");
-
             if (!(mask & SUB_ERR_FILE))
                 break;
 
@@ -1792,13 +1778,6 @@ int setOption_(int argc, char **argv, char *template, struct submit *req,
             }
             req->errFile = optarg;
             req->options |= SUB_ERR_FILE;
-            eflag = 1;
-            if (oflag) {
-                if (strcmp(req->outFile, req->errFile) == 0) {
-                    req->options &= ~SUB_ERR_FILE;
-                    req->errFile = "";
-                }
-            }
             break;
 
         case 'n':

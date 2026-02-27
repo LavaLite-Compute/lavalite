@@ -5627,6 +5627,22 @@ void copyJobBill(struct submitReq *subReq, struct submitReq *jobBill,
         jobBill->askedHosts = NULL;
         jobBill->numAskedHosts = 0;
     }
+    // survive
+    if (subReq->inFileSpool)
+        jobBill->inFileSpool = safeSave(subReq->inFileSpool);
+    else
+        jobBill->inFileSpool = safeSave("");
+
+    if (subReq->commandSpool)
+        jobBill->commandSpool = safeSave(subReq->commandSpool);
+    else
+        jobBill->commandSpool = safeSave("");
+
+    if (subReq->chkpntDir)
+        jobBill->chkpntDir = safeSave(subReq->chkpntDir);
+    else
+        jobBill->chkpntDir = safeSave("");
+
 }
 
 void freeJData(struct jData *jpbw)

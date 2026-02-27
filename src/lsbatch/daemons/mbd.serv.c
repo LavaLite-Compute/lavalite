@@ -139,7 +139,6 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     struct jobInfoHead jobInfoHead;
     int reply = 0;
     int i, len, listSize = 0;
-    struct packet_header replyHdr;
     struct nodeList *jgrplist = NULL;
     struct jData **joblist = NULL;
     int selectJgrpsFlag = FALSE;
@@ -203,8 +202,10 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     len = sizeof(struct jobInfoHead) + jobInfoHead.numJobs * sizeof(int64_t) +
           jobInfoHead.numHosts * (sizeof(char *) + MAXHOSTNAMELEN) + 100;
 
-    reply_buf = (char *) my_malloc(len, fname);
+    reply_buf = calloc(len, sizeof(char));
     xdrmem_create(&xdrs2, reply_buf, len, XDR_ENCODE);
+    struct packet_header replyHdr;
+    memset(&replyHdr, 0, sizeof(struct packet_header));
     replyHdr.operation = reply;
 
     if (!xdr_encodeMsg(&xdrs2, (char *) &jobInfoHead, &replyHdr,
@@ -375,7 +376,6 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
     static char fname[] = "packJobInfo";
     struct jobInfoReply jobInfoReply;
     struct submitReq jobBill;
-    struct packet_header hdr;
     char *request_buf = NULL;
     int *reasonTb = NULL;
     int *jReasonTb;
@@ -652,9 +652,11 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
     len += 1024;
 
     FREEUP(request_buf);
-    request_buf = (char *) my_malloc(len, "packJobInfo");
+    request_buf = calloc(len, sizeof(char));
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
 
+    struct packet_header hdr;
+    memset(&hdr, 0, sizeof(struct packet_header));
     hdr.version = version;
 
     if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
