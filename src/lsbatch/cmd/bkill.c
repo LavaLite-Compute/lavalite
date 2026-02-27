@@ -1,5 +1,4 @@
 /*
- * Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  *
  * This program is free software; you can redistribute it and/or modify
@@ -34,8 +33,7 @@ usage(const char *cmd)
     fprintf(stderr, "SIGNAL: kill | term | stop | cont | hup|  <number>\n");
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     static struct option longopts[] = {
         { "signal", required_argument, 0, 's' },

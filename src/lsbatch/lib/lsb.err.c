@@ -178,12 +178,12 @@ const char *lsb_errmsg[LSBE_NUM_ERR + 1] = {
 char *lsb_sysmsg(void)
 {
     if (lsberrno < 0 || lsberrno > LSBE_NUM_ERR)
-        return (char *)"Unknown batch system error";
+        return "Unknown batch system error";
 
     if (lsb_errmsg[lsberrno] == NULL)
-        return (char *)"Unknown batch system error";
+        return "Unknown batch system error";
 
-    return (char *)lsb_errmsg[lsberrno];
+    return lsb_errmsg[lsberrno];
 }
 
 void lsb_perror(char *usrMsg)

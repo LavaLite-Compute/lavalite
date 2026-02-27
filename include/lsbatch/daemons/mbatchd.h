@@ -85,11 +85,3 @@ void mbd_job_state_unknown(struct mbd_client_node *, XDR *,
                            struct packet_header *);
 
 void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);
-
-// job signaling
-struct sig_host_bucket {
-    struct hData *host; // the host node where the jobids are
-    int64_t *job_ids;   // jobids in the backet
-    uint32_t n;         // num jobs in the backet
-    uint32_t cap;       // grow cap of the bucket
-};
