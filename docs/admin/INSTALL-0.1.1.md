@@ -1,14 +1,17 @@
-# INSTALL-lavalite-0.1.0.md
+# ADMIN-lavalite-0.1.1.md
 
-This document describes how to build and install **LavaLite 0.1.0** from the Git repository.
+This document is the administrator reference for **LavaLite 0.1.1**.
 
-Follow the steps exactly and in order to obtain a working installation.
+It covers build, installation, configuration, runtime layout, hostname resolution,
+service management, and operational notes.
+
+Follow the steps in order for a correct installation.
 
 Status: **Developer Preview (Alpha)**
-This is an Alpha preview focused on validating core scheduler semantics and multi-host behavior.
 
-This preview is intended to validate protocol design, architecture, and basic scheduler functionality.
-It runs real jobs and executes real workloads, but it does not yet include failover or production-grade security.
+This preview validates protocol design, architecture, and basic scheduler
+functionality. It runs real jobs on real workloads. It does not yet include
+failover or production-grade security.
 
 ---
 
@@ -19,60 +22,110 @@ It runs real jobs and executes real workloads, but it does not yet include failo
 - systemd (for service management)
 - Shared installation path across cluster nodes (e.g., NFS)
 - Uniform UID/GID across nodes
+- Forward and reverse hostname resolution for all cluster nodes (see section 1)
 
 ---
 
-## Repository Naming
+## 1. Hostname Resolution
 
-At the time of writing, the LavaLite source repository directory is still named:
+LavaLite daemons identify cluster nodes by hostname. Both forward and reverse
+resolution must work correctly on every node, including the master.
+
+Daemons use both `gethostbyname()` (name → address) and `gethostbyaddr()`
+(address → name). If either direction fails, daemons will fail to register,
+will misidentify peers, or will silently refuse connections.
+
+### 1.1 Requirements
+
+For each node in the cluster:
+
+- Forward: the node's short hostname must resolve to its cluster IP address.
+- Reverse: the cluster IP address must resolve back to that same hostname.
+- The hostname returned by `hostname -s` must match the name in `lsf.cluster.lavalite`.
+
+Short hostnames are used in configuration. Fully-qualified names must also
+resolve consistently if used in configuration files.
+
+### 1.2 /etc/hosts (this release)
+
+In this release, hostname resolution is managed via `/etc/hosts`.
+This file must be consistent across all cluster nodes.
+
+Example `/etc/hosts` entries for a two-node cluster:
+
+```
+192.168.1.10   master
+192.168.1.11   worker1
+```
+
+Both entries must appear on every node in the cluster, including the master itself.
+
+Verify forward and reverse resolution on each node:
+
+```bash
+# Forward
+getent hosts master
+getent hosts worker1
+
+# Reverse
+getent hosts 192.168.1.10
+getent hosts 192.168.1.11
+```
+
+Both directions must return consistent results before starting any daemon.
+
+### 1.3 Enterprise name services
+
+In enterprise deployments, `/etc/hosts` is typically replaced or supplemented
+by DNS, NIS, or LDAP-backed `nsswitch.conf` entries. The resolution requirements
+are identical: both forward and reverse must work for all cluster hostnames.
+
+LavaLite does not require any specific name service; it uses the system resolver.
+Verify resolution as shown above regardless of the backend.
+
+---
+
+## 2. Repository and Release Tag
+
+The LavaLite source repository:
 
 ```
 lavalite
 ```
 
-This is expected and does not affect functionality.
-
 - **Product name:** LavaLite
-- **Git tag:** `lavalite-0.1.0`
-- **Installation prefix:** `/opt/lavalite-0.1.0`
+- **Git tag:** `lavalite-0.1.1`
+- **Installation prefix:** `/opt/lavalite-0.1.1`
 - **Source directory:** `lavalite`
 
 All steps in this document assume the source directory is named `lavalite`.
 
-Renaming or symlinking the source tree is not required.
-
 ---
 
-## 1. Get the Source and Checkout the Release Tag
+## 3. Get the Source and Checkout the Release Tag
 
 Clone the repository:
 
 ```bash
 git clone https://github.com/LavaLite-Compute/lavalite.git
 cd lavalite
-git checkout lavalite-0.1.0
+git checkout lavalite-0.1.1
 ```
 
-Checkout the release tag:
+Create a local branch to avoid detached HEAD mode:
 
 ```bash
-git checkout -b release-0.1.0 lavalite-0.1.0
+git checkout -b release-0.1.1 lavalite-0.1.1
 ```
 
-This creates a local branch from the `lavalite-0.1.0` tag to avoid detached
-HEAD mode.
-
 ---
 
-## 2. Build (Out-of-Tree / VPATH Build)
+## 4. Build (Out-of-Tree / VPATH Build)
 
-LavaLite uses a standard autotools build system.
+LavaLite uses a standard autotools build system. Out-of-tree builds keep
+generated files separate from the source tree and allow multiple platform builds.
 
-Out-of-tree builds keep generated files separate from the source tree and allow multiple platform builds.
-
----
-
-### 2.1 Create a Build Directory
+### 4.1 Create a Build Directory
 
 Example for Rocky Linux 9:
 
@@ -81,19 +134,14 @@ cat /etc/redhat-release
 Rocky Linux release 9.4 (Blue Onyx)
 ```
 
-Create a platform-specific build directory:
-
 ```bash
 cd ~/lavalite
 mkdir -p build_rocky9
 ```
 
----
-
-### 2.2 Bootstrap Autotools (Source Tree)
+### 4.2 Bootstrap Autotools
 
 When building from Git, `configure` is not committed and must be generated.
-
 Run bootstrap from the source directory:
 
 ```bash
@@ -101,29 +149,20 @@ cd ~/lavalite
 ./bootstrap
 ```
 
-This generates the `configure` script in the source tree.
-
----
-
-### 2.3 Configure (Build Directory)
+### 4.3 Configure
 
 Run configure from the build directory:
 
 ```bash
 cd ~/lavalite/build_rocky9
-../configure --prefix=/opt/lavalite-0.1.0
+../configure --prefix=/opt/lavalite-0.1.1
 ```
-
-Notes:
 
 - `../configure` refers to the script generated in the source tree.
 - All build artifacts remain in `build_rocky9`.
-- The build directory can be deleted safely without affecting the source.
-- By default lavalite will install into ```/opt/lavalite-0.1.0```
+- The build directory can be deleted without affecting the source.
 
----
-
-### 2.4 Build and Install
+### 4.4 Build and Install
 
 ```bash
 cd ~/lavalite/build_rocky9
@@ -131,27 +170,19 @@ make -j
 sudo make install
 ```
 
-After installation, you may create a version-independent symlink:
+After installation, create a version-independent symlink:
 
 ```bash
-sudo ln -sfn /opt/lavalite-0.1.0 /opt/lavalite
+sudo ln -sfn /opt/lavalite-0.1.1 /opt/lavalite
 ```
 
-This symlink provides a stable logical installation path.
-
-Future upgrades can install a new version (e.g. `/opt/lavalite-0.1.1`)
-and update the symlink to point to the new directory without modifying:
-
-- systemd service files
-- configuration paths
-- environment variables
-- module files
-
-All configuration should reference `/opt/lavalite`, not the versioned directory.
+This symlink provides a stable logical path. Future upgrades install a new
+versioned directory and update the symlink. All configuration, service files,
+and environment variables should reference `/opt/lavalite`, not the versioned path.
 
 ---
 
-## 3. Create Service User and Group
+## 5. Create Service User and Group
 
 ```bash
 sudo groupadd -r lavalite
@@ -164,19 +195,19 @@ Verify:
 id lavalite
 ```
 
-For development environments, the shell may be temporarily enabled.
-For production-style deployments, keep the account non-login.
+For development, the shell may be temporarily enabled. For production-style
+deployments, keep the account non-login.
 
 ---
 
-## 4. Installation Layout
+## 6. Installation Layout and Runtime Ownership
 
-## 4. Installation Layout and Runtime Ownership Model
+### 6.1 Directory tree
 
-After installation, the tree looks like:
+After installation:
 
 ```
-/opt/lavalite-0.1.0
+/opt/lavalite-0.1.1
 ├── bin
 ├── etc
 ├── include
@@ -185,439 +216,218 @@ After installation, the tree looks like:
 ├── share
 └── var
     ├── log
-    work
-├── mbd
-│   └── info
-└── sbd
-    ├── jobs
-    └── state
+    └── work
+        ├── mbd
+        ├── sbd
+        │   ├── jobs
+        │   └── state
 ```
 
-This section defines the ownership and permissions required for a correct
-multi-user installation.
+### 6.2 Privilege model
 
----
+LavaLite runs with two privilege models:
 
-### 4.1 Set Runtime Directory Ownership
+- `lim` and `mbd` run as the `lavalite` service user. They must be able to
+  create and append log and state files.
 
-The LavaLite daemons run under the `lavalite` service account.
-Runtime directories must therefore be writable by this user.
+- `sbd` starts as **root** because it must call `setuid()` to the submitting
+  user when launching jobs. During launch, SBD creates per-job directories as
+  root and then drops privileges to the job user.
 
-Set ownership as follows:
+This privilege split is intentional and governs all ownership requirements below.
+
+### 6.3 Directory roles
+
+**`var/log`** — daemon logs, writable by service user `lavalite`.
+
+**`var/work/mbd`** — MBD runtime state, writable by service user `lavalite`.
+
+**`var/work/sbd`** — SBD protected spool root, owned by `root`. Users must not
+write here directly.
+
+**`var/work/sbd/jobs`** — container for per-job runtime space. Created by SBD.
+Per-job directories are created by SBD and then `chown`ed to the submitting user.
+
+**`var/work/sbd/state`** — authoritative per-job protocol state. Daemon-private.
+Restart-safe. Not part of the user-facing API.
+
+### 6.4 Ownership summary
+
+| Path                       | Owner      | Mode  | Notes                        |
+|----------------------------|------------|-------|------------------------------|
+| `var`                      | root       | 0755  | traversable                  |
+| `var/log`                  | lavalite   | 0755  | daemon log files             |
+| `var/work`                 | root       | 0755  | traversable                  |
+| `var/work/mbd`             | lavalite   | 0755  | MBD state                    |
+| `var/work/sbd`             | root       | 0755  | SBD spool root               |
+| `var/work/sbd/jobs`        | root       | 0755  | per-job dirs created by SBD  |
+| `var/work/sbd/state`       | root       | 0755  | per-job dirs created by SBD  |
+| `var/work/sbd/jobs/<job>`  | submitter  | 0700  | user runtime space           |
+| `var/work/sbd/state/<job>` | root       | 0700  | daemon protocol state        |
+
+### 6.5 Set ownership
 
 ```bash
 sudo chown -R lavalite:lavalite /opt/lavalite/var/log
-sudo chown -R lavalite:lavalite /opt/lavalite/var/work
+sudo mkdir -p /opt/lavalite-0.1.1/var/work/mbd
+sudo chown -R lavalite:lavalite /opt/lavalite/var/work/mbd
 ```
 
-### 4.2 Service users and privilege boundaries
+Do not create or modify `var/work/sbd`, `var/work/sbd/state`, or
+`var/work/sbd/jobs`. These are initialized by `lavalite-sbd` on first startup.
 
-LavaLite runs with two different privilege models:
+### 6.6 Verification checklist
 
-- `lim` and `mbd` run as the **service user** (typically `lavalite`).
-  They must be able to create and append their log and state files.
+Before starting services:
 
-- `sbd` starts as **root** because it must be able to `setuid()` to the
-  submitting user when launching jobs. During job launch, SBD prepares
-  per-job directories as root and then drops privileges to the job user.
+- `var/log` exists and is writable by `lavalite`.
+- `var/work/mbd` exists and is writable by `lavalite`.
 
-This privilege split is intentional and affects directory ownership.
+After starting `lavalite-sbd`:
 
----
-### 4.3 Directory roles
+- `var/work/sbd` exists, owned by `root`.
+- `var/work/sbd/state` exists, owned by `root`, mode `0755`.
+- `var/work/sbd/jobs` exists, owned by `root`, mode `0755`.
 
-The runtime tree is split by purpose:
+After submitting a test job:
 
-#### `var/log` (daemon logs)
-- Contains log files written by the daemons.
-- Must be writable by the service user (`lavalite` for `lim` and `mbd`).
-- Log files may be readable by other users (policy decision), but only
-  the service user must be able to create and rotate them.
+- `var/work/sbd/jobs/<jobfile>/` owned by submitting user, mode `0700`.
+- `var/work/sbd/state/<jobfile>/` owned by root, mode `0700`, contains `state`.
 
----
-
-#### `var/work` (runtime state and spools)
-- Contains daemon state and per-job runtime files.
-- Top-level is root-owned.
-- Subdirectories are split by daemon responsibility.
+If ownership corrections are necessary after these steps, the installation is
+incorrect.
 
 ---
 
-#### `var/work/sbd`
-- Owner: `root`
-- Protected spool root for SBD.
-- Users must not write here directly.
-- Must be traversable (execute/search) so paths like
-  `.../sbd/jobs/<jobfile>` can be accessed when appropriate.
+## 7. Configuration
 
----
-
-#### `var/work/sbd/jobs`
-- Owner: `root`
-- Container directory for per-job runtime space.
-- Users must not create entries here directly.
-- Per-job directories are created by SBD and then chowned
-  to the submitting user.
-
-Contains:
-
-    var/work/sbd/jobs/<jobfile>/
-        job.sh
-        go
-        exit (optional)
-
----
-
-#### `var/work/sbd/state`
-- Owner: `root`
-- Container directory for authoritative SBD protocol state.
-- Users must not create entries here directly.
-- Per-job state directories are created by SBD and remain daemon-owned.
-
-Contains:
-
-    var/work/sbd/state/<jobfile>/
-        state
-
-This directory contains durable protocol state only.
-It is restart-safe and not part of the user-facing API.
-
----
-
-### 4.3 Ownership and permissions (symbolic description)
-
-The following rules must hold:
-
-#### `/opt/lavalite-0.1.0/var`
-- Owner: `root`
-- Must be traversable by daemons and tools.
-
----
-
-#### `var/log`
-- Owner: service user (`lavalite`)
-- Service user must have:
-  - `S_IWUSR`
-  - `S_IXUSR`
-- Other users may have read access to log files (policy decision).
-
----
-
-#### `var/work`
-- Owner: `root`
-- Must be traversable.
-
----
-
-#### `var/work/sbd`
-- Owner: `root`
-- Mode typically `0755`
-- Users must not write here.
-
----
-
-#### `var/work/sbd/jobs`
-- Owner: `root`
-- Mode typically `0755`
-
-Per-job directory:
-
-    var/work/sbd/jobs/<jobfile>
-
-- Owner: submitting user
-- Mode: `0700`
-- Contains:
-  - `job.sh`
-  - `go`
-  - `exit` (optional)
-
-This is user runtime space.
-
----
-
-#### `var/work/sbd/state`
-- Owner: `root`
-- Mode typically `0755`
-
-Per-job directory:
-
-    var/work/sbd/state/<jobfile>
-
-- Owner: daemon identity
-  - `root` in normal mode
-  - debug user in `sbd_debug`
-- Mode: `0700`
-- Contains:
-  - `state` (authoritative protocol record)
-
-This is daemon-private state.
-
----
-
-### Design rationale
-
-- `jobs/` = user runtime artifacts (debug-friendly).
-- `state/` = durable daemon truth (restart-safe).
-- Clear separation avoids mixing user-visible files with protocol state.
-- Cleanup is delayed (~1 hour after `finish_acked`) to allow post-mortem inspection.
-
-
-### Incorrect ownership will cause failures such as:
-
-- `lim`/`mbd` cannot create log files under `var/log`
-- `mbd` cannot write state/event files under `var/work/mbd`
-- `sbd` cannot create protected spool directories correctly
-- job launch fails after `setuid()` because the submitter cannot traverse
-  or access per-job directories
-
----
-
-### 4.5 Recommended ownership commands (minimal and explicit)
-
-The lavalite system user must own all service-managed runtime directories
-under $LAVALITE_TOP/var, except for SBD per-job directories which are
-managed dynamically.
-
-Set service-owned log directory:
-
-```bash
-sudo chown -R lavalite:lavalite /opt/lavalite-0.1.0/var/log
-```
-
-Set MBD runtime directory:
-
-```bash
-sudo mkdir -p /opt/lavalite-0.1.0/var/work/mbd
-sudo chown -R lavalite:lavalite /opt/lavalite-0.1.0/var/work
-```
-
-SBD runtime directories are created by SBD on first start. They remain
-root-owned. The parent directories must be searchable (+x) so that
-non-root job owners can access their per-job subdirectories.
-
-No manual chown of per-job directories is required or supported.
-
----
-
-### 4.6 Verification checklist
-
-**Verify ownership before starting services**
-
-Before starting services, verify the following:
-
-- `/opt/lavalite-0.1.0/var` is owned by `root` and traversable.
-- `var/log` exists and is writable by the service user (`lavalite`).
-- `var/work/mbd` exists and is writable by the service user (`lavalite`).
-
-The `var/work/sbd` directory is not manually created during installation.
-It is created automatically by `lavalite-sbd` on first startup.
-
-Do not manually create or modify:
-
-    var/work/sbd
-    var/work/sbd/state
-    var/work/sbd/jobs
-
-These directories are part of SBD's protected runtime area and are
-initialized by the daemon itself.
-
----
-
-**Verify ownership after SBD startup**
-
-After starting `lavalite-sbd`, verify:
-
-- `var/work/sbd` exists and is owned by `root`.
-- `var/work/sbd/state` exists and is owned by `root`, mode typically `0755`.
-- `var/work/sbd/jobs` exists and is owned by `root`, mode typically `0755`.
-
-No manual ownership correction should be required.
-
----
-
-**Verify per-job directories after submitting a job**
-
-After submitting at least one job, verify:
-
-`
-    var/work/sbd/jobs/<jobfile>/
-`
-
-- Owned by the submitting user.
-- Mode `0700`.
-
-    `var/work/sbd/state/<jobfile>/`
-
-- Owned by the daemon identity (root in normal mode).
-- Mode `0700`.
-- Contains the authoritative `state` file.
-
-Per-job directories must not be world-accessible.
-
-If ownership adjustments are necessary, the installation is incorrect.
-
----
-
-## 5. Configuration (Legacy LSF_* Naming)
-
-Configuration files are not installed automatically by `make install`.
-They must be copied manually to prevent accidental overwriting during upgrades.
-
-Change directory to the source tree and copy the configuration templates:
+Configuration files are not installed by `make install`. They must be copied
+manually to prevent accidental overwriting during upgrades.
 
 ```bash
 cd ~/lavalite
-sudo cp etc/lsf* etc/lsb* /opt/lavalite-0.1.0/etc/
+sudo cp etc/lsf* etc/lsb* /opt/lavalite-0.1.1/etc/
 ```
 
-The `-n` flag prevents overwriting existing configuration files.
+The `LSF_*` and `LSB_*` naming is retained for continuity with legacy Lava
+installations and reflects the conceptual lineage from Platform Lava.
 
-The `LSF_*` and `LSB_*` naming is retained for continuity with legacy Lava installations.
+### 7.1 Core configuration files
 
-The configuration layout reflects the conceptual lineage from Platform Lava.
-
----
-
-### Core Configuration Files
-
-#### **lsf.conf**
-
-This is the primary configuration file.
-
-If you use the default installation paths, no changes are required.
-
-Common variables:
+**`lsf.conf`** — primary configuration file. If using default installation
+paths, no changes are required. Key variables:
 
 ```
-LSF_CONFDIR=/opt/lavalite-0.1.0/etc
-LSF_SERVERDIR=/opt/lavalite-0.1.0/sbin
-LSF_LOGDIR=/opt/lavalite-0.1.0/var/log
-LSB_SHAREDIR=/opt/lavalite-0.1.0/var/work
+LSF_CONFDIR=/opt/lavalite-0.1.1/etc
+LSF_SERVERDIR=/opt/lavalite-0.1.1/sbin
+LSF_LOGDIR=/opt/lavalite-0.1.1/var/log
+LSB_SHAREDIR=/opt/lavalite-0.1.1/var/work
 ```
 
----
+**`lsf.shared`** — cluster-wide shared parameters. Defaults are suitable for
+initial installation. Default cluster name is `lavalite`.
 
-#### **lsf.shared**
+**`lsf.cluster.lavalite`** — cluster membership and administrative settings.
+You must configure the cluster administrator (typically the `lavalite` user)
+and the list of hosts. Host names here must match what hostname resolution
+returns (see section 1).
 
-Defines cluster-wide shared parameters.
+**`lsb.hosts`** — batch hosts known to the system. Each host must be listed
+explicitly. `MXJ` specifies maximum concurrent jobs per host.
 
-Defaults are suitable for an initial installation.
-The default cluster name is `lavalite`.
+**`lsb.queues`** — batch queue definitions. Defaults are suitable for initial
+testing.
 
----
+**`lsb.params`** — batch system parameters. Defaults are suitable for initial
+validation.
 
-#### **lsf.cluster.lavalite**
-
-Defines cluster membership and administrative settings.
-
-You must configure:
-
-- The cluster administrator (typically the `lavalite` user)
-- The list of hosts in the cluster
-
-Reasonable defaults are provided.
-
----
-
-#### **lsb.hosts**
-
-Defines batch hosts known to the system.
-
-Each host must be explicitly listed.
-
-The `MXJ` parameter specifies how many jobs may run concurrently on a host.
-
----
-
-#### **lsb.queues**
-
-Defines batch queues.
-
-Reasonable defaults are provided for initial testing.
-
----
-
-#### **lsb.params**
-
-Defines batch system parameters.
-
-Defaults are suitable for initial validation.
-
----
-
-### Minimal Required Environment Variable
+### 7.2 Required environment variable
 
 ```
-LSF_ENVDIR=/opt/lavalite-0.1.0/etc
+LSF_ENVDIR=/opt/lavalite-0.1.1/etc
 ```
 
-The `LSF_ENVDIR` variable **must** be set in the environment of:
-
-- All daemons
-- All client commands (`lsid`, `lsload`, `bjobs`, etc.)
-
-It specifies the directory containing the master configuration file (`lsf.conf`).
-
-Using an environment module to manage this variable is recommended.
-An example module file is included in the Appendix.
+`LSF_ENVDIR` must be set in the environment of all daemons and all client
+commands (`lsid`, `lsload`, `bjobs`, etc.). It points to the directory
+containing `lsf.conf`. Using an environment module to manage this is recommended
+(see Appendix A).
 
 ---
 
-## 6. Cluster Roles (Important)
+## 8. Cluster Roles
 
-LavaLite uses a master/worker model.
+LavaLite uses a master/worker model:
 
 - **Master host**: runs `lavalite-lim` and `lavalite-mbd`
 - **Worker hosts**: run `lavalite-lim` and `lavalite-sbd`
 
-Important constraints for this preview:
+Constraints for this release:
 
-- Only **one master** is supported.
+- Only one master is supported.
 - `lavalite-mbd` must be started manually on the designated master.
-- `lavalite-mbd` must **not** be started on worker nodes.
-- Failover is not supported in this release.
-
-The purpose of this preview is to validate protocol behavior and scheduler functionality.
-High availability will be addressed in future versions.
+- `lavalite-mbd` must not be started on worker nodes.
+- Failover is not supported.
 
 ---
 
-## 7. Install and Enable systemd Service Files
+## 9. Core File Configuration
 
-LavaLite daemons are managed via systemd.
-Each daemon has a dedicated unit file:
+When a daemon crashes, the kernel writes a core file for post-mortem debugging.
+By default the location and naming are system-dependent. LavaLite requires a
+consistent configuration across all cluster nodes.
+
+Create `/etc/sysctl.d/99-core-dump.conf`:
+
+```
+kernel.core_pattern = /var/crash/core.%e.%p.%t
+kernel.core_uses_pid = 1
+fs.suid_dumpable = 1
+```
+
+Create the directory and apply:
+
+```bash
+sudo mkdir -p /var/crash
+sudo chmod 1777 /var/crash
+sudo sysctl -p /etc/sysctl.d/99-core-dump.conf
+```
+
+`fs.suid_dumpable = 1` is required for `sbd`, which runs as root and calls
+`setuid()` before executing jobs.
+
+Core files land in `/var/crash` on the node where the crash occurred:
+
+```bash
+gdb /opt/lavalite/sbin/mbd /var/crash/core.mbd.<pid>.<timestamp>
+(gdb) bt
+```
+
+Apply this configuration to all nodes including the master.
+
+---
+
+## 10. systemd Service Files
+
+LavaLite daemons are managed via systemd. Each daemon has a dedicated unit file:
 
 - `lavalite-lim.service`
 - `lavalite-sbd.service`
 - `lavalite-mbd.service` (master only)
 
----
-
-### 7.1 Install Unit Files
-
-Copy the service templates:
+### 10.1 Install unit files
 
 ```bash
 cd ~/lavalite
 sudo cp etc/lavalite-*.service /etc/systemd/system/
+sudo systemctl daemon-reload
 ```
 
-## Service Configuration Verification
+### 10.2 Verify unit file configuration
 
-Before enabling or starting the services, verify that each unit file
-references the correct binary paths, user identity, and environment
-variables.
+Before enabling services, verify each unit references the correct binary path,
+user identity, and environment.
 
-Incorrect unit configuration may cause daemons to run under the wrong
-identity or start the wrong component.
-
----
-
-## lavalite-lim.service
-
-The LIM daemon must run as the dedicated `lavalite` system user.
-
-Verify:
+**`lavalite-lim.service`** — must run as `lavalite`:
 
 ```
 ExecStart=/opt/lavalite/sbin/lim
@@ -626,20 +436,7 @@ Group=lavalite
 Environment=LSF_ENVDIR=/opt/lavalite/etc
 ```
 
-Ensure that:
-
-- The binary path is `/opt/lavalite/sbin/lim`
-- The `User` and `Group` are both set to `lavalite`
-
-If any path or directive is incorrect, fix the unit file before proceeding.
-
----
-
-## lavalite-mbd.service
-
-The MBD daemon must also run as the `lavalite` system user.
-
-Verify:
+**`lavalite-mbd.service`** — must run as `lavalite`:
 
 ```
 ExecStart=/opt/lavalite/sbin/mbd
@@ -648,90 +445,42 @@ Group=lavalite
 Environment=LSF_ENVDIR=/opt/lavalite/etc
 ```
 
-Ensure that:
-
-- The binary path is `/opt/lavalite/sbin/mbd`
-- No reference to `/opt/lavalite` exists
-- `User=lavalite` is present
-- `Group=lavalite` is present
-
-Incorrect configuration may result in improper ownership of logs,
-state files, or cluster metadata.
-
----
-
-## lavalite-sbd.service
-
-The SBD daemon **must run as root**.
-
-Do **not** define a `User=` directive in this unit.
-
-Verify:
+**`lavalite-sbd.service`** — must run as root. Do not add a `User=` directive:
 
 ```
 ExecStart=/opt/lavalite/sbin/sbd
 Environment=LSF_ENVDIR=/opt/lavalite/etc
 ```
 
-Ensure that:
+Running `sbd` under a non-root user will prevent `setuid()` transitions and
+break job execution.
 
-- The binary path is `/opt/lavalite/sbin/sbd`
-- There is **no** `User=` directive
-- There is **no** `Group=` directive
-- No reference to `/opt/lavalite` exists
+### 10.3 Startup ordering
 
-Running `sbd` under a non-root user will prevent proper
-`setuid()` transitions and job execution.
-
----
-
-
-### 7.2 Startup Ordering and Cluster Semantics
-
-**LIM must always start first.**
-
-The current architecture assumes:
-
-- No LIM failover support
-- A single master LIM instance
-- MBD depends on LIM for cluster membership and host communication
-- SBD depends on LIM for node-level coordination
-
-The master LIM is therefore the first process that must be running in the cluster.
-
-Startup dependency is enforced in the unit files using:
+LIM must always start first. MBD and SBD depend on LIM for cluster membership
+and coordination. The unit files enforce this:
 
 ```
 Requires=lavalite-lim.service
 After=lavalite-lim.service
 ```
 
-This guarantees:
+### 10.4 Enable services
 
-- `lavalite-mbd` will not start unless `lavalite-lim` is active
-- `lavalite-mbd` is started only after `lavalite-lim`
-- `lavalite-sbd` starts only after `lavalite-lim`
-
----
-
-### 7.3 Enable Services
-
-Enable LIM and SBD on all nodes:
+On all nodes:
 
 ```bash
 sudo systemctl enable lavalite-lim
 sudo systemctl enable lavalite-sbd
 ```
 
-On the master node only, also enable MBD:
+On the master node only:
 
 ```bash
 sudo systemctl enable lavalite-mbd
 ```
 
----
-
-### 7.4 Starting the Cluster
+### 10.5 Start services
 
 On the master:
 
@@ -747,43 +496,6 @@ sudo systemctl start lavalite-lim
 sudo systemctl start lavalite-sbd
 ```
 
-Verify status:
-
-```bash
-systemctl status lavalite-lim
-systemctl status lavalite-mbd
-systemctl status lavalite-sbd
-```
-
----
-
-### 7.5 Important Notes
-
-- Always ensure `lavalite-lim` is running before starting `lavalite-mbd`.
-- Restarting LIM while MBD is active is currently unsupported and may lead to inconsistent cluster state.
-- In this version, the master LIM is the single source of truth.
-
-Future versions may introduce failover or quorum-based master election,
-but this release assumes a single authoritative LIM instance.
-
----
-
-## 8. Start Services
-
-On master:
-
-```bash
-sudo systemctl start lavalite-lim
-sudo systemctl start lavalite-mbd
-```
-
-On workers:
-
-```bash
-sudo systemctl start lavalite-lim
-sudo systemctl start lavalite-sbd
-```
-
 Verify:
 
 ```bash
@@ -792,121 +504,78 @@ systemctl status lavalite-mbd
 systemctl status lavalite-sbd
 ```
 
+Restarting LIM while MBD is active is unsupported and may produce inconsistent
+cluster state in this release.
+
 ---
 
-## 9. Verify Installation
+## 11. Verify Installation
 
 ```bash
 lsid
 lsload
 ```
 
-Check logs:
+Workers should transition from `unavail` to `ok` once registered.
+
+Check daemon logs:
 
 ```bash
-ls /opt/lavalite-0.1.0/var/log
-```
-
-Check systemd logs if needed:
-
-```bash
+ls /opt/lavalite/var/log
 journalctl -u lavalite-lim
 journalctl -u lavalite-mbd
 journalctl -u lavalite-sbd
 ```
 
-Workers should transition from `unavail` to `ok` once registered.
+---
+
+## 12. Known Limitations (0.1.1)
+
+### Authentication
+
+Extended authentication (`eauth`) is not yet implemented. Client requests
+include a placeholder payload; daemons accept without validation. Deploy only
+in trusted environments.
+
+The authentication design (cryptographic signature of a shared secret with a
+nonce to prevent replay attacks) is complete and will be integrated in a future
+release.
+
+### Host availability
+
+`lsload` is the authoritative source of host availability. If LIM on a host is
+unreachable, `lsload` reports it as `unavail`.
+
+`bhosts` reflects the scheduler's local host table and may be optimistic (showing
+`ok`) even when a host is unreachable. This is temporary while host state
+tracking is rebuilt.
+
+**Operator rule:** use `lsload` to determine whether a host is up. If `lsload`
+shows a host as `unavail`, jobs will not dispatch there.
+
+### `bsub -m`
+
+Host selection via `bsub -m <host>` is planned but not available in this release.
+The command returns an error and the job is not submitted.
 
 ---
 
-## Core File Configuration
+## Appendix A: Environment Modules (Optional)
 
-When a daemon crashes, the kernel writes a core file for post-mortem debugging with `gdb`.
-By default the location and naming of core files is undefined or system-dependent.
-LavaLite requires a consistent, persistent configuration across all cluster nodes.
-
-Create `/etc/sysctl.d/99-core-dump.conf` with the following:
-```
-kernel.core_pattern = /var/crash/core.%e.%p.%t
-kernel.core_uses_pid = 1
-fs.suid_dumpable = 1
-```
-
-Create the directory and apply:
-```sh
-sudo mkdir -p /var/crash
-sudo chmod 1777 /var/crash
-sudo sysctl -p /etc/sysctl.d/99-core-dump.conf
-```
-
-`fs.suid_dumpable = 1` is required for `sbd`, which runs as root and calls `setuid()` before executing jobs.
-
-Core files are named `core.<daemon>.<pid>.<timestamp>` and land in `/var/crash` on the node where the crash occurred. To debug:
-```sh
-gdb /opt/lavalite/sbin/mbd /var/crash/core.mbd.<pid>.<timestamp>
-(gdb) bt
-```
-
-Apply this configuration to all nodes including the master.
-
-
-## 10. Authentication (MVP Status)
-
-In this preview release, extended authentication (`eauth`) is not yet implemented.
-
-Current behavior:
-
-- Client includes placeholder authentication payload.
-- Daemon does not validate `eauth`.
-- Requests are accepted (`LSB_NO_ERROR`).
-
-No cryptographic authentication is performed.
-
-This version must only be deployed in trusted environments.
-A proper authentication mechanism has been designed but is not yet integrated in this release.
-
-The design is based on a cryptographic signature of a shared secret combined with a nonce to prevent replay attacks. Integration and full validation will be included in a future release.
-
----
-#### Host availability: `lsload` is authoritative (MVP)
-
-In the current MVP, `lsload` is the authoritative source of host availability.
-If LIM on a host is not reachable, `lsload` will report the host as `unavail`
-and no load indices will be shown.
-
-`bhosts` currently reflects the scheduler’s local host table and may be
-optimistic (e.g., showing `ok`) even when a host is unreachable. This is a
-temporary behavior while the legacy “daemon connection-driven host state”
-logic is being rebuilt.
-
-**Operator rule (MVP):**
-- Use `lsload` to determine whether a host is up and reachable.
-- If `lsload` shows a host as `unavail`, do not expect jobs to dispatch there.
-
-This will be tightened in a later release so that `bhosts` status is derived
-directly from LIM reachability and/or recent load reports, matching `lsload`.
-
-#### `bsub -m` (host selection)
-
-`bsub -m <host>` is planned but not available in the current MVP.
-The command will return an error and the job will not be submitted.
-
-## Appendix: Environment Modules (Optional)
-
-Example module file (`0.1.0.lua`):
+Example module file (`0.1.1.lua`):
 
 ```lua
 help([[
-LavaLite 0.1.0
+LavaLite 0.1.1
 ]])
 
 whatis("Name: LavaLite")
-whatis("Version: 0.1.0")
+whatis("Version: 0.1.1")
 whatis("Category: HPC/HTC Workload Manager")
 
 family("lavalite")
 
-local root = "/opt/lavalite-0.1.0"
+local root = "/opt/lavalite-0.1.1"
 
 prepend_path("PATH", pathJoin(root, "bin"))
 prepend_path("PATH", pathJoin(root, "sbin"))
@@ -917,17 +586,10 @@ setenv("LAVALITE_HOME", root)
 setenv("LSF_ENVDIR", pathJoin(root, "etc"))
 ```
 
-Load module:
+Load:
 
 ```bash
 module load lavalite
-```
-
-Verify:
-
-```bash
 module -t list
-lavalite/0.1.0
+lavalite/0.1.1
 ```
-
----

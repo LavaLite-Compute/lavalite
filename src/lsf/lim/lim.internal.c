@@ -894,7 +894,9 @@ master_beacon_recv(XDR *xdrs,
         return;
     }
 
-    /* Same hostNo case (should never happen) */
-    LS_ERR("master beacon: identical hostNo conflict %d",
-           myHostPtr->hostNo);
+    /* Same hostNo case (should never happen)
+     */
+   LS_ERRX("Received message with hostNo %d matching local hostNo; "
+           "this should not occur.", myHostPtr->hostNo);
+
 }

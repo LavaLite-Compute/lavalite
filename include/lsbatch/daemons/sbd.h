@@ -46,20 +46,20 @@ extern bool_t sbd_mbd_connecting;
 extern char sbd_root_dir[PATH_MAX];
 extern char sbd_state_dir[PATH_MAX];
 extern char sbd_job_dir[PATH_MAX];
+extern char sbd_archive_dir[PATH_MAX];
 
 int sbd_mbd_connect(void);
 int sbd_mbd_nb_connect(bool_t *);
 int sbd_register(int);
 bool_t sbd_mbd_link_ready(void);
 void sbd_mbd_link_down(void);
-void sbd_mbd_shutdown(void);
 
 // handle mbd messagges
 // daemon + object + action
 struct sbd_job;
 int sbd_mbd_handle(int);
 void sbd_job_new(int chfd, XDR *, struct packet_header *);
-int sbd_job_new_reply(int, struct sbd_job *, struct jobReply *);
+int sbd_job_new_reply(int, struct jobReply *);
 void sbd_job_new_reply_ack(int, XDR *, struct packet_header *);
 
 int sbd_job_execute(int, struct sbd_job *);
@@ -74,9 +74,11 @@ int sbd_job_signal_reply(int, struct packet_header *,
 void sbd_register_ack(int, XDR *, struct packet_header *);
 void free_job_specs(struct jobSpecs *);
 
-// timeout is in second
-#define DEFAULT_SBD_OPERATION_TIMER 1
-#define DEFAUL_RESEND_ACK_TIMEOUT 1
+enum sbd_policy {
+    SBD_OPERATION_TIMER  = 1,
+    SBD_RESEND_ACK_TIMEOUT = 1,
+    SBD_ARCHIVE_RETENTION  = 4 * SECS_PER_HOUR
+};
 
 // sbatchd-local view of a job.
 // This replaces the old jobCard horror.
@@ -163,9 +165,7 @@ struct sbd_job_state {
 extern struct ll_list sbd_job_list;   // intrusive list of all active jobs
 extern struct ll_hash *sbd_job_hash;  // key: job_id -> value: struct sbd_job*
 
-// ---- sbd_job workers ----
 
-// sbd write helper make sure all buffer is drained
 int write_all(int fd, const char *, size_t);
 
 // Look up a job by jobId (NULL if not found).
@@ -174,6 +174,9 @@ struct sbd_job *sbd_job_lookup(int job_id);
 // Allocate + initialise a new sbd_job from jobSpecs.
 // Does not insert into list/hash.
 struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
+void sbd_job_remove(struct sbd_job *);
+void sbd_job_archive(struct sbd_job *);
+void sbd_prune_archive(void);
 
 // Insert job into global list + hash.
 void sbd_job_insert(struct sbd_job *);
@@ -190,7 +193,7 @@ bool_t sbd_mbd_link_ready(void);
 // sbd record function to save the state of jobs from
 // sbd point of view restore the latest state after
 // restart
-int sbd_workspace_init(void);
+int sbd_storage_init(void);
 int sbd_job_state_load_all(void);
 int sbd_job_state_read(struct sbd_job *, char *);
 int sbd_job_state_write(struct sbd_job *);

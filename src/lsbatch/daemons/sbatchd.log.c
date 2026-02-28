@@ -67,8 +67,9 @@ static int get_root_dir(char *root_dir, size_t len)
 char sbd_root_dir[PATH_MAX];
 char sbd_job_dir[PATH_MAX];
 char sbd_state_dir[PATH_MAX];
+char sbd_archive_dir[PATH_MAX];
 
-int sbd_workspace_init(void)
+int sbd_storage_init(void)
 {
     char root_dir[PATH_MAX];
 
@@ -77,44 +78,59 @@ int sbd_workspace_init(void)
         return -1;
     }
 
+    // make <sharedir>/sbd
     if (snprintf(sbd_root_dir, sizeof(sbd_root_dir), "%s/sbd", root_dir) >=
         (int)sizeof(sbd_root_dir)) {
         errno = ENAMETOOLONG;
-        LS_ERR("sbd_workspace_init: sbd root path too long");
+        LS_ERR("sbd root path too long");
         return -1;
     }
-
-    if (snprintf(sbd_job_dir, sizeof(sbd_job_dir), "%s/jobs", sbd_root_dir) >=
-        (int)sizeof(sbd_job_dir)) {
-        errno = ENAMETOOLONG;
-        LS_ERR("sbd_workspace_init: sbd jobs path too long");
-        return -1;
-    }
-
-    if (snprintf(sbd_state_dir, sizeof(sbd_state_dir), "%s/state", sbd_root_dir) >=
-        (int)sizeof(sbd_state_dir)) {
-        errno = ENAMETOOLONG;
-        LS_ERR("sbd_workspace_init: sbd state path too long");
-        return -1;
-    }
-
-    // Create <sharedir>/sbd
     if (mkdir(sbd_root_dir, 0755) < 0 && errno != EEXIST) {
         LS_ERR("mkdir(%s) failed", sbd_root_dir);
         return -1;
     }
+    chmod(sbd_root_dir, 0755);
 
-    // Create <sharedir>/sbd/jobs
+    // make <sharedir>/sbd/jobs
+    if (snprintf(sbd_job_dir, sizeof(sbd_job_dir), "%s/jobs", sbd_root_dir) >=
+        (int)sizeof(sbd_job_dir)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sbd jobs path too long");
+        return -1;
+    }
     if (mkdir(sbd_job_dir, 0755) < 0 && errno != EEXIST) {
         LS_ERR("mkdir(%s) failed", sbd_job_dir);
         return -1;
     }
+    chmod(sbd_job_dir, 0755);
 
-    // Create <sharedir>/sbd/state
+    // make <sharedir>/sbd/state
+    if (snprintf(sbd_state_dir, sizeof(sbd_state_dir), "%s/state", sbd_root_dir) >=
+        (int)sizeof(sbd_state_dir)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sbd state path too long");
+        return -1;
+    }
     if (mkdir(sbd_state_dir, 0755) < 0 && errno != EEXIST) {
         LS_ERR("mkdir(%s) failed", sbd_state_dir);
         return -1;
     }
+    chmod(sbd_state_dir, 0755);
+
+    // make <sharedir>/sbd/.archive
+    if (snprintf(sbd_archive_dir, sizeof(sbd_archive_dir), "%s/.archive",
+                 sbd_root_dir) >= (int)sizeof(sbd_archive_dir)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("archive path too long");
+        return -1;
+    }
+
+    if (mkdir(sbd_archive_dir, 0700) < 0 && errno != EEXIST) {
+        LS_ERR("mkdir(%s) failed", sbd_archive_dir);
+        return -1;
+    }
+    chmod(sbd_archive_dir, 0700);
+    LS_INFO("sbd_archive_dir=%s", sbd_archive_dir);
 
     // sanity check
     struct stat s;
@@ -131,90 +147,72 @@ int sbd_workspace_init(void)
         return -1;
     }
 
-    // optional: chmod (not really needed if mkdir succeeded)
-    chmod(sbd_root_dir, 0755);
-    chmod(sbd_job_dir, 0755);
-    chmod(sbd_state_dir, 0755);
-
     LS_INFO("sbd_root_dir=%s", sbd_root_dir);
     LS_INFO("sbd_job_dir=%s", sbd_job_dir);
     LS_INFO("sbd_state_dir=%s", sbd_state_dir);
+    LS_INFO("sbd_archive_dir=%s", sbd_archive_dir);
 
     return 0;
 }
 
-int sbd_job_cleanup_files(struct sbd_job *job)
+void sbd_job_remove(struct sbd_job *job)
 {
     static const char *const job_files[] = {
         "job.sh",
-        "go",
         "exit",
         NULL
     };
 
     char dir[PATH_MAX];
     char path[PATH_MAX];
-    int l;
 
-    // remove user job dir
-
-    l = snprintf(dir, sizeof(dir), "%s/%s",
-                 sbd_job_dir, job->jobfile);
+    int l = snprintf(dir, sizeof(dir), "%s/%s", sbd_job_dir, job->jobfile);
     if (l < 0 || (size_t)l >= sizeof(dir)) {
         errno = ENAMETOOLONG;
-        return -1;
+        LS_ERR("sprint %s failed", dir);
+        return;
     }
 
     for (int i = 0; job_files[i]; i++) {
         l = snprintf(path, sizeof(path), "%s/%s", dir, job_files[i]);
         if (l < 0 || (size_t)l >= sizeof(path)) {
             errno = ENAMETOOLONG;
-            return -1;
+            LS_ERR("sprint %s failed", path);
         }
 
         if (unlink(path) < 0 && errno != ENOENT) {
-            LS_ERR("unlink(%s) failed", dir);
-            return -1;
+            LS_ERR("unlink(%s) failed, job=%ld", dir, job->job_id);
         }
     }
 
     if (rmdir(dir) < 0 && errno != ENOENT) {
-        LS_ERR("rmdir(%s) failed", dir);
-        return -1;
+        LS_ERR("rmdir(%s) failed, job=%ld", dir, job->job_id);
     }
+}
 
-    // remove root state dir
-    static const char *const state_files[] = {
-        "state",
-        NULL
-    };
+void sbd_job_archive(struct sbd_job *job)
+{
+    // archive state dir instead of deleting it
+    char src[PATH_MAX];
+    char dst[PATH_MAX];
 
-    l = snprintf(dir, sizeof(dir), "%s/%s",
-                 sbd_state_dir, job->jobfile);
-    if (l < 0 || (size_t)l >= sizeof(dir)) {
+    int l = snprintf(src, sizeof(src), "%s/%s", sbd_state_dir, job->jobfile);
+    if (l < 0 || (size_t)l >= sizeof(src)) {
         errno = ENAMETOOLONG;
-        return -1;
+        LS_ERR("sprint %s failed", src);
+        return;
     }
 
-    for (int i = 0; state_files[i]; i++) {
-        l = snprintf(path, sizeof(path), "%s/%s", dir, state_files[i]);
-        if (l < 0 || (size_t)l >= sizeof(path)) {
-            errno = ENAMETOOLONG;
-            return -1;
-        }
-
-        if (unlink(path) < 0 && errno != ENOENT) {
-            LS_ERR("unlink(%s) failed", dir);
-            return -1;
-        }
+    l = snprintf(dst, sizeof(dst), "%s/%s", sbd_archive_dir, job->jobfile);
+    if (l < 0 || (size_t)l >= sizeof(dst)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sprint %s failed", dst);
+        return;
     }
 
-    if (rmdir(dir) < 0 && errno != ENOENT) {
-        LS_ERR("rmdir(%s) failed", dir);
-        return -1;
+    if (rename(src, dst) < 0 && errno != ENOENT) {
+        LS_ERR("rename(%s, %s) failed, job=%ld", src, dst, job->job_id);
     }
-
-    return 0;
 }
 
 int sbd_job_state_write(struct sbd_job *job)

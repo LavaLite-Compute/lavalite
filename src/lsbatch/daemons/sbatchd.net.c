@@ -166,21 +166,31 @@ int sbd_mbd_connect(void)
     return ch_id;
 }
 
-/*
- * Simple wire struct for registration.
- * Put this in sbd.h if not already there:
- *
- * struct wire_sbd_register {
- *     char hostname[256];
- * };
- *
- * bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
- * {
- *     return xdr_opaque(xdrs, msg->hostname, sizeof(msg->hostname));
- * }
- */
+void sbd_mbd_link_down(void)
+{
+    if (sbd_mbd_chan >= 0)
+        chan_close(sbd_mbd_chan);
 
-int sbd_register(int ch_id)
+    sbd_mbd_chan = -1;
+    sbd_mbd_connecting = false;
+
+    struct ll_list_entry *e;
+    for (e = sbd_job_list.head; e; e = e->next) {
+        struct sbd_job *job = (struct sbd_job *)e;
+
+        job->reply_last_send = job->execute_last_send
+            = job->finish_last_send = 0;
+        // Write the latest job state
+        if (sbd_job_state_write(job) < 0) {
+            LS_ERRX("job=%ld state write failed", job->job_id);
+            sbd_fatal(SBD_FATAL_STORAGE);
+        }
+    }
+
+    LS_ERR("mbd link down: cleared pending sent flags for resend and state");
+}
+
+int sbd_register(int chan_id)
 {
     char host[MAXHOSTNAMELEN];
 
@@ -226,7 +236,7 @@ int sbd_register(int ch_id)
      * Queue for send. This must append buf to the channel send queue and
      * ensure EPOLLOUT interest is enabled so dowrite() will run.
      */
-    if (chan_enqueue(ch_id, buf) < 0) {
+    if (chan_enqueue(chan_id, buf) < 0) {
         LS_ERR("sbd register: send enqueue failed");
         chan_free_buf(buf);
         return -1;
@@ -234,330 +244,9 @@ int sbd_register(int ch_id)
 
     // Always rememeber to enable EPOLLOUT on the main sbd_efd
     // to have dowrite() to send out the request
-    chan_set_write_interest(ch_id, true);
+    chan_set_write_interest(chan_id, true);
 
     LS_INFO("sbd register: enqueued request as host: %s", host);
 
     return 0;
-}
-
-// xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
-// this function runs right upon a job start we will be async waiting to
-// mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
-// the pid to the events file
-int sbd_job_new_reply(int chan_fd, struct sbd_job *job, struct jobReply *reply)
-{
-    // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
-                job->job_id);
-        return -1;
-    }
-
-    int cc = enqueue_payload(chan_fd,
-                             BATCH_NEW_JOB_REPLY,
-                             reply,
-                             xdr_jobReply);
-    if (cc < 0) {
-        LS_ERR("enqueue_payload for job %ld reply failed", job->job_id);
-        return -1;
-    }
-
-    chan_set_write_interest(sbd_mbd_chan, true);
-
-    LS_INFO("sent job=%ld pid=%d pgid=%d to mbd", job->job_id,
-            job->pid, job->pgid);
-
-    return 0;
-}
-
-// This is invoke at afer mbd ack the pid with BATCH_NEW_JOB_ACK
-int sbd_job_execute(int chan_fd, struct sbd_job *job)
-{
-    // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip job=%ld and sbd_mbd_reconnect_try",
-                job->job_id);
-        return -1;
-    }
-
-    if (!job->pid_acked) {
-        LS_ERR("job=%ld execute before pid_acked (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (job->execute_acked) {
-        LS_ERR("job %ld execute already sent (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (job->pid <= 0 || job->pgid <= 0) {
-        LS_ERR("job %ld bad pid/pgid pid=%d pgid=%d (bug)",
-               job->job_id, job->specs.jobPid, job->specs.jobPGid);
-        assert(0);
-        return -1;
-    }
-
-    if (job->exec_cwd[0] == 0
-        || job->exec_home[0] == 0
-        || job->exec_user[0] == 0) {
-        LS_ERR("job %ld missing execute fields user/cwd/home", job->job_id);
-        assert(0);
-    }
-
-    struct statusReq status_req;
-    memset(&status_req, 0, sizeof(status_req));
-
-    status_req.jobId     = job->job_id;
-    status_req.jobPid    = job->pid;
-    status_req.jobPGid   = job->pgid;
-    // this is now fundamental for mbd that has acked the pid
-    // the job now must transition to JOB_STAT_EXECUTE
-    status_req.newStatus = JOB_STAT_RUN;
-
-    status_req.reason     = 0;
-    status_req.subreasons = 0;
-
-    // status_req uses pointers: point at stable storage in job/spec
-    // use the runtime value derived from the specs
-    status_req.execHome     = job->exec_home;
-    status_req.execCwd      = job->exec_cwd;
-    status_req.execUid = job->exec_uid;
-    status_req.execUsername = job->exec_user;
-
-    status_req.queuePreCmd  = "";
-    status_req.queuePostCmd = "";
-    status_req.msgId        = 0;
-
-    status_req.sbdReply   = ERR_NO_ERROR;
-    status_req.actPid     = 0;
-    status_req.numExecHosts = 0;
-    status_req.execHosts  = NULL;
-    status_req.exitStatus = 0;
-    status_req.sigValue   = 0;
-    status_req.actStatus  = 0;
-
-    // seq: keep 1 for now; wire per-job seq later if needed
-    status_req.seq = 1;
-
-    int cc = enqueue_payload(sbd_mbd_chan,
-                             BATCH_JOB_EXECUTE,
-                             &status_req,
-                             xdr_statusReq);
-    if (cc < 0) {
-        LS_ERR("enqueue_payload for job %ld op=%s failed",
-               job->job_id, mbd_op_str(BATCH_JOB_EXECUTE));
-        return -1;
-    }
-
-    chan_set_write_interest(sbd_mbd_chan, true);
-
-    LS_INFO("job=%ld pid=%d pgid=%d op=%s user=%s cwd=%s",
-            job->job_id, job->pid, job->pgid,
-	    mbd_op_str(BATCH_JOB_EXECUTE), job->exec_user,
-	    job->specs.cwd);
-
-    return 0;
-}
-
-int sbd_job_finish(int chan_fd, struct sbd_job *job)
-{
-    // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
-                job->job_id);
-        return -1;
-    }
-
-    if (! job->pid_acked) {
-        LS_ERR("job=%ld not pid_acked before? (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (! job->execute_acked) {
-        LS_ERRX("job=%ld not executed_acked before ? (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (job->finish_acked) {
-        LS_ERR("job=%ld finish_acked already sent (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (! job->exit_status_valid) {
-        LS_ERR("job=%ld finish without exit_status (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    int new_status;
-    if (WIFEXITED(job->exit_status) && WEXITSTATUS(job->exit_status) == 0) {
-        new_status = JOB_STAT_DONE;
-    } else {
-        new_status = JOB_STAT_EXIT;
-    }
-
-    struct statusReq req;
-    memset(&req, 0, sizeof(req));
-
-    req.jobId     = job->job_id;
-    req.jobPid    = job->pid;
-    req.jobPGid   = job->pgid;
-    req.newStatus = new_status;
-
-    req.reason     = 0;
-    req.subreasons = 0;
-
-    // runtime specs
-    req.execHome = job->exec_home;
-    req.execCwd = job->exec_cwd;
-    req.execUid = job->exec_uid;
-    req.execUsername = job->exec_user;
-
-    req.queuePreCmd  = "";
-    req.queuePostCmd = "";
-    req.msgId        = 0;
-
-    req.sbdReply   = ERR_NO_ERROR;
-    req.actPid     = 0;
-    req.numExecHosts = 0;
-    req.execHosts  = NULL;
-
-    // plain exit code (0..255) from job wrapper
-    req.exitStatus = job->exit_status;
-
-    // rusage later
-    req.lsfRusage = job->lsf_rusage;
-
-    // seq: keep 1 for now
-    req.seq = 1;
-
-    req.sigValue  = 0;
-    req.actStatus = 0;
-
-    int cc = enqueue_payload(chan_fd, BATCH_JOB_FINISH, &req, xdr_statusReq);
-    if (cc < 0) {
-        LS_ERR("enqueue_payload for job %ld BATCH_JOB_FINISH failed",
-               job->job_id);
-        return -1;
-    }
-
-    // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_set_write_interest(sbd_mbd_chan, true);
-
-    LS_INFO("job=%ld pid=%d pgid=%d op=%s exitStatus=0x%x",
-            job->job_id, job->pid, job->pgid, mbd_op_str(BATCH_JOB_FINISH),
-            job->exit_status);
-
-    return 0;
-}
-
-int sbd_job_signal_reply(int chan_fd, struct packet_header *hdr,
-                         struct wire_job_sig_reply *rep)
-{
-    if (!rep) {
-        lserrno = LSBE_BAD_ARG;
-        return -1;
-    }
-
-    int rc = enqueue_payload(chan_fd,
-                             BATCH_JOB_SIGNAL_REPLY,
-                             rep,
-                             xdr_wire_job_sig_reply);
-    if (rc < 0) {
-        LS_ERR("enqueue signal job reply failed job_id=%ld", rep->job_id);
-        lserrno = LSBE_PROTOCOL;
-        return -1;
-    }
-
-    // Ensure epoll wakes up and dowrite() drains the queue.
-    chan_set_write_interest(sbd_mbd_chan, true);
-
-    LS_INFO("job=%ld op=%s sig=%d", rep->job_id,
-            mbd_op_str(BATCH_JOB_SIGNAL_REPLY), rep->sig);
-
-    return 0;
-}
-
-int sbd_enqueue_job_unknown(int chan_fd, int64_t job_id)
-{
-    if (!sbd_mbd_link_ready()) {
-        LS_INFO("unknown job=%ld: mbd link not ready", job_id);
-        return -1;
-    }
-
-    struct wire_job_state js;
-    memset(&js, 0, sizeof(struct wire_job_state));
-    js.job_id = job_id;
-    // ignore state job job state unknown
-    js.state = -1;
-
-    int cc = enqueue_payload(chan_fd,
-                             BATCH_JOB_UNKNOWN,
-                             &js,
-                             xdr_wire_job_state);
-    if (cc < 0) {
-        LS_ERR("unknown job=%ld enqueue failed", job_id);
-        return -1;
-    }
-
-    chan_set_write_interest(chan_fd, true);
-
-    LS_INFO("unknown job=%ld reported to mbd", job_id);
-
-    return 0;
-}
-
-/*
- * sbd_mbd_link_down()
- *
- * Handle loss of the mbd connection.
- *
- * This function is the single authority for transitioning sbatchd into
- * "disconnected" state with respect to mbd. It:
- *
- *   - Closes and invalidates the mbd channel.
- *   - Clears per-job "sent" flags (reply/execute/finish) for any protocol
- *     steps that have not yet been ACKed by mbd, making them eligible
- *     for resend once the connection is re-established.
- *   - Persists the updated per-job state immediately to disk so that
- *     resend eligibility survives sbatchd restart.
- *
- * Important invariants:
- *   - ACKed protocol steps (pid_acked, execute_acked, finish_acked) are
- *     never reverted.
- *   - Only non-ACKed "sent" flags are cleared.
- *   - Job records are rewritten for every affected job to keep on-disk
- *     state consistent with in-memory resend logic.
- *
- * This function may be called multiple times; it is idempotent with
- * respect to protocol state.
- */
-void sbd_mbd_link_down(void)
-{
-    if (sbd_mbd_chan >= 0)
-        chan_close(sbd_mbd_chan);
-
-    sbd_mbd_chan = -1;
-    sbd_mbd_connecting = false;
-
-    struct ll_list_entry *e;
-    for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
-
-        job->reply_last_send = job->execute_last_send
-            = job->finish_last_send = 0;
-        // Write the latest job state
-        if (sbd_job_state_write(job) < 0) {
-            LS_ERRX("job=%ld state write failed", job->job_id);
-            sbd_fatal(SBD_FATAL_STORAGE);
-        }
-    }
-
-    LS_ERR("mbd link down: cleared pending sent flags for resend and state");
 }

@@ -141,8 +141,7 @@ Done:
 
 
 // enqueue header used by daemons
-int
-enqueue_header_reply(int ch_id, int rc)
+int enqueue_header_reply(int chan_id, int rc)
 {
     struct Buffer *reply_buf;
     struct packet_header hdr;
@@ -167,13 +166,13 @@ enqueue_header_reply(int ch_id, int rc)
     reply_buf->len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
-    if (chan_enqueue(ch_id, reply_buf) < 0) {
+    if (chan_enqueue(chan_id, reply_buf) < 0) {
         LS_ERR("chan_enqueue failed");
         chan_free_buf(reply_buf);
         return -1;
     }
 
-    if (chan_set_write_interest(ch_id, true) < 0) {
+    if (chan_set_write_interest(chan_id, true) < 0) {
         LS_ERR("chan_set_write_interest failed");
         return -1;
     }
@@ -215,14 +214,14 @@ void freeJobSpecs(struct jobSpecs *spec)
 }
 
 
-int enqueue_payload(int ch_id, int op, void *payload, bool_t (*xdr_func)())
+int enqueue_payload(int chan_id, int op, void *payload, bool_t (*xdr_func)())
 {
-    return enqueue_payload_bufsiz(ch_id, op, payload, xdr_func, LL_BUFSIZ_4K);
+    return enqueue_payload_bufsiz(chan_id, op, payload, xdr_func, LL_BUFSIZ_4K);
 }
 
 
 // enqueue message this function is shared by daemons
-int enqueue_payload_bufsiz(int ch_id, int op,
+int enqueue_payload_bufsiz(int chan_id, int op,
                            void *payload, bool_t (*xdr_func)(), size_t bufsiz)
 {
     struct Buffer *buf;
@@ -256,7 +255,7 @@ int enqueue_payload_bufsiz(int ch_id, int op,
     buf->len = (size_t)XDR_GETPOS(&xdrs);
     xdr_destroy(&xdrs);
 
-    if (chan_enqueue(ch_id, buf) < 0) {
+    if (chan_enqueue(chan_id, buf) < 0) {
         LS_ERR("chan_enqueue failed op=%d len=%d", op, buf->len);
         chan_free_buf(buf);
         return -1;
@@ -265,7 +264,7 @@ int enqueue_payload_bufsiz(int ch_id, int op,
     return 0;
 }
 
-const char * mbd_op_str(mbdReqType op)
+const char *mbd_op_str(mbdReqType op)
 {
     switch (op) {
 
@@ -398,7 +397,7 @@ const char * mbd_op_str(mbdReqType op)
     }
 }
 
-const char * job_state_str(int status)
+const char *job_state_str(int status)
 {
     if (status & JOB_STAT_DONE)
         return "JOB_STAT_DONE";

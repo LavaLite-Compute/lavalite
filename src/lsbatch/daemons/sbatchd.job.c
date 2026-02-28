@@ -322,7 +322,7 @@ fail:
 }
 
 // Job managers
-void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
+void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
 {
     sbdReplyType reply_code;
 
@@ -332,8 +332,20 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
 
     // 1) decode jobSpecs from mbd
     if (!xdr_jobSpecs((XDR *)xdrs, &spec, req_hdr)) {
-        LS_ERR("xdr_jobSpecs failed");
-        sbd_mbd_shutdown();
+        LS_ERRX("xdr_jobSpecs failed");
+
+        struct jobReply reply;
+        memset(&reply, 0, sizeof(struct jobReply));
+        reply.jobId = spec.jobId;
+        reply.jobPid = reply.jobPGid = 0;
+        reply.reasons = ERR_XDR;
+        // tell mbd to requeue the job
+        reply.jStatus = JOB_STAT_PEND;
+
+        if (sbd_job_new_reply(chan_id, &reply) < 0) {
+            LS_ERR("job=%ld enqueue new job reply failed reason=%d",
+                   reply.jobId, ERR_XDR);
+        }
         return;
     }
 
@@ -344,25 +356,18 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
     struct sbd_job *job;
     job = sbd_job_lookup(spec.jobId);
     if (job != NULL) {
-
-        LS_WARNING("MBD_NEW_JOB duplicate: job=%ld "
-                   "pid=%ld pgid=%ld jStatus=%d",
-                   (int64_t)job->job_id,
-                   (long)job->pid,
-                   (long)job->pgid,
-                   (int)job->specs.jStatus);
-
+        LS_WARNING("duplicate operation=%s job=%ld pid=%d",
+                   mbd_op_str(req_hdr->operation), job->job_id, job->pid);
         struct jobReply reply;
         memset(&reply, 0, sizeof(struct jobReply));
         reply.jobId = job->job_id;
         reply.jobPid = job->pid;
         reply.jobPGid = job->pgid;
-        reply.jStatus = job->specs.jStatus;
+        reply.jStatus = job->job_id;
 
-        if (sbd_job_new_reply(chan_fd, job, &reply) < 0) {
-            LS_ERR("job=%ld enqueuexs duplicate new job reply failed",
-                   job->job_id);
-            sbd_mbd_shutdown();
+        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+        if (sbd_job_new_reply(chan_id, &reply) < 0) {
+            LS_ERR("job=%ld enqueue duplicate new job reply failed", job->job_id);
         }
         return;
     }
@@ -370,16 +375,28 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
     // allocate sbatchd-local job object
     job = sbd_job_create(&spec);
     if (job == NULL) {
-        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
         LS_ERR("operation=%s job=%ld create failed",
-               mbd_op_str(req_hdr->operation),(long)spec.jobId);
-        sbd_mbd_shutdown();
+               mbd_op_str(req_hdr->operation), spec.jobId);
+        struct jobReply reply;
+        memset(&reply, 0, sizeof(struct jobReply));
+        reply.jobId = job->specs.jobId;
+        reply.jobPid = reply.jobPGid = 0;
+        reply.reasons = ERR_MEM;
+        // tell mbd to requeue the job
+        reply.jStatus = JOB_STAT_PEND;
+        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+
+        if (sbd_job_new_reply(chan_id, &reply) < 0) {
+            LS_ERR("job=%ld enqueue duplicate new job reply failed reason=%d",
+                   reply.jobId, ERR_MEM);
+        }
         return;
     }
 
     // 3) new job: spawn child, register it, fill job_reply
     reply_code = spawn_job(job);
     if (reply_code != ERR_NO_ERROR) {
+        // Handle all failure scenario when starting a job
         LS_ERR("faild to spawn job=%ld", spec.jobId);
         struct jobReply reply;
         memset(&reply, 0, sizeof(struct jobReply));
@@ -388,15 +405,12 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
         reply.reasons = reply_code;
         // tell mbd to requeue the job
         reply.jStatus = JOB_STAT_PEND;
-
         xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
 
-        if (sbd_job_new_reply(chan_fd, job, &reply) < 0) {
+        if (sbd_job_new_reply(chan_id, &reply) < 0) {
             LS_ERR("operation=%s job=%ld enqueue jobReply failed",
                    mbd_op_str(req_hdr->operation), job->job_id);
-            sbd_fatal(SBD_FATAL_OOM);
         }
-        sbd_job_cleanup_files(job);
         ll_list_remove(&sbd_job_list, &job->list);
         char keybuf[LL_BUFSIZ_32];
         snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
@@ -420,10 +434,11 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
 
     // send the reply to mbd, note the child has been forked and
     // presumed running at this stage
-    int cc = sbd_job_new_reply(chan_fd, job, &reply);
+    int cc = sbd_job_new_reply(chan_id, &reply);
     if (cc < 0) {
+        // if the reply fails we cannot receive the ack and
+        // the job new drive will resend the jobReply
         LS_ERR("job=%ld enqueue jobReply failed", job->job_id);
-        sbd_fatal(SBD_FATAL_OOM);
         return;
     }
     job->reply_last_send = time(NULL);
@@ -434,9 +449,9 @@ void sbd_job_new(int chan_fd, XDR *xdrs, struct packet_header *req_hdr)
     }
 }
 
-void sbd_job_new_reply_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
+void sbd_job_new_reply_ack(int chan_id, XDR *xdrs, struct packet_header *hdr)
 {
-    (void)chan_fd;
+    (void)chan_id;
 
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -543,6 +558,101 @@ void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     return;
 }
 
+int sbd_job_finish(int chan_id, struct sbd_job *job)
+{
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
+                job->job_id);
+        return -1;
+    }
+
+    if (! job->pid_acked) {
+        LS_ERR("job=%ld not pid_acked before? (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (! job->execute_acked) {
+        LS_ERRX("job=%ld not executed_acked before ? (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (job->finish_acked) {
+        LS_ERR("job=%ld finish_acked already sent (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (! job->exit_status_valid) {
+        LS_ERR("job=%ld finish without exit_status (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    int new_status;
+    if (WIFEXITED(job->exit_status) && WEXITSTATUS(job->exit_status) == 0) {
+        new_status = JOB_STAT_DONE;
+    } else {
+        new_status = JOB_STAT_EXIT;
+    }
+
+    struct statusReq req;
+    memset(&req, 0, sizeof(req));
+
+    req.jobId     = job->job_id;
+    req.jobPid    = job->pid;
+    req.jobPGid   = job->pgid;
+    req.newStatus = new_status;
+
+    req.reason     = 0;
+    req.subreasons = 0;
+
+    // runtime specs
+    req.execHome = job->exec_home;
+    req.execCwd = job->exec_cwd;
+    req.execUid = job->exec_uid;
+    req.execUsername = job->exec_user;
+
+    req.queuePreCmd  = "";
+    req.queuePostCmd = "";
+    req.msgId        = 0;
+
+    req.sbdReply   = ERR_NO_ERROR;
+    req.actPid     = 0;
+    req.numExecHosts = 0;
+    req.execHosts  = NULL;
+
+    // plain exit code (0..255) from job wrapper
+    req.exitStatus = job->exit_status;
+
+    // rusage later
+    req.lsfRusage = job->lsf_rusage;
+
+    // seq: keep 1 for now
+    req.seq = 1;
+
+    req.sigValue  = 0;
+    req.actStatus = 0;
+
+    int cc = enqueue_payload(chan_id, BATCH_JOB_FINISH, &req, xdr_statusReq);
+    if (cc < 0) {
+        LS_ERR("enqueue_payload for job %ld BATCH_JOB_FINISH failed",
+               job->job_id);
+        return -1;
+    }
+
+    // Ensure epoll wakes up and dowrite() drains the queue.
+    chan_set_write_interest(sbd_mbd_chan, true);
+
+    LS_INFO("job=%ld pid=%d pgid=%d op=%s exitStatus=0x%x",
+            job->job_id, job->pid, job->pgid, mbd_op_str(BATCH_JOB_FINISH),
+            job->exit_status);
+
+    return 0;
+}
+
 void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
 {
     struct job_status_ack ack;
@@ -600,9 +710,18 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
         LS_ERRX("job=%ld state write failed", job->job_id);
         sbd_fatal(SBD_FATAL_STORAGE);
     }
+
+    sbd_job_remove(job);
+    sbd_job_archive(job);
+    char keybuf[32];
+    snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
+    ll_hash_remove(sbd_job_hash, keybuf);
+    ll_list_remove(&sbd_job_list, &job->list);
+    free_job_specs(&job->specs);
+    free(job);
 }
 
-int sbd_job_signal(int chan_fd, XDR *xdr, struct packet_header *hdr)
+int sbd_job_signal(int chan_id, XDR *xdr, struct packet_header *hdr)
 {
     struct wire_job_sig_req req;
     memset(&req, 0, sizeof(req));
@@ -624,7 +743,7 @@ int sbd_job_signal(int chan_fd, XDR *xdr, struct packet_header *hdr)
         LS_INFO("signal for unknown job_id=%ld", req.job_id);
         rep.rc = LSBE_NO_JOB;
         rep.detail_errno = 0;
-        sbd_job_signal_reply(chan_fd, hdr, &rep);
+        sbd_job_signal_reply(chan_id, hdr, &rep);
         return 0;
     }
 
@@ -640,7 +759,7 @@ int sbd_job_signal(int chan_fd, XDR *xdr, struct packet_header *hdr)
                rep.rc, rep.detail_errno);
     }
 
-    if (sbd_job_signal_reply(chan_fd, hdr, &rep) < 0)
+    if (sbd_job_signal_reply(chan_id, hdr, &rep) < 0)
         return -1;
 
     LS_INFO("signal enqueued job_id=%ld sig=%d pid=%d pgid=%d",
@@ -749,67 +868,53 @@ struct sbd_job *sbd_job_lookup(int job_id)
     return ll_hash_search(sbd_job_hash, keybuf);
 }
 
-// we suppose the caller is already iterating on the job list
-
-// After we replayed the jobs some jobs have been ack finished
-// already we dont want to keep those job in the working list.
-// Do it here so we separate the responsibilities between reading
-// the job from disk and the list/hash cleaning.
-//
-// ensure jobs with finish_acked set never reach job_finish_drive
-void sbd_prune_acked_jobs(void)
+void sbd_prune_archive(void)
 {
-    struct ll_list_entry *e;
-    struct ll_list_entry *e2;
-
-    // Bug find a policy to purge these files periodically
-
-    time_t now = time(NULL);
-    for (e = sbd_job_list.head; e;) {
-        e2 = e->next;
-        struct sbd_job *job = (struct sbd_job *)e;
-
-        // the status finished was not deliver to mbd
-        // so in the main loop we check if the pid
-        // is still around
-        if (! job->finish_acked) {
-            // advance
-            e = e2;
-            continue;
-        }
-        // this means we delivered the job status exit
-        // to mbatch alread, but we keep the file around
-        // for some times before cleaning it
-
-        assert(job->exit_status_valid == true);
-
-        if (job->time_finish_acked <= 0) {
-            LS_ERRX("job=%ld state finish_acked=1 but time_finish_acked=%ld",
-                    job->job_id, job->time_finish_acked);
-            e = e2;
-            continue;
-        }
-
-        if ((now - job->time_finish_acked) < SECS_PER_DAY) {
-            e = e2;
-            continue;
-        }
-
-        LS_INFO("job=%ld time expired clean now", job->job_id);
-        sbd_job_cleanup_files(job);
-        // job free is explicit as there are other ways
-        // in which we traverse the list or pop from it
-        // so explicitly is better
-        char keybuf[32];
-        snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
-        ll_hash_remove(sbd_job_hash, keybuf);
-        ll_list_remove(&sbd_job_list, &job->list);
-        free_job_specs(&job->specs);
-        free(job);
-
-        // next!
-        e = e2;
+    DIR *dir = opendir(sbd_archive_dir);
+    if (!dir) {
+        LS_ERR("opendir(%s) failed", sbd_archive_dir);
+        return;
     }
+
+    time_t t = time(NULL);
+    struct dirent *de;
+    while ((de = readdir(dir)) != NULL) {
+
+        if (strcmp(de->d_name, ".") == 0
+            || strcmp(de->d_name, "..") == 0)
+            continue;
+
+        char state_path[PATH_MAX];
+        int l = snprintf(state_path, sizeof(state_path),
+                         "%s/%s/state", sbd_archive_dir, de->d_name);
+        if (l < 0 || (size_t)l >= sizeof(state_path))
+            continue;
+
+        struct sbd_job job;
+        memset(&job, 0, sizeof(job));
+        if (sbd_job_state_read(&job, state_path) < 0) {
+            LS_ERR("sbd_job_state_read state_path=%s failed", state_path);
+            continue;
+        }
+
+        if (job.time_finish_acked <= 0)
+            continue;
+        if ((t - job.time_finish_acked) < SBD_ARCHIVE_RETENTION)
+            continue;
+
+        // expired - remove state file then dir
+        unlink(state_path);
+        char dir_path[PATH_MAX];
+        l = snprintf(dir_path, sizeof(dir_path),
+                     "%s/%s", sbd_archive_dir, de->d_name);
+        if (l < 0 || (size_t)l >= sizeof(dir_path))
+            continue;
+
+        if (rmdir(dir_path) < 0)
+            LS_ERR("rmdir(%s) failed", dir_path);
+    }
+
+    closedir(dir);
 }
 
 static void child_exec_job(struct sbd_job *job)
@@ -1407,7 +1512,7 @@ static int make_job_state_dir(struct sbd_job *job)
     return 0;
 }
 
-void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
+void sbd_register_ack(int chan_id, XDR *xdrs, struct packet_header *hdr)
 {
     struct wire_sbd_register reg_ack;
 
@@ -1429,7 +1534,7 @@ void sbd_register_ack(int chan_fd, XDR *xdrs, struct packet_header *hdr)
         job = find_job_by_jid(wj->job_id);
         if (job == NULL) {
             // job state is not known to sbd
-            if (sbd_enqueue_job_unknown(chan_fd, wj->job_id) < 0) {
+            if (sbd_enqueue_job_unknown(chan_id, wj->job_id) < 0) {
                 sbd_fatal(SBD_FATAL_ENQUEUE);
             }
             continue;
@@ -1493,4 +1598,180 @@ static void reset_except_fd(int except_fd)
             close(fd);
     }
     closedir(d);
+}
+// xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
+// this function runs right upon a job start we will be async waiting to
+// mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
+// the pid to the events file
+int sbd_job_new_reply(int chan_id, struct jobReply *reply)
+{
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
+                reply->jobId);
+        return -1;
+    }
+
+    int cc = enqueue_payload(chan_id,
+                             BATCH_NEW_JOB_REPLY,
+                             reply,
+                             xdr_jobReply);
+    if (cc < 0) {
+        LS_ERR("enqueue_payload for job %ld reply failed", reply->jobId);
+        return -1;
+    }
+
+    chan_set_write_interest(sbd_mbd_chan, true);
+
+    LS_INFO("sent job=%ld pid=%d", reply->jobId, reply->jobPid);
+
+    return 0;
+}
+
+// This is invoke at afer mbd ack the pid with BATCH_NEW_JOB_ACK
+int sbd_job_execute(int chan_id, struct sbd_job *job)
+{
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job=%ld and sbd_mbd_reconnect_try",
+                job->job_id);
+        return -1;
+    }
+
+    if (!job->pid_acked) {
+        LS_ERR("job=%ld execute before pid_acked (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (job->execute_acked) {
+        LS_ERR("job %ld execute already sent (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (job->pid <= 0 || job->pgid <= 0) {
+        LS_ERR("job %ld bad pid/pgid pid=%d pgid=%d (bug)",
+               job->job_id, job->specs.jobPid, job->specs.jobPGid);
+        assert(0);
+        return -1;
+    }
+
+    if (job->exec_cwd[0] == 0
+        || job->exec_home[0] == 0
+        || job->exec_user[0] == 0) {
+        LS_ERR("job %ld missing execute fields user/cwd/home", job->job_id);
+        assert(0);
+    }
+
+    struct statusReq status_req;
+    memset(&status_req, 0, sizeof(status_req));
+
+    status_req.jobId     = job->job_id;
+    status_req.jobPid    = job->pid;
+    status_req.jobPGid   = job->pgid;
+    // this is now fundamental for mbd that has acked the pid
+    // the job now must transition to JOB_STAT_EXECUTE
+    status_req.newStatus = JOB_STAT_RUN;
+
+    status_req.reason     = 0;
+    status_req.subreasons = 0;
+
+    // status_req uses pointers: point at stable storage in job/spec
+    // use the runtime value derived from the specs
+    status_req.execHome     = job->exec_home;
+    status_req.execCwd      = job->exec_cwd;
+    status_req.execUid = job->exec_uid;
+    status_req.execUsername = job->exec_user;
+
+    status_req.queuePreCmd  = "";
+    status_req.queuePostCmd = "";
+    status_req.msgId        = 0;
+
+    status_req.sbdReply   = ERR_NO_ERROR;
+    status_req.actPid     = 0;
+    status_req.numExecHosts = 0;
+    status_req.execHosts  = NULL;
+    status_req.exitStatus = 0;
+    status_req.sigValue   = 0;
+    status_req.actStatus  = 0;
+
+    // seq: keep 1 for now; wire per-job seq later if needed
+    status_req.seq = 1;
+
+    int cc = enqueue_payload(sbd_mbd_chan,
+                             BATCH_JOB_EXECUTE,
+                             &status_req,
+                             xdr_statusReq);
+    if (cc < 0) {
+        LS_ERR("enqueue_payload for job %ld op=%s failed",
+               job->job_id, mbd_op_str(BATCH_JOB_EXECUTE));
+        return -1;
+    }
+
+    chan_set_write_interest(sbd_mbd_chan, true);
+
+    LS_INFO("job=%ld pid=%d pgid=%d op=%s user=%s cwd=%s",
+            job->job_id, job->pid, job->pgid,
+	    mbd_op_str(BATCH_JOB_EXECUTE), job->exec_user,
+	    job->specs.cwd);
+
+    return 0;
+}
+
+
+int sbd_job_signal_reply(int chan_id, struct packet_header *hdr,
+                         struct wire_job_sig_reply *rep)
+{
+    if (!rep) {
+        lserrno = LSBE_BAD_ARG;
+        return -1;
+    }
+
+    int rc = enqueue_payload(chan_id,
+                             BATCH_JOB_SIGNAL_REPLY,
+                             rep,
+                             xdr_wire_job_sig_reply);
+    if (rc < 0) {
+        LS_ERR("enqueue signal job reply failed job_id=%ld", rep->job_id);
+        lserrno = LSBE_PROTOCOL;
+        return -1;
+    }
+
+    // Ensure epoll wakes up and dowrite() drains the queue.
+    chan_set_write_interest(sbd_mbd_chan, true);
+
+    LS_INFO("job=%ld op=%s sig=%d", rep->job_id,
+            mbd_op_str(BATCH_JOB_SIGNAL_REPLY), rep->sig);
+
+    return 0;
+}
+
+int sbd_enqueue_job_unknown(int chan_id, int64_t job_id)
+{
+    if (!sbd_mbd_link_ready()) {
+        LS_INFO("unknown job=%ld: mbd link not ready", job_id);
+        return -1;
+    }
+
+    struct wire_job_state js;
+    memset(&js, 0, sizeof(struct wire_job_state));
+    js.job_id = job_id;
+    // ignore state job job state unknown
+    js.state = -1;
+
+    int cc = enqueue_payload(chan_id,
+                             BATCH_JOB_UNKNOWN,
+                             &js,
+                             xdr_wire_job_state);
+    if (cc < 0) {
+        LS_ERR("unknown job=%ld enqueue failed", job_id);
+        return -1;
+    }
+
+    chan_set_write_interest(chan_id, true);
+
+    LS_INFO("unknown job=%ld reported to mbd", job_id);
+
+    return 0;
 }

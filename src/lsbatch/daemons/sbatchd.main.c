@@ -184,7 +184,7 @@ static int sbd_init(const char *sbatch)
     // Initialize persistent job state storage early.
     // If we can't create/validate the state directory, we cannot guarantee
     // restart-safe job tracking, so fail fast before allocating resources.
-    if (sbd_workspace_init() < 0) {
+    if (sbd_storage_init() < 0) {
         LS_ERR("failed to initialize persistent state storage");
         return -1;
     }
@@ -193,12 +193,6 @@ static int sbd_init(const char *sbatch)
         LS_ERR("failed to load persistent job state");
         return -1;
     }
-
-    // Remove from the internal data structure jobs that
-    // were already reported to mbd. We don't want to carry
-    // duplicate status for now as we assert it in multiple
-    // places
-    sbd_prune_acked_jobs();
 
     // Green light we can start to operate
 
@@ -263,7 +257,7 @@ sbd_run_daemon(void)
                  job_execute_drive();
                  job_finish_drive();
                  job_status_checking();
-                 sbd_prune_acked_jobs();
+                 sbd_prune_archive();
                  // rest the state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
@@ -410,19 +404,6 @@ bool_t sbd_mbd_link_ready(void)
     return (sbd_mbd_chan >= 0 && !sbd_mbd_connecting);
 }
 
-void
-sbd_mbd_shutdown(void)
-{
-    LS_INFO("mbd connection shutdown");
-
-    if (sbd_mbd_chan >= 0) {
-        chan_close(sbd_mbd_chan);
-        sbd_mbd_chan = -1;
-    }
-
-    sbd_mbd_connecting = false;
-}
-
 /*
  * sbd_mbd_reconnect_try()
  *
@@ -454,15 +435,14 @@ sbd_mbd_reconnect_try(void)
     }
 
     sbd_mbd_chan = ch;
-    sbd_mbd_connecting = connected ? false : true;
+    if (connected == true)
+        sbd_mbd_connecting = false;
+    else
+        sbd_mbd_connecting = true;
 
-    static time_t last_time;
-    time_t t = time(NULL);
-    if (t - last_time >= SECS_PER_MIN) {
-        LS_INFO("mbd link: reconnect started ch=%d connecting=%d",
-                sbd_mbd_chan, sbd_mbd_connecting);
-        last_time = t;
-    }
+    LS_INFO("mbd link: reconnect started ch=%d connecting=%d",
+            sbd_mbd_chan, sbd_mbd_connecting);
+
     if (connected) {
         // Connected immediately: enqueue registration request now (async).
         sbd_register(sbd_mbd_chan);
@@ -561,7 +541,7 @@ sbd_init_network(void)
 
     // for now
     t = 0;
-    sbd_timer = DEFAULT_SBD_OPERATION_TIMER; // seconds
+    sbd_timer = SBD_OPERATION_TIMER; // seconds
     if (genParams[LSB_SBD_OPERATION_TIMER].paramValue) {
         if (! ll_atoi(genParams[LSB_SBD_OPERATION_TIMER].paramValue, &t)) {
             LS_ERR("invalid LSB_SBD_OPERATION_TIME=%s using default %d",
@@ -584,7 +564,7 @@ sbd_init_network(void)
 
     // timout is in second
     // Bug do: LSB_OPERATION_TIMER
-    sbd_resend_timer = DEFAUL_RESEND_ACK_TIMEOUT;
+    sbd_resend_timer = SBD_RESEND_ACK_TIMEOUT;
     if (genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue) {
         if (! ll_atoi(genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue, &t)) {
             LS_ERR("invalid LSB_SBD_RESEND_ACK_TIMEOUT=%s using default %d",
@@ -788,11 +768,11 @@ static void job_new_drive(void)
         reply.jobPGid = job->pgid;
         reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
 
-        if (sbd_job_new_reply(sbd_mbd_chan, job, &reply) < 0) {
+        if (sbd_job_new_reply(sbd_mbd_chan, &reply) < 0) {
             LS_ERR("job=%ld sbd_job_new_reply enqueue failed", job->job_id);
             continue;
         }
-        LS_INFO("job=%ld", job->job_id);
+        LS_INFO("job=%ld pid=%d", job->job_id, job->pid);
 
         job->reply_last_send = now;
     }

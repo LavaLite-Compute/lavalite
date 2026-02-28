@@ -828,8 +828,7 @@ int mbd_signal_all_jobs(int chan_id,
             }
 
             if (job->jStatus & JOB_STAT_UNKNOWN) {
-                LS_INFO("job=%ld status=0x%x JOB_STAT_UNKNOWN skip",
-                        job->jobId, job->jStatus);
+                LS_INFO("job=%ld status=0x%x", job->jobId, job->jStatus);
                 continue;
             }
 

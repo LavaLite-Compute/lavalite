@@ -123,7 +123,8 @@ typedef enum {
     ERR_SOCKETPAIR,
     ERR_UNREACH_SBD,
     ERR_JOB_TOO_LARGE,
-    ERR_DUP_JOB
+    ERR_DUP_JOB,
+    ERR_XDR
 } sbdReplyType;
 
 // Hertz
