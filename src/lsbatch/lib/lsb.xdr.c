@@ -265,16 +265,16 @@ xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
     (void)hdr;
 
     if (xdrs == NULL || req == NULL)
-        return FALSE;
+        return false;
 
     if (xdrs->x_op == XDR_ENCODE)
         jobId64To32(req->jobId, &job_arr_id, &job_arr_elem_id);
 
     if (!xdr_int(xdrs, &req->sigValue))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &job_arr_id))
-        return FALSE;
+        return false;
 
     /*
      * MVP: only SIG_ARRAY_REQUEUE carries extra fields.
@@ -282,9 +282,9 @@ xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
      */
     if (req->sigValue == SIG_ARRAY_REQUEUE) {
         if (!xdr_time_t(xdrs, &req->chkPeriod))
-            return FALSE;
+            return false;
         if (!xdr_int(xdrs, &req->actFlags))
-            return FALSE;
+            return false;
     } else {
         if (xdrs->x_op == XDR_DECODE) {
             req->chkPeriod = 0;
@@ -293,12 +293,12 @@ xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
     }
 
     if (!xdr_int(xdrs, &job_arr_elem_id))
-        return FALSE;
+        return false;
 
     if (xdrs->x_op == XDR_DECODE)
         jobId32To64(&req->jobId, job_arr_id, job_arr_elem_id);
 
-    return TRUE;
+    return true;
 }
 
 bool_t xdr_lsbMsg(XDR *xdrs, struct lsbMsg *m, void *)
@@ -1830,8 +1830,7 @@ xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *j)
     return true;
 }
 
-bool_t
-xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
+bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
 {
     if (xdrs == NULL || msg == NULL)
         return false;
