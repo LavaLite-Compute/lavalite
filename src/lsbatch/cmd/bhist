@@ -50,6 +50,11 @@ def new_job_struct(jobid):
         "status": "UNKNOWN",
         "start_time": None,
         "timeline": [],
+
+        # Parsing flags (used to stop scanning history files once a complete
+        # history is found for a specific job id).
+        "saw_new": False,
+        "saw_terminal": False,
     }
 
 
@@ -115,9 +120,18 @@ def main():
     jobs = {}
     order = []
 
+    found_complete = False
+
     for efile in event_files:
         if not os.path.exists(efile):
             continue
+
+
+        # If we already reconstructed a complete history for a specific job,
+        # do not scan older rotated files (they will contain prior recycled
+        # instances of the same job id).
+        if wanted_job and found_complete:
+            break
         with open(efile, "r", errors="replace") as f:
             for line in f:
 
@@ -151,6 +165,13 @@ def main():
                 # ---------- JOB_NEW ----------
                 if ev == "JOB_NEW":
 
+                    # For a specific job id, keep only the first (most recent)
+                    # JOB_NEW we encounter while scanning newest-to-oldest.
+                    # Any additional JOB_NEW events for the same job id belong
+                    # to older recycled runs and must be ignored.
+                    if wanted_job and job["saw_new"]:
+                        continue
+
                     ts = tok[2]
 
                     job["user"] = tok[13]
@@ -163,6 +184,7 @@ def main():
                     job["command"] = cmd
 
                     job["status"] = "PEND"
+                    job["saw_new"] = True
 
                     job["timeline"].append(
                         "%s: Submitted from host <%s>, to Queue <%s>"
@@ -227,6 +249,7 @@ def main():
 
                     if jstat & JOB_STAT_DONE:
                         job["status"] = "DONE"
+                        job["saw_terminal"] = True
 
                         job["timeline"].append(
                             "%s: Done successfully. The CPU time used is %d seconds."
@@ -239,6 +262,7 @@ def main():
                         )
                     elif jstat & JOB_STAT_EXIT:
                         job["status"] = "EXIT"
+                        job["saw_terminal"] = True
 
                         job["timeline"].append(
                             "%s: Exited. The CPU time used is %d seconds."
@@ -251,6 +275,14 @@ def main():
                         )
                     elif jstat & JOB_STAT_UNKNOWN:
                         job["status"] = "UNKNOWN"
+
+                if wanted_job:
+                    if job["saw_new"] and job["saw_terminal"]:
+                        found_complete = True
+                        break
+
+            if wanted_job and found_complete:
+                break
 
     first = True
     for jid in order:
