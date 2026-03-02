@@ -1816,8 +1816,7 @@ bool_t xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, void *)
     return true;
 }
 
-static bool_t
-xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *j)
+static bool_t xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *j)
 {
     if (j == NULL)
         return false;
@@ -1868,8 +1867,7 @@ bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
     return true;
 }
 
-void
-wire_sbd_register_free(struct wire_sbd_register *msg)
+void wire_sbd_register_free(struct wire_sbd_register *msg)
 {
     if (msg == NULL)
         return;
@@ -1891,8 +1889,7 @@ bool_t xdr_wire_job_sig_req(XDR *xdrs, struct wire_job_sig_req *p)
     return true;
 }
 
-bool_t
-xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
+bool_t xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
 {
     if (!xdrs || !jf)
         return false;
@@ -1939,8 +1936,7 @@ xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
     return true;
 }
 
-bool_t
-xdr_wire_job_state(XDR *xdrs, struct wire_job_state *js)
+bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *js)
 {
     if (!xdr_int64_t(xdrs, &js->job_id))
         return false;
@@ -1949,4 +1945,11 @@ xdr_wire_job_state(XDR *xdrs, struct wire_job_state *js)
         return false;
 
     return true;
+}
+
+bool_t xdr_wire_compact_notify(XDR *xdrs, struct wire_compact_notify *msg)
+{
+    if (!xdrs || !msg)
+        return false;
+    return xdr_int32_t(xdrs, &msg->status);
 }

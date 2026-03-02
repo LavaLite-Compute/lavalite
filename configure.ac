@@ -130,6 +130,7 @@ AC_CONFIG_FILES([
   src/lsbatch/lib/Makefile
   src/lsbatch/cmd/Makefile
   src/lsbatch/daemons/Makefile
+  src/lsbatch/compactor/Makefile
 ])
 
 AC_OUTPUT

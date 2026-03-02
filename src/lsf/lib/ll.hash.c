@@ -287,6 +287,7 @@ void ll_hash_for_each(struct ll_hash *ht,
     }
 }
 
+// ll_hash_free - free contents AND the struct (use for heap-allocated hash)
 void ll_hash_free(struct ll_hash *ht, void (*cleanup)(void *))
 {
     if (!ht)
@@ -317,4 +318,56 @@ void ll_hash_free(struct ll_hash *ht, void (*cleanup)(void *))
     ht->nentries = 0;
     free(ht->buckets);
     free(ht);
+}
+
+// ll_hash_clear - free contents but NOT the struct itself
+// (use for stack-allocated hash)
+void ll_hash_clear(struct ll_hash *ht, void (*cleanup)(void *))
+{
+    if (!ht)
+        return;
+
+    if (!ht->buckets) {
+        free(ht);
+        return;
+    }
+
+    for (size_t i = 0; i < ht->nbuckets; i++) {
+        struct ll_hash_entry *ent = ht->buckets[i];
+
+        while (ent) {
+            struct ll_hash_entry *next = ent->next;
+
+            if (cleanup)
+                cleanup(ent);
+
+            free(ent->key);
+            free(ent);
+
+            ent = next;
+        }
+
+        ht->buckets[i] = NULL;
+    }
+
+    ht->nentries = 0;
+    free(ht->buckets);
+}
+
+int ll_hash_contains(struct ll_hash *ht, const char *key)
+{
+    size_t idx;
+    struct ll_hash_entry *ent;
+
+    if (!ht || !key || ht->nbuckets == 0)
+        return 0;
+
+    idx = ll_bucket_index(key, ht->nbuckets);
+
+    for (ent = ht->buckets[idx]; ent; ent = ent->next) {
+        if (strcmp(ent->key, key) == 0)
+            return 1;
+    }
+
+    return 0;
 }

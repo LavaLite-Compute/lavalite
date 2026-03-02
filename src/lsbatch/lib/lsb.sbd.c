@@ -94,13 +94,16 @@ bool_t xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
     if (!xdr_int32_t(xdrs, &p->exit_status))
         return false;
 
-    if (! xdr_opaque(xdrs, &p->cwd, LL_BUFSIZ_32))
+    if (! xdr_vector(xdrs, p->cwd, LL_BUFSIZ_32, sizeof(char),
+                     (xdrproc_t)xdr_char))
         return false;
 
-    if (! xdr_opaque(xdrs, &p->cwd, PATH_MAX))
+    if (! xdr_vector(xdrs, p->home_dir, LL_BUFSIZ_32, sizeof(char),
+                     (xdrproc_t)xdr_char))
         return false;
 
-    if (! xdr_opaque(xdrs, &p->cwd, PATH_MAX))
+    if (! xdr_vector(xdrs, p->user_name, LL_BUFSIZ_32, sizeof(char),
+                     (xdrproc_t)xdr_char))
         return false;
 
     return true;

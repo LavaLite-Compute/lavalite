@@ -242,6 +242,9 @@ int main(int argc, char **argv)
     // mbd don't want root
     mbd_check_not_root();
 
+    // start compact
+    mbd_compact_start();
+
     if (lsb_CheckMode == TRUE) {
         TIMEIT(0, (cc = mbd_init(FIRST_START)), "mbd_init");
         if (cc < 0) {
@@ -642,6 +645,13 @@ static int mbd_client_dispatch(struct mbd_client_node *client)
                 host_data->sbd_node = NULL;
         }
         return 0;
+    case BATCH_COMPACT_DONE:
+        mbd_handle_compact_done(&xdrs, ch_id, &req_hdr);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        // dont close the channel mbd always enqueue
+        return;
+        break;
     default:
         // No error back to unkown client
         if (req_hdr.version <= CURRENT_PROTOCOL_VERSION)
@@ -807,32 +817,13 @@ static void periodicCheck(void)
 
 void terminate_handler(int sig)
 {
-    sigset_t newmask, oldmask;
-
-    sigemptyset(&newmask);
-    sigaddset(&newmask, SIGTERM);
-    sigaddset(&newmask, SIGINT);
-    sigaddset(&newmask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &newmask, &oldmask);
-
     exit(sig);
 }
 
 void child_handler(int sig)
 {
-    int pid;
-    int status;
-    sigset_t newmask, oldmask;
-
-    sigemptyset(&newmask);
-    sigaddset(&newmask, SIGTERM);
-    sigaddset(&newmask, SIGINT);
-    sigaddset(&newmask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &newmask, &oldmask);
-
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-    }
-    sigprocmask(SIG_SETMASK, &oldmask, NULL);
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
 }
 
 static int mbd_auth_client_request(struct lsfAuth *auth,
@@ -1031,10 +1022,10 @@ static void mbd_init_log(void)
     bool_t check = lsb_CheckMode;
 
     if (!log_dir)
-        log_dir = "/var/log/lavalite"; /* fallback */
+        log_dir = "/tmp";
 
     if (!log_mask)
-        log_mask = "LOG_INFO"; /* sane default */
+        log_mask = "LOG_INFO";
 
     // Initialize LavaLite logging
     if (check) {

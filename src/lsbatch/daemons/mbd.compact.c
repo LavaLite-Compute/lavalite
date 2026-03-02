@@ -1,276 +1,127 @@
 /*
- * mbatchd.compact.c - LavaLite event log compaction daemon
+ * mbd.compact.c
  *
- * Launched by mbd at startup via fork/exec with a socketpair fd.
- * Runs as a permanent child process for the lifetime of mbd.
+ * Additions to integrate mbd_compact into mbd.
+ * These snippets belong in the following files:
  *
- * Responsibilities:
- *   - monitor lsb.events size
- *   - compact when size exceeds threshold
- *   - notify mbd via socketpair when compact is done
- *   - exit cleanly when socketpair EOF (mbd died)
+ *   daemonout.h       - add BATCH_COMPACT_DONE / BATCH_COMPACT_ACK to enum
+ *   mbatchd.h         - declare mbd_compact_start / mbd_compact_shutdown
+ *   mbatchd.handler.c - add BATCH_COMPACT_DONE case in request dispatch
+ *   mbd.main.c        - call mbd_compact_start() at startup, shutdown at exit
+ *   mbd.log.c         - add mbd_reopen_elog()
  *
- * Protocol:
- *   mbd_compact → mbd: packet_header op=COMPACT_DONE  (compact finished)
- *   mbd → mbd_compact: packet_header op=COMPACT_ACK   (mbd reopened log)
+ * wire struct and xdr go in the appropriate wire_*.c / lsb.xdr.c
  *
  * Copyright (C) LavaLite Contributors
+ * GPL v2
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <time.h>
-#include <dirent.h>
+#include "lsbatch/daemons/mbd.h"
+#include "lsbatch/daemons/mbatchd.h"
 
-#include "lsf/lib/ll.proto.h"
-#include "lsf/lib/ll.sysenv.h"
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/lib/lsb.conf.h"
+static pid_t compact_pid = -1;
+static int compact_fail_count;
 
-/* Operations used on the socketpair */
-enum compact_op {
-    COMPACT_DONE = 1,   /* mbd_compact → mbd: compact finished, reopen log */
-    COMPACT_ACK  = 2    /* mbd → mbd_compact: log reopened, proceed         */
-};
-
-enum compact_policy {
-    COMPACT_CHECK_INTERVAL = 60,              /* seconds between size checks */
-    COMPACT_DEFAULT_THRESHOLD = 64 * 1024 * 1024  /* 64 MB                  */
-};
-
-static int    notify_fd   = -1;
-static char   events_path[PATH_MAX];
-static char   vapor_path[PATH_MAX];
-static off_t  threshold;
-
-/*
- * notify_mbd - send COMPACT_DONE and wait for COMPACT_ACK.
- * Returns 0 on success, -1 on error or EOF (mbd gone).
- */
-static int notify_mbd(void)
+void mbd_compact_start(void)
 {
-    struct packet_header hdr;
-    memset(&hdr, 0, sizeof(hdr));
-    hdr.operation = COMPACT_DONE;
-    hdr.version   = CURRENT_PROTOCOL_VERSION;
+    char events_arg[PATH_MAX];
+    char compact_bin[PATH_MAX];
+    const char *serverdir = genParams[LSF_SERVERDIR].paramValue;
+    const char *logdir    = genParams[LSF_LOGDIR].paramValue;
+    const char *log_mask  = genParams[LSF_LOG_MASK].paramValue;
 
-    if (send_packet_header(notify_fd, &hdr) < 0) {
-        perror("mbd_compact: send_packet_header");
-        return -1;
+    if (!logdir)
+        logdir = "/tmp";
+    if (!log_mask)
+        log_mask = "LOG_INFO";
+
+    snprintf(compact_bin, sizeof(compact_bin), "%s/mbd_compact", serverdir);
+    snprintf(events_arg,  sizeof(events_arg),  "%s/mbd/lsb.events",
+             lsbParams[LSB_SHAREDIR].paramValue);
+
+    compact_pid = fork();
+    if (compact_pid < 0) {
+        LS_ERR("fork mbd_compact");
+        mbdDie(MASTER_FATAL);
+    }
+    if (compact_pid == 0) {
+        execl(compact_bin, "mbd_compact",
+              "--events",   events_arg,
+              "--logdir",   logdir,
+              "--log-mask", log_mask,
+              NULL);
+        fprintf(stderr, "mbd_compact: execl(%s) failed: %s\n",
+                compact_bin, strerror(errno));
+        _exit(1);
     }
 
-    memset(&hdr, 0, sizeof(hdr));
-    if (recv_packet_header(notify_fd, &hdr) < 0) {
-        /* EOF means mbd died — exit cleanly */
-        return -1;
-    }
-    if (hdr.operation != COMPACT_ACK) {
-        fprintf(stderr, "mbd_compact: unexpected op=%d\n", hdr.operation);
-        return -1;
-    }
-    return 0;
+    LS_INFO("mbd_compact started pid=%d events=%s", compact_pid, events_arg);
+}
+
+void mbd_compact_shutdown(void)
+{
+    if (compact_pid <= 0)
+        return;
+
+    kill(compact_pid, SIGTERM);
+    compact_pid = -1;
 }
 
 /*
- * check_eof - returns 1 if mbd closed the socketpair (we should exit).
- * Non-blocking peek using MSG_PEEK is not available on socketpair cleanly,
- * so we rely on COMPACT_ACK/COMPACT_DONE flow and read errors to detect EOF.
+ * mbd_handle_compact_done - called when mbd_compact sends BATCH_COMPACT_DONE
+ * or BATCH_COMPACT_FAILED. The compactor is just another client.
  */
-static int mbd_gone(void)
+void mbd_handle_compact_done(XDR *xdrs, int ch_id, struct packet_header *hdr)
 {
-    struct packet_header hdr;
-    /* Try a non-blocking read to detect EOF between compact cycles */
-    int flags = fcntl(notify_fd, F_GETFL, 0);
-    fcntl(notify_fd, F_SETFL, flags | O_NONBLOCK);
-    ssize_t n = read(notify_fd, &hdr, sizeof(hdr));
-    fcntl(notify_fd, F_SETFL, flags);
-    if (n == 0)
-        return 1;   /* EOF - mbd gone */
-    if (n < 0 && errno == EAGAIN)
-        return 0;   /* nothing there, mbd alive */
-    return 0;
-}
+    struct wire_compact_notify req;
+    struct wire_compact_notify ack_payload;
+    struct packet_header ack_hdr;
+    struct Buffer *out;
+    char buf[PACKET_HEADER_SIZE + LL_BUFSIZ_64];
+    int len;
 
-/*
- * events_size - return current size of lsb.events, -1 on error.
- */
-static off_t events_size(void)
-{
-    struct stat st;
-    if (stat(events_path, &st) < 0)
-        return -1;
-    return st.st_size;
-}
-
-/*
- * compact - read lsb.events, write active jobs to lsb.events.vapor,
- * then rename vapor → events atomically.
- *
- * Active = job not yet finished, or finished less than clean_period ago.
- * We use lsb_geteventrec / lsb_puteventrec from the existing library.
- *
- * Returns 0 on success, -1 on error.
- */
-static int compact(int clean_period)
-{
-    FILE *efp;
-    FILE *vfp;
-    struct eventRec *rec;
-    int linenum = 0;
-
-    efp = fopen(events_path, "r");
-    if (!efp) {
-        perror("mbd_compact: fopen events");
-        return -1;
+    // decode - get status from compactor
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_compact_notify(xdrs, &req)) {
+        LS_ERR("decode failed");
+        return;
     }
 
-    vfp = fopen(vapor_path, "w");
-    if (!vfp) {
-        perror("mbd_compact: fopen vapor");
-        fclose(efp);
-        return -1;
-    }
-    fchmod(fileno(vfp), 0644);
-
-    time_t now = time(NULL);
-    lsberrno = LSBE_NO_ERROR;
-
-    while (lsberrno != LSBE_EOF) {
-        rec = lsb_geteventrec(efp, &linenum);
-        if (!rec) {
-            if (lsberrno != LSBE_EOF)
-                fprintf(stderr, "mbd_compact: read error line %d\n", linenum);
-            break;
-        }
-
-        /* Always keep non-job events we care about */
-        if (rec->type == EVENT_MBD_START || rec->type == EVENT_MBD_DIE ||
-            rec->type == EVENT_LOAD_INDEX) {
-            /* skip - not relevant for compact */
-            continue;
-        }
-
-        /*
-         * Keep the record if:
-         *   - job is not finished (JOB_FINISH not seen), or
-         *   - job finished within clean_period
-         *
-         * We do not have access to mbd job table here — mbd_compact is
-         * a standalone process. The heuristic: if we see a JOB_FINISH
-         * record and its eventTime is older than clean_period, drop all
-         * records for that jobId. Otherwise keep.
-         *
-         * Simple approach for 0.1.1: keep everything except JOB_FINISH
-         * records older than clean_period. Job lifecycle records (NEW,
-         * START, etc.) for those jobs are also dropped by tracking jobids.
-         *
-         * This is correct because lsb.events is append-only and ordered
-         * by time — a JOB_FINISH always appears after all other records
-         * for that job.
-         */
-        if (rec->type == EVENT_JOB_STATUS) {
-            int status = rec->eventLog.jobStatusLog.jStatus;
-            if ((status == JOB_STAT_DONE || status == JOB_STAT_EXIT) &&
-                (now - rec->eventTime) > clean_period) {
-                continue;   /* expired finished job - drop */
-            }
-        }
-
-        if (lsb_puteventrec(vfp, rec) < 0) {
-            fprintf(stderr, "mbd_compact: lsb_puteventrec failed\n");
-            fclose(efp);
-            fclose(vfp);
-            unlink(vapor_path);
-            return -1;
-        }
+    if (hdr->operation == BATCH_COMPACT_FAILED) {
+        compact_fail_count++;
+        LS_ERR("compact failed status=%d count=%d",
+               req.status, compact_fail_count);
+        // TODO: after N fails kill and restart compactor child
+        goto send_ack;
     }
 
-    fclose(efp);
-    if (fclose(vfp) != 0) {
-        perror("mbd_compact: fclose vapor");
-        unlink(vapor_path);
-        return -1;
+    compact_fail_count = 0;
+    LS_INFO("compact done - event log rotated in place");
+
+send_ack:
+    memset(&ack_payload, 0, sizeof(ack_payload));
+    init_pack_hdr(&ack_hdr);
+    ack_hdr.operation = BATCH_COMPACT_ACK;
+
+    XDR xdrs2;
+    xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
+    if (!xdr_encodeMsg(&xdrs2, (char *)&ack_payload, &ack_hdr,
+                       xdr_wire_compact_notify, 0, NULL)) {
+        LS_ERR("xdr_encodeMsg ack failed");
+        xdr_destroy(&xdrs2);
+        return;
     }
+    len = xdr_getpos(&xdrs2);
+    xdr_destroy(&xdrs2);
 
-    if (rename(vapor_path, events_path) < 0) {
-        perror("mbd_compact: rename");
-        unlink(vapor_path);
-        return -1;
+    if (chan_alloc_buf(&out, len) < 0) {
+        LS_ERR("chan_alloc_buf failed");
+        return;
     }
-    chmod(events_path, 0644);
-    return 0;
-}
+    memcpy(out->data, buf, len);
+    out->len = len;
+    chan_enqueue(ch_id, out);
+    chan_set_write_interest(ch_id, true);
 
-static void usage(void)
-{
-    fprintf(stderr,
-            "usage: mbd_compact --events PATH --notify-fd FD "
-            "[--threshold BYTES] [--interval SECS] [--clean-period SECS]\n");
-    exit(1);
-}
-
-int main(int argc, char *argv[])
-{
-    int      interval    = COMPACT_CHECK_INTERVAL;
-    int      clean_period = DEF_CLEAN_PERIOD;   /* from lsb.h / lsb.params */
-
-    threshold = COMPACT_DEFAULT_THRESHOLD;
-    events_path[0] = '\0';
-    notify_fd = -1;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--events") == 0 && i+1 < argc) {
-            snprintf(events_path, sizeof(events_path), "%s", argv[++i]);
-        } else if (strcmp(argv[i], "--notify-fd") == 0 && i+1 < argc) {
-            notify_fd = atoi(argv[++i]);
-        } else if (strcmp(argv[i], "--threshold") == 0 && i+1 < argc) {
-            threshold = (off_t)atol(argv[++i]);
-        } else if (strcmp(argv[i], "--interval") == 0 && i+1 < argc) {
-            interval = atoi(argv[++i]);
-        } else if (strcmp(argv[i], "--clean-period") == 0 && i+1 < argc) {
-            clean_period = atoi(argv[++i]);
-        } else {
-            usage();
-        }
-    }
-
-    if (events_path[0] == '\0' || notify_fd < 0)
-        usage();
-
-    (void)snprintf(vapor_path, sizeof(vapor_path), "%s.vapor", events_path);
-
-    for (;;) {
-        sleep(interval);
-
-        if (mbd_gone())
-            exit(0);
-
-        off_t sz = events_size();
-        if (sz < 0 || sz < threshold)
-            continue;
-
-        fprintf(stderr, "mbd_compact: lsb.events size=%ld >= threshold=%ld, compacting\n",
-                (long)sz, (long)threshold);
-
-        if (compact(clean_period) < 0) {
-            fprintf(stderr, "mbd_compact: compact failed, will retry\n");
-            continue;
-        }
-
-        /* notify mbd to reopen lsb.events */
-        if (notify_mbd() < 0)
-            exit(0);    /* mbd gone */
-
-        fprintf(stderr, "mbd_compact: compact done, mbd ack received\n");
-    }
-
-    return 0;
+    LS_INFO("compact ack sent");
 }

@@ -5,6 +5,7 @@ import shlex
 import datetime
 import os
 import sys
+import glob
 
 envdir = os.environ.get("LSF_ENVDIR", "").strip()
 if not envdir:
@@ -103,142 +104,153 @@ def main():
 
     wanted_job = args.jobid
 
+    numbered = sorted(
+        [f for f in glob.glob(events_path + ".*")
+         if f.rsplit(".", 1)[-1].isdigit()],
+        key=lambda f: int(f.rsplit(".", 1)[-1]),
+        reverse=True
+    )
+    event_files = numbered + [events_path]
+
     jobs = {}
     order = []
 
-    with open(events_path, "r", errors="replace") as f:
-        for line in f:
+    for efile in event_files:
+        if not os.path.exists(efile):
+            continue
+        with open(efile, "r", errors="replace") as f:
+            for line in f:
 
-            line = line.strip()
-            if not line.startswith('"'):
-                continue
+                line = line.strip()
+                if not line.startswith('"'):
+                    continue
 
-            tok = parse(line)
-            ev = tok[0]
+                tok = parse(line)
+                ev = tok[0]
 
-            if ev not in (
-                "JOB_NEW",
-                "JOB_START",
-                "JOB_EXECUTE",
-                "JOB_SIGNAL",
-                "JOB_STATUS"
-            ):
-                continue
+                if ev not in (
+                    "JOB_NEW",
+                    "JOB_START",
+                    "JOB_EXECUTE",
+                    "JOB_SIGNAL",
+                    "JOB_STATUS"
+                ):
+                    continue
 
-            jobid = int(tok[3])
+                jobid = int(tok[3])
 
-            if wanted_job and jobid != wanted_job:
-                continue
+                if wanted_job and jobid != wanted_job:
+                    continue
 
-            if jobid not in jobs:
-                jobs[jobid] = new_job_struct(jobid)
-                order.append(jobid)
+                if jobid not in jobs:
+                    jobs[jobid] = new_job_struct(jobid)
+                    order.append(jobid)
 
-            job = jobs[jobid]
+                job = jobs[jobid]
 
-            # ---------- JOB_NEW ----------
-            if ev == "JOB_NEW":
+                # ---------- JOB_NEW ----------
+                if ev == "JOB_NEW":
 
-                ts = tok[2]
+                    ts = tok[2]
 
-                job["user"] = tok[13]
-                job["queue"] = tok[28]
-                job["submit_host"] = tok[30]
-                job["cwd"] = tok[31]
+                    job["user"] = tok[13]
+                    job["queue"] = tok[28]
+                    job["submit_host"] = tok[30]
+                    job["cwd"] = tok[31]
 
-                proj, cmd = extract_project_command(tok)
-                job["project"] = proj
-                job["command"] = cmd
+                    proj, cmd = extract_project_command(tok)
+                    job["project"] = proj
+                    job["command"] = cmd
 
-                job["status"] = "PEND"
-
-                job["timeline"].append(
-                    "%s: Submitted from host <%s>, to Queue <%s>"
-                    % (fmt_time(ts),
-                       job["submit_host"],
-                       job["queue"])
-                )
-
-                job["timeline"].append(
-                    "%s: Job was queued." % fmt_time(ts)
-                )
-
-            # ---------- JOB_START ----------
-            elif ev == "JOB_START":
-
-                ts = tok[2]
-                host = tok[9]
-
-                job["exec_host"] = host
-                job["start_time"] = int(ts)
-                job["status"] = "RUN"
-
-                job["timeline"].append(
-                    "%s: Dispatched to <%s>"
-                    % (fmt_time(ts), host)
-                )
-
-            # ---------- JOB_EXECUTE ----------
-            elif ev == "JOB_EXECUTE":
-
-                ts = tok[2]
-
-                job["timeline"].append(
-                    "%s: Started on <%s>"
-                    % (fmt_time(ts), job["exec_host"])
-                )
-
-            # ---------- JOB_SIGNAL ----------
-            elif ev == "JOB_SIGNAL":
-
-                ts = tok[2]
-                sig = tok[6]
-                user = tok[8]
-
-                job["timeline"].append(
-                    "%s: Job was signaled (%s) by <%s>"
-                    % (fmt_time(ts), sig, user)
-                )
-
-            # ---------- JOB_STATUS ----------
-            elif ev == "JOB_STATUS":
-
-                ts = tok[2]
-                jstat = int(tok[4])
-
-                cpu = int(float(tok[7]))
-                end_time = int(tok[8])
-
-                runtime = 0
-                if job["start_time"] is not None:
-                    runtime = end_time - job["start_time"]
-
-                if jstat & JOB_STAT_DONE:
-                    job["status"] = "DONE"
+                    job["status"] = "PEND"
 
                     job["timeline"].append(
-                        "%s: Done successfully. The CPU time used is %d seconds."
-                        % (fmt_time(ts), cpu)
+                        "%s: Submitted from host <%s>, to Queue <%s>"
+                        % (fmt_time(ts),
+                           job["submit_host"],
+                           job["queue"])
                     )
 
                     job["timeline"].append(
-                        "%s: The run time was %d seconds."
-                        % (fmt_time(ts), runtime)
-                    )
-                elif jstat & JOB_STAT_EXIT:
-                    job["status"] = "EXIT"
-
-                    job["timeline"].append(
-                        "%s: Exited. The CPU time used is %d seconds."
-                        % (fmt_time(ts), cpu)
+                        "%s: Job was queued." % fmt_time(ts)
                     )
 
+                # ---------- JOB_START ----------
+                elif ev == "JOB_START":
+
+                    ts = tok[2]
+                    host = tok[9]
+
+                    job["exec_host"] = host
+                    job["start_time"] = int(ts)
+                    job["status"] = "RUN"
+
                     job["timeline"].append(
-                        "%s: The run time was %d seconds."
-                        % (fmt_time(ts), runtime)
+                        "%s: Dispatched to <%s>"
+                        % (fmt_time(ts), host)
                     )
-                elif jstat & JOB_STAT_UNKNOWN:
-                    job["status"] = "UNKNOWN"
+
+                # ---------- JOB_EXECUTE ----------
+                elif ev == "JOB_EXECUTE":
+
+                    ts = tok[2]
+
+                    job["timeline"].append(
+                        "%s: Started on <%s>"
+                        % (fmt_time(ts), job["exec_host"])
+                    )
+
+                # ---------- JOB_SIGNAL ----------
+                elif ev == "JOB_SIGNAL":
+
+                    ts = tok[2]
+                    sig = tok[6]
+                    user = tok[8]
+
+                    job["timeline"].append(
+                        "%s: Job was signaled (%s) by <%s>"
+                        % (fmt_time(ts), sig, user)
+                    )
+
+                # ---------- JOB_STATUS ----------
+                elif ev == "JOB_STATUS":
+
+                    ts = tok[2]
+                    jstat = int(tok[4])
+
+                    cpu = int(float(tok[7]))
+                    end_time = int(tok[8])
+
+                    runtime = 0
+                    if job["start_time"] is not None:
+                        runtime = end_time - job["start_time"]
+
+                    if jstat & JOB_STAT_DONE:
+                        job["status"] = "DONE"
+
+                        job["timeline"].append(
+                            "%s: Done successfully. The CPU time used is %d seconds."
+                            % (fmt_time(ts), cpu)
+                        )
+
+                        job["timeline"].append(
+                            "%s: The run time was %d seconds."
+                            % (fmt_time(ts), runtime)
+                        )
+                    elif jstat & JOB_STAT_EXIT:
+                        job["status"] = "EXIT"
+
+                        job["timeline"].append(
+                            "%s: Exited. The CPU time used is %d seconds."
+                            % (fmt_time(ts), cpu)
+                        )
+
+                        job["timeline"].append(
+                            "%s: The run time was %d seconds."
+                            % (fmt_time(ts), runtime)
+                        )
+                    elif jstat & JOB_STAT_UNKNOWN:
+                        job["status"] = "UNKNOWN"
 
     first = True
     for jid in order:

@@ -1219,32 +1219,7 @@ void checkParams(struct infoReq *req, struct parameterInfo *reply)
 
 void mbdDie(int sig)
 {
-    struct jData *jpbw;
-    int list;
-    sigset_t newmask;
-
-    sigemptyset(&newmask);
-    sigaddset(&newmask, SIGCHLD);
-    sigaddset(&newmask, SIGTERM);
-    sigaddset(&newmask, SIGINT);
-    sigprocmask(SIG_BLOCK, &newmask, NULL);
-
-    for (list = 0; list < NJLIST; list++) {
-        if (jDataList[list] == NULL)
-            continue;
-        for (jpbw = jDataList[list]->back; jpbw != jDataList[list];
-             jpbw = jpbw->back) {
-            if (!(jpbw->pendEvent.notSwitched ||
-                  jpbw->pendEvent.sig != SIG_NULL ||
-                  jpbw->pendEvent.sig1 != SIG_NULL ||
-                  jpbw->pendEvent.notModified))
-                continue;
-            if (IS_FINISH(jpbw->jStatus) && (getZombieJob(jpbw->jobId)) == NULL)
-                continue;
-            log_unfulfill(jpbw);
-        }
-    }
-
+    mbd_compact_shutdown();
     log_mbdDie(sig);
 
     die(sig);

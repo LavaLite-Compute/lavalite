@@ -683,8 +683,7 @@ int probeMasterTcp(struct clusterNode *clPtr)
 
     int rc = chan_connect(ch, &mlim_addr, probeTimeout * 1000, 0);
     if (rc < 0) {
-        ls_syslog(LOG_ERR, "%s: %s(%s) failed: %m", __func__,
-                  sockAdd2Str_(&mlim_addr));
+        LS_ERR("chan_connect to %s failed", sockAdd2Str_(&mlim_addr));
         chan_close(ch);
         return -1;
     }

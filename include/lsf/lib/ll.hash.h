@@ -101,3 +101,5 @@ void ll_hash_for_each(struct ll_hash *ht, void (*fn)(const char *, void *));
 // Internally calls ll_hash_clear() to release entries, then frees the bucket
 // array and the ll_hash object itself.
 void ll_hash_free(struct ll_hash *, void (*cleanup)(void *));
+void ll_hash_clear(struct ll_hash *, void (*cleanup)(void *));
+int ll_hash_contains(struct ll_hash *, const char *);

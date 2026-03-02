@@ -78,7 +78,10 @@ typedef enum {
     BATCH_JOB_SIGNAL_REPLY, // from sbd to mbd reply signal action
     BATCH_JOB_SIGNAL_MANY,  // not MVP
     BATCH_JOB_SIGNAL_MANY_REPLY, // not MVP
-    BATCH_JOB_UNKNOWN,
+    BATCH_JOB_UNKNOWN, // from sbd never had this job
+    BATCH_COMPACT_DONE,
+    BATCH_COMPACT_FAILED,
+    BATCH_COMPACT_ACK,
     BATCH_LAST_OP
 } mbdReqType;
 

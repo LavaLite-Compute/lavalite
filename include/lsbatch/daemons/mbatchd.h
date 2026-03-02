@@ -83,5 +83,7 @@ int mbd_job_signal_reply(struct mbd_client_node *, XDR *, struct packet_header *
 void mbd_job_status_change(struct jData *, int, time_t, const char *);
 void mbd_job_state_unknown(struct mbd_client_node *, XDR *,
                            struct packet_header *);
-
+void mbd_compact_start(void);
+void mbd_compact_shutdown(void);
+void mbd_handle_compact_done(XDR *, int, struct packet_header *);
 void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);

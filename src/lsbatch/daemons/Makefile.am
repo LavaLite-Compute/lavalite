@@ -9,33 +9,34 @@ LDADD = $(COMMON_LIBS)
 
 sbin_PROGRAMS = mbd sbd
 mbd_SOURCES = mbd.main.c \
-	mbd.comm.c \
-	mbd.host.c \
-	mbd.jgrp.c \
-	mbd.resource.c \
+    mbd.comm.c \
+    mbd.host.c \
+    mbd.jgrp.c \
+    mbd.resource.c \
     mbd.dep.c \
-	mbd.init.c \
-	mbd.job.c \
-	mbd.misc.c \
-	mbd.queue.c \
+    mbd.init.c \
+    mbd.job.c \
+    mbd.misc.c \
+    mbd.queue.c \
     mbd.serv.c \
-	mbd.policy.c \
-	mbd.grp.c \
-	mbd.jarray.c \
-	mbd.log.c \
-	mbd.requeue.c \
-	mbd.window.c \
+    mbd.policy.c \
+    mbd.grp.c \
+    mbd.jarray.c \
+    mbd.log.c \
+    mbd.requeue.c \
+    mbd.window.c \
     elock.c \
-	misc.c \
-	mail.c \
-	daemons.c \
-	daemons.xdr.c \
+    misc.c \
+    mail.c \
+    daemons.c \
+    daemons.xdr.c \
     mbatchd.handler.c \
-    mbatchd.job.c
+    mbatchd.job.c \
+    mbd.compact.c
 
 sbd_SOURCES =  sbatchd.main.c sbatchd.handler.c sbatchd.net.c \
-                   sbatchd.job.c sbatchd.client.c \
-                   daemons.xdr.c daemons.c sbatchd.log.c
+    sbatchd.job.c sbatchd.client.c \
+    daemons.xdr.c daemons.c sbatchd.log.c
 
 mbd_DEPENDENCIES = $(COMMON_LIBS)
 sbd_DEPENDENCIES = $(COMMON_LIBS)
