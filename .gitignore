@@ -72,3 +72,4 @@ src/lsbatch/daemons/sbd
 # Ignore cscope
 cscope*
 src/lsf/pylib/__pycache__/
+src/lsbatch/compactor/mbd_compact

@@ -39,8 +39,8 @@ static char vapor_path[PATH_MAX + LL_BUFSIZ_16];
 static int  debug_mode;
 
 static void usage(const char *);
+static int should_skip(struct eventRec *, struct ll_hash *);
 static int jobid_from_rec(struct eventRec *);
-static int should_drop(struct eventRec *);
 static int pass1(FILE *, struct ll_hash *, int, time_t);
 static int pass2(FILE *, FILE *, struct ll_hash *);
 static int rotate_events(void);
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     events_path[0] = 0;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "e:t:i:c:l:m:dh", longopts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "e:t:i:c:l:m:h", longopts, NULL)) != -1) {
         switch (opt) {
         case 'e':
             snprintf(events_path, sizeof(events_path), "%s", optarg);
@@ -88,9 +88,6 @@ int main(int argc, char **argv)
             break;
         case 'm':
             log_mask = optarg;
-            break;
-        case 'd':
-            debug_mode = 1;
             break;
         case 'h':
         default:
@@ -155,8 +152,7 @@ static void usage(const char *cmd)
             " [--interval SECS]"
             " [--clean-period SECS]"
             " [--logdir DIR]"
-            " [--log-mask MASK]"
-            " [--debug]\n", cmd);
+            " [--log-mask MASK]", cmd);
 }
 
 /*
@@ -344,14 +340,9 @@ static int pass1(FILE *efp, struct ll_hash *expired, int clean_period,
     return 0;
 }
 
-/*
- * pass2 - write survivors to vapor.
- * Returns 0 on success, -1 on read or write error.
- */
 static int pass2(FILE *efp, FILE *vfp, struct ll_hash *expired)
 {
     int linenum = 0;
-    char keybuf[LL_BUFSIZ_64];
 
     rewind(efp);
     lsberrno = LSBE_NO_ERROR;
@@ -366,32 +357,39 @@ static int pass2(FILE *efp, FILE *vfp, struct ll_hash *expired)
             break;
         }
 
-        if (should_drop(rec)) {
+        if (should_skip(rec, expired)) {
             if (debug_mode)
-                LS_DEBUG("type=%d dropped", rec->type);
+                LS_DEBUG("line=%d type=%d vaporized", linenum, rec->type);
             continue;
         }
 
-        int job_id = jobid_from_rec(rec);
-        if (job_id >= 0) {
-            sprintf(keybuf, "%d", job_id);
-            LS_DEBUG("job=%d keybuf=%s hash=%d", job_id, keybuf,
-                     ll_hash_contains(expired, keybuf));
-            if (ll_hash_contains(expired, keybuf)) {
-                if (debug_mode)
-                    LS_DEBUG("job=%d vaporized", job_id);
-                continue;
-            }
-        }
-
         if (lsb_puteventrec(vfp, rec) < 0) {
-            LS_ERRX("lsb_puteventrec failed line %d — disk full or I/O error",
-                    linenum);
+            LS_ERRX("lsb_puteventrec failed line %d", linenum);
             return -1;
         }
     }
 
     return 0;
+}
+
+static int should_skip(struct eventRec *rec, struct ll_hash *expired)
+{
+    switch (rec->type) {
+    case EVENT_MBD_START:
+    case EVENT_MBD_DIE:
+    case EVENT_LOAD_INDEX:
+        return 1;
+    default:
+        break;
+    }
+
+    int job_id = jobid_from_rec(rec);
+    if (job_id < 0)
+        return 0;
+
+    char keybuf[LL_BUFSIZ_64];
+    sprintf(keybuf, "%d", job_id);
+    return ll_hash_contains(expired, keybuf);
 }
 
 /*
@@ -423,25 +421,6 @@ static int jobid_from_rec(struct eventRec *rec)
     default:
         LS_ERRX("unknown event");
         return -1;
-    }
-}
-
-/*
- * should_drop - returns 1 if this record type is always dropped.
- * MBD_START/DIE tracked by systemd journal.
- * MBD_UNFULFILL is a legacy hack not needed in LavaLite.
- * LOAD_INDEX not relevant post-replay.
- */
-static int should_drop(struct eventRec *rec)
-{
-    switch (rec->type) {
-    case EVENT_MBD_START:
-    case EVENT_MBD_DIE:
-    case EVENT_MBD_UNFULFILL:
-    case EVENT_LOAD_INDEX:
-        return 1;
-    default:
-        return 0;
     }
 }
 
