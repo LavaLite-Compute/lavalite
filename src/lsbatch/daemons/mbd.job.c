@@ -139,12 +139,6 @@ static int rusgMatch(struct resVal *resValPtr, const char *resName);
 static int switchAJob(struct jobSwitchReq *, struct lsfAuth *, struct qData *);
 static int moveAJob(struct jobMoveReq *, int log, struct lsfAuth *);
 
-// LavaLite
-static int bucket_add_jobid(struct sig_host_bucket *, int64_t);
-static void free_sig_bucket_table(struct ll_hash *);
-static int enqueue_sig_buckets(struct ll_hash *, int32_t);
-static int signal_sbd_jobs(struct sig_host_bucket *, int32_t, int32_t);
-
 int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
            struct lsfAuth *auth, int *schedule, int dispatch,
            struct jData **jobData)
@@ -234,8 +228,7 @@ int newJob(struct submitReq *subReq, struct submitMbdReply *Reply, int chan,
 
     struct wire_job_file jf;
     if ((mbdRcvJobFile(chan, &jf)) == -1) {
-        ls_syslog(LOG_ERR, "%s: mbdRcvJobFile failed for user ID <%d>: %M",
-                  __func__, auth->uid);
+        LS_ERR("mbdRcvJobFile failed job=%ld user=%d", nextId, auth->uid);
         freeNewJob(newjob);
         if (returnErr != LSBE_NO_ERROR)
             return returnErr;
@@ -2141,8 +2134,6 @@ int statusJob(struct statusReq *statusReq, struct hostent *hp, int *schedule)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
 
     if ((jpbw = getJobData(statusReq->jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(statusReq->jobId),
-                  "getJobData");
         return LSBE_NO_JOB;
     }
 
@@ -2697,16 +2688,14 @@ int rusageJob(struct statusReq *statusReq, struct hostent *hp)
                   lsb_jobid2str(statusReq->jobId));
 
     if ((jpbw = getJobData(statusReq->jobId)) == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(statusReq->jobId),
-                  "getJobData");
+        ls_syslog(LOG_ERR, "%s", lsb_jobid2str(statusReq->jobId));
         return LSBE_NO_JOB;
     }
 
     hData = getHostData(hp->h_name);
     if (hData == NULL) {
-        LS_ERR("%s: Received job rusage update from host <%s> that is not "
-               "configured as a batch server",
-               hp->h_name);
+        LS_ERR("received job rusage update from host=%s that is not "
+               "configured as a batch server", hp->h_name);
         return LSBE_SBATCHD;
     }
     hStatChange(hData, 0);
@@ -3281,7 +3270,7 @@ void job_abort(struct jData *jData, char reason)
         return;
 
     if (reason == BAD_LOAD)
-        reasonp = ls_sysmsg();
+        reasonp = (char *)ls_sysmsg();
     else if (reason == TOO_LATE)
         reasonp = "Job termination deadline reached";
     else if (reason == FILE_MISSING)
@@ -5595,12 +5584,12 @@ void copyJobBill(struct submitReq *subReq, struct submitReq *jobBill,
     if (subReq->options & SUB_OUT_FILE)
         jobBill->outFile = safeSave(subReq->outFile);
     else
-        jobBill->outFile = safeSave("/dev/null");
+        jobBill->outFile = safeSave("");
 
     if (subReq->options & SUB_ERR_FILE)
         jobBill->errFile = safeSave(subReq->errFile);
     else
-        jobBill->errFile = safeSave("/dev/null");
+        jobBill->errFile = safeSave("");
 
     if (subReq->options & SUB_HOST_SPEC)
         jobBill->hostSpec = safeSave(subReq->hostSpec);
@@ -5627,7 +5616,7 @@ void copyJobBill(struct submitReq *subReq, struct submitReq *jobBill,
         jobBill->askedHosts = NULL;
         jobBill->numAskedHosts = 0;
     }
-    // survive
+
     if (subReq->inFileSpool)
         jobBill->inFileSpool = safeSave(subReq->inFileSpool);
     else
@@ -7050,7 +7039,6 @@ bool_t runJob(struct runJobRequest *request, struct lsfAuth *auth)
 
     cc = setUrgentJobExecHosts(request, job);
     if (cc != LSBE_NO_ERROR) {
-        ls_syslog(LOG_ERR, "%s", __func__, "setUrgentJobExecHosts");
         return cc;
     }
 
@@ -7448,14 +7436,14 @@ static int mbdRcvJobFile(int chfd, struct wire_job_file *jf)
     uint32_t netlen;
     ssize_t cc = chan_read_nonblock(chfd, &netlen, sizeof(netlen), timeout);
     if (cc != (ssize_t)sizeof(netlen)) {
-        LS_ERR("chan_read_nonblock header %u failed", sizeof(netlen));
+        LS_ERR("chan_read_nonblock header %lu failed", sizeof(netlen));
         return -1;
     }
 
     jf->len = ntohl(netlen);
     jf->data = calloc(jf->len, sizeof(char));
     if (!jf->data) {
-        LS_ERR("calloc jobfile %zu failed", jf->len);
+        LS_ERR("calloc jobfile %u failed", jf->len);
         return -1;
     }
 
