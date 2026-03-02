@@ -1215,37 +1215,44 @@ static int cd_work_dir(const struct sbd_job *job)
 
 static int redirect_stdio(const struct jobSpecs *specs)
 {
-    LS_INFO("job=%ld redirecting stdin/stdout/stderr", specs->jobId);
+    LS_INFO("job=%ld redirecting stdin/stdout/stderr",
+            specs->jobId);
 
-    char path[PATH_MAX];
+    char stdin_path[PATH_MAX];
+    char stdout_path[PATH_MAX];
+    char stderr_path[PATH_MAX];
     char expanded[PATH_MAX];
-    // Redirect stdin: user-specified input file or /dev/null
-    strcpy(path, "/dev/null");
-    if (specs->inFile[0] != 0) {
-        if (expand_stdio_path(specs, specs->inFile,
-                              expanded, sizeof(expanded)) < 0) {
-            LS_ERR("job=%ld stdin path expansion failed file=%s",
-                   specs->jobId, specs->inFile);
-            return -1;
-        }
-        snprintf(path, PATH_MAX, "%s", expanded);
-    }
-    LS_DEBUG("job=%ld stdin=%s", specs->jobId, path);
+    int fd;
 
-    int fd = open(path, O_RDONLY);
+    /* ---------- stdin ---------- */
+
+    strcpy(stdin_path, "/dev/null");
+
+    if (specs->inFile[0] != 0)
+        snprintf(stdin_path, sizeof(stdin_path), "%s", specs->inFile);
+
+    LS_DEBUG("job=%ld stdin=%s", specs->jobId, stdin_path);
+
+    fd = open(stdin_path, O_RDONLY);
     if (fd < 0) {
-        LS_ERR("job=%ld: open(stdin=%s) failed", specs->jobId, path);
+        LS_ERR("job=%ld open(stdin=%s) failed",
+               specs->jobId, stdin_path);
         return -1;
     }
+
     if (dup2(fd, STDIN_FILENO) < 0) {
-        LS_ERR("job=%ld: dup2(stdin) failed", specs->jobId);
+        LS_ERR("job=%ld dup2(stdin) failed", specs->jobId);
         close(fd);
         return -1;
     }
+
     close(fd);
 
-    // Redirect stdout: user-specified output file or "stdout.jobId" in cwd
-    snprintf(path, sizeof(path), "stdout.%ld", specs->jobId);
+    /* ---------- build stdout path ---------- */
+
+    snprintf(stdout_path, sizeof(stdout_path),
+             "stdout.%ld", specs->jobId);
+
     if (specs->outFile[0] != 0) {
         if (expand_stdio_path(specs, specs->outFile,
                               expanded, sizeof(expanded)) < 0) {
@@ -1253,45 +1260,71 @@ static int redirect_stdio(const struct jobSpecs *specs)
                    specs->jobId, specs->outFile);
             return -1;
         }
-        snprintf(path, PATH_MAX, "%s", expanded);
+        snprintf(stdout_path, sizeof(stdout_path), "%s", expanded);
     }
-    LS_DEBUG("job=%ld stdout=%s", specs->jobId, path);
 
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    /* ---------- build stderr path ---------- */
+
+    snprintf(stderr_path, sizeof(stderr_path),
+             "stderr.%ld", specs->jobId);
+
+    if (specs->errFile[0] != 0) {
+        if (expand_stdio_path(specs, specs->errFile,
+                              expanded, sizeof(expanded)) < 0) {
+            LS_ERR("job=%ld stderr path expansion failed file=%s",
+                   specs->jobId, specs->errFile);
+            return -1;
+        }
+        snprintf(stderr_path, sizeof(stderr_path), "%s", expanded);
+    }
+
+    LS_DEBUG("job=%ld stdout=%s", specs->jobId, stdout_path);
+    LS_DEBUG("job=%ld stderr=%s", specs->jobId, stderr_path);
+
+    /* ---------- redirect stdout ---------- */
+
+    fd = open(stdout_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        LS_ERR("job=%ld open(stdout=%s) failed", specs->jobId, path);
+        LS_ERR("job=%ld open(stdout=%s) failed",
+               specs->jobId, stdout_path);
         return -1;
     }
+
     if (dup2(fd, STDOUT_FILENO) < 0) {
         LS_ERR("job=%ld dup2(stdout) failed", specs->jobId);
         close(fd);
         return -1;
     }
-    close(fd);
 
-    // Redirect stderr: user-specified error file or "stderr.jobId" in cwd
-    snprintf(path, sizeof(path), "stderr.%ld", specs->jobId);
-    if (specs->errFile[0] != 0) {
-        if (expand_stdio_path(specs, specs->errFile,
-                              expanded, sizeof(expanded)) < 0) {
-            LS_ERR("job=%ld stderr path expansion failed for %s",
-                   specs->jobId, specs->errFile);
+    /* ---------- redirect stderr ---------- */
+
+    if (strcmp(stdout_path, stderr_path) == 0) {
+
+        if (dup2(fd, STDERR_FILENO) < 0) {
+            LS_ERR("job=%ld dup2(stderr) failed", specs->jobId);
+            close(fd);
             return -1;
         }
-        snprintf(path, PATH_MAX, "%s", expanded);
-    }
-    LS_DEBUG("job=%ld stderr=%s", specs->jobId, path);
 
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        close(fd);
+        return 0;
+    }
+
+    close(fd);
+
+    fd = open(stderr_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        LS_ERR("job=%ld open(stderr=%s) failed", specs->jobId, path);
+        LS_ERR("job=%ld open(stderr=%s) failed",
+               specs->jobId, stderr_path);
         return -1;
     }
+
     if (dup2(fd, STDERR_FILENO) < 0) {
         LS_ERR("job=%ld dup2(stderr) failed", specs->jobId);
         close(fd);
         return -1;
     }
+
     close(fd);
 
     return 0;
