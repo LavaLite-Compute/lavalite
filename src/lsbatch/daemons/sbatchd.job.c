@@ -711,8 +711,8 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
         sbd_fatal(SBD_FATAL_STORAGE);
     }
 
-    sbd_job_remove(job);
-    sbd_job_archive(job);
+    sbd_job_file_remove(job);
+    sbd_job_state_archive(job);
     char keybuf[32];
     snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
     ll_hash_remove(sbd_job_hash, keybuf);

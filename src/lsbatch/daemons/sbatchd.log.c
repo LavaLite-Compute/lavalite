@@ -155,7 +155,7 @@ int sbd_storage_init(void)
     return 0;
 }
 
-void sbd_job_remove(struct sbd_job *job)
+void sbd_job_file_remove(struct sbd_job *job)
 {
     static const char *const job_files[] = {
         "job.sh",
@@ -190,7 +190,7 @@ void sbd_job_remove(struct sbd_job *job)
     }
 }
 
-void sbd_job_archive(struct sbd_job *job)
+void sbd_job_state_archive(struct sbd_job *job)
 {
     // archive state dir instead of deleting it
     char src[PATH_MAX];

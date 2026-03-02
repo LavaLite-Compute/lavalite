@@ -77,7 +77,7 @@ void free_job_specs(struct jobSpecs *);
 enum sbd_policy {
     SBD_OPERATION_TIMER  = 1,
     SBD_RESEND_ACK_TIMEOUT = 1,
-    SBD_ARCHIVE_RETENTION  = 4 * SECS_PER_HOUR
+    SBD_ARCHIVE_RETENTION  = 24 * SECS_PER_HOUR
 };
 
 // sbatchd-local view of a job.
@@ -174,8 +174,8 @@ struct sbd_job *sbd_job_lookup(int job_id);
 // Allocate + initialise a new sbd_job from jobSpecs.
 // Does not insert into list/hash.
 struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
-void sbd_job_remove(struct sbd_job *);
-void sbd_job_archive(struct sbd_job *);
+void sbd_job_file_remove(struct sbd_job *);
+void sbd_job_state_archive(struct sbd_job *);
 void sbd_prune_archive(void);
 
 // Insert job into global list + hash.
