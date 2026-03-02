@@ -89,6 +89,11 @@ int sbd_storage_init(void)
         LS_ERR("mkdir(%s) failed", sbd_root_dir);
         return -1;
     }
+    /*
+     * mkdir() is affected by umask(0077), so even if 0755 is requested
+     * the directory would be created as 0700. Force final permissions
+     * to allow users to read archived job metadata.
+     */
     chmod(sbd_root_dir, 0755);
 
     // make <sharedir>/sbd/jobs
@@ -125,11 +130,12 @@ int sbd_storage_init(void)
         return -1;
     }
 
-    if (mkdir(sbd_archive_dir, 0700) < 0 && errno != EEXIST) {
+    if (mkdir(sbd_archive_dir, 0755) < 0 && errno != EEXIST) {
         LS_ERR("mkdir(%s) failed", sbd_archive_dir);
         return -1;
     }
-    chmod(sbd_archive_dir, 0700);
+    // umask(0077) -> mkdir gives 0700, fix permissions
+    chmod(sbd_archive_dir, 0755);
     LS_INFO("sbd_archive_dir=%s", sbd_archive_dir);
 
     // sanity check
