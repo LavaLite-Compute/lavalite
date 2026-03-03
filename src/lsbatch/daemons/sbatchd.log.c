@@ -171,11 +171,12 @@ void sbd_job_file_remove(struct sbd_job *job)
 
     char dir[PATH_MAX];
     char path[PATH_MAX];
+    int l;
 
-    int l = snprintf(dir, sizeof(dir), "%s/%s", sbd_job_dir, job->jobfile);
+    l = snprintf(dir, sizeof(dir), "%s/%s", sbd_job_dir, job->jobfile);
     if (l < 0 || (size_t)l >= sizeof(dir)) {
         errno = ENAMETOOLONG;
-        LS_ERR("sprint %s failed", dir);
+        LS_ERR("job dir path too long, job=%ld", job->job_id);
         return;
     }
 
@@ -183,11 +184,13 @@ void sbd_job_file_remove(struct sbd_job *job)
         l = snprintf(path, sizeof(path), "%s/%s", dir, job_files[i]);
         if (l < 0 || (size_t)l >= sizeof(path)) {
             errno = ENAMETOOLONG;
-            LS_ERR("sprint %s failed", path);
+            LS_ERR("job file path too long, job=%ld file=%s",
+                   job->job_id, job_files[i]);
+            continue;
         }
 
         if (unlink(path) < 0 && errno != ENOENT) {
-            LS_ERR("unlink(%s) failed, job=%ld", dir, job->job_id);
+            LS_ERR("unlink(%s) failed, job=%ld", path, job->job_id);
         }
     }
 
@@ -201,8 +204,10 @@ void sbd_job_state_archive(struct sbd_job *job)
     // archive state dir instead of deleting it
     char src[PATH_MAX];
     char dst[PATH_MAX];
+    char stpath[PATH_MAX];
+    int l;
 
-    int l = snprintf(src, sizeof(src), "%s/%s", sbd_state_dir, job->jobfile);
+    l = snprintf(src, sizeof(src), "%s/%s", sbd_state_dir, job->jobfile);
     if (l < 0 || (size_t)l >= sizeof(src)) {
         errno = ENAMETOOLONG;
         LS_ERR("sprint %s failed", src);
@@ -216,9 +221,29 @@ void sbd_job_state_archive(struct sbd_job *job)
         return;
     }
 
-    if (rename(src, dst) < 0 && errno != ENOENT) {
-        LS_ERR("rename(%s, %s) failed, job=%ld", src, dst, job->job_id);
+    if (rename(src, dst) < 0) {
+        if (errno != ENOENT)
+            LS_ERR("rename(%s, %s) failed, job=%ld", src, dst, job->job_id);
+        return;
     }
+
+    /*
+     * State dirs are created under umask(0077) and would be archived as 0700
+     * with state file 0600. Force readable permissions so user tools (chaos,
+     * bhist, etc) can verify archived metadata.
+     */
+    if (chmod(dst, 0755) < 0)
+        LS_ERR("chmod(%s, 0755) failed, job=%ld", dst, job->job_id);
+
+    l = snprintf(stpath, sizeof(stpath), "%s/state", dst);
+    if (l < 0 || (size_t)l >= sizeof(stpath)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("sprint %s failed", stpath);
+        return;
+    }
+
+    if (chmod(stpath, 0644) < 0 && errno != ENOENT)
+        LS_ERR("chmod(%s, 0644) failed, job=%ld", stpath, job->job_id);
 }
 
 int sbd_job_state_write(struct sbd_job *job)
