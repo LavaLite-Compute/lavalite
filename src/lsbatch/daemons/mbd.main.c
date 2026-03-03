@@ -336,6 +336,7 @@ int main(int argc, char **argv)
                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
             }
 
+
         }
     }
 }
@@ -448,14 +449,14 @@ static int mbd_client_dispatch(struct mbd_client_node *client)
     int ch_id = client->chanfd;
 
     if (chan_dequeue(client->chanfd, &buf) < 0) {
-        ls_syslog(LOG_ERR, "%s: chan_dequeue failed :%m", __func__);
+        LS_ERR("chan_dequeue failed chan=%d", ch_id);
         shutdown_mbd_client(client);
         return -1;
     }
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &req_hdr)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_pack_hdr");
+        LS_ERRX("xdr_pack_hdr chan=%d", ch_id);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         shutdown_mbd_client(client);

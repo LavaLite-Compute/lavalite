@@ -294,86 +294,123 @@ bool_t xdr_jobReply(XDR *xdrs, struct jobReply *jobReply,
     return true;
 }
 
-bool_t xdr_statusReq(XDR *xdrs, struct statusReq *statusReq,
-                     struct packet_header *hdr)
+bool_t xdr_statusReq(XDR *xdrs, struct statusReq *r, struct packet_header *hdr)
 {
     int i;
-    int jobArrId, jobArrElemId;
+    int jobArrId = 0;
+    int jobArrElemId = 0;
 
     if (xdrs->x_op == XDR_FREE) {
-        for (i = 0; i < statusReq->numExecHosts; i++)
-            FREEUP(statusReq->execHosts[i]);
-        if (statusReq->numExecHosts > 0)
-            FREEUP(statusReq->execHosts);
-        statusReq->numExecHosts = 0;
-        FREEUP(statusReq->execHome);
-        FREEUP(statusReq->execCwd);
-        FREEUP(statusReq->queuePreCmd);
-        FREEUP(statusReq->queuePostCmd);
-        FREEUP(statusReq->execUsername);
-        if (statusReq->runRusage.npids > 0)
-            FREEUP(statusReq->runRusage.pidInfo);
-        if (statusReq->runRusage.npgids > 0)
-            FREEUP(statusReq->runRusage.pgid);
-        return TRUE;
+        for (i = 0; i < r->numExecHosts; i++)
+            FREEUP(r->execHosts[i]);
+
+        if (r->numExecHosts > 0)
+            FREEUP(r->execHosts);
+
+        r->numExecHosts = 0;
+
+        FREEUP(r->execHome);
+        FREEUP(r->execCwd);
+        FREEUP(r->queuePreCmd);
+        FREEUP(r->queuePostCmd);
+        FREEUP(r->execUsername);
+
+        if (r->runRusage.npids > 0)
+            FREEUP(r->runRusage.pidInfo);
+
+        if (r->runRusage.npgids > 0)
+            FREEUP(r->runRusage.pgid);
+
+        return true;
     }
 
-    if (xdrs->x_op == XDR_ENCODE) {
-        jobId64To32(statusReq->jobId, &jobArrId, &jobArrElemId);
-    }
-    if (!(xdr_int(xdrs, &jobArrId) && xdr_int(xdrs, &statusReq->jobPid) &&
-          xdr_int(xdrs, &statusReq->jobPGid) &&
-          xdr_int(xdrs, &statusReq->actPid) && xdr_int(xdrs, &statusReq->seq) &&
-          xdr_int(xdrs, &statusReq->newStatus) &&
-          xdr_int(xdrs, &statusReq->reason) &&
-          xdr_int(xdrs, &statusReq->subreasons) &&
-          xdr_int(xdrs, (int *) &statusReq->sbdReply)))
-        return FALSE;
+    if (xdrs->x_op == XDR_ENCODE)
+        jobId64To32(r->jobId, &jobArrId, &jobArrElemId);
 
-    if (!xdr_array_element(xdrs, &statusReq->lsfRusage, NULL, xdr_lsfRusage))
-        return FALSE;
+    if (!xdr_int(xdrs, &jobArrId))
+        return false;
 
-    if (!(xdr_int(xdrs, &statusReq->execUid) &&
-          xdr_int(xdrs, &statusReq->numExecHosts)))
-        return FALSE;
+    if (!xdr_int(xdrs, &r->jobPid))
+        return false;
+
+    if (!xdr_int(xdrs, &r->jobPGid))
+        return false;
+
+    if (!xdr_int(xdrs, &r->actPid))
+        return false;
+
+    if (!xdr_int(xdrs, &r->seq))
+        return false;
+
+    if (!xdr_int(xdrs, &r->newStatus))
+        return false;
+
+    if (!xdr_int(xdrs, &r->reason))
+        return false;
+
+    if (!xdr_int(xdrs, &r->subreasons))
+        return false;
+
+    if (!xdr_int(xdrs, (int *)&r->sbdReply))
+        return false;
+
+    if (!xdr_array_element(xdrs, &r->lsfRusage, NULL, xdr_lsfRusage))
+        return false;
+
+    if (!xdr_int(xdrs, &r->execUid))
+        return false;
+
+    if (!xdr_int(xdrs, &r->numExecHosts))
+        return false;
+
     if (xdrs->x_op == XDR_DECODE) {
-        if (statusReq->numExecHosts > 0) {
-            statusReq->execHosts =
-                (char **) calloc(statusReq->numExecHosts, sizeof(char *));
-            if (!statusReq->execHosts)
-                return FALSE;
+        if (r->numExecHosts > 0) {
+            r->execHosts = (char **)calloc(r->numExecHosts, sizeof(char *));
+            if (!r->execHosts)
+                return false;
         }
     }
-    if (!xdr_array_string(xdrs, statusReq->execHosts, MAXHOSTNAMELEN,
-                          statusReq->numExecHosts))
-        return FALSE;
-    if (!(xdr_int(xdrs, &statusReq->exitStatus) &&
-          xdr_var_string(xdrs, &statusReq->execHome) &&
-          xdr_var_string(xdrs, &statusReq->execUsername) &&
-          xdr_var_string(xdrs, &statusReq->execCwd) &&
-          xdr_var_string(xdrs, &statusReq->queuePreCmd) &&
-          xdr_var_string(xdrs, &statusReq->queuePostCmd)))
-        return FALSE;
 
-    if (!xdr_int(xdrs, &statusReq->msgId))
-        return FALSE;
+    if (!xdr_array_string(xdrs, r->execHosts, MAXHOSTNAMELEN, r->numExecHosts))
+        return false;
 
-    if (!(xdr_jRusage(xdrs, &(statusReq->runRusage), hdr)))
-        return FALSE;
+    if (!xdr_int(xdrs, &r->exitStatus))
+        return false;
 
-    if (!(xdr_int(xdrs, &(statusReq->sigValue)) &&
-          xdr_int(xdrs, &(statusReq->actStatus))))
-        return FALSE;
+    if (!xdr_var_string(xdrs, &r->execHome))
+        return false;
 
-    if (!xdr_int(xdrs, &jobArrElemId)) {
-        return FALSE;
-    }
+    if (!xdr_var_string(xdrs, &r->execUsername))
+        return false;
 
-    if (xdrs->x_op == XDR_DECODE) {
-        jobId32To64(&statusReq->jobId, jobArrId, jobArrElemId);
-    }
+    if (!xdr_var_string(xdrs, &r->execCwd))
+        return false;
 
-    return TRUE;
+    if (!xdr_var_string(xdrs, &r->queuePreCmd))
+        return false;
+
+    if (!xdr_var_string(xdrs, &r->queuePostCmd))
+        return false;
+
+    if (!xdr_int(xdrs, &r->msgId))
+        return false;
+
+    if (!xdr_jRusage(xdrs, &r->runRusage, hdr))
+        return false;
+
+    if (!xdr_int(xdrs, &r->sigValue))
+        return false;
+
+    if (!xdr_int(xdrs, &r->actStatus))
+        return false;
+
+    if (!xdr_int(xdrs, &jobArrElemId))
+        return false;
+
+    if (xdrs->x_op == XDR_DECODE)
+        jobId32To64(&r->jobId, jobArrId, jobArrElemId);
+
+    return true;
 }
 
 bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,

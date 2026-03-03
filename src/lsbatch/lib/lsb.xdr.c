@@ -256,8 +256,7 @@ bool_t xdr_jobInfoReq(XDR *xdrs, struct jobInfoReq *req, void *unused)
     return TRUE;
 }
 
-bool_t
-xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
+bool_t xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
 {
     int job_arr_id = 0;
     int job_arr_elem_id = 0;
@@ -1816,19 +1815,6 @@ bool_t xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, void *)
     return true;
 }
 
-static bool_t xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *j)
-{
-    if (j == NULL)
-        return false;
-
-    if (! xdr_int64_t(xdrs, &j->job_id))
-        return false;
-    if (! xdr_int32_t(xdrs, &j->pid))
-        return false;
-
-    return true;
-}
-
 bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
 {
     if (xdrs == NULL || msg == NULL)
@@ -1849,7 +1835,6 @@ bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
             msg->jobs = NULL;
             return true;
         }
-
 
         msg->jobs = calloc((size_t)msg->num_jobs,
                            sizeof(struct wire_sbd_job));

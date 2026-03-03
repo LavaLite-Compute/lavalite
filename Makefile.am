@@ -10,10 +10,10 @@ SUBDIRS = src docs
 
 # Install default working directories
 install-data-local:
-    $(MKDIR_P) $(DESTDIR)$(sysconfdir)
-    $(MKDIR_P) $(DESTDIR)$(localstatedir)/log
-    $(MKDIR_P) $(DESTDIR)$(localstatedir)/work
-    $(INSTALL_SCRIPT) $(srcdir)/src/lsbatch/cmd/bhist $(DESTDIR)$(bindir)/bhist
-    $(INSTALL_SCRIPT) $(srcdir)/src/lsbatch/cmd/bacct $(DESTDIR)$(bindir)/bacct
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
+	    $(MKDIR_P) $(DESTDIR)$(localstatedir)/log
+	    $(MKDIR_P) $(DESTDIR)$(localstatedir)/work
+	    $(INSTALL_SCRIPT) $(srcdir)/src/lsbatch/cmd/bhist $(DESTDIR)$(bindir)/bhist
+	    $(INSTALL_SCRIPT) $(srcdir)/src/lsbatch/cmd/bacct $(DESTDIR)$(bindir)/bacct
 
 EXTRA_DIST = Make.common

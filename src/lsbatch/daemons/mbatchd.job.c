@@ -38,7 +38,9 @@ int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
 
     if (!xdr_wire_sbd_register(xdrs, &reg)) {
         LS_ERR("SBD_REGISTER decode failed");
-        return enqueue_header_reply(client->chanfd, LSBE_XDR);
+        enqueue_header_reply(client->chanfd, LSBE_XDR);
+        free(reg.jobs);
+        return -1;
     }
 
     char hostname[MAXHOSTNAMELEN];
@@ -81,6 +83,7 @@ int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
                     xdr_wire_sbd_register);
 
     chan_set_write_interest(client->chanfd, true);
+    free(reg.jobs);
 
     return 0;
 }
@@ -116,7 +119,6 @@ int mbd_new_job_reply(struct mbd_client_node *client,
     }
 
     memset(&jobReply, 0, sizeof(jobReply));
-
     if (!xdr_jobReply(xdrs, &jobReply, hdr)) {
         LS_ERR("operation=%s xdr_jobReply decode failed from host %s",
                mbd_op_str(hdr->operation), host_name);
@@ -181,6 +183,7 @@ int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
 {
     //  decode payload
     struct statusReq status_req;
+    memset(&status_req, 0, sizeof(status_req));
     if (!xdr_statusReq(xdrs, &status_req, hdr)) {
         LS_ERR("xdr_statusReq failed");
         return -1;
@@ -247,15 +250,18 @@ send_ack:
     LS_INFO("operation=%s job=%ld acked", mbd_op_str(hdr->operation),
             ack.job_id);
 
+    xdr_lsffree(xdr_statusReq, &status_req, hdr);
+
     return LSBE_NO_ERROR;
 }
 
 // form sbd
-int
-mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
-                      struct packet_header *hdr)
+int mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
+                          struct packet_header *hdr)
 {
     struct statusReq status_req;
+
+    memset(&status_req, 0, sizeof(struct statusReq));
     if (!xdr_statusReq(xdrs, &status_req, hdr)) {
         LS_ERR("xdr_statusReq failed");
         return -1;
@@ -336,31 +342,34 @@ mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
             current_status, job->jStatus);
 
 send_ack:
-        struct job_status_ack ack;
+    struct job_status_ack ack;
 
-        memset(&ack, 0, sizeof(ack));
-        ack.job_id = status_req.jobId;
-        ack.seq = hdr->sequence;
-        ack.acked_op = hdr->operation;
+    memset(&ack, 0, sizeof(ack));
+    ack.job_id = status_req.jobId;
+    ack.seq = hdr->sequence;
+    ack.acked_op = hdr->operation;
 
-        if (mbd_send_event_ack(client, BATCH_JOB_FINISH_ACK, &ack) < 0) {
-            LS_ERR("mbd failed enqueue FINISH ack job %ld op %s from %s",
+    if (mbd_send_event_ack(client, BATCH_JOB_FINISH_ACK, &ack) < 0) {
+        LS_ERR("mbd failed enqueue FINISH ack job %ld op %s from %s",
                    ack.job_id, mbd_op_str(hdr->operation), host_name);
-            return -1;
-        }
+        return -1;
+    }
 
-        LS_INFO("mbd FINISH job=%ld op=%s acked",
-                ack.job_id, mbd_op_str(hdr->operation));
+    LS_INFO("mbd FINISH job=%ld op=%s acked",
+            ack.job_id, mbd_op_str(hdr->operation));
 
-        return LSBE_NO_ERROR;
+    xdr_lsffree(xdr_statusReq, &status_req, hdr);
+
+    return LSBE_NO_ERROR;
 }
-
 
 int
 mbd_set_rusage_update(struct mbd_client_node *client,
                       XDR *xdrs, struct packet_header *hdr)
 {
     struct statusReq status_req;
+    memset(&status_req, 0, sizeof(status_req));
+
     if (!xdr_statusReq(xdrs, &status_req, hdr)) {
         LS_ERR("xdr_statusReq failed");
         return -1;
@@ -373,6 +382,7 @@ mbd_set_rusage_update(struct mbd_client_node *client,
     LS_DEBUG("job %s RUSAGE from %s", lsb_jobid2str(job->jobId),
              client->host_node->host);
 
+    xdr_lsffree(xdr_jobSpecs, &status_req, hdr);
     // No ack for rusage
     return LSBE_NO_ERROR;
 }
@@ -793,10 +803,10 @@ int mbd_signal_all_jobs(int chan_id,
     for (int i = 0; i < nl; i++) {
         int list = lists[i];
         struct jData *job;
-        for (job = jDataList[list]->back;
-             job != jDataList[list]; job = job->back) {
+        struct jData *next_job;
+        for (job = jDataList[list]->back; job != jDataList[list]; job = next_job) {
+            next_job = job->back;
 
-            // permission filter
             if (auth && auth->uid != 0 && auth->uid != mbd_mgr->uid) {
                 if (auth->uid != job->userId)
                     continue;
