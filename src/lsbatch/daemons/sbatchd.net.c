@@ -27,111 +27,6 @@ extern int _lsb_recvtimeout;
 // all the stuff from lib.h
 extern char *resolve_master_with_retry(void);
 
-/*
- * sbd_nb_connect_mbd()
- *
- * Create a TCP client channel to MBD and initiate a non-blocking connect.
- *
- * Master name is obtained via resolve_master_try() and resolved to IPv4
- * using get_host_by_name(). IPv6 is intentionally out of scope for now.
- *
- * On success, the channel socket is registered with epoll:
- * - If connect completes immediately, EPOLLIN|EPOLLERR|EPOLLRDHUP is used
- *   and *connected is set to TRUE.
- * - If connect is in progress, EPOLLOUT|EPOLLERR|EPOLLRDHUP is used and
- *   *connected is set to FALSE (caller will finish on EPOLLOUT).
- *
- * Return values:
- *   >=0  channel id on success
- *   -1   on failure; lsberrno/lserrno is set
- */
-int sbd_mbd_nb_connect(bool_t *connected)
-{
-    if (connected != NULL)
-        *connected = false;
-
-    char *master = resolve_master_try();
-    if (master == NULL)
-        return -1;
-
-    uint16_t port = get_mbd_port();
-    if (port == 0) {
-        lsberrno = LSBE_PROTOCOL;
-        return -1;
-    }
-
-    struct ll_host hp;
-    memset(&hp, 0, sizeof(hp));
-    if (get_host_by_name(master, &hp) < 0) {
-        // Keep mapping simple for now; get_host_by_name() can set lserrno.
-        lsberrno = LSBE_LSLIB;
-        return -1;
-    }
-
-    if (hp.family != AF_INET) {
-        // IPv6 out of scope for now
-        lsberrno = LSBE_PROTOCOL;
-        return -1;
-    }
-
-    // Convert ll_host sockaddr_storage -> sockaddr_in and set port.
-    struct sockaddr_in peer;
-    memset(&peer, 0, sizeof(peer));
-    peer = *(struct sockaddr_in *)&hp.sa;
-    peer.sin_port = htons(port);
-
-    int ch_id = chan_client_socket(AF_INET, SOCK_STREAM, 0);
-    if (ch_id < 0)
-        return -1;
-
-    // LavaLite gives the client the buffers
-    channels[ch_id].send = chan_make_buf();
-    channels[ch_id].recv = chan_make_buf();
-
-    if (channels[ch_id].send == NULL || channels[ch_id].recv == NULL) {
-        lserrno = LSE_NO_MEM;
-        chan_close(ch_id);
-        return -1;
-    }
-
-    int rc = connect_begin(chan_sock(ch_id),
-                           (struct sockaddr *)&peer,
-                           sizeof(peer));
-    if (rc < 0) {
-        lserrno = LSE_CONN_SYS;
-        chan_close(ch_id);
-        return -1;
-    }
-
-    struct epoll_event ev;
-    if (rc == 0) {
-        if (connected != NULL)
-            *connected = true;
-
-        ev.events = EPOLLIN | EPOLLERR | EPOLLRDHUP;
-        ev.data.u32 = (uint32_t)ch_id;
-
-        if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev) < 0) {
-            LS_ERR("epoll_ctl() failed to add mbd chan");
-            chan_close(ch_id);
-            return -1;
-        }
-
-        return ch_id;
-    }
-
-    ev.events = EPOLLOUT | EPOLLERR | EPOLLRDHUP;
-    ev.data.u32 = (uint32_t)ch_id;
-
-    if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev) < 0) {
-        LS_ERR("epoll_ctl() failed to add mbd connecting chan");
-        chan_close(ch_id);
-        return -1;
-    }
-
-    return ch_id;
-}
-
 // Create a permanent channel to mbd using a blocking connect
 int sbd_mbd_connect(void)
 {
@@ -146,7 +41,8 @@ int sbd_mbd_connect(void)
         return -1;
     }
 
-    int ch_id = serv_connect(master, port, _lsb_conntimeout);
+    // 3s: datacenter LAN; if mbd doesn't answer it's down
+    int ch_id = serv_connect(master, port, 3);
     if (ch_id < 0) {
         lsberrno = LSBE_CONN_REFUSED;
         return -1;
@@ -162,6 +58,7 @@ int sbd_mbd_connect(void)
         chan_close(ch_id);
         return -1;
     }
+    LS_INFO("connected to mbd chan=%d", ch_id);
 
     return ch_id;
 }
@@ -172,7 +69,6 @@ void sbd_mbd_link_down(void)
         chan_close(sbd_mbd_chan);
 
     sbd_mbd_chan = -1;
-    sbd_mbd_connecting = false;
 
     struct ll_list_entry *e;
     for (e = sbd_job_list.head; e; e = e->next) {
@@ -189,6 +85,13 @@ void sbd_mbd_link_down(void)
 
     LS_ERR("mbd link down: cleared pending sent flags for resend and state");
 }
+
+// Check if mbd is connected
+bool_t sbd_mbd_link_ready(void)
+{
+    return (sbd_mbd_chan >= 0);
+}
+
 
 int sbd_register(int chan_id)
 {

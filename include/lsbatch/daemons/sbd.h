@@ -49,9 +49,7 @@ extern char sbd_job_dir[PATH_MAX];
 extern char sbd_archive_dir[PATH_MAX];
 
 int sbd_mbd_connect(void);
-int sbd_mbd_nb_connect(bool_t *);
 int sbd_register(int);
-bool_t sbd_mbd_link_ready(void);
 void sbd_mbd_link_down(void);
 
 // handle mbd messagges

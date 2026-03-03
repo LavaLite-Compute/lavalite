@@ -35,8 +35,7 @@ static void job_status_checking(void);
 static void job_new_drive(void);
 static void job_finish_drive(void);
 static void job_execute_drive(void);
-static void sbd_mbd_reconnect_try(void);
-static bool_t sbd_drive_mbd_link(int, struct epoll_event *);
+static void mbd_reconnect_try(void);
 static bool_t sbd_pid_alive(struct sbd_job *);
 static void sbd_cleanup(void);
 
@@ -53,9 +52,6 @@ int sbd_mbd_chan = -1;
 int sbd_efd;
 static struct epoll_event *sbd_events;
 static int max_events;
-// Connection variables
-bool_t connected = false;
-bool_t sbd_mbd_connecting = false;
 static int sbd_resend_timer;
 
 // Handler sets these variables to signal events
@@ -162,17 +158,16 @@ static int sbd_init(const char *sbatch)
         return -1;
     }
 
-    bool_t connected = false;
     // global channel to mbd
-    sbd_mbd_chan = sbd_mbd_nb_connect(&connected);
+    sbd_mbd_chan = sbd_mbd_connect();
     if (sbd_mbd_chan < 0) {
         LS_ERR("mbd link: initial connect attempt failed");
         sbd_mbd_chan = -1;
-        sbd_mbd_connecting = false;
     } else {
-        sbd_mbd_connecting = connected ? false : true;
-        LS_INFO("mbd link: init sbd_mbd_chan: %d connecting: %d",
-                sbd_mbd_chan, sbd_mbd_connecting);
+        if (sbd_register(sbd_mbd_chan) < 0) {
+            LS_ERR("mbd link: register failed at init");
+            sbd_mbd_link_down();
+        }
     }
 
     // initialize the lists and hashes
@@ -252,7 +247,7 @@ sbd_run_daemon(void)
                  }
              timer_maintenance:
                  sbd_reap_children();
-                 sbd_mbd_reconnect_try();
+                 mbd_reconnect_try();
                  job_new_drive();
                  job_execute_drive();
                  job_finish_drive();
@@ -262,9 +257,6 @@ sbd_run_daemon(void)
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
-
-             if (sbd_drive_mbd_link(ch_id, ev))
-                 continue;
 
              // True skip partially read channels
              if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
@@ -308,145 +300,27 @@ sbd_run_daemon(void)
     chan_close(sbd_mbd_chan);
 }
 
-/*
- * sbd_drive_mbd_link()
- *
- * Drive the MBD link state machine from the main epoll loop.
- *
- * While connecting:
- * - EPOLLERR/HUP/RDHUP => connect failed: close channel, mark link down.
- * - EPOLLOUT           => connect finished: verify SO_ERROR, then switch
- *                         epoll interest to EPOLLIN and proceed to registration.
- *
- * While connected:
- * - Delegate to sbd_mbd_handle() to read/process messages.
- *
- * Reconnect is NOT performed here. On failure we mark the link down and
- * the periodic timer maintenance (or reconnect timer) will start a new attempt.
- *
- * Return values:
- *   true  -> event was handled (caller should continue)
- *   false -> not the MBD channel
- */
-static bool_t sbd_drive_mbd_link(int ch_id, struct epoll_event *ev)
-{
-    // First thing first, check it is a sbd_mbd_chan
-    if (ch_id != sbd_mbd_chan)
-        return false;
-
-    // Bail if we are not in the connecting process
-    if (!sbd_mbd_connecting)
-        return false;
-
-    // During connect, errors/hup mean "attempt failed".
-    if (ev->events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
-        // LS_ERR("mbd link: connect failed (kernel_events=0x%x)", ev->events);
-
-        chan_close(ch_id);
-        sbd_mbd_chan = -1;
-        sbd_mbd_connecting = false;
-
-        channels[ch_id].chan_events = CHAN_EPOLLNONE;
-        return true;
-    }
-
-    // Connect completion: must verify SO_ERROR via chan_connect_finish().
-    if (ev->events & EPOLLOUT) {
-        LS_DEBUG("mbd link: connect completion (EPOLLOUT)");
-
-        if (chan_connect_finish(ch_id) < 0) {
-            LS_ERR("mbd link: connect_finish failed: %m");
-
-            chan_close(ch_id);
-            sbd_mbd_chan = -1;
-            sbd_mbd_connecting = false;
-
-            channels[ch_id].chan_events = CHAN_EPOLLNONE;
-            return true;
-        }
-
-        struct epoll_event ev2;
-        ev2.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP;
-        ev2.data.u32 = (uint32_t)ch_id;
-
-        if (epoll_ctl(sbd_efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev2) < 0) {
-            LS_ERR("mbd link: epoll_ctl MOD failed after connect: %m");
-
-            chan_close(ch_id);
-            sbd_mbd_chan = -1;
-            sbd_mbd_connecting = false;
-
-            channels[ch_id].chan_events = CHAN_EPOLLNONE;
-            return true;
-        }
-        // change the gloabal status sbd connecting
-        sbd_mbd_connecting = false;
-
-        LS_INFO("mbd link: connected ch=%d, enqueue registration", ch_id);
-
-        // Enqueue registration request here (async).
-        sbd_register(ch_id);
-
-        channels[ch_id].chan_events = CHAN_EPOLLNONE;
-        return true;
-    }
-
-    // Still connecting, nothing to do for this event.
-    LS_DEBUG("mbd link: still connecting (kernel_events=0x%x)", ev->events);
-
-    channels[ch_id].chan_events = CHAN_EPOLLNONE;
-    return true;
-}
-
-// Check if mbd is connected
-bool_t sbd_mbd_link_ready(void)
-{
-    return (sbd_mbd_chan >= 0 && !sbd_mbd_connecting);
-}
-
-/*
- * sbd_mbd_reconnect_try()
- *
- * Attempt a single non-blocking reconnect to MBD.
- *
- * This function never blocks and never sleeps. It is safe to call from
- * the periodic timer maintenance path.
- *
- * If a connect attempt is started, sbd_mbd_chan is set and
- * sbd_mbd_connecting reflects whether we are waiting for EPOLLOUT.
- *
- * If the connect completes immediately, the registration request can be
- * enqueued here.
- */
 static void
-sbd_mbd_reconnect_try(void)
+mbd_reconnect_try(void)
 {
+    static time_t last_try = 0;
+
     if (sbd_mbd_chan >= 0)
         return;
 
-    if (sbd_mbd_connecting)
+    time_t t = time(NULL);
+    if (last_try > 0 && (t - last_try) < 5)
         return;
 
-    bool_t connected = false;
-    int ch = sbd_mbd_nb_connect(&connected);
-    if (ch < 0) {
-        LS_DEBUG("mbd link: reconnect try failed");
+    last_try = t;
+    LS_ERRX("lost connection with mbd");
+
+    sbd_mbd_chan = sbd_mbd_connect();
+    if (sbd_mbd_chan < 0) {
+        LS_ERR("timeout connecting to mbd, retry...");
         return;
     }
-
-    sbd_mbd_chan = ch;
-    if (connected == true)
-        sbd_mbd_connecting = false;
-    else
-        sbd_mbd_connecting = true;
-
-    LS_INFO("mbd link: reconnect started ch=%d connecting=%d",
-            sbd_mbd_chan, sbd_mbd_connecting);
-
-    if (connected) {
-        // Connected immediately: enqueue registration request now (async).
-        sbd_register(sbd_mbd_chan);
-    }
+    sbd_register(sbd_mbd_chan);
 }
 
 static void sbd_init_log(void)
@@ -542,17 +416,6 @@ sbd_init_network(void)
     // for now
     t = 0;
     sbd_timer = SBD_OPERATION_TIMER; // seconds
-    if (genParams[LSB_SBD_OPERATION_TIMER].paramValue) {
-        if (! ll_atoi(genParams[LSB_SBD_OPERATION_TIMER].paramValue, &t)) {
-            LS_ERR("invalid LSB_SBD_OPERATION_TIME=%s using default %d",
-                   genParams[LSB_SBD_OPERATION_TIMER].paramValue, sbd_timer);
-        } else if (t <= 0) {
-            LS_ERR("invalid LSB_SBD_OPERATION_TIME=%s using default %d",
-                   genParams[LSB_SBD_OPERATION_TIMER].paramValue, sbd_timer);
-        } else {
-            sbd_timer = t;
-        }
-    }
     // this function is in the channel library.
     sbd_timer_chan = chan_create_timer(sbd_timer);
     if (sbd_timer_chan < 0) {
@@ -565,18 +428,6 @@ sbd_init_network(void)
     // timout is in second
     // Bug do: LSB_OPERATION_TIMER
     sbd_resend_timer = SBD_RESEND_ACK_TIMEOUT;
-    if (genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue) {
-        if (! ll_atoi(genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue, &t)) {
-            LS_ERR("invalid LSB_SBD_RESEND_ACK_TIMEOUT=%s using default %d",
-                   genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue, sbd_timer);
-
-        } else if (t <= 0) {
-            LS_ERR("LSB_SBD_RESEND_ACK_TIMEOUT=%s must be > 0 using default %d",
-                   genParams[LSB_SBD_RESEND_ACK_TIMEOUT].paramValue, sbd_timer);
-        } else {
-            sbd_resend_timer = t;
-        }
-    }
     LS_INFO("sbd_resend_timer set to %d secs", sbd_resend_timer);
 
     //sbd timer channel
