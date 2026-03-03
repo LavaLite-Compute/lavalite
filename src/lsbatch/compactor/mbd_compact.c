@@ -23,15 +23,13 @@
 
 enum compact_policy {
     // how often to check
-//    COMPACT_CHECK_INTERVAL    = 60,
+    COMPACT_CHECK_INTERVAL    = 60,
     // how big the lsb.events file has to be
-//    COMPACT_DEFAULT_THRESHOLD = 64 * 1024 * 1024,
+    // COMPACT_DEFAULT_THRESHOLD = 64 * 1024 * 1024,
+    COMPACT_DEFAULT_THRESHOLD = 1024 * 1024,
     // how old must be the DONE||EXIT record before the whole
     // job is vaporized
-//        COMPACT_CLEAN_PERIOD      = 60
-    COMPACT_CHECK_INTERVAL    = 60,
-    COMPACT_DEFAULT_THRESHOLD = 1024,
-    COMPACT_CLEAN_PERIOD      = 10
+    COMPACT_CLEAN_PERIOD      = 60
 };
 
 static char events_path[PATH_MAX];

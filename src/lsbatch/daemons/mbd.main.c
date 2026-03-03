@@ -243,7 +243,7 @@ int main(int argc, char **argv)
     mbd_check_not_root();
 
     // start compact
-    mbd_compact_start();
+    // mbd_compact_start();
 
     if (lsb_CheckMode == TRUE) {
         TIMEIT(0, (cc = mbd_init(FIRST_START)), "mbd_init");
