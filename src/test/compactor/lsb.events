@@ -1,0 +1,43 @@
+# LavaLite log created Tue Mar  3 18:53:17 2026
+"LOAD_INDEX" "1" 1772581997 11 "r15s" "r1m" "r15m" "ut" "pg" "io" "ls" "it" "tmp" "swp" "mem"
+"MBD_START" "1" 1772581997 "buntu24" "lavalite" 3 1
+"JOB_NEW" "1" 1772581798 1 1000 33554482 1 1772581798 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581798.1" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581799 1 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581800 1 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772581967 1 32 0 0 0.0000 1772581967 0 0 0
+"JOB_NEW" "1" 1772581799 2 1000 33554482 1 1772581799 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581799.2" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581800 2 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581801 2 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772581967 2 32 0 0 0.0000 1772581967 0 0 0
+"JOB_NEW" "1" 1772581800 3 1000 33554482 1 1772581800 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581800.3" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581801 3 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581802 3 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772581967 3 32 0 0 0.0000 1772581967 0 0 0
+"JOB_NEW" "1" 1772581801 4 1000 33554482 1 1772581801 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581801.4" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581802 4 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581803 4 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772581967 4 32 0 0 0.0000 1772581967 0 0 0
+"JOB_NEW" "1" 1772581802 5 1000 33554482 1 1772581802 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581802.5" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581803 5 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581804 5 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772581967 5 32 0 0 0.0000 1772581967 0 0 0
+"JOB_NEW" "1" 1772581803 6 1000 33554482 1 1772581803 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581803.6" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581804 6 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581805 6 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772582007 6 32 0 0 0.0000 1772582007 0 0 0
+"JOB_NEW" "1" 1772581804 7 1000 33554482 1 1772581804 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581804.7" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581805 7 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581806 7 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772582007 7 32 0 0 0.0000 1772582007 0 0 0
+"JOB_NEW" "1" 1772581805 8 1000 33554482 1 1772581805 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581805.8" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581806 8 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581807 8 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772582007 8 32 0 0 0.0000 1772582007 0 0 0
+"JOB_NEW" "1" 1772581806 9 1000 33554482 1 1772581806 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581806.9" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581807 9 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581808 9 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772582007 9 32 0 0 0.0000 1772582007 0 0 0
+"JOB_NEW" "1" 1772581807 10 1000 33554482 1 1772581807 0 0 -65535 0 0 "david" -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" "soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "1772581807.10" 0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1
+"JOB_START" "1" 1772581808 10 4 0 0 100.0 1 "buntu24" "" "" 0 0
+"JOB_EXECUTE" "1" 1772581809 10 -1 12345 "/home/david" "/home/david" "david" 12345 0
+"JOB_STATUS" "1" 1772582007 10 32 0 0 0.0000 1772582007 0 0 0

@@ -89,14 +89,14 @@ void mbd_handle_compact_done(XDR *xdrs, int ch_id, struct packet_header *hdr)
 
     if (hdr->operation == BATCH_COMPACT_FAILED) {
         compact_fail_count++;
-        LS_ERR("compact failed status=%d count=%d",
-               req.status, compact_fail_count);
+        LS_ERR("compact failed status=%d count=%d compact_time=%ld",
+               req.status, compact_fail_count, req.compact_time);
         // TODO: after N fails kill and restart compactor child
         goto send_ack;
     }
 
     compact_fail_count = 0;
-    LS_INFO("compact done - event log rotated in place");
+    LS_INFO("compact done - event log rotated at %ld", req.compact_time);
 
 send_ack:
     memset(&ack_payload, 0, sizeof(ack_payload));
@@ -122,6 +122,11 @@ send_ack:
     out->len = len;
     chan_enqueue(ch_id, out);
     chan_set_write_interest(ch_id, true);
+
+    // clean the jobs using the same way as the compactor
+    // vaporized the events
+    if (hdr->operation == BATCH_COMPACT_DONE)
+        clean_jobs((time_t)req.compact_time);
 
     LS_INFO("compact ack sent");
 }

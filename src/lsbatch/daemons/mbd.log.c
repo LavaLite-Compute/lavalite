@@ -4341,3 +4341,8 @@ build_log_path(char *dst, size_t dstsz,
 
     return 0;
 }
+
+const char *get_info_dir(void)
+{
+    return info_dir;
+}

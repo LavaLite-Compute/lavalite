@@ -233,9 +233,7 @@ void ls_syslog(int level, const char *fmt, ...)
         if (fstat(log_fd, &st) == 0 && st.st_nlink == 0)
             ls_reopen_log();
 
-        flock(log_fd, LOCK_EX);
         write_record(log_fd, line, len);
-        flock(log_fd, LOCK_UN);
     }
     // mirror to stderr if requested
     if (log_to_stderr)
@@ -259,6 +257,7 @@ static void ls_reopen_log(void)
         close(log_fd);
 
     log_fd = newfd;
+    fchmod(log_fd, 0644);
 }
 
 

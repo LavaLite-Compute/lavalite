@@ -1936,5 +1936,11 @@ bool_t xdr_wire_compact_notify(XDR *xdrs, struct wire_compact_notify *msg)
 {
     if (!xdrs || !msg)
         return false;
-    return xdr_int32_t(xdrs, &msg->status);
+
+    if (! xdr_int32_t(xdrs, &msg->status))
+        return false;
+    if (! xdr_int64_t(xdrs, &msg->compact_time))
+        return false;
+
+    return true;
 }

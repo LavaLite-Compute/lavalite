@@ -1,18 +1,6 @@
 /*
  * Copyright (C) LavaLite Contributors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * GPL v2
  */
 
 #include "lsbatch/daemons/mbd.h"
@@ -24,6 +12,9 @@ static int resume_pend_job(struct jData *);
 static void requeue_start_failed(struct jData *, struct hData *);
 static void clear_exec_context(struct jData *);
 static void build_sbd_run_list(struct hData *, struct wire_sbd_register *);
+static void purge_finished_job(struct jData *);
+static void purge_job_info_file(struct jData *);
+static void free_job_data(struct jData *);
 
 // LavaLite
 // this is still a client-like request coming through the client handler
@@ -1133,4 +1124,121 @@ static void build_sbd_run_list(struct hData *host_node,
 
         ++i;
     }
+}
+
+void clean_jobs(time_t compact_time)
+{
+    struct jData *head = jDataList[FJL];
+    struct jData *job;
+    struct jData *next;
+    int removed = 0;
+
+    if (compact_time <= 0)
+        return;
+
+    for (job = head->back; job != head; job = next) {
+        next = job->back;
+
+        int st = job->jStatus;
+        assert((st & (JOB_STAT_DONE | JOB_STAT_EXIT)));
+        if ((st & (JOB_STAT_DONE | JOB_STAT_EXIT)) == 0)
+            continue;
+
+        if (job->endTime <= 0)
+            continue;
+
+        if ((compact_time - job->endTime) <= clean_period)
+            continue;
+
+        // Remove from mbd memory (includes removing from FJL)
+        purge_finished_job(job);
+
+        removed++;
+    }
+
+    LS_INFO("compact clean_jobs removed=%d cutoff=%ld period=%d",
+            removed,
+            (long)(compact_time - clean_period),
+            clean_period);
+}
+
+static void purge_finished_job(struct jData *jp)
+{
+    if (!jp)
+        return;
+
+    // only terminal jobs should be here
+    if ((jp->jStatus & (JOB_STAT_DONE | JOB_STAT_EXIT)) == 0)
+        return;
+
+    // 1) remove from jobId hash
+    remvMemb(&jobIdHT, jp->jobId);
+
+    // 2) detach from finished list
+    offJobList(jp, FJL);
+
+    // 3) delete info file (best-effort)
+    purge_job_info_file(jp);
+
+    // no need to log this event nobody cares
+
+    // 5) free
+    free_job_data(jp);
+}
+
+static void purge_job_info_file(struct jData *jp)
+{
+    char job_file[PATH_MAX];
+    const char *p = get_info_dir();
+
+    int n = snprintf(job_file, sizeof(job_file), "%s/%s", p,
+                     jp->shared->jobBill.jobFile);
+    if (n < 0 || n >= (int)sizeof(job_file)) {
+        LS_ERR("snprintf failed dir=%s file=%s", p, jp->shared->jobBill.jobFile);
+        return;
+    }
+
+    if (unlink(job_file) < 0)
+        LS_ERR("job=%ld unlink failed file=%s", jp->jobId, job_file);
+
+    return;
+}
+
+static void free_job_data(struct jData *job)
+{
+    if (!job)
+        return;
+
+    FREEUP(job->userName);
+    FREEUP(job->lsfRusage);
+    FREEUP(job->reasonTb);
+    FREEUP(job->hPtr);
+
+    FREEUP(job->execHome);
+    FREEUP(job->execCwd);
+    FREEUP(job->execUsername);
+    FREEUP(job->queuePreCmd);
+    FREEUP(job->queuePostCmd);
+    FREEUP(job->reqHistory);
+    FREEUP(job->schedHost);
+    if (job->runRusage.npids > 0)
+        FREEUP(job->runRusage.pidInfo);
+    if (job->runRusage.npgids > 0)
+        FREEUP(job->runRusage.pgid);
+
+    if (job->newSub) {
+        freeSubmitReq(job->newSub);
+        FREEUP(job->newSub);
+    }
+
+    freeSubmitReq(&(job->shared->jobBill));
+    FREEUP(job->shared);
+    FREEUP(job->askedPtr);
+
+    FREEUP(job->execHosts);
+    FREEUP(job->candPtr);
+    FREEUP(job->jobSpoolDir);
+
+    FREE_ALL_GRPS_CAND(job);
+    FREEUP(job);
 }

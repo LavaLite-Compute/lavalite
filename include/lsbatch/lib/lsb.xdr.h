@@ -97,5 +97,6 @@ bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *);
 
 struct wire_compact_notify {
     int32_t status;
+    int64_t compact_time;
 };
 bool_t xdr_wire_compact_notify(XDR *, struct wire_compact_notify *);

@@ -20,7 +20,6 @@
 
 static void usage(const char *cmd);
 static int parse_signal(const char *s, int *out);
-static int parse_jobid(const char *s, int64_t *out);
 extern int  _lsb_recvtimeout;
 
 static void
@@ -75,9 +74,9 @@ int main(int argc, char **argv)
 
     // Validate all jobids first (tight parsing; no partial execution).
     for (int i = optind; i < argc; i++) {
-        int64_t tmp;
+        int64_t n;
 
-        if (ll_validate_jobid(argv[i], &tmp) < 0) {
+        if (ll_validate_jobid(argv[i], &n) < 0) {
             fprintf(stderr, "%s: invalid jobid '%s'\n", argv[0], argv[i]);
             usage(argv[0]);
             return -1;
@@ -92,7 +91,7 @@ int main(int argc, char **argv)
     bool_t signaled = false;
 
     for (; optind < argc; optind++) {
-        long long tmp;
+        int64_t tmp;
         int64_t jobid;
 
         if (ll_validate_jobid(argv[optind], &tmp) < 0) {
@@ -174,13 +173,4 @@ parse_signal(const char *s, int *out)
     }
     // Unsupported for now
     return -1;
-}
-
-static int
-parse_jobid(const char *s, int64_t *out)
-{
-    if (! ll_atoll(s, out))
-        return false;
-
-    return 0;
 }

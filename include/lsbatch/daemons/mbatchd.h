@@ -87,3 +87,5 @@ void mbd_compact_start(void);
 void mbd_compact_shutdown(void);
 void mbd_handle_compact_done(XDR *, int, struct packet_header *);
 void logJobInfo(struct submitReq *, struct jData *, struct wire_job_file *);
+void clean_jobs(time_t);
+const char *get_info_dir(void);

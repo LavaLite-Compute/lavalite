@@ -35,6 +35,7 @@ enum compact_policy {
 static char events_path[PATH_MAX];
 static char vapor_path[PATH_MAX + LL_BUFSIZ_16];
 static int  debug_mode;
+static time_t compact_time;
 
 static void usage(const char *);
 static int should_skip(struct eventRec *, struct ll_hash *);
@@ -219,7 +220,8 @@ static int compact(int clean_period)
         return -1;
     }
 
-    time_t compact_time = time(NULL);
+    // tick tock
+    compact_time = time(NULL);
     FILE *efp = fopen(events_path, "r");
     if (!efp) {
         LS_ERR("fopen(%s)", events_path);
@@ -430,7 +432,11 @@ static int notify_mbd(int status)
 {
     struct wire_compact_notify req;
     memset(&req, 0, sizeof(req));
+
+    // set the result of the compacting and the time
+    // at which it happened
     req.status = status;
+    req.compact_time = compact_time;
 
     struct packet_header hdr;
     init_pack_hdr(&hdr);
@@ -447,6 +453,8 @@ static int notify_mbd(int status)
         xdr_destroy(&xdrs);
         return -1;
     }
+
+    LS_INFO("compactor time %ld", compact_time);
 
     char *reply_buf = NULL;
     int cc = call_mbd(req_buf, XDR_GETPOS(&xdrs), &reply_buf, &hdr, NULL);

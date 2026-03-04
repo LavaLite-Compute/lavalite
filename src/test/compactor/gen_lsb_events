@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+
+import argparse
+import time
+import os
+
+def w(f, line):
+    f.write(line)
+    if not line.endswith("\n"):
+        f.write("\n")
+
+def job_new(ts, jobid, jobfile):
+    return (f'"JOB_NEW" "1" {ts} {jobid} 1000 33554482 1 {ts} 0 0 -65535 0 0 "david" '
+            f'-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 "" 100.00 2 "system" "" "buntu24" '
+            f'"soft/lavalite/src/lsbatch" "" "" "/dev/null" "/dev/null" "/home/david" "{jobfile}" '
+            f'0 "" "" "" "sleep 1" 0 "" "default" 1 "x86_64_linux" "" 1040 0 "" "" "" -1')
+
+def job_start(ts, jobid):
+    return f'"JOB_START" "1" {ts} {jobid} 4 0 0 100.0 1 "buntu24" "" "" 0 0'
+
+def job_execute(ts, jobid):
+    return f'"JOB_EXECUTE" "1" {ts} {jobid} -1 12345 "/home/david" "/home/david" "david" 12345 0'
+
+def job_status(ts, jobid):
+    return f'"JOB_STATUS" "1" {ts} {jobid} 32 0 0 0.0000 {ts} 0 0 0'
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--num-jobs", type=int, required=True)
+    ap.add_argument("--clean-period", type=int, required=True)
+    ap.add_argument("--output", default="lsb.events")
+    args = ap.parse_args()
+
+    now = int(time.time())
+    old_ts   = now - (args.clean_period + 20)
+    fresh_ts = now - (args.clean_period - 20)
+
+    with open(args.output, "w") as f:
+        w(f, f'# LavaLite log created {time.ctime(now)}')
+        w(f, f'"LOAD_INDEX" "1" {now} 11 "r15s" "r1m" "r15m" "ut" "pg" "io" "ls" "it" "tmp" "swp" "mem"')
+        w(f, f'"MBD_START" "1" {now} "buntu24" "lavalite" 3 1')
+
+        for jid in range(1, args.num_jobs + 1):
+            ts_base = now - 200 + jid
+
+            # metà expired, metà fresh
+            if jid <= args.num_jobs // 2:
+                status_ts = old_ts
+            else:
+                status_ts = fresh_ts
+
+            w(f, job_new(ts_base, jid, f"{ts_base}.{jid}"))
+            w(f, job_start(ts_base + 1, jid))
+            w(f, job_execute(ts_base + 2, jid))
+            w(f, job_status(status_ts, jid))
+
+    print(f"Generated {args.num_jobs} jobs into {args.output}")
+
+if __name__ == "__main__":
+    main()
