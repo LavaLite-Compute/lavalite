@@ -112,10 +112,9 @@ def main():
     numbered = sorted(
         [f for f in glob.glob(events_path + ".*")
          if f.rsplit(".", 1)[-1].isdigit()],
-        key=lambda f: int(f.rsplit(".", 1)[-1]),
-        reverse=True
+        key=lambda f: int(f.rsplit(".", 1)[-1])
     )
-    event_files = numbered + [events_path]
+    event_files = [events_path] + numbered
 
     jobs = {}
     order = []
