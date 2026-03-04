@@ -41,6 +41,7 @@ int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     struct hData *host_data = getHostData(hostname);
     if (host_data == NULL) {
         LS_ERR("SBD_REGISTER from unknown host %s", hostname);
+        free(reg.jobs);
         return enqueue_header_reply(client->chanfd, LSBE_BAD_HOST);
     }
 
@@ -63,6 +64,7 @@ int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     build_sbd_run_list(host_data, &reg_ack);
 
     host_data->hStatus &= ~HOST_STAT_UNREACH;
+
     LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d status=%s",
             hostname, host_data->sbd_node->host.name,
             host_data->sbd_node->host.addr,
