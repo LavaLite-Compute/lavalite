@@ -115,8 +115,21 @@ int main(int argc, char **argv)
     LS_INFO("started events=%s threshold=%ld interval=%d clean_period=%d",
             events_path, (long)threshold, interval, clean_period);
 
+    int mbd_pid = -1;
+    char *p = getenv("MBD_PID");
+    if (p)
+        mbd_pid = atoi(p);
+
     for (;;) {
         sleep(interval);
+
+        if (mbd_pid != -1) {
+            int cc = kill(mbd_pid, 0);
+            if (cc < 0 && errno == ESRCH) {
+                LS_INFO("mbd pid %d gone, exiting...", mbd_pid);
+                break;
+            }
+        }
 
         struct stat st;
         if (stat(events_path, &st) < 0) {

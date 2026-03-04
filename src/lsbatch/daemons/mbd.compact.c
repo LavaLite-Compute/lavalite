@@ -35,6 +35,10 @@ void mbd_compact_start(void)
     if (!log_mask)
         log_mask = "LOG_INFO";
 
+    char pid_buf[LL_BUFSIZ_64];
+    sprintf(pid_buf, "%d", getpid());
+
+    setenv("MBD_PID", pid_buf, 1);
     snprintf(compact_bin, sizeof(compact_bin), "%s/mbd_compact", serverdir);
     snprintf(events_arg,  sizeof(events_arg),  "%s/mbd/lsb.events",
              lsbParams[LSB_SHAREDIR].paramValue);
