@@ -26,10 +26,11 @@ enum compact_policy {
     COMPACT_CHECK_INTERVAL    = 60,
     // how big the lsb.events file has to be
     // COMPACT_DEFAULT_THRESHOLD = 64 * 1024 * 1024,
-    COMPACT_DEFAULT_THRESHOLD = 1024 * 1024,
+    // one simple sleep job is ~1K
+    COMPACT_DEFAULT_THRESHOLD = 10 * 1024 * 1024,
     // how old must be the DONE||EXIT record before the whole
     // job is vaporized
-    COMPACT_CLEAN_PERIOD      = 60
+    COMPACT_CLEAN_PERIOD  = 3600
 };
 
 static char events_path[PATH_MAX];
@@ -110,7 +111,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    ls_openlog("mbd_compact", logdir, debug_mode, 0, (char *)log_mask);
+    ls_openlog("compactor", logdir, debug_mode, 0, (char *)log_mask);
 
     LS_INFO("started events=%s threshold=%ld interval=%d clean_period=%d",
             events_path, (long)threshold, interval, clean_period);
@@ -120,16 +121,24 @@ int main(int argc, char **argv)
     if (p)
         mbd_pid = atoi(p);
 
+    // we just started
+    time_t next_compact_time = time(NULL) + interval;
     for (;;) {
-        sleep(interval);
+
+        sleep(2);
 
         if (mbd_pid != -1) {
             int cc = kill(mbd_pid, 0);
-            if (cc < 0 && errno == ESRCH) {
+            if (cc < 0) {
                 LS_INFO("mbd pid %d gone, exiting...", mbd_pid);
                 break;
             }
         }
+
+        time_t current_time = time(NULL);
+        if (current_time < next_compact_time)
+            continue;
+        next_compact_time = current_time + interval;
 
         struct stat st;
         if (stat(events_path, &st) < 0) {
