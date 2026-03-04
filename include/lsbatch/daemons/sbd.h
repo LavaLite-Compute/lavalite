@@ -39,8 +39,7 @@ extern int sbd_listen_chan;
 extern int sbd_timer_chan;
 // channel to mbd, sbd is a permanent client of mbd
 extern int sbd_mbd_chan;
-extern bool_t connected;
-extern bool_t sbd_mbd_connecting;
+extern pid_t pruner_pid;
 
 // LavaLite sbd root dir working directory for jobs
 extern char sbd_root_dir[PATH_MAX];
@@ -219,3 +218,4 @@ enum sbd_fatal_cause {
 };
 
 void sbd_fatal(enum sbd_fatal_cause);
+void sbd_prune_archive_try(void);

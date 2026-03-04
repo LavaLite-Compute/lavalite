@@ -868,6 +868,37 @@ struct sbd_job *sbd_job_lookup(int job_id)
     return ll_hash_search(sbd_job_hash, keybuf);
 }
 
+
+void sbd_prune_archive_try(void)
+{
+    static time_t pruner_last;
+    time_t current_time;
+
+    if (pruner_pid > 0)
+        return;
+
+    current_time = time(NULL);
+    if (current_time - pruner_last < 600)
+        return;
+
+    pruner_last = current_time;
+
+    pruner_pid = fork();
+    if (pruner_pid < 0) {
+        pruner_pid = -1;
+        LS_ERR("fork(prune) failed");
+        return;
+    }
+
+    if (pruner_pid > 0) {
+        LS_INFO("archive prune started pid=%d", (int)pruner_pid);
+        return;
+    }
+
+    sbd_prune_archive();
+    _exit(0);
+}
+
 void sbd_prune_archive(void)
 {
     DIR *dir = opendir(sbd_archive_dir);

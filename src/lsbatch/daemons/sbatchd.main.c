@@ -50,6 +50,7 @@ static int sbd_timer;
 int sbd_timer_chan;
 int sbd_mbd_chan = -1;
 int sbd_efd;
+pid_t pruner_pid = -1;
 static struct epoll_event *sbd_events;
 static int max_events;
 static int sbd_resend_timer;
@@ -252,7 +253,7 @@ sbd_run_daemon(void)
                  job_execute_drive();
                  job_finish_drive();
                  job_status_checking();
-                 sbd_prune_archive();
+                 sbd_prune_archive_try();
                  // rest the state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
@@ -492,13 +493,17 @@ static void sbd_reap_children(void)
         pid = waitpid(-1, &status, WNOHANG);
         if (pid <= 0) {
             if (pid < 0) {
-
                 if (errno == EINTR)
                     continue;
                 if (errno != ECHILD)
                     LS_ERR("waitpid(-1) failed");
             }
             break;
+        }
+
+        if (pid == pruner_pid) {
+            pruner_pid = -1;
+            continue;
         }
 
         struct sbd_job *job = sbd_find_job_by_pid(pid);

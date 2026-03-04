@@ -222,8 +222,7 @@ void sbd_job_state_archive(struct sbd_job *job)
     }
 
     if (rename(src, dst) < 0) {
-        if (errno != ENOENT)
-            LS_ERR("rename(%s, %s) failed, job=%ld", src, dst, job->job_id);
+        LS_ERR("rename(%s, %s) failed, job=%ld", src, dst, job->job_id);
         return;
     }
 
