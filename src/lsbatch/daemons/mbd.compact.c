@@ -67,6 +67,7 @@ void mbd_compact_shutdown(void)
     if (compact_pid <= 0)
         return;
 
+    LS_INFO("last compactor pid=%d", compact_pid);
     kill(compact_pid, SIGTERM);
     compact_pid = -1;
 }
