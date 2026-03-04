@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+#
+# Chaos - KISS version
+#
+# - submit every N seconds
+# - kill every N seconds
+# - monotonic time
+# - verbose by default
+# - no jitter
+# - no probability tricks
+#
+# Fixes:
+# - timestamp on every printed line
+# - handle subprocess timeouts without crashing (returncode=124)
+# - default bsub stdout/stderr to /dev/null to avoid cwd garbage
+#
+
+import argparse
+import os
+import random
+import re
+import shlex
+import socket
+import subprocess
+import sys
+import time
+
+
+DEFAULT_TIMEOUT = 5.0
+
+PROC_NAMES = {
+    "lim": "lim",
+    "mbd": "mbd",
+    "sbd": "sbd",
+}
+
+
+def ts():
+    # Local time; stable and human-friendly.
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def log(msg):
+    sys.stdout.write(f"{ts()} {msg}\n")
+    sys.stdout.flush()
+
+
+def elog(msg):
+    sys.stderr.write(f"{ts()} {msg}\n")
+    sys.stderr.flush()
+
+
+def run(cmd, timeout=DEFAULT_TIMEOUT):
+    try:
+        return subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as e:
+        # Convert to a normal CompletedProcess so callers can keep going.
+        out = e.stdout if e.stdout is not None else ""
+        err = e.stderr if e.stderr is not None else ""
+        return subprocess.CompletedProcess(cmd, 124, out, err)
+
+
+def extract_jobid(txt):
+    m = re.search(r"Job\s+<(\d+)>", txt)
+    if not m:
+        return None
+    try:
+        return int(m.group(1))
+    except Exception:
+        return None
+
+
+def submit_one(queue, cmd_str):
+    # Run unix commands directly (no extra shell).
+    # Keep stdout/stderr quiet to avoid cwd garbage.
+    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null"]
+    if queue:
+        cmd += ["-q", queue]
+
+    try:
+        cmd += shlex.split(cmd_str)
+    except ValueError as e:
+        elog(f"chaos: bad command string: {cmd_str!r}: {e}")
+        return None
+
+    cp = run(cmd)
+
+    if cp.returncode == 124:
+        # Common when lim/mastership is temporarily unavailable.
+        if cp.stderr:
+            for line in cp.stderr.splitlines():
+                elog(line)
+        else:
+            elog(f"chaos: timeout: {' '.join(cmd)}")
+        return None
+
+    if cp.returncode != 0:
+        if cp.stderr:
+            for line in cp.stderr.splitlines():
+                elog(line)
+        else:
+            elog(f"chaos: command failed rc={cp.returncode}: {' '.join(cmd)}")
+        return None
+
+    return extract_jobid(cp.stdout)
+
+
+def read_hosts_file(path):
+    hosts = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            hosts.append(line)
+    return hosts
+
+
+def is_up(host, kind):
+    proc = PROC_NAMES.get(kind)
+    if not proc:
+        return False
+
+    if host == socket.gethostname():
+        cp = run(["pgrep", "-x", proc])
+        return cp.returncode == 0
+
+    cp = run(["ssh", host, "pgrep", "-x", proc])
+    return cp.returncode == 0
+
+
+def kill_one(host, kind):
+    proc = PROC_NAMES.get(kind)
+    if not proc:
+        return False
+
+    if host == socket.gethostname():
+        cp = run(["pkill", "-KILL", "-x", proc])
+        return cp.returncode == 0
+
+    cp = run(["ssh", host, "pkill", "-KILL", "-x", proc])
+    return cp.returncode == 0
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        prog="chaos",
+        description="Chaos test: submit jobs and kill daemons.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    ap.add_argument("--hosts-file", required=True)
+    ap.add_argument("--seconds", type=int, default=120)
+    ap.add_argument("--queue", default="system")
+    ap.add_argument("--submit-every", type=int, default=2)
+    ap.add_argument("--kill-every", type=int, default=30)
+    ap.add_argument("--kinds", default="lim,mbd,sbd")
+
+    args = ap.parse_args()
+
+    hosts = read_hosts_file(args.hosts_file)
+    kinds = [k.strip() for k in args.kinds.split(",") if k.strip()]
+
+    job_cmds = [
+        "sleep 1",
+        "sleep 2",
+        "sleep 10",
+        "sleep 20",
+        "false",
+        "true",
+    ]
+
+    submits_ok = 0
+    submits_fail = 0
+    kills_ok = 0
+    kills_skip = 0
+    last_jobid = 0
+
+    t0 = time.monotonic()
+    t_end = t0 + args.seconds
+
+    next_submit = t0
+    next_kill = t0 + args.kill_every
+
+    while time.monotonic() < t_end:
+
+        now = time.monotonic()
+
+        # submit block
+        if now >= next_submit:
+            cmd_str = random.choice(job_cmds)
+            jid = submit_one(args.queue, cmd_str)
+
+            if jid is not None:
+                submits_ok += 1
+                last_jobid = jid
+                log(f"chaos: submit job <{jid}> cmd={cmd_str}")
+            else:
+                submits_fail += 1
+                log(f"chaos: submit failed cmd={cmd_str}")
+
+            next_submit += args.submit_every
+
+        # kill block
+        if args.kill_every > 0 and now >= next_kill:
+
+            victim_kind = random.choice(kinds)
+            victim_host = random.choice(hosts) if hosts else socket.gethostname()
+
+            if not is_up(victim_host, victim_kind):
+                kills_skip += 1
+                log(f"chaos: skip kill {victim_kind} host={victim_host} (down)")
+            else:
+                if kill_one(victim_host, victim_kind):
+                    kills_ok += 1
+                    log(f"chaos: kill {victim_kind} host={victim_host}")
+                else:
+                    kills_skip += 1
+                    log(f"chaos: skip kill {victim_kind} host={victim_host} (fail)")
+
+            next_kill += args.kill_every
+
+        time.sleep(0.05)
+
+    log(
+        f"chaos: duration={args.seconds}s ok={submits_ok} "
+        f"fail={submits_fail} killed={kills_ok} skipped={kills_skip} "
+        f"last_jobid={last_jobid}"
+    )
+
+
+if __name__ == "__main__":
+    main()
