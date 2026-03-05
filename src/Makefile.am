@@ -1,5 +1,5 @@
 #
 # Copyright (C) LavaLite Contributors
 #
-SUBDIRS = lsf eauth lsbatch
+SUBDIRS = base eauth batch
 
