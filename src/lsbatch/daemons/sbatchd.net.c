@@ -83,7 +83,7 @@ void sbd_mbd_link_down(void)
         }
     }
 
-    LS_ERR("mbd link down: cleared pending sent flags for resend and state");
+    LS_ERRX("mbd link down: cleared pending sent flags for resend and state");
 }
 
 // Check if mbd is connected

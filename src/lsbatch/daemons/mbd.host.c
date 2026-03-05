@@ -19,7 +19,6 @@
  */
 #include "lsbatch/daemons/mbd.h"
 
-static void initHostStat(void);
 static void hostJobs(struct hData *hp, int stateTransit);
 static void hostQueues(struct hData *hp, int stateTransit);
 static void copyHostInfo(struct hData *, struct hostInfoEnt *);
@@ -29,7 +28,6 @@ static int returnHostInfo(struct hostDataReply *, int, struct hData **,
                           struct infoReq *);
 
 static struct resPair *getResPairs(struct hData *);
-static void setHostBLStatus(void);
 static int hasResReserve(struct resVal *);
 static void getAHostInfo(struct hData *hp);
 
@@ -69,7 +67,6 @@ int checkHosts(struct infoReq *hostsReqPtr, struct hostDataReply *hostsReplyPtr)
                                              "checkHosts");
 
     if (hostsReqPtr->numNames == 0)
-
         return (getAllHostInfoEnt(hostsReplyPtr, hDList, hostsReqPtr));
 
     for (i = 0; i < hostsReqPtr->numNames; i++) {
@@ -277,6 +274,9 @@ static int getAllHostInfoEnt(struct hostDataReply *hostsReplyPtr,
              (hostReq->resReq && hostReq->resReq[0] != '\0')))
             continue;
         if (!(hData->hStatus & HOST_STAT_REMOTE)) {
+            // LavaLite
+            if (hData->sbd_node)
+                hData->hStatus = HOST_STAT_OK;
             hDList[numHosts++] = hData;
         }
     }
@@ -392,19 +392,6 @@ int countHostJobs(struct hData *hData)
     }
 
     return numJobs;
-}
-
-static void initHostStat(void)
-{
-    struct jData *jpbw;
-
-    for (jpbw = jDataList[SJL]->back; jpbw != jDataList[SJL];
-         jpbw = jpbw->back) {
-        if (jpbw->jStatus & JOB_STAT_UNKNOWN && jpbw->hPtr) {
-            jpbw->hPtr[0]->hStatus |= HOST_STAT_UNREACH;
-            jpbw->hPtr[0]->sbdFail = 1;
-        }
-    }
 }
 
 void hStatChange(struct hData *hp, int newStatus)
@@ -1036,7 +1023,7 @@ void adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
 
             if (logclass & LC_SCHED)
                 ls_syslog(LOG_DEBUG1, "\
-%s: JobId=<%s>, hostname=<%s>, resource name=<%s>, the amount by which the load or the instance has been adjusted <%f>, original load or instance value <%f>, runTime=<%d>, sinceresume=<%d>, value of the load or the instance after the adjustment <%f>, factor <%f>",
+%s: JobId=<%s>, hostname=<%s>, resource name=<%s>, the amount by which the load or the instance has been adjusted <%f>, original load or instance value <%f>, runTime=<%d>, sinceresume=<%ld>, value of the load or the instance after the adjustment <%f>, factor <%f>",
                           fname, lsb_jobid2str(jpbw->jobId),
                           jpbw->hPtr[i]->host, allLsInfo->resTable[ldx].name,
                           jackValue, orgnalLoad, jpbw->runTime,
@@ -1197,7 +1184,6 @@ static void getAHostInfo(struct hData *hp)
                fname);
     }
     if (hostInfo == NULL) {
-        ls_syslog(LOG_ERR, "%s", __func__, "ls_gethostinfo");
         return;
     }
     if (hostInfo[0].isServer != TRUE)

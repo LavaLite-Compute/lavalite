@@ -19,9 +19,6 @@
  */
 #include "lsf/lib/lib.channel.h"
 
-// LIM protocol max frame
-#define MAXMSGLEN LL_BUFSIZ_32K
-
 long chan_open_max;
 struct chan_data *channels;
 static int epoll_fd;
@@ -174,8 +171,7 @@ int chan_accept(int ch_id, struct sockaddr_in *from)
     }
 
     while (1) {
-        s = accept4(channels[ch_id].sock, (struct sockaddr *) from, &len,
-                    SOCK_NONBLOCK | SOCK_CLOEXEC);
+        s = accept(channels[ch_id].sock, (struct sockaddr *) from, &len);
         if (s >= 0)
             break;
 
@@ -281,8 +277,6 @@ int chan_open_sock(int s, int options)
         return -1;
     }
 
-    // We already set the non block in accept but we can
-    // have a caller that calls socket/connect before
     if ((options & CHAN_OP_NONBLOCK) && (io_nonblock_(s) < 0)) {
         lserrno = LSE_SOCK_SYS;
         return -1;
@@ -422,16 +416,10 @@ int chan_rpc(int ch_id, struct Buffer *in, struct Buffer *out,
         return -1;
     }
 
-    // Bug what is this for... auth the socket?
-    if (out_hdr->length > MAXMSGLEN) {
-        lserrno = LSE_PROTOCOL;
-        return -1;
-    }
-
     out->data = NULL;
     out->len = out_hdr->length;
     if (out->len > 0) {
-        if ((out->data = malloc(out->len)) == NULL) {
+        if ((out->data = calloc(out->len, sizeof(char))) == NULL) {
             lserrno = LSE_MALLOC;
             return -1;
         }

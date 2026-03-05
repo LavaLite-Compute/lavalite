@@ -146,7 +146,7 @@ int main(int argc, char **argv)
             continue;
         }
 
-        LS_INFO("size=%ld threshold=%ld compacting",
+        LS_INFO("size=%ld threshold=%ld try compacting",
                 (long)st.st_size, (long)threshold);
 
         if (st.st_size < threshold)

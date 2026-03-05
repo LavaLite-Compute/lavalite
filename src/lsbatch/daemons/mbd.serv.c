@@ -237,6 +237,9 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         return 0;
     }
 
+    // block it give the client time to read
+    io_block(channels[chfd].sock);
+
     for (i = 0; i < listSize; i++) {
         if (jgrplist[i].isJData &&
             ((len = packJobInfo((struct jData *) jgrplist[i].info,

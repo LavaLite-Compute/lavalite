@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 #
-# Chaos - KISS version
+# Chaos - KISS version + verify
 #
-# - submit every N seconds
-# - kill every N seconds
-# - monotonic time
-# - verbose by default
-# - no jitter
-# - no probability tricks
+# Verify: bhist is the source of truth. Every submitted job must be
+# DONE or EXIT when the run ends. The sbd .archive directory is an
+# internal sbd implementation detail and is not checked here.
 #
-# Fixes:
-# - timestamp on every printed line
-# - handle subprocess timeouts without crashing (returncode=124)
-# - default bsub stdout/stderr to /dev/null to avoid cwd garbage
+#  Copyright (C) LavaLite Contributors
+#  GPL v2
 #
 
 import argparse
-import os
 import random
 import re
 import shlex
@@ -27,6 +21,7 @@ import time
 
 
 DEFAULT_TIMEOUT = 5.0
+BHIST_TIMEOUT   = 60.0
 
 PROC_NAMES = {
     "lim": "lim",
@@ -36,7 +31,6 @@ PROC_NAMES = {
 
 
 def ts():
-    # Local time; stable and human-friendly.
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -61,7 +55,6 @@ def run(cmd, timeout=DEFAULT_TIMEOUT):
             check=False,
         )
     except subprocess.TimeoutExpired as e:
-        # Convert to a normal CompletedProcess so callers can keep going.
         out = e.stdout if e.stdout is not None else ""
         err = e.stderr if e.stderr is not None else ""
         return subprocess.CompletedProcess(cmd, 124, out, err)
@@ -78,8 +71,6 @@ def extract_jobid(txt):
 
 
 def submit_one(queue, cmd_str):
-    # Run unix commands directly (no extra shell).
-    # Keep stdout/stderr quiet to avoid cwd garbage.
     cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null"]
     if queue:
         cmd += ["-q", queue]
@@ -93,7 +84,6 @@ def submit_one(queue, cmd_str):
     cp = run(cmd)
 
     if cp.returncode == 124:
-        # Common when lim/mastership is temporarily unavailable.
         if cp.stderr:
             for line in cp.stderr.splitlines():
                 elog(line)
@@ -149,6 +139,43 @@ def kill_one(host, kind):
     return cp.returncode == 0
 
 
+def bhist_all(timeout):
+    """Call bhist once with no args, return dict of jobid -> status.
+    One call covers all jobs regardless of history size."""
+    cp = run(["bhist"], timeout=timeout)
+
+    if cp.returncode == 124:
+        elog("chaos: verify: bhist timed out")
+        return None
+
+    if cp.returncode != 0:
+        elog(f"chaos: verify: bhist failed rc={cp.returncode}")
+        if cp.stderr:
+            for line in cp.stderr.splitlines():
+                elog(line)
+        return None
+
+    # Each job appears on one summary line:
+    # Job <308>, User <david>, ... Status <DONE> ...
+    result = {}
+    for line in cp.stdout.splitlines():
+        m = re.search(r"Job\s+<(\d+)>.*Status\s+<([^>]+)>", line)
+        if not m:
+            continue
+        try:
+            jid = int(m.group(1))
+        except ValueError:
+            continue
+        result[jid] = m.group(2).strip().upper()
+
+    return result
+
+
+def is_finished_status(st):
+    # DONE = success, EXIT = non-zero exit. Both are finished.
+    return st in ("DONE", "EXIT")
+
+
 def main():
     ap = argparse.ArgumentParser(
         prog="chaos",
@@ -157,11 +184,11 @@ def main():
     )
 
     ap.add_argument("--hosts-file", required=True)
-    ap.add_argument("--seconds", type=int, default=120)
-    ap.add_argument("--queue", default="system")
+    ap.add_argument("--seconds",      type=int, default=120)
+    ap.add_argument("--queue",        default="system")
     ap.add_argument("--submit-every", type=int, default=2)
-    ap.add_argument("--kill-every", type=int, default=30)
-    ap.add_argument("--kinds", default="lim,mbd,sbd")
+    ap.add_argument("--kill-every",   type=int, default=30)
+    ap.add_argument("--kinds",        default="lim,mbd,sbd")
 
     args = ap.parse_args()
 
@@ -177,30 +204,30 @@ def main():
         "true",
     ]
 
-    submits_ok = 0
+    submits_ok   = 0
     submits_fail = 0
-    kills_ok = 0
-    kills_skip = 0
-    last_jobid = 0
+    kills_ok     = 0
+    kills_skip   = 0
 
-    t0 = time.monotonic()
+    jobids = []
+
+    t0    = time.monotonic()
     t_end = t0 + args.seconds
 
     next_submit = t0
-    next_kill = t0 + args.kill_every
+    next_kill   = t0 + args.kill_every
 
     while time.monotonic() < t_end:
 
         now = time.monotonic()
 
-        # submit block
         if now >= next_submit:
             cmd_str = random.choice(job_cmds)
             jid = submit_one(args.queue, cmd_str)
 
             if jid is not None:
                 submits_ok += 1
-                last_jobid = jid
+                jobids.append(jid)
                 log(f"chaos: submit job <{jid}> cmd={cmd_str}")
             else:
                 submits_fail += 1
@@ -208,11 +235,13 @@ def main():
 
             next_submit += args.submit_every
 
-        # kill block
         if args.kill_every > 0 and now >= next_kill:
 
             victim_kind = random.choice(kinds)
-            victim_host = random.choice(hosts) if hosts else socket.gethostname()
+            if hosts:
+                victim_host = random.choice(hosts)
+            else:
+                victim_host = socket.gethostname()
 
             if not is_up(victim_host, victim_kind):
                 kills_skip += 1
@@ -229,11 +258,63 @@ def main():
 
         time.sleep(0.05)
 
+    # --- verify: bhist is the source of truth ---
+    #
+    # One bhist call returns all jobs. Every job we submitted must be
+    # DONE or EXIT. UNKNOWN means it was not in bhist output -- that
+    # is a bug (mbd lost the job).
+
+    finished     = 0
+    not_finished = 0
+    status_counts = {}
+
+    log("chaos: waiting for all jobs to finish...")
+    while True:
+        all_status = bhist_all(BHIST_TIMEOUT)
+        if all_status is None:
+            break
+        still_running = [jid for jid in jobids
+                         if all_status.get(jid, "UNKNOWN") not in ("DONE", "EXIT")]
+        if not still_running:
+            break
+        log(f"chaos: still running: {len(still_running)} jobs, waiting...")
+        time.sleep(5)
+
+    log(f"chaos: verify: checking {len(jobids)} jobs...")
+    for jid in jobids:
+        if all_status is None:
+            st = "ERROR"
+        else:
+            st = all_status.get(jid, "UNKNOWN")
+
+        status_counts[st] = status_counts.get(st, 0) + 1
+
+        if is_finished_status(st):
+            finished += 1
+        else:
+            not_finished += 1
+            elog(f"chaos: verify: job <{jid}> not finished: status={st}")
+
+    verify_bad = not_finished
+    if all_status is None:
+        verify_bad = len(jobids)
+
     log(
-        f"chaos: duration={args.seconds}s ok={submits_ok} "
-        f"fail={submits_fail} killed={kills_ok} skipped={kills_skip} "
-        f"last_jobid={last_jobid}"
+        f"chaos: duration={args.seconds}s "
+        f"submit_ok={submits_ok} submit_fail={submits_fail} "
+        f"killed={kills_ok} skipped={kills_skip} "
+        f"jobs={len(jobids)} finished={finished} not_finished={not_finished} "
+        f"verify_bad={verify_bad}"
     )
+
+    if status_counts:
+        parts = [f"{k}={status_counts[k]}" for k in sorted(status_counts.keys())]
+        log("chaos: bhist_status: " + " ".join(parts))
+
+    if verify_bad > 0:
+        sys.exit(1)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -63,7 +63,8 @@ int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
     memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
     build_sbd_run_list(host_data, &reg_ack);
 
-    host_data->hStatus &= ~HOST_STAT_UNREACH;
+    // good bye bits
+    host_data->hStatus = HOST_STAT_OK;
 
     LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d status=%s",
             hostname, host_data->sbd_node->host.name,
