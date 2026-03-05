@@ -1,4 +1,3 @@
-
 ## What Is **LavaLite**?
 
 **LavaLite** is a modern, independent, open-source workload scheduler derived from the last GPLv2-licensed release of Platform Lava 1.0. The historical codebase serves as reference material, not as a direct continuation.
@@ -30,35 +29,11 @@ The project evolves independently and focuses on:
 ## About the Name
 
 The term *Lite* in **LavaLite** does not indicate a reduced-feature
-or limited edition.
-
-It reflects the project’s design philosophy: a lightweight,
+or limited edition, it reflects the project's design philosophy: a lightweight,
 minimal, and deterministic architecture focused on clarity,
 reliability, and operational predictability rather than feature accumulation.
 
 **LavaLite is not a feature clone of legacy systems. It is a deliberately constrained design aimed at reducing combinatorial complexity while maintaining scalability.**
-
-
-### MPI Workloads
-
-LavaLite can run MPI workloads through standard job submission. The scheduler allocates `-n` hosts for a job, and the user (or workflow tooling) generates an MPI hostfile based on the provided allocation.
-
-This model supports distributed GPU training, multi-node inference, and other MPI-based workloads without requiring tightly coupled parallel scheduling semantics.
-
-A hostfile template mechanism may be introduced to simplify generation of `mpirun`-compatible hostfiles.
-
-## GPU Support & Data Center Modeling
-
-GPU-aware scheduling and data center modeling are natural extensions of the current architecture. Potential extensions include:
-
-- GPU visibility and accounting (host-level and job-level)
-- Device allocation masks for CUDA, MIG, and ROCm
-- GPU resource selection policies and constraints
-- Rack-aware and topology-aware placement
-- Scheduling models incorporating NUMA domains, racks, rows, and power zones
-- Template-based hostfile generation for GPU-based MPI workloads
-
-Any such extensions will preserve deterministic scheduling behavior and explicit state semantics.
 
 ## Getting Started
 
@@ -70,7 +45,7 @@ LavaLite currently supports:
 
 To begin, follow the installation guide:
 
-https://github.com/LavaLite-Compute/lavalite/blob/master/docs/projects/INSTALL-lavalite-0.1.0.md
+https://github.com/LavaLite-Compute/lavalite/blob/master/docs/projects/ADMIN-lavalite-0.1.1.md
 
 ## Documentation
 
@@ -80,16 +55,29 @@ https://github.com/LavaLite-Compute/lavalite/tree/master/docs/projects
 
 These documents describe internal design, interfaces, and operational details.
 
+## Road to 1.0
+
+The 0.1.x series establishes the core: reliable job lifecycle, durable state,
+and predictable recovery under failure. The focus is correctness and operational
+stability, not feature breadth.
+
+Work planned for 1.0 includes:
+
+- Multi-host job allocation (`-n`)
+- `eauth` cluster authentication (design complete, implementation pending)
+- Failover and master election
+- GPU and resource-aware scheduling
+
+No timeline is committed. 1.0 ships when it is ready and verified.
 
 ## License
+
 LavaLite is licensed under the GNU General Public License v2. All contributions must be
 compatible with GPLv2.
-
 
 ## Contact
 
 For issues and feature requests, please use the
-[GitHub Issues page](https://github.com/lavalite/livelite/issues).
+[GitHub Issues page](https://github.com/LavaLite-Compute/lavalite/issues).
 
 Maintainer: lavalite.compute@gmail.com
-Project email: livelite@lavalite-compute.io

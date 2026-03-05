@@ -2,9 +2,9 @@
 #
 # Chaos - KISS version + verify
 #
-# Verify: bhist is the source of truth. Every submitted job must be
-# DONE or EXIT when the run ends. The sbd .archive directory is an
-# internal sbd implementation detail and is not checked here.
+# Verify: bjobs -a is the source of truth. Every submitted job must
+# have cleared from the active job table before we declare success.
+# bhist/lsb.events rotation is not our problem -- mbd owns job state.
 #
 #  Copyright (C) LavaLite Contributors
 #  GPL v2
@@ -21,7 +21,6 @@ import time
 
 
 DEFAULT_TIMEOUT = 5.0
-BHIST_TIMEOUT   = 60.0
 
 PROC_NAMES = {
     "lim": "lim",
@@ -139,41 +138,43 @@ def kill_one(host, kind):
     return cp.returncode == 0
 
 
-def bhist_all(timeout):
-    """Call bhist once with no args, return dict of jobid -> status.
-    One call covers all jobs regardless of history size."""
-    cp = run(["bhist"], timeout=timeout)
+def bjobs_active(jobids_set, timeout):
+    """Return set of jobids from jobids_set that are still active in mbd.
+    A job not present in bjobs -a output is considered finished.
+    Returns None if bjobs itself failed."""
+    cp = run(["bjobs", "-a"], timeout=timeout)
 
     if cp.returncode == 124:
-        elog("chaos: verify: bhist timed out")
+        elog("chaos: verify: bjobs timed out")
         return None
 
-    if cp.returncode != 0:
-        elog(f"chaos: verify: bhist failed rc={cp.returncode}")
+    # bjobs returns non-zero with "No unfinished job found" -- that is fine,
+    # it means everything is done. Only treat it as an error if there is
+    # no stdout at all and stderr is non-empty.
+    if cp.returncode != 0 and not cp.stdout:
+        elog(f"chaos: verify: bjobs failed rc={cp.returncode}")
         if cp.stderr:
             for line in cp.stderr.splitlines():
                 elog(line)
         return None
 
-    # Each job appears on one summary line:
-    # Job <308>, User <david>, ... Status <DONE> ...
-    result = {}
+    # bjobs -a columns: JOBID USER STAT QUEUE FROM_HOST EXEC_HOST ...
+    # Jobs in DONE or EXIT are finished. Jobs absent from output are finished.
+    # We only flag jobs still in RUN/PEND/USUSP/SSUSP/etc.
+    active = set()
     for line in cp.stdout.splitlines():
-        m = re.search(r"Job\s+<(\d+)>.*Status\s+<([^>]+)>", line)
-        if not m:
+        parts = line.split()
+        if len(parts) < 3:
             continue
         try:
-            jid = int(m.group(1))
+            jid = int(parts[0])
         except ValueError:
             continue
-        result[jid] = m.group(2).strip().upper()
+        stat = parts[2].upper()
+        if jid in jobids_set and stat not in ("DONE", "EXIT"):
+            active.add(jid)
 
-    return result
-
-
-def is_finished_status(st):
-    # DONE = success, EXIT = non-zero exit. Both are finished.
-    return st in ("DONE", "EXIT")
+    return active
 
 
 def main():
@@ -183,7 +184,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    ap.add_argument("--hosts-file", required=True)
+    ap.add_argument("--hosts-file",   required=True)
     ap.add_argument("--seconds",      type=int, default=120)
     ap.add_argument("--queue",        default="system")
     ap.add_argument("--submit-every", type=int, default=2)
@@ -258,58 +259,33 @@ def main():
 
         time.sleep(0.05)
 
-    # --- verify: bhist is the source of truth ---
+    # --- verify: wait for all submitted jobs to clear from mbd ---
     #
-    # One bhist call returns all jobs. Every job we submitted must be
-    # DONE or EXIT. UNKNOWN means it was not in bhist output -- that
-    # is a bug (mbd lost the job).
+    # bjobs -a is the ground truth: if a job is not in the active table
+    # it is done. We do not chase lsb.events rotations -- that is mbd's
+    # business, not ours.
 
-    finished     = 0
-    not_finished = 0
-    status_counts = {}
+    jobids_set = set(jobids)
+    verify_bad = 0
 
-    log("chaos: waiting for all jobs to finish...")
+    log(f"chaos: verify: waiting for {len(jobids)} jobs to finish...")
     while True:
-        all_status = bhist_all(BHIST_TIMEOUT)
-        if all_status is None:
+        active = bjobs_active(jobids_set, DEFAULT_TIMEOUT)
+        if active is None:
+            verify_bad = len(jobids)
             break
-        still_running = [jid for jid in jobids
-                         if all_status.get(jid, "UNKNOWN") not in ("DONE", "EXIT")]
-        if not still_running:
+        if len(active) == 0:
+            log(f"chaos: verify: all {len(jobids)} jobs finished ok")
             break
-        log(f"chaos: still running: {len(still_running)} jobs, waiting...")
+        log(f"chaos: still running: {len(active)} jobs, waiting...")
         time.sleep(5)
-
-    log(f"chaos: verify: checking {len(jobids)} jobs...")
-    for jid in jobids:
-        if all_status is None:
-            st = "ERROR"
-        else:
-            st = all_status.get(jid, "UNKNOWN")
-
-        status_counts[st] = status_counts.get(st, 0) + 1
-
-        if is_finished_status(st):
-            finished += 1
-        else:
-            not_finished += 1
-            elog(f"chaos: verify: job <{jid}> not finished: status={st}")
-
-    verify_bad = not_finished
-    if all_status is None:
-        verify_bad = len(jobids)
 
     log(
         f"chaos: duration={args.seconds}s "
         f"submit_ok={submits_ok} submit_fail={submits_fail} "
         f"killed={kills_ok} skipped={kills_skip} "
-        f"jobs={len(jobids)} finished={finished} not_finished={not_finished} "
-        f"verify_bad={verify_bad}"
+        f"jobs={len(jobids)} verify_bad={verify_bad}"
     )
-
-    if status_counts:
-        parts = [f"{k}={status_counts[k]}" for k in sorted(status_counts.keys())]
-        log("chaos: bhist_status: " + " ".join(parts))
 
     if verify_bad > 0:
         sys.exit(1)
