@@ -16,7 +16,7 @@
  USA
  *
  */
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 extern int optind;
 extern char *optarg;

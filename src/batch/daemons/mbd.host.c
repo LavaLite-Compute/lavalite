@@ -17,7 +17,7 @@
  USA
  *
  */
-#include "lsbatch/daemons/mbd.h"
+#include "batch/daemons/mbd.h"
 
 static void hostJobs(struct hData *hp, int stateTransit);
 static void hostQueues(struct hData *hp, int stateTransit);

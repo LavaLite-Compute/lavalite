@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  * ------------------------------------------------------------------------ */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 extern void copyJUsage(struct jRusage *to, struct jRusage *from);
 

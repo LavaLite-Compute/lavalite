@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 struct hostInfoEnt *lsb_hostinfo(char **hosts, int *numHosts,
                                  char *resReq, int options)

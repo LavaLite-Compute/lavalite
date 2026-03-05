@@ -17,7 +17,7 @@
  USA
  *
  */
-#include "lsf/lib/lib.channel.h"
+#include "base/lib/lib.channel.h"
 
 long chan_open_max;
 struct chan_data *channels;

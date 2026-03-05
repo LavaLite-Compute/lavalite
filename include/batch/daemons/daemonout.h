@@ -19,8 +19,8 @@
  */
 #pragma once
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/lib/lsb.sig.h"
+#include "batch/lib/lsb.h"
+#include "batch/lib/lsb.sig.h"
 
 #define ALL_HOSTS "all"
 

@@ -16,8 +16,8 @@
  * GPL v2
  */
 
-#include "lsbatch/daemons/mbd.h"
-#include "lsbatch/daemons/mbatchd.h"
+#include "batch/daemons/mbd.h"
+#include "batch/daemons/mbatchd.h"
 
 static pid_t compact_pid = -1;
 static int compact_fail_count;

@@ -16,12 +16,12 @@
  */
 #pragma once
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/daemons/daemonout.h"
-#include "lsbatch/daemons/daemons.h"
-#include "lsbatch/daemons/jgrp.h"
-#include "lsf/lib/ll.list.h"
-#include "lsf/lib/ll.hash.h"
+#include "batch/lib/lsb.h"
+#include "batch/daemons/daemonout.h"
+#include "batch/daemons/daemons.h"
+#include "batch/daemons/jgrp.h"
+#include "base/lib/ll.list.h"
+#include "base/lib/ll.hash.h"
 
 // LavaLite global host list as returned by lsb_gethostinfo()
 extern struct hostInfo *host_list;

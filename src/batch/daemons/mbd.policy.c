@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
+#include "batch/daemons/mbd.h"
 
 #define SORT_HOST_NUM 30
 

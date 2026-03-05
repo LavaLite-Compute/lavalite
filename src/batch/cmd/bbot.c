@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 int main(int argc, char **argv)
 {

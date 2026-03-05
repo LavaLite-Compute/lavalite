@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "lsf/lib/ll.sys.h"
+#include "base/lib/ll.sys.h"
 
 // LavaLite hash table:
 // ---------------------

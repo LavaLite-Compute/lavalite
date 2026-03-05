@@ -50,14 +50,14 @@
 #include <dirent.h>
 
 #include "lsf.h"
-#include "lsf/lib/lib.h"
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/intlibout.h"
-#include "lsf/lib/tcl_stub.h"
-#include "lsf/lib/lib.channel.h"
-#include "lsf/lib/lib.conf.h"
-#include "lsf/lim/limout.h"
-#include "lsf/lib/lib.xdr.h"
+#include "base/lib/lib.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/intlibout.h"
+#include "base/lib/tcl_stub.h"
+#include "base/lib/lib.channel.h"
+#include "base/lib/lib.conf.h"
+#include "base/lim/limout.h"
+#include "base/lib/lib.xdr.h"
 
 #define EXCHINTVL 15
 #define SAMPLINTVL 5

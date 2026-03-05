@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 #define USR_NAME_LENGTH 18
 #define USR_JL_P_LENGTH 5

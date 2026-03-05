@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsf/lib/lib.h"
-#include "lsf/lib/ll.sysenv.h"
+#include "base/lib/lib.h"
+#include "base/lib/ll.sysenv.h"
 
 static int setLockOnOff_(int on, time_t duration, char *hname)
 {

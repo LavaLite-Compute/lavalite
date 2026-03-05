@@ -17,8 +17,8 @@
  USA
  *
  */
-#include "lsf/lib/lib.h"
-#include "lsf/lib/ll.sysenv.h"
+#include "base/lib/lib.h"
+#include "base/lib/ll.sysenv.h"
 
 #define ESUBNAME "esub"
 #define EEXECNAME "eexec"

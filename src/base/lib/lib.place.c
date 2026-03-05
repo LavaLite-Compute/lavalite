@@ -17,7 +17,7 @@
  USA
  *
  */
-#include "lsf/lib/lib.h"
+#include "base/lib/lib.h"
 
 char **ls_placereq(char *resreq, int *numhosts, int options, char *fromhost)
 {

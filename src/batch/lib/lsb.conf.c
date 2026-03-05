@@ -25,9 +25,9 @@
 // New config logic should go into smaller lib/lsb.conf.* files.
 // This file is only being slowly drained.
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/lib/lsb.sig.h"
-#include "lsf/lib/intlibout.h"
+#include "batch/lib/lsb.h"
+#include "batch/lib/lsb.sig.h"
+#include "base/lib/intlibout.h"
 
 #ifndef LSBCONF_NOLOG
 #define LSBCONF_NOLOG 1

@@ -17,7 +17,7 @@
  * MA  02110-1301, USA
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 struct config_param lsbParams[LSB_PARAM_COUNT] =
 {

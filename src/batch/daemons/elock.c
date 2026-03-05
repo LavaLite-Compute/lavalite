@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/daemons/daemons.h"
+#include "batch/lib/lsb.h"
+#include "batch/daemons/daemons.h"
 
 static pid_t lockOwner;
 

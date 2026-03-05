@@ -18,7 +18,7 @@
  *
  */
 #include <stdlib.h>
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/sbd.h"
 
 #include <malloc.h>
 

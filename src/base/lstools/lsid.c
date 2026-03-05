@@ -17,7 +17,7 @@
  USA
  *
  */
-#include "lsf/lib/lib.h"
+#include "base/lib/lib.h"
 
 static void usage(char *);
 extern int errLineNum_;

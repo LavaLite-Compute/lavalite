@@ -18,10 +18,10 @@
  *
  */
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/lib.hdr.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/lib/ll.host.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/lib.hdr.h"
+#include "base/lib/lproto.h"
+#include "base/lib/ll.host.h"
 
 bool_t userok(struct sockaddr_in *from, struct lsfAuth *auth)
 {

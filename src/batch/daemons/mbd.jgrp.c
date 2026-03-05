@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
+#include "batch/daemons/mbd.h"
 
 #define MAX_SPEC_LEN 200
 #define SET_STATUS(x, y) ((x) == (y)) ? 0 : ((x) = (y)) == (y)

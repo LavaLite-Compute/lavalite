@@ -15,8 +15,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsf/lsbatch/lib/lsb.h"
-#include "lsf/lsbatch/lib/lsb.sbdlib.h"
+#include "base/lsbatch/lib/lsb.h"
+#include "base/lsbatch/lib/lsb.sbdlib.h"
 
 static const char *
 yn(int v)

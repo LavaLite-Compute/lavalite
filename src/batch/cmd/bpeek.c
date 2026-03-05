@@ -21,7 +21,7 @@
 // we need to rewrite bpeek using a ssh command, a python script would
 // do most likely
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 static void peek_file(char *, struct jobInfoEnt *, char);
 

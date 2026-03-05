@@ -21,14 +21,14 @@
 /* Bug. This function contains lots of crap.
  */
 
-#include "lsf/lib/ll.bufsiz.h"
-#include "lsf/lib/lib.common.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/lim/limout.h"
-#include "lsf/lib/lib.xdr.h"
-#include "lsf/lib/ll.host.h"
-#include "lsf/lib/ll.sysenv.h"
-#include "lsf/lib/lib.channel.h"
+#include "base/lib/ll.bufsiz.h"
+#include "base/lib/lib.common.h"
+#include "base/lib/lproto.h"
+#include "base/lim/limout.h"
+#include "base/lib/lib.xdr.h"
+#include "base/lib/ll.host.h"
+#include "base/lib/ll.sysenv.h"
+#include "base/lib/lib.channel.h"
 
 // LavaLite parachute
 extern __thread int lserrno;

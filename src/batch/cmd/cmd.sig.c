@@ -18,7 +18,7 @@
  */
 
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 static int signalJobs(int64_t *, int);
 static void prtSignaled(int, int64_t);

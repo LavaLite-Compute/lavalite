@@ -17,7 +17,7 @@
  USA
  *
  */
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 static bool_t xdr_resPair(XDR *xdrs, struct resPair *resPair, void *ctx)
 {

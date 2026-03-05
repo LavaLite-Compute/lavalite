@@ -19,11 +19,11 @@
  */
 #pragma once
 
-#include "lsf/lib/ll.bufsiz.h"
-#include "lsf/lib/resreq.h"
-#include "lsf/lib/list.h"
-#include "lsf/lib/bitset.h"
-#include "lsf/lib/listset.h"
+#include "base/lib/ll.bufsiz.h"
+#include "base/lib/resreq.h"
+#include "base/lib/list.h"
+#include "base/lib/bitset.h"
+#include "base/lib/listset.h"
 
 #define MINPASSWDLEN_LS (3)
 

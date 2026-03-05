@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 static int readJobNew(char *, struct jobNewLog *);
 static int readJobMod(char *, struct jobModLog *);

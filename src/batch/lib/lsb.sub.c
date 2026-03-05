@@ -18,9 +18,9 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsf/lib/lib.h"
-#include "lsbatch/lib/lsb.spool.h"
+#include "batch/lib/lsb.h"
+#include "base/lib/lib.h"
+#include "batch/lib/lsb.spool.h"
 
 #define exit(a) _exit(a)
 #define SKIPSPACE(sp)                                                          \

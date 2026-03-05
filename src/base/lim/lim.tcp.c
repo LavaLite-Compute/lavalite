@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 static void process_tcp_request(struct client_node *client)
 {

@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
+#include "batch/daemons/mbd.h"
 
 static struct jobIdx *createjobIdxRef(struct jobIdx *);
 static void destroyjobIdxRef(struct jobIdx *);

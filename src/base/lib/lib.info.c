@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *
  */
-#include "lsf/lib/lib.h"
-#include "lsf/lib/lib.channel.h"
+#include "base/lib/lib.h"
+#include "base/lib/lib.channel.h"
 
 struct masterInfo masterInfo;
 int masterknown = false;

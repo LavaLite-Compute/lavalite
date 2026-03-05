@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 void load2Str();
 static void prtQueuesLong(int, struct queueInfoEnt *);

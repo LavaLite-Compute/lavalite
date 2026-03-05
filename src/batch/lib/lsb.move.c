@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 int lsb_movejob(int64_t jobId, int *position, int operation)
 {

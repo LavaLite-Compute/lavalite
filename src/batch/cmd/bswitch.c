@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 static int printErrMsg(int64_t jobId, char *queue);
 

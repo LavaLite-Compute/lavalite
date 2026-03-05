@@ -19,7 +19,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/sbd.h"
 #include "../../lsf/lib/lib.xdr.h"
 
 bool_t xdr_jobSetup(XDR *xdrs, struct jobSetup *jsetup,

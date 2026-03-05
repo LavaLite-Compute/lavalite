@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/sbd.h"
 #include <time.h>
 #include <stdlib.h>
 #include <sys/types.h>

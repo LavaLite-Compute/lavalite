@@ -18,7 +18,7 @@
  */
 #pragma once
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 bool_t xdr_submitReq(XDR *, struct submitReq *, void *);
 bool_t xdr_submitMbdReply(XDR *, struct submitMbdReply *, void *);

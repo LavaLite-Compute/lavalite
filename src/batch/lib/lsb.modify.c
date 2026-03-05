@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/lib/lsb.spool.h"
+#include "batch/lib/lsb.h"
+#include "batch/lib/lsb.spool.h"
 
 static int64_t sendModifyReq(struct modifyReq *, struct submitReply *,
                              struct lsfAuth *);

@@ -19,8 +19,8 @@
  */
 #pragma once
 
-#include "lsf/lib/lib.h"
-#include "lsf/lib/ll.sys.h"
+#include "base/lib/lib.h"
+#include "base/lib/ll.sys.h"
 
 // Channel options for now we only use socketoption
 #define CHAN_OP_SOREUSE 0x01

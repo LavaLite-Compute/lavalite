@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 __thread lsb_error_t lsberrno = 0;
 

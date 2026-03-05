@@ -18,16 +18,16 @@
 
 #pragma once
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/ll.sysenv.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/lib/ll.host.h"
-#include "lsf/lib/lib.channel.h"
-#include "lsbatch/lib/lsb.xdr.h"
-#include "lsbatch/lib/lsb.h"      // jobSpecs, sbdReplyType
-#include "lsf/lib/ll.list.h"      // struct ll_list, struct ll_list_entry
-#include "lsf/lib/ll.hash.h"      // struct ll_hash
-#include "lsbatch/daemons/daemons.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/ll.sysenv.h"
+#include "base/lib/lproto.h"
+#include "base/lib/ll.host.h"
+#include "base/lib/lib.channel.h"
+#include "batch/lib/lsb.xdr.h"
+#include "batch/lib/lsb.h"      // jobSpecs, sbdReplyType
+#include "base/lib/ll.list.h"      // struct ll_list, struct ll_list_entry
+#include "base/lib/ll.hash.h"      // struct ll_hash
+#include "batch/daemons/daemons.h"
 
 extern int sbd_debug;
 // chan epoll

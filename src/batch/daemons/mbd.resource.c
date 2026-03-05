@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
+#include "batch/daemons/mbd.h"
 
 static void addSharedResource(struct lsSharedResourceInfo *);
 static void addInstances(struct lsSharedResourceInfo *,

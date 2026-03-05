@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/mbd.h"
+#include "batch/daemons/sbd.h"
 
 static unsigned int msgcnt = 0;
 extern int numLsbUsable;

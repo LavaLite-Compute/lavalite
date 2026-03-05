@@ -15,8 +15,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsbatch/daemons/sbd.h"
-#include "lsbatch/lib/lsb.sbdproto.h"
+#include "batch/daemons/sbd.h"
+#include "batch/lib/lsb.sbdproto.h"
 
 static int do_sbd_jobs_list(int, XDR *, struct packet_header *);
 static void sbd_jobinfo_fill(struct sbdJobInfo *, struct sbd_job *);

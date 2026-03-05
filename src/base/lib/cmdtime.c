@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/lproto.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/lproto.h"
 
 static int getPtime(char *, char, time_t, char, time_t *);
 static time_t mkTime(struct tm *, int, time_t);

@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 static int ctrlQueue(char *, int);
 static int exitrc = 0;

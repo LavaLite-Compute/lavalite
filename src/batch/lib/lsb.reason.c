@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 static char msgbuf[MSGSIZE];
 char msgline[MAXLINELEN];

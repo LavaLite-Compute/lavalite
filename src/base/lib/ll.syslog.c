@@ -5,8 +5,8 @@
 // Optionally also logs to stderr and/or syslog(), but never does
 // any dynamic fallback or reopen magic.
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/ll.bufsiz.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/ll.bufsiz.h"
 
 static int log_fd = -1;
 static int log_to_stderr;

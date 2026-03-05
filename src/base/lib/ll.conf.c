@@ -16,8 +16,8 @@
  USA
  *
  */
-#include "lsf/lib/lib.conf.h"
-#include "lsf/lib/ll.host.h"
+#include "base/lib/lib.conf.h"
+#include "base/lib/ll.host.h"
 
 #define IS_DIGIT(s) ((s) >= '0' && (s) <= '9')
 

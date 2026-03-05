@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 struct parameterInfo *lsb_parameterinfo(char **names, int *numUsers,
                                         int options)

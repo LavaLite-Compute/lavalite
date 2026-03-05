@@ -20,14 +20,14 @@
 #pragma once
 
 #include "lsbatch.h"
-#include "lsf/lib/list.h"
-#include "lsf/lib/bitset.h"
-#include "lsf/lib/intlibout.h"
-#include "lsf/lib/tcl_stub.h"
-#include "lsf/lib/jidx.h"
-#include "lsf/lib/lib.h"
-#include "lsbatch/daemons/daemonout.h"
-#include "lsbatch/lib/lsb.xdr.h"
+#include "base/lib/list.h"
+#include "base/lib/bitset.h"
+#include "base/lib/intlibout.h"
+#include "base/lib/tcl_stub.h"
+#include "base/lib/jidx.h"
+#include "base/lib/lib.h"
+#include "batch/daemons/daemonout.h"
+#include "batch/lib/lsb.xdr.h"
 
 #ifndef MIN
 #define MIN(a, b)                                                              \

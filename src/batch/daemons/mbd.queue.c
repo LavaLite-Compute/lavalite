@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
+#include "batch/daemons/mbd.h"
 
 #define JOBIDSTRLEN 20
 struct hTab jobIdHT;

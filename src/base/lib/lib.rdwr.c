@@ -17,8 +17,8 @@
  USA
  *
  */
-#include "lsf/lib/lib.common.h"
-#include "lsf/lib/lproto.h"
+#include "base/lib/lib.common.h"
+#include "base/lib/lproto.h"
 
 #define IO_TIMEOUT 2000 // milliseconds
 

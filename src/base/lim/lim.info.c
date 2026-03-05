@@ -16,7 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 // lim_info.c - LIM request handlers
 // Simplified: dump all data, let clients filter
 

@@ -18,9 +18,9 @@
  *
  */
 
-#include "lsf/lib/lib.common.h"
-#include "lsf/lib/lib.h"
-#include "lsf/lib/ll.sysenv.h"
+#include "base/lib/lib.common.h"
+#include "base/lib/lib.h"
+#include "base/lib/ll.sysenv.h"
 
 static int getEAuth(struct eauth *, char *);
 static char *getLSFAdmin(void);

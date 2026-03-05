@@ -17,8 +17,8 @@
  USA
  *
  */
-#include "lsf/lib/lib.h"
-#include "lsf/lib/lib.table.h"
+#include "base/lib/lib.h"
+#include "base/lib/lib.table.h"
 
 static hEnt *h_findEnt(const char *key, hLinks *hList);
 static unsigned int getAddr(hTab *tabPtr, const char *key);

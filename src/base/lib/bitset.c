@@ -18,9 +18,9 @@
   *
   */
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/list.h"
-#include "lsf/lib/bitset.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/list.h"
+#include "base/lib/bitset.h"
 __thread int bitseterrno;
 static void setObserverDestroy(LS_BITSET_T *);
 static void observerDestroy(LS_BITSET_OBSERVER_T *);

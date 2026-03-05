@@ -17,9 +17,9 @@
  USA
  *
  */
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/resreq.h"
-#include "lsf/lib/lproto.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/resreq.h"
+#include "base/lib/lproto.h"
 
 struct sections {
     char *select;

@@ -17,10 +17,10 @@
  USA
  *
  */
-#include "lsf/lib/lib.h"
-#include "lsf/lib/lib.channel.h"
-#include "lsf/lib/ll.sysenv.h"
-#include "lsf/lib/ll.host.h"
+#include "base/lib/lib.h"
+#include "base/lib/lib.channel.h"
+#include "base/lib/ll.sysenv.h"
+#include "base/lib/ll.host.h"
 
 #define CONNECT_TIMEOUT 5
 #define RECV_TIMEOUT 20

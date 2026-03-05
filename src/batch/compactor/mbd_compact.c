@@ -18,8 +18,8 @@
  * GPL v2
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsf/lib/ll.hash.h"
+#include "batch/lib/lsb.h"
+#include "base/lib/ll.hash.h"
 
 enum compact_policy {
     // how often to check

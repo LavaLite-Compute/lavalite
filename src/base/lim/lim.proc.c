@@ -24,7 +24,7 @@
  * These are raw Linux semantics; we do not apply LSF-style scaling.
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 static char proc_buf[LL_BUFSIZ_4K];
 

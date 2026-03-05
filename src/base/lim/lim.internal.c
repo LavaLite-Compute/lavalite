@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 #define LIM_CONNECT_TIMEOUT 5
 #define LIM_RECV_TIMEOUT 20

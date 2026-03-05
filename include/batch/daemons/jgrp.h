@@ -28,7 +28,7 @@
     }
 
 #define JGRP_VOID -1
-#include "lsf/lib/jidx.h"
+#include "base/lib/jidx.h"
 
 typedef void (*FREE_JGARRAY_FUNC_T)(void *);
 

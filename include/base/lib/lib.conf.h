@@ -19,8 +19,8 @@
  */
 #pragma once
 
-#include "lsf/lib/lib.common.h"
-#include "lsf/lib/lproto.h"
+#include "base/lib/lib.common.h"
+#include "base/lib/lproto.h"
 
 #define ILLEGAL_CHARS ".!-=+*/[]@:&|{}'`\""
 #define M_THEN_A 1

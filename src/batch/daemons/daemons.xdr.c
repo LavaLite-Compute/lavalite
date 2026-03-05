@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/daemons/daemons.h"
+#include "batch/daemons/daemons.h"
 
 #define MAX_USER_NAME_LEN 64
 

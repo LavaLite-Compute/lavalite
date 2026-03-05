@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 struct queueInfoEnt *lsb_queueinfo(char **queues,
                                    int *numQueues,

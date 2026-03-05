@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 static int allocLoadIdx(float **sched, float **stop, int *outSize, int size);
 

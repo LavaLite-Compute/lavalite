@@ -18,9 +18,9 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/daemons/daemonout.h"
-#include "lsf/lib/lib.h"
+#include "batch/lib/lsb.h"
+#include "batch/daemons/daemonout.h"
+#include "base/lib/lib.h"
 
 struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
                                                      int *numResources,

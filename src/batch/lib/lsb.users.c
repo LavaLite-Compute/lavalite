@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 struct userInfoEnt *lsb_userinfo(char **users, int *numUsers)
 {

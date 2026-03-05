@@ -16,7 +16,7 @@
  * MA  02110-1301, USA
  */
 
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/sbd.h"
 
 // some vars
 int sbd_debug;

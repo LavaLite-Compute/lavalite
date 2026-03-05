@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 struct hostEntry {
     char hostName[MAXHOSTNAMELEN];

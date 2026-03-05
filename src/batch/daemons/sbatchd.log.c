@@ -15,7 +15,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/sbd.h"
 
 static int get_root_dir(char *root_dir, size_t len)
 {

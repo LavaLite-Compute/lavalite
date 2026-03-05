@@ -18,7 +18,7 @@
  * ------------------------------------------------------------------------
  */
 
-#include "lsf/lib/ll.hash.h"
+#include "base/lib/ll.hash.h"
 
 // Return 1 if n is prime, 0 otherwise.
 // Used to ensure the hash-table bucket count is a prime number.

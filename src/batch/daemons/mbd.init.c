@@ -17,8 +17,8 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
-#include "lsbatch/daemons/mbatchd.h"
+#include "batch/daemons/mbd.h"
+#include "batch/daemons/mbatchd.h"
 
 extern void resetStaticSchedVariables(void);
 extern void cleanSbdNode(struct jData *);

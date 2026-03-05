@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/daemons.h"
+#include "batch/daemons/daemons.h"
 
 #ifdef NO_MAIL
 void lsb_mperr(char *msg)

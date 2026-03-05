@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 int lsb_mig(struct submig *mig, int *badHostIdx)
 {

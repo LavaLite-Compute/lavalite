@@ -19,8 +19,8 @@
  */
 #pragma once
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/daemons/daemonout.h"
+#include "batch/lib/lsb.h"
+#include "batch/daemons/daemonout.h"
 
 #define MIN_CPU_TIME 0.0001
 

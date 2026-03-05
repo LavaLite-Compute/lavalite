@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 // This is UDP
 void cluster_name_req(XDR *xdrs, struct sockaddr_in *from,

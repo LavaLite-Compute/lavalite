@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 #define ALL_PROJ_STR "all"
 

@@ -16,7 +16,7 @@
  * 02110-1301, USA
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 static void usage(const char *cmd);
 static int parse_signal(const char *s, int *out);

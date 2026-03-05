@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 void jobInfoErr(int64_t jobId, char *jobName, char *user, char *queue,
                 char *host, int options)

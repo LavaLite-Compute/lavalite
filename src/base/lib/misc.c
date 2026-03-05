@@ -18,9 +18,9 @@
  *
  */
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/lproto.h"
-#include "lsf/lib/lib.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/lproto.h"
+#include "base/lib/lib.h"
 
 void putMaskLevel(int level, char **para)
 {

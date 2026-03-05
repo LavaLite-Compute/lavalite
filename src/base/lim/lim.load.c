@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 enum loadstruct { e_vec, e_mat };
 

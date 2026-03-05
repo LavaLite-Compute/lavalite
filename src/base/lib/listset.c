@@ -17,8 +17,8 @@
  *
  */
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/listset.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/listset.h"
 
 void listSetFree(struct listSet *);
 struct listSet *listSetAlloc(int);

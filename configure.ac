@@ -117,20 +117,20 @@ AC_CONFIG_FILES([
 
 dnl ---- LSF module ----
 AC_CONFIG_FILES([
-  src/lsf/Makefile
-  src/lsf/lib/Makefile
-  src/lsf/lstools/Makefile
-  src/lsf/lim/Makefile
-  src/lsf/pylib/Makefile
+  src/base/Makefile
+  src/base/lib/Makefile
+  src/base/lstools/Makefile
+  src/base/lim/Makefile
+  src/base/pylib/Makefile
 ])
 
 dnl ---- LSBATCH module ----
 AC_CONFIG_FILES([
-  src/lsbatch/Makefile
-  src/lsbatch/lib/Makefile
-  src/lsbatch/cmd/Makefile
-  src/lsbatch/daemons/Makefile
-  src/lsbatch/compactor/Makefile
+  src/batch/Makefile
+  src/batch/lib/Makefile
+  src/batch/cmd/Makefile
+  src/batch/daemons/Makefile
+  src/batch/compactor/Makefile
 ])
 
 AC_OUTPUT

@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/sbd.h"
 
 extern void do_sbdDebug(XDR *xdrs, int chfd, struct packet_header *reqHdr);
 

@@ -18,9 +18,9 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 static int lsb_send_job_signal_req(int sig_value, int64_t job_id);
 

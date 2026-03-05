@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 // Upper bound for jobs returned by sbatchd.
 // This is a safety limit for XDR decoding, not an expected workload size.

@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/intlibout.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/intlibout.h"
 
 static int parse_time(char *word, float *hour, int *day);
 static windows_t *new_wind(void);

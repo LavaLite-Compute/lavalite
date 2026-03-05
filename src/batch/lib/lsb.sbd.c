@@ -25,7 +25,7 @@
 //
 // Keep the wire structs stable and small. Do not include daemon-private types.
 
-#include "lsbatch/lib/lsb.sbdproto.h"
+#include "batch/lib/lsb.sbdproto.h"
 
 // defined in lsb.init.c but never declared in any header
 // prehistoric C

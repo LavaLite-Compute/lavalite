@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 // LIM uses both UDP and TCP protocols
 int lim_udp_chan = -1;

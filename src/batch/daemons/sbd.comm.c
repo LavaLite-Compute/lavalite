@@ -19,7 +19,7 @@
 
 #include <stdlib.h>
 
-#include "lsbatch/daemons/sbd.h"
+#include "batch/daemons/sbd.h"
 
 #include "../../lsf/lib/lsi18n.h"
 

@@ -3,8 +3,8 @@
  * GPL v2
  */
 
-#include "lsbatch/daemons/mbd.h"
-#include "lsbatch/daemons/mbatchd.h"
+#include "batch/daemons/mbd.h"
+#include "batch/daemons/mbatchd.h"
 
 static int finish_pend_job(struct jData *);
 static int stop_pend_job(struct jData *);

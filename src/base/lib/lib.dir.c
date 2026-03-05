@@ -21,7 +21,7 @@
 /* Bug. This code is all mesozoic legacy. Use system calls like chdir()
  * stat(), fopen() etc.
  */
-#include "lsf/lib/lib.h"
+#include "base/lib/lib.h"
 
 extern struct config_param genParams[];
 static struct hTab hashTab;

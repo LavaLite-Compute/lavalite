@@ -20,8 +20,8 @@
 
 #include <tcl.h>
 #include <netdb.h>
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/lproto.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/lproto.h"
 
 static struct tclHostData *currHPtr;
 static struct Tcl_Interp *globinterp = NULL;

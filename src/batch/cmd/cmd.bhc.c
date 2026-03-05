@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 extern char *myGetOpt(int nargc, char **nargv, char *ostr);
 extern int getConfirm(char *);

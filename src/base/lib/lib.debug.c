@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsf/lib/lib.common.h"
-#include "lsf/lib/lproto.h"
+#include "base/lib/lib.common.h"
+#include "base/lib/lproto.h"
 
 #define LSF_DEBUG_CMD 0
 #define LSF_TIME_CMD 1

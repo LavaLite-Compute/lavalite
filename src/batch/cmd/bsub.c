@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 extern int do_sub(int, char **, int);
 

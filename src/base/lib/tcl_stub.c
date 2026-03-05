@@ -1,6 +1,6 @@
 
-#include "lsf/lib/ll.sys.h"
-#include "lsf/lib/tcl_stub.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/tcl_stub.h"
 
 int initTcl(struct tclLsInfo *t)
 {

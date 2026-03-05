@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 #define HOST_NAME_LENGTH 18
 #define HOST_STATUS_LENGTH 14

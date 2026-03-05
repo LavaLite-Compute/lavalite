@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/daemons/daemons.h"
+#include "batch/daemons/daemons.h"
 
 
 void childRemoveSpoolFile(const char *spoolFile, int options,

@@ -18,7 +18,7 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
+#include "batch/lib/lsb.h"
 
 static struct groupInfoEnt *getGrpInfo(char **, int *, int);
 

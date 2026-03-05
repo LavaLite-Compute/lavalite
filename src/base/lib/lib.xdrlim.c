@@ -17,7 +17,7 @@
  USA
  *
  */
-#include "lsf/lib/lib.h"
+#include "base/lib/lib.h"
 
 static bool_t xdr_shortLsInfo(XDR *, struct shortLsInfo *, void *);
 static void freeUpMemp(char *, int);

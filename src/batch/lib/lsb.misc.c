@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsf/lib/lib.table.h"
+#include "batch/lib/lsb.h"
+#include "base/lib/lib.table.h"
 
 void initTab(struct hTab *tabPtr)
 {

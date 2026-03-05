@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsbatch/cmd/cmd.h"
+#include "batch/lib/lsb.h"
+#include "batch/cmd/cmd.h"
 
 extern int optind;
 extern char *optarg;

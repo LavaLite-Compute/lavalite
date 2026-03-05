@@ -17,10 +17,10 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  * ------------------------------------------------------------------------ */
 
-#include "lsbatch/lib/lsb.h"
-#include "lsf/lib/lib.channel.h"
-#include "lsf/lib/ll.host.h"
-#include "lsf/lib/lib.xdr.h"
+#include "batch/lib/lsb.h"
+#include "base/lib/lib.channel.h"
+#include "base/lib/ll.host.h"
+#include "base/lib/lib.xdr.h"
 
 extern int logclass;
 extern int _lsb_conntimeout;

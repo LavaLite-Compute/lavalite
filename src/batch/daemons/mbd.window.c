@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
+#include "batch/daemons/mbd.h"
 
 struct timeWindow *newTimeWindow(void);
 void freeTimeWindow(struct timeWindow *);

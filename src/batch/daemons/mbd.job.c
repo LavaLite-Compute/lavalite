@@ -18,8 +18,8 @@
  *
  */
 
-#include "lsbatch/daemons/mbd.h"
-#include "lsbatch/daemons/mbatchd.h"
+#include "batch/daemons/mbd.h"
+#include "batch/daemons/mbatchd.h"
 
 #define SUSP_CAN_PREEMPT_FOR_RSRC(s) !((s)->jStatus & JOB_STAT_USUSP)
 

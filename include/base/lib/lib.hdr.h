@@ -20,8 +20,8 @@
  */
 
 // Include the lavalite protocol header and version
-#include "lsf/lib/ll.bufsiz.h"
-#include "lsf/lib/ll.proto.h"
+#include "base/lib/ll.bufsiz.h"
+#include "base/lib/ll.proto.h"
 
 struct stringLen {
     char *name;

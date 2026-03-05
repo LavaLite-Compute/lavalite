@@ -17,7 +17,7 @@
  USA
  *
  */
-#include "lsf/lim/lim.h"
+#include "base/lim/lim.h"
 
 void lim_Exit(const char *fname)
 {

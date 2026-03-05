@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/daemons/daemons.h"
+#include "batch/daemons/daemons.h"
 
 #define BATCH_SLAVE_PORT 40001
 static char *reserved;

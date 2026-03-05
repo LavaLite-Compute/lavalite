@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  * ------------------------------------------------------------------------ */
 
-#include "lsf/lib/ll.stack.h"
+#include "base/lib/ll.stack.h"
 
 struct ll_stack *ll_stack_create(size_t initial_capacity)
 {

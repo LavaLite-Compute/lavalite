@@ -17,7 +17,7 @@
  *
  */
 
-#include "lsbatch/cmd/cmd.h"
+#include "batch/cmd/cmd.h"
 
 extern int bhc(int argc, char **argv, int opCode);
 extern int bqc(int argc, char **argv, int opCode);

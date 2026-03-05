@@ -19,7 +19,7 @@
 #ifndef _LLCORE_BITSET_
 #define _LLCORE_BITSET_
 
-#include "lsf/lib/lproto.h"
+#include "base/lib/lproto.h"
 
 extern __thread int bitseterrno;
 
