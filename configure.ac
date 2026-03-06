@@ -1,8 +1,8 @@
 # Copyright (C) LavaLite Contributors
 
-AC_INIT([lavalite], [0.1.0], [https://github.com/LavaLiteProject/LavaLite/issues])
+AC_INIT([lavalite], [0.1.1], [https://github.com/LavaLiteProject/LavaLite/issues])
 AC_CONFIG_HEADERS([config.h])
-AC_PREFIX_DEFAULT([/opt/lavalite-0.1.0])
+AC_PREFIX_DEFAULT([/opt/lavalite-0.1.1])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 
@@ -23,7 +23,7 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
   [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
 
 dnl Project identity versioning
-AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.1.0"], [Human-readable LavaLite version])
+AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.1.1"], [Human-readable LavaLite version])
 AC_DEFINE([LAVALITE_VERSION_HEX], [0x000100], [LavaLite version encoded as 0xMMmmpp])
 
 dnl Define the default host type supported by LavaLite but you can
@@ -35,7 +35,7 @@ dnl - If --prefix is not given, $prefix is "NONE" → use $ac_default_prefix.
 dnl - $sysconfdir usually contains ${prefix}/etc → expand it now via eval.
 dnl Without this, config.h would contain literally "${prefix}/etc".
 if test "x$prefix" = xNONE; then
-  prefix="$ac_default_prefix"     # e.g., /opt/lavalite-0.1.0 from AC_PREFIX_DEFAULT
+  prefix="$ac_default_prefix"     # e.g., /opt/lavalite-0.1.1 from AC_PREFIX_DEFAULT
 fi
 if test "x$exec_prefix" = xNONE; then
   exec_prefix='${prefix}'         # keep the normal relationship
