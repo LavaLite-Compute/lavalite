@@ -1,4 +1,4 @@
 #
 # Copyright (C) LavaLite Contributors
 #
-SUBDIRS = lib lstools lim pylib
+SUBDIRS = lib cmd lim pylib

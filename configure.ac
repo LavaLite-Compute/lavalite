@@ -119,7 +119,7 @@ dnl ---- LSF module ----
 AC_CONFIG_FILES([
   src/base/Makefile
   src/base/lib/Makefile
-  src/base/lstools/Makefile
+  src/base/cmd/Makefile
   src/base/lim/Makefile
   src/base/pylib/Makefile
 ])
