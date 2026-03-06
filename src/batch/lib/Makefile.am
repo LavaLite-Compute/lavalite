@@ -5,7 +5,6 @@ include $(top_srcdir)/Make.common
 AM_CFLAGS   = -Wall -Wextra -g -O0
 
 lib_LIBRARIES = libllbat.a
-#libllbat_la_LDFLAGS = -version-info 0:0:0 -no-undefined
 
 # Create a symlink for legacy compatibility
 install-exec-hook:

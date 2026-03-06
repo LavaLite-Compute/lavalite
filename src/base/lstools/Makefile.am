@@ -4,7 +4,7 @@
 # lstools/Makefile.am
 
 include $(top_srcdir)/Make.common
-COMMON_LIBS = ../lib/libll.a
+COMMON_LIBS = ../lib/libllbase.a
 
 LDADD = $(COMMON_LIBS)
 

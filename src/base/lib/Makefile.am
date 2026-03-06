@@ -5,11 +5,9 @@ include $(top_srcdir)/Make.common
 
 # Shared library (libtool). This will also produce a static .a unless you
 # configure with --disable-static.
-lib_LIBRARIES = libll.a
+lib_LIBRARIES = libllbase.a
 
-# List your real .c files here (no Tcl/yy). Examples shown:
-# libll_la_SOURCES
-libll_a_SOURCES = \
+libllbase_a_SOURCES = \
 	admin.c \
 	    bitset.c \
 	    cmdtime.c \
