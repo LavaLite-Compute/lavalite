@@ -36,9 +36,8 @@ char *resolve_master_with_retry(void)
         // ls_getmastername() returns __thread buffer
         char *master = ls_getmastername();
         if (master == NULL) {
-            fprintf(stderr,
-                    "LSF daemon (LIM) not responding ... still trying\n");
-            millisleep_(_lsb_conntimeout * 1000);
+            fprintf(stderr, "master mbd not responding ... still trying\n");
+            millisleep_(5000);
             continue;
         }
         return master;
