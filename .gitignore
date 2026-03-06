@@ -66,9 +66,10 @@ stdout.*
 stderr.*
 # Ignore binary daemons
 .libs/*
-src/lsf/lim/lim
-src/lsbatch/daemons/mbd
-src/lsbatch/daemons/sbd
+src/base/lim/lim
+src/batch/compactor/mbd_compact
+src/batch/daemons/mbd
+src/batch/daemons/sbd
 # Ignore cscope
 cscope*
 src/lsf/pylib/__pycache__/
