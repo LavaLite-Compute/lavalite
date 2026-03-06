@@ -7,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <lsf.h>
+#include <base.h>
 
 static void usage(const char *cmd);
 static void print_resources(const struct lsInfo *info);

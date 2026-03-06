@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "lsbatch.h"
+#include "batch.h"
 #include "base/lib/list.h"
 #include "base/lib/bitset.h"
 #include "base/lib/intlibout.h"

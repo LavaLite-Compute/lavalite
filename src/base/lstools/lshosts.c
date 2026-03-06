@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <lsf.h>
+#include <base.h>
 
 static void usage(void)
 {

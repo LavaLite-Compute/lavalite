@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <lsf.h>
+#include <base.h>
 
 #define LOAD_COL_WIDTH 6  /* width for each numeric/load column */
 

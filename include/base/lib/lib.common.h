@@ -67,7 +67,7 @@
 
 /* Public API headers
  */
-#include "lsf.h"
+#include "base.h"
 
 /* Some defines from the lava config.h which was manually
  * generated file, not the automake one.

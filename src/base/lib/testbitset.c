@@ -20,7 +20,7 @@
 #if _BITSET_TEST_
 
 #include <stdio.h>
-#include "lsf.h"
+#include "base.h"
 #include "base/lib/ll.sys.h"
 
 static void test_1(void);

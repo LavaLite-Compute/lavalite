@@ -7,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <lsf.h>
+#include <base.h>
 
 static void usage(const char *);
 static const char *cluster_status_to_str(int);

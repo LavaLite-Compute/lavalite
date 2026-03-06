@@ -41,7 +41,7 @@
 
 /* Public header
  */
-#include "lsf.h"
+#include "base.h"
 
 // Buf we are rewriting the job arrays but we need the
 // data structure defintions for now
