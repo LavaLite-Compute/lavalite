@@ -24,11 +24,7 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
 
 dnl Project identity versioning
 AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 1.0.0"], [Human-readable LavaLite version])
-AC_DEFINE([LAVALITE_VERSION_HEX], [0x001000], [LavaLite version encoded as 0xMMmmpp])
-
-dnl Define the default host type supported by LavaLite but you can
-dnl add more in lsf.shared file.
-AC_DEFINE([HOST_TYPE_STRING], ["x86_64"], [Define host type string])
+AC_DEFINE([LAVALITE_VERSION_HEX], [0x010000], [LavaLite version encoded as 0xMMmmpp])
 
 dnl Resolve Autoconf's lazy dir vars so SYSCONFDIR is a concrete path in config.h.
 dnl - If --prefix is not given, $prefix is "NONE" → use $ac_default_prefix.
