@@ -457,12 +457,6 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
         // clean channel specific events for the caller
         chan->chan_events = CHAN_EPOLLNONE;
 
-        if ((e->events & EPOLLERR) || (e->events & EPOLLHUP) ||
-            (e->events & EPOLLRDHUP)) {
-            chan->chan_events = CHAN_EPOLLERR;
-            continue;
-        }
-
         if (chan->type == CHAN_TYPE_TCP_LISTEN) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
@@ -475,16 +469,14 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
-
-        if (e->events & EPOLLIN) {
+        if (e->events & (EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR)) {
             doread(chan);
         }
-
         if (e->events & EPOLLOUT) {
             dowrite(chan, ch_id);
         }
-
     }
+
     return cc;
 }
 
@@ -904,4 +896,8 @@ int chan_set_write_interest(int ch_id, bool_t on)
     }
 
     return 0;
+}
+void chan_epoll_register(int ef)
+{
+    epoll_fd = ef;
 }

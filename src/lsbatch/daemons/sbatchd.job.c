@@ -379,7 +379,7 @@ void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
                mbd_op_str(req_hdr->operation), spec.jobId);
         struct jobReply reply;
         memset(&reply, 0, sizeof(struct jobReply));
-        reply.jobId = job->specs.jobId;
+        reply.jobId = spec.jobId;
         reply.jobPid = reply.jobPGid = 0;
         reply.reasons = ERR_MEM;
         // tell mbd to requeue the job
