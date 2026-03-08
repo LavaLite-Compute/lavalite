@@ -34,9 +34,13 @@ int mbd_dispatch_sbd(struct mbd_client_node *client)
     int ch_id = client->chanfd;
     // handle the exception on the channel
     if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
-        // Use the X version as errno could have been changed
-        LS_ERRX("epoll error on SBD channel for host %s (chanfd=%d)",
-               host_node->host, ch_id);
+        int err;
+        socklen_t len = sizeof(err);
+        int cc = getsockopt(channels[ch_id].sock, SOL_SOCKET,
+                            SO_ERROR, &err, &len);
+        LS_ERR("sbd shutdown chan=%d sock=%d so_error=%d ret=%d",
+               ch_id, channels[ch_id].sock, err, cc);
+
         mbd_sbd_disconnect(client);
         return -1;
     }

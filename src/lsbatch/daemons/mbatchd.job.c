@@ -395,8 +395,8 @@ int mbd_sbd_disconnect(struct mbd_client_node *client)
      * a runtime recoverable case.
      */
     if (host_node == NULL) {
-        LS_ERR("mbd_handle_sbd_disconnect called with NULL host_node (chanfd=%d)",
-               client->chanfd);
+        LS_ERRX("mbd_handle_sbd_disconnect called with NULL host_node (chanfd=%d)",
+                client->chanfd);
         abort();
     }
 
@@ -410,13 +410,8 @@ int mbd_sbd_disconnect(struct mbd_client_node *client)
     }
 
     host_node->hStatus = HOST_STAT_UNREACH;
-    LS_INFO("closing connection with host=%s state=%s", host_node->host,
-            hstat_to_str(host_node->hStatus));
-
-    // Break the association first, then reset pending jobs.
-    client->host_node = NULL;
-    // invalidate the pointer as the sbd is down
-    host_node->sbd_node = NULL;
+    LS_INFO("closing connection with host=%s addr=%s state=%s", host_node->host,
+            host_node->sbd_node->host.addr, hstat_to_str(host_node->hStatus));
 
     struct jData *job;
     for (job = jDataList[SJL]->back; job != jDataList[SJL]; job = job->back) {
@@ -426,8 +421,14 @@ int mbd_sbd_disconnect(struct mbd_client_node *client)
 
          job->jStatus |= JOB_STAT_UNKNOWN;
          job->newReason = PEND_SBD_UNREACH;
+         LS_DEBUG("job=%ld set to JOB_STAT_UNKNOW on addr=%s", job->jobId,
+                  host_node->sbd_node->host.addr);
          log_newstatus(job);
     }
+    // Break the association first, then reset pending jobs.
+    client->host_node = NULL;
+    // invalidate the pointer as the sbd is down
+    host_node->sbd_node = NULL;
 
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", client->chanfd);

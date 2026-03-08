@@ -1461,7 +1461,7 @@ static struct sbd_job *find_job_by_jid(int64_t job_id)
     sprintf(job_key, "%ld", job_id);
     struct sbd_job *job = ll_hash_search(sbd_job_hash, job_key);
     if (!job) {
-        LS_ERR("job=%ld not found in sbd", job_id);
+        LS_ERRX("job=%ld not found in sbd", job_id);
         return NULL;
     }
     return job;

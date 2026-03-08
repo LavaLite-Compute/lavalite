@@ -422,7 +422,13 @@ static void mbd_client_handle(int ch_id)
 
         // This is an ordinary client so we can just shut him down
         if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
-            LS_DEBUG("the client is a being shutdown");
+            int err;
+            socklen_t len = sizeof(err);
+            int cc = getsockopt(channels[ch_id].sock, SOL_SOCKET,
+                                SO_ERROR, &err, &len);
+            LS_ERR("client shutdown chan=%d sock=%d so_error=%d ret=%d",
+                   ch_id, channels[ch_id].sock, err, cc);
+
             shutdown_mbd_client(client);
             return;
         }
@@ -651,8 +657,7 @@ static int mbd_client_dispatch(struct mbd_client_node *client)
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         // dont close the channel mbd always enqueue
-        return;
-        break;
+        return 0;
     default:
         // No error back to unkown client
         if (req_hdr.version <= CURRENT_PROTOCOL_VERSION)
