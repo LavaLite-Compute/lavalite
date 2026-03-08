@@ -87,7 +87,7 @@ static int makeShareFields(char *, struct lsInfo *, char ***, char ***,
                            char ***, char ***);
 static int getDispLastItem(char **, int, int);
 
-static char wflag = FALSE;
+static char wflag = false;
 static char fomt[LL_BUFSIZ_128];
 static int nameToFmt(char *indx);
 
@@ -103,11 +103,11 @@ static void usage(void)
 int main(int argc, char **argv)
 {
     int opt;
-    int local = FALSE;
+    int local = false;
     int numHosts;
-    char lflag = FALSE;
-    char sOption = FALSE;
-    char otherOption = FALSE;
+    char lflag = false;
+    char sOption = false;
+    char otherOption = false;
     char *resReq = NULL;
     char **hosts = NULL;
     char **hostPoint = NULL;
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
                 usage();
                 return -1;
             }
-            sOption = TRUE;
+            sOption = true;
             break;
 
         case 'R':
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
                 return -1;
             }
             resReq = optarg;
-            otherOption = TRUE;
+            otherOption = true;
             break;
 
         case 'l':
@@ -158,8 +158,8 @@ int main(int argc, char **argv)
                 usage();
                 return -1;
             }
-            lflag = TRUE;
-            otherOption = TRUE;
+            lflag = true;
+            otherOption = true;
             break;
 
         case 'w':
@@ -171,8 +171,8 @@ int main(int argc, char **argv)
                 usage();
                 return -1;
             }
-            wflag = TRUE;
-            otherOption = TRUE;
+            wflag = true;
+            otherOption = true;
             break;
 
         default:
@@ -350,12 +350,12 @@ static void prtHostsShort(int numReply, struct hostInfoEnt *hInfo)
     struct hostInfoEnt *hPtr;
     int i;
     char *status, maxJobs[MAX_CHARLEN], userJobLimit[MAX_CHARLEN];
-    char first = TRUE;
+    char first = true;
 
     for (i = 0; i < numReply; i++) {
         hPtr = &(hInfo[i]);
         if (first) {
-            first = FALSE;
+            first = false;
             prtWord(HOST_NAME_LENGTH, "HOST_NAME", 0);
             if (wflag) {
                 prtWord(HOST_STATUS_LENGTH, "STATUS", 0);
@@ -452,9 +452,9 @@ static int repeatHost(int currentNum, struct hostInfoEnt *hInfo)
     for (i = 0; i < currentNum; i++) {
         if (strcmp(hInfo[i].host, hInfo[currentNum].host) != 0)
             continue;
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 static int getDispLastItem(char **dispIndex, int start, int last)
@@ -536,8 +536,8 @@ static void prtLoad(struct hostInfoEnt *hPtrs, struct lsInfo *lsInfo)
         }
     }
 
-    makeFields(hPtrs, loadval, nlp, TRUE);
-    makeFields(hPtrs, loadval1, nlp, FALSE);
+    makeFields(hPtrs, loadval, nlp, true);
+    makeFields(hPtrs, loadval1, nlp, false);
 
     while ((end = getDispLastItem(nlp, start, last)) > start && start < last) {
         printf(" %11s", " ");
@@ -592,7 +592,7 @@ static char *formatHeader(char **dispindex, int start, int end)
     static int maxMem = HEADERLEN;
     char tmpbuf[MAXLSFNAMELEN];
     static char *line = NULL;
-    static int first = TRUE;
+    static int first = true;
     static char fName[] = "formatHeader";
 
     if (first) {
@@ -600,7 +600,7 @@ static char *formatHeader(char **dispindex, int start, int end)
             fprintf(stderr, "%s: %s failed\n", fName, "malloc");
             exit(-1);
         }
-        first = FALSE;
+        first = false;
         line[0] = '\0';
     }
     *line = '\0';
@@ -673,7 +673,7 @@ static int makeFields(struct hostInfoEnt *host, char *loadval[],
 
         real = getLoad(dispindex[j], host->realLoad, &index);
         avail = getLoad(dispindex[j], host->load, &index);
-        if (option == TRUE)
+        if (option == true)
             load = avail;
         else {
             real = getLoad(dispindex[j], host->realLoad, &index);
@@ -682,7 +682,7 @@ static int makeFields(struct hostInfoEnt *host, char *loadval[],
         if (load >= INFINITY)
             sp = "- ";
         else {
-            if (option == TRUE && (host->hStatus & HOST_STAT_BUSY) &&
+            if (option == true && (host->hStatus & HOST_STAT_BUSY) &&
                 (LSB_ISBUSYON(host->busySched, index) ||
                  LSB_ISBUSYON(host->busyStop, index))) {
                 strcpy(firstFmt, fmt[id].busy);
@@ -874,7 +874,7 @@ static int makeShareFields(char *hostname, struct lsInfo *lsInfo,
                            char ***nameTable, char ***totalValues,
                            char ***rsvValues, char ***formatTable)
 {
-    static int first = TRUE;
+    static int first = true;
     static struct lsbSharedResourceInfo *resourceInfo;
     static char **namTable;
     static char **totalTable;
@@ -885,7 +885,7 @@ static int makeShareFields(char *hostname, struct lsInfo *lsInfo,
     char *hPtr;
     int ii, numHosts, found;
 
-    if (first == TRUE) {
+    if (first == true) {
         TIMEIT(0,
                (resourceInfo = lsb_sharedresourceinfo(NULL, &numRes, NULL, 0)),
                "ls_sharedresourceinfo");
@@ -911,7 +911,7 @@ static int makeShareFields(char *hostname, struct lsInfo *lsInfo,
             lserrno = LSE_MALLOC;
             return (-1);
         }
-        first = FALSE;
+        first = false;
     } else {
         for (i = 0; i < nRes; i++) {
             FREEUP(fmtTable[i]);
@@ -920,13 +920,13 @@ static int makeShareFields(char *hostname, struct lsInfo *lsInfo,
 
     nRes = 0;
     for (k = 0; k < numRes; k++) {
-        found = FALSE;
+        found = false;
         for (j = 0; j < lsInfo->nRes; j++) {
             if (strcmp(lsInfo->resTable[j].name,
                        resourceInfo[k].resourceName) == 0) {
                 if ((lsInfo->resTable[j].flags & RESF_SHARED) &&
                     (lsInfo->resTable[j].valueType & LS_NUMERIC)) {
-                    found = TRUE;
+                    found = true;
                     break;
                 }
                 break;
@@ -936,7 +936,7 @@ static int makeShareFields(char *hostname, struct lsInfo *lsInfo,
             continue;
         }
         namTable[nRes] = resourceInfo[k].resourceName;
-        found = FALSE;
+        found = false;
         for (i = 0; i < resourceInfo[k].nInstances; i++) {
             numHosts = resourceInfo[k].instances[i].nHosts;
             for (ii = 0; ii < numHosts; ii++) {
@@ -944,15 +944,15 @@ static int makeShareFields(char *hostname, struct lsInfo *lsInfo,
                 if (strcmp(hPtr, hostname) == 0) {
                     totalTable[nRes] = resourceInfo[k].instances[i].totalValue;
                     rsvTable[nRes] = resourceInfo[k].instances[i].rsvValue;
-                    found = TRUE;
+                    found = true;
                     break;
                 }
             }
-            if (found == TRUE) {
+            if (found == true) {
                 break;
             }
         }
-        if (found == FALSE) {
+        if (found == false) {
             totalTable[nRes] = "-";
             rsvTable[nRes] = "-";
         }

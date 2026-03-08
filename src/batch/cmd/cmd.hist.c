@@ -19,7 +19,7 @@
 
 #include "batch/cmd/cmd.h"
 
-static int eventMatched = FALSE;
+static int eventMatched = false;
 
 void displayEvent(struct eventRec *, struct histReq *);
 static int isRequested(char *, char **);
@@ -28,7 +28,7 @@ extern char *myGetOpt(int nargc, char **, char *);
 int sysHist(int argc, char **argv, int opCode)
 {
     struct histReq req;
-    int all = FALSE, eventFound;
+    int all = false, eventFound;
     char **nameList = NULL;
     int numNames = 0;
     char *optName;
@@ -138,8 +138,8 @@ int searchEventFile(struct histReq *req, int *eventFound)
         return (-1);
     }
 
-    eventMatched = FALSE;
-    while (TRUE) {
+    eventMatched = false;
+    while (true) {
         if ((log = lsb_geteventrec(log_fp, &lineNum)) != NULL) {
             displayEvent(log, req);
             continue;
@@ -170,7 +170,7 @@ void displayEvent(struct eventRec *log, struct histReq *req)
     switch (log->type) {
     case EVENT_LOG_SWITCH:
         if (req->opCode == MBD_HIST || req->opCode == SYS_HIST) {
-            eventMatched = TRUE;
+            eventMatched = true;
             strcpy(localTimeStr, ctime2(&log->eventTime));
             sprintf(prline, ("%s: event file is switched; last JobId <%d>\n"),
                     localTimeStr, log->eventLog.logSwitchLog.lastJobId);
@@ -180,7 +180,7 @@ void displayEvent(struct eventRec *log, struct histReq *req)
     case EVENT_MBD_START:
         if (req->opCode == MBD_HIST || req->opCode == SYS_HIST) {
             strcpy(localTimeStr, ctime2(&log->eventTime));
-            eventMatched = TRUE;
+            eventMatched = true;
             sprintf(prline,
                     ("%s: mbatchd started on host <%s>; cluster name <%s>, %d "
                      "server hosts, %d queues.\n"),
@@ -193,7 +193,7 @@ void displayEvent(struct eventRec *log, struct histReq *req)
         break;
     case EVENT_MBD_DIE:
         if (req->opCode == MBD_HIST || req->opCode == SYS_HIST) {
-            eventMatched = TRUE;
+            eventMatched = true;
             strcpy(localTimeStr, ctime2(&log->eventTime));
             sprintf(prline, ("%s: mbatchd on host <%s> died: "), localTimeStr,
                     log->eventLog.mbdStartLog.master);
@@ -227,7 +227,7 @@ void displayEvent(struct eventRec *log, struct histReq *req)
             (req->opCode == QUEUE_HIST &&
              isRequested(log->eventLog.queueCtrlLog.queue, req->names))) {
             strcpy(localTimeStr, ctime2(&log->eventTime));
-            eventMatched = TRUE;
+            eventMatched = true;
             sprintf(prline, "%s: %s <%s> ", localTimeStr, "Queue",
                     log->eventLog.queueCtrlLog.queue);
             prtLine(prline);
@@ -264,7 +264,7 @@ void displayEvent(struct eventRec *log, struct histReq *req)
         if ((req->opCode == SYS_HIST) ||
             (req->opCode == HOST_HIST &&
              isRequested(log->eventLog.hostCtrlLog.host, req->names))) {
-            eventMatched = TRUE;
+            eventMatched = true;
             strcpy(localTimeStr, ctime2(&log->eventTime));
             sprintf(prline, "%s: %s <%s> ", localTimeStr, "Host",
                     log->eventLog.hostCtrlLog.host);
@@ -308,12 +308,12 @@ static int isRequested(char *name, char **nameList)
     int i = 0;
 
     if (!nameList)
-        return (TRUE);
+        return (true);
 
     while (nameList[i]) {
         if (strcmp(name, nameList[i++]) == 0)
-            return (TRUE);
+            return (true);
     }
 
-    return (FALSE);
+    return (false);
 }

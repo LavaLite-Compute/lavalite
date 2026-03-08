@@ -52,7 +52,7 @@ int mbd_dispatch_sbd(struct mbd_client_node *client)
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
     // Dispatcher decode header
-    struct packet_header sbd_hdr;
+    struct protocol_header sbd_hdr;
     if (!xdr_pack_hdr(&xdrs, &sbd_hdr)) {
         LS_ERR("xdr_pack_hdr failed for SBD chanfd=%d", ch_id);
         xdr_destroy(&xdrs);

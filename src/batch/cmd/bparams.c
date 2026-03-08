@@ -39,12 +39,12 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    longFormat = FALSE;
+    longFormat = false;
 
     while ((cc = getopt(argc, argv, "Vhl")) != EOF) {
         switch (cc) {
         case 'l':
-            longFormat = TRUE;
+            longFormat = true;
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
@@ -134,7 +134,7 @@ static void printLong(struct parameterInfo *reply)
         printf("%s.\n", ("The maximum number of jobs in a job array"));
         printf("    MAX_JOB_ARRAY_SIZE = %d\n\n", reply->maxJobArraySize);
 
-        if (reply->disableUAcctMap == TRUE)
+        if (reply->disableUAcctMap == true)
             temp = putstr_("disabled");
         else
             temp = putstr_("permitted");

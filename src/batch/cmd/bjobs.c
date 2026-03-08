@@ -38,8 +38,8 @@ static int foundJids = 0;
 
 #define MAX_TIMERSTRLEN 20
 #define MAX_TIMESTRLEN 20
-int uflag = FALSE;
-int Wflag = FALSE;
+int uflag = false;
+int Wflag = false;
 static int isLSFAdmin();
 static char *Timer2String(float timer);
 static char *Time2String(int timer);
@@ -191,15 +191,15 @@ int main(int argc, char **argv)
     TIMEIT(0, lsb_closejobinfo(), "lsb_closejobinfo");
 
     if (numJids > 1) {
-        int errCount = FALSE;
+        int errCount = false;
         lsberrno = LSBE_NO_JOB;
         for (i = 0; i < numJids; i++) {
             if (numJobs[i] <= 0) {
-                errCount = TRUE;
+                errCount = true;
                 jobInfoErr(usrJids[i], jobName, realUser, queue, host, options);
             }
         }
-        if (errCount == TRUE)
+        if (errCount == true)
             exit(-1);
     } else {
         if (jobDisplayed == 0) {
@@ -277,7 +277,7 @@ static void do_options(int argc, char **argv, int *options, char **user,
             if ((*user) || (*optarg == '\0'))
                 usage(argv[0]);
             *user = optarg;
-            uflag = TRUE;
+            uflag = true;
             break;
         case 'm':
             if ((*host) || (*optarg == '\0'))
@@ -285,7 +285,7 @@ static void do_options(int argc, char **argv, int *options, char **user,
             *host = optarg;
             break;
         case 'N':
-            Nflag = TRUE;
+            Nflag = true;
             norOp = optarg;
             break;
         case 'P':
@@ -294,7 +294,7 @@ static void do_options(int argc, char **argv, int *options, char **user,
             *projectName = optarg;
             break;
         case 'W':
-            Wflag = TRUE;
+            Wflag = true;
             *format = WIDE_FORMAT;
             break;
         case 'V':
@@ -313,7 +313,7 @@ static void do_options(int argc, char **argv, int *options, char **user,
         *user = "all";
         *options |= ALL_JOB;
     } else {
-        if (uflag != TRUE && Wflag == TRUE) {
+        if (uflag != true && Wflag == true) {
             if ((getuid() == 0) || isLSFAdmin()) {
                 *user = "all";
             }
@@ -334,7 +334,7 @@ static void displayJobs(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
 {
     char *fName = "displayJobs";
     struct submit *submitInfo;
-    static char first = TRUE;
+    static char first = true;
     char *status;
     char subtime[64], donetime[64];
     static char *exechostfmt;
@@ -379,7 +379,7 @@ static void displayJobs(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
     }
 
     if (first) {
-        first = FALSE;
+        first = false;
         if (job->jType == JGRP_NODE_ARRAY)
             printf(("JOBID    ARRAY_SPEC  OWNER   NJOBS PEND DONE  RUN EXIT "
                     "SSUSP USUSP PSUSP\n"));
@@ -391,7 +391,7 @@ static void displayJobs(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
             printf(("JOBID   USER    STAT  QUEUE      FROM_HOST   EXEC_HOST   "
                     "JOB_NAME   SUBMIT_TIME"));
 
-            if (Wflag == TRUE) {
+            if (Wflag == true) {
                 printf(("  PROJ_NAME CPU_USED MEM SWAP PIDS START_TIME "
                         "FINISH_TIME"));
             }
@@ -497,7 +497,7 @@ static void displayJobs(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
                 exec_host = execHostList;
         }
 
-        if (Wflag == TRUE) {
+        if (Wflag == true) {
             printf("%-7d %-7s %-5.5s %-10s %-11s %-11s %-10s %-14.14s",
                    LSB_ARRAY_JOBID(job->jobId), job->user, status,
                    submitInfo->queue, job->fromHost, exec_host, jobName,
@@ -510,7 +510,7 @@ static void displayJobs(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
                    subtime);
         }
 
-        if (Wflag == TRUE) {
+        if (Wflag == true) {
             int i;
             float cpuTime;
 
@@ -593,11 +593,11 @@ static int skip_job(struct jobInfoEnt *job)
             LSB_ARRAY_JOBID(job->jobId) == usrJids[i]) {
             numJobs[i]++;
             foundJids++;
-            return FALSE;
+            return false;
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 static int isLSFAdmin(void)
@@ -611,27 +611,27 @@ static int isLSFAdmin(void)
     if ((mycluster = ls_getclustername()) == NULL) {
         if (logclass & (LC_TRACE))
             ls_syslog(LOG_ERR, "%s: ls_getclustername(): %M", fname);
-        return (FALSE);
+        return (false);
     }
 
     num = 0;
     if ((clusterInfo = ls_clusterinfo(NULL, &num, NULL, 0, 0)) == NULL) {
         if (logclass & (LC_TRACE))
             ls_syslog(LOG_ERR, "%s: ls_clusterinfo(): %M", fname);
-        return (FALSE);
+        return (false);
     }
 
     for (i = 0; i < num; i++) {
         if (!strcmp(mycluster, clusterInfo[i].clusterName)) {
             for (j = 0; j < clusterInfo->nAdmins; j++) {
                 if (strcmp(lsfUserName, clusterInfo->admins[j]) == 0)
-                    return TRUE;
+                    return true;
             }
-            return FALSE;
+            return false;
         }
     }
 
-    return (FALSE);
+    return (false);
 }
 
 static char *Timer2String(float timer)

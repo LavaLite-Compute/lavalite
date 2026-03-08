@@ -102,7 +102,7 @@ struct jShared *copyJShared(struct jData *jp)
 {
     struct lsfAuth auth;
     struct jShared *js = jp->shared;
-    int errcode, jFlags, useLocal = TRUE;
+    int errcode, jFlags, useLocal = true;
     struct jShared *newJs =
         (struct jShared *) my_calloc(1, sizeof(struct jShared), "copyJShared");
 
@@ -119,11 +119,11 @@ struct jShared *copyJShared(struct jData *jp)
         freeIdxListContext();
     }
 
-    copyJobBill(&js->jobBill, &newJs->jobBill, FALSE);
+    copyJobBill(&js->jobBill, &newJs->jobBill, false);
     if (jp->numAskedPtr > 0 || jp->askedOthPrio >= 0)
-        useLocal = FALSE;
+        useLocal = false;
     else
-        useLocal = TRUE;
+        useLocal = true;
 
     useLocal = useLocal ? USE_LOCAL : 0;
     newJs->resValPtr =
@@ -328,11 +328,11 @@ int inIdxList(int64_t jobId, struct idxList *idxList)
                 LSB_ARRAY_IDX(jobId) > idx->end)
                 continue;
             if (((LSB_ARRAY_IDX(jobId) - idx->start) % idx->step) == 0)
-                return TRUE;
+                return true;
         }
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 int getJobIdIndexList(char *jobIdStr, int *outJobId, struct idxList **idxListP)

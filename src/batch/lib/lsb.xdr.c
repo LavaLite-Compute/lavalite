@@ -24,7 +24,7 @@ static int allocLoadIdx(float **sched, float **stop, int *outSize, int size);
 
 int lsbSharedResConfigured_ = false;
 
-bool_t xdr_submitReq(XDR *xdrs, struct submitReq *submitReq, void *)
+bool xdr_submitReq(XDR *xdrs, struct submitReq *submitReq, void *)
 {
     int i, nLimits;
     static int numAskedHosts = 0;
@@ -193,7 +193,7 @@ Error0:
     return false;
 }
 
-bool_t xdr_modifyReq(XDR *xdrs, struct modifyReq *modifyReq, void *)
+bool xdr_modifyReq(XDR *xdrs, struct modifyReq *modifyReq, void *)
 {
     int jobArrId, jobArrElemId;
 
@@ -225,38 +225,38 @@ bool_t xdr_modifyReq(XDR *xdrs, struct modifyReq *modifyReq, void *)
     return true;
 }
 
-bool_t xdr_jobInfoReq(XDR *xdrs, struct jobInfoReq *req, void *unused)
+bool xdr_jobInfoReq(XDR *xdrs, struct jobInfoReq *req, void *unused)
 {
     (void)unused;
 
     // options
     if (!xdr_int(xdrs, &req->options))
-        return FALSE;
+        return false;
 
     // userName
     if (!xdr_string(xdrs, &req->userName, LL_BUFSIZ_32))
-        return FALSE;
+        return false;
 
     // jobId as true 64-bit
     if (!xdr_int64_t(xdrs, &req->jobId))
-        return FALSE;
+        return false;
 
     // jobName
     if (!xdr_string(xdrs, &req->jobName, LL_BUFSIZ_256))
-        return FALSE;
+        return false;
 
     // queue
     if (!xdr_string(xdrs, &req->queue, LL_BUFSIZ_32))
-        return FALSE;
+        return false;
 
     // host
     if (!xdr_string(xdrs, &req->host, MAXHOSTNAMELEN))
-        return FALSE;
+        return false;
 
-    return TRUE;
+    return true;
 }
 
-bool_t xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
+bool xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
 {
     int job_arr_id = 0;
     int job_arr_elem_id = 0;
@@ -300,7 +300,7 @@ bool_t xdr_signalReq(XDR *xdrs, struct signalReq *req, void *hdr)
     return true;
 }
 
-bool_t xdr_lsbMsg(XDR *xdrs, struct lsbMsg *m, void *)
+bool xdr_lsbMsg(XDR *xdrs, struct lsbMsg *m, void *)
 {
     int xdrrc;
     int jobArrId, jobArrElemId;
@@ -362,7 +362,7 @@ Failure:
     return false;
 }
 
-bool_t xdr_submitMbdReply(XDR *xdrs, struct submitMbdReply *reply, void *)
+bool xdr_submitMbdReply(XDR *xdrs, struct submitMbdReply *reply, void *)
 {
     static char queueName[LL_BUFSIZ_32];
     static char jobName[MAX_CMD_DESC_LEN];
@@ -394,7 +394,7 @@ bool_t xdr_submitMbdReply(XDR *xdrs, struct submitMbdReply *reply, void *)
     return true;
 }
 
-bool_t xdr_parameterInfo(XDR *xdrs, struct parameterInfo *paramInfo, void *)
+bool xdr_parameterInfo(XDR *xdrs, struct parameterInfo *paramInfo, void *)
 {
     if (xdrs->x_op == XDR_DECODE) {
         FREEUP(paramInfo->defaultQueues);
@@ -461,7 +461,7 @@ bool_t xdr_parameterInfo(XDR *xdrs, struct parameterInfo *paramInfo, void *)
     return true;
 }
 
-bool_t xdr_jobInfoHead(XDR *xdrs, struct jobInfoHead *jobInfoHead, void *)
+bool xdr_jobInfoHead(XDR *xdrs, struct jobInfoHead *jobInfoHead, void *)
 {
     static char **hostNames = NULL;
     static int numJobs = 0, numHosts = 0;
@@ -556,7 +556,7 @@ bool_t xdr_jobInfoHead(XDR *xdrs, struct jobInfoHead *jobInfoHead, void *)
     return true;
 }
 
-bool_t xdr_jgrpInfoReply(XDR *xdrs, struct jobInfoReply *jobInfoReply, void *)
+bool xdr_jgrpInfoReply(XDR *xdrs, struct jobInfoReply *jobInfoReply, void *)
 {
     char *sp;
     int jobArrId, jobArrElemId;
@@ -604,7 +604,7 @@ bool_t xdr_jgrpInfoReply(XDR *xdrs, struct jobInfoReply *jobInfoReply, void *)
 
     return true;
 }
-bool_t xdr_jobInfoReply(XDR *xdrs, struct jobInfoReply *jobInfoReply, void *)
+bool xdr_jobInfoReply(XDR *xdrs, struct jobInfoReply *jobInfoReply, void *)
 {
     char *sp;
     int i, j;
@@ -770,7 +770,7 @@ bool_t xdr_jobInfoReply(XDR *xdrs, struct jobInfoReply *jobInfoReply, void *)
     return true;
 }
 
-bool_t xdr_queueInfoReply(XDR *xdrs, struct queueInfoReply *reply, void *unused)
+bool xdr_queueInfoReply(XDR *xdrs, struct queueInfoReply *reply, void *unused)
 {
     int i;
 
@@ -833,7 +833,7 @@ bool_t xdr_queueInfoReply(XDR *xdrs, struct queueInfoReply *reply, void *unused)
     return true;
 }
 
-bool_t xdr_queueInfoEnt(XDR *xdrs, struct queueInfoEnt *q, void *ctx)
+bool xdr_queueInfoEnt(XDR *xdrs, struct queueInfoEnt *q, void *ctx)
 {
     int i, j;
     int nIdx = 0;
@@ -1067,7 +1067,7 @@ bool_t xdr_queueInfoEnt(XDR *xdrs, struct queueInfoEnt *q, void *ctx)
     return true;
 }
 
-bool_t xdr_infoReq(XDR *xdrs, struct infoReq *info_req, void *unused)
+bool xdr_infoReq(XDR *xdrs, struct infoReq *info_req, void *unused)
 {
     (void)unused;
 
@@ -1116,7 +1116,7 @@ bool_t xdr_infoReq(XDR *xdrs, struct infoReq *info_req, void *unused)
 }
 
 
-bool_t xdr_hostDataReply(XDR *xdrs, struct hostDataReply *hostDataReply, void *)
+bool xdr_hostDataReply(XDR *xdrs, struct hostDataReply *hostDataReply, void *)
 {
     int i, hostCount;
     struct hostInfoEnt *hInfoTmp;
@@ -1231,7 +1231,7 @@ bool_t xdr_hostDataReply(XDR *xdrs, struct hostDataReply *hostDataReply, void *)
     return true;
 }
 
-bool_t xdr_hostInfoEnt(XDR *xdrs, struct hostInfoEnt *hostInfoEnt, void *ctx)
+bool xdr_hostInfoEnt(XDR *xdrs, struct hostInfoEnt *hostInfoEnt, void *ctx)
 {
     char *sp = hostInfoEnt->host;
     char *wp = hostInfoEnt->windows;
@@ -1282,7 +1282,7 @@ bool_t xdr_hostInfoEnt(XDR *xdrs, struct hostInfoEnt *hostInfoEnt, void *ctx)
     return true;
 }
 
-bool_t xdr_userInfoReply(XDR *xdrs, struct userInfoReply *userInfoReply, void *)
+bool xdr_userInfoReply(XDR *xdrs, struct userInfoReply *userInfoReply, void *)
 {
     int i;
     struct userInfoEnt *uInfoTmp;
@@ -1334,7 +1334,7 @@ bool_t xdr_userInfoReply(XDR *xdrs, struct userInfoReply *userInfoReply, void *)
     return true;
 }
 
-bool_t xdr_userInfoEnt(XDR *xdrs, struct userInfoEnt *userInfoEnt, void *)
+bool xdr_userInfoEnt(XDR *xdrs, struct userInfoEnt *userInfoEnt, void *)
 {
     char *sp;
 
@@ -1362,7 +1362,7 @@ bool_t xdr_userInfoEnt(XDR *xdrs, struct userInfoEnt *userInfoEnt, void *)
     return true;
 }
 
-bool_t xdr_jobPeekReq(XDR *xdrs, struct jobPeekReq *jobPeekReq, void *)
+bool xdr_jobPeekReq(XDR *xdrs, struct jobPeekReq *jobPeekReq, void *)
 {
     int jobArrId, jobArrElemId;
 
@@ -1383,7 +1383,7 @@ bool_t xdr_jobPeekReq(XDR *xdrs, struct jobPeekReq *jobPeekReq, void *)
     return true;
 }
 
-bool_t xdr_jobPeekReply(XDR *xdrs, struct jobPeekReply *jobPeekReply, void *)
+bool xdr_jobPeekReply(XDR *xdrs, struct jobPeekReply *jobPeekReply, void *)
 {
     static char outFile[MAXFILENAMELEN];
 
@@ -1402,7 +1402,7 @@ bool_t xdr_jobPeekReply(XDR *xdrs, struct jobPeekReply *jobPeekReply, void *)
     return true;
 }
 
-bool_t xdr_groupInfoReply(XDR *xdrs, struct groupInfoReply *groupInfoReply,
+bool xdr_groupInfoReply(XDR *xdrs, struct groupInfoReply *groupInfoReply,
                           void *)
 {
     int i;
@@ -1444,7 +1444,7 @@ bool_t xdr_groupInfoReply(XDR *xdrs, struct groupInfoReply *groupInfoReply,
     return true;
 }
 
-bool_t xdr_groupInfoEnt(XDR *xdrs, struct groupInfoEnt *gInfo, void *)
+bool xdr_groupInfoEnt(XDR *xdrs, struct groupInfoEnt *gInfo, void *)
 {
     if (xdrs->x_op == XDR_DECODE) {
         gInfo->group = NULL;
@@ -1463,7 +1463,7 @@ bool_t xdr_groupInfoEnt(XDR *xdrs, struct groupInfoEnt *gInfo, void *)
     return true;
 }
 
-bool_t xdr_controlReq(XDR *xdrs, struct controlReq *controlReq, void *)
+bool xdr_controlReq(XDR *xdrs, struct controlReq *controlReq, void *)
 {
     static char *sp = NULL;
     static int first = true;
@@ -1487,7 +1487,7 @@ bool_t xdr_controlReq(XDR *xdrs, struct controlReq *controlReq, void *)
     return true;
 }
 
-bool_t xdr_jobSwitchReq(XDR *xdrs, struct jobSwitchReq *jobSwitchReq, void *)
+bool xdr_jobSwitchReq(XDR *xdrs, struct jobSwitchReq *jobSwitchReq, void *)
 {
     char *sp;
     int jobArrId, jobArrElemId;
@@ -1512,7 +1512,7 @@ bool_t xdr_jobSwitchReq(XDR *xdrs, struct jobSwitchReq *jobSwitchReq, void *)
     return true;
 }
 
-bool_t xdr_jobMoveReq(XDR *xdrs, struct jobMoveReq *jobMoveReq, void *)
+bool xdr_jobMoveReq(XDR *xdrs, struct jobMoveReq *jobMoveReq, void *)
 {
     int jobArrId, jobArrElemId;
 
@@ -1533,7 +1533,7 @@ bool_t xdr_jobMoveReq(XDR *xdrs, struct jobMoveReq *jobMoveReq, void *)
     return true;
 }
 
-bool_t xdr_migReq(XDR *xdrs, struct migReq *req, void *)
+bool xdr_migReq(XDR *xdrs, struct migReq *req, void *)
 {
     char *sp;
     int i;
@@ -1585,7 +1585,7 @@ bool_t xdr_migReq(XDR *xdrs, struct migReq *req, void *)
     return true;
 }
 
-bool_t xdr_xFile(XDR *xdrs, struct xFile *xf, void *)
+bool xdr_xFile(XDR *xdrs, struct xFile *xf, void *)
 {
     char *sp;
 
@@ -1628,7 +1628,7 @@ static int allocLoadIdx(float **loadSched, float **loadStop, int *outSize,
     return 0;
 }
 
-static bool_t
+static bool
 xdr_lsbShareResourceInstance(XDR *xdrs,
                              struct lsbSharedResourceInstance *instance, void *)
 {
@@ -1666,7 +1666,7 @@ xdr_lsbShareResourceInstance(XDR *xdrs,
     return true;
 }
 
-static bool_t xdr_lsbSharedResourceInfo(
+static bool xdr_lsbSharedResourceInfo(
     XDR *xdrs, struct lsbSharedResourceInfo *lsbSharedResourceInfo, void *)
 {
     int i, status;
@@ -1704,7 +1704,7 @@ static bool_t xdr_lsbSharedResourceInfo(
     return true;
 }
 
-bool_t xdr_lsbShareResourceInfoReply(
+bool xdr_lsbShareResourceInfoReply(
     XDR *xdrs, struct lsbShareResourceInfoReply *lsbShareResourceInfoReply,
     void *)
 {
@@ -1745,7 +1745,7 @@ bool_t xdr_lsbShareResourceInfoReply(
     return true;
 }
 
-bool_t xdr_runJobReq(XDR *xdrs, struct runJobRequest *runJobRequest, void *)
+bool xdr_runJobReq(XDR *xdrs, struct runJobRequest *runJobRequest, void *)
 {
     int i;
     int jobArrId, jobArrElemId;
@@ -1787,7 +1787,7 @@ bool_t xdr_runJobReq(XDR *xdrs, struct runJobRequest *runJobRequest, void *)
     return true;
 }
 
-bool_t xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, void *)
+bool xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, void *)
 {
     char *sp = jobAttr->hostname;
 
@@ -1815,7 +1815,7 @@ bool_t xdr_jobAttrReq(XDR *xdrs, struct jobAttrInfoEnt *jobAttr, void *)
     return true;
 }
 
-bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
+bool xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *msg)
 {
     if (xdrs == NULL || msg == NULL)
         return false;
@@ -1862,7 +1862,7 @@ void wire_sbd_register_free(struct wire_sbd_register *msg)
     msg->num_jobs = 0;
 }
 
-bool_t xdr_wire_job_sig_req(XDR *xdrs, struct wire_job_sig_req *p)
+bool xdr_wire_job_sig_req(XDR *xdrs, struct wire_job_sig_req *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
@@ -1874,7 +1874,7 @@ bool_t xdr_wire_job_sig_req(XDR *xdrs, struct wire_job_sig_req *p)
     return true;
 }
 
-bool_t xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
+bool xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
 {
     if (!xdrs || !jf)
         return false;
@@ -1921,7 +1921,7 @@ bool_t xdr_wire_job_file(XDR *xdrs, struct wire_job_file *jf)
     return true;
 }
 
-bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *js)
+bool xdr_wire_job_state(XDR *xdrs, struct wire_job_state *js)
 {
     if (!xdr_int64_t(xdrs, &js->job_id))
         return false;
@@ -1932,7 +1932,7 @@ bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *js)
     return true;
 }
 
-bool_t xdr_wire_compact_notify(XDR *xdrs, struct wire_compact_notify *msg)
+bool xdr_wire_compact_notify(XDR *xdrs, struct wire_compact_notify *msg)
 {
     if (!xdrs || !msg)
         return false;

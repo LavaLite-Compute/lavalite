@@ -24,7 +24,7 @@ struct hostInfoEnt *lsb_hostinfo(char **hosts, int *numHosts,
 {
     mbdReqType mbdReqtype = BATCH_HOST_INFO;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct infoReq req;
     struct hostDataReply reply;
     char req_buf[LL_BUFSIZ_4K];

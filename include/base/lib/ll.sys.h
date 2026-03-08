@@ -1,30 +1,28 @@
-#pragma once
 /*
  *  Copyright (C) LavaLite Contributors
+ *  GPL v2
  */
+#pragma once
 
 // Automake generated
 #include "config.h"
 
 /* System headers needed by multiple intlib .c files
  */
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <grp.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <linux/limits.h>
-#include <netdb.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <limits.h>
+#include <linux/limits.h>
+#include <netdb.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
-#include <termios.h>
 #include <dirent.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
@@ -34,19 +32,70 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <rpc/types.h>
-#include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <sys/epoll.h>
 #include <sys/file.h>
+#include <arpa/inet.h>
+#include <stdbool.h>
+#include <poll.h>
+#include <sys/stat.h>
+#include <sys/timerfd.h>
+#include <pwd.h>
+#include <stdarg.h>
+#include <getopt.h>
 
-/* Public header
+enum {
+    LIM_STAT_OK,
+    LIM_STAT_CLOSED
+};
+
+// Number of load indexes historical but useful
+enum {
+    NLOAD_INDX = 11
+};
+
+#ifndef MAX
+#define MAX(a, b) \
+    ({ \
+        typeof(a) _a = (a); \
+        typeof(b) _b = (b); \
+        _a > _b ? _a : _b;  \
+    })
+#endif
+
+#ifndef MIN
+#define MIN(a, b) \
+    ({ \
+        typeof(a) _a = (a); \
+        typeof(b) _b = (b); \
+        _a < _b ? _a : _b;  \
+    })
+#endif
+
+enum {
+    LL_BUFSIZ_32 = 32,
+    LL_BUFSIZ_64 = 64,
+    LL_BUFSIZ_1K = 1024,
+    LL_BUFSIZ_4K = 4096,
+};
+
+/* Maximum size of a single environment variable stored in job spec.
+* 2 MiB is practically unlimited for real systems (EDA/Lmod etc.) while
+* still preventing pathological allocations caused by corrupt jobfiles.
+* This matches ARG_MAX ~= 2MB on Rocky9/Ubuntu24.x.
+*/
+static const size_t LL_ENVVAR_MAX = 2 * 1024 * 1024;
+
+/* Utility macro for kibibytes
  */
-#include "base.h"
+#define LL_KiB(n) ((size_t) (n) * 1024)
 
-// Buf we are rewriting the job arrays but we need the
-// data structure defintions for now
-#include "base/lib/jidx.h"
-#include "base/lib/tcl_stub.h"
-// Sneak this one for now
-void daemonize_(void);
-void *ll_calloc(size_t, size_t);
+int get_uid(const char *, uid_t *);
+int millisleep_(uint32_t);
+size_t ll_strlcpy(char *, const char *, size_t);
+bool ll_atoi(const char *, int *);
+bool ll_atoll(const char *, int64_t *);
+const char *ctime2(time_t *);
+int rd_poll(int, int);
+struct passwd *getpwnam2(const char *);
+struct passwd *getpwuid2(uid_t);

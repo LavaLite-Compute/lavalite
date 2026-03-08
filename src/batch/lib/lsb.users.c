@@ -24,7 +24,7 @@ struct userInfoEnt *lsb_userinfo(char **users, int *numUsers)
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char *reply_buf;
     char *request_buf;
     struct userInfoReply userInfoReply, *reply;

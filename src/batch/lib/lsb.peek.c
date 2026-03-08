@@ -28,7 +28,7 @@ char *lsb_peekjob(int64_t jobid)
     char request_buf[MSGSIZE];
     char *reply_buf;
     int cc;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     static struct jobPeekReply jobPeekReply;
     struct lsfAuth auth;
     struct jobInfoEnt *jInfo;

@@ -121,7 +121,7 @@ static int do_options(int argc, char **argv, int64_t **jobIds, int signalValue)
                 usage(argv[0], signalValue);
                 exit(-1);
             } else {
-                sigflg = TRUE;
+                sigflg = true;
             }
             break;
         case 'a':
@@ -174,7 +174,7 @@ static int do_options(int argc, char **argv, int64_t **jobIds, int signalValue)
             if ((signalValue == SIGKILL) && (!sigflg)) {
                 sigValue = SIGFORCE;
                 newOptions |= ZOMBIE_JOB;
-                forceflg = TRUE;
+                forceflg = true;
             } else {
                 usage(argv[0], signalValue);
                 exit(-1);
@@ -279,7 +279,7 @@ int bsignal(int argc, char **argv)
 
 static int signalJobs(int64_t *jobIds, int numJobs)
 {
-    int failsignal = FALSE, signaled = FALSE;
+    int failsignal = false, signaled = false;
     int i, cc;
     char msg[80];
 
@@ -294,19 +294,19 @@ static int signalJobs(int64_t *jobIds, int numJobs)
                 else
                     printf(("Job <%s>: Periodic checkpointing is disabled\n"),
                            lsb_jobid2str(jobIds[i]));
-                signaled = TRUE;
+                signaled = true;
             } else {
-                failsignal = TRUE;
+                failsignal = true;
                 sprintf(msg, "%s <%s>", "Job", lsb_jobid2str(jobIds[i]));
                 lsb_perror(msg);
             }
         } else {
-            signaled = TRUE;
+            signaled = true;
             prtSignaled(sigValue, jobIds[i]);
         }
     }
 
-    return (signaled ? !failsignal : FALSE);
+    return (signaled ? !failsignal : false);
 }
 
 static void prtSignaled(int signalValue, int64_t jobId)

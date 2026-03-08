@@ -59,12 +59,12 @@ char window_ok(struct jobCard *jobPtr)
 
     getDayHour(&dayhour, ckTime);
     if (jobPtr->week[dayhour.day] == NULL) {
-        jobPtr->active = TRUE;
+        jobPtr->active = true;
         jobPtr->windEdge = now + (24.0 - dayhour.hour) * 3600.0;
         return jobPtr->active;
     }
 
-    jobPtr->active = FALSE;
+    jobPtr->active = false;
     jobPtr->windEdge = now + (24.0 - dayhour.hour) * 3600.0;
     for (wp = jobPtr->week[dayhour.day]; wp; wp = wp->nextwind)
         checkWindow(&dayhour, &jobPtr->active, &jobPtr->windEdge, wp, now);
@@ -73,7 +73,7 @@ char window_ok(struct jobCard *jobPtr)
         (jobPtr->jobSpecs.options & SUB_WINDOW_SIG)) {
         if (!(jobPtr->jobSpecs.jStatus & JOB_STAT_RUN))
             job_resume(jobPtr);
-        jobsig(jobPtr, sig_decode(jobPtr->jobSpecs.sigValue), TRUE);
+        jobsig(jobPtr, sig_decode(jobPtr->jobSpecs.sigValue), true);
         jobPtr->windWarnTime = now;
     }
 
@@ -165,7 +165,7 @@ void child_handler(int sig)
             }
 
             if (jobCard->jobSpecs.jobPid == pid) {
-                jobCard->collectedChild = TRUE;
+                jobCard->collectedChild = true;
                 jobCard->cpuTime = cpuTime;
                 jobCard->w_status = LS_STATUS(status);
                 jobCard->exitPid = -1;
@@ -195,7 +195,7 @@ void child_handler(int sig)
                               lsb_jobid2str(jobCard->jobSpecs.jobId), pid,
                               jobCard->w_status, WEXITSTATUS(status));
                 }
-                need_checkfinish = TRUE;
+                need_checkfinish = true;
 
                 break;
             }

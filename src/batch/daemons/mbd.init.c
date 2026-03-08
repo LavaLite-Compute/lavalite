@@ -49,7 +49,7 @@ extern void cleanCandHosts(struct jData *);
             value = specValue;                                                 \
     }
 
-static char defUser = FALSE;
+static char defUser = false;
 static int numofclusters = 0;
 static struct clusterInfo *clusterInfo = NULL;
 struct tclLsInfo *tclLsInfo = NULL;
@@ -131,7 +131,7 @@ static int validHostSpec(char *);
 static int parseFirstHostErr(int, char *, char *, struct qData *,
                              struct askedHost *, int);
 
-static int reconfig = FALSE;
+static int reconfig = false;
 
 static struct hData **removedHDataArray = NULL;
 
@@ -271,7 +271,7 @@ int mbd_init(int mbdInitFlags)
     TIMEIT(0, readHostConf(mbdInitFlags), "minit_readHostConf");
     getLsbResourceInfo();
 
-    copyGroups(TRUE);
+    copyGroups(true);
 
     if (defaultHostSpec != NULL && !validHostSpec(defaultHostSpec)) {
         ls_syslog(LOG_ERR,
@@ -284,7 +284,7 @@ int mbd_init(int mbdInitFlags)
 
     TIMEIT(0, readQueueConf(mbdInitFlags), "minit_readQueueConf");
 
-    copyGroups(FALSE);
+    copyGroups(false);
 
     updUserList(mbdInitFlags);
 
@@ -536,10 +536,10 @@ defaultUser:
     if (!defUser) {
         userEnt = h_getEnt_(&uDataList, "default");
         if (userEnt == NULL) {
-            addUserData("default", INFINIT_INT, INFINITY, "readUserConf", FALSE,
-                        TRUE);
+            addUserData("default", INFINIT_INT, INFINITY, "readUserConf", false,
+                        true);
         }
-        defUser = TRUE;
+        defUser = true;
     }
 
     FREEUP(sharedConf.clusterName);
@@ -683,7 +683,7 @@ static void addHost(struct hostInfo *hI, struct hData *hD, char *filename,
                     int override)
 {
     static char fname[] = "addHost";
-    static char first = TRUE;
+    static char first = true;
     hEnt *newEnt;
     struct hData *hData;
     int new, i;
@@ -691,7 +691,7 @@ static void addHost(struct hostInfo *hI, struct hData *hD, char *filename,
 
     if (first) {
         h_initTab_(&hDataList, 64);
-        first = FALSE;
+        first = false;
     }
 
     newEnt = h_addEnt_(&hDataList, hD->host, &new);
@@ -706,7 +706,7 @@ static void addHost(struct hostInfo *hI, struct hData *hD, char *filename,
             hData->pollTime = 0;
         }
         hData->hStatus &= ~HOST_STAT_REMOTE;
-        freeHData(hData, FALSE);
+        freeHData(hData, false);
     } else
         return;
     if (hI != NULL) {
@@ -828,7 +828,7 @@ void freeHData(struct hData *hData, char delete)
     free(hData->limStatus);
     free(hData->busySched);
     free(hData->busyStop);
-    if (delete == TRUE) {
+    if (delete == true) {
         if (hostEnt)
             h_delEnt_(&hDataList, hostEnt);
         else
@@ -853,7 +853,7 @@ static void addMember(struct gData *groupPtr, char *word, int grouptype,
 {
     static char fname[] = "addMember";
     struct passwd *pw = NULL;
-    char isgrp = FALSE;
+    char isgrp = false;
     struct gData *subgrpPtr = NULL;
     char name[MAXHOSTNAMELEN];
 
@@ -862,10 +862,10 @@ static void addMember(struct gData *groupPtr, char *word, int grouptype,
         if (!subgrpPtr)
             pw = getpwnam2(word);
 
-        isgrp = TRUE;
+        isgrp = true;
         if (pw != NULL) {
             strcpy(name, word);
-            isgrp = FALSE;
+            isgrp = false;
         } else if (!subgrpPtr) {
             char *grpSl = NULL;
             struct group *unixGrp = NULL;
@@ -892,14 +892,14 @@ static void addMember(struct gData *groupPtr, char *word, int grouptype,
 
             } else {
                 strcpy(name, word);
-                isgrp = FALSE;
+                isgrp = false;
             }
         }
     }
 
     if (grouptype == HOST_GRP) {
         if ((subgrpPtr = getGrpData(tempHGData, word, nTempHGroups)) != NULL) {
-            isgrp = TRUE;
+            isgrp = true;
         } else {
             struct ll_host hp;
 
@@ -919,7 +919,7 @@ static void addMember(struct gData *groupPtr, char *word, int grouptype,
                 lsb_CheckError = WARNING_ERR;
                 return;
             }
-            isgrp = FALSE;
+            isgrp = false;
         }
     }
 
@@ -950,7 +950,7 @@ static void addMember(struct gData *groupPtr, char *word, int grouptype,
 static void parseAUids(struct qData *qp, char *line)
 {
     static char fname[] = "parseAUids";
-    int i, numAds = 0, callFail = FALSE;
+    int i, numAds = 0, callFail = false;
     char *sp, *word, *tempStr = NULL, *member;
     struct passwd *pw;
     struct group *unixGrp;
@@ -982,11 +982,11 @@ static void parseAUids(struct qData *qp, char *line)
             return;
         } else if ((pw = getpwnam2(word))) {
             if (putInLists(word, &admins, &numAds, forWhat) < 0) {
-                callFail = TRUE;
+                callFail = true;
                 break;
             }
         } else if ((uGrp = getGrpData(tempUGData, word, nTempUGroups)) &&
-                   (tempStr = getGroupMembers(uGrp, TRUE))) {
+                   (tempStr = getGroupMembers(uGrp, true))) {
             char *sp = tempStr;
             while ((member = getNextWord_(&sp)) != NULL) {
                 if (strcmp(word, "all") == 0) {
@@ -994,7 +994,7 @@ static void parseAUids(struct qData *qp, char *line)
                     return;
                 }
                 if (putInLists(member, &admins, &numAds, forWhat) < 0) {
-                    callFail = TRUE;
+                    callFail = true;
                     break;
                 }
             }
@@ -1004,20 +1004,20 @@ static void parseAUids(struct qData *qp, char *line)
             while (unixGrp->gr_mem[i] != NULL) {
                 if (putInLists(unixGrp->gr_mem[i++], &admins, &numAds,
                                forWhat) < 0) {
-                    callFail = TRUE;
+                    callFail = true;
                     break;
                 }
             }
         } else {
             if (putInLists(word, &admins, &numAds, forWhat) < 0) {
-                callFail = TRUE;
+                callFail = true;
                 break;
             }
         }
-        if (callFail == TRUE)
+        if (callFail == true)
             break;
     }
-    if (callFail == TRUE && !lsb_CheckMode)
+    if (callFail == true && !lsb_CheckMode)
         mbdDie(MASTER_RESIGN);
 
     if (!admins.nAdmins) {
@@ -1108,7 +1108,7 @@ void freeQData(struct qData *qp, int delete)
     free(qp->askedPtr);
     free(qp->hostList);
 
-    if (delete == TRUE) {
+    if (delete == true) {
         offList((struct listEntry *) qp);
         numofqueues--;
     }
@@ -1412,13 +1412,13 @@ static int searchAll(char *word)
     char *sp, *cp;
 
     if (!word)
-        return FALSE;
+        return false;
     cp = word;
     while ((sp = getNextWord_(&cp))) {
         if (strcmp(sp, "all") == 0)
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 void freeKeyVal(struct keymap keylist[])
@@ -1437,15 +1437,15 @@ static int isInGrp(char *word, struct gData *gp)
     int i;
 
     if (h_getEnt_(&gp->memberTab, word))
-        return TRUE;
+        return true;
 
     for (i = 0; i < gp->numGroups; i++) {
         if (strcmp(gp->gPtr[i]->group, word) == 0)
-            return TRUE;
+            return true;
         if (isInGrp(word, gp->gPtr[i]))
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 struct qData *lostFoundQueue(void)
@@ -1491,7 +1491,7 @@ struct hData *lostFoundHost(void)
     hp.uJobLimit = 0;
     hp.maxJobs = 0;
 
-    addHost(NULL, &hp, "lostFoundHost", FALSE);
+    addHost(NULL, &hp, "lostFoundHost", false);
     checkHWindow();
     lost = getHostData(LOST_AND_FOUND);
     lost->hStatus = HOST_STAT_DISABLED;
@@ -1515,7 +1515,7 @@ void queueHostsPF(struct qData *qp, int *allPoll)
     if (qp->hostList == NULL || qp->askedOthPrio > 0) {
         qp->numProcessors = numofprocs;
 
-        if ((qp->flags & QUEUE_NEEDPOLL) && *allPoll == FALSE) {
+        if ((qp->flags & QUEUE_NEEDPOLL) && *allPoll == false) {
             sTab hashSearchPtr;
             hEnt *hashEntryPtr;
             hashEntryPtr = h_firstEnt_(&hDataList, &hashSearchPtr);
@@ -1529,7 +1529,7 @@ void queueHostsPF(struct qData *qp, int *allPoll)
                 hData->flags |= HOST_NEEDPOLL;
                 hData->pollTime = 0;
             }
-            *allPoll = TRUE;
+            *allPoll = true;
         }
 
     } else {
@@ -1538,7 +1538,7 @@ void queueHostsPF(struct qData *qp, int *allPoll)
                 continue;
             qp->numProcessors += qp->askedPtr[j].hData->numCPUs;
             hData = qp->askedPtr[j].hData;
-            if ((qp->flags & QUEUE_NEEDPOLL) && *allPoll == FALSE) {
+            if ((qp->flags & QUEUE_NEEDPOLL) && *allPoll == false) {
                 hData->flags |= HOST_NEEDPOLL;
                 hData->pollTime = 0;
             }
@@ -1673,10 +1673,10 @@ static void addUData(struct userConf *userConf)
     removeFlags(&uDataList, USER_UPDATE, UDATA);
     for (i = 0; i < userConf->numUsers; i++) {
         uPtr = &(userConf->users[i]);
-        addUserData(uPtr->user, uPtr->maxJobs, uPtr->procJobLimit, fname, TRUE,
-                    TRUE);
+        addUserData(uPtr->user, uPtr->maxJobs, uPtr->procJobLimit, fname, true,
+                    true);
         if (strcmp("default", uPtr->user) == 0)
-            defUser = TRUE;
+            defUser = true;
     }
 }
 
@@ -1760,7 +1760,7 @@ static void addHostData(int numHosts, struct hostInfoEnt *hosts)
                       fname, hosts[i].host);
             continue;
         }
-        if (host_list[j].isServer != TRUE) {
+        if (host_list[j].isServer != true) {
             ls_syslog(LOG_ERR, "%s: Host <%s> is not a server; ignoring", fname,
                       hosts[i].host);
             continue;
@@ -1776,7 +1776,7 @@ static void addHostData(int numHosts, struct hostInfoEnt *hosts)
 
         copyHostInfo(&hostConf->hosts[i], &hPtr);
 
-        addHost(&host_list[j], &hPtr, fname, TRUE);
+        addHost(&host_list[j], &hPtr, fname, true);
     }
 }
 
@@ -1828,7 +1828,7 @@ static void setDefaultParams(void)
     jobPriorityValue = -1;
     jobPriorityTime = -1;
     preExecDelay = DEF_PRE_EXEC_DELAY;
-    slotResourceReserve = FALSE;
+    slotResourceReserve = false;
     maxJobId = DEF_MAX_JOBID;
     maxAcctArchiveNum = -1;
     acctArchiveInDays = -1;
@@ -1875,7 +1875,7 @@ static void addQData(struct queueConf *queueConf, int mbdInitFlags)
             if (strcmp(queue->hostList, "none") == 0) {
                 qp->hostList = safeSave(queue->hostList);
             } else {
-                if (searchAll(queue->hostList) == FALSE) {
+                if (searchAll(queue->hostList) == false) {
                     if (parseQHosts(qp, queue->hostList) != 0) {
                         qp->hostList = safeSave(queue->hostList);
                     }
@@ -1883,7 +1883,7 @@ static void addQData(struct queueConf *queueConf, int mbdInitFlags)
             }
         }
 
-        badqueue = FALSE;
+        badqueue = false;
         if (qp->uGPtr)
             if (qp->uGPtr->memberTab.numEnts == 0 &&
                 qp->uGPtr->numGroups == 0) {
@@ -1892,7 +1892,7 @@ static void addQData(struct queueConf *queueConf, int mbdInitFlags)
                           "ignoring the queue",
                           fname, qp->queue);
                 lsb_CheckError = WARNING_ERR;
-                badqueue = TRUE;
+                badqueue = true;
             }
         if (qp->hostList != NULL && strcmp(qp->hostList, "none") &&
             qp->numAskedPtr <= 0 && qp->askedOthPrio <= 0) {
@@ -1901,11 +1901,11 @@ static void addQData(struct queueConf *queueConf, int mbdInitFlags)
                       "ignoring the queue",
                       fname, qp->queue);
             lsb_CheckError = WARNING_ERR;
-            badqueue = TRUE;
+            badqueue = true;
         }
 
         if (badqueue) {
-            freeQData(qp, FALSE);
+            freeQData(qp, false);
             continue;
         }
 
@@ -2195,7 +2195,7 @@ static void addQData(struct queueConf *queueConf, int mbdInitFlags)
 static void copyGroups(int copyHGroups)
 {
     int i;
-    if (copyHGroups == FALSE) {
+    if (copyHGroups == false) {
         hEnt *userEnt;
         struct uData *user;
         for (i = 0; i < numofugroups; i++) {
@@ -2250,7 +2250,7 @@ static void createCondNodes(int numConds, char **conds, char *fileName,
                             int flags)
 {
     static char fname[] = "createCondNodes";
-    static int first = TRUE;
+    static int first = true;
     int i, errcode = 0, jFlags = 0, new;
     struct lsfAuth auth;
     struct condData *condNode;
@@ -2259,9 +2259,9 @@ static void createCondNodes(int numConds, char **conds, char *fileName,
     if (numConds <= 0 || conds == NULL)
         return;
 
-    if (first == TRUE) {
+    if (first == true) {
         h_initTab_(&condDataList, 20);
-        first = FALSE;
+        first = false;
     }
 
     auth.uid = mbd_mgr->uid;
@@ -2295,16 +2295,16 @@ static void createCondNodes(int numConds, char **conds, char *fileName,
 
 int updAllConfCond(void)
 {
-    int needReadAgain = FALSE;
+    int needReadAgain = false;
 
-    if (hostFileConf != NULL && updCondData(hostFileConf, HOST_FILE) == TRUE)
-        needReadAgain = TRUE;
-    if (userFileConf != NULL && updCondData(userFileConf, USER_FILE) == TRUE)
-        needReadAgain = TRUE;
-    if (queueFileConf != NULL && updCondData(queueFileConf, QUEUE_FILE) == TRUE)
-        needReadAgain = TRUE;
-    if (paramFileConf != NULL && updCondData(paramFileConf, PARAM_FILE) == TRUE)
-        needReadAgain = TRUE;
+    if (hostFileConf != NULL && updCondData(hostFileConf, HOST_FILE) == true)
+        needReadAgain = true;
+    if (userFileConf != NULL && updCondData(userFileConf, USER_FILE) == true)
+        needReadAgain = true;
+    if (queueFileConf != NULL && updCondData(queueFileConf, QUEUE_FILE) == true)
+        needReadAgain = true;
+    if (paramFileConf != NULL && updCondData(paramFileConf, PARAM_FILE) == true)
+        needReadAgain = true;
 
     return needReadAgain;
 }
@@ -2314,7 +2314,7 @@ static int updCondData(struct lsConf *conf, int fileType)
     static char fname[] = "updCondData";
     hEnt *hashEntryPtr;
     struct condData *condition;
-    int status, i, needReadAgain = FALSE;
+    int status, i, needReadAgain = false;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG2, "%s: Entering this routine...", fname);
@@ -2322,10 +2322,10 @@ static int updCondData(struct lsConf *conf, int fileType)
     if (conf == NULL) {
         ls_syslog(LOG_ERR, "%s: NULL Conf pointer for fileType <%x>", fname,
                   fileType);
-        return FALSE;
+        return false;
     }
     if (conf->numConds <= 0 || conf->conds == NULL)
-        return FALSE;
+        return false;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG2, "%s: numConds <%d>, fileType <%x>", fname,
@@ -2339,10 +2339,10 @@ static int updCondData(struct lsConf *conf, int fileType)
             continue;
         status = evalDepCond(condition->rootNode, NULL);
         if (status == DP_TRUE)
-            status = TRUE;
+            status = true;
         else
-            status = FALSE;
-        if (status == TRUE) {
+            status = false;
+        if (status == true) {
             conf->values[i] = 1;
         } else {
             conf->values[i] = 0;
@@ -2351,7 +2351,7 @@ static int updCondData(struct lsConf *conf, int fileType)
             condition->lastStatus = condition->status;
             condition->status = status;
             condition->lastTime = now;
-            needReadAgain = TRUE;
+            needReadAgain = true;
         }
         if (logclass & LC_TRACE)
             ls_syslog(LOG_DEBUG3,
@@ -2370,8 +2370,8 @@ static struct condData *initConfData(void)
     cData =
         (struct condData *) my_malloc(sizeof(struct condData), "initConfData");
     cData->name = NULL;
-    cData->status = FALSE;
-    cData->lastStatus = FALSE;
+    cData->status = false;
+    cData->lastStatus = false;
     cData->lastTime = now;
     cData->flags = 0;
     cData->rootNode = NULL;
@@ -2500,11 +2500,11 @@ static void addDefaultHost(void)
     struct hData hData;
 
     for (i = 0; i < host_count; i++) {
-        if (host_list[i].isServer != TRUE)
+        if (host_list[i].isServer != true)
             continue;
         initHData(&hData);
         hData.host = host_list[i].hostName;
-        addHost(&host_list[i], &hData, "addDefaultHost", TRUE);
+        addHost(&host_list[i], &hData, "addDefaultHost", true);
     }
 }
 
@@ -2540,28 +2540,28 @@ static int needPollHost(struct hData *oldHp, struct hData *newHp)
     int i;
 
     if (oldHp->mig != newHp->mig)
-        return TRUE;
+        return true;
 
     if ((oldHp->windows == NULL && newHp->windows != NULL) ||
         (oldHp->windows != NULL && newHp->windows == NULL) ||
         (oldHp->windows != NULL && newHp->windows != NULL &&
          strcmp(oldHp->windows, newHp->windows)))
-        return TRUE;
+        return true;
 
     if ((oldHp->loadSched == NULL && newHp->loadSched != NULL) ||
         (oldHp->loadSched != NULL && newHp->loadSched == NULL) ||
         (oldHp->loadStop != NULL && newHp->loadStop == NULL) ||
         (oldHp->loadStop == NULL && newHp->loadStop != NULL))
-        return TRUE;
+        return true;
 
     for (i = 0; i < allLsInfo->numIndx; i++) {
         if ((oldHp->loadSched != NULL && newHp->loadSched != NULL &&
              oldHp->loadSched[i] != newHp->loadSched[i]) ||
             (oldHp->loadStop != NULL && newHp->loadStop != NULL &&
              oldHp->loadStop[i] != newHp->loadStop[i]))
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 static int needPollQHost(struct qData *newQp, struct qData *oldQp)
@@ -2570,27 +2570,27 @@ static int needPollQHost(struct qData *newQp, struct qData *oldQp)
         (newQp->resumeCond != NULL && oldQp->resumeCond == NULL) ||
         (newQp->resumeCond != NULL && oldQp->resumeCond != NULL &&
          strcmp(newQp->resumeCond, oldQp->resumeCond)))
-        return TRUE;
+        return true;
     if ((newQp->stopCond == NULL && oldQp->stopCond != NULL) ||
         (newQp->stopCond != NULL && oldQp->stopCond == NULL) ||
         (newQp->stopCond != NULL && oldQp->stopCond != NULL &&
          strcmp(newQp->stopCond, oldQp->stopCond)))
-        return TRUE;
+        return true;
 
     if ((newQp->windows == NULL && oldQp->windows != NULL) ||
         (newQp->windows != NULL && oldQp->windows == NULL) ||
         (newQp->windows != NULL && oldQp->windows != NULL &&
          strcmp(newQp->windows, oldQp->windows)))
-        return TRUE;
+        return true;
 
     if (newQp->nice != oldQp->nice || newQp->mig != oldQp->mig)
-        return TRUE;
+        return true;
 
     if (newQp->rLimits[LSF_RLIMIT_RUN] != oldQp->rLimits[LSF_RLIMIT_RUN] ||
         newQp->rLimits[LSF_RLIMIT_CPU] != oldQp->rLimits[LSF_RLIMIT_CPU])
-        return TRUE;
+        return true;
 
-    return FALSE;
+    return false;
 }
 
 static void updHostList(void)
@@ -2634,7 +2634,7 @@ static void updHostList(void)
             h_rmEnt_(&hDataList, curEntry);
             continue;
         } else {
-            freeHData(hPtr, TRUE);
+            freeHData(hPtr, true);
             continue;
         }
 
@@ -2681,7 +2681,7 @@ static void updHostList(void)
 
 static void updQueueList(void)
 {
-    int list, allHosts = FALSE;
+    int list, allHosts = false;
     struct qData *qp, *lost_and_found = NULL, *next;
     struct jData *jpbw;
     struct qData *entry;
@@ -2738,7 +2738,7 @@ static void updQueueList(void)
             }
         }
 
-        freeQData(qp, TRUE);
+        freeQData(qp, true);
     }
 
     numofqueues = 0;
@@ -3011,13 +3011,13 @@ static int validHostSpec(char *hostSpec)
 {
 
     if (hostSpec == NULL)
-        return FALSE;
+        return false;
 
     if (getModelFactor(hostSpec) == NULL) {
         if (getHostFactor(hostSpec) == NULL)
-            return FALSE;
+            return false;
     }
-    return TRUE;
+    return true;
 }
 
 void cleanup(int mbdInitFlags)
@@ -3236,7 +3236,7 @@ void rebuildCounters()
                 ls_syslog(LOG_DEBUG, "remove host=<%s> hData=<%x>",
                           removedHDataArray[i]->host, removedHDataArray[i]);
             }
-            freeHData(removedHDataArray[i], TRUE);
+            freeHData(removedHDataArray[i], true);
         }
         FREEUP(removedHDataArray);
     }
@@ -3336,7 +3336,7 @@ static int resetJData()
         jp->numAvailEligProc = 0;
         jp->numSlots = 0;
         jp->numAvailSlots = 0;
-        jp->usePeerCand = FALSE;
+        jp->usePeerCand = false;
         jp->reserveTime = 0;
         jp->slotHoldTime = -1;
         jp->processed = 0;

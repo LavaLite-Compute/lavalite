@@ -60,14 +60,14 @@ int repeatedName(char *s, char **ss, int n)
 {
     int i;
     if (n == 0)
-        return (FALSE);
+        return (false);
     for (i = 0; i < n; i++) {
         if (ss[i] == NULL)
-            return (FALSE);
+            return (false);
         if (strcmp(s, ss[i]) == 0)
-            return (TRUE);
+            return (true);
     }
-    return (FALSE);
+    return (false);
 }
 
 int getNames(int argc, char **argv, int optind, char ***nameList, int *allOrDef,
@@ -83,12 +83,12 @@ int getNames(int argc, char **argv, int optind, char ***nameList, int *allOrDef,
     if ((list = (char **) malloc(a_size * sizeof(char *))) == NULL)
         return 0;
 
-    *allOrDef = FALSE;
+    *allOrDef = false;
     if (argc >= optind + 1) {
         for (numNames = 0; argc > optind; optind++) {
             if (strcmp(nameType, "host") == 0 &&
                 strcmp(argv[optind], "myhostname") == 0) {
-                *allOrDef = TRUE;
+                *allOrDef = true;
                 numNames = 1;
                 break;
             }
@@ -97,7 +97,7 @@ int getNames(int argc, char **argv, int optind, char ***nameList, int *allOrDef,
                  strcmp(nameType, "queueC") == 0 ||
                  strcmp(nameType, "user") == 0) &&
                 strcmp(argv[optind], "all") == 0) {
-                *allOrDef = TRUE;
+                *allOrDef = true;
                 numNames = 0;
                 break;
             }
@@ -119,7 +119,7 @@ int getNames(int argc, char **argv, int optind, char ***nameList, int *allOrDef,
 
     if (numNames == 1 && strcmp(nameType, "queue") == 0 &&
         strcmp("default", list[0]) == 0)
-        *allOrDef = TRUE;
+        *allOrDef = true;
     *nameList = list;
     return (numNames);
 }

@@ -315,26 +315,6 @@ int get_host_by_sockaddr_in6(const struct sockaddr_in6 *from,
                                 hp);
 }
 
-// Compatibility API
-char *ls_getmyhostname(void)
-{
-    static __thread char host_name[LL_HOSTNAME_MAX];
-
-    // micro micro optimization to stay in user space
-    if (host_name[0] == 0)
-        gethostname(host_name, sizeof(host_name));
-
-    return host_name;
-}
-
-int equal_host(const char *host, const char *host0)
-{
-    int cc = strcmp(host, host0);
-    if (cc == 0)
-        return true;
-    return false;
-}
-
 int is_valid_host(const char *name)
 {
     struct ll_host hp;

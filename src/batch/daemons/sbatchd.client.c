@@ -18,7 +18,7 @@
 #include "batch/daemons/sbd.h"
 #include "batch/lib/lsb.sbdproto.h"
 
-static int do_sbd_jobs_list(int, XDR *, struct packet_header *);
+static int do_sbd_jobs_list(int, XDR *, struct protocol_header *);
 static void sbd_jobinfo_fill(struct sbdJobInfo *, struct sbd_job *);
 
 int handle_sbd_accept(int listen_chan)
@@ -64,7 +64,7 @@ int handle_sbd_accept(int listen_chan)
  *  - One request per connection.
  *  - chan_epoll() has already indicated readiness or error.
  *  - Uses chan_dequeue() to obtain a complete message buffer.
- *  - Decodes packet_header + payload via XDR.
+ *  - Decodes protocol_header + payload via XDR.
  *  - Dispatches based on hdr.operation.
  *  - Sends exactly one reply (or error).
  *  - Closes the channel before returning.
@@ -75,7 +75,7 @@ int handle_sbd_client(int ch_id)
 {
     struct Buffer *buf = NULL;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     int rc = 0;
 
     /* Error condition already detected by channel layer */
@@ -145,7 +145,7 @@ int handle_sbd_client(int ch_id)
     chan_close(ch_id);
     return rc;
 }
-static int do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
+static int do_sbd_jobs_list(int ch_id, XDR *xdrs, struct protocol_header *hdr)
 {
     struct sbdJobsListReq req;
     memset(&req, 0, sizeof(req));
@@ -202,21 +202,21 @@ static int do_sbd_jobs_list(int ch_id, XDR *xdrs, struct packet_header *hdr)
 /*
  * sbd_reply_hdr_only()
  *
- * Send a reply that contains only a packet_header (no payload).
+ * Send a reply that contains only a protocol_header (no payload).
  * Used for simple error returns (LSBE_* in hdr.operation).
  */
-int sbd_reply_hdr_only(int ch_id, int rc, struct packet_header *req_hdr)
+int sbd_reply_hdr_only(int ch_id, int rc, struct protocol_header *req_hdr)
 {
     struct Buffer *buf;
     XDR xdrs;
-    struct packet_header out;
+    struct protocol_header out;
 
-    if (chan_alloc_buf(&buf, sizeof(struct packet_header)) < 0) {
+    if (chan_alloc_buf(&buf, sizeof(struct protocol_header)) < 0) {
         LS_ERR("chan_alloc_buf failed for sbd reply hdr-only ch=%d", ch_id);
         return -1;
     }
 
-    xdrmem_create(&xdrs, buf->data, sizeof(struct packet_header), XDR_ENCODE);
+    xdrmem_create(&xdrs, buf->data, sizeof(struct protocol_header), XDR_ENCODE);
 
     init_pack_hdr(&out);
     out.operation = rc;
@@ -246,11 +246,11 @@ int sbd_reply_hdr_only(int ch_id, int rc, struct packet_header *req_hdr)
 /*
  * sbd_reply_payload()
  *
- * Send a reply with packet_header + XDR payload encoded by xdr_func().
+ * Send a reply with protocol_header + XDR payload encoded by xdr_func().
  * rc goes into hdr.operation (LSBE_NO_ERROR or LSBE_*).
  */
-int sbd_reply_payload(int ch_id, int rc, struct packet_header *req_hdr,
-                      void *payload, bool_t (*xdr_func)())
+int sbd_reply_payload(int ch_id, int rc, struct protocol_header *req_hdr,
+                      void *payload, bool (*xdr_func)())
 {
     if (!req_hdr || !xdr_func) {
         errno = EINVAL;
@@ -273,7 +273,7 @@ int sbd_reply_payload(int ch_id, int rc, struct packet_header *req_hdr,
     XDR xdrs;
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_ENCODE);
 
-    struct packet_header out;
+    struct protocol_header out;
     init_pack_hdr(&out);
     out.operation = rc;
     out.sequence = req_hdr->sequence;
@@ -299,8 +299,8 @@ int sbd_reply_payload(int ch_id, int rc, struct packet_header *req_hdr,
      * If init_pack_hdr sets length=0 and receiver ignores it, you can skip.
      */
     {
-        struct packet_header *h = (struct packet_header *)buf->data;
-        h->length = (int32_t)(buf->len - sizeof(struct packet_header));
+        struct protocol_header *h = (struct protocol_header *)buf->data;
+        h->length = (int32_t)(buf->len - sizeof(struct protocol_header));
     }
 
     xdr_destroy(&xdrs);

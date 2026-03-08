@@ -25,7 +25,7 @@ struct parameterInfo *lsb_parameterinfo(char **names, int *numUsers,
 {
     mbdReqType mbdReqtype;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char *request_buf;
     char *reply_buf;
     static struct parameterInfo paramInfo;

@@ -5,8 +5,7 @@
 // Optionally also logs to stderr and/or syslog(), but never does
 // any dynamic fallback or reopen magic.
 
-#include "base/lib/ll.sys.h"
-#include "base/lib/ll.bufsiz.h"
+#include "base/lib/ll.syslog.h"
 
 static int log_fd = -1;
 static int log_to_stderr;
@@ -21,88 +20,7 @@ static void build_timestamp(char *, size_t);
 static void write_record(int fd, const char *, size_t);
 static void ls_reopen_log(void);
 
-__thread int lserrno = LSE_NO_ERR;
-// Just to link...
-int logclass = 0;
-// timing level is important fro the TIMEIT macros
 int timinglevel = 0;
-
-const char *ls_errmsg[] = {
-    [LSE_NO_ERR]            = "No error",
-    [LSE_BAD_XDR]           = "XDR operation error",
-    [LSE_MSG_SYS]           = "Failed in sending/receiving a message",
-    [LSE_BAD_ARGS]          = "Bad arguments",
-    [LSE_MASTR_UNKNW]       = "Cannot locate master LIM now, try later",
-    [LSE_LIM_DOWN]          = "LIM is down; try later",
-    [LSE_PROTOC_LIM]        = "LIM protocol error",
-    [LSE_SOCK_SYS]          = "A socket operation has failed",
-    [LSE_ACCEPT_SYS]        = "Failed in an accept system call",
-    [LSE_NO_HOST]           = "Not enough host(s) currently eligible",
-    [LSE_NO_ELHOST]         = "No host is eligible",
-    [LSE_TIME_OUT]          = "Communication time out",
-    [LSE_NIOS_DOWN]         = "Nios has not been started",
-    [LSE_LIM_DENIED]        = "Operation permission denied by LIM",
-    [LSE_LIM_IGNORE]        = "Operation ignored by LIM",
-    [LSE_LIM_BADHOST]       = "Host name not recognizable by LIM",
-    [LSE_LIM_ALOCKED]       = "Host already locked",
-    [LSE_LIM_NLOCKED]       = "Host was not locked",
-    [LSE_LIM_BADMOD]        = "Unknown host model",
-    [LSE_SIG_SYS]           = "A signal related system call failed",
-    [LSE_BAD_EXP]           = "Bad resource requirement syntax",
-    [LSE_NORCHILD]          = "No remote child",
-    [LSE_MALLOC]            = "Memory allocation failed",
-    [LSE_LSFCONF]           = "Unable to open file lsf.conf",
-    [LSE_BAD_ENV]           = "Bad configuration environment, something missing in lsf.conf?",
-    [LSE_LIM_NREG]          = "LIM is not a registered service",
-    [LSE_RES_NREG]          = "RES is not a registered service",
-    [LSE_RES_NOMORECONN]    = "RES is serving too many connections",
-    [LSE_BADUSER]           = "Bad user ID",
-    [LSE_BAD_OPCODE]        = "Bad operation code",
-    [LSE_PROTOC_RES]        = "Protocol error with RES",
-    [LSE_NOMORE_SOCK]       = "Running out of privileged socks",
-    [LSE_LOSTCON]           = "Connection is lost",
-    [LSE_BAD_HOST]          = "Bad host name",
-    [LSE_WAIT_SYS]          = "A wait system call failed",
-    [LSE_SETPARAM]          = "Bad parameters for setstdin",
-    [LSE_BAD_CLUSTER]       = "Invalid cluster name",
-    [LSE_EXECV_SYS]         = "Failed in a execv() system call",
-    [LSE_BAD_SERVID]        = "Invalid service Id",
-    [LSE_NLSF_HOST]         = "Request from a non-LSF host rejected",
-    [LSE_UNKWN_RESNAME]     = "Unknown resource name",
-    [LSE_UNKWN_RESVALUE]    = "Unknown resource value",
-    [LSE_TASKEXIST]         = "Task already exists",
-    [LSE_LIMIT_SYS]         = "A resource limit system call failed",
-    [LSE_BAD_NAMELIST]      = "Bad index name list",
-    [LSE_LIM_NOMEM]         = "LIM malloc failed",
-    [LSE_CONF_SYNTAX]       = "Bad syntax in lsf.conf",
-    [LSE_FILE_SYS]          = "File operation failed",
-    [LSE_CONN_SYS]          = "A connect sys call failed",
-    [LSE_SELECT_SYS]        = "A select system call failed",
-    [LSE_EOF]               = "End of file",
-    [LSE_ACCT_FORMAT]       = "Bad lsf accounting record format",
-    [LSE_BAD_TIME]          = "Bad time specification",
-    [LSE_FORK]              = "Unable to fork child",
-    [LSE_PIPE]              = "Failed to setup pipe",
-    [LSE_ESUB]              = "Unable to access esub/eexec file",
-    [LSE_EAUTH]             = "External authentication failed",
-    [LSE_NO_FILE]           = "Cannot open file",
-    [LSE_NO_CHAN]           = "Out of communication channels",
-    [LSE_BAD_CHAN]          = "Bad communication channel",
-    [LSE_INTERNAL]          = "Internal library error",
-    [LSE_PROTOCOL]          = "Protocol error with server",
-    [LSE_RES_RUSAGE]        = "Failed to get rusage",
-    [LSE_NO_RESOURCE]       = "No shared resources",
-    [LSE_BAD_RESOURCE]      = "Bad resource name",
-    [LSE_RES_PARENT]        = "Failed to contact RES parent",
-    [LSE_NO_MEM]            = "Cannot allocate memory",
-    [LSE_FILE_CLOSE]        = "Close a NULL-FILE pointer",
-    [LSE_LIMCONF_NOTREADY]  = "Slave LIM configuration is not ready yet",
-    [LSE_MASTER_LIM_DOWN]   = "Master LIM is down; try later",
-    [LSE_POLL_SYS]          = "A poll system call failed",
-};
-
-_Static_assert(sizeof(ls_errmsg) / sizeof(ls_errmsg[0]) == LSE_NERR,
-               "ls_errmsg array size must match LSE_NERR");
 
 // tag to indicate if child or parent useful after we fork
 // and use the same log file
@@ -123,9 +41,9 @@ int ls_openlog(const char *ident,
 
     snprintf(log_ident, sizeof(log_ident), "%s", ident);
 
-    const char *host = ls_getmyhostname();
-    if (!host || !*host)
-        host = "unknown";
+    char host[MAXHOSTNAMELEN];
+    if (gethostname(host, MAXHOSTNAMELEN) < 0)
+        strcat(host, "unknown");
 
     log_min_level = get_level_str(mask);
 
@@ -372,36 +290,6 @@ static const char *level_str(int level)
 
     // Fallback: be conservative and return INFO if we see an unknown level.
     return "LOG_INFO";
-}
-
-
-// Cambrian legacy....
-
-/*
- * Thread-local library error string.
- * Used by ls_perror() and potentially by higher-level APIs.
- */
-const char *ls_sysmsg(void)
-{
-    static __thread char buf[256];
-
-    if (lserrno < 0 || lserrno >= LSE_NERR) {
-        snprintf(buf, sizeof(buf), "Error %d", lserrno);
-        return buf;
-    }
-
-    return ls_errmsg[lserrno];
-}
-
-void ls_perror(const char *usrMsg)
-{
-    if (usrMsg != NULL && *usrMsg != '\0') {
-        fputs(usrMsg, stderr);
-        fputs(": ", stderr);
-    }
-
-    fputs(ls_sysmsg(), stderr);
-    fputc('\n', stderr);
 }
 
 void ls_setlogtag(const char *tag)

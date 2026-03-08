@@ -31,7 +31,7 @@ int lsb_msgjob(int64_t jobId, char *msg)
     XDR xdrs;
     mbdReqType mbdReqtype;
     int cc;
-    struct packet_header hdr;
+    struct protocol_header hdr;
 
     struct passwd *pw;
 

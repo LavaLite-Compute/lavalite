@@ -88,7 +88,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    bool_t signaled = false;
+    bool signaled = false;
 
     for (; optind < argc; optind++) {
         int64_t tmp;

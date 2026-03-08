@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     int64_t *jobIds;
     struct jobrequeue reqJob;
     int i, cc, exitrc = 0;
-    int options1 = FALSE;
+    int options1 = false;
 
     if (lsb_init(argv[0]) < 0) {
         lsb_perror("lsb_init");
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
                     options = 0;
                     options |= DONE_JOB;
                 }
-                options1 = TRUE;
+                options1 = true;
             } else {
                 reqJob.options |= REQUEUE_DONE;
                 if (!(options & DONE_JOB)) {
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
                     options = 0;
                     options |= DONE_JOB;
                 }
-                options1 = TRUE;
+                options1 = true;
             } else {
                 reqJob.options |= REQUEUE_EXIT;
                 if (!(options & DONE_JOB)) {
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
                     options = 0;
                     options |= CUR_JOB;
                 }
-                options1 = TRUE;
+                options1 = true;
             } else {
                 reqJob.options |= REQUEUE_RUN;
                 if (!(options & CUR_JOB)) {

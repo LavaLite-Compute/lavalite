@@ -19,7 +19,7 @@
 
 #include "batch/daemons/sbd.h"
 
-extern void do_sbdDebug(XDR *xdrs, int chfd, struct packet_header *reqHdr);
+extern void do_sbdDebug(XDR *xdrs, int chfd, struct protocol_header *reqHdr);
 
 void sinit(void);
 void init_sstate(void);
@@ -27,11 +27,11 @@ static void processMsg(struct clientNode *);
 static void clientIO(struct Masks *);
 static void houseKeeping(void);
 static int authCmdRequest(struct clientNode *client, XDR *xdrs,
-                          struct packet_header *reqHdr);
+                          struct protocol_header *reqHdr);
 static int isLSFAdmin(struct lsfAuth *auth);
 static int get_new_master(struct sockaddr_in *from);
 
-extern void do_modifyjob(XDR *, int, struct packet_header *);
+extern void do_modifyjob(XDR *, int, struct protocol_header *);
 
 time_t bootTime = 0;
 
@@ -43,10 +43,10 @@ int lsb_CheckMode = 0;
 int lsb_CheckError = 0;
 uid_t batchId = 0;
 int managerId = 0;
-char masterme = FALSE;
-char master_unknown = TRUE;
+char masterme = false;
+char master_unknown = true;
 char myStatus = 0;
-char need_checkfinish = FALSE;
+char need_checkfinish = false;
 int failcnt = 0;
 ushort sbd_port;
 ushort mbd_port;
@@ -80,9 +80,9 @@ int statusChan = -1;
 
 windows_t *host_week[8];
 time_t host_windEdge = 0;
-char host_active = TRUE;
+char host_active = true;
 
-char delay_check = FALSE;
+char delay_check = false;
 char *env_dir = NULL;
 
 char *masterHost;
@@ -98,13 +98,13 @@ struct tclLsInfo *tclLsInfo;
 extern int initenv_(struct config_param *, char *);
 
 #define CHECK_MBD_TIME 30
-static char mbdStartedBySbd = FALSE;
+static char mbdStartedBySbd = false;
 
 int getpwnam2Retry = 1;
-int lsbMemEnforce = FALSE;
+int lsbMemEnforce = false;
 int lsbJobCpuLimit = -1;
 int lsbJobMemLimit = -1;
-int lsbStdoutDirect = FALSE;
+int lsbStdoutDirect = false;
 
 int sbdLogMask;
 
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
     if ((lsbParams[LSB_STDOUT_DIRECT].paramValue != NULL) &&
         (lsbParams[LSB_STDOUT_DIRECT].paramValue[0] == 'y' ||
          lsbParams[LSB_STDOUT_DIRECT].paramValue[0] == 'Y')) {
-        lsbStdoutDirect = TRUE;
+        lsbStdoutDirect = true;
     }
 
     ls_syslog(LOG_WARNING, "%s: LSB_STDOUT_DIRECT configured as <%s>.", fname,
@@ -226,10 +226,10 @@ int main(int argc, char **argv)
                  lsbParams[LSB_TIME_SBD].paramValue);
 
     if (debug > 1)
-        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, TRUE, 0,
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, true, 0,
                    lsbParams[LSF_LOG_MASK].paramValue);
     else
-        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, FALSE, 0,
+        ls_openlog("sbatchd", lsbParams[LSF_LOGDIR].paramValue, false, 0,
                    lsbParams[LSF_LOG_MASK].paramValue);
 
     if (logclass)
@@ -259,7 +259,7 @@ int main(int argc, char **argv)
 
     if (lsbParams[LSB_MEMLIMIT_ENFORCE].paramValue != NULL) {
         if (!strcasecmp(lsbParams[LSB_MEMLIMIT_ENFORCE].paramValue, "y")) {
-            lsbMemEnforce = TRUE;
+            lsbMemEnforce = true;
         }
     }
 
@@ -352,7 +352,7 @@ int main(int argc, char **argv)
         /* unblock SIGCHLD */
 
         if (need_checkfinish) {
-            need_checkfinish = FALSE;
+            need_checkfinish = false;
             TIMEIT(1, checkFinish(), "checkFinish");
         }
 
@@ -371,7 +371,7 @@ int main(int argc, char **argv)
         now = time(0);
         if (nready < 0) {
             if (errno == EINTR)
-                delay_check = FALSE;
+                delay_check = false;
             else
                 ls_syslog(LOG_ERR, "%s", __func__, "select");
             continue;
@@ -391,7 +391,7 @@ int main(int argc, char **argv)
         /* block SIGCHLD before all */
         if (nready == 0) {
             if (delay_check) {
-                delay_check = FALSE;
+                delay_check = false;
                 continue;
             }
             continue;
@@ -473,7 +473,7 @@ static void processMsg(struct clientNode *client)
     struct bucket *bucket;
     int s;
     sbdReqType sbdReqtype;
-    struct packet_header reqHdr;
+    struct protocol_header reqHdr;
     XDR xdrs;
     int cc;
 
@@ -574,26 +574,26 @@ static void processMsg(struct clientNode *client)
 
     case MBD_NEW_JOB:
         TIMEIT(2, do_newjob(&xdrs, client->chanfd, &reqHdr), "do_newjob");
-        delay_check = TRUE;
+        delay_check = true;
         break;
 
     case MBD_SIG_JOB:
         TIMEIT(2, do_sigjob(&xdrs, client->chanfd, &reqHdr), "do_sigjob");
-        delay_check = TRUE;
+        delay_check = true;
         break;
 
     case MBD_SWIT_JOB:
         TIMEIT(2, do_switchjob(&xdrs, client->chanfd, &reqHdr), "do_switchjob");
-        delay_check = TRUE;
+        delay_check = true;
         break;
 
     case MBD_MODIFY_JOB:
         TIMEIT(2, do_modifyjob(&xdrs, client->chanfd, &reqHdr), "do_modifyjob");
-        delay_check = TRUE;
+        delay_check = true;
         break;
     case MBD_PROBE:
         TIMEIT(2, do_probe(&xdrs, client->chanfd, &reqHdr), "do_probe");
-        delay_check = TRUE;
+        delay_check = true;
         break;
 
     case MBD_REBOOT:
@@ -620,13 +620,13 @@ static void processMsg(struct clientNode *client)
         break;
     case SBD_JOB_SETUP:
         TIMEIT(2, do_jobSetup(&xdrs, client->chanfd, &reqHdr), "do_jobSetup");
-        delay_check = TRUE;
+        delay_check = true;
         break;
 
     case SBD_SYSLOG:
         TIMEIT(4, do_jobSyslog(&xdrs, client->chanfd, &reqHdr), "do_jobSyslog");
         ;
-        delay_check = TRUE;
+        delay_check = true;
         break;
     case RM_CONNECT:
         TIMEIT(2, do_rmConn(&xdrs, client->chanfd, &reqHdr, client),
@@ -734,7 +734,7 @@ void start_master(void)
     }
     if (newMbdPid > 0) {
         mbdPid = newMbdPid;
-        mbdStartedBySbd = TRUE;
+        mbdStartedBySbd = true;
         ls_syslog(LOG_NOTICE, "Master [%d] started by sbatchd on host <%s>",
                   mbdPid, myhostnm);
     } else
@@ -764,7 +764,7 @@ static int get_new_master(struct sockaddr_in *from)
     }
     strcpy(mHost, hp.name);
     masterHost = mHost;
-    master_unknown = FALSE;
+    master_unknown = false;
 
     return 0;
 }
@@ -818,7 +818,7 @@ void sinit(void)
 %s: Cluster %s, master %s"),
               "sbatchd/main", clusterName, masterHost);
 
-    master_unknown = FALSE;
+    master_unknown = false;
     batchId = getuid();
     myhostname = ls_getmyhostname();
     if (myhostname == NULL) {
@@ -912,13 +912,13 @@ static void houseKeeping(void)
         lastCheckMbdTime = now;
         updMasterHost = ls_getmastername();
         if (updMasterHost == NULL) {
-            master_unknown = TRUE;
+            master_unknown = true;
             myStatus |= NO_LIM;
             lserrno = LSE_NO_ERR;
         } else {
             masterHost = updMasterHost;
             myStatus = 0;
-            master_unknown = FALSE;
+            master_unknown = false;
             if ((myhostnm = ls_getmyhostname()) == NULL) {
                 ls_syslog(LOG_ERR, "main", "ls_getmyhostname");
                 die(SLAVE_FATAL);
@@ -947,7 +947,7 @@ static void houseKeeping(void)
 }
 
 static int authCmdRequest(struct clientNode *client, XDR *xdrs,
-                          struct packet_header *reqHdr)
+                          struct protocol_header *reqHdr)
 {
     static char fname[] = "authCmdRequest";
     int s;
@@ -994,21 +994,21 @@ static int authCmdRequest(struct clientNode *client, XDR *xdrs,
 static int isLSFAdmin(struct lsfAuth *auth)
 {
     if (auth->uid == 0) {
-        return TRUE;
+        return true;
     }
 
     getLSFAdmins_();
 
     if (isLSFAdmin_(auth->lsfUserName)) {
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 #ifdef INTER_DAEMON_AUTH
 static int authMbdRequest(struct clientNode *client, XDR *xdrs,
-                          struct packet_header *reqHdr)
+                          struct protocol_header *reqHdr)
 {
     static char fname[] = "authMbdRequest";
     int s, rc;

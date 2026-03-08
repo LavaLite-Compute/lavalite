@@ -317,7 +317,7 @@ extern int handShake_(int, char, int);
 #define CALL_SERVER_NO_HANDSHAKE 0x4
 #define CALL_SERVER_ENQUEUE_ONLY 0x8
 extern int call_server(char *, ushort, char *, int, char **,
-                       struct packet_header *, int, int, int *, int (*)(),
+                       struct protocol_header *, int, int, int *, int (*)(),
                        int *, int);
 
 extern int sndJobFile_(int, struct lenData *);

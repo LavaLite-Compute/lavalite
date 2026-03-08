@@ -45,7 +45,7 @@ static int getTclHostData(struct hostLoad *, struct tclHostData *, int);
 static void ruLimits(struct jobCard *);
 
 static void sigActEnd(struct jobCard *jobCard);
-static void chkpntEnd(struct jobCard *, int, bool_t *);
+static void chkpntEnd(struct jobCard *, int, bool *);
 static void initTclHostData(struct tclHostData *);
 
 void suspendActEnd(struct jobCard *jobCard, int w_status);
@@ -65,7 +65,7 @@ void job_checking(void)
     char *myhostnm;
     static time_t last_check;
     static time_t last_preem;
-    char preempted = FALSE;
+    char preempted = false;
     int i, cc;
 
     if (last_check == 0)
@@ -116,8 +116,8 @@ void job_checking(void)
                 } else if (!jobCard->timeExpire) {
                     ls_syslog(LOG_INFO, "%s: sending warning signal to job=%d",
                               fname, jobCard->jobSpecs.jobId);
-                    jobsig(jobCard, SIGUSR2, FALSE);
-                    jobCard->timeExpire = TRUE;
+                    jobsig(jobCard, SIGUSR2, false);
+                    jobCard->timeExpire = true;
                 }
             } else {
                 if (jobCard->runTime >
@@ -154,8 +154,8 @@ void job_checking(void)
                         jobCard->jobSpecs.jStatus |= JOB_STAT_KILL;
                     }
                 } else if (!jobCard->timeExpire) {
-                    jobsig(jobCard, SIGUSR2, FALSE);
-                    jobCard->timeExpire = TRUE;
+                    jobsig(jobCard, SIGUSR2, false);
+                    jobCard->timeExpire = true;
                 }
             } else {
                 if (now > jobCard->jobSpecs.termTime) {
@@ -234,13 +234,13 @@ void job_checking(void)
 
 static void tryChkpntMig(void)
 {
-    char migrating = FALSE;
+    char migrating = false;
     struct jobCard *jobCard, *nextJob;
 
     for (jobCard = jobQueHead->forw; (jobCard != jobQueHead);
          jobCard = jobCard->forw) {
         if (jobCard->jobSpecs.jStatus & JOB_STAT_MIG) {
-            migrating = TRUE;
+            migrating = true;
             break;
         }
     }
@@ -262,7 +262,7 @@ static void tryChkpntMig(void)
             if (jobSigStart(jobCard, SIG_CHKPNT, LSB_CHKPNT_KILL,
                             jobCard->jobSpecs.chkPeriod, SIGLOG) == 0) {
                 jobCard->jobSpecs.jStatus |= JOB_STAT_MIG;
-                migrating = TRUE;
+                migrating = true;
                 sbdlog_newstatus(jobCard);
                 continue;
             }
@@ -352,7 +352,7 @@ static void tryStop(char *myhostnm, struct hostLoad *myload)
 {
     static char fname[] = "tryStop";
     struct jobCard *jobCard, *next;
-    int reasons, subreasons, stopmore = FALSE;
+    int reasons, subreasons, stopmore = false;
     static int errCount = 0, lastTryStopTime = 0;
 
     if (now - lastTryStopTime < sbdSleepTime) {
@@ -432,28 +432,28 @@ static int shouldStop(struct hostLoad *loadV, struct jobCard *jobCard,
     int i, numLoad = -1, j;
     struct hostLoad *load = NULL;
     static struct tclHostData tclHostData;
-    static int first = TRUE;
+    static int first = true;
 
     *reasons = 0;
     *subreasons = 0;
 
     if (jobCard->postJobStarted) {
-        return FALSE;
+        return false;
     }
 
     if (jobCard->jobSpecs.jAttrib & JOB_URGENT_NOSTOP)
-        return FALSE;
+        return false;
 
     if (now - jobCard->windWarnTime < sbdSleepTime)
-        return FALSE;
+        return false;
 
     if (!JOB_STARTED(jobCard))
-        return FALSE;
+        return false;
 
     if (LS_ISUNAVAIL(loadV->status))
-        return FALSE;
+        return false;
     if (num <= 0)
-        return FALSE;
+        return false;
 
     for (i = 0; i < jobCard->jobSpecs.numToHosts && (*reasons) == 0; i++) {
         if (i > 0 && !strcmp(jobCard->jobSpecs.toHosts[i],
@@ -471,15 +471,15 @@ static int shouldStop(struct hostLoad *loadV, struct jobCard *jobCard,
             ls_syslog(LOG_ERR,
                       "%s: Can not find load information for host <%s>", fname,
                       jobCard->jobSpecs.toHosts[i]);
-            return FALSE;
+            return false;
         }
         if (LS_ISLOCKEDU(load->status) &&
             !(jobCard->jobSpecs.jAttrib & Q_ATTRIB_EXCLUSIVE)) {
             *reasons = SUSP_HOST_LOCK;
-            *stopmore = TRUE;
+            *stopmore = true;
         } else if (LS_ISLOCKEDM(load->status)) {
             *reasons = SUSP_HOST_LOCK_MASTER;
-            *stopmore = TRUE;
+            *stopmore = true;
         } else if (load->li[IT] <=
                        jobCard->jobSpecs.thresholds.loadStop[numLoad][IT] &&
                    load->li[IT] != -INFINITY &&
@@ -487,7 +487,7 @@ static int shouldStop(struct hostLoad *loadV, struct jobCard *jobCard,
                        -INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = IT;
-            *stopmore = TRUE;
+            *stopmore = true;
         } else if (load->li[LS] >=
                        jobCard->jobSpecs.thresholds.loadStop[numLoad][LS] &&
                    load->li[LS] != INFINITY &&
@@ -495,7 +495,7 @@ static int shouldStop(struct hostLoad *loadV, struct jobCard *jobCard,
                        INFINITY) {
             *reasons |= SUSP_LOAD_REASON;
             *subreasons = LS;
-            *stopmore = TRUE;
+            *stopmore = true;
         } else if (load->li[UT] >=
                        jobCard->jobSpecs.thresholds.loadStop[numLoad][UT] &&
                    load->li[UT] != INFINITY &&
@@ -582,12 +582,12 @@ static int shouldStop(struct hostLoad *loadV, struct jobCard *jobCard,
 
         if (!(*reasons) && jobCard->stopCondVal != NULL) {
             int returnCode;
-            if (first == TRUE) {
+            if (first == true) {
                 initTclHostData(&tclHostData);
-                returnCode = getTclHostData(load, &tclHostData, FALSE);
-                first = FALSE;
+                returnCode = getTclHostData(load, &tclHostData, false);
+                first = false;
             } else {
-                returnCode = getTclHostData(load, &tclHostData, TRUE);
+                returnCode = getTclHostData(load, &tclHostData, true);
             }
             if (returnCode >= 0 &&
                 evalResReq(jobCard->stopCondVal->selectStr, &tclHostData,
@@ -599,10 +599,10 @@ static int shouldStop(struct hostLoad *loadV, struct jobCard *jobCard,
     }
 
     if (!(*reasons))
-        return FALSE;
+        return false;
 
     if (LS_ISLOCKEDU(load->status) || LS_ISLOCKEDM(load->status)) {
-        return TRUE;
+        return true;
     } else if (shouldStop1(load)) {
         if (logclass & (LC_SCHED | LC_EXEC))
             ls_syslog(LOG_DEBUG2,
@@ -610,9 +610,9 @@ static int shouldStop(struct hostLoad *loadV, struct jobCard *jobCard,
                       lsb_jobid2str(jobCard->jobSpecs.jobId), *reasons,
                       *subreasons);
 
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 static int shouldStop1(struct hostLoad *loadV)
@@ -626,22 +626,22 @@ static int shouldStop1(struct hostLoad *loadV)
         rcnt++;
     }
     if (rcnt > 1)
-        return TRUE;
+        return true;
 
     if (loadV->li[IT] < 1.0)
-        return TRUE;
+        return true;
 
     if (lsbParams[LSB_STOP_IGNORE_IT].paramValue != NULL) {
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 static int shouldResume(struct hostLoad *loadV, struct jobCard *jp, int num)
 {
     static char fname[] = "shouldResume";
     int i, j, numHosts = -1;
-    int resume = TRUE, found;
+    int resume = true, found;
     int lastReasons = jp->jobSpecs.reasons;
     int lastSubreasons = jp->jobSpecs.subreasons;
     struct hostLoad *loads = NULL;
@@ -655,15 +655,15 @@ static int shouldResume(struct hostLoad *loadV, struct jobCard *jp, int num)
             jp->jobSpecs.reasons, jp->jobSpecs.subreasons, num);
 
     if (num <= 0)
-        return FALSE;
+        return false;
 
     if (!(jp->jobSpecs.jStatus & JOB_STAT_SSUSP))
-        return FALSE;
+        return false;
 
     if ((jp->jobSpecs.reasons & SUSP_QUEUE_WINDOW) ||
         (jp->jobSpecs.reasons & SUSP_USER_STOP) ||
         (jp->jobSpecs.reasons & SUSP_MBD_LOCK))
-        return FALSE;
+        return false;
 
     loads = (struct hostLoad *) my_malloc(num * sizeof(struct hostLoad), fname);
     if (jp->resumeCondVal != NULL) {
@@ -680,21 +680,21 @@ static int shouldResume(struct hostLoad *loadV, struct jobCard *jp, int num)
             !strcmp(jp->jobSpecs.toHosts[j], jp->jobSpecs.toHosts[j - 1]))
             continue;
         numHosts++;
-        found = FALSE;
+        found = false;
         for (i = 0; i < num; i++) {
             if (equal_host(jp->jobSpecs.toHosts[j], loadV[i].hostName)) {
                 loads[numHosts] = loadV[i];
                 if (tclHostData != NULL) {
                     if (getTclHostData(&loadV[i], &tclHostData[numHosts],
-                                       FALSE) < 0) {
+                                       false) < 0) {
                         break;
                     }
                 }
-                found = TRUE;
+                found = true;
                 break;
             }
         }
-        if (found != TRUE) {
+        if (found != true) {
             ls_syslog(LOG_ERR,
                       "%s: Can not find load information for host <%s> to "
                       "check resume condiftions for job <%s>",
@@ -749,7 +749,7 @@ int job_resume(struct jobCard *jp)
     if (jp->jobSpecs.actPid)
         return 0;
 
-    if (jobsig(jp, SIGCONT, FALSE) < 0)
+    if (jobsig(jp, SIGCONT, false) < 0)
         return -1;
 
     SBD_SET_STATE(jp, JOB_STAT_RUN);
@@ -791,7 +791,7 @@ static int jobResumeAction(struct jobCard *jp, int sigValue, int suspReason)
                   jp->jobSpecs.reasons, suspReason);
 
     if (jobSigStart(jp, sigValue, 0, 0, SIGLOG) < 0)
-        if (jobsig(jp, 0, FALSE) < 0) {
+        if (jobsig(jp, 0, false) < 0) {
             SBD_SET_STATE(jp, JOB_STAT_EXIT);
             return -1;
         }
@@ -850,7 +850,7 @@ static void sigActEnd(struct jobCard *jobCard)
 {
     int w_status;
     struct stat st;
-    bool_t freed = FALSE;
+    bool freed = false;
 
     char exitFile[MAXFILENAMELEN];
 
@@ -925,21 +925,21 @@ static void sigActEnd(struct jobCard *jobCard)
     }
 }
 
-static void chkpntEnd(struct jobCard *jobCard, int w_status, bool_t *freed)
+static void chkpntEnd(struct jobCard *jobCard, int w_status, bool *freed)
 {
     static char fname[] = "chkpntEnd()";
     int savePid, saveStatus;
 
     if (IS_SUSP(jobCard->jobSpecs.jStatus) &&
         !(jobCard->jobSpecs.jStatus & JOB_STAT_MIG))
-        jobsig(jobCard, SIGSTOP, TRUE);
+        jobsig(jobCard, SIGSTOP, true);
 
     saveStatus = jobCard->jobSpecs.jStatus;
     if (jobCard->jobSpecs.jStatus & JOB_STAT_MIG) {
         if (w_status == 0) {
             if (!jobCard->missing) {
-                jobCard->missing = TRUE;
-                need_checkfinish = TRUE;
+                jobCard->missing = true;
+                need_checkfinish = true;
                 return;
             } else if (jobCard->notReported == 0)
                 return;
@@ -978,7 +978,7 @@ static void chkpntEnd(struct jobCard *jobCard, int w_status, bool_t *freed)
             if (w_status == 0) {
                 cleanupMigJob(jobCard);
                 deallocJobCard(jobCard);
-                *freed = TRUE;
+                *freed = true;
             } else
                 jobCard->migCnt *= 2;
         }
@@ -1114,7 +1114,7 @@ void checkFinish(void)
 
         if (!(IS_FINISH(jobCard->jobSpecs.jStatus)) &&
             !(IS_POST_FINISH(jobCard->jobSpecs.jStatus))) {
-            if ((jobsig(jobCard, 0, FALSE) < 0) ||
+            if ((jobsig(jobCard, 0, false) < 0) ||
                 ((jobCard->jobSpecs.jAttrib & JOB_FORCE_KILL) &&
                  (jobCard->jobSpecs.termTime <
                   time(0) - MAX(6, jobTerminateInterval * 3)))) {
@@ -1138,7 +1138,7 @@ void checkFinish(void)
         if (IS_FINISH(jobCard->jobSpecs.jStatus) ||
             IS_POST_FINISH(jobCard->jobSpecs.jStatus) ||
             (jobCard->jobSpecs.jStatus & JOB_STAT_PEND)) {
-            job_finish(jobCard, TRUE);
+            job_finish(jobCard, true);
         }
     }
 }
@@ -1182,7 +1182,7 @@ static int getTclHostData(struct hostLoad *load,
         host_count = num;
         lastUpdHostInfo = now;
     }
-    if (freeMem == TRUE) {
+    if (freeMem == true) {
         FREEUP(tclHostData->resBitMaps);
         FREEUP(tclHostData->loadIndex);
     }
@@ -1208,7 +1208,7 @@ static int getTclHostData(struct hostLoad *load,
     tclHostData->fromHostType = tclHostData->hostType;
     tclHostData->fromHostModel = tclHostData->hostModel;
     tclHostData->cpuFactor = hostInfo[i].cpuFactor;
-    tclHostData->ignDedicatedResource = FALSE;
+    tclHostData->ignDedicatedResource = false;
     tclHostData->resBitMaps =
         getResMaps(hostInfo[i].nRes, hostInfo[i].resources);
     tclHostData->DResBitMaps = NULL;
@@ -1259,8 +1259,8 @@ static void ruLimits(struct jobCard *jobCard)
                   LSF_RLIMIT_SWAP);
     if (rlimit.rlim_cur != RLIM_INFINITY) {
         if ((long) (rlimit.rlim_cur / 1024) < (long) jobCard->runRusage.swap) {
-            jobsig(jobCard, SIGQUIT, FALSE);
-            jobsig(jobCard, SIGKILL, TRUE);
+            jobsig(jobCard, SIGQUIT, false);
+            jobsig(jobCard, SIGKILL, true);
         }
     }
 
@@ -1281,7 +1281,7 @@ static void ruLimits(struct jobCard *jobCard)
     }
 
     if ((lsbJobMemLimit == 1) ||
-        (lsbJobMemLimit != 0 && lsbMemEnforce == TRUE)) {
+        (lsbJobMemLimit != 0 && lsbMemEnforce == true)) {
         rlimitDecode_(&jobCard->jobSpecs.lsfLimits[LSF_RLIMIT_RSS], &rlimit,
                       LSF_RLIMIT_RSS);
         if (rlimit.rlim_cur != RLIM_INFINITY) {

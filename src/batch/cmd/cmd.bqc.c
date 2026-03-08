@@ -27,7 +27,7 @@ int bqc(int argc, char *argv[], int opCode)
     extern int optind;
     struct queueInfoEnt *queueInfo;
     char **queueList = NULL, **queues;
-    int numQueues, all = FALSE;
+    int numQueues, all = false;
     int i;
 
     queues = NULL;

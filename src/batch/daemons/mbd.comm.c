@@ -62,8 +62,8 @@ sbdReplyType start_job(struct jData *job,
         return ERR_NO_FILE;
     }
 
-    struct packet_header hdr;
-    memset(&hdr, 0, sizeof(struct packet_header));
+    struct protocol_header hdr;
+    memset(&hdr, 0, sizeof(struct protocol_header));
     hdr.operation = BATCH_NEW_JOB;
     // Quoqe tu, Brute
     size_t buflen = LL_BUFSIZ_64K;
@@ -142,7 +142,7 @@ sbdReplyType switch_job(struct jData *job, int options)
 {
 
     char *request_buf = NULL;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char *reply_buf = NULL;
     XDR xdrs;
     sbdReplyType reply;
@@ -155,7 +155,7 @@ sbdReplyType switch_job(struct jData *job, int options)
     struct jobSpecs jobSpecs;
     packJobSpecs(job, &jobSpecs);
 
-    if (options == TRUE) {
+    if (options == true) {
         hdr.operation = MBD_SWIT_JOB;
     } else {
         hdr.operation = MBD_MODIFY_JOB;
@@ -179,7 +179,7 @@ sbdReplyType switch_job(struct jData *job, int options)
 
     sbdNode.jData = job;
     sbdNode.hData = HostData;
-    if (options == TRUE) {
+    if (options == true) {
         sbdNode.reqCode = MBD_SWIT_JOB;
     } else {
         sbdNode.reqCode = MBD_MODIFY_JOB;
@@ -209,7 +209,7 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
                         struct jobReply *jobReply)
 {
     static char fname[] = "signal_job";
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char request_buf[MSGSIZE];
     XDR xdrs;
     sbdReqType reqCode;
@@ -314,9 +314,9 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
     XDR xdrs;
     int i;
     sbdReplyType reply;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char *toHost = hData->host;
-    struct packet_header hdrBuf;
+    struct protocol_header hdrBuf;
     struct lsfAuth *auth = NULL;
 
     memset(&xdrs, 0, sizeof(XDR));

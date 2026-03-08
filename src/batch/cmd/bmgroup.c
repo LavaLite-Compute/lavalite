@@ -134,7 +134,7 @@ static void prtGroups(struct groupInfoEnt *grpInfo, int numReply, int options)
     char *save_sp1;
     char word[256];
     char gname[256];
-    char first = TRUE;
+    char first = true;
 
     if (!(options & GRP_SHARES)) {
         for (i = 0; i < numReply; i++) {
@@ -160,7 +160,7 @@ static void prtGroups(struct groupInfoEnt *grpInfo, int numReply, int options)
                     printf("%-12.12s  %s\n", buf, "USERS");
                 else
                     printf("%-12.12s  %s\n", buf, "HOSTS");
-                first = FALSE;
+                first = false;
                 FREEUP(buf);
             }
             printf("%s ", word);

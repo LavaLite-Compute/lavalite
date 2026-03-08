@@ -21,23 +21,23 @@
 #pragma once
 
 // LavaLite unified type definitions
-// All boolean logic uses XDR/TIRPC bool_t (32-bit integer)
-// Lowercase true/false map directly to TRUE/FALSE for stylistic consistency.
+// All boolean logic uses XDR/TIRPC bool (32-bit integer)
+// Lowercase true/false map directly to true/false for stylistic consistency.
 
 #include <stdint.h>
-#include <rpc/types.h> // defines: bool_t, TRUE, FALSE
+#include <rpc/types.h> // defines: bool, true, false
 
-// bool_t must come strictly from <rpc/types.h>. Do not redefine it.
+// bool must come strictly from <rpc/types.h>. Do not redefine it.
 // If the build system detects a missing or broken rpc/types.h,
 // automake will fail — as intended.
 
 // Enforce lowercase boolean literals
 #ifndef true
-#define true TRUE
+#define true true
 #endif
 
 #ifndef false
-#define false FALSE
+#define false false
 #endif
 
 // LavaLite uses plain C types.

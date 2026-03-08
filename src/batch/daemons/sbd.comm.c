@@ -39,7 +39,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
     char *request_buf;
     char *reply_buf = NULL;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     int cc;
     struct statusReq statusReq;
     static int seq = 1;
@@ -53,15 +53,15 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
                   reqType, lsb_jobid2str(jp->jobSpecs.jobId));
 
     if (newStatus == JOB_STAT_EXIT) {
-        jp->userJobSucc = FALSE;
+        jp->userJobSucc = false;
     }
 
     if (MASK_STATUS(newStatus) == JOB_STAT_DONE) {
-        jp->userJobSucc = TRUE;
+        jp->userJobSucc = true;
     }
 
     if (IS_POST_FINISH(newStatus)) {
-        if (jp->userJobSucc != TRUE) {
+        if (jp->userJobSucc != true) {
             return 0;
         }
     }
@@ -208,7 +208,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
         timeval.tv_usec = 0;
 
         if (rd_select_(chan_sock(statusChan), &timeval) == 0) {
-            jp->needReportRU = FALSE;
+            jp->needReportRU = false;
             jp->lastStatusMbdTime = now;
             return 0;
         }
@@ -227,7 +227,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
     switch (reply) {
     case LSBE_NO_ERROR:
     case LSBE_LOCK_JOB:
-        jp->needReportRU = FALSE;
+        jp->needReportRU = false;
         jp->lastStatusMbdTime = now;
         if (reply == LSBE_LOCK_JOB) {
             if (IS_SUSP(jp->jobSpecs.jStatus))
@@ -252,7 +252,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
         jp->notReported = -INFINIT_INT;
         return 0;
     case LSBE_STOP_JOB:
-        if (jobsig(jp, SIGSTOP, TRUE) < 0)
+        if (jobsig(jp, SIGSTOP, true) < 0)
             SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_EXIT);
         else {
             SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
@@ -281,7 +281,7 @@ void getJobsState(struct sbdPackage *sbdPackage)
     char request_buf[MSGSIZE / 8];
     char *reply_buf, *myhostnm;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     int reply;
     int i, cc, numJobs;
     struct jobSpecs jobSpecs;
@@ -334,7 +334,7 @@ void getJobsState(struct sbdPackage *sbdPackage)
         }
     }
 
-    master_unknown = FALSE;
+    master_unknown = false;
     xdr_destroy(&xdrs);
 
     reply = hdr.operation;
@@ -362,7 +362,7 @@ void getJobsState(struct sbdPackage *sbdPackage)
             }
             job = addJob(&jobSpecs, hdr.version);
 
-            xdr_lsffree(xdr_jobSpecs, (char *) &jobSpecs, &hdr);
+            xdr_free_payload(xdr_jobSpecs, (char *) &jobSpecs, &hdr);
         }
         if (!xdr_sbdPackage1(&xdrs, sbdPackage, &hdr)) {
             ls_syslog(LOG_ERR, "%s", __func__, "xdr_sbdPackage1");
@@ -445,7 +445,7 @@ static int msgSbd(int64_t jobId, char *req, sbdReqType reqType,
 {
     static char fname[] = "msgSbd";
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char requestBuf[MSGSIZE];
     char *reply_buf = NULL;
     int cc, retryInterval;
@@ -501,7 +501,7 @@ static int msgSbd(int64_t jobId, char *req, sbdReqType reqType,
 int msgSupervisor(struct lsbMsg *lsbMsg, struct clientNode *cliPtr)
 {
     static char fname[] = "msgSupervisor/sbd.comm.c";
-    struct packet_header reqHdr;
+    struct protocol_header reqHdr;
     char reqBuf[MSGSIZE * 2];
     int cc;
     XDR xdrs;
@@ -544,7 +544,7 @@ int sendUnreportedStatus(struct chunkStatusReq *chunkStatusReq)
     char *request_buf;
     char *reply_buf = NULL;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     int cc;
     static char lastHost[MAXHOSTNAMELEN];
     int flags;

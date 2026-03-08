@@ -60,9 +60,9 @@ void checkQWindow(void)
         qp->windEdge = now + (24.0 - dayhour.hour) * 3600.0;
 
         if (qp->weekR[dayhour.day] == NULL) {
-            windOpen = TRUE;
+            windOpen = true;
         } else {
-            windOpen = FALSE;
+            windOpen = false;
         }
         for (wp = qp->weekR[dayhour.day]; wp != NULL; wp = wp->nextwind) {
             checkWindow(&dayhour, &windOpen, &qp->windEdge, wp, now);
@@ -80,7 +80,7 @@ void checkQWindow(void)
             continue;
         }
 
-        windOpen = FALSE;
+        windOpen = false;
         for (wp = qp->week[dayhour.day]; wp != NULL; wp = wp->nextwind) {
             checkWindow(&dayhour, &windOpen, &qp->windEdge, wp, now);
             if (windOpen) {
@@ -142,9 +142,9 @@ int checkQueues(struct infoReq *queueInfoReqPtr,
     int i;
     int j;
     int checkRet;
-    int allQ = FALSE;
-    int defaultQ = FALSE;
-    int found = FALSE;
+    int allQ = false;
+    int defaultQ = false;
+    int found = false;
     char *checkUsers = NULL;
     char *checkHosts = NULL;
     float *cpuFactor;
@@ -154,10 +154,10 @@ int checkQueues(struct infoReq *queueInfoReqPtr,
 
     if (queueInfoReqPtr->options & ALL_QUEUE) {
         queueInfoReqPtr->numNames = 1;
-        allQ = TRUE;
+        allQ = true;
     } else if (queueInfoReqPtr->options & DFT_QUEUE) {
         queueInfoReqPtr->numNames = 1;
-        defaultQ = TRUE;
+        defaultQ = true;
     }
 
     for (j = 0; j < queueInfoReqPtr->numNames; j++) {
@@ -174,7 +174,7 @@ int checkQueues(struct infoReq *queueInfoReqPtr,
             if (!allQ && defaultQ && !isDefQueue(qp->queue))
                 continue;
 
-            found = TRUE;
+            found = true;
 
             if ((checkRet = checkHU(checkHosts, checkUsers, qp)) !=
                 LSBE_NO_ERROR)
@@ -221,7 +221,7 @@ int checkQueues(struct infoReq *queueInfoReqPtr,
                 qRep->windowsD = safeSave(" ");
 
             if (qp->uGPtr) {
-                qRep->userList = getGroupMembers(qp->uGPtr, FALSE);
+                qRep->userList = getGroupMembers(qp->uGPtr, false);
             } else {
                 qRep->userList = safeSave(" ");
             }
@@ -396,7 +396,7 @@ int checkQueues(struct infoReq *queueInfoReqPtr,
             return LSBE_BAD_QUEUE;
         }
 
-        found = FALSE;
+        found = false;
         if (allQ || defaultQ)
             break;
     }
@@ -415,12 +415,12 @@ static int isDefQueue(char *qname)
     char *cp, *queue;
 
     if (defaultQueues == NULL)
-        return FALSE;
+        return false;
     cp = defaultQueues;
     while ((queue = getNextWord_(&cp)))
         if (strcmp(qname, queue) == 0)
-            return TRUE;
-    return FALSE;
+            return true;
+    return false;
 }
 
 int ctrlQueue(struct controlReq *qcReq, struct lsfAuth *auth)
@@ -479,21 +479,21 @@ char hostQMember(char *host, struct qData *qp)
     int i;
 
     if (qp->hostList == NULL)
-        return TRUE;
+        return true;
     if (qp->askedOthPrio >= 0)
-        return TRUE;
+        return true;
 
     for (i = 0; i < qp->numAskedPtr; i++) {
         if (equal_host(host, qp->askedPtr[i].hData->host))
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 char userQMember(char *user, struct qData *qp)
 {
     if (qp->uGPtr == NULL)
-        return TRUE;
+        return true;
 
     return (gMember(user, qp->uGPtr));
 }
@@ -521,18 +521,18 @@ int isQueAd(struct qData *qp, char *lsfUserName)
     char *admins, *user;
 
     if (!qp->nAdmins || !qp->admins)
-        return FALSE;
+        return false;
 
     admins = qp->admins;
 
     for (user = getNextWord_(&admins); user; user = getNextWord_(&admins)) {
         if ((strcmp(user, lsfUserName) == 0) ||
             (strcmp(user, "all users") == 0)) {
-            return TRUE;
+            return true;
         }
     }
 
-    return FALSE;
+    return false;
 }
 int isAuthQueAd(struct qData *qp, struct lsfAuth *auth)
 {
@@ -544,17 +544,17 @@ int isInQueues(char *queue, char **queues, int num)
     int i;
 
     if (num <= 0 || queues == NULL || queue == NULL)
-        return FALSE;
+        return false;
     for (i = 0; i < num; i++) {
         if (!strcmp(queue, queues[i]))
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
-bool_t isQInQSet(struct qData *queue, LS_BITSET_T *queueSet)
+bool isQInQSet(struct qData *queue, LS_BITSET_T *queueSet)
 {
     if (queue == NULL || queueSet == NULL)
-        return FALSE;
+        return false;
 
     return (setIsMember(queueSet, queue));
 }
@@ -648,20 +648,20 @@ void *gethDataByhIndex(int index)
 {
     return &hDataPtrTb[index];
 }
-bool_t isHostQMember(struct hData *host, struct qData *qp)
+bool isHostQMember(struct hData *host, struct qData *qp)
 {
     static char fname[] = "isHostQmember()";
-    bool_t trueOrfalse;
+    bool trueOrfalse;
 
     if (qp->hostList == NULL)
-        return TRUE;
+        return true;
     if (qp->askedOthPrio >= 0)
-        return TRUE;
+        return true;
 
     bitseterrno = 0;
 
     trueOrfalse = setIsMember(qp->hostInQueue, host);
-    if (trueOrfalse == FALSE && bitseterrno == LS_BITSET_ERR_BADARG) {
+    if (trueOrfalse == false && bitseterrno == LS_BITSET_ERR_BADARG) {
         ls_syslog(LOG_ERR, "%s: Master batchd deamon memory error detected",
                   fname);
         mbdDie(MASTER_FATAL);
@@ -714,7 +714,7 @@ static time_t runWindowCloseTime(struct qData *qp)
     tmPtr->tm_hour = 23;
     deadline = midnight = thismidnight = mktime(tmPtr);
     for (;;) {
-        windOpen = FALSE;
+        windOpen = false;
         lastdeadline = deadline;
         for (wp = qp->weekR[dayhour.day]; wp != NULL; wp = wp->nextwind) {
             checkWindow(&dayhour, &windOpen, &deadline, wp, nowTime);

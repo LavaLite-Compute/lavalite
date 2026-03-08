@@ -76,11 +76,11 @@ void mbd_compact_shutdown(void)
  * mbd_handle_compact_done - called when mbd_compact sends BATCH_COMPACT_DONE
  * or BATCH_COMPACT_FAILED. The compactor is just another client.
  */
-void mbd_handle_compact_done(XDR *xdrs, int ch_id, struct packet_header *hdr)
+void mbd_handle_compact_done(XDR *xdrs, int ch_id, struct protocol_header *hdr)
 {
     struct wire_compact_notify req;
     struct wire_compact_notify ack_payload;
-    struct packet_header ack_hdr;
+    struct protocol_header ack_hdr;
     struct Buffer *out;
     char buf[PACKET_HEADER_SIZE + LL_BUFSIZ_64];
     int len;

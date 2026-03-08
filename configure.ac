@@ -1,8 +1,8 @@
 # Copyright (C) LavaLite Contributors
 
-AC_INIT([lavalite], [0.1.0], [https://github.com/LavaLiteProject/LavaLite/issues])
+AC_INIT([lavalite], [1.0.0], [https://github.com/LavaLiteProject/LavaLite/issues])
 AC_CONFIG_HEADERS([config.h])
-AC_PREFIX_DEFAULT([/opt/lavalite-0.1.0])
+AC_PREFIX_DEFAULT([/opt/lavalite-1.0.0])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 
@@ -23,8 +23,8 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
   [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
 
 dnl Project identity versioning
-AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.1.0"], [Human-readable LavaLite version])
-AC_DEFINE([LAVALITE_VERSION_HEX], [0x000100], [LavaLite version encoded as 0xMMmmpp])
+AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 1.0.0"], [Human-readable LavaLite version])
+AC_DEFINE([LAVALITE_VERSION_HEX], [0x001000], [LavaLite version encoded as 0xMMmmpp])
 
 dnl Define the default host type supported by LavaLite but you can
 dnl add more in lsf.shared file.

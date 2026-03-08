@@ -445,15 +445,15 @@ extern int server_reply(int, char *, int);
 #define CALL_RES_IF_NEEDED (0x2)
 extern void childRemoveSpoolFile(const char *, int, const struct passwd *);
 
-extern int xdr_statusReq(XDR *, struct statusReq *, struct packet_header *);
-extern int xdr_sbdPackage(XDR *, struct sbdPackage *, struct packet_header *);
+extern int xdr_statusReq(XDR *, struct statusReq *, struct protocol_header *);
+extern int xdr_sbdPackage(XDR *, struct sbdPackage *, struct protocol_header *);
 extern int xdr_sbdPackage1(XDR *xdrs, struct sbdPackage *,
-                           struct packet_header *);
+                           struct protocol_header *);
 extern int xdr_jobReply(XDR *xdrs, struct jobReply *jobReply,
-                        struct packet_header *);
-extern int xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *);
+                        struct protocol_header *);
+extern int xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct protocol_header *);
 extern int xdr_chunkStatusReq(XDR *, struct chunkStatusReq *,
-                              struct packet_header *);
+                              struct protocol_header *);
 
 extern float normalizeRq_(float rawql, float cpuFactor, int nprocs);
 
@@ -473,16 +473,16 @@ struct job_status_ack {
     int32_t acked_op; // opcode being acknowledged (e.g. BATCH_STATUS_JOB)
 };
 
-bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *);
-bool_t xdr_job_status_ack(XDR *,
+bool xdr_jobSpecs(XDR *xdrs, struct jobSpecs *jobSpecs, void *);
+bool xdr_job_status_ack(XDR *,
                           struct job_status_ack *,
-                          struct packet_header *);
+                          struct protocol_header *);
 
 int enqueue_header_reply(int, int);
-// xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
-int enqueue_payload(int, int, void *, bool_t (*xdr_func)());
+// xdr_encodeMsg() uses old-style bool (*xdr_func)() so we keep the same type.
+int enqueue_payload(int, int, void *, bool (*xdr_func)());
 int enqueue_payload_bufsiz(int, int, void *,
-                           bool_t (*xdr_func)(), size_t bufsz);
+                           bool (*xdr_func)(), size_t bufsz);
 
 // Bug fix this extern the function is in mbd.h
 void freeJobSpecs(struct jobSpecs *);
@@ -495,7 +495,7 @@ struct xdr_sig_sbd_jobs {
     uint32_t n;
     int64_t *job_ids;
 };
-bool_t xdr_sig_sbd_jobs(XDR *, struct xdr_sig_sbd_jobs *);
+bool xdr_sig_sbd_jobs(XDR *, struct xdr_sig_sbd_jobs *);
 
 // sbd to mbd
 struct wire_job_sig_reply {
@@ -505,5 +505,5 @@ struct wire_job_sig_reply {
     int32_t detail_errno;  // errno from kill/killpg or 0
 };
 
-bool_t xdr_wire_job_sig_reply(XDR *, struct wire_job_sig_reply *);
+bool xdr_wire_job_sig_reply(XDR *, struct wire_job_sig_reply *);
 int check_sharedir_access(const char *);

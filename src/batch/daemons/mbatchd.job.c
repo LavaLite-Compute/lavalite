@@ -20,7 +20,7 @@ static void free_job_data(struct jData *);
 // this is still a client-like request coming through the client handler
 // after this call the connection becomes a permanent sbd connection.
 int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
-                     struct packet_header *hdr)
+                     struct protocol_header *hdr)
 {
     (void)hdr;
 
@@ -92,7 +92,7 @@ int mbd_sbd_register(XDR *xdrs, struct mbd_client_node *client,
 
 int mbd_new_job_reply(struct mbd_client_node *client,
                       XDR *xdrs,
-                      struct packet_header *hdr)
+                      struct protocol_header *hdr)
 {
     struct jobReply jobReply;
 
@@ -153,7 +153,7 @@ int mbd_new_job_reply(struct mbd_client_node *client,
 
     /*
      * Acknowledge back to sbatchd so it can unblock.
-     * We only send a small packet_header over the LavaLite channel.
+     * We only send a small protocol_header over the LavaLite channel.
      * No more blocking send path, everything is queued via chan_enqueue().
      */
 send_ack:
@@ -173,7 +173,7 @@ send_ack:
 }
 
 int mbd_set_status_execute(struct mbd_client_node *client, XDR *xdrs,
-                           struct packet_header *hdr)
+                           struct protocol_header *hdr)
 {
     //  decode payload
     struct statusReq status_req;
@@ -244,14 +244,14 @@ send_ack:
     LS_INFO("operation=%s job=%ld acked", mbd_op_str(hdr->operation),
             ack.job_id);
 
-    xdr_lsffree(xdr_statusReq, &status_req, hdr);
+    xdr_free_payload(xdr_statusReq, &status_req, hdr);
 
     return LSBE_NO_ERROR;
 }
 
 // form sbd
 int mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
-                          struct packet_header *hdr)
+                          struct protocol_header *hdr)
 {
     struct statusReq status_req;
 
@@ -307,8 +307,8 @@ int mbd_set_status_finish(struct mbd_client_node *client, XDR *xdrs,
 
     job->pendEvent.sig1 = SIG_NULL;
     job->pendEvent.sig = SIG_NULL;
-    job->pendEvent.notSwitched = FALSE;
-    job->pendEvent.notModified = FALSE;
+    job->pendEvent.notSwitched = false;
+    job->pendEvent.notModified = false;
 
     // Commit terminal state: clear base state bits then set DONE/EXIT.
     job->jStatus &= ~(JOB_STAT_PEND | JOB_STAT_PSUSP | JOB_STAT_RUN |
@@ -352,14 +352,14 @@ send_ack:
     LS_INFO("mbd FINISH job=%ld op=%s acked",
             ack.job_id, mbd_op_str(hdr->operation));
 
-    xdr_lsffree(xdr_statusReq, &status_req, hdr);
+    xdr_free_payload(xdr_statusReq, &status_req, hdr);
 
     return LSBE_NO_ERROR;
 }
 
 int
 mbd_set_rusage_update(struct mbd_client_node *client,
-                      XDR *xdrs, struct packet_header *hdr)
+                      XDR *xdrs, struct protocol_header *hdr)
 {
     struct statusReq status_req;
     memset(&status_req, 0, sizeof(status_req));
@@ -376,7 +376,7 @@ mbd_set_rusage_update(struct mbd_client_node *client,
     LS_DEBUG("job %s RUSAGE from %s", lsb_jobid2str(job->jobId),
              client->host_node->host);
 
-    xdr_lsffree(xdr_jobSpecs, &status_req, hdr);
+    xdr_free_payload(xdr_jobSpecs, &status_req, hdr);
     // No ack for rusage
     return LSBE_NO_ERROR;
 }
@@ -468,7 +468,7 @@ int mbd_send_event_ack(struct mbd_client_node *client,
 // every hadler is responsible for sending back the reply to the library
 int mbd_handle_signal_req(XDR *xdrs,
                           struct mbd_client_node *client,
-                          struct packet_header *hdr,
+                          struct protocol_header *hdr,
                           struct lsfAuth *auth)
 {
     struct signalReq signal_req;
@@ -695,7 +695,7 @@ int mbd_signal_running_job(struct jData *job, struct signalReq *req,
 }
 
 int mbd_job_signal_reply(struct mbd_client_node *client, XDR *xdrs,
-                         struct packet_header *sbd_hdr)
+                         struct protocol_header *sbd_hdr)
 {
     struct wire_job_sig_reply rep;
     memset(&rep, 0, sizeof(rep));
@@ -872,7 +872,7 @@ int mbd_signal_all_jobs(int chan_id,
 }
 
 void mbd_job_state_unknown(struct mbd_client_node *client, XDR *xdrs,
-                           struct packet_header *sbd_hdr)
+                           struct protocol_header *sbd_hdr)
 {
     struct wire_job_state wjs;
     memset(&wjs, 0, sizeof(struct wire_job_state));

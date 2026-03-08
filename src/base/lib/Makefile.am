@@ -1,53 +1,10 @@
 #
 # Copyright (C) LavaLite Contributors
-#
+# GPL v2
 include $(top_srcdir)/Make.common
 
-# Shared library (libtool). This will also produce a static .a unless you
-# configure with --disable-static.
+ARFLAGS = cr
 lib_LIBRARIES = libllbase.a
 
-libllbase_a_SOURCES = \
-	admin.c \
-	    bitset.c \
-	    cmdtime.c \
-	    daemon.c \
-	    list.c \
-	    listset.c \
-	    misc.c \
-	    resreq.c \
-	    testbitset.c \
-	    userok.c \
-	    window.c \
-	    resourcecmd.c \
-	    lib.channel.c \
-	    lib.conf.c \
-	    lib.confmisc.c \
-	    lib.control.c \
-	    lib.cwd.c \
-	    lib.debug.c \
-	    lib.eauth.c \
-	    lib.esub.c \
-	    lib.info.c \
-	    lib.initenv.c \
-	    lib.lim.c \
-	    lib.limits.c \
-	    lib.misc.c \
-	    lib.place.c \
-	    lib.priority.c \
-	    lib.rdwr.c \
-	    lib.sig.c \
-	    ll.syslog.c \
-	    lib.table.c \
-	    lib.words.c \
-	    lib.xdr.c \
-	    lib.xdrlim.c \
-	    lib.wconf.c \
-	    ll.conf.c \
-	    ll.host.c \
-	    ll.timer.c \
-	    tcl_stub.c \
-	    ll.list.c \
-	    ll.hash.c \
-	    ll.stack.c
-
+libllbase_a_SOURCES = ll.conf.c ll.hash.c ll.host.c ll.list.c ll.stack.c \
+	ll.syslog.c ll.channel.c ll.signal.c ll.sys.c ll.wire.c

@@ -460,7 +460,7 @@ static int notify_mbd(int status)
     req.status = status;
     req.compact_time = compact_time;
 
-    struct packet_header hdr;
+    struct protocol_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_COMPACT_DONE;
     if (status < 0)

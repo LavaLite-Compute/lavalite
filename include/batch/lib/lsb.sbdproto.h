@@ -41,7 +41,7 @@
  */
 
 
-struct packet_header;
+struct protocol_header;
 
 /*
  * sbatchd-native operations.
@@ -102,18 +102,18 @@ struct sbdJobsListReply {
 /*
  * XDR routines.
  */
-bool_t xdr_sbdJobsListReq(XDR *, struct sbdJobsListReq *,
-                          struct packet_header *);
+bool xdr_sbdJobsListReq(XDR *, struct sbdJobsListReq *,
+                          struct protocol_header *);
 
-bool_t xdr_sbdJobInfo(XDR *, struct sbdJobInfo *,
-                      struct packet_header *);
+bool xdr_sbdJobInfo(XDR *, struct sbdJobInfo *,
+                      struct protocol_header *);
 
-bool_t xdr_sbdJobsListReply(XDR *, struct sbdJobsListReply *,
-                            struct packet_header *);
+bool xdr_sbdJobsListReply(XDR *, struct sbdJobsListReply *,
+                            struct protocol_header *);
 
 // API
 int call_sbd_host(const char *, void *, size_t, char **,
-                  struct packet_header *, struct lenData *);
+                  struct protocol_header *, struct lenData *);
 
 int sbd_job_info(const char *, struct sbdJobInfo **, int *);
 void sbd_job_info_free(struct sbdJobInfo *, int);

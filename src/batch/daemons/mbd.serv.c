@@ -40,13 +40,13 @@ static int xdrsize_QueueInfoReply(struct queueInfoReply *);
 extern void closeSession(int);
 
 int do_submitReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
-                 struct packet_header *reqHdr, struct sockaddr_in *laddr,
+                 struct protocol_header *reqHdr, struct sockaddr_in *laddr,
                  struct lsfAuth *auth, int *schedule, int dispatch,
                  struct jData **jobData)
 {
     static char fname[] = "do_submitReq";
     static struct submitMbdReply submitReply;
-    static int first = TRUE;
+    static int first = true;
     static struct submitReq subReq;
     int reply;
 
@@ -117,19 +117,19 @@ sendback:
     return 0;
 }
 
-int checkUseSelectJgrps(struct packet_header *reqHdr, struct jobInfoReq *req)
+int checkUseSelectJgrps(struct protocol_header *reqHdr, struct jobInfoReq *req)
 {
     if (req->jobId != 0 && !(req->options & JGRP_ARRAY_INFO))
-        return FALSE;
+        return false;
 
     if ((req->jobName[0] == '\0') && !(req->options & JGRP_ARRAY_INFO))
-        return FALSE;
+        return false;
 
-    return TRUE;
+    return true;
 }
 
 int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                  struct packet_header *reqHdr, int schedule)
+                  struct protocol_header *reqHdr, int schedule)
 {
     static char fname[] = "do_jobInfoReq";
     char *reply_buf = NULL;
@@ -141,7 +141,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     int i, len, listSize = 0;
     struct nodeList *jgrplist = NULL;
     struct jData **joblist = NULL;
-    int selectJgrpsFlag = FALSE;
+    int selectJgrpsFlag = false;
 
     if (logclass & (LC_TRACE | LC_COMM))
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...; channel=%d", fname,
@@ -160,7 +160,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         reply = LSBE_BAD_HOST;
     else {
         if ((selectJgrpsFlag = checkUseSelectJgrps(reqHdr, &jobInfoReq)) ==
-            TRUE) {
+            true) {
             reply = selectJgrps(&jobInfoReq, (void **) &jgrplist, &listSize);
         } else {
             reply = selectJobs(&jobInfoReq, &joblist, &listSize);
@@ -169,13 +169,13 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
                 (struct nodeList *) calloc(listSize, sizeof(struct nodeList));
             for (i = 0; i < listSize; i++) {
                 jgrplist[i].info = (void *) joblist[i];
-                jgrplist[i].isJData = TRUE;
+                jgrplist[i].isJData = true;
             }
             FREEUP(joblist);
         }
     }
 
-    xdr_lsffree(xdr_jobInfoReq, (char *) &jobInfoReq, reqHdr);
+    xdr_free_payload(xdr_jobInfoReq, (char *) &jobInfoReq, reqHdr);
 
     jobInfoHead.numJobs = listSize;
 
@@ -204,8 +204,8 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     reply_buf = calloc(len, sizeof(char));
     xdrmem_create(&xdrs2, reply_buf, len, XDR_ENCODE);
-    struct packet_header replyHdr;
-    memset(&replyHdr, 0, sizeof(struct packet_header));
+    struct protocol_header replyHdr;
+    memset(&replyHdr, 0, sizeof(struct protocol_header));
     replyHdr.operation = reply;
 
     if (!xdr_encodeMsg(&xdrs2, (char *) &jobInfoHead, &replyHdr,
@@ -276,7 +276,7 @@ static int packJgrpInfo(struct jgTreeNode *jgNode, int remain, char **replyBuf,
 {
     struct jobInfoReply jobInfoReply;
     struct submitReq jobBill;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char *request_buf = NULL;
     XDR xdrs;
     int i, len;
@@ -431,10 +431,10 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
                   jobData->qPtr->numUsable, mSchedStage);
 
     if (IS_PEND(jobData->jStatus) && !(options & NO_PEND_REASONS)) {
-        int useNewRs = TRUE;
+        int useNewRs = true;
 
         if (mSchedStage != 0 && !(jobData->processed & JOB_STAGE_DISP))
-            useNewRs = FALSE;
+            useNewRs = false;
         if (useNewRs) {
             svReason = jobData->newReason;
         } else {
@@ -585,7 +585,7 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
     jobInfoReply.jobPriority = jobData->jobPriority;
 
     jobInfoReply.jobBill = &jobBill;
-    copyJobBill(&jobData->shared->jobBill, jobInfoReply.jobBill, FALSE);
+    copyJobBill(&jobData->shared->jobBill, jobInfoReply.jobBill, false);
     if (jobInfoReply.jobBill->options2 & SUB2_USE_DEF_PROCLIMIT) {
         jobInfoReply.jobBill->numProcessors = 1;
         jobInfoReply.jobBill->maxNumProcessors = 1;
@@ -658,8 +658,8 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
     request_buf = calloc(len, sizeof(char));
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
 
-    struct packet_header hdr;
-    memset(&hdr, 0, sizeof(struct packet_header));
+    struct protocol_header hdr;
+    memset(&hdr, 0, sizeof(struct protocol_header));
     hdr.version = version;
 
     if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
@@ -685,7 +685,7 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
 }
 
 int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
-                  struct packet_header *reqHdr, struct lsfAuth *auth)
+                  struct protocol_header *reqHdr, struct lsfAuth *auth)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
@@ -693,7 +693,7 @@ int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     struct jobPeekReply jobPeekReply;
     int reply;
     int cc;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
 
     jobPeekReply.outFile = NULL;
@@ -729,13 +729,13 @@ int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
 
 int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
               struct sockaddr_in *from, char *hostName,
-              struct packet_header *reqHdr, struct lsfAuth *auth)
+              struct protocol_header *reqHdr, struct lsfAuth *auth)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
     int reply;
-    struct packet_header sndhdr;
-    struct packet_header replyHdr;
+    struct protocol_header sndhdr;
+    struct protocol_header replyHdr;
     struct jData *jpbw;
     struct bucket *msgq;
     struct Buffer *buf = bucket->storage;
@@ -777,7 +777,7 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
     log_jobmsg(jpbw, &jmsg, jmsg.header->usrId);
 
     msgq = jpbw->hPtr[0]->msgq[MSG_STAT_QUEUED];
-    eventPending = TRUE;
+    eventPending = true;
 
 
     QUEUE_APPEND(bucket, msgq);
@@ -800,14 +800,14 @@ Reply:
 }
 
 int do_migReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
-              struct packet_header *reqHdr, struct lsfAuth *auth)
+              struct protocol_header *reqHdr, struct lsfAuth *auth)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
     struct migReq migReq;
     struct submitMbdReply migReply;
     int reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
     int i;
 
@@ -850,14 +850,14 @@ Reply:
 }
 
 int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
-                 struct packet_header *reqHdr)
+                 struct protocol_header *reqHdr)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
     struct statusReq statusReq;
     int reply;
     struct hData *hData;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     if (!portok(from)) {
         ls_syslog(LOG_ERR, "%s: Received status report from bad port <%s>",
@@ -899,7 +899,7 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
         }
     }
 
-    xdr_lsffree(xdr_statusReq, (char *) &statusReq, reqHdr);
+    xdr_free_payload(xdr_statusReq, (char *) &statusReq, reqHdr);
 
     if (reqHdr->operation == BATCH_RUSAGE_JOB) {
         free(hp.h_name);
@@ -933,18 +933,18 @@ int do_statusReq(XDR *xdrs, int chfd, struct sockaddr_in *from, int *schedule,
 
 // LavaLite does not support chunk jobs
 int do_chunkStatusReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                      int *schedule, struct packet_header *reqHdr)
+                      int *schedule, struct protocol_header *reqHdr)
 {
     return 0;
 }
 
 int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                  struct packet_header *reqHdr)
+                  struct protocol_header *reqHdr)
 {
     char *reply_buf;
     XDR xdrs2;
     int buflen;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     int reply;
     struct sbdPackage sbdPackage;
     int cc;
@@ -1003,11 +1003,11 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 }
 
 int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                   struct packet_header *reqHdr)
+                   struct protocol_header *reqHdr)
 {
     char *reply_buf;
     XDR xdrs2;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
     int count;
     int reply;
@@ -1054,12 +1054,12 @@ int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 }
 
 int do_userInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                   struct packet_header *reqHdr)
+                   struct protocol_header *reqHdr)
 {
     char *reply_buf;
     XDR xdrs2;
     int reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
     int count;
     struct infoReq userInfoReq;
@@ -1144,12 +1144,12 @@ int xdrsize_QueueInfoReply(struct queueInfoReply *qInfoReply)
 }
 
 int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                    struct packet_header *req_hdr)
+                    struct protocol_header *req_hdr)
 {
     (void)from;
 
     XDR xdrs2;
-    struct packet_header reply_hdr;
+    struct protocol_header reply_hdr;
     char *reply_buf = NULL;
     char *reply_struct = NULL;
     int reply = LSBE_NO_ERROR;
@@ -1170,17 +1170,17 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     if (!xdr_infoReq(xdrs, &qInfoReq, req_hdr)) {
         reply = LSBE_XDR;
         /* Header-only reply, no body */
-        len = (int)sizeof(struct packet_header);
+        len = (int)sizeof(struct protocol_header);
     } else {
         /* Build reply payload */
         reply = checkQueues(&qInfoReq, &qInfoReply);
 
         if (reply == LSBE_NO_ERROR || reply == LSBE_BAD_QUEUE) {
-            len = (int)sizeof(struct packet_header);
+            len = (int)sizeof(struct protocol_header);
             len += xdrsize_QueueInfoReply(&qInfoReply);
         } else {
             /* Errors: header only */
-            len = (int)sizeof(struct packet_header);
+            len = (int)sizeof(struct protocol_header);
         }
     }
 
@@ -1224,14 +1224,14 @@ out:
 
 
 int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                    struct packet_header *reqHdr)
+                    struct protocol_header *reqHdr)
 {
     struct infoReq groupInfoReq;
     char *reply_buf;
     XDR xdrs2;
     int reply;
     int len;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
     struct groupInfoReply groupInfoReply;
 
@@ -1261,7 +1261,7 @@ int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
     len = sizeofGroupInfoReply(&groupInfoReply);
 
-    len += ALIGNWORD_(sizeof(struct packet_header));
+    len += ALIGNWORD_(sizeof(struct protocol_header));
 
     reply_buf = (char *) my_malloc(len, "do_groupInfoReq");
 
@@ -1297,12 +1297,12 @@ int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 }
 
 int do_paramInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                    struct packet_header *reqHdr)
+                    struct protocol_header *reqHdr)
 {
     char *reply_buf;
     XDR xdrs2;
     int reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
     int count, jobSpoolDirLen;
     struct infoReq infoReq;
@@ -1348,14 +1348,14 @@ int do_paramInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 }
 
 int do_queueControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                       char *hostName, struct packet_header *reqHdr,
+                       char *hostName, struct protocol_header *reqHdr,
                        struct lsfAuth *auth)
 {
     struct controlReq bqcReq;
     char reply_buf[MSGSIZE];
     XDR xdrs2;
     int reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     if (!xdr_controlReq(xdrs, &bqcReq, reqHdr)) {
         reply = LSBE_XDR;
@@ -1379,11 +1379,11 @@ int do_queueControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 }
 
 int do_mbdShutDown(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
-                   struct packet_header *reqHdr)
+                   struct protocol_header *reqHdr)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = LSBE_NO_ERROR;
@@ -1398,11 +1398,11 @@ int do_mbdShutDown(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
 }
 
 int do_reconfigReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                   char *hostName, struct packet_header *reqHdr)
+                   char *hostName, struct protocol_header *reqHdr)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = LSBE_NO_ERROR;
@@ -1419,7 +1419,7 @@ int do_reconfigReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 }
 
 int do_hostControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                      char *hostName, struct packet_header *reqHdr,
+                      char *hostName, struct protocol_header *reqHdr,
                       struct lsfAuth *auth)
 {
     struct controlReq hostControlReq;
@@ -1427,7 +1427,7 @@ int do_hostControlReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     XDR xdrs2;
     int reply;
     struct hData *hData;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     if (!xdr_controlReq(xdrs, &hostControlReq, reqHdr)) {
         reply = LSBE_XDR;
@@ -1453,14 +1453,14 @@ checkout:
 }
 
 int do_jobSwitchReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                    char *hostName, struct packet_header *reqHdr,
+                    char *hostName, struct protocol_header *reqHdr,
                     struct lsfAuth *auth)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
     struct jobSwitchReq jobSwitchReq;
     int reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     if (!xdr_jobSwitchReq(xdrs, &jobSwitchReq, reqHdr)) {
         reply = LSBE_XDR;
@@ -1483,19 +1483,19 @@ int do_jobSwitchReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 }
 
 int do_jobMoveReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
-                  struct packet_header *reqHdr, struct lsfAuth *auth)
+                  struct protocol_header *reqHdr, struct lsfAuth *auth)
 {
     char reply_buf[MSGSIZE];
     XDR xdrs2;
     struct jobMoveReq jobMoveReq;
     int reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
 
     if (!xdr_jobMoveReq(xdrs, &jobMoveReq, reqHdr)) {
         reply = LSBE_XDR;
     } else {
-        reply = moveJobArray(&jobMoveReq, TRUE, auth);
+        reply = moveJobArray(&jobMoveReq, true, auth);
     }
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
@@ -1518,10 +1518,10 @@ int do_jobMoveReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
 }
 
 int do_modifyReq(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
-                 struct packet_header *reqHdr, struct lsfAuth *auth)
+                 struct protocol_header *reqHdr, struct lsfAuth *auth)
 {
     static struct submitMbdReply submitReply;
-    static int first = TRUE;
+    static int first = true;
     static struct modifyReq modifyReq;
     int reply;
 
@@ -1548,7 +1548,7 @@ static void initSubmit(int *first, struct submitReq *subReq,
 {
     static char fname[] = "initSubmit";
 
-    if (*first == TRUE) {
+    if (*first == true) {
         subReq->fromHost = (char *) my_malloc(MAXHOSTNAMELEN, fname);
         subReq->jobFile = (char *) my_malloc(MAXFILENAMELEN, fname);
         subReq->inFile = (char *) my_malloc(MAXFILENAMELEN, fname);
@@ -1561,7 +1561,7 @@ static void initSubmit(int *first, struct submitReq *subReq,
         subReq->chkpntDir = (char *) my_malloc(MAXFILENAMELEN, fname);
         subReq->hostSpec = (char *) my_malloc(MAXHOSTNAMELEN, fname);
         submitReply->badJobName = (char *) my_malloc(MAX_CMD_DESC_LEN, fname);
-        *first = FALSE;
+        *first = false;
     } else {
         FREEUP(subReq->chkpntDir);
         FREEUP(submitReply->badJobName);
@@ -1586,13 +1586,13 @@ static int sendBack(int reply, struct submitReq *submitReq,
 {
     char reply_buf[LL_BUFSIZ_64];
     XDR xdrs2;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     if (submitReq->nxf > 0)
         FREEUP(submitReq->xf);
 
     xdrmem_create(&xdrs2, reply_buf, sizeof(reply_buf), XDR_ENCODE);
-    memset(&replyHdr, 0, sizeof(struct packet_header));
+    memset(&replyHdr, 0, sizeof(struct protocol_header));
 
     replyHdr.operation = reply;
     if (!xdr_encodeMsg(&xdrs2,
@@ -1614,12 +1614,12 @@ static int sendBack(int reply, struct submitReq *submitReq,
 void doNewJobReply(struct sbdNode *sbdPtr, int exception)
 {
     static char fname[] = "doNewJobReply";
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     XDR xdrs;
     struct jData *jData = sbdPtr->jData;
     struct jobReply jobReply;
     struct Buffer *buf;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     int cc, s, svReason, replayReason;
 
     if (logclass & LC_COMM)
@@ -1628,7 +1628,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
     if (jData->jobPid != 0)
         return;
 
-    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
+    if (exception == true || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         if (IS_START(jData->jStatus)) {
             jData->newReason = PEND_JOB_START_FAIL;
             jStatusChange(jData, JOB_STAT_PEND, LOG_IT, fname);
@@ -1676,7 +1676,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
         if (lsbParams[LSB_MBD_BLOCK_SEND].paramValue == NULL) {
             struct Buffer *replyBuf;
 
-            if (chan_alloc_buf(&replyBuf, sizeof(struct packet_header)) < 0) {
+            if (chan_alloc_buf(&replyBuf, sizeof(struct protocol_header)) < 0) {
                 goto Leave;
             }
 
@@ -1695,7 +1695,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
             s = chan_sock(sbdPtr->chanfd);
             io_block(s);
 
-            cc = send_packet_header(sbdPtr->chanfd, &hdr);
+            cc = send_protocol_header(sbdPtr->chanfd, &hdr);
             if (cc < 0) {
             }
         }
@@ -1709,11 +1709,11 @@ Leave:
 
 void doProbeReply(struct sbdNode *sbdPtr, int exception)
 {
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     XDR xdrs;
     struct Buffer *buf;
 
-    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
+    if (exception == true || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         sbdPtr->hData->flags |= HOST_NEEDPOLL;
         return;
     }
@@ -1735,7 +1735,7 @@ void doProbeReply(struct sbdNode *sbdPtr, int exception)
 
 void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
 {
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     XDR xdrs;
     struct jData *jData = sbdPtr->jData;
     struct jobReply jobReply;
@@ -1745,17 +1745,17 @@ void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
 
         return;
 
-    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
-        jData->pendEvent.notSwitched = TRUE;
-        eventPending = TRUE;
+    if (exception == true || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
+        jData->pendEvent.notSwitched = true;
+        eventPending = true;
         return;
     }
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
 
     if (!xdr_pack_hdr(&xdrs, &replyHdr)) {
-        jData->pendEvent.notSwitched = TRUE;
-        eventPending = TRUE;
+        jData->pendEvent.notSwitched = true;
+        eventPending = true;
         goto Leave;
     }
 
@@ -1783,7 +1783,7 @@ Leave:
 
 void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
 {
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     XDR xdrs;
     struct jData *jData = sbdPtr->jData;
 
@@ -1799,7 +1799,7 @@ void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
         return;
     }
 
-    if (exception == TRUE || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
+    if (exception == true || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         addPendSigEvent(sbdPtr);
         return;
     }
@@ -1854,10 +1854,10 @@ static void addPendSigEvent(struct sbdNode *sbdPtr)
             jData->pendEvent.sig = sbdPtr->sigVal;
     }
 
-    eventPending = TRUE;
+    eventPending = true;
 }
 int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                       struct packet_header *reqHdr)
+                       struct protocol_header *reqHdr)
 {
     static char fname[] = "do_resourceInfoReq";
     XDR xdrs2;
@@ -1866,7 +1866,7 @@ int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     int reply;
     char *reply_buf;
     int len = 0, i, j;
-    static struct packet_header replyHdr;
+    static struct protocol_header replyHdr;
     char *replyStruct;
 
     if (logclass & LC_TRACE)
@@ -1876,7 +1876,7 @@ int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     resInfoReply.resources = NULL;
 
     if (resInfoReq.numResourceNames > 0)
-        xdr_lsffree(xdr_resourceInfoReq, (char *) &resInfoReq, &replyHdr);
+        xdr_free_payload(xdr_resourceInfoReq, (char *) &resInfoReq, &replyHdr);
 
     if (!xdr_resourceInfoReq(xdrs, &resInfoReq, reqHdr)) {
         reply = LSBE_XDR;
@@ -1977,11 +1977,11 @@ static void freeShareResourceInfoReply(struct lsbShareResourceInfoReply *reply)
 }
 
 int do_runJobReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
-                 struct lsfAuth *auth, struct packet_header *reqHeader)
+                 struct lsfAuth *auth, struct protocol_header *reqHeader)
 {
     struct runJobRequest runJobRequest;
     XDR replyXdr;
-    struct packet_header lsfHeader;
+    struct protocol_header lsfHeader;
     char reply_buf[MSGSIZE / 2];
     int reply;
 
@@ -1997,7 +1997,7 @@ int do_runJobReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
 
 Reply:
 
-    xdr_lsffree(xdr_runJobReq, (char *) &runJobRequest, reqHeader);
+    xdr_free_payload(xdr_runJobReq, (char *) &runJobRequest, reqHeader);
 
     xdrmem_create(&replyXdr, reply_buf, MSGSIZE / 2, XDR_ENCODE);
 
@@ -2018,13 +2018,13 @@ Reply:
 }
 
 int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
-                  struct packet_header *reqHdr, struct lsfAuth *auth)
+                  struct protocol_header *reqHdr, struct lsfAuth *auth)
 {
     struct jobAttrInfoEnt jobAttr;
     struct jData *job;
     XDR xdrs2;
     char reply_buf[MSGSIZE];
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     int reply;
 
     if (!xdr_jobAttrReq(xdrs, &jobAttr, reqHdr)) {

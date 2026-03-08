@@ -28,7 +28,7 @@ int lsb_movejob(int64_t jobId, int *position, int operation)
     XDR xdrs;
     mbdReqType mbdReqtype;
     int cc;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct lsfAuth auth;
 
     if (operation != TO_TOP && operation != TO_BOTTOM) {

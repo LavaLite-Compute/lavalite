@@ -31,7 +31,7 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
     static struct resourceInfoReply lsbResourceInfoReply;
     struct resourceInfoReq resourceInfoReq;
     int cc = 0, i;
-    static struct packet_header hdr;
+    static struct protocol_header hdr;
     char *request_buf;
     char *reply_buf;
     mbdReqType mbdReqtype;
@@ -54,7 +54,7 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
         ls_syslog(LOG_DEBUG1, "%s: Entering this routine...", fname);
 
     if (lsbResourceInfoReply.numResources > 0)
-        xdr_lsffree(xdr_resourceInfoReply, (char *) &lsbResourceInfoReply,
+        xdr_free_payload(xdr_resourceInfoReply, (char *) &lsbResourceInfoReply,
                     &hdr);
 
     if (numResources == NULL || *numResources < 0 ||

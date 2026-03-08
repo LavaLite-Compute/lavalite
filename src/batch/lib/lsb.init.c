@@ -156,7 +156,7 @@ int ll_validate_jobid(const char *s, int64_t *out)
     if (!s || !*s)
         return -1;
 
-    // remember the ll_atoll returns bool_t
+    // remember the ll_atoll returns bool
     if (!ll_atoll(s, &v))
         return -1;
 

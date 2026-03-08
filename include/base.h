@@ -43,7 +43,7 @@
 
 // Yes. Someone has suffered here before.
 
-// Here’s a pointer. Here’s a number. Convert it. Don’t complain.”
+// Reuse the simple primitives that already work.
 
 // LavaLite Principle #7: If you don't handle errors, errors will handle you.
 
@@ -649,7 +649,7 @@ const char *ctime2(time_t *);
 const char *ctime3(const time_t *);
 struct passwd *getpwuid2(uid_t);
 struct passwd *getpwnam2(const char *);
-void open_log(const char *, const char *, bool_t);
+void open_log(const char *, const char *, bool);
 
 // Bug rethink this
 struct extResInfo {

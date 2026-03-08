@@ -249,12 +249,12 @@ int checkResources(struct resourceInfoReq *resourceInfoReq,
                    struct lsbShareResourceInfoReply *reply)
 {
     static char fname[] = "checkResources";
-    int i, j, allResources = FALSE, found = FALSE, replyCode;
+    int i, j, allResources = false, found = false, replyCode;
     struct hData *hPtr;
 
     if (resourceInfoReq->numResourceNames == 1 &&
         !strcmp(resourceInfoReq->resourceNames[0], "")) {
-        allResources = TRUE;
+        allResources = true;
     }
     reply->numResources = 0;
 
@@ -284,30 +284,30 @@ int checkResources(struct resourceInfoReq *resourceInfoReq,
         numResources * sizeof(struct lsbSharedResourceInfo), fname);
 
     for (i = 0; i < resourceInfoReq->numResourceNames; i++) {
-        found = FALSE;
+        found = false;
         for (j = 0; j < numResources; j++) {
-            if (allResources == FALSE &&
+            if (allResources == false &&
                 (strcmp(resourceInfoReq->resourceNames[i],
                         sharedResources[j]->resourceName)))
                 continue;
-            found = TRUE;
+            found = true;
             if ((replyCode = copyResource(
                      reply, sharedResources[j],
                      (hPtr != NULL) ? hPtr->host : NULL)) != LSBE_NO_ERROR) {
                 return replyCode;
             }
             reply->numResources++;
-            if (allResources == FALSE)
+            if (allResources == false)
                 break;
         }
-        if (allResources == FALSE && found == FALSE) {
+        if (allResources == false && found == false) {
             reply->badResource = i;
             reply->numResources = 0;
             FREEUP(reply->resources);
             return LSBE_BAD_RESOURCE;
         }
-        found = FALSE;
-        if (allResources == TRUE)
+        found = false;
+        if (allResources == true)
             break;
     }
     return LSBE_NO_ERROR;
@@ -317,7 +317,7 @@ static int copyResource(struct lsbShareResourceInfoReply *reply,
                         struct sharedResource *resource, char *hostName)
 {
     static char fname[] = "copyResource";
-    int i, j, num, found = FALSE, numInstances;
+    int i, j, num, found = false, numInstances;
     float rsvValue;
     char stringValue[12];
 
@@ -336,14 +336,14 @@ static int copyResource(struct lsbShareResourceInfoReply *reply,
             for (j = 0; j < resource->instances[i]->nHosts; j++) {
                 if (strcmp(hostName, resource->instances[i]->hosts[j]->host))
                     continue;
-                found = TRUE;
+                found = true;
                 break;
             }
         }
-        if (hostName && found == FALSE)
+        if (hostName && found == false)
             continue;
 
-        found = FALSE;
+        found = false;
         reply->resources[num].instances[numInstances].totalValue =
             safeSave(resource->instances[i]->value);
 
@@ -416,7 +416,7 @@ void updSharedResourceByRUNJob(const struct jData *jp)
     struct resVal *resValPtr;
     struct resourceInstance *instance;
     static int *rusgBitMaps = NULL;
-    int adjForPreemptableResource = FALSE;
+    int adjForPreemptableResource = false;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "\
@@ -452,7 +452,7 @@ void updSharedResourceByRUNJob(const struct jData *jp)
             !isReservePreemptResource(resValPtr)) {
             return;
         }
-        adjForPreemptableResource = TRUE;
+        adjForPreemptableResource = true;
     }
 
     for (i = 0; i < jp->numHostPtr; i++) {
@@ -506,7 +506,7 @@ void updSharedResourceByRUNJob(const struct jData *jp)
                 continue;
             } else {
                 TEST_BIT(ldx, rusgBitMaps, isSet)
-                if (isSet == TRUE)
+                if (isSet == true)
                     continue;
             }
 
@@ -972,7 +972,7 @@ int isReservePreemptResource(struct resVal *resValPtr)
 
     FORALL_PRMPT_RSRCS(resn)
     {
-        int valSet = FALSE;
+        int valSet = false;
         TEST_BIT(resn, resValPtr->rusgBitMaps, valSet);
         if ((valSet != 0) && (resValPtr->val[resn] > 0.0)) {
             return 1;
@@ -1198,7 +1198,7 @@ int isHostsInSameInstance(int index, struct hData *hPtr1, struct hData *hPtr2)
     int j;
 
     if (hPtr1 == hPtr2) {
-        return TRUE;
+        return true;
     }
 
     for (i = 0; i < numResources; i++) {
@@ -1219,13 +1219,13 @@ int isHostsInSameInstance(int index, struct hData *hPtr1, struct hData *hPtr2)
                 }
             }
             if (found >= 2) {
-                return TRUE;
+                return true;
             }
             if (found == 1) {
-                return FALSE;
+                return false;
             }
         }
-        return FALSE;
+        return false;
     }
-    return FALSE;
+    return false;
 }

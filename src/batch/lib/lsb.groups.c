@@ -97,12 +97,12 @@ static int sendGrpReq(char *clusterName, int options, struct infoReq *groupInfo,
     XDR xdrs;
     char request_buf[MSGSIZE];
     char *reply_buf;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     mbdReqType mbdReqtype;
 
     (void) options;
 
-    xdr_lsffree(xdr_groupInfoReply, (char *) reply, &hdr);
+    xdr_free_payload(xdr_groupInfoReply, (char *) reply, &hdr);
 
     mbdReqtype = BATCH_GRP_INFO;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);

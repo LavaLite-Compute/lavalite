@@ -149,7 +149,7 @@ void prtFileNames(struct jobInfoEnt *job, int prtCwd)
     char prline[MAXLINELEN];
     int i;
 
-    if (prtCwd == TRUE) {
+    if (prtCwd == true) {
         if (job->cwd[0] == '/' || job->cwd[0] == '\\' ||
             (job->cwd[0] != '\0' && job->cwd[1] == ':'))
             sprintf(prline, ", CWD <%s>", job->cwd);
@@ -779,12 +779,12 @@ void displayLong(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
     char *hostPtr, *sp;
     char hostName[MAXHOSTNAMELEN];
     float hostFactor, *getFactor;
-    static int first = TRUE;
+    static int first = true;
     static struct lsInfo *lsInfo;
     char prline[MAXLINELEN];
 
     if (first) {
-        first = FALSE;
+        first = false;
         TIMEIT(0, (lsInfo = ls_info()), "ls_info");
         if (lsInfo == NULL) {
             ls_perror("ls_info");
@@ -792,9 +792,9 @@ void displayLong(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
         }
     }
 
-    prtHeader(job, TRUE, FALSE);
-    prtJobSubmit(job, FALSE, FALSE);
-    TIMEIT(1, prtFileNames(job, TRUE), "prtFileNames");
+    prtHeader(job, true, false);
+    prtJobSubmit(job, false, false);
+    TIMEIT(1, prtFileNames(job, true), "prtFileNames");
 
     hostPtr = job->submit.hostSpec;
     hostFactor = 1.0;
@@ -814,7 +814,7 @@ void displayLong(struct jobInfoEnt *job, struct jobInfoHead *jInfoH,
     }
 
     if (job->startTime && !IS_PEND(job->status)) {
-        TIMEIT(1, prtJobStart(job, BJOBS_PRINT, job->jobPid, FALSE),
+        TIMEIT(1, prtJobStart(job, BJOBS_PRINT, job->jobPid, false),
                "prtJobStart");
     }
 

@@ -254,9 +254,9 @@ static int unlinkBufFiles(char *lsbDir, char *jobFile, struct jobCard *jp,
     static char fname[] = "unlinkBufFiles()";
     char fileBuf[MAXFILENAMELEN], jfPath[MAXFILENAMELEN];
     char errMsg[MAXLINELEN];
-    int error = FALSE;
+    int error = false;
     int errCode;
-    int doMount = TRUE;
+    int doMount = true;
 
     if (logclass & LC_EXEC) {
         sprintf(errMsg, "%s: Enter ... job <%s> lsbDir <%s> jobFile <%s>",
@@ -277,7 +277,7 @@ static int unlinkBufFiles(char *lsbDir, char *jobFile, struct jobCard *jp,
         sprintf(errMsg, I18N_JOB_FAIL_S_S_M, fname,
                 lsb_jobid2str(jp->jobSpecs.jobId), "myunlink", fileBuf);
         sbdSyslog(LOG_ERR, errMsg);
-        error = TRUE;
+        error = true;
     } else if (errCode == 1) {
         doMount = 0;
     }
@@ -288,7 +288,7 @@ static int unlinkBufFiles(char *lsbDir, char *jobFile, struct jobCard *jp,
             sprintf(errMsg, I18N_JOB_FAIL_S_S_M, fname,
                     lsb_jobid2str(jp->jobSpecs.jobId), "myunlink", fileBuf);
             sbdSyslog(LOG_ERR, errMsg);
-            error = TRUE;
+            error = true;
         }
     }
 
@@ -297,7 +297,7 @@ static int unlinkBufFiles(char *lsbDir, char *jobFile, struct jobCard *jp,
         sprintf(errMsg, I18N_JOB_FAIL_S_S_M, fname,
                 lsb_jobid2str(jp->jobSpecs.jobId), "myunlink", fileBuf);
         sbdSyslog(LOG_ERR, errMsg);
-        error = TRUE;
+        error = true;
     }
 
     sprintf(fileBuf, "%s.in", jfPath);
@@ -305,7 +305,7 @@ static int unlinkBufFiles(char *lsbDir, char *jobFile, struct jobCard *jp,
         sprintf(errMsg, I18N_JOB_FAIL_S_S_M, fname,
                 lsb_jobid2str(jp->jobSpecs.jobId), "myunlink", fileBuf);
         sbdSyslog(LOG_ERR, errMsg);
-        error = TRUE;
+        error = true;
     }
 
     sprintf(fileBuf, "%s.tmp", jfPath);
@@ -313,7 +313,7 @@ static int unlinkBufFiles(char *lsbDir, char *jobFile, struct jobCard *jp,
         sprintf(errMsg, I18N_JOB_FAIL_S_S_M, fname,
                 lsb_jobid2str(jp->jobSpecs.jobId), "myunlink", fileBuf);
         sbdSyslog(LOG_ERR, errMsg);
-        error = TRUE;
+        error = true;
     }
 
     sprintf(fileBuf, "%s.shell", jfPath);
@@ -321,7 +321,7 @@ static int unlinkBufFiles(char *lsbDir, char *jobFile, struct jobCard *jp,
         sprintf(errMsg, I18N_JOB_FAIL_S_S_M, fname,
                 lsb_jobid2str(jp->jobSpecs.jobId), "myunlink", fileBuf);
         sbdSyslog(LOG_ERR, errMsg);
-        error = TRUE;
+        error = true;
     }
     if (error)
         return -1;
@@ -338,7 +338,7 @@ int initPaths(struct jobCard *jp, struct hostent *fromHp, struct lenData *jf)
     char shellFile[MAXFILENAMELEN];
     int i;
     char *sp;
-    bool_t goodSpoolDir = FALSE;
+    bool goodSpoolDir = false;
 
     (void) umask(jp->jobSpecs.umask);
 
@@ -411,11 +411,11 @@ int initPaths(struct jobCard *jp, struct hostent *fromHp, struct lenData *jf)
 
     if (jp->jobSpecs.jobSpoolDir[0] != '\0') {
         if (access(jp->jobSpecs.jobSpoolDir, W_OK) == 0)
-            goodSpoolDir = TRUE;
+            goodSpoolDir = true;
         else {
             struct stat tmpspdir;
             if (stat(jp->jobSpecs.jobSpoolDir, &tmpspdir) == 0)
-                goodSpoolDir = TRUE;
+                goodSpoolDir = true;
             else
                 jp->jobSpecs.jobSpoolDir[0] = '\0';
         }
@@ -678,11 +678,11 @@ static int lsbatchDir(char *lsbDir, struct jobCard *jp, struct hostent *fromHp,
     static char fname[] = "lsbatchDir()";
     char errMsg[MAXLINELEN];
     struct passwd *pw;
-    bool_t goodSpoolDir = FALSE;
+    bool goodSpoolDir = false;
 
     if (jp->jobSpecs.jobSpoolDir[0] != '\0') {
         if (access(jp->jobSpecs.jobSpoolDir, W_OK) == 0)
-            goodSpoolDir = TRUE;
+            goodSpoolDir = true;
         else {
             jp->jobSpecs.jobSpoolDir[0] = '\0';
         }
@@ -1049,9 +1049,9 @@ static void determineFilebufStdoutDirect(char *filebuf,
 {
     static char fname[] = "determineFilebufStdoutDirect";
     char chr;
-    int lastSlash = FALSE;
-    int outDirOk = FALSE;
-    int outputIsDirectory = FALSE;
+    int lastSlash = false;
+    int outDirOk = false;
+    int outputIsDirectory = false;
     struct stat stb;
     char *usersFile = NULL;
     char *ext = NULL;
@@ -1072,18 +1072,18 @@ static void determineFilebufStdoutDirect(char *filebuf,
     chr = usersFile[strlen(usersFile) - 1];
 
     if (chr == '/' || chr == '\\') {
-        outputIsDirectory = TRUE;
-        lastSlash = TRUE;
+        outputIsDirectory = true;
+        lastSlash = true;
     }
 
     if (!stat(usersFile, &stb) && S_ISDIR(stb.st_mode)) {
-        outputIsDirectory = TRUE;
-        outDirOk = TRUE;
+        outputIsDirectory = true;
+        outDirOk = true;
     }
 
     if (outputIsDirectory && !outDirOk) {
         if (mkdir(usersFile, 0700) == 0) {
-            outDirOk = TRUE;
+            outDirOk = true;
         }
     }
 
@@ -1106,7 +1106,7 @@ static int openStdFiles(char *lsbDir, char *chkpntDir,
     char filebuf[MAXFILENAMELEN], filebufLink[MAXFILENAMELEN];
     static char stdinName[MAXFILENAMELEN];
     char xMsg[3 * MSGSIZE], rcpMsg[MSGSIZE];
-    char xfile = FALSE;
+    char xfile = false;
     char errMsg[MAXLINELEN];
     struct jobSpecs *jobSpecsPtr = &(jobCardPtr->jobSpecs);
     char jobFile[MAXFILENAMELEN], jobFileLink[MAXFILENAMELEN];
@@ -1115,8 +1115,8 @@ static int openStdFiles(char *lsbDir, char *chkpntDir,
     char *pStrTmp;
     struct hostent spoolHostEnt;
 
-    int jobfileDotOutIsLink = FALSE;
-    int jobfileDotErrIsLink = FALSE;
+    int jobfileDotOutIsLink = false;
+    int jobfileDotErrIsLink = false;
 
     if (logclass & LC_EXEC) {
         sprintf(errMsg, "%s, Entering openStdFiles()", fname);
@@ -1263,7 +1263,7 @@ static int openStdFiles(char *lsbDir, char *chkpntDir,
     xMsg[0] = '\0';
     for (i = 0; i < jobSpecsPtr->nxf; i++) {
         if (jobSpecsPtr->xf[i].options & XF_OP_SUB2EXEC) {
-            xfile = TRUE;
+            xfile = true;
 
             if (rcpFile(jobSpecsPtr, jobSpecsPtr->xf + i,
                         jobCardPtr->jobSpecs.fromHost, XF_OP_SUB2EXEC,
@@ -1417,7 +1417,7 @@ OpenStdin:
         if (stdoutDirectSymLink(jobFile, "out", jobSpecsPtr) < 0) {
             return -1;
         }
-        jobfileDotOutIsLink = TRUE;
+        jobfileDotOutIsLink = true;
     }
 
     if ((outFlag) && !(chkpntDir == NULL)) {
@@ -1509,7 +1509,7 @@ OpenStdin:
             if (stdoutDirectSymLink(jobFile, "err", jobSpecsPtr) < 0) {
                 return -1;
             }
-            jobfileDotErrIsLink = TRUE;
+            jobfileDotErrIsLink = true;
         }
 
         if ((errFlag) && !(chkpntDir == NULL)) {
@@ -1725,17 +1725,17 @@ int isAbsolutePathSub(struct jobCard *jp, const char *path)
     if (path[0] == '/' ||
         ((jp->jobSpecs.options2 & SUB2_HOST_NT) &&
          (path[0] == '\\' || (path[0] != '\0' && path[1] == ':'))))
-        return TRUE;
+        return true;
     else
-        return FALSE;
+        return false;
 }
 
 int isAbsolutePathExec(const char *path)
 {
     if (path[0] == '/')
-        return TRUE;
+        return true;
     else
-        return FALSE;
+        return false;
 }
 
 void jobFileExitStatus(struct jobCard *jobCard)

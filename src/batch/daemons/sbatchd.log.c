@@ -438,7 +438,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
     if (!fp)
         return -1;
 
-    bool_t got_job_id = false;
+    bool got_job_id = false;
     char line[LL_BUFSIZ_512];
     while (fgets(line, sizeof(line), fp) != NULL) {
         char *eq = strchr(line, '=');

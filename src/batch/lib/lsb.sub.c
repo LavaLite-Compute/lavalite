@@ -403,7 +403,7 @@ static int64_t send_batch(struct submitReq *submitReqPtr,
     int reqBufSize;
     char *reply_buf;
     int cc;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct submitMbdReply *reply;
     int64_t jobId;
 
@@ -3951,15 +3951,15 @@ struct ll_buf {
 static int ll_buf_grow(struct ll_buf *, size_t);
 static int ll_buf_append_mem(struct ll_buf *, const void *, size_t);
 static int ll_buf_append_str(struct ll_buf *, const char *);
-static bool_t is_ascii_alpha(int);
-static bool_t is_ascii_digit(int);
-static bool_t is_ascii_ident_start(int);
-static bool_t is_ascii_ident_char(int);
-static bool_t is_sh_ident(const char *, size_t);
-static bool_t is_exported_bash_func_name(const char *, size_t);
-static bool_t value_has_newline(const char *);
-static bool_t env_name_has_prefix(const char *, size_t, const char *);
-static bool_t env_is_denied(const char *, size_t, bool_t);
+static bool is_ascii_alpha(int);
+static bool is_ascii_digit(int);
+static bool is_ascii_ident_start(int);
+static bool is_ascii_ident_char(int);
+static bool is_sh_ident(const char *, size_t);
+static bool is_exported_bash_func_name(const char *, size_t);
+static bool value_has_newline(const char *);
+static bool env_name_has_prefix(const char *, size_t, const char *);
+static bool env_is_denied(const char *, size_t, bool);
 static int ll_buf_append_sh_export(struct ll_buf *, const char *,
                                    size_t , const char *);
 
@@ -4012,27 +4012,27 @@ static int ll_buf_append_str(struct ll_buf *b, const char *s)
     return ll_buf_append_mem(b, s, strlen(s));
 }
 
-static bool_t is_ascii_alpha(int c)
+static bool is_ascii_alpha(int c)
 {
     return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
 }
 
-static bool_t is_ascii_digit(int c)
+static bool is_ascii_digit(int c)
 {
     return (c >= '0' && c <= '9');
 }
 
-static bool_t is_ascii_ident_start(int c)
+static bool is_ascii_ident_start(int c)
 {
     return (is_ascii_alpha(c) || c == '_');
 }
 
-static bool_t is_ascii_ident_char(int c)
+static bool is_ascii_ident_char(int c)
 {
     return (is_ascii_alpha(c) || is_ascii_digit(c) || c == '_');
 }
 
-static bool_t is_sh_ident(const char *s, size_t n)
+static bool is_sh_ident(const char *s, size_t n)
 {
     size_t i;
     unsigned char c;
@@ -4056,7 +4056,7 @@ static bool_t is_sh_ident(const char *s, size_t n)
     return true;
 }
 
-static bool_t is_exported_bash_func_name(const char *name, size_t n)
+static bool is_exported_bash_func_name(const char *name, size_t n)
 {
     // BASH_FUNC_<fname>%%  (bash exported function marker)
     if (n < 12) {
@@ -4070,12 +4070,12 @@ static bool_t is_exported_bash_func_name(const char *name, size_t n)
     return (name[n - 2] == '%' && name[n - 1] == '%');
 }
 
-static bool_t value_has_newline(const char *v)
+static bool value_has_newline(const char *v)
 {
     return (v != NULL && strchr(v, '\n') != NULL);
 }
 
-static bool_t env_name_has_prefix(const char *name, size_t n, const char *prefix)
+static bool env_name_has_prefix(const char *name, size_t n, const char *prefix)
 {
     size_t pn;
 
@@ -4087,7 +4087,7 @@ static bool_t env_name_has_prefix(const char *name, size_t n, const char *prefix
     return (strncmp(name, prefix, pn) == 0);
 }
 
-static bool_t env_is_denied(const char *name, size_t n, bool_t interactive)
+static bool env_is_denied(const char *name, size_t n, bool interactive)
 {
     static const char *deny_exact[] = {
         "HOME", "PWD", "USER"
@@ -4260,7 +4260,7 @@ static int ll_buf_append_job_exit_tail(struct ll_buf *);
 static int create_job_file(struct submit *jobSubReq, struct wire_job_file *jf)
 {
     struct ll_buf b;
-    bool_t interactive;
+    bool interactive;
 
     memset(&b, 0, sizeof(b));
 

@@ -61,9 +61,9 @@ int checkGroups(struct infoReq *groupInfoReq,
     }
 
     if (groupInfoReq->options & GRP_RECURSIVE)
-        recursive = TRUE;
+        recursive = true;
     else
-        recursive = FALSE;
+        recursive = false;
 
     if (groupInfoReq->options & HOST_GRP) {
         if (groupInfoReq->options & GRP_ALL) {
@@ -144,16 +144,16 @@ static struct groupInfoEnt *getGroupInfoEnt(char **groups, int *num,
 
         for (i = 0; i < *num; i++) {
             struct groupInfoEnt *g;
-            bool_t validUGrp = FALSE;
+            bool validUGrp = false;
 
             for (k = 0; k < numofugroups; k++) {
                 if (strcmp(usergroups[k]->group, groups[i]) == 0) {
-                    validUGrp = TRUE;
+                    validUGrp = true;
                     break;
                 }
             }
 
-            if (validUGrp == FALSE) {
+            if (validUGrp == false) {
                 struct groupInfoEnt *tmpgroupInfoEnt;
                 lsberrno = LSBE_BAD_USER;
                 *num = i;
@@ -298,7 +298,7 @@ char **expandGrp(struct gData *gp, char *gName, int *num)
 {
     char **memberTab;
 
-    *num = countEntries(gp, TRUE);
+    *num = countEntries(gp, true);
     if (!*num) {
         memberTab = (char **) my_calloc(1, sizeof(char *), "expandGrp");
         memberTab[0] = gName;
@@ -307,7 +307,7 @@ char **expandGrp(struct gData *gp, char *gName, int *num)
     }
     memberTab = (char **) my_calloc(*num, sizeof(char *), "expandGrp");
 
-    fillMembers(gp, memberTab, TRUE);
+    fillMembers(gp, memberTab, true);
     return memberTab;
 }
 void fillMembers(struct gData *gp, char **memberTab, char first)
@@ -318,7 +318,7 @@ void fillMembers(struct gData *gp, char **memberTab, char first)
     int i;
 
     if (first) {
-        first = FALSE;
+        first = false;
         mcnt = 0;
     }
 
@@ -331,7 +331,7 @@ void fillMembers(struct gData *gp, char **memberTab, char first)
     }
 
     for (i = 0; i < gp->numGroups; i++)
-        fillMembers(gp->gPtr[i], memberTab, FALSE);
+        fillMembers(gp->gPtr[i], memberTab, false);
 }
 struct gData *getGroup(int groupType, char *member)
 {
@@ -357,14 +357,14 @@ struct gData *getGroup(int groupType, char *member)
 char gDirectMember(char *word, struct gData *gp)
 {
     if (word == NULL || gp == NULL)
-        return FALSE;
+        return false;
 
     if (gp->numGroups == 0 && gp->memberTab.numEnts == 0)
-        return TRUE;
+        return true;
 
     if (h_getEnt_(&gp->memberTab, word))
-        return TRUE;
-    return FALSE;
+        return true;
+    return false;
 }
 
 char gMember(char *word, struct gData *gp)
@@ -374,16 +374,16 @@ char gMember(char *word, struct gData *gp)
     INC_CNT(PROF_CNT_gMember);
 
     if (word == NULL || gp == NULL)
-        return FALSE;
+        return false;
 
     if (gDirectMember(word, gp))
-        return TRUE;
+        return true;
 
     for (i = 0; i < gp->numGroups; i++) {
         if (gMember(word, gp->gPtr[i]))
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 int countEntries(struct gData *gp, char first)
@@ -397,7 +397,7 @@ int countEntries(struct gData *gp, char first)
     num += gp->memberTab.numEnts;
 
     for (i = 0; i < gp->numGroups; i++)
-        countEntries(gp->gPtr[i], FALSE);
+        countEntries(gp->gPtr[i], false);
 
     return num;
 }
@@ -449,7 +449,7 @@ void uDataGroupCreate()
 
         setRemoveElement(allUsersSet, (void *) u);
 
-        if (USER_GROUP_IS_ALL_USERS(usergroups[i]) == TRUE) {
+        if (USER_GROUP_IS_ALL_USERS(usergroups[i]) == true) {
             u->flags |= USER_ALL;
 
             if (u->children) {
@@ -538,7 +538,7 @@ void setuDataCreate()
             FOR_EACH_USER_ANCESTOR_UGRP(u, ancestor)
             {
                 if (setIsMember(uGrpAllAncestorSet, (void *) ancestor) ==
-                    FALSE) {
+                    false) {
                     char strBuf[512];
                     LS_BITSET_OBSERVER_T *observer;
 
@@ -812,14 +812,14 @@ static void getSpecifiedHostGroup(char **grpName, int numGrpName,
     int i, count;
 
     for (count = 0; count < numGrpName; count++) {
-        int groupFound = FALSE;
+        int groupFound = false;
 
         for (i = 0; i < ngrp; i++) {
             if (SKIP_HOST_GROUP(gplist[i]->group)) {
                 continue;
             }
             if (strcmp(gplist[i]->group, grpName[count]) == 0) {
-                groupFound = TRUE;
+                groupFound = true;
                 break;
             }
         }

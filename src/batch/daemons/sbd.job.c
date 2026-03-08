@@ -164,9 +164,9 @@ sbdReplyType job_exec(struct jobCard *jobCardPtr, int chfd)
     else
         jobSpecsPtr->jobPGid = pid;
 
-    jobCardPtr->missing = FALSE;
+    jobCardPtr->missing = false;
     jobCardPtr->notReported = 0;
-    jobCardPtr->needReportRU = FALSE;
+    jobCardPtr->needReportRU = false;
     return ERR_NO_ERROR;
 }
 
@@ -465,7 +465,7 @@ static void execJob(struct jobCard *jobCardPtr, int chfd)
     sigset_t newmask;
     XDR xdrs;
     char buf[MSGSIZE];
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     static char *pLSB_EXEC_HOSTCWDS = NULL;
 
@@ -960,7 +960,7 @@ int setJobEnv(struct jobCard *jp)
         char *tmppath = NULL;
         int len;
         char *envpath;
-        int cc = TRUE;
+        int cc = true;
 
         if (lsbParams[LSF_BINDIR].paramValue != NULL) {
             envpath = getenv("PATH");
@@ -1181,7 +1181,7 @@ int job_finish(struct jobCard *jobCard, int report)
             return 0;
         }
 
-        if (jobCard->userJobSucc == TRUE) {
+        if (jobCard->userJobSucc == true) {
             jobCard->postJobStarted = 1;
             jobCard->jobSpecs.jobPid = pid;
             jobCard->jobSpecs.jobPGid = pid;
@@ -1285,8 +1285,8 @@ void status_report(void)
 {
     static char fname[] = "status_report()";
     struct jobCard *jp, *next;
-    static char mailed = TRUE;
-    int rep, allReported = TRUE;
+    static char mailed = true;
+    int rep, allReported = true;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG2, "status_report: Entering..");
@@ -1343,10 +1343,10 @@ void status_report(void)
                     if (jp->notReported > 0)
                         jp->notReported = 0;
                 } else {
-                    allReported = FALSE;
+                    allReported = false;
                     jp->notReported++;
                     if (jp->notReported == 40 && !mailed) {
-                        mailed = TRUE;
+                        mailed = true;
                         lsb_merr(_i18n_printf(
                             "%s: unable to report job %s status to master; "
                             "retried %d times\n",
@@ -1358,8 +1358,8 @@ void status_report(void)
         }
     }
 
-    if (allReported == TRUE)
-        mailed = FALSE;
+    if (allReported == true)
+        mailed = false;
 }
 
 void rmvJobStarterStr(char *line, char *jobStarter)
@@ -1398,12 +1398,12 @@ static int isLink(char *filename)
     static char fname[] = "isLink";
     struct stat statBuf;
     int lstatReturnValue;
-    int returnValue = FALSE;
+    int returnValue = false;
 
     lstatReturnValue = lstat(filename, &statBuf);
     if (lstatReturnValue == 0) {
         if (S_ISLNK(statBuf.st_mode)) {
-            returnValue = TRUE;
+            returnValue = true;
         }
     }
 
@@ -1428,8 +1428,8 @@ static void shouldCopyFromLsbatch(struct jobCard *jp, int *cpyStdoutFromLsbatch,
 {
     static char fname[] = "shouldCopyFromLsbatch";
 
-    *cpyStdoutFromLsbatch = TRUE;
-    *cpyStderrFromLsbatch = TRUE;
+    *cpyStdoutFromLsbatch = true;
+    *cpyStderrFromLsbatch = true;
 
     if (lsbStdoutDirect) {
         char filename[MAXFILENAMELEN];
@@ -1438,7 +1438,7 @@ static void shouldCopyFromLsbatch(struct jobCard *jp, int *cpyStdoutFromLsbatch,
             sprintf(filename, "%s.out", jp->jobSpecs.jobFile);
 
             if (isLink(filename)) {
-                *cpyStdoutFromLsbatch = FALSE;
+                *cpyStdoutFromLsbatch = false;
             }
         }
 
@@ -1446,7 +1446,7 @@ static void shouldCopyFromLsbatch(struct jobCard *jp, int *cpyStdoutFromLsbatch,
             sprintf(filename, "%s.err", jp->jobSpecs.jobFile);
 
             if (isLink(filename)) {
-                *cpyStderrFromLsbatch = FALSE;
+                *cpyStderrFromLsbatch = false;
             }
         }
     }
@@ -1467,27 +1467,27 @@ static int send_results(struct jobCard *jp)
     static char fname[] = "send_results()";
     struct hostent *hp;
     FILE *mail = NULL, *fp, *errout = NULL, *output = NULL, *notif = NULL;
-    int sendWarning = FALSE;
+    int sendWarning = false;
     char *result;
     char line[MSGSIZE * 2];
     char fileName[MAXFILENAMELEN];
     char *myhostnm;
     int k, nItems, i;
     char ps[MSGSIZE * 4];
-    char withps = FALSE;
+    char withps = false;
     char *sp, *jobStarter;
-    int errFileError = FALSE;
+    int errFileError = false;
     char ofileHost[MAXFILENAMELEN];
     struct stat ostat;
     int ofIdx;
     char rcpMsg[MSGSIZE];
     int w_status;
     float cpuTime = jp->cpuTime;
-    char xfile = FALSE;
+    char xfile = false;
     int hasError = 0;
 
-    char outputIsDirectory = FALSE;
-    char errIsDirectory = FALSE;
+    char outputIsDirectory = false;
+    char errIsDirectory = false;
     char outputFileName[MAXFILENAMELEN];
     char errFileName[MAXFILENAMELEN];
     char jobIdFile[16];
@@ -1499,9 +1499,9 @@ static int send_results(struct jobCard *jp)
     int64_t submitJid;
     char jobIdStr[32];
 
-    int copyStdoutFromLsbatch = TRUE;
-    int copyStderrFromLsbatch = TRUE;
-    int errorOpeningOutputFile = FALSE;
+    int copyStdoutFromLsbatch = true;
+    int copyStderrFromLsbatch = true;
+    int errorOpeningOutputFile = false;
 
     shouldCopyFromLsbatch(jp, &copyStdoutFromLsbatch, &copyStderrFromLsbatch);
 
@@ -1553,29 +1553,29 @@ static int send_results(struct jobCard *jp)
 
     if (jp->jobSpecs.options & SUB_OUT_FILE) {
         char chr;
-        int lastSlash = FALSE;
-        int outDirOk = FALSE;
+        int lastSlash = false;
+        int outDirOk = false;
 
         chr = jp->jobSpecs.outFile[strlen(jp->jobSpecs.outFile) - 1];
 
         if (chr == '/' || chr == '\\') {
-            outputIsDirectory = TRUE;
-            lastSlash = TRUE;
+            outputIsDirectory = true;
+            lastSlash = true;
         }
 
         if (stat(jp->jobSpecs.outFile, &stb) == 0 && S_ISDIR(stb.st_mode)) {
-            outputIsDirectory = TRUE;
-            outDirOk = TRUE;
+            outputIsDirectory = true;
+            outDirOk = true;
         }
 
         if (!outputIsDirectory) {
             strcpy(outputFileName, jp->jobSpecs.outFile);
-            outDirOk = TRUE;
+            outDirOk = true;
         } else {
             strcpy(outputFileName, jp->jobSpecs.outFile);
             if (!outDirOk) {
                 if (mkdir(outputFileName, 0700) == 0) {
-                    outDirOk = TRUE;
+                    outDirOk = true;
                 }
             }
 
@@ -1592,7 +1592,7 @@ static int send_results(struct jobCard *jp)
         }
 
         if (output == NULL) {
-            errorOpeningOutputFile = TRUE;
+            errorOpeningOutputFile = true;
 
             if (copyStdoutFromLsbatch) {
                 sprintf(line,
@@ -1606,7 +1606,7 @@ static int send_results(struct jobCard *jp)
             }
 
             strcat(ps, line);
-            withps = TRUE;
+            withps = true;
 
             sprintf(mailSizeStr, "%s", "y");
             putEnv("LSB_OUTPUT_TARGETFAILED", mailSizeStr);
@@ -1647,7 +1647,7 @@ static int send_results(struct jobCard *jp)
         if (jp->jobSpecs.options & SUB_INTERACTIVE) {
             notif = myfopen_(LSDEVNULL, "a", hp);
 
-            sendWarning = TRUE;
+            sendWarning = true;
 
         } else {
             notif = output;
@@ -1655,34 +1655,34 @@ static int send_results(struct jobCard *jp)
     }
 
     if (notif == output) {
-        sendWarning = TRUE;
+        sendWarning = true;
     }
 
     if (jp->jobSpecs.options & SUB_ERR_FILE) {
         char chr;
-        int lastSlash = FALSE;
-        int errDirOk = FALSE;
+        int lastSlash = false;
+        int errDirOk = false;
 
         chr = jp->jobSpecs.errFile[strlen(jp->jobSpecs.errFile) - 1];
 
         if (chr == '/' || chr == '\\') {
-            errIsDirectory = TRUE;
-            lastSlash = TRUE;
+            errIsDirectory = true;
+            lastSlash = true;
         }
 
         if (stat(jp->jobSpecs.errFile, &stb) == 0 && S_ISDIR(stb.st_mode)) {
-            errIsDirectory = TRUE;
-            errDirOk = TRUE;
+            errIsDirectory = true;
+            errDirOk = true;
         }
 
         if (!errIsDirectory) {
             strcpy(errFileName, jp->jobSpecs.errFile);
-            errDirOk = TRUE;
+            errDirOk = true;
         } else {
             strcpy(errFileName, jp->jobSpecs.errFile);
             if (!errDirOk) {
                 if (mkdir(errFileName, 0700) == 0) {
-                    errDirOk = TRUE;
+                    errDirOk = true;
                 }
             }
 
@@ -1700,9 +1700,9 @@ static int send_results(struct jobCard *jp)
                     "included in this report.\n",
                     jp->jobSpecs.errFile, strerror(errno));
             strcat(ps, line);
-            withps = TRUE;
+            withps = true;
             errout = notif;
-            errFileError = TRUE;
+            errFileError = true;
         }
     } else {
         errout = output;
@@ -1778,7 +1778,7 @@ static int send_results(struct jobCard *jp)
         if (line == NULL) {
             fprintf(notif, "Corrupted jobfile <%s>\n", jp->jobSpecs.jobFile);
         } else {
-            int find = FALSE;
+            int find = false;
             jobStarter = getenv("LSB_JOB_STARTER");
             fputs(_i18n_printf("\n%s\n", "Your job looked like:"), notif);
             fputs("\n----------------------------------------------------------"
@@ -1792,8 +1792,8 @@ static int send_results(struct jobCard *jp)
                 if (strstr(line, "# LOGIN_SHELL") != NULL)
                     continue;
                 if (strstr(line, "SCRIPT_\n") != NULL) {
-                    if (find == FALSE) {
-                        find = TRUE;
+                    if (find == false) {
+                        find = true;
                         continue;
                     }
 
@@ -1912,7 +1912,7 @@ static int send_results(struct jobCard *jp)
             sprintf(line, "Read file <%s> for stdout output of this job.\n",
                     jp->jobSpecs.outFile);
         strcat(ps, line);
-        withps = TRUE;
+        withps = true;
     }
 
     if (!((jp->jobSpecs.options & SUB_OUT_FILE) &&
@@ -1925,7 +1925,7 @@ static int send_results(struct jobCard *jp)
                     "<%s>: your job was probably aborted prematurely.\n",
                     fileName);
             strcat(ps, line);
-            withps = TRUE;
+            withps = true;
         } else {
             if ((output == mail) && (mailSizeLimit > 0) &&
                 (outfileStat.st_size > mailSizeLimit * 1024)) {
@@ -1988,7 +1988,7 @@ static int send_results(struct jobCard *jp)
             sprintf(line, "Unable to read stderr data from stderr buffer file; "
                           "your job was probably aborted prematurely.\n");
             strcat(ps, line);
-            withps = TRUE;
+            withps = true;
         } else {
             if (errFileError)
         fprintf(errout, "\n\n%s\n\n",
@@ -1997,7 +1997,7 @@ static int send_results(struct jobCard *jp)
                 sprintf(line, "Read file <%s> for stderr output of this job.\n",
                         jp->jobSpecs.errFile);
                 strcat(ps, line);
-                withps = TRUE;
+                withps = true;
             }
             while (copyStderrFromLsbatch &&
                    (nItems = fread(line, sizeof(char), MAXLINELEN, fp))) {
@@ -2035,7 +2035,7 @@ static int send_results(struct jobCard *jp)
                 }
             }
 
-            xfile = TRUE;
+            xfile = true;
 
             if (rcpFile(&jp->jobSpecs, jp->jobSpecs.xf + i,
                         jp->jobSpecs.fromHost, XF_OP_EXEC2SUB, rcpMsg) == 0) {
@@ -2046,7 +2046,7 @@ static int send_results(struct jobCard *jp)
                         jp->jobSpecs.xf[i].execFn, jp->jobSpecs.xf[i].subFn,
                         jp->jobSpecs.fromHost, rcpMsg);
                     strcat(ps, line);
-                    withps = TRUE;
+                    withps = true;
                 }
                 continue;
             }
@@ -2058,7 +2058,7 @@ static int send_results(struct jobCard *jp)
                     jp->jobSpecs.fromHost, rcpMsg);
             hasError = -1;
             strcat(ps, line);
-            withps = TRUE;
+            withps = true;
         }
     }
     if (withps) {
@@ -2214,14 +2214,14 @@ void renewJobStat(struct jobCard *jp)
 
     if (jp->jobSpecs.actPid) {
         kill(-jp->jobSpecs.actPid, SIGCONT);
-        k = jobsig(jp, SIGCONT, FALSE);
+        k = jobsig(jp, SIGCONT, false);
     } else {
         if (mbdJobStatus & JOB_STAT_EXIT) {
             if ((mbdReasons & EXIT_RESTART) ||
                 ((mbdReasons == EXIT_ZOMBIE) &&
                  !(jp->jobSpecs.options & SUB_CHKPNTABLE) &&
                  (jp->jobSpecs.options & SUB_RERUNNABLE))) {
-                jp->mbdRestarted = TRUE;
+                jp->mbdRestarted = true;
             }
             if (jp->jobSpecs.jobPid == 0) {
                 jp->jobSpecs.jStatus = mbdJobStatus;
@@ -2311,8 +2311,8 @@ void jobGone(struct jobCard *jp)
                   jp->w_status);
 
     if (!jp->missing) {
-        jp->missing = TRUE;
-        need_checkfinish = TRUE;
+        jp->missing = true;
+        need_checkfinish = true;
         if (jp->notReported > 0)
             jp->notReported = 0;
     } else {
@@ -2332,7 +2332,7 @@ void jobGone(struct jobCard *jp)
             }
         }
         if (jp->jobSpecs.actPid == 0 && jp->exitPid == -1) {
-            if (requeueJob(jp) == TRUE) {
+            if (requeueJob(jp) == true) {
                 SBD_SET_STATE(jp, JOB_STAT_PEND);
                 jp->jobSpecs.reasons = PEND_SBD_JOB_REQUEUE;
             } else {
@@ -2403,7 +2403,7 @@ void refreshJob(struct jobSpecs *jobSpecs)
         for (j = 0; j < LSF_RLIM_NLIMITS; j++)
             memcpy((char *) &jp->jobSpecs.lsfLimits[j],
                    (char *) &jobSpecs->lsfLimits[j], sizeof(struct lsfLimit));
-        setRunLimit(jp, FALSE);
+        setRunLimit(jp, false);
 
         if ((strcmp(jp->jobSpecs.windows, jobSpecs->windows)) != 0) {
             freeWeek(jp->week);
@@ -2439,7 +2439,7 @@ void refreshJob(struct jobSpecs *jobSpecs)
                           "checkThresholdCond", "stopCond");
         }
 
-        jp->needReportRU = TRUE;
+        jp->needReportRU = true;
 
         if (!(lsbParams[LSB_RENICE_NEVER_AT_RESTART].paramValue)) {
             if (reniceJob(jp) < 0)
@@ -3442,16 +3442,16 @@ static int requeueJob(struct jobCard *jp)
 
     if (!WIFEXITED(status) || !jp->jobSpecs.requeueEValues ||
         jp->jobSpecs.requeueEValues[0] == '\0')
-        return FALSE;
+        return false;
 
     sp = jp->jobSpecs.requeueEValues;
 
     while ((cp = getNextWord_(&sp)) != NULL) {
         if ((!isdigit(cp[0])) || (atoi(cp) != w_status))
             continue;
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 int reniceJob(struct jobCard *jp)
@@ -3596,7 +3596,7 @@ static void updateJUsage(struct jobCard *jPtr, const struct jRusage *jRusage)
                   jPtr->runRusage.mem, jPtr->runRusage.swap);
     }
 
-    if (jPtr->newPam == TRUE) {
+    if (jPtr->newPam == true) {
         if (jPtr->runRusage.utime == -1 && jPtr->runRusage.stime == -1) {
             jPtr->runRusage.utime = jPtr->runRusage.stime = 0;
         }
@@ -3625,11 +3625,11 @@ static void updateJUsage(struct jobCard *jPtr, const struct jRusage *jRusage)
 
     copyPidInfo(jPtr, jRusage);
 
-    if (jPtr->newPam == TRUE) {
+    if (jPtr->newPam == true) {
         writePidInfoFile(jPtr, jRusage);
     }
 
-    jPtr->newPam = FALSE;
+    jPtr->newPam = false;
 }
 
 static void copyPidInfo(struct jobCard *jPtr, const struct jRusage *jRusage)
@@ -3778,7 +3778,7 @@ int sbdParent(char *mode, struct jobCard *jCard, int chfd)
     char hndlbuf[64];
     char *buf;
     int i, buflen;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     XDR xdrs;
     FILE *jobEnvfp;
     char *jobEnvFile;
@@ -3978,7 +3978,7 @@ void sbdChild(char *mode, char *arg)
     char *sp;
     int len;
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct jobCard jCard;
     int chfd;
     char *jobEnvFile;
@@ -4100,7 +4100,7 @@ void sbdChild(char *mode, char *arg)
             exeChkpnt(&jCard, jCard.actFlags, jCard.exitFile);
         } else if ((strcmp(jCard.actCmd, "SIG_CHKPNT") == 0) ||
                    (strcmp(jCard.actCmd, "SIG_CHKPNT_COPY") == 0)) {
-            if (isSigTerm(jCard.jobSpecs.actValue) == TRUE) {
+            if (isSigTerm(jCard.jobSpecs.actValue) == true) {
                 exeChkpnt(&jCard, LSB_CHKPNT_KILL, jCard.exitFile);
             } else {
                 exeChkpnt(&jCard, LSB_CHKPNT_STOP, jCard.exitFile);
@@ -4160,23 +4160,23 @@ int initJobCard(struct jobCard *jp, struct jobSpecs *jobSpecs, int *reply)
         }
     }
 
-    setRunLimit(jp, TRUE);
+    setRunLimit(jp, true);
     jp->windEdge = now;
-    jp->active = FALSE;
+    jp->active = false;
     jp->windWarnTime = 0;
     jp->w_status = 0;
     jp->cpuTime = 0.0;
     jp->notReported = 0;
     jp->exitPid = 0;
-    jp->missing = FALSE;
-    jp->needReportRU = FALSE;
-    jp->mbdRestarted = FALSE;
+    jp->missing = false;
+    jp->needReportRU = false;
+    jp->mbdRestarted = false;
     jp->lastChkpntTime = now;
 
     jp->migCnt = 1;
 
     jp->cleanupPid = 0;
-    jp->collectedChild = FALSE;
+    jp->collectedChild = false;
 
     cleanLsfRusage(&jp->lsfRusage);
     jp->client = NULL;
@@ -4195,9 +4195,9 @@ int initJobCard(struct jobCard *jp, struct jobSpecs *jobSpecs, int *reply)
     jp->crossPlatforms = -1;
     if (jobSpecs->options2 >= 0) {
         if (jobSpecs->options2 & SUB2_HOST_UX)
-            jp->crossPlatforms = FALSE;
+            jp->crossPlatforms = false;
         else
-            jp->crossPlatforms = TRUE;
+            jp->crossPlatforms = true;
     }
 
     saveSpecs(&jp->jobSpecs, jobSpecs);
@@ -4206,7 +4206,7 @@ int initJobCard(struct jobCard *jp, struct jobSpecs *jobSpecs, int *reply)
     jp->spooledExec = NULL;
 
     jp->postJobStarted = 0;
-    jp->userJobSucc = FALSE;
+    jp->userJobSucc = false;
 
     return 0;
 }
@@ -4321,19 +4321,19 @@ static int REShasPTYfix(char *resPath)
     sprintf(cmd, "%s -PTY_FIX", resPath);
 
     if ((fp = popen(cmd, "r")) == NULL)
-        return FALSE;
+        return false;
 
     if (fscanf(fp, "%s", str) != 1) {
         pclose(fp);
-        return FALSE;
+        return false;
     }
 
     pclose(fp);
 
     if (strcmp(str, "PTY_FIX"))
-        return FALSE;
+        return false;
 
-    return TRUE;
+    return true;
 }
 
 static void setJobArrayEnv(char *jobName, int jobIndex)
@@ -4341,7 +4341,7 @@ static void setJobArrayEnv(char *jobName, int jobIndex)
     static char fname[] = "setJobArrayEnv";
     struct idxList *idxList = NULL, *idx;
     char *index, val[MAXLINELEN];
-    int found = FALSE;
+    int found = false;
     int maxJLimit = 0;
 
     index = strchr(jobName, '[');
@@ -4359,7 +4359,7 @@ static void setJobArrayEnv(char *jobName, int jobIndex)
         if ((jobIndex >= idx->start) && (jobIndex <= idx->end)) {
             nstep = (jobIndex - idx->start) / idx->step;
             if ((idx->start + nstep * idx->step) == jobIndex) {
-                found = TRUE;
+                found = true;
                 break;
             }
         }

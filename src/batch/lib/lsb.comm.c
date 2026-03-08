@@ -87,7 +87,7 @@ resolve_master_try(void)
  *
  * Returns: Number of bytes in reply on success, -1 on error
  */
-int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
+int call_mbd(void *req, size_t req_len, char **reply, struct protocol_header *hdr,
              struct wire_job_file *jf)
 {
     uint16_t port;
@@ -155,7 +155,7 @@ int call_mbd(void *req, size_t req_len, char **reply, struct packet_header *hdr,
  * Returns: Socket fd on success (caller must close), -1 on error
  */
 int open_mbd_stream(void *req, size_t req_len, char **reply,
-                    struct packet_header *hdr)
+                    struct protocol_header *hdr)
 {
     const char *master = resolve_master_with_retry();
     if (master == NULL) {
@@ -206,7 +206,7 @@ int open_mbd_stream(void *req, size_t req_len, char **reply,
  * Returns: Number of payload bytes on success, -1 on error
  */
 int readNextPacket(char **msg_buf, int _lsb_recvtimeout,
-                   struct packet_header *hdr, int mbd_sock)
+                   struct protocol_header *hdr, int mbd_sock)
 {
     struct Buffer reply_buf;
 
@@ -244,7 +244,7 @@ int readNextPacket(char **msg_buf, int _lsb_recvtimeout,
  *
  * Returns: Number of bytes read on success, -1 on EOF or error
  */
-int read_mbd_stream(int sock, char **buffer, struct packet_header *hdr)
+int read_mbd_stream(int sock, char **buffer, struct protocol_header *hdr)
 {
     int rc;
 
@@ -391,10 +391,10 @@ int enqueue_to_sbd(int chan_id, void *msg, size_t msg_len)
  */
 int send_ack(int chan_id, uint32_t seq)
 {
-    struct packet_header ack = {
+    struct protocol_header ack = {
         .sequence = seq, .operation = BATCH_STATUS_ACK, .length = 0};
 
-    char buf[sizeof(struct packet_header)];
+    char buf[sizeof(struct protocol_header)];
     XDR xdrs;
 
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);

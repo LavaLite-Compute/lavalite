@@ -22,8 +22,8 @@
 #include "batch/daemons/sbd.h"
 #include "../../lsf/lib/lib.xdr.h"
 
-bool_t xdr_jobSetup(XDR *xdrs, struct jobSetup *jsetup,
-                    struct packet_header *hdr)
+bool xdr_jobSetup(XDR *xdrs, struct jobSetup *jsetup,
+                    struct protocol_header *hdr)
 {
     static char fname[] = "xdr_jobSetup";
     char *sp1, *sp2, *sp3;
@@ -38,11 +38,11 @@ bool_t xdr_jobSetup(XDR *xdrs, struct jobSetup *jsetup,
           xdr_int(xdrs, &jsetup->execGid) && xdr_int(xdrs, &jsetup->execUid) &&
           xdr_int(xdrs, &jsetup->execJobFlag))) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_int");
-        return FALSE;
+        return false;
     }
 
     if (!xdr_array_element(xdrs, &jsetup->lsfRusage, hdr, NULL, xdr_lsfRusage))
-        return FALSE;
+        return false;
 
     sp1 = jsetup->execUsername;
     sp2 = jsetup->execHome;
@@ -58,28 +58,28 @@ bool_t xdr_jobSetup(XDR *xdrs, struct jobSetup *jsetup,
           xdr_string(xdrs, &sp2, MAXFILENAMELEN) &&
           xdr_string(xdrs, &sp3, MAXFILENAMELEN))) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_string");
-        return FALSE;
+        return false;
     }
     if (!xdr_int(xdrs, &jobArrElemId)) {
-        return FALSE;
+        return false;
     }
 
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jsetup->jobId, jobArrId, jobArrElemId);
     }
 
-    return TRUE;
+    return true;
 }
 
-bool_t xdr_jobSyslog(XDR *xdrs, struct jobSyslog *slog,
-                     struct packet_header *hdr)
+bool xdr_jobSyslog(XDR *xdrs, struct jobSyslog *slog,
+                     struct protocol_header *hdr)
 {
     static char fname[] = "xdr_jobSyslog";
     char *sp1;
 
     if (!xdr_int(xdrs, &slog->logLevel)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_int", "loglevel");
-        return FALSE;
+        return false;
     }
 
     sp1 = slog->msg;
@@ -90,13 +90,13 @@ bool_t xdr_jobSyslog(XDR *xdrs, struct jobSyslog *slog,
 
     if (!xdr_string(xdrs, &sp1, MAXLINELEN)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_string");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
-bool_t xdr_jobCard(XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
+bool xdr_jobCard(XDR *xdrs, struct jobCard *jCard, struct protocol_header *hdr)
 {
     static char fname[] = "xdr_jobCard";
     char *sp1;
@@ -105,8 +105,8 @@ bool_t xdr_jobCard(XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
         FREEUP(jCard->actCmd);
         FREEUP(jCard->exitFile);
         if (!xdr_jobSpecs(xdrs, &jCard->jobSpecs, hdr))
-            return FALSE;
-        return TRUE;
+            return false;
+        return true;
     }
 
     sp1 = jCard->execUsername;
@@ -124,11 +124,11 @@ bool_t xdr_jobCard(XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
         !xdr_int(xdrs, &jCard->migCnt) || !xdr_int(xdrs, &jCard->cleanupPid) ||
         !xdr_int(xdrs, &jCard->execJobFlag)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr");
-        return FALSE;
+        return false;
     }
 
     if (!xdr_time_t(xdrs, &jCard->lastStatusMbdTime)) {
-        return FALSE;
+        return false;
     }
 
     if (xdrs->x_op == XDR_DECODE) {
@@ -137,27 +137,27 @@ bool_t xdr_jobCard(XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
 
     if (!xdr_string(xdrs, &sp1, MAXLSFNAMELEN)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_string", "execUserName");
-        return FALSE;
+        return false;
     }
 
     if (!xdr_int(xdrs, &jCard->actReasons) ||
         !xdr_int(xdrs, &jCard->actSubReasons)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr");
-        return FALSE;
+        return false;
     }
 
     if (!xdr_var_string(xdrs, &jCard->actCmd) ||
         !xdr_var_string(xdrs, &jCard->exitFile) ||
         !xdr_var_string(xdrs, &jCard->clusterName))
-        return FALSE;
+        return false;
 
     if (!xdr_array_element(xdrs, &jCard->jobSpecs, NULL, xdr_jobSpecs)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobSpecs");
-        return FALSE;
+        return false;
     }
 
     if (!xdr_int(xdrs, &jCard->servSocket))
-        return FALSE;
+        return false;
 
     if (!xdr_int(xdrs, &jCard->maxRusage.mem) ||
         !xdr_int(xdrs, &jCard->maxRusage.swap) ||
@@ -165,15 +165,15 @@ bool_t xdr_jobCard(XDR *xdrs, struct jobCard *jCard, struct packet_header *hdr)
         !xdr_int(xdrs, &jCard->maxRusage.stime) ||
         !xdr_int(xdrs, &jCard->maxRusage.npids)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_int jRusage");
-        return FALSE;
+        return false;
     }
 
     if (!xdr_int(xdrs, (int *) &jCard->actFlags)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_actFlags");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 int sizeofJobCard(struct jobCard *jc)

@@ -457,66 +457,66 @@ void proxyListEntryDestroy(PROXY_LIST_ENTRY_T *proxy)
     }
 }
 
-bool_t proxyListEntryEqual(PROXY_LIST_ENTRY_T *pxy, void *subject, int hint)
+bool proxyListEntryEqual(PROXY_LIST_ENTRY_T *pxy, void *subject, int hint)
 {
-    return (pxy == NULL || pxy->subject != subject) ? FALSE : TRUE;
+    return (pxy == NULL || pxy->subject != subject) ? false : true;
 }
 
-bool_t pendJobPrioEqual(PROXY_LIST_ENTRY_T *pxy, struct jData *subjectJob,
+bool pendJobPrioEqual(PROXY_LIST_ENTRY_T *pxy, struct jData *subjectJob,
                         int hint)
 {
     struct jData *jPtr;
 
     if (pxy == NULL)
-        return FALSE;
+        return false;
 
     jPtr = (struct jData *) pxy->subject;
     if (jPtr == NULL || subjectJob == NULL)
-        return FALSE;
+        return false;
 
     if (subjectJob->qPtr->priority < jPtr->qPtr->priority)
 
-        return TRUE;
+        return true;
     else if (subjectJob->qPtr->priority == jPtr->qPtr->priority) {
         if (JOB_SUBMIT_TIME(subjectJob) > JOB_SUBMIT_TIME(jPtr))
 
-            return TRUE;
+            return true;
         else if ((JOB_SUBMIT_TIME(subjectJob) == JOB_SUBMIT_TIME(jPtr)) &&
                  (subjectJob->jobId > jPtr->jobId))
 
-            return TRUE;
+            return true;
     }
 
-    return FALSE;
+    return false;
 }
 
-bool_t startJobPrioEqual(PROXY_LIST_ENTRY_T *pxy, struct jData *subjectJob,
+bool startJobPrioEqual(PROXY_LIST_ENTRY_T *pxy, struct jData *subjectJob,
                          int hint)
 {
     struct jData *jPtr;
 
     if (pxy == NULL)
-        return FALSE;
+        return false;
 
     jPtr = (struct jData *) pxy->subject;
     if (jPtr == NULL || subjectJob == NULL)
-        return FALSE;
+        return false;
 
     if (subjectJob->qPtr->priority < jPtr->qPtr->priority)
 
-        return TRUE;
+        return true;
     else if (subjectJob->qPtr->priority == jPtr->qPtr->priority) {
         if (subjectJob->startTime > jPtr->startTime)
 
-            return TRUE;
+            return true;
         else if ((subjectJob->startTime == jPtr->startTime ||
                   subjectJob->startTime == 0) &&
                  (subjectJob->jobId > jPtr->jobId))
 
-            return TRUE;
+            return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 void jobProxyPrintf(PROXY_LIST_ENTRY_T *proxy, void *hint)

@@ -32,9 +32,9 @@
 extern int _lsb_conntimeout;
 extern int _lsb_recvtimeout;
 
-bool_t
+bool
 xdr_sbdJobsListReq(XDR *xdrs, struct sbdJobsListReq *p,
-                   struct packet_header *hdr)
+                   struct protocol_header *hdr)
 {
     (void)hdr;
 
@@ -47,8 +47,8 @@ xdr_sbdJobsListReq(XDR *xdrs, struct sbdJobsListReq *p,
     return true;
 }
 
-bool_t xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
-                      struct packet_header *hdr)
+bool xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
+                      struct protocol_header *hdr)
 {
     (void)hdr;
 
@@ -109,8 +109,8 @@ bool_t xdr_sbdJobInfo(XDR *xdrs, struct sbdJobInfo *p,
     return true;
 }
 
-bool_t xdr_sbdJobsListReply(XDR *xdrs, struct sbdJobsListReply *p,
-                            struct packet_header *hdr)
+bool xdr_sbdJobsListReply(XDR *xdrs, struct sbdJobsListReply *p,
+                            struct protocol_header *hdr)
 {
     (void)hdr;
 
@@ -140,7 +140,7 @@ int sbd_job_info(const char *host, struct sbdJobInfo **jobs, int *num)
     *jobs = NULL;
     *num = 0;
 
-    struct packet_header hdr;
+    struct protocol_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = SBD_JOBS_LIST;
 
@@ -208,7 +208,7 @@ void sbd_job_info_free(struct sbdJobInfo *jobs, int num)
 
 // API
 int call_sbd_host(const char *host, void *req, size_t req_len,
-                  char **reply, struct packet_header *hdr,
+                  char **reply, struct protocol_header *hdr,
                   struct lenData *extra)
 {
     if (!host || host[0] == '\0' || !req || req_len == 0 || !reply || !hdr) {

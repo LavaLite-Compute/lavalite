@@ -87,7 +87,7 @@ void sbd_mbd_link_down(void)
 }
 
 // Check if mbd is connected
-bool_t sbd_mbd_link_ready(void)
+bool sbd_mbd_link_ready(void)
 {
     return (sbd_mbd_chan >= 0);
 }
@@ -106,7 +106,7 @@ int sbd_register(int chan_id)
     memset(&req, 0, sizeof(req));
     snprintf(req.hostname, sizeof(req.hostname), "%s", host);
 
-    struct packet_header hdr;
+    struct protocol_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_SBD_REGISTER;
 

@@ -42,7 +42,7 @@ int main(int argc, char **argv)
     int options;
     struct jobInfoEnt *jInfo;
     char *outFile;
-    char fflag = FALSE;
+    char fflag = false;
     int cc;
 
     if (lsb_init(argv[0]) < 0) {
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return -1;
         case 'f': // tail -f
-            fflag = TRUE;
+            fflag = true;
             break;
         case 'h':
         default:

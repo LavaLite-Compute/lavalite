@@ -24,7 +24,7 @@
 
 char errbuf[MAXLINELEN];
 
-bool_t mbd_debug = 0;
+bool mbd_debug = 0;
 int lsb_CheckMode = 0;
 int lsb_CheckError = 0;
 
@@ -34,13 +34,13 @@ time_t lastForkTime;
 int statusChanged = 0;
 
 int nextJobId = 1;
-char masterme = TRUE;
+char masterme = true;
 uint16_t sbd_port;
 int connTimeout;
-int glMigToPendFlag = FALSE;
+int glMigToPendFlag = false;
 
-int requeueToBottom = FALSE;
-int arraySchedOrder = FALSE;
+int requeueToBottom = false;
+int arraySchedOrder = false;
 int jobTerminateInterval = DEF_JTERMINATE_INTERVAL;
 int msleeptime = DEF_MSLEEPTIME;
 int sbdSleepTime = DEF_SSLEEPTIME;
@@ -61,7 +61,7 @@ int jobDepLastSub = 0;
 int maxjobnum = DEF_MAX_JOB_NUM;
 int accept_intvl = DEF_ACCEPT_INTVL;
 int preExecDelay = DEF_PRE_EXEC_DELAY;
-int slotResourceReserve = FALSE;
+int slotResourceReserve = false;
 int maxAcctArchiveNum = -1;
 int acctArchiveInDays = -1;
 int acctArchiveInSize = -1;
@@ -105,9 +105,9 @@ char *env_dir = NULL;
 char *lsfDefaultProject = NULL;
 char *pjobSpoolDir = NULL;
 time_t condCheckTime = DEF_COND_CHECK_TIME;
-bool_t mcSpanClusters = FALSE;
+bool mcSpanClusters = false;
 int readNumber = 0;
-int dispatch = FALSE;
+int dispatch = false;
 int maxJobPerSession = INFINIT_INT;
 
 int maxUserPriority = -1;
@@ -131,7 +131,7 @@ long schedSeqNo;
 int schedule;
 int scheRawLoad;
 
-int lsbModifyAllJobs = FALSE;
+int lsbModifyAllJobs = false;
 
 static int schedule1;
 static struct jData *jobData = NULL;
@@ -160,9 +160,9 @@ static int mbd_accept_connection(int);
 static void mbd_client_handle(int);
 static int mbd_client_dispatch(struct mbd_client_node *);
 static int mbd_auth_client_request(struct lsfAuth *, XDR *,
-                                   struct packet_header *, struct sockaddr_in *);
-static bool_t mbd_should_fork(mbdReqType);
-static bool_t is_mbd_read_only_req(mbdReqType);
+                                   struct protocol_header *, struct sockaddr_in *);
+static bool mbd_should_fork(mbdReqType);
+static bool is_mbd_read_only_req(mbdReqType);
 
 void setJobPriUpdIntvl(void);
 static void updateJobPriorityInPJL(void);
@@ -171,9 +171,9 @@ static void periodicCheck(void);
 static void processSbdNode(struct sbdNode *, int);
 
 extern int do_chunkStatusReq(XDR *, int, struct sockaddr_in *, int *,
-                             struct packet_header *);
+                             struct protocol_header *);
 extern int do_setJobAttr(XDR *, int, struct sockaddr_in *, char *,
-                         struct packet_header *, struct lsfAuth *);
+                         struct protocol_header *, struct lsfAuth *);
 
 
 static void usage(void)
@@ -197,7 +197,7 @@ static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
 int main(int argc, char **argv)
 {
     int i;
-    int hsKeeping = FALSE;
+    int hsKeeping = false;
     time_t lastPeriodicCheckTime = 0;
     time_t lastElockTouch;
 
@@ -245,7 +245,7 @@ int main(int argc, char **argv)
     // start compact
     mbd_compact_start();
 
-    if (lsb_CheckMode == TRUE) {
+    if (lsb_CheckMode == true) {
         TIMEIT(0, (cc = mbd_init(FIRST_START)), "mbd_init");
         if (cc < 0) {
             LS_ERR("mbd_init() failed");
@@ -441,7 +441,7 @@ static int mbd_client_dispatch(struct mbd_client_node *client)
     struct Buffer *buf;
     struct bucket *bucket;
     struct lsfAuth auth;
-    struct packet_header req_hdr;
+    struct protocol_header req_hdr;
     XDR xdrs;
     int statusReqCC = 0;
 
@@ -470,7 +470,7 @@ static int mbd_client_dispatch(struct mbd_client_node *client)
              mbd_op_str(req_hdr.operation), sockAdd2Str_(&from), ch_id);
 
     // Bug write a function
-    bool_t ok = 1;
+    bool ok = 1;
 
     switch (ok) {
     case -1:
@@ -687,7 +687,7 @@ void shutdown_mbd_client(struct mbd_client_node *client)
 static void houseKeeping(int *hsKeeping)
 {
     static char fname[] = "houseKeeping";
-    static int resignal = FALSE;
+    static int resignal = false;
     static time_t lastAcctSched = 0;
 
 #define SCHED 1
@@ -717,7 +717,7 @@ static void houseKeeping(int *hsKeeping)
         myTurn = SCHED;
     if (schedule && myTurn == SCHED) {
         if (eventPending) {
-            resignal = TRUE;
+            resignal = true;
         }
         now = time(0);
         if (schedule) {
@@ -726,9 +726,9 @@ static void houseKeeping(int *hsKeeping)
             TIMEIT(0, schedule = scheduleAndDispatchJobs(),
                    "scheduleAndDispatchJobs");
             if (schedule == 0) {
-                schedule = FALSE;
+                schedule = false;
             } else {
-                schedule = TRUE;
+                schedule = true;
             }
             return;
         }
@@ -743,7 +743,7 @@ static void houseKeeping(int *hsKeeping)
         return;
     }
 
-    *hsKeeping = FALSE;
+    *hsKeeping = false;
     return;
 }
 
@@ -752,7 +752,7 @@ static void periodicCheck(void)
     static char fname[] = "periodicCheck";
     char *myhostnm;
     static time_t last_chk_time = 0;
-    static int winConf = FALSE;
+    static int winConf = false;
     static time_t lastPollTime = 0, last_checkConf = 0;
     static time_t last_hostInfoRefreshTime = 0;
     static time_t last_tryControlJobs = 0;
@@ -829,7 +829,7 @@ void child_handler(int sig)
 
 static int mbd_auth_client_request(struct lsfAuth *auth,
                                    XDR *xdrs,
-                                   struct packet_header *req_hdr,
+                                   struct protocol_header *req_hdr,
                                    struct sockaddr_in *from)
 {
     static char fname[] = "authRequest";
@@ -880,7 +880,7 @@ static int mbd_auth_client_request(struct lsfAuth *auth,
     return LSBE_NO_ERROR;
 }
 
-static bool_t mbd_should_fork(mbdReqType req)
+static bool mbd_should_fork(mbdReqType req)
 {
     const char *no_fork = lsbParams[LSB_NO_FORK].paramValue;
     // Bug MVP if mbd forks than it core dumps, undesirable
@@ -895,7 +895,7 @@ static bool_t mbd_should_fork(mbdReqType req)
     return true;
 }
 
-static bool_t is_mbd_read_only_req(mbdReqType req)
+static bool is_mbd_read_only_req(mbdReqType req)
 {
 
     switch (req) {
@@ -1019,8 +1019,8 @@ static void mbd_init_log(void)
     const char *log_dir = genParams[LSF_LOGDIR].paramValue;
     const char *log_mask = genParams[LSF_LOG_MASK].paramValue;
 
-    bool_t debug = mbd_debug;
-    bool_t check = lsb_CheckMode;
+    bool debug = mbd_debug;
+    bool check = lsb_CheckMode;
 
     if (!log_dir)
         log_dir = "/tmp";

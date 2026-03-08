@@ -35,7 +35,7 @@ extern struct submit *parseOptFile_(char *filename, struct submit *req,
 extern void subUsage_(int, char **);
 static int parseLine(char *line, int *embedArgc, char ***embedArgv, int option);
 
-static int emptyCmd = TRUE;
+static int emptyCmd = true;
 
 static int parseScript(FILE *from, int *embedArgc, char ***embedArgv,
                        int option);
@@ -275,12 +275,12 @@ int fillReq(int argc, char **argv, int operate, struct submit *req)
 
     } else {
         if (myArgc > 0 && myArgv0 != NULL) {
-            emptyCmd = FALSE;
+            emptyCmd = false;
             argv[argc] = myArgv0;
             if (!CopyCommand(&argv[argc], myArgc))
                 return (-1);
         } else if (argc >= optind + 1) {
-            emptyCmd = FALSE;
+            emptyCmd = false;
             if (!CopyCommand(argv + optind, argc - optind - 1))
                 return (-1);
         } else if (parseScript(stdin, &embedArgc, &embedArgv,
@@ -314,7 +314,7 @@ int fillReq(int argc, char **argv, int operate, struct submit *req)
     if (optionFlag) {
         if (parseOptFile_(optionFileName, req, NULL) == NULL)
             return (-1);
-        optionFlag = FALSE;
+        optionFlag = false;
     }
 
     if (operate == CMD_BSUB) {
@@ -337,8 +337,8 @@ static int parseScript(FILE *from, int *embedArgc, char ***embedArgv,
     int i, j, lineLen;
     char firstLine[MAXLINELEN * 10];
     char *sp;
-    int notBourne = FALSE;
-    int isBSUB = FALSE;
+    int notBourne = false;
+    int isBSUB = false;
     static char szTmpShellCommands[] = "\n%s\n) > $LSB_CHKFILENAME.shell\n"
                                        "chmod u+x $LSB_CHKFILENAME.shell\n"
                                        "$LSB_JOBFILENAME.shell\n"
@@ -374,11 +374,11 @@ static int parseScript(FILE *from, int *embedArgc, char ***embedArgv,
         lineLen = strlen(line);
         if (line[0] == '#') {
             if (strstr(line, "BSUB") != NULL) {
-                isBSUB = TRUE;
+                isBSUB = true;
             }
         }
-        if (isBSUB == TRUE) {
-            isBSUB = FALSE;
+        if (isBSUB == true) {
+            isBSUB = false;
             if (line[lineLen - 2] == '\\' && line[lineLen - 1] == '\n') {
                 lineLen -= 2;
                 sp = line + lineLen;
@@ -392,7 +392,7 @@ static int parseScript(FILE *from, int *embedArgc, char ***embedArgv,
             if (!firstLine[0]) {
                 sprintf(firstLine, "( cat <<%s\n%s", SCRIPT_WORD, line);
                 strcpy(line, firstLine);
-                notBourne = TRUE;
+                notBourne = true;
             }
             lineLen = strlen(line);
 
@@ -420,7 +420,7 @@ static int parseScript(FILE *from, int *embedArgc, char ***embedArgv,
     if (option & EMBED_INTERACT) {
         buf[length] = '\0';
         if (firstLine[0] != '\n' && firstLine[0] != '\0') {
-            if (notBourne == TRUE) {
+            if (notBourne == true) {
                 if (length + strlen(szTmpShellCommands) + 1 >= size) {
                     size = size + strlen(szTmpShellCommands) + 1;
                     if ((buf = (char *) realloc(buf, size)) == NULL) {
@@ -452,7 +452,7 @@ static int CopyCommand(char **from, int len)
 
     if ((commandline = (char *) malloc(size)) == NULL) {
         fprintf(stderr, "%s: %s failed\n", fname, "malloc");
-        return (FALSE);
+        return (false);
     }
 
     if (lsbParams[LSB_API_QUOTE_CMD].paramValue == NULL) {
@@ -545,7 +545,7 @@ static int CopyCommand(char **from, int len)
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 void prtErrMsg(struct submit *req, struct submitReply *reply)
@@ -640,7 +640,7 @@ static int parseLine(char *line, int *embedArgc, char ***embedArgv, int option)
     if (*line == '\0')
         return (0);
     if (*line != '#') {
-        emptyCmd = FALSE;
+        emptyCmd = false;
         return (0);
     }
 
@@ -652,7 +652,7 @@ static int parseLine(char *line, int *embedArgc, char ***embedArgv, int option)
         if (*line != '-') {
             return (0);
         }
-        while (TRUE) {
+        while (true) {
             quoteMark = '"';
             if ((sQuote = strchr(line, '\'')) != NULL)
                 if ((dQuote = strchr(line, '"')) == NULL || sQuote < dQuote)

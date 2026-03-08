@@ -28,7 +28,7 @@ int lsb_switchjob(int64_t jobId, char *queue)
     XDR xdrs;
     mbdReqType mbdReqtype;
     int cc;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct lsfAuth auth;
 
     if (jobId <= 0 || queue == 0) {

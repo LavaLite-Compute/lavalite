@@ -114,10 +114,10 @@ int portok(struct sockaddr_in *from)
     if (from->sin_family != AF_INET) {
         syslog(LOG_ERR, "%s: sin_family(%d) != AF_INET(%d)", __func__,
                from->sin_family, AF_INET);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 int get_ports(void)
@@ -371,7 +371,7 @@ void freeWeek(windows_t *week[])
 
 void errorBack(int chan, int replyCode, struct sockaddr_in *from)
 {
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     XDR xdrs;
     char errBuf[MSGSIZE / 8];
 
@@ -511,7 +511,7 @@ int checkResumeByLoad(int64_t jobId, int num, struct thresholds thresholds,
 {
     static char fname[] = "checkResumeByLoad";
     int i, j;
-    int resume = TRUE;
+    int resume = true;
     int lastReason = *reason;
 
     if (logclass & (LC_SCHED | LC_EXEC))
@@ -519,7 +519,7 @@ int checkResumeByLoad(int64_t jobId, int num, struct thresholds thresholds,
                   fname, *reason, *subreasons, thresholds.nThresholds);
 
     if (num <= 0)
-        return FALSE;
+        return false;
 
     for (j = 0; j < num; j++) {
         if (loads[j].li == NULL)
@@ -529,18 +529,18 @@ int checkResumeByLoad(int64_t jobId, int num, struct thresholds thresholds,
              ((*reason & SUSP_LOAD_REASON) && (*subreasons) == PG)) &&
             loads[j].li[IT] < pgSuspIdleT / 60 &&
             thresholds.loadSched[j][PG] != INFINITY) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_PG_IT;
             *subreasons = 0;
         } else if (LS_ISUNAVAIL(loads[j].status)) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_UNAVAIL;
         } else if (LS_ISLOCKEDU(loads[j].status) &&
                    !(jAttrib & Q_ATTRIB_EXCLUSIVE)) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_HOST_LOCK;
         } else if (LS_ISLOCKEDM(loads[j].status)) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_HOST_LOCK_MASTER;
         }
 
@@ -550,70 +550,70 @@ int checkResumeByLoad(int64_t jobId, int num, struct thresholds thresholds,
                           fname, lsb_jobid2str(jobId), *reason);
             if (lastReason & SUSP_MBD_LOCK)
                 *reason |= SUSP_MBD_LOCK;
-            return FALSE;
+            return false;
         }
 
         if (resumeCondVal != NULL) {
             if (evalResReq(resumeCondVal->selectStr, &tclHostData[j],
                            DFT_FROMTYPE) == 1) {
-                resume = TRUE;
+                resume = true;
                 break;
             } else {
-                resume = FALSE;
+                resume = false;
                 *reason = SUSP_QUE_RESUME_COND;
                 if ((logclass & (LC_SCHED | LC_EXEC)) && !resume)
                     ls_syslog(LOG_DEBUG2, "%s: Can't resume job %s; reason=%x",
                               fname, lsb_jobid2str(jobId), *reason);
                 if (lastReason & SUSP_MBD_LOCK)
                     *reason |= SUSP_MBD_LOCK;
-                return FALSE;
+                return false;
             }
         }
 
         if (loads[j].li[R15M] > thresholds.loadSched[j][R15M]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R15M;
         } else if (loads[j].li[R1M] > thresholds.loadSched[j][R1M]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R1M;
         } else if (loads[j].li[R15S] > thresholds.loadSched[j][R15S]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = R15S;
         } else if (loads[j].li[UT] > thresholds.loadSched[j][UT]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = UT;
         } else if (loads[j].li[PG] > thresholds.loadSched[j][PG]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = PG;
         } else if (loads[j].li[IO] > thresholds.loadSched[j][IO]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = IO;
         } else if (loads[j].li[LS] > thresholds.loadSched[j][LS]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = LS;
         } else if (loads[j].li[IT] < thresholds.loadSched[j][IT]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = IT;
         } else if (loads[j].li[MEM] < thresholds.loadSched[j][MEM]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = MEM;
         }
 
         else if (loads[j].li[TMP] < thresholds.loadSched[j][TMP]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = TMP;
         } else if (loads[j].li[SWP] < thresholds.loadSched[j][SWP]) {
-            resume = FALSE;
+            resume = false;
             *reason = SUSP_LOAD_REASON;
             *subreasons = SWP;
         }
@@ -626,13 +626,13 @@ int checkResumeByLoad(int64_t jobId, int num, struct thresholds thresholds,
 
             if (allLsInfo->resTable[i].orderType == INCR) {
                 if (loads[j].li[i] > thresholds.loadSched[j][i]) {
-                    resume = FALSE;
+                    resume = false;
                     *reason = SUSP_LOAD_REASON;
                     *subreasons = i;
                 }
             } else {
                 if (loads[j].li[i] < thresholds.loadSched[j][i]) {
-                    resume = FALSE;
+                    resume = false;
                     *reason = SUSP_LOAD_REASON;
                     *subreasons = i;
                 }

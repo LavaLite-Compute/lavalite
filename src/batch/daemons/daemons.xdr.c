@@ -25,7 +25,7 @@
 extern void jobId64To32(int64_t, int *, int *);
 extern void jobId32To64(int64_t *, int, int);
 
-bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
+bool xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
 {
     int jobArrId = 0;
     int jobArrElemId = 0;
@@ -204,7 +204,7 @@ bool_t xdr_jobSpecs(XDR *xdrs, struct jobSpecs *spec, void *unused)
     return true;
 }
 
-bool_t xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *hdr)
+bool xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct protocol_header *hdr)
 {
     static char *actCmd = NULL;
     int jobArrId, jobArrElemId;
@@ -222,14 +222,14 @@ bool_t xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *hdr)
           xdr_int(xdrs, &(jobSig->actFlags)) &&
           xdr_int(xdrs, &(jobSig->reasons)) &&
           xdr_int(xdrs, &(jobSig->subReasons))))
-        return FALSE;
+        return false;
     if (!xdr_var_string(xdrs, &jobSig->actCmd))
-        return FALSE;
+        return false;
     if (xdrs->x_op == XDR_DECODE)
         actCmd = jobSig->actCmd;
 
     if (!xdr_int(xdrs, &jobArrElemId)) {
-        return FALSE;
+        return false;
     }
 
     if (xdrs->x_op == XDR_DECODE) {
@@ -239,21 +239,21 @@ bool_t xdr_jobSig(XDR *xdrs, struct jobSig *jobSig, struct packet_header *hdr)
         jobId64To32(jobSig->newJobId, &newJobArrId, &newJobArrElemId);
     }
     if (!xdr_int(xdrs, &newJobArrId)) {
-        return FALSE;
+        return false;
     }
 
     if (!xdr_int(xdrs, &newJobArrElemId)) {
-        return FALSE;
+        return false;
     }
 
     if (xdrs->x_op == XDR_DECODE) {
         jobId32To64(&jobSig->newJobId, newJobArrId, newJobArrElemId);
     }
-    return TRUE;
+    return true;
 }
 
-bool_t xdr_jobReply(XDR *xdrs, struct jobReply *jobReply,
-                    struct packet_header *hdr)
+bool xdr_jobReply(XDR *xdrs, struct jobReply *jobReply,
+                    struct protocol_header *hdr)
 {
     int jobArrId;
     int jobArrElemId;
@@ -294,7 +294,7 @@ bool_t xdr_jobReply(XDR *xdrs, struct jobReply *jobReply,
     return true;
 }
 
-bool_t xdr_statusReq(XDR *xdrs, struct statusReq *r, struct packet_header *hdr)
+bool xdr_statusReq(XDR *xdrs, struct statusReq *r, struct protocol_header *hdr)
 {
     int i;
     int jobArrId = 0;
@@ -413,8 +413,8 @@ bool_t xdr_statusReq(XDR *xdrs, struct statusReq *r, struct packet_header *hdr)
     return true;
 }
 
-bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,
-                      struct packet_header *hdr)
+bool xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,
+                      struct protocol_header *hdr)
 {
     int i;
 
@@ -526,9 +526,9 @@ bool_t xdr_sbdPackage(XDR *xdrs, struct sbdPackage *pkg,
 }
 
 // LavaLite
-bool_t xdr_job_status_ack(XDR *xdrs,
+bool xdr_job_status_ack(XDR *xdrs,
                           struct job_status_ack *ack,
-                          struct packet_header *hdr)
+                          struct protocol_header *hdr)
 {
     (void)hdr;
 
@@ -548,7 +548,7 @@ bool_t xdr_job_status_ack(XDR *xdrs,
 }
 
 // mbd-sbd
-bool_t xdr_sig_sbd_jobs(XDR *xdrs, struct xdr_sig_sbd_jobs *sj)
+bool xdr_sig_sbd_jobs(XDR *xdrs, struct xdr_sig_sbd_jobs *sj)
 {
     if (!xdr_int32_t(xdrs, &sj->sig))
         return false;
@@ -576,7 +576,7 @@ bool_t xdr_sig_sbd_jobs(XDR *xdrs, struct xdr_sig_sbd_jobs *sj)
 }
 
 // sbd-mbd
-bool_t xdr_wire_job_sig_reply(XDR *xdrs, struct wire_job_sig_reply *p)
+bool xdr_wire_job_sig_reply(XDR *xdrs, struct wire_job_sig_reply *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;

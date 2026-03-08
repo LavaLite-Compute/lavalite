@@ -22,7 +22,7 @@
 void load2Str();
 static void prtQueuesLong(int, struct queueInfoEnt *);
 static void prtQueuesShort(int, struct queueInfoEnt *);
-static char wflag = FALSE;
+static char wflag = false;
 
 #define QUEUE_NAME_LENGTH 15
 #define QUEUE_PRIO_LENGTH 4
@@ -61,8 +61,8 @@ int main(int argc, char **argv)
     int numQueues;
     char **queueNames = NULL, **queues = NULL;
     struct queueInfoEnt *queueInfo;
-    char lflag = FALSE;
-    int cc, defaultQ = FALSE;
+    char lflag = false;
+    int cc, defaultQ = false;
     char *host = NULL, *user = NULL;
 
     numQueues = 0;
@@ -75,12 +75,12 @@ int main(int argc, char **argv)
     while ((cc = getopt(argc, argv, "Vhlwm:u:")) != EOF) {
         switch (cc) {
         case 'l':
-            lflag = TRUE;
+            lflag = true;
             if (wflag)
                 usage(argv[0]);
             break;
         case 'w':
-            wflag = TRUE;
+            wflag = true;
             if (lflag)
                 usage(argv[0]);
             break;
@@ -439,7 +439,7 @@ static void prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
 {
     struct queueInfoEnt *qp;
     char statusStr[64];
-    char first = FALSE;
+    char first = false;
     int i;
     char userJobLimit[MAX_CHARLEN], procJobLimit[MAX_CHARLEN],
         hostJobLimit[MAX_CHARLEN];
@@ -462,7 +462,7 @@ static void prtQueuesShort(int numQueues, struct queueInfoEnt *queueInfo)
         prtWord(QUEUE_RUN_LENGTH, "RUN", -1);
         prtWord(QUEUE_SUSP_LENGTH, "SUSP", -1);
         printf("\n");
-        first = TRUE;
+        first = true;
     }
 
     for (i = 0; i < numQueues; i++) {

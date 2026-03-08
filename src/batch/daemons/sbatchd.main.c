@@ -36,7 +36,7 @@ static void job_new_drive(void);
 static void job_finish_drive(void);
 static void job_execute_drive(void);
 static void mbd_reconnect_try(void);
-static bool_t sbd_pid_alive(struct sbd_job *);
+static bool sbd_pid_alive(struct sbd_job *);
 static void sbd_cleanup(void);
 
 // List and table of all jobs
@@ -329,7 +329,7 @@ static void sbd_init_log(void)
     const char *log_dir = genParams[LSF_LOGDIR].paramValue;
     const char *log_mask = genParams[LSF_LOG_MASK].paramValue;
 
-    bool_t debug = sbd_debug;
+    bool debug = sbd_debug;
 
     if (!log_dir)
         log_dir = "/var/log/lavalite"; /* fallback */
@@ -728,7 +728,7 @@ static struct sbd_job *sbd_find_job_by_pid(pid_t pid)
     return NULL;
 }
 
-static bool_t
+static bool
 sbd_pid_alive(struct sbd_job *job)
 {
     pid_t target;

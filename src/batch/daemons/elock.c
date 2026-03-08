@@ -30,7 +30,7 @@ void setLockOwnerPid(void)
 
 extern int msleeptime;
 static char lockfile[PATH_MAX];
-static char gotLock = FALSE;
+static char gotLock = false;
 
 void getElogLock(void)
 {
@@ -76,7 +76,7 @@ access:
         write(lock_fd, buf, strlen(buf));
         close(lock_fd);
         LS_INFO("Got lock file");
-        gotLock = TRUE;
+        gotLock = true;
         return 0;
     } else if (errno == EEXIST) {
         int fd;
@@ -155,7 +155,7 @@ access:
             } else {
                 if (first) {
                     LS_ERRX("Another mb/d is accessing lock file waiting ...");
-                    first = FALSE;
+                    first = false;
                 }
                 lastmodtime = statbuf.st_mtime;
                 retry = 0;

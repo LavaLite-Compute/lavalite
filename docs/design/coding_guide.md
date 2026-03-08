@@ -14,6 +14,26 @@ All new code **must** follow this guide. Pull requests that diverge may be rejec
 
 # 0. Philosophy
 
+> If it needs more than a Unix syscall, a struct, and libc — rethink it.
+
+> Accept what the hardware gives you. Make it fast, make it clear, make it stop. Everything else is noise.
+
+> Stability isn't the absence of problems — it's the ability to recover gracefully.
+
+> Simplicity and clarity over cleverness; minimal code, maximal intent.
+
+> Mathematicians chase proofs; computer scientists chase models; practitioners chase uptime.
+
+> Explicit. Verbose. Clear. Implicit nothing.
+
+> Reuse the simple primitives that already work.
+
+> True man reads the man page. That's why it's called man.
+
+> Fossil in → LavaLite out.
+
+> LavaLite Principle #7: If you don't handle errors, errors will handle you.
+
 LavaLite prioritizes:
 
 - clarity
@@ -35,6 +55,7 @@ We avoid:
 When in doubt, ask what Unix and K&R would do — and do that.
 
 ---
+
 ## C Modules and State
 
 Each C translation unit (`.c` file) is treated as a self-contained module.
@@ -88,10 +109,10 @@ Daemons **never call write(), send(), or chan_write()** directly.
 
 All outbound messaging must use:
 
-```
+```c
 struct chan_buf *buf = chan_alloc_buf(ch, len);
 memcpy(buf->data, payload, len);
-chan_enqueue(ch, buf);    // actual write is deferred
+chan_enqueue(ch, buf);
 ```
 
 Actual network I/O happens only inside the channel subsystem:
@@ -101,8 +122,6 @@ chan_epoll() → dowrite()
 ```
 
 where backpressure, partial writes, disconnects, and retries are handled.
-
-**Summary**
 
 | Allowed in daemons | Forbidden |
 |-------------------|----------|
@@ -117,15 +136,15 @@ where backpressure, partial writes, disconnects, and retries are handled.
 
 A job **must not start** unless the SBD for the target node is fully connected:
 
-```
+```c
 host_node->sbd_node != NULL
 host_node->sbd_node->chanfd != -1
 ```
 
 If violated:
 
-```
-LS_ERR("sbd on node %s is not connected cannot schedule", host_node->host);
+```c
+LS_ERRX("sbd on node %s is not connected, cannot schedule", host_node->host);
 return ERR_UNREACH_SBD;
 ```
 
@@ -134,8 +153,7 @@ On SBD disconnect:
 - set `hData->sbd_node = NULL`
 - scheduler must mark the node as non-runnable
 
-**Hard invariant:**
-No job enters RUN state without an active SBD.
+**Hard invariant:** no job enters RUN state without an active SBD.
 
 ---
 
@@ -143,8 +161,8 @@ No job enters RUN state without an active SBD.
 
 The canonical hostname is determined at socket accept time:
 
-```
-client->host = canonical_resolved_host
+```c
+client->host = canonical_resolved_host;
 ```
 
 Rules:
@@ -156,68 +174,55 @@ Rules:
 
 ## 1.5 Error handling invariant
 
-Use thread-local `lserrno` and set it before returning on errors.
-
+Use `lserrno` and set it before returning on errors.
 Do not use deprecated `cherrno`.
 
-Example:
-
-```
-if (!host) {
+```c
+if (host == NULL) {
     lserrno = LLE_NO_HOST;
     return -1;
 }
 ```
 
-Functions must either return -1 and set lserrno, or return a well-defined project error code. Mixing styles is forbidden.
-
+Functions must either return -1 and set `lserrno`, or return a well-defined project error code. Mixing styles is forbidden.
 
 ### Logging and error reporting (LS_XXX macros)
 
-All logging in LavaLite **must** use the `LS_XXX` macros (`LS_ERR`, `LS_WARN`,
-`LS_INFO`, `LS_DEBUG`, etc.).
+All logging **must** use the `LS_XXX` macros (`LS_ERR`, `LS_ERRX`, `LS_WARNING`, `LS_INFO`, `LS_DEBUG`).
 
-These macros **already and automatically** include:
-- the function name (`__func__`)
-- the system error description (`%m`, when applicable)
+| Macro | Includes `%m` (errno) | Use when |
+|-------|----------------------|----------|
+| `LS_ERR` | yes | syscall failed, errno is meaningful |
+| `LS_ERRX` | no | logic error, no errno involved |
+| `LS_WARNING` | yes | non-fatal, errno meaningful |
+| `LS_INFO` | no | informational |
+| `LS_DEBUG` | no | debug |
 
-As a consequence:
+These macros already include `__func__` automatically.
+
 - **Do not** embed `__func__` in log messages
 - **Do not** append `%m` or `strerror(errno)` manually
-- Log messages must contain **only semantic information**, not plumbing
+- Log messages must contain **only semantic information**
 
-Correct usage:
+Correct:
+```c
+LS_ERRX("sbd not connected host=%s job=%s", host->host, job_id);
+```
 
-`LS_ERR("sbd not connected host=%s job=%s", host->host, job_id);`
-
-Incorrect usage:
-
-`LS_ERR("%s: sbd not connected host=%s job=%s %m", func, host->host, job_id);`
-
-
-Repeating function names or error strings leads to duplicated, noisy logs and
-violates the project logging invariants. All contributors must assume that
-
-`LS_XXX` macros always provide full contextual information.
+Incorrect:
+```c
+LS_ERR("%s: sbd not connected host=%s job=%s %m", __func__, host->host, job_id);
+```
 
 ---
 
 ## 1.6 Authentication & request identity (`eauth`)
 
 LavaLite provides a **signed authentication token system** for user identity enforcement.
-This layer is implemented and tested, but **not yet integrated into request processing**.
-Once integrated, it will authenticate users before job submission or job operations.
+Implemented and tested, but not yet integrated into request processing.
 
 Identity must be cryptographically provable, not topologically assumed.
-
-In other words identity must be cryptographically provable and must not rely
-solely on network location, IP address, hostname resolution, or cluster
-membership (e.g., being listed in lsb.hosts). Trusting a request only because it
-originates from inside the cluster network or from a known host is
-insufficient. Identity must be validated through signed tokens or other
-cryptographic proof that cannot be forged or replayed.
-
-### Concepts
+Trusting a request because it originates from inside the cluster network or from a known host is insufficient.
 
 A token contains:
 - user, uid, gid
@@ -227,21 +232,9 @@ A token contains:
 
 A detached signature covers the token for integrity.
 
-### Enforcement today
+**Current boundary:** inter-daemon communication relies on host identity and verified cluster node membership as defined in `lsb.hosts` until token-based daemon authentication is enabled.
 
-User authentication is available where implemented.
-**Daemon-to-daemon authentication is planned but not active.**
-
-### Current boundary
-
-Inter-daemon communication currently relies on **host identity and verified cluster node membership as defined in `lsb.hosts`**, providing controlled participation until token-based daemon authentication is enabled.
-
-### Future invariant
-
-Once integrated:
-
-> No scheduling or job operation will run without user identity validated via eauth.
-> Daemons will authenticate each other using signed tokens to prevent unauthorized cluster control.
+**Future invariant:** no scheduling or job operation will run without user identity validated via eauth.
 
 ---
 
@@ -249,301 +242,205 @@ Once integrated:
 
 The LavaLite job state machine must be **explicit, minimal, and mechanically verifiable**.
 
-### Core principles
-
 - Job states are explicit.
 - State transitions are explicit.
 - No state is inferred.
 - No state is derived indirectly.
 - No helper may "compute" a state transition implicitly.
 
-The system must never rely on:
-- derived states
-- hidden commit functions
-- side-effect-based transitions
-- implicit promotion or demotion of states
-
-If a job moves from one state to another, the transition must be:
-
-1. clearly visible in code
-2. traceable in logs
-3. justified by a specific event (signal, status update, completion, etc.)
-
----
-
-### No implicit transitions
-
-Functions such as:
-
-```
-mbd_commit_job_state(...)
-```
-
-or similar abstractions that "decide" the final state internally
-are forbidden in the new architecture.
-
 State changes must be written explicitly:
 
-```
+```c
 job->jStatus = RUN;
-```
-
-or
-
-```
-job->jStatus = DONE;
 ```
 
 with the surrounding logic making the reason unambiguous.
 
----
-
-### Transitions are events, not calculations
-
 A job state change must always correspond to a real system event:
+- submission, scheduling, SBD acknowledgment, signal delivery, process exit, resource update, explicit user action.
 
-- submission
-- scheduling
-- SBD acknowledgment
-- signal delivery
-- process exit
-- resource update
-- explicit user action
+Adding a new state requires a documented justification, explicit transition rules, defined entry and exit conditions. If a state cannot be described in one sentence, it does not belong in the system.
 
-The state machine must never "adjust itself" based on
-derived assumptions or inferred conditions.
+### No `POST_DONE` (ever)
+
+`POST_DONE` is **forbidden**. Zero semantic, structural, or behavioral traces anywhere in the pipeline. Any logic previously relying on `POST_DONE` must use explicit `DONE` / `EXIT` states with clear transitions.
 
 ---
-
-### Minimal state model
-
-The state machine must remain small and understandable.
-
-Adding a new state requires:
-
-- a documented justification
-- explicit transition rules
-- defined entry conditions
-- defined exit conditions
-
-No transitional limbo states are allowed.
-
-If a state cannot be clearly described in one sentence,
-it does not belong in the system.
-
----
-
-### Mechanical reasoning requirement
-
-At any point in time, given:
-
-- the job record
-- the last processed event
-- the current state
-
-a developer must be able to reason about the system
-without guessing hidden side effects.
-
-If reasoning requires inspecting multiple helper functions
-to discover implicit transitions, the design is wrong.
-
----
-
-### Summary
-
-The LavaLite job state machine must be:
-
-- explicit
-- deterministic
-- small
-- event-driven
-- audit-friendly
-
-No magic.
-No derivation.
-No ghosts of legacy behavior.
-
-
 
 # 2. C Coding Style
 
 LavaLite follows a strict `.clang-format` based style.
-**Do not hand-format code.**
-Always format before commit.
-
-## 2.1 Formatting usage
+**Do not hand-format code. Always format before commit.**
 
 ```
 clang-format -i src/file.c
 find . -name '*.[ch]' -exec clang-format -i {} +
 ```
 
-Pull requests may be rejected for formatting violations.
-
 ---
 
-## 2.2 Indentation & layout
+## 2.1 Indentation & layout
 
 - indent: 4 spaces
 - no tabs
 - soft limit: 80 columns
 - always use braces
+- one statement per line, always
 
 Correct:
-
-```
+```c
 if (x) {
     return 1;
 }
 ```
 
 Incorrect:
-
-```
+```c
 if (x) return 1;
+if (x)
+    return 1;  /* no braces */
 ```
 
 ---
 
-## 2.3 Functions and prototypes
+## 2.2 Functions and prototypes
 
 In `.c` files:
-
-```
+```c
 int ll_queue_init(struct ll_queue *q)
 {
     ...
 }
 ```
 
-In header files:
-
-```
+In header files — types only, no parameter names:
+```c
 int ll_queue_init(struct ll_queue *);
 ```
 
-Parameter names are omitted in headers to reduce diff noise.
-
 ---
 
-## 2.4 Pointer style
+## 2.3 Pointer style
 
-```
+```c
 char *name;
 struct hData *host;
 ```
 
-The asterisk binds to the variable.
+The asterisk binds to the variable, not the type.
 
 ---
 
-## 2.5 Variable declarations
+## 2.4 Variable declarations
 
-Declare one variable per line:
+Declare one variable per line, close to first use (C99):
 
+```c
+int count = 0;
+char *path = NULL;
 ```
-int argc;
-int count;
-char *path;
-char *host;
-```
+
+Not in a block at the top of the function.
 
 ---
 
-## 2.6 Boolean type
+## 2.5 Boolean type
 
-Use `bool_t`.
+Use `bool` from `<stdbool.h>`.
 Use lowercase literals `true` and `false`.
 
 Do not use:
-- `bool`
-- `<stdbool.h>`
+- `bool_t` from `<rpc/types.h>`
 - uppercase `TRUE` / `FALSE`
 
 ---
 
-## 2.7 Include order
+## 2.6 Include order
 
-```
-#include <system headers>
+```c
+#include <system_header.h>
 
 #include "own_header.h"
 #include "other_project_header.h"
 ```
 
+Each header includes only what it needs. No umbrella includes.
 `SortIncludes: false` in `.clang-format` preserves ordering intentionally.
 
 ---
 
-## 2.8 Variable naming
+## 2.7 Naming conventions
 
-For clarity, consistency, and easy navigation across the codebase, exported
-functions must follow strict, daemon-specific naming conventions.
+Exported functions follow daemon-specific prefixes:
 
-All functions **exported by `mbatchd`** (i.e. declared in `mbatchd.h` and
-implemented in `mbatchd.*.c`) **must begin with the `mbd_` prefix**.
-Likewise, all functions **exported by `sbatchd`** (declared in `sbatchd.h` and
-implemented in `sbatchd.*.c`) **must begin with the `sbd_` prefix**.
+- `mbd_*` — exported by mbatchd
+- `sbd_*` — exported by sbatchd
+- `lim_*` — exported by lim
+- `ll_*`  — exported by the base library
 
-This rule applies **only to externally visible APIs**.
-Internal `static` helper functions are free to use concise, context-local names
-and **do not follow this prefix rule**.
-
-Examples:
-```
-- int mbd_signal_running_job(...)
-- int sbd_handle_new_job(...)
-```
-
-This convention makes daemon boundaries explicit, prevents symbol collisions, and allows readers (and tools) to immediately identify ownership and call direction within the system.
-
-### No `POST_DONE` (ever)
-
-In the new `mbatchd.job.c`, the `POST_DONE` state is **forbidden** and
-must be removed completely. There must be **zero** semantic, structural,
-or behavioral traces of `POST_DONE` anywhere in the pipeline.
-
-- Do not introduce `POST_DONE` as a status, sub-status, transitional
-state, flag, alias, or “temporary” workaround.
-- Do not preserve compatibility shims that keep the concept alive under
-a different name.
-- Any logic previously relying on `POST_DONE` must be expressed using
-explicit, meaningful states (e.g. `DONE` / `EXIT`) and clear transitions.
-
-Goal: the job state machine remains small, unambiguous, and mechanically
-verifiable—no “after done but not done” limbo states.
-
-
-
-## Comments
-
-Code must be readable without comments.
-
-Comments are **not** used to explain what the code does, line by line, or to restate obvious logic.
-Such comments inevitably become obsolete and misleading.
-
-Comments are allowed **only** to document:
-- invariants that are not visible from the local code
-- design decisions and rationale ("why", not "what")
-- non-obvious constraints or intentional limitations
-- counterintuitive behavior that must not be "cleaned up"
-
-Comments must describe **rules**, **contracts**, or **assumptions**, not control flow.
-If a comment can be removed without losing essential information, it should not exist.
-
-
-# 3. Miscellaneous rules
-
-- avoid complex macros
-- prefer `enum` or `static const` over `#define` where appropriate
-- internal functions should be `static`
-- functions should be reasonably short
-- avoid “clever” tricks
-- do not reinvent memory or logging subsystems
+Internal `static` helpers use concise, context-local names without prefix.
 
 ---
 
-# 4. Provenance & legal considerations
+## 2.8 No ternary operators
+
+Ternaries hide logic. Use explicit `if`/`else`.
+
+Incorrect:
+```c
+const char *name = cluster.name ? cluster.name : "(none)";
+```
+
+Correct:
+```c
+const char *name;
+if (cluster.name != NULL) {
+    name = cluster.name;
+} else {
+    name = "(none)";
+}
+```
+
+---
+
+## 2.9 No complex macros
+
+Prefer `enum` or `static const` over `#define` for constants.
+Avoid function-like macros. If you need one, document why no function works.
+
+---
+
+# 3. Comments
+
+Code must be readable without comments.
+
+Comments are allowed **only** to document:
+- invariants not visible from the local code
+- design decisions and rationale ("why not X", not "what")
+- non-obvious constraints or intentional limitations
+- counterintuitive behavior that must not be "cleaned up"
+
+If a comment can be removed without losing essential information, remove it.
+
+Comments must describe **rules**, **contracts**, or **assumptions** — not control flow.
+
+> VP-level engineer or not, we all leave a little time capsule of "WTF" behind.
+> Document the why. The what rots with the code.
+
+---
+
+# 4. Miscellaneous rules
+
+- internal functions must be `static`
+- functions must be reasonably short — if it does not fit on a screen, split it
+- do not reinvent memory or logging subsystems
+- no `NULL` placeholder entries in parameter tables — fix the code that depends on them
+- use `MAXHOSTNAMELEN` from `<sys/param.h>`, not project-defined hostname limits
+- load index count: `enum { LIM_NLOAD_INDX = 11 };` in `lim.h` — not a global, not a define
+
+---
+
+# 5. Provenance & legal considerations
 
 To maintain independence from OpenLava/LSF:
 - avoid names implying derivation
@@ -553,7 +450,7 @@ To maintain independence from OpenLava/LSF:
 
 ---
 
-# 5. Quick checklist before commit
+# 6. Quick checklist before commit
 
 ```
 [ ] clang-format applied
@@ -563,39 +460,30 @@ To maintain independence from OpenLava/LSF:
 [ ] canonical host used; remote-supplied hostnames ignored
 [ ] eauth considered for job/user identity
 [ ] lserrno set before returning errors
-[ ] pointer style correct
-[ ] one variable per line
+[ ] pointer style correct: char *p not char* p
+[ ] one variable per line, declared near use
 [ ] no tabs, no trailing whitespace
-[ ] no complex macros or clever hacks
+[ ] no ternary operators
+[ ] no complex macros
+[ ] no statements on one line with if/else
 [ ] layering boundaries respected
+[ ] mandatory config parameters validated, fatal on missing
+[ ] no POST_DONE anywhere
 ```
 
 ---
 
-# 6. Welcome
+# 7. Welcome
 
 Welcome to LavaLite.
-Make code that is:
 
-- boring
-- readable
-- correct
-- fast
-
+Make code that is boring, readable, correct, and fast.
 When unsure, delete or simplify.
 
-```
-clang-format
-```
-
-is your friend.
-
-```
-chan_enqueue
-```
-
-is your safety rope.
-
+`clang-format` is your friend.
+`chan_enqueue` is your safety rope.
 Failing tests are feedback, not criticism.
 
-Let's build something serious.
+> Nice, time to let the robot chew through the fossils.
+> Yes. Someone has suffered here before.
+> Let's build something serious.

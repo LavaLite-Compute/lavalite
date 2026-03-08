@@ -53,7 +53,7 @@ int main(int argc, char **argv)
             if (mig.numAskedHosts)
                 usage(argv[0]);
             if (getAskedHosts_(optarg, &mig.askedHosts, &mig.numAskedHosts, &i,
-                               FALSE) < 0 &&
+                               false) < 0 &&
                 lserrno != LSE_BAD_HOST) {
                 ls_perror(NULL);
                 exit(-1);

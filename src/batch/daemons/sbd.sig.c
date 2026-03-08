@@ -95,7 +95,7 @@ int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
         switch (sigValue) {
         case SIGKILL:
             jp->actStatus = ACT_NO;
-            return (jobsig(jp, SIGKILL, TRUE));
+            return (jobsig(jp, SIGKILL, true));
         case SIG_TERM_USER:
         case SIG_KILL_REQUEUE:
         case SIG_TERM_FORCE:
@@ -128,14 +128,14 @@ int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
         }
     }
 
-    if ((jp->jobSpecs.actPid) && (isSigTerm(jp->jobSpecs.actValue) == TRUE))
+    if ((jp->jobSpecs.actPid) && (isSigTerm(jp->jobSpecs.actValue) == true))
         return -1;
 
     if (jp->jobSpecs.actPid || (jp->jobSpecs.jStatus & JOB_STAT_MIG)) {
         switch (sigValue) {
         case SIGKILL:
             jp->actStatus = ACT_NO;
-            if ((cc = jobsig(jp, SIGKILL, TRUE)) >= 0)
+            if ((cc = jobsig(jp, SIGKILL, true)) >= 0)
                 jp->jobSpecs.jStatus &= ~JOB_STAT_MIG;
             return cc;
         case SIG_TERM_USER:
@@ -181,14 +181,14 @@ int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
             case SIGTSTP:
             case SIGTTIN:
             case SIGTTOU:
-                if (jobsig(jp, sigValue, TRUE) < 0)
+                if (jobsig(jp, sigValue, true) < 0)
                     return -1;
                 SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_USUSP);
                 jp->jobSpecs.reasons |= SUSP_USER_STOP;
                 jp->notReported++;
                 return 0;
             default:
-                return (jobsig(jp, sigValue, TRUE));
+                return (jobsig(jp, sigValue, true));
             }
         }
 
@@ -197,7 +197,7 @@ int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
         case SIG_CHKPNT_COPY:
             jp->actStatus = ACT_NO;
             jp->jobSpecs.chkPeriod = actPeriod;
-            if ((cc = jobact(jp, sigValue, NULL, actFlags, TRUE)) >= 0) {
+            if ((cc = jobact(jp, sigValue, NULL, actFlags, true)) >= 0) {
                 jp->actStatus = ACT_START;
                 jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
                 if (actFlags & LSB_CHKPNT_MIG)
@@ -229,9 +229,9 @@ int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
 
             if (sigValue != defSigValue) {
                 return (jobsig(jp, defSigValue,
-                               ((defSigValue == SIGKILL) ? TRUE : FALSE)));
+                               ((defSigValue == SIGKILL) ? true : false)));
             } else {
-                if ((cc = jobact(jp, sigValue, actCmd, actFlags, TRUE)) >= 0) {
+                if ((cc = jobact(jp, sigValue, actCmd, actFlags, true)) >= 0) {
                     jp->actStatus = ACT_START;
                     jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
                     if (logFlag)
@@ -272,13 +272,13 @@ int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
     if (IS_SUSP(jp->jobSpecs.jStatus)) {
         if (sigValue >= 0) {
             if (jp->regOpFlag & REG_SIGNAL)
-                return (jobsig(jp, sigValue, TRUE));
+                return (jobsig(jp, sigValue, true));
 
             jp->actStatus = ACT_NO;
             if (sigValue >= 0) {
-                jobsig(jp, SIGCONT, FALSE);
+                jobsig(jp, SIGCONT, false);
 
-                return (jobsig(jp, sigValue, TRUE));
+                return (jobsig(jp, sigValue, true));
             }
         }
 
@@ -297,7 +297,7 @@ int jobSigStart(struct jobCard *jp, int sigValue, int actFlags, int actPeriod,
 
             jp->actStatus = ACT_NO;
             jp->jobSpecs.chkPeriod = actPeriod;
-            if ((cc = jobact(jp, sigValue, NULL, actFlags, TRUE)) >= 0) {
+            if ((cc = jobact(jp, sigValue, NULL, actFlags, true)) >= 0) {
                 jp->actStatus = ACT_START;
                 jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
                 if (actFlags & LSB_CHKPNT_MIG)
@@ -392,7 +392,7 @@ static int terminateAct(struct jobCard *jp, int sigValue, int reasons,
             jp->jSupStatus = -1;
         }
 
-        return (jobsig(jp, SIGKILL, TRUE));
+        return (jobsig(jp, SIGKILL, true));
     }
 
     jp->actReasons = reasons;
@@ -401,11 +401,11 @@ static int terminateAct(struct jobCard *jp, int sigValue, int reasons,
 
     if (sigValue != defSigValue) {
         if (sigValue == SIG_TERM_RUNLIMIT) {
-            jobsig(jp, SIGQUIT, FALSE);
+            jobsig(jp, SIGQUIT, false);
         }
-        return (jobsig(jp, defSigValue, TRUE));
+        return (jobsig(jp, defSigValue, true));
     } else {
-        if ((cc = jobact(jp, sigValue, actCmd, 0, TRUE)) >= 0) {
+        if ((cc = jobact(jp, sigValue, actCmd, 0, true)) >= 0) {
             jp->actStatus = ACT_START;
             jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
             if (logFlag)
@@ -430,7 +430,7 @@ int jRunSuspendAct(struct jobCard *jp, int sigValue, int jState, int reasons,
     defSigValue = getDefSigValue_(sigValue, actCmd);
 
     if ((jp->regOpFlag & REG_SIGNAL) && (actCmd[0] == '\0')) {
-        if ((cc = jobsig(jp, SIGSTOP, TRUE)) >= 0) {
+        if ((cc = jobsig(jp, SIGSTOP, true)) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, jState);
             jp->jobSpecs.reasons |= reasons;
             jp->jobSpecs.subreasons = subReasons;
@@ -441,7 +441,7 @@ int jRunSuspendAct(struct jobCard *jp, int sigValue, int jState, int reasons,
     }
 
     if (sigValue != defSigValue) {
-        if ((cc = jobsig(jp, defSigValue, TRUE)) >= 0) {
+        if ((cc = jobsig(jp, defSigValue, true)) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, jState);
             jp->jobSpecs.reasons |= reasons;
             jp->jobSpecs.subreasons = subReasons;
@@ -450,7 +450,7 @@ int jRunSuspendAct(struct jobCard *jp, int sigValue, int jState, int reasons,
         }
         return cc;
     } else {
-        if ((cc = jobact(jp, sigValue, actCmd, 0, TRUE)) >= 0) {
+        if ((cc = jobact(jp, sigValue, actCmd, 0, true)) >= 0) {
             jp->actStatus = ACT_START;
             jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
 
@@ -530,7 +530,7 @@ int resumeJob(struct jobCard *jp, int sigValue, int suspendReasons,
             jp->jSupStatus = -1;
         }
 
-        if ((cc = jobsig(jp, SIGCONT, FALSE)) >= 0) {
+        if ((cc = jobsig(jp, SIGCONT, false)) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_RUN);
             jp->jobSpecs.reasons = 0;
             jp->notReported++;
@@ -540,14 +540,14 @@ int resumeJob(struct jobCard *jp, int sigValue, int suspendReasons,
 
     if (sigValue != defSigValue) {
         if ((cc = jobsig(jp, defSigValue,
-                         ((defSigValue == SIGKILL) ? TRUE : FALSE))) >= 0) {
+                         ((defSigValue == SIGKILL) ? true : false))) >= 0) {
             SET_STATE(jp->jobSpecs.jStatus, JOB_STAT_RUN);
             jp->jobSpecs.reasons = 0;
             jp->notReported++;
         }
         return cc;
     } else {
-        if ((cc = jobact(jp, sigValue, actCmd, 0, TRUE)) >= 0) {
+        if ((cc = jobact(jp, sigValue, actCmd, 0, true)) >= 0) {
             jp->actStatus = ACT_START;
             jp->jobSpecs.jStatus |= JOB_STAT_SIGNAL;
 
@@ -730,7 +730,7 @@ static int mykillpg(struct jobCard *jp, int sig)
                "getJInfo_ in mykillpg");
     }
 
-    changed = FALSE;
+    changed = false;
 
     sprintf(jobFileName, "/tmp/.sbd/%s.rusage", jp->jobSpecs.jobFile);
     if (logclass & LC_MPI)
@@ -791,39 +791,39 @@ static int mykillpg(struct jobCard *jp, int sig)
 
         if (ABS(jru->mem - jp->mbdRusage.mem) >
             jp->mbdRusage.mem / 100.0 * (float) rusageUpdatePercent) {
-            changed = TRUE;
+            changed = true;
         } else if (ABS(jru->swap - jp->mbdRusage.swap) >
                    jp->mbdRusage.swap / 100.0 * (float) rusageUpdatePercent) {
-            changed = TRUE;
+            changed = true;
         } else if (ABS(jru->utime - jp->mbdRusage.utime) >
                    jp->mbdRusage.utime / 100.0 * (float) rusageUpdatePercent) {
-            changed = TRUE;
+            changed = true;
         } else if (ABS(jru->stime - jp->mbdRusage.stime) >
                    jp->mbdRusage.stime / 100.0 * (float) rusageUpdatePercent) {
-            changed = TRUE;
+            changed = true;
         } else if (setCmp(jru->pgid, jru->npgids, jp->mbdRusage.pgid,
-                          jp->mbdRusage.npgids) == TRUE) {
+                          jp->mbdRusage.npgids) == true) {
             if (jru->npids != jp->mbdRusage.npids)
-                changed = TRUE;
+                changed = true;
             else {
                 int *set1, *set2;
                 set1 = (int *) calloc(jru->npids, sizeof(int));
                 set2 = (int *) calloc(jp->mbdRusage.npids, sizeof(int));
                 if ((set1 == NULL) || (set2 == NULL)) {
-                    changed = TRUE;
+                    changed = true;
                 } else {
                     for (i = 0; i < jru->npids; i++) {
                         set1[i] = jru->pidInfo[i].pid;
                         set2[i] = jp->mbdRusage.pidInfo[i].pid;
                     }
                     if (!setCmp(set1, jru->npids, set2, jp->mbdRusage.npids))
-                        changed = TRUE;
+                        changed = true;
                 }
                 FREEUP(set1);
                 FREEUP(set2);
             }
         } else {
-            changed = TRUE;
+            changed = true;
         }
 
         if (logclass & (LC_SIGNAL | LC_EXEC)) {
@@ -850,7 +850,7 @@ static int mykillpg(struct jobCard *jp, int sig)
                 ls_syslog(LOG_DEBUG, "mykillpg(): Job <%s> will report",
                           lsb_jobid2str(jp->jobSpecs.jobId));
 
-            jp->needReportRU = TRUE;
+            jp->needReportRU = true;
 
             if (!(jp->regOpFlag & REG_RUSAGE))
                 copyJUsage(&(jp->mbdRusage), jru);
@@ -954,7 +954,7 @@ int setCmp(int *set1, int len1, int *set2, int len2)
     int tmp;
 
     if (len1 != len2)
-        return FALSE;
+        return false;
     for (i = 0; i < len1; i++) {
         start = i;
         for (j = start; j < len2; j++)
@@ -964,9 +964,9 @@ int setCmp(int *set1, int len1, int *set2, int len2)
                 set2[i] = tmp;
                 break;
             } else if (j == (len2 - 1))
-                return FALSE;
+                return false;
     }
-    return TRUE;
+    return true;
 }
 
 static int pgkillit(int pgid, int sig)
@@ -1026,7 +1026,7 @@ int jobact(struct jobCard *jp, int actValue, char *actCmd, int actFlags,
             exeChkpnt(jp, actFlags, exitFile);
         } else if ((strcmp(actCmd, "SIG_CHKPNT") == 0) ||
                    (strcmp(actCmd, "SIG_CHKPNT_COPY") == 0)) {
-            if (isSigTerm(actValue) == TRUE)
+            if (isSigTerm(actValue) == true)
                 exeChkpnt(jp, LSB_CHKPNT_KILL, exitFile);
             else
                 exeChkpnt(jp, LSB_CHKPNT_STOP, exitFile);
@@ -1507,7 +1507,7 @@ void exeChkpnt(struct jobCard *jp, int chkFlags, char *exitFile)
         suspendUntilSignal(SIGURG);
     } else {
         if (!(jp->jobSpecs.options & SUB_CHKPNTABLE)) {
-            if (jobsig(jp, SIGKILL, FALSE) == 0) {
+            if (jobsig(jp, SIGKILL, false) == 0) {
                 if ((fp = fopen(exitFile, "w")) == NULL ||
                     FCLOSEUP(&fp) == -1) {
                     sprintf(errMsg,
@@ -1523,7 +1523,7 @@ void exeChkpnt(struct jobCard *jp, int chkFlags, char *exitFile)
             goto Error;
         }
 
-        jobsig(jp, SIGCONT, FALSE);
+        jobsig(jp, SIGCONT, false);
 
         if ((hp = (struct hostent *) getHostEntryByName_(
                  jp->jobSpecs.fromHost)) == NULL) {
@@ -1729,7 +1729,7 @@ Error:
         merr_user(jp->jobSpecs.userName, jp->jobSpecs.fromHost, msg, "error");
 
     if (jp->jobSpecs.jStatus & (JOB_STAT_SSUSP | JOB_STAT_USUSP))
-        jobsig(jp, SIGSTOP, FALSE);
+        jobsig(jp, SIGSTOP, false);
 
     exit(-1);
     /* WIN32  */

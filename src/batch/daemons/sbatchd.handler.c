@@ -51,7 +51,7 @@ int sbd_mbd_handle(int ch_id)
     }
 
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     // Allocate the buffer data based on what was sent
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {

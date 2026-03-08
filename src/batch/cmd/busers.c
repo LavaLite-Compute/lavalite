@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     int cc, numUsers;
     struct userInfoEnt *usrInfo;
     char **users = NULL, **userPoint;
-    int all = FALSE;
+    int all = false;
 
     if (lsb_init(argv[0]) < 0) {
         lsb_perror("lsb_init");
@@ -85,11 +85,11 @@ int main(int argc, char **argv)
 static void display_users(struct userInfoEnt *reply, int numReply)
 {
     int i;
-    int first = TRUE;
+    int first = true;
     char maxJobs[MAX_CHARLEN], procJobLimit[MAX_CHARLEN];
 
     if (first) {
-        first = FALSE;
+        first = false;
 
         if (lsbMode_ & LSB_MODE_BATCH) {
             prtWord(USR_NAME_LENGTH, "USER/GROUP", 0);

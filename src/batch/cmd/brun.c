@@ -59,8 +59,8 @@ int main(int argc, char **argv)
     struct runJobRequest runJobRequest;
     int cc;
     int c;
-    bool_t fFlag = FALSE;
-    bool_t bFlag = FALSE;
+    bool fFlag = false;
+    bool bFlag = false;
 
     if (lsb_init(argv[0]) < 0) {
         lsb_perror("lsb_init");
@@ -77,10 +77,10 @@ int main(int argc, char **argv)
             }
             break;
         case 'f':
-            fFlag = TRUE;
+            fFlag = true;
             break;
         case 'b':
-            bFlag = TRUE;
+            bFlag = true;
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
         runJobRequest.hostname = &hosts;
 
     runJobRequest.options =
-        (fFlag == TRUE) ? RUNJOB_OPT_NOSTOP : RUNJOB_OPT_NORMAL;
+        (fFlag == true) ? RUNJOB_OPT_NOSTOP : RUNJOB_OPT_NORMAL;
 
     if (bFlag) {
         runJobRequest.options |= RUNJOB_OPT_FROM_BEGIN;

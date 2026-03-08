@@ -39,7 +39,7 @@ typedef struct jobCounters JOB_COUNTERS_T;
 
 #define MAX_INTERNAL_JOBID 299999999999999LL
 #define DEF_MAX_JOB_NUM 1000
-#define DEF_EXCLUSIVE FALSE
+#define DEF_EXCLUSIVE false
 #define DEF_EVENT_WATCH_TIME 60
 #define DEF_COND_CHECK_TIME 600
 
@@ -173,7 +173,7 @@ extern struct objPRMO *pRMOPtr;
 
 #define GET_RES_RSRC_USAGE(resn, val, jResValPtr, qResValPtr)                  \
     {                                                                          \
-        int jobSet = FALSE, queueSet = FALSE;                                  \
+        int jobSet = false, queueSet = false;                                  \
         if (jResValPtr)                                                        \
             TEST_BIT(resn, jResValPtr->rusgBitMaps, jobSet);                   \
         if (qResValPtr)                                                        \
@@ -213,7 +213,7 @@ struct askedHost {
     else                                                                       \
         CLEAR_REASON(v, reason)
 
-#define NON_PRMPT_Q(qAttrib) TRUE
+#define NON_PRMPT_Q(qAttrib) true
 
 struct rqHistory {
     struct hData *host;
@@ -484,7 +484,7 @@ struct userAcct {
     int numRunFromLastSession;
     int numVisitedInSession;
     int numPendJobsInSession;
-    bool_t skipAccount;
+    bool skipAccount;
 };
 
 struct qData {
@@ -861,7 +861,7 @@ extern struct gData *usergroups[];
 extern struct gData *hostgroups[];
 extern struct profileCounters counters[];
 extern char errstr[];
-extern bool_t mbd_debug;
+extern bool mbd_debug;
 extern int errno;
 extern int nextId;
 extern int numRemoteJobsInList;
@@ -920,8 +920,8 @@ extern int readNumber;
 extern time_t condCheckTime;
 extern struct userConf *userConf;
 
-extern bool_t mcSpanClusters;
-extern bool_t disableUAcctMap;
+extern bool mcSpanClusters;
+extern bool disableUAcctMap;
 
 extern int numResources;
 extern struct sharedResource **sharedResources;
@@ -958,7 +958,7 @@ extern int getHostsByResReq(struct resVal *, int *, struct hData **,
 
 extern struct resVal *checkResReq(char *, int);
 
-extern void adjLsbLoad(struct jData *, int, bool_t);
+extern void adjLsbLoad(struct jData *, int, bool);
 extern int countHostJobs(struct hData *hData);
 extern void getLsbResourceInfo(void);
 extern struct resVal *getReserveValues(struct resVal *, struct resVal *);
@@ -982,10 +982,10 @@ extern struct hostInfo *getLsfHostData(char *);
 extern int createQueueHostSet(struct qData *);
 extern int gethIndexByhData(void *);
 extern void *gethDataByhIndex(int);
-extern bool_t isHostQMember(struct hData *, struct qData *);
+extern bool isHostQMember(struct hData *, struct qData *);
 extern int getIndexByQueue(void *);
 extern void *getQueueByIndex(int);
-extern bool_t isQInQSet(struct qData *, LS_BITSET_T *);
+extern bool isQInQSet(struct qData *, LS_BITSET_T *);
 
 extern struct listSet *voidJobList;
 extern int newJob(struct submitReq *, struct submitMbdReply *, int,
@@ -1020,7 +1020,7 @@ extern struct jData *initJData(struct jShared *);
 extern void assignLoad(float *, float *, struct qData *, struct hData *);
 extern int resigJobs(int *resignal);
 extern void removeJob(int64_t);
-extern bool_t runJob(struct runJobRequest *, struct lsfAuth *);
+extern bool runJob(struct runJobRequest *, struct lsfAuth *);
 extern void addJobIdHT(struct jData *);
 extern struct jData *createjDataRef(struct jData *);
 extern void destroyjDataRef(struct jData *);
@@ -1067,9 +1067,9 @@ extern int pJobLimitOk(struct hData *, struct hostAcct *, float pJobLimit);
 extern int uJobLimitOk(struct jData *, struct hTab *, int, int disp);
 extern int hostSlots(int, struct jData *, struct hData *, int disp, int *);
 extern void disp_clean_job(struct jData *);
-extern bool_t dispatch_it(struct jData *);
+extern bool dispatch_it(struct jData *);
 extern int findBestHosts(struct jData *, struct resVal *, int, int,
-                         struct candHost *, bool_t);
+                         struct candHost *, bool);
 extern int hJobLimitOk(struct hData *, struct hostAcct *, int);
 extern void freeReserveSlots(struct jData *);
 extern int jobStartError(struct jData *jData, sbdReplyType reply);
@@ -1082,58 +1082,58 @@ extern int handleForeignJob(struct jData *);
 extern int reservePreemptResourcesForHosts(struct jData *jp);
 extern int freeReservePreemptResources(struct jData *jp);
 extern int deallocReservePreemptResources(struct jData *jp);
-extern int orderByStatus(struct candHost *, int, bool_t);
-extern void setLsbPtilePack(const bool_t);
+extern int orderByStatus(struct candHost *, int, bool);
+extern void setLsbPtilePack(const bool);
 extern int do_submitReq(XDR *, int, struct sockaddr_in *, char *,
-                        struct packet_header *, struct sockaddr_in *,
+                        struct protocol_header *, struct sockaddr_in *,
                         struct lsfAuth *, int *, int, struct jData **);
 extern int do_signalReq(XDR *, int, struct sockaddr_in *, char *,
-                        struct packet_header *, struct lsfAuth *);
+                        struct protocol_header *, struct lsfAuth *);
 extern int do_jobMsg(struct bucket *, XDR *, int, struct sockaddr_in *, char *,
-                     struct packet_header *, struct lsfAuth *);
+                     struct protocol_header *, struct lsfAuth *);
 extern int do_statusReq(XDR *, int, struct sockaddr_in *, int *,
-                        struct packet_header *);
-extern int do_errorReq(int, struct packet_header *);
+                        struct protocol_header *);
+extern int do_errorReq(int, struct protocol_header *);
 extern int do_jobSwitchReq(XDR *, int, struct sockaddr_in *, char *,
-                           struct packet_header *, struct lsfAuth *);
+                           struct protocol_header *, struct lsfAuth *);
 extern int do_hostInfoReq(XDR *, int, struct sockaddr_in *,
-                          struct packet_header *);
+                          struct protocol_header *);
 extern int do_jobPeekReq(XDR *, int, struct sockaddr_in *, char *,
-                         struct packet_header *, struct lsfAuth *);
+                         struct protocol_header *, struct lsfAuth *);
 extern int do_jobInfoReq(XDR *, int, struct sockaddr_in *,
-                         struct packet_header *, int);
+                         struct protocol_header *, int);
 extern int do_queueInfoReq(XDR *, int, struct sockaddr_in *,
-                           struct packet_header *);
+                           struct protocol_header *);
 extern int do_groupInfoReq(XDR *, int, struct sockaddr_in *,
-                           struct packet_header *);
+                           struct protocol_header *);
 extern int do_queueControlReq(XDR *, int, struct sockaddr_in *, char *,
-                              struct packet_header *, struct lsfAuth *);
+                              struct protocol_header *, struct lsfAuth *);
 extern int do_reconfigReq(XDR *, int, struct sockaddr_in *, char *,
-                          struct packet_header *);
+                          struct protocol_header *);
 extern int do_restartReq(XDR *, int, struct sockaddr_in *,
-                         struct packet_header *);
+                         struct protocol_header *);
 extern int do_hostControlReq(XDR *, int, struct sockaddr_in *, char *,
-                             struct packet_header *, struct lsfAuth *);
+                             struct protocol_header *, struct lsfAuth *);
 extern int do_jobMoveReq(XDR *, int, struct sockaddr_in *, char *,
-                         struct packet_header *, struct lsfAuth *);
+                         struct protocol_header *, struct lsfAuth *);
 extern int do_userInfoReq(XDR *, int, struct sockaddr_in *,
-                          struct packet_header *);
+                          struct protocol_header *);
 extern int do_paramInfoReq(XDR *, int, struct sockaddr_in *,
-                           struct packet_header *);
+                           struct protocol_header *);
 extern int do_hostPartInfoReq(XDR *, int, struct sockaddr_in *,
-                              struct packet_header *);
+                              struct protocol_header *);
 extern int do_migReq(XDR *, int, struct sockaddr_in *, char *,
-                     struct packet_header *, struct lsfAuth *);
+                     struct protocol_header *, struct lsfAuth *);
 extern int do_modifyReq(XDR *, int, struct sockaddr_in *, char *,
-                        struct packet_header *, struct lsfAuth *);
+                        struct protocol_header *, struct lsfAuth *);
 extern void doNewJobReply(struct sbdNode *, int);
 extern void doProbeReply(struct sbdNode *, int);
 extern void doSignalJobReply(struct sbdNode *sbdPtr, int);
 extern void doSwitchJobReply(struct sbdNode *sbdPtr, int);
 extern int do_resourceInfoReq(XDR *, int, struct sockaddr_in *,
-                              struct packet_header *);
+                              struct protocol_header *);
 extern int do_runJobReq(XDR *, int, struct sockaddr_in *, struct lsfAuth *,
-                        struct packet_header *);
+                        struct protocol_header *);
 extern int getQUsable(struct qData *);
 extern void allocateRemote(struct jData *, int);
 extern void setExecHostsAcceptInterval(struct jData *);
@@ -1279,11 +1279,11 @@ extern int evalDepCond(struct dptNode *, struct jData *);
 extern void freeDepCond(struct dptNode *);
 extern void resetDepCond(struct dptNode *);
 
-extern bool_t autoAdjustIsEnabled(void);
+extern bool autoAdjustIsEnabled(void);
 extern int getAutoAdjustAtNumPend(void);
 extern float getAutoAdjustAtPercent(void);
 
-extern bool_t autoAdjustIsEnabled(void);
+extern bool autoAdjustIsEnabled(void);
 
 extern float getHRValue(char *, struct hData *, struct resourceInstance **);
 extern int checkResources(struct resourceInfoReq *,
@@ -1339,9 +1339,9 @@ extern void freeIdxListContext(void);
 #define LEFT_SIBLING(x) (x)->left
 #define RIGHT_SIBLING(x) (x)->right
 #define IS_ANCESTOR(x, y) is_ancestor(x, y)
-#define IS_PARENT(x, y) (((x) == PARENT(y)) ? TRUE : FALSE)
+#define IS_PARENT(x, y) (((x) == PARENT(y)) ? true : false)
 #define IS_CHILD(x, y) is_child(x, y)
-#define IS_SIBLING(x, y) ((PARENT(x) == PARENT(y)) ? TRUE : FALSE)
+#define IS_SIBLING(x, y) ((PARENT(x) == PARENT(y)) ? true : false)
 
 extern long schedSeqNo;
 

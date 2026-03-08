@@ -68,7 +68,7 @@ float maxFactor = 0.0;
 char *maxHName = NULL;
 
 static struct hTab unknownUsers;
-static bool_t initUnknownUsers = false;
+static bool initUnknownUsers = false;
 
 static struct clusterConf cConf;
 static struct sharedConf sConf;
@@ -2971,7 +2971,7 @@ static int addHost(struct hostInfoEnt *hp, struct hostInfo *hostInfo,
                    int override)
 {
     struct hostInfoEnt *host;
-    bool_t bExists = false;
+    bool bExists = false;
     int i, ihost;
 
     if (hp == NULL)
@@ -3105,7 +3105,7 @@ static char *parseGroups(char *linep, char *fname, int *lineNum, char *section,
     struct passwd *pw;
     int len = 0, hasAllOthers = false, checkAll = true;
     char hostName[MAXHOSTNAMELEN], *hostGroup = NULL;
-    bool_t hasNone = false;
+    bool hasNone = false;
     int haveFirst = false;
     char returnVal = false;
 

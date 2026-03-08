@@ -137,7 +137,7 @@ static int64_t sendModifyReq(struct modifyReq *modifyReq,
     XDR xdrs;
     char request_buf[2 * MSGSIZE];
     char *reply_buf;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct submitMbdReply *reply;
     int64_t jobId;
 
@@ -226,7 +226,7 @@ int lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
     XDR xdrs;
     mbdReqType mbdReqtype;
     char request_buf[MSGSIZE];
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct lsfAuth auth;
     char *reply_buf;
 

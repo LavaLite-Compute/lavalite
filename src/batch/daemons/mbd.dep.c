@@ -43,33 +43,33 @@ struct token {
     int namelen;
     dptType type;
     int checkCha;
-} tokenTable[] = {{"(", 1, DPT_LEFT_, FALSE},
-                  {")", 1, DPT_RIGHT_, FALSE},
-                  {"&&", 2, DPT_AND, FALSE},
-                  {"||", 2, DPT_OR, FALSE},
-                  {"exit", 4, DPT_EXIT, TRUE},
-                  {"started", 7, DPT_STARTED, TRUE},
-                  {"ended", 5, DPT_ENDED, TRUE},
-                  {"time", 4, DPT_WINDOW, TRUE},
-                  {"done", 4, DPT_DONE, TRUE},
-                  {"post_done", 9, DPT_POST_DONE, TRUE},
-                  {"post_err", 8, DPT_POST_ERR, TRUE},
-                  {"numpend", 7, DPT_NUMPEND, TRUE},
-                  {"numhold", 7, DPT_NUMHOLD, TRUE},
-                  {"numrun", 6, DPT_NUMRUN, TRUE},
-                  {"numexit", 7, DPT_NUMEXIT, TRUE},
-                  {"numdone", 7, DPT_NUMDONE, TRUE},
-                  {"numstart", 8, DPT_NUMSTART, TRUE},
-                  {"numended", 8, DPT_NUMENDED, TRUE},
-                  {",", 1, DPT_COMMA, FALSE},
-                  {">=", 2, DPT_GE, FALSE},
-                  {"<=", 2, DPT_LE, FALSE},
-                  {"==", 2, DPT_EQ, FALSE},
-                  {"!=", 2, DPT_NE, FALSE},
-                  {"<", 1, DPT_LT, FALSE},
-                  {">", 1, DPT_GT, FALSE},
-                  {"!", 1, DPT_NOT, FALSE},
-                  {NULL, 0, DPT_DONE, FALSE}};
+} tokenTable[] = {{"(", 1, DPT_LEFT_, false},
+                  {")", 1, DPT_RIGHT_, false},
+                  {"&&", 2, DPT_AND, false},
+                  {"||", 2, DPT_OR, false},
+                  {"exit", 4, DPT_EXIT, true},
+                  {"started", 7, DPT_STARTED, true},
+                  {"ended", 5, DPT_ENDED, true},
+                  {"time", 4, DPT_WINDOW, true},
+                  {"done", 4, DPT_DONE, true},
+                  {"post_done", 9, DPT_POST_DONE, true},
+                  {"post_err", 8, DPT_POST_ERR, true},
+                  {"numpend", 7, DPT_NUMPEND, true},
+                  {"numhold", 7, DPT_NUMHOLD, true},
+                  {"numrun", 6, DPT_NUMRUN, true},
+                  {"numexit", 7, DPT_NUMEXIT, true},
+                  {"numdone", 7, DPT_NUMDONE, true},
+                  {"numstart", 8, DPT_NUMSTART, true},
+                  {"numended", 8, DPT_NUMENDED, true},
+                  {",", 1, DPT_COMMA, false},
+                  {">=", 2, DPT_GE, false},
+                  {"<=", 2, DPT_LE, false},
+                  {"==", 2, DPT_EQ, false},
+                  {"!=", 2, DPT_NE, false},
+                  {"<", 1, DPT_LT, false},
+                  {">", 1, DPT_GT, false},
+                  {"!", 1, DPT_NOT, false},
+                  {NULL, 0, DPT_DONE, false}};
 
 struct Stack {
     int top;
@@ -445,9 +445,9 @@ struct dptNode *parseDepCond(char *dependCond, struct lsfAuth *auth,
         freeDepCond(node);
         goto Error;
     }
-    rootNode->updFlag = TRUE;
-    freeStackDep(operatorStack, FALSE);
-    freeStackDep(operandStack, FALSE);
+    rootNode->updFlag = true;
+    freeStackDep(operatorStack, false);
+    freeStackDep(operandStack, false);
     *replyCode = LSBE_NO_ERROR;
     return rootNode;
 
@@ -455,8 +455,8 @@ Error:
 
     if (jobRec)
         FREEUP(jobRec);
-    freeStackDep(operatorStack, TRUE);
-    freeStackDep(operandStack, TRUE);
+    freeStackDep(operatorStack, true);
+    freeStackDep(operandStack, true);
     FREEUP(nodeList);
     return NULL;
 }
@@ -752,7 +752,7 @@ static char *getToken(char **sp, dptType *type)
             strcpy(token, tokenTable[i].name);
             *sp += tokenTable[i].namelen;
             if ((isalnum(**sp) || **sp == '*') &&
-                tokenTable[i].checkCha == TRUE) {
+                tokenTable[i].checkCha == true) {
                 j = tokenTable[i].namelen;
                 break;
             }
@@ -950,7 +950,7 @@ static struct jData **matchJobs(char *jobp, char *lsfUserName, int *numFoundJob,
     struct jgTreeNode *parent, *nPtr;
     struct idxList *idxList = NULL;
     int error;
-    bool_t wildCardJobName = FALSE;
+    bool wildCardJobName = false;
     time_t submitTime = 0;
     int maxJLimit = 0;
     struct uData *uPtr;
@@ -1001,13 +1001,13 @@ static struct jData **matchJobs(char *jobp, char *lsfUserName, int *numFoundJob,
     }
 
     if (jobName && strlen(jobName) > 0 && jobName[strlen(jobName) - 1] == '*') {
-        wildCardJobName = TRUE;
+        wildCardJobName = true;
     }
 
     if (jobId) {
         foundJobRec[0] = getJobData(jobId);
         if (foundJobRec[0]) {
-            int notFound = FALSE;
+            int notFound = false;
 
             if (flag != NULL && *flag == ARRAY_DEP_ONE_TO_ONE) {
                 if (foundJobRec[0]->nodeType == JGRP_NODE_ARRAY) {
@@ -1049,7 +1049,7 @@ static struct jData **matchJobs(char *jobp, char *lsfUserName, int *numFoundJob,
                             (long) createjDataRef(jpbw), (*jobIdx)->depJobList);
                         continue;
                     } else {
-                        notFound = TRUE;
+                        notFound = true;
                         *element = LSB_JOBID(jobId, i);
                         break;
                     }
@@ -1173,7 +1173,7 @@ Ret:
 static int createMoreNodes(dptType tokenType, int numJob, struct jData **jobRec,
                            struct jobIdx *jobIdx, struct dptNode **nodesList)
 {
-    int i, first = TRUE;
+    int i, first = true;
     struct dptNode *node;
 
     for (i = 0; i < numJob; i++) {
@@ -1187,8 +1187,8 @@ static int createMoreNodes(dptType tokenType, int numJob, struct jData **jobRec,
         PUSH_STACK(operandStack, node);
         if (nodesList)
             nodesList[i] = node;
-        if (first == TRUE) {
-            first = FALSE;
+        if (first == true) {
+            first = false;
             continue;
         }
         if ((node = newNode(DPT_AND, NULL)) == NULL)
@@ -1208,38 +1208,38 @@ static int opExpr(int opType, int operand1, int operand2)
     switch (opType) {
     case DPT_LT:
         if (operand1 < operand2)
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     case DPT_LE:
         if (operand1 <= operand2)
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     case DPT_GT:
         if (operand1 > operand2)
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     case DPT_GE:
         if (operand1 >= operand2)
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     case DPT_EQ:
         if (operand1 == operand2)
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     case DPT_NE:
         if (operand1 != operand2)
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     case DPT_TRUE:
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 static int getCounterOfDep(int type, int *counts)
@@ -1304,37 +1304,37 @@ static int evalJobDep(struct dptNode *node, struct jData *jpbw,
     if ((node->type != DPT_DONE) && (node->type != DPT_POST_DONE) &&
         (node->type != DPT_EXIT) && (node->type != DPT_POST_ERR) &&
         (node->type != DPT_ENDED) && (node->type != DPT_STARTED)) {
-        return FALSE;
+        return false;
     }
 
     if (jpbw == NULL)
-        return FALSE;
+        return false;
 
     switch (node->type) {
     case DPT_DONE:
         if ((depJob == NULL || depJob->endTime < jpbw->endTime) &&
             ((jpbw->jStatus & JOB_STAT_DONE) ||
              (IS_PEND(jpbw->jStatus) && jpbw->jFlags & JFLAG_LASTRUN_SUCC)))
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
 
     case DPT_POST_DONE:
         if ((depJob == NULL) || (depJob->endTime < jpbw->endTime)) {
             if (IS_POST_DONE(jpbw->jStatus) &&
                 (jpbw->jStatus & JOB_STAT_DONE)) {
-                return TRUE;
+                return true;
             }
         }
-        return FALSE;
+        return false;
 
     case DPT_POST_ERR:
         if ((depJob == NULL) || (depJob->endTime < jpbw->endTime)) {
             if (IS_POST_ERR(jpbw->jStatus) && (jpbw->jStatus & JOB_STAT_DONE)) {
-                return TRUE;
+                return true;
             }
         }
-        return FALSE;
+        return false;
 
     case DPT_EXIT: {
         int exitCode;
@@ -1346,24 +1346,24 @@ static int evalJobDep(struct dptNode *node, struct jData *jpbw,
              (IS_PEND(jpbw->jStatus) &&
               !(jpbw->jFlags & JFLAG_LASTRUN_SUCC))) &&
             !(jpbw->jStatus & JOB_STAT_DONE))
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     }
     case DPT_ENDED:
         if ((depJob == NULL || depJob->endTime < jpbw->endTime) &&
             ((IS_FINISH(jpbw->jStatus) || IS_PEND(jpbw->jStatus))))
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     case DPT_STARTED:
         if (jpbw->startTime &&
             (depJob == NULL || depJob->endTime < jpbw->startTime) &&
             !(jpbw->jStatus & JOB_STAT_PRE_EXEC))
-            return TRUE;
+            return true;
         else
-            return FALSE;
+            return false;
     default:
-        return FALSE;
+        return false;
     }
 }

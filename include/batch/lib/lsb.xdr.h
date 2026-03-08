@@ -20,36 +20,36 @@
 
 #include "batch/lib/lsb.h"
 
-bool_t xdr_submitReq(XDR *, struct submitReq *, void *);
-bool_t xdr_submitMbdReply(XDR *, struct submitMbdReply *, void *);
-bool_t xdr_signalReq(XDR *, struct signalReq *, void *);
-bool_t xdr_lsbMsg(XDR *, struct lsbMsg *, void *);
-bool_t xdr_controlReq(XDR *, struct controlReq *, void *);
-bool_t xdr_infoReq(XDR *, struct infoReq *, void *);
-bool_t xdr_parameterInfo(XDR *, struct parameterInfo *, void *);
-bool_t xdr_userInfoEnt(XDR *, struct userInfoEnt *, void *);
-bool_t xdr_userInfoReply(XDR *, struct userInfoReply *, void *);
-bool_t xdr_hostInfoEnt(XDR *, struct hostInfoEnt *, void *);
-bool_t xdr_hostDataReply(XDR *, struct hostDataReply *, void *);
-bool_t xdr_queueInfoEnt(XDR *, struct queueInfoEnt *, void *);
-bool_t xdr_queueInfoReply(XDR *, struct queueInfoReply *, void *);
-bool_t xdr_jobInfoHead(XDR *, struct jobInfoHead *, void *);
-bool_t xdr_jobInfoReply(XDR *, struct jobInfoReply *, void *);
-bool_t xdr_jobInfoEnt(XDR *, struct jobInfoEnt *, void *);
-bool_t xdr_jobInfoReq(XDR *, struct jobInfoReq *, void *);
-bool_t xdr_jobPeekReq(XDR *, struct jobPeekReq *, void *);
-bool_t xdr_jobPeekReply(XDR *, struct jobPeekReply *, void *);
-bool_t xdr_jobMoveReq(XDR *, struct jobMoveReq *, void *);
-bool_t xdr_jobSwitchReq(XDR *, struct jobSwitchReq *, void *);
-bool_t xdr_groupInfoReply(XDR *, struct groupInfoReply *, void *);
-bool_t xdr_groupInfoEnt(XDR *, struct groupInfoEnt *, void *);
-bool_t xdr_migReq(XDR *, struct migReq *, void *);
-bool_t xdr_xFile(XDR *, struct xFile *, void *);
-bool_t xdr_modifyReq(XDR *, struct modifyReq *, void *);
-bool_t xdr_lsbShareResourceInfoReply(XDR *, struct lsbShareResourceInfoReply *,
+bool xdr_submitReq(XDR *, struct submitReq *, void *);
+bool xdr_submitMbdReply(XDR *, struct submitMbdReply *, void *);
+bool xdr_signalReq(XDR *, struct signalReq *, void *);
+bool xdr_lsbMsg(XDR *, struct lsbMsg *, void *);
+bool xdr_controlReq(XDR *, struct controlReq *, void *);
+bool xdr_infoReq(XDR *, struct infoReq *, void *);
+bool xdr_parameterInfo(XDR *, struct parameterInfo *, void *);
+bool xdr_userInfoEnt(XDR *, struct userInfoEnt *, void *);
+bool xdr_userInfoReply(XDR *, struct userInfoReply *, void *);
+bool xdr_hostInfoEnt(XDR *, struct hostInfoEnt *, void *);
+bool xdr_hostDataReply(XDR *, struct hostDataReply *, void *);
+bool xdr_queueInfoEnt(XDR *, struct queueInfoEnt *, void *);
+bool xdr_queueInfoReply(XDR *, struct queueInfoReply *, void *);
+bool xdr_jobInfoHead(XDR *, struct jobInfoHead *, void *);
+bool xdr_jobInfoReply(XDR *, struct jobInfoReply *, void *);
+bool xdr_jobInfoEnt(XDR *, struct jobInfoEnt *, void *);
+bool xdr_jobInfoReq(XDR *, struct jobInfoReq *, void *);
+bool xdr_jobPeekReq(XDR *, struct jobPeekReq *, void *);
+bool xdr_jobPeekReply(XDR *, struct jobPeekReply *, void *);
+bool xdr_jobMoveReq(XDR *, struct jobMoveReq *, void *);
+bool xdr_jobSwitchReq(XDR *, struct jobSwitchReq *, void *);
+bool xdr_groupInfoReply(XDR *, struct groupInfoReply *, void *);
+bool xdr_groupInfoEnt(XDR *, struct groupInfoEnt *, void *);
+bool xdr_migReq(XDR *, struct migReq *, void *);
+bool xdr_xFile(XDR *, struct xFile *, void *);
+bool xdr_modifyReq(XDR *, struct modifyReq *, void *);
+bool xdr_lsbShareResourceInfoReply(XDR *, struct lsbShareResourceInfoReply *,
                                      void *);
-bool_t xdr_runJobReq(XDR *, struct runJobRequest *, void *);
-bool_t xdr_jobAttrReq(XDR *, struct jobAttrInfoEnt *, void *);
+bool xdr_runJobReq(XDR *, struct runJobRequest *, void *);
+bool xdr_jobAttrReq(XDR *, struct jobAttrInfoEnt *, void *);
 
 struct wire_sbd_register {
     char hostname[MAXHOSTNAMELEN];
@@ -66,7 +66,7 @@ struct wire_sbd_job {
     int32_t pid;
 };
 
-bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
+bool xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
 
 // Job signal protocol from mbd to sbd
 struct wire_job_sig_req {
@@ -75,7 +75,7 @@ struct wire_job_sig_req {
     int32_t flags;
 };
 
-bool_t xdr_wire_job_sig_req(XDR *, struct wire_job_sig_req *);
+bool xdr_wire_job_sig_req(XDR *, struct wire_job_sig_req *);
 
 /* job file wire representation
  *
@@ -87,16 +87,16 @@ struct wire_job_file {
     char   *data;
 };
 
-bool_t xdr_wire_job_file(XDR *, struct wire_job_file *);
+bool xdr_wire_job_file(XDR *, struct wire_job_file *);
 
 struct wire_job_state {
     int64_t job_id;
     int state;
 };
-bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *);
+bool xdr_wire_job_state(XDR *xdrs, struct wire_job_state *);
 
 struct wire_compact_notify {
     int32_t status;
     int64_t compact_time;
 };
-bool_t xdr_wire_compact_notify(XDR *, struct wire_compact_notify *);
+bool xdr_wire_compact_notify(XDR *, struct wire_compact_notify *);

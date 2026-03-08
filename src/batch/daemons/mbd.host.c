@@ -93,25 +93,25 @@ int checkHosts(struct infoReq *hostsReqPtr, struct hostDataReply *hostsReplyPtr)
         if (gp->memberTab.numEnts != 0 || gp->numGroups != 0) {
             char *members;
             char *rest, *host;
-            char found = TRUE;
-            members = getGroupMembers(gp, TRUE);
+            char found = true;
+            members = getGroupMembers(gp, true);
             rest = members;
             host = rest;
             while (found) {
-                found = FALSE;
+                found = false;
                 for (k = 0; k < strlen(rest); k++)
                     if (rest[k] == ' ') {
                         rest[k] = '\0';
                         host = rest;
                         rest = &rest[k] + 1;
-                        found = TRUE;
+                        found = true;
                         break;
                     }
                 if (found) {
-                    char duplicate = FALSE;
+                    char duplicate = false;
                     for (k = 0; k < numHosts; k++) {
                         if (equal_host(host, hDList[k]->host)) {
-                            duplicate = TRUE;
+                            duplicate = true;
                             break;
                         }
                     }
@@ -183,7 +183,7 @@ static int returnHostInfo(struct hostDataReply *hostsReplyPtr, int numHosts,
                     candHosts[i].hData = hDList[i];
 
                 numHosts = findBestHosts(NULL, resVal, numHosts, numHosts,
-                                         candHosts, FALSE);
+                                         candHosts, false);
                 for (i = 0; i < numHosts; i++)
                     hDList[i] = candHosts[i].hData;
             }
@@ -466,9 +466,9 @@ static void hostJobs(struct hData *hp, int stateTransit)
         if (jpbw->shared->jobBill.options & SUB_RERUNNABLE) {
             int sendMail;
             if (jpbw->shared->jobBill.options & SUB_RERUNNABLE) {
-                sendMail = TRUE;
+                sendMail = true;
             } else {
-                sendMail = FALSE;
+                sendMail = false;
             }
             jpbw->endTime = now;
             jpbw->newReason = EXIT_ZOMBIE;
@@ -533,7 +533,7 @@ void checkHWindow(void)
         }
 
         hp->hStatus |= HOST_STAT_WIND;
-        windOpen = FALSE;
+        windOpen = false;
         hp->windEdge = now + (24.0 - dayhour.hour) * 3600.0;
         for (wp = hp->week[dayhour.day]; wp; wp = wp->nextwind) {
             checkWindow(&dayhour, &windOpen, &hp->windEdge, wp, now);
@@ -577,16 +577,16 @@ int repeatHosts(char *host, char **hostTable, int numTable)
     int i;
 
     if (!numTable || host == NULL)
-        return FALSE;
+        return false;
 
     for (i = 0; i < numTable; i++) {
         if (hostTable[i] == NULL)
             continue;
 
         if (strcasecmp(hostTable[i], host) == 0)
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 int getLsbHostNames(char ***hostNames)
@@ -642,8 +642,8 @@ void getLsbHostInfo(void)
     numofprocs = 0;
     for (i = 0; i < host_count; i++) {
         struct hData *hD;
-        bool_t isChanged = FALSE;
-        if (host_list[i].isServer != TRUE)
+        bool isChanged = false;
+        if (host_list[i].isServer != true)
             continue;
 
         if ((hD = getHostData(host_list[i].hostName)) == NULL) {
@@ -707,7 +707,7 @@ void getLsbHostInfo(void)
         }
     }
 
-    i = TRUE;
+    i = true;
     for (qp = qDataList->forw; (qp != qDataList); qp = qp->forw)
         queueHostsPF(qp, &i);
 
@@ -724,7 +724,7 @@ int getHostsByResReq(struct resVal *resValPtr, int *num, struct hData **hosts,
     int i, numHosts, k = 0;
     struct tclHostData tclHostData;
 
-    *overRideFromType = FALSE;
+    *overRideFromType = false;
 
     INC_CNT(PROF_CNT_getHostsByResReq);
 
@@ -750,8 +750,8 @@ int getHostsByResReq(struct resVal *resValPtr, int *num, struct hData **hosts,
             continue;
         }
 
-        if (tclHostData.overRideFromType == TRUE)
-            *overRideFromType = TRUE;
+        if (tclHostData.overRideFromType == true)
+            *overRideFromType = true;
 
         freeTclHostData(&tclHostData);
         hosts[numHosts++] = hosts[i];
@@ -811,7 +811,7 @@ void getTclHostData(struct tclHostData *tclHostData, struct hData *hPtr,
     }
 
     tclHostData->cpuFactor = hPtr->cpuFactor;
-    tclHostData->ignDedicatedResource = FALSE;
+    tclHostData->ignDedicatedResource = false;
     tclHostData->resBitMaps = hPtr->resBitMaps;
     tclHostData->DResBitMaps = NULL;
     tclHostData->numResPairs = hPtr->numInstances;
@@ -845,7 +845,7 @@ time_t runTimeSinceResume(const struct jData *jp)
     }
 }
 
-void adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
+void adjLsbLoad(struct jData *jpbw, int forResume, bool doAdj)
 {
     static char fname[] = "adjLsbLoad";
     int i, ldx, resAssign = 0;
@@ -853,7 +853,7 @@ void adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
     struct resVal *resValPtr;
     struct resourceInstance *instance;
     static int *rusgBitMaps = NULL;
-    int adjForPreemptableResource = FALSE;
+    int adjForPreemptableResource = false;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -880,11 +880,11 @@ void adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
     duration = (float) resValPtr->duration;
     decay = resValPtr->decay;
     if (resValPtr->duration != INFINIT_INT && (duration - jpbw->runTime <= 0)) {
-        if ((forResume != TRUE && (duration - runTimeSinceResume(jpbw) <= 0)) ||
+        if ((forResume != true && (duration - runTimeSinceResume(jpbw) <= 0)) ||
             !isReservePreemptResource(resValPtr)) {
             return;
         }
-        adjForPreemptableResource = TRUE;
+        adjForPreemptableResource = true;
     }
     for (i = 0; i < jpbw->numHostPtr; i++) {
         float load;
@@ -913,14 +913,14 @@ void adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
 
             } else if (IS_SUSP(jpbw->jStatus) &&
                        !(allLsInfo->resTable[ldx].flags & RESF_RELEASE) &&
-                       forResume == FALSE) {
+                       forResume == false) {
                 goto adjustLoadValue;
 
             } else if (IS_SUSP(jpbw->jStatus) &&
                        (jpbw->jStatus & JOB_STAT_RESERVE)) {
                 goto adjustLoadValue;
 
-            } else if (IS_SUSP(jpbw->jStatus) && forResume == TRUE &&
+            } else if (IS_SUSP(jpbw->jStatus) && forResume == true &&
                        (allLsInfo->resTable[ldx].flags & RESF_RELEASE)) {
                 goto adjustLoadValue;
 
@@ -948,7 +948,7 @@ void adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
                     continue;
                 } else {
                     TEST_BIT(ldx, rusgBitMaps, isSet)
-                    if ((isSet == TRUE) && !slotResourceReserve) {
+                    if ((isSet == true) && !slotResourceReserve) {
                         continue;
                     }
                     SET_BIT(ldx, rusgBitMaps);
@@ -1005,16 +1005,16 @@ void adjLsbLoad(struct jData *jpbw, int forResume, bool_t doAdj)
             if (ldx < allLsInfo->numIndx) {
                 orgnalLoad = jpbw->hPtr[i]->lsbLoad[ldx];
                 jpbw->hPtr[i]->lsbLoad[ldx] += jackValue;
-                if (jpbw->hPtr[i]->lsbLoad[ldx] <= 0.0 && forResume == FALSE)
+                if (jpbw->hPtr[i]->lsbLoad[ldx] <= 0.0 && forResume == false)
                     jpbw->hPtr[i]->lsbLoad[ldx] = 0.0;
                 if (ldx == UT && jpbw->hPtr[i]->lsbLoad[ldx] > 1.0 &&
-                    forResume == FALSE)
+                    forResume == false)
                     jpbw->hPtr[i]->lsbLoad[ldx] = 1.0;
                 load = jpbw->hPtr[i]->lsbLoad[ldx];
             } else {
                 orgnalLoad = atof(instance->value);
                 load = orgnalLoad + jackValue;
-                if (load < 0.0 && forResume == FALSE)
+                if (load < 0.0 && forResume == false)
                     load = 0.0;
                 FREEUP(instance->value);
                 sprintf(loadString, "%-10.1f", load);
@@ -1036,21 +1036,21 @@ struct resVal *getReserveValues(struct resVal *jobResVal,
                                 struct resVal *qResVal)
 {
     static char fname[] = "getReserveValues";
-    static int first = TRUE;
+    static int first = true;
     static struct resVal resVal;
-    int i, diffrent = FALSE;
+    int i, diffrent = false;
 
     if (jobResVal == NULL && qResVal == NULL)
         return NULL;
 
     if (jobResVal == NULL && qResVal != NULL) {
-        if (hasResReserve(qResVal) == TRUE)
+        if (hasResReserve(qResVal) == true)
             return qResVal;
         else
             return NULL;
     }
     if (jobResVal != NULL && qResVal == NULL) {
-        if (hasResReserve(jobResVal) == TRUE)
+        if (hasResReserve(jobResVal) == true)
             return jobResVal;
         else
             return NULL;
@@ -1059,17 +1059,17 @@ struct resVal *getReserveValues(struct resVal *jobResVal,
     for (i = 0; i < GET_INTNUM(allLsInfo->nRes); i++) {
         if (jobResVal->rusgBitMaps[i] == qResVal->rusgBitMaps[i])
             continue;
-        diffrent = TRUE;
+        diffrent = true;
     }
-    if (diffrent == FALSE)
+    if (diffrent == false)
         return jobResVal;
 
-    if (first == TRUE) {
+    if (first == true) {
         resVal.val =
             (float *) my_malloc(allLsInfo->nRes * sizeof(float), fname);
         resVal.rusgBitMaps =
             (int *) my_malloc(GET_INTNUM(allLsInfo->nRes) * sizeof(int), fname);
-        first = FALSE;
+        first = false;
     }
 
     for (i = 0; i < allLsInfo->nRes; i++)
@@ -1152,13 +1152,13 @@ static int hasResReserve(struct resVal *resVal)
     int i;
 
     if (resVal == NULL)
-        return FALSE;
+        return false;
 
     for (i = 0; i < GET_INTNUM(allLsInfo->nRes); i++) {
         if (resVal->rusgBitMaps[i] != 0)
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 
 static void getAHostInfo(struct hData *hp)
@@ -1186,7 +1186,7 @@ static void getAHostInfo(struct hData *hp)
     if (hostInfo == NULL) {
         return;
     }
-    if (hostInfo[0].isServer != TRUE)
+    if (hostInfo[0].isServer != true)
         return;
 
     hp->cpuFactor = hostInfo[0].cpuFactor;
@@ -1233,7 +1233,7 @@ static void getAHostInfo(struct hData *hp)
         break;
     }
 
-    i = TRUE;
+    i = true;
     for (qp = qDataList->forw; (qp != qDataList); qp = qp->forw)
         queueHostsPF(qp, &i);
 

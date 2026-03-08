@@ -322,7 +322,7 @@ fail:
 }
 
 // Job managers
-void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
+void sbd_job_new(int chan_id, XDR *xdrs, struct protocol_header *req_hdr)
 {
     sbdReplyType reply_code;
 
@@ -365,7 +365,7 @@ void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
         reply.jobPGid = job->pgid;
         reply.jStatus = job->job_id;
 
-        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+        xdr_free_payload(xdr_jobSpecs, (char *)&spec, req_hdr);
         if (sbd_job_new_reply(chan_id, &reply) < 0) {
             LS_ERR("job=%ld enqueue duplicate new job reply failed", job->job_id);
         }
@@ -384,7 +384,7 @@ void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
         reply.reasons = ERR_MEM;
         // tell mbd to requeue the job
         reply.jStatus = JOB_STAT_PEND;
-        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+        xdr_free_payload(xdr_jobSpecs, (char *)&spec, req_hdr);
 
         if (sbd_job_new_reply(chan_id, &reply) < 0) {
             LS_ERR("job=%ld enqueue duplicate new job reply failed reason=%d",
@@ -405,7 +405,7 @@ void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
         reply.reasons = reply_code;
         // tell mbd to requeue the job
         reply.jStatus = JOB_STAT_PEND;
-        xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+        xdr_free_payload(xdr_jobSpecs, (char *)&spec, req_hdr);
 
         if (sbd_job_new_reply(chan_id, &reply) < 0) {
             LS_ERR("operation=%s job=%ld enqueue jobReply failed",
@@ -421,7 +421,7 @@ void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
     }
 
     // free heap members inside spec that xdr allocated
-    xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
+    xdr_free_payload(xdr_jobSpecs, (char *)&spec, req_hdr);
 
     struct jobReply reply;
     memset(&reply, 0, sizeof(struct jobReply));
@@ -449,7 +449,7 @@ void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
     }
 }
 
-void sbd_job_new_reply_ack(int chan_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_job_new_reply_ack(int chan_id, XDR *xdrs, struct protocol_header *hdr)
 {
     (void)chan_id;
 
@@ -501,7 +501,7 @@ void sbd_job_new_reply_ack(int chan_id, XDR *xdrs, struct packet_header *hdr)
     assert(job->execute_acked == false);
 }
 
-void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_job_execute_ack(int ch_id, XDR *xdrs, struct protocol_header *hdr)
 {
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -653,7 +653,7 @@ int sbd_job_finish(int chan_id, struct sbd_job *job)
     return 0;
 }
 
-void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct protocol_header *hdr)
 {
     struct job_status_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -721,7 +721,7 @@ void sbd_job_finish_ack(int ch_id, XDR *xdrs, struct packet_header *hdr)
     free(job);
 }
 
-int sbd_job_signal(int chan_id, XDR *xdr, struct packet_header *hdr)
+int sbd_job_signal(int chan_id, XDR *xdr, struct protocol_header *hdr)
 {
     struct wire_job_sig_req req;
     memset(&req, 0, sizeof(req));
@@ -1576,7 +1576,7 @@ static int make_job_state_dir(struct sbd_job *job)
     return 0;
 }
 
-void sbd_register_ack(int chan_id, XDR *xdrs, struct packet_header *hdr)
+void sbd_register_ack(int chan_id, XDR *xdrs, struct protocol_header *hdr)
 {
     struct wire_sbd_register reg_ack;
 
@@ -1663,7 +1663,7 @@ static void reset_except_fd(int except_fd)
     }
     closedir(d);
 }
-// xdr_encodeMsg() uses old-style bool_t (*xdr_func)() so we keep the same type.
+// xdr_encodeMsg() uses old-style bool (*xdr_func)() so we keep the same type.
 // this function runs right upon a job start we will be async waiting to
 // mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
 // the pid to the events file
@@ -1784,7 +1784,7 @@ int sbd_job_execute(int chan_id, struct sbd_job *job)
 }
 
 
-int sbd_job_signal_reply(int chan_id, struct packet_header *hdr,
+int sbd_job_signal_reply(int chan_id, struct protocol_header *hdr,
                          struct wire_job_sig_reply *rep)
 {
     if (!rep) {

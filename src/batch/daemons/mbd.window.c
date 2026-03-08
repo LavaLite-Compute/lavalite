@@ -72,7 +72,7 @@ void updateTimeWindow(struct timeWindow *timeW)
         return;
     }
 
-    windOpen = FALSE;
+    windOpen = false;
     timeW->status = WINDOW_CLOSE;
     timeW->windEdge = now + (24.0 - dayhour.hour) * 3600.0;
 

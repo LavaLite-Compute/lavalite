@@ -247,25 +247,25 @@ void prtResourceLimit(int *rLimits, char *hostSpec, float hostFactor,
 {
     int limit, i;
 
-    limit = FALSE;
+    limit = false;
     if (rLimits[LSF_RLIMIT_CPU] >= 0) {
         if (!limit)
             printf("\n");
         printf(" %-24s", ("CPULIMIT"));
-        limit = TRUE;
+        limit = true;
     }
     if (rLimits[LSF_RLIMIT_RUN] >= 0) {
         if (!limit)
             printf("\n");
         printf(" %-24s", ("RUNLIMIT"));
-        limit = TRUE;
+        limit = true;
     }
     if (procLimits != NULL) {
         if (procLimits[2] > 0 && procLimits[2] != INFINIT_INT) {
             if (!limit)
                 printf("\n");
             printf(" %-24s", ("PROCLIMIT"));
-            limit = TRUE;
+            limit = true;
         }
     }
     if (limit)
@@ -290,50 +290,50 @@ void prtResourceLimit(int *rLimits, char *hostSpec, float hostFactor,
     if (limit)
         printf("\n");
 
-    limit = FALSE;
+    limit = false;
     if (rLimits[LSF_RLIMIT_FSIZE] > 0) {
         if (!limit)
             printf("\n");
         printf(" %s", ("FILELIMIT"));
-        limit = TRUE;
+        limit = true;
     }
     if (rLimits[LSF_RLIMIT_DATA] > 0) {
         if (!limit)
             printf("\n");
         printf(" %s", ("DATALIMIT"));
-        limit = TRUE;
+        limit = true;
     }
     if (rLimits[LSF_RLIMIT_STACK] > 0) {
         if (!limit)
             printf("\n");
         printf(" %s", ("STACKLIMIT"));
-        limit = TRUE;
+        limit = true;
     }
     if (rLimits[LSF_RLIMIT_CORE] >= 0) {
         if (!limit)
             printf("\n");
         printf(" %s", ("CORELIMIT"));
-        limit = TRUE;
+        limit = true;
     }
     if (rLimits[LSF_RLIMIT_RSS] > 0) {
         if (!limit)
             printf("\n");
         printf(" %s", ("MEMLIMIT"));
-        limit = TRUE;
+        limit = true;
     }
 
     if (rLimits[LSF_RLIMIT_SWAP] > 0) {
         if (!limit)
             printf("\n");
         printf(" %s", ("SWAPLIMIT"));
-        limit = TRUE;
+        limit = true;
     }
 
     if (rLimits[LSF_RLIMIT_PROCESS] > 0) {
         if (!limit)
             printf("\n");
         printf(" %s", ("PROCESSLIMIT"));
-        limit = TRUE;
+        limit = true;
     }
 
     if (limit)

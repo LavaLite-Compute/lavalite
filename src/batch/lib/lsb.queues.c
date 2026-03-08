@@ -29,7 +29,7 @@ struct queueInfoEnt *lsb_queueinfo(char **queues,
     struct infoReq req;
     struct queueInfoReply reply;
     struct queueInfoEnt **qinfo;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     XDR xdrs_req, xdrs_rep;
     char request_buf[MSGSIZE];
     char *reply_buf = NULL;

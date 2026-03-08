@@ -144,7 +144,7 @@ Done:
 int enqueue_header_reply(int chan_id, int rc)
 {
     struct Buffer *reply_buf;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     XDR xdrs;
 
     if (chan_alloc_buf(&reply_buf, PACKET_HEADER_SIZE)) {
@@ -214,7 +214,7 @@ void freeJobSpecs(struct jobSpecs *spec)
 }
 
 
-int enqueue_payload(int chan_id, int op, void *payload, bool_t (*xdr_func)())
+int enqueue_payload(int chan_id, int op, void *payload, bool (*xdr_func)())
 {
     return enqueue_payload_bufsiz(chan_id, op, payload, xdr_func, LL_BUFSIZ_4K);
 }
@@ -222,7 +222,7 @@ int enqueue_payload(int chan_id, int op, void *payload, bool_t (*xdr_func)())
 
 // enqueue message this function is shared by daemons
 int enqueue_payload_bufsiz(int chan_id, int op,
-                           void *payload, bool_t (*xdr_func)(), size_t bufsiz)
+                           void *payload, bool (*xdr_func)(), size_t bufsiz)
 {
     struct Buffer *buf;
 
@@ -234,12 +234,12 @@ int enqueue_payload_bufsiz(int chan_id, int op,
     XDR xdrs;
     xdrmem_create(&xdrs, buf->data, bufsiz, XDR_ENCODE);
 
-    struct packet_header hdr;
+    struct protocol_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = op;
 
     // xdr_encodeMsg() uses old-style
-    // bool_t (*xdr_func)() so we keep the same type.
+    // bool (*xdr_func)() so we keep the same type.
     if (!xdr_encodeMsg(&xdrs,
                        (char *)payload,
                        &hdr,

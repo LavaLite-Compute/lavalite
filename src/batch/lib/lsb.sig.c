@@ -49,7 +49,7 @@ lsb_send_job_signal_req(int sig_value, int64_t job_id)
     char *reply_buf = NULL;
     XDR xdrs;
     int cc;
-    struct packet_header packet_hdr;
+    struct protocol_header packet_hdr;
     struct lsfAuth auth;
 
     memset(&signal_req, 0, sizeof(signal_req));

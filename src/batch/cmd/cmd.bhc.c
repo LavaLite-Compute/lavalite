@@ -36,14 +36,14 @@ int bhc(int argc, char *argv[], int opCode)
     char **hosts = NULL;
     char *optName;
     int i, numReq;
-    int fFlag = FALSE;
-    int all = FALSE, numHosts = 0;
-    int inquerFlag = FALSE;
+    int fFlag = false;
+    int all = false, numHosts = 0;
+    int inquerFlag = false;
 
     while ((optName = myGetOpt(argc, argv, "f|")) != NULL) {
         switch (optName[0]) {
         case 'f':
-            fFlag = TRUE;
+            fFlag = true;
             break;
         default:
             return (-2);

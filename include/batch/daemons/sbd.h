@@ -55,20 +55,20 @@ void sbd_mbd_link_down(void);
 // daemon + object + action
 struct sbd_job;
 int sbd_mbd_handle(int);
-void sbd_job_new(int chfd, XDR *, struct packet_header *);
+void sbd_job_new(int chfd, XDR *, struct protocol_header *);
 int sbd_job_new_reply(int, struct jobReply *);
-void sbd_job_new_reply_ack(int, XDR *, struct packet_header *);
+void sbd_job_new_reply_ack(int, XDR *, struct protocol_header *);
 
 int sbd_job_execute(int, struct sbd_job *);
-void sbd_job_execute_ack(int, XDR *, struct packet_header *);
+void sbd_job_execute_ack(int, XDR *, struct protocol_header *);
 
 int sbd_job_finish(int, struct sbd_job *);
-void sbd_job_finish_ack(int, XDR *, struct packet_header *);
+void sbd_job_finish_ack(int, XDR *, struct protocol_header *);
 
-int sbd_job_signal(int, XDR *, struct packet_header *);
-int sbd_job_signal_reply(int, struct packet_header *,
+int sbd_job_signal(int, XDR *, struct protocol_header *);
+int sbd_job_signal_reply(int, struct protocol_header *,
                          struct wire_job_sig_reply *);
-void sbd_register_ack(int, XDR *, struct packet_header *);
+void sbd_register_ack(int, XDR *, struct protocol_header *);
 void free_job_specs(struct jobSpecs *);
 
 enum sbd_policy {
@@ -97,43 +97,43 @@ struct sbd_job {
     char command[LL_BUFSIZ_512];
     /*
      * pid_acked (PID_COMMITTED):
-     *   Set to TRUE when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
+     *   Set to true when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
      *   This ACK means mbd has *committed* (logged) the pid/pgid snapshot
      *   for this job in its event log (lsb.events is the source of truth).
      *
      *   Protocol ordering gate:
      *     - EXECUTE and FINISH must not be emitted before pid_acked.
      */
-    bool_t pid_acked;
+    bool pid_acked;
     time_t time_pid_acked;  // time when pid_acked was set (diagnostics)
     time_t reply_last_send; // last time we tried to sent the reply
     /*
      * execute_acked (EXECUTE_COMMITTED):
-     *   Set to TRUE when sbatchd processes the ACK for the EXECUTE event,
+     *   Set to true when sbatchd processes the ACK for the EXECUTE event,
      *   meaning mbd has logged/committed the EXECUTE record for this job.
      *
      *   Ordering:
      *     - execute_acked implies pid_acked.
      */
-    bool_t execute_acked;
+    bool execute_acked;
     time_t time_execute_acked;
     time_t execute_last_send; // last time we tried to send execute status
     int retry_exit_count;
     /*
      * finish_acked (FINISH_COMMITTED):
-     *   Set to TRUE when sbatchd processes the ACK for the FINISH event,
+     *   Set to true when sbatchd processes the ACK for the FINISH event,
      *   meaning mbd has logged/committed the terminal record for this job.
      *
      *   Ordering:
      *     - finish_acked implies execute_acked.
      *     - FINISH is only eligible once exit_status_valid is true.
      */
-    bool_t finish_acked;
+    bool finish_acked;
     time_t time_finish_acked;
     time_t finish_last_send; // last time we tried to send finish status
 
     int exit_status;                  // raw waitpid() status
-    bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
+    bool exit_status_valid;   // true once waitpid() has captured exit_status
     time_t end_time;     // job finish time
 
     struct lsfRusage lsf_rusage;  // resource usage snapshot (zero for now;
@@ -148,11 +148,11 @@ struct sbd_job_state {
     pid_t pid;
     pid_t pgid;
 
-    bool_t reply_committed;    // PID_COMMITTED (op30)
-    bool_t execute_committed;  // EXECUTE committed (op31)
-    bool_t finish_committed;   // FINISH committed (op32)
+    bool reply_committed;    // PID_COMMITTED (op30)
+    bool execute_committed;  // EXECUTE committed (op31)
+    bool finish_committed;   // FINISH committed (op32)
 
-    bool_t finished_locally;   // we reaped it
+    bool finished_locally;   // we reaped it
     int    exit_status;        // raw waitpid() status
     time_t end_time;  // if the job has finih record the time
 };
@@ -185,7 +185,7 @@ int sbd_enqueue_new_job_reply(struct sbd_job *, struct jobReply *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
 int sbd_enqueue_job_unknown(int, int64_t);
-bool_t sbd_mbd_link_ready(void);
+bool sbd_mbd_link_ready(void);
 
 // sbd record function to save the state of jobs from
 // sbd point of view restore the latest state after
@@ -200,13 +200,13 @@ void sbd_prune_acked_jobs(void);
 // sbd has command to query its internal status
 int handle_sbd_accept(int);
 int handle_sbd_client(int);
-int sbd_reply_hdr_only(int, int, struct packet_header *);
+int sbd_reply_hdr_only(int, int, struct protocol_header *);
 
 // Use the xdr_func() signiture without argument otherwise we should
 // use void * and every xdr function will have to take it and cast it
 // to its own xdr data structure
-int sbd_reply_payload(int, int, struct packet_header *,
-                      void *, bool_t (*xdr_func)());
+int sbd_reply_payload(int, int, struct protocol_header *,
+                      void *, bool (*xdr_func)());
 int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
 
 enum sbd_fatal_cause {

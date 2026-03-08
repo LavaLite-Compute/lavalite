@@ -196,7 +196,7 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
     XDR xdrs2;
     char request_buf[LL_BUFSIZ_1K];
     char *reply_buf;
-    struct packet_header hdr;
+    struct protocol_header hdr;
 
     /* Allocate request buffers once */
     if (!req_initialized) {
@@ -315,7 +315,7 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
 struct jobInfoEnt *lsb_readjobinfo(void)
 {
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     char *buffer = NULL;
     int num;
     static __thread struct jobInfoReply jobInfoReply;
@@ -399,7 +399,7 @@ void lsb_closejobinfo(void)
 int lsb_runjob(struct runJobRequest *req)
 {
     XDR xdrs;
-    struct packet_header hdr;
+    struct protocol_header hdr;
     struct lsfAuth auth;
     char request_buf[LL_BUFSIZ_1K];
     char *reply_buf;

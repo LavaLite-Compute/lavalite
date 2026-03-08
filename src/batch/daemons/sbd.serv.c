@@ -36,7 +36,7 @@ extern int sbdlog_newstatus(struct jobCard *jp);
 extern int lsbJobCpuLimit;
 extern int lsbJobMemLimit;
 
-void do_newjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_newjob(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_newjob";
     char reply_buf[MSGSIZE];
@@ -46,7 +46,7 @@ void do_newjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     struct jobCard *jp;
     sbdReplyType reply;
 
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
     struct lsfAuth auth_data, *auth = NULL;
 
@@ -147,7 +147,7 @@ void do_newjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     }
 
 sendReply:
-    xdr_lsffree(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
+    xdr_free_payload(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
 
     init_pack_hdr(&replyHdr);
@@ -175,7 +175,7 @@ sendReply:
     }
 }
 
-void do_switchjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_switchjob(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_switchjob";
     char reply_buf[MSGSIZE];
@@ -184,8 +184,8 @@ void do_switchjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     struct jobReply jobReply;
     int i;
     sbdReplyType reply;
-    char *cp, *word, found = FALSE;
-    struct packet_header replyHdr;
+    char *cp, *word, found = false;
+    struct protocol_header replyHdr;
     char *replyStruct;
     struct jobCard *jp;
     struct lsfAuth auth_data, *auth = NULL;
@@ -199,7 +199,7 @@ void do_switchjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     }
     for (jp = jobQueHead->back; jp != jobQueHead; jp = jp->back)
         if (jp->jobSpecs.jobId == jobSpecs.jobId) {
-            found = TRUE;
+            found = true;
             break;
         }
     if (!found) {
@@ -279,7 +279,7 @@ void do_switchjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     strcpy(jp->jobSpecs.resumeActCmd, jobSpecs.resumeActCmd);
     strcpy(jp->jobSpecs.terminateActCmd, jobSpecs.terminateActCmd);
 
-    setRunLimit(jp, FALSE);
+    setRunLimit(jp, false);
     offList((struct listEntry *) jp);
     inJobLink(jp);
 
@@ -294,7 +294,7 @@ void do_switchjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     jobReply.jStatus = jp->jobSpecs.jStatus;
 
 sendReply:
-    xdr_lsffree(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
+    xdr_free_payload(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
@@ -329,7 +329,7 @@ sendReply:
     return;
 }
 
-void do_modifyjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_modifyjob(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_switchjob";
     char reply_buf[MSGSIZE];
@@ -337,8 +337,8 @@ void do_modifyjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     struct jobSpecs jobSpecs;
     struct jobReply jobReply;
     sbdReplyType reply;
-    char found = FALSE;
-    struct packet_header replyHdr;
+    char found = false;
+    struct protocol_header replyHdr;
     char *replyStruct;
     struct jobCard *jp;
     struct lsfAuth auth_data, *auth = NULL;
@@ -352,7 +352,7 @@ void do_modifyjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     }
     for (jp = jobQueHead->back; jp != jobQueHead; jp = jp->back)
         if (jp->jobSpecs.jobId == jobSpecs.jobId) {
-            found = TRUE;
+            found = true;
             break;
         }
     if (!found) {
@@ -406,7 +406,7 @@ void do_modifyjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     memcpy((char *) &jp->jobSpecs.lsfLimits[LSF_RLIMIT_RUN],
            (char *) &jobSpecs.lsfLimits[LSF_RLIMIT_RUN],
            sizeof(struct lsfLimit));
-    setRunLimit(jp, FALSE);
+    setRunLimit(jp, false);
     if (strcmp(jp->jobSpecs.outFile, jobSpecs.outFile) ||
         !(strcmp(jobSpecs.outFile, "/dev/null"))) {
         strcpy(jp->jobSpecs.outFile, jobSpecs.outFile);
@@ -432,7 +432,7 @@ void do_modifyjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     }
 
 sendReply:
-    xdr_lsffree(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
+    xdr_free_payload(xdr_jobSpecs, (char *) &jobSpecs, reqHdr);
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
@@ -466,12 +466,12 @@ sendReply:
 
     return;
 }
-void do_probe(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_probe(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_probe";
     char reply_buf[MSGSIZE];
     XDR xdrs2;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     struct sbdPackage sbdPackage;
     struct jobSpecs *jobSpecs;
     int i;
@@ -501,7 +501,7 @@ void do_probe(XDR *xdrs, int chfd, struct packet_header *reqHdr)
             break;
                 }
                 refreshJob(&(jobSpecs[i]));
-                xdr_lsffree(xdr_jobSpecs, (char *) &jobSpecs[i], reqHdr);
+                xdr_free_payload(xdr_jobSpecs, (char *) &jobSpecs[i], reqHdr);
             }
         }
     }
@@ -560,7 +560,7 @@ void do_probe(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     return;
 }
 
-void do_sigjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_sigjob(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_sigjob";
     char reply_buf[MSGSIZE];
@@ -568,10 +568,10 @@ void do_sigjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     struct jobSig jobSig;
     sbdReplyType reply;
     struct jobReply jobReply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     char *replyStruct;
     struct jobCard *jp = NULL;
-    char found = FALSE;
+    char found = false;
     int cc, sigValue;
     int savedActReasons, savedActSubReasons;
     struct lsfAuth auth_data, *auth = NULL;
@@ -593,10 +593,10 @@ void do_sigjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     for (jp = jobQueHead->forw; (jp != jobQueHead); jp = jp->forw) {
         if (jp->jobSpecs.jobId != jobSig.jobId)
             continue;
-        found = TRUE;
+        found = true;
         break;
     }
-    if (found == FALSE) {
+    if (found == false) {
         reply = ERR_NO_JOB;
         jp = NULL;
         goto Reply1;
@@ -628,7 +628,7 @@ void do_sigjob(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     }
 
     if (!JOB_STARTED(jp)) {
-        if (isSigTerm(sigValue) == TRUE) {
+        if (isSigTerm(sigValue) == true) {
             if ((cc = jobSigStart(jp, sigValue, jobSig.actFlags,
                                   jobSig.chkPeriod, NO_SIGLOG)) < 0)
                 reply = ERR_SIG_RETRY;
@@ -723,13 +723,13 @@ Reply1:
 }
 
 void do_jobMsg(struct bucket *bucket, XDR *xdrs, int s,
-               struct packet_header *reqHdr)
+               struct protocol_header *reqHdr)
 {
     static char fname[] = "do_jobMsg";
     struct Buffer *buf;
     sbdReplyType reply;
     struct jobCard *jp = NULL;
-    char found = FALSE;
+    char found = false;
 
     LSBMSG_DECL(header, jmsg);
 
@@ -754,11 +754,11 @@ void do_jobMsg(struct bucket *bucket, XDR *xdrs, int s,
     for (jp = jobQueHead->forw; (jp != jobQueHead); jp = jp->forw) {
         if (jp->jobSpecs.jobId != jmsg.header->jobId)
             continue;
-        found = TRUE;
+        found = true;
         break;
     }
 
-    if (found == FALSE) {
+    if (found == false) {
         reply = ERR_NO_JOB;
 
         goto Reply1;
@@ -798,10 +798,10 @@ void deliverMsg(struct bucket *bucket)
 
     mbuf = bucket->storage;
 
-    found = FALSE;
+    found = false;
     for (jp = jobQueHead->forw; (jp != jobQueHead); jp = jp->forw) {
         if (jp->jobSpecs.jobId == bucket->proto.jobId) {
-            found = TRUE;
+            found = true;
             break;
         }
     }
@@ -812,17 +812,17 @@ void deliverMsg(struct bucket *bucket)
         return;
     }
 
-    found = FALSE;
+    found = false;
     for (cliPtr = clientList->forw; cliPtr != clientList; cliPtr = nextClient) {
         nextClient = cliPtr->forw;
 
         if (cliPtr->jobId == bucket->proto.jobId) {
-            found = TRUE;
+            found = true;
             break;
         }
     }
 
-    if (found == FALSE) {
+    if (found == false) {
         return;
     }
 
@@ -855,13 +855,13 @@ void deliverMsg(struct bucket *bucket)
     FREE_BUCKET(bucket);
 }
 
-void do_reboot(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_reboot(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_reboot";
     char reply_buf[MSGSIZE / 8];
     XDR xdrs2;
     sbdReplyType reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine...", fname);
@@ -895,13 +895,13 @@ void do_reboot(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     return;
 }
 
-void do_shutdown(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_shutdown(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_shutdown()";
     char reply_buf[MSGSIZE / 8];
     XDR xdrs2;
     sbdReplyType reply;
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
 
     reply = ERR_NO_ERROR;
 
@@ -932,12 +932,12 @@ void do_shutdown(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     die(SLAVE_SHUTDOWN);
 }
 
-void do_jobSetup(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_jobSetup(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_jobSetup";
     struct jobSetup jsetup;
     struct jobCard *jp = NULL;
-    char found = FALSE;
+    char found = false;
     struct jobCard savejp;
 
     if (logclass & LC_EXEC)
@@ -950,11 +950,11 @@ void do_jobSetup(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     for (jp = jobQueHead->forw; (jp != jobQueHead); jp = jp->forw) {
         if (jp->jobSpecs.jobId != jsetup.jobId)
             continue;
-        found = TRUE;
+        found = true;
         break;
     }
 
-    if (found == FALSE) {
+    if (found == false) {
         ls_syslog(LOG_ERR, "%s: Job <%s> is not found", fname,
                   lsb_jobid2str(jsetup.jobId));
 
@@ -993,16 +993,16 @@ void do_jobSetup(XDR *xdrs, int chfd, struct packet_header *reqHdr)
 
     } else {
         jp->jobSpecs.reasons = jsetup.reason;
-        jp->collectedChild = TRUE;
+        jp->collectedChild = true;
         jp->notReported = 0;
         jp->exitPid = -1;
-        jp->needReportRU = FALSE;
+        jp->needReportRU = false;
         jp->jobSpecs.jStatus = jsetup.jStatus;
         jp->w_status = jsetup.w_status;
         jp->lsfRusage = jsetup.lsfRusage;
         jp->cpuTime = jsetup.cpuTime;
 
-        if (job_finish(jp, TRUE) < 0) {
+        if (job_finish(jp, true) < 0) {
             memcpy((char *) jp, (char *) &savejp, sizeof(savejp));
             return;
         }
@@ -1024,7 +1024,7 @@ void do_jobSetup(XDR *xdrs, int chfd, struct packet_header *reqHdr)
                   jsetup.w_status);
 }
 
-void do_jobSyslog(XDR *xdrs, int chfd, struct packet_header *reqHdr)
+void do_jobSyslog(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_jobSyslog";
     struct jobSyslog sysMsg;
@@ -1042,7 +1042,7 @@ void do_jobSyslog(XDR *xdrs, int chfd, struct packet_header *reqHdr)
     ls_syslog(sysMsg.logLevel, sysMsg.msg);
 }
 
-void do_rmConn(XDR *xdrs, int s, struct packet_header *reqHdr,
+void do_rmConn(XDR *xdrs, int s, struct protocol_header *reqHdr,
                struct clientNode *cln)
 {
     static char fname[] = "do_rmConn";
@@ -1050,9 +1050,9 @@ void do_rmConn(XDR *xdrs, int s, struct packet_header *reqHdr,
     char dest[LSB_MAX_SD_LENGTH];
     struct lsbMsgHdr header;
     struct lsbMsg m;
-    int found = FALSE;
+    int found = false;
     struct jobCard *jp;
-    int freeMsg = FALSE;
+    int freeMsg = false;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering ... s=%d chanfd=%d", fname, s,
@@ -1064,7 +1064,7 @@ void do_rmConn(XDR *xdrs, int s, struct packet_header *reqHdr,
     m.msg = "";
 
     if (xdrs->x_op == XDR_DECODE)
-        freeMsg = TRUE;
+        freeMsg = true;
     if (!xdr_lsbMsg(xdrs, &m, reqHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_lsMsg");
         replyHdrWithRC(LSBE_XDR, s, m.header->jobId);
@@ -1073,7 +1073,7 @@ void do_rmConn(XDR *xdrs, int s, struct packet_header *reqHdr,
 
     for (jp = jobQueHead->forw; (jp != jobQueHead); jp = jp->forw) {
         if (jp->jobSpecs.jobId == m.header->jobId) {
-            found = TRUE;
+            found = true;
             break;
         }
     }
@@ -1092,7 +1092,7 @@ void do_rmConn(XDR *xdrs, int s, struct packet_header *reqHdr,
                   fname, lsb_jobid2str(m.header->jobId));
     }
 
-    jp->newPam = TRUE;
+    jp->newPam = true;
 
     cln->jp = jp;
     cln->jobId = m.header->jobId;
@@ -1104,7 +1104,7 @@ void do_rmConn(XDR *xdrs, int s, struct packet_header *reqHdr,
         FREEUP(m.msg);
 }
 
-void do_lsbMsg(XDR *xdrs, int s, struct packet_header *reqHdr)
+void do_lsbMsg(XDR *xdrs, int s, struct protocol_header *reqHdr)
 {
     static char fname[] = "do_lsbMsg";
     char src[LSB_MAX_SD_LENGTH];
@@ -1114,11 +1114,11 @@ void do_lsbMsg(XDR *xdrs, int s, struct packet_header *reqHdr)
     struct lsbMsg m;
     char opString[MSGSIZE];
     char *buf;
-    int found = FALSE;
+    int found = false;
     struct jobCard *jp = NULL;
     int ret, cnt;
     int64_t jobId;
-    int freeMsg = FALSE;
+    int freeMsg = false;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering ...", fname);
@@ -1129,7 +1129,7 @@ void do_lsbMsg(XDR *xdrs, int s, struct packet_header *reqHdr)
     m.msg = "";
 
     if (xdrs->x_op == XDR_DECODE)
-        freeMsg = TRUE;
+        freeMsg = true;
     if (!xdr_lsbMsg(xdrs, &m, reqHdr)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_lsMsg");
         replyHdrWithRC(LSBE_XDR, s, m.header->jobId);
@@ -1177,7 +1177,7 @@ void do_lsbMsg(XDR *xdrs, int s, struct packet_header *reqHdr)
     for (jp = jobQueHead->forw; (jp != jobQueHead); jp = jp->forw) {
         if (jp->jobSpecs.jobId != jobId)
             continue;
-        found = TRUE;
+        found = true;
         break;
     }
 
@@ -1213,7 +1213,7 @@ static int replyHdrWithRC(int rc, int chfd, int jobId)
     static char fname[] = "replyHdrWithRC()";
     XDR xdrs2;
     char reply_buf[MSGSIZE];
-    struct packet_header replyHdr;
+    struct protocol_header replyHdr;
     int64_t tmpJobId;
 
     init_pack_hdr(&replyHdr);
