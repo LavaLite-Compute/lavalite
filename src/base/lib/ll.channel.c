@@ -601,12 +601,6 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
         // clean channel specific events for the caller
         chan->chan_events = CHAN_EPOLLNONE;
 
-        if ((e->events & EPOLLERR) || (e->events & EPOLLHUP) ||
-            (e->events & EPOLLRDHUP)) {
-            chan->chan_events = CHAN_EPOLLERR;
-            continue;
-        }
-
         if (chan->type == TCP_SERVER) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
@@ -620,7 +614,7 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
             continue;
         }
 
-        if (e->events & EPOLLIN) {
+        if (e->events & (EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR)) {
             doread(chan);
         }
 

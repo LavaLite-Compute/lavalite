@@ -50,7 +50,8 @@ sbdReplyType start_job(struct jData *job,
 
     }
 
-    LS_DEBUG("job %s", lsb_jobid2str(job->jobId));
+    LS_DEBUG("job=%ld on addr=%s name=%s", job->jobId,
+             host_node->sbd_node->host.addr, host_node->sbd_node->host.name);
 
     struct jobSpecs jobSpecs;
     memset(&jobSpecs, 0, sizeof(jobSpecs));
