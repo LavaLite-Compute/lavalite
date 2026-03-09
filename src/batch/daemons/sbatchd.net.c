@@ -147,7 +147,10 @@ int sbd_register(int chan_id)
 
     // Always rememeber to enable EPOLLOUT on the main sbd_efd
     // to have dowrite() to send out the request
-    chan_set_write_interest(chan_id, true);
+    if (chan_set_write_interest(chan_id, true) < 0) {
+        LS_ERR("sbd  chan_set_write_interest failed");
+        return -1;
+    }
 
     LS_INFO("sbd register: enqueued request as host: %s", host);
 

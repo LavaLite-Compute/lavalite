@@ -776,7 +776,6 @@ ssize_t chan_read(int ch_id, void *buf, size_t len)
     }
 
     return (ssize_t) total;
-
 }
 
 ssize_t chan_write(int ch_id, void *buf, size_t len)

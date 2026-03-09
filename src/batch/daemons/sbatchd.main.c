@@ -386,6 +386,8 @@ sbd_init_network(void)
         chan_close(sbd_listen_chan);
         return -1;
     }
+    chan_epoll_register(sbd_efd);
+    LS_INFO("chan_epoll_register sbd_efd=%d", sbd_efd);
 
     long max_open = sysconf(_SC_OPEN_MAX);
     if (max_open <= 0) {

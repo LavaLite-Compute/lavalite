@@ -966,7 +966,8 @@ int mbd_init_networking(void)
         chan_close(mbd_chan);
         return -1;
     }
-
+    chan_epoll_register(mbd_efd);
+    LS_INFO("chan_epoll_register mbd_efd=%d", mbd_efd);
     // Set the MBD listening channel into the event structure
     struct epoll_event ev = {.events = EPOLLIN, .data.u32 = mbd_chan};
 

@@ -1698,7 +1698,13 @@ static int getPeerCand(struct jData *jobp)
     int jobDCS, peerDCS, isWinDeadline, jobRunLimit, peerRunLimit;
     time_t jobDeadline, peerDeadline;
 
+
     jobp->usePeerCand = false;
+
+    // Bug dont try candidates
+    return false;
+
+    jobp->usePeerCand = FALSE;
 
     INC_CNT(PROF_CNT_getPeerCand);
 
