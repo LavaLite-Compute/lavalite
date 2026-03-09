@@ -96,3 +96,4 @@ int chan_connect_begin(int, struct sockaddr_in *, int);
 int chan_connect_finish(int);
 int chan_sock_error(int);
 int chan_set_write_interest(int, bool_t);
+void chan_epoll_register(int);
