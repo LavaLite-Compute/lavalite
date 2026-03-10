@@ -18,6 +18,7 @@ import socket
 import subprocess
 import sys
 import time
+import os
 
 
 DEFAULT_TIMEOUT = 5.0
@@ -178,6 +179,9 @@ def bjobs_active(jobids_set, timeout):
 
 
 def main():
+    if not os.environ.get("LSF_ENVDIR"):
+        print("LSF_ENVDIR must be defined", file=sys.stderr)
+        sys.exit(1)
     ap = argparse.ArgumentParser(
         prog="chaos",
         description="Chaos test: submit jobs and kill daemons.",
