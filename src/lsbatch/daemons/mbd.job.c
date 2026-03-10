@@ -893,13 +893,15 @@ int selectJobs(struct jobInfoReq *jobInfoReq, struct jData ***jobDataList,
             if (!allqueues && strcmp(jpbw->qPtr->queue, jobInfoReq->queue) != 0)
                 continue;
 
-            if (!allusers && (jpbw->uPtr != uPtr)) {
-                if (uGrp == NULL)
-                    continue;
-                else if (!gMember(jpbw->userName, uGrp))
-                    continue;
+            // Bug Lavalite show all jobs
+            if (0) {
+                if (!allusers && (jpbw->uPtr != uPtr)) {
+                    if (uGrp == NULL)
+                        continue;
+                    else if (!gMember(jpbw->userName, uGrp))
+                        continue;
+                }
             }
-
             if (jobInfoReq->jobName[0] != '\0') {
                 char fullName[MAXPATHLEN];
                 fullJobName_r(jpbw, fullName);

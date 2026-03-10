@@ -399,31 +399,43 @@ const char *mbd_op_str(mbdReqType op)
 
 const char *job_state_str(int status)
 {
-    if (status & JOB_STAT_DONE)
-        return "JOB_STAT_DONE";
+    static char buf[LL_BUFSIZ_64];
 
-    if (status & JOB_STAT_EXIT)
-        return "JOB_STAT_EXIT";
-
-    if (status & JOB_STAT_RUN)
-        return "JOB_STAT_RUN";
-
-    if (status & JOB_STAT_USUSP)
-        return "JOB_STAT_USUSP";
-
-    if (status & JOB_STAT_SSUSP)
-        return "JOB_STAT_SSUSP";
-
-    if (status & JOB_STAT_PSUSP)
-        return "JOB_STAT_PSUSP";
-
-    if (status & JOB_STAT_PEND)
-        return "JOB_STAT_PEND";
+    buf[0] = 0;
 
     if (status == JOB_STAT_NULL)
         return "JOB_STAT_NULL";
 
-    return "UNKNOWN_STATE";
+    if (status & JOB_STAT_PEND)
+        strcat(buf, "JOB_STAT_PEND|");
+
+    if (status & JOB_STAT_PSUSP)
+        strcat(buf, "JOB_STAT_PSUSP|");
+
+    if (status & JOB_STAT_RUN)
+        strcat(buf, "JOB_STAT_RUN|");
+
+    if (status & JOB_STAT_SSUSP)
+        strcat(buf, "JOB_STAT_SSUSP|");
+
+    if (status & JOB_STAT_USUSP)
+        strcat(buf, "JOB_STAT_USUSP|");
+
+    if (status & JOB_STAT_EXIT)
+        strcat(buf, "JOB_STAT_EXIT|");
+
+    if (status & JOB_STAT_DONE)
+        strcat(buf, "JOB_STAT_DONE|");
+
+    if (status & JOB_STAT_UNKNOWN)
+        strcat(buf, "JOB_STAT_UNKNOWN|");
+
+    if (buf[0] == '\0')
+        return "UNKNOWN_STATE";
+
+    buf[strlen(buf) - 1] = 0;
+
+    return buf;
 }
 
 int check_sharedir_access(const char *sharedir)

@@ -1008,9 +1008,6 @@ static void requeue_start_failed(struct jData *job, struct hData *host_node)
     int old_status;
     time_t now;
 
-    host_node->hStatus |= HOST_STAT_DISABLED;
-    host_node->last_disable_time = time(NULL);
-
     // If already pending, just stamp reason (duplicate/late reply) and return.
     if (IS_PEND(job->jStatus)) {
         job->newReason = PEND_JOB_START_FAIL;
@@ -1024,11 +1021,16 @@ static void requeue_start_failed(struct jData *job, struct hData *host_node)
     // Roll base status back to PEND (clear start/run/finish bits you don't want to keep)
     job->jStatus &= ~(JOB_STAT_RUN | JOB_STAT_SSUSP | JOB_STAT_USUSP |
                       JOB_STAT_PSUSP | JOB_STAT_DONE | JOB_STAT_EXIT);
-    job->jStatus = JOB_STAT_PEND;
+
+    // Hold the job dispatch failed
+    job->jStatus = JOB_STAT_PSUSP;
 
     // Reason for requeue
     job->newReason = PEND_JOB_START_FAIL;
     job->subreasons = 0;
+
+    LS_INFO("job=%ld dispatch failed status=%s host=%s",
+        job->jobId, job_state_str(job->jStatus), host_node->host);
 
     // Move list membership: SJL -> PJL
     offJobList(job, SJL);
@@ -1037,7 +1039,11 @@ static void requeue_start_failed(struct jData *job, struct hData *host_node)
     // Bookkeeping
     job->requeueTime = now;
     log_newstatus(job);
+
+    // Hack
+    job->jStatus = JOB_STAT_PEND;
     updCounters(job, old_status, now);
+    job->jStatus = JOB_STAT_PSUSP;
 
     clear_exec_context(job);
 }

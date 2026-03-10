@@ -190,8 +190,8 @@ static int build_runtime_spec(struct sbd_job *job)
     }
 
     if (set_job_identity(job) < 0) {
-        LS_ERR("failed to set job=%ld identity uid %d", job->job_id,
-               job->specs.userId);
+        LS_ERRX("failed to set job=%ld identity uid %d", job->job_id,
+                job->specs.userId);
         return -1;
     }
 
@@ -221,7 +221,14 @@ static int set_job_identity(struct sbd_job *job)
 
     if (pw == NULL) {
         errno = ENOENT;
-        LS_ERR("unknown uid=%d", job->specs.userId);
+        LS_ERR("job=%ld unknown uid=%d", job->job_id, job->specs.userId);
+        return -1;
+    }
+
+    if (strcmp(pw->pw_name, job->specs.userName) != 0) {
+        errno = EPERM;
+        LS_ERR("jobd=%ld mismatch uid=%d expected_user=%s resolved_user=%s",
+               job->job_id, job->specs.userId, job->specs.userName, pw->pw_name);
         return -1;
     }
 
@@ -375,13 +382,13 @@ void sbd_job_new(int chan_id, XDR *xdrs, struct packet_header *req_hdr)
     // allocate sbatchd-local job object
     job = sbd_job_create(&spec);
     if (job == NULL) {
-        LS_ERR("operation=%s job=%ld create failed",
-               mbd_op_str(req_hdr->operation), spec.jobId);
+        LS_ERRX("operation=%s job=%ld create failed",
+                mbd_op_str(req_hdr->operation), spec.jobId);
         struct jobReply reply;
         memset(&reply, 0, sizeof(struct jobReply));
         reply.jobId = spec.jobId;
         reply.jobPid = reply.jobPGid = 0;
-        reply.reasons = ERR_MEM;
+        reply.reasons = ERR_FAIL;
         // tell mbd to requeue the job
         reply.jStatus = JOB_STAT_PEND;
         xdr_lsffree(xdr_jobSpecs, (char *)&spec, req_hdr);
@@ -819,6 +826,8 @@ static sbdReplyType spawn_job(struct sbd_job *job)
     if (pid == 0) {
         // child becomes leader of its own group
         setpgid(0, 0);
+        job->pid = job->pgid = getgid();
+
         // child goes and runs the job
         chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);

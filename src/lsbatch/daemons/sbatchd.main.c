@@ -116,7 +116,8 @@ int main(int argc, char **argv)
 
     int rc = sbd_init("sbd");
     if (rc < 0) {
-        LS_ERR("sbd: fatal error during initialization - see previous messages");
+        fprintf(stderr, "sbd: fatal error during initialization - "
+                "see previous messages\n");
         return -1;
     }
 
@@ -332,7 +333,7 @@ static void sbd_init_log(void)
     bool_t debug = sbd_debug;
 
     if (!log_dir)
-        log_dir = "/var/log/lavalite"; /* fallback */
+        log_dir = "/tmp";
 
     if (!log_mask)
         log_mask = "LOG_INFO"; /* sane default */
