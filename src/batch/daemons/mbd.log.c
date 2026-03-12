@@ -32,8 +32,8 @@ time_t eventTime;
 extern int sigNameToValue_(char *sigString);
 extern char *getLsbSigSymbol(int);
 extern char *getSigSymbol(int);
-extern void chanFreeStashedBuf(struct Buffer *);
-extern int chan_alloc_buf(struct Buffer **, int);
+extern void chanFreeStashedBuf(struct chan_buffer *);
+extern int chan_alloc_buf(struct chan_buffer **, int);
 static int replay_event(char *, int);
 static struct jData *checkJobInCore(int64_t jobId);
 
@@ -3649,7 +3649,7 @@ static int replay_jobmsg(char *filename, int lineNum)
     int len;
     struct jData *jp;
     struct bucket *bucket;
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     struct lsbMsgHdr jmHdr;
     struct lsbMsg jmsg;
     struct protocol_header lsfHdr;

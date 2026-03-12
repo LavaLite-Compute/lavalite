@@ -177,7 +177,7 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
     }
 
     int cc;
-    struct Buffer sndbuf = {.data = reqbuf, .len = req_size};
+    struct chan_buffer sndbuf = {.data = reqbuf, .len = req_size};
 
     if (lim_chans[TCP] < 0) {
         lim_chans[TCP] = chan_client_socket(AF_INET, SOCK_STREAM, 0);
@@ -198,7 +198,7 @@ static int callLimTCP_(char *reqbuf, char **rep_buf, size_t req_size,
         }
     }
 
-    struct Buffer rcvbuf = {0};
+    struct chan_buffer rcvbuf = {0};
     cc = chan_rpc(lim_chans[TCP], &sndbuf, &rcvbuf, reply_hdr,
                   recvtimeout_ * 1000);
     if (cc < 0) {

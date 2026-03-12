@@ -229,8 +229,8 @@ int call_sbd_host(const char *host, void *req, size_t req_len,
         return -1;
     }
 
-    struct Buffer e;
-    struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
+    struct chan_buffer e;
+    struct chan_buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
     if (extra && extra->len > 0) {
         e.data = extra->data;
         e.len = extra->len;
@@ -238,7 +238,7 @@ int call_sbd_host(const char *host, void *req, size_t req_len,
         req_buf.forw = &e;
     }
 
-    struct Buffer reply_buf = {0};
+    struct chan_buffer reply_buf = {0};
     int rc = chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
     chan_close(ch_id);
 

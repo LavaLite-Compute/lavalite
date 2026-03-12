@@ -9,11 +9,10 @@ int lim_tcp_chan = -1;
 int lim_timer_chan = -1;
 uint16_t lim_udp_port;
 uint16_t lim_tcp_port;
-bool lim_debug;
+int lim_debug;
 
 static int efd;
 static struct epoll_event *lim_events;
-struct client_node **client_map;
 
 static int lim_init(const char *);
 static int lim_init_network(int);
@@ -32,7 +31,7 @@ struct ll_list node_list;
 struct ll_hash node_name_hash;
 struct ll_hash node_addr_hash;
 struct cluster lim_cluster;
-static bool lim_croak;
+static int lim_croak;
 int lim_efd;
 int  n_master_candidates= 0;
 struct lim_node *master_candidates;
@@ -70,7 +69,7 @@ int main(int argc, char **argv)
            EOF) {
         switch (cc) {
         case 'd':
-            lim_debug = true;
+            lim_debug = 1;
             break;
         case 'e':
             conf_dir = strdup(optarg);
@@ -103,26 +102,26 @@ int main(int argc, char **argv)
 
     LS_INFO("lim started: %s", LAVALITE_VERSION_STR);
     lim_is_master();
+    lim_croak = 0;
 
-    for (;;) {
+    while (1) {
 
         if (lim_croak)
             break;
-        // select timeout ever 5 seconds if no network io
-        int timeout = 5 * 1000;
 
-        int nready = chan_epoll(lim_efd, lim_events, 1024, timeout);
-        if (nready < 0) {
+        int nfd = chan_epoll(lim_efd, lim_events, 1024, -1);
+        if (nfd < 0) {
             if (errno != EINTR) {
-                syslog(LOG_ERR, "%s: network I/O %m", __func__);
+                syslog(LOG_ERR, "chan_epoll");
+                millisleep(1000);
             }
             continue;
         }
 
-        if (nready <= 0)
+        if (nfd <= 0)
             continue;
 
-        for (int i = 0; i < nready; i++) {
+        for (int i = 0; i < nfd; i++) {
             struct epoll_event *e = &lim_events[i];
             int ch_id = e->data.u32;
 
@@ -193,9 +192,9 @@ static int lim_init(const char *conf_dir)
     }
 
     LS_INFO("initializing signals");
-    signal_set(SIGTERM, croak_handler);
-    signal_set(SIGINT, croak_handler);
-    signal_set(SIGCHLD, child_handler);
+    install_signal_handler(SIGTERM, croak_handler, 0);
+    install_signal_handler(SIGINT, croak_handler, 0);
+    install_signal_handler(SIGCHLD, child_handler, SA_RESTART);
 
     cc = lim_init_network();
     if (cc < 0) {
@@ -210,7 +209,6 @@ static int lim_init_network(void)
 {
     lim_init_chans();
     lim_create_epoll();
-    lim_create_clients();
 
     if (add_listener(lim_efd, chan_sock(lim_udp_chan), lim_udp_chan) < 0) {
         syslog(LOG_ERR, "Failed to add UDP listener: %m");

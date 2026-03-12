@@ -48,7 +48,7 @@ int tcp_accept(void)
 
 static void tcp_dispatch(int ch_id)
 {
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     struct protocol_header hdr;
     XDR xdrs;
 

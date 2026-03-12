@@ -1,6 +1,5 @@
-/*
- *  Copyright (C) LavaLite Contributors
- *  GPL v2
+/* Copyright (C) LavaLite Contributors
+ * GPL v2
  */
 #pragma once
 
@@ -36,7 +35,6 @@
 #include <sys/epoll.h>
 #include <sys/file.h>
 #include <arpa/inet.h>
-#include <stdbool.h>
 #include <poll.h>
 #include <sys/stat.h>
 #include <sys/timerfd.h>

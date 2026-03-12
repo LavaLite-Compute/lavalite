@@ -738,7 +738,7 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
     struct protocol_header replyHdr;
     struct jData *jpbw;
     struct bucket *msgq;
-    struct Buffer *buf = bucket->storage;
+    struct chan_buffer *buf = bucket->storage;
     LSBMSG_DECL(header, jmsg);
 
     LSBMSG_INIT(header, jmsg);
@@ -1618,7 +1618,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
     XDR xdrs;
     struct jData *jData = sbdPtr->jData;
     struct jobReply jobReply;
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     struct protocol_header hdr;
     int cc, s, svReason, replayReason;
 
@@ -1674,7 +1674,7 @@ void doNewJobReply(struct sbdNode *sbdPtr, int exception)
         log_startjobaccept(jData);
 
         if (lsbParams[LSB_MBD_BLOCK_SEND].paramValue == NULL) {
-            struct Buffer *replyBuf;
+            struct chan_buffer *replyBuf;
 
             if (chan_alloc_buf(&replyBuf, sizeof(struct protocol_header)) < 0) {
                 goto Leave;
@@ -1711,7 +1711,7 @@ void doProbeReply(struct sbdNode *sbdPtr, int exception)
 {
     struct protocol_header replyHdr;
     XDR xdrs;
-    struct Buffer *buf;
+    struct chan_buffer *buf;
 
     if (exception == true || chan_dequeue(sbdPtr->chanfd, &buf) < 0) {
         sbdPtr->hData->flags |= HOST_NEEDPOLL;
@@ -1739,7 +1739,7 @@ void doSwitchJobReply(struct sbdNode *sbdPtr, int exception)
     XDR xdrs;
     struct jData *jData = sbdPtr->jData;
     struct jobReply jobReply;
-    struct Buffer *buf;
+    struct chan_buffer *buf;
 
     if (!IS_START(jData->jStatus))
 
@@ -1788,7 +1788,7 @@ void doSignalJobReply(struct sbdNode *sbdPtr, int exception)
     struct jData *jData = sbdPtr->jData;
 
     struct jobReply jobReply;
-    struct Buffer *buf;
+    struct chan_buffer *buf;
 
     if (IS_FINISH(jData->jStatus)) {
         return;

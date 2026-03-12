@@ -77,7 +77,7 @@ void master_info_req(XDR *xdrs, struct sockaddr_in *from,
     replyHdr.operation = (short) limReplyCode;
     replyHdr.sequence = reqHdr->sequence;
 
-    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
+cdq    if (!xdr_pack_hdr(&xdrs2, &replyHdr)) {
         ls_syslog(LOG_ERR, "%s: xdr_pack_hdr() failed: %m", __func__);
         xdr_destroy(&xdrs2);
         return;

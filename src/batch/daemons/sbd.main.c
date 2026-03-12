@@ -469,7 +469,7 @@ static void clientIO(struct Masks *chanmask)
 static void processMsg(struct clientNode *client)
 {
     static char fname[] = "processMsg";
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     struct bucket *bucket;
     int s;
     sbdReqType sbdReqtype;

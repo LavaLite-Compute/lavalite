@@ -81,7 +81,7 @@ void mbd_handle_compact_done(XDR *xdrs, int ch_id, struct protocol_header *hdr)
     struct wire_compact_notify req;
     struct wire_compact_notify ack_payload;
     struct protocol_header ack_hdr;
-    struct Buffer *out;
+    struct chan_buffer *out;
     char buf[PACKET_HEADER_SIZE + LL_BUFSIZ_64];
     int len;
 

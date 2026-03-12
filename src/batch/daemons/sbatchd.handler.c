@@ -38,7 +38,7 @@ int sbd_mbd_handle(int ch_id)
     }
 
     // Get the packet header from the channel first
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     if (chan_dequeue(ch_id, &buf) < 0) {
         LS_ERR("chan_dequeue() failed");
         return -1;

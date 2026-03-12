@@ -1,5 +1,4 @@
-/* Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+/* Copyright (C) LavaLite Contributors
  * GLP v2
  */
 #pragma once
@@ -36,14 +35,14 @@ typedef enum {
 struct chan_data {
     int sock;           // the socket
     enum chanType type; // channel type UDP/TCP ...
-    struct Buffer *send;
-    struct Buffer *recv;
+    struct chan_buffer *send;
+    struct chan_buffer *recv;
     chan_epoll_t chan_events; // output
 };
 
-struct Buffer {
-    struct Buffer *forw; // move +1 on the x-axis
-    struct Buffer *back; // move -1
+struct chan_buffer {
+    struct chan_buffer *forw; // move +1 on the x-axis
+    struct chan_buffer *back; // move -1
     char *data;
     int pos;
     int len;
@@ -57,20 +56,20 @@ int chan_close(int);
 int chan_sock(int);
 int chan_epoll(int, struct epoll_event *, int, int);
 int chan_connect(int, struct sockaddr_in *, int, int);
-int chan_enqueue(int, struct Buffer *);
-int chan_dequeue(int, struct Buffer **);
+int chan_enqueue(int, struct chan_buffer *);
+int chan_dequeue(int, struct chan_buffer **);
 int chan_udp_socket(u_short);
 int chan_tcp_listen_socket(u_short);
 int chan_udp_client_socket(void);
 int chan_tcp_client_socket(void);
 int chan_accept(int, struct sockaddr_in *);
-int chan_rpc(int, struct Buffer *, struct Buffer *, struct protocol_header *,
+int chan_rpc(int, struct chan_buffer *, struct chan_buffer *, struct protocol_header *,
              int);
 ssize_t chan_read(int, void *, size_t);
 ssize_t chan_read_nonblock(int, void *, size_t, int);
 ssize_t chan_write(int, void *, size_t);
-int chan_alloc_buf(struct Buffer **, int);
-int chan_free_buf(struct Buffer *);
+int chan_alloc_buf(struct chan_buffer **, int);
+int chan_free_buf(struct chan_buffer *);
 int chan_open_sock(int, int);
 int chan_dup_stdio(int);
 int io_non_block(int);
@@ -78,7 +77,7 @@ int io_block(int);
 int chan_send_dgram(int, char *, size_t, struct sockaddr_in *);
 int chan_recv_dgram(int, void *, size_t, struct sockaddr_storage *, int);
 int chan_create_timer(int);
-struct Buffer *chan_make_buf(void);
+struct chan_buffer *chan_make_buf(void);
 int chan_connect_begin(int, struct sockaddr_in *, int);
 int chan_connect_finish(int);
 int chan_sock_error(int);

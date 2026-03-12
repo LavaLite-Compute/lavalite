@@ -438,7 +438,7 @@ static void mbd_client_handle(int ch_id)
 
 static int mbd_client_dispatch(struct mbd_client_node *client)
 {
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     struct bucket *bucket;
     struct lsfAuth auth;
     struct protocol_header req_hdr;

@@ -110,15 +110,15 @@ int call_mbd(void *req, size_t req_len, char **reply, struct protocol_header *hd
         return -1;
     }
 
-    struct Buffer e;
-    struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
+    struct chan_buffer e;
+    struct chan_buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
     if (jf && jf->len > 0) {
         e.data = jf->data;
         e.len = jf->len;
         e.forw = NULL;
         req_buf.forw = &e;
     }
-    struct Buffer reply_buf = {0};
+    struct chan_buffer reply_buf = {0};
 
     rc = chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
     chan_close(ch_id);
@@ -174,8 +174,8 @@ int open_mbd_stream(void *req, size_t req_len, char **reply,
         return -1;
     }
 
-    struct Buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
-    struct Buffer reply_buf = {0};
+    struct chan_buffer req_buf = {.data = req, .len = req_len, .forw = NULL};
+    struct chan_buffer reply_buf = {0};
 
     int rc =
         chan_rpc(ch_id, &req_buf, &reply_buf, hdr, _lsb_recvtimeout * 1000);
@@ -208,7 +208,7 @@ int open_mbd_stream(void *req, size_t req_len, char **reply,
 int readNextPacket(char **msg_buf, int _lsb_recvtimeout,
                    struct protocol_header *hdr, int mbd_sock)
 {
-    struct Buffer reply_buf;
+    struct chan_buffer reply_buf;
 
     if (mbd_sock < 0) {
         lsberrno = LSBE_CONN_NONEXIST;
@@ -338,7 +338,7 @@ void close_mbd_stream(int ch_id)
  */
 int enqueue_to_mbd(int chan_id, void *msg, size_t msg_len)
 {
-    struct Buffer buf = {.data = msg, .len = msg_len, .forw = NULL};
+    struct chan_buffer buf = {.data = msg, .len = msg_len, .forw = NULL};
 
     if (chan_id < 0 || msg == NULL || msg_len == 0) {
         return -1;
@@ -365,7 +365,7 @@ int enqueue_to_mbd(int chan_id, void *msg, size_t msg_len)
  */
 int enqueue_to_sbd(int chan_id, void *msg, size_t msg_len)
 {
-    struct Buffer buf = {.data = msg, .len = msg_len, .forw = NULL};
+    struct chan_buffer buf = {.data = msg, .len = msg_len, .forw = NULL};
 
     if (chan_id < 0 || msg == NULL || msg_len == 0) {
         return -1;
@@ -405,7 +405,7 @@ int send_ack(int chan_id, uint32_t seq)
     }
     xdr_destroy(&xdrs);
 
-    struct Buffer ack_buf = {.data = buf, .len = sizeof(buf), .forw = NULL};
+    struct chan_buffer ack_buf = {.data = buf, .len = sizeof(buf), .forw = NULL};
 
     return chan_enqueue(chan_id, &ack_buf);
 }

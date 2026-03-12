@@ -510,7 +510,6 @@ struct master_beacon {
     char     cluster[LL_BUFSIZ_32];
     char     hostname[MAXHOSTNAMELEN];
     uint32_t hostNo;
-    uint32_t seqno;
     uint16_t tcp_port;
 };
 

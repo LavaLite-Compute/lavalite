@@ -24,9 +24,9 @@ struct chan_data *channels;
 static int epoll_fd;
 static void doread(struct chan_data *);
 static void dowrite(struct chan_data *, int);
-static struct Buffer *make_buf(void);
-static void enqueueTail_(struct Buffer *, struct Buffer *);
-static void dequeue_(struct Buffer *);
+static struct chan_buffer *make_buf(void);
+static void enqueueTail_(struct chan_buffer *, struct chan_buffer *);
+static void dequeue_(struct chan_buffer *);
 static int chan_find_free(void);
 static inline bool chan_is_udp(enum chanType);
 static inline bool chan_is_valid(int);
@@ -297,8 +297,8 @@ int chan_open_sock(int s, int options)
 
 int chan_close(int ch_id)
 {
-    struct Buffer *buf;
-    struct Buffer *nextbuf;
+    struct chan_buffer *buf;
+    struct chan_buffer *nextbuf;
 
     if (ch_id < 0 || ch_id > chan_open_max) {
         lserrno = LSE_BAD_CHAN;
@@ -336,7 +336,7 @@ int chan_close(int ch_id)
     return 0;
 }
 
-int chan_enqueue(int ch_id, struct Buffer *msg)
+int chan_enqueue(int ch_id, struct chan_buffer *msg)
 {
     if (!chan_is_valid(ch_id))
         return -1;
@@ -345,7 +345,7 @@ int chan_enqueue(int ch_id, struct Buffer *msg)
     return 0;
 }
 
-int chan_dequeue(int ch_id, struct Buffer **buf)
+int chan_dequeue(int ch_id, struct chan_buffer **buf)
 {
     if (!chan_is_valid(ch_id))
         return -1;
@@ -379,7 +379,7 @@ ssize_t chan_write(int ch_id, void *buf, size_t len)
     return (b_write_fix(channels[ch_id].sock, buf, len));
 }
 
-int chan_rpc(int ch_id, struct Buffer *in, struct Buffer *out,
+int chan_rpc(int ch_id, struct chan_buffer *in, struct chan_buffer *out,
              struct protocol_header *out_hdr, int timeout)
 {
     if (in) {
@@ -387,7 +387,7 @@ int chan_rpc(int ch_id, struct Buffer *in, struct Buffer *out,
             return -1;
 
         if (in->forw != NULL) {
-            struct Buffer *buf = in->forw;
+            struct chan_buffer *buf = in->forw;
             int nlen = htonl(buf->len);
 
             if (chan_write(ch_id, (void *) &nlen, NET_INTSIZE_) != NET_INTSIZE_)
@@ -490,7 +490,7 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
 
 static void doread(struct chan_data *chan)
 {
-    struct Buffer *rcvbuf;
+    struct chan_buffer *rcvbuf;
     int cc;
 
     // Get or create receive buffer
@@ -590,7 +590,7 @@ static void doread(struct chan_data *chan)
 
 static void dowrite(struct chan_data *chan, int chan_id)
 {
-    struct Buffer *sendbuf;
+    struct chan_buffer *sendbuf;
     int cc;
 
     if (chan->send->forw == chan->send)
@@ -628,15 +628,15 @@ static void dowrite(struct chan_data *chan, int chan_id)
     }
 }
 
-struct Buffer *chan_make_buf(void)
+struct chan_buffer *chan_make_buf(void)
 {
     return make_buf();
 }
-static struct Buffer *make_buf(void)
+static struct chan_buffer *make_buf(void)
 {
-    struct Buffer *newbuf;
+    struct chan_buffer *newbuf;
 
-    newbuf = calloc(1, sizeof(struct Buffer));
+    newbuf = calloc(1, sizeof(struct chan_buffer));
     if (!newbuf)
         return NULL;
 
@@ -645,7 +645,7 @@ static struct Buffer *make_buf(void)
     return newbuf;
 }
 
-int chan_alloc_buf(struct Buffer **buf, int size)
+int chan_alloc_buf(struct chan_buffer **buf, int size)
 {
     // make new buffer and initialize its linked list
     *buf = make_buf();
@@ -661,7 +661,7 @@ int chan_alloc_buf(struct Buffer **buf, int size)
     return 0;
 }
 
-int chan_free_buf(struct Buffer *buf)
+int chan_free_buf(struct chan_buffer *buf)
 {
     if (!buf)
         return 0;
@@ -673,13 +673,13 @@ int chan_free_buf(struct Buffer *buf)
     return 0;
 }
 
-static void dequeue_(struct Buffer *entry)
+static void dequeue_(struct chan_buffer *entry)
 {
     entry->back->forw = entry->forw;
     entry->forw->back = entry->back;
 }
 
-static void enqueueTail_(struct Buffer *entry, struct Buffer *pred)
+static void enqueueTail_(struct chan_buffer *entry, struct chan_buffer *pred)
 {
     entry->back = pred->back;
     entry->forw = pred;

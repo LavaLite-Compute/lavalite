@@ -1,9 +1,6 @@
-// lib.syslog.c - simple deterministic logging for LavaLite daemons
-//  Copyright (C) 2024-2025 LavaLite Contributors
-//
-// Each daemon logs to: <logdir>/<ident>.log.<hostname>
-// Optionally also logs to stderr and/or syslog(), but never does
-// any dynamic fallback or reopen magic.
+// Copyright (C) 2024-2025 LavaLite Contributors
+// GPL v2
+
 
 #include "base/lib/ll.syslog.h"
 

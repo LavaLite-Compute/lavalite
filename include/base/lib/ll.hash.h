@@ -1,5 +1,4 @@
-/*
- * Copyright (C) LavaLite Contributors
+/* Copyright (C) LavaLite Contributors
  * GPL v2
  */
 

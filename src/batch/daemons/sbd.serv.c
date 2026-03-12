@@ -726,7 +726,7 @@ void do_jobMsg(struct bucket *bucket, XDR *xdrs, int s,
                struct protocol_header *reqHdr)
 {
     static char fname[] = "do_jobMsg";
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     sbdReplyType reply;
     struct jobCard *jp = NULL;
     char found = false;
@@ -791,7 +791,7 @@ void deliverMsg(struct bucket *bucket)
     int nbytes;
     int found;
     struct jobCard *jp;
-    struct Buffer *mbuf;
+    struct chan_buffer *mbuf;
 
     if (logclass & LC_TRACE)
         ls_syslog(LOG_DEBUG, "%s: Entering this routine ...", fname);

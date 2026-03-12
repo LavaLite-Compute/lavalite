@@ -8,4 +8,5 @@ LDADD = $(COMMON_LIBS)
 
 sbin_PROGRAMS = lim
 
-lim_SOURCES = lim.main.c lim.conf.c
+lim_SOURCES = lim.main.c lim.conf.c lim.tcp.c lim.udp.c \
+	      lim.wire.c

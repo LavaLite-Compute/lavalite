@@ -143,7 +143,7 @@ Done:
 // enqueue header used by daemons
 int enqueue_header_reply(int chan_id, int rc)
 {
-    struct Buffer *reply_buf;
+    struct chan_buffer *reply_buf;
     struct protocol_header hdr;
     XDR xdrs;
 
@@ -224,7 +224,7 @@ int enqueue_payload(int chan_id, int op, void *payload, bool (*xdr_func)())
 int enqueue_payload_bufsiz(int chan_id, int op,
                            void *payload, bool (*xdr_func)(), size_t bufsiz)
 {
-    struct Buffer *buf;
+    struct chan_buffer *buf;
 
     if (chan_alloc_buf(&buf, bufsiz) < 0) {
         LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", op, bufsiz);

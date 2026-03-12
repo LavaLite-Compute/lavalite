@@ -3,4 +3,4 @@
  */
 #include "base/lib/ll.sys.h"
 
-void signal_set(int, void (*handler)(int));
+void install_signal_hadler(int, void (*handler)(int), int);

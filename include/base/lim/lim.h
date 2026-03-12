@@ -10,7 +10,9 @@
 #include "base/lib/ll.host.h"
 #include "base/lib/ll.channel.h"
 #include "base/lib/ll.signal.h"
-#include "base/lim/lim.proto.h"
+
+#include "base/lim/proto.h"
+#include "base/lim/wire.h"
 
 extern struct ll_list node_list;
 extern struct ll_hash node_name_hash;
@@ -65,23 +67,45 @@ struct master_beacon {
     uint16_t tcp_port;
 };
 
+// For the  wire take this liberty
+#define true  1
+#define false 0
+
 struct wire_load_report {
     char hostname[MAXHOSTNAMELEN];
     uint32_t nidx;
     float li[LIM_NIDX];
 };
 
+struct wire_master {
+    char hostname[MAXHOSTNAMELEN];
+};
+
+struct wite_cluster {
+    char hostname[MAXHOSTNAMELEN];
+    chae admin[LL_BUFSIZ_64];
+};
+
+// init
 int load_conf(const char *);
 int make_cluster(const char *);
+
+// tcp
 int tcp_accept(void);
 int tcp_message(int);
-int udp_message(void);
 
+// udp and beacon
+int udp_message(void);
 void beacon_send(struct clusterNode *);
 void beacon_recv(XDR *, struct sockaddr_in *, struct protocol_header *);
+
+// wire
 bool xdr_beacon(XDR *, struct master_beacon *);
+
+// load
 void read_load(void);
 int send_load_report(void);
 void rcv_load_report(XDR *, struct sockaddr_in *, struct protocol_header *);
+
 bool xdr_wire_load_report(XDR *, struct wire_load_update *);
 void read_load(void);

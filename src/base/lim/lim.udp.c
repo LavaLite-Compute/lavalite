@@ -6,12 +6,15 @@
 
 void master(void)
 {
+    LS_DEBUG("running");
+
     proc_read();
     beacon_send();
 }
 
 void slave(void)
 {
+    LS_DEBUG("running");
     proc_read();
     report_load();
 
@@ -49,7 +52,12 @@ static void cluster_name(XDR *xdrs, struct sockaddr_in *from,
         return;
     }
 
-    if (! xdr_string(&xdrs2, &lim_cluster.name, UINT_MAX)) {
+    struct wire_cluster wr;
+    memset(&wc, 0, sizeof(struct wire_cluster));
+    sprintf(wc.name, lim_cluster.name);
+    sprintf(wc.admin, lim_cluster.admin);
+
+    if (! xdr_wire_cluster(&xdrs2, &wc)) {
         LS_ERR("xdr_pack_hdr failed");
         xdr_destroy(&xdrs2);
         return;
@@ -69,10 +77,7 @@ static void master_name(XDR *xdrs, struct sockaddr_in *from,
 {
     XDR xdrs2;
     char buf[LL_BUFSIZ_64];
-    enum limReplyCode limReplyCode;
-    struct hostNode *masterPtr;
     struct protocol_header hdr;
-    struct masterInfo masterInfo;
 
     memset((char *) &buf, 0, sizeof(buf));
     init_pack_hdr(&hdr);
@@ -83,30 +88,29 @@ static void master_name(XDR *xdrs, struct sockaddr_in *from,
     hdr.status = LIM_OK;
 
     if (!xdr_pack_hdr(&xdrs2, &hdr)) {
-        ls_syslog(LOG_ERR, "%s: xdr_pack_hdr() failed: %m", __func__);
+        LG_ERRX("xdr_pack_hdr");
         xdr_destroy(&xdrs2);
         return;
     }
 
-    if (limReplyCode == LIME_NO_ERR) {
-        masterPtr = myClusterPtr->masterKnown ? myClusterPtr->masterPtr
-                                              : myClusterPtr->prevMasterPtr;
-        // Fill the masterInfo structure
-        strcpy(masterInfo.hostName, masterPtr->hostName);
-        get_host_addrv4(masterPtr->v4_epoint, &masterInfo.addr);
-        masterInfo.portno = masterPtr->statInfo.portno;
+    struct wire_master wm;
+    memset(&wc, 0, sizeof(struct wire_master));
+    if (current_master) {
+        strcpy(wc.hostname, current_master.node->name);
+        wc.tcp_port = current_master.node->tcp_port;
+    } else {
+        strcpy(wc.hostname, "unknown");
+    }
 
-        if (!xdr_masterInfo(&xdrs2, &masterInfo, &hdr)) {
-            ls_syslog(LOG_ERR, "%s: xdr_masterInfo() failed: %m", __func__);
-            xdr_destroy(&xdrs2);
-            return;
-        }
+    if (! xdr_wire_cluster(xdrs2, &wc)) {
+        LS_ERRX("xdr_wire_cluster failed");
+        xdr_destroy(&xdrs2);
+        return;
     }
 
     int cc = chan_send_dgram(lim_udp_chan, buf, xdr_getpos(&xdrs2), from);
     if (cc < 0) {
-        ls_syslog(LOG_ERR, "%s: chanWrite() failed: %m", __func__,
-                  sockAdd2Str_(from));
+        LS_ERR("chanWrite", addr_to_str(from));
         xdr_destroy(&xdrs2);
         return;
     }
@@ -192,7 +196,7 @@ void beacon_send(void)
         return;
     }
 
-    if (! xdr_master_beacon(&xdrs, &bcn)) {
+    if (! xdr_beacon(&xdrs, &bcn)) {
         LS_ERR("master resigster encode failed");
         xdr_destroy(&xdrs);
         return;
@@ -222,6 +226,8 @@ void beacon_send(void)
 
         get_host_sinaddrv4(n->host, &to);
 
+        LS_DEBUG("sending beacon to=%s", addr_to_str(&to));
+
         if (chan_send_dgram(lim_udp_chan, buf, xdr_getpos(&xdrs), &to) < 0) {
             LS_ERR("chan_send_dgram to=%s failed", addr_to_str(&to));
             xdr_destroy(&xdrs);
@@ -236,7 +242,7 @@ static void beacon_recv(XDR *xdrs,
                         struct protocol_header *hdr)
 {
     struct master_beacon bcn;
-    if (!xdr_master_beacon(xdrs, &bcn)) {
+    if (!xdr_beacon(xdrs, &bcn)) {
         LS_ERR("beacon decode failed");
         return;
     }
@@ -278,10 +284,7 @@ static void beacon_recv(XDR *xdrs,
 
 int report_load(void)
 {
-    if (me == master_lim)
-        return 0;
-
-    if (! master_lim)
+    if (! master_lim) {
         LS_WARNING("master unknown, not sending load");
         return 0;
     }
@@ -292,12 +295,11 @@ int report_load(void)
     w.nidx = LIM_NIDX;
 
     for (int i = 0; i < LIM_NIDX; i++)
-        w.li[i] = myHostPtr->loadIndex[i];
+        w.li[i] = me->load_index[i];
 
     struct protocol_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = LIM_LOAD_REPORT;
-    hdr.sequence = 0;
 
     char buf[LL_BUFSIZ_256];
     XDR xdrs;
@@ -309,7 +311,7 @@ int report_load(void)
         return -1;
     }
 
-    if (!xdr_wire_load_update(&xdrs, &w)) {
+    if (!xdr_wire_load_report(&xdrs, &w)) {
         LS_ERR("load update encode failed");
         xdr_destroy(&xdrs);
         return -1;
@@ -320,12 +322,12 @@ int report_load(void)
     memset(&to_addr, 0, sizeof(to_addr));
     to_addr.sin_family = AF_INET;
     to_addr.sin_port = htons(lim_udp_port);
-    get_host_sinaddrv4(myClusterPtr->masterPtr->v4_epoint, &to_addr);
+    get_host_sinaddrv4(master_lim->host, &to_addr);
 
-    LS_DEBUG("sending load to %s len=%d", sockAdd2Str_(&to_addr), len);
+    LS_DEBUG("lim=%s len=%d", master_lim->host->name, len);
 
     if (chan_send_dgram(lim_udp_chan, buf, len, &to_addr) < 0) {
-        LS_ERR("send to %s failed", sockAdd2Str_(&to_addr));
+        LS_ERR("send to %s failed", master_lim->host->name);
         xdr_destroy(&xdrs);
         return -1;
     }

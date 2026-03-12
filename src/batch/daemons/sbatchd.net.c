@@ -110,7 +110,7 @@ int sbd_register(int chan_id)
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_SBD_REGISTER;
 
-    struct Buffer *buf = NULL;
+    struct chan_buffer *buf = NULL;
     if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
         LS_ERR("sbd register: chan_alloc_buf failed");
         return -1;

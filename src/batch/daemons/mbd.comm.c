@@ -278,7 +278,7 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
 }
 
 // Bug this function does not make any sense
-sbdReplyType msg_job(struct jData *jp, struct Buffer *mbuf,
+sbdReplyType msg_job(struct jData *jp, struct chan_buffer *mbuf,
                      struct jobReply *jobReply)
 {
     char *toHost = jp->hPtr[0]->host;
@@ -418,7 +418,7 @@ sbdReplyType call_sbd(struct hData *host_node, char *request_buf, int len)
     // From here down, behave like the original call_sbd,
     // just without serv_connect() / io_nonblock_.
 
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     chan_alloc_buf(&buf, len);
     if (buf == NULL) {
         LS_ERR("chan_alloc_buf(%d) failed for host <%s>", len, host_node->host);

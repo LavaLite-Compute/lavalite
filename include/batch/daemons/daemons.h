@@ -290,7 +290,7 @@ struct proto {
 struct bucket {
     struct bucket *forw;
     struct bucket *back;
-    struct Buffer *storage;
+    struct chan_buffer *storage;
     enum _bufstat bufstat;
     proto_t proto;
     XDR xdrs;

@@ -73,7 +73,7 @@ int handle_sbd_accept(int listen_chan)
  */
 int handle_sbd_client(int ch_id)
 {
-    struct Buffer *buf = NULL;
+    struct chan_buffer *buf = NULL;
     XDR xdrs;
     struct protocol_header hdr;
     int rc = 0;
@@ -207,7 +207,7 @@ static int do_sbd_jobs_list(int ch_id, XDR *xdrs, struct protocol_header *hdr)
  */
 int sbd_reply_hdr_only(int ch_id, int rc, struct protocol_header *req_hdr)
 {
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     XDR xdrs;
     struct protocol_header out;
 
@@ -263,7 +263,7 @@ int sbd_reply_payload(int ch_id, int rc, struct protocol_header *req_hdr,
      * use that. For now, just allocate based on hdr.length if you have it.
      */
     size_t cap = LL_BUFSIZ_8K;
-    struct Buffer *buf;
+    struct chan_buffer *buf;
 
     if (chan_alloc_buf(&buf, cap) < 0) {
         LS_ERR("chan_alloc_buf failed for sbd reply payload ch=%d", ch_id);

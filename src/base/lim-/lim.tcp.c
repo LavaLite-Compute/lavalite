@@ -21,7 +21,7 @@
 
 static void process_tcp_request(struct client_node *client)
 {
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     struct protocol_header hdr;
     XDR xdrs;
 

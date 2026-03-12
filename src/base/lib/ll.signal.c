@@ -71,15 +71,17 @@ int ll_str_to_sig(const char *s)
     return -1;
 }
 
-void signal_set(int sig, void (*handler)(int))
+int install_signal_handler(int sig, void (*handler)(int), int flags)
 {
     struct sigaction act;
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = handler;
-    // relay on the default behaviour
-    // act.sa_flags = SA_RESTART;
+    act.sa_flags = flags;
     sigemptyset(&act.sa_mask);
 
-    sigaction(sig, &act, NULL);
+    if (sigaction(sig, &act, NULL) < 0)
+        return -1;
+
+    return 0;
 }

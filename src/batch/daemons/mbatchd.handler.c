@@ -41,7 +41,7 @@ int mbd_dispatch_sbd(struct mbd_client_node *client)
         return -1;
     }
 
-    struct Buffer *buf;
+    struct chan_buffer *buf;
     if (chan_dequeue(ch_id, &buf) < 0) {
         LS_ERR("%s: chan_dequeue failed for SBD chanfd=%d", __func__, ch_id);
         mbd_sbd_disconnect(client);

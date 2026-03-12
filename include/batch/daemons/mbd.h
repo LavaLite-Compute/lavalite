@@ -1270,7 +1270,7 @@ extern sbdReplyType start_job(struct jData *, struct qData *,
 extern sbdReplyType signal_job(struct jData *jobPtr, struct jobSig *,
                                struct jobReply *jobReply);
 extern sbdReplyType switch_job(struct jData *, int options);
-extern sbdReplyType msg_job(struct jData *, struct Buffer *, struct jobReply *);
+extern sbdReplyType msg_job(struct jData *, struct chan_buffer *, struct jobReply *);
 extern sbdReplyType probe_slave(struct hData *, char sendJobs);
 
 extern struct dptNode *parseDepCond(char *, struct lsfAuth *, int *, char **,
