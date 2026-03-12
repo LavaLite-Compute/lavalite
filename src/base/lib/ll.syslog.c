@@ -1,6 +1,6 @@
+// Copyright (C) 2007 Platform Computing Inc
 // Copyright (C) 2024-2025 LavaLite Contributors
 // GPL v2
-
 
 #include "base/lib/ll.syslog.h"
 

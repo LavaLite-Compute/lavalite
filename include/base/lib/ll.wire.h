@@ -25,6 +25,10 @@
 #define PROTOCOL_VERSION 0x00010000
 #define CURRENT_PROTOCOL_VERSION PROTOCOL_VERSION
 
+// For the  wire take this liberty
+#define true  1
+#define false 0
+
 struct protocol_header {
     int32_t sequence;  // request/response correlation
     int32_t operation; // message type / opcode
@@ -68,9 +72,9 @@ struct wire_host_reply {
 
 // wire it the ll naming for bytes on the wire in network format
 // host info
-bool xdr_wire_host(XDR *, struct wire_host *,
+bool_t xdr_wire_host(XDR *, struct wire_host *,
                      struct protocol_header *);
-bool xdr_wire_host_reply(XDR *, struct wire_host_reply *,
+bool_t xdr_wire_host_reply(XDR *, struct wire_host_reply *,
                            struct protocol_header *);
 // host load info
 // For ls_loadinfo()
@@ -85,8 +89,8 @@ struct wire_load_reply {
     struct wire_load *hosts;
 };
 
-bool xdr_wire_load(XDR *, struct wire_load *);
-bool xdr_wire_load_reply(XDR *, struct wire_load_reply *);
+bool_t xdr_wire_load(XDR *, struct wire_load *);
+bool_t xdr_wire_load_reply(XDR *, struct wire_load_reply *);
 
 
 struct wire_host_type {
@@ -104,5 +108,5 @@ struct wire_cluster_info {
     int num_servers;
     int num_clients;
 };
-bool xdr_wire_cluster_info(XDR *, struct wire_cluster_info *);
-bool xdr_pack_hdr(XDR *, struct protocol_header *);
+bool_t xdr_wire_cluster_info(XDR *, struct wire_cluster_info *);
+bool_t xdr_pack_hdr(XDR *, struct protocol_header *);

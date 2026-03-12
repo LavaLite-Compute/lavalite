@@ -1,19 +1,212 @@
-/* Copyright (C) LavaLite Contributors
- * GPL v2
- */
+// Copyright (C) 2007 Platform Computing Inc
+// Copyright (C) 2024-2025 LavaLite Contributors
+// GPL v2
+
 #include "base/lib/ll.channel.h"
 
 long chan_open_max;
 struct chan_data *channels;
 static int epoll_fd;
-static void doread(struct chan_data *);
-static void dowrite(struct chan_data *, int);
-static struct chan_buffer *make_buf(void);
-static void enqueueTail_(struct chan_buffer *, struct chan_buffer *);
-static void dequeue_(struct chan_buffer *);
-static int chan_find_free(void);
-static inline bool chan_is_udp(enum chanType);
-static inline bool chan_is_valid(int);
+
+static void buf_remove(struct chan_buffer *entry)
+{
+    entry->back->forw = entry->forw;
+    entry->forw->back = entry->back;
+}
+
+static void buf_insert(struct chan_buffer *entry, struct chan_buffer *pred)
+{
+    entry->back = pred->back;
+    entry->forw = pred;
+    pred->back->forw = entry;
+    pred->back = entry;
+}
+
+static struct chan_buffer *make_buf(void)
+{
+    struct chan_buffer *newbuf;
+
+    newbuf = calloc(1, sizeof(struct chan_buffer));
+    if (!newbuf)
+        return NULL;
+
+    newbuf->forw = newbuf->back = newbuf;
+
+    return newbuf;
+}
+
+static void doread(struct chan_data *chan)
+{
+    struct chan_buffer *rcvbuf;
+    int cc;
+
+    // Get or create receive buffer
+    if (chan->recv->forw == chan->recv) {
+        rcvbuf = make_buf();
+        if (!rcvbuf) {
+            chan->chan_events = CHAN_EPOLLERR;
+            return;
+        }
+        buf_insert(rcvbuf, chan->recv);
+    } else {
+        rcvbuf = chan->recv->forw;
+    }
+
+    // Phase 1: Read header
+    if (rcvbuf->len == 0) {
+        rcvbuf->data = malloc(PACKET_HEADER_SIZE);
+        if (!rcvbuf->data) {
+            chan->chan_events = CHAN_EPOLLERR;
+            return;
+        }
+        rcvbuf->len = PACKET_HEADER_SIZE;
+        rcvbuf->pos = 0;
+    }
+
+    // Still reading header
+    if (rcvbuf->len == PACKET_HEADER_SIZE && rcvbuf->pos < PACKET_HEADER_SIZE) {
+        cc = read(chan->sock, rcvbuf->data + rcvbuf->pos,
+                  PACKET_HEADER_SIZE - rcvbuf->pos);
+        if (cc < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+                return;
+            chan->chan_events = CHAN_EPOLLERR;
+            return;
+        }
+        if (cc == 0) {
+            chan->chan_events = CHAN_EPOLLERR;
+            return;
+        }
+        rcvbuf->pos += cc;
+
+        // Header complete - parse and allocate for payload
+        if (rcvbuf->pos == PACKET_HEADER_SIZE) {
+            XDR xdrs;
+            struct protocol_header hdr;
+
+            xdrmem_create(&xdrs, rcvbuf->data, PACKET_HEADER_SIZE, XDR_DECODE);
+            if (!xdr_pack_hdr(&xdrs, &hdr)) {
+                chan->chan_events = CHAN_EPOLLERR;
+                xdr_destroy(&xdrs);
+                return;
+            }
+            xdr_destroy(&xdrs);
+
+            if (hdr.length > 0) {
+                // Extend buffer for payload
+                char *payload = realloc(rcvbuf->data,
+                                        PACKET_HEADER_SIZE + hdr.length);
+                if (!payload) {
+                    chan->chan_events = CHAN_EPOLLERR;
+                    return;
+                }
+                rcvbuf->data = payload;
+                rcvbuf->len = PACKET_HEADER_SIZE + hdr.length;
+            }
+            // If no payload, packet is complete
+            if (hdr.length == 0) {
+                chan->chan_events = CHAN_EPOLLIN;
+                return;
+            }
+        }
+        return;
+    }
+
+    // Phase 2: Read payload
+    if (rcvbuf->pos < rcvbuf->len) {
+        cc = read(chan->sock, rcvbuf->data + rcvbuf->pos,
+                  rcvbuf->len - rcvbuf->pos);
+        if (cc < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+                return;
+            chan->chan_events = CHAN_EPOLLERR;
+            return;
+        }
+        if (cc == 0) {
+            chan->chan_events = CHAN_EPOLLERR;
+            return;
+        }
+        rcvbuf->pos += cc;
+
+        // Packet complete
+        if (rcvbuf->pos == rcvbuf->len) {
+            chan->chan_events = CHAN_EPOLLIN;
+        }
+    }
+}
+
+static void dowrite(struct chan_data *chan, int chan_id, int efd)
+{
+    struct chan_buffer *sendbuf;
+    int cc;
+
+    if (chan->send->forw == chan->send)
+        return;
+
+    sendbuf = chan->send->forw;
+
+    cc = write(chan->sock, sendbuf->data + sendbuf->pos,
+               sendbuf->len - sendbuf->pos);
+
+    if (cc < 0) {
+        // transient, wait for writable again
+        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+            return;
+        // real error
+        chan->chan_events = CHAN_EPOLLERR;
+        return;
+    }
+
+    // nothing written, but not an error
+    if (cc == 0)
+        return;
+
+    // all sent
+    sendbuf->pos += cc;
+    if (sendbuf->pos == sendbuf->len) {
+        buf_remove(sendbuf);
+        free(sendbuf->data);
+        free(sendbuf);
+        // Remove from epoll EPOLLOUT only when the whole list
+        // is all empty
+        if (chan->send->forw == chan->send) {
+            chan_set_write_interest(chan_id, efd, 0);
+        }
+    }
+}
+
+static int chan_find_free(void)
+{
+    for (int i = 0; i < chan_open_max; i++) {
+        if (channels[i].sock == -1) {
+            channels[i].send = NULL;
+            channels[i].recv = NULL;
+            return i;
+        }
+    }
+    return -1;
+}
+
+static inline int chan_is_udp(enum chanType t)
+{
+    if (t != CHAN_TYPE_UDP_CLIENT && t != CHAN_TYPE_UDP_LISTEN)
+        return 0;
+
+    return 1;
+}
+
+static inline int chan_is_valid(int ch_id)
+{
+    if (ch_id < 0 || ch_id > chan_open_max) {
+        return 0;
+    }
+
+    if (channels[ch_id].sock == -1) {
+        return 0;
+    }
+
+    return 1;
+}
 
 int chan_init(void)
 {
@@ -318,7 +511,7 @@ int chan_enqueue(int ch_id, struct chan_buffer *msg)
     if (!chan_is_valid(ch_id))
         return -1;
 
-    enqueueTail_(msg, channels[ch_id].send);
+    buf_insert(msg, channels[ch_id].send);
     return 0;
 }
 
@@ -331,7 +524,7 @@ int chan_dequeue(int ch_id, struct chan_buffer **buf)
         return -1;
     }
     *buf = channels[ch_id].recv->forw;
-    dequeue_(channels[ch_id].recv->forw);
+    buf_remove(channels[ch_id].recv->forw);
     return 0;
 }
 
@@ -448,12 +641,9 @@ int chan_rpc(int ch_id, struct chan_buffer *in, struct chan_buffer *out,
 
 // chan_epoll: drives I/O and sets chan->chan_events (enum state),
 // does not expose epoll flags directly.
-int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
+int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
 {
-    // we may need access to the global ef in other parts of the code
-    epoll_fd = ef;
-
-    int cc = epoll_wait(ef, events, max_events, tm);
+    int cc = epoll_wait(efd, events, max_events, tm);
     if (cc == 0) // timeout
         return 0;
     if (cc < 0) {
@@ -493,168 +683,16 @@ int chan_epoll(int ef, struct epoll_event *events, int max_events, int tm)
         }
 
         if (e->events & EPOLLOUT) {
-            dowrite(chan, ch_id);
+            dowrite(chan, ch_id, efd);
         }
 
     }
     return cc;
 }
 
-static void doread(struct chan_data *chan)
-{
-    struct chan_buffer *rcvbuf;
-    int cc;
-
-    // Get or create receive buffer
-    if (chan->recv->forw == chan->recv) {
-        rcvbuf = make_buf();
-        if (!rcvbuf) {
-            chan->chan_events = CHAN_EPOLLERR;
-            return;
-        }
-        enqueueTail_(rcvbuf, chan->recv);
-    } else {
-        rcvbuf = chan->recv->forw;
-    }
-
-    // Phase 1: Read header
-    if (rcvbuf->len == 0) {
-        rcvbuf->data = malloc(PACKET_HEADER_SIZE);
-        if (!rcvbuf->data) {
-            chan->chan_events = CHAN_EPOLLERR;
-            return;
-        }
-        rcvbuf->len = PACKET_HEADER_SIZE;
-        rcvbuf->pos = 0;
-    }
-
-    // Still reading header
-    if (rcvbuf->len == PACKET_HEADER_SIZE && rcvbuf->pos < PACKET_HEADER_SIZE) {
-        cc = read(chan->sock, rcvbuf->data + rcvbuf->pos,
-                  PACKET_HEADER_SIZE - rcvbuf->pos);
-        if (cc < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
-                return;
-            chan->chan_events = CHAN_EPOLLERR;
-            return;
-        }
-        if (cc == 0) {
-            chan->chan_events = CHAN_EPOLLERR;
-            return;
-        }
-        rcvbuf->pos += cc;
-
-        // Header complete - parse and allocate for payload
-        if (rcvbuf->pos == PACKET_HEADER_SIZE) {
-            XDR xdrs;
-            struct protocol_header hdr;
-
-            xdrmem_create(&xdrs, rcvbuf->data, PACKET_HEADER_SIZE, XDR_DECODE);
-            if (!xdr_pack_hdr(&xdrs, &hdr)) {
-                chan->chan_events = CHAN_EPOLLERR;
-                xdr_destroy(&xdrs);
-                return;
-            }
-            xdr_destroy(&xdrs);
-
-            if (hdr.length > 0) {
-                // Extend buffer for payload
-                char *payload = realloc(rcvbuf->data,
-                                        PACKET_HEADER_SIZE + hdr.length);
-                if (!payload) {
-                    chan->chan_events = CHAN_EPOLLERR;
-                    return;
-                }
-                rcvbuf->data = payload;
-                rcvbuf->len = PACKET_HEADER_SIZE + hdr.length;
-            }
-            // If no payload, packet is complete
-            if (hdr.length == 0) {
-                chan->chan_events = CHAN_EPOLLIN;
-                return;
-            }
-        }
-        return;
-    }
-
-    // Phase 2: Read payload
-    if (rcvbuf->pos < rcvbuf->len) {
-        cc = read(chan->sock, rcvbuf->data + rcvbuf->pos,
-                  rcvbuf->len - rcvbuf->pos);
-        if (cc < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
-                return;
-            chan->chan_events = CHAN_EPOLLERR;
-            return;
-        }
-        if (cc == 0) {
-            chan->chan_events = CHAN_EPOLLERR;
-            return;
-        }
-        rcvbuf->pos += cc;
-
-        // Packet complete
-        if (rcvbuf->pos == rcvbuf->len) {
-            chan->chan_events = CHAN_EPOLLIN;
-        }
-    }
-}
-
-static void dowrite(struct chan_data *chan, int chan_id)
-{
-    struct chan_buffer *sendbuf;
-    int cc;
-
-    if (chan->send->forw == chan->send)
-        return;
-
-    sendbuf = chan->send->forw;
-
-    cc = write(chan->sock, sendbuf->data + sendbuf->pos,
-               sendbuf->len - sendbuf->pos);
-
-    if (cc < 0) {
-        // transient, wait for writable again
-        if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
-            return;
-        // real error
-        chan->chan_events = CHAN_EPOLLERR;
-        return;
-    }
-
-    // nothing written, but not an error
-    if (cc == 0)
-        return;
-
-    // all sent
-    sendbuf->pos += cc;
-    if (sendbuf->pos == sendbuf->len) {
-        dequeue_(sendbuf);
-        free(sendbuf->data);
-        free(sendbuf);
-        // Remove from epoll EPOLLOUT only when the whole list
-        // is all empty
-        if (chan->send->forw == chan->send) {
-            chan_set_write_interest(chan_id, false);
-        }
-    }
-}
-
 struct chan_buffer *chan_make_buf(void)
 {
     return make_buf();
-}
-static struct chan_buffer *make_buf(void)
-{
-    struct chan_buffer *newbuf;
-
-    newbuf = calloc(1, sizeof(struct chan_buffer));
-    if (!newbuf)
-        return NULL;
-
-    newbuf->forw = newbuf->back = newbuf;
-
-    return newbuf;
 }
 
 int chan_alloc_buf(struct chan_buffer **buf, int size)
@@ -685,43 +723,7 @@ int chan_free_buf(struct chan_buffer *buf)
     return 0;
 }
 
-static void dequeue_(struct chan_buffer *entry)
-{
-    entry->back->forw = entry->forw;
-    entry->forw->back = entry->back;
-}
 
-static void enqueueTail_(struct chan_buffer *entry, struct chan_buffer *pred)
-{
-    entry->back = pred->back;
-    entry->forw = pred;
-    pred->back->forw = entry;
-    pred->back = entry;
-}
-
-/*
- * chan_find_free()
- *
- * Find a free channel slot.
- *
- * A channel slot is considered free if channels[i].sock == -1.
- * This function clears send/recv pointers for the returned slot.
- *
- * Return values:
- *   channel index on success
- *   -1 if no free slots are available
- */
-static int chan_find_free(void)
-{
-    for (int i = 0; i < chan_open_max; i++) {
-        if (channels[i].sock == -1) {
-            channels[i].send = NULL;
-            channels[i].recv = NULL;
-            return i;
-        }
-    }
-    return -1;
-}
 
 int io_non_block(int s)
 {
@@ -783,7 +785,7 @@ int chan_sock_error(int ch_id)
     return err;
 }
 
-int chan_set_write_interest(int ch_id, bool on)
+int chan_set_write_interest(int ch_id, int efd, int on)
 {
     // epoll_fd is process-global: each daemon has a single epoll instance,
     // initialized by chan_epoll() before any channel I/O.
@@ -921,26 +923,6 @@ int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
     }
 
     return 0;
-}
-static inline bool chan_is_udp(enum chanType t)
-{
-    if (t != CHAN_TYPE_UDP_CLIENT && t != CHAN_TYPE_UDP_LISTEN)
-        return false;
-
-    return true;
-}
-
-static inline bool chan_is_valid(int ch_id)
-{
-    if (ch_id < 0 || ch_id > chan_open_max) {
-        return false;
-    }
-
-    if (channels[ch_id].sock == -1) {
-        return false;
-    }
-
-    return true;
 }
 
 int send_protocol_header(int ch_id, struct protocol_header *hdr)

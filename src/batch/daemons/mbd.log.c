@@ -3700,9 +3700,9 @@ static int replay_jobmsg(char *filename, int lineNum)
     jmsg.header = &jmHdr;
     jmsg.msg = logPtr->eventLog.jobMsgLog.msg;
 
-    if (!xdr_encodeMsg(&bucket->xdrs, (char *) &jmsg, &lsfHdr, xdr_lsbMsg, 0,
+    if (!xdr_encode_msg(&bucket->xdrs, (char *) &jmsg, &lsfHdr, xdr_lsbMsg, 0,
                        NULL)) {
-        ls_syslog(LOG_ERR, fname, "xdr_encodeMsg");
+        ls_syslog(LOG_ERR, fname, "xdr_encode_msg");
         chan_free_buf(buf);
         return -1;
     }

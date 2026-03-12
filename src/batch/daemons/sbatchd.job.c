@@ -1663,7 +1663,7 @@ static void reset_except_fd(int except_fd)
     }
     closedir(d);
 }
-// xdr_encodeMsg() uses old-style bool (*xdr_func)() so we keep the same type.
+// xdr_encode_msg() uses old-style bool (*xdr_func)() so we keep the same type.
 // this function runs right upon a job start we will be async waiting to
 // mbd to reply BATCH_NEW_JOB_ACK so that we know mbd got the data and logged
 // the pid to the events file

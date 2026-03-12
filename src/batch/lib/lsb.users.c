@@ -94,7 +94,7 @@ struct userInfoEnt *lsb_userinfo(char **users, int *numUsers)
 
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &userInfoReq, &hdr, xdr_infoReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &userInfoReq, &hdr, xdr_infoReq, 0,
                        NULL)) {
         xdr_destroy(&xdrs);
         free(request_buf);

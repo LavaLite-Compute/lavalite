@@ -149,7 +149,7 @@ int status_job(mbdReqType reqType, struct jobCard *jp, int newStatus,
     init_pack_hdr(&hdr);
     hdr.operation = reqType;
 
-    if (!xdr_encodeMsg(&xdrs, (char *) &statusReq, &hdr, xdr_statusReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &statusReq, &hdr, xdr_statusReq, 0,
                        auth)) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
                   "xdr_statusReq");
@@ -296,8 +296,8 @@ void getJobsState(struct sbdPackage *sbdPackage)
     xdrmem_create(&xdrs, request_buf, MSGSIZE / 8, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, NULL, &hdr, NULL, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+    if (!xdr_encode_msg(&xdrs, NULL, &hdr, NULL, 0, NULL)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg");
         xdr_destroy(&xdrs);
         lsb_merr("Failed in xdr for BATCH_SLAVE_RESTART\n");
     }
@@ -455,9 +455,9 @@ static int msgSbd(int64_t jobId, char *req, sbdReqType reqType,
     hdr.operation = reqType;
     xdrmem_create(&xdrs, requestBuf, sizeof(requestBuf), XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&xdrs, req, &hdr, xdrFunc, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs, req, &hdr, xdrFunc, 0, NULL)) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jobId),
-                  "xdr_encodeMsg");
+                  "xdr_encode_msg");
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -517,9 +517,9 @@ int msgSupervisor(struct lsbMsg *lsbMsg, struct clientNode *cliPtr)
     init_pack_hdr(&reqHdr);
     xdrmem_create(&xdrs, reqBuf, sizeof(reqBuf), XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&xdrs, (char *) lsbMsg, &reqHdr, xdr_lsbMsg, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs, (char *) lsbMsg, &reqHdr, xdr_lsbMsg, 0, NULL)) {
         if (logclass & LC_COMM)
-            ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+            ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg");
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -589,7 +589,7 @@ int sendUnreportedStatus(struct chunkStatusReq *chunkStatusReq)
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_STATUS_CHUNK;
 
-    if (!xdr_encodeMsg(&xdrs, (char *) chunkStatusReq, &hdr, xdr_chunkStatusReq,
+    if (!xdr_encode_msg(&xdrs, (char *) chunkStatusReq, &hdr, xdr_chunkStatusReq,
                        0, auth)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_chunkStatusReq");
         lsb_merr2(I18N_FUNC_FAIL, fname, "xdr_chunkStatusReq");

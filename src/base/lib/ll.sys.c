@@ -58,72 +58,72 @@ int get_uid(const char *user, uid_t *uid)
 }
 
 // yaai yet another atoi
-bool ll_atoi(const char *s, int *out)
+int ll_atoi(const char *s, int *out)
 {
     char *end;
     long v;
 
     if (!s || !out)
-        return false;
+        return 0;
 
     // Skip leading whitespace explicitly so empty/space-only strings fail cleanly
     while (*s && isspace((unsigned char)*s))
         s++;
 
     if (*s == '\0')
-        return false;
+        return 0;
 
     errno = 0;
     v = strtol(s, &end, 10);
 
     if (end == s)
-        return false;
+        return 0;
 
     // Allow trailing whitespace only; reject any other junk
     while (*end && isspace((unsigned char)*end))
         end++;
 
     if (*end != '\0')
-        return false;
+        return 0;
 
     if (errno == ERANGE || v < INT_MIN || v > INT_MAX)
-        return false;
+        return 0;
 
     *out = (int)v;
-    return true;
+    return 1;
 }
 
-bool ll_atoll(const char *s, int64_t *out)
+int ll_atoll(const char *s, int64_t *out)
 {
     char *end;
     long long v;
 
     if (!s || !out)
-        return false;
+        return 0;
 
     while (*s && isspace((unsigned char)*s))
         s++;
 
     if (*s == '\0')
-        return false;
+        return 0;
 
     errno = 0;
     v = strtoll(s, &end, 10);
 
     if (end == s)
-        return false;
+        return 0;
 
     while (*end && isspace((unsigned char)*end))
         end++;
 
     if (*end != '\0')
-        return false;
+        return 0;
 
     if (errno == ERANGE || v < (long long)INT64_MIN || v > (long long)INT64_MAX)
-        return false;
+        return 0;
 
     *out = (int64_t)v;
-    return true;
+    return 1;
 }
 
 const char *ctime2(time_t *tp)

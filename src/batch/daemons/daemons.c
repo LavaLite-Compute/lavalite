@@ -238,15 +238,15 @@ int enqueue_payload_bufsiz(int chan_id, int op,
     init_pack_hdr(&hdr);
     hdr.operation = op;
 
-    // xdr_encodeMsg() uses old-style
+    // xdr_encode_msg() uses old-style
     // bool (*xdr_func)() so we keep the same type.
-    if (!xdr_encodeMsg(&xdrs,
+    if (!xdr_encode_msg(&xdrs,
                        (char *)payload,
                        &hdr,
                        xdr_func,
                        0,
                        NULL)) {
-        LS_ERR("xdr_encodeMsg failed op=%d", op);
+        LS_ERR("xdr_encode_msg failed op=%d", op);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         return -1;

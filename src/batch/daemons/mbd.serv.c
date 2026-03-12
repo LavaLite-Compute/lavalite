@@ -208,7 +208,7 @@ int do_jobInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     memset(&replyHdr, 0, sizeof(struct protocol_header));
     replyHdr.operation = reply;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) &jobInfoHead, &replyHdr,
+    if (!xdr_encode_msg(&xdrs2, (char *) &jobInfoHead, &replyHdr,
                        xdr_jobInfoHead, 0, NULL)) {
         FREEUP(reply_buf);
         freeJobHead(&jobInfoHead);
@@ -311,7 +311,7 @@ static int packJgrpInfo(struct jgTreeNode *jgNode, int remain, char **replyBuf,
     xdrmem_create(&xdrs, request_buf, len, XDR_ENCODE);
 
     hdr.version = version;
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
                        NULL)) {
         xdr_destroy(&xdrs);
         FREEUP(request_buf);
@@ -662,7 +662,7 @@ static int packJobInfo(struct jData *jobData, int remain, char **replyBuf,
     memset(&hdr, 0, sizeof(struct protocol_header));
     hdr.version = version;
 
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &jobInfoReply, &hdr, xdr_jobInfoReply, 0,
                        NULL)) {
         xdr_destroy(&xdrs);
         freeJobInfoReply(&jobInfoReply);
@@ -709,7 +709,7 @@ int do_jobPeekReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
         replyStruct = (char *) &jobPeekReply;
     else
         replyStruct = (char *) 0;
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobPeekReply, 0,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_jobPeekReply, 0,
                        NULL)) {
         xdr_destroy(&xdrs2);
         FREEUP(jobPeekReply.outFile);
@@ -756,7 +756,7 @@ int do_jobMsg(struct bucket *bucket, XDR *xdrs, int chfd,
     sndhdr.operation = BATCH_JOB_MSG;
     xdrmem_create(&bucket->xdrs, buf->data, buf->len, XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&bucket->xdrs, (char *) &jmsg, &sndhdr, xdr_lsbMsg, 0,
+    if (!xdr_encode_msg(&bucket->xdrs, (char *) &jmsg, &sndhdr, xdr_lsbMsg, 0,
                        NULL)) {
         reply = LSBE_XDR;
         goto Reply;
@@ -787,7 +787,7 @@ Reply:
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) NULL, &replyHdr, xdr_int, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs2, (char *) NULL, &replyHdr, xdr_int, 0, NULL)) {
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -836,7 +836,7 @@ Reply:
     else {
         replyStruct = (char *) 0;
     }
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_submitMbdReply, 0,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_submitMbdReply, 0,
                        NULL)) {
         xdr_destroy(&xdrs2);
         return -1;
@@ -980,7 +980,7 @@ int do_restartReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     reply_buf = (char *) my_malloc(buflen, "do_restartReq");
     xdrmem_create(&xdrs2, reply_buf, buflen, XDR_ENCODE);
     replyHdr.operation = reply;
-    if (!xdr_encodeMsg(&xdrs2, (char *) &sbdPackage, &replyHdr, xdr_sbdPackage,
+    if (!xdr_encode_msg(&xdrs2, (char *) &sbdPackage, &replyHdr, xdr_sbdPackage,
                        0, NULL)) {
         xdr_destroy(&xdrs2);
         free(reply_buf);
@@ -1034,7 +1034,7 @@ int do_hostInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         replyStruct = (char *) &hostsReply;
     else
         replyStruct = (char *) 0;
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_hostDataReply, 0,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_hostDataReply, 0,
                        NULL)) {
         FREEUP(hostsReply.hosts);
         FREEUP(reply_buf);
@@ -1085,7 +1085,7 @@ int do_userInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         replyStruct = (char *) &userInfoReply;
     else
         replyStruct = (char *) 0;
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_userInfoReply, 0,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_userInfoReply, 0,
                        NULL)) {
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
@@ -1199,7 +1199,7 @@ int do_queueInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     else
         reply_struct = NULL;
 
-    if (!xdr_encodeMsg(&xdrs2,
+    if (!xdr_encode_msg(&xdrs2,
                        reply_struct,
                        &reply_hdr,
                        xdr_queueInfoReply,
@@ -1274,7 +1274,7 @@ int do_groupInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     else
         replyStruct = (char *) NULL;
 
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_groupInfoReply, 0,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_groupInfoReply, 0,
                        NULL)) {
         FREEUP(reply_buf);
         xdr_destroy(&xdrs2);
@@ -1330,7 +1330,7 @@ int do_paramInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
     init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     replyStruct = (char *) &paramInfo;
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_parameterInfo, 0,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_parameterInfo, 0,
                        NULL)) {
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
@@ -1504,7 +1504,7 @@ int do_jobMoveReq(XDR *xdrs, int chfd, struct sockaddr_in *from, char *hostName,
     else {
         replyStruct = (char *) 0;
     }
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobMoveReq, 0,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_jobMoveReq, 0,
                        NULL)) {
         xdr_destroy(&xdrs2);
         return -1;
@@ -1595,13 +1595,13 @@ static int sendBack(int reply, struct submitReq *submitReq,
     memset(&replyHdr, 0, sizeof(struct protocol_header));
 
     replyHdr.operation = reply;
-    if (!xdr_encodeMsg(&xdrs2,
+    if (!xdr_encode_msg(&xdrs2,
                        (char *)submitReply,
                        &replyHdr,
                        xdr_submitMbdReply,
                        0,
                        NULL)) {
-        LS_ERR("xdr_encodeMsg failed");
+        LS_ERR("xdr_encode_msg failed");
         xdr_destroy(&xdrs2);
         return -1;
     }
@@ -1913,7 +1913,7 @@ int do_resourceInfoReq(XDR *xdrs, int chfd, struct sockaddr_in *from,
         replyStruct = (char *) &resInfoReply;
     else
         replyStruct = (char *) 0;
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr,
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr,
                        xdr_lsbShareResourceInfoReply, 0, NULL)) {
         xdr_destroy(&xdrs2);
         FREEUP(reply_buf);
@@ -2003,7 +2003,7 @@ Reply:
 
     lsfHeader.operation = reply;
 
-    if (!xdr_encodeMsg(&replyXdr, NULL, &lsfHeader, xdr_int, 0, NULL)) {
+    if (!xdr_encode_msg(&replyXdr, NULL, &lsfHeader, xdr_int, 0, NULL)) {
         xdr_destroy(&replyXdr);
         return -1;
     }
@@ -2048,7 +2048,7 @@ int do_setJobAttr(XDR *xdrs, int s, struct sockaddr_in *from, char *hostName,
 
     xdrmem_create(&xdrs2, reply_buf, MSGSIZE, XDR_ENCODE);
     replyHdr.operation = reply;
-    if (!xdr_encodeMsg(&xdrs2, (char *) &jobAttr, &replyHdr, xdr_jobAttrReq, 0,
+    if (!xdr_encode_msg(&xdrs2, (char *) &jobAttr, &replyHdr, xdr_jobAttrReq, 0,
                        NULL)) {
         xdr_destroy(&xdrs2);
         return -1;

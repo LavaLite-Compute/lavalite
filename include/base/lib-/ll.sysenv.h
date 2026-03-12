@@ -53,7 +53,7 @@ extern int lim_chans[];
 #include <limits.h>
 #include <stdlib.h>
 
-bool ll_atoi(const char *, int *);
-bool ll_atoll(const char *, int64_t *);
+int ll_atoi(const char *, int *);
+int ll_atoll(const char *, int64_t *);
 const char *ll_sig_to_str(int);
 int ll_str_to_sig(const char *);

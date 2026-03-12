@@ -67,7 +67,7 @@ lsb_send_job_signal_req(int sig_value, int64_t job_id)
     init_pack_hdr(&packet_hdr);
     packet_hdr.operation = BATCH_JOB_SIG;
 
-    if (!xdr_encodeMsg(&xdrs,
+    if (!xdr_encode_msg(&xdrs,
                        (char *)&signal_req,
                        &packet_hdr,
                        xdr_signalReq,

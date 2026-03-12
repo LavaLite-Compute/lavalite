@@ -50,7 +50,7 @@ char *lsb_peekjob(int64_t jobid)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobPeekReq, &hdr, xdr_jobPeekReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &jobPeekReq, &hdr, xdr_jobPeekReq, 0,
                        &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);

@@ -50,7 +50,7 @@ int lsb_switchjob(int64_t jobId, char *queue)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobSwitchReq, &hdr, xdr_jobSwitchReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &jobSwitchReq, &hdr, xdr_jobSwitchReq, 0,
                        &auth)) {
         lsberrno = LSBE_XDR;
         return -1;

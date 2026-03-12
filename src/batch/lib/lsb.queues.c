@@ -97,7 +97,7 @@ struct queueInfoEnt *lsb_queueinfo(char **queues,
 
     xdrmem_create(&xdrs_req, request_buf, sizeof(request_buf), XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&xdrs_req,
+    if (!xdr_encode_msg(&xdrs_req,
                        (char *)&req,
                        &hdr,
                        xdr_infoReq,

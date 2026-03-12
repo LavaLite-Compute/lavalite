@@ -61,8 +61,8 @@ static bool marshal_protocol_header(XDR *xdrs, struct protocol_header *header)
     return true;
 }
 
-bool xdr_encodeMsg(XDR *xdrs, char *data, struct protocol_header *hdr,
-                     bool (*xdr_func)(), int options, struct lsfAuth *auth)
+bool xdr_encode_msg(XDR *xdrs, char *data, struct protocol_header *hdr,
+                   bool (*xdr_func)(), int options, struct lsfAuth *auth)
 {
     int len;
 

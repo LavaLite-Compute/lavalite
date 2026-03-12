@@ -469,9 +469,9 @@ static int notify_mbd(int status)
     XDR xdrs;
     char req_buf[LL_BUFSIZ_512];
     xdrmem_create(&xdrs, req_buf, sizeof(req_buf), XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs, (char *)&req, &hdr,
+    if (!xdr_encode_msg(&xdrs, (char *)&req, &hdr,
                        xdr_wire_compact_notify, 0, NULL)) {
-        LS_ERRX("xdr_encodeMsg failed");
+        LS_ERRX("xdr_encode_msg failed");
         xdr_destroy(&xdrs);
         return -1;
     }

@@ -572,7 +572,7 @@ int parse_env_line(const char *line,
 
 // yaai yet another a atoi
 // will create ll.util.h when we have time
-bool ll_atoi(const char *s, int *out)
+int ll_atoi(const char *s, int *out)
 {
     char *end;
     long v;
@@ -607,7 +607,7 @@ bool ll_atoi(const char *s, int *out)
     return true;
 }
 
-bool ll_atoll(const char *s, int64_t *out)
+int ll_atoll(const char *s, int64_t *out)
 {
     char *end;
     long long v;

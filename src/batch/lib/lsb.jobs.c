@@ -268,7 +268,7 @@ struct jobInfoHead *lsb_openjobinfo(int64_t jobId, const char *jobName,
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_JOB_INFO;
 
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobInfoReq, &hdr, xdr_jobInfoReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &jobInfoReq, &hdr, xdr_jobInfoReq, 0,
                        NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
@@ -428,7 +428,7 @@ int lsb_runjob(struct runJobRequest *req)
     init_pack_hdr(&hdr);
     hdr.operation = BATCH_JOB_FORCE;
 
-    if (!xdr_encodeMsg(&xdrs, (char *) req, &hdr, xdr_runJobReq, 0, &auth)) {
+    if (!xdr_encode_msg(&xdrs, (char *) req, &hdr, xdr_runJobReq, 0, &auth)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;

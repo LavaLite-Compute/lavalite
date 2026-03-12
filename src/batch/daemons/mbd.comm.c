@@ -98,13 +98,13 @@ sbdReplyType start_job(struct jData *job,
 
     // No auth no because the sbd already authenticated during its
     // registration with mbd
-    if (!xdr_encodeMsg(&xdrs,
+    if (!xdr_encode_msg(&xdrs,
                        (char *)&jobSpecs,
                        &hdr,
                        xdr_jobSpecs,
                        0,
                        NULL)) {
-        LS_ERR("xdr_encodeMsg failed for job %s", lsb_jobid2str(job->jobId));
+        LS_ERR("xdr_encode_msg failed for job %s", lsb_jobid2str(job->jobId));
         xdr_destroy(&xdrs);
         free(request_buf);
         freeJobSpecs(&jobSpecs);
@@ -164,13 +164,13 @@ sbdReplyType switch_job(struct jData *job, int options)
     buflen = LL_BUFSIZ_32K;
     request_buf = calloc(buflen, sizeof(char));
     xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs,
+    if (!xdr_encode_msg(&xdrs,
                        (char *)&jobSpecs,
                        &hdr,
                        xdr_jobSpecs,
                        0,
                        auth)) {
-        LS_ERR("xdr_encodeMsg failed");
+        LS_ERR("xdr_encode_msg failed");
         xdr_destroy(&xdrs);
         free(request_buf);
         freeJobSpecs(&jobSpecs);
@@ -236,8 +236,8 @@ sbdReplyType signal_job(struct jData *jp, struct jobSig *sendReq,
     reqCode = MBD_SIG_JOB;
     xdrmem_create(&xdrs, request_buf, MSGSIZE / 2, XDR_ENCODE);
     hdr.operation = reqCode;
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobSig, &hdr, xdr_jobSig, 0, auth)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+    if (!xdr_encode_msg(&xdrs, (char *) &jobSig, &hdr, xdr_jobSig, 0, auth)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg");
         xdr_destroy(&xdrs);
         return ERR_FAIL;
     }
@@ -337,9 +337,9 @@ sbdReplyType probe_slave(struct hData *hData, char sendJobs)
         hdr.operation = MBD_PROBE;
         request_buf = (char *) my_malloc(buflen, fname);
         xdrmem_create(&xdrs, request_buf, buflen, XDR_ENCODE);
-        if (!xdr_encodeMsg(&xdrs, (char *) &sbdPackage, &hdr, xdr_sbdPackage, 0,
+        if (!xdr_encode_msg(&xdrs, (char *) &sbdPackage, &hdr, xdr_sbdPackage, 0,
                            auth)) {
-            ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+            ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg");
             xdr_destroy(&xdrs);
             free(request_buf);
             for (i = 0; i < sbdPackage.numJobs; i++)

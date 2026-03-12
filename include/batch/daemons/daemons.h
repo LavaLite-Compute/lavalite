@@ -479,7 +479,7 @@ bool xdr_job_status_ack(XDR *,
                           struct protocol_header *);
 
 int enqueue_header_reply(int, int);
-// xdr_encodeMsg() uses old-style bool (*xdr_func)() so we keep the same type.
+// xdr_encode_msg() uses old-style bool (*xdr_func)() so we keep the same type.
 int enqueue_payload(int, int, void *, bool (*xdr_func)());
 int enqueue_payload_bufsiz(int, int, void *,
                            bool (*xdr_func)(), size_t bufsz);

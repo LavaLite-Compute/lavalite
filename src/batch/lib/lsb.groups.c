@@ -108,7 +108,7 @@ static int sendGrpReq(char *clusterName, int options, struct infoReq *groupInfo,
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) groupInfo, &hdr, xdr_infoReq, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs, (char *) groupInfo, &hdr, xdr_infoReq, 0, NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;

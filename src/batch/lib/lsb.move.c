@@ -57,7 +57,7 @@ int lsb_movejob(int64_t jobId, int *position, int operation)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &jobMoveReq, &hdr, xdr_jobMoveReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &jobMoveReq, &hdr, xdr_jobMoveReq, 0,
                        &auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;

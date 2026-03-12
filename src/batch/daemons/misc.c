@@ -381,12 +381,12 @@ void errorBack(int chan, int replyCode, struct sockaddr_in *from)
 
     replyHdr.operation = replyCode;
     io_block(chan_sock(chan));
-    if (xdr_encodeMsg(&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
+    if (xdr_encode_msg(&xdrs, NULL, &replyHdr, NULL, 0, NULL)) {
         if (chan_write(chan, errBuf, XDR_GETPOS(&xdrs)) < 0)
             ls_syslog(LOG_ERR, "%s", __func__, "chan_write",
                       sockAdd2Str_(from));
     } else
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg", sockAdd2Str_(from));
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg", sockAdd2Str_(from));
 
     xdr_destroy(&xdrs);
     return;

@@ -15,13 +15,13 @@ static bool_t marshal_protocol_header(XDR *xdrs, struct protocol_header *header)
         return false;
     if (!xdr_int32_t(xdrs, &header->length))
         return false;
-    if (!xdr_int(xdrs, &header->reserved))
+    if (!xdr_int(xdrs, &header->status))
         return false;
 
     return true;
 }
 
-bool xdr_pack_hdr(XDR *xdrs, struct protocol_header *header)
+bool_t xdr_pack_hdr(XDR *xdrs, struct protocol_header *header)
 {
     if (xdrs->x_op == XDR_ENCODE) {
         header->version = CURRENT_PROTOCOL_VERSION;

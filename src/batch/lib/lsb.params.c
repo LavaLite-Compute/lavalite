@@ -67,7 +67,7 @@ struct parameterInfo *lsb_parameterinfo(char **names, int *numUsers,
     xdrmem_create(&xdrs, request_buf, cc, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &infoReq, &hdr, xdr_infoReq, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs, (char *) &infoReq, &hdr, xdr_infoReq, 0, NULL)) {
         xdr_destroy(&xdrs);
         free(request_buf);
         lsberrno = LSBE_XDR;

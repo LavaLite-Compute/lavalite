@@ -103,7 +103,7 @@ struct lsbSharedResourceInfo *lsb_sharedresourceinfo(char **resources,
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &resourceInfoReq, &hdr,
+    if (!xdr_encode_msg(&xdrs, (char *) &resourceInfoReq, &hdr,
                        xdr_resourceInfoReq, 0, NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);

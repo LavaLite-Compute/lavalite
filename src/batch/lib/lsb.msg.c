@@ -57,7 +57,7 @@ int lsb_msgjob(int64_t jobId, char *msg)
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) &jmsg, &hdr, xdr_lsbMsg, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs, (char *) &jmsg, &hdr, xdr_lsbMsg, 0, NULL)) {
         lsberrno = LSBE_XDR;
         xdr_destroy(&xdrs);
         return -1;

@@ -144,7 +144,7 @@ static int64_t sendModifyReq(struct modifyReq *modifyReq,
     mbdReqtype = BATCH_JOB_MODIFY;
     xdrmem_create(&xdrs, request_buf, 2 * MSGSIZE, XDR_ENCODE);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) modifyReq, &hdr, xdr_modifyReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) modifyReq, &hdr, xdr_modifyReq, 0,
                        auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
@@ -242,7 +242,7 @@ int lsb_setjobattr(int jobId, struct jobAttrInfoEnt *jobAttr)
     mbdReqtype = BATCH_SET_JOB_ATTR;
     xdrmem_create(&xdrs, request_buf, MSGSIZE, XDR_ENCODE);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *) jobAttr, &hdr, xdr_jobAttrReq, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) jobAttr, &hdr, xdr_jobAttrReq, 0,
                        &auth)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;

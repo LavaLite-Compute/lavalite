@@ -94,7 +94,7 @@ int callLim_(enum limReqCode reqCode, void *dsend, bool (*xdr_sfunc)(),
 
     XDR xdrs;
     xdrmem_create(&xdrs, sbuf, sizeof(sbuf), XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs, dsend, &reqHdr, xdr_sfunc, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs, dsend, &reqHdr, xdr_sfunc, 0, NULL)) {
         xdr_destroy(&xdrs);
         lserrno = LSE_BAD_XDR;
         return -1;

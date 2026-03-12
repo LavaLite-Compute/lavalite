@@ -110,9 +110,9 @@ send_ack:
 
     XDR xdrs2;
     xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
-    if (!xdr_encodeMsg(&xdrs2, (char *)&ack_payload, &ack_hdr,
+    if (!xdr_encode_msg(&xdrs2, (char *)&ack_payload, &ack_hdr,
                        xdr_wire_compact_notify, 0, NULL)) {
-        LS_ERR("xdr_encodeMsg ack failed");
+        LS_ERR("xdr_encode_msg ack failed");
         xdr_destroy(&xdrs2);
         return;
     }

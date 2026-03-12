@@ -100,7 +100,7 @@ struct hostInfoEnt *lsb_hostinfo(char **hosts, int *numHosts,
     xdrmem_create(&xdrs, req_buf, sizeof(req_buf), XDR_ENCODE);
 
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs, (char *)&req, &hdr, xdr_infoReq, 0, NULL)) {
+    if (!xdr_encode_msg(&xdrs, (char *)&req, &hdr, xdr_infoReq, 0, NULL)) {
         xdr_destroy(&xdrs);
         lsberrno = LSBE_XDR;
         return NULL;

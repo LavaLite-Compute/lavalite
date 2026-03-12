@@ -153,7 +153,7 @@ sendReply:
     init_pack_hdr(&replyHdr);
     replyHdr.operation = reply;
     replyStruct = (reply == ERR_NO_ERROR) ? (char *) &jobReply : (char *) NULL;
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
         ls_syslog(LOG_ERR, "%s", __func__, "xdr_jobReply");
     lsb_merr("Fatal error: xdr_jobReply( failed; sbatchd relifing"));
     relife();
@@ -313,7 +313,7 @@ sendReply:
     }
 #endif
 
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
                   "xdr_jobReply");
         relife();
@@ -451,7 +451,7 @@ sendReply:
     }
 #endif
 
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
                   "xdr_jobReply");
         relife();
@@ -526,8 +526,8 @@ void do_probe(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
     }
 #endif
 
-    if (!xdr_encodeMsg(&xdrs2, NULL, &replyHdr, NULL, 0, auth)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+    if (!xdr_encode_msg(&xdrs2, NULL, &replyHdr, NULL, 0, auth)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg");
         relife();
     }
 
@@ -705,7 +705,7 @@ Reply1:
             auth = &auth_data;
     }
 #endif
-    if (!xdr_encodeMsg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
+    if (!xdr_encode_msg(&xdrs2, replyStruct, &replyHdr, xdr_jobReply, 0, auth)) {
         ls_syslog(LOG_ERR, "%s", __func__, lsb_jobid2str(jp->jobSpecs.jobId),
                   "xdr_jobReply");
         relife();
@@ -875,8 +875,8 @@ void do_reboot(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
     else
         replyHdr.operation = reply;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+    if (!xdr_encode_msg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg");
         xdr_destroy(&xdrs2);
         relife();
         return;
@@ -913,8 +913,8 @@ void do_shutdown(XDR *xdrs, int chfd, struct protocol_header *reqHdr)
     else
         replyHdr.operation = reply;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
-        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encodeMsg");
+    if (!xdr_encode_msg(&xdrs2, (char *) 0, &replyHdr, 0, 0, NULL)) {
+        ls_syslog(LOG_ERR, "%s", __func__, "xdr_encode_msg");
         xdr_destroy(&xdrs2);
         relife();
         return;

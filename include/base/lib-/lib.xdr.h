@@ -45,7 +45,7 @@ bool xdr_sockaddr_in(XDR *, struct sockaddr_in *);
 
 // Protocol related xdr
 extern bool xdr_pack_hdr(XDR *, struct protocol_header *);
-extern bool xdr_encodeMsg(XDR *, char *, struct protocol_header *, bool (*)(),
+extern bool xdr_encode_msg(XDR *, char *, struct protocol_header *, bool (*)(),
                             int, struct lsfAuth *);
 extern bool xdr_arrayElement(XDR *, char *, struct protocol_header *,
                                bool (*)(), ...);

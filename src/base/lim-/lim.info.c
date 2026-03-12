@@ -49,9 +49,9 @@ void wrong_master(struct client_node *node)
     init_pack_hdr(&hdr);
     hdr.operation = limReplyCode;
 
-    if (!xdr_encodeMsg(&xdrs, (char *) &reply_buf, &hdr, xdr_masterInfo, 0,
+    if (!xdr_encode_msg(&xdrs, (char *) &reply_buf, &hdr, xdr_masterInfo, 0,
                        NULL)) {
-        LS_ERR("xdr_encodeMsg() failed");
+        LS_ERR("xdr_encode_msg() failed");
         xdr_destroy(&xdrs);
         return;
     }
@@ -86,7 +86,7 @@ void send_header(struct client_node *client, struct protocol_header *reqHdr,
     replyHdr.operation = code;
     replyHdr.sequence = reqHdr->sequence;
 
-    xdr_encodeMsg(&xdrs, NULL, &replyHdr, NULL, 0, NULL);
+    xdr_encode_msg(&xdrs, NULL, &replyHdr, NULL, 0, NULL);
     chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs));
 
     xdr_destroy(&xdrs);
@@ -141,7 +141,7 @@ void host_info_req(XDR *xdrs, struct client_node *client,
     init_pack_hdr(&hdr);
     hdr.operation = LIME_NO_ERR;
 
-    xdr_encodeMsg(&xdrs2, (char *)&reply, &hdr, xdr_wire_host_reply, 0,
+    xdr_encode_msg(&xdrs2, (char *)&reply, &hdr, xdr_wire_host_reply, 0,
                   NULL);
 
     int cc = chan_write(client->ch_id, buf, XDR_GETPOS(&xdrs2));
@@ -308,9 +308,9 @@ void info_req(XDR *xdrs, struct client_node *client,
     init_pack_hdr(&reply_hdr);
     reply_hdr.operation = limReplyCode;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &reply_hdr,
+    if (!xdr_encode_msg(&xdrs2, (char *) &reply, &reply_hdr,
                        xdr_wire_lsinfo, 0, NULL)) {
-        LS_ERR("xdr_encodeMsg to %s failed", sockAdd2Str_(&addr));
+        LS_ERR("xdr_encode_msg to %s failed", sockAdd2Str_(&addr));
         xdr_destroy(&xdrs2);
         wire_lsinfo_free(&reply);
         return;
@@ -373,9 +373,9 @@ void load_req(XDR *xdrs, struct client_node *client,
     init_pack_hdr(&hdr);
     hdr.operation = LIME_NO_ERR;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &hdr, xdr_wire_load_reply,
+    if (!xdr_encode_msg(&xdrs2, (char *) &reply, &hdr, xdr_wire_load_reply,
                        0, NULL)) {
-        LS_ERR("xdr_encodeMsg failed");
+        LS_ERR("xdr_encode_msg failed");
         free(reply.hosts);
         xdr_destroy(&xdrs2);
         return;
@@ -427,8 +427,8 @@ void resource_info_req(XDR *xdrs, struct client_node *client,
     replyHdr.operation = LIME_NO_ERR;
     replyHdr.sequence = reqHdr->sequence;
 
-    if (!xdr_encodeMsg(&xdrs2, &reply, &replyHdr, xdr_resouInfoReply, 0, NULL)) {
-        syslog(LOG_ERR, "%s: xdr_encodeMsg failed", __func__);
+    if (!xdr_encode_msg(&xdrs2, &reply, &replyHdr, xdr_resouInfoReply, 0, NULL)) {
+        syslog(LOG_ERR, "%s: xdr_encode_msg failed", __func__);
         xdr_destroy(&xdrs2);
         shutdown_client(client);
         return;
@@ -502,9 +502,9 @@ void clus_info_req(XDR *xdrs, struct client_node *client,
     init_pack_hdr(&reply_hdr);
     reply_hdr.operation = limReplyCode;
 
-    if (!xdr_encodeMsg(&xdrs2, (char *) &reply, &reply_hdr,
+    if (!xdr_encode_msg(&xdrs2, (char *) &reply, &reply_hdr,
                        xdr_wire_cluster_info, 0, NULL)) {
-        LS_ERR("xdr_encodeMsg() to %s failed", sockAdd2Str_(&addr));
+        LS_ERR("xdr_encode_msg() to %s failed", sockAdd2Str_(&addr));
         xdr_destroy(&xdrs2);
         return;
     }

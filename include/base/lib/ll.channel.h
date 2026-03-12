@@ -63,7 +63,9 @@ int chan_tcp_listen_socket(u_short);
 int chan_udp_client_socket(void);
 int chan_tcp_client_socket(void);
 int chan_accept(int, struct sockaddr_in *);
-int chan_rpc(int, struct chan_buffer *, struct chan_buffer *, struct protocol_header *,
+int chan_rpc(int, struct chan_buffer *,
+             struct chan_buffer *,
+             struct protocol_header *,
              int);
 ssize_t chan_read(int, void *, size_t);
 ssize_t chan_read_nonblock(int, void *, size_t, int);
@@ -81,7 +83,7 @@ struct chan_buffer *chan_make_buf(void);
 int chan_connect_begin(int, struct sockaddr_in *, int);
 int chan_connect_finish(int);
 int chan_sock_error(int);
-int chan_set_write_interest(int, bool);
+int chan_set_write_interest(int, int, int);
 int rd_poll(int, int);
 int connect_timeout(int, const struct sockaddr *, socklen_t, int);
 int connect_begin(int, const struct sockaddr *, socklen_t);

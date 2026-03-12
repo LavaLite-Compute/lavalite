@@ -418,7 +418,7 @@ static int64_t send_batch(struct submitReq *submitReqPtr,
     xdrmem_create(&xdrs, request_buf, reqBufSize, XDR_ENCODE);
     init_pack_hdr(&hdr);
     hdr.operation = mbdReqtype;
-    if (!xdr_encodeMsg(&xdrs,
+    if (!xdr_encode_msg(&xdrs,
                        (char *)submitReqPtr,
                        &hdr,
                        xdr_submitReq,

@@ -119,13 +119,13 @@ int sbd_register(int chan_id)
     XDR xdrs;
     xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
 
-    if (!xdr_encodeMsg(&xdrs,
+    if (!xdr_encode_msg(&xdrs,
                        (char *)&req,
                        &hdr,
                        xdr_wire_sbd_register,
                        0,
                        NULL)) {
-        LS_ERR("sbd register: xdr_encodeMsg failed");
+        LS_ERR("sbd register: xdr_encode_msg failed");
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         lsberrno = LSBE_XDR;
