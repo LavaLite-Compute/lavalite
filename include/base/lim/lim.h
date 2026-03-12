@@ -10,11 +10,17 @@
 #include "base/lib/ll.host.h"
 #include "base/lib/ll.channel.h"
 #include "base/lib/ll.signal.h"
+#include "base/lim/lim.proto.h"
 
-extern struct ll_list lim_node_list;
-extern struct ll_hash lim_node_hash;
+extern struct ll_list node_list;
+extern struct ll_hash node_name_hash;
+extern struct ll_hash node_addr_hash;
+extern struct lim_node *me;
+extern struct lim_master current_master;
+
 extern struct ll_kv lim_params[];
 extern struct cluster lim_cluster;
+extern int lim_efd;
 
 struct cluster {
     char *name;
@@ -27,10 +33,55 @@ struct lim_node {
     int host_no;
     float load_index[NLOAD_INDX];
     int host_state;
-    char *type;
-    char *model;
-    char *resources;
+    char *machine;     // uname
+    char *resources;   // historical string of static resources
+    uint16_t tcp_port;
+    int is_candidate;
 };
 
-int lim_load_conf(const char *);
-int lim_make_cluster(const char *);
+struct lim_master {
+    struct lim_node *node; // who we think is master, NULL if unknown
+    int inactivity; // ticks since last beacon from master
+};
+
+enum lim_state {
+    LIM_OK,
+    LIM_UNAVAIL,
+};
+
+enum lim_msg {
+    LIM_MASTER_BEACON,
+    LIM_LOAD_REPORT,
+};
+
+#define MISSED_LOAD_REPORT_TOLERANCE 5
+#define MISSED_BEACON_TOLERANCE 5
+#define LIM_NIDX 11
+
+struct master_beacon {
+    char     cluster[LL_BUFSIZ_32];
+    char     hostname[MAXHOSTNAMELEN];
+    uint32_t host_no;
+    uint16_t tcp_port;
+};
+
+struct wire_load_report {
+    char hostname[MAXHOSTNAMELEN];
+    uint32_t nidx;
+    float li[LIM_NIDX];
+};
+
+int load_conf(const char *);
+int make_cluster(const char *);
+int tcp_accept(void);
+int tcp_message(int);
+int udp_message(void);
+
+void beacon_send(struct clusterNode *);
+void beacon_recv(XDR *, struct sockaddr_in *, struct protocol_header *);
+bool xdr_beacon(XDR *, struct master_beacon *);
+void read_load(void);
+int send_load_report(void);
+void rcv_load_report(XDR *, struct sockaddr_in *, struct protocol_header *);
+bool xdr_wire_load_report(XDR *, struct wire_load_update *);
+void read_load(void);

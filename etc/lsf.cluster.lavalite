@@ -5,12 +5,17 @@ ClusterName
 lavalite
 End Cluster
 
-Begin   ClusterAdmins
-Administrators = lavalite
-End    ClusterAdmins
+Begin   ClusterAdmin
+Administrators
+lavalite
+End    ClusterAdmin
 
+# Columns and their order is mandatory like it is in /etc/passwd
 Begin Host
-Hostname Type         Model Resources
-worker1 x86_64_linux Intel (cs gpu)
-worker2 x86_64_arm   Ampere (cs arm)
-End Host
+Hostname Resources  Master
+buntu24 (cs gpu)     y
+worker1 (cs gpu)     y
+worker2 (cs arm)     -
+worker3 (cs arm)     -
+End Hosts
+

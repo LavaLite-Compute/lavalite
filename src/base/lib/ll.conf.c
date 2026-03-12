@@ -132,3 +132,12 @@ void ll_conf_free(struct ll_kv *items, int nitems)
         items[i].val = NULL;
     }
 }
+
+int ll_conf_param_missing(const char *name, const char *val)
+{
+    if (val == NULL || val[0] == 0) {
+        errno = EINVAL;
+        return 1;
+    }
+    return 0;
+}

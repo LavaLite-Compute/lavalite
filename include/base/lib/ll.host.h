@@ -46,3 +46,4 @@ int is_addrv6_equal(const struct sockaddr_in6 *, const struct sockaddr_in6 *);
 // Handy wrappers
 int get_host_by_sockaddr_in(const struct sockaddr_in *, struct ll_host *);
 int get_host_by_sockaddr_in6(const struct sockaddr_in6 *, struct ll_host *);
+const char *addr_to_str(struct sockaddr_in *);

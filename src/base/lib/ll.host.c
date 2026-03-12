@@ -240,6 +240,30 @@ char *sockAdd2Str_(struct sockaddr_in *from)
     return buf;
 }
 
+const char *addr_to_str(struct sockaddr_in *from)
+{
+    /* "255.255.255.255" (15) + ":" (1) + "65535" (5) + NUL = 22 max.
+     * Give a little headroom. Thread-local to avoid races.
+     */
+    static __thread char buf[INET_ADDRSTRLEN + 8];
+    char ip[INET_ADDRSTRLEN];
+
+    if (!from) {
+        strcpy(buf, "?.?:?");
+        return buf;
+    }
+
+    if (!inet_ntop(AF_INET, &from->sin_addr, ip, sizeof(ip))) {
+        strcpy(buf, "?.?:?");
+        return buf;
+    }
+
+    unsigned port = (unsigned) ntohs(from->sin_port);
+    snprintf(buf, sizeof(buf), "%s:%u", ip, port);
+
+    return buf;
+}
+
 int get_host_addrv4(const struct ll_host *hp, struct sockaddr_in *out)
 {
     if (!hp || !out) {

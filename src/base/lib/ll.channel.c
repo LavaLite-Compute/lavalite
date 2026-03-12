@@ -979,3 +979,29 @@ int recv_protocol_header(int ch_id, struct protocol_header *hdr)
 
     return 0;
 }
+
+int chan_has_error(int ch_id)
+{
+    if (channels[ch_id].chan_events == CHAN_EPOLLERR)
+        return 1;
+    return 0;
+}
+
+const char *chan_addr_str(int ch_id)
+{
+    static __thread char buf[INET_ADDRSTRLEN + 8];
+    struct sockaddr_in peer;
+    socklen_t plen = sizeof(peer);
+
+    if (getpeername(chan_sock(ch_id), (struct sockaddr *)&peer, &plen) != 0) {
+        strcpy(buf, "?.?:?");
+        return buf;
+    }
+    char ip[INET_ADDRSTRLEN];
+    if (!inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip))) {
+        strcpy(buf, "?.?:?");
+        return buf;
+    }
+    snprintf(buf, sizeof(buf), "%s:%u", ip, ntohs(peer.sin_port));
+    return buf;
+}

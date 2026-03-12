@@ -51,3 +51,4 @@ char *ll_conf_parse_end(char *);
 char *ll_conf_kv_get(struct ll_kv *, int, const char *);
 void rtrim(char *);
 char *ltrim(char *);
+int ll_conf_param_missing(const char *, const char *);

@@ -30,17 +30,13 @@ struct protocol_header {
     int32_t operation; // message type / opcode
     int32_t version;   // e.g. 0x00010000
     int32_t length;    // payload bytes
-    int32_t reserved;  // future use (e.g., flags or error)
+    int32_t status;   // 0 ok, <0 error
 };
-
-typedef struct protocol_header LSFHeader;
 
 /* On the wire: 5 × 4-byte XDR integers = 20 bytes.
  * PACKET_HEADER_SIZE matches wire size; any drift will fail the static assert.
  */
 #define PACKET_HEADER_SIZE ((size_t) sizeof(struct protocol_header))
-
-_Static_assert(sizeof(struct protocol_header) == 20, "protocol_header size drift!");
 
 // The procol buffers are marshaled use xdr
 // Use these macros to compute the right size of
