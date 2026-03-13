@@ -25,7 +25,14 @@ extern struct lim_node **master_candidates;
 
 extern struct ll_kv lim_params[];
 extern struct cluster lim_cluster;
+
 extern int lim_efd;
+extern int lim_udp_chan;
+extern int tcp_chan;
+extern int lim_timer_chan;
+extern uint16_t lim_udp_port;
+extern uint16_t lim_tcp_port;
+extern int lim_debug;
 
 struct cluster {
     char *name;
@@ -35,23 +42,28 @@ struct cluster {
 struct lim_node {
     struct ll_list_entry list;
     struct ll_host *host;
-    int host_no;
-    float load_index[LOAD_NIDX];
-    int host_state;
+    uint32_t host_no;
+    float load_index[NUM_METRICS]; // read /proc every timer
+    uint32_t load_report_missing;
+    uint32_t status;
     char *machine;     // uname
     char *resources;   // historical string of static resources
     uint16_t tcp_port;
-    int is_candidate;
+    int16_t is_candidate;
+    uint64_t max_mem;
+    uint64_t max_swap;
+    uint64_t max_tmp;
 };
 
 struct current_master {
     struct lim_node *node; // who we think is master, NULL if unknown
-    int inactivity; // ticks since last beacon from master
+    int16_t inactivity; // ticks since last beacon from master
 };
 
+// dont collide with the library
 enum lim_msg {
-    LIM_MASTER_BEACON,
-    LIM_LOAD_REPORT,
+    LIM_MASTER_BEACON = 1000,
+    LIM_LOAD_REPORT = 1001,
 };
 
 #define MISSED_LOAD_REPORT_TOLERANCE 5
@@ -74,14 +86,14 @@ int tcp_message(int);
 
 // udp and beacon
 int udp_message(void);
-void beacon_send(void);
-void beacon_recv(XDR *, struct sockaddr_in *, struct protocol_header *);
 
 // load
-void read_load(void);
+void init_read_proc(void);
+void read_proc(void);
 int send_load(void);
 void rcv_load(XDR *, struct sockaddr_in *, struct protocol_header *);
 
 // mastership
 void master(void);
 void slave(void);
+int is_master_candidate(struct lim_node *);

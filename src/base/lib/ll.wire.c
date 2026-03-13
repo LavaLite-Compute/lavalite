@@ -71,14 +71,14 @@ bool_t xdr_wire_load(XDR *xdrs, struct wire_load *wl)
     if (! xdr_uint32_t(xdrs, &wl->status))
         return false;
 
-    if (! xdr_vector(xdrs, (char *)wl->li, LOAD_NIDX,
+    if (! xdr_vector(xdrs, (char *)wl->li, NUM_METRICS,
                     sizeof(float), (xdrproc_t) xdr_float))
         return false;
 
     return true;
 }
 
-bool_t xdr_master(XDR *xdrs, struct wire_master *master)
+bool_t xdr_wire_master(XDR *xdrs, struct wire_master *master)
 {
     if (! xdr_opaque(xdrs, master->hostname, MAXHOSTNAMELEN))
         return false;
@@ -86,7 +86,7 @@ bool_t xdr_master(XDR *xdrs, struct wire_master *master)
     return true;
 }
 
-bool_t xdr_cluster(XDR *xdrs, struct wire_cluster *cl)
+bool_t xdr_wire_cluster(XDR *xdrs, struct wire_cluster *cl)
 {
     if (! xdr_opaque(xdrs, cl->name, MAXHOSTNAMELEN))
         return false;

@@ -42,8 +42,8 @@ struct protocol_header {
 struct wire_load {
     char hostname[MAXHOSTNAMELEN];
     uint32_t status;
-    uint32_t nidx;
-    float li[LOAD_NIDX];
+    uint32_t num_metrics;
+    float li[NUM_METRICS];
 };
 
 struct wire_master {
@@ -59,5 +59,6 @@ struct wire_cluster {
 void init_pack_hdr(struct protocol_header *);
 bool_t xdr_pack_hdr(XDR *, struct protocol_header *);
 bool_t xdr_wire_load(XDR *, struct wire_load *);
-bool_t xdr_master(XDR *, struct wire_master *);
-bool_t xdr_cluster(XDR *, struct wire_cluster *);
+bool_t xdr_wire_master(XDR *, struct wire_master *);
+bool_t xdr_wire_cluster(XDR *, struct wire_cluster *);
+bool_t xdr_wire_load_array(XDR *, struct wire_load **, uint32_t *);

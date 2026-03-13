@@ -3,6 +3,25 @@
  */
 #include "base/lib/ll.conf.h"
 
+struct ll_kv ll_params[LL_PARAMS_COUNT] = {
+    [LSF_CONFDIR]          = {"LSF_CONFDIR",          NULL},
+    [LSF_SERVERDIR]        = {"LSF_SERVERDIR",         NULL},
+    [LSF_LOGDIR]           = {"LSF_LOGDIR",            NULL},
+    [LSF_LIM_DEBUG]        = {"LSF_LIM_DEBUG",         NULL},
+    [LSF_LIM_PORT]         = {"LSF_LIM_PORT",          NULL},
+    [LSF_LOG_MASK]         = {"LSF_LOG_MASK",          NULL},
+    [LSF_DEBUG_LIM]        = {"LSF_DEBUG_LIM",         NULL},
+    [LSF_TIME_LIM]         = {"LSF_TIME_LIM",          NULL},
+    [LSF_API_CONNTIMEOUT]  = {"LSF_API_CONNTIMEOUT",   NULL},
+    [LSF_API_RECVTIMEOUT]  = {"LSF_API_RECVTIMEOUT",   NULL},
+    [LSB_SBD_PORT]         = {"LSB_SBD_PORT",          NULL},
+    [LSB_DEBUG_SBD]        = {"LSB_DEBUG_SBD",         NULL},
+    [LSB_TIME_SBD]         = {"LSB_TIME_SBD",          NULL},
+    [LSB_SBD_CONNTIMEOUT]  = {"LSB_SBD_CONNTIMEOUT",   NULL},
+    [LSB_SBD_READTIMEOUT]  = {"LSB_SBD_READTIMEOUT",   NULL},
+    [LSB_MBD_PORT]         = {"LSB_MBD_PORT",          NULL},
+};
+
 char *ltrim(char *s)
 {
     while (*s == ' ' || *s == '\t')

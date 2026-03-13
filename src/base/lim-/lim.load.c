@@ -633,10 +633,10 @@ int send_load_update(void)
     w.hostNo = (uint32_t)myHostPtr->hostNo;
     w.seqNo = (uint32_t)loadVecSeqNo++;
     w.status0 = (uint32_t)myHostPtr->status[0];
-    w.nidx = LOAD_NIDX;
+    w.nidx = NUM_METRICS;
 
     /* Copy the 11 indices in the same order as your allInfo index table */
-    for (int i = 0; i < LOAD_NIDX; i++)
+    for (int i = 0; i < NUM_METRICS; i++)
         w.li[i] = myHostPtr->loadIndex[i];
 
     struct protocol_header hdr;

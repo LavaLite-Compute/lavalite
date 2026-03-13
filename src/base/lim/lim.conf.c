@@ -4,19 +4,6 @@
 
 #include "base/lim/lim.h"
 
-struct ll_kv lim_params[LSF_PARAM_COUNT] = {
-    [LSF_CONFDIR] = {"LSF_CONFDIR", NULL},
-    [LSF_SERVERDIR] = {"LSF_SERVERDIR", NULL},
-    [LSF_LOGDIR] = {"LSF_LOGDIR", NULL},
-    [LSF_LIM_DEBUG] = {"LSF_LIM_DEBUG", NULL},
-    [LSF_LIM_PORT] = {"LSF_LIM_PORT", NULL},
-    [LSF_LOG_MASK] = {"LSF_LOG_MASK", NULL},
-    [LSF_DEBUG_LIM] = {"LSF_DEBUG_LIM", NULL},
-    [LSF_TIME_LIM] = {"LSF_TIME_LIM", NULL},
-    [LSF_API_CONNTIMEOUT] = {"LSF_API_CONNTIMEOUT", NULL},
-    [LSF_API_RECVTIMEOUT] = {"LSF_API_RECVTIMEOUT", NULL},
-};
-
 static int parse_cluster_section(FILE *f)
 {
     char line[LL_BUFSIZ_1K];
@@ -93,7 +80,7 @@ static struct lim_node *node_make(const char *hostname)
     }
 
     n->host = h;
-    n->host_state = LIM_STAT_OK;
+    n->status = LIM_STAT_OK;
     struct utsname u;
     if (uname(&u) < 0) {
         LS_ERR("uname failed");
@@ -218,38 +205,36 @@ static int make_master_candidates(void)
 
 int load_conf(const char *path)
 {
-    int nitems = sizeof(lim_params) / sizeof(lim_params[0]);
-
-    if (ll_conf_load(lim_params, nitems, path) < 0)
+    if (ll_conf_load(ll_params, LL_PARAMS_COUNT, path) < 0)
         return -1;
 
     char *p = "LSF_CONFDIR";
-    if (ll_conf_param_missing(p, lim_params[LSF_CONFDIR].val)) {
+    if (ll_conf_param_missing(p, ll_params[LSF_CONFDIR].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }
 
     p = "LSF_SERVERDIR";
-    if (ll_conf_param_missing(p, lim_params[LSF_SERVERDIR].val)) {
+    if (ll_conf_param_missing(p, ll_params[LSF_SERVERDIR].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }
 
     p = "LSF_LOGDIR";
-    if (ll_conf_param_missing(p, lim_params[LSF_LOGDIR].val)) {
+    if (ll_conf_param_missing(p, ll_params[LSF_LOGDIR].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }
 
     p = "LSF_LIM_PORT";
-    if (ll_conf_param_missing(p, lim_params[LSF_LIM_PORT].val)) {
+    if (ll_conf_param_missing(p, ll_params[LSF_LIM_PORT].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }
     return 0;
 }
 
-int lim_make_cluster(const char *path)
+int make_cluster(const char *path)
 {
     char line[LL_BUFSIZ_1K];
 

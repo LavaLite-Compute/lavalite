@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <poll.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 #include <sys/timerfd.h>
 #include <pwd.h>
 #include <stdarg.h>
@@ -54,7 +55,22 @@ enum {
     LIM_STAT_CLOSED
 };
 
-#define LOAD_NIDX 11
+// 11 load indexes collected by lim on every cluster machine
+enum load_metrics {
+    R15S = 0,
+    R1M  = 1,
+    R15M = 2,
+    UT   = 3,
+    PG   = 4,
+    IO   = 5,
+    LS   = 6,
+    IT   = 7,
+    TMP  = 8,
+    SWP  = 9,
+    MEM  = 10,
+    NUM_METRICS = 11,   // number of built-in indices
+};
+
 
 #ifndef MAX
 #define MAX(a, b) \
@@ -77,6 +93,7 @@ enum {
 enum {
     LL_BUFSIZ_32 = 32,
     LL_BUFSIZ_64 = 64,
+    LL_BUFSIZ_256 = 256,
     LL_BUFSIZ_1K = 1024,
     LL_BUFSIZ_4K = 4096,
 };

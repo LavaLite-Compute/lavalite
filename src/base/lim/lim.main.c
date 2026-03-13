@@ -6,13 +6,13 @@
 #include "base/lim/lim.h"
 
 int lim_udp_chan = -1;
-int lim_tcp_chan = -1;
+int tcp_chan = -1;
 int lim_timer_chan = -1;
 uint16_t lim_udp_port;
 uint16_t lim_tcp_port;
 int lim_debug;
 
-static int efd;
+int lim_efd;
 static struct epoll_event *lim_events;
 
 struct ll_list node_list;
@@ -35,9 +35,9 @@ static void light_house(void)
 }
 static int init_chans(void)
 {
-    if (! ll_atoi(lim_params[LSF_LIM_PORT].val, (int *) &lim_udp_port)) {
+    if (! ll_atoi(ll_params[LSF_LIM_PORT].val, (int *) &lim_udp_port)) {
         errno = EINVAL;
-        LS_ERR("invalid LSF_LIM_PORT=%s", lim_params[LSF_LIM_PORT].val);
+        LS_ERR("invalid LSF_LIM_PORT=%s", ll_params[LSF_LIM_PORT].val);
         return -1;
     }
 
@@ -50,26 +50,26 @@ static int init_chans(void)
         return -1;
     }
 
-    lim_tcp_chan = chan_tcp_listen_socket(0);
-    if (lim_tcp_chan < 0) {
+    tcp_chan = chan_tcp_listen_socket(0);
+    if (tcp_chan < 0) {
         syslog(LOG_ERR,
                "%s: unable to create tcp socket port %d "
                "another LIM running?: %m ",
                __func__, lim_udp_port);
-        chan_close(lim_tcp_chan);
+        chan_close(tcp_chan);
         chan_close(lim_udp_chan);
         return -1;
     }
 
     struct sockaddr_in lim_addr;
     socklen_t size = sizeof(struct sockaddr_in);
-    int cc = getsockname(chan_sock(lim_tcp_chan), (struct sockaddr *)&lim_addr,
+    int cc = getsockname(chan_sock(tcp_chan), (struct sockaddr *)&lim_addr,
                          &size);
     if (cc < 0) {
         syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,
-               lim_tcp_chan);
-        chan_close(lim_tcp_chan);
-        chan_close(lim_tcp_chan);
+               tcp_chan);
+        chan_close(tcp_chan);
+        chan_close(tcp_chan);
         return -1;
     }
 
@@ -82,7 +82,7 @@ static int init_chans(void)
     lim_timer_chan = chan_create_timer(5);
     if (lim_timer_chan < 0) {
         chan_close(lim_udp_chan);
-        chan_close(lim_tcp_chan);
+        chan_close(tcp_chan);
         return -1;
     }
 
@@ -95,8 +95,8 @@ static int create_epoll(void)
     lim_efd = epoll_create1(0);
     if (lim_efd < 0) {
         LS_ERR("%s: epoll_create1() failed: %m", __func__);
-        chan_close(lim_tcp_chan);
-        chan_close(lim_tcp_chan);
+        chan_close(tcp_chan);
+        chan_close(tcp_chan);
         return -1;
     }
 
@@ -104,19 +104,19 @@ static int create_epoll(void)
     lim_events = calloc(chan_open_max, sizeof(struct epoll_event));
     if (lim_events == NULL) {
         LS_ERR("%s: calloc failed %m", __func__);
-        chan_close(lim_tcp_chan);
-        chan_close(lim_tcp_chan);
+        chan_close(tcp_chan);
+        chan_close(tcp_chan);
         return -1;
     }
 
     return 0;
 }
 
-static int add_listener(int efd, int fd, int ch_id)
+static int add_listener(int lim_efd, int fd, int ch_id)
 {
     struct epoll_event ev = {.events = EPOLLIN, .data.u32 = ch_id};
 
-    if (epoll_ctl(efd, EPOLL_CTL_ADD, fd, &ev) < 0)
+    if (epoll_ctl(lim_efd, EPOLL_CTL_ADD, fd, &ev) < 0)
         return -1;
 
     return 0;
@@ -132,7 +132,7 @@ static int init_network(void)
         goto cleanup;
     }
 
-    if (add_listener(lim_efd, chan_sock(lim_tcp_chan), lim_tcp_chan) < 0) {
+    if (add_listener(lim_efd, chan_sock(tcp_chan), tcp_chan) < 0) {
         LS_ERR("%s: Failed to add TCP listener: %m", __func__);
         goto cleanup;
     }
@@ -146,7 +146,7 @@ static int init_network(void)
 
 cleanup:
     chan_close(lim_udp_chan);
-    chan_close(lim_tcp_chan);
+    chan_close(tcp_chan);
     close(lim_timer_chan);
     return -1;
 
@@ -184,8 +184,8 @@ static int init_daemon(const char *conf_dir)
     }
 
     ls_closelog();
-    ls_openlog("lim", lim_params[LSF_LOGDIR].val,
-               lim_debug, 0, lim_params[LSF_LOG_MASK].val);
+    ls_openlog("lim", ll_params[LSF_LOGDIR].val,
+               lim_debug, 0, ll_params[LSF_LOG_MASK].val);
 
     cc = make_cluster(path);
     if (cc < 0) {
@@ -207,7 +207,7 @@ static int init_daemon(const char *conf_dir)
     return 0;
 }
 
-static int is_master_candidate(struct lim_node *n)
+int is_master_candidate(struct lim_node *n)
 {
     if (n->is_candidate)
         return 1;
@@ -300,6 +300,8 @@ int main(int argc, char **argv)
     }
 
     LS_INFO("lim started: %s", LAVALITE_VERSION_STR);
+
+    init_read_proc();
     is_master();
     croaked = 0;
 
@@ -308,7 +310,7 @@ int main(int argc, char **argv)
         if (croaked)
             break;
 
-        int nfd = chan_epoll(efd, lim_events, 1024, -1);
+        int nfd = chan_epoll(lim_efd, lim_events, 1024, -1);
         if (nfd < 0) {
             if (errno != EINTR) {
                 syslog(LOG_ERR, "chan_epoll");
@@ -343,7 +345,7 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            if (ch_id == lim_tcp_chan) {
+            if (ch_id == tcp_chan) {
                 tcp_accept();
                 continue;
             }

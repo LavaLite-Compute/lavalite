@@ -5,17 +5,17 @@
 #include "include/base/lib/ll.sys.h"
 
 enum lim_proto {
-    LIM_GET_LOAD,        // ls_load()
-    LIM_REPLY_LOAD,
-
-    LIM_GET_CLUSTER_NAME,    // ll_getclustername()
+    LIM_GET_CLUSTER_NAME,
     LIM_REPLY_CLUSTER_NAME,
 
-    LIM_GET_MASTER_NAME,     // ll_getmastername()
+    LIM_GET_MASTER_NAME,
     LIM_REPLY_MASTER_NAME,
 
-    LIM_GET_HOST_INFO,  // ll_gethostinfo()
-    LIM_REPLY_HOST_INFO,
+    LIM_GET_LOAD,
+    LIM_REPLY_LOAD,
+
+    LIM_GET_HOSTS,
+    LIM_REPLY_HOSTS,
 };
 
 struct host_info *ll_gethostinfo(int *);

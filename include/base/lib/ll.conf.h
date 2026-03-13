@@ -36,9 +36,10 @@ enum ll_params {
 
     /* MBD */
     LSB_MBD_PORT,
-
-    LSF_PARAM_COUNT  /* array sizing sentinel */
+    // sentinel so the compiler complain if not in sync with ll_params array
+    LL_PARAMS_COUNT,
 };
+extern struct ll_kv ll_params[];
 
 /* Load KEY=VALUE pairs from path into items[0..nitems-1].
  * Skips blank lines and # comments.

@@ -246,7 +246,7 @@ bool xdr_wire_load_update(XDR *xdrs, struct wire_load_update *w)
         return false;
 
     if (xdrs->x_op == XDR_DECODE) {
-        if (n > LOAD_NIDX)
+        if (n > NUM_METRICS)
             return false;
         w->nidx = n;
     }
