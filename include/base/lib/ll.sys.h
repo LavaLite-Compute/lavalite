@@ -41,16 +41,20 @@
 #include <pwd.h>
 #include <stdarg.h>
 #include <getopt.h>
+#include <sys/utsname.h>
+#include <assert.h>
+
+enum lim_err {
+    LIM_OK = 0,
+    LIM_ERROR = -1
+};
 
 enum {
     LIM_STAT_OK,
     LIM_STAT_CLOSED
 };
 
-// Number of load indexes historical but useful
-enum {
-    NLOAD_INDX = 11
-};
+#define LOAD_NIDX 11
 
 #ifndef MAX
 #define MAX(a, b) \
@@ -89,7 +93,7 @@ static const size_t LL_ENVVAR_MAX = 2 * 1024 * 1024;
 #define LL_KiB(n) ((size_t) (n) * 1024)
 
 int get_uid(const char *, uid_t *);
-int millisleep_(uint32_t);
+int millisleep(uint32_t);
 size_t ll_strlcpy(char *, const char *, size_t);
 int ll_atoi(const char *, int *);
 int ll_atoll(const char *, int64_t *);

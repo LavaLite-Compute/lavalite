@@ -3,7 +3,7 @@
  */
 #include "base/lib/ll.sys.h"
 
-int millisleep_(uint32_t ms)
+int millisleep(uint32_t ms)
 {
     struct timespec ts;
 

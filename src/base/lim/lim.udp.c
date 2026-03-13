@@ -32,6 +32,18 @@ void slave(void)
     current_master.inactivity = 0;
 }
 
+static void get_load(XDR *xdrs, struct sockaddr_in *from,
+                     struct protocol_header *request_hdr)
+{
+    return;
+}
+
+static void get_info(XDR *xdrs, struct sockaddr_in *from,
+                     struct protocol_header *request_hdr)
+{
+    return;
+}
+
 static void cluster_name(XDR *xdrs, struct sockaddr_in *from,
                          struct protocol_header *request_hdr)
 {
@@ -148,17 +160,25 @@ int udp_message(void)
     }
 
     switch (hdr.operation) {
+        // library
     case LIM_GET_CLUSTER_NAME:
         cluster_name(&xdrs, &from, &hdr);
         break;
     case LIM_GET_MASTER_NAME:
         master_name(&xdrs, &from, &hdr);
         break;
-    case LIM_MASTER_BEACON:
-        master_beacon(&xdrs, &from, &hdr);
+    case LIM_GET_LOAD:
+        get_load(&xdrs, &from, &hdr);
         break;
+    case LIM_GET_HOST_INFO:
+        get_info(&xdrs, &from, &hdr);
+        break;
+        // inter lim
     case LIM_LOAD_REPORT:
         load_report(&xdrs, &from, &hdr);
+        break;
+    case LIM_MASTER_BEACON:
+        master_beacon(&xdrs, &from, &hdr);
         break;
     default:
         LS_ERRX("unknown request code=%d from=%s"
@@ -289,14 +309,6 @@ int report_load(void)
         return 0;
     }
 
-    struct wire_load_report w;
-    memset(&w, 0, sizeof(w));
-    strcpy(w.hostname, me->host->name);
-    w.nidx = LIM_NIDX;
-
-    for (int i = 0; i < LIM_NIDX; i++)
-        w.li[i] = me->load_index[i];
-
     struct protocol_header hdr;
     init_pack_hdr(&hdr);
     hdr.operation = LIM_LOAD_REPORT;
@@ -310,6 +322,15 @@ int report_load(void)
         xdr_destroy(&xdrs);
         return -1;
     }
+
+    struct wire_load_report wl;
+    memset(&wl, 0, sizeof(struct wire_load_report));
+    strcpy(w.hostname, me->host->name);
+    w.ho_no = me->host_no;
+    w.nidx = LOAD_NIDX;
+
+    for (int i = 0; i < LOAD_NIDX; i++)
+        w.li[i] = me->load_index[i];
 
     if (!xdr_wire_load_report(&xdrs, &w)) {
         LS_ERR("load update encode failed");

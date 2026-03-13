@@ -35,6 +35,7 @@ static int parse_cluster_section(FILE *f)
         if (strcmp(p, "ClusterName") == 0)
             continue;
 
+        char cluster[LL_BUFSIZ_64];
         int n = sscanf(p, "%64s", cluster);
         if (n < 1) {
             LS_ERR("sscanf Cluster section failed");
@@ -67,85 +68,12 @@ static int parse_admins_section(FILE *f)
 
         // We support only one for now, verify lim is
         // running as the admin
-        lim_cluster.admin = strdup(admin);
+        lim_cluster.admin = strdup(p);
         break;
     }
     LS_ERR("ClusterAdmin section: unexpected EOF");
     return -1;
 }
-
-static int parse_host_section(FILE *f)
-{
-    char line[LL_BUFSIZ_1K];
-
-    n_master_candidates = 0;
-    while (fgets(line, sizeof(line), f) != NULL) {
-        rtrim(line);
-        char *p = ltrim(line);
-        if (*p == 0 || *p == '#')
-            continue;
-        if (ll_conf_parse_end(p))
-            return 0;
-
-        char hostname[MAXHOSTNAMELEN];
-        char resources[LL_BUFSIZ_256];
-        char master[4];
-        int n = sscanf(p, "%255s %255s %3s", hostname, resources, master);
-        if (n != 3) {
-            LS_ERR("Host section: expected 'hostname resources master' got='%s'",
-                   p);
-            continue;
-        }
-
-        if (strcasecmp(hostname, "Hostname") == 0)
-            continue;
-
-        if (strcasecmp(master, "Y") != 0 && strcmp(master, "-") != 0) {
-            LS_ERR("Host section: invalid master='%s' host=%s", master, hostname);
-            return -1;
-        }
-
-        if (ll_hash_search(&lim_node_hash, hostname)) {
-            LS_ERRX("Host section: duplicate host=%s skipped", hostname);
-            continue;
-        }
-
-        struct lim_node *node = node_make(hostname);
-        if (node == NULL) {
-            LS_ERR("Host section: cannot create node=%s", hostname);
-            return -1;
-        }
-
-        node->resources = parse_resources(resources);
-
-        node->is_candidate = 0;
-        if (strcasecmp(master, "Y") == 0) {
-            node->is_candidate = 1;
-            ++n_master_candidates;
-        }
-        ll_list_append(&lim_node_list, &node->list);
-        ll_hash_insert(&lim_node_name_hash, hostname, node, 0);
-        ll_hash_insert(&lim_node_addr_hash, node->host->addr, node, 0);
-    }
-    LS_ERR("Host section: unexpected EOF");
-    return -1;
-}
-
-static char *parse_resources(const char *line)
-{
-    const char *op = strchr(line, '(');
-    if (op == NULL)
-        return NULL;
-
-    op++;
-
-    const char *cl = strchr(op, ')');
-    if (cl == NULL)
-        return NULL;
-
-    return strndup(op, cl - op);
-}
-
 static struct lim_node *node_make(const char *hostname)
 {
     struct lim_node *n = calloc(1, sizeof(struct lim_node));
@@ -181,6 +109,75 @@ static struct lim_node *node_make(const char *hostname)
     }
     return n;
 }
+static char *parse_resources(const char *line)
+{
+    const char *op = strchr(line, '(');
+    if (op == NULL)
+        return NULL;
+
+    op++;
+
+    const char *cl = strchr(op, ')');
+    if (cl == NULL)
+        return NULL;
+
+    return strndup(op, cl - op);
+}
+static int parse_host_section(FILE *f)
+{
+    char line[LL_BUFSIZ_1K];
+
+    n_master_candidates = 0;
+    while (fgets(line, sizeof(line), f) != NULL) {
+        rtrim(line);
+        char *p = ltrim(line);
+        if (*p == 0 || *p == '#')
+            continue;
+        if (ll_conf_parse_end(p))
+            return 0;
+
+        char hostname[MAXHOSTNAMELEN];
+        char resources[LL_BUFSIZ_64 * 4];
+        char master[4];
+        int n = sscanf(p, "%255s %255s %3s", hostname, resources, master);
+        if (n != 3) {
+            LS_ERR("Host section: expected 'hostname resources master' got='%s'",
+                   p);
+            continue;
+        }
+
+        if (strcasecmp(hostname, "Hostname") == 0)
+            continue;
+
+        if (strcasecmp(master, "Y") != 0 && strcmp(master, "-") != 0) {
+            LS_ERR("Host section: invalid master='%s' host=%s", master, hostname);
+            return -1;
+        }
+
+        if (ll_hash_search(&node_name_hash, hostname)) {
+            LS_ERRX("Host section: duplicate host=%s skipped", hostname);
+            continue;
+        }
+        struct lim_node *node = node_make(hostname);
+        if (node == NULL) {
+            LS_ERR("Host section: cannot create node=%s", hostname);
+            return -1;
+        }
+
+        node->resources = parse_resources(resources);
+
+        node->is_candidate = 0;
+        if (strcasecmp(master, "Y") == 0) {
+            node->is_candidate = 1;
+            ++n_master_candidates;
+        }
+        ll_list_append(&node_list, &node->list);
+        ll_hash_insert(&node_name_hash, hostname, node, 0);
+        ll_hash_insert(&node_addr_hash, node->host->addr, node, 0);
+    }
+    LS_ERR("Host section: unexpected EOF");
+    return -1;
+}
 
 static void set_host_no(void)
 {
@@ -200,23 +197,26 @@ static void set_host_no(void)
 
 static int make_master_candidates(void)
 {
-    int i;
-
     master_candidates = calloc(n_master_candidates, sizeof(struct lim_node *));
     if (master_candidates == NULL) {
         LS_ERR("calloc failed");
         return -1;
     }
+    struct ll_list_entry *e;
     int i = 0;
     for (e = node_list.head; e; e = e->next) {
         struct lim_node *n = (struct lim_node *)e;
-        if (n->is_candidate)
-            master_candidates[i] = n;
+        if (! n->is_candidate)
+            continue;
+        master_candidates[i] = n;
+        ++i;
     }
     assert(i == n_master_candidates);
+
+    return 0;
 }
 
-int lim_load_conf(const char *path)
+int load_conf(const char *path)
 {
     int nitems = sizeof(lim_params) / sizeof(lim_params[0]);
 
@@ -230,7 +230,7 @@ int lim_load_conf(const char *path)
     }
 
     p = "LSF_SERVERDIR";
-    if (ll_comf_param_missing(p, lim_params[LSF_SERVERDIR].val)) {
+    if (ll_conf_param_missing(p, lim_params[LSF_SERVERDIR].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }
@@ -286,7 +286,7 @@ int lim_make_cluster(const char *path)
             return -1;
         }
         if (rc < 0) {
-            LS_ERRX("parsing cluster file failed")
+            LS_ERRX("parsing cluster file failed");
             fclose(f);
             return -1;
         }
@@ -304,7 +304,7 @@ int lim_make_cluster(const char *path)
         return -1;
     }
 
-    if (ll_list_is_empty(&lim_node_list)) {
+    if (ll_list_is_empty(&node_list)) {
         LS_ERRX("no hosts defined in %s", path);
         return -1;
     }
@@ -312,7 +312,7 @@ int lim_make_cluster(const char *path)
     LS_INFO("cluster=%s admin=%s hosts=%d",
             lim_cluster.name,
             lim_cluster.admin,
-            ll_list_count(&lim_node_list));
+            ll_list_count(&node_list));
 
     set_host_no();
     make_master_candidates();

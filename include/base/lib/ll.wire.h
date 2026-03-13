@@ -37,76 +37,27 @@ struct protocol_header {
     int32_t status;   // 0 ok, <0 error
 };
 
-/* On the wire: 5 × 4-byte XDR integers = 20 bytes.
- * PACKET_HEADER_SIZE matches wire size; any drift will fail the static assert.
- */
-#define PACKET_HEADER_SIZE ((size_t) sizeof(struct protocol_header))
+#define PACKET_HEADER_SIZE sizeof(struct protocol_header)
 
-// The procol buffers are marshaled use xdr
-// Use these macros to compute the right size of
-// the xdr buffer for its alignment ob 4 bytes boundary
-void init_pack_hdr(struct protocol_header *);
-int send_protocol_header(int, struct protocol_header *);
-int recv_protocol_header(int, struct protocol_header *);
-
-
-// For ls_gethostinfo()
-struct wire_host {
-    char *host_name;
-    char *host_type;
-    char *host_model;
-    float cpu_factor;
-    int max_cpus;
-    int max_mem;
-    int max_swap;
-    int max_tmp;
-    int num_disks;
-    int is_server;
-    int status;
-};
-
-struct wire_host_reply {
-    int num_hosts;
-    struct wire_host *hosts;
-};
-
-// wire it the ll naming for bytes on the wire in network format
-// host info
-bool_t xdr_wire_host(XDR *, struct wire_host *,
-                     struct protocol_header *);
-bool_t xdr_wire_host_reply(XDR *, struct wire_host_reply *,
-                           struct protocol_header *);
-// host load info
-// For ls_loadinfo()
 struct wire_load {
-    char *host_name;
-    float load_indices[NLOAD_INDX]; // r15s r1m r15m ut pg io ls it tmp swp mem
-    int status[NLOAD_INDX];         // status per index
+    char hostname[MAXHOSTNAMELEN];
+    uint32_t status;
+    uint32_t nidx;
+    float li[LOAD_NIDX];
 };
 
-struct wire_load_reply {
-    int num_hosts;
-    struct wire_load *hosts;
+struct wire_master {
+    char hostname[MAXHOSTNAMELEN];
+    uint16_t tcp_port;
 };
 
-bool_t xdr_wire_load(XDR *, struct wire_load *);
-bool_t xdr_wire_load_reply(XDR *, struct wire_load_reply *);
-
-
-struct wire_host_type {
+struct wire_cluster {
     char name[MAXHOSTNAMELEN];
+    char admin[LL_BUFSIZ_64];
 };
 
-// ls_clusterinfo()
-// ls_clusterinfo()
-struct wire_cluster_info {
-    char cluster_name[MAXHOSTNAMELEN];
-    int status;
-    char master_name[MAXHOSTNAMELEN];
-    char manager_name[MAXHOSTNAMELEN];
-    int manager_id;
-    int num_servers;
-    int num_clients;
-};
-bool_t xdr_wire_cluster_info(XDR *, struct wire_cluster_info *);
+void init_pack_hdr(struct protocol_header *);
 bool_t xdr_pack_hdr(XDR *, struct protocol_header *);
+bool_t xdr_wire_load(XDR *, struct wire_load *);
+bool_t xdr_master(XDR *, struct wire_master *);
+bool_t xdr_cluster(XDR *, struct wire_cluster *);

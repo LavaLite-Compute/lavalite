@@ -518,7 +518,7 @@ struct wire_load_update {
     uint32_t seqNo;
     uint32_t status0;
     uint32_t nidx;
-    float li[LIM_NIDX];
+    float li[LOAD_NIDX];
 };
 
 #define MASTER_INVALID_TICKS 3
