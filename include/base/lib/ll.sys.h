@@ -45,32 +45,7 @@
 #include <sys/utsname.h>
 #include <assert.h>
 
-enum lim_err {
-    LIM_OK = 0,
-    LIM_ERROR = -1
-};
-
-enum {
-    LIM_STAT_OK,
-    LIM_STAT_CLOSED
-};
-
-// 11 load indexes collected by lim on every cluster machine
-enum load_metrics {
-    R15S = 0,
-    R1M  = 1,
-    R15M = 2,
-    UT   = 3,
-    PG   = 4,
-    IO   = 5,
-    LS   = 6,
-    IT   = 7,
-    TMP  = 8,
-    SWP  = 9,
-    MEM  = 10,
-    NUM_METRICS = 11,   // number of built-in indices
-};
-
+#include "include/ll.h"
 
 #ifndef MAX
 #define MAX(a, b) \
@@ -97,6 +72,37 @@ enum {
     LL_BUFSIZ_1K = 1024,
     LL_BUFSIZ_4K = 4096,
 };
+
+#define TIMEIT(level, func, name)                                              \
+    {                                                                          \
+        if (timinglevel > level) {                                             \
+            struct timeval before, after;                                      \
+            struct timezone tz;                                                \
+            gettimeofday(&before, &tz);                                        \
+            func;                                                              \
+            gettimeofday(&after, &tz);                                         \
+            ls_syslog(LOG_INFO, "L%d %s %d ms", level, name,                   \
+                      (int) ((after.tv_sec - before.tv_sec) * 1000 +           \
+                             (after.tv_usec - before.tv_usec) / 1000));        \
+        } else                                                                 \
+            func;                                                              \
+    }
+
+#define TIMEVAL(level, func, val)                                              \
+    {                                                                          \
+        if (timinglevel > level) {                                             \
+            struct timeval before, after;                                      \
+            struct timezone tz;                                                \
+            gettimeofday(&before, &tz);                                        \
+            func;                                                              \
+            gettimeofday(&after, &tz);                                         \
+            val = (int) ((after.tv_sec - before.tv_sec) * 1000 +               \
+                         (after.tv_usec - before.tv_usec) / 1000);             \
+        } else {                                                               \
+            func;                                                              \
+            val = 0;                                                           \
+        }                                                                      \
+    }
 
 /* Maximum size of a single environment variable stored in job spec.
 * 2 MiB is practically unlimited for real systems (EDA/Lmod etc.) while

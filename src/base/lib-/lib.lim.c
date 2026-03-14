@@ -266,11 +266,11 @@ static int callLimUDP_(char *req_buf, char *rep_buf, size_t len,
     return 0;
 }
 
-int initLimSock_(void)
+int ll_init(void)
 {
     uint16_t service_port;
 
-    if (initenv_(NULL, NULL) < 0)
+    if (ll_conf_load(ll_params, LL_PARAMS_COUNT, path) < 0)
         return -1;
 
     if (genParams[LSF_LIM_PORT].paramValue == NULL) {

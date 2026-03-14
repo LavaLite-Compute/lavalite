@@ -12,7 +12,7 @@ struct wire_beacon {
     uint16_t tcp_port;
 };
 
-struct wire_load_report {
+struct  wire_load_report {
     char hostname[MAXHOSTNAMELEN];
     uint32_t host_no;
     uint32_t num_metrics;

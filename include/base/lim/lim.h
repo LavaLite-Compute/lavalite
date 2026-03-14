@@ -2,6 +2,11 @@
  * GPL v2
  */
 
+#include "base/lib/ll.lim.h"
+#include "base/lim/lim.wire.h"
+
+#include "base/lib/ll.lim.h"
+#include "base/lib/ll.wire.h"
 #include "base/lib/ll.sys.h"
 #include "base/lib/ll.conf.h"
 #include "base/lib/ll.syslog.h"
@@ -10,9 +15,6 @@
 #include "base/lib/ll.host.h"
 #include "base/lib/ll.channel.h"
 #include "base/lib/ll.signal.h"
-
-#include "base/lim/lim.proto.h"
-#include "base/lim/lim.wire.h"
 
 extern struct ll_list node_list;
 extern struct ll_hash node_name_hash;
@@ -49,10 +51,11 @@ struct lim_node {
     char *machine;     // uname
     char *resources;   // historical string of static resources
     uint16_t tcp_port;
-    int16_t is_candidate;
+    uint16_t is_candidate;
     uint64_t max_mem;
     uint64_t max_swap;
     uint64_t max_tmp;
+    uint32_t num_cpus;
 };
 
 struct current_master {

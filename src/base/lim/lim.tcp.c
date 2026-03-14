@@ -11,7 +11,7 @@ static void shutdown_tcp_chan(int ch_id)
     chan_close(ch_id);
 }
 
-static void get_load(XDR *xdrs, int ch_id, struct protocol_header *req_hdr)
+static void get_load(XDR *xdrs, int ch_id)
 {
     uint32_t nhosts = ll_list_count(&node_list);
     struct wire_load *hosts = calloc(nhosts, sizeof(struct wire_load));
@@ -25,11 +25,7 @@ static void get_load(XDR *xdrs, int ch_id, struct protocol_header *req_hdr)
     for (e = node_list.head; e != NULL; e = e->next) {
         struct lim_node *n = (struct lim_node *)e;
 
-        memset(&hosts[i], 0, sizeof(struct wire_load));
-
-        snprintf(hosts[i].hostname, sizeof(hosts[i].hostname),
-                 "%s", n->host->name);
-
+        snprintf(hosts[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
         hosts[i].status = n->status;
         hosts[i].num_metrics = NUM_METRICS;
 
@@ -92,9 +88,93 @@ fail:
     free(hosts);
 }
 
-
-static void get_hosts(XDR *xdrs, int ch_id, struct protocol_header *hdr)
+static void get_hosts(XDR *xdrs, int ch_id)
 {
+    uint32_t nhosts = ll_list_count(&node_list);
+    struct wire_host *wh = calloc(nhosts, sizeof(struct wire_host));
+    if (!wh) {
+        LS_ERR("calloc failed");
+         return;
+    }
+
+    int i = 0;
+    struct ll_list_entry *e;
+    for (e = node_list.head; e != NULL; e = e->next) {
+        struct lim_node *n = (struct lim_node *)e;
+
+        snprintf(wh[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
+        snprintf(wh[i].machine, LL_BUFSIZ_32, "%s", n->machine);
+        wh[i].max_mem = n->max_mem;
+        wh[i].max_swap = n->max_swap;
+        wh[i].max_tmp = n->max_tmp;
+        wh[i].num_cpus = n->num_cpus;
+
+        i++;
+    }
+
+    /*
+     * Estimate buffer size.
+     * header + array length + host records
+     */
+    size_t bufsiz = sizeof(struct protocol_header) +
+        sizeof(uint32_t) + nhosts * sizeof(struct wire_host)
+        + LL_BUFSIZ_256;
+
+    struct chan_buffer *buf;
+    if (chan_alloc_buf(&buf, bufsiz) < 0) {
+        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld",
+               LIM_REPLY_HOSTS, bufsiz);
+        free(wh);
+        return;
+    }
+
+    XDR xdrs_out;
+    xdrmem_create(&xdrs_out, buf->data, bufsiz, XDR_ENCODE);
+
+    struct protocol_header hdr;
+    init_pack_hdr(&hdr);
+    hdr.operation = LIM_REPLY_HOSTS;
+    hdr.status = LIM_OK;
+
+    if (!xdr_pack_hdr(&xdrs_out, &hdr)) {
+        LS_ERR("xdr_pack_hdr failed");
+        goto fail;
+    }
+
+    if (!xdr_wire_hosts_array(&xdrs_out, &wh, &nhosts)) {
+        LS_ERR("xdr_wire_load_array failed");
+        goto fail;
+    }
+
+    buf->len = (size_t)xdr_getpos(&xdrs_out);
+    if (chan_enqueue(ch_id, buf) < 0) {
+        LS_ERR("chan_enqueue failed to=%s len=%d",
+               chan_addr_str(ch_id), buf->len);
+        xdr_destroy(&xdrs_out);
+        chan_free_buf(buf);
+        free(wh);
+        return;
+    }
+
+    xdr_destroy(&xdrs_out);
+    free(wh);
+    return;
+
+fail:
+    xdr_destroy(&xdrs_out);
+    chan_free_buf(buf);
+    free(wh);
+}
+static const char *proto_to_str(int32_t op)
+{
+    switch (op) {
+    case LIM_GET_LOAD:
+        return "LIM_GET_LOAD";
+    case LIM_GET_HOSTS:
+        return "LIM_GET_HOSTS";
+    default:
+        return "unknown";
+    }
 }
 
 static void tcp_dispatch(int ch_id)
@@ -117,16 +197,16 @@ static void tcp_dispatch(int ch_id)
         return;
     }
 
-    LS_DEBUG("protocol %d", hdr.operation);
+    LS_DEBUG("protocol=%s", proto_to_str(hdr.operation));
 
     switch (hdr.operation) {
     case LIM_GET_LOAD:
-        get_load(&xdrs, ch_id, &hdr);
+        get_load(&xdrs, ch_id);
         xdr_destroy(&xdrs);
         shutdown_tcp_chan(ch_id);
         break;
     case LIM_GET_HOSTS:
-        get_hosts(&xdrs, ch_id, &hdr);
+        get_hosts(&xdrs, ch_id);
         xdr_destroy(&xdrs);
         shutdown_tcp_chan(ch_id);
         break;

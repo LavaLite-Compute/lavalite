@@ -93,3 +93,4 @@ int send_protocol_header(int, struct protocol_header *);
 int recv_protocol_header(int, struct protocol_header *);
 int chan_has_error(int);
 const char *chan_addr_str(int);
+int chan_client_socket(int, int, int);

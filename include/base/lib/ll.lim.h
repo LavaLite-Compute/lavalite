@@ -2,7 +2,18 @@
  * GPL v2
  */
 
+#pragma once
+
+#include "include/ll.h"
+#include "include/base/lib/ll.host.h"
 #include "include/base/lib/ll.sys.h"
+#include "include/base/lib/ll.channel.h"
+#include "include/base/lib/ll.conf.h"
+
+struct lim_master {
+    struct ll_host host;
+    uint16_t tcp_port; // host byte order
+};
 
 enum lim_proto {
     LIM_GET_CLUSTER_NAME,
@@ -17,10 +28,3 @@ enum lim_proto {
     LIM_GET_HOSTS,
     LIM_REPLY_HOSTS,
 };
-
-struct host_info *ll_gethostinfo(int *);
-void ll_free_hostinfo(struct host_info *, int);
-struct cluster_load *ll_load(int *);
-void ll_free_load(struct cluster_load *, int);
-int ll_getclustername(char *, size_t);
-int ll_getmastername(char *, size_t);

@@ -1,6 +1,5 @@
 // Copyright (C) LavaLite Contributors
 // GPL v2
-// lim.proc.c - /proc-based load collection backend (raw/top-like, no smoothing)
 //
 // Exposes 11 load indexes used by the scheduler API:
 //   r15s r1m r15m ut pg io ls it tmp swp mem
@@ -322,6 +321,16 @@ static float tmp_avail_mb(void)
 
     return (float)mb;
 }
+
+static uint64_t read_num_cpus(void)
+{
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+    if (n <= 0)
+        return 1;
+
+    return (uint64_t)n;
+}
+
 void init_read_proc(void)
 {
     memset(&proc_state, 0, sizeof(proc_state));
@@ -338,6 +347,8 @@ void init_read_proc(void)
     } else {
         me->max_tmp = 0.0;
     }
+
+    me->num_cpus = read_num_cpus();
 
     // Max mem/swap
     uint64_t mem_total_kb = 0;

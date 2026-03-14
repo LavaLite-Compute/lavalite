@@ -56,9 +56,25 @@ struct wire_cluster {
     char admin[LL_BUFSIZ_64];
 };
 
+struct wire_host {
+    char hostname[MAXHOSTNAMELEN];
+    char machine[LL_BUFSIZ_32];
+    uint16_t is_candidate;
+    uint64_t max_mem;
+    uint64_t max_swap;
+    uint64_t max_tmp;
+    uint32_t num_cpus;
+};
+
 void init_pack_hdr(struct protocol_header *);
+void init_protocol_hdr(struct protocol_header *);
 bool_t xdr_pack_hdr(XDR *, struct protocol_header *);
-bool_t xdr_wire_load(XDR *, struct wire_load *);
+
 bool_t xdr_wire_master(XDR *, struct wire_master *);
 bool_t xdr_wire_cluster(XDR *, struct wire_cluster *);
+
+bool_t xdr_wire_load(XDR *, struct wire_load *);
 bool_t xdr_wire_load_array(XDR *, struct wire_load **, uint32_t *);
+
+bool_t xdr_wire_host(XDR *, struct wire_host *);
+bool_t xdr_wire_hosts_array(XDR *, struct wire_host **, uint32_t *);

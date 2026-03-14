@@ -39,6 +39,12 @@ bool_t xdr_pack_hdr(XDR *xdrs, struct protocol_header *header)
     return true;
 }
 
+void init_protocol_header(struct protocol_header *hdr)
+{
+    memset(hdr, 0, sizeof(struct protocol_header));
+    hdr->version = CURRENT_PROTOCOL_VERSION;
+}
+
 void init_pack_hdr(struct protocol_header *hdr)
 {
     memset(hdr, 0, sizeof(struct protocol_header));
@@ -55,6 +61,32 @@ void xdr_payload_free(bool_t (*xdr_func)(),
     (*xdr_func)(&xdrs, payload, hdr);
 
     xdr_destroy(&xdrs);
+}
+
+bool_t xdr_wire_hosts_array(XDR *xdrs, struct wire_host **hosts, uint32_t *n)
+{
+    return xdr_array(xdrs, (char **)hosts, n, INT32_MAX,
+                     sizeof(struct wire_host), (xdrproc_t)xdr_wire_host);
+}
+
+bool_t xdr_wire_host(XDR *xdrs, struct wire_host *wh)
+{
+    if (! xdr_opaque(xdrs, wh->hostname, MAXHOSTNAMELEN))
+        return false;
+    if (! xdr_opaque(xdrs, wh->machine, LL_BUFSIZ_32))
+        return false;
+    if (! xdr_uint16_t(xdrs, &wh->is_candidate))
+        return false;
+    if (! xdr_uint64_t(xdrs, &wh->max_mem))
+        return false;
+    if (! xdr_uint64_t(xdrs, &wh->max_swap))
+        return false;
+    if (! xdr_uint64_t(xdrs, &wh->max_tmp))
+        return false;
+    if (! xdr_uint32_t(xdrs, &wh->num_cpus))
+        return false;
+
+    return true;
 }
 
 bool_t xdr_wire_load_array(XDR *xdrs, struct wire_load **hosts, uint32_t *n)
