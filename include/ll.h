@@ -50,23 +50,18 @@ enum ll_buf_siz {
     LL_BUFSIZE_4K = 4096,
 };
 
-enum lim_err {
-    LIM_OK = 0,
-    LIM_ERROR = -1
-};
-
 enum lim_stat {
     LIM_STAT_OK,
     LIM_STAT_CLOSED
 };
 
-struct ll_cluster {
+struct ll_cluster_info {
     char cluster_name[LL_BUFSIZE_64];
     char master_name[MAXHOSTNAMELEN];
     char manager_name[LL_BUFSIZE_32];
 };
 
-struct ll_cluster_host {
+struct ll_host_info {
     char host_name[MAXHOSTNAMELEN];
     char host_type[LL_BUFSIZE_32];
     uint64_t num_cpus;
@@ -76,16 +71,16 @@ struct ll_cluster_host {
     uint16_t is_master;
 };
 
-struct ll_load {
+struct ll_host_load {
     char hostname[MAXHOSTNAMELEN];
     uint32_t status;
     uint32_t num_metrics;
     float li[NUM_METRICS];
 };
 
-char *ls_getmastername(void);
-char *ls_getmyhostname(void);
+char *ll_mastername(void);
+char *ll_clustername(void);
 
-struct ll_host *ls_gethostinfo(int *);
-struct ll_load *ls_load(int *);
-struct ll_cluster *ls_clusterinfo(void);
+struct ll_host_info *ll_hostinfo(int *);
+struct ll_host_load *ll_hostload(int *);
+struct ll_cluster_info *ll_clusterinfo(void);

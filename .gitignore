@@ -39,28 +39,23 @@ config.sub
 *.libs/
 
 # Ignore commands
-lsclusters
 lshosts
 lsid
-lsinfo
 lsload
+lsclusterinfo
 src/eauth/.libs/*
 src/eauth/eauth
 src/eauth/eauth_client
 src/eauth/eauth_server
-bbot
 bhosts
 bjobs
 bkill
 bmgroup
 bmod
-bparams
 bpeek
 bqueues
 bsub
 bswitch
-btop
-busers
 read_shared
 stdout.*
 stderr.*

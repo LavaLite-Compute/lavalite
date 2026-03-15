@@ -15,7 +15,7 @@ static void send_beacon(void)
     wb.tcp_port = me->tcp_port;
 
     struct protocol_header hdr;
-    init_pack_hdr(&hdr);
+    init_protocol_header(&hdr);
     hdr.operation = LIM_MASTER_BEACON;
     hdr.status = LIM_OK;
 
@@ -133,7 +133,7 @@ static int send_load_report(void)
     }
 
     struct protocol_header hdr;
-    init_pack_hdr(&hdr);
+    init_protocol_header(&hdr);
     hdr.operation = LIM_LOAD_REPORT;
 
     char buf[LL_BUFSIZ_1K];
@@ -226,11 +226,12 @@ static void get_cluster_name(XDR *xdrs, struct sockaddr_in *from,
     XDR xdrs2;
 
     struct protocol_header hdr;
-    init_pack_hdr(&hdr);
+    init_protocol_header(&hdr);
     hdr.operation = LIM_REPLY_CLUSTER_NAME;
     hdr.sequence = request_hdr->sequence;
     hdr.status = LIM_OK;
 
+    // header
     char buf[2 * LL_BUFSIZ_256];
     memset(&buf, 0, sizeof(buf));
     xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
@@ -240,6 +241,7 @@ static void get_cluster_name(XDR *xdrs, struct sockaddr_in *from,
         return;
     }
 
+    // payload
     struct wire_cluster wc;
     memset(&wc, 0, sizeof(struct wire_cluster));
     strcpy(wc.name, lim_cluster.name);
@@ -263,26 +265,8 @@ static void get_cluster_name(XDR *xdrs, struct sockaddr_in *from,
 static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
                             struct protocol_header *request_hdr)
 {
-    XDR xdrs2;
-    char buf[LL_BUFSIZ_256];
-    struct protocol_header hdr;
-
-    memset((char *) &buf, 0, sizeof(buf));
-    init_pack_hdr(&hdr);
-
-    xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
-    hdr.operation = LIM_REPLY_CLUSTER_NAME;
-    hdr.sequence = request_hdr->sequence;
-    hdr.status = LIM_OK;
-
-    if (!xdr_pack_hdr(&xdrs2, &hdr)) {
-        LS_ERRX("xdr_pack_hdr from=%s failed", addr_to_str(from));
-        xdr_destroy(&xdrs2);
-        return;
-    }
-
     struct wire_master wm;
-    memset(&wm, 0, sizeof(struct wire_master));
+    memset(&wm, 0, sizeof(wm));
     if (current_master.node) {
         strcpy(wm.hostname, current_master.node->host->name);
         wm.tcp_port = current_master.node->tcp_port;
@@ -290,18 +274,23 @@ static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
         strcpy(wm.hostname, "unknown");
     }
 
-    if (! xdr_wire_master(&xdrs2, &wm)) {
-        LS_ERRX("xdr_wire_master from=%s failed", addr_to_str(from));
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = LIM_REPLY_MASTER_NAME;
+    hdr.sequence  = request_hdr->sequence;
+    hdr.status    = LIM_OK;
+
+    char buf[LL_BUFSIZE_256];
+    XDR xdrs2;
+    xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
+    if (!ll_encode_msg(&xdrs2, &wm, (xdrproc_t)xdr_wire_master, &hdr)) {
+        LS_ERRX("ll_encode_msg from=%s failed", addr_to_str(from));
         xdr_destroy(&xdrs2);
         return;
     }
 
-    int cc = chan_send_dgram(lim_udp_chan, buf, xdr_getpos(&xdrs2), from);
-    if (cc < 0) {
+    if (chan_send_dgram(lim_udp_chan, buf, xdr_getpos(&xdrs2), from) < 0)
         LS_ERR("chan_send_dgram to=%s failed", addr_to_str(from));
-        xdr_destroy(&xdrs2);
-        return;
-    }
 
     xdr_destroy(&xdrs2);
 }

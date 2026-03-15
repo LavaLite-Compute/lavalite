@@ -1,7 +1,6 @@
-.\" $Id: lim.8,v 1.2 2007/08/13 21:28:01 cchen Exp $
 .ds ]W %
 .ds ]L
-.TH LIM 8 "1 August 1998"
+.TH LIM 8 "1 April 2026"
 .SH NAME
 lim \- Load Information Manager (\s-1LIM\s0) for the Load Sharing Facility
 (\s-1LSF\s0) system
@@ -13,19 +12,19 @@ participating in load sharing. It provides system configuration
 information, load information, and placement advice services.  The
 \s-1LIM\s0s on all hosts coordinate in collecting and transmitting load
 information. Load information is transmitted between \s-1LIM\s0s in the form of
-vectors of load indices. These are described in the 
+vectors of load indices. These are described in the
 \fBLOAD INDICES\fR section.
 .PP
 In order to run \s-1LIM\s0 on a host, the host must be configured as a
 server host in the \fBlsf.cluster.\fR<\fIclustername\fR> file. See
-the description of the \fBSERVER\fR keyword in the 
+the description of the \fBSERVER\fR keyword in the
 \fBlsf.cluster.\fR<\fIclustername\fR> file in
 .BR lsf.cluster (5)
 for more information on server hosts and client hosts.
 .PP
 A master \s-1LIM\s0 is elected for each \s-1LSF\s0 cluster. The master
 \s-1LIM\s0 receives load information from all slave \fBLIM\fRs
-and provides services to all hosts. 
+and provides services to all hosts.
 The slave \fBLIM\fRs periodically check their own load conditions and
 send a load vector to the master if significant changes in load condition are
 observed. The minimum load information exchange interval is 15 seconds.
@@ -51,11 +50,11 @@ file to get the following parameters: \fBLSF_LIM_DEBUG\fR,
 If \fBLSF_LIM_DEBUG\fR is defined, \s-1LIM\s0 runs at the specified debug
 level. \fBLSF_CONFDIR\fR tells \s-1LIM\s0 where to find the \s-1LSF\s0 configuration
 files. \fBLSF_SERVERDIR\fR is used by \s-1LIM\s0 during reconfiguration in
-order to locate the directory where the \s-1LIM\s0 binary is stored. 
+order to locate the directory where the \s-1LIM\s0 binary is stored.
 \fBLSF_LIM_PORT\fR is used to define the UDP port number that \s-1LIM\s0 uses for
 serving all applications. If this is not defined, \s-1LIM\s0 will try to
-get the port number from services database (see 
-.BR getservbyname (3)). 
+get the port number from services database (see
+.BR getservbyname (3)).
 If \fBLSF_LOG_MASK\fR is defined, the defined log mask is set so that messages
 with lower priority than \fBLSF_LOG_MASK\fR are not logged. If \fBLSF_LOG_MASK\fR is
 not defined, a default log mask \fBLOG_WARNING\fR is used. If \fBLSF_LOGDIR\fR is
@@ -109,7 +108,7 @@ The amount of currently available swap space, in MBytes.
 .B mem
 The amount of currently available memory, in MBytes.
 .PP
-In addition, an \s-1LSF\s0 installation can configure arbitrary 
+In addition, an \s-1LSF\s0 installation can configure arbitrary
 external load indices as explained below.
 .SH EXTERNAL LOAD INFORMATION MANAGER
 The load indices monitored at a site can be extended by directing the
@@ -139,31 +138,31 @@ file defines whether a resource is shared or non-shared.
 If a non-shared external index is defined, the \s-1LIM\s0 on each host
 will invoke the \s-1ELIM\s0 on start up.  If a shared external index is
 defined, the \s-1LIM\s0 will start the \s-1ELIM\s0 only if the index applies
-to the current host, and the current host is the first host from 
-the hostlist defined for the resource instance, which is alive.  
+to the current host, and the current host is the first host from
+the hostlist defined for the resource instance, which is alive.
 (see
 .BR lsf.cluster (5)).
 The executable for the \s-1ELIM\s0 must be in \fBLSF_SERVDIR\fR
-and must have the name '\fBelim\fR'. 
+and must have the name '\fBelim\fR'.
 The \s-1ELIM\s0 will run with the same user ID
 and file access permissions as the \s-1LIM\s0.
 If the \s-1ELIM\s0 dies, it will be
 restarted by the \s-1LIM\s0. If the \s-1LIM\s0 dies, the master LIM
-will ensure that the \s-1ELIM\s0 on the next host on the hostlist defined for 
-the resource instance is started.  If this dead \s-1LIM\s0 comes back alive 
-again however, the original \s-1ELIM\s0 will be restarted and the backup 
-\s-1ELIM\s0 terminated.  
+will ensure that the \s-1ELIM\s0 on the next host on the hostlist defined for
+the resource instance is started.  If this dead \s-1LIM\s0 comes back alive
+again however, the original \s-1ELIM\s0 will be restarted and the backup
+\s-1ELIM\s0 terminated.
 .PP
 When the \s-1LIM\s0 terminates, it will send a SIGTERM signal to the \s-1ELIM\s0.
 The \s-1ELIM\s0 is expected to terminate upon receiving this signal.
 .PP
-The \s-1LIM\s0 communicates with the \s-1ELIM\s0 through 2 environment 
+The \s-1LIM\s0 communicates with the \s-1ELIM\s0 through 2 environment
 variables:  \s-1LSF_MASTER\s0 and  \s-1LSF_RESOURCES\s0.  \s-1LSF_MASTER\s0
-is set to an empty string if the \s-1ELIM\s0 is being started by the 
+is set to an empty string if the \s-1ELIM\s0 is being started by the
 \s-1LIM\s0 on the master host.  It is left unset otherwise.
-\s-1LSF_RESOURCES\s0 is set to a space separated string of dynamic 
-shared resources indices for which the \s-1ELIM\s0 on that host is responsible 
-to collect.  Thus if a host is defined in the resource instances 
+\s-1LSF_RESOURCES\s0 is set to a space separated string of dynamic
+shared resources indices for which the \s-1ELIM\s0 on that host is responsible
+to collect.  Thus if a host is defined in the resource instances
 for the dynamic shared resource indices, `\fBwork\fR', `\fBnetio\fR', and
 `\fBusers\fR', then \s-1LSF_RESOURCES\s0 will be set with the string
 "\fBwork\fR \fBnetio\fR \fBusers\fR".
@@ -189,7 +188,7 @@ or
 The \s-1ELIM\s0 should ensure that the entire load update string
 is written successfully to stdout. This can be done by checking the
 return value of \fBprintf\fR(3) or \fBfprintf\fR(3) if the \s-1ELIM\s0 is implemented
-as C program or the return code of 
+as C program or the return code of
 .BR echo (1)
 from a shell script.
 Failure to write the load update string should cause the \s-1ELIM\s0 to

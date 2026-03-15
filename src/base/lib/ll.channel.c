@@ -987,3 +987,29 @@ const char *chan_addr_str(int ch_id)
     snprintf(buf, sizeof(buf), "%s:%u", ip, ntohs(peer.sin_port));
     return buf;
 }
+
+int chan_client_socket(int domain, int type, int options)
+{
+    if (domain != AF_INET) {
+        return -1;
+    }
+
+    int ch = chan_find_free();
+    if (ch < 0) {
+        return -1;
+    }
+
+    int s = socket(domain, type | SOCK_CLOEXEC, 0);
+    if (s < 0) {
+        return -1;
+    }
+
+    channels[ch].sock = s;
+    channels[ch].chan_events = CHAN_EPOLLNONE;
+    if (type == SOCK_STREAM)
+        channels[ch].type = CHAN_TYPE_TCP_CLIENT;
+    else
+        channels[ch].type = CHAN_TYPE_UDP_CLIENT;
+
+    return ch;
+}

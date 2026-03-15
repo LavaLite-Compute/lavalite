@@ -27,7 +27,6 @@ static void get_load(XDR *xdrs, int ch_id)
 
         snprintf(hosts[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
         hosts[i].status = n->status;
-        hosts[i].num_metrics = NUM_METRICS;
 
         for (int j = 0; j < NUM_METRICS; j++)
             hosts[i].li[j] = n->load_index[j];
@@ -54,7 +53,7 @@ static void get_load(XDR *xdrs, int ch_id)
     xdrmem_create(&xdrs_out, buf->data, bufsiz, XDR_ENCODE);
 
     struct protocol_header hdr;
-    init_pack_hdr(&hdr);
+    init_protocol_header(&hdr);
     hdr.operation = LIM_REPLY_LOAD;
     hdr.status = LIM_OK;
 
@@ -132,7 +131,7 @@ static void get_hosts(XDR *xdrs, int ch_id)
     xdrmem_create(&xdrs_out, buf->data, bufsiz, XDR_ENCODE);
 
     struct protocol_header hdr;
-    init_pack_hdr(&hdr);
+    init_protocol_header(&hdr);
     hdr.operation = LIM_REPLY_HOSTS;
     hdr.status = LIM_OK;
 

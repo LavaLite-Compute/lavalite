@@ -42,7 +42,6 @@ struct protocol_header {
 struct wire_load {
     char hostname[MAXHOSTNAMELEN];
     uint32_t status;
-    uint32_t num_metrics;
     float li[NUM_METRICS];
 };
 
@@ -66,8 +65,8 @@ struct wire_host {
     uint32_t num_cpus;
 };
 
-void init_pack_hdr(struct protocol_header *);
-void init_protocol_hdr(struct protocol_header *);
+void init_protocol_header(struct protocol_header *);
+bool_t ll_encode_msg(XDR *, void *, xdrproc_t, struct protocol_header *);
 bool_t xdr_pack_hdr(XDR *, struct protocol_header *);
 
 bool_t xdr_wire_master(XDR *, struct wire_master *);

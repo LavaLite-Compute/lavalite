@@ -3,7 +3,6 @@
  */
 
 #include "base/lib/ll.sys.h"
-#include "base/lib/ll.wire.h"
 
 struct wire_beacon {
     char cluster[LL_BUFSIZ_32];

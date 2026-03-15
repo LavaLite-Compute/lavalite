@@ -5,37 +5,24 @@
 #include "base/lib/ll.wire.h"
 #include "base/lib/ll.channel.h"
 
-static bool_t marshal_protocol_header(XDR *xdrs, struct protocol_header *header)
+bool_t ll_encode_msg(XDR *xdrs, void *payload,
+                     xdrproc_t xdr_func,
+                     struct protocol_header *hdr)
 {
-    if (!xdr_int32_t(xdrs, &header->sequence))
-        return false;
-    if (!xdr_int32_t(xdrs, &header->operation))
-        return false;
-    if (!xdr_int32_t(xdrs, &header->version))
-        return false;
-    if (!xdr_int32_t(xdrs, &header->length))
-        return false;
-    if (!xdr_int(xdrs, &header->status))
-        return false;
+    xdr_setpos(xdrs, PACKET_HEADER_SIZE);
 
-    return true;
-}
-
-bool_t xdr_pack_hdr(XDR *xdrs, struct protocol_header *header)
-{
-    if (xdrs->x_op == XDR_ENCODE) {
-        header->version = CURRENT_PROTOCOL_VERSION;
-        if (!marshal_protocol_header(xdrs, header))
+    if (payload && xdr_func) {
+        if (!xdr_func(xdrs, payload))
             return false;
-        return true;
     }
 
-    if (xdrs->x_op == XDR_DECODE) {
-        if (!marshal_protocol_header(xdrs, header)) {
-            return false;
-        }
-    }
+    hdr->length = (int)(xdr_getpos(xdrs) - PACKET_HEADER_SIZE);
 
+    xdr_setpos(xdrs, 0);
+    if (!xdr_pack_hdr(xdrs, hdr))
+        return false;
+
+    xdr_setpos(xdrs, hdr->length + PACKET_HEADER_SIZE);
     return true;
 }
 
@@ -45,10 +32,19 @@ void init_protocol_header(struct protocol_header *hdr)
     hdr->version = CURRENT_PROTOCOL_VERSION;
 }
 
-void init_pack_hdr(struct protocol_header *hdr)
+bool_t xdr_pack_hdr(XDR *xdrs, struct protocol_header *hdr)
 {
-    memset(hdr, 0, sizeof(struct protocol_header));
-    hdr->version = CURRENT_PROTOCOL_VERSION;
+    if (!xdr_int32_t(xdrs, &hdr->sequence))
+        return false;
+    if (!xdr_int32_t(xdrs, &hdr->version))
+        return false;
+    if (!xdr_int32_t(xdrs, &hdr->operation))
+        return false;
+    if (!xdr_int32_t(xdrs, &hdr->length))
+        return false;
+    if (!xdr_int32_t(xdrs, &hdr->status))
+        return false;
+    return true;
 }
 
 void xdr_payload_free(bool_t (*xdr_func)(),
@@ -99,10 +95,11 @@ bool_t xdr_wire_load(XDR *xdrs, struct wire_load *wl)
 {
     if (! xdr_opaque(xdrs, wl->hostname, MAXHOSTNAMELEN))
         return false;
-
     if (! xdr_uint32_t(xdrs, &wl->status))
         return false;
-
+    /* num_metrics is always NUM_METRICS on the wire; xdr_vector encodes
+     * a fixed-length array so no count field is needed on the wire.
+     */
     if (! xdr_vector(xdrs, (char *)wl->li, NUM_METRICS,
                     sizeof(float), (xdrproc_t) xdr_float))
         return false;
