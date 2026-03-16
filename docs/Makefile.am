@@ -1,4 +1,4 @@
 #
 #  Copyright (C) LavaLite Contributors
 #
-#SUBDIRS = man
+SUBDIRS = man

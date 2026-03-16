@@ -1,34 +1,79 @@
-mandir = $(prefix)/share/man
+# docs/man/Makefile.am
+PANDOC  = pandoc
+mandir  = $(prefix)/share/man
 
-man1_MANS = man1/lseligible.1 \
-            man1/lsfbase.1 \
-            ...
+MAN1 = man1/bhosts.1 \
+       man1/bjobs.1 \
+       man1/bkill.1 \
+       man1/bmgroup.1 \
+       man1/bqueues.1 \
+       man1/bsub.1 \
+       man1/bswitch.1 \
+       man1/lshosts.1 \
+       man1/lsid.1 \
+       man1/lsload.1
 
-man5_MANS = ...
-man7_MANS = ...
-man8_MANS = ...
+MAN5 = man5/lsb.acct.5 \
+       man5/lsb.events.5 \
+       man5/lsb.hosts.5 \
+       man5/lsb.queues.5 \
+       man5/lsf.cluster.5 \
+       man5/lsf.conf.5
 
-# Markdown sources
-MD_SOURCES = \
-    markdown/lseligible.1.md \
-    markdown/lsfbase.1.md \
-    ...
+MAN8 = man8/lim.8 \
+       man8/mbd.8 \
+       man8/sbd.8
 
-# Pattern rule: .md → .1/.5/.7/.8
-man1/%.1: docs/%.1.md
-    pandoc -s -t man $< -o $@
+man1_MANS = $(MAN1)
+man5_MANS = $(MAN5)
+man8_MANS = $(MAN8)
 
-man5/%.5: docs/%.5.md
-    pandoc -s -t man $< -o $@
+EXTRA_DIST = \
+	markdown/bhosts.1.md \
+	markdown/bjobs.1.md \
+	markdown/bkill.1.md \
+	markdown/bmgroup.1.md \
+	markdown/bqueues.1.md \
+	markdown/bsub.1.md \
+	markdown/bswitch.1.md \
+	markdown/lshosts.1.md \
+	markdown/lsid.1.md \
+	markdown/lsload.1.md \
+	markdown/lsb.acct.5.md \
+	markdown/lsb.events.5.md \
+	markdown/lsb.hosts.5.md \
+	markdown/lsb.queues.5.md \
+	markdown/lsf.cluster.5.md \
+	markdown/lsf.conf.5.md \
+	markdown/lim.8.md \
+	markdown/mbd.8.md \
+	markdown/sbd.8.md
 
-man7/%.7: docs/%.7.md
-    pandoc -s -t man $< -o $@
 
-man8/%.8: docs/%.8.md
-    pandoc -s -t man $< -o $@
+BUILT_SOURCES = $(MAN1) $(MAN5) $(MAN8)
+CLEANFILES    = $(MAN1) $(MAN5) $(MAN8)
 
-# Ensure man pages are rebuilt when Markdown changes
-BUILT_SOURCES = $(man1_MANS) $(man5_MANS) $(man7_MANS) $(man8_MANS)
+man1/bhosts.1:   markdown/bhosts.1.md
+man1/bjobs.1:    markdown/bjobs.1.md
+man1/bkill.1:    markdown/bkill.1.md
+man1/bmgroup.1:  markdown/bmgroup.1.md
+man1/bqueues.1:  markdown/bqueues.1.md
+man1/bsub.1:     markdown/bsub.1.md
+man1/bswitch.1:  markdown/bswitch.1.md
+man1/lshosts.1:  markdown/lshosts.1.md
+man1/lsid.1:     markdown/lsid.1.md
+man1/lsload.1:   markdown/lsload.1.md
 
-EXTRA_DIST = $(MD_SOURCES)
+man5/lsb.acct.5:    markdown/lsb.acct.5.md
+man5/lsb.events.5:  markdown/lsb.events.5.md
+man5/lsb.hosts.5:   markdown/lsb.hosts.5.md
+man5/lsb.queues.5:  markdown/lsb.queues.5.md
+man5/lsf.cluster.5: markdown/lsf.cluster.5.md
+man5/lsf.conf.5:    markdown/lsf.conf.5.md
 
+man8/lim.8: markdown/lim.8.md
+man8/mbd.8: markdown/mbd.8.md
+man8/sbd.8: markdown/sbd.8.md
+
+$(MAN1) $(MAN5) $(MAN8):
+	$(PANDOC) -s -t man $< -o $@

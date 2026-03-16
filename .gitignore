@@ -69,3 +69,7 @@ src/batch/daemons/sbd
 cscope*
 src/lsf/pylib/__pycache__/
 src/lsbatch/compactor/mbd_compact
+man1/
+man5/
+man7/
+man8/
