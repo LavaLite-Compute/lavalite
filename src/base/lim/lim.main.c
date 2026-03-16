@@ -35,9 +35,9 @@ static void light_house(void)
 }
 static int init_chans(void)
 {
-    if (! ll_atoi(ll_params[LSF_LIM_PORT].val, (int *) &lim_udp_port)) {
+    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_udp_port)) {
         errno = EINVAL;
-        LS_ERR("invalid LSF_LIM_PORT=%s", ll_params[LSF_LIM_PORT].val);
+        LS_ERR("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
         return -1;
     }
 
@@ -171,7 +171,7 @@ static int init_daemon(const char *conf_dir)
     ll_hash_init(&node_addr_hash, 1021);
 
     char path[PATH_MAX];
-    int cc = snprintf(path, PATH_MAX, "%s/lsf.conf", conf_dir);
+    int cc = snprintf(path, PATH_MAX, "%s/ll.conf", conf_dir);
     if (cc < 0 || cc > PATH_MAX) {
         LS_ERR("path too long or sprintf error");
         return -1;
@@ -184,9 +184,15 @@ static int init_daemon(const char *conf_dir)
     }
 
     ls_closelog();
-    ls_openlog("lim", ll_params[LSF_LOGDIR].val,
-               lim_debug, 0, ll_params[LSF_LOG_MASK].val);
+    ls_openlog("lim", ll_params[LL_LOGDIR].val,
+               lim_debug, 0, ll_params[LL_LOG_MASK].val);
 
+    cc = snprintf(path, PATH_MAX, "%s/ll.cluster.%s", conf_dir,
+                  ll_params[LL_CLUSTER_NAME].val);
+    if (cc < 0 || cc > PATH_MAX) {
+        LS_ERR("path too long or sprintf error");
+        return -1;
+    }
     cc = make_cluster(path);
     if (cc < 0) {
         LS_ERR("make_cluster failed");
@@ -262,7 +268,7 @@ int main(int argc, char **argv)
     };
 
     int cc;
-    char *conf_dir;
+    char *conf_dir = NULL;
 
     while ((cc = getopt_long(argc, argv, "de:VCh", long_options, NULL)) !=
            EOF) {
@@ -272,7 +278,7 @@ int main(int argc, char **argv)
             break;
         case 'e':
             conf_dir = strdup(optarg);
-            fprintf(stderr, "[lavalite] overriding LSF_ENVDIR=%s\n", optarg);
+            fprintf(stderr, "[lavalite] overriding LL_ENVDIR=%s\n", optarg);
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
@@ -287,8 +293,8 @@ int main(int argc, char **argv)
     ls_openlog("lim", "/tmp", 1, 1, "LOG_DEBUG");
 
     if (conf_dir == NULL) {
-        if ((conf_dir = getenv("LSF_ENVDIR")) == NULL) {
-            fprintf(stderr, "lim: LSF_ENVDIR must be defined, cannot run\n");
+        if ((conf_dir = getenv("LL_ENVDIR")) == NULL) {
+            fprintf(stderr, "lim: LL_ENVDIR must be defined, cannot run\n");
             return -1;
         }
     }

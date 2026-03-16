@@ -3,23 +3,24 @@
  */
 #include "base/lib/ll.conf.h"
 
-struct ll_kv ll_params[LL_PARAMS_COUNT] = {
-    [LSF_CONFDIR]          = {"LSF_CONFDIR",          NULL},
-    [LSF_SERVERDIR]        = {"LSF_SERVERDIR",         NULL},
-    [LSF_LOGDIR]           = {"LSF_LOGDIR",            NULL},
-    [LSF_LIM_DEBUG]        = {"LSF_LIM_DEBUG",         NULL},
-    [LSF_LIM_PORT]         = {"LSF_LIM_PORT",          NULL},
-    [LSF_LOG_MASK]         = {"LSF_LOG_MASK",          NULL},
-    [LSF_DEBUG_LIM]        = {"LSF_DEBUG_LIM",         NULL},
-    [LSF_TIME_LIM]         = {"LSF_TIME_LIM",          NULL},
-    [LSF_API_CONNTIMEOUT]  = {"LSF_API_CONNTIMEOUT",   NULL},
-    [LSF_API_RECVTIMEOUT]  = {"LSF_API_RECVTIMEOUT",   NULL},
-    [LSB_SBD_PORT]         = {"LSB_SBD_PORT",          NULL},
-    [LSB_DEBUG_SBD]        = {"LSB_DEBUG_SBD",         NULL},
-    [LSB_TIME_SBD]         = {"LSB_TIME_SBD",          NULL},
-    [LSB_SBD_CONNTIMEOUT]  = {"LSB_SBD_CONNTIMEOUT",   NULL},
-    [LSB_SBD_READTIMEOUT]  = {"LSB_SBD_READTIMEOUT",   NULL},
-    [LSB_MBD_PORT]         = {"LSB_MBD_PORT",          NULL},
+struct ll_kv ll_params[PARAMS_COUNT] = {
+    [LL_CONFDIR]          = {"LL_CONFDIR",          NULL},
+    [LL_SERVERDIR]        = {"LL_SERVERDIR",         NULL},
+    [LL_LOGDIR]           = {"LL_LOGDIR",            NULL},
+    [LL_LIM_DEBUG]        = {"LL_LIM_DEBUG",         NULL},
+    [LL_LIM_PORT]         = {"LL_LIM_PORT",          NULL},
+    [LL_LOG_MASK]         = {"LL_LOG_MASK",          NULL},
+    [LL_DEBUG_LIM]        = {"LL_DEBUG_LIM",         NULL},
+    [LL_TIME_LIM]         = {"LL_TIME_LIM",          NULL},
+    [LL_API_CONNTIMEOUT]  = {"LL_API_CONNTIMEOUT",   NULL},
+    [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT",   NULL},
+    [LL_SBD_PORT]         = {"LL_SBD_PORT",          NULL},
+    [LL_DEBUG_SBD]        = {"LL_DEBUG_SBD",         NULL},
+    [LL_TIME_SBD]         = {"LL_TIME_SBD",          NULL},
+    [LL_SBD_CONNTIMEOUT]  = {"LL_SBD_CONNTIMEOUT",   NULL},
+    [LL_SBD_READTIMEOUT]  = {"LL_SBD_READTIMEOUT",   NULL},
+    [LL_MBD_PORT]         = {"LL_MBD_PORT",          NULL},
+    [LL_CLUSTER_NAME]      = {"LL_CLUSTER_NAME",       NULL},
 };
 
 char *ltrim(char *s)

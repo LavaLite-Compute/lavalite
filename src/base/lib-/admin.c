@@ -237,8 +237,8 @@ int checkConf(int verbose, int who)
     pid_t pid;
     char *daemon, *lsfEnvDir;
     static struct config_param lsfParams[] = {
-        {"LSF_SERVERDIR", NULL}, {"LSF_CONFDIR", NULL}, {"LSB_CONFDIR", NULL},
-        {"LSB_SHAREDIR", NULL},  {NULL, NULL},
+        {"LL_SERVERDIR", NULL}, {"LSF_CONFDIR", NULL}, {"LSB_CONFDIR", NULL},
+        {"LL_SHAREDIR", NULL},  {NULL, NULL},
     };
     struct config_param *plp;
     int status;
@@ -246,7 +246,7 @@ int checkConf(int verbose, int who)
     int fd;
 
     if (lsfParams[0].paramValue == NULL) {
-        lsfEnvDir = getenv("LSF_ENVDIR");
+        lsfEnvDir = getenv("LL_ENVDIR");
         cc = initenv_(lsfParams, lsfEnvDir);
     }
     if (cc < 0) {

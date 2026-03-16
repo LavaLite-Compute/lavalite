@@ -12,32 +12,33 @@ struct ll_kv {
 
 enum ll_params {
     /* Common */
-    LSF_CONFDIR,
-    LSF_SERVERDIR,
-    LSF_LOGDIR,
-    LSF_LIM_DEBUG,
-    LSF_LIM_PORT,
-    LSF_LOG_MASK,
+    LL_CONFDIR,
+    LL_SERVERDIR,
+    LL_LOGDIR,
+    LL_LIM_DEBUG,
+    LL_LIM_PORT,
+    LL_LOG_MASK,
+    LL_CLUSTER_NAME,
 
     /* LIM */
-    LSF_DEBUG_LIM,
-    LSF_TIME_LIM,
+    LL_DEBUG_LIM,
+    LL_TIME_LIM,
 
     /* lib.common */
-    LSF_API_CONNTIMEOUT,
-    LSF_API_RECVTIMEOUT,
+    LL_API_CONNTIMEOUT,
+    LL_API_RECVTIMEOUT,
 
     /* SBD */
-    LSB_SBD_PORT,
-    LSB_DEBUG_SBD,
-    LSB_TIME_SBD,
-    LSB_SBD_CONNTIMEOUT,
-    LSB_SBD_READTIMEOUT,
+    LL_SBD_PORT,
+    LL_DEBUG_SBD,
+    LL_TIME_SBD,
+    LL_SBD_CONNTIMEOUT,
+    LL_SBD_READTIMEOUT,
 
     /* MBD */
-    LSB_MBD_PORT,
+    LL_MBD_PORT,
     // sentinel so the compiler complain if not in sync with ll_params array
-    LL_PARAMS_COUNT,
+    PARAMS_COUNT,
 };
 extern struct ll_kv ll_params[];
 

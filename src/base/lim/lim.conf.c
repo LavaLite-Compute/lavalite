@@ -205,29 +205,24 @@ static int make_master_candidates(void)
 
 int load_conf(const char *path)
 {
-    if (ll_conf_load(ll_params, LL_PARAMS_COUNT, path) < 0)
+    if (ll_conf_load(ll_params, PARAMS_COUNT, path) < 0)
         return -1;
 
-    char *p = "LSF_CONFDIR";
-    if (ll_conf_param_missing(p, ll_params[LSF_CONFDIR].val)) {
+    char *p;
+    p = "LL_SERVERDIR";
+    if (ll_conf_param_missing(p, ll_params[LL_SERVERDIR].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }
 
-    p = "LSF_SERVERDIR";
-    if (ll_conf_param_missing(p, ll_params[LSF_SERVERDIR].val)) {
+    p = "LL_LOGDIR";
+    if (ll_conf_param_missing(p, ll_params[LL_LOGDIR].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }
 
-    p = "LSF_LOGDIR";
-    if (ll_conf_param_missing(p, ll_params[LSF_LOGDIR].val)) {
-        LS_ERR("missing mandatory parameter %s", p);
-        return -1;
-    }
-
-    p = "LSF_LIM_PORT";
-    if (ll_conf_param_missing(p, ll_params[LSF_LIM_PORT].val)) {
+    p = "LL_LIM_PORT";
+    if (ll_conf_param_missing(p, ll_params[LL_LIM_PORT].val)) {
         LS_ERR("missing mandatory parameter %s", p);
         return -1;
     }

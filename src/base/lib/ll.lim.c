@@ -19,7 +19,7 @@ int ll_init(void)
     if (initialized)
         return 0;
 
-    char *conf_dir = getenv("LSF_ENVDIR");
+    char *conf_dir = getenv("LL_ENVDIR");
     if (conf_dir == NULL)
         return -1;
 
@@ -28,21 +28,21 @@ int ll_init(void)
     if (cc < 0 || cc >= (int)sizeof(path))
         return -1;
 
-    if (ll_conf_load(ll_params, LL_PARAMS_COUNT, path) < 0)
+    if (ll_conf_load(ll_params, PARAMS_COUNT, path) < 0)
         return -1;
 
-    if (ll_params[LSF_LIM_PORT].val == NULL)
+    if (ll_params[LL_LIM_PORT].val == NULL)
         return -1;
 
     int port;
-    if (ll_atoi(ll_params[LSF_LIM_PORT].val, &port) < 0)
+    if (ll_atoi(ll_params[LL_LIM_PORT].val, &port) < 0)
         return -1;
     lim_port = (uint16_t)port;
 
-    if (ll_atoi(ll_params[LSF_API_CONNTIMEOUT].val, &conntimeout) < 0)
+    if (ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout) < 0)
         return -1;
 
-    if (ll_atoi(ll_params[LSF_API_RECVTIMEOUT].val, &recvtimeout) < 0)
+    if (ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout) < 0)
         return -1;
 
     initialized = 1;
