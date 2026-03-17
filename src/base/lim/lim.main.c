@@ -37,25 +37,24 @@ static int init_chans(void)
 {
     if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_udp_port)) {
         errno = EINVAL;
-        LS_ERR("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
+        LS_ERRX("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
+        return -1;
+    }
+
+    if (chan_init() < 0) {
+        LS_ERRX("chan_init failed");
         return -1;
     }
 
     lim_udp_chan = chan_udp_socket(lim_udp_port);
     if (lim_udp_chan < 0) {
-        syslog(LOG_ERR,
-               "%s: unable to create datagram socket port %d "
-               "another LIM running?: %m ",
-               __func__, lim_udp_port);
+        LS_ERRX("chan_udp_socket failed port=%d", lim_udp_port);
         return -1;
     }
 
     tcp_chan = chan_tcp_listen_socket(0);
     if (tcp_chan < 0) {
-        syslog(LOG_ERR,
-               "%s: unable to create tcp socket port %d "
-               "another LIM running?: %m ",
-               __func__, lim_udp_port);
+        LS_ERRX("chan_tcp_listen_socket failed");
         chan_close(tcp_chan);
         chan_close(lim_udp_chan);
         return -1;
@@ -66,8 +65,7 @@ static int init_chans(void)
     int cc = getsockname(chan_sock(tcp_chan), (struct sockaddr *)&lim_addr,
                          &size);
     if (cc < 0) {
-        syslog(LOG_ERR, "%s: getsocknamed(%d) failed: %m", __func__,
-               tcp_chan);
+        LS_ERR("getsocknamed chan=%d failed", tcp_chan);
         chan_close(tcp_chan);
         chan_close(tcp_chan);
         return -1;
@@ -179,11 +177,12 @@ static int init_daemon(const char *conf_dir)
 
     cc = load_conf(path);
     if (cc < 0) {
-        LS_ERR("failed loading config");
+        LS_ERR("failed loading config from=%s", path);
         return -1;
     }
 
     ls_closelog();
+    // Bug this can fail
     ls_openlog("lim", ll_params[LL_LOGDIR].val,
                lim_debug, 0, ll_params[LL_LOG_MASK].val);
 
@@ -338,7 +337,7 @@ int main(int argc, char **argv)
                 time_t t = time(NULL);
 
                 read(chan_sock(ch_id), &expirations, sizeof(expirations));
-                if (t - last_timer > 60 * 15) {
+                if (t - last_timer > 15) {
                     LS_DEBUG("timer run %s", ctime2(NULL));
                     last_timer = t;
                 }

@@ -2,7 +2,7 @@
  * Copyright (C) LavaLite Contributors
  * GPL v2
  */
-#include "include/ll.h"
+#include "ll.h"
 
 static void usage(const char *cmd)
 {

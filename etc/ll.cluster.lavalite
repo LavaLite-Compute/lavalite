@@ -16,6 +16,6 @@ Hostname Resources  Master
 buntu24 (cs gpu)     y
 worker1 (cs gpu)     y
 worker2 (cs arm)     -
-worker3 (cs arm)     -
+worker3 ()     -
 End Hosts
 

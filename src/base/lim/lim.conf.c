@@ -56,7 +56,6 @@ static int parse_admins_section(FILE *f)
         // We support only one for now, verify lim is
         // running as the admin
         lim_cluster.admin = strdup(p);
-        break;
     }
     LS_ERR("ClusterAdmin section: unexpected EOF");
     return -1;
@@ -110,31 +109,63 @@ static char *parse_resources(const char *line)
 
     return strndup(op, cl - op);
 }
+
 static int parse_host_section(FILE *f)
 {
     char line[LL_BUFSIZ_1K];
 
     n_master_candidates = 0;
+
+    /* skip header line: "Hostname Resources Master" */
     while (fgets(line, sizeof(line), f) != NULL) {
         rtrim(line);
         char *p = ltrim(line);
+        if (*p == '\0' || *p == '#')
+            continue;
+        if (strncasecmp(p, "Hostname", 8) == 0)
+            break;
+        LS_ERR("Host section: expected header 'Hostname Resources Master' got='%s'", p);
+        return -1;
+    }
+
+    while (fgets(line, sizeof(line), f) != NULL) {
+        rtrim(line);
+        char *p = ltrim(line);
+
         if (*p == 0 || *p == '#')
             continue;
         if (ll_conf_parse_end(p))
             return 0;
 
-        char hostname[MAXHOSTNAMELEN];
-        char resources[LL_BUFSIZ_64 * 4];
-        char master[4];
-        int n = sscanf(p, "%255s %255s %3s", hostname, resources, master);
-        if (n != 3) {
-            LS_ERR("Host section: expected 'hostname resources master' got='%s'",
-                   p);
+        /* hostname */
+        char *hostname = p;
+        char *q = strpbrk(p, " \t");
+        if (q == NULL) {
+            LS_ERR("Host section: bad format got='%s'", p);
             continue;
         }
+        *q = 0;
+        p = ltrim(q + 1);
 
-        if (strcasecmp(hostname, "Hostname") == 0)
+        /* resources: must have ( ... ) */
+        char *op = strchr(p, '(');
+        char *cl = strchr(p, ')');
+        if (op == NULL || cl == NULL || cl < op) {
+            LS_ERR("Host section: missing () for host=%s got='%s'", hostname, p);
             continue;
+        }
+        p = ltrim(cl + 1);
+
+        /* master flag */
+        char *master = p;
+        q = strpbrk(p, " \t\r\n");
+        if (q != NULL)
+            *q = 0;
+
+        if (*master == 0) {
+            LS_ERR("Host section: missing master flag for host=%s", hostname);
+            return -1;
+        }
 
         if (strcasecmp(master, "Y") != 0 && strcmp(master, "-") != 0) {
             LS_ERR("Host section: invalid master='%s' host=%s", master, hostname);
@@ -145,23 +176,25 @@ static int parse_host_section(FILE *f)
             LS_ERRX("Host section: duplicate host=%s skipped", hostname);
             continue;
         }
+
         struct lim_node *node = node_make(hostname);
         if (node == NULL) {
             LS_ERR("Host section: cannot create node=%s", hostname);
             return -1;
         }
 
-        node->resources = parse_resources(resources);
-
+        node->resources = parse_resources(op);
         node->is_candidate = 0;
         if (strcasecmp(master, "Y") == 0) {
             node->is_candidate = 1;
             ++n_master_candidates;
         }
+
         ll_list_append(&node_list, &node->list);
         ll_hash_insert(&node_name_hash, hostname, node, 0);
         ll_hash_insert(&node_addr_hash, node->host->addr, node, 0);
     }
+
     LS_ERR("Host section: unexpected EOF");
     return -1;
 }
@@ -229,6 +262,21 @@ int load_conf(const char *path)
     return 0;
 }
 
+static int is_admin(void)
+{
+    struct passwd *pw = getpwuid(getuid());
+    if (pw == NULL)
+        return 0;
+
+    if (strcmp(pw->pw_name, lim_cluster.admin) == 0)
+        return 1;
+
+    LS_ERRX("the user=%s is not lavalite admin=%s", pw->pw_name,
+            lim_cluster.admin);
+
+    return 0;
+}
+
 int make_cluster(const char *path)
 {
     char line[LL_BUFSIZ_1K];
@@ -286,6 +334,11 @@ int make_cluster(const char *path)
 
     if (ll_list_is_empty(&node_list)) {
         LS_ERRX("no hosts defined in %s", path);
+        return -1;
+    }
+
+    if (! is_admin()) {
+        LS_ERRX("user is not admin");
         return -1;
     }
 
