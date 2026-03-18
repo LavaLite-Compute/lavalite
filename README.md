@@ -62,11 +62,10 @@ and predictable recovery under failure. The focus is correctness and operational
 stability, not feature breadth.
 
 Work planned for 1.0 includes:
-
-- Multi-host job allocation (`-n`)
-- `eauth` cluster authentication (design complete, implementation pending)
+- General semplification of configuration and user API
+- client and inter-daemon authentication cluster authentication (design complete, implementation pending)
 - Failover and master election
-- GPU and resource-aware scheduling
+- GPU, CPU and memory scheduling based on the concept of allocation
 
 No timeline is committed. 1.0 ships when it is ready and verified.
 
