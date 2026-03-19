@@ -140,9 +140,15 @@ def kill_one(host, kind):
 
 
 def bjobs_active(jobids_set, timeout):
-    """Return set of jobids from jobids_set that are still active in mbd.
-    A job not present in bjobs -a output is considered finished.
-    Returns None if bjobs itself failed."""
+
+    """Return job IDs from jobids_set that are not yet in a final state.
+
+    bjobs -a is the source of truth. Every submitted job must remain
+    visible in mbd until the compactor removes it. Jobs in DONE or EXIT
+    are considered finished. If a job disappears from bjobs -a, that
+    is a verification failure at a higher level.
+    Returns None only if bjobs itself failed."""
+
     cp = run(["bjobs", "-a"], timeout=timeout)
 
     if cp.returncode == 124:
