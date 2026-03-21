@@ -261,40 +261,37 @@ struct ll_host_load *ll_hostload(int *nloads)
 
     void *rep = NULL;
     struct protocol_header reply_hdr;
-    memset(&reply_hdr, 0, sizeof(struct protocol_header));
     if (call_lim_tcp(req, (size_t)req_len, &rep, &reply_hdr) < 0)
         return NULL;
 
-    struct wire_load *wl = NULL;
-    uint32_t n = 0;
+    struct wire_loads wls;
+    memset(&wls, 0, sizeof(struct wire_loads));
+
     XDR xdrs;
     xdrmem_create(&xdrs, rep, (unsigned int)reply_hdr.length, XDR_DECODE);
-    bool_t ok = xdr_wire_load_array(&xdrs, &wl, &n);
+    bool_t ok = xdr_wire_load_array(&xdrs, &wls);
     xdr_destroy(&xdrs);
     free(rep);
-
-    if (!ok || n == 0) {
-        free(wl);
+    if (!ok || wls.nloads == 0) {
+        xdr_free((xdrproc_t)xdr_wire_load_array, &wls);
         lserrno = LL_ERR_PROTO;
         return NULL;
     }
 
-    struct ll_host_load *loads = calloc(n, sizeof(struct ll_host_load));
-    if (loads == NULL) {
-        free(wl);
+    struct ll_host_load *loads = calloc(wls.nloads, sizeof(struct ll_host_load));
+    if (!loads) {
+        xdr_free((xdrproc_t)xdr_wire_load_array, &wls);
         return NULL;
     }
-
-    for (uint32_t i = 0; i < n; i++) {
-        strncpy(loads[i].hostname, wl[i].hostname, MAXHOSTNAMELEN - 1);
+    for (uint32_t i = 0; i < wls.nloads; i++) {
+        strncpy(loads[i].hostname, wls.loads[i].hostname, MAXHOSTNAMELEN - 1);
         loads[i].hostname[MAXHOSTNAMELEN - 1] = 0;
-        loads[i].status      = wl[i].status;
+        loads[i].status      = wls.loads[i].status;
         loads[i].num_metrics = NUM_METRICS;
-        memcpy(loads[i].li, wl[i].li, NUM_METRICS * sizeof(float));
+        memcpy(loads[i].li, wls.loads[i].li, NUM_METRICS * sizeof(float));
     }
-
-    free(wl);
-    *nloads = (int)n;
+    xdr_free((xdrproc_t)xdr_wire_load_array, &wls);
+    *nloads = (int)wls.nloads;
     return loads;
 }
 
@@ -314,41 +311,38 @@ struct ll_host_info *ll_hostinfo(int *nhosts)
     if (call_lim_tcp(req, (size_t)req_len, &rep, &reply_hdr) < 0)
         return NULL;
 
-    struct wire_host *wh = NULL;
-    uint32_t n = 0;
+    struct wire_hosts whs;
+    memset(&whs, 0, sizeof(struct wire_hosts));
     XDR xdrs;
     xdrmem_create(&xdrs, rep, (unsigned int)reply_hdr.length, XDR_DECODE);
-    bool_t ok = xdr_wire_hosts_array(&xdrs, &wh, &n);
+
+    bool_t ok = xdr_wire_host_array(&xdrs, &whs);
     xdr_destroy(&xdrs);
     free(rep);
-
-    if (!ok || n == 0) {
-        free(wh);
+    if (!ok || whs.nhosts == 0) {
         lserrno = LL_ERR_PROTO;
         return NULL;
     }
 
-    struct ll_host_info *hosts = calloc(n, sizeof(struct ll_host_info));
-    if (hosts == NULL) {
-        free(wh);
+    struct ll_host_info *hosts = calloc(whs.nhosts, sizeof(struct ll_host_info));
+    if (!hosts) {
+        xdr_free((xdrproc_t)xdr_wire_host_array, &whs);
         return NULL;
     }
-    for (uint32_t i = 0; i < n; i++) {
-        strncpy(hosts[i].host_name, wh[i].hostname, MAXHOSTNAMELEN - 1);
+
+    for (uint32_t i = 0; i < whs.nhosts; i++) {
+        strncpy(hosts[i].host_name, whs.hosts[i].hostname, MAXHOSTNAMELEN - 1);
         hosts[i].host_name[MAXHOSTNAMELEN - 1] = 0;
-
-        strncpy(hosts[i].host_type, wh[i].machine, LL_BUFSIZE_32 - 1);
+        strncpy(hosts[i].host_type, whs.hosts[i].machine, LL_BUFSIZE_32 - 1);
         hosts[i].host_type[LL_BUFSIZE_32 - 1] = 0;
-
-        hosts[i].num_cpus  = wh[i].num_cpus;
-        hosts[i].max_mem   = wh[i].max_mem;
-        hosts[i].max_swap  = wh[i].max_swap;
-        hosts[i].max_tmp   = wh[i].max_tmp;
-        hosts[i].is_master = wh[i].is_candidate;
+        hosts[i].num_cpus  = whs.hosts[i].num_cpus;
+        hosts[i].max_mem   = whs.hosts[i].max_mem;
+        hosts[i].max_swap  = whs.hosts[i].max_swap;
+        hosts[i].max_tmp   = whs.hosts[i].max_tmp;
+        hosts[i].is_master = whs.hosts[i].is_candidate;
     }
-
-    free(wh);
-    *nhosts = (int)n;
+    xdr_free((xdrproc_t)xdr_wire_host_array, &whs);
+    *nhosts = (int)whs.nhosts;
     return hosts;
 }
 

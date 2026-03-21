@@ -79,7 +79,7 @@ static struct lim_node *node_make(const char *hostname)
     }
 
     n->host = h;
-    n->status = LIM_STAT_OK;
+    n->status = LIM_STAT_CLOSED;
     struct utsname u;
     if (uname(&u) < 0) {
         LS_ERR("uname failed");
@@ -92,6 +92,7 @@ static struct lim_node *node_make(const char *hostname)
     gethostname(buf, sizeof(buf));
     if (strcmp(buf, n->host->name) == 0) {
         me = n;
+        n->status = LIM_STAT_OK;
     }
     return n;
 }

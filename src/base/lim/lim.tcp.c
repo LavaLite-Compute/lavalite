@@ -13,9 +13,9 @@ static void shutdown_tcp_chan(int ch_id)
 
 static void get_load(XDR *xdrs, int ch_id)
 {
-    uint32_t nhosts = ll_list_count(&node_list);
-    struct wire_load *hosts = calloc(nhosts, sizeof(struct wire_load));
-    if (!hosts) {
+    uint32_t nloads = ll_list_count(&node_list);
+    struct wire_load *wl = calloc(nloads, sizeof(struct wire_load));
+    if (!wl) {
         LS_ERR("calloc failed");
          return;
     }
@@ -25,11 +25,11 @@ static void get_load(XDR *xdrs, int ch_id)
     for (e = node_list.head; e != NULL; e = e->next) {
         struct lim_node *n = (struct lim_node *)e;
 
-        snprintf(hosts[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
-        hosts[i].status = n->status;
+        snprintf(wl[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
+        wl[i].status = n->status;
 
         for (int j = 0; j < NUM_METRICS; j++)
-            hosts[i].li[j] = n->load_index[j];
+            wl[i].li[j] = n->load_index[j];
         i++;
     }
 
@@ -38,14 +38,13 @@ static void get_load(XDR *xdrs, int ch_id)
      * header + array length + host records
      */
     size_t bufsiz = sizeof(struct protocol_header) +
-        sizeof(uint32_t) + nhosts * sizeof(struct wire_load)
-        + LL_BUFSIZ_256;
+        sizeof(uint32_t) + nloads * sizeof(struct wire_load) + LL_BUFSIZ_256;
 
     struct chan_buffer *buf;
     if (chan_alloc_buf(&buf, bufsiz) < 0) {
         LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld",
                LIM_REPLY_LOAD, bufsiz);
-        free(hosts);
+        free(wl);
         return;
     }
 
@@ -57,14 +56,15 @@ static void get_load(XDR *xdrs, int ch_id)
     hdr.operation = LIM_REPLY_LOAD;
     hdr.status = LIM_OK;
 
-    if (!xdr_pack_hdr(&xdrs_out, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed");
-        goto fail;
-    }
+    struct wire_loads wls;
+    wls.nloads = nloads;
+    wls.loads = wl;
 
-    if (!xdr_wire_load_array(&xdrs_out, &hosts, &nhosts)) {
-        LS_ERR("xdr_wire_load_array failed");
-        goto fail;
+    if (! ll_encode_msg(&xdrs_out, &wls, xdr_wire_load_array, &hdr)) {
+        LS_ERR("ll_encode_msg failed");
+        chan_free_buf(buf);
+        free(wl);
+        return;
     }
 
     buf->len = (size_t)xdr_getpos(&xdrs_out);
@@ -73,20 +73,14 @@ static void get_load(XDR *xdrs, int ch_id)
                chan_addr_str(ch_id), buf->len);
         xdr_destroy(&xdrs_out);
         chan_free_buf(buf);
-        free(hosts);
+        free(wl);
         return;
     }
 
     chan_set_write_interest(ch_id, lim_efd, 1);
 
     xdr_destroy(&xdrs_out);
-    free(hosts);
-    return;
-
-fail:
-    xdr_destroy(&xdrs_out);
-    chan_free_buf(buf);
-    free(hosts);
+    free(wl);
 }
 
 static void get_hosts(XDR *xdrs, int ch_id)
@@ -105,6 +99,7 @@ static void get_hosts(XDR *xdrs, int ch_id)
 
         snprintf(wh[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
         snprintf(wh[i].machine, LL_BUFSIZ_32, "%s", n->machine);
+        wh[i].is_candidate = n->is_candidate;
         wh[i].max_mem = n->max_mem;
         wh[i].max_swap = n->max_swap;
         wh[i].max_tmp = n->max_tmp;
@@ -129,22 +124,22 @@ static void get_hosts(XDR *xdrs, int ch_id)
         return;
     }
 
-    XDR xdrs_out;
-    xdrmem_create(&xdrs_out, buf->data, bufsiz, XDR_ENCODE);
-
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = LIM_REPLY_HOSTS;
     hdr.status = LIM_OK;
 
-    if (!xdr_pack_hdr(&xdrs_out, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed");
-        goto fail;
-    }
+    XDR xdrs_out;
+    xdrmem_create(&xdrs_out, buf->data, bufsiz, XDR_ENCODE);
 
-    if (!xdr_wire_hosts_array(&xdrs_out, &wh, &nhosts)) {
-        LS_ERR("xdr_wire_load_array failed");
-        goto fail;
+    struct wire_hosts whs;
+    whs.nhosts = nhosts;
+    whs.hosts = wh;
+
+    if (! ll_encode_msg(&xdrs_out, &whs, xdr_wire_host_array, &hdr)) {
+        LS_ERR("ll_encode_msg failed");
+        chan_free_buf(buf);
+        return;
     }
 
     buf->len = (size_t)xdr_getpos(&xdrs_out);
@@ -157,15 +152,11 @@ static void get_hosts(XDR *xdrs, int ch_id)
         return;
     }
 
+    chan_set_write_interest(ch_id, lim_efd, 1);
     xdr_destroy(&xdrs_out);
-    free(wh);
-    return;
-
-fail:
-    xdr_destroy(&xdrs_out);
-    chan_free_buf(buf);
     free(wh);
 }
+
 static const char *proto_to_str(int32_t op)
 {
     switch (op) {

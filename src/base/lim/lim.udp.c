@@ -280,7 +280,7 @@ static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
     char buf[LL_BUFSIZE_256];
     XDR xdrs2;
     xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs2, &wm, (xdrproc_t)xdr_wire_master, &hdr)) {
+    if (!ll_encode_msg(&xdrs2, &wm, xdr_wire_master, &hdr)) {
         LS_ERRX("ll_encode_msg from=%s failed", addr_to_str(from));
         xdr_destroy(&xdrs2);
         return;

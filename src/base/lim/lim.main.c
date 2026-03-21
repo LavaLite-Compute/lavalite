@@ -273,6 +273,7 @@ int main(int argc, char **argv)
     LS_INFO("lim started: %s", LAVALITE_VERSION_STR);
 
     init_read_proc();
+    read_proc();
     is_master();
     croaked = 0;
 

@@ -6,8 +6,7 @@
 #include "base/lib/ll.channel.h"
 
 bool_t ll_encode_msg(XDR *xdrs, void *payload,
-                     xdrproc_t xdr_func,
-                     struct protocol_header *hdr)
+                     bool_t (*xdr_func)(), struct protocol_header *hdr)
 {
     xdr_setpos(xdrs, PACKET_HEADER_SIZE);
 
@@ -47,21 +46,9 @@ bool_t xdr_pack_hdr(XDR *xdrs, struct protocol_header *hdr)
     return true;
 }
 
-void xdr_payload_free(bool_t (*xdr_func)(),
-                      void *payload, struct protocol_header *hdr)
+bool_t xdr_wire_host_array(XDR *xdrs, struct wire_hosts *whs)
 {
-    XDR xdrs;
-
-    xdrmem_create(&xdrs, NULL, 0, XDR_FREE);
-
-    (*xdr_func)(&xdrs, payload, hdr);
-
-    xdr_destroy(&xdrs);
-}
-
-bool_t xdr_wire_hosts_array(XDR *xdrs, struct wire_host **hosts, uint32_t *n)
-{
-    return xdr_array(xdrs, (char **)hosts, n, INT32_MAX,
+    return xdr_array(xdrs, (char **)&whs->hosts, &whs->nhosts, INT32_MAX,
                      sizeof(struct wire_host), (xdrproc_t)xdr_wire_host);
 }
 
@@ -85,9 +72,9 @@ bool_t xdr_wire_host(XDR *xdrs, struct wire_host *wh)
     return true;
 }
 
-bool_t xdr_wire_load_array(XDR *xdrs, struct wire_load **hosts, uint32_t *n)
+bool_t xdr_wire_load_array(XDR *xdrs, struct wire_loads *wls)
 {
-    return xdr_array(xdrs, (char **)hosts, n, INT32_MAX,
+    return xdr_array(xdrs, (char **)&wls->loads, &wls->nloads, INT32_MAX,
                      sizeof(struct wire_load), (xdrproc_t)xdr_wire_load);
 }
 
