@@ -529,26 +529,24 @@ ssize_t chan_read_nonblock(int ch_id, void *buf, size_t len, int timeout_sec)
     return (ssize_t) total_read;
 }
 
-int chan_rpc(int ch_id, struct chan_buffer *in, struct chan_buffer *out,
-             struct protocol_header *out_hdr, int timeout)
+int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
+             struct protocol_header *hdr, int timeout)
 {
-    if (in) {
-        if (chan_write(ch_id, in->data, in->len) != in->len)
+    if (chan_write(ch_id, snd->data, snd->len) != snd->len)
+        return -1;
+
+    if (snd->forw != NULL) {
+        struct chan_buffer *buf = snd->forw;
+        int nlen = htonl(buf->len);
+
+        if (chan_write(ch_id, &nlen, sizeof(int)) != sizeof(int))
             return -1;
 
-        if (in->forw != NULL) {
-            struct chan_buffer *buf = in->forw;
-            int nlen = htonl(buf->len);
-
-            if (chan_write(ch_id, &nlen, sizeof(int)) != sizeof(int))
-                return -1;
-
-            if (chan_write(ch_id, buf->data, buf->len) != buf->len)
-                return -1;
-        }
+        if (chan_write(ch_id, buf->data, buf->len) != buf->len)
+            return -1;
     }
 
-    if (!out) {
+    if (!rcv) {
         return 0;
     }
 
@@ -561,22 +559,22 @@ int chan_rpc(int ch_id, struct chan_buffer *in, struct chan_buffer *out,
         return -1;
     }
 
-    cc = recv_protocol_header(ch_id, out_hdr);
+    cc = recv_protocol_header(ch_id, hdr);
     if (cc < 0) {
         return -1;
     }
 
-    out->data = NULL;
-    out->len = out_hdr->length;
-    if (out->len == 0)
+    rcv->data = NULL;
+    rcv->len = hdr->length;
+    if (rcv->len == 0)
         return 0;
 
-    if ((out->data = calloc(out->len, sizeof(char))) == NULL) {
+    if ((rcv->data = calloc(rcv->len, sizeof(char))) == NULL) {
         return -1;
     }
 
-    if ((cc = chan_read(ch_id, out->data, out->len)) != out->len) {
-        free(out->data);
+    if ((cc = chan_read(ch_id, rcv->data, rcv->len)) != rcv->len) {
+        free(rcv->data);
         return -1;
     }
 
@@ -772,6 +770,7 @@ ssize_t chan_read(int ch_id, void *buf, size_t len)
 
         if (cc == 0) {
             // Peer closed connection
+            errno = 0;
             return -1;
         }
 
@@ -819,51 +818,12 @@ ssize_t chan_write(int ch_id, void *buf, size_t len)
 int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
                     int timeout_sec)
 {
-    int flags = fcntl(s, F_GETFL, 0);
-    if (flags < 0)
+    struct timeval tv = { .tv_sec = timeout_sec, .tv_usec = 0 };
+
+    if (setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0)
         return -1;
 
-    if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0)
-        return -1;
-
-    int rc = connect(s, name, namelen);
-    if (rc == 0) {
-        // Connected immediately
-        fcntl(s, F_SETFL, flags); // Restore flags
-        return 0;
-    }
-
-    if (errno != EINPROGRESS) {
-        // Immediate failure
-        fcntl(s, F_SETFL, flags); // Restore flags
-        return -1;
-    }
-
-    // Initialize poll data structure
-    struct pollfd pfd = {.fd = s, .events = POLLOUT};
-
-    rc = poll(&pfd, 1, timeout_sec * 1000);
-    if (rc <= 0) {
-        // Timeout or poll error
-        errno = (rc == 0) ? ETIMEDOUT : errno;
-        fcntl(s, F_SETFL, flags); // Restore original flags
-        return -1;
-    }
-
-    int err = 0;
-    socklen_t errlen = sizeof(err);
-    if (getsockopt(s, SOL_SOCKET, SO_ERROR, &err, &errlen) < 0) {
-        fcntl(s, F_SETFL, flags); // Restore flags
-        return -1;
-    }
-
-    fcntl(s, F_SETFL, flags); // Restore original flags
-    if (err != 0) {
-        errno = err;
-        return -1;
-    }
-
-    return 0;
+    return connect(s, name, namelen);
 }
 
 int send_protocol_header(int ch_id, struct protocol_header *hdr)

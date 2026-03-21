@@ -77,6 +77,8 @@ static void get_load(XDR *xdrs, int ch_id)
         return;
     }
 
+    chan_set_write_interest(ch_id, lim_efd, 1);
+
     xdr_destroy(&xdrs_out);
     free(hosts);
     return;
@@ -202,12 +204,10 @@ static void tcp_dispatch(int ch_id)
     case LIM_GET_LOAD:
         get_load(&xdrs, ch_id);
         xdr_destroy(&xdrs);
-        shutdown_tcp_chan(ch_id);
         break;
     case LIM_GET_HOSTS:
         get_hosts(&xdrs, ch_id);
         xdr_destroy(&xdrs);
-        shutdown_tcp_chan(ch_id);
         break;
     default:
         LS_ERR("invalid operation %d", hdr.operation);

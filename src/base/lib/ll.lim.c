@@ -228,8 +228,8 @@ static int call_lim_tcp(const void *req, size_t req_len,
     struct chan_buffer sndbuf = {.data = (void *)req, .len = req_len};
     struct chan_buffer rcvbuf = {0};
 
-    if (chan_rpc(lim_chan_tcp, &sndbuf, &rcvbuf, reply_hdr,
-                 recvtimeout * 1000) < 0) {
+    // timeout is in seconds
+    if (chan_rpc(lim_chan_tcp, &sndbuf, &rcvbuf, reply_hdr, recvtimeout) < 0) {
         lserrno = LL_ERR_LIM_DOWN;
         chan_close(lim_chan_tcp);
         lim_chan_tcp = -1;
@@ -261,6 +261,7 @@ struct ll_host_load *ll_hostload(int *nloads)
 
     void *rep = NULL;
     struct protocol_header reply_hdr;
+    memset(&reply_hdr, 0, sizeof(struct protocol_header));
     if (call_lim_tcp(req, (size_t)req_len, &rep, &reply_hdr) < 0)
         return NULL;
 
