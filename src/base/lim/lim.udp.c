@@ -56,13 +56,13 @@ static void send_beacon(void)
         struct sockaddr_in to;
         memset(&to, 0, sizeof(to));
         to.sin_family = AF_INET;
-        to.sin_port   = htons(lim_udp_port);
+        to.sin_port   = htons(udp_port);
 
         get_host_sinaddrv4(n->host, &to);
 
         LS_DEBUG("sending beacon to=%s", addr_to_str(&to));
 
-        if (chan_send_dgram(lim_udp_chan, buf, xdr_getpos(&xdrs), &to) < 0) {
+        if (chan_send_dgram(udp_chan, buf, xdr_getpos(&xdrs), &to) < 0) {
             LS_ERR("chan_send_dgram to=%s failed", addr_to_str(&to));
             xdr_destroy(&xdrs);
             return;
@@ -165,12 +165,12 @@ static int send_load_report(void)
     struct sockaddr_in to_addr;
     memset(&to_addr, 0, sizeof(to_addr));
     to_addr.sin_family = AF_INET;
-    to_addr.sin_port = htons(lim_udp_port);
+    to_addr.sin_port = htons(udp_port);
     get_host_sinaddrv4(current_master.node->host, &to_addr);
 
     LS_DEBUG("lim=%s len=%lu", current_master.node->host->name, len);
 
-    if (chan_send_dgram(lim_udp_chan, buf, len, &to_addr) < 0) {
+    if (chan_send_dgram(udp_chan, buf, len, &to_addr) < 0) {
         LS_ERR("send to %s failed",  current_master.node->host->name);
         xdr_destroy(&xdrs);
         return -1;
@@ -253,7 +253,7 @@ static void get_cluster_name(XDR *xdrs, struct sockaddr_in *from,
         return;
     }
 
-    if (chan_send_dgram(lim_udp_chan, buf, xdr_getpos(&xdrs2), from) < 0) {
+    if (chan_send_dgram(udp_chan, buf, xdr_getpos(&xdrs2), from) < 0) {
         LS_ERR("chan_send_dgram to=%s failed", addr_to_str(from));
         xdr_destroy(&xdrs2);
         return;
@@ -289,7 +289,7 @@ static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
         return;
     }
 
-    if (chan_send_dgram(lim_udp_chan, buf, xdr_getpos(&xdrs2), from) < 0)
+    if (chan_send_dgram(udp_chan, buf, xdr_getpos(&xdrs2), from) < 0)
         LS_ERR("chan_send_dgram to=%s failed", addr_to_str(from));
 
     xdr_destroy(&xdrs2);
@@ -329,15 +329,10 @@ int udp_message(void)
     memset(&from, 0, sizeof(from));
 
     char buf[LL_BUFSIZ_4K];
-    int cc = chan_recv_dgram(lim_udp_chan, buf, sizeof(buf),
-                             (struct sockaddr_storage *) &from, -1);
+    int cc = chan_recv_dgram(udp_chan, buf, sizeof(buf),
+                             (struct sockaddr_in *) &from, -1);
     if (cc < 0) {
-        LS_ERR("error receiving data on lim_udp_chan=%d", lim_udp_chan);
-        return -1;
-    }
-
-    if (from.sin_port != ntohs(lim_udp_port)) {
-        LS_ERRX("source port is from=%s", addr_to_str(&from));
+        LS_ERR("error receiving data on udp_chan=%d", udp_chan);
         return -1;
     }
 

@@ -40,6 +40,7 @@ enum ll_params {
     // sentinel so the compiler complain if not in sync with ll_params array
     PARAMS_COUNT,
 };
+
 extern struct ll_kv ll_params[];
 
 /* Load KEY=VALUE pairs from path into items[0..nitems-1].

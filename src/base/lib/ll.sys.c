@@ -192,3 +192,22 @@ struct passwd *getpwnam2(const char *name)
     }
     return NULL;
 }
+
+int ll_set_limits(void)
+{
+    struct rlimit rl;
+
+    if (getrlimit(RLIMIT_NOFILE, &rl) < 0)
+        return -1;
+    rl.rlim_cur = rl.rlim_max;
+    if (setrlimit(RLIMIT_NOFILE, &rl) < 0)
+        return -1;
+
+    if (getrlimit(RLIMIT_CORE, &rl) < 0)
+        return -1;
+    rl.rlim_cur = rl.rlim_max;
+    if (setrlimit(RLIMIT_CORE, &rl) < 0)
+        return -1;
+
+    return 0;
+}

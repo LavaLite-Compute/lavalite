@@ -4,9 +4,7 @@
 
 #include "base/lib/ll.channel.h"
 
-long chan_open_max;
-struct chan_data *channels;
-static int epoll_fd;
+struct chan_data channels[CHAN_MAX];
 
 static void buf_remove(struct chan_buffer *entry)
 {
@@ -177,7 +175,7 @@ static void dowrite(struct chan_data *chan, int chan_id, int efd)
 
 static int chan_find_free(void)
 {
-    for (int i = 0; i < chan_open_max; i++) {
+    for (int i = 0; i < CHAN_MAX; i++) {
         if (channels[i].sock == -1) {
             channels[i].send = NULL;
             channels[i].recv = NULL;
@@ -187,9 +185,9 @@ static int chan_find_free(void)
     return -1;
 }
 
-static inline int chan_is_udp(enum chanType t)
+static inline int chan_is_udp(enum chan_type t)
 {
-    if (t != CHAN_TYPE_UDP_CLIENT && t != CHAN_TYPE_UDP_LISTEN)
+    if (t != UDP_CLIENT && t != UDP_LISTEN)
         return 0;
 
     return 1;
@@ -197,7 +195,7 @@ static inline int chan_is_udp(enum chanType t)
 
 static inline int chan_is_valid(int ch_id)
 {
-    if (ch_id < 0 || ch_id > chan_open_max) {
+    if (ch_id < 0 || ch_id > CHAN_MAX) {
         return 0;
     }
 
@@ -208,30 +206,23 @@ static inline int chan_is_valid(int ch_id)
     return 1;
 }
 
-int chan_init(void)
+void chan_init(void)
 {
-    if (channels)
-        return 0;
+    static int initialised;
 
-    chan_open_max = sysconf(_SC_OPEN_MAX);
-    if (chan_open_max < 0)
-        return -1;
+    if (initialised)
+        return;
 
-    channels = calloc(chan_open_max, sizeof(struct chan_data));
-    if (channels == NULL)
-        return -1;
-
-    for (int i = 0; i < chan_open_max; i++) {
+    for (int i = 0; i < CHAN_MAX; i++) {
         channels[i].sock = -1;
         channels[i].chan_events = CHAN_EPOLLNONE;
     }
-
-    return 0;
+    initialised = 1;
 }
 
 int chan_sock(int ch_id)
 {
-    if (ch_id < 0 || ch_id > chan_open_max) {
+    if (ch_id < 0 || ch_id > CHAN_MAX) {
         return -1;
     }
 
@@ -269,7 +260,7 @@ int chan_udp_socket(u_short port)
         return -1;
     }
 
-    channels[ch_id].type = CHAN_TYPE_UDP_LISTEN;
+    channels[ch_id].type = UDP_LISTEN;
 
     return ch_id;
 }
@@ -311,7 +302,7 @@ int chan_tcp_listen_socket(u_short port)
         return -1;
     }
 
-    channels[ch_id].type = CHAN_TYPE_TCP_LISTEN;
+    channels[ch_id].type = TCP_LISTEN;
 
     return ch_id;
 }
@@ -328,7 +319,7 @@ int chan_udp_client_socket(void)
 
     channels[ch].sock = s;
     channels[ch].chan_events = CHAN_EPOLLNONE;
-    channels[ch].type = CHAN_TYPE_UDP_CLIENT;
+    channels[ch].type = UDP_CLIENT;
 
     return ch;
 }
@@ -345,34 +336,23 @@ int chan_tcp_client_socket(void)
 
     channels[ch].sock = s;
     channels[ch].chan_events = CHAN_EPOLLNONE;
-    channels[ch].type = CHAN_TYPE_TCP_CLIENT;
+    channels[ch].type = TCP_CLIENT;
 
     return ch;
 }
 
 int chan_accept(int ch_id, struct sockaddr_in *from)
 {
-    int s;
+    if (channels[ch_id].type != TCP_LISTEN) {
+        return -1;
+    }
+
     socklen_t len = sizeof(struct sockaddr);
-
-    if (channels[ch_id].type != CHAN_TYPE_TCP_LISTEN) {
+    int s = accept(channels[ch_id].sock, (struct sockaddr *) from, &len);
+    if (s < 0)
         return -1;
-    }
 
-    while (1) {
-        s = accept(channels[ch_id].sock, (struct sockaddr *) from, &len);
-        if (s >= 0)
-            break;
-
-        // The system call was interrupted by a signal that was caught  be‐
-        // fore a valid connection arrived;
-        if (errno == EINTR)
-            continue;
-
-        return -1;
-    }
-
-    return chan_open_sock(s, CHAN_OP_NONBLOCK);
+    return chan_open(s);
 }
 
 // If connection fails the caller is expected to free the channel
@@ -383,7 +363,7 @@ int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
     (void) options; // unused for now
 
     // No more connected UDP; use chan_send_dgram/chan_recv_dgram instead.
-    if (channels[ch_id].type != CHAN_TYPE_TCP_CLIENT) {
+    if (channels[ch_id].type != TCP_CLIENT) {
         return -1;
     }
     // No peer for this channel?
@@ -416,7 +396,7 @@ int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
 
 // Client call
 int chan_recv_dgram(int ch_id, void *buf, size_t len,
-                    struct sockaddr_storage *peer, int timeout)
+                    struct sockaddr_in *peer, int timeout)
 {
     // We can receive dgram packets on both client udp but
     // also on listening if we are master lim
@@ -424,7 +404,7 @@ int chan_recv_dgram(int ch_id, void *buf, size_t len,
         return -1;
     }
 
-    socklen_t peersize = sizeof(struct sockaddr_storage);
+    socklen_t peersize = sizeof(struct sockaddr_in);
     int sock = chan_sock(ch_id);
 
     int cc = rd_poll(sock, timeout);
@@ -443,19 +423,17 @@ int chan_recv_dgram(int ch_id, void *buf, size_t len,
     return cc;
 }
 // Open channel after accept
-int chan_open_sock(int s, int options)
+int chan_open(int s)
 {
     int i;
 
-    if ((i = chan_find_free()) < 0) {
+    if ((i = chan_find_free()) < 0)
         return -1;
-    }
 
-    if ((options & CHAN_OP_NONBLOCK) && (io_non_block(s) < 0)) {
+    if (io_non_block(s) < 0)
         return -1;
-    }
 
-    channels[i].type = CHAN_TYPE_TCP_CONNECT;
+    channels[i].type = TCP_CONNECT;
     channels[i].sock = s;
 
     channels[i].send = make_buf();
@@ -472,7 +450,7 @@ int chan_close(int ch_id)
     struct chan_buffer *buf;
     struct chan_buffer *nextbuf;
 
-    if (ch_id < 0 || ch_id > chan_open_max) {
+    if (ch_id < 0 || ch_id > CHAN_MAX) {
         return -1;
     }
 
@@ -665,15 +643,15 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
             continue;
         }
 
-        if (chan->type == CHAN_TYPE_TCP_LISTEN) {
+        if (chan->type == TCP_LISTEN) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
-        if (chan->type == CHAN_TYPE_UDP_LISTEN) {
+        if (chan->type == UDP_LISTEN) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
-        if (chan->type == CHAN_TYPE_TIMER) {
+        if (chan->type == TIMER_FD) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
@@ -755,7 +733,7 @@ int chan_create_timer(int seconds)
 
     // set the time in the channel socket
     channels[ch].sock = tfd;
-    channels[ch].type = CHAN_TYPE_TIMER;
+    channels[ch].type = TIMER_FD;
 
     // Reload the time
     struct itimerspec its;
@@ -787,9 +765,7 @@ int chan_sock_error(int ch_id)
 
 int chan_set_write_interest(int ch_id, int efd, int on)
 {
-    // epoll_fd is process-global: each daemon has a single epoll instance,
-    // initialized by chan_epoll() before any channel I/O.
-    if (epoll_fd < 0) {
+    if (efd < 0) {
         errno = EINVAL;
         return -1;
     }
@@ -802,8 +778,7 @@ int chan_set_write_interest(int ch_id, int efd, int on)
     }
     ev.data.u32 = (uint32_t)ch_id;
 
-    // The epoll_fd is set globally by the chan_epoll
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
+    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
         return -1;
     }
 
@@ -988,28 +963,32 @@ const char *chan_addr_str(int ch_id)
     return buf;
 }
 
-int chan_client_socket(int domain, int type, int options)
+int chan_udp_client(void)
 {
-    if (domain != AF_INET) {
-        return -1;
-    }
-
     int ch = chan_find_free();
-    if (ch < 0) {
+    if (ch < 0)
         return -1;
-    }
 
-    int s = socket(domain, type | SOCK_CLOEXEC, 0);
-    if (s < 0) {
+    int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    if (s < 0)
         return -1;
-    }
 
     channels[ch].sock = s;
+    channels[ch].type = UDP_CLIENT;
     channels[ch].chan_events = CHAN_EPOLLNONE;
-    if (type == SOCK_STREAM)
-        channels[ch].type = CHAN_TYPE_TCP_CLIENT;
-    else
-        channels[ch].type = CHAN_TYPE_UDP_CLIENT;
+    return ch;
+}
 
+int chan_tcp_client(void)
+{
+    int ch = chan_find_free();
+    if (ch < 0)
+        return -1;
+    int s = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (s < 0)
+        return -1;
+    channels[ch].sock = s;
+    channels[ch].type = TCP_CLIENT;
+    channels[ch].chan_events = CHAN_EPOLLNONE;
     return ch;
 }

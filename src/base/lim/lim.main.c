@@ -5,15 +5,14 @@
 
 #include "base/lim/lim.h"
 
-int lim_udp_chan = -1;
+int udp_chan = -1;
 int tcp_chan = -1;
-int lim_timer_chan = -1;
-uint16_t lim_udp_port;
-uint16_t lim_tcp_port;
+static int timer_chan = -1;
+uint16_t udp_port;
 int lim_debug;
 
 int lim_efd;
-static struct epoll_event *lim_events;
+static struct epoll_event lim_events[CHAN_MAX];
 
 struct ll_list node_list;
 struct ll_hash node_name_hash;
@@ -35,20 +34,17 @@ static void light_house(void)
 }
 static int init_chans(void)
 {
-    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_udp_port)) {
+    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &udp_port)) {
         errno = EINVAL;
         LS_ERRX("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
         return -1;
     }
 
-    if (chan_init() < 0) {
-        LS_ERRX("chan_init failed");
-        return -1;
-    }
+    chan_init();
 
-    lim_udp_chan = chan_udp_socket(lim_udp_port);
-    if (lim_udp_chan < 0) {
-        LS_ERRX("chan_udp_socket failed port=%d", lim_udp_port);
+    udp_chan = chan_udp_socket(udp_port);
+    if (udp_chan < 0) {
+        LS_ERRX("chan_udp_socket failed port=%d", udp_port);
         return -1;
     }
 
@@ -56,7 +52,7 @@ static int init_chans(void)
     if (tcp_chan < 0) {
         LS_ERRX("chan_tcp_listen_socket failed");
         chan_close(tcp_chan);
-        chan_close(lim_udp_chan);
+        chan_close(udp_chan);
         return -1;
     }
 
@@ -77,32 +73,9 @@ static int init_chans(void)
 
     // This is not a channel, just a fake name for the time
     // that goes in the data structure
-    lim_timer_chan = chan_create_timer(5);
-    if (lim_timer_chan < 0) {
-        chan_close(lim_udp_chan);
-        chan_close(tcp_chan);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int create_epoll(void)
-{
-    // epoll file descriptor
-    lim_efd = epoll_create1(0);
-    if (lim_efd < 0) {
-        LS_ERR("%s: epoll_create1() failed: %m", __func__);
-        chan_close(tcp_chan);
-        chan_close(tcp_chan);
-        return -1;
-    }
-
-    // The global array of epoll_event
-    lim_events = calloc(chan_open_max, sizeof(struct epoll_event));
-    if (lim_events == NULL) {
-        LS_ERR("%s: calloc failed %m", __func__);
-        chan_close(tcp_chan);
+    timer_chan = chan_create_timer(5);
+    if (timer_chan < 0) {
+        chan_close(udp_chan);
         chan_close(tcp_chan);
         return -1;
     }
@@ -123,9 +96,18 @@ static int add_listener(int lim_efd, int fd, int ch_id)
 static int init_network(void)
 {
     init_chans();
-    create_epoll();
 
-    if (add_listener(lim_efd, chan_sock(lim_udp_chan), lim_udp_chan) < 0) {
+    // epoll file descriptor
+    lim_efd = epoll_create1(0);
+    if (lim_efd < 0) {
+        LS_ERR("%s: epoll_create1() failed: %m", __func__);
+        chan_close(tcp_chan);
+        chan_close(udp_chan);
+        chan_close(timer_chan);
+        return -1;
+    }
+
+    if (add_listener(lim_efd, chan_sock(udp_chan), udp_chan) < 0) {
         syslog(LOG_ERR, "Failed to add UDP listener: %m");
         goto cleanup;
     }
@@ -135,7 +117,7 @@ static int init_network(void)
         goto cleanup;
     }
 
-    if (add_listener(lim_efd, chan_sock(lim_timer_chan), lim_timer_chan) < 0) {
+    if (add_listener(lim_efd, chan_sock(timer_chan), timer_chan) < 0) {
         LS_ERR("%s: Failed to add timer: %m", __func__);
         goto cleanup;
     }
@@ -143,9 +125,9 @@ static int init_network(void)
     return 0;
 
 cleanup:
-    chan_close(lim_udp_chan);
+    chan_close(udp_chan);
     chan_close(tcp_chan);
-    close(lim_timer_chan);
+    close(timer_chan);
     return -1;
 
     return 0;
@@ -315,7 +297,7 @@ int main(int argc, char **argv)
         if (croaked)
             break;
 
-        int nfd = chan_epoll(lim_efd, lim_events, 1024, -1);
+        int nfd = chan_epoll(lim_efd, lim_events, CHAN_MAX, -1);
         if (nfd < 0) {
             if (errno != EINTR) {
                 syslog(LOG_ERR, "chan_epoll");
@@ -331,7 +313,7 @@ int main(int argc, char **argv)
             struct epoll_event *e = &lim_events[i];
             int ch_id = e->data.u32;
 
-            if (ch_id == lim_timer_chan) {
+            if (ch_id == timer_chan) {
                 uint64_t expirations;
                 static time_t last_timer;
                 time_t t = time(NULL);
@@ -345,7 +327,7 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            if (ch_id == lim_udp_chan) {
+            if (ch_id == udp_chan) {
                 udp_message();
                 continue;
             }

@@ -24,7 +24,7 @@ int ll_init(void)
         return -1;
 
     char path[PATH_MAX];
-    int cc = snprintf(path, sizeof(path), "%s/lsf.conf", conf_dir);
+    int cc = snprintf(path, sizeof(path), "%s/ll.conf", conf_dir);
     if (cc < 0 || cc >= (int)sizeof(path))
         return -1;
 
@@ -35,15 +35,17 @@ int ll_init(void)
         return -1;
 
     int port;
-    if (ll_atoi(ll_params[LL_LIM_PORT].val, &port) < 0)
+    if (! ll_atoi(ll_params[LL_LIM_PORT].val, &port))
         return -1;
     lim_port = (uint16_t)port;
 
-    if (ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout) < 0)
+    if (! ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout))
         return -1;
 
-    if (ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout) < 0)
+    if (! ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout))
         return -1;
+
+    chan_init();
 
     initialized = 1;
     return 0;
@@ -79,13 +81,7 @@ static int call_lim_udp(int opcode, char *rep, size_t rep_size)
     if (ll_init() < 0)
         return -1;
 
-    struct sockaddr_in lim_addr = {
-        .sin_family      = AF_INET,
-        .sin_addr.s_addr = htonl(INADDR_LOOPBACK),
-        .sin_port        = htons(lim_port),
-    };
-
-    int ch = chan_client_socket(AF_INET, SOCK_DGRAM, 0);
+    int ch = chan_udp_client();
     if (ch < 0)
         return -1;
 
@@ -96,13 +92,19 @@ static int call_lim_udp(int opcode, char *rep, size_t rep_size)
         return -1;
     }
 
+    struct sockaddr_in lim_addr = {
+        .sin_family      = AF_INET,
+        .sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+        .sin_port        = htons(lim_port),
+    };
+
     if (chan_send_dgram(ch, req, (size_t)req_len, &lim_addr) < 0) {
         chan_close(ch);
         return -1;
     }
 
-    struct sockaddr_storage from;
-    if (chan_recv_dgram(ch, rep, rep_size, &from, conntimeout * 1000) < 0) {
+    struct sockaddr_in from;
+    if (chan_recv_dgram(ch, rep, rep_size, &from, recvtimeout * 1000) < 0) {
         chan_close(ch);
         return -1;
     }
@@ -209,7 +211,7 @@ static int call_lim_tcp(const void *req, size_t req_len,
     }
 
     if (lim_chan_tcp < 0) {
-        lim_chan_tcp = chan_client_socket(AF_INET, SOCK_STREAM, 0);
+        lim_chan_tcp = chan_tcp_client();
         if (lim_chan_tcp < 0)
             return -1;
 

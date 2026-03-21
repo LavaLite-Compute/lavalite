@@ -73,37 +73,6 @@ enum {
     LL_BUFSIZ_4K = 4096,
 };
 
-#define TIMEIT(level, func, name)                                              \
-    {                                                                          \
-        if (timinglevel > level) {                                             \
-            struct timeval before, after;                                      \
-            struct timezone tz;                                                \
-            gettimeofday(&before, &tz);                                        \
-            func;                                                              \
-            gettimeofday(&after, &tz);                                         \
-            ls_syslog(LOG_INFO, "L%d %s %d ms", level, name,                   \
-                      (int) ((after.tv_sec - before.tv_sec) * 1000 +           \
-                             (after.tv_usec - before.tv_usec) / 1000));        \
-        } else                                                                 \
-            func;                                                              \
-    }
-
-#define TIMEVAL(level, func, val)                                              \
-    {                                                                          \
-        if (timinglevel > level) {                                             \
-            struct timeval before, after;                                      \
-            struct timezone tz;                                                \
-            gettimeofday(&before, &tz);                                        \
-            func;                                                              \
-            gettimeofday(&after, &tz);                                         \
-            val = (int) ((after.tv_sec - before.tv_sec) * 1000 +               \
-                         (after.tv_usec - before.tv_usec) / 1000);             \
-        } else {                                                               \
-            func;                                                              \
-            val = 0;                                                           \
-        }                                                                      \
-    }
-
 /* Maximum size of a single environment variable stored in job spec.
 * 2 MiB is practically unlimited for real systems (EDA/Lmod etc.) while
 * still preventing pathological allocations caused by corrupt jobfiles.

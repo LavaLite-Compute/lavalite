@@ -6,18 +6,16 @@
 #include "base/lib/ll.sys.h"
 #include "base/lib/ll.wire.h"
 
-// Channel options for now we only use socketoption
-#define CHAN_OP_SOREUSE 0x01
-#define CHAN_OP_NONBLOCK 0x01
+#define CHAN_MAX 10204
 
 // Channel type
-enum chanType {
-    CHAN_TYPE_UDP_LISTEN,  // bound UDP socket waiting for datagrams
-    CHAN_TYPE_TCP_LISTEN,  // listening TCP socket waiting for connections
-    CHAN_TYPE_TCP_CONNECT, // connected/accepted tcp channel
-    CHAN_TYPE_TCP_CLIENT,  // stateless TCP client channel
-    CHAN_TYPE_UDP_CLIENT,  // stateless UDP client channel
-    CHAN_TYPE_TIMER        // channel for timerfd
+enum chan_type {
+    UDP_LISTEN,  // bound UDP socket waiting for datagrams
+    TCP_LISTEN,  // listening TCP socket waiting for connections
+    TCP_CONNECT, // connected/accepted tcp channel
+    TCP_CLIENT,  // stateless TCP client channel
+    UDP_CLIENT,  // stateless UDP client channel
+    TIMER_FD,        // channel for timerfd
 };
 
 // epoll output type for a channel, if all data are read/written
@@ -25,19 +23,19 @@ enum chanType {
 // chan_events is a simple state, not a bitmask.
 // CHAN_EPOLLIN / CHAN_EPOLLOUT / CHAN_EPOLLERR are enum values,
 // so always compare with ==, never with &.
-typedef enum {
+enum chan_epoll {
     CHAN_EPOLLNONE,
     CHAN_EPOLLIN,
     CHAN_EPOLLOUT,
     CHAN_EPOLLERR,
-} chan_epoll_t;
+};
 
 struct chan_data {
     int sock;           // the socket
-    enum chanType type; // channel type UDP/TCP ...
+    enum chan_type type; // channel type UDP/TCP ...
     struct chan_buffer *send;
     struct chan_buffer *recv;
-    chan_epoll_t chan_events; // output
+    enum chan_epoll chan_events; // output
 };
 
 struct chan_buffer {
@@ -48,10 +46,7 @@ struct chan_buffer {
     int len;
 };
 
-extern long chan_open_max;
-extern struct chan_data *channels;
-
-int chan_init(void);
+void chan_init(void);
 int chan_close(int);
 int chan_sock(int);
 int chan_epoll(int, struct epoll_event *, int, int);
@@ -72,12 +67,12 @@ ssize_t chan_read_nonblock(int, void *, size_t, int);
 ssize_t chan_write(int, void *, size_t);
 int chan_alloc_buf(struct chan_buffer **, int);
 int chan_free_buf(struct chan_buffer *);
-int chan_open_sock(int, int);
+int chan_open(int);
 int chan_dup_stdio(int);
 int io_non_block(int);
 int io_block(int);
 int chan_send_dgram(int, char *, size_t, struct sockaddr_in *);
-int chan_recv_dgram(int, void *, size_t, struct sockaddr_storage *, int);
+int chan_recv_dgram(int, void *, size_t, struct sockaddr_in *, int);
 int chan_create_timer(int);
 struct chan_buffer *chan_make_buf(void);
 int chan_connect_begin(int, struct sockaddr_in *, int);
@@ -93,4 +88,5 @@ int send_protocol_header(int, struct protocol_header *);
 int recv_protocol_header(int, struct protocol_header *);
 int chan_has_error(int);
 const char *chan_addr_str(int);
-int chan_client_socket(int, int, int);
+int chan_udp_client(void);
+int chan_tcp_client(void);

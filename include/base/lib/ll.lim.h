@@ -21,7 +21,7 @@ enum lim_err {
 };
 
 enum lim_proto {
-    LIM_GET_CLUSTER_NAME,
+    LIM_GET_CLUSTER_NAME = 1,
     LIM_REPLY_CLUSTER_NAME,
 
     LIM_GET_MASTER_NAME,

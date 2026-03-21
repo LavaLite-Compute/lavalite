@@ -28,11 +28,10 @@ extern struct ll_kv lim_params[];
 extern struct cluster lim_cluster;
 
 extern int lim_efd;
-extern int lim_udp_chan;
+extern int udp_chan;
 extern int tcp_chan;
-extern int lim_timer_chan;
-extern uint16_t lim_udp_port;
-extern uint16_t lim_tcp_port;
+extern uint16_t udp_port;
+extern uint16_t tcp_port;
 extern int lim_debug;
 
 struct cluster {

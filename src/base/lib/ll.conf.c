@@ -12,8 +12,8 @@ struct ll_kv ll_params[PARAMS_COUNT] = {
     [LL_LOG_MASK]         = {"LL_LOG_MASK",          NULL},
     [LL_DEBUG_LIM]        = {"LL_DEBUG_LIM",         NULL},
     [LL_TIME_LIM]         = {"LL_TIME_LIM",          NULL},
-    [LL_API_CONNTIMEOUT]  = {"LL_API_CONNTIMEOUT",   NULL},
-    [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT",   NULL},
+    [LL_API_CONNTIMEOUT]  = {"LL_API_CONNTIMEOUT",   "3"},
+    [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT",   "5"},
     [LL_SBD_PORT]         = {"LL_SBD_PORT",          NULL},
     [LL_DEBUG_SBD]        = {"LL_DEBUG_SBD",         NULL},
     [LL_TIME_SBD]         = {"LL_TIME_SBD",          NULL},
@@ -123,7 +123,6 @@ int ll_conf_load(struct ll_kv *items, int nitems, const char *path)
         if (idx < 0)
             continue;  /* unknown key, skip */
 
-        free(items[idx].val);
         items[idx].val = strdup(val);
         if (items[idx].val == NULL) {
             fclose(f);

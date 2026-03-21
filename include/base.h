@@ -649,7 +649,7 @@ const char *ctime2(time_t *);
 const char *ctime3(const time_t *);
 struct passwd *getpwuid2(uid_t);
 struct passwd *getpwnam2(const char *);
-void open_log(const char *, const char *, bool);
+void open_log(const char *, const char *, int);
 
 // Bug rethink this
 struct extResInfo {
