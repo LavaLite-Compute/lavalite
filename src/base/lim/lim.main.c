@@ -78,7 +78,10 @@ static int add_listener(int lim_efd, int fd, int ch_id)
 
 static int init_network(void)
 {
-    init_chans();
+    if (init_chans() < 0) {
+        LS_ERR("init_chans failed");
+        return -1;
+    }
 
     // epoll file descriptor
     lim_efd = epoll_create1(0);
