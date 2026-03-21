@@ -1,4 +1,4 @@
 #
 # Copyright (C) LavaLite Contributors
 #
-SUBDIRS = lib cmd daemons compactor
+SUBDIRS = lib cmd mbd sbd compactor

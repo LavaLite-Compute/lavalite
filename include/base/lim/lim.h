@@ -2,7 +2,7 @@
  * GPL v2
  */
 
-#include "base/lim/lim.wire.h"
+#include "base/lim/wire.h"
 
 #include "base/lib/ll.lim.h"
 #include "base/lib/ll.wire.h"
