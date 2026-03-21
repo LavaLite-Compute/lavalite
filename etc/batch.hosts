@@ -1,0 +1,29 @@
+#
+# LavaLite Batch Host Configuration
+#
+# HOST_NAME  - Hostname as returned by hostname(1)
+# MXJ        - Maximum number of concurrent allocations on this host
+# CPU        - Number of CPU cores available for scheduling
+# GPU        - Number of GPU devices available for scheduling
+# MEM        - Total memory available (G=gigabytes, T=terabytes)
+#
+Begin Host
+HOST_NAME   MXJ   CPU   GPU   MEM
+buntu24       4    22     4    40G
+worker1       6    64     1    1T
+worker2       6    64     1    1T
+worker3       2   128     1    2T
+cpu1         16    96     0   512G
+cpu2         16    96     0   512G
+cpu3         16    96     0   512G
+End Host
+#
+# Host groups - hosts grouped by GPU type.
+# A host belongs to exactly one group.
+#
+Begin HostGroup
+GROUP_NAME      GROUP_MEMBER
+group-gpu     (buntu24 worker1 worker2 worker3)
+group-cpu     (cpu1 cpu2 cpu3)
+End HostGroup
+
