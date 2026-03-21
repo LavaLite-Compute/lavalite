@@ -8,9 +8,7 @@
 int udp_chan = -1;
 int tcp_chan = -1;
 static int timer_chan = -1;
-uint16_t udp_port;
-int lim_debug;
-
+uint16_t lim_port;
 int lim_efd;
 static struct epoll_event lim_events[CHAN_MAX];
 
@@ -34,7 +32,7 @@ static void light_house(void)
 }
 static int init_chans(void)
 {
-    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &udp_port)) {
+    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_port)) {
         errno = EINVAL;
         LS_ERRX("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
         return -1;
@@ -42,34 +40,19 @@ static int init_chans(void)
 
     chan_init();
 
-    udp_chan = chan_udp_socket(udp_port);
+    udp_chan = chan_udp_server(lim_port);
     if (udp_chan < 0) {
-        LS_ERRX("chan_udp_socket failed port=%d", udp_port);
+        LS_ERRX("chan_udp_socket failed port=%d", lim_port);
         return -1;
     }
 
-    tcp_chan = chan_tcp_listen_socket(0);
+    tcp_chan = chan_tcp_server(lim_port);
     if (tcp_chan < 0) {
         LS_ERRX("chan_tcp_listen_socket failed");
         chan_close(tcp_chan);
         chan_close(udp_chan);
         return -1;
     }
-
-    struct sockaddr_in lim_addr;
-    socklen_t size = sizeof(struct sockaddr_in);
-    int cc = getsockname(chan_sock(tcp_chan), (struct sockaddr *)&lim_addr,
-                         &size);
-    if (cc < 0) {
-        LS_ERR("getsocknamed chan=%d failed", tcp_chan);
-        chan_close(tcp_chan);
-        chan_close(tcp_chan);
-        return -1;
-    }
-
-    // dynamic tcp port sent to slave lims and library which need
-    // to find the master. keep it in network order
-    me->tcp_port = lim_addr.sin_port;
 
     // This is not a channel, just a fake name for the time
     // that goes in the data structure
@@ -144,7 +127,7 @@ static void child_handler(int sig)
         ;
 }
 
-static int init_daemon(const char *conf_dir)
+static int lim_init(const char *conf_dir)
 {
     ll_list_init(&node_list);
     ll_hash_init(&node_name_hash, 1021);
@@ -162,11 +145,6 @@ static int init_daemon(const char *conf_dir)
         LS_ERR("failed loading config from=%s", path);
         return -1;
     }
-
-    ls_closelog();
-    // Bug this can fail
-    ls_openlog("lim", ll_params[LL_LOGDIR].val,
-               lim_debug, 0, ll_params[LL_LOG_MASK].val);
 
     cc = snprintf(path, PATH_MAX, "%s/ll.cluster.%s", conf_dir,
                   ll_params[LL_CLUSTER_NAME].val);
@@ -240,7 +218,6 @@ static void usage(const char *cmd)
 int main(int argc, char **argv)
 {
     struct option long_options[] = {
-        {"debug", no_argument, 0, 'd'},
         {"envdir", required_argument, 0, 'e'},
         {"version", no_argument, 0, 'V'},
         {"check", no_argument, 0, 'C'},
@@ -251,17 +228,14 @@ int main(int argc, char **argv)
     int cc;
     char *conf_dir = NULL;
 
-    while ((cc = getopt_long(argc, argv, "de:VCh", long_options, NULL)) !=
+    while ((cc = getopt_long(argc, argv, "e:VCh", long_options, NULL)) !=
            EOF) {
         switch (cc) {
-        case 'd':
-            lim_debug = 1;
-            break;
-        case 'e':
-            conf_dir = strdup(optarg);
-            fprintf(stderr, "[lavalite] overriding LL_ENVDIR=%s\n", optarg);
-            break;
-        case 'V':
+            case 'e':
+                conf_dir = strdup(optarg);
+                fprintf(stderr, "[lavalite] overriding LL_ENVDIR=%s\n", optarg);
+                break;
+            case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return -1;
         default:
@@ -271,7 +245,7 @@ int main(int argc, char **argv)
     }
 
     // first open to capture eventual startup failures
-    ls_openlog("lim", "/tmp", 1, 1, "LOG_DEBUG");
+    ls_openlog("lim", "/tmp", "LOG_DEBUG");
 
     if (conf_dir == NULL) {
         if ((conf_dir = getenv("LL_ENVDIR")) == NULL) {
@@ -280,9 +254,16 @@ int main(int argc, char **argv)
         }
     }
 
-    cc = init_daemon(conf_dir);
+    cc = lim_init(conf_dir);
     if (cc < 0) {
         LS_ERR("lim_init failed. cannot run");
+        return -1;
+    }
+
+    ls_closelog();
+    cc = ls_openlog("lim", ll_params[LL_LOGDIR].val, ll_params[LL_LOG_MASK].val);
+    if (cc < 0) {
+        LS_ERR("ls_openlog failed");
         return -1;
     }
 

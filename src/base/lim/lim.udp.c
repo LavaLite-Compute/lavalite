@@ -12,7 +12,6 @@ static void send_beacon(void)
     strncpy(wb.cluster,  lim_cluster.name, sizeof(wb.cluster) - 1);
     strncpy(wb.hostname, me->host->name, sizeof(wb.hostname) - 1);
     wb.host_no = me->host_no;
-    wb.tcp_port = me->tcp_port;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -56,7 +55,7 @@ static void send_beacon(void)
         struct sockaddr_in to;
         memset(&to, 0, sizeof(to));
         to.sin_family = AF_INET;
-        to.sin_port   = htons(udp_port);
+        to.sin_port   = htons(lim_port);
 
         get_host_sinaddrv4(n->host, &to);
 
@@ -99,14 +98,13 @@ static void rcv_beacon(XDR *xdrs,
         return;
     }
 
-    LS_DEBUG("from=%s host=%s host_no=%u port=%u",
-             addr_to_str(from), wb.hostname, wb.host_no, wb.tcp_port);
+    LS_DEBUG("from=%s host=%s host_no=%u",
+             addr_to_str(from), wb.hostname, wb.host_no);
 
     // sender has lower host_no: it is master, accept it
     if (me->host_no > n->host_no) {
         if (current_master.node != n)
             LS_INFO("new master=%s host_no=%d", n->host->name, n->host_no);
-        n->tcp_port = wb.tcp_port;
         current_master.node = n;
         current_master.inactivity = 0;
         return;
@@ -165,7 +163,7 @@ static int send_load_report(void)
     struct sockaddr_in to_addr;
     memset(&to_addr, 0, sizeof(to_addr));
     to_addr.sin_family = AF_INET;
-    to_addr.sin_port = htons(udp_port);
+    to_addr.sin_port = htons(lim_port);
     get_host_sinaddrv4(current_master.node->host, &to_addr);
 
     LS_DEBUG("lim=%s len=%lu", current_master.node->host->name, len);
@@ -269,7 +267,6 @@ static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
     memset(&wm, 0, sizeof(wm));
     if (current_master.node) {
         strcpy(wm.hostname, current_master.node->host->name);
-        wm.tcp_port = current_master.node->tcp_port;
     } else {
         strcpy(wm.hostname, "unknown");
     }

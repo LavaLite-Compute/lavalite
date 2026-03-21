@@ -34,10 +34,8 @@ int ll_init(void)
     if (ll_params[LL_LIM_PORT].val == NULL)
         return -1;
 
-    int port;
-    if (! ll_atoi(ll_params[LL_LIM_PORT].val, &port))
+    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *)&lim_port))
         return -1;
-    lim_port = (uint16_t)port;
 
     if (! ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout))
         return -1;
@@ -147,7 +145,6 @@ static int lim_get_master(void)
     if (get_host_by_name(wm.hostname, &master.host) < 0)
         return -1;
 
-    master.tcp_port = wm.tcp_port;
     master_known = 1;
     return 0;
 }
@@ -218,7 +215,7 @@ static int call_lim_tcp(const void *req, size_t req_len,
         struct sockaddr_in addr;
         get_host_addrv4(&master.host, &addr);
         addr.sin_family = AF_INET;
-        addr.sin_port   = htons(master.tcp_port);
+        addr.sin_port   = htons(lim_port);
 
         if (chan_connect(lim_chan_tcp, &addr, conntimeout * 1000, 0) < 0) {
             lserrno = LL_ERR_LIM_DOWN;

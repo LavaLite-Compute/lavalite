@@ -8,7 +8,6 @@ struct wire_beacon {
     char cluster[LL_BUFSIZ_32];
     char  hostname[MAXHOSTNAMELEN];
     uint32_t host_no;
-    uint16_t tcp_port;
 };
 
 struct  wire_load_report {

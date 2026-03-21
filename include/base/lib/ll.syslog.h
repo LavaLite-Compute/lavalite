@@ -5,11 +5,7 @@
 #include <syslog.h>
 
 // LavaLite logging
-int ls_openlog(const char *,   // identity
-               const char *,   // logdir
-               int,            // to_stderr
-               int,            // to_syslog
-               const char *);  // log mask
+int ls_openlog(const char *, const char *, const char *);
 int ls_getlogfd(void);
 void ls_syslog(int, const char *, ...)
 #if defined(__GNUC__)
@@ -18,7 +14,6 @@ void ls_syslog(int, const char *, ...)
     ;
 void ls_setlogtag(const char *);
 void ls_closelog(void);
-void ls_set_log_to_stderr(int);
 
 #define LS_ERRX(fmt, ...) \
     ls_syslog(LOG_ERR, "%s: " fmt, __func__, ##__VA_ARGS__)

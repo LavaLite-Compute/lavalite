@@ -14,30 +14,25 @@ enum ll_params {
     /* Common */
     LL_CONFDIR,
     LL_SERVERDIR,
+    LL_BINDIR,
+    LL_SHAREDIR,
+    LL_ENVDIR,
     LL_LOGDIR,
-    LL_LIM_DEBUG,
-    LL_LIM_PORT,
     LL_LOG_MASK,
     LL_CLUSTER_NAME,
-
-    /* LIM */
-    LL_DEBUG_LIM,
-    LL_TIME_LIM,
-
+    /* Ports */
+    LL_LIM_PORT,
+    LL_MBD_PORT,
+    LL_SBD_PORT,
+    /* Events */
+    LL_EVENTS_MAX_SIZE,
+    LL_EVENTS_RETAIN,
     /* lib.common */
     LL_API_CONNTIMEOUT,
     LL_API_RECVTIMEOUT,
-
     /* SBD */
-    LL_SBD_PORT,
-    LL_DEBUG_SBD,
-    LL_TIME_SBD,
     LL_SBD_CONNTIMEOUT,
     LL_SBD_READTIMEOUT,
-
-    /* MBD */
-    LL_MBD_PORT,
-    // sentinel so the compiler complain if not in sync with ll_params array
     PARAMS_COUNT,
 };
 

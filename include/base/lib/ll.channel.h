@@ -10,20 +10,18 @@
 
 // Channel type
 enum chan_type {
-    UDP_LISTEN,  // bound UDP socket waiting for datagrams
-    TCP_LISTEN,  // listening TCP socket waiting for connections
-    TCP_CONNECT, // connected/accepted tcp channel
-    TCP_CLIENT,  // stateless TCP client channel
-    UDP_CLIENT,  // stateless UDP client channel
-    TIMER_FD,        // channel for timerfd
+    UDP_SERVER,
+    TCP_SERVER,
+    TCP_CONNECT,
+    TCP_CLIENT,
+    UDP_CLIENT,
+    TIMER_FD,
 };
 
-// epoll output type for a channel, if all data are read/written
-// set the correct ch_events
-// chan_events is a simple state, not a bitmask.
+// chan_events is a simple state state machine, not a bitmask.
 // CHAN_EPOLLIN / CHAN_EPOLLOUT / CHAN_EPOLLERR are enum values,
 // so always compare with ==, never with &.
-enum chan_epoll {
+enum chan_events {
     CHAN_EPOLLNONE,
     CHAN_EPOLLIN,
     CHAN_EPOLLOUT,
@@ -35,7 +33,7 @@ struct chan_data {
     enum chan_type type; // channel type UDP/TCP ...
     struct chan_buffer *send;
     struct chan_buffer *recv;
-    enum chan_epoll chan_events; // output
+    enum chan_events chan_events; // output
 };
 
 struct chan_buffer {
@@ -53,10 +51,6 @@ int chan_epoll(int, struct epoll_event *, int, int);
 int chan_connect(int, struct sockaddr_in *, int, int);
 int chan_enqueue(int, struct chan_buffer *);
 int chan_dequeue(int, struct chan_buffer **);
-int chan_udp_socket(u_short);
-int chan_tcp_listen_socket(u_short);
-int chan_udp_client_socket(void);
-int chan_tcp_client_socket(void);
 int chan_accept(int, struct sockaddr_in *);
 int chan_rpc(int, struct chan_buffer *,
              struct chan_buffer *,
@@ -90,3 +84,5 @@ int chan_has_error(int);
 const char *chan_addr_str(int);
 int chan_udp_client(void);
 int chan_tcp_client(void);
+int chan_tcp_server(uint16_t);
+int chan_udp_server(uint16_t);

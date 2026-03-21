@@ -15,9 +15,6 @@ bool_t xdr_beacon(XDR *xdrs, struct wire_beacon *wb)
     if (! xdr_uint32_t(xdrs, &wb->host_no))
         return false;
 
-    if (!xdr_uint16_t(xdrs, &wb->tcp_port))
-        return false;
-
     return true;
 }
 

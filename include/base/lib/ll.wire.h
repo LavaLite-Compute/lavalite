@@ -47,7 +47,6 @@ struct wire_load {
 
 struct wire_master {
     char hostname[MAXHOSTNAMELEN];
-    uint16_t tcp_port;
 };
 
 struct wire_cluster {

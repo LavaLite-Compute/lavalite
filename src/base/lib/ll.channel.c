@@ -187,7 +187,7 @@ static int chan_find_free(void)
 
 static inline int chan_is_udp(enum chan_type t)
 {
-    if (t != UDP_CLIENT && t != UDP_LISTEN)
+    if (t != UDP_CLIENT && t != UDP_SERVER)
         return 0;
 
     return 1;
@@ -229,7 +229,7 @@ int chan_sock(int ch_id)
     return channels[ch_id].sock;
 }
 
-int chan_udp_socket(u_short port)
+int chan_udp_server(uint16_t port)
 {
     int ch_id = chan_find_free();
     if (ch_id < 0)
@@ -260,12 +260,12 @@ int chan_udp_socket(u_short port)
         return -1;
     }
 
-    channels[ch_id].type = UDP_LISTEN;
+    channels[ch_id].type = UDP_SERVER;
 
     return ch_id;
 }
 
-int chan_tcp_listen_socket(u_short port)
+int chan_tcp_server(uint16_t port)
 {
     int ch_id = chan_find_free();
     if (ch_id < 0)
@@ -302,48 +302,14 @@ int chan_tcp_listen_socket(u_short port)
         return -1;
     }
 
-    channels[ch_id].type = TCP_LISTEN;
+    channels[ch_id].type = TCP_SERVER;
 
     return ch_id;
 }
 
-int chan_udp_client_socket(void)
-{
-    int ch = chan_find_free();
-    if (ch < 0)
-        return -1;
-
-    int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-    if (s < 0)
-        return -1;
-
-    channels[ch].sock = s;
-    channels[ch].chan_events = CHAN_EPOLLNONE;
-    channels[ch].type = UDP_CLIENT;
-
-    return ch;
-}
-
-int chan_tcp_client_socket(void)
-{
-    int ch = chan_find_free();
-    if (ch < 0)
-        return -1;
-
-    int s = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-    if (s < 0)
-        return -1;
-
-    channels[ch].sock = s;
-    channels[ch].chan_events = CHAN_EPOLLNONE;
-    channels[ch].type = TCP_CLIENT;
-
-    return ch;
-}
-
 int chan_accept(int ch_id, struct sockaddr_in *from)
 {
-    if (channels[ch_id].type != TCP_LISTEN) {
+    if (channels[ch_id].type != TCP_SERVER) {
         return -1;
     }
 
@@ -643,11 +609,11 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
             continue;
         }
 
-        if (chan->type == TCP_LISTEN) {
+        if (chan->type == TCP_SERVER) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
-        if (chan->type == UDP_LISTEN) {
+        if (chan->type == UDP_SERVER) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }

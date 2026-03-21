@@ -12,7 +12,6 @@
 
 struct lim_master {
     struct ll_host host;
-    uint16_t tcp_port; // host byte order
 };
 
 enum lim_err {

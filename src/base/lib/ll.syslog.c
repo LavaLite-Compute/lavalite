@@ -5,8 +5,6 @@
 #include "base/lib/ll.syslog.h"
 
 static int log_fd = -1;
-static int log_to_stderr;
-static int log_to_syslog;
 static int log_min_level;
 static char log_ident[LL_BUFSIZ_32];
 static char log_path[PATH_MAX];
@@ -23,18 +21,14 @@ int timinglevel = 0;
 // and use the same log file
 static char log_tag[LL_BUFSIZ_64];
 
-int ls_openlog(const char *ident,
-               const char *logdir,
-               int to_stderr,
-               int to_syslog,
-               const char *mask)
+int ls_openlog(const char *ident, const char *logdir, const char *mask)
 {
 
     if (ident == NULL)
         return -1;
 
-    if (logdir == NULL || *logdir == '\0')
-        return -1;   /* configuration error */
+    if (logdir == NULL || *logdir == 0)
+        return -1;
 
     snprintf(log_ident, sizeof(log_ident), "%s", ident);
 
@@ -48,8 +42,10 @@ int ls_openlog(const char *ident,
     snprintf(path, sizeof(path), "%s/%s.log.%s", logdir, log_ident, host);
 
     int fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
-    if (fd < 0)
+    if (fd < 0) {
+        fd = STDERR_FILENO;
         return -1;
+    }
     /*
      * Normalize descriptor:
      * guarantee fd >= 3
@@ -64,14 +60,6 @@ int ls_openlog(const char *ident,
 
     fchmod(log_fd, 0644);
     snprintf(log_path, sizeof(log_path), "%s", path);
-
-    if (to_stderr)
-        log_to_stderr = 1;
-
-    if (to_syslog) {
-        openlog(log_ident, LOG_NDELAY | LOG_PID, LOG_DAEMON);
-        setlogmask(LOG_UPTO(log_min_level));
-    }
 
     return 0;
 }
@@ -141,27 +129,21 @@ void ls_syslog(int level, const char *fmt, ...)
     if (len >= sizeof(line))
         len = sizeof(line) - 1;
 
-    // when negative we still want to write to stderr or syslog
-    // if they are configured
-    if (log_fd >= 0) {
+    if (log_fd != STDERR_FILENO) {
         struct stat st;
         if (fstat(log_fd, &st) == 0 && st.st_nlink == 0)
             ls_reopen_log();
 
         write_record(log_fd, line, len);
     }
-    // mirror to stderr if requested
-    if (log_to_stderr)
+    // mirror to stderr if tty
+    if (log_fd != STDERR_FILENO && isatty(STDERR_FILENO))
         write(STDERR_FILENO, line, len);
-
-    // syslog mirror without our timestamp
-    if (log_to_syslog)
-        syslog(level, "%s", msg);
 }
 
 static void ls_reopen_log(void)
 {
-    if (log_path[0] == '\0')
+    if (log_path[0] == 0)
         return;
 
     int newfd = open(log_path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
@@ -181,11 +163,6 @@ void ls_closelog(void)
     if (log_fd >= 0) {
         close(log_fd);
         log_fd = -1;
-    }
-
-    if (log_to_syslog) {
-        closelog();
-        log_to_syslog = 0;
     }
 }
 
@@ -311,25 +288,4 @@ static void write_record(int fd, const char *buf, size_t len)
         buf += (size_t)n;
         len -= (size_t)n;
     }
-}
-/*
- * Enable or disable mirroring log lines to the process stderr.
- *
- * This is a debugging convenience feature. When enabled, log messages are
- * written to the normal log sink and also mirrored to stderr.
- *
- * Callers that redirect STDERR_FILENO (e.g. job execution children) should
- * disable stderr mirroring to avoid leaking daemon logs into user output.
- */
-void ls_set_log_to_stderr(int enabled)
-{
-    if (enabled)
-        log_to_stderr  = 1;
-    else
-        log_to_stderr  = 0;
-}
-
-int ls_getlogfd(void)
-{
-    return log_fd;
 }

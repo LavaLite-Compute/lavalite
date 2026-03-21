@@ -30,8 +30,7 @@ extern struct cluster lim_cluster;
 extern int lim_efd;
 extern int udp_chan;
 extern int tcp_chan;
-extern uint16_t udp_port;
-extern uint16_t tcp_port;
+extern uint16_t lim_port;
 extern int lim_debug;
 
 struct cluster {
@@ -48,7 +47,6 @@ struct lim_node {
     uint32_t status;
     char *machine;     // uname
     char *resources;   // historical string of static resources
-    uint16_t tcp_port;
     uint16_t is_candidate;
     uint64_t max_mem;
     uint64_t max_swap;
