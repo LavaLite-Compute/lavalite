@@ -5,6 +5,7 @@
 
 #include "base/lib/ll.sys.h"
 #include "base/lib/ll.wire.h"
+#include "base/lib/ll.syslog.h"
 
 #define CHAN_MAX 10204
 
@@ -86,3 +87,4 @@ int chan_udp_client(void);
 int chan_tcp_client(void);
 int chan_tcp_server(uint16_t);
 int chan_udp_server(uint16_t);
+int chan_is_readable(int);

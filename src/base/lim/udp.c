@@ -126,7 +126,7 @@ static void rcv_beacon(XDR *xdrs,
 static int send_load_report(void)
 {
     if (! current_master.node) {
-        LS_WARNING("master unknown, not sending load");
+        LS_WARNINGX("master unknown, not sending load");
         return 0;
     }
 

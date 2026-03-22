@@ -145,19 +145,15 @@ static void dowrite(struct chan_data *chan, int chan_id, int efd)
 
     cc = write(chan->sock, sendbuf->data + sendbuf->pos,
                sendbuf->len - sendbuf->pos);
-
     if (cc < 0) {
         // transient, wait for writable again
         if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
             return;
         // real error
         chan->chan_events = CHAN_EPOLLERR;
+        chan_set_write_interest(chan_id, efd, 0);
         return;
     }
-
-    // nothing written, but not an error
-    if (cc == 0)
-        return;
 
     // all sent
     sendbuf->pos += cc;
@@ -597,7 +593,7 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
         struct epoll_event *e = &events[i];
         struct chan_data *chan = &channels[e->data.u32];
         int ch_id = e->data.u32;
-
+        // LS_DEBUG("ch_id=%d events=0x%x", ch_id, e->events);
         // clean channel specific events for the caller
         chan->chan_events = CHAN_EPOLLNONE;
 
@@ -658,8 +654,6 @@ int chan_free_buf(struct chan_buffer *buf)
 
     return 0;
 }
-
-
 
 int io_non_block(int s)
 {
@@ -730,7 +724,7 @@ int chan_set_write_interest(int ch_id, int efd, int on)
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
-    ev.events = EPOLLIN;
+    ev.events = EPOLLIN | EPOLLRDHUP;
     if (on) {
         ev.events |= EPOLLOUT;
     }
@@ -910,4 +904,16 @@ int chan_tcp_client(void)
     channels[ch].type = TCP_CLIENT;
     channels[ch].chan_events = CHAN_EPOLLNONE;
     return ch;
+}
+
+int chan_is_readable(int ch_id)
+{
+    if (! chan_is_valid(ch_id))
+        return 0;
+
+    if (channels[ch_id].chan_events == CHAN_EPOLLIN
+        || channels[ch_id].chan_events == CHAN_EPOLLERR)
+        return 1;
+
+    return 0;
 }

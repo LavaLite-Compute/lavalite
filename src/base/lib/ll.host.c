@@ -71,7 +71,7 @@ int get_host_by_name(const char *hostname, struct ll_host *hp)
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET; // v4
     hints.ai_socktype = 0;     // any
-    hints.ai_flags = AI_ADDRCONFIG | AI_CANONNAME;
+    hints.ai_flags = AI_ADDRCONFIG; // no AI_CANONNAME;
 
     int rc = getaddrinfo(hostname, NULL, &hints, &ai);
     if (rc != 0) {

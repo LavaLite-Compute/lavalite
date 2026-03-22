@@ -211,7 +211,8 @@ static void tcp_dispatch(int ch_id)
 int tcp_message(int ch_id)
 {
     if (chan_has_error(ch_id)) {
-        LS_DEBUG("lost connection from %s", chan_addr_str(ch_id));
+        LS_DEBUG("channel=%d from=%s closed connection", ch_id,
+                 chan_addr_str(ch_id));
         shutdown_tcp_chan(ch_id);
         return -1;
     }
@@ -241,7 +242,7 @@ int tcp_accept(void)
     }
 
     struct epoll_event ev;
-    ev.events = EPOLLIN;
+    ev.events = EPOLLIN | EPOLLRDHUP;
     ev.data.u32 = ch_id;
     epoll_ctl(lim_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev);
 

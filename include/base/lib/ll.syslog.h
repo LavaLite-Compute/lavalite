@@ -24,6 +24,9 @@ void ls_closelog(void);
 #define LS_WARNING(fmt, ...) \
     ls_syslog(LOG_WARNING, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
 
+#define LS_WARNINGX(fmt, ...)                                            \
+    ls_syslog(LOG_WARNING, "%s: " fmt, __func__, ##__VA_ARGS__)
+
 #define LS_INFO(fmt, ...) \
     ls_syslog(LOG_INFO, "%s: " fmt, __func__, ##__VA_ARGS__)
 

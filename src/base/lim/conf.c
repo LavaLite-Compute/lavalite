@@ -323,6 +323,11 @@ int make_cluster(const char *path)
 
     fclose(f);
 
+    if (me == NULL) {
+        LS_ERRX("this host is not in the cluster configuration");
+        return -1;
+    }
+
     if (lim_cluster.name == NULL) {
         LS_ERRX("missing ClusterName in %s", path);
         return -1;

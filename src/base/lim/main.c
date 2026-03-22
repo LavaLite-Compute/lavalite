@@ -136,6 +136,8 @@ static int lim_init(const char *conf_dir)
     ll_hash_init(&node_name_hash, 1021);
     ll_hash_init(&node_addr_hash, 1021);
 
+    LS_DEBUG("tables initialized");
+
     char path[PATH_MAX];
     int cc = snprintf(path, PATH_MAX, "%s/ll.conf", conf_dir);
     if (cc < 0 || cc > PATH_MAX) {
@@ -157,20 +159,22 @@ static int lim_init(const char *conf_dir)
     }
     cc = make_cluster(path);
     if (cc < 0) {
-        LS_ERR("make_cluster failed");
+        LS_ERRX("make_cluster failed");
         return -1;
     }
+    LS_DEBUG("configuration loaded");
 
-    LS_INFO("initializing signals");
     install_signal_handler(SIGTERM, croak_handler, 0);
     install_signal_handler(SIGINT, croak_handler, 0);
     install_signal_handler(SIGCHLD, child_handler, SA_RESTART);
+    LS_DEBUG("signals initialized");
 
     cc = init_network();
     if (cc < 0) {
         LS_ERR("lim_make_cluster failed");
         return -1;
     }
+    LS_DEBUG("network  initialized");
 
     return 0;
 }
@@ -182,7 +186,7 @@ int is_master_candidate(struct lim_node *n)
     return 0;
 }
 
-static void is_master(void)
+static void is_master_me(void)
 {
     if (! is_master_candidate(me)) {
         LS_INFO("lim=%s host_no=%d is not master candidate",  me->host->name,
@@ -259,22 +263,23 @@ int main(int argc, char **argv)
 
     cc = lim_init(conf_dir);
     if (cc < 0) {
-        LS_ERR("lim_init failed. cannot run");
+        LS_ERRX("lim_init failed. cannot run");
         return -1;
     }
 
     ls_closelog();
     cc = ls_openlog("lim", ll_params[LL_LOGDIR].val, ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
-        LS_ERR("ls_openlog failed");
+        fprintf(stderr, "lim: ls_openlog failed lodir=%s mask=%s %m\n",
+                ll_params[LL_LOGDIR].val,  ll_params[LL_LOG_MASK].val);
         return -1;
     }
 
     LS_INFO("lim started: %s", LAVALITE_VERSION_STR);
 
     init_read_proc();
-    read_proc();
-    is_master();
+    is_master_me();
+    light_house();
     croaked = 0;
 
     while (1) {
@@ -322,7 +327,8 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            tcp_message(ch_id);
+            if (chan_is_readable(ch_id))
+                tcp_message(ch_id);
         }
     }
 
