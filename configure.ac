@@ -125,7 +125,8 @@ AC_CONFIG_FILES([
   src/batch/Makefile
   src/batch/lib/Makefile
   src/batch/cmd/Makefile
-  src/batch/daemons/Makefile
+  src/batch/mbd/Makefile
+  src/batch/sbd/Makefile
   src/batch/compactor/Makefile
 ])
 
