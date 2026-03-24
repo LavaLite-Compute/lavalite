@@ -290,7 +290,7 @@ int main(int argc, char **argv)
         int nfd = chan_epoll(lim_efd, lim_events, CHAN_MAX, -1);
         if (nfd < 0) {
             if (errno != EINTR) {
-                syslog(LOG_ERR, "chan_epoll");
+                LS_ERR("chan_epoll");
                 millisleep(1000);
             }
             continue;

@@ -4319,8 +4319,7 @@ static int renameAcctLogFiles(int fileLimit)
 
 // Build an absolute log file path under the given directory.
 // Fails if the resulting path does not fit in the destination buffer.
-static int
-build_log_path(char *dst, size_t dstsz,
+static int build_log_path(char *dst, size_t dstsz,
                const char *dir, const char *leaf)
 {
     int n;

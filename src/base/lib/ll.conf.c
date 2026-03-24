@@ -21,7 +21,8 @@ struct ll_kv ll_params[PARAMS_COUNT] = {
     [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT",   "5"},
     [LL_SBD_CONNTIMEOUT]  = {"LL_SBD_CONNTIMEOUT",   NULL},
     [LL_SBD_READTIMEOUT]  = {"LL_SBD_READTIMEOUT",   NULL},
-    [LL_MBD_HOST]         = {"LL_MBD_HOST",          NULL}
+    [LL_MBD_HOST]         = {"LL_MBD_HOST",          NULL},
+    [LL_MBD_USER]         = {"LL_MBD_USER",          "lavalite"}
 };
 
 static uint16_t initialized;

@@ -11,11 +11,11 @@ Begin Host
 HOST_NAME   MXJ   CPU   GPU   MEM
 buntu24       4    22     4    40G
 worker1       6    64     1    1T
-worker2       6    64     1    1T
-worker3       2   128     1    2T
-cpu1         16    96     0   512G
-cpu2         16    96     0   512G
-cpu3         16    96     0   512G
+worker2       6    64     0    1T
+#worker3       2   128     1    2T
+#cpu1         16    96     0   512G
+#cpu2         16    96     0   512G
+#cpu3         16    96     0   512G
 End Host
 #
 # Host groups - hosts grouped by GPU type.

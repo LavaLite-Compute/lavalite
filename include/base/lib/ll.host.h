@@ -8,10 +8,6 @@
 
 /* global max hostname length
  */
-#ifndef LL_HOSTNAME_MAX
-#define LL_HOSTNAME_MAX 255
-#endif
-
 struct ll_host {
     int family; /* AF_INET / AF_INET6 */
     socklen_t salen;

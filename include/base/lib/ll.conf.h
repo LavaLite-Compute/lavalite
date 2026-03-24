@@ -30,6 +30,7 @@ enum ll_params {
     LL_SBD_CONNTIMEOUT,
     LL_SBD_READTIMEOUT,
     LL_MBD_HOST,
+    LL_MBD_USER,
     PARAMS_COUNT,
 };
 
