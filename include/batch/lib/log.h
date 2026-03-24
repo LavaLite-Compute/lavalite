@@ -1,22 +1,15 @@
 /*
  * Copyright (C) LavaLite Contributors
- * GPL v2
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
  */
-
 #pragma once
 
-#include <stdio.h>
-#include <stdint.h>
-#include <time.h>
-#include <sys/types.h>
-#include <limits.h>
+#include "batch/lib/batch.h"
 
-#ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN 256
-#endif
-
-#define LOG_VERSION     2
-#define LOG_VERSION_STR "2"
+#define LOG_VERSION 2
 
 /*
  * Event types. Values are stable on disk -- do not reorder.
@@ -42,28 +35,25 @@ struct log_job {
     uid_t    uid;
     int32_t  status;
     int32_t  exit_status;
-
     time_t   submit_time;
     time_t   start_time;
     time_t   end_time;
-    float    cpu_time;
-
+    double   cpu_time;
     /* execution context */
     char     from_host[MAXHOSTNAMELEN];
+    char     exec_hosts[LL_BUFSIZ_1K];       /* space-separated */
     char     cwd[PATH_MAX];
-    char     exec_hosts[PATH_MAX];   /* space-separated */
     int32_t  num_exec_hosts;
     int32_t  job_pid;
-
     /* submission fields */
-    char     job_name[64];
-    char     queue[64];
+    char     job_name[LL_BUFSIZ_64];
+    char     queue[LL_BUFSIZ_64];
     char     command[1024];
     char     in_file[PATH_MAX];
     char     out_file[PATH_MAX];
     char     err_file[PATH_MAX];
-    char     project_name[64];
-    char     hosts[256];             /* requested, space-separated */
+    char     project_name[LL_BUFSIZ_64];
+    char     hosts[LL_BUFSIZ_1K];            /* requested, space-separated */
     int32_t  num_cpu;
     int32_t  num_hosts;
     int32_t  num_gpu;
@@ -79,5 +69,5 @@ struct event_rec {
     struct log_job  job;
 };
 
-struct event_rec *log_read(FILE *, int *lineno);
-int               log_write(FILE *, struct event_rec *);
+int log_read(FILE *, int *, struct event_rec *);
+int log_write(FILE *, struct event_rec *);
