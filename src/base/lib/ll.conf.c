@@ -21,7 +21,31 @@ struct ll_kv ll_params[PARAMS_COUNT] = {
     [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT",   "5"},
     [LL_SBD_CONNTIMEOUT]  = {"LL_SBD_CONNTIMEOUT",   NULL},
     [LL_SBD_READTIMEOUT]  = {"LL_SBD_READTIMEOUT",   NULL},
+    [LL_MBD_HOST]         = {"LL_MBD_HOST"},         NULL},
 };
+
+static uint16_t initialized;
+
+int ll_init(void)
+{
+    if (initialized)
+        return 0;
+
+    char *conf_dir = getenv("LL_ENVDIR");
+    if (conf_dir == NULL)
+        return -1;
+
+    char path[PATH_MAX];
+    int cc = snprintf(path, sizeof(path), "%s/ll.conf", conf_dir);
+    if (cc < 0 || cc >= (int)sizeof(path))
+        return -1;
+
+    if (ll_conf_load(ll_params, PARAMS_COUNT, path) < 0)
+        return -1;
+
+    initialized = 1;
+    return 0;
+}
 
 char *ltrim(char *s)
 {

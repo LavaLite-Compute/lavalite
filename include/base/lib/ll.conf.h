@@ -20,19 +20,16 @@ enum ll_params {
     LL_LOGDIR,
     LL_LOG_MASK,
     LL_CLUSTER_NAME,
-    /* Ports */
     LL_LIM_PORT,
     LL_MBD_PORT,
     LL_SBD_PORT,
-    /* Events */
     LL_EVENTS_MAX_SIZE,
     LL_EVENTS_RETAIN,
-    /* lib.common */
     LL_API_CONNTIMEOUT,
     LL_API_RECVTIMEOUT,
-    /* SBD */
     LL_SBD_CONNTIMEOUT,
     LL_SBD_READTIMEOUT,
+    LL_MBD_HOST,
     PARAMS_COUNT,
 };
 
@@ -42,6 +39,7 @@ extern struct ll_kv ll_params[];
  * Skips blank lines and # comments.
  * Returns 0 on success, -1 on error.
  */
+int ll_init(void);
 int ll_conf_load(struct ll_kv *, int, const char *);
 void ll_conf_free(struct ll_kv *, int);
 char *ll_conf_parse_begin(char *);

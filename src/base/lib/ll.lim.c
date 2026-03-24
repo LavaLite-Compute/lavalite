@@ -6,7 +6,6 @@
 
 __thread int lserrno = 0;
 
-static uint16_t initialized;
 static struct lim_master master;
 static uint16_t lim_port;
 static int lim_chan_tcp = -1;
@@ -14,21 +13,9 @@ static uint16_t master_known;
 static int conntimeout;
 static int recvtimeout;
 
-int ll_init(void)
+static int ll_lim_init(void)
 {
-    if (initialized)
-        return 0;
-
-    char *conf_dir = getenv("LL_ENVDIR");
-    if (conf_dir == NULL)
-        return -1;
-
-    char path[PATH_MAX];
-    int cc = snprintf(path, sizeof(path), "%s/ll.conf", conf_dir);
-    if (cc < 0 || cc >= (int)sizeof(path))
-        return -1;
-
-    if (ll_conf_load(ll_params, PARAMS_COUNT, path) < 0)
+    if (ll_init() < 0)
         return -1;
 
     if (ll_params[LL_LIM_PORT].val == NULL)
@@ -45,7 +32,6 @@ int ll_init(void)
 
     chan_init();
 
-    initialized = 1;
     return 0;
 }
 
@@ -76,7 +62,7 @@ static int build_hdr_request(int opcode, char *buf, size_t bufsz)
  */
 static int call_lim_udp(int opcode, char *rep, size_t rep_size)
 {
-    if (ll_init() < 0)
+    if (ll_lim_init() < 0)
         return -1;
 
     int ch = chan_udp_client();

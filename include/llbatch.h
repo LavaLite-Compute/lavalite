@@ -49,13 +49,12 @@ enum queue_stat {
 /* -----------------------------------------------------------------------
  * Error codes rename BATCH_ERR_NONE BATCH_ERR_NO_JOB BE or BERR
  * ----------------------------------------------------------------------- */
-enum batch_error {
+enum llb_error {
     LLBE_NONE = 0,
     LLBE_NO_JOB,
     LLBE_NOT_STARTED,
     LLBE_JOB_STARTED,
     LLBE_JOB_FINISH,
-    LLBE_NO_USER,
     LLBE_BAD_USER,
     LLBE_BAD_QUEUE,
     LLBE_SYS_CALL,
@@ -125,6 +124,15 @@ struct host_info {
     int32_t num_susp;
 };
 
+struct queue_info {
+    char *queue;
+    char *description;
+    int priority;
+    int num_pend;
+    int num_run;
+    int num_susp;
+};
+
 struct job_signal {
     int64_t job_id;
     int signal;
@@ -139,14 +147,13 @@ struct host_group {
  * Public API
  * ----------------------------------------------------------------------- */
 
-int64_t batch_submit(struct job_submit *);
+int64_t llb_submit(struct job_submit *);
 
-struct job_info *batch_job_info(int64_t, int32_t, int32_t);
-void batch_free_job_info(struct job_info *, int32_t);
+struct job_info *llb_job_info(int64_t, int32_t, int32_t);
+void llb_free_job_info(struct job_info *, int32_t);
 
-struct host_info *batch_host_info(int32_t *);
-struct host_group *batch_group_info(int32_t *);
+struct host_info *llb_host_info(int32_t *);
+struct host_group *llb_group_info(int32_t *);
+struct queue_info *llb_queue_info(int32_t *);
 
-struct queue_info batch_queue_info(int32_t *);
-
-int32_t batch_signal_job(int64_t, int32_t);
+int32_t llb_signal_job(int64_t, int32_t);

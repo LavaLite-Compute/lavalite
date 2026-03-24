@@ -14,3 +14,9 @@
 #include "base/lib/ll.list.h"
 
 #include "batch/lib/wire.h"
+
+enum mbd_err {
+    MBD_OK = 0,
+    MBD_ERR = -1,
+};
+int call_mbd_tcp(const void *, size_t, void **, struct protocol_header *);
