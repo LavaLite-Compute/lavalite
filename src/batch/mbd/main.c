@@ -10,22 +10,18 @@
 struct ll_list host_list;
 struct ll_hash host_name_hash;
 struct ll_hash host_addr_hash;
+struct ll_list group_list;
+struct ll_hash group_name_hash;
+struct ll_list queue_list;
+struct ll_hash queue_name_hash;
 
-// LavaLite
-// bmgr of the entire batch system
-// has to be equal to the base manager as returned by
-// ls_clusterinfo()
-// One user, fixed identity, zero UID gymnastics.
 struct mbd_manager *mbd_mgr;
-// epoll interface for chan_epoll()
+
 int mbd_efd;
-int mbd_max_events;
-struct epoll_event *mbd_events;
+struct epoll_event mbd_events[CHAN_MAX];
 int mbd_chan;
 uint16_t mbd_port;
 char mbd_host[MAXHOSTNAMELEN];
-// hash hData by channel id
-struct ll_hash hdata_by_chan;
 
 static void mbd_check_not_root(void);
 static void mbd_init_log(void);
@@ -57,150 +53,30 @@ static int mbd_init(const char *path)
     ll_list_init(&host_list);
     ll_hash_init(&host_name_hash, 1021);
     ll_hash_init(&host_addr_hash, 1021);
+    ll_list_init(&group_list);
+    ll_hash_init(&group_name_hash, 127);
+    ll_list_init(&queue_list);
+    ll_hash_init(&queue_name_hash, 31);
 
-    conf_init(path);
+    if (conf_init() < 0) {
+        LS_ERRX("conf_init failed");
+        return -1;
+    }
 
-    events_init();
+    if (events_init() < 0) {
+        LS_ERRX("event_init failed");
+        return -1;
+    }
 
-    network_init();
+    if (network_init() < 0) {
+        LS_ERRX("event_init failed");
+        return -1;
+    }
 
     // start compact
-    mbd_compact_start();
-
+    compact_start();
 }
 
-static int mbd_accept(int ch_id)
-{
-    struct sockaddr_in from;
-
-    int ch_id = chan_accept(tcp_chan, &from);
-    if (ch_id < 0) {
-        LS_ERR("%s: chan_accept() failed: %m", __func__);
-        return -1;
-    }
-
-    char addr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &from.sin_addr, addr, sizeof(addr));
-    struct mbd_node *n = ll_hash_search(&node_addr_hash, addr);
-    if (n == NULL) {
-        LS_ERR("rejected accept from unknown host %s", addr_to_str(&from));
-        chan_close(ch_id);
-        return -1;
-    }
-
-    struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLRDHUP;
-    ev.data.u32 = ch_id;
-    epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(ch_id), &ev);
-
-    return ch_id;
-}
-
-static void mbd_message(int ch_id)
-{
-    LS_DEBUG("ch_id=%d sock=%d events=0x%x",
-             ch_id, channels[ch_id].sock, channels[ch_id].chan_events);
-
-    // See if it is an sbd node
-    char key[LL_BUFSIZ_32];
-    struct hData *host_data;
-
-    snprintf(key, sizeof(key), "%d", ch_id);
-    host_data = ll_hash_search(&hdata_by_chan, key);
-    // Here its a little assymetric with non sbd client
-    // handling. If there is an exception on the channel with
-    // sbd we have to handle it inside this call because beside
-    // just shutting down the client we have to do other operations
-    // like clean up caches, jobs states etc
-    // so the asymmetry is intentional and correct.
-    if (host_data) {
-        // handle the sbd client
-        LS_DEBUG("the client is an sbd %s", host_data->host);
-        // dispatch the payload decoder
-        sbd_dispatch(host_data->sbd_node);
-        return;
-    }
-
-    client_dispatch(client);
-    // No client found for this channel id: internal inconsistency.
-    LS_ERR("no client found for chanfd=%d", ch_id);
-}
-
-static int client_dispatch(int ch_id)
-{
-    if (chan_has_error(ch_id)) {
-        LS_DEBUG("channel=%d from=%s closed connection", ch_id,
-                 chan_addr_str(ch_id));
-        shutdown_tcp_chan(ch_id);
-        return -1;
-    }
-
-    struct chan_buffer *buf;
-    struct protocol_header hdr;
-    XDR xdrs;
-
-    if (chan_dequeue(ch_id, &buf) < 0) {
-        LS_ERR("chan_dequeue() failed");
-        shutdown_tcp_chan(ch_id);
-        return;
-    }
-
-    xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
-    if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed");
-        xdr_destroy(&xdrs);
-        shutdown_tcp_chan(ch_id);
-        return;
-    }
-
-    LS_DEBUG("protocol=%s", proto_to_str(hdr.operation));
-
-    switch (hdr.operation) {
-    case BATCH_JOB_SUB:
-        job_submit(&xdrs, ch_id);
-        break;
-    case BATCH_JOB_SIG:
-        job_signal(&xdrs, ch_id);
-        xdr_destroy(&xdrs);
-        break;
-    case BATCH_GROUP_INFO:
-        host_group_info(&xdrs, ch_id);
-        break;
-    case BATCH_QUEUE_INFO:
-        queue_info(&xdrs, ch_id);
-        break;
-    case BATCH_JOB_INFO:
-        job_info(&xdrs, ch_id);
-        break;
-    case BATCH_HOST_INFO:
-        host_info(&xdrs, ch_id);
-        break;
-    case BATCH_SBD_REGISTER:
-        int cc = mbd_sbd_register(&xdrs, client, &req_hdr);
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        if (cc < 0) {
-            assert(client->host_node != NULL);
-            struct hData *host_data = client->host_node;
-            shutdown_mbd_client(client);
-            if (host_data)
-                host_data->sbd_node = NULL;
-        }
-        return 0;
-    case BATCH_COMPACT_DONE:
-        mbd_handle_compact_done(&xdrs, ch_id, &req_hdr);
-        chan_free_buf(buf);
-    default:
-        LS_ERR("unknown request=%d from=%s", req_hdr.operation,
-               chan_addr_str(ch_id));
-        if (req_hdr.version <= CURRENT_PROTOCOL_VERSION)
-            LS_ERRX("protocol version=0x%x error", hdr.version);
-            break;
-    }
-
-    xdr_destroy(&xdrs);
-    return 0;
-}
 
 void shutdown_chan(struct mbd_client_node *client)
 {

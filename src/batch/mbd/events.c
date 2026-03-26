@@ -47,3 +47,7 @@ static void events_init(void)
     }
     LS_INFO("job working dir initialized %s", jobs_dir);
 }
+
+void reopen_job_events(void)
+{
+}
