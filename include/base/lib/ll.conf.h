@@ -11,26 +11,30 @@ struct ll_kv {
 };
 
 enum ll_params {
-    /* Common */
+    // Common
+    LL_CLUSTER_NAME,
     LL_CONFDIR,
-    LL_SERVERDIR,
-    LL_BINDIR,
-    LL_SHAREDIR,
-    LL_ENVDIR,
     LL_LOGDIR,
     LL_LOG_MASK,
-    LL_CLUSTER_NAME,
+
+    // lim
     LL_LIM_PORT,
-    LL_MBD_PORT,
+    // sbd
     LL_SBD_PORT,
+
+    // compactor and mbd
     LL_EVENTS_MAX_SIZE,
     LL_EVENTS_RETAIN,
+    LL_MBD_PORT,
+    LL_MBD_HOST,
+    LL_MBD_USER,
+
+    // Debug
     LL_API_CONNTIMEOUT,
     LL_API_RECVTIMEOUT,
     LL_SBD_CONNTIMEOUT,
     LL_SBD_READTIMEOUT,
-    LL_MBD_HOST,
-    LL_MBD_USER,
+
     PARAMS_COUNT,
 };
 

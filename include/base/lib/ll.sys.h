@@ -80,10 +80,6 @@ enum {
 */
 static const size_t LL_ENVVAR_MAX = 2 * 1024 * 1024;
 
-/* Utility macro for kibibytes
- */
-#define LL_KiB(n) ((size_t) (n) * 1024)
-
 int get_uid(const char *, uid_t *);
 int millisleep(uint32_t);
 size_t ll_strlcpy(char *, const char *, size_t);

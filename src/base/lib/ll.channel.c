@@ -6,32 +6,16 @@
 
 struct chan_data channels[CHAN_MAX];
 
-static void buf_remove(struct chan_buffer *entry)
-{
-    entry->back->forw = entry->forw;
-    entry->forw->back = entry->back;
-}
-
-static void buf_insert(struct chan_buffer *entry, struct chan_buffer *pred)
-{
-    entry->back = pred->back;
-    entry->forw = pred;
-    pred->back->forw = entry;
-    pred->back = entry;
-}
-
 static struct chan_buffer *make_buf(void)
 {
-    struct chan_buffer *newbuf;
-
-    newbuf = calloc(1, sizeof(struct chan_buffer));
-    if (!newbuf)
+    struct chan_buffer *buf = calloc(1, sizeof(*buf));
+    if (!buf)
         return NULL;
 
-    newbuf->forw = newbuf->back = newbuf;
-
-    return newbuf;
+    // link is zeroed by calloc; no sentinel init needed with ll_list
+    return buf;
 }
+
 
 static void doread(struct chan_data *chan)
 {
@@ -39,15 +23,15 @@ static void doread(struct chan_data *chan)
     int cc;
 
     // Get or create receive buffer
-    if (chan->recv->forw == chan->recv) {
+    if (ll_list_is_empty(&chan->recv)) {
         rcvbuf = make_buf();
         if (!rcvbuf) {
             chan->chan_events = CHAN_EPOLLERR;
             return;
         }
-        buf_insert(rcvbuf, chan->recv);
+        ll_list_append(&chan->recv, &rcvbuf->link);
     } else {
-        rcvbuf = chan->recv->forw;
+        rcvbuf = (struct chan_buffer *)chan->recv.head;
     }
 
     // Phase 1: Read header
@@ -91,7 +75,6 @@ static void doread(struct chan_data *chan)
             xdr_destroy(&xdrs);
 
             if (hdr.length > 0) {
-                // Extend buffer for payload
                 char *payload = realloc(rcvbuf->data,
                                         PACKET_HEADER_SIZE + hdr.length);
                 if (!payload) {
@@ -101,7 +84,6 @@ static void doread(struct chan_data *chan)
                 rcvbuf->data = payload;
                 rcvbuf->len = PACKET_HEADER_SIZE + hdr.length;
             }
-            // If no payload, packet is complete
             if (hdr.length == 0) {
                 chan->chan_events = CHAN_EPOLLIN;
                 return;
@@ -126,7 +108,6 @@ static void doread(struct chan_data *chan)
         }
         rcvbuf->pos += cc;
 
-        // Packet complete
         if (rcvbuf->pos == rcvbuf->len) {
             chan->chan_events = CHAN_EPOLLIN;
         }
@@ -138,32 +119,27 @@ static void dowrite(struct chan_data *chan, int chan_id, int efd)
     struct chan_buffer *sendbuf;
     int cc;
 
-    if (chan->send->forw == chan->send)
+    if (ll_list_is_empty(&chan->send))
         return;
 
-    sendbuf = chan->send->forw;
+    sendbuf = (struct chan_buffer *)chan->send.head;
 
     cc = write(chan->sock, sendbuf->data + sendbuf->pos,
                sendbuf->len - sendbuf->pos);
     if (cc < 0) {
-        // transient, wait for writable again
         if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
             return;
-        // real error
         chan->chan_events = CHAN_EPOLLERR;
         chan_set_write_interest(chan_id, efd, 0);
         return;
     }
 
-    // all sent
     sendbuf->pos += cc;
     if (sendbuf->pos == sendbuf->len) {
-        buf_remove(sendbuf);
+        ll_list_remove(&chan->send, &sendbuf->link);
         free(sendbuf->data);
         free(sendbuf);
-        // Remove from epoll EPOLLOUT only when the whole list
-        // is all empty
-        if (chan->send->forw == chan->send) {
+        if (ll_list_is_empty(&chan->send)) {
             chan_set_write_interest(chan_id, efd, 0);
         }
     }
@@ -172,11 +148,8 @@ static void dowrite(struct chan_data *chan, int chan_id, int efd)
 static int chan_find_free(void)
 {
     for (int i = 0; i < CHAN_MAX; i++) {
-        if (channels[i].sock == -1) {
-            channels[i].send = NULL;
-            channels[i].recv = NULL;
+        if (channels[i].sock == -1)
             return i;
-        }
     }
     return -1;
 }
@@ -191,13 +164,11 @@ static inline int chan_is_udp(enum chan_type t)
 
 static inline int chan_is_valid(int ch_id)
 {
-    if (ch_id < 0 || ch_id > CHAN_MAX) {
+    if (ch_id < 0 || ch_id > CHAN_MAX)
         return 0;
-    }
 
-    if (channels[ch_id].sock == -1) {
+    if (channels[ch_id].sock == -1)
         return 0;
-    }
 
     return 1;
 }
@@ -212,15 +183,16 @@ void chan_init(void)
     for (int i = 0; i < CHAN_MAX; i++) {
         channels[i].sock = -1;
         channels[i].chan_events = CHAN_EPOLLNONE;
+        ll_list_init(&channels[i].send);
+        ll_list_init(&channels[i].recv);
     }
     initialised = 1;
 }
 
 int chan_sock(int ch_id)
 {
-    if (ch_id < 0 || ch_id > CHAN_MAX) {
+    if (ch_id < 0 || ch_id > CHAN_MAX)
         return -1;
-    }
 
     return channels[ch_id].sock;
 }
@@ -305,9 +277,8 @@ int chan_tcp_server(uint16_t port)
 
 int chan_accept(int ch_id, struct sockaddr_in *from)
 {
-    if (channels[ch_id].type != TCP_SERVER) {
+    if (channels[ch_id].type != TCP_SERVER)
         return -1;
-    }
 
     socklen_t len = sizeof(struct sockaddr);
     int s = accept(channels[ch_id].sock, (struct sockaddr *) from, &len);
@@ -317,73 +288,53 @@ int chan_accept(int ch_id, struct sockaddr_in *from)
     return chan_open(s);
 }
 
-// If connection fails the caller is expected to free the channel
 int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
 {
-    int cc;
+    (void) options;
 
-    (void) options; // unused for now
-
-    // No more connected UDP; use chan_send_dgram/chan_recv_dgram instead.
-    if (channels[ch_id].type != TCP_CLIENT) {
+    if (channels[ch_id].type != TCP_CLIENT)
         return -1;
-    }
-    // No peer for this channel?
-    if (peer == NULL) {
-        return -1;
-    }
 
-    cc = connect_timeout(channels[ch_id].sock, (struct sockaddr *) peer,
-                         sizeof(struct sockaddr_in), timeout);
+    if (peer == NULL)
+        return -1;
+
+    return connect_timeout(channels[ch_id].sock, (struct sockaddr *) peer,
+                           sizeof(struct sockaddr_in), timeout);
+}
+
+int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
+{
+    if (!chan_is_udp(channels[ch_id].type))
+        return -1;
+
+    ssize_t cc = sendto(chan_sock(ch_id), buf, len, 0, (struct sockaddr *) peer,
+                        sizeof(struct sockaddr_in));
     if (cc < 0)
         return -1;
 
     return 0;
 }
 
-int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
-{
-    if (!chan_is_udp(channels[ch_id].type)) {
-        return -1;
-    }
-
-    ssize_t cc = sendto(chan_sock(ch_id), buf, len, 0, (struct sockaddr *) peer,
-                        sizeof(struct sockaddr_in));
-    if (cc < 0) {
-        return -1;
-    }
-
-    return 0;
-}
-
-// Client call
 int chan_recv_dgram(int ch_id, void *buf, size_t len,
                     struct sockaddr_in *peer, int timeout)
 {
-    // We can receive dgram packets on both client udp but
-    // also on listening if we are master lim
-    if (!chan_is_udp(channels[ch_id].type)) {
+    if (!chan_is_udp(channels[ch_id].type))
         return -1;
-    }
 
     socklen_t peersize = sizeof(struct sockaddr_in);
     int sock = chan_sock(ch_id);
 
     int cc = rd_poll(sock, timeout);
-    if (cc < 0) {
+    if (cc <= 0)
         return -1;
-    }
-    if (cc == 0) {
-        return -1;
-    }
 
     cc = recvfrom(sock, buf, len, 0, (struct sockaddr *) peer, &peersize);
-    if (cc < 0) {
+    if (cc < 0)
         return -1;
-    }
 
     return cc;
 }
+
 // Open channel after accept
 int chan_open(int s)
 {
@@ -397,51 +348,27 @@ int chan_open(int s)
 
     channels[i].type = TCP_CONNECT;
     channels[i].sock = s;
+    ll_list_init(&channels[i].send);
+    ll_list_init(&channels[i].recv);
 
-    channels[i].send = make_buf();
-    channels[i].recv = make_buf();
-    if (!channels[i].send || !channels[i].recv) {
-        chan_close(i);
-        return -1;
-    }
     return i;
 }
 
 int chan_close(int ch_id)
 {
-    struct chan_buffer *buf;
-    struct chan_buffer *nextbuf;
-
-    if (ch_id < 0 || ch_id > CHAN_MAX) {
+    if (ch_id < 0 || ch_id > CHAN_MAX)
         return -1;
-    }
 
-    if (channels[ch_id].sock < 0) {
+    if (channels[ch_id].sock < 0)
         return -1;
-    }
+
     close(channels[ch_id].sock);
 
-    if (channels[ch_id].send) {
-        for (buf = channels[ch_id].send->forw; buf != channels[ch_id].send;
-             buf = nextbuf) {
-            nextbuf = buf->forw;
-            free(buf->data);
-            free(buf);
-        }
-        free(channels[ch_id].send);
-    }
-    if (channels[ch_id].recv) {
-        for (buf = channels[ch_id].recv->forw; buf != channels[ch_id].recv;
-             buf = nextbuf) {
-            nextbuf = buf->forw;
-            free(buf->data);
-            free(buf);
-        }
-        free(channels[ch_id].recv);
-    }
+    ll_list_clear(&channels[ch_id].send, (void (*)(void *))chan_free_buf);
+    ll_list_clear(&channels[ch_id].recv, (void (*)(void *))chan_free_buf);
+
     channels[ch_id].chan_events = CHAN_EPOLLNONE;
     channels[ch_id].sock = -1;
-    channels[ch_id].send = channels[ch_id].recv = NULL;
 
     return 0;
 }
@@ -451,28 +378,29 @@ int chan_enqueue(int ch_id, struct chan_buffer *msg)
     if (!chan_is_valid(ch_id))
         return -1;
 
-    buf_insert(msg, channels[ch_id].send);
+    ll_list_append(&channels[ch_id].send, &msg->link);
     return 0;
 }
 
 int chan_dequeue(int ch_id, struct chan_buffer **buf)
 {
+    struct ll_list_entry *e;
+
     if (!chan_is_valid(ch_id))
         return -1;
 
-    if (channels[ch_id].recv->forw == channels[ch_id].recv) {
+    e = ll_list_dequeue(&channels[ch_id].recv);
+    if (!e)
         return -1;
-    }
-    *buf = channels[ch_id].recv->forw;
-    buf_remove(channels[ch_id].recv->forw);
+
+    *buf = (struct chan_buffer *) e;
     return 0;
 }
 
 ssize_t chan_read_nonblock(int ch_id, void *buf, size_t len, int timeout_sec)
 {
-    if (io_non_block(channels[ch_id].sock) < 0) {
+    if (io_non_block(channels[ch_id].sock) < 0)
         return -1;
-    }
 
     int fd = channels[ch_id].sock;
     unsigned char *buffer = (unsigned char *) buf;
@@ -484,41 +412,28 @@ ssize_t chan_read_nonblock(int ch_id, void *buf, size_t len, int timeout_sec)
         struct pollfd pfd = {.fd = fd, .events = POLLIN};
         int poll_result = poll(&pfd, 1, timeout_ms);
 
-        // Handle poll errors
         if (poll_result < 0) {
             if (errno == EINTR)
-                continue; // Interrupted by signal, retry
+                continue;
             return -1;
         }
-
-        // Handle timeout
-        if (poll_result == 0) {
+        if (poll_result == 0)
             return -1;
-        }
 
-        // Ready to read - attempt the read
         ssize_t bytes_read = recv(fd, buffer + total_read, remaining, 0);
 
-        // Handle successful read
         if (bytes_read > 0) {
             remaining -= bytes_read;
             total_read += bytes_read;
             continue;
         }
-
-        // Handle connection closed
         if (bytes_read == 0) {
             errno = ECONNRESET;
             return -1;
         }
+        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+            continue;
 
-        // Handle read errors (bytes_read < 0)
-        if (errno == EINTR)
-            continue; // Interrupted, retry
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            continue; // Would block, poll again
-
-        // Real error occurred
         return -1;
     }
 
@@ -531,20 +446,20 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
     if (chan_write(ch_id, snd->data, snd->len) != snd->len)
         return -1;
 
-    if (snd->forw != NULL) {
-        struct chan_buffer *buf = snd->forw;
-        int nlen = htonl(buf->len);
+    // If there is a chained payload buffer, send it too
+    if (snd->link.next != NULL) {
+        struct chan_buffer *payload = (struct chan_buffer *) snd->link.next;
+        int nlen = htonl(payload->len);
 
         if (chan_write(ch_id, &nlen, sizeof(int)) != sizeof(int))
             return -1;
 
-        if (chan_write(ch_id, buf->data, buf->len) != buf->len)
+        if (chan_write(ch_id, payload->data, payload->len) != payload->len)
             return -1;
     }
 
-    if (!rcv) {
+    if (!rcv)
         return 0;
-    }
 
     int cc = rd_poll(channels[ch_id].sock, timeout * 1000);
     if (cc < 0)
@@ -556,18 +471,16 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
     }
 
     cc = recv_protocol_header(ch_id, hdr);
-    if (cc < 0) {
+    if (cc < 0)
         return -1;
-    }
 
     rcv->data = NULL;
     rcv->len = hdr->length;
     if (rcv->len == 0)
         return 0;
 
-    if ((rcv->data = calloc(rcv->len, sizeof(char))) == NULL) {
+    if ((rcv->data = calloc(rcv->len, sizeof(char))) == NULL)
         return -1;
-    }
 
     if ((cc = chan_read(ch_id, rcv->data, rcv->len)) != rcv->len) {
         free(rcv->data);
@@ -577,48 +490,34 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
     return 0;
 }
 
-// chan_epoll: drives I/O and sets chan->chan_events (enum state),
-// does not expose epoll flags directly.
 int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
 {
     int cc = epoll_wait(efd, events, max_events, tm);
-    if (cc == 0) // timeout
+    if (cc == 0)
         return 0;
-    if (cc < 0) {
-        // dont do magic with EINTR or whatever else, caller knows the best
+    if (cc < 0)
         return -1;
-    }
 
     for (int i = 0; i < cc; i++) {
         struct epoll_event *e = &events[i];
         struct chan_data *chan = &channels[e->data.u32];
         int ch_id = e->data.u32;
-        // LS_DEBUG("ch_id=%d events=0x%x", ch_id, e->events);
-        // clean channel specific events for the caller
+
         chan->chan_events = CHAN_EPOLLNONE;
 
-        if (chan->type == TCP_SERVER) {
-            chan->chan_events = CHAN_EPOLLIN;
-            continue;
-        }
-        if (chan->type == UDP_SERVER) {
-            chan->chan_events = CHAN_EPOLLIN;
-            continue;
-        }
-        if (chan->type == TIMER_FD) {
+        if (chan->type == TCP_SERVER || chan->type == UDP_SERVER
+            || chan->type == TIMER_FD) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
 
-        if (e->events & (EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR)) {
+        if (e->events & (EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR))
             doread(chan);
-        }
 
-        if (e->events & EPOLLOUT) {
+        if (e->events & EPOLLOUT)
             dowrite(chan, ch_id, efd);
-        }
-
     }
+
     return cc;
 }
 
@@ -629,13 +528,12 @@ struct chan_buffer *chan_make_buf(void)
 
 int chan_alloc_buf(struct chan_buffer **buf, int size)
 {
-    // make new buffer and initialize its linked list
     *buf = make_buf();
     if (!*buf)
         return -1;
 
     (*buf)->data = calloc(size, sizeof(char));
-    if ((*buf)->data == NULL) {
+    if (!(*buf)->data) {
         free(*buf);
         return -1;
     }
@@ -643,16 +541,12 @@ int chan_alloc_buf(struct chan_buffer **buf, int size)
     return 0;
 }
 
-int chan_free_buf(struct chan_buffer *buf)
+void chan_free_buf(struct chan_buffer *buf)
 {
     if (!buf)
-        return 0;
-    if (buf->data)
-        free(buf->data);
-
+        return;
+    free(buf->data);
     free(buf);
-
-    return 0;
 }
 
 int io_non_block(int s)
@@ -671,11 +565,9 @@ int io_block(int s)
 
 int chan_create_timer(int seconds)
 {
-    int ch;
-
-    if ((ch = chan_find_free()) < 0) {
+    int ch = chan_find_free();
+    if (ch < 0)
         return -1;
-    }
 
     int tfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
     if (tfd < 0) {
@@ -683,11 +575,9 @@ int chan_create_timer(int seconds)
         return -1;
     }
 
-    // set the time in the channel socket
     channels[ch].sock = tfd;
     channels[ch].type = TIMER_FD;
 
-    // Reload the time
     struct itimerspec its;
     its.it_value.tv_sec = seconds;
     its.it_value.tv_nsec = 0;
@@ -725,14 +615,12 @@ int chan_set_write_interest(int ch_id, int efd, int on)
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLRDHUP;
-    if (on) {
+    if (on)
         ev.events |= EPOLLOUT;
-    }
     ev.data.u32 = (uint32_t)ch_id;
 
-    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0) {
+    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0)
         return -1;
-    }
 
     return 0;
 }
@@ -746,6 +634,7 @@ ssize_t chan_read(int ch_id, void *buf, size_t len)
 
     size_t total = 0;
     int s = channels[ch_id].sock;
+
     while (len > 0) {
         ssize_t cc = read(s, buf, len);
 
@@ -755,17 +644,13 @@ ssize_t chan_read(int ch_id, void *buf, size_t len)
             total += cc;
             continue;
         }
-
         if (cc == 0) {
-            // Peer closed connection
             errno = 0;
             return -1;
         }
-
-        if (cc == -1 && errno == EINTR)
+        if (errno == EINTR)
             continue;
 
-        // Unrecoverable error
         return -1;
     }
 
@@ -781,8 +666,8 @@ ssize_t chan_write(int ch_id, void *buf, size_t len)
 
     size_t total = 0;
     int s = channels[ch_id].sock;
+
     while (len > 0) {
-        // Do write
         ssize_t cc = write(s, buf, len);
 
         if (cc > 0) {
@@ -791,11 +676,9 @@ ssize_t chan_write(int ch_id, void *buf, size_t len)
             total += cc;
             continue;
         }
-
         if (cc < 0 && errno == EINTR)
             continue;
 
-        // Unrecoverable error
         return -1;
     }
 
@@ -836,9 +719,8 @@ int recv_protocol_header(int ch_id, struct protocol_header *hdr)
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
 
-    if (chan_read(ch_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE) {
+    if (chan_read(ch_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
         return -1;
-    }
 
     xdrmem_create(&xdrs, (char *) buf, PACKET_HEADER_SIZE, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, hdr)) {
@@ -867,11 +749,13 @@ const char *chan_addr_str(int ch_id)
         strcpy(buf, "?.?:?");
         return buf;
     }
+
     char ip[INET_ADDRSTRLEN];
     if (!inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip))) {
         strcpy(buf, "?.?:?");
         return buf;
     }
+
     snprintf(buf, sizeof(buf), "%s:%u", ip, ntohs(peer.sin_port));
     return buf;
 }
@@ -897,9 +781,11 @@ int chan_tcp_client(void)
     int ch = chan_find_free();
     if (ch < 0)
         return -1;
+
     int s = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (s < 0)
         return -1;
+
     channels[ch].sock = s;
     channels[ch].type = TCP_CLIENT;
     channels[ch].chan_events = CHAN_EPOLLNONE;
@@ -908,7 +794,7 @@ int chan_tcp_client(void)
 
 int chan_is_readable(int ch_id)
 {
-    if (! chan_is_valid(ch_id))
+    if (!chan_is_valid(ch_id))
         return 0;
 
     if (channels[ch_id].chan_events == CHAN_EPOLLIN

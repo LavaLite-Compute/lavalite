@@ -325,7 +325,28 @@ static void dump_config(void)
 int conf_init()
 {
     if (ll_init() < 0) {
-        syslog(LOG_ERR, "conf_init: ll_init failed");
+        LS_ERRX("conf_init: ll_init failed");
+        return -1;
+    }
+
+    if (ll_conf_param_missing("LL_CONF_DIR", ll_params[LL_CONF_DIR].val)) {
+        LS_ERRX("LL_COMF_DIR missing from ll.conf");
+        return -1;
+    }
+    if (ll_conf_param_missing("LL_STATE_DIR", ll_params[LL_STATE_DIR].val)) {
+        LS_ERRX("LL_STATE_DIR missing from ll.conf");
+        return -1;
+    }
+    if (ll_conf_param_missing("LL_MBD_PORT", ll_params[LL_MBD_PORT].val)) {
+        LS_ERRX("LL_MBD_PORT missing from ll.conf");
+        return -1;
+    }
+    if (ll_conf_param_missing("LL_MBD_HOST", ll_params[LL_MBD_HOST].val)) {
+        LS_ERRX("LL_MBD_HOST missing from ll.conf");
+        return -1;
+    }
+    if (ll_conf_param_missing("LL_MBD_USER", ll_params[LL_MBD_USER].val)) {
+        LS_ERRX("LL_MBD_USER missing from ll.conf");
         return -1;
     }
 

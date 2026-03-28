@@ -242,22 +242,13 @@ int load_conf(const char *path)
     if (ll_conf_load(ll_params, PARAMS_COUNT, path) < 0)
         return -1;
 
-    char *p;
-    p = "LL_SERVERDIR";
-    if (ll_conf_param_missing(p, ll_params[LL_SERVERDIR].val)) {
-        LS_ERR("missing mandatory parameter %s", p);
+    if (ll_conf_param_missing("LL_LOGDIR", ll_params[LL_LOGDIR].val)) {
+        LS_ERR("missing mandatory parameter LL_LOGDIR");
         return -1;
     }
 
-    p = "LL_LOGDIR";
-    if (ll_conf_param_missing(p, ll_params[LL_LOGDIR].val)) {
-        LS_ERR("missing mandatory parameter %s", p);
-        return -1;
-    }
-
-    p = "LL_LIM_PORT";
-    if (ll_conf_param_missing(p, ll_params[LL_LIM_PORT].val)) {
-        LS_ERR("missing mandatory parameter %s", p);
+    if (ll_conf_param_missing("LL_LIM_PORT", ll_params[LL_LIM_PORT].val)) {
+        LS_ERR("missing mandatory parameter LL_LIM_PORT");
         return -1;
     }
     return 0;

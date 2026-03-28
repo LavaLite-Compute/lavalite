@@ -1,11 +1,12 @@
 /* Copyright (C) LavaLite Contributors
- * GLP v2
+ * GPL v2
  */
 #pragma once
 
 #include "base/lib/ll.sys.h"
 #include "base/lib/ll.wire.h"
 #include "base/lib/ll.syslog.h"
+#include "base/lib/ll.list.h"
 
 #define CHAN_MAX 10204
 
@@ -19,9 +20,8 @@ enum chan_type {
     TIMER_FD,
 };
 
-// chan_events is a simple state state machine, not a bitmask.
-// CHAN_EPOLLIN / CHAN_EPOLLOUT / CHAN_EPOLLERR are enum values,
-// so always compare with ==, never with &.
+// chan_events is a simple state machine, not a bitmask.
+// Always compare with ==, never with &.
 enum chan_events {
     CHAN_EPOLLNONE,
     CHAN_EPOLLIN,
@@ -29,21 +29,21 @@ enum chan_events {
     CHAN_EPOLLERR,
 };
 
-struct chan_data {
-    int sock;           // the socket
-    enum chan_type type; // channel type UDP/TCP ...
-    struct chan_buffer *send;
-    struct chan_buffer *recv;
-    enum chan_events chan_events; // output
-};
-
 struct chan_buffer {
-    struct chan_buffer *forw; // move +1 on the x-axis
-    struct chan_buffer *back; // move -1
+    struct ll_list_entry link;  // intrusive list node
     char *data;
     int pos;
     int len;
 };
+
+struct chan_data {
+    int sock;
+    enum chan_type type;
+    struct ll_list send;
+    struct ll_list recv;
+    enum chan_events chan_events;
+};
+
 extern struct chan_data channels[];
 
 void chan_init(void);
@@ -62,7 +62,7 @@ ssize_t chan_read(int, void *, size_t);
 ssize_t chan_read_nonblock(int, void *, size_t, int);
 ssize_t chan_write(int, void *, size_t);
 int chan_alloc_buf(struct chan_buffer **, int);
-int chan_free_buf(struct chan_buffer *);
+void chan_free_buf(struct chan_buffer *);
 int chan_open(int);
 int chan_dup_stdio(int);
 int io_non_block(int);

@@ -4,25 +4,21 @@
 #include "base/lib/ll.conf.h"
 
 struct ll_kv ll_params[PARAMS_COUNT] = {
-    [LL_CONFDIR]          = {"LL_CONFDIR",          NULL},
-    [LL_SERVERDIR]        = {"LL_SERVERDIR",         NULL},
-    [LL_BINDIR]           = {"LL_BINDIR",            NULL},
-    [LL_SHAREDIR]         = {"LL_SHAREDIR",          NULL},
-    [LL_ENVDIR]           = {"LL_ENVDIR",            NULL},
+    [LL_CLUSTER_NAME]     = {"LL_CLUSTER_NAME",     NULL},
+    [LL_CONFDIR]          = {"LL_CONFDIR",           NULL},
     [LL_LOGDIR]           = {"LL_LOGDIR",            NULL},
     [LL_LOG_MASK]         = {"LL_LOG_MASK",          "LOG_WARNING"},
-    [LL_CLUSTER_NAME]     = {"LL_CLUSTER_NAME",      NULL},
     [LL_LIM_PORT]         = {"LL_LIM_PORT",          "33123"},
-    [LL_MBD_PORT]         = {"LL_MBD_PORT",          "33124"},
     [LL_SBD_PORT]         = {"LL_SBD_PORT",          "33125"},
     [LL_EVENTS_MAX_SIZE]  = {"LL_EVENTS_MAX_SIZE",   "100M"},
     [LL_EVENTS_RETAIN]    = {"LL_EVENTS_RETAIN",     "24h"},
+    [LL_MBD_PORT]         = {"LL_MBD_PORT",          "33124"},
+    [LL_MBD_HOST]         = {"LL_MBD_HOST",          NULL},
+    [LL_MBD_USER]         = {"LL_MBD_USER",          "lavalite"},
     [LL_API_CONNTIMEOUT]  = {"LL_API_CONNTIMEOUT",   "3"},
     [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT",   "5"},
     [LL_SBD_CONNTIMEOUT]  = {"LL_SBD_CONNTIMEOUT",   NULL},
     [LL_SBD_READTIMEOUT]  = {"LL_SBD_READTIMEOUT",   NULL},
-    [LL_MBD_HOST]         = {"LL_MBD_HOST",          NULL},
-    [LL_MBD_USER]         = {"LL_MBD_USER",          "lavalite"}
 };
 
 static uint16_t initialized;
@@ -32,7 +28,7 @@ int ll_init(void)
     if (initialized)
         return 0;
 
-    char *conf_dir = getenv("LL_ENVDIR");
+    char *conf_dir = getenv("LL_CONF_DIR");
     if (conf_dir == NULL)
         return -1;
 

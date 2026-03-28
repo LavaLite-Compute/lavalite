@@ -209,23 +209,17 @@ static void is_master_me(void)
             me->host->name, me->host_no, me->host_no * MISSED_BEACON_TOLERANCE);
 }
 
-static void usage(const char *cmd)
+static void usage(void)
 {
-    fprintf(
-        stderr,
-        "Usage: %s [OPTIONS]\n"
-        "  -d, --debug Run in foreground (no daemonize)\n"
-        "  -C, --check Configuration check (prints version, sets check mode)\n"
-        "  -V, --version     Print version and exit\n"
-        "  -e, --envdir DIR  Path to env dir \n"
-        "  -h, --help Show this help\n",
-        cmd);
+    fprintf(stderr, "lim:  --version lim version\n"
+            " --confdir path to configuration directory\n"
+            " --help itself\n");
 }
 
 int main(int argc, char **argv)
 {
     struct option long_options[] = {
-        {"envdir", required_argument, 0, 'e'},
+        {"confdir", required_argument, 0, 'e'},
         {"version", no_argument, 0, 'V'},
         {"check", no_argument, 0, 'C'},
         {"help", no_argument, 0, 'h'},
@@ -235,18 +229,20 @@ int main(int argc, char **argv)
     int cc;
     char *conf_dir = NULL;
 
-    while ((cc = getopt_long(argc, argv, "e:VCh", long_options, NULL)) !=
-           EOF) {
+    while ((cc = getopt_long(argc, argv, ":VCh", long_options, NULL)) != EOF) {
         switch (cc) {
-            case 'e':
-                conf_dir = strdup(optarg);
-                fprintf(stderr, "[lavalite] overriding LL_ENVDIR=%s\n", optarg);
-                break;
-            case 'V':
+        case 'c':
+            conf_dir = strdup(optarg);
+            fprintf(stderr, "[lavalite] overriding LL_CONF_DIR=%s\n", optarg);
+            break;
+        case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            return -1;
+            return 0;
+        case 'h':
+            usage();
+            break;
         default:
-            usage(argv[0]);
+            usage();
             return -1;
         }
     }
@@ -255,8 +251,8 @@ int main(int argc, char **argv)
     ls_openlog("lim", "/tmp", "LOG_DEBUG");
 
     if (conf_dir == NULL) {
-        if ((conf_dir = getenv("LL_ENVDIR")) == NULL) {
-            fprintf(stderr, "lim: LL_ENVDIR must be defined, cannot run\n");
+        if ((conf_dir = getenv("LL_CONF_DIR")) == NULL) {
+            fprintf(stderr, "lim: LL_CONF_DIR must be defined, cannot run\n");
             return -1;
         }
     }
