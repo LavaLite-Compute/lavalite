@@ -15,6 +15,7 @@ struct ll_kv ll_params[PARAMS_COUNT] = {
     [LL_MBD_PORT]         = {"LL_MBD_PORT",          "33124"},
     [LL_MBD_HOST]         = {"LL_MBD_HOST",          NULL},
     [LL_MBD_USER]         = {"LL_MBD_USER",          "lavalite"},
+    [LL_STATE_DIR]        = {"LL_STATE_DIR",         NULL},
     [LL_API_CONNTIMEOUT]  = {"LL_API_CONNTIMEOUT",   "3"},
     [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT",   "5"},
     [LL_SBD_CONNTIMEOUT]  = {"LL_SBD_CONNTIMEOUT",   NULL},

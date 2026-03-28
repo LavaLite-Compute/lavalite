@@ -28,6 +28,7 @@ enum ll_params {
     LL_MBD_PORT,
     LL_MBD_HOST,
     LL_MBD_USER,
+    LL_STATE_DIR,
 
     // Debug
     LL_API_CONNTIMEOUT,
