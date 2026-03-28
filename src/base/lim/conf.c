@@ -242,8 +242,8 @@ int load_conf(const char *path)
     if (ll_conf_load(ll_params, PARAMS_COUNT, path) < 0)
         return -1;
 
-    if (ll_conf_param_missing("LL_LOGDIR", ll_params[LL_LOGDIR].val)) {
-        LS_ERR("missing mandatory parameter LL_LOGDIR");
+    if (ll_conf_param_missing("LL_LOG_DIR", ll_params[LL_LOG_DIR].val)) {
+        LS_ERR("missing mandatory parameter LL_LOG_DIR");
         return -1;
     }
 

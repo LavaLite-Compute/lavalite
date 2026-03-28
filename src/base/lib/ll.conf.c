@@ -5,8 +5,8 @@
 
 struct ll_kv ll_params[PARAMS_COUNT] = {
     [LL_CLUSTER_NAME]     = {"LL_CLUSTER_NAME",     NULL},
-    [LL_CONFDIR]          = {"LL_CONFDIR",           NULL},
-    [LL_LOGDIR]           = {"LL_LOGDIR",            NULL},
+    [LL_CONF_DIR]          = {"LL_CONF_DIR",           NULL},
+    [LL_LOG_DIR]           = {"LL_LOG_DIR",            NULL},
     [LL_LOG_MASK]         = {"LL_LOG_MASK",          "LOG_WARNING"},
     [LL_LIM_PORT]         = {"LL_LIM_PORT",          "33123"},
     [LL_SBD_PORT]         = {"LL_SBD_PORT",          "33125"},

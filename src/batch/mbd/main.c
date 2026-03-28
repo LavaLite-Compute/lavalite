@@ -146,10 +146,10 @@ int main(int argc, char **argv)
     }
 
     ls_closelog();
-    cc = ls_openlog("mbd", ll_params[LL_LOGDIR].val, ll_params[LL_LOG_MASK].val);
+    cc = ls_openlog("mbd", ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
         fprintf(stderr, "mbd: ls_openlog failed lodir=%s mask=%s %m\n",
-                ll_params[LL_LOGDIR].val,  ll_params[LL_LOG_MASK].val);
+                ll_params[LL_LOG_DIR].val,  ll_params[LL_LOG_MASK].val);
         return -1;
     }
 

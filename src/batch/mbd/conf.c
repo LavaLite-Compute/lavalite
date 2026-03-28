@@ -330,7 +330,7 @@ int conf_init()
     }
 
     if (ll_conf_param_missing("LL_CONF_DIR", ll_params[LL_CONF_DIR].val)) {
-        LS_ERRX("LL_COMF_DIR missing from ll.conf");
+        LS_ERRX("LL_CONF_DIR missing from ll.conf");
         return -1;
     }
     if (ll_conf_param_missing("LL_STATE_DIR", ll_params[LL_STATE_DIR].val)) {
@@ -352,7 +352,7 @@ int conf_init()
 
     char path[PATH_MAX];
     int n = snprintf(path, sizeof(path), "%s/llb.hosts",
-                     ll_params[LL_CONFDIR].val);
+                     ll_params[LL_CONF_DIR].val);
     if (n < 0 || n >= (int)sizeof(path)) {
         return -1;
     }
@@ -368,7 +368,7 @@ int conf_init()
     }
 
     n = snprintf(path, sizeof(path), "%s/llb.queues",
-                 ll_params[LL_CONFDIR].val);
+                 ll_params[LL_CONF_DIR].val);
     if (n < 0 || n >= (int)sizeof(path)) {
         return -1;
     }
