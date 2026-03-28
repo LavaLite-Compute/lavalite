@@ -68,6 +68,7 @@ struct queue_conf {
     char desc[LL_BUFSIZ_256];
     char hosts[LL_BUFSIZ_64];
     int  priority;
+    int status;
 };
 
 struct mbd_queue {
@@ -90,40 +91,52 @@ struct mbd_group {
     char members[LL_BUFSIZ_1K];  /* space-separated */
 };
 
-// base library
-extern ll_kvl ll_params[];
-
 extern struct ll_list host_list;
 extern struct ll_hash host_name_hash;
 extern struct ll_hash host_addr_hash;
+extern struct ll_hash sbd_chan_hash;
+
 extern struct ll_list group_list;
 extern struct ll_hash group_name_hash;
+
 extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
+
 extern struct mbd_manager *mbd_mgr;
 extern int mbd_chan;
 extern int mbd_efd;
 extern int sched_timer;
 extern uint16_t mbd_port;
+extern int32_t sched_timer;
 
-// main
-int is_manager(uid_t);
+// main.c
+int32_t is_manager(uid_t);
 void mbd_die(enum mbd_exit);
 
 // conf.c
-int conf_init(void);
+int32_t conf_init(void);
 
 // compact.c
 void compact_start(void);
 void compact_shutdown(void);
-void handle_compact_done(XDR *, int, struct protocol_header *);
+void handle_compact_done(XDR *, int32_t, struct protocol_header *);
 void clean_jobs(time_t);
 void reopen_job_events(void);
 
 // net.c
-int nework_init(void);
-int mbd_accept(int);
-void mbd_message(int);
-int client_dispatch(int);
+int32_t nework_init(void);
+int32_t mbd_accept(int32_t);
+void mbd_message(int32_t);
+int32_t route(int32_t);
+int32_t enqueue_payload(int, struct protocol_header *,
+                        void *, size_t, bool_t (*xdr_func)());
 
 // sbd.c
+void sbd_register(XDR *, int32_t);
+void sbd_route(int32_t ch_id);
+
+// job.c
+void new_job_reply(XDR *, int32_t);
+
+// sched.c
+void schedule();

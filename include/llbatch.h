@@ -86,12 +86,13 @@ struct job_submit {
     char *project_name;
 };
 
-struct job_resources {
+struct job_resource_info {
     pid_t pgid;
     /* future: cpu_usage, mem_bytes, gpu_usage from cgroup
      */
 };
 
+// llb_job_info API options
 #define LLB_JOB_ALL  0x0001
 #define LLB_JOB_DONE 0x0002
 #define LLB_JOB_PEND 0x0004
@@ -102,7 +103,7 @@ struct job_info {
     int64_t job_id;
     uid_t uid;
     int32_t status;
-    struct job_resources resources;
+    struct job_resource_info resources;
     time_t submit_time;
     time_t start_time;
     time_t end_time;
@@ -149,7 +150,7 @@ struct host_group {
 
 int64_t llb_submit(struct job_submit *);
 
-struct job_info *llb_job_info(int64_t, int32_t, int32_t);
+struct job_info *llb_job_info(int64_t, int32_t *, int32_t);
 void llb_free_job_info(struct job_info *, int32_t);
 
 struct host_info *llb_host_info(int32_t *);

@@ -209,30 +209,32 @@ static struct mbd_queue *make_mbd_queue(const char *name, const char *desc,
         return NULL;
     }
 
-    ll_strlcpy(q->queue, name, sizeof(q->queue));
-    ll_strlcpy(q->description, desc, sizeof(q->description));
-    ll_strlcpy(q->hosts, hosts_str, sizeof(q->hosts));
+    ll_strlcpy(q->name, name, LL_BUFSIZ_64);
+    ll_strlcpy(q->description, desc, LL_BUFSIZ_256);
+    ll_strlcpy(q->hosts, hosts_str, LL_BUFSIZ_256);
     q->priority = priority;
     q->status   = QUEUE_OPEN;
 
     return q;
 }
 
-static void commit_queue(struct queue_conf *qc)
+static int commit_queue(struct queue_conf *qc)
 {
     struct mbd_queue *q = calloc(1, sizeof(struct mbd_queue));
     if (q == NULL) {
-        LS_ERRX("calloc failed name=%s", q_name);
+        LS_ERRX("calloc failed name=%s", qc->name);
         return -1;
     }
 
     strcpy(q->name, qc->name);
-    strcpy(q->description, qc->description);
+    strcpy(q->description, qc->desc);
     strcpy(q->hosts, qc->hosts);
     q->priority = qc->priority;
 
     ll_list_append(&queue_list, &q->ent);
-    ll_hash_insert(&queue_name_hash, q->queue, q, 0);
+    ll_hash_insert(&queue_name_hash, q->name, q, 0);
+
+    return 0;
 }
 
 static int parse_queues(const char *path)
@@ -302,13 +304,13 @@ static void dump_config(void)
     for (e = queue_list.head; e; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *)e;
         LS_DEBUG("queue name=%s priority=%d hosts=%s desc=%s",
-                 q->queue, q->name, q->priority, q->hosts, q->description);
+                 q->name, q->priority, q->hosts, q->description);
     }
 
     LS_DEBUG("--- hosts ---");
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *)e;
-        LS_DEBUG("host name=%s addr=%s", h.ent->name, h.ent->addr);
+        LS_DEBUG("host name=%s addr=%s", h->net.name, h->net.addr);
     }
 
     LS_DEBUG("--- groups ---");
@@ -320,7 +322,7 @@ static void dump_config(void)
 }
 
 
-int conf_init(void)
+int conf_init()
 {
     if (ll_init() < 0) {
         syslog(LOG_ERR, "conf_init: ll_init failed");
@@ -356,4 +358,23 @@ int conf_init(void)
     }
 
     return 0;
+}
+
+struct mbd_manager *mbd_init_manager(void)
+{
+    mbd_mgr = calloc(1, sizeof(struct mbd_manager));
+    mbd_mgr->uid = getuid();
+    mbd_mgr->gid = getgid();
+
+    struct passwd *pw = getpwuid2(mbd_mgr->uid);
+    if (!pw || !pw->pw_name) {
+        LS_ERR("getpwuid2(%d) failed", mbd_mgr->uid);
+        free(mbd_mgr);
+        return NULL;
+    }
+
+    // check that mbd is LL_MBD_USER=lavalite
+    LS_INFO("uid=%d gid=%d name=%s", mbd_mgr->uid, mbd_mgr->gid, pw->pw_name);
+
+    return mbd_mgr;
 }

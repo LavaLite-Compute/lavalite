@@ -44,6 +44,7 @@ struct chan_buffer {
     int pos;
     int len;
 };
+extern struct chan_data channels[];
 
 void chan_init(void);
 int chan_close(int);

@@ -1,10 +1,10 @@
 
 #include "batch/lib/batch.h"
 
-struct job_info *llb_job_info(int64_t job_id, int32_t idx, int32_t flags)
+struct job_info *llb_job_info(int64_t job_id, int32_t *num_job, int32_t flags)
 {
     (void)job_id;
-    (void)idx;
+    (void)num_job;
     (void)flags;
     return NULL;
 }
