@@ -3,6 +3,13 @@
  */
 #pragma once
 
+#include <sys/param.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+
+#include "base/lib/ll.bufsiz.h"
+#include "ll.h"
+
 struct wire_load {
     char hostname[MAXHOSTNAMELEN];
     uint32_t status;

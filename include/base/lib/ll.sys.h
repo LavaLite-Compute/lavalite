@@ -3,6 +3,11 @@
  */
 #pragma once
 
+#include <unistd.h>
+#include <pwd.h>
+#include <stdint.h>
+#include <time.h>
+
 int get_uid(const char *, uid_t *);
 int millisleep(uint32_t);
 size_t ll_strlcpy(char *, const char *, size_t);

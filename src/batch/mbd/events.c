@@ -3,13 +3,19 @@
  * GPL v2
  */
 
+#include <errno.h>
+#include <syslog.h>
+#include <sys/stat.h>
+
+#include "base/lib/ll.conf.h"
+#include "base/lib/ll.syslog.h"
 #include "batch/mbd/mbd.h"
 
 static char events_path[PATH_MAX];
 static char acct_path[PATH_MAX];
 static char jobs_dir[PATH_MAX];
 
-void events_init(void)
+int events_init(void)
 {
     char dir[PATH_MAX];
     int n;
@@ -46,6 +52,8 @@ void events_init(void)
         mbd_die(MBD_EXIT_FATAL);
     }
     LS_INFO("job working dir initialized %s", jobs_dir);
+
+    return 0;
 }
 
 void reopen_job_events(void)

@@ -6,11 +6,7 @@
  * published by the Free Software Foundation.
  */
 #pragma once
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
+#include "config.h"
 
 /* -----------------------------------------------------------------------
  * Job status
@@ -39,14 +35,6 @@ enum host_stat {
 #define HOST_CLOSED  0x01   /* admin disabled/locked — orthogonal to state */
 
 /* -----------------------------------------------------------------------
- * Queue status and attributes
- * ----------------------------------------------------------------------- */
-enum queue_stat {
-    QUEUE_OPEN,
-    QUEUE_CLOSED,
-};
-
-/* -----------------------------------------------------------------------
  * Error codes rename BATCH_ERR_NONE BATCH_ERR_NO_JOB BE or BERR
  * ----------------------------------------------------------------------- */
 enum llb_error {
@@ -55,8 +43,10 @@ enum llb_error {
     LLBE_NOT_STARTED,
     LLBE_JOB_STARTED,
     LLBE_JOB_FINISH,
-    LLBE_BAD_USER,
-    LLBE_BAD_QUEUE,
+    LLBE_HOST,
+    LLBE_HOST_GROUP,
+    LLBE_QUEUE,
+    LLBE_SIGNAL,
     LLBE_SYS_CALL,
     LLBE_PROTOCOL,
     LLBE_NUM_ERR,   /* must remain last */
@@ -103,6 +93,9 @@ struct job_info {
     int64_t job_id;
     uid_t uid;
     int32_t status;
+    char *name;
+    char *project;
+    char *comment;
     struct job_resource_info resources;
     time_t submit_time;
     time_t start_time;
@@ -117,7 +110,7 @@ struct job_info {
 };
 
 struct host_info {
-    char *host;
+    char *name;
     int32_t status;
     int32_t max_jobs;
     int32_t num_jobs;
@@ -125,13 +118,21 @@ struct host_info {
     int32_t num_susp;
 };
 
+enum queue_stat {
+    QUEUE_OPEN,
+    QUEUE_CLOSED,
+};
+
 struct queue_info {
-    char *queue;
+    char *name;
     char *description;
-    int priority;
-    int num_pend;
-    int num_run;
-    int num_susp;
+    char *hosts;
+    int32_t status;
+    int32_t priority;
+    int32_t max_jobs;
+    int32_t num_pend;
+    int32_t num_run;
+    int32_t num_susp;
 };
 
 struct job_signal {
@@ -148,13 +149,26 @@ struct host_group {
  * Public API
  * ----------------------------------------------------------------------- */
 
+// bsub
 int64_t llb_submit(struct job_submit *);
 
+// bjobs
 struct job_info *llb_job_info(int64_t, int32_t *, int32_t);
 void llb_free_job_info(struct job_info *, int32_t);
 
+// bhosts
 struct host_info *llb_host_info(int32_t *);
-struct host_group *llb_group_info(int32_t *);
-struct queue_info *llb_queue_info(int32_t *);
+void llb_free_host_info(struct host_info *, int32_t);
 
+struct host_group *llb_group_info(int32_t *);
+void llb_free_group_info(struct host_group *, int32_t);
+
+// bqueues
+struct queue_info *llb_queue_info(int32_t *);
+void llb_free_queue_info(struct queue_info *, int32_t);
+
+// bkill
 int32_t llb_signal_job(int64_t, int32_t);
+
+// llb errors
+const char *llbe_str(enum llb_error);

@@ -1,6 +1,18 @@
 // Copyright (C) LavaLite Contributors
 // GPL v2
-s
+
+#include <string.h>
+#include <assert.h>
+#include <syslog.h>
+#include <unistd.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include "batch/lib/wire.h"
+#include "batch/mbd/mbd.h"
+
 static int valid_batch_op(int op)
 {
     switch (op) {
@@ -73,7 +85,7 @@ static void route(int ch_id)
         return;
     }
 
-    LS_DEBUG("ch_id=%d protocol=%s", ch_id, proto_to_str(hdr.operation));
+    LS_DEBUG("ch_id=%d protocol=%d", ch_id, hdr.operation);
 
     switch (hdr.operation) {
     case BATCH_JOB_SUB:
@@ -113,6 +125,10 @@ static void route(int ch_id)
     chan_free_buf(buf);
 }
 
+static void sbd_route(struct mbd_host *h)
+{
+}
+
 int network_init(void)
 {
     struct epoll_event ev;
@@ -143,7 +159,7 @@ int network_init(void)
         return -1;
     }
 
-    sched_timer = chan_create_timer(timer_sched);
+    sched_timer = chan_create_timer(5);
     if (sched_timer < 0) {
         LS_ERR("chan_create_timer failed");
         epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(mbd_chan), NULL);
@@ -175,55 +191,51 @@ int network_init(void)
 int mbd_accept(int ch_id)
 {
     struct sockaddr_in from;
-    struct epoll_event ev;
-    struct mbd_node *n;
-    char addr[INET_ADDRSTRLEN];
-    int accept_id;
-
     memset(&from, 0, sizeof(from));
-    accept_id = chan_accept(ch_id, &from);
-    if (accept_id < 0) {
+    int ch_accept = chan_accept(ch_id, &from);
+    if (ch_accept < 0) {
         LS_ERR("%s: chan_accept failed: %m", __func__);
         return -1;
     }
 
+    char addr[INET_ADDRSTRLEN];
     if (inet_ntop(AF_INET, &from.sin_addr, addr, sizeof(addr)) == NULL) {
-        LS_ERR("inet_ntop failed chan=%d: %m", accept_id);
-        chan_close(accept_id);
+        LS_ERR("inet_ntop failed chan=%d: %m", ch_accept);
+        chan_close(ch_accept);
         return -1;
     }
 
-    n = ll_hash_search(&node_addr_hash, addr);
+    struct mbd_node *n = ll_hash_search(&host_addr_hash, addr);
     if (n == NULL) {
         LS_ERR("rejected accept from unknown host %s", addr);
-        chan_close(accept_id);
+        chan_close(ch_accept);
         return -1;
     }
 
+    struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLRDHUP;
-    ev.data.u32 = accept_id;
-    if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(accept_id), &ev) < 0) {
-        LS_ERR("epoll_ctl add chan=%d failed", accept_id);
-        chan_close(accept_id);
+    ev.data.u32 = ch_accept;
+    if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(ch_accept), &ev) < 0) {
+        LS_ERR("epoll_ctl add chan=%d failed", ch_accept);
+        chan_close(ch_accept);
         return -1;
     }
 
-    return accept_id;
+    return ch_accept;
 }
 
 void mbd_message(int ch_id)
 {
     char key[LL_BUFSIZ_32];
-    struct mbd_node *n;
 
     LS_DEBUG("ch_id=%d sock=%d events=0x%x",
              ch_id, channels[ch_id].sock, channels[ch_id].chan_events);
 
     snprintf(key, sizeof(key), "%d", ch_id);
-    n = ll_hash_search(&sbd_by_chan, key);
+    struct mbd_host *n = ll_hash_search(&sbd_chan_hash, key);
     if (n != NULL) {
-        LS_DEBUG("the client is an sbd %s", n->net->name);
+        LS_DEBUG("the client is an sbd %s", n->net.name);
         assert(n->sbd_chan == ch_id);
         sbd_route(n);
         return;
@@ -239,7 +251,7 @@ void shutdown_chan(int ch_id)
 }
 
 int32_t enqueue_payload(int ch_id, struct protocol_header *hdr,
-                        void *payload, size_t siz, bool (*xdr_func)())
+                        void *payload, size_t siz, bool_t (*xdr_func)())
 {
     struct chan_buffer *buf;
     XDR xdrs;
@@ -257,7 +269,7 @@ int32_t enqueue_payload(int ch_id, struct protocol_header *hdr,
 
     xdrmem_create(&xdrs, buf->data, siz, XDR_ENCODE);
 
-    if (!ll_encode_msg(&xdrs, (char *)payload, xdr_func, hdr)) {
+    if (! ll_encode_msg(&xdrs, (char *)payload, xdr_func, hdr)) {
         LS_ERR("ll_encode_msg failed op=%d", hdr->operation);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);

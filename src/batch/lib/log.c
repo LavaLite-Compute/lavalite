@@ -1,6 +1,14 @@
 // Copyright (C) LavaLite Contributors
 // GPL v2
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <time.h>
+#include <sys/param.h>
+
+#include "base/lib/ll.bufsiz.h"
 #include "batch/lib/log.h"
 
 static const char *event_names[] = {

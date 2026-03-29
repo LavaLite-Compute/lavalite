@@ -4,6 +4,14 @@
  */
 #pragma once
 
+#include <stdint.h>
+#include <limits.h>
+#include <netdb.h>
+#include <rpc/xdr.h>
+
+#include "base/lib/ll.bufsiz.h"
+#include "base/lib/ll.host.h"
+
 #include "llbatch.h"
 
 /* -----------------------------------------------------------------------
@@ -156,7 +164,6 @@ struct wire_host_info {
     int32_t  num_jobs;
     int32_t  num_run;
     int32_t  num_susp;
-    float    cpu_factor;
 };
 
 struct wire_host_info_array {
@@ -188,11 +195,10 @@ struct wire_queue_info {
     char     description[LL_BUFSIZ_256];
     char     hosts[LL_BUFSIZ_256];   /* host group name */
     int32_t  priority;
-    int32_t  max_jobs;
+    int32_t max_jobs;
     int32_t  num_pend;
     int32_t  num_run;
     int32_t  num_susp;
-    int32_t  status;
 };
 
 struct wire_queue_info_array {

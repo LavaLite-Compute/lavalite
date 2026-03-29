@@ -1,8 +1,17 @@
 // Copyright (C) LavaLite Contributors
 // GPL v2
 
-#include "batch/mbd/mbd.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <syslog.h>
+#include <pwd.h>
 
+#include "base/lib/ll.syslog.h"
+#include "base/lib/ll.conf.h"
+#include "batch/mbd/mbd.h"
 
 static uint64_t parse_mem(const char *s)
 {

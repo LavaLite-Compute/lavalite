@@ -51,11 +51,8 @@ bhosts
 bjobs
 bkill
 bmgroup
-bmod
-bpeek
 bqueues
 bsub
-bswitch
 read_shared
 stdout.*
 stderr.*
@@ -63,12 +60,11 @@ stderr.*
 .libs/*
 src/base/lim/lim
 src/batch/compactor/mbd_compact
-src/batch/daemons/mbd
-src/batch/daemons/sbd
 # Ignore cscope
 cscope*
 src/lsf/pylib/__pycache__/
 src/lsbatch/compactor/mbd_compact
+src/batch/mbd/mbd
 man1/
 man5/
 man7/

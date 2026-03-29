@@ -1,10 +1,21 @@
-/*
- * Copyright (C) 2007 Platform Computing Inc
+/* Copyright (C) 2007 Platform Computing Inc
  * Copyright (C) LavaLite Contributors
  * GPL v2
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <errno.h>
+#include <syslog.h>
+#include <sys/epoll.h>
+
+#include "base/lib/ll.syslog.h"
+#include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
+#include "base/lib/ll.channel.h"
 
 struct ll_list host_list;
 struct ll_hash host_name_hash;
@@ -13,6 +24,7 @@ struct ll_list group_list;
 struct ll_hash group_name_hash;
 struct ll_list queue_list;
 struct ll_hash queue_name_hash;
+struct ll_hash sbd_chan_hash;
 
 struct mbd_manager *mbd_mgr;
 
@@ -22,8 +34,6 @@ int mbd_chan;
 uint16_t mbd_port;
 char mbd_host[MAXHOSTNAMELEN];
 int32_t sched_timer;
-
-static int network_init() {return 0;}
 
 static const char *mbd_exit_str(enum mbd_exit e)
 {
@@ -53,6 +63,7 @@ static int init_mbd(void)
     ll_hash_init(&group_name_hash, 127);
     ll_list_init(&queue_list);
     ll_hash_init(&queue_name_hash, 31);
+    ll_hash_init(&sbd_chan_hash, 1021);
 
     if (conf_init() < 0) {
         LS_ERRX("conf_init failed");
@@ -140,7 +151,7 @@ int main(int argc, char **argv)
     check_not_root();
 
     if (init_mbd() < 0) {
-        LS_ERRX("mbd_init failed. cannot run");
+        LS_ERRX("init_mbd failed. cannot run");
         return -1;
     }
 
@@ -178,12 +189,12 @@ int main(int argc, char **argv)
                 schedule();
 
             if (ch_id == mbd_chan) {
-                ;//mbd_accept(mbd_chan);
+                mbd_accept(mbd_chan);
                 continue;
             }
 
             if (chan_is_readable(ch_id))
-                ;//mbd_message(ch_id);
+                mbd_message(ch_id);
         }
     }
 

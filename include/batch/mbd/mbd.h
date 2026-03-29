@@ -1,7 +1,18 @@
 // Copyright (C) LavaLite Contributors
 // GPL V2
+#pragma once
 
-#include "batch/lib/batch.h"
+#include "base/lib/ll.protocol.h"
+#include "batch/lib/proto.h"
+#include "base/lib/ll.bufsiz.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/ll.hash.h"
+#include "base/lib/ll.host.h"
+#include "base/lib/ll.syslog.h"
+#include "base/lib/ll.list.h"
+#include "base/lib/ll.channel.h"
+
+#include "llbatch.h"
 
 // mbd_die exit value
 enum mbd_exit {
@@ -19,28 +30,28 @@ struct mbd_manager {
 };
 
 struct job_resources {
-    int32_t  job_pid;
+    pid_t job_pid;
 };
 
 struct job_data {
     struct ll_list_entry ent;
     int64_t  job_id;
     uid_t    uid;
-    int32_t  status;
-    int32_t  exit_status;
+    int      status;
+    int      exit_status;
     time_t   submit_time;
     time_t   start_time;
     time_t   end_time;
     double   cpu_time;
     char     from_host[MAXHOSTNAMELEN];
-    int32_t  num_exec_hosts;
+    int      num_exec_hosts;
     char     exec_host[MAXHOSTNAMELEN];  /* primary exec host */
     char     job_name[LL_BUFSIZ_64];
     char     queue[LL_BUFSIZ_64];
-    int32_t  num_cpu;
-    int32_t  num_hosts;
-    int32_t  num_gpu;
-    uint64_t mem_mb;
+    int      num_cpu;
+    int      num_hosts;
+    int      num_gpu;
+    uint     mem_mb;
     time_t   begin_time;
     time_t   term_time;
     struct job_resources job_res;
@@ -51,16 +62,16 @@ struct job_data {
 struct mbd_host {
     struct ll_list_entry ent;
     struct ll_host net;    /* resolved network identity */
-    int32_t  max_jobs;       /* configured */
-    int32_t  total_cpu;      /* configured */
-    int32_t  total_gpu;      /* configured */
+    int  max_jobs;       /* configured */
+    int  total_cpu;      /* configured */
+    int  total_gpu;      /* configured */
     uint64_t total_mem_mb;   /* configured */
-    int32_t  status;
-    int32_t  num_jobs;
-    int32_t  num_run;
-    int32_t  num_susp;
-    int      sbd_chan;           /* -1 if not connected */
-    time_t   last_heard;
+    int  status;
+    int  num_jobs;
+    int  num_run;
+    int  num_susp;
+    int  sbd_chan;           /* -1 if not connected */
+    time_t last_heard;
 };
 
 struct queue_conf {
@@ -76,18 +87,18 @@ struct mbd_queue {
     char    name[LL_BUFSIZ_64];
     char    description[LL_BUFSIZ_256];
     char    hosts[LL_BUFSIZ_256];    /* host group name */
-    int32_t priority;
-    int32_t max_jobs;
-    int32_t num_pend;
-    int32_t num_run;
-    int32_t num_susp;
-    int32_t status;
+    int priority;
+    int max_jobs;
+    int num_pend;
+    int num_run;
+    int num_susp;
+    int status;
 };
 
 struct mbd_group {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
-    int32_t num_members;
+    int num_members;
     char members[LL_BUFSIZ_1K];  /* space-separated */
 };
 
@@ -107,14 +118,14 @@ extern int mbd_chan;
 extern int mbd_efd;
 extern int sched_timer;
 extern uint16_t mbd_port;
-extern int32_t sched_timer;
+extern int sched_timer;
 
 // main.c
-int32_t is_manager(uid_t);
+int is_manager(uid_t);
 void mbd_die(enum mbd_exit);
 
 // conf.c
-int32_t conf_init(void);
+int conf_init(void);
 
 // compact.c
 void compact_start(void);
@@ -124,16 +135,12 @@ void clean_jobs(time_t);
 void reopen_job_events(void);
 
 // net.c
-int32_t nework_init(void);
-int32_t mbd_accept(int32_t);
-void mbd_message(int32_t);
-int32_t route(int32_t);
-int32_t enqueue_payload(int, struct protocol_header *,
+int network_init(void);
+int mbd_accept(int);
+void mbd_message(int);
+int enqueue_payload(int, struct protocol_header *,
                         void *, size_t, bool_t (*xdr_func)());
-
-// sbd.c
-void sbd_register(XDR *, int32_t);
-void sbd_route(int32_t ch_id);
+void shutdown_chan(int);
 
 // job.c
 void new_job_reply(XDR *, int32_t);
@@ -142,4 +149,15 @@ void new_job_reply(XDR *, int32_t);
 void schedule();
 
 // events.c
-void evebts_init(void);
+int events_init(void);
+
+// api.c
+void job_submit(XDR *, int);
+void job_signal(XDR *, int);
+void job_info(XDR *, int);
+void host_info(XDR *, int);
+void queue_info(XDR *, int);
+void host_group_info(XDR *, int);
+void sbd_register(XDR *, int);
+void compact_done(XDR *, int);
+void sbd_register(XDR *, int);

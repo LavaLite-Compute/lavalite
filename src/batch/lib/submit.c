@@ -6,7 +6,7 @@
 
 #include "base/lib/ll.protocol.h"
 
-#include "batch/lib/batch.h"
+#include "batch/lib/proto.h"
 #include "llbatch.h"
 
 int64_t

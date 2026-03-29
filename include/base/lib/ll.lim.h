@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "base/lib/ll.host.h"
+
 struct lim_master {
     struct ll_host host;
 };

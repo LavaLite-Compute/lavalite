@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 struct ll_host {
     int family;
     socklen_t salen;

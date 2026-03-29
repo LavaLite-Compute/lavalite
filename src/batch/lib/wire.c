@@ -279,9 +279,6 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
     if (!xdr_int32_t(xdrs, &p->num_susp))
         return false;
 
-    if (!xdr_float(xdrs, &p->cpu_factor))
-        return false;
-
     return true;
 }
 
@@ -302,40 +299,6 @@ bool_t xdr_wire_host_info_array(XDR *xdrs, struct wire_host_info_array *p)
  * queue
  * ----------------------------------------------------------------------- */
 
-bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *p)
-{
-    if (!xdr_vector(xdrs, p->name,
-                    LL_BUFSIZ_64, sizeof(char), (xdrproc_t)xdr_char))
-        return false;
-
-    if (!xdr_vector(xdrs, p->description,
-                    LL_BUFSIZ_256, sizeof(char), (xdrproc_t)xdr_char))
-        return false;
-
-    if (!xdr_vector(xdrs, p->hosts,
-                    LL_BUFSIZ_256, sizeof(char), (xdrproc_t)xdr_char))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->priority))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->max_jobs))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->num_pend))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->num_run))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->num_susp))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->status))
-        return false;
-
-    return true;
-}
 
 bool_t xdr_wire_queue_info_array(XDR *xdrs, struct wire_queue_info_array *p)
 {
@@ -345,6 +308,47 @@ bool_t xdr_wire_queue_info_array(XDR *xdrs, struct wire_queue_info_array *p)
                    INT32_MAX,
                    sizeof(struct wire_queue_info),
                    (xdrproc_t)xdr_wire_queue_info))
+        return false;
+
+    return true;
+}
+
+bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *q)
+{
+    if (!xdr_vector(xdrs,
+                    q->name,
+                    LL_BUFSIZ_64,
+                    sizeof(char),
+                    (xdrproc_t)xdr_char))
+        return false;
+
+    if (!xdr_vector(xdrs,
+                    q->description,
+                    LL_BUFSIZ_256,
+                    sizeof(char),
+                    (xdrproc_t)xdr_char))
+        return false;
+
+    if (!xdr_vector(xdrs,
+                    q->hosts,
+                    LL_BUFSIZ_256,
+                    sizeof(char),
+                    (xdrproc_t)xdr_char))
+        return false;
+
+    if (!xdr_int32_t(xdrs, &q->priority))
+        return false;
+
+    if (!xdr_int32_t(xdrs, &q->max_jobs))
+        return false;
+
+    if (!xdr_int32_t(xdrs, &q->num_pend))
+        return false;
+
+    if (!xdr_int32_t(xdrs, &q->num_run))
+        return false;
+
+    if (!xdr_int32_t(xdrs, &q->num_susp))
         return false;
 
     return true;

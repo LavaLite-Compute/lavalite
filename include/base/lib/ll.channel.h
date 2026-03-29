@@ -3,6 +3,9 @@
  */
 #pragma once
 
+#include <sys/epoll.h>
+#include "base/lib/ll.list.h"
+
 #define CHAN_MAX 10204
 
 // Channel type

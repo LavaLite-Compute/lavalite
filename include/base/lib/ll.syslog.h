@@ -1,6 +1,9 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
+#pragma once
+
+#include <stdio.h>
 
 int ls_openlog(const char *, const char *, const char *);
 int ls_getlogfd(void);

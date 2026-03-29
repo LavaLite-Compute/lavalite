@@ -17,7 +17,7 @@
 #include "base/lib/ll.host.h"
 #include "base/lib/ll.sys.h"
 
-#include "batch/lib/batch.h"
+#include "batch/lib/proto.h"
 #include "llbatch.h"
 
 static int mbd_chan = -1;
