@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "base/lib/ll.sys.h"
-
 // LavaLite hash table:
 // ---------------------
 // - String-keyed, separate chaining.

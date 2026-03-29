@@ -2,6 +2,20 @@
 // Copyright (C) 2024-2025 LavaLite Contributors
 // GPL v2
 
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/timerfd.h>
+#include <arpa/inet.h>
+#include <sys/epoll.h>
+#include <netinet/in.h>
+
+#include "base/lib/ll.protocol.h"
+#include "base/lib/ll.list.h"
 #include "base/lib/ll.channel.h"
 
 struct chan_data channels[CHAN_MAX];
@@ -570,10 +584,8 @@ int chan_create_timer(int seconds)
         return -1;
 
     int tfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
-    if (tfd < 0) {
-        syslog(LOG_ERR, "timerfd_create() failed: %m");
+    if (tfd < 0)
         return -1;
-    }
 
     channels[ch].sock = tfd;
     channels[ch].type = TIMER_FD;
@@ -585,7 +597,6 @@ int chan_create_timer(int seconds)
     its.it_interval.tv_nsec = 0;
 
     if (timerfd_settime(tfd, 0, &its, NULL) < 0) {
-        syslog(LOG_ERR, "timerfd_settime() failed: %m");
         chan_close(ch);
         return -1;
     }

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "base/lib/ll.sys.h"
-
 struct ll_stack {
     void **items; // pointer to array of pointers storing the objects
     size_t size;       /* number of elements currently stored */

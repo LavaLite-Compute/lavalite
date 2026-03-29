@@ -3,6 +3,7 @@
  */
 
 #include "base/lim/lim.h"
+#include "base/lim/wire.h"
 
 bool_t xdr_beacon(XDR *xdrs, struct wire_beacon *wb)
 {

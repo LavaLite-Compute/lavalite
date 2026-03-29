@@ -1,6 +1,21 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <errno.h>
+#include <poll.h>
+#include <pwd.h>
+#include <limits.h>
+#include <ctype.h>
+#include <time.h>
+#include <sys/resource.h>
+
+#include "base/lib/ll.bufsiz.h"
 #include "base/lib/ll.sys.h"
 
 int millisleep(uint32_t ms)
@@ -207,6 +222,88 @@ int ll_set_limits(void)
         return -1;
     rl.rlim_cur = rl.rlim_max;
     if (setrlimit(RLIMIT_CORE, &rl) < 0)
+        return -1;
+
+    return 0;
+}
+
+struct ll_sigmap {
+    int sig;
+    const char *name;
+};
+
+static const struct ll_sigmap ll_sig_table[] = {
+    { SIGHUP,  "hup"  },
+    { SIGINT,  "int"  },
+    { SIGQUIT, "quit" },
+    { SIGILL,  "ill"  },
+    { SIGABRT, "abrt" },
+    { SIGFPE,  "fpe"  },
+    { SIGKILL, "kill" },
+    { SIGSEGV, "segv" },
+    { SIGPIPE, "pipe" },
+    { SIGALRM, "alrm" },
+    { SIGTERM, "term" },
+    { SIGUSR1, "usr1" },
+    { SIGUSR2, "usr2" },
+    { SIGCHLD, "chld" },
+    { SIGCONT, "cont" },
+    { SIGSTOP, "stop" },
+    { SIGTSTP, "tstp" }
+};
+
+static int
+ll_streq_nocase(const char *a, const char *b)
+{
+    unsigned char ca, cb;
+
+    while (*a && *b) {
+        ca = (unsigned char)*a++;
+        cb = (unsigned char)*b++;
+        if (tolower(ca) != tolower(cb))
+            return 0;
+    }
+
+    return (*a == '\0' && *b == '\0');
+}
+
+const char *ll_sig_to_str(int sig)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(ll_sig_table) / sizeof(ll_sig_table[0]); i++) {
+        if (ll_sig_table[i].sig == sig)
+            return ll_sig_table[i].name;
+    }
+
+    return "unknown";
+}
+
+int ll_str_to_sig(const char *s)
+{
+    size_t i;
+
+    if (!s || !*s)
+        return -1;
+
+    for (i = 0; i < sizeof(ll_sig_table) / sizeof(ll_sig_table[0]); i++) {
+        if (ll_streq_nocase(ll_sig_table[i].name, s))
+            return ll_sig_table[i].sig;
+    }
+
+    return -1;
+}
+
+int install_signal_handler(int sig, void (*handler)(int), int flags)
+{
+    struct sigaction act;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = handler;
+    act.sa_flags = flags;
+    sigemptyset(&act.sa_mask);
+
+    if (sigaction(sig, &act, NULL) < 0)
         return -1;
 
     return 0;

@@ -2,6 +2,11 @@
  * Copyright (C) LavaLite Contributors
  * GPL v2
  */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <getopt.h>
+
 #include "ll.h"
 
 static const char *load_status(uint32_t status)
@@ -21,7 +26,7 @@ int main(int argc, char **argv)
     int opt;
     int long_fmt = 0;
 
-    while ((opt = getopt(argc, argv, "hVl")) != -1) {
+    while ((opt = getopt(argc, argv, "hVl")) != EOF) {
         switch (opt) {
         case 'h':
             usage(argv[0]);

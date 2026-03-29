@@ -2,7 +2,6 @@
 // Copyright (C) LavaLite Contributors
 // GPL v2
 
-
 #include "base/lim/lim.h"
 
 int udp_chan = -1;

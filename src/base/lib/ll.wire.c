@@ -1,9 +1,17 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
-#include "base/lib/ll.sys.h"
+
+#include <string.h>
+#include <stdint.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <rpcsvc/ypclnt.h>
+
+#include "ll.h"
+#include "base/lib/ll.protocol.h"
+#include "base/lib/ll.bufsiz.h"
 #include "base/lib/ll.wire.h"
-#include "base/lib/ll.channel.h"
 
 bool_t ll_encode_msg(XDR *xdrs, void *payload,
                      bool_t (*xdr_func)(), struct protocol_header *hdr)

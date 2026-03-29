@@ -2,6 +2,19 @@
 // Copyright (C) 2024-2025 LavaLite Contributors
 // GPL v2
 
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <netdb.h>
+#include <time.h>
+#include <syslog.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+
+#include "base/lib/ll.bufsiz.h"
 #include "base/lib/ll.syslog.h"
 
 static int log_fd = -1;
@@ -14,8 +27,6 @@ static int get_level_str(const char *);
 static void build_timestamp(char *, size_t);
 static void write_record(int fd, const char *, size_t);
 static void ls_reopen_log(void);
-
-int timinglevel = 0;
 
 // tag to indicate if child or parent useful after we fork
 // and use the same log file
@@ -62,18 +73,6 @@ int ls_openlog(const char *ident, const char *logdir, const char *mask)
     snprintf(log_path, sizeof(log_path), "%s", path);
 
     return 0;
-}
-
-void ls_set_time_level(const char *time_value)
-{
-    if (!time_value || *time_value == '\0') {
-        timinglevel = 0;
-        return;
-    }
-
-    timinglevel = atoi(time_value);
-    if (timinglevel < 0)
-        timinglevel = 0;
 }
 
 void ls_syslog(int level, const char *fmt, ...)

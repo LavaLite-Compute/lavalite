@@ -3,6 +3,10 @@
  * GPL v2
  */
 
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+
 #include "base/lib/ll.hash.h"
 
 // Return 1 if n is prime, 0 otherwise.

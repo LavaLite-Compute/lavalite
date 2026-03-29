@@ -3,6 +3,7 @@
  */
 
 #include "base/lim/lim.h"
+#include "base/lim/wire.h"
 
 static void send_beacon(void)
 {
@@ -54,10 +55,10 @@ static void send_beacon(void)
 
         struct sockaddr_in to;
         memset(&to, 0, sizeof(to));
+        get_host_addrv4(n->host, &to);
+
         to.sin_family = AF_INET;
         to.sin_port   = htons(lim_port);
-
-        get_host_sinaddrv4(n->host, &to);
 
         LS_DEBUG("sending beacon to=%s", addr_to_str(&to));
 
@@ -162,9 +163,9 @@ static int send_load_report(void)
     size_t len = xdr_getpos(&xdrs);
     struct sockaddr_in to_addr;
     memset(&to_addr, 0, sizeof(to_addr));
+    get_host_addrv4(current_master.node->host, &to_addr);
     to_addr.sin_family = AF_INET;
     to_addr.sin_port = htons(lim_port);
-    get_host_sinaddrv4(current_master.node->host, &to_addr);
 
     LS_DEBUG("lim=%s len=%lu", current_master.node->host->name, len);
 
@@ -277,7 +278,7 @@ static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
     hdr.sequence  = request_hdr->sequence;
     hdr.status    = LIM_OK;
 
-    char buf[LL_BUFSIZE_256];
+    char buf[LL_BUFSIZ_256];
     XDR xdrs2;
     xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
     if (!ll_encode_msg(&xdrs2, &wm, xdr_wire_master, &hdr)) {

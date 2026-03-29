@@ -2,8 +2,6 @@
  * GPL v2
  */
 
-#include "base/lib/ll.sys.h"
-
 struct wire_beacon {
     char cluster[LL_BUFSIZ_32];
     char  hostname[MAXHOSTNAMELEN];

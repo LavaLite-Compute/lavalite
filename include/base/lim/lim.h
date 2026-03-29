@@ -2,10 +2,32 @@
  * GPL v2
  */
 
-#include "base/lim/wire.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <syslog.h>
+#include <assert.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/timerfd.h>
+#include <arpa/inet.h>
+#include <sys/epoll.h>
+#include <netinet/in.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <sys/wait.h>
+#include <sys/epoll.h>
 
-#include "base/lib/ll.lim.h"
-#include "base/lib/ll.wire.h"
+#include "ll.h"
+#include "base/lib/ll.protocol.h"
+#include "base/lib/ll.bufsiz.h"
 #include "base/lib/ll.sys.h"
 #include "base/lib/ll.conf.h"
 #include "base/lib/ll.syslog.h"
@@ -13,7 +35,8 @@
 #include "base/lib/ll.hash.h"
 #include "base/lib/ll.host.h"
 #include "base/lib/ll.channel.h"
-#include "base/lib/ll.signal.h"
+#include "base/lib/ll.wire.h"
+#include "base/lib/ll.lim.h"
 
 extern struct ll_list node_list;
 extern struct ll_hash node_name_hash;

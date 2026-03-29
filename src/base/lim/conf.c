@@ -2,6 +2,9 @@
  * GPL v2
  */
 
+#include <sys/utsname.h>
+#include <pwd.h>
+
 #include "base/lim/lim.h"
 
 static int parse_cluster_section(FILE *f)

@@ -1,6 +1,10 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
+#include <stdio.h>
+#include <stdlib.h>
+#include <getopt.h>
+
 #include "ll.h"
 
 static void usage(const char *cmd)
@@ -11,7 +15,7 @@ static void usage(const char *cmd)
 int main(int argc, char **argv)
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hV")) != -1) {
+    while ((opt = getopt(argc, argv, "hV")) != EOF) {
         switch (opt) {
         case 'h':
             usage(argv[0]);

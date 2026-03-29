@@ -2,18 +2,12 @@
  * GPL v2
  */
 #pragma once
+#include "config.h"
 
-
-// Explicit. Verbose. Clear. Implicit nothing.
-
-#include <config.h>
-// System headers
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdint.h>
-#include <errno.h>
 #include <sys/param.h>
+
+// Explicit. Verbose. Clear. Implicit none.
 
 // 11 load indexes collected by lim on every cluster machine
 enum lim_load_index {
@@ -42,28 +36,20 @@ enum ll_err {
     LL_ERR_PERM     = 5,   /* permission denied */
 };
 
-enum ll_buf_siz {
-    LL_BUFSIZE_32 = 32,
-    LL_BUFSIZE_64 = 64,
-    LL_BUFSIZE_256 = 256,
-    LL_BUFSIZE_1K = 1024,
-    LL_BUFSIZE_4K = 4096,
-};
-
 enum lim_stat {
     LIM_STAT_OK,
     LIM_STAT_CLOSED
 };
 
 struct ll_cluster_info {
-    char cluster_name[LL_BUFSIZE_64];
+    char cluster_name[64];
     char master_name[MAXHOSTNAMELEN];
-    char manager_name[LL_BUFSIZE_32];
+    char manager_name[32];
 };
 
 struct ll_host_info {
     char host_name[MAXHOSTNAMELEN];
-    char host_type[LL_BUFSIZE_32];
+    char host_type[32];
     uint64_t num_cpus;
     uint64_t max_mem;
     uint64_t max_swap;

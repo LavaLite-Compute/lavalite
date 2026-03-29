@@ -1,6 +1,15 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <limits.h>
+
+#include "base/lib/ll.bufsiz.h"
 #include "base/lib/ll.conf.h"
 
 struct ll_kv ll_params[PARAMS_COUNT] = {

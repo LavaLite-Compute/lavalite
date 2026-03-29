@@ -2,6 +2,7 @@
  * GPL v2
  */
 
+#include <stdlib.h>
 #include "base/lib/ll.stack.h"
 
 struct ll_stack *ll_stack_create(size_t initial_capacity)

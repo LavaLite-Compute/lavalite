@@ -2,7 +2,28 @@
  * GPL v2
  */
 
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <sys/epoll.h>
+#include <sys/timerfd.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+
+#include "ll.h"
+#include "base/lib/ll.protocol.h"
+#include "base/lib/ll.bufsiz.h"
+#include "base/lib/ll.sys.h"
+#include "base/lib/ll.conf.h"
+#include "base/lib/ll.host.h"
 #include "base/lib/ll.lim.h"
+#include "base/lib/ll.list.h"
+#include "base/lib/ll.channel.h"
+#include "base/lib/ll.wire.h"
 
 __thread int lserrno = 0;
 
@@ -69,7 +90,7 @@ static int call_lim_udp(int opcode, char *rep, size_t rep_size)
     if (ch < 0)
         return -1;
 
-    char req[LL_BUFSIZE_256];
+    char req[LL_BUFSIZ_256];
     int req_len = build_hdr_request(opcode, req, sizeof(req));
     if (req_len < 0) {
         chan_close(ch);
@@ -104,7 +125,7 @@ static int lim_get_master(void)
     if (master_known)
         return 0;
 
-    char reply[LL_BUFSIZE_256];
+    char reply[LL_BUFSIZ_256];
     if (call_lim_udp(LIM_GET_MASTER_NAME, reply, sizeof(reply)) < 0)
         return -1;
 
@@ -148,7 +169,7 @@ char *ll_mastername(void)
 
 char *ll_clustername(void)
 {
-    char reply[LL_BUFSIZE_256];
+    char reply[LL_BUFSIZ_256];
     if (call_lim_udp(LIM_GET_CLUSTER_NAME, reply, sizeof(reply)) < 0)
         return NULL;
 
@@ -172,7 +193,7 @@ char *ll_clustername(void)
     }
     xdr_destroy(&xdrs);
 
-    static __thread char buf[LL_BUFSIZE_64];
+    static __thread char buf[LL_BUFSIZ_64];
     strncpy(buf, wc.name, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = 0;
     return buf;
@@ -240,7 +261,7 @@ static int call_lim_tcp(const void *req, size_t req_len,
  */
 struct ll_host_load *ll_hostload(int *nloads)
 {
-    char req[LL_BUFSIZE_256];
+    char req[LL_BUFSIZ_256];
     int req_len = build_hdr_request(LIM_GET_LOAD, req, sizeof(req));
     if (req_len < 0)
         return NULL;
@@ -287,7 +308,7 @@ struct ll_host_load *ll_hostload(int *nloads)
  */
 struct ll_host_info *ll_hostinfo(int *nhosts)
 {
-    char req[LL_BUFSIZE_256];
+    char req[LL_BUFSIZ_256];
     int req_len = build_hdr_request(LIM_GET_HOSTS, req, sizeof(req));
     if (req_len < 0)
         return NULL;
@@ -319,8 +340,8 @@ struct ll_host_info *ll_hostinfo(int *nhosts)
     for (uint32_t i = 0; i < whs.nhosts; i++) {
         strncpy(hosts[i].host_name, whs.hosts[i].hostname, MAXHOSTNAMELEN - 1);
         hosts[i].host_name[MAXHOSTNAMELEN - 1] = 0;
-        strncpy(hosts[i].host_type, whs.hosts[i].machine, LL_BUFSIZE_32 - 1);
-        hosts[i].host_type[LL_BUFSIZE_32 - 1] = 0;
+        strncpy(hosts[i].host_type, whs.hosts[i].machine, LL_BUFSIZ_32 - 1);
+        hosts[i].host_type[LL_BUFSIZ_32 - 1] = 0;
         hosts[i].num_cpus  = whs.hosts[i].num_cpus;
         hosts[i].max_mem   = whs.hosts[i].max_mem;
         hosts[i].max_swap  = whs.hosts[i].max_swap;
@@ -337,7 +358,7 @@ struct ll_host_info *ll_hostinfo(int *nhosts)
  */
 struct ll_cluster_info *ll_clusterinfo(void)
 {
-    char req[LL_BUFSIZE_256];
+    char req[LL_BUFSIZ_256];
     int req_len = build_hdr_request(LIM_GET_CLUSTER_NAME, req, sizeof(req));
     if (req_len < 0)
         return NULL;

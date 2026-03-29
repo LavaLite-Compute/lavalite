@@ -1,10 +1,7 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
-#include "base/lib/ll.sys.h"
-#include <syslog.h>
 
-// LavaLite logging
 int ls_openlog(const char *, const char *, const char *);
 int ls_getlogfd(void);
 void ls_syslog(int, const char *, ...)
