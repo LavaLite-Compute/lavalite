@@ -23,7 +23,6 @@ uint16_t mbd_port;
 char mbd_host[MAXHOSTNAMELEN];
 int32_t sched_timer;
 
-static int events_init() {return 0;}
 static int network_init() {return 0;}
 
 static const char *mbd_exit_str(enum mbd_exit e)
@@ -45,7 +44,7 @@ static const char *mbd_exit_str(enum mbd_exit e)
     return "unknown";
 }
 
-static int mbd_init(void)
+static int init_mbd(void)
 {
     ll_list_init(&host_list);
     ll_hash_init(&host_name_hash, 1021);
@@ -109,7 +108,7 @@ int main(int argc, char **argv)
     int timer_sched = 5;
     while ((cc = getopt_long(argc, argv, "hVc:", longopts, NULL)) != EOF) {
         switch (cc) {
-        case 'e':
+        case 'c':
             conf_dir = optarg;
             break;
         case 'V':
@@ -140,7 +139,7 @@ int main(int argc, char **argv)
 
     check_not_root();
 
-    if (mbd_init() < 0) {
+    if (init_mbd() < 0) {
         LS_ERRX("mbd_init failed. cannot run");
         return -1;
     }

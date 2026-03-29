@@ -3,19 +3,6 @@
 
 #pragma once
 
-#include "llbatch.h"
-
-#include "base/lib/ll.sys.h"
-#include "base/lib/ll.wire.h"
-#include "base/lib/ll.channel.h"
-#include "base/lib/ll.syslog.h"
-#include "base/lib/ll.conf.h"
-#include "base/lib/ll.host.h"
-#include "base/lib/ll.hash.h"
-#include "base/lib/ll.list.h"
-
-#include "batch/lib/wire.h"
-
 enum mbd_err {
     MBD_OK = 0,
     MBD_ERR = -1,
@@ -49,3 +36,10 @@ enum batch_lib_op {
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);
+
+/* Maximum size of a single environment variable stored in job spec.
+* 2 MiB is practically unlimited for real systems (EDA/Lmod etc.) while
+* still preventing pathological allocations caused by corrupt jobfiles.
+* This matches ARG_MAX ~= 2MB on Rocky9/Ubuntu24.x.
+*/
+static const size_t LL_ENVVAR_MAX = 2 * 1024 * 1024;

@@ -75,7 +75,7 @@ struct mbd_queue {
     struct ll_list_entry ent;
     char    name[LL_BUFSIZ_64];
     char    description[LL_BUFSIZ_256];
-    char    hosts[LL_BUFSIZ_64];    /* host group name */
+    char    hosts[LL_BUFSIZ_256];    /* host group name */
     int32_t priority;
     int32_t max_jobs;
     int32_t num_pend;
@@ -140,3 +140,6 @@ void new_job_reply(XDR *, int32_t);
 
 // sched.c
 void schedule();
+
+// events.c
+void evebts_init(void);

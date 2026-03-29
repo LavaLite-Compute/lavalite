@@ -91,26 +91,58 @@ struct wire_submit_reply {
 };
 
 /* -----------------------------------------------------------------------
- * job info  (mbd -> client, reply to lb_get_job)
+ * job resources (runtime)
  * ----------------------------------------------------------------------- */
 
+struct wire_job_resources {
+    int32_t job_pid;
+};
+
+/* -----------------------------------------------------------------------
+ * job info  (mbd -> client)
+ * ----------------------------------------------------------------------- */
 struct wire_job_info {
     int64_t  job_id;
+
+    uint32_t uid;
+
     int32_t  status;
-    int32_t  job_pid;
+    int32_t  exit_status;
+
     int64_t  submit_time;
     int64_t  start_time;
     int64_t  end_time;
+
     float    cpu_time;
-    int32_t  exit_status;
-    int32_t  job_priority;
-    int32_t  num_exec_hosts;
-    char     user[LL_BUFSIZ_64];
+
     char     from_host[MAXHOSTNAMELEN];
-    char     cwd[PATH_MAX];
-    char     exec_cwd[PATH_MAX];
-    char    *exec_hosts;    /* space-separated */
-    struct wire_job_submit submit;
+
+    int32_t  num_exec_hosts;
+    char     exec_host[MAXHOSTNAMELEN];
+
+    char     job_name[LL_BUFSIZ_64];
+    char     queue[LL_BUFSIZ_64];
+
+    int32_t  num_cpu;
+    int32_t  num_hosts;
+    int32_t  num_gpu;
+
+    uint64_t mem_mb;
+
+    int64_t  begin_time;
+    int64_t  term_time;
+
+    int32_t  job_pid;
+    struct wire_job_resources resources;
+};
+
+/* -----------------------------------------------------------------------
+ * job info array (mbd -> client)
+ * ----------------------------------------------------------------------- */
+
+struct wire_job_info_array {
+    int32_t              njobs;
+    struct wire_job_info *jobs;
 };
 
 /* -----------------------------------------------------------------------
@@ -128,21 +160,73 @@ struct wire_host_info {
 };
 
 struct wire_host_info_array {
-    int32_t             nhosts;
+    int32_t  nhosts;
     struct wire_host_info *hosts;
+};
+
+/* -----------------------------------------------------------------------
+ * host group info (mbd -> client)
+ * ----------------------------------------------------------------------- */
+
+struct wire_group_info {
+    char     name[LL_BUFSIZ_64];
+    int32_t  num_members;
+    char     members[LL_BUFSIZ_1K];  /* space-separated */
+};
+
+struct wire_group_info_array {
+    int32_t  ngroups;
+    struct wire_group_info *groups;
+};
+
+/* -----------------------------------------------------------------------
+ * queue info (mbd -> client)
+ * ----------------------------------------------------------------------- */
+
+struct wire_queue_info {
+    char     name[LL_BUFSIZ_64];
+    char     description[LL_BUFSIZ_256];
+    char     hosts[LL_BUFSIZ_256];   /* host group name */
+    int32_t  priority;
+    int32_t  max_jobs;
+    int32_t  num_pend;
+    int32_t  num_run;
+    int32_t  num_susp;
+    int32_t  status;
+};
+
+struct wire_queue_info_array {
+    int32_t nqueues;
+    struct wire_queue_info *queues;
 };
 
 /* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
 
+/* control */
 bool_t xdr_wire_compact_notify(XDR *, struct wire_compact_notify *);
 bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
+
+/* job */
 bool_t xdr_wire_job_state(XDR *, struct wire_job_state *);
 bool_t xdr_wire_job_file(XDR *, struct wire_job_file *);
 bool_t xdr_wire_job_sig(XDR *, struct wire_job_sig *);
 bool_t xdr_wire_job_submit(XDR *, struct wire_job_submit *);
 bool_t xdr_wire_submit_reply(XDR *, struct wire_submit_reply *);
+
+bool_t xdr_wire_job_resources(XDR *, struct wire_job_resources *);
 bool_t xdr_wire_job_info(XDR *, struct wire_job_info *);
+bool_t xdr_wire_job_info_array(XDR *, struct wire_job_info_array *);
+
+/* host */
 bool_t xdr_wire_host_info(XDR *, struct wire_host_info *);
 bool_t xdr_wire_host_info_array(XDR *, struct wire_host_info_array *);
+
+/* queue */
+bool_t xdr_wire_queue_info(XDR *, struct wire_queue_info *);
+bool_t xdr_wire_queue_info_array(XDR *, struct wire_queue_info_array *);
+
+/* group */
+bool_t xdr_wire_group_info(XDR *, struct wire_group_info *);
+bool_t xdr_wire_group_info_array(XDR *, struct wire_group_info_array *);

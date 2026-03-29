@@ -1,9 +1,24 @@
-
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/epoll.h>
+
+#include "base/lib/ll.protocol.h"
+#include "base/lib/ll.bufsiz.h"
+#include "base/lib/ll.conf.h"
+#include "base/lib/ll.list.h"
+#include "base/lib/ll.channel.h"
+#include "base/lib/ll.host.h"
+#include "base/lib/ll.sys.h"
+
 #include "batch/lib/batch.h"
+#include "llbatch.h"
 
 static int mbd_chan = -1;
 static int conntimeout;
@@ -56,9 +71,9 @@ int call_mbd(const void *req, size_t req_len,
 
         struct sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
+        get_host_addrv4(&mbd_host, &addr);
         addr.sin_family = AF_INET;
         addr.sin_port   = htons((uint16_t)mbd_port);
-        get_host_sinaddrv4(&mbd_host, &addr);
 
         if (chan_connect(mbd_chan, &addr, conntimeout * 1000, 0) < 0) {
             lberrno = LLBE_PROTOCOL;

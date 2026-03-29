@@ -1,6 +1,8 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
+#pragma once
+
 enum ll_bufsiz {
     LL_BUFSIZ_32 = 32,
     LL_BUFSIZ_64 = 64,

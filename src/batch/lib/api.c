@@ -1,5 +1,17 @@
+/* Copyright (C) LavaLite Contributors
+ * GPL v2
+ */
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/epoll.h>
+
+#include "base/lib/ll.protocol.h"
 #include "batch/lib/batch.h"
+
+#include "llbatch.h"
 
 struct job_info *llb_job_info(int64_t job_id, int32_t *num_job, int32_t flags)
 {

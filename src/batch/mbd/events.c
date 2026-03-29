@@ -3,19 +3,19 @@
  * GPL v2
  */
 
-#include "batch/daemons/mbd.h"
+#include "batch/mbd/mbd.h"
 
 static char events_path[PATH_MAX];
 static char acct_path[PATH_MAX];
 static char jobs_dir[PATH_MAX];
 
-static void events_init(void)
+void events_init(void)
 {
     char dir[PATH_MAX];
     int n;
 
     n = snprintf(dir, sizeof(dir), "%s/mbd",
-                 ll_params[LL_SHAREDIR].val);
+                 ll_params[LL_STATE_DIR].val);
     if (n < 0 || n >= (int)sizeof(dir))
         mbd_die(MBD_EXIT_CONF);
 

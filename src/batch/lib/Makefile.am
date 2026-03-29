@@ -6,4 +6,4 @@ AM_CFLAGS   = -Wall -Wextra -g -O0
 
 lib_LIBRARIES = libllbat.a
 
-libllbat_a_SOURCES =  mbd.c submit.c api.c log.c
+libllbat_a_SOURCES =  mbd.c submit.c api.c log.c wire.c
