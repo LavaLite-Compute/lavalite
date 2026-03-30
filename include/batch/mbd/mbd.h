@@ -111,7 +111,6 @@ extern struct ll_hash queue_name_hash;
 extern struct mbd_manager *mbd_mgr;
 extern int mbd_chan;
 extern int mbd_efd;
-extern int sched_timer;
 extern uint16_t mbd_port;
 extern int sched_timer;
 
@@ -141,7 +140,7 @@ void shutdown_chan(int);
 void new_job_reply(XDR *, int32_t);
 
 // sched.c
-void schedule();
+void schedule(void);
 
 // events.c
 int events_init(void);
