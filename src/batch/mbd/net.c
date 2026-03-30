@@ -113,12 +113,6 @@ static void route(int ch_id)
     case BATCH_COMPACT_FAILED:
         compact_done(&xdrs, ch_id);
         break;
-    default:
-        LS_ERR("unknown request=%d from=%s",
-               hdr.operation, chan_addr_str(ch_id));
-        if (hdr.version != CURRENT_PROTOCOL_VERSION)
-            LS_ERR("unsupported protocol version=0x%x", hdr.version);
-        break;
     }
 
     xdr_destroy(&xdrs);

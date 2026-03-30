@@ -29,7 +29,7 @@ struct mbd_manager {
     gid_t gid;
 };
 
-struct job_resources {
+struct job_res {
     pid_t    pid;
     uint64_t mem_mb;
     double   cpu_time;
@@ -50,7 +50,7 @@ struct job_data {
     char     queue[LL_BUFSIZ_64];
     char     from_host[MAXHOSTNAMELEN];
     char     exec_host[MAXHOSTNAMELEN];
-    struct job_resources res;
+    struct job_res res;
 };
 
 /* runtime state */
@@ -146,7 +146,7 @@ void schedule();
 // events.c
 int events_init(void);
 
-// api.c
+// dispatch.c
 void job_submit(XDR *, int);
 void job_signal(XDR *, int);
 void job_info(XDR *, int);
@@ -155,4 +155,3 @@ void queue_info(XDR *, int);
 void host_group_info(XDR *, int);
 void sbd_register(XDR *, int);
 void compact_done(XDR *, int);
-void sbd_register(XDR *, int);
