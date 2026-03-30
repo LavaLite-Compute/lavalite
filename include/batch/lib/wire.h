@@ -98,55 +98,36 @@ struct wire_submit_reply {
     int32_t  error;         /* LBE_* on error, LBE_NO_ERROR on success */
 };
 
-/* -----------------------------------------------------------------------
- * job resources (runtime)
- * ----------------------------------------------------------------------- */
-
-struct wire_job_resources {
-    int32_t job_pid;
+struct wire_job_info_req {
+    int64_t job_id;
+    int32_t flags;
 };
 
-/* -----------------------------------------------------------------------
- * job info  (mbd -> client)
- * ----------------------------------------------------------------------- */
+/* wire version - fixed types for XDR */
+struct wire_job_resources {
+    int32_t  pid;
+    uint64_t mem_mb;
+    double   cpu_time;
+};
+
+/* wire - fixed size, serialized over the network */
 struct wire_job_info {
     int64_t  job_id;
-
     uint32_t uid;
-
     int32_t  status;
-    int32_t  exit_status;
-
-    int64_t  submit_time;
-    int64_t  start_time;
-    int64_t  end_time;
-
-    float    cpu_time;
-
-    char     from_host[MAXHOSTNAMELEN];
-
-    int32_t  num_exec_hosts;
-    char     exec_host[MAXHOSTNAMELEN];
-
-    char     job_name[LL_BUFSIZ_64];
+    int32_t exit_status;
+    int32_t  priority;
+    time_t   submit_time;
+    time_t   start_time;
+    time_t   end_time;
+    time_t   susp_time;
+    char     name[LL_BUFSIZ_64];
     char     queue[LL_BUFSIZ_64];
-
-    int32_t  num_cpu;
-    int32_t  num_hosts;
-    int32_t  num_gpu;
-
-    uint64_t mem_mb;
-
-    int64_t  begin_time;
-    int64_t  term_time;
-
-    int32_t  job_pid;
-    struct wire_job_resources resources;
+    char     from_host[MAXHOSTNAMELEN];
+    char     exec_host[MAXHOSTNAMELEN];
+    char     comment[LL_BUFSIZ_512];
+    struct wire_job_resources res;
 };
-
-/* -----------------------------------------------------------------------
- * job info array (mbd -> client)
- * ----------------------------------------------------------------------- */
 
 struct wire_job_info_array {
     int32_t              njobs;
@@ -158,7 +139,7 @@ struct wire_job_info_array {
  * ----------------------------------------------------------------------- */
 
 struct wire_host_info {
-    char     host[MAXHOSTNAMELEN];
+    char     name[MAXHOSTNAMELEN];
     int32_t  status;
     int32_t  max_jobs;
     int32_t  num_jobs;
@@ -206,6 +187,7 @@ struct wire_queue_info_array {
     struct wire_queue_info *queues;
 };
 
+
 /* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
@@ -236,3 +218,4 @@ bool_t xdr_wire_queue_info_array(XDR *, struct wire_queue_info_array *);
 /* group */
 bool_t xdr_wire_group_info(XDR *, struct wire_group_info *);
 bool_t xdr_wire_group_info_array(XDR *, struct wire_group_info_array *);
+bool_t xdr_wire_job_info_req(XDR *, struct wire_job_info_req *);

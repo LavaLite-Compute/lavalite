@@ -65,7 +65,7 @@ int call_mbd(const void *req, size_t req_len,
 
         mbd_chan = chan_tcp_client();
         if (mbd_chan < 0) {
-            lberrno = LLBE_PROTOCOL;
+            llberrno = LLBE_PROTOCOL;
             return -1;
         }
 
@@ -76,7 +76,7 @@ int call_mbd(const void *req, size_t req_len,
         addr.sin_port   = htons((uint16_t)mbd_port);
 
         if (chan_connect(mbd_chan, &addr, conntimeout * 1000, 0) < 0) {
-            lberrno = LLBE_PROTOCOL;
+            llberrno = LLBE_PROTOCOL;
             chan_close(mbd_chan);
             mbd_chan = -1;
             return -1;
@@ -87,14 +87,14 @@ int call_mbd(const void *req, size_t req_len,
     struct chan_buffer rcvbuf = {0};
 
     if (chan_rpc(mbd_chan, &sndbuf, &rcvbuf, reply_hdr, recvtimeout) < 0) {
-        lberrno = LLBE_PROTOCOL;
+        llberrno = LLBE_PROTOCOL;
         chan_close(mbd_chan);
         mbd_chan = -1;
         return -1;
     }
 
     if (reply_hdr->status != MBD_OK) {
-        lberrno = LLBE_PROTOCOL;
+        llberrno = LLBE_PROTOCOL;
         free(rcvbuf.data);
         chan_close(mbd_chan);
         mbd_chan = -1;

@@ -30,7 +30,9 @@ struct mbd_manager {
 };
 
 struct job_resources {
-    pid_t job_pid;
+    pid_t    pid;
+    uint64_t mem_mb;
+    double   cpu_time;
 };
 
 struct job_data {
@@ -39,24 +41,17 @@ struct job_data {
     uid_t    uid;
     int      status;
     int      exit_status;
+    int      priority;
     time_t   submit_time;
     time_t   start_time;
     time_t   end_time;
-    double   cpu_time;
-    char     from_host[MAXHOSTNAMELEN];
-    int      num_exec_hosts;
-    char     exec_host[MAXHOSTNAMELEN];  /* primary exec host */
-    char     job_name[LL_BUFSIZ_64];
+    time_t   susp_time;
+    char     name[LL_BUFSIZ_64];
     char     queue[LL_BUFSIZ_64];
-    int      num_cpu;
-    int      num_hosts;
-    int      num_gpu;
-    uint     mem_mb;
-    time_t   begin_time;
-    time_t   term_time;
-    struct job_resources job_res;
+    char     from_host[MAXHOSTNAMELEN];
+    char     exec_host[MAXHOSTNAMELEN];
+    struct job_resources res;
 };
-
 
 /* runtime state */
 struct mbd_host {

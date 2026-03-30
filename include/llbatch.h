@@ -52,7 +52,7 @@ enum llb_error {
     LLBE_NUM_ERR,   /* must remain last */
 };
 
-extern __thread enum llb_error lberrno;
+extern __thread enum llb_error llberrno;
 
 /* -----------------------------------------------------------------------
  * Structs
@@ -76,10 +76,10 @@ struct job_submit {
     char *project_name;
 };
 
-struct job_resource_info {
-    pid_t pgid;
-    /* future: cpu_usage, mem_bytes, gpu_usage from cgroup
-     */
+struct job_resources {
+    pid_t pid;
+    uint64_t mem_mb;    /* current rss from cgroup */
+    double   cpu_time;  /* accumulated cpu time */
 };
 
 // llb_job_info API options
@@ -89,24 +89,29 @@ struct job_resource_info {
 #define LLB_JOB_SUSP 0x0008
 #define LLB_JOB_RUN  0x0040
 
+/* runtime resource usage, reported periodically by sbd via cgroup */
+struct job_res_info {
+    pid_t    pid;
+    uint64_t mem_mb;
+    double   cpu_time;
+};
+
 struct job_info {
-    int64_t job_id;
-    uid_t uid;
-    int32_t status;
-    char *name;
-    char *project;
-    char *comment;
-    struct job_resource_info resources;
-    time_t submit_time;
-    time_t start_time;
-    time_t end_time;
-    float cpu_time;
-    char *cwd;
-    char *from_host;
-    int32_t num_exec_hosts;
-    char *exec_hosts;
-    struct job_submit submit;
-    int32_t exit_status;
+    int64_t  job_id;
+    uid_t    uid;
+    int32_t  status;
+    int32_t  exit_status;
+    int32_t  priority;
+    time_t   submit_time;
+    time_t   start_time;
+    time_t   end_time;
+    time_t   susp_time;
+    char    *name;
+    char    *queue;
+    char    *from_host;
+    char    *exec_host;
+    char    *comment;
+    struct job_res_info res;
 };
 
 struct host_info {
@@ -160,6 +165,7 @@ void llb_free_job_info(struct job_info *, int32_t);
 struct host_info *llb_host_info(int32_t *);
 void llb_free_host_info(struct host_info *, int32_t);
 
+// bmgroup
 struct host_group *llb_group_info(int32_t *);
 void llb_free_group_info(struct host_group *, int32_t);
 

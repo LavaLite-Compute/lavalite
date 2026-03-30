@@ -16,7 +16,7 @@
 
 #include "llbatch.h"
 
-__thread enum llb_error lberrno = LLBE_NONE;
+__thread enum llb_error llberrno = LLBE_NONE;
 
 struct queue_info *llb_queue_info(int32_t *nqueues)
 {
@@ -50,8 +50,8 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
         return NULL;
 
     if (rhdr.status != MBD_OK) {
-        lberrno = LLBE_QUEUE;
-        return -1;
+        llberrno = LLBE_QUEUE;
+        return NULL;
     }
 
     /* -------------------------
@@ -140,16 +140,16 @@ struct host_group *llb_group_info(int32_t *ngroups)
         return NULL;
 
     if (rhdr.status != MBD_OK) {
-        lberrno = LLBE_HOST_GROUP;
-        return -1;
+        llberrno = LLBE_HOST_GROUP;
+        return NULL;
     }
 
     xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
 
-    struct wire_host_group_array w;
+    struct wire_group_info_array w;
     memset(&w, 0, sizeof(w));
 
-    if (!xdr_wire_host_group_array(&xdrs, &w)) {
+    if (!xdr_wire_group_info_array(&xdrs, &w)) {
         xdr_destroy(&xdrs);
         free(rep);
         return NULL;
@@ -158,10 +158,15 @@ struct host_group *llb_group_info(int32_t *ngroups)
     xdr_destroy(&xdrs);
     free(rep);
 
+    if (w.ngroups == 0) {
+        llberrno = LLBE_HOST_GROUP;
+        return NULL;
+    }
+
     struct host_group *out;
     out = calloc(w.ngroups, sizeof(*out));
     if (!out) {
-        xdr_free((xdrproc_t)xdr_wire_host_group_array, (char *)&w);
+        xdr_free((xdrproc_t)xdr_wire_group_info_array, (char *)&w);
         return NULL;
     }
 
@@ -172,7 +177,7 @@ struct host_group *llb_group_info(int32_t *ngroups)
 
     *ngroups = w.ngroups;
 
-    xdr_free((xdrproc_t)xdr_wire_host_group_array, (char *)&w);
+    xdr_free((xdrproc_t)xdr_wire_group_info_array, (char *)&w);
 
     return out;
 }
@@ -221,17 +226,16 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
      * RPC
      * ------------------------- */
     void *rep = NULL;
-    struct protocol_header hdr;
+    struct protocol_header rhdr;
 
-    if (call_mbd(buf, len, &rep, &hdr) < 0)
+    if (call_mbd(buf, len, &rep, &rhdr) < 0)
         return -1;
 
-    if (hdr.status != MBD_OK) {
-        lberrno = LLBE_BAD_SIGNAL;
+    if (rhdr.status != MBD_OK) {
+        llberrno = LLBE_SIGNAL;
         return -1;
     }
 
-    /* no payload expected */
     free(rep);
 
     return 0;
@@ -263,20 +267,20 @@ struct host_info *llb_host_info(int32_t *nhosts)
      * RPC
      * ------------------------- */
     void *rep = NULL;
-    struct protocol_header hdr;
+    struct protocol_header rhdr;
 
-    if (call_mbd(reqbuf, req_len, &rep, &hdr) < 0)
+    if (call_mbd(reqbuf, req_len, &rep, &rhdr) < 0)
         return NULL;
 
-    if (hdr.status != MBD_OK) {
-        lberrno = LLBE_HOST;
-        return -1;
+    if (rhdr.status != MBD_OK) {
+        llberrno = LLBE_HOST;
+        return NULL;
     }
 
     /* -------------------------
      * decode wire
      * ------------------------- */
-    xdrmem_create(&xdrs, rep, hdr.length, XDR_DECODE);
+    xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
 
     struct wire_host_info_array w;
     memset(&w, 0, sizeof(w));
@@ -303,7 +307,7 @@ struct host_info *llb_host_info(int32_t *nhosts)
 
     for (int i = 0; i < w.nhosts; i++) {
 
-        out[i].host = strdup(w.hosts[i].name);
+        out[i].name = strdup(w.hosts[i].name);
         out[i].status   = w.hosts[i].status;
         out[i].max_jobs = w.hosts[i].max_jobs;
         out[i].num_jobs = w.hosts[i].num_jobs;
@@ -330,64 +334,52 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
 {
     char buf[512];
     XDR xdrs;
-
     /* -------------------------
      * encode request
      * ------------------------- */
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
-
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_JOB_INFO;
-
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
     }
 
     struct wire_job_info_req req;
-    req.jobid = jobid;
+    req.job_id = jobid;
     req.flags = flags;
-
     if (!xdr_wire_job_info_req(&xdrs, &req)) {
         xdr_destroy(&xdrs);
         return NULL;
     }
-
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
-
     /* -------------------------
      * RPC
      * ------------------------- */
     void *rep = NULL;
-    struct protocol_header hdr;
-
-    if (call_mbd(buf, len, &rep, &hdr) < 0)
+    struct protocol_header rhdr;
+    if (call_mbd(buf, len, &rep, &rhdr) < 0)
         return NULL;
 
-    if (hdr.status != MBD_OK) {
-        lberrno = LLBE_NO_JOB;
-        return -1;
+    if (rhdr.status != MBD_OK) {
+        llberrno = LLBE_NO_JOB;
+        return NULL;
     }
-
     /* -------------------------
      * decode reply
      * ------------------------- */
-    xdrmem_create(&xdrs, rep, hdr.length, XDR_DECODE);
-
+    xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
     struct wire_job_info_array w;
     memset(&w, 0, sizeof(w));
-
     if (!xdr_wire_job_info_array(&xdrs, &w)) {
         xdr_destroy(&xdrs);
         free(rep);
         return NULL;
     }
-
     xdr_destroy(&xdrs);
     free(rep);
-
     /* -------------------------
      * convert wire → API
      * ------------------------- */
@@ -397,50 +389,46 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
         xdr_free((xdrproc_t)xdr_wire_job_info_array, (char *)&w);
         return NULL;
     }
-
     for (int i = 0; i < w.njobs; i++) {
         struct wire_job_info *src = &w.jobs[i];
-        struct job_info *dst = &out[i];
-
-        dst->jobid = src->job_id;
-        dst->uid   = src->uid;
-
+        struct job_info      *dst = &out[i];
+        dst->job_id      = src->job_id;
+        dst->uid         = src->uid;
         dst->status      = src->status;
         dst->exit_status = src->exit_status;
-
+        dst->priority    = src->priority;
         dst->submit_time = src->submit_time;
         dst->start_time  = src->start_time;
         dst->end_time    = src->end_time;
-
-        dst->cpu_time = src->cpu_time;
-
-        ll_strlcpy(dst->from_host, src->from_host, sizeof(dst->from_host));
-        ll_strlcpy(dst->exec_host, src->exec_host, sizeof(dst->exec_host));
-        ll_strlcpy(dst->job_name,  src->job_name,  sizeof(dst->job_name));
-        ll_strlcpy(dst->queue,     src->queue,     sizeof(dst->queue));
-
-        dst->num_exec_hosts = src->num_exec_hosts;
-
-        dst->num_cpu   = src->num_cpu;
-        dst->num_hosts = src->num_hosts;
-        dst->num_gpu   = src->num_gpu;
-
-        dst->mem_mb = src->mem_mb;
-
-        dst->begin_time = src->begin_time;
-        dst->term_time  = src->term_time;
-
-        dst->job_pid = src->job_pid;
-
-        /* resources */
-        dst->resources.job_pid = src->resources.job_pid;
+        dst->susp_time   = src->susp_time;
+        dst->name      = strdup(src->name);
+        dst->queue     = strdup(src->queue);
+        dst->from_host = strdup(src->from_host);
+        dst->exec_host = strdup(src->exec_host);
+        dst->comment   = strdup(src->comment);
+        dst->res.pid      = src->res.pid;
+        dst->res.mem_mb   = src->res.mem_mb;
+        dst->res.cpu_time = src->res.cpu_time;
     }
-
     *n = w.njobs;
-
     xdr_free((xdrproc_t)xdr_wire_job_info_array, (char *)&w);
-
     return out;
+}
+
+void llb_free_job_info(struct job_info *jobs, int32_t n)
+{
+    int i;
+
+    if (!jobs)
+        return;
+    for (i = 0; i < n; i++) {
+        free(jobs[i].name);
+        free(jobs[i].queue);
+        free(jobs[i].from_host);
+        free(jobs[i].exec_host);
+        free(jobs[i].comment);
+    }
+    free(jobs);
 }
 
 const char *llbe_str(enum llb_error e)

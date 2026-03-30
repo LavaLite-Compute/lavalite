@@ -54,7 +54,7 @@ compute_widths(struct host_info *h, int n, struct col_widths *w)
     w->susp   = strlen("SUSP");
 
     for (int i = 0; i < n; i++) {
-        w->name   = imax(w->name,   strlen(h[i].host));
+        w->name   = imax(w->name,   strlen(h[i].name));
         w->status = imax(w->status, strlen(host_status_str(h[i].status)));
         w->max    = imax(w->max,    ndigits(h[i].max_jobs));
         w->njobs  = imax(w->njobs,  ndigits(h[i].num_jobs));
@@ -88,7 +88,7 @@ main(void)
 
     for (int i = 0; i < nhosts; i++) {
         printf("%-*s  %-*s  %*d  %*d  %*d  %*d\n",
-               w.name,   hosts[i].host,
+               w.name,   hosts[i].name,
                w.status, host_status_str(hosts[i].status),
                w.max,    hosts[i].max_jobs,
                w.njobs,  hosts[i].num_jobs,

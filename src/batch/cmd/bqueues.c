@@ -3,8 +3,9 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
-#include "batch/lib/proto.h"
+#include "llbatch.h"
 
 static const char *
 queue_status_str(int32_t status)
