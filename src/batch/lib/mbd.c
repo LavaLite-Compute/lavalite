@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -20,7 +21,8 @@
 #include "batch/lib/proto.h"
 #include "llbatch.h"
 
-static int mbd_chan = -1;
+static int chan_mbd = -1;
+// defaults set in ll_params already
 static int conntimeout;
 static int recvtimeout;
 static struct ll_host mbd_host;
@@ -33,15 +35,30 @@ static int mbd_init(void)
     if (initialized)
         return 0;
 
-    if (ll_init() < 0)
+    if (ll_init() < 0) {
+        errno = EINVAL;
         return -1;
+    }
 
-    if (!ll_atoi(ll_params[LL_MBD_PORT].val, (int *)&mbd_port))
+    if (!ll_atoi(ll_params[LL_MBD_PORT].val, (int *)&mbd_port)) {
+        errno = EINVAL;
         return -1;
+    }
 
-    get_host_by_name(ll_params[LL_MBD_HOST].val, &mbd_host);
+    if (! ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout)) {
+        errno = EINVAL;
         return -1;
+    }
 
+    if (! ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (get_host_by_name(ll_params[LL_MBD_HOST].val, &mbd_host) < 0) {
+        errno = EINVAL;
+        return -1;
+    }
     chan_init();
 
     initialized = 1;
@@ -61,11 +78,10 @@ int call_mbd(const void *req, size_t req_len,
     if (mbd_init() < 0)
         return -1;
 
-    if (mbd_chan < 0) {
+    if (chan_mbd < 0) {
 
-        mbd_chan = chan_tcp_client();
-        if (mbd_chan < 0) {
-            llberrno = LLBE_PROTOCOL;
+        chan_mbd = chan_tcp_client();
+        if (chan_mbd < 0) {
             return -1;
         }
 
@@ -75,10 +91,9 @@ int call_mbd(const void *req, size_t req_len,
         addr.sin_family = AF_INET;
         addr.sin_port   = htons((uint16_t)mbd_port);
 
-        if (chan_connect(mbd_chan, &addr, conntimeout * 1000, 0) < 0) {
-            llberrno = LLBE_PROTOCOL;
-            chan_close(mbd_chan);
-            mbd_chan = -1;
+        if (chan_connect(chan_mbd, &addr, conntimeout * 1000, 0) < 0) {
+            chan_close(chan_mbd);
+            chan_mbd = -1;
             return -1;
         }
     }
@@ -86,18 +101,16 @@ int call_mbd(const void *req, size_t req_len,
     struct chan_buffer sndbuf = {.data = (void *)req, .len = req_len};
     struct chan_buffer rcvbuf = {0};
 
-    if (chan_rpc(mbd_chan, &sndbuf, &rcvbuf, reply_hdr, recvtimeout) < 0) {
-        llberrno = LLBE_PROTOCOL;
-        chan_close(mbd_chan);
-        mbd_chan = -1;
+    if (chan_rpc(chan_mbd, &sndbuf, &rcvbuf, reply_hdr, recvtimeout) < 0) {
+        chan_close(chan_mbd);
+        chan_mbd = -1;
         return -1;
     }
 
     if (reply_hdr->status != MBD_OK) {
-        llberrno = LLBE_PROTOCOL;
         free(rcvbuf.data);
-        chan_close(mbd_chan);
-        mbd_chan = -1;
+        chan_close(chan_mbd);
+        chan_mbd = -1;
         return -1;
     }
 

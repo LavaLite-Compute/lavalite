@@ -16,11 +16,11 @@
 /* -----------------------------------------------------------
  * job submit
  * ----------------------------------------------------------- */
-void job_submit(XDR *xdrs, int ch_id)
+void job_submit(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
-    LS_DEBUG("job_submit ch_id=%d", ch_id);
+    LS_DEBUG("job_submit chan_id=%d", chan_id);
 
     /* TODO: decode wire_job_submit + enqueue reply */
 }
@@ -28,11 +28,11 @@ void job_submit(XDR *xdrs, int ch_id)
 /* -----------------------------------------------------------
  * job signal
  * ----------------------------------------------------------- */
-void job_signal(XDR *xdrs, int ch_id)
+void job_signal(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
-    LS_DEBUG("job_signal ch_id=%d", ch_id);
+    LS_DEBUG("job_signal chan_id=%d", chan_id);
 
     /* TODO: decode wire_job_sig */
 }
@@ -40,11 +40,11 @@ void job_signal(XDR *xdrs, int ch_id)
 /* -----------------------------------------------------------
  * job info
  * ----------------------------------------------------------- */
-void job_info(XDR *xdrs, int ch_id)
+void job_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
-    LS_DEBUG("job_info ch_id=%d", ch_id);
+    LS_DEBUG("job_info chan_id=%d", chan_id);
 
     /* TODO: build wire_job_info_array + reply */
 }
@@ -53,7 +53,7 @@ void job_info(XDR *xdrs, int ch_id)
  * queue info
  * ----------------------------------------------------------- */
 void
-queue_info(XDR *xdrs, int ch_id)
+queue_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
@@ -87,7 +87,7 @@ queue_info(XDR *xdrs, int ch_id)
     hdr.operation = BATCH_QUEUE_INFO_ACK;
     hdr.status    = MBD_OK;
 
-    if (enqueue_payload(ch_id, &hdr, &reply, sizeof(reply),
+    if (enqueue_payload(chan_id, &hdr, &reply, sizeof(reply),
                         xdr_wire_queue_info_array) < 0)
         LS_ERR("queue_info: enqueue_payload failed");
 
@@ -98,12 +98,13 @@ queue_info(XDR *xdrs, int ch_id)
  * group info
  * ----------------------------------------------------------- */
 void
-host_group_info(XDR *xdrs, int ch_id)
+host_group_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
     int ngroups = ll_list_count(&group_list);
-    struct wire_group_info *groups = calloc(ngroups, sizeof(struct wire_group_info));
+    struct wire_group_info *groups = calloc(ngroups,
+                                            sizeof(struct wire_group_info));
     if (groups == NULL) {
         LS_ERR("host_group_info: calloc failed");
         return;
@@ -127,7 +128,7 @@ host_group_info(XDR *xdrs, int ch_id)
     hdr.operation = BATCH_GROUP_INFO_ACK;
     hdr.status    = MBD_OK;
 
-    if (enqueue_payload(ch_id, &hdr, &reply, sizeof(reply),
+    if (enqueue_payload(chan_id, &hdr, &reply, sizeof(reply),
                         xdr_wire_group_info_array) < 0)
         LS_ERR("host_group_info: enqueue_payload failed");
 
@@ -137,11 +138,11 @@ host_group_info(XDR *xdrs, int ch_id)
 /* -----------------------------------------------------------
  * sbd register
  * ----------------------------------------------------------- */
-void sbd_register(XDR *xdrs, int ch_id)
+void sbd_register(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
-    LS_DEBUG("sbd_register ch_id=%d", ch_id);
+    LS_DEBUG("sbd_register chan_id=%d", chan_id);
 
     /* TODO: decode wire_sbd_register + update state */
 }
@@ -149,16 +150,16 @@ void sbd_register(XDR *xdrs, int ch_id)
 /* -----------------------------------------------------------
  * compact done / failed
  * ----------------------------------------------------------- */
-void compact_done(XDR *xdrs, int ch_id)
+void compact_done(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
-    LS_DEBUG("compact_done ch_id=%d", ch_id);
+    LS_DEBUG("compact_done chan_id=%d", chan_id);
 
     /* TODO: handle compactor notification */
 }
 
-void host_info(XDR *xdrs, int ch_id)
+void host_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
     int nhosts;
@@ -196,7 +197,7 @@ void host_info(XDR *xdrs, int ch_id)
     hdr.operation = BATCH_HOST_INFO_ACK;
     hdr.status = MBD_OK;
 
-    if (enqueue_payload(ch_id, &hdr, &reply, sizeof(reply),
+    if (enqueue_payload(chan_id, &hdr, &reply, sizeof(reply),
                         xdr_wire_host_info_array) < 0) {
         LS_ERR("host_info: enqueue_payload failed");
         free(hosts);

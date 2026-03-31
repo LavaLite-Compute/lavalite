@@ -35,26 +35,6 @@ enum host_stat {
 #define HOST_CLOSED  0x01   /* admin disabled/locked — orthogonal to state */
 
 /* -----------------------------------------------------------------------
- * Error codes rename BATCH_ERR_NONE BATCH_ERR_NO_JOB BE or BERR
- * ----------------------------------------------------------------------- */
-enum llb_error {
-    LLBE_NONE = 0,
-    LLBE_NO_JOB,
-    LLBE_NOT_STARTED,
-    LLBE_JOB_STARTED,
-    LLBE_JOB_FINISH,
-    LLBE_HOST,
-    LLBE_HOST_GROUP,
-    LLBE_QUEUE,
-    LLBE_SIGNAL,
-    LLBE_SYS_CALL,
-    LLBE_PROTOCOL,
-    LLBE_NUM_ERR,   /* must remain last */
-};
-
-extern __thread enum llb_error llberrno;
-
-/* -----------------------------------------------------------------------
  * Structs
  * ----------------------------------------------------------------------- */
 
@@ -175,6 +155,3 @@ void llb_free_queue_info(struct queue_info *, int32_t);
 
 // bkill
 int32_t llb_signal_job(int64_t, int32_t);
-
-// llb errors
-const char *llbe_str(enum llb_error);

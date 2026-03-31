@@ -35,7 +35,7 @@ static int sbd_disconnect(struct mbd_host *n)
     return 0;
 }
 
-void sbd_register(XDR *xdrs, int32_t ch_id)
+void sbd_register(XDR *xdrs, int32_t chan_id)
 {
     struct wire_sbd_register reg;
     memset(&reg, 0, sizeof(struct wire_sbd_register));
@@ -55,15 +55,15 @@ void sbd_register(XDR *xdrs, int32_t ch_id)
     if (host_data == NULL) {
         LS_ERRX("register from unknown host %s", hostname);
         free(reg.jobs);
-        shutdown_chan(ch_id);
+        shutdown_chan(chan_id);
         return -1;
     }
 
     assert(n->sbd_chan == -1);
-    n->sbd_chan = ch_id;
+    n->sbd_chan = chan_id;
 
     char key[LL_BUFSIZ_32];
-    snprintf(key, sizeof(key), "%d", ch_id);
+    snprintf(key, sizeof(key), "%d", chan_id);
     ll_hash_insert(&sbd_chan_hash, key, n, 0);
 
     struct wire_sbd_register reg_ack;
@@ -80,7 +80,7 @@ void sbd_register(XDR *xdrs, int32_t ch_id)
     memset(&hdr, 0, sizeof(struct protocol_header));
     hdr.operation = BATCH_SBD_REGISTER_ACK;
     hdr.status = MBD_OK;
-    enqueue_payload(ch_id, &hdr, &reg_ack, xdr_wire_sbd_register);
+    enqueue_payload(chan_id, &hdr, &reg_ack, xdr_wire_sbd_register);
 
     free(reg.jobs);
 }
@@ -93,22 +93,22 @@ int32_t sbd_route(struct mbd_host *n)
         abort();
     }
 
-    int ch_id = n->sbd_chan;
+    int chan_id = n->sbd_chan;
     // handle the exception on the channel
-    if (channels[ch_id].chan_events == CHAN_EPOLLERR) {
+    if (channels[chan_id].chan_events == CHAN_EPOLLERR) {
         int err;
         socklen_t len = sizeof(err);
-        int cc = getsockopt(channels[ch_id].sock, SOL_SOCKET,
+        int cc = getsockopt(channels[chan_id].sock, SOL_SOCKET,
                             SO_ERROR, &err, &len);
         LS_ERR("sbd shutdown chan=%d sock=%d so_error=%d ret=%d",
-               ch_id, channels[ch_id].sock, err, cc);
+               chan_id, channels[chan_id].sock, err, cc);
         sbd_disconnect(n);
         return -1;
     }
 
     struct chan_buffer *buf;
-    if (chan_dequeue(ch_id, &buf) < 0) {
-        LS_ERR("chan_dequeue failed for SBD chanfd=%d", ch_id);
+    if (chan_dequeue(chan_id, &buf) < 0) {
+        LS_ERR("chan_dequeue failed for SBD chanfd=%d", chan_id);
         sbd_disconnect(n);
         return -1;
     }
@@ -118,7 +118,7 @@ int32_t sbd_route(struct mbd_host *n)
 
     struct protocol_header sbd_hdr;
     if (!xdr_pack_hdr(&xdrs, &sbd_hdr)) {
-        LS_ERR("xdr_pack_hdr failed for SBD chanfd=%d", ch_id);
+        LS_ERR("xdr_pack_hdr failed for SBD chanfd=%d", chan_id);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         mbd_sbd_disconnect(client);

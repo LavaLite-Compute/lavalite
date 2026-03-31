@@ -27,15 +27,6 @@ enum lim_load_index {
 
 extern __thread int lserrno;
 
-enum ll_err {
-    LL_OK           = 0,
-    LL_ERR_LIM_DOWN = 1,   /* LIM not reachable */
-    LL_ERR_NO_MASTER = 2,  /* master unknown */
-    LL_ERR_CONF     = 3,   /* config error */
-    LL_ERR_PROTO    = 4,   /* protocol/XDR error */
-    LL_ERR_PERM     = 5,   /* permission denied */
-};
-
 enum lim_stat {
     LIM_STAT_OK,
     LIM_STAT_CLOSED

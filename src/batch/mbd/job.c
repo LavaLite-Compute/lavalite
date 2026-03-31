@@ -294,7 +294,7 @@ int set_job_resource_usage(XDR *xdrs, struct mbd_host *n)
 
 // this is a batch library request not inter daemon, the top signaling handler
 // every hadler is responsible for sending back the reply to the library
-int job_signal(XDR *xdrs, int ch_id)
+int job_signal(XDR *xdrs, int chan_id)
 {
     struct signalReq signal_req;
     memset(&signal_req, 0, sizeof(struct signalReq));

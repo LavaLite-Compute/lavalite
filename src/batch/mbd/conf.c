@@ -329,7 +329,7 @@ static int parse_queue_conf(struct queue_conf *qc,
                             const char *key,
                             const char *val)
 {
-    if (strcmp(key, "NAME") == 0)
+    if (strcmp(key, "QUEUE_NAME") == 0)
         return ll_strlcpy(qc->name, val, LL_BUFSIZ_64);
 
     if (strcmp(key, "PRIORITY") == 0)

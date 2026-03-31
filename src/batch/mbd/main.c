@@ -30,10 +30,11 @@ struct mbd_manager *mbd_mgr;
 
 int mbd_efd;
 struct epoll_event mbd_events[CHAN_MAX];
-int mbd_chan;
 uint16_t mbd_port;
 char mbd_host[MAXHOSTNAMELEN];
-int32_t sched_timer;
+int sched_timer;
+int chan_mbd;
+int chan_timer;
 
 static const char *mbd_exit_str(enum mbd_exit e)
 {
@@ -117,7 +118,7 @@ int main(int argc, char **argv)
     char *conf_dir = NULL;
 
     int timer_sched = 5;
-    while ((cc = getopt_long(argc, argv, "hVc:", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hVt:c:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
             conf_dir = optarg;
@@ -179,22 +180,24 @@ int main(int argc, char **argv)
 
         for (int i = 0; i < nevents; i++) {
             struct epoll_event *ev = &mbd_events[i];
-            int ch_id = (int)ev->data.u32;
-
+            int chan_id = (int)ev->data.u32;
+            LS_DEBUG("channel=%d mask=0x%x", chan_id, ev->events);
              // True skip partually read channels
-            if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
+            if (channels[chan_id].chan_events == CHAN_EPOLLNONE)
                 continue;
 
-            if (ch_id == sched_timer)
+            if (chan_id == sched_timer) {
                 schedule();
-
-            if (ch_id == mbd_chan) {
-                mbd_accept(mbd_chan);
                 continue;
             }
 
-            if (chan_is_readable(ch_id))
-                mbd_message(ch_id);
+            if (chan_id == chan_mbd) {
+                mbd_accept(chan_mbd);
+                continue;
+            }
+
+            if (chan_is_readable(chan_id))
+                mbd_message(chan_id);
         }
     }
 

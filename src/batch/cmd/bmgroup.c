@@ -4,20 +4,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <getopt.h>
 #include "llbatch.h"
 
 static const char *prog;
 
-static void
-usage(void)
+static void usage(void)
 {
     fprintf(stderr, "bmgroup: %s [-h | --help]\n", prog);
 }
 
-static void
-compute_widths(const struct host_group *groups, int32_t ngroups,
-               int *w_name, int *w_members)
+static void compute_widths(const struct host_group *groups, int32_t ngroups,
+                           int *w_name, int *w_members)
 {
     int32_t i;
     int     n;
@@ -39,8 +38,7 @@ compute_widths(const struct host_group *groups, int32_t ngroups,
     }
 }
 
-static void
-print_groups(const struct host_group *groups, int32_t ngroups)
+static void print_groups(const struct host_group *groups, int32_t ngroups)
 {
     int32_t     i;
     int         w_name, w_members;
@@ -69,8 +67,7 @@ static const struct option long_opts[] = {
     { NULL, 0, NULL, 0 }
 };
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     struct host_group *groups;
     int32_t            ngroups;

@@ -109,10 +109,11 @@ extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
 
 extern struct mbd_manager *mbd_mgr;
-extern int mbd_chan;
+extern int chan_mbd;
 extern int mbd_efd;
 extern uint16_t mbd_port;
 extern int sched_timer;
+extern int chan_timer;
 
 // main.c
 int is_manager(uid_t);

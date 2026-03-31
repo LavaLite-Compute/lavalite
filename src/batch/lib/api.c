@@ -16,8 +16,6 @@
 
 #include "llbatch.h"
 
-__thread enum llb_error llberrno = LLBE_NONE;
-
 struct queue_info *llb_queue_info(int32_t *nqueues)
 {
     char buf[256];
@@ -50,7 +48,6 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
         return NULL;
 
     if (rhdr.status != MBD_OK) {
-        llberrno = LLBE_QUEUE;
         return NULL;
     }
 
@@ -140,7 +137,6 @@ struct host_group *llb_group_info(int32_t *ngroups)
         return NULL;
 
     if (rhdr.status != MBD_OK) {
-        llberrno = LLBE_HOST_GROUP;
         return NULL;
     }
 
@@ -159,7 +155,6 @@ struct host_group *llb_group_info(int32_t *ngroups)
     free(rep);
 
     if (w.ngroups == 0) {
-        llberrno = LLBE_HOST_GROUP;
         return NULL;
     }
 
@@ -232,7 +227,6 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
         return -1;
 
     if (rhdr.status != MBD_OK) {
-        llberrno = LLBE_SIGNAL;
         return -1;
     }
 
@@ -273,7 +267,6 @@ struct host_info *llb_host_info(int32_t *nhosts)
         return NULL;
 
     if (rhdr.status != MBD_OK) {
-        llberrno = LLBE_HOST;
         return NULL;
     }
 
@@ -364,7 +357,6 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
         return NULL;
 
     if (rhdr.status != MBD_OK) {
-        llberrno = LLBE_NO_JOB;
         return NULL;
     }
     /* -------------------------
@@ -429,25 +421,4 @@ void llb_free_job_info(struct job_info *jobs, int32_t n)
         free(jobs[i].comment);
     }
     free(jobs);
-}
-
-const char *llbe_str(enum llb_error e)
-{
-    static const char *msgs[] = {
-        [LLBE_NONE]        = "no error",
-        [LLBE_NO_JOB]      = "job not found",
-        [LLBE_NOT_STARTED] = "job not yet started",
-        [LLBE_JOB_STARTED] = "job already started",
-        [LLBE_JOB_FINISH]  = "job already finished",
-        [LLBE_HOST]       = "host info request failed",
-        [LLBE_HOST_GROUP] = "host group request failed",
-        [LLBE_QUEUE]      = "queue request failed",
-        [LLBE_SIGNAL]      = "signal error",
-        [LLBE_SYS_CALL]    = "system call failed",
-        [LLBE_PROTOCOL]    = "protocol error",
-    };
-
-    if (e < 0 || e >= LLBE_NUM_ERR)
-        return "unknown error";
-    return msgs[e];
 }

@@ -7,25 +7,25 @@
 #include <string.h>
 #include "llbatch.h"
 
-static const char *
-host_status_str(int32_t status)
+static const char *host_status_str(int32_t status)
 {
     switch (status) {
-    case 0: return "ok";
-    case 1: return "closed";
-    case 2: return "unavail";
+    case 0:
+        return "ok";
+    case 1:
+        return "closed";
+    case 2:
+        return "unavail";
     default: return "unknown";
     }
 }
 
-static int
-imax(int a, int b)
+static int imax(int a, int b)
 {
     return a > b ? a : b;
 }
 
-static int
-ndigits(int32_t n)
+static int ndigits(int32_t n)
 {
     if (n <= 0)
         return 1;
@@ -63,8 +63,7 @@ compute_widths(struct host_info *h, int n, struct col_widths *w)
     }
 }
 
-int
-main(void)
+int main(void)
 {
     int nhosts;
     struct host_info *hosts;

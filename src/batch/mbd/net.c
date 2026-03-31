@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 
 #include "batch/lib/wire.h"
+#include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
 static int valid_batch_op(int op)
@@ -39,79 +40,79 @@ static int valid_batch_op(int op)
     }
 }
 
-static void route(int ch_id)
+static void route(int chan_id)
 {
     struct chan_buffer *buf;
     struct protocol_header hdr;
     XDR xdrs;
 
-    if (chan_has_error(ch_id)) {
+    if (chan_has_error(chan_id)) {
         LS_DEBUG("channel=%d from=%s closed connection",
-                 ch_id, chan_addr_str(ch_id));
-        shutdown_chan(ch_id);
+                 chan_id, chan_addr_str(chan_id));
+        shutdown_chan(chan_id);
         return;
     }
 
-    if (chan_dequeue(ch_id, &buf) < 0) {
-        LS_ERR("chan_dequeue failed ch_id=%d", ch_id);
-        shutdown_chan(ch_id);
+    if (chan_dequeue(chan_id, &buf) < 0) {
+        LS_ERR("chan_dequeue failed chan_id=%d", chan_id);
+        shutdown_chan(chan_id);
         return;
     }
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed ch_id=%d", ch_id);
+        LS_ERR("xdr_pack_hdr failed chan_id=%d", chan_id);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        shutdown_chan(ch_id);
+        shutdown_chan(chan_id);
         return;
     }
 
     /* validate opcode and version early */
     if (!valid_batch_op(hdr.operation)) {
-        LS_ERR("invalid opcode=%d from=%s", hdr.operation, chan_addr_str(ch_id));
+        LS_ERR("invalid opcode=%d from=%s", hdr.operation, chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        shutdown_chan(ch_id);
+        shutdown_chan(chan_id);
         return;
     }
 
     if (hdr.version != CURRENT_PROTOCOL_VERSION) {
         LS_ERR("unsupported version=0x%x from=%s",
-               hdr.version, chan_addr_str(ch_id));
+               hdr.version, chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        shutdown_chan(ch_id);
+        shutdown_chan(chan_id);
         return;
     }
 
-    LS_DEBUG("ch_id=%d protocol=%d", ch_id, hdr.operation);
+    LS_DEBUG("chan_id=%d protocol=%d", chan_id, hdr.operation);
 
     switch (hdr.operation) {
     case BATCH_JOB_SUB:
-        job_submit(&xdrs, ch_id);
+        job_submit(&xdrs, chan_id);
         break;
     case BATCH_JOB_SIG:
-        job_signal(&xdrs, ch_id);
+        job_signal(&xdrs, chan_id);
         break;
     case BATCH_GROUP_INFO:
-        host_group_info(&xdrs, ch_id);
+        host_group_info(&xdrs, chan_id);
         break;
     case BATCH_QUEUE_INFO:
-        queue_info(&xdrs, ch_id);
+        queue_info(&xdrs, chan_id);
         break;
     case BATCH_JOB_INFO:
-        job_info(&xdrs, ch_id);
+        job_info(&xdrs, chan_id);
         break;
     case BATCH_HOST_INFO:
-        host_info(&xdrs, ch_id);
+        host_info(&xdrs, chan_id);
         break;
     case BATCH_SBD_REGISTER:
-        sbd_register(&xdrs, ch_id);
+        sbd_register(&xdrs, chan_id);
         break;
     case BATCH_COMPACT_DONE:
     case BATCH_COMPACT_FAILED:
-        compact_done(&xdrs, ch_id);
+        compact_done(&xdrs, chan_id);
         break;
     }
 
@@ -133,8 +134,16 @@ int network_init(void)
         return -1;
     }
 
-    mbd_chan = chan_tcp_server(mbd_port);
-    if (mbd_chan < 0) {
+    chan_init();
+    if (! ll_atoi(ll_params[LL_MBD_PORT].val, (int *)&mbd_port)) {
+        LS_ERRX("cannot convert to int LL_MBD_PORT=%s",
+                ll_params[LL_MBD_PORT].val);
+        close(mbd_efd);
+        return -1;
+    }
+
+    chan_mbd = chan_tcp_server(mbd_port);
+    if (chan_mbd < 0) {
         LS_ERR("chan_tcp_server failed port=%u", mbd_port);
         close(mbd_efd);
         mbd_efd = -1;
@@ -143,22 +152,21 @@ int network_init(void)
 
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLRDHUP;
-    ev.data.u32 = mbd_chan;
-    if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(mbd_chan), &ev) < 0) {
-        LS_ERR("epoll_ctl add mbd_chan=%d failed", mbd_chan);
-        chan_close(mbd_chan);
-        mbd_chan = -1;
+    ev.data.u32 = chan_mbd;
+    if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(chan_mbd), &ev) < 0) {
+        LS_ERR("epoll_ctl add chan_mbd=%d failed", chan_mbd);
+        chan_close(chan_mbd);
+        chan_mbd = -1;
         close(mbd_efd);
         mbd_efd = -1;
         return -1;
     }
 
-    sched_timer = chan_create_timer(5);
-    if (sched_timer < 0) {
-        LS_ERR("chan_create_timer failed");
-        epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(mbd_chan), NULL);
-        chan_close(mbd_chan);
-        mbd_chan = -1;
+    chan_timer = chan_create_timer(sched_timer);
+    if (chan_timer < 0) {
+        LS_ERR("chan_create_timer=%d failed", sched_timer);
+        chan_close(chan_mbd);
+        chan_mbd = -1;
         close(mbd_efd);
         mbd_efd = -1;
         return -1;
@@ -167,13 +175,13 @@ int network_init(void)
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLRDHUP;
     ev.data.u32 = sched_timer;
-    if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(sched_timer), &ev) < 0) {
+    if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(chan_timer), &ev) < 0) {
         LS_ERR("epoll_ctl add sched_timer=%d failed", sched_timer);
         chan_close(sched_timer);
         sched_timer = -1;
-        epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(mbd_chan), NULL);
-        chan_close(mbd_chan);
-        mbd_chan = -1;
+        epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(chan_mbd), NULL);
+        chan_close(chan_mbd);
+        chan_mbd = -1;
         close(mbd_efd);
         mbd_efd = -1;
         return -1;
@@ -182,11 +190,11 @@ int network_init(void)
     return 0;
 }
 
-int mbd_accept(int ch_id)
+int mbd_accept(int chan_id)
 {
     struct sockaddr_in from;
     memset(&from, 0, sizeof(from));
-    int ch_accept = chan_accept(ch_id, &from);
+    int ch_accept = chan_accept(chan_id, &from);
     if (ch_accept < 0) {
         LS_ERR("%s: chan_accept failed: %m", __func__);
         return -1;
@@ -219,32 +227,32 @@ int mbd_accept(int ch_id)
     return ch_accept;
 }
 
-void mbd_message(int ch_id)
+void mbd_message(int chan_id)
 {
     char key[LL_BUFSIZ_32];
 
-    LS_DEBUG("ch_id=%d sock=%d events=0x%x",
-             ch_id, channels[ch_id].sock, channels[ch_id].chan_events);
+    LS_DEBUG("chan_id=%d sock=%d events=0x%x",
+             chan_id, channels[chan_id].sock, channels[chan_id].chan_events);
 
-    snprintf(key, sizeof(key), "%d", ch_id);
+    snprintf(key, sizeof(key), "%d", chan_id);
     struct mbd_host *n = ll_hash_search(&sbd_chan_hash, key);
     if (n != NULL) {
         LS_DEBUG("the client is an sbd %s", n->net.name);
-        assert(n->sbd_chan == ch_id);
+        assert(n->sbd_chan == chan_id);
         sbd_route(n);
         return;
     }
 
-    route(ch_id);
+    route(chan_id);
 }
 
-void shutdown_chan(int ch_id)
+void shutdown_chan(int chan_id)
 {
-    epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(ch_id), NULL);
-    chan_close(ch_id);
+    epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(chan_id), NULL);
+    chan_close(chan_id);
 }
 
-int32_t enqueue_payload(int ch_id, struct protocol_header *hdr,
+int32_t enqueue_payload(int chan_id, struct protocol_header *hdr,
                         void *payload, size_t siz, bool_t (*xdr_func)())
 {
     struct chan_buffer *buf;
@@ -273,14 +281,14 @@ int32_t enqueue_payload(int ch_id, struct protocol_header *hdr,
     buf->len = (size_t)XDR_GETPOS(&xdrs);
     xdr_destroy(&xdrs);
 
-    if (chan_enqueue(ch_id, buf) < 0) {
+    if (chan_enqueue(chan_id, buf) < 0) {
         LS_ERR("chan_enqueue failed op=%d len=%d",
                hdr->operation, (int)buf->len);
         chan_free_buf(buf);
         return -1;
     }
 
-    chan_set_write_interest(mbd_efd, ch_id, 1);
+    chan_set_write_interest(mbd_efd, chan_id, 1);
 
     return 0;
 }

@@ -75,7 +75,7 @@ void compact_shutdown(void)
  * mbd_handle_compact_done - called when mbd_compact sends BATCH_COMPACT_DONE
  * or BATCH_COMPACT_FAILED. The compactor is just another client.
  */
-void compact_done(XDR *xdrs, int ch_id, struct protocol_header *hdr)
+void compact_done(XDR *xdrs, int chan_id, struct protocol_header *hdr)
 {
     struct wire_compact_notify req;
     struct wire_compact_notify ack_payload;
@@ -124,8 +124,8 @@ send_ack:
     }
     memcpy(out->data, buf, len);
     out->len = len;
-    chan_enqueue(ch_id, out);
-    chan_set_write_interest(ch_id, true);
+    chan_enqueue(chan_id, out);
+    chan_set_write_interest(chan_id, true);
 
     // clean the jobs using the same way as the compactor
     // vaporized the events

@@ -400,12 +400,16 @@ int chan_dequeue(int ch_id, struct chan_buffer **buf)
 {
     struct ll_list_entry *e;
 
-    if (!chan_is_valid(ch_id))
+    if (!chan_is_valid(ch_id)) {
+        errno = EINVAL;
         return -1;
+    }
 
     e = ll_list_dequeue(&channels[ch_id].recv);
-    if (!e)
+    if (!e) {
+        errno = ENOENT;
         return -1;
+    }
 
     *buf = (struct chan_buffer *) e;
     return 0;

@@ -25,8 +25,6 @@
 #include "base/lib/ll.channel.h"
 #include "base/lib/ll.wire.h"
 
-__thread int lserrno = 0;
-
 static struct lim_master master;
 static uint16_t lim_port;
 static int lim_chan_tcp = -1;
@@ -203,14 +201,12 @@ char *ll_clustername(void)
  * Send req_len bytes to LIM master via TCP, receive reply.
  * On success: *rep points to allocated payload (caller must free),
  *             reply_hdr is filled.
- * On error: returns -1, sets lserrno.
  * Keeps a persistent TCP connection; reconnects on failure.
  */
 static int call_lim_tcp(const void *req, size_t req_len,
                         void **rep, struct protocol_header *reply_hdr)
 {
     if (lim_get_master() < 0) {
-        lserrno = LL_ERR_NO_MASTER;
         return -1;
     }
 
@@ -225,7 +221,6 @@ static int call_lim_tcp(const void *req, size_t req_len,
         addr.sin_port   = htons(lim_port);
 
         if (chan_connect(lim_chan_tcp, &addr, conntimeout * 1000, 0) < 0) {
-            lserrno = LL_ERR_LIM_DOWN;
             chan_close(lim_chan_tcp);
             lim_chan_tcp = -1;
             return -1;
@@ -237,14 +232,12 @@ static int call_lim_tcp(const void *req, size_t req_len,
 
     // timeout is in seconds
     if (chan_rpc(lim_chan_tcp, &sndbuf, &rcvbuf, reply_hdr, recvtimeout) < 0) {
-        lserrno = LL_ERR_LIM_DOWN;
         chan_close(lim_chan_tcp);
         lim_chan_tcp = -1;
         return -1;
     }
 
     if (reply_hdr->status != LIM_OK) {
-        lserrno = LL_ERR_LIM_DOWN;
         free(rcvbuf.data);
         chan_close(lim_chan_tcp);
         lim_chan_tcp = -1;
@@ -281,7 +274,6 @@ struct ll_host_load *ll_hostload(int *nloads)
     free(rep);
     if (!ok || wls.nloads == 0) {
         xdr_free((xdrproc_t)xdr_wire_load_array, &wls);
-        lserrno = LL_ERR_PROTO;
         return NULL;
     }
 
@@ -327,7 +319,6 @@ struct ll_host_info *ll_hostinfo(int *nhosts)
     xdr_destroy(&xdrs);
     free(rep);
     if (!ok || whs.nhosts == 0) {
-        lserrno = LL_ERR_PROTO;
         return NULL;
     }
 
@@ -377,7 +368,6 @@ struct ll_cluster_info *ll_clusterinfo(void)
     free(rep);
 
     if (!ok) {
-        lserrno = LL_ERR_PROTO;
         return NULL;
     }
 
