@@ -49,13 +49,13 @@ static void route(int chan_id)
     if (chan_has_error(chan_id)) {
         LS_DEBUG("channel=%d from=%s closed connection",
                  chan_id, chan_addr_str(chan_id));
-        shutdown_chan(chan_id);
+        chan_shutdown(chan_id);
         return;
     }
 
     if (chan_dequeue(chan_id, &buf) < 0) {
         LS_ERR("chan_dequeue failed chan_id=%d", chan_id);
-        shutdown_chan(chan_id);
+        chan_shutdown(chan_id);
         return;
     }
 
@@ -64,7 +64,7 @@ static void route(int chan_id)
         LS_ERR("xdr_pack_hdr failed chan_id=%d", chan_id);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        shutdown_chan(chan_id);
+        chan_shutdown(chan_id);
         return;
     }
 
@@ -73,7 +73,7 @@ static void route(int chan_id)
         LS_ERR("invalid opcode=%d from=%s", hdr.operation, chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        shutdown_chan(chan_id);
+        chan_shutdown(chan_id);
         return;
     }
 
@@ -82,7 +82,7 @@ static void route(int chan_id)
                hdr.version, chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        shutdown_chan(chan_id);
+        chan_shutdown(chan_id);
         return;
     }
 
@@ -90,29 +90,37 @@ static void route(int chan_id)
 
     switch (hdr.operation) {
     case BATCH_JOB_SUB:
-        job_submit(&xdrs, chan_id);
+        if (job_submit(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     case BATCH_JOB_SIG:
-        job_signal(&xdrs, chan_id);
+        if (job_signal(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     case BATCH_GROUP_INFO:
-        host_group_info(&xdrs, chan_id);
+        if (host_group_info(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     case BATCH_QUEUE_INFO:
-        queue_info(&xdrs, chan_id);
+        if (queue_info(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     case BATCH_JOB_INFO:
-        job_info(&xdrs, chan_id);
+        if (job_info(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     case BATCH_HOST_INFO:
-        host_info(&xdrs, chan_id);
+        if (host_info(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     case BATCH_SBD_REGISTER:
-        sbd_register(&xdrs, chan_id);
+        if (sbd_register(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     case BATCH_COMPACT_DONE:
     case BATCH_COMPACT_FAILED:
-        compact_done(&xdrs, chan_id);
+        if (compact_done(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
         break;
     }
 
@@ -162,6 +170,9 @@ int network_init(void)
         return -1;
     }
 
+    if (sched_timer == -1)
+        sched_timer = 5;
+
     chan_timer = chan_create_timer(sched_timer);
     if (chan_timer < 0) {
         LS_ERR("chan_create_timer=%d failed", sched_timer);
@@ -174,12 +185,11 @@ int network_init(void)
 
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLRDHUP;
-    ev.data.u32 = sched_timer;
+    ev.data.u32 = chan_timer;
     if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(chan_timer), &ev) < 0) {
-        LS_ERR("epoll_ctl add sched_timer=%d failed", sched_timer);
+        LS_ERR("epoll_ctl add sched_timer=%d failed", chan_timer);
         chan_close(sched_timer);
         sched_timer = -1;
-        epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(chan_mbd), NULL);
         chan_close(chan_mbd);
         chan_mbd = -1;
         close(mbd_efd);
@@ -246,7 +256,7 @@ void mbd_message(int chan_id)
     route(chan_id);
 }
 
-void shutdown_chan(int chan_id)
+void chan_shutdown(int chan_id)
 {
     epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(chan_id), NULL);
     chan_close(chan_id);
@@ -257,11 +267,6 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr,
 {
     struct chan_buffer *buf;
     XDR xdrs;
-
-    if (hdr == NULL) {
-        LS_ERR("enqueue_payload: NULL header");
-        return -1;
-    }
 
     if (chan_alloc_buf(&buf, siz) < 0) {
         LS_ERR("chan_alloc_buf failed op=%d siz=%ld",
@@ -278,7 +283,7 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr,
         return -1;
     }
 
-    buf->len = (size_t)XDR_GETPOS(&xdrs);
+    buf->len = (size_t)xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(chan_id, buf) < 0) {
@@ -288,7 +293,11 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr,
         return -1;
     }
 
-    chan_set_write_interest(mbd_efd, chan_id, 1);
+    if (chan_set_write_interest(chan_id, mbd_efd, 1) < 0) {
+        LS_ERR("chan_set_write_interest failed");
+        chan_free_buf(buf);
+        return -1;
+    }
 
     return 0;
 }

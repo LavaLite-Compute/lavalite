@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <pwd.h>
+#include <getopt.h>
 
 #include "llbatch.h"
 
@@ -58,7 +59,9 @@ ndigits(int64_t n)
     if (n <= 0)
         return 1;
     int d = 0;
-    while (n > 0) { d++; n /= 10; }
+    while (n > 0) { d++;
+        n /= 10;
+    }
     return d;
 }
 
@@ -97,18 +100,63 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
     }
 }
 
-int
-main(void)
+static struct option longopts[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'V'},
+    {"all", no_argument, NULL, 'a'},
+    {"pend", no_argument, NULL, 'p'},
+    {"run", no_argument, NULL, 'r'},
+    {"done", no_argument, NULL, 'd'},
+    {NULL, 0, NULL, 0}
+};
+static void usage(void)
 {
-    int njobs;
-    struct job_info *jobs;
-    struct col_widths w;
+    fprintf(stderr, "bjobs: output the jobs belonging to the use running "
+            "the command\n"
+            "--help display this help and exit\n"
+            "--version output version information and exit\n"
+            "--pend output all pending jobs in the system\n"
+            "--run output all running jobs in the system\n"
+            "--done output all done jobs in the system\n"
+            "job_id the job_id option this mutually exclusive with the\n"
+            "--all, --pend, --run and --done\n");
+}
 
-    jobs = llb_job_info(-1, &njobs, LLB_JOB_ALL);
+int main(int argc, char **argv)
+{
+    int cc;
+    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
+        switch (cc) {
+        case 'V':
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
+        case 'h':
+        default:
+            usage();
+            return 0;
+        }
+    }
+
+    if (optind >= argc) {
+        usage();
+        return -1;
+    }
+
+    char *end;
+    int64_t job_id = strtoll(argv[optind], &end, 10);
+    if (end == argv[optind] || *end != 0) {
+        fprintf(stderr, "bkill: invalid jobid '%s'\n", argv[optind]);
+        return -1;
+    }
+
+    int njobs;
+    struct job_info *jobs = llb_job_info(job_id, &njobs, LLB_JOB_NOFLAGS);
     if (!jobs) {
         fprintf(stderr, "bjobs: failed\n");
         return -1;
     }
+
+    struct col_widths w;
     compute_widths(jobs, njobs, &w);
     printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
            w.jobid,     "JOBID",

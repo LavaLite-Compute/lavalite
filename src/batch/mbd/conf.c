@@ -40,7 +40,7 @@ static uint64_t parse_mem(const char *s)
     return 0;
 }
 
-static struct mbd_host *make_mbd_host(const char *p)
+static struct mbd_host *make_host(const char *p)
 {
     struct mbd_host *h;
     char mem_str[LL_BUFSIZ_32];
@@ -133,9 +133,9 @@ static int parse_hosts(const char *path)
             return 0;
         }
 
-        h = make_mbd_host(p);
+        h = make_host(p);
         if (h == NULL) {
-            LS_ERRX("failed to make host from line=%s", p);
+            LS_ERRX("make_host failed line=%s", p);
             fclose(f);
             return -1;
         }
@@ -150,7 +150,7 @@ static int parse_hosts(const char *path)
     return -1;
 }
 
-static struct mbd_group *make_mbd_group(char *p)
+static struct mbd_group *make_group(char *p)
 {
     struct mbd_group *g;
     char *open;
@@ -262,9 +262,9 @@ static int parse_groups(const char *path)
             return 0;
         }
 
-        g = make_mbd_group(p);
+        g = make_group(p);
         if (g == NULL) {
-            LS_ERRX("make_mbd_group failed line=%s", p);
+            LS_ERRX("make_group failed line=%s", p);
             fclose(f);
             return -1;
         }

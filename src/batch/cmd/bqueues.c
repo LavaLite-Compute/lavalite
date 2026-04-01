@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <getopt.h>
 #include "llbatch.h"
 
 static const char *
@@ -68,8 +69,33 @@ compute_widths(struct queue_info *q, int32_t n, struct col_widths *w)
     }
 }
 
-int main(void)
+static void usage(void)
 {
+    fprintf(stderr, "bqueues: --help display this help and exit\n"
+            "--version output version information and exit\n");
+}
+
+static struct option longopts[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'V'},
+    {NULL, 0, NULL, 0}
+};
+
+int main(int argc, char **argv)
+{
+    int cc;
+    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
+        switch (cc) {
+        case 'V':
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
+        case 'h':
+        default:
+            usage();
+            return 0;
+        }
+    }
+
     int32_t n;
     struct queue_info *q;
     struct col_widths w;

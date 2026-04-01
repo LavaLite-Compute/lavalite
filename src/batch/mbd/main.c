@@ -31,8 +31,7 @@ struct mbd_manager *mbd_mgr;
 int mbd_efd;
 struct epoll_event mbd_events[CHAN_MAX];
 uint16_t mbd_port;
-char mbd_host[MAXHOSTNAMELEN];
-int sched_timer;
+int sched_timer = -1;
 int chan_mbd;
 int chan_timer;
 
@@ -125,7 +124,7 @@ int main(int argc, char **argv)
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            return -1;
+            return 0;
         case 't':
             if (! ll_atoi(optarg, &sched_timer)
                 || sched_timer <= 0) {
@@ -165,7 +164,7 @@ int main(int argc, char **argv)
     }
 
     LS_INFO("mbatchd uid=%d starting on host=%s timer_sched=%d",
-            getuid(), mbd_host, timer_sched);
+            getuid(), ll_params[LL_MBD_HOST].val, timer_sched);
 
     for (;;) {
 
@@ -186,7 +185,9 @@ int main(int argc, char **argv)
             if (channels[chan_id].chan_events == CHAN_EPOLLNONE)
                 continue;
 
-            if (chan_id == sched_timer) {
+            if (chan_id == chan_timer) {
+                uint64_t exp;
+                read(chan_sock(chan_id), &exp, sizeof(exp));
                 schedule();
                 continue;
             }

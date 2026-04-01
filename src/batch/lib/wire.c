@@ -43,8 +43,7 @@ bool_t xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *p)
 
 bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *p)
 {
-    if (!xdr_vector(xdrs, (char *)p->hostname,
-                    MAXHOSTNAMELEN, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, (char *)p->hostname, MAXHOSTNAMELEN))
         return false;
 
     if (!xdr_array(xdrs,
@@ -100,38 +99,22 @@ bool_t xdr_wire_job_sig(XDR *xdrs, struct wire_job_sig *p)
 
 bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *p)
 {
-    if (!xdr_vector(xdrs, p->job_name,
-                    LL_BUFSIZ_64, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->job_name, LL_BUFSIZ_64))
         return false;
-
-    if (!xdr_vector(xdrs, p->queue,
-                    LL_BUFSIZ_64, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->queue, LL_BUFSIZ_64))
         return false;
-
-    if (!xdr_vector(xdrs, p->hosts,
-                    LL_BUFSIZ_256, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->hosts, LL_BUFSIZ_256))
         return false;
-
-    if (!xdr_vector(xdrs, p->command,
-                    LL_BUFSIZ_1K, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->command, LL_BUFSIZ_1K))
         return false;
-
-    if (!xdr_vector(xdrs, p->in_file,
-                    PATH_MAX, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->in_file, PATH_MAX))
         return false;
-
-    if (!xdr_vector(xdrs, p->out_file,
-                    PATH_MAX, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->out_file, PATH_MAX))
         return false;
-
-    if (!xdr_vector(xdrs, p->err_file,
-                    PATH_MAX, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->err_file, PATH_MAX))
         return false;
-
-    if (!xdr_vector(xdrs, p->project_name,
-                    LL_BUFSIZ_64, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->project_name, LL_BUFSIZ_64))
         return false;
-
     if (!xdr_int64_t(xdrs, &p->begin_time))
         return false;
 
@@ -205,23 +188,19 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
     if (!xdr_int64_t(xdrs, &p->susp_time))
         return false;
 
-    if (!xdr_vector(xdrs, p->name, LL_BUFSIZ_64,
-                    sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->name, LL_BUFSIZ_64))
         return false;
 
-    if (!xdr_vector(xdrs, p->queue, LL_BUFSIZ_64,
-                    sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->queue, LL_BUFSIZ_64))
         return false;
 
-    if (!xdr_vector(xdrs, p->from_host,
-                    MAXHOSTNAMELEN, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->from_host, MAXHOSTNAMELEN))
         return false;
 
-    if (!xdr_vector(xdrs, p->exec_host,
-                    MAXHOSTNAMELEN, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->exec_host, MAXHOSTNAMELEN))
         return false;
-    if (!xdr_vector(xdrs, p->comment, LL_BUFSIZ_512,
-                    sizeof(char), (xdrproc_t)xdr_char))
+
+    if (!xdr_opaque(xdrs, p->comment, LL_BUFSIZ_512))
         return false;
 
     if (!xdr_wire_job_resources(xdrs, &p->res))
@@ -249,8 +228,7 @@ bool_t xdr_wire_job_info_array(XDR *xdrs, struct wire_job_info_array *p)
 
 bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
 {
-    if (!xdr_vector(xdrs, p->name,
-                    MAXHOSTNAMELEN, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->name, MAXHOSTNAMELEN))
         return false;
 
     if (!xdr_int32_t(xdrs, &p->status))
@@ -304,25 +282,13 @@ bool_t xdr_wire_queue_info_array(XDR *xdrs, struct wire_queue_info_array *p)
 
 bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *q)
 {
-    if (!xdr_vector(xdrs,
-                    q->name,
-                    LL_BUFSIZ_64,
-                    sizeof(char),
-                    (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, q->name, LL_BUFSIZ_64))
         return false;
 
-    if (!xdr_vector(xdrs,
-                    q->description,
-                    LL_BUFSIZ_256,
-                    sizeof(char),
-                    (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, q->description, LL_BUFSIZ_256))
         return false;
 
-    if (!xdr_vector(xdrs,
-                    q->hosts,
-                    LL_BUFSIZ_256,
-                    sizeof(char),
-                    (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, q->hosts, LL_BUFSIZ_256))
         return false;
 
     if (!xdr_int32_t(xdrs, &q->priority))
@@ -349,15 +315,13 @@ bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *q)
 
 bool_t xdr_wire_group_info(XDR *xdrs, struct wire_group_info *p)
 {
-    if (!xdr_vector(xdrs, p->name,
-                    LL_BUFSIZ_64, sizeof(char), (xdrproc_t)xdr_char))
+    if (!xdr_opaque(xdrs, p->name, LL_BUFSIZ_64))
         return false;
 
     if (!xdr_int32_t(xdrs, &p->num_members))
         return false;
 
-    if (!xdr_vector(xdrs, p->members,
-                    LL_BUFSIZ_1K, sizeof(char), (xdrproc_t)xdr_char))
+   if (!xdr_opaque(xdrs, p->members, LL_BUFSIZ_1K))
         return false;
 
     return true;

@@ -476,9 +476,6 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
             return -1;
     }
 
-    if (!rcv)
-        return 0;
-
     int cc = rd_poll(channels[ch_id].sock, timeout * 1000);
     if (cc < 0)
         return -1;

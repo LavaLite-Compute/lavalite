@@ -5,19 +5,29 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
 #include "llbatch.h"
 
 static const char *host_status_str(int32_t status)
 {
-    switch (status) {
-    case 0:
-        return "ok";
-    case 1:
-        return "closed";
-    case 2:
-        return "unavail";
-    default: return "unknown";
+    const char *state;
+    static char buf[32];
+
+    switch (status & ~HOST_CLOSED) {
+    case HOST_OK:
+        state = "ok";
+        break;
+    case HOST_UNAVAIL:
+        state = "unavail";
+        break;
+    default:
+        state = "unknown"; break;
     }
+    if (status & HOST_CLOSED)
+        snprintf(buf, sizeof(buf), "%s|closed", state);
+    else
+        snprintf(buf, sizeof(buf), "%s", state);
+    return buf;
 }
 
 static int imax(int a, int b)
@@ -30,7 +40,10 @@ static int ndigits(int32_t n)
     if (n <= 0)
         return 1;
     int d = 0;
-    while (n > 0) { d++; n /= 10; }
+    while (n > 0) {
+        d++;
+        n /= 10;
+    }
     return d;
 }
 
@@ -63,18 +76,41 @@ compute_widths(struct host_info *h, int n, struct col_widths *w)
     }
 }
 
-int main(void)
+static void usage(void)
 {
-    int nhosts;
-    struct host_info *hosts;
-    struct col_widths w;
+    fprintf(stderr, "bhosts: --help display this help and exit\n"
+            "--version output version information and exit\n");
+}
 
-    hosts = llb_host_info(&nhosts);
+static struct option longopts[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'V'},
+    {NULL, 0, NULL, 0}
+};
+
+int main(int argc, char **argv)
+{
+    int cc;
+    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
+        switch (cc) {
+        case 'V':
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
+        case 'h':
+        default:
+            usage();
+            return 0;
+        }
+    }
+
+    int nhosts;
+    struct host_info *hosts = llb_host_info(&nhosts);
     if (!hosts) {
         fprintf(stderr, "bhosts: failed\n");
         return -1;
     }
 
+    struct col_widths w;
     compute_widths(hosts, nhosts, &w);
 
     printf("%-*s  %-*s  %*s  %*s  %*s  %*s\n",

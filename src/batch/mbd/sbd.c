@@ -55,7 +55,7 @@ void sbd_register(XDR *xdrs, int32_t chan_id)
     if (host_data == NULL) {
         LS_ERRX("register from unknown host %s", hostname);
         free(reg.jobs);
-        shutdown_chan(chan_id);
+        chan_shutdown(chan_id);
         return -1;
     }
 

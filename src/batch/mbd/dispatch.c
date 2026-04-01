@@ -16,60 +16,58 @@
 /* -----------------------------------------------------------
  * job submit
  * ----------------------------------------------------------- */
-void job_submit(XDR *xdrs, int chan_id)
+int job_submit(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
     LS_DEBUG("job_submit chan_id=%d", chan_id);
 
-    /* TODO: decode wire_job_submit + enqueue reply */
+    return 0;
 }
 
 /* -----------------------------------------------------------
  * job signal
  * ----------------------------------------------------------- */
-void job_signal(XDR *xdrs, int chan_id)
+int job_signal(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
     LS_DEBUG("job_signal chan_id=%d", chan_id);
-
-    /* TODO: decode wire_job_sig */
+    return 0;
 }
 
 /* -----------------------------------------------------------
  * job info
  * ----------------------------------------------------------- */
-void job_info(XDR *xdrs, int chan_id)
+int job_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
     LS_DEBUG("job_info chan_id=%d", chan_id);
-
-    /* TODO: build wire_job_info_array + reply */
+    return 0;
 }
 
 /* -----------------------------------------------------------
  * queue info
  * ----------------------------------------------------------- */
-void
-queue_info(XDR *xdrs, int chan_id)
+int queue_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
     int nqueues = ll_list_count(&queue_list);
     struct wire_queue_info *queues = calloc(nqueues, sizeof(struct wire_queue_info));
     if (queues == NULL) {
-        LS_ERR("queue_info: calloc failed");
-        return;
+        LS_ERR("calloc failed");
+        return -1;
     }
 
     int i = 0;
     for (struct ll_list_entry *e = queue_list.head; e != NULL; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *)e;
-        ll_strlcpy(queues[i].name, q->name, sizeof(queues[i].name));
-        ll_strlcpy(queues[i].description, q->description, sizeof(queues[i].description));
-        ll_strlcpy(queues[i].hosts, q->hosts, sizeof(queues[i].hosts));
+
+        ll_strlcpy(queues[i].name, q->name, LL_BUFSIZ_64);
+        ll_strlcpy(queues[i].description, q->description, LL_BUFSIZ_256);
+        ll_strlcpy(queues[i].hosts, q->hosts, LL_BUFSIZ_256);
         queues[i].priority = q->priority;
         queues[i].max_jobs = q->max_jobs;
         queues[i].num_pend = q->num_pend;
@@ -77,6 +75,10 @@ queue_info(XDR *xdrs, int chan_id)
         queues[i].num_susp = q->num_susp;
         i++;
     }
+
+    size_t siz = nqueues * sizeof(struct wire_queue_info)
+        + sizeof(struct wire_queue_info_array)
+        + PACKET_HEADER_SIZE + LL_BUFSIZ_64 * 2;
 
     struct wire_queue_info_array reply;
     reply.nqueues = nqueues;
@@ -87,18 +89,20 @@ queue_info(XDR *xdrs, int chan_id)
     hdr.operation = BATCH_QUEUE_INFO_ACK;
     hdr.status    = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, sizeof(reply),
-                        xdr_wire_queue_info_array) < 0)
-        LS_ERR("queue_info: enqueue_payload failed");
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        xdr_wire_queue_info_array) < 0) {
+        LS_ERR("enqueue_payload failed");
+        return -1;
+    }
 
     free(queues);
+    return 0;
 }
 
 /* -----------------------------------------------------------
  * group info
  * ----------------------------------------------------------- */
-void
-host_group_info(XDR *xdrs, int chan_id)
+int host_group_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
@@ -107,7 +111,7 @@ host_group_info(XDR *xdrs, int chan_id)
                                             sizeof(struct wire_group_info));
     if (groups == NULL) {
         LS_ERR("host_group_info: calloc failed");
-        return;
+        return -1;
     }
 
     int i = 0;
@@ -119,6 +123,10 @@ host_group_info(XDR *xdrs, int chan_id)
         i++;
     }
 
+    size_t siz = sizeof(struct wire_group_info) * ngroups
+        + sizeof(struct wire_group_info_array)
+        + PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+
     struct wire_group_info_array reply;
     reply.ngroups = ngroups;
     reply.groups  = groups;
@@ -128,48 +136,50 @@ host_group_info(XDR *xdrs, int chan_id)
     hdr.operation = BATCH_GROUP_INFO_ACK;
     hdr.status    = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, sizeof(reply),
-                        xdr_wire_group_info_array) < 0)
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        xdr_wire_group_info_array) < 0) {
         LS_ERR("host_group_info: enqueue_payload failed");
-
+        return -1;
+    }
     free(groups);
+    return 0;
 }
 
 /* -----------------------------------------------------------
  * sbd register
  * ----------------------------------------------------------- */
-void sbd_register(XDR *xdrs, int chan_id)
+int sbd_register(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
     LS_DEBUG("sbd_register chan_id=%d", chan_id);
-
+    return 0;
     /* TODO: decode wire_sbd_register + update state */
 }
 
 /* -----------------------------------------------------------
  * compact done / failed
  * ----------------------------------------------------------- */
-void compact_done(XDR *xdrs, int chan_id)
+int compact_done(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
     LS_DEBUG("compact_done chan_id=%d", chan_id);
-
+    return 0;
     /* TODO: handle compactor notification */
 }
 
-void host_info(XDR *xdrs, int chan_id)
+int host_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
-    int nhosts;
-    nhosts = ll_list_count(&host_list);
+
+    int nhosts = ll_list_count(&host_list);
 
     struct wire_host_info *hosts;
     hosts = calloc(nhosts, sizeof(struct wire_host_info));
     if (!hosts) {
         LS_ERR("host_info: calloc failed");
-        return;
+        return -1;
     }
 
     int i = 0;
@@ -188,6 +198,11 @@ void host_info(XDR *xdrs, int chan_id)
         i++;
     }
 
+    size_t siz = sizeof(struct wire_host_info) * nhosts
+        + sizeof(struct wire_host_info_array)
+        + PACKET_HEADER_SIZE
+        + LL_BUFSIZ_64 * 2;
+
     struct wire_host_info_array reply;
     reply.nhosts = nhosts;
     reply.hosts  = hosts;
@@ -197,12 +212,13 @@ void host_info(XDR *xdrs, int chan_id)
     hdr.operation = BATCH_HOST_INFO_ACK;
     hdr.status = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, sizeof(reply),
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
                         xdr_wire_host_info_array) < 0) {
         LS_ERR("host_info: enqueue_payload failed");
         free(hosts);
-        return;
+        return -1;
     }
 
     free(hosts);
+    return 0;
 }

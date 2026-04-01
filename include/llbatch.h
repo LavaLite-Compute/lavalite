@@ -28,8 +28,8 @@
  * Host status
  * ----------------------------------------------------------------------- */
 enum host_stat {
-    HOST_OK,
-    HOST_UNAVAIL,
+    HOST_OK = 0,
+    HOST_UNAVAIL = 2,
 };
 
 #define HOST_CLOSED  0x01   /* admin disabled/locked — orthogonal to state */
@@ -63,6 +63,7 @@ struct job_resources {
 };
 
 // llb_job_info API options
+#define LLB_JOB_NOFLAGS 0x0
 #define LLB_JOB_ALL  0x0001
 #define LLB_JOB_DONE 0x0002
 #define LLB_JOB_PEND 0x0004

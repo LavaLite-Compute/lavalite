@@ -135,7 +135,7 @@ int mbd_accept(int);
 void mbd_message(int);
 int enqueue_payload(int, struct protocol_header *,
                         void *, size_t, bool_t (*xdr_func)());
-void shutdown_chan(int);
+void chan_shutdown(int);
 
 // job.c
 void new_job_reply(XDR *, int32_t);
@@ -147,11 +147,11 @@ void schedule(void);
 int events_init(void);
 
 // dispatch.c
-void job_submit(XDR *, int);
-void job_signal(XDR *, int);
-void job_info(XDR *, int);
-void host_info(XDR *, int);
-void queue_info(XDR *, int);
-void host_group_info(XDR *, int);
-void sbd_register(XDR *, int);
-void compact_done(XDR *, int);
+int job_submit(XDR *, int);
+int job_signal(XDR *, int);
+int job_info(XDR *, int);
+int host_info(XDR *, int);
+int queue_info(XDR *, int);
+int host_group_info(XDR *, int);
+int sbd_register(XDR *, int);
+int compact_done(XDR *, int);
