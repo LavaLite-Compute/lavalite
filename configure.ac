@@ -48,13 +48,6 @@ LT_INIT
 dnl Compilers / tools
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_PROG_YACC
-dnl AC_PROG_LEX
-
-dnl CFLAGS (GNU)
-if test "x$ac_compiler_gnu" = xyes; then
-  CFLAGS="$CFLAGS -Wall -fPIC"
-fi
 
 dnl No berkley email...
 AC_DEFINE([NO_MAIL], [1], [Define to disable Berkeley email routing])

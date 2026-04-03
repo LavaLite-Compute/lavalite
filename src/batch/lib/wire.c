@@ -1,6 +1,7 @@
-// Copyright (C) LavaLite Contributors
-// GPL v2
-
+/*
+ * Copyright (C) LavaLite Contributors
+ * GPL v2
+ */
 
 #include <sys/param.h>
 #include <rpc/types.h>
@@ -23,10 +24,8 @@ bool_t xdr_wire_compact_notify(XDR *xdrs, struct wire_compact_notify *p)
 {
     if (!xdr_int32_t(xdrs, &p->status))
         return false;
-
     if (!xdr_int64_t(xdrs, &p->compact_time))
         return false;
-
     return true;
 }
 
@@ -34,10 +33,8 @@ bool_t xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->pid))
         return false;
-
     return true;
 }
 
@@ -45,7 +42,6 @@ bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *p)
 {
     if (!xdr_opaque(xdrs, (char *)p->hostname, MAXHOSTNAMELEN))
         return false;
-
     if (!xdr_array(xdrs,
                    (char **)&p->jobs,
                    (u_int *)&p->num_jobs,
@@ -53,7 +49,6 @@ bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *p)
                    sizeof(struct wire_sbd_job),
                    (xdrproc_t)xdr_wire_sbd_job))
         return false;
-
     return true;
 }
 
@@ -65,24 +60,15 @@ bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->state))
         return false;
-
     return true;
 }
 
-bool_t xdr_wire_job_file(XDR *xdrs, struct wire_job_file *p)
+bool_t xdr_wire_job_script(XDR *xdrs, struct wire_job_script *p)
 {
-    if (!xdr_u_int32_t(xdrs, &p->len))
+    if (!xdr_bytes(xdrs, &p->data, &p->len, UINT32_MAX))
         return false;
-
-    if (!xdr_bytes(xdrs,
-                   (char **)&p->data,
-                   &p->len,
-                   UINT_MAX))
-        return false;
-
     return true;
 }
 
@@ -90,60 +76,77 @@ bool_t xdr_wire_job_sig(XDR *xdrs, struct wire_job_sig *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->sig))
         return false;
+    return true;
+}
+
+bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
+{
+    if (!xdr_opaque(xdrs, s->name, sizeof(s->name)))
+        return false;
+    if (!xdr_opaque(xdrs, s->queue, sizeof(s->queue)))
+        return false;
+    if (!xdr_opaque(xdrs, s->project, sizeof(s->project)))
+        return false;
+    if (!xdr_opaque(xdrs, s->comment, sizeof(s->comment)))
+        return false;
+    if (!xdr_opaque(xdrs, s->machines, sizeof(s->machines)))
+        return false;
+    if (!xdr_opaque(xdrs, s->in_file, sizeof(s->in_file)))
+        return false;
+    if (!xdr_opaque(xdrs, s->out_file, sizeof(s->out_file)))
+        return false;
+    if (!xdr_opaque(xdrs, s->err_file, sizeof(s->err_file)))
+        return false;
+    if (!xdr_opaque(xdrs, s->cwd, sizeof(s->cwd)))
+        return false;
+    if (!xdr_opaque(xdrs, s->depend_cond, sizeof(s->depend_cond)))
+        return false;
+    if (!xdr_opaque(xdrs, s->command, sizeof(s->command)))
+        return false;
+    if (!xdr_opaque(xdrs, s->gpu_type, sizeof(s->gpu_type)))
+        return false;
+    if (!xdr_opaque(xdrs, s->from_host, sizeof(s->from_host)))
+        return false;
+    if (!xdr_opaque(xdrs, s->username, sizeof(s->username)))
+        return false;
+    if (!xdr_int32_t(xdrs, &s->num_cpus))
+        return false;
+    if (!xdr_int32_t(xdrs, &s->num_nhosts))
+        return false;
+    if (!xdr_int32_t(xdrs, &s->num_gpus))
+        return false;
+    if (!xdr_int32_t(xdrs, &s->wall_seconds))
+        return false;
+    if (!xdr_uint64_t(xdrs, &s->mem_mb))
+        return false;
+    if (!xdr_uint32_t(xdrs, &s->uid))
+        return false;
+    if (!xdr_uint32_t(xdrs, &s->gid))
+        return false;
+    if (!xdr_uint32_t(xdrs, &s->umask))
+        return false;
+    if (!xdr_uint32_t(xdrs, &s->flags))
+        return false;
+    if (!xdr_int64_t(xdrs, &s->begin_time))
+        return false;
+    if (!xdr_int64_t(xdrs, &s->term_time))
+        return false;
+    if (!xdr_int64_t(xdrs, &s->submit_time))
+        return false;
+    if (!xdr_int64_t(xdrs, &s->susp_time))
+        return false;
+    if (!xdr_int64_t(xdrs, &s->resume_time))
+        return false;
 
     return true;
 }
 
-bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *p)
+bool_t xdr_wire_job_submit_reply(XDR *xdrs, struct wire_job_submit_reply *r)
 {
-    if (!xdr_opaque(xdrs, p->job_name, LL_BUFSIZ_64))
+    if (!xdr_int64_t(xdrs, &r->job_id))
         return false;
-    if (!xdr_opaque(xdrs, p->queue, LL_BUFSIZ_64))
-        return false;
-    if (!xdr_opaque(xdrs, p->hosts, LL_BUFSIZ_256))
-        return false;
-    if (!xdr_opaque(xdrs, p->command, LL_BUFSIZ_1K))
-        return false;
-    if (!xdr_opaque(xdrs, p->in_file, PATH_MAX))
-        return false;
-    if (!xdr_opaque(xdrs, p->out_file, PATH_MAX))
-        return false;
-    if (!xdr_opaque(xdrs, p->err_file, PATH_MAX))
-        return false;
-    if (!xdr_opaque(xdrs, p->project_name, LL_BUFSIZ_64))
-        return false;
-    if (!xdr_int64_t(xdrs, &p->begin_time))
-        return false;
-
-    if (!xdr_int64_t(xdrs, &p->term_time))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->num_cpu))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->num_hosts))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->num_gpu))
-        return false;
-
-    if (!xdr_u_int64_t(xdrs, &p->mem_mb))
-        return false;
-
-    return true;
-}
-
-bool_t xdr_wire_submit_reply(XDR *xdrs, struct wire_submit_reply *p)
-{
-    if (!xdr_int64_t(xdrs, &p->job_id))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->error))
-        return false;
-
     return true;
 }
 
@@ -155,7 +158,6 @@ bool_t xdr_wire_job_resources(XDR *xdrs, struct wire_job_resources *p)
         return false;
     if (!xdr_double(xdrs, &p->cpu_time))
         return false;
-
     return true;
 }
 
@@ -163,49 +165,34 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-
     if (!xdr_uint32_t(xdrs, &p->uid))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->status))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->exit_status))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->priority))
         return false;
-
     if (!xdr_int64_t(xdrs, &p->submit_time))
         return false;
-
     if (!xdr_int64_t(xdrs, &p->start_time))
         return false;
-
     if (!xdr_int64_t(xdrs, &p->end_time))
         return false;
-
     if (!xdr_int64_t(xdrs, &p->susp_time))
         return false;
-
-    if (!xdr_opaque(xdrs, p->name, LL_BUFSIZ_64))
+    if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
         return false;
-
-    if (!xdr_opaque(xdrs, p->queue, LL_BUFSIZ_64))
+    if (!xdr_opaque(xdrs, p->queue, sizeof(p->queue)))
         return false;
-
-    if (!xdr_opaque(xdrs, p->from_host, MAXHOSTNAMELEN))
+    if (!xdr_opaque(xdrs, p->from_host, sizeof(p->from_host)))
         return false;
-
-    if (!xdr_opaque(xdrs, p->exec_host, MAXHOSTNAMELEN))
+    if (!xdr_opaque(xdrs, p->exec_host, sizeof(p->exec_host)))
         return false;
-
-    if (!xdr_opaque(xdrs, p->comment, LL_BUFSIZ_512))
+    if (!xdr_opaque(xdrs, p->comment, sizeof(p->comment)))
         return false;
-
     if (!xdr_wire_job_resources(xdrs, &p->res))
         return false;
-
     return true;
 }
 
@@ -218,7 +205,15 @@ bool_t xdr_wire_job_info_array(XDR *xdrs, struct wire_job_info_array *p)
                    sizeof(struct wire_job_info),
                    (xdrproc_t)xdr_wire_job_info))
         return false;
+    return true;
+}
 
+bool_t xdr_wire_job_info_req(XDR *xdrs, struct wire_job_info_req *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->flags))
+        return false;
     return true;
 }
 
@@ -228,24 +223,18 @@ bool_t xdr_wire_job_info_array(XDR *xdrs, struct wire_job_info_array *p)
 
 bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
 {
-    if (!xdr_opaque(xdrs, p->name, MAXHOSTNAMELEN))
+    if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->status))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->max_jobs))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->num_jobs))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->num_run))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->num_susp))
         return false;
-
     return true;
 }
 
@@ -258,7 +247,6 @@ bool_t xdr_wire_host_info_array(XDR *xdrs, struct wire_host_info_array *p)
                    sizeof(struct wire_host_info),
                    (xdrproc_t)xdr_wire_host_info))
         return false;
-
     return true;
 }
 
@@ -266,6 +254,26 @@ bool_t xdr_wire_host_info_array(XDR *xdrs, struct wire_host_info_array *p)
  * queue
  * ----------------------------------------------------------------------- */
 
+bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *p)
+{
+    if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
+        return false;
+    if (!xdr_opaque(xdrs, p->description, sizeof(p->description)))
+        return false;
+    if (!xdr_opaque(xdrs, p->hosts, sizeof(p->hosts)))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->priority))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->max_jobs))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_pend))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_run))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_susp))
+        return false;
+    return true;
+}
 
 bool_t xdr_wire_queue_info_array(XDR *xdrs, struct wire_queue_info_array *p)
 {
@@ -276,36 +284,6 @@ bool_t xdr_wire_queue_info_array(XDR *xdrs, struct wire_queue_info_array *p)
                    sizeof(struct wire_queue_info),
                    (xdrproc_t)xdr_wire_queue_info))
         return false;
-
-    return true;
-}
-
-bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *q)
-{
-    if (!xdr_opaque(xdrs, q->name, LL_BUFSIZ_64))
-        return false;
-
-    if (!xdr_opaque(xdrs, q->description, LL_BUFSIZ_256))
-        return false;
-
-    if (!xdr_opaque(xdrs, q->hosts, LL_BUFSIZ_256))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &q->priority))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &q->max_jobs))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &q->num_pend))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &q->num_run))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &q->num_susp))
-        return false;
-
     return true;
 }
 
@@ -315,15 +293,12 @@ bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *q)
 
 bool_t xdr_wire_group_info(XDR *xdrs, struct wire_group_info *p)
 {
-    if (!xdr_opaque(xdrs, p->name, LL_BUFSIZ_64))
+    if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
         return false;
-
     if (!xdr_int32_t(xdrs, &p->num_members))
         return false;
-
-   if (!xdr_opaque(xdrs, p->members, LL_BUFSIZ_1K))
+    if (!xdr_opaque(xdrs, p->members, sizeof(p->members)))
         return false;
-
     return true;
 }
 
@@ -336,17 +311,5 @@ bool_t xdr_wire_group_info_array(XDR *xdrs, struct wire_group_info_array *p)
                    sizeof(struct wire_group_info),
                    (xdrproc_t)xdr_wire_group_info))
         return false;
-
-    return true;
-}
-
-bool_t xdr_wire_job_info_req(XDR *xdrs, struct wire_job_info_req *p)
-{
-    if (!xdr_int64_t(xdrs, &p->job_id))
-        return false;
-
-    if (!xdr_int32_t(xdrs, &p->flags))
-        return false;
-
     return true;
 }

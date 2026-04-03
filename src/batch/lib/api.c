@@ -11,7 +11,7 @@
 
 #include "base/lib/ll.protocol.h"
 #include "base/lib/ll.sys.h"
-#include "batch/lib/proto.h"
+#include "batch/lib/rpc.h"
 #include "batch/lib/wire.h"
 
 #include "llbatch.h"

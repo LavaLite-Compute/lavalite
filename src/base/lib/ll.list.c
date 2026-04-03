@@ -119,9 +119,6 @@ void ll_list_clear(struct ll_list *lst,
         if (cleanup)
             cleanup(e);
 
-        e->next = NULL;
-        e->prev = NULL;
-
         e = next;
     }
 

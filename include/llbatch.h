@@ -37,23 +37,31 @@ enum host_stat {
 /* -----------------------------------------------------------------------
  * Structs
  * ----------------------------------------------------------------------- */
-
+/*
+ * job_submit: populated by bsub from command line options.
+ * All char * fields are pointers into argv or heap; caller owns memory.
+ * Zero/NULL means "not specified; use default".
+ */
 struct job_submit {
-    char *job_name;
-    char *queue;
-    char *hosts;
-    char *group;
-    int32_t num_cpu;
-    int32_t num_hosts;
-    uint64_t  mem_mb;
-    int32_t num_gpu;
-    time_t begin_time;
-    time_t term_time;
-    char *in_file;
-    char *out_file;
-    char *err_file;
-    char *command;
-    char *project_name;
+    char        *name;          /* --name        */
+    char        *queue;         /* --queue       */
+    char        *machines;      /* --machines    */
+    char        *gpu_type;      /* --gpu-type    */
+    char        *depend_cond;   /* --dependency  */
+    char        *in_file;       /* --stdin       */
+    char        *out_file;      /* --stdout      */
+    char        *err_file;      /* --stderr      */
+    char        *command;       /* command [args]*/
+    char        *project;       /* --project     */
+    char        *comment;       /* --comment     */
+    int32_t      num_cpus;      /* --cpus        */
+    int32_t      num_nhosts;    /* --nhosts      */
+    int32_t      num_gpus;      /* --gpus        */
+    int32_t      wall_seconds;  /* --wall        */
+    uint64_t     mem_mb;        /* --mem         */
+    time_t       begin_time;    /* --begin       */
+    time_t       term_time;     /* --terminate   */
+    uint32_t     flags;         /* JOB_FLAG_*    */
 };
 
 struct job_resources {
@@ -136,7 +144,7 @@ struct host_group {
  * ----------------------------------------------------------------------- */
 
 // bsub
-int64_t llb_submit(struct job_submit *);
+int32_t llb_submit(const struct job_submit *, int64_t *);
 
 // bjobs
 struct job_info *llb_job_info(int64_t, int32_t *, int32_t);

@@ -2,9 +2,17 @@
 #  Copyright (C) LavaLite Contributors
 #
 
+AM_CFLAGS = \
+    -Wall \
+    -Wextra \
+    -Wmissing-prototypes \
+    -Wstrict-prototypes \
+    -Wold-style-definition \
+    -std=c99
+
 # Include headers
 AM_CPPFLAGS = \
+  -D_GNU_SOURCE \
   -I$(top_srcdir)/include \
   -I$(top_builddir) \
-  -I$(top_srcdir)/src/eauth \
   $(TIRPC_CFLAGS)
