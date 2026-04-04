@@ -79,7 +79,7 @@ struct lim_node {
 
 struct current_master {
     struct lim_node *node; // who we think is master, NULL if unknown
-    int16_t inactivity; // ticks since last beacon from master
+    uint32_t inactivity; // ticks since last beacon from master
 };
 
 // dont collide with the library

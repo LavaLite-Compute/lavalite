@@ -11,6 +11,7 @@
 #include <fcntl.h>
 
 #include "base/lib/ll.syslog.h"
+#include "base/lib/ll.conf.h"
 #include "base/lib/ll.list.h"
 #include "base/lib/ll.hash.h"
 #include "batch/mbd/mbd.h"
@@ -35,9 +36,7 @@ static int64_t next_job_id(void)
 
 static struct job_data *job_alloc(const struct wire_job_submit *ws)
 {
-    struct job_data *job;
-
-    job = calloc(1, sizeof(struct job_data));
+    struct job_data *job = calloc(1, sizeof(struct job_data));
     if (job == NULL) {
         LS_ERR("calloc failed");
         return NULL;
@@ -49,13 +48,32 @@ static struct job_data *job_alloc(const struct wire_job_submit *ws)
     job->status = JOB_STAT_PEND;
     job->submit_time = (time_t)ws->submit_time;
     job->pend_sig = 0;
-
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
+    job->num_cpus  = ws->num_cpus;
+    job->num_nhosts = ws->num_nhosts;
+    job->num_gpus  = ws->num_gpus;
+    job->mem_mb    = ws->mem_mb;
+    job->flags     = ws->flags;
+    job->begin_time = (time_t)ws->begin_time;
+    job->term_time  = (time_t)ws->term_time;
+
+    ll_strlcpy(job->project,  ws->project,  sizeof(job->project));
+    ll_strlcpy(job->gpu_type, ws->gpu_type, sizeof(job->gpu_type));
+    ll_strlcpy(job->machines, ws->machines, sizeof(job->machines));
 
     if (ws->queue[0] != 0) {
         job->queue = ll_hash_search(&queue_name_hash, ws->queue);
         if (job->queue == NULL) {
-            LS_ERR("queue='%s' not found", ws->queue);
+            LS_ERRX("queue='%s' not found", ws->queue);
+            free(job);
+            return NULL;
+        }
+    } else {
+        job->queue = ll_hash_search(&queue_name_hash,
+                                    ll_params[LL_DEFAULT_QUEUE].val);
+        if (job->queue == NULL) {
+            LS_ERRX("default queue='%s' not found",
+                   ll_params[LL_DEFAULT_QUEUE].val);
             free(job);
             return NULL;
         }

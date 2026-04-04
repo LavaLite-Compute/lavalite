@@ -120,13 +120,8 @@ cleanup:
 
 static void croak_handler(int sig)
 {
+    (void)sig;
     croaked = 1;
-}
-
-static void child_handler(int sig)
-{
-    while (waitpid(-1, NULL, WNOHANG) > 0)
-        ;
 }
 
 static int lim_init(const char *conf_dir)
@@ -165,7 +160,6 @@ static int lim_init(const char *conf_dir)
 
     install_signal_handler(SIGTERM, croak_handler, 0);
     install_signal_handler(SIGINT, croak_handler, 0);
-    install_signal_handler(SIGCHLD, child_handler, SA_RESTART);
     LS_DEBUG("signals initialized");
 
     cc = init_network();

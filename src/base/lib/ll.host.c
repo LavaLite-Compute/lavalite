@@ -13,8 +13,7 @@
 
 #include "base/lib/ll.host.h"
 
-static void fill_addrstr(const struct sockaddr *sa, socklen_t salen, char *buf,
-                         size_t bufsz)
+static void fill_addrstr(const struct sockaddr *sa, char *buf, size_t bufsz)
 {
     if (!sa || !buf || bufsz == 0)
         return;
@@ -67,8 +66,7 @@ int get_host_by_name(const char *hostname, struct ll_host *hp)
     hp->salen = (socklen_t) res->ai_addrlen;
     memcpy(&hp->sa, res->ai_addr, res->ai_addrlen);
 
-    fill_addrstr((const struct sockaddr *) &hp->sa, hp->salen, hp->addr,
-                 sizeof(hp->addr));
+    fill_addrstr((const struct sockaddr *)&hp->sa, hp->addr, sizeof(hp->addr));
 
     if (res->ai_canonname && *res->ai_canonname)
         strncpy(hp->name, res->ai_canonname, sizeof(hp->name) - 1);

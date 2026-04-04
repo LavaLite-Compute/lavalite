@@ -18,3 +18,6 @@ int rd_poll(int, int);
 struct passwd *getpwnam2(const char *);
 struct passwd *getpwuid2(uid_t);
 int install_signal_handler(int, void (*handler)(int), int);
+int ll_set_limits(void);
+int ll_str_to_sig(const char *);
+const char *ll_sig_to_str(int);

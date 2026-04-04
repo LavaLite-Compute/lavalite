@@ -25,8 +25,7 @@ struct ll_hash group_name_hash;
 struct ll_list queue_list;
 struct ll_hash queue_name_hash;
 struct ll_hash sbd_chan_hash;
-
-struct mbd_manager *mbd_mgr;
+struct mbd_manager mbd_mgr;
 
 int mbd_efd;
 struct epoll_event mbd_events[CHAN_MAX];

@@ -5,9 +5,7 @@
 AM_CFLAGS = \
     -Wall \
     -Wextra \
-    -Wmissing-prototypes \
-    -Wold-style-definition \
-    -std=c99
+    -Wmissing-prototypes
 
 # Include headers
 AM_CPPFLAGS = \

@@ -13,6 +13,7 @@ static void shutdown_tcp_chan(int ch_id)
 
 static void get_load(XDR *xdrs, int ch_id)
 {
+    (void)xdrs;
     uint32_t nloads = ll_list_count(&node_list);
     struct wire_load *wl = calloc(nloads, sizeof(struct wire_load));
     if (!wl) {
@@ -85,6 +86,8 @@ static void get_load(XDR *xdrs, int ch_id)
 
 static void get_hosts(XDR *xdrs, int ch_id)
 {
+    (void)xdrs;
+
     uint32_t nhosts = ll_list_count(&node_list);
     struct wire_host *wh = calloc(nhosts, sizeof(struct wire_host));
     if (!wh) {

@@ -36,24 +36,41 @@ struct job_res {
     double   cpu_time;
 };
 
+struct job_dep {
+    struct ll_list_entry ent;
+    int type;
+    int64_t job_id;
+};
+
 struct job_data {
-    struct ll_list_entry  ent;
-    int64_t               job_id;
-    uid_t                 uid;
-    char                  user[LL_BUFSIZ_64];
-    int                   status;
-    int                   exit_status;
-    int                   priority;
-    time_t                submit_time;
-    time_t                start_time;
-    time_t                end_time;
-    time_t                susp_time;
-    time_t                requeue_time;
-    struct mbd_queue     *queue;
-    char                  exec_host[MAXHOSTNAMELEN];
-    int                   pend_sig;
-    struct job_res        res;
-    char                  submit_file[PATH_MAX];
+    struct ll_list_entry ent;
+    int64_t job_id;
+    uid_t uid;
+    char user[LL_BUFSIZ_64];
+    int status;
+    int exit_status;
+    int priority;
+    time_t submit_time;
+    time_t start_time;
+    time_t end_time;
+    time_t susp_time;
+    time_t requeue_time;
+    time_t begin_time;
+    time_t term_time;
+    struct mbd_queue *queue;
+    char project[LL_BUFSIZ_256];
+    char gpu_type[LL_BUFSIZ_256];
+    char machines[LL_BUFSIZ_4K];
+    char exec_host[MAXHOSTNAMELEN];
+    int num_cpus;
+    int num_nhosts;
+    int num_gpus;
+    uint64_t mem_mb;
+    uint32_t flags;
+    int pend_sig;
+    struct ll_list deps;
+    struct job_res res;
+    char submit_file[PATH_MAX];
 };
 
 /* runtime state */
@@ -119,7 +136,7 @@ extern struct ll_hash group_name_hash;
 extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
 
-extern struct mbd_manager *mbd_mgr;
+extern struct mbd_manager mbd_mgr;
 extern int chan_mbd;
 extern int mbd_efd;
 extern uint16_t mbd_port;
@@ -133,6 +150,7 @@ void mbd_die(enum mbd_exit);
 
 // conf.c
 int conf_init(void);
+int init_manager(void);
 
 // compact.c
 void compact_start(void);

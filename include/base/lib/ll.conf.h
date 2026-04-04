@@ -27,7 +27,7 @@ enum ll_params {
     LL_MBD_HOST,
     LL_MBD_USER,
     LL_STATE_DIR,
-
+    LL_DEFAULT_QUEUE,
     // Debug
     LL_API_CONNTIMEOUT,
     LL_API_RECVTIMEOUT,

@@ -3,6 +3,7 @@
  * Copyright (C) LavaLite Contributors
  * GPL v2
  */
+#include "batch/mbd/mbd.h"
 
 void schedule(void)
 {

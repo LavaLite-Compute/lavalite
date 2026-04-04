@@ -72,9 +72,7 @@ static void send_beacon(void)
     xdr_destroy(&xdrs);
 }
 
-static void rcv_beacon(XDR *xdrs,
-                       struct sockaddr_in *from,
-                       struct protocol_header *hdr)
+static void rcv_beacon(XDR *xdrs)
 {
     struct wire_beacon wb;
     if (!xdr_beacon(xdrs, &wb)) {
@@ -100,7 +98,7 @@ static void rcv_beacon(XDR *xdrs,
     }
 
     LS_DEBUG("from=%s host=%s host_no=%u",
-             addr_to_str(from), wb.hostname, wb.host_no);
+             n->host->addr, wb.hostname, wb.host_no);
 
     // sender has lower host_no: it is master, accept it
     if (me->host_no > n->host_no) {
@@ -179,9 +177,7 @@ static int send_load_report(void)
     return 0;
 }
 
-static void rcv_load_report(XDR *xdrs,
-                            struct sockaddr_in *from,
-                            struct protocol_header *hdr)
+static void rcv_load_report(XDR *xdrs)
 {
     struct wire_load_report wl;
 
@@ -203,13 +199,13 @@ static void rcv_load_report(XDR *xdrs,
         return;
     }
 
-    if (wl.num_metrics < 0 || wl.num_metrics > NUM_METRICS) {
+    if (wl.num_metrics > NUM_METRICS) {
         LS_WARNING("invalid metric count from %s: %d",
-            wl.hostname, wl.num_metrics);
+                   wl.hostname, wl.num_metrics);
         return;
     }
 
-    for (int i = 0; i < wl.num_metrics; i++)
+    for (uint32_t i = 0; i < wl.num_metrics; i++)
         n->load_index[i] = wl.li[i];
 
     n->load_report_missing = 0;
@@ -219,15 +215,15 @@ static void rcv_load_report(XDR *xdrs,
              n->host->name, wl.num_metrics);
 }
 
-static void get_cluster_name(XDR *xdrs, struct sockaddr_in *from,
-                             struct protocol_header *request_hdr)
+static void get_cluster_name(struct protocol_header *rhdr,
+                             struct sockaddr_in *from)
 {
     XDR xdrs2;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = LIM_REPLY_CLUSTER_NAME;
-    hdr.sequence = request_hdr->sequence;
+    hdr.sequence = rhdr->sequence;
     hdr.status = LIM_OK;
 
     // header
@@ -261,8 +257,8 @@ static void get_cluster_name(XDR *xdrs, struct sockaddr_in *from,
     xdr_destroy(&xdrs2);
 }
 
-static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
-                            struct protocol_header *request_hdr)
+static void get_master_name(struct protocol_header *rhdr,
+                            struct sockaddr_in *from)
 {
     struct wire_master wm;
     memset(&wm, 0, sizeof(wm));
@@ -275,7 +271,7 @@ static void get_master_name(XDR *xdrs, struct sockaddr_in *from,
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = LIM_REPLY_MASTER_NAME;
-    hdr.sequence  = request_hdr->sequence;
+    hdr.sequence  = rhdr->sequence;
     hdr.status    = LIM_OK;
 
     char buf[LL_BUFSIZ_256];
@@ -347,17 +343,17 @@ int udp_message(void)
     switch (hdr.operation) {
         // library
     case LIM_GET_CLUSTER_NAME:
-        get_cluster_name(&xdrs, &from, &hdr);
+        get_cluster_name(&hdr, &from);
         break;
     case LIM_GET_MASTER_NAME:
-        get_master_name(&xdrs, &from, &hdr);
+        get_master_name(&hdr, &from);
         break;
         // inter lim
     case LIM_LOAD_REPORT:
-        rcv_load_report(&xdrs, &from, &hdr);
+        rcv_load_report(&xdrs);
         break;
     case LIM_MASTER_BEACON:
-        rcv_beacon(&xdrs, &from, &hdr);
+        rcv_beacon(&xdrs);
         break;
     default:
         LS_ERRX("unknown request code=%d from=%s",

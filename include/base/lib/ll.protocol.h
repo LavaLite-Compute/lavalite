@@ -40,7 +40,7 @@ struct protocol_header {
     int32_t status;   // 0 ok, <0 error
 };
 
-#define PACKET_HEADER_SIZE sizeof(struct protocol_header)
+static const int32_t PACKET_HEADER_SIZE = sizeof(struct protocol_header);
 
 
 void init_protocol_header(struct protocol_header *);

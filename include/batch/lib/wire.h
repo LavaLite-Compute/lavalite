@@ -81,7 +81,7 @@ struct wire_compact_notify {
 struct wire_job_submit {
     char name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_256];
-    char project[LL_BUFSIZ_256];
+    char project[LL_BUFSIZ_64];
     char comment[LL_BUFSIZ_1K];
     char machines[LL_BUFSIZ_4K];
     char in_file[PATH_MAX];

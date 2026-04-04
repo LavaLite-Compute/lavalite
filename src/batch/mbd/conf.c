@@ -181,23 +181,9 @@ static struct mbd_group *make_group(char *p)
         return NULL;
     }
 
-    if (ll_strlcpy(g->name, name, LL_BUFSIZ_64) < 0) {
-        LS_ERRX("group name too long: %s", name);
-        free(g);
-        return NULL;
-    }
-
-    if (ll_strlcpy(g->members, members, LL_BUFSIZ_1K) < 0) {
-        LS_ERRX("group members too long: %s", members);
-        free(g);
-        return NULL;
-    }
-
-    if (ll_strlcpy(tmp, members, LL_BUFSIZ_1K) < 0) {
-        LS_ERRX("group members too long: %s", members);
-        free(g);
-        return NULL;
-    }
+    ll_strlcpy(g->name, name, LL_BUFSIZ_64);
+    ll_strlcpy(g->members, members, LL_BUFSIZ_1K);
+    ll_strlcpy(tmp, members, LL_BUFSIZ_1K);
 
     tok = strtok(tmp, " \t");
     while (tok != NULL) {
@@ -298,23 +284,10 @@ static int commit_queue(struct queue_conf *qc)
         return -1;
     }
 
-    if (ll_strlcpy(q->name, qc->name, LL_BUFSIZ_64) < 0) {
-        LS_ERRX("queue name too long: %s", qc->name);
-        free(q);
-        return -1;
-    }
+    ll_strlcpy(q->name, qc->name, LL_BUFSIZ_64);
+    ll_strlcpy(q->description, qc->desc, LL_BUFSIZ_256);
 
-    if (ll_strlcpy(q->description, qc->desc, LL_BUFSIZ_256) < 0) {
-        LS_ERRX("queue description too long: %s", qc->desc);
-        free(q);
-        return -1;
-    }
-
-    if (ll_strlcpy(q->hosts, qc->hosts, LL_BUFSIZ_256) < 0) {
-        LS_ERRX("queue hosts too long: %s", qc->hosts);
-        free(q);
-        return -1;
-    }
+    ll_strlcpy(q->hosts, qc->hosts, LL_BUFSIZ_256);
 
     q->priority = qc->priority;
     q->status = QUEUE_OPEN;
@@ -509,34 +482,29 @@ int conf_init(void)
         return -1;
     }
 
+    if (init_manager() < 0) {
+        LS_ERR("init_manager failed");
+        return -1;
+
+    }
     dump_config();
 
     return 0;
 }
 
-struct mbd_manager *mbd_init_manager(void)
+int init_manager(void)
 {
-    struct passwd *pw;
+    mbd_mgr.uid = getuid();
+    mbd_mgr.gid = getgid();
 
-    mbd_mgr = calloc(1, sizeof(struct mbd_manager));
-    if (mbd_mgr == NULL) {
-        LS_ERR("calloc failed");
-        return NULL;
-    }
-
-    mbd_mgr->uid = getuid();
-    mbd_mgr->gid = getgid();
-
-    pw = getpwuid2(mbd_mgr->uid);
+    struct passwd *pw = getpwuid2(mbd_mgr.uid);
     if (!pw || !pw->pw_name) {
-        LS_ERR("getpwuid2(%d) failed", mbd_mgr->uid);
-        free(mbd_mgr);
-        mbd_mgr = NULL;
-        return NULL;
+        LS_ERR("getpwuid2(%d) failed", mbd_mgr.uid);
+        return -1;
     }
 
     // check that mbd is LL_MBD_USER=lavalite
-    LS_INFO("uid=%d gid=%d name=%s", mbd_mgr->uid, mbd_mgr->gid, pw->pw_name);
+    LS_INFO("uid=%d gid=%d name=%s", mbd_mgr.uid, mbd_mgr.gid, pw->pw_name);
 
-    return mbd_mgr;
+    return 0;
 }
