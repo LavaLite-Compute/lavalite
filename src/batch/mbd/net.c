@@ -90,7 +90,7 @@ static void route(int chan_id)
 
     switch (hdr.operation) {
     case BATCH_JOB_SUB:
-        if (job_submit(&xdrs, chan_id) < 0)
+        if (job_accept(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_SIG:
@@ -130,6 +130,7 @@ static void route(int chan_id)
 
 static void sbd_route(struct mbd_host *h)
 {
+    (void)h;
 }
 
 int network_init(void)

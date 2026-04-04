@@ -3,7 +3,8 @@
 #pragma once
 
 #include "base/lib/ll.protocol.h"
-#include "batch/lib/proto.h"
+#include "batch/lib/rpc.h"
+#include "batch/lib/wire.h"
 #include "base/lib/ll.bufsiz.h"
 #include "base/lib/ll.sys.h"
 #include "base/lib/ll.hash.h"
@@ -36,21 +37,23 @@ struct job_res {
 };
 
 struct job_data {
-    struct ll_list_entry ent;
-    int64_t  job_id;
-    uid_t    uid;
-    int      status;
-    int      exit_status;
-    int      priority;
-    time_t   submit_time;
-    time_t   start_time;
-    time_t   end_time;
-    time_t   susp_time;
-    char     name[LL_BUFSIZ_64];
-    char     queue[LL_BUFSIZ_64];
-    char     from_host[MAXHOSTNAMELEN];
-    char     exec_host[MAXHOSTNAMELEN];
-    struct job_res res;
+    struct ll_list_entry  ent;
+    int64_t               job_id;
+    uid_t                 uid;
+    char                  user[LL_BUFSIZ_64];
+    int                   status;
+    int                   exit_status;
+    int                   priority;
+    time_t                submit_time;
+    time_t                start_time;
+    time_t                end_time;
+    time_t                susp_time;
+    time_t                requeue_time;
+    struct mbd_queue     *queue;
+    char                  exec_host[MAXHOSTNAMELEN];
+    int                   pend_sig;
+    struct job_res        res;
+    char                  submit_file[PATH_MAX];
 };
 
 /* runtime state */
@@ -97,6 +100,14 @@ struct mbd_group {
     char members[LL_BUFSIZ_1K];  /* space-separated */
 };
 
+#define JOB_BUCKETS 10
+
+extern int64_t job_id_seq;
+extern struct ll_list pend_jobs;     /* PJL */
+extern struct ll_list run_jobs;      /* SJL */
+extern struct ll_list finish_jobs;   /* FJL */
+
+extern struct ll_hash job_id_hash;
 extern struct ll_list host_list;
 extern struct ll_hash host_name_hash;
 extern struct ll_hash host_addr_hash;
@@ -114,6 +125,7 @@ extern int mbd_efd;
 extern uint16_t mbd_port;
 extern int sched_timer;
 extern int chan_timer;
+extern  char jobs_dir[];
 
 // main.c
 int is_manager(uid_t);
@@ -134,7 +146,7 @@ int network_init(void);
 int mbd_accept(int);
 void mbd_message(int);
 int enqueue_payload(int, struct protocol_header *,
-                        void *, size_t, bool_t (*xdr_func)());
+                    void *, size_t, bool_t (*xdr_func)());
 void chan_shutdown(int);
 
 // job.c
@@ -145,9 +157,10 @@ void schedule(void);
 
 // events.c
 int events_init(void);
+void reopen_job_events(void);
+int log_job_new(const struct job_data *, const struct wire_job_submit *);
 
 // dispatch.c
-int job_submit(XDR *, int);
 int job_signal(XDR *, int);
 int job_info(XDR *, int);
 int host_info(XDR *, int);
@@ -155,3 +168,8 @@ int queue_info(XDR *, int);
 int host_group_info(XDR *, int);
 int sbd_register(XDR *, int);
 int compact_done(XDR *, int);
+
+// job.c
+int job_init(void);
+int job_accept(XDR *, int);
+struct job_data *job_find(int64_t);

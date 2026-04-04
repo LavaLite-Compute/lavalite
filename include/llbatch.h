@@ -42,6 +42,10 @@ enum host_stat {
  * All char * fields are pointers into argv or heap; caller owns memory.
  * Zero/NULL means "not specified; use default".
  */
+
+#define JOB_FLAG_EXCLUSIVE 0x01
+#define JOB_FLAG_HOLD 0x02
+
 struct job_submit {
     char        *name;          /* --name        */
     char        *queue;         /* --queue       */

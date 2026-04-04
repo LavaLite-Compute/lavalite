@@ -15,8 +15,7 @@
 #include <pwd.h>
 #include <sys/types.h>
 
-#include "ll.job.h"
-#include "llb.h"          /* llb_submit(), llb_strerror() */
+#include "llbatch.h"
 
 static void usage(FILE *f)
 {
@@ -399,15 +398,13 @@ main(int argc, char **argv)
 
     rc = llb_submit(&js, &job_id);
     if (rc != 0) {
-        fprintf(stderr, "bsub: %s\n", llb_strerror(rc));
         fprintf(stderr, "Job not submitted.\n");
         free(js.command);
         return 1;
     }
 
     fprintf(stdout, "Job <%ld> is submitted to queue <%s>.\n",
-            (long)job_id,
-            js.queue ? js.queue : "default");
+            (long)job_id, js.queue ? js.queue : "default");
 
     free(js.command);
     return 0;

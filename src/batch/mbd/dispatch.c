@@ -14,18 +14,6 @@
 #include "batch/mbd/mbd.h"
 
 /* -----------------------------------------------------------
- * job submit
- * ----------------------------------------------------------- */
-int job_submit(XDR *xdrs, int chan_id)
-{
-    (void)xdrs;
-
-    LS_DEBUG("job_submit chan_id=%d", chan_id);
-
-    return 0;
-}
-
-/* -----------------------------------------------------------
  * job signal
  * ----------------------------------------------------------- */
 int job_signal(XDR *xdrs, int chan_id)

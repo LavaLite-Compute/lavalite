@@ -6,7 +6,6 @@ AM_CFLAGS = \
     -Wall \
     -Wextra \
     -Wmissing-prototypes \
-    -Wstrict-prototypes \
     -Wold-style-definition \
     -std=c99
 
