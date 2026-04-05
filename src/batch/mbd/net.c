@@ -11,16 +11,17 @@
 #include <arpa/inet.h>
 
 #include "batch/lib/wire.h"
+#include "batch/lib/rpc.h"
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
 static int valid_batch_op(int op)
 {
     switch (op) {
-    case BATCH_JOB_SUB:
-    case BATCH_JOB_SUB_ACK:
-    case BATCH_JOB_SIG:
-    case BATCH_JOB_SIG_ACK:
+    case BATCH_JOB_SUBMIT:
+    case BATCH_JOB_SUBMIT_ACK:
+    case BATCH_JOB_SIGNAL:
+    case BATCH_JOB_SIGNAL_ACK:
     case BATCH_JOB_INFO:
     case BATCH_JOB_INFO_ACK:
     case BATCH_HOST_INFO:
@@ -89,11 +90,11 @@ static void route(int chan_id)
     LS_DEBUG("chan_id=%d protocol=%d", chan_id, hdr.operation);
 
     switch (hdr.operation) {
-    case BATCH_JOB_SUB:
+    case BATCH_JOB_SUBMIT:
         if (job_accept(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
-    case BATCH_JOB_SIG:
+    case BATCH_JOB_SIGNAL:
         if (job_signal(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;

@@ -198,7 +198,7 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_SIG;
+    hdr.operation = BATCH_JOB_SIGNAL;
 
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
         xdr_destroy(&xdrs);

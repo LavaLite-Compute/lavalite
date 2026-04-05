@@ -11,11 +11,11 @@ enum mbd_err {
 };
 
 enum batch_lib_op {
-    BATCH_JOB_SUB = 1,
-    BATCH_JOB_SUB_ACK,
+    BATCH_JOB_SUBMIT = 1,
+    BATCH_JOB_SUBMIT_ACK,
 
-    BATCH_JOB_SIG,
-    BATCH_JOB_SIG_ACK,
+    BATCH_JOB_SIGNAL,
+    BATCH_JOB_SIGNAL_ACK,
 
     BATCH_JOB_INFO,
     BATCH_JOB_INFO_ACK,

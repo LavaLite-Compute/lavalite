@@ -33,6 +33,32 @@ bool_t ll_encode_msg(XDR *xdrs, void *payload,
     return true;
 }
 
+bool_t ll_encode_msg2(XDR *xdrs, struct protocol_header *hdr,
+                      void *payload, bool_t (*xdr_func)(),
+                      void *payload2, bool_t (*xdr_func2)())
+{
+    xdr_setpos(xdrs, PACKET_HEADER_SIZE);
+
+    if (payload && xdr_func) {
+        if (!xdr_func(xdrs, payload))
+            return false;
+    }
+
+    if (payload2 && xdr_func2) {
+        if (!xdr_func2(xdrs, payload2))
+            return false;
+    }
+
+    hdr->length = (int)(xdr_getpos(xdrs) - PACKET_HEADER_SIZE);
+
+    xdr_setpos(xdrs, 0);
+    if (!xdr_pack_hdr(xdrs, hdr))
+        return false;
+
+    xdr_setpos(xdrs, hdr->length + PACKET_HEADER_SIZE);
+    return true;
+}
+
 void init_protocol_header(struct protocol_header *hdr)
 {
     memset(hdr, 0, sizeof(struct protocol_header));

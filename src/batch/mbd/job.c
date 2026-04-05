@@ -254,7 +254,7 @@ int job_accept(XDR *xdrs, int chan_id)
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_SUB_ACK;
+    hdr.operation = BATCH_JOB_SUBMIT_ACK;
     hdr.status    = MBD_OK;
 
     if (enqueue_payload(chan_id, &hdr, &reply,

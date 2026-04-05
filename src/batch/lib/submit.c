@@ -98,7 +98,6 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
 int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
 {
     struct wire_job_submit w;
-
     if (fill_wire(js, &w) < 0)
         return -1;
 
@@ -106,55 +105,50 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
     memset(&script, 0, sizeof(script));
     if (create_jobscript(js, &script) < 0)
         return -1;
-
     /*
      * XDR encode buffer: wire_job_submit fixed fields + script payload.
-     * Each xdr_opaque field is padded to 4-byte alignment — at most 3 bytes
-     * per field.  We have ~15 string fields so 64 bytes of slack covers it.
+     * Each xdr_opaque field carries a 4-byte length prefix [len][payload].
+     * ~14 string fields * 4 = 56 bytes; 64 gives a small margin.
      */
-    size_t bufsz = sizeof(struct wire_job_submit) + 64 + script.len;
-    char *buf = calloc(bufsz, sizeof(char));
+#define XDR_OPAQUE_OVERHEAD 64
+    size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit)
+        + XDR_OPAQUE_OVERHEAD + script.len;
+    char *buf = calloc(bufsz, 1);
     if (buf == NULL) {
         free(script.data);
         return -1;
     }
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_SUBMIT;
+    hdr.status = MBD_OK;
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (u_int)bufsz, XDR_ENCODE);
-
-    if (!xdr_wire_job_submit(&xdrs, &w)) {
+    if (!ll_encode_msg2(&xdrs, &hdr,
+                        &w, (bool_t (*)())xdr_wire_job_submit,
+                        &script, (bool_t (*)())xdr_wire_job_script)) {
         xdr_destroy(&xdrs);
         free(buf);
         free(script.data);
         errno = EPROTO;
         return -1;
     }
-
-    if (!xdr_wire_job_script(&xdrs, &script)) {
-        xdr_destroy(&xdrs);
-        free(buf);
-        free(script.data);
-        errno = EPROTO;
-        return -1;
-    }
-
     size_t encoded = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
     free(script.data);
-
     void *rbuf = NULL;
-    struct protocol_header hdr;
-    memset(&hdr, 0, sizeof(hdr));
-    if (call_mbd(buf, encoded, &rbuf, &hdr) < 0) {
+    struct protocol_header rhdr;
+    memset(&rhdr, 0, sizeof(rhdr));
+    if (call_mbd(buf, encoded, &rbuf, &rhdr) < 0) {
         free(buf);
         return -1;
     }
     free(buf);
-
     struct wire_job_submit_reply rep;
     memset(&rep, 0, sizeof(rep));
     XDR rxdrs;
-    xdrmem_create(&rxdrs, rbuf, hdr.length, XDR_DECODE);
+    xdrmem_create(&rxdrs, rbuf, rhdr.length, XDR_DECODE);
     if (!xdr_wire_job_submit_reply(&rxdrs, &rep)) {
         xdr_destroy(&rxdrs);
         free(rbuf);
@@ -163,12 +157,10 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
     }
     xdr_destroy(&rxdrs);
     free(rbuf);
-
     if (rep.job_id <= 0) {
         errno = EPROTO;
         return -1;
     }
-
     *job_id = rep.job_id;
     return 0;
 }
