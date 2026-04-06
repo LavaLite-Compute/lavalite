@@ -121,36 +121,54 @@ static void usage(void)
             "job_id the job_id option this mutually exclusive with the\n"
             "--all, --pend, --run and --done\n");
 }
-
 int main(int argc, char **argv)
 {
     int cc;
-    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
+    int flags = LLB_JOB_NOFLAGS;
+    int64_t job_id = -1;
+
+    while ((cc = getopt_long(argc, argv, "hVaprd", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':
-        default:
             usage();
             return 0;
+        case 'a':
+            flags = LLB_JOB_ALL;
+            break;
+        case 'p':
+            flags = LLB_JOB_PEND;
+            break;
+        case 'r':
+            flags = LLB_JOB_RUN;
+            break;
+        case 'd':
+            flags = LLB_JOB_DONE;
+            break;
+        default:
+            usage();
+            return -1;
         }
     }
 
-    if (optind >= argc) {
-        usage();
-        return -1;
-    }
-
-    char *end;
-    int64_t job_id = strtoll(argv[optind], &end, 10);
-    if (end == argv[optind] || *end != 0) {
-        fprintf(stderr, "bkill: invalid jobid '%s'\n", argv[optind]);
-        return -1;
+    if (optind < argc) {
+        if (flags != LLB_JOB_NOFLAGS) {
+            fprintf(stderr, "bjobs: job_id is mutually exclusive with "
+                    "--all/--pend/--run/--done\n");
+            return -1;
+        }
+        char *end;
+        job_id = strtoll(argv[optind], &end, 10);
+        if (end == argv[optind] || *end != 0) {
+            fprintf(stderr, "bjobs: invalid jobid '%s'\n", argv[optind]);
+            return -1;
+        }
     }
 
     int njobs;
-    struct job_info *jobs = llb_job_info(job_id, &njobs, LLB_JOB_NOFLAGS);
+    struct job_info *jobs = llb_job_info(job_id, &njobs, flags);
     if (!jobs) {
         fprintf(stderr, "bjobs: failed\n");
         return -1;

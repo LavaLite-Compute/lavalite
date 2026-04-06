@@ -9,6 +9,8 @@
 #include <syslog.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #include "base/lib/ll.syslog.h"
 #include "base/lib/ll.conf.h"
@@ -17,13 +19,13 @@
 #include "batch/mbd/mbd.h"
 #include "batch/lib/wire.h"
 
-struct ll_list pend_jobs;
-struct ll_hash pend_jobs_hash;
-struct ll_list run_jobs;
-struct ll_hash run_jobs_hash;
-struct ll_list finish_jobs;
-struct ll_hash finish_jobs_hash;
-int64_t job_id_seq;
+
+struct ll_list pend_jobs_list;
+struct ll_list run_jobs_list;
+struct ll_list finish_jobs_list;
+
+int64_t job_id_seq = 0;
+struct ll_hash job_id_hash;
 
 static int64_t next_job_id(void)
 {
@@ -61,22 +63,15 @@ static struct job_data *job_alloc(const struct wire_job_submit *ws)
     ll_strlcpy(job->gpu_type, ws->gpu_type, sizeof(job->gpu_type));
     ll_strlcpy(job->machines, ws->machines, sizeof(job->machines));
 
-    if (ws->queue[0] != 0) {
-        job->queue = ll_hash_search(&queue_name_hash, ws->queue);
-        if (job->queue == NULL) {
-            LS_ERRX("queue='%s' not found", ws->queue);
-            free(job);
-            return NULL;
-        }
-    } else {
-        job->queue = ll_hash_search(&queue_name_hash,
-                                    ll_params[LL_DEFAULT_QUEUE].val);
-        if (job->queue == NULL) {
-            LS_ERRX("default queue='%s' not found",
-                   ll_params[LL_DEFAULT_QUEUE].val);
-            free(job);
-            return NULL;
-        }
+    const char *queue = ll_params[LL_DEFAULT_QUEUE].val;
+    if (ws->queue[0] != 0)
+        queue = ws->queue;
+
+    job->queue = ll_hash_search(&queue_name_hash, queue);
+    if (job->queue == NULL) {
+        LS_ERRX("queue='%s' not found", queue);
+        free(job);
+        return NULL;
     }
 
     return job;
@@ -85,9 +80,20 @@ static struct job_data *job_alloc(const struct wire_job_submit *ws)
 static int write_script(const struct job_data *job,
                         const struct wire_job_script *script)
 {
-    char path[PATH_MAX];
-    int n = snprintf(path, sizeof(path), "%s/%ld/%ld/script.sh",
+    char dir[PATH_MAX];
+    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld",
                      jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int)sizeof(dir))
+        return -1;
+
+    if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
+        LS_ERR("mkdir=%s", dir);
+        return -1;
+    }
+
+    char path[PATH_MAX];
+    n = snprintf(path, sizeof(path), "%s/%ld/%ld/script.sh",
+                 jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
     if (n < 0 || n >= (int)sizeof(path))
         return -1;
 
@@ -189,12 +195,6 @@ static int write_sidecar(const struct job_data *job,
     return 0;
 }
 
-
-/*
- * job_accept - receive BATCH_JOB_SUB from bsub.
- * Decodes wire_job_submit, allocates job_data, inserts into
- * pend_jobs and pend_jobs_hash, replies with assigned job_id.
- */
 int job_accept(XDR *xdrs, int chan_id)
 {
     struct wire_job_submit ws;
@@ -240,10 +240,10 @@ int job_accept(XDR *xdrs, int chan_id)
 
     char key[LL_BUFSIZ_32];
     sprintf(key, "%ld", job->job_id);
-    enum ll_hash_status hs = ll_hash_insert(&pend_jobs_hash, key, job, 0);
+    enum ll_hash_status hs = ll_hash_insert(&job_id_hash, key, job, 0);
     assert(hs == LL_HASH_INSERTED);
 
-    ll_list_append(&pend_jobs, &job->ent);
+    ll_list_append(&pend_jobs_list, &job->ent);
 
     LS_INFO("job_id=%ld user=%s queue=%s",
             job->job_id, job->user, job->queue->name);
@@ -257,8 +257,10 @@ int job_accept(XDR *xdrs, int chan_id)
     hdr.operation = BATCH_JOB_SUBMIT_ACK;
     hdr.status    = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply,
-                        sizeof(reply),
+    size_t siz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit_reply)
+        + LL_BUFSIZ_64;
+
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
                         xdr_wire_job_submit_reply) < 0) {
         LS_ERR("enqueue_payload failed job_id=%ld", job->job_id);
         return -1;
@@ -274,11 +276,19 @@ struct job_data *job_find(int64_t job_id)
 {
     char buf[LL_BUFSIZ_32];
     sprintf(buf, "%ld", job_id);
-    return ll_hash_search(&pend_jobs_hash, buf);
+    return ll_hash_search(&job_id_hash, buf);
 }
 
 int job_init(void)
 {
-    LS_INFO("jobs initialized");
+    ll_hash_init(&job_id_hash, 1021);
+
+    ll_list_init(&pend_jobs_list);
+
+    ll_list_init(&run_jobs_list);
+
+    ll_list_init(&finish_jobs_list);
+
+    LS_INFO("job's structures initialized");
     return 0;
 }

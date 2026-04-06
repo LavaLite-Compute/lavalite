@@ -194,11 +194,6 @@ static const struct env_rule env_deny_table[] = {
     { "LL_QUEUE",                        8,  1 },
     { "LL_HOSTS",                        8,  1 },
 
-    /* always reset by sbd on execution host */
-    { "HOME",                            4,  0 },
-    { "PWD",                             3,  0 },
-    { "USER",                            4,  0 },
-
     /* terminal */
     { "TERM",                            4,  0 },
     { "TERMCAP",                         7,  0 },

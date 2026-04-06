@@ -168,9 +168,6 @@ enum ll_hash_status ll_hash_insert(struct ll_hash *ht,
     size_t idx;
     struct ll_hash_entry *ent;
 
-    if (!ht || !key || ht->nbuckets == 0)
-        return LL_HASH_EXISTS;
-
     ll_hash_maybe_grow(ht);
 
     idx = ll_bucket_index(key, ht->nbuckets);
@@ -211,9 +208,6 @@ void *ll_hash_search(struct ll_hash *ht, const char *key)
     size_t idx;
     struct ll_hash_entry *ent;
 
-    if (!ht || !key || ht->nbuckets == 0)
-        return NULL;
-
     idx = ll_bucket_index(key, ht->nbuckets);
 
     for (ent = ht->buckets[idx]; ent; ent = ent->next) {
@@ -230,9 +224,6 @@ void *ll_hash_remove(struct ll_hash *ht, const char *key)
     struct ll_hash_entry *ent;
     struct ll_hash_entry *prev = NULL;
     void *value = NULL;
-
-    if (!ht || !key || ht->nbuckets == 0)
-        return NULL;
 
     idx = ll_bucket_index(key, ht->nbuckets);
     ent = ht->buckets[idx];
@@ -263,9 +254,6 @@ void ll_hash_for_each(struct ll_hash *ht,
 {
     size_t i;
 
-    if (!ht || !fn)
-        return;
-
     for (i = 0; i < ht->nbuckets; i++) {
         struct ll_hash_entry *e = ht->buckets[i];
 
@@ -279,9 +267,6 @@ void ll_hash_for_each(struct ll_hash *ht,
 // ll_hash_free - free contents AND the struct (use for heap-allocated hash)
 void ll_hash_free(struct ll_hash *ht, void (*cleanup)(void *))
 {
-    if (!ht)
-        return;
-
     if (!ht->buckets) {
         free(ht);
         return;
@@ -313,9 +298,6 @@ void ll_hash_free(struct ll_hash *ht, void (*cleanup)(void *))
 // (use for stack-allocated hash)
 void ll_hash_clear(struct ll_hash *ht, void (*cleanup)(void *))
 {
-    if (!ht)
-        return;
-
     if (!ht->buckets) {
         free(ht);
         return;
@@ -347,9 +329,6 @@ int ll_hash_contains(struct ll_hash *ht, const char *key)
 {
     size_t idx;
     struct ll_hash_entry *ent;
-
-    if (!ht || !key || ht->nbuckets == 0)
-        return 0;
 
     idx = ll_bucket_index(key, ht->nbuckets);
 

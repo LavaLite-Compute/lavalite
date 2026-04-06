@@ -46,7 +46,7 @@ struct log_job {
     /* submission fields */
     char     job_name[LL_BUFSIZ_64];
     char     queue[LL_BUFSIZ_64];
-    char     command[1024];
+    char     command[LL_BUFSIZ_1K];
     char     in_file[PATH_MAX];
     char     out_file[PATH_MAX];
     char     err_file[PATH_MAX];

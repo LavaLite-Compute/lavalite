@@ -243,7 +243,7 @@ void mbd_message(int chan_id)
 {
     char key[LL_BUFSIZ_32];
 
-    LS_DEBUG("chan_id=%d sock=%d events=0x%x",
+    LS_DEBUG("chan_id=%d sock=%d chan_events=%d",
              chan_id, channels[chan_id].sock, channels[chan_id].chan_events);
 
     snprintf(key, sizeof(key), "%d", chan_id);
@@ -279,7 +279,7 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr,
     xdrmem_create(&xdrs, buf->data, siz, XDR_ENCODE);
 
     if (! ll_encode_msg(&xdrs, (char *)payload, xdr_func, hdr)) {
-        LS_ERR("ll_encode_msg failed op=%d", hdr->operation);
+        LS_ERRX("ll_encode_msg failed op=%d", hdr->operation);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         return -1;

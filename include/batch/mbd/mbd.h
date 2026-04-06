@@ -120,14 +120,16 @@ struct mbd_group {
 #define JOB_BUCKETS 10
 
 extern int64_t job_id_seq;
-extern struct ll_list pend_jobs;     /* PJL */
-extern struct ll_list run_jobs;      /* SJL */
-extern struct ll_list finish_jobs;   /* FJL */
-
 extern struct ll_hash job_id_hash;
+
+extern struct ll_list pend_jobs_list;
+extern struct ll_list run_jobs_list;
+extern struct ll_list finish_jobs_list;
+
 extern struct ll_list host_list;
 extern struct ll_hash host_name_hash;
 extern struct ll_hash host_addr_hash;
+
 extern struct ll_hash sbd_chan_hash;
 
 extern struct ll_list group_list;

@@ -426,16 +426,8 @@ static void dump_config(void)
     }
 }
 
-int conf_init(void)
+static int check_ll_config(void)
 {
-    char path[PATH_MAX];
-    int n;
-
-    if (ll_init() < 0) {
-        LS_ERRX("conf_init: ll_init failed");
-        return -1;
-    }
-
     if (ll_conf_param_missing("LL_CONF_DIR", ll_params[LL_CONF_DIR].val)) {
         LS_ERRX("LL_CONF_DIR missing from ll.conf");
         return -1;
@@ -454,6 +446,29 @@ int conf_init(void)
     }
     if (ll_conf_param_missing("LL_MBD_USER", ll_params[LL_MBD_USER].val)) {
         LS_ERRX("LL_MBD_USER missing from ll.conf");
+        return -1;
+    }
+    if (ll_conf_param_missing("LL_DEFAULT_QUEUE",
+                              ll_params[LL_DEFAULT_QUEUE].val)) {
+        LS_ERRX("LL_DEFAULT_QUEUE missing from ll.conf");
+        return -1;
+    }
+
+    return 0;
+}
+
+int conf_init(void)
+{
+    char path[PATH_MAX];
+    int n;
+
+    if (ll_init() < 0) {
+        LS_ERRX("conf_init: ll_init failed");
+        return -1;
+    }
+
+    if (check_ll_config() < 0) {
+        LS_ERRX("check_ll_config failed");
         return -1;
     }
 
@@ -485,8 +500,14 @@ int conf_init(void)
     if (init_manager() < 0) {
         LS_ERR("init_manager failed");
         return -1;
-
     }
+
+    if (! ll_hash_contains(&queue_name_hash, ll_params[LL_DEFAULT_QUEUE].val)) {
+        LS_ERRX("LL_DEFAULT_QUEUE=%s not in queue configuration",
+                ll_params[LL_DEFAULT_QUEUE].val);
+        return -1;
+    }
+
     dump_config();
 
     return 0;
