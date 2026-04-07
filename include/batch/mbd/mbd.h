@@ -80,6 +80,7 @@ struct mbd_host {
     int  max_jobs;       /* configured */
     int  total_cpu;      /* configured */
     int  total_gpu;      /* configured */
+    char gpu_type[LL_BUFSIZ_64];     /* empty if no GPU */
     uint64_t total_mem_mb;   /* configured */
     int  status;
     int  num_jobs;

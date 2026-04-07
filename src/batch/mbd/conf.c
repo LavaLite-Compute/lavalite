@@ -40,11 +40,21 @@ static uint64_t parse_mem(const char *s)
     return 0;
 }
 
+static void parse_gpu_type(const char *s, char *out, size_t outlen)
+{
+    if (strcmp(s, "-") == 0) {
+        out[0] = 0;
+        return;
+    }
+    ll_strlcpy(out, s, outlen);
+}
+
 static struct mbd_host *make_host(const char *p)
 {
     struct mbd_host *h;
     char mem_str[LL_BUFSIZ_32];
     char hostname[LL_BUFSIZ_64];
+    char gpu_type_str[LL_BUFSIZ_64];
     int n;
 
     h = calloc(1, sizeof(*h));
@@ -52,35 +62,37 @@ static struct mbd_host *make_host(const char *p)
         LS_ERR("calloc failed");
         return NULL;
     }
-
-    n = sscanf(p, "%63s %d %d %d %31s",
+    n = sscanf(p, "%63s %d %d %d %31s %63s",
                hostname,
                &h->max_jobs,
                &h->total_cpu,
                &h->total_gpu,
-               mem_str);
-    if (n != 5) {
+               mem_str,
+               gpu_type_str);
+    if (n != 6) {
         LS_ERRX("bad line: %s", p);
         free(h);
         return NULL;
     }
-
     if (get_host_by_name(hostname, &h->net) < 0) {
         LS_ERR("get_host_by_name failed host=%s", hostname);
         free(h);
         return NULL;
     }
-
     h->total_mem_mb = parse_mem(mem_str);
     if (h->total_mem_mb == 0) {
         LS_ERRX("bad memory value host=%s mem=%s", hostname, mem_str);
         free(h);
         return NULL;
     }
-
+    parse_gpu_type(gpu_type_str, h->gpu_type, sizeof(h->gpu_type));
+    if (h->total_gpu > 0 && h->gpu_type[0] == '\0') {
+        LS_ERRX("gpu_type required when GPU > 0: %s", p);
+        free(h);
+        return NULL;
+    }
     h->sbd_chan = -1;
     h->status = HOST_UNAVAIL;
-
     return h;
 }
 

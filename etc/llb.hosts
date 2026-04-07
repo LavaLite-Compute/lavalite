@@ -8,10 +8,10 @@
 # MEM        - Total memory available (G=gigabytes, T=terabytes)
 #
 Begin Host
-HOST_NAME   MXJ   CPU   GPU   MEM
-buntu24       4    22     4    40G
-worker1       6    64     1    1T
-worker2       6    64     0    1T
+HOST_NAME   MXJ   CPU   GPU   MEM   GPU_TYPE
+buntu24       4    22     4    40G   RTX4090
+worker1       6    64     1    1T    A100
+worker2       6    64     0    1T      -
 #worker3       2   128     1    2T
 #cpu1         16    96     0   512G
 #cpu2         16    96     0   512G
