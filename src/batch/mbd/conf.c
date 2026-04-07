@@ -541,3 +541,10 @@ int init_manager(void)
 
     return 0;
 }
+
+int is_manager(uid_t uid)
+{
+    if (uid == mbd_mgr.uid)
+        return 1;
+    return 0;
+}

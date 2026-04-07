@@ -78,44 +78,40 @@ void reopen_job_events(void)
 
 int log_job_new(const struct job_data *job, const struct wire_job_submit *ws)
 {
-    struct event_rec rec;
-    memset(&rec, 0, sizeof(rec));
-    rec.type = EVENT_JOB_NEW;
-    rec.event_time = time(NULL);
+    struct log_job_new j;
+    memset(&j, 0, sizeof(j));
 
-    struct log_job *j;
-    j = &rec.job;
-    j->job_id = job->job_id;
-    j->uid = (int)ws->uid;
-    j->status = job->status;
-    j->submit_time = (time_t)ws->submit_time;
-    j->begin_time = (time_t)ws->begin_time;
-    j->term_time = (time_t)ws->term_time;
-    j->num_cpu = ws->num_cpus;
-    j->num_hosts = ws->num_nhosts;
-    j->mem_mb = ws->mem_mb;
+    j.job_id      = job->job_id;
+    j.uid         = (uid_t)ws->uid;
+    j.status      = job->status;
+    j.submit_time = (time_t)ws->submit_time;
+    j.begin_time  = (time_t)ws->begin_time;
+    j.term_time   = (time_t)ws->term_time;
+    j.num_cpu     = ws->num_cpus;
+    j.num_hosts   = ws->num_nhosts;
+    j.mem_mb      = ws->mem_mb;
 
-    ll_strlcpy(j->job_name, ws->name, sizeof(j->job_name));
-    ll_strlcpy(j->queue, ws->queue, sizeof(j->queue));
-    ll_strlcpy(j->from_host, ws->from_host, sizeof(j->from_host));
-    ll_strlcpy(j->cwd, ws->cwd, sizeof(j->cwd));
-    ll_strlcpy(j->command, ws->command, sizeof(j->command));
-    ll_strlcpy(j->in_file, ws->in_file, sizeof(j->in_file));
-    ll_strlcpy(j->out_file, ws->out_file, sizeof(j->out_file));
-    ll_strlcpy(j->err_file, ws->err_file, sizeof(j->err_file));
-    ll_strlcpy(j->project_name, ws->project, sizeof(j->project_name));
+    ll_strlcpy(j.job_name, ws->name, sizeof(j.job_name));
+    ll_strlcpy(j.queue, ws->queue, sizeof(j.queue));
+    ll_strlcpy(j.from_host, ws->from_host, sizeof(j.from_host));
+    ll_strlcpy(j.cwd, ws->cwd, sizeof(j.cwd));
+    ll_strlcpy(j.command, ws->command, sizeof(j.command));
+    ll_strlcpy(j.in_file, ws->in_file, sizeof(j.in_file));
+    ll_strlcpy(j.out_file, ws->out_file, sizeof(j.out_file));
+    ll_strlcpy(j.err_file,ws->err_file, sizeof(j.err_file));
+    ll_strlcpy(j.project_name, ws->project, sizeof(j.project_name));
+    ll_strlcpy(j.hosts, ws->machines, sizeof(j.hosts));
 
     FILE *fp = fopen(events_path, "a");
     if (fp == NULL) {
         LS_ERR("fopen %s: %m", events_path);
         return -1;
     }
-    if (log_write(fp, &rec) < 0) {
-        LS_ERR("log_write failed job_id=%ld", job->job_id);
+    if (log_write_job_new(fp, &j) < 0) {
+        LS_ERR("log_write_job_new failed job_id=%ld", job->job_id);
         fclose(fp);
         return -1;
     }
     fclose(fp);
-
     return 0;
 }

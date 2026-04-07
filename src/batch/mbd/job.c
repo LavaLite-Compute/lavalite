@@ -59,9 +59,15 @@ static struct job_data *job_alloc(const struct wire_job_submit *ws)
     job->begin_time = (time_t)ws->begin_time;
     job->term_time  = (time_t)ws->term_time;
 
-    ll_strlcpy(job->project,  ws->project,  sizeof(job->project));
+    ll_strlcpy(job->project,  ws->project, sizeof(job->project));
     ll_strlcpy(job->gpu_type, ws->gpu_type, sizeof(job->gpu_type));
     ll_strlcpy(job->machines, ws->machines, sizeof(job->machines));
+    if (ws->name[0] != 0)
+        ll_strlcpy(job->name,  ws->name, sizeof(job->name));
+    else
+        ll_strlcpy(job->name, "-" , sizeof(job->name));
+    ll_strlcpy(job->comment, ws->comment, sizeof(job->comment));
+    ll_strlcpy(job->from_host, ws->from_host, sizeof(job->from_host));
 
     const char *queue = ll_params[LL_DEFAULT_QUEUE].val;
     if (ws->queue[0] != 0)

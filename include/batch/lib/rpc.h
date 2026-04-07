@@ -7,7 +7,7 @@
 
 enum mbd_err {
     MBD_OK = 0,
-    MBD_ERR = -1,
+    /* non-zero status is an errno value */
 };
 
 enum batch_lib_op {

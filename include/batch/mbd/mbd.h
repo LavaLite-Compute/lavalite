@@ -62,6 +62,9 @@ struct job_data {
     char gpu_type[LL_BUFSIZ_256];
     char machines[LL_BUFSIZ_4K];
     char exec_host[MAXHOSTNAMELEN];
+    char name[LL_BUFSIZ_64];
+    char comment[LL_BUFSIZ_1K];
+    char from_host[MAXHOSTNAMELEN];
     int num_cpus;
     int num_nhosts;
     int num_gpus;
@@ -148,12 +151,12 @@ extern int chan_timer;
 extern  char jobs_dir[];
 
 // main.c
-int is_manager(uid_t);
 void mbd_die(enum mbd_exit);
 
 // conf.c
 int conf_init(void);
 int init_manager(void);
+int is_manager(uid_t);
 
 // compact.c
 void compact_start(void);

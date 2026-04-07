@@ -1,14 +1,10 @@
-// Copyright (C) LavaLite Contributors
-// GPL v2
+/* Copyright (C) LavaLite Contributors
+ * GPL v2
+ */
 
+#include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <syslog.h>
-#include <unistd.h>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include "batch/lib/wire.h"
 #include "batch/mbd/mbd.h"
@@ -27,11 +23,117 @@ int job_signal(XDR *xdrs, int chan_id)
 /* -----------------------------------------------------------
  * job info
  * ----------------------------------------------------------- */
+static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w)
+{
+    memset(w, 0, sizeof(*w));
+    w->job_id      = job->job_id;
+    w->uid         = (uint32_t)job->uid;
+    w->status      = job->status;
+    w->exit_status = job->exit_status;
+    w->priority    = job->priority;
+    w->submit_time = (int64_t)job->submit_time;
+    w->start_time  = (int64_t)job->start_time;
+    w->end_time    = (int64_t)job->end_time;
+    w->susp_time   = (int64_t)job->susp_time;
+    w->res.pid      = job->res.pid;
+    w->res.mem_mb   = job->res.mem_mb;
+    w->res.cpu_time = job->res.cpu_time;
+    ll_strlcpy(w->name, job->name,  sizeof(w->name));
+    ll_strlcpy(w->queue, job->queue->name, sizeof(w->queue));
+    ll_strlcpy(w->from_host, job->from_host, sizeof(w->from_host));
+    ll_strlcpy(w->exec_host, job->exec_host, sizeof(w->exec_host));
+    ll_strlcpy(w->comment, job->comment, sizeof(w->comment));
+}
+
+/*
+ * Append matching jobs from list into dst starting at dst[count].
+ * uid == 0 means all users.
+ * Returns updated count.
+ */
+static int collect_list(struct ll_list *list, struct wire_job_info *dst,
+                        int count, uid_t uid)
+{
+    for (struct ll_list_entry *e = list->head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+
+        if (uid != 0 && job->uid != uid && !is_manager(uid))
+            continue;
+        job_data_to_wire(job, &dst[count]);
+        count++;
+    }
+    return count;
+}
+
 int job_info(XDR *xdrs, int chan_id)
 {
-    (void)xdrs;
+    struct wire_job_info_req req;
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_job_info_req(xdrs, &req)) {
+        LS_ERRX("xdr_wire_job_info_req failed chan_id=%d", chan_id);
+        return -1;
+    }
 
-    LS_DEBUG("job_info chan_id=%d", chan_id);
+    int ntotal = ll_list_count(&pend_jobs_list)
+               + ll_list_count(&run_jobs_list)
+               + ll_list_count(&finish_jobs_list);
+
+    struct wire_job_info *jobs = calloc(ntotal ? ntotal : 1,
+                                        sizeof(struct wire_job_info));
+    if (jobs == NULL) {
+        LS_ERR("calloc failed");
+        return -1;
+    }
+
+    int n = 0;
+
+    if (req.job_id != -1) {
+        struct job_data *job = job_find(req.job_id);
+        if (job != NULL) {
+            job_data_to_wire(job, &jobs[0]);
+            n = 1;
+        }
+        goto send;
+    }
+
+    uid_t uid = (uid_t)req.uid;
+
+    if (req.flags == 0) {
+        n = collect_list(&pend_jobs_list, jobs, n, uid);
+        n = collect_list(&run_jobs_list,  jobs, n, uid);
+        goto send;
+    }
+
+    if (req.flags & LLB_JOB_PEND)
+        n = collect_list(&pend_jobs_list, jobs, n, uid);
+    if (req.flags & LLB_JOB_RUN)
+        n = collect_list(&run_jobs_list, jobs, n, uid);
+    if (req.flags & LLB_JOB_DONE)
+        n = collect_list(&finish_jobs_list, jobs, n, uid);
+send:
+    /* enqueue_payload ... */
+
+    struct wire_job_info_array reply;
+    reply.njobs = n;
+    reply.jobs  = jobs;
+
+    size_t siz = sizeof(struct wire_job_info) * ntotal
+               + sizeof(struct wire_job_info_array)
+               + PACKET_HEADER_SIZE
+               + LL_BUFSIZ_64;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_INFO_ACK;
+    hdr.status = MBD_OK;
+
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        xdr_wire_job_info_array) < 0) {
+        LS_ERR("enqueue_payload failed");
+        free(jobs);
+        return -1;
+    }
+
+    free(jobs);
     return 0;
 }
 
@@ -43,9 +145,10 @@ int queue_info(XDR *xdrs, int chan_id)
     (void)xdrs;
 
     int nqueues = ll_list_count(&queue_list);
-    struct wire_queue_info *queues = calloc(nqueues, sizeof(struct wire_queue_info));
+    struct wire_queue_info *queues = calloc(nqueues,
+                                            sizeof(struct wire_queue_info));
     if (queues == NULL) {
-        LS_ERR("calloc failed");
+        LS_ERR("queue_info: calloc failed");
         return -1;
     }
 
@@ -53,9 +156,10 @@ int queue_info(XDR *xdrs, int chan_id)
     for (struct ll_list_entry *e = queue_list.head; e != NULL; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *)e;
 
-        ll_strlcpy(queues[i].name, q->name, LL_BUFSIZ_64);
-        ll_strlcpy(queues[i].description, q->description, LL_BUFSIZ_256);
-        ll_strlcpy(queues[i].hosts, q->hosts, LL_BUFSIZ_256);
+        ll_strlcpy(queues[i].name, q->name, sizeof(queues[i].name));
+        ll_strlcpy(queues[i].description, q->description,
+                   sizeof(queues[i].description));
+        ll_strlcpy(queues[i].hosts, q->hosts, sizeof(queues[i].hosts));
         queues[i].priority = q->priority;
         queues[i].max_jobs = q->max_jobs;
         queues[i].num_pend = q->num_pend;
@@ -64,13 +168,14 @@ int queue_info(XDR *xdrs, int chan_id)
         i++;
     }
 
-    size_t siz = nqueues * sizeof(struct wire_queue_info)
-        + sizeof(struct wire_queue_info_array)
-        + PACKET_HEADER_SIZE + LL_BUFSIZ_64 * 2;
-
     struct wire_queue_info_array reply;
     reply.nqueues = nqueues;
     reply.queues  = queues;
+
+    size_t siz = sizeof(struct wire_queue_info) * nqueues
+               + sizeof(struct wire_queue_info_array)
+               + PACKET_HEADER_SIZE
+               + LL_BUFSIZ_64;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -79,7 +184,8 @@ int queue_info(XDR *xdrs, int chan_id)
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz,
                         xdr_wire_queue_info_array) < 0) {
-        LS_ERR("enqueue_payload failed");
+        LS_ERR("queue_info: enqueue_payload failed");
+        free(queues);
         return -1;
     }
 
@@ -88,7 +194,7 @@ int queue_info(XDR *xdrs, int chan_id)
 }
 
 /* -----------------------------------------------------------
- * group info
+ * host group info
  * ----------------------------------------------------------- */
 int host_group_info(XDR *xdrs, int chan_id)
 {
@@ -105,19 +211,21 @@ int host_group_info(XDR *xdrs, int chan_id)
     int i = 0;
     for (struct ll_list_entry *e = group_list.head; e != NULL; e = e->next) {
         struct mbd_group *g = (struct mbd_group *)e;
-        ll_strlcpy(groups[i].name, g->name, sizeof(groups[i].name));
+
+        ll_strlcpy(groups[i].name,    g->name,    sizeof(groups[i].name));
         ll_strlcpy(groups[i].members, g->members, sizeof(groups[i].members));
         groups[i].num_members = g->num_members;
         i++;
     }
 
-    size_t siz = sizeof(struct wire_group_info) * ngroups
-        + sizeof(struct wire_group_info_array)
-        + PACKET_HEADER_SIZE + LL_BUFSIZ_64;
-
     struct wire_group_info_array reply;
     reply.ngroups = ngroups;
     reply.groups  = groups;
+
+    size_t siz = sizeof(struct wire_group_info) * ngroups
+               + sizeof(struct wire_group_info_array)
+               + PACKET_HEADER_SIZE
+               + LL_BUFSIZ_64;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -127,9 +235,64 @@ int host_group_info(XDR *xdrs, int chan_id)
     if (enqueue_payload(chan_id, &hdr, &reply, siz,
                         xdr_wire_group_info_array) < 0) {
         LS_ERR("host_group_info: enqueue_payload failed");
+        free(groups);
         return -1;
     }
+
     free(groups);
+    return 0;
+}
+
+/* -----------------------------------------------------------
+ * host info
+ * ----------------------------------------------------------- */
+int host_info(XDR *xdrs, int chan_id)
+{
+    (void)xdrs;
+
+    int nhosts = ll_list_count(&host_list);
+    struct wire_host_info *hosts = calloc(nhosts ? nhosts : 1,
+                                          sizeof(struct wire_host_info));
+    if (hosts == NULL) {
+        LS_ERR("host_info: calloc failed");
+        return -1;
+    }
+
+    int i = 0;
+    for (struct ll_list_entry *e = host_list.head; e != NULL; e = e->next) {
+        struct mbd_host *h = (struct mbd_host *)e;
+
+        ll_strlcpy(hosts[i].name, h->net.name, sizeof(hosts[i].name));
+        hosts[i].status   = h->status;
+        hosts[i].max_jobs = h->max_jobs;
+        hosts[i].num_jobs = h->num_jobs;
+        hosts[i].num_run  = h->num_run;
+        hosts[i].num_susp = h->num_susp;
+        i++;
+    }
+
+    struct wire_host_info_array reply;
+    reply.nhosts = nhosts;
+    reply.hosts  = hosts;
+
+    size_t siz = sizeof(struct wire_host_info) * nhosts
+               + sizeof(struct wire_host_info_array)
+               + PACKET_HEADER_SIZE
+               + LL_BUFSIZ_64;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_HOST_INFO_ACK;
+    hdr.status    = MBD_OK;
+
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        xdr_wire_host_info_array) < 0) {
+        LS_ERR("host_info: enqueue_payload failed");
+        free(hosts);
+        return -1;
+    }
+
+    free(hosts);
     return 0;
 }
 
@@ -142,7 +305,6 @@ int sbd_register(XDR *xdrs, int chan_id)
 
     LS_DEBUG("sbd_register chan_id=%d", chan_id);
     return 0;
-    /* TODO: decode wire_sbd_register + update state */
 }
 
 /* -----------------------------------------------------------
@@ -153,60 +315,5 @@ int compact_done(XDR *xdrs, int chan_id)
     (void)xdrs;
 
     LS_DEBUG("compact_done chan_id=%d", chan_id);
-    return 0;
-    /* TODO: handle compactor notification */
-}
-
-int host_info(XDR *xdrs, int chan_id)
-{
-    (void)xdrs;
-
-    int nhosts = ll_list_count(&host_list);
-
-    struct wire_host_info *hosts;
-    hosts = calloc(nhosts, sizeof(struct wire_host_info));
-    if (!hosts) {
-        LS_ERR("host_info: calloc failed");
-        return -1;
-    }
-
-    int i = 0;
-    struct ll_list_entry *e;
-    for (e = host_list.head; e; e = e->next) {
-        struct mbd_host *h = (struct mbd_host *)e;
-
-        ll_strlcpy(hosts[i].name, h->net.name, MAXHOSTNAMELEN);
-
-        hosts[i].status   = h->status;
-        hosts[i].max_jobs = h->max_jobs;
-        hosts[i].num_jobs = h->num_jobs;
-        hosts[i].num_run  = h->num_run;
-        hosts[i].num_susp = h->num_susp;
-
-        i++;
-    }
-
-    size_t siz = sizeof(struct wire_host_info) * nhosts
-        + sizeof(struct wire_host_info_array)
-        + PACKET_HEADER_SIZE
-        + LL_BUFSIZ_64 * 2;
-
-    struct wire_host_info_array reply;
-    reply.nhosts = nhosts;
-    reply.hosts  = hosts;
-
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_HOST_INFO_ACK;
-    hdr.status = MBD_OK;
-
-    if (enqueue_payload(chan_id, &hdr, &reply, siz,
-                        xdr_wire_host_info_array) < 0) {
-        LS_ERR("host_info: enqueue_payload failed");
-        free(hosts);
-        return -1;
-    }
-
-    free(hosts);
     return 0;
 }

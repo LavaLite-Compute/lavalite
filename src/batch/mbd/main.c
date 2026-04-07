@@ -69,11 +69,6 @@ static int init_mbd(void)
         return -1;
     }
 
-    if (events_init() < 0) {
-        LS_ERRX("event_init failed");
-        return -1;
-    }
-
     if (network_init() < 0) {
         LS_ERRX("event_init failed");
         return -1;
@@ -82,6 +77,12 @@ static int init_mbd(void)
     if (job_init() < 0) {
         LS_ERRX("job_init failed");
     }
+
+    if (events_init() < 0) {
+        LS_ERRX("event_init failed");
+        return -1;
+    }
+
     // start compact
     //compact_start();
 

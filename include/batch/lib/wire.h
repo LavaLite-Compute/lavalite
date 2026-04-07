@@ -126,6 +126,7 @@ struct wire_job_submit_reply {
 struct wire_job_info_req {
     int64_t  job_id;
     int32_t  flags;
+     uint32_t uid;
 };
 
 /* -----------------------------------------------------------------------

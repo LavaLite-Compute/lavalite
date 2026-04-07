@@ -75,12 +75,10 @@ struct job_resources {
 };
 
 // llb_job_info API options
-#define LLB_JOB_NOFLAGS 0x0
-#define LLB_JOB_ALL  0x0001
-#define LLB_JOB_DONE 0x0002
-#define LLB_JOB_PEND 0x0004
-#define LLB_JOB_SUSP 0x0008
-#define LLB_JOB_RUN  0x0040
+#define LLB_JOB_DONE 0x0001
+#define LLB_JOB_PEND 0x0002
+#define LLB_JOB_SUSP 0x0004
+#define LLB_JOB_RUN  0x0008
 
 /* runtime resource usage, reported periodically by sbd via cgroup */
 struct job_res_info {
