@@ -15,6 +15,12 @@
 
 #include "llbatch.h"
 
+enum job_list_id {
+    JOB_LIST_PEND   = 0,
+    JOB_LIST_RUN    = 1,
+    JOB_LIST_FINISH = 2,
+};
+
 // mbd_die exit value
 enum mbd_exit {
     MBD_EXIT_CONF   = 200,
@@ -71,9 +77,9 @@ struct job_data {
     uint64_t mem_mb;
     uint32_t flags;
     int pend_sig;
+    enum job_list_id list_id;
     struct ll_list deps;
     struct job_res res;
-    char submit_file[PATH_MAX];
 };
 
 /* runtime state */
@@ -174,7 +180,7 @@ int enqueue_payload(int, struct protocol_header *,
 void chan_shutdown(int);
 
 // job.c
-void new_job_reply(XDR *, int32_t);
+
 
 // sched.c
 void schedule(void);
@@ -182,7 +188,12 @@ void schedule(void);
 // events.c
 int events_init(void);
 void reopen_job_events(void);
-int log_job_new(const struct job_data *, const struct wire_job_submit *);
+void event_job_new(const struct job_data *, const struct wire_job_submit *);
+void event_job_start(const struct job_data *);
+void event_job_accept(const struct job_data *);
+void event_job_execute(const struct job_data *, const char *);
+void event_job_signal(const struct job_data *, int);
+void event_job_finish(const struct job_data *);
 
 // dispatch.c
 int job_signal(XDR *, int);
@@ -194,6 +205,11 @@ int sbd_register(XDR *, int);
 int compact_done(XDR *, int);
 
 // job.c
+int jobs_replay(void);
+void new_job_reply(XDR *, int32_t);
 int job_init(void);
 int job_accept(XDR *, int);
 struct job_data *job_find(int64_t);
+void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
+void job_move_list(struct job_data *, struct ll_list *,
+                   struct ll_list *, enum job_list_id);

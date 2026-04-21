@@ -18,7 +18,7 @@
 #include "base/lib/ll.hash.h"
 #include "batch/mbd/mbd.h"
 #include "batch/lib/wire.h"
-
+#include "batch/lib/log.h"
 
 struct ll_list pend_jobs_list;
 struct ll_list run_jobs_list;
@@ -238,18 +238,14 @@ int job_accept(XDR *xdrs, int chan_id)
         return -1;
     }
 
-    if (log_job_new(job, &ws) < 0) {
-        LS_ERR("log_job_new failed job_id=%ld", job->job_id);
-        free(job);
-        return -1;
-    }
+    event_job_new(job, &ws);
 
     char key[LL_BUFSIZ_32];
     sprintf(key, "%ld", job->job_id);
     enum ll_hash_status hs = ll_hash_insert(&job_id_hash, key, job, 0);
     assert(hs == LL_HASH_INSERTED);
 
-    ll_list_append(&pend_jobs_list, &job->ent);
+    job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
 
     LS_INFO("job_id=%ld user=%s queue=%s",
             job->job_id, job->user, job->queue->name);
@@ -276,8 +272,29 @@ int job_accept(XDR *xdrs, int chan_id)
 }
 
 /*
- * job_find - look up a job by job_id.
+ * job_set_list - append job to list and record which list it is on.
+ * Always use this instead of bare ll_list_append for job lists.
  */
+void job_set_list(struct job_data *job, struct ll_list *list,
+                  enum job_list_id list_id)
+{
+    ll_list_append(list, &job->ent);
+    job->list_id = list_id;
+}
+
+/*
+ * job_move_list - move job from one list to another atomically.
+ * Always use this instead of bare ll_list_remove + ll_list_append.
+ */
+void job_move_list(struct job_data *job, struct ll_list *from,
+                   struct ll_list *to, enum job_list_id list_id)
+{
+    ll_list_remove(from, &job->ent);
+    ll_list_append(to, &job->ent);
+    job->list_id = list_id;
+}
+
+
 struct job_data *job_find(int64_t job_id)
 {
     char buf[LL_BUFSIZ_32];
@@ -288,13 +305,14 @@ struct job_data *job_find(int64_t job_id)
 int job_init(void)
 {
     ll_hash_init(&job_id_hash, 1021);
-
     ll_list_init(&pend_jobs_list);
-
     ll_list_init(&run_jobs_list);
-
     ll_list_init(&finish_jobs_list);
 
-    LS_INFO("job's structures initialized");
+    LS_INFO("job structures initialized");
+
+    int nj = jobs_replay();
+    LS_INFO("num=%d jobs replayed", nj);
+
     return 0;
 }

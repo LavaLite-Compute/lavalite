@@ -251,3 +251,6 @@ bool_t xdr_wire_queue_info_array(XDR *, struct wire_queue_info_array *);
 /* group */
 bool_t xdr_wire_group_info(XDR *, struct wire_group_info *);
 bool_t xdr_wire_group_info_array(XDR *, struct wire_group_info_array *);
+
+/* sbd */
+bool_t xdr_wire_sbd_job(XDR *, struct wire_sbd_job *);

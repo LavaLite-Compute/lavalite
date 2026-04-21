@@ -17,6 +17,7 @@
 #define JOB_STAT_SUSP    0x08   /* suspended by system */
 #define JOB_STAT_EXIT    0x20   /* exited */
 #define JOB_STAT_DONE    0x40   /* done */
+#define JOB_STAT_ORPHAN  0x80   /* where is my queue/or host? */
 #define JOB_STAT_UNKNOWN 0x10000
 
 #define JOB_IS_PEND(s) ((s) & (JOB_STAT_PEND | JOB_STAT_PSUSP))

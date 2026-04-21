@@ -12,6 +12,7 @@
 
 #include "base/lib/ll.bufsiz.h"
 #include "batch/lib/wire.h"
+#include "batch/lib/jobscript.h"
 
 /* Generate:
  *
@@ -327,7 +328,7 @@ static int ll_buf_append_exit_tail(struct ll_buf *b)
 }
 
 /*
- * create_jobscript - build the job script sent to sbd.
+ * create_jobscript - build the job script sent to mbd.
  *
  * On success: script->data is heap-allocated (caller must free), script->len set.
  * On error:   returns -1.

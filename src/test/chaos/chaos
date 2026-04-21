@@ -4,7 +4,6 @@
 #
 # Verify: bjobs -a is the source of truth. Every submitted job must
 # have cleared from the active job table before we declare success.
-# bhist/lsb.events rotation is not our problem -- mbd owns job state.
 #
 #  Copyright (C) LavaLite Contributors
 #  GPL v2
@@ -24,7 +23,6 @@ import os
 DEFAULT_TIMEOUT = 5.0
 
 PROC_NAMES = {
-    "lim": "lim",
     "mbd": "mbd",
     "sbd": "sbd",
 }
@@ -149,9 +147,6 @@ def bjobs_active(jobids_set, timeout):
         elog("chaos: verify: bjobs timed out")
         return None
 
-    # bjobs returns non-zero with "No unfinished job found" -- that is fine,
-    # it means everything is done. Only treat it as an error if there is
-    # no stdout at all and stderr is non-empty.
     if cp.returncode != 0 and not cp.stdout:
         elog(f"chaos: verify: bjobs failed rc={cp.returncode}")
         if cp.stderr:
@@ -159,9 +154,6 @@ def bjobs_active(jobids_set, timeout):
                 elog(line)
         return None
 
-    # bjobs -a columns: JOBID USER STAT QUEUE FROM_HOST EXEC_HOST ...
-    # Jobs in DONE or EXIT are finished. Jobs absent from output are finished.
-    # We only flag jobs still in RUN/PEND/USUSP/SSUSP/etc.
     active = set()
     for line in cp.stdout.splitlines():
         parts = line.split()
@@ -179,9 +171,10 @@ def bjobs_active(jobids_set, timeout):
 
 
 def main():
-    if not os.environ.get("LSF_ENVDIR"):
-        print("LSF_ENVDIR must be defined", file=sys.stderr)
+    if not os.environ.get("LL_CONF_DIR"):
+        print("LL_CONF_DIR must be defined", file=sys.stderr)
         sys.exit(1)
+
     ap = argparse.ArgumentParser(
         prog="chaos",
         description="Chaos test: submit jobs and kill daemons.",
@@ -193,7 +186,7 @@ def main():
     ap.add_argument("--queue",        default="system")
     ap.add_argument("--submit-every", type=int, default=2)
     ap.add_argument("--kill-every",   type=int, default=30)
-    ap.add_argument("--kinds",        default="lim,mbd,sbd")
+    ap.add_argument("--kinds",        default="mbd,sbd")
 
     args = ap.parse_args()
 
@@ -262,12 +255,6 @@ def main():
             next_kill += args.kill_every
 
         time.sleep(0.05)
-
-    # --- verify: wait for all submitted jobs to clear from mbd ---
-    #
-    # bjobs -a is the ground truth: if a job is not in the active table
-    # it is done. We do not chase lsb.events rotations -- that is mbd's
-    # business, not ours.
 
     jobids_set = set(jobids)
     verify_bad = 0
