@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <syslog.h>
 #include <sys/stat.h>
+#include <assert.h>
 
 #include "batch/lib/wire.h"
 #include "batch/lib/log.h"
@@ -145,6 +146,7 @@ void event_job_finish(const struct job_data *job)
 
     e.job_id      = job->job_id;
     e.uid         = job->uid;
+    e.status = job->status;
     e.exit_status = job->exit_status;
     e.submit_time = job->submit_time;
     e.start_time  = job->start_time;
@@ -160,6 +162,51 @@ void event_job_finish(const struct job_data *job)
     if (log_write_job_finish(fp, &e) < 0) {
         fclose(fp);
         LS_ERRX("log_write_job_finish failed job_id=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+}
+
+void event_job_pend_susp(const struct job_data *job)
+{
+    struct log_job_pend_susp e;
+    memset(&e, 0, sizeof(e));
+    e.job_id = job->job_id;
+
+    FILE *fp = open_events();
+    if (log_write_job_pend_susp(fp, &e) < 0) {
+        fclose(fp);
+        LS_ERRX("log_write_job_pend_susp failed job_id=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+}
+
+void event_job_pend_resume(const struct job_data *job)
+{
+    struct log_job_pend_resume e;
+    memset(&e, 0, sizeof(e));
+    e.job_id = job->job_id;
+
+    FILE *fp = open_events();
+    if (log_write_job_pend_resume(fp, &e) < 0) {
+        fclose(fp);
+        LS_ERRX("log_write_job_resume failed job_id=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+}
+
+void event_job_susp(const struct job_data *job)
+{
+    struct log_job_susp e;
+    memset(&e, 0, sizeof(e));
+    e.job_id = job->job_id;
+
+    FILE *fp = open_events();
+    if (log_write_job_susp(fp, &e) < 0) {
+        fclose(fp);
+        LS_ERRX("log_write_job_susp failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -192,6 +239,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
 
     job->job_id      = e->job_id;
     job->uid         = e->uid;
+    job->gid = e->gid;
     job->status      = JOB_STAT_PEND;
     job->submit_time = e->submit_time;
     job->begin_time  = e->begin_time;
@@ -202,16 +250,13 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->mem_mb      = e->mem_mb;
     job->flags       = e->flags;
 
-    ll_strlcpy(job->name, "-", sizeof(job->name));
-    if (e->job_name[0] != '\0')
-        ll_strlcpy(job->name, e->job_name, sizeof(job->name));
-
-    ll_strlcpy(job->user,      e->username,     sizeof(job->user));
-    ll_strlcpy(job->project,   e->project_name, sizeof(job->project));
-    ll_strlcpy(job->gpu_type,  e->gpu_type,     sizeof(job->gpu_type));
-    ll_strlcpy(job->from_host, e->from_host,    sizeof(job->from_host));
-    ll_strlcpy(job->machines,  e->hosts,        sizeof(job->machines));
-    ll_strlcpy(job->comment,   e->comment,      sizeof(job->comment));
+    ll_strlcpy(job->name, e->job_name, sizeof(job->name));
+    ll_strlcpy(job->user, e->username, sizeof(job->user));
+    ll_strlcpy(job->project, e->project_name, sizeof(job->project));
+    ll_strlcpy(job->gpu_type, e->gpu_type, sizeof(job->gpu_type));
+    ll_strlcpy(job->from_host, e->from_host, sizeof(job->from_host));
+    ll_strlcpy(job->machines, e->hosts, sizeof(job->machines));
+    ll_strlcpy(job->comment, e->comment, sizeof(job->comment));
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {
@@ -240,6 +285,7 @@ static int replay_insert(struct job_data *job)
 static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
 {
     struct log_job_new e;
+    memset(&e, 0, sizeof(struct log_job_new));
     if (log_parse_job_new(rec, &e) < 0) {
         LS_ERR("parse JOB_NEW failed");
         return 0;
@@ -331,7 +377,7 @@ static void replay_job_finish(const struct event_rec *rec)
         LS_ERRX("JOB_FINISH job_id=%ld not found", e.job_id);
         return;
     }
-    job->status       = JOB_STAT_DONE;
+    job->status = e.status;
     job->exit_status  = e.exit_status;
     job->end_time     = e.end_time;
     job->res.cpu_time = e.cpu_time;
@@ -342,6 +388,67 @@ static void replay_job_finish(const struct event_rec *rec)
     LS_DEBUG("JOB_FINISH job_id=%ld", e.job_id);
 }
 
+static void replay_job_pend_susp(const struct event_rec *rec)
+{
+    struct log_job_pend_susp e;
+    if (log_parse_job_pend_susp(rec, &e) < 0) {
+        LS_ERR("parse JOB_PEND_SUSP failed");
+        return;
+    }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LS_ERRX("JOB_PEND_SUSP job_id=%ld not found", e.job_id);
+        return;
+    }
+    if (!(job->status & JOB_STAT_PEND)) {
+        LS_ERRX("JOB_PEND_SUSP job_id=%ld not in PEND", e.job_id);
+        assert(0);
+        return;
+    }
+    job->status = JOB_STAT_PSUSP;
+    LS_DEBUG("JOB_PEND_SUSP job_id=%ld", e.job_id);
+}
+
+static void replay_job_pending_resume(const struct event_rec *rec)
+{
+    struct log_job_pend_resume e;
+    if (log_parse_job_pend_resume(rec, &e) < 0) {
+        LS_ERR("parse JOB_RESUME failed");
+        return;
+    }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LS_ERRX("JOB_RESUME job_id=%ld not found", e.job_id);
+        return;
+    }
+    if (!(job->status & JOB_STAT_PSUSP)) {
+        LS_ERRX("JOB_PENDING_RESUME job_id=%ld not in PEND_SUSP", e.job_id);
+        assert(0);
+        return;
+    }
+    job->status = JOB_STAT_PEND;
+    LS_DEBUG("JOB_RESUME job_id=%ld", e.job_id);
+}
+
+static void replay_job_susp(const struct event_rec *rec)
+{
+    struct log_job_susp e;
+    if (log_parse_job_susp(rec, &e) < 0) {
+        LS_ERR("parse JOB_SUSP failed");
+        return;
+    }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LS_ERRX("JOB_SUSP job_id=%ld not found", e.job_id);
+        return;
+    }
+    job->status = JOB_STAT_SUSP;
+    LS_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
+}
+
+void reopen_job_events(void)
+{
+}
 int jobs_replay(void)
 {
     FILE *fp = fopen(events_path, "r");
@@ -361,6 +468,7 @@ int jobs_replay(void)
 
     for (;;) {
         struct event_rec rec;
+        memset(&rec, 0, sizeof(struct event_rec));
         if (log_read_hdr(fp, &lineno, &rec) < 0)
             break;
 
@@ -386,6 +494,18 @@ int jobs_replay(void)
         }
         if (rec.type == EVENT_JOB_FINISH) {
             replay_job_finish(&rec);
+            continue;
+        }
+        if (rec.type == EVENT_JOB_PEND_SUSP) {
+            replay_job_pend_susp(&rec);
+            continue;
+        }
+        if (rec.type == EVENT_JOB_PEND_RESUME) {
+            replay_job_pending_resume(&rec);
+            continue;
+        }
+        if (rec.type == EVENT_JOB_SUSP) {
+            replay_job_susp(&rec);
             continue;
         }
     }
@@ -446,8 +566,4 @@ int events_init(void)
     LS_INFO("%d bucket dirs initialized", JOB_BUCKETS);
 
     return 0;
-}
-
-void reopen_job_events(void)
-{
 }

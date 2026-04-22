@@ -2,99 +2,64 @@
 #
 # pchaos - pending job replay chaos test.
 #
-# Submits jobs that stay PEND (sbd closed, nothing runs).
-# Kills and restarts mbd repeatedly. After each restart verifies
-# that every job is back with the same job_id and status as before.
-# Optionally bkills a random subset between cycles.
+# Usage: pchaos [options] /path/to/mbd
 #
-#  Copyright (C) LavaLite Contributors
-#  GPL v2
+# Submits PEND-only jobs (sbd closed), then repeatedly kills/restarts
+# mbd verifying job state survives each restart. Optionally bkills a
+# few jobs per cycle and verifies they disappear.
+#
+# Copyright (C) LavaLite Contributors - GPL v2
 #
 
 import argparse
 import os
-import random
 import re
-import socket
+import random
 import subprocess
 import sys
 import time
 
 
-DEFAULT_TIMEOUT = 5.0
-
-
 def ts():
-    return time.strftime("%Y-%m-%d %H:%M:%S")
+    return time.strftime("%H:%M:%S")
 
 
 def log(msg):
-    sys.stdout.write(f"{ts()} {msg}\n")
-    sys.stdout.flush()
+    print(f"{ts()} {msg}", flush=True)
 
 
-def elog(msg):
-    sys.stderr.write(f"{ts()} {msg}\n")
-    sys.stderr.flush()
+def err(msg):
+    print(f"{ts()} ERROR: {msg}", file=sys.stderr, flush=True)
 
 
-def run(cmd, timeout=DEFAULT_TIMEOUT):
+def run(cmd, timeout=5):
     try:
-        return subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as e:
-        out = e.stdout if e.stdout is not None else ""
-        err = e.stderr if e.stderr is not None else ""
-        return subprocess.CompletedProcess(cmd, 124, out, err)
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, 124, "", "timeout")
 
 
-def extract_jobid(txt):
-    m = re.search(r"Job\s+<(\d+)>", txt)
-    if not m:
-        return None
-    try:
-        return int(m.group(1))
-    except Exception:
-        return None
-
-
-def submit_one(queue):
-    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null"]
-    if queue:
-        cmd += ["-q", queue]
-    cmd += ["sleep", "3600"]
-
+def bsub_one(queue):
+    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null",
+           "-q", queue, "sleep", "9999"]
     cp = run(cmd)
-    if cp.returncode == 124:
-        elog("pchaos: bsub timed out")
-        return None
     if cp.returncode != 0:
-        elog(f"pchaos: bsub failed rc={cp.returncode}: {cp.stderr.strip()}")
+        err(f"bsub failed: {cp.stderr.strip()}")
         return None
-    return extract_jobid(cp.stdout)
+    m = re.search(r"Job\s+<(\d+)>", cp.stdout)
+    if not m:
+        err(f"bsub: can't parse job id from: {cp.stdout.strip()}")
+        return None
+    return int(m.group(1))
 
 
-def bjobs_snapshot(jobids_set):
-    """Return dict job_id -> status for all jobs in jobids_set.
-    Jobs absent from bjobs -a output are not included.
-    Returns None on bjobs failure."""
-    cp = run(["bjobs", "-a"], timeout=DEFAULT_TIMEOUT)
-
+def snapshot(jobids):
+    cp = run(["bjobs", "-a"], timeout=8)
     if cp.returncode == 124:
-        elog("pchaos: bjobs timed out")
+        err("bjobs timed out")
         return None
-
-    if cp.returncode != 0 and not cp.stdout:
-        elog(f"pchaos: bjobs failed rc={cp.returncode}: {cp.stderr.strip()}")
-        return None
-
-    snapshot = {}
+    result = {}
     for line in cp.stdout.splitlines():
         parts = line.split()
         if len(parts) < 3:
@@ -103,201 +68,135 @@ def bjobs_snapshot(jobids_set):
             jid = int(parts[0])
         except ValueError:
             continue
-        if jid in jobids_set:
-            snapshot[jid] = parts[2].upper()
-
-    return snapshot
-
-
-def mbd_is_up():
-    cp = run(["pgrep", "-x", "mbd"])
-    return cp.returncode == 0
+        if jid in jobids:
+            result[jid] = parts[2].upper()
+    return result
 
 
 def mbd_kill():
-    cp = run(["pkill", "-KILL", "-x", "mbd"])
-    if cp.returncode != 0:
-        elog("pchaos: pkill mbd failed")
-        return False
-    # wait for it to die
+    run(["pkill", "-KILL", "-x", "mbd"])
     for _ in range(20):
         time.sleep(0.1)
-        if not mbd_is_up():
+        if run(["pgrep", "-x", "mbd"]).returncode != 0:
             return True
-    elog("pchaos: mbd did not die after SIGKILL")
+    err("mbd did not die")
     return False
 
 
-def mbd_start(conf_dir, log_dir):
-    cmd = ["mbd", f"--confdir={conf_dir}"]
-    try:
-        subprocess.Popen(
-            cmd,
-            stdout=open(os.path.join(log_dir, "mbd.out"), "a"),
-            stderr=open(os.path.join(log_dir, "mbd.err"), "a"),
-        )
-    except Exception as e:
-        elog(f"pchaos: mbd_start failed: {e}")
-        return False
-
-    # wait for mbd to accept connections
+def mbd_start(mbd_path, conf_dir):
+    subprocess.Popen([mbd_path, f"--confdir={conf_dir}"])
     for _ in range(50):
         time.sleep(0.2)
-        if mbd_is_up():
+        if run(["pgrep", "-x", "mbd"]).returncode == 0:
             return True
-
-    elog("pchaos: mbd did not come up in time")
+    err("mbd did not come up")
     return False
 
 
-def bkill_jobs(jobids):
-    for jid in jobids:
-        cp = run(["bkill", str(jid)])
-        if cp.returncode != 0:
-            elog(f"pchaos: bkill {jid} failed: {cp.stderr.strip()}")
-        else:
-            log(f"pchaos: bkill job <{jid}>")
-
-
-def verify_snapshot(before, after, killed_set):
-    """Compare before and after snapshots.
-    Jobs in killed_set must be EXIT in after.
-    Remaining jobs must have same status as before.
-    Returns number of mismatches."""
-    bad = 0
-
-    for jid, stat_before in before.items():
-        if jid in killed_set:
-            stat_after = after.get(jid)
-            if stat_after not in ("EXIT", "DONE", None):
-                elog(f"pchaos: job <{jid}> was killed but status={stat_after}")
-                bad += 1
-            continue
-
-        stat_after = after.get(jid)
-        if stat_after is None:
-            elog(f"pchaos: job <{jid}> missing after restart (was {stat_before})")
-            bad += 1
-            continue
-
-        if stat_after != stat_before:
-            elog(f"pchaos: job <{jid}> status changed {stat_before} -> {stat_after}")
-            bad += 1
-
-    return bad
+def bkill(jid):
+    cp = run(["bkill", str(jid)])
+    if cp.returncode != 0:
+        err(f"bkill {jid}: {cp.stderr.strip()}")
+        return False
+    return True
 
 
 def main():
-    if not os.environ.get("LL_CONF_DIR"):
-        print("LL_CONF_DIR must be defined", file=sys.stderr)
-        sys.exit(1)
-
     ap = argparse.ArgumentParser(
         prog="pchaos",
-        description="Pending job replay chaos: submit, kill mbd, restart, verify.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    ap.add_argument("--queue",       default="system")
-    ap.add_argument("--jobs",        type=int, default=20,
-                    help="jobs to submit per cycle")
-    ap.add_argument("--cycles",      type=int, default=5,
-                    help="kill/restart cycles")
-    ap.add_argument("--bkill-frac",  type=float, default=0.2,
-                    help="fraction of jobs to bkill between cycles (0=none)")
-    ap.add_argument("--log-dir",     default="/tmp",
-                    help="directory for mbd stdout/stderr on restart")
-
+        description="PEND job replay chaos: submit, kill mbd, restart, verify.")
+    ap.add_argument("mbd", help="path to mbd binary")
+    ap.add_argument("--queue",  default="system")
+    ap.add_argument("--jobs",   type=int, default=20)
+    ap.add_argument("--cycles", type=int, default=5)
+    ap.add_argument("--bkill",  type=int, default=3,
+                    help="jobs to bkill per cycle (0=none)")
     args = ap.parse_args()
-    conf_dir = os.environ["LL_CONF_DIR"]
 
-    total_bad = 0
-    all_jobids = set()
-
-    # submit initial batch
-    log(f"pchaos: submitting {args.jobs} jobs to queue={args.queue}")
-    for _ in range(args.jobs):
-        jid = submit_one(args.queue)
-        if jid is not None:
-            all_jobids.add(jid)
-            log(f"pchaos: submitted job <{jid}>")
-        else:
-            elog("pchaos: submit failed, continuing")
-
-    if not all_jobids:
-        elog("pchaos: no jobs submitted, aborting")
+    conf_dir = os.environ.get("LL_CONF_DIR")
+    if not conf_dir:
+        err("LL_CONF_DIR not set")
         sys.exit(1)
 
-    log(f"pchaos: {len(all_jobids)} jobs pending, starting {args.cycles} cycles")
+    if not os.path.isfile(args.mbd):
+        err(f"mbd not found: {args.mbd}")
+        sys.exit(1)
 
-    killed_set = set()
+    # --- submit initial batch ---
+    log(f"submitting {args.jobs} jobs to queue={args.queue}")
+    jobids = set()
+    for _ in range(args.jobs):
+        jid = bsub_one(args.queue)
+        if jid is not None:
+            jobids.add(jid)
+
+    if not jobids:
+        err("no jobs submitted")
+        sys.exit(1)
+    log(f"{len(jobids)} jobs pending")
+
+    bad = 0
 
     for cycle in range(1, args.cycles + 1):
-        log(f"pchaos: cycle {cycle}/{args.cycles}")
+        log(f"--- cycle {cycle}/{args.cycles} ---")
 
-        # snapshot before kill
-        before = bjobs_snapshot(all_jobids)
+        before = snapshot(jobids)
         if before is None:
-            elog(f"pchaos: cycle {cycle}: bjobs failed before kill, aborting")
-            total_bad += len(all_jobids)
+            bad += 1
             break
-        log(f"pchaos: cycle {cycle}: snapshot {len(before)} jobs before kill")
+        log(f"before: {len(before)} jobs, statuses: "
+            f"{sorted(set(before.values()))}")
 
-        # optionally bkill a random subset of still-pending jobs
-        cycle_killed = set()
-        if args.bkill_frac > 0:
-            pend_jobs = [jid for jid, st in before.items()
-                         if st == "PEND" and jid not in killed_set]
-            n_kill = max(1, int(len(pend_jobs) * args.bkill_frac))
-            to_kill = random.sample(pend_jobs, min(n_kill, len(pend_jobs)))
-            bkill_jobs(to_kill)
-            cycle_killed.update(to_kill)
-            killed_set.update(to_kill)
-            log(f"pchaos: cycle {cycle}: bkilled {len(to_kill)} jobs")
+        # kill and restart
+        if not mbd_kill():
+            bad += 1
+            break
+        if not mbd_start(args.mbd, conf_dir):
+            bad += 1
+            break
+        time.sleep(0.5)
+
+        after = snapshot(jobids)
+        if after is None:
+            bad += 1
+            break
+
+        # verify state survived restart
+        for jid, st in before.items():
+            st_after = after.get(jid)
+            if st_after is None:
+                err(f"job <{jid}> missing after restart (was {st})")
+                bad += 1
+            elif st_after != st:
+                err(f"job <{jid}> status {st} -> {st_after} after restart")
+                bad += 1
+
+        survived = len(before) - bad
+        log(f"restart verify: {survived}/{len(before)} OK")
+
+        # bkill a random subset
+        if args.bkill > 0:
+            pend = [jid for jid, st in after.items() if st == "PEND"]
+            to_kill = random.sample(pend, min(args.bkill, len(pend)))
+            for jid in to_kill:
+                bkill(jid)
+                jobids.discard(jid)
+            log(f"bkilled {len(to_kill)} jobs")
             time.sleep(0.5)
 
-        # kill mbd
-        log(f"pchaos: cycle {cycle}: killing mbd")
-        if not mbd_kill():
-            elog(f"pchaos: cycle {cycle}: failed to kill mbd, aborting")
-            total_bad += len(all_jobids)
-            break
+            # verify they're gone
+            check = snapshot(set(to_kill))
+            if check is None:
+                bad += 1
+            else:
+                for jid in to_kill:
+                    st = check.get(jid)
+                    if st not in (None, "EXIT", "DONE"):
+                        err(f"job <{jid}> still alive as {st} after bkill")
+                        bad += 1
 
-        log(f"pchaos: cycle {cycle}: mbd killed, restarting")
-
-        # restart mbd
-        if not mbd_start(conf_dir, args.log_dir):
-            elog(f"pchaos: cycle {cycle}: mbd failed to restart, aborting")
-            total_bad += len(all_jobids)
-            break
-
-        log(f"pchaos: cycle {cycle}: mbd restarted")
-        time.sleep(1.0)
-
-        # snapshot after restart
-        after = bjobs_snapshot(all_jobids)
-        if after is None:
-            elog(f"pchaos: cycle {cycle}: bjobs failed after restart")
-            total_bad += len(all_jobids)
-            break
-        log(f"pchaos: cycle {cycle}: snapshot {len(after)} jobs after restart")
-
-        bad = verify_snapshot(before, after, cycle_killed)
-        if bad == 0:
-            log(f"pchaos: cycle {cycle}: OK")
-        else:
-            elog(f"pchaos: cycle {cycle}: {bad} mismatches")
-            total_bad += bad
-
-    log(
-        f"pchaos: done cycles={args.cycles} "
-        f"jobs={len(all_jobids)} total_bad={total_bad}"
-    )
-
-    if total_bad > 0:
-        sys.exit(1)
-
-    sys.exit(0)
+    log(f"done: cycles={args.cycles} bad={bad}")
+    sys.exit(0 if bad == 0 else 1)
 
 
 if __name__ == "__main__":

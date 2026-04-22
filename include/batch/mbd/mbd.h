@@ -52,6 +52,7 @@ struct job_data {
     struct ll_list_entry ent;
     int64_t job_id;
     uid_t uid;
+    gid_t gid;
     char user[LL_BUFSIZ_64];
     int status;
     int exit_status;
@@ -177,6 +178,7 @@ int mbd_accept(int);
 void mbd_message(int);
 int enqueue_payload(int, struct protocol_header *,
                     void *, size_t, bool_t (*xdr_func)());
+int32_t enqueue_header(int, int, int);
 void chan_shutdown(int);
 
 // job.c
@@ -194,6 +196,9 @@ void event_job_accept(const struct job_data *);
 void event_job_execute(const struct job_data *, const char *);
 void event_job_signal(const struct job_data *, int);
 void event_job_finish(const struct job_data *);
+void event_job_pend_susp(const struct job_data *);
+void event_job_pend_resume(const struct job_data *);
+void event_job_susp(const struct job_data *);
 
 // dispatch.c
 int job_signal(XDR *, int);

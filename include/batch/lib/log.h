@@ -20,13 +20,16 @@
  * Event types. Values are stable on disk -- do not reorder.
  */
 enum event_type {
-    EVENT_NULL        = 0,
-    EVENT_JOB_NEW     = 1,  /* job submitted, enters PEND          */
-    EVENT_JOB_START   = 2,  /* scheduler dispatched, enters RUN    */
-    EVENT_JOB_ACCEPT  = 3,  /* sbd forked child, pid known         */
-    EVENT_JOB_EXECUTE = 4,  /* sbd confirmed execution, cwd known  */
-    EVENT_JOB_SIGNAL  = 5,  /* mbd sent signal to job via sbd      */
-    EVENT_JOB_FINISH  = 6,  /* job done, exit_status tells story   */
+    EVENT_NULL            = 0,
+    EVENT_JOB_NEW         = 1,  /* job submitted, enters PEND          */
+    EVENT_JOB_START       = 2,  /* scheduler dispatched, enters RUN    */
+    EVENT_JOB_ACCEPT      = 3,  /* sbd forked child, pid known         */
+    EVENT_JOB_EXECUTE     = 4,  /* sbd confirmed execution, cwd known  */
+    EVENT_JOB_SIGNAL      = 5,  /* mbd sent signal to job via sbd      */
+    EVENT_JOB_FINISH      = 6,  /* job done, exit_status tells story   */
+    EVENT_JOB_PEND_SUSP   = 7,  /* user suspended pending job          */
+    EVENT_JOB_PEND_RESUME = 8, /* user resumed suspended pending job */
+    EVENT_JOB_SUSP        = 9,  /* sbd suspended running job           */
     EVENT_COUNT
 };
 
@@ -116,6 +119,7 @@ struct log_job_signal {
 struct log_job_finish {
     int64_t  job_id;
     uid_t    uid;
+    int32_t status; /* JOB_STAT_EXIT, JOB_STAT_DONE */
     int32_t  exit_status;
     time_t   submit_time;
     time_t   start_time;
@@ -125,6 +129,18 @@ struct log_job_finish {
     char     queue[LL_BUFSIZ_64];
     char     from_host[MAXHOSTNAMELEN];
     char     exec_host[MAXHOSTNAMELEN];
+};
+
+struct log_job_pend_susp {
+    int64_t job_id;
+};
+
+struct log_job_pend_resume {
+    int64_t job_id;
+};
+
+struct log_job_susp {
+    int64_t job_id;
 };
 
 /*
@@ -141,6 +157,11 @@ int log_parse_job_accept(const struct event_rec *, struct log_job_accept *);
 int log_parse_job_execute(const struct event_rec *, struct log_job_execute *);
 int log_parse_job_signal(const struct event_rec *, struct log_job_signal *);
 int log_parse_job_finish(const struct event_rec *, struct log_job_finish *);
+int log_parse_job_susp(const struct event_rec *, struct log_job_susp *);
+int log_parse_job_pend_resume(const struct event_rec *,
+                              struct log_job_pend_resume *);
+int log_parse_job_pend_susp(const struct event_rec *,
+                            struct log_job_pend_susp *);
 
 /* Writers -- write header + payload + newline in one call */
 int log_write_job_new(FILE *, const struct log_job_new *);
@@ -149,3 +170,7 @@ int log_write_job_accept(FILE *, const struct log_job_accept *);
 int log_write_job_execute(FILE *, const struct log_job_execute *);
 int log_write_job_signal(FILE *, const struct log_job_signal *);
 int log_write_job_finish(FILE *, const struct log_job_finish *);
+int log_write_job_susp(FILE *, const struct log_job_susp *);
+int log_write_job_pend_resume(FILE *,
+                              const struct log_job_pend_resume *);
+int log_write_job_pend_susp(FILE *, const struct log_job_pend_susp *);

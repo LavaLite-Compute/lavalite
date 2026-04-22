@@ -74,13 +74,13 @@ static int init_mbd(void)
         return -1;
     }
 
-    if (job_init() < 0) {
-        LS_ERRX("job_init failed");
-    }
-
     if (events_init() < 0) {
         LS_ERRX("event_init failed");
         return -1;
+    }
+
+    if (job_init() < 0) {
+        LS_ERRX("job_init failed");
     }
 
     // start compact

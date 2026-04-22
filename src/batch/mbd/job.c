@@ -36,7 +36,7 @@ static int64_t next_job_id(void)
     return job_id_seq;
 }
 
-static struct job_data *job_alloc(const struct wire_job_submit *ws)
+static struct job_data *job_alloc(struct wire_job_submit *ws)
 {
     struct job_data *job = calloc(1, sizeof(struct job_data));
     if (job == NULL) {
@@ -62,16 +62,23 @@ static struct job_data *job_alloc(const struct wire_job_submit *ws)
     ll_strlcpy(job->project,  ws->project, sizeof(job->project));
     ll_strlcpy(job->gpu_type, ws->gpu_type, sizeof(job->gpu_type));
     ll_strlcpy(job->machines, ws->machines, sizeof(job->machines));
-    if (ws->name[0] != 0)
-        ll_strlcpy(job->name,  ws->name, sizeof(job->name));
-    else
+
+    if (ws->name[0] == 0) {
         ll_strlcpy(job->name, "-" , sizeof(job->name));
+        ll_strlcpy(ws->name, "-", sizeof(ws->name));
+    } else {
+        ll_strlcpy(job->name, ws->name, sizeof(job->name));
+    }
     ll_strlcpy(job->comment, ws->comment, sizeof(job->comment));
     ll_strlcpy(job->from_host, ws->from_host, sizeof(job->from_host));
 
-    const char *queue = ll_params[LL_DEFAULT_QUEUE].val;
-    if (ws->queue[0] != 0)
+    char *queue;
+    if (ws->queue[0] == 0) {
+        queue = ll_params[LL_DEFAULT_QUEUE].val;
+        ll_strlcpy(ws->queue, queue, sizeof(ws->queue));
+    } else {
         queue = ws->queue;
+    }
 
     job->queue = ll_hash_search(&queue_name_hash, queue);
     if (job->queue == NULL) {

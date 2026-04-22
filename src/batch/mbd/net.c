@@ -303,3 +303,42 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr,
 
     return 0;
 }
+
+int32_t enqueue_header(int chan_id, int operation, int status)
+{
+    struct chan_buffer *buf;
+
+    if (chan_alloc_buf(&buf, LL_BUFSIZ_256) < 0) {
+        LS_ERR("chan_alloc_buf failed op=%d", operation);
+        return -1;
+    }
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = operation;
+    hdr.status    = status;
+    hdr.length    = 0;
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_256, XDR_ENCODE);
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+        LS_ERRX("xdr_pack_hdr failed op=%d", operation);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        return -1;
+    }
+    buf->len = (size_t)xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    if (chan_enqueue(chan_id, buf) < 0) {
+        LS_ERR("chan_enqueue failed op=%d", operation);
+        chan_free_buf(buf);
+        return -1;
+    }
+    if (chan_set_write_interest(chan_id, mbd_efd, 1) < 0) {
+        LS_ERR("chan_set_write_interest failed op=%d", operation);
+        chan_free_buf(buf);
+        return -1;
+    }
+    return 0;
+}

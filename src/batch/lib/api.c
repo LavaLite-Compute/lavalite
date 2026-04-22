@@ -189,50 +189,45 @@ void llb_free_group_info(struct host_group *g, int32_t n)
 
 int32_t llb_signal_job(int64_t jobid, int32_t sig)
 {
-    char buf[256];
-    XDR xdrs;
+    size_t bufsz = LL_BUFSIZ_1K;
+    char *buf = malloc(bufsz);
+    if (buf == NULL)
+        return -1;
 
-    /* -------------------------
-     * encode request
-     * ------------------------- */
-    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+    struct wire_job_sig req;
+    req.job_id = jobid;
+    req.sig    = sig;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_JOB_SIGNAL;
+    hdr.status    = MBD_OK;
 
-    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);
+    if (!ll_encode_msg(&xdrs, (char *)&req,
+                       xdr_wire_job_sig, &hdr)) {
         xdr_destroy(&xdrs);
+        free(buf);
+        errno = EPROTO;
         return -1;
     }
-
-    struct wire_job_sig req;
-    req.job_id = jobid;
-    req.sig   = sig;
-
-    if (!xdr_wire_job_sig(&xdrs, &req)) {
-        xdr_destroy(&xdrs);
-        return -1;
-    }
-
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
-    /* -------------------------
-     * RPC
-     * ------------------------- */
     void *rep = NULL;
     struct protocol_header rhdr;
-
-    if (call_mbd(buf, len, &rep, &rhdr) < 0)
-        return -1;
-
-    if (rhdr.status != MBD_OK) {
+    if (call_mbd(buf, len, &rep, &rhdr) < 0) {
+        free(buf);
         return -1;
     }
+    free(buf);
 
+    if (rhdr.status != MBD_OK) {
+        errno = EPROTO;
+        return -1;
+    }
     free(rep);
-
     return 0;
 }
 

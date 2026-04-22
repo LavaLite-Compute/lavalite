@@ -8,22 +8,22 @@
 # MEM        - Total memory available (G=gigabytes, T=terabytes)
 #
 Begin Host
-HOST_NAME   MXJ   CPU   GPU   MEM   GPU_TYPE
-buntu24       4    22     4    40G   RTX4090
-worker1       6    64     1    1T    A100
-worker2       6    64     0    1T      -
-#worker3       2   128     1    2T
-#cpu1         16    96     0   512G
-#cpu2         16    96     0   512G
-#cpu3         16    96     0   512G
+HOST_NAME   MXJ   CPU   MEM
+buntu24       4    22    40G
+worker1       6    64    1T
+worker2       6    64    1T
+worker3       8    128   1T
 End Host
 
 Begin Gpu
-HOST_NAME   GPU_ID   GPU_MODEL   GPU_TYPE
-worker1     0        H100        3g.40gb
-worker1     1        H100        2g.20gb
-worker1     2        H100        2g.20gb
-worker2     0        A100        full
+HOST_NAME   GPU_ID   GPU_MODEL   GPU_TYPE   COUNT
+buntu24     0        RTX4090     full       1
+buntu24     1        RTX4090     full       1
+buntu24     2        RTX4090     full       1
+buntu24     3        RTX4090     full       1
+worker1     0        H100        3g.40gb    1
+worker1     1        H100        2g.20gb    2
+worker2     0        A100        full       1
 End Gpu
 
 Begin Numa
@@ -31,6 +31,13 @@ HOST   NODE   CPUS
 worker1 0     0-31
 worker1 1     32-63
 End Numa
+
+Begin Nic
+HOST_NAME   NIC_ID   MODEL      SPEED   FABRIC
+worker1     0        CX7        400G    infiniband
+worker1     1        CX7        400G    infiniband
+End Nic
+
 #
 # Host groups - hosts grouped by GPU type.
 # A host belongs to exactly one group.

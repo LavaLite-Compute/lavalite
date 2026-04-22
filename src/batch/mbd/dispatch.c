@@ -5,20 +5,122 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <errno.h>
 
 #include "batch/lib/wire.h"
 #include "batch/mbd/mbd.h"
 
 /* -----------------------------------------------------------
  * job signal
- * ----------------------------------------------------------- */
+ * -----------------------------------------------------------
+ */
+static int finish_pending_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    LS_INFO("finish_pending_job: job_id=%ld sig=%d -> EXIT",
+            (long)job->job_id, ws->sig);
+    job->end_time = time(NULL);
+    job->status   = JOB_STAT_EXIT;
+    job_set_list(job, &finish_jobs_list, JOB_LIST_FINISH);
+    event_job_signal(job, ws->sig);
+    event_job_finish(job);
+    return MBD_OK;
+}
+
+static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    if (job->status & JOB_STAT_PSUSP)
+        return MBD_OK;
+    job->status = JOB_STAT_PSUSP;
+    LS_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP",
+            (long)job->job_id, ws->sig);
+    event_job_signal(job, ws->sig);
+    event_job_pend_susp(job);
+    return MBD_OK;
+}
+
+static int resume_pending_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    if (!(job->status & JOB_STAT_PSUSP))
+        return MBD_OK;
+    job->status = JOB_STAT_PEND;
+    LS_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND",
+            (long)job->job_id, ws->sig);
+    event_job_signal(job, ws->sig);
+    event_job_pend_resume(job);
+    return MBD_OK;
+}
+
+static int signal_pending_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    switch (ws->sig) {
+    case SIGTERM:
+    case SIGINT:
+    case SIGKILL:
+        return finish_pending_job(job, ws);
+    case SIGSTOP:
+    case SIGTSTP:
+        return stop_pending_job(job, ws);
+    case SIGCONT:
+        return resume_pending_job(job, ws);
+    default:
+        LS_DEBUG("signal_pending_job: job_id=%ld sig=%d unsupported",
+                 (long)job->job_id, ws->sig);
+        return EINVAL;
+    }
+}
+
+static int signal_running_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    /* TODO: send signal via cgroup/pid, log event */
+    (void)job;
+    (void)ws;
+    return MBD_OK;
+}
+
 int job_signal(XDR *xdrs, int chan_id)
 {
-    (void)xdrs;
+    struct wire_job_sig req;
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_job_sig(xdrs, &req)) {
+        LS_ERR("job_signal: xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPROTO);
+    }
 
-    LS_DEBUG("job_signal chan_id=%d", chan_id);
-    return 0;
+    LS_DEBUG("job_signal: job_id=%ld sig=%d chan_id=%d",
+             (long)req.job_id, req.sig, chan_id);
+
+    struct job_data *job = job_find(req.job_id);
+    if (job == NULL) {
+        LS_INFO("job_signal: job_id=%ld not found", (long)req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
+    }
+
+    if (job->status & (JOB_STAT_DONE | JOB_STAT_EXIT)) {
+        LS_DEBUG("job_signal: job_id=%ld already finished", (long)req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
+    }
+
+    if ((req.sig == SIGSTOP || req.sig == SIGTSTP)
+        && (job->status & (JOB_STAT_SUSP | JOB_STAT_PSUSP))) {
+        LS_DEBUG("job_signal: job_id=%ld already suspended", (long)req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
+    }
+
+    if (req.sig == SIGCONT
+        && (job->status & (JOB_STAT_PEND | JOB_STAT_RUN))) {
+        LS_DEBUG("job_signal: job_id=%ld SIGCONT no-op", (long)req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+    }
+
+    int cc;
+    if (job->status & (JOB_STAT_PEND | JOB_STAT_PSUSP))
+        cc = signal_pending_job(job, &req);
+    else
+        cc = signal_running_job(job, &req);
+
+    return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
 }
+
 
 /* -----------------------------------------------------------
  * job info
