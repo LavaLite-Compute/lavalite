@@ -36,6 +36,7 @@ struct wire_sbd_register {
 struct wire_job_sig {
     int64_t  job_id;
     int32_t  sig;
+    uint32_t uid;
 };
 
 /* -----------------------------------------------------------------------
@@ -126,7 +127,7 @@ struct wire_job_submit_reply {
 struct wire_job_info_req {
     int64_t  job_id;
     int32_t  flags;
-     uint32_t uid;
+    uint32_t uid;
 };
 
 /* -----------------------------------------------------------------------

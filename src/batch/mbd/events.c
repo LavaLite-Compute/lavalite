@@ -122,13 +122,14 @@ void event_job_execute(const struct job_data *job, const char *cwd)
     fclose(fp);
 }
 
-void event_job_signal(const struct job_data *job, int signal_num)
+void event_job_signal(const struct job_data *job, const struct wire_job_sig *ws)
 {
     struct log_job_signal e;
     memset(&e, 0, sizeof(e));
 
-    e.job_id     = job->job_id;
-    e.signal_num = signal_num;
+    e.job_id = job->job_id;
+    e.signal_num = ws->sig;
+    e.uid = ws->uid;
 
     FILE *fp = open_events();
     if (log_write_job_signal(fp, &e) < 0) {
@@ -362,7 +363,8 @@ static void replay_job_signal(const struct event_rec *rec)
         LS_ERR("parse JOB_SIGNAL failed");
         return;
     }
-    LS_DEBUG("JOB_SIGNAL job_id=%ld sig=%d", e.job_id, e.signal_num);
+    LS_DEBUG("JOB_SIGNAL job_id=%ld sig=%d uid=%u",
+             e.job_id, e.signal_num, e.uid);
 }
 
 static void replay_job_finish(const struct event_rec *rec)

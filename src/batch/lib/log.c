@@ -14,15 +14,23 @@
 #include "batch/lib/log.h"
 
 static const char *event_names[] = {
-    [EVENT_NULL]        = "NULL",
-    [EVENT_JOB_NEW]     = "JOB_NEW",
-    [EVENT_JOB_START]   = "JOB_START",
-    [EVENT_JOB_ACCEPT]  = "JOB_ACCEPT",
-    [EVENT_JOB_EXECUTE] = "JOB_EXECUTE",
-    [EVENT_JOB_SIGNAL]  = "JOB_SIGNAL",
-    [EVENT_JOB_FINISH]  = "JOB_FINISH",
-    [EVENT_COUNT]       = NULL,
+    [EVENT_NULL]         = "NULL",
+    [EVENT_JOB_NEW]      = "JOB_NEW",
+    [EVENT_JOB_START]    = "JOB_START",
+    [EVENT_JOB_ACCEPT]   = "JOB_ACCEPT",
+    [EVENT_JOB_EXECUTE]  = "JOB_EXECUTE",
+    [EVENT_JOB_SIGNAL]   = "JOB_SIGNAL",
+    [EVENT_JOB_FINISH]   = "JOB_FINISH",
+    [EVENT_JOB_PEND_SUSP]   = "JOB_PEND_SUSP",
+    [EVENT_JOB_PEND_RESUME] = "JOB_PEND_RESUME",
+    [EVENT_JOB_SUSP]     = "JOB_SUSP",
+    [EVENT_COUNT]        = NULL,
 };
+
+_Static_assert(
+    sizeof(event_names) / sizeof(event_names[0]) == EVENT_COUNT + 1,
+    "event_names[] out of sync with enum event_type"
+);
 
 /* -----------------------------------------------------------------------
  * helpers
@@ -273,15 +281,18 @@ int log_write_job_signal(FILE *fp, const struct log_job_signal *j)
 {
     if (write_hdr(fp, EVENT_JOB_SIGNAL) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d\n", (long)j->job_id, j->signal_num) < 0)
+    if (fprintf(fp, " %ld %d", (long)j->job_id, j->signal_num) < 0)
         return -1;
+    if (fprintf(fp, " %u\n", j->uid) < 0)
+        return -1;
+
     return 0;
 }
 
 int log_parse_job_signal(const struct event_rec *rec, struct log_job_signal *j)
 {
-    int n = sscanf(rec->rest, " %ld %d", &j->job_id, &j->signal_num);
-    if (n != 2)
+    int n = sscanf(rec->rest, " %ld %d %u", &j->job_id, &j->signal_num, &j->uid);
+    if (n != 3)
         return -1;
     return 0;
 }

@@ -105,12 +105,14 @@ struct log_job_execute {
 };
 
 /*
- * log_job_signal: mbd sent a signal to the job via sbd.
+ * log_job_signal: mbd sent a signal to the job via sbd or signal its
+ * pending job
  * signal_num is the Unix signal number (SIGKILL, SIGSTOP, etc.)
  */
 struct log_job_signal {
     int64_t job_id;
     int32_t signal_num;
+    uint32_t uid;
 };
 
 /*

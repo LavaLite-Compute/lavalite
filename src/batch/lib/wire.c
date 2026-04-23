@@ -78,6 +78,9 @@ bool_t xdr_wire_job_sig(XDR *xdrs, struct wire_job_sig *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->sig))
         return false;
+    if (! xdr_uint32_t(xdrs, &p->uid))
+        return false;
+
     return true;
 }
 

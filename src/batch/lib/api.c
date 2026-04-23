@@ -197,6 +197,7 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
     struct wire_job_sig req;
     req.job_id = jobid;
     req.sig    = sig;
+    req.uid = getuid();
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -338,7 +339,7 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
     struct wire_job_info_req req;
     req.job_id = jobid;
     req.flags  = flags;
-    req.uid    = (uint32_t)getuid();
+    req.uid = (uint32_t)getuid();
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);

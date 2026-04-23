@@ -194,7 +194,7 @@ void event_job_new(const struct job_data *, const struct wire_job_submit *);
 void event_job_start(const struct job_data *);
 void event_job_accept(const struct job_data *);
 void event_job_execute(const struct job_data *, const char *);
-void event_job_signal(const struct job_data *, int);
+void event_job_signal(const struct job_data *, const struct wire_job_sig *);
 void event_job_finish(const struct job_data *);
 void event_job_pend_susp(const struct job_data *);
 void event_job_pend_resume(const struct job_data *);

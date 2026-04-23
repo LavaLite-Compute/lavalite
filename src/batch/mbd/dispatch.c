@@ -21,7 +21,7 @@ static int finish_pending_job(struct job_data *job, const struct wire_job_sig *w
     job->end_time = time(NULL);
     job->status   = JOB_STAT_EXIT;
     job_set_list(job, &finish_jobs_list, JOB_LIST_FINISH);
-    event_job_signal(job, ws->sig);
+    event_job_signal(job, ws);
     event_job_finish(job);
     return MBD_OK;
 }
@@ -33,7 +33,7 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
     job->status = JOB_STAT_PSUSP;
     LS_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP",
             (long)job->job_id, ws->sig);
-    event_job_signal(job, ws->sig);
+    event_job_signal(job, ws);
     event_job_pend_susp(job);
     return MBD_OK;
 }
@@ -45,7 +45,7 @@ static int resume_pending_job(struct job_data *job, const struct wire_job_sig *w
     job->status = JOB_STAT_PEND;
     LS_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND",
             (long)job->job_id, ws->sig);
-    event_job_signal(job, ws->sig);
+    event_job_signal(job, ws);
     event_job_pend_resume(job);
     return MBD_OK;
 }
@@ -86,8 +86,8 @@ int job_signal(XDR *xdrs, int chan_id)
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPROTO);
     }
 
-    LS_DEBUG("job_signal: job_id=%ld sig=%d chan_id=%d",
-             (long)req.job_id, req.sig, chan_id);
+    LS_DEBUG("job_id=%ld by uid=%u sig=%d chan_id=%d",
+             (long)req.job_id, req.uid, req.sig, chan_id);
 
     struct job_data *job = job_find(req.job_id);
     if (job == NULL) {
