@@ -3,7 +3,7 @@
  */
 #include "eauth.h"
 
-int main(int argc, char **argv)
+int main(int, char **)
 {
     char payload[EAUTH_LBUFSIZ * 2];
 

@@ -2,7 +2,8 @@
 #  Copyright (C) LavaLite Contributors
 #
 
-AM_CFLAGS = -Wall -Wextra -Wmissing-prototypes -g -O0 -Wformat=2
+AM_CFLAGS = -Wall -Wextra -Wmissing-prototypes \
+    -g -O0 -Wformat=2 -Werror
 
 # Include headers
 AM_CPPFLAGS = \

@@ -4,7 +4,7 @@
 
 #include "eauth.h"
 
-int main(int argc, char **argv)
+int main(int, char **)
 {
     struct auth_token token;
     struct auth_signature sig;
