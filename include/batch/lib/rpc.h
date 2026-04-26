@@ -38,3 +38,4 @@ enum batch_lib_op {
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);
+const char *batch_op_str(enum batch_lib_op);

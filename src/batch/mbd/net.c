@@ -87,7 +87,7 @@ static void route(int chan_id)
         return;
     }
 
-    LS_DEBUG("chan_id=%d protocol=%d", chan_id, hdr.operation);
+    LS_DEBUG("chan_id=%d protocol=%s", chan_id, batch_op_str(hdr.operation));
 
     switch (hdr.operation) {
     case BATCH_JOB_SUBMIT:

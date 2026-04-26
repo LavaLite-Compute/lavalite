@@ -48,7 +48,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->uid  = (uid_t)ws->uid;
     job->priority = 0;
     job->status = JOB_STAT_PEND;
-    job->submit_time = (time_t)ws->submit_time;
+    job->submit_time = time(NULL);
     job->pend_sig = 0;
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
     job->num_cpus  = ws->num_cpus;
@@ -187,7 +187,6 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "FLAGS=%u\n", ws->flags);
     fprintf(fp, "BEGIN_TIME=%ld\n", ws->begin_time);
     fprintf(fp, "TERM_TIME=%ld\n", ws->term_time);
-    fprintf(fp, "SUBMIT_TIME=%ld\n", ws->submit_time);
     fprintf(fp, "DEPEND_COND=%s\n", ws->depend_cond);
     fprintf(fp, "MACHINES=%s\n", ws->machines);
     fprintf(fp, "GPU_TYPE=%s\n", ws->gpu_type);

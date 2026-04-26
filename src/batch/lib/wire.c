@@ -136,8 +136,6 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_int64_t(xdrs, &s->term_time))
         return false;
-    if (!xdr_int64_t(xdrs, &s->submit_time))
-        return false;
     if (!xdr_int64_t(xdrs, &s->susp_time))
         return false;
     if (!xdr_int64_t(xdrs, &s->resume_time))

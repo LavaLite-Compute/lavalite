@@ -107,7 +107,6 @@ struct wire_job_submit {
 
     int64_t begin_time;
     int64_t term_time;
-    int64_t submit_time;
     int64_t susp_time;
     int64_t resume_time;
 };

@@ -43,7 +43,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.uid         = (uid_t)ws->uid;
     e.gid         = (gid_t)ws->gid;
     e.status      = job->status;
-    e.submit_time = (time_t)ws->submit_time;
+    e.submit_time = job->submit_time;
     e.begin_time  = (time_t)ws->begin_time;
     e.term_time   = (time_t)ws->term_time;
     e.num_cpu     = ws->num_cpus;
@@ -535,7 +535,7 @@ int events_init(void)
     }
     LS_INFO("working dir initialized %s", dir);
 
-    n = snprintf(events_path, sizeof(events_path), "%s/job.events", dir);
+    n = snprintf(events_path, sizeof(events_path), "%s/sysevents", dir);
     if (n < 0 || n >= (int)sizeof(events_path))
         mbd_die(MBD_EXIT_EVENTS);
     LS_INFO("job events initialized %s", events_path);

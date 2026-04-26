@@ -20,7 +20,7 @@ static int finish_pending_job(struct job_data *job, const struct wire_job_sig *w
             (long)job->job_id, ws->sig);
     job->end_time = time(NULL);
     job->status   = JOB_STAT_EXIT;
-    job_set_list(job, &finish_jobs_list, JOB_LIST_FINISH);
+    job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
     event_job_signal(job, ws);
     event_job_finish(job);
     return MBD_OK;

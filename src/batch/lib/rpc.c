@@ -117,3 +117,32 @@ int call_mbd(const void *req, size_t req_len,
     *rep = rcvbuf.data;
     return 0;
 }
+
+const char *batch_op_str(enum batch_lib_op op)
+{
+    static const char *names[] = {
+        [BATCH_JOB_SUBMIT]       = "BATCH_JOB_SUBMIT",
+        [BATCH_JOB_SUBMIT_ACK]   = "BATCH_JOB_SUBMIT_ACK",
+        [BATCH_JOB_SIGNAL]       = "BATCH_JOB_SIGNAL",
+        [BATCH_JOB_SIGNAL_ACK]   = "BATCH_JOB_SIGNAL_ACK",
+        [BATCH_JOB_INFO]         = "BATCH_JOB_INFO",
+        [BATCH_JOB_INFO_ACK]     = "BATCH_JOB_INFO_ACK",
+        [BATCH_HOST_INFO]        = "BATCH_HOST_INFO",
+        [BATCH_HOST_INFO_ACK]    = "BATCH_HOST_INFO_ACK",
+        [BATCH_QUEUE_INFO]       = "BATCH_QUEUE_INFO",
+        [BATCH_QUEUE_INFO_ACK]   = "BATCH_QUEUE_INFO_ACK",
+        [BATCH_GROUP_INFO]       = "BATCH_GROUP_INFO",
+        [BATCH_GROUP_INFO_ACK]   = "BATCH_GROUP_INFO_ACK",
+        [BATCH_SBD_REGISTER]     = "BATCH_SBD_REGISTER",
+        [BATCH_SBD_REGISTER_ACK] = "BATCH_SBD_REGISTER_ACK",
+        [BATCH_COMPACT_DONE]     = "BATCH_COMPACT_DONE",
+        [BATCH_COMPACT_FAILED]   = "BATCH_COMPACT_FAILED",
+        [BATCH_COMPACT_ACK]      = "BATCH_COMPACT_ACK",
+    };
+    static const size_t nnames = sizeof(names) / sizeof(names[0]);
+
+    if ((size_t)op >= nnames || names[op] == NULL)
+        return "UNKNOWN";
+
+    return names[op];
+}

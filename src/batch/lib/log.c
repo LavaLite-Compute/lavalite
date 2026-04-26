@@ -14,17 +14,17 @@
 #include "batch/lib/log.h"
 
 static const char *event_names[] = {
-    [EVENT_NULL]         = "NULL",
-    [EVENT_JOB_NEW]      = "JOB_NEW",
-    [EVENT_JOB_START]    = "JOB_START",
-    [EVENT_JOB_ACCEPT]   = "JOB_ACCEPT",
-    [EVENT_JOB_EXECUTE]  = "JOB_EXECUTE",
-    [EVENT_JOB_SIGNAL]   = "JOB_SIGNAL",
-    [EVENT_JOB_FINISH]   = "JOB_FINISH",
+    [EVENT_NULL]            = "NULL",
+    [EVENT_JOB_NEW]         = "JOB_NEW",
+    [EVENT_JOB_START]       = "JOB_START",
+    [EVENT_JOB_ACCEPT]      = "JOB_ACCEPT",
+    [EVENT_JOB_EXECUTE]     = "JOB_EXECUTE",
+    [EVENT_JOB_SIGNAL]      = "JOB_SIGNAL",
+    [EVENT_JOB_FINISH]      = "JOB_FINISH",
     [EVENT_JOB_PEND_SUSP]   = "JOB_PEND_SUSP",
     [EVENT_JOB_PEND_RESUME] = "JOB_PEND_RESUME",
-    [EVENT_JOB_SUSP]     = "JOB_SUSP",
-    [EVENT_COUNT]        = NULL,
+    [EVENT_JOB_SUSP]        = "JOB_SUSP",
+    [EVENT_COUNT]           = NULL,
 };
 
 _Static_assert(
@@ -36,10 +36,10 @@ _Static_assert(
  * helpers
  * ----------------------------------------------------------------------- */
 
-static int write_hdr(FILE *fp, enum event_type type)
+static int write_hdr(FILE *fp, enum event_type type, time_t t)
 {
     if (fprintf(fp, "%s %d %ld", event_names[type], LOG_VERSION,
-                (long)time(NULL)) < 0)
+                (long)t) < 0)
         return -1;
     return 0;
 }
@@ -105,9 +105,9 @@ int log_read_hdr(FILE *fp, int *lineno, struct event_rec *rec)
     if (sscanf(line, "%63s %d %ld%n", etype, &ver, &ts, &cc) != 3)
         return -1;
 
-    rec->version = ver;
+    rec->version    = ver;
     rec->event_time = (time_t)ts;
-    rec->type = parse_event_type(etype);
+    rec->type       = parse_event_type(etype);
 
     ll_strlcpy(rec->rest, line + cc, sizeof(rec->rest));
 
@@ -120,7 +120,7 @@ int log_read_hdr(FILE *fp, int *lineno, struct event_rec *rec)
 
 int log_write_job_new(FILE *fp, const struct log_job_new *j)
 {
-    if (write_hdr(fp, EVENT_JOB_NEW) < 0)
+    if (write_hdr(fp, EVENT_JOB_NEW, j->submit_time) < 0)
         return -1;
     if (fprintf(fp, " %ld %u %u %d %ld %ld %ld %d %d %d %lu %u",
                 (long)j->job_id,
@@ -194,7 +194,7 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
 
 int log_write_job_start(FILE *fp, const struct log_job_start *j)
 {
-    if (write_hdr(fp, EVENT_JOB_START) < 0)
+    if (write_hdr(fp, EVENT_JOB_START, j->start_time) < 0)
         return -1;
     if (fprintf(fp, " %ld", (long)j->job_id) < 0)
         return -1;
@@ -217,6 +217,8 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
     if (read_qstr(&p, j->exec_host, sizeof(j->exec_host)) < 0)
         return -1;
 
+    j->start_time = rec->event_time;
+
     return 0;
 }
 
@@ -226,7 +228,7 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
 
 int log_write_job_accept(FILE *fp, const struct log_job_accept *j)
 {
-    if (write_hdr(fp, EVENT_JOB_ACCEPT) < 0)
+    if (write_hdr(fp, EVENT_JOB_ACCEPT, j->accept_time) < 0)
         return -1;
     if (fprintf(fp, " %ld %d\n", (long)j->job_id, j->job_pid) < 0)
         return -1;
@@ -238,6 +240,9 @@ int log_parse_job_accept(const struct event_rec *rec, struct log_job_accept *j)
     int n = sscanf(rec->rest, " %ld %d", &j->job_id, &j->job_pid);
     if (n != 2)
         return -1;
+
+    j->accept_time = rec->event_time;
+
     return 0;
 }
 
@@ -247,7 +252,7 @@ int log_parse_job_accept(const struct event_rec *rec, struct log_job_accept *j)
 
 int log_write_job_execute(FILE *fp, const struct log_job_execute *j)
 {
-    if (write_hdr(fp, EVENT_JOB_EXECUTE) < 0)
+    if (write_hdr(fp, EVENT_JOB_EXECUTE, j->execute_time) < 0)
         return -1;
     if (fprintf(fp, " %ld %d", (long)j->job_id, j->job_pid) < 0)
         return -1;
@@ -270,6 +275,8 @@ int log_parse_job_execute(const struct event_rec *rec, struct log_job_execute *j
     if (read_qstr(&p, j->cwd, sizeof(j->cwd)) < 0)
         return -1;
 
+    j->execute_time = rec->event_time;
+
     return 0;
 }
 
@@ -279,30 +286,33 @@ int log_parse_job_execute(const struct event_rec *rec, struct log_job_execute *j
 
 int log_write_job_signal(FILE *fp, const struct log_job_signal *j)
 {
-    if (write_hdr(fp, EVENT_JOB_SIGNAL) < 0)
+    if (write_hdr(fp, EVENT_JOB_SIGNAL, j->signal_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d", (long)j->job_id, j->signal_num) < 0)
+    if (fprintf(fp, " %ld %d %u\n",
+                (long)j->job_id, j->signal_num, j->uid) < 0)
         return -1;
-    if (fprintf(fp, " %u\n", j->uid) < 0)
-        return -1;
-
     return 0;
 }
 
 int log_parse_job_signal(const struct event_rec *rec, struct log_job_signal *j)
 {
-    int n = sscanf(rec->rest, " %ld %d %u", &j->job_id, &j->signal_num, &j->uid);
+    int n = sscanf(rec->rest, " %ld %d %u",
+                   &j->job_id, &j->signal_num, &j->uid);
     if (n != 3)
         return -1;
+
+    j->signal_time = rec->event_time;
+
     return 0;
 }
 
 /* -----------------------------------------------------------------------
  * JOB_FINISH
  * ----------------------------------------------------------------------- */
+
 int log_write_job_finish(FILE *fp, const struct log_job_finish *j)
 {
-    if (write_hdr(fp, EVENT_JOB_FINISH) < 0)
+    if (write_hdr(fp, EVENT_JOB_FINISH, j->end_time) < 0)
         return -1;
     if (fprintf(fp, " %ld %u %d %d %ld %ld %ld %.4f",
                 (long)j->job_id, (unsigned)j->uid,
@@ -335,6 +345,7 @@ int log_parse_job_finish(const struct event_rec *rec, struct log_job_finish *j)
     if (n != 8)
         return -1;
     p += cc;
+
     if (read_qstr(&p, j->job_name,  sizeof(j->job_name)) < 0)
         return -1;
     if (read_qstr(&p, j->queue,     sizeof(j->queue)) < 0)
@@ -343,31 +354,17 @@ int log_parse_job_finish(const struct event_rec *rec, struct log_job_finish *j)
         return -1;
     if (read_qstr(&p, j->exec_host, sizeof(j->exec_host)) < 0)
         return -1;
+
     return 0;
 }
+
+/* -----------------------------------------------------------------------
+ * JOB_PEND_SUSP / JOB_PEND_RESUME / JOB_SUSP
+ * ----------------------------------------------------------------------- */
 
 int log_write_job_pend_susp(FILE *fp, const struct log_job_pend_susp *j)
 {
-    if (write_hdr(fp, EVENT_JOB_PEND_SUSP) < 0)
-        return -1;
-    if (fprintf(fp, " %ld\n", (long)j->job_id) < 0)
-        return -1;
-    return 0;
-}
-
-int log_write_job_pend_resume(FILE *fp,
-                              const struct log_job_pend_resume *j)
-{
-    if (write_hdr(fp, EVENT_JOB_PEND_RESUME) < 0)
-        return -1;
-    if (fprintf(fp, " %ld\n", (long)j->job_id) < 0)
-        return -1;
-    return 0;
-}
-
-int log_write_job_susp(FILE *fp, const struct log_job_susp *j)
-{
-    if (write_hdr(fp, EVENT_JOB_SUSP) < 0)
+    if (write_hdr(fp, EVENT_JOB_PEND_SUSP, j->event_time) < 0)
         return -1;
     if (fprintf(fp, " %ld\n", (long)j->job_id) < 0)
         return -1;
@@ -380,6 +377,18 @@ int log_parse_job_pend_susp(const struct event_rec *rec,
     int n = sscanf(rec->rest, " %ld", &j->job_id);
     if (n != 1)
         return -1;
+
+    j->event_time = rec->event_time;
+
+    return 0;
+}
+
+int log_write_job_pend_resume(FILE *fp, const struct log_job_pend_resume *j)
+{
+    if (write_hdr(fp, EVENT_JOB_PEND_RESUME, j->event_time) < 0)
+        return -1;
+    if (fprintf(fp, " %ld\n", (long)j->job_id) < 0)
+        return -1;
     return 0;
 }
 
@@ -389,6 +398,18 @@ int log_parse_job_pend_resume(const struct event_rec *rec,
     int n = sscanf(rec->rest, " %ld", &j->job_id);
     if (n != 1)
         return -1;
+
+    j->event_time = rec->event_time;
+
+    return 0;
+}
+
+int log_write_job_susp(FILE *fp, const struct log_job_susp *j)
+{
+    if (write_hdr(fp, EVENT_JOB_SUSP, j->event_time) < 0)
+        return -1;
+    if (fprintf(fp, " %ld\n", (long)j->job_id) < 0)
+        return -1;
     return 0;
 }
 
@@ -397,5 +418,8 @@ int log_parse_job_susp(const struct event_rec *rec, struct log_job_susp *j)
     int n = sscanf(rec->rest, " %ld", &j->job_id);
     if (n != 1)
         return -1;
+
+    j->event_time = rec->event_time;
+
     return 0;
 }
