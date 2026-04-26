@@ -163,11 +163,11 @@ struct log_job_susp {
 };
 
 /*
- * Read the record header from one line. Skips comments and blank lines.
+ * Read the record header from one line.
  * The unparsed payload tail is stored in rec->rest.
  * Returns 0 on success, -1 on EOF or parse error.
  */
-int log_read_hdr(FILE *, int *lineno, struct event_rec *);
+int log_read_hdr(FILE *, struct event_rec *);
 
 /* Payload parsers -- operate on rec->rest from log_read_hdr */
 int log_parse_job_new(const struct event_rec *, struct log_job_new *);

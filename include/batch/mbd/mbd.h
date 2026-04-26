@@ -64,6 +64,7 @@ struct job_data {
     time_t requeue_time;
     time_t begin_time;
     time_t term_time;
+    time_t signal_time;
     struct mbd_queue *queue;
     char project[LL_BUFSIZ_256];
     char gpu_type[LL_BUFSIZ_256];

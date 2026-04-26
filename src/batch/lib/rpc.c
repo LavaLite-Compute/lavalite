@@ -108,6 +108,7 @@ int call_mbd(const void *req, size_t req_len,
     }
 
     if (reply_hdr->status != MBD_OK) {
+        errno = reply_hdr->status;
         free(rcvbuf.data);
         chan_close(chan_mbd);
         chan_mbd = -1;

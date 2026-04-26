@@ -133,7 +133,8 @@ int main(int argc, char **argv)
         }
 
         if (llb_signal_job(jobid, sig) < 0) {
-            fprintf(stderr, "failed to signal job <%ld>\n", (long)jobid);
+            fprintf(stderr, "bkill: failed to signal job <%ld>: %m\n",
+                    (long)jobid);
             continue;
         }
 

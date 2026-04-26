@@ -128,6 +128,7 @@ void event_job_signal(const struct job_data *job, const struct wire_job_sig *ws)
     memset(&e, 0, sizeof(e));
 
     e.job_id = job->job_id;
+    e.signal_time = job->signal_time;
     e.signal_num = ws->sig;
     e.uid = ws->uid;
 
@@ -363,13 +364,14 @@ static void replay_job_signal(const struct event_rec *rec)
         LS_ERR("parse JOB_SIGNAL failed");
         return;
     }
-    LS_DEBUG("JOB_SIGNAL job_id=%ld sig=%d uid=%u",
-             e.job_id, e.signal_num, e.uid);
+    LS_DEBUG("JOB_SIGNAL job_id=%ld sig=%d uid=%u at=%s",
+             e.job_id, e.signal_num, e.uid, ctime2(&e.signal_time));
 }
 
 static void replay_job_finish(const struct event_rec *rec)
 {
     struct log_job_finish e;
+    memset(&e, 0, sizeof(struct log_job_finish));
     if (log_parse_job_finish(rec, &e) < 0) {
         LS_ERR("parse JOB_FINISH failed");
         return;
@@ -379,10 +381,15 @@ static void replay_job_finish(const struct event_rec *rec)
         LS_ERRX("JOB_FINISH job_id=%ld not found", e.job_id);
         return;
     }
-    job->status = e.status;
+
+    job->status       = e.status;
     job->exit_status  = e.exit_status;
+    job->uid          = e.uid;
+    job->submit_time  = e.submit_time;
+    job->start_time   = e.start_time;
     job->end_time     = e.end_time;
     job->res.cpu_time = e.cpu_time;
+
     struct ll_list *from = &pend_jobs_list;
     if (job->list_id == JOB_LIST_RUN)
         from = &run_jobs_list;
@@ -469,11 +476,11 @@ int jobs_replay(void)
     int64_t max_id = 0;
 
     for (;;) {
+        ++lineno;
         struct event_rec rec;
         memset(&rec, 0, sizeof(struct event_rec));
-        if (log_read_hdr(fp, &lineno, &rec) < 0)
+        if (log_read_hdr(fp, &rec) < 0)
             break;
-
         if (rec.type == EVENT_JOB_NEW) {
             restored += replay_job_new(&rec, &max_id);
             continue;
@@ -510,6 +517,12 @@ int jobs_replay(void)
             replay_job_susp(&rec);
             continue;
         }
+    }
+
+    if (ferror(fp)) {
+        fclose(fp);
+        LS_ERR("I/O error reading job events=%s line=%d", events_path, lineno);
+        mbd_die(MBD_EXIT_EVENTS);
     }
 
     fclose(fp);

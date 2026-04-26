@@ -86,17 +86,12 @@ static enum event_type parse_event_type(const char *name)
  * header
  * ----------------------------------------------------------------------- */
 
-int log_read_hdr(FILE *fp, int *lineno, struct event_rec *rec)
+int log_read_hdr(FILE *fp, struct event_rec *rec)
 {
     char line[LL_BUFSIZ_4K];
 
-    for (;;) {
-        if (fgets(line, sizeof(line), fp) == NULL)
-            return -1;
-        (*lineno)++;
-        if (line[0] != '#' && line[0] != '\n')
-            break;
-    }
+    if (fgets(line, sizeof(line), fp) == NULL)
+        return -1;
 
     char etype[LL_BUFSIZ_64];
     int ver;

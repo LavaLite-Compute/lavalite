@@ -6,6 +6,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "batch/lib/wire.h"
 #include "batch/mbd/mbd.h"
@@ -18,11 +19,12 @@ static int finish_pending_job(struct job_data *job, const struct wire_job_sig *w
 {
     LS_INFO("finish_pending_job: job_id=%ld sig=%d -> EXIT",
             (long)job->job_id, ws->sig);
-    job->end_time = time(NULL);
-    job->status   = JOB_STAT_EXIT;
-    job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+    job->signal_time = job->end_time = time(NULL);
+    job->status = JOB_STAT_EXIT;
     event_job_signal(job, ws);
     event_job_finish(job);
+    job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+
     return MBD_OK;
 }
 
@@ -31,6 +33,7 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
     if (job->status & JOB_STAT_PSUSP)
         return MBD_OK;
     job->status = JOB_STAT_PSUSP;
+    job->signal_time = time(NULL);
     LS_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP",
             (long)job->job_id, ws->sig);
     event_job_signal(job, ws);
@@ -43,6 +46,7 @@ static int resume_pending_job(struct job_data *job, const struct wire_job_sig *w
     if (!(job->status & JOB_STAT_PSUSP))
         return MBD_OK;
     job->status = JOB_STAT_PEND;
+    job->signal_time = time(NULL);
     LS_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND",
             (long)job->job_id, ws->sig);
     event_job_signal(job, ws);
@@ -77,6 +81,30 @@ static int signal_running_job(struct job_data *job, const struct wire_job_sig *w
     return MBD_OK;
 }
 
+static void signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
+{
+    struct ll_list_entry *e;
+    struct ll_list_entry *next;
+    struct job_data *job;
+
+    for (e = pend_jobs_list.head; e != NULL; e = next) {
+        next = e->next;
+        job = (struct job_data *)e;
+        assert(job->status & (JOB_STAT_PEND | JOB_STAT_PSUSP));
+        if (job->uid != uid)
+            continue;
+        signal_pending_job(job, req);
+    }
+    for (e = run_jobs_list.head; e != NULL; e = next) {
+        next = e->next;
+        job = (struct job_data *)e;
+        assert(job->status & (JOB_STAT_RUN | JOB_STAT_SUSP));
+        if (job->uid != uid)
+            continue;
+        signal_running_job(job, req);
+    }
+}
+
 int job_signal(XDR *xdrs, int chan_id)
 {
     struct wire_job_sig req;
@@ -88,6 +116,11 @@ int job_signal(XDR *xdrs, int chan_id)
 
     LS_DEBUG("job_id=%ld by uid=%u sig=%d chan_id=%d",
              (long)req.job_id, req.uid, req.sig, chan_id);
+
+    if (req.job_id == 0) {
+        signal_all_jobs(req.uid, &req);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+    }
 
     struct job_data *job = job_find(req.job_id);
     if (job == NULL) {
