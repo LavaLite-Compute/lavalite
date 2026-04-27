@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "base/lib/auth.h"
 #include "batch/lib/wire.h"
 #include "batch/lib/rpc.h"
 #include "base/lib/ll.conf.h"
@@ -72,6 +73,15 @@ static void route(int chan_id)
     /* validate opcode and version early */
     if (!valid_batch_op(hdr.operation)) {
         LS_ERR("invalid opcode=%d from=%s", hdr.operation, chan_addr_str(chan_id));
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    if (auth_verify_header(&hdr) < 0) {
+        LS_ERR("failed validate header opcode=%s from=%s",
+               batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);

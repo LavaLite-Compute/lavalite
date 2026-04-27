@@ -135,19 +135,19 @@ int auth_verify_header(const struct protocol_header *hdr)
     if (auth_load_key() < 0)
         return -1;
 
-    uint32_t now = (uint32_t)time(NULL);
-    uint32_t age = now - hdr->timestamp;
-    if (age > AUTH_MAX_AGE) {
-        errno = ETIMEDOUT;
-        return -1;
-    }
-
     uint8_t expected[AUTH_KEY_SIZE];
     if (compute_hmac(hdr, expected) < 0)
         return -1;
 
     if (memcmp(expected, hdr->hmac, AUTH_KEY_SIZE) != 0) {
         errno = EACCES;
+        return -1;
+    }
+
+    uint32_t now = (uint32_t)time(NULL);
+    uint32_t age = now - hdr->timestamp;
+    if (age > AUTH_MAX_AGE) {
+        errno = ETIMEDOUT;
         return -1;
     }
 

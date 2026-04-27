@@ -213,13 +213,13 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
     hdr.operation = BATCH_JOB_SIGNAL;
     hdr.status    = MBD_OK;
 
-    XDR xdrs;
-    xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);
     if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
         free(buf);
         return -1;
     }
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *)&req,
                        xdr_wire_job_sig, &hdr)) {
         xdr_destroy(&xdrs);
@@ -359,14 +359,14 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
     req.flags  = flags;
     req.uid = (uint32_t)getuid();
 
-    XDR xdrs;
-    xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);
     if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
         return NULL;
     }
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);
     if (!ll_encode_msg(&xdrs, (char *)&req,
                        xdr_wire_job_info_req, &hdr)) {
         xdr_destroy(&xdrs);

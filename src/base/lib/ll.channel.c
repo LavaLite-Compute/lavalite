@@ -17,7 +17,7 @@
 #include "base/lib/ll.protocol.h"
 #include "base/lib/ll.list.h"
 #include "base/lib/ll.channel.h"
-#include "base/lib/auth.h"
+#include "base/lib/ll.bufsiz.h"
 
 struct chan_data channels[CHAN_MAX];
 
@@ -88,6 +88,11 @@ static void doread(struct chan_data *chan)
                 return;
             }
             xdr_destroy(&xdrs);
+
+            if (hdr.length > LL_MAX_PACKET_SIZE) {
+                chan->chan_events = CHAN_EPOLLERR;
+                return;
+            }
 
             if (hdr.length > 0) {
                 char *payload = realloc(rcvbuf->data,
@@ -483,6 +488,11 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
     if (rcv->len == 0)
         return 0;
 
+    if (hdr->length > LL_MAX_PACKET_SIZE) {
+        errno = EPERM;
+        return -1;
+    }
+
     if ((rcv->data = calloc(rcv->len, sizeof(char))) == NULL)
         return -1;
 
@@ -702,9 +712,6 @@ int send_protocol_header(int ch_id, struct protocol_header *hdr)
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
 
-    if (auth_sign_header(hdr) < 0)
-        return -1;
-
     xdrmem_create(&xdrs, buf, PACKET_HEADER_SIZE, XDR_ENCODE);
     if (!xdr_pack_hdr(&xdrs, hdr)) {
         xdr_destroy(&xdrs);
@@ -732,9 +739,6 @@ int recv_protocol_header(int ch_id, struct protocol_header *hdr)
         return -1;
     }
     xdr_destroy(&xdrs);
-
-    if (auth_verify_header(hdr) < 0)
-        return -1;
 
     return 0;
 }
