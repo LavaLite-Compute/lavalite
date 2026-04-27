@@ -28,6 +28,8 @@ enum ll_params {
     LL_MBD_USER,
     LL_STATE_DIR,
     LL_DEFAULT_QUEUE,
+    // auth
+    LL_AUTH_MAX_AGE,
     // Debug
     LL_API_CONNTIMEOUT,
     LL_API_RECVTIMEOUT,

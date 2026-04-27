@@ -4,6 +4,7 @@
 
 AM_CFLAGS = -Wall -Wextra -Wmissing-prototypes \
     -g -O0 -Wformat=2 -Werror
+AM_CFLAGS += $(OPENSSL_CFLAGS)
 
 # Include headers
 AM_CPPFLAGS = \
@@ -11,3 +12,4 @@ AM_CPPFLAGS = \
   -I$(top_srcdir)/include \
   -I$(top_builddir) \
   $(TIRPC_CFLAGS)
+

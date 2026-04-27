@@ -26,6 +26,7 @@ struct ll_kv ll_params[PARAMS_COUNT] = {
     [LL_MBD_USER]         = {"LL_MBD_USER", "lavalite"},
     [LL_STATE_DIR]        = {"LL_STATE_DIR", NULL},
     [LL_DEFAULT_QUEUE]    = {"LL_DEFAULT_QUEUE", NULL},
+    [LL_AUTH_MAX_AGE]     = {"LL_AUTH_MAX_AGE", "60"},
     [LL_API_CONNTIMEOUT]  = {"LL_API_CONNTIMEOUT", "3"},
     [LL_API_RECVTIMEOUT]  = {"LL_API_RECVTIMEOUT", "5"},
     [LL_SBD_CONNTIMEOUT]  = {"LL_SBD_CONNTIMEOUT", NULL},

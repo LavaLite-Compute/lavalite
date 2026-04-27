@@ -104,7 +104,7 @@ AC_CONFIG_FILES([
   src/eauth/Makefile
 ])
 
-dnl ---- LSF module ----
+dnl ---- base module ----
 AC_CONFIG_FILES([
   src/base/Makefile
   src/base/lib/Makefile
@@ -113,7 +113,7 @@ AC_CONFIG_FILES([
   src/base/pylib/Makefile
 ])
 
-dnl ---- LSBATCH module ----
+dnl ---- batch module ----
 AC_CONFIG_FILES([
   src/batch/Makefile
   src/batch/lib/Makefile

@@ -6,7 +6,7 @@
 include $(top_srcdir)/Make.common
 COMMON_LIBS = ../lib/libllbase.a
 
-LDADD = $(COMMON_LIBS)
+LDADD = $(COMMON_LIBS) -lm $(OPENSSL_LIBS)
 
 bin_PROGRAMS = lshosts lsid lsload lsclusterinfo
 

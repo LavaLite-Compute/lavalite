@@ -17,6 +17,7 @@
 #include "base/lib/ll.protocol.h"
 #include "base/lib/ll.list.h"
 #include "base/lib/ll.channel.h"
+#include "base/lib/auth.h"
 
 struct chan_data channels[CHAN_MAX];
 
@@ -713,6 +714,9 @@ int send_protocol_header(int ch_id, struct protocol_header *hdr)
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
 
+    if (auth_sign_header(hdr) < 0)
+        return -1;
+
     xdrmem_create(&xdrs, buf, PACKET_HEADER_SIZE, XDR_ENCODE);
     if (!xdr_pack_hdr(&xdrs, hdr)) {
         xdr_destroy(&xdrs);
@@ -734,12 +738,15 @@ int recv_protocol_header(int ch_id, struct protocol_header *hdr)
     if (chan_read(ch_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
         return -1;
 
-    xdrmem_create(&xdrs, (char *) buf, PACKET_HEADER_SIZE, XDR_DECODE);
+    xdrmem_create(&xdrs, (char *)buf, PACKET_HEADER_SIZE, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, hdr)) {
         xdr_destroy(&xdrs);
         return -1;
     }
     xdr_destroy(&xdrs);
+
+    if (auth_verify_header(hdr) < 0)
+        return -1;
 
     return 0;
 }

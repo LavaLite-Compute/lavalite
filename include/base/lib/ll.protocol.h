@@ -25,7 +25,7 @@
  *
  * Update this when you bump the version in AC_INIT.
  */
-#define PROTOCOL_VERSION 0x00010000
+#define PROTOCOL_VERSION 0x00020000
 #define CURRENT_PROTOCOL_VERSION PROTOCOL_VERSION
 
 // For the  wire take this liberty
@@ -33,11 +33,15 @@
 #define false 0
 
 struct protocol_header {
-    int32_t sequence;  // request/response correlation
-    int32_t operation; // message type / opcode
-    int32_t version;   // e.g. 0x00010000
-    int32_t length;    // payload bytes
-    int32_t status;   // 0 ok, <0 error
+    int32_t  sequence;   /* request/response correlation */
+    int32_t  operation;  /* message type / opcode */
+    int32_t  version;    /* e.g. 0x00020000 */
+    int32_t  length;     /* payload bytes */
+    int32_t  status;     /* 0 ok, errno on error */
+    uint32_t uid;        /* caller uid */
+    uint32_t gid;        /* caller gid */
+    uint32_t timestamp;  /* unix time, replay protection */
+    uint8_t  hmac[32];   /* HMAC-SHA256 over header with hmac zeroed */
 };
 
 static const int32_t PACKET_HEADER_SIZE = sizeof(struct protocol_header);

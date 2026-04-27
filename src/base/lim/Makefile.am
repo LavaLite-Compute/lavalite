@@ -3,7 +3,7 @@
 
 include $(top_srcdir)/Make.common
 
-COMMON_LIBS = ../lib/libllbase.a
+COMMON_LIBS = ../lib/libllbase.a -lm $(OPENSSL_LIBS)
 LDADD = $(COMMON_LIBS)
 
 sbin_PROGRAMS = lim

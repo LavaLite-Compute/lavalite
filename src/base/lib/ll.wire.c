@@ -77,6 +77,14 @@ bool_t xdr_pack_hdr(XDR *xdrs, struct protocol_header *hdr)
         return false;
     if (!xdr_int32_t(xdrs, &hdr->status))
         return false;
+    if (!xdr_uint32_t(xdrs, &hdr->uid))
+        return false;
+    if (!xdr_uint32_t(xdrs, &hdr->gid))
+        return false;
+    if (!xdr_uint32_t(xdrs, &hdr->timestamp))
+        return false;
+    if (!xdr_opaque(xdrs, (char *)hdr->hmac, sizeof(hdr->hmac)))
+        return false;
     return true;
 }
 
