@@ -99,11 +99,6 @@ AC_CONFIG_FILES([
   src/Makefile
 ])
 
-dnl ---- External Authentication ----
-AC_CONFIG_FILES([
-  src/eauth/Makefile
-])
-
 dnl ---- base module ----
 AC_CONFIG_FILES([
   src/base/Makefile
