@@ -3,7 +3,10 @@
  */
 #pragma once
 
+#include <netinet/in.h>
 #include <sys/epoll.h>
+
+#include "base/lib/ll.protocol.h"
 #include "base/lib/ll.list.h"
 
 #define CHAN_MAX 10204

@@ -475,7 +475,7 @@ int conf_init(void)
     int n;
 
     if (ll_init() < 0) {
-        LS_ERRX("conf_init: ll_init failed");
+        LS_ERRX("ll_init failed");
         return -1;
     }
 

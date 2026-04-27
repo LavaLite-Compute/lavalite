@@ -14,8 +14,10 @@
 
 #include "base/lib/ll.syslog.h"
 #include "base/lib/ll.conf.h"
-#include "batch/mbd/mbd.h"
 #include "base/lib/ll.channel.h"
+#include "base/lib/auth.h"
+
+#include "batch/mbd/mbd.h"
 
 struct ll_list host_list;
 struct ll_hash host_name_hash;
@@ -53,8 +55,13 @@ static const char *mbd_exit_str(enum mbd_exit e)
     return "unknown";
 }
 
-static int init_mbd(void)
+static int mbd_init(void)
 {
+    if (auth_load_key() < 0) {
+        LS_ERRX("auth_load_key failed");
+        return -1;
+    }
+
     ll_list_init(&host_list);
     ll_hash_init(&host_name_hash, 1021);
     ll_hash_init(&host_addr_hash, 1021);
@@ -153,8 +160,8 @@ int main(int argc, char **argv)
 
     check_not_root();
 
-    if (init_mbd() < 0) {
-        LS_ERRX("init_mbd failed. cannot run");
+    if (mbd_init() < 0) {
+        LS_ERRX("mbd_init failed. cannot run");
         return -1;
     }
 

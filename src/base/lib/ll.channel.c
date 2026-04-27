@@ -465,18 +465,6 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
     if (chan_write(ch_id, snd->data, snd->len) != snd->len)
         return -1;
 
-    // If there is a chained payload buffer, send it too
-    if (snd->link.next != NULL) {
-        struct chan_buffer *payload = (struct chan_buffer *) snd->link.next;
-        int nlen = htonl(payload->len);
-
-        if (chan_write(ch_id, &nlen, sizeof(int)) != sizeof(int))
-            return -1;
-
-        if (chan_write(ch_id, payload->data, payload->len) != payload->len)
-            return -1;
-    }
-
     int cc = rd_poll(channels[ch_id].sock, timeout * 1000);
     if (cc < 0)
         return -1;

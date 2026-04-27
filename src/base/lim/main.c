@@ -2,6 +2,7 @@
 // Copyright (C) LavaLite Contributors
 // GPL v2
 
+#include "base/lib/auth.h"
 #include "base/lim/lim.h"
 
 int udp_chan = -1;
@@ -126,6 +127,8 @@ static void croak_handler(int sig)
 
 static int lim_init(const char *conf_dir)
 {
+    auth_set_required(0);
+
     ll_list_init(&node_list);
     ll_hash_init(&node_name_hash, 1021);
     ll_hash_init(&node_addr_hash, 1021);

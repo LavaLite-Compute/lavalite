@@ -16,6 +16,7 @@
 
 static uint8_t auth_key[AUTH_KEY_SIZE];
 static int auth_key_loaded = 0;
+static int auth_required = 1;
 
 static const char *key_path(void)
 {
@@ -28,6 +29,11 @@ static const char *key_path(void)
     static char path[512];
     snprintf(path, sizeof(path), "%s/auth.key", dir);
     return path;
+}
+
+void auth_set_required(int required)
+{
+    auth_required = required;
 }
 
 int auth_load_key(void)
@@ -93,6 +99,7 @@ static int compute_hmac(const struct protocol_header *hdr,
 
     memcpy(&tmp, hdr, sizeof(tmp));
     memset(tmp.hmac, 0, sizeof(tmp.hmac));
+    tmp.length = 0;
 
     uint8_t *digest = HMAC(EVP_sha256(),
                            auth_key, AUTH_KEY_SIZE,
@@ -112,8 +119,8 @@ int auth_sign_header(struct protocol_header *hdr)
     if (auth_load_key() < 0)
         return -1;
 
-    hdr->uid       = (uint32_t)getuid();
-    hdr->gid       = (uint32_t)getgid();
+    hdr->uid = (uint32_t)getuid();
+    hdr->gid = (uint32_t)getgid();
     hdr->timestamp = (uint32_t)time(NULL);
     memset(hdr->hmac, 0, sizeof(hdr->hmac));
 
@@ -122,6 +129,9 @@ int auth_sign_header(struct protocol_header *hdr)
 
 int auth_verify_header(const struct protocol_header *hdr)
 {
+    if (!auth_required)
+        return 0;
+
     if (auth_load_key() < 0)
         return -1;
 

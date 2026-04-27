@@ -12,6 +12,7 @@
 
 #include "base/lib/ll.protocol.h"
 #include "base/lib/ll.sys.h"
+#include "base/lib/auth.h"
 #include "batch/lib/rpc.h"
 #include "batch/lib/wire.h"
 
@@ -31,7 +32,11 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_QUEUE_INFO;
 
-    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        return NULL;
+    }
+    if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
     }
@@ -123,7 +128,11 @@ struct host_group *llb_group_info(int32_t *ngroups)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_GROUP_INFO;
 
-    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        return NULL;
+    }
+    if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
     }
@@ -206,6 +215,11 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        free(buf);
+        return -1;
+    }
     if (!ll_encode_msg(&xdrs, (char *)&req,
                        xdr_wire_job_sig, &hdr)) {
         xdr_destroy(&xdrs);
@@ -246,7 +260,11 @@ struct host_info *llb_host_info(int32_t *nhosts)
     init_protocol_header(&hdr);
     hdr.operation = BATCH_HOST_INFO;
 
-    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        return NULL;
+    }
+    if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
         xdr_destroy(&xdrs);
         return NULL;
     }
@@ -343,6 +361,12 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t)bufsz, XDR_ENCODE);
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        free(buf);
+        errno = EPROTO;
+        return NULL;
+    }
     if (!ll_encode_msg(&xdrs, (char *)&req,
                        xdr_wire_job_info_req, &hdr)) {
         xdr_destroy(&xdrs);
