@@ -27,7 +27,7 @@ static const char *key_path(void)
     }
 
     static char path[512];
-    snprintf(path, sizeof(path), "%s/auth.key", dir);
+    snprintf(path, sizeof(path), "%s/ll.auth.key", dir);
     return path;
 }
 

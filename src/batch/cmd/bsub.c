@@ -29,7 +29,7 @@ static void usage(FILE *f)
         "  --comment text     User comment, ignored by scheduler\n"
         "\n"
         "Resources:\n"
-        "  --cpus   n         number of CPU slots to reserve (default: 1)\n"
+        "  --cpus   n         number of CPU per host (default: 1)\n"
         "  --nhosts n         number of execution hosts (default: 1)\n"
         "  --mem    size      Memory per host: n[K|M|G] (cgroup enforced)\n"
         "  --gpus   n         GPUs per host (default: 0)\n"
@@ -60,8 +60,7 @@ static void usage(FILE *f)
  * Parse [h:]m into seconds.
  * Returns seconds >= 0, or -1 on error.
  */
-static int
-parse_hm(const char *arg)
+static int parse_hm(const char *arg)
 {
     char *end;
     const char *p;
@@ -90,8 +89,7 @@ parse_hm(const char *arg)
  * Parse [[day:]hour:]minute into an absolute time_t.
  * At least hour:minute must be given.
  */
-static int
-parse_time_arg(const char *arg, time_t *out)
+static int parse_time_arg(const char *arg, time_t *out)
 {
     int fields[4];
     int nf = 0;
@@ -168,8 +166,7 @@ parse_time_arg(const char *arg, time_t *out)
  * Parse memory string: n[K|M|G] -> MB.
  * Plain integer is MB.
  */
-static int
-parse_mem(const char *arg, uint64_t *out)
+static int parse_mem(const char *arg, uint64_t *out)
 {
     char *end;
     unsigned long long v = strtoull(arg, &end, 10);
@@ -197,8 +194,7 @@ parse_mem(const char *arg, uint64_t *out)
 /*
  * Build the command string from remaining argv.
  */
-static char *
-build_command(int argc, char **argv, int idx)
+static char *build_command(int argc, char **argv, int idx)
 {
     size_t len = 0;
     int i;
@@ -227,8 +223,7 @@ build_command(int argc, char **argv, int idx)
     return cmd;
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     struct job_submit js;
     int64_t job_id;

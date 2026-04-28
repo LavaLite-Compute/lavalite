@@ -38,6 +38,12 @@ worker1     0        CX7        400G    infiniband
 worker1     1        CX7        400G    infiniband
 End Nic
 
+Begin Pool
+POOL_NAME  AVAILABLE
+xyz         10
+uvw         3
+End Pool
+
 #
 # Host groups - hosts grouped by GPU type.
 # A host belongs to exactly one group.

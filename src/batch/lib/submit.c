@@ -26,15 +26,14 @@
 
 static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
 {
-    struct passwd *pw;
-    char hostname[MAXHOSTNAMELEN];
-
-    memset(w, 0, sizeof(*w));
-
     if (js->command == NULL) {
         errno = EINVAL;
         return -1;
     }
+
+    struct passwd *pw;
+    char hostname[MAXHOSTNAMELEN];
+    memset(w, 0, sizeof(*w));
 
     if (js->name != NULL)
         ll_strlcpy(w->name, js->name, sizeof(w->name));
