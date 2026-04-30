@@ -125,7 +125,7 @@ static void route(int chan_id)
             chan_shutdown(chan_id);
         break;
     case BATCH_SBD_REGISTER:
-        if (sbd_register(&xdrs, chan_id) < 0)
+        if (mbd_sbd_register(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_COMPACT_DONE:

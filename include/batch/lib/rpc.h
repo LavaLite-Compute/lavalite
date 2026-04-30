@@ -35,6 +35,16 @@ enum batch_lib_op {
     BATCH_COMPACT_DONE,
     BATCH_COMPACT_FAILED,
     BATCH_COMPACT_ACK,
+
+    // sbd - mbd messages
+    BATCH_NEW_JOB,
+    BATCH_NEW_JOB_ACK,
+    BATCH_JOB_EXECUTE,
+    BATCH_JOB_EXECUTE_ACK,
+    BATCH_JOB_FINISH,
+    BATCH_JOB_FINISH_ACK,
+    // no ack to signal just status change
+    BATCH_SBD_JOB_SIGNAL,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);

@@ -432,17 +432,6 @@ int host_info(XDR *xdrs, int chan_id)
 }
 
 /* -----------------------------------------------------------
- * sbd register
- * ----------------------------------------------------------- */
-int sbd_register(XDR *xdrs, int chan_id)
-{
-    (void)xdrs;
-
-    LS_DEBUG("sbd_register chan_id=%d", chan_id);
-    return 0;
-}
-
-/* -----------------------------------------------------------
  * compact done / failed
  * ----------------------------------------------------------- */
 int compact_done(XDR *xdrs, int chan_id)

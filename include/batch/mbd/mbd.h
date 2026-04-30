@@ -182,9 +182,6 @@ int enqueue_payload(int, struct protocol_header *,
 int32_t enqueue_header(int, int, int);
 void chan_shutdown(int);
 
-// job.c
-
-
 // sched.c
 void schedule(void);
 
@@ -207,7 +204,7 @@ int job_info(XDR *, int);
 int host_info(XDR *, int);
 int queue_info(XDR *, int);
 int host_group_info(XDR *, int);
-int sbd_register(XDR *, int);
+int mbd_sbd_register(XDR *, int);
 int compact_done(XDR *, int);
 
 // job.c
@@ -219,3 +216,7 @@ struct job_data *job_find(int64_t);
 void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
 void job_move_list(struct job_data *, struct ll_list *,
                    struct ll_list *, enum job_list_id);
+
+// sbd.c
+int32_t mbd_sbd_route(struct mbd_host *);
+int mbd_sbd_disconnect(struct mbd_host *);

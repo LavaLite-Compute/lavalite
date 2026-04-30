@@ -173,7 +173,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    LS_INFO("mbatchd uid=%d starting on host=%s timer_sched=%d",
+    LS_INFO("mbd uid=%d starting on host=%s timer_sched=%d",
             getuid(), ll_params[LL_MBD_HOST].val, timer_sched);
 
     for (;;) {
