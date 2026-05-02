@@ -50,6 +50,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.num_hosts   = ws->num_nhosts;
     e.num_gpus    = ws->num_gpus;
     e.mem_mb      = ws->mem_mb;
+    e.storage_mb  = ws->storage_mb;
     e.flags       = ws->flags;
 
     ll_strlcpy(e.username,     ws->username,  sizeof(e.username));
@@ -93,7 +94,7 @@ void event_job_accept(const struct job_data *job)
     memset(&e, 0, sizeof(e));
 
     e.job_id  = job->job_id;
-    e.job_pid = job->res.pid;
+    e.job_pid = job->usage.pid;
 
     FILE *fp = open_events();
     if (log_write_job_accept(fp, &e) < 0) {
@@ -110,7 +111,7 @@ void event_job_execute(const struct job_data *job, const char *cwd)
     memset(&e, 0, sizeof(e));
 
     e.job_id  = job->job_id;
-    e.job_pid = job->res.pid;
+    e.job_pid = job->usage.pid;
     ll_strlcpy(e.cwd, cwd, sizeof(e.cwd));
 
     FILE *fp = open_events();
@@ -153,7 +154,7 @@ void event_job_finish(const struct job_data *job)
     e.submit_time = job->submit_time;
     e.start_time  = job->start_time;
     e.end_time    = job->end_time;
-    e.cpu_time    = job->res.cpu_time;
+    e.cpu_time    = job->usage.cpu_time;
 
     ll_strlcpy(e.job_name,  job->name,       sizeof(e.job_name));
     ll_strlcpy(e.queue,     job->queue->name, sizeof(e.queue));
@@ -246,16 +247,17 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->submit_time = e->submit_time;
     job->begin_time  = e->begin_time;
     job->term_time   = e->term_time;
-    job->num_cpus    = e->num_cpu;
-    job->num_nhosts  = e->num_hosts;
-    job->num_gpus    = e->num_gpus;
-    job->mem_mb      = e->mem_mb;
+    job->res.num_cpus    = e->num_cpu;
+    job->res.num_nhosts  = e->num_hosts;
+    job->res.num_gpus    = e->num_gpus;
+    job->res.mem_mb      = e->mem_mb;
+    job->res.storage_mb = e->storage_mb;
     job->flags       = e->flags;
 
     ll_strlcpy(job->name, e->job_name, sizeof(job->name));
     ll_strlcpy(job->user, e->username, sizeof(job->user));
     ll_strlcpy(job->project, e->project_name, sizeof(job->project));
-    ll_strlcpy(job->gpu_type, e->gpu_type, sizeof(job->gpu_type));
+    ll_strlcpy(job->res.gpu_type, e->gpu_type, sizeof(job->res.gpu_type));
     ll_strlcpy(job->from_host, e->from_host, sizeof(job->from_host));
     ll_strlcpy(job->machines, e->hosts, sizeof(job->machines));
     ll_strlcpy(job->comment, e->comment, sizeof(job->comment));
@@ -340,7 +342,7 @@ static void replay_job_accept(const struct event_rec *rec)
         LS_ERRX("JOB_ACCEPT job_id=%ld not found", e.job_id);
         return;
     }
-    job->res.pid = (pid_t)e.job_pid;
+    job->usage.pid = (pid_t)e.job_pid;
     LS_DEBUG("JOB_ACCEPT job_id=%ld pid=%d", e.job_id, e.job_pid);
 }
 
@@ -388,7 +390,7 @@ static void replay_job_finish(const struct event_rec *rec)
     job->submit_time  = e.submit_time;
     job->start_time   = e.start_time;
     job->end_time     = e.end_time;
-    job->res.cpu_time = e.cpu_time;
+    job->usage.cpu_time = e.cpu_time;
 
     struct ll_list *from = &pend_jobs_list;
     if (job->list_id == JOB_LIST_RUN)

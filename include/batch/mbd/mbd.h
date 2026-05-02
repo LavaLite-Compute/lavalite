@@ -36,9 +36,31 @@ struct mbd_manager {
     gid_t gid;
 };
 
-struct job_res {
-    pid_t    pid;
+/* one pool request, parsed from wire tokenpool string at job_accept time */
+struct job_token {
+    struct ll_list_entry ent;
+    char name[LL_BUFSIZ_64];
+    int  count;
+};
+
+/* what the user requested at submit time */
+struct job_resources {
+    int32_t  num_cpus;
+    int32_t  num_nhosts;
+    int32_t  num_gpus;
+    char     gpu_type[LL_BUFSIZ_256];
     uint64_t mem_mb;
+    uint64_t storage_mb;
+    int32_t  wall_seconds;
+    struct ll_list tokens;
+};
+
+/* what the job actually used, reported by sbd */
+struct job_runtime_usage {
+    pid_t    pid;
+    gid_t    gid;
+    uint64_t mem_mb;
+    uint64_t storage_mb;
     double   cpu_time;
 };
 
@@ -67,37 +89,62 @@ struct job_data {
     time_t signal_time;
     struct mbd_queue *queue;
     char project[LL_BUFSIZ_256];
-    char gpu_type[LL_BUFSIZ_256];
     char machines[LL_BUFSIZ_4K];
     char exec_host[MAXHOSTNAMELEN];
     char name[LL_BUFSIZ_64];
     char comment[LL_BUFSIZ_1K];
     char from_host[MAXHOSTNAMELEN];
-    int num_cpus;
-    int num_nhosts;
-    int num_gpus;
-    uint64_t mem_mb;
     uint32_t flags;
     int pend_sig;
     enum job_list_id list_id;
     struct ll_list deps;
-    struct job_res res;
+    struct job_resources res;    /* requested at submit */
+    struct job_runtime_usage usage;  /* reported by sbd     */
 };
 
-/* runtime state */
+/*
+ * Host resource capacities and current availability.
+ * total_* is configured (llb.hosts), free_* is updated from sbd heartbeat.
+ * used_* is derivable as total - free, computed at display/event time.
+ * total_gpu/free_gpu are aggregates for fast scheduling checks;
+ * gpu_list is walked only when a specific gpu_type is requested.
+ */
+struct host_resources {
+    int      max_jobs;
+    int      total_cpu;
+    int      free_cpu;
+    int      total_gpu;
+    int      free_gpu;
+    uint64_t total_mem_mb;
+    uint64_t free_mem_mb;
+    uint64_t total_storage_mb;
+    uint64_t free_storage_mb;
+    struct ll_list gpu_list;         /* list of mbd_gpu */
+};
+
+/*
+ * One GPU device (or MIG partition) on a host.
+ * count/free track total configured vs available for scheduling.
+ */
+struct mbd_gpu {
+    struct ll_list_entry ent;
+    int  gpu_id;
+    char model[LL_BUFSIZ_64];    /* RTX4090, H100, A100 */
+    char gpu_type[LL_BUFSIZ_64]; /* full, 3g.40gb, 2g.20gb */
+    int  count;                  /* configured */
+    int  free;                   /* available for scheduling */
+};
+
+/* runtime state of a connected execution host */
 struct mbd_host {
     struct ll_list_entry ent;
-    struct ll_host net;    /* resolved network identity */
-    int  max_jobs;       /* configured */
-    int  total_cpu;      /* configured */
-    int  total_gpu;      /* configured */
-    char gpu_type[LL_BUFSIZ_64];     /* empty if no GPU */
-    uint64_t total_mem_mb;   /* configured */
-    int  status;
-    int  num_jobs;
-    int  num_run;
-    int  num_susp;
-    int  sbd_chan;           /* -1 if not connected */
+    struct ll_host        net;   /* resolved network identity */
+    struct host_resources res;   /* capacity + availability + gpu_list */
+    int    status;
+    int    num_jobs;
+    int    num_run;
+    int    num_susp;
+    int    sbd_chan;             /* -1 if not connected */
     time_t last_heard;
 };
 
@@ -105,28 +152,41 @@ struct queue_conf {
     char name[LL_BUFSIZ_64];
     char desc[LL_BUFSIZ_256];
     char hosts[LL_BUFSIZ_64];
+    char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
     int  priority;
-    int status;
+    int  status;
 };
 
 struct mbd_queue {
     struct ll_list_entry ent;
     char    name[LL_BUFSIZ_64];
     char    description[LL_BUFSIZ_256];
-    char    hosts[LL_BUFSIZ_256];    /* host group name */
-    int priority;
-    int max_jobs;
-    int num_pend;
-    int num_run;
-    int num_susp;
-    int status;
+    char    hosts[LL_BUFSIZ_256];   /* host group name */
+    char    users[LL_BUFSIZ_256];   /* space-separated, empty = all */
+    int     priority;
+    int     max_jobs;
+    int     num_pend;
+    int     num_run;
+    int     num_susp;
+    int     status;
 };
 
 struct mbd_group {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
-    int num_members;
-    char members[LL_BUFSIZ_1K];  /* space-separated */
+    int  num_members;
+    char members[LL_BUFSIZ_1K];     /* space-separated */
+};
+
+/*
+ * Named countable resource — jobs consume N tokens on dispatch,
+ * return them on finish. Configured in llb.hosts Begin TokenPool.
+ */
+struct mbd_token_pool {
+    struct ll_list_entry ent;
+    char name[LL_BUFSIZ_64];
+    int  total;
+    int  free;
 };
 
 #define JOB_BUCKETS 10
@@ -147,8 +207,14 @@ extern struct ll_hash sbd_chan_hash;
 extern struct ll_list group_list;
 extern struct ll_hash group_name_hash;
 
+extern struct ll_list token_pool_list;
+extern struct ll_hash token_pool_name_hash;
+
 extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
+
+extern struct ll_list token_pool_list;
+extern struct ll_hash token_pool_name_hash;
 
 extern struct mbd_manager mbd_mgr;
 extern int chan_mbd;
@@ -156,7 +222,7 @@ extern int mbd_efd;
 extern uint16_t mbd_port;
 extern int sched_timer;
 extern int chan_timer;
-extern  char jobs_dir[];
+extern char jobs_dir[];
 
 // main.c
 void mbd_die(enum mbd_exit);
@@ -220,3 +286,6 @@ void job_move_list(struct job_data *, struct ll_list *,
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
+
+// queue.c
+int queue_user_allowed(const struct mbd_queue *, uid_t);

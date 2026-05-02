@@ -170,9 +170,9 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
     w->start_time  = (int64_t)job->start_time;
     w->end_time    = (int64_t)job->end_time;
     w->susp_time   = (int64_t)job->susp_time;
-    w->res.pid      = job->res.pid;
-    w->res.mem_mb   = job->res.mem_mb;
-    w->res.cpu_time = job->res.cpu_time;
+    w->res.pid      = job->usage.pid;
+    w->res.mem_mb   = job->usage.mem_mb;
+    w->res.cpu_time = job->usage.cpu_time;
     ll_strlcpy(w->name, job->name,  sizeof(w->name));
     ll_strlcpy(w->queue, job->queue->name, sizeof(w->queue));
     ll_strlcpy(w->from_host, job->from_host, sizeof(w->from_host));
@@ -399,7 +399,7 @@ int host_info(XDR *xdrs, int chan_id)
 
         ll_strlcpy(hosts[i].name, h->net.name, sizeof(hosts[i].name));
         hosts[i].status   = h->status;
-        hosts[i].max_jobs = h->max_jobs;
+        hosts[i].max_jobs = h->res.max_jobs;
         hosts[i].num_jobs = h->num_jobs;
         hosts[i].num_run  = h->num_run;
         hosts[i].num_susp = h->num_susp;

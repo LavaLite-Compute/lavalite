@@ -51,16 +51,17 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->submit_time = time(NULL);
     job->pend_sig = 0;
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
-    job->num_cpus  = ws->num_cpus;
-    job->num_nhosts = ws->num_nhosts;
-    job->num_gpus  = ws->num_gpus;
-    job->mem_mb    = ws->mem_mb;
+    job->res.num_cpus  = ws->num_cpus;
+    job->res.num_nhosts = ws->num_nhosts;
+    job->res.num_gpus  = ws->num_gpus;
+    job->res.mem_mb    = ws->mem_mb;
+    job->res.storage_mb    = ws->storage_mb;
     job->flags     = ws->flags;
     job->begin_time = (time_t)ws->begin_time;
     job->term_time  = (time_t)ws->term_time;
 
     ll_strlcpy(job->project,  ws->project, sizeof(job->project));
-    ll_strlcpy(job->gpu_type, ws->gpu_type, sizeof(job->gpu_type));
+    ll_strlcpy(job->res.gpu_type, ws->gpu_type, sizeof(job->res.gpu_type));
     ll_strlcpy(job->machines, ws->machines, sizeof(job->machines));
 
     if (ws->name[0] == 0) {

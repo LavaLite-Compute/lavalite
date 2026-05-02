@@ -10,6 +10,8 @@
 #include <pwd.h>
 
 #include "base/lib/ll.syslog.h"
+#include "base/lib/ll.hash.h"
+#include "base/lib/ll.list.h"
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
@@ -40,21 +42,203 @@ static uint64_t parse_mem(const char *s)
     return 0;
 }
 
-static void parse_gpu_type(const char *s, char *out, size_t outlen)
+static struct mbd_host *find_host_by_name(const char *name)
 {
-    if (strcmp(s, "-") == 0) {
-        out[0] = 0;
-        return;
+    return (struct mbd_host *)ll_hash_search(&host_name_hash, name);
+}
+
+static struct mbd_gpu *make_gpu(const char *p)
+{
+    struct mbd_gpu *g;
+    char hostname[MAXHOSTNAMELEN];
+    char model[LL_BUFSIZ_64];
+    char gpu_type[LL_BUFSIZ_64];
+    int gpu_id;
+    int count;
+
+    g = calloc(1, sizeof(*g));
+    if (g == NULL) {
+        LS_ERR("calloc failed");
+        return NULL;
     }
-    ll_strlcpy(out, s, outlen);
+
+    /* HOST_NAME  GPU_ID  GPU_MODEL  GPU_TYPE  COUNT */
+    int n = sscanf(p, "%255s %d %63s %63s %d",
+                   hostname, &gpu_id, model, gpu_type, &count);
+    if (n != 5) {
+        LS_ERRX("bad gpu line: %s", p);
+        free(g);
+        return NULL;
+    }
+
+    struct mbd_host *h = find_host_by_name(hostname);
+    if (h == NULL) {
+        LS_ERRX("gpu references unknown host=%s", hostname);
+        free(g);
+        return NULL;
+    }
+
+    g->gpu_id = gpu_id;
+    g->count  = count;
+    g->free   = count;
+    ll_strlcpy(g->model,    model,    sizeof(g->model));
+    ll_strlcpy(g->gpu_type, gpu_type, sizeof(g->gpu_type));
+
+    /* aggregate totals on host */
+    h->res.total_gpu += count;
+    h->res.free_gpu  += count;
+
+    ll_list_append(&h->res.gpu_list, &g->ent);
+
+    return g;
+}
+
+static int parse_gpus(const char *path)
+{
+    FILE *f;
+    char line[LL_BUFSIZ_1K];
+    int in_section;
+    int header_skipped;
+
+    f = fopen(path, "r");
+    if (f == NULL) {
+        LS_ERR("fopen=%s failed", path);
+        return -1;
+    }
+
+    in_section     = 0;
+    header_skipped = 0;
+
+    while (fgets(line, sizeof(line), f) != NULL) {
+        char *p = ltrim(line);
+        rtrim(p);
+
+        if (*p == 0 || *p == '#')
+            continue;
+
+        char *section = ll_conf_parse_begin(p);
+        if (section != NULL) {
+            if (strncmp(section, "Gpu", 3) == 0) {
+                in_section     = 1;
+                header_skipped = 0;
+            }
+            continue;
+        }
+
+        if (!in_section)
+            continue;
+
+        if (!header_skipped) {
+            header_skipped = 1;
+            continue;
+        }
+
+        if (ll_conf_parse_end(p)) {
+            fclose(f);
+            return 0;
+        }
+
+        if (make_gpu(p) == NULL) {
+            LS_ERRX("make_gpu failed line=%s", p);
+            fclose(f);
+            return -1;
+        }
+    }
+
+    fclose(f);
+    LS_ERRX("missing End Gpu in %s", path);
+    return -1;
+}
+
+static int parse_token_pools(const char *path)
+{
+    FILE *f;
+    char line[LL_BUFSIZ_1K];
+    int in_section;
+    int header_skipped;
+
+    f = fopen(path, "r");
+    if (f == NULL) {
+        LS_ERR("fopen=%s failed", path);
+        return -1;
+    }
+
+    in_section     = 0;
+    header_skipped = 0;
+
+    while (fgets(line, sizeof(line), f) != NULL) {
+        char *p = ltrim(line);
+        rtrim(p);
+
+        if (*p == 0 || *p == '#')
+            continue;
+
+        char *section = ll_conf_parse_begin(p);
+        if (section != NULL) {
+            if (strncmp(section, "TokenPool", 9) == 0) {
+                in_section     = 1;
+                header_skipped = 0;
+            }
+            continue;
+        }
+
+        if (!in_section)
+            continue;
+
+        if (!header_skipped) {
+            header_skipped = 1;
+            continue;
+        }
+
+        if (ll_conf_parse_end(p)) {
+            fclose(f);
+            return 0;
+        }
+
+        char name[LL_BUFSIZ_64];
+        int  total;
+
+        if (sscanf(p, "%63s %d", name, &total) != 2) {
+            LS_ERRX("bad tokenpool line: %s", p);
+            fclose(f);
+            return -1;
+        }
+
+        if (total <= 0) {
+            LS_ERRX("tokenpool=%s invalid total=%d", name, total);
+            fclose(f);
+            return -1;
+        }
+
+        struct mbd_token_pool *tp = calloc(1, sizeof(*tp));
+        if (tp == NULL) {
+            LS_ERR("calloc failed");
+            fclose(f);
+            return -1;
+        }
+
+        ll_strlcpy(tp->name, name, sizeof(tp->name));
+        tp->total = total;
+        tp->free  = total;
+
+        ll_list_append(&token_pool_list, &tp->ent);
+        ll_hash_insert(&token_pool_name_hash, tp->name, tp, 0);
+
+        LS_INFO("tokenpool name=%s total=%d", tp->name, tp->total);
+    }
+
+    fclose(f);
+
+    /* TokenPool section is optional */
+    return 0;
 }
 
 static struct mbd_host *make_host(const char *p)
 {
     struct mbd_host *h;
     char mem_str[LL_BUFSIZ_32];
+    char storage_str[LL_BUFSIZ_32];
     char hostname[LL_BUFSIZ_64];
-    char gpu_type_str[LL_BUFSIZ_64];
     int n;
 
     h = calloc(1, sizeof(*h));
@@ -62,37 +246,47 @@ static struct mbd_host *make_host(const char *p)
         LS_ERR("calloc failed");
         return NULL;
     }
-    n = sscanf(p, "%63s %d %d %d %31s %63s",
+
+    /* HOST_NAME  MXJ  CPU  MEM  STORAGE */
+    n = sscanf(p, "%63s %d %d %31s %31s",
                hostname,
-               &h->max_jobs,
-               &h->total_cpu,
-               &h->total_gpu,
+               &h->res.max_jobs,
+               &h->res.total_cpu,
                mem_str,
-               gpu_type_str);
-    if (n != 6) {
+               storage_str);
+    if (n != 5) {
         LS_ERRX("bad line: %s", p);
         free(h);
         return NULL;
     }
+
     if (get_host_by_name(hostname, &h->net) < 0) {
         LS_ERR("get_host_by_name failed host=%s", hostname);
         free(h);
         return NULL;
     }
-    h->total_mem_mb = parse_mem(mem_str);
-    if (h->total_mem_mb == 0) {
+
+    h->res.total_mem_mb = parse_mem(mem_str);
+    if (h->res.total_mem_mb == 0) {
         LS_ERRX("bad memory value host=%s mem=%s", hostname, mem_str);
         free(h);
         return NULL;
     }
-    parse_gpu_type(gpu_type_str, h->gpu_type, sizeof(h->gpu_type));
-    if (h->total_gpu > 0 && h->gpu_type[0] == '\0') {
-        LS_ERRX("gpu_type required when GPU > 0: %s", p);
+
+    h->res.total_storage_mb = parse_mem(storage_str);
+    if (h->res.total_storage_mb == 0) {
+        LS_ERRX("bad storage value host=%s storage=%s", hostname, storage_str);
         free(h);
         return NULL;
     }
+
+    ll_list_init(&h->res.gpu_list);
+    h->res.free_cpu        = h->res.total_cpu;
+    h->res.free_mem_mb     = h->res.total_mem_mb;
+    h->res.free_storage_mb = h->res.total_storage_mb;
     h->sbd_chan = -1;
-    h->status = HOST_UNAVAIL;
+    h->status   = HOST_UNAVAIL;
+
     return h;
 }
 
@@ -300,6 +494,7 @@ static int commit_queue(struct queue_conf *qc)
     ll_strlcpy(q->description, qc->desc, LL_BUFSIZ_256);
 
     ll_strlcpy(q->hosts, qc->hosts, LL_BUFSIZ_256);
+    ll_strlcpy(q->users, qc->users, LL_BUFSIZ_256);
 
     q->priority = qc->priority;
     q->status = QUEUE_OPEN;
@@ -325,6 +520,9 @@ static int parse_queue_conf(struct queue_conf *qc,
 
     if (strcmp(key, "HOSTS") == 0)
         return ll_strlcpy(qc->hosts, val, LL_BUFSIZ_256);
+
+    if (strcmp(key, "USERS") == 0)
+        return ll_strlcpy(qc->users, val, LL_BUFSIZ_256);
 
     LS_ERRX("unknown queue key=%s", key);
     return -1;
@@ -416,18 +614,22 @@ static int parse_queues(const char *path)
 static void dump_config(void)
 {
     struct ll_list_entry *e;
-
-    LS_DEBUG("--- queues ---");
-    for (e = queue_list.head; e; e = e->next) {
-        struct mbd_queue *q = (struct mbd_queue *)e;
-        LS_DEBUG("queue name=%s priority=%d hosts=%s desc=%s",
-                 q->name, q->priority, q->hosts, q->description);
-    }
+    struct ll_list_entry *ge;
 
     LS_DEBUG("--- hosts ---");
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *)e;
-        LS_DEBUG("host name=%s addr=%s", h->net.name, h->net.addr);
+        LS_DEBUG("host name=%s addr=%s cpu=%d mem=%luMB storage=%luMB gpu=%d",
+                 h->net.name, h->net.addr,
+                 h->res.total_cpu,
+                 h->res.total_mem_mb,
+                 h->res.total_storage_mb,
+                 h->res.total_gpu);
+        for (ge = h->res.gpu_list.head; ge; ge = ge->next) {
+            struct mbd_gpu *g = (struct mbd_gpu *)ge;
+            LS_DEBUG("  gpu id=%d model=%s type=%s count=%d",
+                     g->gpu_id, g->model, g->gpu_type, g->count);
+        }
     }
 
     LS_DEBUG("--- groups ---");
@@ -435,6 +637,21 @@ static void dump_config(void)
         struct mbd_group *g = (struct mbd_group *)e;
         LS_DEBUG("group name=%s members=%s num=%d",
                  g->name, g->members, g->num_members);
+    }
+
+    LS_DEBUG("--- queues ---");
+    for (e = queue_list.head; e; e = e->next) {
+        struct mbd_queue *q = (struct mbd_queue *)e;
+        LS_DEBUG("queue name=%s priority=%d hosts=%s users=%s desc=%s",
+                 q->name, q->priority, q->hosts,
+                 q->users[0] ? q->users : "*",
+                 q->description);
+    }
+
+    LS_DEBUG("--- token pools ---");
+    for (e = token_pool_list.head; e; e = e->next) {
+        struct mbd_token_pool *tp = (struct mbd_token_pool *)e;
+        LS_DEBUG("tokenpool name=%s total=%d", tp->name, tp->total);
     }
 }
 
@@ -491,6 +708,16 @@ int conf_init(void)
 
     if (parse_hosts(path) < 0) {
         LS_ERRX("parse_hosts failed path=%s", path);
+        return -1;
+    }
+
+    if (parse_gpus(path) < 0) {
+        LS_ERRX("parse_gpus failed path=%s", path);
+        return -1;
+    }
+
+    if (parse_token_pools(path) < 0) {
+        LS_ERRX("parse_token_pools failed path=%s", path);
         return -1;
     }
 

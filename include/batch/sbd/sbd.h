@@ -104,8 +104,6 @@ struct sbd_job {
     int exit_status;                  // raw waitpid() status
     bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
     time_t end_time;     // job finish time
-
-    struct job_resources jres;
 };
 
 // Struct sbd job state to save the minimum status of the job to the

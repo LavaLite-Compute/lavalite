@@ -117,13 +117,13 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
 {
     if (write_hdr(fp, EVENT_JOB_NEW, j->submit_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %u %u %d %ld %ld %ld %d %d %d %lu %u",
+    if (fprintf(fp, " %ld %u %u %d %ld %ld %ld %d %d %d %lu %lu %u",
                 (long)j->job_id,
                 (unsigned)j->uid, (unsigned)j->gid,
                 j->status,
                 (long)j->submit_time, (long)j->begin_time, (long)j->term_time,
                 j->num_cpu, j->num_hosts, j->num_gpus,
-                (unsigned long)j->mem_mb,
+                (unsigned long)j->mem_mb, (unsigned long)j->storage_mb,
                 j->flags) < 0)
         return -1;
     if (write_qstr(fp, j->username) < 0)
@@ -151,13 +151,14 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p, " %ld %u %u %d %ld %ld %ld %d %d %d %lu %u%n",
+    int n = sscanf(p, " %ld %u %u %d %ld %ld %ld %d %d %d %lu %lu %u%n",
                    &j->job_id,
                    (unsigned *)&j->uid, (unsigned *)&j->gid,
                    &j->status,
                    &j->submit_time, &j->begin_time, &j->term_time,
                    &j->num_cpu, &j->num_hosts, &j->num_gpus,
                    (unsigned long *)&j->mem_mb,
+                   (unsigned long *)&j->storage_mb,
                    &j->flags, &cc);
     if (n != 12)
         return -1;

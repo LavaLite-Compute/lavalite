@@ -59,20 +59,16 @@ struct job_submit {
     char        *command;       /* command [args]*/
     char        *project;       /* --project     */
     char        *comment;       /* --comment     */
-    int32_t      num_cpus;      /* --cpus        */
+    int32_t      num_cpus;      /* --cpus        (per host) */
     int32_t      num_nhosts;    /* --nhosts      */
-    int32_t      num_gpus;      /* --gpus        */
+    int32_t      num_gpus;      /* --gpus        (per host) */
     int32_t      wall_seconds;  /* --wall        */
-    uint64_t     mem_mb;        /* --mem         */
+    uint64_t     mem_mb;        /* --mem         (per host) */
+    uint64_t     storage_mb;    /* --storage     (per host) */
+    char        *tokenpool;     /* --pool name=N[,name=N]  */
     time_t       begin_time;    /* --begin       */
     time_t       term_time;     /* --terminate   */
     uint32_t     flags;         /* JOB_FLAG_*    */
-};
-
-struct job_resources {
-    pid_t pid;
-    uint64_t mem_mb;    /* current rss from cgroup */
-    double   cpu_time;  /* accumulated cpu time */
 };
 
 // llb_job_info API options

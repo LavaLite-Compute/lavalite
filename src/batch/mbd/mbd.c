@@ -27,6 +27,9 @@ struct ll_hash group_name_hash;
 struct ll_list queue_list;
 struct ll_hash queue_name_hash;
 struct ll_hash sbd_chan_hash;
+struct ll_list token_pool_list;
+struct ll_hash token_pool_name_hash;
+
 struct mbd_manager mbd_mgr;
 
 int mbd_efd;

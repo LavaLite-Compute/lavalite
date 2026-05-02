@@ -62,9 +62,8 @@ src/base/lim/lim
 src/batch/compactor/mbd_compact
 # Ignore cscope
 cscope*
-src/lsf/pylib/__pycache__/
-src/lsbatch/compactor/mbd_compact
 src/batch/mbd/mbd
+src/batch/sbd/sbd
 man1/
 man5/
 man7/

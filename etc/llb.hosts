@@ -27,23 +27,11 @@ worker1     1        H100        2g.20gb    2
 worker2     0        A100        full       1
 End Gpu
 
-Begin Numa
-HOST   NODE   CPUS
-worker1 0     0-31
-worker1 1     32-63
-End Numa
-
-Begin Nic
-HOST_NAME   NIC_ID   MODEL      SPEED   FABRIC
-worker1     0        CX7        400G    infiniband
-worker1     1        CX7        400G    infiniband
-End Nic
-
-Begin Pool
+Begin TokenPool
 POOL_NAME  AVAILABLE
 xyz         10
 uvw         3
-End Pool
+End TokenPool
 
 #
 # Host groups - hosts grouped by GPU type.

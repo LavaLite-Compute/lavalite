@@ -71,6 +71,7 @@ struct log_job_new {
     int32_t  num_hosts;
     int32_t  num_gpus;
     uint64_t mem_mb;
+    uint64_t storage_mb;
     uint32_t flags;
     char     username[LL_BUFSIZ_64];
     char     job_name[LL_BUFSIZ_64];

@@ -69,6 +69,9 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
     w->num_gpus     = js->num_gpus;
     w->wall_seconds = js->wall_seconds;
     w->mem_mb       = js->mem_mb;
+    w->storage_mb   = js->storage_mb;
+    if (js->tokenpool != NULL)
+        ll_strlcpy(w->tokenpool, js->tokenpool, sizeof(w->tokenpool));
     w->begin_time   = (int64_t)js->begin_time;
     w->term_time    = (int64_t)js->term_time;
     w->flags        = js->flags;

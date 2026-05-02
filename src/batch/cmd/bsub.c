@@ -28,14 +28,17 @@ static void usage(FILE *f)
         "  --project name     Project name\n"
         "  --comment text     User comment, ignored by scheduler\n"
         "\n"
-        "Resources:\n"
-        "  --cpus   n         number of CPU per host (default: 1)\n"
+        "Resources (per host):\n"
+        "  --cpus   n         CPU slots per host (default: 1)\n"
         "  --nhosts n         number of execution hosts (default: 1)\n"
         "  --mem    size      Memory per host: n[K|M|G] (cgroup enforced)\n"
+        "  --storage size     Local scratch storage per host: n[K|M|G]\n"
         "  --gpus   n         GPUs per host (default: 0)\n"
         "  --gpu-type name    Required GPU type (requires --gpus)\n"
         "  --exclusive        Exclusive host, no job sharing\n"
         "\n"
+        "Cluster resources:\n"
+        "  --pool   name=N    Request N tokens from named pool (repeatable)\n"
         "Placement:\n"
         "  --machines \"h...\"  Restrict to listed hosts or host groups\n"
         "\n"
@@ -239,8 +242,10 @@ int main(int argc, char **argv)
         { "cpus",        required_argument, NULL, 'n' },
         { "nhosts",      required_argument, NULL, 'N' },
         { "mem",         required_argument, NULL, 'M' },
+        { "scratch",     required_argument, NULL, 's' },
         { "gpus",        required_argument, NULL, 'g' },
         { "gpu-type",    required_argument, NULL, 'G' },
+        { "pool",        required_argument, NULL, 'L' },
         { "exclusive",   no_argument,       NULL, 'x' },
         { "machines",    required_argument, NULL, 'm' },
         { "stdout",      required_argument, NULL, 'o' },
@@ -297,6 +302,12 @@ int main(int argc, char **argv)
                 return 1;
             }
             break;
+        case 's':
+            if (parse_mem(optarg, &js.storage_mb) < 0) {
+                fprintf(stderr, "bsub: --scratch: invalid value '%s'\n", optarg);
+                return 1;
+            }
+            break;
         case 'g': {
             char *end;
             long v = strtol(optarg, &end, 10);
@@ -310,6 +321,33 @@ int main(int argc, char **argv)
         case 'G':
             js.gpu_type = optarg;
             break;
+        case 'L': {
+            /* validate format: name=N */
+            char *eq = strchr(optarg, '=');
+            if (eq == NULL || eq == optarg) {
+                fprintf(stderr, "bsub: --pool: invalid format '%s', expected name=N\n", optarg);
+                return 1;
+            }
+            char *end;
+            long v = strtol(eq + 1, &end, 10);
+            if (*end != '\0' || v <= 0) {
+                fprintf(stderr, "bsub: --pool: invalid count in '%s'\n", optarg);
+                return 1;
+            }
+            /* append to tokenpool string: "existing,name=N" */
+            if (js.tokenpool == NULL) {
+                js.tokenpool = strdup(optarg);
+            } else {
+                char *prev = js.tokenpool;
+                if (asprintf(&js.tokenpool, "%s,%s", prev, optarg) < 0) {
+                    fprintf(stderr, "bsub: out of memory\n");
+                    free(prev);
+                    return 1;
+                }
+                free(prev);
+            }
+            break;
+        }
         case 'x':
             js.flags |= JOB_FLAG_EXCLUSIVE;
             break;
@@ -395,6 +433,7 @@ int main(int argc, char **argv)
     if (rc != 0) {
         fprintf(stderr, "Job not submitted.\n");
         free(js.command);
+        free(js.tokenpool);
         return 1;
     }
 
@@ -402,5 +441,6 @@ int main(int argc, char **argv)
             (long)job_id, js.queue ? js.queue : "default");
 
     free(js.command);
+    free(js.tokenpool);
     return 0;
 }
