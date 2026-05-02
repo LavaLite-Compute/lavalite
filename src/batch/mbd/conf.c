@@ -686,6 +686,13 @@ static int check_ll_config(void)
     return 0;
 }
 
+static int queue_priority_cmp(const void *a, const void *b)
+{
+    const struct mbd_queue *qa = *(const struct mbd_queue **)a;
+    const struct mbd_queue *qb = *(const struct mbd_queue **)b;
+    return qb->priority - qa->priority;  /* higher first */
+}
+
 int conf_init(void)
 {
     char path[PATH_MAX];
@@ -746,6 +753,11 @@ int conf_init(void)
                 ll_params[LL_DEFAULT_QUEUE].val);
         return -1;
     }
+
+   if (ll_list_sort(&queue_list, queue_priority_cmp) < 0) {
+       LS_ERRX("queue sort failed");
+       return -1;
+   }
 
     dump_config();
 

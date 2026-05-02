@@ -134,3 +134,68 @@ void ll_list_free(struct ll_list *lst,
     ll_list_clear(lst, cleanup);
     free(lst);
 }
+
+/*
+ * Sort a list in-place using qsort.
+ * cmp receives pointers to ll_list_entry pointers (const void **).
+ * The list is rebuilt from the sorted array; O(n log n) + O(n) alloc.
+ * Returns 0 on success, -1 on alloc failure (list unchanged).
+ */
+int ll_list_sort(struct ll_list *lst,
+                 int (*cmp)(const void *, const void *))
+{
+    int n = lst->count;
+    int i;
+
+    if (n < 2)
+        return 0;
+
+    struct ll_list_entry **arr = calloc(n, sizeof(*arr));
+    if (arr == NULL)
+        return -1;
+
+    struct ll_list_entry *e = lst->head;
+    for (i = 0; i < n; i++) {
+        arr[i] = e;
+        e = e->next;
+    }
+
+    qsort(arr, n, sizeof(*arr), cmp);
+
+    ll_list_init(lst);
+    for (i = 0; i < n; i++)
+        ll_list_append(lst, arr[i]);
+
+    free(arr);
+    return 0;
+}
+
+/*
+ * Sort a list in-place using a caller-provided buffer.
+ * buf must hold at least lst->count pointers.
+ * No allocation — suitable for hot paths like the scheduler.
+ */
+int ll_list_sort_buf(struct ll_list *lst,
+                     struct ll_list_entry **buf,
+                     int (*cmp)(const void *, const void *))
+{
+    int n = lst->count;
+    int i;
+
+    if (n < 2)
+        return 0;
+
+    struct ll_list_entry *e = lst->head;
+    for (i = 0; i < n; i++) {
+        buf[i] = e;
+        e = e->next;
+    }
+
+    qsort(buf, n, sizeof(*buf), cmp);
+
+    ll_list_init(lst);
+    for (i = 0; i < n; i++)
+        ll_list_append(lst, buf[i]);
+
+    return 0;
+}

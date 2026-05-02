@@ -81,3 +81,8 @@ static inline void ll_list_foreach_reverse(struct ll_list *lst,
     for (e = lst->tail; e; e = e->prev)
         fn(e);
 }
+
+int ll_list_sort(struct ll_list *,
+                 int (*cmp)(const void *, const void *));
+int ll_list_sort_buf(struct ll_list *, struct ll_list_entry **,
+                     int (*)(const void *, const void *));
