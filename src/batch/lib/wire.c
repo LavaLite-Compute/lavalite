@@ -78,9 +78,8 @@ bool_t xdr_wire_job_sig(XDR *xdrs, struct wire_job_sig *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->sig))
         return false;
-    if (! xdr_uint32_t(xdrs, &p->uid))
+    if (!xdr_uint32_t(xdrs, &p->uid))
         return false;
-
     return true;
 }
 
@@ -140,13 +139,23 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_int64_t(xdrs, &s->resume_time))
         return false;
-
     return true;
 }
 
 bool_t xdr_wire_job_submit_reply(XDR *xdrs, struct wire_job_submit_reply *r)
 {
     if (!xdr_int64_t(xdrs, &r->job_id))
+        return false;
+    return true;
+}
+
+bool_t xdr_wire_job_info_req(XDR *xdrs, struct wire_job_info_req *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->flags))
+        return false;
+    if (!xdr_uint32_t(xdrs, &p->uid))
         return false;
     return true;
 }
@@ -209,13 +218,63 @@ bool_t xdr_wire_job_info_array(XDR *xdrs, struct wire_job_info_array *p)
     return true;
 }
 
-bool_t xdr_wire_job_info_req(XDR *xdrs, struct wire_job_info_req *p)
+bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-    if (!xdr_int32_t(xdrs, &p->flags))
-        return false;
     if (!xdr_uint32_t(xdrs, &p->uid))
+        return false;
+    if (!xdr_uint32_t(xdrs, &p->gid))
+        return false;
+    if (!xdr_uint32_t(xdrs, &p->umask))
+        return false;
+    if (!xdr_opaque(xdrs, p->job_name, sizeof(p->job_name)))
+        return false;
+    if (!xdr_opaque(xdrs, p->queue, sizeof(p->queue)))
+        return false;
+    if (!xdr_opaque(xdrs, p->username, sizeof(p->username)))
+        return false;
+    if (!xdr_opaque(xdrs, p->from_host, sizeof(p->from_host)))
+        return false;
+    if (!xdr_opaque(xdrs, p->home_dir, sizeof(p->home_dir)))
+        return false;
+    if (!xdr_opaque(xdrs, p->cwd, sizeof(p->cwd)))
+        return false;
+    if (!xdr_opaque(xdrs, p->command, sizeof(p->command)))
+        return false;
+    if (!xdr_opaque(xdrs, p->job_file, sizeof(p->job_file)))
+        return false;
+    if (!xdr_opaque(xdrs, p->in_file, sizeof(p->in_file)))
+        return false;
+    if (!xdr_opaque(xdrs, p->out_file, sizeof(p->out_file)))
+        return false;
+    if (!xdr_opaque(xdrs, p->err_file, sizeof(p->err_file)))
+        return false;
+    if (!xdr_opaque(xdrs, p->hosts, sizeof(p->hosts)))
+        return false;
+    if (!xdr_int64_t(xdrs, &p->submit_time))
+        return false;
+    if (!xdr_int64_t(xdrs, &p->term_time))
+        return false;
+    return true;
+}
+
+bool_t xdr_wire_job_sidecar(XDR *xdrs, struct wire_job_sidecar *p)
+{
+    if (!xdr_bytes(xdrs, &p->data, &p->len, UINT32_MAX))
+        return false;
+    return true;
+}
+
+bool_t xdr_wire_job_reply(XDR *xdrs, struct wire_job_reply *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->pid))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->pgid))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->status))
         return false;
     return true;
 }

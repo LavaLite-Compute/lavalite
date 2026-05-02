@@ -31,31 +31,6 @@ extern char sbd_state_dir[PATH_MAX];
 extern char sbd_job_dir[PATH_MAX];
 extern char sbd_archive_dir[PATH_MAX];
 
-int sbd_mbd_connect(void);
-int sbd_register(int);
-void sbd_mbd_link_down(void);
-void sbd_chan_shutdown(int);
-
-// handle mbd messagges
-// daemon + object + action
-struct sbd_job;
-int sbd_mbd_handle(int);
-void sbd_job_new(int, XDR *);
-//int sbd_job_new_reply(int, struct jobReply *);
-void sbd_job_new_ack(int, XDR *);
-
-int sbd_job_execute(int, struct sbd_job *);
-void sbd_job_execute_ack(int, XDR *);
-
-int sbd_job_finish(int, struct sbd_job *);
-void sbd_job_finish_ack(int, XDR *);
-
-int sbd_job_signal(int, XDR *);
-//int sbd_job_signal_reply(int, struct protocol_header *,
-//                         struct wire_job_sig_reply *);
-void sbd_register_ack(int, XDR *);
-//void free_job_specs(struct jobSpecs *);
-
 enum sbd_policy {
     SBD_OPERATION_TIMER  = 1,
     SBD_RESEND_ACK_TIMEOUT = 1,
@@ -73,13 +48,20 @@ struct sbd_job {
 
     pid_t pid;                        // main job PID (child spawned by sbatchd)
     pid_t pgid;                       // process group ID for the job
-    char exec_user[LL_BUFSIZ_32];
+    char exec_user[LL_BUFSIZ_64];
     char exec_home[PATH_MAX];
     char exec_cwd[PATH_MAX];   // execution working directory
     uid_t exec_uid;
     gid_t exec_gid;
     char jobfile[PATH_MAX]; // copy of the job_file from mbd jobSpecs
     char command[LL_BUFSIZ_512];
+    char job_name[LL_BUFSIZ_256];
+    char queue[LL_BUFSIZ_64];
+    char from_host[MAXHOSTNAMELEN];
+    char hosts[LL_BUFSIZ_4K];
+    char in_file[PATH_MAX];
+    char out_file[PATH_MAX];
+    char err_file[PATH_MAX];
     /*
      * pid_acked (PID_COMMITTED):
      *   Set to TRUE when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
@@ -146,11 +128,10 @@ struct sbd_job_state {
 extern struct ll_list sbd_job_list;   // intrusive list of all active jobs
 extern struct ll_hash *sbd_job_hash;  // key: job_id -> value: struct sbd_job*
 
-
 int write_all(int fd, const char *, size_t);
 
 // Look up a job by jobId (NULL if not found).
-struct sbd_job *sbd_job_lookup(int job_id);
+struct sbd_job *sbd_job_lookup(int64_t job_id);
 
 // Allocate + initialise a new sbd_job from jobSpecs.
 // Does not insert into list/hash.
@@ -168,7 +149,6 @@ void sbd_job_sync_jstatus(struct sbd_job *);
 //int sbd_enqueue_new_job_reply(struct sbd_job *, struct jobReply *);
 int sbd_enqueue_execute(struct sbd_job *);
 int sbd_enqueue_finish( struct sbd_job *);
-int sbd_enqueue_job_unknown(int, int64_t);
 int sbd_mbd_link_ready(void);
 
 // sbd record function to save the state of jobs from
@@ -182,8 +162,8 @@ int sbd_job_cleanup_files(struct sbd_job *);
 void sbd_prune_acked_jobs(void);
 
 // sbd has command to query its internal status
-int handle_sbd_accept(int);
-int handle_sbd_client(int);
+int sbd_accept(int);
+int sbd_client(int);
 int sbd_reply_hdr_only(int, int, struct protocol_header *);
 
 // Use the xdr_func() signiture without argument otherwise we should
@@ -203,3 +183,35 @@ enum sbd_fatal_cause {
 
 void sbd_fatal(enum sbd_fatal_cause);
 void sbd_prune_archive_try(void);
+
+int sbd_mbd_connect(void);
+int sbd_register(void);
+void sbd_mbd_link_down(void);
+void sbd_chan_shutdown(int);
+
+// handle mbd messagges
+// daemon + object + action
+struct sbd_job;
+int sbd_mbd_route(int);
+void sbd_job_new(XDR *);
+void sbd_job_insert(struct sbd_job *);
+int sbd_job_script_write(struct sbd_job *, const struct wire_job_script *);
+int sbd_job_sidecar_write(struct sbd_job *,
+                          const struct wire_job_sidecar *);
+int sbd_job_new_reply(struct sbd_job *);
+void sbd_job_new_ack(XDR *);
+
+int sbd_job_execute(struct sbd_job *);
+void sbd_job_execute_ack(XDR *);
+
+int sbd_job_finish(struct sbd_job *);
+void sbd_job_finish_ack(XDR *);
+
+int sbd_job_signal(XDR *);
+int sbd_enqueue_job_unknown(int64_t);
+//int sbd_job_signal_reply(int, struct protocol_header *,
+//                         struct wire_job_sig_reply *);
+void sbd_register_ack(XDR *);
+//void free_job_specs(struct jobSpecs *);
+int32_t sbd_enqueue_payload(int, struct protocol_header *,
+                            void *, size_t, bool_t (*xdr_func)());

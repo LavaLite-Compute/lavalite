@@ -274,7 +274,10 @@ void ls_setlogtag(const char *tag)
 
     snprintf(log_tag, sizeof(log_tag), "%s", tag);
 }
-
+int ls_getlogfd(void)
+{
+    return log_fd;
+}
 static void write_record(int fd, const char *buf, size_t len)
 {
     while (len > 0) {

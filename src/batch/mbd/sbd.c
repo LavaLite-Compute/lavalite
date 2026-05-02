@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "base/lib/auth.h"
 #include "base/lib/ll.host.h"
 #include "base/lib/ll.bufsiz.h"
 #include "base/lib/ll.syslog.h"
@@ -15,12 +16,6 @@
 #include "base/lib/ll.list.h"
 #include "batch/lib/rpc.h"
 #include "batch/mbd/mbd.h"
-
-int mbd_sbd_disconnect(struct mbd_host *n)
-{
-    (void)n;
-    return 0;
-}
 
 int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 {
@@ -47,6 +42,7 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     }
 
     assert(n->sbd_chan == -1);
+    // Register the channel of this sbd
     n->sbd_chan = chan_id;
 
     char key[LL_BUFSIZ_32];
@@ -67,8 +63,19 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     memset(&hdr, 0, sizeof(struct protocol_header));
     hdr.operation = BATCH_SBD_REGISTER_ACK;
     hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LS_ERR("failed to sign header failed to register with mbd");
+        chan_shutdown(chan_id);
+        // unlink the channel with the host
+        n->sbd_chan = -1;
+        n->status = HOST_UNAVAIL;
+        ll_hash_remove(&sbd_chan_hash, key);
+        return -1;
+    }
+
     enqueue_payload(chan_id, &hdr, &reg_ack,
-                    LL_BUFSIZ_64, xdr_wire_sbd_register);
+                    LL_BUFSIZ_256, xdr_wire_sbd_register);
 
     free(reg.jobs);
 
@@ -77,6 +84,33 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 
 int32_t mbd_sbd_route(struct mbd_host *n)
 {
-    (void)n;
+    int chan_id = n->sbd_chan;
+
+    if (chan_has_error(chan_id)) {
+        LS_DEBUG("channel=%d sbd from=%s closed connection",
+                 chan_id, chan_addr_str(chan_id));
+        mbd_sbd_disconnect(n);
+        return -1;
+    }
+
+    return 0;
+}
+
+int mbd_sbd_disconnect(struct mbd_host *n)
+{
+    int chan_id = n->sbd_chan;
+
+    LS_INFO("closing connection with on chan=%d host=%s addr=%s", chan_id,
+            n->net.name, n->net.addr);
+
+    n->sbd_chan = -1;
+    n->status = HOST_UNAVAIL;
+    char key[LL_BUFSIZ_32];
+    snprintf(key, sizeof(key), "%d", chan_id);
+    ll_hash_remove(&sbd_chan_hash, key);
+    chan_shutdown(chan_id);
+
+    // traverse the list of jobs running on this host
+    // and set them to state unknown
     return 0;
 }

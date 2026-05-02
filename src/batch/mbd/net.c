@@ -139,11 +139,6 @@ static void route(int chan_id)
     chan_free_buf(buf);
 }
 
-static void sbd_route(struct mbd_host *h)
-{
-    (void)h;
-}
-
 int network_init(void)
 {
     struct epoll_event ev;
@@ -261,7 +256,7 @@ void mbd_message(int chan_id)
     if (n != NULL) {
         LS_DEBUG("the client is an sbd %s", n->net.name);
         assert(n->sbd_chan == chan_id);
-        sbd_route(n);
+        mbd_sbd_route(n);
         return;
     }
 

@@ -53,7 +53,6 @@ int sbd_mbd_chan = -1;
 int sbd_efd;
 pid_t pruner_pid = -1;
 static struct epoll_event sbd_events[CHAN_MAX];
-static int max_events;
 static int sbd_resend_timer;
 
 // Handler sets these variables to signal events
@@ -121,21 +120,12 @@ static int sbd_init(void)
     }
 
     // global channel to mbd
-    sbd_mbd_connect();
-    if (sbd_mbd_chan < 0) {
+    if (sbd_mbd_connect() < 0) {
         LS_ERR("mbd link: initial connect attempt failed");
     } else {
-        sbd_register(sbd_mbd_chan);
+        sbd_register();
     }
-
 #if 0
-
-    // initialize the lists and hashes
-    if (sbd_job_init() < 0) {
-        LS_ERRX("sbd_job_init failed");
-        return -1;
-    }
-
     // Initialize persistent job state storage early.
     // If we can't create/validate the state directory, we cannot guarantee
     // restart-safe job tracking, so fail fast before allocating resources.
@@ -168,12 +158,11 @@ static void mbd_reconnect_try(void)
     last_try = t;
     LS_ERRX("lost connection with mbd");
 
-    sbd_mbd_chan = sbd_mbd_connect();
-    if (sbd_mbd_chan < 0) {
+    if (sbd_mbd_connect() < 0) {
         LS_ERR("timeout connecting to mbd, retry...");
         return;
     }
-    sbd_register(sbd_mbd_chan);
+    sbd_register();
 }
 
 static int sbd_init_network(void)
@@ -254,7 +243,6 @@ static int sbd_init_network(void)
         chan_close(sbd_listen_chan);
         return -1;
     }
-
 
     LS_INFO("sbd listening on port=%d sbd_listen_chan=%d, epoll_fd=%d "
             "sbd_timer_chan=%d timer=%dsec sbd_resend_timer=%d",
@@ -416,7 +404,6 @@ static void job_status_checking(void)
 
 static void job_new_drive(void)
 {
-#if 0
     static time_t last_time;
 
     // Check it we are connected to mbd
@@ -444,22 +431,15 @@ static void job_new_drive(void)
             continue;
         }
 
-        struct jobReply reply;
-        memset(&reply, 0, sizeof(struct jobReply));
-        reply.jobId   = job->job_id;
-        reply.jobPid  = job->pid;
-        reply.jobPGid = job->pgid;
-        reply.jStatus = job->specs.jStatus = JOB_STAT_RUN;
-
-        if (sbd_job_new_reply(sbd_mbd_chan, &reply) < 0) {
-            LS_ERR("job=%ld sbd_job_new_reply enqueue failed", job->job_id);
+        if (sbd_job_new_reply(job) < 0) {
+            LS_ERR("job=%ld sbd_job_new_reply failed", job->job_id);
             continue;
         }
-        LS_INFO("job=%ld pid=%d", job->job_id, job->pid);
+
+       LS_INFO("job=%ld pid=%d", job->job_id, job->pid);
 
         job->reply_last_send = now;
     }
-#endif
 }
 
 static void job_execute_drive(void)
@@ -487,7 +467,7 @@ static void job_execute_drive(void)
             continue;
         }
 
-        if (sbd_job_execute(sbd_mbd_chan, job) < 0) {
+        if (sbd_job_execute(job) < 0) {
             LS_ERR("job=%ld enqueue BATCH_JOB_EXECUTE failed", job->job_id);
             continue;
         }
@@ -529,7 +509,7 @@ static void job_finish_drive(void)
         if ((now - job->finish_last_send) < resend_sec)
             continue;
 
-        int cc = sbd_job_finish(sbd_mbd_chan, job);
+        int cc = sbd_job_finish(job);
         if (cc < 0) {
             LS_WARNING("job=%ld finish enqueue failed", job->job_id);
             continue;
@@ -650,18 +630,6 @@ void sbd_prune_archive_try(void)
 {
 }
 
-int handle_sbd_client(int ch_id)
-{
-    (void)ch_id;
-    return 0;
-}
-
-int handle_sbd_accept(int listen_chan)
-{
-    (void)listen_chan;
-    return 0;
-}
-
 int sbd_read_exit_status_file(struct sbd_job *job,
                               int *exit_code,
                               time_t *done_time)
@@ -669,20 +637,6 @@ int sbd_read_exit_status_file(struct sbd_job *job,
     (void)job;
     (void)exit_code;
     (void)done_time;
-    return 0;
-}
-
-int sbd_job_execute(int chan_id, struct sbd_job *job)
-{
-    (void)chan_id;
-    (void)job;
-    return 0;
-}
-
-int sbd_job_finish(int chan_id, struct sbd_job *job)
-{
-    (void)chan_id;
-    (void)job;
     return 0;
 }
 
@@ -699,7 +653,7 @@ static void sbd_run_daemon(void)
         }
 
         // We pass -1 as the timer channel will ring
-        int nready = chan_epoll(sbd_efd, sbd_events, max_events, -1);
+        int nready = chan_epoll(sbd_efd, sbd_events, CHAN_MAX, -1);
         // save the epoll errno as the coming reap children can change it
         int epoll_errno = errno;
 
@@ -756,33 +710,11 @@ static void sbd_run_daemon(void)
              // There is an event on the permament channel
              // connection with mbd
              if (ch_id == sbd_mbd_chan) {
-                 sbd_mbd_handle(ch_id);
+                 sbd_mbd_route(ch_id);
                  // reset the channel state
                  channels[ch_id].chan_events = CHAN_EPOLLNONE;
                  continue;
              }
-             // There is an event on the sbd listening channel
-             if (ch_id == sbd_listen_chan) {
-                 handle_sbd_accept(ch_id);
-                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
-                 continue;
-             }
-
-             // just to do it a bit different let's use a switch
-             switch (channels[ch_id].chan_events) {
-
-             case CHAN_EPOLLIN:
-             case CHAN_EPOLLERR:
-                 // Handle the even on an accepted sbd channel
-                 handle_sbd_client(ch_id);
-                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
-                 break;
-
-             case CHAN_EPOLLNONE:
-             default:
-                 break;
-             }
-
         }
     }
 

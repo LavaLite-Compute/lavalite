@@ -52,12 +52,65 @@ struct wire_job_script {
 };
 
 /* -----------------------------------------------------------------------
+ * job sidecar  (mbd -> sbd, follows wire_job_start + wire_job_script)
+ *
+ * Raw KEY=VALUE content of the .sub file, sent as a blob.
+ * sbd writes it to disk verbatim alongside the job script.
+ * ----------------------------------------------------------------------- */
+
+struct wire_job_sidecar {
+    uint32_t  len;
+    char     *data;
+};
+
+/* -----------------------------------------------------------------------
  * job state  (sbd -> mbd)
  * ----------------------------------------------------------------------- */
 
 struct wire_job_state {
     int64_t  job_id;
     int32_t  state;
+};
+
+/* -----------------------------------------------------------------------
+ * job start reply  (sbd -> mbd)
+ * ----------------------------------------------------------------------- */
+
+struct wire_job_reply {
+    int64_t  job_id;
+    int32_t  pid;
+    int32_t  pgid;
+    int32_t  status;
+};
+
+/* -----------------------------------------------------------------------
+ * job start  (mbd -> sbd)
+ *
+ * Fixed buffers, xdr_opaque throughout.
+ * Followed in the same XDR stream by wire_job_script, wire_job_sidecar.
+ * ----------------------------------------------------------------------- */
+
+struct wire_job_start {
+    int64_t  job_id;
+    uint32_t uid;
+    uint32_t gid;
+    uint32_t umask;
+
+    char     job_name[LL_BUFSIZ_256];
+    char     queue[LL_BUFSIZ_64];
+    char     username[LL_BUFSIZ_64];
+    char     from_host[MAXHOSTNAMELEN];
+    char     home_dir[PATH_MAX];
+    char     cwd[PATH_MAX];
+    char     command[LL_BUFSIZ_512];
+    char     job_file[PATH_MAX];
+    char     in_file[PATH_MAX];
+    char     out_file[PATH_MAX];
+    char     err_file[PATH_MAX];
+    char     hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA 4,hostB 4" */
+
+    int64_t  submit_time;
+    int64_t  term_time;
 };
 
 /* -----------------------------------------------------------------------
@@ -95,20 +148,20 @@ struct wire_job_submit {
     char from_host[MAXHOSTNAMELEN];
     char username[LL_BUFSIZ_256];
 
-    int32_t num_cpus;
-    int32_t num_nhosts;
-    int32_t num_gpus;
-    int32_t wall_seconds;
+    int32_t  num_cpus;
+    int32_t  num_nhosts;
+    int32_t  num_gpus;
+    int32_t  wall_seconds;
     uint64_t mem_mb;
     uint32_t uid;
     uint32_t gid;
     uint32_t umask;
     uint32_t flags;
 
-    int64_t begin_time;
-    int64_t term_time;
-    int64_t susp_time;
-    int64_t resume_time;
+    int64_t  begin_time;
+    int64_t  term_time;
+    int64_t  susp_time;
+    int64_t  resume_time;
 };
 
 /* -----------------------------------------------------------------------
@@ -142,7 +195,7 @@ struct wire_job_resources {
 /* -----------------------------------------------------------------------
  * job info  (mbd -> client)
  *
- * time fields are int64_t on the wire to avoid 2038 on 32-bit.
+ * time fields are int64_t to avoid 2038 on 32-bit.
  * ----------------------------------------------------------------------- */
 
 struct wire_job_info {
@@ -164,7 +217,7 @@ struct wire_job_info {
 };
 
 struct wire_job_info_array {
-    int32_t              njobs;
+    int32_t               njobs;
     struct wire_job_info *jobs;
 };
 
@@ -173,12 +226,12 @@ struct wire_job_info_array {
  * ----------------------------------------------------------------------- */
 
 struct wire_host_info {
-    char     name[MAXHOSTNAMELEN];
-    int32_t  status;
-    int32_t  max_jobs;
-    int32_t  num_jobs;
-    int32_t  num_run;
-    int32_t  num_susp;
+    char    name[MAXHOSTNAMELEN];
+    int32_t status;
+    int32_t max_jobs;
+    int32_t num_jobs;
+    int32_t num_run;
+    int32_t num_susp;
 };
 
 struct wire_host_info_array {
@@ -191,9 +244,9 @@ struct wire_host_info_array {
  * ----------------------------------------------------------------------- */
 
 struct wire_group_info {
-    char     name[LL_BUFSIZ_64];
-    int32_t  num_members;
-    char     members[LL_BUFSIZ_1K];  /* space-separated */
+    char    name[LL_BUFSIZ_64];
+    int32_t num_members;
+    char    members[LL_BUFSIZ_1K];  /* space-separated */
 };
 
 struct wire_group_info_array {
@@ -206,14 +259,14 @@ struct wire_group_info_array {
  * ----------------------------------------------------------------------- */
 
 struct wire_queue_info {
-    char     name[LL_BUFSIZ_64];
-    char     description[LL_BUFSIZ_256];
-    char     hosts[LL_BUFSIZ_256];
-    int32_t  priority;
-    int32_t  max_jobs;
-    int32_t  num_pend;
-    int32_t  num_run;
-    int32_t  num_susp;
+    char    name[LL_BUFSIZ_64];
+    char    description[LL_BUFSIZ_256];
+    char    hosts[LL_BUFSIZ_256];
+    int32_t priority;
+    int32_t max_jobs;
+    int32_t num_pend;
+    int32_t num_run;
+    int32_t num_susp;
 };
 
 struct wire_queue_info_array {
@@ -228,6 +281,7 @@ struct wire_queue_info_array {
 /* control */
 bool_t xdr_wire_compact_notify(XDR *, struct wire_compact_notify *);
 bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
+bool_t xdr_wire_sbd_job(XDR *, struct wire_sbd_job *);
 
 /* job */
 bool_t xdr_wire_job_state(XDR *, struct wire_job_state *);
@@ -239,6 +293,9 @@ bool_t xdr_wire_job_info_req(XDR *, struct wire_job_info_req *);
 bool_t xdr_wire_job_resources(XDR *, struct wire_job_resources *);
 bool_t xdr_wire_job_info(XDR *, struct wire_job_info *);
 bool_t xdr_wire_job_info_array(XDR *, struct wire_job_info_array *);
+bool_t xdr_wire_job_start(XDR *, struct wire_job_start *);
+bool_t xdr_wire_job_sidecar(XDR *, struct wire_job_sidecar *);
+bool_t xdr_wire_job_reply(XDR *, struct wire_job_reply *);
 
 /* host */
 bool_t xdr_wire_host_info(XDR *, struct wire_host_info *);
@@ -251,6 +308,3 @@ bool_t xdr_wire_queue_info_array(XDR *, struct wire_queue_info_array *);
 /* group */
 bool_t xdr_wire_group_info(XDR *, struct wire_group_info *);
 bool_t xdr_wire_group_info_array(XDR *, struct wire_group_info_array *);
-
-/* sbd */
-bool_t xdr_wire_sbd_job(XDR *, struct wire_sbd_job *);

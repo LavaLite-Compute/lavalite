@@ -45,6 +45,7 @@ enum batch_lib_op {
     BATCH_JOB_FINISH_ACK,
     // no ack to signal just status change
     BATCH_SBD_JOB_SIGNAL,
+    BATCH_JOB_UNKNOWN,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);
