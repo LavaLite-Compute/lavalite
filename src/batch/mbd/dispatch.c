@@ -398,11 +398,15 @@ int host_info(XDR *xdrs, int chan_id)
         struct mbd_host *h = (struct mbd_host *)e;
 
         ll_strlcpy(hosts[i].name, h->net.name, sizeof(hosts[i].name));
-        hosts[i].status   = h->status;
-        hosts[i].max_jobs = h->res.max_jobs;
-        hosts[i].num_jobs = h->num_jobs;
-        hosts[i].num_run  = h->num_run;
-        hosts[i].num_susp = h->num_susp;
+        hosts[i].status          = h->status;
+        hosts[i].max_jobs        = h->res.max_jobs;
+        hosts[i].total_cpu       = h->res.total_cpu;
+        hosts[i].total_gpu       = h->res.total_gpu;
+        hosts[i].total_mem_mb    = h->res.total_mem_mb;
+        hosts[i].total_storage_mb = h->res.total_storage_mb;
+        hosts[i].num_jobs        = h->num_jobs;
+        hosts[i].num_run         = h->num_run;
+        hosts[i].num_susp        = h->num_susp;
         i++;
     }
 

@@ -51,28 +51,56 @@ struct col_widths {
     int name;
     int status;
     int max;
+    int cpu;
+    int mem;
+    int storage;
+    int gpu;
     int njobs;
     int run;
     int susp;
 };
 
+#define FMT_BUF_LEN 16
+
+static void fmt_mb(uint64_t mb, char *buf, size_t len)
+{
+    if (mb >= (uint64_t)1024 * 1024)
+        snprintf(buf, len, "%luT", (unsigned long)(mb / (1024 * 1024)));
+    else if (mb >= 1024)
+        snprintf(buf, len, "%luG", (unsigned long)(mb / 1024));
+    else
+        snprintf(buf, len, "%luM", (unsigned long)mb);
+}
+
 static void
 compute_widths(struct host_info *h, int n, struct col_widths *w)
 {
-    w->name   = strlen("HOST_NAME");
-    w->status = strlen("STATUS");
-    w->max    = strlen("MAX");
-    w->njobs  = strlen("NJOBS");
-    w->run    = strlen("RUN");
-    w->susp   = strlen("SUSP");
+    char tmp[FMT_BUF_LEN];
+
+    w->name    = strlen("HOST_NAME");
+    w->status  = strlen("STATUS");
+    w->max     = strlen("MAX");
+    w->cpu     = strlen("CPU");
+    w->mem     = strlen("MEM");
+    w->storage = strlen("STOR");
+    w->gpu     = strlen("GPU");
+    w->njobs   = strlen("NJOBS");
+    w->run     = strlen("RUN");
+    w->susp    = strlen("SUSP");
 
     for (int i = 0; i < n; i++) {
-        w->name   = imax(w->name,   strlen(h[i].name));
-        w->status = imax(w->status, strlen(host_status_str(h[i].status)));
-        w->max    = imax(w->max,    ndigits(h[i].max_jobs));
-        w->njobs  = imax(w->njobs,  ndigits(h[i].num_jobs));
-        w->run    = imax(w->run,    ndigits(h[i].num_run));
-        w->susp   = imax(w->susp,   ndigits(h[i].num_susp));
+        fmt_mb(h[i].total_mem_mb, tmp, sizeof(tmp));
+        w->mem     = imax(w->mem,     (int)strlen(tmp));
+        fmt_mb(h[i].total_storage_mb, tmp, sizeof(tmp));
+        w->storage = imax(w->storage, (int)strlen(tmp));
+        w->name    = imax(w->name,    (int)strlen(h[i].name));
+        w->status  = imax(w->status,  (int)strlen(host_status_str(h[i].status)));
+        w->max     = imax(w->max,     ndigits(h[i].max_jobs));
+        w->cpu     = imax(w->cpu,     ndigits(h[i].total_cpu));
+        w->gpu     = imax(w->gpu,     ndigits(h[i].total_gpu));
+        w->njobs   = imax(w->njobs,   ndigits(h[i].num_jobs));
+        w->run     = imax(w->run,     ndigits(h[i].num_run));
+        w->susp    = imax(w->susp,    ndigits(h[i].num_susp));
     }
 }
 
@@ -113,22 +141,34 @@ int main(int argc, char **argv)
     struct col_widths w;
     compute_widths(hosts, nhosts, &w);
 
-    printf("%-*s  %-*s  %*s  %*s  %*s  %*s\n",
-           w.name,   "HOST_NAME",
-           w.status, "STATUS",
-           w.max,    "MAX",
-           w.njobs,  "NJOBS",
-           w.run,    "RUN",
-           w.susp,   "SUSP");
+    printf("%-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s\n",
+           w.name,    "HOST_NAME",
+           w.status,  "STATUS",
+           w.max,     "MAX",
+           w.cpu,     "CPU",
+           w.mem,     "MEM",
+           w.storage, "STOR",
+           w.gpu,     "GPU",
+           w.njobs,   "NJOBS",
+           w.run,     "RUN",
+           w.susp,    "SUSP");
 
+    char mem_buf[FMT_BUF_LEN];
+    char stor_buf[FMT_BUF_LEN];
     for (int i = 0; i < nhosts; i++) {
-        printf("%-*s  %-*s  %*d  %*d  %*d  %*d\n",
-               w.name,   hosts[i].name,
-               w.status, host_status_str(hosts[i].status),
-               w.max,    hosts[i].max_jobs,
-               w.njobs,  hosts[i].num_jobs,
-               w.run,    hosts[i].num_run,
-               w.susp,   hosts[i].num_susp);
+        fmt_mb(hosts[i].total_mem_mb,     mem_buf,  sizeof(mem_buf));
+        fmt_mb(hosts[i].total_storage_mb, stor_buf, sizeof(stor_buf));
+        printf("%-*s  %-*s  %*d  %*d  %*s  %*s  %*d  %*d  %*d  %*d\n",
+               w.name,    hosts[i].name,
+               w.status,  host_status_str(hosts[i].status),
+               w.max,     hosts[i].max_jobs,
+               w.cpu,     hosts[i].total_cpu,
+               w.mem,     mem_buf,
+               w.storage, stor_buf,
+               w.gpu,     hosts[i].total_gpu,
+               w.njobs,   hosts[i].num_jobs,
+               w.run,     hosts[i].num_run,
+               w.susp,    hosts[i].num_susp);
     }
 
     free(hosts);

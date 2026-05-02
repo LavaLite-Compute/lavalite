@@ -93,12 +93,19 @@ int sbd_register(void)
 
     if (gethostname(host, sizeof(host)) < 0) {
         LS_ERR("cannot get local hostname: %m");
-        snprintf(host, sizeof(host), "unknown");
+        abort();
     }
+
+    /*
+     * Sim mode: --simulator name:port overrides gethostname.
+     * mbd strips the :port suffix to look up the host in its hash.
+     */
+    if (sim_name[0] != 0)
+        ll_strlcpy(host, sim_name, MAXHOSTNAMELEN);
 
     struct wire_sbd_register req;
     memset(&req, 0, sizeof(req));
-    snprintf(req.hostname, sizeof(req.hostname), "%s", host);
+    ll_strlcpy(req.hostname, host, sizeof(req.hostname));
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);

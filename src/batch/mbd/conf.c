@@ -10,8 +10,6 @@
 #include <pwd.h>
 
 #include "base/lib/ll.syslog.h"
-#include "base/lib/ll.hash.h"
-#include "base/lib/ll.list.h"
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
@@ -466,8 +464,11 @@ static int parse_groups(const char *path)
     }
 
     fclose(f);
-    LS_ERRX("missing End HostGroup in %s", path);
-    return -1;
+    if (in_section) {
+        LS_ERRX("missing End HostGroup in %s", path);
+        return -1;
+    }
+    return 0;
 }
 
 static int commit_queue(struct queue_conf *qc)
@@ -611,6 +612,141 @@ static int parse_queues(const char *path)
     return 0;
 }
 
+/*
+ * Parse Begin Sim section.
+ * Each line: SIM_NAME  REAL_HOST  PORT
+ * Clones the real host entry with a new name and port override.
+ * Sim hosts are registered in host_list and host_name_hash alongside
+ * real hosts so the scheduler treats them uniformly.
+ * Section is optional — no error if absent.
+ */
+static int parse_sim(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if (f == NULL) {
+        LS_ERR("fopen=%s failed", path);
+        return -1;
+    }
+
+    char line[LL_BUFSIZ_1K];
+    int in_section     = 0;
+    int header_skipped = 0;
+
+    while (fgets(line, sizeof(line), f) != NULL) {
+        char *p = ltrim(line);
+        rtrim(p);
+
+        if (*p == 0 || *p == '#')
+            continue;
+
+        char *section = ll_conf_parse_begin(p);
+        if (section != NULL) {
+            if (strncmp(section, "Sim", 3) == 0) {
+                in_section     = 1;
+                header_skipped = 0;
+            }
+            continue;
+        }
+
+        if (!in_section)
+            continue;
+
+        if (!header_skipped) {
+            header_skipped = 1;
+            continue;
+        }
+
+        if (ll_conf_parse_end(p)) {
+            fclose(f);
+            return 0;
+        }
+
+        char sim_name[MAXHOSTNAMELEN];
+        char real_host[MAXHOSTNAMELEN];
+        char mem_str[LL_BUFSIZ_32];
+        char storage_str[LL_BUFSIZ_32];
+        int  port;
+        int  max_jobs;
+        int  total_cpu;
+
+        /* NAME  REAL_HOST  PORT  MXJ  CPU  MEM  STORAGE */
+        if (sscanf(p, "%255s %255s %d %d %d %31s %31s",
+                   sim_name, real_host, &port,
+                   &max_jobs, &total_cpu,
+                   mem_str, storage_str) != 7) {
+            LS_ERRX("bad sim line: %s", p);
+            fclose(f);
+            return -1;
+        }
+
+        if (port < 1 || port > 65535) {
+            LS_ERRX("sim=%s invalid port=%d", sim_name, port);
+            fclose(f);
+            return -1;
+        }
+
+        struct mbd_host *real = find_host_by_name(real_host);
+        if (real == NULL) {
+            LS_ERRX("sim=%s references unknown host=%s", sim_name, real_host);
+            fclose(f);
+            return -1;
+        }
+
+        struct mbd_host *h = calloc(1, sizeof(*h));
+        if (h == NULL) {
+            LS_ERR("calloc failed");
+            fclose(f);
+            return -1;
+        }
+
+        /* use real host network identity, override name */
+        h->net = real->net;
+        ll_strlcpy(h->net.name, sim_name, sizeof(h->net.name));
+
+        h->res.max_jobs  = max_jobs;
+        h->res.total_cpu = total_cpu;
+        h->res.free_cpu  = total_cpu;
+
+        h->res.total_mem_mb = parse_mem(mem_str);
+        if (h->res.total_mem_mb == 0) {
+            LS_ERRX("sim=%s bad mem=%s", sim_name, mem_str);
+            free(h);
+            fclose(f);
+            return -1;
+        }
+        h->res.free_mem_mb = h->res.total_mem_mb;
+
+        h->res.total_storage_mb = parse_mem(storage_str);
+        if (h->res.total_storage_mb == 0) {
+            LS_ERRX("sim=%s bad storage=%s", sim_name, storage_str);
+            free(h);
+            fclose(f);
+            return -1;
+        }
+        h->res.free_storage_mb = h->res.total_storage_mb;
+
+        ll_list_init(&h->res.gpu_list);
+        h->port     = (uint16_t)port;
+        h->sbd_chan = -1;
+        h->status   = HOST_UNAVAIL;
+
+        ll_list_append(&host_list, &h->ent);
+        ll_hash_insert(&host_name_hash, h->net.name, h, 0);
+
+        LS_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB storage=%luMB",
+                sim_name, real_host, port,
+                total_cpu, h->res.total_mem_mb, h->res.total_storage_mb);
+    }
+
+    fclose(f);
+    if (in_section) {
+        LS_ERRX("missing End Sim in %s", path);
+        return -1;
+    }
+
+    return 0;
+}
+
 static void dump_config(void)
 {
     struct ll_list_entry *e;
@@ -619,8 +755,8 @@ static void dump_config(void)
     LS_DEBUG("--- hosts ---");
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *)e;
-        LS_DEBUG("host name=%s addr=%s cpu=%d mem=%luMB storage=%luMB gpu=%d",
-                 h->net.name, h->net.addr,
+        LS_DEBUG("host name=%s addr=%s port=%d cpu=%d mem=%luMB storage=%luMB gpu=%d",
+                 h->net.name, h->net.addr, h->port ? h->port : 0,
                  h->res.total_cpu,
                  h->res.total_mem_mb,
                  h->res.total_storage_mb,
@@ -686,13 +822,6 @@ static int check_ll_config(void)
     return 0;
 }
 
-static int queue_priority_cmp(const void *a, const void *b)
-{
-    const struct mbd_queue *qa = *(const struct mbd_queue **)a;
-    const struct mbd_queue *qb = *(const struct mbd_queue **)b;
-    return qb->priority - qa->priority;  /* higher first */
-}
-
 int conf_init(void)
 {
     char path[PATH_MAX];
@@ -728,6 +857,11 @@ int conf_init(void)
         return -1;
     }
 
+    if (parse_sim(path) < 0) {
+        LS_ERRX("parse_sim failed path=%s", path);
+        return -1;
+    }
+
     if (parse_groups(path) < 0) {
         LS_ERRX("parse_groups failed path=%s", path);
         return -1;
@@ -753,11 +887,6 @@ int conf_init(void)
                 ll_params[LL_DEFAULT_QUEUE].val);
         return -1;
     }
-
-   if (ll_list_sort(&queue_list, queue_priority_cmp) < 0) {
-       LS_ERRX("queue sort failed");
-       return -1;
-   }
 
     dump_config();
 

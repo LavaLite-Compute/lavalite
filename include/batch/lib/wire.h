@@ -228,12 +228,16 @@ struct wire_job_info_array {
  * ----------------------------------------------------------------------- */
 
 struct wire_host_info {
-    char    name[MAXHOSTNAMELEN];
-    int32_t status;
-    int32_t max_jobs;
-    int32_t num_jobs;
-    int32_t num_run;
-    int32_t num_susp;
+    char     name[MAXHOSTNAMELEN];
+    int32_t  status;
+    int32_t  max_jobs;
+    int32_t  total_cpu;
+    int32_t  total_gpu;
+    uint64_t total_mem_mb;
+    uint64_t total_storage_mb;
+    int32_t  num_jobs;
+    int32_t  num_run;
+    int32_t  num_susp;
 };
 
 struct wire_host_info_array {

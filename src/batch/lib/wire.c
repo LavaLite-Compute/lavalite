@@ -291,6 +291,14 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->max_jobs))
         return false;
+    if (!xdr_int32_t(xdrs, &p->total_cpu))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->total_gpu))
+        return false;
+    if (!xdr_uint64_t(xdrs, &p->total_mem_mb))
+        return false;
+    if (!xdr_uint64_t(xdrs, &p->total_storage_mb))
+        return false;
     if (!xdr_int32_t(xdrs, &p->num_jobs))
         return false;
     if (!xdr_int32_t(xdrs, &p->num_run))

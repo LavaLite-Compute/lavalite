@@ -30,6 +30,7 @@ extern char sbd_root_dir[PATH_MAX];
 extern char sbd_state_dir[PATH_MAX];
 extern char sbd_job_dir[PATH_MAX];
 extern char sbd_archive_dir[PATH_MAX];
+extern char sim_name[MAXHOSTNAMELEN];
 
 enum sbd_policy {
     SBD_OPERATION_TIMER  = 1,

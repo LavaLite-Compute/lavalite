@@ -73,6 +73,8 @@ static int mbd_init(void)
     ll_list_init(&queue_list);
     ll_hash_init(&queue_name_hash, 31);
     ll_hash_init(&sbd_chan_hash, 1021);
+    ll_list_init(&token_pool_list);
+    ll_hash_init(&token_pool_name_hash, 1021);
 
     if (conf_init() < 0) {
         LS_ERRX("conf_init failed");

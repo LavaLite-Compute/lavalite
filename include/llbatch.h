@@ -103,12 +103,16 @@ struct job_info {
 };
 
 struct host_info {
-    char *name;
-    int32_t status;
-    int32_t max_jobs;
-    int32_t num_jobs;
-    int32_t num_run;
-    int32_t num_susp;
+    char    *name;
+    int32_t  status;
+    int32_t  max_jobs;
+    int32_t  total_cpu;
+    int32_t  total_gpu;
+    uint64_t total_mem_mb;
+    uint64_t total_storage_mb;
+    int32_t  num_jobs;
+    int32_t  num_run;
+    int32_t  num_susp;
 };
 
 enum queue_stat {

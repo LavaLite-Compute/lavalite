@@ -41,6 +41,9 @@ static void sbd_cleanup(void);
 static int opt_op_timer     = SBD_OPERATION_TIMER;
 static int opt_resend_timer = SBD_RESEND_ACK_TIMEOUT;
 
+char sim_name[MAXHOSTNAMELEN]; /* empty = not in sim mode */
+int  sim_port = 0;             /* 0 = use LL_SBD_PORT    */
+
 // List and table of all jobs
 struct ll_list sbd_job_list;
 struct ll_hash *sbd_job_hash;
@@ -187,7 +190,7 @@ static int sbd_init_network(void)
                ll_params[LL_SBD_PORT].val);
         return -1;
     }
-    sbd_port = (uint16_t)t;
+    sbd_port = (sim_port > 0) ? (uint16_t)sim_port : (uint16_t)t;
 
     chan_init();
 
@@ -566,8 +569,7 @@ sbd_pid_alive(struct sbd_job *job)
 
 // sbd_init() failed so as a good coding hygiene we clean up file
 // descriptors and buffers
-static void
-sbd_cleanup(void)
+static void sbd_cleanup(void)
 {
     chan_close(sbd_listen_chan);
     chan_close(sbd_timer_chan);
@@ -710,23 +712,53 @@ static void sbd_run_daemon(void)
     chan_close(sbd_mbd_chan);
 }
 
+static int parse_simulator(const char *arg)
+{
+    char tmp[MAXHOSTNAMELEN];
+    char *colon;
+    int  port;
+
+    ll_strlcpy(tmp, arg, sizeof(tmp));
+
+    colon = strchr(tmp, ':');
+    if (colon == NULL) {
+        fprintf(stderr, "sbd: --simulator: expected name:port\n");
+        return -1;
+    }
+    *colon = 0;
+
+    if (!ll_atoi(colon + 1, &port) || port < 1 || port > 65535) {
+        fprintf(stderr, "sbd: --simulator: invalid port '%s'\n", colon + 1);
+        return -1;
+    }
+
+    ll_strlcpy(sim_name, tmp, sizeof(sim_name));
+    sim_port = port;
+    return 0;
+}
+
 static struct option long_options[] = {
-    {"non_root", no_argument, 0, 'n'},
-    {"envdir", required_argument, 0, 'e'},
-    {"version", no_argument, 0, 'V'},
+    {"non_root",     no_argument,       0, 'n'},
+    {"confdir",      required_argument, 0, 'c'},
+    {"version",      no_argument,       0, 'V'},
+    {"simulator",    required_argument, 0, 's'},
     {"op_timer",     required_argument, 0, 'o'},
     {"resend_timer", required_argument, 0, 'r'},
-    {"help", no_argument, 0, 'h'},
+    {"help",         no_argument,       0, 'h'},
     {0, 0, 0, 0}
 };
 
 static void usage(void)
 {
     fprintf(stderr, "sbd: [OPTIONS]\n"
-        " -n --non_root Runs in non root mode\n"
-        " -V, --version Print version and exit\n"
-        " -e, --envidr set LL_CONF_DIR in the environment\n"
-        " -h, --help Show this help\n");
+        " -n, --non_root          Run in non-root mode\n"
+        " -V, --version           Print version and exit\n"
+        " -c, --confdir dir       Set LL_CONF_DIR\n"
+        " -s, --simulator name:port  Sim mode: register as name on port\n"
+        " -o, --op_timer N        Operation timer seconds (default: %d)\n"
+        " -r, --resend_timer N    Resend ACK timeout seconds (default: %d)\n"
+        " -h, --help              Show this help\n",
+        SBD_OPERATION_TIMER, SBD_RESEND_ACK_TIMEOUT);
 }
 
 int main(int argc, char **argv)
@@ -734,7 +766,8 @@ int main(int argc, char **argv)
     int cc;
     char *conf_dir = NULL;
 
-    while ((cc = getopt_long(argc, argv, "nc:Vh", long_options, NULL)) != EOF) {
+    sim_name[0] = 0;
+    while ((cc = getopt_long(argc, argv, "nc:Vs:o:r:h", long_options, NULL)) != EOF) {
         switch (cc) {
         case 'n':
             non_root = 1;
@@ -745,6 +778,10 @@ int main(int argc, char **argv)
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
+        case 's':
+            if (parse_simulator(optarg) < 0)
+                return -1;
+            break;
         case 'o':
             if (!ll_atoi(optarg, &opt_op_timer) || opt_op_timer < 1) {
                 fprintf(stderr, "sbd: invalid op_timer=%s\n", optarg);
