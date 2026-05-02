@@ -6,13 +6,14 @@
 # CPU        - Number of CPU cores available for scheduling
 # GPU        - Number of GPU devices available for scheduling
 # MEM        - Total memory available (G=gigabytes, T=terabytes)
+# STORAGE    - Total storage available (G=gigabytes, T=terabytes)
 #
 Begin Host
-HOST_NAME   MXJ   CPU   MEM
-buntu24       4    22    40G
-worker1       6    64    1T
-worker2       6    64    1T
-worker3       8    128   1T
+HOST_NAME   MXJ   CPU   MEM    STORAGE
+buntu24       4    22    40G    100T
+worker1       6    64    1T      50T
+worker2       6    64    1T      50T
+worker3       8    128   1T     120T
 End Host
 
 Begin Gpu

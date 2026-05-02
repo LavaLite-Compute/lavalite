@@ -38,6 +38,8 @@ static void job_execute_drive(void);
 static void mbd_reconnect_try(void);
 static bool_t sbd_pid_alive(struct sbd_job *);
 static void sbd_cleanup(void);
+static int opt_op_timer     = SBD_OPERATION_TIMER;
+static int opt_resend_timer = SBD_RESEND_ACK_TIMEOUT;
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -125,7 +127,7 @@ static int sbd_init(void)
     } else {
         sbd_register();
     }
-#if 0
+
     // Initialize persistent job state storage early.
     // If we can't create/validate the state directory, we cannot guarantee
     // restart-safe job tracking, so fail fast before allocating resources.
@@ -138,7 +140,7 @@ static int sbd_init(void)
         LS_ERR("failed to load persistent job state");
         return -1;
     }
-#endif
+
     // Green light we can start to operate
 
     return 0;
@@ -219,9 +221,7 @@ static int sbd_init_network(void)
 
     LS_INFO("chan_epoll_register sbd_efd=%d", sbd_efd);
 
-    // for now
-    t = 0;
-    sbd_timer = SBD_OPERATION_TIMER; // seconds
+    sbd_timer = opt_op_timer;
     // this function is in the channel library.
     sbd_timer_chan = chan_create_timer(sbd_timer);
     if (sbd_timer_chan < 0) {
@@ -231,7 +231,7 @@ static int sbd_init_network(void)
     }
 
     // timout is in second
-    sbd_resend_timer = SBD_RESEND_ACK_TIMEOUT;
+    sbd_resend_timer = opt_resend_timer;
     LS_INFO("sbd_resend_timer set to %d secs", sbd_resend_timer);
 
     //sbd timer channel
@@ -626,20 +626,6 @@ void sbd_fatal(enum sbd_fatal_cause cause)
     _exit(1);
 }
 
-void sbd_prune_archive_try(void)
-{
-}
-
-int sbd_read_exit_status_file(struct sbd_job *job,
-                              int *exit_code,
-                              time_t *done_time)
-{
-    (void)job;
-    (void)exit_code;
-    (void)done_time;
-    return 0;
-}
-
 static void sbd_run_daemon(void)
 {
     job_status_checking();
@@ -728,6 +714,8 @@ static struct option long_options[] = {
     {"non_root", no_argument, 0, 'n'},
     {"envdir", required_argument, 0, 'e'},
     {"version", no_argument, 0, 'V'},
+    {"op_timer",     required_argument, 0, 'o'},
+    {"resend_timer", required_argument, 0, 'r'},
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}
 };
@@ -757,6 +745,18 @@ int main(int argc, char **argv)
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
+        case 'o':
+            if (!ll_atoi(optarg, &opt_op_timer) || opt_op_timer < 1) {
+                fprintf(stderr, "sbd: invalid op_timer=%s\n", optarg);
+                return -1;
+            }
+            break;
+        case 'r':
+            if (!ll_atoi(optarg, &opt_resend_timer) || opt_resend_timer < 1) {
+                fprintf(stderr, "sbd: invalid resend_timer=%s\n", optarg);
+                return -1;
+            }
+            break;
         default:
             usage();
             return -1;

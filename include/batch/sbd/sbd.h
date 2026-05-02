@@ -34,6 +34,7 @@ extern char sbd_archive_dir[PATH_MAX];
 enum sbd_policy {
     SBD_OPERATION_TIMER  = 1,
     SBD_RESEND_ACK_TIMEOUT = 1,
+    SBD_PRUNE_INTERVAL = 600,
     SBD_ARCHIVE_RETENTION  = 24 * 3600,
 };
 
@@ -53,6 +54,7 @@ struct sbd_job {
     char exec_cwd[PATH_MAX];   // execution working directory
     uid_t exec_uid;
     gid_t exec_gid;
+    uint32_t umask;
     char jobfile[PATH_MAX]; // copy of the job_file from mbd jobSpecs
     char command[LL_BUFSIZ_512];
     char job_name[LL_BUFSIZ_256];
@@ -135,10 +137,8 @@ struct sbd_job *sbd_job_lookup(int64_t job_id);
 
 // Allocate + initialise a new sbd_job from jobSpecs.
 // Does not insert into list/hash.
-//struct sbd_job *sbd_job_create(const struct jobSpecs *spec);
 void sbd_job_file_remove(struct sbd_job *);
 void sbd_job_state_archive(struct sbd_job *);
-void sbd_prune_archive(void);
 
 // Insert job into global list + hash.
 void sbd_job_insert(struct sbd_job *);
@@ -189,15 +189,11 @@ int sbd_register(void);
 void sbd_mbd_link_down(void);
 void sbd_chan_shutdown(int);
 
-// handle mbd messagges
-// daemon + object + action
 struct sbd_job;
 int sbd_mbd_route(int);
 void sbd_job_new(XDR *);
 void sbd_job_insert(struct sbd_job *);
 int sbd_job_script_write(struct sbd_job *, const struct wire_job_script *);
-int sbd_job_sidecar_write(struct sbd_job *,
-                          const struct wire_job_sidecar *);
 int sbd_job_new_reply(struct sbd_job *);
 void sbd_job_new_ack(XDR *);
 
@@ -209,9 +205,7 @@ void sbd_job_finish_ack(XDR *);
 
 int sbd_job_signal(XDR *);
 int sbd_enqueue_job_unknown(int64_t);
-//int sbd_job_signal_reply(int, struct protocol_header *,
-//                         struct wire_job_sig_reply *);
 void sbd_register_ack(XDR *);
-//void free_job_specs(struct jobSpecs *);
 int32_t sbd_enqueue_payload(int, struct protocol_header *,
                             void *, size_t, bool_t (*xdr_func)());
+int sbd_job_state_write(struct sbd_job *);

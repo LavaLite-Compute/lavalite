@@ -55,12 +55,6 @@ int sbd_mbd_connect(void)
     return sbd_mbd_chan;
 }
 
-int sbd_job_state_write(struct sbd_job *job)
-{
-    (void)job;
-    return 0;
-}
-
 void sbd_mbd_link_down(void)
 {
     if (sbd_mbd_chan >= 0)
