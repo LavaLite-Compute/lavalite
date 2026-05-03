@@ -7,7 +7,8 @@ ARFLAGS = cr
 lib_LIBRARIES = libllbase.a
 
 libllbase_a_SOURCES = ll.conf.c ll.hash.c ll.host.c ll.list.c ll.stack.c \
-	ll.syslog.c ll.channel.c ll.sys.c ll.wire.c ll.lim.c auth.c
+	ll.syslog.c ll.channel.c ll.sys.c ll.wire.c ll.lim.c auth.c \
+	ll.bitset.c
 
 libllbase_a_CFLAGS = $(AM_CFLAGS)
 libllbase_a_LIBADD = -lcrypto

@@ -13,6 +13,8 @@
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
+static int host_idx_seq = 0;
+
 static uint64_t parse_mem(const char *s)
 {
     char *end;
@@ -234,11 +236,6 @@ static int parse_token_pools(const char *path)
 static struct mbd_host *make_host(const char *p)
 {
     struct mbd_host *h;
-    char mem_str[LL_BUFSIZ_32];
-    char storage_str[LL_BUFSIZ_32];
-    char hostname[LL_BUFSIZ_64];
-    int n;
-
     h = calloc(1, sizeof(*h));
     if (h == NULL) {
         LS_ERR("calloc failed");
@@ -246,6 +243,10 @@ static struct mbd_host *make_host(const char *p)
     }
 
     /* HOST_NAME  MXJ  CPU  MEM  STORAGE */
+    int n;
+    char mem_str[LL_BUFSIZ_32];
+    char storage_str[LL_BUFSIZ_32];
+    char hostname[LL_BUFSIZ_64];
     n = sscanf(p, "%63s %d %d %31s %31s",
                hostname,
                &h->res.max_jobs,
@@ -344,9 +345,14 @@ static int parse_hosts(const char *path)
             return -1;
         }
 
+        h->host_idx = host_idx_seq++;
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
         ll_hash_insert(&host_addr_hash, h->net.addr, h, 0);
+
+        LS_INFO("host=%s index=%d cpu=%d mem=%luMB "
+                "storage=%luMB", h->net.name, h->host_idx, h->res.total_cpu,
+                h->res.total_mem_mb, h->res.total_storage_mb);
     }
 
     fclose(f);
@@ -729,12 +735,13 @@ static int parse_sim(const char *path)
         h->port     = (uint16_t)port;
         h->sbd_chan = -1;
         h->status   = HOST_UNAVAIL;
+        h->host_idx = host_idx_seq++;
 
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
 
-        LS_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB storage=%luMB",
-                sim_name, real_host, port,
+        LS_INFO("sim host=%s index=%d real=%s port=%d cpu=%d mem=%luMB "
+                "storage=%luMB", sim_name, h->host_idx, real_host, port,
                 total_cpu, h->res.total_mem_mb, h->res.total_storage_mb);
     }
 

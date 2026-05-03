@@ -15,6 +15,8 @@
 
 #include "llbatch.h"
 
+#define SCHED_HOST_MAX 10240
+
 enum job_list_id {
     JOB_LIST_PEND   = 0,
     JOB_LIST_RUN    = 1,
@@ -146,6 +148,7 @@ struct mbd_host {
     int    num_run;
     int    num_susp;
     int    sbd_chan;             /* -1 if not connected */
+    int    host_idx;
     time_t last_heard;
 };
 
