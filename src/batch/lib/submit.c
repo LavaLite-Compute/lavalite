@@ -62,9 +62,9 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
     if (w->num_cpus == 0)
         w->num_cpus = 1;
 
-    w->num_nhosts = js->num_nhosts;
-    if (w->num_nhosts == 0)
-        w->num_nhosts = 1;
+    w->num_hosts = js->num_hosts;
+    if (w->num_hosts == 0)
+        w->num_hosts = 1;
 
     w->num_gpus     = js->num_gpus;
     w->wall_seconds = js->wall_seconds;

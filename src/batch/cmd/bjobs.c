@@ -84,7 +84,6 @@ struct col_widths {
     int user;
     int stat;
     int queue;
-    int from_host;
     int exec_host;
     int name;
 };
@@ -100,7 +99,6 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
     w->user      = (int)strlen("USER");
     w->stat      = (int)strlen("STAT");
     w->queue     = (int)strlen("QUEUE");
-    w->from_host = (int)strlen("FROM_HOST");
     w->exec_host = (int)strlen("EXEC_HOST");
     w->name      = (int)strlen("JOB_NAME");
 
@@ -111,7 +109,6 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
         w->user      = imax(w->user,      (int)strlen(uid_to_name(j->uid)));
         w->stat      = imax(w->stat,      (int)strlen(job_status_str(j->status)));
         w->queue     = imax(w->queue,     (int)strlen(j->queue));
-        w->from_host = imax(w->from_host, (int)strlen(j->from_host));
         w->name      = imax(w->name,      (int)strlen(j->name));
 
         exec_host = (j->exec_host[0] != '\0') ? j->exec_host : "-";
@@ -122,12 +119,11 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
 static void
 print_header(const struct col_widths *w)
 {
-    printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
+    printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
            w->jobid,     "JOBID",
            w->user,      "USER",
            w->stat,      "STAT",
            w->queue,     "QUEUE",
-           w->from_host, "FROM_HOST",
            w->exec_host, "EXEC_HOST",
            w->name,      "JOB_NAME",
            "SUBMIT_TIME");
@@ -140,12 +136,11 @@ print_job(const struct job_info *j, const struct col_widths *w)
 
     exec_host = (j->exec_host[0] != '\0') ? j->exec_host : "-";
 
-    printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
+    printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
            w->jobid,     j->job_id,
            w->user,      uid_to_name(j->uid),
            w->stat,      job_status_str(j->status),
            w->queue,     j->queue,
-           w->from_host, j->from_host,
            w->exec_host, exec_host,
            w->name,      j->name,
            fmt_time(j->submit_time));
@@ -198,7 +193,7 @@ main(int argc, char **argv)
             usage();
             return 0;
         case 'a':
-            flags |= LLB_JOB_PEND | LLB_JOB_RUN |LLB_JOB_DONE;
+            flags |= LLB_JOB_PEND | LLB_JOB_RUN | LLB_JOB_DONE;
             break;
         case 'p':
             flags |= LLB_JOB_PEND;

@@ -101,7 +101,7 @@ static void route(int chan_id)
 
     switch (hdr.operation) {
     case BATCH_JOB_SUBMIT:
-        if (job_accept(&xdrs, chan_id) < 0)
+        if (job_register(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_SIGNAL:
@@ -177,9 +177,7 @@ int network_init(void)
         return -1;
     }
 
-    if (sched_timer == -1)
-        sched_timer = 5;
-
+    // default 5 secs in mbd.h
     chan_timer = chan_create_timer(sched_timer);
     if (chan_timer < 0) {
         LS_ERR("chan_create_timer=%d failed", sched_timer);
@@ -196,7 +194,6 @@ int network_init(void)
     if (epoll_ctl(mbd_efd, EPOLL_CTL_ADD, chan_sock(chan_timer), &ev) < 0) {
         LS_ERR("epoll_ctl add sched_timer=%d failed", chan_timer);
         chan_close(sched_timer);
-        sched_timer = -1;
         chan_close(chan_mbd);
         chan_mbd = -1;
         close(mbd_efd);

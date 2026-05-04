@@ -142,10 +142,6 @@ static int set_job_env(const struct sbd_job *job)
     if (setenv("LL_QUEUE", job->queue, 1) < 0)
         return -1;
 
-    /* LL_SUB_HOST */
-    if (setenv("LL_SUB_HOST", job->from_host, 1) < 0)
-        return -1;
-
     /* LL_FIRST_HOST: the host sbd is running on */
     if (gethostname(first_host, sizeof(first_host)) < 0) {
         LS_ERR("job=%ld gethostname failed: %m", job->job_id);
@@ -160,10 +156,10 @@ static int set_job_env(const struct sbd_job *job)
             return -1;
     }
 
-    LS_DEBUG("job=%ld LL_JOBID=%ld LL_JOBPID=%d LL_SUB_HOST=%s "
-             "LL_FIRST_HOST=%s LL_QUEUE=%s LL_JOBNAME=%s LL_HOSTS=%s",
-             job->job_id, job->job_id, getpid(), job->from_host,
-             first_host, job->queue, job->job_name, job->hosts);
+    LS_DEBUG("job=%ld LL_JOBID=%ld LL_JOBPID=%d LL_FIRST_HOST=%s "
+             "LL_QUEUE=%s LL_JOBNAME=%s LL_HOSTS=%s",
+             job->job_id, job->job_id, getpid(),  first_host,
+             job->queue, job->job_name, job->hosts);
 
     return 0;
 }

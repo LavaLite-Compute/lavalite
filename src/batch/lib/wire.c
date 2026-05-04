@@ -117,7 +117,7 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_int32_t(xdrs, &s->num_cpus))
         return false;
-    if (!xdr_int32_t(xdrs, &s->num_nhosts))
+    if (!xdr_int32_t(xdrs, &s->num_hosts))
         return false;
     if (!xdr_int32_t(xdrs, &s->num_gpus))
         return false;

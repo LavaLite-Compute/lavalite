@@ -87,8 +87,13 @@ struct log_job_new {
  */
 struct log_job_start {
     int64_t job_id;
-    time_t  start_time;     /* mbd clock: set by caller before write */
+    time_t  start_time;
+    int     nhosts;
+    int     cpus_per_host;
+    int     gpus_per_host;
     char    exec_host[MAXHOSTNAMELEN];
+    char    gpu_type[LL_BUFSIZ_64];
+    char    hosts[LL_BUFSIZ_4K];   /* space-separated */
 };
 
 /*

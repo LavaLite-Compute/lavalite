@@ -50,9 +50,10 @@ static int host_plan_cmp(const void *a, const void *b)
     return ha->res.free_cpu - hb->res.free_cpu;
 }
 
-static void mark_candidates(void)
+static int mark_candidates(void)
 {
     struct ll_list_entry *e;
+    int n = 0;
 
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *)e;
@@ -67,7 +68,10 @@ static void mark_candidates(void)
             continue;
 
         h->candidate = 1;
+        ++n;
     }
+
+    return n;
 }
 
 static int is_depend_ok(const struct job_data *job)
@@ -166,9 +170,9 @@ static int build_host_plan(const struct job_data *job)
         ++n;
     }
 
-    if (n < job->res.num_nhosts) {
+    if (n < job->res.num_hosts) {
         LS_DEBUG("job=%ld need=%d found=%d hosts", job->job_id,
-                 job->res.num_nhosts, n);
+                 job->res.num_hosts, n);
         return 0;
     }
 
@@ -176,9 +180,9 @@ static int build_host_plan(const struct job_data *job)
 
     memset(&plan, 0, sizeof(plan));
     int i;
-    for (i = 0; i < job->res.num_nhosts; i++)
+    for (i = 0; i < job->res.num_hosts; i++)
         plan.hosts[i] = host_plan[i];
-    plan.nhosts        = job->res.num_nhosts;
+    plan.nhosts        = job->res.num_hosts;
     plan.cpus_per_host = job->res.num_cpus;
     plan.gpus_per_host = job->res.num_gpus;
     if (job->res.num_gpus > 0)
@@ -238,15 +242,21 @@ static void host_deduct_resources(const struct job_data *job)
 
 void schedule(void)
 {
+    LS_DEBUG("num_pend_jobs=%d", ll_list_count(&pend_jobs_list));
     if (ll_list_is_empty(&pend_jobs_list))
         return;
 
-    mark_candidates();
+    int cc = mark_candidates();
+    LS_DEBUG("got number=%d of candidates hosts", cc);
+    if (cc == 0)
+        return;
+
     ll_list_sort_buf(&pend_jobs_list, sort_buf, pend_job_cmp);
 
-    struct ll_list_entry *e;
-    for (e = pend_jobs_list.head; e; e = e->next) {
+    struct ll_list_entry *e = pend_jobs_list.head;
+    while (e) {
         struct job_data *job = (struct job_data *)e;
+        e = e->next;
 
         LS_DEBUG("is job=%ld ready for scheduling", job->job_id);
         if (!job_is_ready(job))

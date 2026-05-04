@@ -46,7 +46,7 @@ struct job_token {
 /* what the user requested at submit time */
 struct job_resources {
     int32_t  num_cpus;
-    int32_t  num_nhosts;
+    int32_t  num_hosts;
     int32_t  num_gpus;
     char     gpu_type[LL_BUFSIZ_256];
     uint64_t mem_mb;
@@ -193,6 +193,16 @@ struct mbd_token_pool {
 };
 
 #define JOB_BUCKETS 10
+#define SCHED_PLAN_MAX 1024
+#define SCHED_TIMER 5
+
+struct sched_plan {
+    struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */
+    int  nhosts;
+    int  cpus_per_host;                     /* cpu slots per host */
+    int  gpus_per_host;                     /* gpus per host, 0 if none */
+    char gpu_type[LL_BUFSIZ_64];            /* gpu type, empty if none */
+};
 
 extern int64_t job_id_seq;
 extern struct ll_hash job_id_hash;
@@ -249,16 +259,6 @@ int32_t enqueue_header(int, int, int);
 void chan_shutdown(int);
 
 // sched.c
-#define SCHED_PLAN_MAX 1024
-
-struct sched_plan {
-    struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */
-    int  nhosts;
-    int  cpus_per_host;                     /* cpu slots per host */
-    int  gpus_per_host;                     /* gpus per host, 0 if none */
-    char gpu_type[LL_BUFSIZ_64];            /* gpu type, empty if none */
-};
-
 void schedule(void);
 int mbd_dispatch_job(struct job_data *, struct sched_plan *);
 
@@ -266,7 +266,7 @@ int mbd_dispatch_job(struct job_data *, struct sched_plan *);
 int events_init(void);
 void reopen_job_events(void);
 void event_job_new(const struct job_data *, const struct wire_job_submit *);
-void event_job_start(const struct job_data *);
+void event_job_start(const struct job_data *, const struct sched_plan *);
 void event_job_accept(const struct job_data *);
 void event_job_execute(const struct job_data *, const char *);
 void event_job_signal(const struct job_data *, const struct wire_job_sig *);
@@ -288,7 +288,7 @@ int compact_done(XDR *, int);
 int jobs_replay(void);
 void new_job_reply(XDR *, int32_t);
 int job_init(void);
-int job_accept(XDR *, int);
+int job_register(XDR *, int);
 struct job_data *job_find(int64_t);
 void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
 void job_move_list(struct job_data *, struct ll_list *,

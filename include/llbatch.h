@@ -60,7 +60,7 @@ struct job_submit {
     char        *project;       /* --project     */
     char        *comment;       /* --comment     */
     int32_t      num_cpus;      /* --cpus        (per host) */
-    int32_t      num_nhosts;    /* --nhosts      */
+    int32_t      num_hosts;    /* --nhosts      */
     int32_t      num_gpus;      /* --gpus        (per host) */
     int32_t      wall_seconds;  /* --wall        */
     uint64_t     mem_mb;        /* --mem         (per host) */

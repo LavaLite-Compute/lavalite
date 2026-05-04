@@ -20,10 +20,10 @@ void ls_closelog(void);
     ls_syslog(LOG_ERR, "%s: " fmt, __func__, ##__VA_ARGS__)
 
 #define LS_ERR(fmt, ...) \
-    ls_syslog(LOG_ERR, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+    ls_syslog(LOG_ERR, "%s: " fmt": %m", __func__, ##__VA_ARGS__)
 
 #define LS_WARNING(fmt, ...) \
-    ls_syslog(LOG_WARNING, "%s: " fmt " %m", __func__, ##__VA_ARGS__)
+    ls_syslog(LOG_WARNING, "%s: " fmt": %m", __func__, ##__VA_ARGS__)
 
 #define LS_WARNINGX(fmt, ...)                                            \
     ls_syslog(LOG_WARNING, "%s: " fmt, __func__, ##__VA_ARGS__)

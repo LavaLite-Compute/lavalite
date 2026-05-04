@@ -55,6 +55,14 @@ size_t ll_strlcpy(char *dst, const char *src, size_t size)
     dst[size - 1] = 0;
     return srclen;
 }
+size_t ll_strlcat(char *dst, const char *src, size_t size)
+{
+    size_t dlen = strlen(dst);
+
+    if (dlen >= size)
+        return dlen + strlen(src);
+    return dlen + ll_strlcpy(dst + dlen, src, size - dlen);
+}
 
 int get_uid(const char *user, uid_t *uid)
 {

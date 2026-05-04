@@ -138,7 +138,7 @@ struct wire_job_submit {
     char username[LL_BUFSIZ_256];
     char home_dir[PATH_MAX];
     int32_t  num_cpus;
-    int32_t  num_nhosts;
+    int32_t  num_hosts;
     int32_t  num_gpus;
     int32_t  wall_seconds;
     uint64_t mem_mb;

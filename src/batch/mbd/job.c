@@ -52,7 +52,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->pend_sig = 0;
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
     job->res.num_cpus  = ws->num_cpus;
-    job->res.num_nhosts = ws->num_nhosts;
+    job->res.num_hosts = ws->num_hosts;
     job->res.num_gpus  = ws->num_gpus;
     job->res.mem_mb    = ws->mem_mb;
     job->res.storage_mb    = ws->storage_mb;
@@ -179,7 +179,7 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "OUT_FILE=%s\n", ws->out_file);
     fprintf(fp, "ERR_FILE=%s\n", ws->err_file);
     fprintf(fp, "NUM_CPUS=%d\n", ws->num_cpus);
-    fprintf(fp, "NUM_NHOSTS=%d\n", ws->num_nhosts);
+    fprintf(fp, "NUM_NHOSTS=%d\n", ws->num_hosts);
     fprintf(fp, "NUM_GPUS=%d\n", ws->num_gpus);
     fprintf(fp, "MEM_MB=%lu\n", ws->mem_mb);
     fprintf(fp, "WALL_SECONDS=%d\n", ws->wall_seconds);
@@ -207,7 +207,7 @@ static int write_sidecar(const struct job_data *job,
     return 0;
 }
 
-int job_accept(XDR *xdrs, int chan_id)
+int job_register(XDR *xdrs, int chan_id)
 {
     struct wire_job_submit ws;
     memset(&ws, 0, sizeof(ws));

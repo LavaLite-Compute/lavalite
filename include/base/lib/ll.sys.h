@@ -11,6 +11,7 @@
 int get_uid(const char *, uid_t *);
 int millisleep(uint32_t);
 size_t ll_strlcpy(char *, const char *, size_t);
+size_t ll_strlcat(char *, const char *, size_t);
 int ll_atoi(const char *, int *);
 int ll_atoll(const char *, int64_t *);
 const char *ctime2(time_t *);

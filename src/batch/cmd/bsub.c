@@ -293,7 +293,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "bsub: --nhosts: invalid value '%s'\n", optarg);
                 return 1;
             }
-            js.num_nhosts = (int32_t)v;
+            js.num_hosts = (int32_t)v;
             break;
         }
         case 'M':
@@ -403,7 +403,7 @@ int main(int argc, char **argv)
     }
 
     /* --nhosts and --machines are mutually exclusive */
-    if (js.num_nhosts > 0 && js.machines != NULL) {
+    if (js.num_hosts > 0 && js.machines != NULL) {
         fprintf(stderr, "bsub: --nhosts and --machines are mutually exclusive\n");
         return 1;
     }

@@ -246,7 +246,7 @@ static void build_hosts_str(const struct sched_plan *plan,
         snprintf(entry, sizeof(entry), "%s%s:%d",
                  i > 0 ? "," : "",
                  plan->hosts[i]->net.name, plan->cpus_per_host);
-        strlcat(buf, entry, bufsiz);
+        ll_strlcat(buf, entry, bufsiz);
     }
 }
 
@@ -323,7 +323,7 @@ int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
     job->start_time = time(NULL);
     job->status     = JOB_STAT_RUN;
 
-    event_job_start(job);
+    event_job_start(job, plan);
 
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 

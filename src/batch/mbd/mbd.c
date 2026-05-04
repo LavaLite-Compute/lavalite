@@ -34,9 +34,9 @@ struct mbd_manager mbd_mgr;
 int mbd_efd;
 struct epoll_event mbd_events[CHAN_MAX];
 uint16_t mbd_port;
-int sched_timer = -1;
 int chan_mbd;
 int chan_timer;
+int sched_timer;
 
 static const char *mbd_exit_str(enum mbd_exit e)
 {
@@ -113,7 +113,7 @@ static void usage(void)
 {
     fprintf(stderr, "mbd: --help\n"
             "--version \n"
-            "--envdir set environment variable LL_ENVDIR\n"
+            "--confdir set environment variable LL_CONF_DIR\n"
             "--timer_sched\n");
 }
 
@@ -121,7 +121,7 @@ static struct option longopts[] = {
     {"help", no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'V'},
     {"confdir", required_argument, NULL, 'c'},
-    {"timer_sched", required_argument, NULL, 't'},
+    {"sched_timer", required_argument, NULL, 't'},
     {NULL, 0, NULL, 0}
 };
 
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
     int cc;
     char *conf_dir = NULL;
 
-    int timer_sched = 5;
+    sched_timer = SCHED_TIMER;
     while ((cc = getopt_long(argc, argv, "hVt:c:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
@@ -140,8 +140,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 't':
-            if (! ll_atoi(optarg, &sched_timer)
-                || sched_timer <= 0) {
+            if (! ll_atoi(optarg, &sched_timer) || sched_timer <= 0) {
                 fprintf(stderr, "mbd: invalid sched_timer value=%s\n", optarg);
                 return -1;
             }
@@ -177,8 +176,8 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    LS_INFO("mbd uid=%d starting on host=%s timer_sched=%d",
-            getuid(), ll_params[LL_MBD_HOST].val, timer_sched);
+    LS_INFO("mbd uid=%d starting on host=%s sched_timer=%d",
+            getuid(), ll_params[LL_MBD_HOST].val, sched_timer);
 
     for (;;) {
 
@@ -202,6 +201,7 @@ int main(int argc, char **argv)
             if (chan_id == chan_timer) {
                 uint64_t exp;
                 read(chan_sock(chan_id), &exp, sizeof(exp));
+                LS_DEBUG("sched_timer expired timer=%d", sched_timer);
                 schedule();
                 continue;
             }
