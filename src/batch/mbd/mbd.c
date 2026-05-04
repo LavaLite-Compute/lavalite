@@ -77,7 +77,7 @@ static int mbd_init(void)
 
     int auth_age;
     ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age);
-    if (auth_init_key(1, auth_age) < 0) {
+    if (auth_init(1, auth_age) < 0) {
         LS_ERRX("auth_load_key failed");
         return -1;
     }

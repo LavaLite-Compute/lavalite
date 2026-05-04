@@ -19,10 +19,7 @@
 static char events_path[PATH_MAX];
 static char acct_path[PATH_MAX];
 char jobs_dir[PATH_MAX];
-
-/* -----------------------------------------------------------------------
- * event writers -- called by mbd to append to job.events
- * ----------------------------------------------------------------------- */
+static ino_t events_ino = 0;
 
 static FILE *open_events(void)
 {
@@ -31,6 +28,14 @@ static FILE *open_events(void)
         LS_ERR("fopen=%s", events_path);
         mbd_die(MBD_EXIT_EVENTS);
     }
+    struct stat st;
+    if (fstat(fileno(fp), &st) < 0
+        || (events_ino != 0 && st.st_ino != events_ino)) {
+        LS_ERRX("sysevents inode changed or removed — integrity lost");
+        fclose(fp);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    events_ino = st.st_ino;
     return fp;
 }
 
