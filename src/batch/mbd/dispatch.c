@@ -294,7 +294,7 @@ int queue_info(XDR *xdrs, int chan_id)
         ll_strlcpy(queues[i].name, q->name, sizeof(queues[i].name));
         ll_strlcpy(queues[i].description, q->description,
                    sizeof(queues[i].description));
-        ll_strlcpy(queues[i].hosts, q->hosts, sizeof(queues[i].hosts));
+        ll_strlcpy(queues[i].hosts, q->hosts_spec, sizeof(queues[i].hosts));
         queues[i].priority = q->priority;
         queues[i].max_jobs = q->max_jobs;
         queues[i].num_pend = q->num_pend;

@@ -52,18 +52,6 @@ struct wire_job_script {
 };
 
 /* -----------------------------------------------------------------------
- * job sidecar  (mbd -> sbd, follows wire_job_start + wire_job_script)
- *
- * Raw KEY=VALUE content of the .sub file, sent as a blob.
- * sbd writes it to disk verbatim alongside the job script.
- * ----------------------------------------------------------------------- */
-
-struct wire_job_sidecar {
-    uint32_t  len;
-    char     *data;
-};
-
-/* -----------------------------------------------------------------------
  * job state  (sbd -> mbd)
  * ----------------------------------------------------------------------- */
 
@@ -103,14 +91,17 @@ struct wire_job_start {
     char     home_dir[PATH_MAX];
     char     cwd[PATH_MAX];
     char     command[LL_BUFSIZ_512];
-    char     job_file[PATH_MAX];
     char     in_file[PATH_MAX];
     char     out_file[PATH_MAX];
     char     err_file[PATH_MAX];
-    char     hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA 4,hostB 4" */
+    char     hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA:4,hostB:4" */
 
     int64_t  submit_time;
     int64_t  term_time;
+    int32_t  gpus_per_host;
+    char     gpu_type[LL_BUFSIZ_64];
+
+    struct wire_job_script script;   /* job script, encoded last */
 };
 
 /* -----------------------------------------------------------------------
@@ -300,7 +291,6 @@ bool_t xdr_wire_job_resources(XDR *, struct wire_job_resources *);
 bool_t xdr_wire_job_info(XDR *, struct wire_job_info *);
 bool_t xdr_wire_job_info_array(XDR *, struct wire_job_info_array *);
 bool_t xdr_wire_job_start(XDR *, struct wire_job_start *);
-bool_t xdr_wire_job_sidecar(XDR *, struct wire_job_sidecar *);
 bool_t xdr_wire_job_reply(XDR *, struct wire_job_reply *);
 
 /* host */

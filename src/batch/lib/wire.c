@@ -242,8 +242,6 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
         return false;
     if (!xdr_opaque(xdrs, p->command, sizeof(p->command)))
         return false;
-    if (!xdr_opaque(xdrs, p->job_file, sizeof(p->job_file)))
-        return false;
     if (!xdr_opaque(xdrs, p->in_file, sizeof(p->in_file)))
         return false;
     if (!xdr_opaque(xdrs, p->out_file, sizeof(p->out_file)))
@@ -256,12 +254,11 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
         return false;
     if (!xdr_int64_t(xdrs, &p->term_time))
         return false;
-    return true;
-}
-
-bool_t xdr_wire_job_sidecar(XDR *xdrs, struct wire_job_sidecar *p)
-{
-    if (!xdr_bytes(xdrs, &p->data, &p->len, UINT32_MAX))
+    if (!xdr_int32_t(xdrs, &p->gpus_per_host))
+        return false;
+    if (!xdr_opaque(xdrs, p->gpu_type, sizeof(p->gpu_type)))
+        return false;
+    if (!xdr_wire_job_script(xdrs, &p->script))
         return false;
     return true;
 }

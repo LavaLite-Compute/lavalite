@@ -15,8 +15,6 @@
 
 #include "llbatch.h"
 
-#define SCHED_HOST_MAX 10240
-
 enum job_list_id {
     JOB_LIST_PEND   = 0,
     JOB_LIST_RUN    = 1,
@@ -143,19 +141,21 @@ struct mbd_host {
     struct ll_host        net;   /* resolved network identity */
     struct host_resources res;   /* capacity + availability + gpu_list */
     uint16_t port;               /* 0 = use LL_SBD_PORT; sim override otherwise */
+    int    host_idx;             /* dense index assigned at conf_init */
     int    status;
+    int    candidate;            /* set by mark_candidates() each sched cycle */
+    int    exclusive;            /* host is exclusively allocated */
     int    num_jobs;
     int    num_run;
     int    num_susp;
     int    sbd_chan;             /* -1 if not connected */
-    int    host_idx;
     time_t last_heard;
 };
 
 struct queue_conf {
     char name[LL_BUFSIZ_64];
     char desc[LL_BUFSIZ_256];
-    char hosts[LL_BUFSIZ_64];
+    char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
     char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
     int  priority;
     int  status;
@@ -165,14 +165,15 @@ struct mbd_queue {
     struct ll_list_entry ent;
     char    name[LL_BUFSIZ_64];
     char    description[LL_BUFSIZ_256];
-    char    hosts[LL_BUFSIZ_256];   /* host group name */
-    char    users[LL_BUFSIZ_256];   /* space-separated, empty = all */
+    char    hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname from config */
+    char    users[LL_BUFSIZ_256];      /* space-separated, empty = all */
     int     priority;
     int     max_jobs;
     int     num_pend;
     int     num_run;
     int     num_susp;
     int     status;
+    struct ll_hash host_hash;          /* expanded host membership, keyed by hostname */
 };
 
 struct mbd_group {
@@ -217,9 +218,6 @@ extern struct ll_hash token_pool_name_hash;
 extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
 
-extern struct ll_list token_pool_list;
-extern struct ll_hash token_pool_name_hash;
-
 extern struct mbd_manager mbd_mgr;
 extern int chan_mbd;
 extern int mbd_efd;
@@ -253,7 +251,18 @@ int32_t enqueue_header(int, int, int);
 void chan_shutdown(int);
 
 // sched.c
+#define SCHED_PLAN_MAX 1024
+
+struct sched_plan {
+    struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */
+    int  nhosts;
+    int  cpus_per_host;                     /* cpu slots per host */
+    int  gpus_per_host;                     /* gpus per host, 0 if none */
+    char gpu_type[LL_BUFSIZ_64];            /* gpu type, empty if none */
+};
+
 void schedule(void);
+int mbd_dispatch_job(struct job_data *, struct sched_plan *);
 
 // events.c
 int events_init(void);

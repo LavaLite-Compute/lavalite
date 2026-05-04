@@ -36,11 +36,11 @@ End TokenPool
 # Host groups - hosts grouped by GPU type.
 # A host belongs to exactly one group.
 #
-#Begin HostGroup
-#GROUP_NAME      GROUP_MEMBER
-#group-gpu     (buntu24 worker1)
-#group-cpu     (cpu1 cpu2 cpu3)
-#End HostGroup
+Begin HostGroup
+GROUP_NAME      GROUP_MEMBER
+group-gpu     (buntu24)
+group-cpu     (worker1)
+End HostGroup
 
 Begin Sim
 NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE

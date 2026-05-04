@@ -114,3 +114,219 @@ int mbd_sbd_disconnect(struct mbd_host *n)
     // and set them to state unknown
     return 0;
 }
+
+/*
+ * Parse the sidecar file for this job and extract the three
+ * file redirection fields not present in job_data.
+ * Returns 0 on success, -1 on error.
+ */
+static int read_sidecar(const struct job_data *job,
+                        char *in_file,  size_t in_siz,
+                        char *out_file, size_t out_siz,
+                        char *err_file, size_t err_siz)
+{
+    char path[PATH_MAX];
+    int n;
+
+    n = snprintf(path, sizeof(path), "%s/%ld/%ld/submit",
+                 jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int)sizeof(path))
+        return -1;
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL) {
+        LS_ERR("fopen=%s failed", path);
+        return -1;
+    }
+
+    char line[PATH_MAX + 16];
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        char *nl = strchr(line, '\n');
+        if (nl)
+            *nl = 0;
+
+        if (strncmp(line, "IN_FILE=", 8) == 0) {
+            ll_strlcpy(in_file, line + 8, in_siz);
+            continue;
+        }
+        if (strncmp(line, "OUT_FILE=", 9) == 0) {
+            ll_strlcpy(out_file, line + 9, out_siz);
+            continue;
+        }
+        if (strncmp(line, "ERR_FILE=", 9) == 0) {
+            ll_strlcpy(err_file, line + 9, err_siz);
+            continue;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+/*
+ * Read the job script into ws->script.
+ * Caller must free ws->script.data on success.
+ * Returns 0 on success, -1 on error.
+ */
+static int read_script(const struct job_data *job,
+                       struct wire_job_script *script)
+{
+    char path[PATH_MAX];
+    int n;
+
+    n = snprintf(path, sizeof(path), "%s/%ld/%ld/script.sh",
+                 jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int)sizeof(path))
+        return -1;
+
+    struct stat st;
+    if (stat(path, &st) < 0) {
+        LS_ERR("stat=%s failed", path);
+        return -1;
+    }
+
+    if (st.st_size == 0) {
+        LS_ERRX("job=%ld script is empty", job->job_id);
+        return -1;
+    }
+
+    script->data = malloc((size_t)st.st_size + 1);
+    if (script->data == NULL) {
+        LS_ERR("malloc failed size=%ld", (long)st.st_size);
+        return -1;
+    }
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL) {
+        LS_ERR("fopen=%s failed", path);
+        free(script->data);
+        script->data = NULL;
+        return -1;
+    }
+
+    size_t nr = fread(script->data, 1, (size_t)st.st_size, fp);
+    fclose(fp);
+
+    if (nr != (size_t)st.st_size) {
+        LS_ERR("job=%ld script read short %zu/%ld",
+               job->job_id, nr, (long)st.st_size);
+        free(script->data);
+        script->data = NULL;
+        return -1;
+    }
+
+    script->data[nr] = 0;
+    script->len = (uint32_t)nr;
+
+    return 0;
+}
+
+/*
+ * Build the hosts string "host:cpus,host:cpus" from the sched plan.
+ */
+static void build_hosts_str(const struct sched_plan *plan,
+                            char *buf, size_t bufsiz)
+{
+    int i;
+
+    buf[0] = 0;
+    for (i = 0; i < plan->nhosts; i++) {
+        char entry[MAXHOSTNAMELEN + 16];
+        snprintf(entry, sizeof(entry), "%s%s:%d",
+                 i > 0 ? "," : "",
+                 plan->hosts[i]->net.name, plan->cpus_per_host);
+        strlcat(buf, entry, bufsiz);
+    }
+}
+
+int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
+{
+    struct mbd_host *h = plan->hosts[0];
+
+    assert(h>sbd_chan > 0);
+    if (h->sbd_chan < 0) {
+        LS_ERRX("job=%ld exec_host=%s sbd not connected", job->job_id,
+                h->net.name);
+        return -1;
+    }
+
+    struct wire_job_start ws;
+    memset(&ws, 0, sizeof(ws));
+
+    /* read file redirections from sidecar */
+    if (read_sidecar(job, ws.in_file,  sizeof(ws.in_file),
+                     ws.out_file, sizeof(ws.out_file),
+                     ws.err_file, sizeof(ws.err_file)) < 0) {
+        LS_ERRX("job=%ld read_sidecar failed", job->job_id);
+        return -1;
+    }
+
+    /* read script from disk into ws.script */
+    if (read_script(job, &ws.script) < 0) {
+        LS_ERRX("job=%ld read_script failed", job->job_id);
+        return -1;
+    }
+
+    /* fill wire_job_start from job_data and sched_plan */
+    ws.job_id      = job->job_id;
+    ws.uid         = job->uid;
+    ws.gid         = job->gid;
+    ws.umask       = 022;   /* default; submit wire had umask, not in job_data */
+    ws.submit_time = (int64_t)job->submit_time;
+    ws.term_time   = (int64_t)job->term_time;
+    ws.gpus_per_host = plan->gpus_per_host;
+
+    ll_strlcpy(ws.job_name,  job->name,          sizeof(ws.job_name));
+    ll_strlcpy(ws.queue,     job->queue->name,    sizeof(ws.queue));
+    ll_strlcpy(ws.username,  job->user,           sizeof(ws.username));
+    ll_strlcpy(ws.from_host, job->from_host,      sizeof(ws.from_host));
+    ll_strlcpy(ws.cwd,       job->res.cwd,        sizeof(ws.cwd));
+    ll_strlcpy(ws.command,   job->res.command,    sizeof(ws.command));
+    ll_strlcpy(ws.gpu_type,  plan->gpu_type,      sizeof(ws.gpu_type));
+
+    /* home_dir from passwd */
+    struct passwd *pw = getpwuid(job->uid);
+    if (pw != NULL)
+        ll_strlcpy(ws.home_dir, pw->pw_dir, sizeof(ws.home_dir));
+
+    build_hosts_str(plan, ws.hosts, sizeof(ws.hosts));
+
+    /* header */
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_NEW_JOB;
+    hdr.status    = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LS_ERRX("job=%ld auth_sign_header failed", job->job_id);
+        free(ws.script.data);
+        return -1;
+    }
+
+    /* buffer size: fixed struct + script payload + XDR overhead */
+    size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_job_start)
+                   + ws.script.len + LL_BUFSIZ_64;
+
+    if (enqueue_payload(h->sbd_chan, &hdr,
+                        &ws, bufsz,
+                        (bool_t (*)())xdr_wire_job_start) < 0) {
+        LS_ERRX("job=%ld enqueue_payload failed", job->job_id);
+        free(ws.script.data);
+        return -1;
+    }
+
+    free(ws.script.data);
+
+    /* update job state */
+    ll_strlcpy(job->exec_host, h->net.name, sizeof(job->exec_host));
+    job->start_time = time(NULL);
+    job->status     = JOB_STAT_RUN;
+
+    event_job_start(job);
+
+    job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
+
+    LS_INFO("job=%ld dispatched to host=%s", job->job_id, h->net.name);
+
+    return 0;
+}

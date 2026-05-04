@@ -13,8 +13,6 @@
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
-static int host_idx_seq = 0;
-
 static uint64_t parse_mem(const char *s)
 {
     char *end;
@@ -345,13 +343,12 @@ static int parse_hosts(const char *path)
             return -1;
         }
 
-        h->host_idx = host_idx_seq++;
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
         ll_hash_insert(&host_addr_hash, h->net.addr, h, 0);
 
-        LS_INFO("host=%s index=%d cpu=%d mem=%luMB "
-                "storage=%luMB", h->net.name, h->host_idx, h->res.total_cpu,
+        LS_INFO("host=%s cpu=%d mem=%luMB storage=%luMB",
+                h->net.name, h->res.total_cpu,
                 h->res.total_mem_mb, h->res.total_storage_mb);
     }
 
@@ -486,7 +483,7 @@ static int commit_queue(struct queue_conf *qc)
         return -1;
     }
 
-    if (qc->hosts[0] == 0) {
+    if (qc->hosts_spec[0] == 0) {
         LS_ERRX("queue=%s missing HOSTS", qc->name);
         return -1;
     }
@@ -497,11 +494,10 @@ static int commit_queue(struct queue_conf *qc)
         return -1;
     }
 
-    ll_strlcpy(q->name, qc->name, LL_BUFSIZ_64);
-    ll_strlcpy(q->description, qc->desc, LL_BUFSIZ_256);
-
-    ll_strlcpy(q->hosts, qc->hosts, LL_BUFSIZ_256);
-    ll_strlcpy(q->users, qc->users, LL_BUFSIZ_256);
+    ll_strlcpy(q->name,       qc->name,       LL_BUFSIZ_64);
+    ll_strlcpy(q->description, qc->desc,       LL_BUFSIZ_256);
+    ll_strlcpy(q->hosts_spec, qc->hosts_spec,  LL_BUFSIZ_256);
+    ll_strlcpy(q->users,      qc->users,       LL_BUFSIZ_256);
 
     q->priority = qc->priority;
     q->status = QUEUE_OPEN;
@@ -526,7 +522,7 @@ static int parse_queue_conf(struct queue_conf *qc,
         return ll_strlcpy(qc->desc, val, LL_BUFSIZ_256);
 
     if (strcmp(key, "HOSTS") == 0)
-        return ll_strlcpy(qc->hosts, val, LL_BUFSIZ_256);
+        return ll_strlcpy(qc->hosts_spec, val, LL_BUFSIZ_256);
 
     if (strcmp(key, "USERS") == 0)
         return ll_strlcpy(qc->users, val, LL_BUFSIZ_256);
@@ -735,7 +731,6 @@ static int parse_sim(const char *path)
         h->port     = (uint16_t)port;
         h->sbd_chan = -1;
         h->status   = HOST_UNAVAIL;
-        h->host_idx = host_idx_seq++;
 
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
@@ -749,6 +744,57 @@ static int parse_sim(const char *path)
     if (in_section) {
         LS_ERRX("missing End Sim in %s", path);
         return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Expand queue host membership after all hosts, groups and queues are parsed.
+ * Resolves hosts_spec (group name or single hostname) into host_hash so the
+ * scheduler can do a single hash lookup per host per job.
+ */
+static int conf_expand_queues(void)
+{
+    struct ll_list_entry *e;
+
+    for (e = queue_list.head; e; e = e->next) {
+        struct mbd_queue *q = (struct mbd_queue *)e;
+
+        ll_hash_init(&q->host_hash, 251);
+
+        struct mbd_group *g = (struct mbd_group *)ll_hash_search(&group_name_hash,
+                                                                  q->hosts_spec);
+        if (g != NULL) {
+            char tmp[LL_BUFSIZ_1K];
+            ll_strlcpy(tmp, g->members, sizeof(tmp));
+
+            char *tok = strtok(tmp, " \t");
+            while (tok != NULL) {
+                struct mbd_host *h = find_host_by_name(tok);
+                if (h == NULL) {
+                    LS_ERRX("queue=%s group=%s host=%s not found",
+                            q->name, g->name, tok);
+                    return -1;
+                }
+                enum ll_hash_status st = ll_hash_insert(&q->host_hash,
+                                                        h->net.name, h, 0);
+                if (st == LL_HASH_EXISTS)
+                    LS_WARNING("queue=%s host=%s already in host_hash",
+                               q->name, h->net.name);
+                tok = strtok(NULL, " \t");
+            }
+            continue;
+        }
+
+        /* hosts_spec is a single hostname */
+        struct mbd_host *h = find_host_by_name(q->hosts_spec);
+        if (h == NULL) {
+            LS_ERRX("queue=%s HOSTS=%s not a group or host",
+                    q->name, q->hosts_spec);
+            return -1;
+        }
+        ll_hash_insert(&q->host_hash, h->net.name, h, 0);
     }
 
     return 0;
@@ -785,8 +831,8 @@ static void dump_config(void)
     LS_DEBUG("--- queues ---");
     for (e = queue_list.head; e; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *)e;
-        LS_DEBUG("queue name=%s priority=%d hosts=%s users=%s desc=%s",
-                 q->name, q->priority, q->hosts,
+        LS_DEBUG("queue name=%s priority=%d hosts_spec=%s users=%s desc=%s",
+                 q->name, q->priority, q->hosts_spec,
                  q->users[0] ? q->users : "*",
                  q->description);
     }
@@ -881,6 +927,11 @@ int conf_init(void)
 
     if (parse_queues(path) < 0) {
         LS_ERRX("parse_queues failed path=%s", path);
+        return -1;
+    }
+
+    if (conf_expand_queues() < 0) {
+        LS_ERRX("conf_expand_queues failed");
         return -1;
     }
 

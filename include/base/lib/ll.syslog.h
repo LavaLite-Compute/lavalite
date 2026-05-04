@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <syslog.h>
 
 int ls_openlog(const char *, const char *, const char *);
 int ls_getlogfd(void);
