@@ -59,11 +59,6 @@ static const char *mbd_exit_str(enum mbd_exit e)
 
 static int mbd_init(void)
 {
-    if (auth_load_key() < 0) {
-        LS_ERRX("auth_load_key failed");
-        return -1;
-    }
-
     ll_list_init(&host_list);
     ll_hash_init(&host_name_hash, 1021);
     ll_hash_init(&host_addr_hash, 1021);
@@ -77,6 +72,13 @@ static int mbd_init(void)
 
     if (conf_init() < 0) {
         LS_ERRX("conf_init failed");
+        return -1;
+    }
+
+    int auth_age;
+    ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age);
+    if (auth_init_key(1, auth_age) < 0) {
+        LS_ERRX("auth_load_key failed");
         return -1;
     }
 

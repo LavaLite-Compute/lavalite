@@ -93,15 +93,18 @@ static int sbd_ll_check_conf(void)
 // Never exit for control-plane/network unavailability.
 static int sbd_init(void)
 {
-    if (auth_load_key() < 0) {
-        LS_ERRX("auth_load_key failed cannot run");
-        return -1;
-    }
-
     if (ll_init() < 0) {
         LS_ERRX("ll_init failed cannot run");
         return -1;
     }
+
+    int auth_age;
+    ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age);
+    if (auth_init(1, auth_age) < 0) {
+        LS_ERRX("auth_load_key failed");
+        return -1;
+    }
+
     if (sbd_ll_check_conf()) {
         LS_ERRX("sbd_check_conf failed cannot run");
         return -1;
