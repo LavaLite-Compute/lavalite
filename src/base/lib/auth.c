@@ -17,6 +17,7 @@
 static uint8_t auth_key[AUTH_KEY_SIZE];
 static int auth_key_loaded = 0;
 static int auth_required = 1;
+static uint32_t auth_allowed_age = AUTH_MAX_AGE;
 
 static const char *key_path(void)
 {
@@ -29,6 +30,21 @@ static const char *key_path(void)
     static char path[512];
     snprintf(path, sizeof(path), "%s/ll.auth.key", dir);
     return path;
+}
+
+int auth_init(uint8_t required, uint32_t allowed_age)
+{
+    if (auth_load_key() < 0)
+        return -1;
+
+    auth_required = 1;
+    if (required == 0)
+        auth_required = required;
+
+    if (allowed_age > 0)
+        auth_allowed_age = allowed_age;
+
+    return 0;
 }
 
 void auth_set_required(int required)
@@ -146,7 +162,7 @@ int auth_verify_header(const struct protocol_header *hdr)
 
     uint32_t now = (uint32_t)time(NULL);
     uint32_t age = now - hdr->timestamp;
-    if (age > AUTH_MAX_AGE) {
+    if (age > auth_allowed_age) {
         errno = ETIMEDOUT;
         return -1;
     }

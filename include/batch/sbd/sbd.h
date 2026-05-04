@@ -56,7 +56,6 @@ struct sbd_job {
     uid_t exec_uid;
     gid_t exec_gid;
     uint32_t umask;
-    char jobfile[PATH_MAX]; // copy of the job_file from mbd jobSpecs
     char command[LL_BUFSIZ_512];
     char job_name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_64];

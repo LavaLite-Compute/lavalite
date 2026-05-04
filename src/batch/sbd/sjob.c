@@ -111,7 +111,6 @@ static int sbd_job_new_reply_err(int64_t job_id)
 static int set_job_env(const struct sbd_job *job)
 {
     char val[LL_BUFSIZ_64];
-    char jobdir[PATH_MAX];
     char first_host[MAXHOSTNAMELEN];
 
     /* LL_JOBID */
@@ -122,16 +121,6 @@ static int set_job_env(const struct sbd_job *job)
     /* LL_JOBPID */
     snprintf(val, sizeof(val), "%d", getpid());
     if (setenv("LL_JOBPID", val, 1) < 0)
-        return -1;
-
-    /* LL_JOBDIR */
-    int n = snprintf(jobdir, sizeof(jobdir), "%s/%s",
-                     sbd_job_dir, job->jobfile);
-    if (n < 0 || n >= (int)sizeof(jobdir)) {
-        errno = ENAMETOOLONG;
-        return -1;
-    }
-    if (setenv("LL_JOBDIR", jobdir, 1) < 0)
         return -1;
 
     /* LL_JOBNAME */
@@ -364,8 +353,7 @@ static void child_exec_job(struct sbd_job *job)
     // the log file with parent and other children
     ls_setlogtag(tag);
 
-    LS_INFO("job=%ld starting: command=<%s> job_file=<%s>",
-            job->job_id, job->command, job->jobfile);
+    LS_INFO("job=%ld starting: command=<%s>", job->job_id, job->command);
 
     // Populate the job environment (LSB_*, user env, etc).
     if (set_job_env(job) < 0) {
@@ -389,12 +377,11 @@ static void child_exec_job(struct sbd_job *job)
     // Apply umask for the job.
     umask(job->umask);
 
-    // Queue pre-exec hook (admin-side).
-    char jobfile_path[PATH_MAX];
-    int l = snprintf(jobfile_path, sizeof(jobfile_path), "%s/%s/job.sh",
-                     sbd_job_dir, job->jobfile);
+    char jobfile[PATH_MAX];
+    int l = snprintf(jobfile, sizeof(jobfile), "%s/%ld/job.sh",
+                     sbd_job_dir, job->job_id);
     if (l < 0) {
-        LS_ERR("create jobfile path buffer %s failed", jobfile_path);
+        LS_ERR("create jobfile path buffer %s failed", jobfile);
         _exit(127);
     }
 
@@ -407,7 +394,7 @@ static void child_exec_job(struct sbd_job *job)
         _exit(127);
 
     char *argv[2];
-    argv[0] = jobfile_path;
+    argv[0] = jobfile;
     argv[1] = NULL;
 
     execv(argv[0], argv);
@@ -469,7 +456,6 @@ static int spawn_job(struct sbd_job *job)
     if (pid == 0) {
         // child becomes leader of its own group
         setpgid(0, 0);
-        job->pid = job->pgid = getgid();
 
         // child goes and runs the job
         chan_close(sbd_listen_chan);
@@ -489,8 +475,7 @@ static int spawn_job(struct sbd_job *job)
     job->pid = pid;
     job->pgid  = pid;
 
-    LS_INFO("spawned job=%ld pid=%d jobfile=%s command=%s",
-            job->job_id, job->pid, job->jobfile, job->command);
+    LS_INFO("job=%ld pid=%d command=%s", job->job_id, job->pid, job->command);
 
     return 0;
 }
@@ -500,7 +485,7 @@ static int make_job_dir(struct sbd_job *job)
     char job_dir[PATH_MAX];
 
     int l = snprintf(job_dir, sizeof(job_dir),
-                     "%s/%s", sbd_job_dir, job->jobfile);
+                     "%s/%ld", sbd_job_dir, job->job_id);
     if (l < 0 || l >= (int)sizeof(job_dir)) {
         LS_ERR("job=%ld job_dir too long", job->job_id);
         return -1;
@@ -529,21 +514,12 @@ static int make_job_dir(struct sbd_job *job)
 
 void sbd_job_new(XDR *xdrs)
 {
-
-    struct wire_job_start   ws;
+    struct wire_job_start ws;
     memset(&ws, 0, sizeof(ws));
 
     if (!xdr_wire_job_start(xdrs, &ws)) {
         LS_ERRX("xdr_wire_job_start failed");
         /* can't trust job_id, mbd will timeout and requeue */
-        return;
-    }
-
-    struct wire_job_script  script;
-    memset(&script, 0, sizeof(script));
-    if (!xdr_wire_job_script(xdrs, &script)) {
-        LS_ERRX("job=%ld xdr_wire_job_script failed", ws.job_id);
-        sbd_job_new_reply_err(ws.job_id);
         return;
     }
 
@@ -570,7 +546,7 @@ void sbd_job_new(XDR *xdrs)
         goto out;
     }
 
-    if (sbd_job_script_write(job, &script) < 0) {
+    if (sbd_job_script_write(job, &ws.script) < 0) {
         LS_ERRX("job=%ld script write failed", ws.job_id);
         sbd_job_new_reply_err(ws.job_id);
         free(job);
@@ -600,7 +576,7 @@ void sbd_job_new(XDR *xdrs)
     job->reply_last_send = time(NULL);
 
 out:
-    xdr_free((xdrproc_t)xdr_wire_job_script,  (char *)&script);
+    xdr_free((xdrproc_t)xdr_wire_job_start, &ws);
 }
 
 void sbd_job_insert(struct sbd_job *job)
@@ -624,8 +600,8 @@ int sbd_job_script_write(struct sbd_job *job, const struct wire_job_script *scri
     char path[PATH_MAX];
     char tmp[PATH_MAX];
 
-    int n = snprintf(path, sizeof(path), "%s/%s/job.sh",
-                     sbd_job_dir, job->jobfile);
+    int n = snprintf(path, sizeof(path), "%s/%ld/job.sh",
+                     sbd_job_dir, job->job_id);
     if (n < 0 || n >= (int)sizeof(path)) {
         errno = ENAMETOOLONG;
         return -1;

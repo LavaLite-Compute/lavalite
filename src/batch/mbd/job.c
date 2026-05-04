@@ -46,6 +46,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
 
     job->job_id = next_job_id();
     job->uid  = (uid_t)ws->uid;
+    job->gid = (gid_t)ws->gid;
     job->priority = 0;
     job->status = JOB_STAT_PEND;
     job->submit_time = time(NULL);
