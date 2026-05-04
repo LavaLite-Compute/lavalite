@@ -92,8 +92,6 @@ struct job_data {
     char machines[LL_BUFSIZ_4K];
     char exec_host[MAXHOSTNAMELEN];
     char name[LL_BUFSIZ_64];
-    char comment[LL_BUFSIZ_1K];
-    char from_host[MAXHOSTNAMELEN];
     uint32_t flags;
     int pend_sig;
     enum job_list_id list_id;

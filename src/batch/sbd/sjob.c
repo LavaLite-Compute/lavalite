@@ -37,10 +37,8 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     ll_strlcpy(job->exec_user, ws->username, sizeof(job->exec_user));
     ll_strlcpy(job->exec_home, ws->home_dir, sizeof(job->exec_home));
     ll_strlcpy(job->command,   ws->command,  sizeof(job->command));
-    ll_strlcpy(job->jobfile,   ws->job_file, sizeof(job->jobfile));
     ll_strlcpy(job->job_name,  ws->job_name, sizeof(job->job_name));
     ll_strlcpy(job->queue,     ws->queue,    sizeof(job->queue));
-    ll_strlcpy(job->from_host, ws->from_host,sizeof(job->from_host));
     ll_strlcpy(job->hosts,     ws->hosts,    sizeof(job->hosts));
     ll_strlcpy(job->in_file,   ws->in_file,  sizeof(job->in_file));
     ll_strlcpy(job->out_file,  ws->out_file, sizeof(job->out_file));

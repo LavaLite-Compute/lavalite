@@ -60,7 +60,6 @@ struct sbd_job {
     char command[LL_BUFSIZ_512];
     char job_name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_64];
-    char from_host[MAXHOSTNAMELEN];
     char hosts[LL_BUFSIZ_4K];
     char in_file[PATH_MAX];
     char out_file[PATH_MAX];
@@ -134,8 +133,6 @@ int write_all(int fd, const char *, size_t);
 // Look up a job by jobId (NULL if not found).
 struct sbd_job *sbd_job_lookup(int64_t job_id);
 
-// Allocate + initialise a new sbd_job from jobSpecs.
-// Does not insert into list/hash.
 void sbd_job_file_remove(struct sbd_job *);
 void sbd_job_state_archive(struct sbd_job *);
 

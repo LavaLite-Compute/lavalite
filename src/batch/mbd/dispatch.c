@@ -175,9 +175,7 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
     w->res.cpu_time = job->usage.cpu_time;
     ll_strlcpy(w->name, job->name,  sizeof(w->name));
     ll_strlcpy(w->queue, job->queue->name, sizeof(w->queue));
-    ll_strlcpy(w->from_host, job->from_host, sizeof(w->from_host));
     ll_strlcpy(w->exec_host, job->exec_host, sizeof(w->exec_host));
-    ll_strlcpy(w->comment, job->comment, sizeof(w->comment));
 }
 
 /*

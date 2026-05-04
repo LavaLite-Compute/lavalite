@@ -58,9 +58,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     ll_strlcpy(e.queue,        ws->queue,     sizeof(e.queue));
     ll_strlcpy(e.project_name, ws->project,   sizeof(e.project_name));
     ll_strlcpy(e.gpu_type,     ws->gpu_type,  sizeof(e.gpu_type));
-    ll_strlcpy(e.from_host,    ws->from_host, sizeof(e.from_host));
     ll_strlcpy(e.hosts,        ws->machines,  sizeof(e.hosts));
-    ll_strlcpy(e.comment,      ws->comment,   sizeof(e.comment));
 
     FILE *fp = open_events();
     if (log_write_job_new(fp, &e) < 0) {
@@ -158,7 +156,6 @@ void event_job_finish(const struct job_data *job)
 
     ll_strlcpy(e.job_name,  job->name,       sizeof(e.job_name));
     ll_strlcpy(e.queue,     job->queue->name, sizeof(e.queue));
-    ll_strlcpy(e.from_host, job->from_host,  sizeof(e.from_host));
     ll_strlcpy(e.exec_host, job->exec_host,  sizeof(e.exec_host));
 
     FILE *fp = open_events();
@@ -258,9 +255,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     ll_strlcpy(job->user, e->username, sizeof(job->user));
     ll_strlcpy(job->project, e->project_name, sizeof(job->project));
     ll_strlcpy(job->res.gpu_type, e->gpu_type, sizeof(job->res.gpu_type));
-    ll_strlcpy(job->from_host, e->from_host, sizeof(job->from_host));
     ll_strlcpy(job->machines, e->hosts, sizeof(job->machines));
-    ll_strlcpy(job->comment, e->comment, sizeof(job->comment));
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {

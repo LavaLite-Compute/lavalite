@@ -136,11 +136,7 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->gpu_type) < 0)
         return -1;
-    if (write_qstr(fp, j->from_host) < 0)
-        return -1;
     if (write_qstr(fp, j->hosts) < 0)
-        return -1;
-    if (write_qstr(fp, j->comment) < 0)
         return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
@@ -174,11 +170,7 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
         return -1;
     if (read_qstr(&p, j->gpu_type,     sizeof(j->gpu_type)) < 0)
         return -1;
-    if (read_qstr(&p, j->from_host,    sizeof(j->from_host)) < 0)
-        return -1;
     if (read_qstr(&p, j->hosts,        sizeof(j->hosts)) < 0)
-        return -1;
-    if (read_qstr(&p, j->comment,      sizeof(j->comment)) < 0)
         return -1;
 
     return 0;
@@ -320,8 +312,6 @@ int log_write_job_finish(FILE *fp, const struct log_job_finish *j)
         return -1;
     if (write_qstr(fp, j->queue) < 0)
         return -1;
-    if (write_qstr(fp, j->from_host) < 0)
-        return -1;
     if (write_qstr(fp, j->exec_host) < 0)
         return -1;
     if (fprintf(fp, "\n") < 0)
@@ -345,8 +335,6 @@ int log_parse_job_finish(const struct event_rec *rec, struct log_job_finish *j)
     if (read_qstr(&p, j->job_name,  sizeof(j->job_name)) < 0)
         return -1;
     if (read_qstr(&p, j->queue,     sizeof(j->queue)) < 0)
-        return -1;
-    if (read_qstr(&p, j->from_host, sizeof(j->from_host)) < 0)
         return -1;
     if (read_qstr(&p, j->exec_host, sizeof(j->exec_host)) < 0)
         return -1;

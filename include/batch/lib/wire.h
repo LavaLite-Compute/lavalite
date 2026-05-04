@@ -87,7 +87,6 @@ struct wire_job_start {
     char     job_name[LL_BUFSIZ_256];
     char     queue[LL_BUFSIZ_64];
     char     username[LL_BUFSIZ_64];
-    char     from_host[MAXHOSTNAMELEN];
     char     home_dir[PATH_MAX];
     char     cwd[PATH_MAX];
     char     command[LL_BUFSIZ_512];
@@ -96,7 +95,6 @@ struct wire_job_start {
     char     err_file[PATH_MAX];
     char     hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA:4,hostB:4" */
 
-    int64_t  submit_time;
     int64_t  term_time;
     int32_t  gpus_per_host;
     char     gpu_type[LL_BUFSIZ_64];
@@ -117,7 +115,7 @@ struct wire_compact_notify {
  * job submit  (client -> mbd)
  *
  * Fixed buffers encoded with xdr_opaque.
- * Submission context (from_host, cwd, uid, ...) filled by llb_submit(),
+ * Submission context (cwd, uid, ...) filled by llb_submit(),
  * not by the caller.
  * The job script is sent in the same XDR stream immediately after,
  * encoded with xdr_wire_job_script.
@@ -138,7 +136,7 @@ struct wire_job_submit {
     char gpu_type[LL_BUFSIZ_256];
     char from_host[MAXHOSTNAMELEN];
     char username[LL_BUFSIZ_256];
-
+    char home_dir[PATH_MAX];
     int32_t  num_cpus;
     int32_t  num_nhosts;
     int32_t  num_gpus;

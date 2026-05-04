@@ -86,6 +86,7 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
         return -1;
     }
     ll_strlcpy(w->username, pw->pw_name, sizeof(w->username));
+    ll_strlcpy(w->home_dir, pw->pw_dir, sizeof(w->home_dir));
 
     if (gethostname(hostname, sizeof(hostname)) < 0)
         return -1;

@@ -113,6 +113,8 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_opaque(xdrs, s->username, sizeof(s->username)))
         return false;
+    if (!xdr_opaque(xdrs, s->home_dir, sizeof(s->home_dir)))
+        return false;
     if (!xdr_int32_t(xdrs, &s->num_cpus))
         return false;
     if (!xdr_int32_t(xdrs, &s->num_nhosts))
@@ -234,8 +236,6 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
         return false;
     if (!xdr_opaque(xdrs, p->username, sizeof(p->username)))
         return false;
-    if (!xdr_opaque(xdrs, p->from_host, sizeof(p->from_host)))
-        return false;
     if (!xdr_opaque(xdrs, p->home_dir, sizeof(p->home_dir)))
         return false;
     if (!xdr_opaque(xdrs, p->cwd, sizeof(p->cwd)))
@@ -249,8 +249,6 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
     if (!xdr_opaque(xdrs, p->err_file, sizeof(p->err_file)))
         return false;
     if (!xdr_opaque(xdrs, p->hosts, sizeof(p->hosts)))
-        return false;
-    if (!xdr_int64_t(xdrs, &p->submit_time))
         return false;
     if (!xdr_int64_t(xdrs, &p->term_time))
         return false;

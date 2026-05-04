@@ -70,8 +70,6 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     } else {
         ll_strlcpy(job->name, ws->name, sizeof(job->name));
     }
-    ll_strlcpy(job->comment, ws->comment, sizeof(job->comment));
-    ll_strlcpy(job->from_host, ws->from_host, sizeof(job->from_host));
 
     char *queue;
     if (ws->queue[0] == 0) {
@@ -174,6 +172,7 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "QUEUE=%s\n", ws->queue);
     fprintf(fp, "PROJECT=%s\n", ws->project);
     fprintf(fp, "FROM_HOST=%s\n", ws->from_host);
+    fprintf(fp, "HOME_DIR=%s\n", ws->home_dir);
     fprintf(fp, "CWD=%s\n", ws->cwd);
     fprintf(fp, "COMMAND=%s\n", ws->command);
     fprintf(fp, "IN_FILE=%s\n", ws->in_file);

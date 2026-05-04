@@ -7,6 +7,7 @@
 #include <syslog.h>
 #include <errno.h>
 #include <assert.h>
+#include <sys/stat.h>
 
 #include "base/lib/auth.h"
 #include "base/lib/ll.host.h"
@@ -115,15 +116,7 @@ int mbd_sbd_disconnect(struct mbd_host *n)
     return 0;
 }
 
-/*
- * Parse the sidecar file for this job and extract the three
- * file redirection fields not present in job_data.
- * Returns 0 on success, -1 on error.
- */
-static int read_sidecar(const struct job_data *job,
-                        char *in_file,  size_t in_siz,
-                        char *out_file, size_t out_siz,
-                        char *err_file, size_t err_siz)
+static int read_sidecar(const struct job_data *job, struct wire_job_start *ws)
 {
     char path[PATH_MAX];
     int n;
@@ -146,15 +139,33 @@ static int read_sidecar(const struct job_data *job,
             *nl = 0;
 
         if (strncmp(line, "IN_FILE=", 8) == 0) {
-            ll_strlcpy(in_file, line + 8, in_siz);
+            ll_strlcpy(ws->in_file, line + 8, sizeof(ws->in_file));
             continue;
         }
         if (strncmp(line, "OUT_FILE=", 9) == 0) {
-            ll_strlcpy(out_file, line + 9, out_siz);
+            ll_strlcpy(ws->out_file, line + 9, sizeof(ws->out_file));
             continue;
         }
         if (strncmp(line, "ERR_FILE=", 9) == 0) {
-            ll_strlcpy(err_file, line + 9, err_siz);
+            ll_strlcpy(ws->err_file, line + 9, sizeof(ws->err_file));
+            continue;
+        }
+        if (strncmp(line, "HOME_DIR=", 9) == 0) {
+            ll_strlcpy(ws->home_dir, line + 9, sizeof(ws->home_dir));
+            continue;
+        }
+        if (strncmp(line, "UMASK=", 6) == 0) {
+            int u;
+            ll_atoi(line + 6, &u);
+            ws->umask = (uint32_t)u;
+            continue;
+        }
+        if (strncmp(line, "CWD=", 4) == 0) {
+            ll_strlcpy(ws->cwd, line + 4, sizeof(ws->cwd));
+            continue;
+        }
+        if (strncmp(line, "COMMAND=", 8) == 0) {
+            ll_strlcpy(ws->command, line + 8, sizeof(ws->command));
             continue;
         }
     }
@@ -243,7 +254,7 @@ int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
 {
     struct mbd_host *h = plan->hosts[0];
 
-    assert(h>sbd_chan > 0);
+    assert(h->sbd_chan > 0);
     if (h->sbd_chan < 0) {
         LS_ERRX("job=%ld exec_host=%s sbd not connected", job->job_id,
                 h->net.name);
@@ -254,16 +265,16 @@ int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
     memset(&ws, 0, sizeof(ws));
 
     /* read file redirections from sidecar */
-    if (read_sidecar(job, ws.in_file,  sizeof(ws.in_file),
-                     ws.out_file, sizeof(ws.out_file),
-                     ws.err_file, sizeof(ws.err_file)) < 0) {
+    if (read_sidecar(job, &ws) < 0) {
         LS_ERRX("job=%ld read_sidecar failed", job->job_id);
+        abort();
         return -1;
     }
 
     /* read script from disk into ws.script */
     if (read_script(job, &ws.script) < 0) {
         LS_ERRX("job=%ld read_script failed", job->job_id);
+        abort();
         return -1;
     }
 
@@ -271,23 +282,13 @@ int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
     ws.job_id      = job->job_id;
     ws.uid         = job->uid;
     ws.gid         = job->gid;
-    ws.umask       = 022;   /* default; submit wire had umask, not in job_data */
-    ws.submit_time = (int64_t)job->submit_time;
     ws.term_time   = (int64_t)job->term_time;
     ws.gpus_per_host = plan->gpus_per_host;
 
     ll_strlcpy(ws.job_name,  job->name,          sizeof(ws.job_name));
     ll_strlcpy(ws.queue,     job->queue->name,    sizeof(ws.queue));
     ll_strlcpy(ws.username,  job->user,           sizeof(ws.username));
-    ll_strlcpy(ws.from_host, job->from_host,      sizeof(ws.from_host));
-    ll_strlcpy(ws.cwd,       job->res.cwd,        sizeof(ws.cwd));
-    ll_strlcpy(ws.command,   job->res.command,    sizeof(ws.command));
     ll_strlcpy(ws.gpu_type,  plan->gpu_type,      sizeof(ws.gpu_type));
-
-    /* home_dir from passwd */
-    struct passwd *pw = getpwuid(job->uid);
-    if (pw != NULL)
-        ll_strlcpy(ws.home_dir, pw->pw_dir, sizeof(ws.home_dir));
 
     build_hosts_str(plan, ws.hosts, sizeof(ws.hosts));
 

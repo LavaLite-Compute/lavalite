@@ -78,9 +78,7 @@ struct log_job_new {
     char     queue[LL_BUFSIZ_64];
     char     project_name[LL_BUFSIZ_64];
     char     gpu_type[LL_BUFSIZ_64];
-    char     from_host[MAXHOSTNAMELEN];
     char     hosts[LL_BUFSIZ_1K];
-    char     comment[LL_BUFSIZ_1K];
 };
 
 /*
@@ -139,7 +137,6 @@ struct log_job_finish {
     double   cpu_time;
     char     job_name[LL_BUFSIZ_64];
     char     queue[LL_BUFSIZ_64];
-    char     from_host[MAXHOSTNAMELEN];
     char     exec_host[MAXHOSTNAMELEN];
 };
 
