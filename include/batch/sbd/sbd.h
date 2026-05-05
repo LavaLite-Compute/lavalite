@@ -203,4 +203,5 @@ int sbd_enqueue_job_unknown(int64_t);
 void sbd_register_ack(XDR *);
 int32_t sbd_enqueue_payload(int, struct protocol_header *,
                             void *, size_t, bool_t (*xdr_func)());
+int sbd_send_msg(int32_t, void *, size_t, bool_t (*xdr_func)());
 int sbd_job_state_write(struct sbd_job *);

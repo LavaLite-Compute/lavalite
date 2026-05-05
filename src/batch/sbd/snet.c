@@ -354,3 +354,29 @@ int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
 
     return 0;
 }
+
+int sbd_send_msg(int32_t op, void *payload, size_t siz, bool_t (*xdr_func)())
+{
+    struct protocol_header hdr;
+
+    init_protocol_header(&hdr);
+    hdr.operation = op;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LS_ERR("auth_sign_header failed op=%d", op);
+        return -1;
+    }
+
+    // wire messages between from sbd to mbd together with the header
+    // fit in 1K
+    siz = siz + LL_BUFSIZ_1K;
+    int cc = sbd_enqueue_payload(sbd_mbd_chan, &hdr, payload, siz, xdr_func);
+    if (cc < 0) {
+        LS_ERR("sbd_enqueue_payload failed closing chan=%d to mbd", sbd_mbd_chan);
+        sbd_mbd_link_down();
+        return -1;
+    }
+
+    return 0;
+}

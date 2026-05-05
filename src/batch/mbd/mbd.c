@@ -76,9 +76,10 @@ static int mbd_init(void)
     }
 
     int auth_age;
+    // AUTH_MAX_AGE is build with default 60 seconds
     ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age);
     if (auth_init(1, auth_age) < 0) {
-        LS_ERRX("auth_load_key failed");
+        LS_ERRX("auth_init failed");
         return -1;
     }
 

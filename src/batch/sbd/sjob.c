@@ -69,27 +69,6 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     return job;
 }
 
-/* -----------------------------------------------------------------------
- * internal: build, sign and enqueue one message to mbd
- * ----------------------------------------------------------------------- */
-
-static int sbd_send_msg(int32_t op, void *payload, size_t siz,
-                        bool_t (*xdr_func)())
-{
-    struct protocol_header hdr;
-
-    init_protocol_header(&hdr);
-    hdr.operation = op;
-    hdr.status = MBD_OK;
-
-    if (auth_sign_header(&hdr) < 0) {
-        LS_ERR("auth_sign_header failed op=%d", op);
-        return -1;
-    }
-
-    return sbd_enqueue_payload(sbd_mbd_chan, &hdr, payload, siz, xdr_func);
-}
-
 static int sbd_job_new_reply_err(int64_t job_id)
 {
     struct wire_job_reply r;
@@ -475,7 +454,7 @@ static int spawn_job(struct sbd_job *job)
     job->pid = pid;
     job->pgid  = pid;
 
-    LS_INFO("job=%ld pid=%d command=%s", job->job_id, job->pid, job->command);
+    LS_INFO("job=%ld pid=%d command=<%s>", job->job_id, job->pid, job->command);
 
     return 0;
 }
@@ -512,6 +491,59 @@ static int make_job_dir(struct sbd_job *job)
     return 0;
 }
 
+static void rm_job_dir(struct sbd_job *job)
+{
+    char job_dir[PATH_MAX];
+
+    int l = snprintf(job_dir, sizeof(job_dir),
+                     "%s/%ld", sbd_job_dir, job->job_id);
+    if (l < 0 || l >= (int)sizeof(job_dir)) {
+        LS_ERR("job=%ld job_dir too long", job->job_id);
+        return;
+    }
+
+    if (rmdir(job_dir) < 0) {
+        LS_ERR("job rmdir(%s) failed", job_dir);
+        return;
+    }
+}
+
+static int make_state_dir(struct sbd_job *job)
+{
+    char dir[PATH_MAX];
+
+    int l = snprintf(dir, sizeof(dir), "%s/%ld", sbd_state_dir, job->job_id);
+    if (l < 0 || (size_t)l >= sizeof(dir)) {
+        errno = ENAMETOOLONG;
+        LS_ERR("job state dir path too long job=%ld", job->job_id);
+        return -1;
+    }
+
+    if (mkdir(dir, 0700) < 0 && errno != EEXIST) {
+        LS_ERR("job=%ld mkdir=%s failed", job->job_id, dir);
+        return -1;
+    }
+
+    return 0;
+}
+
+static void rm_state_dir(struct sbd_job *job)
+{
+    char dir[PATH_MAX];
+
+    int l = snprintf(dir, sizeof(dir),
+                     "%s/%ld", sbd_state_dir, job->job_id);
+    if (l < 0 || l >= (int)sizeof(dir)) {
+        LS_ERR("job=%ld state_dir too long", job->job_id);
+        return;
+    }
+
+    if (rmdir(dir) < 0) {
+        LS_ERR("job=%ld rmdir=%s failed", job->job_id, dir);
+        return;
+    }
+}
+
 void sbd_job_new(XDR *xdrs)
 {
     struct wire_job_start ws;
@@ -541,7 +573,14 @@ void sbd_job_new(XDR *xdrs)
     }
 
     if (make_job_dir(job) < 0) {
-        LS_ERR("job=%ld failed to make working dir", job->job_id);
+        LS_ERR("job=%ld failed to make working directory", job->job_id);
+        free(job);
+        goto out;
+    }
+
+    if (make_state_dir(job) < 0) {
+        LS_ERR("job=%ld failed to make state directory", job->job_id);
+        rm_job_dir(job);
         free(job);
         goto out;
     }
@@ -556,7 +595,8 @@ void sbd_job_new(XDR *xdrs)
     if (spawn_job(job) < 0) {
         LS_ERR("job=%ld spawn failed", ws.job_id);
         sbd_job_new_reply_err(ws.job_id);
-        //sbd_job_file_remove(job);
+        sbd_job_file_remove(job);
+        rm_state_dir(job);
         free(job);
         goto out;
     }
