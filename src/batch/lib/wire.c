@@ -378,3 +378,12 @@ bool_t xdr_wire_group_info_array(XDR *xdrs, struct wire_group_info_array *p)
         return false;
     return true;
 }
+
+bool_t xdr_wire_job_ack(XDR *xdrs, struct wire_job_ack *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->ack_op))
+        return false;
+    return TRUE;
+}

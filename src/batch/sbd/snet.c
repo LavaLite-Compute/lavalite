@@ -224,11 +224,11 @@ int sbd_mbd_route(int chan_id)
         // a new job from mbd has arrived
         sbd_job_new(&xdrs);
         break;
-    case BATCH_NEW_JOB_ACK:
+    case BATCH_NEW_JOB_REPLY_ACK:
         // this indicate the ack of the previous job_reply
         // has reached the mbd who logged in the events
         // we can send a new event sbd_enqueue_execute
-        sbd_job_new_ack(&xdrs);
+        sbd_job_new_reply_ack(&xdrs);
         break;
     case BATCH_JOB_EXECUTE_ACK:
         sbd_job_execute_ack(&xdrs);

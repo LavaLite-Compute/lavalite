@@ -727,7 +727,7 @@ int sbd_job_new_reply(struct sbd_job *job)
     r.pgid   = job->pgid;
     r.status = JOB_STAT_RUN;
 
-    if (sbd_send_msg(BATCH_NEW_JOB_ACK, &r, sizeof(r),
+    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, &r, sizeof(r),
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
         LS_ERR("job=%ld sbd_send_msg failed", job->job_id);
         return -1;
@@ -741,29 +741,28 @@ int sbd_job_new_reply(struct sbd_job *job)
 /* -----------------------------------------------------------------------
  * job new ack  (mbd -> sbd: mbd committed pid/pgid)
  * ----------------------------------------------------------------------- */
-void sbd_job_new_ack(XDR *xdrs)
+void sbd_job_new_reply_ack(XDR *xdrs)
 {
-    struct wire_job_state ack;
-
+    struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
 
-    if (!xdr_wire_job_state(xdrs, &ack)) {
-        LS_ERR("xdr_wire_job_state decode failed");
+    if (!xdr_wire_job_ack(xdrs, &ack)) {
+        LS_ERR("xdr_wire_job_ack decode failed");
         return;
     }
 
     struct sbd_job *job = sbd_job_lookup(ack.job_id);
     if (job == NULL) {
-        LS_ERR("job_new_ack: unknown job=%ld", ack.job_id);
+        LS_ERR("new_job_ack for unknown job=%ld", ack.job_id);
         return;
     }
 
-    if (job->pid_acked) {
-        LS_DEBUG("job=%ld duplicate pid ack ignored", job->job_id);
+    if (job->pid_acked == TRUE) {
+        LS_DEBUG("job=%ld duplicate pid ack", job->job_id);
         return;
     }
 
-    job->pid_acked      = TRUE;
+    job->pid_acked = TRUE;
     job->time_pid_acked = time(NULL);
 
     if (sbd_job_state_write(job) < 0) {
@@ -772,7 +771,10 @@ void sbd_job_new_ack(XDR *xdrs)
         return;
     }
 
-    LS_INFO("job=%ld pid_acked", job->job_id);
+    LS_INFO("job=%ld pid=%d pgid=%d pid acked by mbd",
+            job->job_id, job->pid, job->pgid);
+
+    assert(job->execute_acked == FALSE);
 }
 
 /* -----------------------------------------------------------------------

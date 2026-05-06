@@ -323,3 +323,156 @@ int job_init(void)
 
     return 0;
 }
+
+void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
+{
+    struct wire_job_reply r;
+    memset(&r, 0, sizeof(r));
+
+    if (!xdr_wire_job_reply(xdrs, &r)) {
+        LS_ERR("xdr_wire_job_reply decode failed from=%s",
+               chan_addr_str(n->sbd_chan));
+        return;
+    }
+
+    struct job_data *job = job_find(r.job_id);
+    if (job == NULL) {
+        LS_ERR("job=%ld not found from=%s", r.job_id, chan_addr_str(n->sbd_chan));
+        goto send_ack;
+    }
+
+    if (r.status != JOB_STAT_RUN) {
+        LS_ERR("job=%ld unexpected status=%d from=%s",
+               r.job_id, r.status, chan_addr_str(n->sbd_chan));
+        goto send_ack;
+    }
+
+    job->usage.pid = (pid_t)r.pid;
+    job->start_time = time(NULL);
+    job->status = JOB_STAT_RUN;
+    event_job_accept(job);
+
+send_ack:
+    ;
+    struct wire_job_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.job_id = r.job_id;
+    ack.ack_op = BATCH_NEW_JOB_REPLY;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_NEW_JOB_REPLY_ACK;
+    hdr.status = MBD_OK;
+
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
+                        sizeof(ack), xdr_wire_job_ack) < 0) {
+        LS_ERR("job=%ld enqueue_payload failed", r.job_id);
+    }
+
+    LS_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
+}
+
+void mbd_set_status_execute(struct mbd_host *n, XDR *xdrs)
+{
+    struct wire_job_state s;
+    memset(&s, 0, sizeof(s));
+
+    if (!xdr_wire_job_state(xdrs, &s)) {
+        LS_ERR("xdr_wire_job_state decode failed from=%s",
+               chan_addr_str(n->sbd_chan));
+        return;
+    }
+
+    struct job_data *job = job_find(s.job_id);
+    if (job == NULL) {
+        LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
+        goto send_ack;
+    }
+
+    if (job->start_time > 0) {
+        LS_INFO("job=%ld execute duplicate from=%s", s.job_id,
+                chan_addr_str(n->sbd_chan));
+        goto send_ack;
+    }
+
+    assert(job->status == JOB_STAT_RUN);
+
+    job->start_time = time(NULL);
+    event_job_execute(job, n->net.name);
+
+send_ack:
+    ;
+    struct wire_job_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.job_id = s.job_id;
+    ack.ack_op = BATCH_JOB_EXECUTE;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_EXECUTE_ACK;
+    hdr.status = MBD_OK;
+
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
+                        sizeof(ack), xdr_wire_job_ack) < 0) {
+        LS_ERR("job=%ld enqueue_payload failed", s.job_id);
+    }
+
+    LS_INFO("job=%ld execute acked", s.job_id);
+}
+
+void mbd_set_status_finish(struct mbd_host *n, XDR *xdrs)
+{
+    struct wire_job_state s;
+    memset(&s, 0, sizeof(s));
+
+    if (!xdr_wire_job_state(xdrs, &s)) {
+        LS_ERR("xdr_wire_job_state decode failed from=%s",
+               chan_addr_str(n->sbd_chan));
+        return;
+    }
+
+    struct job_data *job = job_find(s.job_id);
+    if (job == NULL) {
+        LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
+        goto send_ack;
+    }
+
+    if (job->end_time > 0) {
+        LS_INFO("job=%ld finish duplicate from=%s", s.job_id,
+                chan_addr_str(n->sbd_chan));
+        goto send_ack;
+    }
+
+    assert(job->status == JOB_STAT_RUN);
+
+    job->end_time = time(NULL);
+    job->exit_status = s.state;
+
+    if (s.state == 0)
+        job->status = JOB_STAT_DONE;
+    else
+        job->status = JOB_STAT_EXIT;
+
+    job_move_list(job, &finish_jobs_list, &run_jobs_list, JOB_LIST_FINISH);
+    event_job_finish(job);
+
+send_ack:
+    ;
+    struct wire_job_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.job_id = s.job_id;
+    ack.ack_op = BATCH_JOB_FINISH;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_FINISH_ACK;
+    hdr.status = MBD_OK;
+
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
+                        sizeof(ack), xdr_wire_job_ack) < 0) {
+        LS_ERR("job=%ld enqueue_payload failed", s.job_id);
+    }
+
+    LS_INFO("job=%ld finish acked status=%s", s.job_id,
+            job ? (job->status == JOB_STAT_DONE ? "DONE" : "EXIT") : "unknown");
+}

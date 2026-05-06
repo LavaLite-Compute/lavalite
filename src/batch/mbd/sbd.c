@@ -93,6 +93,62 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         mbd_sbd_disconnect(n);
         return -1;
     }
+    if (chan_dequeue(chan_id, &buf) < 0) {
+        LS_ERR("chan_dequeue failed chan_id=%d", chan_id);
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
+        LS_ERR("xdr_pack_hdr failed chan_id=%d", chan_id);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    /* validate opcode and version early */
+    if (!valid_batch_op(hdr.operation)) {
+        LS_ERR("invalid opcode=%d from=%s", hdr.operation, chan_addr_str(chan_id));
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    if (auth_verify_header(&hdr) < 0) {
+        LS_ERR("failed validate header opcode=%s from=%s",
+               batch_op_str(hdr.operation), chan_addr_str(chan_id));
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    if (hdr.version != CURRENT_PROTOCOL_VERSION) {
+        LS_ERR("unsupported version=0x%x from=%s",
+               hdr.version, chan_addr_str(chan_id));
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    switch (hdr.operation) {
+    case BATCH_NEW_JOB_ACK:
+        mbd_new_job_reply(n, &xdrs);
+        break;
+    case BATCH_JOB_EXECUTE:
+        mbd_set_status_execute(n, &xdrs);
+        break;
+    case BATCH_JOB_FINISH:
+        mbd_set_status_finish(n, &xdrs);
+        break;
+    }
+
+    xdr_destroy(&xdrs);
+    chan_free_buf(buf);
 
     return 0;
 }

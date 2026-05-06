@@ -102,6 +102,11 @@ struct wire_job_start {
     struct wire_job_script script;   /* job script, encoded last */
 };
 
+struct wire_job_ack {
+    int64_t job_id;
+    int32_t ack_op;
+};
+
 /* -----------------------------------------------------------------------
  * log compactor notification
  * ----------------------------------------------------------------------- */
@@ -290,6 +295,7 @@ bool_t xdr_wire_job_info(XDR *, struct wire_job_info *);
 bool_t xdr_wire_job_info_array(XDR *, struct wire_job_info_array *);
 bool_t xdr_wire_job_start(XDR *, struct wire_job_start *);
 bool_t xdr_wire_job_reply(XDR *, struct wire_job_reply *);
+bool_t xdr_wire_job_ack(XDR *, struct wire_job_ack *);
 
 /* host */
 bool_t xdr_wire_host_info(XDR *, struct wire_host_info *);
