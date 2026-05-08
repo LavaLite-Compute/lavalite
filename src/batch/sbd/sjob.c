@@ -731,7 +731,7 @@ struct sbd_job *sbd_job_lookup(int64_t job_id)
 int sbd_job_new_reply(struct sbd_job *job)
 {
     if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip job=%ld", job->job_id);
+        LS_INFO("mbd link not ready EAGAIN job=%ld", job->job_id);
         return -1;
     }
 
@@ -801,8 +801,7 @@ int sbd_job_execute(struct sbd_job *job)
 {
     // Check it we are connected to mbd
     if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip job=%ld and sbd_mbd_reconnect_try",
-                job->job_id);
+        LS_INFO("mbd link not ready, EAGAIN job=%ld", job->job_id);
         return -1;
     }
 
@@ -815,7 +814,7 @@ int sbd_job_execute(struct sbd_job *job)
     }
 
     if (job->execute_acked) {
-        LS_ERR("job %ld execute already sent (bug)", job->job_id);
+        LS_ERR("job=%ld execute already sent (bug)", job->job_id);
         assert(0);
         return -1;
     }
@@ -830,7 +829,7 @@ int sbd_job_execute(struct sbd_job *job)
     if (job->exec_cwd[0] == 0
         || job->exec_home[0] == 0
         || job->exec_user[0] == 0) {
-        LS_ERR("job %ld missing execute fields user/cwd/home", job->job_id);
+        LS_ERR("job=%ld missing execute fields user/cwd/home", job->job_id);
         assert(0);
     }
 
@@ -884,7 +883,7 @@ void sbd_job_execute_ack(XDR *xdrs)
          * Strict ordering violation: execute_acked implies pid_acked.
          * This should never happen if mbd is enforcing the pipeline.
          */
-        LS_ERR("execute ack before PID ack job=%ld", job->job_id);
+        LS_ERR("job=%ld execute ack before PID ack", job->job_id);
         abort();
         return;
     }
@@ -912,8 +911,7 @@ void sbd_job_execute_ack(XDR *xdrs)
 int sbd_job_finish(struct sbd_job *job)
 {
     if (! sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
-                job->job_id);
+        LS_INFO("mbd link not ready, EAGAIN skip job=%ld", job->job_id);
         return -1;
     }
 
@@ -1041,7 +1039,7 @@ int sbd_job_signal(XDR *xdrs)
 
     struct sbd_job *job = sbd_job_lookup(sig.job_id);
     if (job == NULL) {
-        LS_ERR("job_signal: unknown job=%ld", sig.job_id);
+        LS_ERR("unknown job=%ld", sig.job_id);
         return -1;
     }
 
