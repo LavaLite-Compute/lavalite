@@ -134,11 +134,20 @@ const char *batch_op_str(enum batch_lib_op op)
         [BATCH_QUEUE_INFO_ACK]   = "BATCH_QUEUE_INFO_ACK",
         [BATCH_GROUP_INFO]       = "BATCH_GROUP_INFO",
         [BATCH_GROUP_INFO_ACK]   = "BATCH_GROUP_INFO_ACK",
-        [BATCH_SBD_REGISTER]     = "BATCH_SBD_REGISTER",
-        [BATCH_SBD_REGISTER_ACK] = "BATCH_SBD_REGISTER_ACK",
+        // compactor <-> mbd
         [BATCH_COMPACT_DONE]     = "BATCH_COMPACT_DONE",
         [BATCH_COMPACT_FAILED]   = "BATCH_COMPACT_FAILED",
         [BATCH_COMPACT_ACK]      = "BATCH_COMPACT_ACK",
+        // sbd <-> mbd
+        [BATCH_NEW_JOB] = "BATCH_NEW_JOB",
+        [BATCH_NEW_JOB_REPLY] = "BATCH_NEW_JOB_REPLY",
+        [BATCH_NEW_JOB_REPLY_ACK] = "BATCH_NEW_JOB_REPLY_ACK",
+        [BATCH_JOB_FINISH] = "BATCH_JOB_FINISH",
+        [BATCH_JOB_FINISH_ACK] = "BATCH_JOB_FINISH_ACK",
+        [BATCH_SBD_JOB_SIGNAL] = "BATCH_SBD_JOB_SIGNAL",
+        [BATCH_SBD_REGISTER]     = "BATCH_SBD_REGISTER",
+        [BATCH_SBD_REGISTER_ACK] = "BATCH_SBD_REGISTER_ACK"
+
     };
     static const size_t nnames = sizeof(names) / sizeof(names[0]);
 

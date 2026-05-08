@@ -3,11 +3,14 @@
  * GPL v2
  */
 
-#include <string.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <syslog.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <unistd.h>
 #include <grp.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -19,6 +22,7 @@
 #include "batch/sbd/sbd.h"
 #include "batch/lib/wire.h"
 
+
 static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
 {
     struct sbd_job *job = calloc(1, sizeof(struct sbd_job));
@@ -27,9 +31,9 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
         return NULL;
     }
 
-    job->job_id   = ws->job_id;
-    job->pid      = -1;
-    job->pgid     = -1;
+    job->job_id = ws->job_id;
+    job->pid = -1;
+    job->pgid = -1;
     job->exec_uid = (uid_t)ws->uid;
     job->exec_gid = (gid_t)ws->gid;
     job->umask = ws->umask;
@@ -43,23 +47,23 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     ll_strlcpy(job->in_file,   ws->in_file,  sizeof(job->in_file));
     ll_strlcpy(job->out_file,  ws->out_file, sizeof(job->out_file));
     ll_strlcpy(job->err_file,  ws->err_file, sizeof(job->err_file));
-    if (ws->cwd[0] == '\0')
+    if (ws->cwd[0] == 0)
         ll_strlcpy(job->exec_cwd, ws->home_dir, sizeof(job->exec_cwd));
     else
         ll_strlcpy(job->exec_cwd, ws->cwd, sizeof(job->exec_cwd));
 
     /* pipeline state */
-    job->pid_acked          = FALSE;
+    job->pid_acked          = false;
     job->time_pid_acked     = 0;
     job->reply_last_send    = 0;
-    job->execute_acked      = FALSE;
+    job->execute_acked      = false;
     job->time_execute_acked = 0;
     job->execute_last_send  = 0;
-    job->finish_acked       = FALSE;
+    job->finish_acked       = false;
     job->time_finish_acked  = 0;
     job->finish_last_send   = 0;
     job->exit_status        = 0;
-    job->exit_status_valid  = FALSE;
+    job->exit_status_valid  = false;
 
     /* invariants */
     assert(job->exec_user[0] != 0);
@@ -67,6 +71,13 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     assert(job->exec_cwd[0]  != 0);
 
     return job;
+}
+static struct sbd_job *sbd_job_find(int64_t job_id)
+{
+    char job_key[LL_BUFSIZ_32];
+
+    snprintf(job_key, sizeof(job_key), "%ld", job_id);
+    return ll_hash_search(sbd_job_hash, job_key);
 }
 
 static int sbd_job_new_reply_err(int64_t job_id)
@@ -77,9 +88,10 @@ static int sbd_job_new_reply_err(int64_t job_id)
     r.job_id = job_id;
     r.pid    = 0;
     r.pgid   = 0;
+    // tell mbd to put the job back to pend
     r.status = JOB_STAT_PEND;
 
-    if (sbd_send_msg(BATCH_NEW_JOB_ACK, &r, sizeof(r),
+    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, &r, sizeof(r),
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
         LS_ERR("job=%ld error reply enqueue failed", job_id);
         return -1;
@@ -179,6 +191,7 @@ static int cd_work_dir(const struct sbd_job *job)
 
     return 0;
 }
+
 static int expand_stdio_path(int64_t job_id, const char *tmpl,
                              char *out, size_t outsz)
 {
@@ -340,13 +353,7 @@ static void child_exec_job(struct sbd_job *job)
         _exit(127);
     }
 
-    if (cd_work_dir(job) < 0) {
-        LS_ERR("job=%ld failed to enter cwd %s (and /tmp fallback)",
-               job->job_id, job->exec_cwd);
-        _exit(127);
-    }
-
-    // Drop privileges / set ids first.
+    // Drop privileges before touching user paths.
     if (set_user_id(job) < 0) {
         LS_ERR("set ids failed job=%ld pid=%d pgid=%d", job->job_id, job->pid,
                job->pgid);
@@ -356,11 +363,17 @@ static void child_exec_job(struct sbd_job *job)
     // Apply umask for the job.
     umask(job->umask);
 
+    if (cd_work_dir(job) < 0) {
+        LS_ERR("job=%ld failed to enter cwd %s (and /tmp fallback)",
+               job->job_id, job->exec_cwd);
+        _exit(127);
+    }
+
     char jobfile[PATH_MAX];
     int l = snprintf(jobfile, sizeof(jobfile), "%s/%ld/job.sh",
                      sbd_job_dir, job->job_id);
-    if (l < 0) {
-        LS_ERR("create jobfile path buffer %s failed", jobfile);
+    if (l < 0 || l >= (int)sizeof(jobfile)) {
+        LS_ERR("job=%ld jobfile path too long", job->job_id);
         _exit(127);
     }
 
@@ -556,7 +569,7 @@ void sbd_job_new(XDR *xdrs)
     }
 
     /* duplicate NEW_JOB: echo our current view back */
-    struct sbd_job *job = sbd_job_lookup(ws.job_id);
+    struct sbd_job *job = sbd_job_find(ws.job_id);
     if (job != NULL) {
         LS_WARNING("duplicate BATCH_NEW_JOB job=%ld pid=%d",
                    job->job_id, job->pid);
@@ -588,6 +601,8 @@ void sbd_job_new(XDR *xdrs)
     if (sbd_job_script_write(job, &ws.script) < 0) {
         LS_ERRX("job=%ld script write failed", ws.job_id);
         sbd_job_new_reply_err(ws.job_id);
+        rm_state_dir(job);
+        rm_job_dir(job);
         free(job);
         goto out;
     }
@@ -610,7 +625,7 @@ void sbd_job_new(XDR *xdrs)
 
     if (sbd_job_new_reply(job) < 0) {
         LS_ERR("job=%ld enqueue reply failed", job->job_id);
-        return;
+        goto out;
     }
 
     job->reply_last_send = time(NULL);
@@ -701,16 +716,12 @@ int sbd_job_script_write(struct sbd_job *job, const struct wire_job_script *scri
 
 struct sbd_job *sbd_job_lookup(int64_t job_id)
 {
-    char job_key[LL_BUFSIZ_32];
+    struct sbd_job *job = sbd_job_find(job_id);
 
-    sprintf(job_key, "%ld", job_id);
-    struct sbd_job *job = ll_hash_search(sbd_job_hash, job_key);
-    if (!job) {
+    if (job == NULL)
         LS_ERRX("job=%ld not found in sbd", job_id);
-        return NULL;
-    }
-    return job;
 
+    return job;
 }
 
 /* -----------------------------------------------------------------------
@@ -719,6 +730,11 @@ struct sbd_job *sbd_job_lookup(int64_t job_id)
 
 int sbd_job_new_reply(struct sbd_job *job)
 {
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job=%ld", job->job_id);
+        return -1;
+    }
+
     struct wire_job_reply r;
 
     memset(&r, 0, sizeof(r));
@@ -757,12 +773,12 @@ void sbd_job_new_reply_ack(XDR *xdrs)
         return;
     }
 
-    if (job->pid_acked == TRUE) {
+    if (job->pid_acked == true) {
         LS_DEBUG("job=%ld duplicate pid ack", job->job_id);
         return;
     }
 
-    job->pid_acked = TRUE;
+    job->pid_acked = true;
     job->time_pid_acked = time(NULL);
 
     if (sbd_job_state_write(job) < 0) {
@@ -774,7 +790,7 @@ void sbd_job_new_reply_ack(XDR *xdrs)
     LS_INFO("job=%ld pid=%d pgid=%d pid acked by mbd",
             job->job_id, job->pid, job->pgid);
 
-    assert(job->execute_acked == FALSE);
+    assert(job->execute_acked == false);
 }
 
 /* -----------------------------------------------------------------------
@@ -783,6 +799,42 @@ void sbd_job_new_reply_ack(XDR *xdrs)
 
 int sbd_job_execute(struct sbd_job *job)
 {
+    // Check it we are connected to mbd
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job=%ld and sbd_mbd_reconnect_try",
+                job->job_id);
+        return -1;
+    }
+
+    // Check all state invariants that must be satisfied if job
+    // is executing or if we are resending execute status after reboot
+    if (!job->pid_acked) {
+        LS_ERR("job=%ld execute before pid_acked (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (job->execute_acked) {
+        LS_ERR("job %ld execute already sent (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+     if (job->pid <= 0 || job->pgid <= 0) {
+        LS_ERR("job=%ld bad pid/pgid pid=%d pgid=%d (bug)",
+               job->job_id, (int)job->pid, (int)job->pgid);
+        assert(0);
+        return -1;
+    }
+
+    if (job->exec_cwd[0] == 0
+        || job->exec_home[0] == 0
+        || job->exec_user[0] == 0) {
+        LS_ERR("job %ld missing execute fields user/cwd/home", job->job_id);
+        assert(0);
+    }
+
+    // When all checks are done send the status to mbd
     struct wire_job_state s;
 
     memset(&s, 0, sizeof(s));
@@ -805,12 +857,19 @@ int sbd_job_execute(struct sbd_job *job)
 
 void sbd_job_execute_ack(XDR *xdrs)
 {
-    struct wire_job_state ack;
+    struct wire_job_ack ack;
 
     memset(&ack, 0, sizeof(ack));
 
-    if (!xdr_wire_job_state(xdrs, &ack)) {
-        LS_ERR("xdr_wire_job_state decode failed");
+    if (!xdr_wire_job_ack(xdrs, &ack)) {
+        LS_ERR("xdr_wire_job_ack decode failed");
+        return;
+    }
+
+    if (ack.ack_op != BATCH_JOB_EXECUTE) {
+        LS_ERR("execute ack mismatch: ack_op=%d job=%ld",
+               ack.ack_op, ack.job_id);
+        abort();
         return;
     }
 
@@ -820,8 +879,29 @@ void sbd_job_execute_ack(XDR *xdrs)
         return;
     }
 
-    job->execute_acked      = TRUE;
+    if (!job->pid_acked) {
+        /*
+         * Strict ordering violation: execute_acked implies pid_acked.
+         * This should never happen if mbd is enforcing the pipeline.
+         */
+        LS_ERR("execute ack before PID ack job=%ld", job->job_id);
+        abort();
+        return;
+    }
+
+    if (job->execute_acked) {
+        LS_DEBUG("job=%ld duplicate execute ack ignored", job->job_id);
+        return;
+    }
+
+    job->execute_acked      = true;
     job->time_execute_acked = time(NULL);
+
+    if (sbd_job_state_write(job) < 0) {
+        LS_ERR("job=%ld state write failed", job->job_id);
+        sbd_fatal(SBD_FATAL_STORAGE);
+    }
+
     LS_INFO("job=%ld execute_acked", job->job_id);
 }
 
@@ -831,11 +911,47 @@ void sbd_job_execute_ack(XDR *xdrs)
 
 int sbd_job_finish(struct sbd_job *job)
 {
-    struct wire_job_state s;
+    if (! sbd_mbd_link_ready()) {
+        LS_INFO("mbd link not ready, skip job %ld and sbd_mbd_reconnect_try",
+                job->job_id);
+        return -1;
+    }
 
+    if (! job->pid_acked) {
+        LS_ERR("job=%ld not pid_acked before? (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (! job->execute_acked) {
+        LS_ERRX("job=%ld not executed_acked before ? (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (job->finish_acked) {
+        LS_ERR("job=%ld finish_acked already sent (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    if (! job->exit_status_valid) {
+        LS_ERR("job=%ld finish without exit_status (bug)", job->job_id);
+        assert(0);
+        return -1;
+    }
+
+    int new_status;
+    if (WIFEXITED(job->exit_status) && WEXITSTATUS(job->exit_status) == 0) {
+        new_status = JOB_STAT_DONE;
+    } else {
+        new_status = JOB_STAT_EXIT;
+    }
+
+    struct wire_job_state s;
     memset(&s, 0, sizeof(s));
     s.job_id = job->job_id;
-    s.state  = job->exit_status;
+    s.state  = new_status;
 
     if (sbd_send_msg(BATCH_JOB_FINISH, &s, sizeof(s),
                      (bool_t (*)())xdr_wire_job_state) < 0) {
@@ -854,11 +970,18 @@ int sbd_job_finish(struct sbd_job *job)
 
 void sbd_job_finish_ack(XDR *xdrs)
 {
-    struct wire_job_state ack;
+    struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
 
-    if (!xdr_wire_job_state(xdrs, &ack)) {
-        LS_ERR("xdr_wire_job_state decode failed");
+    if (!xdr_wire_job_ack(xdrs, &ack)) {
+        LS_ERR("xdr_wire_job_ack decode failed");
+        return;
+    }
+
+    if (ack.ack_op != BATCH_JOB_FINISH) {
+        LS_ERR("finish ack mismatch: ack_op=%d job=%ld",
+               ack.ack_op, ack.job_id);
+        abort();
         return;
     }
 
@@ -880,7 +1003,7 @@ void sbd_job_finish_ack(XDR *xdrs)
         return;
     }
 
-    job->finish_acked      = TRUE;
+    job->finish_acked = true;
     job->time_finish_acked = time(NULL);
 
     if (sbd_job_state_write(job) < 0) {

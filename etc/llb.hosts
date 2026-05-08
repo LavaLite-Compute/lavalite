@@ -47,3 +47,11 @@ NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE
 worker1-sim     buntu24     33126   8   128   2T    100T
 worker2-sim     buntu24     33127   6   64   1T    50T
 End Sim
+
+#Begin GpuTopology
+#HOST_NAME   GPU_ID   NUMA   GROUP
+#buntu24     0        0      0
+#buntu24     1        0      0
+#buntu24     2        1      1
+#buntu24     3        1      1
+#End GpuTopology

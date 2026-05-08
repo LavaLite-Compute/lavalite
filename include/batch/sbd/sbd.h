@@ -12,20 +12,18 @@
 #include "base/lib/ll.hash.h"
 #include "batch/lib/wire.h"
 
-// chan epoll
+/*
+ * Global daemon state.
+ */
 extern int sbd_efd;
-// the sbd channel to talk to its own clients
 extern int sbd_listen_chan;
-// sbd has a timer to driver periodic operation and this is the
-// associated channel
 extern int sbd_timer_chan;
-// channel to mbd, sbd is a permanent client of mbd
 extern int sbd_mbd_chan;
+
 extern pid_t pruner_pid;
 extern int non_root;
 extern struct ll_host mbd_host;
 
-// LavaLite sbd root dir working directory for jobs
 extern char sbd_root_dir[PATH_MAX];
 extern char sbd_state_dir[PATH_MAX];
 extern char sbd_job_dir[PATH_MAX];
@@ -33,140 +31,11 @@ extern char sbd_archive_dir[PATH_MAX];
 extern char sim_name[MAXHOSTNAMELEN];
 
 enum sbd_policy {
-    SBD_OPERATION_TIMER  = 1,
-    SBD_RESEND_ACK_TIMEOUT = 1,
-    SBD_PRUNE_INTERVAL = 600,
-    SBD_ARCHIVE_RETENTION  = 24 * 3600,
+    SBD_OPERATION_TIMER      = 1,
+    SBD_RESEND_ACK_TIMEOUT  = 1,
+    SBD_PRUNE_INTERVAL      = 600,
+    SBD_ARCHIVE_RETENTION   = 24 * 3600
 };
-
-// sbatchd-local view of a job.
-// This replaces the old jobCard horror.
-struct sbd_job {
-    struct ll_list_entry list;        // intrusive link in global job list
-
-    int64_t job_id;                   // global jobId (stable, assigned by mbd)
-    // job spec sent from mbd are unmutable
-    // struct jobSpecs specs;     // job specification as received from mbd
-
-    pid_t pid;                        // main job PID (child spawned by sbatchd)
-    pid_t pgid;                       // process group ID for the job
-    char exec_user[LL_BUFSIZ_64];
-    char exec_home[PATH_MAX];
-    char exec_cwd[PATH_MAX];   // execution working directory
-    uid_t exec_uid;
-    gid_t exec_gid;
-    uint32_t umask;
-    char command[LL_BUFSIZ_512];
-    char job_name[LL_BUFSIZ_256];
-    char queue[LL_BUFSIZ_64];
-    char hosts[LL_BUFSIZ_4K];
-    char in_file[PATH_MAX];
-    char out_file[PATH_MAX];
-    char err_file[PATH_MAX];
-    /*
-     * pid_acked (PID_COMMITTED):
-     *   Set to TRUE when sbatchd processes BATCH_NEW_JOB_ACK from mbd.
-     *   This ACK means mbd has *committed* (logged) the pid/pgid snapshot
-     *   for this job in its event log (lsb.events is the source of truth).
-     *
-     *   Protocol ordering gate:
-     *     - EXECUTE and FINISH must not be emitted before pid_acked.
-     */
-    bool_t pid_acked;
-    time_t time_pid_acked;  // time when pid_acked was set (diagnostics)
-    time_t reply_last_send; // last time we tried to sent the reply
-    /*
-     * execute_acked (EXECUTE_COMMITTED):
-     *   Set to TRUE when sbatchd processes the ACK for the EXECUTE event,
-     *   meaning mbd has logged/committed the EXECUTE record for this job.
-     *
-     *   Ordering:
-     *     - execute_acked implies pid_acked.
-     */
-    bool_t execute_acked;
-    time_t time_execute_acked;
-    time_t execute_last_send; // last time we tried to send execute status
-    int retry_exit_count;
-    /*
-     * finish_acked (FINISH_COMMITTED):
-     *   Set to TRUE when sbatchd processes the ACK for the FINISH event,
-     *   meaning mbd has logged/committed the terminal record for this job.
-     *
-     *   Ordering:
-     *     - finish_acked implies execute_acked.
-     *     - FINISH is only eligible once exit_status_valid is true.
-     */
-    bool_t finish_acked;
-    time_t time_finish_acked;
-    time_t finish_last_send; // last time we tried to send finish status
-
-    int exit_status;                  // raw waitpid() status
-    bool_t exit_status_valid;   // TRUE once waitpid() has captured exit_status
-    time_t end_time;     // job finish time
-};
-
-// Struct sbd job state to save the minimum status of the job to the
-// state file for the purpose of reloading it if/when the sbd restarts
-struct sbd_job_state {
-    int64_t job_id;
-
-    pid_t pid;
-    pid_t pgid;
-
-    bool_t reply_committed;    // PID_COMMITTED (op30)
-    bool_t execute_committed;  // EXECUTE committed (op31)
-    bool_t finish_committed;   // FINISH committed (op32)
-
-    bool_t finished_locally;   // we reaped it
-    int    exit_status;        // raw waitpid() status
-    time_t end_time;  // if the job has finih record the time
-};
-
-
-// Global containers (defined in sbd.job.c or sbd.main.c)
-extern struct ll_list sbd_job_list;   // intrusive list of all active jobs
-extern struct ll_hash *sbd_job_hash;  // key: job_id -> value: struct sbd_job*
-
-int write_all(int fd, const char *, size_t);
-
-// Look up a job by jobId (NULL if not found).
-struct sbd_job *sbd_job_lookup(int64_t job_id);
-
-void sbd_job_file_remove(struct sbd_job *);
-void sbd_job_state_archive(struct sbd_job *);
-
-// Insert job into global list + hash.
-void sbd_job_insert(struct sbd_job *);
-
-// Refresh job status from mbd
-void sbd_job_sync_jstatus(struct sbd_job *);
-
-//int sbd_enqueue_new_job_reply(struct sbd_job *, struct jobReply *);
-int sbd_enqueue_execute(struct sbd_job *);
-int sbd_enqueue_finish( struct sbd_job *);
-int sbd_mbd_link_ready(void);
-
-// sbd record function to save the state of jobs from
-// sbd point of view restore the latest state after
-// restart
-int sbd_storage_init(void);
-int sbd_job_state_load_all(void);
-int sbd_job_state_read(struct sbd_job *, char *);
-int sbd_job_state_write(struct sbd_job *);
-int sbd_job_cleanup_files(struct sbd_job *);
-void sbd_prune_acked_jobs(void);
-
-// sbd has command to query its internal status
-int sbd_accept(int);
-int sbd_client(int);
-int sbd_reply_hdr_only(int, int, struct protocol_header *);
-
-// Use the xdr_func() signiture without argument otherwise we should
-// use void * and every xdr function will have to take it and cast it
-// to its own xdr data structure
-int sbd_reply_payload(int, int, struct protocol_header *,
-                      void *, bool_t (*xdr_func)());
-int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
 
 enum sbd_fatal_cause {
     SBD_FATAL_STORAGE = 1,
@@ -176,21 +45,104 @@ enum sbd_fatal_cause {
     SBD_FATAL_ENQUEUE
 };
 
-void sbd_fatal(enum sbd_fatal_cause);
-void sbd_prune_archive_try(void);
+/*
+ * sbatchd-local view of a job.
+ */
+struct sbd_job {
+    struct ll_list_entry list;
 
+    int64_t job_id;
+
+    pid_t pid;
+    pid_t pgid;
+
+    uid_t exec_uid;
+    gid_t exec_gid;
+    uint32_t umask;
+
+    char exec_user[LL_BUFSIZ_64];
+    char exec_home[PATH_MAX];
+    char exec_cwd[PATH_MAX];
+
+    char command[LL_BUFSIZ_512];
+    char job_name[LL_BUFSIZ_256];
+    char queue[LL_BUFSIZ_64];
+    char hosts[LL_BUFSIZ_4K];
+
+    char in_file[PATH_MAX];
+    char out_file[PATH_MAX];
+    char err_file[PATH_MAX];
+
+    bool_t pid_acked;
+    time_t time_pid_acked;
+    time_t reply_last_send;
+
+    bool_t execute_acked;
+    time_t time_execute_acked;
+    time_t execute_last_send;
+
+    bool_t finish_acked;
+    time_t time_finish_acked;
+    time_t finish_last_send;
+
+    int retry_exit_count;
+
+    int exit_status;
+    bool_t exit_status_valid;
+    time_t end_time;
+};
+
+/*
+ * Minimal persistent job state used to recover after sbd restart.
+ */
+struct sbd_job_state {
+    int64_t job_id;
+
+    pid_t pid;
+    pid_t pgid;
+
+    bool_t pid_acked;
+    bool_t execute_acked;
+    bool_t finish_acked;
+
+    bool_t exit_status_valid;
+    int exit_status;
+    time_t end_time;
+};
+
+/*
+ * Job containers.
+ */
+extern struct ll_list sbd_job_list;
+extern struct ll_hash *sbd_job_hash;
+
+/*
+ * Fatal handling.
+ */
+void sbd_fatal(enum sbd_fatal_cause);
+
+/*
+ * MBD link.
+ */
 int sbd_mbd_connect(void);
 int sbd_register(void);
+void sbd_register_ack(XDR *);
 void sbd_mbd_link_down(void);
+int sbd_mbd_link_ready(void);
+int sbd_mbd_route(int);
 void sbd_chan_shutdown(int);
 
-struct sbd_job;
-int sbd_mbd_route(int);
+/*
+ * Job lifecycle.
+ */
 void sbd_job_new(XDR *);
+struct sbd_job *sbd_job_lookup(int64_t);
 void sbd_job_insert(struct sbd_job *);
+
 int sbd_job_script_write(struct sbd_job *, const struct wire_job_script *);
+
 int sbd_job_new_reply(struct sbd_job *);
-void sbd_job_new_ack(XDR *);
+void sbd_job_new_reply_ack(XDR *);
 
 int sbd_job_execute(struct sbd_job *);
 void sbd_job_execute_ack(XDR *);
@@ -200,8 +152,37 @@ void sbd_job_finish_ack(XDR *);
 
 int sbd_job_signal(XDR *);
 int sbd_enqueue_job_unknown(int64_t);
-void sbd_register_ack(XDR *);
-int32_t sbd_enqueue_payload(int, struct protocol_header *,
-                            void *, size_t, bool_t (*xdr_func)());
-int sbd_send_msg(int32_t, void *, size_t, bool_t (*xdr_func)());
+
+/*
+ * Job storage/state.
+ */
+int sbd_storage_init(void);
+int sbd_job_state_load_all(void);
+int sbd_job_state_read(struct sbd_job *, char *);
 int sbd_job_state_write(struct sbd_job *);
+
+void sbd_job_file_remove(struct sbd_job *);
+void sbd_job_state_archive(struct sbd_job *);
+int sbd_job_cleanup_files(struct sbd_job *);
+
+int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
+
+/*
+ * Pruning.
+ */
+void sbd_prune_acked_jobs(void);
+void sbd_prune_archive_try(void);
+
+/*
+ * Local client/status interface.
+ */
+int sbd_accept(int);
+int sbd_client(int);
+
+/*
+ * Wire send helpers.
+ */
+int32_t sbd_enqueue_payload(int, struct protocol_header *,
+                            void *, size_t, bool_t (*)());
+int sbd_send_msg(int32_t, void *, size_t, bool_t (*)());
+int write_all(int, const char *, size_t);
