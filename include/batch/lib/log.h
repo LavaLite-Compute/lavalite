@@ -23,7 +23,7 @@ enum event_type {
     EVENT_NULL            = 0,
     EVENT_JOB_NEW         = 1,  /* job submitted, enters PEND          */
     EVENT_JOB_START       = 2,  /* scheduler dispatched, enters RUN    */
-    EVENT_JOB_ACCEPT      = 3,  /* sbd forked child, pid known         */
+    EVENT_JOB_FORK        = 3,  /* sbd forked child, pid known         */
     EVENT_JOB_EXECUTE     = 4,  /* sbd confirmed execution, cwd known  */
     EVENT_JOB_SIGNAL      = 5,  /* mbd sent signal to job via sbd      */
     EVENT_JOB_FINISH      = 6,  /* job done, exit_status tells story   */
@@ -87,7 +87,7 @@ struct log_job_new {
  */
 struct log_job_start {
     int64_t job_id;
-    time_t  start_time;
+    time_t  dispatch_time;
     int     nhosts;
     int     cpus_per_host;
     int     gpus_per_host;
@@ -97,13 +97,13 @@ struct log_job_start {
 };
 
 /*
- * log_job_accept: sbd forked the child. pid is now known.
+ * log_job_fork: sbd forked the child. pid is now known.
  * This is the barrier -- no signal or operation is valid before this.
  */
-struct log_job_accept {
+struct log_job_fork {
     int64_t job_id;
     int32_t job_pid;
-    time_t  accept_time;    /* mbd clock: set by caller before write */
+    time_t  fork_time;    /* mbd clock: set by caller before write */
 };
 
 /*
@@ -137,7 +137,7 @@ struct log_job_finish {
     int32_t  status;        /* JOB_STAT_EXIT, JOB_STAT_DONE         */
     int32_t  exit_status;
     time_t   submit_time;
-    time_t   start_time;
+    time_t   dispatch_time;
     time_t   end_time;      /* mbd clock: set by caller before write */
     double   cpu_time;
     char     job_name[LL_BUFSIZ_64];
@@ -175,7 +175,7 @@ int log_read_hdr(FILE *, struct event_rec *);
 /* Payload parsers -- operate on rec->rest from log_read_hdr */
 int log_parse_job_new(const struct event_rec *, struct log_job_new *);
 int log_parse_job_start(const struct event_rec *, struct log_job_start *);
-int log_parse_job_accept(const struct event_rec *, struct log_job_accept *);
+int log_parse_job_fork(const struct event_rec *, struct log_job_fork *);
 int log_parse_job_execute(const struct event_rec *, struct log_job_execute *);
 int log_parse_job_signal(const struct event_rec *, struct log_job_signal *);
 int log_parse_job_finish(const struct event_rec *, struct log_job_finish *);
@@ -188,7 +188,7 @@ int log_parse_job_pend_susp(const struct event_rec *,
 /* Writers -- write header + payload + newline in one call */
 int log_write_job_new(FILE *, const struct log_job_new *);
 int log_write_job_start(FILE *, const struct log_job_start *);
-int log_write_job_accept(FILE *, const struct log_job_accept *);
+int log_write_job_fork(FILE *, const struct log_job_fork *);
 int log_write_job_execute(FILE *, const struct log_job_execute *);
 int log_write_job_signal(FILE *, const struct log_job_signal *);
 int log_write_job_finish(FILE *, const struct log_job_finish *);

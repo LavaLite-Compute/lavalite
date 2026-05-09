@@ -84,7 +84,7 @@ void event_job_start(const struct job_data *job, const struct sched_plan *plan)
     memset(&e, 0, sizeof(e));
 
     e.job_id        = job->job_id;
-    e.start_time    = job->start_time;
+    e.dispatch_time    = job->dispatch_time;
     e.nhosts        = plan->nhosts;
     e.cpus_per_host = plan->cpus_per_host;
     e.gpus_per_host = plan->gpus_per_host;
@@ -109,19 +109,19 @@ void event_job_start(const struct job_data *job, const struct sched_plan *plan)
     fclose(fp);
 }
 
-void event_job_accept(const struct job_data *job)
+void event_job_fork(const struct job_data *job)
 {
-    struct log_job_accept e;
+    struct log_job_fork e;
     memset(&e, 0, sizeof(e));
 
-    e.job_id      = job->job_id;
-    e.accept_time = time(NULL);
-    e.job_pid     = job->usage.pid;
+    e.job_id = job->job_id;
+    e.fork_time = job->fork_time;
+    e.job_pid = job->usage.pid;
 
     FILE *fp = open_events();
-    if (log_write_job_accept(fp, &e) < 0) {
+    if (log_write_job_fork(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_accept failed job_id=%ld", job->job_id);
+        LS_ERR("log_write_job_fork failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -133,7 +133,7 @@ void event_job_execute(const struct job_data *job, const char *cwd)
     memset(&e, 0, sizeof(e));
 
     e.job_id       = job->job_id;
-    e.execute_time = time(NULL);
+    e.execute_time = job->execute_time;
     e.job_pid      = job->usage.pid;
     ll_strlcpy(e.cwd, cwd, sizeof(e.cwd));
 
@@ -175,7 +175,7 @@ void event_job_finish(const struct job_data *job)
     e.status      = job->status;
     e.exit_status = job->exit_status;
     e.submit_time = job->submit_time;
-    e.start_time  = job->start_time;
+    e.dispatch_time  = job->dispatch_time;
     e.end_time    = job->end_time;
     e.cpu_time    = job->usage.cpu_time;
 
@@ -270,7 +270,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     ll_strlcpy(job->user,          e->username,     sizeof(job->user));
     ll_strlcpy(job->project,       e->project_name, sizeof(job->project));
     ll_strlcpy(job->res.gpu_type,  e->gpu_type,     sizeof(job->res.gpu_type));
-    ll_strlcpy(job->machines,      e->hosts,        sizeof(job->machines));
+    ll_strlcpy(job->res.machines,  e->hosts, sizeof(job->res.machines));
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {
@@ -333,27 +333,30 @@ static void replay_job_start(const struct event_rec *rec)
         return;
     }
     job->status     = JOB_STAT_RUN;
-    job->start_time = e.start_time;
+    job->dispatch_time = e.dispatch_time;
     ll_strlcpy(job->exec_host, e.exec_host, sizeof(job->exec_host));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
     LS_DEBUG("JOB_START job_id=%ld exec_host=%s nhosts=%d cpus=%d gpus=%d",
              e.job_id, e.exec_host, e.nhosts, e.cpus_per_host, e.gpus_per_host);
 }
 
-static void replay_job_accept(const struct event_rec *rec)
+static void replay_job_fork(const struct event_rec *rec)
 {
-    struct log_job_accept e;
-    if (log_parse_job_accept(rec, &e) < 0) {
-        LS_ERR("parse JOB_ACCEPT failed");
+    struct log_job_fork e;
+
+    if (log_parse_job_fork(rec, &e) < 0) {
+        LS_ERR("parse JOB_FORK failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERR("JOB_ACCEPT job_id=%ld not found", e.job_id);
+        LS_ERR("JOB_FORK job_id=%ld not found", e.job_id);
         return;
     }
     job->usage.pid = (pid_t)e.job_pid;
-    LS_DEBUG("JOB_ACCEPT job_id=%ld pid=%d", e.job_id, e.job_pid);
+    job->fork_time = e.fork_time;
+
+    LS_DEBUG("JOB_FORK job_id=%ld pid=%d", e.job_id, e.job_pid);
 }
 
 static void replay_job_execute(const struct event_rec *rec)
@@ -363,6 +366,12 @@ static void replay_job_execute(const struct event_rec *rec)
         LS_ERR("parse JOB_EXECUTE failed");
         return;
     }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LS_ERR("JOB_EXECUTE job_id=%ld not found", e.job_id);
+        return;
+    }
+    job->execute_time = e.execute_time;
     LS_DEBUG("JOB_EXECUTE job_id=%ld pid=%d", e.job_id, e.job_pid);
 }
 
@@ -373,6 +382,12 @@ static void replay_job_signal(const struct event_rec *rec)
         LS_ERR("parse JOB_SIGNAL failed");
         return;
     }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LS_ERR("JOB_SIGNAL job_id=%ld not found", e.job_id);
+        return;
+    }
+    job->signal_time = e.signal_time;
     LS_DEBUG("JOB_SIGNAL job_id=%ld sig=%d uid=%u", e.job_id, e.signal_num, e.uid);
 }
 
@@ -394,7 +409,7 @@ static void replay_job_finish(const struct event_rec *rec)
     job->exit_status    = e.exit_status;
     job->uid            = e.uid;
     job->submit_time    = e.submit_time;
-    job->start_time     = e.start_time;
+    job->dispatch_time  = e.dispatch_time;
     job->end_time       = e.end_time;
     job->usage.cpu_time = e.cpu_time;
 
@@ -497,8 +512,8 @@ int jobs_replay(void)
             replay_job_start(&rec);
             continue;
         }
-        if (rec.type == EVENT_JOB_ACCEPT) {
-            replay_job_accept(&rec);
+        if (rec.type == EVENT_JOB_FORK) {
+            replay_job_fork(&rec);
             continue;
         }
         if (rec.type == EVENT_JOB_EXECUTE) {

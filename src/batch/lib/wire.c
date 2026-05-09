@@ -187,7 +187,7 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
         return false;
     if (!xdr_int64_t(xdrs, &p->submit_time))
         return false;
-    if (!xdr_int64_t(xdrs, &p->start_time))
+    if (!xdr_int64_t(xdrs, &p->dispatch_time))
         return false;
     if (!xdr_int64_t(xdrs, &p->end_time))
         return false;

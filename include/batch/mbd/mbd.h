@@ -52,6 +52,7 @@ struct job_resources {
     uint64_t mem_mb;
     uint64_t storage_mb;
     int32_t  wall_seconds;
+    char     machines[LL_BUFSIZ_4K];  /* user -m hint, may be empty */
     struct ll_list tokens;
 };
 
@@ -79,9 +80,11 @@ struct job_data {
     int status;
     int exit_status;
     int priority;
-    time_t submit_time;
-    time_t start_time;
-    time_t end_time;
+    time_t  submit_time;      /* bsub received                      */
+    time_t  dispatch_time;    /* mbd sent BATCH_NEW_JOB to sbd      */
+    time_t fork_time;         /* sbd forked, pid received by mbd    */
+    time_t  execute_time;     /* sbd confirmed process is executing */
+    time_t  end_time;         /* job exited (DONE or EXIT)          */
     time_t susp_time;
     time_t requeue_time;
     time_t begin_time;
@@ -89,7 +92,6 @@ struct job_data {
     time_t signal_time;
     struct mbd_queue *queue;
     char project[LL_BUFSIZ_256];
-    char machines[LL_BUFSIZ_4K];
     char exec_host[MAXHOSTNAMELEN];
     char name[LL_BUFSIZ_64];
     uint32_t flags;
@@ -257,6 +259,7 @@ int enqueue_payload(int, struct protocol_header *,
                     void *, size_t, bool_t (*xdr_func)());
 int32_t enqueue_header(int, int, int);
 void chan_shutdown(int);
+int valid_batch_op(int);
 
 // sched.c
 void schedule(void);
@@ -267,7 +270,7 @@ int events_init(void);
 void reopen_job_events(void);
 void event_job_new(const struct job_data *, const struct wire_job_submit *);
 void event_job_start(const struct job_data *, const struct sched_plan *);
-void event_job_accept(const struct job_data *);
+void event_job_fork(const struct job_data *);
 void event_job_execute(const struct job_data *, const char *);
 void event_job_signal(const struct job_data *, const struct wire_job_sig *);
 void event_job_finish(const struct job_data *);
@@ -297,6 +300,9 @@ void job_move_list(struct job_data *, struct ll_list *,
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
+void mbd_new_job_reply(struct mbd_host *, XDR *);
+void mbd_set_status_execute(struct mbd_host *, XDR *);
+void mbd_set_status_finish(struct mbd_host *, XDR *);
 
 // queue.c
 int queue_user_allowed(const struct mbd_queue *, uid_t);

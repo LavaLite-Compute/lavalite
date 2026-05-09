@@ -428,7 +428,7 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
         dst->exit_status = src->exit_status;
         dst->priority    = src->priority;
         dst->submit_time = src->submit_time;
-        dst->start_time  = src->start_time;
+        dst->dispatch_time  = src->dispatch_time;
         dst->end_time    = src->end_time;
         dst->susp_time   = src->susp_time;
         dst->res.pid      = src->res.pid;

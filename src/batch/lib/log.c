@@ -19,7 +19,7 @@ static const char *event_names[] = {
     [EVENT_NULL]            = "NULL",
     [EVENT_JOB_NEW]         = "JOB_NEW",
     [EVENT_JOB_START]       = "JOB_START",
-    [EVENT_JOB_ACCEPT]      = "JOB_ACCEPT",
+    [EVENT_JOB_FORK]      = "JOB_FORK",
     [EVENT_JOB_EXECUTE]     = "JOB_EXECUTE",
     [EVENT_JOB_SIGNAL]      = "JOB_SIGNAL",
     [EVENT_JOB_FINISH]      = "JOB_FINISH",
@@ -191,7 +191,7 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
 
 int log_write_job_start(FILE *fp, const struct log_job_start *j)
 {
-    if (write_hdr(fp, EVENT_JOB_START, j->start_time) < 0)
+    if (write_hdr(fp, EVENT_JOB_START, j->dispatch_time) < 0)
         return -1;
     if (fprintf(fp, " %ld %d %d %d",
                 (long)j->job_id,
@@ -228,25 +228,25 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
     if (read_qstr(&p, j->hosts,     sizeof(j->hosts)) < 0)
         return -1;
 
-    j->start_time = rec->event_time;
+    j->dispatch_time = rec->event_time;
 
     return 0;
 }
 
 /* -----------------------------------------------------------------------
- * JOB_ACCEPT
+ * JOB_FORK
  * ----------------------------------------------------------------------- */
 
-int log_write_job_accept(FILE *fp, const struct log_job_accept *j)
+int log_write_job_fork(FILE *fp, const struct log_job_fork *j)
 {
-    if (write_hdr(fp, EVENT_JOB_ACCEPT, j->accept_time) < 0)
+    if (write_hdr(fp, EVENT_JOB_FORK, j->fork_time) < 0)
         return -1;
     if (fprintf(fp, " %ld %d\n", (long)j->job_id, j->job_pid) < 0)
         return -1;
     return 0;
 }
 
-int log_parse_job_accept(const struct event_rec *rec, struct log_job_accept *j)
+int log_parse_job_fork(const struct event_rec *rec, struct log_job_fork *j)
 {
     int n = sscanf(rec->rest, " %ld %d", &j->job_id, &j->job_pid);
     if (n != 2) {
@@ -254,7 +254,7 @@ int log_parse_job_accept(const struct event_rec *rec, struct log_job_accept *j)
         return -1;
     }
 
-    j->accept_time = rec->event_time;
+    j->fork_time = rec->event_time;
 
     return 0;
 }
@@ -334,7 +334,7 @@ int log_write_job_finish(FILE *fp, const struct log_job_finish *j)
     if (fprintf(fp, " %ld %u %d %d %ld %ld %ld %.4f",
                 (long)j->job_id, (unsigned)j->uid,
                 j->status, j->exit_status,
-                (long)j->submit_time, (long)j->start_time, (long)j->end_time,
+                (long)j->submit_time, (long)j->dispatch_time, (long)j->end_time,
                 j->cpu_time) < 0)
         return -1;
     if (write_qstr(fp, j->job_name) < 0)
@@ -355,7 +355,7 @@ int log_parse_job_finish(const struct event_rec *rec, struct log_job_finish *j)
     int n = sscanf(p, " %ld %u %d %d %ld %ld %ld %lf%n",
                    &j->job_id, (unsigned *)&j->uid,
                    &j->status, &j->exit_status,
-                   &j->submit_time, &j->start_time, &j->end_time,
+                   &j->submit_time, &j->dispatch_time, &j->end_time,
                    &j->cpu_time, &cc);
     if (n != 8) {
         errno = EINVAL;

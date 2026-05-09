@@ -167,7 +167,7 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
     w->exit_status = job->exit_status;
     w->priority    = job->priority;
     w->submit_time = (int64_t)job->submit_time;
-    w->start_time  = (int64_t)job->start_time;
+    w->dispatch_time  = (int64_t)job->dispatch_time;
     w->end_time    = (int64_t)job->end_time;
     w->susp_time   = (int64_t)job->susp_time;
     w->res.pid      = job->usage.pid;

@@ -201,7 +201,7 @@ struct wire_job_info {
     int32_t  exit_status;
     int32_t  priority;
     int64_t  submit_time;
-    int64_t  start_time;
+    int64_t  dispatch_time;
     int64_t  end_time;
     int64_t  susp_time;
     char     name[LL_BUFSIZ_64];

@@ -91,7 +91,7 @@ struct job_info {
     int32_t  exit_status;
     int32_t  priority;
     time_t   submit_time;
-    time_t   start_time;
+    time_t   dispatch_time;
     time_t   end_time;
     time_t   susp_time;
     char    *name;

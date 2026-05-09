@@ -52,18 +52,21 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->submit_time = time(NULL);
     job->pend_sig = 0;
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
-    job->res.num_cpus  = ws->num_cpus;
-    job->res.num_hosts = ws->num_hosts;
-    job->res.num_gpus  = ws->num_gpus;
-    job->res.mem_mb    = ws->mem_mb;
-    job->res.storage_mb    = ws->storage_mb;
     job->flags     = ws->flags;
     job->begin_time = (time_t)ws->begin_time;
     job->term_time  = (time_t)ws->term_time;
 
     ll_strlcpy(job->project,  ws->project, sizeof(job->project));
     ll_strlcpy(job->res.gpu_type, ws->gpu_type, sizeof(job->res.gpu_type));
-    ll_strlcpy(job->machines, ws->machines, sizeof(job->machines));
+
+    // Resource requested by the job
+    ll_strlcpy(job->res.machines, ws->machines, sizeof(job->res.machines));
+    job->res.wall_seconds = ws->wall_seconds;
+    job->res.num_cpus  = ws->num_cpus;
+    job->res.num_hosts = ws->num_hosts;
+    job->res.num_gpus  = ws->num_gpus;
+    job->res.mem_mb    = ws->mem_mb;
+    job->res.storage_mb    = ws->storage_mb;
 
     if (ws->name[0] == 0) {
         ll_strlcpy(job->name, "-" , sizeof(job->name));
@@ -118,26 +121,26 @@ static int write_script(const struct job_data *job,
 
     int fd = open(tmp, O_WRONLY|O_CREAT|O_TRUNC, 0700);
     if (fd < 0) {
-        LS_ERR("open %s: %m", tmp);
+        LS_ERR("open %s", tmp);
         return -1;
     }
 
     ssize_t nw = write(fd, script->data, script->len);
     if (nw < 0 || (uint32_t)nw != script->len) {
-        LS_ERR("write %s: %m", tmp);
+        LS_ERR("write %s", tmp);
         close(fd);
         return -1;
     }
 
     if (fsync(fd) < 0) {
-        LS_ERR("fsync %s: %m", tmp);
+        LS_ERR("fsync %s", tmp);
         close(fd);
         return -1;
     }
     close(fd);
 
     if (rename(tmp, path) < 0) {
-        LS_ERR("rename %s -> %s: %m", tmp, path);
+        LS_ERR("rename %s -> %s", tmp, path);
         return -1;
     }
 
@@ -348,9 +351,9 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     }
 
     job->usage.pid = (pid_t)r.pid;
-    job->start_time = time(NULL);
+    job->fork_time = time(NULL);
     job->status = JOB_STAT_RUN;
-    event_job_accept(job);
+    event_job_fork(job);
 
 send_ack:
     ;
@@ -389,7 +392,7 @@ void mbd_set_status_execute(struct mbd_host *n, XDR *xdrs)
         goto send_ack;
     }
 
-    if (job->start_time > 0) {
+    if (job->execute_time > 0) {
         LS_INFO("job=%ld execute duplicate from=%s", s.job_id,
                 chan_addr_str(n->sbd_chan));
         goto send_ack;
@@ -397,7 +400,7 @@ void mbd_set_status_execute(struct mbd_host *n, XDR *xdrs)
 
     assert(job->status == JOB_STAT_RUN);
 
-    job->start_time = time(NULL);
+    job->execute_time = time(NULL);
     event_job_execute(job, n->net.name);
 
 send_ack:
@@ -453,7 +456,7 @@ void mbd_set_status_finish(struct mbd_host *n, XDR *xdrs)
     else
         job->status = JOB_STAT_EXIT;
 
-    job_move_list(job, &finish_jobs_list, &run_jobs_list, JOB_LIST_FINISH);
+    job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
     event_job_finish(job);
 
 send_ack:

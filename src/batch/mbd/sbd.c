@@ -93,19 +93,23 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         mbd_sbd_disconnect(n);
         return -1;
     }
+
+    struct chan_buffer *buf;
     if (chan_dequeue(chan_id, &buf) < 0) {
         LS_ERR("chan_dequeue failed chan_id=%d", chan_id);
         chan_shutdown(chan_id);
-        return;
+        return -1;
     }
 
+    struct protocol_header hdr;
+    XDR xdrs;
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
         LS_ERR("xdr_pack_hdr failed chan_id=%d", chan_id);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);
-        return;
+        return -1;
     }
 
     /* validate opcode and version early */
@@ -114,7 +118,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);
-        return;
+        return -1;
     }
 
     if (auth_verify_header(&hdr) < 0) {
@@ -123,7 +127,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);
-        return;
+        return -1;
     }
 
     if (hdr.version != CURRENT_PROTOCOL_VERSION) {
@@ -132,11 +136,11 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);
-        return;
+        return -1;
     }
 
     switch (hdr.operation) {
-    case BATCH_NEW_JOB_ACK:
+    case BATCH_NEW_JOB_REPLY:
         mbd_new_job_reply(n, &xdrs);
         break;
     case BATCH_JOB_EXECUTE:
@@ -376,8 +380,8 @@ int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
 
     /* update job state */
     ll_strlcpy(job->exec_host, h->net.name, sizeof(job->exec_host));
-    job->start_time = time(NULL);
-    job->status     = JOB_STAT_RUN;
+    job->dispatch_time = time(NULL);
+    job->status = JOB_STAT_RUN;
 
     event_job_start(job, plan);
 
