@@ -14,6 +14,7 @@
 #include "batch/lib/log.h"
 #include "base/lib/ll.conf.h"
 #include "base/lib/ll.syslog.h"
+#include "base/lib/ll.hash.h"
 #include "batch/mbd/mbd.h"
 
 static char events_path[PATH_MAX];
@@ -51,19 +52,21 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.submit_time = job->submit_time;
     e.begin_time  = (time_t)ws->begin_time;
     e.term_time   = (time_t)ws->term_time;
+
     e.num_cpu     = ws->num_cpus;
     e.num_hosts   = ws->num_hosts;
     e.num_gpus    = ws->num_gpus;
     e.mem_mb      = ws->mem_mb;
     e.storage_mb  = ws->storage_mb;
-    e.flags       = ws->flags;
+    e.wall_seconds = ws->wall_seconds;
+    ll_strlcpy(e.gpu_type, ws->gpu_type, sizeof(e.gpu_type));
+    ll_strlcpy(e.machines, ws->machines, sizeof(e.machines));
 
+    e.flags = ws->flags;
     ll_strlcpy(e.username,     ws->username,  sizeof(e.username));
     ll_strlcpy(e.job_name,     ws->name,      sizeof(e.job_name));
     ll_strlcpy(e.queue,        ws->queue,     sizeof(e.queue));
     ll_strlcpy(e.project_name, ws->project,   sizeof(e.project_name));
-    ll_strlcpy(e.gpu_type,     ws->gpu_type,  sizeof(e.gpu_type));
-    ll_strlcpy(e.hosts,        ws->machines,  sizeof(e.hosts));
 
     FILE *fp = open_events();
     if (log_write_job_new(fp, &e) < 0) {
@@ -78,26 +81,25 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
  * event_job_start -- called at dispatch time, plan is still valid.
  * Builds the space-separated hosts string from plan->hosts[].
  */
-void event_job_start(const struct job_data *job, const struct sched_plan *plan)
+void event_job_start(const struct job_data *job)
 {
     struct log_job_start e;
     memset(&e, 0, sizeof(e));
 
-    e.job_id        = job->job_id;
-    e.dispatch_time    = job->dispatch_time;
-    e.nhosts        = plan->nhosts;
-    e.cpus_per_host = plan->cpus_per_host;
-    e.gpus_per_host = plan->gpus_per_host;
+    e.job_id = job->job_id;
+    e.dispatch_time = job->dispatch_time;
+    e.nhosts = job->res.num_hosts;
+    e.cpus_per_host = job->res.num_cpus;
+    e.gpus_per_host = job->res.num_gpus;
 
-    ll_strlcpy(e.exec_host, plan->hosts[0]->net.name, sizeof(e.exec_host));
-    ll_strlcpy(e.gpu_type,  plan->gpu_type,            sizeof(e.gpu_type));
+    ll_strlcpy(e.exec_host, job->run_hosts[0]->net.name, sizeof(e.exec_host));
+    ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
 
     /* build space-separated hostname list */
-    int i;
-    for (i = 0; i < plan->nhosts; i++) {
+    for (int i = 0; i < job->res.num_hosts; i++) {
         if (i > 0)
             ll_strlcat(e.hosts, " ", sizeof(e.hosts));
-        ll_strlcat(e.hosts, plan->hosts[i]->net.name, sizeof(e.hosts));
+        ll_strlcat(e.hosts, job->run_hosts[i]->net.name, sizeof(e.hosts));
     }
 
     FILE *fp = open_events();
@@ -243,7 +245,6 @@ void event_job_susp(const struct job_data *job)
 /* -----------------------------------------------------------------------
  * replay
  * ----------------------------------------------------------------------- */
-
 static struct job_data *replay_alloc(const struct log_job_new *e)
 {
     struct job_data *job = calloc(1, sizeof(struct job_data));
@@ -259,18 +260,21 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->submit_time     = e->submit_time;
     job->begin_time      = e->begin_time;
     job->term_time       = e->term_time;
+
     job->res.num_cpus    = e->num_cpu;
     job->res.num_hosts   = e->num_hosts;
     job->res.num_gpus    = e->num_gpus;
     job->res.mem_mb      = e->mem_mb;
     job->res.storage_mb  = e->storage_mb;
-    job->flags           = e->flags;
+    job->res.wall_seconds = e->wall_seconds;
+    ll_strlcpy(job->res.gpu_type, e->gpu_type, sizeof(job->res.gpu_type));
 
-    ll_strlcpy(job->name,          e->job_name,     sizeof(job->name));
-    ll_strlcpy(job->user,          e->username,     sizeof(job->user));
-    ll_strlcpy(job->project,       e->project_name, sizeof(job->project));
-    ll_strlcpy(job->res.gpu_type,  e->gpu_type,     sizeof(job->res.gpu_type));
-    ll_strlcpy(job->res.machines,  e->hosts, sizeof(job->res.machines));
+    machines_hash_populate(&job->res.machines, e->machines);
+
+    job->flags = e->flags;
+    ll_strlcpy(job->name, e->job_name, sizeof(job->name));
+    ll_strlcpy(job->user, e->username, sizeof(job->user));
+    ll_strlcpy(job->project, e->project_name, sizeof(job->project));
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {

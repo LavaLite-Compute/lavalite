@@ -71,7 +71,7 @@ enum ll_hash_status ll_hash_insert(struct ll_hash *,
                                    int allow_update);
 
 // Lookup value by key. Returns NULL if not found.
-void *ll_hash_search(struct ll_hash *, const char *);
+void *ll_hash_search(const struct ll_hash *, const char *);
 
 // Remove entry by key.
 // Frees the key string and entry node. Does NOT free the value.
@@ -88,4 +88,4 @@ void ll_hash_for_each(struct ll_hash *ht, void (*fn)(const char *, void *));
 // array and the ll_hash object itself.
 void ll_hash_free(struct ll_hash *, void (*cleanup)(void *));
 void ll_hash_clear(struct ll_hash *, void (*cleanup)(void *));
-int ll_hash_contains(struct ll_hash *, const char *);
+int ll_hash_contains(const struct ll_hash *, const char *);

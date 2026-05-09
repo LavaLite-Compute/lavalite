@@ -144,10 +144,10 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         mbd_new_job_reply(n, &xdrs);
         break;
     case BATCH_JOB_EXECUTE:
-        mbd_set_status_execute(n, &xdrs);
+        mbd_job_execute(n, &xdrs);
         break;
     case BATCH_JOB_FINISH:
-        mbd_set_status_finish(n, &xdrs);
+        mbd_job_finish(n, &xdrs);
         break;
     }
 
@@ -295,24 +295,22 @@ static int read_script(const struct job_data *job,
 /*
  * Build the hosts string "host:cpus,host:cpus" from the sched plan.
  */
-static void build_hosts_str(const struct sched_plan *plan,
+static void build_hosts_str(const struct job_data *job,
                             char *buf, size_t bufsiz)
 {
-    int i;
-
     buf[0] = 0;
-    for (i = 0; i < plan->nhosts; i++) {
+    for (int i = 0; i < job->run_nhosts; i++) {
         char entry[MAXHOSTNAMELEN + 16];
         snprintf(entry, sizeof(entry), "%s%s:%d",
                  i > 0 ? "," : "",
-                 plan->hosts[i]->net.name, plan->cpus_per_host);
+                 job->run_hosts[i]->net.name, job->res.num_cpus);
         ll_strlcat(buf, entry, bufsiz);
     }
 }
 
-int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
+int mbd_dispatch_job(struct job_data *job)
 {
-    struct mbd_host *h = plan->hosts[0];
+    struct mbd_host *h = job->run_hosts[0];
 
     assert(h->sbd_chan > 0);
     if (h->sbd_chan < 0) {
@@ -339,18 +337,18 @@ int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
     }
 
     /* fill wire_job_start from job_data and sched_plan */
-    ws.job_id      = job->job_id;
-    ws.uid         = job->uid;
-    ws.gid         = job->gid;
-    ws.term_time   = (int64_t)job->term_time;
-    ws.gpus_per_host = plan->gpus_per_host;
+    ws.job_id = job->job_id;
+    ws.uid = job->uid;
+    ws.gid = job->gid;
+    ws.term_time = (int64_t)job->term_time;
+    ws.gpus_per_host = job->res.num_gpus;
 
-    ll_strlcpy(ws.job_name,  job->name,          sizeof(ws.job_name));
-    ll_strlcpy(ws.queue,     job->queue->name,    sizeof(ws.queue));
-    ll_strlcpy(ws.username,  job->user,           sizeof(ws.username));
-    ll_strlcpy(ws.gpu_type,  plan->gpu_type,      sizeof(ws.gpu_type));
+    ll_strlcpy(ws.job_name, job->name, sizeof(ws.job_name));
+    ll_strlcpy(ws.queue, job->queue->name, sizeof(ws.queue));
+    ll_strlcpy(ws.username, job->user, sizeof(ws.username));
+    ll_strlcpy(ws.gpu_type, job->res.gpu_type, sizeof(ws.gpu_type));
 
-    build_hosts_str(plan, ws.hosts, sizeof(ws.hosts));
+    build_hosts_str(job, ws.hosts, sizeof(ws.hosts));
 
     /* header */
     struct protocol_header hdr;
@@ -383,7 +381,7 @@ int mbd_dispatch_job(struct job_data *job, struct sched_plan *plan)
     job->dispatch_time = time(NULL);
     job->status = JOB_STAT_RUN;
 
-    event_job_start(job, plan);
+    event_job_start(job);
 
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 

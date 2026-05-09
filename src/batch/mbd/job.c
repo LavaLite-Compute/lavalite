@@ -55,18 +55,16 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->flags     = ws->flags;
     job->begin_time = (time_t)ws->begin_time;
     job->term_time  = (time_t)ws->term_time;
-
     ll_strlcpy(job->project,  ws->project, sizeof(job->project));
-    ll_strlcpy(job->res.gpu_type, ws->gpu_type, sizeof(job->res.gpu_type));
 
-    // Resource requested by the job
-    ll_strlcpy(job->res.machines, ws->machines, sizeof(job->res.machines));
+    ll_strlcpy(job->res.gpu_type, ws->gpu_type, sizeof(job->res.gpu_type));
     job->res.wall_seconds = ws->wall_seconds;
-    job->res.num_cpus  = ws->num_cpus;
+    job->res.num_cpus = ws->num_cpus;
     job->res.num_hosts = ws->num_hosts;
-    job->res.num_gpus  = ws->num_gpus;
-    job->res.mem_mb    = ws->mem_mb;
-    job->res.storage_mb    = ws->storage_mb;
+    job->res.num_gpus = ws->num_gpus;
+    job->res.mem_mb = ws->mem_mb;
+    job->res.storage_mb = ws->storage_mb;
+    machines_hash_populate(&job->res.machines, ws->machines);
 
     if (ws->name[0] == 0) {
         ll_strlcpy(job->name, "-" , sizeof(job->name));
@@ -90,7 +88,34 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
         return NULL;
     }
 
+    if (job->res.num_hosts < 1) {
+        LS_DEBUG("job=%ld num_hosts set to 1", job->job_id);
+        job->res.num_hosts = 1;
+    }
+
+    job->run_hosts = calloc(job->res.num_hosts, sizeof(struct mbd_host *));
+    if (job->run_hosts == NULL) {
+        LS_ERR("calloc failed");
+        free(job);
+        return NULL;
+    }
     return job;
+}
+
+void machines_hash_populate(struct ll_hash *h, const char *machines)
+{
+    char buf[LL_BUFSIZ_4K];
+
+    ll_hash_init(h, 101);
+    if (machines[0] == 0)
+        return;
+
+    ll_strlcpy(buf, machines, sizeof(buf));
+    char *tok = strtok(buf, " \t,");
+    while (tok) {
+        ll_hash_insert(h, tok, NULL, 0);
+        tok = strtok(NULL, " \t,");
+    }
 }
 
 static int write_script(const struct job_data *job,
@@ -356,7 +381,7 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     event_job_fork(job);
 
 send_ack:
-    ;
+
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
     ack.job_id = r.job_id;
@@ -375,7 +400,7 @@ send_ack:
     LS_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
 }
 
-void mbd_set_status_execute(struct mbd_host *n, XDR *xdrs)
+void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
 {
     struct wire_job_state s;
     memset(&s, 0, sizeof(s));
@@ -404,7 +429,7 @@ void mbd_set_status_execute(struct mbd_host *n, XDR *xdrs)
     event_job_execute(job, n->net.name);
 
 send_ack:
-    ;
+
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
     ack.job_id = s.job_id;
@@ -423,7 +448,45 @@ send_ack:
     LS_INFO("job=%ld execute acked", s.job_id);
 }
 
-void mbd_set_status_finish(struct mbd_host *n, XDR *xdrs)
+static void reset_host_resources(struct job_data *job)
+{
+    for (int i = 0; i < job->run_nhosts; i++) {
+        struct mbd_host *h = job->run_hosts[i];
+
+        h->res.free_cpu += job->res.num_cpus;
+        h->res.free_mem_mb += job->res.mem_mb;
+        h->res.free_storage_mb += job->res.storage_mb;
+        h->num_jobs--;
+
+        if (job->flags & JOB_FLAG_EXCLUSIVE)
+            h->exclusive = 0;
+
+        if (job->res.num_gpus > 0) {
+            struct mbd_gpu *g = ll_hash_search(&h->res.gpu_hash,
+                                               job->res.gpu_type);
+            if (g == NULL) {
+                LS_ERRX("job=%ld host=%s gpu_type=%s not found",
+                        job->job_id, h->net.name, job->res.gpu_type);
+                assert(0);
+                continue;
+            }
+            g->free += job->res.num_gpus;
+            h->res.free_gpu += job->res.num_gpus;
+        }
+
+        LS_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
+                 "free_gpu=%d num_jobs=%d",
+                 h->net.name, h->res.free_cpu, h->res.free_mem_mb,
+                 h->res.free_storage_mb, h->res.free_gpu, h->num_jobs);
+    }
+
+    job->queue->num_run--;
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+             job->queue->name, job->queue->num_pend,
+         job->queue->num_run, job->queue->num_susp);
+}
+
+void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 {
     struct wire_job_state s;
     memset(&s, 0, sizeof(s));
@@ -458,9 +521,10 @@ void mbd_set_status_finish(struct mbd_host *n, XDR *xdrs)
 
     job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
     event_job_finish(job);
+    reset_host_resources(job);
 
 send_ack:
-    ;
+
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
     ack.job_id = s.job_id;
@@ -478,4 +542,9 @@ send_ack:
 
     LS_INFO("job=%ld finish acked status=%s", s.job_id,
             job ? (job->status == JOB_STAT_DONE ? "DONE" : "EXIT") : "unknown");
+
+    job->queue->num_run--;
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+         job->queue->name, job->queue->num_pend,
+         job->queue->num_run, job->queue->num_susp);
 }

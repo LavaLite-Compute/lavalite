@@ -87,6 +87,7 @@ static struct mbd_gpu *make_gpu(const char *p)
     h->res.free_gpu  += count;
 
     ll_list_append(&h->res.gpu_list, &g->ent);
+    ll_hash_insert(&h->res.gpu_hash, g->gpu_type, g, 0);
 
     return g;
 }

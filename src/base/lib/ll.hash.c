@@ -203,7 +203,7 @@ enum ll_hash_status ll_hash_insert(struct ll_hash *ht,
 }
 
 // return the pointer hashed at char *key
-void *ll_hash_search(struct ll_hash *ht, const char *key)
+void *ll_hash_search(const struct ll_hash *ht, const char *key)
 {
     size_t idx;
     struct ll_hash_entry *ent;
@@ -325,7 +325,7 @@ void ll_hash_clear(struct ll_hash *ht, void (*cleanup)(void *))
     free(ht->buckets);
 }
 
-int ll_hash_contains(struct ll_hash *ht, const char *key)
+int ll_hash_contains(const struct ll_hash *ht, const char *key)
 {
     size_t idx;
     struct ll_hash_entry *ent;

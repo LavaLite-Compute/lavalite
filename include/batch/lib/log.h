@@ -70,6 +70,7 @@ struct log_job_new {
     int32_t  num_cpu;
     int32_t  num_hosts;
     int32_t  num_gpus;
+    int32_t wall_seconds;
     uint64_t mem_mb;
     uint64_t storage_mb;
     uint32_t flags;
@@ -78,7 +79,7 @@ struct log_job_new {
     char     queue[LL_BUFSIZ_64];
     char     project_name[LL_BUFSIZ_64];
     char     gpu_type[LL_BUFSIZ_64];
-    char     hosts[LL_BUFSIZ_1K];
+    char     machines[LL_BUFSIZ_1K];
 };
 
 /*

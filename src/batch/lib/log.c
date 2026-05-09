@@ -120,14 +120,11 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
 {
     if (write_hdr(fp, EVENT_JOB_NEW, j->submit_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %u %u %d %ld %ld %ld %d %d %d %lu %lu %u",
-                (long)j->job_id,
-                (unsigned)j->uid, (unsigned)j->gid,
-                j->status,
+    if (fprintf(fp, " %ld %u %u %d %ld %ld %ld %d %d %d %d %lu %lu %u",
+                j->job_id, j->uid, j->gid, j->status,
                 (long)j->submit_time, (long)j->begin_time, (long)j->term_time,
-                j->num_cpu, j->num_hosts, j->num_gpus,
-                (unsigned long)j->mem_mb, (unsigned long)j->storage_mb,
-                j->flags) < 0)
+                j->num_cpu, j->num_hosts, j->num_gpus, j->wall_seconds,
+                j->mem_mb, j->storage_mb, j->flags) < 0)
         return -1;
     if (write_qstr(fp, j->username) < 0)
         return -1;
@@ -137,9 +134,10 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->project_name) < 0)
         return -1;
+    // gpu type and hosts are part of the requested resources
     if (write_qstr(fp, j->gpu_type) < 0)
         return -1;
-    if (write_qstr(fp, j->hosts) < 0)
+    if (write_qstr(fp, j->machines) < 0)
         return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
@@ -150,32 +148,28 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p, " %ld %u %u %d %ld %ld %ld %d %d %d %lu %lu %u%n",
-                   &j->job_id,
-                   (unsigned *)&j->uid, (unsigned *)&j->gid,
-                   &j->status,
+    int n = sscanf(p, " %ld %u %u %d %ld %ld %ld %d %d %d %d %lu %lu %u%n",
+                   &j->job_id, &j->uid, &j->gid, &j->status,
                    &j->submit_time, &j->begin_time, &j->term_time,
-                   &j->num_cpu, &j->num_hosts, &j->num_gpus,
-                   (unsigned long *)&j->mem_mb,
-                   (unsigned long *)&j->storage_mb,
-                   &j->flags, &cc);
-    if (n != 13) {
+                   &j->num_cpu, &j->num_hosts, &j->num_gpus, &j->wall_seconds,
+                   &j->mem_mb, &j->storage_mb, &j->flags, &cc);
+    if (n != 14) {
         errno = EINVAL;
         return -1;
     }
     p += cc;
 
-    if (read_qstr(&p, j->username,     sizeof(j->username)) < 0)
+    if (read_qstr(&p, j->username, sizeof(j->username)) < 0)
         return -1;
-    if (read_qstr(&p, j->job_name,     sizeof(j->job_name)) < 0)
+    if (read_qstr(&p, j->job_name, sizeof(j->job_name)) < 0)
         return -1;
-    if (read_qstr(&p, j->queue,        sizeof(j->queue)) < 0)
+    if (read_qstr(&p, j->queue, sizeof(j->queue)) < 0)
         return -1;
     if (read_qstr(&p, j->project_name, sizeof(j->project_name)) < 0)
         return -1;
-    if (read_qstr(&p, j->gpu_type,     sizeof(j->gpu_type)) < 0)
+    if (read_qstr(&p, j->gpu_type, sizeof(j->gpu_type)) < 0)
         return -1;
-    if (read_qstr(&p, j->hosts,        sizeof(j->hosts)) < 0)
+    if (read_qstr(&p, j->machines, sizeof(j->machines)) < 0)
         return -1;
 
     return 0;

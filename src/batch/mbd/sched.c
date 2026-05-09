@@ -104,28 +104,20 @@ static int host_in_queue_group(const struct mbd_host *h,
 
 static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
 {
-    struct ll_list_entry *e;
-
-    for (e = h->res.gpu_list.head; e; e = e->next) {
-        struct mbd_gpu *g = (struct mbd_gpu *)e;
-
-        LS_DEBUG("job=%ld host=%s has gpu type=%s", job->job_id,
+    struct mbd_gpu *g = ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
+    if (g == NULL)
+        return 0;
+    LS_DEBUG("job=%ld host=%s has gpu type=%s", job->job_id,
                  h->net.name, job->res.gpu_type);
 
-        if (strcmp(g->gpu_type, job->res.gpu_type) != 0)
-            continue;
-
-        if (g->free >= job->res.num_gpus)
-            return 1;
-    }
-    return 0;
+    return g->free >= job->res.num_gpus;
 }
 
 #define SCHED_PLAN_MAX 1024
 static struct mbd_host *host_plan[SCHED_PLAN_MAX];
 static struct sched_plan plan;
 
-static int build_host_plan(const struct job_data *job)
+static int build_host_plan(struct job_data *job)
 {
     struct ll_list_entry *e;
     int n = 0;
@@ -165,6 +157,10 @@ static int build_host_plan(const struct job_data *job)
             if (!host_has_gpu(h, job))
                 continue;
         }
+        if (job->res.machines.nentries > 0 &&
+            !ll_hash_contains(&job->res.machines, h->net.name))
+            continue;
+
         LS_DEBUG("host=%s is candidate for job=%ld", h->net.name, job->job_id);
         host_plan[n] = h;
         ++n;
@@ -181,60 +177,43 @@ static int build_host_plan(const struct job_data *job)
     memset(&plan, 0, sizeof(plan));
     int i;
     for (i = 0; i < job->res.num_hosts; i++)
-        plan.hosts[i] = host_plan[i];
-    plan.nhosts        = job->res.num_hosts;
-    plan.cpus_per_host = job->res.num_cpus;
-    plan.gpus_per_host = job->res.num_gpus;
-    if (job->res.num_gpus > 0)
-        ll_strlcpy(plan.gpu_type, job->res.gpu_type, sizeof(plan.gpu_type));
+        job->run_hosts[i] = host_plan[i];
 
     LS_INFO("job=%ld exec_host=%s nhosts=%d cpus_per_host=%d gpus_per_host=%d",
-            job->job_id, plan.hosts[0]->net.name, plan.nhosts,
-            plan.cpus_per_host, plan.gpus_per_host);
+            job->job_id, job->run_hosts[0]->net.name, job->res.num_hosts,
+            job->res.num_cpus, job->res.num_gpus);
 
-    return plan.nhosts;
+    return 1;
 }
-
-static void host_deduct_gpu(struct mbd_host *h, const struct job_data *job)
-{
-    struct ll_list_entry *e;
-    int remaining = job->res.num_gpus;
-
-    for (e = h->res.gpu_list.head; e && remaining > 0; e = e->next) {
-        struct mbd_gpu *g = (struct mbd_gpu *)e;
-        int deduct;
-
-        if (strcmp(g->gpu_type, job->res.gpu_type) != 0)
-            continue;
-
-        deduct = (g->free < remaining) ? g->free : remaining;
-        g->free         -= deduct;
-        h->res.free_gpu -= deduct;
-        remaining       -= deduct;
-    }
-
-    if (remaining > 0)
-        LS_ERRX("job=%ld gpu deduction incomplete remaining=%d",
-                job->job_id, remaining);
-}
-
-static void host_deduct_resources(const struct job_data *job)
+static void host_update_resources(const struct job_data *job)
 {
     int i;
 
     for (i = 0; i < plan.nhosts; i++) {
-        struct mbd_host *h = host_plan[i];
+        struct mbd_host *h = plan.hosts[i];
 
         h->res.free_cpu        -= job->res.num_cpus;
         h->res.free_mem_mb     -= job->res.mem_mb;
         h->res.free_storage_mb -= job->res.storage_mb;
         h->num_jobs++;
 
-        if (job->res.num_gpus > 0)
-            host_deduct_gpu(h, job);
+        if (job->flags & JOB_FLAG_EXCLUSIVE)
+            h->exclusive = 1;
 
-        LS_DEBUG("host=%s after deduct free_cpu=%d free_mem_mb=%lu "
-                 "free_storage_mb=%lu free_gpu=%d num_jobs=%d",
+        if (job->res.num_gpus > 0) {
+            struct mbd_gpu *g = ll_hash_search(&h->res.gpu_hash,
+                                               job->res.gpu_type);
+            if (g == NULL) {
+                LS_ERRX("job=%ld host=%s gpu_type=%s not found",
+                        job->job_id, h->net.name, job->res.gpu_type);
+                continue;
+            }
+            g->free         -= job->res.num_gpus;
+            h->res.free_gpu -= job->res.num_gpus;
+        }
+
+        LS_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
+                 "free_gpu=%d num_jobs=%d",
                  h->net.name, h->res.free_cpu, h->res.free_mem_mb,
                  h->res.free_storage_mb, h->res.free_gpu, h->num_jobs);
     }
@@ -268,11 +247,18 @@ void schedule(void)
             continue;
         }
 
-        if (mbd_dispatch_job(job, &plan) < 0) {
+        if (mbd_dispatch_job(job) < 0) {
             LS_ERRX("job=%ld dispatch failed", job->job_id);
             continue;
         }
 
-        host_deduct_resources(job);
+        // udpate host and queue counters and resources
+        host_update_resources(job);
+
+        job->queue->num_run++;
+        job->queue->num_pend--;
+        LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+                 job->queue->name, job->queue->num_pend,
+                 job->queue->num_run, job->queue->num_susp);
     }
 }

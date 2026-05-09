@@ -38,6 +38,13 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
             (long)job->job_id, ws->sig);
     event_job_signal(job, ws);
     event_job_pend_susp(job);
+
+    job->queue->num_pend--;
+    job->queue->num_susp++;
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+             job->queue->name, job->queue->num_pend,
+             job->queue->num_run, job->queue->num_susp);
+
     return MBD_OK;
 }
 
@@ -51,6 +58,13 @@ static int resume_pending_job(struct job_data *job, const struct wire_job_sig *w
             (long)job->job_id, ws->sig);
     event_job_signal(job, ws);
     event_job_pend_resume(job);
+
+    job->queue->num_susp--;
+    job->queue->num_pend++;
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+         job->queue->name, job->queue->num_pend,
+         job->queue->num_run, job->queue->num_susp);
+
     return MBD_OK;
 }
 
@@ -73,11 +87,39 @@ static int signal_pending_job(struct job_data *job, const struct wire_job_sig *w
     }
 }
 
-static int signal_running_job(struct job_data *job, const struct wire_job_sig *ws)
+static int signal_running_job(struct job_data *job,
+                              const struct wire_job_sig *ws)
 {
-    /* TODO: send signal via cgroup/pid, log event */
-    (void)job;
-    (void)ws;
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_SIGNAL;
+    hdr.status    = MBD_OK;
+
+    if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr,
+                        (void *)ws, sizeof(*ws),
+                        xdr_wire_job_sig) < 0) {
+        LS_ERR("job=%ld enqueue_payload failed", job->job_id);
+        return EAGAIN;
+    }
+
+    job->signal_time = time(NULL);
+    event_job_signal(job, ws);
+
+    if (ws->sig == SIGSTOP || ws->sig == SIGTSTP) {
+        job->status = JOB_STAT_SUSP;
+        job->queue->num_run--;
+        job->queue->num_susp++;
+    } else if (ws->sig == SIGCONT) {
+        job->status = JOB_STAT_RUN;
+        job->queue->num_susp--;
+        job->queue->num_run++;
+    }
+
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+             job->queue->name, job->queue->num_pend,
+             job->queue->num_run, job->queue->num_susp);
+    LS_INFO("job=%ld sig=%d sent to sbd=%s",
+            job->job_id, ws->sig, job->run_hosts[0]->net.name);
     return MBD_OK;
 }
 
