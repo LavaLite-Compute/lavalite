@@ -36,7 +36,7 @@ struct mbd_manager {
     gid_t gid;
 };
 
-/* one pool request, parsed from wire tokenpool string at job_accept time */
+/* one pool request, parsed from wire tokenpool string at job_register time */
 struct job_token {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
@@ -275,6 +275,7 @@ void event_job_finish(const struct job_data *);
 void event_job_pend_susp(const struct job_data *);
 void event_job_pend_resume(const struct job_data *);
 void event_job_susp(const struct job_data *);
+void event_job_unknown(const struct job_data *);
 
 // dispatch.c
 int job_signal(XDR *, int);
@@ -295,6 +296,7 @@ void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
 void job_move_list(struct job_data *, struct ll_list *,
                    struct ll_list *, enum job_list_id);
 void machines_hash_populate(struct ll_hash *, const char *);
+char *job_stat_str(int);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

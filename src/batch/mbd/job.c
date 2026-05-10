@@ -548,3 +548,35 @@ send_ack:
          job->queue->name, job->queue->num_pend,
          job->queue->num_run, job->queue->num_susp);
 }
+
+char *job_stat_str(int status)
+{
+    static char buf[64];
+
+    buf[0] = 0;
+    int n = 0;
+
+    if (status & JOB_STAT_PEND)
+        n += snprintf(buf+n, sizeof(buf)-n, "PEND|");
+    if (status & JOB_STAT_PSUSP)
+        n += snprintf(buf+n, sizeof(buf)-n, "PSUSP|");
+    if (status & JOB_STAT_RUN)
+        n += snprintf(buf+n, sizeof(buf)-n, "RUN|");
+    if (status & JOB_STAT_SUSP)
+        n += snprintf(buf+n, sizeof(buf)-n, "SUSP|");
+    if (status & JOB_STAT_EXIT)
+        n += snprintf(buf+n, sizeof(buf)-n, "EXIT|");
+    if (status & JOB_STAT_DONE)
+        n += snprintf(buf+n, sizeof(buf)-n, "DONE|");
+    if (status & JOB_STAT_ORPHAN)
+        n += snprintf(buf+n, sizeof(buf)-n, "ORPHAN|");
+    if (status & JOB_STAT_UNKNOWN)
+        n += snprintf(buf+n, sizeof(buf)-n, "UNKNOWN|");
+
+    if (n > 0)
+        buf[n - 1] = 0;
+    else
+        snprintf(buf, sizeof(buf), "?(0x%x)", status);
+
+    return buf;
+}

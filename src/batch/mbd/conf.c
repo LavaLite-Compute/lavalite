@@ -234,8 +234,7 @@ static int parse_token_pools(const char *path)
 
 static struct mbd_host *make_host(const char *p)
 {
-    struct mbd_host *h;
-    h = calloc(1, sizeof(*h));
+    struct mbd_host *h = calloc(1, sizeof(*h));
     if (h == NULL) {
         LS_ERR("calloc failed");
         return NULL;
@@ -279,6 +278,8 @@ static struct mbd_host *make_host(const char *p)
     }
 
     ll_list_init(&h->res.gpu_list);
+    ll_hash_init(&h->res.gpu_hash, 101);
+
     h->res.free_cpu        = h->res.total_cpu;
     h->res.free_mem_mb     = h->res.total_mem_mb;
     h->res.free_storage_mb = h->res.total_storage_mb;

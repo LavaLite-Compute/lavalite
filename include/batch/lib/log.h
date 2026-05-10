@@ -30,6 +30,7 @@ enum event_type {
     EVENT_JOB_PEND_SUSP   = 7,  /* user suspended pending job          */
     EVENT_JOB_PEND_RESUME = 8,  /* user resumed suspended pending job  */
     EVENT_JOB_SUSP        = 9,  /* sbd suspended running job           */
+    EVENT_JOB_UNKNOWN     = 10,
     EVENT_COUNT
 };
 
@@ -166,6 +167,12 @@ struct log_job_susp {
     time_t  event_time;
 };
 
+struct log_job_unknown {
+    int64_t job_id;
+    int status;
+    time_t event_time;
+};
+
 /*
  * Read the record header from one line.
  * The unparsed payload tail is stored in rec->rest.
@@ -185,6 +192,7 @@ int log_parse_job_pend_resume(const struct event_rec *,
                               struct log_job_pend_resume *);
 int log_parse_job_pend_susp(const struct event_rec *,
                             struct log_job_pend_susp *);
+int log_parse_job_unknown(const struct event_rec *, struct log_job_unknown *);
 
 /* Writers -- write header + payload + newline in one call */
 int log_write_job_new(FILE *, const struct log_job_new *);
@@ -196,3 +204,4 @@ int log_write_job_finish(FILE *, const struct log_job_finish *);
 int log_write_job_susp(FILE *, const struct log_job_susp *);
 int log_write_job_pend_resume(FILE *, const struct log_job_pend_resume *);
 int log_write_job_pend_susp(FILE *, const struct log_job_pend_susp *);
+int log_write_job_unknown(FILE *, const struct log_job_unknown *);

@@ -242,6 +242,24 @@ void event_job_susp(const struct job_data *job)
     fclose(fp);
 }
 
+void event_job_unknown(const struct job_data *job)
+{
+    struct log_job_unknown e;
+    memset(&e, 0, sizeof(struct log_job_unknown));
+
+    e.job_id = job->job_id;
+    e.status = job->status;
+    e.event_time = time(NULL);
+
+    FILE *fp = open_events();
+    if (log_write_job_unknown(fp, &e) < 0) {
+        fclose(fp);
+        LS_ERR("log_write_job_susp failed job_id=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+}
+
 /* -----------------------------------------------------------------------
  * replay
  * ----------------------------------------------------------------------- */
@@ -336,7 +354,7 @@ static void replay_job_start(const struct event_rec *rec)
         job->status = JOB_STAT_ORPHAN;
         return;
     }
-    job->status     = JOB_STAT_RUN;
+    job->status = JOB_STAT_RUN;
     job->dispatch_time = e.dispatch_time;
     ll_strlcpy(job->exec_host, e.exec_host, sizeof(job->exec_host));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
@@ -482,6 +500,23 @@ static void replay_job_susp(const struct event_rec *rec)
     LS_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
 }
 
+static void reply_job_unknown(const struct event_rec *rec)
+{
+    struct log_job_unknown e;
+
+    if (log_parse_job_unknown(rec, &e) < 0) {
+        LS_ERR("parse JOB_STAT_UNKNOWN failed");
+        return;
+    }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LS_ERRX("job_id=%ld not found", e.job_id);
+        return;
+    }
+    job->status = e.status;
+    LS_DEBUG("job_id=%ld status=%s", e.job_id, job_stat_str(job->status));
+}
+
 void reopen_job_events(void)
 {
 }
@@ -542,6 +577,10 @@ int jobs_replay(void)
         }
         if (rec.type == EVENT_JOB_SUSP) {
             replay_job_susp(&rec);
+            continue;
+        }
+        if (rec.type == EVENT_JOB_UNKNOWN) {
+            reply_job_unknown(&rec);
             continue;
         }
     }

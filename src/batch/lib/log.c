@@ -438,3 +438,28 @@ int log_parse_job_susp(const struct event_rec *rec, struct log_job_susp *j)
 
     return 0;
 }
+
+int log_write_job_unknown(FILE *fp, const struct log_job_unknown *j)
+{
+    if (write_hdr(fp, EVENT_JOB_UNKNOWN, j->event_time) < 0)
+        return -1;
+    if (fprintf(fp, " %d", j->status) < 0)
+        return -1;
+    if (fprintf(fp, " %ld\n", (long)j->job_id) < 0)
+        return -1;
+
+    return 0;
+}
+
+int log_parse_job_unknown(const struct event_rec *rec, struct log_job_unknown *j)
+{
+    int n = sscanf(rec->rest, " %ld", &j->job_id);
+    if (n != 1) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    j->event_time = rec->event_time;
+
+    return 0;
+}

@@ -173,6 +173,16 @@ int mbd_sbd_disconnect(struct mbd_host *n)
 
     // traverse the list of jobs running on this host
     // and set them to state unknown
+    struct ll_list_entry *e;
+    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+        if (job->run_hosts[0] != n)
+            continue;
+        job->status |= JOB_STAT_UNKNOWN;
+        event_job_unknown(job);
+        LS_DEBUG("job=%ld status=%s", job->job_id, job_stat_str(job->status));
+    }
+
     return 0;
 }
 
