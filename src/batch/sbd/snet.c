@@ -14,6 +14,46 @@
 #include "batch/sbd/sbd.h"
 #include "batch/lib/rpc.h"
 
+static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
+                                   void *payload, size_t siz, bool_t (*xdr_func)())
+{
+    struct chan_buffer *buf;
+    XDR xdrs;
+
+    if (chan_alloc_buf(&buf, siz) < 0) {
+        LS_ERR("chan_alloc_buf failed op=%d siz=%ld",
+               hdr->operation, (long)siz);
+        return -1;
+    }
+
+    xdrmem_create(&xdrs, buf->data, siz, XDR_ENCODE);
+
+    if (! ll_encode_msg(&xdrs, (char *)payload, xdr_func, hdr)) {
+        LS_ERRX("ll_encode_msg failed op=%d", hdr->operation);
+        xdr_destroy(&xdrs);
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    buf->len = (size_t)xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    if (chan_enqueue(chan_id, buf) < 0) {
+        LS_ERR("chan_enqueue failed op=%d len=%d",
+               hdr->operation, (int)buf->len);
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    if (chan_set_write_interest(chan_id, sbd_efd, 1) < 0) {
+        LS_ERR("chan_set_write_interest failed");
+        chan_free_buf(buf);
+        return -1;
+    }
+
+    return 0;
+}
+
 // Create a permanent channel to mbd using a blocking connect
 int sbd_mbd_connect(void)
 {
@@ -315,53 +355,14 @@ void sbd_register_ack(XDR *xdrs)
     }
 }
 
-int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
-                            void *payload, size_t siz, bool_t (*xdr_func)())
-{
-    struct chan_buffer *buf;
-    XDR xdrs;
-
-    if (chan_alloc_buf(&buf, siz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d siz=%ld",
-               hdr->operation, (long)siz);
-        return -1;
-    }
-
-    xdrmem_create(&xdrs, buf->data, siz, XDR_ENCODE);
-
-    if (! ll_encode_msg(&xdrs, (char *)payload, xdr_func, hdr)) {
-        LS_ERRX("ll_encode_msg failed op=%d", hdr->operation);
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    buf->len = (size_t)xdr_getpos(&xdrs);
-    xdr_destroy(&xdrs);
-
-    if (chan_enqueue(chan_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed op=%d len=%d",
-               hdr->operation, (int)buf->len);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    if (chan_set_write_interest(chan_id, sbd_efd, 1) < 0) {
-        LS_ERR("chan_set_write_interest failed");
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    return 0;
-}
-
-int sbd_send_msg(int32_t op, void *payload, size_t siz, bool_t (*xdr_func)())
+int sbd_send_msg(int32_t op, int32_t status,
+                 void *payload, size_t siz, bool_t (*xdr_func)())
 {
     struct protocol_header hdr;
 
     init_protocol_header(&hdr);
     hdr.operation = op;
-    hdr.status = MBD_OK;
+    hdr.status = status;
 
     if (auth_sign_header(&hdr) < 0) {
         LS_ERR("auth_sign_header failed op=%d", op);

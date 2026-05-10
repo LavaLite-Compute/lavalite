@@ -187,9 +187,8 @@ int log_write_job_start(FILE *fp, const struct log_job_start *j)
 {
     if (write_hdr(fp, EVENT_JOB_START, j->dispatch_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d %d %d",
-                (long)j->job_id,
-                j->nhosts, j->cpus_per_host, j->gpus_per_host) < 0)
+    if (fprintf(fp, " %ld %d %d %d", j->job_id, j->nhosts, j->cpus_per_host,
+                j->gpus_per_host) < 0)
         return -1;
     if (write_qstr(fp, j->exec_host) < 0)
         return -1;
@@ -206,9 +205,8 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p, " %ld %d %d %d%n",
-                   &j->job_id,
-                   &j->nhosts, &j->cpus_per_host, &j->gpus_per_host, &cc);
+    int n = sscanf(p, " %ld %d %d %d%n", &j->job_id, &j->nhosts,
+                   &j->cpus_per_host, &j->gpus_per_host, &cc);
     if (n != 4) {
         errno = EINVAL;
         return -1;
@@ -453,8 +451,8 @@ int log_write_job_unknown(FILE *fp, const struct log_job_unknown *j)
 
 int log_parse_job_unknown(const struct event_rec *rec, struct log_job_unknown *j)
 {
-    int n = sscanf(rec->rest, " %ld", &j->job_id);
-    if (n != 1) {
+    int n = sscanf(rec->rest, " %ld %d", &j->job_id, &j->status);
+    if (n != 2) {
         errno = EINVAL;
         return -1;
     }

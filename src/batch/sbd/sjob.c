@@ -91,7 +91,7 @@ static int sbd_job_new_reply_err(int64_t job_id)
     // tell mbd to put the job back to pend
     r.status = JOB_STAT_PEND;
 
-    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, &r, sizeof(r),
+    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, sizeof(r),
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
         LS_ERR("job=%ld error reply enqueue failed", job_id);
         return -1;
@@ -743,7 +743,7 @@ int sbd_job_new_reply(struct sbd_job *job)
     r.pgid   = job->pgid;
     r.status = JOB_STAT_RUN;
 
-    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, &r, sizeof(r),
+    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, sizeof(r),
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
         LS_ERR("job=%ld sbd_send_msg failed", job->job_id);
         return -1;
@@ -840,7 +840,7 @@ int sbd_job_execute(struct sbd_job *job)
     s.job_id = job->job_id;
     s.state  = JOB_STAT_RUN;
 
-    if (sbd_send_msg(BATCH_JOB_EXECUTE, &s, sizeof(s),
+    if (sbd_send_msg(BATCH_JOB_EXECUTE, MBD_OK, &s, sizeof(s),
                      (bool_t (*)())xdr_wire_job_state) < 0) {
         LS_ERR("job=%ld sbd_job_execute sbd_send_msg failed", job->job_id);
         return -1;
@@ -951,7 +951,7 @@ int sbd_job_finish(struct sbd_job *job)
     s.job_id = job->job_id;
     s.state  = new_status;
 
-    if (sbd_send_msg(BATCH_JOB_FINISH, &s, sizeof(s),
+    if (sbd_send_msg(BATCH_JOB_FINISH, MBD_OK, &s, sizeof(s),
                      (bool_t (*)())xdr_wire_job_state) < 0) {
         LS_ERR("job=%ld sbd_job_finish sbd_send_msg failed", job->job_id);
         return -1;
@@ -1037,25 +1037,41 @@ int sbd_job_signal(XDR *xdrs)
         return -1;
     }
 
+    int status = MBD_OK;
+
     struct sbd_job *job = sbd_job_lookup(sig.job_id);
     if (job == NULL) {
-        LS_ERR("unknown job=%ld", sig.job_id);
-        return -1;
+        LS_ERRX("unknown job=%ld signal=%d", sig.job_id, sig.sig);
+        status = ENOENT;
+        goto reply;
     }
 
     if (job->pgid <= 0) {
-        LS_ERR("job=%ld signal=%d but pgid not set", job->job_id, sig.sig);
-        return -1;
+        LS_ERRX("job=%ld signal=%d but pgid not set",
+                job->job_id, sig.sig);
+        status = ESRCH;
+        goto reply;
     }
 
     if (killpg(job->pgid, sig.sig) < 0) {
-        LS_ERR("job=%ld killpg pgid=%d sig=%d failed: %m",
+        status = errno;
+        LS_ERR("job=%ld killpg pgid=%d sig=%d failed",
                job->job_id, (int)job->pgid, sig.sig);
+        goto reply;
+    }
+
+    LS_INFO("job=%ld sig=%d sent to pgid=%d",
+            job->job_id, sig.sig, (int)job->pgid);
+
+reply:
+    if (sbd_send_msg(BATCH_SBD_JOB_SIGNAL_REPLY, status,
+                     &sig, sizeof(sig),
+                     (bool_t (*)())xdr_wire_job_sig) < 0) {
+        LS_ERRX("job=%ld signal reply enqueue failed status=%d",
+                sig.job_id, status);
         return -1;
     }
 
-    LS_INFO("job=%ld sig=%d sent to pgid=%d", job->job_id, sig.sig,
-            (int)job->pgid);
     return 0;
 }
 
@@ -1067,7 +1083,7 @@ int sbd_enqueue_job_unknown(int64_t job_id)
     js.job_id = job_id;
     js.state  = -1;
 
-    if (sbd_send_msg(BATCH_JOB_UNKNOWN, &js, sizeof(js),
+    if (sbd_send_msg(BATCH_JOB_UNKNOWN, MBD_OK, &js, sizeof(js),
                      (bool_t (*)())xdr_wire_job_state) < 0) {
         LS_ERR("unknown job=%ld enqueue failed", job_id);
         return -1;

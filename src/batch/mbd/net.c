@@ -42,8 +42,9 @@ int valid_batch_op(int op)
     case BATCH_JOB_EXECUTE_ACK:
     case BATCH_JOB_FINISH:
     case BATCH_JOB_FINISH_ACK:
-    case BATCH_SBD_JOB_SIGNAL:
     case BATCH_COMPACT_ACK:
+    case BATCH_SBD_JOB_SIGNAL:
+    case BATCH_SBD_JOB_SIGNAL_REPLY:
         return 1;
     default:
         return 0;
@@ -148,6 +149,25 @@ static void route(int chan_id)
     chan_free_buf(buf);
 }
 
+void mbd_message(int chan_id)
+{
+    char key[LL_BUFSIZ_32];
+
+    LS_DEBUG("chan_id=%d sock=%d chan_events=%d",
+             chan_id, channels[chan_id].sock, channels[chan_id].chan_events);
+
+    snprintf(key, sizeof(key), "%d", chan_id);
+    struct mbd_host *n = ll_hash_search(&sbd_chan_hash, key);
+    if (n != NULL) {
+        LS_DEBUG("the client is an sbd %s", n->net.name);
+        assert(n->sbd_chan == chan_id);
+        mbd_sbd_route(n);
+        return;
+    }
+
+    route(chan_id);
+}
+
 int network_init(void)
 {
     struct epoll_event ev;
@@ -248,25 +268,6 @@ int mbd_accept(int chan_id)
     }
 
     return ch_accept;
-}
-
-void mbd_message(int chan_id)
-{
-    char key[LL_BUFSIZ_32];
-
-    LS_DEBUG("chan_id=%d sock=%d chan_events=%d",
-             chan_id, channels[chan_id].sock, channels[chan_id].chan_events);
-
-    snprintf(key, sizeof(key), "%d", chan_id);
-    struct mbd_host *n = ll_hash_search(&sbd_chan_hash, key);
-    if (n != NULL) {
-        LS_DEBUG("the client is an sbd %s", n->net.name);
-        assert(n->sbd_chan == chan_id);
-        mbd_sbd_route(n);
-        return;
-    }
-
-    route(chan_id);
 }
 
 void chan_shutdown(int chan_id)

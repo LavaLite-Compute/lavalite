@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <assert.h>
 
 #include "base/lib/ll.list.h"
 #include "base/lib/ll.hash.h"
@@ -115,7 +116,6 @@ static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
 
 #define SCHED_PLAN_MAX 1024
 static struct mbd_host *host_plan[SCHED_PLAN_MAX];
-static struct sched_plan plan;
 
 static int build_host_plan(struct job_data *job)
 {
@@ -124,6 +124,10 @@ static int build_host_plan(struct job_data *job)
 
     memset(host_plan, 0, sizeof(host_plan));
     for (e = host_list.head; e; e = e->next) {
+        if (n >= SCHED_PLAN_MAX) {
+            LS_ERRX("candidate host overflow max=%d", SCHED_PLAN_MAX);
+            break;
+        }
         struct mbd_host *h = (struct mbd_host *)e;
 
         LS_DEBUG("host=%s total_mem_mb=%lu free_mem_mb=%lu "
@@ -174,10 +178,12 @@ static int build_host_plan(struct job_data *job)
 
     qsort(host_plan, n, sizeof(struct mbd_host *), host_plan_cmp);
 
-    memset(&plan, 0, sizeof(plan));
-    int i;
-    for (i = 0; i < job->res.num_hosts; i++)
+    job->run_nhosts = 0;
+    for (int i = 0; i < job->res.num_hosts; i++) {
         job->run_hosts[i] = host_plan[i];
+        job->run_nhosts++;
+    }
+    assert(job->run_nhosts == job->res.num_hosts);
 
     LS_INFO("job=%ld exec_host=%s nhosts=%d cpus_per_host=%d gpus_per_host=%d",
             job->job_id, job->run_hosts[0]->net.name, job->res.num_hosts,
@@ -189,8 +195,8 @@ static void host_update_resources(const struct job_data *job)
 {
     int i;
 
-    for (i = 0; i < plan.nhosts; i++) {
-        struct mbd_host *h = plan.hosts[i];
+    for (i = 0; i < job->run_nhosts; i++) {
+        struct mbd_host *h = job->run_hosts[i];
 
         h->res.free_cpu        -= job->res.num_cpus;
         h->res.free_mem_mb     -= job->res.mem_mb;

@@ -85,6 +85,7 @@ struct job_data {
     time_t  execute_time;     /* sbd confirmed process is executing */
     time_t  end_time;         /* job exited (DONE or EXIT)          */
     time_t susp_time;
+    time_t unknown_time;
     time_t begin_time;
     time_t term_time;
     time_t signal_time;
@@ -93,7 +94,6 @@ struct job_data {
     char exec_host[MAXHOSTNAMELEN];
     char name[LL_BUFSIZ_64];
     uint32_t flags;
-    int pend_sig;
     enum job_list_id list_id;
     struct ll_list deps;
     struct job_resources res;    /* requested at submit */
@@ -297,6 +297,7 @@ void job_move_list(struct job_data *, struct ll_list *,
                    struct ll_list *, enum job_list_id);
 void machines_hash_populate(struct ll_hash *, const char *);
 char *job_stat_str(int);
+void mbd_job_signal_reply(struct mbd_host *, XDR *, struct protocol_header *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

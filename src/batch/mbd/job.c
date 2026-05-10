@@ -50,7 +50,6 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->priority = 0;
     job->status = JOB_STAT_PEND;
     job->submit_time = time(NULL);
-    job->pend_sig = 0;
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
     job->flags     = ws->flags;
     job->begin_time = (time_t)ws->begin_time;
@@ -579,4 +578,52 @@ char *job_stat_str(int status)
         snprintf(buf, sizeof(buf), "?(0x%x)", status);
 
     return buf;
+}
+
+void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
+                          struct protocol_header *hdr)
+{
+    struct wire_job_sig sig;
+
+    memset(&sig, 0, sizeof(sig));
+
+    if (!xdr_wire_job_sig(xdrs, &sig)) {
+        LS_ERR("xdr_wire_job_sig decode failed from=%s",
+               chan_addr_str(n->sbd_chan));
+        return;
+    }
+
+    struct job_data *job = job_find(sig.job_id);
+    if (job == NULL) {
+        LS_ERRX("signal reply for unknown job=%ld sig=%d status=%d from=%s",
+                sig.job_id, sig.sig, hdr->status, chan_addr_str(n->sbd_chan));
+        return;
+    }
+
+    if (hdr->status != MBD_OK) {
+        LS_ERRX("job=%ld signal=%d failed status=%d host=%s",
+                job->job_id, sig.sig, hdr->status, n->net.name);
+        return;
+    }
+
+    if (sig.sig == SIGSTOP || sig.sig == SIGTSTP) {
+        job->status = JOB_STAT_SUSP;
+        job->queue->num_run--;
+        job->queue->num_susp++;
+        n->num_susp++;
+        n->num_run--;
+    } else if (sig.sig == SIGCONT) {
+        job->status = JOB_STAT_RUN;
+        job->queue->num_susp--;
+        job->queue->num_run++;
+        n->num_susp--;
+        n->num_run++;
+    }
+
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+             job->queue->name, job->queue->num_pend,
+             job->queue->num_run, job->queue->num_susp);
+
+    LS_INFO("job=%ld signal=%d delivered host=%s",
+            job->job_id, sig.sig, n->net.name);
 }

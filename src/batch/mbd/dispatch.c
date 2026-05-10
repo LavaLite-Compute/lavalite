@@ -105,21 +105,9 @@ static int signal_running_job(struct job_data *job,
     job->signal_time = time(NULL);
     event_job_signal(job, ws);
 
-    if (ws->sig == SIGSTOP || ws->sig == SIGTSTP) {
-        job->status = JOB_STAT_SUSP;
-        job->queue->num_run--;
-        job->queue->num_susp++;
-    } else if (ws->sig == SIGCONT) {
-        job->status = JOB_STAT_RUN;
-        job->queue->num_susp--;
-        job->queue->num_run++;
-    }
-
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-             job->queue->name, job->queue->num_pend,
-             job->queue->num_run, job->queue->num_susp);
     LS_INFO("job=%ld sig=%d sent to sbd=%s",
             job->job_id, ws->sig, job->run_hosts[0]->net.name);
+
     return MBD_OK;
 }
 

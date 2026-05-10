@@ -182,7 +182,5 @@ int sbd_client(int);
 /*
  * Wire send helpers.
  */
-int32_t sbd_enqueue_payload(int, struct protocol_header *,
-                            void *, size_t, bool_t (*)());
-int sbd_send_msg(int32_t, void *, size_t, bool_t (*)());
+int sbd_send_msg(int32_t, int32_t, void *, size_t, bool_t (*)());
 int write_all(int, const char *, size_t);

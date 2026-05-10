@@ -40,6 +40,95 @@ static FILE *open_events(void)
     return fp;
 }
 
+static void replay_reset_counters(void)
+{
+    struct ll_list_entry *e;
+
+    for (e = queue_list.head; e != NULL; e = e->next) {
+        struct mbd_queue *q = (struct mbd_queue *)e;
+
+        q->num_pend = 0;
+        q->num_run = 0;
+        q->num_susp = 0;
+    }
+
+    for (e = host_list.head; e != NULL; e = e->next) {
+        struct mbd_host *h = (struct mbd_host *)e;
+
+        h->num_jobs = 0;
+        h->num_run = 0;
+        h->num_susp = 0;
+        h->exclusive = 0;
+    }
+}
+
+static void replay_charge_running_job(struct job_data *job)
+{
+    for (int i = 0; i < job->run_nhosts; i++) {
+        struct mbd_host *h = job->run_hosts[i];
+
+        h->res.free_cpu -= job->res.num_cpus;
+        h->res.free_mem_mb -= job->res.mem_mb;
+        h->res.free_storage_mb -= job->res.storage_mb;
+        h->num_jobs++;
+
+        if (job->status & JOB_STAT_SUSP)
+            h->num_susp++;
+        else
+            h->num_run++;
+
+        if (job->flags & JOB_FLAG_EXCLUSIVE)
+            h->exclusive = 1;
+
+        if (job->res.num_gpus > 0) {
+            struct mbd_gpu *g;
+
+            g = ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
+            if (g == NULL) {
+                LS_ERRX("job=%ld host=%s gpu_type=%s not found",
+                        job->job_id, h->net.name, job->res.gpu_type);
+                continue;
+            }
+
+            g->free -= job->res.num_gpus;
+            h->res.free_gpu -= job->res.num_gpus;
+        }
+    }
+}
+
+static void replay_rebuild_counters(void)
+{
+    replay_reset_counters();
+
+    struct ll_list_entry *e;
+
+    for (e = pend_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+
+        if (job->queue == NULL)
+            continue;
+
+        if (job->status & JOB_STAT_PSUSP)
+            job->queue->num_susp++;
+        else
+            job->queue->num_pend++;
+    }
+
+    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+
+        if (job->queue == NULL)
+            continue;
+
+        if (job->status & JOB_STAT_SUSP)
+            job->queue->num_susp++;
+        else
+            job->queue->num_run++;
+
+        replay_charge_running_job(job);
+    }
+}
+
 void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
 {
     struct log_job_new e;
@@ -334,6 +423,50 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
     return replay_insert(job);
 }
 
+static int replay_set_run_hosts(struct job_data *job,
+                                const struct log_job_start *e)
+{
+    char hosts[LL_BUFSIZ_4K];
+
+    ll_strlcpy(hosts, e->hosts, sizeof(hosts));
+
+    job->run_hosts = calloc(e->nhosts, sizeof(struct mbd_host *));
+    if (job->run_hosts == NULL) {
+        LS_ERR("calloc failed job=%ld nhosts=%d", job->job_id, e->nhosts);
+        return -1;
+    }
+
+    char *tok = strtok(hosts, " \t,");
+    while (tok != NULL) {
+        struct mbd_host *h = ll_hash_search(&host_name_hash, tok);
+        if (h == NULL) {
+            LS_ERRX("JOB_START job_id=%ld host=%s not found",
+                    job->job_id, tok);
+            return -1;
+        }
+
+        if (job->run_nhosts >= e->nhosts) {
+            LS_ERRX("job_id=%ld too many hosts run=%d e=%d",
+                    job->job_id, job->run_nhosts, e->nhosts);
+            return -1;
+        }
+
+        job->run_hosts[job->run_nhosts] = h;
+        job->run_nhosts++;
+
+        tok = strtok(NULL, " \t,");
+    }
+
+    if (job->run_nhosts != e->nhosts) {
+        LS_ERRX("JOB_START job_id=%ld expected_nhosts=%d got=%d",
+                job->job_id, e->nhosts, job->run_nhosts);
+        assert(0);
+        return -1;
+    }
+
+    return 0;
+}
+
 static void replay_job_start(const struct event_rec *rec)
 {
     struct log_job_start e;
@@ -347,11 +480,11 @@ static void replay_job_start(const struct event_rec *rec)
         LS_ERR("JOB_START job_id=%ld not found", e.job_id);
         return;
     }
-    struct mbd_host *host = ll_hash_search(&host_name_hash, e.exec_host);
-    if (host == NULL) {
-        LS_ERR("JOB_START job_id=%ld exec_host=%s not found, orphaned",
-               e.job_id, e.exec_host);
+    if (replay_set_run_hosts(job, &e) < 0) {
+        LS_ERR("job_id=%ld orphaned replay_set_run_hosts failed", e.job_id);
         job->status = JOB_STAT_ORPHAN;
+        // make sure later on we dont reply this job
+        job->run_nhosts = 0;
         return;
     }
     job->status = JOB_STAT_RUN;
@@ -514,13 +647,64 @@ static void reply_job_unknown(const struct event_rec *rec)
         return;
     }
     job->status = e.status;
-    LS_DEBUG("job_id=%ld status=%s", e.job_id, job_stat_str(job->status));
+    job->unknown_time = e.event_time;
+
+    LS_DEBUG("job_id=%ld status=%s time=%s", e.job_id,
+             job_stat_str(job->status), ctime2(&job->unknown_time));
 }
 
 void reopen_job_events(void)
 {
 }
 
+int events_init(void)
+{
+    char dir[PATH_MAX];
+    int n = snprintf(dir, sizeof(dir), "%s/mbd",
+                     ll_params[LL_STATE_DIR].val);
+    if (n < 0 || n >= (int)sizeof(dir))
+        mbd_die(MBD_EXIT_EVENTS);
+
+    if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
+        syslog(LOG_ERR, "mkdir(%s) failed: %m", dir);
+        mbd_die(MBD_EXIT_FATAL);
+    }
+    LS_INFO("working dir initialized %s", dir);
+
+    n = snprintf(events_path, sizeof(events_path), "%s/sysevents", dir);
+    if (n < 0 || n >= (int)sizeof(events_path))
+        mbd_die(MBD_EXIT_EVENTS);
+    LS_INFO("job events initialized %s", events_path);
+
+    n = snprintf(acct_path, sizeof(acct_path), "%s/jobs.acct", dir);
+    if (n < 0 || n >= (int)sizeof(acct_path))
+        mbd_die(MBD_EXIT_EVENTS);
+    LS_INFO("job accounts initialized %s", acct_path);
+
+    n = snprintf(jobs_dir, sizeof(jobs_dir), "%s/jobs", dir);
+    if (n < 0 || n >= (int)sizeof(jobs_dir))
+        mbd_die(MBD_EXIT_EVENTS);
+
+    if (mkdir(jobs_dir, 0700) == -1 && errno != EEXIST) {
+        LS_ERRX("mkdir(%s) failed", jobs_dir);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    LS_INFO("job working dir initialized %s", jobs_dir);
+
+    for (int i = 0; i < JOB_BUCKETS; i++) {
+        char bucket[PATH_MAX];
+        int nb = snprintf(bucket, sizeof(bucket), "%s/%d", jobs_dir, i);
+        if (nb < 0 || nb >= (int)sizeof(bucket))
+            mbd_die(MBD_EXIT_EVENTS);
+        if (mkdir(bucket, 0700) == -1 && errno != EEXIST) {
+            LS_ERRX("mkdir(%s) failed", bucket);
+            mbd_die(MBD_EXIT_EVENTS);
+        }
+    }
+    LS_INFO("%d bucket dirs initialized", JOB_BUCKETS);
+
+    return 0;
+}
 int jobs_replay(void)
 {
     FILE *fp = fopen(events_path, "r");
@@ -596,56 +780,9 @@ int jobs_replay(void)
     if (max_id > job_id_seq)
         job_id_seq = max_id;
 
+    replay_rebuild_counters();
+
     LS_INFO("replay: done, %d jobs restored, job_id_seq=%ld",
             restored, job_id_seq);
     return restored;
-}
-
-int events_init(void)
-{
-    char dir[PATH_MAX];
-    int n = snprintf(dir, sizeof(dir), "%s/mbd",
-                     ll_params[LL_STATE_DIR].val);
-    if (n < 0 || n >= (int)sizeof(dir))
-        mbd_die(MBD_EXIT_EVENTS);
-
-    if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
-        syslog(LOG_ERR, "mkdir(%s) failed: %m", dir);
-        mbd_die(MBD_EXIT_FATAL);
-    }
-    LS_INFO("working dir initialized %s", dir);
-
-    n = snprintf(events_path, sizeof(events_path), "%s/sysevents", dir);
-    if (n < 0 || n >= (int)sizeof(events_path))
-        mbd_die(MBD_EXIT_EVENTS);
-    LS_INFO("job events initialized %s", events_path);
-
-    n = snprintf(acct_path, sizeof(acct_path), "%s/jobs.acct", dir);
-    if (n < 0 || n >= (int)sizeof(acct_path))
-        mbd_die(MBD_EXIT_EVENTS);
-    LS_INFO("job accounts initialized %s", acct_path);
-
-    n = snprintf(jobs_dir, sizeof(jobs_dir), "%s/jobs", dir);
-    if (n < 0 || n >= (int)sizeof(jobs_dir))
-        mbd_die(MBD_EXIT_EVENTS);
-
-    if (mkdir(jobs_dir, 0700) == -1 && errno != EEXIST) {
-        LS_ERRX("mkdir(%s) failed", jobs_dir);
-        mbd_die(MBD_EXIT_EVENTS);
-    }
-    LS_INFO("job working dir initialized %s", jobs_dir);
-
-    for (int i = 0; i < JOB_BUCKETS; i++) {
-        char bucket[PATH_MAX];
-        int nb = snprintf(bucket, sizeof(bucket), "%s/%d", jobs_dir, i);
-        if (nb < 0 || nb >= (int)sizeof(bucket))
-            mbd_die(MBD_EXIT_EVENTS);
-        if (mkdir(bucket, 0700) == -1 && errno != EEXIST) {
-            LS_ERRX("mkdir(%s) failed", bucket);
-            mbd_die(MBD_EXIT_EVENTS);
-        }
-    }
-    LS_INFO("%d bucket dirs initialized", JOB_BUCKETS);
-
-    return 0;
 }

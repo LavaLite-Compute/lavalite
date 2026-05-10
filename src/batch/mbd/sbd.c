@@ -149,6 +149,9 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     case BATCH_JOB_FINISH:
         mbd_job_finish(n, &xdrs);
         break;
+    case BATCH_SBD_JOB_SIGNAL_REPLY:
+        mbd_job_signal_reply(n, &xdrs, &hdr);
+        break;
     }
 
     xdr_destroy(&xdrs);
