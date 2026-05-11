@@ -15,7 +15,8 @@
 #include "batch/lib/rpc.h"
 
 static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
-                                   void *payload, size_t siz, bool_t (*xdr_func)())
+                                   void *payload, size_t siz,
+                                   bool_t (*xdr_func)())
 {
     struct chan_buffer *buf;
     XDR xdrs;

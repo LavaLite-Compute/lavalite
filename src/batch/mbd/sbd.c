@@ -114,7 +114,8 @@ int32_t mbd_sbd_route(struct mbd_host *n)
 
     /* validate opcode and version early */
     if (!valid_batch_op(hdr.operation)) {
-        LS_ERR("invalid opcode=%d from=%s", hdr.operation, chan_addr_str(chan_id));
+        LS_ERR("invalid opcode=%d from=%s", hdr.operation,
+               chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);

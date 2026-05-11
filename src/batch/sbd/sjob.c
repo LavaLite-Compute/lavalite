@@ -523,19 +523,23 @@ static void rm_job_dir(struct sbd_job *job)
 
 static int make_state_dir(struct sbd_job *job)
 {
-    char dir[PATH_MAX];
+    char state_dir[PATH_MAX];
 
-    int l = snprintf(dir, sizeof(dir), "%s/%ld", sbd_state_dir, job->job_id);
-    if (l < 0 || (size_t)l >= sizeof(dir)) {
+    int l = snprintf(state_dir, sizeof(state_dir), "%s/%ld", sbd_state_dir,
+                     job->job_id);
+    if (l < 0 || (size_t)l >= sizeof(state_dir)) {
         errno = ENAMETOOLONG;
         LS_ERR("job state dir path too long job=%ld", job->job_id);
         return -1;
     }
 
-    if (mkdir(dir, 0700) < 0 && errno != EEXIST) {
-        LS_ERR("job=%ld mkdir=%s failed", job->job_id, dir);
+    if (mkdir(state_dir, 0700) < 0 && errno != EEXIST) {
+        LS_ERR("job=%ld mkdir=%s failed", job->job_id, state_dir);
         return -1;
     }
+
+    LS_INFO("job=%ld job state dir=%s uid=%d gid=%d", job->job_id, state_dir,
+            job->exec_uid, job->exec_gid);
 
     return 0;
 }

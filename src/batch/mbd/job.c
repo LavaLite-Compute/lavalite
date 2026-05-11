@@ -36,6 +36,13 @@ static int64_t next_job_id(void)
     return job_id_seq;
 }
 
+static void job_free(struct job_data *job)
+{
+    free(job->run_hosts);
+    ll_hash_clear(&job->res.machines, NULL);
+    free(job);
+}
+
 static struct job_data *job_alloc(struct wire_job_submit *ws)
 {
     struct job_data *job = calloc(1, sizeof(struct job_data));
@@ -261,18 +268,16 @@ int job_register(XDR *xdrs, int chan_id)
     if (write_script(job, &script) < 0) {
         LS_ERR("write_script failed job_id=%ld", job->job_id);
         free(script.data);
-        free(job);
+        job_free(job);
         return -1;
     }
     free(script.data);
 
     if (write_sidecar(job, &ws) < 0) {
         LS_ERR("write_sidecar failed job_id=%ld", job->job_id);
-        free(job);
+        job_free(job);
         return -1;
     }
-
-    event_job_new(job, &ws);
 
     char key[LL_BUFSIZ_32];
     sprintf(key, "%ld", job->job_id);
@@ -299,8 +304,13 @@ int job_register(XDR *xdrs, int chan_id)
     if (enqueue_payload(chan_id, &hdr, &reply, siz,
                         xdr_wire_job_submit_reply) < 0) {
         LS_ERR("enqueue_payload failed job_id=%ld", job->job_id);
+        ll_list_remove(&pend_jobs_list, &job->ent);
+        ll_hash_remove(&job_id_hash, key);
+        job_free(job);
         return -1;
     }
+
+    event_job_new(job, &ws);
 
     return 0;
 }
@@ -328,7 +338,6 @@ void job_move_list(struct job_data *job, struct ll_list *from,
     job->list_id = list_id;
 }
 
-
 struct job_data *job_find(int64_t job_id)
 {
     char buf[LL_BUFSIZ_32];
@@ -355,7 +364,6 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
 {
     struct wire_job_reply r;
     memset(&r, 0, sizeof(r));
-
     if (!xdr_wire_job_reply(xdrs, &r)) {
         LS_ERR("xdr_wire_job_reply decode failed from=%s",
                chan_addr_str(n->sbd_chan));
@@ -364,22 +372,15 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
 
     struct job_data *job = job_find(r.job_id);
     if (job == NULL) {
-        LS_ERR("job=%ld not found from=%s", r.job_id, chan_addr_str(n->sbd_chan));
-        goto send_ack;
+        LS_ERR("job=%ld not found from=%s - admin intervention required",
+               r.job_id, chan_addr_str(n->sbd_chan));
+        return;
     }
-
     if (r.status != JOB_STAT_RUN) {
-        LS_ERR("job=%ld unexpected status=%d from=%s",
+        LS_ERR("job=%ld unexpected status=%d from=%s - admin intervention required",
                r.job_id, r.status, chan_addr_str(n->sbd_chan));
-        goto send_ack;
+        return;
     }
-
-    job->usage.pid = (pid_t)r.pid;
-    job->fork_time = time(NULL);
-    job->status = JOB_STAT_RUN;
-    event_job_fork(job);
-
-send_ack:
 
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -394,8 +395,13 @@ send_ack:
     if (enqueue_payload(n->sbd_chan, &hdr, &ack,
                         sizeof(ack), xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", r.job_id);
+        return;
     }
 
+    job->usage.pid = (pid_t)r.pid;
+    job->fork_time = time(NULL);
+    job->status = JOB_STAT_RUN;
+    event_job_fork(job);
     LS_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
 }
 
@@ -413,21 +419,16 @@ void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
     struct job_data *job = job_find(s.job_id);
     if (job == NULL) {
         LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
-        goto send_ack;
+        return;
     }
 
     if (job->execute_time > 0) {
         LS_INFO("job=%ld execute duplicate from=%s", s.job_id,
                 chan_addr_str(n->sbd_chan));
-        goto send_ack;
+        return;
     }
 
     assert(job->status == JOB_STAT_RUN);
-
-    job->execute_time = time(NULL);
-    event_job_execute(job, n->net.name);
-
-send_ack:
 
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -442,8 +443,11 @@ send_ack:
     if (enqueue_payload(n->sbd_chan, &hdr, &ack,
                         sizeof(ack), xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", s.job_id);
+        return;
     }
 
+    job->execute_time = time(NULL);
+    event_job_execute(job, n->net.name);
     LS_INFO("job=%ld execute acked", s.job_id);
 }
 
@@ -482,7 +486,7 @@ static void reset_host_resources(struct job_data *job)
     job->queue->num_run--;
     LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
              job->queue->name, job->queue->num_pend,
-         job->queue->num_run, job->queue->num_susp);
+             job->queue->num_run, job->queue->num_susp);
 }
 
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
@@ -499,30 +503,18 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     struct job_data *job = job_find(s.job_id);
     if (job == NULL) {
         LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
-        goto send_ack;
+        return;
     }
 
     if (job->end_time > 0) {
         LS_INFO("job=%ld finish duplicate from=%s", s.job_id,
                 chan_addr_str(n->sbd_chan));
-        goto send_ack;
+        return;
     }
 
-    assert(job->status == JOB_STAT_RUN);
+    assert((job->status == JOB_STAT_RUN) || (job->status == JOB_STAT_SUSP));
 
-    job->end_time = time(NULL);
-    job->exit_status = s.state;
-
-    if (s.state == 0)
-        job->status = JOB_STAT_DONE;
-    else
-        job->status = JOB_STAT_EXIT;
-
-    job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
-    event_job_finish(job);
-    reset_host_resources(job);
-
-send_ack:
+    int prev_status = job->status;
 
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -534,18 +526,39 @@ send_ack:
     hdr.operation = BATCH_JOB_FINISH_ACK;
     hdr.status = MBD_OK;
 
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
-                        sizeof(ack), xdr_wire_job_ack) < 0) {
+    size_t siz = LL_BUFSIZ_1K;
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack, siz, xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", s.job_id);
+        return;
     }
 
-    LS_INFO("job=%ld finish acked status=%s", s.job_id,
-            job ? (job->status == JOB_STAT_DONE ? "DONE" : "EXIT") : "unknown");
+    job->end_time = time(NULL);
+    job->exit_status = s.state;
 
-    job->queue->num_run--;
+    if (s.state == 0)
+        job->status = JOB_STAT_DONE;
+    else
+        job->status = JOB_STAT_EXIT;
+
+    job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+
+    LS_INFO("job=%ld finish acked status=%s", s.job_id,
+            job_stat_str(job->status));
+
     LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-         job->queue->name, job->queue->num_pend,
-         job->queue->num_run, job->queue->num_susp);
+             job->queue->name, job->queue->num_pend,
+             job->queue->num_run, job->queue->num_susp);
+
+    if (prev_status == JOB_STAT_RUN)
+        n->num_run--;
+    if (prev_status == JOB_STAT_SUSP)
+        n->num_susp--;
+
+    LS_DEBUG("host=%s num_run=%d num_susp=%d", n->net.name,
+             n->num_run, n->num_susp);
+
+    event_job_finish(job);
+    reset_host_resources(job);
 }
 
 char *job_stat_str(int status)
