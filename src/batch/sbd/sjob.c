@@ -91,7 +91,7 @@ static int sbd_job_new_reply_err(int64_t job_id)
     // tell mbd to put the job back to pend
     r.status = JOB_STAT_PEND;
 
-    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, sizeof(r),
+    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
         LS_ERR("job=%ld error reply enqueue failed", job_id);
         return -1;
@@ -747,7 +747,7 @@ int sbd_job_new_reply(struct sbd_job *job)
     r.pgid   = job->pgid;
     r.status = JOB_STAT_RUN;
 
-    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, sizeof(r),
+    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
         LS_ERR("job=%ld sbd_send_msg failed", job->job_id);
         return -1;
@@ -844,7 +844,7 @@ int sbd_job_execute(struct sbd_job *job)
     s.job_id = job->job_id;
     s.state  = JOB_STAT_RUN;
 
-    if (sbd_send_msg(BATCH_JOB_EXECUTE, MBD_OK, &s, sizeof(s),
+    if (sbd_send_msg(BATCH_JOB_EXECUTE, MBD_OK, &s, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_state) < 0) {
         LS_ERR("job=%ld sbd_job_execute sbd_send_msg failed", job->job_id);
         return -1;
@@ -955,7 +955,7 @@ int sbd_job_finish(struct sbd_job *job)
     s.job_id = job->job_id;
     s.state  = new_status;
 
-    if (sbd_send_msg(BATCH_JOB_FINISH, MBD_OK, &s, sizeof(s),
+    if (sbd_send_msg(BATCH_JOB_FINISH, MBD_OK, &s, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_state) < 0) {
         LS_ERR("job=%ld sbd_job_finish sbd_send_msg failed", job->job_id);
         return -1;
@@ -1069,8 +1069,7 @@ int sbd_job_signal(XDR *xdrs)
 
 reply:
     if (sbd_send_msg(BATCH_SBD_JOB_SIGNAL_REPLY, status,
-                     &sig, sizeof(sig),
-                     (bool_t (*)())xdr_wire_job_sig) < 0) {
+                     &sig, LL_BUFSIZ_1K, (bool_t (*)())xdr_wire_job_sig) < 0) {
         LS_ERRX("job=%ld signal reply enqueue failed status=%d",
                 sig.job_id, status);
         return -1;
@@ -1087,7 +1086,7 @@ int sbd_enqueue_job_unknown(int64_t job_id)
     js.job_id = job_id;
     js.state  = -1;
 
-    if (sbd_send_msg(BATCH_JOB_UNKNOWN, MBD_OK, &js, sizeof(js),
+    if (sbd_send_msg(BATCH_JOB_UNKNOWN, MBD_OK, &js, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_state) < 0) {
         LS_ERR("unknown job=%ld enqueue failed", job_id);
         return -1;

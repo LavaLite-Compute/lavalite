@@ -144,59 +144,17 @@ int sbd_register(void)
     if (sim_name[0] != 0)
         ll_strlcpy(host, sim_name, MAXHOSTNAMELEN);
 
-    struct wire_sbd_register req;
-    memset(&req, 0, sizeof(req));
-    ll_strlcpy(req.hostname, host, sizeof(req.hostname));
+    struct wire_sbd_register reg;
+    memset(&reg, 0, sizeof(reg));
+    ll_strlcpy(reg.hostname, host, sizeof(reg.hostname));
 
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_SBD_REGISTER;
-    hdr.status = MBD_OK;
-
-    if (auth_sign_header(&hdr) < 0) {
-        LS_ERR("failed to sign header failed to register with mbd");
-        chan_close(sbd_mbd_chan);
-        sbd_mbd_chan = -1;
+    if (sbd_send_msg(BATCH_SBD_REGISTER, MBD_OK, &reg, LL_BUFSIZ_1K,
+                     xdr_wire_sbd_register) < 0) {
+        LS_ERR("sbd on host=%s registration failed", host);
         return -1;
     }
 
-    struct chan_buffer *buf = NULL;
-    if (chan_alloc_buf(&buf, LL_BUFSIZ_4K) < 0) {
-        LS_ERR("sbd register: chan_alloc_buf failed");
-        return -1;
-    }
-
-    XDR xdrs;
-    xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_4K, XDR_ENCODE);
-
-    if (!ll_encode_msg(&xdrs, &req, xdr_wire_sbd_register, &hdr)) {
-        LS_ERR("ll_encode_msg failed");
-        xdr_destroy(&xdrs);
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    buf->len = xdr_getpos(&xdrs);
-    xdr_destroy(&xdrs);
-
-    /*
-     * Queue for send. This must append buf to the channel send queue and
-     * ensure EPOLLOUT interest is enabled so dowrite() will run.
-     */
-    if (chan_enqueue(sbd_mbd_chan, buf) < 0) {
-        LS_ERR("sbd register: send enqueue failed");
-        chan_free_buf(buf);
-        return -1;
-    }
-
-    // Always rememeber to enable EPOLLOUT on the main sbd_efd
-    // have dowrite() to send out the request
-    if (chan_set_write_interest(sbd_mbd_chan, sbd_efd, true) < 0) {
-        LS_ERR("sbd  chan_set_write_interest failed");
-        return -1;
-    }
-
-    LS_INFO("sbd register: enqueued request as host: %s", host);
+    LS_INFO("sbd registered sent host=%s", host);
 
     return 0;
 }
@@ -235,6 +193,7 @@ int sbd_mbd_route(int chan_id)
     if (!buf || buf->len < PACKET_HEADER_SIZE) {
         LS_ERR("short header from mbd on channel=%d: len=%d",
                chan_id, buf ? buf->len : 0);
+        chan_free_buf(buf);
         return -1;
     }
 
@@ -370,9 +329,6 @@ int sbd_send_msg(int32_t op, int32_t status,
         return -1;
     }
 
-    // wire messages between from sbd to mbd together with the header
-    // fit in 1K
-    siz = siz + LL_BUFSIZ_1K;
     int cc = sbd_enqueue_payload(sbd_mbd_chan, &hdr, payload, siz, xdr_func);
     if (cc < 0) {
         LS_ERR("sbd_enqueue_payload failed closing chan=%d to mbd", sbd_mbd_chan);

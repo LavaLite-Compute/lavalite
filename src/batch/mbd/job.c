@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 
+#include "base/lib/auth.h"
 #include "base/lib/ll.syslog.h"
 #include "base/lib/ll.conf.h"
 #include "base/lib/ll.list.h"
@@ -58,7 +59,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->status = JOB_STAT_PEND;
     job->submit_time = time(NULL);
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
-    job->flags     = ws->flags;
+    job->flags = ws->flags;
     job->begin_time = (time_t)ws->begin_time;
     job->term_time  = (time_t)ws->term_time;
     ll_strlcpy(job->project,  ws->project, sizeof(job->project));
@@ -382,6 +383,16 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
         return;
     }
 
+    int duplicate = 0;
+    /* duplicate: skip event log, sbd resends if it restarts before ack
+     */
+    if (job->fork_time > 0) {
+        LS_INFO("job=%ld fork duplicate from=%s", r.job_id,
+                chan_addr_str(n->sbd_chan));
+        duplicate = 1;
+        // fall through
+    }
+
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
     ack.job_id = r.job_id;
@@ -392,11 +403,20 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     hdr.operation = BATCH_NEW_JOB_REPLY_ACK;
     hdr.status = MBD_OK;
 
+    if (auth_sign_header(&hdr) < 0) {
+        LS_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+               n->net.name);
+        return;
+    }
+
     if (enqueue_payload(n->sbd_chan, &hdr, &ack,
-                        sizeof(ack), xdr_wire_job_ack) < 0) {
+                        LL_BUFSIZ_1K, xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", r.job_id);
         return;
     }
+
+    if (duplicate)
+        return;
 
     job->usage.pid = (pid_t)r.pid;
     job->fork_time = time(NULL);
@@ -421,14 +441,17 @@ void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
         LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
         return;
     }
+    assert(job->status == JOB_STAT_RUN);
 
+    int duplicate = 0;
+    /* duplicate: skip event log, sbd resends if it restarts before ack
+     */
     if (job->execute_time > 0) {
         LS_INFO("job=%ld execute duplicate from=%s", s.job_id,
                 chan_addr_str(n->sbd_chan));
-        return;
+        duplicate = 1;
+        // fall through
     }
-
-    assert(job->status == JOB_STAT_RUN);
 
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -440,12 +463,22 @@ void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
     hdr.operation = BATCH_JOB_EXECUTE_ACK;
     hdr.status = MBD_OK;
 
+    if (auth_sign_header(&hdr) < 0) {
+        LS_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+               n->net.name);
+        return;
+    }
+
     if (enqueue_payload(n->sbd_chan, &hdr, &ack,
-                        sizeof(ack), xdr_wire_job_ack) < 0) {
+                        LL_BUFSIZ_1K, xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", s.job_id);
         return;
     }
 
+    if (duplicate)
+        return;
+
+    // now we can commit the event and the time
     job->execute_time = time(NULL);
     event_job_execute(job, n->net.name);
     LS_INFO("job=%ld execute acked", s.job_id);
@@ -505,16 +538,15 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
         return;
     }
+    assert((job->status == JOB_STAT_RUN) || (job->status == JOB_STAT_SUSP));
 
+    int duplicate = 0;
     if (job->end_time > 0) {
         LS_INFO("job=%ld finish duplicate from=%s", s.job_id,
                 chan_addr_str(n->sbd_chan));
-        return;
+        duplicate = 1;
+        // fall through
     }
-
-    assert((job->status == JOB_STAT_RUN) || (job->status == JOB_STAT_SUSP));
-
-    int prev_status = job->status;
 
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
@@ -526,14 +558,31 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     hdr.operation = BATCH_JOB_FINISH_ACK;
     hdr.status = MBD_OK;
 
-    size_t siz = LL_BUFSIZ_1K;
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack, siz, xdr_wire_job_ack) < 0) {
+    if (auth_sign_header(&hdr) < 0) {
+        LS_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+               n->net.name);
+        return;
+    }
+
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
+                        LL_BUFSIZ_1K, xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", s.job_id);
         return;
     }
 
+    if (duplicate)
+        return;
+
     job->end_time = time(NULL);
     job->exit_status = s.state;
+
+    if (job->status == JOB_STAT_RUN)
+        n->num_run--;
+    if (job->status == JOB_STAT_SUSP)
+        n->num_susp--;
+
+    LS_DEBUG("host=%s num_run=%d num_susp=%d", n->net.name,
+             n->num_run, n->num_susp);
 
     if (s.state == 0)
         job->status = JOB_STAT_DONE;
@@ -548,14 +597,6 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
              job->queue->name, job->queue->num_pend,
              job->queue->num_run, job->queue->num_susp);
-
-    if (prev_status == JOB_STAT_RUN)
-        n->num_run--;
-    if (prev_status == JOB_STAT_SUSP)
-        n->num_susp--;
-
-    LS_DEBUG("host=%s num_run=%d num_susp=%d", n->net.name,
-             n->num_run, n->num_susp);
 
     event_job_finish(job);
     reset_host_resources(job);
