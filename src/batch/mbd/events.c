@@ -108,6 +108,7 @@ static void replay_rebuild_counters(void)
         if (job->queue == NULL)
             continue;
 
+        job->queue->num_jobs++;
         if (job->status & JOB_STAT_PSUSP)
             job->queue->num_susp++;
         else
@@ -120,6 +121,7 @@ static void replay_rebuild_counters(void)
         if (job->queue == NULL)
             continue;
 
+        job->queue->num_jobs++;
         if (job->status & JOB_STAT_SUSP)
             job->queue->num_susp++;
         else

@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "base/lib/auth.h"
 #include "batch/lib/wire.h"
 #include "batch/mbd/mbd.h"
 
@@ -95,8 +96,14 @@ static int signal_running_job(struct job_data *job,
     hdr.operation = BATCH_JOB_SIGNAL;
     hdr.status    = MBD_OK;
 
+    if (auth_sign_header(&hdr) < 0) {
+        LS_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+               job->run_hosts[0]->net.name);
+        return EAGAIN;
+    }
+
     if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr,
-                        (void *)ws, sizeof(*ws),
+                        (void *)ws, LL_BUFSIZ_1K,
                         xdr_wire_job_sig) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", job->job_id);
         return EAGAIN;
@@ -325,6 +332,7 @@ int queue_info(XDR *xdrs, int chan_id)
         ll_strlcpy(queues[i].hosts, q->hosts_spec, sizeof(queues[i].hosts));
         queues[i].priority = q->priority;
         queues[i].max_jobs = q->max_jobs;
+        queues[i].num_jobs = q->num_jobs;
         queues[i].num_pend = q->num_pend;
         queues[i].num_run  = q->num_run;
         queues[i].num_susp = q->num_susp;

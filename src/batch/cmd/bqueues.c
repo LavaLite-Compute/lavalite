@@ -119,13 +119,12 @@ int main(int argc, char **argv)
            w.susp,  "SUSP");
 
     for (int i = 0; i < n; i++) {
-        int njobs = q[i].num_pend + q[i].num_run + q[i].num_susp;
         printf("%-*s  %-*d  %-*s  %*d  %*d  %*d  %*d  %*d\n",
                w.name,  q[i].name,
                w.prio,  q[i].priority,
                w.status,queue_status_str(q[i].status),
                w.max,   q[i].max_jobs,
-               w.njobs, njobs,
+               w.njobs, q[i].num_jobs,
                w.pend,  q[i].num_pend,
                w.run,   q[i].num_run,
                w.susp,  q[i].num_susp);

@@ -19,13 +19,14 @@ static const char *event_names[] = {
     [EVENT_NULL]            = "NULL",
     [EVENT_JOB_NEW]         = "JOB_NEW",
     [EVENT_JOB_START]       = "JOB_START",
-    [EVENT_JOB_FORK]      = "JOB_FORK",
+    [EVENT_JOB_FORK]        = "JOB_FORK",
     [EVENT_JOB_EXECUTE]     = "JOB_EXECUTE",
     [EVENT_JOB_SIGNAL]      = "JOB_SIGNAL",
     [EVENT_JOB_FINISH]      = "JOB_FINISH",
     [EVENT_JOB_PEND_SUSP]   = "JOB_PEND_SUSP",
     [EVENT_JOB_PEND_RESUME] = "JOB_PEND_RESUME",
     [EVENT_JOB_SUSP]        = "JOB_SUSP",
+    [EVENT_JOB_UNKNOWN]     = "JOB_UNKNOWN",
     [EVENT_COUNT]           = NULL,
 };
 

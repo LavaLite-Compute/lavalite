@@ -94,7 +94,7 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
 
         dst->priority = src->priority;
         dst->max_jobs = src->max_jobs;
-
+        dst->num_jobs = src->num_jobs;
         dst->num_pend = src->num_pend;
         dst->num_run  = src->num_run;
         dst->num_susp = src->num_susp;

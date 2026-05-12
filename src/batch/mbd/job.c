@@ -56,10 +56,12 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->uid  = (uid_t)ws->uid;
     job->gid = (gid_t)ws->gid;
     job->priority = 0;
+    job->flags = ws->flags;
     job->status = JOB_STAT_PEND;
+    if (job->flags & JOB_FLAG_HOLD)
+        job->status = JOB_STAT_PSUSP;
     job->submit_time = time(NULL);
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
-    job->flags = ws->flags;
     job->begin_time = (time_t)ws->begin_time;
     job->term_time  = (time_t)ws->term_time;
     ll_strlcpy(job->project,  ws->project, sizeof(job->project));
@@ -287,9 +289,6 @@ int job_register(XDR *xdrs, int chan_id)
 
     job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
 
-    LS_INFO("job_id=%ld user=%s queue=%s",
-            job->job_id, job->user, job->queue->name);
-
     struct wire_job_submit_reply reply;
     memset(&reply, 0, sizeof(reply));
     reply.job_id = job->job_id;
@@ -312,6 +311,12 @@ int job_register(XDR *xdrs, int chan_id)
     }
 
     event_job_new(job, &ws);
+    job->queue->num_pend++;
+    job->queue->num_jobs++;
+
+    LS_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d",
+            job->job_id, job->user, job->queue->name,
+            job->queue->num_jobs, job->queue->num_pend);
 
     return 0;
 }
@@ -515,11 +520,6 @@ static void reset_host_resources(struct job_data *job)
                  h->net.name, h->res.free_cpu, h->res.free_mem_mb,
                  h->res.free_storage_mb, h->res.free_gpu, h->num_jobs);
     }
-
-    job->queue->num_run--;
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-             job->queue->name, job->queue->num_pend,
-             job->queue->num_run, job->queue->num_susp);
 }
 
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
@@ -538,16 +538,18 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
         return;
     }
-    assert((job->status == JOB_STAT_RUN) || (job->status == JOB_STAT_SUSP));
 
     int duplicate = 0;
     if (job->end_time > 0) {
         LS_INFO("job=%ld finish duplicate from=%s", s.job_id,
                 chan_addr_str(n->sbd_chan));
         duplicate = 1;
-        // fall through
+        goto send_ack;
     }
+    // run the assert only the first time sbd is reporting job finished
+    assert((job->status == JOB_STAT_RUN) || (job->status == JOB_STAT_SUSP));
 
+send_ack:
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
     ack.job_id = s.job_id;
@@ -576,13 +578,14 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     job->end_time = time(NULL);
     job->exit_status = s.state;
 
+    // num_hosts will be done in reset_host_resources()
     if (job->status == JOB_STAT_RUN)
         n->num_run--;
     if (job->status == JOB_STAT_SUSP)
         n->num_susp--;
 
-    LS_DEBUG("host=%s num_run=%d num_susp=%d", n->net.name,
-             n->num_run, n->num_susp);
+    LS_DEBUG("host=%s num_jobs=%d num_run=%d num_susp=%d", n->net.name,
+             n->num_jobs, n->num_run, n->num_susp);
 
     if (s.state == 0)
         job->status = JOB_STAT_DONE;
@@ -594,12 +597,16 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     LS_INFO("job=%ld finish acked status=%s", s.job_id,
             job_stat_str(job->status));
 
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-             job->queue->name, job->queue->num_pend,
-             job->queue->num_run, job->queue->num_susp);
 
     event_job_finish(job);
     reset_host_resources(job);
+
+    job->queue->num_run--;
+    job->queue->num_jobs--;
+
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+             job->queue->name, job->queue->num_pend,
+             job->queue->num_run, job->queue->num_susp);
 }
 
 char *job_stat_str(int status)

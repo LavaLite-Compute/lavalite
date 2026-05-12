@@ -127,6 +127,7 @@ struct queue_info {
     int32_t status;
     int32_t priority;
     int32_t max_jobs;
+    int32_t num_jobs;
     int32_t num_pend;
     int32_t num_run;
     int32_t num_susp;

@@ -218,10 +218,10 @@ static void host_update_resources(const struct job_data *job)
             h->res.free_gpu -= job->res.num_gpus;
         }
 
-        LS_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
-                 "free_gpu=%d num_jobs=%d",
-                 h->net.name, h->res.free_cpu, h->res.free_mem_mb,
-                 h->res.free_storage_mb, h->res.free_gpu, h->num_jobs);
+        LS_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "
+                 "free_storage_mb=%lu free_gpu=%d",
+                 h->net.name, h->num_jobs, h->res.free_cpu, h->res.free_mem_mb,
+                 h->res.free_storage_mb, h->res.free_gpu);
     }
 }
 

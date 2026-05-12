@@ -194,6 +194,7 @@ int sbd_mbd_route(int chan_id)
         LS_ERR("short header from mbd on channel=%d: len=%d",
                chan_id, buf ? buf->len : 0);
         chan_free_buf(buf);
+        sbd_mbd_link_down();
         return -1;
     }
 
@@ -212,7 +213,7 @@ int sbd_mbd_route(int chan_id)
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
-        sbd_chan_shutdown(chan_id);
+        sbd_mbd_link_down();
         return -1;
     }
 
@@ -255,38 +256,35 @@ int sbd_mbd_route(int chan_id)
 void sbd_register_ack(XDR *xdrs)
 {
     struct wire_sbd_register reg_ack;
-
     memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
+
     if (!xdr_wire_sbd_register(xdrs, &reg_ack)) {
         LS_ERR("xdr_wire_sbd_register decode failed");
+        sbd_mbd_link_down();
         return;
     }
 
     if (reg_ack.num_jobs == 0) {
         LS_INFO("no jobs registered on this host");
+        free(reg_ack.jobs);
         return;
     }
 
     for (int i = 0; i < reg_ack.num_jobs; i++) {
-        struct sbd_job *job;
         struct wire_sbd_job *wj = &reg_ack.jobs[i];
 
-        job = sbd_job_lookup(wj->job_id);
+        struct sbd_job *job = sbd_job_lookup(wj->job_id);
         if (job == NULL) {
-            // job state is not known to sbd
-            if (sbd_enqueue_job_unknown(wj->job_id) < 0) {
+            if (sbd_enqueue_job_unknown(wj->job_id) < 0)
                 sbd_fatal(SBD_FATAL_ENQUEUE);
-            }
             continue;
         }
-        // job must have a pid
-        assert(job->pid > 0);
-        // job exists on sbd
+
         if (job->pid <= 0) {
             LS_ERRX("register: invariant violation: job=%ld exists but pid=%d",
                     job->job_id, (int)job->pid);
             sbd_fatal(SBD_FATAL_INVARIANT);
-            continue;
+            /* not reached */
         }
 
         if (wj->pid > 0) {
@@ -294,25 +292,23 @@ void sbd_register_ack(XDR *xdrs)
                 LS_ERRX("register: pid mismatch job=%ld mbd_pid=%d sbd_pid=%d",
                         (long)wj->job_id, (int)wj->pid, (int)job->pid);
                 sbd_fatal(SBD_FATAL_INVARIANT);
-                return;
+                /* not reached */
             }
-            // common steady-state
             LS_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d "
                     "execute_acked=%d", job->job_id, job->pid,
                     job->pid_acked, job->execute_acked);
-
             continue;
         }
-        // wj->pid == 0
-        // MBD lost pid knowledge (restart/packet loss/etc). Force resend.
-        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d "
-                "replay_acked=%d", wj->job_id, job->pid,
-                job->pid_acked, job->execute_acked);
 
+        /* wj->pid == 0: mbd lost pid, force resend */
+        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d "
+                "execute_acked=%d", wj->job_id, job->pid,
+                job->pid_acked, job->execute_acked);
         job->pid_acked = 0;
         job->reply_last_send = 0;
-        continue;
     }
+
+    free(reg_ack.jobs);
 }
 
 int sbd_send_msg(int32_t op, int32_t status,

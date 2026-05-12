@@ -331,6 +331,8 @@ bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->max_jobs))
         return false;
+    if (!xdr_int32_t(xdrs, &p->num_jobs))
+        return false;
     if (!xdr_int32_t(xdrs, &p->num_pend))
         return false;
     if (!xdr_int32_t(xdrs, &p->num_run))

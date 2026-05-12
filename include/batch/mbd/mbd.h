@@ -170,6 +170,7 @@ struct mbd_queue {
     char    users[LL_BUFSIZ_256];      /* space-separated, empty = all */
     int     priority;
     int     max_jobs;
+    int     num_jobs;
     int     num_pend;
     int     num_run;
     int     num_susp;

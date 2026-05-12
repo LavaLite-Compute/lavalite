@@ -18,6 +18,44 @@
 #include "batch/lib/rpc.h"
 #include "batch/mbd/mbd.h"
 
+static int build_sbd_run_list(struct mbd_host *n,
+                              struct wire_sbd_register *reg_ack)
+{
+    int count = 0;
+    struct ll_list_entry *e;
+
+    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+        if (job->run_hosts[0] != n)
+            continue;
+        count++;
+    }
+
+    if (count == 0)
+        return 0;
+
+    reg_ack->jobs = calloc(count, sizeof(struct wire_sbd_job));
+    if (reg_ack->jobs == NULL) {
+        LS_ERR("calloc failed count=%d", count);
+        return -1;
+    }
+
+    int i = 0;
+    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+        if (job->run_hosts[0] != n)
+            continue;
+        job->status &= ~JOB_STAT_UNKNOWN;
+        reg_ack->jobs[i].job_id = job->job_id;
+        reg_ack->jobs[i].pid    = (int32_t)job->usage.pid;
+        i++;
+    }
+
+    reg_ack->num_jobs = i;
+
+    return 0;
+}
+
 int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 {
     struct wire_sbd_register reg;
@@ -25,8 +63,8 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 
     if (!xdr_wire_sbd_register(xdrs, &reg)) {
         LS_ERR("SBD_REGISTER decode failed");
-        enqueue_header(chan_id, BATCH_SBD_REGISTER_ACK, EPROTO);
         free(reg.jobs);
+        chan_shutdown(chan_id);
         return -1;
     }
 
@@ -52,7 +90,12 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 
     struct wire_sbd_register reg_ack;
     memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
-    //build_sbd_run_list(host_data, &reg_ack);
+
+    if (build_sbd_run_list(n, &reg_ack) < 0) {
+        LS_ERRX("host=%s build_sbd_run_list failed", n->net.name);
+        mbd_sbd_disconnect(n);
+        return -1;
+    }
 
     // good bye bits
     n->status = HOST_OK;
@@ -67,16 +110,18 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 
     if (auth_sign_header(&hdr) < 0) {
         LS_ERR("failed to sign header failed to register with mbd");
-        chan_shutdown(chan_id);
-        // unlink the channel with the host
-        n->sbd_chan = -1;
-        n->status = HOST_UNAVAIL;
-        ll_hash_remove(&sbd_chan_hash, key);
+        mbd_sbd_disconnect(n);
+        free(reg.jobs);
         return -1;
     }
 
+    size_t siz = sizeof(struct protocol_header)
+        + MAXHOSTNAMELEN
+        + sizeof(int32_t)
+        + reg_ack.num_jobs * sizeof(struct wire_sbd_job)
+        + LL_BUFSIZ_64;
     enqueue_payload(chan_id, &hdr, &reg_ack,
-                    LL_BUFSIZ_256, xdr_wire_sbd_register);
+                   siz, xdr_wire_sbd_register);
 
     free(reg.jobs);
 
@@ -181,6 +226,8 @@ int mbd_sbd_disconnect(struct mbd_host *n)
     for (e = run_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *)e;
         if (job->run_hosts[0] != n)
+            continue;
+        if (job->status & JOB_STAT_UNKNOWN)
             continue;
         job->status |= JOB_STAT_UNKNOWN;
         event_job_unknown(job);

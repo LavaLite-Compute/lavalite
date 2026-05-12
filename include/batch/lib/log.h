@@ -30,7 +30,7 @@ enum event_type {
     EVENT_JOB_PEND_SUSP   = 7,  /* user suspended pending job          */
     EVENT_JOB_PEND_RESUME = 8,  /* user resumed suspended pending job  */
     EVENT_JOB_SUSP        = 9,  /* sbd suspended running job           */
-    EVENT_JOB_UNKNOWN     = 10,
+    EVENT_JOB_UNKNOWN     = 10, /* sbd unreacheable with running jobs  */
     EVENT_COUNT
 };
 
