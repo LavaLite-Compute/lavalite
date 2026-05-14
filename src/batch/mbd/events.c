@@ -105,6 +105,7 @@ static void replay_rebuild_counters(void)
     for (e = pend_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *)e;
 
+        assert(job->queue);
         if (job->queue == NULL)
             continue;
 
@@ -118,6 +119,7 @@ static void replay_rebuild_counters(void)
     for (e = run_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *)e;
 
+        assert(job->queue);
         if (job->queue == NULL)
             continue;
 
@@ -635,7 +637,7 @@ static void replay_job_susp(const struct event_rec *rec)
     LS_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
 }
 
-static void reply_job_unknown(const struct event_rec *rec)
+static void replay_job_unknown(const struct event_rec *rec)
 {
     struct log_job_unknown e;
 
@@ -766,7 +768,7 @@ int jobs_replay(void)
             continue;
         }
         if (rec.type == EVENT_JOB_UNKNOWN) {
-            reply_job_unknown(&rec);
+            replay_job_unknown(&rec);
             continue;
         }
     }
@@ -783,6 +785,8 @@ int jobs_replay(void)
         job_id_seq = max_id;
 
     replay_rebuild_counters();
+    // debug
+    mbd_assert_counters();
 
     LS_INFO("replay: done, %d jobs restored, job_id_seq=%ld",
             restored, job_id_seq);

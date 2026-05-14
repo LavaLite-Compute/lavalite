@@ -442,11 +442,10 @@ int log_write_job_unknown(FILE *fp, const struct log_job_unknown *j)
 {
     if (write_hdr(fp, EVENT_JOB_UNKNOWN, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %d", j->status) < 0)
+    if (fprintf(fp, " %ld", (long)j->job_id) < 0)
         return -1;
-    if (fprintf(fp, " %ld\n", (long)j->job_id) < 0)
+    if (fprintf(fp, " %d\n", j->status) < 0)
         return -1;
-
     return 0;
 }
 

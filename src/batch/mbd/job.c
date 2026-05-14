@@ -245,6 +245,16 @@ static int write_sidecar(const struct job_data *job,
     return 0;
 }
 
+static int job_uses_host(struct job_data *job, struct mbd_host *h)
+{
+    for (int i = 0; i < job->run_nhosts; i++) {
+        if (job->run_hosts[i] == h)
+            return 1;
+    }
+
+    return 0;
+}
+
 int job_register(XDR *xdrs, int chan_id)
 {
     struct wire_job_submit ws;
@@ -499,6 +509,12 @@ static void reset_host_resources(struct job_data *job)
         h->res.free_storage_mb += job->res.storage_mb;
         h->num_jobs--;
 
+        if (job->status & JOB_STAT_RUN)
+            h->num_run--;
+
+        if (job->status & JOB_STAT_SUSP)
+            h->num_susp--;
+
         if (job->flags & JOB_FLAG_EXCLUSIVE)
             h->exclusive = 0;
 
@@ -547,7 +563,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         goto send_ack;
     }
     // run the assert only the first time sbd is reporting job finished
-    assert((job->status == JOB_STAT_RUN) || (job->status == JOB_STAT_SUSP));
+    assert((job->status & JOB_STAT_RUN) || (job->status & JOB_STAT_SUSP));
 
 send_ack:
     struct wire_job_ack ack;
@@ -578,14 +594,9 @@ send_ack:
     job->end_time = time(NULL);
     job->exit_status = s.state;
 
-    // num_hosts will be done in reset_host_resources()
-    if (job->status == JOB_STAT_RUN)
-        n->num_run--;
-    if (job->status == JOB_STAT_SUSP)
-        n->num_susp--;
-
-    LS_DEBUG("host=%s num_jobs=%d num_run=%d num_susp=%d", n->net.name,
-             n->num_jobs, n->num_run, n->num_susp);
+    // this function depends on the status of the job not
+    // being DONE|EXIT yet
+    reset_host_resources(job);
 
     if (s.state == 0)
         job->status = JOB_STAT_DONE;
@@ -597,16 +608,26 @@ send_ack:
     LS_INFO("job=%ld finish acked status=%s", s.job_id,
             job_stat_str(job->status));
 
-
     event_job_finish(job);
-    reset_host_resources(job);
 
-    job->queue->num_run--;
+    if (job->status & JOB_STAT_RUN)
+        job->queue->num_run--;
+
+    if (job->status & JOB_STAT_SUSP)
+        job->queue->num_susp--;
+
     job->queue->num_jobs--;
+
+    assert(job->queue->num_run >= 0);
+    assert(job->queue->num_susp >= 0);
+    assert(job->queue->num_jobs >= 0);
 
     LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
              job->queue->name, job->queue->num_pend,
              job->queue->num_run, job->queue->num_susp);
+
+    // debug code
+    mbd_assert_counters();
 }
 
 char *job_stat_str(int status)
@@ -656,7 +677,7 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
 
     struct job_data *job = job_find(sig.job_id);
     if (job == NULL) {
-        LS_ERRX("signal reply for unknown job=%ld sig=%d status=%d from=%s",
+        LS_ERRX("signal reply for unknown job=%ld sig=%d errno=%d from=%s",
                 sig.job_id, sig.sig, hdr->status, chan_addr_str(n->sbd_chan));
         return;
     }
@@ -687,4 +708,90 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
 
     LS_INFO("job=%ld signal=%d delivered host=%s",
             job->job_id, sig.sig, n->net.name);
+    // debug
+    mbd_assert_counters();
+}
+
+void mbd_assert_counters(void)
+{
+    struct ll_list_entry *e;
+    struct ll_list_entry *je;
+
+    for (e = host_list.head; e != NULL; e = e->next) {
+        struct mbd_host *h = (struct mbd_host *)e;
+        int num_jobs = 0;
+        int num_run = 0;
+        int num_susp = 0;
+
+        for (je = run_jobs_list.head; je != NULL; je = je->next) {
+            struct job_data *job = (struct job_data *)je;
+
+            if (!job_uses_host(job, h))
+                continue;
+
+            num_jobs++;
+
+            if (job->status & JOB_STAT_SUSP)
+                num_susp++;
+            else
+                num_run++;
+        }
+
+        if (h->num_jobs != num_jobs || h->num_run != num_run
+            || h->num_susp != num_susp) {
+            LS_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d",
+                    h->net.name,
+                    h->num_jobs, num_jobs,
+                    h->num_run, num_run,
+                    h->num_susp, num_susp);
+            assert(0);
+        }
+    }
+
+    for (e = queue_list.head; e != NULL; e = e->next) {
+        struct mbd_queue *q = (struct mbd_queue *)e;
+        int num_jobs = 0;
+        int num_pend = 0;
+        int num_run = 0;
+        int num_susp = 0;
+
+        for (je = pend_jobs_list.head; je != NULL; je = je->next) {
+            struct job_data *job = (struct job_data *)je;
+
+            if (job->queue != q)
+                continue;
+
+            num_jobs++;
+
+            if (job->status & JOB_STAT_PSUSP)
+                num_susp++;
+            else
+                num_pend++;
+        }
+
+        for (je = run_jobs_list.head; je != NULL; je = je->next) {
+            struct job_data *job = (struct job_data *)je;
+
+            if (job->queue != q)
+                continue;
+
+            num_jobs++;
+
+            if (job->status & JOB_STAT_SUSP)
+                num_susp++;
+            else
+                num_run++;
+        }
+
+        if (q->num_jobs != num_jobs || q->num_pend != num_pend
+            || q->num_run != num_run || q->num_susp != num_susp) {
+            LS_ERRX("queue=%s bad counters jobs=%d/%d pend=%d/%d run=%d/%d susp=%d/%d",
+                    q->name,
+                    q->num_jobs, num_jobs,
+                    q->num_pend, num_pend,
+                    q->num_run, num_run,
+                    q->num_susp, num_susp);
+            assert(0);
+        }
+    }
 }

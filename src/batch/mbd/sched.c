@@ -202,6 +202,7 @@ static void host_update_resources(const struct job_data *job)
         h->res.free_mem_mb     -= job->res.mem_mb;
         h->res.free_storage_mb -= job->res.storage_mb;
         h->num_jobs++;
+        h->num_run++;
 
         if (job->flags & JOB_FLAG_EXCLUSIVE)
             h->exclusive = 1;
@@ -267,4 +268,5 @@ void schedule(void)
                  job->queue->name, job->queue->num_pend,
                  job->queue->num_run, job->queue->num_susp);
     }
+    mbd_assert_counters();
 }

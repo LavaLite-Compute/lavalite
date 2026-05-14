@@ -21,10 +21,20 @@ static int finish_pending_job(struct job_data *job, const struct wire_job_sig *w
     LS_INFO("finish_pending_job: job_id=%ld sig=%d -> EXIT",
             (long)job->job_id, ws->sig);
     job->signal_time = job->end_time = time(NULL);
+
+    if (job->status & JOB_STAT_PEND)
+        job->queue->num_pend--;
+
+    if (job->status & JOB_STAT_PSUSP)
+        job->queue->num_susp--;
+
+    job->queue->num_jobs--;
+
     job->status = JOB_STAT_EXIT;
     event_job_signal(job, ws);
     event_job_finish(job);
     job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+
 
     return MBD_OK;
 }
@@ -93,8 +103,8 @@ static int signal_running_job(struct job_data *job,
 {
     struct protocol_header hdr;
     init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_SIGNAL;
-    hdr.status    = MBD_OK;
+    hdr.operation = BATCH_SBD_JOB_SIGNAL;
+    hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
         LS_ERR("job=%ld failed to sign header for host=%s", job->job_id,
@@ -118,7 +128,7 @@ static int signal_running_job(struct job_data *job,
     return MBD_OK;
 }
 
-static void signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
+static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
 {
     struct ll_list_entry *e;
     struct ll_list_entry *next;
@@ -130,16 +140,29 @@ static void signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
         assert(job->status & (JOB_STAT_PEND | JOB_STAT_PSUSP));
         if (job->uid != uid)
             continue;
+        req->job_id = job->job_id;
+        // Best effort, even if one failed keep going
         signal_pending_job(job, req);
     }
-    for (e = run_jobs_list.head; e != NULL; e = next) {
-        next = e->next;
+    for (e = run_jobs_list.head; e != NULL; e = e->next) {
         job = (struct job_data *)e;
+
+        assert(job->run_hosts[0]);
+        if (job->run_hosts[0]->sbd_chan < 0) {
+            LS_DEBUG("sbd=%s is disconnected", job->run_hosts[0]->net.name);
+            assert(job->status & JOB_STAT_UNKNOWN);
+            continue;
+        }
+
         assert(job->status & (JOB_STAT_RUN | JOB_STAT_SUSP));
         if (job->uid != uid)
             continue;
+        req->job_id = job->job_id;
+        // Best effort, even if one fails keep going
         signal_running_job(job, req);
     }
+
+    return MBD_OK;
 }
 
 int job_signal(XDR *xdrs, int chan_id)
@@ -155,8 +178,8 @@ int job_signal(XDR *xdrs, int chan_id)
              (long)req.job_id, req.uid, req.sig, chan_id);
 
     if (req.job_id == 0) {
-        signal_all_jobs(req.uid, &req);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+        int cc = signal_all_jobs(req.uid, &req);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
     }
 
     struct job_data *job = job_find(req.job_id);

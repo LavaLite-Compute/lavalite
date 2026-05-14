@@ -309,3 +309,6 @@ void mbd_job_finish(struct mbd_host *, XDR *);
 
 // queue.c
 int queue_user_allowed(const struct mbd_queue *, uid_t);
+
+// debug counters
+void mbd_assert_counters(void);

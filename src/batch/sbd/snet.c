@@ -244,6 +244,7 @@ int sbd_mbd_route(int chan_id)
         sbd_register_ack(&xdrs);
         break;
     default:
+        LS_ERRX("unknown protocol operation=%s", batch_op_str(hdr.operation));
         break;
     }
 
