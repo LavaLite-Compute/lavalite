@@ -262,7 +262,10 @@ int main(int argc, char **argv)
     };
 
     int c;
-    while ((c = getopt_long_only(argc, argv, "", opts, NULL)) != -1) {
+    while ((c = getopt_long(argc,
+                            argv,
+                            "q:J:P:C:n:N:M:s:g:G:L:xm:o:e:i:Hb:t:W:w:hV",
+                            opts, NULL)) != -1) {
         switch (c) {
         case 'q':
             js.queue = optarg;
@@ -325,7 +328,8 @@ int main(int argc, char **argv)
             /* validate format: name=N */
             char *eq = strchr(optarg, '=');
             if (eq == NULL || eq == optarg) {
-                fprintf(stderr, "bsub: --pool: invalid format '%s', expected name=N\n", optarg);
+                fprintf(stderr, "bsub: --pool: invalid format '%s', "
+                        "expected name=N\n", optarg);
                 return 1;
             }
             char *end;
@@ -431,7 +435,7 @@ int main(int argc, char **argv)
 
     rc = llb_submit(&js, &job_id);
     if (rc != 0) {
-        fprintf(stderr, "Job not submitted.\n");
+        fprintf(stderr, "Job not submitted: %m\n");
         free(js.command);
         free(js.tokenpool);
         return 1;

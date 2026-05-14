@@ -367,7 +367,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->job_id          = e->job_id;
     job->uid             = e->uid;
     job->gid             = e->gid;
-    job->status          = JOB_STAT_PEND;
+    job->status          = e->status;
     job->submit_time     = e->submit_time;
     job->begin_time      = e->begin_time;
     job->term_time       = e->term_time;

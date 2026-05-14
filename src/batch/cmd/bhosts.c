@@ -171,6 +171,9 @@ int main(int argc, char **argv)
                w.susp,    hosts[i].num_susp);
     }
 
+    for (int i = 0; i < nhosts; i++) {
+        free(hosts[i].name);
+    }
     free(hosts);
     return 0;
 }

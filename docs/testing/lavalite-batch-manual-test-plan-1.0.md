@@ -7,15 +7,13 @@ This document defines the initial manual test plan for the LavaLite batch projec
 The scope is the basic batch flow:
 
 - `bsub`
-- `bkill`
-- `bstop`
-- `bresume`
+- `bkill` bkill has options to stop, resume and terminate jobs
 - pending jobs
 - held jobs
 - running jobs
 - suspended jobs
-- MBD restart and event replay
-- SBD unavailable/available transitions
+- mbd restart and event replay
+- sbd unavailable/available transitions
 
 This is the first manual validation pass before adding larger chaos/stress tests.
 
@@ -28,21 +26,21 @@ The test environment has:
 - LavaLite client commands installed:
   - `bsub`
   - `bkill`
-  - `bstop`
-  - `bresume`
   - `bjobs`
   - `bqueues`
   - `bhosts`
 - A configured queue, for example `cpu`
 - A configured host, for example `buntu24`
-- Access to the MBD sysevents file
-- Debug/assert counter checks enabled in MBD
+- Access to the mbd sysevents file
+- Debug/assert counter checks enabled in mbd
 
 Example job command:
 
 ```sh
-sleep 300
+sleep 86400
 ```
+
+Long-running jobs are useful for interactive debugging because they keep the system in a stable state while daemons, log and events files are inspected. Short-running jobs are better suited for bulk testing.
 
 Useful inspection commands:
 
@@ -65,6 +63,7 @@ For every test:
 4. Verify host counters where applicable.
 5. Verify sysevents entries.
 6. Restart `mbd`.
+7. Restart `sbd`
 7. Verify replay restores the expected state.
 8. Confirm no counter assertion fails.
 
@@ -85,15 +84,15 @@ queue.num_susp >= 0
 
 ---
 
-# Test 1: Submit and Kill Pending Job While SBD Is Down
+# Test 1: Submit and Kill Pending Job While sbd Is Down
 
 ## Goal
 
-Verify that a job submitted while SBD is unavailable remains pending, can be killed while pending, writes correct events, and is restored correctly after MBD restart.
+Verify that a job submitted while sbd is unavailable remains pending, can be killed while pending, writes correct events, and is restored correctly after mbd restart.
 
 ## Setup
 
-Stop SBD:
+Stop sbd:
 
 ```sh
 # stop or kill sbd
@@ -111,7 +110,7 @@ bhosts
 Submit a job:
 
 ```sh
-bsub sleep 300
+bsub sleep 86400
 ```
 
 Record the job ID.
@@ -147,7 +146,7 @@ JOB_NEW
 JOB_FINISH or equivalent pending-kill/exit event
 ```
 
-Restart MBD:
+Restart mbd:
 
 ```sh
 # restart mbd
@@ -164,10 +163,10 @@ bhosts
 ## Expected Result
 
 - Job is submitted.
-- Job remains pending because SBD is down.
+- Job remains pending because sbd is down.
 - `bkill` terminates the pending job.
 - Sysevents contain the submit and final state transition.
-- After MBD restart, the killed job is not restored as pending.
+- After mbd restart, the killed job is not restored as pending.
 - Queue pending counters are correct.
 - No negative counters.
 - No `mbd_assert_counters()` failure.
@@ -182,14 +181,14 @@ Verify that `bsub -H` creates a held job, writes correct events, can be killed, 
 
 ## Setup
 
-SBD may be up or down. The job must remain held.
+sbd may be up or down. The job must remain held.
 
 ## Steps
 
 Submit held job:
 
 ```sh
-bsub -H sleep 300
+bsub -H sleep 86400
 ```
 
 Record job ID.
@@ -226,7 +225,7 @@ Verify final state:
 bjobs -a
 ```
 
-Restart MBD:
+Restart mbd:
 
 ```sh
 # restart mbd
@@ -252,7 +251,7 @@ bhosts
 
 ---
 
-# Test 3: SBD Down, Submit Held Job, Stop and Resume Pending Job
+# Test 3: sbd Down, Submit Held Job, Stop and Resume Pending Job
 
 ## Goal
 
@@ -260,7 +259,7 @@ Verify pending-suspended state survives replay and can be resumed back to pendin
 
 ## Setup
 
-Stop SBD:
+Stop sbd:
 
 ```sh
 # stop or kill sbd
@@ -277,7 +276,7 @@ bhosts
 Submit held job:
 
 ```sh
-bsub -H sleep 300
+bsub -H sleep 86400
 ```
 
 Record job ID.
@@ -285,7 +284,7 @@ Record job ID.
 Stop the job:
 
 ```sh
-bstop <job_id>
+bkill -s STOP <job_id>
 ```
 
 Verify job is pending suspended:
@@ -301,7 +300,7 @@ Check sysevents:
 tail -n 50 /path/to/sysevents
 ```
 
-Restart MBD:
+Restart mbd:
 
 ```sh
 # restart mbd
@@ -317,7 +316,7 @@ bqueues
 Resume the job:
 
 ```sh
-bresume <job_id>
+bkill -s CONT <job_id>
 ```
 
 Verify job returns to pending:
@@ -327,7 +326,7 @@ bjobs -a
 bqueues
 ```
 
-Restart MBD again:
+Restart mbd again:
 
 ```sh
 # restart mbd
@@ -342,10 +341,10 @@ bqueues
 
 ## Expected Result
 
-- Job remains pending because SBD is down.
-- `bstop` moves it to pending suspended.
+- Job remains pending because sbd is down.
+- `bkill -s STOP` moves it to pending suspended.
 - Replay restores pending suspended state.
-- `bresume` moves it back to pending.
+- `bkill -s CONT` moves it back to pending.
 - Replay restores pending state.
 - Queue `num_pend` and `num_susp` counters are correct.
 - No host run/suspend counters are modified because the job never ran.
@@ -353,15 +352,15 @@ bqueues
 
 ---
 
-# Test 4: Running Job, Stop It, Restart MBD, Kill Suspended Job
+# Test 4: Running Job, Stop It, Restart mbd, Kill Suspended Job
 
 ## Goal
 
-Verify that a running job can be suspended, survives MBD restart, and can be killed while suspended.
+Verify that a running job can be suspended, survives mbd restart, and can be killed while suspended.
 
 ## Setup
 
-Start SBD:
+Start sbd:
 
 ```sh
 # start sbd
@@ -378,7 +377,7 @@ bhosts
 Submit a job:
 
 ```sh
-bsub sleep 300
+bsub sleep 86400
 ```
 
 Record job ID.
@@ -394,7 +393,7 @@ bqueues
 Stop the running job:
 
 ```sh
-bstop <job_id>
+bkill -s STOP <job_id>
 ```
 
 Verify job is suspended:
@@ -421,7 +420,7 @@ JOB_EXECUTE
 JOB_SIGNAL
 ```
 
-Restart MBD:
+Restart mbd:
 
 ```sh
 # restart mbd
@@ -453,9 +452,9 @@ bqueues
 
 - Job dispatches and runs.
 - Host `num_jobs` and `num_run` increment.
-- `bstop` changes job to suspended.
+- `bkill -s STOP` changes job to suspended.
 - Host/queue run counters decrement and suspend counters increment as expected.
-- MBD replay restores suspended state.
+- mbd replay restores suspended state.
 - `bkill` terminates the suspended job.
 - Suspended counters decrement correctly.
 - No negative counters.
@@ -471,7 +470,7 @@ Verify the normal successful path from submit to run to finish.
 
 ## Setup
 
-Start SBD:
+Start sbd:
 
 ```sh
 # start sbd
@@ -526,7 +525,7 @@ JOB_EXECUTE
 JOB_FINISH
 ```
 
-Restart MBD:
+Restart mbd:
 
 ```sh
 # restart mbd
@@ -596,7 +595,7 @@ When replaying, verify:
 
 # Counter Validation Checklist
 
-After every command and after every MBD restart:
+After every command and after every mbd restart:
 
 ```sh
 bjobs -a
@@ -625,10 +624,10 @@ If `mbd_assert_counters()` fires, stop and inspect the last event transition.
 The manual test pass succeeds when:
 
 - All five tests pass.
-- MBD can restart and replay state correctly.
-- SBD down/up behavior is predictable.
+- mbd can restart and replay state correctly.
+- sbd down/up behavior is predictable.
 - Pending, running, suspended, killed, and finished jobs have correct state.
-- Sysevents are sufficient to rebuild MBD state.
+- Sysevents are sufficient to rebuild mbd state.
 - Host and queue counters remain consistent.
 - No negative counters appear.
 - No counter assertion fails.
