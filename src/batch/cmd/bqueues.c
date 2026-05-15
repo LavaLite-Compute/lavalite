@@ -24,6 +24,7 @@ struct col_widths {
     int max;
     int njobs;
     int pend;
+    int held;
     int run;
     int susp;
 };
@@ -53,17 +54,19 @@ compute_widths(struct queue_info *q, int32_t n, struct col_widths *w)
     w->max    = strlen("MAX");
     w->njobs  = strlen("NJOBS");
     w->pend   = strlen("PEND");
+    w->held   = strlen("HELD");
     w->run    = strlen("RUN");
     w->susp   = strlen("SUSP");
 
     for (int i = 0; i < n; i++) {
-        int njobs = q[i].num_pend + q[i].num_run + q[i].num_susp;
+        int njobs = q[i].num_pend + q[i].num_held + q[i].num_run + q[i].num_susp;
         w->name   = imax(w->name,   strlen(q[i].name));
         w->prio   = imax(w->prio,   ndigits(q[i].priority));
         w->status = imax(w->status, strlen(queue_status_str(q[i].status)));
         w->max    = imax(w->max,    ndigits(q[i].max_jobs));
         w->njobs  = imax(w->njobs,  ndigits(njobs));
         w->pend   = imax(w->pend,   ndigits(q[i].num_pend));
+        w->held   = imax(w->held,   ndigits(q[i].num_held));
         w->run    = imax(w->run,    ndigits(q[i].num_run));
         w->susp   = imax(w->susp,   ndigits(q[i].num_susp));
     }
@@ -108,24 +111,26 @@ int main(int argc, char **argv)
 
     compute_widths(q, n, &w);
 
-    printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s\n",
+    printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s\n",
            w.name,  "QUEUE_NAME",
            w.prio,  "PRIO",
            w.status,"STATUS",
            w.max,   "MAX",
            w.njobs, "NJOBS",
            w.pend,  "PEND",
+           w.held,  "HELD",
            w.run,   "RUN",
            w.susp,  "SUSP");
 
     for (int i = 0; i < n; i++) {
-        printf("%-*s  %-*d  %-*s  %*d  %*d  %*d  %*d  %*d\n",
+        printf("%-*s  %-*d  %-*s  %*d  %*d  %*d  %*d  %*d  %*d\n",
                w.name,  q[i].name,
                w.prio,  q[i].priority,
                w.status,queue_status_str(q[i].status),
                w.max,   q[i].max_jobs,
                w.njobs, q[i].num_jobs,
                w.pend,  q[i].num_pend,
+               w.held,  q[i].num_held,
                w.run,   q[i].num_run,
                w.susp,  q[i].num_susp);
     }

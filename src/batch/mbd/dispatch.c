@@ -22,15 +22,15 @@ static int finish_pending_job(struct job_data *job, const struct wire_job_sig *w
             (long)job->job_id, ws->sig);
     job->signal_time = job->end_time = time(NULL);
 
-    if (job->status & JOB_STAT_PEND)
+    if (job->state == JOB_PENDING)
         job->queue->num_pend--;
 
-    if (job->status & JOB_STAT_PSUSP)
-        job->queue->num_susp--;
+    if (job->state == JOB_HELD)
+        job->queue->num_held--;
 
     job->queue->num_jobs--;
 
-    job->status = JOB_STAT_EXIT;
+    job->state = JOB_EXITED;
     event_job_signal(job, ws);
     event_job_finish(job);
     job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
@@ -41,9 +41,10 @@ static int finish_pending_job(struct job_data *job, const struct wire_job_sig *w
 
 static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
 {
-    if (job->status & JOB_STAT_PSUSP)
+    if (job->state == JOB_HELD)
         return MBD_OK;
-    job->status = JOB_STAT_PSUSP;
+
+    job->state = JOB_HELD;
     job->signal_time = time(NULL);
     LS_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP",
             (long)job->job_id, ws->sig);
@@ -51,30 +52,33 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
     event_job_pend_susp(job);
 
     job->queue->num_pend--;
-    job->queue->num_susp++;
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+    job->queue->num_held++;
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
              job->queue->name, job->queue->num_pend,
-             job->queue->num_run, job->queue->num_susp);
+             job->queue->num_run, job->queue->num_susp,
+             job->queue->num_held);
 
     return MBD_OK;
 }
 
 static int resume_pending_job(struct job_data *job, const struct wire_job_sig *ws)
 {
-    if (!(job->status & JOB_STAT_PSUSP))
+    if (!(job->state == JOB_HELD))
         return MBD_OK;
-    job->status = JOB_STAT_PEND;
+
+    job->state = JOB_PENDING;
     job->signal_time = time(NULL);
     LS_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND",
             (long)job->job_id, ws->sig);
     event_job_signal(job, ws);
     event_job_pend_resume(job);
 
-    job->queue->num_susp--;
+    job->queue->num_held--;
     job->queue->num_pend++;
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
          job->queue->name, job->queue->num_pend,
-         job->queue->num_run, job->queue->num_susp);
+         job->queue->num_run, job->queue->num_susp,
+         job->queue->num_held);
 
     return MBD_OK;
 }
@@ -137,7 +141,7 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
     for (e = pend_jobs_list.head; e != NULL; e = next) {
         next = e->next;
         job = (struct job_data *)e;
-        assert(job->status & (JOB_STAT_PEND | JOB_STAT_PSUSP));
+        assert(job->state == JOB_PENDING || job->state == JOB_HELD);
         if (job->uid != uid)
             continue;
         req->job_id = job->job_id;
@@ -150,11 +154,11 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
         assert(job->run_hosts[0]);
         if (job->run_hosts[0]->sbd_chan < 0) {
             LS_DEBUG("sbd=%s is disconnected", job->run_hosts[0]->net.name);
-            assert(job->status & JOB_STAT_UNKNOWN);
+            assert(job->state == JOB_UNKNOWN);
             continue;
         }
 
-        assert(job->status & (JOB_STAT_RUN | JOB_STAT_SUSP));
+        assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
         if (job->uid != uid)
             continue;
         req->job_id = job->job_id;
@@ -165,7 +169,7 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
     return MBD_OK;
 }
 
-int job_signal(XDR *xdrs, int chan_id)
+int jobs_signal(XDR *xdrs, int chan_id)
 {
     struct wire_job_sig req;
     memset(&req, 0, sizeof(req));
@@ -188,25 +192,25 @@ int job_signal(XDR *xdrs, int chan_id)
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
     }
 
-    if (job->status & (JOB_STAT_DONE | JOB_STAT_EXIT)) {
+    if (job->state == JOB_DONE || job->state == JOB_EXITED) {
         LS_DEBUG("job_signal: job_id=%ld already finished", (long)req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
     }
 
     if ((req.sig == SIGSTOP || req.sig == SIGTSTP)
-        && (job->status & (JOB_STAT_SUSP | JOB_STAT_PSUSP))) {
+        && (job->state == JOB_SUSPENDED || job->state == JOB_HELD)) {
         LS_DEBUG("job_signal: job_id=%ld already suspended", (long)req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
     }
 
     if (req.sig == SIGCONT
-        && (job->status & (JOB_STAT_PEND | JOB_STAT_RUN))) {
+        && (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
         LS_DEBUG("job_signal: job_id=%ld SIGCONT no-op", (long)req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
     int cc;
-    if (job->status & (JOB_STAT_PEND | JOB_STAT_PSUSP))
+    if (job->state == JOB_PENDING || job->state == JOB_HELD)
         cc = signal_pending_job(job, &req);
     else
         cc = signal_running_job(job, &req);
@@ -223,7 +227,15 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
     memset(w, 0, sizeof(*w));
     w->job_id      = job->job_id;
     w->uid         = (uint32_t)job->uid;
-    w->status      = job->status;
+    w->state      = job->state;
+    /*
+     * UNKNOWN is a public/reporting state. Internally the job keeps its last
+     * lifecycle state. If the execution host is disconnected, clients cannot
+     * know whether the process is still running, suspended, or gone.
+     */
+    if ((w->state == JOB_RUNNING || w->state == JOB_SUSPENDED)
+        && job->run_hosts[0]->sbd_chan < 0)
+        w->state = JOB_UNKNOWN;
     w->exit_status = job->exit_status;
     w->priority    = job->priority;
     w->submit_time = (int64_t)job->submit_time;
@@ -257,7 +269,7 @@ static int collect_list(struct ll_list *list, struct wire_job_info *dst,
     return count;
 }
 
-int job_info(XDR *xdrs, int chan_id)
+int jobs_info(XDR *xdrs, int chan_id)
 {
     struct wire_job_info_req req;
     memset(&req, 0, sizeof(req));
@@ -333,7 +345,7 @@ send:
 /* -----------------------------------------------------------
  * queue info
  * ----------------------------------------------------------- */
-int queue_info(XDR *xdrs, int chan_id)
+int queues_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
@@ -359,6 +371,7 @@ int queue_info(XDR *xdrs, int chan_id)
         queues[i].num_pend = q->num_pend;
         queues[i].num_run  = q->num_run;
         queues[i].num_susp = q->num_susp;
+        queues[i].num_held = q->num_held;
         i++;
     }
 
@@ -440,7 +453,7 @@ int host_group_info(XDR *xdrs, int chan_id)
 /* -----------------------------------------------------------
  * host info
  * ----------------------------------------------------------- */
-int host_info(XDR *xdrs, int chan_id)
+int hosts_info(XDR *xdrs, int chan_id)
 {
     (void)xdrs;
 
@@ -457,7 +470,7 @@ int host_info(XDR *xdrs, int chan_id)
         struct mbd_host *h = (struct mbd_host *)e;
 
         ll_strlcpy(hosts[i].name, h->net.name, sizeof(hosts[i].name));
-        hosts[i].status          = h->status;
+        hosts[i].state          = h->state;
         hosts[i].max_jobs        = h->res.max_jobs;
         hosts[i].total_cpu       = h->res.total_cpu;
         hosts[i].total_gpu       = h->res.total_gpu;

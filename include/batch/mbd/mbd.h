@@ -76,7 +76,7 @@ struct job_data {
     uid_t uid;
     gid_t gid;
     char user[LL_BUFSIZ_64];
-    int status;
+    int state;
     int exit_status;
     int priority;
     time_t  submit_time;      /* bsub received                      */
@@ -143,7 +143,7 @@ struct mbd_host {
     struct host_resources res;   /* capacity + availability + gpu_list */
     uint16_t port;               /* 0 = use LL_SBD_PORT; sim override otherwise */
     int    host_idx;             /* dense index assigned at conf_init */
-    int    status;
+    int    state;
     int    candidate;            /* set by mark_candidates() each sched cycle */
     int    exclusive;            /* host is exclusively allocated */
     int    num_jobs;
@@ -159,7 +159,7 @@ struct queue_conf {
     char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
     char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
     int  priority;
-    int  status;
+    int  state;
 };
 
 struct mbd_queue {
@@ -174,7 +174,8 @@ struct mbd_queue {
     int     num_pend;
     int     num_run;
     int     num_susp;
-    int     status;
+    int     num_held;
+    int     state;
     struct ll_hash host_hash;          /* expanded host membership, keyed by hostname */
 };
 
@@ -276,13 +277,12 @@ void event_job_finish(const struct job_data *);
 void event_job_pend_susp(const struct job_data *);
 void event_job_pend_resume(const struct job_data *);
 void event_job_susp(const struct job_data *);
-void event_job_unknown(const struct job_data *);
 
 // dispatch.c
-int job_signal(XDR *, int);
-int job_info(XDR *, int);
-int host_info(XDR *, int);
-int queue_info(XDR *, int);
+int jobs_signal(XDR *, int);
+int jobs_info(XDR *, int);
+int hosts_info(XDR *, int);
+int queues_info(XDR *, int);
 int host_group_info(XDR *, int);
 int mbd_sbd_register(XDR *, int);
 int compact_done(XDR *, int);
@@ -297,8 +297,8 @@ void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
 void job_move_list(struct job_data *, struct ll_list *,
                    struct ll_list *, enum job_list_id);
 void machines_hash_populate(struct ll_hash *, const char *);
-char *job_stat_str(int);
 void mbd_job_signal_reply(struct mbd_host *, XDR *, struct protocol_header *);
+char *job_state_str(int);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

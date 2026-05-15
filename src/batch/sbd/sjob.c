@@ -89,7 +89,7 @@ static int sbd_job_new_reply_err(int64_t job_id)
     r.pid    = 0;
     r.pgid   = 0;
     // tell mbd to put the job back to pend
-    r.status = JOB_STAT_PEND;
+    r.state = JOB_PENDING;
 
     if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
@@ -745,7 +745,7 @@ int sbd_job_new_reply(struct sbd_job *job)
     r.job_id = job->job_id;
     r.pid    = job->pid;
     r.pgid   = job->pgid;
-    r.status = JOB_STAT_RUN;
+    r.state = JOB_RUNNING;
 
     if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_reply) < 0) {
@@ -810,7 +810,7 @@ int sbd_job_execute(struct sbd_job *job)
     }
 
     // Check all state invariants that must be satisfied if job
-    // is executing or if we are resending execute status after reboot
+    // is executing or if we are resending execute state after reboot
     if (!job->pid_acked) {
         LS_ERR("job=%ld execute before pid_acked (bug)", job->job_id);
         assert(0);
@@ -837,12 +837,12 @@ int sbd_job_execute(struct sbd_job *job)
         assert(0);
     }
 
-    // When all checks are done send the status to mbd
+    // When all checks are done send the state to mbd
     struct wire_job_state s;
 
     memset(&s, 0, sizeof(s));
     s.job_id = job->job_id;
-    s.state  = JOB_STAT_RUN;
+    s.state  = JOB_RUNNING;
 
     if (sbd_send_msg(BATCH_JOB_EXECUTE, MBD_OK, &s, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_state) < 0) {
@@ -943,17 +943,17 @@ int sbd_job_finish(struct sbd_job *job)
         return -1;
     }
 
-    int new_status;
+    int new_state;
     if (WIFEXITED(job->exit_status) && WEXITSTATUS(job->exit_status) == 0) {
-        new_status = JOB_STAT_DONE;
+        new_state = JOB_DONE;
     } else {
-        new_status = JOB_STAT_EXIT;
+        new_state = JOB_EXITED;
     }
 
     struct wire_job_state s;
     memset(&s, 0, sizeof(s));
     s.job_id = job->job_id;
-    s.state  = new_status;
+    s.state  = new_state;
 
     if (sbd_send_msg(BATCH_JOB_FINISH, MBD_OK, &s, LL_BUFSIZ_1K,
                      (bool_t (*)())xdr_wire_job_state) < 0) {

@@ -30,7 +30,6 @@ enum event_type {
     EVENT_JOB_PEND_SUSP   = 7,  /* user suspended pending job          */
     EVENT_JOB_PEND_RESUME = 8,  /* user resumed suspended pending job  */
     EVENT_JOB_SUSP        = 9,  /* sbd suspended running job           */
-    EVENT_JOB_UNKNOWN     = 10, /* sbd unreacheable with running jobs  */
     EVENT_COUNT
 };
 
@@ -64,7 +63,7 @@ struct log_job_new {
     int64_t  job_id;
     uid_t    uid;
     gid_t    gid;
-    int32_t  status;
+    int32_t  state;
     time_t   submit_time;   /* mbd clock: when submit was received  */
     time_t   begin_time;    /* requested earliest start (from user) */
     time_t   term_time;     /* requested deadline (from user)       */
@@ -136,7 +135,7 @@ struct log_job_signal {
 struct log_job_finish {
     int64_t  job_id;
     uid_t    uid;
-    int32_t  status;        /* JOB_STAT_EXIT, JOB_STAT_DONE         */
+    int32_t  state;        /* JOB_STAT_EXIT, JOB_STAT_DONE         */
     int32_t  exit_status;
     time_t   submit_time;
     time_t   dispatch_time;
@@ -167,12 +166,6 @@ struct log_job_susp {
     time_t  event_time;
 };
 
-struct log_job_unknown {
-    int64_t job_id;
-    int status;
-    time_t event_time;
-};
-
 /*
  * Read the record header from one line.
  * The unparsed payload tail is stored in rec->rest.
@@ -192,7 +185,6 @@ int log_parse_job_pend_resume(const struct event_rec *,
                               struct log_job_pend_resume *);
 int log_parse_job_pend_susp(const struct event_rec *,
                             struct log_job_pend_susp *);
-int log_parse_job_unknown(const struct event_rec *, struct log_job_unknown *);
 
 /* Writers -- write header + payload + newline in one call */
 int log_write_job_new(FILE *, const struct log_job_new *);
@@ -204,4 +196,3 @@ int log_write_job_finish(FILE *, const struct log_job_finish *);
 int log_write_job_susp(FILE *, const struct log_job_susp *);
 int log_write_job_pend_resume(FILE *, const struct log_job_pend_resume *);
 int log_write_job_pend_susp(FILE *, const struct log_job_pend_susp *);
-int log_write_job_unknown(FILE *, const struct log_job_unknown *);

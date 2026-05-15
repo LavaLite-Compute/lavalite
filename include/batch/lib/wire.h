@@ -68,7 +68,7 @@ struct wire_job_reply {
     int64_t  job_id;
     int32_t  pid;
     int32_t  pgid;
-    int32_t  status;
+    int32_t  state;
 };
 
 /* -----------------------------------------------------------------------
@@ -197,7 +197,7 @@ struct wire_job_resources {
 struct wire_job_info {
     int64_t  job_id;
     uint32_t uid;
-    int32_t  status;
+    int32_t  state;
     int32_t  exit_status;
     int32_t  priority;
     int64_t  submit_time;
@@ -223,7 +223,7 @@ struct wire_job_info_array {
 
 struct wire_host_info {
     char     name[MAXHOSTNAMELEN];
-    int32_t  status;
+    int32_t  state;
     int32_t  max_jobs;
     int32_t  total_cpu;
     int32_t  total_gpu;
@@ -268,6 +268,7 @@ struct wire_queue_info {
     int32_t num_pend;
     int32_t num_run;
     int32_t num_susp;
+    int32_t num_held;
 };
 
 struct wire_queue_info_array {

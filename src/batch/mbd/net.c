@@ -115,7 +115,7 @@ static void route(int chan_id)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_SIGNAL:
-        if (job_signal(&xdrs, chan_id) < 0)
+        if (jobs_signal(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_GROUP_INFO:
@@ -123,15 +123,15 @@ static void route(int chan_id)
             chan_shutdown(chan_id);
         break;
     case BATCH_QUEUE_INFO:
-        if (queue_info(&xdrs, chan_id) < 0)
+        if (queues_info(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_INFO:
-        if (job_info(&xdrs, chan_id) < 0)
+        if (jobs_info(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_HOST_INFO:
-        if (host_info(&xdrs, chan_id) < 0)
+        if (hosts_info(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_SBD_REGISTER:

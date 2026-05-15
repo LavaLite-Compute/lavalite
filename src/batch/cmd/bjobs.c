@@ -24,24 +24,27 @@ uid_to_name(uid_t uid)
     return pw->pw_name;
 }
 
-static const char *
-job_status_str(int32_t status)
+static const char *job_state_str(int32_t state)
 {
-    switch (status) {
-    case JOB_STAT_PEND:
+    switch (state) {
+    case JOB_PENDING:
         return "PEND";
-    case JOB_STAT_PSUSP:
-        return "PSUSP";
-    case JOB_STAT_RUN:
+    case JOB_HELD:
+        return "HELD";
+    case JOB_RUNNING:
         return "RUN";
-    case JOB_STAT_SUSP:
+    case JOB_SUSPENDED:
         return "SUSP";
-    case JOB_STAT_EXIT:
+    case JOB_EXITED:
         return "EXIT";
-    case JOB_STAT_DONE:
+    case JOB_DONE:
         return "DONE";
-    default:
+    case JOB_ORPHAN:
+        return "ORPHAN";
+    case JOB_UNKNOWN:
         return "UNKNOWN";
+    default:
+        return "BADSTATE";
     }
 }
 
@@ -107,7 +110,7 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
 
         w->jobid     = imax(w->jobid,     ndigits(j->job_id));
         w->user      = imax(w->user,      (int)strlen(uid_to_name(j->uid)));
-        w->stat      = imax(w->stat,      (int)strlen(job_status_str(j->status)));
+        w->stat      = imax(w->stat,      (int)strlen(job_state_str(j->state)));
         w->queue     = imax(w->queue,     (int)strlen(j->queue));
         w->name      = imax(w->name,      (int)strlen(j->name));
 
@@ -139,7 +142,7 @@ print_job(const struct job_info *j, const struct col_widths *w)
     printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
            w->jobid,     j->job_id,
            w->user,      uid_to_name(j->uid),
-           w->stat,      job_status_str(j->status),
+           w->stat,      job_state_str(j->state),
            w->queue,     j->queue,
            w->exec_host, exec_host,
            w->name,      j->name,
@@ -193,7 +196,8 @@ main(int argc, char **argv)
             usage();
             return 0;
         case 'a':
-            flags |= LLB_JOB_PEND | LLB_JOB_RUN | LLB_JOB_DONE;
+            flags |= LLB_JOB_PEND | LLB_JOB_RUN | LLB_JOB_SUSP
+                | LLB_JOB_DONE | LLB_JOB_HELD;
             break;
         case 'p':
             flags |= LLB_JOB_PEND;

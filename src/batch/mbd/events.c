@@ -72,7 +72,7 @@ static void replay_charge_running_job(struct job_data *job)
         h->res.free_storage_mb -= job->res.storage_mb;
         h->num_jobs++;
 
-        if (job->status & JOB_STAT_SUSP)
+        if (job->state == JOB_SUSPENDED)
             h->num_susp++;
         else
             h->num_run++;
@@ -110,7 +110,7 @@ static void replay_rebuild_counters(void)
             continue;
 
         job->queue->num_jobs++;
-        if (job->status & JOB_STAT_PSUSP)
+        if (job->state == JOB_HELD)
             job->queue->num_susp++;
         else
             job->queue->num_pend++;
@@ -124,7 +124,7 @@ static void replay_rebuild_counters(void)
             continue;
 
         job->queue->num_jobs++;
-        if (job->status & JOB_STAT_SUSP)
+        if (job->state == JOB_SUSPENDED)
             job->queue->num_susp++;
         else
             job->queue->num_run++;
@@ -141,7 +141,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.job_id      = job->job_id;
     e.uid         = (uid_t)ws->uid;
     e.gid         = (gid_t)ws->gid;
-    e.status      = job->status;
+    e.state      = job->state;
     e.submit_time = job->submit_time;
     e.begin_time  = (time_t)ws->begin_time;
     e.term_time   = (time_t)ws->term_time;
@@ -267,7 +267,7 @@ void event_job_finish(const struct job_data *job)
 
     e.job_id      = job->job_id;
     e.uid         = job->uid;
-    e.status      = job->status;
+    e.state      = job->state;
     e.exit_status = job->exit_status;
     e.submit_time = job->submit_time;
     e.dispatch_time  = job->dispatch_time;
@@ -335,24 +335,6 @@ void event_job_susp(const struct job_data *job)
     fclose(fp);
 }
 
-void event_job_unknown(const struct job_data *job)
-{
-    struct log_job_unknown e;
-    memset(&e, 0, sizeof(struct log_job_unknown));
-
-    e.job_id = job->job_id;
-    e.status = job->status;
-    e.event_time = time(NULL);
-
-    FILE *fp = open_events();
-    if (log_write_job_unknown(fp, &e) < 0) {
-        fclose(fp);
-        LS_ERR("log_write_job_susp failed job_id=%ld", job->job_id);
-        mbd_die(MBD_EXIT_EVENTS);
-    }
-    fclose(fp);
-}
-
 /* -----------------------------------------------------------------------
  * replay
  * ----------------------------------------------------------------------- */
@@ -367,7 +349,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->job_id          = e->job_id;
     job->uid             = e->uid;
     job->gid             = e->gid;
-    job->status          = e->status;
+    job->state          = e->state;
     job->submit_time     = e->submit_time;
     job->begin_time      = e->begin_time;
     job->term_time       = e->term_time;
@@ -391,7 +373,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     if (job->queue == NULL) {
         LS_ERR("job_id=%ld queue='%s' not found, orphaned",
                e->job_id, e->queue);
-        job->status = JOB_STAT_ORPHAN;
+        job->state = JOB_ORPHAN;
     }
 
     return job;
@@ -486,12 +468,12 @@ static void replay_job_start(const struct event_rec *rec)
     }
     if (replay_set_run_hosts(job, &e) < 0) {
         LS_ERR("job_id=%ld orphaned replay_set_run_hosts failed", e.job_id);
-        job->status = JOB_STAT_ORPHAN;
+        job->state = JOB_ORPHAN;
         // make sure later on we dont reply this job
         job->run_nhosts = 0;
         return;
     }
-    job->status = JOB_STAT_RUN;
+    job->state = JOB_RUNNING;
     job->dispatch_time = e.dispatch_time;
     ll_strlcpy(job->exec_host, e.exec_host, sizeof(job->exec_host));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
@@ -564,7 +546,7 @@ static void replay_job_finish(const struct event_rec *rec)
         return;
     }
 
-    job->status         = e.status;
+    job->state         = e.state;
     job->exit_status    = e.exit_status;
     job->uid            = e.uid;
     job->submit_time    = e.submit_time;
@@ -591,12 +573,12 @@ static void replay_job_pend_susp(const struct event_rec *rec)
         LS_ERRX("JOB_PEND_SUSP job_id=%ld not found", e.job_id);
         return;
     }
-    if (!(job->status & JOB_STAT_PEND)) {
+    if (!(job->state == JOB_PENDING)) {
         LS_ERRX("JOB_PEND_SUSP job_id=%ld not in PEND", e.job_id);
         assert(0);
         return;
     }
-    job->status = JOB_STAT_PSUSP;
+    job->state = JOB_HELD;
     LS_DEBUG("JOB_PEND_SUSP job_id=%ld", e.job_id);
 }
 
@@ -612,12 +594,12 @@ static void replay_job_pending_resume(const struct event_rec *rec)
         LS_ERRX("JOB_RESUME job_id=%ld not found", e.job_id);
         return;
     }
-    if (!(job->status & JOB_STAT_PSUSP)) {
+    if (!(job->state == JOB_HELD)) {
         LS_ERRX("JOB_PENDING_RESUME job_id=%ld not in PEND_SUSP", e.job_id);
         assert(0);
         return;
     }
-    job->status = JOB_STAT_PEND;
+    job->state = JOB_PENDING;
     LS_DEBUG("JOB_RESUME job_id=%ld", e.job_id);
 }
 
@@ -633,28 +615,8 @@ static void replay_job_susp(const struct event_rec *rec)
         LS_ERRX("JOB_SUSP job_id=%ld not found", e.job_id);
         return;
     }
-    job->status = JOB_STAT_SUSP;
+    job->state = JOB_SUSPENDED;
     LS_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
-}
-
-static void replay_job_unknown(const struct event_rec *rec)
-{
-    struct log_job_unknown e;
-
-    if (log_parse_job_unknown(rec, &e) < 0) {
-        LS_ERR("parse JOB_STAT_UNKNOWN failed");
-        return;
-    }
-    struct job_data *job = job_find(e.job_id);
-    if (job == NULL) {
-        LS_ERRX("job_id=%ld not found", e.job_id);
-        return;
-    }
-    job->status = e.status;
-    job->unknown_time = e.event_time;
-
-    LS_DEBUG("job_id=%ld status=%s time=%s", e.job_id,
-             job_stat_str(job->status), ctime2(&job->unknown_time));
 }
 
 void reopen_job_events(void)
@@ -765,10 +727,6 @@ int jobs_replay(void)
         }
         if (rec.type == EVENT_JOB_SUSP) {
             replay_job_susp(&rec);
-            continue;
-        }
-        if (rec.type == EVENT_JOB_UNKNOWN) {
-            replay_job_unknown(&rec);
             continue;
         }
     }

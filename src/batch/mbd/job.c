@@ -57,9 +57,9 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->gid = (gid_t)ws->gid;
     job->priority = 0;
     job->flags = ws->flags;
-    job->status = JOB_STAT_PEND;
+    job->state = JOB_PENDING;
     if (job->flags & JOB_FLAG_HOLD)
-        job->status = JOB_STAT_PSUSP;
+        job->state = JOB_HELD;
     job->submit_time = time(NULL);
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
     job->begin_time = (time_t)ws->begin_time;
@@ -392,9 +392,9 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
                r.job_id, chan_addr_str(n->sbd_chan));
         return;
     }
-    if (r.status != JOB_STAT_RUN) {
-        LS_ERR("job=%ld unexpected status=%d from=%s - admin intervention required",
-               r.job_id, r.status, chan_addr_str(n->sbd_chan));
+    if (r.state != JOB_RUNNING) {
+        LS_ERR("job=%ld unexpected state=%d from=%s - admin intervention required",
+               r.job_id, r.state, chan_addr_str(n->sbd_chan));
         return;
     }
 
@@ -435,7 +435,7 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
 
     job->usage.pid = (pid_t)r.pid;
     job->fork_time = time(NULL);
-    job->status = JOB_STAT_RUN;
+    job->state = JOB_RUNNING;
     event_job_fork(job);
     LS_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
 }
@@ -456,7 +456,7 @@ void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
         LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
         return;
     }
-    assert(job->status == JOB_STAT_RUN);
+    assert(job->state == JOB_RUNNING);
 
     int duplicate = 0;
     /* duplicate: skip event log, sbd resends if it restarts before ack
@@ -509,10 +509,10 @@ static void reset_host_resources(struct job_data *job)
         h->res.free_storage_mb += job->res.storage_mb;
         h->num_jobs--;
 
-        if (job->status & JOB_STAT_RUN)
+        if (job->state == JOB_RUNNING)
             h->num_run--;
 
-        if (job->status & JOB_STAT_SUSP)
+        if (job->state == JOB_SUSPENDED)
             h->num_susp--;
 
         if (job->flags & JOB_FLAG_EXCLUSIVE)
@@ -563,7 +563,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         goto send_ack;
     }
     // run the assert only the first time sbd is reporting job finished
-    assert((job->status & JOB_STAT_RUN) || (job->status & JOB_STAT_SUSP));
+    assert((job->state == JOB_RUNNING) || (job->state == JOB_SUSPENDED));
 
 send_ack:
     struct wire_job_ack ack;
@@ -594,26 +594,26 @@ send_ack:
     job->end_time = time(NULL);
     job->exit_status = s.state;
 
-    // this function depends on the status of the job not
+    // this function depends on the state of the job not
     // being DONE|EXIT yet
     reset_host_resources(job);
 
     if (s.state == 0)
-        job->status = JOB_STAT_DONE;
+        job->state = JOB_DONE;
     else
-        job->status = JOB_STAT_EXIT;
+        job->state = JOB_EXITED;
 
     job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
 
-    LS_INFO("job=%ld finish acked status=%s", s.job_id,
-            job_stat_str(job->status));
+    LS_INFO("job=%ld finish acked state=%s", s.job_id,
+            job_state_str(job->state));
 
     event_job_finish(job);
 
-    if (job->status & JOB_STAT_RUN)
+    if (job->state == JOB_RUNNING)
         job->queue->num_run--;
 
-    if (job->status & JOB_STAT_SUSP)
+    if (job->state == JOB_SUSPENDED)
         job->queue->num_susp--;
 
     job->queue->num_jobs--;
@@ -630,36 +630,26 @@ send_ack:
     mbd_assert_counters();
 }
 
-char *job_stat_str(int status)
+char *job_state_str(int state)
 {
-    static char buf[64];
-
-    buf[0] = 0;
-    int n = 0;
-
-    if (status & JOB_STAT_PEND)
-        n += snprintf(buf+n, sizeof(buf)-n, "PEND|");
-    if (status & JOB_STAT_PSUSP)
-        n += snprintf(buf+n, sizeof(buf)-n, "PSUSP|");
-    if (status & JOB_STAT_RUN)
-        n += snprintf(buf+n, sizeof(buf)-n, "RUN|");
-    if (status & JOB_STAT_SUSP)
-        n += snprintf(buf+n, sizeof(buf)-n, "SUSP|");
-    if (status & JOB_STAT_EXIT)
-        n += snprintf(buf+n, sizeof(buf)-n, "EXIT|");
-    if (status & JOB_STAT_DONE)
-        n += snprintf(buf+n, sizeof(buf)-n, "DONE|");
-    if (status & JOB_STAT_ORPHAN)
-        n += snprintf(buf+n, sizeof(buf)-n, "ORPHAN|");
-    if (status & JOB_STAT_UNKNOWN)
-        n += snprintf(buf+n, sizeof(buf)-n, "UNKNOWN|");
-
-    if (n > 0)
-        buf[n - 1] = 0;
-    else
-        snprintf(buf, sizeof(buf), "?(0x%x)", status);
-
-    return buf;
+    switch (state) {
+    case JOB_PENDING:
+        return "PEND";
+    case JOB_HELD:
+        return "HELD";
+    case JOB_RUNNING:
+        return "RUN";
+    case JOB_SUSPENDED:
+        return "SUSP";
+    case JOB_EXITED:
+        return "EXIT";
+    case JOB_DONE:
+        return "DONE";
+    case JOB_ORPHAN:
+        return "ORPHAN";
+    default:
+        return "BADSTATE";
+    }
 }
 
 void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
@@ -689,13 +679,13 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
     }
 
     if (sig.sig == SIGSTOP || sig.sig == SIGTSTP) {
-        job->status = JOB_STAT_SUSP;
+        job->state = JOB_SUSPENDED;
         job->queue->num_run--;
         job->queue->num_susp++;
         n->num_susp++;
         n->num_run--;
     } else if (sig.sig == SIGCONT) {
-        job->status = JOB_STAT_RUN;
+        job->state = JOB_RUNNING;
         job->queue->num_susp--;
         job->queue->num_run++;
         n->num_susp--;
@@ -731,7 +721,7 @@ void mbd_assert_counters(void)
 
             num_jobs++;
 
-            if (job->status & JOB_STAT_SUSP)
+            if (job->state == JOB_SUSPENDED)
                 num_susp++;
             else
                 num_run++;
@@ -754,6 +744,7 @@ void mbd_assert_counters(void)
         int num_pend = 0;
         int num_run = 0;
         int num_susp = 0;
+        int num_held = 0;
 
         for (je = pend_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *)je;
@@ -763,9 +754,9 @@ void mbd_assert_counters(void)
 
             num_jobs++;
 
-            if (job->status & JOB_STAT_PSUSP)
-                num_susp++;
-            else
+            if (job->state == JOB_HELD)
+                num_held++;
+            if (job->state == JOB_PENDING)
                 num_pend++;
         }
 
@@ -777,20 +768,23 @@ void mbd_assert_counters(void)
 
             num_jobs++;
 
-            if (job->status & JOB_STAT_SUSP)
+            if (job->state == JOB_SUSPENDED)
                 num_susp++;
             else
                 num_run++;
         }
 
         if (q->num_jobs != num_jobs || q->num_pend != num_pend
-            || q->num_run != num_run || q->num_susp != num_susp) {
-            LS_ERRX("queue=%s bad counters jobs=%d/%d pend=%d/%d run=%d/%d susp=%d/%d",
+            || q->num_run != num_run || q->num_susp != num_susp
+            || q->num_held != num_held) {
+            LS_ERRX("queue=%s bad counters jobs=%d/%d pend=%d/%d run=%d/%d "
+                    "susp=%d/%d held=%d/%d",
                     q->name,
                     q->num_jobs, num_jobs,
                     q->num_pend, num_pend,
                     q->num_run, num_run,
-                    q->num_susp, num_susp);
+                    q->num_susp, num_susp,
+                    q->num_held, num_held);
             assert(0);
         }
     }

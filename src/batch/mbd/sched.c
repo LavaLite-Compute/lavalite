@@ -61,7 +61,7 @@ static int mark_candidates(void)
 
         h->candidate = 0;
 
-        if (h->status != HOST_OK)
+        if (h->state != HOST_OK)
             continue;
         if (h->sbd_chan < 0)
             continue;
@@ -85,7 +85,7 @@ static int is_depend_ok(const struct job_data *job)
 
 static int job_is_ready(const struct job_data *job)
 {
-    if (!(job->status & JOB_STAT_PEND))
+    if (!(job->state == JOB_PENDING))
         return 0;
     if (job->begin_time > 0 && job->begin_time > time(NULL))
         return 0;

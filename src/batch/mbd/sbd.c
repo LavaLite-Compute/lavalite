@@ -45,7 +45,6 @@ static int build_sbd_run_list(struct mbd_host *n,
         struct job_data *job = (struct job_data *)e;
         if (job->run_hosts[0] != n)
             continue;
-        job->status &= ~JOB_STAT_UNKNOWN;
         reg_ack->jobs[i].job_id = job->job_id;
         reg_ack->jobs[i].pid    = (int32_t)job->usage.pid;
         i++;
@@ -98,10 +97,10 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     }
 
     // good bye bits
-    n->status = HOST_OK;
+    n->state = HOST_OK;
 
-    LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d status=%d",
-            hostname, n->net.name, n->net.addr, chan_id, n->status);
+    LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d",
+            hostname, n->net.name, n->net.addr, chan_id, n->state);
 
     struct protocol_header hdr;
     memset(&hdr, 0, sizeof(struct protocol_header));
@@ -214,25 +213,11 @@ int mbd_sbd_disconnect(struct mbd_host *n)
             n->net.name, n->net.addr);
 
     n->sbd_chan = -1;
-    n->status = HOST_UNAVAIL;
+    n->state = HOST_UNAVAIL;
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", chan_id);
     ll_hash_remove(&sbd_chan_hash, key);
     chan_shutdown(chan_id);
-
-    // traverse the list of jobs running on this host
-    // and set them to state unknown
-    struct ll_list_entry *e;
-    for (e = run_jobs_list.head; e != NULL; e = e->next) {
-        struct job_data *job = (struct job_data *)e;
-        if (job->run_hosts[0] != n)
-            continue;
-        if (job->status & JOB_STAT_UNKNOWN)
-            continue;
-        job->status |= JOB_STAT_UNKNOWN;
-        event_job_unknown(job);
-        LS_DEBUG("job=%ld status=%s", job->job_id, job_stat_str(job->status));
-    }
 
     return 0;
 }
@@ -440,7 +425,7 @@ int mbd_dispatch_job(struct job_data *job)
     /* update job state */
     ll_strlcpy(job->exec_host, h->net.name, sizeof(job->exec_host));
     job->dispatch_time = time(NULL);
-    job->status = JOB_STAT_RUN;
+    job->state = JOB_RUNNING;
 
     event_job_start(job);
 

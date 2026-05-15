@@ -9,21 +9,19 @@
 #include "config.h"
 
 /* -----------------------------------------------------------------------
- * Job status
- * ----------------------------------------------------------------------- */
-#define JOB_STAT_PEND    0x01   /* pending */
-#define JOB_STAT_PSUSP   0x02   /* suspended while pending */
-#define JOB_STAT_RUN     0x04   /* running */
-#define JOB_STAT_SUSP    0x08   /* suspended by system */
-#define JOB_STAT_EXIT    0x20   /* exited */
-#define JOB_STAT_DONE    0x40   /* done */
-#define JOB_STAT_ORPHAN  0x80   /* where is my queue/or host? */
-#define JOB_STAT_UNKNOWN 0x10000
-
-#define JOB_IS_PEND(s) ((s) & (JOB_STAT_PEND | JOB_STAT_PSUSP))
-#define JOB_IS_RUN(s)  ((s) & (JOB_STAT_RUN  | JOB_STAT_SUSP))
-#define JOB_IS_DONE(s) ((s) & (JOB_STAT_DONE | JOB_STAT_EXIT))
-#define JOB_IS_SUSP(s) ((s) & (JOB_STAT_PSUSP | JOB_STAT_SUSP))
+ * Job state
+ * -----------------------------------------------------------------------
+ */
+enum job_state {
+    JOB_PENDING = 1,
+    JOB_HELD,
+    JOB_RUNNING,
+    JOB_SUSPENDED,
+    JOB_EXITED,
+    JOB_DONE,
+    JOB_ORPHAN,
+    JOB_UNKNOWN,
+};
 
 /* -----------------------------------------------------------------------
  * Host status
@@ -76,6 +74,7 @@ struct job_submit {
 #define LLB_JOB_PEND 0x0002
 #define LLB_JOB_SUSP 0x0004
 #define LLB_JOB_RUN  0x0008
+#define LLB_JOB_HELD 0x0010
 
 /* runtime resource usage, reported periodically by sbd via cgroup */
 struct job_res_info {
@@ -87,7 +86,7 @@ struct job_res_info {
 struct job_info {
     int64_t  job_id;
     uid_t    uid;
-    int32_t  status;
+    int32_t  state;
     int32_t  exit_status;
     int32_t  priority;
     time_t   submit_time;
@@ -104,7 +103,7 @@ struct job_info {
 
 struct host_info {
     char    *name;
-    int32_t  status;
+    int32_t  state;
     int32_t  max_jobs;
     int32_t  total_cpu;
     int32_t  total_gpu;
@@ -131,6 +130,7 @@ struct queue_info {
     int32_t num_pend;
     int32_t num_run;
     int32_t num_susp;
+    int32_t num_held;
 };
 
 struct job_signal {

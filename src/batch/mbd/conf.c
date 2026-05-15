@@ -284,7 +284,7 @@ static struct mbd_host *make_host(const char *p)
     h->res.free_mem_mb     = h->res.total_mem_mb;
     h->res.free_storage_mb = h->res.total_storage_mb;
     h->sbd_chan = -1;
-    h->status   = HOST_UNAVAIL;
+    h->state   = HOST_UNAVAIL;
 
     return h;
 }
@@ -502,7 +502,7 @@ static int commit_queue(struct queue_conf *qc)
     ll_strlcpy(q->users,      qc->users,       LL_BUFSIZ_256);
 
     q->priority = qc->priority;
-    q->status = QUEUE_OPEN;
+    q->state = QUEUE_OPEN;
 
     ll_list_append(&queue_list, &q->ent);
     ll_hash_insert(&queue_name_hash, q->name, q, 0);
@@ -732,7 +732,7 @@ static int parse_sim(const char *path)
         ll_list_init(&h->res.gpu_list);
         h->port     = (uint16_t)port;
         h->sbd_chan = -1;
-        h->status   = HOST_UNAVAIL;
+        h->state   = HOST_UNAVAIL;
 
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);

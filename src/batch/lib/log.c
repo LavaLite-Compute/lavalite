@@ -26,7 +26,6 @@ static const char *event_names[] = {
     [EVENT_JOB_PEND_SUSP]   = "JOB_PEND_SUSP",
     [EVENT_JOB_PEND_RESUME] = "JOB_PEND_RESUME",
     [EVENT_JOB_SUSP]        = "JOB_SUSP",
-    [EVENT_JOB_UNKNOWN]     = "JOB_UNKNOWN",
     [EVENT_COUNT]           = NULL,
 };
 
@@ -122,7 +121,7 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
     if (write_hdr(fp, EVENT_JOB_NEW, j->submit_time) < 0)
         return -1;
     if (fprintf(fp, " %ld %u %u %d %ld %ld %ld %d %d %d %d %lu %lu %u",
-                j->job_id, j->uid, j->gid, j->status,
+                j->job_id, j->uid, j->gid, j->state,
                 (long)j->submit_time, (long)j->begin_time, (long)j->term_time,
                 j->num_cpu, j->num_hosts, j->num_gpus, j->wall_seconds,
                 j->mem_mb, j->storage_mb, j->flags) < 0)
@@ -150,7 +149,7 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
     const char *p = rec->rest;
     int cc;
     int n = sscanf(p, " %ld %u %u %d %ld %ld %ld %d %d %d %d %lu %lu %u%n",
-                   &j->job_id, &j->uid, &j->gid, &j->status,
+                   &j->job_id, &j->uid, &j->gid, &j->state,
                    &j->submit_time, &j->begin_time, &j->term_time,
                    &j->num_cpu, &j->num_hosts, &j->num_gpus, &j->wall_seconds,
                    &j->mem_mb, &j->storage_mb, &j->flags, &cc);
@@ -326,7 +325,7 @@ int log_write_job_finish(FILE *fp, const struct log_job_finish *j)
         return -1;
     if (fprintf(fp, " %ld %u %d %d %ld %ld %ld %.4f",
                 (long)j->job_id, (unsigned)j->uid,
-                j->status, j->exit_status,
+                j->state, j->exit_status,
                 (long)j->submit_time, (long)j->dispatch_time, (long)j->end_time,
                 j->cpu_time) < 0)
         return -1;
@@ -347,7 +346,7 @@ int log_parse_job_finish(const struct event_rec *rec, struct log_job_finish *j)
     int cc;
     int n = sscanf(p, " %ld %u %d %d %ld %ld %ld %lf%n",
                    &j->job_id, (unsigned *)&j->uid,
-                   &j->status, &j->exit_status,
+                   &j->state, &j->exit_status,
                    &j->submit_time, &j->dispatch_time, &j->end_time,
                    &j->cpu_time, &cc);
     if (n != 8) {
@@ -429,30 +428,6 @@ int log_parse_job_susp(const struct event_rec *rec, struct log_job_susp *j)
 {
     int n = sscanf(rec->rest, " %ld", &j->job_id);
     if (n != 1) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    j->event_time = rec->event_time;
-
-    return 0;
-}
-
-int log_write_job_unknown(FILE *fp, const struct log_job_unknown *j)
-{
-    if (write_hdr(fp, EVENT_JOB_UNKNOWN, j->event_time) < 0)
-        return -1;
-    if (fprintf(fp, " %ld", (long)j->job_id) < 0)
-        return -1;
-    if (fprintf(fp, " %d\n", j->status) < 0)
-        return -1;
-    return 0;
-}
-
-int log_parse_job_unknown(const struct event_rec *rec, struct log_job_unknown *j)
-{
-    int n = sscanf(rec->rest, " %ld %d", &j->job_id, &j->status);
-    if (n != 2) {
         errno = EINVAL;
         return -1;
     }

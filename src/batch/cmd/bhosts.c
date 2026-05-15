@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include "llbatch.h"
 
-static const char *host_status_str(int32_t status)
+static const char *host_state_str(int32_t status)
 {
     const char *state;
     static char buf[32];
@@ -49,7 +49,7 @@ static int ndigits(int32_t n)
 
 struct col_widths {
     int name;
-    int status;
+    int state;
     int max;
     int cpu;
     int mem;
@@ -78,7 +78,7 @@ compute_widths(struct host_info *h, int n, struct col_widths *w)
     char tmp[FMT_BUF_LEN];
 
     w->name    = strlen("HOST_NAME");
-    w->status  = strlen("STATUS");
+    w->state  = strlen("STATE");
     w->max     = strlen("MAX");
     w->cpu     = strlen("CPU");
     w->mem     = strlen("MEM");
@@ -94,7 +94,7 @@ compute_widths(struct host_info *h, int n, struct col_widths *w)
         fmt_mb(h[i].total_storage_mb, tmp, sizeof(tmp));
         w->storage = imax(w->storage, (int)strlen(tmp));
         w->name    = imax(w->name,    (int)strlen(h[i].name));
-        w->status  = imax(w->status,  (int)strlen(host_status_str(h[i].status)));
+        w->state  = imax(w->state,  (int)strlen(host_state_str(h[i].state)));
         w->max     = imax(w->max,     ndigits(h[i].max_jobs));
         w->cpu     = imax(w->cpu,     ndigits(h[i].total_cpu));
         w->gpu     = imax(w->gpu,     ndigits(h[i].total_gpu));
@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 
     printf("%-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s\n",
            w.name,    "HOST_NAME",
-           w.status,  "STATUS",
+           w.state,  "STATE",
            w.max,     "MAX",
            w.cpu,     "CPU",
            w.mem,     "MEM",
@@ -160,7 +160,7 @@ int main(int argc, char **argv)
         fmt_mb(hosts[i].total_storage_mb, stor_buf, sizeof(stor_buf));
         printf("%-*s  %-*s  %*d  %*d  %*s  %*s  %*d  %*d  %*d  %*d\n",
                w.name,    hosts[i].name,
-               w.status,  host_status_str(hosts[i].status),
+               w.state,  host_state_str(hosts[i].state),
                w.max,     hosts[i].max_jobs,
                w.cpu,     hosts[i].total_cpu,
                w.mem,     mem_buf,

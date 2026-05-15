@@ -98,6 +98,7 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
         dst->num_pend = src->num_pend;
         dst->num_run  = src->num_run;
         dst->num_susp = src->num_susp;
+        dst->num_held = src->num_held;
     }
 
     *nqueues = w.nqueues;
@@ -316,7 +317,7 @@ struct host_info *llb_host_info(int32_t *nhosts)
     for (int i = 0; i < w.nhosts; i++) {
 
         out[i].name             = strdup(w.hosts[i].name);
-        out[i].status            = w.hosts[i].status;
+        out[i].state            = w.hosts[i].state;
         out[i].max_jobs          = w.hosts[i].max_jobs;
         out[i].total_cpu         = w.hosts[i].total_cpu;
         out[i].total_gpu         = w.hosts[i].total_gpu;
@@ -424,7 +425,7 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
 
         dst->job_id      = src->job_id;
         dst->uid         = src->uid;
-        dst->status      = src->status;
+        dst->state      = src->state;
         dst->exit_status = src->exit_status;
         dst->priority    = src->priority;
         dst->submit_time = src->submit_time;
