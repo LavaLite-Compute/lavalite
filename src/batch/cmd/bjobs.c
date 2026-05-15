@@ -87,7 +87,7 @@ struct col_widths {
     int user;
     int stat;
     int queue;
-    int exec_host;
+    int exec_hosts;
     int name;
 };
 
@@ -96,13 +96,13 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
 {
     int i;
     struct job_info *j;
-    const char *exec_host;
+    const char *exec_hosts;
 
     w->jobid     = (int)strlen("JOBID");
     w->user      = (int)strlen("USER");
     w->stat      = (int)strlen("STAT");
     w->queue     = (int)strlen("QUEUE");
-    w->exec_host = (int)strlen("EXEC_HOST");
+    w->exec_hosts = (int)strlen("EXEC_HOSTS");
     w->name      = (int)strlen("JOB_NAME");
 
     for (i = 0; i < n; i++) {
@@ -114,8 +114,8 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
         w->queue     = imax(w->queue,     (int)strlen(j->queue));
         w->name      = imax(w->name,      (int)strlen(j->name));
 
-        exec_host = (j->exec_host[0] != '\0') ? j->exec_host : "-";
-        w->exec_host = imax(w->exec_host, (int)strlen(exec_host));
+        exec_hosts = (j->exec_hosts[0] != '\0') ? j->exec_hosts : "-";
+        w->exec_hosts = imax(w->exec_hosts, (int)strlen(exec_hosts));
     }
 }
 
@@ -127,7 +127,7 @@ print_header(const struct col_widths *w)
            w->user,      "USER",
            w->stat,      "STAT",
            w->queue,     "QUEUE",
-           w->exec_host, "EXEC_HOST",
+           w->exec_hosts, "EXEC_HOSTS",
            w->name,      "JOB_NAME",
            "SUBMIT_TIME");
 }
@@ -135,16 +135,16 @@ print_header(const struct col_widths *w)
 static void
 print_job(const struct job_info *j, const struct col_widths *w)
 {
-    const char *exec_host;
+    const char *exec_hosts;
 
-    exec_host = (j->exec_host[0] != '\0') ? j->exec_host : "-";
+    exec_hosts = (j->exec_hosts[0] != '\0') ? j->exec_hosts : "-";
 
     printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
            w->jobid,     j->job_id,
            w->user,      uid_to_name(j->uid),
            w->stat,      job_state_str(j->state),
            w->queue,     j->queue,
-           w->exec_host, exec_host,
+           w->exec_hosts, exec_hosts,
            w->name,      j->name,
            fmt_time(j->submit_time));
 }

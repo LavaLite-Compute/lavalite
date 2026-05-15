@@ -199,7 +199,7 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
         return false;
     if (!xdr_opaque(xdrs, p->from_host, sizeof(p->from_host)))
         return false;
-    if (!xdr_opaque(xdrs, p->exec_host, sizeof(p->exec_host)))
+    if (!xdr_opaque(xdrs, p->exec_hosts, sizeof(p->exec_hosts)))
         return false;
     if (!xdr_opaque(xdrs, p->comment, sizeof(p->comment)))
         return false;

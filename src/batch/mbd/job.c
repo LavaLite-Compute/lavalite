@@ -702,6 +702,7 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
     mbd_assert_counters();
 }
 
+// cross check counters computationally expensive
 void mbd_assert_counters(void)
 {
     struct ll_list_entry *e;
@@ -723,8 +724,10 @@ void mbd_assert_counters(void)
 
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
-            else
+            else if (job->state == JOB_RUNNING)
                 num_run++;
+            else
+                assert(0);
         }
 
         if (h->num_jobs != num_jobs || h->num_run != num_run
@@ -756,8 +759,10 @@ void mbd_assert_counters(void)
 
             if (job->state == JOB_HELD)
                 num_held++;
-            if (job->state == JOB_PENDING)
+            else if (job->state == JOB_PENDING)
                 num_pend++;
+            else
+                assert(0);
         }
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
@@ -770,8 +775,10 @@ void mbd_assert_counters(void)
 
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
-            else
+            else if (job->state == JOB_RUNNING)
                 num_run++;
+            else
+                assert(0);
         }
 
         if (q->num_jobs != num_jobs || q->num_pend != num_pend

@@ -438,7 +438,7 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
         dst->name      = strdup(src->name);
         dst->queue     = strdup(src->queue);
         dst->from_host = strdup(src->from_host);
-        dst->exec_host = strdup(src->exec_host);
+        dst->exec_hosts = strdup(src->exec_hosts);
         dst->comment   = strdup(src->comment);
     }
 
@@ -457,7 +457,7 @@ void llb_free_job_info(struct job_info *jobs, int32_t n)
         free(jobs[i].name);
         free(jobs[i].queue);
         free(jobs[i].from_host);
-        free(jobs[i].exec_host);
+        free(jobs[i].exec_hosts);
         free(jobs[i].comment);
     }
     free(jobs);

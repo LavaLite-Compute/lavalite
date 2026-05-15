@@ -91,14 +91,13 @@ struct job_data {
     time_t signal_time;
     struct mbd_queue *queue;
     char project[LL_BUFSIZ_256];
-    char exec_host[MAXHOSTNAMELEN];
     char name[LL_BUFSIZ_64];
     uint32_t flags;
     enum job_list_id list_id;
     struct ll_list deps;
     struct job_resources res;    /* requested at submit */
     struct job_runtime_usage usage;  /* reported by sbd */
-    int run_nhosts;
+    int run_nhosts;    /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;
 };
 

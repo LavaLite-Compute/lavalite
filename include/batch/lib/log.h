@@ -137,13 +137,8 @@ struct log_job_finish {
     uid_t    uid;
     int32_t  state;        /* JOB_STAT_EXIT, JOB_STAT_DONE         */
     int32_t  exit_status;
-    time_t   submit_time;
-    time_t   dispatch_time;
     time_t   end_time;      /* mbd clock: set by caller before write */
     double   cpu_time;
-    char     job_name[LL_BUFSIZ_64];
-    char     queue[LL_BUFSIZ_64];
-    char     exec_host[MAXHOSTNAMELEN];
 };
 
 /*

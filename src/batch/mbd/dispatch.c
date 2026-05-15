@@ -219,9 +219,6 @@ int jobs_signal(XDR *xdrs, int chan_id)
 }
 
 
-/* -----------------------------------------------------------
- * job info
- * ----------------------------------------------------------- */
 static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w)
 {
     memset(w, 0, sizeof(*w));
@@ -247,7 +244,13 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
     w->res.cpu_time = job->usage.cpu_time;
     ll_strlcpy(w->name, job->name,  sizeof(w->name));
     ll_strlcpy(w->queue, job->queue->name, sizeof(w->queue));
-    ll_strlcpy(w->exec_host, job->exec_host, sizeof(w->exec_host));
+
+    for (int i = 0; i < job->run_nhosts; i++) {
+
+        ll_strlcat(w->exec_hosts, job->run_hosts[i]->net.name,
+                   sizeof(w->exec_hosts));
+        ll_strlcat(w->exec_hosts, " ", sizeof(w->exec_hosts));
+    }
 }
 
 /*
@@ -282,14 +285,19 @@ int jobs_info(XDR *xdrs, int chan_id)
                + ll_list_count(&run_jobs_list)
                + ll_list_count(&finish_jobs_list);
 
-    struct wire_job_info *jobs = calloc(ntotal ? ntotal : 1,
-                                        sizeof(struct wire_job_info));
+    int n = 0;
+    struct wire_job_info *jobs = NULL;
+    if (ntotal == 0) {
+        n = 0;
+        jobs = NULL;
+        goto send;
+    }
+
+    jobs = calloc(ntotal, sizeof(struct wire_job_info));
     if (jobs == NULL) {
         LS_ERR("calloc failed");
         return -1;
     }
-
-    int n = 0;
 
     if (req.job_id != -1) {
         struct job_data *job = job_find(req.job_id);
@@ -321,7 +329,7 @@ send:
     reply.njobs = n;
     reply.jobs  = jobs;
 
-    size_t siz = sizeof(struct wire_job_info) * ntotal
+    size_t siz = sizeof(struct wire_job_info) * n
                + sizeof(struct wire_job_info_array)
                + PACKET_HEADER_SIZE
                + LL_BUFSIZ_64;

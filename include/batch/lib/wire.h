@@ -207,7 +207,7 @@ struct wire_job_info {
     char     name[LL_BUFSIZ_64];
     char     queue[LL_BUFSIZ_64];
     char     from_host[MAXHOSTNAMELEN];
-    char     exec_host[MAXHOSTNAMELEN];
+    char     exec_hosts[LL_BUFSIZ_4K];
     char     comment[LL_BUFSIZ_512];
     struct wire_job_resources res;
 };

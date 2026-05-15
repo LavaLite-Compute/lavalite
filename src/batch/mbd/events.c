@@ -111,9 +111,14 @@ static void replay_rebuild_counters(void)
 
         job->queue->num_jobs++;
         if (job->state == JOB_HELD)
-            job->queue->num_susp++;
-        else
+            job->queue->num_held++;
+        else if (job->state == JOB_PENDING)
             job->queue->num_pend++;
+        else {
+            LS_ERRX("job=%ld in invalid state %d in pending list", job->job_id,
+                    job->state);
+            assert(0);
+        }
     }
 
     for (e = run_jobs_list.head; e != NULL; e = e->next) {
@@ -124,11 +129,15 @@ static void replay_rebuild_counters(void)
             continue;
 
         job->queue->num_jobs++;
-        if (job->state == JOB_SUSPENDED)
-            job->queue->num_susp++;
-        else
+        if (job->state == JOB_RUNNING)
             job->queue->num_run++;
-
+        else if (job->state == JOB_SUSPENDED)
+            job->queue->num_susp++;
+        else {
+            LS_ERRX("job=%ld in invalid state %d in running list", job->job_id,
+                    job->state);
+            assert(0);
+        }
         replay_charge_running_job(job);
     }
 }
@@ -269,14 +278,8 @@ void event_job_finish(const struct job_data *job)
     e.uid         = job->uid;
     e.state      = job->state;
     e.exit_status = job->exit_status;
-    e.submit_time = job->submit_time;
-    e.dispatch_time  = job->dispatch_time;
     e.end_time    = job->end_time;
-    e.cpu_time    = job->usage.cpu_time;
-
-    ll_strlcpy(e.job_name,  job->name,        sizeof(e.job_name));
-    ll_strlcpy(e.queue,     job->queue->name,  sizeof(e.queue));
-    ll_strlcpy(e.exec_host, job->exec_host,   sizeof(e.exec_host));
+    e.cpu_time = job->usage.cpu_time;
 
     FILE *fp = open_events();
     if (log_write_job_finish(fp, &e) < 0) {
@@ -473,10 +476,11 @@ static void replay_job_start(const struct event_rec *rec)
         job->run_nhosts = 0;
         return;
     }
+
     job->state = JOB_RUNNING;
     job->dispatch_time = e.dispatch_time;
-    ll_strlcpy(job->exec_host, e.exec_host, sizeof(job->exec_host));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
+
     LS_DEBUG("JOB_START job_id=%ld exec_host=%s nhosts=%d cpus=%d gpus=%d",
              e.job_id, e.exec_host, e.nhosts, e.cpus_per_host, e.gpus_per_host);
 }
@@ -549,8 +553,6 @@ static void replay_job_finish(const struct event_rec *rec)
     job->state         = e.state;
     job->exit_status    = e.exit_status;
     job->uid            = e.uid;
-    job->submit_time    = e.submit_time;
-    job->dispatch_time  = e.dispatch_time;
     job->end_time       = e.end_time;
     job->usage.cpu_time = e.cpu_time;
 
@@ -671,6 +673,7 @@ int events_init(void)
 
     return 0;
 }
+
 int jobs_replay(void)
 {
     FILE *fp = fopen(events_path, "r");

@@ -422,8 +422,6 @@ int mbd_dispatch_job(struct job_data *job)
 
     free(ws.script.data);
 
-    /* update job state */
-    ll_strlcpy(job->exec_host, h->net.name, sizeof(job->exec_host));
     job->dispatch_time = time(NULL);
     job->state = JOB_RUNNING;
 

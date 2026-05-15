@@ -96,7 +96,7 @@ struct job_info {
     char    *name;
     char    *queue;
     char    *from_host;
-    char    *exec_host;
+    char    *exec_hosts;
     char    *comment;
     struct job_res_info res;
 };
