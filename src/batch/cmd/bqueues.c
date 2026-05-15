@@ -16,7 +16,6 @@ queue_status_str(int32_t status)
     return "closed";
 }
 
-/* column widths: floor at header length */
 struct col_widths {
     int name;
     int prio;
@@ -27,6 +26,8 @@ struct col_widths {
     int held;
     int run;
     int susp;
+    int used_cpus;
+    int used_hosts;
 };
 
 static int
@@ -48,27 +49,31 @@ ndigits(int32_t n)
 static void
 compute_widths(struct queue_info *q, int32_t n, struct col_widths *w)
 {
-    w->name   = strlen("QUEUE_NAME");
-    w->prio   = strlen("PRIO");
-    w->status = strlen("STATUS");
-    w->max    = strlen("MAX");
-    w->njobs  = strlen("NJOBS");
-    w->pend   = strlen("PEND");
-    w->held   = strlen("HELD");
-    w->run    = strlen("RUN");
-    w->susp   = strlen("SUSP");
+    w->name       = strlen("QUEUE_NAME");
+    w->prio       = strlen("PRIO");
+    w->status     = strlen("STATUS");
+    w->max        = strlen("MAX");
+    w->njobs      = strlen("NJOBS");
+    w->pend       = strlen("PEND");
+    w->held       = strlen("HELD");
+    w->run        = strlen("RUN");
+    w->susp       = strlen("SUSP");
+    w->used_cpus  = strlen("USED_CPUS");
+    w->used_hosts = strlen("USED_HOSTS");
 
     for (int i = 0; i < n; i++) {
         int njobs = q[i].num_pend + q[i].num_held + q[i].num_run + q[i].num_susp;
-        w->name   = imax(w->name,   strlen(q[i].name));
-        w->prio   = imax(w->prio,   ndigits(q[i].priority));
-        w->status = imax(w->status, strlen(queue_status_str(q[i].status)));
-        w->max    = imax(w->max,    ndigits(q[i].max_jobs));
-        w->njobs  = imax(w->njobs,  ndigits(njobs));
-        w->pend   = imax(w->pend,   ndigits(q[i].num_pend));
-        w->held   = imax(w->held,   ndigits(q[i].num_held));
-        w->run    = imax(w->run,    ndigits(q[i].num_run));
-        w->susp   = imax(w->susp,   ndigits(q[i].num_susp));
+        w->name       = imax(w->name,       strlen(q[i].name));
+        w->prio       = imax(w->prio,       ndigits(q[i].priority));
+        w->status     = imax(w->status,     strlen(queue_status_str(q[i].status)));
+        w->max        = imax(w->max,        ndigits(q[i].max_jobs));
+        w->njobs      = imax(w->njobs,      ndigits(njobs));
+        w->pend       = imax(w->pend,       ndigits(q[i].num_pend));
+        w->held       = imax(w->held,       ndigits(q[i].num_held));
+        w->run        = imax(w->run,        ndigits(q[i].num_run));
+        w->susp       = imax(w->susp,       ndigits(q[i].num_susp));
+        w->used_cpus  = imax(w->used_cpus,  ndigits(q[i].num_cpus_used));
+        w->used_hosts = imax(w->used_hosts, ndigits(q[i].num_hosts_used));
     }
 }
 
@@ -79,7 +84,7 @@ static void usage(void)
 }
 
 static struct option longopts[] = {
-    {"help", no_argument, NULL, 'h'},
+    {"help",    no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'V'},
     {NULL, 0, NULL, 0}
 };
@@ -111,28 +116,32 @@ int main(int argc, char **argv)
 
     compute_widths(q, n, &w);
 
-    printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s\n",
-           w.name,  "QUEUE_NAME",
-           w.prio,  "PRIO",
-           w.status,"STATUS",
-           w.max,   "MAX",
-           w.njobs, "NJOBS",
-           w.pend,  "PEND",
-           w.held,  "HELD",
-           w.run,   "RUN",
-           w.susp,  "SUSP");
+    printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s\n",
+           w.name,       "QUEUE_NAME",
+           w.prio,       "PRIO",
+           w.status,     "STATUS",
+           w.max,        "MAX",
+           w.njobs,      "NJOBS",
+           w.pend,       "PEND",
+           w.held,       "HELD",
+           w.run,        "RUN",
+           w.susp,       "SUSP",
+           w.used_cpus,  "USED_CPUS",
+           w.used_hosts, "USED_HOSTS");
 
     for (int i = 0; i < n; i++) {
-        printf("%-*s  %-*d  %-*s  %*d  %*d  %*d  %*d  %*d  %*d\n",
-               w.name,  q[i].name,
-               w.prio,  q[i].priority,
-               w.status,queue_status_str(q[i].status),
-               w.max,   q[i].max_jobs,
-               w.njobs, q[i].num_jobs,
-               w.pend,  q[i].num_pend,
-               w.held,  q[i].num_held,
-               w.run,   q[i].num_run,
-               w.susp,  q[i].num_susp);
+        printf("%-*s  %-*d  %-*s  %*d  %*d  %*d  %*d  %*d  %*d  %*d  %*d\n",
+               w.name,       q[i].name,
+               w.prio,       q[i].priority,
+               w.status,     queue_status_str(q[i].status),
+               w.max,        q[i].max_jobs,
+               w.njobs,      q[i].num_jobs,
+               w.pend,       q[i].num_pend,
+               w.held,       q[i].num_held,
+               w.run,        q[i].num_run,
+               w.susp,       q[i].num_susp,
+               w.used_cpus,  q[i].num_cpus_used,
+               w.used_hosts, q[i].num_hosts_used);
     }
 
     llb_free_queue_info(q, n);

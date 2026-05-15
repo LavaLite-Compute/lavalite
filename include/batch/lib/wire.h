@@ -226,9 +226,13 @@ struct wire_host_info {
     int32_t  state;
     int32_t  max_jobs;
     int32_t  total_cpu;
+    int32_t  free_cpu;
     int32_t  total_gpu;
+    int32_t  free_gpu;
     uint64_t total_mem_mb;
+    uint64_t free_mem_mb;
     uint64_t total_storage_mb;
+    uint64_t free_storage_mb;
     int32_t  num_jobs;
     int32_t  num_run;
     int32_t  num_susp;
@@ -269,6 +273,8 @@ struct wire_queue_info {
     int32_t num_run;
     int32_t num_susp;
     int32_t num_held;
+    int32_t num_cpus_used;
+    int32_t num_hosts_used;
 };
 
 struct wire_queue_info_array {

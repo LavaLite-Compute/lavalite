@@ -82,6 +82,32 @@ ndigits(int64_t n)
     return d;
 }
 
+/*
+ * Walk exec_hosts string "hostA*2 hostB*2" and return the width
+ * of the longest token.
+ */
+static int
+exec_hosts_width(const char *s)
+{
+    char buf[4096];
+    int max = 0;
+
+    if (s == NULL || s[0] == '\0')
+        return 1; /* "-" */
+
+    strncpy(buf, s, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = 0;
+
+    char *tok = strtok(buf, " ");
+    while (tok != NULL) {
+        int len = (int)strlen(tok);
+        if (len > max)
+            max = len;
+        tok = strtok(NULL, " ");
+    }
+    return max;
+}
+
 struct col_widths {
     int jobid;
     int user;
@@ -96,26 +122,23 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
 {
     int i;
     struct job_info *j;
-    const char *exec_hosts;
 
-    w->jobid     = (int)strlen("JOBID");
-    w->user      = (int)strlen("USER");
-    w->stat      = (int)strlen("STAT");
-    w->queue     = (int)strlen("QUEUE");
+    w->jobid      = (int)strlen("JOBID");
+    w->user       = (int)strlen("USER");
+    w->stat       = (int)strlen("STAT");
+    w->queue      = (int)strlen("QUEUE");
     w->exec_hosts = (int)strlen("EXEC_HOSTS");
-    w->name      = (int)strlen("JOB_NAME");
+    w->name       = (int)strlen("JOB_NAME");
 
     for (i = 0; i < n; i++) {
         j = &jobs[i];
 
-        w->jobid     = imax(w->jobid,     ndigits(j->job_id));
-        w->user      = imax(w->user,      (int)strlen(uid_to_name(j->uid)));
-        w->stat      = imax(w->stat,      (int)strlen(job_state_str(j->state)));
-        w->queue     = imax(w->queue,     (int)strlen(j->queue));
-        w->name      = imax(w->name,      (int)strlen(j->name));
-
-        exec_hosts = (j->exec_hosts[0] != '\0') ? j->exec_hosts : "-";
-        w->exec_hosts = imax(w->exec_hosts, (int)strlen(exec_hosts));
+        w->jobid      = imax(w->jobid,      ndigits(j->job_id));
+        w->user       = imax(w->user,       (int)strlen(uid_to_name(j->uid)));
+        w->stat       = imax(w->stat,       (int)strlen(job_state_str(j->state)));
+        w->queue      = imax(w->queue,      (int)strlen(j->queue));
+        w->name       = imax(w->name,       (int)strlen(j->name));
+        w->exec_hosts = imax(w->exec_hosts, exec_hosts_width(j->exec_hosts));
     }
 }
 
@@ -123,30 +146,58 @@ static void
 print_header(const struct col_widths *w)
 {
     printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
-           w->jobid,     "JOBID",
-           w->user,      "USER",
-           w->stat,      "STAT",
-           w->queue,     "QUEUE",
+           w->jobid,      "JOBID",
+           w->user,       "USER",
+           w->stat,       "STAT",
+           w->queue,      "QUEUE",
            w->exec_hosts, "EXEC_HOSTS",
-           w->name,      "JOB_NAME",
+           w->name,       "JOB_NAME",
            "SUBMIT_TIME");
 }
 
 static void
 print_job(const struct job_info *j, const struct col_widths *w)
 {
-    const char *exec_hosts;
+    char buf[4096];
+    int first = 1;
 
-    exec_hosts = (j->exec_hosts[0] != '\0') ? j->exec_hosts : "-";
+    if (j->exec_hosts == NULL || j->exec_hosts[0] == '\0') {
+        printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
+               w->jobid,      j->job_id,
+               w->user,       uid_to_name(j->uid),
+               w->stat,       job_state_str(j->state),
+               w->queue,      j->queue,
+               w->exec_hosts, "-",
+               w->name,       j->name,
+               fmt_time(j->submit_time));
+        return;
+    }
 
-    printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
-           w->jobid,     j->job_id,
-           w->user,      uid_to_name(j->uid),
-           w->stat,      job_state_str(j->state),
-           w->queue,     j->queue,
-           w->exec_hosts, exec_hosts,
-           w->name,      j->name,
-           fmt_time(j->submit_time));
+    strncpy(buf, j->exec_hosts, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = 0;
+
+    char *tok = strtok(buf, " ");
+    while (tok != NULL) {
+        if (first) {
+            printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
+                   w->jobid,      j->job_id,
+                   w->user,       uid_to_name(j->uid),
+                   w->stat,       job_state_str(j->state),
+                   w->queue,      j->queue,
+                   w->exec_hosts, tok,
+                   w->name,       j->name,
+                   fmt_time(j->submit_time));
+            first = 0;
+        } else {
+            printf("%-*s  %-*s  %-*s  %-*s  %-*s\n",
+                   w->jobid,      "",
+                   w->user,       "",
+                   w->stat,       "",
+                   w->queue,      "",
+                   w->exec_hosts, tok);
+        }
+        tok = strtok(NULL, " ");
+    }
 }
 
 static void

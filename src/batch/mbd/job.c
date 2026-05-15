@@ -321,7 +321,11 @@ int job_register(XDR *xdrs, int chan_id)
     }
 
     event_job_new(job, &ws);
-    job->queue->num_pend++;
+    if (job->state == JOB_PENDING)
+        job->queue->num_pend++;
+    else if (job->state == JOB_HELD)
+        job->queue->num_held++;
+
     job->queue->num_jobs++;
 
     LS_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d",
@@ -508,6 +512,7 @@ static void reset_host_resources(struct job_data *job)
         h->res.free_mem_mb += job->res.mem_mb;
         h->res.free_storage_mb += job->res.storage_mb;
         h->num_jobs--;
+        h->num_cpus_used -= job->res.num_cpus;
 
         if (job->state == JOB_RUNNING)
             h->num_run--;
@@ -598,6 +603,18 @@ send_ack:
     // being DONE|EXIT yet
     reset_host_resources(job);
 
+    // Update the queue counters before resetting the job state
+    if (job->state == JOB_RUNNING)
+        job->queue->num_run--;
+
+
+    if (job->state == JOB_SUSPENDED)
+        job->queue->num_susp--;
+
+    job->queue->num_cpus_used  -= job->res.num_cpus * job->run_nhosts;
+    job->queue->num_hosts_used -= job->run_nhosts;
+    job->queue->num_jobs--;
+
     if (s.state == 0)
         job->state = JOB_DONE;
     else
@@ -609,18 +626,6 @@ send_ack:
             job_state_str(job->state));
 
     event_job_finish(job);
-
-    if (job->state == JOB_RUNNING)
-        job->queue->num_run--;
-
-    if (job->state == JOB_SUSPENDED)
-        job->queue->num_susp--;
-
-    job->queue->num_jobs--;
-
-    assert(job->queue->num_run >= 0);
-    assert(job->queue->num_susp >= 0);
-    assert(job->queue->num_jobs >= 0);
 
     LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
              job->queue->name, job->queue->num_pend,
@@ -710,9 +715,10 @@ void mbd_assert_counters(void)
 
     for (e = host_list.head; e != NULL; e = e->next) {
         struct mbd_host *h = (struct mbd_host *)e;
-        int num_jobs = 0;
-        int num_run = 0;
-        int num_susp = 0;
+        int num_jobs     = 0;
+        int num_run      = 0;
+        int num_susp     = 0;
+        int num_cpus_used = 0;
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *)je;
@@ -721,6 +727,7 @@ void mbd_assert_counters(void)
                 continue;
 
             num_jobs++;
+            num_cpus_used += job->res.num_cpus;
 
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
@@ -731,23 +738,27 @@ void mbd_assert_counters(void)
         }
 
         if (h->num_jobs != num_jobs || h->num_run != num_run
-            || h->num_susp != num_susp) {
-            LS_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d",
+            || h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
+            LS_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
+                    "cpus_run=%d/%d",
                     h->net.name,
                     h->num_jobs, num_jobs,
                     h->num_run, num_run,
-                    h->num_susp, num_susp);
+                    h->num_susp, num_susp,
+                    h->num_cpus_used, num_cpus_used);
             assert(0);
         }
     }
 
     for (e = queue_list.head; e != NULL; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *)e;
-        int num_jobs = 0;
-        int num_pend = 0;
-        int num_run = 0;
-        int num_susp = 0;
-        int num_held = 0;
+        int num_jobs      = 0;
+        int num_pend      = 0;
+        int num_run       = 0;
+        int num_susp      = 0;
+        int num_held      = 0;
+        int num_cpus_used  = 0;
+        int num_hosts_used = 0;
 
         for (je = pend_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *)je;
@@ -756,7 +767,6 @@ void mbd_assert_counters(void)
                 continue;
 
             num_jobs++;
-
             if (job->state == JOB_HELD)
                 num_held++;
             else if (job->state == JOB_PENDING)
@@ -772,6 +782,8 @@ void mbd_assert_counters(void)
                 continue;
 
             num_jobs++;
+            num_cpus_used  += job->res.num_cpus * job->run_nhosts;
+            num_hosts_used += job->run_nhosts;
 
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
@@ -783,15 +795,18 @@ void mbd_assert_counters(void)
 
         if (q->num_jobs != num_jobs || q->num_pend != num_pend
             || q->num_run != num_run || q->num_susp != num_susp
-            || q->num_held != num_held) {
+            || q->num_held != num_held || q->num_cpus_used != num_cpus_used
+            || q->num_hosts_used != num_hosts_used) {
             LS_ERRX("queue=%s bad counters jobs=%d/%d pend=%d/%d run=%d/%d "
-                    "susp=%d/%d held=%d/%d",
+                    "susp=%d/%d held=%d/%d cpus_run=%d/%d hosts_run=%d/%d",
                     q->name,
                     q->num_jobs, num_jobs,
                     q->num_pend, num_pend,
                     q->num_run, num_run,
                     q->num_susp, num_susp,
-                    q->num_held, num_held);
+                    q->num_held, num_held,
+                    q->num_cpus_used, num_cpus_used,
+                    q->num_hosts_used, num_hosts_used);
             assert(0);
         }
     }

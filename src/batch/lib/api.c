@@ -99,6 +99,8 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
         dst->num_run  = src->num_run;
         dst->num_susp = src->num_susp;
         dst->num_held = src->num_held;
+        dst->num_cpus_used  = src->num_cpus_used;
+        dst->num_hosts_used = src->num_hosts_used;
     }
 
     *nqueues = w.nqueues;
@@ -315,17 +317,20 @@ struct host_info *llb_host_info(int32_t *nhosts)
     }
 
     for (int i = 0; i < w.nhosts; i++) {
-
         out[i].name             = strdup(w.hosts[i].name);
         out[i].state            = w.hosts[i].state;
-        out[i].max_jobs          = w.hosts[i].max_jobs;
-        out[i].total_cpu         = w.hosts[i].total_cpu;
-        out[i].total_gpu         = w.hosts[i].total_gpu;
-        out[i].total_mem_mb      = w.hosts[i].total_mem_mb;
-        out[i].total_storage_mb  = w.hosts[i].total_storage_mb;
-        out[i].num_jobs          = w.hosts[i].num_jobs;
-        out[i].num_run           = w.hosts[i].num_run;
-        out[i].num_susp          = w.hosts[i].num_susp;
+        out[i].max_jobs         = w.hosts[i].max_jobs;
+        out[i].total_cpu        = w.hosts[i].total_cpu;
+        out[i].free_cpu         = w.hosts[i].free_cpu;
+        out[i].total_gpu        = w.hosts[i].total_gpu;
+        out[i].free_gpu         = w.hosts[i].free_gpu;
+        out[i].total_mem_mb     = w.hosts[i].total_mem_mb;
+        out[i].free_mem_mb      = w.hosts[i].free_mem_mb;
+        out[i].total_storage_mb = w.hosts[i].total_storage_mb;
+        out[i].free_storage_mb  = w.hosts[i].free_storage_mb;
+        out[i].num_jobs         = w.hosts[i].num_jobs;
+        out[i].num_run          = w.hosts[i].num_run;
+        out[i].num_susp         = w.hosts[i].num_susp;
     }
 
     *nhosts = w.nhosts;

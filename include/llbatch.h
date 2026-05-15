@@ -23,6 +23,11 @@ enum job_state {
     JOB_UNKNOWN,
 };
 
+/* These are the classical unix job exit status values
+ */
+#define JOB_SUCCESS  0
+#define JOB_FAILURE  1
+
 /* -----------------------------------------------------------------------
  * Host status
  * ----------------------------------------------------------------------- */
@@ -102,16 +107,20 @@ struct job_info {
 };
 
 struct host_info {
-    char    *name;
-    int32_t  state;
-    int32_t  max_jobs;
-    int32_t  total_cpu;
-    int32_t  total_gpu;
-    uint64_t total_mem_mb;
-    uint64_t total_storage_mb;
-    int32_t  num_jobs;
-    int32_t  num_run;
-    int32_t  num_susp;
+    char    *name;                /* hostname */
+    int32_t  state;               /* HOST_OK | HOST_UNAVAIL | HOST_CLOSED */
+    int32_t  max_jobs;            /* max concurrent jobs, 0 = unlimited */
+    int32_t  total_cpu;           /* total CPUs available on host */
+    int32_t  free_cpu;            /* CPUs available for scheduling */
+    int32_t  total_gpu;           /* total GPUs available on host */
+    int32_t  free_gpu;            /* GPUs available for scheduling */
+    uint64_t total_mem_mb;        /* total RAM in MB */
+    uint64_t free_mem_mb;         /* RAM available for scheduling */
+    uint64_t total_storage_mb;    /* total scratch storage in MB */
+    uint64_t free_storage_mb;     /* scratch storage available for scheduling */
+    int32_t  num_jobs;            /* total jobs: run + susp */
+    int32_t  num_run;             /* running jobs */
+    int32_t  num_susp;            /* suspended jobs */
 };
 
 enum queue_stat {
@@ -120,17 +129,19 @@ enum queue_stat {
 };
 
 struct queue_info {
-    char *name;
-    char *description;
-    char *hosts;
-    int32_t status;
-    int32_t priority;
-    int32_t max_jobs;
-    int32_t num_jobs;
-    int32_t num_pend;
-    int32_t num_run;
-    int32_t num_susp;
-    int32_t num_held;
+    char    *name;                /* queue name */
+    char    *description;         /* human readable description */
+    char    *hosts;               /* host/group list allowed to run jobs */
+    int32_t  status;              /* QUEUE_OPEN | QUEUE_CLOSED */
+    int32_t  priority;            /* scheduling priority, higher wins */
+    int32_t  max_jobs;            /* max concurrent jobs, 0 = unlimited */
+    int32_t  num_jobs;            /* total: pend + held + run + susp */
+    int32_t  num_pend;            /* pending jobs */
+    int32_t  num_held;            /* held jobs */
+    int32_t  num_run;             /* running jobs */
+    int32_t  num_susp;            /* suspended jobs */
+    int32_t  num_cpus_used;        /* CPUs consumed by running jobs */
+    int32_t  num_hosts_used;       /* distinct exec hosts in use */
 };
 
 struct job_signal {

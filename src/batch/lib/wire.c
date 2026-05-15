@@ -288,11 +288,19 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->total_cpu))
         return false;
+    if (!xdr_int32_t(xdrs, &p->free_cpu))
+        return false;
     if (!xdr_int32_t(xdrs, &p->total_gpu))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->free_gpu))
         return false;
     if (!xdr_uint64_t(xdrs, &p->total_mem_mb))
         return false;
+    if (!xdr_uint64_t(xdrs, &p->free_mem_mb))
+        return false;
     if (!xdr_uint64_t(xdrs, &p->total_storage_mb))
+        return false;
+    if (!xdr_uint64_t(xdrs, &p->free_storage_mb))
         return false;
     if (!xdr_int32_t(xdrs, &p->num_jobs))
         return false;
@@ -340,6 +348,10 @@ bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *p)
     if (!xdr_int32_t(xdrs, &p->num_susp))
         return false;
     if (!xdr_int32_t(xdrs, &p->num_held))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_cpus_used))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_hosts_used))
         return false;
     return true;
 }

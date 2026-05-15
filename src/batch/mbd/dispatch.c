@@ -35,7 +35,6 @@ static int finish_pending_job(struct job_data *job, const struct wire_job_sig *w
     event_job_finish(job);
     job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
 
-
     return MBD_OK;
 }
 
@@ -246,10 +245,14 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
     ll_strlcpy(w->queue, job->queue->name, sizeof(w->queue));
 
     for (int i = 0; i < job->run_nhosts; i++) {
+        char entry[MAXHOSTNAMELEN + LL_BUFSIZ_64];
 
-        ll_strlcat(w->exec_hosts, job->run_hosts[i]->net.name,
-                   sizeof(w->exec_hosts));
-        ll_strlcat(w->exec_hosts, " ", sizeof(w->exec_hosts));
+        if (i > 0)
+            ll_strlcat(w->exec_hosts, " ", sizeof(w->exec_hosts));
+        snprintf(entry, sizeof(entry), "%d@%s",
+                 job->res.num_cpus,
+                 job->run_hosts[i]->net.name);
+        ll_strlcat(w->exec_hosts, entry, sizeof(w->exec_hosts));
     }
 }
 
@@ -380,6 +383,9 @@ int queues_info(XDR *xdrs, int chan_id)
         queues[i].num_run  = q->num_run;
         queues[i].num_susp = q->num_susp;
         queues[i].num_held = q->num_held;
+        queues[i].num_cpus_used  = q->num_cpus_used;
+        queues[i].num_hosts_used = q->num_hosts_used;
+
         i++;
     }
 
@@ -478,15 +484,20 @@ int hosts_info(XDR *xdrs, int chan_id)
         struct mbd_host *h = (struct mbd_host *)e;
 
         ll_strlcpy(hosts[i].name, h->net.name, sizeof(hosts[i].name));
-        hosts[i].state          = h->state;
-        hosts[i].max_jobs        = h->res.max_jobs;
-        hosts[i].total_cpu       = h->res.total_cpu;
-        hosts[i].total_gpu       = h->res.total_gpu;
-        hosts[i].total_mem_mb    = h->res.total_mem_mb;
+        hosts[i].state            = h->state;
+        hosts[i].max_jobs         = h->res.max_jobs;
+        hosts[i].total_cpu        = h->res.total_cpu;
+        hosts[i].free_cpu         = h->res.free_cpu;
+        hosts[i].total_gpu        = h->res.total_gpu;
+        hosts[i].free_gpu         = h->res.free_gpu;
+        hosts[i].total_mem_mb     = h->res.total_mem_mb;
+        hosts[i].free_mem_mb      = h->res.free_mem_mb;
         hosts[i].total_storage_mb = h->res.total_storage_mb;
-        hosts[i].num_jobs        = h->num_jobs;
-        hosts[i].num_run         = h->num_run;
-        hosts[i].num_susp        = h->num_susp;
+        hosts[i].free_storage_mb  = h->res.free_storage_mb;
+        hosts[i].num_jobs         = h->num_jobs;
+        hosts[i].num_run          = h->num_run;
+        hosts[i].num_susp         = h->num_susp;
+
         i++;
     }
 

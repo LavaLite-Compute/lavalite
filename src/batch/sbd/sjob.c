@@ -945,9 +945,9 @@ int sbd_job_finish(struct sbd_job *job)
 
     int new_state;
     if (WIFEXITED(job->exit_status) && WEXITSTATUS(job->exit_status) == 0) {
-        new_state = JOB_DONE;
+        new_state = JOB_SUCCESS;
     } else {
-        new_state = JOB_EXITED;
+        new_state = JOB_FAILURE;
     }
 
     struct wire_job_state s;

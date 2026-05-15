@@ -29,7 +29,7 @@ static void usage(FILE *f)
         "  --comment text     User comment, ignored by scheduler\n"
         "\n"
         "Resources (per host):\n"
-        "  --cpus   n         CPU slots per host (default: 1)\n"
+        "  --cpus   n         CPU per host (default: 1)\n"
         "  --nhosts n         number of execution hosts (default: 1)\n"
         "  --mem    size      Memory per host: n[K|M|G] (cgroup enforced)\n"
         "  --storage size     Local scratch storage per host: n[K|M|G]\n"

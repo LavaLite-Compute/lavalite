@@ -148,8 +148,8 @@ struct mbd_host {
     int    num_jobs;
     int    num_run;
     int    num_susp;
-    int    sbd_chan;             /* -1 if not connected */
-    time_t last_heard;
+    int    sbd_chan;      /* -1 if not connected */
+    int    num_cpus_used;  /* CPUs consumed by running jobs on this host */
 };
 
 struct queue_conf {
@@ -165,8 +165,8 @@ struct mbd_queue {
     struct ll_list_entry ent;
     char    name[LL_BUFSIZ_64];
     char    description[LL_BUFSIZ_256];
-    char    hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname from config */
-    char    users[LL_BUFSIZ_256];      /* space-separated, empty = all */
+    char    hosts_spec[LL_BUFSIZ_256];
+    char    users[LL_BUFSIZ_256];
     int     priority;
     int     max_jobs;
     int     num_jobs;
@@ -175,7 +175,9 @@ struct mbd_queue {
     int     num_susp;
     int     num_held;
     int     state;
-    struct ll_hash host_hash;          /* expanded host membership, keyed by hostname */
+    int     num_cpus_used;    /* CPUs consumed by running jobs in this queue */
+    int     num_hosts_used;   /* distinct exec hosts in use by running jobs  */
+    struct ll_hash host_hash;  /* expanded host membership, keyed by hostname */
 };
 
 struct mbd_group {

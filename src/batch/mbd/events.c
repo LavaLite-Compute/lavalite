@@ -47,18 +47,23 @@ static void replay_reset_counters(void)
     for (e = queue_list.head; e != NULL; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *)e;
 
-        q->num_pend = 0;
-        q->num_run = 0;
-        q->num_susp = 0;
+        q->num_jobs      = 0;
+        q->num_pend      = 0;
+        q->num_run       = 0;
+        q->num_susp      = 0;
+        q->num_held      = 0;
+        q->num_cpus_used  = 0;
+        q->num_hosts_used = 0;
     }
 
     for (e = host_list.head; e != NULL; e = e->next) {
         struct mbd_host *h = (struct mbd_host *)e;
 
-        h->num_jobs = 0;
-        h->num_run = 0;
-        h->num_susp = 0;
-        h->exclusive = 0;
+        h->num_jobs     = 0;
+        h->num_run      = 0;
+        h->num_susp     = 0;
+        h->num_cpus_used = 0;
+        h->exclusive    = 0;
     }
 }
 
@@ -71,6 +76,7 @@ static void replay_charge_running_job(struct job_data *job)
         h->res.free_mem_mb -= job->res.mem_mb;
         h->res.free_storage_mb -= job->res.storage_mb;
         h->num_jobs++;
+        h->num_cpus_used += job->res.num_cpus;
 
         if (job->state == JOB_SUSPENDED)
             h->num_susp++;
@@ -129,11 +135,15 @@ static void replay_rebuild_counters(void)
             continue;
 
         job->queue->num_jobs++;
-        if (job->state == JOB_RUNNING)
+        if (job->state == JOB_RUNNING) {
             job->queue->num_run++;
-        else if (job->state == JOB_SUSPENDED)
+            job->queue->num_cpus_used  += job->res.num_cpus * job->run_nhosts;
+            job->queue->num_hosts_used += job->run_nhosts;
+        } else if (job->state == JOB_SUSPENDED) {
             job->queue->num_susp++;
-        else {
+            job->queue->num_cpus_used  += job->res.num_cpus * job->run_nhosts;
+            job->queue->num_hosts_used += job->run_nhosts;
+        } else {
             LS_ERRX("job=%ld in invalid state %d in running list", job->job_id,
                     job->state);
             assert(0);
@@ -379,6 +389,14 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
         job->state = JOB_ORPHAN;
     }
 
+    job->run_hosts = calloc(job->res.num_hosts, sizeof(struct mbd_host *));
+    if (job->run_hosts == NULL) {
+        LS_ERR("calloc run_hosts with num_hosts=%d failed", job->res.num_hosts);
+        job->res.num_hosts = 0;
+        free(job);
+        return NULL;
+    }
+
     return job;
 }
 
@@ -407,8 +425,10 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
         *max_id = e.job_id;
 
     struct job_data *job = replay_alloc(&e);
-    if (job == NULL)
+    if (job == NULL) {
+        LS_ERR("failed replay job=%ld", e.job_id);
         return 0;
+    }
     return replay_insert(job);
 }
 

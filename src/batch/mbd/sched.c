@@ -203,6 +203,7 @@ static void host_update_resources(const struct job_data *job)
         h->res.free_storage_mb -= job->res.storage_mb;
         h->num_jobs++;
         h->num_run++;
+        h->num_cpus_used += job->res.num_cpus;
 
         if (job->flags & JOB_FLAG_EXCLUSIVE)
             h->exclusive = 1;
@@ -264,6 +265,9 @@ void schedule(void)
 
         job->queue->num_run++;
         job->queue->num_pend--;
+        job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
+        job->queue->num_hosts_used += job->run_nhosts;
+
         LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
                  job->queue->name, job->queue->num_pend,
                  job->queue->num_run, job->queue->num_susp);
