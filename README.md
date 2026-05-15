@@ -1,83 +1,115 @@
-## What Is **LavaLite**?
+# What Is LavaLite?
 
-**LavaLite** is a modern, independent, open-source workload scheduler derived from the last GPLv2-licensed release of Platform Lava 1.0. The historical codebase serves as reference material, not as a direct continuation.
+LavaLite is a modern open-source HPC workload scheduler focused on deterministic behavior, explicit state management, and operational simplicity.
 
-LavaLite is a clean reimplementation with a redesigned core and a simplified,
-deterministic architecture built from scratch—while still preserving the conceptual lessons and operational patterns that proved effective in the original.
+The project is designed for high-performance computing environments where reliability, predictable recovery, and sustained scheduling throughput are critical. LavaLite emphasizes clear scheduler semantics, durable state handling, and low operational complexity rather than feature accumulation.
 
-LavaLite is built for high-throughput and high-performance computing (HTC/HPC)
-environments where job volume and predictable behavior are critical. It is optimized for running large numbers of short, independent jobs with minimal scheduling overhead.
+LavaLite is built around a small number of core principles:
 
-The system is designed around a deterministic architecture:
+* Explicit finite-state job lifecycle management
+* Deterministic scheduler behavior
+* Durable on-disk state representation
+* Predictable restart and recovery semantics
+* Minimal subsystem coupling
+* Clear operational boundaries
 
-- Explicit job states
-- Well-defined state transitions
-- Durable on-disk state representation
-- Deterministic recovery after restart
 
-Its behavior is intended to be understandable, reconstructable, and operationally predictable.
+Job state, host state, queue state, and inter-daemon coordination are designed around
+explicit state transitions and replayable event flow. Inter-daemon and library-to-daemon
+communication uses a simple explicit wire protocol with well-defined message formats and
+acknowledgment events.
 
-LavaLite supports traditional HPC clusters as well as HTC workloads such as large job arrays, data-processing pipelines, and distributed scientific workflows. It is also suitable for AI and machine-learning workloads where scheduling overhead and state consistency are critical.
+LavaLite supports traditional HPC clusters, parallel workloads, GPU-aware scheduling, distributed scientific computing, and AI/ML execution environments where scheduler correctness and operational visibility matter more than feature breadth.
 
-The project evolves independently and focuses on:
+The architecture favors:
 
-- Clear operational semantics
-- Controlled configuration surface
-- Minimal subsystem coupling
-- High sustained throughput
+* Simple and inspectable control flow
+* Explicit resource accounting
+* Stable protocol semantics
+* Reduced combinatorial complexity
+* High sustained scheduling throughput
 
-## About the Name
+Rather than accumulating loosely coupled features, LavaLite focuses on building a scheduler core that is operationally predictable, debuggable, and recoverable.
 
-The term *Lite* in **LavaLite** does not indicate a reduced-feature
-or limited edition, it reflects the project's design philosophy: a lightweight,
-minimal, and deterministic architecture focused on clarity,
-reliability, and operational predictability rather than feature accumulation.
+# About the Name
 
-**LavaLite is not a feature clone of legacy systems. It is a deliberately constrained design aimed at reducing combinatorial complexity while maintaining scalability.**
+The term *Lite* in LavaLite does not mean reduced functionality.
 
-## Getting Started
+It reflects the project's architectural philosophy:
+
+* Lightweight core design
+* Minimal operational surface area
+* Deterministic behavior
+* Reduced internal complexity
+* Clear subsystem boundaries
+
+The objective is not to implement every possible scheduler feature, but to build a robust and understandable HPC scheduling system with predictable operational semantics.
+
+# Current Development Status
+
+LavaLite is currently in the 1.0 stabilization and validation phase.
+
+The ongoing work focuses on:
+
+* Finite-state scheduler refactoring
+* Deterministic recovery validation
+* Durable event replay correctness
+* Queue and resource accounting consistency
+* Parallel and multi-host scheduling behavior
+* GPU-aware scheduling validation
+* Manual failure testing
+* Automated regression and stress testing
+
+The scheduler core is actively being exercised under restart, disconnect, replay, and daemon recovery scenarios to verify operational correctness and long-term stability.
+
+The project follows a correctness-first engineering model:
+
+* Explicit state transitions
+* Reproducible behavior
+* Minimal hidden state
+* Durable recovery semantics
+* Operational debuggability
+
+Feature growth remains secondary to scheduler correctness and predictable behavior.
+
+# Supported Platforms
 
 LavaLite currently supports:
 
-- Rocky Linux 8
-- Rocky Linux 9
-- Ubuntu 24.04
+* Rocky Linux 8
+* Rocky Linux 9
+* Ubuntu 24.04
 
-To begin, follow the installation guide:
+# Getting Started
 
-https://github.com/LavaLite-Compute/lavalite/blob/master/docs/projects/ADMIN-lavalite-0.1.1.md
+LavaLite is currently in active 1.0 stabilization and testing.
 
-## Documentation
+At this stage the project is primarily intended for developers,
+test environments, and architecture validation.
 
-Project documentation is maintained in the repository:
+Source code, build instructions, design notes, and operational material
+are available in the repository:
 
-https://github.com/LavaLite-Compute/lavalite/tree/master/docs/projects
+- https://github.com/LavaLite-Compute/lavalite
 
-These documents describe internal design, interfaces, and operational details.
 
-## Road to 1.0
+# Documentation
 
-The 0.1.x series establishes the core: reliable job lifecycle, durable state,
-and predictable recovery under failure. The focus is correctness and operational
-stability, not feature breadth.
+Documentation is being revised alongside the ongoing 1.0 stabilization
+and scheduler validation effort.
 
-Work planned for 1.0 includes:
+# License
 
-- Multi-host job allocation (`-n`)
-- `eauth` cluster authentication (design complete, implementation pending)
-- Failover and master election
-- GPU and resource-aware scheduling
+LavaLite is licensed under the GNU General Public License v2 (GPLv2).
 
-No timeline is committed. 1.0 ships when it is ready and verified.
+All contributions must be compatible with GPLv2.
 
-## License
+# Contact
 
-LavaLite is licensed under the GNU General Public License v2. All contributions must be
-compatible with GPLv2.
+Issues and feature requests:
 
-## Contact
+* [https://github.com/LavaLite-Compute/lavalite/issues](https://github.com/LavaLite-Compute/lavalite/issues)
 
-For issues and feature requests, please use the
-[GitHub Issues page](https://github.com/LavaLite-Compute/lavalite/issues).
+Maintainer:
 
-Maintainer: lavalite.compute@gmail.com
+* [lavalite.compute@gmail.com](mailto:lavalite.compute@gmail.com)
