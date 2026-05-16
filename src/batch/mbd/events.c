@@ -149,6 +149,7 @@ static void replay_rebuild_counters(void)
             assert(0);
         }
         replay_charge_running_job(job);
+        token_alloc(job);
     }
 }
 
@@ -179,6 +180,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     ll_strlcpy(e.job_name,     ws->name,      sizeof(e.job_name));
     ll_strlcpy(e.queue,        ws->queue,     sizeof(e.queue));
     ll_strlcpy(e.project_name, ws->project,   sizeof(e.project_name));
+    ll_strlcpy(e.tokenpool, ws->tokenpool,   sizeof(e.tokenpool));
 
     FILE *fp = open_events();
     if (log_write_job_new(fp, &e) < 0) {

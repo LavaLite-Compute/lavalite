@@ -536,3 +536,48 @@ int compact_done(XDR *xdrs, int chan_id)
     LS_DEBUG("compact_done chan_id=%d", chan_id);
     return 0;
 }
+
+int tokens_info(XDR *xdrs, int chan_id)
+{
+    (void)xdrs;
+
+    struct ll_list_entry *e;
+    int n = 0;
+
+    for (e = token_pool_list.head; e != NULL; e = e->next)
+        n++;
+
+    struct wire_token_info_array w;
+    w.ntokens = n;
+    w.tokens  = calloc(n, sizeof(struct wire_token_info));
+    if (w.tokens == NULL) {
+        LS_ERR("calloc failed n=%d", n);
+        enqueue_header(chan_id, BATCH_TOKEN_INFO_ACK, errno);
+        return -1;
+    }
+
+    int i = 0;
+    for (e = token_pool_list.head; e != NULL; e = e->next) {
+        struct mbd_token_pool *t = (struct mbd_token_pool *)e;
+
+        ll_strlcpy(w.tokens[i].name,  t->name,  sizeof(w.tokens[i].name));
+        w.tokens[i].total = t->total;
+        w.tokens[i].free  = t->free;
+        i++;
+    }
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_TOKEN_INFO_ACK;
+    hdr.status    = MBD_OK;
+
+    size_t bufsz = PACKET_HEADER_SIZE
+                   + n * sizeof(struct wire_token_info)
+                   + LL_BUFSIZ_256;
+
+    enqueue_payload(chan_id, &hdr, &w, bufsz,
+                    (bool_t (*)())xdr_wire_token_info_array);
+
+    free(w.tokens);
+    return 0;
+}

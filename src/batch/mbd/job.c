@@ -229,6 +229,7 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "MACHINES=%s\n", ws->machines);
     fprintf(fp, "GPU_TYPE=%s\n", ws->gpu_type);
     fprintf(fp, "COMMENT=%s\n", ws->comment);
+    fprintf(fp, "TOKENPOOL=%s\n", ws->tokenpool);
 
     if (fflush(fp) != 0 || ferror(fp)) {
         LS_ERR("write error %s: %m", tmp);
@@ -252,6 +253,46 @@ static int job_uses_host(struct job_data *job, struct mbd_host *h)
             return 1;
     }
 
+    return 0;
+}
+
+static int job_parse_tokens(struct job_data *job, const char *tokenpool)
+{
+    if (tokenpool[0] == 0)
+        return 0;
+
+    char buf[LL_BUFSIZ_1K];
+    ll_strlcpy(buf, tokenpool, sizeof(buf));
+
+    char *tok = strtok(buf, ",");
+    while (tok != NULL) {
+        char *eq = strchr(tok, '=');
+        if (eq == NULL) {
+            LS_ERRX("job=%ld invalid token spec=%s", job->job_id, tok);
+            return -1;
+        }
+        *eq = 0;
+        int count;
+        if (ll_atoi(eq + 1, &count) < 0 || count <= 0) {
+            LS_ERRX("job=%ld invalid token count=%s", job->job_id, eq + 1);
+            return -1;
+        }
+        struct mbd_token_pool *p;
+        p = ll_hash_search(&token_pool_name_hash, tok);
+        if (p == NULL) {
+            LS_ERRX("job=%ld token pool=%s not found", job->job_id, tok);
+            return -1;
+        }
+        struct job_token *t = calloc(1, sizeof(*t));
+        if (t == NULL) {
+            LS_ERR("calloc job_token failed");
+            return -1;
+        }
+        ll_strlcpy(t->name, tok, sizeof(t->name));
+        t->count = count;
+        ll_list_append(&job->res.tokens, &t->ent);
+        tok = strtok(NULL, ",");
+    }
     return 0;
 }
 
@@ -289,6 +330,12 @@ int job_register(XDR *xdrs, int chan_id)
     if (write_sidecar(job, &ws) < 0) {
         LS_ERR("write_sidecar failed job_id=%ld", job->job_id);
         job_free(job);
+        return -1;
+    }
+
+    if (job_parse_tokens(job, ws.tokenpool) < 0) {
+        LS_ERRX("job=%ld invalid token pool spec", job->job_id);
+        /* free job and return error */
         return -1;
     }
 
@@ -602,6 +649,7 @@ send_ack:
     // this function depends on the state of the job not
     // being DONE|EXIT yet
     reset_host_resources(job);
+    token_free(job);
 
     // Update the queue counters before resetting the job state
     if (job->state == JOB_RUNNING)

@@ -467,3 +467,79 @@ void llb_free_job_info(struct job_info *jobs, int32_t n)
     }
     free(jobs);
 }
+
+struct token_pool_info *llb_token_info(int32_t *ntokens)
+{
+    char buf[LL_BUFSIZ_256];
+    XDR xdrs;
+
+    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_TOKEN_INFO;
+
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        return NULL;
+    }
+    if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
+        xdr_destroy(&xdrs);
+        return NULL;
+    }
+
+    size_t len = xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    void *rep = NULL;
+    struct protocol_header rhdr;
+
+    if (call_mbd(buf, len, &rep, &rhdr) < 0)
+        return NULL;
+
+    if (rhdr.status != MBD_OK) {
+        free(rep);
+        return NULL;
+    }
+
+    xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
+
+    struct wire_token_info_array w;
+    memset(&w, 0, sizeof(w));
+
+    if (!xdr_wire_token_info_array(&xdrs, &w)) {
+        xdr_destroy(&xdrs);
+        free(rep);
+        return NULL;
+    }
+
+    xdr_destroy(&xdrs);
+    free(rep);
+
+    struct token_pool_info *out;
+    out = calloc(w.ntokens, sizeof(*out));
+    if (!out) {
+        xdr_free((xdrproc_t)xdr_wire_token_info_array, (char *)&w);
+        return NULL;
+    }
+
+    for (int i = 0; i < w.ntokens; i++) {
+        out[i].name  = strdup(w.tokens[i].name);
+        out[i].total = w.tokens[i].total;
+        out[i].free  = w.tokens[i].free;
+        out[i].used  = w.tokens[i].total - w.tokens[i].free;
+    }
+
+    *ntokens = w.ntokens;
+
+    xdr_free((xdrproc_t)xdr_wire_token_info_array, (char *)&w);
+
+    return out;
+}
+
+void llb_free_token_info(struct token_pool_info *t, int32_t n)
+{
+    for (int i = 0; i < n; i++)
+        free(t[i].name);
+    free(t);
+}

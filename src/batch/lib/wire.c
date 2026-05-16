@@ -401,5 +401,29 @@ bool_t xdr_wire_job_ack(XDR *xdrs, struct wire_job_ack *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->ack_op))
         return false;
-    return TRUE;
+    return true;
+}
+
+
+bool_t xdr_wire_token_info(XDR *xdrs, struct wire_token_info *p)
+{
+    if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->total))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->free))
+        return false;
+    return true;
+}
+
+bool_t xdr_wire_token_info_array(XDR *xdrs, struct wire_token_info_array *p)
+{
+    if (!xdr_array(xdrs,
+                   (char **)&p->tokens,
+                   (u_int *)&p->ntokens,
+                   INT32_MAX,
+                   sizeof(struct wire_token_info),
+                   (xdrproc_t)xdr_wire_token_info))
+        return false;
+    return true;
 }

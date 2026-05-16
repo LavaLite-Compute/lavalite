@@ -80,6 +80,7 @@ struct log_job_new {
     char     project_name[LL_BUFSIZ_64];
     char     gpu_type[LL_BUFSIZ_64];
     char     machines[LL_BUFSIZ_1K];
+    char     tokenpool[LL_BUFSIZ_256];
 };
 
 /*

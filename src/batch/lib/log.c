@@ -139,6 +139,8 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->machines) < 0)
         return -1;
+    if (write_qstr(fp, j->tokenpool) < 0)
+        return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
     return 0;
@@ -170,6 +172,8 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
     if (read_qstr(&p, j->gpu_type, sizeof(j->gpu_type)) < 0)
         return -1;
     if (read_qstr(&p, j->machines, sizeof(j->machines)) < 0)
+        return -1;
+    if (read_qstr(&p, j->tokenpool, sizeof(j->tokenpool)) < 0)
         return -1;
 
     return 0;

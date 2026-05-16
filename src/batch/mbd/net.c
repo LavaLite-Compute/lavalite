@@ -45,6 +45,8 @@ int valid_batch_op(int op)
     case BATCH_COMPACT_ACK:
     case BATCH_SBD_JOB_SIGNAL:
     case BATCH_SBD_JOB_SIGNAL_REPLY:
+    case BATCH_TOKEN_INFO:
+    case BATCH_TOKEN_INFO_ACK:
         return 1;
     default:
         return 0;
@@ -142,6 +144,9 @@ static void route(int chan_id)
     case BATCH_COMPACT_FAILED:
         if (compact_done(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
+        break;
+    case BATCH_TOKEN_INFO:
+        tokens_info(&xdrs, chan_id);
         break;
     }
 

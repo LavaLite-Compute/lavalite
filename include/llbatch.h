@@ -154,6 +154,13 @@ struct host_group {
     char *members;
 };
 
+struct token_pool_info {
+    char    *name;       /* pool name */
+    int32_t  total;      /* total tokens configured */
+    int32_t  free;       /* tokens available */
+    int32_t  used;       /* total - free */
+};
+
 /* -----------------------------------------------------------------------
  * Public API
  * ----------------------------------------------------------------------- */
@@ -179,3 +186,7 @@ void llb_free_queue_info(struct queue_info *, int32_t);
 
 // bkill
 int32_t llb_signal_job(int64_t, int32_t);
+
+/* btokens */
+struct token_pool_info *llb_token_info(int32_t *);
+void llb_free_token_info(struct token_pool_info *, int32_t);

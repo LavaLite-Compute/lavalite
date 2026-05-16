@@ -153,7 +153,6 @@ struct wire_job_submit {
     uint32_t gid;
     uint32_t umask;
     uint32_t flags;
-
     int64_t  begin_time;
     int64_t  term_time;
     int64_t  susp_time;
@@ -282,6 +281,17 @@ struct wire_queue_info_array {
     struct wire_queue_info *queues;
 };
 
+struct wire_token_info {
+    char    name[LL_BUFSIZ_64];
+    int32_t total;
+    int32_t free;
+};
+
+struct wire_token_info_array {
+    int32_t               ntokens;
+    struct wire_token_info *tokens;
+};
+
 /* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
@@ -316,3 +326,6 @@ bool_t xdr_wire_queue_info_array(XDR *, struct wire_queue_info_array *);
 /* group */
 bool_t xdr_wire_group_info(XDR *, struct wire_group_info *);
 bool_t xdr_wire_group_info_array(XDR *, struct wire_group_info_array *);
+
+bool_t xdr_wire_token_info(XDR *, struct wire_token_info *);
+bool_t xdr_wire_token_info_array(XDR *, struct wire_token_info_array *);

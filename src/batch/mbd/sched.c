@@ -191,6 +191,7 @@ static int build_host_plan(struct job_data *job)
 
     return 1;
 }
+
 static void host_update_resources(const struct job_data *job)
 {
     int i;
@@ -227,6 +228,28 @@ static void host_update_resources(const struct job_data *job)
     }
 }
 
+static int tokens_available(const struct job_data *job)
+{
+    struct ll_list_entry *e;
+
+    for (e = job->res.tokens.head; e != NULL; e = e->next) {
+        struct job_token *t = (struct job_token *)e;
+        struct mbd_token_pool *p;
+
+        p = ll_hash_search(&token_pool_name_hash, t->name);
+        if (p == NULL) {
+            LS_ERRX("job=%ld token pool=%s not found", job->job_id, t->name);
+            return 0;
+        }
+        if (p->free < t->count) {
+            LS_DEBUG("no tokens for job=%ld pool=%s need=%d free=%d",
+                     job->job_id, t->name, t->count, p->free);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 void schedule(void)
 {
     LS_DEBUG("num_pend_jobs=%d", ll_list_count(&pend_jobs_list));
@@ -249,6 +272,9 @@ void schedule(void)
         if (!job_is_ready(job))
             continue;
 
+        if (! tokens_available(job))
+            continue;
+
         LS_DEBUG("job=%ld is ready for scheduling", job->job_id);
         if (build_host_plan(job) == 0) {
             LS_INFO("job=%ld not enough hosts found", job->job_id);
@@ -262,6 +288,7 @@ void schedule(void)
 
         // udpate host and queue counters and resources
         host_update_resources(job);
+        token_alloc(job);
 
         job->queue->num_run++;
         job->queue->num_pend--;
@@ -273,4 +300,38 @@ void schedule(void)
                  job->queue->num_run, job->queue->num_susp);
     }
     mbd_assert_counters();
+}
+
+void token_alloc(const struct job_data *job)
+{
+    struct ll_list_entry *e;
+
+    for (e = job->res.tokens.head; e != NULL; e = e->next) {
+        struct job_token *t = (struct job_token *)e;
+        struct mbd_token_pool *p;
+
+        p = ll_hash_search(&token_pool_name_hash, t->name);
+        if (p == NULL) {
+            LS_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
+            continue;
+        }
+        p->free -= t->count;
+    }
+}
+
+void token_free(const struct job_data *job)
+{
+    struct ll_list_entry *e;
+
+    for (e = job->res.tokens.head; e != NULL; e = e->next) {
+        struct job_token *t = (struct job_token *)e;
+        struct mbd_token_pool *p;
+
+        p = ll_hash_search(&token_pool_name_hash, t->name);
+        if (p == NULL) {
+            LS_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
+            continue;
+        }
+        p->free += t->count;
+    }
 }

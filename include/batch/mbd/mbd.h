@@ -53,6 +53,7 @@ struct job_resources {
     uint64_t storage_mb;
     int32_t  wall_seconds;
     struct ll_hash machines;
+    struct ll_list tokens;
 };
 
 /* what the job actually used, reported by sbd */
@@ -287,6 +288,7 @@ int queues_info(XDR *, int);
 int host_group_info(XDR *, int);
 int mbd_sbd_register(XDR *, int);
 int compact_done(XDR *, int);
+int tokens_info(XDR *, int);
 
 // job.c
 int jobs_replay(void);
@@ -300,6 +302,8 @@ void job_move_list(struct job_data *, struct ll_list *,
 void machines_hash_populate(struct ll_hash *, const char *);
 void mbd_job_signal_reply(struct mbd_host *, XDR *, struct protocol_header *);
 char *job_state_str(int);
+void token_alloc(const struct job_data *);
+void token_free(const struct job_data *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
