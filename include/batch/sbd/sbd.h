@@ -193,3 +193,6 @@ int  cgroup_init(void);
 int  cgroup_job_create(int64_t, uint64_t, int32_t);
 int  cgroup_job_assign(int64_t, pid_t);
 void cgroup_job_destroy(int64_t);
+int cgroup_job_freeze(int64_t);
+int cgroup_job_thaw(int64_t);
+int cgroup_job_kill(int64_t);

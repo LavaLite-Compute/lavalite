@@ -17,6 +17,7 @@ Restart=on-failure
 LimitNOFILE=65536
 LimitCORE=infinity
 RestartSec=2 # or any time period
+Delegate=yes
 
 [Install]
 WantedBy=multi-user.target

@@ -1066,11 +1066,28 @@ int sbd_job_signal(XDR *xdrs)
         goto reply;
     }
 
+    if (sig.sig == SIGSTOP) {
+        if (cgroup_job_freeze(job->job_id) < 0)
+            status = ESRCH;
+        goto reply;
+    }
+
+    if (sig.sig == SIGCONT) {
+        if (cgroup_job_thaw(job->job_id) < 0)
+            status = ESRCH;
+        goto reply;
+    }
+
+    if (sig.sig == SIGKILL) {
+        if (cgroup_job_kill(job->job_id) < 0)
+            status = ESRCH;
+        goto reply;
+    }
+
     if (killpg(job->pgid, sig.sig) < 0) {
         status = errno;
         LS_ERR("job=%ld killpg pgid=%d sig=%d failed",
                job->job_id, (int)job->pgid, sig.sig);
-        goto reply;
     }
 
     LS_INFO("job=%ld sig=%d sent to pgid=%d",
