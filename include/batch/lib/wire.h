@@ -97,6 +97,8 @@ struct wire_job_start {
 
     int64_t  term_time;
     int32_t  gpus_per_host;
+    int32_t  ncpus;
+    uint64_t mem_mb;
     char     gpu_type[LL_BUFSIZ_64];
 
     struct wire_job_script script;   /* job script, encoded last */
@@ -199,6 +201,7 @@ struct wire_job_info {
     int32_t  state;
     int32_t  exit_status;
     int32_t  priority;
+    int32_t  pend_reason;
     int64_t  submit_time;
     int64_t  dispatch_time;
     int64_t  end_time;

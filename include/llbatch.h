@@ -27,6 +27,22 @@ enum job_state {
  */
 #define JOB_SUCCESS  0
 #define JOB_FAILURE  1
+enum pend_reason {
+    PEND_NONE = 0,
+    PEND_JOB_NOT_READY,
+    PEND_QUEUE_CLOSED,
+    PEND_TOKENS,
+    PEND_NO_HOSTS,
+    PEND_NOT_ENOUGH_CPUS,
+    PEND_NOT_ENOUGH_MEM,
+    PEND_NOT_ENOUGH_STORAGE,
+    PEND_NOT_ENOUGH_GPUS,
+    PEND_GPU_TYPE,
+    PEND_HOST_EXCLUSIVE,
+};
+
+// Pending messages table
+extern const char *pend_reason_msg[];
 
 /* -----------------------------------------------------------------------
  * Host status
@@ -94,6 +110,7 @@ struct job_info {
     int32_t  state;
     int32_t  exit_status;
     int32_t  priority;
+    enum pend_reason pend_reason;
     time_t   submit_time;
     time_t   dispatch_time;
     time_t   end_time;

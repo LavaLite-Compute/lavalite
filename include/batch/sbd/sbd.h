@@ -59,6 +59,8 @@ struct sbd_job {
     uid_t exec_uid;
     gid_t exec_gid;
     uint32_t umask;
+    int32_t  ncpus;
+    uint64_t mem_mb;
 
     char exec_user[LL_BUFSIZ_64];
     char exec_home[PATH_MAX];
@@ -184,3 +186,10 @@ int sbd_client(int);
  */
 int sbd_send_msg(int32_t, int32_t, void *, size_t, bool_t (*)());
 int write_all(int, const char *, size_t);
+
+/* cgroups
+ */
+int  cgroup_init(void);
+int  cgroup_job_create(int64_t, uint64_t, int32_t);
+int  cgroup_job_assign(int64_t, pid_t);
+void cgroup_job_destroy(int64_t);

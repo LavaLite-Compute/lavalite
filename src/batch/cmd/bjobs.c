@@ -13,8 +13,7 @@
 
 #include "llbatch.h"
 
-static const char *
-uid_to_name(uid_t uid)
+static const char *uid_to_name(uid_t uid)
 {
     struct passwd *pw;
 
@@ -48,8 +47,7 @@ static const char *job_state_str(int32_t state)
     }
 }
 
-static const char *
-fmt_time(time_t t)
+static const char *fmt_time(time_t t)
 {
     static char buf[32];
 
@@ -59,16 +57,14 @@ fmt_time(time_t t)
     return buf;
 }
 
-static int
-imax(int a, int b)
+static int imax(int a, int b)
 {
     if (a > b)
         return a;
     return b;
 }
 
-static int
-ndigits(int64_t n)
+static int ndigits(int64_t n)
 {
     int d;
 
@@ -86,8 +82,7 @@ ndigits(int64_t n)
  * Walk exec_hosts string "hostA*2 hostB*2" and return the width
  * of the longest token.
  */
-static int
-exec_hosts_width(const char *s)
+static int exec_hosts_width(const char *s)
 {
     char buf[4096];
     int max = 0;
@@ -117,8 +112,7 @@ struct col_widths {
     int name;
 };
 
-static void
-compute_widths(struct job_info *jobs, int n, struct col_widths *w)
+static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
 {
     int i;
     struct job_info *j;
@@ -142,8 +136,7 @@ compute_widths(struct job_info *jobs, int n, struct col_widths *w)
     }
 }
 
-static void
-print_header(const struct col_widths *w)
+static void print_header(const struct col_widths *w)
 {
     printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
            w->jobid,      "JOBID",
@@ -155,8 +148,21 @@ print_header(const struct col_widths *w)
            "SUBMIT_TIME");
 }
 
-static void
-print_job(const struct job_info *j, const struct col_widths *w)
+static void print_pend_reason(const struct job_info *j,
+                              const struct col_widths *w)
+{
+    int indent;
+
+    if (j->state != JOB_PENDING)
+        return;
+    indent = w->jobid + w->user + w->stat + w->queue + 6;
+    printf("%*s  PEND: %s\n", indent, "",
+           pend_reason_msg[j->pend_reason]);
+}
+
+static void print_job(const struct job_info *j,
+                      const struct col_widths *w,
+                      int show_reason)
 {
     char buf[4096];
     int first = 1;
@@ -170,6 +176,8 @@ print_job(const struct job_info *j, const struct col_widths *w)
                w->exec_hosts, "-",
                w->name,       j->name,
                fmt_time(j->submit_time));
+        if (show_reason)
+            print_pend_reason(j, w);
         return;
     }
 
@@ -198,10 +206,11 @@ print_job(const struct job_info *j, const struct col_widths *w)
         }
         tok = strtok(NULL, " ");
     }
+    if (show_reason)
+        print_pend_reason(j, w);
 }
 
-static void
-usage(void)
+static void usage(void)
 {
     fprintf(stderr,
         "Usage: bjobs [options] [job_id]\n"
@@ -211,7 +220,7 @@ usage(void)
         "\n"
         "Options:\n"
         "  --all          Show active jobs for all users (admin only)\n"
-        "  --pend         Show pending jobs only\n"
+        "  --pend         Show pending jobs with pending reason\n"
         "  --run          Show running jobs only\n"
         "  --done         Show finished jobs (DONE and EXIT)\n"
         "  --help         Display this help and exit\n"
@@ -232,10 +241,10 @@ static struct option longopts[] = {
     {NULL, 0, NULL, 0}
 };
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     int flags = 0;
+    int show_reason = 0;
     int cc;
 
     while ((cc = getopt_long(argc, argv, "hVaprd", longopts, NULL)) != EOF) {
@@ -252,6 +261,7 @@ main(int argc, char **argv)
             break;
         case 'p':
             flags |= LLB_JOB_PEND;
+            show_reason = 1;
             break;
         case 'r':
             flags |= LLB_JOB_RUN;
@@ -297,7 +307,7 @@ main(int argc, char **argv)
     print_header(&w);
 
     for (int i = 0; i < njobs; i++)
-        print_job(&jobs[i], &w);
+        print_job(&jobs[i], &w, show_reason);
 
     llb_free_job_info(jobs, njobs);
     return 0;

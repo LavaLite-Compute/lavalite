@@ -388,6 +388,8 @@ int mbd_dispatch_job(struct job_data *job)
     ws.gid = job->gid;
     ws.term_time = (int64_t)job->term_time;
     ws.gpus_per_host = job->res.num_gpus;
+    ws.ncpus         = job->res.num_cpus;
+    ws.mem_mb        = job->res.mem_mb;
 
     ll_strlcpy(ws.job_name, job->name, sizeof(ws.job_name));
     ll_strlcpy(ws.queue, job->queue->name, sizeof(ws.queue));

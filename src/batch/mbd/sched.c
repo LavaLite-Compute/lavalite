@@ -114,15 +114,36 @@ static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
     return g->free >= job->res.num_gpus;
 }
 
+static enum pend_reason diag_reason(struct pend_diag *diag)
+{
+    if (diag->exclusive)
+        return PEND_HOST_EXCLUSIVE;
+    if (diag->gpu_type)
+        return PEND_GPU_TYPE;
+    if (diag->no_gpus)
+        return PEND_NOT_ENOUGH_GPUS;
+    if (diag->no_mem)
+        return PEND_NOT_ENOUGH_MEM;
+    if (diag->no_storage)
+        return PEND_NOT_ENOUGH_STORAGE;
+    if (diag->no_cpus)
+        return PEND_NOT_ENOUGH_CPUS;
+    if (diag->not_in_queue)
+        return PEND_NO_HOSTS;
+    return PEND_NO_HOSTS;
+}
+
 #define SCHED_PLAN_MAX 1024
 static struct mbd_host *host_plan[SCHED_PLAN_MAX];
 
-static int build_host_plan(struct job_data *job)
+static int build_host_plan(struct job_data *job, struct pend_diag *diag)
 {
     struct ll_list_entry *e;
     int n = 0;
 
     memset(host_plan, 0, sizeof(host_plan));
+    memset(diag, 0, sizeof(*diag));
+
     for (e = host_list.head; e; e = e->next) {
         if (n >= SCHED_PLAN_MAX) {
             LS_ERRX("candidate host overflow max=%d", SCHED_PLAN_MAX);
@@ -130,42 +151,41 @@ static int build_host_plan(struct job_data *job)
         }
         struct mbd_host *h = (struct mbd_host *)e;
 
-        LS_DEBUG("host=%s total_mem_mb=%lu free_mem_mb=%lu "
-                 "total_storage_mb=%lu free_storage_mb=%lu "
-                 " total_cpu=%d free_cpu=%d candidate=%d fits job=%ld",
-                 h->net.name,
-                 h->res.total_mem_mb, h->res.free_mem_mb,
-                 h->res.total_storage_mb, h->res.free_storage_mb,
-                 h->res.total_cpu, h->res.free_cpu,
-                 h->candidate, job->job_id);
-
-        // not candidate
         if (!h->candidate)
             continue;
-        // already exclusively allocated
-        if (h->exclusive)
+        if (h->exclusive) {
+            diag->exclusive++;
             continue;
-        // job wants exclusive but job alreayd has runnign jobs
-        if ((job->flags & JOB_FLAG_EXCLUSIVE) && h->num_jobs > 0)
+        }
+        if ((job->flags & JOB_FLAG_EXCLUSIVE) && h->num_jobs > 0) {
+            diag->exclusive++;
             continue;
-        // host is memeber of the queue
-        if (!host_in_queue_group(h, job))
+        }
+        if (!host_in_queue_group(h, job)) {
+            diag->not_in_queue++;
             continue;
-        if (h->res.free_cpu < job->res.num_cpus)
+        }
+        if (h->res.free_cpu < job->res.num_cpus) {
+            diag->no_cpus++;
             continue;
-        if (h->res.free_mem_mb < job->res.mem_mb)
+        }
+        if (h->res.free_mem_mb < job->res.mem_mb) {
+            diag->no_mem++;
             continue;
-        if (h->res.free_storage_mb < job->res.storage_mb)
+        }
+        if (h->res.free_storage_mb < job->res.storage_mb) {
+            diag->no_storage++;
             continue;
-        if (job->res.num_gpus > 0) {
-            if (!host_has_gpu(h, job))
-                continue;
+        }
+        if (job->res.num_gpus > 0 && !host_has_gpu(h, job)) {
+            diag->no_gpus++;
+            continue;
         }
         if (job->res.machines.nentries > 0 &&
-            !ll_hash_contains(&job->res.machines, h->net.name))
+            !ll_hash_contains(&job->res.machines, h->net.name)) {
+            diag->not_in_queue++;
             continue;
-
-        LS_DEBUG("host=%s is candidate for job=%ld", h->net.name, job->job_id);
+        }
         host_plan[n] = h;
         ++n;
     }
@@ -177,18 +197,15 @@ static int build_host_plan(struct job_data *job)
     }
 
     qsort(host_plan, n, sizeof(struct mbd_host *), host_plan_cmp);
-
     job->run_nhosts = 0;
     for (int i = 0; i < job->res.num_hosts; i++) {
         job->run_hosts[i] = host_plan[i];
         job->run_nhosts++;
     }
     assert(job->run_nhosts == job->res.num_hosts);
-
     LS_INFO("job=%ld exec_host=%s nhosts=%d cpus_per_host=%d gpus_per_host=%d",
             job->job_id, job->run_hosts[0]->net.name, job->res.num_hosts,
             job->res.num_cpus, job->res.num_gpus);
-
     return 1;
 }
 
@@ -269,18 +286,25 @@ void schedule(void)
         e = e->next;
 
         LS_DEBUG("is job=%ld ready for scheduling", job->job_id);
-        if (!job_is_ready(job))
+        if (!job_is_ready(job)) {
+            job->pend_reason = PEND_JOB_NOT_READY;
             continue;
+        }
 
-        if (! tokens_available(job))
+        if (! tokens_available(job)) {
+            job->pend_reason = PEND_TOKENS;
             continue;
+        }
 
         LS_DEBUG("job=%ld is ready for scheduling", job->job_id);
-        if (build_host_plan(job) == 0) {
+        struct pend_diag diag;
+        if (build_host_plan(job, &diag) == 0) {
+            job->pend_reason = diag_reason(&diag);
             LS_INFO("job=%ld not enough hosts found", job->job_id);
             continue;
         }
 
+        job->pend_reason = PEND_NONE;
         if (mbd_dispatch_job(job) < 0) {
             LS_ERRX("job=%ld dispatch failed", job->job_id);
             continue;

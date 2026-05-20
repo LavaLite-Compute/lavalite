@@ -234,6 +234,7 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
         w->state = JOB_UNKNOWN;
     w->exit_status = job->exit_status;
     w->priority    = job->priority;
+    w->pend_reason = job->pend_reason;
     w->submit_time = (int64_t)job->submit_time;
     w->dispatch_time  = (int64_t)job->dispatch_time;
     w->end_time    = (int64_t)job->end_time;

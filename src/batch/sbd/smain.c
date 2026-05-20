@@ -141,6 +141,10 @@ static int sbd_init(void)
         LS_ERR("failed to initialize persistent state storage");
         return -1;
     }
+
+    if (cgroup_init() < 0)
+        LS_WARNING("cgroup init failed, resource enforcement disabled");
+
     // Reconstruct jobs seen before last shutdown.
     if (sbd_job_state_load_all() < 0) {
         LS_ERR("failed to load persistent job state");

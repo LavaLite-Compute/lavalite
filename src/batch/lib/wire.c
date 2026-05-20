@@ -185,6 +185,8 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->priority))
         return false;
+    if (! xdr_int32_t(xdrs, &p->pend_reason))
+        return false;
     if (!xdr_int64_t(xdrs, &p->submit_time))
         return false;
     if (!xdr_int64_t(xdrs, &p->dispatch_time))
@@ -253,6 +255,10 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
     if (!xdr_int64_t(xdrs, &p->term_time))
         return false;
     if (!xdr_int32_t(xdrs, &p->gpus_per_host))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->ncpus))
+        return false;
+    if (!xdr_uint64_t(xdrs, &p->mem_mb))
         return false;
     if (!xdr_opaque(xdrs, p->gpu_type, sizeof(p->gpu_type)))
         return false;

@@ -18,6 +18,20 @@
 
 #include "llbatch.h"
 
+const char *pend_reason_msg[] = {
+    [PEND_NONE]             = "pending scheduling",
+    [PEND_JOB_NOT_READY]     = "job not ready for scheduling",
+    [PEND_QUEUE_CLOSED]     = "queue is closed",
+    [PEND_TOKENS]           = "token pool exhausted",
+    [PEND_NO_HOSTS]         = "no eligible hosts in queue",
+    [PEND_NOT_ENOUGH_CPUS]  = "not enough free CPUs on any host",
+    [PEND_NOT_ENOUGH_MEM]   = "not enough free memory on any host",
+    [PEND_NOT_ENOUGH_STORAGE] = "not enough free storage on any host",
+    [PEND_NOT_ENOUGH_GPUS]  = "not enough free GPUs on any host",
+    [PEND_GPU_TYPE]         = "no host has the required GPU type",
+    [PEND_HOST_EXCLUSIVE]   = "exclusive constraint cannot be satisfied"
+};
+
 struct queue_info *llb_queue_info(int32_t *nqueues)
 {
     char buf[LL_BUFSIZ_256];
@@ -433,6 +447,7 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
         dst->state      = src->state;
         dst->exit_status = src->exit_status;
         dst->priority    = src->priority;
+        dst->pend_reason = src->pend_reason;
         dst->submit_time = src->submit_time;
         dst->dispatch_time  = src->dispatch_time;
         dst->end_time    = src->end_time;

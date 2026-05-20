@@ -37,6 +37,8 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->exec_uid = (uid_t)ws->uid;
     job->exec_gid = (gid_t)ws->gid;
     job->umask = ws->umask;
+    job->ncpus  = ws->ncpus;
+    job->mem_mb = ws->mem_mb;
 
     ll_strlcpy(job->exec_user, ws->username, sizeof(job->exec_user));
     ll_strlcpy(job->exec_home, ws->home_dir, sizeof(job->exec_home));
@@ -466,6 +468,11 @@ static int spawn_job(struct sbd_job *job)
     // parent
     job->pid = pid;
     job->pgid  = pid;
+
+    if (cgroup_job_create(job->job_id, job->mem_mb, job->ncpus) < 0)
+        LS_ERR("job=%ld cgroup_create failed, continuing", job->job_id);
+    else if (cgroup_job_assign(job->job_id, pid) < 0)
+        LS_ERR("job=%ld cgroup_assign failed, continuing", job->job_id);
 
     LS_INFO("job=%ld pid=%d command=<%s>", job->job_id, job->pid, job->command);
 
@@ -1023,6 +1030,8 @@ void sbd_job_finish_ack(XDR *xdrs)
     ll_list_remove(&sbd_job_list, &job->list);
 
     LS_INFO("job=%ld finish_acked cleaned up", job->job_id);
+
+    cgroup_job_destroy(job->job_id);
     free(job);
 }
 

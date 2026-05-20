@@ -95,6 +95,7 @@ struct job_data {
     char name[LL_BUFSIZ_64];
     uint32_t flags;
     enum job_list_id list_id;
+    enum pend_reason pend_reason;
     struct ll_list deps;
     struct job_resources res;    /* requested at submit */
     struct job_runtime_usage usage;  /* reported by sbd */
@@ -206,6 +207,21 @@ struct mbd_token_pool {
 struct sched_plan {
     struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */
     int  nhosts;
+};
+
+// Pending reason and their priority order
+struct pend_diag {
+    int not_ready;
+    int queue_closed;
+    int no_token;
+    int not_in_queue;
+    int no_hosts;
+    int no_gpus;
+    int gpu_type;
+    int exclusive;
+    int no_mem;
+    int no_storage;
+    int no_cpus;
 };
 
 extern int64_t job_id_seq;
