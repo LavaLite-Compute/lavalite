@@ -97,7 +97,7 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     }
 
     // good bye bits
-    n->state = HOST_OK;
+    n->state = HOST_OK | (n->state & HOST_CLOSED);
 
     LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d",
             hostname, n->net.name, n->net.addr, chan_id, n->state);
@@ -213,7 +213,8 @@ int mbd_sbd_disconnect(struct mbd_host *n)
             n->net.name, n->net.addr);
 
     n->sbd_chan = -1;
-    n->state = HOST_UNAVAIL;
+    n->state = HOST_UNAVAIL | (n->state & HOST_CLOSED);
+
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", chan_id);
     ll_hash_remove(&sbd_chan_hash, key);

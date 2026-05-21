@@ -151,13 +151,11 @@ static void print_header(const struct col_widths *w)
 static void print_pend_reason(const struct job_info *j,
                               const struct col_widths *w)
 {
-    int indent;
+    (void)w;
 
     if (j->state != JOB_PENDING)
         return;
-    indent = w->jobid + w->user + w->stat + w->queue + 6;
-    printf("%*s  PEND: %s\n", indent, "",
-           pend_reason_msg[j->pend_reason]);
+    printf("  PEND: %s\n", pend_reason_msg[j->pend_reason]);
 }
 
 static void print_job(const struct job_info *j,

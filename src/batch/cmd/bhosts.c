@@ -133,14 +133,25 @@ static void usage(void)
 static struct option longopts[] = {
     {"help",    no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'V'},
+    {"close",   required_argument, NULL, 'c'},
+    {"open",    required_argument, NULL, 'o'},
     {NULL, 0, NULL, 0}
 };
 
 int main(int argc, char **argv)
 {
     int cc;
+    const char *close_host = NULL;
+    const char *open_host  = NULL;
+
     while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
         switch (cc) {
+        case 'c':
+            close_host = optarg;
+            break;
+        case 'o':
+            open_host  = optarg;
+            break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
@@ -149,6 +160,24 @@ int main(int argc, char **argv)
             usage();
             return 0;
         }
+    }
+
+    if (close_host) {
+        int rc = llb_host_admin(close_host, HOST_CLOSED);
+        if (rc != 0)
+            fprintf(stderr, "bhosts: %s: %m\n", close_host);
+        else
+            printf("host %s closed\n", close_host);
+        return rc;
+    }
+
+    if (open_host) {
+        int rc = llb_host_admin(open_host, 0);
+        if (rc != 0)
+            fprintf(stderr, "bhosts: %s: %m\n", open_host);
+        else
+            printf("host %s opened\n", open_host);
+        return rc;
     }
 
     int nhosts;

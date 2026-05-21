@@ -97,6 +97,16 @@ static int mbd_init(void)
         LS_ERRX("job_init failed");
     }
 
+    if (queue_state_init() < 0) {
+        LS_ERRX("queue_state_init failed");
+        return -1;
+    }
+
+    if (host_state_init() < 0) {
+        LS_ERRX("host_state_init failed");
+        return -1;
+    }
+
     // start compact
     //compact_start();
 

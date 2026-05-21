@@ -30,7 +30,7 @@ static uint16_t mbd_port;
 
 static int initialized;
 
-static int mbd_init(void)
+static int mbd_rpc_init(void)
 {
     if (initialized)
         return 0;
@@ -75,7 +75,7 @@ static int mbd_init(void)
 int call_mbd(const void *req, size_t req_len,
              void **rep, struct protocol_header *reply_hdr)
 {
-    if (mbd_init() < 0)
+    if (mbd_rpc_init() < 0)
         return -1;
 
     if (chan_mbd < 0) {

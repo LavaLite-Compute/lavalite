@@ -207,3 +207,6 @@ int32_t llb_signal_job(int64_t, int32_t);
 /* btokens */
 struct token_pool_info *llb_token_info(int32_t *);
 void llb_free_token_info(struct token_pool_info *, int32_t);
+
+int32_t llb_queue_admin(const char *, int32_t);
+int32_t llb_host_admin(const char *, int32_t);

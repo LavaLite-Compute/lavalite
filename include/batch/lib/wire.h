@@ -245,6 +245,13 @@ struct wire_host_info_array {
     struct wire_host_info *hosts;
 };
 
+struct wire_host_admin {
+    char     name[MAXHOSTNAMELEN];
+    int32_t  op;       /* HOST_CLOSED or 0 for open */
+    uint32_t uid;
+};
+
+
 /* -----------------------------------------------------------------------
  * host group info  (mbd -> client)
  * ----------------------------------------------------------------------- */
@@ -277,12 +284,21 @@ struct wire_queue_info {
     int32_t num_held;
     int32_t num_cpus_used;
     int32_t num_hosts_used;
+    int32_t status;        /* QUEUE_OPEN | QUEUE_CLOSED */
 };
 
 struct wire_queue_info_array {
     int32_t                nqueues;
     struct wire_queue_info *queues;
 };
+
+/* after wire_queue_info_array */
+struct wire_queue_admin {
+    char name[LL_BUFSIZ_64];
+    int32_t op; /* QUEUE_OPEN | QUEUE_CLOSED */
+    uint32_t uid; /* must be admin or root */
+};
+
 
 struct wire_token_info {
     char    name[LL_BUFSIZ_64];
@@ -303,6 +319,10 @@ struct wire_token_info_array {
 bool_t xdr_wire_compact_notify(XDR *, struct wire_compact_notify *);
 bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
 bool_t xdr_wire_sbd_job(XDR *, struct wire_sbd_job *);
+
+/* in XDR serializers, admin section */
+bool_t xdr_wire_queue_admin(XDR *, struct wire_queue_admin *);
+bool_t xdr_wire_host_admin(XDR *xdrs, struct wire_host_admin *);
 
 /* job */
 bool_t xdr_wire_job_state(XDR *, struct wire_job_state *);

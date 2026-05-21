@@ -86,14 +86,25 @@ static void usage(void)
 static struct option longopts[] = {
     {"help",    no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'V'},
+    {"close",   required_argument, NULL, 'c'},
+    {"open",    required_argument, NULL, 'o'},
     {NULL, 0, NULL, 0}
 };
 
 int main(int argc, char **argv)
 {
+    const char *close_queue = NULL;
+    const char *open_queue  = NULL;
+
     int cc;
     while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
         switch (cc) {
+        case 'c':
+            close_queue = optarg;
+            break;
+        case 'o':
+            open_queue  = optarg;
+            break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
@@ -102,6 +113,24 @@ int main(int argc, char **argv)
             usage();
             return 0;
         }
+    }
+
+    if (close_queue) {
+        int rc = llb_queue_admin(close_queue, QUEUE_CLOSED);
+        if (rc != 0)
+            fprintf(stderr, "bqueues: %s: %m\n", close_queue);
+        else
+            printf("queue %s closed\n", close_queue);
+        return rc ;
+    }
+
+    if (open_queue) {
+        int rc = llb_queue_admin(open_queue, QUEUE_OPEN);
+        if (rc != 0)
+            fprintf(stderr, "bqueues: %s: %m\n", open_queue);
+        else
+            printf("queue %s opened\n", open_queue);
+        return rc;
     }
 
     int32_t n;

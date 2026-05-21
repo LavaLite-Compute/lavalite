@@ -9,7 +9,7 @@ LDADD = $(COMMON_LIBS)
 
 sbin_PROGRAMS = mbd
 mbd_SOURCES = mbd.c conf.c  sched.c events.c net.c dispatch.c job.c \
-	      sbd.c
+	      sbd.c admin.c
 # mbd_SOURCES = main.c api.c compact.c events.c init.c job.c net.c \
 #	      sbd.c sched.c
 

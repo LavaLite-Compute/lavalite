@@ -51,6 +51,12 @@ enum batch_lib_op {
     BATCH_SBD_JOB_SIGNAL,
     BATCH_SBD_JOB_SIGNAL_REPLY,
     BATCH_JOB_UNKNOWN,
+
+    BATCH_QUEUE_ADMIN,
+    BATCH_QUEUE_ADMIN_ACK,
+
+    BATCH_HOST_ADMIN,
+    BATCH_HOST_ADMIN_ACK,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);

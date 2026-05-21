@@ -377,6 +377,7 @@ int queues_info(XDR *xdrs, int chan_id)
         ll_strlcpy(queues[i].description, q->description,
                    sizeof(queues[i].description));
         ll_strlcpy(queues[i].hosts, q->hosts_spec, sizeof(queues[i].hosts));
+        queues[i].status = q->state;
         queues[i].priority = q->priority;
         queues[i].max_jobs = q->max_jobs;
         queues[i].num_jobs = q->num_jobs;
@@ -581,4 +582,71 @@ int tokens_info(XDR *xdrs, int chan_id)
 
     free(w.tokens);
     return 0;
+}
+/* -----------------------------------------------------------
+ * queue admin (open/close)
+ * ----------------------------------------------------------- */
+int queue_admin(XDR *xdrs, int chan_id)
+{
+    struct wire_queue_admin req;
+    struct mbd_queue *q;
+
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_queue_admin(xdrs, &req)) {
+        LS_ERR("queue_admin: xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, EPROTO);
+    }
+
+    if (!is_manager(req.uid)) {
+        LS_ERR("queue_admin: uid=%u not a manager", req.uid);
+        return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, EPERM);
+    }
+
+    q = ll_hash_search(&queue_name_hash, req.name);
+    if (q == NULL) {
+        LS_ERR("queue_admin: queue=%s not found", req.name);
+        return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, ESRCH);
+    }
+
+    q->state = req.op;
+    LS_INFO("queue=%s set to %s by uid=%u",
+            q->name, req.op == QUEUE_CLOSED ? "closed" : "open", req.uid);
+
+    queue_state_write(q);
+
+    return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, 0);
+}
+
+int host_admin(XDR *xdrs, int chan_id)
+{
+    struct wire_host_admin req;
+    struct mbd_host *h;
+
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_host_admin(xdrs, &req)) {
+        LS_ERR("host_admin: xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, EPROTO);
+    }
+
+    if (!is_manager(req.uid)) {
+        LS_ERR("host_admin: uid=%u not a manager", req.uid);
+        return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, EPERM);
+    }
+
+    h = ll_hash_search(&host_name_hash, req.name);
+    if (h == NULL) {
+        LS_ERR("host_admin: host=%s not found", req.name);
+        return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, ESRCH);
+    }
+
+    if (req.op == HOST_CLOSED)
+        h->state |= HOST_CLOSED;
+    else
+        h->state &= ~HOST_CLOSED;
+
+    host_state_write(h);
+    LS_INFO("host=%s set to %s by uid=%u",
+            h->net.name, req.op == HOST_CLOSED ? "closed" : "open", req.uid);
+
+    return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, 0);
 }

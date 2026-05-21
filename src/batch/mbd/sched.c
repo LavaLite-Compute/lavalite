@@ -291,6 +291,11 @@ void schedule(void)
             continue;
         }
 
+        if (job->queue->state == QUEUE_CLOSED) {
+            job->pend_reason = PEND_QUEUE_CLOSED;
+            continue;
+        }
+
         if (! tokens_available(job)) {
             job->pend_reason = PEND_TOKENS;
             continue;

@@ -330,6 +330,15 @@ void mbd_job_finish(struct mbd_host *, XDR *);
 
 // queue.c
 int queue_user_allowed(const struct mbd_queue *, uid_t);
+int queue_admin(XDR *, int);
+int host_admin(XDR *, int);
+
 
 // debug counters
 void mbd_assert_counters(void);
+
+// admin.c
+void host_state_write(const struct mbd_host *);
+int host_state_init(void);
+void queue_state_write(const struct mbd_queue *);
+int queue_state_init(void);

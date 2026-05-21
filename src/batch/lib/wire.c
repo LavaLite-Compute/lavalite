@@ -329,6 +329,17 @@ bool_t xdr_wire_host_info_array(XDR *xdrs, struct wire_host_info_array *p)
     return true;
 }
 
+bool_t xdr_wire_host_admin(XDR *xdrs, struct wire_host_admin *p)
+{
+    if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->op))
+        return false;
+    if (!xdr_uint32_t(xdrs, &p->uid))
+        return false;
+    return true;
+}
+
 /* -----------------------------------------------------------------------
  * queue
  * ----------------------------------------------------------------------- */
@@ -358,6 +369,19 @@ bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *p)
     if (!xdr_int32_t(xdrs, &p->num_cpus_used))
         return false;
     if (!xdr_int32_t(xdrs, &p->num_hosts_used))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->status))
+        return false;
+    return true;
+}
+
+bool_t xdr_wire_queue_admin(XDR *xdrs, struct wire_queue_admin *p)
+{
+    if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->op))
+        return false;
+    if (!xdr_uint32_t(xdrs, &p->uid))
         return false;
     return true;
 }

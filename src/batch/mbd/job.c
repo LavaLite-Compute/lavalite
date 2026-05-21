@@ -603,7 +603,21 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 
     struct job_data *job = job_find(s.job_id);
     if (job == NULL) {
+        // Distinguish missing from duplicate for code and logical clarity
         LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
+        struct wire_job_ack ack;
+        memset(&ack, 0, sizeof(ack));
+        ack.job_id = s.job_id;
+        ack.ack_op = BATCH_JOB_FINISH;
+        struct protocol_header hdr;
+        init_protocol_header(&hdr);
+        hdr.operation = BATCH_JOB_FINISH_ACK;
+        hdr.status = MBD_OK;
+        if (auth_sign_header(&hdr) < 0) {
+            LS_ERR("job=%ld failed to sign header", s.job_id);
+            return;
+        }
+        enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K, xdr_wire_job_ack);
         return;
     }
 
