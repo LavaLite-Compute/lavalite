@@ -12,25 +12,22 @@
 // 11 load indexes collected by lim on every cluster machine
 enum lim_load_index {
     R15S = 0,
-    R1M  = 1,
+    R1M = 1,
     R15M = 2,
-    UT   = 3,
-    PG   = 4,
-    IO   = 5,
-    LS   = 6,
-    IT   = 7,
-    TMP  = 8,
-    SWP  = 9,
-    MEM  = 10,
-    NUM_METRICS = 11,   // number of built-in indices
+    UT = 3,
+    PG = 4,
+    IO = 5,
+    LS = 6,
+    IT = 7,
+    TMP = 8,
+    SWP = 9,
+    MEM = 10,
+    NUM_METRICS = 11, // number of built-in indices
 };
 
 extern __thread int lserrno;
 
-enum lim_stat {
-    LIM_STAT_OK,
-    LIM_STAT_CLOSED
-};
+enum lim_stat { LIM_STAT_OK, LIM_STAT_CLOSED };
 
 struct ll_cluster_info {
     char cluster_name[64];

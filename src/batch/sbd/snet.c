@@ -22,26 +22,26 @@ static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
     XDR xdrs;
 
     if (chan_alloc_buf(&buf, siz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d siz=%ld",
-               hdr->operation, (long)siz);
+        LS_ERR("chan_alloc_buf failed op=%d siz=%ld", hdr->operation,
+               (long) siz);
         return -1;
     }
 
     xdrmem_create(&xdrs, buf->data, siz, XDR_ENCODE);
 
-    if (! ll_encode_msg(&xdrs, (char *)payload, xdr_func, hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) payload, xdr_func, hdr)) {
         LS_ERRX("ll_encode_msg failed op=%d", hdr->operation);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         return -1;
     }
 
-    buf->len = (size_t)xdr_getpos(&xdrs);
+    buf->len = (size_t) xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(chan_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed op=%d len=%d",
-               hdr->operation, (int)buf->len);
+        LS_ERR("chan_enqueue failed op=%d len=%d", hdr->operation,
+               (int) buf->len);
         chan_free_buf(buf);
         return -1;
     }
@@ -71,7 +71,7 @@ int sbd_mbd_connect(void)
     memset(&addr, 0, sizeof(addr));
     get_host_addrv4(&mbd_host, &addr);
     addr.sin_family = AF_INET;
-    addr.sin_port = htons((uint16_t)port);
+    addr.sin_port = htons((uint16_t) port);
 
     // 3s: datacenter LAN; if mbd doesn't answer it's down
     if (chan_connect(sbd_mbd_chan, &addr, 3, 0) < 0) {
@@ -80,10 +80,8 @@ int sbd_mbd_connect(void)
         return -1;
     }
 
-    struct epoll_event ev = {
-        .events = EPOLLIN,
-        .data.u32 = (uint32_t)sbd_mbd_chan
-    };
+    struct epoll_event ev = {.events = EPOLLIN,
+                             .data.u32 = (uint32_t) sbd_mbd_chan};
 
     if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_mbd_chan), &ev) < 0) {
         LS_ERR("epoll_ctl() failed to add mbd connection to epoll");
@@ -105,10 +103,10 @@ void sbd_mbd_link_down(void)
 
     struct ll_list_entry *e;
     for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
+        struct sbd_job *job = (struct sbd_job *) e;
 
-        job->reply_last_send = job->execute_last_send
-            = job->finish_last_send = 0;
+        job->reply_last_send = job->execute_last_send = job->finish_last_send =
+            0;
         // Write the latest job state
         if (sbd_job_state_write(job) < 0) {
             LS_ERRX("job=%ld state write failed", job->job_id);
@@ -127,7 +125,7 @@ bool_t sbd_mbd_link_ready(void)
 
 int sbd_register(void)
 {
-    if (! sbd_mbd_link_ready())
+    if (!sbd_mbd_link_ready())
         return -1;
 
     char host[MAXHOSTNAMELEN];
@@ -172,8 +170,8 @@ int sbd_mbd_route(int chan_id)
     struct chan_data *chan = &channels[chan_id];
 
     if (chan->chan_events == CHAN_EPOLLERR) {
-        LS_ERRX("lost connection with mbd on channel=%d socket err=%d",
-                chan_id, chan_sock_error(chan_id));
+        LS_ERRX("lost connection with mbd on channel=%d socket err=%d", chan_id,
+                chan_sock_error(chan_id));
         sbd_mbd_link_down();
         return -1;
     }
@@ -191,8 +189,8 @@ int sbd_mbd_route(int chan_id)
     }
 
     if (!buf || buf->len < PACKET_HEADER_SIZE) {
-        LS_ERR("short header from mbd on channel=%d: len=%d",
-               chan_id, buf ? buf->len : 0);
+        LS_ERR("short header from mbd on channel=%d: len=%d", chan_id,
+               buf ? buf->len : 0);
         chan_free_buf(buf);
         sbd_mbd_link_down();
         return -1;
@@ -283,7 +281,7 @@ void sbd_register_ack(XDR *xdrs)
 
         if (job->pid <= 0) {
             LS_ERRX("register: invariant violation: job=%ld exists but pid=%d",
-                    job->job_id, (int)job->pid);
+                    job->job_id, (int) job->pid);
             sbd_fatal(SBD_FATAL_INVARIANT);
             /* not reached */
         }
@@ -291,20 +289,20 @@ void sbd_register_ack(XDR *xdrs)
         if (wj->pid > 0) {
             if (wj->pid != job->pid) {
                 LS_ERRX("register: pid mismatch job=%ld mbd_pid=%d sbd_pid=%d",
-                        (long)wj->job_id, (int)wj->pid, (int)job->pid);
+                        (long) wj->job_id, (int) wj->pid, (int) job->pid);
                 sbd_fatal(SBD_FATAL_INVARIANT);
                 /* not reached */
             }
             LS_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d "
-                    "execute_acked=%d", job->job_id, job->pid,
-                    job->pid_acked, job->execute_acked);
+                    "execute_acked=%d",
+                    job->job_id, job->pid, job->pid_acked, job->execute_acked);
             continue;
         }
 
         /* wj->pid == 0: mbd lost pid, force resend */
         LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d "
-                "execute_acked=%d", wj->job_id, job->pid,
-                job->pid_acked, job->execute_acked);
+                "execute_acked=%d",
+                wj->job_id, job->pid, job->pid_acked, job->execute_acked);
         job->pid_acked = 0;
         job->reply_last_send = 0;
     }
@@ -312,8 +310,8 @@ void sbd_register_ack(XDR *xdrs)
     free(reg_ack.jobs);
 }
 
-int sbd_send_msg(int32_t op, int32_t status,
-                 void *payload, size_t siz, bool_t (*xdr_func)())
+int sbd_send_msg(int32_t op, int32_t status, void *payload, size_t siz,
+                 bool_t (*xdr_func)())
 {
     struct protocol_header hdr;
 
@@ -328,7 +326,8 @@ int sbd_send_msg(int32_t op, int32_t status,
 
     int cc = sbd_enqueue_payload(sbd_mbd_chan, &hdr, payload, siz, xdr_func);
     if (cc < 0) {
-        LS_ERR("sbd_enqueue_payload failed closing chan=%d to mbd", sbd_mbd_chan);
+        LS_ERR("sbd_enqueue_payload failed closing chan=%d to mbd",
+               sbd_mbd_chan);
         sbd_mbd_link_down();
         return -1;
     }

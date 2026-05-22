@@ -34,7 +34,7 @@ static int make_path(char *buf, size_t bufsz, const char *fmt, ...)
     n = vsnprintf(buf, bufsz, fmt, ap);
     va_end(ap);
 
-    if (n < 0 || (size_t)n >= bufsz) {
+    if (n < 0 || (size_t) n >= bufsz) {
         errno = ENAMETOOLONG;
         return -1;
     }
@@ -126,8 +126,8 @@ int sbd_storage_init(void)
      * Production (root): use LL_STATE_DIR from ll.conf.
      */
     if (non_root) {
-        if (make_path(root_dir, sizeof(root_dir),
-                      "/tmp/lavalite-sbd.%ld", (long)getuid()) < 0) {
+        if (make_path(root_dir, sizeof(root_dir), "/tmp/lavalite-sbd.%ld",
+                      (long) getuid()) < 0) {
             LS_ERR("non-root tmp state path too long");
             return -1;
         }
@@ -140,32 +140,31 @@ int sbd_storage_init(void)
 
     LS_INFO("sbd state root=%s", root_dir);
 
-    if (make_path(sbd_root_dir, sizeof(sbd_root_dir),
-                  "%s/sbd", root_dir) < 0) {
+    if (make_path(sbd_root_dir, sizeof(sbd_root_dir), "%s/sbd", root_dir) < 0) {
         LS_ERR("sbd root path too long");
         return -1;
     }
     if (mkdir_chmod(sbd_root_dir, 0755) < 0)
         return -1;
 
-    if (make_path(sbd_job_dir, sizeof(sbd_job_dir),
-                  "%s/jobs", sbd_root_dir) < 0) {
+    if (make_path(sbd_job_dir, sizeof(sbd_job_dir), "%s/jobs", sbd_root_dir) <
+        0) {
         LS_ERR("sbd jobs path too long");
         return -1;
     }
     if (mkdir_chmod(sbd_job_dir, 0755) < 0)
         return -1;
 
-    if (make_path(sbd_state_dir, sizeof(sbd_state_dir),
-                  "%s/state", sbd_root_dir) < 0) {
+    if (make_path(sbd_state_dir, sizeof(sbd_state_dir), "%s/state",
+                  sbd_root_dir) < 0) {
         LS_ERR("sbd state path too long");
         return -1;
     }
     if (mkdir_chmod(sbd_state_dir, 0755) < 0)
         return -1;
 
-    if (make_path(sbd_archive_dir, sizeof(sbd_archive_dir),
-                  "%s/.archive", sbd_root_dir) < 0) {
+    if (make_path(sbd_archive_dir, sizeof(sbd_archive_dir), "%s/.archive",
+                  sbd_root_dir) < 0) {
         LS_ERR("archive path too long");
         return -1;
     }
@@ -191,11 +190,7 @@ int sbd_storage_init(void)
 
 void sbd_job_file_remove(struct sbd_job *job)
 {
-    static const char *const job_files[] = {
-        "job.sh",
-        "exit",
-        NULL
-    };
+    static const char *const job_files[] = {"job.sh", "exit", NULL};
 
     char dir[PATH_MAX];
     char path[PATH_MAX];
@@ -207,8 +202,8 @@ void sbd_job_file_remove(struct sbd_job *job)
 
     for (int i = 0; job_files[i] != NULL; i++) {
         if (make_path(path, sizeof(path), "%s/%s", dir, job_files[i]) < 0) {
-            LS_ERR("job file path too long job=%ld file=%s",
-                   job->job_id, job_files[i]);
+            LS_ERR("job file path too long job=%ld file=%s", job->job_id,
+                   job_files[i]);
             continue;
         }
 
@@ -302,23 +297,13 @@ int sbd_job_state_write(struct sbd_job *job)
                      "exec_uid=%u\n"
                      "exec_gid=%u\n"
                      "exec_user=%s\n",
-                     job->job_id,
-                     (int)job->pid,
-                     (int)job->pgid,
-                     pid_acked,
-                     (long)job->time_pid_acked,
-                     execute_acked,
-                     (long)job->time_execute_acked,
-                     finish_acked,
-                     (long)job->time_finish_acked,
-                     exit_status_valid,
-                     job->exit_status,
-                     (long)job->end_time,
-                     job->exec_cwd,
-                     job->exec_home,
-                     (unsigned)job->exec_uid,
-                     (unsigned)job->exec_gid,
-                     job->exec_user);
+                     job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
+                     (long) job->time_pid_acked, execute_acked,
+                     (long) job->time_execute_acked, finish_acked,
+                     (long) job->time_finish_acked, exit_status_valid,
+                     job->exit_status, (long) job->end_time, job->exec_cwd,
+                     job->exec_home, (unsigned) job->exec_uid,
+                     (unsigned) job->exec_gid, job->exec_user);
 
     if (n < 0) {
         errno = EINVAL;
@@ -326,7 +311,7 @@ int sbd_job_state_write(struct sbd_job *job)
         return -1;
     }
 
-    if ((size_t)n >= sizeof(buf)) {
+    if ((size_t) n >= sizeof(buf)) {
         errno = ENAMETOOLONG;
         LS_ERR("state buffer too small job=%ld", job->job_id);
         return -1;
@@ -338,7 +323,7 @@ int sbd_job_state_write(struct sbd_job *job)
         return -1;
     }
 
-    if (write_all(fd, buf, (size_t)n) < 0) {
+    if (write_all(fd, buf, (size_t) n) < 0) {
         LS_ERR("write(%s) failed job=%ld", tmp_path, job->job_id);
         close(fd);
         unlink(tmp_path);
@@ -359,8 +344,7 @@ int sbd_job_state_write(struct sbd_job *job)
     }
 
     if (rename(tmp_path, path) < 0) {
-        LS_ERR("rename(%s -> %s) failed job=%ld",
-               tmp_path, path, job->job_id);
+        LS_ERR("rename(%s -> %s) failed job=%ld", tmp_path, path, job->job_id);
         unlink(tmp_path);
         return -1;
     }
@@ -371,20 +355,10 @@ int sbd_job_state_write(struct sbd_job *job)
             "execute_acked=%d finish_acked=%d exit_status_valid=%d "
             "exit_status=%d end_time=%ld exec_cwd=%s exec_home=%s "
             "exec_uid=%u exec_gid=%u exec_user=%s",
-            job->job_id,
-            (int)job->pid,
-            (int)job->pgid,
-            pid_acked,
-            execute_acked,
-            finish_acked,
-            exit_status_valid,
-            job->exit_status,
-            (long)job->end_time,
-            job->exec_cwd,
-            job->exec_home,
-            (unsigned)job->exec_uid,
-            (unsigned)job->exec_gid,
-            job->exec_user);
+            job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
+            execute_acked, finish_acked, exit_status_valid, job->exit_status,
+            (long) job->end_time, job->exec_cwd, job->exec_home,
+            (unsigned) job->exec_uid, (unsigned) job->exec_gid, job->exec_user);
 
     return 0;
 }
@@ -417,18 +391,18 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
         }
 
         if (strcmp(key, "job_id") == 0) {
-            job->job_id = (int64_t)strtoll(val, NULL, 10);
+            job->job_id = (int64_t) strtoll(val, NULL, 10);
             got_job_id = TRUE;
             continue;
         }
 
         if (strcmp(key, "pid") == 0) {
-            job->pid = (pid_t)atol(val);
+            job->pid = (pid_t) atol(val);
             continue;
         }
 
         if (strcmp(key, "pgid") == 0) {
-            job->pgid = (pid_t)atol(val);
+            job->pgid = (pid_t) atol(val);
             continue;
         }
 
@@ -438,7 +412,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
         }
 
         if (strcmp(key, "time_pid_acked") == 0) {
-            job->time_pid_acked = (time_t)atol(val);
+            job->time_pid_acked = (time_t) atol(val);
             continue;
         }
 
@@ -448,7 +422,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
         }
 
         if (strcmp(key, "time_execute_acked") == 0) {
-            job->time_execute_acked = (time_t)atol(val);
+            job->time_execute_acked = (time_t) atol(val);
             continue;
         }
 
@@ -458,7 +432,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
         }
 
         if (strcmp(key, "time_finish_acked") == 0) {
-            job->time_finish_acked = (time_t)atol(val);
+            job->time_finish_acked = (time_t) atol(val);
             continue;
         }
 
@@ -473,7 +447,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
         }
 
         if (strcmp(key, "end_time") == 0) {
-            job->end_time = (time_t)atol(val);
+            job->end_time = (time_t) atol(val);
             continue;
         }
 
@@ -488,12 +462,12 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
         }
 
         if (strcmp(key, "exec_uid") == 0) {
-            job->exec_uid = (uid_t)atoi(val);
+            job->exec_uid = (uid_t) atoi(val);
             continue;
         }
 
         if (strcmp(key, "exec_gid") == 0) {
-            job->exec_gid = (gid_t)atoi(val);
+            job->exec_gid = (gid_t) atoi(val);
             continue;
         }
 
@@ -506,8 +480,8 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
     fclose(fp);
 
     if (version != 1 || got_job_id == FALSE) {
-        LS_ERRX("bad state file: version=%d got_job_id=%d path=%s",
-                version, got_job_id, state_path);
+        LS_ERRX("bad state file: version=%d got_job_id=%d path=%s", version,
+                got_job_id, state_path);
         errno = EINVAL;
         return -1;
     }
@@ -534,8 +508,8 @@ int sbd_job_state_load_all(void)
         if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
             continue;
 
-        if (make_path(state_path, sizeof(state_path),
-                      "%s/%s/state", sbd_state_dir, de->d_name) < 0)
+        if (make_path(state_path, sizeof(state_path), "%s/%s/state",
+                      sbd_state_dir, de->d_name) < 0)
             continue;
 
         job = calloc(1, sizeof(struct sbd_job));
@@ -560,8 +534,7 @@ int sbd_job_state_load_all(void)
     return 0;
 }
 
-int sbd_read_exit_status_file(struct sbd_job *job,
-                              int *exit_code,
+int sbd_read_exit_status_file(struct sbd_job *job, int *exit_code,
                               time_t *done_time)
 {
     char path[PATH_MAX];
@@ -571,8 +544,8 @@ int sbd_read_exit_status_file(struct sbd_job *job,
     int code;
     long ts;
 
-    if (make_path(path, sizeof(path), "%s/%ld/exit",
-                  sbd_job_dir, job->job_id) < 0) {
+    if (make_path(path, sizeof(path), "%s/%ld/exit", sbd_job_dir, job->job_id) <
+        0) {
         errno = ENAMETOOLONG;
         return -1;
     }
@@ -601,7 +574,7 @@ int sbd_read_exit_status_file(struct sbd_job *job,
     if (exit_code != NULL)
         *exit_code = code;
     if (done_time != NULL)
-        *done_time = (time_t)ts;
+        *done_time = (time_t) ts;
 
     return 0;
 }
@@ -628,8 +601,8 @@ static void sbd_prune_archive(void)
         if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
             continue;
 
-        if (make_path(state_path, sizeof(state_path),
-                      "%s/%s/state", sbd_archive_dir, de->d_name) < 0)
+        if (make_path(state_path, sizeof(state_path), "%s/%s/state",
+                      sbd_archive_dir, de->d_name) < 0)
             continue;
 
         memset(&job, 0, sizeof(job));
@@ -644,8 +617,8 @@ static void sbd_prune_archive(void)
         if ((now - job.time_finish_acked) < SBD_ARCHIVE_RETENTION)
             continue;
 
-        if (make_path(dir_path, sizeof(dir_path),
-                      "%s/%s", sbd_archive_dir, de->d_name) < 0)
+        if (make_path(dir_path, sizeof(dir_path), "%s/%s", sbd_archive_dir,
+                      de->d_name) < 0)
             continue;
 
         if (unlink(state_path) < 0 && errno != ENOENT) {
@@ -682,7 +655,7 @@ void sbd_prune_archive_try(void)
     }
 
     if (pruner_pid > 0) {
-        LS_INFO("archive prune started pid=%d", (int)pruner_pid);
+        LS_INFO("archive prune started pid=%d", (int) pruner_pid);
         return;
     }
 

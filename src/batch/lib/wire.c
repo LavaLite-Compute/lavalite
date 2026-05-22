@@ -31,14 +31,10 @@ bool_t xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *p)
 
 bool_t xdr_wire_sbd_register(XDR *xdrs, struct wire_sbd_register *p)
 {
-    if (!xdr_opaque(xdrs, (char *)p->hostname, MAXHOSTNAMELEN))
+    if (!xdr_opaque(xdrs, (char *) p->hostname, MAXHOSTNAMELEN))
         return false;
-    if (!xdr_array(xdrs,
-                   (char **)&p->jobs,
-                   (u_int *)&p->num_jobs,
-                   INT32_MAX,
-                   sizeof(struct wire_sbd_job),
-                   (xdrproc_t)xdr_wire_sbd_job))
+    if (!xdr_array(xdrs, (char **) &p->jobs, (u_int *) &p->num_jobs, INT32_MAX,
+                   sizeof(struct wire_sbd_job), (xdrproc_t) xdr_wire_sbd_job))
         return false;
     return true;
 }
@@ -55,7 +51,6 @@ bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *p)
         return false;
     return true;
 }
-
 
 bool_t xdr_wire_job_finish(XDR *xdr, struct wire_job_finish *f)
 {
@@ -186,7 +181,7 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->priority))
         return false;
-    if (! xdr_int32_t(xdrs, &p->pend_reason))
+    if (!xdr_int32_t(xdrs, &p->pend_reason))
         return false;
     if (!xdr_int64_t(xdrs, &p->submit_time))
         return false;
@@ -211,12 +206,8 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
 
 bool_t xdr_wire_job_info_array(XDR *xdrs, struct wire_job_info_array *p)
 {
-    if (!xdr_array(xdrs,
-                   (char **)&p->jobs,
-                   (u_int *)&p->njobs,
-                   INT32_MAX,
-                   sizeof(struct wire_job_info),
-                   (xdrproc_t)xdr_wire_job_info))
+    if (!xdr_array(xdrs, (char **) &p->jobs, (u_int *) &p->njobs, INT32_MAX,
+                   sizeof(struct wire_job_info), (xdrproc_t) xdr_wire_job_info))
         return false;
     return true;
 }
@@ -318,12 +309,9 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
 
 bool_t xdr_wire_host_info_array(XDR *xdrs, struct wire_host_info_array *p)
 {
-    if (!xdr_array(xdrs,
-                   (char **)&p->hosts,
-                   (u_int *)&p->nhosts,
-                   INT32_MAX,
+    if (!xdr_array(xdrs, (char **) &p->hosts, (u_int *) &p->nhosts, INT32_MAX,
                    sizeof(struct wire_host_info),
-                   (xdrproc_t)xdr_wire_host_info))
+                   (xdrproc_t) xdr_wire_host_info))
         return false;
     return true;
 }
@@ -387,12 +375,9 @@ bool_t xdr_wire_queue_admin(XDR *xdrs, struct wire_queue_admin *p)
 
 bool_t xdr_wire_queue_info_array(XDR *xdrs, struct wire_queue_info_array *p)
 {
-    if (!xdr_array(xdrs,
-                   (char **)&p->queues,
-                   (u_int *)&p->nqueues,
-                   INT32_MAX,
+    if (!xdr_array(xdrs, (char **) &p->queues, (u_int *) &p->nqueues, INT32_MAX,
                    sizeof(struct wire_queue_info),
-                   (xdrproc_t)xdr_wire_queue_info))
+                   (xdrproc_t) xdr_wire_queue_info))
         return false;
     return true;
 }
@@ -414,12 +399,9 @@ bool_t xdr_wire_group_info(XDR *xdrs, struct wire_group_info *p)
 
 bool_t xdr_wire_group_info_array(XDR *xdrs, struct wire_group_info_array *p)
 {
-    if (!xdr_array(xdrs,
-                   (char **)&p->groups,
-                   (u_int *)&p->ngroups,
-                   INT32_MAX,
+    if (!xdr_array(xdrs, (char **) &p->groups, (u_int *) &p->ngroups, INT32_MAX,
                    sizeof(struct wire_group_info),
-                   (xdrproc_t)xdr_wire_group_info))
+                   (xdrproc_t) xdr_wire_group_info))
         return false;
     return true;
 }
@@ -432,7 +414,6 @@ bool_t xdr_wire_job_ack(XDR *xdrs, struct wire_job_ack *p)
         return false;
     return true;
 }
-
 
 bool_t xdr_wire_token_info(XDR *xdrs, struct wire_token_info *p)
 {
@@ -447,12 +428,9 @@ bool_t xdr_wire_token_info(XDR *xdrs, struct wire_token_info *p)
 
 bool_t xdr_wire_token_info_array(XDR *xdrs, struct wire_token_info_array *p)
 {
-    if (!xdr_array(xdrs,
-                   (char **)&p->tokens,
-                   (u_int *)&p->ntokens,
-                   INT32_MAX,
+    if (!xdr_array(xdrs, (char **) &p->tokens, (u_int *) &p->ntokens, INT32_MAX,
                    sizeof(struct wire_token_info),
-                   (xdrproc_t)xdr_wire_token_info))
+                   (xdrproc_t) xdr_wire_token_info))
         return false;
     return true;
 }

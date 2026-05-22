@@ -84,8 +84,7 @@ static struct job_hist_info *hist_add(struct hist_ctx *ctx,
             return NULL;
 
         ctx->jobs = n;
-        memset(&ctx->jobs[ctx->max_jobs], 0,
-               64 * sizeof(struct job_hist_info));
+        memset(&ctx->jobs[ctx->max_jobs], 0, 64 * sizeof(struct job_hist_info));
         ctx->max_jobs = new_max;
     }
 
@@ -195,11 +194,12 @@ static void hist_apply_fork(struct hist_ctx *ctx, const struct event_rec *rec)
     if (j == NULL)
         return;
 
-    j->pid = (pid_t)e.job_pid;
+    j->pid = (pid_t) e.job_pid;
     j->fork_time = e.fork_time;
 }
 
-static void hist_apply_execute(struct hist_ctx *ctx, const struct event_rec *rec)
+static void hist_apply_execute(struct hist_ctx *ctx,
+                               const struct event_rec *rec)
 {
     struct log_job_execute e;
     struct job_hist_info *j;
@@ -380,8 +380,8 @@ static int hist_is_archive(const char *name)
 
 static int hist_name_cmp(const void *a, const void *b)
 {
-    const char * const *aa = a;
-    const char * const *bb = b;
+    const char *const *aa = a;
+    const char *const *bb = b;
 
     return strcmp(*aa, *bb);
 }
@@ -436,7 +436,7 @@ static int hist_scan_events(struct hist_ctx *ctx)
     int n;
 
     n = snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
-    if (n < 0 || n >= (int)sizeof(dir))
+    if (n < 0 || n >= (int) sizeof(dir))
         return -1;
 
     dp = opendir(dir);
@@ -460,7 +460,7 @@ static int hist_scan_events(struct hist_ctx *ctx)
 
     for (i = 0; i < count; i++) {
         n = snprintf(path, sizeof(path), "%s/%s", dir, names[i]);
-        if (n < 0 || n >= (int)sizeof(path)) {
+        if (n < 0 || n >= (int) sizeof(path)) {
             hist_free_names(names, count);
             return -1;
         }
@@ -471,7 +471,7 @@ static int hist_scan_events(struct hist_ctx *ctx)
     hist_free_names(names, count);
 
     n = snprintf(path, sizeof(path), "%s/sysevents", dir);
-    if (n < 0 || n >= (int)sizeof(path))
+    if (n < 0 || n >= (int) sizeof(path))
         return -1;
 
     hist_scan_file(ctx, path);

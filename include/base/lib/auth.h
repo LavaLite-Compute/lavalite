@@ -18,8 +18,8 @@
  * Replay protection: server rejects headers older than AUTH_MAX_AGE seconds.
  */
 
-#define AUTH_KEY_SIZE  32
-#define AUTH_MAX_AGE   60
+#define AUTH_KEY_SIZE 32
+#define AUTH_MAX_AGE 60
 
 int auth_init(uint8_t, uint32_t);
 void auth_set_required(int);

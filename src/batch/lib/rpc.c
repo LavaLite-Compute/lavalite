@@ -40,17 +40,17 @@ static int mbd_rpc_init(void)
         return -1;
     }
 
-    if (!ll_atoi(ll_params[LL_MBD_PORT].val, (int *)&mbd_port)) {
+    if (!ll_atoi(ll_params[LL_MBD_PORT].val, (int *) &mbd_port)) {
         errno = EINVAL;
         return -1;
     }
 
-    if (! ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout)) {
+    if (!ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout)) {
         errno = EINVAL;
         return -1;
     }
 
-    if (! ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout)) {
+    if (!ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout)) {
         errno = EINVAL;
         return -1;
     }
@@ -72,14 +72,13 @@ static int mbd_rpc_init(void)
  * On error: returns -1, sets lserrno.
  * Keeps a persistent TCP connection; reconnects on failure.
  */
-int call_mbd(const void *req, size_t req_len,
-             void **rep, struct protocol_header *reply_hdr)
+int call_mbd(const void *req, size_t req_len, void **rep,
+             struct protocol_header *reply_hdr)
 {
     if (mbd_rpc_init() < 0)
         return -1;
 
     if (chan_mbd < 0) {
-
         chan_mbd = chan_tcp_client();
         if (chan_mbd < 0) {
             return -1;
@@ -89,7 +88,7 @@ int call_mbd(const void *req, size_t req_len,
         memset(&addr, 0, sizeof(addr));
         get_host_addrv4(&mbd_host, &addr);
         addr.sin_family = AF_INET;
-        addr.sin_port   = htons((uint16_t)mbd_port);
+        addr.sin_port = htons((uint16_t) mbd_port);
 
         if (chan_connect(chan_mbd, &addr, conntimeout * 1000, 0) < 0) {
             chan_close(chan_mbd);
@@ -98,7 +97,7 @@ int call_mbd(const void *req, size_t req_len,
         }
     }
 
-    struct chan_buffer sndbuf = {.data = (void *)req, .len = req_len};
+    struct chan_buffer sndbuf = {.data = (void *) req, .len = req_len};
     struct chan_buffer rcvbuf = {0};
 
     if (chan_rpc(chan_mbd, &sndbuf, &rcvbuf, reply_hdr, recvtimeout) < 0) {
@@ -122,18 +121,18 @@ int call_mbd(const void *req, size_t req_len,
 const char *batch_op_str(enum batch_lib_op op)
 {
     static const char *names[] = {
-        [BATCH_JOB_SUBMIT]       = "BATCH_JOB_SUBMIT",
-        [BATCH_JOB_SUBMIT_ACK]   = "BATCH_JOB_SUBMIT_ACK",
-        [BATCH_JOB_SIGNAL]       = "BATCH_JOB_SIGNAL",
-        [BATCH_JOB_SIGNAL_ACK]   = "BATCH_JOB_SIGNAL_ACK",
-        [BATCH_JOB_INFO]         = "BATCH_JOB_INFO",
-        [BATCH_JOB_INFO_ACK]     = "BATCH_JOB_INFO_ACK",
-        [BATCH_HOST_INFO]        = "BATCH_HOST_INFO",
-        [BATCH_HOST_INFO_ACK]    = "BATCH_HOST_INFO_ACK",
-        [BATCH_QUEUE_INFO]       = "BATCH_QUEUE_INFO",
-        [BATCH_QUEUE_INFO_ACK]   = "BATCH_QUEUE_INFO_ACK",
-        [BATCH_GROUP_INFO]       = "BATCH_GROUP_INFO",
-        [BATCH_GROUP_INFO_ACK]   = "BATCH_GROUP_INFO_ACK",
+        [BATCH_JOB_SUBMIT] = "BATCH_JOB_SUBMIT",
+        [BATCH_JOB_SUBMIT_ACK] = "BATCH_JOB_SUBMIT_ACK",
+        [BATCH_JOB_SIGNAL] = "BATCH_JOB_SIGNAL",
+        [BATCH_JOB_SIGNAL_ACK] = "BATCH_JOB_SIGNAL_ACK",
+        [BATCH_JOB_INFO] = "BATCH_JOB_INFO",
+        [BATCH_JOB_INFO_ACK] = "BATCH_JOB_INFO_ACK",
+        [BATCH_HOST_INFO] = "BATCH_HOST_INFO",
+        [BATCH_HOST_INFO_ACK] = "BATCH_HOST_INFO_ACK",
+        [BATCH_QUEUE_INFO] = "BATCH_QUEUE_INFO",
+        [BATCH_QUEUE_INFO_ACK] = "BATCH_QUEUE_INFO_ACK",
+        [BATCH_GROUP_INFO] = "BATCH_GROUP_INFO",
+        [BATCH_GROUP_INFO_ACK] = "BATCH_GROUP_INFO_ACK",
         // sbd <-> mbd
         [BATCH_NEW_JOB] = "BATCH_NEW_JOB",
         [BATCH_NEW_JOB_REPLY] = "BATCH_NEW_JOB_REPLY",
@@ -141,14 +140,14 @@ const char *batch_op_str(enum batch_lib_op op)
         [BATCH_JOB_FINISH] = "BATCH_JOB_FINISH",
         [BATCH_JOB_FINISH_ACK] = "BATCH_JOB_FINISH_ACK",
         [BATCH_SBD_JOB_SIGNAL] = "BATCH_SBD_JOB_SIGNAL",
-        [BATCH_SBD_REGISTER]     = "BATCH_SBD_REGISTER",
+        [BATCH_SBD_REGISTER] = "BATCH_SBD_REGISTER",
         [BATCH_SBD_REGISTER_ACK] = "BATCH_SBD_REGISTER_ACK",
         [BATCH_TOKEN_INFO] = "BATCH_TOKEN_INFO",
         [BATCH_TOKEN_INFO_ACK] = "BATCH_TOKEN_INFO_ACK",
     };
     static const size_t nnames = sizeof(names) / sizeof(names[0]);
 
-    if ((size_t)op >= nnames || names[op] == NULL)
+    if ((size_t) op >= nnames || names[op] == NULL)
         return "UNKNOWN";
 
     return names[op];

@@ -37,19 +37,13 @@ int main(int argc, char **argv)
         return 1;
     }
 
-
-    printf("%-20s %-16s %6s %8s %8s %8s %6s\n",
-           "HOST_NAME", "type", "ncpus", "maxmem", "maxswp", "maxtmp", "master");
+    printf("%-20s %-16s %6s %8s %8s %8s %6s\n", "HOST_NAME", "type", "ncpus",
+           "maxmem", "maxswp", "maxtmp", "master");
 
     for (int i = 0; i < nhosts; i++) {
         struct ll_host_info *h = &hosts[i];
-        printf("%-20s %-12s %6lu %8lu %8lu %8lu %4s\n",
-               h->host_name,
-               h->host_type,
-               h->num_cpus,
-               h->max_mem,
-               h->max_swap,
-               h->max_tmp,
+        printf("%-20s %-12s %6lu %8lu %8lu %8lu %4s\n", h->host_name,
+               h->host_type, h->num_cpus, h->max_mem, h->max_swap, h->max_tmp,
                h->is_master ? "yes" : "no");
     }
 

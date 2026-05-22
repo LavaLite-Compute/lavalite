@@ -12,7 +12,6 @@ static int parse_cluster_section(FILE *f)
     char line[LL_BUFSIZ_1K];
 
     while (fgets(line, sizeof(line), f) != NULL) {
-
         rtrim(line);
         char *p = ltrim(line);
 
@@ -43,7 +42,6 @@ static int parse_admins_section(FILE *f)
     char line[LL_BUFSIZ_1K];
 
     while (fgets(line, sizeof(line), f) != NULL) {
-
         rtrim(line);
         char *p = ltrim(line);
 
@@ -128,7 +126,9 @@ static int parse_host_section(FILE *f)
             continue;
         if (strncasecmp(p, "Hostname", 8) == 0)
             break;
-        LS_ERR("Host section: expected header 'Hostname Resources Master' got='%s'", p);
+        LS_ERR("Host section: expected header 'Hostname Resources Master' "
+               "got='%s'",
+               p);
         return -1;
     }
 
@@ -155,7 +155,8 @@ static int parse_host_section(FILE *f)
         char *op = strchr(p, '(');
         char *cl = strchr(p, ')');
         if (op == NULL || cl == NULL || cl < op) {
-            LS_ERR("Host section: missing () for host=%s got='%s'", hostname, p);
+            LS_ERR("Host section: missing () for host=%s got='%s'", hostname,
+                   p);
             continue;
         }
         p = ltrim(cl + 1);
@@ -172,7 +173,8 @@ static int parse_host_section(FILE *f)
         }
 
         if (strcasecmp(master, "Y") != 0 && strcmp(master, "-") != 0) {
-            LS_ERR("Host section: invalid master='%s' host=%s", master, hostname);
+            LS_ERR("Host section: invalid master='%s' host=%s", master,
+                   hostname);
             return -1;
         }
 
@@ -209,14 +211,13 @@ static void set_host_no(void)
 
     int num = 0;
     for (e = node_list.head; e; e = e->next) {
-        struct lim_node *n = (struct lim_node *)e;
+        struct lim_node *n = (struct lim_node *) e;
         n->host_no = num;
         LS_DEBUG("host=%s machine=%s master=%d host_no=%d resources='%s'",
-                 n->host->name, n->machine, n->is_candidate,
-                 n->host_no, n->resources);
+                 n->host->name, n->machine, n->is_candidate, n->host_no,
+                 n->resources);
         ++num;
     }
-
 }
 
 static int make_master_candidates(void)
@@ -229,8 +230,8 @@ static int make_master_candidates(void)
     struct ll_list_entry *e;
     int i = 0;
     for (e = node_list.head; e; e = e->next) {
-        struct lim_node *n = (struct lim_node *)e;
-        if (! n->is_candidate)
+        struct lim_node *n = (struct lim_node *) e;
+        if (!n->is_candidate)
             continue;
         master_candidates[i] = n;
         ++i;
@@ -283,7 +284,6 @@ int make_cluster(const char *path)
     }
 
     while (fgets(line, sizeof(line), f) != NULL) {
-
         rtrim(line);
         char *p = ltrim(line);
 
@@ -337,14 +337,12 @@ int make_cluster(const char *path)
         return -1;
     }
 
-    if (! is_admin()) {
+    if (!is_admin()) {
         LS_ERRX("user is not admin");
         return -1;
     }
 
-    LS_INFO("cluster=%s admin=%s hosts=%d",
-            lim_cluster.name,
-            lim_cluster.admin,
+    LS_INFO("cluster=%s admin=%s hosts=%d", lim_cluster.name, lim_cluster.admin,
             ll_list_count(&node_list));
 
     set_host_no();

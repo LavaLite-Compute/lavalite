@@ -10,10 +10,7 @@ struct lim_master {
     struct ll_host host;
 };
 
-enum lim_err {
-    LIM_OK = 0,
-    LIM_ERROR = -1
-};
+enum lim_err { LIM_OK = 0, LIM_ERROR = -1 };
 
 enum lim_proto {
     LIM_GET_CLUSTER_NAME = 1,

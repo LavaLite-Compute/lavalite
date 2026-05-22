@@ -5,9 +5,9 @@
 #pragma once
 
 struct ll_stack {
-    void **items; // pointer to array of pointers storing the objects
-    size_t size;       /* number of elements currently stored */
-    size_t capacity;   /* allocated capacity of items[] */
+    void **items;    // pointer to array of pointers storing the objects
+    size_t size;     /* number of elements currently stored */
+    size_t capacity; /* allocated capacity of items[] */
 };
 
 /* Create a new stack. If initial_capacity is 0, a default is used.

@@ -66,7 +66,7 @@ int get_host_by_name(const char *hostname, struct ll_host *hp)
     hp->salen = (socklen_t) res->ai_addrlen;
     memcpy(&hp->sa, res->ai_addr, res->ai_addrlen);
 
-    fill_addrstr((const struct sockaddr *)&hp->sa, hp->addr, sizeof(hp->addr));
+    fill_addrstr((const struct sockaddr *) &hp->sa, hp->addr, sizeof(hp->addr));
 
     if (res->ai_canonname && *res->ai_canonname)
         strncpy(hp->name, res->ai_canonname, sizeof(hp->name) - 1);
@@ -108,8 +108,8 @@ int get_host_by_addrstr(const char *ip, struct ll_host *hp)
 
     strncpy(hp->addr, ip, sizeof(hp->addr) - 1);
 
-    getnameinfo((const struct sockaddr *)&hp->sa, hp->salen,
-                hp->name, sizeof(hp->name), NULL, 0, NI_NAMEREQD);
+    getnameinfo((const struct sockaddr *) &hp->sa, hp->salen, hp->name,
+                sizeof(hp->name), NULL, 0, NI_NAMEREQD);
 
     return 0;
 }

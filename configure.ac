@@ -1,14 +1,8 @@
 # Copyright (C) LavaLite Contributors
 
-<<<<<<< HEAD
-AC_INIT([lavalite], [0.1.1], [https://github.com/LavaLiteProject/LavaLite/issues])
-AC_CONFIG_HEADERS([config.h])
-AC_PREFIX_DEFAULT([/opt/lavalite-0.1.1])
-=======
 AC_INIT([lavalite], [1.0.0], [https://github.com/LavaLiteProject/LavaLite/issues])
 AC_CONFIG_HEADERS([config.h])
 AC_PREFIX_DEFAULT([/opt/lavalite-1.0.0])
->>>>>>> release/lavalite-0.9.0
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 
@@ -29,17 +23,8 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
   [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
 
 dnl Project identity versioning
-<<<<<<< HEAD
-AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.1.1"], [Human-readable LavaLite version])
-AC_DEFINE([LAVALITE_VERSION_HEX], [0x000100], [LavaLite version encoded as 0xMMmmpp])
-
-dnl Define the default host type supported by LavaLite but you can
-dnl add more in lsf.shared file.
-AC_DEFINE([HOST_TYPE_STRING], ["x86_64"], [Define host type string])
-=======
 AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 1.0.0"], [Human-readable LavaLite version])
 AC_DEFINE([LAVALITE_VERSION_HEX], [0x010000], [LavaLite version encoded as 0xMMmmpp])
->>>>>>> release/lavalite-0.9.0
 
 dnl Resolve Autoconf's lazy dir vars so SYSCONFDIR is a concrete path in config.h.
 dnl - If --prefix is not given, $prefix is "NONE" → use $ac_default_prefix.

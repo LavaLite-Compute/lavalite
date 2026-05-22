@@ -52,15 +52,11 @@ int main(int argc, char **argv)
 
     if (long_fmt) {
         printf("%-16s %-8s %6s %6s %6s %4s %6s %6s %6s %6s %6s %6s %6s\n",
-               "HOST_NAME", "status",
-               "r15s", "r1m", "r15m", "ut",
-               "pg", "io", "ls", "it",
-               "mem", "swp", "tmp");
+               "HOST_NAME", "status", "r15s", "r1m", "r15m", "ut", "pg", "io",
+               "ls", "it", "mem", "swp", "tmp");
     } else {
-        printf("%-16s %-8s %6s %6s %6s %4s %6s %6s %6s\n",
-               "HOST_NAME", "status",
-               "r15s", "r1m", "r15m", "ut",
-               "mem", "swp", "tmp");
+        printf("%-16s %-8s %6s %6s %6s %4s %6s %6s %6s\n", "HOST_NAME",
+               "status", "r15s", "r1m", "r15m", "ut", "mem", "swp", "tmp");
     }
 
     for (int i = 0; i < nhosts; i++) {
@@ -77,21 +73,20 @@ int main(int argc, char **argv)
         snprintf(it, sizeof(it), "%.0f%%", h->li[IT]);
 
         char mem[8], swp[8], tmp[8];
-        snprintf(mem, sizeof(mem), "%.0fG", h->li[MEM]  / 1024.0);
-        snprintf(swp, sizeof(swp), "%.0fG", h->li[SWP]  / 1024.0);
-        snprintf(tmp, sizeof(tmp), "%.0fG", h->li[TMP]  / 1024.0);
+        snprintf(mem, sizeof(mem), "%.0fG", h->li[MEM] / 1024.0);
+        snprintf(swp, sizeof(swp), "%.0fG", h->li[SWP] / 1024.0);
+        snprintf(tmp, sizeof(tmp), "%.0fG", h->li[TMP] / 1024.0);
 
         if (long_fmt) {
             printf("%-16s %-8s %6.1f %6.1f %6.1f %4s %6.1f %6.1f %6.1f %4s "
-                   "%6s %6s %6s\n", h->hostname, load_status(h->status),
-                   h->li[R15S], h->li[R1M], h->li[R15M], ut,
-                   h->li[PG], h->li[IO], h->li[LS], it,
-                   mem, swp, tmp);
+                   "%6s %6s %6s\n",
+                   h->hostname, load_status(h->status), h->li[R15S], h->li[R1M],
+                   h->li[R15M], ut, h->li[PG], h->li[IO], h->li[LS], it, mem,
+                   swp, tmp);
         } else {
             printf("%-16s %-8s %6.1f %6.1f %6.1f %4s %6s %6s %6s\n",
-                   h->hostname, load_status(h->status),
-                   h->li[R15S], h->li[R1M], h->li[R15M], ut,
-                   mem, swp, tmp);
+                   h->hostname, load_status(h->status), h->li[R15S], h->li[R1M],
+                   h->li[R15M], ut, mem, swp, tmp);
         }
     }
 

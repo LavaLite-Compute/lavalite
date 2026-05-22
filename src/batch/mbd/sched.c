@@ -13,14 +13,13 @@
 #include "base/lib/ll.syslog.h"
 #include "batch/mbd/mbd.h"
 
-#define SCHED_SORT_BUF_MAX 131072   /* 1M of pointers — no alloc in hot path */
+#define SCHED_SORT_BUF_MAX 131072 /* 1M of pointers — no alloc in hot path */
 static struct ll_list_entry *sort_buf[SCHED_SORT_BUF_MAX];
-
 
 static int pend_job_cmp(const void *a, const void *b)
 {
-    const struct job_data *ja = *(const struct job_data **)a;
-    const struct job_data *jb = *(const struct job_data **)b;
+    const struct job_data *ja = *(const struct job_data **) a;
+    const struct job_data *jb = *(const struct job_data **) b;
     int r;
 
     /* 1. queue priority (higher = first) */
@@ -45,8 +44,8 @@ static int pend_job_cmp(const void *a, const void *b)
 
 static int host_plan_cmp(const void *a, const void *b)
 {
-    const struct mbd_host *ha = *(const struct mbd_host **)a;
-    const struct mbd_host *hb = *(const struct mbd_host **)b;
+    const struct mbd_host *ha = *(const struct mbd_host **) a;
+    const struct mbd_host *hb = *(const struct mbd_host **) b;
 
     return ha->res.free_cpu - hb->res.free_cpu;
 }
@@ -57,7 +56,7 @@ static int mark_candidates(void)
     int n = 0;
 
     for (e = host_list.head; e; e = e->next) {
-        struct mbd_host *h = (struct mbd_host *)e;
+        struct mbd_host *h = (struct mbd_host *) e;
 
         h->candidate = 0;
 
@@ -77,11 +76,10 @@ static int mark_candidates(void)
 
 static int is_depend_ok(const struct job_data *job)
 {
-    (void)job;
+    (void) job;
     // for dependencies are ok
     return 1;
 }
-
 
 static int job_is_ready(const struct job_data *job)
 {
@@ -89,7 +87,7 @@ static int job_is_ready(const struct job_data *job)
         return 0;
     if (job->begin_time > 0 && job->begin_time > time(NULL))
         return 0;
-    if (! is_depend_ok(job))
+    if (!is_depend_ok(job))
         return 0;
 
     return 1;
@@ -98,8 +96,8 @@ static int job_is_ready(const struct job_data *job)
 static int host_in_queue_group(const struct mbd_host *h,
                                const struct job_data *job)
 {
-    LS_DEBUG("job=%ld is host=%s member of queue=%s", job->job_id,
-             h->net.name, job->queue->name);
+    LS_DEBUG("job=%ld is host=%s member of queue=%s", job->job_id, h->net.name,
+             job->queue->name);
     return ll_hash_contains(&job->queue->host_hash, h->net.name);
 }
 
@@ -108,8 +106,8 @@ static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
     struct mbd_gpu *g = ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
     if (g == NULL)
         return 0;
-    LS_DEBUG("job=%ld host=%s has gpu type=%s", job->job_id,
-                 h->net.name, job->res.gpu_type);
+    LS_DEBUG("job=%ld host=%s has gpu type=%s", job->job_id, h->net.name,
+             job->res.gpu_type);
 
     return g->free >= job->res.num_gpus;
 }
@@ -149,7 +147,7 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
             LS_ERRX("candidate host overflow max=%d", SCHED_PLAN_MAX);
             break;
         }
-        struct mbd_host *h = (struct mbd_host *)e;
+        struct mbd_host *h = (struct mbd_host *) e;
 
         if (!h->candidate)
             continue;
@@ -216,8 +214,8 @@ static void host_update_resources(const struct job_data *job)
     for (i = 0; i < job->run_nhosts; i++) {
         struct mbd_host *h = job->run_hosts[i];
 
-        h->res.free_cpu        -= job->res.num_cpus;
-        h->res.free_mem_mb     -= job->res.mem_mb;
+        h->res.free_cpu -= job->res.num_cpus;
+        h->res.free_mem_mb -= job->res.mem_mb;
         h->res.free_storage_mb -= job->res.storage_mb;
         h->num_jobs++;
         h->num_run++;
@@ -227,14 +225,14 @@ static void host_update_resources(const struct job_data *job)
             h->exclusive = 1;
 
         if (job->res.num_gpus > 0) {
-            struct mbd_gpu *g = ll_hash_search(&h->res.gpu_hash,
-                                               job->res.gpu_type);
+            struct mbd_gpu *g =
+                ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
             if (g == NULL) {
-                LS_ERRX("job=%ld host=%s gpu_type=%s not found",
-                        job->job_id, h->net.name, job->res.gpu_type);
+                LS_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
+                        h->net.name, job->res.gpu_type);
                 continue;
             }
-            g->free         -= job->res.num_gpus;
+            g->free -= job->res.num_gpus;
             h->res.free_gpu -= job->res.num_gpus;
         }
 
@@ -250,7 +248,7 @@ static int tokens_available(const struct job_data *job)
     struct ll_list_entry *e;
 
     for (e = job->res.tokens.head; e != NULL; e = e->next) {
-        struct job_token *t = (struct job_token *)e;
+        struct job_token *t = (struct job_token *) e;
         struct mbd_token_pool *p;
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
@@ -282,7 +280,7 @@ void schedule(void)
 
     struct ll_list_entry *e = pend_jobs_list.head;
     while (e) {
-        struct job_data *job = (struct job_data *)e;
+        struct job_data *job = (struct job_data *) e;
         e = e->next;
 
         LS_DEBUG("is job=%ld ready for scheduling", job->job_id);
@@ -296,7 +294,7 @@ void schedule(void)
             continue;
         }
 
-        if (! tokens_available(job)) {
+        if (!tokens_available(job)) {
             job->pend_reason = PEND_TOKENS;
             continue;
         }
@@ -325,8 +323,8 @@ void schedule(void)
         job->queue->num_hosts_used += job->run_nhosts;
 
         LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-                 job->queue->name, job->queue->num_pend,
-                 job->queue->num_run, job->queue->num_susp);
+                 job->queue->name, job->queue->num_pend, job->queue->num_run,
+                 job->queue->num_susp);
     }
     mbd_assert_counters();
 }
@@ -336,7 +334,7 @@ void token_alloc(const struct job_data *job)
     struct ll_list_entry *e;
 
     for (e = job->res.tokens.head; e != NULL; e = e->next) {
-        struct job_token *t = (struct job_token *)e;
+        struct job_token *t = (struct job_token *) e;
         struct mbd_token_pool *p;
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
@@ -353,7 +351,7 @@ void token_free(const struct job_data *job)
     struct ll_list_entry *e;
 
     for (e = job->res.tokens.head; e != NULL; e = e->next) {
-        struct job_token *t = (struct job_token *)e;
+        struct job_token *t = (struct job_token *) e;
         struct mbd_token_pool *p;
 
         p = ll_hash_search(&token_pool_name_hash, t->name);

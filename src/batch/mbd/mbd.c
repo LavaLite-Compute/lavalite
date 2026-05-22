@@ -113,8 +113,8 @@ static int mbd_init(void)
 static void check_not_root(void)
 {
     if (getuid() == 0 || geteuid() == 0) {
-        LS_ERR("mbd does not want to run as root ruid=%u, euid=%u",
-               getuid(), geteuid());
+        LS_ERR("mbd does not want to run as root ruid=%u, euid=%u", getuid(),
+               geteuid());
         mbd_die(MBD_EXIT_FATAL);
     }
 }
@@ -122,9 +122,9 @@ static void check_not_root(void)
 static void usage(void)
 {
     fprintf(stderr, "mbd: --help\n"
-            "--version \n"
-            "--confdir set environment variable LL_CONF_DIR\n"
-            "--timer_sched\n");
+                    "--version \n"
+                    "--confdir set environment variable LL_CONF_DIR\n"
+                    "--timer_sched\n");
 }
 
 static struct option longopts[] = {
@@ -132,8 +132,7 @@ static struct option longopts[] = {
     {"version", no_argument, NULL, 'V'},
     {"confdir", required_argument, NULL, 'c'},
     {"sched_timer", required_argument, NULL, 't'},
-    {NULL, 0, NULL, 0}
-};
+    {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {
@@ -150,7 +149,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 't':
-            if (! ll_atoi(optarg, &sched_timer) || sched_timer <= 0) {
+            if (!ll_atoi(optarg, &sched_timer) || sched_timer <= 0) {
                 fprintf(stderr, "mbd: invalid sched_timer value=%s\n", optarg);
                 return -1;
             }
@@ -179,18 +178,18 @@ int main(int argc, char **argv)
     }
 
     ls_closelog();
-    cc = ls_openlog("mbd", ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
+    cc = ls_openlog("mbd", ll_params[LL_LOG_DIR].val,
+                    ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
         fprintf(stderr, "mbd: ls_openlog failed lodir=%s mask=%s %m\n",
-                ll_params[LL_LOG_DIR].val,  ll_params[LL_LOG_MASK].val);
+                ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 
-    LS_INFO("mbd uid=%d starting on host=%s sched_timer=%d",
-            getuid(), ll_params[LL_MBD_HOST].val, sched_timer);
+    LS_INFO("mbd uid=%d starting on host=%s sched_timer=%d", getuid(),
+            ll_params[LL_MBD_HOST].val, sched_timer);
 
     for (;;) {
-
         int nevents = chan_epoll(mbd_efd, mbd_events, CHAN_MAX, -1);
         if (nevents < 0) {
             if (errno != EINTR) {
@@ -202,9 +201,9 @@ int main(int argc, char **argv)
 
         for (int i = 0; i < nevents; i++) {
             struct epoll_event *ev = &mbd_events[i];
-            int chan_id = (int)ev->data.u32;
+            int chan_id = (int) ev->data.u32;
             LS_DEBUG("channel=%d mask=0x%x", chan_id, ev->events);
-             // True skip partually read channels
+            // True skip partually read channels
             if (channels[chan_id].chan_events == CHAN_EPOLLNONE)
                 continue;
 
@@ -233,6 +232,6 @@ int main(int argc, char **argv)
 void mbd_die(enum mbd_exit e)
 {
     LS_INFO("exiting with reason: %s", mbd_exit_str(e));
-    //mbd_compact_shutdown();
+    // mbd_compact_shutdown();
     exit(-1);
 }

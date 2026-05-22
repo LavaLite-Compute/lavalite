@@ -31,7 +31,6 @@ static struct chan_buffer *make_buf(void)
     return buf;
 }
 
-
 static void doread(struct chan_data *chan)
 {
     struct chan_buffer *rcvbuf;
@@ -46,7 +45,7 @@ static void doread(struct chan_data *chan)
         }
         ll_list_append(&chan->recv, &rcvbuf->link);
     } else {
-        rcvbuf = (struct chan_buffer *)chan->recv.head;
+        rcvbuf = (struct chan_buffer *) chan->recv.head;
     }
 
     // Phase 1: Read header
@@ -95,8 +94,8 @@ static void doread(struct chan_data *chan)
             }
 
             if (hdr.length > 0) {
-                char *payload = realloc(rcvbuf->data,
-                                        PACKET_HEADER_SIZE + hdr.length);
+                char *payload =
+                    realloc(rcvbuf->data, PACKET_HEADER_SIZE + hdr.length);
                 if (!payload) {
                     chan->chan_events = CHAN_EPOLLERR;
                     return;
@@ -142,7 +141,7 @@ static void dowrite(struct chan_data *chan, int chan_id, int efd)
     if (ll_list_is_empty(&chan->send))
         return;
 
-    sendbuf = (struct chan_buffer *)chan->send.head;
+    sendbuf = (struct chan_buffer *) chan->send.head;
 
     cc = write(chan->sock, sendbuf->data + sendbuf->pos,
                sendbuf->len - sendbuf->pos);
@@ -242,7 +241,7 @@ int chan_udp_server(uint16_t port)
     sin.sin_port = htons(port);
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+    if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
         close(s);
         channels[ch_id].sock = -1;
         return -1;
@@ -278,7 +277,7 @@ int chan_tcp_server(uint16_t port)
     sin.sin_port = htons(port);
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+    if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
         close(s);
         channels[ch_id].sock = -1;
         return -1;
@@ -335,8 +334,8 @@ int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
     return 0;
 }
 
-int chan_recv_dgram(int ch_id, void *buf, size_t len,
-                    struct sockaddr_in *peer, int timeout)
+int chan_recv_dgram(int ch_id, void *buf, size_t len, struct sockaddr_in *peer,
+                    int timeout)
 {
     if (!chan_is_udp(channels[ch_id].type))
         return -1;
@@ -384,8 +383,8 @@ int chan_close(int ch_id)
 
     close(channels[ch_id].sock);
 
-    ll_list_clear(&channels[ch_id].send, (void (*)(void *))chan_free_buf);
-    ll_list_clear(&channels[ch_id].recv, (void (*)(void *))chan_free_buf);
+    ll_list_clear(&channels[ch_id].send, (void (*)(void *)) chan_free_buf);
+    ll_list_clear(&channels[ch_id].recv, (void (*)(void *)) chan_free_buf);
 
     channels[ch_id].chan_events = CHAN_EPOLLNONE;
     channels[ch_id].sock = -1;
@@ -519,8 +518,8 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
 
         chan->chan_events = CHAN_EPOLLNONE;
 
-        if (chan->type == TCP_SERVER || chan->type == UDP_SERVER
-            || chan->type == TIMER_FD) {
+        if (chan->type == TCP_SERVER || chan->type == UDP_SERVER ||
+            chan->type == TIMER_FD) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }
@@ -628,7 +627,7 @@ int chan_set_write_interest(int ch_id, int efd, int on)
     ev.events = EPOLLIN | EPOLLRDHUP;
     if (on)
         ev.events |= EPOLLOUT;
-    ev.data.u32 = (uint32_t)ch_id;
+    ev.data.u32 = (uint32_t) ch_id;
 
     if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0)
         return -1;
@@ -699,7 +698,7 @@ ssize_t chan_write(int ch_id, void *buf, size_t len)
 int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
                     int timeout_sec)
 {
-    struct timeval tv = { .tv_sec = timeout_sec, .tv_usec = 0 };
+    struct timeval tv = {.tv_sec = timeout_sec, .tv_usec = 0};
 
     if (setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0)
         return -1;
@@ -733,7 +732,7 @@ int recv_protocol_header(int ch_id, struct protocol_header *hdr)
     if (chan_read(ch_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
         return -1;
 
-    xdrmem_create(&xdrs, (char *)buf, PACKET_HEADER_SIZE, XDR_DECODE);
+    xdrmem_create(&xdrs, (char *) buf, PACKET_HEADER_SIZE, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, hdr)) {
         xdr_destroy(&xdrs);
         return -1;
@@ -756,7 +755,7 @@ const char *chan_addr_str(int ch_id)
     struct sockaddr_in peer;
     socklen_t plen = sizeof(peer);
 
-    if (getpeername(chan_sock(ch_id), (struct sockaddr *)&peer, &plen) != 0) {
+    if (getpeername(chan_sock(ch_id), (struct sockaddr *) &peer, &plen) != 0) {
         strcpy(buf, "?.?:?");
         return buf;
     }
@@ -808,8 +807,8 @@ int chan_is_readable(int ch_id)
     if (!chan_is_valid(ch_id))
         return 0;
 
-    if (channels[ch_id].chan_events == CHAN_EPOLLIN
-        || channels[ch_id].chan_events == CHAN_EPOLLERR)
+    if (channels[ch_id].chan_events == CHAN_EPOLLIN ||
+        channels[ch_id].chan_events == CHAN_EPOLLERR)
         return 1;
 
     return 0;

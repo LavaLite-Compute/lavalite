@@ -10,7 +10,7 @@ static void send_beacon(void)
     struct wire_beacon wb;
 
     memset(&wb, 0, sizeof(wb));
-    strncpy(wb.cluster,  lim_cluster.name, sizeof(wb.cluster) - 1);
+    strncpy(wb.cluster, lim_cluster.name, sizeof(wb.cluster) - 1);
     strncpy(wb.hostname, me->host->name, sizeof(wb.hostname) - 1);
     wb.host_no = me->host_no;
 
@@ -23,13 +23,13 @@ static void send_beacon(void)
     char buf[LL_BUFSIZ_256];
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
 
-    if (! xdr_pack_hdr(&xdrs, &hdr)) {
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
         LS_ERR("hdr encode failed");
         xdr_destroy(&xdrs);
         return;
     }
 
-    if (! xdr_beacon(&xdrs, &wb)) {
+    if (!xdr_beacon(&xdrs, &wb)) {
         LS_ERR("master resigster encode failed");
         xdr_destroy(&xdrs);
         return;
@@ -37,15 +37,15 @@ static void send_beacon(void)
 
     struct ll_list_entry *e;
     for (e = node_list.head; e; e = e->next) {
-        struct lim_node *n = (struct lim_node *)e;
+        struct lim_node *n = (struct lim_node *) e;
 
         if (n == me)
             continue;
 
         if (n->load_report_missing >= MISSED_LOAD_REPORT_TOLERANCE) {
             // this will keep logging
-            LS_DEBUG("slave=%s missing load ticks=%d",
-                     n->host->name, n->load_report_missing);
+            LS_DEBUG("slave=%s missing load ticks=%d", n->host->name,
+                     n->load_report_missing);
             n->status = LIM_STAT_CLOSED;
         }
 
@@ -58,7 +58,7 @@ static void send_beacon(void)
         get_host_addrv4(n->host, &to);
 
         to.sin_family = AF_INET;
-        to.sin_port   = htons(lim_port);
+        to.sin_port = htons(lim_port);
 
         LS_DEBUG("sending beacon to=%s", addr_to_str(&to));
 
@@ -97,8 +97,8 @@ static void rcv_beacon(XDR *xdrs)
         return;
     }
 
-    LS_DEBUG("from=%s host=%s host_no=%u",
-             n->host->addr, wb.hostname, wb.host_no);
+    LS_DEBUG("from=%s host=%s host_no=%u", n->host->addr, wb.hostname,
+             wb.host_no);
 
     // sender has lower host_no: it is master, accept it
     if (me->host_no > n->host_no) {
@@ -121,10 +121,9 @@ static void rcv_beacon(XDR *xdrs)
             n->host_no, n->host->name);
 }
 
-
 static int send_load_report(void)
 {
-    if (! current_master.node) {
+    if (!current_master.node) {
         LS_WARNINGX("master unknown, not sending load");
         return 0;
     }
@@ -168,7 +167,7 @@ static int send_load_report(void)
     LS_DEBUG("lim=%s len=%lu", current_master.node->host->name, len);
 
     if (chan_send_dgram(udp_chan, buf, len, &to_addr) < 0) {
-        LS_ERR("send to %s failed",  current_master.node->host->name);
+        LS_ERR("send to %s failed", current_master.node->host->name);
         xdr_destroy(&xdrs);
         return -1;
     }
@@ -200,8 +199,8 @@ static void rcv_load_report(XDR *xdrs)
     }
 
     if (wl.num_metrics > NUM_METRICS) {
-        LS_WARNING("invalid metric count from %s: %d",
-                   wl.hostname, wl.num_metrics);
+        LS_WARNING("invalid metric count from %s: %d", wl.hostname,
+                   wl.num_metrics);
         return;
     }
 
@@ -211,8 +210,8 @@ static void rcv_load_report(XDR *xdrs)
     n->load_report_missing = 0;
     n->status = LIM_STAT_OK;
 
-    LS_DEBUG("load report updated host=%s metrics=%d",
-             n->host->name, wl.num_metrics);
+    LS_DEBUG("load report updated host=%s metrics=%d", n->host->name,
+             wl.num_metrics);
 }
 
 static void get_cluster_name(struct protocol_header *rhdr,
@@ -242,7 +241,7 @@ static void get_cluster_name(struct protocol_header *rhdr,
     strcpy(wc.name, lim_cluster.name);
     strcpy(wc.admin, lim_cluster.admin);
 
-    if (! xdr_wire_cluster(&xdrs2, &wc)) {
+    if (!xdr_wire_cluster(&xdrs2, &wc)) {
         LS_ERR("xdr_pack_hdr failed");
         xdr_destroy(&xdrs2);
         return;
@@ -271,8 +270,8 @@ static void get_master_name(struct protocol_header *rhdr,
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = LIM_REPLY_MASTER_NAME;
-    hdr.sequence  = rhdr->sequence;
-    hdr.status    = LIM_OK;
+    hdr.sequence = rhdr->sequence;
+    hdr.status = LIM_OK;
 
     char buf[LL_BUFSIZ_256];
     XDR xdrs2;
@@ -303,7 +302,7 @@ void slave(void)
     read_proc();
     send_load_report();
 
-    if (! is_master_candidate(me))
+    if (!is_master_candidate(me))
         return;
 
     current_master.inactivity++;
@@ -334,7 +333,7 @@ int udp_message(void)
     xdrmem_create(&xdrs, buf, sizeof(buf), XDR_DECODE);
     struct protocol_header hdr;
 
-    if (! xdr_pack_hdr(&xdrs, &hdr)) {
+    if (!xdr_pack_hdr(&xdrs, &hdr)) {
         LS_ERRX("xdr_pack_hdr failed");
         xdr_destroy(&xdrs);
         return -1;
@@ -356,8 +355,8 @@ int udp_message(void)
         rcv_beacon(&xdrs);
         break;
     default:
-        LS_ERRX("unknown request code=%d from=%s",
-                hdr.operation, addr_to_str(&from));
+        LS_ERRX("unknown request code=%d from=%s", hdr.operation,
+                addr_to_str(&from));
         break;
     }
 

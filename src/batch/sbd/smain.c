@@ -38,11 +38,11 @@ static void job_execute_drive(void);
 static void mbd_reconnect_try(void);
 static bool_t sbd_pid_alive(struct sbd_job *);
 static void sbd_cleanup(void);
-static int opt_op_timer     = SBD_OPERATION_TIMER;
+static int opt_op_timer = SBD_OPERATION_TIMER;
 static int opt_resend_timer = SBD_RESEND_ACK_TIMEOUT;
 
 char sim_name[MAXHOSTNAMELEN]; /* empty = not in sim mode */
-int  sim_port = 0;             /* 0 = use LL_SBD_PORT    */
+int sim_port = 0;              /* 0 = use LL_SBD_PORT    */
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
@@ -80,7 +80,7 @@ static int sbd_ll_check_conf(void)
     }
 
     int port;
-    if (! ll_atoi(ll_params[LL_MBD_PORT].val, &port)) {
+    if (!ll_atoi(ll_params[LL_MBD_PORT].val, &port)) {
         LS_ERRX("ll_atoi of LL_MBD_PORT=%s failed", ll_params[LL_MBD_PORT].val);
     }
     if (ll_conf_param_missing("LL_MBD_HOST", ll_params[LL_MBD_HOST].val)) {
@@ -117,7 +117,7 @@ static int sbd_init(void)
         LS_ERRX("sbd_job_init failed cannot run");
         return -1;
     }
-        // initialize the lists and hashes
+    // initialize the lists and hashes
     if (sbd_job_init() < 0) {
         LS_ERRX("sbd_job_init failed cannot run");
         return -1;
@@ -193,12 +193,12 @@ static int sbd_init_network(void)
 
     int t;
     // create the listining port and the sbd channel
-    if (! ll_atoi(ll_params[LL_SBD_PORT].val, &t)) {
+    if (!ll_atoi(ll_params[LL_SBD_PORT].val, &t)) {
         LS_ERR("the LSB_SBD_PORT is not defined correcly %s, cannot run",
                ll_params[LL_SBD_PORT].val);
         return -1;
     }
-    sbd_port = (sim_port > 0) ? (uint16_t)sim_port : (uint16_t)t;
+    sbd_port = (sim_port > 0) ? (uint16_t) sim_port : (uint16_t) t;
 
     chan_init();
 
@@ -216,14 +216,13 @@ static int sbd_init_network(void)
         chan_close(sbd_listen_chan);
         return -1;
     }
-    chan_epoll_register(sbd_efd);
-    LS_INFO("chan_epoll_register sbd_efd=%d", sbd_efd);
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLRDHUP;
     ev.data.u32 = sbd_listen_chan;
-    if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_listen_chan), &ev) < 0) {
+    if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_listen_chan), &ev) <
+        0) {
         LS_ERR("epoll_ctl add chan_mbd=%d failed", sbd_listen_chan);
         chan_close(sbd_listen_chan);
         sbd_listen_chan = -1;
@@ -247,7 +246,7 @@ static int sbd_init_network(void)
     sbd_resend_timer = opt_resend_timer;
     LS_INFO("sbd_resend_timer set to %d secs", sbd_resend_timer);
 
-    //sbd timer channel
+    // sbd timer channel
     ev.events = EPOLLIN;
     ev.data.u32 = sbd_timer_chan;
     if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_timer_chan), &ev) < 0) {
@@ -271,7 +270,7 @@ static int sbd_job_init(void)
     ll_list_init(&sbd_job_list);
 
     // hash is a pointer; allocate a table for it
-    sbd_job_hash = ll_hash_create(0);   // 0 → default (e.g. 11 buckets)
+    sbd_job_hash = ll_hash_create(0); // 0 → default (e.g. 11 buckets)
     if (!sbd_job_hash) {
         LS_ERR("failed to create job hash table");
         return -1;
@@ -282,13 +281,13 @@ static int sbd_job_init(void)
 
 static void sbd_croak_handler(int sig)
 {
-    (void)sig;
+    (void) sig;
     sbd_croak = 1;
 }
 
 static void sbd_child_handler(int sig)
 {
-    (void)sig;
+    (void) sig;
     sbd_got_sigchld = 1;
 }
 
@@ -335,15 +334,15 @@ static void sbd_reap_children(void)
 
         struct sbd_job *job = sbd_find_job_by_pid(pid);
         if (job == NULL) {
-            LS_WARNING("reaped unknown child pid=%d status=0x%x",
-                       (int)pid, (unsigned)status);
+            LS_WARNING("reaped unknown child pid=%d status=0x%x", (int) pid,
+                       (unsigned) status);
             continue;
         }
 
         // this should impossible
         if (job->pid != pid) {
-            LS_ERR("job=%ld pid mismatch: job->pid=%d waitpid=%d",
-                   job->job_id, (int)job->pid, (int)pid);
+            LS_ERR("job=%ld pid mismatch: job->pid=%d waitpid=%d", job->job_id,
+                   (int) job->pid, (int) pid);
             assert(0);
             continue;
         }
@@ -354,8 +353,8 @@ static void sbd_reap_children(void)
         job->exit_status_valid = true;
         job->end_time = time(NULL);
 
-        LS_INFO("job=%ld reaped pid=%d exit_status=0x%x",
-                job->job_id, (int)pid, job->exit_status);
+        LS_INFO("job=%ld reaped pid=%d exit_status=0x%x", job->job_id,
+                (int) pid, job->exit_status);
     }
 }
 
@@ -374,7 +373,7 @@ static void job_status_checking(void)
 
     // NOTE: ll_list_entry must remain the first field (list base object idiom)
     for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
+        struct sbd_job *job = (struct sbd_job *) e;
 
         if (job->exit_status_valid)
             continue;
@@ -389,7 +388,6 @@ static void job_status_checking(void)
         time_t done_time;
         int cc = sbd_read_exit_status_file(job, &exit_code, &done_time);
         if (cc < 0) {
-
             job->retry_exit_count++;
 
             if (job->retry_exit_count < 3)
@@ -400,8 +398,8 @@ static void job_status_checking(void)
             job->exit_status_valid = true;
             job->exit_status = 1;
             LS_ERR("job=%ld sbd_read_exit_status_file %d time declare exited "
-                   "exit_status_valid=%d exit_stats=0x%x", job->job_id,
-                   job->retry_exit_count, job->exit_status_valid,
+                   "exit_status_valid=%d exit_stats=0x%x",
+                   job->job_id, job->retry_exit_count, job->exit_status_valid,
                    job->exit_status);
             continue;
         }
@@ -420,7 +418,7 @@ static void job_new_drive(void)
     static time_t last_time;
 
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready()) {
+    if (!sbd_mbd_link_ready()) {
         time_t t = time(NULL);
         if (t - last_time >= 60) {
             LS_INFO("mbd link not ready, skip and sbd_mbd_reconnect_try");
@@ -434,7 +432,7 @@ static void job_new_drive(void)
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
+        struct sbd_job *job = (struct sbd_job *) e;
 
         if (job->pid_acked)
             continue;
@@ -449,7 +447,7 @@ static void job_new_drive(void)
             continue;
         }
 
-       LS_INFO("job=%ld pid=%d", job->job_id, job->pid);
+        LS_INFO("job=%ld pid=%d", job->job_id, job->pid);
 
         job->reply_last_send = now;
     }
@@ -458,7 +456,7 @@ static void job_new_drive(void)
 static void job_execute_drive(void)
 {
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready()) {
+    if (!sbd_mbd_link_ready()) {
         return;
     }
 
@@ -466,7 +464,7 @@ static void job_execute_drive(void)
     time_t now = time(NULL);
     struct ll_list_entry *e;
     for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
+        struct sbd_job *job = (struct sbd_job *) e;
 
         if (!job->pid_acked) {
             LS_DEBUG("job=%ld not ready: pid not acked yet", job->job_id);
@@ -495,7 +493,7 @@ static void job_execute_drive(void)
 static void job_finish_drive(void)
 {
     // Check it we are connected to mbd
-    if (! sbd_mbd_link_ready()) {
+    if (!sbd_mbd_link_ready()) {
         return;
     }
 
@@ -504,7 +502,7 @@ static void job_finish_drive(void)
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
+        struct sbd_job *job = (struct sbd_job *) e;
 
         // pid_sent is the hard gate: mbd must have recorded pid/pgid first.
         if (!job->pid_acked)
@@ -513,7 +511,7 @@ static void job_finish_drive(void)
         if (!job->execute_acked)
             continue;
 
-        if (! job->exit_status_valid)
+        if (!job->exit_status_valid)
             continue;
 
         if (job->finish_acked)
@@ -534,39 +532,36 @@ static void job_finish_drive(void)
     }
 }
 
-
 // We reaped a child find to which sbd_job does belong
 static struct sbd_job *sbd_find_job_by_pid(pid_t pid)
 {
     struct ll_list_entry *e;
 
     for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *)e;
+        struct sbd_job *job = (struct sbd_job *) e;
         if (job->pid == pid)
             return job;
     }
     return NULL;
 }
 
-static bool_t
-sbd_pid_alive(struct sbd_job *job)
+static bool_t sbd_pid_alive(struct sbd_job *job)
 {
     pid_t target;
 
     if (job->pgid > 1)
-        target = -job->pgid;     // probe process group
+        target = -job->pgid; // probe process group
     else if (job->pid > 1)
-        target = job->pid;       // fallback
+        target = job->pid; // fallback
     else
-        return true;             // unknown -> do not claim dead
+        return true; // unknown -> do not claim dead
 
     if (kill(target, 0) == 0)
         return true;
 
     int err = errno;
-    LS_DEBUG("job=%ld pid=%d pgid=%d target=%d errno=%d %s",
-             job->job_id, job->pid, job->pgid, target,
-             err, strerror(err));
+    LS_DEBUG("job=%ld pid=%d pgid=%d target=%d errno=%d %s", job->job_id,
+             job->pid, job->pgid, target, err, strerror(err));
 
     if (err == ESRCH)
         return false;
@@ -574,7 +569,7 @@ sbd_pid_alive(struct sbd_job *job)
     if (err == EPERM)
         return true;
 
-    return true;                 // not proof of death
+    return true; // not proof of death
 }
 
 // sbd_init() failed so as a good coding hygiene we clean up file
@@ -590,12 +585,12 @@ static void sbd_cleanup(void)
     // is in the static area and not on the heap
     struct ll_list_entry *e;
     while ((e = ll_list_pop(&sbd_job_list))) {
-        struct sbd_job *job = (struct sbd_job *)e;
+        struct sbd_job *job = (struct sbd_job *) e;
         char keybuf[LL_BUFSIZ_32];
         snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
         ll_hash_remove(sbd_job_hash, keybuf);
         ll_list_remove(&sbd_job_list, &job->list);
-        //free_job_specs(&job->specs);
+        // free_job_specs(&job->specs);
         free(job);
     }
     ll_list_init(&sbd_job_list);
@@ -627,7 +622,7 @@ void sbd_fatal(enum sbd_fatal_cause cause)
         break;
 
     default:
-        LS_ERRX("FATAL: unknown cause=%d", (int)cause);
+        LS_ERRX("FATAL: unknown cause=%d", (int) cause);
         break;
     }
 
@@ -645,7 +640,6 @@ static void sbd_run_daemon(void)
     LS_INFO("sbd enter main loop");
 
     while (1) {
-
         if (sbd_croak) {
             break;
         }
@@ -669,50 +663,50 @@ static void sbd_run_daemon(void)
 
         for (int i = 0; i < nready; i++) {
             struct epoll_event *ev = &sbd_events[i];
-            int ch_id = (int)ev->data.u32;
+            int ch_id = (int) ev->data.u32;
 
-             if (ch_id == sbd_timer_chan) {
-                 uint64_t expirations;
-                 ssize_t cc = read(chan_sock(ch_id), &expirations,
-                                   sizeof(expirations));
-                 if (cc < 0) {
-                     if (errno == EINTR) {
-                         LS_ERR("timer interrepted, do maintainance");
-                         goto timer_maintenance;
-                     }
-                     LS_ERR("timer read failed, do maintenance");
-                     goto timer_maintenance;
-                     // fall through: still do maintenance
-                 }
-                 if ((size_t)cc != sizeof(expirations)) {
-                     LS_ERR("timer short read: %zd bytes", cc);
-                     // fall through: still do maintenance
-                 }
-             timer_maintenance:
-                 sbd_reap_children();
-                 mbd_reconnect_try();
-                 job_new_drive();
-                 job_execute_drive();
-                 job_finish_drive();
-                 job_status_checking();
-                 sbd_prune_archive_try();
-                 // rest the state
-                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
-                 continue;
-             }
+            if (ch_id == sbd_timer_chan) {
+                uint64_t expirations;
+                ssize_t cc =
+                    read(chan_sock(ch_id), &expirations, sizeof(expirations));
+                if (cc < 0) {
+                    if (errno == EINTR) {
+                        LS_ERR("timer interrepted, do maintainance");
+                        goto timer_maintenance;
+                    }
+                    LS_ERR("timer read failed, do maintenance");
+                    goto timer_maintenance;
+                    // fall through: still do maintenance
+                }
+                if ((size_t) cc != sizeof(expirations)) {
+                    LS_ERR("timer short read: %zd bytes", cc);
+                    // fall through: still do maintenance
+                }
+            timer_maintenance:
+                sbd_reap_children();
+                mbd_reconnect_try();
+                job_new_drive();
+                job_execute_drive();
+                job_finish_drive();
+                job_status_checking();
+                sbd_prune_archive_try();
+                // rest the state
+                channels[ch_id].chan_events = CHAN_EPOLLNONE;
+                continue;
+            }
 
-             // True skip partially read channels
-             if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
-                 continue;
+            // True skip partially read channels
+            if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
+                continue;
 
-             // There is an event on the permament channel
-             // connection with mbd
-             if (ch_id == sbd_mbd_chan) {
-                 sbd_mbd_route(ch_id);
-                 // reset the channel state
-                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
-                 continue;
-             }
+            // There is an event on the permament channel
+            // connection with mbd
+            if (ch_id == sbd_mbd_chan) {
+                sbd_mbd_route(ch_id);
+                // reset the channel state
+                channels[ch_id].chan_events = CHAN_EPOLLNONE;
+                continue;
+            }
         }
     }
 
@@ -726,7 +720,7 @@ static int parse_simulator(const char *arg)
 {
     char tmp[MAXHOSTNAMELEN];
     char *colon;
-    int  port;
+    int port;
 
     ll_strlcpy(tmp, arg, sizeof(tmp));
 
@@ -748,19 +742,20 @@ static int parse_simulator(const char *arg)
 }
 
 static struct option long_options[] = {
-    {"non_root",     no_argument,       0, 'n'},
-    {"confdir",      required_argument, 0, 'c'},
-    {"version",      no_argument,       0, 'V'},
-    {"simulator",    required_argument, 0, 's'},
-    {"op_timer",     required_argument, 0, 'o'},
+    {"non_root", no_argument, 0, 'n'},
+    {"confdir", required_argument, 0, 'c'},
+    {"version", no_argument, 0, 'V'},
+    {"simulator", required_argument, 0, 's'},
+    {"op_timer", required_argument, 0, 'o'},
     {"resend_timer", required_argument, 0, 'r'},
-    {"help",         no_argument,       0, 'h'},
-    {0, 0, 0, 0}
-};
+    {"help", no_argument, 0, 'h'},
+    {0, 0, 0, 0}};
 
 static void usage(void)
 {
-    fprintf(stderr, "sbd: [OPTIONS]\n"
+    fprintf(
+        stderr,
+        "sbd: [OPTIONS]\n"
         " -n, --non_root          Run in non-root mode\n"
         " -V, --version           Print version and exit\n"
         " -c, --confdir dir       Set LL_CONF_DIR\n"
@@ -777,7 +772,8 @@ int main(int argc, char **argv)
     char *conf_dir = NULL;
 
     sim_name[0] = 0;
-    while ((cc = getopt_long(argc, argv, "nc:Vs:o:r:h", long_options, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "nc:Vs:o:r:h", long_options, NULL)) !=
+           EOF) {
         switch (cc) {
         case 'n':
             non_root = 1;
@@ -826,7 +822,8 @@ int main(int argc, char **argv)
 
     int rc = sbd_init();
     if (rc < 0) {
-        LS_ERRX("sbd: fatal error during initialization, see previous messages");
+        LS_ERRX(
+            "sbd: fatal error during initialization, see previous messages");
         return -1;
     }
 
@@ -835,7 +832,7 @@ int main(int argc, char **argv)
                     ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
         fprintf(stderr, "sbd: ls_openlog failed lodir=%s mask=%s %m\n",
-                ll_params[LL_LOG_DIR].val,  ll_params[LL_LOG_MASK].val);
+                ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 

@@ -42,7 +42,7 @@ static uint64_t parse_mem(const char *s)
 
 static struct mbd_host *find_host_by_name(const char *name)
 {
-    return (struct mbd_host *)ll_hash_search(&host_name_hash, name);
+    return (struct mbd_host *) ll_hash_search(&host_name_hash, name);
 }
 
 static struct mbd_gpu *make_gpu(const char *p)
@@ -61,8 +61,8 @@ static struct mbd_gpu *make_gpu(const char *p)
     }
 
     /* HOST_NAME  GPU_ID  GPU_MODEL  GPU_TYPE  COUNT */
-    int n = sscanf(p, "%255s %d %63s %63s %d",
-                   hostname, &gpu_id, model, gpu_type, &count);
+    int n = sscanf(p, "%255s %d %63s %63s %d", hostname, &gpu_id, model,
+                   gpu_type, &count);
     if (n != 5) {
         LS_ERRX("bad gpu line: %s", p);
         free(g);
@@ -77,14 +77,14 @@ static struct mbd_gpu *make_gpu(const char *p)
     }
 
     g->gpu_id = gpu_id;
-    g->count  = count;
-    g->free   = count;
-    ll_strlcpy(g->model,    model,    sizeof(g->model));
+    g->count = count;
+    g->free = count;
+    ll_strlcpy(g->model, model, sizeof(g->model));
     ll_strlcpy(g->gpu_type, gpu_type, sizeof(g->gpu_type));
 
     /* aggregate totals on host */
     h->res.total_gpu += count;
-    h->res.free_gpu  += count;
+    h->res.free_gpu += count;
 
     ll_list_append(&h->res.gpu_list, &g->ent);
     ll_hash_insert(&h->res.gpu_hash, g->gpu_type, g, 0);
@@ -105,7 +105,7 @@ static int parse_gpus(const char *path)
         return -1;
     }
 
-    in_section     = 0;
+    in_section = 0;
     header_skipped = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
@@ -118,7 +118,7 @@ static int parse_gpus(const char *path)
         char *section = ll_conf_parse_begin(p);
         if (section != NULL) {
             if (strncmp(section, "Gpu", 3) == 0) {
-                in_section     = 1;
+                in_section = 1;
                 header_skipped = 0;
             }
             continue;
@@ -162,7 +162,7 @@ static int parse_token_pools(const char *path)
         return -1;
     }
 
-    in_section     = 0;
+    in_section = 0;
     header_skipped = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
@@ -175,7 +175,7 @@ static int parse_token_pools(const char *path)
         char *section = ll_conf_parse_begin(p);
         if (section != NULL) {
             if (strncmp(section, "TokenPool", 9) == 0) {
-                in_section     = 1;
+                in_section = 1;
                 header_skipped = 0;
             }
             continue;
@@ -195,7 +195,7 @@ static int parse_token_pools(const char *path)
         }
 
         char name[LL_BUFSIZ_64];
-        int  total;
+        int total;
 
         if (sscanf(p, "%63s %d", name, &total) != 2) {
             LS_ERRX("bad tokenpool line: %s", p);
@@ -218,7 +218,7 @@ static int parse_token_pools(const char *path)
 
         ll_strlcpy(tp->name, name, sizeof(tp->name));
         tp->total = total;
-        tp->free  = total;
+        tp->free = total;
 
         ll_list_append(&token_pool_list, &tp->ent);
         ll_hash_insert(&token_pool_name_hash, tp->name, tp, 0);
@@ -245,12 +245,8 @@ static struct mbd_host *make_host(const char *p)
     char mem_str[LL_BUFSIZ_32];
     char storage_str[LL_BUFSIZ_32];
     char hostname[LL_BUFSIZ_64];
-    n = sscanf(p, "%63s %d %d %31s %31s",
-               hostname,
-               &h->res.max_jobs,
-               &h->res.total_cpu,
-               mem_str,
-               storage_str);
+    n = sscanf(p, "%63s %d %d %31s %31s", hostname, &h->res.max_jobs,
+               &h->res.total_cpu, mem_str, storage_str);
     if (n != 5) {
         LS_ERRX("bad line: %s", p);
         free(h);
@@ -280,11 +276,11 @@ static struct mbd_host *make_host(const char *p)
     ll_list_init(&h->res.gpu_list);
     ll_hash_init(&h->res.gpu_hash, 101);
 
-    h->res.free_cpu        = h->res.total_cpu;
-    h->res.free_mem_mb     = h->res.total_mem_mb;
+    h->res.free_cpu = h->res.total_cpu;
+    h->res.free_mem_mb = h->res.total_mem_mb;
     h->res.free_storage_mb = h->res.total_storage_mb;
     h->sbd_chan = -1;
-    h->state   = HOST_UNAVAIL;
+    h->state = HOST_UNAVAIL;
 
     return h;
 }
@@ -349,9 +345,8 @@ static int parse_hosts(const char *path)
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
         ll_hash_insert(&host_addr_hash, h->net.addr, h, 0);
 
-        LS_INFO("host=%s cpu=%d mem=%luMB storage=%luMB",
-                h->net.name, h->res.total_cpu,
-                h->res.total_mem_mb, h->res.total_storage_mb);
+        LS_INFO("host=%s cpu=%d mem=%luMB storage=%luMB", h->net.name,
+                h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb);
     }
 
     fclose(f);
@@ -496,10 +491,10 @@ static int commit_queue(struct queue_conf *qc)
         return -1;
     }
 
-    ll_strlcpy(q->name,       qc->name,       LL_BUFSIZ_64);
-    ll_strlcpy(q->description, qc->desc,       LL_BUFSIZ_256);
-    ll_strlcpy(q->hosts_spec, qc->hosts_spec,  LL_BUFSIZ_256);
-    ll_strlcpy(q->users,      qc->users,       LL_BUFSIZ_256);
+    ll_strlcpy(q->name, qc->name, LL_BUFSIZ_64);
+    ll_strlcpy(q->description, qc->desc, LL_BUFSIZ_256);
+    ll_strlcpy(q->hosts_spec, qc->hosts_spec, LL_BUFSIZ_256);
+    ll_strlcpy(q->users, qc->users, LL_BUFSIZ_256);
 
     q->priority = qc->priority;
     q->state = QUEUE_OPEN;
@@ -510,8 +505,7 @@ static int commit_queue(struct queue_conf *qc)
     return 0;
 }
 
-static int parse_queue_conf(struct queue_conf *qc,
-                            const char *key,
+static int parse_queue_conf(struct queue_conf *qc, const char *key,
                             const char *val)
 {
     if (strcmp(key, "QUEUE_NAME") == 0)
@@ -633,7 +627,7 @@ static int parse_sim(const char *path)
     }
 
     char line[LL_BUFSIZ_1K];
-    int in_section     = 0;
+    int in_section = 0;
     int header_skipped = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
@@ -646,7 +640,7 @@ static int parse_sim(const char *path)
         char *section = ll_conf_parse_begin(p);
         if (section != NULL) {
             if (strncmp(section, "Sim", 3) == 0) {
-                in_section     = 1;
+                in_section = 1;
                 header_skipped = 0;
             }
             continue;
@@ -669,15 +663,13 @@ static int parse_sim(const char *path)
         char real_host[MAXHOSTNAMELEN];
         char mem_str[LL_BUFSIZ_32];
         char storage_str[LL_BUFSIZ_32];
-        int  port;
-        int  max_jobs;
-        int  total_cpu;
+        int port;
+        int max_jobs;
+        int total_cpu;
 
         /* NAME  REAL_HOST  PORT  MXJ  CPU  MEM  STORAGE */
-        if (sscanf(p, "%255s %255s %d %d %d %31s %31s",
-                   sim_name, real_host, &port,
-                   &max_jobs, &total_cpu,
-                   mem_str, storage_str) != 7) {
+        if (sscanf(p, "%255s %255s %d %d %d %31s %31s", sim_name, real_host,
+                   &port, &max_jobs, &total_cpu, mem_str, storage_str) != 7) {
             LS_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
@@ -707,9 +699,9 @@ static int parse_sim(const char *path)
         h->net = real->net;
         ll_strlcpy(h->net.name, sim_name, sizeof(h->net.name));
 
-        h->res.max_jobs  = max_jobs;
+        h->res.max_jobs = max_jobs;
         h->res.total_cpu = total_cpu;
-        h->res.free_cpu  = total_cpu;
+        h->res.free_cpu = total_cpu;
 
         h->res.total_mem_mb = parse_mem(mem_str);
         if (h->res.total_mem_mb == 0) {
@@ -730,16 +722,17 @@ static int parse_sim(const char *path)
         h->res.free_storage_mb = h->res.total_storage_mb;
 
         ll_list_init(&h->res.gpu_list);
-        h->port     = (uint16_t)port;
+        h->port = (uint16_t) port;
         h->sbd_chan = -1;
-        h->state   = HOST_UNAVAIL;
+        h->state = HOST_UNAVAIL;
 
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
 
         LS_INFO("sim host=%s index=%d real=%s port=%d cpu=%d mem=%luMB "
-                "storage=%luMB", sim_name, h->host_idx, real_host, port,
-                total_cpu, h->res.total_mem_mb, h->res.total_storage_mb);
+                "storage=%luMB",
+                sim_name, h->host_idx, real_host, port, total_cpu,
+                h->res.total_mem_mb, h->res.total_storage_mb);
     }
 
     fclose(f);
@@ -761,12 +754,12 @@ static int conf_expand_queues(void)
     struct ll_list_entry *e;
 
     for (e = queue_list.head; e; e = e->next) {
-        struct mbd_queue *q = (struct mbd_queue *)e;
+        struct mbd_queue *q = (struct mbd_queue *) e;
 
         ll_hash_init(&q->host_hash, 251);
 
-        struct mbd_group *g = (struct mbd_group *)ll_hash_search(&group_name_hash,
-                                                                  q->hosts_spec);
+        struct mbd_group *g = (struct mbd_group *) ll_hash_search(
+            &group_name_hash, q->hosts_spec);
         if (g != NULL) {
             char tmp[LL_BUFSIZ_1K];
             ll_strlcpy(tmp, g->members, sizeof(tmp));
@@ -775,15 +768,15 @@ static int conf_expand_queues(void)
             while (tok != NULL) {
                 struct mbd_host *h = find_host_by_name(tok);
                 if (h == NULL) {
-                    LS_ERRX("queue=%s group=%s host=%s not found",
-                            q->name, g->name, tok);
+                    LS_ERRX("queue=%s group=%s host=%s not found", q->name,
+                            g->name, tok);
                     return -1;
                 }
-                enum ll_hash_status st = ll_hash_insert(&q->host_hash,
-                                                        h->net.name, h, 0);
+                enum ll_hash_status st =
+                    ll_hash_insert(&q->host_hash, h->net.name, h, 0);
                 if (st == LL_HASH_EXISTS)
-                    LS_WARNING("queue=%s host=%s already in host_hash",
-                               q->name, h->net.name);
+                    LS_WARNING("queue=%s host=%s already in host_hash", q->name,
+                               h->net.name);
                 tok = strtok(NULL, " \t");
             }
             continue;
@@ -792,8 +785,8 @@ static int conf_expand_queues(void)
         /* hosts_spec is a single hostname */
         struct mbd_host *h = find_host_by_name(q->hosts_spec);
         if (h == NULL) {
-            LS_ERRX("queue=%s HOSTS=%s not a group or host",
-                    q->name, q->hosts_spec);
+            LS_ERRX("queue=%s HOSTS=%s not a group or host", q->name,
+                    q->hosts_spec);
             return -1;
         }
         ll_hash_insert(&q->host_hash, h->net.name, h, 0);
@@ -809,39 +802,37 @@ static void dump_config(void)
 
     LS_DEBUG("--- hosts ---");
     for (e = host_list.head; e; e = e->next) {
-        struct mbd_host *h = (struct mbd_host *)e;
-        LS_DEBUG("host name=%s addr=%s port=%d cpu=%d mem=%luMB storage=%luMB gpu=%d",
+        struct mbd_host *h = (struct mbd_host *) e;
+        LS_DEBUG("host name=%s addr=%s port=%d cpu=%d mem=%luMB storage=%luMB "
+                 "gpu=%d",
                  h->net.name, h->net.addr, h->port ? h->port : 0,
-                 h->res.total_cpu,
-                 h->res.total_mem_mb,
-                 h->res.total_storage_mb,
+                 h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb,
                  h->res.total_gpu);
         for (ge = h->res.gpu_list.head; ge; ge = ge->next) {
-            struct mbd_gpu *g = (struct mbd_gpu *)ge;
-            LS_DEBUG("  gpu id=%d model=%s type=%s count=%d",
-                     g->gpu_id, g->model, g->gpu_type, g->count);
+            struct mbd_gpu *g = (struct mbd_gpu *) ge;
+            LS_DEBUG("  gpu id=%d model=%s type=%s count=%d", g->gpu_id,
+                     g->model, g->gpu_type, g->count);
         }
     }
 
     LS_DEBUG("--- groups ---");
     for (e = group_list.head; e; e = e->next) {
-        struct mbd_group *g = (struct mbd_group *)e;
-        LS_DEBUG("group name=%s members=%s num=%d",
-                 g->name, g->members, g->num_members);
+        struct mbd_group *g = (struct mbd_group *) e;
+        LS_DEBUG("group name=%s members=%s num=%d", g->name, g->members,
+                 g->num_members);
     }
 
     LS_DEBUG("--- queues ---");
     for (e = queue_list.head; e; e = e->next) {
-        struct mbd_queue *q = (struct mbd_queue *)e;
+        struct mbd_queue *q = (struct mbd_queue *) e;
         LS_DEBUG("queue name=%s priority=%d hosts_spec=%s users=%s desc=%s",
                  q->name, q->priority, q->hosts_spec,
-                 q->users[0] ? q->users : "*",
-                 q->description);
+                 q->users[0] ? q->users : "*", q->description);
     }
 
     LS_DEBUG("--- token pools ---");
     for (e = token_pool_list.head; e; e = e->next) {
-        struct mbd_token_pool *tp = (struct mbd_token_pool *)e;
+        struct mbd_token_pool *tp = (struct mbd_token_pool *) e;
         LS_DEBUG("tokenpool name=%s total=%d", tp->name, tp->total);
     }
 }
@@ -894,7 +885,7 @@ int conf_init(void)
 
     n = snprintf(path, sizeof(path), "%s/llb.hosts",
                  ll_params[LL_CONF_DIR].val);
-    if (n < 0 || n >= (int)sizeof(path))
+    if (n < 0 || n >= (int) sizeof(path))
         return -1;
 
     if (parse_hosts(path) < 0) {
@@ -924,7 +915,7 @@ int conf_init(void)
 
     n = snprintf(path, sizeof(path), "%s/llb.queues",
                  ll_params[LL_CONF_DIR].val);
-    if (n < 0 || n >= (int)sizeof(path))
+    if (n < 0 || n >= (int) sizeof(path))
         return -1;
 
     if (parse_queues(path) < 0) {
@@ -942,7 +933,7 @@ int conf_init(void)
         return -1;
     }
 
-    if (! ll_hash_contains(&queue_name_hash, ll_params[LL_DEFAULT_QUEUE].val)) {
+    if (!ll_hash_contains(&queue_name_hash, ll_params[LL_DEFAULT_QUEUE].val)) {
         LS_ERRX("LL_DEFAULT_QUEUE=%s not in queue configuration",
                 ll_params[LL_DEFAULT_QUEUE].val);
         return -1;

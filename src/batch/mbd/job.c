@@ -53,8 +53,8 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     }
 
     job->job_id = next_job_id();
-    job->uid  = (uid_t)ws->uid;
-    job->gid = (gid_t)ws->gid;
+    job->uid = (uid_t) ws->uid;
+    job->gid = (gid_t) ws->gid;
     job->priority = 0;
     job->flags = ws->flags;
     job->state = JOB_PENDING;
@@ -62,9 +62,9 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
         job->state = JOB_HELD;
     job->submit_time = time(NULL);
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
-    job->begin_time = (time_t)ws->begin_time;
-    job->term_time  = (time_t)ws->term_time;
-    ll_strlcpy(job->project,  ws->project, sizeof(job->project));
+    job->begin_time = (time_t) ws->begin_time;
+    job->term_time = (time_t) ws->term_time;
+    ll_strlcpy(job->project, ws->project, sizeof(job->project));
 
     ll_strlcpy(job->res.gpu_type, ws->gpu_type, sizeof(job->res.gpu_type));
     job->res.num_cpus = ws->num_cpus;
@@ -73,10 +73,11 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->res.mem_mb = ws->mem_mb;
     job->res.storage_mb = ws->storage_mb;
     machines_hash_populate(&job->res.machines, ws->machines);
-    ll_strlcpy(job->res.machines_str, ws->machines, sizeof(job->res.machines_str));
+    ll_strlcpy(job->res.machines_str, ws->machines,
+               sizeof(job->res.machines_str));
 
     if (ws->name[0] == 0) {
-        ll_strlcpy(job->name, "-" , sizeof(job->name));
+        ll_strlcpy(job->name, "-", sizeof(job->name));
         ll_strlcpy(ws->name, "-", sizeof(ws->name));
     } else {
         ll_strlcpy(job->name, ws->name, sizeof(job->name));
@@ -131,9 +132,9 @@ static int write_script(const struct job_data *job,
                         const struct wire_job_script *script)
 {
     char dir[PATH_MAX];
-    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld",
-                     jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
-    if (n < 0 || n >= (int)sizeof(dir))
+    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld", jobs_dir,
+                     (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int) sizeof(dir))
         return -1;
 
     if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
@@ -142,25 +143,25 @@ static int write_script(const struct job_data *job,
     }
 
     char path[PATH_MAX];
-    n = snprintf(path, sizeof(path), "%s/%ld/%ld/script.sh",
-                 jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
-    if (n < 0 || n >= (int)sizeof(path))
+    n = snprintf(path, sizeof(path), "%s/%ld/%ld/script.sh", jobs_dir,
+                 (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int) sizeof(path))
         return -1;
 
     char tmp[PATH_MAX];
-    n = snprintf(tmp, sizeof(tmp), "%s/%ld/%ld/script.sh.tmp",
-                 jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
-    if (n < 0 || n >= (int)sizeof(tmp))
+    n = snprintf(tmp, sizeof(tmp), "%s/%ld/%ld/script.sh.tmp", jobs_dir,
+                 (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int) sizeof(tmp))
         return -1;
 
-    int fd = open(tmp, O_WRONLY|O_CREAT|O_TRUNC, 0700);
+    int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0700);
     if (fd < 0) {
         LS_ERR("open %s", tmp);
         return -1;
     }
 
     ssize_t nw = write(fd, script->data, script->len);
-    if (nw < 0 || (uint32_t)nw != script->len) {
+    if (nw < 0 || (uint32_t) nw != script->len) {
         LS_ERR("write %s", tmp);
         close(fd);
         return -1;
@@ -185,15 +186,15 @@ static int write_sidecar(const struct job_data *job,
                          const struct wire_job_submit *ws)
 {
     char path[PATH_MAX];
-    int n = snprintf(path, sizeof(path), "%s/%ld/%ld/submit",
-                     jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
-    if (n < 0 || n >= (int)sizeof(path))
+    int n = snprintf(path, sizeof(path), "%s/%ld/%ld/submit", jobs_dir,
+                     (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int) sizeof(path))
         return -1;
 
     char tmp[PATH_MAX];
-    n = snprintf(tmp, sizeof(tmp), "%s/%ld/%ld/submit.tmp",
-                 jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
-    if (n < 0 || n >= (int)sizeof(tmp))
+    n = snprintf(tmp, sizeof(tmp), "%s/%ld/%ld/submit.tmp", jobs_dir,
+                 (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int) sizeof(tmp))
         return -1;
 
     FILE *fp = fopen(tmp, "w");
@@ -354,13 +355,13 @@ int job_register(XDR *xdrs, int chan_id)
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_JOB_SUBMIT_ACK;
-    hdr.status    = MBD_OK;
+    hdr.status = MBD_OK;
 
-    size_t siz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit_reply)
-        + LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit_reply) +
+                 LL_BUFSIZ_64;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, siz,
-                        xdr_wire_job_submit_reply) < 0) {
+    if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_job_submit_reply) <
+        0) {
         LS_ERR("enqueue_payload failed job_id=%ld", job->job_id);
         ll_list_remove(&pend_jobs_list, &job->ent);
         ll_hash_remove(&job_id_hash, key);
@@ -376,9 +377,9 @@ int job_register(XDR *xdrs, int chan_id)
 
     job->queue->num_jobs++;
 
-    LS_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d",
-            job->job_id, job->user, job->queue->name,
-            job->queue->num_jobs, job->queue->num_pend);
+    LS_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d", job->job_id,
+            job->user, job->queue->name, job->queue->num_jobs,
+            job->queue->num_pend);
 
     return 0;
 }
@@ -445,8 +446,9 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
         return;
     }
     if (r.state != JOB_RUNNING) {
-        LS_ERR("job=%ld unexpected state=%d from=%s - admin intervention required",
-               r.job_id, r.state, chan_addr_str(n->sbd_chan));
+        LS_ERR(
+            "job=%ld unexpected state=%d from=%s - admin intervention required",
+            r.job_id, r.state, chan_addr_str(n->sbd_chan));
         return;
     }
 
@@ -476,8 +478,8 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
         return;
     }
 
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
-                        LL_BUFSIZ_1K, xdr_wire_job_ack) < 0) {
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", r.job_id);
         return;
     }
@@ -485,7 +487,7 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     if (duplicate)
         return;
 
-    job->pid = (pid_t)r.pid;
+    job->pid = (pid_t) r.pid;
     job->fork_time = time(NULL);
     job->state = JOB_RUNNING;
     event_job_fork(job);
@@ -505,7 +507,8 @@ void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
 
     struct job_data *job = job_find(s.job_id);
     if (job == NULL) {
-        LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
+        LS_ERR("job=%ld not found from=%s", s.job_id,
+               chan_addr_str(n->sbd_chan));
         return;
     }
     assert(job->state == JOB_RUNNING);
@@ -536,8 +539,8 @@ void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
         return;
     }
 
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
-                        LL_BUFSIZ_1K, xdr_wire_job_ack) < 0) {
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", s.job_id);
         return;
     }
@@ -572,11 +575,11 @@ static void reset_host_resources(struct job_data *job)
             h->exclusive = 0;
 
         if (job->res.num_gpus > 0) {
-            struct mbd_gpu *g = ll_hash_search(&h->res.gpu_hash,
-                                               job->res.gpu_type);
+            struct mbd_gpu *g =
+                ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
             if (g == NULL) {
-                LS_ERRX("job=%ld host=%s gpu_type=%s not found",
-                        job->job_id, h->net.name, job->res.gpu_type);
+                LS_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
+                        h->net.name, job->res.gpu_type);
                 assert(0);
                 continue;
             }
@@ -591,14 +594,13 @@ static void reset_host_resources(struct job_data *job)
     }
 }
 
-
 static int job_write_usage(const struct job_data *job,
                            const struct wire_job_finish *s)
 {
     char dir[PATH_MAX + LL_BUFSIZ_32];
-    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld",
-                     jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
-    if (n < 0 || n >= (int)sizeof(dir))
+    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld", jobs_dir,
+                     (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int) sizeof(dir))
         return -1;
 
     char path[PATH_MAX + LL_BUFSIZ_64];
@@ -633,7 +635,8 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     struct job_data *job = job_find(f.job_id);
     if (job == NULL) {
         // Distinguish missing from duplicate for code and logical clarity
-        LS_ERR("job=%ld not found from=%s", f.job_id, chan_addr_str(n->sbd_chan));
+        LS_ERR("job=%ld not found from=%s", f.job_id,
+               chan_addr_str(n->sbd_chan));
         struct wire_job_ack ack;
         memset(&ack, 0, sizeof(ack));
         ack.job_id = f.job_id;
@@ -646,7 +649,8 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
             LS_ERR("job=%ld failed to sign header", f.job_id);
             return;
         }
-        enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K, xdr_wire_job_ack);
+        enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack);
         return;
     }
 
@@ -677,8 +681,8 @@ send_ack:
         return;
     }
 
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack,
-                        LL_BUFSIZ_1K, xdr_wire_job_ack) < 0) {
+    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
         LS_ERR("job=%ld enqueue_payload failed", f.job_id);
         return;
     }
@@ -689,8 +693,8 @@ send_ack:
     job->end_time = time(NULL);
     job->exit_status = f.exit_status;
 
-    LS_INFO("job=%ld usage mem=%luMB swap=%luMB cpu=%.2fs",
-            f.job_id, f.mem_mb, f.swap_mb, f.cpu_time);
+    LS_INFO("job=%ld usage mem=%luMB swap=%luMB cpu=%.2fs", f.job_id, f.mem_mb,
+            f.swap_mb, f.cpu_time);
 
     // this function depends on the state of the job not
     // being DONE|EXIT yet
@@ -701,11 +705,10 @@ send_ack:
     if (job->state == JOB_RUNNING)
         job->queue->num_run--;
 
-
     if (job->state == JOB_SUSPENDED)
         job->queue->num_susp--;
 
-    job->queue->num_cpus_used  -= job->res.num_cpus * job->run_nhosts;
+    job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
     job->queue->num_hosts_used -= job->run_nhosts;
     job->queue->num_jobs--;
 
@@ -725,9 +728,8 @@ send_ack:
         LS_ERR("job=%ld failed job_write_usage", job->job_id);
     }
 
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-             job->queue->name, job->queue->num_pend,
-             job->queue->num_run, job->queue->num_susp);
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
+             job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
 
     // debug code
     mbd_assert_counters();
@@ -776,8 +778,8 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
     }
 
     if (hdr->status != MBD_OK) {
-        LS_ERRX("job=%ld signal=%d failed status=%d host=%s",
-                job->job_id, sig.sig, hdr->status, n->net.name);
+        LS_ERRX("job=%ld signal=%d failed status=%d host=%s", job->job_id,
+                sig.sig, hdr->status, n->net.name);
         return;
     }
 
@@ -795,12 +797,11 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
         n->num_run++;
     }
 
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-             job->queue->name, job->queue->num_pend,
-             job->queue->num_run, job->queue->num_susp);
+    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
+             job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
 
-    LS_INFO("job=%ld signal=%d delivered host=%s",
-            job->job_id, sig.sig, n->net.name);
+    LS_INFO("job=%ld signal=%d delivered host=%s", job->job_id, sig.sig,
+            n->net.name);
     // debug
     mbd_assert_counters();
 }
@@ -812,14 +813,14 @@ void mbd_assert_counters(void)
     struct ll_list_entry *je;
 
     for (e = host_list.head; e != NULL; e = e->next) {
-        struct mbd_host *h = (struct mbd_host *)e;
-        int num_jobs     = 0;
-        int num_run      = 0;
-        int num_susp     = 0;
+        struct mbd_host *h = (struct mbd_host *) e;
+        int num_jobs = 0;
+        int num_run = 0;
+        int num_susp = 0;
         int num_cpus_used = 0;
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
-            struct job_data *job = (struct job_data *)je;
+            struct job_data *job = (struct job_data *) je;
 
             if (!job_uses_host(job, h))
                 continue;
@@ -835,31 +836,28 @@ void mbd_assert_counters(void)
                 assert(0);
         }
 
-        if (h->num_jobs != num_jobs || h->num_run != num_run
-            || h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
+        if (h->num_jobs != num_jobs || h->num_run != num_run ||
+            h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
             LS_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
                     "cpus_run=%d/%d",
-                    h->net.name,
-                    h->num_jobs, num_jobs,
-                    h->num_run, num_run,
-                    h->num_susp, num_susp,
-                    h->num_cpus_used, num_cpus_used);
+                    h->net.name, h->num_jobs, num_jobs, h->num_run, num_run,
+                    h->num_susp, num_susp, h->num_cpus_used, num_cpus_used);
             assert(0);
         }
     }
 
     for (e = queue_list.head; e != NULL; e = e->next) {
-        struct mbd_queue *q = (struct mbd_queue *)e;
-        int num_jobs      = 0;
-        int num_pend      = 0;
-        int num_run       = 0;
-        int num_susp      = 0;
-        int num_held      = 0;
-        int num_cpus_used  = 0;
+        struct mbd_queue *q = (struct mbd_queue *) e;
+        int num_jobs = 0;
+        int num_pend = 0;
+        int num_run = 0;
+        int num_susp = 0;
+        int num_held = 0;
+        int num_cpus_used = 0;
         int num_hosts_used = 0;
 
         for (je = pend_jobs_list.head; je != NULL; je = je->next) {
-            struct job_data *job = (struct job_data *)je;
+            struct job_data *job = (struct job_data *) je;
 
             if (job->queue != q)
                 continue;
@@ -874,13 +872,13 @@ void mbd_assert_counters(void)
         }
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
-            struct job_data *job = (struct job_data *)je;
+            struct job_data *job = (struct job_data *) je;
 
             if (job->queue != q)
                 continue;
 
             num_jobs++;
-            num_cpus_used  += job->res.num_cpus * job->run_nhosts;
+            num_cpus_used += job->res.num_cpus * job->run_nhosts;
             num_hosts_used += job->run_nhosts;
 
             if (job->state == JOB_SUSPENDED)
@@ -891,19 +889,15 @@ void mbd_assert_counters(void)
                 assert(0);
         }
 
-        if (q->num_jobs != num_jobs || q->num_pend != num_pend
-            || q->num_run != num_run || q->num_susp != num_susp
-            || q->num_held != num_held || q->num_cpus_used != num_cpus_used
-            || q->num_hosts_used != num_hosts_used) {
+        if (q->num_jobs != num_jobs || q->num_pend != num_pend ||
+            q->num_run != num_run || q->num_susp != num_susp ||
+            q->num_held != num_held || q->num_cpus_used != num_cpus_used ||
+            q->num_hosts_used != num_hosts_used) {
             LS_ERRX("queue=%s bad counters jobs=%d/%d pend=%d/%d run=%d/%d "
                     "susp=%d/%d held=%d/%d cpus_run=%d/%d hosts_run=%d/%d",
-                    q->name,
-                    q->num_jobs, num_jobs,
-                    q->num_pend, num_pend,
-                    q->num_run, num_run,
-                    q->num_susp, num_susp,
-                    q->num_held, num_held,
-                    q->num_cpus_used, num_cpus_used,
+                    q->name, q->num_jobs, num_jobs, q->num_pend, num_pend,
+                    q->num_run, num_run, q->num_susp, num_susp, q->num_held,
+                    num_held, q->num_cpus_used, num_cpus_used,
                     q->num_hosts_used, num_hosts_used);
             assert(0);
         }

@@ -31,8 +31,8 @@ static char proc_buf[LL_BUFSIZ_4K];
 
 struct proc_state {
     double prev_ts;
-    double prev_pgpg_inout;   // pgpgin + pgpgout
-    double prev_pswp_inout;   // pswpin + pswpout
+    double prev_pgpg_inout; // pgpgin + pgpgout
+    double prev_pswp_inout; // pswpin + pswpout
     int initialized;
 };
 
@@ -45,9 +45,8 @@ static double now_monotonic_sec(void)
     if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
         return 0.0;
 
-    return (double)ts.tv_sec;
+    return (double) ts.tv_sec;
 }
-
 
 static int read_file_once(const char *path, char *out, size_t outsz)
 {
@@ -86,8 +85,8 @@ static int parse_loadavg(float *r15s, float *r1m, float *r15m)
         return -1;
     }
 
-    int n = sscanf(proc_buf, "%lf %lf %lf %d/%d",
-                   &l1, &l5, &l15, &running, &total);
+    int n =
+        sscanf(proc_buf, "%lf %lf %lf %d/%d", &l1, &l5, &l15, &running, &total);
     if (n < 5) {
         return -1;
     }
@@ -96,9 +95,9 @@ static int parse_loadavg(float *r15s, float *r1m, float *r15m)
         running = 0;
     }
 
-    *r15s = (float)running;   // runnable tasks as reported by kernel
-    *r1m = (float)l1;         // 1-minute load average
-    *r15m = (float)l15;       // 15-minute load average
+    *r15s = (float) running; // runnable tasks as reported by kernel
+    *r1m = (float) l1;       // 1-minute load average
+    *r15m = (float) l15;     // 15-minute load average
 
     return 0;
 }
@@ -118,34 +117,33 @@ static int parse_cpu_busy(double *busy_pct)
     if (read_file_once("/proc/stat", proc_buf, sizeof(proc_buf)) < 0)
         return -1;
 
-   int n = sscanf(proc_buf,
-               "cpu %ld %ld %ld %ld %ld %ld %ld %ld",
-                  &cur.user, &cur.nice, &cur.system, &cur.idle,
-                  &cur.iowait, &cur.irq, &cur.softirq, &cur.steal);
-   if (n < 8)
-       return -1;
+    int n = sscanf(proc_buf, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &cur.user,
+                   &cur.nice, &cur.system, &cur.idle, &cur.iowait, &cur.irq,
+                   &cur.softirq, &cur.steal);
+    if (n < 8)
+        return -1;
 
-   if (!prev_valid) {
-       prev = cur;
-       prev_valid = 1;
-       *busy_pct = 0.0;
-       return 0;
-   }
+    if (!prev_valid) {
+        prev = cur;
+        prev_valid = 1;
+        *busy_pct = 0.0;
+        return 0;
+    }
 
-   uint64_t idle     = cur.idle + cur.iowait;
-   uint64_t total    = idle + cur.user + cur.nice + cur.system +
-       cur.irq + cur.softirq + cur.steal;
-    uint64_t p_idle   = prev.idle + prev.iowait;
-    uint64_t p_total  = p_idle + prev.user + prev.nice + prev.system +
-        prev.irq + prev.softirq + prev.steal;
+    uint64_t idle = cur.idle + cur.iowait;
+    uint64_t total = idle + cur.user + cur.nice + cur.system + cur.irq +
+                     cur.softirq + cur.steal;
+    uint64_t p_idle = prev.idle + prev.iowait;
+    uint64_t p_total = p_idle + prev.user + prev.nice + prev.system + prev.irq +
+                       prev.softirq + prev.steal;
 
     uint64_t dt = total - p_total;
-    uint64_t di = idle  - p_idle;
+    uint64_t di = idle - p_idle;
 
     if (dt == 0) {
         *busy_pct = 0.0;
     } else {
-        *busy_pct = (double)(dt - di) * 100.0 / (double)dt;
+        *busy_pct = (double) (dt - di) * 100.0 / (double) dt;
     }
 
     if (*busy_pct < 0.0)
@@ -198,12 +196,9 @@ static int read_vmstat_counters(double *pgpg_inout, double *pswp_inout)
 
 // /proc/meminfo helpers (mem, swp) and /tmp (tmp)
 
-static int read_meminfo_kb(uint64_t *mem_total_kb,
-                           uint64_t *mem_free_kb,
-                           uint64_t *mem_avail_kb,
-                           uint64_t *buffers_kb,
-                           uint64_t *cached_kb,
-                           uint64_t *swap_total_kb,
+static int read_meminfo_kb(uint64_t *mem_total_kb, uint64_t *mem_free_kb,
+                           uint64_t *mem_avail_kb, uint64_t *buffers_kb,
+                           uint64_t *cached_kb, uint64_t *swap_total_kb,
                            uint64_t *swap_free_kb)
 {
     FILE *f = fopen("/proc/meminfo", "r");
@@ -262,21 +257,18 @@ static float mem_freeish_mb(void)
     uint64_t swap_total_kb = 0;
     uint64_t swap_free_kb = 0;
 
-    if (read_meminfo_kb(&mem_total_kb, &mem_free_kb, &mem_avail_kb,
-                        &buffers_kb, &cached_kb,
-                        &swap_total_kb, &swap_free_kb) < 0) {
+    if (read_meminfo_kb(&mem_total_kb, &mem_free_kb, &mem_avail_kb, &buffers_kb,
+                        &cached_kb, &swap_total_kb, &swap_free_kb) < 0) {
         return 0.0f;
     }
 
-    uint64_t freeish_kb =
-        (mem_avail_kb > 0)
-            ? mem_avail_kb
-            : (mem_free_kb + buffers_kb + cached_kb);
+    uint64_t freeish_kb = (mem_avail_kb > 0)
+                              ? mem_avail_kb
+                              : (mem_free_kb + buffers_kb + cached_kb);
 
     // convert to MB
-    return (float)(freeish_kb / 1024.0);
+    return (float) (freeish_kb / 1024.0);
 }
-
 
 static float swap_free_mb(void)
 {
@@ -288,18 +280,17 @@ static float swap_free_mb(void)
     uint64_t swap_total_kb = 0;
     uint64_t swap_free_kb = 0;
 
-    if (read_meminfo_kb(&mem_total_kb, &mem_free_kb, &mem_avail_kb,
-                        &buffers_kb, &cached_kb,
-                        &swap_total_kb, &swap_free_kb) < 0) {
+    if (read_meminfo_kb(&mem_total_kb, &mem_free_kb, &mem_avail_kb, &buffers_kb,
+                        &cached_kb, &swap_total_kb, &swap_free_kb) < 0) {
         return 0.0f;
     }
 
-    double mb = (double)swap_free_kb / 1024.0;
+    double mb = (double) swap_free_kb / 1024.0;
     if (mb < 0.0) {
         mb = 0.0;
     }
 
-    return (float)mb;
+    return (float) mb;
 }
 
 static float tmp_avail_mb(void)
@@ -314,13 +305,12 @@ static float tmp_avail_mb(void)
         return 0.0f;
     }
 
-    double mb = (double)fs.f_bavail * (double)fs.f_bsize /
-                (1024.0 * 1024.0);
+    double mb = (double) fs.f_bavail * (double) fs.f_bsize / (1024.0 * 1024.0);
     if (mb < 0.0) {
         mb = 0.0;
     }
 
-    return (float)mb;
+    return (float) mb;
 }
 
 static uint64_t read_num_cpus(void)
@@ -329,7 +319,7 @@ static uint64_t read_num_cpus(void)
     if (n <= 0)
         return 1;
 
-    return (uint64_t)n;
+    return (uint64_t) n;
 }
 
 void init_read_proc(void)
@@ -337,14 +327,14 @@ void init_read_proc(void)
     memset(&proc_state, 0, sizeof(proc_state));
 
     me->load_index[R15S] = 0.0;
-    me->load_index[R1M]  = 0.0;
+    me->load_index[R1M] = 0.0;
     me->load_index[R15M] = 0.0;
 
     // Max tmp space
     struct statfs fs;
     if (statfs("/tmp", &fs) == 0) {
-        uint64_t bytes = (uint64_t)fs.f_blocks * fs.f_bsize;
-        me->max_tmp = (float)(bytes / (1024.0 * 1024.0));
+        uint64_t bytes = (uint64_t) fs.f_blocks * fs.f_bsize;
+        me->max_tmp = (float) (bytes / (1024.0 * 1024.0));
     } else {
         me->max_tmp = 0.0;
     }
@@ -353,19 +343,17 @@ void init_read_proc(void)
 
     // Max mem/swap
     uint64_t mem_total_kb = 0;
-    uint64_t mem_free_kb  = 0;
+    uint64_t mem_free_kb = 0;
     uint64_t mem_avail_kb = 0;
-    uint64_t buffers_kb   = 0;
-    uint64_t cached_kb    = 0;
+    uint64_t buffers_kb = 0;
+    uint64_t cached_kb = 0;
     uint64_t swap_total_kb = 0;
-    uint64_t swap_free_kb  = 0;
+    uint64_t swap_free_kb = 0;
 
-    if (read_meminfo_kb(&mem_total_kb, &mem_free_kb, &mem_avail_kb,
-                        &buffers_kb, &cached_kb,
-                        &swap_total_kb, &swap_free_kb) == 0) {
-
-        me->max_mem  = mem_total_kb  / 1024;   // MB
-        me->max_swap = swap_total_kb / 1024;   // MB
+    if (read_meminfo_kb(&mem_total_kb, &mem_free_kb, &mem_avail_kb, &buffers_kb,
+                        &cached_kb, &swap_total_kb, &swap_free_kb) == 0) {
+        me->max_mem = mem_total_kb / 1024;   // MB
+        me->max_swap = swap_total_kb / 1024; // MB
     }
 
     // Prime vmstat counters
@@ -380,7 +368,6 @@ void init_read_proc(void)
     proc_state.prev_ts = now_monotonic_sec();
     proc_state.initialized = 1;
 }
-
 
 void read_proc(void)
 {
@@ -398,7 +385,7 @@ void read_proc(void)
     // CPU busy%
     double busy = 0.0;
     if (parse_cpu_busy(&busy) == 0) {
-        me->load_index[UT] = (float)busy;
+        me->load_index[UT] = (float) busy;
     }
 
     // Wall-clock delta
@@ -429,8 +416,8 @@ void read_proc(void)
             d_pswp = 0.0;
         }
 
-        double rate_pg = d_pgpg / dt;     // page IO per second
-        double rate_swp = d_pswp / dt;    // swap pages per second
+        double rate_pg = d_pgpg / dt;  // page IO per second
+        double rate_swp = d_pswp / dt; // swap pages per second
 
         if (rate_pg < 0.0) {
             rate_pg = 0.0;
@@ -439,8 +426,8 @@ void read_proc(void)
             rate_swp = 0.0;
         }
 
-        me->load_index[PG] = (float)rate_swp;
-        me->load_index[IO] = (float)rate_pg;
+        me->load_index[PG] = (float) rate_swp;
+        me->load_index[IO] = (float) rate_pg;
 
         proc_state.prev_pgpg_inout = pgpg;
         proc_state.prev_pswp_inout = pswp;

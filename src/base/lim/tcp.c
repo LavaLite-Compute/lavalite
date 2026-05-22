@@ -13,18 +13,18 @@ static void shutdown_tcp_chan(int ch_id)
 
 static void get_load(XDR *xdrs, int ch_id)
 {
-    (void)xdrs;
+    (void) xdrs;
     uint32_t nloads = ll_list_count(&node_list);
     struct wire_load *wl = calloc(nloads, sizeof(struct wire_load));
     if (!wl) {
         LS_ERR("calloc failed");
-         return;
+        return;
     }
 
     int i = 0;
     struct ll_list_entry *e;
     for (e = node_list.head; e != NULL; e = e->next) {
-        struct lim_node *n = (struct lim_node *)e;
+        struct lim_node *n = (struct lim_node *) e;
 
         snprintf(wl[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
         wl[i].status = n->status;
@@ -38,13 +38,13 @@ static void get_load(XDR *xdrs, int ch_id)
      * Estimate buffer size.
      * header + array length + host records
      */
-    size_t bufsiz = sizeof(struct protocol_header) +
-        sizeof(uint32_t) + nloads * sizeof(struct wire_load) + LL_BUFSIZ_256;
+    size_t bufsiz = sizeof(struct protocol_header) + sizeof(uint32_t) +
+                    nloads * sizeof(struct wire_load) + LL_BUFSIZ_256;
 
     struct chan_buffer *buf;
     if (chan_alloc_buf(&buf, bufsiz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld",
-               LIM_REPLY_LOAD, bufsiz);
+        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", LIM_REPLY_LOAD,
+               bufsiz);
         free(wl);
         return;
     }
@@ -61,17 +61,17 @@ static void get_load(XDR *xdrs, int ch_id)
     wls.nloads = nloads;
     wls.loads = wl;
 
-    if (! ll_encode_msg(&xdrs_out, &wls, xdr_wire_load_array, &hdr)) {
+    if (!ll_encode_msg(&xdrs_out, &wls, xdr_wire_load_array, &hdr)) {
         LS_ERR("ll_encode_msg failed");
         chan_free_buf(buf);
         free(wl);
         return;
     }
 
-    buf->len = (size_t)xdr_getpos(&xdrs_out);
+    buf->len = (size_t) xdr_getpos(&xdrs_out);
     if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed to=%s len=%d",
-               chan_addr_str(ch_id), buf->len);
+        LS_ERR("chan_enqueue failed to=%s len=%d", chan_addr_str(ch_id),
+               buf->len);
         xdr_destroy(&xdrs_out);
         chan_free_buf(buf);
         free(wl);
@@ -86,19 +86,19 @@ static void get_load(XDR *xdrs, int ch_id)
 
 static void get_hosts(XDR *xdrs, int ch_id)
 {
-    (void)xdrs;
+    (void) xdrs;
 
     uint32_t nhosts = ll_list_count(&node_list);
     struct wire_host *wh = calloc(nhosts, sizeof(struct wire_host));
     if (!wh) {
         LS_ERR("calloc failed");
-         return;
+        return;
     }
 
     int i = 0;
     struct ll_list_entry *e;
     for (e = node_list.head; e != NULL; e = e->next) {
-        struct lim_node *n = (struct lim_node *)e;
+        struct lim_node *n = (struct lim_node *) e;
 
         snprintf(wh[i].hostname, MAXHOSTNAMELEN, "%s", n->host->name);
         snprintf(wh[i].machine, LL_BUFSIZ_32, "%s", n->machine);
@@ -115,14 +115,13 @@ static void get_hosts(XDR *xdrs, int ch_id)
      * Estimate buffer size.
      * header + array length + host records
      */
-    size_t bufsiz = sizeof(struct protocol_header) +
-        sizeof(uint32_t) + nhosts * sizeof(struct wire_host)
-        + LL_BUFSIZ_256;
+    size_t bufsiz = sizeof(struct protocol_header) + sizeof(uint32_t) +
+                    nhosts * sizeof(struct wire_host) + LL_BUFSIZ_256;
 
     struct chan_buffer *buf;
     if (chan_alloc_buf(&buf, bufsiz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld",
-               LIM_REPLY_HOSTS, bufsiz);
+        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", LIM_REPLY_HOSTS,
+               bufsiz);
         free(wh);
         return;
     }
@@ -139,16 +138,16 @@ static void get_hosts(XDR *xdrs, int ch_id)
     whs.nhosts = nhosts;
     whs.hosts = wh;
 
-    if (! ll_encode_msg(&xdrs_out, &whs, xdr_wire_host_array, &hdr)) {
+    if (!ll_encode_msg(&xdrs_out, &whs, xdr_wire_host_array, &hdr)) {
         LS_ERR("ll_encode_msg failed");
         chan_free_buf(buf);
         return;
     }
 
-    buf->len = (size_t)xdr_getpos(&xdrs_out);
+    buf->len = (size_t) xdr_getpos(&xdrs_out);
     if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed to=%s len=%d",
-               chan_addr_str(ch_id), buf->len);
+        LS_ERR("chan_enqueue failed to=%s len=%d", chan_addr_str(ch_id),
+               buf->len);
         xdr_destroy(&xdrs_out);
         chan_free_buf(buf);
         free(wh);

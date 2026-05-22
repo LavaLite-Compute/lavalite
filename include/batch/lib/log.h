@@ -20,16 +20,16 @@
  * Event types. Values are stable on disk -- do not reorder.
  */
 enum event_type {
-    EVENT_NULL            = 0,
-    EVENT_JOB_NEW         = 1,  /* job submitted, enters PEND          */
-    EVENT_JOB_START       = 2,  /* scheduler dispatched, enters RUN    */
-    EVENT_JOB_FORK        = 3,  /* sbd forked child, pid known         */
-    EVENT_JOB_EXECUTE     = 4,  /* sbd confirmed execution, cwd known  */
-    EVENT_JOB_SIGNAL      = 5,  /* mbd sent signal to job via sbd      */
-    EVENT_JOB_FINISH      = 6,  /* job done, exit_status tells story   */
-    EVENT_JOB_PEND_SUSP   = 7,  /* user suspended pending job          */
-    EVENT_JOB_PEND_RESUME = 8,  /* user resumed suspended pending job  */
-    EVENT_JOB_SUSP        = 9,  /* sbd suspended running job           */
+    EVENT_NULL = 0,
+    EVENT_JOB_NEW = 1,         /* job submitted, enters PEND          */
+    EVENT_JOB_START = 2,       /* scheduler dispatched, enters RUN    */
+    EVENT_JOB_FORK = 3,        /* sbd forked child, pid known         */
+    EVENT_JOB_EXECUTE = 4,     /* sbd confirmed execution, cwd known  */
+    EVENT_JOB_SIGNAL = 5,      /* mbd sent signal to job via sbd      */
+    EVENT_JOB_FINISH = 6,      /* job done, exit_status tells story   */
+    EVENT_JOB_PEND_SUSP = 7,   /* user suspended pending job          */
+    EVENT_JOB_PEND_RESUME = 8, /* user resumed suspended pending job  */
+    EVENT_JOB_SUSP = 9,        /* sbd suspended running job           */
     EVENT_COUNT
 };
 
@@ -39,10 +39,10 @@ enum event_type {
  * and stores the unparsed remainder in rest[] for the payload reader.
  */
 struct event_rec {
-    int             version;
+    int version;
     enum event_type type;
-    time_t          event_time;
-    char            rest[LL_BUFSIZ_4K]; /* unparsed payload tail */
+    time_t event_time;
+    char rest[LL_BUFSIZ_4K]; /* unparsed payload tail */
 };
 
 /*
@@ -60,26 +60,26 @@ struct event_rec {
  * live in the per-job sidecar, not here.
  */
 struct log_job_new {
-    int64_t  job_id;
-    uid_t    uid;
-    gid_t    gid;
-    int32_t  state;
-    time_t   submit_time;   /* mbd clock: when submit was received  */
-    time_t   begin_time;    /* requested earliest start (from user) */
-    time_t   term_time;     /* requested deadline (from user)       */
-    int32_t  num_cpu;
-    int32_t  num_hosts;
-    int32_t  num_gpus;
+    int64_t job_id;
+    uid_t uid;
+    gid_t gid;
+    int32_t state;
+    time_t submit_time; /* mbd clock: when submit was received  */
+    time_t begin_time;  /* requested earliest start (from user) */
+    time_t term_time;   /* requested deadline (from user)       */
+    int32_t num_cpu;
+    int32_t num_hosts;
+    int32_t num_gpus;
     uint64_t mem_mb;
     uint64_t storage_mb;
     uint32_t flags;
-    char     username[LL_BUFSIZ_64];
-    char     job_name[LL_BUFSIZ_64];
-    char     queue[LL_BUFSIZ_64];
-    char     project_name[LL_BUFSIZ_64];
-    char     gpu_type[LL_BUFSIZ_64];
-    char     machines[LL_BUFSIZ_1K];
-    char     tokenpool[LL_BUFSIZ_256];
+    char username[LL_BUFSIZ_64];
+    char job_name[LL_BUFSIZ_64];
+    char queue[LL_BUFSIZ_64];
+    char project_name[LL_BUFSIZ_64];
+    char gpu_type[LL_BUFSIZ_64];
+    char machines[LL_BUFSIZ_1K];
+    char tokenpool[LL_BUFSIZ_256];
 };
 
 /*
@@ -88,13 +88,13 @@ struct log_job_new {
  */
 struct log_job_start {
     int64_t job_id;
-    time_t  dispatch_time;
-    int     nhosts;
-    int     cpus_per_host;
-    int     gpus_per_host;
-    char    exec_host[MAXHOSTNAMELEN];
-    char    gpu_type[LL_BUFSIZ_64];
-    char    hosts[LL_BUFSIZ_4K];   /* space-separated */
+    time_t dispatch_time;
+    int nhosts;
+    int cpus_per_host;
+    int gpus_per_host;
+    char exec_host[MAXHOSTNAMELEN];
+    char gpu_type[LL_BUFSIZ_64];
+    char hosts[LL_BUFSIZ_4K]; /* space-separated */
 };
 
 /*
@@ -104,7 +104,7 @@ struct log_job_start {
 struct log_job_fork {
     int64_t job_id;
     int32_t job_pid;
-    time_t  fork_time;    /* mbd clock: set by caller before write */
+    time_t fork_time; /* mbd clock: set by caller before write */
 };
 
 /*
@@ -114,8 +114,8 @@ struct log_job_fork {
 struct log_job_execute {
     int64_t job_id;
     int32_t job_pid;
-    time_t  execute_time;   /* mbd clock: set by caller before write */
-    char    cwd[PATH_MAX];
+    time_t execute_time; /* mbd clock: set by caller before write */
+    char cwd[PATH_MAX];
 };
 
 /*
@@ -123,21 +123,21 @@ struct log_job_execute {
  * signal_num is the Unix signal number (SIGKILL, SIGSTOP, etc.)
  */
 struct log_job_signal {
-    int64_t  job_id;
-    int32_t  signal_num;
+    int64_t job_id;
+    int32_t signal_num;
     uint32_t uid;
-    time_t   signal_time;   /* mbd clock: set by caller before write */
+    time_t signal_time; /* mbd clock: set by caller before write */
 };
 
 /*
  * log_job_finish: job is done. Complete accounting record.
  */
 struct log_job_finish {
-    int64_t  job_id;
-    uid_t    uid;
-    int32_t  state;        /* JOB_STAT_EXIT, JOB_STAT_DONE         */
-    int32_t  exit_status;
-    time_t   end_time;      /* mbd clock: set by caller before write */
+    int64_t job_id;
+    uid_t uid;
+    int32_t state; /* JOB_STAT_EXIT, JOB_STAT_DONE         */
+    int32_t exit_status;
+    time_t end_time; /* mbd clock: set by caller before write */
 };
 
 /*
@@ -147,17 +147,17 @@ struct log_job_finish {
  */
 struct log_job_pend_susp {
     int64_t job_id;
-    time_t  event_time;
+    time_t event_time;
 };
 
 struct log_job_pend_resume {
     int64_t job_id;
-    time_t  event_time;
+    time_t event_time;
 };
 
 struct log_job_susp {
     int64_t job_id;
-    time_t  event_time;
+    time_t event_time;
 };
 
 /*

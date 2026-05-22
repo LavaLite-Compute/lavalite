@@ -22,17 +22,17 @@
 // 'key' is owned by the hash table; 'value' is not.
 
 struct ll_hash_entry {
-    struct ll_hash_entry *next;  // next entry in chain
-    char *key;                   // strdup()'d key, freed by table
-    void *value;                 // user-supplied pointer, not freed by table
+    struct ll_hash_entry *next; // next entry in chain
+    char *key;                  // strdup()'d key, freed by table
+    void *value;                // user-supplied pointer, not freed by table
 };
 
 // Hash table structure.
 struct ll_hash {
-    struct ll_hash_entry **buckets;   // bucket array
-    size_t nbuckets;                  // number of buckets (always prime)
-    size_t nentries;                  // number of entries
-    double max_load_factor;           // fixed internally to ~0.75
+    struct ll_hash_entry **buckets; // bucket array
+    size_t nbuckets;                // number of buckets (always prime)
+    size_t nentries;                // number of entries
+    double max_load_factor;         // fixed internally to ~0.75
 };
 
 // Compute a 64-bit FNV-1a hash of a NUL-terminated string.
@@ -59,15 +59,9 @@ struct ll_hash *ll_hash_create(size_t initial_buckets);
 //   LL_HASH_UPDATED  (existing key, value replaced)
 //   LL_HASH_EXISTS   (existing key, value unchanged OR allocation failure)
 
-enum ll_hash_status {
-    LL_HASH_INSERTED = 0,
-    LL_HASH_UPDATED,
-    LL_HASH_EXISTS
-};
+enum ll_hash_status { LL_HASH_INSERTED = 0, LL_HASH_UPDATED, LL_HASH_EXISTS };
 
-enum ll_hash_status ll_hash_insert(struct ll_hash *,
-                                   const char *,
-                                   void *,
+enum ll_hash_status ll_hash_insert(struct ll_hash *, const char *, void *,
                                    int allow_update);
 
 // Lookup value by key. Returns NULL if not found.

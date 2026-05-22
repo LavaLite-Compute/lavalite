@@ -15,14 +15,12 @@ struct col_widths {
     int free;
 };
 
-static int
-imax(int a, int b)
+static int imax(int a, int b)
 {
     return a > b ? a : b;
 }
 
-static int
-ndigits(int32_t n)
+static int ndigits(int32_t n)
 {
     if (n <= 0)
         return 1;
@@ -34,33 +32,31 @@ ndigits(int32_t n)
     return d;
 }
 
-static void
-compute_widths(struct token_pool_info *t, int32_t n, struct col_widths *w)
+static void compute_widths(struct token_pool_info *t, int32_t n,
+                           struct col_widths *w)
 {
-    w->name  = strlen("POOL_NAME");
+    w->name = strlen("POOL_NAME");
     w->total = strlen("TOTAL");
-    w->used  = strlen("USED");
-    w->free  = strlen("FREE");
+    w->used = strlen("USED");
+    w->free = strlen("FREE");
 
     for (int i = 0; i < n; i++) {
-        w->name  = imax(w->name,  (int)strlen(t[i].name));
+        w->name = imax(w->name, (int) strlen(t[i].name));
         w->total = imax(w->total, ndigits(t[i].total));
-        w->used  = imax(w->used,  ndigits(t[i].used));
-        w->free  = imax(w->free,  ndigits(t[i].free));
+        w->used = imax(w->used, ndigits(t[i].used));
+        w->free = imax(w->free, ndigits(t[i].free));
     }
 }
 
 static void usage(void)
 {
     fprintf(stderr, "btokens: --help display this help and exit\n"
-            "--version output version information and exit\n");
+                    "--version output version information and exit\n");
 }
 
-static struct option longopts[] = {
-    {"help",    no_argument, NULL, 'h'},
-    {"version", no_argument, NULL, 'V'},
-    {NULL, 0, NULL, 0}
-};
+static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
+                                   {"version", no_argument, NULL, 'V'},
+                                   {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {
@@ -93,18 +89,12 @@ int main(int argc, char **argv)
     struct col_widths w;
     compute_widths(t, n, &w);
 
-    printf("%-*s  %*s  %*s  %*s\n",
-           w.name,  "POOL_NAME",
-           w.total, "TOTAL",
-           w.used,  "USED",
-           w.free,  "FREE");
+    printf("%-*s  %*s  %*s  %*s\n", w.name, "POOL_NAME", w.total, "TOTAL",
+           w.used, "USED", w.free, "FREE");
 
     for (int i = 0; i < n; i++) {
-        printf("%-*s  %*d  %*d  %*d\n",
-               w.name,  t[i].name,
-               w.total, t[i].total,
-               w.used,  t[i].used,
-               w.free,  t[i].free);
+        printf("%-*s  %*d  %*d  %*d\n", w.name, t[i].name, w.total, t[i].total,
+               w.used, t[i].used, w.free, t[i].free);
     }
 
     llb_free_token_info(t, n);

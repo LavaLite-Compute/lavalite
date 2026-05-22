@@ -89,8 +89,9 @@ int ll_atoi(const char *s, int *out)
     if (!s || !out)
         return 0;
 
-    // Skip leading whitespace explicitly so empty/space-only strings fail cleanly
-    while (*s && isspace((unsigned char)*s))
+    // Skip leading whitespace explicitly so empty/space-only strings fail
+    // cleanly
+    while (*s && isspace((unsigned char) *s))
         s++;
 
     if (*s == '\0')
@@ -103,7 +104,7 @@ int ll_atoi(const char *s, int *out)
         return 0;
 
     // Allow trailing whitespace only; reject any other junk
-    while (*end && isspace((unsigned char)*end))
+    while (*end && isspace((unsigned char) *end))
         end++;
 
     if (*end != '\0')
@@ -112,7 +113,7 @@ int ll_atoi(const char *s, int *out)
     if (errno == ERANGE || v < INT_MIN || v > INT_MAX)
         return 0;
 
-    *out = (int)v;
+    *out = (int) v;
     return 1;
 }
 
@@ -124,7 +125,7 @@ int ll_atoll(const char *s, int64_t *out)
     if (!s || !out)
         return 0;
 
-    while (*s && isspace((unsigned char)*s))
+    while (*s && isspace((unsigned char) *s))
         s++;
 
     if (*s == '\0')
@@ -136,16 +137,17 @@ int ll_atoll(const char *s, int64_t *out)
     if (end == s)
         return 0;
 
-    while (*end && isspace((unsigned char)*end))
+    while (*end && isspace((unsigned char) *end))
         end++;
 
     if (*end != '\0')
         return 0;
 
-    if (errno == ERANGE || v < (long long)INT64_MIN || v > (long long)INT64_MAX)
+    if (errno == ERANGE || v < (long long) INT64_MIN ||
+        v > (long long) INT64_MAX)
         return 0;
 
-    *out = (int64_t)v;
+    *out = (int64_t) v;
     return 1;
 }
 
@@ -241,33 +243,19 @@ struct ll_sigmap {
 };
 
 static const struct ll_sigmap ll_sig_table[] = {
-    { SIGHUP,  "hup"  },
-    { SIGINT,  "int"  },
-    { SIGQUIT, "quit" },
-    { SIGILL,  "ill"  },
-    { SIGABRT, "abrt" },
-    { SIGFPE,  "fpe"  },
-    { SIGKILL, "kill" },
-    { SIGSEGV, "segv" },
-    { SIGPIPE, "pipe" },
-    { SIGALRM, "alrm" },
-    { SIGTERM, "term" },
-    { SIGUSR1, "usr1" },
-    { SIGUSR2, "usr2" },
-    { SIGCHLD, "chld" },
-    { SIGCONT, "cont" },
-    { SIGSTOP, "stop" },
-    { SIGTSTP, "tstp" }
-};
+    {SIGHUP, "hup"},   {SIGINT, "int"},   {SIGQUIT, "quit"}, {SIGILL, "ill"},
+    {SIGABRT, "abrt"}, {SIGFPE, "fpe"},   {SIGKILL, "kill"}, {SIGSEGV, "segv"},
+    {SIGPIPE, "pipe"}, {SIGALRM, "alrm"}, {SIGTERM, "term"}, {SIGUSR1, "usr1"},
+    {SIGUSR2, "usr2"}, {SIGCHLD, "chld"}, {SIGCONT, "cont"}, {SIGSTOP, "stop"},
+    {SIGTSTP, "tstp"}};
 
-static int
-ll_streq_nocase(const char *a, const char *b)
+static int ll_streq_nocase(const char *a, const char *b)
 {
     unsigned char ca, cb;
 
     while (*a && *b) {
-        ca = (unsigned char)*a++;
-        cb = (unsigned char)*b++;
+        ca = (unsigned char) *a++;
+        cb = (unsigned char) *b++;
         if (tolower(ca) != tolower(cb))
             return 0;
     }

@@ -107,8 +107,7 @@ struct ll_list_entry *ll_list_dequeue(struct ll_list *lst)
 }
 
 // free the entries and reinitialize the list
-void ll_list_clear(struct ll_list *lst,
-                   void (*cleanup)(void *))
+void ll_list_clear(struct ll_list *lst, void (*cleanup)(void *))
 {
     struct ll_list_entry *e = lst->head;
     struct ll_list_entry *next;
@@ -125,8 +124,7 @@ void ll_list_clear(struct ll_list *lst,
     ll_list_init(lst);
 }
 
-void ll_list_free(struct ll_list *lst,
-                  void (*cleanup)(void *))
+void ll_list_free(struct ll_list *lst, void (*cleanup)(void *))
 {
     if (!lst)
         return;
@@ -141,8 +139,7 @@ void ll_list_free(struct ll_list *lst,
  * The list is rebuilt from the sorted array; O(n log n) + O(n) alloc.
  * Returns 0 on success, -1 on alloc failure (list unchanged).
  */
-int ll_list_sort(struct ll_list *lst,
-                 int (*cmp)(const void *, const void *))
+int ll_list_sort(struct ll_list *lst, int (*cmp)(const void *, const void *))
 {
     int n = lst->count;
     int i;
@@ -175,8 +172,7 @@ int ll_list_sort(struct ll_list *lst,
  * buf must hold at least lst->count pointers.
  * No allocation — suitable for hot paths like the scheduler.
  */
-int ll_list_sort_buf(struct ll_list *lst,
-                     struct ll_list_entry **buf,
+int ll_list_sort_buf(struct ll_list *lst, struct ll_list_entry **buf,
                      int (*cmp)(const void *, const void *))
 {
     int n = lst->count;

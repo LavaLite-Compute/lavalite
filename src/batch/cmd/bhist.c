@@ -84,7 +84,7 @@ static int exec_hosts_width(const char *s)
 
     tok = strtok(buf, " ");
     while (tok != NULL) {
-        max = imax(max, (int)strlen(tok));
+        max = imax(max, (int) strlen(tok));
         tok = strtok(NULL, " ");
     }
 
@@ -106,67 +106,51 @@ static void compute_widths(struct job_hist_info *jobs, int n,
     int i;
     struct job_hist_info *j;
 
-    w->jobid      = (int)strlen("JOBID");
-    w->user       = (int)strlen("USER");
-    w->stat       = (int)strlen("STAT");
-    w->queue      = (int)strlen("QUEUE");
-    w->exec_hosts = (int)strlen("EXEC_HOSTS");
-    w->name       = (int)strlen("JOB_NAME");
+    w->jobid = (int) strlen("JOBID");
+    w->user = (int) strlen("USER");
+    w->stat = (int) strlen("STAT");
+    w->queue = (int) strlen("QUEUE");
+    w->exec_hosts = (int) strlen("EXEC_HOSTS");
+    w->name = (int) strlen("JOB_NAME");
 
     for (i = 0; i < n; i++) {
         j = &jobs[i];
 
         w->jobid = imax(w->jobid, ndigits(j->job_id));
-        w->user = imax(w->user, (int)strlen(j->username));
-        w->stat = imax(w->stat, (int)strlen(job_state_str(j->state)));
-        w->queue = imax(w->queue, (int)strlen(j->queue));
-        w->exec_hosts = imax(w->exec_hosts,
-                             exec_hosts_width(j->exec_hosts));
-        w->name = imax(w->name, (int)strlen(j->name));
+        w->user = imax(w->user, (int) strlen(j->username));
+        w->stat = imax(w->stat, (int) strlen(job_state_str(j->state)));
+        w->queue = imax(w->queue, (int) strlen(j->queue));
+        w->exec_hosts = imax(w->exec_hosts, exec_hosts_width(j->exec_hosts));
+        w->name = imax(w->name, (int) strlen(j->name));
     }
 }
 
 static void print_header(const struct col_widths *w)
 {
-    printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-12s  %-12s\n",
-           w->jobid,      "JOBID",
-           w->user,       "USER",
-           w->stat,       "STAT",
-           w->queue,      "QUEUE",
-           w->exec_hosts, "EXEC_HOSTS",
-           w->name,       "JOB_NAME",
-           "SUBMIT_TIME",
+    printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-12s  %-12s\n", w->jobid,
+           "JOBID", w->user, "USER", w->stat, "STAT", w->queue, "QUEUE",
+           w->exec_hosts, "EXEC_HOSTS", w->name, "JOB_NAME", "SUBMIT_TIME",
            "END_TIME");
 }
 
 static void print_job_line(const struct job_hist_info *j,
-                           const struct col_widths *w,
-                           const char *exec_host,
+                           const struct col_widths *w, const char *exec_host,
                            int first)
 {
     if (first) {
-        printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %-12s  %-12s\n",
-               w->jobid,      j->job_id,
-               w->user,       j->username,
-               w->stat,       job_state_str(j->state),
-               w->queue,      j->queue,
-               w->exec_hosts, exec_host,
-               w->name,       j->name,
-               fmt_time(j->submit_time),
+        printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %-12s  %-12s\n", w->jobid,
+               j->job_id, w->user, j->username, w->stat,
+               job_state_str(j->state), w->queue, j->queue, w->exec_hosts,
+               exec_host, w->name, j->name, fmt_time(j->submit_time),
                fmt_time(j->end_time));
         return;
     }
 
-    printf("%-*s  %-*s  %-*s  %-*s  %-*s\n",
-           w->jobid,      "",
-           w->user,       "",
-           w->stat,       "",
-           w->queue,      "",
-           w->exec_hosts, exec_host);
+    printf("%-*s  %-*s  %-*s  %-*s  %-*s\n", w->jobid, "", w->user, "", w->stat,
+           "", w->queue, "", w->exec_hosts, exec_host);
 }
 
-static void print_job(const struct job_hist_info *j,
-                      const struct col_widths *w)
+static void print_job(const struct job_hist_info *j, const struct col_widths *w)
 {
     char buf[4096];
     char *tok;
@@ -190,8 +174,8 @@ static void print_job(const struct job_hist_info *j,
 static void print_job_long(const struct job_hist_info *j)
 {
     printf("\n");
-    printf("  Job <%ld>, User <%s>, Queue <%s>, Status <%s>\n",
-           j->job_id, j->username, j->queue, job_state_str(j->state));
+    printf("  Job <%ld>, User <%s>, Queue <%s>, Status <%s>\n", j->job_id,
+           j->username, j->queue, job_state_str(j->state));
 
     printf("  Times:\n");
     printf("    Submitted:  %s\n", fmt_time(j->submit_time));
@@ -214,9 +198,9 @@ static void print_job_long(const struct job_hist_info *j)
     printf("    Max swap:   %lu MB\n", j->usage.swap_mb);
 
     printf("  Execution:\n");
-    printf("    Hosts:      %s\n", j->exec_hosts
-           && j->exec_hosts[0] ? j->exec_hosts : "-");
-    printf("    PID:        %d\n", (int)j->pid);
+    printf("    Hosts:      %s\n",
+           j->exec_hosts && j->exec_hosts[0] ? j->exec_hosts : "-");
+    printf("    PID:        %d\n", (int) j->pid);
     printf("    CWD:        %s\n", j->cwd && j->cwd[0] ? j->cwd : "-");
 
     printf("  Files:\n");
@@ -227,28 +211,25 @@ static void print_job_long(const struct job_hist_info *j)
 
 static void usage(void)
 {
-    fprintf(stderr,
-            "Usage: bhist [options] [job_id]\n"
-            "\n"
-            "Display historical job information.\n"
-            "\n"
-            "Options:\n"
-            "  -u, --user USER   Show historical jobs for USER\n"
-            "  -h, --help        Display this help and exit\n"
-            "  -V, --version     Output version information and exit\n"
-            "  -l --long         Output long version\n"
-            "\n"
-            "Arguments:\n"
-            "  job_id            Show history for one job\n");
+    fprintf(stderr, "Usage: bhist [options] [job_id]\n"
+                    "\n"
+                    "Display historical job information.\n"
+                    "\n"
+                    "Options:\n"
+                    "  -u, --user USER   Show historical jobs for USER\n"
+                    "  -h, --help        Display this help and exit\n"
+                    "  -V, --version     Output version information and exit\n"
+                    "  -l --long         Output long version\n"
+                    "\n"
+                    "Arguments:\n"
+                    "  job_id            Show history for one job\n");
 }
 
-static struct option longopts[] = {
-    {"help",    no_argument,       NULL, 'h'},
-    {"version", no_argument,       NULL, 'V'},
-    {"user",    required_argument, NULL, 'u'},
-    {"long", no_argument, NULL, 'l'},
-    {NULL, 0, NULL, 0}
-};
+static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
+                                   {"version", no_argument, NULL, 'V'},
+                                   {"user", required_argument, NULL, 'u'},
+                                   {"long", no_argument, NULL, 'l'},
+                                   {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {

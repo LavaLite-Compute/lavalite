@@ -117,10 +117,9 @@ static int compute_hmac(const struct protocol_header *hdr,
     memset(tmp.hmac, 0, sizeof(tmp.hmac));
     tmp.length = 0;
 
-    uint8_t *digest = HMAC(EVP_sha256(),
-                           auth_key, AUTH_KEY_SIZE,
-                           (const unsigned char *)&tmp, sizeof(tmp),
-                           NULL, &len);
+    uint8_t *digest =
+        HMAC(EVP_sha256(), auth_key, AUTH_KEY_SIZE,
+             (const unsigned char *) &tmp, sizeof(tmp), NULL, &len);
     if (digest == NULL || len != AUTH_KEY_SIZE) {
         errno = EPROTO;
         return -1;
@@ -135,9 +134,9 @@ int auth_sign_header(struct protocol_header *hdr)
     if (auth_load_key() < 0)
         return -1;
 
-    hdr->uid = (uint32_t)getuid();
-    hdr->gid = (uint32_t)getgid();
-    hdr->timestamp = (uint32_t)time(NULL);
+    hdr->uid = (uint32_t) getuid();
+    hdr->gid = (uint32_t) getgid();
+    hdr->timestamp = (uint32_t) time(NULL);
     memset(hdr->hmac, 0, sizeof(hdr->hmac));
 
     return compute_hmac(hdr, hdr->hmac);
@@ -160,7 +159,7 @@ int auth_verify_header(const struct protocol_header *hdr)
         return -1;
     }
 
-    uint32_t now = (uint32_t)time(NULL);
+    uint32_t now = (uint32_t) time(NULL);
     uint32_t age = now - hdr->timestamp;
     if (age > auth_allowed_age) {
         errno = ETIMEDOUT;

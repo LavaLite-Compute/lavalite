@@ -18,7 +18,7 @@ static int parse_signal(const char *s, int *out)
         return -1;
 
     // numeric?
-    if (isdigit((unsigned char)s[0])) {
+    if (isdigit((unsigned char) s[0])) {
         char *end = NULL;
         long v;
 
@@ -30,7 +30,7 @@ static int parse_signal(const char *s, int *out)
             return -1;
         // Note that we don't map numberical signals so
         // SIGSTOP is not mapped to SIGTSTP
-        *out = (int)v;
+        *out = (int) v;
         return 0;
     }
 
@@ -62,8 +62,7 @@ static int parse_signal(const char *s, int *out)
     return -1;
 }
 
-static void
-usage(void)
+static void usage(void)
 {
     fprintf(stderr, "bkill: -s SIGNAL jobid [jobid ...]\n");
     fprintf(stderr, " --signal SIGNAL jobid [jobid ...]\n");
@@ -72,12 +71,10 @@ usage(void)
 
 int main(int argc, char **argv)
 {
-    static struct option longopts[] = {
-        { "signal", required_argument, 0, 's' },
-        { "help",   no_argument,       0, 'h' },
-        { "version",no_argument,       0, 'V' },
-        { 0, 0, 0, 0 }
-    };
+    static struct option longopts[] = {{"signal", required_argument, 0, 's'},
+                                       {"help", no_argument, 0, 'h'},
+                                       {"version", no_argument, 0, 'V'},
+                                       {0, 0, 0, 0}};
 
     int sig = SIGTERM;
     int cc;
@@ -134,14 +131,14 @@ int main(int argc, char **argv)
 
         if (llb_signal_job(jobid, sig) < 0) {
             fprintf(stderr, "bkill: failed to signal job <%ld>: %m\n",
-                    (long)jobid);
+                    (long) jobid);
             continue;
         }
 
         if (jobid == 0)
             printf("All your jobs are being signaled\n");
         else
-            printf("Job <%ld> is being signaled\n", (long)jobid);
+            printf("Job <%ld> is being signaled\n", (long) jobid);
 
         signaled = 1;
     }

@@ -3,16 +3,17 @@
 #include <string.h>
 #include <getopt.h>
 
-static void
-usage(void)
+static void usage(void)
 {
-    fprintf(stderr,
+    fprintf(
+        stderr,
         "Usage: bmetric [options] <subcommand> [args]\n"
         "\n"
         "Subcommands:\n"
         "  add  <metric> <value> <host>   add a metric reading for a host\n"
         "  get  <metric> <host>           get latest metric value for a host\n"
-        "  list [host]                    list all metrics, optionally for a host\n"
+        "  list [host]                    list all metrics, optionally for a "
+        "host\n"
         "  del  <metric> <host>           delete metric for a host\n"
         "\n"
         "Options:\n"
@@ -21,17 +22,13 @@ usage(void)
         "Examples:\n"
         "  bmetric add gpu_temp 72 worker1\n"
         "  bmetric get gpu_temp worker1\n"
-        "  bmetric list worker1\n"
-    );
+        "  bmetric list worker1\n");
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-    static struct option opts[] = {
-        { "help", no_argument, NULL, 'h' },
-        { NULL,   0,           NULL,  0  }
-    };
+    static struct option opts[] = {{"help", no_argument, NULL, 'h'},
+                                   {NULL, 0, NULL, 0}};
     int c;
 
     while ((c = getopt_long(argc, argv, "+h", opts, NULL)) != -1) {

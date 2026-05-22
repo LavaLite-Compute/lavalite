@@ -22,8 +22,7 @@ int queue_state_init(void)
     struct dirent *de;
     DIR *d;
 
-    snprintf(dir, sizeof(dir), "%s/mbd/queues",
-             ll_params[LL_STATE_DIR].val);
+    snprintf(dir, sizeof(dir), "%s/mbd/queues", ll_params[LL_STATE_DIR].val);
 
     if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
         LS_ERR("mkdir %s failed: %m", dir);
@@ -107,8 +106,8 @@ void host_state_write(const struct mbd_host *h)
 {
     char path[PATH_MAX];
 
-    snprintf(path, sizeof(path), "%s/mbd/hosts/%s",
-             ll_params[LL_STATE_DIR].val, h->net.name);
+    snprintf(path, sizeof(path), "%s/mbd/hosts/%s", ll_params[LL_STATE_DIR].val,
+             h->net.name);
 
     if (h->state & HOST_CLOSED) {
         int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -129,8 +128,7 @@ int host_state_init(void)
     struct dirent *de;
     DIR *d;
 
-    snprintf(dir, sizeof(dir), "%s/mbd/hosts",
-             ll_params[LL_STATE_DIR].val);
+    snprintf(dir, sizeof(dir), "%s/mbd/hosts", ll_params[LL_STATE_DIR].val);
 
     if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
         LS_ERR("host_state_init: mkdir %s failed: %m", dir);

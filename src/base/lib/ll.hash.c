@@ -53,22 +53,22 @@ static size_t ll_next_prime(size_t n)
 // typically reduces the result modulo the bucket count.
 uint64_t ll_hash_str(const char *s)
 {
-    uint32_t h = 2166136261u;  // 32-bit FNV-1a offset basis
+    uint32_t h = 2166136261u; // 32-bit FNV-1a offset basis
     uint8_t c;
 
-    while ((c = (uint8_t)*s++) != 0) {
+    while ((c = (uint8_t) *s++) != 0) {
         h ^= c;
-        h *= 16777619u;        // 32-bit FNV-1a prime
+        h *= 16777619u; // 32-bit FNV-1a prime
     }
 
-    return (uint64_t)h;
+    return (uint64_t) h;
 }
 
 static size_t ll_bucket_index(const char *key, size_t nbuckets)
 {
     uint64_t h = ll_hash_str(key);
 
-    return (size_t)(h % nbuckets);
+    return (size_t) (h % nbuckets);
 }
 
 static int ll_hash_resize(struct ll_hash *ht, size_t new_buckets)
@@ -98,7 +98,7 @@ static int ll_hash_resize(struct ll_hash *ht, size_t new_buckets)
 
     free(ht->buckets);
 
-    ht->buckets  = new_array;
+    ht->buckets = new_array;
     ht->nbuckets = new_buckets;
 
     return 0;
@@ -116,7 +116,7 @@ static int ll_hash_maybe_grow(struct ll_hash *ht)
     if (ht->nbuckets == 0)
         return 0;
 
-    load = (double)ht->nentries / (double)ht->nbuckets;
+    load = (double) ht->nentries / (double) ht->nbuckets;
     if (load <= ht->max_load_factor)
         return 0;
 
@@ -137,9 +137,9 @@ int ll_hash_init(struct ll_hash *ht, size_t initial_buckets)
     if (!ht->buckets)
         return -1;
 
-    ht->nbuckets        = initial_buckets;
-    ht->nentries        = 0;
-    ht->max_load_factor =  0.75;   // fixed internal policy
+    ht->nbuckets = initial_buckets;
+    ht->nentries = 0;
+    ht->max_load_factor = 0.75; // fixed internal policy
 
     return 0;
 }
@@ -160,10 +160,8 @@ struct ll_hash *ll_hash_create(size_t initial_buckets)
     return ht;
 }
 
-enum ll_hash_status ll_hash_insert(struct ll_hash *ht,
-                                   const char *key,
-                                   void *value,
-                                   int allow_update)
+enum ll_hash_status ll_hash_insert(struct ll_hash *ht, const char *key,
+                                   void *value, int allow_update)
 {
     size_t idx;
     struct ll_hash_entry *ent;
@@ -195,7 +193,7 @@ enum ll_hash_status ll_hash_insert(struct ll_hash *ht,
     }
 
     ent->value = value;
-    ent->next  = ht->buckets[idx];
+    ent->next = ht->buckets[idx];
     ht->buckets[idx] = ent;
     ht->nentries++;
 
@@ -243,7 +241,7 @@ void *ll_hash_remove(struct ll_hash *ht, const char *key)
         }
 
         prev = ent;
-        ent  = ent->next;
+        ent = ent->next;
     }
 
     return value;

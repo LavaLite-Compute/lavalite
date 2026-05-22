@@ -16,19 +16,19 @@
 #include "llbatch.h"
 
 enum job_list_id {
-    JOB_LIST_PEND   = 0,
-    JOB_LIST_RUN    = 1,
+    JOB_LIST_PEND = 0,
+    JOB_LIST_RUN = 1,
     JOB_LIST_FINISH = 2,
 };
 
 // mbd_die exit value
 enum mbd_exit {
-    MBD_EXIT_CONF   = 200,
-    MBD_EXIT_NET    = 201,
+    MBD_EXIT_CONF = 200,
+    MBD_EXIT_NET = 201,
     MBD_EXIT_EVENTS = 202,
-    MBD_EXIT_JOBS   = 203,
-    MBD_EXIT_MEM    = 204,
-    MBD_EXIT_FATAL  = 205,
+    MBD_EXIT_JOBS = 203,
+    MBD_EXIT_MEM = 204,
+    MBD_EXIT_FATAL = 205,
 };
 
 struct mbd_manager {
@@ -40,21 +40,21 @@ struct mbd_manager {
 struct job_token {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
-    int  count;
+    int count;
 };
 
 /* what the user requested at submit time */
 struct job_resources {
-    int32_t  num_cpus;
-    int32_t  num_hosts;
-    int32_t  num_gpus;
-    char     gpu_type[LL_BUFSIZ_256];
+    int32_t num_cpus;
+    int32_t num_hosts;
+    int32_t num_gpus;
+    char gpu_type[LL_BUFSIZ_256];
     uint64_t mem_mb;
     uint64_t storage_mb;
-    int32_t  wall_seconds;
-    char     machines_str[LL_BUFSIZ_4K];
+    int32_t wall_seconds;
+    char machines_str[LL_BUFSIZ_4K];
     struct ll_hash machines;
-    char    tokenpool_str[LL_BUFSIZ_256];
+    char tokenpool_str[LL_BUFSIZ_256];
     struct ll_list tokens;
 };
 
@@ -69,16 +69,16 @@ struct job_data {
     int64_t job_id;
     uid_t uid;
     gid_t gid;
-    pid_t pid;                 /* job pid as reported by sbd */
+    pid_t pid; /* job pid as reported by sbd */
     char user[LL_BUFSIZ_64];
     int state;
     int exit_status;
     int priority;
-    time_t  submit_time;      /* bsub received                      */
-    time_t  dispatch_time;    /* mbd sent BATCH_NEW_JOB to sbd      */
-    time_t fork_time;         /* sbd forked, pid received by mbd    */
-    time_t  execute_time;     /* sbd confirmed process is executing */
-    time_t  end_time;         /* job exited (DONE or EXIT)          */
+    time_t submit_time;   /* bsub received                      */
+    time_t dispatch_time; /* mbd sent BATCH_NEW_JOB to sbd      */
+    time_t fork_time;     /* sbd forked, pid received by mbd    */
+    time_t execute_time;  /* sbd confirmed process is executing */
+    time_t end_time;      /* job exited (DONE or EXIT)          */
     time_t susp_time;
     time_t unknown_time;
     time_t begin_time;
@@ -91,8 +91,8 @@ struct job_data {
     enum job_list_id list_id;
     enum pend_reason pend_reason;
     struct ll_list deps;
-    struct job_resources res;    /* requested at submit */
-    int run_nhosts;    /* the number of hosts where the job will run */
+    struct job_resources res; /* requested at submit */
+    int run_nhosts;           /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;
 };
 
@@ -104,17 +104,17 @@ struct job_data {
  * gpu_list is walked only when a specific gpu_type is requested.
  */
 struct host_resources {
-    int      max_jobs;
-    int      total_cpu;
-    int      free_cpu;
-    int      total_gpu;
-    int      free_gpu;
+    int max_jobs;
+    int total_cpu;
+    int free_cpu;
+    int total_gpu;
+    int free_gpu;
     uint64_t total_mem_mb;
     uint64_t free_mem_mb;
     uint64_t total_storage_mb;
     uint64_t free_storage_mb;
-    struct ll_list gpu_list;   /* list of mbd_gpu */
-    struct ll_hash gpu_hash;   /* key gpu_type, value mbd_gpu */
+    struct ll_list gpu_list; /* list of mbd_gpu */
+    struct ll_hash gpu_hash; /* key gpu_type, value mbd_gpu */
 };
 
 /*
@@ -123,28 +123,28 @@ struct host_resources {
  */
 struct mbd_gpu {
     struct ll_list_entry ent;
-    int  gpu_id;
+    int gpu_id;
     char model[LL_BUFSIZ_64];    /* RTX4090, H100, A100 */
     char gpu_type[LL_BUFSIZ_64]; /* full, 3g.40gb, 2g.20gb */
-    int  count;                  /* configured */
-    int  free;                   /* available for scheduling */
+    int count;                   /* configured */
+    int free;                    /* available for scheduling */
 };
 
 /* runtime state of a connected execution host */
 struct mbd_host {
     struct ll_list_entry ent;
-    struct ll_host        net;   /* resolved network identity */
-    struct host_resources res;   /* capacity + availability + gpu_list */
-    uint16_t port;               /* 0 = use LL_SBD_PORT; sim override otherwise */
-    int    host_idx;             /* dense index assigned at conf_init */
-    int    state;
-    int    candidate;            /* set by mark_candidates() each sched cycle */
-    int    exclusive;            /* host is exclusively allocated */
-    int    num_jobs;
-    int    num_run;
-    int    num_susp;
-    int    sbd_chan;      /* -1 if not connected */
-    int    num_cpus_used;  /* CPUs consumed by running jobs on this host */
+    struct ll_host net;        /* resolved network identity */
+    struct host_resources res; /* capacity + availability + gpu_list */
+    uint16_t port;             /* 0 = use LL_SBD_PORT; sim override otherwise */
+    int host_idx;              /* dense index assigned at conf_init */
+    int state;
+    int candidate; /* set by mark_candidates() each sched cycle */
+    int exclusive; /* host is exclusively allocated */
+    int num_jobs;
+    int num_run;
+    int num_susp;
+    int sbd_chan;      /* -1 if not connected */
+    int num_cpus_used; /* CPUs consumed by running jobs on this host */
 };
 
 struct queue_conf {
@@ -152,34 +152,34 @@ struct queue_conf {
     char desc[LL_BUFSIZ_256];
     char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
     char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
-    int  priority;
-    int  state;
+    int priority;
+    int state;
 };
 
 struct mbd_queue {
     struct ll_list_entry ent;
-    char    name[LL_BUFSIZ_64];
-    char    description[LL_BUFSIZ_256];
-    char    hosts_spec[LL_BUFSIZ_256];
-    char    users[LL_BUFSIZ_256];
-    int     priority;
-    int     max_jobs;
-    int     num_jobs;
-    int     num_pend;
-    int     num_run;
-    int     num_susp;
-    int     num_held;
-    int     state;
-    int     num_cpus_used;    /* CPUs consumed by running jobs in this queue */
-    int     num_hosts_used;   /* distinct exec hosts in use by running jobs  */
-    struct ll_hash host_hash;  /* expanded host membership, keyed by hostname */
+    char name[LL_BUFSIZ_64];
+    char description[LL_BUFSIZ_256];
+    char hosts_spec[LL_BUFSIZ_256];
+    char users[LL_BUFSIZ_256];
+    int priority;
+    int max_jobs;
+    int num_jobs;
+    int num_pend;
+    int num_run;
+    int num_susp;
+    int num_held;
+    int state;
+    int num_cpus_used;        /* CPUs consumed by running jobs in this queue */
+    int num_hosts_used;       /* distinct exec hosts in use by running jobs  */
+    struct ll_hash host_hash; /* expanded host membership, keyed by hostname */
 };
 
 struct mbd_group {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
-    int  num_members;
-    char members[LL_BUFSIZ_1K];     /* space-separated */
+    int num_members;
+    char members[LL_BUFSIZ_1K]; /* space-separated */
 };
 
 /*
@@ -189,8 +189,8 @@ struct mbd_group {
 struct mbd_token_pool {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
-    int  total;
-    int  free;
+    int total;
+    int free;
 };
 
 #define JOB_BUCKETS 10
@@ -199,7 +199,7 @@ struct mbd_token_pool {
 
 struct sched_plan {
     struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */
-    int  nhosts;
+    int nhosts;
 };
 
 // Pending reason and their priority order
@@ -266,8 +266,8 @@ void reopen_job_events(void);
 int network_init(void);
 int mbd_accept(int);
 void mbd_message(int);
-int enqueue_payload(int, struct protocol_header *,
-                    void *, size_t, bool_t (*xdr_func)());
+int enqueue_payload(int, struct protocol_header *, void *, size_t,
+                    bool_t (*xdr_func)());
 int32_t enqueue_header(int, int, int);
 void chan_shutdown(int);
 int valid_batch_op(int);
@@ -307,8 +307,8 @@ int job_init(void);
 int job_register(XDR *, int);
 struct job_data *job_find(int64_t);
 void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
-void job_move_list(struct job_data *, struct ll_list *,
-                   struct ll_list *, enum job_list_id);
+void job_move_list(struct job_data *, struct ll_list *, struct ll_list *,
+                   enum job_list_id);
 void machines_hash_populate(struct ll_hash *, const char *);
 void mbd_job_signal_reply(struct mbd_host *, XDR *, struct protocol_header *);
 char *job_state_str(int);

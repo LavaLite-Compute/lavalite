@@ -44,9 +44,9 @@
  * Growing byte buffer — heap only, no fixed limit.
  */
 struct ll_buf {
-    char   *data;
-    size_t  len;
-    size_t  cap;
+    char *data;
+    size_t len;
+    size_t cap;
 };
 
 static int ll_buf_grow(struct ll_buf *b, size_t need)
@@ -72,7 +72,7 @@ static int ll_buf_grow(struct ll_buf *b, size_t need)
         return -1;
 
     b->data = p;
-    b->cap  = want;
+    b->cap = want;
     return 0;
 }
 
@@ -146,10 +146,10 @@ static int is_sh_ident(const char *s, size_t n)
 
     if (s == NULL || n == 0)
         return 0;
-    if (!is_alpha((unsigned char)s[0]) && s[0] != '_')
+    if (!is_alpha((unsigned char) s[0]) && s[0] != '_')
         return 0;
     for (i = 1; i < n; i++) {
-        unsigned char c = (unsigned char)s[i];
+        unsigned char c = (unsigned char) s[i];
         if (!is_alpha(c) && !is_digit(c) && c != '_')
             return 0;
     }
@@ -174,90 +174,89 @@ static int is_bash_func(const char *name, size_t n)
 
 struct env_rule {
     const char *name;
-    size_t      len;
-    int         prefix;
+    size_t len;
+    int prefix;
 };
 
 static const struct env_rule env_deny_table[] = {
     /* lmod session state */
-    { "LMOD_",                           5,  1 },
-    { "MODULEPATH",                     10,  1 },
-    { "LOADEDMODULES",                  13,  0 },
-    { "MODULESHOME",                    11,  0 },
-    { "_LMFILES_",                       9,  0 },
-    { "FPATH",                           5,  0 },
-    { "BASH_ENV",                        8,  0 },
-    { "__LMOD_REF_COUNT_",              17,  1 },
-    { "_ModuleTable",                   12,  1 },
+    {"LMOD_", 5, 1},
+    {"MODULEPATH", 10, 1},
+    {"LOADEDMODULES", 13, 0},
+    {"MODULESHOME", 11, 0},
+    {"_LMFILES_", 9, 0},
+    {"FPATH", 5, 0},
+    {"BASH_ENV", 8, 0},
+    {"__LMOD_REF_COUNT_", 17, 1},
+    {"_ModuleTable", 12, 1},
 
     /* scheduler internals */
-    { "LL_JOB",                          6,  1 },
-    { "LL_QUEUE",                        8,  1 },
-    { "LL_HOSTS",                        8,  1 },
+    {"LL_JOB", 6, 1},
+    {"LL_QUEUE", 8, 1},
+    {"LL_HOSTS", 8, 1},
 
     /* terminal */
-    { "TERM",                            4,  0 },
-    { "TERMCAP",                         7,  0 },
-    { "LINES",                           5,  0 },
-    { "COLUMNS",                         7,  0 },
+    {"TERM", 4, 0},
+    {"TERMCAP", 7, 0},
+    {"LINES", 5, 0},
+    {"COLUMNS", 7, 0},
 
     /* display / desktop session */
-    { "DISPLAY",                         7,  0 },
-    { "WAYLAND_DISPLAY",                15,  0 },
-    { "XAUTHORITY",                     10,  0 },
-    { "DBUS_SESSION_BUS_ADDRESS",       24,  0 },
-    { "SESSION_MANAGER",                15,  0 },
-    { "WINDOWID",                        8,  0 },
-    { "XMODIFIERS",                     10,  0 },
-    { "GTK_MODULES",                    11,  0 },
-    { "QT_IM_MODULE",                   12,  0 },
-    { "QT_ACCESSIBILITY",               16,  0 },
-    { "IM_CONFIG_CHECK_ENV",            19,  0 },
-    { "IM_CONFIG_PHASE",                15,  0 },
-    { "GDMSESSION",                     10,  0 },
-    { "DESKTOP_SESSION",                15,  0 },
-    { "XDG_",                            4,  1 },
-    { "GNOME_",                          6,  1 },
-    { "GJS_",                            4,  1 },
+    {"DISPLAY", 7, 0},
+    {"WAYLAND_DISPLAY", 15, 0},
+    {"XAUTHORITY", 10, 0},
+    {"DBUS_SESSION_BUS_ADDRESS", 24, 0},
+    {"SESSION_MANAGER", 15, 0},
+    {"WINDOWID", 8, 0},
+    {"XMODIFIERS", 10, 0},
+    {"GTK_MODULES", 11, 0},
+    {"QT_IM_MODULE", 12, 0},
+    {"QT_ACCESSIBILITY", 16, 0},
+    {"IM_CONFIG_CHECK_ENV", 19, 0},
+    {"IM_CONFIG_PHASE", 15, 0},
+    {"GDMSESSION", 10, 0},
+    {"DESKTOP_SESSION", 15, 0},
+    {"XDG_", 4, 1},
+    {"GNOME_", 6, 1},
+    {"GJS_", 4, 1},
 
     /* systemd session */
-    { "JOURNAL_STREAM",                 14,  0 },
-    { "INVOCATION_ID",                  13,  0 },
-    { "SYSTEMD_EXEC_PID",               16,  0 },
-    { "MANAGERPID",                     10,  0 },
-    { "MEMORY_PRESSURE_WRITE",          21,  0 },
-    { "MEMORY_PRESSURE_WATCH",          21,  0 },
+    {"JOURNAL_STREAM", 14, 0},
+    {"INVOCATION_ID", 13, 0},
+    {"SYSTEMD_EXEC_PID", 16, 0},
+    {"MANAGERPID", 10, 0},
+    {"MEMORY_PRESSURE_WRITE", 21, 0},
+    {"MEMORY_PRESSURE_WATCH", 21, 0},
 
     /* shell state */
-    { "PS1",                             3,  0 },
-    { "SHLVL",                           5,  0 },
-    { "OLDPWD",                          6,  0 },
-    { "_",                               1,  0 },
+    {"PS1", 3, 0},
+    {"SHLVL", 5, 0},
+    {"OLDPWD", 6, 0},
+    {"_", 1, 0},
 
     /* xterm */
-    { "XTERM_VERSION",                  13,  0 },
-    { "XTERM_SHELL",                    11,  0 },
-    { "XTERM_LOCALE",                   12,  0 },
+    {"XTERM_VERSION", 13, 0},
+    {"XTERM_SHELL", 11, 0},
+    {"XTERM_LOCALE", 12, 0},
 
     /* misc interactive noise */
-    { "PAGER",                           5,  0 },
-    { "LS_COLORS",                       9,  0 },
-    { "CLUTTER_DISABLE_MIPMAPPED_TEXT",  30,  0 },
-    { "GSM_SKIP_SSH_AGENT_WORKAROUND",   29,  0 },
-    { "INSIDE_EMACS",                   12,  0 },
-    { "EDITOR",                          6,  0 },
-    { "SSH_AUTH_SOCK",                  13,  0 },
+    {"PAGER", 5, 0},
+    {"LS_COLORS", 9, 0},
+    {"CLUTTER_DISABLE_MIPMAPPED_TEXT", 30, 0},
+    {"GSM_SKIP_SSH_AGENT_WORKAROUND", 29, 0},
+    {"INSIDE_EMACS", 12, 0},
+    {"EDITOR", 6, 0},
+    {"SSH_AUTH_SOCK", 13, 0},
 
     /* build env */
-    { "CFLAGS",                          6,  0 },
-    { "CPPFLAGS",                        8,  0 },
-    { "PKG_CONFIG",                     10,  0 },
-    { "PKG_CONFIG_PATH",                15,  0 },
-    { "DEBUGINFOD_URLS",                15,  0 },
-    { "MANPATH",                         7,  0 },
+    {"CFLAGS", 6, 0},
+    {"CPPFLAGS", 8, 0},
+    {"PKG_CONFIG", 10, 0},
+    {"PKG_CONFIG_PATH", 15, 0},
+    {"DEBUGINFOD_URLS", 15, 0},
+    {"MANPATH", 7, 0},
 
-    { NULL, 0, 0 }
-};
+    {NULL, 0, 0}};
 
 static int rule_exact(const char *name, size_t n, const char *rule, size_t rlen)
 {
@@ -266,7 +265,8 @@ static int rule_exact(const char *name, size_t n, const char *rule, size_t rlen)
     return strncmp(name, rule, n) == 0;
 }
 
-static int rule_prefix(const char *name, size_t n, const char *rule, size_t rlen)
+static int rule_prefix(const char *name, size_t n, const char *rule,
+                       size_t rlen)
 {
     if (n < rlen)
         return 0;
@@ -319,8 +319,8 @@ static int ll_buf_append_exit_tail(struct ll_buf *b)
 {
     if (ll_buf_append_str(b, "\nExitStat=$?\n") < 0)
         return -1;
-    if (ll_buf_append_str(b,
-            "echo \"$ExitStat $(date +%s)\" > \"$LL_JOBDIR/exit\"\n") < 0)
+    if (ll_buf_append_str(
+            b, "echo \"$ExitStat $(date +%s)\" > \"$LL_JOBDIR/exit\"\n") < 0)
         return -1;
     if (ll_buf_append_str(b, "exit $ExitStat\n") < 0)
         return -1;
@@ -330,10 +330,11 @@ static int ll_buf_append_exit_tail(struct ll_buf *b)
 /*
  * create_jobscript - build the job script sent to mbd.
  *
- * On success: script->data is heap-allocated (caller must free), script->len set.
- * On error:   returns -1.
+ * On success: script->data is heap-allocated (caller must free), script->len
+ * set. On error:   returns -1.
  */
-int create_jobscript(const struct job_submit *js, struct wire_job_script *script)
+int create_jobscript(const struct job_submit *js,
+                     struct wire_job_script *script)
 {
     struct ll_buf b;
     char **ep;
@@ -346,18 +347,18 @@ int create_jobscript(const struct job_submit *js, struct wire_job_script *script
         goto oom;
 
     for (ep = environ; ep != NULL && *ep != NULL; ep++) {
-        const char *e    = *ep;
-        const char *eq   = strchr(e, '=');
+        const char *e = *ep;
+        const char *eq = strchr(e, '=');
         const char *name;
         const char *val;
-        size_t      nlen;
+        size_t nlen;
 
         if (eq == NULL)
             continue;
 
         name = e;
-        nlen = (size_t)(eq - e);
-        val  = eq + 1;
+        nlen = (size_t) (eq - e);
+        val = eq + 1;
 
         if (!is_sh_ident(name, nlen))
             continue;
@@ -382,7 +383,7 @@ int create_jobscript(const struct job_submit *js, struct wire_job_script *script
         goto oom;
 
     script->data = b.data;
-    script->len  = (uint32_t)b.len;
+    script->len = (uint32_t) b.len;
     return 0;
 
 oom:

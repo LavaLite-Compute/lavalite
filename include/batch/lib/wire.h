@@ -19,13 +19,13 @@
  * ----------------------------------------------------------------------- */
 
 struct wire_sbd_job {
-    int64_t  job_id;
-    int32_t  pid;
+    int64_t job_id;
+    int32_t pid;
 };
 
 struct wire_sbd_register {
-    char                 hostname[MAXHOSTNAMELEN];
-    int32_t              num_jobs;
+    char hostname[MAXHOSTNAMELEN];
+    int32_t num_jobs;
     struct wire_sbd_job *jobs;
 };
 
@@ -34,8 +34,8 @@ struct wire_sbd_register {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_sig {
-    int64_t  job_id;
-    int32_t  sig;
+    int64_t job_id;
+    int32_t sig;
     uint32_t uid;
 };
 
@@ -47,8 +47,8 @@ struct wire_job_sig {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_script {
-    uint32_t  len;
-    char     *data;
+    uint32_t len;
+    char *data;
 };
 
 /* -----------------------------------------------------------------------
@@ -56,8 +56,8 @@ struct wire_job_script {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_state {
-    int64_t  job_id;
-    int32_t  state;
+    int64_t job_id;
+    int32_t state;
 };
 
 /* -----------------------------------------------------------------------
@@ -65,10 +65,10 @@ struct wire_job_state {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_reply {
-    int64_t  job_id;
-    int32_t  pid;
-    int32_t  pgid;
-    int32_t  state;
+    int64_t job_id;
+    int32_t pid;
+    int32_t pgid;
+    int32_t state;
 };
 
 /* -----------------------------------------------------------------------
@@ -79,43 +79,42 @@ struct wire_job_reply {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_start {
-    int64_t  job_id;
+    int64_t job_id;
     uint32_t uid;
     uint32_t gid;
     uint32_t umask;
 
-    char     job_name[LL_BUFSIZ_256];
-    char     queue[LL_BUFSIZ_64];
-    char     username[LL_BUFSIZ_64];
-    char     home_dir[PATH_MAX];
-    char     cwd[PATH_MAX];
-    char     command[LL_BUFSIZ_512];
-    char     in_file[PATH_MAX];
-    char     out_file[PATH_MAX];
-    char     err_file[PATH_MAX];
-    char     hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA:4,hostB:4" */
+    char job_name[LL_BUFSIZ_256];
+    char queue[LL_BUFSIZ_64];
+    char username[LL_BUFSIZ_64];
+    char home_dir[PATH_MAX];
+    char cwd[PATH_MAX];
+    char command[LL_BUFSIZ_512];
+    char in_file[PATH_MAX];
+    char out_file[PATH_MAX];
+    char err_file[PATH_MAX];
+    char hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA:4,hostB:4" */
 
-    int64_t  term_time;
-    int32_t  gpus_per_host;
-    int32_t  ncpus;
+    int64_t term_time;
+    int32_t gpus_per_host;
+    int32_t ncpus;
     uint64_t mem_mb;
-    char     gpu_type[LL_BUFSIZ_64];
+    char gpu_type[LL_BUFSIZ_64];
 
-    struct wire_job_script script;   /* job script, encoded last */
+    struct wire_job_script script; /* job script, encoded last */
 };
 
 /* job finish sbd -> mbd
  */
 struct wire_job_finish {
-    int64_t  job_id;
-    int32_t  state;
-    int32_t  exit_status;
+    int64_t job_id;
+    int32_t state;
+    int32_t exit_status;
 
-    int32_t  pid;
+    int32_t pid;
     uint64_t mem_mb;
     uint64_t swap_mb;
-    double   cpu_time;
-
+    double cpu_time;
 };
 
 struct wire_job_ack {
@@ -149,20 +148,20 @@ struct wire_job_submit {
     char from_host[MAXHOSTNAMELEN];
     char username[LL_BUFSIZ_256];
     char home_dir[PATH_MAX];
-    int32_t  num_cpus;
-    int32_t  num_hosts;
-    int32_t  num_gpus;
+    int32_t num_cpus;
+    int32_t num_hosts;
+    int32_t num_gpus;
     uint64_t mem_mb;
     uint64_t storage_mb;
-    char     tokenpool[LL_BUFSIZ_256]; /* "name=N[,name=N]..." empty=none */
+    char tokenpool[LL_BUFSIZ_256]; /* "name=N[,name=N]..." empty=none */
     uint32_t uid;
     uint32_t gid;
     uint32_t umask;
     uint32_t flags;
-    int64_t  begin_time;
-    int64_t  term_time;
-    int64_t  susp_time;
-    int64_t  resume_time;
+    int64_t begin_time;
+    int64_t term_time;
+    int64_t susp_time;
+    int64_t resume_time;
 };
 
 /* -----------------------------------------------------------------------
@@ -170,7 +169,7 @@ struct wire_job_submit {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_submit_reply {
-    int64_t  job_id;
+    int64_t job_id;
 };
 
 /* -----------------------------------------------------------------------
@@ -178,8 +177,8 @@ struct wire_job_submit_reply {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_info_req {
-    int64_t  job_id;
-    int32_t  flags;
+    int64_t job_id;
+    int32_t flags;
     uint32_t uid;
 };
 
@@ -190,17 +189,17 @@ struct wire_job_info_req {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_info {
-    int64_t  job_id;
+    int64_t job_id;
     uint32_t uid;
     int32_t pid;
-    int32_t  state;
-    int32_t  exit_status;
-    int32_t  priority;
-    int32_t  pend_reason;
-    int64_t  submit_time;
-    int64_t  dispatch_time;
-    int64_t  end_time;
-    int64_t  susp_time;
+    int32_t state;
+    int32_t exit_status;
+    int32_t priority;
+    int32_t pend_reason;
+    int64_t submit_time;
+    int64_t dispatch_time;
+    int64_t end_time;
+    int64_t susp_time;
     char name[LL_BUFSIZ_64];
     char queue[LL_BUFSIZ_64];
     char from_host[MAXHOSTNAMELEN];
@@ -209,7 +208,7 @@ struct wire_job_info {
 };
 
 struct wire_job_info_array {
-    int32_t               njobs;
+    int32_t njobs;
     struct wire_job_info *jobs;
 };
 
@@ -218,46 +217,45 @@ struct wire_job_info_array {
  * ----------------------------------------------------------------------- */
 
 struct wire_host_info {
-    char     name[MAXHOSTNAMELEN];
-    int32_t  state;
-    int32_t  max_jobs;
-    int32_t  total_cpu;
-    int32_t  free_cpu;
-    int32_t  total_gpu;
-    int32_t  free_gpu;
+    char name[MAXHOSTNAMELEN];
+    int32_t state;
+    int32_t max_jobs;
+    int32_t total_cpu;
+    int32_t free_cpu;
+    int32_t total_gpu;
+    int32_t free_gpu;
     uint64_t total_mem_mb;
     uint64_t free_mem_mb;
     uint64_t total_storage_mb;
     uint64_t free_storage_mb;
-    int32_t  num_jobs;
-    int32_t  num_run;
-    int32_t  num_susp;
+    int32_t num_jobs;
+    int32_t num_run;
+    int32_t num_susp;
 };
 
 struct wire_host_info_array {
-    int32_t               nhosts;
+    int32_t nhosts;
     struct wire_host_info *hosts;
 };
 
 struct wire_host_admin {
-    char     name[MAXHOSTNAMELEN];
-    int32_t  op;       /* HOST_CLOSED or 0 for open */
+    char name[MAXHOSTNAMELEN];
+    int32_t op; /* HOST_CLOSED or 0 for open */
     uint32_t uid;
 };
-
 
 /* -----------------------------------------------------------------------
  * host group info  (mbd -> client)
  * ----------------------------------------------------------------------- */
 
 struct wire_group_info {
-    char    name[LL_BUFSIZ_64];
+    char name[LL_BUFSIZ_64];
     int32_t num_members;
-    char    members[LL_BUFSIZ_1K];  /* space-separated */
+    char members[LL_BUFSIZ_1K]; /* space-separated */
 };
 
 struct wire_group_info_array {
-    int32_t                ngroups;
+    int32_t ngroups;
     struct wire_group_info *groups;
 };
 
@@ -266,9 +264,9 @@ struct wire_group_info_array {
  * ----------------------------------------------------------------------- */
 
 struct wire_queue_info {
-    char    name[LL_BUFSIZ_64];
-    char    description[LL_BUFSIZ_256];
-    char    hosts[LL_BUFSIZ_256];
+    char name[LL_BUFSIZ_64];
+    char description[LL_BUFSIZ_256];
+    char hosts[LL_BUFSIZ_256];
     int32_t priority;
     int32_t max_jobs;
     int32_t num_jobs;
@@ -278,30 +276,29 @@ struct wire_queue_info {
     int32_t num_held;
     int32_t num_cpus_used;
     int32_t num_hosts_used;
-    int32_t status;        /* QUEUE_OPEN | QUEUE_CLOSED */
+    int32_t status; /* QUEUE_OPEN | QUEUE_CLOSED */
 };
 
 struct wire_queue_info_array {
-    int32_t                nqueues;
+    int32_t nqueues;
     struct wire_queue_info *queues;
 };
 
 /* after wire_queue_info_array */
 struct wire_queue_admin {
     char name[LL_BUFSIZ_64];
-    int32_t op; /* QUEUE_OPEN | QUEUE_CLOSED */
+    int32_t op;   /* QUEUE_OPEN | QUEUE_CLOSED */
     uint32_t uid; /* must be admin or root */
 };
 
-
 struct wire_token_info {
-    char    name[LL_BUFSIZ_64];
+    char name[LL_BUFSIZ_64];
     int32_t total;
     int32_t free;
 };
 
 struct wire_token_info_array {
-    int32_t               ntokens;
+    int32_t ntokens;
     struct wire_token_info *tokens;
 };
 

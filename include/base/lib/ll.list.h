@@ -17,13 +17,13 @@
 //   prev: move left   (towards decreasing x, towards head)
 
 struct ll_list_entry {
-    struct ll_list_entry *next;  // move right  (towards tail)
-    struct ll_list_entry *prev;  // move left   (towards head)
+    struct ll_list_entry *next; // move right  (towards tail)
+    struct ll_list_entry *prev; // move left   (towards head)
 };
 
 struct ll_list {
-    struct ll_list_entry *head;  // leftmost element
-    struct ll_list_entry *tail;  // rightmost element
+    struct ll_list_entry *head; // leftmost element
+    struct ll_list_entry *tail; // rightmost element
     int count;
 };
 
@@ -82,7 +82,6 @@ static inline void ll_list_foreach_reverse(struct ll_list *lst,
         fn(e);
 }
 
-int ll_list_sort(struct ll_list *,
-                 int (*cmp)(const void *, const void *));
+int ll_list_sort(struct ll_list *, int (*cmp)(const void *, const void *));
 int ll_list_sort_buf(struct ll_list *, struct ll_list_entry **,
                      int (*)(const void *, const void *));

@@ -66,19 +66,19 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
     if (w->num_hosts == 0)
         w->num_hosts = 1;
 
-    w->num_gpus     = js->num_gpus;
-    w->mem_mb       = js->mem_mb;
-    w->storage_mb   = js->storage_mb;
+    w->num_gpus = js->num_gpus;
+    w->mem_mb = js->mem_mb;
+    w->storage_mb = js->storage_mb;
     if (js->tokenpool != NULL)
         ll_strlcpy(w->tokenpool, js->tokenpool, sizeof(w->tokenpool));
-    w->begin_time   = (int64_t)js->begin_time;
-    w->term_time    = (int64_t)js->term_time;
-    w->flags        = js->flags;
+    w->begin_time = (int64_t) js->begin_time;
+    w->term_time = (int64_t) js->term_time;
+    w->flags = js->flags;
 
-    w->uid   = (uint32_t)getuid();
-    w->gid   = (uint32_t)getgid();
-    w->umask = (uint32_t)umask(0);
-    umask((mode_t)w->umask);
+    w->uid = (uint32_t) getuid();
+    w->gid = (uint32_t) getgid();
+    w->umask = (uint32_t) umask(0);
+    umask((mode_t) w->umask);
 
     pw = getpwuid2(w->uid);
     if (pw == NULL) {
@@ -107,14 +107,14 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
     memset(&script, 0, sizeof(script));
     if (create_jobscript(js, &script) < 0)
         return -1;
-    /*
-     * XDR encode buffer: wire_job_submit fixed fields + script payload.
-     * Each xdr_opaque field carries a 4-byte length prefix [len][payload].
-     * ~14 string fields * 4 = 56 bytes; 64 gives a small margin.
-     */
+        /*
+         * XDR encode buffer: wire_job_submit fixed fields + script payload.
+         * Each xdr_opaque field carries a 4-byte length prefix [len][payload].
+         * ~14 string fields * 4 = 56 bytes; 64 gives a small margin.
+         */
 #define XDR_OPAQUE_OVERHEAD 64
-    size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit)
-        + XDR_OPAQUE_OVERHEAD + script.len;
+    size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit) +
+                   XDR_OPAQUE_OVERHEAD + script.len;
     char *buf = calloc(bufsz, 1);
     if (buf == NULL) {
         free(script.data);
@@ -133,10 +133,9 @@ int32_t llb_submit(const struct job_submit *js, int64_t *job_id)
     }
 
     XDR xdrs;
-    xdrmem_create(&xdrs, buf, (u_int)bufsz, XDR_ENCODE);
-    if (!ll_encode_msg2(&xdrs, &hdr,
-                        &w, (bool_t (*)())xdr_wire_job_submit,
-                        &script, (bool_t (*)())xdr_wire_job_script)) {
+    xdrmem_create(&xdrs, buf, (u_int) bufsz, XDR_ENCODE);
+    if (!ll_encode_msg2(&xdrs, &hdr, &w, (bool_t(*)()) xdr_wire_job_submit,
+                        &script, (bool_t(*)()) xdr_wire_job_script)) {
         xdr_destroy(&xdrs);
         free(buf);
         free(script.data);

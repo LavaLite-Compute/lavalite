@@ -5,8 +5,9 @@
  * cgroup v2 support for sbd job resource enforcement.
  *
  * Hierarchy:
- *   /sys/fs/cgroup/system.slice/lavalite-sbd.service/   <- sbd's delegated cgroup
- *     job_<jobid>/                                       <- one per running job
+ *   /sys/fs/cgroup/system.slice/lavalite-sbd.service/   <- sbd's delegated
+ * cgroup job_<jobid>/                                       <- one per running
+ * job
  *
  * /sys/fs/cgroup/system.slice/lavalite-sbd.service/
  *     cgroup.subtree_control     <- we write "+memory +cpu" here at init
@@ -36,8 +37,8 @@
  * All path construction appends to it so we need room for the suffix.
  * Use a generous fixed size to avoid truncation warnings from -Werror.
  */
-#define CG_BASE_MAX  4096
-#define CG_PATH_MAX  8192
+#define CG_BASE_MAX 4096
+#define CG_PATH_MAX 8192
 
 static char cg_base[CG_BASE_MAX];
 
@@ -53,8 +54,8 @@ static int cg_write(const char *path, const char *val)
     }
 
     size_t len = strlen(val);
-    ssize_t n  = write(fd, val, len);
-    int err    = errno;
+    ssize_t n = write(fd, val, len);
+    int err = errno;
     close(fd);
 
     if (n < 0) {
@@ -107,7 +108,7 @@ static int cg_read_u64(const char *path, uint64_t *out)
     if (n <= 0)
         return -1;
     buf[n] = 0;
-    *out = (uint64_t)strtoull(buf, NULL, 10);
+    *out = (uint64_t) strtoull(buf, NULL, 10);
     return 0;
 }
 
@@ -125,7 +126,7 @@ static int cg_read_cpu_usec(const char *path, uint64_t *usec)
     while (fgets(line, sizeof(line), f)) {
         if (strncmp(line, "usage_usec ", 11) != 0)
             continue;
-        *usec = (uint64_t)strtoull(line + 11, NULL, 10);
+        *usec = (uint64_t) strtoull(line + 11, NULL, 10);
         found = 1;
         break;
     }
@@ -169,8 +170,8 @@ int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
 
     if (mem_mb > 0) {
         snprintf(knob, sizeof(knob), "%s/job_%ld/memory.max", cg_base, job_id);
-        snprintf(val,  sizeof(val),  "%llu",
-                 (unsigned long long)mem_mb * 1024 * 1024);
+        snprintf(val, sizeof(val), "%llu",
+                 (unsigned long long) mem_mb * 1024 * 1024);
 
         if (cg_write(knob, val) < 0)
             LS_ERR("job=%ld cgroup set memory.max=%s failed", job_id, val);
@@ -185,7 +186,7 @@ int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
          * period = 100000 us (kernel default).
          */
         snprintf(knob, sizeof(knob), "%s/job_%ld/cpu.max", cg_base, job_id);
-        snprintf(val,  sizeof(val),  "%d 100000", ncpus * 100000);
+        snprintf(val, sizeof(val), "%d 100000", ncpus * 100000);
 
         if (cg_write(knob, val) < 0)
             LS_ERR("job=%ld cgroup set cpu.max=%s failed", job_id, val);
@@ -202,14 +203,14 @@ int cgroup_job_assign(int64_t job_id, pid_t pid)
     char val[32];
 
     snprintf(knob, sizeof(knob), "%s/job_%ld/cgroup.procs", cg_base, job_id);
-    snprintf(val,  sizeof(val),  "%d", (int)pid);
+    snprintf(val, sizeof(val), "%d", (int) pid);
 
     if (cg_write(knob, val) < 0) {
-        LS_ERR("job=%ld cgroup assign pid=%d failed", job_id, (int)pid);
+        LS_ERR("job=%ld cgroup assign pid=%d failed", job_id, (int) pid);
         return -1;
     }
 
-    LS_INFO("job=%ld cgroup assigned pid=%d", job_id, (int)pid);
+    LS_INFO("job=%ld cgroup assigned pid=%d", job_id, (int) pid);
     return 0;
 }
 
@@ -286,15 +287,18 @@ int cgroup_job_collect(int64_t job_id, struct job_res_usage *ru)
     val = 0;
     snprintf(path, sizeof(path), "%s/job_%ld/memory.peak", cg_base, job_id);
     if (cg_read_u64(path, &val) < 0) {
-        snprintf(path, sizeof(path), "%s/job_%ld/memory.current", cg_base, job_id);
+        snprintf(path, sizeof(path), "%s/job_%ld/memory.current", cg_base,
+                 job_id);
         cg_read_u64(path, &val);
     }
     ru->mem_mb = val / (1024 * 1024);
 
     val = 0;
-    snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.peak", cg_base, job_id);
+    snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.peak", cg_base,
+             job_id);
     if (cg_read_u64(path, &val) < 0) {
-        snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.current", cg_base, job_id);
+        snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.current", cg_base,
+                 job_id);
         cg_read_u64(path, &val);
     }
     ru->swap_mb = val / (1024 * 1024);
@@ -302,7 +306,7 @@ int cgroup_job_collect(int64_t job_id, struct job_res_usage *ru)
     val = 0;
     snprintf(path, sizeof(path), "%s/job_%ld/cpu.stat", cg_base, job_id);
     if (cg_read_cpu_usec(path, &val) == 0)
-        ru->cpu_time = (double)val / 1000000.0;
+        ru->cpu_time = (double) val / 1000000.0;
 
     return 0;
 }

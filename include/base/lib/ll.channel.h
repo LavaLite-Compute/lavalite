@@ -31,7 +31,7 @@ enum chan_events {
 };
 
 struct chan_buffer {
-    struct ll_list_entry link;  // intrusive list node
+    struct ll_list_entry link; // intrusive list node
     char *data;
     int pos;
     int len;
@@ -55,10 +55,8 @@ int chan_connect(int, struct sockaddr_in *, int, int);
 int chan_enqueue(int, struct chan_buffer *);
 int chan_dequeue(int, struct chan_buffer **);
 int chan_accept(int, struct sockaddr_in *);
-int chan_rpc(int, struct chan_buffer *,
-             struct chan_buffer *,
-             struct protocol_header *,
-             int);
+int chan_rpc(int, struct chan_buffer *, struct chan_buffer *,
+             struct protocol_header *, int);
 ssize_t chan_read(int, void *, size_t);
 ssize_t chan_read_nonblock(int, void *, size_t, int);
 ssize_t chan_write(int, void *, size_t);

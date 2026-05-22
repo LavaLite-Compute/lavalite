@@ -61,8 +61,8 @@ static void route(int chan_id)
     XDR xdrs;
 
     if (chan_has_error(chan_id)) {
-        LS_DEBUG("channel=%d from=%s closed connection",
-                 chan_id, chan_addr_str(chan_id));
+        LS_DEBUG("channel=%d from=%s closed connection", chan_id,
+                 chan_addr_str(chan_id));
         chan_shutdown(chan_id);
         return;
     }
@@ -102,8 +102,8 @@ static void route(int chan_id)
     }
 
     if (hdr.version != CURRENT_PROTOCOL_VERSION) {
-        LS_ERR("unsupported version=0x%x from=%s",
-               hdr.version, chan_addr_str(chan_id));
+        LS_ERR("unsupported version=0x%x from=%s", hdr.version,
+               chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);
@@ -161,8 +161,8 @@ void mbd_message(int chan_id)
 {
     char key[LL_BUFSIZ_32];
 
-    LS_DEBUG("chan_id=%d sock=%d chan_events=%d",
-             chan_id, channels[chan_id].sock, channels[chan_id].chan_events);
+    LS_DEBUG("chan_id=%d sock=%d chan_events=%d", chan_id,
+             channels[chan_id].sock, channels[chan_id].chan_events);
 
     snprintf(key, sizeof(key), "%d", chan_id);
     struct mbd_host *n = ll_hash_search(&sbd_chan_hash, key);
@@ -187,7 +187,7 @@ int network_init(void)
     }
 
     chan_init();
-    if (! ll_atoi(ll_params[LL_MBD_PORT].val, (int *)&mbd_port)) {
+    if (!ll_atoi(ll_params[LL_MBD_PORT].val, (int *) &mbd_port)) {
         LS_ERRX("cannot convert to int LL_MBD_PORT=%s",
                 ll_params[LL_MBD_PORT].val);
         close(mbd_efd);
@@ -284,33 +284,33 @@ void chan_shutdown(int chan_id)
     chan_close(chan_id);
 }
 
-int32_t enqueue_payload(int chan_id, struct protocol_header *hdr,
-                        void *payload, size_t siz, bool_t (*xdr_func)())
+int32_t enqueue_payload(int chan_id, struct protocol_header *hdr, void *payload,
+                        size_t siz, bool_t (*xdr_func)())
 {
     struct chan_buffer *buf;
     XDR xdrs;
 
     if (chan_alloc_buf(&buf, siz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d siz=%ld",
-               hdr->operation, (long)siz);
+        LS_ERR("chan_alloc_buf failed op=%d siz=%ld", hdr->operation,
+               (long) siz);
         return -1;
     }
 
     xdrmem_create(&xdrs, buf->data, siz, XDR_ENCODE);
 
-    if (! ll_encode_msg(&xdrs, (char *)payload, xdr_func, hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) payload, xdr_func, hdr)) {
         LS_ERRX("ll_encode_msg failed op=%d", hdr->operation);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         return -1;
     }
 
-    buf->len = (size_t)xdr_getpos(&xdrs);
+    buf->len = (size_t) xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(chan_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed op=%d len=%d",
-               hdr->operation, (int)buf->len);
+        LS_ERR("chan_enqueue failed op=%d len=%d", hdr->operation,
+               (int) buf->len);
         chan_free_buf(buf);
         return -1;
     }
@@ -336,8 +336,8 @@ int32_t enqueue_header(int chan_id, int operation, int status)
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = operation;
-    hdr.status    = status;
-    hdr.length    = 0;
+    hdr.status = status;
+    hdr.length = 0;
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf->data, LL_BUFSIZ_256, XDR_ENCODE);
@@ -347,7 +347,7 @@ int32_t enqueue_header(int chan_id, int operation, int status)
         chan_free_buf(buf);
         return -1;
     }
-    buf->len = (size_t)xdr_getpos(&xdrs);
+    buf->len = (size_t) xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(chan_id, buf) < 0) {

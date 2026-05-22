@@ -34,7 +34,6 @@ static char log_tag[LL_BUFSIZ_64];
 
 int ls_openlog(const char *ident, const char *logdir, const char *mask)
 {
-
     if (ident == NULL)
         return -1;
 
@@ -106,25 +105,16 @@ void ls_syslog(int level, const char *fmt, ...)
      */
 
     if (log_tag[0] != '\0') {
-        n = snprintf(line, sizeof(line),
-                     "%s [%s] %s %d %s\n",
-                     ts,
-                     level_str(level),
-                     log_tag,
-                     getpid(),
-                     msg);
+        n = snprintf(line, sizeof(line), "%s [%s] %s %d %s\n", ts,
+                     level_str(level), log_tag, getpid(), msg);
     } else {
-        n = snprintf(line, sizeof(line),
-                     "%s [%s] %d %s\n",
-                     ts,
-                     level_str(level),
-                     getpid(),
-                     msg);
+        n = snprintf(line, sizeof(line), "%s [%s] %d %s\n", ts,
+                     level_str(level), getpid(), msg);
     }
     if (n < 0)
         return;
 
-    size_t len = (size_t)n;
+    size_t len = (size_t) n;
     if (len >= sizeof(line))
         len = sizeof(line) - 1;
 
@@ -155,7 +145,6 @@ static void ls_reopen_log(void)
     log_fd = newfd;
     fchmod(log_fd, 0644);
 }
-
 
 void ls_closelog(void)
 {
@@ -214,13 +203,9 @@ static void build_timestamp(char *buf, size_t bufsz)
         return;
     }
     //* "Dec 19 16:13:16.123"
-    snprintf(buf, bufsz,
-             "%.3s %2d %02d:%02d:%02d.%03ld",
+    snprintf(buf, bufsz, "%.3s %2d %02d:%02d:%02d.%03ld",
              "JanFebMarAprMayJunJulAugSepOctNovDec" + tm_buf.tm_mon * 3,
-             tm_buf.tm_mday,
-             tm_buf.tm_hour,
-             tm_buf.tm_min,
-             tm_buf.tm_sec,
+             tm_buf.tm_mday, tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
              ts.tv_nsec / 1000000);
 }
 
@@ -287,7 +272,7 @@ static void write_record(int fd, const char *buf, size_t len)
                 continue;
             return;
         }
-        buf += (size_t)n;
-        len -= (size_t)n;
+        buf += (size_t) n;
+        len -= (size_t) n;
     }
 }

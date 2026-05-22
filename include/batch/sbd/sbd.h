@@ -31,10 +31,10 @@ extern char sbd_archive_dir[PATH_MAX];
 extern char sim_name[MAXHOSTNAMELEN];
 
 enum sbd_policy {
-    SBD_OPERATION_TIMER      = 1,
-    SBD_RESEND_ACK_TIMEOUT  = 1,
-    SBD_PRUNE_INTERVAL      = 600,
-    SBD_ARCHIVE_RETENTION   = 24 * 3600
+    SBD_OPERATION_TIMER = 1,
+    SBD_RESEND_ACK_TIMEOUT = 1,
+    SBD_PRUNE_INTERVAL = 600,
+    SBD_ARCHIVE_RETENTION = 24 * 3600
 };
 
 enum sbd_fatal_cause {
@@ -59,7 +59,7 @@ struct sbd_job {
     uid_t exec_uid;
     gid_t exec_gid;
     uint32_t umask;
-    int32_t  ncpus;
+    int32_t ncpus;
     uint64_t mem_mb;
 
     char exec_user[LL_BUFSIZ_64];

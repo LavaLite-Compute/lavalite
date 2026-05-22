@@ -19,7 +19,8 @@
 
 static void usage(FILE *f)
 {
-    fprintf(f,
+    fprintf(
+        f,
         "Usage: bsub [options] command [arguments]\n"
         "\n"
         "Job identity:\n"
@@ -53,8 +54,7 @@ static void usage(FILE *f)
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
         "\n"
         "  --help             Print this message and exit\n"
-        "  --version          Print version and exit\n"
-    );
+        "  --version          Print version and exit\n");
 }
 
 /*
@@ -96,14 +96,14 @@ static int parse_time_arg(const char *arg, time_t *out)
         if (*end != '\0' || v < 0) {
             return -1;
         }
-        fields[i++] = (int)v;
+        fields[i++] = (int) v;
         p = colon ? colon + 1 : NULL;
     }
 
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
-    tm->tm_sec  = 0;
-    tm->tm_min  = fields[nf - 1];
+    tm->tm_sec = 0;
+    tm->tm_min = fields[nf - 1];
     tm->tm_hour = fields[nf - 2];
     if (nf >= 3) {
         tm->tm_mday = fields[nf - 3];
@@ -148,14 +148,14 @@ static int parse_mem(const char *arg, uint64_t *out)
     }
 
     if (*end == '\0' || strcmp(end, "M") == 0) {
-        *out = (uint64_t)v;
+        *out = (uint64_t) v;
     } else if (strcmp(end, "K") == 0) {
-        *out = (uint64_t)v / 1024;
+        *out = (uint64_t) v / 1024;
         if (*out == 0) {
             *out = 1;
         }
     } else if (strcmp(end, "G") == 0) {
-        *out = (uint64_t)v * 1024;
+        *out = (uint64_t) v * 1024;
     } else {
         return -1;
     }
@@ -204,36 +204,34 @@ int main(int argc, char **argv)
     memset(&js, 0, sizeof(js));
 
     static const struct option opts[] = {
-        { "queue",       required_argument, NULL, 'q' },
-        { "name",        required_argument, NULL, 'J' },
-        { "project",     required_argument, NULL, 'P' },
-        { "comment",     required_argument, NULL, 'C' },
-        { "cpus",        required_argument, NULL, 'n' },
-        { "nhosts",      required_argument, NULL, 'N' },
-        { "mem",         required_argument, NULL, 'M' },
-        { "scratch",     required_argument, NULL, 's' },
-        { "gpus",        required_argument, NULL, 'g' },
-        { "gpu-type",    required_argument, NULL, 'G' },
-        { "pool",        required_argument, NULL, 'L' },
-        { "exclusive",   no_argument,       NULL, 'x' },
-        { "machines",    required_argument, NULL, 'm' },
-        { "stdout",      required_argument, NULL, 'o' },
-        { "stderr",      required_argument, NULL, 'e' },
-        { "stdin",       required_argument, NULL, 'i' },
-        { "hold",        no_argument,       NULL, 'H' },
-        { "begin",       required_argument, NULL, 'b' },
-        { "terminate",   required_argument, NULL, 't' },
-        { "dependency",  required_argument, NULL, 'w' },
-        { "help",        no_argument,       NULL, 'h' },
-        { "version",     no_argument,       NULL, 'V' },
-        { NULL, 0, NULL, 0 }
-    };
+        {"queue", required_argument, NULL, 'q'},
+        {"name", required_argument, NULL, 'J'},
+        {"project", required_argument, NULL, 'P'},
+        {"comment", required_argument, NULL, 'C'},
+        {"cpus", required_argument, NULL, 'n'},
+        {"nhosts", required_argument, NULL, 'N'},
+        {"mem", required_argument, NULL, 'M'},
+        {"scratch", required_argument, NULL, 's'},
+        {"gpus", required_argument, NULL, 'g'},
+        {"gpu-type", required_argument, NULL, 'G'},
+        {"pool", required_argument, NULL, 'L'},
+        {"exclusive", no_argument, NULL, 'x'},
+        {"machines", required_argument, NULL, 'm'},
+        {"stdout", required_argument, NULL, 'o'},
+        {"stderr", required_argument, NULL, 'e'},
+        {"stdin", required_argument, NULL, 'i'},
+        {"hold", no_argument, NULL, 'H'},
+        {"begin", required_argument, NULL, 'b'},
+        {"terminate", required_argument, NULL, 't'},
+        {"dependency", required_argument, NULL, 'w'},
+        {"help", no_argument, NULL, 'h'},
+        {"version", no_argument, NULL, 'V'},
+        {NULL, 0, NULL, 0}};
 
     int c;
-    while ((c = getopt_long(argc,
-                            argv,
-                            "q:J:P:C:n:N:M:s:g:G:L:xm:o:e:i:Hb:t:W:hV",
-                            opts, NULL)) != -1) {
+    while (
+        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:L:xm:o:e:i:Hb:t:W:hV",
+                         opts, NULL)) != -1) {
         switch (c) {
         case 'q':
             js.queue = optarg;
@@ -254,7 +252,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "bsub: --cpus: invalid value '%s'\n", optarg);
                 return 1;
             }
-            js.num_cpus = (int32_t)v;
+            js.num_cpus = (int32_t) v;
             break;
         }
         case 'N': {
@@ -264,7 +262,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "bsub: --nhosts: invalid value '%s'\n", optarg);
                 return 1;
             }
-            js.num_hosts = (int32_t)v;
+            js.num_hosts = (int32_t) v;
             break;
         }
         case 'M':
@@ -275,7 +273,8 @@ int main(int argc, char **argv)
             break;
         case 's':
             if (parse_mem(optarg, &js.storage_mb) < 0) {
-                fprintf(stderr, "bsub: --scratch: invalid value '%s'\n", optarg);
+                fprintf(stderr, "bsub: --scratch: invalid value '%s'\n",
+                        optarg);
                 return 1;
             }
             break;
@@ -286,7 +285,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "bsub: --gpus: invalid value '%s'\n", optarg);
                 return 1;
             }
-            js.num_gpus = (int32_t)v;
+            js.num_gpus = (int32_t) v;
             break;
         }
         case 'G':
@@ -296,14 +295,17 @@ int main(int argc, char **argv)
             /* validate format: name=N */
             char *eq = strchr(optarg, '=');
             if (eq == NULL || eq == optarg) {
-                fprintf(stderr, "bsub: --pool: invalid format '%s', "
-                        "expected name=N\n", optarg);
+                fprintf(stderr,
+                        "bsub: --pool: invalid format '%s', "
+                        "expected name=N\n",
+                        optarg);
                 return 1;
             }
             char *end;
             long v = strtol(eq + 1, &end, 10);
             if (*end != '\0' || v <= 0) {
-                fprintf(stderr, "bsub: --pool: invalid count in '%s'\n", optarg);
+                fprintf(stderr, "bsub: --pool: invalid count in '%s'\n",
+                        optarg);
                 return 1;
             }
             /* append to tokenpool string: "existing,name=N" */
@@ -346,7 +348,8 @@ int main(int argc, char **argv)
             break;
         case 't':
             if (parse_time_arg(optarg, &js.term_time) < 0) {
-                fprintf(stderr, "bsub: --terminate: invalid time '%s'\n", optarg);
+                fprintf(stderr, "bsub: --terminate: invalid time '%s'\n",
+                        optarg);
                 return 1;
             }
             break;
@@ -368,7 +371,8 @@ int main(int argc, char **argv)
 
     /* --nhosts and --machines are mutually exclusive */
     if (js.num_hosts > 0 && js.machines != NULL) {
-        fprintf(stderr, "bsub: --nhosts and --machines are mutually exclusive\n");
+        fprintf(stderr,
+                "bsub: --nhosts and --machines are mutually exclusive\n");
         return 1;
     }
 
@@ -401,8 +405,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    fprintf(stdout, "Job <%ld> is submitted to queue <%s>.\n",
-            (long)job_id, js.queue ? js.queue : "default");
+    fprintf(stdout, "Job <%ld> is submitted to queue <%s>.\n", (long) job_id,
+            js.queue ? js.queue : "default");
 
     free(js.command);
     free(js.tokenpool);

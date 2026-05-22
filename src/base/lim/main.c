@@ -18,7 +18,7 @@ struct ll_hash node_addr_hash;
 struct cluster lim_cluster;
 static int croaked;
 int lim_efd;
-int n_master_candidates= 0;
+int n_master_candidates = 0;
 struct lim_node **master_candidates;
 struct lim_node *me;
 struct current_master current_master;
@@ -32,7 +32,7 @@ static void light_house(void)
 }
 static int init_chans(void)
 {
-    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_port)) {
+    if (!ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_port)) {
         errno = EINVAL;
         LS_ERRX("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
         return -1;
@@ -121,7 +121,7 @@ cleanup:
 
 static void croak_handler(int sig)
 {
-    (void)sig;
+    (void) sig;
     croaked = 1;
 }
 
@@ -184,8 +184,8 @@ int is_master_candidate(struct lim_node *n)
 
 static void is_master_me(void)
 {
-    if (! is_master_candidate(me)) {
-        LS_INFO("lim=%s host_no=%d is not master candidate",  me->host->name,
+    if (!is_master_candidate(me)) {
+        LS_INFO("lim=%s host_no=%d is not master candidate", me->host->name,
                 me->host_no);
         current_master.node = NULL;
         return;
@@ -195,8 +195,7 @@ static void is_master_me(void)
     current_master.inactivity = 0;
     if (me->host_no == 0) {
         current_master.node = me;
-        LS_INFO("lim=%s host_no=%d is now master", me->host->name,
-                me->host_no);
+        LS_INFO("lim=%s host_no=%d is now master", me->host->name, me->host_no);
         return;
     }
 
@@ -208,19 +207,17 @@ static void is_master_me(void)
 static void usage(void)
 {
     fprintf(stderr, "lim:  --version lim version\n"
-            " --confdir path to configuration directory\n"
-            " --help itself\n");
+                    " --confdir path to configuration directory\n"
+                    " --help itself\n");
 }
 
 int main(int argc, char **argv)
 {
-    struct option long_options[] = {
-        {"confdir", required_argument, 0, 'e'},
-        {"version", no_argument, 0, 'V'},
-        {"check", no_argument, 0, 'C'},
-        {"help", no_argument, 0, 'h'},
-        {0, 0, 0, 0}
-    };
+    struct option long_options[] = {{"confdir", required_argument, 0, 'e'},
+                                    {"version", no_argument, 0, 'V'},
+                                    {"check", no_argument, 0, 'C'},
+                                    {"help", no_argument, 0, 'h'},
+                                    {0, 0, 0, 0}};
 
     int cc;
     char *conf_dir = NULL;
@@ -260,10 +257,11 @@ int main(int argc, char **argv)
     }
 
     ls_closelog();
-    cc = ls_openlog("lim", ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
+    cc = ls_openlog("lim", ll_params[LL_LOG_DIR].val,
+                    ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
         fprintf(stderr, "lim: ls_openlog failed lodir=%s mask=%s %m\n",
-                ll_params[LL_LOG_DIR].val,  ll_params[LL_LOG_MASK].val);
+                ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 
@@ -275,7 +273,6 @@ int main(int argc, char **argv)
     croaked = 0;
 
     while (1) {
-
         if (croaked)
             break;
 

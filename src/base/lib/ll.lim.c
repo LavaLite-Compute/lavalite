@@ -40,13 +40,13 @@ static int ll_lim_init(void)
     if (ll_params[LL_LIM_PORT].val == NULL)
         return -1;
 
-    if (! ll_atoi(ll_params[LL_LIM_PORT].val, (int *)&lim_port))
+    if (!ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_port))
         return -1;
 
-    if (! ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout))
+    if (!ll_atoi(ll_params[LL_API_CONNTIMEOUT].val, &conntimeout))
         return -1;
 
-    if (! ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout))
+    if (!ll_atoi(ll_params[LL_API_RECVTIMEOUT].val, &recvtimeout))
         return -1;
 
     chan_init();
@@ -70,7 +70,7 @@ static int build_hdr_request(int opcode, char *buf, size_t bufsz)
         xdr_destroy(&xdrs);
         return -1;
     }
-    int len = (int)xdr_getpos(&xdrs);
+    int len = (int) xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
     return len;
 }
@@ -96,12 +96,12 @@ static int call_lim_udp(int opcode, char *rep, size_t rep_size)
     }
 
     struct sockaddr_in lim_addr = {
-        .sin_family      = AF_INET,
+        .sin_family = AF_INET,
         .sin_addr.s_addr = htonl(INADDR_LOOPBACK),
-        .sin_port        = htons(lim_port),
+        .sin_port = htons(lim_port),
     };
 
-    if (chan_send_dgram(ch, req, (size_t)req_len, &lim_addr) < 0) {
+    if (chan_send_dgram(ch, req, (size_t) req_len, &lim_addr) < 0) {
         chan_close(ch);
         return -1;
     }
@@ -203,8 +203,8 @@ char *ll_clustername(void)
  *             reply_hdr is filled.
  * Keeps a persistent TCP connection; reconnects on failure.
  */
-static int call_lim_tcp(const void *req, size_t req_len,
-                        void **rep, struct protocol_header *reply_hdr)
+static int call_lim_tcp(const void *req, size_t req_len, void **rep,
+                        struct protocol_header *reply_hdr)
 {
     if (lim_get_master() < 0) {
         return -1;
@@ -218,7 +218,7 @@ static int call_lim_tcp(const void *req, size_t req_len,
         struct sockaddr_in addr;
         get_host_addrv4(&master.host, &addr);
         addr.sin_family = AF_INET;
-        addr.sin_port   = htons(lim_port);
+        addr.sin_port = htons(lim_port);
 
         if (chan_connect(lim_chan_tcp, &addr, conntimeout * 1000, 0) < 0) {
             chan_close(lim_chan_tcp);
@@ -227,7 +227,7 @@ static int call_lim_tcp(const void *req, size_t req_len,
         }
     }
 
-    struct chan_buffer sndbuf = {.data = (void *)req, .len = req_len};
+    struct chan_buffer sndbuf = {.data = (void *) req, .len = req_len};
     struct chan_buffer rcvbuf = {0};
 
     // timeout is in seconds
@@ -261,36 +261,37 @@ struct ll_host_load *ll_hostload(int *nloads)
 
     void *rep = NULL;
     struct protocol_header reply_hdr;
-    if (call_lim_tcp(req, (size_t)req_len, &rep, &reply_hdr) < 0)
+    if (call_lim_tcp(req, (size_t) req_len, &rep, &reply_hdr) < 0)
         return NULL;
 
     struct wire_loads wls;
     memset(&wls, 0, sizeof(struct wire_loads));
 
     XDR xdrs;
-    xdrmem_create(&xdrs, rep, (unsigned int)reply_hdr.length, XDR_DECODE);
+    xdrmem_create(&xdrs, rep, (unsigned int) reply_hdr.length, XDR_DECODE);
     bool_t ok = xdr_wire_load_array(&xdrs, &wls);
     xdr_destroy(&xdrs);
     free(rep);
     if (!ok || wls.nloads == 0) {
-        xdr_free((xdrproc_t)xdr_wire_load_array, &wls);
+        xdr_free((xdrproc_t) xdr_wire_load_array, &wls);
         return NULL;
     }
 
-    struct ll_host_load *loads = calloc(wls.nloads, sizeof(struct ll_host_load));
+    struct ll_host_load *loads =
+        calloc(wls.nloads, sizeof(struct ll_host_load));
     if (!loads) {
-        xdr_free((xdrproc_t)xdr_wire_load_array, &wls);
+        xdr_free((xdrproc_t) xdr_wire_load_array, &wls);
         return NULL;
     }
     for (uint32_t i = 0; i < wls.nloads; i++) {
         strncpy(loads[i].hostname, wls.loads[i].hostname, MAXHOSTNAMELEN - 1);
         loads[i].hostname[MAXHOSTNAMELEN - 1] = 0;
-        loads[i].status      = wls.loads[i].status;
+        loads[i].status = wls.loads[i].status;
         loads[i].num_metrics = NUM_METRICS;
         memcpy(loads[i].li, wls.loads[i].li, NUM_METRICS * sizeof(float));
     }
-    xdr_free((xdrproc_t)xdr_wire_load_array, &wls);
-    *nloads = (int)wls.nloads;
+    xdr_free((xdrproc_t) xdr_wire_load_array, &wls);
+    *nloads = (int) wls.nloads;
     return loads;
 }
 
@@ -307,13 +308,13 @@ struct ll_host_info *ll_hostinfo(int *nhosts)
 
     void *rep = NULL;
     struct protocol_header reply_hdr;
-    if (call_lim_tcp(req, (size_t)req_len, &rep, &reply_hdr) < 0)
+    if (call_lim_tcp(req, (size_t) req_len, &rep, &reply_hdr) < 0)
         return NULL;
 
     struct wire_hosts whs;
     memset(&whs, 0, sizeof(struct wire_hosts));
     XDR xdrs;
-    xdrmem_create(&xdrs, rep, (unsigned int)reply_hdr.length, XDR_DECODE);
+    xdrmem_create(&xdrs, rep, (unsigned int) reply_hdr.length, XDR_DECODE);
 
     bool_t ok = xdr_wire_host_array(&xdrs, &whs);
     xdr_destroy(&xdrs);
@@ -322,9 +323,10 @@ struct ll_host_info *ll_hostinfo(int *nhosts)
         return NULL;
     }
 
-    struct ll_host_info *hosts = calloc(whs.nhosts, sizeof(struct ll_host_info));
+    struct ll_host_info *hosts =
+        calloc(whs.nhosts, sizeof(struct ll_host_info));
     if (!hosts) {
-        xdr_free((xdrproc_t)xdr_wire_host_array, &whs);
+        xdr_free((xdrproc_t) xdr_wire_host_array, &whs);
         return NULL;
     }
 
@@ -333,14 +335,14 @@ struct ll_host_info *ll_hostinfo(int *nhosts)
         hosts[i].host_name[MAXHOSTNAMELEN - 1] = 0;
         strncpy(hosts[i].host_type, whs.hosts[i].machine, LL_BUFSIZ_32 - 1);
         hosts[i].host_type[LL_BUFSIZ_32 - 1] = 0;
-        hosts[i].num_cpus  = whs.hosts[i].num_cpus;
-        hosts[i].max_mem   = whs.hosts[i].max_mem;
-        hosts[i].max_swap  = whs.hosts[i].max_swap;
-        hosts[i].max_tmp   = whs.hosts[i].max_tmp;
+        hosts[i].num_cpus = whs.hosts[i].num_cpus;
+        hosts[i].max_mem = whs.hosts[i].max_mem;
+        hosts[i].max_swap = whs.hosts[i].max_swap;
+        hosts[i].max_tmp = whs.hosts[i].max_tmp;
         hosts[i].is_master = whs.hosts[i].is_candidate;
     }
-    xdr_free((xdrproc_t)xdr_wire_host_array, &whs);
-    *nhosts = (int)whs.nhosts;
+    xdr_free((xdrproc_t) xdr_wire_host_array, &whs);
+    *nhosts = (int) whs.nhosts;
     return hosts;
 }
 
@@ -356,13 +358,13 @@ struct ll_cluster_info *ll_clusterinfo(void)
 
     void *rep = NULL;
     struct protocol_header reply_hdr;
-    if (call_lim_tcp(req, (size_t)req_len, &rep, &reply_hdr) < 0)
+    if (call_lim_tcp(req, (size_t) req_len, &rep, &reply_hdr) < 0)
         return NULL;
 
     struct wire_cluster wc;
     memset(&wc, 0, sizeof(wc));
     XDR xdrs;
-    xdrmem_create(&xdrs, rep, (unsigned int)reply_hdr.length, XDR_DECODE);
+    xdrmem_create(&xdrs, rep, (unsigned int) reply_hdr.length, XDR_DECODE);
     bool_t ok = xdr_wire_cluster(&xdrs, &wc);
     xdr_destroy(&xdrs);
     free(rep);

@@ -68,8 +68,8 @@ struct lim_node {
     float load_index[NUM_METRICS]; // read /proc every timer
     uint32_t load_report_missing;
     uint32_t status;
-    char *machine;     // uname
-    char *resources;   // historical string of static resources
+    char *machine;   // uname
+    char *resources; // historical string of static resources
     uint16_t is_candidate;
     uint64_t max_mem;
     uint64_t max_swap;
@@ -79,7 +79,7 @@ struct lim_node {
 
 struct current_master {
     struct lim_node *node; // who we think is master, NULL if unknown
-    uint32_t inactivity; // ticks since last beacon from master
+    uint32_t inactivity;   // ticks since last beacon from master
 };
 
 // dont collide with the library
@@ -92,8 +92,8 @@ enum lim_msg {
 #define MISSED_BEACON_TOLERANCE 5
 
 struct master_beacon {
-    char     cluster[LL_BUFSIZ_32];
-    char     hostname[MAXHOSTNAMELEN];
+    char cluster[LL_BUFSIZ_32];
+    char hostname[MAXHOSTNAMELEN];
     uint32_t host_no;
     uint16_t tcp_port;
 };
