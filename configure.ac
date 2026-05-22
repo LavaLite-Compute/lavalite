@@ -115,7 +115,6 @@ AC_CONFIG_FILES([
   src/batch/cmd/Makefile
   src/batch/mbd/Makefile
   src/batch/sbd/Makefile
-  src/batch/compactor/Makefile
 ])
 
 AC_OUTPUT

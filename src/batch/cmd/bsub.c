@@ -51,41 +51,11 @@ static void usage(FILE *f)
         "  --hold             Submit in PSUSP state\n"
         "  --begin  [day:]h:m Do not dispatch before this time\n"
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
-        "  --wall  [h:]m      Wall clock run limit (SIGUSR2 + kill)\n"
         "  --dependency expr  Hold until dependency expression is true\n"
         "\n"
         "  --help             Print this message and exit\n"
         "  --version          Print version and exit\n"
     );
-}
-
-/*
- * Parse [h:]m into seconds.
- * Returns seconds >= 0, or -1 on error.
- */
-static int parse_hm(const char *arg)
-{
-    char *end;
-    const char *p;
-
-    p = strchr(arg, ':');
-    if (p == NULL) {
-        long v = strtol(arg, &end, 10);
-        if (*end != '\0' || v < 0) {
-            return -1;
-        }
-        return (int)(v * 60);
-    }
-
-    long h = strtol(arg, &end, 10);
-    if (end != p || h < 0) {
-        return -1;
-    }
-    long m = strtol(p + 1, &end, 10);
-    if (*end != '\0' || m < 0 || m > 59) {
-        return -1;
-    }
-    return (int)(h * 3600 + m * 60);
 }
 
 /*
@@ -254,7 +224,6 @@ int main(int argc, char **argv)
         { "hold",        no_argument,       NULL, 'H' },
         { "begin",       required_argument, NULL, 'b' },
         { "terminate",   required_argument, NULL, 't' },
-        { "wall",        required_argument, NULL, 'W' },
         { "dependency",  required_argument, NULL, 'w' },
         { "help",        no_argument,       NULL, 'h' },
         { "version",     no_argument,       NULL, 'V' },
@@ -264,7 +233,7 @@ int main(int argc, char **argv)
     int c;
     while ((c = getopt_long(argc,
                             argv,
-                            "q:J:P:C:n:N:M:s:g:G:L:xm:o:e:i:Hb:t:W:w:hV",
+                            "q:J:P:C:n:N:M:s:g:G:L:xm:o:e:i:Hb:t:W:hV",
                             opts, NULL)) != -1) {
         switch (c) {
         case 'q':
@@ -382,15 +351,6 @@ int main(int argc, char **argv)
                 return 1;
             }
             break;
-        case 'W': {
-            int secs = parse_hm(optarg);
-            if (secs < 0) {
-                fprintf(stderr, "bsub: --wall: invalid value '%s'\n", optarg);
-                return 1;
-            }
-            js.wall_seconds = secs;
-            break;
-        }
         case 'w':
             js.depend_cond = optarg;
             break;

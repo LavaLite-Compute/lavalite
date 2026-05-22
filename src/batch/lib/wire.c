@@ -133,8 +133,6 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_int32_t(xdrs, &s->num_gpus))
         return false;
-    if (!xdr_int32_t(xdrs, &s->wall_seconds))
-        return false;
     if (!xdr_uint64_t(xdrs, &s->mem_mb))
         return false;
     if (!xdr_uint32_t(xdrs, &s->uid))

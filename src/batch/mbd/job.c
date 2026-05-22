@@ -67,7 +67,6 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     ll_strlcpy(job->project,  ws->project, sizeof(job->project));
 
     ll_strlcpy(job->res.gpu_type, ws->gpu_type, sizeof(job->res.gpu_type));
-    job->res.wall_seconds = ws->wall_seconds;
     job->res.num_cpus = ws->num_cpus;
     job->res.num_hosts = ws->num_hosts;
     job->res.num_gpus = ws->num_gpus;
@@ -221,7 +220,6 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "NUM_NHOSTS=%d\n", ws->num_hosts);
     fprintf(fp, "NUM_GPUS=%d\n", ws->num_gpus);
     fprintf(fp, "MEM_MB=%lu\n", ws->mem_mb);
-    fprintf(fp, "WALL_SECONDS=%d\n", ws->wall_seconds);
     fprintf(fp, "UMASK=%o\n", ws->umask);
     fprintf(fp, "FLAGS=%u\n", ws->flags);
     fprintf(fp, "BEGIN_TIME=%ld\n", ws->begin_time);

@@ -81,7 +81,6 @@ struct job_submit {
     int32_t      num_cpus;      /* --cpus        (per host) */
     int32_t      num_hosts;    /* --nhosts      */
     int32_t      num_gpus;      /* --gpus        (per host) */
-    int32_t      wall_seconds;  /* --wall        */
     uint64_t     mem_mb;        /* --mem         (per host) */
     uint64_t     storage_mb;    /* --storage     (per host) */
     char        *tokenpool;     /* --pool name=N[,name=N]  */
@@ -179,6 +178,36 @@ struct token_pool_info {
     int32_t  used;       /* total - free */
 };
 
+struct job_hist_info {
+    int64_t  job_id;
+    uid_t    uid;
+    pid_t    pid;
+    int32_t  state;
+    int32_t  exit_status;
+
+    time_t   submit_time;
+    time_t   dispatch_time;
+    time_t   fork_time;
+    time_t   execute_time;
+    time_t   end_time;
+    time_t   susp_time;
+
+    char    *username;
+    char    *name;
+    char    *queue;
+    char    *project;
+    char    *from_host;
+    char    *exec_hosts;
+    char    *cwd;
+    char    *comment;
+    int32_t  num_cpus;
+    int32_t  num_hosts;
+    int32_t  num_gpus;
+    uint64_t storage_mb;
+
+    struct job_res_usage usage;
+};
+
 /* -----------------------------------------------------------------------
  * Public API
  * ----------------------------------------------------------------------- */
@@ -209,5 +238,12 @@ int32_t llb_signal_job(int64_t, int32_t);
 struct token_pool_info *llb_token_info(int32_t *);
 void llb_free_token_info(struct token_pool_info *, int32_t);
 
+/* admin */
 int32_t llb_queue_admin(const char *, int32_t);
 int32_t llb_host_admin(const char *, int32_t);
+
+/* bhist */
+struct job_hist_info *llb_hist_info(int64_t,
+                                    const char *,
+                                    int32_t *);
+void llb_free_hist_info(struct job_hist_info *, int32_t);

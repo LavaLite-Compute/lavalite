@@ -152,7 +152,6 @@ struct wire_job_submit {
     int32_t  num_cpus;
     int32_t  num_hosts;
     int32_t  num_gpus;
-    int32_t  wall_seconds;
     uint64_t mem_mb;
     uint64_t storage_mb;
     char     tokenpool[LL_BUFSIZ_256]; /* "name=N[,name=N]..." empty=none */

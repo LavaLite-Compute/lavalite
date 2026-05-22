@@ -172,7 +172,6 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.num_gpus    = ws->num_gpus;
     e.mem_mb      = ws->mem_mb;
     e.storage_mb  = ws->storage_mb;
-    e.wall_seconds = ws->wall_seconds;
     ll_strlcpy(e.gpu_type, ws->gpu_type, sizeof(e.gpu_type));
     ll_strlcpy(e.machines, ws->machines, sizeof(e.machines));
 
@@ -374,7 +373,6 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->res.num_gpus    = e->num_gpus;
     job->res.mem_mb      = e->mem_mb;
     job->res.storage_mb  = e->storage_mb;
-    job->res.wall_seconds = e->wall_seconds;
     ll_strlcpy(job->res.gpu_type, e->gpu_type, sizeof(job->res.gpu_type));
 
     machines_hash_populate(&job->res.machines, e->machines);
@@ -805,7 +803,6 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     e.num_gpus     = job->res.num_gpus;
     e.mem_mb       = job->res.mem_mb;
     e.storage_mb   = job->res.storage_mb;
-    e.wall_seconds = job->res.wall_seconds;
     e.flags        = job->flags;
     ll_strlcpy(e.gpu_type,     job->res.gpu_type, sizeof(e.gpu_type));
     ll_strlcpy(e.username,     job->user,         sizeof(e.username));
