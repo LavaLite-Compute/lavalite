@@ -73,3 +73,12 @@ src/lsbatch/daemons/sbd
 cscope*
 src/lsf/pylib/__pycache__/
 src/lsbatch/compactor/mbd_compact
+docs/man/man1/bgroup.1
+docs/man/man1/bhist.1
+docs/man/man1/btokens.1
+docs/man/man5/ll.conf.5
+docs/man/man5/llb.hosts.5
+docs/man/man5/llb.queues.5
+docs/man/man8/mbd.8
+docs/man/man8/sbd.8
+
