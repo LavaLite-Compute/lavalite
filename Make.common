@@ -2,9 +2,14 @@
 #  Copyright (C) LavaLite Contributors
 #
 
+AM_CFLAGS = -Wall -Wextra -Wmissing-prototypes \
+    -g -O0 -Wformat=2 -Werror
+AM_CFLAGS += $(OPENSSL_CFLAGS)
+
 # Include headers
 AM_CPPFLAGS = \
+  -D_GNU_SOURCE \
   -I$(top_srcdir)/include \
   -I$(top_builddir) \
-  -I$(top_srcdir)/src/eauth \
   $(TIRPC_CFLAGS)
+

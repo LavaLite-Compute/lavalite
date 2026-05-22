@@ -5,7 +5,7 @@ LavaLite is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as published by
 the Free Software Foundation.
 
-LavaLite is a modern HPC scheduler that builds upon Platform Lava 1.0 (2007),
+LavaLite is a modern HPC scheduler inspired by Platform Lava 1.0 (2007),
 originally developed by Platform Computing Inc.
 
 LavaLite is distributed in the hope that it will be useful,

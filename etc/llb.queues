@@ -1,0 +1,25 @@
+#
+# LavaLite Queue Configuration
+#
+# QUEUE_NAME  - Logical name of the queue
+# PRIORITY    - Higher values are scheduled first
+# HOSTS       - Host group assigned to this queue
+# DESCRIPTION - Human readable description
+#
+
+Begin Queue
+QUEUE_NAME  = cpu
+PRIORITY    = 30
+HOSTS       = group-cpu
+USERS = lavalite
+DESCRIPTION = General purpose CPU workloads
+End Queue
+
+Begin Queue
+QUEUE_NAME  = gpu
+PRIORITY    = 50
+HOSTS       = group-gpu
+# USERS left unspecified means all
+DESCRIPTION = GPU workloads
+End Queue
+

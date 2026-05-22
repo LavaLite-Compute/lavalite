@@ -39,36 +39,25 @@ config.sub
 *.libs/
 
 # Ignore commands
-lsclusters
 lshosts
 lsid
-lsinfo
 lsload
-src/eauth/.libs/*
-src/eauth/eauth
-src/eauth/eauth_client
-src/eauth/eauth_server
-bbot
+lsclusterinfo
 bhosts
+bhist
 bjobs
 bkill
-bmgroup
-bmod
-bparams
-bpeek
+bgroup
 bqueues
 bsub
-bswitch
-btop
-busers
+btokens
 read_shared
 stdout.*
 stderr.*
 # Ignore binary daemons
 .libs/*
-src/lsf/lim/lim
-src/lsbatch/daemons/mbd
-src/lsbatch/daemons/sbd
+src/base/lim/lim
+src/batch/compactor/mbd_compact
 # Ignore cscope
 cscope*
 src/lsf/pylib/__pycache__/
@@ -81,4 +70,9 @@ docs/man/man5/llb.hosts.5
 docs/man/man5/llb.queues.5
 docs/man/man8/mbd.8
 docs/man/man8/sbd.8
-
+src/batch/mbd/mbd
+src/batch/sbd/sbd
+man1/
+man5/
+man7/
+man8/

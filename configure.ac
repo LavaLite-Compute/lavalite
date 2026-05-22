@@ -1,8 +1,14 @@
 # Copyright (C) LavaLite Contributors
 
+<<<<<<< HEAD
 AC_INIT([lavalite], [0.1.1], [https://github.com/LavaLiteProject/LavaLite/issues])
 AC_CONFIG_HEADERS([config.h])
 AC_PREFIX_DEFAULT([/opt/lavalite-0.1.1])
+=======
+AC_INIT([lavalite], [1.0.0], [https://github.com/LavaLiteProject/LavaLite/issues])
+AC_CONFIG_HEADERS([config.h])
+AC_PREFIX_DEFAULT([/opt/lavalite-1.0.0])
+>>>>>>> release/lavalite-0.9.0
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 
@@ -23,12 +29,17 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
   [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
 
 dnl Project identity versioning
+<<<<<<< HEAD
 AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.1.1"], [Human-readable LavaLite version])
 AC_DEFINE([LAVALITE_VERSION_HEX], [0x000100], [LavaLite version encoded as 0xMMmmpp])
 
 dnl Define the default host type supported by LavaLite but you can
 dnl add more in lsf.shared file.
 AC_DEFINE([HOST_TYPE_STRING], ["x86_64"], [Define host type string])
+=======
+AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 1.0.0"], [Human-readable LavaLite version])
+AC_DEFINE([LAVALITE_VERSION_HEX], [0x010000], [LavaLite version encoded as 0xMMmmpp])
+>>>>>>> release/lavalite-0.9.0
 
 dnl Resolve Autoconf's lazy dir vars so SYSCONFDIR is a concrete path in config.h.
 dnl - If --prefix is not given, $prefix is "NONE" → use $ac_default_prefix.
@@ -52,13 +63,6 @@ LT_INIT
 dnl Compilers / tools
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_PROG_YACC
-dnl AC_PROG_LEX
-
-dnl CFLAGS (GNU)
-if test "x$ac_compiler_gnu" = xyes; then
-  CFLAGS="$CFLAGS -Wall -fPIC"
-fi
 
 dnl No berkley email...
 AC_DEFINE([NO_MAIL], [1], [Define to disable Berkeley email routing])
@@ -110,27 +114,22 @@ AC_CONFIG_FILES([
   src/Makefile
 ])
 
-dnl ---- External Authentication ----
+dnl ---- base module ----
 AC_CONFIG_FILES([
-  src/eauth/Makefile
+  src/base/Makefile
+  src/base/lib/Makefile
+  src/base/cmd/Makefile
+  src/base/lim/Makefile
+  src/base/pylib/Makefile
 ])
 
-dnl ---- LSF module ----
+dnl ---- batch module ----
 AC_CONFIG_FILES([
-  src/lsf/Makefile
-  src/lsf/lib/Makefile
-  src/lsf/lstools/Makefile
-  src/lsf/lim/Makefile
-  src/lsf/pylib/Makefile
-])
-
-dnl ---- LSBATCH module ----
-AC_CONFIG_FILES([
-  src/lsbatch/Makefile
-  src/lsbatch/lib/Makefile
-  src/lsbatch/cmd/Makefile
-  src/lsbatch/daemons/Makefile
-  src/lsbatch/compactor/Makefile
+  src/batch/Makefile
+  src/batch/lib/Makefile
+  src/batch/cmd/Makefile
+  src/batch/mbd/Makefile
+  src/batch/sbd/Makefile
 ])
 
 AC_OUTPUT

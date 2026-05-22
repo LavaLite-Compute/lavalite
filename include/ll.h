@@ -1,0 +1,63 @@
+/* Copyright (C) LavaLite Contributors
+ * GPL v2
+ */
+#pragma once
+#include "config.h"
+
+#include <stdint.h>
+#include <sys/param.h>
+
+// Explicit. Verbose. Clear. Implicit none.
+
+// 11 load indexes collected by lim on every cluster machine
+enum lim_load_index {
+    R15S = 0,
+    R1M  = 1,
+    R15M = 2,
+    UT   = 3,
+    PG   = 4,
+    IO   = 5,
+    LS   = 6,
+    IT   = 7,
+    TMP  = 8,
+    SWP  = 9,
+    MEM  = 10,
+    NUM_METRICS = 11,   // number of built-in indices
+};
+
+extern __thread int lserrno;
+
+enum lim_stat {
+    LIM_STAT_OK,
+    LIM_STAT_CLOSED
+};
+
+struct ll_cluster_info {
+    char cluster_name[64];
+    char master_name[MAXHOSTNAMELEN];
+    char manager_name[32];
+};
+
+struct ll_host_info {
+    char host_name[MAXHOSTNAMELEN];
+    char host_type[32];
+    uint64_t num_cpus;
+    uint64_t max_mem;
+    uint64_t max_swap;
+    uint64_t max_tmp;
+    uint16_t is_master;
+};
+
+struct ll_host_load {
+    char hostname[MAXHOSTNAMELEN];
+    uint32_t status;
+    uint32_t num_metrics;
+    float li[NUM_METRICS];
+};
+
+char *ll_mastername(void);
+char *ll_clustername(void);
+
+struct ll_host_info *ll_hostinfo(int *);
+struct ll_host_load *ll_hostload(int *);
+struct ll_cluster_info *ll_clusterinfo(void);

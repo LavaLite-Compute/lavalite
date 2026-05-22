@@ -1,54 +1,66 @@
-#
-#
-#
-mandirs = 1 5 7 8
-mandir = $(prefix)/share/man
+# docs/man/Makefile.am
+PANDOC  = pandoc
+mandir  = $(prefix)/share/man
 
-man1_MANS = man1/lseligible.1 \
-	man1/lsfbase.1 \
-	man1/lsfbatch.1 \
-	man1/lsfintro.1 \
-	man1/lshosts.1 \
-	man1/lsid.1 \
-	man1/lsinfo.1 \
-	man1/lsload.1 \
-	man1/lsloadadj.1 \
-	man1/lsmon.1 \
-	man1/lsplace.1 \
-	man1/lstools.1 \
-    man1/bbot.1 \
-	man1/bhosts.1 \
-	man1/bjobs.1 \
-	man1/bkill.1 \
-	man1/bmgroup.1 \
-	man1/bmod.1 \
-	man1/bparams.1 \
-	man1/bpeek.1 \
-	man1/bqueues.1 \
-	man1/brequeue.1 \
-	man1/brestart.1 \
-	man1/bresume.1 \
-	man1/bstop.1 \
-	man1/bsub.1 \
-	man1/bswitch.1 \
-	man1/btop.1 \
-	man1/bugroup.1 \
-	man1/busers.1
+MAN1 = man1/bhosts.1 \
+       man1/bjobs.1 \
+       man1/bkill.1 \
+       man1/bgroup.1 \
+       man1/bqueues.1 \
+       man1/bsub.1 \
+       man1/btokens.1 \
+       man1/bhist.1
 
-man5_MANS = man5/lsb.acct.5 \
-	man5/lsb.events.5 \
-	man5/lsb.hosts.5 \
-	man5/lsb.params.5 \
-	man5/lsb.queues.5 \
-	man5/lsb.users.5 \
-	man5/lsf.acct.5 \
-	man5/lsf.cluster.5 \
-	man5/lsf.conf.5 \
-	man5/lsf.shared.5
+MAN5 = man5/ll.conf.5 \
+       man5/llb.hosts.5 \
+       man5/llb.queues.5
 
-man7_MANS = man7/lavalite.7
-man8_MANS = man8/badmin.8 man8/eauth.8 man8/esub.8 man8/lsadmin.8 \
-	man8/brun.8 man8/eexec.8 man8/lim.8 man8/mbatchd.8 man8/pim.8 man8/sbatchd.8
+MAN7 = man7/lavalite.7
 
-EXTRA_DIST = $(man1_MANS) $(man5_MANS) $(man7_MANS) $(man8_MANS)
+MAN8 = man8/mbd.8 \
+       man8/sbd.8
 
+man1_MANS = $(MAN1)
+man5_MANS = $(MAN5)
+man7_MANS = $(MAN7)
+man8_MANS = $(MAN8)
+
+EXTRA_DIST = \
+	markdown/bhosts.1.md \
+	markdown/bjobs.1.md \
+	markdown/bkill.1.md \
+	markdown/bgroup.1.md \
+	markdown/bqueues.1.md \
+	markdown/bsub.1.md \
+	markdown/btokens.1.md \
+	markdown/bhist.1.md \
+	markdown/ll.conf.5.md \
+	markdown/llb.hosts.5.md \
+	markdown/llb.queues.5.md \
+	markdown/lavalite.7.md \
+	markdown/mbd.8.md \
+	markdown/sbd.8.md
+
+BUILT_SOURCES = $(MAN1) $(MAN5) $(MAN7) $(MAN8)
+CLEANFILES    = $(MAN1) $(MAN5) $(MAN7) $(MAN8)
+
+man1/bhosts.1:   markdown/bhosts.1.md
+man1/bjobs.1:    markdown/bjobs.1.md
+man1/bkill.1:    markdown/bkill.1.md
+man1/bgroup.1:   markdown/bgroup.1.md
+man1/bqueues.1:  markdown/bqueues.1.md
+man1/bsub.1:     markdown/bsub.1.md
+man1/btokens.1:  markdown/btokens.1.md
+man1/bhist.1:    markdown/bhist.1.md
+
+man5/ll.conf.5:    markdown/ll.conf.5.md
+man5/llb.hosts.5:  markdown/llb.hosts.5.md
+man5/llb.queues.5: markdown/llb.queues.5.md
+
+man7/lavalite.7: markdown/lavalite.7.md
+
+man8/mbd.8: markdown/mbd.8.md
+man8/sbd.8: markdown/sbd.8.md
+
+$(MAN1) $(MAN5) $(MAN7) $(MAN8):
+	$(PANDOC) -s -t man $< -o $@

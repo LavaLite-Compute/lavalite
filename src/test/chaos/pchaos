@@ -1,0 +1,256 @@
+#!/usr/bin/env python3
+#
+# pchaos - pending job replay chaos test.
+#
+# Starts mbd, submits PEND-only jobs (no sbd), then repeatedly kills
+# and restarts mbd verifying job state survives each restart.
+# Optionally bkills a few jobs per cycle and verifies they finish.
+#
+# Usage: pchaos [options] /path/to/mbd
+#
+# Copyright (C) LavaLite Contributors - GPL v2
+#
+
+import argparse
+import os
+import re
+import random
+import subprocess
+import sys
+import time
+
+MBD_READY_TIMEOUT  = 10     # seconds to wait for mbd to accept connections
+MBD_READY_INTERVAL = 0.2    # polling interval
+
+def ts():
+    return time.strftime("%H:%M:%S")
+
+
+def log(msg):
+    print(f"{ts()} {msg}", flush=True)
+
+
+def err(msg):
+    print(f"{ts()} ERROR: {msg}", file=sys.stderr, flush=True)
+
+
+def run(cmd, timeout=5):
+    try:
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, 124, "", "timeout")
+
+
+def mbd_is_ready():
+    cp = run(["bjobs"], timeout=3)
+    return cp.returncode == 0
+
+
+def mbd_start(mbd_path):
+    log("starting mbd")
+    subprocess.Popen([mbd_path], stderr=subprocess.DEVNULL)
+
+    deadline = time.time() + MBD_READY_TIMEOUT
+    while time.time() < deadline:
+        time.sleep(MBD_READY_INTERVAL)
+        if mbd_is_ready():
+            log("mbd ready")
+            return True
+
+    err(f"mbd did not become ready within {MBD_READY_TIMEOUT}s")
+    return False
+
+
+def mbd_kill():
+    run(["pkill", "-KILL", "-x", "mbd"])
+    for _ in range(20):
+        time.sleep(0.1)
+        if run(["pgrep", "-x", "mbd"]).returncode != 0:
+            log("mbd killed")
+            return True
+    err("mbd did not die")
+    return False
+
+
+def bsub_one(queue):
+    cmd = ["bsub", "--stdout", "/dev/null", "--stderr", "/dev/null",
+           "--queue", queue, "sleep", "9999"]
+    cp = run(cmd)
+    if cp.returncode != 0:
+        err(f"bsub failed: {cp.stderr.strip()}")
+        return None
+    m = re.search(r"Job\s+<(\d+)>", cp.stdout)
+    if not m:
+        err(f"bsub: cannot parse job id from: {cp.stdout.strip()}")
+        return None
+    return int(m.group(1))
+
+
+def bkill(jid):
+    cp = run(["bkill", str(jid)])
+    if cp.returncode != 0:
+        err(f"bkill {jid}: {cp.stderr.strip()}")
+        return False
+    return True
+
+
+def snapshot(jobids):
+    cp = run(["bjobs", "-a"], timeout=8)
+    if cp.returncode == 124:
+        err("bjobs timed out")
+        return None
+    if cp.returncode != 0:
+        err(f"bjobs failed: {cp.stderr.strip()}")
+        return None
+
+    result = {}
+    for line in cp.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        try:
+            jid = int(parts[0])
+        except ValueError:
+            continue
+        if jid in jobids:
+            result[jid] = parts[2].upper()
+    return result
+
+
+def verify_restart(before, after):
+    cycle_bad = 0
+    for jid, st in before.items():
+        st_after = after.get(jid)
+        if st_after is None:
+            err(f"job <{jid}> missing after restart (was {st})")
+            cycle_bad += 1
+        elif st_after != st:
+            err(f"job <{jid}> status changed {st} -> {st_after} after restart")
+            cycle_bad += 1
+    survived = len(before) - cycle_bad
+    log(f"restart verify: {survived}/{len(before)} OK")
+    return cycle_bad
+
+
+def verify_bkill(to_kill):
+    time.sleep(0.5)
+    check = snapshot(set(to_kill))
+    if check is None:
+        return 1
+    bkill_bad = 0
+    for jid in to_kill:
+        st = check.get(jid)
+        if st not in (None, "EXIT", "DONE"):
+            err(f"job <{jid}> still alive as {st} after bkill")
+            bkill_bad += 1
+    return bkill_bad
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        prog="pchaos",
+        description="PEND job replay chaos: start mbd, submit, kill, restart, verify.")
+    ap.add_argument("mbd",      help="path to mbd binary")
+    ap.add_argument("--queue",  default="system")
+    ap.add_argument("--jobs",   type=int, default=20)
+    ap.add_argument("--cycles", type=int, default=5)
+    ap.add_argument("--bkill",  type=int, default=3,
+                    help="jobs to bkill per cycle (0=none)")
+    args = ap.parse_args()
+
+    conf_dir = os.environ.get("LL_CONF_DIR")
+    if not conf_dir:
+        err("LL_CONF_DIR not set")
+        sys.exit(1)
+
+    if not os.path.isfile(args.mbd):
+        err(f"mbd not found: {args.mbd}")
+        sys.exit(1)
+
+    if not mbd_start(args.mbd):
+        sys.exit(1)
+
+    # submit initial batch
+    log(f"submitting {args.jobs} jobs to queue={args.queue}")
+    jobids = set()
+    for _ in range(args.jobs):
+        jid = bsub_one(args.queue)
+        if jid is not None:
+            jobids.add(jid)
+
+    if not jobids:
+        err("no jobs submitted")
+        mbd_kill()
+        sys.exit(1)
+    log(f"{len(jobids)} jobs submitted")
+
+    # verify all pending before chaos
+    initial = snapshot(jobids)
+    if initial is None:
+        mbd_kill()
+        sys.exit(1)
+    not_pend = []
+    for jid, st in initial.items():
+        if st != "PEND":
+            not_pend.append(jid)
+    if not_pend:
+        err(f"jobs not in PEND before chaos: {not_pend}")
+        mbd_kill()
+        sys.exit(1)
+    log(f"all {len(jobids)} jobs confirmed PEND")
+
+    bad = 0
+
+    for cycle in range(1, args.cycles + 1):
+        log(f"--- cycle {cycle}/{args.cycles} ---")
+
+        before = snapshot(jobids)
+        if before is None:
+            bad += 1
+            break
+        statuses = set()
+        for st in before.values():
+            statuses.add(st)
+        log(f"before: {len(before)} jobs, statuses: {sorted(statuses)}")
+
+        if not mbd_kill():
+            bad += 1
+            break
+        if not mbd_start(args.mbd):
+            bad += 1
+            break
+
+        after = snapshot(jobids)
+        if after is None:
+            bad += 1
+            break
+
+        cycle_bad = verify_restart(before, after)
+        bad += cycle_bad
+
+        if args.bkill > 0:
+            pend = []
+            for jid, st in after.items():
+                if st == "PEND":
+                    pend.append(jid)
+            to_kill = random.sample(pend, min(args.bkill, len(pend)))
+            for jid in to_kill:
+                bkill(jid)
+                jobids.discard(jid)
+            log(f"bkilled {len(to_kill)} jobs")
+
+            bkill_bad = verify_bkill(to_kill)
+            bad += bkill_bad
+            if bkill_bad == 0:
+                log(f"bkill verify: {len(to_kill)}/{len(to_kill)} OK")
+
+    log(f"--- done: cycles={args.cycles} bad={bad} ---")
+    mbd_kill()
+    if bad == 0:
+        sys.exit(0)
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

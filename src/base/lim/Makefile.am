@@ -1,0 +1,11 @@
+# Copyright (C) LavaLite Contributors
+# GPL v2
+
+include $(top_srcdir)/Make.common
+
+COMMON_LIBS = ../lib/libllbase.a -lm $(OPENSSL_LIBS)
+LDADD = $(COMMON_LIBS)
+
+sbin_PROGRAMS = lim
+
+lim_SOURCES = main.c conf.c tcp.c udp.c wire.c proc.c

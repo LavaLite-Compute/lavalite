@@ -1,0 +1,201 @@
+/*
+ * Copyright (C) LavaLite Contributors
+ * GPL v2
+ */
+
+#include <stdlib.h>
+#include "base/lib/ll.list.h"
+
+void ll_list_init(struct ll_list *lst)
+{
+    lst->head = NULL;
+    lst->tail = NULL;
+    lst->count = 0;
+}
+
+struct ll_list *ll_list_create(void)
+{
+    struct ll_list *lst = calloc(1, sizeof(*lst));
+    if (!lst)
+        return NULL;
+
+    ll_list_init(lst);
+    return lst;
+}
+
+void ll_list_append(struct ll_list *lst, struct ll_list_entry *ent)
+{
+    ent->next = NULL;
+    ent->prev = lst->tail;
+
+    if (lst->tail)
+        lst->tail->next = ent;
+    else
+        lst->head = ent;
+
+    lst->tail = ent;
+    lst->count++;
+}
+
+void ll_list_remove(struct ll_list *lst, struct ll_list_entry *ent)
+{
+    if (!ent)
+        return;
+
+    if (ent->prev)
+        ent->prev->next = ent->next;
+    else
+        lst->head = ent->next;
+
+    if (ent->next)
+        ent->next->prev = ent->prev;
+    else
+        lst->tail = ent->prev;
+
+    ent->next = NULL;
+    ent->prev = NULL;
+    lst->count--;
+}
+
+int ll_list_is_empty(const struct ll_list *lst)
+{
+    return lst->head == NULL;
+}
+
+int ll_list_count(const struct ll_list *lst)
+{
+    return lst->count;
+}
+
+void ll_list_push(struct ll_list *lst, struct ll_list_entry *ent)
+{
+    ent->prev = NULL;
+    ent->next = lst->head;
+
+    if (lst->head)
+        lst->head->prev = ent;
+    else
+        lst->tail = ent;
+
+    lst->head = ent;
+    lst->count++;
+}
+
+struct ll_list_entry *ll_list_pop(struct ll_list *lst)
+{
+    struct ll_list_entry *ent = lst->head;
+
+    if (!ent)
+        return NULL;
+
+    lst->head = ent->next;
+    if (lst->head)
+        lst->head->prev = NULL;
+    else
+        lst->tail = NULL;
+
+    ent->next = NULL;
+    ent->prev = NULL;
+    lst->count--;
+
+    return ent;
+}
+
+struct ll_list_entry *ll_list_dequeue(struct ll_list *lst)
+{
+    return ll_list_pop(lst);
+}
+
+// free the entries and reinitialize the list
+void ll_list_clear(struct ll_list *lst,
+                   void (*cleanup)(void *))
+{
+    struct ll_list_entry *e = lst->head;
+    struct ll_list_entry *next;
+
+    while (e) {
+        next = e->next;
+
+        if (cleanup)
+            cleanup(e);
+
+        e = next;
+    }
+
+    ll_list_init(lst);
+}
+
+void ll_list_free(struct ll_list *lst,
+                  void (*cleanup)(void *))
+{
+    if (!lst)
+        return;
+
+    ll_list_clear(lst, cleanup);
+    free(lst);
+}
+
+/*
+ * Sort a list in-place using qsort.
+ * cmp receives pointers to ll_list_entry pointers (const void **).
+ * The list is rebuilt from the sorted array; O(n log n) + O(n) alloc.
+ * Returns 0 on success, -1 on alloc failure (list unchanged).
+ */
+int ll_list_sort(struct ll_list *lst,
+                 int (*cmp)(const void *, const void *))
+{
+    int n = lst->count;
+    int i;
+
+    if (n < 2)
+        return 0;
+
+    struct ll_list_entry **arr = calloc(n, sizeof(*arr));
+    if (arr == NULL)
+        return -1;
+
+    struct ll_list_entry *e = lst->head;
+    for (i = 0; i < n; i++) {
+        arr[i] = e;
+        e = e->next;
+    }
+
+    qsort(arr, n, sizeof(*arr), cmp);
+
+    ll_list_init(lst);
+    for (i = 0; i < n; i++)
+        ll_list_append(lst, arr[i]);
+
+    free(arr);
+    return 0;
+}
+
+/*
+ * Sort a list in-place using a caller-provided buffer.
+ * buf must hold at least lst->count pointers.
+ * No allocation — suitable for hot paths like the scheduler.
+ */
+int ll_list_sort_buf(struct ll_list *lst,
+                     struct ll_list_entry **buf,
+                     int (*cmp)(const void *, const void *))
+{
+    int n = lst->count;
+    int i;
+
+    if (n < 2)
+        return 0;
+
+    struct ll_list_entry *e = lst->head;
+    for (i = 0; i < n; i++) {
+        buf[i] = e;
+        e = e->next;
+    }
+
+    qsort(buf, n, sizeof(*buf), cmp);
+
+    ll_list_init(lst);
+    for (i = 0; i < n; i++)
+        ll_list_append(lst, buf[i]);
+
+    return 0;
+}

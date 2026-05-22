@@ -1,0 +1,25 @@
+[Unit]
+Description=LavaLite sbd daemon
+Wants=network-online.target remote-fs.target
+After=network-online.target remote-fs.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+# sbd must run as root for cgroup management and user switching.
+# Adjust if your configuration lives elsewhere.
+Environment=LL_CONF_DIR=/opt/lavalite/etc
+# Use stable symlink: /opt/lavalite -> /opt/lavalite-<version>
+ExecStart=/opt/lavalite/sbin/sbd
+# Jobs must outlive sbd restarts. Do not change to control-group.
+KillMode=process
+GuessMainPID=no
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=65536
+LimitCORE=infinity
+# Required for cgroup v2 delegation.
+Delegate=yes
+
+[Install]
+WantedBy=multi-user.target
