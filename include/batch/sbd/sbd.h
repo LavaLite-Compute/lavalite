@@ -92,6 +92,7 @@ struct sbd_job {
     int exit_status;
     bool_t exit_status_valid;
     time_t end_time;
+    struct job_res_usage res_usage;
 };
 
 /*
@@ -189,10 +190,11 @@ int write_all(int, const char *, size_t);
 
 /* cgroups
  */
-int  cgroup_init(void);
-int  cgroup_job_create(int64_t, uint64_t, int32_t);
-int  cgroup_job_assign(int64_t, pid_t);
+int cgroup_init(void);
+int cgroup_job_create(int64_t, uint64_t, int32_t);
+int cgroup_job_assign(int64_t, pid_t);
 void cgroup_job_destroy(int64_t);
 int cgroup_job_freeze(int64_t);
 int cgroup_job_thaw(int64_t);
 int cgroup_job_kill(int64_t);
+int cgroup_job_collect(int64_t, struct job_res_usage *);

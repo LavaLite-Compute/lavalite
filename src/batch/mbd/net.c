@@ -33,8 +33,6 @@ int valid_batch_op(int op)
     case BATCH_GROUP_INFO_ACK:
     case BATCH_SBD_REGISTER:
     case BATCH_SBD_REGISTER_ACK:
-    case BATCH_COMPACT_DONE:
-    case BATCH_COMPACT_FAILED:
     case BATCH_NEW_JOB:
     case BATCH_NEW_JOB_REPLY:
     case BATCH_NEW_JOB_REPLY_ACK:
@@ -42,7 +40,6 @@ int valid_batch_op(int op)
     case BATCH_JOB_EXECUTE_ACK:
     case BATCH_JOB_FINISH:
     case BATCH_JOB_FINISH_ACK:
-    case BATCH_COMPACT_ACK:
     case BATCH_SBD_JOB_SIGNAL:
     case BATCH_SBD_JOB_SIGNAL_REPLY:
     case BATCH_TOKEN_INFO:
@@ -142,11 +139,6 @@ static void route(int chan_id)
         break;
     case BATCH_SBD_REGISTER:
         if (mbd_sbd_register(&xdrs, chan_id) < 0)
-            chan_shutdown(chan_id);
-        break;
-    case BATCH_COMPACT_DONE:
-    case BATCH_COMPACT_FAILED:
-        if (compact_done(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_TOKEN_INFO:

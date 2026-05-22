@@ -327,11 +327,10 @@ int log_write_job_finish(FILE *fp, const struct log_job_finish *j)
 {
     if (write_hdr(fp, EVENT_JOB_FINISH, j->end_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %u %d %d %ld %.4f",
+    if (fprintf(fp, " %ld %u %d %d %ld",
                 (long)j->job_id, (unsigned)j->uid,
                 j->state, j->exit_status,
-                (long)j->end_time,
-                j->cpu_time) < 0)
+                (long)j->end_time) < 0)
         return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
@@ -342,11 +341,11 @@ int log_parse_job_finish(const struct event_rec *rec, struct log_job_finish *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p, " %ld %u %d %d %ld %lf%n",
+    int n = sscanf(p, " %ld %u %d %d %ld %n",
                    &j->job_id, (unsigned *)&j->uid,
                    &j->state, &j->exit_status,
-                   &j->end_time, &j->cpu_time, &cc);
-    if (n != 6) {
+                   &j->end_time, &cc);
+    if (n != 5) {
         errno = EINVAL;
         return -1;
     }

@@ -444,6 +444,7 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
 
         dst->job_id      = src->job_id;
         dst->uid         = src->uid;
+        dst->pid      = src->pid;
         dst->state      = src->state;
         dst->exit_status = src->exit_status;
         dst->priority    = src->priority;
@@ -452,9 +453,6 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
         dst->dispatch_time  = src->dispatch_time;
         dst->end_time    = src->end_time;
         dst->susp_time   = src->susp_time;
-        dst->res.pid      = src->res.pid;
-        dst->res.mem_mb   = src->res.mem_mb;
-        dst->res.cpu_time = src->res.cpu_time;
         dst->name      = strdup(src->name);
         dst->queue     = strdup(src->queue);
         dst->from_host = strdup(src->from_host);

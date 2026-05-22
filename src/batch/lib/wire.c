@@ -20,15 +20,6 @@
  * control
  * ----------------------------------------------------------------------- */
 
-bool_t xdr_wire_compact_notify(XDR *xdrs, struct wire_compact_notify *p)
-{
-    if (!xdr_int32_t(xdrs, &p->status))
-        return false;
-    if (!xdr_int64_t(xdrs, &p->compact_time))
-        return false;
-    return true;
-}
-
 bool_t xdr_wire_sbd_job(XDR *xdrs, struct wire_sbd_job *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
@@ -62,6 +53,27 @@ bool_t xdr_wire_job_state(XDR *xdrs, struct wire_job_state *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->state))
         return false;
+    return true;
+}
+
+
+bool_t xdr_wire_job_finish(XDR *xdr, struct wire_job_finish *f)
+{
+    if (!xdr_int64_t(xdr, &f->job_id))
+        return false;
+    if (!xdr_int32_t(xdr, &f->state))
+        return false;
+    if (!xdr_int32_t(xdr, &f->exit_status))
+        return false;
+    if (!xdr_int32_t(xdr, &f->pid))
+        return false;
+    if (!xdr_uint64_t(xdr, &f->mem_mb))
+        return false;
+    if (!xdr_uint64_t(xdr, &f->swap_mb))
+        return false;
+    if (!xdr_double(xdr, &f->cpu_time))
+        return false;
+
     return true;
 }
 
@@ -162,22 +174,13 @@ bool_t xdr_wire_job_info_req(XDR *xdrs, struct wire_job_info_req *p)
     return true;
 }
 
-bool_t xdr_wire_job_resources(XDR *xdrs, struct wire_job_resources *p)
-{
-    if (!xdr_int32_t(xdrs, &p->pid))
-        return false;
-    if (!xdr_uint64_t(xdrs, &p->mem_mb))
-        return false;
-    if (!xdr_double(xdrs, &p->cpu_time))
-        return false;
-    return true;
-}
-
 bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
     if (!xdr_uint32_t(xdrs, &p->uid))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->pid))
         return false;
     if (!xdr_int32_t(xdrs, &p->state))
         return false;
@@ -204,8 +207,6 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
     if (!xdr_opaque(xdrs, p->exec_hosts, sizeof(p->exec_hosts)))
         return false;
     if (!xdr_opaque(xdrs, p->comment, sizeof(p->comment)))
-        return false;
-    if (!xdr_wire_job_resources(xdrs, &p->res))
         return false;
     return true;
 }

@@ -97,16 +97,18 @@ struct job_submit {
 #define LLB_JOB_RUN  0x0008
 #define LLB_JOB_HELD 0x0010
 
-/* runtime resource usage, reported periodically by sbd via cgroup */
-struct job_res_info {
-    pid_t    pid;
+/* runtime resource usage, reported sbd via cgroup at the end of the job
+ */
+struct job_res_usage {
     uint64_t mem_mb;
+    uint64_t swap_mb;
     double   cpu_time;
 };
 
 struct job_info {
     int64_t  job_id;
     uid_t    uid;
+    pid_t pid;
     int32_t  state;
     int32_t  exit_status;
     int32_t  priority;
@@ -120,7 +122,6 @@ struct job_info {
     char    *from_host;
     char    *exec_hosts;
     char    *comment;
-    struct job_res_info res;
 };
 
 struct host_info {

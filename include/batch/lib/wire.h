@@ -104,18 +104,23 @@ struct wire_job_start {
     struct wire_job_script script;   /* job script, encoded last */
 };
 
+/* job finish sbd -> mbd
+ */
+struct wire_job_finish {
+    int64_t  job_id;
+    int32_t  state;
+    int32_t  exit_status;
+
+    int32_t  pid;
+    uint64_t mem_mb;
+    uint64_t swap_mb;
+    double   cpu_time;
+
+};
+
 struct wire_job_ack {
     int64_t job_id;
     int32_t ack_op;
-};
-
-/* -----------------------------------------------------------------------
- * log compactor notification
- * ----------------------------------------------------------------------- */
-
-struct wire_compact_notify {
-    int32_t  status;
-    int64_t  compact_time;
 };
 
 /* -----------------------------------------------------------------------
@@ -180,16 +185,6 @@ struct wire_job_info_req {
 };
 
 /* -----------------------------------------------------------------------
- * job resources  (embedded in wire_job_info)
- * ----------------------------------------------------------------------- */
-
-struct wire_job_resources {
-    int32_t  pid;
-    uint64_t mem_mb;
-    double   cpu_time;
-};
-
-/* -----------------------------------------------------------------------
  * job info  (mbd -> client)
  *
  * time fields are int64_t to avoid 2038 on 32-bit.
@@ -198,6 +193,7 @@ struct wire_job_resources {
 struct wire_job_info {
     int64_t  job_id;
     uint32_t uid;
+    int32_t pid;
     int32_t  state;
     int32_t  exit_status;
     int32_t  priority;
@@ -206,12 +202,11 @@ struct wire_job_info {
     int64_t  dispatch_time;
     int64_t  end_time;
     int64_t  susp_time;
-    char     name[LL_BUFSIZ_64];
-    char     queue[LL_BUFSIZ_64];
-    char     from_host[MAXHOSTNAMELEN];
-    char     exec_hosts[LL_BUFSIZ_4K];
-    char     comment[LL_BUFSIZ_512];
-    struct wire_job_resources res;
+    char name[LL_BUFSIZ_64];
+    char queue[LL_BUFSIZ_64];
+    char from_host[MAXHOSTNAMELEN];
+    char exec_hosts[LL_BUFSIZ_4K];
+    char comment[LL_BUFSIZ_512];
 };
 
 struct wire_job_info_array {
@@ -316,7 +311,6 @@ struct wire_token_info_array {
  * ----------------------------------------------------------------------- */
 
 /* control */
-bool_t xdr_wire_compact_notify(XDR *, struct wire_compact_notify *);
 bool_t xdr_wire_sbd_register(XDR *, struct wire_sbd_register *);
 bool_t xdr_wire_sbd_job(XDR *, struct wire_sbd_job *);
 
@@ -331,12 +325,12 @@ bool_t xdr_wire_job_sig(XDR *, struct wire_job_sig *);
 bool_t xdr_wire_job_submit(XDR *, struct wire_job_submit *);
 bool_t xdr_wire_job_submit_reply(XDR *, struct wire_job_submit_reply *);
 bool_t xdr_wire_job_info_req(XDR *, struct wire_job_info_req *);
-bool_t xdr_wire_job_resources(XDR *, struct wire_job_resources *);
 bool_t xdr_wire_job_info(XDR *, struct wire_job_info *);
 bool_t xdr_wire_job_info_array(XDR *, struct wire_job_info_array *);
 bool_t xdr_wire_job_start(XDR *, struct wire_job_start *);
 bool_t xdr_wire_job_reply(XDR *, struct wire_job_reply *);
 bool_t xdr_wire_job_ack(XDR *, struct wire_job_ack *);
+bool_t xdr_wire_job_finish(XDR *, struct wire_job_finish *);
 
 /* host */
 bool_t xdr_wire_host_info(XDR *, struct wire_host_info *);

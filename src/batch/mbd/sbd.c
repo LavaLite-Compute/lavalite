@@ -46,7 +46,7 @@ static int build_sbd_run_list(struct mbd_host *n,
         if (job->run_hosts[0] != n)
             continue;
         reg_ack->jobs[i].job_id = job->job_id;
-        reg_ack->jobs[i].pid    = (int32_t)job->usage.pid;
+        reg_ack->jobs[i].pid    = (int32_t)job->pid;
         i++;
     }
 

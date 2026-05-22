@@ -92,6 +92,49 @@ static int read_self_cgroup(void)
     return -1;
 }
 
+/*
+ * Read a single integer from a cgroup file.
+ * Returns 0 on success, -1 on error.
+ */
+static int cg_read_u64(const char *path, uint64_t *out)
+{
+    char buf[32];
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n <= 0)
+        return -1;
+    buf[n] = 0;
+    *out = (uint64_t)strtoull(buf, NULL, 10);
+    return 0;
+}
+
+/*
+ * Parse usage_usec from cpu.stat.
+ * Format is key/value lines: "usage_usec 123456"
+ */
+static int cg_read_cpu_usec(const char *path, uint64_t *usec)
+{
+    FILE *f = fopen(path, "r");
+    if (f == NULL)
+        return -1;
+    char line[64];
+    int found = 0;
+    while (fgets(line, sizeof(line), f)) {
+        if (strncmp(line, "usage_usec ", 11) != 0)
+            continue;
+        *usec = (uint64_t)strtoull(line + 11, NULL, 10);
+        found = 1;
+        break;
+    }
+    fclose(f);
+    if (found)
+        return 0;
+    return -1;
+}
+
 int cgroup_init(void)
 {
     if (read_self_cgroup() < 0) {
@@ -226,5 +269,40 @@ int cgroup_job_kill(int64_t job_id)
     }
 
     LS_INFO("job=%ld cgroup killed", job_id);
+    return 0;
+}
+
+int cgroup_job_collect(int64_t job_id, struct job_res_usage *ru)
+{
+    char path[CG_PATH_MAX];
+    uint64_t val;
+
+    memset(ru, 0, sizeof(*ru));
+
+    /*
+     * Prefer peak usage if supported (kernel >= 5.19).
+     * Fallback to current on older systems (Rocky/Alma 9).
+     */
+    val = 0;
+    snprintf(path, sizeof(path), "%s/job_%ld/memory.peak", cg_base, job_id);
+    if (cg_read_u64(path, &val) < 0) {
+        snprintf(path, sizeof(path), "%s/job_%ld/memory.current", cg_base, job_id);
+        cg_read_u64(path, &val);
+    }
+    ru->mem_mb = val / (1024 * 1024);
+
+    val = 0;
+    snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.peak", cg_base, job_id);
+    if (cg_read_u64(path, &val) < 0) {
+        snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.current", cg_base, job_id);
+        cg_read_u64(path, &val);
+    }
+    ru->swap_mb = val / (1024 * 1024);
+
+    val = 0;
+    snprintf(path, sizeof(path), "%s/job_%ld/cpu.stat", cg_base, job_id);
+    if (cg_read_cpu_usec(path, &val) == 0)
+        ru->cpu_time = (double)val / 1000000.0;
+
     return 0;
 }

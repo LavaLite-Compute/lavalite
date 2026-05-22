@@ -487,7 +487,7 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     if (duplicate)
         return;
 
-    job->usage.pid = (pid_t)r.pid;
+    job->pid = (pid_t)r.pid;
     job->fork_time = time(NULL);
     job->state = JOB_RUNNING;
     event_job_fork(job);
@@ -593,31 +593,59 @@ static void reset_host_resources(struct job_data *job)
     }
 }
 
+
+static int job_write_usage(const struct job_data *job,
+                           const struct wire_job_finish *s)
+{
+    char dir[PATH_MAX + LL_BUFSIZ_32];
+    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld",
+                     jobs_dir, (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int)sizeof(dir))
+        return -1;
+
+    char path[PATH_MAX + LL_BUFSIZ_64];
+    snprintf(path, sizeof(path), "%s/usage", dir);
+
+    FILE *f = fopen(path, "w");
+    if (f == NULL) {
+        LS_ERR("job=%ld open usage failed: %m", job->job_id);
+        return -1;
+    }
+    fprintf(f, "pid=%d\n", s->pid);
+    fprintf(f, "mem_mb=%lu\n", s->mem_mb);
+    fprintf(f, "swap_mb=%lu\n", s->swap_mb);
+    fprintf(f, "cpu_time=%.2f\n", s->cpu_time);
+    fclose(f);
+
+    LS_INFO("job=%ld usage written", job->job_id);
+    return 0;
+}
+
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 {
-    struct wire_job_state s;
-    memset(&s, 0, sizeof(s));
+    struct wire_job_finish f;
 
-    if (!xdr_wire_job_state(xdrs, &s)) {
-        LS_ERR("xdr_wire_job_state decode failed from=%s",
+    memset(&f, 0, sizeof(f));
+    if (!xdr_wire_job_finish(xdrs, &f)) {
+        LS_ERR("xdr_wire_job_finish decode failed from=%s",
                chan_addr_str(n->sbd_chan));
         return;
     }
 
-    struct job_data *job = job_find(s.job_id);
+    struct job_data *job = job_find(f.job_id);
     if (job == NULL) {
         // Distinguish missing from duplicate for code and logical clarity
-        LS_ERR("job=%ld not found from=%s", s.job_id, chan_addr_str(n->sbd_chan));
+        LS_ERR("job=%ld not found from=%s", f.job_id, chan_addr_str(n->sbd_chan));
         struct wire_job_ack ack;
         memset(&ack, 0, sizeof(ack));
-        ack.job_id = s.job_id;
+        ack.job_id = f.job_id;
         ack.ack_op = BATCH_JOB_FINISH;
         struct protocol_header hdr;
         init_protocol_header(&hdr);
         hdr.operation = BATCH_JOB_FINISH_ACK;
         hdr.status = MBD_OK;
         if (auth_sign_header(&hdr) < 0) {
-            LS_ERR("job=%ld failed to sign header", s.job_id);
+            LS_ERR("job=%ld failed to sign header", f.job_id);
             return;
         }
         enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K, xdr_wire_job_ack);
@@ -626,7 +654,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 
     int duplicate = 0;
     if (job->end_time > 0) {
-        LS_INFO("job=%ld finish duplicate from=%s", s.job_id,
+        LS_INFO("job=%ld finish duplicate from=%s", f.job_id,
                 chan_addr_str(n->sbd_chan));
         duplicate = 1;
         goto send_ack;
@@ -637,7 +665,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 send_ack:
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
-    ack.job_id = s.job_id;
+    ack.job_id = f.job_id;
     ack.ack_op = BATCH_JOB_FINISH;
 
     struct protocol_header hdr;
@@ -653,7 +681,7 @@ send_ack:
 
     if (enqueue_payload(n->sbd_chan, &hdr, &ack,
                         LL_BUFSIZ_1K, xdr_wire_job_ack) < 0) {
-        LS_ERR("job=%ld enqueue_payload failed", s.job_id);
+        LS_ERR("job=%ld enqueue_payload failed", f.job_id);
         return;
     }
 
@@ -661,7 +689,10 @@ send_ack:
         return;
 
     job->end_time = time(NULL);
-    job->exit_status = s.state;
+    job->exit_status = f.exit_status;
+
+    LS_INFO("job=%ld usage mem=%luMB swap=%luMB cpu=%.2fs",
+            f.job_id, f.mem_mb, f.swap_mb, f.cpu_time);
 
     // this function depends on the state of the job not
     // being DONE|EXIT yet
@@ -680,17 +711,21 @@ send_ack:
     job->queue->num_hosts_used -= job->run_nhosts;
     job->queue->num_jobs--;
 
-    if (s.state == 0)
+    if (f.state == 0)
         job->state = JOB_DONE;
     else
         job->state = JOB_EXITED;
 
     job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
 
-    LS_INFO("job=%ld finish acked state=%s", s.job_id,
+    LS_INFO("job=%ld finish acked state=%s", f.job_id,
             job_state_str(job->state));
 
+    // We free the job only when we compact the events file
     event_job_finish(job);
+    if (job_write_usage(job, &f) < 0) {
+        LS_ERR("job=%ld failed job_write_usage", job->job_id);
+    }
 
     LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
              job->queue->name, job->queue->num_pend,

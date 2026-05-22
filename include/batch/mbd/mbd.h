@@ -58,15 +58,6 @@ struct job_resources {
     struct ll_list tokens;
 };
 
-/* what the job actually used, reported by sbd */
-struct job_runtime_usage {
-    pid_t    pid;
-    gid_t    gid;
-    uint64_t mem_mb;
-    uint64_t storage_mb;
-    double   cpu_time;
-};
-
 struct job_dep {
     struct ll_list_entry ent;
     int type;
@@ -78,6 +69,7 @@ struct job_data {
     int64_t job_id;
     uid_t uid;
     gid_t gid;
+    pid_t pid;                 /* job pid as reported by sbd */
     char user[LL_BUFSIZ_64];
     int state;
     int exit_status;
@@ -100,7 +92,6 @@ struct job_data {
     enum pend_reason pend_reason;
     struct ll_list deps;
     struct job_resources res;    /* requested at submit */
-    struct job_runtime_usage usage;  /* reported by sbd */
     int run_nhosts;    /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;
 };

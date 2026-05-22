@@ -233,7 +233,7 @@ void event_job_fork(const struct job_data *job)
 
     e.job_id = job->job_id;
     e.fork_time = job->fork_time;
-    e.job_pid = job->usage.pid;
+    e.job_pid = job->pid;
 
     FILE *fp = open_events();
     if (log_write_job_fork(fp, &e) < 0) {
@@ -251,7 +251,7 @@ void event_job_execute(const struct job_data *job, const char *cwd)
 
     e.job_id       = job->job_id;
     e.execute_time = job->execute_time;
-    e.job_pid      = job->usage.pid;
+    e.job_pid      = job->pid;
     ll_strlcpy(e.cwd, cwd, sizeof(e.cwd));
 
     FILE *fp = open_events();
@@ -292,7 +292,6 @@ void event_job_finish(const struct job_data *job)
     e.state      = job->state;
     e.exit_status = job->exit_status;
     e.end_time    = job->end_time;
-    e.cpu_time = job->usage.cpu_time;
 
     FILE *fp = open_events();
     if (log_write_job_finish(fp, &e) < 0) {
@@ -307,7 +306,7 @@ void event_job_pend_susp(const struct job_data *job)
 {
     struct log_job_pend_susp e;
     memset(&e, 0, sizeof(e));
-    e.job_id     = job->job_id;
+    e.job_id = job->job_id;
     e.event_time = time(NULL);
 
     FILE *fp = open_events();
@@ -323,7 +322,7 @@ void event_job_pend_resume(const struct job_data *job)
 {
     struct log_job_pend_resume e;
     memset(&e, 0, sizeof(e));
-    e.job_id     = job->job_id;
+    e.job_id = job->job_id;
     e.event_time = time(NULL);
 
     FILE *fp = open_events();
@@ -521,7 +520,7 @@ static void replay_job_fork(const struct event_rec *rec)
         LS_ERR("JOB_FORK job_id=%ld not found", e.job_id);
         return;
     }
-    job->usage.pid = (pid_t)e.job_pid;
+    job->pid = (pid_t)e.job_pid;
     job->fork_time = e.fork_time;
 
     LS_DEBUG("JOB_FORK job_id=%ld pid=%d", e.job_id, e.job_pid);
@@ -577,7 +576,6 @@ static void replay_job_finish(const struct event_rec *rec)
     job->exit_status    = e.exit_status;
     job->uid            = e.uid;
     job->end_time       = e.end_time;
-    job->usage.cpu_time = e.cpu_time;
 
     struct ll_list *from = &pend_jobs_list;
     if (job->list_id == JOB_LIST_RUN)
@@ -851,7 +849,7 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
 
     e.job_id    = job->job_id;
     e.fork_time = job->fork_time;
-    e.job_pid   = job->usage.pid;
+    e.job_pid   = job->pid;
 
     if (log_write_job_fork(fp, &e) < 0)
         mbd_die(MBD_EXIT_EVENTS);
@@ -880,11 +878,34 @@ static void compact_seq_write(void)
  * RUN/SUSP:  JOB_NEW + JOB_START
  * FINISH:    discarded — full history in archived file for bhist.
  *            finish_jobs_list drained and freed here.
+ *
+ * After compaction, sysevents is a replay checkpoint, not a chronological
+ * history file. Event timestamps are preserved, but record order across
+ * different jobs may differ from original event arrival order.
+ *
+ * Replay only depends on per-job state reconstruction. Historical tools
+ * such as bhist must read archived sysevents.* files for full chronological
+ * job history.
  */
 static void events_compact(void)
 {
     char archived[PATH_MAX + LL_BUFSIZ_32];
-
+    /*
+     * Archive file names use a zero-padded sequence number so normal
+     * directory listing keeps archives in numeric order.
+     *
+     * The width is intentionally fixed at 6 digits:
+     *
+     *     events.000001
+     *     events.000002
+     *
+     * After 999999 archives, names continue to work but lexical ordering
+     * is no longer guaranteed.
+     *
+     * mbd does not manage long-term archive retention. Sites running very
+     * high job volumes must move, compress, or remove old archive files
+     * with external administration tooling.
+     */
     compact_seq++;
     snprintf(archived, sizeof(archived), "%s.%06u", events_path, compact_seq);
 

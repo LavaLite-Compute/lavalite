@@ -957,19 +957,28 @@ int sbd_job_finish(struct sbd_job *job)
         new_state = JOB_FAILURE;
     }
 
-    struct wire_job_state s;
-    memset(&s, 0, sizeof(s));
-    s.job_id = job->job_id;
-    s.state  = new_state;
+    // Collect job resources from the cgroup
+    cgroup_job_collect(job->job_id, &job->res_usage);
 
-    if (sbd_send_msg(BATCH_JOB_FINISH, MBD_OK, &s, LL_BUFSIZ_1K,
-                     (bool_t (*)())xdr_wire_job_state) < 0) {
+    struct wire_job_finish f;
+    memset(&f, 0, sizeof(f));
+
+    f.job_id = job->job_id;
+    f.state = new_state;
+    f.exit_status = job->exit_status;
+
+    f.mem_mb = job->res_usage.mem_mb;
+    f.swap_mb = job->res_usage.swap_mb;
+    f.cpu_time = job->res_usage.cpu_time;
+
+    if (sbd_send_msg(BATCH_JOB_FINISH, MBD_OK, &f, LL_BUFSIZ_1K,
+                     (bool_t (*)())xdr_wire_job_finish) < 0) {
         LS_ERR("job=%ld sbd_job_finish sbd_send_msg failed", job->job_id);
         return -1;
     }
 
-    LS_INFO("job=%ld finish enqueued exit_status=%d", job->job_id,
-            job->exit_status);
+    LS_INFO("job=%ld pid=%d finish enqueued exit_status=%d", job->job_id,
+            job->pid, job->exit_status);
     return 0;
 }
 

@@ -221,9 +221,10 @@ int jobs_signal(XDR *xdrs, int chan_id)
 static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w)
 {
     memset(w, 0, sizeof(*w));
-    w->job_id      = job->job_id;
-    w->uid         = (uint32_t)job->uid;
-    w->state      = job->state;
+    w->job_id = job->job_id;
+    w->uid = (uint32_t)job->uid;
+    w->pid = job->pid;
+    w->state = job->state;
     /*
      * UNKNOWN is a public/reporting state. Internally the job keeps its last
      * lifecycle state. If the execution host is disconnected, clients cannot
@@ -239,9 +240,7 @@ static void job_data_to_wire(const struct job_data *job, struct wire_job_info *w
     w->dispatch_time  = (int64_t)job->dispatch_time;
     w->end_time    = (int64_t)job->end_time;
     w->susp_time   = (int64_t)job->susp_time;
-    w->res.pid      = job->usage.pid;
-    w->res.mem_mb   = job->usage.mem_mb;
-    w->res.cpu_time = job->usage.cpu_time;
+
     ll_strlcpy(w->name, job->name,  sizeof(w->name));
     ll_strlcpy(w->queue, job->queue->name, sizeof(w->queue));
 

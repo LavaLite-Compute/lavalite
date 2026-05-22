@@ -35,10 +35,6 @@ enum batch_lib_op {
     BATCH_TOKEN_INFO,
     BATCH_TOKEN_INFO_ACK,
 
-    BATCH_COMPACT_DONE,
-    BATCH_COMPACT_FAILED,
-    BATCH_COMPACT_ACK,
-
     // sbd - mbd messages
     BATCH_NEW_JOB,
     BATCH_NEW_JOB_REPLY,

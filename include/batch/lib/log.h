@@ -139,7 +139,6 @@ struct log_job_finish {
     int32_t  state;        /* JOB_STAT_EXIT, JOB_STAT_DONE         */
     int32_t  exit_status;
     time_t   end_time;      /* mbd clock: set by caller before write */
-    double   cpu_time;
 };
 
 /*
