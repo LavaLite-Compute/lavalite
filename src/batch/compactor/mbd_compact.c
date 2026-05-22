@@ -96,7 +96,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if (events_path[0] == '\0') {
+    if (events_path[0] == 0) {
         usage(argv[0]);
         return -1;
     }
@@ -324,91 +324,73 @@ static int compact(int clean_period)
  * Returns 0 on success (including clean EOF), -1 on read error.
  */
 static int pass1(FILE *efp, struct ll_hash *expired, int clean_period,
-                  time_t compact_time)
+                 time_t now)
 {
-    int linenum = 0;
+    struct event_rec rec;
     char keybuf[LL_BUFSIZ_64];
 
     rewind(efp);
-    lsberrno = LSBE_NO_ERROR;
+    while (log_read_hdr(efp, &rec) == 0) {
+        if (rec.type != EVENT_JOB_FINISH)
+            continue;
 
-    while (lsberrno != LSBE_EOF) {
-        struct eventRec *rec = lsb_geteventrec(efp, &linenum);
-        if (!rec) {
-            if (lsberrno != LSBE_EOF) {
-                LS_ERRX("read error line %d", linenum);
-                return -1;
-            }
-            break;
+        struct log_job_finish e;
+        if (log_parse_job_finish(&rec, &e) < 0) {
+            LS_ERR("pass1: parse JOB_FINISH failed");
+            return -1;
         }
 
-        if (rec->type != EVENT_JOB_STATUS)
+        if ((now - rec.event_time) <= clean_period)
             continue;
 
-        int jst = rec->eventLog.jobStatusLog.jStatus;
-        if (!(jst & (JOB_STAT_DONE | JOB_STAT_EXIT)))
-            continue;
-
-        if ((compact_time - rec->eventTime) <= clean_period)
-            continue;
-
-        sprintf(keybuf, "%d", rec->eventLog.jobStatusLog.jobId);
+        snprintf(keybuf, sizeof(keybuf), "%ld", (long)e.job_id);
         ll_hash_insert(expired, keybuf, NULL, 0);
 
         if (debug_mode)
-            LS_DEBUG("job=%d expired", rec->eventLog.jobStatusLog.jobId);
+            LS_DEBUG("job=%ld expired", (long)e.job_id);
     }
 
+    if (ferror(efp)) {
+        LS_ERR("pass1: read error");
+        return -1;
+    }
     return 0;
 }
 
 static int pass2(FILE *efp, FILE *vfp, struct ll_hash *expired)
 {
-    int linenum = 0;
+    struct event_rec rec;
+    char keybuf[LL_BUFSIZ_64];
 
     rewind(efp);
-    lsberrno = LSBE_NO_ERROR;
+    while (log_read_hdr(efp, &rec) == 0) {
+        int64_t job_id = jobid_from_rec(&rec);
 
-    while (lsberrno != LSBE_EOF) {
-        struct eventRec *rec = lsb_geteventrec(efp, &linenum);
-        if (!rec) {
-            if (lsberrno != LSBE_EOF) {
-                LS_ERRX("read error line %d", linenum);
-                return -1;
+        if (job_id > 0) {
+            snprintf(keybuf, sizeof(keybuf), "%ld", (long)job_id);
+            if (ll_hash_contains(expired, keybuf)) {
+                if (debug_mode)
+                    LS_DEBUG("pass2: vaporizing job=%ld type=%d",
+                             (long)job_id, rec.type);
+                continue;
             }
-            break;
         }
 
-        if (should_skip(rec, expired)) {
-            if (debug_mode)
-                LS_DEBUG("line=%d type=%d vaporized", linenum, rec->type);
-            continue;
-        }
-
-        if (lsb_puteventrec(vfp, rec) < 0) {
-            LS_ERRX("lsb_puteventrec failed line %d", linenum);
+        if (log_write_rec(vfp, &rec) < 0) {
+            LS_ERR("pass2: log_write_rec failed");
             return -1;
         }
     }
 
+    if (ferror(efp)) {
+        LS_ERR("pass2: read error");
+        return -1;
+    }
     return 0;
 }
 
 static int should_skip(struct eventRec *rec, struct ll_hash *expired)
 {
-    switch (rec->type) {
-    case EVENT_MBD_START:
-    case EVENT_MBD_DIE:
-    case EVENT_LOAD_INDEX:
-        return 1;
-    default:
-        break;
-    }
-
-    int job_id = jobid_from_rec(rec);
-    if (job_id < 0)
-        return 0;
-
     char keybuf[LL_BUFSIZ_64];
     sprintf(keybuf, "%d", job_id);
     return ll_hash_contains(expired, keybuf);
@@ -419,33 +401,59 @@ static int should_skip(struct eventRec *rec, struct ll_hash *expired)
  * Returns job_id or -1 if the event type carries no job_id.
  * No job arrays — access field directly, no LSB_JOBID macro.
  */
-static int jobid_from_rec(struct eventRec *rec)
+static int64_t jobid_from_rec(struct event_rec *rec)
 {
+    struct log_job_new     e_new;
+    struct log_job_start   e_start;
+    struct log_job_fork    e_fork;
+    struct log_job_execute e_exec;
+    struct log_job_signal  e_sig;
+    struct log_job_finish  e_fin;
+    struct log_job_pend_susp    e_psusp;
+    struct log_job_pend_resume  e_presume;
+    struct log_job_susp    e_susp;
+
     switch (rec->type) {
     case EVENT_JOB_NEW:
-        return rec->eventLog.jobNewLog.jobId;
+        if (log_parse_job_new(rec, &e_new) < 0)
+            return -1;
+        return e_new.job_id;
     case EVENT_JOB_START:
-        return rec->eventLog.jobStartLog.jobId;
-    case EVENT_JOB_START_ACCEPT:
-        return rec->eventLog.jobStartAcceptLog.jobId;
+        if (log_parse_job_start(rec, &e_start) < 0)
+            return -1;
+        return e_start.job_id;
+    case EVENT_JOB_FORK:
+        if (log_parse_job_fork(rec, &e_fork) < 0)
+            return -1;
+        return e_fork.job_id;
     case EVENT_JOB_EXECUTE:
-        return rec->eventLog.jobExecuteLog.jobId;
-    case EVENT_JOB_STATUS:
-        return rec->eventLog.jobStatusLog.jobId;
+        if (log_parse_job_execute(rec, &e_exec) < 0)
+            return -1;
+        return e_exec.job_id;
     case EVENT_JOB_SIGNAL:
-        return rec->eventLog.signalLog.jobId;
-    case EVENT_JOB_SWITCH:
-        return rec->eventLog.jobSwitchLog.jobId;
-    case EVENT_JOB_MOVE:
-        return rec->eventLog.jobMoveLog.jobId;
-    case EVENT_JOB_REQUEUE:
-        return rec->eventLog.jobRequeueLog.jobId;
+        if (log_parse_job_signal(rec, &e_sig) < 0)
+            return -1;
+        return e_sig.job_id;
+    case EVENT_JOB_FINISH:
+        if (log_parse_job_finish(rec, &e_fin) < 0)
+            return -1;
+        return e_fin.job_id;
+    case EVENT_JOB_PEND_SUSP:
+        if (log_parse_job_pend_susp(rec, &e_psusp) < 0)
+            return -1;
+        return e_psusp.job_id;
+    case EVENT_JOB_PEND_RESUME:
+        if (log_parse_job_pend_resume(rec, &e_presume) < 0)
+            return -1;
+        return e_presume.job_id;
+    case EVENT_JOB_SUSP:
+        if (log_parse_job_susp(rec, &e_susp) < 0)
+            return -1;
+        return e_susp.job_id;
     default:
-        LS_ERRX("unknown event");
         return -1;
     }
 }
-
 /*
  * notify_mbd - send BATCH_COMPACT_DONE or BATCH_COMPACT_FAILED,
  * wait for BATCH_COMPACT_ACK.

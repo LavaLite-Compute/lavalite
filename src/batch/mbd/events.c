@@ -18,9 +18,10 @@
 #include "batch/mbd/mbd.h"
 
 static char events_path[PATH_MAX];
-static char acct_path[PATH_MAX];
 char jobs_dir[PATH_MAX];
 static ino_t events_ino = 0;
+static uint32_t compact_seq = 0;
+static int  job_finish_retain = 100;
 
 static FILE *open_events(void)
 {
@@ -643,8 +644,16 @@ static void replay_job_susp(const struct event_rec *rec)
     LS_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
 }
 
-void reopen_job_events(void)
+static void compact_seq_read(void)
 {
+    char path[PATH_MAX];
+
+    snprintf(path, sizeof(path), "%s/mbd/sequence", ll_params[LL_STATE_DIR].val);
+    FILE *fp = fopen(path, "r");
+    if (!fp)
+        return;   /* first run, seq stays 0 */
+    fscanf(fp, "%u", &compact_seq);
+    fclose(fp);
 }
 
 int events_init(void)
@@ -666,11 +675,6 @@ int events_init(void)
         mbd_die(MBD_EXIT_EVENTS);
     LS_INFO("job events initialized %s", events_path);
 
-    n = snprintf(acct_path, sizeof(acct_path), "%s/jobs.acct", dir);
-    if (n < 0 || n >= (int)sizeof(acct_path))
-        mbd_die(MBD_EXIT_EVENTS);
-    LS_INFO("job accounts initialized %s", acct_path);
-
     n = snprintf(jobs_dir, sizeof(jobs_dir), "%s/jobs", dir);
     if (n < 0 || n >= (int)sizeof(jobs_dir))
         mbd_die(MBD_EXIT_EVENTS);
@@ -691,7 +695,17 @@ int events_init(void)
             mbd_die(MBD_EXIT_EVENTS);
         }
     }
+
     LS_INFO("%d bucket dirs initialized", JOB_BUCKETS);
+
+    if (! ll_atoi(ll_params[LL_JOB_FINISH_RETAIN].val, &job_finish_retain)) {
+        LS_ERRX("failed parsing LL_JOB_FINISH_RETAIN=%s using default=100 jobs",
+               ll_params[LL_JOB_FINISH_RETAIN].val);
+    }
+
+    compact_seq_read();
+
+    LS_INFO("events seq initialized seq=%u", compact_seq);
 
     return 0;
 }
@@ -774,4 +788,156 @@ int jobs_replay(void)
     LS_INFO("replay: done, %d jobs restored, job_id_seq=%ld",
             restored, job_id_seq);
     return restored;
+}
+
+static void compact_write_job_new(FILE *fp, const struct job_data *job)
+{
+    struct log_job_new e;
+    memset(&e, 0, sizeof(e));
+
+    e.job_id       = job->job_id;
+    e.uid          = job->uid;
+    e.gid          = job->gid;
+    e.state        = job->state;
+    e.submit_time  = job->submit_time;
+    e.begin_time   = job->begin_time;
+    e.term_time    = job->term_time;
+    e.num_cpu      = job->res.num_cpus;
+    e.num_hosts    = job->res.num_hosts;
+    e.num_gpus     = job->res.num_gpus;
+    e.mem_mb       = job->res.mem_mb;
+    e.storage_mb   = job->res.storage_mb;
+    e.wall_seconds = job->res.wall_seconds;
+    e.flags        = job->flags;
+    ll_strlcpy(e.gpu_type,     job->res.gpu_type, sizeof(e.gpu_type));
+    ll_strlcpy(e.username,     job->user,         sizeof(e.username));
+    ll_strlcpy(e.job_name,     job->name,         sizeof(e.job_name));
+    ll_strlcpy(e.queue,        job->queue->name,  sizeof(e.queue));
+    ll_strlcpy(e.project_name, job->project,      sizeof(e.project_name));
+    ll_strlcpy(e.tokenpool,    job->res.tokenpool_str,    sizeof(e.tokenpool));
+    ll_strlcpy(e.machines,     job->res.machines_str, sizeof(e.machines));
+
+    if (log_write_job_new(fp, &e) < 0)
+        mbd_die(MBD_EXIT_EVENTS);
+}
+
+static void compact_write_job_start(FILE *fp, const struct job_data *job)
+{
+    struct log_job_start e;
+    memset(&e, 0, sizeof(e));
+
+    e.job_id        = job->job_id;
+    e.dispatch_time = job->dispatch_time;
+    e.nhosts        = job->res.num_hosts;
+    e.cpus_per_host = job->res.num_cpus;
+    e.gpus_per_host = job->res.num_gpus;
+    ll_strlcpy(e.exec_host, job->run_hosts[0]->net.name, sizeof(e.exec_host));
+    ll_strlcpy(e.gpu_type,  job->res.gpu_type,           sizeof(e.gpu_type));
+
+    for (int i = 0; i < job->res.num_hosts; i++) {
+        if (i > 0)
+            ll_strlcat(e.hosts, " ", sizeof(e.hosts));
+        ll_strlcat(e.hosts, job->run_hosts[i]->net.name, sizeof(e.hosts));
+    }
+
+    if (log_write_job_start(fp, &e) < 0)
+        mbd_die(MBD_EXIT_EVENTS);
+}
+
+static void compact_write_job_fork(FILE *fp, const struct job_data *job)
+{
+    struct log_job_fork e;
+    memset(&e, 0, sizeof(e));
+
+    e.job_id    = job->job_id;
+    e.fork_time = job->fork_time;
+    e.job_pid   = job->usage.pid;
+
+    if (log_write_job_fork(fp, &e) < 0)
+        mbd_die(MBD_EXIT_EVENTS);
+}
+
+static void compact_seq_write(void)
+{
+    char path[PATH_MAX];
+    FILE *fp;
+
+    snprintf(path, sizeof(path), "%s/mbd/sequence", ll_params[LL_STATE_DIR].val);
+    fp = fopen(path, "w");
+    if (!fp) {
+        LS_ERR("fopen sequence=%s", path);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fprintf(fp, "%u\n", compact_seq);
+    if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
+        mbd_die(MBD_EXIT_EVENTS);
+    fclose(fp);
+}
+
+/*
+ * events_compact - archive sysevents, rewrite with live jobs only.
+ * PEND:      JOB_NEW
+ * RUN/SUSP:  JOB_NEW + JOB_START
+ * FINISH:    discarded — full history in archived file for bhist.
+ *            finish_jobs_list drained and freed here.
+ */
+static void events_compact(void)
+{
+    char archived[PATH_MAX + LL_BUFSIZ_32];
+
+    compact_seq++;
+    snprintf(archived, sizeof(archived), "%s.%06u", events_path, compact_seq);
+
+    if (rename(events_path, archived) < 0) {
+        LS_ERR("rename(%s, %s)", events_path, archived);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+
+    FILE *fp = fopen(events_path, "a");
+    if (!fp)
+        mbd_die(MBD_EXIT_EVENTS);
+
+    struct ll_list_entry *e;
+    struct ll_list_entry *next;
+
+    for (e = pend_jobs_list.head; e; e = e->next)
+        compact_write_job_new(fp, (struct job_data *)e);
+
+    for (e = run_jobs_list.head; e; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+        compact_write_job_new(fp, job);
+        compact_write_job_start(fp, job);
+        if (job->fork_time)
+            compact_write_job_fork(fp, job);
+    }
+
+    for (e = finish_jobs_list.head; e; e = next) {
+        next = e->next;
+        struct job_data *job = (struct job_data *)e;
+        ll_list_remove(&finish_jobs_list, &job->ent);
+
+        char key[LL_BUFSIZ_32];
+        sprintf(key, "%ld", job->job_id);
+        struct job_data *j2 = ll_hash_remove(&job_id_hash, key);
+        assert(j2 == job);
+        job_free(job);
+    }
+
+    if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
+        mbd_die(MBD_EXIT_EVENTS);
+    fclose(fp);
+
+    compact_seq_write();
+    LS_INFO("events compacted seq=%u archived=%s", compact_seq, archived);
+}
+
+void maybe_compact_events(void)
+{
+    if (ll_list_count(&finish_jobs_list) < job_finish_retain)
+        return;
+
+    LS_DEBUG("compacting sysevents as finished job=%d",
+             ll_list_count(&finish_jobs_list));
+
+    events_compact();
 }

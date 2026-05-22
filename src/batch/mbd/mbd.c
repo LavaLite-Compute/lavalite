@@ -107,9 +107,6 @@ static int mbd_init(void)
         return -1;
     }
 
-    // start compact
-    //compact_start();
-
     return 0;
 }
 
@@ -216,6 +213,7 @@ int main(int argc, char **argv)
                 read(chan_sock(chan_id), &exp, sizeof(exp));
                 LS_DEBUG("sched_timer expired timer=%d", sched_timer);
                 schedule();
+                maybe_compact_events();
                 continue;
             }
 

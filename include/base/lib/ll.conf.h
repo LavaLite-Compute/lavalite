@@ -20,9 +20,9 @@ enum ll_params {
     // sbd
     LL_SBD_PORT,
 
-    // compactor and mbd
+    // mbd
     LL_EVENTS_MAX_SIZE,
-    LL_EVENTS_RETAIN,
+    LL_JOB_FINISH_RETAIN,
     LL_MBD_PORT,
     LL_MBD_HOST,
     LL_MBD_USER,

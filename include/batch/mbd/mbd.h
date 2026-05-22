@@ -52,7 +52,9 @@ struct job_resources {
     uint64_t mem_mb;
     uint64_t storage_mb;
     int32_t  wall_seconds;
+    char     machines_str[LL_BUFSIZ_4K];
     struct ll_hash machines;
+    char    tokenpool_str[LL_BUFSIZ_256];
     struct ll_list tokens;
 };
 
@@ -295,6 +297,7 @@ void event_job_finish(const struct job_data *);
 void event_job_pend_susp(const struct job_data *);
 void event_job_pend_resume(const struct job_data *);
 void event_job_susp(const struct job_data *);
+void maybe_compact_events(void);
 
 // dispatch.c
 int jobs_signal(XDR *, int);
@@ -320,6 +323,7 @@ void mbd_job_signal_reply(struct mbd_host *, XDR *, struct protocol_header *);
 char *job_state_str(int);
 void token_alloc(const struct job_data *);
 void token_free(const struct job_data *);
+void job_free(struct job_data *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
@@ -332,7 +336,6 @@ void mbd_job_finish(struct mbd_host *, XDR *);
 int queue_user_allowed(const struct mbd_queue *, uid_t);
 int queue_admin(XDR *, int);
 int host_admin(XDR *, int);
-
 
 // debug counters
 void mbd_assert_counters(void);

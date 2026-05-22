@@ -1,138 +1,99 @@
 /*
- * mbd.compact.c
- *
- * Additions to integrate mbd_compact into mbd.
- * These snippets belong in the following files:
- *
- *   daemonout.h       - add BATCH_COMPACT_DONE / BATCH_COMPACT_ACK to enum
- *   mbatchd.h         - declare mbd_compact_start / mbd_compact_shutdown
- *   mbatchd.handler.c - add BATCH_COMPACT_DONE case in request dispatch
- *   mbd.main.c        - call mbd_compact_start() at startup, shutdown at exit
- *   mbd.log.c         - add mbd_reopen_elog()
- *
- * wire struct and xdr go in the appropriate wire_*.c / lsb.xdr.c
- *
  * Copyright (C) LavaLite Contributors
  * GPL v2
  */
 
-#include "batch/daemons/mbd.h"
+#include "batch/mbd/mbd.h"
 
-static pid_t compact_pid = -1;
-static int compact_fail_count;
+static FILE        *events_fp;
+static char         events_path[PATH_MAX];
+static off_t        events_threshold;
+static unsigned int events_seq;   /* monotonic, persisted across switch */
 
-void compact_start(void)
+void
+events_init(const char *path, off_t threshold)
 {
-    char events_arg[PATH_MAX];
-    char compact_bin[PATH_MAX];
-    const char *serverdir = ll_params[LL_SERVERDIR].val;
-    const char *logdir    = ll_params[LSF_LOGDIR].val;
-    const char *log_mask  = ll_params[LSF_LOG_MASK].val;
-
-    if (!logdir)
-        logdir = "/tmp";
-    if (!log_mask)
-        log_mask = "LOG_INFO";
-
-    char pid_buf[LL_BUFSIZ_64];
-    sprintf(pid_buf, "%d", getpid());
-
-    setenv("MBD_PID", pid_buf, 1);
-    snprintf(compact_bin, sizeof(compact_bin), "%s/mbd_compact", serverdir);
-    snprintf(events_arg,  sizeof(events_arg),  "%s/mbd/job.events",
-             lsbParams[LSB_SHAREDIR].paramValue);
-
-    compact_pid = fork();
-    if (compact_pid < 0) {
-        LS_ERR("fork mbd_compact");
-        mbdDie(MASTER_FATAL);
-    }
-    if (compact_pid == 0) {
-        execl(compact_bin, "mbd_compact",
-              "--events",   events_arg,
-              "--logdir",   logdir,
-              "--log-mask", log_mask,
-              NULL);
-        fprintf(stderr, "mbd_compact: execl(%s) failed: %s\n",
-                compact_bin, strerror(errno));
-        _exit(1);
-    }
-
-    LS_INFO("mbd_compact started pid=%d events=%s", compact_pid, events_arg);
-}
-
-void compact_shutdown(void)
-{
-    if (compact_pid <= 0)
-        return;
-
-    LS_INFO("last compactor pid=%d", compact_pid);
-    kill(compact_pid, SIGTERM);
-    compact_pid = -1;
+    snprintf(events_path, sizeof(events_path), "%s", path);
+    events_threshold = threshold;
+    events_seq = events_scan_seq(events_path); /* find highest .NNNNNN present */
+    events_fp = fopen(events_path, "a");
+    if (!events_fp)
+        mbd_die(MBD_EXIT_EVENTS);
 }
 
 /*
- * mbd_handle_compact_done - called when mbd_compact sends BATCH_COMPACT_DONE
- * or BATCH_COMPACT_FAILED. The compactor is just another client.
+ * maybe_switch_events - called from main loop on every timer tick.
+ * Does nothing unless the file exceeds the threshold.
+ * On switch: rename → dump live jobs → resume.
+ * No child involvement. No rotation history. Fully synchronous.
  */
-void compact_done(XDR *xdrs, int chan_id, struct protocol_header *hdr)
+void maybe_switch_events(void)
 {
-    struct wire_compact_notify req;
-    struct wire_compact_notify ack_payload;
-    struct protocol_header ack_hdr;
-    struct chan_buffer *out;
-    char buf[PACKET_HEADER_SIZE + LL_BUFSIZ_64];
-    int len;
+    struct stat st;
 
-    // decode - get status from compactor
-    memset(&req, 0, sizeof(req));
-    if (!xdr_wire_compact_notify(xdrs, &req)) {
-        LS_ERR("decode failed");
+    if (fstat(fileno(events_fp), &st) < 0)
         return;
-    }
-
-    if (hdr->operation == BATCH_COMPACT_FAILED) {
-        compact_fail_count++;
-        LS_ERR("compact failed status=%d count=%d compact_time=%ld",
-               req.status, compact_fail_count, req.compact_time);
-        // TODO: after N fails kill and restart compactor child
-        goto send_ack;
-    }
-
-    compact_fail_count = 0;
-    LS_INFO("compact done - event log rotated at %ld", req.compact_time);
-
-send_ack:
-    memset(&ack_payload, 0, sizeof(ack_payload));
-    init_pack_hdr(&ack_hdr);
-    ack_hdr.operation = BATCH_COMPACT_ACK;
-
-    XDR xdrs2;
-    xdrmem_create(&xdrs2, buf, sizeof(buf), XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs2, (void *)&ack_payload,
-                       xdr_wire_compact_notify, &ack_hdr)) {
-        LS_ERR("ll_encode_msg ack failed");
-        xdr_destroy(&xdrs2);
+    if (st.st_size < events_threshold)
         return;
+
+    events_switch();
+}
+
+static void events_compact(void)
+{
+    char archived[PATH_MAX];
+
+    events_seq++;
+    snprintf(archived, sizeof(archived), "%s.%06u", events_path, events_seq);
+
+    /* pause: close before rename so no buffered writes land in wrong file */
+    if (fclose(events_fp) != 0)
+        mbd_die(MBD_EXIT_EVENTS);
+    events_fp = NULL;
+
+    if (rename(events_path, archived) < 0) {
+        LS_ERR("rename(%s, %s)", events_path, archived);
+        mbd_die(MBD_EXIT_EVENTS);
     }
-    len = xdr_getpos(&xdrs2);
-    xdr_destroy(&xdrs2);
 
-    if (chan_alloc_buf(&out, len) < 0) {
-        LS_ERR("chan_alloc_buf failed");
-        return;
+    /* open new file before dump — dump writes go here */
+    events_fp = fopen(events_path, "a");
+    if (!events_fp)
+        mbd_die(MBD_EXIT_EVENTS);
+
+    events_dump_live();
+
+    if (fflush(events_fp) != 0 || fsync(fileno(events_fp)) != 0)
+        mbd_die(MBD_EXIT_EVENTS);
+
+    LS_INFO("events switched seq=%u archived=%s", events_seq, archived);
+}
+
+/*
+ * events_dump_live - write minimal replay state for all live jobs.
+ * PEND: JOB_NEW only.
+ * RUN/SUSP: JOB_NEW + JOB_START (exec_host is enough to reconstruct).
+ * Called only from events_switch(), file is already open.
+ */
+static void
+events_dump_live(void)
+{
+    struct ll_list_entry *e;
+
+    for (e = pend_jobs_list.head; e; e = e->next)
+        event_write_job_new(events_fp, (struct job_data *)e);
+
+    for (e = run_jobs_list.head; e; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+        event_write_job_new(events_fp, job);
+        event_write_job_start(events_fp, job);
     }
-    memcpy(out->data, buf, len);
-    out->len = len;
-    chan_enqueue(chan_id, out);
-    chan_set_write_interest(chan_id, true);
 
-    // clean the jobs using the same way as the compactor
-    // vaporized the events
-    if (hdr->operation == BATCH_COMPACT_DONE)
-        clean_jobs((time_t)req.compact_time);
-
-    reopen_job_events();
-
-    LS_INFO("compact ack sent");
+    for (e = susp_jobs_list.head; e; e = e->next) {
+        struct job_data *job = (struct job_data *)e;
+        event_write_job_new(events_fp, job);
+        event_write_job_start(events_fp, job);
+        /* susp state reconstructed from JOB_START + absence of FINISH */
+        /* or add EVENT_JOB_SUSP if replay needs to distinguish */
+    }
 }

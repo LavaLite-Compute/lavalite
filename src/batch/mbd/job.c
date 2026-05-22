@@ -37,7 +37,7 @@ static int64_t next_job_id(void)
     return job_id_seq;
 }
 
-static void job_free(struct job_data *job)
+void job_free(struct job_data *job)
 {
     free(job->run_hosts);
     ll_hash_clear(&job->res.machines, NULL);
@@ -74,6 +74,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     job->res.mem_mb = ws->mem_mb;
     job->res.storage_mb = ws->storage_mb;
     machines_hash_populate(&job->res.machines, ws->machines);
+    ll_strlcpy(job->res.machines_str, ws->machines, sizeof(job->res.machines_str));
 
     if (ws->name[0] == 0) {
         ll_strlcpy(job->name, "-" , sizeof(job->name));
@@ -338,6 +339,8 @@ int job_register(XDR *xdrs, int chan_id)
         /* free job and return error */
         return -1;
     }
+    ll_strlcpy(job->res.tokenpool_str, ws.tokenpool,
+               sizeof(job->res.tokenpool_str));
 
     char key[LL_BUFSIZ_32];
     sprintf(key, "%ld", job->job_id);
