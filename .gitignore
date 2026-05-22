@@ -43,14 +43,11 @@ lshosts
 lsid
 lsload
 lsclusterinfo
-src/eauth/.libs/*
-src/eauth/eauth
-src/eauth/eauth_client
-src/eauth/eauth_server
 bhosts
+bhist
 bjobs
 bkill
-bmgroup
+bgroup
 bqueues
 bsub
 btokens
@@ -69,7 +66,3 @@ man1/
 man5/
 man7/
 man8/
-GPATH
-GRTAGS
-GTAGS
-

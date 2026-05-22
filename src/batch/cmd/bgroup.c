@@ -59,7 +59,7 @@ static void print_groups(const struct host_group *groups, int32_t ngroups)
 
 static void usage(void)
 {
-    fprintf(stderr, "bmgroup: --help display this help and exit\n"
+    fprintf(stderr, "bgroup: --help display this help and exit\n"
             "--version output version information and exit\n");
 }
 

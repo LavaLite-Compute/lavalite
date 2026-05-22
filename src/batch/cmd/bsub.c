@@ -51,7 +51,6 @@ static void usage(FILE *f)
         "  --hold             Submit in PSUSP state\n"
         "  --begin  [day:]h:m Do not dispatch before this time\n"
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
-        "  --dependency expr  Hold until dependency expression is true\n"
         "\n"
         "  --help             Print this message and exit\n"
         "  --version          Print version and exit\n"
@@ -352,6 +351,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'w':
+            // TODO
             js.depend_cond = optarg;
             break;
         case 'h':

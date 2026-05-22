@@ -1,371 +1,139 @@
-# LavaLite C Coding & Project Invariants Guide
+# LavaLite Coding Guide and Project Invariants
 
-This document defines the **official C coding style** and **architectural invariants** for the LavaLite project.
+This document defines the C coding style and architectural invariants for LavaLite.
+It serves as coding guide, design reference, and onboarding document.
 
-It serves as:
-- a coding guide
-- a design reference
-- an onboarding document
-- a consistency contract across the codebase
-
-All new code **must** follow this guide. Pull requests that diverge may be rejected or asked to revise before merge.
+All new code must follow this guide.
 
 ---
 
-# 0. Philosophy
+## Philosophy
 
-LavaLite prioritizes:
+LavaLite prioritizes clarity, explicitness, and correctness over cleverness.
 
-- clarity
-- explicitness
-- readability
-- testability
-- scheduling correctness
+- correct and fast
+- explicit over implicit
+- boring over clever
+- readable over compact
 
-We avoid:
+When in doubt, delete or simplify. If it needs a comment to explain what it
+does, rewrite it.
 
-- legacy OpenLava/LSF quirks
-- magic macros
-- implicit behavior
-- clever but opaque constructs
-
-> Consistency beats ingenuity.
-> Readable code ships; clever code breaks.
-
-When in doubt, ask what Unix and K&R would do — and do that.
+> Consistency beats ingenuity. Readable code ships; clever code breaks.
 
 ---
 
-## C Modules and State
+## Architecture and layering
 
-Each C translation unit (`.c` file) is treated as a self-contained module.
+Three components:
 
-Module state is stored in `static` variables and is private to the translation unit.
-Functions operating on module state are considered module "methods" and **must not** pretend to be pure or reusable.
+- **mbd** — master batch daemon. Job scheduling, job lifecycle, cluster state.
+- **sbd** — slave batch daemon. Job execution, cgroup management, status reporting.
+- **commands and API** — user commands and the `llbatch` C API.
 
-Rules:
+Two libraries:
 
-- functions that operate on module state take `void` and use module globals directly
-- functions that take parameters must be genuinely reusable and must not rely on module globals
+- **libllbase** (`src/base/lib/`) — base helpers: channels, config, wire protocol, lists. Prefix: `ll_*`.
+- **libllbat** (`src/batch/lib/`) — batch layer: API, log, submit. Prefix: `llb_*`.
 
-The translation unit itself acts as the namespace.
-Explicit namespacing or artificial abstraction is avoided.
+Layer model:
+
+```
+wire_*  <-->  ll_*  <-->  mbd / sbd
+         ^          ^
+       chan_*     external API: ll_* / llb_*
+```
+
+Nothing jumps layers. Wire code has no scheduling logic. Daemons do no
+direct socket I/O. The channel subsystem owns all network I/O.
 
 ---
 
-# 1. Project Architectural Invariants
+## Key invariants
 
-These invariants define the **design boundaries** of LavaLite.
-Code that violates these rules is considered incorrect even if it compiles.
+**No job enters RUN state without an active sbd connection.**
+Before dispatch, verify the target host has a connected sbd channel.
+If not, return the job to pending.
 
----
+**State changes are explicit assignments.**
+No state is inferred or derived. `POST_DONE` is forbidden — use explicit
+`JOB_DONE` or `JOB_EXITED`.
 
-## 1.1 Layering and boundaries
+**Durable state before in-memory state.**
+All job events are written to the event log before any in-memory change.
+Recovery replays the log. What is on disk is what the scheduler knows.
 
-| Layer | Responsibility | Must NOT do |
-|--------|---------------|-------------|
-| wire_* | protocol structs, XDR encode/decode | scheduling logic |
-| chan_* | networking channel: fd mgmt, epoll, buffered writes | scheduling logic, job selection |
-| ll_*   | helper library, translation between wire and internal structs | socket I/O, XDR |
-| Daemons (mbatchd, lim, sbatchd) | scheduling, job lifecycle, mastership | write(), send(), direct socket I/O |
+**Never trust remote-supplied hostnames.**
+Always use the canonical host resolved at connection time.
 
-Layering rule:
-
-```
-wire_*   <-->   ll_*   <-->   mbatchd / lim / sbatchd
-          ^           ^
-        chan_*     external API: ls_* / lsb_*
-```
-
-Nothing jumps layers.
+**Authentication is mandatory.**
+All mbd/sbd communication is HMAC-SHA256 authenticated. No message is
+processed without a valid signature.
 
 ---
 
-## 1.2 Channels and message sending
+## C coding style
 
-Daemons **never call write(), send(), or chan_write()** directly.
+**Formatting**: use `clang-format` before every commit. A `.clang-format`
+file is at the repo root. Never hand-format.
 
-All outbound messaging must use:
+**Indentation**: 4 spaces, no tabs. 80-column soft limit.
 
-```
-struct chan_buf *buf = chan_alloc_buf(ch, len);
-memcpy(buf->data, payload, len);
-chan_enqueue(ch, buf);
-```
+**Braces**: always use braces, even for single-statement bodies.
 
-Actual network I/O happens only inside the channel subsystem.
+**Variables**: one per line, declared close to first use (C99). No pedantic
+column alignment.
 
-**Summary**
+**Pointers**: asterisk binds to the variable: `char *p`, `struct foo *f`.
 
-| Allowed in daemons | Forbidden |
-|-------------------|-----------|
-| chan_alloc_buf()  | write()   |
-| chan_enqueue()    | send()    |
-| memcpy(payload)   | chan_write() |
-| async send via epoll | blocking I/O |
+**Booleans**: use `bool_t` from `<rpc/types.h>`. Lowercase `true`/`false`.
+Do not use `<stdbool.h>`.
 
----
+**Integers**: use `stdint.h` types (`int32_t`, `uint64_t`, etc.).
 
-## 1.3 Scheduling invariants (start_job)
+**Buffer sizes**: use `LL_BUFSIZ_32`, `LL_BUFSIZ_64`, `LL_BUFSIZ_1K` etc.
+from the base library. No magic numbers for buffer sizes.
 
-A job **must not start** unless the SBD for the target node is fully connected:
+**Macros**: avoid unless structurally necessary (bit flags, protocol values).
+Macros must not hide logic or contain control flow. Prefer `enum` or
+`static const`.
 
-```
-host_node->sbd_node != NULL
-host_node->sbd_node->chanfd != -1
-```
+**Ternary operators**: avoid. Use explicit `if`/`else`. Allowed only for
+trivial, side-effect-free expressions where intent is obvious.
 
-If violated:
+**Control flow**: use `continue` and early `return` to reduce nesting.
+Avoid deep `if`/`else` chains.
 
-```
-LS_ERR("sbd on node %s is not connected cannot schedule", host_node->host);
-return ERR_UNREACH_SBD;
-```
+**Functions**: keep short. Internal functions must be `static`. Functions
+that take parameters must be genuinely reusable — no hidden global
+dependencies.
 
-On SBD disconnect:
+**Module state**: store in `static` variables, private to the translation
+unit. The translation unit is the namespace.
 
-- free mbd_client_node / sbd node
-- set `hData->sbd_node = NULL`
-- scheduler must mark the node as non-runnable
+**Header prototypes**: omit parameter names: `int ll_queue_init(struct ll_queue *);`
 
-**Hard invariant:**
-No job enters RUN state without an active SBD.
+**Include order**: system headers, blank line, own header, other project headers.
 
----
+**Error handling**: use `LS_ERR` and `LS_ERRX` macros. Do not embed
+`__func__` or `%m` manually — the macros include them. Set `errno`
+appropriately before returning errors.
 
-## 1.4 Host identity and trust model
+**Comments**: document invariants, design decisions, non-obvious constraints,
+and counterintuitive behavior. Do not restate control flow.
 
-Rules:
-
-- never trust remote-supplied hostnames
-- scheduler always uses canonical host
-- identity depends on canonicalization
+**Naming**: `mbd_*` for mbd internals, `sbd_*` for sbd internals, `ll_*`
+for base library, `llb_*` for batch library.
 
 ---
 
-## 1.5 Error handling invariant
+## Provenance
 
-Use thread-local `lserrno`.
-Do not use deprecated `cherrno`.
-
-Logging must use `LS_XXX` macros.
-They already include `__func__` and `%m`.
-
-Correct:
-
-```
-LS_ERR("sbd not connected host=%s job=%s", host->host, job_id);
-```
-
-Incorrect:
-
-```
-LS_ERR("%s: sbd not connected host=%s job=%s %m", func, host->host, job_id);
-```
+LavaLite is a clean reimplementation. Do not copy proprietary code.
+Rewrite legacy behavior rather than porting it.
 
 ---
 
-## 1.6 Authentication & request identity (eauth)
+## The short version
 
-Token contains:
-
-- user, uid, gid
-- host of origin
-- timestamp
-- nonce
-
-Future invariant:
-No scheduling or job operation without validated identity.
-
----
-
-# 2. C Coding Style
-
-LavaLite follows strict `.clang-format`.
-Do not hand-format code.
-
----
-
-## 2.1 Formatting usage
-
-```
-clang-format -i src/file.c
-find . -name '*.[ch]' -exec clang-format -i {} +
-```
-
----
-
-## 2.2 Indentation & layout
-
-- indent: 4 spaces
-- no tabs
-- 80-column soft limit
-- always use braces
-
----
-
-## 2.3 Functions and prototypes
-
-In `.c`:
-
-```
-int ll_queue_init(struct ll_queue *q)
-{
-    ...
-}
-```
-
-In `.h`:
-
-```
-int ll_queue_init(struct ll_queue *);
-```
-
----
-
-## 2.4 Pointer style
-
-```
-char *name;
-struct hData *host;
-```
-
----
-
-## 2.5 Variable declarations
-
-- one variable per line
-
----
-
-## 2.6 Boolean type
-
-- use bool_t
-- use true/false lowercase
-
----
-
-## 2.7 Include order
-
-```
-#include <system headers>
-
-#include "own_header.h"
-#include "other_header.h"
-```
-
----
-
-## 2.8 Naming conventions
-
-Exported daemon APIs:
-
-- mbd_* for mbatchd
-- sbd_* for sbatchd
-
-Internal static helpers use short names.
-
-### No POST_DONE (ever)
-
-Forbidden.
-Must not exist in any form.
-
----
-
-## 2.9 Macros and Ternary Operators
-
-### Rules
-
-- Avoid macros unless structurally necessary
-- Macros must not hide logic or contain control flow
-- Prefer enum or static const over macros
-- Avoid ternary operators
-- Allowed only for trivial, side-effect-free expressions
-- Never use ternaries for branching or error handling
-
-### Rationale
-
-Macro and ternary operators are not banned, but they are controlled. Both
-constructs are easy to abuse and tend to produce “clever” code that hides logic,
-breaks readability, and complicates debugging. LLMs in particular overuse them and generate
-opaque expressions that violate LavaLite’s clarity requirements. Use macros only
-when they behave like constants (bit flags, protocol values) and never to wrap logic or create
-hidden control flow. Use ternaries only for trivial, side-effect-free expressions where the
-intent is obvious. If a macro or ternary makes the code harder to scan, harder to reason about,
-or harder to maintain, rewrite it. The goal is explicit, boring, maintainable C — not cute tricks.
-
----
-
-## Comments
-
-Comments document:
-
-- invariants
-- design decisions
-- non-obvious constraints
-- counterintuitive behavior
-
-Comments do not restate control flow.
-
----
-
-# 3. Miscellaneous rules
-
-- avoid complex macros
-- prefer enum/static const
-- internal functions should be static
-- functions should be short
-- avoid clever tricks
-- do not reinvent memory/logging subsystems
-
----
-
-# 4. Provenance & legal considerations
-
-- avoid names implying derivation
-- rewrite legacy behavior
-- never copy proprietary implementations
-
----
-
-# 5. Quick checklist before commit
-
-- clang-format applied
-- no write/send in daemons
-- all outbound messages use chan_alloc_buf + chan_enqueue
-- start_job checks SBD connected
-- canonical host used
-- lserrno set before errors
-- pointer style correct
-- one variable per line
-- no tabs or trailing whitespace
-- layering respected
-
----
-
-# 6. Welcome
-
-Write code that is:
-
-- boring
-- readable
-- correct
-- fast
-
-When unsure, delete or simplify.
-
-```
-clang-format
-```
-
-is your friend.
-
-```
-chan_enqueue
-```
-
-is your safety rope.
-
-Failing tests are feedback, not criticism.
-
-Let’s build something serious.
+Write code that is boring, readable, correct, and fast.
