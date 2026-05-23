@@ -209,7 +209,9 @@ int main(int argc, char **argv)
 
             if (chan_id == chan_timer) {
                 uint64_t exp;
-                read(chan_sock(chan_id), &exp, sizeof(exp));
+                ssize_t n = read(chan_sock(chan_id), &exp, sizeof(exp));
+                if (n < 0 && errno != EINTR)
+                    LS_ERR("read timer failed");
                 LS_DEBUG("sched_timer expired timer=%d", sched_timer);
                 schedule();
                 maybe_compact_events();

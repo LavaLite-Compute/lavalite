@@ -10,8 +10,8 @@ static void send_beacon(void)
     struct wire_beacon wb;
 
     memset(&wb, 0, sizeof(wb));
-    strncpy(wb.cluster, lim_cluster.name, sizeof(wb.cluster) - 1);
-    strncpy(wb.hostname, me->host->name, sizeof(wb.hostname) - 1);
+    ll_strlcpy(wb.cluster, lim_cluster.name, sizeof(wb.cluster));
+    ll_strlcpy(wb.hostname, me->host->name, sizeof(wb.hostname));
     wb.host_no = me->host_no;
 
     struct protocol_header hdr;

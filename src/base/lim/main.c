@@ -297,7 +297,11 @@ int main(int argc, char **argv)
                 static time_t last_timer;
                 time_t t = time(NULL);
 
-                read(chan_sock(ch_id), &expirations, sizeof(expirations));
+                ssize_t n =
+                    read(chan_sock(ch_id), &expirations, sizeof(expirations));
+                if (n < 0 && errno != EINTR)
+                    LS_ERR("timer read failed");
+
                 if (t - last_timer > 15) {
                     LS_DEBUG("timer run %s", ctime2(NULL));
                     last_timer = t;

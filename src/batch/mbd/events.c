@@ -649,7 +649,10 @@ static void compact_seq_read(void)
     FILE *fp = fopen(path, "r");
     if (!fp)
         return; /* first run, seq stays 0 */
-    fscanf(fp, "%u", &compact_seq);
+    int n = fscanf(fp, "%u", &compact_seq);
+    if (n != 1) {
+        LS_ERR("fscanf sequence number failed");
+    }
     fclose(fp);
 }
 

@@ -37,8 +37,8 @@
  * All path construction appends to it so we need room for the suffix.
  * Use a generous fixed size to avoid truncation warnings from -Werror.
  */
-#define CG_BASE_MAX 4096
-#define CG_PATH_MAX 8192
+#define CG_BASE_MAX 4096 /* fits any realistic cgroup path */
+#define CG_PATH_MAX 8192 /* base + job suffix */
 
 static char cg_base[CG_BASE_MAX];
 
@@ -69,27 +69,24 @@ static int cg_write(const char *path, const char *val)
 static int read_self_cgroup(void)
 {
     FILE *f = fopen("/proc/self/cgroup", "r");
-    if (f == NULL) {
-        LS_ERR("open /proc/self/cgroup failed: %m");
+    if (!f)
         return -1;
-    }
 
     char line[CG_BASE_MAX];
-    int found = 0;
+
     while (fgets(line, sizeof(line), f)) {
-        /* cgroup v2 has a single line: "0::/<path>" */
         if (strncmp(line, "0::", 3) != 0)
             continue;
         char *p = line + 3;
         p[strcspn(p, "\n")] = 0;
-        snprintf(cg_base, sizeof(cg_base), "/sys/fs/cgroup%s", p);
-        found = 1;
-        break;
-    }
-    fclose(f);
-    if (found)
+        int n = snprintf(cg_base, sizeof(cg_base), "/sys/fs/cgroup%s", p);
+        fclose(f);
+        if (n <= 0 || n >= (int) sizeof(cg_base))
+            return -1;
         return 0;
-    LS_ERR("cgroup: no v2 entry in /proc/self/cgroup");
+    }
+
+    fclose(f);
     return -1;
 }
 

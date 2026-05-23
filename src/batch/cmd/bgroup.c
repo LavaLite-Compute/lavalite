@@ -8,8 +8,6 @@
 #include <getopt.h>
 #include "llbatch.h"
 
-static const char *prog;
-
 static void compute_widths(const struct host_group *groups, int32_t ngroups,
                            int *w_name, int *w_members)
 {
@@ -94,7 +92,7 @@ int main(int argc, char **argv)
 
     groups = llb_group_info(&ngroups);
     if (groups == NULL) {
-        fprintf(stderr, "%s: llb_group_info failed\n", prog);
+        fprintf(stderr, "bgroup: llb_group_info failed\n");
         return 1;
     }
 

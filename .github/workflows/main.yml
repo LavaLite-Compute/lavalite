@@ -21,6 +21,7 @@ jobs:
           sudo apt-get install -y libtirpc-dev python3-pytest
           sudo apt-get install -y libnsl-dev
           sudo apt-get install -y clang-format
+          sudo apt-get install -y pandoc
 
       # ----- clang format enforcement -----
       - name: Run clang-format check

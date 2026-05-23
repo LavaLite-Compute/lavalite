@@ -126,8 +126,10 @@ void ls_syslog(int level, const char *fmt, ...)
         write_record(log_fd, line, len);
     }
     // mirror to stderr if tty and shut clang
-    if (log_fd != STDERR_FILENO && isatty(STDERR_FILENO))
-        (void) write(STDERR_FILENO, line, len);
+    if (log_fd != STDERR_FILENO && isatty(STDERR_FILENO)) {
+        ssize_t cc = write(STDERR_FILENO, line, len);
+        (void) cc;
+    }
 }
 
 static void ls_reopen_log(void)
