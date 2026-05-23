@@ -654,6 +654,13 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         return;
     }
 
+    if (strcmp(n->net.name, job->run_hosts[0]->net.name) != 0) {
+        LS_WARNING("job=%ld finish reported by host=%s but dispatched to "
+                   " host=%s — ignoring", job->job_id, n->net.name,
+                   job->run_hosts[0]->net.name);
+        return;
+    }
+
     int duplicate = 0;
     if (job->end_time > 0) {
         LS_INFO("job=%ld finish duplicate from=%s", f.job_id,

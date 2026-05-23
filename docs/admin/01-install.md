@@ -8,6 +8,12 @@
 - OpenSSL (for HMAC-SHA256 authentication)
 - NTP or chrony on all hosts (clock skew must stay below 300 seconds)
 
+## Environment variables
+
+`LL_CONF_DIR` must be set on every host before any daemon or command will
+run. It points to the directory containing `ll.conf` and `auth.key`.
+Typically set via an environment modules file, but any mechanism works.
+
 ## Directory layout
 
 Install under a versioned directory with a stable symlink:
@@ -23,21 +29,31 @@ Subdirectories:
 bin/          user commands (bsub, bjobs, bkill, ...)
 sbin/         daemons (mbd, sbd)
 etc/          configuration files
-var/state/    persistent daemon state
-var/log/      daemon log files
+var/state/    persistent daemon state <--- must be owned by lavalite admin
+var/log/      daemon log files <--- must be owned be the lavalite admin
 ```
+
+The state and log directories must be owned by the lavalite admin uid.
 
 ## Shared filesystem
 
-`LL_STATE_DIR` must be accessible from the master host and any front-end
-nodes where users run commands. Execution hosts do not need access.
+`ll.conf` is sourced at startup by all daemons and commands. It defines
+`LL_STATE_DIR`, the path where mbd writes job state and history. This
+directory must be accessible from the master host and any front-end nodes
+where users run commands. Execution hosts do not need access.
 
-In a typical HPC environment this is an NFS mount. The master host writes
-job state and history to `LL_STATE_DIR`; front-end nodes read it for
-commands like `bhist`.
+In a typical HPC environment this is an NFS mount.
 
-`LL_CONF_DIR` must be accessible from all hosts — master, execution, and
-front-end. It contains `ll.conf` and `auth.key`.
+## Configuration
+
+`make install` does not install configuration files. You must create them
+manually:
+
+```
+cp <srcdir>/etc/ll.conf.example /opt/lavalite/etc/ll.conf
+```
+
+See the Configuration Guide for details.
 
 ## System user
 

@@ -125,13 +125,22 @@ int sbd_storage_init(void)
      * ownership on LL_STATE_DIR which is typically root-owned.
      * Production (root): use LL_STATE_DIR from ll.conf.
      */
-    if (non_root) {
+    if (sim_name[0] != 0) {
+        if (make_path(root_dir, sizeof(root_dir), "/tmp/lavalite-%s",
+                      sim_name) < 0) {
+            LS_ERR("sim state path too long");
+            return -1;
+        }
+        /* /tmp/lavalite-<sim_name> is created fresh each run */
+        if (mkdir_chmod(root_dir, 0700) < 0)
+            return -1;
+    } else if (non_root) {
         if (make_path(root_dir, sizeof(root_dir), "/tmp/lavalite-sbd.%ld",
                       (long) getuid()) < 0) {
             LS_ERR("non-root tmp state path too long");
             return -1;
         }
-
+        /* non_root is created fresh each run */
         if (mkdir_chmod(root_dir, 0700) < 0)
             return -1;
     } else {

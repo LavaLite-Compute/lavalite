@@ -586,11 +586,7 @@ static void sbd_cleanup(void)
     struct ll_list_entry *e;
     while ((e = ll_list_pop(&sbd_job_list))) {
         struct sbd_job *job = (struct sbd_job *) e;
-        char keybuf[LL_BUFSIZ_32];
-        snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
-        ll_hash_remove(sbd_job_hash, keybuf);
         ll_list_remove(&sbd_job_list, &job->list);
-        // free_job_specs(&job->specs);
         free(job);
     }
     ll_list_init(&sbd_job_list);
@@ -806,6 +802,11 @@ int main(int argc, char **argv)
         }
     }
 
+    if (sim_name[0] != 0 && non_root) {
+        fprintf(stderr, "sbd: --simulator and -n are mutually exclusive\n");
+        exit(1);
+    }
+
     ls_openlog("sbd", "/tmp", "LOG_DEBUG");
 
     if (conf_dir == NULL) {
@@ -828,8 +829,13 @@ int main(int argc, char **argv)
     }
 
     ls_closelog();
-    cc = ls_openlog("sbd", ll_params[LL_LOG_DIR].val,
-                    ll_params[LL_LOG_MASK].val);
+    if (sim_name[0] != 0) {
+        cc = ls_openlog(sim_name, ll_params[LL_LOG_DIR].val,
+                        ll_params[LL_LOG_MASK].val);
+    } else {
+        cc = ls_openlog("sbd", ll_params[LL_LOG_DIR].val,
+                        ll_params[LL_LOG_MASK].val);
+    }
     if (cc < 0) {
         fprintf(stderr, "sbd: ls_openlog failed lodir=%s mask=%s %m\n",
                 ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);

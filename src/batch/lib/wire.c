@@ -122,6 +122,8 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_opaque(xdrs, s->home_dir, sizeof(s->home_dir)))
         return false;
+    if (!xdr_opaque(xdrs, s->tokenpool, sizeof(s->tokenpool)))
+        return false;
     if (!xdr_int32_t(xdrs, &s->num_cpus))
         return false;
     if (!xdr_int32_t(xdrs, &s->num_hosts))
