@@ -20,7 +20,6 @@ static const char *event_names[] = {
     [EVENT_JOB_NEW] = "JOB_NEW",
     [EVENT_JOB_START] = "JOB_START",
     [EVENT_JOB_FORK] = "JOB_FORK",
-    [EVENT_JOB_EXECUTE] = "JOB_EXECUTE",
     [EVENT_JOB_SIGNAL] = "JOB_SIGNAL",
     [EVENT_JOB_FINISH] = "JOB_FINISH",
     [EVENT_JOB_PEND_SUSP] = "JOB_PEND_SUSP",
@@ -248,43 +247,6 @@ int log_parse_job_fork(const struct event_rec *rec, struct log_job_fork *j)
     }
 
     j->fork_time = rec->event_time;
-
-    return 0;
-}
-
-/* -----------------------------------------------------------------------
- * JOB_EXECUTE
- * ----------------------------------------------------------------------- */
-
-int log_write_job_execute(FILE *fp, const struct log_job_execute *j)
-{
-    if (write_hdr(fp, EVENT_JOB_EXECUTE, j->execute_time) < 0)
-        return -1;
-    if (fprintf(fp, " %ld %d", (long) j->job_id, j->job_pid) < 0)
-        return -1;
-    if (write_qstr(fp, j->cwd) < 0)
-        return -1;
-    if (fprintf(fp, "\n") < 0)
-        return -1;
-    return 0;
-}
-
-int log_parse_job_execute(const struct event_rec *rec,
-                          struct log_job_execute *j)
-{
-    const char *p = rec->rest;
-    int cc;
-    int n = sscanf(p, " %ld %d%n", &j->job_id, &j->job_pid, &cc);
-    if (n != 2) {
-        errno = EINVAL;
-        return -1;
-    }
-    p += cc;
-
-    if (read_qstr(&p, j->cwd, sizeof(j->cwd)) < 0)
-        return -1;
-
-    j->execute_time = rec->event_time;
 
     return 0;
 }

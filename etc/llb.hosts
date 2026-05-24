@@ -17,13 +17,13 @@ worker1       6    64    1T      50T
 End Host
 
 Begin Gpu
-HOST_NAME   GPU_ID   GPU_MODEL   GPU_TYPE   COUNT
-buntu24     0        RTX4090     full       1
-buntu24     1        RTX4090     full       1
-buntu24     2        RTX4090     full       1
-buntu24     3        RTX4090     full       1
-worker1     0        H100        3g.40gb    1
-worker1     1        H100        2g.20gb    2
+HOST_NAME   GPU_ID   GPU_TYPE   COUNT
+buntu24     0        A100        1
+#buntu24     1        full       1
+#buntu24     2        full       1
+#buntu24     3        H100       1
+#worker1     0        3g.40gb    1
+#worker1     1        2g.20gb    2
 End Gpu
 
 Begin TokenPool
@@ -43,8 +43,8 @@ group-cpu     (worker1)
 End HostGroup
 
 #Begin Sim
-#NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE   GPU
-#worker1-sim     buntu24     33126   8   128   2T    100T   2
-#worker2-sim     buntu24     33127   6   64   1T    50T     3
+#NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE   GPU GPU_TYPE
+#worker1-sim     buntu24     33126   8   128   2T    100T   2   A100
+#worker2-sim     buntu24     33127   6   64   1T    50T     3   H100
 #End Sim
 

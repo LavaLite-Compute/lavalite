@@ -77,7 +77,6 @@ struct job_data {
     time_t submit_time;   /* bsub received                      */
     time_t dispatch_time; /* mbd sent BATCH_NEW_JOB to sbd      */
     time_t fork_time;     /* sbd forked, pid received by mbd    */
-    time_t execute_time;  /* sbd confirmed process is executing */
     time_t end_time;      /* job exited (DONE or EXIT)          */
     time_t susp_time;
     time_t unknown_time;
@@ -124,8 +123,7 @@ struct host_resources {
 struct mbd_gpu {
     struct ll_list_entry ent;
     int gpu_id;
-    char model[LL_BUFSIZ_64];    /* RTX4090, H100, A100 */
-    char gpu_type[LL_BUFSIZ_64]; /* full, 3g.40gb, 2g.20gb */
+    char gpu_type[LL_BUFSIZ_64]; /* full, 3g.40gb, 2g.20gb, H100, A100 */
     int count;                   /* configured */
     int free;                    /* available for scheduling */
 };
@@ -282,7 +280,6 @@ void reopen_job_events(void);
 void event_job_new(const struct job_data *, const struct wire_job_submit *);
 void event_job_start(const struct job_data *);
 void event_job_fork(const struct job_data *);
-void event_job_execute(const struct job_data *, const char *);
 void event_job_signal(const struct job_data *, const struct wire_job_sig *);
 void event_job_finish(const struct job_data *);
 void event_job_pend_susp(const struct job_data *);
@@ -320,7 +317,6 @@ void job_free(struct job_data *);
 int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
 void mbd_new_job_reply(struct mbd_host *, XDR *);
-void mbd_job_execute(struct mbd_host *, XDR *);
 void mbd_job_finish(struct mbd_host *, XDR *);
 
 // queue.c

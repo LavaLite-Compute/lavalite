@@ -20,16 +20,15 @@
  * Event types. Values are stable on disk -- do not reorder.
  */
 enum event_type {
-    EVENT_NULL = 0,
-    EVENT_JOB_NEW = 1,         /* job submitted, enters PEND          */
-    EVENT_JOB_START = 2,       /* scheduler dispatched, enters RUN    */
-    EVENT_JOB_FORK = 3,        /* sbd forked child, pid known         */
-    EVENT_JOB_EXECUTE = 4,     /* sbd confirmed execution, cwd known  */
-    EVENT_JOB_SIGNAL = 5,      /* mbd sent signal to job via sbd      */
-    EVENT_JOB_FINISH = 6,      /* job done, exit_status tells story   */
-    EVENT_JOB_PEND_SUSP = 7,   /* user suspended pending job          */
-    EVENT_JOB_PEND_RESUME = 8, /* user resumed suspended pending job  */
-    EVENT_JOB_SUSP = 9,        /* sbd suspended running job           */
+    EVENT_NULL,
+    EVENT_JOB_NEW,         /* job submitted, enters PEND          */
+    EVENT_JOB_START,       /* scheduler dispatched, enters RUN    */
+    EVENT_JOB_FORK,        /* sbd forked child, pid known         */
+    EVENT_JOB_SIGNAL,      /* mbd sent signal to job via sbd      */
+    EVENT_JOB_FINISH,      /* job done, exit_status tells story   */
+    EVENT_JOB_PEND_SUSP,   /* user suspended pending job          */
+    EVENT_JOB_PEND_RESUME, /* user resumed suspended pending job  */
+    EVENT_JOB_SUSP,        /* sbd suspended running job           */
     EVENT_COUNT
 };
 
@@ -108,17 +107,6 @@ struct log_job_fork {
 };
 
 /*
- * log_job_execute: sbd confirmed the job is executing.
- * Carries the confirmed runtime cwd.
- */
-struct log_job_execute {
-    int64_t job_id;
-    int32_t job_pid;
-    time_t execute_time; /* mbd clock: set by caller before write */
-    char cwd[PATH_MAX];
-};
-
-/*
  * log_job_signal: mbd sent a signal to the job via sbd or to a pending job.
  * signal_num is the Unix signal number (SIGKILL, SIGSTOP, etc.)
  */
@@ -171,7 +159,6 @@ int log_read_hdr(FILE *, struct event_rec *);
 int log_parse_job_new(const struct event_rec *, struct log_job_new *);
 int log_parse_job_start(const struct event_rec *, struct log_job_start *);
 int log_parse_job_fork(const struct event_rec *, struct log_job_fork *);
-int log_parse_job_execute(const struct event_rec *, struct log_job_execute *);
 int log_parse_job_signal(const struct event_rec *, struct log_job_signal *);
 int log_parse_job_finish(const struct event_rec *, struct log_job_finish *);
 int log_parse_job_susp(const struct event_rec *, struct log_job_susp *);
@@ -184,7 +171,6 @@ int log_parse_job_pend_susp(const struct event_rec *,
 int log_write_job_new(FILE *, const struct log_job_new *);
 int log_write_job_start(FILE *, const struct log_job_start *);
 int log_write_job_fork(FILE *, const struct log_job_fork *);
-int log_write_job_execute(FILE *, const struct log_job_execute *);
 int log_write_job_signal(FILE *, const struct log_job_signal *);
 int log_write_job_finish(FILE *, const struct log_job_finish *);
 int log_write_job_susp(FILE *, const struct log_job_susp *);

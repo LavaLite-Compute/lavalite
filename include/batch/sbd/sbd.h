@@ -79,10 +79,6 @@ struct sbd_job {
     time_t time_pid_acked;
     time_t reply_last_send;
 
-    bool_t execute_acked;
-    time_t time_execute_acked;
-    time_t execute_last_send;
-
     bool_t finish_acked;
     time_t time_finish_acked;
     time_t finish_last_send;
@@ -105,7 +101,6 @@ struct sbd_job_state {
     pid_t pgid;
 
     bool_t pid_acked;
-    bool_t execute_acked;
     bool_t finish_acked;
 
     bool_t exit_status_valid;
@@ -146,9 +141,6 @@ int sbd_job_script_write(struct sbd_job *, const struct wire_job_script *);
 
 int sbd_job_new_reply(struct sbd_job *);
 void sbd_job_new_reply_ack(XDR *);
-
-int sbd_job_execute(struct sbd_job *);
-void sbd_job_execute_ack(XDR *);
 
 int sbd_job_finish(struct sbd_job *);
 void sbd_job_finish_ack(XDR *);

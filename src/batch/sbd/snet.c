@@ -105,8 +105,7 @@ void sbd_mbd_link_down(void)
     for (e = sbd_job_list.head; e; e = e->next) {
         struct sbd_job *job = (struct sbd_job *) e;
 
-        job->reply_last_send = job->execute_last_send = job->finish_last_send =
-            0;
+        job->reply_last_send = job->finish_last_send = 0;
         // Write the latest job state
         if (sbd_job_state_write(job) < 0) {
             LS_ERRX("job=%ld state write failed", job->job_id);
@@ -229,9 +228,6 @@ int sbd_mbd_route(int chan_id)
         // we can send a new event sbd_enqueue_execute
         sbd_job_new_reply_ack(&xdrs);
         break;
-    case BATCH_JOB_EXECUTE_ACK:
-        sbd_job_execute_ack(&xdrs);
-        break;
     case BATCH_JOB_FINISH_ACK:
         sbd_job_finish_ack(&xdrs);
         break;
@@ -293,16 +289,14 @@ void sbd_register_ack(XDR *xdrs)
                 sbd_fatal(SBD_FATAL_INVARIANT);
                 /* not reached */
             }
-            LS_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d "
-                    "execute_acked=%d",
-                    job->job_id, job->pid, job->pid_acked, job->execute_acked);
+            LS_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d",
+                    job->job_id, job->pid, job->pid_acked);
             continue;
         }
 
         /* wj->pid == 0: mbd lost pid, force resend */
-        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d "
-                "execute_acked=%d",
-                wj->job_id, job->pid, job->pid_acked, job->execute_acked);
+        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d",
+                wj->job_id, job->pid, job->pid_acked);
         job->pid_acked = 0;
         job->reply_last_send = 0;
     }

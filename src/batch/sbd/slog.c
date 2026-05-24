@@ -281,7 +281,6 @@ int sbd_job_state_write(struct sbd_job *job)
     }
 
     int pid_acked = (job->pid_acked != 0);
-    int execute_acked = (job->execute_acked != 0);
     int finish_acked = (job->finish_acked != 0);
     int exit_status_valid = (job->exit_status_valid != 0);
 
@@ -293,8 +292,6 @@ int sbd_job_state_write(struct sbd_job *job)
                      "pgid=%d\n"
                      "pid_acked=%d\n"
                      "time_pid_acked=%ld\n"
-                     "execute_acked=%d\n"
-                     "time_execute_acked=%ld\n"
                      "finish_acked=%d\n"
                      "time_finish_acked=%ld\n"
                      "exit_status_valid=%d\n"
@@ -305,14 +302,12 @@ int sbd_job_state_write(struct sbd_job *job)
                      "exec_uid=%u\n"
                      "exec_gid=%u\n"
                      "exec_user=%s\n",
-                     job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
-                     (long) job->time_pid_acked, execute_acked,
-                     (long) job->time_execute_acked, finish_acked,
-                     (long) job->time_finish_acked, exit_status_valid,
-                     job->exit_status, (long) job->end_time, job->exec_cwd,
-                     job->exec_home, (unsigned) job->exec_uid,
+                     job->job_id, (int) job->pid, (int) job->pgid,
+                     pid_acked, (long) job->time_pid_acked,
+                     finish_acked, (long) job->time_finish_acked,
+                     exit_status_valid, job->exit_status, (long) job->end_time,
+                     job->exec_cwd, job->exec_home, (unsigned) job->exec_uid,
                      (unsigned) job->exec_gid, job->exec_user);
-
     if (n < 0) {
         errno = EINVAL;
         LS_ERRX("state format failed job=%ld", job->job_id);
@@ -360,11 +355,11 @@ int sbd_job_state_write(struct sbd_job *job)
     fsync_dir(state_dir);
 
     LS_INFO("job=%ld pid=%d pgid=%d pid_acked=%d "
-            "execute_acked=%d finish_acked=%d exit_status_valid=%d "
+            "finish_acked=%d exit_status_valid=%d "
             "exit_status=%d end_time=%ld exec_cwd=%s exec_home=%s "
             "exec_uid=%u exec_gid=%u exec_user=%s",
             job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
-            execute_acked, finish_acked, exit_status_valid, job->exit_status,
+            finish_acked, exit_status_valid, job->exit_status,
             (long) job->end_time, job->exec_cwd, job->exec_home,
             (unsigned) job->exec_uid, (unsigned) job->exec_gid, job->exec_user);
 
@@ -421,16 +416,6 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
 
         if (strcmp(key, "time_pid_acked") == 0) {
             job->time_pid_acked = (time_t) atol(val);
-            continue;
-        }
-
-        if (strcmp(key, "execute_acked") == 0) {
-            job->execute_acked = atoi(val);
-            continue;
-        }
-
-        if (strcmp(key, "time_execute_acked") == 0) {
-            job->time_execute_acked = (time_t) atol(val);
             continue;
         }
 

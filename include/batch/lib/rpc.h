@@ -39,8 +39,6 @@ enum batch_lib_op {
     BATCH_NEW_JOB,
     BATCH_NEW_JOB_REPLY,
     BATCH_NEW_JOB_REPLY_ACK,
-    BATCH_JOB_EXECUTE,
-    BATCH_JOB_EXECUTE_ACK,
     BATCH_JOB_FINISH,
     BATCH_JOB_FINISH_ACK,
     // no ack to signal has not reply but triggers a job status change

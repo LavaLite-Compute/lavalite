@@ -244,25 +244,6 @@ void event_job_fork(const struct job_data *job)
     fclose(fp);
 }
 
-void event_job_execute(const struct job_data *job, const char *cwd)
-{
-    struct log_job_execute e;
-    memset(&e, 0, sizeof(e));
-
-    e.job_id = job->job_id;
-    e.execute_time = job->execute_time;
-    e.job_pid = job->pid;
-    ll_strlcpy(e.cwd, cwd, sizeof(e.cwd));
-
-    FILE *fp = open_events();
-    if (log_write_job_execute(fp, &e) < 0) {
-        fclose(fp);
-        LS_ERR("log_write_job_execute failed job_id=%ld", job->job_id);
-        mbd_die(MBD_EXIT_EVENTS);
-    }
-    fclose(fp);
-}
-
 void event_job_signal(const struct job_data *job, const struct wire_job_sig *ws)
 {
     struct log_job_signal e;
@@ -524,22 +505,6 @@ static void replay_job_fork(const struct event_rec *rec)
     LS_DEBUG("JOB_FORK job_id=%ld pid=%d", e.job_id, e.job_pid);
 }
 
-static void replay_job_execute(const struct event_rec *rec)
-{
-    struct log_job_execute e;
-    if (log_parse_job_execute(rec, &e) < 0) {
-        LS_ERR("parse JOB_EXECUTE failed");
-        return;
-    }
-    struct job_data *job = job_find(e.job_id);
-    if (job == NULL) {
-        LS_ERR("JOB_EXECUTE job_id=%ld not found", e.job_id);
-        return;
-    }
-    job->execute_time = e.execute_time;
-    LS_DEBUG("JOB_EXECUTE job_id=%ld pid=%d", e.job_id, e.job_pid);
-}
-
 static void replay_job_signal(const struct event_rec *rec)
 {
     struct log_job_signal e;
@@ -742,10 +707,6 @@ int jobs_replay(void)
         }
         if (rec.type == EVENT_JOB_FORK) {
             replay_job_fork(&rec);
-            continue;
-        }
-        if (rec.type == EVENT_JOB_EXECUTE) {
-            replay_job_execute(&rec);
             continue;
         }
         if (rec.type == EVENT_JOB_SIGNAL) {

@@ -34,7 +34,6 @@ static struct sbd_job *sbd_find_job_by_pid(pid_t);
 static void job_status_checking(void);
 static void job_new_drive(void);
 static void job_finish_drive(void);
-static void job_execute_drive(void);
 static void mbd_reconnect_try(void);
 static bool_t sbd_pid_alive(struct sbd_job *);
 static void sbd_cleanup(void);
@@ -384,7 +383,6 @@ static void sbd_maybe_reap_children(void)
 
 static void job_status_checking(void)
 {
-    time_t now = time(NULL);
     struct ll_list_entry *e;
 
     // NOTE: ll_list_entry must remain the first field (list base object idiom)
@@ -394,8 +392,11 @@ static void job_status_checking(void)
         if (job->exit_status_valid)
             continue;
 
-        if (job->finish_acked > 0)
+        if (job->finish_acked > 0) {
+            LS_ERRX("job=%ld finish_acked still on list (bug)", job->job_id);
+            assert(0);
             continue;
+        }
 
         if (sbd_pid_alive(job))
             continue;
@@ -410,7 +411,6 @@ static void job_status_checking(void)
                 continue;
 
             job->finish_last_send = 0;
-            job->time_finish_acked = now;
             job->exit_status_valid = true;
             job->exit_status = 1;
             LS_ERR("job=%ld sbd_read_exit_status_file %d time declare exited "
@@ -421,7 +421,6 @@ static void job_status_checking(void)
         }
 
         job->finish_last_send = 0;
-        job->time_finish_acked = now;
         job->exit_status_valid = true;
         job->exit_status = exit_code;
         LS_ERRX("job=%ld read exit file exit_status_valid=%d exit_stats=0x%x",
@@ -469,43 +468,6 @@ static void job_new_drive(void)
     }
 }
 
-static void job_execute_drive(void)
-{
-    // Check it we are connected to mbd
-    if (!sbd_mbd_link_ready()) {
-        return;
-    }
-
-    int resend_sec = sbd_timer * sbd_resend_timer;
-    time_t now = time(NULL);
-    struct ll_list_entry *e;
-    for (e = sbd_job_list.head; e; e = e->next) {
-        struct sbd_job *job = (struct sbd_job *) e;
-
-        if (!job->pid_acked) {
-            LS_DEBUG("job=%ld not ready: pid not acked yet", job->job_id);
-            continue;
-        }
-
-        if (job->execute_acked)
-            continue;
-
-        if ((now - job->execute_last_send) < resend_sec) {
-            continue;
-        }
-
-        if (sbd_job_execute(job) < 0) {
-            LS_ERR("job=%ld enqueue BATCH_JOB_EXECUTE failed", job->job_id);
-            continue;
-        }
-
-        LS_INFO("job=%ld BATCH_JOB_EXECUTE enqueued", job->job_id);
-
-        // after persist
-        job->execute_last_send = now;
-    }
-}
-
 static void job_finish_drive(void)
 {
     // Check it we are connected to mbd
@@ -524,14 +486,13 @@ static void job_finish_drive(void)
         if (!job->pid_acked)
             continue;
 
-        if (!job->execute_acked)
-            continue;
-
         if (!job->exit_status_valid)
             continue;
 
-        if (job->finish_acked)
-            continue;
+        if (job->finish_acked) {
+            LS_ERRX("job=%ld finish_acked still on list (bug)", job->job_id);
+            assert(0);
+        }
 
         if ((now - job->finish_last_send) < resend_sec)
             continue;
@@ -698,7 +659,6 @@ static void sbd_run_daemon(void)
                 sbd_reap_children();
                 mbd_reconnect_try();
                 job_new_drive();
-                job_execute_drive();
                 job_finish_drive();
                 job_status_checking();
                 sbd_prune_archive_try();

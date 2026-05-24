@@ -185,9 +185,6 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     case BATCH_NEW_JOB_REPLY:
         mbd_new_job_reply(n, &xdrs);
         break;
-    case BATCH_JOB_EXECUTE:
-        mbd_job_execute(n, &xdrs);
-        break;
     case BATCH_JOB_FINISH:
         mbd_job_finish(n, &xdrs);
         break;

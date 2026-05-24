@@ -57,9 +57,6 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->pid_acked = false;
     job->time_pid_acked = 0;
     job->reply_last_send = 0;
-    job->execute_acked = false;
-    job->time_execute_acked = 0;
-    job->execute_last_send = 0;
     job->finish_acked = false;
     job->time_finish_acked = 0;
     job->finish_last_send = 0;
@@ -802,117 +799,7 @@ void sbd_job_new_reply_ack(XDR *xdrs)
     LS_INFO("job=%ld pid=%d pgid=%d pid acked by mbd", job->job_id, job->pid,
             job->pgid);
 
-    assert(job->execute_acked == false);
-}
-
-/* -----------------------------------------------------------------------
- * job execute  (sbd -> mbd: job is running)
- * ----------------------------------------------------------------------- */
-
-int sbd_job_execute(struct sbd_job *job)
-{
-    // Check it we are connected to mbd
-    if (!sbd_mbd_link_ready()) {
-        LS_INFO("mbd link not ready, EAGAIN job=%ld", job->job_id);
-        return -1;
-    }
-
-    // Check all state invariants that must be satisfied if job
-    // is executing or if we are resending execute state after reboot
-    if (!job->pid_acked) {
-        LS_ERR("job=%ld execute before pid_acked (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (job->execute_acked) {
-        LS_ERR("job=%ld execute already sent (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (job->pid <= 0 || job->pgid <= 0) {
-        LS_ERR("job=%ld bad pid/pgid pid=%d pgid=%d (bug)", job->job_id,
-               (int) job->pid, (int) job->pgid);
-        assert(0);
-        return -1;
-    }
-
-    if (job->exec_cwd[0] == 0 || job->exec_home[0] == 0 ||
-        job->exec_user[0] == 0) {
-        LS_ERR("job=%ld missing execute fields user/cwd/home", job->job_id);
-        assert(0);
-    }
-
-    // When all checks are done send the state to mbd
-    struct wire_job_state s;
-
-    memset(&s, 0, sizeof(s));
-    s.job_id = job->job_id;
-    s.state = JOB_RUNNING;
-
-    if (sbd_send_msg(BATCH_JOB_EXECUTE, MBD_OK, &s, LL_BUFSIZ_1K,
-                     (bool_t(*)()) xdr_wire_job_state) < 0) {
-        LS_ERR("job=%ld sbd_job_execute sbd_send_msg failed", job->job_id);
-        return -1;
-    }
-
-    LS_INFO("job=%ld execute enqueued", job->job_id);
-    return 0;
-}
-
-/* -----------------------------------------------------------------------
- * job execute ack  (mbd -> sbd: mbd committed execute)
- * ----------------------------------------------------------------------- */
-
-void sbd_job_execute_ack(XDR *xdrs)
-{
-    struct wire_job_ack ack;
-
-    memset(&ack, 0, sizeof(ack));
-
-    if (!xdr_wire_job_ack(xdrs, &ack)) {
-        LS_ERR("xdr_wire_job_ack decode failed");
-        return;
-    }
-
-    if (ack.ack_op != BATCH_JOB_EXECUTE) {
-        LS_ERR("execute ack mismatch: ack_op=%d job=%ld", ack.ack_op,
-               ack.job_id);
-        abort();
-        return;
-    }
-
-    struct sbd_job *job = sbd_job_lookup(ack.job_id);
-    if (job == NULL) {
-        LS_ERR("job_execute_ack: unknown job=%ld", ack.job_id);
-        return;
-    }
-
-    if (!job->pid_acked) {
-        /*
-         * Strict ordering violation: execute_acked implies pid_acked.
-         * This should never happen if mbd is enforcing the pipeline.
-         */
-        LS_ERR("job=%ld execute ack before PID ack", job->job_id);
-        abort();
-        return;
-    }
-
-    if (job->execute_acked) {
-        LS_DEBUG("job=%ld duplicate execute ack ignored", job->job_id);
-        return;
-    }
-
-    job->execute_acked = true;
-    job->time_execute_acked = time(NULL);
-
-    if (sbd_job_state_write(job) < 0) {
-        LS_ERR("job=%ld state write failed", job->job_id);
-        sbd_fatal(SBD_FATAL_STORAGE);
-    }
-
-    LS_INFO("job=%ld execute_acked", job->job_id);
+    assert(job->finish_acked == false);
 }
 
 /* -----------------------------------------------------------------------
@@ -928,12 +815,6 @@ int sbd_job_finish(struct sbd_job *job)
 
     if (!job->pid_acked) {
         LS_ERR("job=%ld not pid_acked before? (bug)", job->job_id);
-        assert(0);
-        return -1;
-    }
-
-    if (!job->execute_acked) {
-        LS_ERRX("job=%ld not executed_acked before ? (bug)", job->job_id);
         assert(0);
         return -1;
     }

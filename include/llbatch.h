@@ -199,6 +199,10 @@ struct job_hist_info {
     char *from_host;
     char *exec_hosts;
     char *cwd;
+    char *command;
+    char *in_file;
+    char *out_file;
+    char *err_file;
     char *comment;
     int32_t num_cpus;
     int32_t num_hosts;

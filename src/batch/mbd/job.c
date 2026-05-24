@@ -494,66 +494,6 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     LS_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
 }
 
-void mbd_job_execute(struct mbd_host *n, XDR *xdrs)
-{
-    struct wire_job_state s;
-    memset(&s, 0, sizeof(s));
-
-    if (!xdr_wire_job_state(xdrs, &s)) {
-        LS_ERR("xdr_wire_job_state decode failed from=%s",
-               chan_addr_str(n->sbd_chan));
-        return;
-    }
-
-    struct job_data *job = job_find(s.job_id);
-    if (job == NULL) {
-        LS_ERR("job=%ld not found from=%s", s.job_id,
-               chan_addr_str(n->sbd_chan));
-        return;
-    }
-    assert(job->state == JOB_RUNNING);
-
-    int duplicate = 0;
-    /* duplicate: skip event log, sbd resends if it restarts before ack
-     */
-    if (job->execute_time > 0) {
-        LS_INFO("job=%ld execute duplicate from=%s", s.job_id,
-                chan_addr_str(n->sbd_chan));
-        duplicate = 1;
-        // fall through
-    }
-
-    struct wire_job_ack ack;
-    memset(&ack, 0, sizeof(ack));
-    ack.job_id = s.job_id;
-    ack.ack_op = BATCH_JOB_EXECUTE;
-
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_EXECUTE_ACK;
-    hdr.status = MBD_OK;
-
-    if (auth_sign_header(&hdr) < 0) {
-        LS_ERR("job=%ld failed to sign header for host=%s", job->job_id,
-               n->net.name);
-        return;
-    }
-
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
-                        xdr_wire_job_ack) < 0) {
-        LS_ERR("job=%ld enqueue_payload failed", s.job_id);
-        return;
-    }
-
-    if (duplicate)
-        return;
-
-    // now we can commit the event and the time
-    job->execute_time = time(NULL);
-    event_job_execute(job, n->net.name);
-    LS_INFO("job=%ld execute acked", s.job_id);
-}
-
 static void reset_host_resources(struct job_data *job)
 {
     for (int i = 0; i < job->run_nhosts; i++) {

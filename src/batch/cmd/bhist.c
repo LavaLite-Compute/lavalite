@@ -190,7 +190,8 @@ static void print_job_long(const struct job_hist_info *j)
     printf("    GPUs/host:  %d\n", j->num_gpus);
     printf("    Memory:     %lu MB\n", j->usage.mem_mb);
     printf("    Storage:    %lu MB\n", j->storage_mb);
-    printf("    Wall time:  %ld seconds\n", j->end_time - j->dispatch_time);
+    if (j->end_time > 0)
+        printf("    Wall time:  %ld seconds\n", j->end_time - j->dispatch_time);
 
     printf("  Usage:\n");
     printf("    CPU time:   %.2f sec\n", j->usage.cpu_time);
@@ -202,11 +203,14 @@ static void print_job_long(const struct job_hist_info *j)
            j->exec_hosts && j->exec_hosts[0] ? j->exec_hosts : "-");
     printf("    PID:        %d\n", (int) j->pid);
     printf("    CWD:        %s\n", j->cwd && j->cwd[0] ? j->cwd : "-");
-
-    printf("  Files:\n");
-    printf("    stdin:      %s\n", "-");
-    printf("    stdout:     %s\n", "-");
-    printf("    stderr:     %s\n", "-");
+    printf("    Command:    %s\n",
+           j->command && j->command[0] ? j->command : "-");
+    printf("    stdin:      %s\n",
+           j->in_file && j->in_file[0] ? j->in_file : "-");
+    printf("    stdout:     %s\n",
+           j->out_file && j->out_file[0] ? j->out_file : "-");
+    printf("    stderr:     %s\n",
+           j->err_file && j->err_file[0] ? j->err_file : "-");
 }
 
 static void usage(void)
@@ -284,7 +288,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (job_id <= 0 && user == NULL) {
+    if (job_id <= 0 && (user == NULL || user[0] == 0)) {
         usage();
         return 1;
     }

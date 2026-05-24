@@ -36,8 +36,6 @@ int valid_batch_op(int op)
     case BATCH_NEW_JOB:
     case BATCH_NEW_JOB_REPLY:
     case BATCH_NEW_JOB_REPLY_ACK:
-    case BATCH_JOB_EXECUTE:
-    case BATCH_JOB_EXECUTE_ACK:
     case BATCH_JOB_FINISH:
     case BATCH_JOB_FINISH_ACK:
     case BATCH_SBD_JOB_SIGNAL:
