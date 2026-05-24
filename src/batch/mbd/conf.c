@@ -49,7 +49,6 @@ static struct mbd_gpu *make_gpu(const char *p)
 {
     struct mbd_gpu *g;
     char hostname[MAXHOSTNAMELEN];
-    char model[LL_BUFSIZ_64];
     char gpu_type[LL_BUFSIZ_64];
     int gpu_id;
     int count;
@@ -60,8 +59,8 @@ static struct mbd_gpu *make_gpu(const char *p)
         return NULL;
     }
 
-    /* HOST_NAME  GPU_ID  GPU_MODEL  GPU_TYPE  COUNT */
-    int n = sscanf(p, "%255s %d %63s %63s %d", hostname, &gpu_id, model,
+    /* HOST_NAME  GPU_ID  GPU_TYPE  COUNT */
+    int n = sscanf(p, "%255s %d %63s %d", hostname, &gpu_id,
                    gpu_type, &count);
     if (n != 5) {
         LS_ERRX("bad gpu line: %s", p);
@@ -79,7 +78,6 @@ static struct mbd_gpu *make_gpu(const char *p)
     g->gpu_id = gpu_id;
     g->count = count;
     g->free = count;
-    ll_strlcpy(g->model, model, sizeof(g->model));
     ll_strlcpy(g->gpu_type, gpu_type, sizeof(g->gpu_type));
 
     /* aggregate totals on host */
@@ -669,10 +667,11 @@ static int parse_sim(const char *path)
         int total_cpu;
         int total_gpu;
 
-        /* NAME  REAL_HOST  PORT  MXJ  CPU  MEM  STORAGE GPU */
-        if (sscanf(p, "%255s %255s %d %d %d %31s %31s %d", sim_name, real_host,
-                   &port, &max_jobs, &total_cpu, mem_str, storage_str,
-                   &total_gpu) != 8) {
+        /* NAME  REAL_HOST  PORT  MXJ  CPU  MEM  STORAGE  GPU  GPU_TYPE */
+        char gpu_type_str[LL_BUFSIZ_64];
+        if (sscanf(p, "%255s %255s %d %d %d %31s %31s %d %63s",
+                   sim_name, real_host, &port, &max_jobs, &total_cpu,
+                   mem_str, storage_str, &total_gpu, gpu_type_str) != 9) {
             LS_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
@@ -705,8 +704,6 @@ static int parse_sim(const char *path)
         h->res.max_jobs = max_jobs;
         h->res.total_cpu = total_cpu;
         h->res.free_cpu = total_cpu;
-        h->res.total_gpu = total_gpu;
-        h->res.free_gpu = total_gpu;
 
         h->res.total_mem_mb = parse_mem(mem_str);
         if (h->res.total_mem_mb == 0) {
@@ -733,10 +730,33 @@ static int parse_sim(const char *path)
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
 
-        LS_INFO("sim host=%s index=%d real=%s port=%d cpu=%d mem=%luMB "
-                "storage=%luMB gpu=%d",
-                sim_name, h->host_idx, real_host, port, total_cpu,
-                h->res.total_mem_mb, h->res.total_storage_mb, h->res.total_gpu);
+        h->res.total_gpu = total_gpu;
+        h->res.free_gpu = total_gpu;
+
+        ll_list_init(&h->res.gpu_list);
+        ll_hash_init(&h->res.gpu_type_hash, 101);
+
+        if (total_gpu > 0) {
+            struct mbd_gpu *g = calloc(1, sizeof(*g));
+            if (g == NULL) {
+                LS_ERR("calloc failed");
+                free(h);
+                fclose(f);
+                return -1;
+            }
+            g->gpu_id = 0;
+            g->count = total_gpu;
+            g->free = total_gpu;
+            ll_strlcpy(g->gpu_type, gpu_type_str, sizeof(g->gpu_type));
+            ll_list_append(&h->res.gpu_list, &g->ent);
+            ll_hash_insert(&h->res.gpu_type_hash, g->gpu_type, g, 0);
+        }
+
+        LS_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB "
+                "storage=%luMB gpu=%d gpu_type=%s",
+                sim_name, real_host, port, total_cpu,
+                h->res.total_mem_mb, h->res.total_storage_mb,
+                total_gpu, total_gpu > 0 ? gpu_type_str : "none");
     }
 
     fclose(f);
@@ -814,8 +834,8 @@ static void dump_config(void)
                  h->res.total_gpu);
         for (ge = h->res.gpu_list.head; ge; ge = ge->next) {
             struct mbd_gpu *g = (struct mbd_gpu *) ge;
-            LS_DEBUG("  gpu id=%d model=%s type=%s count=%d", g->gpu_id,
-                     g->model, g->gpu_type, g->count);
+            LS_DEBUG("  gpu id=%d type=%s count=%d", g->gpu_id,
+                     g->gpu_type, g->count);
         }
     }
 
