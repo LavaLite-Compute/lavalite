@@ -126,13 +126,14 @@ int sbd_storage_init(void)
      * Production (root): use LL_STATE_DIR from ll.conf.
      */
     if (sim_name[0] != 0) {
-        if (make_path(root_dir, sizeof(root_dir), "/tmp/lavalite-%s",
-                      sim_name) < 0) {
-            LS_ERR("sim state path too long");
+        int n = snprintf(root_dir, sizeof(root_dir), "%s/%s",
+                         ll_params[LL_STATE_DIR].val, sim_name);
+        if (n < 0 || n >= (int) sizeof(root_dir)) {
+            LS_ERR("simulator state path too long");
             return -1;
         }
-        /* /tmp/lavalite-<sim_name> is created fresh each run */
-        if (mkdir_chmod(root_dir, 0700) < 0)
+        /* root_dir with sim_name is created fresh each run */
+        if (mkdir_chmod(root_dir, 0755) < 0)
             return -1;
     } else if (non_root) {
         if (make_path(root_dir, sizeof(root_dir), "/tmp/lavalite-sbd.%ld",
@@ -141,13 +142,11 @@ int sbd_storage_init(void)
             return -1;
         }
         /* non_root is created fresh each run */
-        if (mkdir_chmod(root_dir, 0700) < 0)
+        if (mkdir_chmod(root_dir, 0755) < 0)
             return -1;
     } else {
         ll_strlcpy(root_dir, ll_params[LL_STATE_DIR].val, sizeof(root_dir));
     }
-
-    LS_INFO("sbd state root=%s", root_dir);
 
     if (make_path(sbd_root_dir, sizeof(sbd_root_dir), "%s/sbd", root_dir) < 0) {
         LS_ERR("sbd root path too long");

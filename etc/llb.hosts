@@ -43,8 +43,8 @@ group-cpu     (worker1)
 End HostGroup
 
 #Begin Sim
-#NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE
-#worker1-sim     buntu24     33126   8   128   2T    100T
-#worker2-sim     buntu24     33127   6   64   1T    50T
+#NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE   GPU
+#worker1-sim     buntu24     33126   8   128   2T    100T   2
+#worker2-sim     buntu24     33127   6   64   1T    50T     3
 #End Sim
 

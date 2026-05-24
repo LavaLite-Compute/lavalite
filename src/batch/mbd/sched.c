@@ -103,13 +103,31 @@ static int host_in_queue_group(const struct mbd_host *h,
 
 static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
 {
-    struct mbd_gpu *g = ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
+    LS_DEBUG("job=%ld host=%s total=%d free=%d", job->job_id, h->net.name,
+             h->res.total_gpu, h->res.free_gpu);
+
+    if (h->res.free_gpu >= job->res.num_gpus)
+        return 1;
+
+    return 0;
+}
+
+static int host_has_gpu_type(const struct mbd_host *h,
+                             const struct job_data *job)
+{
+    assert(job->res.num_gpus > 0);
+
+    struct mbd_gpu *g = ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
     if (g == NULL)
         return 0;
-    LS_DEBUG("job=%ld host=%s has gpu type=%s", job->job_id, h->net.name,
-             job->res.gpu_type);
 
-    return g->free >= job->res.num_gpus;
+    LS_DEBUG("job=%ld host=%s has gpu_type=%s count=%d free=%d", job->job_id,
+             h->net.name, job->res.gpu_type, g->count, g->free);
+
+    if (g->free >= job->res.num_gpus)
+        return 1;
+    return 0;
+
 }
 
 static enum pend_reason diag_reason(struct pend_diag *diag)
@@ -179,6 +197,10 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
             diag->no_gpus++;
             continue;
         }
+        if (job->res.gpu_type[0] != 0 && !host_has_gpu_type(h, job)) {
+            diag->gpu_type++;
+            continue;
+        }
         if (job->res.machines.nentries > 0 &&
             !ll_hash_contains(&job->res.machines, h->net.name)) {
             diag->not_in_queue++;
@@ -225,15 +247,19 @@ static void host_update_resources(const struct job_data *job)
             h->exclusive = 1;
 
         if (job->res.num_gpus > 0) {
+            h->res.free_gpu -= job->res.num_gpus;
+        }
+        if (job->res.gpu_type[0] != 0) {
+            assert(job->res.num_gpus > 0);
             struct mbd_gpu *g =
-                ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
+                ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
             if (g == NULL) {
                 LS_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
                         h->net.name, job->res.gpu_type);
+                assert(0);
                 continue;
             }
             g->free -= job->res.num_gpus;
-            h->res.free_gpu -= job->res.num_gpus;
         }
 
         LS_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "

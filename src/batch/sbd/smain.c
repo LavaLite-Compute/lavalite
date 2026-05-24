@@ -47,7 +47,7 @@ int sim_port = 0;              /* 0 = use LL_SBD_PORT    */
 // List and table of all jobs
 struct ll_list sbd_job_list;
 struct ll_hash *sbd_job_hash;
-struct ll_host mbd_host;
+struct ll_host mbd_node;
 
 static uint16_t sbd_port;
 // sbd_can to talk to external clients like monitors
@@ -96,6 +96,22 @@ static int sbd_init(void)
 {
     if (ll_init() < 0) {
         LS_ERRX("ll_init failed cannot run");
+        return -1;
+    }
+
+    // open the log as soon as possible
+    int cc;
+    ls_closelog();
+    if (sim_name[0] != 0) {
+        cc = ls_openlog(sim_name, ll_params[LL_LOG_DIR].val,
+                        ll_params[LL_LOG_MASK].val);
+    } else {
+        cc = ls_openlog("sbd", ll_params[LL_LOG_DIR].val,
+                        ll_params[LL_LOG_MASK].val);
+    }
+    if (cc < 0) {
+        fprintf(stderr, "sbd: ls_openlog failed lodir=%s mask=%s %m\n",
+                ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 
@@ -186,7 +202,7 @@ static int sbd_init_network(void)
         return -1;
     }
 
-    if (get_host_by_name(ll_params[LL_MBD_HOST].val, &mbd_host) < 0) {
+    if (get_host_by_name(ll_params[LL_MBD_HOST].val, &mbd_node) < 0) {
         LS_ERR("cannot resolve LL_MBD_HOST=%s", ll_params[LL_MBD_HOST].val);
         return -1;
     }
@@ -825,20 +841,6 @@ int main(int argc, char **argv)
     if (rc < 0) {
         LS_ERRX(
             "sbd: fatal error during initialization, see previous messages");
-        return -1;
-    }
-
-    ls_closelog();
-    if (sim_name[0] != 0) {
-        cc = ls_openlog(sim_name, ll_params[LL_LOG_DIR].val,
-                        ll_params[LL_LOG_MASK].val);
-    } else {
-        cc = ls_openlog("sbd", ll_params[LL_LOG_DIR].val,
-                        ll_params[LL_LOG_MASK].val);
-    }
-    if (cc < 0) {
-        fprintf(stderr, "sbd: ls_openlog failed lodir=%s mask=%s %m\n",
-                ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 

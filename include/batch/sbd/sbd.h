@@ -22,7 +22,7 @@ extern int sbd_mbd_chan;
 
 extern pid_t pruner_pid;
 extern int non_root;
-extern struct ll_host mbd_host;
+extern struct ll_host mbd_node;
 
 extern char sbd_root_dir[PATH_MAX];
 extern char sbd_state_dir[PATH_MAX];

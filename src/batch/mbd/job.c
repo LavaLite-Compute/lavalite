@@ -575,8 +575,13 @@ static void reset_host_resources(struct job_data *job)
             h->exclusive = 0;
 
         if (job->res.num_gpus > 0) {
+            h->res.free_gpu += job->res.num_gpus;
+        }
+
+        if (job->res.gpu_type[0] != 0) {
+            assert(job->res.num_gpus > 0);
             struct mbd_gpu *g =
-                ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
+                ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
             if (g == NULL) {
                 LS_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
                         h->net.name, job->res.gpu_type);
@@ -584,7 +589,6 @@ static void reset_host_resources(struct job_data *job)
                 continue;
             }
             g->free += job->res.num_gpus;
-            h->res.free_gpu += job->res.num_gpus;
         }
 
         LS_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
@@ -814,6 +818,7 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
 }
 
 // cross check counters computationally expensive
+
 void mbd_assert_counters(void)
 {
     struct ll_list_entry *e;
@@ -825,6 +830,7 @@ void mbd_assert_counters(void)
         int num_run = 0;
         int num_susp = 0;
         int num_cpus_used = 0;
+        int num_gpu_used = 0;
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *) je;
@@ -834,7 +840,8 @@ void mbd_assert_counters(void)
 
             num_jobs++;
             num_cpus_used += job->res.num_cpus;
-
+            if (job->res.num_gpus > 0)
+                num_gpu_used += job->res.num_gpus;
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
             else if (job->state == JOB_RUNNING)
@@ -846,10 +853,38 @@ void mbd_assert_counters(void)
         if (h->num_jobs != num_jobs || h->num_run != num_run ||
             h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
             LS_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
-                    "cpus_run=%d/%d",
+                    "cpus_used=%d/%d",
                     h->net.name, h->num_jobs, num_jobs, h->num_run, num_run,
                     h->num_susp, num_susp, h->num_cpus_used, num_cpus_used);
             assert(0);
+        }
+
+        if (h->res.free_gpu != h->res.total_gpu - num_gpu_used) {
+            LS_ERRX("host=%s bad gpu counter free=%d expected=%d",
+                    h->net.name, h->res.free_gpu,
+                    h->res.total_gpu - num_gpu_used);
+            assert(0);
+        }
+
+        /* per gpu_type check */
+        struct ll_list_entry *ge;
+        for (ge = h->res.gpu_list.head; ge != NULL; ge = ge->next) {
+            struct mbd_gpu *g = (struct mbd_gpu *) ge;
+            int type_used = 0;
+            for (je = run_jobs_list.head; je != NULL; je = je->next) {
+                struct job_data *job = (struct job_data *) je;
+                if (!job_uses_host(job, h))
+                    continue;
+                if (job->res.gpu_type[0] != 0
+                    && strcmp(job->res.gpu_type, g->gpu_type) == 0)
+                    type_used += job->res.num_gpus;
+            }
+            if (g->free != g->count - type_used) {
+                LS_ERRX("host=%s gpu_type=%s bad counter free=%d expected=%d",
+                        h->net.name, g->gpu_type, g->free,
+                        g->count - type_used);
+                assert(0);
+            }
         }
     }
 
@@ -865,10 +900,8 @@ void mbd_assert_counters(void)
 
         for (je = pend_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *) je;
-
             if (job->queue != q)
                 continue;
-
             num_jobs++;
             if (job->state == JOB_HELD)
                 num_held++;
@@ -880,14 +913,11 @@ void mbd_assert_counters(void)
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *) je;
-
             if (job->queue != q)
                 continue;
-
             num_jobs++;
             num_cpus_used += job->res.num_cpus * job->run_nhosts;
             num_hosts_used += job->run_nhosts;
-
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
             else if (job->state == JOB_RUNNING)
@@ -901,7 +931,7 @@ void mbd_assert_counters(void)
             q->num_held != num_held || q->num_cpus_used != num_cpus_used ||
             q->num_hosts_used != num_hosts_used) {
             LS_ERRX("queue=%s bad counters jobs=%d/%d pend=%d/%d run=%d/%d "
-                    "susp=%d/%d held=%d/%d cpus_run=%d/%d hosts_run=%d/%d",
+                    "susp=%d/%d held=%d/%d cpus_used=%d/%d hosts_used=%d/%d",
                     q->name, q->num_jobs, num_jobs, q->num_pend, num_pend,
                     q->num_run, num_run, q->num_susp, num_susp, q->num_held,
                     num_held, q->num_cpus_used, num_cpus_used,

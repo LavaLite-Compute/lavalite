@@ -114,7 +114,7 @@ struct host_resources {
     uint64_t total_storage_mb;
     uint64_t free_storage_mb;
     struct ll_list gpu_list; /* list of mbd_gpu */
-    struct ll_hash gpu_hash; /* key gpu_type, value mbd_gpu */
+    struct ll_hash gpu_type_hash; /* key gpu_type, value mbd_gpu */
 };
 
 /*

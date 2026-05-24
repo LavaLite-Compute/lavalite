@@ -69,7 +69,7 @@ int sbd_mbd_connect(void)
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
-    get_host_addrv4(&mbd_host, &addr);
+    get_host_addrv4(&mbd_node, &addr);
     addr.sin_family = AF_INET;
     addr.sin_port = htons((uint16_t) port);
 

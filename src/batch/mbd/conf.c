@@ -87,7 +87,7 @@ static struct mbd_gpu *make_gpu(const char *p)
     h->res.free_gpu += count;
 
     ll_list_append(&h->res.gpu_list, &g->ent);
-    ll_hash_insert(&h->res.gpu_hash, g->gpu_type, g, 0);
+    ll_hash_insert(&h->res.gpu_type_hash, g->gpu_type, g, 0);
 
     return g;
 }
@@ -273,8 +273,9 @@ static struct mbd_host *make_host(const char *p)
         return NULL;
     }
 
+    // gpus are added when configuring gpu section
     ll_list_init(&h->res.gpu_list);
-    ll_hash_init(&h->res.gpu_hash, 101);
+    ll_hash_init(&h->res.gpu_type_hash, 101);
 
     h->res.free_cpu = h->res.total_cpu;
     h->res.free_mem_mb = h->res.total_mem_mb;
@@ -666,10 +667,12 @@ static int parse_sim(const char *path)
         int port;
         int max_jobs;
         int total_cpu;
+        int total_gpu;
 
-        /* NAME  REAL_HOST  PORT  MXJ  CPU  MEM  STORAGE */
-        if (sscanf(p, "%255s %255s %d %d %d %31s %31s", sim_name, real_host,
-                   &port, &max_jobs, &total_cpu, mem_str, storage_str) != 7) {
+        /* NAME  REAL_HOST  PORT  MXJ  CPU  MEM  STORAGE GPU */
+        if (sscanf(p, "%255s %255s %d %d %d %31s %31s %d", sim_name, real_host,
+                   &port, &max_jobs, &total_cpu, mem_str, storage_str,
+                   &total_gpu) != 8) {
             LS_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
@@ -702,6 +705,8 @@ static int parse_sim(const char *path)
         h->res.max_jobs = max_jobs;
         h->res.total_cpu = total_cpu;
         h->res.free_cpu = total_cpu;
+        h->res.total_gpu = total_gpu;
+        h->res.free_gpu = total_gpu;
 
         h->res.total_mem_mb = parse_mem(mem_str);
         if (h->res.total_mem_mb == 0) {
@@ -721,7 +726,6 @@ static int parse_sim(const char *path)
         }
         h->res.free_storage_mb = h->res.total_storage_mb;
 
-        ll_list_init(&h->res.gpu_list);
         h->port = (uint16_t) port;
         h->sbd_chan = -1;
         h->state = HOST_UNAVAIL;
@@ -730,9 +734,9 @@ static int parse_sim(const char *path)
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
 
         LS_INFO("sim host=%s index=%d real=%s port=%d cpu=%d mem=%luMB "
-                "storage=%luMB",
+                "storage=%luMB gpu=%d",
                 sim_name, h->host_idx, real_host, port, total_cpu,
-                h->res.total_mem_mb, h->res.total_storage_mb);
+                h->res.total_mem_mb, h->res.total_storage_mb, h->res.total_gpu);
     }
 
     fclose(f);

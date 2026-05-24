@@ -25,7 +25,7 @@ static int chan_mbd = -1;
 // defaults set in ll_params already
 static int conntimeout;
 static int recvtimeout;
-static struct ll_host mbd_host;
+static struct ll_host mbd_node;
 static uint16_t mbd_port;
 
 static int initialized;
@@ -55,7 +55,7 @@ static int mbd_rpc_init(void)
         return -1;
     }
 
-    if (get_host_by_name(ll_params[LL_MBD_HOST].val, &mbd_host) < 0) {
+    if (get_host_by_name(ll_params[LL_MBD_HOST].val, &mbd_node) < 0) {
         errno = EINVAL;
         return -1;
     }
@@ -86,7 +86,7 @@ int call_mbd(const void *req, size_t req_len, void **rep,
 
         struct sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
-        get_host_addrv4(&mbd_host, &addr);
+        get_host_addrv4(&mbd_node, &addr);
         addr.sin_family = AF_INET;
         addr.sin_port = htons((uint16_t) mbd_port);
 

@@ -87,18 +87,19 @@ static void replay_charge_running_job(struct job_data *job)
         if (job->flags & JOB_FLAG_EXCLUSIVE)
             h->exclusive = 1;
 
-        if (job->res.num_gpus > 0) {
-            struct mbd_gpu *g;
+        if (job->res.num_gpus > 0)
+            h->res.free_gpu -= job->res.num_gpus;
 
-            g = ll_hash_search(&h->res.gpu_hash, job->res.gpu_type);
+        if (job->res.gpu_type[0] != 0) {
+            struct mbd_gpu *g;
+            assert(job->res.num_gpus > 0);
+            g = ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
             if (g == NULL) {
                 LS_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
                         h->net.name, job->res.gpu_type);
                 continue;
             }
-
             g->free -= job->res.num_gpus;
-            h->res.free_gpu -= job->res.num_gpus;
         }
     }
 }
