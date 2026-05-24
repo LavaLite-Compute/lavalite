@@ -62,8 +62,8 @@ static struct mbd_gpu *make_gpu(const char *p)
     /* HOST_NAME  GPU_ID  GPU_TYPE  COUNT */
     int n = sscanf(p, "%255s %d %63s %d", hostname, &gpu_id,
                    gpu_type, &count);
-    if (n != 5) {
-        LS_ERRX("bad gpu line: %s", p);
+    if (n != 4) {
+        LS_ERRX("bad gpu line=<%s>", p);
         free(g);
         return NULL;
     }

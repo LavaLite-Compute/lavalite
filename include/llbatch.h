@@ -178,38 +178,51 @@ struct token_pool_info {
     int32_t used;  /* total - free */
 };
 
-struct job_hist_info {
-    int64_t job_id;
-    uid_t uid;
-    pid_t pid;
-    int32_t state;
-    int32_t exit_status;
-
-    time_t submit_time;
-    time_t dispatch_time;
-    time_t fork_time;
-    time_t execute_time;
-    time_t end_time;
-    time_t susp_time;
-
-    char *username;
-    char *name;
-    char *queue;
-    char *project;
-    char *from_host;
-    char *exec_hosts;
-    char *cwd;
-    char *command;
-    char *in_file;
-    char *out_file;
-    char *err_file;
-    char *comment;
-    int32_t num_cpus;
-    int32_t num_hosts;
-    int32_t num_gpus;
-    uint64_t storage_mb;
-
+/*
+ * One execution attempt: from dispatch to finish.
+ * A job may have multiple runs if requeued with the same job_id.
+ */
+struct job_run {
+    int32_t        run_seq;        /* 1-based, first run = 1          */
+    int32_t        state;          /* state of this run      */
+    int32_t        exit_status;
+    pid_t          pid;
+    time_t         dispatch_time;
+    time_t         fork_time;
+    time_t         end_time;
+    time_t         susp_time;
+    char          *from_host;
+    char          *exec_hosts;
     struct job_res_usage usage;
+};
+
+/*
+ * Job identity and submission parameters -- stable across requeues.
+ * runs[] is ordered oldest to newest; num_runs >= 1 if job was ever dispatched.
+ */
+struct job_hist_info {
+    int64_t        job_id;
+    uid_t          uid;
+    int32_t        state;          /* current state  */
+    time_t         submit_time;
+    int32_t        num_cpus;
+    int32_t        num_hosts;
+    int32_t        num_gpus;
+    uint64_t       mem_mb;
+    uint64_t       storage_mb;
+    char          *username;
+    char          *name;
+    char          *queue;
+    char          *project;
+    char          *cwd;
+    char          *command;
+    char          *in_file;
+    char          *out_file;
+    char          *err_file;
+    char          *comment;
+    int32_t max_runs;
+    struct job_run *runs;
+    int32_t        num_runs;
 };
 
 /* -----------------------------------------------------------------------

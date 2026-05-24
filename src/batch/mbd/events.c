@@ -909,6 +909,16 @@ static void events_compact(void)
 
     if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
         mbd_die(MBD_EXIT_EVENTS);
+
+    /* new sysevents file has a new inode -- update tracking so
+     * open_events() does not falsely detect integrity loss */
+    struct stat st;
+    if (fstat(fileno(fp), &st) < 0) {
+        LS_ERR("fstat sysevents after compact");
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    events_ino = st.st_ino;
+
     fclose(fp);
 
     compact_seq_write();

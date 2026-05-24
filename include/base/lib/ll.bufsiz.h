@@ -10,6 +10,8 @@ enum ll_bufsiz {
     LL_BUFSIZ_512 = 512,
     LL_BUFSIZ_1K = 1024,
     LL_BUFSIZ_4K = 4096,
+    LL_BUFSIZ_8K = 8192,
+    LL_BUFSIZ_16K = 16384,
 };
 
 #define LL_MAX_PACKET_SIZE (64 * 1024 * 1024)

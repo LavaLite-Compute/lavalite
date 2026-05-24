@@ -58,11 +58,11 @@ static int build_sbd_run_list(struct mbd_host *n,
 int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 {
     struct wire_sbd_register reg;
-    memset(&reg, 0, sizeof(struct wire_sbd_register));
+    memset(&reg, 0, sizeof(reg));
 
     if (!xdr_wire_sbd_register(xdrs, &reg)) {
         LS_ERR("SBD_REGISTER decode failed");
-        free(reg.jobs);
+        xdr_free((xdrproc_t)xdr_wire_sbd_register, &reg);
         chan_shutdown(chan_id);
         return -1;
     }
@@ -71,56 +71,58 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     memcpy(hostname, reg.hostname, sizeof(hostname));
     hostname[sizeof(hostname) - 1] = 0;
 
+    /* done with wire data */
+    xdr_free((xdrproc_t)xdr_wire_sbd_register, &reg);
+
     struct mbd_host *n = ll_hash_search(&host_name_hash, hostname);
     if (n == NULL) {
         LS_ERRX("register from unknown host %s", hostname);
-        free(reg.jobs);
         chan_shutdown(chan_id);
         return -1;
     }
 
-    assert(n->sbd_chan == -1);
-    // Register the channel of this sbd
+    if (n->sbd_chan != -1) {
+        LS_ERRX("duplicate SBD registration from host %s "
+                "(already on chan=%d), rejecting",
+                hostname, n->sbd_chan);
+        chan_shutdown(chan_id);
+        return -1;
+    }
     n->sbd_chan = chan_id;
-
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", chan_id);
     ll_hash_insert(&sbd_chan_hash, key, n, 0);
 
     struct wire_sbd_register reg_ack;
-    memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
-
+    memset(&reg_ack, 0, sizeof(reg_ack));
     if (build_sbd_run_list(n, &reg_ack) < 0) {
         LS_ERRX("host=%s build_sbd_run_list failed", n->net.name);
         mbd_sbd_disconnect(n);
         return -1;
     }
-
-    // good bye bits
     n->state = HOST_OK | (n->state & HOST_CLOSED);
-
-    LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d", hostname,
-            n->net.name, n->net.addr, chan_id, n->state);
+    LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d",
+            hostname, n->net.name, n->net.addr, chan_id, n->state);
 
     struct protocol_header hdr;
-    memset(&hdr, 0, sizeof(struct protocol_header));
+    memset(&hdr, 0, sizeof(hdr));
     hdr.operation = BATCH_SBD_REGISTER_ACK;
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LS_ERR("failed to sign header failed to register with mbd");
+        LS_ERR("auth_sign_header failed");
+        xdr_free((xdrproc_t)xdr_wire_sbd_register, &reg_ack);
         mbd_sbd_disconnect(n);
-        free(reg.jobs);
         return -1;
     }
 
     size_t siz = sizeof(struct protocol_header) + MAXHOSTNAMELEN +
                  sizeof(int32_t) +
                  reg_ack.num_jobs * sizeof(struct wire_sbd_job) + LL_BUFSIZ_64;
+
     enqueue_payload(chan_id, &hdr, &reg_ack, siz, xdr_wire_sbd_register);
 
-    free(reg.jobs);
-
+    xdr_free((xdrproc_t)xdr_wire_sbd_register, &reg_ack);
     return 0;
 }
 
