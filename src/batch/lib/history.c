@@ -327,7 +327,7 @@ static void hist_apply_new(struct job_hist *jh, const struct event_rec *rec)
     j = hist_find(jh, e.job_id);
     if (j != NULL) {
         /* requeue: same job_id, new submission -- update state only */
-        j->state = JOB_PENDING;
+        j->state = e.state;
         j->submit_time = e.submit_time;
         return;
     }
@@ -550,10 +550,10 @@ static int hist_is_archive(const char *name)
 {
     const char *p;
 
-    if (strncmp(name, "eventlog.", 10) != 0)
+    if (strncmp(name, "eventlog.", 9) != 0)
         return 0;
 
-    p = name + 10;
+    p = name + 9;
     if (*p == '\0')
         return 0;
 
