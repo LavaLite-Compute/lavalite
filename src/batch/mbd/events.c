@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <syslog.h>
+#include <dirent.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <assert.h>
 
@@ -606,20 +608,41 @@ static void replay_job_susp(const struct event_rec *rec)
     LS_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
 }
 
-static void compact_seq_read(void)
+/*
+ * compact_seq_scan - derive the current sequence number by scanning the
+ * mbd directory for existing sysevents.NNNNNN archives.
+ *
+ * No external sequence file is needed. Admins may delete old archives
+ * freely without having to update any state file. The next compact will
+ * simply use the highest sequence number found + 1.
+ */
+static void compact_seq_scan(void)
 {
-    char path[PATH_MAX];
+    char dir[PATH_MAX];
+    snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
 
-    snprintf(path, sizeof(path), "%s/mbd/sequence",
-             ll_params[LL_STATE_DIR].val);
-    FILE *fp = fopen(path, "r");
-    if (!fp)
+    DIR *dp = opendir(dir);
+    if (dp == NULL)
         return; /* first run, seq stays 0 */
-    int n = fscanf(fp, "%u", &compact_seq);
-    if (n != 1) {
-        LS_ERR("fscanf sequence number failed");
+
+    struct dirent *de;
+    while ((de = readdir(dp)) != NULL) {
+        if (strncmp(de->d_name, "sysevents.", 10) != 0)
+            continue;
+        const char *p = de->d_name + 10;
+        if (*p == '\0')
+            continue;
+        /* must be all digits */
+        const char *q = p;
+        while (*q >= '0' && *q <= '9')
+            q++;
+        if (*q != '\0')
+            continue;
+        uint32_t n = (uint32_t)atol(p);
+        if (n > compact_seq)
+            compact_seq = n;
     }
-    fclose(fp);
+    closedir(dp);
 }
 
 int events_init(void)
@@ -668,7 +691,7 @@ int events_init(void)
                 ll_params[LL_JOB_FINISH_RETAIN].val);
     }
 
-    compact_seq_read();
+    compact_seq_scan();
 
     LS_INFO("events seq initialized seq=%u", compact_seq);
 
@@ -817,24 +840,6 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
         mbd_die(MBD_EXIT_EVENTS);
 }
 
-static void compact_seq_write(void)
-{
-    char path[PATH_MAX];
-    FILE *fp;
-
-    snprintf(path, sizeof(path), "%s/mbd/sequence",
-             ll_params[LL_STATE_DIR].val);
-    fp = fopen(path, "w");
-    if (!fp) {
-        LS_ERR("fopen sequence=%s", path);
-        mbd_die(MBD_EXIT_EVENTS);
-    }
-    fprintf(fp, "%u\n", compact_seq);
-    if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
-        mbd_die(MBD_EXIT_EVENTS);
-    fclose(fp);
-}
-
 /*
  * events_compact - archive sysevents, rewrite with live jobs only.
  * PEND:      JOB_NEW
@@ -854,20 +859,14 @@ static void events_compact(void)
 {
     char archived[PATH_MAX + LL_BUFSIZ_32];
     /*
-     * Archive file names use a zero-padded sequence number so normal
-     * directory listing keeps archives in numeric order.
+     * Sequence number is derived by compact_seq_scan() at startup from
+     * the filenames already present in the directory. No separate sequence
+     * file is kept, so admins may delete old archives freely without
+     * having to update any state.
      *
-     * The width is intentionally fixed at 6 digits:
-     *
-     *     events.000001
-     *     events.000002
-     *
-     * After 999999 archives, names continue to work but lexical ordering
-     * is no longer guaranteed.
-     *
-     * mbd does not manage long-term archive retention. Sites running very
-     * high job volumes must move, compress, or remove old archive files
-     * with external administration tooling.
+     * Zero-padded 6-digit suffix keeps ls(1) output in order up to
+     * 999999 compactions; beyond that names still work, lexical ordering
+     * is not guaranteed.
      */
     compact_seq++;
     snprintf(archived, sizeof(archived), "%s.%06u", events_path, compact_seq);
@@ -921,7 +920,6 @@ static void events_compact(void)
 
     fclose(fp);
 
-    compact_seq_write();
     LS_INFO("events compacted seq=%u archived=%s", compact_seq, archived);
 }
 
