@@ -17,7 +17,7 @@ static void get_load(XDR *xdrs, int ch_id)
     uint32_t nloads = ll_list_count(&node_list);
     struct wire_load *wl = calloc(nloads, sizeof(struct wire_load));
     if (!wl) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return;
     }
 
@@ -43,7 +43,7 @@ static void get_load(XDR *xdrs, int ch_id)
 
     struct chan_buffer *buf;
     if (chan_alloc_buf(&buf, bufsiz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", LIM_REPLY_LOAD,
+        LL_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", LIM_REPLY_LOAD,
                bufsiz);
         free(wl);
         return;
@@ -62,7 +62,7 @@ static void get_load(XDR *xdrs, int ch_id)
     wls.loads = wl;
 
     if (!ll_encode_msg(&xdrs_out, &wls, xdr_wire_load_array, &hdr)) {
-        LS_ERR("ll_encode_msg failed");
+        LL_ERR("ll_encode_msg failed");
         chan_free_buf(buf);
         free(wl);
         return;
@@ -70,7 +70,7 @@ static void get_load(XDR *xdrs, int ch_id)
 
     buf->len = (size_t) xdr_getpos(&xdrs_out);
     if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed to=%s len=%d", chan_addr_str(ch_id),
+        LL_ERR("chan_enqueue failed to=%s len=%d", chan_addr_str(ch_id),
                buf->len);
         xdr_destroy(&xdrs_out);
         chan_free_buf(buf);
@@ -91,7 +91,7 @@ static void get_hosts(XDR *xdrs, int ch_id)
     uint32_t nhosts = ll_list_count(&node_list);
     struct wire_host *wh = calloc(nhosts, sizeof(struct wire_host));
     if (!wh) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return;
     }
 
@@ -120,7 +120,7 @@ static void get_hosts(XDR *xdrs, int ch_id)
 
     struct chan_buffer *buf;
     if (chan_alloc_buf(&buf, bufsiz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", LIM_REPLY_HOSTS,
+        LL_ERR("chan_alloc_buf failed op=%d bufsiz=%ld", LIM_REPLY_HOSTS,
                bufsiz);
         free(wh);
         return;
@@ -139,14 +139,14 @@ static void get_hosts(XDR *xdrs, int ch_id)
     whs.hosts = wh;
 
     if (!ll_encode_msg(&xdrs_out, &whs, xdr_wire_host_array, &hdr)) {
-        LS_ERR("ll_encode_msg failed");
+        LL_ERR("ll_encode_msg failed");
         chan_free_buf(buf);
         return;
     }
 
     buf->len = (size_t) xdr_getpos(&xdrs_out);
     if (chan_enqueue(ch_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed to=%s len=%d", chan_addr_str(ch_id),
+        LL_ERR("chan_enqueue failed to=%s len=%d", chan_addr_str(ch_id),
                buf->len);
         xdr_destroy(&xdrs_out);
         chan_free_buf(buf);
@@ -178,20 +178,20 @@ static void tcp_dispatch(int ch_id)
     XDR xdrs;
 
     if (chan_dequeue(ch_id, &buf) < 0) {
-        LS_ERR("chan_dequeue() failed");
+        LL_ERR("chan_dequeue() failed");
         shutdown_tcp_chan(ch_id);
         return;
     }
 
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed");
+        LL_ERR("xdr_pack_hdr failed");
         xdr_destroy(&xdrs);
         shutdown_tcp_chan(ch_id);
         return;
     }
 
-    LS_DEBUG("protocol=%s", proto_to_str(hdr.operation));
+    LL_DEBUG("protocol=%s", proto_to_str(hdr.operation));
 
     switch (hdr.operation) {
     case LIM_GET_LOAD:
@@ -203,7 +203,7 @@ static void tcp_dispatch(int ch_id)
         xdr_destroy(&xdrs);
         break;
     default:
-        LS_ERR("invalid operation %d", hdr.operation);
+        LL_ERR("invalid operation %d", hdr.operation);
         xdr_destroy(&xdrs);
         shutdown_tcp_chan(ch_id);
         break;
@@ -213,7 +213,7 @@ static void tcp_dispatch(int ch_id)
 int tcp_message(int ch_id)
 {
     if (chan_has_error(ch_id)) {
-        LS_DEBUG("channel=%d from=%s closed connection", ch_id,
+        LL_DEBUG("channel=%d from=%s closed connection", ch_id,
                  chan_addr_str(ch_id));
         shutdown_tcp_chan(ch_id);
         return -1;
@@ -230,7 +230,7 @@ int tcp_accept(void)
 
     int ch_id = chan_accept(tcp_chan, &from);
     if (ch_id < 0) {
-        LS_ERR("%s: chan_accept() failed: %m", __func__);
+        LL_ERR("%s: chan_accept() failed: %m", __func__);
         return -1;
     }
 
@@ -238,7 +238,7 @@ int tcp_accept(void)
     inet_ntop(AF_INET, &from.sin_addr, addr, sizeof(addr));
     struct lim_node *n = ll_hash_search(&node_addr_hash, addr);
     if (n == NULL) {
-        LS_ERR("rejected accept from unknown host %s", addr_to_str(&from));
+        LL_ERR("rejected accept from unknown host %s", addr_to_str(&from));
         chan_close(ch_id);
         return -1;
     }

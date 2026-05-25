@@ -71,7 +71,7 @@ static int mbd_init(void)
     ll_hash_init(&token_pool_name_hash, 1021);
 
     if (conf_init() < 0) {
-        LS_ERRX("conf_init failed");
+        LL_ERRX("conf_init failed");
         return -1;
     }
 
@@ -79,31 +79,31 @@ static int mbd_init(void)
     // AUTH_MAX_AGE is build with default 60 seconds
     ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age);
     if (auth_init(1, auth_age) < 0) {
-        LS_ERRX("auth_init failed");
+        LL_ERRX("auth_init failed");
         return -1;
     }
 
     if (network_init() < 0) {
-        LS_ERRX("event_init failed");
+        LL_ERRX("event_init failed");
         return -1;
     }
 
     if (events_init() < 0) {
-        LS_ERRX("event_init failed");
+        LL_ERRX("event_init failed");
         return -1;
     }
 
     if (job_init() < 0) {
-        LS_ERRX("job_init failed");
+        LL_ERRX("job_init failed");
     }
 
     if (queue_state_init() < 0) {
-        LS_ERRX("queue_state_init failed");
+        LL_ERRX("queue_state_init failed");
         return -1;
     }
 
     if (host_state_init() < 0) {
-        LS_ERRX("host_state_init failed");
+        LL_ERRX("host_state_init failed");
         return -1;
     }
 
@@ -113,7 +113,7 @@ static int mbd_init(void)
 static void check_not_root(void)
 {
     if (getuid() == 0 || geteuid() == 0) {
-        LS_ERR("mbd does not want to run as root ruid=%u, euid=%u", getuid(),
+        LL_ERR("mbd does not want to run as root ruid=%u, euid=%u", getuid(),
                geteuid());
         mbd_die(MBD_EXIT_FATAL);
     }
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
         }
     }
 
-    ls_openlog("mbd", "/tmp", "LOG_DEBUG");
+    ll_openlog("mbd", "/tmp", "LOG_DEBUG");
 
     if (conf_dir == NULL) {
         if ((conf_dir = getenv("LL_CONF_DIR")) == NULL) {
@@ -173,27 +173,27 @@ int main(int argc, char **argv)
     check_not_root();
 
     if (mbd_init() < 0) {
-        LS_ERRX("mbd_init failed. cannot run");
+        LL_ERRX("mbd_init failed. cannot run");
         return -1;
     }
 
-    ls_closelog();
-    cc = ls_openlog("mbd", ll_params[LL_LOG_DIR].val,
+    ll_closelog();
+    cc = ll_openlog("mbd", ll_params[LL_LOG_DIR].val,
                     ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
-        fprintf(stderr, "mbd: ls_openlog failed lodir=%s mask=%s %m\n",
+        fprintf(stderr, "mbd: ll_openlog failed lodir=%s mask=%s %m\n",
                 ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 
-    LS_INFO("mbd uid=%d starting on host=%s sched_timer=%d", getuid(),
+    LL_INFO("mbd uid=%d starting on host=%s sched_timer=%d", getuid(),
             ll_params[LL_MBD_HOST].val, sched_timer);
 
     for (;;) {
         int nevents = chan_epoll(mbd_efd, mbd_events, CHAN_MAX, -1);
         if (nevents < 0) {
             if (errno != EINTR) {
-                LS_ERR("chan_epoll(%d) failed", mbd_efd);
+                LL_ERR("chan_epoll(%d) failed", mbd_efd);
                 millisleep(1000);
                 continue;
             }
@@ -202,7 +202,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < nevents; i++) {
             struct epoll_event *ev = &mbd_events[i];
             int chan_id = (int) ev->data.u32;
-            LS_DEBUG("channel=%d mask=0x%x", chan_id, ev->events);
+            LL_DEBUG("channel=%d mask=0x%x", chan_id, ev->events);
             // True skip partually read channels
             if (channels[chan_id].chan_events == CHAN_EPOLLNONE)
                 continue;
@@ -211,8 +211,8 @@ int main(int argc, char **argv)
                 uint64_t exp;
                 ssize_t n = read(chan_sock(chan_id), &exp, sizeof(exp));
                 if (n < 0 && errno != EINTR)
-                    LS_ERR("read timer failed");
-                LS_DEBUG("sched_timer expired timer=%d", sched_timer);
+                    LL_ERR("read timer failed");
+                LL_DEBUG("sched_timer expired timer=%d", sched_timer);
                 schedule();
                 maybe_compact_events();
                 continue;
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 
 void mbd_die(enum mbd_exit e)
 {
-    LS_INFO("exiting with reason: %s", mbd_exit_str(e));
+    LL_INFO("exiting with reason: %s", mbd_exit_str(e));
     // mbd_compact_shutdown();
     exit(-1);
 }

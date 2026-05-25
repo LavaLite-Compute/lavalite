@@ -22,7 +22,7 @@ static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
     XDR xdrs;
 
     if (chan_alloc_buf(&buf, siz) < 0) {
-        LS_ERR("chan_alloc_buf failed op=%d siz=%ld", hdr->operation,
+        LL_ERR("chan_alloc_buf failed op=%d siz=%ld", hdr->operation,
                (long) siz);
         return -1;
     }
@@ -30,7 +30,7 @@ static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
     xdrmem_create(&xdrs, buf->data, siz, XDR_ENCODE);
 
     if (!ll_encode_msg(&xdrs, (char *) payload, xdr_func, hdr)) {
-        LS_ERRX("ll_encode_msg failed op=%d", hdr->operation);
+        LL_ERRX("ll_encode_msg failed op=%d", hdr->operation);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         return -1;
@@ -40,14 +40,14 @@ static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
     xdr_destroy(&xdrs);
 
     if (chan_enqueue(chan_id, buf) < 0) {
-        LS_ERR("chan_enqueue failed op=%d len=%d", hdr->operation,
+        LL_ERR("chan_enqueue failed op=%d len=%d", hdr->operation,
                (int) buf->len);
         chan_free_buf(buf);
         return -1;
     }
 
     if (chan_set_write_interest(chan_id, sbd_efd, 1) < 0) {
-        LS_ERR("chan_set_write_interest failed");
+        LL_ERR("chan_set_write_interest failed");
         chan_free_buf(buf);
         return -1;
     }
@@ -63,7 +63,7 @@ int sbd_mbd_connect(void)
 
     sbd_mbd_chan = chan_tcp_client();
     if (sbd_mbd_chan < 0) {
-        LS_ERR("failed to get channel to mbd");
+        LL_ERR("failed to get channel to mbd");
         return -1;
     }
 
@@ -84,12 +84,12 @@ int sbd_mbd_connect(void)
                              .data.u32 = (uint32_t) sbd_mbd_chan};
 
     if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_mbd_chan), &ev) < 0) {
-        LS_ERR("epoll_ctl() failed to add mbd connection to epoll");
+        LL_ERR("epoll_ctl() failed to add mbd connection to epoll");
         sbd_chan_shutdown(sbd_mbd_chan);
         sbd_mbd_chan = -1;
         return -1;
     }
-    LS_INFO("connected to mbd chan=%d", sbd_mbd_chan);
+    LL_INFO("connected to mbd chan=%d", sbd_mbd_chan);
 
     return sbd_mbd_chan;
 }
@@ -108,12 +108,12 @@ void sbd_mbd_link_down(void)
         job->reply_last_send = job->finish_last_send = 0;
         // Write the latest job state
         if (sbd_job_state_write(job) < 0) {
-            LS_ERRX("job=%ld state write failed", job->job_id);
+            LL_ERRX("job=%ld state write failed", job->job_id);
             sbd_fatal(SBD_FATAL_STORAGE);
         }
     }
 
-    LS_ERRX("mbd link down: cleared pending sent flags for resend and state");
+    LL_ERRX("mbd link down: cleared pending sent flags for resend and state");
 }
 
 // Check if mbd is connected
@@ -130,7 +130,7 @@ int sbd_register(void)
     char host[MAXHOSTNAMELEN];
 
     if (gethostname(host, sizeof(host)) < 0) {
-        LS_ERR("cannot get local hostname: %m");
+        LL_ERR("cannot get local hostname: %m");
         abort();
     }
 
@@ -147,11 +147,11 @@ int sbd_register(void)
 
     if (sbd_send_msg(BATCH_SBD_REGISTER, MBD_OK, &reg, LL_BUFSIZ_1K,
                      xdr_wire_sbd_register) < 0) {
-        LS_ERR("sbd on host=%s registration failed", host);
+        LL_ERR("sbd on host=%s registration failed", host);
         return -1;
     }
 
-    LS_INFO("sbd registered sent host=%s", host);
+    LL_INFO("sbd registered sent host=%s", host);
 
     return 0;
 }
@@ -169,7 +169,7 @@ int sbd_mbd_route(int chan_id)
     struct chan_data *chan = &channels[chan_id];
 
     if (chan->chan_events == CHAN_EPOLLERR) {
-        LS_ERRX("lost connection with mbd on channel=%d socket err=%d", chan_id,
+        LL_ERRX("lost connection with mbd on channel=%d socket err=%d", chan_id,
                 chan_sock_error(chan_id));
         sbd_mbd_link_down();
         return -1;
@@ -183,12 +183,12 @@ int sbd_mbd_route(int chan_id)
     // Get the packet header from the channel first
     struct chan_buffer *buf;
     if (chan_dequeue(chan_id, &buf) < 0) {
-        LS_ERR("chan_dequeue() failed");
+        LL_ERR("chan_dequeue() failed");
         return -1;
     }
 
     if (!buf || buf->len < PACKET_HEADER_SIZE) {
-        LS_ERR("short header from mbd on channel=%d: len=%d", chan_id,
+        LL_ERR("short header from mbd on channel=%d: len=%d", chan_id,
                buf ? buf->len : 0);
         chan_free_buf(buf);
         sbd_mbd_link_down();
@@ -200,13 +200,13 @@ int sbd_mbd_route(int chan_id)
     // Allocate the buffer data based on what was sent
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed");
+        LL_ERR("xdr_pack_hdr failed");
         xdr_destroy(&xdrs);
         return -1;
     }
 
     if (auth_verify_header(&hdr) < 0) {
-        LS_ERR("failed validate header opcode=%s from=%s",
+        LL_ERR("failed validate header opcode=%s from=%s",
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
@@ -214,7 +214,7 @@ int sbd_mbd_route(int chan_id)
         return -1;
     }
 
-    LS_DEBUG("mbd requesting operation=%s", batch_op_str(hdr.operation));
+    LL_DEBUG("mbd requesting operation=%s", batch_op_str(hdr.operation));
 
     // sbd handler
     switch (hdr.operation) {
@@ -238,7 +238,7 @@ int sbd_mbd_route(int chan_id)
         sbd_register_ack(&xdrs);
         break;
     default:
-        LS_ERRX("unknown protocol operation=%s", batch_op_str(hdr.operation));
+        LL_ERRX("unknown protocol operation=%s", batch_op_str(hdr.operation));
         break;
     }
 
@@ -254,13 +254,13 @@ void sbd_register_ack(XDR *xdrs)
     memset(&reg_ack, 0, sizeof(struct wire_sbd_register));
 
     if (!xdr_wire_sbd_register(xdrs, &reg_ack)) {
-        LS_ERR("xdr_wire_sbd_register decode failed");
+        LL_ERR("xdr_wire_sbd_register decode failed");
         sbd_mbd_link_down();
         return;
     }
 
     if (reg_ack.num_jobs == 0) {
-        LS_INFO("no jobs registered on this host");
+        LL_INFO("no jobs registered on this host");
         free(reg_ack.jobs);
         return;
     }
@@ -276,7 +276,7 @@ void sbd_register_ack(XDR *xdrs)
         }
 
         if (job->pid <= 0) {
-            LS_ERRX("register: invariant violation: job=%ld exists but pid=%d",
+            LL_ERRX("register: invariant violation: job=%ld exists but pid=%d",
                     job->job_id, (int) job->pid);
             sbd_fatal(SBD_FATAL_INVARIANT);
             /* not reached */
@@ -284,18 +284,18 @@ void sbd_register_ack(XDR *xdrs)
 
         if (wj->pid > 0) {
             if (wj->pid != job->pid) {
-                LS_ERRX("register: pid mismatch job=%ld mbd_pid=%d sbd_pid=%d",
+                LL_ERRX("register: pid mismatch job=%ld mbd_pid=%d sbd_pid=%d",
                         (long) wj->job_id, (int) wj->pid, (int) job->pid);
                 sbd_fatal(SBD_FATAL_INVARIANT);
                 /* not reached */
             }
-            LS_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d",
+            LL_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d",
                     job->job_id, job->pid, job->pid_acked);
             continue;
         }
 
         /* wj->pid == 0: mbd lost pid, force resend */
-        LS_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d",
+        LL_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d",
                 wj->job_id, job->pid, job->pid_acked);
         job->pid_acked = 0;
         job->reply_last_send = 0;
@@ -314,13 +314,13 @@ int sbd_send_msg(int32_t op, int32_t status, void *payload, size_t siz,
     hdr.status = status;
 
     if (auth_sign_header(&hdr) < 0) {
-        LS_ERR("auth_sign_header failed op=%d", op);
+        LL_ERR("auth_sign_header failed op=%d", op);
         return -1;
     }
 
     int cc = sbd_enqueue_payload(sbd_mbd_chan, &hdr, payload, siz, xdr_func);
     if (cc < 0) {
-        LS_ERR("sbd_enqueue_payload failed closing chan=%d to mbd",
+        LL_ERR("sbd_enqueue_payload failed closing chan=%d to mbd",
                sbd_mbd_chan);
         sbd_mbd_link_down();
         return -1;

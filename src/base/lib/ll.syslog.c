@@ -32,7 +32,7 @@ static void ls_reopen_log(void);
 // and use the same log file
 static char log_tag[LL_BUFSIZ_64];
 
-int ls_openlog(const char *ident, const char *logdir, const char *mask)
+int ll_openlog(const char *ident, const char *logdir, const char *mask)
 {
     if (ident == NULL)
         return -1;
@@ -74,7 +74,7 @@ int ls_openlog(const char *ident, const char *logdir, const char *mask)
     return 0;
 }
 
-void ls_syslog(int level, const char *fmt, ...)
+void ll_syslog(int level, const char *fmt, ...)
 {
     va_list ap;
     char msg[LL_BUFSIZ_1K];
@@ -83,7 +83,7 @@ void ls_syslog(int level, const char *fmt, ...)
 
     // no logger configured return, sorry no implicit
     // logging to stderr but definite behaviour
-    // ls_openlog()/ls_syslog()/ls_closelog()
+    // ll_openlog()/ll_syslog()/ll_closelog()
     if (log_fd < 0)
         return;
 
@@ -148,7 +148,7 @@ static void ls_reopen_log(void)
     fchmod(log_fd, 0644);
 }
 
-void ls_closelog(void)
+void ll_closelog(void)
 {
     if (log_fd >= 0) {
         close(log_fd);

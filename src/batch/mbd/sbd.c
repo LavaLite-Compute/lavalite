@@ -36,7 +36,7 @@ static int build_sbd_run_list(struct mbd_host *n,
 
     reg_ack->jobs = calloc(count, sizeof(struct wire_sbd_job));
     if (reg_ack->jobs == NULL) {
-        LS_ERR("calloc failed count=%d", count);
+        LL_ERR("calloc failed count=%d", count);
         return -1;
     }
 
@@ -61,7 +61,7 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     memset(&reg, 0, sizeof(reg));
 
     if (!xdr_wire_sbd_register(xdrs, &reg)) {
-        LS_ERR("SBD_REGISTER decode failed");
+        LL_ERR("SBD_REGISTER decode failed");
         xdr_free((xdrproc_t)xdr_wire_sbd_register, &reg);
         chan_shutdown(chan_id);
         return -1;
@@ -76,13 +76,13 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
 
     struct mbd_host *n = ll_hash_search(&host_name_hash, hostname);
     if (n == NULL) {
-        LS_ERRX("register from unknown host %s", hostname);
+        LL_ERRX("register from unknown host %s", hostname);
         chan_shutdown(chan_id);
         return -1;
     }
 
     if (n->sbd_chan != -1) {
-        LS_ERRX("duplicate SBD registration from host %s "
+        LL_ERRX("duplicate SBD registration from host %s "
                 "(already on chan=%d), rejecting",
                 hostname, n->sbd_chan);
         chan_shutdown(chan_id);
@@ -96,12 +96,12 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     struct wire_sbd_register reg_ack;
     memset(&reg_ack, 0, sizeof(reg_ack));
     if (build_sbd_run_list(n, &reg_ack) < 0) {
-        LS_ERRX("host=%s build_sbd_run_list failed", n->net.name);
+        LL_ERRX("host=%s build_sbd_run_list failed", n->net.name);
         mbd_sbd_disconnect(n);
         return -1;
     }
     n->state = HOST_OK | (n->state & HOST_CLOSED);
-    LS_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d",
+    LL_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d",
             hostname, n->net.name, n->net.addr, chan_id, n->state);
 
     struct protocol_header hdr;
@@ -110,7 +110,7 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LS_ERR("auth_sign_header failed");
+        LL_ERR("auth_sign_header failed");
         xdr_free((xdrproc_t)xdr_wire_sbd_register, &reg_ack);
         mbd_sbd_disconnect(n);
         return -1;
@@ -131,7 +131,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     int chan_id = n->sbd_chan;
 
     if (chan_has_error(chan_id)) {
-        LS_DEBUG("channel=%d sbd from=%s closed connection", chan_id,
+        LL_DEBUG("channel=%d sbd from=%s closed connection", chan_id,
                  chan_addr_str(chan_id));
         mbd_sbd_disconnect(n);
         return -1;
@@ -139,7 +139,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
 
     struct chan_buffer *buf;
     if (chan_dequeue(chan_id, &buf) < 0) {
-        LS_ERR("chan_dequeue failed chan_id=%d", chan_id);
+        LL_ERR("chan_dequeue failed chan_id=%d", chan_id);
         chan_shutdown(chan_id);
         return -1;
     }
@@ -148,7 +148,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     XDR xdrs;
     xdrmem_create(&xdrs, buf->data, buf->len, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, &hdr)) {
-        LS_ERR("xdr_pack_hdr failed chan_id=%d", chan_id);
+        LL_ERR("xdr_pack_hdr failed chan_id=%d", chan_id);
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
         chan_shutdown(chan_id);
@@ -157,7 +157,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
 
     /* validate opcode and version early */
     if (!valid_batch_op(hdr.operation)) {
-        LS_ERR("invalid opcode=%d from=%s", hdr.operation,
+        LL_ERR("invalid opcode=%d from=%s", hdr.operation,
                chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
@@ -166,7 +166,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     }
 
     if (auth_verify_header(&hdr) < 0) {
-        LS_ERR("failed validate header opcode=%s from=%s",
+        LL_ERR("failed validate header opcode=%s from=%s",
                batch_op_str(hdr.operation), chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
@@ -175,7 +175,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     }
 
     if (hdr.version != CURRENT_PROTOCOL_VERSION) {
-        LS_ERR("unsupported version=0x%x from=%s", hdr.version,
+        LL_ERR("unsupported version=0x%x from=%s", hdr.version,
                chan_addr_str(chan_id));
         xdr_destroy(&xdrs);
         chan_free_buf(buf);
@@ -205,7 +205,7 @@ int mbd_sbd_disconnect(struct mbd_host *n)
 {
     int chan_id = n->sbd_chan;
 
-    LS_INFO("closing connection with on chan=%d host=%s addr=%s", chan_id,
+    LL_INFO("closing connection with on chan=%d host=%s addr=%s", chan_id,
             n->net.name, n->net.addr);
 
     n->sbd_chan = -1;
@@ -231,7 +231,7 @@ static int read_sidecar(const struct job_data *job, struct wire_job_start *ws)
 
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         return -1;
     }
 
@@ -295,24 +295,24 @@ static int read_script(const struct job_data *job,
 
     struct stat st;
     if (stat(path, &st) < 0) {
-        LS_ERR("stat=%s failed", path);
+        LL_ERR("stat=%s failed", path);
         return -1;
     }
 
     if (st.st_size == 0) {
-        LS_ERRX("job=%ld script is empty", job->job_id);
+        LL_ERRX("job=%ld script is empty", job->job_id);
         return -1;
     }
 
     script->data = malloc((size_t) st.st_size + 1);
     if (script->data == NULL) {
-        LS_ERR("malloc failed size=%ld", (long) st.st_size);
+        LL_ERR("malloc failed size=%ld", (long) st.st_size);
         return -1;
     }
 
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         free(script->data);
         script->data = NULL;
         return -1;
@@ -322,7 +322,7 @@ static int read_script(const struct job_data *job,
     fclose(fp);
 
     if (nr != (size_t) st.st_size) {
-        LS_ERR("job=%ld script read short %zu/%ld", job->job_id, nr,
+        LL_ERR("job=%ld script read short %zu/%ld", job->job_id, nr,
                (long) st.st_size);
         free(script->data);
         script->data = NULL;
@@ -356,7 +356,7 @@ int mbd_dispatch_job(struct job_data *job)
 
     assert(h->sbd_chan > 0);
     if (h->sbd_chan < 0) {
-        LS_ERRX("job=%ld exec_host=%s sbd not connected", job->job_id,
+        LL_ERRX("job=%ld exec_host=%s sbd not connected", job->job_id,
                 h->net.name);
         return -1;
     }
@@ -366,14 +366,14 @@ int mbd_dispatch_job(struct job_data *job)
 
     /* read file redirections from sidecar */
     if (read_sidecar(job, &ws) < 0) {
-        LS_ERRX("job=%ld read_sidecar failed", job->job_id);
+        LL_ERRX("job=%ld read_sidecar failed", job->job_id);
         abort();
         return -1;
     }
 
     /* read script from disk into ws.script */
     if (read_script(job, &ws.script) < 0) {
-        LS_ERRX("job=%ld read_script failed", job->job_id);
+        LL_ERRX("job=%ld read_script failed", job->job_id);
         abort();
         return -1;
     }
@@ -401,7 +401,7 @@ int mbd_dispatch_job(struct job_data *job)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LS_ERRX("job=%ld auth_sign_header failed", job->job_id);
+        LL_ERRX("job=%ld auth_sign_header failed", job->job_id);
         free(ws.script.data);
         return -1;
     }
@@ -412,7 +412,7 @@ int mbd_dispatch_job(struct job_data *job)
 
     if (enqueue_payload(h->sbd_chan, &hdr, &ws, bufsz,
                         (bool_t(*)()) xdr_wire_job_start) < 0) {
-        LS_ERRX("job=%ld enqueue_payload failed", job->job_id);
+        LL_ERRX("job=%ld enqueue_payload failed", job->job_id);
         free(ws.script.data);
         return -1;
     }
@@ -426,7 +426,7 @@ int mbd_dispatch_job(struct job_data *job)
 
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    LS_INFO("job=%ld dispatched to host=%s", job->job_id, h->net.name);
+    LL_INFO("job=%ld dispatched to host=%s", job->job_id, h->net.name);
 
     return 0;
 }

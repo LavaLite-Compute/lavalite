@@ -27,7 +27,7 @@ static int parse_cluster_section(FILE *f)
         char cluster[LL_BUFSIZ_64];
         int n = sscanf(p, "%64s", cluster);
         if (n < 1) {
-            LS_ERR("sscanf Cluster section failed");
+            LL_ERR("sscanf Cluster section failed");
             continue;
         }
 
@@ -58,7 +58,7 @@ static int parse_admins_section(FILE *f)
         // running as the admin
         lim_cluster.admin = strdup(p);
     }
-    LS_ERR("ClusterAdmin section: unexpected EOF");
+    LL_ERR("ClusterAdmin section: unexpected EOF");
     return -1;
 }
 static struct lim_node *node_make(const char *hostname)
@@ -74,7 +74,7 @@ static struct lim_node *node_make(const char *hostname)
     }
 
     if (get_host_by_name(hostname, h) < 0) {
-        LS_WARNING("cannot resolve %s", hostname);
+        LL_WARNING("cannot resolve %s", hostname);
         strncpy(h->name, hostname, MAXHOSTNAMELEN - 1);
         h->name[MAXHOSTNAMELEN - 1] = 0;
     }
@@ -83,7 +83,7 @@ static struct lim_node *node_make(const char *hostname)
     n->status = LIM_STAT_CLOSED;
     struct utsname u;
     if (uname(&u) < 0) {
-        LS_ERR("uname failed");
+        LL_ERR("uname failed");
         n->machine = strdup("unknown");
     } else {
         n->machine = strdup(u.machine);
@@ -126,7 +126,7 @@ static int parse_host_section(FILE *f)
             continue;
         if (strncasecmp(p, "Hostname", 8) == 0)
             break;
-        LS_ERR("Host section: expected header 'Hostname Resources Master' "
+        LL_ERR("Host section: expected header 'Hostname Resources Master' "
                "got='%s'",
                p);
         return -1;
@@ -145,7 +145,7 @@ static int parse_host_section(FILE *f)
         char *hostname = p;
         char *q = strpbrk(p, " \t");
         if (q == NULL) {
-            LS_ERR("Host section: bad format got='%s'", p);
+            LL_ERR("Host section: bad format got='%s'", p);
             continue;
         }
         *q = 0;
@@ -155,7 +155,7 @@ static int parse_host_section(FILE *f)
         char *op = strchr(p, '(');
         char *cl = strchr(p, ')');
         if (op == NULL || cl == NULL || cl < op) {
-            LS_ERR("Host section: missing () for host=%s got='%s'", hostname,
+            LL_ERR("Host section: missing () for host=%s got='%s'", hostname,
                    p);
             continue;
         }
@@ -168,24 +168,24 @@ static int parse_host_section(FILE *f)
             *q = 0;
 
         if (*master == 0) {
-            LS_ERR("Host section: missing master flag for host=%s", hostname);
+            LL_ERR("Host section: missing master flag for host=%s", hostname);
             return -1;
         }
 
         if (strcasecmp(master, "Y") != 0 && strcmp(master, "-") != 0) {
-            LS_ERR("Host section: invalid master='%s' host=%s", master,
+            LL_ERR("Host section: invalid master='%s' host=%s", master,
                    hostname);
             return -1;
         }
 
         if (ll_hash_search(&node_name_hash, hostname)) {
-            LS_ERRX("Host section: duplicate host=%s skipped", hostname);
+            LL_ERRX("Host section: duplicate host=%s skipped", hostname);
             continue;
         }
 
         struct lim_node *node = node_make(hostname);
         if (node == NULL) {
-            LS_ERR("Host section: cannot create node=%s", hostname);
+            LL_ERR("Host section: cannot create node=%s", hostname);
             return -1;
         }
 
@@ -201,7 +201,7 @@ static int parse_host_section(FILE *f)
         ll_hash_insert(&node_addr_hash, node->host->addr, node, 0);
     }
 
-    LS_ERR("Host section: unexpected EOF");
+    LL_ERR("Host section: unexpected EOF");
     return -1;
 }
 
@@ -213,7 +213,7 @@ static void set_host_no(void)
     for (e = node_list.head; e; e = e->next) {
         struct lim_node *n = (struct lim_node *) e;
         n->host_no = num;
-        LS_DEBUG("host=%s machine=%s master=%d host_no=%d resources='%s'",
+        LL_DEBUG("host=%s machine=%s master=%d host_no=%d resources='%s'",
                  n->host->name, n->machine, n->is_candidate, n->host_no,
                  n->resources);
         ++num;
@@ -224,7 +224,7 @@ static int make_master_candidates(void)
 {
     master_candidates = calloc(n_master_candidates, sizeof(struct lim_node *));
     if (master_candidates == NULL) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return -1;
     }
     struct ll_list_entry *e;
@@ -247,12 +247,12 @@ int load_conf(const char *path)
         return -1;
 
     if (ll_conf_param_missing("LL_LOG_DIR", ll_params[LL_LOG_DIR].val)) {
-        LS_ERR("missing mandatory parameter LL_LOG_DIR");
+        LL_ERR("missing mandatory parameter LL_LOG_DIR");
         return -1;
     }
 
     if (ll_conf_param_missing("LL_LIM_PORT", ll_params[LL_LIM_PORT].val)) {
-        LS_ERR("missing mandatory parameter LL_LIM_PORT");
+        LL_ERR("missing mandatory parameter LL_LIM_PORT");
         return -1;
     }
     return 0;
@@ -267,7 +267,7 @@ static int is_admin(void)
     if (strcmp(pw->pw_name, lim_cluster.admin) == 0)
         return 1;
 
-    LS_ERRX("the user=%s is not lavalite admin=%s", pw->pw_name,
+    LL_ERRX("the user=%s is not lavalite admin=%s", pw->pw_name,
             lim_cluster.admin);
 
     return 0;
@@ -279,7 +279,7 @@ int make_cluster(const char *path)
 
     FILE *f = fopen(path, "r");
     if (f == NULL) {
-        LS_ERR("cannot open %s", path);
+        LL_ERR("cannot open %s", path);
         return -1;
     }
 
@@ -304,12 +304,12 @@ int make_cluster(const char *path)
         else if (strcmp(kw, "Host") == 0)
             rc = parse_host_section(f);
         else {
-            LS_WARNING("unknown section %s", kw);
+            LL_WARNING("unknown section %s", kw);
             fclose(f);
             return -1;
         }
         if (rc < 0) {
-            LS_ERRX("parsing cluster file failed");
+            LL_ERRX("parsing cluster file failed");
             fclose(f);
             return -1;
         }
@@ -318,31 +318,31 @@ int make_cluster(const char *path)
     fclose(f);
 
     if (me == NULL) {
-        LS_ERRX("this host is not in the cluster configuration");
+        LL_ERRX("this host is not in the cluster configuration");
         return -1;
     }
 
     if (lim_cluster.name == NULL) {
-        LS_ERRX("missing ClusterName in %s", path);
+        LL_ERRX("missing ClusterName in %s", path);
         return -1;
     }
 
     if (lim_cluster.admin == NULL) {
-        LS_ERRX("missing Administrators in %s", path);
+        LL_ERRX("missing Administrators in %s", path);
         return -1;
     }
 
     if (ll_list_is_empty(&node_list)) {
-        LS_ERRX("no hosts defined in %s", path);
+        LL_ERRX("no hosts defined in %s", path);
         return -1;
     }
 
     if (!is_admin()) {
-        LS_ERRX("user is not admin");
+        LL_ERRX("user is not admin");
         return -1;
     }
 
-    LS_INFO("cluster=%s admin=%s hosts=%d", lim_cluster.name, lim_cluster.admin,
+    LL_INFO("cluster=%s admin=%s hosts=%d", lim_cluster.name, lim_cluster.admin,
             ll_list_count(&node_list));
 
     set_host_no();

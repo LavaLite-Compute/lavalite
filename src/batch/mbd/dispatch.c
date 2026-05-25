@@ -19,7 +19,7 @@
 static int finish_pending_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
-    LS_INFO("finish_pending_job: job_id=%ld sig=%d -> EXIT", (long) job->job_id,
+    LL_INFO("finish_pending_job: job_id=%ld sig=%d -> EXIT", (long) job->job_id,
             ws->sig);
     job->signal_time = job->end_time = time(NULL);
 
@@ -46,14 +46,14 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
 
     job->state = JOB_HELD;
     job->signal_time = time(NULL);
-    LS_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP", (long) job->job_id,
+    LL_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP", (long) job->job_id,
             ws->sig);
     event_job_signal(job, ws);
     event_job_pend_susp(job);
 
     job->queue->num_pend--;
     job->queue->num_held++;
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
+    LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
              job->queue->name, job->queue->num_pend, job->queue->num_run,
              job->queue->num_susp, job->queue->num_held);
 
@@ -68,14 +68,14 @@ static int resume_pending_job(struct job_data *job,
 
     job->state = JOB_PENDING;
     job->signal_time = time(NULL);
-    LS_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND", (long) job->job_id,
+    LL_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND", (long) job->job_id,
             ws->sig);
     event_job_signal(job, ws);
     event_job_pend_resume(job);
 
     job->queue->num_held--;
     job->queue->num_pend++;
-    LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
+    LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
              job->queue->name, job->queue->num_pend, job->queue->num_run,
              job->queue->num_susp, job->queue->num_held);
 
@@ -96,7 +96,7 @@ static int signal_pending_job(struct job_data *job,
     case SIGCONT:
         return resume_pending_job(job, ws);
     default:
-        LS_DEBUG("signal_pending_job: job_id=%ld sig=%d unsupported",
+        LL_DEBUG("signal_pending_job: job_id=%ld sig=%d unsupported",
                  (long) job->job_id, ws->sig);
         return EINVAL;
     }
@@ -111,21 +111,21 @@ static int signal_running_job(struct job_data *job,
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LS_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
                job->run_hosts[0]->net.name);
         return EAGAIN;
     }
 
     if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
                         LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
-        LS_ERR("job=%ld enqueue_payload failed", job->job_id);
+        LL_ERR("job=%ld enqueue_payload failed", job->job_id);
         return EAGAIN;
     }
 
     job->signal_time = time(NULL);
     event_job_signal(job, ws);
 
-    LS_INFO("job=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
+    LL_INFO("job=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
             job->run_hosts[0]->net.name);
 
     return MBD_OK;
@@ -152,7 +152,7 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
 
         assert(job->run_hosts[0]);
         if (job->run_hosts[0]->sbd_chan < 0) {
-            LS_DEBUG("sbd=%s is disconnected", job->run_hosts[0]->net.name);
+            LL_DEBUG("sbd=%s is disconnected", job->run_hosts[0]->net.name);
             assert(job->state == JOB_UNKNOWN);
             continue;
         }
@@ -173,11 +173,11 @@ int jobs_signal(XDR *xdrs, int chan_id)
     struct wire_job_sig req;
     memset(&req, 0, sizeof(req));
     if (!xdr_wire_job_sig(xdrs, &req)) {
-        LS_ERR("job_signal: xdr decode failed chan_id=%d", chan_id);
+        LL_ERR("job_signal: xdr decode failed chan_id=%d", chan_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPROTO);
     }
 
-    LS_DEBUG("job_id=%ld by uid=%u sig=%d chan_id=%d", (long) req.job_id,
+    LL_DEBUG("job_id=%ld by uid=%u sig=%d chan_id=%d", (long) req.job_id,
              req.uid, req.sig, chan_id);
 
     if (req.job_id == 0) {
@@ -187,24 +187,24 @@ int jobs_signal(XDR *xdrs, int chan_id)
 
     struct job_data *job = job_find(req.job_id);
     if (job == NULL) {
-        LS_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
+        LL_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
     }
 
     if (job->state == JOB_DONE || job->state == JOB_EXITED) {
-        LS_DEBUG("job_signal: job_id=%ld already finished", (long) req.job_id);
+        LL_DEBUG("job_signal: job_id=%ld already finished", (long) req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
     }
 
     if ((req.sig == SIGSTOP || req.sig == SIGTSTP) &&
         (job->state == JOB_SUSPENDED || job->state == JOB_HELD)) {
-        LS_DEBUG("job_signal: job_id=%ld already suspended", (long) req.job_id);
+        LL_DEBUG("job_signal: job_id=%ld already suspended", (long) req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
     }
 
     if (req.sig == SIGCONT &&
         (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
-        LS_DEBUG("job_signal: job_id=%ld SIGCONT no-op", (long) req.job_id);
+        LL_DEBUG("job_signal: job_id=%ld SIGCONT no-op", (long) req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
@@ -279,7 +279,7 @@ int jobs_info(XDR *xdrs, int chan_id)
     struct wire_job_info_req req;
     memset(&req, 0, sizeof(req));
     if (!xdr_wire_job_info_req(xdrs, &req)) {
-        LS_ERRX("xdr_wire_job_info_req failed chan_id=%d", chan_id);
+        LL_ERRX("xdr_wire_job_info_req failed chan_id=%d", chan_id);
         return -1;
     }
 
@@ -297,7 +297,7 @@ int jobs_info(XDR *xdrs, int chan_id)
 
     jobs = calloc(ntotal, sizeof(struct wire_job_info));
     if (jobs == NULL) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return -1;
     }
 
@@ -342,7 +342,7 @@ send:
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_job_info_array) <
         0) {
-        LS_ERR("enqueue_payload failed");
+        LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
     }
@@ -362,7 +362,7 @@ int queues_info(XDR *xdrs, int chan_id)
     struct wire_queue_info *queues =
         calloc(nqueues, sizeof(struct wire_queue_info));
     if (queues == NULL) {
-        LS_ERR("queue_info: calloc failed");
+        LL_ERR("queue_info: calloc failed");
         return -1;
     }
 
@@ -403,7 +403,7 @@ int queues_info(XDR *xdrs, int chan_id)
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_queue_info_array) <
         0) {
-        LS_ERR("queue_info: enqueue_payload failed");
+        LL_ERR("queue_info: enqueue_payload failed");
         free(queues);
         return -1;
     }
@@ -423,7 +423,7 @@ int host_group_info(XDR *xdrs, int chan_id)
     struct wire_group_info *groups =
         calloc(ngroups, sizeof(struct wire_group_info));
     if (groups == NULL) {
-        LS_ERR("host_group_info: calloc failed");
+        LL_ERR("host_group_info: calloc failed");
         return -1;
     }
 
@@ -452,7 +452,7 @@ int host_group_info(XDR *xdrs, int chan_id)
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_group_info_array) <
         0) {
-        LS_ERR("host_group_info: enqueue_payload failed");
+        LL_ERR("host_group_info: enqueue_payload failed");
         free(groups);
         return -1;
     }
@@ -472,7 +472,7 @@ int hosts_info(XDR *xdrs, int chan_id)
     struct wire_host_info *hosts =
         calloc(nhosts ? nhosts : 1, sizeof(struct wire_host_info));
     if (hosts == NULL) {
-        LS_ERR("host_info: calloc failed");
+        LL_ERR("host_info: calloc failed");
         return -1;
     }
 
@@ -513,7 +513,7 @@ int hosts_info(XDR *xdrs, int chan_id)
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_host_info_array) <
         0) {
-        LS_ERR("host_info: enqueue_payload failed");
+        LL_ERR("host_info: enqueue_payload failed");
         free(hosts);
         return -1;
     }
@@ -529,7 +529,7 @@ int compact_done(XDR *xdrs, int chan_id)
 {
     (void) xdrs;
 
-    LS_DEBUG("compact_done chan_id=%d", chan_id);
+    LL_DEBUG("compact_done chan_id=%d", chan_id);
     return 0;
 }
 
@@ -547,7 +547,7 @@ int tokens_info(XDR *xdrs, int chan_id)
     w.ntokens = n;
     w.tokens = calloc(n, sizeof(struct wire_token_info));
     if (w.tokens == NULL) {
-        LS_ERR("calloc failed n=%d", n);
+        LL_ERR("calloc failed n=%d", n);
         enqueue_header(chan_id, BATCH_TOKEN_INFO_ACK, errno);
         return -1;
     }
@@ -586,23 +586,23 @@ int queue_admin(XDR *xdrs, int chan_id)
 
     memset(&req, 0, sizeof(req));
     if (!xdr_wire_queue_admin(xdrs, &req)) {
-        LS_ERR("queue_admin: xdr decode failed chan_id=%d", chan_id);
+        LL_ERR("queue_admin: xdr decode failed chan_id=%d", chan_id);
         return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, EPROTO);
     }
 
     if (!is_manager(req.uid)) {
-        LS_ERR("queue_admin: uid=%u not a manager", req.uid);
+        LL_ERR("queue_admin: uid=%u not a manager", req.uid);
         return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, EPERM);
     }
 
     q = ll_hash_search(&queue_name_hash, req.name);
     if (q == NULL) {
-        LS_ERR("queue_admin: queue=%s not found", req.name);
+        LL_ERR("queue_admin: queue=%s not found", req.name);
         return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, ESRCH);
     }
 
     q->state = req.op;
-    LS_INFO("queue=%s set to %s by uid=%u", q->name,
+    LL_INFO("queue=%s set to %s by uid=%u", q->name,
             req.op == QUEUE_CLOSED ? "closed" : "open", req.uid);
 
     queue_state_write(q);
@@ -617,18 +617,18 @@ int host_admin(XDR *xdrs, int chan_id)
 
     memset(&req, 0, sizeof(req));
     if (!xdr_wire_host_admin(xdrs, &req)) {
-        LS_ERR("host_admin: xdr decode failed chan_id=%d", chan_id);
+        LL_ERR("host_admin: xdr decode failed chan_id=%d", chan_id);
         return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, EPROTO);
     }
 
     if (!is_manager(req.uid)) {
-        LS_ERR("host_admin: uid=%u not a manager", req.uid);
+        LL_ERR("host_admin: uid=%u not a manager", req.uid);
         return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, EPERM);
     }
 
     h = ll_hash_search(&host_name_hash, req.name);
     if (h == NULL) {
-        LS_ERR("host_admin: host=%s not found", req.name);
+        LL_ERR("host_admin: host=%s not found", req.name);
         return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, ESRCH);
     }
 
@@ -638,7 +638,7 @@ int host_admin(XDR *xdrs, int chan_id)
         h->state &= ~HOST_CLOSED;
 
     host_state_write(h);
-    LS_INFO("host=%s set to %s by uid=%u", h->net.name,
+    LL_INFO("host=%s set to %s by uid=%u", h->net.name,
             req.op == HOST_CLOSED ? "closed" : "open", req.uid);
 
     return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, 0);

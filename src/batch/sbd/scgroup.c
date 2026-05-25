@@ -54,7 +54,7 @@ static int cg_write(const char *path, const char *val)
 {
     int fd = open(path, O_WRONLY);
     if (fd < 0) {
-        LS_ERR("cgroup open(%s) failed: %m", path);
+        LL_ERR("cgroup open(%s) failed: %m", path);
         return -errno;
     }
 
@@ -64,7 +64,7 @@ static int cg_write(const char *path, const char *val)
     close(fd);
 
     if (n < 0) {
-        LS_ERR("cgroup write(%s, %s) failed: %s", path, val, strerror(err));
+        LL_ERR("cgroup write(%s, %s) failed: %s", path, val, strerror(err));
         return -err;
     }
 
@@ -129,13 +129,13 @@ int cgroup_init(void)
 
     int n = snprintf(cg_base, sizeof(cg_base), "%s", root);
     if (n <= 0 || n >= (int)sizeof(cg_base)) {
-        LS_ERR("cgroup: LL_CGROUP_ROOT path too long");
+        LL_ERR("cgroup: LL_CGROUP_ROOT path too long");
         return -1;
     }
 
     /* create the base cgroup if it does not exist */
     if (mkdir(cg_base, 0755) < 0 && errno != EEXIST) {
-        LS_ERR("cgroup mkdir(%s) failed: %m", cg_base);
+        LL_ERR("cgroup mkdir(%s) failed: %m", cg_base);
         return -1;
     }
 
@@ -143,11 +143,11 @@ int cgroup_init(void)
     snprintf(knob, sizeof(knob), "%s/cgroup.subtree_control", cg_base);
 
     if (cg_write(knob, "+memory +cpu") < 0) {
-        LS_ERR("cgroup enable controllers failed path=%s", cg_base);
+        LL_ERR("cgroup enable controllers failed path=%s", cg_base);
         return -1;
     }
 
-    LS_INFO("cgroup init ok base=%s", cg_base);
+    LL_INFO("cgroup init ok base=%s", cg_base);
     return 0;
 }
 
@@ -160,7 +160,7 @@ int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
     snprintf(path, sizeof(path), "%s/job_%ld", cg_base, job_id);
 
     if (mkdir(path, 0755) < 0 && errno != EEXIST) {
-        LS_ERR("job=%ld cgroup mkdir(%s) failed: %m", job_id, path);
+        LL_ERR("job=%ld cgroup mkdir(%s) failed: %m", job_id, path);
         return -1;
     }
 
@@ -170,9 +170,9 @@ int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
                  (unsigned long long) mem_mb * 1024 * 1024);
 
         if (cg_write(knob, val) < 0)
-            LS_ERR("job=%ld cgroup set memory.max=%s failed", job_id, val);
+            LL_ERR("job=%ld cgroup set memory.max=%s failed", job_id, val);
         else
-            LS_INFO("job=%ld cgroup memory.max=%s bytes", job_id, val);
+            LL_INFO("job=%ld cgroup memory.max=%s bytes", job_id, val);
     }
 
     if (ncpus > 0) {
@@ -185,9 +185,9 @@ int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
         snprintf(val, sizeof(val), "%d 100000", ncpus * 100000);
 
         if (cg_write(knob, val) < 0)
-            LS_ERR("job=%ld cgroup set cpu.max=%s failed", job_id, val);
+            LL_ERR("job=%ld cgroup set cpu.max=%s failed", job_id, val);
         else
-            LS_INFO("job=%ld cgroup cpu.max=%s", job_id, val);
+            LL_INFO("job=%ld cgroup cpu.max=%s", job_id, val);
     }
 
     return 0;
@@ -202,11 +202,11 @@ int cgroup_job_assign(int64_t job_id, pid_t pid)
     snprintf(val, sizeof(val), "%d", (int) pid);
 
     if (cg_write(knob, val) < 0) {
-        LS_ERR("job=%ld cgroup assign pid=%d failed", job_id, (int) pid);
+        LL_ERR("job=%ld cgroup assign pid=%d failed", job_id, (int) pid);
         return -1;
     }
 
-    LS_INFO("job=%ld cgroup assigned pid=%d", job_id, (int) pid);
+    LL_INFO("job=%ld cgroup assigned pid=%d", job_id, (int) pid);
     return 0;
 }
 
@@ -217,11 +217,11 @@ void cgroup_job_destroy(int64_t job_id)
     snprintf(path, sizeof(path), "%s/job_%ld", cg_base, job_id);
 
     if (rmdir(path) < 0) {
-        LS_ERR("job=%ld cgroup rmdir(%s) failed: %m", job_id, path);
+        LL_ERR("job=%ld cgroup rmdir(%s) failed: %m", job_id, path);
         return;
     }
 
-    LS_INFO("job=%ld cgroup destroyed", job_id);
+    LL_INFO("job=%ld cgroup destroyed", job_id);
 }
 
 int cgroup_job_freeze(int64_t job_id)
@@ -231,11 +231,11 @@ int cgroup_job_freeze(int64_t job_id)
     snprintf(path, sizeof(path), "%s/job_%ld/cgroup.freeze", cg_base, job_id);
 
     if (cg_write(path, "1") < 0) {
-        LS_ERR("job=%ld cgroup freeze failed", job_id);
+        LL_ERR("job=%ld cgroup freeze failed", job_id);
         return -1;
     }
 
-    LS_INFO("job=%ld cgroup frozen", job_id);
+    LL_INFO("job=%ld cgroup frozen", job_id);
     return 0;
 }
 
@@ -246,11 +246,11 @@ int cgroup_job_thaw(int64_t job_id)
     snprintf(path, sizeof(path), "%s/job_%ld/cgroup.freeze", cg_base, job_id);
 
     if (cg_write(path, "0") < 0) {
-        LS_ERR("job=%ld cgroup thaw failed", job_id);
+        LL_ERR("job=%ld cgroup thaw failed", job_id);
         return -1;
     }
 
-    LS_INFO("job=%ld cgroup thawed", job_id);
+    LL_INFO("job=%ld cgroup thawed", job_id);
     return 0;
 }
 
@@ -261,11 +261,11 @@ int cgroup_job_kill(int64_t job_id)
     snprintf(path, sizeof(path), "%s/job_%ld/cgroup.kill", cg_base, job_id);
 
     if (cg_write(path, "1") < 0) {
-        LS_ERR("job=%ld cgroup kill failed", job_id);
+        LL_ERR("job=%ld cgroup kill failed", job_id);
         return -1;
     }
 
-    LS_INFO("job=%ld cgroup killed", job_id);
+    LL_INFO("job=%ld cgroup killed", job_id);
     return 0;
 }
 

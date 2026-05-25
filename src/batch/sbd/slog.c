@@ -45,12 +45,12 @@ static int make_path(char *buf, size_t bufsz, const char *fmt, ...)
 static int mkdir_chmod(const char *path, mode_t mode)
 {
     if (mkdir(path, mode) < 0 && errno != EEXIST) {
-        LS_ERR("mkdir(%s) failed", path);
+        LL_ERR("mkdir(%s) failed", path);
         return -1;
     }
 
     if (chmod(path, mode) < 0) {
-        LS_ERR("chmod(%s) failed", path);
+        LL_ERR("chmod(%s) failed", path);
         return -1;
     }
 
@@ -62,13 +62,13 @@ static int check_dir(const char *path)
     struct stat st;
 
     if (stat(path, &st) < 0) {
-        LS_ERR("stat(%s) failed", path);
+        LL_ERR("stat(%s) failed", path);
         return -1;
     }
 
     if (!S_ISDIR(st.st_mode)) {
         errno = ENOTDIR;
-        LS_ERR("%s is not a directory", path);
+        LL_ERR("%s is not a directory", path);
         return -1;
     }
 
@@ -81,12 +81,12 @@ static void fsync_dir(const char *path)
 
     fd = open(path, O_RDONLY | O_DIRECTORY);
     if (fd < 0) {
-        LS_ERR("open directory %s failed", path);
+        LL_ERR("open directory %s failed", path);
         return;
     }
 
     if (fsync(fd) < 0)
-        LS_ERR("fsync directory %s failed", path);
+        LL_ERR("fsync directory %s failed", path);
 
     close(fd);
 }
@@ -129,7 +129,7 @@ int sbd_storage_init(void)
         int n = snprintf(root_dir, sizeof(root_dir), "%s/%s",
                          ll_params[LL_STATE_DIR].val, sim_name);
         if (n < 0 || n >= (int) sizeof(root_dir)) {
-            LS_ERR("simulator state path too long");
+            LL_ERR("simulator state path too long");
             return -1;
         }
         /* root_dir with sim_name is created fresh each run */
@@ -138,7 +138,7 @@ int sbd_storage_init(void)
     } else if (non_root) {
         if (make_path(root_dir, sizeof(root_dir), "/tmp/lavalite-sbd.%ld",
                       (long) getuid()) < 0) {
-            LS_ERR("non-root tmp state path too long");
+            LL_ERR("non-root tmp state path too long");
             return -1;
         }
         /* non_root is created fresh each run */
@@ -149,7 +149,7 @@ int sbd_storage_init(void)
     }
 
     if (make_path(sbd_root_dir, sizeof(sbd_root_dir), "%s/sbd", root_dir) < 0) {
-        LS_ERR("sbd root path too long");
+        LL_ERR("sbd root path too long");
         return -1;
     }
     if (mkdir_chmod(sbd_root_dir, 0755) < 0)
@@ -157,7 +157,7 @@ int sbd_storage_init(void)
 
     if (make_path(sbd_job_dir, sizeof(sbd_job_dir), "%s/jobs", sbd_root_dir) <
         0) {
-        LS_ERR("sbd jobs path too long");
+        LL_ERR("sbd jobs path too long");
         return -1;
     }
     if (mkdir_chmod(sbd_job_dir, 0755) < 0)
@@ -165,7 +165,7 @@ int sbd_storage_init(void)
 
     if (make_path(sbd_state_dir, sizeof(sbd_state_dir), "%s/state",
                   sbd_root_dir) < 0) {
-        LS_ERR("sbd state path too long");
+        LL_ERR("sbd state path too long");
         return -1;
     }
     if (mkdir_chmod(sbd_state_dir, 0755) < 0)
@@ -173,7 +173,7 @@ int sbd_storage_init(void)
 
     if (make_path(sbd_archive_dir, sizeof(sbd_archive_dir), "%s/.archive",
                   sbd_root_dir) < 0) {
-        LS_ERR("archive path too long");
+        LL_ERR("archive path too long");
         return -1;
     }
     if (mkdir_chmod(sbd_archive_dir, 0755) < 0)
@@ -188,10 +188,10 @@ int sbd_storage_init(void)
     if (check_dir(sbd_archive_dir) < 0)
         return -1;
 
-    LS_INFO("sbd_root_dir=%s", sbd_root_dir);
-    LS_INFO("sbd_job_dir=%s", sbd_job_dir);
-    LS_INFO("sbd_state_dir=%s", sbd_state_dir);
-    LS_INFO("sbd_archive_dir=%s", sbd_archive_dir);
+    LL_INFO("sbd_root_dir=%s", sbd_root_dir);
+    LL_INFO("sbd_job_dir=%s", sbd_job_dir);
+    LL_INFO("sbd_state_dir=%s", sbd_state_dir);
+    LL_INFO("sbd_archive_dir=%s", sbd_archive_dir);
 
     return 0;
 }
@@ -204,23 +204,23 @@ void sbd_job_file_remove(struct sbd_job *job)
     char path[PATH_MAX];
 
     if (job_dir_path(dir, sizeof(dir), job->job_id) < 0) {
-        LS_ERR("job dir path too long job=%ld", job->job_id);
+        LL_ERR("job dir path too long job=%ld", job->job_id);
         return;
     }
 
     for (int i = 0; job_files[i] != NULL; i++) {
         if (make_path(path, sizeof(path), "%s/%s", dir, job_files[i]) < 0) {
-            LS_ERR("job file path too long job=%ld file=%s", job->job_id,
+            LL_ERR("job file path too long job=%ld file=%s", job->job_id,
                    job_files[i]);
             continue;
         }
 
         if (unlink(path) < 0 && errno != ENOENT)
-            LS_ERR("unlink(%s) failed job=%ld", path, job->job_id);
+            LL_ERR("unlink(%s) failed job=%ld", path, job->job_id);
     }
 
     if (rmdir(dir) < 0 && errno != ENOENT)
-        LS_ERR("rmdir(%s) failed job=%ld", dir, job->job_id);
+        LL_ERR("rmdir(%s) failed job=%ld", dir, job->job_id);
 }
 
 void sbd_job_state_archive(struct sbd_job *job)
@@ -230,17 +230,17 @@ void sbd_job_state_archive(struct sbd_job *job)
     char stpath[PATH_MAX];
 
     if (state_dir_path(src, sizeof(src), job->job_id) < 0) {
-        LS_ERR("src path too long job=%ld", job->job_id);
+        LL_ERR("src path too long job=%ld", job->job_id);
         return;
     }
 
     if (archive_dir_path(dst, sizeof(dst), job->job_id) < 0) {
-        LS_ERR("dst path too long job=%ld", job->job_id);
+        LL_ERR("dst path too long job=%ld", job->job_id);
         return;
     }
 
     if (rename(src, dst) < 0) {
-        LS_ERR("rename(%s, %s) failed job=%ld", src, dst, job->job_id);
+        LL_ERR("rename(%s, %s) failed job=%ld", src, dst, job->job_id);
         return;
     }
 
@@ -248,15 +248,15 @@ void sbd_job_state_archive(struct sbd_job *job)
     fsync_dir(sbd_archive_dir);
 
     if (chmod(dst, 0755) < 0)
-        LS_ERR("chmod(%s, 0755) failed job=%ld", dst, job->job_id);
+        LL_ERR("chmod(%s, 0755) failed job=%ld", dst, job->job_id);
 
     if (make_path(stpath, sizeof(stpath), "%s/state", dst) < 0) {
-        LS_ERR("state archive file path too long job=%ld", job->job_id);
+        LL_ERR("state archive file path too long job=%ld", job->job_id);
         return;
     }
 
     if (chmod(stpath, 0644) < 0 && errno != ENOENT)
-        LS_ERR("chmod(%s, 0644) failed job=%ld", stpath, job->job_id);
+        LL_ERR("chmod(%s, 0644) failed job=%ld", stpath, job->job_id);
 }
 
 int sbd_job_state_write(struct sbd_job *job)
@@ -266,17 +266,17 @@ int sbd_job_state_write(struct sbd_job *job)
     char state_dir[PATH_MAX];
 
     if (state_file_path(path, sizeof(path), job->job_id) < 0) {
-        LS_ERR("state path too long job=%ld", job->job_id);
+        LL_ERR("state path too long job=%ld", job->job_id);
         return -1;
     }
 
     if (tmp_state_file_path(tmp_path, sizeof(tmp_path), job->job_id) < 0) {
-        LS_ERR("tmp state path too long job=%ld", job->job_id);
+        LL_ERR("tmp state path too long job=%ld", job->job_id);
         return -1;
     }
 
     if (state_dir_path(state_dir, sizeof(state_dir), job->job_id) < 0) {
-        LS_ERR("state dir path too long job=%ld", job->job_id);
+        LL_ERR("state dir path too long job=%ld", job->job_id);
         return -1;
     }
 
@@ -310,51 +310,51 @@ int sbd_job_state_write(struct sbd_job *job)
                      (unsigned) job->exec_gid, job->exec_user);
     if (n < 0) {
         errno = EINVAL;
-        LS_ERRX("state format failed job=%ld", job->job_id);
+        LL_ERRX("state format failed job=%ld", job->job_id);
         return -1;
     }
 
     if ((size_t) n >= sizeof(buf)) {
         errno = ENAMETOOLONG;
-        LS_ERR("state buffer too small job=%ld", job->job_id);
+        LL_ERR("state buffer too small job=%ld", job->job_id);
         return -1;
     }
 
     int fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
     if (fd < 0) {
-        LS_ERR("open(%s) failed job=%ld", tmp_path, job->job_id);
+        LL_ERR("open(%s) failed job=%ld", tmp_path, job->job_id);
         return -1;
     }
 
     if (write_all(fd, buf, (size_t) n) < 0) {
-        LS_ERR("write(%s) failed job=%ld", tmp_path, job->job_id);
+        LL_ERR("write(%s) failed job=%ld", tmp_path, job->job_id);
         close(fd);
         unlink(tmp_path);
         return -1;
     }
 
     if (fsync(fd) < 0) {
-        LS_ERR("fsync(%s) failed job=%ld", tmp_path, job->job_id);
+        LL_ERR("fsync(%s) failed job=%ld", tmp_path, job->job_id);
         close(fd);
         unlink(tmp_path);
         return -1;
     }
 
     if (close(fd) < 0) {
-        LS_ERR("close(%s) failed job=%ld", tmp_path, job->job_id);
+        LL_ERR("close(%s) failed job=%ld", tmp_path, job->job_id);
         unlink(tmp_path);
         return -1;
     }
 
     if (rename(tmp_path, path) < 0) {
-        LS_ERR("rename(%s -> %s) failed job=%ld", tmp_path, path, job->job_id);
+        LL_ERR("rename(%s -> %s) failed job=%ld", tmp_path, path, job->job_id);
         unlink(tmp_path);
         return -1;
     }
 
     fsync_dir(state_dir);
 
-    LS_INFO("job=%ld pid=%d pgid=%d pid_acked=%d "
+    LL_INFO("job=%ld pid=%d pgid=%d pid_acked=%d "
             "finish_acked=%d exit_status_valid=%d "
             "exit_status=%d end_time=%ld exec_cwd=%s exec_home=%s "
             "exec_uid=%u exec_gid=%u exec_user=%s",
@@ -473,7 +473,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
     fclose(fp);
 
     if (version != 1 || got_job_id == FALSE) {
-        LS_ERRX("bad state file: version=%d got_job_id=%d path=%s", version,
+        LL_ERRX("bad state file: version=%d got_job_id=%d path=%s", version,
                 got_job_id, state_path);
         errno = EINVAL;
         return -1;
@@ -490,7 +490,7 @@ int sbd_job_state_load_all(void)
 
     dir = opendir(sbd_state_dir);
     if (dir == NULL) {
-        LS_ERR("opendir(%s) failed", sbd_state_dir);
+        LL_ERR("opendir(%s) failed", sbd_state_dir);
         return -1;
     }
 
@@ -523,7 +523,7 @@ int sbd_job_state_load_all(void)
 
     closedir(dir);
 
-    LS_INFO("loaded %d job(s) from persistent state", count);
+    LL_INFO("loaded %d job(s) from persistent state", count);
     return 0;
 }
 
@@ -545,7 +545,7 @@ int sbd_read_exit_status_file(struct sbd_job *job, int *exit_code,
 
     fd = open(path, O_RDONLY | O_CLOEXEC);
     if (fd < 0) {
-        LS_ERR("job=%ld open(%s) failed", job->job_id, path);
+        LL_ERR("job=%ld open(%s) failed", job->job_id, path);
         return -1;
     }
 
@@ -553,14 +553,14 @@ int sbd_read_exit_status_file(struct sbd_job *job, int *exit_code,
     close(fd);
 
     if (n <= 0) {
-        LS_ERR("job=%ld read(%s) failed", job->job_id, path);
+        LL_ERR("job=%ld read(%s) failed", job->job_id, path);
         return -1;
     }
 
     buf[n] = 0;
 
     if (sscanf(buf, "%d %ld", &code, &ts) != 2) {
-        LS_ERR("job=%ld sscanf failed path=%s", job->job_id, path);
+        LL_ERR("job=%ld sscanf failed path=%s", job->job_id, path);
         return -1;
     }
 
@@ -580,7 +580,7 @@ static void sbd_prune_archive(void)
 
     dir = opendir(sbd_archive_dir);
     if (dir == NULL) {
-        LS_ERR("opendir(%s) failed", sbd_archive_dir);
+        LL_ERR("opendir(%s) failed", sbd_archive_dir);
         return;
     }
 
@@ -600,7 +600,7 @@ static void sbd_prune_archive(void)
 
         memset(&job, 0, sizeof(job));
         if (sbd_job_state_read(&job, state_path) < 0) {
-            LS_ERR("sbd_job_state_read state_path=%s failed", state_path);
+            LL_ERR("sbd_job_state_read state_path=%s failed", state_path);
             continue;
         }
 
@@ -615,12 +615,12 @@ static void sbd_prune_archive(void)
             continue;
 
         if (unlink(state_path) < 0 && errno != ENOENT) {
-            LS_ERR("unlink(%s) failed", state_path);
+            LL_ERR("unlink(%s) failed", state_path);
             continue;
         }
 
         if (rmdir(dir_path) < 0 && errno != ENOENT)
-            LS_ERR("rmdir(%s) failed", dir_path);
+            LL_ERR("rmdir(%s) failed", dir_path);
     }
 
     closedir(dir);
@@ -643,12 +643,12 @@ void sbd_prune_archive_try(void)
     pruner_pid = fork();
     if (pruner_pid < 0) {
         pruner_pid = -1;
-        LS_ERR("fork(prune) failed");
+        LL_ERR("fork(prune) failed");
         return;
     }
 
     if (pruner_pid > 0) {
-        LS_INFO("archive prune started pid=%d", (int) pruner_pid);
+        LL_INFO("archive prune started pid=%d", (int) pruner_pid);
         return;
     }
 

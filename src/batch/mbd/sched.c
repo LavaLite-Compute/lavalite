@@ -96,14 +96,14 @@ static int job_is_ready(const struct job_data *job)
 static int host_in_queue_group(const struct mbd_host *h,
                                const struct job_data *job)
 {
-    LS_DEBUG("job=%ld is host=%s member of queue=%s", job->job_id, h->net.name,
+    LL_DEBUG("job=%ld is host=%s member of queue=%s", job->job_id, h->net.name,
              job->queue->name);
     return ll_hash_contains(&job->queue->host_hash, h->net.name);
 }
 
 static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
 {
-    LS_DEBUG("job=%ld host=%s total=%d free=%d", job->job_id, h->net.name,
+    LL_DEBUG("job=%ld host=%s total=%d free=%d", job->job_id, h->net.name,
              h->res.total_gpu, h->res.free_gpu);
 
     if (h->res.free_gpu >= job->res.num_gpus)
@@ -121,7 +121,7 @@ static int host_has_gpu_type(const struct mbd_host *h,
     if (g == NULL)
         return 0;
 
-    LS_DEBUG("job=%ld host=%s has gpu_type=%s count=%d free=%d", job->job_id,
+    LL_DEBUG("job=%ld host=%s has gpu_type=%s count=%d free=%d", job->job_id,
              h->net.name, job->res.gpu_type, g->count, g->free);
 
     if (g->free >= job->res.num_gpus)
@@ -162,7 +162,7 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
 
     for (e = host_list.head; e; e = e->next) {
         if (n >= SCHED_PLAN_MAX) {
-            LS_ERRX("candidate host overflow max=%d", SCHED_PLAN_MAX);
+            LL_ERRX("candidate host overflow max=%d", SCHED_PLAN_MAX);
             break;
         }
         struct mbd_host *h = (struct mbd_host *) e;
@@ -211,7 +211,7 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
     }
 
     if (n < job->res.num_hosts) {
-        LS_DEBUG("job=%ld need=%d found=%d hosts", job->job_id,
+        LL_DEBUG("job=%ld need=%d found=%d hosts", job->job_id,
                  job->res.num_hosts, n);
         return 0;
     }
@@ -223,7 +223,7 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
         job->run_nhosts++;
     }
     assert(job->run_nhosts == job->res.num_hosts);
-    LS_INFO("job=%ld exec_host=%s nhosts=%d cpus_per_host=%d gpus_per_host=%d",
+    LL_INFO("job=%ld exec_host=%s nhosts=%d cpus_per_host=%d gpus_per_host=%d",
             job->job_id, job->run_hosts[0]->net.name, job->res.num_hosts,
             job->res.num_cpus, job->res.num_gpus);
     return 1;
@@ -254,7 +254,7 @@ static void host_update_resources(const struct job_data *job)
             struct mbd_gpu *g =
                 ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
             if (g == NULL) {
-                LS_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
+                LL_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
                         h->net.name, job->res.gpu_type);
                 assert(0);
                 continue;
@@ -262,7 +262,7 @@ static void host_update_resources(const struct job_data *job)
             g->free -= job->res.num_gpus;
         }
 
-        LS_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "
+        LL_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "
                  "free_storage_mb=%lu free_gpu=%d",
                  h->net.name, h->num_jobs, h->res.free_cpu, h->res.free_mem_mb,
                  h->res.free_storage_mb, h->res.free_gpu);
@@ -279,11 +279,11 @@ static int tokens_available(const struct job_data *job)
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
         if (p == NULL) {
-            LS_ERRX("job=%ld token pool=%s not found", job->job_id, t->name);
+            LL_ERRX("job=%ld token pool=%s not found", job->job_id, t->name);
             return 0;
         }
         if (p->free < t->count) {
-            LS_DEBUG("no tokens for job=%ld pool=%s need=%d free=%d",
+            LL_DEBUG("no tokens for job=%ld pool=%s need=%d free=%d",
                      job->job_id, t->name, t->count, p->free);
             return 0;
         }
@@ -293,12 +293,12 @@ static int tokens_available(const struct job_data *job)
 
 void schedule(void)
 {
-    LS_DEBUG("num_pend_jobs=%d", ll_list_count(&pend_jobs_list));
+    LL_DEBUG("num_pend_jobs=%d", ll_list_count(&pend_jobs_list));
     if (ll_list_is_empty(&pend_jobs_list))
         return;
 
     int cc = mark_candidates();
-    LS_DEBUG("got number=%d of candidates hosts", cc);
+    LL_DEBUG("got number=%d of candidates hosts", cc);
     if (cc == 0)
         return;
 
@@ -309,7 +309,7 @@ void schedule(void)
         struct job_data *job = (struct job_data *) e;
         e = e->next;
 
-        LS_DEBUG("is job=%ld ready for scheduling", job->job_id);
+        LL_DEBUG("is job=%ld ready for scheduling", job->job_id);
         if (!job_is_ready(job)) {
             job->pend_reason = PEND_JOB_NOT_READY;
             continue;
@@ -325,17 +325,17 @@ void schedule(void)
             continue;
         }
 
-        LS_DEBUG("job=%ld is ready for scheduling", job->job_id);
+        LL_DEBUG("job=%ld is ready for scheduling", job->job_id);
         struct pend_diag diag;
         if (build_host_plan(job, &diag) == 0) {
             job->pend_reason = diag_reason(&diag);
-            LS_INFO("job=%ld not enough hosts found", job->job_id);
+            LL_INFO("job=%ld not enough hosts found", job->job_id);
             continue;
         }
 
         job->pend_reason = PEND_NONE;
         if (mbd_dispatch_job(job) < 0) {
-            LS_ERRX("job=%ld dispatch failed", job->job_id);
+            LL_ERRX("job=%ld dispatch failed", job->job_id);
             continue;
         }
 
@@ -348,7 +348,7 @@ void schedule(void)
         job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
         job->queue->num_hosts_used += job->run_nhosts;
 
-        LS_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
+        LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
                  job->queue->name, job->queue->num_pend, job->queue->num_run,
                  job->queue->num_susp);
     }
@@ -365,7 +365,7 @@ void token_alloc(const struct job_data *job)
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
         if (p == NULL) {
-            LS_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
+            LL_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
             continue;
         }
         p->free -= t->count;
@@ -382,7 +382,7 @@ void token_free(const struct job_data *job)
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
         if (p == NULL) {
-            LS_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
+            LL_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
             continue;
         }
         p->free += t->count;

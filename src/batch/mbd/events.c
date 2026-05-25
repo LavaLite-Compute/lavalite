@@ -29,13 +29,13 @@ static FILE *open_events(void)
 {
     FILE *fp = fopen(events_path, "a");
     if (fp == NULL) {
-        LS_ERR("fopen=%s", events_path);
+        LL_ERR("fopen=%s", events_path);
         mbd_die(MBD_EXIT_EVENTS);
     }
     struct stat st;
     if (fstat(fileno(fp), &st) < 0 ||
         (events_ino != 0 && st.st_ino != events_ino)) {
-        LS_ERRX("sysevents inode changed or removed — integrity lost");
+        LL_ERRX("sysevents inode changed or removed — integrity lost");
         fclose(fp);
         mbd_die(MBD_EXIT_EVENTS);
     }
@@ -97,7 +97,7 @@ static void replay_charge_running_job(struct job_data *job)
             assert(job->res.num_gpus > 0);
             g = ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
             if (g == NULL) {
-                LS_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
+                LL_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
                         h->net.name, job->res.gpu_type);
                 continue;
             }
@@ -125,7 +125,7 @@ static void replay_rebuild_counters(void)
         else if (job->state == JOB_PENDING)
             job->queue->num_pend++;
         else {
-            LS_ERRX("job=%ld in invalid state %d in pending list", job->job_id,
+            LL_ERRX("job=%ld in invalid state %d in pending list", job->job_id,
                     job->state);
             assert(0);
         }
@@ -148,7 +148,7 @@ static void replay_rebuild_counters(void)
             job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
             job->queue->num_hosts_used += job->run_nhosts;
         } else {
-            LS_ERRX("job=%ld in invalid state %d in running list", job->job_id,
+            LL_ERRX("job=%ld in invalid state %d in running list", job->job_id,
                     job->state);
             assert(0);
         }
@@ -188,7 +188,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     FILE *fp = open_events();
     if (log_write_job_new(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_new failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_new failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -222,7 +222,7 @@ void event_job_start(const struct job_data *job)
     FILE *fp = open_events();
     if (log_write_job_start(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_start failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_start failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -240,7 +240,7 @@ void event_job_fork(const struct job_data *job)
     FILE *fp = open_events();
     if (log_write_job_fork(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_fork failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_fork failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -259,7 +259,7 @@ void event_job_signal(const struct job_data *job, const struct wire_job_sig *ws)
     FILE *fp = open_events();
     if (log_write_job_signal(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_signal failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_signal failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -279,7 +279,7 @@ void event_job_finish(const struct job_data *job)
     FILE *fp = open_events();
     if (log_write_job_finish(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_finish failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_finish failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -295,7 +295,7 @@ void event_job_pend_susp(const struct job_data *job)
     FILE *fp = open_events();
     if (log_write_job_pend_susp(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_pend_susp failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_pend_susp failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -311,7 +311,7 @@ void event_job_pend_resume(const struct job_data *job)
     FILE *fp = open_events();
     if (log_write_job_pend_resume(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_resume failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_resume failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -327,7 +327,7 @@ void event_job_susp(const struct job_data *job)
     FILE *fp = open_events();
     if (log_write_job_susp(fp, &e) < 0) {
         fclose(fp);
-        LS_ERR("log_write_job_susp failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_susp failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -340,7 +340,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
 {
     struct job_data *job = calloc(1, sizeof(struct job_data));
     if (job == NULL) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return NULL;
     }
 
@@ -368,14 +368,14 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {
-        LS_ERR("job_id=%ld queue='%s' not found, orphaned", e->job_id,
+        LL_ERR("job_id=%ld queue='%s' not found, orphaned", e->job_id,
                e->queue);
         job->state = JOB_ORPHAN;
     }
 
     job->run_hosts = calloc(job->res.num_hosts, sizeof(struct mbd_host *));
     if (job->run_hosts == NULL) {
-        LS_ERR("calloc run_hosts with num_hosts=%d failed", job->res.num_hosts);
+        LL_ERR("calloc run_hosts with num_hosts=%d failed", job->res.num_hosts);
         job->res.num_hosts = 0;
         free(job);
         return NULL;
@@ -389,7 +389,7 @@ static int replay_insert(struct job_data *job)
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%ld", job->job_id);
     if (ll_hash_insert(&job_id_hash, key, job, 0) < 0) {
-        LS_ERR("job_id=%ld hash insert failed", job->job_id);
+        LL_ERR("job_id=%ld hash insert failed", job->job_id);
         free(job);
         return 0;
     }
@@ -402,7 +402,7 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
     struct log_job_new e;
     memset(&e, 0, sizeof(e));
     if (log_parse_job_new(rec, &e) < 0) {
-        LS_ERR("parse JOB_NEW failed");
+        LL_ERR("parse JOB_NEW failed");
         return 0;
     }
     if (e.job_id > *max_id)
@@ -410,7 +410,7 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
 
     struct job_data *job = replay_alloc(&e);
     if (job == NULL) {
-        LS_ERR("failed replay job=%ld", e.job_id);
+        LL_ERR("failed replay job=%ld", e.job_id);
         return 0;
     }
     return replay_insert(job);
@@ -425,7 +425,7 @@ static int replay_set_run_hosts(struct job_data *job,
 
     job->run_hosts = calloc(e->nhosts, sizeof(struct mbd_host *));
     if (job->run_hosts == NULL) {
-        LS_ERR("calloc failed job=%ld nhosts=%d", job->job_id, e->nhosts);
+        LL_ERR("calloc failed job=%ld nhosts=%d", job->job_id, e->nhosts);
         return -1;
     }
 
@@ -433,12 +433,12 @@ static int replay_set_run_hosts(struct job_data *job,
     while (tok != NULL) {
         struct mbd_host *h = ll_hash_search(&host_name_hash, tok);
         if (h == NULL) {
-            LS_ERRX("JOB_START job_id=%ld host=%s not found", job->job_id, tok);
+            LL_ERRX("JOB_START job_id=%ld host=%s not found", job->job_id, tok);
             return -1;
         }
 
         if (job->run_nhosts >= e->nhosts) {
-            LS_ERRX("job_id=%ld too many hosts run=%d e=%d", job->job_id,
+            LL_ERRX("job_id=%ld too many hosts run=%d e=%d", job->job_id,
                     job->run_nhosts, e->nhosts);
             return -1;
         }
@@ -450,7 +450,7 @@ static int replay_set_run_hosts(struct job_data *job,
     }
 
     if (job->run_nhosts != e->nhosts) {
-        LS_ERRX("JOB_START job_id=%ld expected_nhosts=%d got=%d", job->job_id,
+        LL_ERRX("JOB_START job_id=%ld expected_nhosts=%d got=%d", job->job_id,
                 e->nhosts, job->run_nhosts);
         assert(0);
         return -1;
@@ -464,16 +464,16 @@ static void replay_job_start(const struct event_rec *rec)
     struct log_job_start e;
     memset(&e, 0, sizeof(e));
     if (log_parse_job_start(rec, &e) < 0) {
-        LS_ERR("parse JOB_START failed");
+        LL_ERR("parse JOB_START failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERR("JOB_START job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_START job_id=%ld not found", e.job_id);
         return;
     }
     if (replay_set_run_hosts(job, &e) < 0) {
-        LS_ERR("job_id=%ld orphaned replay_set_run_hosts failed", e.job_id);
+        LL_ERR("job_id=%ld orphaned replay_set_run_hosts failed", e.job_id);
         job->state = JOB_ORPHAN;
         // make sure later on we dont reply this job
         job->run_nhosts = 0;
@@ -484,7 +484,7 @@ static void replay_job_start(const struct event_rec *rec)
     job->dispatch_time = e.dispatch_time;
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    LS_DEBUG("JOB_START job_id=%ld exec_host=%s nhosts=%d cpus=%d gpus=%d",
+    LL_DEBUG("JOB_START job_id=%ld exec_host=%s nhosts=%d cpus=%d gpus=%d",
              e.job_id, e.exec_host, e.nhosts, e.cpus_per_host, e.gpus_per_host);
 }
 
@@ -493,34 +493,34 @@ static void replay_job_fork(const struct event_rec *rec)
     struct log_job_fork e;
 
     if (log_parse_job_fork(rec, &e) < 0) {
-        LS_ERR("parse JOB_FORK failed");
+        LL_ERR("parse JOB_FORK failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERR("JOB_FORK job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_FORK job_id=%ld not found", e.job_id);
         return;
     }
     job->pid = (pid_t) e.job_pid;
     job->fork_time = e.fork_time;
 
-    LS_DEBUG("JOB_FORK job_id=%ld pid=%d", e.job_id, e.job_pid);
+    LL_DEBUG("JOB_FORK job_id=%ld pid=%d", e.job_id, e.job_pid);
 }
 
 static void replay_job_signal(const struct event_rec *rec)
 {
     struct log_job_signal e;
     if (log_parse_job_signal(rec, &e) < 0) {
-        LS_ERR("parse JOB_SIGNAL failed");
+        LL_ERR("parse JOB_SIGNAL failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERR("JOB_SIGNAL job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_SIGNAL job_id=%ld not found", e.job_id);
         return;
     }
     job->signal_time = e.signal_time;
-    LS_DEBUG("JOB_SIGNAL job_id=%ld sig=%d uid=%u", e.job_id, e.signal_num,
+    LL_DEBUG("JOB_SIGNAL job_id=%ld sig=%d uid=%u", e.job_id, e.signal_num,
              e.uid);
 }
 
@@ -529,12 +529,12 @@ static void replay_job_finish(const struct event_rec *rec)
     struct log_job_finish e;
     memset(&e, 0, sizeof(e));
     if (log_parse_job_finish(rec, &e) < 0) {
-        LS_ERR("parse JOB_FINISH failed");
+        LL_ERR("parse JOB_FINISH failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERR("JOB_FINISH job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_FINISH job_id=%ld not found", e.job_id);
         return;
     }
 
@@ -547,65 +547,65 @@ static void replay_job_finish(const struct event_rec *rec)
     if (job->list_id == JOB_LIST_RUN)
         from = &run_jobs_list;
     job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
-    LS_DEBUG("JOB_FINISH job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_FINISH job_id=%ld", e.job_id);
 }
 
 static void replay_job_pend_susp(const struct event_rec *rec)
 {
     struct log_job_pend_susp e;
     if (log_parse_job_pend_susp(rec, &e) < 0) {
-        LS_ERR("parse JOB_PEND_SUSP failed");
+        LL_ERR("parse JOB_PEND_SUSP failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERRX("JOB_PEND_SUSP job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_PEND_SUSP job_id=%ld not found", e.job_id);
         return;
     }
     if (!(job->state == JOB_PENDING)) {
-        LS_ERRX("JOB_PEND_SUSP job_id=%ld not in PEND", e.job_id);
+        LL_ERRX("JOB_PEND_SUSP job_id=%ld not in PEND", e.job_id);
         assert(0);
         return;
     }
     job->state = JOB_HELD;
-    LS_DEBUG("JOB_PEND_SUSP job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_PEND_SUSP job_id=%ld", e.job_id);
 }
 
 static void replay_job_pending_resume(const struct event_rec *rec)
 {
     struct log_job_pend_resume e;
     if (log_parse_job_pend_resume(rec, &e) < 0) {
-        LS_ERR("parse JOB_RESUME failed");
+        LL_ERR("parse JOB_RESUME failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERRX("JOB_RESUME job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_RESUME job_id=%ld not found", e.job_id);
         return;
     }
     if (!(job->state == JOB_HELD)) {
-        LS_ERRX("JOB_PENDING_RESUME job_id=%ld not in PEND_SUSP", e.job_id);
+        LL_ERRX("JOB_PENDING_RESUME job_id=%ld not in PEND_SUSP", e.job_id);
         assert(0);
         return;
     }
     job->state = JOB_PENDING;
-    LS_DEBUG("JOB_RESUME job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_RESUME job_id=%ld", e.job_id);
 }
 
 static void replay_job_susp(const struct event_rec *rec)
 {
     struct log_job_susp e;
     if (log_parse_job_susp(rec, &e) < 0) {
-        LS_ERR("parse JOB_SUSP failed");
+        LL_ERR("parse JOB_SUSP failed");
         return;
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LS_ERRX("JOB_SUSP job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_SUSP job_id=%ld not found", e.job_id);
         return;
     }
     job->state = JOB_SUSPENDED;
-    LS_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
 }
 
 /*
@@ -656,22 +656,22 @@ int events_init(void)
         syslog(LOG_ERR, "mkdir(%s) failed: %m", dir);
         mbd_die(MBD_EXIT_FATAL);
     }
-    LS_INFO("working dir initialized %s", dir);
+    LL_INFO("working dir initialized %s", dir);
 
     n = snprintf(events_path, sizeof(events_path), "%s/sysevents", dir);
     if (n < 0 || n >= (int) sizeof(events_path))
         mbd_die(MBD_EXIT_EVENTS);
-    LS_INFO("job events initialized %s", events_path);
+    LL_INFO("job events initialized %s", events_path);
 
     n = snprintf(jobs_dir, sizeof(jobs_dir), "%s/jobs", dir);
     if (n < 0 || n >= (int) sizeof(jobs_dir))
         mbd_die(MBD_EXIT_EVENTS);
 
     if (mkdir(jobs_dir, 0700) == -1 && errno != EEXIST) {
-        LS_ERRX("mkdir(%s) failed", jobs_dir);
+        LL_ERRX("mkdir(%s) failed", jobs_dir);
         mbd_die(MBD_EXIT_EVENTS);
     }
-    LS_INFO("job working dir initialized %s", jobs_dir);
+    LL_INFO("job working dir initialized %s", jobs_dir);
 
     for (int i = 0; i < JOB_BUCKETS; i++) {
         char bucket[PATH_MAX];
@@ -679,21 +679,21 @@ int events_init(void)
         if (nb < 0 || nb >= (int) sizeof(bucket))
             mbd_die(MBD_EXIT_EVENTS);
         if (mkdir(bucket, 0700) == -1 && errno != EEXIST) {
-            LS_ERRX("mkdir(%s) failed", bucket);
+            LL_ERRX("mkdir(%s) failed", bucket);
             mbd_die(MBD_EXIT_EVENTS);
         }
     }
 
-    LS_INFO("%d bucket dirs initialized", JOB_BUCKETS);
+    LL_INFO("%d bucket dirs initialized", JOB_BUCKETS);
 
     if (!ll_atoi(ll_params[LL_JOB_FINISH_RETAIN].val, &job_finish_retain)) {
-        LS_ERRX("failed parsing LL_JOB_FINISH_RETAIN=%s using default=100 jobs",
+        LL_ERRX("failed parsing LL_JOB_FINISH_RETAIN=%s using default=100 jobs",
                 ll_params[LL_JOB_FINISH_RETAIN].val);
     }
 
     compact_seq_scan();
 
-    LS_INFO("events seq initialized seq=%u", compact_seq);
+    LL_INFO("events seq initialized seq=%u", compact_seq);
 
     return 0;
 }
@@ -720,12 +720,12 @@ static void job_id_seq_read(void)
     fclose(fp);
 
     if (n != 1) {
-        LS_ERR("job_id_seq: parse failed, ignoring");
+        LL_ERR("job_id_seq: parse failed, ignoring");
         return;
     }
 
     if (seq > job_id_seq) {
-        LS_INFO("job_id_seq: restoring from file seq=%ld (was %ld)",
+        LL_INFO("job_id_seq: restoring from file seq=%ld (was %ld)",
                 seq, job_id_seq);
         job_id_seq = seq;
     }
@@ -736,10 +736,10 @@ int jobs_replay(void)
     FILE *fp = fopen(events_path, "r");
     if (fp == NULL) {
         if (errno == ENOENT) {
-            LS_INFO("replay: no job.events, nothing to replay");
+            LL_INFO("replay: no job.events, nothing to replay");
             return 0;
         }
-        LS_ERR("fopen %s", events_path);
+        LL_ERR("fopen %s", events_path);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -789,7 +789,7 @@ int jobs_replay(void)
 
     if (ferror(fp)) {
         fclose(fp);
-        LS_ERR("I/O error reading job events=%s line=%d", events_path, lineno);
+        LL_ERR("I/O error reading job events=%s line=%d", events_path, lineno);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -806,7 +806,7 @@ int jobs_replay(void)
     // debug
     mbd_assert_counters();
 
-    LS_INFO("replay: done, %d jobs restored, job_id_seq=%ld", restored,
+    LL_INFO("replay: done, %d jobs restored, job_id_seq=%ld", restored,
             job_id_seq);
     return restored;
 }
@@ -896,19 +896,19 @@ void job_id_seq_write(void)
 
     FILE *fp = fopen(tmp, "w");
     if (fp == NULL) {
-        LS_ERR("fopen job_id_seq=%s: %m", tmp);
+        LL_ERR("fopen job_id_seq=%s: %m", tmp);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fprintf(fp, "%ld\n", job_id_seq);
     if (fflush(fp) != 0 || fsync(fileno(fp)) != 0) {
-        LS_ERR("fsync job_id_seq failed");
+        LL_ERR("fsync job_id_seq failed");
         fclose(fp);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
 
     if (rename(tmp, path) < 0) {
-        LS_ERR("rename job_id_seq %s -> %s: %m", tmp, path);
+        LL_ERR("rename job_id_seq %s -> %s: %m", tmp, path);
         mbd_die(MBD_EXIT_EVENTS);
     }
 }
@@ -945,7 +945,7 @@ static void events_compact(void)
     snprintf(archived, sizeof(archived), "%s.%06u", events_path, compact_seq);
 
     if (rename(events_path, archived) < 0) {
-        LS_ERR("rename(%s, %s)", events_path, archived);
+        LL_ERR("rename(%s, %s)", events_path, archived);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -986,14 +986,14 @@ static void events_compact(void)
      * open_events() does not falsely detect integrity loss */
     struct stat st;
     if (fstat(fileno(fp), &st) < 0) {
-        LS_ERR("fstat sysevents after compact");
+        LL_ERR("fstat sysevents after compact");
         mbd_die(MBD_EXIT_EVENTS);
     }
     events_ino = st.st_ino;
 
     fclose(fp);
 
-    LS_INFO("events compacted seq=%u archived=%s", compact_seq, archived);
+    LL_INFO("events compacted seq=%u archived=%s", compact_seq, archived);
 }
 
 void maybe_compact_events(void)
@@ -1001,7 +1001,7 @@ void maybe_compact_events(void)
     if (ll_list_count(&finish_jobs_list) < job_finish_retain)
         return;
 
-    LS_DEBUG("compacting sysevents as finished job=%d",
+    LL_DEBUG("compacting sysevents as finished job=%d",
              ll_list_count(&finish_jobs_list));
 
     events_compact();

@@ -34,7 +34,7 @@ static int init_chans(void)
 {
     if (!ll_atoi(ll_params[LL_LIM_PORT].val, (int *) &lim_port)) {
         errno = EINVAL;
-        LS_ERRX("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
+        LL_ERRX("invalid LL_LIM_PORT=%s", ll_params[LL_LIM_PORT].val);
         return -1;
     }
 
@@ -42,13 +42,13 @@ static int init_chans(void)
 
     udp_chan = chan_udp_server(lim_port);
     if (udp_chan < 0) {
-        LS_ERRX("chan_udp_socket failed port=%d", lim_port);
+        LL_ERRX("chan_udp_socket failed port=%d", lim_port);
         return -1;
     }
 
     tcp_chan = chan_tcp_server(lim_port);
     if (tcp_chan < 0) {
-        LS_ERRX("chan_tcp_listen_socket failed");
+        LL_ERRX("chan_tcp_listen_socket failed");
         chan_close(tcp_chan);
         chan_close(udp_chan);
         return -1;
@@ -79,14 +79,14 @@ static int add_listener(int lim_efd, int fd, int ch_id)
 static int init_network(void)
 {
     if (init_chans() < 0) {
-        LS_ERR("init_chans failed");
+        LL_ERR("init_chans failed");
         return -1;
     }
 
     // epoll file descriptor
     lim_efd = epoll_create1(0);
     if (lim_efd < 0) {
-        LS_ERR("%s: epoll_create1() failed: %m", __func__);
+        LL_ERR("%s: epoll_create1() failed: %m", __func__);
         chan_close(tcp_chan);
         chan_close(udp_chan);
         chan_close(timer_chan);
@@ -99,12 +99,12 @@ static int init_network(void)
     }
 
     if (add_listener(lim_efd, chan_sock(tcp_chan), tcp_chan) < 0) {
-        LS_ERR("%s: Failed to add TCP listener: %m", __func__);
+        LL_ERR("%s: Failed to add TCP listener: %m", __func__);
         goto cleanup;
     }
 
     if (add_listener(lim_efd, chan_sock(timer_chan), timer_chan) < 0) {
-        LS_ERR("%s: Failed to add timer: %m", __func__);
+        LL_ERR("%s: Failed to add timer: %m", __func__);
         goto cleanup;
     }
 
@@ -133,44 +133,44 @@ static int lim_init(const char *conf_dir)
     ll_hash_init(&node_name_hash, 1021);
     ll_hash_init(&node_addr_hash, 1021);
 
-    LS_DEBUG("tables initialized");
+    LL_DEBUG("tables initialized");
 
     char path[PATH_MAX];
     int cc = snprintf(path, PATH_MAX, "%s/ll.conf", conf_dir);
     if (cc < 0 || cc > PATH_MAX) {
-        LS_ERR("path too long or sprintf error");
+        LL_ERR("path too long or sprintf error");
         return -1;
     }
 
     cc = load_conf(path);
     if (cc < 0) {
-        LS_ERR("failed loading config from=%s", path);
+        LL_ERR("failed loading config from=%s", path);
         return -1;
     }
 
     cc = snprintf(path, PATH_MAX, "%s/ll.cluster.%s", conf_dir,
                   ll_params[LL_CLUSTER_NAME].val);
     if (cc < 0 || cc > PATH_MAX) {
-        LS_ERR("path too long or sprintf error");
+        LL_ERR("path too long or sprintf error");
         return -1;
     }
     cc = make_cluster(path);
     if (cc < 0) {
-        LS_ERRX("make_cluster failed");
+        LL_ERRX("make_cluster failed");
         return -1;
     }
-    LS_DEBUG("configuration loaded");
+    LL_DEBUG("configuration loaded");
 
     install_signal_handler(SIGTERM, croak_handler, 0);
     install_signal_handler(SIGINT, croak_handler, 0);
-    LS_DEBUG("signals initialized");
+    LL_DEBUG("signals initialized");
 
     cc = init_network();
     if (cc < 0) {
-        LS_ERR("lim_make_cluster failed");
+        LL_ERR("lim_make_cluster failed");
         return -1;
     }
-    LS_DEBUG("network  initialized");
+    LL_DEBUG("network  initialized");
 
     return 0;
 }
@@ -185,7 +185,7 @@ int is_master_candidate(struct lim_node *n)
 static void is_master_me(void)
 {
     if (!is_master_candidate(me)) {
-        LS_INFO("lim=%s host_no=%d is not master candidate", me->host->name,
+        LL_INFO("lim=%s host_no=%d is not master candidate", me->host->name,
                 me->host_no);
         current_master.node = NULL;
         return;
@@ -195,12 +195,12 @@ static void is_master_me(void)
     current_master.inactivity = 0;
     if (me->host_no == 0) {
         current_master.node = me;
-        LS_INFO("lim=%s host_no=%d is now master", me->host->name, me->host_no);
+        LL_INFO("lim=%s host_no=%d is now master", me->host->name, me->host_no);
         return;
     }
 
     // I am not the master so I have to wait for the beacon
-    LS_INFO("I am master candidate lim=%s host_no=%d master_tolerance=%d",
+    LL_INFO("I am master candidate lim=%s host_no=%d master_tolerance=%d",
             me->host->name, me->host_no, me->host_no * MISSED_BEACON_TOLERANCE);
 }
 
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
     }
 
     // first open to capture eventual startup failures
-    ls_openlog("lim", "/tmp", "LOG_DEBUG");
+    ll_openlog("lim", "/tmp", "LOG_DEBUG");
 
     if (conf_dir == NULL) {
         if ((conf_dir = getenv("LL_CONF_DIR")) == NULL) {
@@ -252,20 +252,20 @@ int main(int argc, char **argv)
 
     cc = lim_init(conf_dir);
     if (cc < 0) {
-        LS_ERRX("lim_init failed. cannot run");
+        LL_ERRX("lim_init failed. cannot run");
         return -1;
     }
 
-    ls_closelog();
-    cc = ls_openlog("lim", ll_params[LL_LOG_DIR].val,
+    ll_closelog();
+    cc = ll_openlog("lim", ll_params[LL_LOG_DIR].val,
                     ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
-        fprintf(stderr, "lim: ls_openlog failed lodir=%s mask=%s %m\n",
+        fprintf(stderr, "lim: ll_openlog failed lodir=%s mask=%s %m\n",
                 ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 
-    LS_INFO("lim started: %s", LAVALITE_VERSION_STR);
+    LL_INFO("lim started: %s", LAVALITE_VERSION_STR);
 
     init_read_proc();
     is_master_me();
@@ -279,7 +279,7 @@ int main(int argc, char **argv)
         int nfd = chan_epoll(lim_efd, lim_events, CHAN_MAX, -1);
         if (nfd < 0) {
             if (errno != EINTR) {
-                LS_ERR("chan_epoll");
+                LL_ERR("chan_epoll");
                 millisleep(1000);
             }
             continue;
@@ -300,10 +300,10 @@ int main(int argc, char **argv)
                 ssize_t n =
                     read(chan_sock(ch_id), &expirations, sizeof(expirations));
                 if (n < 0 && errno != EINTR)
-                    LS_ERR("timer read failed");
+                    LL_ERR("timer read failed");
 
                 if (t - last_timer > 15) {
-                    LS_DEBUG("timer run %s", ctime2(NULL));
+                    LL_DEBUG("timer run %s", ctime2(NULL));
                     last_timer = t;
                 }
                 light_house();
@@ -325,5 +325,5 @@ int main(int argc, char **argv)
         }
     }
 
-    LS_INFO("lim exited");
+    LL_INFO("lim exited");
 }

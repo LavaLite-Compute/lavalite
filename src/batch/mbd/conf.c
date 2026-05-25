@@ -55,7 +55,7 @@ static struct mbd_gpu *make_gpu(const char *p)
 
     g = calloc(1, sizeof(*g));
     if (g == NULL) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return NULL;
     }
 
@@ -63,14 +63,14 @@ static struct mbd_gpu *make_gpu(const char *p)
     int n = sscanf(p, "%255s %d %63s %d", hostname, &gpu_id,
                    gpu_type, &count);
     if (n != 4) {
-        LS_ERRX("bad gpu line=<%s>", p);
+        LL_ERRX("bad gpu line=<%s>", p);
         free(g);
         return NULL;
     }
 
     struct mbd_host *h = find_host_by_name(hostname);
     if (h == NULL) {
-        LS_ERRX("gpu references unknown host=%s", hostname);
+        LL_ERRX("gpu references unknown host=%s", hostname);
         free(g);
         return NULL;
     }
@@ -99,7 +99,7 @@ static int parse_gpus(const char *path)
 
     f = fopen(path, "r");
     if (f == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         return -1;
     }
 
@@ -136,14 +136,14 @@ static int parse_gpus(const char *path)
         }
 
         if (make_gpu(p) == NULL) {
-            LS_ERRX("make_gpu failed line=%s", p);
+            LL_ERRX("make_gpu failed line=%s", p);
             fclose(f);
             return -1;
         }
     }
 
     fclose(f);
-    LS_ERRX("missing End Gpu in %s", path);
+    LL_ERRX("missing End Gpu in %s", path);
     return -1;
 }
 
@@ -156,7 +156,7 @@ static int parse_token_pools(const char *path)
 
     f = fopen(path, "r");
     if (f == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         return -1;
     }
 
@@ -196,20 +196,20 @@ static int parse_token_pools(const char *path)
         int total;
 
         if (sscanf(p, "%63s %d", name, &total) != 2) {
-            LS_ERRX("bad tokenpool line: %s", p);
+            LL_ERRX("bad tokenpool line: %s", p);
             fclose(f);
             return -1;
         }
 
         if (total <= 0) {
-            LS_ERRX("tokenpool=%s invalid total=%d", name, total);
+            LL_ERRX("tokenpool=%s invalid total=%d", name, total);
             fclose(f);
             return -1;
         }
 
         struct mbd_token_pool *tp = calloc(1, sizeof(*tp));
         if (tp == NULL) {
-            LS_ERR("calloc failed");
+            LL_ERR("calloc failed");
             fclose(f);
             return -1;
         }
@@ -221,7 +221,7 @@ static int parse_token_pools(const char *path)
         ll_list_append(&token_pool_list, &tp->ent);
         ll_hash_insert(&token_pool_name_hash, tp->name, tp, 0);
 
-        LS_INFO("tokenpool name=%s total=%d", tp->name, tp->total);
+        LL_INFO("tokenpool name=%s total=%d", tp->name, tp->total);
     }
 
     fclose(f);
@@ -234,7 +234,7 @@ static struct mbd_host *make_host(const char *p)
 {
     struct mbd_host *h = calloc(1, sizeof(*h));
     if (h == NULL) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return NULL;
     }
 
@@ -246,27 +246,27 @@ static struct mbd_host *make_host(const char *p)
     n = sscanf(p, "%63s %d %d %31s %31s", hostname, &h->res.max_jobs,
                &h->res.total_cpu, mem_str, storage_str);
     if (n != 5) {
-        LS_ERRX("bad line: %s", p);
+        LL_ERRX("bad line: %s", p);
         free(h);
         return NULL;
     }
 
     if (get_host_by_name(hostname, &h->net) < 0) {
-        LS_ERR("get_host_by_name failed host=%s", hostname);
+        LL_ERR("get_host_by_name failed host=%s", hostname);
         free(h);
         return NULL;
     }
 
     h->res.total_mem_mb = parse_mem(mem_str);
     if (h->res.total_mem_mb == 0) {
-        LS_ERRX("bad memory value host=%s mem=%s", hostname, mem_str);
+        LL_ERRX("bad memory value host=%s mem=%s", hostname, mem_str);
         free(h);
         return NULL;
     }
 
     h->res.total_storage_mb = parse_mem(storage_str);
     if (h->res.total_storage_mb == 0) {
-        LS_ERRX("bad storage value host=%s storage=%s", hostname, storage_str);
+        LL_ERRX("bad storage value host=%s storage=%s", hostname, storage_str);
         free(h);
         return NULL;
     }
@@ -293,7 +293,7 @@ static int parse_hosts(const char *path)
 
     f = fopen(path, "r");
     if (f == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         return -1;
     }
 
@@ -335,7 +335,7 @@ static int parse_hosts(const char *path)
 
         h = make_host(p);
         if (h == NULL) {
-            LS_ERRX("make_host failed line=%s", p);
+            LL_ERRX("make_host failed line=%s", p);
             fclose(f);
             return -1;
         }
@@ -344,12 +344,12 @@ static int parse_hosts(const char *path)
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
         ll_hash_insert(&host_addr_hash, h->net.addr, h, 0);
 
-        LS_INFO("host=%s cpu=%d mem=%luMB storage=%luMB", h->net.name,
+        LL_INFO("host=%s cpu=%d mem=%luMB storage=%luMB", h->net.name,
                 h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb);
     }
 
     fclose(f);
-    LS_ERRX("missing End Host in %s", path);
+    LL_ERRX("missing End Host in %s", path);
     return -1;
 }
 
@@ -366,7 +366,7 @@ static struct mbd_group *make_group(char *p)
     open = strchr(p, '(');
     close = strrchr(p, ')');
     if (open == NULL || close == NULL || close <= open) {
-        LS_ERRX("bad line=%s", p);
+        LL_ERRX("bad line=%s", p);
         return NULL;
     }
 
@@ -380,7 +380,7 @@ static struct mbd_group *make_group(char *p)
 
     g = calloc(1, sizeof(*g));
     if (g == NULL) {
-        LS_ERR("calloc failed");
+        LL_ERR("calloc failed");
         return NULL;
     }
 
@@ -391,7 +391,7 @@ static struct mbd_group *make_group(char *p)
     tok = strtok(tmp, " \t");
     while (tok != NULL) {
         if (!ll_hash_contains(&host_name_hash, tok)) {
-            LS_ERRX("host=%s unknown by configuration", tok);
+            LL_ERRX("host=%s unknown by configuration", tok);
             free(g);
             return NULL;
         }
@@ -411,7 +411,7 @@ static int parse_groups(const char *path)
 
     f = fopen(path, "r");
     if (f == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         return -1;
     }
 
@@ -453,7 +453,7 @@ static int parse_groups(const char *path)
 
         g = make_group(p);
         if (g == NULL) {
-            LS_ERRX("make_group failed line=%s", p);
+            LL_ERRX("make_group failed line=%s", p);
             fclose(f);
             return -1;
         }
@@ -464,7 +464,7 @@ static int parse_groups(const char *path)
 
     fclose(f);
     if (in_section) {
-        LS_ERRX("missing End HostGroup in %s", path);
+        LL_ERRX("missing End HostGroup in %s", path);
         return -1;
     }
     return 0;
@@ -475,18 +475,18 @@ static int commit_queue(struct queue_conf *qc)
     struct mbd_queue *q;
 
     if (qc->name[0] == 0) {
-        LS_ERRX("queue missing NAME");
+        LL_ERRX("queue missing NAME");
         return -1;
     }
 
     if (qc->hosts_spec[0] == 0) {
-        LS_ERRX("queue=%s missing HOSTS", qc->name);
+        LL_ERRX("queue=%s missing HOSTS", qc->name);
         return -1;
     }
 
     q = calloc(1, sizeof(struct mbd_queue));
     if (q == NULL) {
-        LS_ERRX("calloc failed name=%s", qc->name);
+        LL_ERRX("calloc failed name=%s", qc->name);
         return -1;
     }
 
@@ -522,7 +522,7 @@ static int parse_queue_conf(struct queue_conf *qc, const char *key,
     if (strcmp(key, "USERS") == 0)
         return ll_strlcpy(qc->users, val, LL_BUFSIZ_256);
 
-    LS_ERRX("unknown queue key=%s", key);
+    LL_ERRX("unknown queue key=%s", key);
     return -1;
 }
 
@@ -535,7 +535,7 @@ static int parse_queues(const char *path)
 
     f = fopen(path, "r");
     if (f == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         return -1;
     }
 
@@ -581,7 +581,7 @@ static int parse_queues(const char *path)
 
             eq = strchr(p, '=');
             if (eq == NULL) {
-                LS_ERRX("parse_queues: bad line: %s", p);
+                LL_ERRX("parse_queues: bad line: %s", p);
                 fclose(f);
                 return -1;
             }
@@ -602,7 +602,7 @@ static int parse_queues(const char *path)
     fclose(f);
 
     if (in_section) {
-        LS_ERRX("missing End Queue in %s", path);
+        LL_ERRX("missing End Queue in %s", path);
         return -1;
     }
 
@@ -621,7 +621,7 @@ static int parse_sim(const char *path)
 {
     FILE *f = fopen(path, "r");
     if (f == NULL) {
-        LS_ERR("fopen=%s failed", path);
+        LL_ERR("fopen=%s failed", path);
         return -1;
     }
 
@@ -672,27 +672,27 @@ static int parse_sim(const char *path)
         if (sscanf(p, "%255s %255s %d %d %d %31s %31s %d %63s",
                    sim_name, real_host, &port, &max_jobs, &total_cpu,
                    mem_str, storage_str, &total_gpu, gpu_type_str) != 9) {
-            LS_ERRX("bad sim line: %s", p);
+            LL_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
         }
 
         if (port < 1 || port > 65535) {
-            LS_ERRX("sim=%s invalid port=%d", sim_name, port);
+            LL_ERRX("sim=%s invalid port=%d", sim_name, port);
             fclose(f);
             return -1;
         }
 
         struct mbd_host *real = find_host_by_name(real_host);
         if (real == NULL) {
-            LS_ERRX("sim=%s references unknown host=%s", sim_name, real_host);
+            LL_ERRX("sim=%s references unknown host=%s", sim_name, real_host);
             fclose(f);
             return -1;
         }
 
         struct mbd_host *h = calloc(1, sizeof(*h));
         if (h == NULL) {
-            LS_ERR("calloc failed");
+            LL_ERR("calloc failed");
             fclose(f);
             return -1;
         }
@@ -707,7 +707,7 @@ static int parse_sim(const char *path)
 
         h->res.total_mem_mb = parse_mem(mem_str);
         if (h->res.total_mem_mb == 0) {
-            LS_ERRX("sim=%s bad mem=%s", sim_name, mem_str);
+            LL_ERRX("sim=%s bad mem=%s", sim_name, mem_str);
             free(h);
             fclose(f);
             return -1;
@@ -716,7 +716,7 @@ static int parse_sim(const char *path)
 
         h->res.total_storage_mb = parse_mem(storage_str);
         if (h->res.total_storage_mb == 0) {
-            LS_ERRX("sim=%s bad storage=%s", sim_name, storage_str);
+            LL_ERRX("sim=%s bad storage=%s", sim_name, storage_str);
             free(h);
             fclose(f);
             return -1;
@@ -739,7 +739,7 @@ static int parse_sim(const char *path)
         if (total_gpu > 0) {
             struct mbd_gpu *g = calloc(1, sizeof(*g));
             if (g == NULL) {
-                LS_ERR("calloc failed");
+                LL_ERR("calloc failed");
                 free(h);
                 fclose(f);
                 return -1;
@@ -752,7 +752,7 @@ static int parse_sim(const char *path)
             ll_hash_insert(&h->res.gpu_type_hash, g->gpu_type, g, 0);
         }
 
-        LS_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB "
+        LL_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB "
                 "storage=%luMB gpu=%d gpu_type=%s",
                 sim_name, real_host, port, total_cpu,
                 h->res.total_mem_mb, h->res.total_storage_mb,
@@ -761,7 +761,7 @@ static int parse_sim(const char *path)
 
     fclose(f);
     if (in_section) {
-        LS_ERRX("missing End Sim in %s", path);
+        LL_ERRX("missing End Sim in %s", path);
         return -1;
     }
 
@@ -792,14 +792,14 @@ static int conf_expand_queues(void)
             while (tok != NULL) {
                 struct mbd_host *h = find_host_by_name(tok);
                 if (h == NULL) {
-                    LS_ERRX("queue=%s group=%s host=%s not found", q->name,
+                    LL_ERRX("queue=%s group=%s host=%s not found", q->name,
                             g->name, tok);
                     return -1;
                 }
                 enum ll_hash_status st =
                     ll_hash_insert(&q->host_hash, h->net.name, h, 0);
                 if (st == LL_HASH_EXISTS)
-                    LS_WARNING("queue=%s host=%s already in host_hash", q->name,
+                    LL_WARNING("queue=%s host=%s already in host_hash", q->name,
                                h->net.name);
                 tok = strtok(NULL, " \t");
             }
@@ -809,7 +809,7 @@ static int conf_expand_queues(void)
         /* hosts_spec is a single hostname */
         struct mbd_host *h = find_host_by_name(q->hosts_spec);
         if (h == NULL) {
-            LS_ERRX("queue=%s HOSTS=%s not a group or host", q->name,
+            LL_ERRX("queue=%s HOSTS=%s not a group or host", q->name,
                     q->hosts_spec);
             return -1;
         }
@@ -824,68 +824,68 @@ static void dump_config(void)
     struct ll_list_entry *e;
     struct ll_list_entry *ge;
 
-    LS_DEBUG("--- hosts ---");
+    LL_DEBUG("--- hosts ---");
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
-        LS_DEBUG("host name=%s addr=%s port=%d cpu=%d mem=%luMB storage=%luMB "
+        LL_DEBUG("host name=%s addr=%s port=%d cpu=%d mem=%luMB storage=%luMB "
                  "gpu=%d",
                  h->net.name, h->net.addr, h->port ? h->port : 0,
                  h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb,
                  h->res.total_gpu);
         for (ge = h->res.gpu_list.head; ge; ge = ge->next) {
             struct mbd_gpu *g = (struct mbd_gpu *) ge;
-            LS_DEBUG("  gpu id=%d type=%s count=%d", g->gpu_id,
+            LL_DEBUG("  gpu id=%d type=%s count=%d", g->gpu_id,
                      g->gpu_type, g->count);
         }
     }
 
-    LS_DEBUG("--- groups ---");
+    LL_DEBUG("--- groups ---");
     for (e = group_list.head; e; e = e->next) {
         struct mbd_group *g = (struct mbd_group *) e;
-        LS_DEBUG("group name=%s members=%s num=%d", g->name, g->members,
+        LL_DEBUG("group name=%s members=%s num=%d", g->name, g->members,
                  g->num_members);
     }
 
-    LS_DEBUG("--- queues ---");
+    LL_DEBUG("--- queues ---");
     for (e = queue_list.head; e; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *) e;
-        LS_DEBUG("queue name=%s priority=%d hosts_spec=%s users=%s desc=%s",
+        LL_DEBUG("queue name=%s priority=%d hosts_spec=%s users=%s desc=%s",
                  q->name, q->priority, q->hosts_spec,
                  q->users[0] ? q->users : "*", q->description);
     }
 
-    LS_DEBUG("--- token pools ---");
+    LL_DEBUG("--- token pools ---");
     for (e = token_pool_list.head; e; e = e->next) {
         struct mbd_token_pool *tp = (struct mbd_token_pool *) e;
-        LS_DEBUG("tokenpool name=%s total=%d", tp->name, tp->total);
+        LL_DEBUG("tokenpool name=%s total=%d", tp->name, tp->total);
     }
 }
 
 static int check_ll_config(void)
 {
     if (ll_conf_param_missing("LL_CONF_DIR", ll_params[LL_CONF_DIR].val)) {
-        LS_ERRX("LL_CONF_DIR missing from ll.conf");
+        LL_ERRX("LL_CONF_DIR missing from ll.conf");
         return -1;
     }
     if (ll_conf_param_missing("LL_STATE_DIR", ll_params[LL_STATE_DIR].val)) {
-        LS_ERRX("LL_STATE_DIR missing from ll.conf");
+        LL_ERRX("LL_STATE_DIR missing from ll.conf");
         return -1;
     }
     if (ll_conf_param_missing("LL_MBD_PORT", ll_params[LL_MBD_PORT].val)) {
-        LS_ERRX("LL_MBD_PORT missing from ll.conf");
+        LL_ERRX("LL_MBD_PORT missing from ll.conf");
         return -1;
     }
     if (ll_conf_param_missing("LL_MBD_HOST", ll_params[LL_MBD_HOST].val)) {
-        LS_ERRX("LL_MBD_HOST missing from ll.conf");
+        LL_ERRX("LL_MBD_HOST missing from ll.conf");
         return -1;
     }
     if (ll_conf_param_missing("LL_MBD_USER", ll_params[LL_MBD_USER].val)) {
-        LS_ERRX("LL_MBD_USER missing from ll.conf");
+        LL_ERRX("LL_MBD_USER missing from ll.conf");
         return -1;
     }
     if (ll_conf_param_missing("LL_DEFAULT_QUEUE",
                               ll_params[LL_DEFAULT_QUEUE].val)) {
-        LS_ERRX("LL_DEFAULT_QUEUE missing from ll.conf");
+        LL_ERRX("LL_DEFAULT_QUEUE missing from ll.conf");
         return -1;
     }
 
@@ -898,12 +898,12 @@ int conf_init(void)
     int n;
 
     if (ll_init() < 0) {
-        LS_ERRX("ll_init failed");
+        LL_ERRX("ll_init failed");
         return -1;
     }
 
     if (check_ll_config() < 0) {
-        LS_ERRX("check_ll_config failed");
+        LL_ERRX("check_ll_config failed");
         return -1;
     }
 
@@ -913,27 +913,27 @@ int conf_init(void)
         return -1;
 
     if (parse_hosts(path) < 0) {
-        LS_ERRX("parse_hosts failed path=%s", path);
+        LL_ERRX("parse_hosts failed path=%s", path);
         return -1;
     }
 
     if (parse_gpus(path) < 0) {
-        LS_ERRX("parse_gpus failed path=%s", path);
+        LL_ERRX("parse_gpus failed path=%s", path);
         return -1;
     }
 
     if (parse_token_pools(path) < 0) {
-        LS_ERRX("parse_token_pools failed path=%s", path);
+        LL_ERRX("parse_token_pools failed path=%s", path);
         return -1;
     }
 
     if (parse_sim(path) < 0) {
-        LS_ERRX("parse_sim failed path=%s", path);
+        LL_ERRX("parse_sim failed path=%s", path);
         return -1;
     }
 
     if (parse_groups(path) < 0) {
-        LS_ERRX("parse_groups failed path=%s", path);
+        LL_ERRX("parse_groups failed path=%s", path);
         return -1;
     }
 
@@ -943,22 +943,22 @@ int conf_init(void)
         return -1;
 
     if (parse_queues(path) < 0) {
-        LS_ERRX("parse_queues failed path=%s", path);
+        LL_ERRX("parse_queues failed path=%s", path);
         return -1;
     }
 
     if (conf_expand_queues() < 0) {
-        LS_ERRX("conf_expand_queues failed");
+        LL_ERRX("conf_expand_queues failed");
         return -1;
     }
 
     if (init_manager() < 0) {
-        LS_ERR("init_manager failed");
+        LL_ERR("init_manager failed");
         return -1;
     }
 
     if (!ll_hash_contains(&queue_name_hash, ll_params[LL_DEFAULT_QUEUE].val)) {
-        LS_ERRX("LL_DEFAULT_QUEUE=%s not in queue configuration",
+        LL_ERRX("LL_DEFAULT_QUEUE=%s not in queue configuration",
                 ll_params[LL_DEFAULT_QUEUE].val);
         return -1;
     }
@@ -975,12 +975,12 @@ int init_manager(void)
 
     struct passwd *pw = getpwuid2(mbd_mgr.uid);
     if (!pw || !pw->pw_name) {
-        LS_ERR("getpwuid2(%d) failed", mbd_mgr.uid);
+        LL_ERR("getpwuid2(%d) failed", mbd_mgr.uid);
         return -1;
     }
 
     // check that mbd is LL_MBD_USER=lavalite
-    LS_INFO("uid=%d gid=%d name=%s", mbd_mgr.uid, mbd_mgr.gid, pw->pw_name);
+    LL_INFO("uid=%d gid=%d name=%s", mbd_mgr.uid, mbd_mgr.gid, pw->pw_name);
 
     return 0;
 }

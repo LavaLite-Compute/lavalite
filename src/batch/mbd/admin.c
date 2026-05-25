@@ -25,13 +25,13 @@ int queue_state_init(void)
     snprintf(dir, sizeof(dir), "%s/mbd/queues", ll_params[LL_STATE_DIR].val);
 
     if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
-        LS_ERR("mkdir %s failed: %m", dir);
+        LL_ERR("mkdir %s failed: %m", dir);
         return -1;
     }
 
     d = opendir(dir);
     if (d == NULL) {
-        LS_ERR("opendir %s failed: %m", dir);
+        LL_ERR("opendir %s failed: %m", dir);
         return -1;
     }
 
@@ -44,13 +44,13 @@ int queue_state_init(void)
             char path[2 * PATH_MAX];
             snprintf(path, sizeof(path), "%s/mbd/queues/%s",
                      ll_params[LL_STATE_DIR].val, de->d_name);
-            LS_INFO("queue_state_init: stale state file %s, removing", path);
+            LL_INFO("queue_state_init: stale state file %s, removing", path);
             unlink(path);
             continue;
         }
 
         q->state = QUEUE_CLOSED;
-        LS_INFO("queue_state_init: queue=%s restored closed state", q->name);
+        LL_INFO("queue_state_init: queue=%s restored closed state", q->name);
     }
 
     closedir(d);
@@ -67,14 +67,14 @@ void queue_state_write(const struct mbd_queue *q)
     if (q->state == QUEUE_CLOSED) {
         int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (fd < 0)
-            LS_ERR("queue_state_write: open %s failed: %m", path);
+            LL_ERR("queue_state_write: open %s failed: %m", path);
         else
             close(fd);
         return;
     }
 
     if (unlink(path) < 0 && errno != ENOENT)
-        LS_ERR("queue_state_write: unlink %s failed: %m", path);
+        LL_ERR("queue_state_write: unlink %s failed: %m", path);
 }
 
 int queue_user_allowed(const struct mbd_queue *q, uid_t uid)
@@ -112,14 +112,14 @@ void host_state_write(const struct mbd_host *h)
     if (h->state & HOST_CLOSED) {
         int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (fd < 0)
-            LS_ERR("host_state_write: open %s failed: %m", path);
+            LL_ERR("host_state_write: open %s failed: %m", path);
         else
             close(fd);
         return;
     }
 
     if (unlink(path) < 0 && errno != ENOENT)
-        LS_ERR("host_state_write: unlink %s failed: %m", path);
+        LL_ERR("host_state_write: unlink %s failed: %m", path);
 }
 
 int host_state_init(void)
@@ -131,13 +131,13 @@ int host_state_init(void)
     snprintf(dir, sizeof(dir), "%s/mbd/hosts", ll_params[LL_STATE_DIR].val);
 
     if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
-        LS_ERR("host_state_init: mkdir %s failed: %m", dir);
+        LL_ERR("host_state_init: mkdir %s failed: %m", dir);
         return -1;
     }
 
     d = opendir(dir);
     if (d == NULL) {
-        LS_ERR("host_state_init: opendir %s failed: %m", dir);
+        LL_ERR("host_state_init: opendir %s failed: %m", dir);
         return -1;
     }
 
@@ -151,13 +151,13 @@ int host_state_init(void)
         if (h == NULL) {
             snprintf(path, sizeof(path), "%s/mbd/%s",
                      ll_params[LL_STATE_DIR].val, de->d_name);
-            LS_INFO("host_state_init: stale state file %s, removing", path);
+            LL_INFO("host_state_init: stale state file %s, removing", path);
             unlink(path);
             continue;
         }
 
         h->state |= HOST_CLOSED;
-        LS_INFO("host_state_init: host=%s restored closed state", h->net.name);
+        LL_INFO("host_state_init: host=%s restored closed state", h->net.name);
     }
 
     closedir(d);
