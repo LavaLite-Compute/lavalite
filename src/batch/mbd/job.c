@@ -370,6 +370,7 @@ int job_register(XDR *xdrs, int chan_id)
     }
 
     event_job_new(job, &ws);
+    job_id_seq_write();  /* persist before ack -- seq must never go backwards */
     if (job->state == JOB_PENDING)
         job->queue->num_pend++;
     else if (job->state == JOB_HELD)

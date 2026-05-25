@@ -19,6 +19,7 @@ enum ll_params {
     LL_LIM_PORT,
     // sbd
     LL_SBD_PORT,
+    LL_CGROUP_ROOT,
 
     // mbd
     LL_EVENTS_MAX_SIZE,

@@ -253,12 +253,6 @@ int conf_init(void);
 int init_manager(void);
 int is_manager(uid_t);
 
-// compact.c
-void compact_start(void);
-void compact_shutdown(void);
-void handle_compact_done(XDR *, int32_t, struct protocol_header *);
-void clean_jobs(time_t);
-void reopen_job_events(void);
 
 // net.c
 int network_init(void);
@@ -312,6 +306,7 @@ char *job_state_str(int);
 void token_alloc(const struct job_data *);
 void token_free(const struct job_data *);
 void job_free(struct job_data *);
+void job_id_seq_write(void);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

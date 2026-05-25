@@ -698,6 +698,39 @@ int events_init(void)
     return 0;
 }
 
+/*
+ * job_id_seq_read - read the persisted job_id_seq at startup.
+ *
+ * Sets job_id_seq to max(current, persisted) so the event log replay
+ * value and the persisted value are both respected. If the file does
+ * not exist (first run) the value stays at whatever replay set it to.
+ */
+static void job_id_seq_read(void)
+{
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "%s/mbd/job_id_seq",
+             ll_params[LL_STATE_DIR].val);
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL)
+        return; /* first run or no file yet */
+
+    int64_t seq = 0;
+    int n = fscanf(fp, "%ld", &seq);
+    fclose(fp);
+
+    if (n != 1) {
+        LS_ERR("job_id_seq: parse failed, ignoring");
+        return;
+    }
+
+    if (seq > job_id_seq) {
+        LS_INFO("job_id_seq: restoring from file seq=%ld (was %ld)",
+                seq, job_id_seq);
+        job_id_seq = seq;
+    }
+}
+
 int jobs_replay(void)
 {
     FILE *fp = fopen(events_path, "r");
@@ -764,6 +797,10 @@ int jobs_replay(void)
 
     if (max_id > job_id_seq)
         job_id_seq = max_id;
+
+    /* persisted seq may be higher than replay if sysevents was fully
+     * compacted -- take the max so job_id never goes backwards */
+    job_id_seq_read();
 
     replay_rebuild_counters();
     // debug
@@ -838,6 +875,42 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
 
     if (log_write_job_fork(fp, &e) < 0)
         mbd_die(MBD_EXIT_EVENTS);
+}
+
+
+/*
+ * job_id_seq_write - persist the current job_id_seq to disk.
+ *
+ * Called after every job submission so that mbd restart after a full
+ * compaction (empty sysevents) still resumes from the correct sequence
+ * number and never reuses a job_id.
+ */
+void job_id_seq_write(void)
+{
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "%s/mbd/job_id_seq",
+             ll_params[LL_STATE_DIR].val);
+
+    char tmp[PATH_MAX + LL_BUFSIZ_64];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+
+    FILE *fp = fopen(tmp, "w");
+    if (fp == NULL) {
+        LS_ERR("fopen job_id_seq=%s: %m", tmp);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fprintf(fp, "%ld\n", job_id_seq);
+    if (fflush(fp) != 0 || fsync(fileno(fp)) != 0) {
+        LS_ERR("fsync job_id_seq failed");
+        fclose(fp);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+
+    if (rename(tmp, path) < 0) {
+        LS_ERR("rename job_id_seq %s -> %s: %m", tmp, path);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
 }
 
 /*

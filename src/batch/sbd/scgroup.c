@@ -5,18 +5,20 @@
  * cgroup v2 support for sbd job resource enforcement.
  *
  * Hierarchy:
- *   /sys/fs/cgroup/system.slice/lavalite-sbd.service/   <- sbd's delegated
- * cgroup job_<jobid>/                                       <- one per running
- * job
+ *   /sys/fs/cgroup/lavalite/          <- fixed base, created by sbd at init
+ *       cgroup.subtree_control        <- we write "+memory +cpu" here
+ *       job_123/
+ *           cgroup.procs              <- we write pid here after fork
+ *           memory.max                <- we write limit here (mem_mb > 0)
+ *           cpu.max                   <- we write quota here (ncpus > 0)
+ *       job_124/
+ *           ...
  *
- * /sys/fs/cgroup/system.slice/lavalite-sbd.service/
- *     cgroup.subtree_control     <- we write "+memory +cpu" here at init
- *     job_123/
- *         cgroup.procs           <- we write pid here after fork
- *         memory.max             <- we write limit here (mem_mb > 0)
- *         cpu.max                <- we write quota here (ncpus > 0)
- *     job_124/
- *         ...
+ * The base path defaults to /sys/fs/cgroup/lavalite and can be overridden
+ * via LL_CGROUP_ROOT in ll.conf. A fixed path is used instead of
+ * /proc/self/cgroup so that sbd works correctly whether launched from
+ * a terminal or via systemd -- terminal sessions place sbd inside a
+ * transient leaf cgroup where sub-cgroup creation fails.
  *
  * mem_mb == 0  -> no memory.max written (unlimited)
  * ncpus  == 0  -> no cpu.max written   (unlimited)
@@ -29,13 +31,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "base/lib/ll.conf.h"
 #include "base/lib/ll.syslog.h"
 #include "batch/sbd/sbd.h"
 
 /*
- * cg_base is filled once by cgroup_init() from /proc/self/cgroup.
- * All path construction appends to it so we need room for the suffix.
- * Use a generous fixed size to avoid truncation warnings from -Werror.
+ * cg_base is set once by cgroup_init() to a fixed path that does not
+ * depend on how sbd was launched. Works from terminal and systemd alike.
+ *
+ * Default: /sys/fs/cgroup/lavalite
+ * Override: LL_CGROUP_ROOT in ll.conf
  */
 #define CG_BASE_MAX 4096 /* fits any realistic cgroup path */
 #define CG_PATH_MAX 8192 /* base + job suffix */
@@ -64,30 +69,6 @@ static int cg_write(const char *path, const char *val)
     }
 
     return 0;
-}
-
-static int read_self_cgroup(void)
-{
-    FILE *f = fopen("/proc/self/cgroup", "r");
-    if (!f)
-        return -1;
-
-    char line[CG_BASE_MAX];
-
-    while (fgets(line, sizeof(line), f)) {
-        if (strncmp(line, "0::", 3) != 0)
-            continue;
-        char *p = line + 3;
-        p[strcspn(p, "\n")] = 0;
-        int n = snprintf(cg_base, sizeof(cg_base), "/sys/fs/cgroup%s", p);
-        fclose(f);
-        if (n <= 0 || n >= (int) sizeof(cg_base))
-            return -1;
-        return 0;
-    }
-
-    fclose(f);
-    return -1;
 }
 
 /*
@@ -135,8 +116,26 @@ static int cg_read_cpu_usec(const char *path, uint64_t *usec)
 
 int cgroup_init(void)
 {
-    if (read_self_cgroup() < 0) {
-        LS_ERR("cgroup: cannot determine own cgroup path");
+    /*
+     * Use a fixed path independent of how sbd was launched.
+     * Running from a terminal puts sbd inside a transient gnome scope
+     * cgroup which is a leaf -- creating children there fails with
+     * ENOENT because the no-internal-process rule prevents sub-cgroups
+     * under a cgroup that already contains processes.
+     *
+     * A fixed top-level path sidesteps this entirely.
+     */
+    const char *root = ll_params[LL_CGROUP_ROOT].val;
+
+    int n = snprintf(cg_base, sizeof(cg_base), "%s", root);
+    if (n <= 0 || n >= (int)sizeof(cg_base)) {
+        LS_ERR("cgroup: LL_CGROUP_ROOT path too long");
+        return -1;
+    }
+
+    /* create the base cgroup if it does not exist */
+    if (mkdir(cg_base, 0755) < 0 && errno != EEXIST) {
+        LS_ERR("cgroup mkdir(%s) failed: %m", cg_base);
         return -1;
     }
 

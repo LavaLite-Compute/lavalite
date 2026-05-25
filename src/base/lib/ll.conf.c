@@ -19,6 +19,7 @@ struct ll_kv ll_params[PARAMS_COUNT] = {
     [LL_LOG_MASK] = {"LL_LOG_MASK", "LOG_WARNING"},
     [LL_LIM_PORT] = {"LL_LIM_PORT", "33123"},
     [LL_SBD_PORT] = {"LL_SBD_PORT", "33125"},
+    [LL_CGROUP_ROOT] = {"LL_CGROUP_ROOT", "/sys/fs/cgroup/lavalite"},
     [LL_EVENTS_MAX_SIZE] = {"LL_EVENTS_MAX_SIZE", "100000"},
     [LL_JOB_FINISH_RETAIN] = {"LL_JOB_FINISH_RETAIN", "100"},
     [LL_MBD_PORT] = {"LL_MBD_PORT", "33124"},
