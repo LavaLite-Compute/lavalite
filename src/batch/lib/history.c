@@ -514,11 +514,11 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
 /* -----------------------------------------------------------------------
  * Event file scanning.
  *
- * sysevents is the mbd replay checkpoint: live pending/running jobs only.
- * Archives (sysevents.NNNNNN) contain finished job history, one job per
+ * eventlog is the mbd replay checkpoint: live pending/running jobs only.
+ * Archives (eventlog.NNNNNN) contain finished job history, one job per
  * archive, immutable once written. No ordering dependency between archives.
  *
- * Open sysevents first to capture live state before any compact renames it.
+ * Open eventlog first to capture live state before any compact renames it.
  * Then readdir archives and scan in any order -- they are immutable.
  * ----------------------------------------------------------------------- */
 
@@ -546,7 +546,7 @@ static int hist_is_archive(const char *name)
 {
     const char *p;
 
-    if (strncmp(name, "sysevents.", 10) != 0)
+    if (strncmp(name, "eventlog.", 10) != 0)
         return 0;
 
     p = name + 10;
@@ -575,11 +575,11 @@ static int hist_scan_events(struct job_hist *jh)
         return -1;
 
     /*
-     * Open sysevents first -- before readdir -- so a compact that races
+     * Open eventlog first -- before readdir -- so a compact that races
      * us renames the file we already have open, not one we haven't seen.
      * ENOENT is fine: mbd not yet started or between compacts.
      */
-    n = snprintf(path, sizeof(path), "%s/sysevents", dir);
+    n = snprintf(path, sizeof(path), "%s/eventlog", dir);
     if (n < 0 || n >= (int)sizeof(path))
         return -1;
 

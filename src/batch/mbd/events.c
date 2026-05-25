@@ -35,7 +35,7 @@ static FILE *open_events(void)
     struct stat st;
     if (fstat(fileno(fp), &st) < 0 ||
         (events_ino != 0 && st.st_ino != events_ino)) {
-        LL_ERRX("sysevents inode changed or removed — integrity lost");
+        LL_ERRX("eventlog inode changed or removed — integrity lost");
         fclose(fp);
         mbd_die(MBD_EXIT_EVENTS);
     }
@@ -610,7 +610,7 @@ static void replay_job_susp(const struct event_rec *rec)
 
 /*
  * compact_seq_scan - derive the current sequence number by scanning the
- * mbd directory for existing sysevents.NNNNNN archives.
+ * mbd directory for existing eventlog.NNNNNN archives.
  *
  * No external sequence file is needed. Admins may delete old archives
  * freely without having to update any state file. The next compact will
@@ -627,7 +627,7 @@ static void compact_seq_scan(void)
 
     struct dirent *de;
     while ((de = readdir(dp)) != NULL) {
-        if (strncmp(de->d_name, "sysevents.", 10) != 0)
+        if (strncmp(de->d_name, "eventlog.", 10) != 0)
             continue;
         const char *p = de->d_name + 10;
         if (*p == '\0')
@@ -658,7 +658,7 @@ int events_init(void)
     }
     LL_INFO("working dir initialized %s", dir);
 
-    n = snprintf(events_path, sizeof(events_path), "%s/sysevents", dir);
+    n = snprintf(events_path, sizeof(events_path), "%s/eventlog", dir);
     if (n < 0 || n >= (int) sizeof(events_path))
         mbd_die(MBD_EXIT_EVENTS);
     LL_INFO("job events initialized %s", events_path);
@@ -798,7 +798,7 @@ int jobs_replay(void)
     if (max_id > job_id_seq)
         job_id_seq = max_id;
 
-    /* persisted seq may be higher than replay if sysevents was fully
+    /* persisted seq may be higher than replay if eventlog was fully
      * compacted -- take the max so job_id never goes backwards */
     job_id_seq_read();
 
@@ -882,7 +882,7 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
  * job_id_seq_write - persist the current job_id_seq to disk.
  *
  * Called after every job submission so that mbd restart after a full
- * compaction (empty sysevents) still resumes from the correct sequence
+ * compaction (empty eventlog) still resumes from the correct sequence
  * number and never reuses a job_id.
  */
 void job_id_seq_write(void)
@@ -914,18 +914,18 @@ void job_id_seq_write(void)
 }
 
 /*
- * events_compact - archive sysevents, rewrite with live jobs only.
+ * events_compact - archive eventlog, rewrite with live jobs only.
  * PEND:      JOB_NEW
  * RUN/SUSP:  JOB_NEW + JOB_START
  * FINISH:    discarded — full history in archived file for bhist.
  *            finish_jobs_list drained and freed here.
  *
- * After compaction, sysevents is a replay checkpoint, not a chronological
+ * After compaction, eventlog is a replay checkpoint, not a chronological
  * history file. Event timestamps are preserved, but record order across
  * different jobs may differ from original event arrival order.
  *
  * Replay only depends on per-job state reconstruction. Historical tools
- * such as bhist must read archived sysevents.* files for full chronological
+ * such as bhist must read archived eventlog.* files for full chronological
  * job history.
  */
 static void events_compact(void)
@@ -982,11 +982,11 @@ static void events_compact(void)
     if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
         mbd_die(MBD_EXIT_EVENTS);
 
-    /* new sysevents file has a new inode -- update tracking so
+    /* new eventlog file has a new inode -- update tracking so
      * open_events() does not falsely detect integrity loss */
     struct stat st;
     if (fstat(fileno(fp), &st) < 0) {
-        LL_ERR("fstat sysevents after compact");
+        LL_ERR("fstat eventlog after compact");
         mbd_die(MBD_EXIT_EVENTS);
     }
     events_ino = st.st_ino;
@@ -1001,7 +1001,7 @@ void maybe_compact_events(void)
     if (ll_list_count(&finish_jobs_list) < job_finish_retain)
         return;
 
-    LL_DEBUG("compacting sysevents as finished job=%d",
+    LL_DEBUG("compacting eventlog as finished job=%d",
              ll_list_count(&finish_jobs_list));
 
     events_compact();
