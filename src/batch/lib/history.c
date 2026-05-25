@@ -23,6 +23,7 @@
 struct job_hist {
     int64_t         job_id;
     const char     *user;
+    int all;
     struct job_hist_info *jobs;
     int32_t         num_jobs;
     int32_t         max_jobs;
@@ -298,6 +299,9 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
 
 static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
 {
+    if (jh->all)
+        return 1;
+
     if (jh->job_id > 0)
         return e->job_id == jh->job_id;
 
@@ -619,7 +623,7 @@ static int hist_scan_events(struct job_hist *jh)
  * ----------------------------------------------------------------------- */
 
 struct job_hist_info *llb_hist_info(int64_t job_id, const char *user,
-                                    int32_t *num)
+                                    int32_t flags, int32_t *num)
 {
     struct job_hist jh;
 
@@ -628,12 +632,19 @@ struct job_hist_info *llb_hist_info(int64_t job_id, const char *user,
 
     *num = 0;
 
-    if (job_id <= 0 && (user == NULL || user[0] == '\0'))
+    /* --all: clear user filter so hist_match_new accepts everything */
+    if (flags & LLB_HIST_ALL)
+        user = NULL;
+
+    if (job_id <= 0 && (user == NULL || user[0] == '\0') &&
+        !(flags & LLB_HIST_ALL))
         return NULL;
 
     memset(&jh, 0, sizeof(jh));
     jh.job_id = job_id;
     jh.user   = user;
+    if (flags & LLB_HIST_ALL)
+        jh.all = 1;
 
     errno = 0;
 
@@ -647,12 +658,41 @@ struct job_hist_info *llb_hist_info(int64_t job_id, const char *user,
         return NULL;
     }
 
+    /* filter by state if any state flag is set */
+    if (flags & (LLB_HIST_PEND | LLB_HIST_RUN | LLB_HIST_FINISHED)) {
+        int32_t i;
+        int32_t k;
+        for (i = 0, k = 0; i < jh.num_jobs; i++) {
+            int s = jh.jobs[i].state;
+            int keep = 0;
+
+            if ((flags & LLB_HIST_PEND)
+                && (s == JOB_PENDING || s == JOB_HELD))
+                keep = 1;
+            if ((flags & LLB_HIST_RUN)
+                && (s == JOB_RUNNING || s == JOB_SUSPENDED))
+                keep = 1;
+            if ((flags & LLB_HIST_FINISHED)
+                && (s == JOB_DONE || s == JOB_EXITED))
+                keep = 1;
+
+            if (keep) {
+                if (k != i)
+                    jh.jobs[k] = jh.jobs[i];
+                k++;
+            } else {
+                hist_free_one(&jh.jobs[i]);
+            }
+        }
+        jh.num_jobs = k;
+    }
+
     if (jh.num_jobs == 0) {
+        free(jh.jobs);
         errno = 0;
         return NULL;
     }
 
     *num = jh.num_jobs;
-
     return jh.jobs;
 }

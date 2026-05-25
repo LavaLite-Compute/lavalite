@@ -178,6 +178,12 @@ struct token_pool_info {
     int32_t used;  /* total - free */
 };
 
+/* llb_hist_info flags */
+#define LLB_HIST_PEND  0x0001
+#define LLB_HIST_RUN   0x0002
+#define LLB_HIST_FINISHED  0x0004    /* DONE + EXIT */
+#define LLB_HIST_ALL   0x0008    /* all users   */
+
 /*
  * One execution attempt: from dispatch to finish.
  * A job may have multiple runs if requeued with the same job_id.
@@ -260,5 +266,5 @@ int32_t llb_queue_admin(const char *, int32_t);
 int32_t llb_host_admin(const char *, int32_t);
 
 /* bhist */
-struct job_hist_info *llb_hist_info(int64_t, const char *, int32_t *);
+struct job_hist_info *llb_hist_info(int64_t, const char *, int32_t, int32_t *);
 void llb_free_hist_info(struct job_hist_info *, int32_t);

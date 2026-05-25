@@ -250,27 +250,38 @@ static void print_job_vlong(const struct job_hist_info *j)
 /* -----------------------------------------------------------------------
  * Main
  * ----------------------------------------------------------------------- */
-
 static void usage(void)
 {
     fprintf(stderr,
             "Usage: bhist [options] [job_id]\n"
             "\n"
+            "Display job history. Without options, shows all jobs"
+            " for the current user.\n"
+            "\n"
             "Options:\n"
-            "  -u, --user USER   Show jobs for USER (default: current user)\n"
-            "  -l                Long format\n"
-            "  -ll               Very long format (full detail)\n"
-            "  -h, --help        Show this help\n"
-            "  -V, --version     Show version\n"
+            "  --all          Show jobs for all users\n"
+            "  --pend         Show pending jobs only\n"
+            "  --run          Show running jobs only\n"
+            "  --finished     Show finished jobs (DONE and EXIT)\n"
+            "  -u, --user USER  Show jobs for USER\n"
+            "  -l             Long format\n"
+            "  -ll            Very long format (full detail)\n"
+            "  -h, --help     Display this help and exit\n"
+            "  -V, --version  Output version information and exit\n"
             "\n"
             "Arguments:\n"
-            "  job_id            Show history for a single job\n");
+            "  job_id         Show a specific job; mutually exclusive"
+            " with filter options\n");
 }
 
 static struct option longopts[] = {
     { "help",    no_argument,       NULL, 'h' },
     { "version", no_argument,       NULL, 'V' },
     { "user",    required_argument, NULL, 'u' },
+    { "all",     no_argument,       NULL, 'a' },
+    { "pend",    no_argument,       NULL, 'p' },
+    { "run",     no_argument,       NULL, 'r' },
+    { "finished",    no_argument,   NULL, 'f' },
     { NULL, 0, NULL, 0 }
 };
 
@@ -279,10 +290,13 @@ int main(int argc, char **argv)
     int64_t job_id = 0;
     const char *user = NULL;
     int32_t njobs = 0;
+    int32_t flags = 0;
     int long_fmt = 0;
     int cc;
 
-    while ((cc = getopt_long(argc, argv, "hVu:l", longopts, NULL)) != EOF) {
+    /* -l/-ll are short-only: no long equivalent; long_fmt++ handles both
+     */
+    while ((cc = getopt_long(argc, argv, "hVu:laprf", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'V':
             printf("%s\n", LAVALITE_VERSION_STR);
@@ -292,6 +306,18 @@ int main(int argc, char **argv)
             return 0;
         case 'u':
             user = optarg;
+            break;
+        case 'a':
+            flags |= LLB_HIST_ALL;
+            break;
+        case 'p':
+            flags |= LLB_HIST_PEND;
+            break;
+        case 'r':
+            flags |= LLB_HIST_RUN;
+            break;
+        case 'f':
+            flags |= LLB_HIST_FINISHED;
             break;
         case 'l':
             long_fmt++;
@@ -303,8 +329,11 @@ int main(int argc, char **argv)
     }
 
     if (optind < argc) {
-        if (user != NULL) {
-            fprintf(stderr, "bhist: job_id and -u are mutually exclusive\n");
+        if (flags & (LLB_HIST_PEND | LLB_HIST_RUN |
+                     LLB_HIST_FINISHED | LLB_HIST_ALL)) {
+            fprintf(stderr,
+                    "bhist: job_id is mutually exclusive with"
+                    " filter options\n");
             return 1;
         }
         char *end;
@@ -321,7 +350,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (job_id <= 0 && user == NULL) {
+    if (job_id <= 0 && !(flags & LLB_HIST_ALL) && user == NULL) {
         struct passwd *pw = getpwuid(getuid());
         if (pw == NULL) {
             fprintf(stderr, "bhist: cannot determine current user\n");
@@ -330,7 +359,7 @@ int main(int argc, char **argv)
         user = pw->pw_name;
     }
 
-    struct job_hist_info *jobs = llb_hist_info(job_id, user, &njobs);
+    struct job_hist_info *jobs = llb_hist_info(job_id, user, flags, &njobs);
     if (jobs == NULL) {
         if (errno != 0) {
             fprintf(stderr, "bhist: %s\n", strerror(errno));
