@@ -351,8 +351,8 @@ static void hist_apply_start(struct job_hist *jh, const struct event_rec *rec)
         return;
 
     /*
-     * A job live at compact time appears in both the archived chronological
-     * log and the new compact checkpoint -- dedup by dispatch_time.
+     * Dedup: a job live at compact time appears in both an archive and
+     * eventlog with the same dispatch_time.
      */
     for (int32_t i = 0; i < j->num_runs; i++) {
         if (j->runs[i].dispatch_time == e.dispatch_time)
@@ -518,12 +518,10 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
 /* -----------------------------------------------------------------------
  * Event file scanning.
  *
- * eventlog is the mbd replay checkpoint: live pending/running jobs only.
- * Archives (eventlog.NNNNNN) contain finished job history, one job per
- * archive, immutable once written. No ordering dependency between archives.
- *
- * Open eventlog first to capture live state before any compact renames it.
- * Then readdir archives and scan in any order -- they are immutable.
+ * Scan archives oldest to newest, then eventlog last.
+ * eventlog has the most current state and must win -- a job live at
+ * compact time appears in both an archive and eventlog; the eventlog
+ * copy reflects all events since the archive was written.
  * ----------------------------------------------------------------------- */
 
 static int hist_scan_file(struct job_hist *jh, const char *path)
@@ -566,28 +564,35 @@ static int hist_is_archive(const char *name)
     return 1;
 }
 
+static int hist_name_cmp(const void *a, const void *b)
+{
+    const char *na = *(const char **)a;
+    const char *nb = *(const char **)b;
+    long sa, sb;
+
+    sa = atol(na + 9);   /* skip "eventlog." */
+    sb = atol(nb + 9);
+
+    if (sa < sb) return -1;
+    if (sa > sb) return  1;
+    return 0;
+}
+
 static int hist_scan_events(struct job_hist *jh)
 {
     char dir[PATH_MAX];
     char path[PATH_MAX];
+    char **archives;
+    char **tmp;
     DIR *dp;
     struct dirent *de;
+    int narchives;
+    int max_archives;
+    int i;
     int n;
 
     n = snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
     if (n < 0 || n >= (int)sizeof(dir))
-        return -1;
-
-    /*
-     * Open eventlog first -- before readdir -- so a compact that races
-     * us renames the file we already have open, not one we haven't seen.
-     * ENOENT is fine: mbd not yet started or between compacts.
-     */
-    n = snprintf(path, sizeof(path), "%s/eventlog", dir);
-    if (n < 0 || n >= (int)sizeof(path))
-        return -1;
-
-    if (hist_scan_file(jh, path) < 0 && errno != ENOENT)
         return -1;
 
     dp = opendir(dir);
@@ -597,25 +602,66 @@ static int hist_scan_events(struct job_hist *jh)
         return -1;
     }
 
+    narchives    = 0;
+    max_archives = 16;
+    archives     = malloc(max_archives * sizeof(char *));
+    if (archives == NULL) {
+        closedir(dp);
+        return -1;
+    }
+
     while ((de = readdir(dp)) != NULL) {
         if (!hist_is_archive(de->d_name))
             continue;
 
-        n = snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);
-        if (n < 0 || n >= (int)sizeof(path)) {
-            closedir(dp);
-            return -1;
+        if (narchives == max_archives) {
+            max_archives *= 2;
+            tmp = realloc(archives, max_archives * sizeof(char *));
+            if (tmp == NULL) {
+                closedir(dp);
+                goto err;
+            }
+            archives = tmp;
         }
 
-        if (hist_scan_file(jh, path) < 0 && errno != ENOENT) {
+        archives[narchives] = strdup(de->d_name);
+        if (archives[narchives] == NULL) {
             closedir(dp);
-            return -1;
+            goto err;
         }
+        narchives++;
     }
 
     closedir(dp);
 
+    qsort(archives, narchives, sizeof(char *), hist_name_cmp);
+
+    for (i = 0; i < narchives; i++) {
+        n = snprintf(path, sizeof(path), "%s/%s", dir, archives[i]);
+        free(archives[i]);
+        archives[i] = NULL;
+        if (n < 0 || n >= (int)sizeof(path))
+            goto err_mid;
+        if (hist_scan_file(jh, path) < 0 && errno != ENOENT)
+            goto err_mid;
+    }
+    free(archives);
+
+    /* eventlog last -- most current state wins */
+    n = snprintf(path, sizeof(path), "%s/eventlog", dir);
+    if (n < 0 || n >= (int)sizeof(path))
+        return -1;
+    if (hist_scan_file(jh, path) < 0 && errno != ENOENT)
+        return -1;
+
     return 0;
+
+err:
+    for (i = 0; i < narchives; i++)
+        free(archives[i]);
+err_mid:
+    free(archives);
+    return -1;
 }
 
 /* -----------------------------------------------------------------------
