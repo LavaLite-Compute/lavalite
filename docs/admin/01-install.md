@@ -80,7 +80,7 @@ Generate the shared HMAC key and set permissions:
 
 ```
 dd if=/dev/urandom bs=32 count=1 | base64 > /opt/lavalite/etc/auth.key
-chmod 600 /opt/lavalite/etc/auth.key
+chmod 644 /opt/lavalite/etc/auth.key
 chown lavalite:lavalite /opt/lavalite/etc/auth.key
 ```
 

@@ -652,7 +652,8 @@ int events_init(void)
     if (n < 0 || n >= (int) sizeof(dir))
         mbd_die(MBD_EXIT_EVENTS);
 
-    if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
+    // bhist run by users need to read the events
+    if (mkdir(dir, 0755) == -1 && errno != EEXIST) {
         syslog(LOG_ERR, "mkdir(%s) failed: %m", dir);
         mbd_die(MBD_EXIT_FATAL);
     }
@@ -667,7 +668,7 @@ int events_init(void)
     if (n < 0 || n >= (int) sizeof(jobs_dir))
         mbd_die(MBD_EXIT_EVENTS);
 
-    if (mkdir(jobs_dir, 0700) == -1 && errno != EEXIST) {
+    if (mkdir(jobs_dir, 0755) == -1 && errno != EEXIST) {
         LL_ERRX("mkdir(%s) failed", jobs_dir);
         mbd_die(MBD_EXIT_EVENTS);
     }
@@ -678,7 +679,7 @@ int events_init(void)
         int nb = snprintf(bucket, sizeof(bucket), "%s/%d", jobs_dir, i);
         if (nb < 0 || nb >= (int) sizeof(bucket))
             mbd_die(MBD_EXIT_EVENTS);
-        if (mkdir(bucket, 0700) == -1 && errno != EEXIST) {
+        if (mkdir(bucket, 0755) == -1 && errno != EEXIST) {
             LL_ERRX("mkdir(%s) failed", bucket);
             mbd_die(MBD_EXIT_EVENTS);
         }
@@ -704,6 +705,9 @@ int events_init(void)
  * Sets job_id_seq to max(current, persisted) so the event log replay
  * value and the persisted value are both respected. If the file does
  * not exist (first run) the value stays at whatever replay set it to.
+ *
+ * Resist the tempation to delete this file as compact may leave an
+ * eventlog empty file so the job_id would go backwords.
  */
 static void job_id_seq_read(void)
 {
@@ -799,7 +803,8 @@ int jobs_replay(void)
         job_id_seq = max_id;
 
     /* persisted seq may be higher than replay if eventlog was fully
-     * compacted -- take the max so job_id never goes backwards */
+     * compacted -- take the max so job_id never goes backwards
+     */
     job_id_seq_read();
 
     replay_rebuild_counters();
@@ -936,13 +941,9 @@ static void events_compact(void)
      * the filenames already present in the directory. No separate sequence
      * file is kept, so admins may delete old archives freely without
      * having to update any state.
-     *
-     * Zero-padded 6-digit suffix keeps ls(1) output in order up to
-     * 999999 compactions; beyond that names still work, lexical ordering
-     * is not guaranteed.
      */
     compact_seq++;
-    snprintf(archived, sizeof(archived), "%s.%06u", events_path, compact_seq);
+    snprintf(archived, sizeof(archived), "%s.%u", events_path, compact_seq);
 
     if (rename(events_path, archived) < 0) {
         LL_ERR("rename(%s, %s)", events_path, archived);

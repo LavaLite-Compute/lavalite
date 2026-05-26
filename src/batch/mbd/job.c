@@ -244,6 +244,11 @@ static int write_sidecar(const struct job_data *job,
         return -1;
     }
 
+    if (chmod(path, 0644) < 0) {
+        LL_ERR("job=%ld chmod=%s to 644 failed", job->job_id, path);
+        return -1;
+    }
+
     return 0;
 }
 
