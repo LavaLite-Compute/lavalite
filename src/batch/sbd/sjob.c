@@ -134,10 +134,16 @@ static int set_job_env(const struct sbd_job *job)
             return -1;
     }
 
+    /* LL_JOBDIR */
+    char job_dir[PATH_MAX + LL_BUFSIZ_32];
+    snprintf(job_dir, sizeof(job_dir), "%s/%ld", sbd_job_dir, job->job_id);
+    if (setenv("LL_JOBDIR", job_dir, 1) < 0)
+        return -1;
+
     LL_DEBUG("job=%ld LL_JOBID=%ld LL_JOBPID=%d LL_FIRST_HOST=%s "
-             "LL_QUEUE=%s LL_JOBNAME=%s LL_HOSTS=%s",
-             job->job_id, job->job_id, getpid(), first_host, job->queue,
-             job->job_name, job->hosts);
+             "LL_QUEUE=%s LL_JOBNAME=%s LL_HOSTS=%s LL_JOBDIR=%s",
+             job->job_id, job->job_id, getpid(), first_host,
+             job->queue, job->job_name, job->hosts, job_dir);
 
     return 0;
 }
