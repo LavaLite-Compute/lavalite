@@ -4,6 +4,7 @@
 # QUEUE_NAME  - Logical name of the queue
 # PRIORITY    - Higher values are scheduled first
 # HOSTS       - Host group assigned to this queue
+# USERS       - Users allowed to access the queue
 # DESCRIPTION - Human readable description
 #
 

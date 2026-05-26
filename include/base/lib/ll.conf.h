@@ -36,7 +36,7 @@ enum ll_params {
     LL_API_RECVTIMEOUT,
     LL_SBD_CONNTIMEOUT,
     LL_SBD_READTIMEOUT,
-
+    LL_ASSERT_COUNTERS,
     PARAMS_COUNT,
 };
 

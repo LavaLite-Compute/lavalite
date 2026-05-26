@@ -47,7 +47,7 @@ bhosts
 bhist
 bjobs
 bkill
-bgroup
+bgroups
 bqueues
 bsub
 btokens

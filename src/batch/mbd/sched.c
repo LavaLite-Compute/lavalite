@@ -96,9 +96,15 @@ static int job_is_ready(const struct job_data *job)
 static int host_in_queue_group(const struct mbd_host *h,
                                const struct job_data *job)
 {
-    LL_DEBUG("job=%ld is host=%s member of queue=%s", job->job_id, h->net.name,
-             job->queue->name);
-    return ll_hash_contains(&job->queue->host_hash, h->net.name);
+    int n = ll_hash_contains(&job->queue->host_hash, h->net.name);
+    if (n == 1) {
+        LL_DEBUG("job=%ld host=%s is member of queue=%s", job->job_id,
+                 h->net.name, job->queue->name);
+        return 1;
+    }
+    LL_DEBUG("job=%ld host=%s is not member of queue=%s", job->job_id,
+             h->net.name, job->queue->name);
+    return 0;
 }
 
 static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
@@ -149,24 +155,38 @@ static enum pend_reason diag_reason(struct pend_diag *diag)
     return PEND_NO_HOSTS;
 }
 
-#define SCHED_PLAN_MAX 1024
-static struct mbd_host *host_plan[SCHED_PLAN_MAX];
+static struct mbd_host **host_plan;
+
+static int build_plan_array(void)
+{
+    if (host_plan)
+        return 0;
+
+    int n = ll_list_count(&host_list);
+    host_plan = calloc(n, sizeof(struct mbd_host *));
+    if (host_plan == NULL) {
+        LL_ERR("calloc n=%d *hosts failed", n);
+        return -1;
+    }
+    return 0;
+}
 
 static int build_host_plan(struct job_data *job, struct pend_diag *diag)
 {
-    struct ll_list_entry *e;
-    int n = 0;
+    if (build_plan_array() < 0)
+        return -1;
 
-    memset(host_plan, 0, sizeof(host_plan));
+    // scheduler working space
+    int num_hosts = ll_list_count(&host_list);
+    memset(host_plan, 0, num_hosts * sizeof(struct mbd_host *));
     memset(diag, 0, sizeof(*diag));
 
+    int n = 0;
+    struct ll_list_entry *e;
     for (e = host_list.head; e; e = e->next) {
-        if (n >= SCHED_PLAN_MAX) {
-            LL_ERRX("candidate host overflow max=%d", SCHED_PLAN_MAX);
-            break;
-        }
         struct mbd_host *h = (struct mbd_host *) e;
 
+        // h->candidate can be update during scheduling, for example
         if (!h->candidate)
             continue;
         if (h->exclusive) {
@@ -243,6 +263,10 @@ static void host_update_resources(const struct job_data *job)
         h->num_run++;
         h->num_cpus_used += job->res.num_cpus;
 
+        // host has reached MXJ capacity
+        if (h->num_jobs >= h->res.max_jobs)
+            h->candidate = 0;
+
         if (job->flags & JOB_FLAG_EXCLUSIVE)
             h->exclusive = 1;
 
@@ -263,9 +287,10 @@ static void host_update_resources(const struct job_data *job)
         }
 
         LL_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "
-                 "free_storage_mb=%lu free_gpu=%d",
+                 "free_storage_mb=%lu free_gpu=%d maxjobsleft=%d",
                  h->net.name, h->num_jobs, h->res.free_cpu, h->res.free_mem_mb,
-                 h->res.free_storage_mb, h->res.free_gpu);
+                 h->res.free_storage_mb, h->res.free_gpu,
+                 h->res.max_jobs - h->num_jobs);
     }
 }
 
@@ -327,7 +352,13 @@ void schedule(void)
 
         LL_DEBUG("job=%ld is ready for scheduling", job->job_id);
         struct pend_diag diag;
-        if (build_host_plan(job, &diag) == 0) {
+        cc = build_host_plan(job, &diag);
+        if (cc < 0) {
+            LL_ERRX("job=%ld failed to build host plan, trying next cycle",
+                    job->job_id);
+            return;
+        }
+        if (cc == 0) {
             job->pend_reason = diag_reason(&diag);
             LL_INFO("job=%ld not enough hosts found", job->job_id);
             continue;

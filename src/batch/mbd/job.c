@@ -27,6 +27,7 @@ struct ll_list finish_jobs_list;
 
 int64_t job_id_seq = 0;
 struct ll_hash job_id_hash;
+int assert_counters = 0;
 
 static int64_t next_job_id(void)
 {
@@ -427,6 +428,13 @@ int job_init(void)
     int nj = jobs_replay();
     LL_INFO("num=%d jobs replayed", nj);
 
+    assert_counters = 0;
+    if (! ll_atoi(ll_params[LL_ASSERT_COUNTERS].val, &assert_counters)) {
+        LL_ERRX("failed set assert_counters");
+        assert_counters = 0;
+    }
+    LL_DEBUG("mbd asserting counters assert_counters=%d", assert_counters);
+
     return 0;
 }
 
@@ -765,6 +773,9 @@ void mbd_assert_counters(void)
     struct ll_list_entry *e;
     struct ll_list_entry *je;
 
+    if (! assert_counters)
+        return;
+
     for (e = host_list.head; e != NULL; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
         int num_jobs = 0;
@@ -772,6 +783,8 @@ void mbd_assert_counters(void)
         int num_susp = 0;
         int num_cpus_used = 0;
         int num_gpu_used = 0;
+
+        assert(h->num_jobs <= h->res.max_jobs);
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *) je;
