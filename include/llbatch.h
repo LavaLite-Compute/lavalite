@@ -178,33 +178,30 @@ struct token_pool_info {
     int32_t used;  /* total - free */
 };
 
-/* llb_hist_info flags */
-#define LLB_HIST_PEND  0x0001
-#define LLB_HIST_RUN   0x0002
-#define LLB_HIST_FINISHED  0x0004    /* DONE + EXIT */
-#define LLB_HIST_ALL   0x0008    /* all users   */
+/* llb_hist_info flags
+ */
+#define LLB_HIST_ALL  0x0001
 
 /*
- * One execution attempt: from dispatch to finish.
- * A job may have multiple runs if requeued with the same job_id.
+ * One event in the life of a job, decoded from the event log.
+ * type is EVENT_JOB_* from log.h. Fields are populated according
+ * to type; unused fields are zero/NULL.
  */
-struct job_run {
-    int32_t        run_seq;        /* 1-based, first run = 1          */
-    int32_t        state;          /* state of this run      */
-    int32_t        exit_status;
-    pid_t          pid;
-    time_t         dispatch_time;
-    time_t         fork_time;
-    time_t         end_time;
-    time_t         susp_time;
-    char          *from_host;
-    char          *exec_hosts;
-    struct job_res_usage usage;
+struct job_event {
+    int32_t        type;          /* EVENT_JOB_* from log.h         */
+    time_t         event_time;
+    int32_t        state;         /* JOB_START, JOB_FINISH          */
+    int32_t        exit_status;   /* JOB_FINISH                     */
+    int32_t        signal;        /* JOB_SIGNAL                     */
+    pid_t          pid;           /* JOB_FORK                       */
+    char          *from_host;     /* JOB_START                      */
+    char          *exec_hosts;    /* JOB_START                      */
 };
 
 /*
- * Job identity and submission parameters -- stable across requeues.
- * runs[] is ordered oldest to newest; num_runs >= 1 if job was ever dispatched.
+ * Job submission context (from JOB_NEW + submit sidecar) plus
+ * the ordered sequence of events in the job's life.
+ * usage is from the usage sidecar, valid after job finishes.
  */
 struct job_hist_info {
     int64_t        job_id;
@@ -226,9 +223,9 @@ struct job_hist_info {
     char          *out_file;
     char          *err_file;
     char          *comment;
-    int32_t max_runs;
-    struct job_run *runs;
-    int32_t        num_runs;
+    struct job_res_usage usage;   /* from usage sidecar, valid after finish */
+    int32_t        num_events;
+    struct job_event *events;
 };
 
 /* -----------------------------------------------------------------------
@@ -266,5 +263,6 @@ int32_t llb_queue_admin(const char *, int32_t);
 int32_t llb_host_admin(const char *, int32_t);
 
 /* bhist */
-struct job_hist_info *llb_hist_info(int64_t, const char *, int32_t, int32_t *);
+struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid,
+                                    int32_t flags, int32_t *num);
 void llb_free_hist_info(struct job_hist_info *, int32_t);

@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <assert.h>
 #include <errno.h>
 #include <dirent.h>
 #include <limits.h>
@@ -21,12 +20,12 @@
 #define HIST_JOB_BUCKETS 10
 
 struct job_hist {
-    int64_t         job_id;
-    const char     *user;
-    int all;
+    int64_t              job_id;
+    uid_t                uid;
+    int                  all;
     struct job_hist_info *jobs;
-    int32_t         num_jobs;
-    int32_t         max_jobs;
+    int32_t              num_jobs;
+    int32_t              max_jobs;
 };
 
 static char *hist_strdup(const char *s)
@@ -55,44 +54,28 @@ static char *hist_trim(char *s)
 }
 
 /* -----------------------------------------------------------------------
- * job_run
+ * job_event array
  * ----------------------------------------------------------------------- */
 
-static void run_free(struct job_run *r)
+static void event_free(struct job_event *e)
 {
-    free(r->from_host);
-    free(r->exec_hosts);
+    free(e->from_host);
+    free(e->exec_hosts);
 }
 
-static struct job_run *run_add(struct job_hist_info *j)
+static struct job_event *event_add(struct job_hist_info *j)
 {
-    struct job_run *n;
-    struct job_run *r;
-    int32_t new_max;
+    struct job_event *n;
 
-    if (j->num_runs == j->max_runs) {
-        new_max = j->max_runs + 4;
-        n = realloc(j->runs, new_max * sizeof(struct job_run));
-        if (n == NULL)
-            return NULL;
-        memset(&n[j->max_runs], 0, 4 * sizeof(struct job_run));
-        j->runs = n;
-        j->max_runs = new_max;
-    }
-
-    r = &j->runs[j->num_runs];
-    memset(r, 0, sizeof(*r));
-    r->run_seq = j->num_runs + 1;
-    j->num_runs++;
-
-    return r;
-}
-
-static struct job_run *run_current(struct job_hist_info *j)
-{
-    if (j->num_runs == 0)
+    n = realloc(j->events, (j->num_events + 1) * sizeof(struct job_event));
+    if (n == NULL)
         return NULL;
-    return &j->runs[j->num_runs - 1];
+
+    j->events = n;
+    memset(&j->events[j->num_events], 0, sizeof(struct job_event));
+    j->num_events++;
+
+    return &j->events[j->num_events - 1];
 }
 
 /* -----------------------------------------------------------------------
@@ -114,10 +97,10 @@ static void hist_free_one(struct job_hist_info *j)
     free(j->err_file);
     free(j->comment);
 
-    for (i = 0; i < j->num_runs; i++)
-        run_free(&j->runs[i]);
+    for (i = 0; i < j->num_events; i++)
+        event_free(&j->events[i]);
 
-    free(j->runs);
+    free(j->events);
 }
 
 void llb_free_hist_info(struct job_hist_info *jobs, int32_t num_jobs)
@@ -146,24 +129,21 @@ static struct job_hist_info *hist_find(struct job_hist *jh, int64_t job_id)
 }
 
 /* -----------------------------------------------------------------------
- * submit sidecar
+ * Submit sidecar
  *
- * Field ownership is strict:
+ * Field ownership:
  *   JOB_NEW event owns: username, name, queue, project
  *   sidecar owns:       command, cwd, in_file, out_file, err_file, comment
- *
- * hist_apply_submit_field handles sidecar-only fields.
- * Fields already set from JOB_NEW are silently skipped -- they are
- * present in the sidecar too but the event is the authoritative source.
  * ----------------------------------------------------------------------- */
 
-static int hist_job_submit_path(char *path, size_t size, int64_t job_id)
+static int hist_job_sidecar_path(char *path, size_t size,
+                                 int64_t job_id, const char *file)
 {
     int n;
 
-    n = snprintf(path, size, "%s/mbd/jobs/%d/%ld/submit",
+    n = snprintf(path, size, "%s/mbd/jobs/%d/%ld/%s",
                  ll_params[LL_STATE_DIR].val,
-                 (int)(job_id % HIST_JOB_BUCKETS), job_id);
+                 (int)(job_id % HIST_JOB_BUCKETS), job_id, file);
     if (n < 0 || n >= (int)size)
         return -1;
 
@@ -173,48 +153,40 @@ static int hist_job_submit_path(char *path, size_t size, int64_t job_id)
 static void hist_apply_submit_field(struct job_hist_info *j,
                                     const char *key, const char *val)
 {
-    /* sidecar-only fields: not present in JOB_NEW */
-    if (strcasecmp(key, "command") == 0) {
-        assert(j->command == NULL);
+    if (strcasecmp(key, "command") == 0 && j->command == NULL) {
         j->command = hist_strdup(val);
         return;
     }
-    if (strcasecmp(key, "cwd") == 0) {
-        assert(j->cwd == NULL);
+    if (strcasecmp(key, "cwd") == 0 && j->cwd == NULL) {
         j->cwd = hist_strdup(val);
         return;
     }
-    if (strcasecmp(key, "in_file") == 0) {
-        assert(j->in_file == NULL);
+    if (strcasecmp(key, "in_file") == 0 && j->in_file == NULL) {
         j->in_file = hist_strdup(val);
         return;
     }
-    if (strcasecmp(key, "out_file") == 0) {
-        assert(j->out_file == NULL);
+    if (strcasecmp(key, "out_file") == 0 && j->out_file == NULL) {
         j->out_file = hist_strdup(val);
         return;
     }
-    if (strcasecmp(key, "err_file") == 0) {
-        assert(j->err_file == NULL);
+    if (strcasecmp(key, "err_file") == 0 && j->err_file == NULL) {
         j->err_file = hist_strdup(val);
         return;
     }
-    if (strcasecmp(key, "comment") == 0) {
-        assert(j->comment == NULL);
+    if (strcasecmp(key, "comment") == 0 && j->comment == NULL) {
         j->comment = hist_strdup(val);
         return;
     }
-    /* name, queue, project, username: owned by JOB_NEW -- skip */
 }
 
-static void hist_load_submit_sidecar(struct job_hist_info *j)
+static void hist_load_sidecar(struct job_hist_info *j, const char *file)
 {
     char path[PATH_MAX];
     char line[4096];
     FILE *fp;
     char *eq, *key, *val;
 
-    if (hist_job_submit_path(path, sizeof(path), j->job_id) < 0)
+    if (hist_job_sidecar_path(path, sizeof(path), j->job_id, file) < 0)
         return;
 
     fp = fopen(path, "r");
@@ -234,11 +206,41 @@ static void hist_load_submit_sidecar(struct job_hist_info *j)
     fclose(fp);
 }
 
+static void hist_load_usage_sidecar(struct job_hist_info *j)
+{
+    char path[PATH_MAX];
+    char line[256];
+    FILE *fp;
+    char *eq, *key, *val;
+
+    if (hist_job_sidecar_path(path, sizeof(path), j->job_id, "usage") < 0)
+        return;
+
+    fp = fopen(path, "r");
+    if (fp == NULL)
+        return;
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        eq = strchr(line, '=');
+        if (eq == NULL)
+            continue;
+        *eq = 0;
+        key = hist_trim(line);
+        val = hist_trim(eq + 1);
+
+        if (strcasecmp(key, "mem_mb") == 0)
+            j->usage.mem_mb = (uint64_t)strtoull(val, NULL, 10);
+        else if (strcasecmp(key, "swap_mb") == 0)
+            j->usage.swap_mb = (uint64_t)strtoull(val, NULL, 10);
+        else if (strcasecmp(key, "cpu_time") == 0)
+            j->usage.cpu_time = atof(val);
+    }
+
+    fclose(fp);
+}
+
 /* -----------------------------------------------------------------------
- * hist_add: new job_hist_info slot.
- *
- * Scheduling/identity fields come from JOB_NEW (event log).
- * Display-only fields (command, cwd, files, comment) come from sidecar.
+ * hist_add
  * ----------------------------------------------------------------------- */
 
 static struct job_hist_info *hist_add(struct job_hist *jh,
@@ -272,7 +274,6 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
     j->mem_mb      = e->mem_mb;
     j->storage_mb  = e->storage_mb;
 
-    /* JOB_NEW owns these -- set here, never touched by sidecar loader */
     j->username = hist_strdup(e->username);
     j->name     = hist_strdup(e->job_name);
     j->queue    = hist_strdup(e->queue);
@@ -285,8 +286,8 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
         return NULL;
     }
 
-    /* sidecar fills command, cwd, in_file, out_file, err_file, comment */
-    hist_load_submit_sidecar(j);
+    hist_load_sidecar(j, "submit");
+    hist_load_usage_sidecar(j);
 
     jh->num_jobs++;
 
@@ -294,7 +295,11 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
 }
 
 /* -----------------------------------------------------------------------
- * Event handlers
+ * Event handlers.
+ *
+ * Events for a job that survives multiple compactions repeat identically
+ * across archives -- same type, same timestamp. The handlers are
+ * idempotent: applying the same event twice has no visible effect.
  * ----------------------------------------------------------------------- */
 
 static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
@@ -305,8 +310,19 @@ static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
     if (jh->job_id > 0)
         return e->job_id == jh->job_id;
 
-    if (jh->user != NULL && jh->user[0] != '\0')
-        return strcmp(e->username, jh->user) == 0;
+    return e->uid == jh->uid;
+}
+
+static int hist_event_exists(struct job_hist_info *j, int32_t type,
+                             time_t event_time)
+{
+    int32_t i;
+
+    for (i = 0; i < j->num_events; i++) {
+        if (j->events[i].type == type &&
+            j->events[i].event_time == event_time)
+            return 1;
+    }
 
     return 0;
 }
@@ -326,8 +342,11 @@ static void hist_apply_new(struct job_hist *jh, const struct event_rec *rec)
 
     j = hist_find(jh, e.job_id);
     if (j != NULL) {
-        /* requeue: same job_id, new submission -- update state only */
-        j->state = e.state;
+       /* repeated JOB_NEW from compact checkpoint -- only update
+         * state if job hasn't progressed beyond pending/held yet
+         */
+        if (j->state == JOB_PENDING || j->state == JOB_HELD)
+            j->state = e.state;
         j->submit_time = e.submit_time;
         return;
     }
@@ -339,7 +358,7 @@ static void hist_apply_start(struct job_hist *jh, const struct event_rec *rec)
 {
     struct log_job_start e;
     struct job_hist_info *j;
-    struct job_run *r;
+    struct job_event *ev;
 
     memset(&e, 0, sizeof(e));
 
@@ -350,31 +369,26 @@ static void hist_apply_start(struct job_hist *jh, const struct event_rec *rec)
     if (j == NULL)
         return;
 
-    /*
-     * Dedup: a job live at compact time appears in both an archive and
-     * eventlog with the same dispatch_time.
-     */
-    for (int32_t i = 0; i < j->num_runs; i++) {
-        if (j->runs[i].dispatch_time == e.dispatch_time)
-            return;
-    }
-
-    r = run_add(j);
-    if (r == NULL)
+    if (hist_event_exists(j, EVENT_JOB_START, rec->event_time))
         return;
 
-    j->state         = JOB_RUNNING;
-    r->state         = JOB_RUNNING;
-    r->dispatch_time = e.dispatch_time;
-    r->from_host     = hist_strdup(e.exec_host);
-    r->exec_hosts    = hist_strdup(e.hosts);
+    ev = event_add(j);
+    if (ev == NULL)
+        return;
+
+    j->state          = JOB_RUNNING;
+    ev->type          = EVENT_JOB_START;
+    ev->event_time    = rec->event_time;
+    ev->state         = JOB_RUNNING;
+    ev->from_host     = hist_strdup(e.exec_host);
+    ev->exec_hosts    = hist_strdup(e.hosts);
 }
 
 static void hist_apply_fork(struct job_hist *jh, const struct event_rec *rec)
 {
     struct log_job_fork e;
     struct job_hist_info *j;
-    struct job_run *r;
+    struct job_event *ev;
 
     memset(&e, 0, sizeof(e));
 
@@ -385,23 +399,50 @@ static void hist_apply_fork(struct job_hist *jh, const struct event_rec *rec)
     if (j == NULL)
         return;
 
-    r = run_current(j);
-    if (r == NULL)
+    if (hist_event_exists(j, EVENT_JOB_FORK, rec->event_time))
         return;
 
-    /* dedup: compact checkpoint repeats JOB_FORK for live jobs */
-    if (r->fork_time != 0)
+    ev = event_add(j);
+    if (ev == NULL)
         return;
 
-    r->pid       = (pid_t)e.job_pid;
-    r->fork_time = e.fork_time;
+    ev->type       = EVENT_JOB_FORK;
+    ev->event_time = rec->event_time;
+    ev->pid        = (pid_t)e.job_pid;
+}
+
+static void hist_apply_signal(struct job_hist *jh, const struct event_rec *rec)
+{
+    struct log_job_signal e;
+    struct job_hist_info *j;
+    struct job_event *ev;
+
+    memset(&e, 0, sizeof(e));
+
+    if (log_parse_job_signal(rec, &e) < 0)
+        return;
+
+    j = hist_find(jh, e.job_id);
+    if (j == NULL)
+        return;
+
+    if (hist_event_exists(j, EVENT_JOB_SIGNAL, rec->event_time))
+        return;
+
+    ev = event_add(j);
+    if (ev == NULL)
+        return;
+
+    ev->type       = EVENT_JOB_SIGNAL;
+    ev->event_time = rec->event_time;
+    ev->signal     = e.signal_num;
 }
 
 static void hist_apply_finish(struct job_hist *jh, const struct event_rec *rec)
 {
     struct log_job_finish e;
     struct job_hist_info *j;
-    struct job_run *r;
+    struct job_event *ev;
 
     memset(&e, 0, sizeof(e));
 
@@ -412,16 +453,19 @@ static void hist_apply_finish(struct job_hist *jh, const struct event_rec *rec)
     if (j == NULL)
         return;
 
-    r = run_current(j);
-    if (r == NULL)
+    if (hist_event_exists(j, EVENT_JOB_FINISH, rec->event_time))
         return;
 
-    assert(r->end_time == 0);
+    ev = event_add(j);
+    if (ev == NULL)
+        return;
+
     j->state       = e.state;
     j->uid         = e.uid;
-    r->state       = e.state;
-    r->exit_status = e.exit_status;
-    r->end_time    = e.end_time;
+    ev->type       = EVENT_JOB_FINISH;
+    ev->event_time = rec->event_time;
+    ev->state      = e.state;
+    ev->exit_status = e.exit_status;
 }
 
 static void hist_apply_pend_susp(struct job_hist *jh,
@@ -429,6 +473,7 @@ static void hist_apply_pend_susp(struct job_hist *jh,
 {
     struct log_job_pend_susp e;
     struct job_hist_info *j;
+    struct job_event *ev;
 
     memset(&e, 0, sizeof(e));
 
@@ -439,7 +484,17 @@ static void hist_apply_pend_susp(struct job_hist *jh,
     if (j == NULL)
         return;
 
-    j->state = JOB_HELD;
+    if (hist_event_exists(j, EVENT_JOB_PEND_SUSP, rec->event_time))
+        return;
+
+    ev = event_add(j);
+    if (ev == NULL)
+        return;
+
+    j->state       = JOB_HELD;
+    ev->type       = EVENT_JOB_PEND_SUSP;
+    ev->event_time = rec->event_time;
+    ev->state      = JOB_HELD;
 }
 
 static void hist_apply_pend_resume(struct job_hist *jh,
@@ -447,6 +502,7 @@ static void hist_apply_pend_resume(struct job_hist *jh,
 {
     struct log_job_pend_resume e;
     struct job_hist_info *j;
+    struct job_event *ev;
 
     memset(&e, 0, sizeof(e));
 
@@ -457,14 +513,24 @@ static void hist_apply_pend_resume(struct job_hist *jh,
     if (j == NULL)
         return;
 
-    j->state = JOB_PENDING;
+    if (hist_event_exists(j, EVENT_JOB_PEND_RESUME, rec->event_time))
+        return;
+
+    ev = event_add(j);
+    if (ev == NULL)
+        return;
+
+    j->state       = JOB_PENDING;
+    ev->type       = EVENT_JOB_PEND_RESUME;
+    ev->event_time = rec->event_time;
+    ev->state      = JOB_PENDING;
 }
 
 static void hist_apply_susp(struct job_hist *jh, const struct event_rec *rec)
 {
     struct log_job_susp e;
     struct job_hist_info *j;
-    struct job_run *r;
+    struct job_event *ev;
 
     memset(&e, 0, sizeof(e));
 
@@ -472,15 +538,21 @@ static void hist_apply_susp(struct job_hist *jh, const struct event_rec *rec)
         return;
 
     j = hist_find(jh, e.job_id);
-    if (j == NULL)
+    if (j == NULL) {
+        return;
+    }
+
+    if (hist_event_exists(j, EVENT_JOB_SUSP, rec->event_time))
         return;
 
-    r = run_current(j);
-    if (r == NULL)
+    ev = event_add(j);
+    if (ev == NULL)
         return;
 
-    j->state     = JOB_SUSPENDED;
-    r->susp_time = e.event_time;
+    j->state       = JOB_SUSPENDED;
+    ev->type       = EVENT_JOB_SUSP;
+    ev->event_time = rec->event_time;
+    ev->state      = JOB_SUSPENDED;
 }
 
 static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
@@ -495,6 +567,10 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
     }
     if (rec->type == EVENT_JOB_FORK) {
         hist_apply_fork(jh, rec);
+        return;
+    }
+    if (rec->type == EVENT_JOB_SIGNAL) {
+        hist_apply_signal(jh, rec);
         return;
     }
     if (rec->type == EVENT_JOB_FINISH) {
@@ -518,10 +594,9 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
 /* -----------------------------------------------------------------------
  * Event file scanning.
  *
- * Scan archives oldest to newest, then eventlog last.
- * eventlog has the most current state and must win -- a job live at
- * compact time appears in both an archive and eventlog; the eventlog
- * copy reflects all events since the archive was written.
+ * All eventlog files live in the same directory. Scan them all in
+ * readdir order; duplicate events across archives are deduplicated
+ * by hist_event_exists() via type + timestamp.
  * ----------------------------------------------------------------------- */
 
 static int hist_scan_file(struct job_hist *jh, const char *path)
@@ -544,14 +619,21 @@ static int hist_scan_file(struct job_hist *jh, const char *path)
     return 0;
 }
 
-static int hist_is_archive(const char *name)
+static int hist_is_eventlog(const char *name)
 {
     const char *p;
 
-    if (strncmp(name, "eventlog.", 9) != 0)
+    if (strncmp(name, "eventlog", 8) != 0)
         return 0;
 
-    p = name + 9;
+    p = name + 8;
+    if (*p == '\0')
+        return 1;
+
+    if (*p != '.')
+        return 0;
+
+    p++;
     if (*p == '\0')
         return 0;
 
@@ -564,31 +646,12 @@ static int hist_is_archive(const char *name)
     return 1;
 }
 
-static int hist_name_cmp(const void *a, const void *b)
-{
-    const char *na = *(const char **)a;
-    const char *nb = *(const char **)b;
-    long sa, sb;
-
-    sa = atol(na + 9);   /* skip "eventlog." */
-    sb = atol(nb + 9);
-
-    if (sa < sb) return -1;
-    if (sa > sb) return  1;
-    return 0;
-}
-
 static int hist_scan_events(struct job_hist *jh)
 {
     char dir[PATH_MAX];
     char path[PATH_MAX];
-    char **archives;
-    char **tmp;
     DIR *dp;
     struct dirent *de;
-    int narchives;
-    int max_archives;
-    int i;
     int n;
 
     n = snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
@@ -602,73 +665,44 @@ static int hist_scan_events(struct job_hist *jh)
         return -1;
     }
 
-    narchives    = 0;
-    max_archives = 16;
-    archives     = malloc(max_archives * sizeof(char *));
-    if (archives == NULL) {
-        closedir(dp);
-        return -1;
-    }
-
     while ((de = readdir(dp)) != NULL) {
-        if (!hist_is_archive(de->d_name))
+        if (!hist_is_eventlog(de->d_name))
             continue;
 
-        if (narchives == max_archives) {
-            max_archives *= 2;
-            tmp = realloc(archives, max_archives * sizeof(char *));
-            if (tmp == NULL) {
-                closedir(dp);
-                goto err;
-            }
-            archives = tmp;
+        n = snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);
+        if (n < 0 || n >= (int)sizeof(path)) {
+            closedir(dp);
+            return -1;
         }
 
-        archives[narchives] = strdup(de->d_name);
-        if (archives[narchives] == NULL) {
+        if (hist_scan_file(jh, path) < 0 && errno != ENOENT) {
             closedir(dp);
-            goto err;
+            return -1;
         }
-        narchives++;
     }
 
     closedir(dp);
 
-    qsort(archives, narchives, sizeof(char *), hist_name_cmp);
-
-    for (i = 0; i < narchives; i++) {
-        n = snprintf(path, sizeof(path), "%s/%s", dir, archives[i]);
-        free(archives[i]);
-        archives[i] = NULL;
-        if (n < 0 || n >= (int)sizeof(path))
-            goto err_mid;
-        if (hist_scan_file(jh, path) < 0 && errno != ENOENT)
-            goto err_mid;
-    }
-    free(archives);
-
-    /* eventlog last -- most current state wins */
-    n = snprintf(path, sizeof(path), "%s/eventlog", dir);
-    if (n < 0 || n >= (int)sizeof(path))
-        return -1;
-    if (hist_scan_file(jh, path) < 0 && errno != ENOENT)
-        return -1;
-
     return 0;
+}
 
-err:
-    for (i = 0; i < narchives; i++)
-        free(archives[i]);
-err_mid:
-    free(archives);
-    return -1;
+static int hist_job_cmp(const void *a, const void *b)
+{
+    const struct job_hist_info *ja = (const struct job_hist_info *)a;
+    const struct job_hist_info *jb = (const struct job_hist_info *)b;
+
+    if (ja->job_id < jb->job_id)
+        return -1;
+    if (ja->job_id > jb->job_id)
+        return  1;
+    return 0;
 }
 
 /* -----------------------------------------------------------------------
  * Public API
  * ----------------------------------------------------------------------- */
 
-struct job_hist_info *llb_hist_info(int64_t job_id, const char *user,
+struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid,
                                     int32_t flags, int32_t *num)
 {
     struct job_hist jh;
@@ -678,17 +712,12 @@ struct job_hist_info *llb_hist_info(int64_t job_id, const char *user,
 
     *num = 0;
 
-    /* --all: clear user filter so hist_match_new accepts everything */
-    if (flags & LLB_HIST_ALL)
-        user = NULL;
-
-    if (job_id <= 0 && (user == NULL || user[0] == '\0') &&
-        !(flags & LLB_HIST_ALL))
+    if (job_id <= 0 && !(flags & LLB_HIST_ALL) && uid == (uid_t)-1)
         return NULL;
 
     memset(&jh, 0, sizeof(jh));
     jh.job_id = job_id;
-    jh.user   = user;
+    jh.uid    = uid;
     if (flags & LLB_HIST_ALL)
         jh.all = 1;
 
@@ -704,40 +733,13 @@ struct job_hist_info *llb_hist_info(int64_t job_id, const char *user,
         return NULL;
     }
 
-    /* filter by state if any state flag is set */
-    if (flags & (LLB_HIST_PEND | LLB_HIST_RUN | LLB_HIST_FINISHED)) {
-        int32_t i;
-        int32_t k;
-        for (i = 0, k = 0; i < jh.num_jobs; i++) {
-            int s = jh.jobs[i].state;
-            int keep = 0;
-
-            if ((flags & LLB_HIST_PEND)
-                && (s == JOB_PENDING || s == JOB_HELD))
-                keep = 1;
-            if ((flags & LLB_HIST_RUN)
-                && (s == JOB_RUNNING || s == JOB_SUSPENDED))
-                keep = 1;
-            if ((flags & LLB_HIST_FINISHED)
-                && (s == JOB_DONE || s == JOB_EXITED))
-                keep = 1;
-
-            if (keep) {
-                if (k != i)
-                    jh.jobs[k] = jh.jobs[i];
-                k++;
-            } else {
-                hist_free_one(&jh.jobs[i]);
-            }
-        }
-        jh.num_jobs = k;
-    }
-
     if (jh.num_jobs == 0) {
         free(jh.jobs);
         errno = 0;
         return NULL;
     }
+
+    qsort(jh.jobs, jh.num_jobs, sizeof(struct job_hist_info), hist_job_cmp);
 
     *num = jh.num_jobs;
     return jh.jobs;
