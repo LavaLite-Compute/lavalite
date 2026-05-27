@@ -213,7 +213,7 @@ void event_job_start(const struct job_data *job)
     ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
 
     /* build space-separated hostname list */
-    for (int i = 0; i < job->res.num_hosts; i++) {
+    for (int i = 0; i < job->run_nhosts; i++) {
         if (i > 0)
             ll_strlcat(e.hosts, " ", sizeof(e.hosts));
         ll_strlcat(e.hosts, job->run_hosts[i]->net.name, sizeof(e.hosts));

@@ -35,6 +35,13 @@ struct ll_hash {
     double max_load_factor;         // fixed internally to ~0.75
 };
 
+// iterator
+struct ll_hash_iter {
+    const struct ll_hash *ht;
+    size_t bucket;
+    struct ll_hash_entry *entry;
+};
+
 // Compute a 64-bit FNV-1a hash of a NUL-terminated string.
 // Fast, deterministic, non-cryptographic. Caller reduces modulo nbuckets.
 
@@ -83,3 +90,7 @@ void ll_hash_for_each(struct ll_hash *ht, void (*fn)(const char *, void *));
 void ll_hash_free(struct ll_hash *, void (*cleanup)(void *));
 void ll_hash_clear(struct ll_hash *, void (*cleanup)(void *));
 int ll_hash_contains(const struct ll_hash *, const char *);
+
+// hash iterator
+void ll_hash_iter_init(struct ll_hash_iter *, const struct ll_hash *);
+struct ll_hash_entry *ll_hash_iter_next(struct ll_hash_iter *);

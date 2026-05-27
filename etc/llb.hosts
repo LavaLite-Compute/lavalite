@@ -48,3 +48,9 @@ End HostGroup
 #worker2-sim     buntu24     33127   6   64   1T    50T     3   H100
 #End Sim
 
+Begin Users
+GROUP_NAME      GROUP_MEMBER
+G1               (peter)
+G1               (john)
+End Users
+

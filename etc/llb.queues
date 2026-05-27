@@ -9,18 +9,26 @@
 #
 
 Begin Queue
-QUEUE_NAME  = cpu
-PRIORITY    = 30
-HOSTS       = group-cpu
-USERS = lavalite
+QUEUE_NAME  = professor
+PRIORITY    = 70
+HOSTS       = cpu-new
+USERS = professor
 DESCRIPTION = General purpose CPU workloads
 End Queue
 
 Begin Queue
-QUEUE_NAME  = gpu
-PRIORITY    = 50
-HOSTS       = group-gpu
-# USERS left unspecified means all
+QUEUE_NAME  = student
+PRIORITY    = 70
+HOSTS       = cpu-old
+USERS = student david
+DESCRIPTION = GPU workloads
+End Queue
+
+Begin Queue
+QUEUE_NAME  = low
+PRIORITY    = 1
+HOSTS       = cpu-old cpu-new
+USERS = student professor emanule
 DESCRIPTION = GPU workloads
 End Queue
 

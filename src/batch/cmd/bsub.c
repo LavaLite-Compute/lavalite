@@ -195,6 +195,23 @@ static char *build_command(int argc, char **argv, int idx)
     return cmd;
 }
 
+static int count_machines(const char *machines)
+{
+    int n = 0;
+    const char *p = machines;
+
+    while (*p != '\0') {
+        while (*p == ',' || *p == ' ')
+            p++;
+        if (*p != '\0') {
+            n++;
+            while (*p != '\0' && *p != ',' && *p != ' ')
+                p++;
+        }
+    }
+    return n;
+}
+
 int main(int argc, char **argv)
 {
     struct job_submit js;
@@ -375,6 +392,9 @@ int main(int argc, char **argv)
                 "bsub: --nhosts and --machines are mutually exclusive\n");
         return 1;
     }
+
+    if (js.machines != NULL)
+        js.num_hosts = count_machines(js.machines);
 
     /* --gpu-type requires --gpus */
     if (js.gpu_type != NULL && js.num_gpus == 0) {

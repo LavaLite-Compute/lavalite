@@ -124,7 +124,7 @@ static void print_job_compact(const struct job_hist_info *j)
 
 static void print_job_full(const struct job_hist_info *j)
 {
-    int32_t i;
+    const struct job_event *start  = find_event(j, EVENT_JOB_START);
 
     printf("Job <%ld>  User <%s>  Queue <%s>  Status <%s>\n",
            j->job_id,
@@ -148,9 +148,12 @@ static void print_job_full(const struct job_hist_info *j)
            j->num_hosts, j->num_cpus, j->num_gpus,
            (unsigned long)j->mem_mb);
 
+    if (start != NULL && start->exec_hosts != NULL && start->exec_hosts[0] != '\0')
+        printf("  Hosts: %s", start->exec_hosts);
+
     printf("\n");
 
-    for (i = 0; i < j->num_events; i++) {
+    for (int i = 0; i < j->num_events; i++) {
         const struct job_event *e = &j->events[i];
 
         printf("  %s  %s", fmt_time(e->event_time), event_type_str(e->type));

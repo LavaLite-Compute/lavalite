@@ -942,6 +942,8 @@ int conf_init(void)
     if (n < 0 || n >= (int) sizeof(path))
         return -1;
 
+    // parse and expand the queue after we have build the other
+    // host configuration that can be used in the queues.
     if (parse_queues(path) < 0) {
         LL_ERRX("parse_queues failed path=%s", path);
         return -1;

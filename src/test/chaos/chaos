@@ -182,7 +182,7 @@ def main():
 
     ap.add_argument("--hosts-file",   required=True)
     ap.add_argument("--seconds",      type=int, default=120)
-    ap.add_argument("--queue",        default="system")
+    ap.add_argument("--queue",        default="cpu")
     ap.add_argument("--submit-every", type=int, default=2)
     ap.add_argument("--kill-every",   type=int, default=30)
     ap.add_argument("--kinds",        default="mbd,sbd")

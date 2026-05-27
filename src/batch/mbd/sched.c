@@ -171,61 +171,128 @@ static int build_plan_array(void)
     return 0;
 }
 
+
+
+static int host_meets_requirements(struct mbd_host *h, struct job_data *job,
+                                   struct pend_diag *diag)
+{
+    if (!h->candidate)
+        return 0;
+    if (h->exclusive) {
+        diag->exclusive++;
+        return 0;
+    }
+    if ((job->flags & JOB_FLAG_EXCLUSIVE) && h->num_jobs > 0) {
+        diag->exclusive++;
+        return 0;
+    }
+    if (h->res.free_cpu < job->res.num_cpus) {
+        diag->no_cpus++;
+        return 0;
+    }
+    if (h->res.free_mem_mb < job->res.mem_mb) {
+        diag->no_mem++;
+        return 0;
+    }
+    if (h->res.free_storage_mb < job->res.storage_mb) {
+        diag->no_storage++;
+        return 0;
+    }
+    if (job->res.num_gpus > 0 && !host_has_gpu(h, job)) {
+        diag->no_gpus++;
+        return 0;
+    }
+    if (job->res.gpu_type[0] != 0 && !host_has_gpu_type(h, job)) {
+        diag->gpu_type++;
+        return 0;
+    }
+    return 1;
+}
+
+static void log_run_hosts(const struct job_data *job)
+{
+    char buf[LL_BUFSIZ_1K];
+    int pos = 0;
+    int i;
+
+    for (i = 0; i < job->run_nhosts; i++) {
+        int n = snprintf(buf + pos, sizeof(buf) - pos, "%d@%s ",
+                         job->res.num_cpus,
+                         job->run_hosts[i]->net.name);
+        if (n < 0 || pos + n >= (int) sizeof(buf))
+            break;
+        pos += n;
+    }
+    LL_INFO("job=%ld exec_hosts=%s gpus_per_host=%d",
+            job->job_id, buf, job->res.num_gpus);
+}
+
+// Build specific host plan given the job requested machines
+static int build_host_plan_machines(struct job_data *job, struct pend_diag *diag)
+{
+    int n = 0;
+    int need = job->res.machines.nentries;
+
+    struct ll_hash_iter it;
+    struct ll_hash_entry *e;
+
+    ll_hash_iter_init(&it, &job->res.machines);
+    while ((e = ll_hash_iter_next(&it)) != NULL) {
+
+        struct mbd_host *h = ll_hash_search(&job->queue->host_hash, e->key);
+        if (h == NULL) {
+            diag->not_in_queue++;
+            continue;
+        }
+        if (!host_meets_requirements(h, job, diag))
+            continue;
+        host_plan[n] = h;
+        ++n;
+    }
+
+    if (n < need) {
+        LL_DEBUG("job=%ld machines: need=%d found=%d", job->job_id, need, n);
+        return 0;
+    }
+
+    job->run_nhosts = 0;
+    for (int i = 0; i < need; i++) {
+        job->run_hosts[i] = host_plan[i];
+        job->run_nhosts++;
+    }
+    assert(job->run_nhosts == need);
+    log_run_hosts(job);
+
+    return 1;
+}
+
 static int build_host_plan(struct job_data *job, struct pend_diag *diag)
 {
     if (build_plan_array() < 0)
         return -1;
 
-    // scheduler working space
     int num_hosts = ll_list_count(&host_list);
     memset(host_plan, 0, num_hosts * sizeof(struct mbd_host *));
     memset(diag, 0, sizeof(*diag));
+
+    // the job asked for specific machines
+    if (job->res.machines.nentries > 0) {
+        return build_host_plan_machines(job, diag);
+    }
 
     int n = 0;
     struct ll_list_entry *e;
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
 
-        // h->candidate can be update during scheduling, for example
-        if (!h->candidate)
-            continue;
-        if (h->exclusive) {
-            diag->exclusive++;
-            continue;
-        }
-        if ((job->flags & JOB_FLAG_EXCLUSIVE) && h->num_jobs > 0) {
-            diag->exclusive++;
-            continue;
-        }
         if (!host_in_queue_group(h, job)) {
             diag->not_in_queue++;
             continue;
         }
-        if (h->res.free_cpu < job->res.num_cpus) {
-            diag->no_cpus++;
+
+        if (!host_meets_requirements(h, job, diag))
             continue;
-        }
-        if (h->res.free_mem_mb < job->res.mem_mb) {
-            diag->no_mem++;
-            continue;
-        }
-        if (h->res.free_storage_mb < job->res.storage_mb) {
-            diag->no_storage++;
-            continue;
-        }
-        if (job->res.num_gpus > 0 && !host_has_gpu(h, job)) {
-            diag->no_gpus++;
-            continue;
-        }
-        if (job->res.gpu_type[0] != 0 && !host_has_gpu_type(h, job)) {
-            diag->gpu_type++;
-            continue;
-        }
-        if (job->res.machines.nentries > 0 &&
-            !ll_hash_contains(&job->res.machines, h->net.name)) {
-            diag->not_in_queue++;
-            continue;
-        }
+
         host_plan[n] = h;
         ++n;
     }
@@ -243,9 +310,8 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
         job->run_nhosts++;
     }
     assert(job->run_nhosts == job->res.num_hosts);
-    LL_INFO("job=%ld exec_host=%s nhosts=%d cpus_per_host=%d gpus_per_host=%d",
-            job->job_id, job->run_hosts[0]->net.name, job->res.num_hosts,
-            job->res.num_cpus, job->res.num_gpus);
+    log_run_hosts(job);
+
     return 1;
 }
 

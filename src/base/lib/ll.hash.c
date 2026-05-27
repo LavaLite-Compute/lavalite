@@ -337,3 +337,25 @@ int ll_hash_contains(const struct ll_hash *ht, const char *key)
 
     return 0;
 }
+
+void ll_hash_iter_init(struct ll_hash_iter *it, const struct ll_hash *ht)
+{
+    it->ht = ht;
+    it->bucket = 0;
+    it->entry = NULL;
+}
+
+struct ll_hash_entry *ll_hash_iter_next(struct ll_hash_iter *it)
+{
+    if (it->entry)
+        it->entry = it->entry->next;
+
+    while (it->entry == NULL) {
+        if (it->bucket >= it->ht->nbuckets)
+            return NULL;
+        it->entry = it->ht->buckets[it->bucket];
+        it->bucket++;
+    }
+
+    return it->entry;
+}
