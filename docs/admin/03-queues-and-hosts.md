@@ -49,7 +49,7 @@ Jobs submitted to a queue are dispatched only to hosts in that group.
 Display current group membership:
 
 ```
-bgroup
+bgroups
 ```
 
 ## Token pools

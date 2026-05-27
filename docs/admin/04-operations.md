@@ -47,10 +47,10 @@ For production, `LOG_WARNING` is recommended.
 
 ## Event log and compaction
 
-mbd writes a persistent event log to `LL_STATE_DIR/mbd/job.events`.
-This file grows as jobs are submitted and finished. Compaction runs
-automatically when the file reaches `LL_EVENTS_MAX_SIZE`. Finished jobs
-older than `LL_EVENTS_RETAIN` are removed from the log at compact time.
+mbd writes a persistent event log to `LL_STATE_DIR/mbd/eventlog`.
+Finished jobs are retained in memory and queryable via `bjobs -a` up to
+`LL_JOB_FINISH_RETAIN` entries. When the limit is reached, older finished
+jobs are compacted out of the log automatically.
 
 Job history and usage sidecars are stored under:
 

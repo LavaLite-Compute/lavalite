@@ -31,7 +31,6 @@ export LL_LOG_DIR=/opt/lavalite/var/log
 bjobs -a                        # all jobs all states
 bqueues                         # queue counters
 bhosts                          # host counters
-tail -f $LL_SYSEVENTS           # live event stream
 tail -f $LL_LOG_DIR/mbd.log     # mbd log
 ```
 

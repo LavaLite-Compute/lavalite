@@ -115,7 +115,7 @@ bkill --signal stop <jobid>
 Steps:
 1. Verify job enters RUN
 2. Send STOP
-3. Verify job state is USUSP — `bjobs -a`
+3. Verify job state is SUSP — `bjobs -a`
 4. Verify host num_susp increases, num_run decreases
 5. Verify queue counters update correctly
 
@@ -168,13 +168,13 @@ Steps:
 
 ---
 
-## Sysevents reference
+## eventlog reference
 
 Expected event sequences:
 
 Normal completion:
 ```
-JOB_NEW → JOB_START → JOB_EXECUTE → JOB_FINISH
+JOB_NEW → JOB_START → JOB_FINISH
 ```
 
 Killed pending:
@@ -184,10 +184,10 @@ JOB_NEW → JOB_FINISH
 
 Suspended running:
 ```
-JOB_NEW → JOB_START → JOB_EXECUTE → JOB_SIGNAL
+JOB_NEW → JOB_START → JOB_SIGNAL
 ```
 
 Killed suspended:
 ```
-JOB_NEW → JOB_START → JOB_EXECUTE → JOB_SIGNAL → JOB_FINISH
+JOB_NEW → JOB_START → JOB_SIGNAL → JOB_FINISH
 ```

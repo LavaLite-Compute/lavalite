@@ -239,10 +239,10 @@ Expected: POOL_NAME, TOTAL, USED, FREE columns displayed correctly.
 
 ---
 
-## bgroup
+## bgroups
 
 ```sh
-bgroup
+bgroups
 ```
 
 Expected: GROUP_NAME and GROUP_MEMBER columns displayed correctly.

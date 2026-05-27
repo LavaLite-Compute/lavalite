@@ -4,7 +4,7 @@
 
 - Check `LL_MBD_HOST` and `LL_MBD_PORT` in `ll.conf` on the execution host.
 - Check firewall rules: mbd port must be reachable from all execution hosts.
-- Check `auth.key` is identical on master and execution hosts and has mode 600.
+- Check `auth.key` is identical on master and execution hosts and has mode 644.
 - Check mbd is running: `systemctl status lavalite-mbd`.
 - Check logs in `LL_LOG_DIR`.
 

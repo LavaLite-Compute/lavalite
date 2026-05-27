@@ -63,7 +63,7 @@ Create a dedicated user for mbd on the master host:
 useradd -r -s /sbin/nologin lavalite
 ```
 
-sbd runs as root.
+sbd runs as root to manage cgroups and job execution on behalf of any user.
 
 ## Build from source
 
