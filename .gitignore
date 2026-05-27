@@ -54,6 +54,7 @@ btokens
 read_shared
 stdout.*
 stderr.*
+hog
 # Ignore binary daemons
 .libs/*
 src/base/lim/lim
