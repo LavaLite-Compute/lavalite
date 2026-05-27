@@ -153,7 +153,6 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
         assert(job->run_hosts[0]);
         if (job->run_hosts[0]->sbd_chan < 0) {
             LL_DEBUG("sbd=%s is disconnected", job->run_hosts[0]->net.name);
-            assert(job->state == JOB_UNKNOWN);
             continue;
         }
 
