@@ -77,31 +77,6 @@ void queue_state_write(const struct mbd_queue *q)
         LL_ERR("queue_state_write: unlink %s failed: %m", path);
 }
 
-int queue_user_allowed(const struct mbd_queue *q, uid_t uid)
-{
-    char users[LL_BUFSIZ_256];
-    char *p;
-    char *tok;
-    struct passwd *pw;
-
-    if (q->users[0] == 0)
-        return 1;
-
-    pw = getpwuid(uid);
-    if (pw == NULL)
-        return 0;
-
-    ll_strlcpy(users, q->users, sizeof(users));
-    tok = strtok_r(users, " ", &p);
-    while (tok != NULL) {
-        if (strcmp(tok, pw->pw_name) == 0)
-            return 1;
-        tok = strtok_r(NULL, " ", &p);
-    }
-
-    return 0;
-}
-
 void host_state_write(const struct mbd_host *h)
 {
     char path[PATH_MAX];

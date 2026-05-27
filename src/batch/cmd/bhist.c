@@ -17,29 +17,22 @@
 static const char *job_state_str(int32_t state)
 {
     switch (state) {
-    case JOB_PENDING:   return "PEND";
-    case JOB_HELD:      return "HELD";
-    case JOB_RUNNING:   return "RUN";
-    case JOB_SUSPENDED: return "SUSP";
-    case JOB_EXITED:    return "EXIT";
-    case JOB_DONE:      return "DONE";
-    case JOB_ORPHAN:    return "ORPHAN";
-    default:            return "?";
-    }
-}
-
-static const char *event_type_str(int32_t type)
-{
-    switch (type) {
-    case EVENT_JOB_NEW:         return "Submitted";
-    case EVENT_JOB_START:       return "Dispatched";
-    case EVENT_JOB_FORK:        return "Forked";
-    case EVENT_JOB_SIGNAL:      return "Signal";
-    case EVENT_JOB_FINISH:      return "Finished";
-    case EVENT_JOB_PEND_SUSP:   return "Suspended (pend)";
-    case EVENT_JOB_PEND_RESUME: return "Resumed (pend)";
-    case EVENT_JOB_SUSP:        return "Suspended";
-    default:                    return "?";
+    case JOB_PENDING:
+        return "PEND";
+    case JOB_HELD:
+        return "HELD";
+    case JOB_RUNNING:
+        return "RUN";
+    case JOB_SUSPENDED:
+        return "SUSP";
+    case JOB_EXITED:
+        return "EXIT";
+    case JOB_DONE:
+        return "DONE";
+    case JOB_ORPHAN:
+        return "ORPHAN";
+    default:
+        return "?";
     }
 }
 
@@ -58,6 +51,32 @@ static const char *str_or_dash(const char *s)
     if (s == NULL || s[0] == '\0')
         return "-";
     return s;
+}
+
+static const char *event_type_str(int32_t type)
+{
+    switch (type) {
+    case EVENT_JOB_NEW:
+        return "Submitted";
+    case EVENT_JOB_START:
+        return "Dispatched";
+    case EVENT_JOB_FORK:
+        return "Forked";
+    case EVENT_JOB_SIGNAL:
+        return "Signal";
+    case EVENT_JOB_FINISH:
+        return "Finished";
+    case EVENT_JOB_PEND_SUSP:
+        return "Suspended (pend)";
+    case EVENT_JOB_PEND_RESUME:
+        return "Resumed (pend)";
+    case EVENT_JOB_SUSP:
+        return "Suspended";
+    case EVENT_JOB_MOVE:
+        return "Moved queue";
+    default:
+        return "?";
+    }
 }
 
 static const struct job_event *find_event(const struct job_hist_info *j,
@@ -171,6 +190,9 @@ static void print_job_full(const struct job_hist_info *j)
         case EVENT_JOB_FINISH:
             printf("  exit: %d  state: %s",
                    e->exit_status, job_state_str(e->state));
+            break;
+        case EVENT_JOB_MOVE:
+            printf("  %s -> %s", str_or_dash(e->from_queue), str_or_dash(e->to_queue));
             break;
         default:
             break;

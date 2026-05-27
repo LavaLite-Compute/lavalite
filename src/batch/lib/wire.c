@@ -436,3 +436,12 @@ bool_t xdr_wire_token_info_array(XDR *xdrs, struct wire_token_info_array *p)
         return false;
     return true;
 }
+
+bool_t xdr_wire_job_move(XDR *xdrs, struct wire_job_move *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_opaque(xdrs, p->to_queue, sizeof(p->to_queue)))
+        return false;
+    return true;
+}

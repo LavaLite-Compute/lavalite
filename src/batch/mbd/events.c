@@ -735,6 +735,30 @@ static void job_id_seq_read(void)
     }
 }
 
+static void replay_job_move(const struct event_rec *rec)
+{
+    struct log_job_move e;
+    if (log_parse_job_move(rec, &e) < 0) {
+        LL_ERR("parse JOB_MOVE failed");
+        return;
+    }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LL_ERRX("JOB_MOVE job_id=%ld not found", e.job_id);
+        return;
+    }
+    struct mbd_queue *to = ll_hash_search(&queue_name_hash, e.to_queue);
+    if (to == NULL) {
+        LL_ERRX("JOB_MOVE job_id=%ld queue=%s not found, orphaned",
+                e.job_id, e.to_queue);
+        job->state = JOB_ORPHAN;
+        return;
+    }
+    job->queue = to;
+    LL_DEBUG("JOB_MOVE job_id=%ld from=%s to=%s", e.job_id,
+             e.from_queue, e.to_queue);
+}
+
 int jobs_replay(void)
 {
     FILE *fp = fopen(events_path, "r");
@@ -787,6 +811,10 @@ int jobs_replay(void)
         }
         if (rec.type == EVENT_JOB_SUSP) {
             replay_job_susp(&rec);
+            continue;
+        }
+        if (rec.type == EVENT_JOB_MOVE) {
+            replay_job_move(&rec);
             continue;
         }
     }
@@ -1006,4 +1034,23 @@ void maybe_compact_events(void)
              ll_list_count(&finish_jobs_list));
 
     events_compact();
+}
+
+void event_job_move(const struct job_data *job, const char *to_queue)
+{
+    struct log_job_move e;
+
+    memset(&e, 0, sizeof(e));
+    e.job_id = job->job_id;
+    e.event_time = time(NULL);
+    ll_strlcpy(e.from_queue, job->queue->name, sizeof(e.from_queue));
+    ll_strlcpy(e.to_queue, to_queue, sizeof(e.to_queue));
+
+    FILE *fp = open_events();
+    if (log_write_job_move(fp, &e) < 0) {
+        fclose(fp);
+        LL_ERR("log_write_job_move failed job_id=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
 }

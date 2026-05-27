@@ -46,6 +46,8 @@ int valid_batch_op(int op)
     case BATCH_QUEUE_ADMIN_ACK:
     case BATCH_HOST_ADMIN:
     case BATCH_HOST_ADMIN_ACK:
+    case BATCH_JOB_MOVE:
+    case BATCH_JOB_MOVE_ACK:
         return 1;
     default:
         return 0;
@@ -110,6 +112,7 @@ static void route(int chan_id)
 
     LL_DEBUG("chan_id=%d protocol=%s", chan_id, batch_op_str(hdr.operation));
 
+    // Invalid operation has been already rejected
     switch (hdr.operation) {
     case BATCH_JOB_SUBMIT:
         if (job_register(&xdrs, chan_id) < 0)
@@ -147,6 +150,10 @@ static void route(int chan_id)
         break;
     case BATCH_HOST_ADMIN:
         if (host_admin(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
+        break;
+    case BATCH_JOB_MOVE:
+        if (job_move(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     }

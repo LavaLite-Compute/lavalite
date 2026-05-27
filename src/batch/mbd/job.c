@@ -45,6 +45,15 @@ void job_free(struct job_data *job)
     free(job);
 }
 
+static int queue_user_allowed(const struct mbd_queue *q, const char *user)
+{
+    // 0 means all... sigh
+    if (q->user_hash.nentries == 0)
+        return 1;
+
+    return ll_hash_contains(&q->user_hash, user);
+}
+
 static struct job_data *job_alloc(struct wire_job_submit *ws)
 {
     struct job_data *job = calloc(1, sizeof(struct job_data));
@@ -99,8 +108,15 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
         return NULL;
     }
 
+    if (!queue_user_allowed(job->queue, job->user)) {
+        LL_ERRX("job=%ld user=%s not allowed in queue=%s",
+                job->job_id, job->user, job->queue->name);
+        free(job);
+        return NULL;
+    }
+
     if (job->res.num_hosts < 1) {
-        LL_DEBUG("job=%ld num_hosts set to 1", job->job_id);
+        LL_WARNING("job=%ld num_hosts set to 1", job->job_id);
         job->res.num_hosts = 1;
     }
 
@@ -898,4 +914,68 @@ void mbd_assert_counters(void)
             assert(0);
         }
     }
+}
+
+int job_move(XDR *xdrs, int chan_id)
+{
+    struct wire_job_move wm;
+    memset(&wm, 0, sizeof(wm));
+    if (!xdr_wire_job_move(xdrs, &wm)) {
+        LL_ERRX("xdr_wire_job_move failed");
+        return -1;
+    }
+
+    struct job_data *job = job_find(wm.job_id);
+    if (job == NULL) {
+        LL_ERRX("job=%ld not found", wm.job_id);
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, ESRCH);
+        return 0;
+    }
+
+    if (job->state != JOB_PENDING && job->state != JOB_HELD) {
+        LL_ERRX("job=%ld state=%s not movable", wm.job_id,
+                job_state_str(job->state));
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EINVAL);
+        return 0;
+    }
+
+    struct mbd_queue *to = ll_hash_search(&queue_name_hash, wm.to_queue);
+    if (to == NULL) {
+        LL_ERRX("job=%ld queue=%s not found", wm.job_id, wm.to_queue);
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, ESRCH);
+        return 0;
+    }
+
+    if (!queue_user_allowed(to, job->user)) {
+        LL_ERRX("job=%ld user=%s not allowed in queue=%s",
+                wm.job_id, job->user, to->name);
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
+        return 0;
+    }
+
+    /* update counters on from queue */
+    struct mbd_queue *from = job->queue;
+    if (job->state == JOB_PENDING)
+        from->num_pend--;
+    else
+        from->num_held--;
+    from->num_jobs--;
+
+    event_job_move(job, to->name);
+
+    job->queue = to;
+
+    /* update counters on to queue */
+    if (job->state == JOB_PENDING)
+        to->num_pend++;
+    else
+        to->num_held++;
+    to->num_jobs++;
+
+    LL_INFO("job=%ld moved from=%s to=%s", wm.job_id, from->name, to->name);
+
+    enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, MBD_OK);
+
+    mbd_assert_counters();
+    return 0;
 }

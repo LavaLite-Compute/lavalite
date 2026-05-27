@@ -196,6 +196,8 @@ struct job_event {
     pid_t          pid;           /* JOB_FORK                       */
     char          *from_host;     /* JOB_START                      */
     char          *exec_hosts;    /* JOB_START                      */
+    char *from_queue;   /* JOB_MOVE */
+    char *to_queue;     /* JOB_MOVE */
 };
 
 /*
@@ -266,3 +268,6 @@ int32_t llb_host_admin(const char *, int32_t);
 struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid,
                                     int32_t flags, int32_t *num);
 void llb_free_hist_info(struct job_hist_info *, int32_t);
+
+// bmove
+int32_t llb_move_job(int64_t, const char *);

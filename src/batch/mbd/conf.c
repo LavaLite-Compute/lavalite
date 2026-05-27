@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <pwd.h>
+#include <grp.h>
 
 #include "base/lib/ll.syslog.h"
 #include "base/lib/ll.conf.h"
@@ -507,19 +508,19 @@ static int commit_queue(struct queue_conf *qc)
 static int parse_queue_conf(struct queue_conf *qc, const char *key,
                             const char *val)
 {
-    if (strcmp(key, "QUEUE_NAME") == 0)
+    if (strcasecmp(key, "QUEUE_NAME") == 0)
         return ll_strlcpy(qc->name, val, LL_BUFSIZ_64);
 
-    if (strcmp(key, "PRIORITY") == 0)
+    if (strcasecmp(key, "PRIORITY") == 0)
         return ll_atoi(val, &qc->priority);
 
-    if (strcmp(key, "DESCRIPTION") == 0)
+    if (strcasecmp(key, "DESCRIPTION") == 0)
         return ll_strlcpy(qc->desc, val, LL_BUFSIZ_256);
 
-    if (strcmp(key, "HOSTS") == 0)
+    if (strcasecmp(key, "HOSTS") == 0)
         return ll_strlcpy(qc->hosts_spec, val, LL_BUFSIZ_256);
 
-    if (strcmp(key, "USERS") == 0)
+    if (strcasecmp(key, "USERS") == 0)
         return ll_strlcpy(qc->users, val, LL_BUFSIZ_256);
 
     LL_ERRX("unknown queue key=%s", key);
@@ -819,6 +820,44 @@ static int conf_expand_queues(void)
     return 0;
 }
 
+static int conf_expand_queue_users(void)
+{
+    struct ll_list_entry *e;
+
+    for (e = queue_list.head; e; e = e->next) {
+        struct mbd_queue *q = (struct mbd_queue *) e;
+
+        ll_hash_init(&q->user_hash, 101);
+
+        /* empty or '*' means all users allowed — leave hash empty */
+        if (q->users[0] == '\0' || strcmp(q->users, "*") == 0)
+            continue;
+
+        char tmp[LL_BUFSIZ_4K];
+        ll_strlcpy(tmp, q->users, sizeof(tmp));
+
+        char *tok = strtok(tmp, " \t");
+        while (tok != NULL) {
+            /* unix group? expand members */
+            struct group *gr = getgrnam(tok);
+            if (gr != NULL) {
+                char **mem;
+                for (mem = gr->gr_mem; *mem != NULL; mem++)
+                    ll_hash_insert(&q->user_hash, *mem, NULL, 0);
+            } else {
+                /* plain username */
+                ll_hash_insert(&q->user_hash, tok, NULL, 0);
+            }
+            tok = strtok(NULL, " \t");
+        }
+
+        LL_INFO("queue=%s users=%s nusers=%zu", q->name, q->users,
+                q->user_hash.nentries);
+    }
+
+    return 0;
+}
+
 static void dump_config(void)
 {
     struct ll_list_entry *e;
@@ -951,6 +990,11 @@ int conf_init(void)
 
     if (conf_expand_queues() < 0) {
         LL_ERRX("conf_expand_queues failed");
+        return -1;
+    }
+
+    if (conf_expand_queue_users() < 0) {
+        LL_ERRX("conf_expand_queue_users failed");
         return -1;
     }
 

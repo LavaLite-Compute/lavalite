@@ -25,6 +25,7 @@ static const char *event_names[] = {
     [EVENT_JOB_PEND_SUSP] = "JOB_PEND_SUSP",
     [EVENT_JOB_PEND_RESUME] = "JOB_PEND_RESUME",
     [EVENT_JOB_SUSP] = "JOB_SUSP",
+    [EVENT_JOB_MOVE] = "JOB_MOVE",
     [EVENT_COUNT] = NULL,
 };
 
@@ -376,6 +377,47 @@ int log_parse_job_susp(const struct event_rec *rec, struct log_job_susp *j)
         errno = EINVAL;
         return -1;
     }
+
+    j->event_time = rec->event_time;
+
+    return 0;
+}
+
+/* -----------------------------------------------------------------------
+ * JOB_MOVE
+ * -----------------------------------------------------------------------
+ */
+
+int log_write_job_move(FILE *fp, const struct log_job_move *j)
+{
+    if (write_hdr(fp, EVENT_JOB_MOVE, j->event_time) < 0)
+        return -1;
+    if (fprintf(fp, " %ld", (long) j->job_id) < 0)
+        return -1;
+    if (write_qstr(fp, j->from_queue) < 0)
+        return -1;
+    if (write_qstr(fp, j->to_queue) < 0)
+        return -1;
+    if (fprintf(fp, "\n") < 0)
+        return -1;
+    return 0;
+}
+
+int log_parse_job_move(const struct event_rec *rec, struct log_job_move *j)
+{
+    const char *p = rec->rest;
+    int cc;
+    int n = sscanf(p, " %ld%n", &j->job_id, &cc);
+    if (n != 1) {
+        errno = EINVAL;
+        return -1;
+    }
+    p += cc;
+
+    if (read_qstr(&p, j->from_queue, sizeof(j->from_queue)) < 0)
+        return -1;
+    if (read_qstr(&p, j->to_queue, sizeof(j->to_queue)) < 0)
+        return -1;
 
     j->event_time = rec->event_time;
 

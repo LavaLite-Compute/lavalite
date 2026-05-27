@@ -302,6 +302,11 @@ struct wire_token_info_array {
     struct wire_token_info *tokens;
 };
 
+struct wire_job_move {
+    int64_t job_id;
+    char to_queue[LL_BUFSIZ_64];
+};
+
 /* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
@@ -342,3 +347,5 @@ bool_t xdr_wire_group_info_array(XDR *, struct wire_group_info_array *);
 
 bool_t xdr_wire_token_info(XDR *, struct wire_token_info *);
 bool_t xdr_wire_token_info_array(XDR *, struct wire_token_info_array *);
+
+bool_t xdr_wire_job_move(XDR *, struct wire_job_move *);

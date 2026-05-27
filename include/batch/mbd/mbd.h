@@ -157,9 +157,9 @@ struct queue_conf {
 struct mbd_queue {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
-    char description[LL_BUFSIZ_256];
-    char hosts_spec[LL_BUFSIZ_256];
-    char users[LL_BUFSIZ_256];
+    char description[LL_BUFSIZ_4K];
+    char hosts_spec[LL_BUFSIZ_4K];
+    char users[LL_BUFSIZ_4K];
     int priority;
     int max_jobs;
     int num_jobs;
@@ -171,6 +171,7 @@ struct mbd_queue {
     int num_cpus_used;        /* CPUs consumed by running jobs in this queue */
     int num_hosts_used;       /* distinct exec hosts in use by running jobs  */
     struct ll_hash host_hash; /* expanded host membership, keyed by hostname */
+    struct ll_hash user_hash; /* expanded user membership, empty = all allowed */
 };
 
 struct mbd_group {
@@ -281,6 +282,7 @@ void event_job_pend_susp(const struct job_data *);
 void event_job_pend_resume(const struct job_data *);
 void event_job_susp(const struct job_data *);
 void maybe_compact_events(void);
+void event_job_move(const struct job_data *, const char *);
 
 // dispatch.c
 int jobs_signal(XDR *, int);
@@ -308,6 +310,7 @@ void token_alloc(const struct job_data *);
 void token_free(const struct job_data *);
 void job_free(struct job_data *);
 void job_id_seq_write(void);
+int job_move(XDR *, int);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
@@ -315,16 +318,13 @@ int mbd_sbd_disconnect(struct mbd_host *);
 void mbd_new_job_reply(struct mbd_host *, XDR *);
 void mbd_job_finish(struct mbd_host *, XDR *);
 
-// queue.c
-int queue_user_allowed(const struct mbd_queue *, uid_t);
-int queue_admin(XDR *, int);
-int host_admin(XDR *, int);
-
 // debug counters
 void mbd_assert_counters(void);
 
 // admin.c
+int host_admin(XDR *, int);
 void host_state_write(const struct mbd_host *);
 int host_state_init(void);
+int queue_admin(XDR *, int);
 void queue_state_write(const struct mbd_queue *);
 int queue_state_init(void);
