@@ -358,6 +358,10 @@ static void child_exec_job(struct sbd_job *job)
         _exit(127);
     }
 
+    // write to cgroup till we are root
+    if (cgroup_job_assign(job->job_id, getpid()) < 0)
+        LL_ERR("job=%ld cgroup_assign failed, continuing", job->job_id);
+
     // Drop privileges before touching user paths.
     if (set_user_id(job) < 0) {
         LL_ERR("set ids failed job=%ld pid=%d pgid=%d", job->job_id, job->pid,
@@ -444,7 +448,9 @@ static void reset_signals(void)
 
 static int spawn_job(struct sbd_job *job)
 {
-    // use posix_spawn
+    if (cgroup_job_create(job->job_id, job->mem_mb, job->ncpus) < 0)
+        LL_ERR("job=%ld cgroup_create failed, continuing", job->job_id);
+
     pid_t pid = fork();
     if (pid < 0) {
         LL_ERR("fork failed for job=%ld", job->job_id);
@@ -472,11 +478,6 @@ static int spawn_job(struct sbd_job *job)
     // parent
     job->pid = pid;
     job->pgid = pid;
-
-    if (cgroup_job_create(job->job_id, job->mem_mb, job->ncpus) < 0)
-        LL_ERR("job=%ld cgroup_create failed, continuing", job->job_id);
-    else if (cgroup_job_assign(job->job_id, pid) < 0)
-        LL_ERR("job=%ld cgroup_assign failed, continuing", job->job_id);
 
     LL_INFO("job=%ld pid=%d command=<%s>", job->job_id, job->pid, job->command);
 
