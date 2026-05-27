@@ -42,8 +42,8 @@
  * Default: /sys/fs/cgroup/lavalite
  * Override: LL_CGROUP_ROOT in ll.conf
  */
-#define CG_BASE_MAX 4096 /* fits any realistic cgroup path */
-#define CG_PATH_MAX 8192 /* base + job suffix */
+#define CG_BASE_MAX LL_BUFSIZ_4K /* fits any realistic cgroup path */
+#define CG_PATH_MAX LL_BUFSIZ_8K  /* base + job suffix */
 
 static char cg_base[CG_BASE_MAX];
 
@@ -77,7 +77,7 @@ static int cg_write(const char *path, const char *val)
  */
 static int cg_read_u64(const char *path, uint64_t *out)
 {
-    char buf[32];
+    char buf[LL_BUFSIZ_32];
     int fd = open(path, O_RDONLY);
     if (fd < 0)
         return -1;
@@ -99,7 +99,7 @@ static int cg_read_cpu_usec(const char *path, uint64_t *usec)
     FILE *f = fopen(path, "r");
     if (f == NULL)
         return -1;
-    char line[64];
+    char line[LL_BUFSIZ_64];
     int found = 0;
     while (fgets(line, sizeof(line), f)) {
         if (strncmp(line, "usage_usec ", 11) != 0)
@@ -155,7 +155,7 @@ int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
 {
     char path[CG_PATH_MAX];
     char knob[CG_PATH_MAX];
-    char val[32];
+    char val[LL_BUFSIZ_32];
 
     snprintf(path, sizeof(path), "%s/job_%ld", cg_base, job_id);
 
@@ -196,7 +196,7 @@ int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
 int cgroup_job_assign(int64_t job_id, pid_t pid)
 {
     char knob[CG_PATH_MAX];
-    char val[32];
+    char val[LL_BUFSIZ_32];
 
     snprintf(knob, sizeof(knob), "%s/job_%ld/cgroup.procs", cg_base, job_id);
     snprintf(val, sizeof(val), "%d", (int) pid);
