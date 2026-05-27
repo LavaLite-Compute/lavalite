@@ -51,6 +51,7 @@ bgroups
 bqueues
 bsub
 btokens
+bmove
 read_shared
 stdout.*
 stderr.*

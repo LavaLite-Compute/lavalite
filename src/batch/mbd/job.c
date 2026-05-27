@@ -979,3 +979,207 @@ int job_move(XDR *xdrs, int chan_id)
     mbd_assert_counters();
     return 0;
 }
+
+/* -----------------------------------------------------------
+ * job signal
+ * -----------------------------------------------------------
+ */
+static int finish_pending_job(struct job_data *job,
+                              const struct wire_job_sig *ws)
+{
+    LL_INFO("finish_pending_job: job_id=%ld sig=%d -> EXIT", (long) job->job_id,
+            ws->sig);
+    job->signal_time = job->end_time = time(NULL);
+
+    if (job->state == JOB_PENDING)
+        job->queue->num_pend--;
+
+    if (job->state == JOB_HELD)
+        job->queue->num_held--;
+
+    job->queue->num_jobs--;
+
+    job->state = JOB_EXITED;
+    event_job_signal(job, ws);
+    event_job_finish(job);
+    job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+
+    return MBD_OK;
+}
+
+static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    if (job->state == JOB_HELD)
+        return MBD_OK;
+
+    job->state = JOB_HELD;
+    job->signal_time = time(NULL);
+    LL_INFO("stop_pending_job: job_id=%ld sig=%d -> PSUSP", (long) job->job_id,
+            ws->sig);
+    event_job_signal(job, ws);
+    event_job_pend_susp(job);
+
+    job->queue->num_pend--;
+    job->queue->num_held++;
+    LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
+             job->queue->name, job->queue->num_pend, job->queue->num_run,
+             job->queue->num_susp, job->queue->num_held);
+
+    return MBD_OK;
+}
+
+static int resume_pending_job(struct job_data *job,
+                              const struct wire_job_sig *ws)
+{
+    if (!(job->state == JOB_HELD))
+        return MBD_OK;
+
+    job->state = JOB_PENDING;
+    job->signal_time = time(NULL);
+    LL_INFO("resume_pending_job: job_id=%ld sig=%d -> PEND", (long) job->job_id,
+            ws->sig);
+    event_job_signal(job, ws);
+    event_job_pend_resume(job);
+
+    job->queue->num_held--;
+    job->queue->num_pend++;
+    LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d num_held=%d",
+             job->queue->name, job->queue->num_pend, job->queue->num_run,
+             job->queue->num_susp, job->queue->num_held);
+
+    return MBD_OK;
+}
+
+static int signal_pending_job(struct job_data *job,
+                              const struct wire_job_sig *ws)
+{
+    switch (ws->sig) {
+    case SIGTERM:
+    case SIGINT:
+    case SIGKILL:
+        return finish_pending_job(job, ws);
+    case SIGSTOP:
+    case SIGTSTP:
+        return stop_pending_job(job, ws);
+    case SIGCONT:
+        return resume_pending_job(job, ws);
+    default:
+        LL_DEBUG("signal_pending_job: job_id=%ld sig=%d unsupported",
+                 (long) job->job_id, ws->sig);
+        return EINVAL;
+    }
+}
+
+static int signal_running_job(struct job_data *job,
+                              const struct wire_job_sig *ws)
+{
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SBD_JOB_SIGNAL;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+               job->run_hosts[0]->net.name);
+        return EAGAIN;
+    }
+
+    if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
+                        LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
+        LL_ERR("job=%ld enqueue_payload failed", job->job_id);
+        return EAGAIN;
+    }
+
+    job->signal_time = time(NULL);
+    event_job_signal(job, ws);
+
+    LL_INFO("job=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
+            job->run_hosts[0]->net.name);
+
+    return MBD_OK;
+}
+
+static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
+{
+    struct ll_list_entry *e;
+    struct ll_list_entry *next;
+    struct job_data *job;
+
+    for (e = pend_jobs_list.head; e != NULL; e = next) {
+        next = e->next;
+        job = (struct job_data *) e;
+        assert(job->state == JOB_PENDING || job->state == JOB_HELD);
+        if (job->uid != uid)
+            continue;
+        req->job_id = job->job_id;
+        // Best effort, even if one failed keep going
+        signal_pending_job(job, req);
+    }
+    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+        job = (struct job_data *) e;
+
+        assert(job->run_hosts[0]);
+        if (job->run_hosts[0]->sbd_chan < 0) {
+            LL_DEBUG("sbd=%s is disconnected", job->run_hosts[0]->net.name);
+            continue;
+        }
+
+        assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
+        if (job->uid != uid)
+            continue;
+        req->job_id = job->job_id;
+        // Best effort, even if one fails keep going
+        signal_running_job(job, req);
+    }
+
+    return MBD_OK;
+}
+
+int jobs_signal(XDR *xdrs, int chan_id)
+{
+    struct wire_job_sig req;
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_job_sig(xdrs, &req)) {
+        LL_ERR("job_signal: xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPROTO);
+    }
+
+    LL_DEBUG("job_id=%ld by uid=%u sig=%d chan_id=%d", (long) req.job_id,
+             req.uid, req.sig, chan_id);
+
+    if (req.job_id == 0) {
+        int cc = signal_all_jobs(req.uid, &req);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
+    }
+
+    struct job_data *job = job_find(req.job_id);
+    if (job == NULL) {
+        LL_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
+    }
+
+    if (job->state == JOB_DONE || job->state == JOB_EXITED) {
+        LL_DEBUG("job_signal: job_id=%ld already finished", (long) req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
+    }
+
+    if ((req.sig == SIGSTOP || req.sig == SIGTSTP) &&
+        (job->state == JOB_SUSPENDED || job->state == JOB_HELD)) {
+        LL_DEBUG("job_signal: job_id=%ld already suspended", (long) req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
+    }
+
+    if (req.sig == SIGCONT &&
+        (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
+        LL_DEBUG("job_signal: job_id=%ld SIGCONT no-op", (long) req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+    }
+
+    int cc;
+    if (job->state == JOB_PENDING || job->state == JOB_HELD)
+        cc = signal_pending_job(job, &req);
+    else
+        cc = signal_running_job(job, &req);
+
+    return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
+}
