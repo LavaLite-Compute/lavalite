@@ -1,7 +1,7 @@
 # LavaLite Recovery Tests
 
 Tests for daemon restart and replay correctness. These tests verify that
-mbd reconstructs correct state from sysevents after restart, and that sbd
+mbd reconstructs correct state from eventlog after restart, and that sbd
 survives restarts without losing running jobs.
 
 Run lifecycle tests first. Recovery tests assume basic job flow works.
@@ -131,7 +131,7 @@ systemctl restart lavalite-mbd
 
 Steps:
 1. Verify all jobs complete
-2. Verify compaction ran — sysevents size decreased or archive file created
+2. Verify compaction ran — eventlog size decreased or archive file created
 3. Restart mbd
 4. Verify mbd starts cleanly
 5. Verify `bhist` still shows finished jobs

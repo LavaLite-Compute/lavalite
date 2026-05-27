@@ -215,7 +215,7 @@ Steps:
 2. Verify jobs 1 and 2 show EXIT, jobs 3 and 4 show DONE
 3. Verify `bhist -l` shows exactly one dispatch block per job — no
    duplicates despite jobs 3 and 4 appearing in two archive files
-4. Verify sysevents is compacted (check file size or sequence number)
+4. Verify eventlog is compacted (check file size or sequence number)
 
 ---
 

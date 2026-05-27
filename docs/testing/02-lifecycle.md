@@ -1,7 +1,7 @@
 # LavaLite Lifecycle Tests
 
 Tests for job state transitions. Each test covers a specific path through
-the job state machine. Verify counters and sysevents at each step.
+the job state machine. Verify counters and eventlog at each step.
 
 Requires mbd and sbd running unless noted.
 
@@ -20,7 +20,7 @@ Steps:
 2. Wait for completion
 3. Verify job reaches DONE
 4. Verify host and queue counters return to baseline
-5. Check sysevents: JOB_NEW → JOB_START → JOB_EXECUTE → JOB_FINISH
+5. Check eventlog: JOB_NEW → JOB_START → JOB_FINISH
 
 ---
 
@@ -34,7 +34,7 @@ Steps:
 1. Verify job enters RUN
 2. Verify job reaches EXIT (non-zero exit status)
 3. Verify counters return to baseline
-4. Check sysevents: JOB_NEW → JOB_START → JOB_EXECUTE → JOB_FINISH
+4. Check eventlog: JOB_NEW → JOB_START → JOB_FINISH
 
 ---
 
@@ -70,7 +70,7 @@ Steps:
 2. Kill it
 3. Verify job is gone from active list
 4. Verify queue counters return to baseline
-5. Check sysevents: JOB_NEW → JOB_FINISH
+5. Check eventlog: JOB_NEW → JOB_FINISH
 
 ---
 

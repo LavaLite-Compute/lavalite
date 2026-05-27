@@ -21,7 +21,7 @@ all LavaLite manual test plans.
 Set these for your environment:
 
 ```sh
-export LL_SYSEVENTS=/opt/lavalite/var/state/mbd/sysevents
+export LL_SYSEVENTS=/opt/lavalite/var/state/mbd/eventlog
 export LL_LOG_DIR=/opt/lavalite/var/log
 ```
 
@@ -112,5 +112,5 @@ For each test record:
 
 - PASS / FAIL
 - Any unexpected behavior
-- sysevents excerpt if relevant
+- eventlog excerpt if relevant
 - mbd log excerpt on failure
