@@ -74,6 +74,8 @@ static const char *event_type_str(int32_t type)
         return "Suspended";
     case EVENT_JOB_MOVE:
         return "Moved queue";
+    case EVENT_JOB_PRIORITY:
+        return "Priority";
     default:
         return "?";
     }
@@ -193,6 +195,9 @@ static void print_job_full(const struct job_hist_info *j)
             break;
         case EVENT_JOB_MOVE:
             printf("  %s -> %s", str_or_dash(e->from_queue), str_or_dash(e->to_queue));
+            break;
+        case EVENT_JOB_PRIORITY:
+            printf("  %d -> %d", e->old_priority, e->new_priority);
             break;
         default:
             break;

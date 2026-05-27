@@ -445,3 +445,14 @@ bool_t xdr_wire_job_move(XDR *xdrs, struct wire_job_move *p)
         return false;
     return true;
 }
+
+bool_t xdr_wire_job_priority(XDR *xdrs, struct wire_job_priority *p)
+{
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->priority))
+        return false;
+    if (!xdr_uint32_t(xdrs, &p->uid))
+        return false;
+    return true;
+}

@@ -107,6 +107,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
         free(job);
         return NULL;
     }
+    job->priority = job->queue->priority;
 
     if (!queue_user_allowed(job->queue, job->user)) {
         LL_ERRX("job=%ld user=%s not allowed in queue=%s",
@@ -946,6 +947,12 @@ int job_move(XDR *xdrs, int chan_id)
         return 0;
     }
 
+    /* TODO pass in the trusted header
+       if (job->uid != uid && !is_manager(uid)) {
+       enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
+       return 0;
+       }
+    */
     if (!queue_user_allowed(to, job->user)) {
         LL_ERRX("job=%ld user=%s not allowed in queue=%s",
                 wm.job_id, job->user, to->name);
@@ -1182,4 +1189,59 @@ int jobs_signal(XDR *xdrs, int chan_id)
         cc = signal_running_job(job, &req);
 
     return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
+}
+
+int job_priority(XDR *xdrs, int chan_id)
+{
+    struct wire_job_priority wp;
+    memset(&wp, 0, sizeof(wp));
+    if (!xdr_wire_job_priority(xdrs, &wp)) {
+        LL_ERRX("xdr_wire_job_priority failed");
+        return -1;
+    }
+
+    struct job_data *job = job_find(wp.job_id);
+    if (job == NULL) {
+        LL_INFO("job=%ld not found", wp.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, ESRCH);
+    }
+
+    if (job->state == JOB_DONE || job->state == JOB_EXITED) {
+        LL_INFO("job_priority: job=%ld already finished", wp.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EINVAL);
+    }
+
+    /* ownership check — admin can bypass */
+    if (job->uid != (uid_t) wp.uid && !is_manager(wp.uid)) {
+        LL_INFO("job=%ld uid=%u not owner", wp.job_id, wp.uid);
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
+    }
+
+    /* non-admin cannot exceed queue priority */
+    if (!is_manager(wp.uid) && wp.priority > job->queue->priority) {
+        LL_INFO("job=%ld priority=%d exceeds queue=%d",
+                wp.job_id, wp.priority, job->queue->priority);
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
+    }
+
+    if (wp.priority < 0) {
+        LL_INFO("job=%ld invalid priority=%d specified", job->job_id,
+                wp.priority);
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EINVAL);
+    }
+
+    int32_t old_priority = job->priority;
+    if (wp.priority > old_priority && !is_manager(wp.uid))
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
+
+    if (wp.priority == old_priority)
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, MBD_OK);
+    job->priority = wp.priority;
+
+    event_job_priority(job, old_priority);
+
+    LL_INFO("job=%ld priority old=%d new=%d", wp.job_id,
+            old_priority, job->priority);
+
+    return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, MBD_OK);
 }

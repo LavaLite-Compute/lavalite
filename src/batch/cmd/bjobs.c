@@ -79,7 +79,7 @@ static int ndigits(int64_t n)
 }
 
 /*
- * Walk exec_hosts string "hostA*2 hostB*2" and return the width
+ * Walk exec_hosts string "2@hostA 2@hostB" and return the width
  * of the longest token.
  */
 static int exec_hosts_width(const char *s)
@@ -108,6 +108,7 @@ struct col_widths {
     int user;
     int stat;
     int queue;
+    int priority;
     int exec_hosts;
     int name;
 };
@@ -117,30 +118,38 @@ static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
     int i;
     struct job_info *j;
 
-    w->jobid = (int) strlen("JOBID");
-    w->user = (int) strlen("USER");
-    w->stat = (int) strlen("STAT");
-    w->queue = (int) strlen("QUEUE");
+    w->jobid      = (int) strlen("JOBID");
+    w->user       = (int) strlen("USER");
+    w->stat       = (int) strlen("STAT");
+    w->queue      = (int) strlen("QUEUE");
+    w->priority   = (int) strlen("PRI");
     w->exec_hosts = (int) strlen("EXEC_HOSTS");
-    w->name = (int) strlen("JOB_NAME");
+    w->name       = (int) strlen("JOB_NAME");
 
     for (i = 0; i < n; i++) {
         j = &jobs[i];
 
-        w->jobid = imax(w->jobid, ndigits(j->job_id));
-        w->user = imax(w->user, (int) strlen(uid_to_name(j->uid)));
-        w->stat = imax(w->stat, (int) strlen(job_state_str(j->state)));
-        w->queue = imax(w->queue, (int) strlen(j->queue));
-        w->name = imax(w->name, (int) strlen(j->name));
+        w->jobid      = imax(w->jobid,      ndigits(j->job_id));
+        w->user       = imax(w->user,       (int) strlen(uid_to_name(j->uid)));
+        w->stat       = imax(w->stat,       (int) strlen(job_state_str(j->state)));
+        w->queue      = imax(w->queue,      (int) strlen(j->queue));
+        w->priority   = imax(w->priority,   ndigits(j->priority));
         w->exec_hosts = imax(w->exec_hosts, exec_hosts_width(j->exec_hosts));
+        w->name       = imax(w->name,       (int) strlen(j->name));
     }
 }
 
 static void print_header(const struct col_widths *w)
 {
-    printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n", w->jobid, "JOBID",
-           w->user, "USER", w->stat, "STAT", w->queue, "QUEUE", w->exec_hosts,
-           "EXEC_HOSTS", w->name, "JOB_NAME", "SUBMIT_TIME");
+    printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
+           w->jobid,      "JOBID",
+           w->user,       "USER",
+           w->stat,       "STAT",
+           w->queue,      "QUEUE",
+           w->priority,   "PRI",
+           w->exec_hosts, "EXEC_HOSTS",
+           w->name,       "JOB_NAME",
+           "SUBMIT_TIME");
 }
 
 static void print_pend_reason(const struct job_info *j,
@@ -160,9 +169,14 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
     int first = 1;
 
     if (j->exec_hosts == NULL || j->exec_hosts[0] == '\0') {
-        printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n", w->jobid, j->job_id,
-               w->user, uid_to_name(j->uid), w->stat, job_state_str(j->state),
-               w->queue, j->queue, w->exec_hosts, "-", w->name, j->name,
+        printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+               w->jobid,      j->job_id,
+               w->user,       uid_to_name(j->uid),
+               w->stat,       job_state_str(j->state),
+               w->queue,      j->queue,
+               w->priority,   j->priority,
+               w->exec_hosts, "-",
+               w->name,       j->name,
                fmt_time(j->submit_time));
         if (show_reason)
             print_pend_reason(j, w);
@@ -175,14 +189,24 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
     char *tok = strtok(buf, " ");
     while (tok != NULL) {
         if (first) {
-            printf("%-*ld  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n", w->jobid,
-                   j->job_id, w->user, uid_to_name(j->uid), w->stat,
-                   job_state_str(j->state), w->queue, j->queue, w->exec_hosts,
-                   tok, w->name, j->name, fmt_time(j->submit_time));
+            printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+                   w->jobid,      j->job_id,
+                   w->user,       uid_to_name(j->uid),
+                   w->stat,       job_state_str(j->state),
+                   w->queue,      j->queue,
+                   w->priority,   j->priority,
+                   w->exec_hosts, tok,
+                   w->name,       j->name,
+                   fmt_time(j->submit_time));
             first = 0;
         } else {
-            printf("%-*s  %-*s  %-*s  %-*s  %-*s\n", w->jobid, "", w->user, "",
-                   w->stat, "", w->queue, "", w->exec_hosts, tok);
+            printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
+                   w->jobid,      "",
+                   w->user,       "",
+                   w->stat,       "",
+                   w->queue,      "",
+                   w->priority,   "",
+                   w->exec_hosts, tok);
         }
         tok = strtok(NULL, " ");
     }
@@ -211,13 +235,15 @@ static void usage(void)
             " filter options\n");
 }
 
-static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'V'},
-                                   {"all", no_argument, NULL, 'a'},
-                                   {"pend", no_argument, NULL, 'p'},
-                                   {"run", no_argument, NULL, 'r'},
-                                   {"done", no_argument, NULL, 'd'},
-                                   {NULL, 0, NULL, 0}};
+static struct option longopts[] = {
+    { "help",    no_argument, NULL, 'h' },
+    { "version", no_argument, NULL, 'V' },
+    { "all",     no_argument, NULL, 'a' },
+    { "pend",    no_argument, NULL, 'p' },
+    { "run",     no_argument, NULL, 'r' },
+    { "done",    no_argument, NULL, 'd' },
+    { NULL, 0, NULL, 0 }
+};
 
 int main(int argc, char **argv)
 {
@@ -234,8 +260,8 @@ int main(int argc, char **argv)
             usage();
             return 0;
         case 'a':
-            flags |= LLB_JOB_PEND | LLB_JOB_RUN | LLB_JOB_SUSP | LLB_JOB_DONE |
-                     LLB_JOB_HELD;
+            flags |= LLB_JOB_PEND | LLB_JOB_RUN | LLB_JOB_SUSP |
+                     LLB_JOB_DONE | LLB_JOB_HELD;
             break;
         case 'p':
             flags |= LLB_JOB_PEND;

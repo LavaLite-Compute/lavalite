@@ -48,6 +48,8 @@ int valid_batch_op(int op)
     case BATCH_HOST_ADMIN_ACK:
     case BATCH_JOB_MOVE:
     case BATCH_JOB_MOVE_ACK:
+    case BATCH_JOB_PRIORITY:
+    case BATCH_JOB_PRIORITY_ACK:
         return 1;
     default:
         return 0;
@@ -154,6 +156,10 @@ static void route(int chan_id)
         break;
     case BATCH_JOB_MOVE:
         if (job_move(&xdrs, chan_id) < 0)
+            chan_shutdown(chan_id);
+        break;
+    case BATCH_JOB_PRIORITY:
+        if (job_priority(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     }

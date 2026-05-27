@@ -283,6 +283,7 @@ void event_job_pend_resume(const struct job_data *);
 void event_job_susp(const struct job_data *);
 void maybe_compact_events(void);
 void event_job_move(const struct job_data *, const char *);
+void event_job_priority(const struct job_data *, int32_t);
 
 // dispatch.c
 int jobs_signal(XDR *, int);
@@ -311,6 +312,7 @@ void token_free(const struct job_data *);
 void job_free(struct job_data *);
 void job_id_seq_write(void);
 int job_move(XDR *, int);
+int job_priority(XDR *, int);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

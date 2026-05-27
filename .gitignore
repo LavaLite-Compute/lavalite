@@ -52,6 +52,7 @@ bqueues
 bsub
 btokens
 bmove
+bpriority
 read_shared
 stdout.*
 stderr.*

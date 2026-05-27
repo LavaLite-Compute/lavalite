@@ -307,6 +307,12 @@ struct wire_job_move {
     char to_queue[LL_BUFSIZ_64];
 };
 
+struct wire_job_priority {
+    int64_t job_id;
+    int32_t priority;
+    uint32_t uid;
+};
+
 /* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
@@ -349,3 +355,4 @@ bool_t xdr_wire_token_info(XDR *, struct wire_token_info *);
 bool_t xdr_wire_token_info_array(XDR *, struct wire_token_info_array *);
 
 bool_t xdr_wire_job_move(XDR *, struct wire_job_move *);
+bool_t xdr_wire_job_priority(XDR *, struct wire_job_priority *);

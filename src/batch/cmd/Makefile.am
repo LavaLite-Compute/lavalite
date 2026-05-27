@@ -7,7 +7,8 @@ COMMON_LIBS = ../lib/libllbat.a ../../base/lib/libllbase.a -lm $(OPENSSL_LIBS)
 
 LDADD = $(COMMON_LIBS)
 
-bin_PROGRAMS = bhosts bjobs bkill bqueues bsub bgroups btokens bhist bmove
+bin_PROGRAMS = bhosts bjobs bkill bqueues bsub bgroups btokens bhist \
+	       bmove bpriority
 
 # Source and linker definitions
 bhosts_SOURCES    = bhosts.c $(COMMON_CMD_SOURCES)
@@ -19,6 +20,7 @@ bsub_SOURCES      = bsub.c $(COMMON_CMD_SOURCES)
 btokens_SOURCES   = btokens.c $(COMMON_CMD_SOURCES)
 bhist_SOURCES   = bhist.c $(COMMON_CMD_SOURCES)
 bmove_SOURCES   = bmove.c $(COMMON_CMD_SOURCES)
+bpriority_SOURCES   = bpriority.c $(COMMON_CMD_SOURCES)
 
 EXTRA_DIST = Make.common
 

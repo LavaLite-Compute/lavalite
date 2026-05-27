@@ -53,6 +53,8 @@ enum batch_lib_op {
     BATCH_HOST_ADMIN_ACK,
     BATCH_JOB_MOVE,
     BATCH_JOB_MOVE_ACK,
+    BATCH_JOB_PRIORITY,
+    BATCH_JOB_PRIORITY_ACK,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);

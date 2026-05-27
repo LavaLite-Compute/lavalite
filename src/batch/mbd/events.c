@@ -166,6 +166,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.uid = (uid_t) ws->uid;
     e.gid = (gid_t) ws->gid;
     e.state = job->state;
+    e.priority = job->priority;
     e.submit_time = job->submit_time;
     e.begin_time = (time_t) ws->begin_time;
     e.term_time = (time_t) ws->term_time;
@@ -348,6 +349,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->uid = e->uid;
     job->gid = e->gid;
     job->state = e->state;
+    job->priority = e->priority;
     job->submit_time = e->submit_time;
     job->begin_time = e->begin_time;
     job->term_time = e->term_time;
@@ -759,6 +761,23 @@ static void replay_job_move(const struct event_rec *rec)
              e.from_queue, e.to_queue);
 }
 
+static void replay_job_priority(const struct event_rec *rec)
+{
+    struct log_job_priority e;
+    if (log_parse_job_priority(rec, &e) < 0) {
+        LL_ERR("parse JOB_PRIORITY failed");
+        return;
+    }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LL_ERRX("JOB_PRIORITY job_id=%ld not found", e.job_id);
+        return;
+    }
+    job->priority = e.new_priority;
+    LL_DEBUG("JOB_PRIORITY job_id=%ld old=%d new=%d",
+             e.job_id, e.old_priority, e.new_priority);
+}
+
 int jobs_replay(void)
 {
     FILE *fp = fopen(events_path, "r");
@@ -817,6 +836,10 @@ int jobs_replay(void)
             replay_job_move(&rec);
             continue;
         }
+        if (rec.type == EVENT_JOB_PRIORITY) {
+            replay_job_priority(&rec);
+            continue;
+        }
     }
 
     if (ferror(fp)) {
@@ -853,6 +876,7 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     e.uid = job->uid;
     e.gid = job->gid;
     e.state = job->state;
+    e.priority = job->priority;
     e.submit_time = job->submit_time;
     e.begin_time = job->begin_time;
     e.term_time = job->term_time;
@@ -1050,6 +1074,25 @@ void event_job_move(const struct job_data *job, const char *to_queue)
     if (log_write_job_move(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_move failed job_id=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+}
+
+void event_job_priority(const struct job_data *job, int32_t old_priority)
+{
+    struct log_job_priority e;
+
+    memset(&e, 0, sizeof(e));
+    e.job_id = job->job_id;
+    e.event_time = time(NULL);
+    e.old_priority = old_priority;
+    e.new_priority = job->priority;
+
+    FILE *fp = open_events();
+    if (log_write_job_priority(fp, &e) < 0) {
+        fclose(fp);
+        LL_ERR("log_write_job_priority failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);

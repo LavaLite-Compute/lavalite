@@ -709,3 +709,55 @@ int32_t llb_move_job(int64_t job_id, const char *to_queue)
 
     return 0;
 }
+
+int32_t llb_priority_job(int64_t job_id, int32_t priority)
+{
+    size_t bufsz =
+        PACKET_HEADER_SIZE + sizeof(struct wire_job_priority) + LL_BUFSIZ_64;
+    char *buf = malloc(bufsz);
+    if (buf == NULL)
+        return -1;
+
+    struct wire_job_priority req;
+    memset(&req, 0, sizeof(req));
+    req.job_id = job_id;
+    req.priority = priority;
+    req.uid = (uint32_t) getuid();
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_JOB_PRIORITY;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        free(buf);
+        return -1;
+    }
+
+    XDR xdrs;
+    xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
+    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_job_priority, &hdr)) {
+        xdr_destroy(&xdrs);
+        free(buf);
+        errno = EPROTO;
+        return -1;
+    }
+    size_t len = xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    void *rep = NULL;
+    struct protocol_header rhdr;
+    if (call_mbd(buf, len, &rep, &rhdr) < 0) {
+        free(buf);
+        return -1;
+    }
+    free(buf);
+    free(rep);
+
+    if (rhdr.status != MBD_OK) {
+        errno = rhdr.status;
+        return -1;
+    }
+
+    return 0;
+}

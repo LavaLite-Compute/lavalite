@@ -198,6 +198,8 @@ struct job_event {
     char          *exec_hosts;    /* JOB_START                      */
     char *from_queue;   /* JOB_MOVE */
     char *to_queue;     /* JOB_MOVE */
+    int32_t old_priority;   /* JOB_PRIORITY */
+    int32_t new_priority;   /* JOB_PRIORITY */
 };
 
 /*
@@ -271,3 +273,6 @@ void llb_free_hist_info(struct job_hist_info *, int32_t);
 
 // bmove
 int32_t llb_move_job(int64_t, const char *);
+
+// bpriority
+int32_t llb_priority_job(int64_t, int32_t);
