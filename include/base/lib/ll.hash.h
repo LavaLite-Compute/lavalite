@@ -94,3 +94,4 @@ int ll_hash_contains(const struct ll_hash *, const char *);
 // hash iterator
 void ll_hash_iter_init(struct ll_hash_iter *, const struct ll_hash *);
 struct ll_hash_entry *ll_hash_iter_next(struct ll_hash_iter *);
+int ll_hash_count(const struct ll_hash *);

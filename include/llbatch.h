@@ -148,7 +148,10 @@ enum queue_stat {
 struct queue_info {
     char *name;             /* queue name */
     char *description;      /* human readable description */
-    char *hosts;            /* host/group list allowed to run jobs */
+    char **hosts;           /* expanded host list */
+    int32_t num_hosts;
+    char **users;           /* expanded user list, num_users=0 means "all" */
+    int32_t num_users;
     int32_t status;         /* QUEUE_OPEN | QUEUE_CLOSED */
     int32_t priority;       /* scheduling priority, higher wins */
     int32_t max_jobs;       /* max concurrent jobs, 0 = unlimited */

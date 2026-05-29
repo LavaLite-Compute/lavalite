@@ -359,3 +359,8 @@ struct ll_hash_entry *ll_hash_iter_next(struct ll_hash_iter *it)
 
     return it->entry;
 }
+
+int ll_hash_count(const struct ll_hash *ht)
+{
+    return (int) ht->nentries;
+}

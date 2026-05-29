@@ -9,7 +9,9 @@ MAN1 = man1/bhosts.1 \
        man1/bqueues.1 \
        man1/bsub.1 \
        man1/btokens.1 \
-       man1/bhist.1
+       man1/bhist.1 \
+       man1/bpriority.1 \
+       man1/bmove.1
 
 MAN5 = man5/ll.conf.5 \
        man5/llb.hosts.5 \
@@ -34,6 +36,8 @@ EXTRA_DIST = \
 	markdown/bsub.1.md \
 	markdown/btokens.1.md \
 	markdown/bhist.1.md \
+	markdown/bpriority.1.md \
+	markdown/bmove.1.md \
 	markdown/ll.conf.5.md \
 	markdown/llb.hosts.5.md \
 	markdown/llb.queues.5.md \
@@ -52,6 +56,8 @@ man1/bqueues.1:  markdown/bqueues.1.md
 man1/bsub.1:     markdown/bsub.1.md
 man1/btokens.1:  markdown/btokens.1.md
 man1/bhist.1:    markdown/bhist.1.md
+man1/bpriority.1:  markdown/bpriority.1.md
+man1/bmove.1:    markdown/bmove.1.md
 
 man5/ll.conf.5:    markdown/ll.conf.5.md
 man5/llb.hosts.5:  markdown/llb.hosts.5.md

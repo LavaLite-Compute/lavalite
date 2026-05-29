@@ -101,26 +101,49 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
         struct wire_queue_info *src = &w.queues[i];
         struct queue_info *dst = &out[i];
 
-        dst->name = strdup(src->name);
+        dst->name        = strdup(src->name);
         dst->description = strdup(src->description);
-        dst->hosts = strdup(src->hosts);
-        dst->status = src->status;
-        dst->priority = src->priority;
-        dst->max_jobs = src->max_jobs;
-        dst->num_jobs = src->num_jobs;
-        dst->num_pend = src->num_pend;
-        dst->num_run = src->num_run;
-        dst->num_susp = src->num_susp;
-        dst->num_held = src->num_held;
-        dst->num_cpus_used = src->num_cpus_used;
+        dst->status      = src->status;
+        dst->priority    = src->priority;
+        dst->max_jobs    = src->max_jobs;
+        dst->num_jobs    = src->num_jobs;
+        dst->num_pend    = src->num_pend;
+        dst->num_run     = src->num_run;
+        dst->num_susp    = src->num_susp;
+        dst->num_held    = src->num_held;
+        dst->num_cpus_used  = src->num_cpus_used;
         dst->num_hosts_used = src->num_hosts_used;
+
+        dst->num_hosts = src->num_hosts;
+        dst->hosts = NULL;
+        if (src->num_hosts > 0) {
+            dst->hosts = calloc(src->num_hosts, sizeof(char *));
+            if (dst->hosts == NULL)
+                goto oom;
+            for (int j = 0; j < src->num_hosts; j++)
+                dst->hosts[j] = strdup(src->hosts[j]);
+        }
+
+        dst->num_users = src->num_users;
+        dst->users = NULL;
+        if (src->num_users > 0) {
+            dst->users = calloc(src->num_users, sizeof(char *));
+            if (dst->users == NULL)
+                goto oom;
+            for (int j = 0; j < src->num_users; j++)
+                dst->users[j] = strdup(src->users[j]);
+        }
     }
 
     *nqueues = w.nqueues;
-
     xdr_free((xdrproc_t) xdr_wire_queue_info_array, (char *) &w);
-
     return out;
+
+oom:
+    xdr_free((xdrproc_t) xdr_wire_queue_info_array, (char *) &w);
+    llb_free_queue_info(out, w.nqueues);
+
+    return NULL;
 }
 
 void llb_free_queue_info(struct queue_info *q, int n)
@@ -128,7 +151,12 @@ void llb_free_queue_info(struct queue_info *q, int n)
     for (int i = 0; i < n; i++) {
         free(q[i].name);
         free(q[i].description);
+        for (int j = 0; j < q[i].num_hosts; j++)
+            free(q[i].hosts[j]);
         free(q[i].hosts);
+        for (int j = 0; j < q[i].num_users; j++)
+            free(q[i].users[j]);
+        free(q[i].users);
     }
     free(q);
 }

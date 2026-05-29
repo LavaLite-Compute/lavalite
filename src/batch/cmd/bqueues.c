@@ -78,6 +78,54 @@ static void compute_widths(struct queue_info *q, int32_t n,
     }
 }
 
+static void print_wrapped(const char *label, char **items, int n,
+                          const char *all_str)
+{
+    int col = printf("  %-12s", label);
+
+    if (n == 0) {
+        printf("%s\n", all_str);
+        return;
+    }
+    for (int i = 0; i < n; i++) {
+        int w = (int) strlen(items[i]) + 1;
+        if (i > 0 && col + w > 79) {
+            printf("\n  %-12s", "");
+            col = 14;
+        }
+        col += printf(" %s", items[i]);
+    }
+    printf("\n");
+}
+
+static void print_queue_long(const struct queue_info *q)
+{
+    printf("QUEUE: %s\n", q->name);
+    if (q->description[0] != '\0')
+        printf("  Description: %s\n", q->description);
+    printf("  Priority:    %d    Status: %s    Max jobs: ",
+           q->priority, queue_status_str(q->status));
+    if (q->max_jobs == 0)
+        printf("unlimited\n");
+    else
+        printf("%d\n", q->max_jobs);
+    print_wrapped("Users:", q->users, q->num_users, "all");
+    print_wrapped("Hosts:", q->hosts, q->num_hosts, "all");
+    printf("  Jobs:        run=%-4d pend=%-4d held=%-4d susp=%d\n",
+           q->num_run, q->num_pend, q->num_held, q->num_susp);
+    printf("  Resources:   cpus_used=%-4d hosts_used=%d\n",
+           q->num_cpus_used, q->num_hosts_used);
+}
+
+static void print_queues_long(const struct queue_info *q, int n)
+{
+    for (int i = 0; i < n; i++) {
+        if (i > 0)
+            printf("\n");
+        print_queue_long(&q[i]);
+    }
+}
+
 static void usage(void)
 {
     fprintf(stderr, "bqueues: --help display this help and exit\n"
@@ -88,6 +136,7 @@ static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
                                    {"version", no_argument, NULL, 'V'},
                                    {"close", required_argument, NULL, 'c'},
                                    {"open", required_argument, NULL, 'o'},
+                                   {"long", no_argument, NULL, 'l'},
                                    {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
@@ -96,7 +145,8 @@ int main(int argc, char **argv)
     const char *open_queue = NULL;
 
     int cc;
-    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
+    int long_fmt = 0;
+    while ((cc = getopt_long(argc, argv, "hVl", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
             close_queue = optarg;
@@ -107,6 +157,9 @@ int main(int argc, char **argv)
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
+        case 'l':
+            long_fmt = 1;
+            break;
         case 'h':
         default:
             usage();
@@ -142,6 +195,11 @@ int main(int argc, char **argv)
         return -1;
     }
 
+    if (long_fmt) {
+        print_queues_long(q, n);
+        llb_free_queue_info(q, n);
+        return 0;
+    }
     compute_widths(q, n, &w);
 
     printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s\n", w.name,

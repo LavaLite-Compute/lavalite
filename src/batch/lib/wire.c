@@ -339,7 +339,11 @@ bool_t xdr_wire_queue_info(XDR *xdrs, struct wire_queue_info *p)
         return false;
     if (!xdr_opaque(xdrs, p->description, sizeof(p->description)))
         return false;
-    if (!xdr_opaque(xdrs, p->hosts, sizeof(p->hosts)))
+    if (!xdr_array(xdrs, (char **) &p->hosts, (u_int *) &p->num_hosts,
+                   INT32_MAX, sizeof(char *), (xdrproc_t) xdr_wrapstring))
+        return false;
+    if (!xdr_array(xdrs, (char **) &p->users, (u_int *) &p->num_users,
+                   INT32_MAX, sizeof(char *), (xdrproc_t) xdr_wrapstring))
         return false;
     if (!xdr_int32_t(xdrs, &p->priority))
         return false;

@@ -69,6 +69,29 @@ static int collect_list(struct ll_list *list, struct wire_job_info *dst,
     return count;
 }
 
+/*
+ * Collect hash keys into a freshly allocated char* array.
+ * Returns number of entries; *out is NULL if hash is empty.
+ * Pointers into hash keys — caller must not free the strings.
+ */
+static int hash_keys_to_array(struct ll_hash *h, char ***out)
+{
+    int n = ll_hash_count(h);
+    *out = NULL;
+    if (n == 0)
+        return 0;
+    *out = calloc(n, sizeof(char *));
+    if (*out == NULL)
+        return -1;
+    struct ll_hash_iter it;
+    struct ll_hash_entry *e;
+    int i = 0;
+    ll_hash_iter_init(&it, h);
+    while ((e = ll_hash_iter_next(&it)) != NULL)
+        (*out)[i++] = e->key;
+    return n;
+}
+
 int jobs_info(XDR *xdrs, int chan_id)
 {
     struct wire_job_info_req req;
@@ -168,7 +191,6 @@ int queues_info(XDR *xdrs, int chan_id)
         ll_strlcpy(queues[i].name, q->name, sizeof(queues[i].name));
         ll_strlcpy(queues[i].description, q->description,
                    sizeof(queues[i].description));
-        ll_strlcpy(queues[i].hosts, q->hosts_spec, sizeof(queues[i].hosts));
         queues[i].status = q->state;
         queues[i].priority = q->priority;
         queues[i].max_jobs = q->max_jobs;
@@ -179,6 +201,16 @@ int queues_info(XDR *xdrs, int chan_id)
         queues[i].num_held = q->num_held;
         queues[i].num_cpus_used = q->num_cpus_used;
         queues[i].num_hosts_used = q->num_hosts_used;
+
+        queues[i].num_hosts = hash_keys_to_array(&q->host_hash,
+                                                 &queues[i].hosts);
+        queues[i].num_users = hash_keys_to_array(&q->user_hash,
+                                                 &queues[i].users);
+        if (queues[i].num_hosts < 0 || queues[i].num_users < 0) {
+            LL_ERR("hash_keys_to_array failed num_hosts=%d num_users=%d",
+                   queues[i].num_hosts, queues[i].num_users);
+            goto fail;
+        }
 
         i++;
     }
@@ -202,9 +234,18 @@ int queues_info(XDR *xdrs, int chan_id)
         free(queues);
         return -1;
     }
-
+    for (int j = 0; j < nqueues; j++) {
+        free(queues[j].hosts);
+        free(queues[j].users);
+    }
     free(queues);
     return 0;
+
+fail:
+    for (int j = 0; j <= i; j++)
+        free(queues[j].hosts), free(queues[j].users);
+    free(queues);
+    return -1;
 }
 
 /* -----------------------------------------------------------

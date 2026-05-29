@@ -266,7 +266,10 @@ struct wire_group_info_array {
 struct wire_queue_info {
     char name[LL_BUFSIZ_64];
     char description[LL_BUFSIZ_256];
-    char hosts[LL_BUFSIZ_256];
+    int32_t num_hosts;
+    char **hosts;
+    int32_t num_users;
+    char **users;
     int32_t priority;
     int32_t max_jobs;
     int32_t num_jobs;
@@ -276,7 +279,7 @@ struct wire_queue_info {
     int32_t num_held;
     int32_t num_cpus_used;
     int32_t num_hosts_used;
-    int32_t status; /* QUEUE_OPEN | QUEUE_CLOSED */
+    int32_t status;
 };
 
 struct wire_queue_info_array {
