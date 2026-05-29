@@ -45,32 +45,22 @@ It reflects the project's architectural philosophy:
 
 The objective is not to implement every possible scheduler feature, but to build a robust and understandable HPC scheduling system with predictable operational semantics.
 
-# Current Development Status
+# Current Status
 
 LavaLite is currently in the 1.0 stabilization and validation phase.
 
-The ongoing work focuses on:
+Current work focuses on:
 
-* Finite-state scheduler refactoring
-* Deterministic recovery validation
-* Durable event replay correctness
-* Queue and resource accounting consistency
-* Parallel and multi-host scheduling behavior
-* GPU-aware scheduling validation
-* Manual failure testing
-* Automated regression and stress testing
+* Scheduler correctness
+* Recovery validation
+* Event replay verification
+* Queue and resource accounting
+* Multi-host scheduling
+* GPU-aware scheduling
+* Automated and manual testing
 
-The scheduler core is actively being exercised under restart, disconnect, replay, and daemon recovery scenarios to verify operational correctness and long-term stability.
-
-The project follows a correctness-first engineering model:
-
-* Explicit state transitions
-* Reproducible behavior
-* Minimal hidden state
-* Durable recovery semantics
-* Operational debuggability
-
-Feature growth remains secondary to scheduler correctness and predictable behavior.
+Feature growth remains secondary to correctness, stability, and
+recoverability.
 
 # Supported Platforms
 
@@ -80,23 +70,14 @@ LavaLite currently supports:
 * Rocky Linux 9
 * Ubuntu 24.04
 
-# Getting Started
-
-LavaLite is currently in active 1.0 stabilization and testing.
-
-At this stage the project is primarily intended for developers,
-test environments, and architecture validation.
-
-Source code, build instructions, design notes, and operational material
-are available in the repository:
-
-- https://github.com/LavaLite-Compute/lavalite
-
-
 # Documentation
 
-Documentation is being revised alongside the ongoing 1.0 stabilization
-and scheduler validation effort.
+The primary documentation is located under:
+
+```text
+docs/admin
+docs/testing
+docs/man
 
 # License
 

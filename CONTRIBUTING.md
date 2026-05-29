@@ -1,4 +1,4 @@
-# LavaLite Coding Guide and Project Invariants
+# LavaLite Contributing Guide
 
 This document defines the C coding style and architectural invariants for LavaLite.
 It serves as coding guide, design reference, and onboarding document.
