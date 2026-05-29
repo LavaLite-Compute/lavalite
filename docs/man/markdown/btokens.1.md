@@ -21,7 +21,7 @@ Token pools are floating license counters used to gate job dispatch when
 a resource (such as a software license) has a limited number of
 concurrent users.
 
-Token pools are defined in ll.queues. Jobs request tokens with
+Token pools are defined in llb.queues. Jobs request tokens with
 **bsub --pool**.
 
 # OPTIONS
@@ -50,4 +50,4 @@ Displays a table with the following columns:
 
 # SEE ALSO
 
-**bsub**(1), **bqueues**(1), **ll.queues**(5), **mbd**(8)
+**bsub**(1), **bqueues**(1), **llb.queues**(5), **mbd**(8)

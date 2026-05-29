@@ -8,7 +8,7 @@ date: 2026
 
 # NAME
 
-bhist - display historical job information
+bhist - display job history and detailed job information
 
 # SYNOPSIS
 
@@ -18,75 +18,106 @@ bhist - display historical job information
 
 # DESCRIPTION
 
-Displays information about finished jobs from the job history log.
-Without options, shows finished jobs for the current user.
+Displays job history and detailed information for jobs known to the
+LavaLite scheduler.
+
+Without arguments, **bhist** displays jobs belonging to the current
+user. When a *job_id* is specified, detailed information and lifecycle
+events for that job are displayed.
+
+Unlike **bjobs**(1), which provides a compact summary view of jobs,
+**bhist** provides detailed information including submission
+parameters, execution hosts, resource requests, command lines, and
+job lifecycle events.
 
 # OPTIONS
 
 **-u** *user*, **--user** *user*
-:   Show finished jobs for the specified user.
+:   Show jobs belonging to the specified user.
 
 **-l**, **--long**
-:   Display detailed job information including resource usage,
-    timestamps, and exit status.
+:   Display additional job information including timestamps,
+    execution details, resource usage, and exit status.
 
 **--help**
-:   Print usage to stderr and exit.
+:   Print usage information and exit.
 
 **--version**
-:   Print version to stderr and exit.
+:   Print version information and exit.
 
 # ARGUMENTS
 
 *job_id*
-:   Show history for a specific job ID.
+:   Display detailed information and lifecycle events for the specified
+    job.
+
+# JOB STATES
+
+The following job states may be displayed:
+
+**PEND**
+:   Waiting to be dispatched.
+
+**HELD**
+:   Held by the user and not eligible for dispatch.
+
+**RUN**
+:   Executing on one or more hosts.
+
+**SUSP**
+:   Suspended.
+
+**DONE**
+:   Completed successfully.
+
+**EXIT**
+:   Completed with a non-zero exit status.
 
 # OUTPUT
 
-Displays a table with the following columns:
+When invoked without a *job_id*, **bhist** displays a detailed summary
+for each matching job, including:
 
-**JOBID**
-:   Job ID.
+- Job identifier
+- User
+- Queue
+- Current state
+- Submission time
+- Working directory
+- Resource requests
+- Command
+- Dispatch status
 
-**USER**
-:   User who submitted the job.
+When invoked with a *job_id*, **bhist** additionally displays the job
+lifecycle history, including events such as:
 
-**STAT**
-:   Final job state: **DONE** (exit status 0), **EXIT** (non-zero exit status),
-    or **RUN** for jobs still executing.
-
-**QUEUE**
-:   Queue the job was submitted to.
-
-**EXEC_HOSTS**
-:   Host or hosts where the job ran.
-
-**JOB_NAME**
-:   Job name as given at submission.
-
-**SUBMIT_TIME**
-:   Time the job was submitted.
-
-**END_TIME**
-:   Time the job finished. Displays **-** for jobs still running.
-
-In long mode (**-l**), displays additional detail per job including
-resource usage (CPU time, memory, swap), exit status, and all timestamps.
+- Submission
+- Dispatch
+- Fork
+- Suspension
+- Resume
+- Completion
+- Exit
 
 # EXAMPLES
 
-Show your finished jobs:
+Display jobs for the current user:
 
     bhist
 
-Show finished jobs for a specific user:
+Display jobs for a specific user:
 
-    bhist -u alice
+    bhist --user alice
 
-Show detailed information for a specific job:
+Display detailed information for job 42:
+
+    bhist 42
+
+Display extended information:
 
     bhist -l 42
 
 # SEE ALSO
 
-**bsub**(1), **bjobs**(1), **bkill**(1), **mbd**(8)
+**bjobs**(1), **bsub**(1), **bkill**(1), **bmove**(1),
+**bpriority**(1), **mbd**(8)

@@ -68,7 +68,7 @@ desktop session or display server are not propagated.
 :   Request *n* GPUs per host. Default is 0.
 
 **--gpu-type** *name*
-:   Require a specific GPU type, as defined in ll.hosts. Example:
+:   Require a specific GPU type, as defined in llb.hosts. Example:
     **--gpu-type a100**. If omitted, any GPU type satisfies the request.
     Requires **--gpus**.
 
@@ -105,7 +105,7 @@ desktop session or display server are not propagated.
 ## Scheduling
 
 **--hold**
-:   Hold the job in PSUSP state after submission. The job will not be
+:   Hold the job in HELD state after submission. The job will not be
     scheduled until released with **bkill --signal CONT**.
 
 **--begin** [*day*:]*hour*:*minute*
@@ -157,4 +157,4 @@ Request tokens from a license pool:
 
 **bjobs**(1), **bkill**(1), **bqueues**(1), **bhosts**(1),
 **bgroup**(1), **btokens**(1), **bhist**(1), **mbd**(8), **sbd**(8),
-**ll.hosts**(5), **ll.queues**(5)
+**llb.hosts**(5), **llb.queues**(5)

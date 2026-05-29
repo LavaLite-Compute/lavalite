@@ -1,116 +1,159 @@
-# LavaLite Test Environment
+# Test Environment
 
 ## Purpose
 
-This document describes the test environment and conventions used across
-all LavaLite manual test plans.
+Verify that the LavaLite test environment is correctly configured
+before executing any functional tests.
 
-## Cluster requirements
+## Prerequisites
 
-- One master host running `mbd`
-- One or more execution hosts running `sbd`
-- LavaLite commands installed: `bsub`, `bjobs`, `bkill`, `bqueues`,
-  `bhosts`, `bgroup`, `btokens`, `bhist`
-- At least one queue configured (e.g. `cpu`)
-- At least one host configured (e.g. `buntu24`)
-- `LL_LOG_MASK=LOG_DEBUG` in `ll.conf` during testing
-- `mbd_assert_counters()` enabled in mbd build
+- LavaLite is installed.
+- Configuration files are present.
+- `mbd` is running.
+- At least one `sbd` is running.
+- Test user account exists.
+- At least one queue is configured.
+- At least one execution host is configured.
 
-## Useful paths
+## TEST-001: Verify daemons are running
 
-Set these for your environment:
-
-```sh
-export LL_SYSEVENTS=/opt/lavalite/var/state/mbd/eventlog
-export LL_LOG_DIR=/opt/lavalite/var/log
-```
-
-## Useful commands
+### Commands
 
 ```sh
-bjobs -a                        # all jobs all states
-bqueues                         # queue counters
-bhosts                          # host counters
-tail -f $LL_LOG_DIR/mbd.log     # mbd log
+ps -ef | grep mbd
+ps -ef | grep sbd
 ```
 
-## Starting and stopping daemons
+### Expected Result
+
+- One `mbd` process is running.
+- One or more `sbd` processes are running.
+
+### Pass Criteria
+
+All required daemons are running.
+
+## TEST-002: Verify queue configuration
+
+### Commands
 
 ```sh
-systemctl start lavalite-mbd
-systemctl stop  lavalite-mbd
-systemctl start lavalite-sbd
-systemctl stop  lavalite-sbd
+bqueues
 ```
 
-Or directly during testing:
+### Expected Result
+
+- At least one queue is displayed.
+- Queue status is `open`.
+
+### Pass Criteria
+
+At least one usable queue exists.
+
+## TEST-003: Verify host configuration
+
+### Commands
 
 ```sh
-/opt/lavalite/sbin/mbd
-/opt/lavalite/sbin/sbd
+bhosts
 ```
 
-## Job commands used in tests
+### Expected Result
 
-Long-running job (stays in RUN for inspection):
+- At least one host is displayed.
+- Host state is `ok`.
+
+### Pass Criteria
+
+At least one execution host is available.
+
+## TEST-004: Verify host groups
+
+### Commands
 
 ```sh
-bsub sleep 86400
+bgroups
 ```
 
-Short job (completes quickly):
+### Expected Result
+
+- At least one host group is displayed.
+
+### Pass Criteria
+
+Host groups are visible.
+
+## TEST-005: Verify token pools
+
+### Commands
+
+```sh
+btokens
+```
+
+### Expected Result
+
+- Command completes successfully.
+
+### Pass Criteria
+
+Token pool configuration can be queried.
+
+## TEST-006: Verify job submission
+
+### Commands
 
 ```sh
 bsub sleep 5
 ```
 
-Failing job (produces EXIT state):
+### Expected Result
+
+- A valid job identifier is returned.
+
+Example:
+
+```text
+Job <123> is submitted to queue <cpu>.
+```
+
+### Pass Criteria
+
+Job submission succeeds.
+
+## TEST-007: Verify job visibility
+
+### Commands
 
 ```sh
-bsub /bin/false
+bjobs
 ```
 
-## General validation rules
+### Expected Result
 
-After every test step verify:
+Previously submitted job is visible.
 
-1. `bjobs -a` — job state is correct
-2. `bqueues` — queue counters are correct
-3. `bhosts` — host counters are correct where applicable
-4. `$LL_SYSEVENTS` — expected events are present
-5. No negative counters anywhere
-6. No `mbd_assert_counters()` failure in mbd log
+### Pass Criteria
 
-## Counter invariants
+Submitted jobs are displayed by `bjobs`.
 
-These must hold at all times:
+## TEST-008: Verify job history
 
-```
-host.num_jobs  >= 0
-host.num_run   >= 0
-host.num_susp  >= 0
-
-queue.num_jobs >= 0
-queue.num_pend >= 0
-queue.num_held >= 0
-queue.num_run  >= 0
-queue.num_susp >= 0
-```
-
-## Cleanup between tests
+### Commands
 
 ```sh
-bkill <jobid>
+bhist
 ```
 
-Wait for job to reach DONE or EXIT, then verify counters are back to
-baseline before starting the next test.
+### Expected Result
 
-## Recording results
+Job information is displayed.
 
-For each test record:
+### Pass Criteria
 
-- PASS / FAIL
-- Any unexpected behavior
-- eventlog excerpt if relevant
-- mbd log excerpt on failure
+`bhist` returns job information without errors.
+
+## Environment Validation
+
+The environment is considered ready for functional testing when all
+tests in this document pass.

@@ -5,7 +5,7 @@ mandir  = $(prefix)/share/man
 MAN1 = man1/bhosts.1 \
        man1/bjobs.1 \
        man1/bkill.1 \
-       man1/bgroup.1 \
+       man1/bgroups.1 \
        man1/bqueues.1 \
        man1/bsub.1 \
        man1/btokens.1 \
@@ -31,7 +31,7 @@ EXTRA_DIST = \
 	markdown/bhosts.1.md \
 	markdown/bjobs.1.md \
 	markdown/bkill.1.md \
-	markdown/bgroup.1.md \
+	markdown/bgroups.1.md \
 	markdown/bqueues.1.md \
 	markdown/bsub.1.md \
 	markdown/btokens.1.md \
@@ -51,7 +51,7 @@ CLEANFILES    = $(MAN1) $(MAN5) $(MAN7) $(MAN8)
 man1/bhosts.1:   markdown/bhosts.1.md
 man1/bjobs.1:    markdown/bjobs.1.md
 man1/bkill.1:    markdown/bkill.1.md
-man1/bgroup.1:   markdown/bgroup.1.md
+man1/bgroups.1:   markdown/bgroups.1.md
 man1/bqueues.1:  markdown/bqueues.1.md
 man1/bsub.1:     markdown/bsub.1.md
 man1/btokens.1:  markdown/btokens.1.md

@@ -88,4 +88,4 @@ Displays a table with the following columns:
 
 # SEE ALSO
 
-**bqueues**(1), **bjobs**(1), **bgroup**(1), **ll.hosts**(5), **mbd**(8)
+**bqueues**(1), **bjobs**(1), **bgroup**(1), **llb.hosts**(5), **mbd**(8)

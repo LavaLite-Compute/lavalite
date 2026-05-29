@@ -12,12 +12,12 @@ bgroup - display host group membership
 
 # SYNOPSIS
 
-**bgroup**
+**bgroups**
 
 # DESCRIPTION
 
 Displays all host groups defined in the cluster and their member hosts.
-Host groups are defined in ll.hosts and can be used in **bsub --machines**
+Host groups are defined in llb.hosts and can be used in **bsub --machines**
 to restrict job placement.
 
 # OPTIONS
@@ -40,4 +40,4 @@ Displays a table with the following columns:
 
 # SEE ALSO
 
-**bsub**(1), **bhosts**(1), **ll.hosts**(5)
+**bsub**(1), **bhosts**(1), **llb.hosts**(5)

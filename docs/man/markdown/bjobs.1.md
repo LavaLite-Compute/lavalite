@@ -58,8 +58,10 @@ Jobs are displayed in a table with the following columns:
 - **RUN** — executing on a host
 - **DONE** — completed successfully (exit status 0)
 - **EXIT** — completed with non-zero exit status
-- **USUSP** — suspended by the user
-- **SSUSP** — suspended by the scheduler
+- **SUSP** — suspended job
+- **HELD** — held job, not eligible for dispatch
+- **ORPHAN** — execution host unavailable, job state cannot currently be verified
+- **UNKNOWN** — job state cannot currently be determined
 
 # EXAMPLES
 

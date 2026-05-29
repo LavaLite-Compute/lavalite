@@ -24,7 +24,7 @@ dispatches jobs to execution hosts, tracks job state, and manages host
 and queue configuration.
 
 **mbd** must run on the master host. It reads configuration from
-**ll.conf**, **ll.queues**, and **ll.hosts** at startup.
+**ll.conf**, **llb.queues**, and **llb.hosts** at startup.
 
 # OPTIONS
 
@@ -54,10 +54,10 @@ and queue configuration.
 *$LL_CONF_DIR*/ll.conf
 :   Main configuration file.
 
-*$LL_CONF_DIR*/ll.queues
+*$LL_CONF_DIR*/llb.queues
 :   Queue definitions.
 
-*$LL_CONF_DIR*/ll.hosts
+*$LL_CONF_DIR*/llb.hosts
 :   Host and host group definitions.
 
 *$LL_CONF_DIR*/auth.key
@@ -66,4 +66,4 @@ and queue configuration.
 # SEE ALSO
 
 **sbd**(8), **bsub**(1), **bjobs**(1), **bhosts**(1), **bqueues**(1),
-**ll.conf**(5), **ll.queues**(5), **ll.hosts**(5)
+**ll.conf**(5), **llb.queues**(5), **llb.hosts**(5)

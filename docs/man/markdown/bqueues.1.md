@@ -22,7 +22,7 @@ bqueues - display queue information and manage queue availability
 
 # DESCRIPTION
 
-Without options, displays the current status and counters for all queues
+Without options, displays the current status and counters for allb.queues
 in the cluster.
 
 The **--close** and **--open** options require administrator privileges.
@@ -107,4 +107,4 @@ Each queue is displayed as a block with the following fields:
 
 # SEE ALSO
 
-**bsub**(1), **bjobs**(1), **bhosts**(1), **ll.queues**(5), **mbd**(8)
+**bsub**(1), **bjobs**(1), **bhosts**(1), **llb.queues**(5), **mbd**(8)
