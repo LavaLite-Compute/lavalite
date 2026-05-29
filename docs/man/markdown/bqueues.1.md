@@ -14,6 +14,8 @@ bqueues - display queue information and manage queue availability
 
 **bqueues**
 
+**bqueues** **-l**
+
 **bqueues** **--close** *queue*
 
 **bqueues** **--open** *queue*
@@ -26,6 +28,10 @@ in the cluster.
 The **--close** and **--open** options require administrator privileges.
 
 # OPTIONS
+
+**-l**, **--long**
+:   Display detailed information for each queue, including description,
+    users, and hosts. Long lines are wrapped at 79 columns.
 
 **--close** *queue*
 :   Close the named queue. A closed queue does not accept new jobs and
@@ -76,6 +82,28 @@ Displays a table with the following columns:
 
 **USED_HOSTS**
 :   Hosts currently running jobs from this queue.
+
+## Long format (-l)
+
+Each queue is displayed as a block with the following fields:
+
+**Description**
+:   Human-readable description, if configured.
+
+**Priority, Status, Max jobs**
+:   Same as the tabular columns.
+
+**Users**
+:   Users allowed to submit to this queue. **all** if unrestricted.
+
+**Hosts**
+:   Hosts eligible to run jobs from this queue.
+
+**Jobs**
+:   Running, pending, held, and suspended counts.
+
+**Resources**
+:   CPU slots and hosts currently in use.
 
 # SEE ALSO
 

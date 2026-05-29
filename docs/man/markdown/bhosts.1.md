@@ -57,10 +57,10 @@ Displays a table with the following columns:
 :   Total CPU slots.
 
 **MEM**
-:   Total memory (K, M, G, T suffixes).
+:   Total memory (M, G, T suffixes).
 
 **STOR**
-:   Total local storage.
+:   Total local storage (M, G, T suffixes).
 
 **NGPU**
 :   Total GPUs.
