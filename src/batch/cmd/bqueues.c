@@ -129,7 +129,10 @@ static void print_queues_long(const struct queue_info *q, int n)
 static void usage(void)
 {
     fprintf(stderr, "bqueues: --help display this help and exit\n"
-                    "--version output version information and exit\n");
+                    "  -l, --long     display detailed queue information\n"
+                    "  -c, --close    QUEUE close a queue\n"
+                    "  -o, --open     QUEUE open a queue\n"
+                    "  --version      output version information and exit\n");
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},

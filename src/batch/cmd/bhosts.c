@@ -126,7 +126,9 @@ static void compute_widths(struct host_info *h, int n, struct col_widths *w)
 static void usage(void)
 {
     fprintf(stderr, "bhosts: --help display this help and exit\n"
-                    "--version output version information and exit\n");
+                    "  -c, --close    HOST close a host\n"
+                    "  -o, --open     HOST open a host\n"
+                    "  --version      output version information and exit\n");
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
