@@ -392,7 +392,7 @@ done:
         return -1;
 
     if (chan_self_connected(fd)) {
-        errno = ECONNREFUSED;
+        errno = EPROTO;
         return -1;
     }
     return 0;

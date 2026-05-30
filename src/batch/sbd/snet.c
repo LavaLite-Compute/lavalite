@@ -6,6 +6,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "base/lib/auth.h"
 #include "base/lib/ll.conf.h"
@@ -75,6 +76,8 @@ int sbd_mbd_connect(void)
     // 3s: datacenter LAN; if mbd doesn't answer it's down
     if (chan_connect(sbd_mbd_chan, &addr, 3) < 0) {
         LL_ERR("cannot connect to mbd on chan=%d", sbd_mbd_chan);
+        if (errno == EPROTO)
+            LL_ERR("rejected TCP self-connect while connecting to mbd");
         sbd_chan_shutdown(sbd_mbd_chan);
         sbd_mbd_chan = -1;
         return -1;
