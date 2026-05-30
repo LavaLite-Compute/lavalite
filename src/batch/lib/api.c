@@ -451,7 +451,11 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
     free(rep);
 
     if (w.njobs == 0) {
+        // this is a special case in which we return NULL even if
+        // the operation went ok. make sure to 0 the errno not to
+        // fool the caller.
         *n = 0;
+        errno = 0;
         return NULL;
     }
 

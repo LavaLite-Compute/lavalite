@@ -1181,8 +1181,9 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     if ((req.sig == SIGSTOP || req.sig == SIGTSTP) &&
         (job->state == JOB_SUSPENDED || job->state == JOB_HELD)) {
-        LL_DEBUG("job_signal: job_id=%ld already suspended", (long) req.job_id);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
+        LL_DEBUG("job_signal: job_id=%ld already suspended no-op",
+                 (long) req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
     if (req.sig == SIGCONT &&

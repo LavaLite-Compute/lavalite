@@ -426,7 +426,8 @@ void schedule(void)
         }
         if (cc == 0) {
             job->pend_reason = diag_reason(&diag);
-            LL_INFO("job=%ld not enough hosts found", job->job_id);
+            LL_INFO("job=%ld not enough hosts found to build a plan",
+                    job->job_id);
             continue;
         }
 

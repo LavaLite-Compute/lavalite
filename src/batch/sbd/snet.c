@@ -163,7 +163,7 @@ int sbd_register(void)
         return -1;
     }
 
-    LL_INFO("sbd registered sent host=%s", host);
+    LL_INFO("sbd registered I am host=%s", host);
 
     return 0;
 }

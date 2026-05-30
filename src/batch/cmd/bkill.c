@@ -28,8 +28,7 @@ static int parse_signal(const char *s, int *out)
             return -1;
         if (v <= 0 || v >= NSIG)
             return -1;
-        // Note that we don't map numberical signals so
-        // SIGSTOP is not mapped to SIGTSTP
+        // Numeric signals are passed through unchanged.
         *out = (int) v;
         return 0;
     }
@@ -43,7 +42,7 @@ static int parse_signal(const char *s, int *out)
         return 0;
     }
     if (strcasecmp(s, "stop") == 0) {
-        *out = SIGTSTP;
+        *out = SIGSTOP;
         return 0;
     }
     if (strcasecmp(s, "cont") == 0 || strcasecmp(s, "continue") == 0) {
@@ -58,6 +57,11 @@ static int parse_signal(const char *s, int *out)
         *out = SIGHUP;
         return 0;
     }
+    if (strcasecmp(s, "tstp") == 0) {
+        *out = SIGTSTP;
+        return 0;
+    }
+
     // Unsupported for now
     return -1;
 }
@@ -66,7 +70,8 @@ static void usage(void)
 {
     fprintf(stderr, "bkill: -s SIGNAL jobid [jobid ...]\n");
     fprintf(stderr, " --signal SIGNAL jobid [jobid ...]\n");
-    fprintf(stderr, "SIGNAL: kill | term | stop | cont | hup|  <number>\n");
+    fprintf(stderr, "SIGNAL: kill | term | stop | tstp | "
+            "cont | int | hup | <number>\n");
 }
 
 int main(int argc, char **argv)

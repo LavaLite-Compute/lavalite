@@ -516,7 +516,12 @@ int sbd_job_state_load_all(void)
             free(job);
             continue;
         }
-
+        if (job->finish_acked) {
+            LL_DEBUG("remove job=%ld finish_acked at time %ld", job->job_id,
+                     job->time_finish_acked);
+            free(job);
+            continue;
+        }
         sbd_job_insert(job);
         count++;
     }

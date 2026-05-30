@@ -38,6 +38,9 @@ The following symbolic names are accepted:
 **stop**
 :   SIGSTOP. Suspends the job. The job enters USUSP state.
 
+**tstp**
+:   SIGTSTP. Sends a terminal stop signal to the job.
+
 **cont**
 :   SIGCONT. Resumes a suspended job. Also used to release a job
     submitted with **bsub --hold**.

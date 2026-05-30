@@ -918,8 +918,8 @@ void sbd_job_finish_ack(XDR *xdrs)
         return;
     }
 
-    sbd_job_file_remove(job);
-    sbd_job_state_archive(job);
+    //sbd_job_file_remove(job);
+    //sbd_job_state_archive(job);
 
     char keybuf[LL_BUFSIZ_32];
     snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
@@ -932,10 +932,11 @@ void sbd_job_finish_ack(XDR *xdrs)
     free(job);
 }
 
-/* -----------------------------------------------------------------------
- * job signal  (mbd -> sbd: send signal to job)
- * ----------------------------------------------------------------------- */
-
+/* job signal  (mbd -> sbd: send signal to job)
+ * LavaLite-managed job control:
+ * STOP/CONT/KILL are implemented through cgroup v2.
+ * All other signals are delivered to the job process group.
+ */
 int sbd_job_signal(XDR *xdrs)
 {
     struct wire_job_sig sig;

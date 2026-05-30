@@ -164,14 +164,13 @@ static void print_job_full(const struct job_hist_info *j)
     if (j->err_file != NULL && j->err_file[0] != '\0')
         printf("  stderr:     %s\n", j->err_file);
 
-    printf("  Resources:  %d host(s)  %d cpu(s)/host  %d gpu(s)/host"
+    printf("  Requested resources:  %d host(s)  %d cpu(s)/host  %d gpu(s)/host"
            "  %lu MB mem\n",
            j->num_hosts, j->num_cpus, j->num_gpus,
            (unsigned long)j->mem_mb);
 
     if (start != NULL && start->exec_hosts != NULL && start->exec_hosts[0] != '\0')
         printf("  Hosts: %s", start->exec_hosts);
-
     printf("\n");
 
     for (int i = 0; i < j->num_events; i++) {
@@ -212,6 +211,8 @@ static void print_job_full(const struct job_hist_info *j)
         printf("  Max memory: %lu MB\n",  (unsigned long)j->usage.mem_mb);
         printf("  Max swap:   %lu MB\n",  (unsigned long)j->usage.swap_mb);
     }
+    if (start == NULL && (j->state == JOB_DONE || j->state == JOB_EXITED))
+        printf("  Never dispatched.\n");
 }
 
 /* -----------------------------------------------------------------------

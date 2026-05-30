@@ -368,11 +368,11 @@ int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout_sec)
     pfd.events = POLLOUT;
     pfd.revents = 0;
 
-    rc = poll(&pfd, 1, timeout_sec * 1000);
-    if (rc < 0)
+    int cc = poll(&pfd, 1, timeout_sec * 1000);
+    if (cc < 0)
         goto fail;
 
-    if (rc == 0) {
+    if (cc == 0) {
         errno = ETIMEDOUT;
         goto fail;
     }
