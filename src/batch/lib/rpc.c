@@ -90,7 +90,7 @@ int call_mbd(const void *req, size_t req_len, void **rep,
         addr.sin_family = AF_INET;
         addr.sin_port = htons((uint16_t) mbd_port);
 
-        if (chan_connect(chan_mbd, &addr, conntimeout * 1000, 0) < 0) {
+        if (chan_connect(chan_mbd, &addr, conntimeout) < 0) {
             chan_close(chan_mbd);
             chan_mbd = -1;
             return -1;

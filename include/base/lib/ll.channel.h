@@ -51,7 +51,8 @@ void chan_init(void);
 int chan_close(int);
 int chan_sock(int);
 int chan_epoll(int, struct epoll_event *, int, int);
-int chan_connect(int, struct sockaddr_in *, int, int);
+// timeout is in seconds
+int chan_connect(int, struct sockaddr_in *, int);
 int chan_enqueue(int, struct chan_buffer *);
 int chan_dequeue(int, struct chan_buffer **);
 int chan_accept(int, struct sockaddr_in *);

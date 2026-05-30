@@ -55,7 +55,7 @@ static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
     return 0;
 }
 
-// Create a permanent channel to mbd using a blocking connect
+// Create a permanent channel to mbd, then switch it to nonblocking I/O.
 int sbd_mbd_connect(void)
 {
     int port;
@@ -66,7 +66,6 @@ int sbd_mbd_connect(void)
         LL_ERR("failed to get channel to mbd");
         return -1;
     }
-
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     get_host_addrv4(&mbd_node, &addr);
@@ -74,7 +73,17 @@ int sbd_mbd_connect(void)
     addr.sin_port = htons((uint16_t) port);
 
     // 3s: datacenter LAN; if mbd doesn't answer it's down
-    if (chan_connect(sbd_mbd_chan, &addr, 3, 0) < 0) {
+    if (chan_connect(sbd_mbd_chan, &addr, 3) < 0) {
+        LL_ERR("cannot connect to mbd on chan=%d", sbd_mbd_chan);
+        sbd_chan_shutdown(sbd_mbd_chan);
+        sbd_mbd_chan = -1;
+        return -1;
+    }
+
+    // Now we set the socket as non blocking for all our
+    // communication with mbd
+    if (io_non_block(chan_sock(sbd_mbd_chan)) < 0) {
+        LL_ERR("failed to set mbd socket nonblocking");
         sbd_chan_shutdown(sbd_mbd_chan);
         sbd_mbd_chan = -1;
         return -1;
@@ -238,7 +247,9 @@ int sbd_mbd_route(int chan_id)
         sbd_register_ack(&xdrs);
         break;
     default:
-        LL_ERRX("unknown protocol operation=%s", batch_op_str(hdr.operation));
+        LL_ERRX("unknown protocol operation=%s on chan=%d",
+                batch_op_str(hdr.operation), chan_id);
+        sbd_mbd_link_down();
         break;
     }
 

@@ -220,7 +220,7 @@ static int call_lim_tcp(const void *req, size_t req_len, void **rep,
         addr.sin_family = AF_INET;
         addr.sin_port = htons(lim_port);
 
-        if (chan_connect(lim_chan_tcp, &addr, conntimeout * 1000, 0) < 0) {
+        if (chan_connect(lim_chan_tcp, &addr, conntimeout) < 0) {
             chan_close(lim_chan_tcp);
             lim_chan_tcp = -1;
             return -1;

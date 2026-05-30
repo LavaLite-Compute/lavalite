@@ -307,9 +307,38 @@ int chan_accept(int ch_id, struct sockaddr_in *from)
     return chan_open(s);
 }
 
-int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
+/*
+ * Detect and reject TCP self-connect.
+ *
+ * Observed in simulation mode on loopback: connect() succeeded while mbd was
+ * down, sbd received its own BATCH_SBD_REGISTER, and the mbd port became
+ * unavailable. Treat as ECONNREFUSED.
+ */
+static int chan_self_connected(int fd)
 {
-    (void) options;
+    struct sockaddr_in local;
+    struct sockaddr_in remote;
+    socklen_t len;
+
+    len = sizeof(local);
+    if (getsockname(fd, (struct sockaddr *)&local, &len) < 0)
+        return 0;
+
+    len = sizeof(remote);
+    if (getpeername(fd, (struct sockaddr *)&remote, &len) < 0)
+        return 0;
+
+    if (local.sin_addr.s_addr == remote.sin_addr.s_addr &&
+        local.sin_port == remote.sin_port)
+        return 1;
+
+    return 0;
+}
+
+int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout_sec)
+{
+    if (!chan_is_valid(ch_id))
+        return -1;
 
     if (channels[ch_id].type != TCP_CLIENT)
         return -1;
@@ -317,12 +346,64 @@ int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
     if (peer == NULL)
         return -1;
 
-    int cc = connect_timeout(channels[ch_id].sock, (struct sockaddr *) peer,
-                             sizeof(struct sockaddr_in), timeout);
-    if (cc < 0)
+    int fd = channels[ch_id].sock;
+
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0)
         return -1;
 
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+        return -1;
+
+    int rc = connect(fd, (struct sockaddr *)peer, sizeof(*peer));
+    if (rc == 0)
+        goto done;
+
+    int err;
+    if (errno != EINPROGRESS)
+        goto fail;
+
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLOUT;
+    pfd.revents = 0;
+
+    rc = poll(&pfd, 1, timeout_sec * 1000);
+    if (rc < 0)
+        goto fail;
+
+    if (rc == 0) {
+        errno = ETIMEDOUT;
+        goto fail;
+    }
+
+    err = 0;
+    socklen_t len = sizeof(err);
+    if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0)
+        goto fail;
+
+    if (err != 0) {
+        errno = err;
+        goto fail;
+    }
+
+done:
+    if (fcntl(fd, F_SETFL, flags) < 0)
+        return -1;
+
+    if (chan_self_connected(fd)) {
+        errno = ECONNREFUSED;
+        return -1;
+    }
     return 0;
+
+fail:
+    {
+        int save_errno = errno;
+        fcntl(fd, F_SETFL, flags);
+        errno = save_errno;
+        return -1;
+    }
 }
 
 int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)

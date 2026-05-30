@@ -145,7 +145,7 @@ static int sbd_init(void)
 
     // global channel to mbd
     if (sbd_mbd_connect() < 0) {
-        LL_ERR("mbd link: initial connect attempt failed");
+        LL_ERRX("mbd link: initial connect attempt failed");
     } else {
         sbd_register();
     }
