@@ -317,8 +317,12 @@ int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout, int options)
     if (peer == NULL)
         return -1;
 
-    return connect_timeout(channels[ch_id].sock, (struct sockaddr *) peer,
-                           sizeof(struct sockaddr_in), timeout);
+    int cc = connect_timeout(channels[ch_id].sock, (struct sockaddr *) peer,
+                             sizeof(struct sockaddr_in), timeout);
+    if (cc < 0)
+        return -1;
+
+    return 0;
 }
 
 int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
@@ -703,7 +707,25 @@ int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
     if (setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0)
         return -1;
 
-    return connect(s, name, namelen);
+    if (connect(s, name, namelen) < 0)
+        return -1;
+
+    struct sockaddr_in local;
+    socklen_t len = sizeof(local);
+    if (getsockname(s, (struct sockaddr *) &local, &len) < 0)
+        return -1;
+
+    struct sockaddr_in remote;
+    if (getpeername(s, (struct sockaddr *) &remote, &len) < 0)
+        return -1;
+
+    if (local.sin_addr.s_addr == remote.sin_addr.s_addr
+        && local.sin_port == remote.sin_port) {
+        errno = ECONNREFUSED;
+        return -1;
+    }
+
+    return 0;
 }
 
 int send_protocol_header(int ch_id, struct protocol_header *hdr)

@@ -187,7 +187,7 @@ static void mbd_reconnect_try(void)
     LL_ERRX("lost connection with mbd");
 
     if (sbd_mbd_connect() < 0) {
-        LL_ERR("timeout connecting to mbd, retry...");
+        LL_ERRX("timeout connecting to mbd, retry...");
         return;
     }
     sbd_register();
