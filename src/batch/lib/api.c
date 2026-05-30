@@ -250,7 +250,6 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
     struct wire_job_sig req;
     req.job_id = jobid;
     req.sig = sig;
-    req.uid = getuid();
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -407,7 +406,6 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
     struct wire_job_info_req req;
     req.job_id = jobid;
     req.flags = flags;
-    req.uid = (uint32_t) getuid();
 
     if (auth_sign_header(&hdr) < 0) {
         free(buf);
@@ -594,7 +592,6 @@ int32_t llb_queue_admin(const char *name, int32_t op)
     memset(&req, 0, sizeof(req));
     ll_strlcpy(req.name, name, sizeof(req.name));
     req.op = op;
-    req.uid = (uint32_t) getuid();
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -647,7 +644,6 @@ int32_t llb_host_admin(const char *name, int32_t op)
     memset(&req, 0, sizeof(req));
     ll_strlcpy(req.name, name, sizeof(req.name));
     req.op = op;
-    req.uid = (uint32_t) getuid();
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -750,7 +746,6 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
     memset(&req, 0, sizeof(req));
     req.job_id = job_id;
     req.priority = priority;
-    req.uid = (uint32_t) getuid();
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);

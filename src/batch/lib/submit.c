@@ -75,12 +75,10 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
     w->term_time = (int64_t) js->term_time;
     w->flags = js->flags;
 
-    w->uid = (uint32_t) getuid();
-    w->gid = (uint32_t) getgid();
     w->umask = (uint32_t) umask(0);
     umask((mode_t) w->umask);
 
-    pw = getpwuid2(w->uid);
+    pw = getpwuid2(getuid());
     if (pw == NULL) {
         return -1;
     }

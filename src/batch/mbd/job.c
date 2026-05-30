@@ -63,8 +63,6 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     }
 
     job->job_id = next_job_id();
-    job->uid = (uid_t) ws->uid;
-    job->gid = (gid_t) ws->gid;
     job->priority = 0;
     job->flags = ws->flags;
     job->state = JOB_PENDING;
@@ -222,8 +220,8 @@ static int write_sidecar(const struct job_data *job,
     }
 
     fprintf(fp, "JOB_ID=%ld\n", job->job_id);
-    fprintf(fp, "UID=%u\n", ws->uid);
-    fprintf(fp, "GID=%u\n", ws->gid);
+    fprintf(fp, "UID=%u\n", job->uid);
+    fprintf(fp, "GID=%u\n", job->gid);
     fprintf(fp, "USERNAME=%s\n", ws->username);
     fprintf(fp, "NAME=%s\n", ws->name);
     fprintf(fp, "QUEUE=%s\n", ws->queue);
@@ -319,7 +317,7 @@ static int job_parse_tokens(struct job_data *job, const char *tokenpool)
     return 0;
 }
 
-int job_register(XDR *xdrs, int chan_id)
+int job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_submit ws;
     memset(&ws, 0, sizeof(ws));
@@ -341,6 +339,9 @@ int job_register(XDR *xdrs, int chan_id)
         free(script.data);
         return -1;
     }
+    // read from the HAMC header
+    job->uid = (uid_t)hdr->uid;
+    job->gid = (gid_t)hdr->gid;
 
     if (write_script(job, &script) < 0) {
         LL_ERR("write_script failed job_id=%ld", job->job_id);
@@ -375,16 +376,16 @@ int job_register(XDR *xdrs, int chan_id)
     memset(&reply, 0, sizeof(reply));
     reply.job_id = job->job_id;
 
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_SUBMIT_ACK;
-    hdr.status = MBD_OK;
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_JOB_SUBMIT_ACK;
+    rep_hdr.status = MBD_OK;
 
     size_t siz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit_reply) +
                  LL_BUFSIZ_64;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_job_submit_reply) <
-        0) {
+    if (enqueue_payload(chan_id, &rep_hdr, &reply,
+                        siz, xdr_wire_job_submit_reply) < 0) {
         LL_ERR("enqueue_payload failed job_id=%ld", job->job_id);
         ll_list_remove(&pend_jobs_list, &job->ent);
         ll_hash_remove(&job_id_hash, key);
@@ -917,7 +918,7 @@ void mbd_assert_counters(void)
     }
 }
 
-int job_move(XDR *xdrs, int chan_id)
+int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_move wm;
     memset(&wm, 0, sizeof(wm));
@@ -947,12 +948,14 @@ int job_move(XDR *xdrs, int chan_id)
         return 0;
     }
 
-    /* TODO pass in the trusted header
-       if (job->uid != uid && !is_manager(uid)) {
-       enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
-       return 0;
-       }
-    */
+
+    if (job->uid != hdr->uid && !is_manager(hdr->uid)) {
+        LL_ERRX("job=%ld of uid=%d cannot be moved by uid=%d", job->job_id,
+                job->uid, hdr->uid);
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
+        return 0;
+    }
+
     if (!queue_user_allowed(to, job->user)) {
         LL_ERRX("job=%ld user=%s not allowed in queue=%s",
                 wm.job_id, job->user, to->name);
@@ -1142,7 +1145,7 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
     return MBD_OK;
 }
 
-int jobs_signal(XDR *xdrs, int chan_id)
+int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_sig req;
     memset(&req, 0, sizeof(req));
@@ -1155,7 +1158,7 @@ int jobs_signal(XDR *xdrs, int chan_id)
              req.uid, req.sig, chan_id);
 
     if (req.job_id == 0) {
-        int cc = signal_all_jobs(req.uid, &req);
+        int cc = signal_all_jobs(hdr->uid, &req);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
     }
 
@@ -1163,6 +1166,12 @@ int jobs_signal(XDR *xdrs, int chan_id)
     if (job == NULL) {
         LL_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
+    }
+
+    if (job->uid != (uid_t) hdr->uid && !is_manager(hdr->uid)) {
+        LL_ERR("job=%ld uid=%d not owned by signaling uid=%d", job->job_id,
+               job->uid, hdr->uid);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPERM);
     }
 
     if (job->state == JOB_DONE || job->state == JOB_EXITED) {
@@ -1191,7 +1200,7 @@ int jobs_signal(XDR *xdrs, int chan_id)
     return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
 }
 
-int job_priority(XDR *xdrs, int chan_id)
+int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_priority wp;
     memset(&wp, 0, sizeof(wp));
@@ -1212,13 +1221,13 @@ int job_priority(XDR *xdrs, int chan_id)
     }
 
     /* ownership check — admin can bypass */
-    if (job->uid != (uid_t) wp.uid && !is_manager(wp.uid)) {
-        LL_INFO("job=%ld uid=%u not owner", wp.job_id, wp.uid);
+    if (job->uid != (uid_t)hdr->uid && !is_manager(hdr->uid)) {
+        LL_INFO("job=%ld uid=%u not owner", wp.job_id, hdr->uid);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
     }
 
     /* non-admin cannot exceed queue priority */
-    if (!is_manager(wp.uid) && wp.priority > job->queue->priority) {
+    if (!is_manager(hdr->uid) && wp.priority > job->queue->priority) {
         LL_INFO("job=%ld priority=%d exceeds queue=%d",
                 wp.job_id, wp.priority, job->queue->priority);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
@@ -1230,8 +1239,9 @@ int job_priority(XDR *xdrs, int chan_id)
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EINVAL);
     }
 
+    // Admin with this operation can jump queue
     int32_t old_priority = job->priority;
-    if (wp.priority > old_priority && !is_manager(wp.uid))
+    if (wp.priority > old_priority && !is_manager(hdr->uid))
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
 
     if (wp.priority == old_priority)

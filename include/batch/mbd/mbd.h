@@ -286,24 +286,31 @@ void event_job_move(const struct job_data *, const char *);
 void event_job_priority(const struct job_data *, int32_t);
 
 // dispatch.c
-int jobs_signal(XDR *, int);
-int jobs_info(XDR *, int);
+int jobs_info(XDR *, int, const struct protocol_header *);
+int mbd_sbd_register(XDR *, int);
 int hosts_info(XDR *, int);
 int queues_info(XDR *, int);
 int host_group_info(XDR *, int);
-int mbd_sbd_register(XDR *, int);
-int compact_done(XDR *, int);
 int tokens_info(XDR *, int);
 
+// admin.c
+int host_admin(XDR *, int, const struct protocol_header *);
+int queue_admin(XDR *, int, const struct protocol_header *);
+
 // job.c
+int job_register(XDR *, int, const struct protocol_header *);
+int job_move(XDR *, int, const struct protocol_header *);
+int job_priority(XDR *, int, const struct protocol_header *);
+int jobs_signal(XDR *, int, const struct protocol_header *);
 int jobs_replay(void);
 void new_job_reply(XDR *, int32_t);
 int job_init(void);
-int job_register(XDR *, int);
-struct job_data *job_find(int64_t);
-void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
 void job_move_list(struct job_data *, struct ll_list *, struct ll_list *,
                    enum job_list_id);
+
+struct job_data *job_find(int64_t);
+void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
+
 void machines_hash_populate(struct ll_hash *, const char *);
 void mbd_job_signal_reply(struct mbd_host *, XDR *, struct protocol_header *);
 char *job_state_str(int);
@@ -311,8 +318,7 @@ void token_alloc(const struct job_data *);
 void token_free(const struct job_data *);
 void job_free(struct job_data *);
 void job_id_seq_write(void);
-int job_move(XDR *, int);
-int job_priority(XDR *, int);
+
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
@@ -324,9 +330,9 @@ void mbd_job_finish(struct mbd_host *, XDR *);
 void mbd_assert_counters(void);
 
 // admin.c
-int host_admin(XDR *, int);
+int host_admin(XDR *, int, const struct protocol_header *);
 void host_state_write(const struct mbd_host *);
 int host_state_init(void);
-int queue_admin(XDR *, int);
+int queue_admin(XDR *, int, const struct protocol_header *);
 void queue_state_write(const struct mbd_queue *);
 int queue_state_init(void);

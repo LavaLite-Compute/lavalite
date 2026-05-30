@@ -163,8 +163,8 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     memset(&e, 0, sizeof(e));
 
     e.job_id = job->job_id;
-    e.uid = (uid_t) ws->uid;
-    e.gid = (gid_t) ws->gid;
+    e.uid = (uid_t)job->uid;
+    e.gid = (gid_t)job->gid;
     e.state = job->state;
     e.priority = job->priority;
     e.submit_time = job->submit_time;

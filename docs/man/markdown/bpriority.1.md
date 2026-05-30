@@ -31,6 +31,11 @@ This follows the same model as Unix **nice**(1): users can be nice to
 others by lowering their own priority, but cannot take precedence over
 the queue limit without privilege.
 
+Administrators may raise a job's priority above its original value.
+Since pending jobs are scheduled in order of queue priority then job
+priority, this effectively moves the job ahead of lower-priority work
+in the same queue.
+
 The priority change is logged and visible in **bhist**(1).
 
 # OPTIONS

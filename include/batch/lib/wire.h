@@ -154,8 +154,6 @@ struct wire_job_submit {
     uint64_t mem_mb;
     uint64_t storage_mb;
     char tokenpool[LL_BUFSIZ_256]; /* "name=N[,name=N]..." empty=none */
-    uint32_t uid;
-    uint32_t gid;
     uint32_t umask;
     uint32_t flags;
     int64_t begin_time;
@@ -179,7 +177,6 @@ struct wire_job_submit_reply {
 struct wire_job_info_req {
     int64_t job_id;
     int32_t flags;
-    uint32_t uid;
 };
 
 /* -----------------------------------------------------------------------
@@ -241,7 +238,6 @@ struct wire_host_info_array {
 struct wire_host_admin {
     char name[MAXHOSTNAMELEN];
     int32_t op; /* HOST_CLOSED or 0 for open */
-    uint32_t uid;
 };
 
 /* -----------------------------------------------------------------------
@@ -291,7 +287,6 @@ struct wire_queue_info_array {
 struct wire_queue_admin {
     char name[LL_BUFSIZ_64];
     int32_t op;   /* QUEUE_OPEN | QUEUE_CLOSED */
-    uint32_t uid; /* must be admin or root */
 };
 
 struct wire_token_info {
@@ -313,7 +308,6 @@ struct wire_job_move {
 struct wire_job_priority {
     int64_t job_id;
     int32_t priority;
-    uint32_t uid;
 };
 
 /* -----------------------------------------------------------------------

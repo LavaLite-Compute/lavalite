@@ -92,7 +92,7 @@ static int hash_keys_to_array(struct ll_hash *h, char ***out)
     return n;
 }
 
-int jobs_info(XDR *xdrs, int chan_id)
+int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_info_req req;
     memset(&req, 0, sizeof(req));
@@ -128,7 +128,7 @@ int jobs_info(XDR *xdrs, int chan_id)
         goto send;
     }
 
-    uid_t uid = (uid_t) req.uid;
+    uid_t uid = (uid_t)hdr->uid;
 
     if (req.flags == 0) {
         n = collect_list(&pend_jobs_list, jobs, n, uid);
@@ -153,13 +153,13 @@ send:
                  sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
                  LL_BUFSIZ_64;
 
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_JOB_INFO_ACK;
-    hdr.status = MBD_OK;
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_JOB_INFO_ACK;
+    rep_hdr.status = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_job_info_array) <
-        0) {
+    if (enqueue_payload(chan_id, &rep_hdr, &reply,
+                        siz, xdr_wire_job_info_array) < 0) {
         LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
@@ -358,17 +358,6 @@ int hosts_info(XDR *xdrs, int chan_id)
     return 0;
 }
 
-/* -----------------------------------------------------------
- * compact done / failed
- * ----------------------------------------------------------- */
-int compact_done(XDR *xdrs, int chan_id)
-{
-    (void) xdrs;
-
-    LL_DEBUG("compact_done chan_id=%d", chan_id);
-    return 0;
-}
-
 int tokens_info(XDR *xdrs, int chan_id)
 {
     (void) xdrs;
@@ -415,7 +404,7 @@ int tokens_info(XDR *xdrs, int chan_id)
 /* -----------------------------------------------------------
  * queue admin (open/close)
  * ----------------------------------------------------------- */
-int queue_admin(XDR *xdrs, int chan_id)
+int queue_admin(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_queue_admin req;
     struct mbd_queue *q;
@@ -426,8 +415,8 @@ int queue_admin(XDR *xdrs, int chan_id)
         return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, EPROTO);
     }
 
-    if (!is_manager(req.uid)) {
-        LL_ERR("queue_admin: uid=%u not a manager", req.uid);
+    if (!is_manager(hdr->uid)) {
+        LL_ERR("queue_admin: uid=%u not a manager", hdr->uid);
         return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, EPERM);
     }
 
@@ -439,14 +428,14 @@ int queue_admin(XDR *xdrs, int chan_id)
 
     q->state = req.op;
     LL_INFO("queue=%s set to %s by uid=%u", q->name,
-            req.op == QUEUE_CLOSED ? "closed" : "open", req.uid);
+            req.op == QUEUE_CLOSED ? "closed" : "open", hdr->uid);
 
     queue_state_write(q);
 
     return enqueue_header(chan_id, BATCH_QUEUE_ADMIN_ACK, 0);
 }
 
-int host_admin(XDR *xdrs, int chan_id)
+int host_admin(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_host_admin req;
     struct mbd_host *h;
@@ -457,8 +446,8 @@ int host_admin(XDR *xdrs, int chan_id)
         return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, EPROTO);
     }
 
-    if (!is_manager(req.uid)) {
-        LL_ERR("host_admin: uid=%u not a manager", req.uid);
+    if (!is_manager(hdr->uid)) {
+        LL_ERR("host_admin: uid=%u not a manager", hdr->uid);
         return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, EPERM);
     }
 
@@ -475,7 +464,7 @@ int host_admin(XDR *xdrs, int chan_id)
 
     host_state_write(h);
     LL_INFO("host=%s set to %s by uid=%u", h->net.name,
-            req.op == HOST_CLOSED ? "closed" : "open", req.uid);
+            req.op == HOST_CLOSED ? "closed" : "open", hdr->uid);
 
     return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, 0);
 }

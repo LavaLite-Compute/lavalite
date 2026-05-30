@@ -117,11 +117,11 @@ static void route(int chan_id)
     // Invalid operation has been already rejected
     switch (hdr.operation) {
     case BATCH_JOB_SUBMIT:
-        if (job_register(&xdrs, chan_id) < 0)
+        if (job_register(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_SIGNAL:
-        if (jobs_signal(&xdrs, chan_id) < 0)
+        if (jobs_signal(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_GROUP_INFO:
@@ -133,7 +133,7 @@ static void route(int chan_id)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_INFO:
-        if (jobs_info(&xdrs, chan_id) < 0)
+        if (jobs_info(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_HOST_INFO:
@@ -148,18 +148,18 @@ static void route(int chan_id)
         tokens_info(&xdrs, chan_id);
         break;
     case BATCH_QUEUE_ADMIN:
-        queue_admin(&xdrs, chan_id);
+        queue_admin(&xdrs, chan_id, &hdr);
         break;
     case BATCH_HOST_ADMIN:
-        if (host_admin(&xdrs, chan_id) < 0)
+        if (host_admin(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_MOVE:
-        if (job_move(&xdrs, chan_id) < 0)
+        if (job_move(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_JOB_PRIORITY:
-        if (job_priority(&xdrs, chan_id) < 0)
+        if (job_priority(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     }
