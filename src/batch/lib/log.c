@@ -26,6 +26,8 @@ static const char *event_names[] = {
     [EVENT_JOB_PEND_RESUME] = "JOB_PEND_RESUME",
     [EVENT_JOB_SUSP] = "JOB_SUSP",
     [EVENT_JOB_MOVE] = "JOB_MOVE",
+    [EVENT_JOB_PRIORITY] = "JOB_PRIORITY",
+    [EVENT_JOB_PEND] = "JOB_PEND",
     [EVENT_COUNT] = NULL,
 };
 
@@ -467,6 +469,28 @@ int log_parse_job_priority(const struct event_rec *rec, struct log_job_priority 
         errno = EINVAL;
         return -1;
     }
+    j->event_time = rec->event_time;
+    return 0;
+}
+
+// Job goes back to pend since it failed to dispatch
+int log_write_job_pend(FILE *fp, const struct log_job_pend *j)
+{
+    if (write_hdr(fp, EVENT_JOB_PEND, j->event_time) < 0)
+        return -1;
+    if (fprintf(fp, " %ld\n", (long) j->job_id) < 0)
+        return -1;
+    return 0;
+}
+
+int log_parse_job_pend(const struct event_rec *rec, struct log_job_pend *j)
+{
+    int n = sscanf(rec->rest, " %ld", &j->job_id);
+    if (n != 1) {
+        errno = EINVAL;
+        return -1;
+    }
+
     j->event_time = rec->event_time;
     return 0;
 }

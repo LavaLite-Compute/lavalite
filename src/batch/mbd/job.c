@@ -317,6 +317,146 @@ static int job_parse_tokens(struct job_data *job, const char *tokenpool)
     return 0;
 }
 
+static int job_write_usage(const struct job_data *job,
+                           const struct wire_job_finish *s)
+{
+    char dir[PATH_MAX + LL_BUFSIZ_32];
+    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld", jobs_dir,
+                     (job->job_id % JOB_BUCKETS), job->job_id);
+    if (n < 0 || n >= (int) sizeof(dir))
+        return -1;
+
+    char path[PATH_MAX + LL_BUFSIZ_64];
+    snprintf(path, sizeof(path), "%s/usage", dir);
+
+    FILE *f = fopen(path, "w");
+    if (f == NULL) {
+        LL_ERR("job=%ld open usage failed: %m", job->job_id);
+        return -1;
+    }
+    fprintf(f, "pid=%d\n", s->pid);
+    fprintf(f, "mem_mb=%lu\n", s->mem_mb);
+    fprintf(f, "swap_mb=%lu\n", s->swap_mb);
+    fprintf(f, "cpu_time=%.2f\n", s->cpu_time);
+    fclose(f);
+
+    LL_INFO("job=%ld usage written", job->job_id);
+    return 0;
+}
+
+static void reset_host_resources(struct job_data *job)
+{
+    for (int i = 0; i < job->run_nhosts; i++) {
+        struct mbd_host *h = job->run_hosts[i];
+
+        h->res.free_cpu += job->res.num_cpus;
+        h->res.free_mem_mb += job->res.mem_mb;
+        h->res.free_storage_mb += job->res.storage_mb;
+        h->num_jobs--;
+        h->num_cpus_used -= job->res.num_cpus;
+
+        if (job->state == JOB_RUNNING)
+            h->num_run--;
+
+        if (job->state == JOB_SUSPENDED)
+            h->num_susp--;
+
+        if (job->flags & JOB_FLAG_EXCLUSIVE)
+            h->exclusive = 0;
+
+        if (job->res.num_gpus > 0) {
+            h->res.free_gpu += job->res.num_gpus;
+        }
+
+        if (job->res.gpu_type[0] != 0) {
+            assert(job->res.num_gpus > 0);
+            struct mbd_gpu *g =
+                ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
+            if (g == NULL) {
+                LL_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
+                        h->net.name, job->res.gpu_type);
+                assert(0);
+                continue;
+            }
+            g->free += job->res.num_gpus;
+        }
+
+        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
+                 "free_gpu=%d num_jobs=%d",
+                 h->net.name, h->res.free_cpu, h->res.free_mem_mb,
+                 h->res.free_storage_mb, h->res.free_gpu, h->num_jobs);
+    }
+}
+
+// Undo the optimistic dispatch.
+static void mbd_job_reject_dispatch(struct job_data *job)
+{
+    assert(job->state == JOB_RUNNING);
+    assert(job->list_id == JOB_LIST_RUN);
+
+    struct mbd_host *h = job->run_hosts[0];
+    int sbd_chan = h->sbd_chan;
+
+    LL_ERR("job=%ld rejected by sbd=%s, returning to pending",
+           job->job_id, chan_addr_str(sbd_chan));
+
+    reset_host_resources(job);
+    token_free(job);
+
+    if (job->state == JOB_RUNNING)
+        job->queue->num_run--;
+    else
+        job->queue->num_susp--;
+
+    job->queue->num_pend++;
+    job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
+    job->queue->num_hosts_used -= job->run_nhosts;
+
+    job->pid = 0;
+    job->fork_time = 0;
+    job->dispatch_time = 0;
+    job->state = JOB_PENDING;
+    job->pend_reason = PEND_NONE;
+
+    memset(job->run_hosts, 0, job->res.num_hosts * sizeof(job->run_hosts[0]));
+    job->run_nhosts = 0;
+
+    job_move_list(job, &run_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
+
+    LL_INFO("job=%ld back to pending", job->job_id);
+
+    mbd_assert_counters();
+
+    event_job_pend(job);
+
+    LL_INFO("job=%ld returned to pending after sbd reject from=%s",
+            job->job_id, chan_addr_str(sbd_chan));
+
+    /* Now ack the new job reply
+     */
+    struct wire_job_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ack.job_id = job->job_id;
+    ack.ack_op = BATCH_NEW_JOB_REPLY;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_NEW_JOB_REPLY_ACK;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("job=%ld failed to sign header for host=%s",
+               job->job_id, h->net.name);
+        return;
+    }
+
+    if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
+        LL_ERR("job=%ld enqueue_payload failed", job->job_id);
+        return;
+    }
+}
+
 int job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_submit ws;
@@ -461,7 +601,8 @@ int job_init(void)
     return 0;
 }
 
-void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
+void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
+                       struct protocol_header *hdr)
 {
     struct wire_job_reply r;
     memset(&r, 0, sizeof(r));
@@ -477,10 +618,21 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
                r.job_id, chan_addr_str(n->sbd_chan));
         return;
     }
-    if (r.state != JOB_RUNNING) {
-        LL_ERR(
-            "job=%ld unexpected state=%d from=%s - admin intervention required",
-            r.job_id, r.state, chan_addr_str(n->sbd_chan));
+
+    // Something went really wrong
+    if (r.state == JOB_PENDING) {
+
+        if (job->state == JOB_PENDING || job->state == JOB_HELD) {
+            assert(job->list_id == JOB_LIST_PEND);
+            LL_INFO("job=%ld duplicated event received", r.job_id);
+            return;
+        }
+
+        LL_ERR("job=%ld rejected by sbd=%s status=%d (%s)",
+               r.job_id, chan_addr_str(n->sbd_chan),
+               hdr->status, strerror(hdr->status));
+
+        mbd_job_reject_dispatch(job);
         return;
     }
 
@@ -499,18 +651,18 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     ack.job_id = r.job_id;
     ack.ack_op = BATCH_NEW_JOB_REPLY;
 
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_NEW_JOB_REPLY_ACK;
-    hdr.status = MBD_OK;
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_NEW_JOB_REPLY_ACK;
+    rep_hdr.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
+    if (auth_sign_header(&rep_hdr) < 0) {
         LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
                n->net.name);
         return;
     }
 
-    if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+    if (enqueue_payload(n->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
                         xdr_wire_job_ack) < 0) {
         LL_ERR("job=%ld enqueue_payload failed", r.job_id);
         return;
@@ -524,77 +676,6 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs)
     job->state = JOB_RUNNING;
     event_job_fork(job);
     LL_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
-}
-
-static void reset_host_resources(struct job_data *job)
-{
-    for (int i = 0; i < job->run_nhosts; i++) {
-        struct mbd_host *h = job->run_hosts[i];
-
-        h->res.free_cpu += job->res.num_cpus;
-        h->res.free_mem_mb += job->res.mem_mb;
-        h->res.free_storage_mb += job->res.storage_mb;
-        h->num_jobs--;
-        h->num_cpus_used -= job->res.num_cpus;
-
-        if (job->state == JOB_RUNNING)
-            h->num_run--;
-
-        if (job->state == JOB_SUSPENDED)
-            h->num_susp--;
-
-        if (job->flags & JOB_FLAG_EXCLUSIVE)
-            h->exclusive = 0;
-
-        if (job->res.num_gpus > 0) {
-            h->res.free_gpu += job->res.num_gpus;
-        }
-
-        if (job->res.gpu_type[0] != 0) {
-            assert(job->res.num_gpus > 0);
-            struct mbd_gpu *g =
-                ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
-            if (g == NULL) {
-                LL_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
-                        h->net.name, job->res.gpu_type);
-                assert(0);
-                continue;
-            }
-            g->free += job->res.num_gpus;
-        }
-
-        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
-                 "free_gpu=%d num_jobs=%d",
-                 h->net.name, h->res.free_cpu, h->res.free_mem_mb,
-                 h->res.free_storage_mb, h->res.free_gpu, h->num_jobs);
-    }
-}
-
-static int job_write_usage(const struct job_data *job,
-                           const struct wire_job_finish *s)
-{
-    char dir[PATH_MAX + LL_BUFSIZ_32];
-    int n = snprintf(dir, sizeof(dir), "%s/%ld/%ld", jobs_dir,
-                     (job->job_id % JOB_BUCKETS), job->job_id);
-    if (n < 0 || n >= (int) sizeof(dir))
-        return -1;
-
-    char path[PATH_MAX + LL_BUFSIZ_64];
-    snprintf(path, sizeof(path), "%s/usage", dir);
-
-    FILE *f = fopen(path, "w");
-    if (f == NULL) {
-        LL_ERR("job=%ld open usage failed: %m", job->job_id);
-        return -1;
-    }
-    fprintf(f, "pid=%d\n", s->pid);
-    fprintf(f, "mem_mb=%lu\n", s->mem_mb);
-    fprintf(f, "swap_mb=%lu\n", s->swap_mb);
-    fprintf(f, "cpu_time=%.2f\n", s->cpu_time);
-    fclose(f);
-
-    LL_INFO("job=%ld usage written", job->job_id);
-    return 0;
 }
 
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)

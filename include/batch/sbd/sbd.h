@@ -27,14 +27,11 @@ extern struct ll_host mbd_node;
 extern char sbd_root_dir[PATH_MAX];
 extern char sbd_state_dir[PATH_MAX];
 extern char sbd_job_dir[PATH_MAX];
-extern char sbd_archive_dir[PATH_MAX];
 extern char sim_name[MAXHOSTNAMELEN];
 
 enum sbd_policy {
     SBD_OPERATION_TIMER = 1,
     SBD_RESEND_ACK_TIMEOUT = 1,
-    SBD_PRUNE_INTERVAL = 600,
-    SBD_ARCHIVE_RETENTION = 24 * 3600
 };
 
 enum sbd_fatal_cause {
@@ -120,7 +117,7 @@ extern struct ll_hash *sbd_job_hash;
 void sbd_fatal(enum sbd_fatal_cause);
 
 /*
- * MBD link.
+ * mbd link.
  */
 int sbd_mbd_connect(void);
 int sbd_register(void);
@@ -155,18 +152,14 @@ int sbd_storage_init(void);
 int sbd_job_state_load_all(void);
 int sbd_job_state_read(struct sbd_job *, char *);
 int sbd_job_state_write(struct sbd_job *);
-
-void sbd_job_file_remove(struct sbd_job *);
-void sbd_job_state_archive(struct sbd_job *);
 int sbd_job_cleanup_files(struct sbd_job *);
-
 int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
-
-/*
- * Pruning.
- */
-void sbd_prune_acked_jobs(void);
-void sbd_prune_archive_try(void);
+void sbd_prune_jobs_try(void);
+void reset_signals(void);
+void reset_except_fd(int);
+void sbd_job_file_remove(struct sbd_job *);
+void sbd_job_state_remove(struct sbd_job *);
+void fsync_dir(const char *);
 
 /*
  * Local client/status interface.

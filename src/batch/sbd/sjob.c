@@ -78,7 +78,10 @@ static struct sbd_job *sbd_job_find(int64_t job_id)
     return ll_hash_search(sbd_job_hash, job_key);
 }
 
-static int sbd_job_new_reply_err(int64_t job_id)
+/* Capture errno before calling.
+ * Logging and other helpers may overwrite it.
+ */
+static int sbd_job_new_reply_err(int64_t job_id, int err)
 {
     struct wire_job_reply r;
 
@@ -89,7 +92,7 @@ static int sbd_job_new_reply_err(int64_t job_id)
     // tell mbd to put the job back to pend
     r.state = JOB_PENDING;
 
-    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, LL_BUFSIZ_1K,
+    if (sbd_send_msg(BATCH_NEW_JOB_REPLY, err, &r, LL_BUFSIZ_1K,
                      (bool_t(*)()) xdr_wire_job_reply) < 0) {
         LL_ERR("job=%ld error reply enqueue failed", job_id);
         return -1;
@@ -404,7 +407,7 @@ static void child_exec_job(struct sbd_job *job)
     _exit(127);
 }
 
-static void reset_except_fd(int except_fd)
+void reset_except_fd(int except_fd)
 {
     DIR *d = opendir("/proc/self/fd");
     if (!d) {
@@ -430,7 +433,7 @@ static void reset_except_fd(int except_fd)
     closedir(d);
 }
 
-static void reset_signals(void)
+void reset_signals(void)
 {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -516,23 +519,6 @@ static int make_job_dir(struct sbd_job *job)
     return 0;
 }
 
-static void rm_job_dir(struct sbd_job *job)
-{
-    char job_dir[PATH_MAX];
-
-    int l =
-        snprintf(job_dir, sizeof(job_dir), "%s/%ld", sbd_job_dir, job->job_id);
-    if (l < 0 || l >= (int) sizeof(job_dir)) {
-        LL_ERR("job=%ld job_dir too long", job->job_id);
-        return;
-    }
-
-    if (rmdir(job_dir) < 0) {
-        LL_ERR("job rmdir(%s) failed", job_dir);
-        return;
-    }
-}
-
 static int make_state_dir(struct sbd_job *job)
 {
     char state_dir[PATH_MAX];
@@ -554,22 +540,6 @@ static int make_state_dir(struct sbd_job *job)
             job->exec_uid, job->exec_gid);
 
     return 0;
-}
-
-static void rm_state_dir(struct sbd_job *job)
-{
-    char dir[PATH_MAX];
-
-    int l = snprintf(dir, sizeof(dir), "%s/%ld", sbd_state_dir, job->job_id);
-    if (l < 0 || l >= (int) sizeof(dir)) {
-        LL_ERR("job=%ld state_dir too long", job->job_id);
-        return;
-    }
-
-    if (rmdir(dir) < 0) {
-        LL_ERR("job=%ld rmdir=%s failed", job->job_id, dir);
-        return;
-    }
 }
 
 void sbd_job_new(XDR *xdrs)
@@ -595,38 +565,45 @@ void sbd_job_new(XDR *xdrs)
 
     job = sbd_job_create(&ws);
     if (job == NULL) {
+        int err = errno;
+        sbd_job_new_reply_err(ws.job_id, err);
         LL_ERRX("job=%ld sbd_job_create failed", ws.job_id);
-        sbd_job_new_reply_err(ws.job_id);
         goto out;
     }
 
     if (make_job_dir(job) < 0) {
+        int err = errno;
+        sbd_job_new_reply_err(ws.job_id, err);
         LL_ERR("job=%ld failed to make working directory", job->job_id);
         free(job);
         goto out;
     }
 
     if (make_state_dir(job) < 0) {
+        int err = errno;
+        sbd_job_new_reply_err(ws.job_id, err);
         LL_ERR("job=%ld failed to make state directory", job->job_id);
-        rm_job_dir(job);
+        sbd_job_file_remove(job);
         free(job);
         goto out;
     }
 
     if (sbd_job_script_write(job, &ws.script) < 0) {
-        LL_ERRX("job=%ld script write failed", ws.job_id);
-        sbd_job_new_reply_err(ws.job_id);
-        rm_state_dir(job);
-        rm_job_dir(job);
+        int err = errno;
+        sbd_job_new_reply_err(ws.job_id, err);
+        LL_ERR("job=%ld script write failed", ws.job_id);
+        sbd_job_file_remove(job);
+        sbd_job_state_remove(job);
         free(job);
         goto out;
     }
 
     if (spawn_job(job) < 0) {
+        int err = errno;
+        sbd_job_new_reply_err(ws.job_id, err);
         LL_ERR("job=%ld spawn failed", ws.job_id);
-        sbd_job_new_reply_err(ws.job_id);
         sbd_job_file_remove(job);
-        rm_state_dir(job);
+        sbd_job_state_remove(job);
         free(job);
         goto out;
     }
@@ -726,6 +703,8 @@ int sbd_job_script_write(struct sbd_job *job,
         unlink(tmp);
         return -1;
     }
+
+    fsync_dir(sbd_job_dir);
 
     return 0;
 }
@@ -918,15 +897,17 @@ void sbd_job_finish_ack(XDR *xdrs)
         return;
     }
 
-    //sbd_job_file_remove(job);
-    //sbd_job_state_archive(job);
+    /* Keep finished job files on disk for local sbd debugging.
+     * The job is removed from memory after finish ack; bounded pruning
+     * will remove old finished jobs later.
+     */
 
     char keybuf[LL_BUFSIZ_32];
     snprintf(keybuf, sizeof(keybuf), "%ld", job->job_id);
     ll_hash_remove(sbd_job_hash, keybuf);
     ll_list_remove(&sbd_job_list, &job->list);
 
-    LL_INFO("job=%ld finish_acked cleaned up", job->job_id);
+    LL_INFO("job=%ld finish_acked and freed", job->job_id);
 
     cgroup_job_destroy(job->job_id);
     free(job);

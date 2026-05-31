@@ -615,6 +615,35 @@ static void hist_apply_priority(struct job_hist *jh, const struct event_rec *rec
     ev->new_priority = e.new_priority;
 }
 
+
+static void hist_apply_pend(struct job_hist *jh, const struct event_rec *rec)
+{
+    struct log_job_pend e;
+    struct job_hist_info *j;
+    struct job_event *ev;
+
+    memset(&e, 0, sizeof(e));
+
+    if (log_parse_job_pend(rec, &e) < 0)
+        return;
+
+    j = hist_find(jh, e.job_id);
+    if (j == NULL)
+        return;
+
+    if (hist_event_exists(j, EVENT_JOB_PEND, rec->event_time))
+        return;
+
+    ev = event_add(j);
+    if (ev == NULL)
+        return;
+
+    j->state       = JOB_PENDING;
+    ev->type       = EVENT_JOB_PEND;
+    ev->event_time = rec->event_time;
+    ev->state      = JOB_PENDING;
+}
+
 static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
 {
     if (rec->type == EVENT_JOB_NEW) {
@@ -655,6 +684,10 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
     }
     if (rec->type == EVENT_JOB_PRIORITY) {
         hist_apply_priority(jh, rec);
+        return;
+    }
+    if (rec->type == EVENT_JOB_PEND) {
+        hist_apply_pend(jh, rec);
         return;
     }
 }

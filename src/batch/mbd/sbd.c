@@ -82,7 +82,7 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
     }
 
     if (n->sbd_chan != -1) {
-        LL_ERRX("duplicate SBD registration from host %s "
+        LL_ERRX("duplicate sbd registration from host=%s "
                 "(already on chan=%d), rejecting",
                 hostname, n->sbd_chan);
         chan_shutdown(chan_id);
@@ -185,7 +185,7 @@ int32_t mbd_sbd_route(struct mbd_host *n)
 
     switch (hdr.operation) {
     case BATCH_NEW_JOB_REPLY:
-        mbd_new_job_reply(n, &xdrs);
+        mbd_new_job_reply(n, &xdrs, &hdr);
         break;
     case BATCH_JOB_FINISH:
         mbd_job_finish(n, &xdrs);

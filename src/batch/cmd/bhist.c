@@ -76,6 +76,8 @@ static const char *event_type_str(int32_t type)
         return "Moved queue";
     case EVENT_JOB_PRIORITY:
         return "Priority";
+    case EVENT_JOB_PEND:
+        return "Pending";
     default:
         return "?";
     }

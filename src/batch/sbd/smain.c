@@ -49,12 +49,11 @@ struct ll_hash *sbd_job_hash;
 struct ll_host mbd_node;
 
 static uint16_t sbd_port;
-// sbd_can to talk to external clients like monitors
-int sbd_listen_chan = -1;
 static int sbd_timer;
-int sbd_timer_chan;
+int sbd_listen_chan = -1;
+int sbd_timer_chan = -1;
 int sbd_mbd_chan = -1;
-int sbd_efd;
+int sbd_efd = -1;
 pid_t pruner_pid = -1;
 static struct epoll_event sbd_events[CHAN_MAX];
 static int sbd_resend_timer;
@@ -81,6 +80,7 @@ static int sbd_ll_check_conf(void)
     int port;
     if (!ll_atoi(ll_params[LL_MBD_PORT].val, &port)) {
         LL_ERRX("ll_atoi of LL_MBD_PORT=%s failed", ll_params[LL_MBD_PORT].val);
+        return -1;
     }
     if (ll_conf_param_missing("LL_MBD_HOST", ll_params[LL_MBD_HOST].val)) {
         LL_ERRX("LL_MBD_HOST missing from ll.conf");
@@ -398,6 +398,9 @@ static void job_status_checking(void)
             continue;
         }
 
+        if (!job->pid_acked)
+            continue;
+
         if (sbd_pid_alive(job))
             continue;
 
@@ -563,7 +566,6 @@ static void sbd_cleanup(void)
     struct ll_list_entry *e;
     while ((e = ll_list_pop(&sbd_job_list))) {
         struct sbd_job *job = (struct sbd_job *) e;
-        ll_list_remove(&sbd_job_list, &job->list);
         free(job);
     }
     ll_list_init(&sbd_job_list);
@@ -578,28 +580,24 @@ void sbd_fatal(enum sbd_fatal_cause cause)
         // We cannot guarantee restart-safe semantics anymore.
         LL_ERRX("FATAL: storage durability failure; refusing to continue");
         break;
-
     case SBD_FATAL_INVARIANT:
         LL_ERRX("FATAL: internal invariant violated");
         break;
-
     case SBD_FATAL_PROTO:
         LL_ERRX("FATAL: protocol violation");
         break;
-
     case SBD_FATAL_OOM:
         LL_ERRX("FATAL: out of memory");
         break;
     case SBD_FATAL_ENQUEUE:
         LL_ERRX("FATAL: failed enqueue message to mbd");
         break;
-
     default:
         LL_ERRX("FATAL: unknown cause=%d", (int) cause);
         break;
     }
 
-    // Optional: best-effort close MBD channel so logs are clear.
+    // Optional: best-effort close mbd channel so logs are clear.
     sbd_cleanup();
 
     // Fail-fast: let systemd restart; avoids half-working daemon.
@@ -661,7 +659,7 @@ static void sbd_run_daemon(void)
                 job_new_drive();
                 job_finish_drive();
                 job_status_checking();
-                sbd_prune_archive_try();
+                sbd_prune_jobs_try();
                 // rest the state
                 channels[ch_id].chan_events = CHAN_EPOLLNONE;
                 continue;
@@ -752,6 +750,7 @@ int main(int argc, char **argv)
             break;
         case 'c':
             conf_dir = optarg;
+            setenv("LL_CONF_DIR", conf_dir, 1);
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
@@ -793,7 +792,7 @@ int main(int argc, char **argv)
     }
 
     if (!non_root && geteuid() != 0) {
-        ll_syslog(LOG_ERR, "Only root wants to run sbd.");
+        ll_syslog(LOG_ERR, "Only root wants to run sbd");
         return -1;
     }
 

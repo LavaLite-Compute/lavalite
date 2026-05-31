@@ -66,7 +66,7 @@ static int mbd_rpc_init(void)
 }
 
 /*
- * Send req_len bytes to MBD via TCP, receive reply.
+ * Send req_len bytes to mbd via TCP, receive reply.
  * On success: *rep points to allocated payload (caller must free),
  *             reply_hdr is filled.
  * On error: returns -1, sets lserrno.

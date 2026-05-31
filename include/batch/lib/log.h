@@ -31,6 +31,7 @@ enum event_type {
     EVENT_JOB_SUSP,        /* sbd suspended running job           */
     EVENT_JOB_MOVE,        /* job moved to a different queue */
     EVENT_JOB_PRIORITY,    /* job priority changed */
+    EVENT_JOB_PEND,        /* dispatched job returned to pending */
     EVENT_COUNT
 };
 
@@ -165,6 +166,11 @@ struct log_job_priority {
     int32_t new_priority;
 };
 
+struct log_job_pend {
+    int64_t job_id;
+    time_t event_time;
+};
+
 /*
  * Read the record header from one line.
  * The unparsed payload tail is stored in rec->rest.
@@ -185,6 +191,7 @@ int log_parse_job_pend_susp(const struct event_rec *,
                             struct log_job_pend_susp *);
 int log_parse_job_move(const struct event_rec *, struct log_job_move *);
 int log_parse_job_priority(const struct event_rec *, struct log_job_priority *);
+int log_parse_job_pend(const struct event_rec *, struct log_job_pend *);
 
 /* Writers -- write header + payload + newline in one call */
 int log_write_job_new(FILE *, const struct log_job_new *);
@@ -197,3 +204,4 @@ int log_write_job_pend_resume(FILE *, const struct log_job_pend_resume *);
 int log_write_job_pend_susp(FILE *, const struct log_job_pend_susp *);
 int log_write_job_move(FILE *, const struct log_job_move *);
 int log_write_job_priority(FILE *, const struct log_job_priority *);
+int log_write_job_pend(FILE *, const struct log_job_pend *);

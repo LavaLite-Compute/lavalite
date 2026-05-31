@@ -689,9 +689,9 @@ int events_init(void)
 
     LL_INFO("%d bucket dirs initialized", JOB_BUCKETS);
 
-    if (!ll_atoi(ll_params[LL_JOB_FINISH_RETAIN].val, &job_finish_retain)) {
+    if (!ll_atoi(ll_params[LL_MBD_JOB_FINISH_RETAIN].val, &job_finish_retain)) {
         LL_ERRX("failed parsing LL_JOB_FINISH_RETAIN=%s using default=100 jobs",
-                ll_params[LL_JOB_FINISH_RETAIN].val);
+                ll_params[LL_MBD_JOB_FINISH_RETAIN].val);
     }
 
     compact_seq_scan();
@@ -778,6 +778,35 @@ static void replay_job_priority(const struct event_rec *rec)
              e.job_id, e.old_priority, e.new_priority);
 }
 
+static void replay_job_pend(const struct event_rec *rec)
+{
+    struct log_job_pend e;
+
+    if (log_parse_job_pend(rec, &e) < 0) {
+        LL_ERR("parse JOB_PEND failed");
+        return;
+    }
+
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LL_ERRX("JOB_PEND job_id=%ld not found", e.job_id);
+        return;
+    }
+
+    assert(job->list_id == JOB_LIST_RUN);
+    if (job->list_id == JOB_LIST_RUN)
+        job_move_list(job, &run_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
+
+    job->pid = 0;
+    job->fork_time = 0;
+    job->dispatch_time = 0;
+    job->state = JOB_PENDING;
+    job->run_nhosts = 0;
+    memset(job->run_hosts, 0, job->res.num_hosts * sizeof(job->run_hosts[0]));
+
+    LL_DEBUG("JOB_PEND job_id=%ld", e.job_id);
+}
+
 int jobs_replay(void)
 {
     FILE *fp = fopen(events_path, "r");
@@ -838,6 +867,10 @@ int jobs_replay(void)
         }
         if (rec.type == EVENT_JOB_PRIORITY) {
             replay_job_priority(&rec);
+            continue;
+        }
+        if (rec.type == EVENT_JOB_PEND) {
+            replay_job_pend(&rec);
             continue;
         }
     }
@@ -1093,6 +1126,23 @@ void event_job_priority(const struct job_data *job, int32_t old_priority)
     if (log_write_job_priority(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_priority failed job_id=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+}
+
+void event_job_pend(const struct job_data *job)
+{
+    struct log_job_pend e;
+    memset(&e, 0, sizeof(e));
+
+    e.job_id = job->job_id;
+    e.event_time = time(NULL);
+
+    FILE *fp = open_events();
+    if (log_write_job_pend(fp, &e) < 0) {
+        fclose(fp);
+        LL_ERR("log_write_job_pend failed job_id=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);

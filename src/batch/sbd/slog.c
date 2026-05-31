@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #include "base/lib/ll.conf.h"
 #include "base/lib/ll.syslog.h"
@@ -23,7 +24,9 @@
 char sbd_root_dir[PATH_MAX];
 char sbd_job_dir[PATH_MAX];
 char sbd_state_dir[PATH_MAX];
-char sbd_archive_dir[PATH_MAX];
+
+static int prune_interval;
+static int num_jobs_retain = 0;
 
 static int make_path(char *buf, size_t bufsz, const char *fmt, ...)
 {
@@ -75,39 +78,21 @@ static int check_dir(const char *path)
     return 0;
 }
 
-static void fsync_dir(const char *path)
-{
-    int fd;
-
-    fd = open(path, O_RDONLY | O_DIRECTORY);
-    if (fd < 0) {
-        LL_ERR("open directory %s failed", path);
-        return;
-    }
-
-    if (fsync(fd) < 0)
-        LL_ERR("fsync directory %s failed", path);
-
-    close(fd);
-}
-
 static int job_dir_path(char *buf, size_t bufsz, int64_t job_id)
 {
+    // /opt/lavalite/var/sbd/jobs/job_id
     return make_path(buf, bufsz, "%s/%ld", sbd_job_dir, job_id);
 }
 
 static int state_dir_path(char *buf, size_t bufsz, int64_t job_id)
 {
+    // /opt/lavalite/var/sbd/state/job_id
     return make_path(buf, bufsz, "%s/%ld", sbd_state_dir, job_id);
-}
-
-static int archive_dir_path(char *buf, size_t bufsz, int64_t job_id)
-{
-    return make_path(buf, bufsz, "%s/%ld", sbd_archive_dir, job_id);
 }
 
 static int state_file_path(char *buf, size_t bufsz, int64_t job_id)
 {
+    // /opt/lavalite/var/sbd/state/job_id/state
     return make_path(buf, bufsz, "%s/%ld/state", sbd_state_dir, job_id);
 }
 
@@ -145,9 +130,11 @@ int sbd_storage_init(void)
         if (mkdir_chmod(root_dir, 0755) < 0)
             return -1;
     } else {
+        // /opt/lavalite/var/state
         ll_strlcpy(root_dir, ll_params[LL_STATE_DIR].val, sizeof(root_dir));
     }
 
+    // /opt/lavalite/var/state/sbd
     if (make_path(sbd_root_dir, sizeof(sbd_root_dir), "%s/sbd", root_dir) < 0) {
         LL_ERR("sbd root path too long");
         return -1;
@@ -155,6 +142,7 @@ int sbd_storage_init(void)
     if (mkdir_chmod(sbd_root_dir, 0755) < 0)
         return -1;
 
+    // /opt/lavalite/var/state/sbd/jobs
     if (make_path(sbd_job_dir, sizeof(sbd_job_dir), "%s/jobs", sbd_root_dir) <
         0) {
         LL_ERR("sbd jobs path too long");
@@ -163,6 +151,7 @@ int sbd_storage_init(void)
     if (mkdir_chmod(sbd_job_dir, 0755) < 0)
         return -1;
 
+    // /opt/lavalite/var/state/sbd/state
     if (make_path(sbd_state_dir, sizeof(sbd_state_dir), "%s/state",
                   sbd_root_dir) < 0) {
         LL_ERR("sbd state path too long");
@@ -171,27 +160,43 @@ int sbd_storage_init(void)
     if (mkdir_chmod(sbd_state_dir, 0755) < 0)
         return -1;
 
-    if (make_path(sbd_archive_dir, sizeof(sbd_archive_dir), "%s/.archive",
-                  sbd_root_dir) < 0) {
-        LL_ERR("archive path too long");
-        return -1;
-    }
-    if (mkdir_chmod(sbd_archive_dir, 0755) < 0)
-        return -1;
-
     if (check_dir(sbd_root_dir) < 0)
         return -1;
     if (check_dir(sbd_job_dir) < 0)
         return -1;
     if (check_dir(sbd_state_dir) < 0)
         return -1;
-    if (check_dir(sbd_archive_dir) < 0)
-        return -1;
 
     LL_INFO("sbd_root_dir=%s", sbd_root_dir);
     LL_INFO("sbd_job_dir=%s", sbd_job_dir);
     LL_INFO("sbd_state_dir=%s", sbd_state_dir);
-    LL_INFO("sbd_archive_dir=%s", sbd_archive_dir);
+
+    prune_interval=900;
+    if (! ll_atoi(ll_params[LL_SBD_PRUNE_INTERVAL].val, &prune_interval)) {
+        LL_ERRX("failed parsing LL_PRUNE_INTERVAL=%s set to default 900sec",
+                ll_params[LL_SBD_PRUNE_INTERVAL].val);
+        prune_interval=900;
+    }
+    if (prune_interval <= 0) {
+        LL_ERRX("LL_SBD_PRUNE_INTERVAL invalid=%d reset to default=900",
+                prune_interval);
+        prune_interval = 900;
+    }
+
+    num_jobs_retain = 0;
+    if (! ll_atoi(ll_params[LL_SBD_JOB_FINISH_RETAIN].val, &num_jobs_retain)) {
+        LL_ERRX("failed parsing LL_SBD_JOB_FINISH_RETAIN=%s set to default 100",
+                ll_params[LL_SBD_JOB_FINISH_RETAIN].val);
+        num_jobs_retain = 100;
+    }
+
+    if (num_jobs_retain <= 0) {
+        LL_ERRX("LL_SBD_JOB_FINISH_RETAIN invalid=%d reset to default=100",
+               num_jobs_retain);
+        num_jobs_retain = 100;
+    }
+    LL_INFO("LL_SBD_PRUNE_INTERVAL=%d LL_SBD_JOB_FINISH_RETAIN=%d", prune_interval,
+            num_jobs_retain);
 
     return 0;
 }
@@ -203,6 +208,7 @@ void sbd_job_file_remove(struct sbd_job *job)
     char dir[PATH_MAX];
     char path[PATH_MAX];
 
+    // /opt/lavalite/var/sbd/jobs/job_id
     if (job_dir_path(dir, sizeof(dir), job->job_id) < 0) {
         LL_ERR("job dir path too long job=%ld", job->job_id);
         return;
@@ -223,40 +229,22 @@ void sbd_job_file_remove(struct sbd_job *job)
         LL_ERR("rmdir(%s) failed job=%ld", dir, job->job_id);
 }
 
-void sbd_job_state_archive(struct sbd_job *job)
+void sbd_job_state_remove(struct sbd_job *job)
 {
-    char src[PATH_MAX];
-    char dst[PATH_MAX];
-    char stpath[PATH_MAX];
+    char state_path[PATH_MAX];
+    char dir_path[PATH_MAX];
 
-    if (state_dir_path(src, sizeof(src), job->job_id) < 0) {
-        LL_ERR("src path too long job=%ld", job->job_id);
+    if (make_path(state_path, sizeof(state_path), "%s/%ld/state",
+                  sbd_state_dir, job->job_id) < 0)
         return;
-    }
-
-    if (archive_dir_path(dst, sizeof(dst), job->job_id) < 0) {
-        LL_ERR("dst path too long job=%ld", job->job_id);
+    if (make_path(dir_path, sizeof(dir_path), "%s/%ld",
+                  sbd_state_dir, job->job_id) < 0)
         return;
-    }
 
-    if (rename(src, dst) < 0) {
-        LL_ERR("rename(%s, %s) failed job=%ld", src, dst, job->job_id);
-        return;
-    }
-
-    fsync_dir(sbd_state_dir);
-    fsync_dir(sbd_archive_dir);
-
-    if (chmod(dst, 0755) < 0)
-        LL_ERR("chmod(%s, 0755) failed job=%ld", dst, job->job_id);
-
-    if (make_path(stpath, sizeof(stpath), "%s/state", dst) < 0) {
-        LL_ERR("state archive file path too long job=%ld", job->job_id);
-        return;
-    }
-
-    if (chmod(stpath, 0644) < 0 && errno != ENOENT)
-        LL_ERR("chmod(%s, 0644) failed job=%ld", stpath, job->job_id);
+    if (unlink(state_path) < 0 && errno != ENOENT)
+        LL_ERR("unlink(%s): %s", state_path, strerror(errno));
+    if (rmdir(dir_path) < 0 && errno != ENOENT)
+        LL_ERR("rmdir(%s): %s", dir_path, strerror(errno));
 }
 
 int sbd_job_state_write(struct sbd_job *job)
@@ -577,86 +565,165 @@ int sbd_read_exit_status_file(struct sbd_job *job, int *exit_code,
     return 0;
 }
 
-static void sbd_prune_archive(void)
-{
-    DIR *dir;
-    struct dirent *de;
-    time_t now;
+#define PRUNE_MAX_SCAN  4096   /* sanity cap on dir entries */
 
-    dir = opendir(sbd_archive_dir);
+struct prune_entry {
+    int64_t jobid;
+    time_t time_finish_acked;
+};
+
+static int
+prune_entry_cmp(const void *a, const void *b)
+{
+    const struct prune_entry *pa = a;
+    const struct prune_entry *pb = b;
+
+    if (pa->time_finish_acked < pb->time_finish_acked)
+        return -1;
+    if (pa->time_finish_acked > pb->time_finish_acked)
+        return 1;
+
+    return 0;
+}
+
+static void sbd_prune_jobs(void)
+{
+    /*
+     * First pass: count finished-acked jobs on disk.
+     */
+    DIR *dir = opendir(sbd_state_dir);
     if (dir == NULL) {
-        LL_ERR("opendir(%s) failed", sbd_archive_dir);
+        LL_ERR("opendir(%s): %s", sbd_state_dir, strerror(errno));
         return;
     }
 
-    now = time(NULL);
-
+    int n_on_disk = 0;
+    struct dirent *de;
     while ((de = readdir(dir)) != NULL) {
-        char state_path[PATH_MAX];
-        char dir_path[PATH_MAX];
+        char  state_path[PATH_MAX];
         struct sbd_job job;
 
-        if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
+        if (de->d_name[0] == '.')
             continue;
-
         if (make_path(state_path, sizeof(state_path), "%s/%s/state",
-                      sbd_archive_dir, de->d_name) < 0)
+                      sbd_state_dir, de->d_name) < 0)
             continue;
-
         memset(&job, 0, sizeof(job));
-        if (sbd_job_state_read(&job, state_path) < 0) {
-            LL_ERR("sbd_job_state_read state_path=%s failed", state_path);
+        if (sbd_job_state_read(&job, state_path) < 0)
             continue;
-        }
-
-        if (job.time_finish_acked <= 0)
-            continue;
-
-        if ((now - job.time_finish_acked) < SBD_ARCHIVE_RETENTION)
-            continue;
-
-        if (make_path(dir_path, sizeof(dir_path), "%s/%s", sbd_archive_dir,
-                      de->d_name) < 0)
-            continue;
-
-        if (unlink(state_path) < 0 && errno != ENOENT) {
-            LL_ERR("unlink(%s) failed", state_path);
-            continue;
-        }
-
-        if (rmdir(dir_path) < 0 && errno != ENOENT)
-            LL_ERR("rmdir(%s) failed", dir_path);
+        if (job.finish_acked)
+            n_on_disk++;
     }
-
     closedir(dir);
+
+    int n_remove = n_on_disk - num_jobs_retain;
+    if (n_remove <= 0) {
+        LL_DEBUG("no job dirs to prune n_on_disk=%d num_jobs_retain=%d",
+                 n_on_disk, num_jobs_retain);
+        return;
+    }
+    LL_INFO("n_on_disk=%d retain=%d n_remove=%d", n_on_disk, num_jobs_retain,
+            n_remove);
+
+    /*
+     * Second pass: collect finished-acked entries, sort oldest-first, remove.
+     */
+    struct prune_entry entries[PRUNE_MAX_SCAN];
+    int nentries = 0;
+
+    dir = opendir(sbd_state_dir);
+    if (dir == NULL) {
+        LL_ERR("opendir(%s): %s", sbd_state_dir, strerror(errno));
+        return;
+    }
+    while ((de = readdir(dir)) != NULL && nentries < PRUNE_MAX_SCAN) {
+        char state_path[PATH_MAX];
+        struct sbd_job job;
+
+        if (de->d_name[0] == '.')
+            continue;
+        if (make_path(state_path, sizeof(state_path), "%s/%s/state",
+                      sbd_state_dir, de->d_name) < 0)
+            continue;
+        memset(&job, 0, sizeof(job));
+        if (sbd_job_state_read(&job, state_path) < 0)
+            continue;
+        if (!job.finish_acked || job.time_finish_acked <= 0)
+            continue;
+        entries[nentries].jobid = job.job_id;
+        entries[nentries].time_finish_acked = job.time_finish_acked;
+        nentries++;
+    }
+    closedir(dir);
+
+    if (nentries == PRUNE_MAX_SCAN)
+        LL_INFO("finished job prune scan capped at entries=%d", PRUNE_MAX_SCAN);
+
+    qsort(entries, nentries, sizeof(entries[0]), prune_entry_cmp);
+
+    if (n_remove > nentries)
+        n_remove = nentries;
+
+    for (int i = 0; i < n_remove; i++) {
+        struct sbd_job job;
+        memset(&job, 0, sizeof(job));
+        job.job_id = entries[i].jobid;
+        LL_INFO("prune job=%ld finish_acked=%ld",
+                (long)job.job_id, (long)entries[i].time_finish_acked);
+        sbd_job_file_remove(&job);
+        sbd_job_state_remove(&job);
+    }
 }
 
-void sbd_prune_archive_try(void)
+void sbd_prune_jobs_try(void)
 {
-    static time_t pruner_last;
-    time_t now;
+    static time_t last_prune;
 
     if (pruner_pid > 0)
         return;
 
-    now = time(NULL);
-    if (now - pruner_last < SBD_PRUNE_INTERVAL)
+    time_t now = time(NULL);
+    if (now - last_prune < prune_interval)
         return;
-
-    pruner_last = now;
+    last_prune = now;
 
     pruner_pid = fork();
     if (pruner_pid < 0) {
-        pruner_pid = -1;
-        LL_ERR("fork(prune) failed");
+        pruner_pid = 0;
+        LL_ERR("fork(prune): %s", strerror(errno));
         return;
     }
-
     if (pruner_pid > 0) {
-        LL_INFO("archive prune started pid=%d", (int) pruner_pid);
+        LL_DEBUG("prune child pid=%d", (int)pruner_pid);
         return;
     }
 
-    sbd_prune_archive();
+    int log_fd = ls_getlogfd();
+    reset_except_fd(log_fd);
+    reset_signals();
+    char tag[LL_BUFSIZ_32];
+    snprintf(tag, sizeof(tag), "pruner child");
+    ls_setlogtag(tag);
+
+    LL_INFO("pruner starting num_jobs_retain=%d", num_jobs_retain);
+    sbd_prune_jobs();
+    LL_INFO("pruner done");
+
     _exit(0);
+}
+
+void fsync_dir(const char *path)
+{
+    int fd;
+
+    fd = open(path, O_RDONLY | O_DIRECTORY);
+    if (fd < 0) {
+        LL_ERR("open directory %s failed", path);
+        return;
+    }
+
+    if (fsync(fd) < 0)
+        LL_ERR("fsync directory %s failed", path);
+
+    close(fd);
 }

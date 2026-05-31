@@ -20,10 +20,11 @@ enum ll_params {
     // sbd
     LL_SBD_PORT,
     LL_CGROUP_ROOT,
+    LL_SBD_JOB_FINISH_RETAIN,
+    LL_SBD_PRUNE_INTERVAL,
 
     // mbd
-    LL_EVENTS_MAX_SIZE,
-    LL_JOB_FINISH_RETAIN,
+    LL_MBD_JOB_FINISH_RETAIN,
     LL_MBD_PORT,
     LL_MBD_HOST,
     LL_MBD_USER,

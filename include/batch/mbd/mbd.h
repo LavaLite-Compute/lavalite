@@ -284,6 +284,7 @@ void event_job_susp(const struct job_data *);
 void maybe_compact_events(void);
 void event_job_move(const struct job_data *, const char *);
 void event_job_priority(const struct job_data *, int32_t);
+void event_job_pend(const struct job_data *);
 
 // dispatch.c
 int jobs_info(XDR *, int, const struct protocol_header *);
@@ -323,7 +324,7 @@ void job_id_seq_write(void);
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
-void mbd_new_job_reply(struct mbd_host *, XDR *);
+void mbd_new_job_reply(struct mbd_host *, XDR *, struct protocol_header *);
 void mbd_job_finish(struct mbd_host *, XDR *);
 
 // debug counters
