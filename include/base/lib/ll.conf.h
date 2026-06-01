@@ -56,3 +56,4 @@ char *ll_conf_kv_get(struct ll_kv *, int, const char *);
 void rtrim(char *);
 char *ltrim(char *);
 int ll_conf_param_missing(const char *, const char *);
+int ll_conf_check_header(const char *, const char *[], int);

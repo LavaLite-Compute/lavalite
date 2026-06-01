@@ -14,6 +14,8 @@
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
+#define ARRAY_SIZE(a) ((int)(sizeof(a) / sizeof(a[0])))
+
 static uint64_t parse_mem(const char *s)
 {
     char *end;
@@ -91,12 +93,13 @@ static struct mbd_gpu *make_gpu(const char *p)
     return g;
 }
 
+static const char *gpus_hdr[] = { "HOST_NAME", "GPU_ID", "GPU_TYPE", "COUNT" };
 static int parse_gpus(const char *path)
 {
     FILE *f;
     char line[LL_BUFSIZ_1K];
     int in_section;
-    int header_skipped;
+    int header_checked;
 
     f = fopen(path, "r");
     if (f == NULL) {
@@ -105,7 +108,7 @@ static int parse_gpus(const char *path)
     }
 
     in_section = 0;
-    header_skipped = 0;
+    header_checked = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
         char *p = ltrim(line);
@@ -118,7 +121,7 @@ static int parse_gpus(const char *path)
         if (section != NULL) {
             if (strncmp(section, "Gpu", 3) == 0) {
                 in_section = 1;
-                header_skipped = 0;
+                header_checked = 0;
             }
             continue;
         }
@@ -126,8 +129,13 @@ static int parse_gpus(const char *path)
         if (!in_section)
             continue;
 
-        if (!header_skipped) {
-            header_skipped = 1;
+        if (!header_checked) {
+            if (ll_conf_check_header(p, gpus_hdr, ARRAY_SIZE(gpus_hdr)) < 0) {
+                LL_ERRX("bad format of Gpu header: %s", p);
+                fclose(f);
+                return -1;
+            }
+            header_checked = 1;
             continue;
         }
 
@@ -148,12 +156,13 @@ static int parse_gpus(const char *path)
     return -1;
 }
 
+static const char *tokens_hdr[] = { "POOL_NAME", "TOTAL" };
 static int parse_token_pools(const char *path)
 {
     FILE *f;
     char line[LL_BUFSIZ_1K];
     int in_section;
-    int header_skipped;
+    int header_checked;
 
     f = fopen(path, "r");
     if (f == NULL) {
@@ -162,7 +171,7 @@ static int parse_token_pools(const char *path)
     }
 
     in_section = 0;
-    header_skipped = 0;
+    header_checked = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
         char *p = ltrim(line);
@@ -175,7 +184,7 @@ static int parse_token_pools(const char *path)
         if (section != NULL) {
             if (strncmp(section, "TokenPool", 9) == 0) {
                 in_section = 1;
-                header_skipped = 0;
+                header_checked = 0;
             }
             continue;
         }
@@ -183,8 +192,13 @@ static int parse_token_pools(const char *path)
         if (!in_section)
             continue;
 
-        if (!header_skipped) {
-            header_skipped = 1;
+        if (!header_checked) {
+            if (ll_conf_check_header(p, tokens_hdr, ARRAY_SIZE(tokens_hdr)) < 0) {
+                LL_ERRX("bad format of TokenPool header: %s", p);
+                fclose(f);
+                return -1;
+            }
+            header_checked = 1;
             continue;
         }
 
@@ -285,12 +299,13 @@ static struct mbd_host *make_host(const char *p)
     return h;
 }
 
+static const char *host_hdr[] = { "HOST_NAME", "MXJ", "CPU", "MEM", "STORAGE" };
 static int parse_hosts(const char *path)
 {
     FILE *f;
     char line[LL_BUFSIZ_1K];
     int in_section;
-    int header_skipped;
+    int header_checked;
 
     f = fopen(path, "r");
     if (f == NULL) {
@@ -299,7 +314,7 @@ static int parse_hosts(const char *path)
     }
 
     in_section = 0;
-    header_skipped = 0;
+    header_checked = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
         char *p;
@@ -316,7 +331,7 @@ static int parse_hosts(const char *path)
         if (section != NULL) {
             if (strncmp(section, "Host", 4) == 0) {
                 in_section = 1;
-                header_skipped = 0;
+                header_checked = 0;
             }
             continue;
         }
@@ -324,8 +339,13 @@ static int parse_hosts(const char *path)
         if (!in_section)
             continue;
 
-        if (!header_skipped) {
-            header_skipped = 1;
+        if (!header_checked) {
+            if (ll_conf_check_header(p, host_hdr, ARRAY_SIZE(host_hdr)) < 0) {
+                LL_ERRX("bad format of Host header: %s", p);
+                fclose(f);
+                return -1;
+            }
+            header_checked = 1;
             continue;
         }
 
@@ -408,7 +428,7 @@ static int parse_groups(const char *path)
     FILE *f;
     char line[LL_BUFSIZ_1K];
     int in_section;
-    int header_skipped;
+    int header_checked;
 
     f = fopen(path, "r");
     if (f == NULL) {
@@ -417,7 +437,7 @@ static int parse_groups(const char *path)
     }
 
     in_section = 0;
-    header_skipped = 0;
+    header_checked = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
         char *p;
@@ -434,7 +454,7 @@ static int parse_groups(const char *path)
         if (section != NULL) {
             if (strncmp(section, "HostGroup", 9) == 0) {
                 in_section = 1;
-                header_skipped = 0;
+                header_checked = 0;
             }
             continue;
         }
@@ -442,8 +462,8 @@ static int parse_groups(const char *path)
         if (!in_section)
             continue;
 
-        if (!header_skipped) {
-            header_skipped = 1;
+        if (!header_checked) {
+            header_checked = 1;
             continue;
         }
 
@@ -618,6 +638,8 @@ static int parse_queues(const char *path)
  * real hosts so the scheduler treats them uniformly.
  * Section is optional — no error if absent.
  */
+static const char *sim_hdr[]   = { "NAME", "REAL_HOST", "PORT",
+    "MXJ", "CPU", "MEM", "STORAGE", "GPU", "GPU_TYPE" };
 static int parse_sim(const char *path)
 {
     FILE *f = fopen(path, "r");
@@ -628,7 +650,7 @@ static int parse_sim(const char *path)
 
     char line[LL_BUFSIZ_1K];
     int in_section = 0;
-    int header_skipped = 0;
+    int header_checked = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
         char *p = ltrim(line);
@@ -641,7 +663,7 @@ static int parse_sim(const char *path)
         if (section != NULL) {
             if (strncmp(section, "Sim", 3) == 0) {
                 in_section = 1;
-                header_skipped = 0;
+                header_checked = 0;
             }
             continue;
         }
@@ -649,8 +671,13 @@ static int parse_sim(const char *path)
         if (!in_section)
             continue;
 
-        if (!header_skipped) {
-            header_skipped = 1;
+        if (!header_checked) {
+            if (ll_conf_check_header(p, sim_hdr, ARRAY_SIZE(sim_hdr)) < 0) {
+                LL_ERRX("bad format of Sim header: %s", p);
+                fclose(f);
+                return -1;
+            }
+            header_checked = 1;
             continue;
         }
 

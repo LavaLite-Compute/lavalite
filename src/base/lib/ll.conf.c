@@ -197,3 +197,21 @@ int ll_conf_param_missing(const char *name, const char *val)
     }
     return 0;
 }
+
+int ll_conf_check_header(const char *line, const char *cols[], int ncols)
+{
+    char tok[LL_BUFSIZ_64];
+    int i;
+    int n;
+
+    for (i = 0; i < ncols; i++) {
+        n = 0;
+        if (sscanf(line, "%63s%n", tok, &n) != 1 || n == 0)
+            return -1;
+        if (strcmp(tok, cols[i]) != 0)
+            return -1;
+        line += n;
+    }
+
+    return 0;
+}
