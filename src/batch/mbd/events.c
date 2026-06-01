@@ -22,8 +22,8 @@
 static char events_path[PATH_MAX];
 char jobs_dir[PATH_MAX];
 static ino_t events_ino = 0;
-static uint32_t compact_seq = 0;
-static int job_finish_retain = 100;
+static uint32_t events_seq = 0;
+static int job_finish_threshold = 1000;
 
 static FILE *open_events(void)
 {
@@ -611,14 +611,14 @@ static void replay_job_susp(const struct event_rec *rec)
 }
 
 /*
- * compact_seq_scan - derive the current sequence number by scanning the
+ * events_seq_scan - derive the current sequence number by scanning the
  * mbd directory for existing eventlog.NNNNNN archives.
  *
  * No external sequence file is needed. Admins may delete old archives
  * freely without having to update any state file. The next compact will
  * simply use the highest sequence number found + 1.
  */
-static void compact_seq_scan(void)
+static void events_seq_scan(void)
 {
     char dir[PATH_MAX];
     snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
@@ -641,8 +641,8 @@ static void compact_seq_scan(void)
         if (*q != '\0')
             continue;
         uint32_t n = (uint32_t)atol(p);
-        if (n > compact_seq)
-            compact_seq = n;
+        if (n > events_seq)
+            events_seq = n;
     }
     closedir(dp);
 }
@@ -689,14 +689,15 @@ int events_init(void)
 
     LL_INFO("%d bucket dirs initialized", JOB_BUCKETS);
 
-    if (!ll_atoi(ll_params[LL_MBD_JOB_FINISH_RETAIN].val, &job_finish_retain)) {
-        LL_ERRX("failed parsing LL_JOB_FINISH_RETAIN=%s using default=100 jobs",
-                ll_params[LL_MBD_JOB_FINISH_RETAIN].val);
+    if (!ll_atoi(ll_params[LL_MBD_JOB_FINISH_THRESHOLD].val,
+                 &job_finish_threshold)) {
+        LL_ERRX("failed parsing LL_MBD_JOB_FINISH_THRESHOLD=%s using "
+                "default=1000 jobs", ll_params[LL_MBD_JOB_FINISH_THRESHOLD].val);
     }
 
-    compact_seq_scan();
+    events_seq_scan();
 
-    LL_INFO("events seq initialized seq=%u", compact_seq);
+    LL_INFO("events seq initialized seq=%u", events_seq);
 
     return 0;
 }
@@ -1018,17 +1019,17 @@ void job_id_seq_write(void)
  * such as bhist must read archived eventlog.* files for full chronological
  * job history.
  */
-static void events_compact(void)
+static void events_rebuild(void)
 {
     char archived[PATH_MAX + LL_BUFSIZ_32];
     /*
-     * Sequence number is derived by compact_seq_scan() at startup from
+     * Sequence number is derived by events_seq_scan() at startup from
      * the filenames already present in the directory. No separate sequence
      * file is kept, so admins may delete old archives freely without
      * having to update any state.
      */
-    compact_seq++;
-    snprintf(archived, sizeof(archived), "%s.%u", events_path, compact_seq);
+    events_seq++;
+    snprintf(archived, sizeof(archived), "%s.%u", events_path, events_seq);
 
     if (rename(events_path, archived) < 0) {
         LL_ERR("rename(%s, %s)", events_path, archived);
@@ -1079,18 +1080,22 @@ static void events_compact(void)
 
     fclose(fp);
 
-    LL_INFO("events compacted seq=%u archived=%s", compact_seq, archived);
+    LL_INFO("eventlog rebuild seq=%u archived=%s", events_seq, archived);
 }
 
-void maybe_compact_events(void)
+/* Rebuild the event log when the number of finished jobs
+ * currently held in memory reaches this threshold.
+ */
+void maybe_rebuild_events(void)
 {
-    if (ll_list_count(&finish_jobs_list) < job_finish_retain)
+    if (ll_list_count(&finish_jobs_list) < job_finish_threshold)
         return;
 
-    LL_DEBUG("compacting eventlog as finished job=%d",
-             ll_list_count(&finish_jobs_list));
+    LL_DEBUG("eventlog rebuild triggered finished_jobs=%d threshold=%d",
+             ll_list_count(&finish_jobs_list),
+             job_finish_threshold);
 
-    events_compact();
+    events_rebuild();
 }
 
 void event_job_move(const struct job_data *job, const char *to_queue)

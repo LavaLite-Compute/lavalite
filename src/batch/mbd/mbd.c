@@ -214,7 +214,7 @@ int main(int argc, char **argv)
                     LL_ERR("read timer failed");
                 LL_DEBUG("sched_timer expired timer=%d", sched_timer);
                 schedule();
-                maybe_compact_events();
+                maybe_rebuild_events();
                 continue;
             }
 

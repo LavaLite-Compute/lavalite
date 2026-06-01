@@ -24,7 +24,7 @@ enum ll_params {
     LL_SBD_PRUNE_INTERVAL,
 
     // mbd
-    LL_MBD_JOB_FINISH_RETAIN,
+    LL_MBD_JOB_FINISH_THRESHOLD,
     LL_MBD_PORT,
     LL_MBD_HOST,
     LL_MBD_USER,
