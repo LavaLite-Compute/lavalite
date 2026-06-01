@@ -156,7 +156,7 @@ static int parse_gpus(const char *path)
     return -1;
 }
 
-static const char *tokens_hdr[] = { "POOL_NAME", "TOTAL" };
+static const char *tokens_hdr[] = { "POOL_NAME", "AVAILABLE" };
 static int parse_token_pools(const char *path)
 {
     FILE *f;
