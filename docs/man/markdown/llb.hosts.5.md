@@ -19,6 +19,10 @@ startup.
 The file contains one or more named sections, each delimited by
 **Begin** *Section* / **End** *Section* blocks.
 
+Within each section, the column header defines the file format. The order of columns is **mandatory** and must not be changed. LavaLite parsers use positional fields and do not support reordering, inserting, or removing columns. Modifying the column layout may result in configuration errors or undefined scheduler behaviour.
+Fields that have no value must be specified as a single dash (-).
+Empty fields are not permitted.
+
 # SECTIONS
 
 ## Begin Host / End Host

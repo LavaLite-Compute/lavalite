@@ -8,7 +8,15 @@
 # MEM        - Total memory available (G=gigabytes, T=terabytes)
 # STORAGE    - Total storage available (G=gigabytes, T=terabytes)
 #
+# LavaLite configuration files use fixed column layouts.
+# Within each Begin/End section the column order is part of
+# the file format and must not be modified.
+#
 Begin Host
+# Column order is mandatory and must not be changed.
+# Parsers rely on positional fields then column names.
+# Reordering, removing or inserting columns may result in
+# configuration errors or undefined scheduler behaviour.
 HOST_NAME   MXJ   CPU   MEM    STORAGE
 buntu24       4    22    40G    100T
 worker1       6    64    1T      50T
@@ -17,6 +25,10 @@ worker1       6    64    1T      50T
 End Host
 
 Begin Gpu
+# Column order is mandatory and must not be changed.
+# Parsers rely on positional fields then column names.
+# Reordering, removing or inserting columns may result in
+# configuration errors or undefined scheduler behaviour.
 HOST_NAME   GPU_ID   GPU_TYPE   COUNT
 buntu24     0        A100        1
 #buntu24     1        full       1
@@ -43,6 +55,10 @@ group-cpu     (worker1)
 End HostGroup
 
 #Begin Sim
+# Column order is mandatory and must not be changed.
+# Parsers rely on positional fields then column names.
+# Reordering, removing or inserting columns may result in
+# configuration errors or undefined scheduler behaviour.
 #NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE   GPU GPU_TYPE
 #worker1-sim     buntu24     33126   8   128   2T    100T   2   A100
 #worker2-sim     buntu24     33127   6   64   1T    50T     3   H100
