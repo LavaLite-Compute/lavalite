@@ -143,7 +143,7 @@ int main(int argc, char **argv)
     const char *close_host = NULL;
     const char *open_host = NULL;
 
-    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "c:o:hV", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
             close_host = optarg;

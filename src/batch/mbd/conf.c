@@ -929,10 +929,6 @@ static void dump_config(void)
 
 static int check_ll_config(void)
 {
-    if (ll_conf_param_missing("LL_CONF_DIR", ll_params[LL_CONF_DIR].val)) {
-        LL_ERRX("LL_CONF_DIR missing from ll.conf");
-        return -1;
-    }
     if (ll_conf_param_missing("LL_STATE_DIR", ll_params[LL_STATE_DIR].val)) {
         LL_ERRX("LL_STATE_DIR missing from ll.conf");
         return -1;
@@ -960,9 +956,6 @@ static int check_ll_config(void)
 
 int conf_init(void)
 {
-    char path[PATH_MAX];
-    int n;
-
     if (ll_init() < 0) {
         LL_ERRX("ll_init failed");
         return -1;
@@ -972,9 +965,19 @@ int conf_init(void)
         LL_ERRX("check_ll_config failed");
         return -1;
     }
+    const char *conf_dir = getenv("LL_CONF_DIR");
+    // open the log as soon as we have the configuration validated
+    int cc = ll_openlog("mbd", ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
+    if (cc < 0) {
+        fprintf(stderr, "mbd: ll_openlog failed lodir=%s mask=%s %m\n",
+                ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
+        return -1;
+    }
 
-    n = snprintf(path, sizeof(path), "%s/llb.hosts",
-                 ll_params[LL_CONF_DIR].val);
+    LL_DEBUG("mbd using LL_CONF_DIR=%s", conf_dir);
+
+    char path[PATH_MAX];
+    int n = snprintf(path, sizeof(path), "%s/llb.hosts", conf_dir);
     if (n < 0 || n >= (int) sizeof(path))
         return -1;
 
@@ -1003,8 +1006,7 @@ int conf_init(void)
         return -1;
     }
 
-    n = snprintf(path, sizeof(path), "%s/llb.queues",
-                 ll_params[LL_CONF_DIR].val);
+    n = snprintf(path, sizeof(path), "%s/llb.queues", conf_dir);
     if (n < 0 || n >= (int) sizeof(path))
         return -1;
 

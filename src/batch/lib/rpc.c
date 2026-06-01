@@ -144,6 +144,14 @@ const char *batch_op_str(enum batch_lib_op op)
         [BATCH_SBD_REGISTER_ACK] = "BATCH_SBD_REGISTER_ACK",
         [BATCH_TOKEN_INFO] = "BATCH_TOKEN_INFO",
         [BATCH_TOKEN_INFO_ACK] = "BATCH_TOKEN_INFO_ACK",
+        [BATCH_QUEUE_ADMIN] = "BATCH_QUEUE_ADMIN",
+        [BATCH_QUEUE_ADMIN_ACK] = "BATCH_QUEUE_ADMIN_ACK",
+        [BATCH_HOST_ADMIN] = "BATCH_HOST_ADMIN",
+        [BATCH_HOST_ADMIN_ACK] = "BATCH_HOST_ADMIN_ACK",
+        [BATCH_JOB_MOVE] = "BATCH_JOB_MOVE",
+        [BATCH_JOB_MOVE_ACK] = "BATCH_JOB_MOVE_ACK",
+        [BATCH_JOB_PRIORITY] = "BATCH_JOB_PRIORITY",
+        [BATCH_JOB_PRIORITY_ACK] = "BATCH_JOB_PRIORITY_ACK",
     };
     static const size_t nnames = sizeof(names) / sizeof(names[0]);
 

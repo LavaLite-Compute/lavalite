@@ -64,10 +64,6 @@ static volatile sig_atomic_t sbd_croak = 0;
 
 static int sbd_ll_check_conf(void)
 {
-    if (ll_conf_param_missing("LL_CONF_DIR", ll_params[LL_CONF_DIR].val)) {
-        LL_ERRX("LL_CONF_DIR missing from ll.conf");
-        return -1;
-    }
     if (ll_conf_param_missing("LL_STATE_DIR", ll_params[LL_STATE_DIR].val)) {
         LL_ERRX("LL_STATE_DIR missing from ll.conf");
         return -1;
@@ -100,7 +96,6 @@ static int sbd_init(void)
 
     // open the log as soon as possible
     int cc;
-    ll_closelog();
     if (sim_name[0] != 0) {
         cc = ll_openlog(sim_name, ll_params[LL_LOG_DIR].val,
                         ll_params[LL_LOG_MASK].val);
@@ -113,6 +108,7 @@ static int sbd_init(void)
                 ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
+    LL_DEBUG("sbd using LL_CONF_DIR=%s", getenv("LL_CONF_DIR"));
 
     int auth_age;
     ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age);
@@ -777,13 +773,6 @@ int main(int argc, char **argv)
         }
     }
 
-    if (sim_name[0] != 0 && non_root) {
-        fprintf(stderr, "sbd: --simulator and -n are mutually exclusive\n");
-        exit(1);
-    }
-
-    ll_openlog("sbd", "/tmp", "LOG_DEBUG");
-
     if (conf_dir == NULL) {
         if ((conf_dir = getenv("LL_CONF_DIR")) == NULL) {
             fprintf(stderr, "sbd: LL_CONF_DIR must be defined, cannot run\n");
@@ -791,8 +780,13 @@ int main(int argc, char **argv)
         }
     }
 
+    if (sim_name[0] != 0 && non_root) {
+        fprintf(stderr, "sbd: --simulator and -n are mutually exclusive\n");
+        exit(1);
+    }
+
     if (!non_root && geteuid() != 0) {
-        ll_syslog(LOG_ERR, "Only root wants to run sbd");
+        fprintf(stderr, "Only root wants to run sbd");
         return -1;
     }
 

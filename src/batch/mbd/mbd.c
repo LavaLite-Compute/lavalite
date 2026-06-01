@@ -144,6 +144,7 @@ int main(int argc, char **argv)
         switch (cc) {
         case 'c':
             conf_dir = optarg;
+            setenv("LL_CONF_DIR", conf_dir, 1);
             break;
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
@@ -161,8 +162,6 @@ int main(int argc, char **argv)
         }
     }
 
-    ll_openlog("mbd", "/tmp", "LOG_DEBUG");
-
     if (conf_dir == NULL) {
         if ((conf_dir = getenv("LL_CONF_DIR")) == NULL) {
             fprintf(stderr, "mbd: LL_CONF_DIR must be defined, cannot run\n");
@@ -174,15 +173,6 @@ int main(int argc, char **argv)
 
     if (mbd_init() < 0) {
         LL_ERRX("mbd_init failed. cannot run");
-        return -1;
-    }
-
-    ll_closelog();
-    cc = ll_openlog("mbd", ll_params[LL_LOG_DIR].val,
-                    ll_params[LL_LOG_MASK].val);
-    if (cc < 0) {
-        fprintf(stderr, "mbd: ll_openlog failed lodir=%s mask=%s %m\n",
-                ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
         return -1;
     }
 

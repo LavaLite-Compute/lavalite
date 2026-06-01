@@ -389,9 +389,11 @@ void schedule(void)
         return;
 
     int cc = mark_candidates();
-    LL_DEBUG("got number=%d of candidates hosts", cc);
-    if (cc == 0)
+    if (cc == 0) {
+        LL_DEBUG("no scheduling attempt possible %d candidate hosts", cc);
         return;
+    }
+    LL_DEBUG("scheduling with %d candidate hosts", cc);
 
     ll_list_sort_buf(&pend_jobs_list, sort_buf, pend_job_cmp);
 

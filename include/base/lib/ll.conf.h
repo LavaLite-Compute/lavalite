@@ -11,7 +11,6 @@ struct ll_kv {
 enum ll_params {
     // Common
     LL_CLUSTER_NAME,
-    LL_CONF_DIR,
     LL_LOG_DIR,
     LL_LOG_MASK,
 
