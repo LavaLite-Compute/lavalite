@@ -588,54 +588,16 @@ prune_entry_cmp(const void *a, const void *b)
 
 static void sbd_prune_jobs(void)
 {
-    /*
-     * First pass: count finished-acked jobs on disk.
-     */
+    struct prune_entry entries[PRUNE_MAX_SCAN];
+    int nentries = 0;
+    struct dirent *de;
+
     DIR *dir = opendir(sbd_state_dir);
     if (dir == NULL) {
         LL_ERR("opendir(%s): %s", sbd_state_dir, strerror(errno));
         return;
     }
 
-    int n_on_disk = 0;
-    struct dirent *de;
-    while ((de = readdir(dir)) != NULL) {
-        char  state_path[PATH_MAX];
-        struct sbd_job job;
-
-        if (de->d_name[0] == '.')
-            continue;
-        if (make_path(state_path, sizeof(state_path), "%s/%s/state",
-                      sbd_state_dir, de->d_name) < 0)
-            continue;
-        memset(&job, 0, sizeof(job));
-        if (sbd_job_state_read(&job, state_path) < 0)
-            continue;
-        if (job.finish_acked)
-            n_on_disk++;
-    }
-    closedir(dir);
-
-    int n_remove = n_on_disk - num_jobs_retain;
-    if (n_remove <= 0) {
-        LL_DEBUG("no job dirs to prune n_on_disk=%d num_jobs_retain=%d",
-                 n_on_disk, num_jobs_retain);
-        return;
-    }
-    LL_INFO("n_on_disk=%d retain=%d n_remove=%d", n_on_disk, num_jobs_retain,
-            n_remove);
-
-    /*
-     * Second pass: collect finished-acked entries, sort oldest-first, remove.
-     */
-    struct prune_entry entries[PRUNE_MAX_SCAN];
-    int nentries = 0;
-
-    dir = opendir(sbd_state_dir);
-    if (dir == NULL) {
-        LL_ERR("opendir(%s): %s", sbd_state_dir, strerror(errno));
-        return;
-    }
     while ((de = readdir(dir)) != NULL && nentries < PRUNE_MAX_SCAN) {
         char state_path[PATH_MAX];
         struct sbd_job job;
@@ -656,13 +618,20 @@ static void sbd_prune_jobs(void)
     }
     closedir(dir);
 
+    if (nentries <= num_jobs_retain) {
+        LL_DEBUG("no job dirs to prune nentries=%d num_jobs_retain=%d",
+                 nentries, num_jobs_retain);
+        return;
+    }
+
     if (nentries == PRUNE_MAX_SCAN)
         LL_INFO("finished job prune scan capped at entries=%d", PRUNE_MAX_SCAN);
 
     qsort(entries, nentries, sizeof(entries[0]), prune_entry_cmp);
 
-    if (n_remove > nentries)
-        n_remove = nentries;
+    int n_remove = nentries - num_jobs_retain;
+    LL_INFO("nentries=%d retain=%d n_remove=%d", nentries, num_jobs_retain,
+            n_remove);
 
     for (int i = 0; i < n_remove; i++) {
         struct sbd_job job;
