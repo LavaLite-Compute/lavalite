@@ -513,13 +513,14 @@ void job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         return;
     }
 
-    int alloc_err = 0;
-    struct job_data *job = job_alloc(&ws, &alloc_err);
+    int err = 0;
+    struct job_data *job = job_alloc(&ws, &err);
     if (job == NULL) {
-        assert(alloc_err != 0); /* every failure path in job_alloc must set err */
-        job_register_error(chan_id, errno);
-        LL_ERR("job_alloc failed uid=%d user_name=%s alloc_err=%d",
-               hdr->uid, ws.username, alloc_err);
+        // every failure path in job_alloc must set err
+        assert(err != 0);
+        job_register_error(chan_id, err);
+        LL_ERR("job_alloc failed uid=%d user_name=%s err=%d",
+               hdr->uid, ws.username, err);
         free(script.data);
         return;
     }

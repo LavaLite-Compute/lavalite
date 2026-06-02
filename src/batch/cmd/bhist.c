@@ -147,7 +147,8 @@ static void print_job_compact(const struct job_hist_info *j)
 
 static void print_job_full(const struct job_hist_info *j)
 {
-    const struct job_event *start  = find_event(j, EVENT_JOB_START);
+    const struct job_event *start = find_event(j, EVENT_JOB_START);
+    int i;
 
     printf("Job <%ld>  User <%s>  Queue <%s>  Status <%s>\n",
            j->job_id,
@@ -155,27 +156,50 @@ static void print_job_full(const struct job_hist_info *j)
            str_or_dash(j->queue),
            job_state_str(j->state));
 
-    printf("  Submitted:  %s\n", fmt_time(j->submit_time));
-    printf("  CWD:        %s\n", str_or_dash(j->cwd));
-    printf("  Command:    %s\n", str_or_dash(j->command));
+    printf("  Submitted:    %s\n", fmt_time(j->submit_time));
+    if (j->from_host != NULL && j->from_host[0] != '\0')
+        printf("  Submit host:  %s\n", j->from_host);
+    if (j->name != NULL && j->name[0] != '\0')
+        printf("  Name:         %s\n", j->name);
+    if (j->project != NULL && j->project[0] != '\0')
+        printf("  Project:      %s\n", j->project);
+    if (j->comment != NULL && j->comment[0] != '\0')
+        printf("  Comment:      %s\n", j->comment);
 
-    if (j->in_file  != NULL && j->in_file[0]  != '\0')
-        printf("  stdin:      %s\n", j->in_file);
+    printf("  CWD:          %s\n", str_or_dash(j->cwd));
+    printf("  Command:      %s\n", str_or_dash(j->command));
+
+    if (j->depend_cond != NULL && j->depend_cond[0] != '\0')
+        printf("  Depends:      %s\n", j->depend_cond);
+    if (j->in_file != NULL && j->in_file[0] != '\0')
+        printf("  stdin:        %s\n", j->in_file);
     if (j->out_file != NULL && j->out_file[0] != '\0')
-        printf("  stdout:     %s\n", j->out_file);
+        printf("  stdout:       %s\n", j->out_file);
     if (j->err_file != NULL && j->err_file[0] != '\0')
-        printf("  stderr:     %s\n", j->err_file);
+        printf("  stderr:       %s\n", j->err_file);
 
-    printf("  Requested resources:  %d host(s)  %d cpu(s)/host  %d gpu(s)/host"
-           "  %lu MB mem\n",
+    printf("  Requested resources:  %d host(s)  %d cpu(s)/host"
+           "  %d gpu(s)/host  %lu MB mem\n",
            j->num_hosts, j->num_cpus, j->num_gpus,
            (unsigned long)j->mem_mb);
 
+    if (j->gpu_type != NULL && j->gpu_type[0] != '\0')
+        printf("  GPU type:     %s\n", j->gpu_type);
+    if (j->machines != NULL && j->machines[0] != '\0')
+        printf("  Machines:     %s\n", j->machines);
+    if (j->tokenpool != NULL && j->tokenpool[0] != '\0')
+        printf("  Token pool:   %s\n", j->tokenpool);
+    if (j->begin_time != 0)
+        printf("  Begin:        %s\n", fmt_time(j->begin_time));
+    if (j->term_time != 0)
+        printf("  Terminate:    %s\n", fmt_time(j->term_time));
+
     if (start != NULL && start->exec_hosts != NULL && start->exec_hosts[0] != '\0')
-        printf("  Hosts: %s", start->exec_hosts);
+        printf("  Hosts:        %s\n", start->exec_hosts);
+
     printf("\n");
 
-    for (int i = 0; i < j->num_events; i++) {
+    for (i = 0; i < j->num_events; i++) {
         const struct job_event *e = &j->events[i];
 
         printf("  %s  %s", fmt_time(e->event_time), event_type_str(e->type));
@@ -195,7 +219,8 @@ static void print_job_full(const struct job_hist_info *j)
                    e->exit_status, job_state_str(e->state));
             break;
         case EVENT_JOB_MOVE:
-            printf("  %s -> %s", str_or_dash(e->from_queue), str_or_dash(e->to_queue));
+            printf("  %s -> %s",
+                   str_or_dash(e->from_queue), str_or_dash(e->to_queue));
             break;
         case EVENT_JOB_PRIORITY:
             printf("  %d -> %d", e->old_priority, e->new_priority);
@@ -209,10 +234,11 @@ static void print_job_full(const struct job_hist_info *j)
 
     if (j->usage.cpu_time > 0 || j->usage.mem_mb > 0) {
         printf("\n");
-        printf("  CPU time:   %.2f sec\n", j->usage.cpu_time);
-        printf("  Max memory: %lu MB\n",  (unsigned long)j->usage.mem_mb);
-        printf("  Max swap:   %lu MB\n",  (unsigned long)j->usage.swap_mb);
+        printf("  CPU time:     %.2f sec\n", j->usage.cpu_time);
+        printf("  Max memory:   %lu MB\n",   (unsigned long)j->usage.mem_mb);
+        printf("  Max swap:     %lu MB\n",   (unsigned long)j->usage.swap_mb);
     }
+
     if (start == NULL && (j->state == JOB_DONE || j->state == JOB_EXITED))
         printf("  Never dispatched.\n");
 }

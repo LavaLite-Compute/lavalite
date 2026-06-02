@@ -224,12 +224,19 @@ struct job_hist_info {
     char          *name;
     char          *queue;
     char          *project;
+    char          *from_host;     /* submit host (where bsub was run)       */
+    char          *machines;      /* --machines constraint                  */
     char          *cwd;
     char          *command;
+    char          *depend_cond;   /* --dependency                           */
     char          *in_file;
     char          *out_file;
     char          *err_file;
     char          *comment;
+    char          *gpu_type;      /* --gpu-type                             */
+    char          *tokenpool;     /* --pool                                 */
+    time_t         begin_time;    /* --begin                                */
+    time_t         term_time;     /* --terminate                            */
     struct job_res_usage usage;   /* from usage sidecar, valid after finish */
     int32_t        num_events;
     struct job_event *events;

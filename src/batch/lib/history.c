@@ -92,12 +92,17 @@ static void hist_free_one(struct job_hist_info *j)
     free(j->name);
     free(j->queue);
     free(j->project);
+    free(j->from_host);
+    free(j->machines);
     free(j->cwd);
     free(j->command);
+    free(j->depend_cond);
     free(j->in_file);
     free(j->out_file);
     free(j->err_file);
     free(j->comment);
+    free(j->gpu_type);
+    free(j->tokenpool);
 
     for (i = 0; i < j->num_events; i++)
         event_free(&j->events[i]);
@@ -163,6 +168,18 @@ static void hist_apply_submit_field(struct job_hist_info *j,
         j->cwd = hist_strdup(val);
         return;
     }
+    if (strcasecmp(key, "from_host") == 0 && j->from_host == NULL) {
+        j->from_host = hist_strdup(val);
+        return;
+    }
+    if (strcasecmp(key, "machines") == 0 && j->machines == NULL) {
+        j->machines = hist_strdup(val);
+        return;
+    }
+    if (strcasecmp(key, "depend_cond") == 0 && j->depend_cond == NULL) {
+        j->depend_cond = hist_strdup(val);
+        return;
+    }
     if (strcasecmp(key, "in_file") == 0 && j->in_file == NULL) {
         j->in_file = hist_strdup(val);
         return;
@@ -177,6 +194,22 @@ static void hist_apply_submit_field(struct job_hist_info *j,
     }
     if (strcasecmp(key, "comment") == 0 && j->comment == NULL) {
         j->comment = hist_strdup(val);
+        return;
+    }
+    if (strcasecmp(key, "gpu_type") == 0 && j->gpu_type == NULL) {
+        j->gpu_type = hist_strdup(val);
+        return;
+    }
+    if (strcasecmp(key, "tokenpool") == 0 && j->tokenpool == NULL) {
+        j->tokenpool = hist_strdup(val);
+        return;
+    }
+    if (strcasecmp(key, "begin_time") == 0 && j->begin_time == 0) {
+        j->begin_time = (time_t)strtoll(val, NULL, 10);
+        return;
+    }
+    if (strcasecmp(key, "term_time") == 0 && j->term_time == 0) {
+        j->term_time = (time_t)strtoll(val, NULL, 10);
         return;
     }
 }
