@@ -54,11 +54,12 @@ static int queue_user_allowed(const struct mbd_queue *q, const char *user)
     return ll_hash_contains(&q->user_hash, user);
 }
 
-static struct job_data *job_alloc(struct wire_job_submit *ws)
+static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
 {
     struct job_data *job = calloc(1, sizeof(struct job_data));
     if (job == NULL) {
         LL_ERR("calloc failed");
+        *err = ENOMEM;
         return NULL;
     }
 
@@ -103,6 +104,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     if (job->queue == NULL) {
         LL_ERRX("queue='%s' not found", queue);
         free(job);
+        *err = ESRCH;
         return NULL;
     }
     job->priority = job->queue->priority;
@@ -111,6 +113,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
         LL_ERRX("job=%ld user=%s not allowed in queue=%s",
                 job->job_id, job->user, job->queue->name);
         free(job);
+        *err = EPERM;
         return NULL;
     }
 
@@ -123,6 +126,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws)
     if (job->run_hosts == NULL) {
         LL_ERR("calloc failed");
         free(job);
+        *err = ENOMEM;
         return NULL;
     }
     return job;
@@ -154,7 +158,9 @@ static int write_script(const struct job_data *job,
         return -1;
 
     if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
+        int e = errno;
         LL_ERR("mkdir=%s", dir);
+        errno = e;
         return -1;
     }
 
@@ -172,26 +178,34 @@ static int write_script(const struct job_data *job,
 
     int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0700);
     if (fd < 0) {
+        int e = errno;
         LL_ERR("open %s", tmp);
+        errno = e;
         return -1;
     }
 
     ssize_t nw = write(fd, script->data, script->len);
     if (nw < 0 || (uint32_t) nw != script->len) {
+        int e = errno;
         LL_ERR("write %s", tmp);
         close(fd);
+        errno = e;
         return -1;
     }
 
     if (fsync(fd) < 0) {
+        int e = errno;
         LL_ERR("fsync %s", tmp);
         close(fd);
+        errno = e;
         return -1;
     }
     close(fd);
 
     if (rename(tmp, path) < 0) {
+        int e = errno;
         LL_ERR("rename %s -> %s", tmp, path);
+        errno = e;
         return -1;
     }
 
@@ -215,7 +229,9 @@ static int write_sidecar(const struct job_data *job,
 
     FILE *fp = fopen(tmp, "w");
     if (fp == NULL) {
+        int e = errno;
         LL_ERR("fopen %s: %m", tmp);
+        errno = e;
         return -1;
     }
 
@@ -248,19 +264,25 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "TOKENPOOL=%s\n", ws->tokenpool);
 
     if (fflush(fp) != 0 || ferror(fp)) {
+        int e = errno;
         LL_ERR("write error %s: %m", tmp);
         fclose(fp);
+        errno = e;
         return -1;
     }
     fclose(fp);
 
     if (rename(tmp, path) < 0) {
+        int e = errno;
         LL_ERR("rename %s -> %s: %m", tmp, path);
+        errno = e;
         return -1;
     }
 
     if (chmod(path, 0644) < 0) {
+        int e = errno;
         LL_ERR("job=%ld chmod=%s to 644 failed", job->job_id, path);
+        errno = e;
         return -1;
     }
 
@@ -388,7 +410,7 @@ static void reset_host_resources(struct job_data *job)
     }
 }
 
-// Undo the optimistic dispatch.
+// Undo the optimistic dispatch to sbd. Running jobs got back to pending.
 static void mbd_job_reject_dispatch(struct job_data *job)
 {
     assert(job->state == JOB_RUNNING);
@@ -457,50 +479,75 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     }
 }
 
-int job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+static void job_register_error(int chan_id, int status)
+{
+    struct wire_job_submit_reply reply;
+    memset(&reply, 0, sizeof(reply));
+    reply.job_id = -1;
+
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_JOB_SUBMIT_ACK;
+    rep_hdr.status = status;
+
+    size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
+    /* best-effort: ignore enqueue failure, caller closes the connection */
+    enqueue_payload(chan_id, &rep_hdr, &reply, siz, xdr_wire_job_submit_reply);
+}
+
+void job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_job_submit ws;
     memset(&ws, 0, sizeof(ws));
     if (!xdr_wire_job_submit(xdrs, &ws)) {
         LL_ERRX("xdr_wire_job_submit failed");
-        return -1;
+        chan_shutdown(chan_id);
+        return;
     }
 
     struct wire_job_script script;
     memset(&script, 0, sizeof(script));
     if (!xdr_wire_job_script(xdrs, &script)) {
         LL_ERRX("xdr_wire_job_script failed");
-        return -1;
+        chan_shutdown(chan_id);
+        return;
     }
 
-    struct job_data *job = job_alloc(&ws);
+    int alloc_err = 0;
+    struct job_data *job = job_alloc(&ws, &alloc_err);
     if (job == NULL) {
-        LL_ERR("job_alloc failed");
+        assert(alloc_err != 0); /* every failure path in job_alloc must set err */
+        job_register_error(chan_id, errno);
+        LL_ERR("job_alloc failed uid=%d user_name=%s alloc_err=%d",
+               hdr->uid, ws.username, alloc_err);
         free(script.data);
-        return -1;
+        return;
     }
     // read from the HAMC header
     job->uid = (uid_t)hdr->uid;
     job->gid = (gid_t)hdr->gid;
 
     if (write_script(job, &script) < 0) {
+        job_register_error(chan_id, errno);
         LL_ERR("write_script failed job_id=%ld", job->job_id);
         free(script.data);
         job_free(job);
-        return -1;
+        return;
     }
     free(script.data);
 
     if (write_sidecar(job, &ws) < 0) {
+        job_register_error(chan_id, errno);
         LL_ERR("write_sidecar failed job_id=%ld", job->job_id);
         job_free(job);
-        return -1;
+        return;
     }
 
     if (job_parse_tokens(job, ws.tokenpool) < 0) {
+        job_register_error(chan_id, errno);
         LL_ERRX("job=%ld invalid token pool spec", job->job_id);
-        /* free job and return error */
-        return -1;
+        job_free(job);
+        return;
     }
     ll_strlcpy(job->res.tokenpool_str, ws.tokenpool,
                sizeof(job->res.tokenpool_str));
@@ -530,7 +577,7 @@ int job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         ll_list_remove(&pend_jobs_list, &job->ent);
         ll_hash_remove(&job_id_hash, key);
         job_free(job);
-        return -1;
+        return;
     }
 
     event_job_new(job, &ws);
@@ -545,8 +592,6 @@ int job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d", job->job_id,
             job->user, job->queue->name, job->queue->num_jobs,
             job->queue->num_pend);
-
-    return 0;
 }
 
 /*

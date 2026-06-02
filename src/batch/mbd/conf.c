@@ -865,19 +865,18 @@ static int conf_expand_queue_users(void)
 
         char *tok = strtok(tmp, " \t");
         while (tok != NULL) {
-            /* unix group? expand members */
             struct group *gr = getgrnam(tok);
-            if (gr != NULL) {
+            if (gr != NULL && gr->gr_mem != NULL && gr->gr_mem[0] != NULL) {
+                /* real unix group with members */
                 char **mem;
                 for (mem = gr->gr_mem; *mem != NULL; mem++)
                     ll_hash_insert(&q->user_hash, *mem, NULL, 0);
             } else {
-                /* plain username */
+                /* plain username, or private per-user group with no members */
                 ll_hash_insert(&q->user_hash, tok, NULL, 0);
             }
             tok = strtok(NULL, " \t");
         }
-
         LL_INFO("queue=%s users=%s nusers=%zu", q->name, q->users,
                 q->user_hash.nentries);
     }

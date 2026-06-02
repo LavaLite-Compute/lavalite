@@ -117,8 +117,7 @@ static void route(int chan_id)
     // Invalid operation has been already rejected
     switch (hdr.operation) {
     case BATCH_JOB_SUBMIT:
-        if (job_register(&xdrs, chan_id, &hdr) < 0)
-            chan_shutdown(chan_id);
+        job_register(&xdrs, chan_id, &hdr);
         break;
     case BATCH_JOB_SIGNAL:
         if (jobs_signal(&xdrs, chan_id, &hdr) < 0)

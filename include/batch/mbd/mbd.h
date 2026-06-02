@@ -299,7 +299,7 @@ int host_admin(XDR *, int, const struct protocol_header *);
 int queue_admin(XDR *, int, const struct protocol_header *);
 
 // job.c
-int job_register(XDR *, int, const struct protocol_header *);
+void job_register(XDR *, int, const struct protocol_header *);
 int job_move(XDR *, int, const struct protocol_header *);
 int job_priority(XDR *, int, const struct protocol_header *);
 int jobs_signal(XDR *, int, const struct protocol_header *);
