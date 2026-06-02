@@ -79,10 +79,10 @@ static int ndigits(int64_t n)
 }
 
 /*
- * Walk exec_hosts string "2@hostA 2@hostB" and return the width
+ * Walk run_hosts string "2@hostA 2@hostB" and return the width
  * of the longest token.
  */
-static int exec_hosts_width(const char *s)
+static int run_hosts_width(const char *s)
 {
     char buf[4096];
     int max = 0;
@@ -109,7 +109,7 @@ struct col_widths {
     int stat;
     int queue;
     int priority;
-    int exec_hosts;
+    int run_hosts;
     int name;
 };
 
@@ -123,7 +123,7 @@ static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
     w->stat       = (int) strlen("STAT");
     w->queue      = (int) strlen("QUEUE");
     w->priority   = (int) strlen("PRI");
-    w->exec_hosts = (int) strlen("EXEC_HOSTS");
+    w->run_hosts = (int) strlen("RUN_HOSTS");
     w->name       = (int) strlen("JOB_NAME");
 
     for (i = 0; i < n; i++) {
@@ -134,7 +134,7 @@ static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
         w->stat       = imax(w->stat,       (int) strlen(job_state_str(j->state)));
         w->queue      = imax(w->queue,      (int) strlen(j->queue));
         w->priority   = imax(w->priority,   ndigits(j->priority));
-        w->exec_hosts = imax(w->exec_hosts, exec_hosts_width(j->exec_hosts));
+        w->run_hosts = imax(w->run_hosts, run_hosts_width(j->run_hosts));
         w->name       = imax(w->name,       (int) strlen(j->name));
     }
 }
@@ -147,7 +147,7 @@ static void print_header(const struct col_widths *w)
            w->stat,       "STAT",
            w->queue,      "QUEUE",
            w->priority,   "PRI",
-           w->exec_hosts, "EXEC_HOSTS",
+           w->run_hosts, "RUN_HOSTS",
            w->name,       "JOB_NAME",
            "SUBMIT_TIME");
 }
@@ -168,14 +168,14 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
     char buf[4096];
     int first = 1;
 
-    if (j->exec_hosts == NULL || j->exec_hosts[0] == '\0') {
+    if (j->run_hosts == NULL || j->run_hosts[0] == '\0') {
         printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
                w->jobid,      j->job_id,
                w->user,       uid_to_name(j->uid),
                w->stat,       job_state_str(j->state),
                w->queue,      j->queue,
                w->priority,   j->priority,
-               w->exec_hosts, "-",
+               w->run_hosts, "-",
                w->name,       j->name,
                fmt_time(j->submit_time));
         if (show_reason)
@@ -183,7 +183,7 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
         return;
     }
 
-    strncpy(buf, j->exec_hosts, sizeof(buf) - 1);
+    strncpy(buf, j->run_hosts, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = 0;
 
     char *tok = strtok(buf, " ");
@@ -195,7 +195,7 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
                    w->stat,       job_state_str(j->state),
                    w->queue,      j->queue,
                    w->priority,   j->priority,
-                   w->exec_hosts, tok,
+                   w->run_hosts, tok,
                    w->name,       j->name,
                    fmt_time(j->submit_time));
             first = 0;
@@ -206,7 +206,7 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
                    w->stat,       "",
                    w->queue,      "",
                    w->priority,   "",
-                   w->exec_hosts, tok);
+                   w->run_hosts, tok);
         }
         tok = strtok(NULL, " ");
     }
@@ -242,6 +242,7 @@ static struct option longopts[] = {
     { "pend",    no_argument, NULL, 'p' },
     { "run",     no_argument, NULL, 'r' },
     { "done",    no_argument, NULL, 'd' },
+    { "user",    required_argument, NULL, 'u' },
     { NULL, 0, NULL, 0 }
 };
 
@@ -250,8 +251,12 @@ int main(int argc, char **argv)
     int flags = 0;
     int show_reason = 0;
     int cc;
+    struct job_info_req req;
 
-    while ((cc = getopt_long(argc, argv, "hVaprd", longopts, NULL)) != EOF) {
+    memset(&req, 0, sizeof(struct job_info_req));
+    req.uid = getuid();
+
+    while ((cc = getopt_long(argc, argv, "hVaprdu:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'V':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
@@ -272,6 +277,14 @@ int main(int argc, char **argv)
             break;
         case 'd':
             flags |= LLB_JOB_DONE;
+            break;
+        case 'u':
+            struct passwd *pw = getpwnam(optarg);
+            if (pw == NULL) {
+                fprintf(stderr, "bjobs: unknown user '%s'\n", optarg);
+                return 1;
+            }
+            req.uid = pw->pw_uid;
             break;
         default:
             usage();
@@ -294,8 +307,11 @@ int main(int argc, char **argv)
         }
     }
 
+    req.job_id = job_id;
+    req.flags = flags;
+
     int njobs;
-    struct job_info *jobs = llb_job_info(job_id, &njobs, flags);
+    struct job_info *jobs = llb_job_info(&req, &njobs);
     if (jobs == NULL) {
         if (errno != 0) {
             fprintf(stderr, "bjobs: %s\n", strerror(errno));

@@ -210,7 +210,6 @@ void event_job_start(const struct job_data *job)
     e.cpus_per_host = job->res.num_cpus;
     e.gpus_per_host = job->res.num_gpus;
 
-    ll_strlcpy(e.exec_host, job->run_hosts[0]->net.name, sizeof(e.exec_host));
     ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
 
     /* build space-separated hostname list */
@@ -486,8 +485,8 @@ static void replay_job_start(const struct event_rec *rec)
     job->dispatch_time = e.dispatch_time;
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    LL_DEBUG("JOB_START job_id=%ld exec_host=%s nhosts=%d cpus=%d gpus=%d",
-             e.job_id, e.exec_host, e.nhosts, e.cpus_per_host, e.gpus_per_host);
+    LL_DEBUG("JOB_START job_id=%ld nhosts=%d cpus=%d gpus=%d",
+             e.job_id, e.nhosts, e.cpus_per_host, e.gpus_per_host);
 }
 
 static void replay_job_fork(const struct event_rec *rec)
@@ -942,7 +941,6 @@ static void compact_write_job_start(FILE *fp, const struct job_data *job)
     e.nhosts = job->res.num_hosts;
     e.cpus_per_host = job->res.num_cpus;
     e.gpus_per_host = job->res.num_gpus;
-    ll_strlcpy(e.exec_host, job->run_hosts[0]->net.name, sizeof(e.exec_host));
     ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
 
     for (int i = 0; i < job->res.num_hosts; i++) {

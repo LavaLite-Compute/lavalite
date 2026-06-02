@@ -59,10 +59,9 @@ static char *hist_trim(char *s)
 
 static void event_free(struct job_event *e)
 {
-    free(e->from_host);
-    free(e->exec_hosts);
     free(e->from_queue);
     free(e->to_queue);
+    free(e->run_hosts);
 }
 
 static struct job_event *event_add(struct job_hist_info *j)
@@ -92,7 +91,7 @@ static void hist_free_one(struct job_hist_info *j)
     free(j->name);
     free(j->queue);
     free(j->project);
-    free(j->from_host);
+    free(j->submit_host);
     free(j->machines);
     free(j->cwd);
     free(j->command);
@@ -168,8 +167,8 @@ static void hist_apply_submit_field(struct job_hist_info *j,
         j->cwd = hist_strdup(val);
         return;
     }
-    if (strcasecmp(key, "from_host") == 0 && j->from_host == NULL) {
-        j->from_host = hist_strdup(val);
+    if (strcasecmp(key, "submit_host") == 0 && j->submit_host == NULL) {
+        j->submit_host = hist_strdup(val);
         return;
     }
     if (strcasecmp(key, "machines") == 0 && j->machines == NULL) {
@@ -302,6 +301,7 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
     j->job_id      = e->job_id;
     j->uid         = e->uid;
     j->state       = e->state;
+    j->priority    = e->priority;
     j->submit_time = e->submit_time;
     j->num_cpus    = e->num_cpu;
     j->num_hosts   = e->num_hosts;
@@ -415,8 +415,7 @@ static void hist_apply_start(struct job_hist *jh, const struct event_rec *rec)
     ev->type          = EVENT_JOB_START;
     ev->event_time    = rec->event_time;
     ev->state         = JOB_RUNNING;
-    ev->from_host     = hist_strdup(e.exec_host);
-    ev->exec_hosts    = hist_strdup(e.hosts);
+    ev->run_hosts    = hist_strdup(e.hosts);
 }
 
 static void hist_apply_fork(struct job_hist *jh, const struct event_rec *rec)
@@ -646,6 +645,7 @@ static void hist_apply_priority(struct job_hist *jh, const struct event_rec *rec
     ev->event_time   = rec->event_time;
     ev->old_priority = e.old_priority;
     ev->new_priority = e.new_priority;
+    j->priority = e.new_priority;
 }
 
 

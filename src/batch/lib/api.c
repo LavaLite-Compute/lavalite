@@ -387,7 +387,7 @@ void llb_free_host_info(struct host_info *h, int32_t n)
     free(h);
 }
 
-struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
+struct job_info *llb_job_info(const struct job_info_req *req, int32_t *n)
 {
     *n = -1;
     errno = 0;
@@ -403,9 +403,10 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
     hdr.operation = BATCH_JOB_INFO;
     hdr.status = MBD_OK;
 
-    struct wire_job_info_req req;
-    req.job_id = jobid;
-    req.flags = flags;
+    struct wire_job_query wreq;
+    wreq.job_id = req->job_id;
+    wreq.flags = req->flags;
+    wreq.uid = req->uid;
 
     if (auth_sign_header(&hdr) < 0) {
         free(buf);
@@ -415,7 +416,7 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_job_info_req, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &wreq, xdr_wire_job_query, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
@@ -482,8 +483,8 @@ struct job_info *llb_job_info(int64_t jobid, int32_t *n, int32_t flags)
         dst->susp_time = src->susp_time;
         dst->name = strdup(src->name);
         dst->queue = strdup(src->queue);
-        dst->from_host = strdup(src->from_host);
-        dst->exec_hosts = strdup(src->exec_hosts);
+        dst->submit_host = strdup(src->submit_host);
+        dst->run_hosts = strdup(src->run_hosts);
         dst->comment = strdup(src->comment);
     }
 
@@ -501,8 +502,8 @@ void llb_free_job_info(struct job_info *jobs, int32_t n)
     for (i = 0; i < n; i++) {
         free(jobs[i].name);
         free(jobs[i].queue);
-        free(jobs[i].from_host);
-        free(jobs[i].exec_hosts);
+        free(jobs[i].submit_host);
+        free(jobs[i].run_hosts);
         free(jobs[i].comment);
     }
     free(jobs);

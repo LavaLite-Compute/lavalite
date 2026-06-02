@@ -87,7 +87,7 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
 
     if (gethostname(hostname, sizeof(hostname)) < 0)
         return -1;
-    ll_strlcpy(w->from_host, hostname, sizeof(w->from_host));
+    ll_strlcpy(w->submit_host, hostname, sizeof(w->submit_host));
 
     if (getcwd(w->cwd, sizeof(w->cwd)) == NULL)
         return -1;

@@ -145,7 +145,7 @@ struct wire_job_submit {
     char depend_cond[LL_BUFSIZ_4K];
     char command[PATH_MAX];
     char gpu_type[LL_BUFSIZ_256];
-    char from_host[MAXHOSTNAMELEN];
+    char submit_host[MAXHOSTNAMELEN];
     char username[LL_BUFSIZ_256];
     char home_dir[PATH_MAX];
     int32_t num_cpus;
@@ -199,14 +199,20 @@ struct wire_job_info {
     int64_t susp_time;
     char name[LL_BUFSIZ_64];
     char queue[LL_BUFSIZ_64];
-    char from_host[MAXHOSTNAMELEN];
-    char exec_hosts[LL_BUFSIZ_4K];
+    char submit_host[MAXHOSTNAMELEN];
+    char run_hosts[LL_BUFSIZ_4K];
     char comment[LL_BUFSIZ_512];
 };
 
 struct wire_job_info_array {
     int32_t njobs;
     struct wire_job_info *jobs;
+};
+
+struct wire_job_query {
+    int64_t  job_id;
+    int32_t  flags;
+    int32_t uid;    /* -1 = all */
 };
 
 /* -----------------------------------------------------------------------
@@ -335,6 +341,7 @@ bool_t xdr_wire_job_start(XDR *, struct wire_job_start *);
 bool_t xdr_wire_job_reply(XDR *, struct wire_job_reply *);
 bool_t xdr_wire_job_ack(XDR *, struct wire_job_ack *);
 bool_t xdr_wire_job_finish(XDR *, struct wire_job_finish *);
+bool_t xdr_wire_job_query(XDR *, struct wire_job_query *);
 
 /* host */
 bool_t xdr_wire_host_info(XDR *, struct wire_host_info *);

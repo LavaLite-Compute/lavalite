@@ -65,6 +65,7 @@ bsub --cpus 2 sleep 3600
 
 bjobs <jobid>
 bhist <jobid>
+bhosts inspect the counters
 ```
 
 ### Expected Result
@@ -96,6 +97,7 @@ bsub --nhosts 2 --cpus 2 sleep 3600
 
 bjobs <jobid>
 bhist <jobid>
+bhosts inspect the counters
 ```
 
 ### Expected Result

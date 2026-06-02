@@ -43,32 +43,30 @@ static void job_data_to_wire(const struct job_data *job,
         char entry[MAXHOSTNAMELEN + LL_BUFSIZ_64];
 
         if (i > 0)
-            ll_strlcat(w->exec_hosts, " ", sizeof(w->exec_hosts));
+            ll_strlcat(w->run_hosts, " ", sizeof(w->run_hosts));
         snprintf(entry, sizeof(entry), "%d@%s", job->res.num_cpus,
                  job->run_hosts[i]->net.name);
-        ll_strlcat(w->exec_hosts, entry, sizeof(w->exec_hosts));
+        ll_strlcat(w->run_hosts, entry, sizeof(w->run_hosts));
     }
 }
 
 /*
  * Append matching jobs from list into dst starting at dst[count].
- * uid == 0 means all users.
  * Returns updated count.
  */
 static int collect_list(struct ll_list *list, struct wire_job_info *dst,
-                        int count, uid_t uid)
+                        int count, uid_t uid, int all)
 {
     for (struct ll_list_entry *e = list->head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
 
-        if (uid != 0 && job->uid != uid && !is_manager(uid))
+        if (!all && job->uid != uid)
             continue;
         job_data_to_wire(job, &dst[count]);
         count++;
     }
     return count;
 }
-
 /*
  * Collect hash keys into a freshly allocated char* array.
  * Returns number of entries; *out is NULL if hash is empty.
@@ -94,9 +92,9 @@ static int hash_keys_to_array(struct ll_hash *h, char ***out)
 
 int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
-    struct wire_job_info_req req;
+    struct wire_job_query req;
     memset(&req, 0, sizeof(req));
-    if (!xdr_wire_job_info_req(xdrs, &req)) {
+    if (!xdr_wire_job_query(xdrs, &req)) {
         LL_ERRX("xdr_wire_job_info_req failed chan_id=%d", chan_id);
         return -1;
     }
@@ -113,6 +111,7 @@ int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         goto send;
     }
 
+    int status = MBD_OK;
     jobs = calloc(ntotal, sizeof(struct wire_job_info));
     if (jobs == NULL) {
         LL_ERR("calloc failed");
@@ -121,27 +120,50 @@ int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     if (req.job_id != -1) {
         struct job_data *job = job_find(req.job_id);
-        if (job != NULL) {
-            job_data_to_wire(job, &jobs[0]);
-            n = 1;
+        if (job == NULL)
+            goto send;
+        if (job->uid != hdr->uid && !is_manager(hdr->uid)) {
+            LL_INFO("uid=%u denied access to job=%ld uid=%u",
+                    hdr->uid, req.job_id, job->uid);
+            status = EPERM;
+            goto send;
         }
+        job_data_to_wire(job, &jobs[0]);
+        n = 1;
         goto send;
     }
 
-    uid_t uid = (uid_t)hdr->uid;
+    if (req.uid == -1 && !is_manager(hdr->uid)) {
+        free(jobs);
+        LL_INFO("uid=%u denied access to all jobs", hdr->uid);
+        return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
+    }
+    if (req.uid != (int32_t)hdr->uid && !is_manager(hdr->uid)) {
+        LL_INFO("uid=%u denied access to jobs of uid=%d", hdr->uid, req.uid);
+        free(jobs);
+        return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
+    }
+
+    int all = 0;
+    uid_t uid = 0;
+
+    if (req.uid == -1)
+        all = 1;
+    else
+        uid = (uid_t)req.uid;
 
     if (req.flags == 0) {
-        n = collect_list(&pend_jobs_list, jobs, n, uid);
-        n = collect_list(&run_jobs_list, jobs, n, uid);
+        n = collect_list(&pend_jobs_list, jobs, n, uid, all);
+        n = collect_list(&run_jobs_list, jobs, n, uid, all);
         goto send;
     }
 
     if (req.flags & LLB_JOB_PEND)
-        n = collect_list(&pend_jobs_list, jobs, n, uid);
+        n = collect_list(&pend_jobs_list, jobs, n, uid, all);
     if (req.flags & LLB_JOB_RUN)
-        n = collect_list(&run_jobs_list, jobs, n, uid);
+        n = collect_list(&run_jobs_list, jobs, n, uid, all);
     if (req.flags & LLB_JOB_DONE)
-        n = collect_list(&finish_jobs_list, jobs, n, uid);
+        n = collect_list(&finish_jobs_list, jobs, n, uid, all);
 send:
     /* enqueue_payload ... */
 
@@ -156,7 +178,7 @@ send:
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
     rep_hdr.operation = BATCH_JOB_INFO_ACK;
-    rep_hdr.status = MBD_OK;
+    rep_hdr.status = status;
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply,
                         siz, xdr_wire_job_info_array) < 0) {

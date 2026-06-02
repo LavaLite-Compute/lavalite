@@ -223,7 +223,7 @@ static void log_run_hosts(const struct job_data *job)
             break;
         pos += n;
     }
-    LL_INFO("job=%ld exec_hosts=%s gpus_per_host=%d",
+    LL_INFO("job=%ld run_hosts=%s gpus_per_host=%d",
             job->job_id, buf, job->res.num_gpus);
 }
 

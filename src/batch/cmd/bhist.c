@@ -96,47 +96,176 @@ static const struct job_event *find_event(const struct job_hist_info *j,
     return NULL;
 }
 
+static void print_wrapped(const char *s, int indent)
+{
+    char buf[LL_BUFSIZ_4K];
+    char *tok;
+    int col;
+
+    snprintf(buf, sizeof(buf), "%s", s);
+    col = indent;
+
+    for (tok = strtok(buf, " "); tok != NULL; tok = strtok(NULL, " ")) {
+        int len = (int)strlen(tok);
+        if (col + 1 + len > 80 && col > indent) {
+            printf("\n%*s", indent, "");
+            col = indent;
+        }
+        printf(" %s", tok);
+        col += 1 + len;
+    }
+    printf("\n");
+}
+
 /* -----------------------------------------------------------------------
- * print_job_compact: 5-liner overview
+ * compact history table
  * ----------------------------------------------------------------------- */
 
-static void print_job_compact(const struct job_hist_info *j)
+struct col_widths {
+    int jobid;
+    int user;
+    int stat;
+    int queue;
+    int run_hosts;
+    int name;
+    int pri;
+};
+
+static int imax(int a, int b)
 {
-    const struct job_event *start  = find_event(j, EVENT_JOB_START);
-    const struct job_event *fork   = find_event(j, EVENT_JOB_FORK);
-    const struct job_event *finish = find_event(j, EVENT_JOB_FINISH);
+    if (a > b)
+        return a;
+    return b;
+}
 
-    printf("Job <%ld>  User <%s>  Queue <%s>  Status <%s>\n",
-           j->job_id,
-           str_or_dash(j->username),
-           str_or_dash(j->queue),
-           job_state_str(j->state));
+static int ndigits(int64_t n)
+{
+    int d;
 
-    printf("  Submitted: %s  CWD: %s\n",
-           fmt_time(j->submit_time),
-           str_or_dash(j->cwd));
+    if (n <= 0)
+        return 1;
+    d = 0;
+    while (n > 0) {
+        d++;
+        n /= 10;
+    }
+    return d;
+}
 
-    printf("  Resources: %d host(s)  %d cpu(s)/host  %d gpu(s)/host"
-           "  %lu MB mem\n",
-           j->num_hosts, j->num_cpus, j->num_gpus,
-           (unsigned long)j->mem_mb);
+static int run_hosts_width(const char *s)
+{
+    char buf[LL_BUFSIZ_4K];
+    int max = 0;
 
-    printf("  Command:   %s\n", str_or_dash(j->command));
+    if (s == NULL || s[0] == '\0')
+        return 1;
 
-    if (start != NULL) {
-        printf("  Dispatched: %s  Host: %s  PID: %d",
-               fmt_time(start->event_time),
-               str_or_dash(start->from_host),
-               fork ? (int)fork->pid : 0);
+    snprintf(buf, sizeof(buf), "%s", s);
 
-        if (finish != NULL)
-            printf("  Ended: %s  Exit: %d",
-                   fmt_time(finish->event_time),
-                   finish->exit_status);
+    char *tok = strtok(buf, " ");
+    while (tok != NULL) {
+        int len = (int)strlen(tok);
+        if (len > max)
+            max = len;
+        tok = strtok(NULL, " ");
+    }
+    return max;
+}
 
-        printf("\n");
-    } else {
-        printf("  Never dispatched.\n");
+static void compute_widths(struct job_hist_info *jobs, int n,
+                           struct col_widths *w)
+{
+    int i;
+
+    w->jobid     = (int)strlen("JOBID");
+    w->user      = (int)strlen("USER");
+    w->stat      = (int)strlen("STAT");
+    w->queue     = (int)strlen("QUEUE");
+    w->run_hosts = (int)strlen("RUN_HOSTS");
+    w->name      = (int)strlen("JOB_NAME");
+    w->pri       = (int)strlen("PRI");
+
+    for (i = 0; i < n; i++) {
+        const struct job_hist_info *j = &jobs[i];
+        const struct job_event *start = find_event(j, EVENT_JOB_START);
+        const char *rh = NULL;
+
+        if (start != NULL)
+            rh = start->run_hosts;
+
+        w->jobid     = imax(w->jobid,     ndigits(j->job_id));
+        w->user      = imax(w->user,      (int)strlen(str_or_dash(j->username)));
+        w->stat      = imax(w->stat,      (int)strlen(job_state_str(j->state)));
+        w->queue     = imax(w->queue,     (int)strlen(str_or_dash(j->queue)));
+        w->run_hosts = imax(w->run_hosts, run_hosts_width(rh));
+        w->name      = imax(w->name,      (int)strlen(str_or_dash(j->name)));
+        w->pri = imax(w->pri, ndigits(j->priority));
+    }
+}
+
+static void print_compact_header(const struct col_widths *w)
+{
+    printf("%-*s  %-*s  %-*s  %-*s %-*s  %-*s  %-*s  %s\n",
+           w->jobid,     "JOBID",
+           w->user,      "USER",
+           w->stat,      "STAT",
+           w->queue,     "QUEUE",
+           w->pri,       "PRI",
+           w->run_hosts, "RUN_HOSTS",
+           w->name,      "JOB_NAME",
+           "SUBMIT_TIME");
+}
+
+static void print_job_compact(const struct job_hist_info *j,
+                              const struct col_widths *w)
+{
+    const struct job_event *start = find_event(j, EVENT_JOB_START);
+    char buf[LL_BUFSIZ_4K];
+    char *tok;
+    int first = 1;
+    const char *rh = NULL;
+
+    if (start != NULL && start->run_hosts != NULL &&
+        start->run_hosts[0] != '\0')
+        rh = start->run_hosts;
+
+    if (rh == NULL) {
+        printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+               w->jobid,     j->job_id,
+               w->user,      str_or_dash(j->username),
+               w->stat,      job_state_str(j->state),
+               w->queue,     str_or_dash(j->queue),
+               w->pri,       j->priority,
+               w->run_hosts, "-",
+               w->name,      str_or_dash(j->name),
+               fmt_time(j->submit_time));
+        return;
+    }
+
+    snprintf(buf, sizeof(buf), "%s", rh);
+    tok = strtok(buf, " ");
+    while (tok != NULL) {
+        if (first) {
+            printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+                   w->jobid,     j->job_id,
+                   w->user,      str_or_dash(j->username),
+                   w->stat,      job_state_str(j->state),
+                   w->queue,     str_or_dash(j->queue),
+                   w->pri,       j->priority,
+                   w->run_hosts, tok,
+                   w->name,      str_or_dash(j->name),
+                   fmt_time(j->submit_time));
+            first = 0;
+        } else {
+            printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
+                   w->jobid,     "",
+                   w->user,      "",
+                   w->stat,      "",
+                   w->queue,     "",
+                   w->pri,       "",
+                   w->run_hosts, tok);
+        }
+        tok = strtok(NULL, " ");
     }
 }
 
@@ -157,8 +286,8 @@ static void print_job_full(const struct job_hist_info *j)
            job_state_str(j->state));
 
     printf("  Submitted:    %s\n", fmt_time(j->submit_time));
-    if (j->from_host != NULL && j->from_host[0] != '\0')
-        printf("  Submit host:  %s\n", j->from_host);
+    if (j->submit_host != NULL && j->submit_host[0] != '\0')
+        printf("  Submit host:  %s\n", j->submit_host);
     if (j->name != NULL && j->name[0] != '\0')
         printf("  Name:         %s\n", j->name);
     if (j->project != NULL && j->project[0] != '\0')
@@ -168,6 +297,7 @@ static void print_job_full(const struct job_hist_info *j)
 
     printf("  CWD:          %s\n", str_or_dash(j->cwd));
     printf("  Command:      %s\n", str_or_dash(j->command));
+    printf("  Priority:     %d\n", j->priority);
 
     if (j->depend_cond != NULL && j->depend_cond[0] != '\0')
         printf("  Depends:      %s\n", j->depend_cond);
@@ -194,9 +324,6 @@ static void print_job_full(const struct job_hist_info *j)
     if (j->term_time != 0)
         printf("  Terminate:    %s\n", fmt_time(j->term_time));
 
-    if (start != NULL && start->exec_hosts != NULL && start->exec_hosts[0] != '\0')
-        printf("  Hosts:        %s\n", start->exec_hosts);
-
     printf("\n");
 
     for (i = 0; i < j->num_events; i++) {
@@ -206,8 +333,11 @@ static void print_job_full(const struct job_hist_info *j)
 
         switch (e->type) {
         case EVENT_JOB_START:
-            printf("  host: %s", str_or_dash(e->from_host));
-            break;
+            if (e->run_hosts != NULL && e->run_hosts[0] != '\0')
+                print_wrapped(e->run_hosts, 34);
+            else
+                printf("\n");
+            continue;
         case EVENT_JOB_FORK:
             printf("  pid: %d", (int)e->pid);
             break;
@@ -343,14 +473,21 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    for (int i = 0; i < njobs; i++) {
-        if (job_id > 0 || full)
-            print_job_full(&jobs[i]);
-        else
-            print_job_compact(&jobs[i]);
+    struct col_widths w;
 
-        if (i + 1 < njobs)
-            printf("\n");
+    if (job_id <= 0 && !full) {
+        compute_widths(jobs, njobs, &w);
+        print_compact_header(&w);
+    }
+
+    for (int i = 0; i < njobs; i++) {
+        if (job_id > 0 || full) {
+            print_job_full(&jobs[i]);
+            if (i + 1 < njobs)
+                printf("\n");
+        } else {
+            print_job_compact(&jobs[i], &w);
+        }
     }
 
     llb_free_hist_info(jobs, njobs);

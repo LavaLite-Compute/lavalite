@@ -85,9 +85,7 @@ struct log_job_new {
     char tokenpool[LL_BUFSIZ_256];
 };
 
-/*
- * log_job_start: mbd dispatched the job to sbd.
- * exec_host is the single host mbd sent the job to.
+/* log_job_start: mbd dispatched the job to sbd.
  */
 struct log_job_start {
     int64_t job_id;
@@ -95,7 +93,6 @@ struct log_job_start {
     int nhosts;
     int cpus_per_host;
     int gpus_per_host;
-    char exec_host[MAXHOSTNAMELEN];
     char gpu_type[LL_BUFSIZ_64];
     char hosts[LL_BUFSIZ_4K]; /* space-separated */
 };

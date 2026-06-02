@@ -242,7 +242,7 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "NAME=%s\n", ws->name);
     fprintf(fp, "QUEUE=%s\n", ws->queue);
     fprintf(fp, "PROJECT=%s\n", ws->project);
-    fprintf(fp, "FROM_HOST=%s\n", ws->from_host);
+    fprintf(fp, "SUBMIT_HOST=%s\n", ws->submit_host);
     fprintf(fp, "HOME_DIR=%s\n", ws->home_dir);
     fprintf(fp, "CWD=%s\n", ws->cwd);
     fprintf(fp, "COMMAND=%s\n", ws->command);

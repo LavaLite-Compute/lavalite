@@ -114,7 +114,7 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_opaque(xdrs, s->gpu_type, sizeof(s->gpu_type)))
         return false;
-    if (!xdr_opaque(xdrs, s->from_host, sizeof(s->from_host)))
+    if (!xdr_opaque(xdrs, s->submit_host, sizeof(s->submit_host)))
         return false;
     if (!xdr_opaque(xdrs, s->username, sizeof(s->username)))
         return false;
@@ -191,9 +191,9 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
         return false;
     if (!xdr_opaque(xdrs, p->queue, sizeof(p->queue)))
         return false;
-    if (!xdr_opaque(xdrs, p->from_host, sizeof(p->from_host)))
+    if (!xdr_opaque(xdrs, p->submit_host, sizeof(p->submit_host)))
         return false;
-    if (!xdr_opaque(xdrs, p->exec_hosts, sizeof(p->exec_hosts)))
+    if (!xdr_opaque(xdrs, p->run_hosts, sizeof(p->run_hosts)))
         return false;
     if (!xdr_opaque(xdrs, p->comment, sizeof(p->comment)))
         return false;
@@ -445,6 +445,17 @@ bool_t xdr_wire_job_priority(XDR *xdrs, struct wire_job_priority *p)
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
     if (!xdr_int32_t(xdrs, &p->priority))
+        return false;
+    return true;
+}
+
+bool_t xdr_wire_job_query(XDR *xdrs, struct wire_job_query *r)
+{
+    if (!xdr_int64_t(xdrs, &r->job_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &r->flags))
+        return false;
+    if (!xdr_int32_t(xdrs, &r->uid))
         return false;
     return true;
 }

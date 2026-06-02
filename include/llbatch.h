@@ -96,6 +96,12 @@ struct job_submit {
 #define LLB_JOB_RUN 0x0008
 #define LLB_JOB_HELD 0x0010
 
+struct job_info_req {
+    int64_t job_id;  /* 0 = all */
+    int32_t uid;     /* -1 = all */
+    int32_t flags;   /* LLB_JOB_* */
+};
+
 /* runtime resource usage, reported sbd via cgroup at the end of the job
  */
 struct job_res_usage {
@@ -118,8 +124,8 @@ struct job_info {
     time_t susp_time;
     char *name;
     char *queue;
-    char *from_host;
-    char *exec_hosts;
+    char *submit_host;
+    char *run_hosts;
     char *comment;
 };
 
@@ -197,8 +203,7 @@ struct job_event {
     int32_t        exit_status;   /* JOB_FINISH                     */
     int32_t        signal;        /* JOB_SIGNAL                     */
     pid_t          pid;           /* JOB_FORK                       */
-    char          *from_host;     /* JOB_START                      */
-    char          *exec_hosts;    /* JOB_START                      */
+    char          *run_hosts;     /* JOB_START                      */
     char *from_queue;   /* JOB_MOVE */
     char *to_queue;     /* JOB_MOVE */
     int32_t old_priority;   /* JOB_PRIORITY */
@@ -214,6 +219,7 @@ struct job_hist_info {
     int64_t        job_id;
     uid_t          uid;
     int32_t        state;          /* current state  */
+    int32_t        priority;
     time_t         submit_time;
     int32_t        num_cpus;
     int32_t        num_hosts;
@@ -224,7 +230,7 @@ struct job_hist_info {
     char          *name;
     char          *queue;
     char          *project;
-    char          *from_host;     /* submit host (where bsub was run)       */
+    char          *submit_host;   /* submit host (where bsub was run)       */
     char          *machines;      /* --machines constraint                  */
     char          *cwd;
     char          *command;
@@ -250,7 +256,7 @@ struct job_hist_info {
 int32_t llb_submit(const struct job_submit *, int64_t *);
 
 // bjobs
-struct job_info *llb_job_info(int64_t, int32_t *, int32_t);
+struct job_info *llb_job_info(const struct job_info_req *, int32_t *);
 void llb_free_job_info(struct job_info *, int32_t);
 
 // bhosts

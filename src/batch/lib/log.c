@@ -214,8 +214,6 @@ int log_write_job_start(FILE *fp, const struct log_job_start *j)
     if (fprintf(fp, " %ld %d %d %d", j->job_id, j->nhosts, j->cpus_per_host,
                 j->gpus_per_host) < 0)
         return -1;
-    if (write_qstr(fp, j->exec_host) < 0)
-        return -1;
     if (write_qstr(fp, j->gpu_type) < 0)
         return -1;
     if (write_qstr(fp, j->hosts) < 0)
@@ -237,8 +235,6 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
     }
     p += cc;
 
-    if (read_qstr(&p, j->exec_host, sizeof(j->exec_host)) < 0)
-        return -1;
     if (read_qstr(&p, j->gpu_type, sizeof(j->gpu_type)) < 0)
         return -1;
     if (read_qstr(&p, j->hosts, sizeof(j->hosts)) < 0)
