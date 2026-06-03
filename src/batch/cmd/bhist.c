@@ -96,7 +96,7 @@ static const struct job_event *find_event(const struct job_hist_info *j,
     return NULL;
 }
 
-static void print_wrapped(const char *s, int indent)
+static void print_run_hosts(const char *s, int indent)
 {
     char buf[LL_BUFSIZ_4K];
     char *tok;
@@ -205,7 +205,7 @@ static void compute_widths(struct job_hist_info *jobs, int n,
 
 static void print_compact_header(const struct col_widths *w)
 {
-    printf("%-*s  %-*s  %-*s  %-*s %-*s  %-*s  %-*s  %s\n",
+    printf("%-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
            w->jobid,     "JOBID",
            w->user,      "USER",
            w->stat,      "STAT",
@@ -333,10 +333,12 @@ static void print_job_full(const struct job_hist_info *j)
 
         switch (e->type) {
         case EVENT_JOB_START:
-            if (e->run_hosts != NULL && e->run_hosts[0] != '\0')
-                print_wrapped(e->run_hosts, 34);
-            else
+            if (e->run_hosts != NULL && e->run_hosts[0] != 0) {
+                printf(" to: ");
+                print_run_hosts(e->run_hosts, 34);
+            } else {
                 printf("\n");
+            }
             continue;
         case EVENT_JOB_FORK:
             printf("  pid: %d", (int)e->pid);

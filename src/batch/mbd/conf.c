@@ -16,7 +16,10 @@
 
 #define ARRAY_SIZE(a) ((int)(sizeof(a) / sizeof(a[0])))
 
-static uint64_t parse_mem(const char *s)
+/* Parse a size string with optional suffix M/G/T (case-insensitive).
+ * No suffix = MB. Returns value in MB, 0 on error.
+ */
+static uint64_t parse_size_mb(const char *s)
 {
     char *end;
     uint64_t v;
@@ -31,8 +34,11 @@ static uint64_t parse_mem(const char *s)
     if (*end == 0)
         return v;
 
-    if ((end[1] != 0))
+    if (end[1] != 0)
         return 0;
+
+    if (*end == 'M' || *end == 'm')
+        return v;
 
     if (*end == 'G' || *end == 'g')
         return v * 1024;
@@ -272,14 +278,14 @@ static struct mbd_host *make_host(const char *p)
         return NULL;
     }
 
-    h->res.total_mem_mb = parse_mem(mem_str);
+    h->res.total_mem_mb = parse_size_mb(mem_str);
     if (h->res.total_mem_mb == 0) {
         LL_ERRX("bad memory value host=%s mem=%s", hostname, mem_str);
         free(h);
         return NULL;
     }
 
-    h->res.total_storage_mb = parse_mem(storage_str);
+    h->res.total_storage_mb = parse_size_mb(storage_str);
     if (h->res.total_storage_mb == 0) {
         LL_ERRX("bad storage value host=%s storage=%s", hostname, storage_str);
         free(h);
@@ -733,7 +739,7 @@ static int parse_sim(const char *path)
         h->res.total_cpu = total_cpu;
         h->res.free_cpu = total_cpu;
 
-        h->res.total_mem_mb = parse_mem(mem_str);
+        h->res.total_mem_mb = parse_size_mb(mem_str);
         if (h->res.total_mem_mb == 0) {
             LL_ERRX("sim=%s bad mem=%s", sim_name, mem_str);
             free(h);
@@ -742,7 +748,7 @@ static int parse_sim(const char *path)
         }
         h->res.free_mem_mb = h->res.total_mem_mb;
 
-        h->res.total_storage_mb = parse_mem(storage_str);
+        h->res.total_storage_mb = parse_size_mb(storage_str);
         if (h->res.total_storage_mb == 0) {
             LL_ERRX("sim=%s bad storage=%s", sim_name, storage_str);
             free(h);

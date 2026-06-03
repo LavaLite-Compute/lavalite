@@ -32,8 +32,8 @@ static void usage(FILE *f)
         "Resources (per host):\n"
         "  --cpus   n         CPU per host (default: 1)\n"
         "  --nhosts n         number of execution hosts (default: 1)\n"
-        "  --mem    size      Memory per host: n[K|M|G] (cgroup enforced)\n"
-        "  --storage size     Local scratch storage per host: n[K|M|G]\n"
+        "  --mem    size      Memory per host: n[M|G]\n"
+        "  --storage size     Local scratch storage per host: n[M|G]\n"
         "  --gpus   n         GPUs per host (default: 0)\n"
         "  --gpu-type name    Required GPU type (requires --gpus)\n"
         "  --exclusive        Exclusive host, no job sharing\n"
@@ -135,7 +135,7 @@ static int parse_time_arg(const char *arg, time_t *out)
 }
 
 /*
- * Parse memory string: n[K|M|G] -> MB.
+ * Parse memory/storage string: n[M|G] -> MB.
  * Plain integer is MB.
  */
 static int parse_mem(const char *arg, uint64_t *out)
@@ -143,22 +143,15 @@ static int parse_mem(const char *arg, uint64_t *out)
     char *end;
     unsigned long long v = strtoull(arg, &end, 10);
 
-    if (end == arg) {
+    if (end == arg)
         return -1;
-    }
 
-    if (*end == '\0' || strcmp(end, "M") == 0) {
-        *out = (uint64_t) v;
-    } else if (strcmp(end, "K") == 0) {
-        *out = (uint64_t) v / 1024;
-        if (*out == 0) {
-            *out = 1;
-        }
-    } else if (strcmp(end, "G") == 0) {
-        *out = (uint64_t) v * 1024;
-    } else {
+    if (*end == '\0' || *end == 'M')
+        *out = (uint64_t)v;
+    else if (*end == 'G')
+        *out = (uint64_t)v * 1024;
+    else
         return -1;
-    }
 
     return 0;
 }
@@ -228,7 +221,7 @@ int main(int argc, char **argv)
         {"cpus", required_argument, NULL, 'n'},
         {"nhosts", required_argument, NULL, 'N'},
         {"mem", required_argument, NULL, 'M'},
-        {"scratch", required_argument, NULL, 's'},
+        {"storage", required_argument, NULL, 's'},
         {"gpus", required_argument, NULL, 'g'},
         {"gpu-type", required_argument, NULL, 'G'},
         {"pool", required_argument, NULL, 'L'},
@@ -290,7 +283,7 @@ int main(int argc, char **argv)
             break;
         case 's':
             if (parse_mem(optarg, &js.storage_mb) < 0) {
-                fprintf(stderr, "bsub: --scratch: invalid value '%s'\n",
+                fprintf(stderr, "bsub: --storage: invalid value '%s'\n",
                         optarg);
                 return 1;
             }

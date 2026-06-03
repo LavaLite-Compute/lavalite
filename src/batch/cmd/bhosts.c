@@ -52,16 +52,16 @@ static int ndigits(int32_t n)
     return d;
 }
 
-/* memory: always MB */
+/* memory: stored and displayed in MB */
 static void fmt_mem(uint64_t mb, char *buf, size_t len)
 {
     snprintf(buf, len, "%lu", (unsigned long)mb);
 }
 
-/* storage: always TB */
+/* storage: stored in MB, displayed in GB */
 static void fmt_stor(uint64_t mb, char *buf, size_t len)
 {
-    snprintf(buf, len, "%lu", (unsigned long)(mb / (1024 * 1024)));
+    snprintf(buf, len, "%lu", (unsigned long)(mb / 1024));
 }
 
 struct col_widths {
@@ -94,8 +94,8 @@ static void compute_widths(struct host_info *h, int n, struct col_widths *w)
     w->used_cpu     = strlen("USED_CPU");
     w->mem          = strlen("MEM_MB");
     w->used_mem     = strlen("USED_MB");
-    w->storage      = strlen("STOR_TB");
-    w->used_storage = strlen("USED_TB");
+    w->storage      = strlen("STOR_GB");
+    w->used_storage = strlen("USED_GB");
     w->total_gpu    = strlen("NGPU");
     w->used_gpu     = strlen("USED_GPU");
     w->njobs        = strlen("NJOBS");
@@ -197,7 +197,9 @@ int main(int argc, char **argv)
 
     struct col_widths w;
     char mem_buf[FMT_BUF_LEN];
+    char used_mem_buf[FMT_BUF_LEN];
     char stor_buf[FMT_BUF_LEN];
+    char used_stor_buf[FMT_BUF_LEN];
 
     compute_widths(hosts, nhosts, &w);
 
@@ -207,14 +209,14 @@ int main(int argc, char **argv)
            w.max,          "MAX",
            w.total_cpu,    "NCPU",
            w.mem,          "MEM_MB",
-           w.storage,      "STOR_TB",
+           w.storage,      "STOR_GB",
            w.total_gpu,    "NGPU",
            w.njobs,        "NJOBS",
            w.run,          "RUN",
            w.susp,         "SUSP",
            w.used_cpu,     "USED_CPU",
            w.used_mem,     "USED_MB",
-           w.used_storage, "USED_TB",
+           w.used_storage, "USED_GB",
            w.used_gpu,     "USED_GPU");
 
     for (int i = 0; i < nhosts; i++) {
@@ -223,10 +225,12 @@ int main(int argc, char **argv)
         int32_t  used_cpu  = hosts[i].total_cpu - hosts[i].free_cpu;
         int32_t  used_gpu  = hosts[i].total_gpu - hosts[i].free_gpu;
 
-        fmt_mem(hosts[i].total_mem_mb, mem_buf, sizeof(mem_buf));
-        fmt_stor(hosts[i].total_storage_mb, stor_buf, sizeof(stor_buf));
+        fmt_mem(hosts[i].total_mem_mb,    mem_buf,      sizeof(mem_buf));
+        fmt_mem(used_mem,                 used_mem_buf, sizeof(used_mem_buf));
+        fmt_stor(hosts[i].total_storage_mb, stor_buf,   sizeof(stor_buf));
+        fmt_stor(used_stor,               used_stor_buf, sizeof(used_stor_buf));
 
-        printf("%-*s  %-*s  %*d  %*d  %*s  %*s  %*d  %*d  %*d  %*d  %*d  %*lu  %*lu  %*d\n",
+        printf("%-*s  %-*s  %*d  %*d  %*s  %*s  %*d  %*d  %*d  %*d  %*d  %*s  %*s  %*d\n",
                w.name,         hosts[i].name,
                w.state,        host_state_str(hosts[i].state),
                w.max,          hosts[i].max_jobs,
@@ -238,8 +242,8 @@ int main(int argc, char **argv)
                w.run,          hosts[i].num_run,
                w.susp,         hosts[i].num_susp,
                w.used_cpu,     used_cpu,
-               w.used_mem,     used_mem,
-               w.used_storage, used_stor,
+               w.used_mem,     used_mem_buf,
+               w.used_storage, used_stor_buf,
                w.used_gpu,     used_gpu);
     }
 
