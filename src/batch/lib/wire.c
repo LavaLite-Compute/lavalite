@@ -250,6 +250,8 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
         return false;
     if (!xdr_wire_job_script(xdrs, &p->script))
         return false;
+    if (!xdr_opaque(xdrs, p->gpu_assigned, sizeof(p->gpu_assigned)))
+        return false;
     return true;
 }
 
@@ -299,6 +301,10 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
     if (!xdr_int32_t(xdrs, &p->num_run))
         return false;
     if (!xdr_int32_t(xdrs, &p->num_susp))
+        return false;
+    if (!xdr_opaque(xdrs, p->gpu_type, sizeof(p->gpu_type)))
+        return false;
+    if (!xdr_opaque(xdrs, p->gpu_ids, sizeof(p->gpu_ids)))
         return false;
     return true;
 }

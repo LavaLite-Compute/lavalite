@@ -94,7 +94,8 @@ struct log_job_start {
     int cpus_per_host;
     int gpus_per_host;
     char gpu_type[LL_BUFSIZ_64];
-    char hosts[LL_BUFSIZ_4K]; /* space-separated */
+    char gpu_assigned[LL_BUFSIZ_64]; /* assigned CUDA device IDs e.g. "0,1" */
+    char hosts[LL_BUFSIZ_4K];        /* space-separated exec hosts */
 };
 
 /*

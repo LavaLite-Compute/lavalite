@@ -53,20 +53,21 @@ struct sbd_job {
     pid_t pid;
     pid_t pgid;
 
-    uid_t exec_uid;
-    gid_t exec_gid;
+    uid_t uid;
+    gid_t gid;
     uint32_t umask;
     int32_t ncpus;
     uint64_t mem_mb;
 
-    char exec_user[LL_BUFSIZ_64];
-    char exec_home[PATH_MAX];
-    char exec_cwd[PATH_MAX];
+    char user[LL_BUFSIZ_64];
+    char user_home[PATH_MAX];
+    char user_cwd[PATH_MAX];
 
     char command[LL_BUFSIZ_512];
     char job_name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_64];
     char hosts[LL_BUFSIZ_4K];
+    char gpu_assigned[LL_BUFSIZ_64]; /* CUDA_VISIBLE_DEVICES value */
 
     char in_file[PATH_MAX];
     char out_file[PATH_MAX];

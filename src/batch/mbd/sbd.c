@@ -350,6 +350,25 @@ static void build_hosts_str(const struct job_data *job, char *buf,
     }
 }
 
+static void build_gpu_assigned_str(struct mbd_gpu *g, int num_gpus,
+                                   char *buf, size_t bufsz)
+{
+    buf[0] = 0;
+    int assigned = 0;
+
+    for (int i = 0; i < g->count && assigned < num_gpus; i++) {
+        if (g->ids[i].in_use)
+            continue;
+        g->ids[i].in_use = 1;
+        g->free--;
+        char entry[16];
+        snprintf(entry, sizeof(entry), "%s%d",
+                 assigned > 0 ? "," : "", g->ids[i].id);
+        ll_strlcat(buf, entry, bufsz);
+        assigned++;
+    }
+}
+
 int mbd_dispatch_job(struct job_data *job)
 {
     struct mbd_host *h = job->run_hosts[0];
@@ -394,7 +413,20 @@ int mbd_dispatch_job(struct job_data *job)
 
     build_hosts_str(job, ws.hosts, sizeof(ws.hosts));
 
-    /* header */
+    if (job->res.num_gpus > 0) {
+        struct mbd_gpu *g = ll_hash_search(&h->res.gpu_type_hash,
+                                           job->res.gpu_type);
+        if (g == NULL) {
+            LL_ERRX("job=%ld host=%s gpu_type=%s not found",
+                    job->job_id, h->net.name, job->res.gpu_type);
+            free(ws.script.data);
+            return -1;
+        }
+        build_gpu_assigned_str(g, job->res.num_gpus,
+                               ws.gpu_assigned, sizeof(ws.gpu_assigned));
+        ll_strlcpy(job->gpu_assigned, ws.gpu_assigned, sizeof(job->gpu_assigned));
+    }
+
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_NEW_JOB;

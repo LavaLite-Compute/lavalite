@@ -285,17 +285,17 @@ int sbd_job_state_write(struct sbd_job *job)
                      "exit_status_valid=%d\n"
                      "exit_status=%d\n"
                      "end_time=%ld\n"
-                     "exec_cwd=%s\n"
-                     "exec_home=%s\n"
-                     "exec_uid=%u\n"
-                     "exec_gid=%u\n"
-                     "exec_user=%s\n",
+                     "user_cwd=%s\n"
+                     "user_home=%s\n"
+                     "uid=%u\n"
+                     "group=%u\n"
+                     "user=%s\n",
                      job->job_id, (int) job->pid, (int) job->pgid,
                      pid_acked, (long) job->time_pid_acked,
                      finish_acked, (long) job->time_finish_acked,
                      exit_status_valid, job->exit_status, (long) job->end_time,
-                     job->exec_cwd, job->exec_home, (unsigned) job->exec_uid,
-                     (unsigned) job->exec_gid, job->exec_user);
+                     job->user_cwd, job->user_home, (unsigned) job->uid,
+                     (unsigned) job->gid, job->user);
     if (n < 0) {
         errno = EINVAL;
         LL_ERRX("state format failed job=%ld", job->job_id);
@@ -344,12 +344,12 @@ int sbd_job_state_write(struct sbd_job *job)
 
     LL_INFO("job=%ld pid=%d pgid=%d pid_acked=%d "
             "finish_acked=%d exit_status_valid=%d "
-            "exit_status=%d end_time=%ld exec_cwd=%s exec_home=%s "
-            "exec_uid=%u exec_gid=%u exec_user=%s",
+            "exit_status=%d end_time=%ld user_cwd=%s user_home=%s "
+            "uid=%u group=%u user=%s",
             job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
             finish_acked, exit_status_valid, job->exit_status,
-            (long) job->end_time, job->exec_cwd, job->exec_home,
-            (unsigned) job->exec_uid, (unsigned) job->exec_gid, job->exec_user);
+            (long) job->end_time, job->user_cwd, job->user_home,
+            (unsigned) job->uid, (unsigned) job->gid, job->user);
 
     return 0;
 }
@@ -432,28 +432,28 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
             continue;
         }
 
-        if (strcmp(key, "exec_cwd") == 0) {
-            ll_strlcpy(job->exec_cwd, val, sizeof(job->exec_cwd));
+        if (strcmp(key, "user_cwd") == 0) {
+            ll_strlcpy(job->user_cwd, val, sizeof(job->user_cwd));
             continue;
         }
 
-        if (strcmp(key, "exec_home") == 0) {
-            ll_strlcpy(job->exec_home, val, sizeof(job->exec_home));
+        if (strcmp(key, "user_home") == 0) {
+            ll_strlcpy(job->user_home, val, sizeof(job->user_home));
             continue;
         }
 
-        if (strcmp(key, "exec_uid") == 0) {
-            job->exec_uid = (uid_t) atoi(val);
+        if (strcmp(key, "uid") == 0) {
+            job->uid = (uid_t) atoi(val);
             continue;
         }
 
-        if (strcmp(key, "exec_gid") == 0) {
-            job->exec_gid = (gid_t) atoi(val);
+        if (strcmp(key, "group") == 0) {
+            job->gid = (gid_t) atoi(val);
             continue;
         }
 
-        if (strcmp(key, "exec_user") == 0) {
-            ll_strlcpy(job->exec_user, val, sizeof(job->exec_user));
+        if (strcmp(key, "user") == 0) {
+            ll_strlcpy(job->user, val, sizeof(job->user));
             continue;
         }
     }

@@ -62,6 +62,7 @@ static void event_free(struct job_event *e)
     free(e->from_queue);
     free(e->to_queue);
     free(e->run_hosts);
+    free(e->gpu_assigned);
 }
 
 static struct job_event *event_add(struct job_hist_info *j)
@@ -416,6 +417,7 @@ static void hist_apply_start(struct job_hist *jh, const struct event_rec *rec)
     ev->event_time    = rec->event_time;
     ev->state         = JOB_RUNNING;
     ev->run_hosts    = hist_strdup(e.hosts);
+    ev->gpu_assigned = hist_strdup(e.gpu_assigned);
 }
 
 static void hist_apply_fork(struct job_hist *jh, const struct event_rec *rec)

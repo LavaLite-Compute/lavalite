@@ -400,7 +400,20 @@ static void reset_host_resources(struct job_data *job)
                 assert(0);
                 continue;
             }
+            /*
+             * g->free and ids[].in_use are decremented in mbd_dispatch_job
+             * via build_gpu_assigned_str, not in host_update_resources,
+             * because the assigned IDs must be on the wire before counters
+             * are updated. We restore them here at job finish.
+             */
             g->free += job->res.num_gpus;
+            int freed = 0;
+            for (int i = 0; i < g->count && freed < job->res.num_gpus; i++) {
+                if (g->ids[i].in_use) {
+                    g->ids[i].in_use = 0;
+                    freed++;
+                }
+            }
         }
 
         LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
@@ -962,14 +975,17 @@ void mbd_assert_counters(void)
                     h->num_susp, num_susp, h->num_cpus_used, num_cpus_used);
             assert(0);
         }
-
+        if (h->res.free_gpu < 0) {
+            LL_ERRX("host=%s free_gpu=%d went negative",
+                    h->net.name, h->res.free_gpu);
+            assert(0);
+        }
         if (h->res.free_gpu != h->res.total_gpu - num_gpu_used) {
             LL_ERRX("host=%s bad gpu counter free=%d expected=%d",
                     h->net.name, h->res.free_gpu,
                     h->res.total_gpu - num_gpu_used);
             assert(0);
         }
-
         /* per gpu_type check */
         struct ll_list_entry *ge;
         for (ge = h->res.gpu_list.head; ge != NULL; ge = ge->next) {
@@ -982,6 +998,11 @@ void mbd_assert_counters(void)
                 if (job->res.gpu_type[0] != 0
                     && strcmp(job->res.gpu_type, g->gpu_type) == 0)
                     type_used += job->res.num_gpus;
+            }
+            if (g->free < 0) {
+                LL_ERRX("host=%s gpu_type=%s free=%d went negative",
+                        h->net.name, g->gpu_type, g->free);
+                assert(0);
             }
             if (g->free != g->count - type_used) {
                 LL_ERRX("host=%s gpu_type=%s bad counter free=%d expected=%d",
@@ -1382,4 +1403,29 @@ int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
             old_priority, job->priority);
 
     return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, MBD_OK);
+}
+
+void gpu_ids_free(struct mbd_gpu *g, int num_gpus)
+{
+    int freed = 0;
+
+    for (int i = 0; i < g->count && freed < num_gpus; i++) {
+        if (g->ids[i].in_use) {
+            g->ids[i].in_use = 0;
+            freed++;
+        }
+    }
+}
+
+void gpu_ids_mark_inuse(struct mbd_gpu *g, int num_gpus)
+{
+    int marked = 0;
+
+    for (int i = 0; i < g->count && marked < num_gpus; i++) {
+        if (!g->ids[i].in_use) {
+            g->ids[i].in_use = 1;
+            g->free--;
+            marked++;
+        }
+    }
 }

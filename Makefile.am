@@ -13,7 +13,5 @@ install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
 	    $(MKDIR_P) $(DESTDIR)$(localstatedir)/log
 	    $(MKDIR_P) $(DESTDIR)$(localstatedir)/state
-	    $(INSTALL_SCRIPT) $(srcdir)/src/batch/cmd/bhist $(DESTDIR)$(bindir)/bhist
-	    $(INSTALL_SCRIPT) $(srcdir)/src/batch/cmd/bacct $(DESTDIR)$(bindir)/bacct
 
 EXTRA_DIST = Make.common

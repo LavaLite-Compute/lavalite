@@ -33,14 +33,14 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->job_id = ws->job_id;
     job->pid = -1;
     job->pgid = -1;
-    job->exec_uid = (uid_t) ws->uid;
-    job->exec_gid = (gid_t) ws->gid;
+    job->uid = (uid_t) ws->uid;
+    job->gid = (gid_t) ws->gid;
     job->umask = ws->umask;
     job->ncpus = ws->ncpus;
     job->mem_mb = ws->mem_mb;
 
-    ll_strlcpy(job->exec_user, ws->username, sizeof(job->exec_user));
-    ll_strlcpy(job->exec_home, ws->home_dir, sizeof(job->exec_home));
+    ll_strlcpy(job->user, ws->username, sizeof(job->user));
+    ll_strlcpy(job->user_home, ws->home_dir, sizeof(job->user_home));
     ll_strlcpy(job->command, ws->command, sizeof(job->command));
     ll_strlcpy(job->job_name, ws->job_name, sizeof(job->job_name));
     ll_strlcpy(job->queue, ws->queue, sizeof(job->queue));
@@ -49,9 +49,10 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     ll_strlcpy(job->out_file, ws->out_file, sizeof(job->out_file));
     ll_strlcpy(job->err_file, ws->err_file, sizeof(job->err_file));
     if (ws->cwd[0] == 0)
-        ll_strlcpy(job->exec_cwd, ws->home_dir, sizeof(job->exec_cwd));
+        ll_strlcpy(job->user_cwd, ws->home_dir, sizeof(job->user_cwd));
     else
-        ll_strlcpy(job->exec_cwd, ws->cwd, sizeof(job->exec_cwd));
+        ll_strlcpy(job->user_cwd, ws->cwd, sizeof(job->user_cwd));
+    ll_strlcpy(job->gpu_assigned, ws->gpu_assigned, sizeof(job->gpu_assigned));
 
     /* pipeline state */
     job->pid_acked = false;
@@ -64,9 +65,9 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->exit_status_valid = false;
 
     /* invariants */
-    assert(job->exec_user[0] != 0);
-    assert(job->exec_home[0] != 0);
-    assert(job->exec_cwd[0] != 0);
+    assert(job->user[0] != 0);
+    assert(job->user_home[0] != 0);
+    assert(job->user_cwd[0] != 0);
 
     return job;
 }
@@ -137,10 +138,21 @@ static int set_job_env(const struct sbd_job *job)
             return -1;
     }
 
+    /* CUDA_VISIBLE_DEVICES */
+    if (job->gpu_assigned[0] != 0) {
+        if (setenv("CUDA_VISIBLE_DEVICES", job->gpu_assigned, 1) < 0)
+            return -1;
+    }
+
     /* LL_JOBDIR */
     char job_dir[PATH_MAX + LL_BUFSIZ_32];
     snprintf(job_dir, sizeof(job_dir), "%s/%ld", sbd_job_dir, job->job_id);
     if (setenv("LL_JOBDIR", job_dir, 1) < 0)
+        return -1;
+
+    char ll_conf_dir[PATH_MAX + LL_BUFSIZ_32];
+    snprintf(ll_conf_dir, PATH_MAX, "%s", getenv("LL_CONF_DIR"));
+    if (setenv("LL_CONF_DIR", ll_conf_dir, 1) < 0)
         return -1;
 
     LL_DEBUG("job=%ld LL_JOBID=%ld LL_JOBPID=%d LL_FIRST_HOST=%s "
@@ -154,27 +166,27 @@ static int set_job_env(const struct sbd_job *job)
 static int set_user_id(const struct sbd_job *job)
 {
     LL_INFO("job=%ld switching to uid=%d gid=%d user=%s sbd_debd=%d",
-            job->job_id, job->exec_uid, job->exec_gid, job->exec_user,
+            job->job_id, job->uid, job->gid, job->user,
             non_root);
 
     if (non_root)
         return 0;
 
-    if (initgroups(job->exec_user, job->exec_gid) < 0) {
+    if (initgroups(job->user, job->gid) < 0) {
         LL_ERR("initgroups job=%ld failed uid=%d name=%s group=%d", job->job_id,
-               job->exec_uid, job->exec_user, job->exec_gid);
+               job->uid, job->user, job->gid);
         return -1;
     }
 
-    if (setgid(job->exec_gid) < 0) {
+    if (setgid(job->gid) < 0) {
         LL_ERR("setgid job=%ld failed user=%d name=%s group=%d", job->job_id,
-               job->exec_uid, job->exec_user, job->exec_gid);
+               job->uid, job->user, job->gid);
         return -1;
     }
 
-    if (setuid(job->exec_uid) < 0) {
+    if (setuid(job->uid) < 0) {
         LL_ERR("setuid job=%ld failed user=%d name=%s group=%d", job->job_id,
-               job->exec_uid, job->exec_user, job->exec_gid);
+               job->uid, job->user, job->gid);
         return -1;
     }
 
@@ -184,12 +196,12 @@ static int set_user_id(const struct sbd_job *job)
 static int cd_work_dir(const struct sbd_job *job)
 {
     // Attempt to enter the decoded execution working directory
-    LL_INFO("job %ld: entering work directory %s", job->job_id, job->exec_cwd);
+    LL_INFO("job %ld: entering work directory %s", job->job_id, job->user_cwd);
 
-    if (chdir(job->exec_cwd) < 0) {
+    if (chdir(job->user_cwd) < 0) {
         // Primary cwd failed fall back to /tmp
         LL_ERR("job=%ld chdir=%s failed, trying /tmp", job->job_id,
-               job->exec_cwd);
+               job->user_cwd);
 
         if (chdir("/tmp") < 0) {
             // Fallback also failed cannot establish a safe working directory
@@ -377,7 +389,7 @@ static void child_exec_job(struct sbd_job *job)
 
     if (cd_work_dir(job) < 0) {
         LL_ERR("job=%ld failed to enter cwd %s (and /tmp fallback)",
-               job->job_id, job->exec_cwd);
+               job->job_id, job->user_cwd);
         _exit(127);
     }
 
@@ -508,13 +520,13 @@ static int make_job_dir(struct sbd_job *job)
         return -1;
     }
 
-    if (chown(job_dir, job->exec_uid, job->exec_gid) < 0) {
-        LL_ERR("chown to uid %d of %s failed", job->exec_uid, job_dir);
+    if (chown(job_dir, job->uid, job->gid) < 0) {
+        LL_ERR("chown to uid %d of %s failed", job->uid, job_dir);
         return -1;
     }
 
     LL_INFO("job=%ld jobdir=%s uid=%d gid=%d", job->job_id, job_dir,
-            job->exec_uid, job->exec_gid);
+            job->uid, job->gid);
 
     return 0;
 }
@@ -537,7 +549,7 @@ static int make_state_dir(struct sbd_job *job)
     }
 
     LL_INFO("job=%ld job state dir=%s uid=%d gid=%d", job->job_id, state_dir,
-            job->exec_uid, job->exec_gid);
+            job->uid, job->gid);
 
     return 0;
 }
@@ -692,8 +704,8 @@ int sbd_job_script_write(struct sbd_job *job,
         return -1;
     }
 
-    if (chown(tmp, job->exec_uid, job->exec_gid) < 0) {
-        LL_ERR("chown uid=%d %s failed: %m", job->exec_uid, tmp);
+    if (chown(tmp, job->uid, job->gid) < 0) {
+        LL_ERR("chown uid=%d %s failed: %m", job->uid, tmp);
         unlink(tmp);
         return -1;
     }

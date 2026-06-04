@@ -370,6 +370,8 @@ struct host_info *llb_host_info(int32_t *nhosts)
         out[i].num_jobs = w.hosts[i].num_jobs;
         out[i].num_run = w.hosts[i].num_run;
         out[i].num_susp = w.hosts[i].num_susp;
+        out[i].gpu_type = strdup(w.hosts[i].gpu_type);
+        out[i].gpu_ids  = strdup(w.hosts[i].gpu_ids);
     }
 
     *nhosts = w.nhosts;
@@ -383,6 +385,8 @@ void llb_free_host_info(struct host_info *h, int32_t n)
 {
     for (int i = 0; i < n; i++) {
         free(h[i].name);
+        free(h[i].gpu_type);
+        free(h[i].gpu_ids);
     }
     free(h);
 }

@@ -4,39 +4,19 @@
 # HOST_NAME  - Hostname as returned by hostname(1)
 # MXJ        - Maximum number of concurrent allocations on this host
 # CPU        - Number of CPU cores available for scheduling
-# GPU        - Number of GPU devices available for scheduling
-# MEM        - Total memory available (G=gigabytes, T=terabytes)
-# STORAGE    - Total storage available (G=gigabytes, T=terabytes)
+# MEM        - Total memory available (M=megabytes, G=gigabytes)
+# STORAGE    - Total scratch storage available (M=megabytes, G=gigabytes)
+# GPU_TYPE   - GPU model name, '-' if no GPUs
+# GPU_IDS    - Comma-separated CUDA device indices or range (e.g. 0,1 or 0-3), '-' if no GPUs
 #
-# LavaLite configuration files use fixed column layouts.
-# Within each Begin/End section the column order is part of
-# the file format and must not be modified.
+# Column order is mandatory and must not be changed.
 #
 Begin Host
-# Column order is mandatory and must not be changed.
-# Parsers rely on positional fields then column names.
-# Reordering, removing or inserting columns may result in
-# configuration errors or undefined scheduler behaviour.
-HOST_NAME   MXJ   CPU   MEM    STORAGE
-buntu24       4    22    40G    100T
-worker1       6    64    1T      50T
-#worker2       6    64    1T      50T
-#worker3       8    128   1T     120T
+HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_TYPE   GPU_IDS
+buntu24       4    8    40G    100G      A100       0,1
+#worker2      6    64    1T      50T      -          -
+#worker3      8   128    1T     120T      -          -
 End Host
-
-Begin Gpu
-# Column order is mandatory and must not be changed.
-# Parsers rely on positional fields then column names.
-# Reordering, removing or inserting columns may result in
-# configuration errors or undefined scheduler behaviour.
-HOST_NAME   GPU_ID   GPU_TYPE   COUNT
-buntu24     0        A100        1
-#buntu24     1        full       1
-#buntu24     2        full       1
-#buntu24     3        H100       1
-#worker1     0        3g.40gb    1
-#worker1     1        2g.20gb    2
-End Gpu
 
 Begin TokenPool
 POOL_NAME  AVAILABLE
@@ -50,16 +30,14 @@ End TokenPool
 #
 Begin HostGroup
 GROUP_NAME      GROUP_MEMBER
-group-gpu     (buntu24)
-group-cpu     (worker1)
+group-gpu     (sim1 sim2 buntu24)
+group-cpu     (sim1 sim2 buntu24)
 End HostGroup
 
-#Begin Sim
+# Begin Sim
 # Column order is mandatory and must not be changed.
-# Parsers rely on positional fields then column names.
-# Reordering, removing or inserting columns may result in
-# configuration errors or undefined scheduler behaviour.
-#NAME          REAL_HOST   PORT  MXJ  CPU  MEM   STORAGE   GPU GPU_TYPE
-#worker1-sim     buntu24     33126   8   128   2T    100T   2   A100
-#worker2-sim     buntu24     33127   6   64   1T    50T     3   H100
-#End Sim
+# NAME          REAL_HOST   PORT  MXJ  CPU  MEM    STORAGE   GPU_TYPE  GPU_IDS
+# sim1           buntu24   33126    4     8  20G    100G      A100      0-1
+# sim2           buntu24   33127    4     8  20G    100G      A100      0-1
+# End Sim
+

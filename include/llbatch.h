@@ -144,6 +144,8 @@ struct host_info {
     int32_t num_jobs;          /* total jobs: run + susp */
     int32_t num_run;           /* running jobs */
     int32_t num_susp;          /* suspended jobs */
+    char *gpu_type;
+    char *gpu_ids;
 };
 
 enum queue_stat {
@@ -208,6 +210,7 @@ struct job_event {
     char *to_queue;     /* JOB_MOVE */
     int32_t old_priority;   /* JOB_PRIORITY */
     int32_t new_priority;   /* JOB_PRIORITY */
+    char *gpu_assigned; /* JOB_START: assigned CUDA device IDs */
 };
 
 /*

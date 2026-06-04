@@ -93,6 +93,7 @@ struct job_data {
     struct job_resources res; /* requested at submit */
     int run_nhosts;           /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;
+    char gpu_assigned[LL_BUFSIZ_64];
 };
 
 /*
@@ -116,16 +117,23 @@ struct host_resources {
     struct ll_hash gpu_type_hash; /* key gpu_type, value mbd_gpu */
 };
 
+struct gpu_id {
+    int id;      /* CUDA device index */
+    int in_use;  /* 0 = free, 1 = in use */
+};
+
 /*
- * One GPU device (or MIG partition) on a host.
- * count/free track total configured vs available for scheduling.
+ * GPU resource block for a host.
+ * count/free track total vs available for fast scheduling checks.
+ * ids[] holds per-device state for assignment at dispatch time.
  */
 struct mbd_gpu {
     struct ll_list_entry ent;
-    int gpu_id;
-    char gpu_type[LL_BUFSIZ_64]; /* full, 3g.40gb, 2g.20gb, H100, A100 */
-    int count;                   /* configured */
-    int free;                    /* available for scheduling */
+    char gpu_type[LL_BUFSIZ_64]; /* A100, H100, etc. */
+    char gpu_ids[LL_BUFSIZ_64];  /* raw ids string, for logging */
+    struct gpu_id ids[64]; /* expanded device indices with in_use tracking */
+    int count;             /* total configured */
+    int free;              /* available for scheduling */
 };
 
 /* runtime state of a connected execution host */
@@ -319,6 +327,9 @@ void token_alloc(const struct job_data *);
 void token_free(const struct job_data *);
 void job_free(struct job_data *);
 void job_id_seq_write(void);
+
+void gpu_ids_free(struct mbd_gpu *, int);
+void gpu_ids_mark_inuse(struct mbd_gpu *, int);
 
 
 // sbd.c

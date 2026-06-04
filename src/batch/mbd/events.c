@@ -211,6 +211,7 @@ void event_job_start(const struct job_data *job)
     e.gpus_per_host = job->res.num_gpus;
 
     ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
+    ll_strlcpy(e.gpu_assigned, job->gpu_assigned, sizeof(e.gpu_assigned));
 
     /* build space-separated hostname list */
     for (int i = 0; i < job->run_nhosts; i++) {
@@ -483,10 +484,27 @@ static void replay_job_start(const struct event_rec *rec)
 
     job->state = JOB_RUNNING;
     job->dispatch_time = e.dispatch_time;
+    ll_strlcpy(job->gpu_assigned, e.gpu_assigned, sizeof(job->gpu_assigned));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    LL_DEBUG("JOB_START job_id=%ld nhosts=%d cpus=%d gpus=%d",
-             e.job_id, e.nhosts, e.cpus_per_host, e.gpus_per_host);
+    /* restore per-ID in_use state for each run host */
+    if (e.gpus_per_host > 0 && e.gpu_type[0] != 0) {
+        for (int i = 0; i < job->run_nhosts; i++) {
+            struct mbd_host *h = job->run_hosts[i];
+            struct mbd_gpu *g = ll_hash_search(&h->res.gpu_type_hash,
+                                               e.gpu_type);
+            if (g == NULL) {
+                LL_ERRX("replay job=%ld host=%s gpu_type=%s not found",
+                        e.job_id, h->net.name, e.gpu_type);
+                continue;
+            }
+            gpu_ids_mark_inuse(g, e.gpus_per_host);
+        }
+    }
+
+    LL_DEBUG("JOB_START job_id=%ld nhosts=%d cpus=%d gpus=%d gpu_assigned=%s",
+             e.job_id, e.nhosts, e.cpus_per_host, e.gpus_per_host,
+             e.gpu_assigned);
 }
 
 static void replay_job_fork(const struct event_rec *rec)
@@ -655,7 +673,7 @@ int events_init(void)
 
     // bhist run by users need to read the events
     if (mkdir(dir, 0755) == -1 && errno != EEXIST) {
-        syslog(LOG_ERR, "mkdir(%s) failed: %m", dir);
+        LL_ERR("mkdir(%s) failed", dir);
         mbd_die(MBD_EXIT_FATAL);
     }
     LL_INFO("working dir initialized %s", dir);

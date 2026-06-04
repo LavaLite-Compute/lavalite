@@ -83,7 +83,6 @@ struct wire_job_start {
     uint32_t uid;
     uint32_t gid;
     uint32_t umask;
-
     char job_name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_64];
     char username[LL_BUFSIZ_64];
@@ -94,13 +93,12 @@ struct wire_job_start {
     char out_file[PATH_MAX];
     char err_file[PATH_MAX];
     char hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA:4,hostB:4" */
-
     int64_t term_time;
     int32_t gpus_per_host;
     int32_t ncpus;
     uint64_t mem_mb;
     char gpu_type[LL_BUFSIZ_64];
-
+    char gpu_assigned[LL_BUFSIZ_64]; /* e.g. "0,1" — assigned CUDA device IDs */
     struct wire_job_script script; /* job script, encoded last */
 };
 
@@ -234,6 +232,8 @@ struct wire_host_info {
     int32_t num_jobs;
     int32_t num_run;
     int32_t num_susp;
+    char gpu_type[LL_BUFSIZ_64];
+    char gpu_ids[LL_BUFSIZ_64];
 };
 
 struct wire_host_info_array {

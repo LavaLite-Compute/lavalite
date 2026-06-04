@@ -339,6 +339,8 @@ static void print_job_full(const struct job_hist_info *j)
             } else {
                 printf("\n");
             }
+            if (e->gpu_assigned != NULL && e->gpu_assigned[0] != 0)
+                printf("  %*s  GPU devices:  %s\n", 14, "", e->gpu_assigned);
             continue;
         case EVENT_JOB_FORK:
             printf("  pid: %d", (int)e->pid);

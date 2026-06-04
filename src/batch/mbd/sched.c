@@ -107,7 +107,8 @@ static int host_in_queue_group(const struct mbd_host *h,
     return 0;
 }
 
-static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
+static int host_has_gpu_count(const struct mbd_host *h,
+                              const struct job_data *job)
 {
     LL_DEBUG("job=%ld host=%s total=%d free=%d", job->job_id, h->net.name,
              h->res.total_gpu, h->res.free_gpu);
@@ -118,8 +119,8 @@ static int host_has_gpu(const struct mbd_host *h, const struct job_data *job)
     return 0;
 }
 
-static int host_has_gpu_type(const struct mbd_host *h,
-                             const struct job_data *job)
+static int host_has_gpu_type_and_count(const struct mbd_host *h,
+                                       const struct job_data *job)
 {
     assert(job->res.num_gpus > 0);
 
@@ -198,11 +199,11 @@ static int host_meets_requirements(struct mbd_host *h, struct job_data *job,
         diag->no_storage++;
         return 0;
     }
-    if (job->res.num_gpus > 0 && !host_has_gpu(h, job)) {
+    if (job->res.num_gpus > 0 && !host_has_gpu_count(h, job)) {
         diag->no_gpus++;
         return 0;
     }
-    if (job->res.gpu_type[0] != 0 && !host_has_gpu_type(h, job)) {
+    if (job->res.gpu_type[0] != 0 && !host_has_gpu_type_and_count(h, job)) {
         diag->gpu_type++;
         return 0;
     }
@@ -228,7 +229,8 @@ static void log_run_hosts(const struct job_data *job)
 }
 
 // Build specific host plan given the job requested machines
-static int build_host_plan_machines(struct job_data *job, struct pend_diag *diag)
+static int build_host_plan_machines(struct job_data *job,
+                                    struct pend_diag *diag)
 {
     int n = 0;
     int need = job->res.machines.nentries;
