@@ -343,8 +343,8 @@ int hosts_info(XDR *xdrs, int chan_id)
         hosts[i].max_jobs = h->res.max_jobs;
         hosts[i].total_cpu = h->res.total_cpu;
         hosts[i].free_cpu = h->res.free_cpu;
-        hosts[i].total_gpu = h->res.total_gpu;
-        hosts[i].free_gpu = h->res.free_gpu;
+        hosts[i].total_gpu = h->res.gpu.count;
+        hosts[i].free_gpu = gpu_ids_count_free(&h->res.gpu);
         hosts[i].total_mem_mb = h->res.total_mem_mb;
         hosts[i].free_mem_mb = h->res.free_mem_mb;
         hosts[i].total_storage_mb = h->res.total_storage_mb;
@@ -353,11 +353,11 @@ int hosts_info(XDR *xdrs, int chan_id)
         hosts[i].num_run = h->num_run;
         hosts[i].num_susp = h->num_susp;
 
-        if (h->res.gpu_list.head != NULL) {
-            struct mbd_gpu *g = (struct mbd_gpu *) h->res.gpu_list.head;
-            ll_strlcpy(hosts[i].gpu_type, g->gpu_type, sizeof(hosts[i].gpu_type));
-            ll_strlcpy(hosts[i].gpu_ids, g->gpu_ids, sizeof(hosts[i].gpu_ids));
-        }
+        ll_strlcpy(hosts[i].gpu_type, h->res.gpu.gpu_type,
+                   sizeof(hosts[i].gpu_type));
+        ll_strlcpy(hosts[i].gpu_ids, h->res.gpu.gpu_ids,
+                   sizeof(hosts[i].gpu_ids));
+
         i++;
     }
 

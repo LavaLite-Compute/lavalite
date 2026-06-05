@@ -349,8 +349,8 @@ static void print_job_full(const struct job_hist_info *j)
             printf("  signal: %d", e->signal);
             break;
         case EVENT_JOB_FINISH:
-            printf("  exit: %d  state: %s",
-                   e->exit_status, job_state_str(e->state));
+            printf("  state: %s exit_status: %d",
+                   job_state_str(e->state), e->exit_status);
             break;
         case EVENT_JOB_MOVE:
             printf("  %s -> %s",
@@ -409,7 +409,7 @@ static struct option longopts[] = {
 int main(int argc, char **argv)
 {
     int64_t       job_id  = 0;
-    uid_t         uid     = (uid_t)-1;
+    int32_t       uid     = -1;
     int32_t       njobs   = 0;
     int32_t       flags   = 0;
     int           full    = 0;
@@ -458,7 +458,7 @@ int main(int argc, char **argv)
     }
 
     /* default: current user */
-    if (job_id <= 0 && uid == (uid_t)-1) {
+    if (job_id <= 0 && uid == -1) {
         pw = getpwuid(getuid());
         if (pw == NULL) {
             fprintf(stderr, "bhist: cannot determine current user\n");

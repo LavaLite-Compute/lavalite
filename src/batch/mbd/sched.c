@@ -107,36 +107,6 @@ static int host_in_queue_group(const struct mbd_host *h,
     return 0;
 }
 
-static int host_has_gpu_count(const struct mbd_host *h,
-                              const struct job_data *job)
-{
-    LL_DEBUG("job=%ld host=%s total=%d free=%d", job->job_id, h->net.name,
-             h->res.total_gpu, h->res.free_gpu);
-
-    if (h->res.free_gpu >= job->res.num_gpus)
-        return 1;
-
-    return 0;
-}
-
-static int host_has_gpu_type_and_count(const struct mbd_host *h,
-                                       const struct job_data *job)
-{
-    assert(job->res.num_gpus > 0);
-
-    struct mbd_gpu *g = ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
-    if (g == NULL)
-        return 0;
-
-    LL_DEBUG("job=%ld host=%s has gpu_type=%s count=%d free=%d", job->job_id,
-             h->net.name, job->res.gpu_type, g->count, g->free);
-
-    if (g->free >= job->res.num_gpus)
-        return 1;
-    return 0;
-
-}
-
 static enum pend_reason diag_reason(struct pend_diag *diag)
 {
     if (diag->exclusive)
@@ -172,7 +142,29 @@ static int build_plan_array(void)
     return 0;
 }
 
+static int host_has_gpu_count(const struct mbd_host *h,
+                               const struct job_data *job)
+{
+    int n = gpu_ids_count_free(&h->res.gpu);
+    LL_DEBUG("job=%ld host=%s count=%d free=%d", job->job_id, h->net.name,
+             h->res.gpu.count, n);
+    if (n >= job->res.num_gpus)
+        return n;
+    return 0;
+}
 
+static int host_has_gpu_type_and_count(const struct mbd_host *h,
+                                        const struct job_data *job)
+{
+    if (strcmp(h->res.gpu.gpu_type, job->res.gpu_type) != 0)
+        return 0;
+    int n = gpu_ids_count_free(&h->res.gpu);
+    LL_DEBUG("job=%ld host=%s gpu_type=%s count=%d free=%d", job->job_id,
+             h->net.name, job->res.gpu_type, h->res.gpu.count, n);
+    if (n >= job->res.num_gpus)
+        return n;
+    return 0;
+}
 
 static int host_meets_requirements(struct mbd_host *h, struct job_data *job,
                                    struct pend_diag *diag)
@@ -338,26 +330,12 @@ static void host_update_resources(const struct job_data *job)
         if (job->flags & JOB_FLAG_EXCLUSIVE)
             h->exclusive = 1;
 
-        if (job->res.num_gpus > 0) {
-            h->res.free_gpu -= job->res.num_gpus;
-        }
-        if (job->res.gpu_type[0] != 0) {
-            assert(job->res.num_gpus > 0);
-            struct mbd_gpu *g =
-                ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
-            if (g == NULL) {
-                LL_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
-                        h->net.name, job->res.gpu_type);
-                assert(0);
-                continue;
-            }
-            g->free -= job->res.num_gpus;
-        }
-
+        // gpu ids were already updated during dispatch to sbd
+        int n = gpu_ids_count_free(&h->res.gpu);
         LL_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "
                  "free_storage_mb=%lu free_gpu=%d maxjobsleft=%d",
                  h->net.name, h->num_jobs, h->res.free_cpu, h->res.free_mem_mb,
-                 h->res.free_storage_mb, h->res.free_gpu,
+                 h->res.free_storage_mb, n,
                  h->res.max_jobs - h->num_jobs);
     }
 }

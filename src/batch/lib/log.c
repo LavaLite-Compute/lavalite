@@ -120,13 +120,12 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
 {
     if (write_hdr(fp, EVENT_JOB_NEW, j->submit_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %u %u %d %d %ld %ld %ld %d %d %d %lu %lu %u",
+    if (fprintf(fp, " %ld %u %u %d %d %ld %ld %d %d %d %lu %lu %u",
                 j->job_id,
                 j->uid,
                 j->gid,
                 j->state,
                 j->priority,
-                (long) j->submit_time,
                 (long) j->begin_time,
                 (long) j->term_time,
                 j->num_cpu,
@@ -160,13 +159,12 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p, " %ld %u %u %d %d %ld %ld %ld %d %d %d %lu %lu %u%n",
+    int n = sscanf(p, " %ld %u %u %d %d %ld %ld %d %d %d %lu %lu %u%n",
                    &j->job_id,
                    &j->uid,
                    &j->gid,
                    &j->state,
                    &j->priority,
-                   &j->submit_time,
                    &j->begin_time,
                    &j->term_time,
                    &j->num_cpu,
@@ -175,12 +173,13 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
                    &j->mem_mb,
                    &j->storage_mb,
                    &j->flags, &cc);
-    if (n != 14) {
+    if (n != 13) {
         errno = EINVAL;
         return -1;
     }
     p += cc;
 
+    j->submit_time = rec->event_time;
     if (read_qstr(&p, j->username, sizeof(j->username)) < 0)
         return -1;
     if (read_qstr(&p, j->job_name, sizeof(j->job_name)) < 0)
@@ -323,13 +322,14 @@ int log_parse_job_finish(const struct event_rec *rec, struct log_job_finish *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p, " %ld %u %d %d %ld %n", &j->job_id, (unsigned *) &j->uid,
-                   &j->state, &j->exit_status, &j->end_time, &cc);
-    if (n != 5) {
+    int n = sscanf(p, " %ld %u %d %d %n", &j->job_id, (unsigned *) &j->uid,
+                   &j->state, &j->exit_status, &cc);
+    if (n != 4) {
         errno = EINVAL;
         return -1;
     }
     p += cc;
+    j->end_time = rec->event_time;
 
     return 0;
 }

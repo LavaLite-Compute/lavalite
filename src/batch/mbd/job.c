@@ -387,39 +387,14 @@ static void reset_host_resources(struct job_data *job)
             h->exclusive = 0;
 
         if (job->res.num_gpus > 0) {
-            h->res.free_gpu += job->res.num_gpus;
-        }
-
-        if (job->res.gpu_type[0] != 0) {
-            assert(job->res.num_gpus > 0);
-            struct mbd_gpu *g =
-                ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
-            if (g == NULL) {
-                LL_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
-                        h->net.name, job->res.gpu_type);
-                assert(0);
-                continue;
-            }
-            /*
-             * g->free and ids[].in_use are decremented in mbd_dispatch_job
-             * via build_gpu_assigned_str, not in host_update_resources,
-             * because the assigned IDs must be on the wire before counters
-             * are updated. We restore them here at job finish.
-             */
-            g->free += job->res.num_gpus;
-            int freed = 0;
-            for (int i = 0; i < g->count && freed < job->res.num_gpus; i++) {
-                if (g->ids[i].in_use) {
-                    g->ids[i].in_use = 0;
-                    freed++;
-                }
-            }
+            gpu_ids_mark_free(&h->res.gpu, job->res.num_gpus);
         }
 
         LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
                  "free_gpu=%d num_jobs=%d",
                  h->net.name, h->res.free_cpu, h->res.free_mem_mb,
-                 h->res.free_storage_mb, h->res.free_gpu, h->num_jobs);
+                 h->res.free_storage_mb, gpu_ids_count_free(&h->res.gpu),
+                 h->num_jobs);
     }
 }
 
@@ -929,8 +904,9 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
     mbd_assert_counters();
 }
 
-// cross check counters computationally expensive
-
+/* This is a debug routing enable with LL_ASSERT_COUNTERS=1 in
+ * ll.conf. Cross check counters computationally expensive.
+ */
 void mbd_assert_counters(void)
 {
     struct ll_list_entry *e;
@@ -965,8 +941,23 @@ void mbd_assert_counters(void)
                 num_run++;
             else
                 assert(0);
+
+            if (job->res.num_gpus > 0) {
+                int n = gpu_ids_count_free(&h->res.gpu);
+                int used = h->res.gpu.count - n;
+                if (job->res.num_gpus > used
+                    || job->res.num_gpus > h->res.gpu.count) {
+                    LL_ERRX("job=%ld num_gpus=%d gpu_count=%d gpu_free=%d "
+                            "gpu_used=%d", job->job_id, job->res.num_gpus,
+                            h->res.gpu.count, n, used);
+                }
+            }
         }
 
+        /* This is the core of the function compare what we have
+         * count based on the running jobs with the counters
+         * on the host.
+         */
         if (h->num_jobs != num_jobs || h->num_run != num_run ||
             h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
             LL_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
@@ -974,42 +965,6 @@ void mbd_assert_counters(void)
                     h->net.name, h->num_jobs, num_jobs, h->num_run, num_run,
                     h->num_susp, num_susp, h->num_cpus_used, num_cpus_used);
             assert(0);
-        }
-        if (h->res.free_gpu < 0) {
-            LL_ERRX("host=%s free_gpu=%d went negative",
-                    h->net.name, h->res.free_gpu);
-            assert(0);
-        }
-        if (h->res.free_gpu != h->res.total_gpu - num_gpu_used) {
-            LL_ERRX("host=%s bad gpu counter free=%d expected=%d",
-                    h->net.name, h->res.free_gpu,
-                    h->res.total_gpu - num_gpu_used);
-            assert(0);
-        }
-        /* per gpu_type check */
-        struct ll_list_entry *ge;
-        for (ge = h->res.gpu_list.head; ge != NULL; ge = ge->next) {
-            struct mbd_gpu *g = (struct mbd_gpu *) ge;
-            int type_used = 0;
-            for (je = run_jobs_list.head; je != NULL; je = je->next) {
-                struct job_data *job = (struct job_data *) je;
-                if (!job_uses_host(job, h))
-                    continue;
-                if (job->res.gpu_type[0] != 0
-                    && strcmp(job->res.gpu_type, g->gpu_type) == 0)
-                    type_used += job->res.num_gpus;
-            }
-            if (g->free < 0) {
-                LL_ERRX("host=%s gpu_type=%s free=%d went negative",
-                        h->net.name, g->gpu_type, g->free);
-                assert(0);
-            }
-            if (g->free != g->count - type_used) {
-                LL_ERRX("host=%s gpu_type=%s bad counter free=%d expected=%d",
-                        h->net.name, g->gpu_type, g->free,
-                        g->count - type_used);
-                assert(0);
-            }
         }
     }
 
@@ -1051,6 +1006,9 @@ void mbd_assert_counters(void)
                 assert(0);
         }
 
+        /* Compare the counters based on the running and pending jobs with
+         * the queue counters
+         */
         if (q->num_jobs != num_jobs || q->num_pend != num_pend ||
             q->num_run != num_run || q->num_susp != num_susp ||
             q->num_held != num_held || q->num_cpus_used != num_cpus_used ||
@@ -1405,27 +1363,50 @@ int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, MBD_OK);
 }
 
-void gpu_ids_free(struct mbd_gpu *g, int num_gpus)
+// Count the number of free gpu ids on the device
+int gpu_ids_count_free(const struct mbd_gpu *g)
+{
+    int free = 0;
+
+    for (int i = 0; i < g->count; i++) {
+        if (g->ids[i].in_use == 0)
+            free++;
+    }
+    return free;
+}
+
+/* Mark num_gpus devices as free. This is called after job finishes.
+ */
+int gpu_ids_mark_free(struct mbd_gpu *g, int num_gpus)
 {
     int freed = 0;
 
-    for (int i = 0; i < g->count && freed < num_gpus; i++) {
-        if (g->ids[i].in_use) {
+    assert(g->count >= num_gpus);
+    for (int i = 0; i < num_gpus; i++) {
+        if (g->ids[i].in_use == 1) {
             g->ids[i].in_use = 0;
             freed++;
         }
     }
+    assert(freed ==  num_gpus);
+    return freed;
+
 }
 
-void gpu_ids_mark_inuse(struct mbd_gpu *g, int num_gpus)
+/* Mark num_gpus devices as used. This is called after scheduling
+ * and after replay to restore the in use device ids.
+ */
+int gpu_ids_mark_inuse(struct mbd_gpu *g, int num_gpus)
 {
     int marked = 0;
 
-    for (int i = 0; i < g->count && marked < num_gpus; i++) {
-        if (!g->ids[i].in_use) {
+    assert(g->count >= num_gpus);
+    for (int i = 0; i < num_gpus; i++) {
+        if (g->ids[i].in_use == 0) {
             g->ids[i].in_use = 1;
-            g->free--;
             marked++;
         }
     }
+    assert(marked ==  num_gpus);
+    return marked;
 }

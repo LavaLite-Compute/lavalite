@@ -67,6 +67,9 @@ static void replay_reset_counters(void)
         h->num_susp = 0;
         h->num_cpus_used = 0;
         h->exclusive = 0;
+        // Assume a host has less than 64 gpus but cap it
+        for (int i = 0; i < h->res.gpu.count; i++)
+            h->res.gpu.ids[i].in_use = 0;
     }
 }
 
@@ -75,6 +78,7 @@ static void replay_charge_running_job(struct job_data *job)
     for (int i = 0; i < job->run_nhosts; i++) {
         struct mbd_host *h = job->run_hosts[i];
 
+        // TODO what to do if a cpu has been taken of line
         h->res.free_cpu -= job->res.num_cpus;
         h->res.free_mem_mb -= job->res.mem_mb;
         h->res.free_storage_mb -= job->res.storage_mb;
@@ -89,20 +93,11 @@ static void replay_charge_running_job(struct job_data *job)
         if (job->flags & JOB_FLAG_EXCLUSIVE)
             h->exclusive = 1;
 
+        // TODO what to do if a gpu has been taken of line
+        // Update the gpus that were assigned to the job at
+        // runtime
         if (job->res.num_gpus > 0)
-            h->res.free_gpu -= job->res.num_gpus;
-
-        if (job->res.gpu_type[0] != 0) {
-            struct mbd_gpu *g;
-            assert(job->res.num_gpus > 0);
-            g = ll_hash_search(&h->res.gpu_type_hash, job->res.gpu_type);
-            if (g == NULL) {
-                LL_ERRX("job=%ld host=%s gpu_type=%s not found", job->job_id,
-                        h->net.name, job->res.gpu_type);
-                continue;
-            }
-            g->free -= job->res.num_gpus;
-        }
+            gpu_ids_mark_inuse(&h->res.gpu, job->res.num_gpus);
     }
 }
 
@@ -111,7 +106,6 @@ static void replay_rebuild_counters(void)
     replay_reset_counters();
 
     struct ll_list_entry *e;
-
     for (e = pend_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
 
@@ -487,21 +481,6 @@ static void replay_job_start(const struct event_rec *rec)
     ll_strlcpy(job->gpu_assigned, e.gpu_assigned, sizeof(job->gpu_assigned));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    /* restore per-ID in_use state for each run host */
-    if (e.gpus_per_host > 0 && e.gpu_type[0] != 0) {
-        for (int i = 0; i < job->run_nhosts; i++) {
-            struct mbd_host *h = job->run_hosts[i];
-            struct mbd_gpu *g = ll_hash_search(&h->res.gpu_type_hash,
-                                               e.gpu_type);
-            if (g == NULL) {
-                LL_ERRX("replay job=%ld host=%s gpu_type=%s not found",
-                        e.job_id, h->net.name, e.gpu_type);
-                continue;
-            }
-            gpu_ids_mark_inuse(g, e.gpus_per_host);
-        }
-    }
-
     LL_DEBUG("JOB_START job_id=%ld nhosts=%d cpus=%d gpus=%d gpu_assigned=%s",
              e.job_id, e.nhosts, e.cpus_per_host, e.gpus_per_host,
              e.gpu_assigned);
@@ -567,6 +546,9 @@ static void replay_job_finish(const struct event_rec *rec)
         from = &run_jobs_list;
     job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
     LL_DEBUG("JOB_FINISH job_id=%ld", e.job_id);
+    /* No counter updates. These updates are performed only after
+     * the full replay and only for jobs in pending or running lists.
+     */
 }
 
 static void replay_job_pend_susp(const struct event_rec *rec)

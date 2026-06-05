@@ -96,27 +96,6 @@ struct job_data {
     char gpu_assigned[LL_BUFSIZ_64];
 };
 
-/*
- * Host resource capacities and current availability.
- * total_* is configured (llb.hosts), free_* is updated from sbd heartbeat.
- * used_* is derivable as total - free, computed at display/event time.
- * total_gpu/free_gpu are aggregates for fast scheduling checks;
- * gpu_list is walked only when a specific gpu_type is requested.
- */
-struct host_resources {
-    int max_jobs;
-    int total_cpu;
-    int free_cpu;
-    int total_gpu;
-    int free_gpu;
-    uint64_t total_mem_mb;
-    uint64_t free_mem_mb;
-    uint64_t total_storage_mb;
-    uint64_t free_storage_mb;
-    struct ll_list gpu_list; /* list of mbd_gpu */
-    struct ll_hash gpu_type_hash; /* key gpu_type, value mbd_gpu */
-};
-
 struct gpu_id {
     int id;      /* CUDA device index */
     int in_use;  /* 0 = free, 1 = in use */
@@ -131,9 +110,27 @@ struct mbd_gpu {
     struct ll_list_entry ent;
     char gpu_type[LL_BUFSIZ_64]; /* A100, H100, etc. */
     char gpu_ids[LL_BUFSIZ_64];  /* raw ids string, for logging */
-    struct gpu_id ids[64]; /* expanded device indices with in_use tracking */
-    int count;             /* total configured */
-    int free;              /* available for scheduling */
+    int count;      /* total configured */
+    /* expanded device indices with in_use tracking */
+    struct gpu_id ids[LL_BUFSIZ_64];
+};
+
+/*
+ * Host resource capacities and current availability.
+ * total_* is configured (llb.hosts), free_* is updated from sbd heartbeat.
+ * used_* is derivable as total - free, computed at display/event time.
+ * total_gpu/free_gpu are aggregates for fast scheduling checks;
+ * gpu_list is walked only when a specific gpu_type is requested.
+ */
+struct host_resources {
+    int max_jobs;
+    int total_cpu;
+    int free_cpu;
+    uint64_t total_mem_mb;
+    uint64_t free_mem_mb;
+    uint64_t total_storage_mb;
+    uint64_t free_storage_mb;
+    struct mbd_gpu gpu;
 };
 
 /* runtime state of a connected execution host */
@@ -327,10 +324,9 @@ void token_alloc(const struct job_data *);
 void token_free(const struct job_data *);
 void job_free(struct job_data *);
 void job_id_seq_write(void);
-
-void gpu_ids_free(struct mbd_gpu *, int);
-void gpu_ids_mark_inuse(struct mbd_gpu *, int);
-
+int gpu_ids_count_free(const struct mbd_gpu *);
+int gpu_ids_mark_free(struct mbd_gpu *, int);
+int gpu_ids_mark_inuse(struct mbd_gpu *, int);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
