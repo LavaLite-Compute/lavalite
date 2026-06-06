@@ -333,6 +333,7 @@ int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
 void mbd_new_job_reply(struct mbd_host *, XDR *, struct protocol_header *);
 void mbd_job_finish(struct mbd_host *, XDR *);
+void mbd_job_unknown(struct mbd_host *, XDR *);
 
 // debug counters
 void mbd_assert_counters(void);

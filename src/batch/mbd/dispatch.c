@@ -92,101 +92,96 @@ static int hash_keys_to_array(struct ll_hash *h, char ***out)
 
 int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
+    int n = 0;
+    int all = 0;
+    uid_t uid = 0;
     struct wire_job_query req;
+
     memset(&req, 0, sizeof(req));
     if (!xdr_wire_job_query(xdrs, &req)) {
-        LL_ERRX("xdr_wire_job_info_req failed chan_id=%d", chan_id);
+        LL_ERRX("xdr_wire_job_query failed chan_id=%d", chan_id);
         return -1;
     }
+
+    if (req.job_id != -1) {
+
+        struct job_data *job = job_find(req.job_id);
+        if (job == NULL)
+            return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, ESRCH);
+
+        struct wire_job_info *jobs = calloc(1, sizeof(struct wire_job_info));
+        if (jobs == NULL) {
+            LL_ERR("calloc failed");
+            return -1;
+        }
+        if (job->uid != hdr->uid && !is_manager(hdr->uid)) {
+            LL_INFO("uid=%u denied job=%ld", hdr->uid, req.job_id);
+            free(jobs);
+            return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
+        }
+        job_data_to_wire(job, &jobs[0]);
+        n = 1;
+        struct wire_job_info_array reply = { .njobs = n, .jobs = jobs };
+        size_t siz = sizeof(struct wire_job_info) * n +
+                     sizeof(struct wire_job_info_array) +
+                     PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+        struct protocol_header rep_hdr;
+        init_protocol_header(&rep_hdr);
+        rep_hdr.operation = BATCH_JOB_INFO_ACK;
+        rep_hdr.status    = MBD_OK;
+        if (enqueue_payload(chan_id, &rep_hdr, &reply,
+                            siz, xdr_wire_job_info_array) < 0) {
+            LL_ERR("enqueue_payload failed");
+            free(jobs);
+            return -1;
+        }
+        free(jobs);
+        return 0;
+    }
+
+    if (is_manager(hdr->uid))
+        all = 1;
+    else
+        uid = hdr->uid;
 
     int ntotal = ll_list_count(&pend_jobs_list) +
                  ll_list_count(&run_jobs_list) +
                  ll_list_count(&finish_jobs_list);
 
-    int n = 0;
     struct wire_job_info *jobs = NULL;
-    if (ntotal == 0) {
-        n = 0;
-        jobs = NULL;
-        goto send;
-    }
-
-    int status = MBD_OK;
-    jobs = calloc(ntotal, sizeof(struct wire_job_info));
-    if (jobs == NULL) {
-        LL_ERR("calloc failed");
-        return -1;
-    }
-
-    if (req.job_id != -1) {
-        struct job_data *job = job_find(req.job_id);
-        if (job == NULL)
-            goto send;
-        if (job->uid != hdr->uid && !is_manager(hdr->uid)) {
-            LL_INFO("uid=%u denied access to job=%ld uid=%u",
-                    hdr->uid, req.job_id, job->uid);
-            status = EPERM;
-            goto send;
+    if (ntotal > 0) {
+        jobs = calloc(ntotal, sizeof(struct wire_job_info));
+        if (jobs == NULL) {
+            LL_ERR("calloc failed");
+            return -1;
         }
-        job_data_to_wire(job, &jobs[0]);
-        n = 1;
-        goto send;
+        if (req.flags == 0) {
+            n = collect_list(&pend_jobs_list, jobs, n, uid, all);
+            n = collect_list(&run_jobs_list,  jobs, n, uid, all);
+        } else {
+            if (req.flags & LLB_JOB_PEND)
+                n = collect_list(&pend_jobs_list,   jobs, n, uid, all);
+            if (req.flags & LLB_JOB_RUN)
+                n = collect_list(&run_jobs_list,    jobs, n, uid, all);
+            if (req.flags & LLB_JOB_DONE)
+                n = collect_list(&finish_jobs_list, jobs, n, uid, all);
+        }
     }
 
-    if (req.uid == -1 && !is_manager(hdr->uid)) {
-        free(jobs);
-        LL_INFO("uid=%u denied access to all jobs", hdr->uid);
-        return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
-    }
-    if (req.uid != (int32_t)hdr->uid && !is_manager(hdr->uid)) {
-        LL_INFO("uid=%u denied access to jobs of uid=%d", hdr->uid, req.uid);
-        free(jobs);
-        return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
-    }
-
-    int all = 0;
-    uid_t uid = 0;
-
-    if (req.uid == -1)
-        all = 1;
-    else
-        uid = (uid_t)req.uid;
-
-    if (req.flags == 0) {
-        n = collect_list(&pend_jobs_list, jobs, n, uid, all);
-        n = collect_list(&run_jobs_list, jobs, n, uid, all);
-        goto send;
-    }
-
-    if (req.flags & LLB_JOB_PEND)
-        n = collect_list(&pend_jobs_list, jobs, n, uid, all);
-    if (req.flags & LLB_JOB_RUN)
-        n = collect_list(&run_jobs_list, jobs, n, uid, all);
-    if (req.flags & LLB_JOB_DONE)
-        n = collect_list(&finish_jobs_list, jobs, n, uid, all);
-send:
-    /* enqueue_payload ... */
-
-    struct wire_job_info_array reply;
-    reply.njobs = n;
-    reply.jobs = jobs;
-
+    struct wire_job_info_array reply = { .njobs = n, .jobs = jobs };
     size_t siz = sizeof(struct wire_job_info) * n +
-                 sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
-
+                 sizeof(struct wire_job_info_array) +
+                 PACKET_HEADER_SIZE + LL_BUFSIZ_64;
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
     rep_hdr.operation = BATCH_JOB_INFO_ACK;
-    rep_hdr.status = status;
-
+    rep_hdr.status    = MBD_OK;
     if (enqueue_payload(chan_id, &rep_hdr, &reply,
                         siz, xdr_wire_job_info_array) < 0) {
         LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
     }
-
     free(jobs);
     return 0;
 }

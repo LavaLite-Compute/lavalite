@@ -622,15 +622,15 @@ int job_init(void)
 
     LL_INFO("job structures initialized");
 
-    int nj = jobs_replay();
-    LL_INFO("num=%d jobs replayed", nj);
-
     assert_counters = 0;
     if (! ll_atoi(ll_params[LL_ASSERT_COUNTERS].val, &assert_counters)) {
         LL_ERRX("failed set assert_counters");
         assert_counters = 0;
     }
     LL_DEBUG("mbd asserting counters assert_counters=%d", assert_counters);
+
+    int nj = jobs_replay();
+    LL_INFO("num=%d jobs replayed", nj);
 
     return 0;
 }
@@ -922,6 +922,7 @@ void mbd_assert_counters(void)
         int num_susp = 0;
         int num_cpus_used = 0;
         int num_gpu_used = 0;
+        int num_orphan = 0;
 
         assert(h->num_jobs <= h->res.max_jobs);
 
@@ -939,6 +940,8 @@ void mbd_assert_counters(void)
                 num_susp++;
             else if (job->state == JOB_RUNNING)
                 num_run++;
+            else if (job->state == JOB_ORPHAN)
+                num_orphan++;
             else
                 assert(0);
 
@@ -961,9 +964,10 @@ void mbd_assert_counters(void)
         if (h->num_jobs != num_jobs || h->num_run != num_run ||
             h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
             LL_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
-                    "cpus_used=%d/%d",
+                    "cpus_used=%d/%d orphan=%d",
                     h->net.name, h->num_jobs, num_jobs, h->num_run, num_run,
-                    h->num_susp, num_susp, h->num_cpus_used, num_cpus_used);
+                    h->num_susp, num_susp, h->num_cpus_used, num_cpus_used,
+                    num_orphan);
             assert(0);
         }
     }
@@ -1189,6 +1193,16 @@ static int signal_pending_job(struct job_data *job,
 static int signal_running_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
+    if (job->state == JOB_ORPHAN) {
+        LL_INFO("job=%ld orphan on disconnected host=%s, cannot signal it",
+                job->job_id, job->run_hosts[0]->net.name);
+        return EINVAL;
+    }
+    if (job->run_hosts[0]->sbd_chan < 0) {
+        LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
+                job->job_id, job->run_hosts[0]->net.name);
+        return EINVAL;
+    }
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_SBD_JOB_SIGNAL;
@@ -1235,8 +1249,14 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
         job = (struct job_data *) e;
 
         assert(job->run_hosts[0]);
+        if (job->state == JOB_ORPHAN) {
+            LL_INFO("job=%ld orphan on disconnected host=%s, cannot signal it",
+                    job->job_id, job->run_hosts[0]->net.name);
+            continue;
+        }
         if (job->run_hosts[0]->sbd_chan < 0) {
-            LL_DEBUG("sbd=%s is disconnected", job->run_hosts[0]->net.name);
+            LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
+                    job->job_id, job->run_hosts[0]->net.name);
             continue;
         }
 

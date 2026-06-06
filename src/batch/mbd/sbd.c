@@ -31,6 +31,7 @@ static int build_sbd_run_list(struct mbd_host *n,
         count++;
     }
 
+    LL_DEBUG("host=%s has count=%d number of jobs", n->net.name, count);
     if (count == 0)
         return 0;
 
@@ -192,6 +193,9 @@ int32_t mbd_sbd_route(struct mbd_host *n)
         break;
     case BATCH_SBD_JOB_SIGNAL_REPLY:
         mbd_job_signal_reply(n, &xdrs, &hdr);
+        break;
+    case BATCH_JOB_UNKNOWN:
+        mbd_job_unknown(n, &xdrs);
         break;
     }
 
@@ -462,4 +466,24 @@ int mbd_dispatch_job(struct job_data *job)
     LL_INFO("job=%ld dispatched to host=%s", job->job_id, h->net.name);
 
     return 0;
+}
+
+void mbd_job_unknown(struct mbd_host *n, XDR *xdrs)
+{
+    struct wire_job_state s;
+
+    memset(&s, 0, sizeof(s));
+    if (!xdr_wire_job_state(xdrs, &s)) {
+        LL_ERR("xdr_wire_job_state decode failed from=%s",
+               chan_addr_str(n->sbd_chan));
+        return;
+    }
+
+    struct job_data *job = job_find(s.job_id);
+    if (job == NULL) {
+        LL_ERRX("cannot find job=%ld", s.job_id);
+        return;
+    }
+    LL_INFO("job=%ld reported as unknown by sbd, setting as orphan", s.job_id);
+    job->state = JOB_ORPHAN;
 }
