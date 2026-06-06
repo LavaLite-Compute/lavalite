@@ -327,13 +327,14 @@ void job_id_seq_write(void);
 int gpu_ids_count_free(const struct mbd_gpu *);
 int gpu_ids_mark_free(struct mbd_gpu *, int);
 int gpu_ids_mark_inuse(struct mbd_gpu *, int);
+void reset_host_resources(struct job_data *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
 void mbd_new_job_reply(struct mbd_host *, XDR *, struct protocol_header *);
 void mbd_job_finish(struct mbd_host *, XDR *);
-void mbd_job_unknown(struct mbd_host *, XDR *);
+void mbd_job_orphan(struct mbd_host *, XDR *);
 
 // debug counters
 void mbd_assert_counters(void);

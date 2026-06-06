@@ -994,7 +994,7 @@ reply:
     return 0;
 }
 
-int sbd_enqueue_job_unknown(int64_t job_id)
+int sbd_enqueue_job_orphan(int64_t job_id)
 {
     struct wire_job_state js;
 

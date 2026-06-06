@@ -194,8 +194,8 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     case BATCH_SBD_JOB_SIGNAL_REPLY:
         mbd_job_signal_reply(n, &xdrs, &hdr);
         break;
-    case BATCH_JOB_UNKNOWN:
-        mbd_job_unknown(n, &xdrs);
+    case BATCH_JOB_ORPHAN:
+        mbd_job_orphan(n, &xdrs);
         break;
     }
 
@@ -468,7 +468,7 @@ int mbd_dispatch_job(struct job_data *job)
     return 0;
 }
 
-void mbd_job_unknown(struct mbd_host *n, XDR *xdrs)
+void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
 {
     struct wire_job_state s;
 
@@ -484,6 +484,38 @@ void mbd_job_unknown(struct mbd_host *n, XDR *xdrs)
         LL_ERRX("cannot find job=%ld", s.job_id);
         return;
     }
-    LL_INFO("job=%ld reported as unknown by sbd, setting as orphan", s.job_id);
+
+    // Add the guard for the state
+    if (job->state == JOB_ORPHAN) {
+        LL_INFO("job=%ld already orphan", job->job_id);
+        return;
+    }
+    if (job->run_nhosts <= 0 || job->run_hosts[0] != n) {
+        LL_ERRX("job=%ld orphan report from wrong host=%s", s.job_id, n->net.name);
+        return;
+    }
+
+    if (job->state != JOB_RUNNING && job->state != JOB_SUSPENDED) {
+        LL_ERRX("job=%ld state=%s cannot become orphan",
+                job->job_id, job_state_str(job->state));
+        return;
+    }
+
+    // Free host resources
+    reset_host_resources(job);
+    token_free(job);
+
+    // Update the queue counters before resetting the job state
+    if (job->state == JOB_RUNNING)
+        job->queue->num_run--;
+
+    if (job->state == JOB_SUSPENDED)
+        job->queue->num_susp--;
+
+    job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
+    job->queue->num_hosts_used -= job->run_nhosts;
+    job->queue->num_jobs--;
+
+    LL_INFO("job=%ld reported as orphan by sbd=%s", s.job_id, n->net.name);
     job->state = JOB_ORPHAN;
 }

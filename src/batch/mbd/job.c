@@ -366,38 +366,6 @@ static int job_write_usage(const struct job_data *job,
     return 0;
 }
 
-static void reset_host_resources(struct job_data *job)
-{
-    for (int i = 0; i < job->run_nhosts; i++) {
-        struct mbd_host *h = job->run_hosts[i];
-
-        h->res.free_cpu += job->res.num_cpus;
-        h->res.free_mem_mb += job->res.mem_mb;
-        h->res.free_storage_mb += job->res.storage_mb;
-        h->num_jobs--;
-        h->num_cpus_used -= job->res.num_cpus;
-
-        if (job->state == JOB_RUNNING)
-            h->num_run--;
-
-        if (job->state == JOB_SUSPENDED)
-            h->num_susp--;
-
-        if (job->flags & JOB_FLAG_EXCLUSIVE)
-            h->exclusive = 0;
-
-        if (job->res.num_gpus > 0) {
-            gpu_ids_mark_free(&h->res.gpu, job->res.num_gpus);
-        }
-
-        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
-                 "free_gpu=%d num_jobs=%d",
-                 h->net.name, h->res.free_cpu, h->res.free_mem_mb,
-                 h->res.free_storage_mb, gpu_ids_count_free(&h->res.gpu),
-                 h->num_jobs);
-    }
-}
-
 // Undo the optimistic dispatch to sbd. Running jobs got back to pending.
 static void mbd_job_reject_dispatch(struct job_data *job)
 {
@@ -481,6 +449,38 @@ static void job_register_error(int chan_id, int status)
     size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
     /* best-effort: ignore enqueue failure, caller closes the connection */
     enqueue_payload(chan_id, &rep_hdr, &reply, siz, xdr_wire_job_submit_reply);
+}
+
+void reset_host_resources(struct job_data *job)
+{
+    for (int i = 0; i < job->run_nhosts; i++) {
+        struct mbd_host *h = job->run_hosts[i];
+
+        h->res.free_cpu += job->res.num_cpus;
+        h->res.free_mem_mb += job->res.mem_mb;
+        h->res.free_storage_mb += job->res.storage_mb;
+        h->num_jobs--;
+        h->num_cpus_used -= job->res.num_cpus;
+
+        if (job->state == JOB_RUNNING)
+            h->num_run--;
+
+        if (job->state == JOB_SUSPENDED)
+            h->num_susp--;
+
+        if (job->flags & JOB_FLAG_EXCLUSIVE)
+            h->exclusive = 0;
+
+        if (job->res.num_gpus > 0) {
+            gpu_ids_mark_free(&h->res.gpu, job->res.num_gpus);
+        }
+
+        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
+                 "free_gpu=%d num_jobs=%d",
+                 h->net.name, h->res.free_cpu, h->res.free_mem_mb,
+                 h->res.free_storage_mb, gpu_ids_count_free(&h->res.gpu),
+                 h->num_jobs);
+    }
 }
 
 void job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
@@ -1193,15 +1193,10 @@ static int signal_pending_job(struct job_data *job,
 static int signal_running_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
-    if (job->state == JOB_ORPHAN) {
-        LL_INFO("job=%ld orphan on disconnected host=%s, cannot signal it",
-                job->job_id, job->run_hosts[0]->net.name);
-        return EINVAL;
-    }
     if (job->run_hosts[0]->sbd_chan < 0) {
         LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
                 job->job_id, job->run_hosts[0]->net.name);
-        return EINVAL;
+        return EAGAIN;
     }
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -1250,8 +1245,7 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
 
         assert(job->run_hosts[0]);
         if (job->state == JOB_ORPHAN) {
-            LL_INFO("job=%ld orphan on disconnected host=%s, cannot signal it",
-                    job->job_id, job->run_hosts[0]->net.name);
+            LL_INFO("job=%ld orphan skipped by bulk signal", job->job_id);
             continue;
         }
         if (job->run_hosts[0]->sbd_chan < 0) {
@@ -1269,6 +1263,14 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
     }
 
     return MBD_OK;
+}
+
+static void job_orphan_finish(struct job_data *job)
+{
+    job->state = JOB_EXITED;
+    job->exit_status = 1;
+    LL_INFO("job=%ld orphan declared finished", job->job_id);
+    event_job_finish(job);
 }
 
 int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
@@ -1315,6 +1317,17 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     if (req.sig == SIGCONT &&
         (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
         LL_DEBUG("job_signal: job_id=%ld SIGCONT no-op", (long) req.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+    }
+
+    if (job->state == JOB_ORPHAN) {
+        const char *host = "-";
+
+        if (job->run_nhosts > 0 && job->run_hosts[0] != NULL)
+            host = job->run_hosts[0]->net.name;
+
+        LL_INFO("job=%ld orphan host=%s terminating it", job->job_id, host);
+        job_orphan_finish(job);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 

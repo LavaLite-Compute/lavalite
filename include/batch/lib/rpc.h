@@ -36,7 +36,7 @@ enum batch_lib_op {
     // no ack to signal has not reply but triggers a job status change
     BATCH_SBD_JOB_SIGNAL,
     BATCH_SBD_JOB_SIGNAL_REPLY,
-    BATCH_JOB_UNKNOWN,
+    BATCH_JOB_ORPHAN,
     BATCH_QUEUE_ADMIN,
     BATCH_QUEUE_ADMIN_ACK,
     BATCH_HOST_ADMIN,

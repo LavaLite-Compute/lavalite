@@ -50,7 +50,7 @@ int valid_batch_op(int op)
     case BATCH_JOB_MOVE_ACK:
     case BATCH_JOB_PRIORITY:
     case BATCH_JOB_PRIORITY_ACK:
-    case BATCH_JOB_UNKNOWN:
+    case BATCH_JOB_ORPHAN:
         return 1;
     default:
         return 0;

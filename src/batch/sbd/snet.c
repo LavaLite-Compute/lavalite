@@ -284,7 +284,7 @@ void sbd_register_ack(XDR *xdrs)
 
         struct sbd_job *job = sbd_job_lookup(wj->job_id);
         if (job == NULL) {
-            if (sbd_enqueue_job_unknown(wj->job_id) < 0)
+            if (sbd_enqueue_job_orphan(wj->job_id) < 0)
                 sbd_fatal(SBD_FATAL_ENQUEUE);
             continue;
         }

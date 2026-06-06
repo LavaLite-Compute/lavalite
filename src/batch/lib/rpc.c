@@ -152,6 +152,7 @@ const char *batch_op_str(enum batch_lib_op op)
         [BATCH_JOB_MOVE_ACK] = "BATCH_JOB_MOVE_ACK",
         [BATCH_JOB_PRIORITY] = "BATCH_JOB_PRIORITY",
         [BATCH_JOB_PRIORITY_ACK] = "BATCH_JOB_PRIORITY_ACK",
+        [BATCH_JOB_ORPHAN] = "BATCH_JOB_ORPHAN",
     };
     static const size_t nnames = sizeof(names) / sizeof(names[0]);
 
