@@ -118,6 +118,10 @@ static void replay_rebuild_counters(void)
             job->queue->num_held++;
         else if (job->state == JOB_PENDING)
             job->queue->num_pend++;
+        else if (job->state == JOB_BROKEN)
+            job->queue->num_pend++;
+        else if (job->state == JOB_ORPHAN)
+            job->queue->num_pend++;
         else {
             LL_ERRX("job=%ld in invalid state %d in pending list", job->job_id,
                     job->state);
@@ -427,10 +431,12 @@ static int replay_set_run_hosts(struct job_data *job,
     char *tok = strtok(hosts, " \t,");
     while (tok != NULL) {
 
-        struct mbd_host *h = ll_hash_search(&host_name_hash, tok);
+        // Search the job hosts in the current job queue
+        struct mbd_host *h = ll_hash_search(&job->queue->host_hash, tok);
         if (h == NULL) {
-            // Configuration change.
-            LL_ERRX("JOB_START job_id=%ld host=%s not found", job->job_id, tok);
+            // Configuration change?
+            LL_ERRX("job_id=%ld host=%s not found in job's queue",
+                    job->job_id, tok);
             return -1;
         }
 
@@ -470,16 +476,24 @@ static void replay_job_start(const struct event_rec *rec)
         LL_ERR("JOB_START job_id=%ld not found", e.job_id);
         return;
     }
+
+    if (job->state == JOB_ORPHAN) {
+        LL_ERRX("job=%ld state=%s skipping JOB_START_REPLAY",
+                job->job_id, llb_job_state_str(job->state));
+        return;
+    }
+
     if (replay_set_run_hosts(job, &e) < 0) {
-        // JOB_START references a host that is not present in the current config
-        LL_ERR("job_id=%ld replay_set_run_hosts failed", e.job_id);
-        /* This is a bizarre situation how can we ended up with
-         * inconsistent run_host count.
-         * mbd cannot safely reconstruct a running job without its run_hosts.
-         * Continuing may corrupt counters or send wrong register state to SBD.
-         * Stopping MBD is safer than pretending the job is RUNNING.
+        /* JOB_START references a host that is not present in the current config
+         * The job cannot be reconstructed safely.
+         * Mark it BROKEN and leave it in the pending lists
+         * An administrator or owner may later terminate it.
          */
-        mbd_die(MBD_EXIT_EVENTS);
+        LL_ERRX("job_id=%ld is broken cannot rebuild its runtime status "
+                "configuration changed?", e.job_id);
+        job->state = JOB_BROKEN;
+        // return preventing any resource allocation
+        return;
     }
 
     job->state = JOB_RUNNING;
@@ -547,6 +561,8 @@ static void replay_job_finish(const struct event_rec *rec)
     job->uid = e.uid;
     job->end_time = e.end_time;
 
+    // The job could be broken so still in the pending list, or just
+    // simply pending and then bkilled
     struct ll_list *from = &pend_jobs_list;
     if (job->list_id == JOB_LIST_RUN)
         from = &run_jobs_list;

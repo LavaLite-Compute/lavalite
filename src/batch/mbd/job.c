@@ -124,7 +124,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
 
     if (job->res.num_hosts < 1) {
         LL_ERRX("job=%ld invalid num_host=%d forcing to one 1", job->job_id,
-                num_hosts);
+                job->res.num_hosts);
         job->res.num_hosts = 1;
     }
 
@@ -1017,6 +1017,10 @@ void mbd_assert_counters(void)
                 num_held++;
             else if (job->state == JOB_PENDING)
                 num_pend++;
+            else if (job->state == JOB_BROKEN)
+                num_pend++;
+            else if (job->state == JOB_ORPHAN)
+                num_pend++;
             else
                 assert(0);
         }
@@ -1270,8 +1274,10 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
         job = (struct job_data *) e;
 
         assert(job->run_hosts[0]);
-        if (job->state == JOB_ORPHAN) {
-            LL_INFO("job=%ld orphan skipped by bulk signal", job->job_id);
+        if (job->state == JOB_ORPHAN
+            || job->state == JOB_BROKEN) {
+            LL_INFO("job=%ld state=%s skipped by bulk signal", job->job_id,
+                    llb_job_state_str(job->state));
             continue;
         }
         if (job->run_hosts[0]->sbd_chan < 0) {
@@ -1289,19 +1295,6 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
     }
 
     return MBD_OK;
-}
-
-static void job_orphan_finish(struct job_data *job)
-{
-    assert(job->state == JOB_ORPHAN);
-    assert(job->list_id == JOB_LIST_RUN);
-
-    job->state = JOB_EXITED;
-    job->exit_status = 1;
-    job->end_time = time(NULL);
-    LL_INFO("job=%ld orphan declared finished", job->job_id);
-    job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
-    event_job_finish(job);
 }
 
 int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
@@ -1351,15 +1344,17 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
-    if (job->state == JOB_ORPHAN) {
+    if (job->state == JOB_ORPHAN
+        || job->state == JOB_BROKEN) {
         const char *host = "-";
-
         if (job->run_nhosts > 0 && job->run_hosts[0] != NULL)
             host = job->run_hosts[0]->net.name;
 
-        LL_INFO("job=%ld orphan host=%s terminating it", job->job_id, host);
-        job_orphan_finish(job);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+        LL_INFO("job=%ld state=%s host=%s terminating it", job->job_id,
+                llb_job_state_str(job->state), host);
+
+        int cc = signal_pending_job(job, &req);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
     }
 
     int cc;

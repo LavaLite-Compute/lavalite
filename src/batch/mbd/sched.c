@@ -83,6 +83,11 @@ static int is_depend_ok(const struct job_data *job)
 
 static int job_is_ready(const struct job_data *job)
 {
+    /*
+     * Only true pending jobs are schedulable.
+     * HELD, SUSPENDED, ORPHAN and BROKEN jobs may live on the pending
+     * list, but must never be dispatched by the scheduler.
+     */
     if (!(job->state == JOB_PENDING))
         return 0;
     if (job->begin_time > 0 && job->begin_time > time(NULL))

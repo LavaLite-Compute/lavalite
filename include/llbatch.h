@@ -13,14 +13,15 @@
  * -----------------------------------------------------------------------
  */
 enum job_state {
-    JOB_PENDING = 1,
-    JOB_HELD,
-    JOB_RUNNING,
-    JOB_SUSPENDED,
-    JOB_EXITED,
-    JOB_DONE,
-    JOB_ORPHAN,
-    JOB_UNKNOWN,
+    JOB_PENDING = 1,  /* waiting for dispatch */
+    JOB_HELD,         /* pending and held (bsub -H or STOP before dispatch) */
+    JOB_RUNNING,      /* accepted by SBD and executing */
+    JOB_SUSPENDED,    /* execution suspended on SBD */
+    JOB_EXITED,       /* finished with non-zero exit status */
+    JOB_DONE,         /* finished successfully */
+    JOB_ORPHAN,       /* known to MBD, rejected as unknown by SBD */
+    JOB_BROKEN,       /* replay failed, runtime state could not be rebuilt */
+    JOB_UNKNOWN,      /* SBD unavailable, actual state cannot be determined */
 };
 
 /* These are the classical unix job exit status values
@@ -295,3 +296,4 @@ int32_t llb_move_job(int64_t, const char *);
 
 // bpriority
 int32_t llb_priority_job(int64_t, int32_t);
+const char *llb_job_state_str(int32_t);

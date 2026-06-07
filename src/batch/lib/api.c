@@ -793,3 +793,29 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
 
     return 0;
 }
+
+const char *llb_job_state_str(int32_t state)
+{
+    switch (state) {
+    case JOB_PENDING:
+        return "PEND";
+    case JOB_HELD:
+        return "HELD";
+    case JOB_RUNNING:
+        return "RUN";
+    case JOB_SUSPENDED:
+        return "SUSP";
+    case JOB_EXITED:
+        return "EXIT";
+    case JOB_DONE:
+        return "DONE";
+    case JOB_BROKEN:
+        return "BROKEN";
+    case JOB_ORPHAN:
+        return "ORPHAN";
+    case JOB_UNKNOWN:
+        return "UNKNOWN";
+    default:
+        return "BADSTATE";
+    }
+}

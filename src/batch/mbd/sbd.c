@@ -518,9 +518,14 @@ void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
     job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
     job->queue->num_hosts_used -= job->run_nhosts;
     job->queue->num_jobs--;
-    /* Orphan is a boundary case, we still keep the job in run_jobs_list
-     * but without resources.
-     */
-    LL_INFO("job=%ld reported as orphan by sbd=%s", s.job_id, n->net.name);
+
     job->state = JOB_ORPHAN;
+    job_move_list(job, &run_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
+    job->queue->num_jobs++;
+    job->queue->num_pend++;
+
+    /* Orphan is a boundary case move it to the pending list
+     */
+    LL_INFO("job=%ld reported as orphan by sbd=%s forced pending",
+            s.job_id, n->net.name);
 }

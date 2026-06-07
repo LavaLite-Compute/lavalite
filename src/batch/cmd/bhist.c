@@ -14,28 +14,6 @@
 #include "llbatch.h"
 #include "batch/lib/log.h"
 
-static const char *job_state_str(int32_t state)
-{
-    switch (state) {
-    case JOB_PENDING:
-        return "PEND";
-    case JOB_HELD:
-        return "HELD";
-    case JOB_RUNNING:
-        return "RUN";
-    case JOB_SUSPENDED:
-        return "SUSP";
-    case JOB_EXITED:
-        return "EXIT";
-    case JOB_DONE:
-        return "DONE";
-    case JOB_ORPHAN:
-        return "ORPHAN";
-    default:
-        return "?";
-    }
-}
-
 static const char *fmt_time(time_t t)
 {
     static char buf[32];
@@ -195,7 +173,8 @@ static void compute_widths(struct job_hist_info *jobs, int n,
 
         w->jobid     = imax(w->jobid,     ndigits(j->job_id));
         w->user      = imax(w->user,      (int)strlen(str_or_dash(j->username)));
-        w->stat      = imax(w->stat,      (int)strlen(job_state_str(j->state)));
+        w->stat      = imax(w->stat,
+                            (int)strlen(llb_job_state_str(j->state)));
         w->queue     = imax(w->queue,     (int)strlen(str_or_dash(j->queue)));
         w->run_hosts = imax(w->run_hosts, run_hosts_width(rh));
         w->name      = imax(w->name,      (int)strlen(str_or_dash(j->name)));
@@ -233,7 +212,7 @@ static void print_job_compact(const struct job_hist_info *j,
         printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
                w->jobid,     j->job_id,
                w->user,      str_or_dash(j->username),
-               w->stat,      job_state_str(j->state),
+               w->stat,      llb_job_state_str(j->state),
                w->queue,     str_or_dash(j->queue),
                w->pri,       j->priority,
                w->run_hosts, "-",
@@ -249,7 +228,7 @@ static void print_job_compact(const struct job_hist_info *j,
             printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
                    w->jobid,     j->job_id,
                    w->user,      str_or_dash(j->username),
-                   w->stat,      job_state_str(j->state),
+                   w->stat,      llb_job_state_str(j->state),
                    w->queue,     str_or_dash(j->queue),
                    w->pri,       j->priority,
                    w->run_hosts, tok,
@@ -283,7 +262,7 @@ static void print_job_full(const struct job_hist_info *j)
            j->job_id,
            str_or_dash(j->username),
            str_or_dash(j->queue),
-           job_state_str(j->state));
+           llb_job_state_str(j->state));
 
     printf("  Submitted:    %s\n", fmt_time(j->submit_time));
     if (j->submit_host != NULL && j->submit_host[0] != '\0')
@@ -350,7 +329,7 @@ static void print_job_full(const struct job_hist_info *j)
             break;
         case EVENT_JOB_FINISH:
             printf("  state: %s exit_status: %d",
-                   job_state_str(e->state), e->exit_status);
+                   llb_job_state_str(e->state), e->exit_status);
             break;
         case EVENT_JOB_MOVE:
             printf("  %s -> %s",
