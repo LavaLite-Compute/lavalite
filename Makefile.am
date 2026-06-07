@@ -11,7 +11,7 @@ SUBDIRS = src docs
 # Install default working directories
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
-	    $(MKDIR_P) $(DESTDIR)$(localstatedir)/log
-	    $(MKDIR_P) $(DESTDIR)$(localstatedir)/state
+	$(MKDIR_P) $(DESTDIR)$(localstatedir)/log
+	$(MKDIR_P) $(DESTDIR)$(localstatedir)/state
 
 EXTRA_DIST = Make.common

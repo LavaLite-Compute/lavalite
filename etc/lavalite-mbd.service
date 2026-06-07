@@ -1,16 +1,14 @@
 [Unit]
 Description=LavaLite mbd daemon
 Wants=network-online.target remote-fs.target
-After=network-online.target remote-fs.target lavalite-lim.service
-Requires=lavalite-lim.service
+After=network-online.target remote-fs.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=lavalite
 Group=lavalite
-# Required for all daemons. Adjust if your config lives elsewhere.
-Environment=LSF_ENVDIR=/opt/lavalite/etc
+Environment=LL_CONF_DIR=/opt/lavalite/etc
 # Use stable symlink path: /opt/lavalite -> /opt/lavalite-<version>
 ExecStart=/opt/lavalite/sbin/mbd
 Restart=on-failure
@@ -19,6 +17,8 @@ KillSignal=SIGTERM
 TimeoutStopSec=20
 LimitNOFILE=65536
 LimitCORE=infinity
+WorkingDirectory=/var/log/lavalite
 
 [Install]
 WantedBy=multi-user.target
+

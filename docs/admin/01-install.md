@@ -118,8 +118,28 @@ var/
 
 Scheduler state is stored under:
 
-```text
+```
 var/state
+```
+
+## Daemon working directory and core file
+
+```
+mkdir /var/log/lavalite
+chown -R lavalite:lavalite  /var/log/lavalite
+```
+
+Core files are unfortunate but essential debug tool should something
+go unexpectedly wrong. The daemons will create a core file in this directory.
+Make sure you have relative path settings like:
+
+```
+sysctl -w kernel.core_pattern=core.%e.%p
+```
+Use this command to inspect the current settings:
+
+```
+sysctl kernel.core_pattern
 ```
 
 ### Master State
