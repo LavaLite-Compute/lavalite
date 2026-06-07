@@ -712,7 +712,6 @@ bsub \
     --name combo_test \
     --project lavalite_test \
     --cpus 2 \
-    --nhosts 1 \
     --mem 512M \
     --storage 1G \
     --machines "sim1" \
@@ -725,6 +724,11 @@ bhist <jobid>
 cat combo.<jobid>.out
 cat combo.<jobid>.err
 ```
+
+The previous submission tests `--machines`.
+
+Submit another job replacing `--machines` with `--nhosts` since the two
+options are mutually exclusive.
 
 ### Expected Result
 
