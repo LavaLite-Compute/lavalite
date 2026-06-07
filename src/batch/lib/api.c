@@ -29,7 +29,8 @@ const char *pend_reason_msg[] = {
     [PEND_NOT_ENOUGH_STORAGE] = "not enough free storage on any host",
     [PEND_NOT_ENOUGH_GPUS] = "not enough free GPUs on any host",
     [PEND_GPU_TYPE] = "no host has the required GPU type",
-    [PEND_HOST_EXCLUSIVE] = "exclusive constraint cannot be satisfied"};
+    [PEND_HOST_EXCLUSIVE] = "exclusive constraint cannot be satisfied",
+    [PEND_HOST_OVERFLOW] = "host allocation size overflow buffer"};
 
 struct queue_info *llb_queue_info(int32_t *nqueues)
 {

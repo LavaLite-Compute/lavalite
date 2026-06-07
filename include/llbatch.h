@@ -40,6 +40,7 @@ enum pend_reason {
     PEND_NOT_ENOUGH_GPUS,
     PEND_GPU_TYPE,
     PEND_HOST_EXCLUSIVE,
+    PEND_HOST_OVERFLOW,
 };
 
 // Pending messages table

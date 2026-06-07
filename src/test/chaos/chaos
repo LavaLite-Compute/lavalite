@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 #
-# Chaos - KISS version + verify
+# chaos - LavaLite chaos / regression tester
+#
+# Runs a timed loop that:
+#   1. Submits random short jobs (bsub) at a fixed interval
+#   2. Kills random daemons (mbd/sbd) via pkill/ssh at a fixed interval
+#   3. Optionally kills random submitted jobs (bkill) at a fixed interval
+#
+# After the timed loop ends, waits for every submitted job to reach a
+# terminal state (DONE or EXIT) by polling "bjobs -a".
+# Exits 0 only when all jobs are accounted for; exits 1 on any anomaly.
 #
 # Verify: bjobs -a is the source of truth. Every submitted job must
 # have cleared from the active job table before we declare success.
@@ -19,9 +28,12 @@ import sys
 import time
 import os
 
-
+# How long (seconds) to wait for any single external command (bsub, bjobs,
+# ssh, pgrep, pkill) before declaring it timed out.
 DEFAULT_TIMEOUT = 5.0
 
+# Maps the logical daemon name used on the command line to the actual
+# process name as pgrep/pkill sees it.
 PROC_NAMES = {
     "mbd": "mbd",
     "sbd": "sbd",
@@ -29,36 +41,55 @@ PROC_NAMES = {
 
 
 def ts():
+    """Return current wall-clock time as a human-readable string for log lines."""
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def log(msg):
+    """Print a timestamped info message to stdout, flushed immediately."""
     sys.stdout.write(f"{ts()} {msg}\n")
     sys.stdout.flush()
 
 
 def elog(msg):
+    """Print a timestamped error message to stderr, flushed immediately."""
     sys.stderr.write(f"{ts()} {msg}\n")
     sys.stderr.flush()
 
 
 def run(cmd, timeout=DEFAULT_TIMEOUT):
+    """
+    Run an external command, capturing stdout and stderr.
+
+    Returns a subprocess.CompletedProcess.  On timeout the returncode is
+    set to 124 (same convention as the shell's 'timeout' utility) and
+    stdout/stderr contain whatever partial output was captured.
+
+    Never raises; all errors are folded into the return value so callers
+    can handle them uniformly.
+    """
     try:
         return subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True,        # decode stdout/stderr as UTF-8 strings
             timeout=timeout,
-            check=False,
+            check=False,      # do not raise on non-zero exit; we check rc ourselves
         )
     except subprocess.TimeoutExpired as e:
+        # Recover any partial output the process wrote before it was killed.
         out = e.stdout if e.stdout is not None else ""
         err = e.stderr if e.stderr is not None else ""
         return subprocess.CompletedProcess(cmd, 124, out, err)
 
 
 def extract_jobid(txt):
+    """
+    Parse the job ID from a successful bsub output line, e.g.:
+        Job <42> is submitted to queue <cpu>.
+    Returns an int on success, None if the pattern is not found.
+    """
     m = re.search(r"Job\s+<(\d+)>", txt)
     if not m:
         return None
@@ -69,6 +100,18 @@ def extract_jobid(txt):
 
 
 def submit_one(queue, cmd_str):
+    """
+    Submit a single job via bsub.
+
+    queue    - queue name, or None/empty to let mbd pick the default
+    cmd_str  - the job command as a plain string; split by shlex so
+               spaces inside quoted arguments are handled correctly
+
+    Returns the integer job ID on success, None on any failure.
+    Errors are printed to stderr via elog().
+    """
+    # Build the bsub argument list.  -o/-e /dev/null suppresses per-job
+    # output files cluttering the filesystem during chaos runs.
     cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null"]
     if queue:
         cmd += ["-q", queue]
@@ -82,6 +125,7 @@ def submit_one(queue, cmd_str):
     cp = run(cmd)
 
     if cp.returncode == 124:
+        # bsub timed out - mbd may be restarting; that's expected during chaos.
         if cp.stderr:
             for line in cp.stderr.splitlines():
                 elog(line)
@@ -101,6 +145,11 @@ def submit_one(queue, cmd_str):
 
 
 def read_hosts_file(path):
+    """
+    Read a plain-text file of hostnames, one per line.
+    Blank lines and lines starting with '#' are ignored.
+    Returns a list of hostname strings.
+    """
     hosts = []
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
@@ -112,10 +161,18 @@ def read_hosts_file(path):
 
 
 def is_up(host, kind):
+    """
+    Return True if the named daemon process is running on host.
+
+    Uses pgrep -x (exact process name match) locally or via ssh for
+    remote hosts.  pgrep returns 0 if at least one matching process
+    was found, non-zero otherwise.
+    """
     proc = PROC_NAMES.get(kind)
     if not proc:
         return False
 
+    # Avoid ssh round-trip when the target is the local machine.
     if host == socket.gethostname():
         cp = run(["pgrep", "-x", proc])
         return cp.returncode == 0
@@ -125,6 +182,13 @@ def is_up(host, kind):
 
 
 def kill_one(host, kind):
+    """
+    Kill (SIGKILL) all instances of the named daemon on host.
+
+    Returns True if pkill succeeded (rc=0), False otherwise.
+    pkill -KILL -x sends SIGKILL to every process whose name matches
+    exactly - simulates a hard crash without a graceful shutdown.
+    """
     proc = PROC_NAMES.get(kind)
     if not proc:
         return False
@@ -138,15 +202,28 @@ def kill_one(host, kind):
 
 
 def bjobs_active(jobids_set, timeout):
-    """Return set of jobids from jobids_set that are still active in mbd.
-    A job not present in bjobs -a output is considered finished.
-    Returns None if bjobs itself failed."""
+    """
+    Query 'bjobs -a' and return the subset of jobids_set that are still active.
+
+    A job is considered active if it appears in the output with a status
+    other than DONE or EXIT.  A job that is absent from the output is
+    considered finished (mbd has purged it from the active table).
+
+    Returns:
+        set of int  - still-active job IDs (may be empty)
+        None        - bjobs itself failed or timed out; caller should abort verify
+
+    Note: bjobs may return non-zero with a "No unfinished job found" message
+    on stdout when all jobs are done.  We treat any non-zero rc with no stdout
+    as a hard failure, but allow partial stdout to be parsed normally.
+    """
     cp = run(["bjobs", "-a"], timeout=timeout)
 
     if cp.returncode == 124:
         elog("chaos: verify: bjobs timed out")
         return None
 
+    # Non-zero rc with empty stdout means a real bjobs error, not "no jobs".
     if cp.returncode != 0 and not cp.stdout:
         elog(f"chaos: verify: bjobs failed rc={cp.returncode}")
         if cp.stderr:
@@ -158,12 +235,13 @@ def bjobs_active(jobids_set, timeout):
     for line in cp.stdout.splitlines():
         parts = line.split()
         if len(parts) < 3:
-            continue
+            continue          # header line or malformed; skip
         try:
             jid = int(parts[0])
         except ValueError:
-            continue
+            continue          # not a data line (e.g. column header "JOBID")
         stat = parts[2].upper()
+        # Only track jobs we submitted; ignore unrelated jobs from other users.
         if jid in jobids_set and stat not in ("DONE", "EXIT"):
             active.add(jid)
 
@@ -171,27 +249,41 @@ def bjobs_active(jobids_set, timeout):
 
 
 def main():
+    # LL_CONF_DIR must be set so that bsub/bjobs/bkill find the cluster config.
     if not os.environ.get("LL_CONF_DIR"):
         print("LL_CONF_DIR must be defined", file=sys.stderr)
         sys.exit(1)
+
     ap = argparse.ArgumentParser(
         prog="chaos",
         description="Chaos test: submit jobs and kill daemons.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    ap.add_argument("--hosts-file",   required=True)
-    ap.add_argument("--seconds",      type=int, default=120)
-    ap.add_argument("--queue",        default="cpu")
-    ap.add_argument("--submit-every", type=int, default=2)
-    ap.add_argument("--kill-every",   type=int, default=30)
-    ap.add_argument("--kinds",        default="mbd,sbd")
+    ap.add_argument("--hosts-file",   required=True,
+                    help="File listing hostnames to target for daemon kills")
+    ap.add_argument("--seconds",      type=int, default=120,
+                    help="Total duration of the chaos loop in seconds")
+    ap.add_argument("--queue",        default="cpu",
+                    help="Queue to submit test jobs into")
+    ap.add_argument("--submit-every", type=int, default=2,
+                    help="Submit a new job every N seconds")
+    ap.add_argument("--kill-every",   type=int, default=30,
+                    help="Kill a random daemon every N seconds (0=disabled)")
+    ap.add_argument("--kinds",        default="mbd,sbd",
+                    help="Comma-separated list of daemon kinds to kill")
+    ap.add_argument("--bkill-every",  type=int, default=0,
+                    help="Run bkill on a random submitted job every N seconds "
+                         "(0=disabled). The targeted job may already be "
+                         "DONE/EXIT; that is acceptable chaos noise.")
 
     args = ap.parse_args()
 
     hosts = read_hosts_file(args.hosts_file)
     kinds = [k.strip() for k in args.kinds.split(",") if k.strip()]
 
+    # Short-lived job commands chosen randomly each submission.
+    # 'false' and 'true' exercise immediate EXIT/DONE paths.
     job_cmds = [
         "sleep 1",
         "sleep 2",
@@ -201,23 +293,33 @@ def main():
         "true",
     ]
 
+    # Summary counters for the final stats line.
     submits_ok   = 0
     submits_fail = 0
     kills_ok     = 0
     kills_skip   = 0
 
+    # Full list of job IDs submitted this run, in submission order.
+    # Kept as a list (not a set) so random.choice() can pick any,
+    # including duplicates for bkill - intentional chaos noise.
     jobids = []
 
     t0    = time.monotonic()
     t_end = t0 + args.seconds
 
+    # Each next_* variable holds the monotonic time at which the next
+    # action of that type is due.
     next_submit = t0
     next_kill   = t0 + args.kill_every
+    # When bkill_every=0 the feature is disabled; the guard at the top
+    # of the bkill block (args.bkill_every > 0) prevents it from firing.
+    next_bkill  = t0 + args.bkill_every
 
     while time.monotonic() < t_end:
 
         now = time.monotonic()
 
+        # --- submit ---
         if now >= next_submit:
             cmd_str = random.choice(job_cmds)
             jid = submit_one(args.queue, cmd_str)
@@ -232,15 +334,18 @@ def main():
 
             next_submit += args.submit_every
 
+        # --- daemon kill ---
         if args.kill_every > 0 and now >= next_kill:
 
             victim_kind = random.choice(kinds)
+            # If hosts file was empty, fall back to the local host.
             if hosts:
                 victim_host = random.choice(hosts)
             else:
                 victim_host = socket.gethostname()
 
             if not is_up(victim_host, victim_kind):
+                # Daemon already down (e.g. still restarting from a prior kill).
                 kills_skip += 1
                 log(f"chaos: skip kill {victim_kind} host={victim_host} (down)")
             else:
@@ -253,8 +358,39 @@ def main():
 
             next_kill += args.kill_every
 
+        # --- bkill ---
+        if args.bkill_every > 0 and now >= next_bkill:
+
+            # bkill chaos is intentionally independent from daemon kill chaos.
+            # We only target jobs submitted by this run.  The job may already
+            # be DONE/EXIT by the time bkill executes; that is acceptable noise.
+            if not jobids:
+                log("chaos: skip bkill (no submitted jobs yet)")
+                next_bkill += args.bkill_every
+                continue;
+
+            jid = random.choice(jobids)
+            cp = run(["bkill", str(jid)])
+
+            if cp.returncode == 0:
+                log(f"chaos: bkill job <{jid}>")
+            else:
+                # bkill on an already-finished job returns non-zero; that's fine.
+                log(f"chaos: bkill job <{jid}> failed")
+                if cp.stderr:
+                    for line in cp.stderr.splitlines():
+                        elog(line)
+
+            next_bkill += args.bkill_every
+
+        # Tight spin without this would pin a CPU; 50ms is plenty fine-grained
+        # for the second-resolution timings above.
         time.sleep(0.05)
 
+    # --- verify phase ---
+    # Poll bjobs -a until every job we submitted has reached DONE or EXIT.
+    # There is no timeout here on purpose: if a job is genuinely stuck, we
+    # want the test to hang and alert the operator rather than silently pass.
     jobids_set = set(jobids)
     verify_bad = 0
 
@@ -262,6 +398,7 @@ def main():
     while True:
         active = bjobs_active(jobids_set, DEFAULT_TIMEOUT)
         if active is None:
+            # bjobs itself failed - can't verify; count everything as bad.
             verify_bad = len(jobids)
             break
         if len(active) == 0:

@@ -53,7 +53,7 @@ static int host_plan_cmp(const void *a, const void *b)
 static int mark_candidates(void)
 {
     struct ll_list_entry *e;
-    int n = 0;
+    int free_slots = 0;
 
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
@@ -68,10 +68,10 @@ static int mark_candidates(void)
             continue;
 
         h->candidate = 1;
-        ++n;
+        free_slots += (h->res.max_jobs - h->num_jobs);
     }
 
-    return n;
+    return free_slots;
 }
 
 static int is_depend_ok(const struct job_data *job)
@@ -254,6 +254,16 @@ static int build_host_plan_machines(struct job_data *job,
         return 0;
     }
 
+    size_t hosts_len = 0;
+    for (int i = 0; i < job->res.num_hosts; i++)
+        hosts_len += strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
+    if (hosts_len >= LL_BUFSIZ_8K) {
+        LL_ERRX("job=%ld hosts string overflow nhosts=%d", job->job_id,
+                job->res.num_hosts);
+        diag->host_overflow++;
+        return 0;
+    }
+
     job->run_nhosts = 0;
     for (int i = 0; i < need; i++) {
         job->run_hosts[i] = host_plan[i];
@@ -303,6 +313,20 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
     }
 
     qsort(host_plan, n, sizeof(struct mbd_host *), host_plan_cmp);
+
+    /* verify hosts string fits before committing the plan
+     * we want to support parallel jobs with up to 200 hosts
+     */
+    size_t hosts_len = 0;
+    for (int i = 0; i < job->res.num_hosts; i++)
+        hosts_len += strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
+    if (hosts_len >= LL_BUFSIZ_8K) {
+        LL_ERRX("job=%ld hosts string overflow nhosts=%d", job->job_id,
+                job->res.num_hosts);
+        diag->host_overflow++;
+        return 0;
+    }
+
     job->run_nhosts = 0;
     for (int i = 0; i < job->res.num_hosts; i++) {
         job->run_hosts[i] = host_plan[i];
@@ -373,12 +397,12 @@ void schedule(void)
     if (ll_list_is_empty(&pend_jobs_list))
         return;
 
-    int cc = mark_candidates();
-    if (cc == 0) {
-        LL_DEBUG("no scheduling attempt possible %d candidate hosts", cc);
+    int free_slots = mark_candidates();
+    if (free_slots == 0) {
+        LL_DEBUG("no scheduling attempt possible free_slots=%d", free_slots);
         return;
     }
-    LL_DEBUG("scheduling with %d candidate hosts", cc);
+    LL_DEBUG("scheduling clusterwide free_slots=%d", free_slots);
 
     ll_list_sort_buf(&pend_jobs_list, sort_buf, pend_job_cmp);
 
@@ -405,13 +429,13 @@ void schedule(void)
 
         LL_DEBUG("job=%ld is ready for scheduling", job->job_id);
         struct pend_diag diag;
-        cc = build_host_plan(job, &diag);
-        if (cc < 0) {
+        int n = build_host_plan(job, &diag);
+        if (n < 0) {
             LL_ERRX("job=%ld failed to build host plan, trying next cycle",
                     job->job_id);
             return;
         }
-        if (cc == 0) {
+        if (n == 0) {
             job->pend_reason = diag_reason(&diag);
             LL_INFO("job=%ld not enough hosts found to build a plan",
                     job->job_id);
@@ -432,10 +456,18 @@ void schedule(void)
         job->queue->num_pend--;
         job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
         job->queue->num_hosts_used += job->run_nhosts;
+        /* Decrease the cluster wide available slots, no point on trying
+         * to build plans for jobs if there are no slots.
+         */
+        free_slots -= job->run_nhosts;
 
-        LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d",
-                 job->queue->name, job->queue->num_pend, job->queue->num_run,
-                 job->queue->num_susp);
+        LL_DEBUG("free_slots=%d queue=%s num_pend=%d num_run=%d num_susp=%d",
+                 free_slots, job->queue->name, job->queue->num_pend,
+                 job->queue->num_run, job->queue->num_susp);
+
+        if (free_slots <= 0)
+            break;
+
     }
     mbd_assert_counters();
 }

@@ -219,6 +219,7 @@ struct pend_diag {
     int no_mem;
     int no_storage;
     int no_cpus;
+    int host_overflow;
 };
 
 extern int64_t job_id_seq;

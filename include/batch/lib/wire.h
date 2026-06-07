@@ -92,7 +92,7 @@ struct wire_job_start {
     char in_file[PATH_MAX];
     char out_file[PATH_MAX];
     char err_file[PATH_MAX];
-    char hosts[LL_BUFSIZ_4K]; /* sched allocation: "hostA:4,hostB:4" */
+    char hosts[LL_BUFSIZ_8K]; /* 8K ~ 200 ranks allocation: "hostA:4,hostB:4" */
     int64_t term_time;
     int32_t gpus_per_host;
     int32_t ncpus;

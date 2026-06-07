@@ -66,7 +66,7 @@ struct sbd_job {
     char command[LL_BUFSIZ_512];
     char job_name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_64];
-    char hosts[LL_BUFSIZ_4K];
+    char hosts[LL_BUFSIZ_8K];
     char gpu_assigned[LL_BUFSIZ_64]; /* CUDA_VISIBLE_DEVICES value */
 
     char in_file[PATH_MAX];

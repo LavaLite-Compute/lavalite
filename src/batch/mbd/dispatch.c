@@ -202,6 +202,7 @@ int queues_info(XDR *xdrs, int chan_id)
     }
 
     int i = 0;
+    size_t siz = 0;
     for (struct ll_list_entry *e = queue_list.head; e != NULL; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *) e;
 
@@ -228,7 +229,11 @@ int queues_info(XDR *xdrs, int chan_id)
                    queues[i].num_hosts, queues[i].num_users);
             goto fail;
         }
-
+        for (int j = 0; j < queues[i].num_hosts; j++)
+            siz += strlen(queues[i].hosts[j]) + 4;
+        for (int j = 0; j < queues[i].num_users; j++)
+            siz += strlen(queues[i].users[j]) + 4;
+        siz += 8;  /* num_hosts + num_users int32 */
         i++;
     }
 
@@ -236,9 +241,9 @@ int queues_info(XDR *xdrs, int chan_id)
     reply.nqueues = nqueues;
     reply.queues = queues;
 
-    size_t siz = sizeof(struct wire_queue_info) * nqueues +
-                 sizeof(struct wire_queue_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
+    siz = siz + sizeof(struct wire_queue_info) * nqueues
+        + sizeof(struct wire_queue_info_array) + PACKET_HEADER_SIZE +
+        LL_BUFSIZ_64;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
