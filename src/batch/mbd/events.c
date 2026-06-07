@@ -164,8 +164,10 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.submit_time = job->submit_time;
     e.begin_time = (time_t) ws->begin_time;
     e.term_time = (time_t) ws->term_time;
-
     e.num_cpu = ws->num_cpus;
+    /* Preserve the submitted host count in the event log.
+     * Host groups are expanded during replay.
+     */
     e.num_hosts = ws->num_hosts;
     e.num_gpus = ws->num_gpus;
     e.mem_mb = ws->mem_mb;
@@ -356,6 +358,8 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     ll_strlcpy(job->res.gpu_type, e->gpu_type, sizeof(job->res.gpu_type));
 
     machines_hash_populate(&job->res.machines, e->machines);
+    if (job->res.machines.nentries > 0)
+        job->res.num_hosts = (int32_t)job->res.machines.nentries;
 
     job->flags = e->flags;
     ll_strlcpy(job->name, e->job_name, sizeof(job->name));
@@ -364,7 +368,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {
-        LL_ERR("job_id=%ld queue='%s' not found, orphaned", e->job_id,
+        LL_ERR("job_id=%ld queue=%s not found, orphaned", e->job_id,
                e->queue);
         job->state = JOB_ORPHAN;
     }
@@ -425,6 +429,7 @@ static int replay_set_run_hosts(struct job_data *job,
 
         struct mbd_host *h = ll_hash_search(&host_name_hash, tok);
         if (h == NULL) {
+            // Configuration change.
             LL_ERRX("JOB_START job_id=%ld host=%s not found", job->job_id, tok);
             return -1;
         }
@@ -432,7 +437,7 @@ static int replay_set_run_hosts(struct job_data *job,
         if (job->run_nhosts >= e->nhosts) {
             LL_ERRX("job_id=%ld too many hosts run=%d e=%d", job->job_id,
                     job->run_nhosts, e->nhosts);
-            return -1;
+            break;
         }
 
         // run_hosts array storage allocated when replay job_new
@@ -466,11 +471,15 @@ static void replay_job_start(const struct event_rec *rec)
         return;
     }
     if (replay_set_run_hosts(job, &e) < 0) {
-        LL_ERR("job_id=%ld orphaned replay_set_run_hosts failed", e.job_id);
-        job->state = JOB_ORPHAN;
-        // make sure later on we dont reply this job
-        job->run_nhosts = 0;
-        return;
+        // JOB_START references a host that is not present in the current config
+        LL_ERR("job_id=%ld replay_set_run_hosts failed", e.job_id);
+        /* This is a bizarre situation how can we ended up with
+         * inconsistent run_host count.
+         * mbd cannot safely reconstruct a running job without its run_hosts.
+         * Continuing may corrupt counters or send wrong register state to SBD.
+         * Stopping MBD is safer than pretending the job is RUNNING.
+         */
+        mbd_die(MBD_EXIT_EVENTS);
     }
 
     job->state = JOB_RUNNING;
@@ -480,7 +489,7 @@ static void replay_job_start(const struct event_rec *rec)
 
     LL_DEBUG("JOB_START job_id=%ld nhosts=%d cpus=%d gpus=%d gpu_assigned=%s",
              e.job_id, e.nhosts, e.cpus_per_host, e.gpus_per_host,
-             e.gpu_assigned);
+             (e.gpu_assigned[0] != 0) ? e.gpu_assigned : "none");
 }
 
 static void replay_job_fork(const struct event_rec *rec)

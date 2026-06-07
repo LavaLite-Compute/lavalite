@@ -500,7 +500,7 @@ rm -f stdout.*.txt stderr.*.txt
 bsub \
     --stdout stdout.%J.txt \
     --stderr stderr.%J.txt \
-    sh -c 'echo hello stdout; echo hello stderr >&2'
+    "sh -c 'echo hello stdout; echo hello stderr >&2'"
 
 bhist <jobid>
 
@@ -634,17 +634,11 @@ btokens
 
 ### Expected Result
 
-The job remains pending because insufficient tokens are available.
+The job is reject as Job not submitted: Invalid argument
 
 ### Pass Criteria
 
-`bjobs --pend` shows a pending reason related to token availability.
-
-### Cleanup
-
-```sh
-bkill --signal kill <jobid>
-```
+Jobs is not submitted.
 
 ---
 
@@ -724,7 +718,7 @@ bsub \
     --machines "sim1" \
     --stdout combo.%J.out \
     --stderr combo.%J.err \
-    sh -c 'hostname; echo ok; echo err >&2; sleep 60'
+    "sh -c 'hostname; echo ok; echo err >&2; sleep 60'"
 
 bjobs <jobid>
 bhist <jobid>

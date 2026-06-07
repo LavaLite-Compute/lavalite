@@ -413,7 +413,10 @@ int main(int argc, char **argv)
 
     rc = llb_submit(&js, &job_id);
     if (rc != 0) {
-        fprintf(stderr, "Job not submitted: %m\n");
+        fprintf(stderr, "Job not submitted");
+        if (errno != 0)
+            fprintf(stderr, ": %m");
+        fprintf(stderr, "\n");
         free(js.command);
         free(js.tokenpool);
         return 1;

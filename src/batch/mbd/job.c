@@ -81,7 +81,12 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     job->res.num_gpus = ws->num_gpus;
     job->res.mem_mb = ws->mem_mb;
     job->res.storage_mb = ws->storage_mb;
+
+    // Expand the host group and set the num_hosts
     machines_hash_populate(&job->res.machines, ws->machines);
+    if (job->res.machines.nentries > 0)
+        job->res.num_hosts = job->res.machines.nentries;
+
     ll_strlcpy(job->res.machines_str, ws->machines,
                sizeof(job->res.machines_str));
 
@@ -118,7 +123,8 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     }
 
     if (job->res.num_hosts < 1) {
-        LL_WARNING("job=%ld num_hosts set to 1", job->job_id);
+        LL_ERRX("job=%ld invalid num_host=%d forcing to one 1", job->job_id,
+                num_hosts);
         job->res.num_hosts = 1;
     }
 
@@ -329,18 +335,21 @@ static int job_parse_tokens(struct job_data *job, const char *tokenpool)
         char *eq = strchr(tok, '=');
         if (eq == NULL) {
             LL_ERRX("job=%ld invalid token spec=%s", job->job_id, tok);
+            errno = EINVAL;
             return -1;
         }
         *eq = 0;
         int count;
         if (ll_atoi(eq + 1, &count) < 0 || count <= 0) {
             LL_ERRX("job=%ld invalid token count=%s", job->job_id, eq + 1);
+            errno = EINVAL;
             return -1;
         }
         struct mbd_token_pool *p;
         p = ll_hash_search(&token_pool_name_hash, tok);
         if (p == NULL) {
             LL_ERRX("job=%ld token pool=%s not found", job->job_id, tok);
+            errno = EINVAL;
             return -1;
         }
         struct job_token *t = calloc(1, sizeof(*t));
