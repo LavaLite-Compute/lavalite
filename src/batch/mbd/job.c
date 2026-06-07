@@ -132,6 +132,23 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     return job;
 }
 
+static void machines_hash_insert_token(struct ll_hash *h, const char *tok)
+{
+    struct mbd_group *g = ll_hash_search(&group_name_hash, tok);
+    if (g) {
+        char tmp[LL_BUFSIZ_1K];
+        char *m;
+        ll_strlcpy(tmp, g->members, sizeof(tmp));
+        m = strtok(tmp, " \t");
+        while (m) {
+            ll_hash_insert(h, m, NULL, 0);
+            m = strtok(NULL, " \t");
+        }
+        return;
+    }
+    ll_hash_insert(h, tok, NULL, 0);
+}
+
 void machines_hash_populate(struct ll_hash *h, const char *machines)
 {
     char buf[LL_BUFSIZ_4K];
@@ -143,7 +160,7 @@ void machines_hash_populate(struct ll_hash *h, const char *machines)
     ll_strlcpy(buf, machines, sizeof(buf));
     char *tok = strtok(buf, " \t,");
     while (tok) {
-        ll_hash_insert(h, tok, NULL, 0);
+        machines_hash_insert_token(h, tok);
         tok = strtok(NULL, " \t,");
     }
 }
@@ -1267,9 +1284,14 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
 
 static void job_orphan_finish(struct job_data *job)
 {
+    assert(job->state == JOB_ORPHAN);
+    assert(job->list_id == JOB_LIST_RUN);
+
     job->state = JOB_EXITED;
     job->exit_status = 1;
+    job->end_time = time(NULL);
     LL_INFO("job=%ld orphan declared finished", job->job_id);
+    job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
     event_job_finish(job);
 }
 

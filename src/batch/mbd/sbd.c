@@ -468,6 +468,9 @@ int mbd_dispatch_job(struct job_data *job)
     return 0;
 }
 
+/* ORPHAN remains on run_jobs_list as a recoverable display state,
+ * but its host/token/queue allocation has been released.
+ */
 void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
 {
     struct wire_job_state s;
@@ -515,7 +518,9 @@ void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
     job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
     job->queue->num_hosts_used -= job->run_nhosts;
     job->queue->num_jobs--;
-
+    /* Orphan is a boundary case, we still keep the job in run_jobs_list
+     * but without resources.
+     */
     LL_INFO("job=%ld reported as orphan by sbd=%s", s.job_id, n->net.name);
     job->state = JOB_ORPHAN;
 }

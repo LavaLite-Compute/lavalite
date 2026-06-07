@@ -369,6 +369,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
         job->state = JOB_ORPHAN;
     }
 
+    // job owned storage for hosts pointers
     job->run_hosts = calloc(job->res.num_hosts, sizeof(struct mbd_host *));
     if (job->run_hosts == NULL) {
         LL_ERR("calloc run_hosts with num_hosts=%d failed", job->res.num_hosts);
@@ -419,14 +420,9 @@ static int replay_set_run_hosts(struct job_data *job,
 
     ll_strlcpy(hosts, e->hosts, sizeof(hosts));
 
-    job->run_hosts = calloc(e->nhosts, sizeof(struct mbd_host *));
-    if (job->run_hosts == NULL) {
-        LL_ERR("calloc failed job=%ld nhosts=%d", job->job_id, e->nhosts);
-        return -1;
-    }
-
     char *tok = strtok(hosts, " \t,");
     while (tok != NULL) {
+
         struct mbd_host *h = ll_hash_search(&host_name_hash, tok);
         if (h == NULL) {
             LL_ERRX("JOB_START job_id=%ld host=%s not found", job->job_id, tok);
@@ -439,6 +435,7 @@ static int replay_set_run_hosts(struct job_data *job,
             return -1;
         }
 
+        // run_hosts array storage allocated when replay job_new
         job->run_hosts[job->run_nhosts] = h;
         job->run_nhosts++;
 
@@ -802,7 +799,6 @@ static void replay_job_pend(const struct event_rec *rec)
     job->dispatch_time = 0;
     job->state = JOB_PENDING;
     job->run_nhosts = 0;
-    memset(job->run_hosts, 0, job->res.num_hosts * sizeof(job->run_hosts[0]));
 
     LL_DEBUG("JOB_PEND job_id=%ld", e.job_id);
 }
@@ -1003,7 +999,7 @@ void job_id_seq_write(void)
 }
 
 /*
- * events_compact - archive eventlog, rewrite with live jobs only.
+ * events_rebuild - archive eventlog, rewrite with live jobs only.
  * PEND:      JOB_NEW
  * RUN/SUSP:  JOB_NEW + JOB_START
  * FINISH:    discarded — full history in archived file for bhist.

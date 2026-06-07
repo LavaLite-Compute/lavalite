@@ -1002,9 +1002,9 @@ int sbd_enqueue_job_orphan(int64_t job_id)
     js.job_id = job_id;
     js.state = -1;
 
-    if (sbd_send_msg(BATCH_JOB_UNKNOWN, MBD_OK, &js, LL_BUFSIZ_1K,
+    if (sbd_send_msg(BATCH_JOB_ORPHAN, MBD_OK, &js, LL_BUFSIZ_1K,
                      (bool_t(*)()) xdr_wire_job_state) < 0) {
-        LL_ERR("unknown job=%ld enqueue failed", job_id);
+        LL_ERR("orphan job=%ld enqueue failed", job_id);
         return -1;
     }
 
