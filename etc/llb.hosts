@@ -34,8 +34,8 @@ group-gpu     (sim1 sim2 buntu24)
 group-cpu     (sim1 sim2 buntu24)
 End HostGroup
 
-# Begin Sim
 # Column order is mandatory and must not be changed.
+# Begin Sim
 # NAME          REAL_HOST   PORT  MXJ  CPU  MEM    STORAGE   GPU_TYPE  GPU_IDS
 # sim1           buntu24   33126    4     8  20G    100G      A100      0-1
 # sim2           buntu24   33127    4     8  20G    100G      A100      0-1
