@@ -18,7 +18,7 @@ End Queue
 
 Begin Queue
 QUEUE_NAME  = student
-PRIORITY    = 70
+PRIORITY    = 40
 HOSTS       = cpu-old
 USERS = student david
 DESCRIPTION = GPU workloads
