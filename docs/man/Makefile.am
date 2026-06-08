@@ -69,4 +69,5 @@ man8/mbd.8: markdown/mbd.8.md
 man8/sbd.8: markdown/sbd.8.md
 
 $(MAN1) $(MAN5) $(MAN7) $(MAN8):
+	@mkdir -p $(dir $@)
 	$(PANDOC) -s -t man $< -o $@

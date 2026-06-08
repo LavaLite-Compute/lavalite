@@ -11,4 +11,3 @@ libllbase_a_SOURCES = ll.conf.c ll.hash.c ll.host.c ll.list.c ll.stack.c \
 	ll.bitset.c
 
 libllbase_a_CFLAGS = $(AM_CFLAGS)
-libllbase_a_LIBADD = -lcrypto
