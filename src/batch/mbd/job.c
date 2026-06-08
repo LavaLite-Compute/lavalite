@@ -1263,9 +1263,12 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
     for (e = pend_jobs_list.head; e != NULL; e = next) {
         next = e->next;
         job = (struct job_data *) e;
+
         assert(job->state == JOB_PENDING || job->state == JOB_HELD);
-        if (job->uid != uid)
+
+        if (job->uid != uid && !is_manager(uid))
             continue;
+
         req->job_id = job->job_id;
         // Best effort, even if one failed keep going
         signal_pending_job(job, req);
@@ -1287,8 +1290,10 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
         }
 
         assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
-        if (job->uid != uid)
+
+        if (job->uid != uid && !is_manager(uid))
             continue;
+
         req->job_id = job->job_id;
         // Best effort, even if one fails keep going
         signal_running_job(job, req);

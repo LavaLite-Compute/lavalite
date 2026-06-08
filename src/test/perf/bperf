@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+#
+# bperf - LavaLite performance benchmark
+#
+# Measures round-trip latency for bsub, bjobs, bhist.
+# Each operation is timed individually with perf_counter.
+# Reports min/max/avg/p50/p99 and total throughput.
+#
+#  Copyright (C) LavaLite Contributors
+#  GPL v2
+#
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+import time
+
+DEFAULT_TIMEOUT = 10.0
+
+# Job command used for submit benchmarks - fast, no side effects.
+BENCH_CMD = ["bsub", "-o", "/dev/null", "-e", "/dev/null", "true"]
+
+
+def ts():
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def log(msg):
+    sys.stdout.write(f"{ts()} {msg}\n")
+    sys.stdout.flush()
+
+
+def run(cmd, timeout=DEFAULT_TIMEOUT):
+    try:
+        return subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout if e.stdout is not None else ""
+        err = e.stderr if e.stderr is not None else ""
+        return subprocess.CompletedProcess(cmd, 124, out, err)
+
+
+def extract_jobid(txt):
+    m = re.search(r"Job\s+<(\d+)>", txt)
+    if not m:
+        return None
+    try:
+        return int(m.group(1))
+    except Exception:
+        return None
+
+
+def percentile(sorted_data, p):
+    """Return the p-th percentile of a sorted list (0-100)."""
+    if not sorted_data:
+        return 0.0
+    idx = int(len(sorted_data) * p / 100)
+    if idx >= len(sorted_data):
+        idx = len(sorted_data) - 1
+    return sorted_data[idx]
+
+
+def stats(samples_ms):
+    """Return (min, max, avg, p50, p99) in ms from a list of float ms values."""
+    if not samples_ms:
+        return 0.0, 0.0, 0.0, 0.0, 0.0
+    s = sorted(samples_ms)
+    mn  = s[0]
+    mx  = s[-1]
+    avg = sum(s) / len(s)
+    p50 = percentile(s, 50)
+    p99 = percentile(s, 99)
+    return mn, mx, avg, p50, p99
+
+
+def print_stats(label, n_ok, n_fail, samples_ms, total_s):
+    if not samples_ms:
+        print(f"{label:<8} N={n_ok+n_fail} ok={n_ok} fail={n_fail} no data")
+        return
+    mn, mx, avg, p50, p99 = stats(samples_ms)
+    tput = n_ok / total_s if total_s > 0 else 0.0
+    print(
+        f"{label:<8} N={n_ok+n_fail} ok={n_ok} fail={n_fail} "
+        f"min={mn:.1f}ms max={mx:.1f}ms avg={avg:.1f}ms "
+        f"p50={p50:.1f}ms p99={p99:.1f}ms "
+        f"total={total_s:.3f}s tput={tput:.1f}/s"
+    )
+
+
+def bench_submit(n, queue):
+    """Submit n jobs, measure per-call latency."""
+    log(f"bperf: submit x{n}")
+    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null"]
+    if queue:
+        cmd += ["-q", queue]
+    cmd += ["true"]
+
+    samples = []
+    n_ok    = 0
+    n_fail  = 0
+    jobids  = []
+
+    t_start = time.perf_counter()
+
+    for _ in range(n):
+        t0 = time.perf_counter()
+        cp = run(cmd)
+        t1 = time.perf_counter()
+        ms = (t1 - t0) * 1000.0
+
+        if cp.returncode == 0:
+            samples.append(ms)
+            n_ok += 1
+            jid = extract_jobid(cp.stdout)
+            if jid is not None:
+                jobids.append(jid)
+        else:
+            n_fail += 1
+
+    total_s = time.perf_counter() - t_start
+    print_stats("submit", n_ok, n_fail, samples, total_s)
+    return jobids
+
+
+def bench_bjobs(n):
+    """Call bjobs -a n times, measure per-call latency."""
+    log(f"bperf: bjobs x{n}")
+    samples = []
+    n_ok    = 0
+    n_fail  = 0
+
+    t_start = time.perf_counter()
+
+    for _ in range(n):
+        t0 = time.perf_counter()
+        cp = run(["bjobs", "-a"])
+        t1 = time.perf_counter()
+        ms = (t1 - t0) * 1000.0
+
+        # bjobs returns non-zero with "No unfinished job" when queue is empty;
+        # treat that as ok - the RPC round trip completed fine.
+        if cp.returncode == 124:
+            n_fail += 1
+        else:
+            samples.append(ms)
+            n_ok += 1
+
+    total_s = time.perf_counter() - t_start
+    print_stats("bjobs", n_ok, n_fail, samples, total_s)
+
+
+def bench_bhist(n):
+    """Call bhist n times, measure per-call latency."""
+    log(f"bperf: bhist x{n}")
+    samples = []
+    n_ok    = 0
+    n_fail  = 0
+
+    t_start = time.perf_counter()
+
+    for _ in range(n):
+        t0 = time.perf_counter()
+        cp = run(["bhist"])
+        t1 = time.perf_counter()
+        ms = (t1 - t0) * 1000.0
+
+        if cp.returncode == 124:
+            n_fail += 1
+        else:
+            samples.append(ms)
+            n_ok += 1
+
+    total_s = time.perf_counter() - t_start
+    print_stats("bhist", n_ok, n_fail, samples, total_s)
+
+
+def main():
+    if not os.environ.get("LL_CONF_DIR"):
+        print("LL_CONF_DIR must be defined", file=sys.stderr)
+        sys.exit(1)
+
+    ap = argparse.ArgumentParser(
+        prog="bperf",
+        description="LavaLite round-trip latency benchmark.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    ap.add_argument("--submit", type=int, default=0,
+                    help="Number of bsub calls to benchmark")
+    ap.add_argument("--bjobs",  type=int, default=0,
+                    help="Number of bjobs -a calls to benchmark")
+    ap.add_argument("--bhist",  type=int, default=0,
+                    help="Number of bhist calls to benchmark")
+    ap.add_argument("--all",    type=int, default=0,
+                    help="Run all three benchmarks with N iterations each")
+    ap.add_argument("--queue",  default="",
+                    help="Queue for submit benchmark")
+
+    args = ap.parse_args()
+
+    if args.all > 0:
+        args.submit = args.bjobs = args.bhist = args.all
+
+    if args.submit == 0 and args.bjobs == 0 and args.bhist == 0:
+        ap.print_help()
+        sys.exit(1)
+
+    if args.submit > 0:
+        bench_submit(args.submit, args.queue)
+
+    if args.bjobs > 0:
+        bench_bjobs(args.bjobs)
+
+    if args.bhist > 0:
+        bench_bhist(args.bhist)
+
+
+if __name__ == "__main__":
+    main()

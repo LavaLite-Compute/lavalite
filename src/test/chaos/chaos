@@ -172,14 +172,12 @@ def is_up(host, kind):
     if not proc:
         return False
 
-    # Avoid ssh round-trip when the target is the local machine.
     if host == socket.gethostname():
-        cp = run(["pgrep", "-x", proc])
+        cp = run(["pgrep", "-f", f"^/opt/lavalite/sbin/{proc}$"])
         return cp.returncode == 0
 
-    cp = run(["ssh", host, "pgrep", "-x", proc])
+    cp = run(["ssh", host, "pgrep", "-f", f"^/opt/lavalite/sbin/{proc}$"])
     return cp.returncode == 0
-
 
 def kill_one(host, kind):
     """
@@ -194,12 +192,11 @@ def kill_one(host, kind):
         return False
 
     if host == socket.gethostname():
-        cp = run(["pkill", "-KILL", "-x", proc])
+        cp = run(["sudo", "pkill", "-KILL", "--full", f"^/opt/lavalite/sbin/{proc}$"])
         return cp.returncode == 0
 
-    cp = run(["ssh", host, "pkill", "-KILL", "-x", proc])
+    cp = run(["ssh", host, "sudo", "pkill", "-KILL", "--full", f"^/opt/lavalite/sbin/{proc}$"])
     return cp.returncode == 0
-
 
 def bjobs_active(jobids_set, timeout):
     """
