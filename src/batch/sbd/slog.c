@@ -119,6 +119,17 @@ static int build_sbd_root_dir(char *buf, size_t bufsz)
 
 int sbd_storage_init(void)
 {
+    // /opt/lavalite/var/state/sbd
+    char parent[PATH_MAX];
+    if (make_path(parent, sizeof(parent), "%s/sbd",
+                  ll_params[LL_STATE_DIR].val) < 0) {
+        LL_ERR("sbd parent path too long");
+        return -1;
+    }
+
+    if (mkdir_chmod(parent, 0755) < 0)
+        return -1;
+    // /opt/lavalite/var/state/sbd/<hostname>
     if (build_sbd_root_dir(sbd_root_dir, sizeof(sbd_root_dir)) < 0) {
         LL_ERR("sbd root path too long");
         return -1;
