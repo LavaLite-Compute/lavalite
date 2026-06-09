@@ -192,8 +192,14 @@ int main(int argc, char **argv)
         for (int i = 0; i < nevents; i++) {
             struct epoll_event *ev = &mbd_events[i];
             int chan_id = (int) ev->data.u32;
-            LL_DEBUG("channel=%d mask=0x%x", chan_id, ev->events);
-            // True skip partually read channels
+
+            LL_DEBUG("ch_id=%d epoll_events=0x%x send=%d recv=%d",
+                     chan_id, ev->events,
+                     channels[chan_id].send.count,
+                     channels[chan_id].recv.count);
+
+            /* skip channels still reading — full message not yet received
+             */
             if (channels[chan_id].chan_events == CHAN_EPOLLNONE)
                 continue;
 

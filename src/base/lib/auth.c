@@ -159,9 +159,12 @@ int auth_verify_header(const struct protocol_header *hdr)
         return -1;
     }
 
-    uint32_t now = (uint32_t) time(NULL);
-    uint32_t age = now - hdr->timestamp;
-    if (age > auth_allowed_age) {
+    uint32_t now = (uint32_t)time(NULL);
+    int32_t age = (int32_t)now - (int32_t)hdr->timestamp;
+    if (age < 0)
+        age = -age;
+
+    if (age > (int32_t)auth_allowed_age) {
         errno = ETIMEDOUT;
         return -1;
     }
