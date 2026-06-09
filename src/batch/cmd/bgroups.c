@@ -71,9 +71,9 @@ int main(int argc, char **argv)
     int32_t ngroups;
     int opt;
 
-    while ((opt = getopt_long(argc, argv, "hV", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hv", long_opts, NULL)) != -1) {
         switch (opt) {
-        case 'V':
+        case 'v':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

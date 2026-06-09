@@ -40,7 +40,7 @@ static void usage(FILE *f)
         "  --exclusive        Exclusive host, no job sharing\n"
         "\n"
         "Cluster resources:\n"
-        "  --pool   name=N    Request N tokens from named pool (repeatable)\n"
+        "  --tokens   name=N    Request N tokens from named pool (repeatable)\n"
         "Placement:\n"
         "  --machines \"h...\"  Restrict to listed hosts or host groups\n"
         "\n"
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
         {"storage", required_argument, NULL, 's'},
         {"gpus", required_argument, NULL, 'g'},
         {"gpu-type", required_argument, NULL, 'G'},
-        {"pool", required_argument, NULL, 'L'},
+        {"tokens", required_argument, NULL, 'T'},
         {"exclusive", no_argument, NULL, 'x'},
         {"machines", required_argument, NULL, 'm'},
         {"stdout", required_argument, NULL, 'o'},
@@ -236,12 +236,12 @@ int main(int argc, char **argv)
         {"terminate", required_argument, NULL, 't'},
         {"dependency", required_argument, NULL, 'w'},
         {"help", no_argument, NULL, 'h'},
-        {"version", no_argument, NULL, 'V'},
+        {"version", no_argument, NULL, 'v'},
         {NULL, 0, NULL, 0}};
 
     int c;
     while (
-        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:L:xm:o:e:i:Hb:t:W:hV",
+        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Hb:t:W:hv",
                          opts, NULL)) != -1) {
         switch (c) {
         case 'q':
@@ -302,12 +302,12 @@ int main(int argc, char **argv)
         case 'G':
             js.gpu_type = optarg;
             break;
-        case 'L': {
+        case 'T': {
             /* validate format: name=N */
             char *eq = strchr(optarg, '=');
             if (eq == NULL || eq == optarg) {
                 fprintf(stderr,
-                        "bsub: --pool: invalid format '%s', "
+                        "bsub: --tokens: invalid format '%s', "
                         "expected name=N\n",
                         optarg);
                 return 1;
@@ -315,7 +315,7 @@ int main(int argc, char **argv)
             char *end;
             long v = strtol(eq + 1, &end, 10);
             if (*end != '\0' || v <= 0) {
-                fprintf(stderr, "bsub: --pool: invalid count in '%s'\n",
+                fprintf(stderr, "bsub: --tokens: invalid count in '%s'\n",
                         optarg);
                 return 1;
             }
@@ -371,8 +371,8 @@ int main(int argc, char **argv)
         case 'h':
             usage(stdout);
             return 0;
-        case 'V':
-            fprintf(stdout, "LavaLite %s\n", LAVALITE_VERSION_STR);
+        case 'v':
+            fprintf(stdout, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         default:
             usage(stderr);

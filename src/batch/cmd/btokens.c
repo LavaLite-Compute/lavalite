@@ -55,15 +55,15 @@ static void usage(void)
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'V'},
+                                   {"version", no_argument, NULL, 'v'},
                                    {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {
     int cc;
-    while ((cc = getopt_long(argc, argv, "hV", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hv", longopts, NULL)) != EOF) {
         switch (cc) {
-        case 'V':
+        case 'v':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

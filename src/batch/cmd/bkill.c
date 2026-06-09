@@ -78,13 +78,13 @@ int main(int argc, char **argv)
 {
     static struct option longopts[] = {{"signal", required_argument, 0, 's'},
                                        {"help", no_argument, 0, 'h'},
-                                       {"version", no_argument, 0, 'V'},
+                                       {"version", no_argument, 0, 'v'},
                                        {0, 0, 0, 0}};
 
     int sig = SIGTERM;
     int cc;
 
-    while ((cc = getopt_long(argc, argv, "s:hV", longopts, NULL)) != -1) {
+    while ((cc = getopt_long(argc, argv, "s:hv", longopts, NULL)) != -1) {
         switch (cc) {
         case 's':
             if (parse_signal(optarg, &sig) < 0) {
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
                 return -1;
             }
             break;
-        case 'V':
+        case 'v':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

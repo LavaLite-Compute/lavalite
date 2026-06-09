@@ -78,7 +78,7 @@ desktop session or display server are not propagated.
 
 ## Cluster resources
 
-**--pool** *name*=*N*
+**--tokens** *name*=*N*
 :   Request *N* tokens from the named token pool. This option may be
     repeated to request tokens from multiple pools.
 

@@ -148,7 +148,7 @@ static void usage(void)
 
 static struct option longopts[] = {
     { "help",    no_argument,       NULL, 'h' },
-    { "version", no_argument,       NULL, 'V' },
+    { "version", no_argument,       NULL, 'v' },
     { "close",   required_argument, NULL, 'c' },
     { "open",    required_argument, NULL, 'o' },
     { NULL, 0, NULL, 0 }
@@ -160,7 +160,7 @@ int main(int argc, char **argv)
     const char *close_host = NULL;
     const char *open_host  = NULL;
 
-    while ((cc = getopt_long(argc, argv, "c:o:hV", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "c:o:hv", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
             close_host = optarg;
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
         case 'o':
             open_host = optarg;
             break;
-        case 'V':
+        case 'v':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'h':

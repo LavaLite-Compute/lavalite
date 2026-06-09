@@ -136,7 +136,7 @@ static void usage(void)
 }
 
 static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'V'},
+                                   {"version", no_argument, NULL, 'v'},
                                    {"close", required_argument, NULL, 'c'},
                                    {"open", required_argument, NULL, 'o'},
                                    {"long", no_argument, NULL, 'l'},
@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 
     int cc;
     int long_fmt = 0;
-    while ((cc = getopt_long(argc, argv, "hVl", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hvl", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
             close_queue = optarg;
@@ -157,7 +157,7 @@ int main(int argc, char **argv)
         case 'o':
             open_queue = optarg;
             break;
-        case 'V':
+        case 'v':
             fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
             return 0;
         case 'l':
