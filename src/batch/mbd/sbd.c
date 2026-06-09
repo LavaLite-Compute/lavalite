@@ -468,8 +468,8 @@ int mbd_dispatch_job(struct job_data *job)
     return 0;
 }
 
-/* ORPHAN remains on run_jobs_list as a recoverable display state,
- * but its host/token/queue allocation has been released.
+/* Job orphaned by sbd as it probably restarted while processing
+ * job start. Put the job back to pend and reschedule.
  */
 void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
 {
@@ -515,17 +515,15 @@ void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
     if (job->state == JOB_SUSPENDED)
         job->queue->num_susp--;
 
+    job->state = JOB_PENDING;
     job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
     job->queue->num_hosts_used -= job->run_nhosts;
     job->queue->num_jobs--;
 
-    job->state = JOB_ORPHAN;
     job_move_list(job, &run_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
     job->queue->num_jobs++;
     job->queue->num_pend++;
 
-    /* Orphan is a boundary case move it to the pending list
-     */
     LL_INFO("job=%ld reported as orphan by sbd=%s forced pending",
             s.job_id, n->net.name);
 }

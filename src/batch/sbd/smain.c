@@ -19,9 +19,6 @@
 #include "base/lib/ll.channel.h"
 #include "batch/sbd/sbd.h"
 
-// some vars
-int non_root = 0;
-
 // sbd main loop
 static void sbd_run_daemon(void);
 static int sbd_init(void);
@@ -734,7 +731,6 @@ static int parse_simulator(const char *arg)
 }
 
 static struct option long_options[] = {
-    {"non_root", no_argument, 0, 'n'},
     {"confdir", required_argument, 0, 'c'},
     {"version", no_argument, 0, 'V'},
     {"simulator", required_argument, 0, 's'},
@@ -748,7 +744,6 @@ static void usage(void)
     fprintf(
         stderr,
         "sbd: [OPTIONS]\n"
-        " -n, --non_root          Run in non-root mode\n"
         " -V, --version           Print version and exit\n"
         " -c, --confdir dir       Set LL_CONF_DIR\n"
         " -s, --simulator name:port  Sim mode: register as name on port\n"
@@ -764,12 +759,9 @@ int main(int argc, char **argv)
     char *conf_dir = NULL;
 
     sim_name[0] = 0;
-    while ((cc = getopt_long(argc, argv, "nc:Vs:o:r:h", long_options, NULL)) !=
+    while ((cc = getopt_long(argc, argv, "c:Vs:o:r:h", long_options, NULL)) !=
            EOF) {
         switch (cc) {
-        case 'n':
-            non_root = 1;
-            break;
         case 'c':
             conf_dir = optarg;
             setenv("LL_CONF_DIR", conf_dir, 1);
@@ -806,12 +798,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if (sim_name[0] != 0 && non_root) {
-        fprintf(stderr, "sbd: --simulator and -n are mutually exclusive\n");
-        exit(1);
-    }
-
-    if (!non_root && geteuid() != 0) {
+    if (geteuid() != 0) {
         fprintf(stderr, "Only root wants to run sbd");
         return -1;
     }

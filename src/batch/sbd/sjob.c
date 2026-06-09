@@ -167,12 +167,8 @@ static int set_job_env(const struct sbd_job *job)
 
 static int set_user_id(const struct sbd_job *job)
 {
-    LL_INFO("job=%ld switching to uid=%d gid=%d user=%s sbd_debd=%d",
-            job->job_id, job->uid, job->gid, job->user,
-            non_root);
-
-    if (non_root)
-        return 0;
+    LL_INFO("job=%ld switching to uid=%d gid=%d user=%s",
+            job->job_id, job->uid, job->gid, job->user);
 
     if (initgroups(job->user, job->gid) < 0) {
         LL_ERR("initgroups job=%ld failed uid=%d name=%s group=%d", job->job_id,
