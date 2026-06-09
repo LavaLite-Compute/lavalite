@@ -114,7 +114,7 @@ desktop session or display server are not propagated.
 
 **--terminate** [*day*:]*hour*:*minute*
 :   Terminate the job at the specified deadline. The job receives SIGUSR2
-    and is killed if it does not exit within ten minutes.
+    and is killed if it does not exit within one minute.
 
 ## Informational
 

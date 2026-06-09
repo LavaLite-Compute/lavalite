@@ -53,6 +53,8 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     else
         ll_strlcpy(job->user_cwd, ws->cwd, sizeof(job->user_cwd));
     ll_strlcpy(job->gpu_assigned, ws->gpu_assigned, sizeof(job->gpu_assigned));
+    job->terminate_time = ws->term_time;
+    job->terminate_kill_time = 0;
 
     /* pipeline state */
     job->pid_acked = false;

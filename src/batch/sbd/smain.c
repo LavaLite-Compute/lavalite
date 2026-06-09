@@ -377,6 +377,30 @@ static void sbd_maybe_reap_children(void)
     sbd_reap_children();
 }
 
+static void job_terminate_check(struct sbd_job *job)
+{
+    if (job->terminate_time <= 0)
+        return;
+    if (job->exit_status_valid)
+        return;
+
+    time_t now = time(NULL);
+    if (now >= job->terminate_time
+        && job->terminate_kill_time == 0) {
+        LL_INFO("job=%ld terminate_time reached, sending SIGUSR2", job->job_id);
+        killpg(job->pgid, SIGUSR2);
+        job->terminate_time = 0;  /* arm SIGKILL after grace */
+        job->terminate_kill_time = now + 60;
+        return;
+    }
+
+    if (job->terminate_kill_time > 0 && now >= job->terminate_kill_time) {
+        LL_INFO("job=%ld grace expired, sending SIGKILL", job->job_id);
+        cgroup_job_kill(job->job_id);
+        job->terminate_kill_time = 0;
+    }
+}
+
 static void job_status_checking(void)
 {
     struct ll_list_entry *e;
@@ -396,6 +420,8 @@ static void job_status_checking(void)
 
         if (!job->pid_acked)
             continue;
+
+        job_terminate_check(job);
 
         if (sbd_pid_alive(job))
             continue;
