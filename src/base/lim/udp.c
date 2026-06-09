@@ -144,7 +144,7 @@ static int send_load_report(void)
 
     struct wire_load_report wl;
     memset(&wl, 0, sizeof(struct wire_load_report));
-    strcpy(wl.hostname, me->host->name);
+    ll_strlcpy(wl.hostname, me->host->name, sizeof(wl.hostname));
     wl.host_no = me->host_no;
     wl.num_metrics = NUM_METRICS;
 
@@ -238,8 +238,8 @@ static void get_cluster_name(struct protocol_header *rhdr,
     // payload
     struct wire_cluster wc;
     memset(&wc, 0, sizeof(struct wire_cluster));
-    strcpy(wc.name, lim_cluster.name);
-    strcpy(wc.admin, lim_cluster.admin);
+    ll_strlcpy(wc.name, lim_cluster.name, sizeof(wc.name));
+    ll_strlcpy(wc.admin, lim_cluster.admin, sizeof(wc.admin));
 
     if (!xdr_wire_cluster(&xdrs2, &wc)) {
         LL_ERR("xdr_pack_hdr failed");
@@ -262,9 +262,10 @@ static void get_master_name(struct protocol_header *rhdr,
     struct wire_master wm;
     memset(&wm, 0, sizeof(wm));
     if (current_master.node) {
-        strcpy(wm.hostname, current_master.node->host->name);
+        ll_strlcpy(wm.hostname, current_master.node->host->name,
+                   sizeof(wm.hostname));
     } else {
-        strcpy(wm.hostname, "unknown");
+        ll_strlcpy(wm.hostname, "unknown", sizeof(wm.hostname));
     }
 
     struct protocol_header hdr;
