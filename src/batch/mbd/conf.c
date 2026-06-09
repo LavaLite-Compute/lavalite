@@ -1006,6 +1006,8 @@ int init_manager(void)
 
 int is_manager(uid_t uid)
 {
+    if (uid == 0)
+        return 1;
     if (uid == mbd_mgr.uid)
         return 1;
     return 0;
