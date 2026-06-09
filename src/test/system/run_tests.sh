@@ -21,7 +21,16 @@ run_test $TESTS_DIR/bsub_basic.sh
 run_test $TESTS_DIR/bsub_hold.sh
 run_test $TESTS_DIR/bsub_nhosts.sh
 run_test $TESTS_DIR/bsub_gpu.sh
-run_test $TESTS_DIR/bsub_exclusive.sh
+run_test $TESTS_DIR/bsub_queue.sh
+run_test $TESTS_DIR/bsub_mem.sh
+run_test $TESTS_DIR/bsub_begin.sh
+run_test $TESTS_DIR/bsub_terminate.sh
+run_test $TESTS_DIR/bsub_pool.sh
+run_test $TESTS_DIR/bsub_machines.sh
+run_test $TESTS_DIR/bsub_io.sh
+run_test $TESTS_DIR/bsub_name.sh
+run_test $TESTS_DIR/bsub_project.sh
+run_test $TESTS_DIR/bsub_comment.sh
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
