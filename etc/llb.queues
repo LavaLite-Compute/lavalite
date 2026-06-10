@@ -9,26 +9,10 @@
 #
 
 Begin Queue
-QUEUE_NAME  = professor
-PRIORITY    = 70
-HOSTS       = cpu-new
-USERS = professor
+QUEUE_NAME  =  myqueue
+PRIORITY    = 10
+HOSTS       =  myhosts
+USERS =  myusers
 DESCRIPTION = General purpose CPU workloads
-End Queue
-
-Begin Queue
-QUEUE_NAME  = student
-PRIORITY    = 40
-HOSTS       = cpu-old
-USERS = student david
-DESCRIPTION = GPU workloads
-End Queue
-
-Begin Queue
-QUEUE_NAME  = low
-PRIORITY    = 1
-HOSTS       = cpu-old cpu-new
-USERS = student professor emanule
-DESCRIPTION = GPU workloads
 End Queue
 

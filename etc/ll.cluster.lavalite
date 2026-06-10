@@ -13,9 +13,6 @@ End    ClusterAdmin
 # Columns and their order is mandatory like it is in /etc/passwd
 Begin Host
 Hostname Resources  Master
-buntu24 (cs gpu)     y
-worker1 (cs gpu)     y
-worker2 (cs arm)     -
-worker3 ()     -
+myhost (cs gpu)     y
 End Hosts
 
