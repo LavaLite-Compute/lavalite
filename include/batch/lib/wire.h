@@ -97,7 +97,7 @@ struct wire_job_start {
     int32_t gpus_per_host;
     int32_t ncpus;
     uint64_t mem_mb;
-    char gpu_type[LL_BUFSIZ_64];
+    char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* e.g. "0,1" — assigned CUDA device IDs */
     struct wire_job_script script; /* job script, encoded last */
 };
@@ -142,7 +142,7 @@ struct wire_job_submit {
     char cwd[PATH_MAX];
     char depend_cond[LL_BUFSIZ_4K];
     char command[PATH_MAX];
-    char gpu_type[LL_BUFSIZ_256];
+    char gpu_model[LL_BUFSIZ_256];
     char submit_host[MAXHOSTNAMELEN];
     char username[LL_BUFSIZ_256];
     char home_dir[PATH_MAX];
@@ -232,7 +232,7 @@ struct wire_host_info {
     int32_t num_jobs;
     int32_t num_run;
     int32_t num_susp;
-    char gpu_type[LL_BUFSIZ_64];
+    char gpu_model[LL_BUFSIZ_64];
     char gpu_ids[LL_BUFSIZ_64];
 };
 

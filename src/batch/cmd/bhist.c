@@ -292,8 +292,8 @@ static void print_job_full(const struct job_hist_info *j)
            j->num_hosts, j->num_cpus, j->num_gpus,
            (unsigned long)j->mem_mb);
 
-    if (j->gpu_type != NULL && j->gpu_type[0] != '\0')
-        printf("  GPU type:     %s\n", j->gpu_type);
+    if (j->gpu_model != NULL && j->gpu_model[0] != '\0')
+        printf("  GPU model:    %s\n", j->gpu_model);
     if (j->machines != NULL && j->machines[0] != '\0')
         printf("  Machines:     %s\n", j->machines);
     if (j->tokenpool != NULL && j->tokenpool[0] != '\0')

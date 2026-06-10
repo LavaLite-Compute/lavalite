@@ -10,7 +10,7 @@ fail() {
 
 echo "RUN: $NAME"
 
-JID=$(bsub --gpus 1 --gpu-type A100 -o /dev/null -e /dev/null sleep 10 2>&1 | grep -oP 'Job <\K[0-9]+')
+JID=$(bsub --gpus 1 --gpu-model A100 -o /dev/null -e /dev/null sleep 10 2>&1 | grep -oP 'Job <\K[0-9]+')
 [ -z "$JID" ] && fail "no jobid returned"
 
 echo "RUN: $NAME jobid=$JID"

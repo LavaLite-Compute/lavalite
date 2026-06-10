@@ -53,8 +53,8 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
         ll_strlcpy(w->err_file, js->err_file, sizeof(w->err_file));
     if (js->depend_cond != NULL)
         ll_strlcpy(w->depend_cond, js->depend_cond, sizeof(w->depend_cond));
-    if (js->gpu_type != NULL)
-        ll_strlcpy(w->gpu_type, js->gpu_type, sizeof(w->gpu_type));
+    if (js->gpu_model != NULL)
+        ll_strlcpy(w->gpu_model, js->gpu_model, sizeof(w->gpu_model));
 
     ll_strlcpy(w->command, js->command, sizeof(w->command));
 

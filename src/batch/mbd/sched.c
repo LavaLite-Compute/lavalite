@@ -116,8 +116,8 @@ static enum pend_reason diag_reason(struct pend_diag *diag)
 {
     if (diag->exclusive)
         return PEND_HOST_EXCLUSIVE;
-    if (diag->gpu_type)
-        return PEND_GPU_TYPE;
+    if (diag->gpu_model)
+        return PEND_GPU_MODEL;
     if (diag->no_gpus)
         return PEND_NOT_ENOUGH_GPUS;
     if (diag->no_mem)
@@ -158,14 +158,14 @@ static int host_has_gpu_count(const struct mbd_host *h,
     return 0;
 }
 
-static int host_has_gpu_type_and_count(const struct mbd_host *h,
+static int host_has_gpu_model_and_count(const struct mbd_host *h,
                                         const struct job_data *job)
 {
-    if (strcmp(h->res.gpu.gpu_type, job->res.gpu_type) != 0)
+    if (strcmp(h->res.gpu.gpu_model, job->res.gpu_model) != 0)
         return 0;
     int n = gpu_ids_count_free(&h->res.gpu);
-    LL_DEBUG("job=%ld host=%s gpu_type=%s count=%d free=%d", job->job_id,
-             h->net.name, job->res.gpu_type, h->res.gpu.count, n);
+    LL_DEBUG("job=%ld host=%s gpu_model=%s count=%d free=%d", job->job_id,
+             h->net.name, job->res.gpu_model, h->res.gpu.count, n);
     if (n >= job->res.num_gpus)
         return n;
     return 0;
@@ -200,8 +200,8 @@ static int host_meets_requirements(struct mbd_host *h, struct job_data *job,
         diag->no_gpus++;
         return 0;
     }
-    if (job->res.gpu_type[0] != 0 && !host_has_gpu_type_and_count(h, job)) {
-        diag->gpu_type++;
+    if (job->res.gpu_model[0] != 0 && !host_has_gpu_model_and_count(h, job)) {
+        diag->gpu_model++;
         return 0;
     }
     return 1;

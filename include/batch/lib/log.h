@@ -80,7 +80,7 @@ struct log_job_new {
     char job_name[LL_BUFSIZ_64];
     char queue[LL_BUFSIZ_64];
     char project_name[LL_BUFSIZ_64];
-    char gpu_type[LL_BUFSIZ_64];
+    char gpu_model[LL_BUFSIZ_64];
     char machines[LL_BUFSIZ_1K];
     char tokenpool[LL_BUFSIZ_256];
 };
@@ -93,7 +93,7 @@ struct log_job_start {
     int nhosts;
     int cpus_per_host;
     int gpus_per_host;
-    char gpu_type[LL_BUFSIZ_64];
+    char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* assigned CUDA device IDs e.g. "0,1" */
     char hosts[LL_BUFSIZ_4K];        /* space-separated exec hosts */
 };

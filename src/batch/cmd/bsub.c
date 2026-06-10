@@ -36,7 +36,7 @@ static void usage(FILE *f)
         "  --storage size     Local scratch storage per host: "
                               "n[M|G] (default GB)\n"
         "  --gpus   n         GPUs per host (default: 0)\n"
-        "  --gpu-type name    Required GPU type (requires --gpus)\n"
+        "  --gpu-model name   Required GPU model (requires --gpus)\n"
         "  --exclusive        Exclusive host, no job sharing\n"
         "\n"
         "Cluster resources:\n"
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
         {"mem", required_argument, NULL, 'M'},
         {"storage", required_argument, NULL, 's'},
         {"gpus", required_argument, NULL, 'g'},
-        {"gpu-type", required_argument, NULL, 'G'},
+        {"gpu-model", required_argument, NULL, 'G'},
         {"tokens", required_argument, NULL, 'T'},
         {"exclusive", no_argument, NULL, 'x'},
         {"machines", required_argument, NULL, 'm'},
@@ -300,7 +300,7 @@ int main(int argc, char **argv)
             break;
         }
         case 'G':
-            js.gpu_type = optarg;
+            js.gpu_model = optarg;
             break;
         case 'T': {
             /* validate format: name=N */
@@ -390,9 +390,9 @@ int main(int argc, char **argv)
     if (js.machines != NULL)
         js.num_hosts = count_machines(js.machines);
 
-    /* --gpu-type requires --gpus */
-    if (js.gpu_type != NULL && js.num_gpus == 0) {
-        fprintf(stderr, "bsub: --gpu-type requires --gpus\n");
+    /* --gpu-model requires --gpus */
+    if (js.gpu_model != NULL && js.num_gpus == 0) {
+        fprintf(stderr, "bsub: --gpu-model requires --gpus\n");
         return 1;
     }
 

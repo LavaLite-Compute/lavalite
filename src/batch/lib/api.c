@@ -28,7 +28,7 @@ const char *pend_reason_msg[] = {
     [PEND_NOT_ENOUGH_MEM] = "not enough free memory on any host",
     [PEND_NOT_ENOUGH_STORAGE] = "not enough free storage on any host",
     [PEND_NOT_ENOUGH_GPUS] = "not enough free GPUs on any host",
-    [PEND_GPU_TYPE] = "no host has the required GPU type",
+    [PEND_GPU_MODEL] = "no host has the required GPU model",
     [PEND_HOST_EXCLUSIVE] = "exclusive constraint cannot be satisfied",
     [PEND_HOST_OVERFLOW] = "host allocation size overflow buffer"};
 
@@ -371,7 +371,7 @@ struct host_info *llb_host_info(int32_t *nhosts)
         out[i].num_jobs = w.hosts[i].num_jobs;
         out[i].num_run = w.hosts[i].num_run;
         out[i].num_susp = w.hosts[i].num_susp;
-        out[i].gpu_type = strdup(w.hosts[i].gpu_type);
+        out[i].gpu_model = strdup(w.hosts[i].gpu_model);
         out[i].gpu_ids  = strdup(w.hosts[i].gpu_ids);
     }
 
@@ -386,7 +386,7 @@ void llb_free_host_info(struct host_info *h, int32_t n)
 {
     for (int i = 0; i < n; i++) {
         free(h[i].name);
-        free(h[i].gpu_type);
+        free(h[i].gpu_model);
         free(h[i].gpu_ids);
     }
     free(h);

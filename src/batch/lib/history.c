@@ -101,7 +101,7 @@ static void hist_free_one(struct job_hist_info *j)
     free(j->out_file);
     free(j->err_file);
     free(j->comment);
-    free(j->gpu_type);
+    free(j->gpu_model);
     free(j->tokenpool);
 
     for (i = 0; i < j->num_events; i++)
@@ -196,8 +196,8 @@ static void hist_apply_submit_field(struct job_hist_info *j,
         j->comment = hist_strdup(val);
         return;
     }
-    if (strcasecmp(key, "gpu_type") == 0 && j->gpu_type == NULL) {
-        j->gpu_type = hist_strdup(val);
+    if (strcasecmp(key, "gpu_model") == 0 && j->gpu_model == NULL) {
+        j->gpu_model = hist_strdup(val);
         return;
     }
     if (strcasecmp(key, "tokenpool") == 0 && j->tokenpool == NULL) {

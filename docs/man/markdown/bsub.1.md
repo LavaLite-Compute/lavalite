@@ -67,9 +67,9 @@ desktop session or display server are not propagated.
 **--gpus** *n*
 :   Request *n* GPUs per host. Default is 0.
 
-**--gpu-type** *name*
-:   Require a specific GPU type, as defined in llb.hosts. Example:
-    **--gpu-type a100**. If omitted, any GPU type satisfies the request.
+**--gpu-model** *name*
+:   Require a specific GPU model, as defined in llb.hosts. Example:
+    **--gpu-model a100**. If omitted, any GPU model satisfies the request.
     Requires **--gpus**.
 
 **--exclusive**
@@ -142,7 +142,7 @@ Submit an MPI job with 32 ranks across 4 hosts:
 
 Submit a GPU job requiring 2 A100s per host:
 
-    bsub --gpus 2 --gpu-type a100 --mem 32G ./train.sh
+    bsub --gpus 2 --gpu-model a100 --mem 32G ./train.sh
 
 Hold a job on submit, release later:
 

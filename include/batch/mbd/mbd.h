@@ -48,7 +48,7 @@ struct job_resources {
     int32_t num_cpus;
     int32_t num_hosts;
     int32_t num_gpus;
-    char gpu_type[LL_BUFSIZ_256];
+    char gpu_model[LL_BUFSIZ_256];
     uint64_t mem_mb;
     uint64_t storage_mb;
     int32_t wall_seconds;
@@ -108,7 +108,7 @@ struct gpu_id {
  */
 struct mbd_gpu {
     struct ll_list_entry ent;
-    char gpu_type[LL_BUFSIZ_64]; /* A100, H100, etc. */
+    char gpu_model[LL_BUFSIZ_64]; /* A100, H100, etc. */
     char gpu_ids[LL_BUFSIZ_64];  /* raw ids string, for logging */
     int count;      /* total configured */
     /* expanded device indices with in_use tracking */
@@ -120,7 +120,7 @@ struct mbd_gpu {
  * total_* is configured (llb.hosts), free_* is updated from sbd heartbeat.
  * used_* is derivable as total - free, computed at display/event time.
  * total_gpu/free_gpu are aggregates for fast scheduling checks;
- * gpu_list is walked only when a specific gpu_type is requested.
+ * gpu_list is walked only when a specific gpu_model is requested.
  */
 struct host_resources {
     int max_jobs;
@@ -214,7 +214,7 @@ struct pend_diag {
     int not_in_queue;
     int no_hosts;
     int no_gpus;
-    int gpu_type;
+    int gpu_model;
     int exclusive;
     int no_mem;
     int no_storage;

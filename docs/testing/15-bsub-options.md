@@ -270,16 +270,16 @@ bkill --signal kill <jobid>
 
 ---
 
-## TEST-158: Submit with GPU type
+## TEST-158: Submit with GPU model
 
 ### Prerequisite
 
-At least one GPU type is configured in `llb.hosts`.
+At least one GPU model is configured in `llb.hosts`.
 
 ### Commands
 
 ```sh
-bsub --gpus 1 --gpu-type a100 sleep 3600
+bsub --gpus 1 --gpu-model a100 sleep 3600
 
 bjobs <jobid>
 bhist <jobid>
@@ -287,7 +287,7 @@ bhist <jobid>
 
 ### Expected Result
 
-The job runs only on a host with the requested GPU type.
+The job runs only on a host with the requested GPU model.
 
 ### Pass Criteria
 
@@ -302,17 +302,17 @@ bkill --signal kill <jobid>
 
 ---
 
-## TEST-159: Reject GPU type without GPU count
+## TEST-159: Reject GPU model without GPU count
 
 ### Commands
 
 ```sh
-bsub --gpu-type a100 sleep 3600
+bsub --gpu-model a100 sleep 3600
 ```
 
 ### Expected Result
 
-The command fails because `--gpu-type` requires `--gpus`.
+The command fails because `--gpu-model` requires `--gpus`.
 
 ### Pass Criteria
 

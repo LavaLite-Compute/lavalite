@@ -353,8 +353,8 @@ int hosts_info(XDR *xdrs, int chan_id)
         hosts[i].num_run = h->num_run;
         hosts[i].num_susp = h->num_susp;
 
-        ll_strlcpy(hosts[i].gpu_type, h->res.gpu.gpu_type,
-                   sizeof(hosts[i].gpu_type));
+        ll_strlcpy(hosts[i].gpu_model, h->res.gpu.gpu_model,
+                   sizeof(hosts[i].gpu_model));
         ll_strlcpy(hosts[i].gpu_ids, h->res.gpu.gpu_ids,
                    sizeof(hosts[i].gpu_ids));
 

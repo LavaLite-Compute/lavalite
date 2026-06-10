@@ -144,7 +144,7 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
     if (write_qstr(fp, j->project_name) < 0)
         return -1;
     // gpu type and hosts are part of the requested resources
-    if (write_qstr(fp, j->gpu_type) < 0)
+    if (write_qstr(fp, j->gpu_model) < 0)
         return -1;
     if (write_qstr(fp, j->machines) < 0)
         return -1;
@@ -188,7 +188,7 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
         return -1;
     if (read_qstr(&p, j->project_name, sizeof(j->project_name)) < 0)
         return -1;
-    if (read_qstr(&p, j->gpu_type, sizeof(j->gpu_type)) < 0)
+    if (read_qstr(&p, j->gpu_model, sizeof(j->gpu_model)) < 0)
         return -1;
     if (read_qstr(&p, j->machines, sizeof(j->machines)) < 0)
         return -1;
@@ -202,7 +202,7 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
  * JOB_START
  *
  * Full scheduling plan recorded for observability/accounting.
- * Format: job_id nhosts cpus_per_host gpus_per_host "exec_host" "gpu_type" "h1
+ * Format: job_id nhosts cpus_per_host gpus_per_host "exec_host" "gpu_model" "h1
  * h2 ..." replay only needs exec_host; bhist/ebd use the rest.
  * ----------------------------------------------------------------------- */
 
@@ -213,7 +213,7 @@ int log_write_job_start(FILE *fp, const struct log_job_start *j)
     if (fprintf(fp, " %ld %d %d %d", j->job_id, j->nhosts, j->cpus_per_host,
                 j->gpus_per_host) < 0)
         return -1;
-    if (write_qstr(fp, j->gpu_type) < 0)
+    if (write_qstr(fp, j->gpu_model) < 0)
         return -1;
     if (write_qstr(fp, j->gpu_assigned) < 0)
         return -1;
@@ -236,7 +236,7 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
     }
     p += cc;
 
-    if (read_qstr(&p, j->gpu_type, sizeof(j->gpu_type)) < 0)
+    if (read_qstr(&p, j->gpu_model, sizeof(j->gpu_model)) < 0)
         return -1;
     if (read_qstr(&p, j->gpu_assigned, sizeof(j->gpu_assigned)) < 0)
         return -1;

@@ -79,7 +79,7 @@ struct col_widths {
     int njobs;
     int run;
     int susp;
-    int gpu_type;
+    int gpu_model;
     int gpu_ids;
 };
 
@@ -103,7 +103,7 @@ static void compute_widths(struct host_info *h, int n, struct col_widths *w)
     w->njobs        = strlen("NJOBS");
     w->run          = strlen("RUN");
     w->susp         = strlen("SUSP");
-    w->gpu_type     = strlen("GPU_TYPE");
+    w->gpu_model     = strlen("GPU_MODEL");
     w->gpu_ids      = strlen("GPU_IDS");
 
     for (int i = 0; i < n; i++) {
@@ -131,8 +131,8 @@ static void compute_widths(struct host_info *h, int n, struct col_widths *w)
         w->njobs     = imax(w->njobs,     ndigits(h[i].num_jobs));
         w->run       = imax(w->run,       ndigits(h[i].num_run));
         w->susp      = imax(w->susp,      ndigits(h[i].num_susp));
-        if (h[i].gpu_type != NULL)
-            w->gpu_type  = imax(w->gpu_type, (int)strlen(h[i].gpu_type));
+        if (h[i].gpu_model != NULL)
+            w->gpu_model  = imax(w->gpu_model, (int)strlen(h[i].gpu_model));
         if (h[i].gpu_ids != NULL)
             w->gpu_ids   = imax(w->gpu_ids,  (int)strlen(h[i].gpu_ids));
     }
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
            w.used_mem,     "USED_MB",
            w.used_storage, "USED_GB",
            w.used_gpu,     "USED_GPU",
-           w.gpu_type,     "GPU_TYPE",
+           w.gpu_model,     "GPU_MODEL",
            w.gpu_ids,      "GPU_IDS");
 
     for (int i = 0; i < nhosts; i++) {
@@ -255,7 +255,7 @@ int main(int argc, char **argv)
                w.used_mem,     used_mem_buf,
                w.used_storage, used_stor_buf,
                w.used_gpu,     used_gpu,
-               w.gpu_type,     hosts[i].gpu_type ? hosts[i].gpu_type : "-",
+               w.gpu_model,     hosts[i].gpu_model ? hosts[i].gpu_model : "-",
                w.gpu_ids,      hosts[i].gpu_ids  ? hosts[i].gpu_ids  : "-");
     }
 

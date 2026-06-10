@@ -6,13 +6,13 @@
 # CPU        - Number of CPU cores available for scheduling
 # MEM        - Total memory available (M=megabytes, G=gigabytes)
 # STORAGE    - Total scratch storage available (M=megabytes, G=gigabytes)
-# GPU_TYPE   - GPU model name, '-' if no GPUs
+# GPU_MODEL   - GPU model name, '-' if no GPUs
 # GPU_IDS    - Comma-separated CUDA device indices or range (e.g. 0,1 or 0-3), '-' if no GPUs
 #
 # Column order is mandatory and must not be changed.
 #
 Begin Host
-HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_TYPE   GPU_IDS
+HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
 buntu24       4    8    40G    100G      A100       0,1
 #worker2      6    64    1T      50T      -          -
 #worker3      8   128    1T     120T      -          -
@@ -25,7 +25,7 @@ uvw         3
 End TokenPool
 
 #
-# Host groups - hosts grouped by GPU type.
+# Host groups - hosts grouped by GPU model.
 # A host belongs to exactly one group.
 #
 Begin HostGroup
@@ -36,7 +36,7 @@ End HostGroup
 
 # Column order is mandatory and must not be changed.
 # Begin Sim
-# NAME          REAL_HOST   PORT  MXJ  CPU  MEM    STORAGE   GPU_TYPE  GPU_IDS
+# NAME          REAL_HOST   PORT  MXJ  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
 # sim1           buntu24   33126    4     8  20G    100G      A100      0-1
 # sim2           buntu24   33127    4     8  20G    100G      A100      0-1
 # End Sim

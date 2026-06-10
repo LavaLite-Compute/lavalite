@@ -176,7 +176,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.num_gpus = ws->num_gpus;
     e.mem_mb = ws->mem_mb;
     e.storage_mb = ws->storage_mb;
-    ll_strlcpy(e.gpu_type, ws->gpu_type, sizeof(e.gpu_type));
+    ll_strlcpy(e.gpu_model, ws->gpu_model, sizeof(e.gpu_model));
     ll_strlcpy(e.machines, ws->machines, sizeof(e.machines));
 
     e.flags = ws->flags;
@@ -210,7 +210,7 @@ void event_job_start(const struct job_data *job)
     e.cpus_per_host = job->res.num_cpus;
     e.gpus_per_host = job->res.num_gpus;
 
-    ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
+    ll_strlcpy(e.gpu_model, job->res.gpu_model, sizeof(e.gpu_model));
     ll_strlcpy(e.gpu_assigned, job->gpu_assigned, sizeof(e.gpu_assigned));
 
     /* build space-separated hostname list */
@@ -359,7 +359,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->res.num_gpus = e->num_gpus;
     job->res.mem_mb = e->mem_mb;
     job->res.storage_mb = e->storage_mb;
-    ll_strlcpy(job->res.gpu_type, e->gpu_type, sizeof(job->res.gpu_type));
+    ll_strlcpy(job->res.gpu_model, e->gpu_model, sizeof(job->res.gpu_model));
 
     machines_hash_populate(&job->res.machines, e->machines);
     if (job->res.machines.nentries > 0)
@@ -940,7 +940,7 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     e.mem_mb = job->res.mem_mb;
     e.storage_mb = job->res.storage_mb;
     e.flags = job->flags;
-    ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
+    ll_strlcpy(e.gpu_model, job->res.gpu_model, sizeof(e.gpu_model));
     ll_strlcpy(e.username, job->user, sizeof(e.username));
     ll_strlcpy(e.job_name, job->name, sizeof(e.job_name));
     ll_strlcpy(e.queue, job->queue->name, sizeof(e.queue));
@@ -962,7 +962,7 @@ static void compact_write_job_start(FILE *fp, const struct job_data *job)
     e.nhosts = job->res.num_hosts;
     e.cpus_per_host = job->res.num_cpus;
     e.gpus_per_host = job->res.num_gpus;
-    ll_strlcpy(e.gpu_type, job->res.gpu_type, sizeof(e.gpu_type));
+    ll_strlcpy(e.gpu_model, job->res.gpu_model, sizeof(e.gpu_model));
 
     for (int i = 0; i < job->res.num_hosts; i++) {
         if (i > 0)

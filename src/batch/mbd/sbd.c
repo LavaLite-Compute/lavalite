@@ -421,7 +421,7 @@ int mbd_dispatch_job(struct job_data *job)
     ll_strlcpy(ws.job_name, job->name, sizeof(ws.job_name));
     ll_strlcpy(ws.queue, job->queue->name, sizeof(ws.queue));
     ll_strlcpy(ws.username, job->user, sizeof(ws.username));
-    ll_strlcpy(ws.gpu_type, job->res.gpu_type, sizeof(ws.gpu_type));
+    ll_strlcpy(ws.gpu_model, job->res.gpu_model, sizeof(ws.gpu_model));
 
     build_hosts_str(job, ws.hosts, sizeof(ws.hosts));
 

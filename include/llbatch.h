@@ -38,7 +38,7 @@ enum pend_reason {
     PEND_NOT_ENOUGH_MEM,
     PEND_NOT_ENOUGH_STORAGE,
     PEND_NOT_ENOUGH_GPUS,
-    PEND_GPU_TYPE,
+    PEND_GPU_MODEL,
     PEND_HOST_EXCLUSIVE,
     PEND_HOST_OVERFLOW,
 };
@@ -72,7 +72,7 @@ struct job_submit {
     char *name;          /* --name        */
     char *queue;         /* --queue       */
     char *machines;      /* --machines    */
-    char *gpu_type;      /* --gpu-type    */
+    char *gpu_model;      /* --gpu-model    */
     char *depend_cond;   /* --dependency  */
     char *in_file;       /* --stdin       */
     char *out_file;      /* --stdout      */
@@ -146,7 +146,7 @@ struct host_info {
     int32_t num_jobs;          /* total jobs: run + susp */
     int32_t num_run;           /* running jobs */
     int32_t num_susp;          /* suspended jobs */
-    char *gpu_type;
+    char *gpu_model;
     char *gpu_ids;
 };
 
@@ -244,7 +244,7 @@ struct job_hist_info {
     char          *out_file;
     char          *err_file;
     char          *comment;
-    char          *gpu_type;      /* --gpu-type                             */
+    char          *gpu_model;      /* --gpu-model                             */
     char          *tokenpool;     /* --pool                                 */
     time_t         begin_time;    /* --begin                                */
     time_t         term_time;     /* --terminate                            */

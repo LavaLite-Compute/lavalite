@@ -37,7 +37,7 @@ recovery testing prior to release tagging.
 ### GPU Scheduling
 
 - GPU-aware scheduling (`--gpus`)
-- Typed GPU matching (`--gpu-type`)
+- GPU model matching (`--gpu-model`)
 - GPU and MIG resource support
 
 ### Token Pools
@@ -113,7 +113,7 @@ btokens
 --storage
 
 --gpus
---gpu-type
+--gpu-model
 
 --exclusive
 

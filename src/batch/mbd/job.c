@@ -75,7 +75,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     job->term_time = (time_t) ws->term_time;
     ll_strlcpy(job->project, ws->project, sizeof(job->project));
 
-    ll_strlcpy(job->res.gpu_type, ws->gpu_type, sizeof(job->res.gpu_type));
+    ll_strlcpy(job->res.gpu_model, ws->gpu_model, sizeof(job->res.gpu_model));
     job->res.num_cpus = ws->num_cpus;
     job->res.num_hosts = ws->num_hosts;
     job->res.num_gpus = ws->num_gpus;
@@ -282,7 +282,7 @@ static int write_sidecar(const struct job_data *job,
     fprintf(fp, "TERM_TIME=%ld\n", ws->term_time);
     fprintf(fp, "DEPEND_COND=%s\n", ws->depend_cond);
     fprintf(fp, "MACHINES=%s\n", ws->machines);
-    fprintf(fp, "GPU_TYPE=%s\n", ws->gpu_type);
+    fprintf(fp, "GPU_MODEL=%s\n", ws->gpu_model);
     fprintf(fp, "COMMENT=%s\n", ws->comment);
     fprintf(fp, "TOKENPOOL=%s\n", ws->tokenpool);
 

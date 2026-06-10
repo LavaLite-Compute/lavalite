@@ -24,19 +24,22 @@ Fields that have no value must be specified as a single dash (-).
 Empty fields are not permitted.
 
 # SECTIONS
-
 ## Begin Host / End Host
 
 Defines the execution hosts and their schedulable resources.
 
     Begin Host
-    HOST_NAME   MXJ   CPU   MEM    STORAGE
-    node01        8    32    128G   1T
-    node02        8    32    128G   1T
+    HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
+    node01        8    32    128G     1T      A100       0,1
+    node02        8    32    128G     1T      -          -
     End Host
 
 Each line after the header defines one host. Columns are
-whitespace-separated. Lines starting with **#** are comments.
+whitespace-separated. The column order is mandatory and must not be
+changed. Lines starting with **#** are comments.
+
+For hosts without GPUs, use **-** for both **GPU_MODEL** and
+**GPU_IDS**.
 
 **HOST_NAME**
 :   Hostname as returned by **hostname**(1). Must be reachable from
@@ -55,33 +58,27 @@ whitespace-separated. Lines starting with **#** are comments.
 **STORAGE**
 :   Total local scratch storage available. Same suffix rules as MEM.
 
-## Begin Gpu / End Gpu
-
-Defines GPU devices per host. Each line describes one GPU device or
-a set of identical devices on a host.
-
-    Begin Gpu
-    HOST_NAME   GPU_ID   GPU_MODEL   GPU_TYPE   COUNT
-    node01      0        H100        full       4
-    node01      4        H100        3g.40gb    2
-    End Gpu
-
-**HOST_NAME**
-:   Host where the GPU resides. Must be defined in the **Host** section.
-
-**GPU_ID**
-:   Starting device index as reported by **nvidia-smi**.
-
 **GPU_MODEL**
-:   Model name, used for display purposes.
+:   GPU model available on this host, for example **A100**, **H100**,
+    **RTX4090**, or **MI300X**. Use **-** if the host has no GPUs.
 
-**GPU_TYPE**
-:   Type name used to match **bsub --gpu-type**. Use **full** for a
-    complete GPU. For MIG instances, use the MIG profile name
-    (e.g. **3g.40gb**, **2g.20gb**).
+**GPU_IDS**
+:   Comma-separated list of GPU device identifiers available for
+    scheduling on this host. For example **0,1,2,3**. These identifiers
+    are used by the scheduler to allocate GPUs to jobs. Use **-** if
+    the host has no GPUs.
 
-**COUNT**
-:   Number of devices of this type at the given GPU_ID.
+GPU allocation in LavaLite is currently scheduler-enforced rather than
+kernel-enforced. The master daemon tracks GPU availability, allocates
+GPU device identifiers to jobs, and the execution daemon sets the
+**CUDA_VISIBLE_DEVICES** environment variable before starting the job.
+This ensures that well-behaved CUDA applications only see the GPUs
+assigned to them.
+
+LavaLite does not currently restrict direct access to GPU device files
+through Linux cgroups or other kernel mechanisms. GPU isolation is
+therefore cooperative: jobs are expected to respect the assigned
+**CUDA_VISIBLE_DEVICES** setting.
 
 ## Begin TokenPool / End TokenPool
 
@@ -124,10 +121,12 @@ Defines named groups of hosts. Host groups are referenced by
 Defines simulated hosts for testing without real execution hardware.
 Simulated hosts are registered by **sbd --simulator**.
 
-    Begin Sim
-    NAME          REAL_HOST   PORT    MXJ  CPU  MEM   STORAGE
-    worker1-sim   buntu24     33126     8  128   2T    100T
-    End Sim
+```
+Begin Sim
+NAME          REAL_HOST   PORT  MXJ  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
+sim1          buntu24   33126    4     8  20G    100G      A100      0-1
+End Sim
+```
 
 **NAME**
 :   Name the simulated host registers as with **mbd**.
@@ -138,22 +137,18 @@ Simulated hosts are registered by **sbd --simulator**.
 **PORT**
 :   Port the simulating **sbd** listens on.
 
-**MXJ**, **CPU**, **MEM**, **STORAGE**
+**MXJ**, **CPU**, **MEM**, **STORAGE**,  **GPU_MODEL**,  **GPU_IDS**
 :   Same meaning as in the **Host** section.
 
 # EXAMPLE
 
     Begin Host
-    HOST_NAME   MXJ   CPU   MEM    STORAGE
-    node01        8    64    256G   2T
-    node02        8    64    256G   2T
-    gpu01         4    32    512G   4T
+    HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
+    node01        8    64    256G      2T      -          -
+    node02        8    64    256G      2T      -          -
+    gpu01         4    32    512G      4T      H100       0,1,2,3
+    gpu02         4    32    512G      4T      A100       0,1
     End Host
-
-    Begin Gpu
-    HOST_NAME   GPU_ID   GPU_MODEL   GPU_TYPE   COUNT
-    gpu01       0        H100        full       4
-    End Gpu
 
     Begin TokenPool
     POOL_NAME  AVAILABLE
@@ -163,8 +158,23 @@ Simulated hosts are registered by **sbd --simulator**.
     Begin HostGroup
     GROUP_NAME    GROUP_MEMBER
     group-cpu     (node01 node02)
-    group-gpu     (gpu01)
+    group-gpu     (gpu01 gpu02)
     End HostGroup
+
+This configuration defines two CPU-only hosts and two GPU hosts.
+The gpu01 host provides four NVIDIA H100 GPUs, while gpu02 provides
+two NVIDIA A100 GPUs. Jobs submitted with GPU requirements are
+scheduled only on hosts that satisfy the requested GPU model and
+available GPU count.
+
+For example:
+
+    bsub --gpus 1 --gpu-model H100 myjob.sh
+
+requests one NVIDIA H100 GPU. The scheduler allocates a free GPU
+device identifier and the execution daemon exports the allocation
+through the **CUDA_VISIBLE_DEVICES** environment variable before
+starting the job.
 
 # SEE ALSO
 
