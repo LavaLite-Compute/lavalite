@@ -343,6 +343,9 @@ static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
     if (jh->all)
         return 1;
 
+    if (getuid() == 0)
+        return 1;
+
     if (jh->job_id > 0)
         return e->job_id == jh->job_id;
 
