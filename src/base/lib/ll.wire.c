@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
-#include <rpcsvc/ypclnt.h>
 
 #include "ll.h"
 #include "base/lib/ll.protocol.h"
