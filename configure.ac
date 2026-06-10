@@ -105,7 +105,6 @@ AC_CONFIG_FILES([
   src/base/lib/Makefile
   src/base/cmd/Makefile
   src/base/lim/Makefile
-  src/base/pylib/Makefile
 ])
 
 dnl ---- batch module ----
