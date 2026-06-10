@@ -1,21 +1,22 @@
 # Copyright (C) LavaLite Contributors
 
 AC_INIT([lavalite], [0.9.0], [https://github.com/LavaLiteProject/LavaLite/issues])
+dnl Modern large/posix feature defines (instead of forcing _GNU_SOURCE)
+AC_USE_SYSTEM_EXTENSIONS
+
 AC_CONFIG_HEADERS([config.h])
 AC_PREFIX_DEFAULT([/opt/lavalite-0.9.0])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 
-#LT_INIT([disable-shared enable-static])
+dnl Automake / libtool
+AM_INIT_AUTOMAKE([foreign -Wall subdir-objects])
+AM_PROG_AR
+LT_INIT([disable-shared])
 
-dnl Modern large/posix feature defines (instead of forcing _GNU_SOURCE)
-AC_USE_SYSTEM_EXTENSIONS
-
-dnl Check for pkg-config
-AC_PATH_PROG([PKG_CONFIG], [pkg-config], [no])
-if test "$PKG_CONFIG" = "no"; then
-  AC_MSG_ERROR([pkg-config is required but not found])
-fi
+dnl Compilers / tools
+AC_PROG_CC
+AC_PROG_INSTALL
 
 dnl Check for OpenSSL via pkg-config
 PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
@@ -24,91 +25,26 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
 
 dnl Project identity versioning
 AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 0.9.0"], [Human-readable LavaLite version])
-AC_DEFINE([LAVALITE_VERSION_HEX], [0x010000], [LavaLite version encoded as 0xMMmmpp])
-
-dnl Resolve Autoconf's lazy dir vars so SYSCONFDIR is a concrete path in config.h.
-dnl - If --prefix is not given, $prefix is "NONE" → use $ac_default_prefix.
-dnl - $sysconfdir usually contains ${prefix}/etc → expand it now via eval.
-dnl Without this, config.h would contain literally "${prefix}/etc".
-if test "x$prefix" = xNONE; then
-  prefix="$ac_default_prefix"     # e.g., /opt/lavalite-0.1.1 from AC_PREFIX_DEFAULT
-fi
-if test "x$exec_prefix" = xNONE; then
-  exec_prefix='${prefix}'         # keep the normal relationship
-fi
-eval sysconfdir="$sysconfdir"     # expand nested ${...} → real path
-AC_DEFINE_UNQUOTED([SYSCONFDIR], ["$sysconfdir"], [System configuration directory])
-
-dnl Automake / libtool
-AM_INIT_AUTOMAKE([foreign -Wall subdir-objects])
-AM_PROG_AR
-dnl AM_SILENT_RULES([yes])
-LT_INIT
-
-dnl Compilers / tools
-AC_PROG_CC
-AC_PROG_INSTALL
-
-dnl No berkley email...
-AC_DEFINE([NO_MAIL], [1], [Define to disable Berkeley email routing])
-
-dnl -------- CLI tests tooling --------
-
-AC_PATH_PROG([PYTEST], [pytest])
-if test -z "$PYTEST"; then
-  AC_MSG_WARN([pytest not found; CLI tests will be skipped. Install pytest to enable.])
-fi
-
-AC_ARG_ENABLE([cli-tests],
-  AS_HELP_STRING([--enable-cli-tests], [Enable Python CLI tests (default: yes if pytest found)]),
-  [enable_cli_tests=$enableval],
-  [enable_cli_tests=yes])
-
-AM_CONDITIONAL([HAVE_PYTEST], [test "x$PYTEST" != "x" -a "x$enable_cli_tests" = "xyes"])
+AC_DEFINE([LAVALITE_VERSION_HEX], [0x009000], [LavaLite version encoded as 0xMMmmpp])
 
 dnl ---- Dependencies ----
 
 dnl libtirpc (XDR)
-CPPFLAGS="$CPPFLAGS -I/usr/include/tirpc"
-AC_CHECK_HEADERS([rpc/xdr.h], [], [
-  AC_MSG_ERROR([Missing rpc/xdr.h — required for XDR support])
-])
-AC_SEARCH_LIBS([xdrmem_create], [tirpc], [], [
-  AC_MSG_ERROR([Missing libtirpc (-ltirpc)])
-])
+PKG_CHECK_MODULES([TIRPC], [libtirpc],
+  [CPPFLAGS="$CPPFLAGS $TIRPC_CFLAGS"
+   LIBS="$LIBS $TIRPC_LIBS"],
+  [AC_MSG_ERROR([libtirpc not found — required for XDR support])])
 
-dnl libnsl (NIS)
-AC_CHECK_LIB([nsl], [yp_get_default_domain], [
-  LIBS="$LIBS -lnsl"
-], [
-  AC_MSG_ERROR([Missing libnsl — required for NIS support])
-])
-
-dnl Check for pdflatex
-AC_PATH_PROG([PDFLATEX], [pdflatex])
-AM_CONDITIONAL([HAVE_PDFLATEX], [test -n "$PDFLATEX"])
-dnl Generate Makefiles for doc
+dnl Generate Makefiles
 AC_CONFIG_FILES([
   docs/Makefile
   docs/man/Makefile
-])
-
-dnl ---- Top-level ----
-AC_CONFIG_FILES([
   Makefile
   src/Makefile
-])
-
-dnl ---- base module ----
-AC_CONFIG_FILES([
   src/base/Makefile
   src/base/lib/Makefile
   src/base/cmd/Makefile
   src/base/lim/Makefile
-])
-
-dnl ---- batch module ----
-AC_CONFIG_FILES([
   src/batch/Makefile
   src/batch/lib/Makefile
   src/batch/cmd/Makefile
