@@ -256,7 +256,8 @@ static struct mbd_host *make_host(const char *p)
     return h;
 }
 
-static const char *host_hdr[] = { "HOST_NAME", "MXJ", "CPU", "MEM", "STORAGE", "GPU_MODEL", "GPU_IDS" };
+static const char *host_hdr[] = { "HOST_NAME", "MXJ", "CPU", "MEM",
+    "STORAGE", "GPU_MODEL", "GPU_IDS" };
 static int parse_hosts(const char *path)
 {
     FILE *f;
@@ -758,46 +759,52 @@ static int parse_sim(const char *path)
 static int conf_expand_queues(void)
 {
     struct ll_list_entry *e;
-
     for (e = queue_list.head; e; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *) e;
-
         ll_hash_init(&q->host_hash, 251);
 
-        struct mbd_group *g = (struct mbd_group *) ll_hash_search(
-            &group_name_hash, q->hosts_spec);
-        if (g != NULL) {
-            char tmp[LL_BUFSIZ_1K];
-            ll_strlcpy(tmp, g->members, sizeof(tmp));
-
-            char *tok = strtok(tmp, " \t");
-            while (tok != NULL) {
+        char tmp[LL_BUFSIZ_1K];
+        ll_strlcpy(tmp, q->hosts_spec, sizeof(tmp));
+        char *outer_save;
+        char *tok = strtok_r(tmp, " \t", &outer_save);
+        while (tok != NULL) {
+            struct mbd_group *g = (struct mbd_group *) ll_hash_search(
+                &group_name_hash, tok);
+            if (g != NULL) {
+                char gtmp[LL_BUFSIZ_1K];
+                ll_strlcpy(gtmp, g->members, sizeof(gtmp));
+                char *inner_save;
+                char *mem = strtok_r(gtmp, " \t", &inner_save);
+                while (mem != NULL) {
+                    struct mbd_host *h = find_host_by_name(mem);
+                    if (h == NULL) {
+                        LL_ERRX("queue=%s group=%s host=%s not found",
+                                q->name, g->name, mem);
+                        return -1;
+                    }
+                    enum ll_hash_status st =
+                        ll_hash_insert(&q->host_hash, h->net.name, h, 0);
+                    if (st == LL_HASH_EXISTS)
+                        LL_WARNING("queue=%s host=%s already in host_hash",
+                                   q->name, h->net.name);
+                    mem = strtok_r(NULL, " \t", &inner_save);
+                }
+            } else {
                 struct mbd_host *h = find_host_by_name(tok);
                 if (h == NULL) {
-                    LL_ERRX("queue=%s group=%s host=%s not found", q->name,
-                            g->name, tok);
+                    LL_ERRX("queue=%s HOSTS=%s not a group or host",
+                            q->name, tok);
                     return -1;
                 }
                 enum ll_hash_status st =
                     ll_hash_insert(&q->host_hash, h->net.name, h, 0);
                 if (st == LL_HASH_EXISTS)
-                    LL_WARNING("queue=%s host=%s already in host_hash", q->name,
-                               h->net.name);
-                tok = strtok(NULL, " \t");
+                    LL_WARNING("queue=%s host=%s already in host_hash",
+                               q->name, h->net.name);
             }
-            continue;
+            tok = strtok_r(NULL, " \t", &outer_save);
         }
-
-        /* hosts_spec is a single hostname */
-        struct mbd_host *h = find_host_by_name(q->hosts_spec);
-        if (h == NULL) {
-            LL_ERRX("queue=%s HOSTS=%s not a group or host", q->name,
-                    q->hosts_spec);
-            return -1;
-        }
-        ll_hash_insert(&q->host_hash, h->net.name, h, 0);
     }
-
     return 0;
 }
 
