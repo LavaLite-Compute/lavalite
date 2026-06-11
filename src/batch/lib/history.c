@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <limits.h>
+#include <pwd.h>
 #include <unistd.h>
 
 #include "llbatch.h"
@@ -338,18 +339,48 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
  * idempotent: applying the same event twice has no visible effect.
  * ----------------------------------------------------------------------- */
 
+/* -----------------------------------------------------------------------
+ * Admin check: caller is root or the configured mbd user.
+ * Called after ll_init() so ll_params is valid.
+ * ----------------------------------------------------------------------- */
+
+static int caller_is_admin(void)
+{
+    const char *mbd_user;
+    struct passwd *pw;
+
+    if (getuid() == 0)
+        return 1;
+
+    mbd_user = ll_params[LL_MBD_USER].val;
+    if (mbd_user == NULL || mbd_user[0] == '\0')
+        return 0;
+
+    pw = getpwnam(mbd_user);
+    if (pw == NULL)
+        return 0;
+
+    if (getuid() == pw->pw_uid)
+        return 1;
+
+    return 0;
+}
+
 static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
 {
     if (jh->all)
         return 1;
 
-    if (getuid() == 0)
+    if (jh->job_id > 0) {
+        if (e->job_id == jh->job_id)
+            return 1;
+        return 0;
+    }
+
+    if (e->uid == jh->uid)
         return 1;
 
-    if (jh->job_id > 0)
-        return e->job_id == jh->job_id;
-
-    return e->uid == jh->uid;
+    return 0;
 }
 
 static int hist_event_exists(struct job_hist_info *j, int32_t type,
@@ -841,8 +872,7 @@ static int hist_job_cmp(const void *a, const void *b)
  * Public API
  * ----------------------------------------------------------------------- */
 
-struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid,
-                                    int32_t flags, int32_t *num)
+struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid, int32_t *num)
 {
     struct job_hist jh;
 
@@ -851,14 +881,9 @@ struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid,
 
     *num = 0;
 
-    if (job_id <= 0 && !(flags & LLB_HIST_ALL) && uid == (uid_t)-1)
-        return NULL;
-
     memset(&jh, 0, sizeof(jh));
     jh.job_id = job_id;
     jh.uid    = uid;
-    if (flags & LLB_HIST_ALL)
-        jh.all = 1;
 
     errno = 0;
 
@@ -866,6 +891,14 @@ struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid,
         errno = EINVAL;
         return NULL;
     }
+
+    /*
+     * uid==0 is root. mbd_user is the batch admin.
+     * Either one sees all jobs unless a specific job_id was given,
+     * in which case hist_match_new handles it directly.
+     */
+    if (caller_is_admin())
+        jh.all = 1;
 
     if (hist_scan_events(&jh) < 0) {
         llb_free_hist_info(jh.jobs, jh.num_jobs);

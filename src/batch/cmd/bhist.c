@@ -388,9 +388,8 @@ static struct option longopts[] = {
 int main(int argc, char **argv)
 {
     int64_t       job_id  = 0;
-    int32_t       uid     = -1;
+    uid_t         uid     = getuid();
     int32_t       njobs   = 0;
-    int32_t       flags   = 0;
     int           full    = 0;
     int           cc;
     struct passwd *pw;
@@ -436,17 +435,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* default: current user */
-    if (job_id <= 0 && uid == -1) {
-        pw = getpwuid(getuid());
-        if (pw == NULL) {
-            fprintf(stderr, "bhist: cannot determine current user\n");
-            return 1;
-        }
-        uid = pw->pw_uid;
-    }
-
-    struct job_hist_info *jobs = llb_hist_info(job_id, uid, flags, &njobs);
+    struct job_hist_info *jobs = llb_hist_info(job_id, uid, &njobs);
     if (jobs == NULL) {
         if (errno != 0) {
             fprintf(stderr, "bhist: %s\n", strerror(errno));

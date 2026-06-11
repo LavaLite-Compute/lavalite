@@ -288,8 +288,7 @@ int32_t llb_queue_admin(const char *, int32_t);
 int32_t llb_host_admin(const char *, int32_t);
 
 /* bhist */
-struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid,
-                                    int32_t flags, int32_t *num);
+struct job_hist_info *llb_hist_info(int64_t, uid_t, int32_t *);
 void llb_free_hist_info(struct job_hist_info *, int32_t);
 
 // bmove
