@@ -40,6 +40,7 @@ AC_CONFIG_FILES([
   docs/Makefile
   docs/man/Makefile
   Makefile
+  include/Makefile
   src/Makefile
   src/base/Makefile
   src/base/lib/Makefile

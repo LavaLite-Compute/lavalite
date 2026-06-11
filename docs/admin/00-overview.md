@@ -14,10 +14,10 @@ recoverability. Scheduler state is stored in files, changes are
 recorded through durable events, and cluster state can be reconstructed
 after daemon restart without requiring an external database.
 
-Users submit jobs using commands such as `bsub`, `bjobs`, `bhist`,
-and `bkill`. The scheduler dispatches jobs to execution hosts based on
-resource availability, queue policy, host configuration, token pools,
-and GPU requirements.
+Users submit jobs using `bsub` and monitor and control them using
+commands such as `bjobs`, `bhist`, and `bkill`. The scheduler dispatches
+jobs to execution hosts based on resource availability, queue policy,
+host configuration, token pools, and GPU requirements.
 
 ## Architecture
 
@@ -191,26 +191,5 @@ This guide is organized as follows:
 01-install.md
 02-configuration.md
 03-queues-and-hosts.md
-04-operations.md
-05-troubleshooting.md
-```
-
-## Next Steps
-
-For a new installation continue with:
-
-```text
-01-install.md
-```
-
-For an existing cluster continue with:
-
-```text
-02-configuration.md
-```
-
-For daily administration continue with:
-
-```text
 04-operations.md
 ```

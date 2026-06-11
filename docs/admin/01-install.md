@@ -25,17 +25,9 @@ cgroup on /sys/fs/cgroup type cgroup2 (...)
 
 ## Create the LavaLite Administrator Account
 
-Create a dedicated account for running `mbd`:
+Create a dedicated account for running `mbd` typically `lavalite:lavalite`
+but it can be any non privileged user.
 
-```sh
-useradd -r -s /sbin/nologin lavalite
-```
-
-Verify:
-
-```sh
-id lavalite
-```
 
 The master daemon (`mbd`) runs as the `lavalite` user.
 
@@ -52,11 +44,45 @@ make
 make install
 ```
 
-Create a stable installation symlink:
+LavaLite is installed under a versioned directory, for example
+`/opt/lavalite-1.0.0`. Sites may create a convenience symlink without
+the version number if local policy requires it, but this is not
+mandatory.
+
+It is recommended that paths in configuration files reflect the real
+installation location rather than a symlink, to avoid ambiguity during
+upgrades.
+
+## Post-Install Setup
+
+**This step is mandatory. Do not proceed to configuration until it is complete.**
+
+A post-install script is provided in etc/post-install.sh that outlines the steps that must be performed after installation. The script can be run directly or the steps performed manually.
+
+It must be run as root with `LL_CONF_DIR` set in the environment and
+`LL_MBD_USER` already defined in `ll.conf`.
 
 ```sh
-ln -sfn /opt/lavalite-1.0.0 /opt/lavalite
+export LL_CONF_DIR=/opt/lavalite/etc
+/opt/lavalite/etc/post-install.sh
 ```
+
+The script performs the following operations:
+
+- Creates `var/state/mbd` owned by the mbd user, mode `750`
+- Creates `var/state/sbd` owned by root, mode `750`
+- Creates `var/log` mode `755`
+- Sets `bin/bhist` to `root:mbd_group` mode `2755` (setgid)
+
+### Why bhist is setgid
+
+The event log under `var/state/mbd` is readable only by the mbd user
+and group. Regular users cannot read it directly.
+
+`bhist` runs setgid with the mbd primary group, which allows it to open
+the event log on behalf of any user. It then filters records by uid and
+returns only the caller's own jobs. The raw event log is never exposed
+to unprivileged users.
 
 ## Directory Layout
 
@@ -70,6 +96,10 @@ A typical installation contains:
 ├── lib
 ├── share
 └── var
+    ├── log
+    └── state
+        ├── mbd
+        └── sbd
 ```
 
 ### Commands
@@ -78,7 +108,7 @@ A typical installation contains:
 bin/
 ├── bsub
 ├── bjobs
-├── bhist
+├── bhist       (setgid mbd_group after post-install)
 ├── bkill
 ├── bmove
 ├── bpriority
@@ -106,47 +136,11 @@ etc/
 └── auth.key
 ```
 
-### Runtime Data
-
-```text
-var/
-├── log
-└── state
-```
-
-## Runtime State
-
-Scheduler state is stored under:
-
-```
-var/state
-```
-
-## Daemon working directory and core file
-
-```
-mkdir /var/log/lavalite
-chown -R lavalite:lavalite  /var/log/lavalite
-```
-
-Core files are unfortunate but essential debug tool should something
-go unexpectedly wrong. The daemons will create a core file in this directory.
-Make sure you have relative path settings like:
-
-```
-sysctl -w kernel.core_pattern=core.%e.%p
-```
-Use this command to inspect the current settings:
-
-```
-sysctl kernel.core_pattern
-```
-
 ### Master State
 
 ```text
 var/state/mbd/
-├── eventlog
+├── eventlog    (mode 640, mbd_user:mbd_group)
 ├── hosts
 ├── job_id_seq
 ├── jobs
@@ -178,6 +172,33 @@ var/state/
 
 Each simulator instance maintains its own local `sbd` state.
 
+## Daemon Working Directory and Core Files
+
+Core files are an essential debug tool when a daemon crashes
+unexpectedly. The following is a suggested setup; actual configuration
+depends on site policy and how systemd units are configured.
+
+A suggested working directory for the daemons:
+
+```sh
+mkdir /var/log/lavalite
+chown -R lavalite:lavalite /var/log/lavalite
+```
+
+A suggested core pattern (relative path, no directory prefix):
+
+```sh
+sysctl -w kernel.core_pattern=core.%e.%p
+```
+
+Inspect the current setting:
+
+```sh
+sysctl kernel.core_pattern
+```
+
+Site administrators should adjust these settings to match local policy.
+
 ## Ownership and Permissions
 
 The installation tree should be readable by all users.
@@ -188,16 +209,16 @@ maintains them.
 Typical ownership:
 
 ```text
-auth.key                   lavalite:lavalite 600
+auth.key                   lavalite:lavalite 644
 
-var/state/mbd             lavalite:lavalite
-var/log/mbd.log*          lavalite:lavalite
+var/state/mbd              lavalite:lavalite 750
+var/state/mbd/eventlog     lavalite:lavalite 640
+var/log                    lavalite:lavalite 755
 
-var/state/sbd             root:root
-var/log/sbd.log*          root:root
+var/state/sbd              root:root         750
+
+bin/bhist                  root:lavalite     2755
 ```
-
-The authentication key must not be readable by unprivileged users.
 
 ## Authentication Key
 
@@ -212,33 +233,15 @@ dd if=/dev/urandom bs=32 count=1 | base64 \
 Set permissions:
 
 ```sh
-chmod 644 /opt/lavalite/etc/auth.key
 chown lavalite:lavalite /opt/lavalite/etc/auth.key
+chmod 644 /opt/lavalite/etc/auth.key
 ```
+
+The key must be world readable because user commands and applications
+linked against `libllbatch` generate HMAC signatures locally and must
+be able to read it.
 
 Copy the same file to every execution host.
-
-LavaLite authenticates requests at the API layer. User commands and applications
-linked against `libllbatch` generate authenticated requests directly.
-
-```text
-Applications
-    |
-    +-- bsub
-    +-- bjobs
-    +-- bhist
-    +-- bkill
-    +-- ...
-    |
-libllbatch
-    |
-    +-- HMAC(auth.key)
-    |
-mbd
-```
-
-Because client applications generate request signatures locally, the
-authentication key must be readable by users.
 
 ## Configure LL_CONF_DIR
 
@@ -259,29 +262,16 @@ echo $LL_CONF_DIR
 
 ## Create Configuration Files
 
-Create:
+See `02-configuration.md` for the complete reference.
 
-```text
-ll.conf
-llb.queues
-llb.hosts
-```
-
-under:
-
-```text
-$LL_CONF_DIR
-```
-
-Configuration details are described in:
-
-```text
-02-configuration.md
-```
+Create `ll.conf`, `llb.queues`, and `llb.hosts` under `$LL_CONF_DIR`
+before starting any daemon.
 
 ## Install systemd Units
 
-Install service files:
+Example systemd unit files are provided in `etc/` as a starting point
+for sites that use systemd. Review and modify them according to your
+site policy before installing.
 
 ```sh
 cp /opt/lavalite/lib/systemd/lavalite-mbd.service \
