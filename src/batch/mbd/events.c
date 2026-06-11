@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <syslog.h>
+#include <fcntl.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -27,7 +28,14 @@ static int job_finish_threshold = 1000;
 
 static FILE *open_events(void)
 {
-    FILE *fp = fopen(events_path, "a");
+
+    int fd = open(events_path, O_CREAT | O_WRONLY | O_APPEND, 0640);
+    if (fd < 0) {
+        LL_ERR("open=%s", events_path);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+
+    FILE *fp = fdopen(fd, "a");
     if (fp == NULL) {
         LL_ERR("fopen=%s", events_path);
         mbd_die(MBD_EXIT_EVENTS);
