@@ -8,3 +8,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = include src docs
 EXTRA_DIST = Make.common
+
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
+	$(MKDIR_P) $(DESTDIR)$(localstatedir)/log
+	$(MKDIR_P) $(DESTDIR)$(localstatedir)/state
