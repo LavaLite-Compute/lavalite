@@ -1,5 +1,5 @@
 ---
-title: BGROUP
+title: BGROUPS
 section: 1
 header: LavaLite User Commands
 footer: LavaLite

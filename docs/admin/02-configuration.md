@@ -97,7 +97,7 @@ bqueues
 `ll.conf` is the cluster environment file.
 
 It is a Bourne shell style script sourced by all LavaLite commands and
-daemons during startup. :contentReference[oaicite:0]{index=0}
+daemons during startup.
 
 Typical settings include:
 

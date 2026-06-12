@@ -44,8 +44,9 @@ Lines starting with **#** are comments. Blank lines are ignored.
     **llb.hosts**, **auth.key**).
 
 **LL_STATE_DIR**
-:   Directory where daemons write persistent state (job event log,
-    job sidecars, compacted archives).
+:   Directory where daemons write persistent state,
+    including the event manifest, job sidecars, host state,
+    queue state, and execution host state.
 
 **LL_LOG_DIR**
 :   Directory for daemon log files.
@@ -82,18 +83,17 @@ Lines starting with **#** are comments. Blank lines are ignored.
 **LL_DEFAULT_QUEUE**
 :   Queue used when a job is submitted without **--queue**.
 
-## Event log
+## Finished job retention
 
-**LL_EVENTS_MAX_SIZE**
-:   Trigger log compaction when the event log reaches this size.
-    Accepts a plain integer (bytes) or a suffix: K, M, G.
-    Example: **100M**.
+**LL_SBD_JOB_FINISH_RETAIN**
+:   Maximum number of finished jobs retained by sbd after completion.
+    When the limit is exceeded, the oldest acknowledged finished jobs
+    are removed. Default: 100.
 
-**LL_EVENTS_RETAIN**
-:   How long to retain finished job records in the event log before
-    they are eligible for compaction. Accepts a plain integer (seconds)
-    or a suffix: **h** (hours), **d** (days).
-    Example: **24h**.
+**LL_MBD_JOB_FINISH_THRESHOLD**
+:   Maximum number of finished jobs retained in memory by mbd.
+    When the threshold is exceeded, mbd rebuilds its active scheduler
+    state from the event manifest. Default: 1000.
 
 ## Timeouts (optional)
 

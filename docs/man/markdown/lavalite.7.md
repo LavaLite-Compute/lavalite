@@ -83,7 +83,7 @@ HMAC-SHA256. Both daemons must share the same key file.
 ## Generating the key
 
     dd if=/dev/urandom bs=32 count=1 | base64 > /opt/lavalite/etc/auth.key
-    chmod 600 /opt/lavalite/etc/auth.key
+    chmod 644 /opt/lavalite/etc/auth.key
     chown lavalite:lavalite /opt/lavalite/etc/auth.key
 
 The key file must be readable by **mbd** (runs as the lavalite user)

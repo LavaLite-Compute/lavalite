@@ -152,7 +152,7 @@ systemctl restart lavalite-sbd
 After restart:
 
 - Running jobs are rediscovered.
-- Job state is synchronized with `mbd`.
+- Job state is resynchronized with `mbd`.
 - Dispatch resumes normally.
 
 ## Job Launch Failures

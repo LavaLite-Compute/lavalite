@@ -7,7 +7,7 @@ LavaLite requires:
 - Linux x86_64
 - Kernel 5.14 or later
 - cgroup v2
-- systemd
+- a service manager (systemd examples provided)
 - OpenSSL
 - NTP or chrony
 
@@ -153,8 +153,10 @@ This directory is maintained by `mbd`.
 
 ```text
 var/state/sbd/
-├── jobs
-└── state
+└── hostname
+    ├── jobs
+    └── state
+
 ```
 
 This directory is maintained by `sbd`.

@@ -21,7 +21,8 @@ mbd - LavaLite master batch daemon
 **mbd** is the master batch daemon. It is the central scheduler and
 resource manager for the LavaLite cluster. It maintains the job queue,
 dispatches jobs to execution hosts, tracks job state, and manages host
-and queue configuration.
+and queue configuration. Scheduler state is reconstructed from durable
+events during startup.
 
 **mbd** must run on the master host. It reads configuration from
 **ll.conf**, **llb.queues**, and **llb.hosts** at startup.

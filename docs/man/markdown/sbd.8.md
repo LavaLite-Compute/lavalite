@@ -18,8 +18,9 @@ sbd - LavaLite slave batch daemon
 
 **sbd** is the slave batch daemon. It runs on each execution host in the
 cluster, receives jobs dispatched by **mbd**, forks and executes job
-scripts, enforces resource limits via cgroup v2, and reports job status
-back to **mbd**.
+scripts, enforces resource limits via cgroup v2, performs job control
+operations such as suspend, resume, and terminate, and reports
+job status back to **mbd**.
 
 One **sbd** instance runs per execution host. It registers with **mbd**
 at startup and maintains a persistent connection for job dispatch and

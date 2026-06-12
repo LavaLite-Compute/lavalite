@@ -49,6 +49,15 @@ Responsibilities:
 - Job state reporting
 - Recovery after restart
 
+
+CPU and memory allocations are enforced using Linux cgroup v2 controls.
+The execution daemon places each job into a dedicated cgroup and uses
+that cgroup for resource accounting, resource enforcement, and job
+control operations such as suspend, resume, and terminate.
+
+GPU allocation is scheduler-enforced and prevents conflicting placement,
+but does not currently provide operating-system-level device isolation.
+
 ### Client API
 
 Applications communicate with the scheduler through the LavaLite batch
@@ -108,9 +117,10 @@ llbatch API (libllbatch)
     |
     +-- TCP/XDR/HMAC
     |
-mbd
-    |
-sbd
+          +-- sbd (host1)
+mbd ------+
+          +-- sbd (host2)
+          +-- sbd (host3)
 ```
 
 Applications and command-line tools use the same public API
