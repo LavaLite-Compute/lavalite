@@ -764,7 +764,7 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
 /* -----------------------------------------------------------------------
  * Event file scanning.
  *
- * All eventlog files live in the same directory. Scan them all in
+ * All manifest files live in the same directory. Scan them all in
  * readdir order; duplicate events across archives are deduplicated
  * by hist_event_exists() via type + timestamp.
  * ----------------------------------------------------------------------- */
@@ -789,11 +789,11 @@ static int hist_scan_file(struct job_hist *jh, const char *path)
     return 0;
 }
 
-static int hist_is_eventlog(const char *name)
+static int hist_is_manifest(const char *name)
 {
     const char *p;
 
-    if (strncmp(name, "eventlog", 8) != 0)
+    if (strncmp(name, "manifest", 8) != 0)
         return 0;
 
     p = name + 8;
@@ -836,7 +836,7 @@ static int hist_scan_events(struct job_hist *jh)
     }
 
     while ((de = readdir(dp)) != NULL) {
-        if (!hist_is_eventlog(de->d_name))
+        if (!hist_is_manifest(de->d_name))
             continue;
 
         n = snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);

@@ -56,7 +56,7 @@ chmod 750 "$STATE_DIR/mbd"
 chown "$MBD_USER:$MBD_GROUP" "$LOG_DIR"
 chmod 755 "$LOG_DIR"
 
-# bhist: setgid so users can read the eventlog via the API only
+# bhist: setgid so users can read the manifest via the API only
 BHIST="$PREFIX/bin/bhist"
 if [ ! -f "$BHIST" ]; then
     echo "post-install: $BHIST not found" >&2

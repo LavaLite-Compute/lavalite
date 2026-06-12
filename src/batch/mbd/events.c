@@ -20,30 +20,30 @@
 #include "base/lib/ll.hash.h"
 #include "batch/mbd/mbd.h"
 
-static char events_path[PATH_MAX];
+static char manifest_path[PATH_MAX];
 char jobs_dir[PATH_MAX];
 static ino_t events_ino = 0;
 static uint32_t events_seq = 0;
 static int job_finish_threshold = 1000;
 
-static FILE *open_events(void)
+static FILE *open_manifest(void)
 {
 
-    int fd = open(events_path, O_CREAT | O_WRONLY | O_APPEND, 0640);
+    int fd = open(manifest_path, O_CREAT | O_WRONLY | O_APPEND, 0640);
     if (fd < 0) {
-        LL_ERR("open=%s", events_path);
+        LL_ERR("open=%s", manifest_path);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
     FILE *fp = fdopen(fd, "a");
     if (fp == NULL) {
-        LL_ERR("fopen=%s", events_path);
+        LL_ERR("fopen=%s", manifest_path);
         mbd_die(MBD_EXIT_EVENTS);
     }
     struct stat st;
     if (fstat(fileno(fp), &st) < 0 ||
         (events_ino != 0 && st.st_ino != events_ino)) {
-        LL_ERRX("eventlog inode changed or removed — integrity lost");
+        LL_ERRX("manifest inode changed or removed — integrity lost");
         fclose(fp);
         mbd_die(MBD_EXIT_EVENTS);
     }
@@ -194,7 +194,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     ll_strlcpy(e.project_name, ws->project, sizeof(e.project_name));
     ll_strlcpy(e.tokenpool, ws->tokenpool, sizeof(e.tokenpool));
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_new(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_new failed job_id=%ld", job->job_id);
@@ -228,7 +228,7 @@ void event_job_start(const struct job_data *job)
         ll_strlcat(e.hosts, job->run_hosts[i]->net.name, sizeof(e.hosts));
     }
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_start(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_start failed job_id=%ld", job->job_id);
@@ -246,7 +246,7 @@ void event_job_fork(const struct job_data *job)
     e.fork_time = job->fork_time;
     e.job_pid = job->pid;
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_fork(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_fork failed job_id=%ld", job->job_id);
@@ -265,7 +265,7 @@ void event_job_signal(const struct job_data *job, const struct wire_job_sig *ws)
     e.signal_num = ws->sig;
     e.uid = ws->uid;
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_signal(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_signal failed job_id=%ld", job->job_id);
@@ -285,7 +285,7 @@ void event_job_finish(const struct job_data *job)
     e.exit_status = job->exit_status;
     e.end_time = job->end_time;
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_finish(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_finish failed job_id=%ld", job->job_id);
@@ -301,7 +301,7 @@ void event_job_pend_susp(const struct job_data *job)
     e.job_id = job->job_id;
     e.event_time = time(NULL);
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_pend_susp(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_pend_susp failed job_id=%ld", job->job_id);
@@ -317,7 +317,7 @@ void event_job_pend_resume(const struct job_data *job)
     e.job_id = job->job_id;
     e.event_time = time(NULL);
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_pend_resume(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_resume failed job_id=%ld", job->job_id);
@@ -333,7 +333,7 @@ void event_job_susp(const struct job_data *job)
     e.job_id = job->job_id;
     e.event_time = time(NULL);
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_susp(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_susp failed job_id=%ld", job->job_id);
@@ -641,7 +641,7 @@ static void replay_job_susp(const struct event_rec *rec)
 
 /*
  * events_seq_scan - derive the current sequence number by scanning the
- * mbd directory for existing eventlog.NNNNNN archives.
+ * mbd directory for existing manifest.NNNNNN archives.
  *
  * No external sequence file is needed. Admins may delete old archives
  * freely without having to update any state file. The next compact will
@@ -658,7 +658,7 @@ static void events_seq_scan(void)
 
     struct dirent *de;
     while ((de = readdir(dp)) != NULL) {
-        if (strncmp(de->d_name, "eventlog.", 10) != 0)
+        if (strncmp(de->d_name, "manifest.", 10) != 0)
             continue;
         const char *p = de->d_name + 10;
         if (*p == '\0')
@@ -690,10 +690,10 @@ int events_init(void)
     }
     LL_INFO("working dir initialized %s", dir);
 
-    n = snprintf(events_path, sizeof(events_path), "%s/eventlog", dir);
-    if (n < 0 || n >= (int) sizeof(events_path))
+    n = snprintf(manifest_path, sizeof(manifest_path), "%s/manifest", dir);
+    if (n < 0 || n >= (int) sizeof(manifest_path))
         mbd_die(MBD_EXIT_EVENTS);
-    LL_INFO("job events initialized %s", events_path);
+    LL_INFO("job events initialized %s", manifest_path);
 
     n = snprintf(jobs_dir, sizeof(jobs_dir), "%s/jobs", dir);
     if (n < 0 || n >= (int) sizeof(jobs_dir))
@@ -739,7 +739,7 @@ int events_init(void)
  * not exist (first run) the value stays at whatever replay set it to.
  *
  * Resist the tempation to delete this file as compact may leave an
- * eventlog empty file so the job_id would go backwords.
+ * manifest empty file so the job_id would go backwords.
  */
 static void job_id_seq_read(void)
 {
@@ -838,13 +838,13 @@ static void replay_job_pend(const struct event_rec *rec)
 
 int jobs_replay(void)
 {
-    FILE *fp = fopen(events_path, "r");
+    FILE *fp = fopen(manifest_path, "r");
     if (fp == NULL) {
         if (errno == ENOENT) {
-            LL_INFO("replay: no job.events, nothing to replay");
+            LL_INFO("replay: no manifest, nothing to replay");
             return 0;
         }
-        LL_ERR("fopen %s", events_path);
+        LL_ERR("fopen %s", manifest_path);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -906,7 +906,7 @@ int jobs_replay(void)
 
     if (ferror(fp)) {
         fclose(fp);
-        LL_ERR("I/O error reading job events=%s line=%d", events_path, lineno);
+        LL_ERR("I/O error reading job events=%s line=%d", manifest_path, lineno);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -915,7 +915,7 @@ int jobs_replay(void)
     if (max_id > job_id_seq)
         job_id_seq = max_id;
 
-    /* persisted seq may be higher than replay if eventlog was fully
+    /* persisted seq may be higher than replay if manifest was fully
      * compacted -- take the max so job_id never goes backwards
      */
     job_id_seq_read();
@@ -1000,7 +1000,7 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
  * job_id_seq_write - persist the current job_id_seq to disk.
  *
  * Called after every job submission so that mbd restart after a full
- * compaction (empty eventlog) still resumes from the correct sequence
+ * compaction (empty manifest) still resumes from the correct sequence
  * number and never reuses a job_id.
  */
 void job_id_seq_write(void)
@@ -1032,18 +1032,18 @@ void job_id_seq_write(void)
 }
 
 /*
- * events_rebuild - archive eventlog, rewrite with live jobs only.
+ * events_rebuild - archive manifest, rewrite with live jobs only.
  * PEND:      JOB_NEW
  * RUN/SUSP:  JOB_NEW + JOB_START
  * FINISH:    discarded — full history in archived file for bhist.
  *            finish_jobs_list drained and freed here.
  *
- * After compaction, eventlog is a replay checkpoint, not a chronological
+ * After compaction, manifest is a replay checkpoint, not a chronological
  * history file. Event timestamps are preserved, but record order across
  * different jobs may differ from original event arrival order.
  *
  * Replay only depends on per-job state reconstruction. Historical tools
- * such as bhist must read archived eventlog.* files for full chronological
+ * such as bhist must read archived manifest.* files for full chronological
  * job history.
  */
 static void events_rebuild(void)
@@ -1056,14 +1056,14 @@ static void events_rebuild(void)
      * having to update any state.
      */
     events_seq++;
-    snprintf(archived, sizeof(archived), "%s.%u", events_path, events_seq);
+    snprintf(archived, sizeof(archived), "%s.%u", manifest_path, events_seq);
 
-    if (rename(events_path, archived) < 0) {
-        LL_ERR("rename(%s, %s)", events_path, archived);
+    if (rename(manifest_path, archived) < 0) {
+        LL_ERR("rename(%s, %s)", manifest_path, archived);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
-    FILE *fp = fopen(events_path, "a");
+    FILE *fp = fopen(manifest_path, "a");
     if (!fp)
         mbd_die(MBD_EXIT_EVENTS);
 
@@ -1096,18 +1096,18 @@ static void events_rebuild(void)
     if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
         mbd_die(MBD_EXIT_EVENTS);
 
-    /* new eventlog file has a new inode -- update tracking so
-     * open_events() does not falsely detect integrity loss */
+    /* new manifest file has a new inode -- update tracking so
+     * open_manifest() does not falsely detect integrity loss */
     struct stat st;
     if (fstat(fileno(fp), &st) < 0) {
-        LL_ERR("fstat eventlog after compact");
+        LL_ERR("fstat manifest after compact");
         mbd_die(MBD_EXIT_EVENTS);
     }
     events_ino = st.st_ino;
 
     fclose(fp);
 
-    LL_INFO("eventlog rebuild seq=%u archived=%s", events_seq, archived);
+    LL_INFO("manifest rebuild seq=%u archived=%s", events_seq, archived);
 }
 
 /* Rebuild the event log when the number of finished jobs
@@ -1118,7 +1118,7 @@ void maybe_rebuild_events(void)
     if (ll_list_count(&finish_jobs_list) < job_finish_threshold)
         return;
 
-    LL_DEBUG("eventlog rebuild triggered finished_jobs=%d threshold=%d",
+    LL_DEBUG("manifest rebuild triggered finished_jobs=%d threshold=%d",
              ll_list_count(&finish_jobs_list),
              job_finish_threshold);
 
@@ -1135,7 +1135,7 @@ void event_job_move(const struct job_data *job, const char *to_queue)
     ll_strlcpy(e.from_queue, job->queue->name, sizeof(e.from_queue));
     ll_strlcpy(e.to_queue, to_queue, sizeof(e.to_queue));
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_move(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_move failed job_id=%ld", job->job_id);
@@ -1154,7 +1154,7 @@ void event_job_priority(const struct job_data *job, int32_t old_priority)
     e.old_priority = old_priority;
     e.new_priority = job->priority;
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_priority(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_priority failed job_id=%ld", job->job_id);
@@ -1171,7 +1171,7 @@ void event_job_pend(const struct job_data *job)
     e.job_id = job->job_id;
     e.event_time = time(NULL);
 
-    FILE *fp = open_events();
+    FILE *fp = open_manifest();
     if (log_write_job_pend(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_pend failed job_id=%ld", job->job_id);

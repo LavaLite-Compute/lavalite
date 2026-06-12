@@ -140,7 +140,7 @@ etc/
 
 ```text
 var/state/mbd/
-├── eventlog    (mode 640, mbd_user:mbd_group)
+├── manifest    (mode 640, mbd_user:mbd_group)
 ├── hosts
 ├── job_id_seq
 ├── jobs
@@ -212,7 +212,7 @@ Typical ownership:
 auth.key                   lavalite:lavalite 644
 
 var/state/mbd              lavalite:lavalite 750
-var/state/mbd/eventlog     lavalite:lavalite 640
+var/state/mbd/manifest     lavalite:lavalite 640
 var/log                    lavalite:lavalite 755
 
 var/state/sbd              root:root         750
