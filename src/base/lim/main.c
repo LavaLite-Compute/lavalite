@@ -66,9 +66,9 @@ static int init_chans(void)
     return 0;
 }
 
-static int add_listener(int lim_efd, int fd, int ch_id)
+static int add_listener(int lim_efd, int fd, int chan_id)
 {
-    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = ch_id};
+    struct epoll_event ev = {.events = EPOLLIN, .data.u32 = chan_id};
 
     if (epoll_ctl(lim_efd, EPOLL_CTL_ADD, fd, &ev) < 0)
         return -1;
@@ -290,15 +290,15 @@ int main(int argc, char **argv)
 
         for (int i = 0; i < nfd; i++) {
             struct epoll_event *e = &lim_events[i];
-            int ch_id = e->data.u32;
+            int chan_id = e->data.u32;
 
-            if (ch_id == timer_chan) {
+            if (chan_id == timer_chan) {
                 uint64_t expirations;
                 static time_t last_timer;
                 time_t t = time(NULL);
 
                 ssize_t n =
-                    read(chan_sock(ch_id), &expirations, sizeof(expirations));
+                    read(chan_sock(chan_id), &expirations, sizeof(expirations));
                 if (n < 0 && errno != EINTR)
                     LL_ERR("timer read failed");
 
@@ -310,18 +310,18 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            if (ch_id == udp_chan) {
+            if (chan_id == udp_chan) {
                 udp_message();
                 continue;
             }
 
-            if (ch_id == tcp_chan) {
+            if (chan_id == tcp_chan) {
                 tcp_accept();
                 continue;
             }
 
-            if (chan_is_readable(ch_id))
-                tcp_message(ch_id);
+            if (chan_is_readable(chan_id))
+                tcp_message(chan_id);
         }
     }
 

@@ -653,12 +653,12 @@ static void sbd_run_daemon(void)
 
         for (int i = 0; i < nready; i++) {
             struct epoll_event *ev = &sbd_events[i];
-            int ch_id = (int) ev->data.u32;
+            int chan_id = (int) ev->data.u32;
 
-            if (ch_id == sbd_timer_chan) {
+            if (chan_id == sbd_timer_chan) {
                 uint64_t expirations;
                 ssize_t cc =
-                    read(chan_sock(ch_id), &expirations, sizeof(expirations));
+                    read(chan_sock(chan_id), &expirations, sizeof(expirations));
                 if (cc < 0) {
                     if (errno == EINTR) {
                         LL_ERR("timer interrepted, do maintainance");
@@ -680,20 +680,20 @@ static void sbd_run_daemon(void)
                 job_status_checking();
                 sbd_prune_jobs_try();
                 // rest the state
-                channels[ch_id].chan_events = CHAN_EPOLLNONE;
+                channels[chan_id].chan_events = CHAN_EPOLLNONE;
                 continue;
             }
 
             // True skip partially read channels
-            if (channels[ch_id].chan_events == CHAN_EPOLLNONE)
+            if (channels[chan_id].chan_events == CHAN_EPOLLNONE)
                 continue;
 
             // There is an event on the permament channel
             // connection with mbd
-            if (ch_id == sbd_mbd_chan) {
-                sbd_mbd_route(ch_id);
+            if (chan_id == sbd_mbd_chan) {
+                sbd_mbd_route(chan_id);
                 // reset the channel state
-                channels[ch_id].chan_events = CHAN_EPOLLNONE;
+                channels[chan_id].chan_events = CHAN_EPOLLNONE;
                 continue;
             }
         }

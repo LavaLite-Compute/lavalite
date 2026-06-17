@@ -181,12 +181,12 @@ static inline int chan_is_udp(enum chan_type t)
     return 1;
 }
 
-static inline int chan_is_valid(int ch_id)
+static inline int chan_is_valid(int chan_id)
 {
-    if (ch_id < 0 || ch_id > CHAN_MAX)
+    if (chan_id < 0 || chan_id > CHAN_MAX)
         return 0;
 
-    if (channels[ch_id].sock == -1)
+    if (channels[chan_id].sock == -1)
         return 0;
 
     return 1;
@@ -208,30 +208,30 @@ void chan_init(void)
     initialised = 1;
 }
 
-int chan_sock(int ch_id)
+int chan_sock(int chan_id)
 {
-    if (ch_id < 0 || ch_id > CHAN_MAX)
+    if (chan_id < 0 || chan_id > CHAN_MAX)
         return -1;
 
-    return channels[ch_id].sock;
+    return channels[chan_id].sock;
 }
 
 int chan_udp_server(uint16_t port)
 {
-    int ch_id = chan_find_free();
-    if (ch_id < 0)
+    int chan_id = chan_find_free();
+    if (chan_id < 0)
         return -1;
 
     int s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0)
         return -1;
 
-    channels[ch_id].sock = s;
+    channels[chan_id].sock = s;
 
     int one = 1;
     if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0) {
         close(s);
-        channels[ch_id].sock = -1;
+        channels[chan_id].sock = -1;
         return -1;
     }
 
@@ -243,31 +243,31 @@ int chan_udp_server(uint16_t port)
 
     if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
         close(s);
-        channels[ch_id].sock = -1;
+        channels[chan_id].sock = -1;
         return -1;
     }
 
-    channels[ch_id].type = UDP_SERVER;
+    channels[chan_id].type = UDP_SERVER;
 
-    return ch_id;
+    return chan_id;
 }
 
 int chan_tcp_server(uint16_t port)
 {
-    int ch_id = chan_find_free();
-    if (ch_id < 0)
+    int chan_id = chan_find_free();
+    if (chan_id < 0)
         return -1;
 
     int s = socket(AF_INET, SOCK_STREAM, 0);
     if (s < 0)
         return -1;
 
-    channels[ch_id].sock = s;
+    channels[chan_id].sock = s;
 
     int one = 1;
     if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0) {
         close(s);
-        channels[ch_id].sock = -1;
+        channels[chan_id].sock = -1;
         return -1;
     }
 
@@ -279,28 +279,28 @@ int chan_tcp_server(uint16_t port)
 
     if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
         close(s);
-        channels[ch_id].sock = -1;
+        channels[chan_id].sock = -1;
         return -1;
     }
 
     if (listen(s, SOMAXCONN) < 0) {
         close(s);
-        channels[ch_id].sock = -1;
+        channels[chan_id].sock = -1;
         return -1;
     }
 
-    channels[ch_id].type = TCP_SERVER;
+    channels[chan_id].type = TCP_SERVER;
 
-    return ch_id;
+    return chan_id;
 }
 
-int chan_accept(int ch_id, struct sockaddr_in *from)
+int chan_accept(int chan_id, struct sockaddr_in *from)
 {
-    if (channels[ch_id].type != TCP_SERVER)
+    if (channels[chan_id].type != TCP_SERVER)
         return -1;
 
     socklen_t len = sizeof(struct sockaddr);
-    int s = accept(channels[ch_id].sock, (struct sockaddr *) from, &len);
+    int s = accept(channels[chan_id].sock, (struct sockaddr *) from, &len);
     if (s < 0)
         return -1;
 
@@ -335,18 +335,18 @@ static int chan_self_connected(int fd)
     return 0;
 }
 
-int chan_connect(int ch_id, struct sockaddr_in *peer, int timeout_sec)
+int chan_connect(int chan_id, struct sockaddr_in *peer, int timeout_sec)
 {
-    if (!chan_is_valid(ch_id))
+    if (!chan_is_valid(chan_id))
         return -1;
 
-    if (channels[ch_id].type != TCP_CLIENT)
+    if (channels[chan_id].type != TCP_CLIENT)
         return -1;
 
     if (peer == NULL)
         return -1;
 
-    int fd = channels[ch_id].sock;
+    int fd = channels[chan_id].sock;
 
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags < 0)
@@ -406,12 +406,12 @@ fail:
     }
 }
 
-int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
+int chan_send_dgram(int chan_id, char *buf, size_t len, struct sockaddr_in *peer)
 {
-    if (!chan_is_udp(channels[ch_id].type))
+    if (!chan_is_udp(channels[chan_id].type))
         return -1;
 
-    ssize_t cc = sendto(chan_sock(ch_id), buf, len, 0, (struct sockaddr *) peer,
+    ssize_t cc = sendto(chan_sock(chan_id), buf, len, 0, (struct sockaddr *) peer,
                         sizeof(struct sockaddr_in));
     if (cc < 0)
         return -1;
@@ -419,14 +419,14 @@ int chan_send_dgram(int ch_id, char *buf, size_t len, struct sockaddr_in *peer)
     return 0;
 }
 
-int chan_recv_dgram(int ch_id, void *buf, size_t len, struct sockaddr_in *peer,
+int chan_recv_dgram(int chan_id, void *buf, size_t len, struct sockaddr_in *peer,
                     int timeout)
 {
-    if (!chan_is_udp(channels[ch_id].type))
+    if (!chan_is_udp(channels[chan_id].type))
         return -1;
 
     socklen_t peersize = sizeof(struct sockaddr_in);
-    int sock = chan_sock(ch_id);
+    int sock = chan_sock(chan_id);
 
     int cc = rd_poll(sock, timeout);
     if (cc <= 0)
@@ -458,44 +458,44 @@ int chan_open(int s)
     return i;
 }
 
-int chan_close(int ch_id)
+int chan_close(int chan_id)
 {
-    if (ch_id < 0 || ch_id > CHAN_MAX)
+    if (chan_id < 0 || chan_id > CHAN_MAX)
         return -1;
 
-    if (channels[ch_id].sock < 0)
+    if (channels[chan_id].sock < 0)
         return -1;
 
-    close(channels[ch_id].sock);
+    close(channels[chan_id].sock);
 
-    ll_list_clear(&channels[ch_id].send, (void (*)(void *)) chan_free_buf);
-    ll_list_clear(&channels[ch_id].recv, (void (*)(void *)) chan_free_buf);
+    ll_list_clear(&channels[chan_id].send, (void (*)(void *)) chan_free_buf);
+    ll_list_clear(&channels[chan_id].recv, (void (*)(void *)) chan_free_buf);
 
-    channels[ch_id].chan_events = CHAN_EPOLLNONE;
-    channels[ch_id].sock = -1;
+    channels[chan_id].chan_events = CHAN_EPOLLNONE;
+    channels[chan_id].sock = -1;
 
     return 0;
 }
 
-int chan_enqueue(int ch_id, struct chan_buffer *msg)
+int chan_enqueue(int chan_id, struct chan_buffer *msg)
 {
-    if (!chan_is_valid(ch_id))
+    if (!chan_is_valid(chan_id))
         return -1;
 
-    ll_list_append(&channels[ch_id].send, &msg->link);
+    ll_list_append(&channels[chan_id].send, &msg->link);
     return 0;
 }
 
-int chan_dequeue(int ch_id, struct chan_buffer **buf)
+int chan_dequeue(int chan_id, struct chan_buffer **buf)
 {
     struct ll_list_entry *e;
 
-    if (!chan_is_valid(ch_id)) {
+    if (!chan_is_valid(chan_id)) {
         errno = EINVAL;
         return -1;
     }
 
-    e = ll_list_dequeue(&channels[ch_id].recv);
+    e = ll_list_dequeue(&channels[chan_id].recv);
     if (!e) {
         errno = ENOENT;
         return -1;
@@ -505,12 +505,12 @@ int chan_dequeue(int ch_id, struct chan_buffer **buf)
     return 0;
 }
 
-ssize_t chan_read_nonblock(int ch_id, void *buf, size_t len, int timeout_sec)
+ssize_t chan_read_nonblock(int chan_id, void *buf, size_t len, int timeout_sec)
 {
-    if (io_non_block(channels[ch_id].sock) < 0)
+    if (io_non_block(channels[chan_id].sock) < 0)
         return -1;
 
-    int fd = channels[ch_id].sock;
+    int fd = channels[chan_id].sock;
     unsigned char *buffer = (unsigned char *) buf;
     size_t remaining = len;
     size_t total_read = 0;
@@ -548,13 +548,13 @@ ssize_t chan_read_nonblock(int ch_id, void *buf, size_t len, int timeout_sec)
     return (ssize_t) total_read;
 }
 
-int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
+int chan_rpc(int chan_id, struct chan_buffer *snd, struct chan_buffer *rcv,
              struct protocol_header *hdr, int timeout)
 {
-    if (chan_write(ch_id, snd->data, snd->len) != snd->len)
+    if (chan_write(chan_id, snd->data, snd->len) != snd->len)
         return -1;
 
-    int cc = rd_poll(channels[ch_id].sock, timeout * 1000);
+    int cc = rd_poll(channels[chan_id].sock, timeout * 1000);
     if (cc < 0)
         return -1;
 
@@ -563,7 +563,7 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
         return -1;
     }
 
-    cc = recv_protocol_header(ch_id, hdr);
+    cc = recv_protocol_header(chan_id, hdr);
     if (cc < 0)
         return -1;
 
@@ -580,7 +580,7 @@ int chan_rpc(int ch_id, struct chan_buffer *snd, struct chan_buffer *rcv,
     if ((rcv->data = calloc(rcv->len, sizeof(char))) == NULL)
         return -1;
 
-    if ((cc = chan_read(ch_id, rcv->data, rcv->len)) != rcv->len) {
+    if ((cc = chan_read(chan_id, rcv->data, rcv->len)) != rcv->len) {
         free(rcv->data);
         return -1;
     }
@@ -599,7 +599,7 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
     for (int i = 0; i < cc; i++) {
         struct epoll_event *e = &events[i];
         struct chan_data *chan = &channels[e->data.u32];
-        int ch_id = e->data.u32;
+        int chan_id = e->data.u32;
 
         chan->chan_events = CHAN_EPOLLNONE;
 
@@ -613,7 +613,7 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
             doread(chan);
 
         if (e->events & EPOLLOUT)
-            dowrite(chan, ch_id, efd);
+            dowrite(chan, chan_id, efd);
     }
 
     return cc;
@@ -688,19 +688,19 @@ int chan_create_timer(int seconds)
     return ch;
 }
 
-int chan_sock_error(int ch_id)
+int chan_sock_error(int chan_id)
 {
     int err = 0;
     socklen_t len = sizeof(err);
 
-    int fd = channels[ch_id].sock;
+    int fd = channels[chan_id].sock;
     if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0)
         return -1;
 
     return err;
 }
 
-int chan_set_write_interest(int ch_id, int efd, int on)
+int chan_set_write_interest(int chan_id, int efd, int on)
 {
     if (efd < 0) {
         errno = EINVAL;
@@ -712,15 +712,15 @@ int chan_set_write_interest(int ch_id, int efd, int on)
     ev.events = EPOLLIN | EPOLLRDHUP;
     if (on)
         ev.events |= EPOLLOUT;
-    ev.data.u32 = (uint32_t) ch_id;
+    ev.data.u32 = (uint32_t) chan_id;
 
-    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(ch_id), &ev) < 0)
+    if (epoll_ctl(efd, EPOLL_CTL_MOD, chan_sock(chan_id), &ev) < 0)
         return -1;
 
     return 0;
 }
 
-ssize_t chan_read(int ch_id, void *buf, size_t len)
+ssize_t chan_read(int chan_id, void *buf, size_t len)
 {
     if (len > (size_t) SSIZE_MAX) {
         errno = EOVERFLOW;
@@ -728,7 +728,7 @@ ssize_t chan_read(int ch_id, void *buf, size_t len)
     }
 
     size_t total = 0;
-    int s = channels[ch_id].sock;
+    int s = channels[chan_id].sock;
 
     while (len > 0) {
         ssize_t cc = read(s, buf, len);
@@ -752,7 +752,7 @@ ssize_t chan_read(int ch_id, void *buf, size_t len)
     return (ssize_t) total;
 }
 
-ssize_t chan_write(int ch_id, void *buf, size_t len)
+ssize_t chan_write(int chan_id, void *buf, size_t len)
 {
     if (len > (size_t) SSIZE_MAX) {
         errno = EOVERFLOW;
@@ -760,7 +760,7 @@ ssize_t chan_write(int ch_id, void *buf, size_t len)
     }
 
     size_t total = 0;
-    int s = channels[ch_id].sock;
+    int s = channels[chan_id].sock;
 
     while (len > 0) {
         ssize_t cc = write(s, buf, len);
@@ -809,7 +809,7 @@ int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
     return 0;
 }
 
-int send_protocol_header(int ch_id, struct protocol_header *hdr)
+int send_protocol_header(int chan_id, struct protocol_header *hdr)
 {
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
@@ -821,18 +821,18 @@ int send_protocol_header(int ch_id, struct protocol_header *hdr)
     }
     xdr_destroy(&xdrs);
 
-    if (chan_write(ch_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
+    if (chan_write(chan_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
         return -1;
 
     return 0;
 }
 
-int recv_protocol_header(int ch_id, struct protocol_header *hdr)
+int recv_protocol_header(int chan_id, struct protocol_header *hdr)
 {
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
 
-    if (chan_read(ch_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
+    if (chan_read(chan_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
         return -1;
 
     xdrmem_create(&xdrs, (char *) buf, PACKET_HEADER_SIZE, XDR_DECODE);
@@ -845,20 +845,20 @@ int recv_protocol_header(int ch_id, struct protocol_header *hdr)
     return 0;
 }
 
-int chan_has_error(int ch_id)
+int chan_has_error(int chan_id)
 {
-    if (channels[ch_id].chan_events == CHAN_EPOLLERR)
+    if (channels[chan_id].chan_events == CHAN_EPOLLERR)
         return 1;
     return 0;
 }
 
-const char *chan_addr_str(int ch_id)
+const char *chan_addr_str(int chan_id)
 {
     static __thread char buf[INET_ADDRSTRLEN + 8];
     struct sockaddr_in peer;
     socklen_t plen = sizeof(peer);
 
-    if (getpeername(chan_sock(ch_id), (struct sockaddr *) &peer, &plen) != 0) {
+    if (getpeername(chan_sock(chan_id), (struct sockaddr *) &peer, &plen) != 0) {
         strcpy(buf, "?.?:?");
         return buf;
     }
@@ -905,13 +905,13 @@ int chan_tcp_client(void)
     return ch;
 }
 
-int chan_is_readable(int ch_id)
+int chan_is_readable(int chan_id)
 {
-    if (!chan_is_valid(ch_id))
+    if (!chan_is_valid(chan_id))
         return 0;
 
-    if (channels[ch_id].chan_events == CHAN_EPOLLIN ||
-        channels[ch_id].chan_events == CHAN_EPOLLERR)
+    if (channels[chan_id].chan_events == CHAN_EPOLLIN ||
+        channels[chan_id].chan_events == CHAN_EPOLLERR)
         return 1;
 
     return 0;

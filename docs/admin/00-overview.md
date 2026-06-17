@@ -4,33 +4,35 @@ Version 1.0
 
 ## What is LavaLite
 
-LavaLite is an open-source batch scheduler for Linux clusters.
+LavaLite is a distributed batch scheduler for Linux compute clusters.
 
-LavaLite is designed for HPC, EDA, AI, and simulation
-clusters.
+It is designed for high-performance computing (HPC) and other
+batch-oriented workloads that require scheduling, resource allocation,
+and execution across multiple hosts.
 
-Its architecture emphasizes simplicity, transparency, and
-recoverability. Scheduler state is stored in files, changes are
-recorded through durable events, and cluster state can be reconstructed
-after daemon restart without requiring an external database.
+Its architecture emphasizes simplicity, transparency, and recoverability.
+Scheduler state is stored in files and changes are recorded through
+durable events. There is no external database and no implicit scheduler
+state. Cluster state can be reconstructed after daemon restart from the
+recorded events.
 
-Users submit jobs using `bsub` and monitor and control them using
+Users submit jobs using `bsub`, monitor and control them using
 commands such as `bjobs`, `bhist`, and `bkill`. The scheduler dispatches
 jobs to execution hosts based on resource availability, queue policy,
 host configuration, token pools, and GPU requirements.
 
 ## Architecture
 
-LavaLite consists of two daemons, a client API, and a set of command-line
-tools.
+LavaLite consists of a central scheduler, execution daemons running on
+cluster hosts, a client API, and a set of command-line tools.
 
 ### mbd
 
-The Master Batch Daemon (`mbd`) runs on a single management host.
+The master batch daemon (`mbd`) runs on a single management host.
 
 Responsibilities:
 
-- Job submission
+- Job management
 - Queue management
 - Scheduling
 - Cluster state management
@@ -39,7 +41,7 @@ Responsibilities:
 
 ### sbd
 
-The Slave Batch Daemon (`sbd`) runs on every execution host.
+The slave batch daemon (`sbd`) runs on every execution host.
 
 Responsibilities:
 
@@ -96,8 +98,7 @@ applications.
 
 ## Architecture Diagram
 
-LavaLite consists of two daemons, a client API, and a set of
-command-line tools.
+The major components are shown below:
 
 ```
 Applications
@@ -128,9 +129,14 @@ Applications and command-line tools use the same public API
 network protocol, which uses TCP transport, XDR message encoding, and
 HMAC-SHA256 authentication.
 
-`mbd` maintains scheduler state, performs dispatch decisions, and
-records durable events. `sbd` executes jobs on execution hosts and
-reports state changes back to `mbd`.
+`mbd` maintains scheduler state, performs dispatch decisions, records
+durable events in the event manifest, and reconstructs scheduler state
+during startup.
+
+`sbd` manages the execution lifecycle of jobs on execution hosts. It
+maintains durable execution state, enforces resources, performs job
+control operations, recovers jobs after restart, and reports state
+changes back to `mbd`.
 
 ## Design Principles
 
@@ -165,7 +171,7 @@ No external database is required.
 
 LavaLite depends only on standard Linux facilities:
 
-- systemd
+- service manager (systemd examples provided)
 - cgroup v2
 - OpenSSL
 
@@ -188,18 +194,4 @@ var/log/
 
 var/state/
     Persistent scheduler state
-```
-
-Details are described in the installation guide.
-
-## Documentation Structure
-
-This guide is organized as follows:
-
-```text
-00-overview.md
-01-install.md
-02-configuration.md
-03-queues-and-hosts.md
-04-operations.md
 ```

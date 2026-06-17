@@ -36,53 +36,182 @@ executes jobs on behalf of cluster users.
 
 ## Build and Install
 
-Build LavaLite:
+Build LavaLite as admin or ordinary user:
 
 ```sh
-./configure --prefix=/opt/lavalite-1.0.0
+./bootstrap
+./configure
 make
-make install
+sudo make install
+```
+By default LavaLite is installed under a versioned directory, for example
+`/opt/lavalite-1.0.0`.
+
+This directory forms the root of the LavaLite installation. All
+executables, configuration files, logs, and persistent state are located
+beneath it:
+
+    bin/
+    sbin/
+    etc/
+    var/log/
+    var/state/
+
+Configuration files reference the installation root directly as shown
+in the examples in the `etc` directory.
+
+
+## Configure LL_CONF_DIR
+
+All commands and daemons **require**:
+
+```sh
+export LL_CONF_DIR=/opt/lavalite-1.0.0/etc
 ```
 
-LavaLite is installed under a versioned directory, for example
-`/opt/lavalite-1.0.0`. Sites may create a convenience symlink without
-the version number if local policy requires it, but this is not
-mandatory.
+Most installations configure this through an environment module or shell
+initialization script.
 
-It is recommended that paths in configuration files reflect the real
-installation location rather than a symlink, to avoid ambiguity during
-upgrades.
+Verify:
+
+```sh
+echo $LL_CONF_DIR
+```
+
+## Authentication Key
+
+LavaLite uses a shared authentication key to sign requests exchanged
+between clients, `mbd`, and `sbd`.
+
+Generate the key:
+
+```sh
+dd if=/dev/urandom bs=32 count=1 | base64 \
+    > $LL_CONF_DIR/auth.key
+```
+
+Set permissions:
+
+```sh
+chown lavalite:lavalite $LL_CONF_DIR/auth.key
+chmod 644 $LL_CONF_DIR/auth.key
+```
+
+The key must be world readable because user commands and applications
+linked against `libllbatch` generate HMAC signatures locally and must
+be able to read it.
+
+Copy the same file to every execution host.
+
+## Configuration Files
+
+LavaLite configuration is stored in:
+
+```text
+ll.conf
+llb.queues
+llb.hosts
+```
+
+All files reside under:
+
+```text
+$LL_CONF_DIR
+```
+
+Example configuration files are provided in the installation `etc`
+directory and should be customized for the local site.
+
+### ll.conf
+
+`ll.conf` defines cluster-wide settings such as:
+
+- Cluster name
+- State directory
+- Log directory
+- Network ports
+- Default queue
+- Logging configuration
+
+Example:
+
+```sh
+LL_CLUSTER_NAME=lavalite
+LL_STATE_DIR=/opt/lavalite-1.0.0/var/state
+LL_CONF_DIR=/opt/lavalite-1.0.0/etc
+LL_LOG_DIR=/opt/lavalite-1.0.0/var/log
+```
+
+See:
+
+```text
+man 5 ll.conf
+```
+
+for the complete reference.
+
+### llb.hosts
+
+`llb.hosts` defines:
+
+- Execution hosts
+- GPU devices
+- Token pools
+- Host groups
+- Simulator hosts
+
+See:
+
+```text
+man 5 llb.hosts
+```
+
+for the complete reference.
+
+### llb.queues
+
+`llb.queues` defines:
+
+- Scheduling queues
+- Queue priorities
+- Host group assignments
+- User access controls
+
+See:
+
+```text
+man 5 llb.queues
+```
+
+for the complete reference.
 
 ## Post-Install Setup
 
-**This step is mandatory. Do not proceed to configuration until it is complete.**
+**This step is mandatory. The daemons require the runtime state
+directories and permissions created by this step.**
 
-A post-install script is provided in etc/post-install.sh that outlines the steps that must be performed after installation. The script can be run directly or the steps performed manually.
-
-It must be run as root with `LL_CONF_DIR` set in the environment and
-`LL_MBD_USER` already defined in `ll.conf`.
+A post-install script is provided in etc/post-install.sh that outlines the steps
+that must be performed after installation. The script can be run directly or the steps performed manually.
 
 ```sh
-export LL_CONF_DIR=/opt/lavalite/etc
-/opt/lavalite/etc/post-install.sh
+export LL_CONF_DIR=/opt/lavalite-<version>/etc
+/opt/lavalite-1.0.0/etc/post-install.sh
 ```
 
 The script performs the following operations:
 
-- Creates `var/state/mbd` owned by the mbd user, mode `750`
-- Creates `var/state/sbd` owned by root, mode `750`
-- Creates `var/log` mode `755`
-- Sets `bin/bhist` to `root:mbd_group` mode `2755` (setgid)
+- chown lavalite:lavalite `var/state/mbd`
+- chown lavalite:lavalite `var/state/sbd`
+- chown lavalite:lavalite  `var/log`
+- Sets `bin/bhist` to `root:lavalite` mode `2755` (setgid)
 
 ### Why bhist is setgid
 
-The event log under `var/state/mbd` is readable only by the mbd user
-and group. Regular users cannot read it directly.
+The event manifest under `var/state/mbd` is readable only by the mbd
+user and group.
 
-`bhist` runs setgid with the mbd primary group, which allows it to open
-the event log on behalf of any user. It then filters records by uid and
-returns only the caller's own jobs. The raw event log is never exposed
-to unprivileged users.
+`bhist` runs setgid with the mbd primary group, allowing it to read the
+event manifest and report only records visible to the calling user.
 
 ## Directory Layout
 

@@ -193,7 +193,7 @@ int main(int argc, char **argv)
             struct epoll_event *ev = &mbd_events[i];
             int chan_id = (int) ev->data.u32;
 
-            LL_DEBUG("ch_id=%d epoll_events=0x%x send=%d recv=%d",
+            LL_DEBUG("chan_id=%d epoll_events=0x%x send=%d recv=%d",
                      chan_id, ev->events,
                      channels[chan_id].send.count,
                      channels[chan_id].recv.count);

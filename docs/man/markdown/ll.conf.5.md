@@ -109,10 +109,6 @@ Lines starting with **#** are comments. Blank lines are ignored.
 **LL_SBD_READTIMEOUT**
 :   Timeout in seconds waiting for a reply from sbd.
 
-**LL_MAX_SCHED_STAY**
-:   Maximum time in seconds a job may remain in the scheduler without
-    being dispatched before an error is logged.
-
 # EXAMPLE
 
     LL_CLUSTER_NAME=mycluster
@@ -125,8 +121,8 @@ Lines starting with **#** are comments. Blank lines are ignored.
     LL_MBD_HOST=master01
     LL_MBD_USER=lavalite
     LL_SBD_PORT=33125
-    LL_EVENTS_MAX_SIZE=100M
-    LL_EVENTS_RETAIN=24h
+    LL_SBD_JOB_FINISH_RETAIN=100
+    LL_MBD_JOB_FINISH_THRESHOLD=1000
     LL_DEFAULT_QUEUE=normal
 
 # SEE ALSO
