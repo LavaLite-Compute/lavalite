@@ -368,19 +368,13 @@ static int caller_is_admin(void)
 
 static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
 {
+    if (jh->job_id > 0)
+        return e->job_id == jh->job_id;
+
     if (jh->all)
         return 1;
 
-    if (jh->job_id > 0) {
-        if (e->job_id == jh->job_id)
-            return 1;
-        return 0;
-    }
-
-    if (e->uid == jh->uid)
-        return 1;
-
-    return 0;
+    return e->uid == jh->uid;
 }
 
 static int hist_event_exists(struct job_hist_info *j, int32_t type,
