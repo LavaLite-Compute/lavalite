@@ -290,6 +290,7 @@ int32_t llb_host_admin(const char *, int32_t);
 /* bhist */
 struct job_hist_info *llb_hist_info(int64_t, uid_t, int32_t *);
 void llb_free_hist_info(struct job_hist_info *, int32_t);
+int llb_caller_is_admin(void);
 
 // bmove
 int32_t llb_move_job(int64_t, const char *);
@@ -297,3 +298,4 @@ int32_t llb_move_job(int64_t, const char *);
 // bpriority
 int32_t llb_priority_job(int64_t, int32_t);
 const char *llb_job_state_str(int32_t);
+

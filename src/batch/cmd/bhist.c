@@ -369,7 +369,8 @@ static void usage(void)
             " summary for the current user.\n"
             "\n"
             "Options:\n"
-            "  -u, --user USER  Show jobs for USER\n"
+            "  -u, --user USER  Show jobs for USER (admin only,"
+            " unless USER is yourself)\n"
             "  -l               Full detail for all jobs\n"
             "  -h, --help       Display this help and exit\n"
             "  -V, --version    Output version information and exit\n"
@@ -407,6 +408,13 @@ int main(int argc, char **argv)
             pw = getpwnam(optarg);
             if (pw == NULL) {
                 fprintf(stderr, "bhist: unknown user '%s'\n", optarg);
+                return 1;
+            }
+            /* Only admin may pull another user's history. Asking
+             * for yourself by name needs no extra privilege.
+             */
+            if (pw->pw_uid != getuid() && !llb_caller_is_admin()) {
+                fprintf(stderr, "bhist: permission denied\n");
                 return 1;
             }
             uid = pw->pw_uid;

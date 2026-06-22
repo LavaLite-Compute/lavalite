@@ -342,9 +342,12 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
 /* -----------------------------------------------------------------------
  * Admin check: caller is root or the configured mbd user.
  * Called after ll_init() so ll_params is valid.
+ *
+ * Exported (not static) because bhist.c needs it too, to gate the
+ * -u/--user flag: only admin may pull another user's history.
  * ----------------------------------------------------------------------- */
 
-static int caller_is_admin(void)
+int llb_caller_is_admin(void)
 {
     const char *mbd_user;
     struct passwd *pw;
@@ -366,10 +369,25 @@ static int caller_is_admin(void)
     return 0;
 }
 
+/*
+ * Two independent filters, both must pass:
+ *
+ *   - job_id filter:   applies only if jh->job_id was specified (> 0)
+ *   - ownership filter: applies only to non-admin callers (jh->all == 0)
+ *
+ * A specific job_id does NOT bypass the ownership check for a non-admin
+ * caller -- otherwise any user could read any other user's job detail
+ * just by guessing/knowing a job_id.
+ */
 static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
 {
-    if (jh->job_id > 0)
-        return e->job_id == jh->job_id;
+    if (jh->job_id > 0) {
+        if (e->job_id != jh->job_id)
+            return 0;
+        if (!jh->all && e->uid != jh->uid)
+            return 0;
+        return 1;
+    }
 
     if (jh->all)
         return 1;
@@ -889,9 +907,10 @@ struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid, int32_t *num)
     /*
      * uid==0 is root. mbd_user is the batch admin.
      * Either one sees all jobs unless a specific job_id was given,
-     * in which case hist_match_new handles it directly.
+     * in which case hist_match_new still checks ownership for
+     * non-admin callers (see hist_match_new comment above).
      */
-    if (caller_is_admin())
+    if (llb_caller_is_admin())
         jh.all = 1;
 
     if (hist_scan_events(&jh) < 0) {

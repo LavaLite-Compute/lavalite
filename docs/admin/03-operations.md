@@ -277,7 +277,9 @@ while daemons are running.
 
 ## Event Replay
 
-The scheduler records durable events before applying state changes.
+The scheduler applies state changes first, then records them as
+durable events. This keeps the event manifest consistent with state
+that was actually applied.
 
 During startup, `mbd` replays these events and reconstructs scheduler
 state.

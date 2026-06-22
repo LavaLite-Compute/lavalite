@@ -149,11 +149,14 @@ requiring an external database.
 
 ### Event-Based Recovery
 
-Every significant scheduler action is written to the event log before
-being applied to in-memory state.
+Every significant scheduler action is applied to in-memory state, then
+recorded as a durable event in the event manifest. Events are only
+persisted once they are known to be valid and applied, not before —
+this keeps the manifest consistent with what actually happened, rather
+than with what was merely attempted.
 
-After restart, `mbd` replays the event log and reconstructs scheduler
-state.
+After restart, `mbd` replays the event manifest and reconstructs
+scheduler state.
 
 ### Simple Administration
 
