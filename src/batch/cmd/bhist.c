@@ -13,6 +13,7 @@
 
 #include "llbatch.h"
 #include "batch/lib/log.h"
+#include "base/lib/ll.conf.h"
 
 static const char *fmt_time(time_t t)
 {
@@ -394,6 +395,11 @@ int main(int argc, char **argv)
     int           full    = 0;
     int           cc;
     struct passwd *pw;
+
+    if (ll_init() < 0) {
+        fprintf(stderr, "bhist: failed loading configuration\n");
+        return 1;
+    }
 
     /* -l is short-only: no long equivalent */
     while ((cc = getopt_long(argc, argv, "hVu:l", longopts, NULL)) != EOF) {

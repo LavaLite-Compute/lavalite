@@ -356,9 +356,9 @@ int llb_caller_is_admin(void)
         return 1;
 
     mbd_user = ll_params[LL_MBD_USER].val;
-    if (mbd_user == NULL || mbd_user[0] == '\0')
+    if (mbd_user == NULL || mbd_user[0] == '\0') {
         return 0;
-
+    }
     pw = getpwnam(mbd_user);
     if (pw == NULL)
         return 0;
