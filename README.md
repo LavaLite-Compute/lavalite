@@ -47,20 +47,27 @@ The objective is not to implement every possible scheduler feature, but to build
 
 # Current Status
 
-LavaLite is currently in the 1.0 stabilization and validation phase.
+LavaLite 1.0.0 has been released.
 
-Current work focuses on:
+This release establishes the initial stable foundation of the project, including:
 
-* Scheduler correctness
-* Recovery validation
-* Event replay verification
-* Queue and resource accounting
+* Core batch scheduling
 * Multi-host scheduling
 * GPU-aware scheduling
-* Automated and manual testing
+* Durable event logging and replay
+* Restart and recovery support
+* Administrative and user command-line tools
+* Comprehensive administrator and user documentation
 
-Feature growth remains secondary to correctness, stability, and
-recoverability.
+Current development on the `master` branch focuses on:
+
+* Stability improvements
+* Bug fixes
+* Performance tuning
+* Documentation enhancements
+* User feedback and feature evaluation
+
+The `lavalite-1.0.0` tag identifies the exact source tree used for the 1.0.0 release.
 
 # Supported Platforms
 
