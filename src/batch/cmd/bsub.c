@@ -51,6 +51,7 @@ static void usage(FILE *f)
         "\n"
         "Scheduling:\n"
         "  --hold             Submit in PSUSP state\n"
+        "  --array  start-end[:stride]  Submit an array job\n"
         "  --begin  [day:]h:m Do not dispatch before this time\n"
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
         "\n"
@@ -232,6 +233,7 @@ int main(int argc, char **argv)
         {"stderr", required_argument, NULL, 'e'},
         {"stdin", required_argument, NULL, 'i'},
         {"hold", no_argument, NULL, 'H'},
+        {"array", required_argument, NULL, 'a'},
         {"begin", required_argument, NULL, 'b'},
         {"terminate", required_argument, NULL, 't'},
         {"dependency", required_argument, NULL, 'w'},
@@ -241,7 +243,7 @@ int main(int argc, char **argv)
 
     int c;
     while (
-        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Hb:t:W:hv",
+        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:W:hv",
                          opts, NULL)) != -1) {
         switch (c) {
         case 'q':
@@ -350,6 +352,14 @@ int main(int argc, char **argv)
             break;
         case 'H':
             js.flags |= JOB_FLAG_HOLD;
+            break;
+        case 'a':
+            if (llb_parse_array(optarg, &js.array_start, &js.array_end,
+                                &js.array_stride) < 0) {
+                fprintf(stderr, "bsub: --array: invalid spec '%s'\n", optarg);
+                return 1;
+            }
+            js.flags |= JOB_FLAG_ARRAY;
             break;
         case 'b':
             if (parse_time_arg(optarg, &js.begin_time) < 0) {

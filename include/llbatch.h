@@ -67,6 +67,7 @@ enum host_stat {
 
 #define JOB_FLAG_EXCLUSIVE 0x01
 #define JOB_FLAG_HOLD 0x02
+#define JOB_FLAG_ARRAY 0x04
 
 struct job_submit {
     char *name;          /* --name        */
@@ -89,6 +90,9 @@ struct job_submit {
     time_t begin_time;   /* --begin       */
     time_t term_time;    /* --terminate   */
     uint32_t flags;      /* JOB_FLAG_*    */
+    int32_t array_start; /* --array START-END[:STRIDE] */
+    int32_t array_end;
+    int32_t array_stride;
 };
 
 // llb_job_info API options
@@ -259,6 +263,7 @@ struct job_hist_info {
 
 // bsub
 int32_t llb_submit(const struct job_submit *, int64_t *);
+int32_t llb_parse_array(const char *, int32_t *, int32_t *, int32_t *);
 
 // bjobs
 struct job_info *llb_job_info(const struct job_info_req *, int32_t *);
@@ -298,4 +303,3 @@ int32_t llb_move_job(int64_t, const char *);
 // bpriority
 int32_t llb_priority_job(int64_t, int32_t);
 const char *llb_job_state_str(int32_t);
-

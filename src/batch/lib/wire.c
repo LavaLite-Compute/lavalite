@@ -144,6 +144,12 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_int64_t(xdrs, &s->resume_time))
         return false;
+    if (!xdr_int32_t(xdrs, &s->array_start))
+        return false;
+    if (!xdr_int32_t(xdrs, &s->array_end))
+        return false;
+    if (!xdr_int32_t(xdrs, &s->array_stride))
+        return false;
     return true;
 }
 

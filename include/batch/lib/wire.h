@@ -158,6 +158,9 @@ struct wire_job_submit {
     int64_t term_time;
     int64_t susp_time;
     int64_t resume_time;
+    int32_t array_start;
+    int32_t array_end;
+    int32_t array_stride;
 };
 
 /* -----------------------------------------------------------------------

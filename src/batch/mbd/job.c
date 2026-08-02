@@ -461,22 +461,6 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     }
 }
 
-static void job_register_error(int chan_id, int status)
-{
-    struct wire_job_submit_reply reply;
-    memset(&reply, 0, sizeof(reply));
-    reply.job_id = -1;
-
-    struct protocol_header rep_hdr;
-    init_protocol_header(&rep_hdr);
-    rep_hdr.operation = BATCH_JOB_SUBMIT_ACK;
-    rep_hdr.status = status;
-
-    size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
-    /* best-effort: ignore enqueue failure, caller closes the connection */
-    enqueue_payload(chan_id, &rep_hdr, &reply, siz, xdr_wire_job_submit_reply);
-}
-
 void reset_host_resources(struct job_data *job)
 {
     for (int i = 0; i < job->run_nhosts; i++) {
@@ -509,71 +493,8 @@ void reset_host_resources(struct job_data *job)
     }
 }
 
-void job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+static int job_register_reply(int chan_id, struct job_data *job)
 {
-    struct wire_job_submit ws;
-    memset(&ws, 0, sizeof(ws));
-    if (!xdr_wire_job_submit(xdrs, &ws)) {
-        LL_ERRX("xdr_wire_job_submit failed");
-        chan_shutdown(chan_id);
-        return;
-    }
-
-    struct wire_job_script script;
-    memset(&script, 0, sizeof(script));
-    if (!xdr_wire_job_script(xdrs, &script)) {
-        LL_ERRX("xdr_wire_job_script failed");
-        chan_shutdown(chan_id);
-        return;
-    }
-
-    int err = 0;
-    struct job_data *job = job_alloc(&ws, &err);
-    if (job == NULL) {
-        // every failure path in job_alloc must set err
-        assert(err != 0);
-        job_register_error(chan_id, err);
-        LL_ERR("job_alloc failed uid=%d user_name=%s err=%d",
-               hdr->uid, ws.username, err);
-        free(script.data);
-        return;
-    }
-    // read from the HAMC header
-    job->uid = (uid_t)hdr->uid;
-    job->gid = (gid_t)hdr->gid;
-
-    if (write_script(job, &script) < 0) {
-        job_register_error(chan_id, errno);
-        LL_ERR("write_script failed job_id=%ld", job->job_id);
-        free(script.data);
-        job_free(job);
-        return;
-    }
-    free(script.data);
-
-    if (write_sidecar(job, &ws) < 0) {
-        job_register_error(chan_id, errno);
-        LL_ERR("write_sidecar failed job_id=%ld", job->job_id);
-        job_free(job);
-        return;
-    }
-
-    if (job_parse_tokens(job, ws.tokenpool) < 0) {
-        job_register_error(chan_id, errno);
-        LL_ERRX("job=%ld invalid token pool spec", job->job_id);
-        job_free(job);
-        return;
-    }
-    ll_strlcpy(job->res.tokenpool_str, ws.tokenpool,
-               sizeof(job->res.tokenpool_str));
-
-    char key[LL_BUFSIZ_32];
-    sprintf(key, "%ld", job->job_id);
-    enum ll_hash_status hs = ll_hash_insert(&job_id_hash, key, job, 0);
-    assert(hs == LL_HASH_INSERTED);
-
-    job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
-
     struct wire_job_submit_reply reply;
     memset(&reply, 0, sizeof(reply));
     reply.job_id = job->job_id;
@@ -583,20 +504,142 @@ void job_register(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     rep_hdr.operation = BATCH_JOB_SUBMIT_ACK;
     rep_hdr.status = MBD_OK;
 
-    size_t siz = PACKET_HEADER_SIZE + sizeof(struct wire_job_submit_reply) +
-                 LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
 
-    if (enqueue_payload(chan_id, &rep_hdr, &reply,
-                        siz, xdr_wire_job_submit_reply) < 0) {
+    if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
+                        xdr_wire_job_submit_reply) < 0) {
+        char key[LL_BUFSIZ_32];
+
+        snprintf(key, sizeof(key), "%ld", job->job_id);
+
         LL_ERR("enqueue_payload failed job_id=%ld", job->job_id);
+
         ll_list_remove(&pend_jobs_list, &job->ent);
         ll_hash_remove(&job_id_hash, key);
         job_free(job);
+
+        return -1;
+    }
+
+    return 0;
+}
+
+static void job_register_error(int chan_id, int status)
+{
+    struct wire_job_submit_reply reply;
+    memset(&reply, 0, sizeof(reply));
+    reply.job_id = -1;
+
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_JOB_SUBMIT_ACK;
+    rep_hdr.status = status;
+
+    size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
+    /* best-effort: ignore enqueue failure, caller closes the connection */
+    enqueue_payload(chan_id, &rep_hdr, &reply, siz, xdr_wire_job_submit_reply);
+}
+
+static void job_commit(struct job_data *job)
+{
+    char key[LL_BUFSIZ_32];
+
+    snprintf(key, sizeof(key), "%ld", job->job_id);
+
+    enum ll_hash_status hs;
+    hs = ll_hash_insert(&job_id_hash, key, job, 0);
+    assert(hs == LL_HASH_INSERTED);
+
+    job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
+}
+
+static struct job_data *
+job_prepare(struct wire_job_submit *ws,
+            const struct wire_job_script *script,
+            const struct protocol_header *hdr,
+            int *err)
+{
+    struct job_data *job;
+
+    job = job_alloc(ws, err);
+    if (job == NULL)
+        return NULL;
+
+    job->uid = (uid_t) hdr->uid;
+    job->gid = (gid_t) hdr->gid;
+
+    if (write_script(job, script) < 0) {
+        *err = errno;
+        LL_ERR("write_script failed job_id=%ld", job->job_id);
+        job_free(job);
+        return NULL;
+    }
+
+    if (write_sidecar(job, ws) < 0) {
+        *err = errno;
+        LL_ERR("write_sidecar failed job_id=%ld", job->job_id);
+        job_free(job);
+        return NULL;
+    }
+
+    if (job_parse_tokens(job, ws->tokenpool) < 0) {
+        *err = errno;
+        LL_ERRX("job=%ld invalid token pool spec", job->job_id);
+        job_free(job);
+        return NULL;
+    }
+
+    ll_strlcpy(job->res.tokenpool_str, ws->tokenpool,
+               sizeof(job->res.tokenpool_str));
+
+    return job;
+}
+
+void job_register(XDR *xdrs, int chan_id,
+                  const struct protocol_header *hdr)
+{
+    struct wire_job_submit ws;
+    memset(&ws, 0, sizeof(ws));
+
+    if (!xdr_wire_job_submit(xdrs, &ws)) {
+        LL_ERRX("xdr_wire_job_submit failed");
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    struct wire_job_script script;
+    memset(&script, 0, sizeof(script));
+
+    if (!xdr_wire_job_script(xdrs, &script)) {
+        LL_ERRX("xdr_wire_job_script failed");
+        chan_shutdown(chan_id);
+        return;
+    }
+
+    int err = 0;
+    struct job_data *job = job_prepare(&ws, &script, hdr, &err);
+
+    free(script.data);
+
+    if (job == NULL) {
+        assert(err != 0);
+        job_register_error(chan_id, err);
+        LL_ERRX("job preparation failed uid=%d user=%s err=%d",
+                hdr->uid, ws.username, err);
+        return;
+    }
+
+    job_commit(job);
+
+    int64_t jid = job->job_id;
+    if (job_register_reply(chan_id, job) < 0) {
+        LL_ERR("enqueue reply failed job_id=%ld", jid);
         return;
     }
 
     event_job_new(job, &ws);
-    job_id_seq_write();  /* persist before ack -- seq must never go backwards */
+    job_id_seq_write();
+
     if (job->state == JOB_PENDING)
         job->queue->num_pend++;
     else if (job->state == JOB_HELD)

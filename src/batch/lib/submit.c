@@ -3,6 +3,7 @@
  * GPL v2
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -23,6 +24,55 @@
 #include "batch/lib/jobscript.h"
 #include "batch/lib/wire.h"
 #include "llbatch.h"
+
+/* Validate locally so bsub can reject malformed specifications early.
+ */
+
+int32_t llb_parse_array(const char *spec, int32_t *start,
+                        int32_t *end, int32_t *stride)
+{
+    int n;
+
+    if (strchr(spec, ':') != NULL) {
+        if (sscanf(spec, "%d-%d:%d%n",
+                   start, end, stride, &n) != 3)
+            goto bad;
+
+        if (spec[n] != '\0')
+            goto bad;
+
+        if (*start < 0)
+            goto bad;
+
+        if (*start > *end)
+            goto bad;
+
+        if (*stride < 1)
+            goto bad;
+
+        return 0;
+    }
+
+    *stride = 1;
+
+    if (sscanf(spec, "%d-%d%n", start, end, &n) != 2)
+        goto bad;
+
+    if (spec[n] != '\0')
+        goto bad;
+
+    if (*start < 0)
+        goto bad;
+
+    if (*start > *end)
+        goto bad;
+
+    return 0;
+
+bad:
+    errno = EINVAL;
+    return -1;
+}
 
 static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
 {
@@ -74,6 +124,9 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
     w->begin_time = (int64_t) js->begin_time;
     w->term_time = (int64_t) js->term_time;
     w->flags = js->flags;
+    w->array_start = js->array_start;
+    w->array_end = js->array_end;
+    w->array_stride = js->array_stride;
 
     w->umask = (uint32_t) umask(0);
     umask((mode_t) w->umask);

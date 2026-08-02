@@ -94,6 +94,11 @@ struct job_data {
     int run_nhosts;           /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;
     char gpu_assigned[LL_BUFSIZ_64];
+    int64_t array_id;       /* 0 = ordinary job */
+    int32_t array_index;    /* valid only when array_id != 0 */
+    int32_t array_start;
+    int32_t array_end;
+    int32_t array_stride;
 };
 
 struct gpu_id {
