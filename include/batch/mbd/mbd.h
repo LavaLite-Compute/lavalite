@@ -16,9 +16,9 @@
 #include "llbatch.h"
 
 enum job_list_id {
-    JOB_LIST_PEND = 0,
-    JOB_LIST_RUN = 1,
-    JOB_LIST_FINISH = 2,
+    JOB_LIST_PEND,
+    JOB_LIST_RUN,
+    JOB_LIST_FINISH,
 };
 
 // mbd_die exit value

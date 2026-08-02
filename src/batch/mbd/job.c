@@ -493,11 +493,11 @@ void reset_host_resources(struct job_data *job)
     }
 }
 
-static int job_register_reply(int chan_id, struct job_data *job)
+static int job_register_reply(int chan_id, int64_t job_id)
 {
     struct wire_job_submit_reply reply;
     memset(&reply, 0, sizeof(reply));
-    reply.job_id = job->job_id;
+    reply.job_id = job_id;
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
@@ -508,16 +508,7 @@ static int job_register_reply(int chan_id, struct job_data *job)
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
                         xdr_wire_job_submit_reply) < 0) {
-        char key[LL_BUFSIZ_32];
-
-        snprintf(key, sizeof(key), "%ld", job->job_id);
-
-        LL_ERR("enqueue_payload failed job_id=%ld", job->job_id);
-
-        ll_list_remove(&pend_jobs_list, &job->ent);
-        ll_hash_remove(&job_id_hash, key);
-        job_free(job);
-
+        LL_ERR("enqueue_payload failed job_id=%ld", job_id);
         return -1;
     }
 
@@ -536,21 +527,10 @@ static void job_register_error(int chan_id, int status)
     rep_hdr.status = status;
 
     size_t siz = PACKET_HEADER_SIZE + sizeof(reply) + LL_BUFSIZ_64;
-    /* best-effort: ignore enqueue failure, caller closes the connection */
-    enqueue_payload(chan_id, &rep_hdr, &reply, siz, xdr_wire_job_submit_reply);
-}
 
-static void job_commit(struct job_data *job)
-{
-    char key[LL_BUFSIZ_32];
-
-    snprintf(key, sizeof(key), "%ld", job->job_id);
-
-    enum ll_hash_status hs;
-    hs = ll_hash_insert(&job_id_hash, key, job, 0);
-    assert(hs == LL_HASH_INSERTED);
-
-    job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
+    /* Best effort: ignore enqueue failure, caller closes the connection. */
+    enqueue_payload(chan_id, &rep_hdr, &reply, siz,
+                    xdr_wire_job_submit_reply);
 }
 
 static struct job_data *
@@ -595,6 +575,68 @@ job_prepare(struct wire_job_submit *ws,
     return job;
 }
 
+static void job_discard(struct job_data *job)
+{
+    /*
+     * TODO: remove the per-job directory and files before freeing the job.
+     */
+    job_free(job);
+}
+
+static void job_discard_prepared(struct ll_list *prepared)
+{
+    struct ll_list_entry *e;
+    struct ll_list_entry *next;
+
+    for (e = prepared->head; e != NULL; e = next) {
+        next = e->next;
+
+        struct job_data *job = (struct job_data *) e;
+
+        ll_list_remove(prepared, &job->ent);
+        job_discard(job);
+    }
+}
+
+static void job_commit(struct job_data *job,
+                       struct wire_job_submit *ws)
+{
+    char key[LL_BUFSIZ_32];
+
+    snprintf(key, sizeof(key), "%ld", job->job_id);
+
+    enum ll_hash_status hs;
+    hs = ll_hash_insert(&job_id_hash, key, job, 0);
+    assert(hs == LL_HASH_INSERTED);
+
+    job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
+
+    event_job_new(job, ws);
+
+    if (job->state == JOB_PENDING)
+        job->queue->num_pend++;
+    else if (job->state == JOB_HELD)
+        job->queue->num_held++;
+
+    job->queue->num_jobs++;
+
+    LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d",
+            job->job_id, job->user, job->queue->name,
+            job->queue->num_jobs, job->queue->num_pend);
+}
+
+static void job_commit_prepared(struct ll_list *prepared,
+                                struct wire_job_submit *ws)
+{
+    while (prepared->head != NULL) {
+        struct job_data *job;
+        job = (struct job_data *) prepared->head;
+
+        ll_list_remove(prepared, &job->ent);
+        job_commit(job, ws);
+    }
+}
+
 void job_register(XDR *xdrs, int chan_id,
                   const struct protocol_header *hdr)
 {
@@ -616,40 +658,73 @@ void job_register(XDR *xdrs, int chan_id,
         return;
     }
 
+    /*
+     * An ordinary job uses the default 0-0 range and therefore executes
+     * this loop once. An array replaces the range with the user request.
+     */
+    int32_t start = 0;
+    int32_t end = 0;
+    int32_t stride = 1;
+
+    if (ws.flags & JOB_FLAG_ARRAY) {
+        start = ws.array_start;
+        end = ws.array_end;
+        stride = ws.array_stride;
+    }
+
+    struct ll_list prepared_jobs;
+    ll_list_init(&prepared_jobs);
+
+    int64_t array_id = 0;
     int err = 0;
-    struct job_data *job = job_prepare(&ws, &script, hdr, &err);
+
+    for (int32_t index = start; index <= end; index += stride) {
+        struct job_data *job;
+
+        job = job_prepare(&ws, &script, hdr, &err);
+        if (job == NULL) {
+            assert(err != 0);
+
+            LL_ERRX("job preparation failed index=%d uid=%d user=%s err=%d",
+                    index, hdr->uid, ws.username, err);
+
+            job_discard_prepared(&prepared_jobs);
+            free(script.data);
+            job_register_error(chan_id, err);
+            return;
+        }
+
+        if (array_id == 0)
+            array_id = job->job_id;
+
+        if (ws.flags & JOB_FLAG_ARRAY) {
+            job->array_id = array_id;
+            job->array_index = index;
+            job->array_start = start;
+            job->array_end = end;
+            job->array_stride = stride;
+        }
+
+        /*
+         * Prepared jobs remain private to this submission. They are not
+         * visible through the global hash or pending list yet.
+         */
+        ll_list_append(&prepared_jobs, &job->ent);
+    }
 
     free(script.data);
 
-    if (job == NULL) {
-        assert(err != 0);
-        job_register_error(chan_id, err);
-        LL_ERRX("job preparation failed uid=%d user=%s err=%d",
-                hdr->uid, ws.username, err);
+    /*
+     * array_id is also the ordinary job ID when the loop executes once.
+     * For arrays it is the first element's job ID and the common array ID.
+     */
+    if (job_register_reply(chan_id, array_id) < 0) {
+        job_discard_prepared(&prepared_jobs);
         return;
     }
 
-    job_commit(job);
-
-    int64_t jid = job->job_id;
-    if (job_register_reply(chan_id, job) < 0) {
-        LL_ERR("enqueue reply failed job_id=%ld", jid);
-        return;
-    }
-
-    event_job_new(job, &ws);
-    job_id_seq_write();
-
-    if (job->state == JOB_PENDING)
-        job->queue->num_pend++;
-    else if (job->state == JOB_HELD)
-        job->queue->num_held++;
-
-    job->queue->num_jobs++;
-
-    LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d", job->job_id,
-            job->user, job->queue->name, job->queue->num_jobs,
-            job->queue->num_pend);
+    job_commit_prepared(&prepared_jobs, &ws);
+    job_id_seq_write();  /* sequence must never go backwards */
 }
 
 /*
