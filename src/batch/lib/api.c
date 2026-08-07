@@ -410,6 +410,8 @@ struct job_info *llb_job_info(const struct job_info_req *req, int32_t *n)
 
     struct wire_job_query wreq;
     wreq.job_id = req->job_id;
+    wreq.array_id = req->array_id;
+    wreq.array_index = req->array_index;
     wreq.flags = req->flags;
     wreq.uid = req->uid;
 
@@ -476,6 +478,8 @@ struct job_info *llb_job_info(const struct job_info_req *req, int32_t *n)
         struct job_info *dst = &out[i];
 
         dst->job_id = src->job_id;
+        dst->array_id = src->array_id;
+        dst->array_index = src->array_index;
         dst->uid = src->uid;
         dst->pid = src->pid;
         dst->state = src->state;

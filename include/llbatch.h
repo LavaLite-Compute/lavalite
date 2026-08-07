@@ -103,9 +103,11 @@ struct job_submit {
 #define LLB_JOB_HELD 0x0010
 
 struct job_info_req {
-    int64_t job_id;  /* 0 = all */
-    int32_t uid;     /* -1 = all */
-    int32_t flags;   /* LLB_JOB_* */
+    int64_t job_id;       /* -1 = all */
+    int64_t array_id;     /* 0 = not an array reference */
+    int32_t array_index;
+    int32_t uid;          /* -1 = all */
+    int32_t flags;        /* LLB_JOB_* */
 };
 
 /* runtime resource usage, reported sbd via cgroup at the end of the job
@@ -118,6 +120,8 @@ struct job_res_usage {
 
 struct job_info {
     int64_t job_id;
+    int64_t array_id;
+    int32_t array_index;
     uid_t uid;
     pid_t pid;
     int32_t state;

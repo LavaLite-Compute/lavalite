@@ -173,6 +173,10 @@ bool_t xdr_wire_job_info(XDR *xdrs, struct wire_job_info *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
+    if (!xdr_int64_t(xdrs, &p->array_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->array_index))
+        return false;
     if (!xdr_uint32_t(xdrs, &p->uid))
         return false;
     if (!xdr_int32_t(xdrs, &p->pid))
@@ -464,6 +468,10 @@ bool_t xdr_wire_job_priority(XDR *xdrs, struct wire_job_priority *p)
 bool_t xdr_wire_job_query(XDR *xdrs, struct wire_job_query *r)
 {
     if (!xdr_int64_t(xdrs, &r->job_id))
+        return false;
+    if (!xdr_int64_t(xdrs, &r->array_id))
+        return false;
+    if (!xdr_int32_t(xdrs, &r->array_index))
         return false;
     if (!xdr_int32_t(xdrs, &r->flags))
         return false;

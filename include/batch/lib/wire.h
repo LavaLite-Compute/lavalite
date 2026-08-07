@@ -188,6 +188,8 @@ struct wire_job_info_req {
 
 struct wire_job_info {
     int64_t job_id;
+    int64_t array_id;
+    int32_t array_index;
     uint32_t uid;
     int32_t pid;
     int32_t state;
@@ -212,6 +214,8 @@ struct wire_job_info_array {
 
 struct wire_job_query {
     int64_t  job_id;
+    int64_t array_id;
+    int32_t array_index;
     int32_t  flags;
     int32_t uid;    /* -1 = all */
 };

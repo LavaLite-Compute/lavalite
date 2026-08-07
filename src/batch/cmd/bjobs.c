@@ -55,6 +55,14 @@ static int ndigits(int64_t n)
     return d;
 }
 
+static void fmt_jobid(const struct job_info *j, char *buf, size_t len)
+{
+    if (j->array_id != 0)
+        snprintf(buf, len, "%ld[%d]", j->array_id, j->array_index);
+    else
+        snprintf(buf, len, "%ld", j->job_id);
+}
+
 /*
  * Walk run_hosts string "2@hostA 2@hostB" and return the width
  * of the longest token.
@@ -94,6 +102,7 @@ static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
 {
     int i;
     struct job_info *j;
+    char jobid[64];
 
     w->jobid      = (int) strlen("JOBID");
     w->user       = (int) strlen("USER");
@@ -106,14 +115,15 @@ static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
     for (i = 0; i < n; i++) {
         j = &jobs[i];
 
-        w->jobid      = imax(w->jobid,      ndigits(j->job_id));
-        w->user       = imax(w->user,       (int) strlen(uid_to_name(j->uid)));
+        fmt_jobid(j, jobid, sizeof(jobid));
+        w->jobid      = imax(w->jobid, (int)strlen(jobid));
+        w->user       = imax(w->user, (int)strlen(uid_to_name(j->uid)));
         w->stat       = imax(w->stat,
                              (int)strlen(llb_job_state_str(j->state)));
         w->queue      = imax(w->queue,      (int) strlen(j->queue));
         w->priority   = imax(w->priority,   ndigits(j->priority));
         w->run_hosts = imax(w->run_hosts, run_hosts_width(j->run_hosts));
-        w->name       = imax(w->name,       (int) strlen(j->name));
+        w->name       = imax(w->name, (int) strlen(j->name));
     }
 }
 
@@ -146,9 +156,12 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
     char buf[4096];
     int first = 1;
 
+    char jobid[64];
+    fmt_jobid(j, jobid, sizeof(jobid));
+
     if (j->run_hosts == NULL || j->run_hosts[0] == '\0') {
-        printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
-               w->jobid,      j->job_id,
+        printf("%-*s  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+               w->jobid,      jobid,
                w->user,       uid_to_name(j->uid),
                w->stat,       llb_job_state_str(j->state),
                w->queue,      j->queue,
@@ -167,8 +180,8 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
     char *tok = strtok(buf, " ");
     while (tok != NULL) {
         if (first) {
-            printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
-                   w->jobid,      j->job_id,
+            printf("%-*s  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+                   w->jobid, jobid,
                    w->user,       uid_to_name(j->uid),
                    w->stat,       llb_job_state_str(j->state),
                    w->queue,      j->queue,
@@ -190,6 +203,49 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
     }
     if (show_reason)
         print_pend_reason(j, w);
+}
+
+static int parse_job_ref(const char *s, int64_t *job_id,
+                         int64_t *array_id, int32_t *array_index)
+{
+    char *end;
+    long long id;
+
+    *job_id = -1;
+    *array_id = 0;
+    *array_index = 0;
+
+    errno = 0;
+    id = strtoll(s, &end, 10);
+    if (errno != 0 || end == s || id <= 0)
+        return -1;
+
+    /* Ordinary job_id */
+    if (*end == '\0') {
+        *job_id = (int64_t) id;
+        return 0;
+    }
+
+    /* Array reference: array_id[index] */
+    if (*end != '[')
+        return -1;
+
+    char *p = end + 1;
+    char *idx_end;
+
+    errno = 0;
+    long idx = strtol(p, &idx_end, 10);
+    if (errno != 0 || idx_end == p ||
+        idx < INT32_MIN || idx > INT32_MAX)
+        return -1;
+
+    if (*idx_end != ']' || idx_end[1] != '\0')
+        return -1;
+
+    *array_id = (int64_t)id;
+    *array_index = (int32_t)idx;
+
+    return 0;
 }
 
 static void usage(void)
@@ -232,6 +288,7 @@ int main(int argc, char **argv)
     struct job_info_req req;
 
     memset(&req, 0, sizeof(struct job_info_req));
+    req.job_id = -1;
     req.uid = getuid();
 
     while ((cc = getopt_long(argc, argv, "hvaprdu:", longopts, NULL)) != EOF) {
@@ -270,24 +327,23 @@ int main(int argc, char **argv)
         }
     }
 
-    int64_t job_id = -1;
     if (optind < argc) {
         if (flags) {
             fprintf(stderr, "bjobs: job_id is mutually exclusive with"
                             " filter options\n");
             return 1;
         }
-        char *end;
-        job_id = strtoll(argv[optind], &end, 10);
-        if (end == argv[optind] || *end != '\0') {
-            fprintf(stderr, "bjobs: invalid job_id '%s'\n", argv[optind]);
+
+        if (parse_job_ref(argv[optind],
+                          &req.job_id,
+                          &req.array_id,
+                          &req.array_index) < 0) {
+            fprintf(stderr, "bjobs: invalid job reference '%s'\n", argv[optind]);
             return 1;
         }
     }
 
-    req.job_id = job_id;
     req.flags = flags;
-
     int njobs;
     struct job_info *jobs = llb_job_info(&req, &njobs);
     if (jobs == NULL) {

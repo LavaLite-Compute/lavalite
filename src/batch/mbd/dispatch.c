@@ -17,6 +17,8 @@ static void job_data_to_wire(const struct job_data *job,
 {
     memset(w, 0, sizeof(*w));
     w->job_id = job->job_id;
+    w->array_id = job->array_id;
+    w->array_index = job->array_index;
     w->uid = (uint32_t) job->uid;
     w->pid = job->pid;
     w->state = job->state;
@@ -90,54 +92,159 @@ static int hash_keys_to_array(struct ll_hash *h, char ***out)
     return n;
 }
 
-int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+static struct job_data *job_find_array(int64_t array_id, int32_t array_index)
+{
+    struct ll_list *lists[] = {
+        &pend_jobs_list,
+        &run_jobs_list,
+        &finish_jobs_list
+    };
+
+    /* Loop for now, hopefully it becomes a performance problem
+     */
+    for (int i = 0; i < 3; i++) {
+        for (struct ll_list_entry *e = lists[i]->head;
+             e != NULL; e = e->next) {
+
+            struct job_data *job = (struct job_data *)e;
+
+            if (job->array_id == array_id
+                && job->array_index == array_index)
+                return job;
+        }
+    }
+
+    return NULL;
+}
+
+static int collect_array(int64_t array_id, struct wire_job_info *dst,
+                         int count, uid_t uid, int all)
+{
+    struct ll_list *lists[] = {
+        &pend_jobs_list,
+        &run_jobs_list,
+        &finish_jobs_list
+    };
+
+    for (int i = 0; i < 3; i++) {
+        for (struct ll_list_entry *e = lists[i]->head;
+             e != NULL; e = e->next) {
+
+            struct job_data *job = (struct job_data *)e;
+
+            if (job->array_id != array_id)
+                continue;
+
+            if (!all && job->uid != uid)
+                continue;
+
+            job_data_to_wire(job, &dst[count]);
+            count++;
+        }
+    }
+
+    return count;
+}
+
+static int jobs_info_ref(int chan_id,
+                         const struct protocol_header *hdr,
+                         const struct wire_job_query *req)
+{
+    int n = 0;
+    int all = is_manager(hdr->uid);
+    uid_t uid = hdr->uid;
+
+    int ntotal = ll_list_count(&pend_jobs_list) +
+                 ll_list_count(&run_jobs_list) +
+                 ll_list_count(&finish_jobs_list);
+
+    struct wire_job_info *jobs =
+        calloc(ntotal ? ntotal : 1, sizeof(struct wire_job_info));
+    if (jobs == NULL) {
+        LL_ERR("calloc failed");
+        return -1;
+    }
+
+    /*
+     * Explicit array element: N[m].
+     */
+    if (req->array_id != 0) {
+        struct job_data *job =
+            job_find_array(req->array_id, req->array_index);
+
+        if (job == NULL) {
+            free(jobs);
+            return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, ESRCH);
+        }
+
+        if (!all && job->uid != uid) {
+            free(jobs);
+            return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
+        }
+
+        job_data_to_wire(job, &jobs[0]);
+        n = 1;
+
+    /*
+     * Numeric reference: N.
+     *
+     * First interpret N as an array_id.  This does not depend on
+     * the first array element still being present in memory.
+     * If no array exists, interpret N as an ordinary job_id.
+     */
+    } else {
+        n = collect_array(req->job_id, jobs, 0, uid, all);
+
+        if (n == 0) {
+            struct job_data *job = job_find(req->job_id);
+
+            if (job == NULL) {
+                free(jobs);
+                return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, ESRCH);
+            }
+
+            if (!all && job->uid != uid) {
+                free(jobs);
+                return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
+            }
+
+            job_data_to_wire(job, &jobs[0]);
+            n = 1;
+        }
+    }
+
+    struct wire_job_info_array reply = {
+        .njobs = n,
+        .jobs = jobs
+    };
+
+    size_t siz = sizeof(struct wire_job_info) * n +
+                 sizeof(struct wire_job_info_array) +
+                 PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_JOB_INFO_ACK;
+    rep_hdr.status = MBD_OK;
+
+    if (enqueue_payload(chan_id, &rep_hdr, &reply,
+                        siz, xdr_wire_job_info_array) < 0) {
+        LL_ERR("enqueue_payload failed");
+        free(jobs);
+        return -1;
+    }
+
+    free(jobs);
+    return 0;
+}
+
+static int jobs_info_list(int chan_id,
+                          const struct protocol_header *hdr,
+                          const struct wire_job_query *req)
 {
     int n = 0;
     int all = 0;
     uid_t uid = 0;
-    struct wire_job_query req;
-
-    memset(&req, 0, sizeof(req));
-    if (!xdr_wire_job_query(xdrs, &req)) {
-        LL_ERRX("xdr_wire_job_query failed chan_id=%d", chan_id);
-        return -1;
-    }
-
-    if (req.job_id != -1) {
-
-        struct job_data *job = job_find(req.job_id);
-        if (job == NULL)
-            return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, ESRCH);
-
-        struct wire_job_info *jobs = calloc(1, sizeof(struct wire_job_info));
-        if (jobs == NULL) {
-            LL_ERR("calloc failed");
-            return -1;
-        }
-        if (job->uid != hdr->uid && !is_manager(hdr->uid)) {
-            LL_INFO("uid=%u denied job=%ld", hdr->uid, req.job_id);
-            free(jobs);
-            return enqueue_header(chan_id, BATCH_JOB_INFO_ACK, EPERM);
-        }
-        job_data_to_wire(job, &jobs[0]);
-        n = 1;
-        struct wire_job_info_array reply = { .njobs = n, .jobs = jobs };
-        size_t siz = sizeof(struct wire_job_info) * n +
-                     sizeof(struct wire_job_info_array) +
-                     PACKET_HEADER_SIZE + LL_BUFSIZ_64;
-        struct protocol_header rep_hdr;
-        init_protocol_header(&rep_hdr);
-        rep_hdr.operation = BATCH_JOB_INFO_ACK;
-        rep_hdr.status    = MBD_OK;
-        if (enqueue_payload(chan_id, &rep_hdr, &reply,
-                            siz, xdr_wire_job_info_array) < 0) {
-            LL_ERR("enqueue_payload failed");
-            free(jobs);
-            return -1;
-        }
-        free(jobs);
-        return 0;
-    }
 
     if (is_manager(hdr->uid))
         all = 1;
@@ -149,41 +256,79 @@ int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
                  ll_list_count(&finish_jobs_list);
 
     struct wire_job_info *jobs = NULL;
+
     if (ntotal > 0) {
         jobs = calloc(ntotal, sizeof(struct wire_job_info));
         if (jobs == NULL) {
             LL_ERR("calloc failed");
             return -1;
         }
-        if (req.flags == 0) {
+
+        if (req->flags == 0) {
             n = collect_list(&pend_jobs_list, jobs, n, uid, all);
-            n = collect_list(&run_jobs_list,  jobs, n, uid, all);
+            n = collect_list(&run_jobs_list, jobs, n, uid, all);
         } else {
-            if (req.flags & LLB_JOB_PEND)
-                n = collect_list(&pend_jobs_list,   jobs, n, uid, all);
-            if (req.flags & LLB_JOB_RUN)
-                n = collect_list(&run_jobs_list,    jobs, n, uid, all);
-            if (req.flags & LLB_JOB_DONE)
+            if (req->flags & LLB_JOB_PEND)
+                n = collect_list(&pend_jobs_list, jobs, n, uid, all);
+
+            if (req->flags & LLB_JOB_RUN)
+                n = collect_list(&run_jobs_list, jobs, n, uid, all);
+
+            if (req->flags & LLB_JOB_DONE)
                 n = collect_list(&finish_jobs_list, jobs, n, uid, all);
         }
     }
 
-    struct wire_job_info_array reply = { .njobs = n, .jobs = jobs };
+    struct wire_job_info_array reply = {
+        .njobs = n,
+        .jobs = jobs
+    };
+
     size_t siz = sizeof(struct wire_job_info) * n +
                  sizeof(struct wire_job_info_array) +
                  PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
     rep_hdr.operation = BATCH_JOB_INFO_ACK;
-    rep_hdr.status    = MBD_OK;
+    rep_hdr.status = MBD_OK;
+
     if (enqueue_payload(chan_id, &rep_hdr, &reply,
                         siz, xdr_wire_job_info_array) < 0) {
         LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
     }
+
     free(jobs);
     return 0;
+}
+
+
+int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+{
+    int rc;
+    struct wire_job_query req;
+
+    memset(&req, 0, sizeof(req));
+
+    if (!xdr_wire_job_query(xdrs, &req)) {
+        LL_ERRX("xdr_wire_job_query failed chan_id=%d", chan_id);
+        return -1;
+    }
+
+    if (req.job_id != -1 || req.array_id != 0) {
+        rc = jobs_info_ref(chan_id, hdr, &req);
+        if (rc < 0)
+            LL_ERRX("jobs_info_ref failed chan_id=%d", chan_id);
+        return rc;
+    }
+
+    rc = jobs_info_list(chan_id, hdr, &req);
+    if (rc < 0)
+        LL_ERRX("jobs_info_list failed chan_id=%d", chan_id);
+
+    return rc;
 }
 
 /* -----------------------------------------------------------
