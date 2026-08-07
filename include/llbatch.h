@@ -230,6 +230,11 @@ struct job_event {
  */
 struct job_hist_info {
     int64_t        job_id;
+    int64_t        array_id;
+    int32_t        array_index;
+    int32_t        array_start;
+    int32_t        array_end;
+    int32_t        array_stride;
     uid_t          uid;
     int32_t        state;          /* current state  */
     int32_t        priority;
@@ -297,7 +302,7 @@ int32_t llb_queue_admin(const char *, int32_t);
 int32_t llb_host_admin(const char *, int32_t);
 
 /* bhist */
-struct job_hist_info *llb_hist_info(int64_t, uid_t, int32_t *);
+struct job_hist_info *llb_hist_info(int64_t, int64_t, int32_t, uid_t, int32_t *);
 void llb_free_hist_info(struct job_hist_info *, int32_t);
 int llb_caller_is_admin(void);
 

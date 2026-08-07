@@ -25,6 +25,14 @@ static const char *fmt_time(time_t t)
     return buf;
 }
 
+static void fmt_jobid(const struct job_hist_info *j, char *buf, size_t len)
+{
+    if (j->array_id != 0)
+        snprintf(buf, len, "%ld[%d]", j->array_id, j->array_index);
+    else
+        snprintf(buf, len, "%ld", j->job_id);
+}
+
 static const char *str_or_dash(const char *s)
 {
     if (s == NULL || s[0] == '\0')
@@ -172,7 +180,10 @@ static void compute_widths(struct job_hist_info *jobs, int n,
         if (start != NULL)
             rh = start->run_hosts;
 
-        w->jobid     = imax(w->jobid,     ndigits(j->job_id));
+        char jobid[64];
+        fmt_jobid(j, jobid, sizeof(jobid));
+
+        w->jobid     = imax(w->jobid, (int)strlen(jobid));
         w->user      = imax(w->user,      (int)strlen(str_or_dash(j->username)));
         w->stat      = imax(w->stat,
                             (int)strlen(llb_job_state_str(j->state)));
@@ -209,9 +220,12 @@ static void print_job_compact(const struct job_hist_info *j,
         start->run_hosts[0] != '\0')
         rh = start->run_hosts;
 
+    char jobid[64];
+    fmt_jobid(j, jobid, sizeof(jobid));
+
     if (rh == NULL) {
-        printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
-               w->jobid,     j->job_id,
+        printf("%-*s  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+               w->jobid, jobid,
                w->user,      str_or_dash(j->username),
                w->stat,      llb_job_state_str(j->state),
                w->queue,     str_or_dash(j->queue),
@@ -226,8 +240,8 @@ static void print_job_compact(const struct job_hist_info *j,
     tok = strtok(buf, " ");
     while (tok != NULL) {
         if (first) {
-            printf("%-*ld  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
-                   w->jobid,     j->job_id,
+            printf("%-*s  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n",
+                   w->jobid,     jobid,
                    w->user,      str_or_dash(j->username),
                    w->stat,      llb_job_state_str(j->state),
                    w->queue,     str_or_dash(j->queue),
@@ -259,11 +273,22 @@ static void print_job_full(const struct job_hist_info *j)
     const struct job_event *start = find_event(j, EVENT_JOB_START);
     int i;
 
-    printf("Job <%ld>  User <%s>  Queue <%s>  Status <%s>\n",
-           j->job_id,
+    char jobref[64];
+    fmt_jobid(j, jobref, sizeof(jobref));
+
+    printf("Job <%s>  User <%s>  Queue <%s>  Status <%s>\n",
+           jobref,
            str_or_dash(j->username),
            str_or_dash(j->queue),
            llb_job_state_str(j->state));
+
+    if (j->array_id != 0) {
+        printf("  Job ID:       %ld\n", j->job_id);
+        printf("  Array range:  %d-%d:%d\n",
+               j->array_start,
+               j->array_end,
+               j->array_stride);
+    }
 
     printf("  Submitted:    %s\n", fmt_time(j->submit_time));
     if (j->submit_host != NULL && j->submit_host[0] != '\0')
@@ -357,6 +382,47 @@ static void print_job_full(const struct job_hist_info *j)
         printf("  Never dispatched.\n");
 }
 
+static int parse_job_ref(const char *s, int64_t *job_id,
+                         int64_t *array_id, int32_t *array_index)
+{
+    char *end;
+    long long id;
+
+    *job_id = 0;
+    *array_id = 0;
+    *array_index = 0;
+
+    errno = 0;
+    id = strtoll(s, &end, 10);
+    if (errno != 0 || end == s || id <= 0)
+        return -1;
+
+    if (*end == '\0') {
+        *job_id = (int64_t)id;
+        return 0;
+    }
+
+    if (*end != '[')
+        return -1;
+
+    char *p = end + 1;
+    char *idx_end;
+
+    errno = 0;
+    long idx = strtol(p, &idx_end, 10);
+    if (errno != 0 || idx_end == p ||
+        idx < INT32_MIN || idx > INT32_MAX)
+        return -1;
+
+    if (*idx_end != ']' || idx_end[1] != '\0')
+        return -1;
+
+    *array_id = (int64_t)id;
+    *array_index = (int32_t)idx;
+
+    return 0;
+}
+
 /* -----------------------------------------------------------------------
  * Main
  * ----------------------------------------------------------------------- */
@@ -434,14 +500,17 @@ int main(int argc, char **argv)
         }
     }
 
+    int64_t array_id = 0;
+    int32_t array_index = 0;
     if (optind < argc) {
-        char *end;
-        job_id = strtoll(argv[optind], &end, 10);
-        if (end == argv[optind] || *end != '\0' || job_id <= 0) {
-            fprintf(stderr, "bhist: invalid job_id '%s'\n", argv[optind]);
+        if (parse_job_ref(argv[optind],
+                          &job_id,
+                          &array_id,
+                          &array_index) < 0) {
+            fprintf(stderr, "bhist: invalid job reference '%s'\n", argv[optind]);
             return 1;
         }
-        optind++;
+        ++optind;
     }
 
     if (optind < argc) {
@@ -449,7 +518,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    struct job_hist_info *jobs = llb_hist_info(job_id, uid, &njobs);
+    struct job_hist_info *jobs = llb_hist_info(job_id, array_id,
+                                               array_index, uid, &njobs);
     if (jobs == NULL) {
         if (errno != 0) {
             fprintf(stderr, "bhist: %s\n", strerror(errno));
@@ -461,13 +531,13 @@ int main(int argc, char **argv)
 
     struct col_widths w;
 
-    if (job_id <= 0 && !full) {
+    if (job_id <= 0 && array_id == 0 && !full) {
         compute_widths(jobs, njobs, &w);
         print_compact_header(&w);
     }
 
     for (int i = 0; i < njobs; i++) {
-        if (job_id > 0 || full) {
+        if (job_id > 0 || array_id != 0 || full) {
             print_job_full(&jobs[i]);
             if (i + 1 < njobs)
                 printf("\n");

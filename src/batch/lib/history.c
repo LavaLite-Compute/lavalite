@@ -21,12 +21,14 @@
 #define HIST_JOB_BUCKETS 10
 
 struct job_hist {
-    int64_t              job_id;
-    uid_t                uid;
-    int                  all;
+    int64_t job_id;
+    int64_t array_id;
+    int32_t array_index;
+    uid_t uid;
+    int all;
     struct job_hist_info *jobs;
-    int32_t              num_jobs;
-    int32_t              max_jobs;
+    int32_t num_jobs;
+    int32_t max_jobs;
 };
 
 static char *hist_strdup(const char *s)
@@ -301,6 +303,11 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
     memset(j, 0, sizeof(*j));
 
     j->job_id      = e->job_id;
+    j->array_id     = e->array_id;
+    j->array_index  = e->array_index;
+    j->array_start  = e->array_start;
+    j->array_end    = e->array_end;
+    j->array_stride = e->array_stride;
     j->uid         = e->uid;
     j->state       = e->state;
     j->priority    = e->priority;
@@ -379,13 +386,37 @@ int llb_caller_is_admin(void)
  * caller -- otherwise any user could read any other user's job detail
  * just by guessing/knowing a job_id.
  */
-static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
+
+static int hist_match_new(struct job_hist *jh,
+                          const struct log_job_new *e)
 {
-    if (jh->job_id > 0) {
-        if (e->job_id != jh->job_id)
+    /*
+     * Explicit array element: N[m].
+     */
+    if (jh->array_id != 0) {
+        if (e->array_id != jh->array_id
+            || e->array_index != jh->array_index)
             return 0;
+
         if (!jh->all && e->uid != jh->uid)
             return 0;
+
+        return 1;
+    }
+
+    /*
+     * Numeric reference N:
+     * ordinary job -> job_id == N
+     * job array    -> array_id == N
+     */
+    if (jh->job_id > 0) {
+        if (e->job_id != jh->job_id
+            && e->array_id != jh->job_id)
+            return 0;
+
+        if (!jh->all && e->uid != jh->uid)
+            return 0;
+
         return 1;
     }
 
@@ -884,7 +915,11 @@ static int hist_job_cmp(const void *a, const void *b)
  * Public API
  * ----------------------------------------------------------------------- */
 
-struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid, int32_t *num)
+struct job_hist_info *llb_hist_info(int64_t job_id,
+                                    int64_t array_id,
+                                    int32_t array_index,
+                                    uid_t uid,
+                                    int32_t *num)
 {
     struct job_hist jh;
 
@@ -895,6 +930,8 @@ struct job_hist_info *llb_hist_info(int64_t job_id, uid_t uid, int32_t *num)
 
     memset(&jh, 0, sizeof(jh));
     jh.job_id = job_id;
+    jh.array_id = array_id;
+    jh.array_index = array_index;
     jh.uid    = uid;
 
     errno = 0;
