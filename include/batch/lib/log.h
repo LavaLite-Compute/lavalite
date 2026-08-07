@@ -63,6 +63,11 @@ struct event_rec {
  */
 struct log_job_new {
     int64_t job_id;
+    int64_t array_id;
+    int32_t array_index;
+    int32_t array_start;
+    int32_t array_end;
+    int32_t array_stride;
     uid_t uid;
     gid_t gid;
     int32_t state;

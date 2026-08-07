@@ -169,6 +169,11 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     memset(&e, 0, sizeof(e));
 
     e.job_id = job->job_id;
+    e.array_id = job->array_id;
+    e.array_index = job->array_index;
+    e.array_start = job->array_start;
+    e.array_end = job->array_end;
+    e.array_stride = job->array_stride;
     e.uid = (uid_t)job->uid;
     e.gid = (gid_t)job->gid;
     e.state = job->state;
@@ -354,6 +359,11 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     }
 
     job->job_id = e->job_id;
+    job->array_id = e->array_id;
+    job->array_index = e->array_index;
+    job->array_start = e->array_start;
+    job->array_end = e->array_end;
+    job->array_stride = e->array_stride;
     job->uid = e->uid;
     job->gid = e->gid;
     job->state = e->state;
@@ -935,6 +945,11 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     memset(&e, 0, sizeof(e));
 
     e.job_id = job->job_id;
+    e.array_id = job->array_id;
+    e.array_index = job->array_index;
+    e.array_start = job->array_start;
+    e.array_end = job->array_end;
+    e.array_stride = job->array_stride;
     e.uid = job->uid;
     e.gid = job->gid;
     e.state = job->state;

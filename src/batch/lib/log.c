@@ -120,8 +120,15 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
 {
     if (write_hdr(fp, EVENT_JOB_NEW, j->submit_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %u %u %d %d %ld %ld %d %d %d %lu %lu %u",
+
+    if (fprintf(fp,
+                " %ld %ld %d %d %d %d %u %u %d %d %ld %ld %d %d %d %lu %lu %u",
                 j->job_id,
+                j->array_id,
+                j->array_index,
+                j->array_start,
+                j->array_end,
+                j->array_stride,
                 j->uid,
                 j->gid,
                 j->state,
@@ -133,8 +140,9 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
                 j->num_gpus,
                 j->mem_mb,
                 j->storage_mb,
-                j->flags) < 0)
+                j->flags) < 0) {
         return -1;
+    }
     if (write_qstr(fp, j->username) < 0)
         return -1;
     if (write_qstr(fp, j->job_name) < 0)
@@ -159,8 +167,14 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p, " %ld %u %u %d %d %ld %ld %d %d %d %lu %lu %u%n",
+    int n = sscanf(p,
+                   " %ld %ld %d %d %d %d %u %u %d %d %ld %ld %d %d %d %lu %lu %u%n",
                    &j->job_id,
+                   &j->array_id,
+                   &j->array_index,
+                   &j->array_start,
+                   &j->array_end,
+                   &j->array_stride,
                    &j->uid,
                    &j->gid,
                    &j->state,
@@ -172,8 +186,9 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
                    &j->num_gpus,
                    &j->mem_mb,
                    &j->storage_mb,
-                   &j->flags, &cc);
-    if (n != 13) {
+                   &j->flags,
+                   &cc);
+    if (n != 18) {
         errno = EINVAL;
         return -1;
     }
