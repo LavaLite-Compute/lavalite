@@ -74,7 +74,7 @@ static int collect_list(struct ll_list *list, struct wire_job_info *dst,
  * Returns number of entries; *out is NULL if hash is empty.
  * Pointers into hash keys — caller must not free the strings.
  */
-static int hash_keys_to_array(struct ll_hash *h, char ***out)
+static int hash_keys_dup(struct ll_hash *h, char ***out)
 {
     int n = ll_hash_count(h);
     *out = NULL;
@@ -365,12 +365,12 @@ int queues_info(XDR *xdrs, int chan_id)
         queues[i].num_cpus_used = q->num_cpus_used;
         queues[i].num_hosts_used = q->num_hosts_used;
 
-        queues[i].num_hosts = hash_keys_to_array(&q->host_hash,
-                                                 &queues[i].hosts);
-        queues[i].num_users = hash_keys_to_array(&q->user_hash,
-                                                 &queues[i].users);
+        queues[i].num_hosts = hash_keys_dup(&q->host_hash,
+                                            &queues[i].hosts);
+        queues[i].num_users = hash_keys_dup(&q->user_hash,
+                                            &queues[i].users);
         if (queues[i].num_hosts < 0 || queues[i].num_users < 0) {
-            LL_ERR("hash_keys_to_array failed num_hosts=%d num_users=%d",
+            LL_ERR("hash_keys_dup failed num_hosts=%d num_users=%d",
                    queues[i].num_hosts, queues[i].num_users);
             goto fail;
         }
