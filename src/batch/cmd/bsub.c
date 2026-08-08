@@ -51,7 +51,7 @@ static void usage(FILE *f)
         "\n"
         "Scheduling:\n"
         "  --hold             Submit in PSUSP state\n"
-        "  --array  start-end[:stride]  Submit an array job\n"
+        "  --array  start-end[:stride]  Submit an array job. start must be >= 1\n"
         "  --begin  [day:]h:m Do not dispatch before this time\n"
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
         "\n"

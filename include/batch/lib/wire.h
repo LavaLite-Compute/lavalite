@@ -34,9 +34,14 @@ struct wire_sbd_register {
  * ----------------------------------------------------------------------- */
 
 struct wire_job_sig {
-    int64_t job_id;
+    int64_t job_id;      /* job id, or array_id when array_index != 0 */
+    int32_t array_index; /* 0 = job_id is not an array element reference */
     int32_t sig;
-    uint32_t uid;
+    uint32_t uid;         /* NOT on the wire — xdr_wire_job_sig skips it on
+                            * purpose. mbd fills this in from hdr->uid
+                            * (authenticated) right after decode, for
+                            * event_job_signal and logging. Encoding it
+                            * would mean trusting a client-supplied uid. */
 };
 
 /* -----------------------------------------------------------------------

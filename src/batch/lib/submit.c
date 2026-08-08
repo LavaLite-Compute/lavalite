@@ -41,7 +41,7 @@ int32_t llb_parse_array(const char *spec, int32_t *start,
         if (spec[n] != '\0')
             goto bad;
 
-        if (*start < 0)
+        if (*start < 1)
             goto bad;
 
         if (*start > *end)
@@ -61,7 +61,7 @@ int32_t llb_parse_array(const char *spec, int32_t *start,
     if (spec[n] != '\0')
         goto bad;
 
-    if (*start < 0)
+    if (*start < 1)
         goto bad;
 
     if (*start > *end)

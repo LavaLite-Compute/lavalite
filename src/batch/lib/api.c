@@ -241,7 +241,7 @@ void llb_free_group_info(struct host_group *g, int32_t n)
     free(g);
 }
 
-int32_t llb_signal_job(int64_t jobid, int32_t sig)
+int32_t llb_signal_job(int64_t jobid, int32_t array_index, int32_t sig)
 {
     size_t bufsz = LL_BUFSIZ_1K;
     char *buf = malloc(bufsz);
@@ -250,6 +250,7 @@ int32_t llb_signal_job(int64_t jobid, int32_t sig)
 
     struct wire_job_sig req;
     req.job_id = jobid;
+    req.array_index = array_index;
     req.sig = sig;
 
     struct protocol_header hdr;

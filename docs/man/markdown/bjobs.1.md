@@ -62,6 +62,21 @@ Jobs are displayed in a table with the following columns:
 - **HELD** — held job, not eligible for dispatch
 - **UNKNOWN** — job state cannot currently be determined
 
+## Array Jobs
+
+Each element of an array job submitted with **bsub --array** is a
+separate job, but **JOBID** displays it as *array_id*[*index*] rather
+than the element's own job ID:
+
+    JOBID    USER   STAT     QUEUE    PRI  RUN_HOSTS  JOB_NAME  SUBMIT_TIME
+    122[5]   david  PEND     sys-1.1  70   -          -         Aug 08 12:46
+    122[6]   david  PEND     sys-1.1  70   -          -         Aug 08 12:46
+
+*array_id* is the array's first element's job ID; *index* is the
+element's position within the submitted range. Use this
+*array_id*[*index*] form with **bkill**(1) to signal a single
+element, or *array_id* alone to signal every element of the array.
+
 # EXAMPLES
 
 Show your active jobs:

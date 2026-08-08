@@ -321,6 +321,7 @@ void job_move_list(struct job_data *, struct ll_list *, struct ll_list *,
                    enum job_list_id);
 
 struct job_data *job_find(int64_t);
+struct job_data *job_find_array(int64_t, int32_t);
 void job_set_list(struct job_data *, struct ll_list *, enum job_list_id);
 
 void machines_hash_populate(struct ll_hash *, const char *);

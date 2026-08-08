@@ -92,31 +92,6 @@ static int hash_keys_dup(struct ll_hash *h, char ***out)
     return n;
 }
 
-static struct job_data *job_find_array(int64_t array_id, int32_t array_index)
-{
-    struct ll_list *lists[] = {
-        &pend_jobs_list,
-        &run_jobs_list,
-        &finish_jobs_list
-    };
-
-    /* Loop for now, hopefully it becomes a performance problem
-     */
-    for (int i = 0; i < 3; i++) {
-        for (struct ll_list_entry *e = lists[i]->head;
-             e != NULL; e = e->next) {
-
-            struct job_data *job = (struct job_data *)e;
-
-            if (job->array_id == array_id
-                && job->array_index == array_index)
-                return job;
-        }
-    }
-
-    return NULL;
-}
-
 static int collect_array(int64_t array_id, struct wire_job_info *dst,
                          int count, uid_t uid, int all)
 {

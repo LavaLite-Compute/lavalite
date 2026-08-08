@@ -83,6 +83,8 @@ bool_t xdr_wire_job_sig(XDR *xdrs, struct wire_job_sig *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
+    if (!xdr_int32_t(xdrs, &p->array_index))
+        return false;
     if (!xdr_int32_t(xdrs, &p->sig))
         return false;
     return true;

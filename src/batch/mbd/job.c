@@ -757,6 +757,31 @@ struct job_data *job_find(int64_t job_id)
     return ll_hash_search(&job_id_hash, buf);
 }
 
+struct job_data *job_find_array(int64_t array_id, int32_t array_index)
+{
+    struct ll_list *lists[] = {
+        &pend_jobs_list,
+        &run_jobs_list,
+        &finish_jobs_list
+    };
+
+    /* Loop for now, hopefully it becomes a performance problem
+     */
+    for (int i = 0; i < 3; i++) {
+        for (struct ll_list_entry *e = lists[i]->head;
+             e != NULL; e = e->next) {
+
+            struct job_data *job = (struct job_data *)e;
+
+            if (job->array_id == array_id
+                && job->array_index == array_index)
+                return job;
+        }
+    }
+
+    return NULL;
+}
+
 int job_init(void)
 {
     ll_hash_init(&job_id_hash, 1021);
@@ -1372,11 +1397,25 @@ static int signal_running_job(struct job_data *job,
     return MBD_OK;
 }
 
-static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
+/*
+ * Walk pending + running jobs and best-effort signal every one that
+ * matches. array_id == 0 means no array filter — this is "bkill 0",
+ * signal all of the caller's jobs. array_id != 0 scopes the exact same
+ * walk to a single array — "bkill" on an array_id behaves identically
+ * to "bkill 0", just restricted to that array's elements. Finished
+ * jobs are never considered, same as bkill 0 today.
+ *
+ * Returns the number of jobs the filter matched, so the caller can
+ * tell "this was a real array with elements to signal" apart from
+ * "no such array" without a separate lookup pass.
+ */
+static int signal_jobs(uint32_t uid, int64_t array_id,
+                       struct wire_job_sig *req)
 {
     struct ll_list_entry *e;
     struct ll_list_entry *next;
     struct job_data *job;
+    int n = 0;
 
     for (e = pend_jobs_list.head; e != NULL; e = next) {
         next = e->next;
@@ -1384,9 +1423,17 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
 
         assert(job->state == JOB_PENDING || job->state == JOB_HELD);
 
+        // array_id == 0: no scoping, every job passes (bkill 0).
+        // array_id != 0: skip anything NOT in this array — ordinary
+        // jobs and other arrays' elements. This array's own elements
+        // fall through and get signaled below.
+        if (array_id != 0 && job->array_id != array_id)
+            continue;
+
         if (job->uid != uid && !is_manager(uid))
             continue;
 
+        n++;
         req->job_id = job->job_id;
         // Best effort, even if one failed keep going
         signal_pending_job(job, req);
@@ -1409,15 +1456,20 @@ static int signal_all_jobs(uint32_t uid, struct wire_job_sig *req)
 
         assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
 
+        // Same array-scoping rule as the pend loop above.
+        if (array_id != 0 && job->array_id != array_id)
+            continue;
+
         if (job->uid != uid && !is_manager(uid))
             continue;
 
+        n++;
         req->job_id = job->job_id;
         // Best effort, even if one fails keep going
         signal_running_job(job, req);
     }
 
-    return MBD_OK;
+    return n;
 }
 
 int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
@@ -1428,19 +1480,54 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         LL_ERR("job_signal: xdr decode failed chan_id=%d", chan_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPROTO);
     }
+    // save the uid coming from the header rather then the protocol
+    req.uid = hdr->uid;
 
-    LL_DEBUG("job_id=%ld by uid=%u sig=%d chan_id=%d", (long) req.job_id,
-             req.uid, req.sig, chan_id);
+    LL_DEBUG("job_id=%ld array_index=%d by uid=%u sig=%d chan_id=%d",
+             (long) req.job_id, req.array_index, req.uid, req.sig, chan_id);
 
     if (req.job_id == 0) {
-        int cc = signal_all_jobs(hdr->uid, &req);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
+        signal_jobs(hdr->uid, 0, &req);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
-    struct job_data *job = job_find(req.job_id);
-    if (job == NULL) {
-        LL_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
+    struct job_data *job;
+
+    if (req.array_index != 0) {
+        /*
+         * N[m]: one specific array element. Behaves exactly like
+         * bkill on an ordinary job_id from here on — falls into the
+         * same state machine below.
+         */
+        job = job_find_array(req.job_id, req.array_index);
+        if (job == NULL) {
+            LL_INFO("job_signal: array_id=%ld[%d] not found",
+                    (long) req.job_id, req.array_index);
+            return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
+        }
+        /*
+         * job_find_array matches by (array_id, array_index), not by
+         * job_id — req.job_id still holds the array_id the client
+         * typed, not this element's real job_id. Everything below,
+         * including the wire_job_sig payload forwarded to sbd, must
+         * use the element's actual job_id from here on.
+         */
+        req.job_id = job->job_id;
+    } else {
+        /*
+         * Bare N: try it as an array_id first — same rules as bkill 0,
+         * just scoped to this array. If nothing matched (not an array,
+         * or an array with nothing left of the caller's to signal),
+         * fall back to interpreting N as an ordinary job_id below.
+         */
+        if (signal_jobs(hdr->uid, req.job_id, &req) > 0)
+            return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+
+        job = job_find(req.job_id);
+        if (job == NULL) {
+            LL_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
+            return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
+        }
     }
 
     if (job->uid != (uid_t) hdr->uid && !is_manager(hdr->uid)) {

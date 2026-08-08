@@ -1,8 +1,9 @@
-# LavaLite Administrator Guide — Queues and Hosts
+# LavaLite Administrator Guide — Queues, Hosts, and Jobs
 
 ## Overview
 
-Queues and hosts can be administered while the scheduler is running.
+Queues, hosts, and jobs can be administered while the scheduler is
+running.
 
 Typical administrative tasks include:
 
@@ -13,6 +14,7 @@ Typical administrative tasks include:
 - Inspecting host groups
 - Inspecting token pools
 - Monitoring resource availability
+- Inspecting and signaling jobs, including array jobs
 
 These operations do not require modifying configuration files.
 
@@ -190,6 +192,125 @@ bkill --signal kill <jobid>
 
 Verify that the tokens are returned to the pool.
 
+## Job Administration
+
+### Display Jobs
+
+Display jobs and their state:
+
+```sh
+bjobs --all
+```
+
+Typical information includes:
+
+- Job ID
+- State
+- Queue
+- Execution host(s)
+- Submit time
+
+### Signal a Job
+
+Terminate a job:
+
+```sh
+bkill --signal kill <jobid>
+```
+
+Suspend and resume a running job:
+
+```sh
+bkill --signal stop <jobid>
+bkill --signal cont <jobid>
+```
+
+`bkill 0` signals every job the calling user owns. A manager may
+signal any user's jobs.
+
+### Move a Pending Job
+
+Move a pending job to a different queue:
+
+```sh
+bmove <jobid> <queue_name>
+```
+
+### Change Job Priority
+
+```sh
+bpriority <jobid> <priority>
+```
+
+A non-manager cannot raise a job's priority above the queue's
+priority.
+
+## Job Arrays
+
+A job array submits many jobs from a single specification. Each
+element runs as an ordinary job — same queue policy, same dispatch,
+same resource accounting — there is no separate array entity to
+schedule.
+
+### Submit an Array Job
+
+```sh
+bsub --array START-END[:STRIDE] command
+```
+
+Example, ten elements:
+
+```sh
+bsub --array 1-10 myprogram
+```
+
+Example, every other element from 1 to 20:
+
+```sh
+bsub --array 1-20:2 myprogram
+```
+
+`START` must be 1 or greater; arrays are numbered 1..N. `STRIDE`
+defaults to 1.
+
+Each array element is assigned its own job ID at submission. The
+first element's job ID is also the array's ID, used to refer to the
+array as a whole.
+
+### Display Array Jobs
+
+```sh
+bjobs --all
+```
+
+Array elements are listed like any other job. `bhist` reports each
+element individually as well.
+
+### Signal an Array Job
+
+Signal every element of an array:
+
+```sh
+bkill <array_id>
+```
+
+This is equivalent to `bkill 0` restricted to that array's elements.
+
+Signal a single element:
+
+```sh
+bkill <array_id>[<index>]
+```
+
+Example, terminate element 3 of array 1042:
+
+```sh
+bkill --signal kill 1042[3]
+```
+
+An individual element's own job ID also works directly with `bkill`,
+`bjobs`, and `bhist`, the same as for an ordinary job.
+
 ## Administrative Maintenance
 
 A common maintenance workflow is:
@@ -219,6 +340,7 @@ bqueues
 bhosts
 bgroups
 btokens
+bjobs --all
 ```
 
 Verify:
@@ -227,3 +349,4 @@ Verify:
 - Hosts are visible.
 - Host groups are correct.
 - Token pools are correct.
+- Jobs are visible.

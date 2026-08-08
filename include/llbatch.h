@@ -183,7 +183,8 @@ struct queue_info {
 };
 
 struct job_signal {
-    int64_t job_id;
+    int64_t job_id;      /* job id, or array_id when array_index != 0 */
+    int32_t array_index; /* 0 = job_id is not an array element reference */
     int signal;
 };
 
@@ -291,7 +292,7 @@ struct queue_info *llb_queue_info(int32_t *);
 void llb_free_queue_info(struct queue_info *, int32_t);
 
 // bkill
-int32_t llb_signal_job(int64_t, int32_t);
+int32_t llb_signal_job(int64_t, int32_t, int32_t); /* job_id, array_index, sig */
 
 /* btokens */
 struct token_pool_info *llb_token_info(int32_t *);

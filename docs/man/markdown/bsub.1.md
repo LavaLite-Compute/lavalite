@@ -108,6 +108,16 @@ desktop session or display server are not propagated.
 :   Hold the job in HELD state after submission. The job will not be
     scheduled until released with **bkill --signal CONT**.
 
+**--array** *start*-*end*[:*stride*]
+:   Submit an array job: *end* - *start* + 1 (or fewer, with *stride*)
+    independent jobs from a single command. *start* must be 1 or
+    greater; array elements are numbered from 1. *stride* defaults
+    to 1. Each element is dispatched, scheduled, and accounted as an
+    ordinary job. The array as a whole is identified by the first
+    element's job ID; see **bjobs**(1) for how elements are
+    displayed and **bkill**(1) for how to signal an array or a
+    single element.
+
 **--begin** [*day*:]*hour*:*minute*
 :   Do not dispatch the job before the specified time.
     Fields are, from right: minute, hour, day.
@@ -148,6 +158,10 @@ Hold a job on submit, release later:
 
     bsub --hold ./setup.sh
     bkill --signal CONT 43
+
+Submit an array of 10 jobs:
+
+    bsub --array 1-10 ./process_chunk.sh
 
 Request tokens from a license pool:
 

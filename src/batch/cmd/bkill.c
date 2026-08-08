@@ -66,10 +66,49 @@ static int parse_signal(const char *s, int *out)
     return -1;
 }
 
+/*
+ * Parse a bkill target: an ordinary job id "N" (array_index left at 0),
+ * or a single array element "N[M]". The mbd side decides whether a
+ * bare N is an ordinary job or an array_id — bkill just splits the
+ * syntax, it doesn't need to know which.
+ */
+static int parse_jobid(const char *s, int64_t *job_id, int32_t *array_index)
+{
+    char *end;
+
+    errno = 0;
+    int64_t id = strtoll(s, &end, 10);
+    if (end == s || errno != 0)
+        return -1;
+
+    if (*end == '\0') {
+        *job_id = id;
+        *array_index = 0;
+        return 0;
+    }
+
+    if (*end != '[')
+        return -1;
+
+    char *idx_end;
+    errno = 0;
+    long idx = strtol(end + 1, &idx_end, 10);
+    if (idx_end == end + 1 || errno != 0)
+        return -1;
+    if (*idx_end != ']' || idx_end[1] != '\0')
+        return -1;
+    if (idx <= 0)
+        return -1;
+
+    *job_id = id;
+    *array_index = (int32_t) idx;
+    return 0;
+}
+
 static void usage(void)
 {
-    fprintf(stderr, "bkill: -s SIGNAL jobid [jobid ...]\n");
-    fprintf(stderr, " --signal SIGNAL jobid [jobid ...]\n");
+    fprintf(stderr, "bkill: -s SIGNAL jobid|jobid[idx] [...]\n");
+    fprintf(stderr, " --signal SIGNAL jobid|jobid[idx] [...]\n");
     fprintf(stderr, "SIGNAL: kill | term | stop | tstp | "
             "cont | int | hup | <number>\n");
 }
@@ -115,10 +154,10 @@ int main(int argc, char **argv)
 
     // Validate all jobids first (tight parsing; no partial execution).
     for (int i = optind; i < argc; i++) {
-        char *end;
+        int64_t jobid;
+        int32_t array_index;
 
-        strtoll(argv[i], &end, 10);
-        if (end == argv[i] || *end != 0) {
+        if (parse_jobid(argv[i], &jobid, &array_index) < 0) {
             fprintf(stderr, "bkill: invalid jobid '%s'\n", argv[i]);
             return -1;
         }
@@ -126,22 +165,25 @@ int main(int argc, char **argv)
 
     int signaled = 0;
     for (; optind < argc; optind++) {
-        char *end;
+        int64_t jobid;
+        int32_t array_index;
 
-        int64_t jobid = strtoll(argv[optind], &end, 10);
-        if (end == argv[optind] || *end != 0) {
+        if (parse_jobid(argv[optind], &jobid, &array_index) < 0) {
             fprintf(stderr, "bkill: invalid jobid '%s'\n", argv[optind]);
             return -1;
         }
 
-        if (llb_signal_job(jobid, sig) < 0) {
-            fprintf(stderr, "bkill: failed to signal job <%ld>: %m\n",
-                    (long) jobid);
+        if (llb_signal_job(jobid, array_index, sig) < 0) {
+            fprintf(stderr, "bkill: failed to signal job <%s>: %m\n",
+                    argv[optind]);
             continue;
         }
 
         if (jobid == 0)
             printf("All your jobs are being signaled\n");
+        else if (array_index != 0)
+            printf("Job <%ld[%d]> is being signaled\n", (long) jobid,
+                   array_index);
         else
             printf("Job <%ld> is being signaled\n", (long) jobid);
 
