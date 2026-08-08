@@ -49,7 +49,9 @@ job lifecycle events.
 
 *job_id*
 :   Display detailed information and lifecycle events for the specified
-    job.
+    job. If *job_id* is an array's ID, displays every element of the
+    array instead of a single job; use *array_id*[*index*] to display
+    one element.
 
 # JOB STATES
 
@@ -99,6 +101,30 @@ lifecycle history, including events such as:
 - Completion
 - Exit
 
+## Array Jobs
+
+A bare array_id (see **bsub**(1) **--array**) displays every element
+of the array, one block per element:
+
+    Job <142[1]>  User <david>  Queue <sys-1.1>  Status <HELD>
+      Job ID:       142
+      Array range:  1-3:1
+      ...
+    Job <142[2]>  User <david>  Queue <sys-1.1>  Status <HELD>
+      Job ID:       143
+      Array range:  1-3:1
+      ...
+
+Each element's **Job <...>** header uses *array_id*[*index*] — the
+same form **bjobs**(1) displays — but the **Job ID:** field inside
+the block is that element's own job ID, which **bkill**(1) and
+**bhist** also accept directly, the same as an ordinary job.
+
+Use *array_id*[*index*] to display a single element instead of the
+whole array:
+
+    bhist 142[2]
+
 # EXAMPLES
 
 Display jobs for the current user:
@@ -112,6 +138,14 @@ Display jobs for a specific user:
 Display detailed information for job 42:
 
     bhist 42
+
+Display every element of an array:
+
+    bhist 142
+
+Display a single array element:
+
+    bhist 142[2]
 
 Display extended information:
 

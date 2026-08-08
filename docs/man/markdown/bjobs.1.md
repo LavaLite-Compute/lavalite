@@ -44,7 +44,10 @@ jobs for the current user.
 # ARGUMENTS
 
 *job_id*
-:   Show a specific job by ID. Mutually exclusive with filter options.
+:   Show a specific job by ID. If *job_id* is an array's ID, shows
+    every element of the array instead of a single job. Use
+    *array_id*[*index*] to show one element. Mutually exclusive with
+    filter options.
 
 # OUTPUT
 
@@ -73,9 +76,13 @@ than the element's own job ID:
     122[6]   david  PEND     sys-1.1  70   -          -         Aug 08 12:46
 
 *array_id* is the array's first element's job ID; *index* is the
-element's position within the submitted range. Use this
+element's position within the submitted range. Passing *array_id*
+alone shows every element of the array; use
+*array_id*[*index*] to narrow to one. Use this
 *array_id*[*index*] form with **bkill**(1) to signal a single
 element, or *array_id* alone to signal every element of the array.
+For full detail on one element, including its own job ID, see
+**bhist**(1) with *array_id*[*index*] or **-l**.
 
 # EXAMPLES
 
@@ -90,6 +97,10 @@ Show all pending jobs with reasons:
 Show a specific job:
 
     bjobs 42
+
+Show every element of an array:
+
+    bjobs 142
 
 Show all finished jobs:
 
