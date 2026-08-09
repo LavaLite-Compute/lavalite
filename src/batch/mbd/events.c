@@ -25,6 +25,7 @@ char jobs_dir[PATH_MAX];
 static ino_t events_ino = 0;
 static uint32_t events_seq = 0;
 static int job_finish_threshold = 1000;
+static int job_finish_retain = 500;
 
 static FILE *open_manifest(void)
 {
@@ -733,6 +734,34 @@ int events_init(void)
         LL_ERRX("failed parsing LL_MBD_JOB_FINISH_THRESHOLD=%s using "
                 "default=1000 jobs", ll_params[LL_MBD_JOB_FINISH_THRESHOLD].val);
     }
+    if (!ll_atoi(ll_params[LL_MBD_JOB_FINISH_RETAIN].val,
+                 &job_finish_retain)) {
+        LL_ERRX("failed parsing LL_MBD_JOB_FINISH_RETAIN=%s using "
+                "default=500 jobs", ll_params[LL_MBD_JOB_FINISH_RETAIN].val);
+    }
+
+    if (job_finish_threshold < 0) {
+        LL_ERRX("LL_MBD_JOB_FINISH_THRESHOLD=%d must be greater than or equal 0 "
+                "using default job_finish_threshold = 1000",
+                job_finish_threshold);
+        job_finish_threshold = 1000;
+    }
+    if (job_finish_retain < 0) {
+        LL_ERRX("LL_MBD_JOB_FINISH_RETAIN=%d must be greater than or equal 0 "
+                "using default job_finish_retain = 500",
+                job_finish_retain);
+        job_finish_retain = 500;
+    }
+
+    if (job_finish_threshold > 0
+        && job_finish_retain >= job_finish_threshold) {
+        LL_ERRX("LL_MBD_JOB_FINISH_RETAIN=%d must be less than "
+                "LL_MBD_JOB_FINISH_THRESHOLD=%d, using defaults "
+                "job_finish_threshold = 1000 job_finish_retain = 500",
+                job_finish_retain, job_finish_threshold);
+        job_finish_threshold = 1000;
+        job_finish_retain = 500;
+    }
 
     events_seq_scan();
 
@@ -1096,15 +1125,27 @@ static void events_rebuild(void)
             compact_write_job_fork(fp, job);
     }
 
-    for (e = finish_jobs_list.head; e; e = next) {
+
+    int nremove = ll_list_count(&finish_jobs_list) - job_finish_retain;
+    /*
+     * Finished jobs are ordered oldest to newest.  Remove the oldest jobs
+     * while retaining the configured number of most recently finished jobs.
+     * Note the jobs are in the finish_jobs_list only in mbd memory, they are
+     * not persisted so should mbd reboot after this compaction the jobs will
+     * no longer be visible in bjobs and only in bhist.
+     */
+    for (e = finish_jobs_list.head; e && nremove > 0; e = next, nremove--) {
         next = e->next;
-        struct job_data *job = (struct job_data *) e;
+
+        struct job_data *job = (struct job_data *)e;
         ll_list_remove(&finish_jobs_list, &job->ent);
 
         char key[LL_BUFSIZ_32];
         sprintf(key, "%ld", job->job_id);
+
         struct job_data *j2 = ll_hash_remove(&job_id_hash, key);
         assert(j2 == job);
+
         job_free(job);
     }
 
@@ -1133,9 +1174,9 @@ void maybe_rebuild_events(void)
     if (ll_list_count(&finish_jobs_list) < job_finish_threshold)
         return;
 
-    LL_DEBUG("manifest rebuild triggered finished_jobs=%d threshold=%d",
+    LL_DEBUG("manifest rebuild triggered finished_jobs=%d threshold=%d retain=%d",
              ll_list_count(&finish_jobs_list),
-             job_finish_threshold);
+             job_finish_threshold, job_finish_retain);
 
     events_rebuild();
 }
