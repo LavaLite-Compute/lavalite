@@ -52,7 +52,7 @@ static int queue_user_allowed(const struct mbd_queue *q, const char *user)
     if (q->user_hash.nentries == 0)
         return 1;
 
-    if (ll_hash_contains(&q->user_hash, user))
+    if (ll_hash_contains(&q->user_hash, user) > 0)
         return 1;
 
     return 0;
@@ -497,6 +497,7 @@ void reset_host_resources(struct job_data *job)
     }
 }
 
+
 static int dep_resolve_job(int64_t job_id, void *ctx)
 {
     char key[LL_BUFSIZ_32];
@@ -795,6 +796,11 @@ struct job_data *job_find(int64_t job_id)
     return ll_hash_search(&job_id_hash, buf);
 }
 
+/*
+ * Find one array element by (array_id, array_index), across every
+ * state. Used by client queries (bjobs/bhist via dispatch.c) where a
+ * finished element must still be found.
+ */
 struct job_data *job_find_array(int64_t array_id, int32_t array_index)
 {
     struct ll_list *lists[] = {
@@ -820,52 +826,102 @@ struct job_data *job_find_array(int64_t array_id, int32_t array_index)
     return NULL;
 }
 
-/* Per-job satisfaction of a single done/exit/ended condition. */
+/*
+ * Same lookup, scoped to pend/run only. An already-finished job can't
+ * be signaled, so finish_jobs_list is deliberately excluded — used
+ * only by jobs_signal(), not exported.
+ */
+static struct job_data *job_find_array_signalable(int64_t array_id,
+                                                  int32_t array_index)
+{
+    struct ll_list *lists[] = {
+        &pend_jobs_list,
+        &run_jobs_list,
+    };
+
+    for (int i = 0; i < 2; i++) {
+        for (struct ll_list_entry *e = lists[i]->head;
+             e != NULL; e = e->next) {
+
+            struct job_data *job = (struct job_data *)e;
+
+            if (job->array_id == array_id
+                && job->array_index == array_index)
+                return job;
+        }
+    }
+
+    return NULL;
+}
+
 static int dep_job_check(const struct job_data *job, enum dep_type type)
 {
     switch (type) {
     case DEP_DONE:
-        return job->state == JOB_DONE;
+        if (job->state == JOB_DONE)
+            return 1;
+        return 0;
     case DEP_EXIT:
-        return job->state == JOB_EXITED;
+        if (job->state == JOB_EXITED)
+            return 1;
+        return 0;
     case DEP_ENDED:
-        return job->state == JOB_DONE || job->state == JOB_EXITED;
+        if (job->state == JOB_DONE || job->state == JOB_EXITED)
+            return 1;
+        return 0;
     default:
         return 0;
     }
 }
 
+/* True if any job on lst has this array_id. Presence-only — stops at
+ * the first match, never inspects state.
+ */
+static int array_has_member(const struct ll_list *lst, int64_t array_id)
+{
+    struct ll_list_entry *e;
+
+    for (e = lst->head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->array_id == array_id)
+            return 1;
+    }
+
+    return 0;
+}
+
 /*
  * Whole-array dependency: array_id refers to a first element
- * (job->job_id == job->array_id, see invariant in job_data). Satisfied
- * only if every element currently known to mbd satisfies the condition.
- * Same three-list scan as job_find_array(), just unscoped by index.
+ * (job->job_id == job->array_id, see invariant in job_data).
+ *
+ * done/exit/ended can only ever be true for a job on
+ * finish_jobs_list, so any element still on pend or run means the
+ * array cannot be satisfied yet — checked first, and either one
+ * short-circuits without touching finish_jobs_list at all. Only
+ * once nothing of this array_id remains outstanding do we walk
+ * finish_jobs_list and check every element's condition.
  */
 static int dep_array_check(int64_t array_id, enum dep_type type)
 {
-    struct ll_list *lists[] = {
-        &pend_jobs_list,
-        &run_jobs_list,
-        &finish_jobs_list
-    };
-    int found = 0;
+    struct ll_list_entry *e;
 
-    for (int i = 0; i < 3; i++) {
-        for (struct ll_list_entry *e = lists[i]->head;
-             e != NULL; e = e->next) {
+    if (array_has_member(&pend_jobs_list, array_id))
+        return 0;
+    if (array_has_member(&run_jobs_list, array_id))
+        return 0;
 
-            struct job_data *job = (struct job_data *) e;
+    for (e = finish_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
 
-            if (job->array_id != array_id)
-                continue;
+        if (job->array_id != array_id)
+            continue;
 
-            found = 1;
-            if (!dep_job_check(job, type))
-                return 0;
-        }
+        if (!dep_job_check(job, type))
+            return 0;
     }
 
-    return found;
+    return 1;
 }
 
 /*
@@ -894,7 +950,10 @@ static int dep_call_eval(enum dep_type type, int64_t job_id, void *ctx)
     if (job->array_id != 0 && job->array_id == job->job_id)
         return dep_array_check(job->array_id, type);
 
-    return dep_job_check(job, type);
+    if (dep_job_check(job, type) > 0)
+        return 1;
+
+    return 0;
 }
 
 /* Public: is job's dependency expression currently satisfied?
@@ -905,7 +964,8 @@ int job_dep_satisfied(const struct job_data *job)
     if (job->deps.count == 0)
         return 1;
 
-    if (dep_list_eval(&job->deps, dep_call_eval, NULL))
+    int cc = dep_list_eval(&job->deps, dep_call_eval, NULL);
+    if (cc > 0)
         return 1;
 
     return 0;
@@ -1628,7 +1688,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
          * bkill on an ordinary job_id from here on — falls into the
          * same state machine below.
          */
-        job = job_find_array(req.job_id, req.array_index);
+        job = job_find_array_signalable(req.job_id, req.array_index);
         if (job == NULL) {
             LL_INFO("job_signal: array_id=%ld[%d] not found",
                     (long) req.job_id, req.array_index);
