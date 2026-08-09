@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 
     int c;
     while (
-        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:W:hv",
+        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:w:hv",
                          opts, NULL)) != -1) {
         switch (c) {
         case 'q':
