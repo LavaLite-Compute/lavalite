@@ -74,13 +74,6 @@ static int mark_candidates(void)
     return free_slots;
 }
 
-static int is_depend_ok(const struct job_data *job)
-{
-    (void) job;
-    // for dependencies are ok
-    return 1;
-}
-
 static int job_is_ready(const struct job_data *job)
 {
     /*
@@ -91,8 +84,6 @@ static int job_is_ready(const struct job_data *job)
     if (!(job->state == JOB_PENDING))
         return 0;
     if (job->begin_time > 0 && job->begin_time > time(NULL))
-        return 0;
-    if (!is_depend_ok(job))
         return 0;
 
     return 1;
@@ -424,6 +415,11 @@ void schedule(void)
 
         if (!tokens_available(job)) {
             job->pend_reason = PEND_TOKENS;
+            continue;
+        }
+
+        if (!job_dep_satisfied(job)) {
+            job->pend_reason = PEND_DEPEND;
             continue;
         }
 

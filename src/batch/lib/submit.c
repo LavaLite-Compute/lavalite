@@ -23,6 +23,7 @@
 #include "batch/lib/rpc.h"
 #include "batch/lib/jobscript.h"
 #include "batch/lib/wire.h"
+#include "batch/lib/dependency.h"
 #include "llbatch.h"
 
 /* Validate locally so bsub can reject malformed specifications early.
@@ -72,6 +73,26 @@ int32_t llb_parse_array(const char *spec, int32_t *start,
 bad:
     errno = EINVAL;
     return -1;
+}
+
+/* Syntax-only check: bsub has no job table, so resolve is NULL.
+ * job_id existence is validated later by mbd.
+ */
+int32_t llb_parse_dependency(const char *cond)
+{
+    struct ll_list tmp;
+    int rc;
+
+    ll_list_init(&tmp);
+    rc = dep_parse(cond, &tmp, NULL, NULL);
+    dep_list_free(&tmp);
+
+    if (rc != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return 0;
 }
 
 static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)

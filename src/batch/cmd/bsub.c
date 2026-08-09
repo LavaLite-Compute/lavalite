@@ -375,7 +375,11 @@ int main(int argc, char **argv)
             }
             break;
         case 'w':
-            // TODO
+            if (llb_parse_dependency(optarg) < 0) {
+                fprintf(stderr, "bsub: --dependency: invalid expression '%s'\n",
+                        optarg);
+                return 1;
+            }
             js.depend_cond = optarg;
             break;
         case 'h':

@@ -41,6 +41,7 @@ enum pend_reason {
     PEND_GPU_MODEL,
     PEND_HOST_EXCLUSIVE,
     PEND_HOST_OVERFLOW,
+    PEND_DEPEND,
 };
 
 // Pending messages table
@@ -274,6 +275,7 @@ struct job_hist_info {
 // bsub
 int32_t llb_submit(const struct job_submit *, int64_t *);
 int32_t llb_parse_array(const char *, int32_t *, int32_t *, int32_t *);
+int32_t llb_parse_dependency(const char *);
 
 // bjobs
 struct job_info *llb_job_info(const struct job_info_req *, int32_t *);

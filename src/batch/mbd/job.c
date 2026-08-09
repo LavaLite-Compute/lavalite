@@ -20,6 +20,7 @@
 #include "batch/mbd/mbd.h"
 #include "batch/lib/wire.h"
 #include "batch/lib/log.h"
+#include "batch/lib/dependency.h"
 
 struct ll_list pend_jobs_list;
 struct ll_list run_jobs_list;
@@ -51,7 +52,10 @@ static int queue_user_allowed(const struct mbd_queue *q, const char *user)
     if (q->user_hash.nentries == 0)
         return 1;
 
-    return ll_hash_contains(&q->user_hash, user);
+    if (ll_hash_contains(&q->user_hash, user))
+        return 1;
+
+    return 0;
 }
 
 static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
@@ -493,6 +497,33 @@ void reset_host_resources(struct job_data *job)
     }
 }
 
+static int dep_resolve_job(int64_t job_id, void *ctx)
+{
+    char key[LL_BUFSIZ_32];
+
+    (void) ctx;
+    snprintf(key, sizeof(key), "%ld", (long) job_id);
+    if (ll_hash_search(&job_id_hash, key))
+        return 1;
+
+    return 0;
+}
+
+static int job_parse_deps(struct job_data *job, const char *depend_cond)
+{
+    if (depend_cond[0] == 0)
+        return 0;
+
+    if (dep_parse(depend_cond, &job->deps, dep_resolve_job, NULL) != 0) {
+        LL_ERRX("job=%ld invalid dependency expression=%s", job->job_id,
+                depend_cond);
+        errno = EINVAL;
+        return -1;
+    }
+
+    return 0;
+}
+
 static int job_register_reply(int chan_id, int64_t job_id)
 {
     struct wire_job_submit_reply reply;
@@ -571,6 +602,13 @@ job_prepare(struct wire_job_submit *ws,
 
     ll_strlcpy(job->res.tokenpool_str, ws->tokenpool,
                sizeof(job->res.tokenpool_str));
+
+    if (job_parse_deps(job, ws->depend_cond) < 0) {
+        *err = errno;
+        LL_ERRX("job=%ld invalid dependency spec", job->job_id);
+        job_free(job);
+        return NULL;
+    }
 
     return job;
 }
@@ -780,6 +818,97 @@ struct job_data *job_find_array(int64_t array_id, int32_t array_index)
     }
 
     return NULL;
+}
+
+/* Per-job satisfaction of a single done/exit/ended condition. */
+static int dep_job_check(const struct job_data *job, enum dep_type type)
+{
+    switch (type) {
+    case DEP_DONE:
+        return job->state == JOB_DONE;
+    case DEP_EXIT:
+        return job->state == JOB_EXITED;
+    case DEP_ENDED:
+        return job->state == JOB_DONE || job->state == JOB_EXITED;
+    default:
+        return 0;
+    }
+}
+
+/*
+ * Whole-array dependency: array_id refers to a first element
+ * (job->job_id == job->array_id, see invariant in job_data). Satisfied
+ * only if every element currently known to mbd satisfies the condition.
+ * Same three-list scan as job_find_array(), just unscoped by index.
+ */
+static int dep_array_check(int64_t array_id, enum dep_type type)
+{
+    struct ll_list *lists[] = {
+        &pend_jobs_list,
+        &run_jobs_list,
+        &finish_jobs_list
+    };
+    int found = 0;
+
+    for (int i = 0; i < 3; i++) {
+        for (struct ll_list_entry *e = lists[i]->head;
+             e != NULL; e = e->next) {
+
+            struct job_data *job = (struct job_data *) e;
+
+            if (job->array_id != array_id)
+                continue;
+
+            found = 1;
+            if (!dep_job_check(job, type))
+                return 0;
+        }
+    }
+
+    return found;
+}
+
+/*
+ * dep_check_fn passed to dep_list_eval(). A missing job_id (purged,
+ * killed, whatever) is simply unsatisfied, not a distinct error state
+ * — same as any other not-yet-true condition, the job just keeps
+ * pending.
+ *
+ * job_id == job->array_id && array_id != 0 means the reference is to
+ * an array's first element; per policy that always means "the whole
+ * array", never "just that one element". A job_id that happens to be
+ * some other element of somebody else's array is an ordinary single
+ * job reference — no special case needed, it falls out of the
+ * invariant on its own.
+ */
+static int dep_call_eval(enum dep_type type, int64_t job_id, void *ctx)
+{
+    struct job_data *job;
+
+    (void) ctx;
+
+    job = job_find(job_id);
+    if (job == NULL)
+        return 0;
+
+    if (job->array_id != 0 && job->array_id == job->job_id)
+        return dep_array_check(job->array_id, type);
+
+    return dep_job_check(job, type);
+}
+
+/* Public: is job's dependency expression currently satisfied?
+ * No expression at all (deps list empty) is trivially satisfied.
+ */
+int job_dep_satisfied(const struct job_data *job)
+{
+    if (job->deps.count == 0)
+        return 1;
+
+    if (dep_list_eval(&job->deps, dep_call_eval, NULL))
+        return 1;
+
+    return 0;
 }
 
 int job_init(void)

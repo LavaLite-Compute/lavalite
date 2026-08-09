@@ -12,6 +12,7 @@
 #include "base/lib/ll.syslog.h"
 #include "base/lib/ll.list.h"
 #include "base/lib/ll.channel.h"
+#include "batch/lib/dependency.h"
 
 #include "llbatch.h"
 
@@ -56,12 +57,6 @@ struct job_resources {
     struct ll_hash machines;
     char tokenpool_str[LL_BUFSIZ_256];
     struct ll_list tokens;
-};
-
-struct job_dep {
-    struct ll_list_entry ent;
-    int type;
-    int64_t job_id;
 };
 
 struct job_data {
@@ -335,6 +330,7 @@ int gpu_ids_count_free(const struct mbd_gpu *);
 int gpu_ids_mark_free(struct mbd_gpu *, int);
 int gpu_ids_mark_inuse(struct mbd_gpu *, int);
 void reset_host_resources(struct job_data *);
+int job_dep_satisfied(const struct job_data *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
