@@ -510,12 +510,23 @@ static int dep_resolve_job(int64_t job_id, void *ctx)
     return 0;
 }
 
-static int job_parse_deps(struct job_data *job, const char *depend_cond)
+static int job_deps_set(struct job_data *job, const char *depend_cond,
+                        dep_resolve_fn resolve)
 {
     if (depend_cond[0] == 0)
         return 0;
 
-    if (dep_parse(depend_cond, &job->deps, dep_resolve_job, NULL) != 0) {
+    ll_strlcpy(job->depend_cond, depend_cond, sizeof(job->depend_cond));
+
+    if (dep_parse(depend_cond, &job->deps, resolve, NULL) != 0)
+        return -1;
+
+    return 0;
+}
+
+static int job_parse_deps(struct job_data *job, const char *depend_cond)
+{
+    if (job_deps_set(job, depend_cond, dep_resolve_job) < 0) {
         LL_ERRX("job=%ld invalid dependency expression=%s", job->job_id,
                 depend_cond);
         errno = EINVAL;
@@ -523,6 +534,27 @@ static int job_parse_deps(struct job_data *job, const char *depend_cond)
     }
 
     return 0;
+}
+
+/*
+ * job_replay_deps - rebuild job->deps and job->depend_cond from a
+ * manifest record during replay.
+ *
+ * No existence check here (resolve == NULL): a referenced job_id may
+ * not be loaded yet (records are replayed in log order) and that is
+ * not an error. job_dep_satisfied() already treats a missing target
+ * as unsatisfied, same as at runtime. A parse failure here means the
+ * manifest itself is corrupt; log it and leave the job with no
+ * dependency rather than aborting the whole replay over one record.
+ */
+void job_replay_deps(struct job_data *job, const char *depend_cond)
+{
+    if (job_deps_set(job, depend_cond, NULL) < 0) {
+        LL_ERR("job=%ld corrupt dependency expression in manifest=%s",
+               job->job_id, depend_cond);
+        dep_list_free(&job->deps);
+        job->depend_cond[0] = 0;
+    }
 }
 
 static int job_register_reply(int chan_id, int64_t job_id)
@@ -648,7 +680,6 @@ static void job_commit(struct job_data *job,
     hs = ll_hash_insert(&job_id_hash, key, job, 0);
     assert(hs == LL_HASH_INSERTED);
 
-    // Create the reference counter in the jobs we depend upon
     job_deps_hold(job);
 
     job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
@@ -1534,7 +1565,6 @@ static int finish_pending_job(struct job_data *job,
     job->queue->num_jobs--;
 
     job->state = JOB_EXITED;
-    // Release the dependency counter of jobs I am depending on
     job_deps_release(job);
     event_job_signal(job, ws);
     event_job_finish(job);

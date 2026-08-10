@@ -162,6 +162,19 @@ static void replay_rebuild_counters(void)
         replay_charge_running_job(job);
         token_alloc(job);
     }
+
+    /*
+     * dep_refcnt is derived state, not persisted directly (see
+     * job_replay_deps()). Rebuild it here, once every job_id from the
+     * manifest is in job_id_hash, by walking every still-pending job's
+     * dependency expression and re-establishing its holds.
+     */
+    for (e = pend_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->deps.count > 0)
+            job_deps_hold(job);
+    }
 }
 
 void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
@@ -199,6 +212,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     ll_strlcpy(e.queue, ws->queue, sizeof(e.queue));
     ll_strlcpy(e.project_name, ws->project, sizeof(e.project_name));
     ll_strlcpy(e.tokenpool, ws->tokenpool, sizeof(e.tokenpool));
+    ll_strlcpy(e.depend_cond, ws->depend_cond, sizeof(e.depend_cond));
 
     FILE *fp = open_manifest();
     if (log_write_job_new(fp, &e) < 0) {
@@ -404,6 +418,8 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
         free(job);
         return NULL;
     }
+
+    job_replay_deps(job, e->depend_cond);
 
     return job;
 }
@@ -999,6 +1015,7 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     ll_strlcpy(e.project_name, job->project, sizeof(e.project_name));
     ll_strlcpy(e.tokenpool, job->res.tokenpool_str, sizeof(e.tokenpool));
     ll_strlcpy(e.machines, job->res.machines_str, sizeof(e.machines));
+    ll_strlcpy(e.depend_cond, job->depend_cond, sizeof(e.depend_cond));
 
     if (log_write_job_new(fp, &e) < 0)
         mbd_die(MBD_EXIT_EVENTS);

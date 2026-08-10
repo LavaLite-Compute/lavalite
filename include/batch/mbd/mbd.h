@@ -85,6 +85,7 @@ struct job_data {
     enum job_list_id list_id;
     enum pend_reason pend_reason;
     struct ll_list deps;
+    char depend_cond[LL_BUFSIZ_4K]; /* raw text, for compaction rewrite */
     int32_t dep_refcnt; /* pending jobs whose deps still reference this job_id */
     struct job_resources res; /* requested at submit */
     int run_nhosts;           /* the number of hosts where the job will run */
@@ -334,6 +335,7 @@ void reset_host_resources(struct job_data *);
 int job_dep_satisfied(const struct job_data *);
 void job_deps_hold(struct job_data *);
 void job_deps_release(struct job_data *);
+void job_replay_deps(struct job_data *, const char *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
