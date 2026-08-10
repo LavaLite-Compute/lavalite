@@ -311,6 +311,39 @@ bkill --signal kill 1042[3]
 An individual element's own job ID also works directly with `bkill`,
 `bjobs`, and `bhist`, the same as for an ordinary job.
 
+## Job Dependencies
+
+Job dependencies allow a job to remain pending until one or more previously
+submitted jobs reach the required state. A dependency condition is specified at
+submission with `--dependency` and may use `done(jobid)`, `exit(jobid)`, and
+`ended(jobid)`. Conditions can be combined with `&&`, `||`, and parentheses.
+
+For example, submit a job that runs only after job 101 completes successfully:
+
+```sh
+bsub --dependency 'done(101)' postprocess.sh
+```
+
+Run a job after both jobs 101 and 102 complete successfully:
+
+```sh
+bsub --dependency 'done(101) && done(102)' merge-results.sh
+```
+
+A condition may also react to failure or simply wait for completion regardless
+of exit status:
+
+```sh
+bsub --dependency 'done(101) || exit(101)' cleanup.sh
+bsub --dependency 'ended(101) && ended(102)' final-report.sh
+```
+
+A typical use case is a multi-stage workflow. Several independent simulation
+jobs can be submitted first, followed immediately by a post-processing job that
+depends on all simulations completing successfully. The dependent job remains
+pending without requiring the user to monitor the earlier jobs or manually
+submit the next stage when they finish.
+
 ## Administrative Maintenance
 
 A common maintenance workflow is:
