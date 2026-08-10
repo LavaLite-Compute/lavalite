@@ -85,6 +85,7 @@ struct job_data {
     enum job_list_id list_id;
     enum pend_reason pend_reason;
     struct ll_list deps;
+    int32_t dep_refcnt; /* pending jobs whose deps still reference this job_id */
     struct job_resources res; /* requested at submit */
     int run_nhosts;           /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;
@@ -331,6 +332,8 @@ int gpu_ids_mark_free(struct mbd_gpu *, int);
 int gpu_ids_mark_inuse(struct mbd_gpu *, int);
 void reset_host_resources(struct job_data *);
 int job_dep_satisfied(const struct job_data *);
+void job_deps_hold(struct job_data *);
+void job_deps_release(struct job_data *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

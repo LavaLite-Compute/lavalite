@@ -648,6 +648,9 @@ static void job_commit(struct job_data *job,
     hs = ll_hash_insert(&job_id_hash, key, job, 0);
     assert(hs == LL_HASH_INSERTED);
 
+    // Create the reference counter in the jobs we depend upon
+    job_deps_hold(job);
+
     job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);
 
     event_job_new(job, ws);
@@ -969,6 +972,55 @@ int job_dep_satisfied(const struct job_data *job)
         return 1;
 
     return 0;
+}
+
+/*
+ * job_deps_refcnt - adjust dep_refcnt by delta on every job referenced
+ * by job's own dependency expression.
+ *
+ * Only DEP_DONE/DEP_EXIT/DEP_ENDED nodes carry a job_id, DEP_AND/DEP_OR/
+ * DEP_NOT are operators and are skipped. A referenced job_id not found
+ * is not an error here — job_dep_satisfied() already treats a missing
+ * target as unsatisfied, there is nothing to hold a reference to.
+ */
+static void job_deps_refcnt(struct job_data *job, int delta)
+{
+    struct ll_list_entry *e;
+    struct job_dep *d;
+    struct job_data *target;
+
+    for (e = job->deps.head; e != NULL; e = e->next) {
+        d = (struct job_dep *) e;
+        if (d->type != DEP_DONE && d->type != DEP_EXIT && d->type != DEP_ENDED)
+            continue;
+
+        target = job_find(d->job_id);
+        if (target == NULL)
+            continue;
+
+        target->dep_refcnt += delta;
+    }
+}
+
+/*
+ * job_deps_hold - called once, when job becomes visible (job_commit).
+ * Every job it depends on gets +1, so compaction knows not to purge
+ * those records while job is still waiting on them.
+ */
+void job_deps_hold(struct job_data *job)
+{
+    job_deps_refcnt(job, 1);
+}
+
+/*
+ * job_deps_release - called once, either when job's dependency
+ * expression becomes satisfied (sched.c, about to dispatch) or when
+ * job is killed/removed while still pending on it (finish_pending_job).
+ * Either way job will never consult these targets again.
+ */
+void job_deps_release(struct job_data *job)
+{
+    job_deps_refcnt(job, -1);
 }
 
 int job_init(void)
@@ -1482,6 +1534,8 @@ static int finish_pending_job(struct job_data *job,
     job->queue->num_jobs--;
 
     job->state = JOB_EXITED;
+    // Release the dependency counter of jobs I am depending on
+    job_deps_release(job);
     event_job_signal(job, ws);
     event_job_finish(job);
     job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);

@@ -1089,6 +1089,13 @@ void job_id_seq_write(void)
  * Replay only depends on per-job state reconstruction. Historical tools
  * such as bhist must read archived manifest.* files for full chronological
  * job history.
+ *
+ * NOTE: log_job_new does not currently persist a job's dependency
+ * expression, so replay_alloc() never repopulates job->deps and
+ * dep_refcnt is never rebuilt after a restart. In-memory compaction
+ * within a single mbd run is protected by this patch; surviving a
+ * restart with a still-pending dependency is a separate, pre-existing
+ * gap that needs the wire/log format extended before it can be closed.
  */
 static void events_rebuild(void)
 {
@@ -1134,10 +1141,19 @@ static void events_rebuild(void)
      * not persisted so should mbd reboot after this compaction the jobs will
      * no longer be visible in bjobs and only in bhist.
      */
-    for (e = finish_jobs_list.head; e && nremove > 0; e = next, nremove--) {
+    for (e = finish_jobs_list.head; e && nremove > 0; e = next) {
         next = e->next;
 
         struct job_data *job = (struct job_data *)e;
+
+        /* still referenced by a pending job's dependency expression,
+         * purging it now would leave that job unable to ever resolve */
+        if (job->dep_refcnt > 0) {
+            LL_DEBUG("job=%ld retained by compaction dep_refcnt=%d",
+                     job->job_id, job->dep_refcnt);
+            continue;
+        }
+
         ll_list_remove(&finish_jobs_list, &job->ent);
 
         char key[LL_BUFSIZ_32];
@@ -1147,6 +1163,7 @@ static void events_rebuild(void)
         assert(j2 == job);
 
         job_free(job);
+        nremove--;
     }
 
     if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
