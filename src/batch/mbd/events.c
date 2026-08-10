@@ -1092,28 +1092,6 @@ void job_id_seq_write(void)
     }
 }
 
-/*
- * events_rebuild - archive manifest, rewrite with live jobs only.
- * PEND:      JOB_NEW
- * RUN/SUSP:  JOB_NEW + JOB_START
- * FINISH:    discarded — full history in archived file for bhist.
- *            finish_jobs_list drained and freed here.
- *
- * After compaction, manifest is a replay checkpoint, not a chronological
- * history file. Event timestamps are preserved, but record order across
- * different jobs may differ from original event arrival order.
- *
- * Replay only depends on per-job state reconstruction. Historical tools
- * such as bhist must read archived manifest.* files for full chronological
- * job history.
- *
- * NOTE: log_job_new does not currently persist a job's dependency
- * expression, so replay_alloc() never repopulates job->deps and
- * dep_refcnt is never rebuilt after a restart. In-memory compaction
- * within a single mbd run is protected by this patch; surviving a
- * restart with a still-pending dependency is a separate, pre-existing
- * gap that needs the wire/log format extended before it can be closed.
- */
 static void events_rebuild(void)
 {
     char archived[PATH_MAX + LL_BUFSIZ_32];

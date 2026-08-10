@@ -443,8 +443,7 @@ void schedule(void)
             LL_ERRX("job=%ld dispatch failed", job->job_id);
             continue;
         }
-        // Clean the dependency of those this job depeneds upon only
-        // when we know the job will go
+        // Clean the dependency of the jobs this job depeneds upon
         if (job->deps.count > 0)
             job_deps_release(job);
 

@@ -693,9 +693,9 @@ static void job_commit(struct job_data *job,
 
     job->queue->num_jobs++;
 
-    LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d",
+    LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d dependency=%s",
             job->job_id, job->user, job->queue->name,
-            job->queue->num_jobs, job->queue->num_pend);
+            job->queue->num_jobs, job->queue->num_pend, job->depend_cond);
 }
 
 static void job_commit_prepared(struct ll_list *prepared,
@@ -1018,9 +1018,10 @@ static void job_deps_refcnt(struct job_data *job, int delta)
 {
     struct ll_list_entry *e;
     struct job_dep *d;
-    struct job_data *target;
 
     for (e = job->deps.head; e != NULL; e = e->next) {
+        struct job_data *target;
+
         d = (struct job_dep *) e;
         if (d->type != DEP_DONE && d->type != DEP_EXIT && d->type != DEP_ENDED)
             continue;
