@@ -776,6 +776,11 @@ void job_register(XDR *xdrs, int chan_id,
             job->array_start = start;
             job->array_end = end;
             job->array_stride = stride;
+
+            /* job_id == array_id only on the element created this
+             * pass through the loop's first iteration -- the head. */
+            if (job->job_id == array_id)
+                job->array_element_cnt = (end - start) / stride + 1;
         }
 
         /*
@@ -821,6 +826,15 @@ void job_move_list(struct job_data *job, struct ll_list *from,
     ll_list_remove(from, &job->ent);
     ll_list_append(to, &job->ent);
     job->list_id = list_id;
+
+    /* Array element reaching a terminal state -- including the head
+     * finishing itself. Head stays retained in events_rebuild() until
+     * every element (this counter) has finished. */
+    if (list_id == JOB_LIST_FINISH && job->array_id != 0) {
+        struct job_data *head = job_find(job->array_id);
+        if (head != NULL)
+            head->array_element_cnt--;
+    }
 }
 
 struct job_data *job_find(int64_t job_id)
@@ -860,32 +874,22 @@ struct job_data *job_find_array(int64_t array_id, int32_t array_index)
     return NULL;
 }
 
-/*
- * Same lookup, scoped to pend/run only. An already-finished job can't
- * be signaled, so finish_jobs_list is deliberately excluded — used
- * only by jobs_signal(), not exported.
- */
-static struct job_data *job_find_array_signalable(int64_t array_id,
-                                                  int32_t array_index)
+static struct job_data *job_find_array_elem(int64_t array_id,
+                                            int32_t array_index)
 {
-    struct ll_list *lists[] = {
-        &pend_jobs_list,
-        &run_jobs_list,
-    };
+    struct job_data *head = job_find(array_id);
+    if (head == NULL || head->array_id == 0)
+        return NULL;
 
-    for (int i = 0; i < 2; i++) {
-        for (struct ll_list_entry *e = lists[i]->head;
-             e != NULL; e = e->next) {
+    int64_t job_id = head->job_id;
 
-            struct job_data *job = (struct job_data *)e;
-
-            if (job->array_id == array_id
-                && job->array_index == array_index)
-                return job;
-        }
+    for (int32_t index = head->array_start; index <= head->array_end;
+         index += head->array_stride, job_id++) {
+        if (index == array_index)
+            return job_find(job_id);
     }
 
-    return NULL;
+    return NULL;   // array_index never assigned (off-stride or out of range)
 }
 
 static int dep_job_check(const struct job_data *job, enum dep_type type)
@@ -1672,19 +1676,101 @@ static int signal_running_job(struct job_data *job,
 }
 
 /*
- * Walk pending + running jobs and best-effort signal every one that
- * matches. array_id == 0 means no array filter — this is "bkill 0",
- * signal all of the caller's jobs. array_id != 0 scopes the exact same
- * walk to a single array — "bkill" on an array_id behaves identically
- * to "bkill 0", just restricted to that array's elements. Finished
- * jobs are never considered, same as bkill 0 today.
- *
- * Returns the number of jobs the filter matched, so the caller can
- * tell "this was a real array with elements to signal" apart from
- * "no such array" without a separate lookup pass.
+ * signal_one_job - state machine for signaling a single, already-
+ * resolved job. Shared by the ordinary job_id path in jobs_signal()
+ * and by signal_array() below, so the two can't drift apart.
  */
-static int signal_jobs(uint32_t uid, int64_t array_id,
-                       struct wire_job_sig *req)
+static int signal_one_job(uint32_t uid, struct job_data *job,
+                          struct wire_job_sig *req)
+{
+    if (job->uid != uid && !is_manager(uid)) {
+        LL_ERR("job=%ld uid=%d not owned by signaling uid=%d", job->job_id,
+               job->uid, uid);
+        return EPERM;
+    }
+
+    if (job->state == JOB_DONE || job->state == JOB_EXITED) {
+        LL_DEBUG("job_signal: job_id=%ld already finished", job->job_id);
+        return EINVAL;
+    }
+
+    if ((req->sig == SIGSTOP || req->sig == SIGTSTP) &&
+        (job->state == JOB_SUSPENDED || job->state == JOB_HELD)) {
+        LL_DEBUG("job_signal: job_id=%ld already suspended no-op",
+                 job->job_id);
+        return MBD_OK;
+    }
+
+    if (req->sig == SIGCONT &&
+        (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
+        LL_DEBUG("job_signal: job_id=%ld SIGCONT no-op", job->job_id);
+        return MBD_OK;
+    }
+
+    req->job_id = job->job_id;
+
+    if (job->state == JOB_ORPHAN || job->state == JOB_BROKEN) {
+        const char *host = "-";
+        if (job->run_nhosts > 0 && job->run_hosts[0] != NULL)
+            host = job->run_hosts[0]->net.name;
+
+        LL_INFO("job=%ld state=%s host=%s terminating it", job->job_id,
+                llb_job_state_str(job->state), host);
+
+        return signal_pending_job(job, req);
+    }
+
+    if (job->state == JOB_PENDING || job->state == JOB_HELD)
+        return signal_pending_job(job, req);
+
+    return signal_running_job(job, req);
+}
+
+/*
+ * signal_array - best-effort signal every element of an array,
+ * reached directly from the head instead of scanning pend/run lists.
+ * head must already be confirmed as an array head (array_id ==
+ * job_id) by the caller. Real job_ids are consecutive from the
+ * head's own job_id across the array's index range, so each element
+ * is one job_find() away.
+ *
+ * A missing element (job_find() == NULL, already compacted) or a
+ * finished one is not counted -- matches the old scan's contract of
+ * never considering finished jobs part of a bulk signal.
+ */
+static int signal_array(uint32_t uid, const struct job_data *head,
+                        struct wire_job_sig *req)
+{
+    int64_t job_id = head->job_id;
+    int n = 0;
+
+    for (int32_t index = head->array_start; index <= head->array_end;
+         index += head->array_stride, job_id++) {
+        struct job_data *job = job_find(job_id);
+        if (job == NULL)
+            continue;
+
+        if (job->state == JOB_DONE || job->state == JOB_EXITED)
+            continue;
+
+        if (job->uid != uid && !is_manager(uid))
+            continue;
+
+        // Best effort, even if one fails keep going
+        signal_one_job(uid, job, req);
+        n++;
+    }
+
+    return n;
+}
+
+/*
+ * Walk pending + running jobs and best-effort signal every one owned
+ * by uid. This is "bkill 0" only now -- there is no job_id to resolve
+ * a head from, so a full walk is unavoidable. Array-scoped signaling
+ * goes through signal_array() instead, straight off the head.
+ */
+static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
 {
     struct ll_list_entry *e;
     struct ll_list_entry *next;
@@ -1696,13 +1782,6 @@ static int signal_jobs(uint32_t uid, int64_t array_id,
         job = (struct job_data *) e;
 
         assert(job->state == JOB_PENDING || job->state == JOB_HELD);
-
-        // array_id == 0: no scoping, every job passes (bkill 0).
-        // array_id != 0: skip anything NOT in this array — ordinary
-        // jobs and other arrays' elements. This array's own elements
-        // fall through and get signaled below.
-        if (array_id != 0 && job->array_id != array_id)
-            continue;
 
         if (job->uid != uid && !is_manager(uid))
             continue;
@@ -1729,10 +1808,6 @@ static int signal_jobs(uint32_t uid, int64_t array_id,
         }
 
         assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
-
-        // Same array-scoping rule as the pend loop above.
-        if (array_id != 0 && job->array_id != array_id)
-            continue;
 
         if (job->uid != uid && !is_manager(uid))
             continue;
@@ -1761,7 +1836,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
              (long) req.job_id, req.array_index, req.uid, req.sig, chan_id);
 
     if (req.job_id == 0) {
-        signal_jobs(hdr->uid, 0, &req);
+        signal_jobs_scan(hdr->uid, &req);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
@@ -1773,7 +1848,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
          * bkill on an ordinary job_id from here on — falls into the
          * same state machine below.
          */
-        job = job_find_array_signalable(req.job_id, req.array_index);
+        job = job_find_array_elem(req.job_id, req.array_index);
         if (job == NULL) {
             LL_INFO("job_signal: array_id=%ld[%d] not found",
                     (long) req.job_id, req.array_index);
@@ -1789,64 +1864,31 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         req.job_id = job->job_id;
     } else {
         /*
-         * Bare N: try it as an array_id first — same rules as bkill 0,
-         * just scoped to this array. If nothing matched (not an array,
-         * or an array with nothing left of the caller's to signal),
-         * fall back to interpreting N as an ordinary job_id below.
+         * Bare N. array_element_cnt guarantees job_find() alone tells
+         * us whether N is an array head — no speculative scan needed
+         * to find out first. job->array_id == job->job_id is the
+         * head invariant (see dep_call_eval); anything else, N is
+         * either an ordinary job or a non-head array element, and
+         * either way falls straight into the shared state machine
+         * below on that job itself.
          */
-        if (signal_jobs(hdr->uid, req.job_id, &req) > 0)
-            return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
-
         job = job_find(req.job_id);
         if (job == NULL) {
             LL_INFO("job_signal: job_id=%ld not found", (long) req.job_id);
             return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
         }
+
+        if (job->array_id != 0 && job->array_id == job->job_id) {
+            assert(job->array_index == job->array_start);
+
+            if (signal_array(hdr->uid, job, &req) > 0)
+                return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
+            /* every element already finished -- fall through, job
+             * (the head) still resolves and reports EINVAL below */
+        }
     }
 
-    if (job->uid != (uid_t) hdr->uid && !is_manager(hdr->uid)) {
-        LL_ERR("job=%ld uid=%d not owned by signaling uid=%d", job->job_id,
-               job->uid, hdr->uid);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPERM);
-    }
-
-    if (job->state == JOB_DONE || job->state == JOB_EXITED) {
-        LL_DEBUG("job_signal: job_id=%ld already finished", (long) req.job_id);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EINVAL);
-    }
-
-    if ((req.sig == SIGSTOP || req.sig == SIGTSTP) &&
-        (job->state == JOB_SUSPENDED || job->state == JOB_HELD)) {
-        LL_DEBUG("job_signal: job_id=%ld already suspended no-op",
-                 (long) req.job_id);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
-    }
-
-    if (req.sig == SIGCONT &&
-        (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
-        LL_DEBUG("job_signal: job_id=%ld SIGCONT no-op", (long) req.job_id);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
-    }
-
-    if (job->state == JOB_ORPHAN
-        || job->state == JOB_BROKEN) {
-        const char *host = "-";
-        if (job->run_nhosts > 0 && job->run_hosts[0] != NULL)
-            host = job->run_hosts[0]->net.name;
-
-        LL_INFO("job=%ld state=%s host=%s terminating it", job->job_id,
-                llb_job_state_str(job->state), host);
-
-        int cc = signal_pending_job(job, &req);
-        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
-    }
-
-    int cc;
-    if (job->state == JOB_PENDING || job->state == JOB_HELD)
-        cc = signal_pending_job(job, &req);
-    else
-        cc = signal_running_job(job, &req);
-
+    int cc = signal_one_job(hdr->uid, job, &req);
     return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
 }
 

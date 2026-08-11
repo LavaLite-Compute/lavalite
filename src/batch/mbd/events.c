@@ -175,6 +175,36 @@ static void replay_rebuild_counters(void)
         if (job->deps.count > 0)
             job_deps_hold(job);
     }
+
+    /*
+     * array_element_cnt is derived state too, same reasoning as
+     * dep_refcnt above -- calloc left every head at 0. Rebuild by
+     * counting, per array, how many elements are still not finished
+     * (present in pend_jobs_list or run_jobs_list). Elements already
+     * compacted away before this crash are gone from the manifest
+     * entirely and cannot be counted -- same accepted limitation as
+     * any other post-compaction history loss.
+     */
+    for (e = pend_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->array_id == 0)
+            continue;
+
+        struct job_data *head = job_find(job->array_id);
+        if (head != NULL)
+            head->array_element_cnt++;
+    }
+    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->array_id == 0)
+            continue;
+
+        struct job_data *head = job_find(job->array_id);
+        if (head != NULL)
+            head->array_element_cnt++;
+    }
 }
 
 void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
@@ -1146,6 +1176,15 @@ static void events_rebuild(void)
         if (job->dep_refcnt > 0) {
             LL_DEBUG("job=%ld retained by compaction dep_refcnt=%d",
                      job->job_id, job->dep_refcnt);
+            continue;
+        }
+
+        /* array head: other elements may still be pending/running and
+         * need job_find(array_id) to resolve array_start/end/stride */
+        if (job->array_id == job->job_id && job->array_id != 0
+            && job->array_element_cnt > 0) {
+            LL_DEBUG("job=%ld retained by compaction array_element_cnt=%d",
+                     job->job_id, job->array_element_cnt);
             continue;
         }
 

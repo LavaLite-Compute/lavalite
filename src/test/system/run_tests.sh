@@ -32,6 +32,7 @@ run_test $TESTS_DIR/bsub_name.sh
 run_test $TESTS_DIR/bsub_project.sh
 run_test $TESTS_DIR/bsub_comment.sh
 run_test $TESTS_DIR/bsub_array.sh
+run_test $TESTS_DIR/bsub_dependency.sh
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

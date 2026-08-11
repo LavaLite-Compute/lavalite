@@ -96,6 +96,10 @@ struct job_data {
     int32_t array_start;
     int32_t array_end;
     int32_t array_stride;
+    /* head only (array_id == job_id): elements not yet finished.
+     * Blocks compaction from purging the head while > 0 — see
+     * job_move_list()/events_rebuild(). Zero on ordinary jobs. */
+    int32_t array_element_cnt;
 };
 
 struct gpu_id {
