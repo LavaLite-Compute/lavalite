@@ -740,6 +740,15 @@ void job_register(XDR *xdrs, int chan_id,
     int32_t stride = 1;
 
     if (ws.flags & JOB_FLAG_ARRAY) {
+
+        if (ws.array_stride <= 0 || ws.array_end < ws.array_start) {
+            LL_ERRX("invalid array range %d-%d:%d uid=%d",
+                    ws.array_start, ws.array_end, ws.array_stride, hdr->uid);
+            job_register_error(chan_id, EINVAL);
+            free(script.data);
+            return;
+        }
+
         start = ws.array_start;
         end = ws.array_end;
         stride = ws.array_stride;
