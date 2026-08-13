@@ -320,6 +320,7 @@ void new_job_reply(XDR *, int32_t);
 int job_init(void);
 void job_move_list(struct job_data *, struct ll_list *, struct ll_list *,
                    enum job_list_id);
+void job_array_element_finished(struct job_data *);
 
 struct job_data *job_find(int64_t);
 struct job_data *job_find_array(int64_t, int32_t);
@@ -346,7 +347,7 @@ int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
 void mbd_new_job_reply(struct mbd_host *, XDR *, struct protocol_header *);
 void mbd_job_finish(struct mbd_host *, XDR *);
-void mbd_job_orphan(struct mbd_host *, XDR *);
+void mbd_job_missing(struct mbd_host *, XDR *);
 
 // debug counters
 void mbd_assert_counters(void);

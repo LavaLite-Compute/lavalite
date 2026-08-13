@@ -146,7 +146,7 @@ int sbd_job_finish(struct sbd_job *);
 void sbd_job_finish_ack(XDR *);
 
 int sbd_job_signal(XDR *);
-int sbd_enqueue_job_orphan(int64_t);
+int sbd_enqueue_job_missing(int64_t);
 
 /*
  * Job storage/state.

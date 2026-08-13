@@ -758,6 +758,8 @@ void job_register(XDR *xdrs, int chan_id,
     ll_list_init(&prepared_jobs);
 
     int64_t array_id = 0;
+    int64_t prev_id = 0;
+    struct job_data *array_head = NULL;
     int err = 0;
 
     for (int32_t index = start; index <= end; index += stride) {
@@ -776,8 +778,16 @@ void job_register(XDR *xdrs, int chan_id,
             return;
         }
 
-        if (array_id == 0)
+        if (array_id == 0) {
             array_id = job->job_id;
+            array_head = job;
+        } else {
+            /* job_find_array() walks job_id one-by-one from the head,
+             * so a gap here (next_job_id() skipped a used id) breaks
+             * that lookup for every later element. */
+            assert(job->job_id == prev_id + 1);
+        }
+        prev_id = job->job_id;
 
         if (ws.flags & JOB_FLAG_ARRAY) {
             job->array_id = array_id;
@@ -785,11 +795,7 @@ void job_register(XDR *xdrs, int chan_id,
             job->array_start = start;
             job->array_end = end;
             job->array_stride = stride;
-
-            /* job_id == array_id only on the element created this
-             * pass through the loop's first iteration -- the head. */
-            if (job->job_id == array_id)
-                job->array_element_cnt = (end - start) / stride + 1;
+            array_head->array_element_cnt++;
         }
 
         /*
@@ -835,15 +841,22 @@ void job_move_list(struct job_data *job, struct ll_list *from,
     ll_list_remove(from, &job->ent);
     ll_list_append(to, &job->ent);
     job->list_id = list_id;
+}
 
-    /* Array element reaching a terminal state -- including the head
-     * finishing itself. Head stays retained in events_rebuild() until
-     * every element (this counter) has finished. */
-    if (list_id == JOB_LIST_FINISH && job->array_id != 0) {
-        struct job_data *head = job_find(job->array_id);
-        if (head != NULL)
-            head->array_element_cnt--;
-    }
+/*
+ * job_array_element_finished - call explicitly from every code path
+ * that moves an array element into finish_jobs_list (live finish,
+ * killed-while-pending, and replay). No-op for ordinary jobs. Head
+ * stays retained in events_rebuild() until this reaches 0.
+ */
+void job_array_element_finished(struct job_data *job)
+{
+    if (job->array_id == 0)
+        return;
+
+    struct job_data *head = job_find(job->array_id);
+    if (head != NULL)
+        head->array_element_cnt--;
 }
 
 struct job_data *job_find(int64_t job_id)
@@ -854,40 +867,22 @@ struct job_data *job_find(int64_t job_id)
 }
 
 /*
- * Find one array element by (array_id, array_index), across every
- * state. Used by client queries (bjobs/bhist via dispatch.c) where a
- * finished element must still be found.
+ * Find one array element by (array_id, array_index). The head
+ * (job_id == array_id) is always retained in job_id_hash while any
+ * element is outstanding (see events_rebuild()), and element job_ids
+ * are contiguous from the head by construction (see the assert in
+ * job_register()'s array loop) -- so the element is resolved directly
+ * as job_find(array_id + offset) rather than scanning every job on
+ * every list.
  */
 struct job_data *job_find_array(int64_t array_id, int32_t array_index)
 {
-    struct ll_list *lists[] = {
-        &pend_jobs_list,
-        &run_jobs_list,
-        &finish_jobs_list
-    };
-
-    /* Loop for now, hopefully it becomes a performance problem
-     */
-    for (int i = 0; i < 3; i++) {
-        for (struct ll_list_entry *e = lists[i]->head;
-             e != NULL; e = e->next) {
-
-            struct job_data *job = (struct job_data *)e;
-
-            if (job->array_id == array_id
-                && job->array_index == array_index)
-                return job;
-        }
-    }
-
-    return NULL;
-}
-
-static struct job_data *job_find_array_elem(int64_t array_id,
-                                            int32_t array_index)
-{
     struct job_data *head = job_find(array_id);
-    if (head == NULL || head->array_id == 0)
+    /* head->array_id == head->job_id only for the actual head -- any
+     * other array element carries a nonzero array_id too, pointing
+     * at the head, so array_id alone can't tell "ordinary job" from
+     * "array element that isn't the head". */
+    if (head == NULL || head->array_id != head->job_id)
         return NULL;
 
     int64_t job_id = head->job_id;
@@ -1271,6 +1266,7 @@ send_ack:
         job->state = JOB_EXITED;
 
     job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+    job_array_element_finished(job);
 
     LL_INFO("job=%ld finish acked state=%s", f.job_id,
             job_state_str(job->state));
@@ -1583,6 +1579,7 @@ static int finish_pending_job(struct job_data *job,
     event_job_signal(job, ws);
     event_job_finish(job);
     job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+    job_array_element_finished(job);
 
     return MBD_OK;
 }
@@ -1857,7 +1854,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
          * bkill on an ordinary job_id from here on — falls into the
          * same state machine below.
          */
-        job = job_find_array_elem(req.job_id, req.array_index);
+        job = job_find_array(req.job_id, req.array_index);
         if (job == NULL) {
             LL_INFO("job_signal: array_id=%ld[%d] not found",
                     (long) req.job_id, req.array_index);

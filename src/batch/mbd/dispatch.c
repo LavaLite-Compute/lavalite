@@ -92,30 +92,38 @@ static int hash_keys_dup(struct ll_hash *h, char ***out)
     return n;
 }
 
-static int collect_array(int64_t array_id, struct wire_job_info *dst,
-                         int count, uid_t uid, int all)
+/*
+ * Collect every element of array_id into dst[count..]. The head is
+ * always retained in job_id_hash while elements are outstanding (see
+ * events_rebuild()), and element job_ids are contiguous from the head
+ * by construction (see the assert in job_register()'s array loop), so
+ * each element is resolved directly via job_find() instead of
+ * scanning every job on every list.
+ */
+static int maybe_collect_array(int64_t array_id, struct wire_job_info *dst,
+                               int count, uid_t uid, int all)
 {
-    struct ll_list *lists[] = {
-        &pend_jobs_list,
-        &run_jobs_list,
-        &finish_jobs_list
-    };
+    struct job_data *head = job_find(array_id);
+    /* head->array_id == head->job_id only for the actual head -- any
+     * other array element carries a nonzero array_id too, pointing
+     * at the head, so array_id alone can't tell "ordinary job" from
+     * "array element that isn't the head". */
+    if (head == NULL || head->array_id != head->job_id)
+        return count;
 
-    for (int i = 0; i < 3; i++) {
-        for (struct ll_list_entry *e = lists[i]->head;
-             e != NULL; e = e->next) {
+    int64_t job_id = head->job_id;
 
-            struct job_data *job = (struct job_data *)e;
+    for (int32_t index = head->array_start; index <= head->array_end;
+         index += head->array_stride, job_id++) {
+        struct job_data *job = job_find(job_id);
+        if (job == NULL)
+            continue;   /* shouldn't happen -- head retention guarantees this */
 
-            if (job->array_id != array_id)
-                continue;
+        if (!all && job->uid != uid)
+            continue;
 
-            if (!all && job->uid != uid)
-                continue;
-
-            job_data_to_wire(job, &dst[count]);
-            count++;
-        }
+        job_data_to_wire(job, &dst[count]);
+        count++;
     }
 
     return count;
@@ -133,8 +141,9 @@ static int jobs_info_ref(int chan_id,
                  ll_list_count(&run_jobs_list) +
                  ll_list_count(&finish_jobs_list);
 
-    struct wire_job_info *jobs =
-        calloc(ntotal ? ntotal : 1, sizeof(struct wire_job_info));
+    if (ntotal == 0)
+        ntotal = 1;
+    struct wire_job_info *jobs = calloc(ntotal, sizeof(struct wire_job_info));
     if (jobs == NULL) {
         LL_ERR("calloc failed");
         return -1;
@@ -168,7 +177,7 @@ static int jobs_info_ref(int chan_id,
      * If no array exists, interpret N as an ordinary job_id.
      */
     } else {
-        n = collect_array(req->job_id, jobs, 0, uid, all);
+        n = maybe_collect_array(req->job_id, jobs, 0, uid, all);
 
         if (n == 0) {
             struct job_data *job = job_find(req->job_id);

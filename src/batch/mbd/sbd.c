@@ -194,8 +194,8 @@ int32_t mbd_sbd_route(struct mbd_host *n)
     case BATCH_SBD_JOB_SIGNAL_REPLY:
         mbd_job_signal_reply(n, &xdrs, &hdr);
         break;
-    case BATCH_JOB_ORPHAN:
-        mbd_job_orphan(n, &xdrs);
+    case BATCH_JOB_MISSING:
+        mbd_job_missing(n, &xdrs);
         break;
     }
 
@@ -468,10 +468,11 @@ int mbd_dispatch_job(struct job_data *job)
     return 0;
 }
 
-/* Job orphaned by sbd as it probably restarted while processing
- * job start. Put the job back to pend and reschedule.
+/* sbd doesn't recognize this job -- probably sbd restarted while
+ * processing job start, so it has no record of the dispatch. Put
+ * the job back to pend and let it be redispatched.
  */
-void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
+void mbd_job_missing(struct mbd_host *n, XDR *xdrs)
 {
     struct wire_job_state s;
 
@@ -494,12 +495,12 @@ void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
         return;
     }
     if (job->run_nhosts <= 0 || job->run_hosts[0] != n) {
-        LL_ERRX("job=%ld orphan report from wrong host=%s", s.job_id, n->net.name);
+        LL_ERRX("job=%ld missing report from wrong host=%s", s.job_id, n->net.name);
         return;
     }
 
     if (job->state != JOB_RUNNING && job->state != JOB_SUSPENDED) {
-        LL_ERRX("job=%ld state=%s cannot become orphan",
+        LL_ERRX("job=%ld state=%s cannot be marked missing",
                 job->job_id, job_state_str(job->state));
         return;
     }
@@ -515,6 +516,13 @@ void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
     if (job->state == JOB_SUSPENDED)
         job->queue->num_susp--;
 
+    // sbd has no record of this dispatch (see mbd_job_reject_dispatch,
+    // which this mirrors) -- clear it so a stale dispatch_time/fork_time
+    // doesn't survive into a later finish_jobs_list compaction.
+    job->pid = 0;
+    job->fork_time = 0;
+    job->dispatch_time = 0;
+    job->pend_reason = PEND_NONE;
     job->state = JOB_PENDING;
     job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
     job->queue->num_hosts_used -= job->run_nhosts;
@@ -524,6 +532,6 @@ void mbd_job_orphan(struct mbd_host *n, XDR *xdrs)
     job->queue->num_jobs++;
     job->queue->num_pend++;
 
-    LL_INFO("job=%ld reported as orphan by sbd=%s forced pending",
+    LL_INFO("job=%ld reported missing by sbd=%s forced pending",
             s.job_id, n->net.name);
 }

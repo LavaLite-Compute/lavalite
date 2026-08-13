@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 
     int cc;
     int long_fmt = 0;
-    while ((cc = getopt_long(argc, argv, "hvl", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hvlc:o:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'c':
             close_queue = optarg;

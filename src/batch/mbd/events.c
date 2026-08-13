@@ -632,6 +632,8 @@ static void replay_job_finish(const struct event_rec *rec)
     if (job->list_id == JOB_LIST_RUN)
         from = &run_jobs_list;
     job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
+    job_array_element_finished(job);
+
     LL_DEBUG("JOB_FINISH job_id=%ld", e.job_id);
     /* No counter updates. These updates are performed only after
      * the full replay and only for jobs in pending or running lists.
@@ -823,8 +825,8 @@ int events_init(void)
  * value and the persisted value are both respected. If the file does
  * not exist (first run) the value stays at whatever replay set it to.
  *
- * Resist the tempation to delete this file as compact may leave an
- * manifest empty file so the job_id would go backwords.
+ * Resist the temptation to delete this file as compact may leave a
+ * manifest empty file so the job_id would go backwards.
  */
 static void job_id_seq_read(void)
 {
@@ -1086,6 +1088,42 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
         mbd_die(MBD_EXIT_EVENTS);
 }
 
+static void compact_write_job_finish(FILE *fp, const struct job_data *job)
+{
+    struct log_job_finish e;
+    memset(&e, 0, sizeof(e));
+
+    e.job_id = job->job_id;
+    e.uid = job->uid;
+    e.state = job->state;
+    e.exit_status = job->exit_status;
+    e.end_time = job->end_time;
+
+    if (log_write_job_finish(fp, &e) < 0)
+        mbd_die(MBD_EXIT_EVENTS);
+}
+
+/*
+ * compact_write_job_finished - re-log a finished job that compaction is
+ * retaining in memory (dep_refcnt or array_element_cnt), so it survives
+ * a restart. Without this its JOB_NEW only lives in the archived
+ * manifest, which jobs_replay() never reads -- the job silently
+ * vanishes from job_id_hash even though something still needs it.
+ *
+ * dispatch_time gates JOB_START: a job can reach finish_jobs_list
+ * without ever starting (killed while still pending), and emitting a
+ * JOB_START it never had would corrupt replay state.
+ */
+static void compact_write_job_finished(FILE *fp, const struct job_data *job)
+{
+    compact_write_job_new(fp, job);
+    if (job->dispatch_time) {
+        assert(job->fork_time > 0);
+        compact_write_job_start(fp, job);
+        compact_write_job_fork(fp, job);
+    }
+    compact_write_job_finish(fp, job);
+}
 
 /*
  * job_id_seq_write - persist the current job_id_seq to disk.
@@ -1176,6 +1214,7 @@ static void events_rebuild(void)
         if (job->dep_refcnt > 0) {
             LL_DEBUG("job=%ld retained by compaction dep_refcnt=%d",
                      job->job_id, job->dep_refcnt);
+            compact_write_job_finished(fp, job);
             continue;
         }
 
@@ -1185,6 +1224,7 @@ static void events_rebuild(void)
             && job->array_element_cnt > 0) {
             LL_DEBUG("job=%ld retained by compaction array_element_cnt=%d",
                      job->job_id, job->array_element_cnt);
+            compact_write_job_finished(fp, job);
             continue;
         }
 
