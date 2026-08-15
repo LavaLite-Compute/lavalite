@@ -2,6 +2,7 @@
  * GPL v2
  */
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

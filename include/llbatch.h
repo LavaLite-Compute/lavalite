@@ -6,7 +6,6 @@
  * published by the Free Software Foundation.
  */
 #pragma once
-#include "config.h"
 
 /* -----------------------------------------------------------------------
  * Job state

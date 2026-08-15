@@ -2,7 +2,7 @@
  * Copyright (C) LavaLite Contributors
  * GPL v2
  */
-
+#include "config.h"
 #include <string.h>
 #include <errno.h>
 #include <assert.h>

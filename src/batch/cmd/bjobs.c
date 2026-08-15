@@ -1,6 +1,7 @@
 /* Copyright (C) LavaLite Contributors
  * GPL v2
  */
+#include "config.h"
 #include <errno.h>
 #include <getopt.h>
 #include <pwd.h>

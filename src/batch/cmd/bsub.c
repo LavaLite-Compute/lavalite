@@ -3,7 +3,7 @@
  *
  * bsub - submit a batch job to LavaLite.
  */
-
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
