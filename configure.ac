@@ -44,8 +44,6 @@ AC_CONFIG_FILES([
   src/Makefile
   src/base/Makefile
   src/base/lib/Makefile
-  src/base/cmd/Makefile
-  src/base/lim/Makefile
   src/batch/Makefile
   src/batch/lib/Makefile
   src/batch/cmd/Makefile
