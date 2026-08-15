@@ -610,7 +610,7 @@ int host_admin(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     h = ll_hash_search(&host_name_hash, req.name);
     if (h == NULL) {
         LL_ERR("host_admin: host=%s not found", req.name);
-        return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, ESRCH);
+        return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, EINVAL);
     }
 
     if (req.op == HOST_CLOSED)
