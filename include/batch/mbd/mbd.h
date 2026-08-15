@@ -205,7 +205,7 @@ struct mbd_token_pool {
 
 #define JOB_BUCKETS 10
 #define SCHED_PLAN_MAX 1024
-#define SCHED_TIMER 5
+#define SCHED_TIMER 2
 
 struct sched_plan {
     struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */

@@ -443,22 +443,6 @@ void reset_except_fd(int except_fd)
     closedir(d);
 }
 
-void reset_signals(void)
-{
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = SIG_DFL;
-
-    for (int i = 1; i < NSIG; i++)
-        sigaction(i, &sa, NULL);
-
-    sigset_t newmask;
-    sigemptyset(&newmask);
-    sigprocmask(SIG_SETMASK, &newmask, NULL);
-
-    alarm(0);
-}
-
 static int spawn_job(struct sbd_job *job)
 {
     if (cgroup_job_create(job->job_id, job->mem_mb, job->ncpus) < 0)

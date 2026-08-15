@@ -304,3 +304,19 @@ int install_signal_handler(int sig, void (*handler)(int), int flags)
 
     return 0;
 }
+
+void reset_signals(void)
+{
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_DFL;
+
+    for (int i = 1; i < NSIG; i++)
+        sigaction(i, &sa, NULL);
+
+    sigset_t newmask;
+    sigemptyset(&newmask);
+    sigprocmask(SIG_SETMASK, &newmask, NULL);
+
+    alarm(0);
+}

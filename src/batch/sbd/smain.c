@@ -86,6 +86,9 @@ static int sbd_ll_check_conf(void)
 // Never exit for control-plane/network unavailability.
 static int sbd_init(void)
 {
+    reset_signals();
+    install_signal_handler(SIGPIPE, SIG_IGN, 0);
+
     if (ll_init() < 0) {
         LL_ERRX("ll_init failed cannot run");
         return -1;

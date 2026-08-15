@@ -60,6 +60,9 @@ static const char *mbd_exit_str(enum mbd_exit e)
 
 static int mbd_init(void)
 {
+    reset_signals();
+    install_signal_handler(SIGPIPE, SIG_IGN, 0);
+
     ll_list_init(&host_list);
     ll_hash_init(&host_name_hash, 1021);
     ll_hash_init(&host_addr_hash, 1021);
@@ -122,10 +125,13 @@ static void check_not_root(void)
 
 static void usage(void)
 {
-    fprintf(stderr, "mbd: --help\n"
-                    "--version \n"
-                    "--confdir set environment variable LL_CONF_DIR\n"
-                    "--timer_sched\n");
+    printf("Usage: mbd [options]\n"
+           "\n"
+           "  --confdir dir      Override LL_CONF_DIR (config directory)\n"
+           "  --sched_timer n    Scheduler run interval, in seconds\n"
+           "\n"
+           "  --help             Print this message and exit\n"
+           "  --version          Print version and exit\n");
 }
 
 static struct option longopts[] = {
