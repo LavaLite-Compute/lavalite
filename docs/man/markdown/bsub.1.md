@@ -126,13 +126,21 @@ desktop session or display server are not propagated.
 :   Terminate the job at the specified deadline. The job receives SIGUSR2
     and is killed if it does not exit within one minute.
 
+**--dependency** *expr*
+:   Hold the job until *expr* evaluates true. *expr* is built from the
+    terms **done(**_id_**)**, **exit(**_id_**)**, and **ended(**_id_**)**,
+    where *id* is a job ID. **ended(**_id_**)** is equivalent to
+    **done(**_id_**) || exit(**_id_**)**. Terms may be combined with
+    **&&**, **||**, **!**, and parentheses; **&&** binds tighter than
+    **||**. The referenced job ID must exist at submit time.
+
 ## Informational
 
 **--help**
-:   Print usage to stderr and exit.
+:   Print usage to stdout and exit.
 
 **--version**
-:   Print version to stderr and exit.
+:   Print version to stdout and exit.
 
 # OUTPUT
 
@@ -163,9 +171,13 @@ Submit an array of 10 jobs:
 
     bsub --array 1-10 ./process_chunk.sh
 
+Submit a job that waits on two prior jobs to finish successfully:
+
+    bsub --dependency "done(101) && done(102)" ./merge_results.sh
+
 Request tokens from a license pool:
 
-    bsub --pool hspice=4 ./sim.sh
+    bsub --tokens hspice=4 ./sim.sh
 
 # SEE ALSO
 

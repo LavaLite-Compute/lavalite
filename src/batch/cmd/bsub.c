@@ -54,6 +54,10 @@ static void usage(FILE *f)
         "  --array  start-end[:stride]  Submit an array job. start must be >= 1\n"
         "  --begin  [day:]h:m Do not dispatch before this time\n"
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
+        "  --dependency expr  Hold until dependency expr is satisfied.\n"
+        "                     expr uses done(id)/exit(id)/ended(id) terms\n"
+        "                     combined with && || ! and parentheses.\n"
+        "                     ended(id) means done(id) || exit(id).\n"
         "\n"
         "  --help             Print this message and exit\n"
         "  --version          Print version and exit\n");
