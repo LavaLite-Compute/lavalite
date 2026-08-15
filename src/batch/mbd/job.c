@@ -113,7 +113,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     if (job->queue == NULL) {
         LL_ERRX("queue='%s' not found", queue);
         free(job);
-        *err = ESRCH;
+        *err = EINVAL;
         return NULL;
     }
     job->priority = job->queue->priority;
@@ -606,8 +606,10 @@ job_prepare(struct wire_job_submit *ws,
     struct job_data *job;
 
     job = job_alloc(ws, err);
-    if (job == NULL)
+    if (job == NULL) {
+        LL_ERRX("job_alloc for uid=%d failed", hdr->uid);
         return NULL;
+    }
 
     job->uid = (uid_t) hdr->uid;
     job->gid = (gid_t) hdr->gid;

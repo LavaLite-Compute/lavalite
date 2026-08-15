@@ -87,11 +87,6 @@ static void doread(struct chan_data *chan)
             }
             xdr_destroy(&xdrs);
 
-            if (hdr.length > LL_MAX_PACKET_SIZE) {
-                chan->chan_events = CHAN_EPOLLERR;
-                return;
-            }
-
             if (hdr.length > 0) {
                 char *payload =
                     realloc(rcvbuf->data, PACKET_HEADER_SIZE + hdr.length);
@@ -570,11 +565,6 @@ int chan_rpc(int chan_id, struct chan_buffer *snd, struct chan_buffer *rcv,
     rcv->len = hdr->length;
     if (rcv->len == 0)
         return 0;
-
-    if (hdr->length > LL_MAX_PACKET_SIZE) {
-        errno = EPERM;
-        return -1;
-    }
 
     if ((rcv->data = calloc(rcv->len, sizeof(char))) == NULL)
         return -1;

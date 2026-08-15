@@ -158,7 +158,6 @@ int sbd_job_state_write(struct sbd_job *);
 int sbd_job_cleanup_files(struct sbd_job *);
 int sbd_read_exit_status_file(struct sbd_job *, int *, time_t *);
 void sbd_prune_jobs_try(void);
-void reset_signals(void);
 void reset_except_fd(int);
 void sbd_job_file_remove(struct sbd_job *);
 void sbd_job_state_remove(struct sbd_job *);
