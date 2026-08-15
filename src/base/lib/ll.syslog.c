@@ -25,7 +25,7 @@ static const char *level_str(int);
 static int get_level_str(const char *);
 static void build_timestamp(char *, size_t);
 static void write_record(int fd, const char *, size_t);
-static void ls_reopen_log(void);
+static void ll_reopen_log(void);
 
 // tag to indicate if child or parent useful after we fork
 // and use the same log file
@@ -120,7 +120,7 @@ void ll_syslog(int level, const char *fmt, ...)
     if (log_fd != STDERR_FILENO) {
         struct stat st;
         if (fstat(log_fd, &st) == 0 && st.st_nlink == 0)
-            ls_reopen_log();
+            ll_reopen_log();
 
         write_record(log_fd, line, len);
     }
@@ -131,7 +131,7 @@ void ll_syslog(int level, const char *fmt, ...)
     }
 }
 
-static void ls_reopen_log(void)
+static void ll_reopen_log(void)
 {
     if (log_path[0] == 0)
         return;
@@ -251,7 +251,7 @@ static const char *level_str(int level)
     return "LOG_INFO";
 }
 
-void ls_setlogtag(const char *tag)
+void ll_setlogtag(const char *tag)
 {
     if (!tag || !*tag) {
         log_tag[0] = 0;
@@ -260,7 +260,7 @@ void ls_setlogtag(const char *tag)
 
     snprintf(log_tag, sizeof(log_tag), "%s", tag);
 }
-int ls_getlogfd(void)
+int ll_getlogfd(void)
 {
     return log_fd;
 }

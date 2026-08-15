@@ -1,5 +1,4 @@
-/* Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+/* Copyright (C) LavaLite Contributors
  * GPL v2
  */
 
@@ -46,7 +45,7 @@ int main(int argc, char **argv)
     int nhosts = 0;
     struct ll_host_load *loads = ll_hostload(&nhosts);
     if (loads == NULL) {
-        fprintf(stderr, "lsload: ls_load failed\n");
+        fprintf(stderr, "lsload: ll_hostload failed\n");
         return 1;
     }
 

@@ -1,5 +1,4 @@
-/* Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+/* Copyright (C) LavaLite Contributors
  * GPL v2
  */
 #include <stdio.h>
@@ -33,7 +32,7 @@ int main(int argc, char **argv)
     int nhosts = 0;
     struct ll_host_info *hosts = ll_hostinfo(&nhosts);
     if (hosts == NULL) {
-        fprintf(stderr, "lshosts: ls_gethostinfo failed\n");
+        fprintf(stderr, "lshosts: ll_hostinfo failed\n");
         return 1;
     }
 

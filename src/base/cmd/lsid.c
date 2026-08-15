@@ -1,5 +1,4 @@
-/* Copyright (C) 2007 Platform Computing Inc
- * Copyright (C) LavaLite Contributors
+/* Copyright (C) LavaLite Contributors
  * GPL v2
  */
 
@@ -33,14 +32,14 @@ int main(int argc, char **argv)
 
     char *name = ll_clustername();
     if (name == NULL) {
-        fprintf(stderr, "lsid: ls_getclustername failed\n");
+        fprintf(stderr, "lsid: ll_clustername failed\n");
         return 1;
     }
     printf("My cluster name is %s\n", name);
 
     name = ll_mastername();
     if (name == NULL) {
-        fprintf(stderr, "lsid: ls_getmastername failed\n");
+        fprintf(stderr, "lsid: ll_mastername failed\n");
         return 1;
     }
     printf("My master name is %s\n", name);

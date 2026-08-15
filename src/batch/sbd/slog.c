@@ -663,12 +663,12 @@ void sbd_prune_jobs_try(void)
         return;
     }
 
-    int log_fd = ls_getlogfd();
+    int log_fd = ll_getlogfd();
     reset_except_fd(log_fd);
     reset_signals();
     char tag[LL_BUFSIZ_32];
     snprintf(tag, sizeof(tag), "pruner child");
-    ls_setlogtag(tag);
+    ll_setlogtag(tag);
 
     LL_INFO("pruner starting num_jobs_retain=%d", num_jobs_retain);
     sbd_prune_jobs();

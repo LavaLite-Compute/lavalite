@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 
     struct ll_cluster_info *cl = ll_clusterinfo();
     if (cl == NULL) {
-        fprintf(stderr, "lsclusters: ls_clusterinfo failed\n");
+        fprintf(stderr, "lsclusters: ll_clusterinfo failed\n");
         return 1;
     }
 

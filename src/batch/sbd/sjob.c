@@ -361,7 +361,7 @@ static void child_exec_job(struct sbd_job *job)
     snprintf(tag, sizeof(tag), "child job=%ld", job->job_id);
     // tag the logfile messages saying who we are as we share
     // the log file with parent and other children
-    ls_setlogtag(tag);
+    ll_setlogtag(tag);
 
     LL_INFO("job=%ld starting: command=<%s>", job->job_id, job->command);
 
@@ -402,7 +402,7 @@ static void child_exec_job(struct sbd_job *job)
     // After stdio redirection, STDERR_FILENO becomes the user's
     // stderr file. Disable stderr mirroring so daemon logs do
     // not leak into job output.
-    // ls_set_log_to_stderr(0);
+    // ll_set_log_to_stderr(0);
 
     if (redirect_stdio(job) < 0)
         _exit(127);
@@ -478,7 +478,7 @@ static int spawn_job(struct sbd_job *job)
         chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
-        int log_fd = ls_getlogfd();
+        int log_fd = ll_getlogfd();
         reset_except_fd(log_fd);
         reset_signals();
 

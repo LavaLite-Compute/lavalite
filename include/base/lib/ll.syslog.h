@@ -7,13 +7,13 @@
 #include <syslog.h>
 
 int ll_openlog(const char *, const char *, const char *);
-int ls_getlogfd(void);
+int ll_getlogfd(void);
 void ll_syslog(int, const char *, ...)
 #if defined(__GNUC__)
     __attribute__((format(printf, 2, 3)))
 #endif
     ;
-void ls_setlogtag(const char *);
+void ll_setlogtag(const char *);
 void ll_closelog(void);
 
 #define LL_ERRX(fmt, ...)                                                      \
