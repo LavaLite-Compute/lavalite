@@ -1,0 +1,217 @@
+# LavaLite 1.1.0 Release Notes
+
+## Overview
+
+LavaLite 1.1.0 builds on the 1.0.0 baseline with job arrays, job
+dependencies, and a significant `bhist` performance fix. It also closes
+a data-integrity bug present since 1.0.0 that could silently discard
+archived job history on daemon restart.
+
+## New in 1.1.0
+
+### Job Arrays
+
+- `bsub --array START-END[:STRIDE]` submits an array of independent
+  jobs from a single command. Elements are numbered from `START`
+  (must be 1 or greater); `STRIDE` defaults to 1.
+- Each element is a normal job for scheduling, accounting, and
+  dispatch purposes. The array as a whole is identified by its first
+  element's job ID.
+- `bkill` supports both whole-array (`N`) and single-element (`N[M]`)
+  targeting.
+- `bjobs`/`bhist` display array elements as `array_id[index]`; a bare
+  array ID aggregates every element.
+
+### Job Dependencies
+
+- `bsub --dependency EXPR` (short form `-w`) holds a job until `EXPR`
+  evaluates true.
+- `EXPR` is built from `done(id)`, `exit(id)`, and `ended(id)` terms
+  (`ended` is `done || exit`), combined with `&&`, `||`, `!`, and
+  parentheses. `&&` binds tighter than `||`.
+- Dependency state is tracked with reference counting so a still-needed
+  target job is never purged from the manifest by compaction while a
+  dependent job is waiting on it, and survives an `mbd` restart.
+
+### `bhist` Performance
+
+- Fixed an O(n²) job lookup in `bhist`'s history reconstruction. A
+  full history query that previously took **over 11 minutes** at
+  ~100,000 accumulated jobs now completes in about **5 seconds** —
+  roughly a 125x improvement. Point lookups (`bhist <job_id>`) improve
+  similarly.
+- The fix scales with real event volume, not job count, so query time
+  stays flat as the cluster's job history grows.
+
+## Bug Fixes
+
+### Manifest archive data loss on restart (all versions since 1.0.0)
+
+A directory-scan bug in `mbd`'s manifest compaction meant that, on
+every daemon restart, `mbd` failed to recognize any previously
+archived manifest file. As a result every restart reset its internal
+archive counter to zero and began reusing already-used archive
+filenames — silently overwriting and permanently destroying whatever
+job history had been archived by the prior run, with no error or log
+message.
+
+This was found during pre-1.1.0 chaos testing and did not affect any
+known production deployment. It is fixed in this release; archived job
+history is now correctly preserved across restarts.
+
+### Reliability
+
+- `mbd` and `sbd` no longer inherit the launching process's signal
+  mask and disposition; both now start with signals reset to default
+  and `SIGPIPE` explicitly ignored, so a client disconnecting mid-response
+  can no longer bring down the daemon.
+- Default scheduler timer interval (`--sched_timer`) reduced from 5s to
+  2s, improving slot utilization responsiveness. Remains configurable.
+
+## Major Features (from 1.0.0)
+
+### Core Scheduling
+
+- Queue-based workload scheduling
+- Host group based resource partitioning
+- Queue priorities
+- Per-job priorities
+- Queue access control
+- Queue-to-queue job movement (`bmove`)
+
+### Resource Management
+
+- CPU scheduling (`--cpus`)
+- Multi-host scheduling (`--nhosts`)
+- Memory-aware scheduling (`--mem`)
+- Storage-aware scheduling (`--storage`)
+- Exclusive host allocation (`--exclusive`)
+
+### GPU Scheduling
+
+- GPU-aware scheduling (`--gpus`)
+- GPU model matching (`--gpu-model`)
+
+### Token Pools
+
+- Token-based scheduling
+- Floating license resource control
+- Multiple token pool requests per job
+
+### Job Control
+
+- Hold and release
+- Suspension and resume
+- Termination and signal delivery
+- Job movement between queues
+- Runtime priority modification
+
+### Job History
+
+- Historical job inspection using `bhist`
+- Manifest-log-based history reconstruction
+- Persistent sidecar job information
+
+### Recovery
+
+- Durable manifest logging
+- Manifest replay during startup
+- `mbd` restart recovery
+- `sbd` restart recovery
+- Persistent scheduler state
+- Recovery without job loss
+
+### Security
+
+- HMAC-SHA256 authenticated communication
+- Shared-key cluster authentication
+- Request authentication through the API layer
+
+## User Commands
+
+### Job Submission and Control
+
+```text
+bsub
+bjobs
+bhist
+bkill
+bmove
+bpriority
+```
+
+### Resource Inspection
+
+```text
+bhosts
+bqueues
+bgroups
+btokens
+```
+
+### Advanced Job Submission
+
+`bsub` supports:
+
+```text
+--queue
+--name
+--project
+--comment
+
+--cpus
+--nhosts
+--mem
+--storage
+
+--gpus
+--gpu-model
+
+--exclusive
+
+--tokens
+
+--machines
+
+--stdin
+--stdout
+--stderr
+
+--hold
+--array
+--begin
+--terminate
+--dependency
+```
+
+## Documentation
+
+The release includes:
+
+```text
+docs/admin
+docs/testing
+docs/man
+```
+
+Documentation now includes:
+
+- Administrator Guide
+- Command Reference
+- Configuration Reference
+- Operational Procedures
+- Recovery Procedures
+- Validation Test Plan
+- Job Arrays
+
+## Platform Support
+
+Current validation targets:
+
+- Rocky Linux 8
+- Rocky Linux 9
+- Ubuntu 24.04
+
+## Known Limitations
+
+None currently tracked.

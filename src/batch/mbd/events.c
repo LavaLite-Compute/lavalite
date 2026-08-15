@@ -717,9 +717,9 @@ static void events_seq_scan(void)
 
     struct dirent *de;
     while ((de = readdir(dp)) != NULL) {
-        if (strncmp(de->d_name, "manifest.", 10) != 0)
+        if (strncmp(de->d_name, "manifest.", 9) != 0)
             continue;
-        const char *p = de->d_name + 10;
+        const char *p = de->d_name + 9;
         if (*p == '\0')
             continue;
         /* must be all digits */

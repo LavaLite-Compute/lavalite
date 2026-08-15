@@ -17,6 +17,7 @@
 #include "batch/lib/log.h"
 #include "base/lib/ll.conf.h"
 #include "base/lib/ll.bufsiz.h"
+#include "base/lib/ll.hash.h"
 
 #define HIST_JOB_BUCKETS 10
 
@@ -29,6 +30,13 @@ struct job_hist {
     struct job_hist_info *jobs;
     int32_t num_jobs;
     int32_t max_jobs;
+    /*
+     * job_id -> index into jobs[]. Stores the index, not a pointer:
+     * jobs[] is realloc()'d as it grows, so a stored pointer would
+     * dangle the next time the block moves. An index stays valid
+     * regardless of where the array currently lives.
+     */
+    struct ll_hash job_hash;
 };
 
 static char *hist_strdup(const char *s)
@@ -128,14 +136,18 @@ void llb_free_hist_info(struct job_hist_info *jobs, int32_t num_jobs)
 
 static struct job_hist_info *hist_find(struct job_hist *jh, int64_t job_id)
 {
-    int32_t i;
+    char key[32];
+    void *v;
 
-    for (i = 0; i < jh->num_jobs; i++) {
-        if (jh->jobs[i].job_id == job_id)
-            return &jh->jobs[i];
-    }
+    snprintf(key, sizeof(key), "%ld", job_id);
 
-    return NULL;
+    v = ll_hash_search(&jh->job_hash, key);
+    if (v == NULL)
+        return NULL;
+
+    /* stored as idx+1 so a real index of 0 is never confused with
+     * ll_hash_search()'s NULL "not found" return */
+    return &jh->jobs[(intptr_t)v - 1];
 }
 
 /* -----------------------------------------------------------------------
@@ -286,9 +298,15 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
 {
     struct job_hist_info *n;
     struct job_hist_info *j;
+    char key[32];
 
     if (jh->num_jobs == jh->max_jobs) {
-        int32_t new_max = jh->max_jobs + 64;
+        int32_t new_max;
+
+        if (jh->max_jobs == 0)
+            new_max = 1024;
+        else
+            new_max = jh->max_jobs * 2;
 
         n = realloc(jh->jobs, new_max * sizeof(struct job_hist_info));
         if (n == NULL)
@@ -332,6 +350,10 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
 
     hist_load_sidecar(j, "submit");
     hist_load_usage_sidecar(j);
+
+    snprintf(key, sizeof(key), "%ld", e->job_id);
+    /* idx+1, see hist_find()'s comment on the NULL/index-0 clash */
+    ll_hash_insert(&jh->job_hash, key, (void *)(intptr_t)(jh->num_jobs + 1), 0);
 
     jh->num_jobs++;
 
@@ -934,9 +956,15 @@ struct job_hist_info *llb_hist_info(int64_t job_id,
     jh.array_index = array_index;
     jh.uid    = uid;
 
+    if (ll_hash_init(&jh.job_hash, 16411) < 0) {
+        errno = ENOMEM;
+        return NULL;
+    }
+
     errno = 0;
 
     if (ll_init() < 0) {
+        ll_hash_clear(&jh.job_hash, NULL);
         errno = EINVAL;
         return NULL;
     }
@@ -951,9 +979,12 @@ struct job_hist_info *llb_hist_info(int64_t job_id,
         jh.all = 1;
 
     if (hist_scan_events(&jh) < 0) {
+        ll_hash_clear(&jh.job_hash, NULL);
         llb_free_hist_info(jh.jobs, jh.num_jobs);
         return NULL;
     }
+
+    ll_hash_clear(&jh.job_hash, NULL);
 
     if (jh.num_jobs == 0) {
         free(jh.jobs);
