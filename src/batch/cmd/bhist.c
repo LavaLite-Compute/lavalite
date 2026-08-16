@@ -440,6 +440,8 @@ static void usage(void)
             "  -u, --user USER  Show jobs for USER (admin only,"
             " unless USER is yourself)\n"
             "  -l               Full detail for all jobs\n"
+            "  -r               Show only jobs currently running\n"
+            "  -p               Show only jobs currently pending\n"
             "  -h, --help       Display this help and exit\n"
             "  -V, --version    Output version information and exit\n"
             "\n"
@@ -454,12 +456,42 @@ static struct option longopts[] = {
     { NULL, 0, NULL, 0 }
 };
 
+/*
+ * Compact jobs[] in place, keeping only entries matching 'state'.
+ * j->state here is the state derived from the last replayed event
+ * (hist_apply_start/pend/susp/finish), not a live mbd query -- bhist
+ * never talks to mbd. Dropped entries are freed with
+ * llb_free_hist_entry(), which releases only that entry's owned
+ * fields -- unlike llb_free_hist_info(), it never touches the array
+ * pointer itself, so it's safe to call on a mid-array element.
+ */
+static int32_t filter_by_state(struct job_hist_info *jobs, int32_t njobs,
+                               int32_t state)
+{
+    int32_t kept = 0;
+    int32_t i;
+
+    for (i = 0; i < njobs; i++) {
+        if (jobs[i].state != state) {
+            llb_free_hist_entry(&jobs[i]);
+            continue;
+        }
+        if (kept != i)
+            jobs[kept] = jobs[i];
+        kept++;
+    }
+
+    return kept;
+}
+
 int main(int argc, char **argv)
 {
     int64_t       job_id  = 0;
     uid_t         uid     = getuid();
     int32_t       njobs   = 0;
     int           full    = 0;
+    int           running_only = 0;
+    int           pending_only = 0;
     int           cc;
     struct passwd *pw;
 
@@ -468,8 +500,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* -l is short-only: no long equivalent */
-    while ((cc = getopt_long(argc, argv, "hVu:l", longopts, NULL)) != EOF) {
+    /* -l/-r/-p are short-only: no long equivalent */
+    while ((cc = getopt_long(argc, argv, "hVu:lrp", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'V':
             printf("%s\n", LAVALITE_VERSION_STR);
@@ -495,10 +527,21 @@ int main(int argc, char **argv)
         case 'l':
             full = 1;
             break;
+        case 'r':
+            running_only = 1;
+            break;
+        case 'p':
+            pending_only = 1;
+            break;
         default:
             usage();
             return 1;
         }
+    }
+
+    if (running_only && pending_only) {
+        fprintf(stderr, "bhist: -r and -p are mutually exclusive\n");
+        return 1;
     }
 
     int64_t array_id = 0;
@@ -528,6 +571,25 @@ int main(int argc, char **argv)
         }
         printf("No historical jobs found.\n");
         return 0;
+    }
+
+    if (running_only || pending_only) {
+        int32_t want = JOB_PENDING;
+
+        if (running_only)
+            want = JOB_RUNNING;
+
+        njobs = filter_by_state(jobs, njobs, want);
+        if (njobs == 0) {
+            const char *what = "pending";
+
+            if (running_only)
+                what = "running";
+
+            free(jobs);
+            printf("No %s jobs found.\n", what);
+            return 0;
+        }
     }
 
     struct col_widths w;

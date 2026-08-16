@@ -33,7 +33,7 @@ archived job history on daemon restart.
   target job is never purged from the manifest by compaction while a
   dependent job is waiting on it, and survives an `mbd` restart.
 
-### `bhist` Performance
+### `bhist`
 
 - Fixed an O(n²) job lookup in `bhist`'s history reconstruction. A
   full history query that previously took **over 11 minutes** at
@@ -42,6 +42,8 @@ archived job history on daemon restart.
   similarly.
 - The fix scales with real event volume, not job count, so query time
   stays flat as the cluster's job history grows.
+- New `-r`/`-p` flags filter history output down to jobs currently
+  running or currently pending, mirroring `bjobs -r`.
 
 ## Bug Fixes
 
@@ -59,6 +61,16 @@ This was found during pre-1.1.0 chaos testing and did not affect any
 known production deployment. It is fixed in this release; archived job
 history is now correctly preserved across restarts.
 
+### Removed arbitrary packet size limit
+
+A client-side response size check could reject legitimate `bjobs -a`
+output on clusters with a large number of jobs, aborting the
+connection before the full response was read. This left `mbd`
+attempting to write to a socket the client had already abandoned,
+which could crash the daemon with `SIGPIPE` (see Reliability below).
+The client-side limit has been removed; `bjobs -a` is now confirmed
+working cleanly at ~100,000 jobs.
+
 ### Reliability
 
 - `mbd` and `sbd` no longer inherit the launching process's signal
@@ -67,6 +79,17 @@ history is now correctly preserved across restarts.
   can no longer bring down the daemon.
 - Default scheduler timer interval (`--sched_timer`) reduced from 5s to
   2s, improving slot utilization responsiveness. Remains configurable.
+
+## Removed
+
+### `lim` daemon and `ls*` commands
+
+The `lim` daemon and all `ls`-prefixed CLI tools (`lsid`, `lsload`,
+`lsclusterinfo`) have been removed. Only the shared library code
+remains. `lim` also historically provided master/mastership failover
+between LIM instances, a capability LavaLite does not currently use
+(it runs a single master); this is not lost functionality for the
+current architecture.
 
 ## Major Features (from 1.0.0)
 

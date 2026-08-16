@@ -330,9 +330,26 @@ def bjobs_array_active(array_id, timeout):
     A bare array_id aggregates every element; each row's JOBID column
     is formatted as "array_id[index]".
 
+    Once every element (including the head) has finished AND mbd's
+    manifest compaction (events_rebuild()) has since run and purged
+    the array from job_id_hash, bjobs exits non-zero with empty
+    stdout -- same as an ordinary finished-and-compacted job
+    disappearing from 'bjobs -a'. Purging happens on compaction's own
+    schedule (threshold-triggered, or during startup replay), not
+    synchronously the moment the last element finishes, so a finished
+    array may still be visible for a while after completion.
+
+    We already know array_id is one we submitted ourselves (it's in
+    array_ids), so rc!=0 with empty stdout is taken as "0 active
+    elements" rather than parsed against bjobs' error text on stderr
+    -- matching a specific message string would be fragile to wording
+    changes. A genuine bjobs failure (mbd down, etc.) would generally
+    also surface through bjobs_active()'s own timeout/failure handling
+    in the same verify cycle.
+
     Returns:
         int   - number of still-active elements (may be 0)
-        None  - bjobs itself failed or timed out; caller should abort verify
+        None  - bjobs itself timed out; caller should abort verify
     """
     cp = run(["bjobs", str(array_id)], timeout=timeout)
 
@@ -341,11 +358,8 @@ def bjobs_array_active(array_id, timeout):
         return None
 
     if cp.returncode != 0 and not cp.stdout:
-        elog(f"chaos: verify: bjobs array={array_id} failed rc={cp.returncode}")
-        if cp.stderr:
-            for line in cp.stderr.splitlines():
-                elog(line)
-        return None
+        # Array not found: already finished and purged by compaction.
+        return 0
 
     prefix = f"{array_id}["
     active = 0

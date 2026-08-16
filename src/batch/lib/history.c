@@ -95,7 +95,14 @@ static struct job_event *event_add(struct job_hist_info *j)
  * job_hist_info
  * ----------------------------------------------------------------------- */
 
-static void hist_free_one(struct job_hist_info *j)
+/*
+ * llb_free_hist_entry - free one job_hist_info's owned fields (strings,
+ * events[]) without touching the entry struct or the array it lives in.
+ * Use this when discarding a single entry out of an array still owned
+ * by the caller (e.g. filtering jobs[] in place); use
+ * llb_free_hist_info() when releasing the whole array at once.
+ */
+void llb_free_hist_entry(struct job_hist_info *j)
 {
     int32_t i;
 
@@ -129,7 +136,7 @@ void llb_free_hist_info(struct job_hist_info *jobs, int32_t num_jobs)
         return;
 
     for (i = 0; i < num_jobs; i++)
-        hist_free_one(&jobs[i]);
+        llb_free_hist_entry(&jobs[i]);
 
     free(jobs);
 }
@@ -343,7 +350,7 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
 
     if (j->username == NULL || j->name == NULL ||
         j->queue == NULL || j->project == NULL) {
-        hist_free_one(j);
+        llb_free_hist_entry(j);
         memset(j, 0, sizeof(*j));
         return NULL;
     }

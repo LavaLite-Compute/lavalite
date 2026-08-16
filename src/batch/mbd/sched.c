@@ -285,6 +285,8 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
 
+        LL_DEBUG("consider host=%s addr=%s", h->net.name, h->net.addr);
+
         if (!host_in_queue_group(h, job)) {
             diag->not_in_queue++;
             continue;

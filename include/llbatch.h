@@ -307,6 +307,7 @@ int32_t llb_host_admin(const char *, int32_t);
 struct job_hist_info *llb_hist_info(int64_t, int64_t, int32_t, uid_t, int32_t *);
 void llb_free_hist_info(struct job_hist_info *, int32_t);
 int llb_caller_is_admin(void);
+void llb_free_hist_entry(struct job_hist_info *);
 
 // bmove
 int32_t llb_move_job(int64_t, const char *);
