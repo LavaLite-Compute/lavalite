@@ -68,7 +68,6 @@ static void fmt_stor(uint64_t mb, char *buf, size_t len)
 struct col_widths {
     int name;
     int state;
-    int max;
     int total_cpu;
     int used_cpu;
     int mem;
@@ -92,7 +91,6 @@ static void compute_widths(struct host_info *h, int n, struct col_widths *w)
 
     w->name         = strlen("HOST_NAME");
     w->state        = strlen("STATE");
-    w->max          = strlen("MAX");
     w->total_cpu    = strlen("NCPU");
     w->used_cpu     = strlen("USED_CPU");
     w->mem          = strlen("MEM_MB");
@@ -124,7 +122,6 @@ static void compute_widths(struct host_info *h, int n, struct col_widths *w)
 
         w->name      = imax(w->name,      (int)strlen(h[i].name));
         w->state     = imax(w->state,     (int)strlen(host_state_str(h[i].state)));
-        w->max       = imax(w->max,       ndigits(h[i].max_jobs));
         w->total_cpu = imax(w->total_cpu, ndigits(h[i].total_cpu));
         w->used_cpu  = imax(w->used_cpu,  ndigits(used_cpu));
         w->total_gpu = imax(w->total_gpu, ndigits(h[i].total_gpu));
@@ -212,10 +209,9 @@ int main(int argc, char **argv)
 
     compute_widths(hosts, nhosts, &w);
 
-    printf("%-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %-*s  %-*s\n",
+    printf("%-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %-*s  %-*s\n",
            w.name,         "HOST_NAME",
            w.state,        "STATE",
-           w.max,          "MAX",
            w.total_cpu,    "NCPU",
            w.mem,          "MEM_MB",
            w.storage,      "STOR_GB",
@@ -241,10 +237,9 @@ int main(int argc, char **argv)
         fmt_stor(hosts[i].total_storage_mb, stor_buf,   sizeof(stor_buf));
         fmt_stor(used_stor,               used_stor_buf, sizeof(used_stor_buf));
 
-        printf("%-*s  %-*s  %*d  %*d  %*s  %*s  %*d  %*d  %*d  %*d  %*d  %*s  %*s  %*d  %-*s  %-*s\n",
+        printf("%-*s  %-*s  %*d  %*s  %*s  %*d  %*d  %*d  %*d  %*d  %*s  %*s  %*d  %-*s  %-*s\n",
                w.name,         hosts[i].name,
                w.state,        host_state_str(hosts[i].state),
-               w.max,          hosts[i].max_jobs,
                w.total_cpu,    hosts[i].total_cpu,
                w.mem,          mem_buf,
                w.storage,      stor_buf,

@@ -142,7 +142,6 @@ struct job_info {
 struct host_info {
     char *name;                /* hostname */
     int32_t state;             /* HOST_OK | HOST_UNAVAIL | HOST_CLOSED */
-    int32_t max_jobs;          /* max concurrent jobs, 0 = unlimited */
     int32_t total_cpu;         /* total CPUs available on host */
     int32_t free_cpu;          /* CPUs available for scheduling */
     int32_t total_gpu;         /* total GPUs available on host */

@@ -361,7 +361,6 @@ struct host_info *llb_host_info(int32_t *nhosts)
     for (int i = 0; i < w.nhosts; i++) {
         out[i].name = strdup(w.hosts[i].name);
         out[i].state = w.hosts[i].state;
-        out[i].max_jobs = w.hosts[i].max_jobs;
         out[i].total_cpu = w.hosts[i].total_cpu;
         out[i].free_cpu = w.hosts[i].free_cpu;
         out[i].total_gpu = w.hosts[i].total_gpu;

@@ -129,7 +129,6 @@ struct mbd_gpu {
  * gpu_list is walked only when a specific gpu_model is requested.
  */
 struct host_resources {
-    int max_jobs;
     int total_cpu;
     int free_cpu;
     uint64_t total_mem_mb;

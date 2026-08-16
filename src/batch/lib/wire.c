@@ -290,8 +290,6 @@ bool_t xdr_wire_host_info(XDR *xdrs, struct wire_host_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->state))
         return false;
-    if (!xdr_int32_t(xdrs, &p->max_jobs))
-        return false;
     if (!xdr_int32_t(xdrs, &p->total_cpu))
         return false;
     if (!xdr_int32_t(xdrs, &p->free_cpu))

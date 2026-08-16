@@ -64,11 +64,11 @@ static int mark_candidates(void)
             continue;
         if (h->sbd_chan < 0)
             continue;
-        if (h->num_jobs >= h->res.max_jobs)
+        if (h->res.free_cpu <= 0)
             continue;
 
         h->candidate = 1;
-        free_slots += (h->res.max_jobs - h->num_jobs);
+        free_slots += h->res.free_cpu;
     }
 
     return free_slots;
@@ -345,8 +345,8 @@ static void host_update_resources(const struct job_data *job)
         h->num_run++;
         h->num_cpus_used += job->res.num_cpus;
 
-        // host has reached MXJ capacity
-        if (h->num_jobs >= h->res.max_jobs)
+        // host has exhausted its CPU capacity
+        if (h->res.free_cpu <= 0)
             h->candidate = 0;
 
         if (job->flags & JOB_FLAG_EXCLUSIVE)
@@ -355,10 +355,9 @@ static void host_update_resources(const struct job_data *job)
         // gpu ids were already updated during dispatch to sbd
         int n = gpu_ids_count_free(&h->res.gpu);
         LL_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "
-                 "free_storage_mb=%lu free_gpu=%d maxjobsleft=%d",
+                 "free_storage_mb=%lu free_gpu=%d",
                  h->net.name, h->num_jobs, h->res.free_cpu, h->res.free_mem_mb,
-                 h->res.free_storage_mb, n,
-                 h->res.max_jobs - h->num_jobs);
+                 h->res.free_storage_mb, n);
     }
 }
 
@@ -460,7 +459,7 @@ void schedule(void)
         /* Decrease the cluster wide available slots, no point on trying
          * to build plans for jobs if there are no slots.
          */
-        free_slots -= job->run_nhosts;
+        free_slots -= job->res.num_cpus * job->run_nhosts;
 
         LL_DEBUG("free_slots=%d queue=%s num_pend=%d num_run=%d num_susp=%d",
                  free_slots, job->queue->name, job->queue->num_pend,

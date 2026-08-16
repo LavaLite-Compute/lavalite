@@ -1377,7 +1377,7 @@ void mbd_assert_counters(void)
         int num_gpu_used = 0;
         int num_orphan = 0;
 
-        assert(h->num_jobs <= h->res.max_jobs);
+        assert(h->res.free_cpu >= 0);
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *) je;

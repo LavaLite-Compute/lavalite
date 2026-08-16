@@ -12,8 +12,8 @@
 # Column order is mandatory and must not be changed.
 #
 Begin Host
-HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
-myhost       4    8    40G    100G      A100       0,1
+HOST_NAME   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
+myhost       8    40G    100G      A100       0,1
 End Host
 
 Begin TokenPool

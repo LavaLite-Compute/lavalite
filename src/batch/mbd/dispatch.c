@@ -469,7 +469,6 @@ int hosts_info(XDR *xdrs, int chan_id)
 
         ll_strlcpy(hosts[i].name, h->net.name, sizeof(hosts[i].name));
         hosts[i].state = h->state;
-        hosts[i].max_jobs = h->res.max_jobs;
         hosts[i].total_cpu = h->res.total_cpu;
         hosts[i].free_cpu = h->res.free_cpu;
         hosts[i].total_gpu = h->res.gpu.count;

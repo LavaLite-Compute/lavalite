@@ -205,10 +205,10 @@ static struct mbd_host *make_host(const char *p)
     char gpu_model_str[LL_BUFSIZ_64];
     char gpu_ids_str[LL_BUFSIZ_64];
 
-    int n = sscanf(p, "%63s %d %d %31s %31s %63s %63s",
-                   hostname, &h->res.max_jobs, &h->res.total_cpu,
+    int n = sscanf(p, "%63s %d %31s %31s %63s %63s",
+                   hostname, &h->res.total_cpu,
                    mem_str, storage_str, gpu_model_str, gpu_ids_str);
-    if (n != 7) {
+    if (n != 6) {
         LL_ERRX("bad line: %s", p);
         free(h);
         return NULL;
@@ -256,7 +256,7 @@ static struct mbd_host *make_host(const char *p)
     return h;
 }
 
-static const char *host_hdr[] = { "HOST_NAME", "MXJ", "CPU", "MEM",
+static const char *host_hdr[] = { "HOST_NAME", "CPU", "MEM",
     "STORAGE", "GPU_MODEL", "GPU_IDS" };
 static int parse_hosts(const char *path)
 {
@@ -599,7 +599,7 @@ static int parse_queues(const char *path)
  * Section is optional — no error if absent.
  */
 static const char *sim_hdr[]   = { "NAME", "REAL_HOST", "PORT",
-    "MXJ", "CPU", "MEM", "STORAGE", "GPU_MODEL", "GPU_IDS" };
+    "CPU", "MEM", "STORAGE", "GPU_MODEL", "GPU_IDS" };
 static int parse_sim(const char *path)
 {
     FILE *f = fopen(path, "r");
@@ -653,13 +653,12 @@ static int parse_sim(const char *path)
         char gpu_model_str[LL_BUFSIZ_64];
         char gpu_ids_str[LL_BUFSIZ_64];
         int port;
-        int max_jobs;
         int total_cpu;
 
-        /* NAME  REAL_HOST  PORT  MXJ  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS */
-        if (sscanf(p, "%255s %255s %d %d %d %31s %31s %63s %63s",
-                   sim_name, real_host, &port, &max_jobs, &total_cpu,
-                   mem_str, storage_str, gpu_model_str, gpu_ids_str) != 9) {
+        /* NAME  REAL_HOST  PORT  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS */
+        if (sscanf(p, "%255s %255s %d %d %31s %31s %63s %63s",
+                   sim_name, real_host, &port, &total_cpu,
+                   mem_str, storage_str, gpu_model_str, gpu_ids_str) != 8) {
             LL_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
@@ -689,7 +688,6 @@ static int parse_sim(const char *path)
         h->net = real->net;
         ll_strlcpy(h->net.name, sim_name, sizeof(h->net.name));
 
-        h->res.max_jobs = max_jobs;
         h->res.total_cpu = total_cpu;
         h->res.free_cpu = total_cpu;
 

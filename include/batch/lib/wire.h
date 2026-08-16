@@ -232,7 +232,6 @@ struct wire_job_query {
 struct wire_host_info {
     char name[MAXHOSTNAMELEN];
     int32_t state;
-    int32_t max_jobs;
     int32_t total_cpu;
     int32_t free_cpu;
     int32_t total_gpu;
