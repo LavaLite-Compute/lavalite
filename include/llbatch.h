@@ -199,6 +199,25 @@ struct token_pool_info {
     int32_t used;  /* total - free */
 };
 
+/* -----------------------------------------------------------------------
+ * Service status
+ * ----------------------------------------------------------------------- */
+enum svc_state {
+    SVC_PENDING = 1, /* backing job not yet running */
+    SVC_RUNNING,     /* proxy mapping installed, endpoint live */
+    SVC_FAILED,      /* backing job never reached RUNNING */
+};
+
+struct svc_info {
+    char *svc_id;   /* user@name, unique service instance identity */
+    char *name;     /* service definition name (llb.services SERVICE_NAME) */
+    uid_t uid;
+    int32_t port;   /* external port */
+    char *run_host; /* backing job's execution host, NULL if not running yet */
+    int64_t job_id; /* backing job id */
+    int32_t state;  /* SVC_* */
+};
+
 /* llb_hist_info flags
  */
 #define LLB_HIST_ALL  0x0001
@@ -297,6 +316,13 @@ int32_t llb_signal_job(int64_t, int32_t, int32_t); /* job_id, array_index, sig *
 /* btokens */
 struct token_pool_info *llb_token_info(int32_t *);
 void llb_free_token_info(struct token_pool_info *, int32_t);
+
+// bservice
+int32_t llb_service_start(const char *, struct svc_info *);
+struct svc_info *llb_service_info(int32_t *);
+void llb_free_service_info(struct svc_info *, int32_t);
+int32_t llb_service_stop(const char *);
+const char *llb_svc_state_str(int32_t);
 
 /* admin */
 int32_t llb_queue_admin(const char *, int32_t);

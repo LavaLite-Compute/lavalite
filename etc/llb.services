@@ -1,0 +1,36 @@
+
+# Begin Service
+# SERVICE_NAME = <name>
+# TYPE         = user | daemon
+# IMAGE        = <sif path>
+# COMMAND      = <cmd>              # mandatory, all types
+# PORT         = <port>             # mandatory if user, forbidden if daemon
+# QUEUE        = <queue>            # optional
+# RESTART      = always | on-failure | never
+# End Service
+
+
+Begin Service
+SERVICE_NAME = jupyter
+TYPE         = user
+IMAGE        = /export/service_images/jupyter-base.sif
+PORT         = 8888
+COMMAND      = jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+RESTART      = always
+End Service
+
+Begin Service
+SERVICE_NAME = code-server
+TYPE         = user
+IMAGE        = /export/service_images/code-server.sif
+PORT         = 8080
+RESTART      = always
+End Service
+
+Begin Service
+SERVICE_NAME = node-info
+TYPE         = daemon
+IMAGE        = /export/service_images/busybox.sif
+COMMAND      = sh -c 'while true; do echo "hello from $(hostname) at $(date)"; sleep 30; done'
+RESTART      = always
+End Service

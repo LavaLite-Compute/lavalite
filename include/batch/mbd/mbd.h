@@ -155,15 +155,6 @@ struct mbd_host {
     int num_cpus_used; /* CPUs consumed by running jobs on this host */
 };
 
-struct queue_conf {
-    char name[LL_BUFSIZ_64];
-    char desc[LL_BUFSIZ_256];
-    char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
-    char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
-    int priority;
-    int state;
-};
-
 struct mbd_queue {
     struct ll_list_entry ent;
     char name[LL_BUFSIZ_64];
@@ -227,6 +218,35 @@ struct pend_diag {
     int host_overflow;
 };
 
+enum service_type {
+    LL_SERVICE_USER,
+    LL_SERVICE_DAEMON
+};
+
+enum service_restart {
+    LL_SERVICE_RESTART_ALWAYS,
+    LL_SERVICE_RESTART_ON_FAILURE,
+    LL_SERVICE_RESTART_NEVER
+};
+
+/*
+ * One service definition, as loaded from llb.services (one entry per
+ * Begin Service block). This is configuration state only — running
+ * instances (svc_id, external port, backing job_id, run_host) are
+ * tracked separately by service.c's own registry, not here.
+ */
+struct service_data {
+    struct ll_list_entry ent;    /* linkage in service_list, must be first */
+    char name[LL_BUFSIZ_64];
+    char image[PATH_MAX];
+    char command[LL_BUFSIZ_512];
+    int port;
+    char queue[LL_BUFSIZ_64];
+    enum service_type type;
+    enum service_restart restart;
+    struct ll_list instances;    /* active instances of this service */
+};
+
 extern int64_t job_id_seq;
 extern struct ll_hash job_id_hash;
 
@@ -248,6 +268,8 @@ extern struct ll_hash token_pool_name_hash;
 
 extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
+
+extern struct ll_list service_list;
 
 extern struct mbd_manager mbd_mgr;
 extern int chan_mbd;
@@ -358,3 +380,6 @@ int host_state_init(void);
 int queue_admin(XDR *, int, const struct protocol_header *);
 void queue_state_write(const struct mbd_queue *);
 int queue_state_init(void);
+
+// service.c
+void service_init(void);

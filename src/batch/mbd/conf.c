@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -11,10 +12,32 @@
 #include <grp.h>
 
 #include "base/lib/ll.syslog.h"
+#include "base/lib/ll.list.h"
+#include "base/lib/ll.sys.h"
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
 #define ARRAY_SIZE(a) ((int)(sizeof(a) / sizeof(a[0])))
+
+struct queue_conf {
+    char name[LL_BUFSIZ_64];
+    char desc[LL_BUFSIZ_256];
+    char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
+    char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
+    int priority;
+    int state;
+};
+
+struct service_conf {
+    char name[LL_BUFSIZ_64];
+    char type[LL_BUFSIZ_32];
+    char image[PATH_MAX];
+    char command[LL_BUFSIZ_512];
+    int port;
+    char queue[LL_BUFSIZ_64];
+    char restart[LL_BUFSIZ_32];
+};
+
 
 /* Parse a size string with optional suffix M/G/T (case-insensitive).
  * No suffix = MB. Returns value in MB, 0 on error.
@@ -908,6 +931,200 @@ static int check_ll_config(void)
     return 0;
 }
 
+static int parse_service_conf(struct service_conf *sc,
+                              const char *key,
+                              const char *val)
+{
+    if (strcasecmp(key, "SERVICE_NAME") == 0)
+        return ll_strlcpy(sc->name, val, sizeof(sc->name));
+
+    if (strcasecmp(key, "TYPE") == 0)
+        return ll_strlcpy(sc->type, val, sizeof(sc->type));
+
+    if (strcasecmp(key, "IMAGE") == 0)
+        return ll_strlcpy(sc->image, val, sizeof(sc->image));
+
+    if (strcasecmp(key, "COMMAND") == 0)
+        return ll_strlcpy(sc->command, val, sizeof(sc->command));
+
+    if (strcasecmp(key, "PORT") == 0)
+        return ll_atoi(val, &sc->port);
+
+    if (strcasecmp(key, "QUEUE") == 0)
+        return ll_strlcpy(sc->queue, val, sizeof(sc->queue));
+
+    if (strcasecmp(key, "RESTART") == 0)
+        return ll_strlcpy(sc->restart, val, sizeof(sc->restart));
+
+    LL_ERRX("unknown service key=%s", key);
+    return -1;
+}
+
+static int commit_service(struct service_conf *sc)
+{
+    struct service_data *s;
+
+    if (sc->name[0] == 0) {
+        LL_ERRX("service missing SERVICE_NAME");
+        return -1;
+    }
+
+    if (sc->image[0] == 0) {
+        LL_ERRX("service=%s missing IMAGE", sc->name);
+        return -1;
+    }
+
+    if (sc->command[0] == 0) {
+        LL_ERRX("service=%s missing COMMAND", sc->name);
+        return -1;
+    }
+
+    s = calloc(1, sizeof(struct service_data));
+    if (s == NULL) {
+        LL_ERR("calloc failed");
+        return -1;
+    }
+
+    ll_strlcpy(s->name, sc->name, sizeof(s->name));
+    ll_strlcpy(s->image, sc->image, sizeof(s->image));
+    ll_strlcpy(s->command, sc->command, sizeof(s->command));
+    s->port = sc->port;
+
+    if (strcasecmp(sc->type, "user") == 0)
+        s->type = LL_SERVICE_USER;
+    else if (strcasecmp(sc->type, "daemon") == 0)
+        s->type = LL_SERVICE_DAEMON;
+    else {
+        LL_ERRX("service=%s invalid TYPE=%s", sc->name, sc->type);
+        free(s);
+        return -1;
+    }
+
+    if (s->type == LL_SERVICE_USER && sc->port <= 0) {
+        LL_ERRX("service=%s type=user requires valid PORT", sc->name);
+        free(s);
+        return -1;
+    }
+
+    if (s->type == LL_SERVICE_DAEMON && sc->port != 0) {
+        LL_ERRX("service=%s type=daemon must not set PORT", sc->name);
+        free(s);
+        return -1;
+    }
+
+    if (sc->queue[0] != 0 && !ll_hash_contains(&queue_name_hash, sc->queue)) {
+        LL_ERRX("service=%s QUEUE=%s not found", sc->name, sc->queue);
+        free(s);
+        return -1;
+    }
+    ll_strlcpy(s->queue, sc->queue, sizeof(s->queue));
+
+    if (strcasecmp(sc->restart, "always") == 0)
+        s->restart = LL_SERVICE_RESTART_ALWAYS;
+    else if (strcasecmp(sc->restart, "never") == 0)
+        s->restart = LL_SERVICE_RESTART_NEVER;
+    else if (strcasecmp(sc->restart, "on-failure") == 0)
+        s->restart = LL_SERVICE_RESTART_ON_FAILURE;
+    else {
+        LL_ERRX("service=%s invalid RESTART=%s",
+                sc->name, sc->restart);
+        free(s);
+        return -1;
+    }
+
+    ll_list_init(&s->instances);
+    ll_list_append(&service_list, &s->ent);
+
+    LL_INFO("service=%s type=%s image=%s port=%d queue=%s restart=%s",
+            sc->name, sc->type, sc->image, sc->port,
+            sc->queue[0] ? sc->queue : "-", sc->restart);
+
+    return 0;
+}
+
+static int parse_services(const char *path)
+{
+    FILE *f;
+    struct service_conf svc;
+    char line[LL_BUFSIZ_1K];
+    int in_section;
+
+    f = fopen(path, "r");
+    if (f == NULL) {
+        LL_ERR("fopen=%s failed", path);
+        return -1;
+    }
+
+    memset(&svc, 0, sizeof(svc));
+    in_section = 0;
+
+    while (fgets(line, sizeof(line), f) != NULL) {
+        char *p;
+        char *section;
+
+        p = ltrim(line);
+        rtrim(p);
+
+        if (*p == 0 || *p == '#')
+            continue;
+
+        section = ll_conf_parse_begin(p);
+        if (section != NULL) {
+            if (strncmp(section, "Service", 5) == 0) {
+                in_section = 1;
+                memset(&svc, 0, sizeof(svc));
+            }
+            continue;
+        }
+
+        if (!in_section)
+            continue;
+
+        if (ll_conf_parse_end(p)) {
+            if (commit_service(&svc) < 0) {
+                fclose(f);
+                return -1;
+            }
+            in_section = 0;
+            memset(&svc, 0, sizeof(svc));
+            continue;
+        }
+
+        {
+            char *eq;
+            char *key;
+            char *val;
+
+            eq = strchr(p, '=');
+            if (eq == NULL) {
+                LL_ERRX("parse_queues: bad line: %s", p);
+                fclose(f);
+                return -1;
+            }
+
+            *eq = 0;
+            key = p;
+            val = ltrim(eq + 1);
+            rtrim(key);
+            rtrim(val);
+
+            if (parse_service_conf(&svc, key, val) < 0) {
+                fclose(f);
+                return -1;
+            }
+        }
+    }
+
+    fclose(f);
+
+    if (in_section) {
+        LL_ERRX("missing End Service in %s", path);
+        return -1;
+    }
+
+    return 0;
+}
+
 int conf_init(void)
 {
     if (ll_init() < 0) {
@@ -973,6 +1190,15 @@ int conf_init(void)
 
     if (conf_expand_queue_users() < 0) {
         LL_ERRX("conf_expand_queue_users failed");
+        return -1;
+    }
+
+    n = snprintf(path, sizeof(path), "%s/llb.services", conf_dir);
+    if (n < 0 || n >= (int) sizeof(path))
+        return -1;
+
+    if (parse_services(path) < 0) {
+        LL_ERRX("parse_services failed path=%s", path);
         return -1;
     }
 

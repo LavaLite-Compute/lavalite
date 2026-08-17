@@ -45,6 +45,12 @@ enum batch_lib_op {
     BATCH_JOB_MOVE_ACK,
     BATCH_JOB_PRIORITY,
     BATCH_JOB_PRIORITY_ACK,
+    BATCH_SERVICE_START,
+    BATCH_SERVICE_START_ACK,
+    BATCH_SERVICE_INFO,
+    BATCH_SERVICE_INFO_ACK,
+    BATCH_SERVICE_STOP,
+    BATCH_SERVICE_STOP_ACK,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);

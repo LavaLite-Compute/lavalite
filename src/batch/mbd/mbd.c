@@ -29,6 +29,7 @@ struct ll_hash queue_name_hash;
 struct ll_hash sbd_chan_hash;
 struct ll_list token_pool_list;
 struct ll_hash token_pool_name_hash;
+struct ll_list service_list;
 
 struct mbd_manager mbd_mgr;
 
@@ -73,6 +74,7 @@ static int mbd_init(void)
     ll_hash_init(&sbd_chan_hash, 1021);
     ll_list_init(&token_pool_list);
     ll_hash_init(&token_pool_name_hash, 1021);
+    ll_list_init(&service_list);
 
     if (conf_init() < 0) {
         LL_ERRX("conf_init failed");
@@ -110,6 +112,8 @@ static int mbd_init(void)
         LL_ERRX("host_state_init failed");
         return -1;
     }
+
+    service_init();
 
     return 0;
 }
