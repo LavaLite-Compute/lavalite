@@ -326,6 +326,9 @@ int hosts_info(XDR *, int);
 int queues_info(XDR *, int);
 int host_group_info(XDR *, int);
 int tokens_info(XDR *, int);
+int service_start(XDR *, int, const struct protocol_header *);
+int services_info(XDR *, int, const struct protocol_header *);
+int service_stop(XDR *, int, const struct protocol_header *);
 
 // admin.c
 int host_admin(XDR *, int, const struct protocol_header *);
@@ -383,3 +386,6 @@ int queue_state_init(void);
 
 // service.c
 void service_init(void);
+int service_start_instance(const struct protocol_header *, int, const char *);
+int service_collect_info(uid_t, int, struct wire_svc_info **);
+int service_stop_instance(uid_t, const char *);

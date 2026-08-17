@@ -623,3 +623,100 @@ int host_admin(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, 0);
 }
+
+/* -----------------------------------------------------------
+ * service
+ *
+ * service_start_instance()/service_collect_info()/
+ * service_stop_instance() are service.c's entry points -- this file
+ * stays decode/validate/reply only, same as every other handler
+ * above. service.c owns the instance registry and never exposes its
+ * internal shape here, same reasoning as job.c never exposing
+ * pend_jobs_list's internals through dispatch.c's job handlers.
+ *
+ * service_start is the one handler in this file that does NOT reply
+ * on success: the backing job has only been created and is still
+ * pending, so service_start_instance() holds onto chan_id and fires
+ * the real BATCH_SERVICE_START_ACK itself, later, once mbd sees the
+ * job reach RUNNING (see mbd_new_job_reply()). A non-zero return
+ * here means the request never got that far (unknown service name,
+ * no ports free, etc.) and dispatch.c replies immediately as usual.
+ * ----------------------------------------------------------- */
+int service_start(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+{
+    struct wire_svc_start req;
+
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_svc_start(xdrs, &req)) {
+        LL_ERR("service_start: xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_SERVICE_START_ACK, EPROTO);
+    }
+
+    int err = service_start_instance(hdr, chan_id, req.name);
+    if (err != 0) {
+        LL_INFO("service_start: name=%s uid=%u failed err=%d",
+                req.name, hdr->uid, err);
+        return enqueue_header(chan_id, BATCH_SERVICE_START_ACK, err);
+    }
+
+    return 0;
+}
+
+int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+{
+    (void) xdrs;
+
+    int all = is_manager(hdr->uid);
+    uid_t uid = hdr->uid;
+
+    struct wire_svc_info *svc = NULL;
+    int n = service_collect_info(uid, all, &svc);
+    if (n < 0) {
+        LL_ERR("services_info: service_collect_info failed");
+        return enqueue_header(chan_id, BATCH_SERVICE_INFO_ACK, errno);
+    }
+
+    struct wire_svc_info_array reply;
+    reply.nsvc = n;
+    reply.svc = svc;
+
+    size_t siz = sizeof(struct wire_svc_info) * n +
+                 sizeof(struct wire_svc_info_array) +
+                 PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+
+    struct protocol_header rep_hdr;
+    init_protocol_header(&rep_hdr);
+    rep_hdr.operation = BATCH_SERVICE_INFO_ACK;
+    rep_hdr.status = MBD_OK;
+
+    if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
+                        xdr_wire_svc_info_array) < 0) {
+        LL_ERR("services_info: enqueue_payload failed");
+        free(svc);
+        return -1;
+    }
+
+    free(svc);
+    return 0;
+}
+
+int service_stop(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+{
+    struct wire_svc_stop req;
+
+    memset(&req, 0, sizeof(req));
+    if (!xdr_wire_svc_stop(xdrs, &req)) {
+        LL_ERR("service_stop: xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_SERVICE_STOP_ACK, EPROTO);
+    }
+
+    int err = service_stop_instance(hdr->uid, req.svc_id);
+    if (err != 0) {
+        LL_INFO("service_stop: svc_id=%s uid=%u failed err=%d",
+                req.svc_id, hdr->uid, err);
+        return enqueue_header(chan_id, BATCH_SERVICE_STOP_ACK, err);
+    }
+
+    LL_INFO("service_stop: svc_id=%s stopped by uid=%u", req.svc_id, hdr->uid);
+    return enqueue_header(chan_id, BATCH_SERVICE_STOP_ACK, MBD_OK);
+}

@@ -51,6 +51,12 @@ int valid_batch_op(int op)
     case BATCH_JOB_PRIORITY:
     case BATCH_JOB_PRIORITY_ACK:
     case BATCH_JOB_MISSING:
+    case BATCH_SERVICE_START:
+    case BATCH_SERVICE_START_ACK:
+    case BATCH_SERVICE_INFO:
+    case BATCH_SERVICE_INFO_ACK:
+    case BATCH_SERVICE_STOP:
+    case BATCH_SERVICE_STOP_ACK:
         return 1;
     default:
         return 0;
@@ -160,6 +166,18 @@ static void route(int chan_id)
         break;
     case BATCH_JOB_PRIORITY:
         if (job_priority(&xdrs, chan_id, &hdr) < 0)
+            chan_shutdown(chan_id);
+        break;
+    case BATCH_SERVICE_START:
+        if (service_start(&xdrs, chan_id, &hdr) < 0)
+            chan_shutdown(chan_id);
+        break;
+    case BATCH_SERVICE_INFO:
+        if (services_info(&xdrs, chan_id, &hdr) < 0)
+            chan_shutdown(chan_id);
+        break;
+    case BATCH_SERVICE_STOP:
+        if (service_stop(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     }

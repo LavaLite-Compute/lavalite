@@ -153,6 +153,12 @@ const char *batch_op_str(enum batch_lib_op op)
         [BATCH_JOB_PRIORITY] = "BATCH_JOB_PRIORITY",
         [BATCH_JOB_PRIORITY_ACK] = "BATCH_JOB_PRIORITY_ACK",
         [BATCH_JOB_MISSING] = "BATCH_JOB_MISSING",
+        [BATCH_SERVICE_START] = "BATCH_SERVICE_START",
+        [BATCH_SERVICE_START_ACK] = "BATCH_SERVICE_START_ACK",
+        [BATCH_SERVICE_INFO] = "BATCH_SERVICE_INFO",
+        [BATCH_SERVICE_INFO_ACK] = "BATCH_SERVICE_INFO_ACK",
+        [BATCH_SERVICE_STOP] = "BATCH_SERVICE_STOP",
+        [BATCH_SERVICE_STOP_ACK] = "[BATCH_SERVICE_STOP_ACK",
     };
     static const size_t nnames = sizeof(names) / sizeof(names[0]);
 
