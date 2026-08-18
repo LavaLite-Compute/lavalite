@@ -271,12 +271,12 @@ enum service_instance_state {
  * a restart, since redispatch can land on a different host.
  */
 struct service_instance {
-    struct ll_list_entry ent;     /* linkage in service_data.instances */
-    struct service_data *svc;      /* owning service definition */
-    char svc_id[LL_BUFSIZ_256];    /* "user@name" identity, also the proxy's svc_id */
-    int port;                      /* external port, set by svc_proxy_add_ok() once proxy binds it */
+    struct ll_list_entry ent;    /* linkage in service_data.instances */
+    struct service_data *svc;     /* owning service definition */
+    char svc_id[LL_BUFSIZ_256]; /* "uid@name" identity, also the proxy's svc_id */
+    int port;    /* external port set by svc_proxy_add_ok() once proxy binds it */
     int64_t job_id;
-    char run_host[LL_BUFSIZ_64];   /* set once job reaches RUNNING; proxy UPDATE run_host: */
+    char run_host[LL_BUFSIZ_64];  /* set once job reaches RUNNING */
     int chan_id;    /* held open for the deferred BATCH_SERVICE_START_ACK */
     enum service_instance_state state;
     /* Job submission built in phase 1 (service_start_instance()), used
