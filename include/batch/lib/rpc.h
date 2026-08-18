@@ -54,4 +54,6 @@ enum batch_lib_op {
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);
+int call_mbd_timeout(const void *, size_t, void **,
+                     struct protocol_header *, int);
 const char *batch_op_str(enum batch_lib_op);

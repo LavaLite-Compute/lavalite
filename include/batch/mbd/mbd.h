@@ -59,6 +59,9 @@ struct job_resources {
     struct ll_list tokens;
 };
 
+/* full definition below, after struct service_data */
+struct service_instance;
+
 struct job_data {
     struct ll_list_entry ent;
     int64_t job_id;
@@ -100,6 +103,11 @@ struct job_data {
      * Blocks compaction from purging the head while > 0 — see
      * job_move_list()/events_rebuild(). Zero on ordinary jobs. */
     int32_t array_element_cnt;
+    /* NULL for ordinary jobs. Set by service_start_instance() right
+     * after job_prepare(), before job_commit(). Same job_id/job_data
+     * is reused across service restarts, so this never needs
+     * updating once set -- see service_instance.job_id instead. */
+    struct service_instance *svc_inst;
 };
 
 struct gpu_id {
@@ -247,6 +255,30 @@ struct service_data {
     struct ll_list instances;    /* active instances of this service */
 };
 
+enum service_instance_state {
+    SVC_INST_STARTING,  /* job dispatched/requeued, not yet RUNNING */
+    SVC_INST_RUNNING,   /* job RUNNING, proxy UPDATE sent           */
+    SVC_INST_STOPPING,  /* stop requested, waiting for job end      */
+};
+
+/*
+ * One running (or starting/stopping) instance of a service_data
+ * definition. job_id is stable for the instance's whole life --
+ * restarts reuse the same backing job (see the requeue design),
+ * they never allocate a new job_id -- only run_host changes across
+ * a restart, since redispatch can land on a different host.
+ */
+struct service_instance {
+    struct ll_list_entry ent;     /* linkage in service_data.instances */
+    struct service_data *svc;      /* owning service definition */
+    char svc_id[LL_BUFSIZ_256];    /* "user@name" identity, also the proxy's svc_id */
+    int port;                      /* external port, from svc_port_alloc() */
+    int64_t job_id;
+    char run_host[LL_BUFSIZ_64];   /* set once job reaches RUNNING; proxy UPDATE run_host: */
+    int chan_id;    /* held open for the deferred BATCH_SERVICE_START_ACK */
+    enum service_instance_state state;
+};
+
 extern int64_t job_id_seq;
 extern struct ll_hash job_id_hash;
 
@@ -336,6 +368,9 @@ int queue_admin(XDR *, int, const struct protocol_header *);
 
 // job.c
 void job_register(XDR *, int, const struct protocol_header *);
+struct job_data *job_prepare(struct wire_job_submit *, const struct wire_job_script *,
+                             const struct protocol_header *, int *);
+void job_commit(struct job_data *, struct wire_job_submit *);
 int job_move(XDR *, int, const struct protocol_header *);
 int job_priority(XDR *, int, const struct protocol_header *);
 int jobs_signal(XDR *, int, const struct protocol_header *);

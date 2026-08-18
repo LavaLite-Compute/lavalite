@@ -597,11 +597,10 @@ static void job_register_error(int chan_id, int status)
                     xdr_wire_job_submit_reply);
 }
 
-static struct job_data *
-job_prepare(struct wire_job_submit *ws,
-            const struct wire_job_script *script,
-            const struct protocol_header *hdr,
-            int *err)
+struct job_data * job_prepare(struct wire_job_submit *ws,
+                              const struct wire_job_script *script,
+                              const struct protocol_header *hdr,
+                              int *err)
 {
     struct job_data *job;
 
@@ -648,31 +647,7 @@ job_prepare(struct wire_job_submit *ws,
     return job;
 }
 
-static void job_discard(struct job_data *job)
-{
-    /*
-     * TODO: remove the per-job directory and files before freeing the job.
-     */
-    job_free(job);
-}
-
-static void job_discard_prepared(struct ll_list *prepared)
-{
-    struct ll_list_entry *e;
-    struct ll_list_entry *next;
-
-    for (e = prepared->head; e != NULL; e = next) {
-        next = e->next;
-
-        struct job_data *job = (struct job_data *) e;
-
-        ll_list_remove(prepared, &job->ent);
-        job_discard(job);
-    }
-}
-
-static void job_commit(struct job_data *job,
-                       struct wire_job_submit *ws)
+void job_commit(struct job_data *job, struct wire_job_submit *ws)
 {
     char key[LL_BUFSIZ_32];
 
@@ -698,6 +673,29 @@ static void job_commit(struct job_data *job,
     LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d dependency=%s",
             job->job_id, job->user, job->queue->name,
             job->queue->num_jobs, job->queue->num_pend, job->depend_cond);
+}
+
+static void job_discard(struct job_data *job)
+{
+    /*
+     * TODO: remove the per-job directory and files before freeing the job.
+     */
+    job_free(job);
+}
+
+static void job_discard_prepared(struct ll_list *prepared)
+{
+    struct ll_list_entry *e;
+    struct ll_list_entry *next;
+
+    for (e = prepared->head; e != NULL; e = next) {
+        next = e->next;
+
+        struct job_data *job = (struct job_data *) e;
+
+        ll_list_remove(prepared, &job->ent);
+        job_discard(job);
+    }
 }
 
 static void job_commit_prepared(struct ll_list *prepared,

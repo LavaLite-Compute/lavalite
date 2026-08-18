@@ -1,11 +1,11 @@
 # Copyright (C) LavaLite Contributors
 
-AC_INIT([lavalite], [1.1.0], [https://github.com/LavaLite-Compute/lavalite])
+AC_INIT([lavalite], [2.0.0], [https://github.com/LavaLite-Compute/lavalite])
 dnl Modern large/posix feature defines (instead of forcing _GNU_SOURCE)
 AC_USE_SYSTEM_EXTENSIONS
 
 AC_CONFIG_HEADERS([config.h])
-AC_PREFIX_DEFAULT([/opt/lavalite-1.1.0])
+AC_PREFIX_DEFAULT([/opt/lavalite-2.0.0])
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIRS([m4])
 

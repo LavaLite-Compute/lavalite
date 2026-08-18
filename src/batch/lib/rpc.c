@@ -72,8 +72,16 @@ static int mbd_rpc_init(void)
  * On error: returns -1, sets lserrno.
  * Keeps a persistent TCP connection; reconnects on failure.
  */
-int call_mbd(const void *req, size_t req_len, void **rep,
-             struct protocol_header *reply_hdr)
+/*
+ * Send req_len bytes to mbd via TCP, receive reply, with an explicit
+ * timeout (seconds; negative blocks forever -- see rd_poll()/poll(2)).
+ * Same contract as call_mbd() otherwise. Exists for callers whose
+ * reply is not near-instant -- e.g. llb_service_start(), whose ack
+ * is deferred in mbd until the backing job reaches RUNNING, which
+ * could be seconds or indefinite depending on cluster load.
+ */
+int call_mbd_timeout(const void *req, size_t req_len, void **rep,
+                     struct protocol_header *reply_hdr, int timeout)
 {
     if (mbd_rpc_init() < 0)
         return -1;
@@ -100,7 +108,7 @@ int call_mbd(const void *req, size_t req_len, void **rep,
     struct chan_buffer sndbuf = {.data = (void *) req, .len = req_len};
     struct chan_buffer rcvbuf = {0};
 
-    if (chan_rpc(chan_mbd, &sndbuf, &rcvbuf, reply_hdr, recvtimeout) < 0) {
+    if (chan_rpc(chan_mbd, &sndbuf, &rcvbuf, reply_hdr, timeout) < 0) {
         chan_close(chan_mbd);
         chan_mbd = -1;
         return -1;
@@ -116,6 +124,15 @@ int call_mbd(const void *req, size_t req_len, void **rep,
 
     *rep = rcvbuf.data;
     return 0;
+}
+
+int call_mbd(const void *req, size_t req_len, void **rep,
+             struct protocol_header *reply_hdr)
+{
+    if (mbd_rpc_init() < 0)
+        return -1;
+
+    return call_mbd_timeout(req, req_len, rep, reply_hdr, recvtimeout);
 }
 
 const char *batch_op_str(enum batch_lib_op op)

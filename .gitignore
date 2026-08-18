@@ -53,6 +53,7 @@ bsub
 btokens
 bmove
 bpriority
+bservice
 read_shared
 stdout.*
 stderr.*

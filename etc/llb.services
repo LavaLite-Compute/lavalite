@@ -24,6 +24,7 @@ SERVICE_NAME = code-server
 TYPE         = user
 IMAGE        = /export/service_images/code-server.sif
 PORT         = 8080
+COMMAND = code-server --bind-addr 0.0.0.0:8080 --auth none
 RESTART      = always
 End Service
 
