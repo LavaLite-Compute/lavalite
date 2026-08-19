@@ -292,7 +292,7 @@ void event_job_finish(const struct job_data *);
 void event_job_pend_susp(const struct job_data *);
 void event_job_pend_resume(const struct job_data *);
 void event_job_susp(const struct job_data *);
-void maybe_rebuild_events(void);
+void maybe_rebuild_manifest(void);
 void event_job_move(const struct job_data *, const char *);
 void event_job_priority(const struct job_data *, int32_t);
 void event_job_pend(const struct job_data *);

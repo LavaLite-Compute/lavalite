@@ -79,6 +79,14 @@ static void compute_widths(struct queue_info *q, int32_t n,
     }
 }
 
+static const char *max_str(int32_t max_jobs, char *buf, size_t bufsz)
+{
+    if (max_jobs == 0)
+        return "-";
+    snprintf(buf, bufsz, "%d", max_jobs);
+    return buf;
+}
+
 static void print_wrapped(const char *label, char **items, int n,
                           const char *all_str)
 {
@@ -213,9 +221,12 @@ int main(int argc, char **argv)
            "USED_HOSTS");
 
     for (int i = 0; i < n; i++) {
-        printf("%-*s  %-*d  %-*s  %*d  %*d  %*d  %*d  %*d  %*d  %*d  %*d\n",
+        char maxbuf[16];
+
+        printf("%-*s  %-*d  %-*s  %*s  %*d  %*d  %*d  %*d  %*d  %*d  %*d\n",
                w.name, q[i].name, w.prio, q[i].priority, w.status,
-               queue_status_str(q[i].status), w.max, q[i].max_jobs, w.njobs,
+               queue_status_str(q[i].status), w.max,
+               max_str(q[i].max_jobs, maxbuf, sizeof(maxbuf)), w.njobs,
                q[i].num_jobs, w.pend, q[i].num_pend, w.held, q[i].num_held,
                w.run, q[i].num_run, w.susp, q[i].num_susp, w.used_cpus,
                q[i].num_cpus_used, w.used_hosts, q[i].num_hosts_used);

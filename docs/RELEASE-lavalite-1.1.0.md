@@ -71,6 +71,25 @@ which could crash the daemon with `SIGPIPE` (see Reliability below).
 The client-side limit has been removed; `bjobs -a` is now confirmed
 working cleanly at ~100,000 jobs.
 
+### Missing job-pending event on sbd-reported job loss
+
+When `sbd` reported a job as missing (e.g. after an `sbd` restart lost
+track of a still-registered job), `mbd` correctly reclaimed the host's
+resources and returned the job to pending in memory, but never wrote
+the corresponding pending-state event to the manifest. This left the
+manifest's history inconsistent with what actually happened: a
+replay (at `mbd` startup, or in `bhist`) could see two dispatch
+records for the same job with nothing in between, misreconstructing
+the job as dispatched to two hosts at once and, in one observed case,
+aborting `mbd` on startup via an internal consistency check.
+
+Fixed in two parts: the missing event is now logged, and manifest
+replay no longer trusts stale per-job host-assignment state left over
+from a previous dispatch record, so a similar gap in the future
+degrades gracefully instead of corrupting replayed state. Found via
+extended chaos testing combining job arrays with induced `sbd`
+restarts.
+
 ### Reliability
 
 - `mbd` and `sbd` no longer inherit the launching process's signal

@@ -223,18 +223,56 @@ def submit_dependent(queue, cmd_str, dep_expr):
 
 def read_hosts_file(path):
     """
-    Read a plain-text file of hostnames, one per line.
+    Read a hosts file of "<kind> <hostname>" lines, e.g.:
+        mbd buntu24
+        sbd worker4
+        sbd k3s-ctl
     Blank lines and lines starting with '#' are ignored.
-    Returns a list of hostname strings.
+
+    Returns a dict: kind -> list of hostnames, e.g.
+        {"mbd": ["buntu24"], "sbd": ["worker4", "k3s-ctl", ...]}
+    Lines with an unknown kind (not in PROC_NAMES) are skipped with a
+    warning, since daemon-kill chaos only knows how to target mbd/sbd.
     """
-    hosts = []
+    hosts_by_kind = {}
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            hosts.append(line)
-    return hosts
+            parts = line.split()
+            if len(parts) != 2:
+                elog(f"chaos: bad hosts-file line, want '<kind> <host>': {line!r}")
+                continue
+            kind, host = parts
+            if kind not in PROC_NAMES:
+                elog(f"chaos: unknown kind {kind!r} in hosts-file, skipping: {line!r}")
+                continue
+            hosts_by_kind.setdefault(kind, []).append(host)
+    return hosts_by_kind
+
+
+def sbin_dir():
+    """
+    Return the absolute path to LavaLite's sbin directory, derived from
+    LL_CONF_DIR (required to be set - checked in main()). Avoids hardcoding
+    an install prefix that changes across versions (e.g. /opt/lavalite-1.1.0).
+    """
+    return os.path.normpath(os.path.join(os.environ["LL_CONF_DIR"], "..", "sbin"))
+
+
+def daemon_pattern(kind):
+    """
+    Return the pgrep/pkill -f regex matching the daemon's process, anchored
+    at the start only (not the end) since mbd/sbd may be started with
+    trailing flags (e.g. "mbd -t 2") - matching the full command line would
+    miss those. A leading ^ still prevents matching some unrelated process
+    that merely contains the path as a substring.
+    """
+    proc = PROC_NAMES.get(kind)
+    if not proc:
+        return None
+    return f"^{sbin_dir()}/{proc}"
 
 
 def is_up(host, kind):
@@ -245,15 +283,15 @@ def is_up(host, kind):
     remote hosts.  pgrep returns 0 if at least one matching process
     was found, non-zero otherwise.
     """
-    proc = PROC_NAMES.get(kind)
-    if not proc:
+    pattern = daemon_pattern(kind)
+    if not pattern:
         return False
 
     if host == socket.gethostname():
-        cp = run(["pgrep", "-f", f"^/opt/lavalite/sbin/{proc}$"])
+        cp = run(["pgrep", "-f", pattern])
         return cp.returncode == 0
 
-    cp = run(["ssh", host, "pgrep", "-f", f"^/opt/lavalite/sbin/{proc}$"])
+    cp = run(["ssh", host, "pgrep", "-f", pattern])
     return cp.returncode == 0
 
 def kill_one(host, kind):
@@ -264,15 +302,15 @@ def kill_one(host, kind):
     pkill -KILL -x sends SIGKILL to every process whose name matches
     exactly - simulates a hard crash without a graceful shutdown.
     """
-    proc = PROC_NAMES.get(kind)
-    if not proc:
+    pattern = daemon_pattern(kind)
+    if not pattern:
         return False
 
     if host == socket.gethostname():
-        cp = run(["sudo", "pkill", "-KILL", "--full", f"^/opt/lavalite/sbin/{proc}$"])
+        cp = run(["sudo", "pkill", "-KILL", "--full", pattern])
         return cp.returncode == 0
 
-    cp = run(["ssh", host, "sudo", "pkill", "-KILL", "--full", f"^/opt/lavalite/sbin/{proc}$"])
+    cp = run(["ssh", host, "sudo", "pkill", "-KILL", "--full", pattern])
     return cp.returncode == 0
 
 def bjobs_active(jobids_set, timeout):
@@ -386,7 +424,9 @@ def main():
     )
 
     ap.add_argument("--hosts-file",   required=True,
-                    help="File listing hostnames to target for daemon kills")
+                    help="File of '<kind> <host>' lines (e.g. 'mbd buntu24', "
+                         "'sbd worker4') listing which daemon runs where, "
+                         "for daemon-kill chaos")
     ap.add_argument("--seconds",      type=int, default=120,
                     help="Total duration of the chaos loop in seconds")
     ap.add_argument("--queue",        default=None,
@@ -412,7 +452,7 @@ def main():
 
     args = ap.parse_args()
 
-    hosts = read_hosts_file(args.hosts_file)
+    hosts_by_kind = read_hosts_file(args.hosts_file)
     kinds = [k.strip() for k in args.kinds.split(",") if k.strip()]
 
     # Short-lived job commands chosen randomly each submission.
@@ -523,9 +563,10 @@ def main():
         if args.kill_every > 0 and now >= next_kill:
 
             victim_kind = random.choice(kinds)
-            # If hosts file was empty, fall back to the local host.
-            if hosts:
-                victim_host = random.choice(hosts)
+            kind_hosts = hosts_by_kind.get(victim_kind)
+            # If no hosts are listed for this kind, fall back to the local host.
+            if kind_hosts:
+                victim_host = random.choice(kind_hosts)
             else:
                 victim_host = socket.gethostname()
 
