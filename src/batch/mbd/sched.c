@@ -94,11 +94,11 @@ static int host_in_queue_group(const struct mbd_host *h,
 {
     int n = ll_hash_contains(&job->queue->host_hash, h->net.name);
     if (n == 1) {
-        LL_DEBUG("job=%ld host=%s is member of queue=%s", job->job_id,
+        LL_DEBUG("job_id=%ld host=%s is member of queue=%s", job->job_id,
                  h->net.name, job->queue->name);
         return 1;
     }
-    LL_DEBUG("job=%ld host=%s is not member of queue=%s", job->job_id,
+    LL_DEBUG("job_id=%ld host=%s is not member of queue=%s", job->job_id,
              h->net.name, job->queue->name);
     return 0;
 }
@@ -142,7 +142,7 @@ static int host_has_gpu_count(const struct mbd_host *h,
                                const struct job_data *job)
 {
     int n = gpu_ids_count_free(&h->res.gpu);
-    LL_DEBUG("job=%ld host=%s count=%d free=%d", job->job_id, h->net.name,
+    LL_DEBUG("job_id=%ld host=%s count=%d free=%d", job->job_id, h->net.name,
              h->res.gpu.count, n);
     if (n >= job->res.num_gpus)
         return n;
@@ -155,7 +155,7 @@ static int host_has_gpu_model_and_count(const struct mbd_host *h,
     if (strcmp(h->res.gpu.gpu_model, job->res.gpu_model) != 0)
         return 0;
     int n = gpu_ids_count_free(&h->res.gpu);
-    LL_DEBUG("job=%ld host=%s gpu_model=%s count=%d free=%d", job->job_id,
+    LL_DEBUG("job_id=%ld host=%s gpu_model=%s count=%d free=%d", job->job_id,
              h->net.name, job->res.gpu_model, h->res.gpu.count, n);
     if (n >= job->res.num_gpus)
         return n;
@@ -212,7 +212,7 @@ static void log_run_hosts(const struct job_data *job)
             break;
         pos += n;
     }
-    LL_INFO("job=%ld run_hosts=%s gpus_per_host=%d",
+    LL_INFO("job_id=%ld run_hosts=%s gpus_per_host=%d",
             job->job_id, buf, job->res.num_gpus);
 }
 
@@ -241,7 +241,7 @@ static int build_host_plan_machines(struct job_data *job,
     }
 
     if (n < need) {
-        LL_DEBUG("job=%ld machines: need=%d found=%d", job->job_id, need, n);
+        LL_DEBUG("job_id=%ld machines: need=%d found=%d", job->job_id, need, n);
         return 0;
     }
 
@@ -249,7 +249,7 @@ static int build_host_plan_machines(struct job_data *job,
     for (int i = 0; i < job->res.num_hosts; i++)
         hosts_len += strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
     if (hosts_len >= LL_BUFSIZ_8K) {
-        LL_ERRX("job=%ld hosts string overflow nhosts=%d", job->job_id,
+        LL_ERRX("job_id=%ld hosts string overflow nhosts=%d", job->job_id,
                 job->res.num_hosts);
         diag->host_overflow++;
         return 0;
@@ -300,7 +300,7 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
     }
 
     if (n < job->res.num_hosts) {
-        LL_DEBUG("job=%ld need=%d found=%d hosts", job->job_id,
+        LL_DEBUG("job_id=%ld need=%d found=%d hosts", job->job_id,
                  job->res.num_hosts, n);
         return 0;
     }
@@ -314,7 +314,7 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
     for (int i = 0; i < job->res.num_hosts; i++)
         hosts_len += strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
     if (hosts_len >= LL_BUFSIZ_8K) {
-        LL_ERRX("job=%ld hosts string overflow nhosts=%d", job->job_id,
+        LL_ERRX("job_id=%ld hosts string overflow nhosts=%d", job->job_id,
                 job->res.num_hosts);
         diag->host_overflow++;
         return 0;
@@ -371,11 +371,11 @@ static int tokens_available(const struct job_data *job)
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
         if (p == NULL) {
-            LL_ERRX("job=%ld token pool=%s not found", job->job_id, t->name);
+            LL_ERRX("job_id=%ld token pool=%s not found", job->job_id, t->name);
             return 0;
         }
         if (p->free < t->count) {
-            LL_DEBUG("no tokens for job=%ld pool=%s need=%d free=%d",
+            LL_DEBUG("no tokens for job_id=%ld pool=%s need=%d free=%d",
                      job->job_id, t->name, t->count, p->free);
             return 0;
         }
@@ -403,7 +403,7 @@ void schedule(void)
         struct job_data *job = (struct job_data *) e;
         e = e->next;
 
-        LL_DEBUG("is job=%ld ready for scheduling", job->job_id);
+        LL_DEBUG("is job_id=%ld ready for scheduling", job->job_id);
         if (!job_is_ready(job)) {
             job->pend_reason = PEND_JOB_NOT_READY;
             continue;
@@ -424,24 +424,24 @@ void schedule(void)
             continue;
         }
 
-        LL_DEBUG("job=%ld is ready for scheduling", job->job_id);
+        LL_DEBUG("job_id=%ld is ready for scheduling", job->job_id);
         struct pend_diag diag;
         int n = build_host_plan(job, &diag);
         if (n < 0) {
-            LL_ERRX("job=%ld failed to build host plan, trying next cycle",
+            LL_ERRX("job_id=%ld failed to build host plan, trying next cycle",
                     job->job_id);
             return;
         }
         if (n == 0) {
             job->pend_reason = diag_reason(&diag);
-            LL_INFO("job=%ld not enough hosts found to build a plan",
+            LL_INFO("job_id=%ld not enough hosts found to build a plan",
                     job->job_id);
             continue;
         }
 
         job->pend_reason = PEND_NONE;
         if (mbd_dispatch_job(job) < 0) {
-            LL_ERRX("job=%ld dispatch failed", job->job_id);
+            LL_ERRX("job_id=%ld dispatch failed", job->job_id);
             continue;
         }
         // Clean the dependency of the jobs this job depeneds upon
@@ -482,7 +482,7 @@ void token_alloc(const struct job_data *job)
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
         if (p == NULL) {
-            LL_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
+            LL_ERRX("job_id=%ld pool=%s not found", job->job_id, t->name);
             continue;
         }
         p->free -= t->count;
@@ -499,7 +499,7 @@ void token_free(const struct job_data *job)
 
         p = ll_hash_search(&token_pool_name_hash, t->name);
         if (p == NULL) {
-            LL_ERRX("job=%ld pool=%s not found", job->job_id, t->name);
+            LL_ERRX("job_id=%ld pool=%s not found", job->job_id, t->name);
             continue;
         }
         p->free += t->count;

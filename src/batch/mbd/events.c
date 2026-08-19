@@ -22,10 +22,9 @@
 
 static char manifest_path[PATH_MAX];
 char jobs_dir[PATH_MAX];
-static ino_t events_ino = 0;
-static uint32_t events_seq = 0;
+static ino_t manifest_ino = 0;
+static uint32_t manifest_seq = 0;
 static int job_finish_threshold = 1000;
-static int job_finish_retain = 500;
 
 static FILE *open_manifest(void)
 {
@@ -43,12 +42,12 @@ static FILE *open_manifest(void)
     }
     struct stat st;
     if (fstat(fileno(fp), &st) < 0 ||
-        (events_ino != 0 && st.st_ino != events_ino)) {
+        (manifest_ino != 0 && st.st_ino != manifest_ino)) {
         LL_ERRX("manifest inode changed or removed — integrity lost");
         fclose(fp);
         mbd_die(MBD_EXIT_EVENTS);
     }
-    events_ino = st.st_ino;
+    manifest_ino = st.st_ino;
     return fp;
 }
 
@@ -132,7 +131,7 @@ static void replay_rebuild_counters(void)
         else if (job->state == JOB_ORPHAN)
             job->queue->num_pend++;
         else {
-            LL_ERRX("job=%ld in invalid state %d in pending list", job->job_id,
+            LL_ERRX("job_id=%ld in invalid state %d in pending list", job->job_id,
                     job->state);
             assert(0);
         }
@@ -155,7 +154,7 @@ static void replay_rebuild_counters(void)
             job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
             job->queue->num_hosts_used += job->run_nhosts;
         } else {
-            LL_ERRX("job=%ld in invalid state %d in running list", job->job_id,
+            LL_ERRX("job_id=%ld in invalid state %d in running list", job->job_id,
                     job->state);
             assert(0);
         }
@@ -480,10 +479,20 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
 
     struct job_data *job = replay_alloc(&e);
     if (job == NULL) {
-        LL_ERR("failed replay job=%ld", e.job_id);
+        LL_ERR("failed replay job_id=%ld", e.job_id);
         return 0;
     }
-    return replay_insert(job);
+
+    int rc = replay_insert(job);
+    if (rc == 0) {
+        LL_ERR("failed insert job_id=%ld", e.job_id);
+        return 0;
+    }
+
+    LL_DEBUG("JOB_NEW job_id=%ld array_id=%ld array_index=%d depend=%s",
+             e.job_id, e.array_id, e.array_index,
+             (e.depend_cond[0] != 0) ? e.depend_cond : "none");
+    return rc;
 }
 
 static int replay_set_run_hosts(struct job_data *job,
@@ -543,7 +552,7 @@ static void replay_job_start(const struct event_rec *rec)
     }
 
     if (job->state == JOB_ORPHAN) {
-        LL_ERRX("job=%ld state=%s skipping JOB_START_REPLAY",
+        LL_ERRX("job_id=%ld state=%s skipping JOB_START_REPLAY",
                 job->job_id, llb_job_state_str(job->state));
         return;
     }
@@ -699,14 +708,14 @@ static void replay_job_susp(const struct event_rec *rec)
 }
 
 /*
- * events_seq_scan - derive the current sequence number by scanning the
+ * manifest_seq_scan - derive the current sequence number by scanning the
  * mbd directory for existing manifest.NNNNNN archives.
  *
  * No external sequence file is needed. Admins may delete old archives
  * freely without having to update any state file. The next compact will
  * simply use the highest sequence number found + 1.
  */
-static void events_seq_scan(void)
+static void manifest_seq_scan(void)
 {
     char dir[PATH_MAX];
     snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
@@ -729,8 +738,8 @@ static void events_seq_scan(void)
         if (*q != '\0')
             continue;
         uint32_t n = (uint32_t)atol(p);
-        if (n > events_seq)
-            events_seq = n;
+        if (n > manifest_seq)
+            manifest_seq = n;
     }
     closedir(dp);
 }
@@ -782,11 +791,6 @@ int events_init(void)
         LL_ERRX("failed parsing LL_MBD_JOB_FINISH_THRESHOLD=%s using "
                 "default=1000 jobs", ll_params[LL_MBD_JOB_FINISH_THRESHOLD].val);
     }
-    if (!ll_atoi(ll_params[LL_MBD_JOB_FINISH_RETAIN].val,
-                 &job_finish_retain)) {
-        LL_ERRX("failed parsing LL_MBD_JOB_FINISH_RETAIN=%s using "
-                "default=500 jobs", ll_params[LL_MBD_JOB_FINISH_RETAIN].val);
-    }
 
     if (job_finish_threshold < 0) {
         LL_ERRX("LL_MBD_JOB_FINISH_THRESHOLD=%d must be greater than or equal 0 "
@@ -794,26 +798,10 @@ int events_init(void)
                 job_finish_threshold);
         job_finish_threshold = 1000;
     }
-    if (job_finish_retain < 0) {
-        LL_ERRX("LL_MBD_JOB_FINISH_RETAIN=%d must be greater than or equal 0 "
-                "using default job_finish_retain = 500",
-                job_finish_retain);
-        job_finish_retain = 500;
-    }
 
-    if (job_finish_threshold > 0
-        && job_finish_retain >= job_finish_threshold) {
-        LL_ERRX("LL_MBD_JOB_FINISH_RETAIN=%d must be less than "
-                "LL_MBD_JOB_FINISH_THRESHOLD=%d, using defaults "
-                "job_finish_threshold = 1000 job_finish_retain = 500",
-                job_finish_retain, job_finish_threshold);
-        job_finish_threshold = 1000;
-        job_finish_retain = 500;
-    }
+    manifest_seq_scan();
 
-    events_seq_scan();
-
-    LL_INFO("events seq initialized seq=%u", events_seq);
+    LL_INFO("manifest seq initialized seq=%u", manifest_seq);
 
     return 0;
 }
@@ -993,7 +981,7 @@ int jobs_replay(void)
 
     if (ferror(fp)) {
         fclose(fp);
-        LL_ERR("I/O error reading job events=%s line=%d", manifest_path, lineno);
+        LL_ERR("I/O error reading job manifest=%s line=%d", manifest_path, lineno);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -1113,14 +1101,18 @@ static void compact_write_job_finish(FILE *fp, const struct job_data *job)
  * dispatch_time gates JOB_START: a job can reach finish_jobs_list
  * without ever starting (killed while still pending), and emitting a
  * JOB_START it never had would corrupt replay state.
+ *
+ * fork_time gates JOB_FORK independently of dispatch_time: a dispatched
+ * job can be rejected by sbd and never fork at all, so a started job
+ * with no fork is a real, expected case -- not a state to assert against.
  */
 static void compact_write_job_finished(FILE *fp, const struct job_data *job)
 {
     compact_write_job_new(fp, job);
     if (job->dispatch_time) {
-        assert(job->fork_time > 0);
         compact_write_job_start(fp, job);
-        compact_write_job_fork(fp, job);
+        if (job->fork_time)
+            compact_write_job_fork(fp, job);
     }
     compact_write_job_finish(fp, job);
 }
@@ -1160,17 +1152,17 @@ void job_id_seq_write(void)
     }
 }
 
-static void events_rebuild(void)
+static void manifest_rebuild(void)
 {
     char archived[PATH_MAX + LL_BUFSIZ_32];
     /*
-     * Sequence number is derived by events_seq_scan() at startup from
+     * Sequence number is derived by manifest_seq_scan() at startup from
      * the filenames already present in the directory. No separate sequence
      * file is kept, so admins may delete old archives freely without
      * having to update any state.
      */
-    events_seq++;
-    snprintf(archived, sizeof(archived), "%s.%u", manifest_path, events_seq);
+    manifest_seq++;
+    snprintf(archived, sizeof(archived), "%s.%u", manifest_path, manifest_seq);
 
     if (rename(manifest_path, archived) < 0) {
         LL_ERR("rename(%s, %s)", manifest_path, archived);
@@ -1196,15 +1188,14 @@ static void events_rebuild(void)
     }
 
 
-    int nremove = ll_list_count(&finish_jobs_list) - job_finish_retain;
     /*
-     * Finished jobs are ordered oldest to newest.  Remove the oldest jobs
-     * while retaining the configured number of most recently finished jobs.
-     * Note the jobs are in the finish_jobs_list only in mbd memory, they are
-     * not persisted so should mbd reboot after this compaction the jobs will
-     * no longer be visible in bjobs and only in bhist.
+     * Every finished job is dropped from memory on compaction unless
+     * something still needs it: a pending job's dependency expression
+     * still references it, or it's an array head with elements still
+     * running/pending. No partial retain window -- either a job is
+     * still referenced or it isn't.
      */
-    for (e = finish_jobs_list.head; e && nremove > 0; e = next) {
+    for (e = finish_jobs_list.head; e; e = next) {
         next = e->next;
 
         struct job_data *job = (struct job_data *)e;
@@ -1212,7 +1203,7 @@ static void events_rebuild(void)
         /* still referenced by a pending job's dependency expression,
          * purging it now would leave that job unable to ever resolve */
         if (job->dep_refcnt > 0) {
-            LL_DEBUG("job=%ld retained by compaction dep_refcnt=%d",
+            LL_DEBUG("job_id=%ld retained by compaction dep_refcnt=%d",
                      job->job_id, job->dep_refcnt);
             compact_write_job_finished(fp, job);
             continue;
@@ -1222,7 +1213,7 @@ static void events_rebuild(void)
          * need job_find(array_id) to resolve array_start/end/stride */
         if (job->array_id == job->job_id && job->array_id != 0
             && job->array_element_cnt > 0) {
-            LL_DEBUG("job=%ld retained by compaction array_element_cnt=%d",
+            LL_DEBUG("job_id=%ld retained by compaction array_element_cnt=%d",
                      job->job_id, job->array_element_cnt);
             compact_write_job_finished(fp, job);
             continue;
@@ -1237,7 +1228,6 @@ static void events_rebuild(void)
         assert(j2 == job);
 
         job_free(job);
-        nremove--;
     }
 
     if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
@@ -1250,26 +1240,25 @@ static void events_rebuild(void)
         LL_ERR("fstat manifest after compact");
         mbd_die(MBD_EXIT_EVENTS);
     }
-    events_ino = st.st_ino;
+    manifest_ino = st.st_ino;
 
     fclose(fp);
 
-    LL_INFO("manifest rebuild seq=%u archived=%s", events_seq, archived);
+    LL_INFO("manifest rebuild seq=%u archived=%s", manifest_seq, archived);
 }
 
 /* Rebuild the event log when the number of finished jobs
  * currently held in memory reaches this threshold.
  */
-void maybe_rebuild_events(void)
+void maybe_rebuild_manifest(void)
 {
     if (ll_list_count(&finish_jobs_list) < job_finish_threshold)
         return;
 
-    LL_DEBUG("manifest rebuild triggered finished_jobs=%d threshold=%d retain=%d",
-             ll_list_count(&finish_jobs_list),
-             job_finish_threshold, job_finish_retain);
+    LL_DEBUG("manifest rebuild triggered finished_jobs=%d threshold=%d",
+             ll_list_count(&finish_jobs_list), job_finish_threshold);
 
-    events_rebuild();
+    manifest_rebuild();
 }
 
 void event_job_move(const struct job_data *job, const char *to_queue)

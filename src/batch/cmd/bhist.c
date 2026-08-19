@@ -22,7 +22,7 @@ static const char *fmt_time(time_t t)
 
     if (t == 0)
         return "-";
-    strftime(buf, sizeof(buf), "%b %d %H:%M", localtime(&t));
+    strftime(buf, sizeof(buf), "%b %d %H:%M:%S", localtime(&t));
     return buf;
 }
 

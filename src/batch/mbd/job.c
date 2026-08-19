@@ -119,7 +119,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     job->priority = job->queue->priority;
 
     if (!queue_user_allowed(job->queue, job->user)) {
-        LL_ERRX("job=%ld user=%s not allowed in queue=%s",
+        LL_ERRX("job_id=%ld user=%s not allowed in queue=%s",
                 job->job_id, job->user, job->queue->name);
         free(job);
         *err = EPERM;
@@ -127,7 +127,7 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     }
 
     if (job->res.num_hosts < 1) {
-        LL_ERRX("job=%ld invalid num_host=%d forcing to one 1", job->job_id,
+        LL_ERRX("job_id=%ld invalid num_host=%d forcing to one 1", job->job_id,
                 job->res.num_hosts);
         job->res.num_hosts = 1;
     }
@@ -308,7 +308,7 @@ static int write_sidecar(const struct job_data *job,
 
     if (chmod(path, 0644) < 0) {
         int e = errno;
-        LL_ERR("job=%ld chmod=%s to 644 failed", job->job_id, path);
+        LL_ERR("job_id=%ld chmod=%s to 644 failed", job->job_id, path);
         errno = e;
         return -1;
     }
@@ -338,21 +338,21 @@ static int job_parse_tokens(struct job_data *job, const char *tokenpool)
     while (tok != NULL) {
         char *eq = strchr(tok, '=');
         if (eq == NULL) {
-            LL_ERRX("job=%ld invalid token spec=%s", job->job_id, tok);
+            LL_ERRX("job_id=%ld invalid token spec=%s", job->job_id, tok);
             errno = EINVAL;
             return -1;
         }
         *eq = 0;
         int count;
         if (ll_atoi(eq + 1, &count) < 0 || count <= 0) {
-            LL_ERRX("job=%ld invalid token count=%s", job->job_id, eq + 1);
+            LL_ERRX("job_id=%ld invalid token count=%s", job->job_id, eq + 1);
             errno = EINVAL;
             return -1;
         }
         struct mbd_token_pool *p;
         p = ll_hash_search(&token_pool_name_hash, tok);
         if (p == NULL) {
-            LL_ERRX("job=%ld token pool=%s not found", job->job_id, tok);
+            LL_ERRX("job_id=%ld token pool=%s not found", job->job_id, tok);
             errno = EINVAL;
             return -1;
         }
@@ -383,7 +383,7 @@ static int job_write_usage(const struct job_data *job,
 
     FILE *f = fopen(path, "w");
     if (f == NULL) {
-        LL_ERR("job=%ld open usage failed: %m", job->job_id);
+        LL_ERR("job_id=%ld open usage failed: %m", job->job_id);
         return -1;
     }
     fprintf(f, "pid=%d\n", s->pid);
@@ -392,7 +392,7 @@ static int job_write_usage(const struct job_data *job,
     fprintf(f, "cpu_time=%.2f\n", s->cpu_time);
     fclose(f);
 
-    LL_INFO("job=%ld usage written", job->job_id);
+    LL_INFO("job_id=%ld usage written", job->job_id);
     return 0;
 }
 
@@ -405,7 +405,7 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     struct mbd_host *h = job->run_hosts[0];
     int sbd_chan = h->sbd_chan;
 
-    LL_ERR("job=%ld rejected by sbd=%s, returning to pending",
+    LL_ERR("job_id=%ld rejected by sbd=%s, returning to pending",
            job->job_id, chan_addr_str(sbd_chan));
 
     reset_host_resources(job);
@@ -431,13 +431,13 @@ static void mbd_job_reject_dispatch(struct job_data *job)
 
     job_move_list(job, &run_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
 
-    LL_INFO("job=%ld back to pending", job->job_id);
+    LL_INFO("job_id=%ld back to pending", job->job_id);
 
     mbd_assert_counters();
 
     event_job_pend(job);
 
-    LL_INFO("job=%ld returned to pending after sbd reject from=%s",
+    LL_INFO("job_id=%ld returned to pending after sbd reject from=%s",
             job->job_id, chan_addr_str(sbd_chan));
 
     /* Now ack the new job reply
@@ -453,14 +453,14 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s",
+        LL_ERR("job_id=%ld failed to sign header for host=%s",
                job->job_id, h->net.name);
         return;
     }
 
     if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
                         xdr_wire_job_ack) < 0) {
-        LL_ERR("job=%ld enqueue_payload failed", job->job_id);
+        LL_ERR("job_id=%ld enqueue_payload failed", job->job_id);
         return;
     }
 }
@@ -527,7 +527,7 @@ static int job_deps_set(struct job_data *job, const char *depend_cond,
 static int job_parse_deps(struct job_data *job, const char *depend_cond)
 {
     if (job_deps_set(job, depend_cond, dep_resolve_job) < 0) {
-        LL_ERRX("job=%ld invalid dependency expression=%s", job->job_id,
+        LL_ERRX("job_id=%ld invalid dependency expression=%s", job->job_id,
                 depend_cond);
         errno = EINVAL;
         return -1;
@@ -550,7 +550,7 @@ static int job_parse_deps(struct job_data *job, const char *depend_cond)
 void job_replay_deps(struct job_data *job, const char *depend_cond)
 {
     if (job_deps_set(job, depend_cond, NULL) < 0) {
-        LL_ERR("job=%ld corrupt dependency expression in manifest=%s",
+        LL_ERR("job_id=%ld corrupt dependency expression in manifest=%s",
                job->job_id, depend_cond);
         dep_list_free(&job->deps);
         job->depend_cond[0] = 0;
@@ -629,7 +629,7 @@ struct job_data * job_prepare(struct wire_job_submit *ws,
 
     if (job_parse_tokens(job, ws->tokenpool) < 0) {
         *err = errno;
-        LL_ERRX("job=%ld invalid token pool spec", job->job_id);
+        LL_ERRX("job_id=%ld invalid token pool spec", job->job_id);
         job_free(job);
         return NULL;
     }
@@ -639,7 +639,7 @@ struct job_data * job_prepare(struct wire_job_submit *ws,
 
     if (job_parse_deps(job, ws->depend_cond) < 0) {
         *err = errno;
-        LL_ERRX("job=%ld invalid dependency spec", job->job_id);
+        LL_ERRX("job_id=%ld invalid dependency spec", job->job_id);
         job_free(job);
         return NULL;
     }
@@ -1098,7 +1098,7 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
 
     struct job_data *job = job_find(r.job_id);
     if (job == NULL) {
-        LL_ERR("job=%ld not found from=%s - admin intervention required",
+        LL_ERR("job_id=%ld not found from=%s - admin intervention required",
                r.job_id, chan_addr_str(n->sbd_chan));
         return;
     }
@@ -1108,11 +1108,11 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
 
         if (job->state == JOB_PENDING || job->state == JOB_HELD) {
             assert(job->list_id == JOB_LIST_PEND);
-            LL_INFO("job=%ld duplicated event received", r.job_id);
+            LL_INFO("job_id=%ld duplicated event received", r.job_id);
             return;
         }
 
-        LL_ERR("job=%ld rejected by sbd=%s status=%d (%s)",
+        LL_ERR("job_id=%ld rejected by sbd=%s status=%d (%s)",
                r.job_id, chan_addr_str(n->sbd_chan),
                hdr->status, strerror(hdr->status));
 
@@ -1124,7 +1124,7 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
     /* duplicate: skip event log, sbd resends if it restarts before ack
      */
     if (job->fork_time > 0) {
-        LL_INFO("job=%ld fork duplicate from=%s", r.job_id,
+        LL_INFO("job_id=%ld fork duplicate from=%s", r.job_id,
                 chan_addr_str(n->sbd_chan));
         duplicate = 1;
         // fall through
@@ -1141,14 +1141,14 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
     rep_hdr.status = MBD_OK;
 
     if (auth_sign_header(&rep_hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
                n->net.name);
         return;
     }
 
     if (enqueue_payload(n->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
                         xdr_wire_job_ack) < 0) {
-        LL_ERR("job=%ld enqueue_payload failed", r.job_id);
+        LL_ERR("job_id=%ld enqueue_payload failed", r.job_id);
         return;
     }
 
@@ -1183,7 +1183,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     struct job_data *job = job_find(f.job_id);
     if (job == NULL) {
         // Distinguish missing from duplicate for code and logical clarity
-        LL_ERR("job=%ld not found from=%s", f.job_id,
+        LL_ERR("job_id=%ld not found from=%s", f.job_id,
                chan_addr_str(n->sbd_chan));
         struct wire_job_ack ack;
         memset(&ack, 0, sizeof(ack));
@@ -1194,7 +1194,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         hdr.operation = BATCH_JOB_FINISH_ACK;
         hdr.status = MBD_OK;
         if (auth_sign_header(&hdr) < 0) {
-            LL_ERR("job=%ld failed to sign header", f.job_id);
+            LL_ERR("job_id=%ld failed to sign header", f.job_id);
             return;
         }
         enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
@@ -1203,7 +1203,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     }
 
     if (strcmp(n->net.name, job->run_hosts[0]->net.name) != 0) {
-        LL_WARNING("job=%ld finish reported by host=%s but dispatched to "
+        LL_WARNING("job_id=%ld finish reported by host=%s but dispatched to "
                    " host=%s — ignoring", job->job_id, n->net.name,
                    job->run_hosts[0]->net.name);
         return;
@@ -1211,7 +1211,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
 
     int duplicate = 0;
     if (job->end_time > 0) {
-        LL_INFO("job=%ld finish duplicate from=%s", f.job_id,
+        LL_INFO("job_id=%ld finish duplicate from=%s", f.job_id,
                 chan_addr_str(n->sbd_chan));
         duplicate = 1;
         goto send_ack;
@@ -1231,14 +1231,14 @@ send_ack:
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
                n->net.name);
         return;
     }
 
     if (enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
                         xdr_wire_job_ack) < 0) {
-        LL_ERR("job=%ld enqueue_payload failed", f.job_id);
+        LL_ERR("job_id=%ld enqueue_payload failed", f.job_id);
         return;
     }
 
@@ -1248,7 +1248,7 @@ send_ack:
     job->end_time = time(NULL);
     job->exit_status = f.exit_status;
 
-    LL_INFO("job=%ld usage mem=%luMB swap=%luMB cpu=%.2fs", f.job_id, f.mem_mb,
+    LL_INFO("job_id=%ld usage mem=%luMB swap=%luMB cpu=%.2fs", f.job_id, f.mem_mb,
             f.swap_mb, f.cpu_time);
 
     // this function depends on the state of the job not
@@ -1275,13 +1275,13 @@ send_ack:
     job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
     job_array_element_finished(job);
 
-    LL_INFO("job=%ld finish acked state=%s", f.job_id,
+    LL_INFO("job_id=%ld finish acked state=%s", f.job_id,
             job_state_str(job->state));
 
     // We free the job only when we compact the events file
     event_job_finish(job);
     if (job_write_usage(job, &f) < 0) {
-        LL_ERR("job=%ld failed job_write_usage", job->job_id);
+        LL_ERR("job_id=%ld failed job_write_usage", job->job_id);
     }
 
     LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
@@ -1328,13 +1328,13 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
 
     struct job_data *job = job_find(sig.job_id);
     if (job == NULL) {
-        LL_ERRX("signal reply for unknown job=%ld sig=%d errno=%d from=%s",
+        LL_ERRX("signal reply for unknown job_id=%ld sig=%d errno=%d from=%s",
                 sig.job_id, sig.sig, hdr->status, chan_addr_str(n->sbd_chan));
         return;
     }
 
     if (hdr->status != MBD_OK) {
-        LL_ERRX("job=%ld signal=%d failed status=%d host=%s", job->job_id,
+        LL_ERRX("job_id=%ld signal=%d failed status=%d host=%s", job->job_id,
                 sig.sig, hdr->status, n->net.name);
         return;
     }
@@ -1356,7 +1356,7 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
     LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
              job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
 
-    LL_INFO("job=%ld signal=%d delivered host=%s", job->job_id, sig.sig,
+    LL_INFO("job_id=%ld signal=%d delivered host=%s", job->job_id, sig.sig,
             n->net.name);
     // debug
     mbd_assert_counters();
@@ -1408,7 +1408,7 @@ void mbd_assert_counters(void)
                 int used = h->res.gpu.count - n;
                 if (job->res.num_gpus > used
                     || job->res.num_gpus > h->res.gpu.count) {
-                    LL_ERRX("job=%ld num_gpus=%d gpu_count=%d gpu_free=%d "
+                    LL_ERRX("job_id=%ld num_gpus=%d gpu_count=%d gpu_free=%d "
                             "gpu_used=%d", job->job_id, job->res.num_gpus,
                             h->res.gpu.count, n, used);
                 }
@@ -1501,13 +1501,13 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     struct job_data *job = job_find(wm.job_id);
     if (job == NULL) {
-        LL_ERRX("job=%ld not found", wm.job_id);
+        LL_ERRX("job_id=%ld not found", wm.job_id);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, ESRCH);
         return 0;
     }
 
     if (job->state != JOB_PENDING && job->state != JOB_HELD) {
-        LL_ERRX("job=%ld state=%s not movable", wm.job_id,
+        LL_ERRX("job_id=%ld state=%s not movable", wm.job_id,
                 job_state_str(job->state));
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EINVAL);
         return 0;
@@ -1515,21 +1515,21 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     struct mbd_queue *to = ll_hash_search(&queue_name_hash, wm.to_queue);
     if (to == NULL) {
-        LL_ERRX("job=%ld queue=%s not found", wm.job_id, wm.to_queue);
+        LL_ERRX("job_id=%ld queue=%s not found", wm.job_id, wm.to_queue);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, ESRCH);
         return 0;
     }
 
 
     if (job->uid != hdr->uid && !is_manager(hdr->uid)) {
-        LL_ERRX("job=%ld of uid=%d cannot be moved by uid=%d", job->job_id,
+        LL_ERRX("job_id=%ld of uid=%d cannot be moved by uid=%d", job->job_id,
                 job->uid, hdr->uid);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
         return 0;
     }
 
     if (!queue_user_allowed(to, job->user)) {
-        LL_ERRX("job=%ld user=%s not allowed in queue=%s",
+        LL_ERRX("job_id=%ld user=%s not allowed in queue=%s",
                 wm.job_id, job->user, to->name);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
         return 0;
@@ -1554,7 +1554,7 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         to->num_held++;
     to->num_jobs++;
 
-    LL_INFO("job=%ld moved from=%s to=%s", wm.job_id, from->name, to->name);
+    LL_INFO("job_id=%ld moved from=%s to=%s", wm.job_id, from->name, to->name);
 
     enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, MBD_OK);
 
@@ -1658,7 +1658,7 @@ static int signal_running_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
     if (job->run_hosts[0]->sbd_chan < 0) {
-        LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
+        LL_INFO("job_id=%ld unknown on disconnected host=%s cannot signal it",
                 job->job_id, job->run_hosts[0]->net.name);
         return EAGAIN;
     }
@@ -1668,21 +1668,21 @@ static int signal_running_job(struct job_data *job,
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job=%ld failed to sign header for host=%s", job->job_id,
+        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
                job->run_hosts[0]->net.name);
         return EAGAIN;
     }
 
     if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
                         LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
-        LL_ERR("job=%ld enqueue_payload failed", job->job_id);
+        LL_ERR("job_id=%ld enqueue_payload failed", job->job_id);
         return EAGAIN;
     }
 
     job->signal_time = time(NULL);
     event_job_signal(job, ws);
 
-    LL_INFO("job=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
+    LL_INFO("job_id=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
             job->run_hosts[0]->net.name);
 
     return MBD_OK;
@@ -1697,7 +1697,7 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
                           struct wire_job_sig *req)
 {
     if (job->uid != uid && !is_manager(uid)) {
-        LL_ERR("job=%ld uid=%d not owned by signaling uid=%d", job->job_id,
+        LL_ERR("job_id=%ld uid=%d not owned by signaling uid=%d", job->job_id,
                job->uid, uid);
         return EPERM;
     }
@@ -1727,7 +1727,7 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
         if (job->run_nhosts > 0 && job->run_hosts[0] != NULL)
             host = job->run_hosts[0]->net.name;
 
-        LL_INFO("job=%ld state=%s host=%s terminating it", job->job_id,
+        LL_INFO("job_id=%ld state=%s host=%s terminating it", job->job_id,
                 llb_job_state_str(job->state), host);
 
         return signal_pending_job(job, req);
@@ -1810,12 +1810,12 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
         assert(job->run_hosts[0]);
         if (job->state == JOB_ORPHAN
             || job->state == JOB_BROKEN) {
-            LL_INFO("job=%ld state=%s skipped by bulk signal", job->job_id,
+            LL_INFO("job_id=%ld state=%s skipped by bulk signal", job->job_id,
                     llb_job_state_str(job->state));
             continue;
         }
         if (job->run_hosts[0]->sbd_chan < 0) {
-            LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
+            LL_INFO("job_id=%ld unknown on disconnected host=%s cannot signal it",
                     job->job_id, job->run_hosts[0]->net.name);
             continue;
         }
@@ -1916,30 +1916,30 @@ int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     struct job_data *job = job_find(wp.job_id);
     if (job == NULL) {
-        LL_INFO("job=%ld not found", wp.job_id);
+        LL_INFO("job_id=%ld not found", wp.job_id);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, ESRCH);
     }
 
     if (job->state == JOB_DONE || job->state == JOB_EXITED) {
-        LL_INFO("job_priority: job=%ld already finished", wp.job_id);
+        LL_INFO("job_priority: job_id=%ld already finished", wp.job_id);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EINVAL);
     }
 
     /* ownership check — admin can bypass */
     if (job->uid != (uid_t)hdr->uid && !is_manager(hdr->uid)) {
-        LL_INFO("job=%ld uid=%u not owner", wp.job_id, hdr->uid);
+        LL_INFO("job_id=%ld uid=%u not owner", wp.job_id, hdr->uid);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
     }
 
     /* non-admin cannot exceed queue priority */
     if (!is_manager(hdr->uid) && wp.priority > job->queue->priority) {
-        LL_INFO("job=%ld priority=%d exceeds queue=%d",
+        LL_INFO("job_id=%ld priority=%d exceeds queue=%d",
                 wp.job_id, wp.priority, job->queue->priority);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
     }
 
     if (wp.priority < 0) {
-        LL_INFO("job=%ld invalid priority=%d specified", job->job_id,
+        LL_INFO("job_id=%ld invalid priority=%d specified", job->job_id,
                 wp.priority);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EINVAL);
     }
@@ -1955,7 +1955,7 @@ int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     event_job_priority(job, old_priority);
 
-    LL_INFO("job=%ld priority old=%d new=%d", wp.job_id,
+    LL_INFO("job_id=%ld priority old=%d new=%d", wp.job_id,
             old_priority, job->priority);
 
     return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, MBD_OK);
