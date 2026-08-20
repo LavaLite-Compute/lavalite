@@ -103,20 +103,26 @@ def extract_jobid(txt):
         return None
 
 
-def submit_one(queue, cmd_str):
+def submit_one(queue, cmd_str, n_cpus, n_hosts, n_gpus):
     """
     Submit a single job via bsub.
 
     queue    - queue name, or None/empty to let mbd pick the default
     cmd_str  - the job command as a plain string; split by shlex so
                spaces inside quoted arguments are handled correctly
+    n_cpus   - CPUs per host to request (--cpus)
+    n_hosts  - number of execution hosts to request (--nhosts)
+    n_gpus   - GPUs per host to request (--gpus); omitted entirely if 0
 
     Returns the integer job ID on success, None on any failure.
     Errors are printed to stderr via elog().
     """
     # Build the bsub argument list.  -o/-e /dev/null suppresses per-job
     # output files cluttering the filesystem during chaos runs.
-    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null"]
+    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null",
+           "--cpus", str(n_cpus), "--nhosts", str(n_hosts)]
+    if n_gpus > 0:
+        cmd += ["--gpus", str(n_gpus)]
     if queue:
         cmd += ["-q", queue]
 
@@ -148,13 +154,16 @@ def submit_one(queue, cmd_str):
     return extract_jobid(cp.stdout)
 
 
-def submit_array(queue, cmd_str, start, end, stride):
+def submit_array(queue, cmd_str, start, end, stride, n_cpus, n_hosts, n_gpus):
     """
     Submit an array job via bsub -a START-END[:STRIDE].
 
     queue    - queue name, or None/empty to let mbd pick the default
     cmd_str  - the job command as a plain string
     start, end, stride - array spec; stride of 1 is omitted from the spec
+    n_cpus   - CPUs per host to request (--cpus), applies to every element
+    n_hosts  - number of execution hosts to request (--nhosts)
+    n_gpus   - GPUs per host to request (--gpus); omitted entirely if 0
 
     Returns the array_id (the head element's job ID) on success,
     None on any failure. Errors are printed to stderr via elog().
@@ -163,7 +172,10 @@ def submit_array(queue, cmd_str, start, end, stride):
     if stride != 1:
         spec += f":{stride}"
 
-    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null", "-a", spec]
+    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null", "-a", spec,
+           "--cpus", str(n_cpus), "--nhosts", str(n_hosts)]
+    if n_gpus > 0:
+        cmd += ["--gpus", str(n_gpus)]
     if queue:
         cmd += ["-q", queue]
 
@@ -186,7 +198,7 @@ def submit_array(queue, cmd_str, start, end, stride):
     return extract_jobid(cp.stdout)
 
 
-def submit_dependent(queue, cmd_str, dep_expr):
+def submit_dependent(queue, cmd_str, dep_expr, n_cpus, n_hosts, n_gpus):
     """
     Submit a job with a dependency condition via bsub -w dep_expr.
 
@@ -194,11 +206,17 @@ def submit_dependent(queue, cmd_str, dep_expr):
     cmd_str    - the job command as a plain string
     dep_expr   - dependency expression, e.g. "done(123)" or
                  "done(101) && done(102)"
+    n_cpus     - CPUs per host to request (--cpus)
+    n_hosts    - number of execution hosts to request (--nhosts)
+    n_gpus     - GPUs per host to request (--gpus); omitted entirely if 0
 
     Returns the new job's ID on success, None on any failure.
     Errors are printed to stderr via elog().
     """
-    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null", "-w", dep_expr]
+    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null", "-w", dep_expr,
+           "--cpus", str(n_cpus), "--nhosts", str(n_hosts)]
+    if n_gpus > 0:
+        cmd += ["--gpus", str(n_gpus)]
     if queue:
         cmd += ["-q", queue]
 
@@ -449,6 +467,16 @@ def main():
     ap.add_argument("--dep-every",    type=int, default=0,
                     help="Submit a job depending on the previously submitted "
                          "plain job every N seconds (0=disabled)")
+    ap.add_argument("--max-cpus",     type=int, default=1,
+                    help="Max CPUs per host requested by a job "
+                         "(--cpus, randint(1, N) per submission)")
+    ap.add_argument("--max-nhosts",   type=int, default=1,
+                    help="Max execution hosts requested by a job "
+                         "(--nhosts, randint(1, N) per submission)")
+    ap.add_argument("--max-gpus",     type=int, default=0,
+                    help="Max GPUs per host requested by a job "
+                         "(--gpus, randint(0, N) per submission; "
+                         "0 means --gpus is never passed)")
 
     args = ap.parse_args()
 
@@ -510,7 +538,10 @@ def main():
         # --- submit ---
         if now >= next_submit:
             cmd_str = random.choice(job_cmds)
-            jid = submit_one(args.queue, cmd_str)
+            n_cpus  = random.randint(1, args.max_cpus)
+            n_hosts = random.randint(1, args.max_nhosts)
+            n_gpus  = random.randint(0, args.max_gpus)
+            jid = submit_one(args.queue, cmd_str, n_cpus, n_hosts, n_gpus)
 
             if jid is not None:
                 submits_ok += 1
@@ -526,7 +557,11 @@ def main():
         # --- array submit ---
         if args.array_every > 0 and now >= next_array:
             cmd_str = random.choice(job_cmds)
-            array_id = submit_array(args.queue, cmd_str, 1, args.array_size, 1)
+            n_cpus  = random.randint(1, args.max_cpus)
+            n_hosts = random.randint(1, args.max_nhosts)
+            n_gpus  = random.randint(0, args.max_gpus)
+            array_id = submit_array(args.queue, cmd_str, 1, args.array_size, 1,
+                                     n_cpus, n_hosts, n_gpus)
 
             if array_id is not None:
                 arrays_ok += 1
@@ -546,7 +581,11 @@ def main():
             else:
                 cmd_str = random.choice(job_cmds)
                 dep_expr = f"ended({last_plain_jobid})"
-                jid = submit_dependent(args.queue, cmd_str, dep_expr)
+                n_cpus  = random.randint(1, args.max_cpus)
+                n_hosts = random.randint(1, args.max_nhosts)
+                n_gpus  = random.randint(0, args.max_gpus)
+                jid = submit_dependent(args.queue, cmd_str, dep_expr,
+                                        n_cpus, n_hosts, n_gpus)
 
                 if jid is not None:
                     deps_ok += 1
