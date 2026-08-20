@@ -72,3 +72,4 @@ docs/man/man7/*.7
 docs/man/man8/*.8
 src/batch/mbd/mbd
 src/batch/sbd/sbd
+src/batch/service_proxy/spd

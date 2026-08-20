@@ -49,6 +49,7 @@ AC_CONFIG_FILES([
   src/batch/cmd/Makefile
   src/batch/mbd/Makefile
   src/batch/sbd/Makefile
+  src/batch/service_proxy/Makefile
 ])
 
 AC_OUTPUT

@@ -866,6 +866,32 @@ static int conf_expand_queue_users(void)
     return 0;
 }
 
+static const char *service_type_str(enum service_type type)
+{
+    switch (type) {
+    case LL_SERVICE_USER:
+        return "user";
+    case LL_SERVICE_DAEMON:
+        return "daemon";
+    default:
+        return "?";
+    }
+}
+
+static const char *service_restart_str(enum service_restart restart)
+{
+    switch (restart) {
+    case LL_SERVICE_RESTART_ALWAYS:
+        return "always";
+    case LL_SERVICE_RESTART_ON_FAILURE:
+        return "on-failure";
+    case LL_SERVICE_RESTART_NEVER:
+        return "never";
+    default:
+        return "?";
+    }
+}
+
 static void dump_config(void)
 {
     struct ll_list_entry *e;
@@ -901,6 +927,17 @@ static void dump_config(void)
     for (e = token_pool_list.head; e; e = e->next) {
         struct mbd_token_pool *tp = (struct mbd_token_pool *) e;
         LL_DEBUG("tokenpool name=%s total=%d", tp->name, tp->total);
+    }
+
+    LL_DEBUG("--- services ---");
+    for (e = service_list.head; e; e = e->next) {
+        struct service_data *s = (struct service_data *) e;
+        LL_DEBUG("service name=%s type=%s image=%s command=%s port=%d "
+                 "queue=%s restart=%s",
+                 s->name, service_type_str(s->type),
+                 s->image, s->command, s->port,
+                 s->queue[0] ? s->queue : "-",
+                 service_restart_str(s->restart));
     }
 }
 

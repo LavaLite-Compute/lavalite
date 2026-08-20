@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <pwd.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -811,6 +813,18 @@ int32_t llb_service_start(const char *name, struct svc_info *out)
     struct wire_svc_start req;
     memset(&req, 0, sizeof(req));
     ll_strlcpy(req.name, name, sizeof(req.name));
+
+    /* submission context, local and cheap here (a client process
+     * calling getpwuid() once), same convention as bsub's submit.c --
+     * mbd never resolves uid to a name/home_dir itself. */
+    struct passwd *pw = getpwuid(getuid());
+    if (pw == NULL) {
+        free(buf);
+        errno = EINVAL;
+        return -1;
+    }
+    ll_strlcpy(req.username, pw->pw_name, sizeof(req.username));
+    ll_strlcpy(req.home_dir, pw->pw_dir, sizeof(req.home_dir));
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);

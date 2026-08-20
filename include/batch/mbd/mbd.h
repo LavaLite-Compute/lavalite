@@ -272,11 +272,18 @@ struct service_instance {
     struct ll_list_entry ent;     /* linkage in service_data.instances */
     struct service_data *svc;      /* owning service definition */
     char svc_id[LL_BUFSIZ_256];    /* "user@name" identity, also the proxy's svc_id */
-    int port;                      /* external port, from svc_port_alloc() */
+    int port;                      /* external port, set by svc_proxy_add_ok() once proxy binds it */
     int64_t job_id;
     char run_host[LL_BUFSIZ_64];   /* set once job reaches RUNNING; proxy UPDATE run_host: */
     int chan_id;    /* held open for the deferred BATCH_SERVICE_START_ACK */
     enum service_instance_state state;
+    /* Job submission built in phase 1 (service_start_instance()), used
+     * in phase 2 (svc_proxy_add_ok()) once the port comes back from
+     * service_proxy -- job_prepare()/job_commit() can't run until then,
+     * so this has to survive the async gap between the two. */
+    struct wire_job_submit pend_ws;
+    char pend_cmd[LL_BUFSIZ_512];
+    struct protocol_header pend_hdr;
 };
 
 extern int64_t job_id_seq;
@@ -302,6 +309,12 @@ extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
 
 extern struct ll_list service_list;
+/* chan_id of the connected service_proxy, -1 if none. Set wherever
+ * net.c's route() recognizes BATCH_SP_REGISTER coming in -- that
+ * recognition isn't written yet, this is just the extern it needs to
+ * set. Mirrors how sbd connections are tracked per mbd_host, except
+ * there's only ever one service_proxy, so one global slot suffices. */
+extern int service_proxy_chan_id;
 
 extern struct mbd_manager mbd_mgr;
 extern int chan_mbd;
@@ -377,6 +390,7 @@ int jobs_signal(XDR *, int, const struct protocol_header *);
 int jobs_replay(void);
 void new_job_reply(XDR *, int32_t);
 int job_init(void);
+void mbd_job_finish(struct mbd_host *, XDR *);
 void job_move_list(struct job_data *, struct ll_list *, struct ll_list *,
                    enum job_list_id);
 void job_array_element_finished(struct job_data *);
@@ -405,7 +419,6 @@ void job_replay_deps(struct job_data *, const char *);
 int32_t mbd_sbd_route(struct mbd_host *);
 int mbd_sbd_disconnect(struct mbd_host *);
 void mbd_new_job_reply(struct mbd_host *, XDR *, struct protocol_header *);
-void mbd_job_finish(struct mbd_host *, XDR *);
 void mbd_job_missing(struct mbd_host *, XDR *);
 
 // debug counters
@@ -420,7 +433,21 @@ void queue_state_write(const struct mbd_queue *);
 int queue_state_init(void);
 
 // service.c
-void service_init(void);
-int service_start_instance(const struct protocol_header *, int, const char *);
+int service_start_instance(const struct protocol_header *, int,
+                           const struct wire_svc_start *);
 int service_collect_info(uid_t, int, struct wire_svc_info **);
 int service_stop_instance(uid_t, const char *);
+/* phase 2 of service start: resolves the async ADD round-trip to
+ * service_proxy. Called from wherever net.c dispatches proxy-channel
+ * replies -- that dispatch isn't written yet, these are its call
+ * targets once it is. */
+void svc_proxy_add_ok(const char *svc_id, int port);
+void svc_proxy_add_fail(const char *svc_id, const char *reason);
+/* the RUNNING-transition callback: job.c's mbd_new_job_reply() calls
+ * this the moment a service job's fork is acked by sbd. Sends the
+ * proxy UPDATE run_host and the deferred BATCH_SERVICE_START_ACK
+ * carrying the real wire_svc_info the client's been blocked on. */
+void svc_job_running(struct job_data *job, struct mbd_host *host);
+/* handles BATCH_SP_REGISTER, called from net.c's route() -- sets
+ * service_proxy_chan_id. */
+int mbd_sp_register(XDR *xdrs, int chan_id);

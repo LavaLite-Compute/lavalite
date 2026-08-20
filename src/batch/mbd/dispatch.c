@@ -652,7 +652,7 @@ int service_start(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         return enqueue_header(chan_id, BATCH_SERVICE_START_ACK, EPROTO);
     }
 
-    int err = service_start_instance(hdr, chan_id, req.name);
+    int err = service_start_instance(hdr, chan_id, &req);
     if (err != 0) {
         LL_INFO("service_start: name=%s uid=%u failed err=%d",
                 req.name, hdr->uid, err);

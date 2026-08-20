@@ -57,6 +57,8 @@ int valid_batch_op(int op)
     case BATCH_SERVICE_INFO_ACK:
     case BATCH_SERVICE_STOP:
     case BATCH_SERVICE_STOP_ACK:
+    case BATCH_SP_REGISTER:
+    case BATCH_SP_REGISTER_ACK:
         return 1;
     default:
         return 0;
@@ -72,6 +74,10 @@ static void route(int chan_id)
     if (chan_has_error(chan_id)) {
         LL_DEBUG("channel=%d from=%s closed connection", chan_id,
                  chan_addr_str(chan_id));
+        if (chan_id == service_proxy_chan_id) {
+            LL_ERRX("service_proxy disconnected chan=%d", chan_id);
+            service_proxy_chan_id = -1;
+        }
         chan_shutdown(chan_id);
         return;
     }
@@ -178,6 +184,10 @@ static void route(int chan_id)
         break;
     case BATCH_SERVICE_STOP:
         if (service_stop(&xdrs, chan_id, &hdr) < 0)
+            chan_shutdown(chan_id);
+        break;
+    case BATCH_SP_REGISTER:
+        if (mbd_sp_register(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
         break;
     }

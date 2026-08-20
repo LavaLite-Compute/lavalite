@@ -1160,6 +1160,13 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
     job->state = JOB_RUNNING;
     event_job_fork(job);
     LL_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
+
+    /* Service jobs need one more thing ordinary jobs don't: the
+     * blocked bservice client and service_proxy both need to hear
+     * about this transition. svc_job_running() (service.c) sends the
+     * proxy UPDATE and the deferred wire_svc_info reply. */
+    if (job->svc_inst != NULL)
+        svc_job_running(job, n);
 }
 
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)

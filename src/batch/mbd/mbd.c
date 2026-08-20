@@ -113,8 +113,6 @@ static int mbd_init(void)
         return -1;
     }
 
-    service_init();
-
     return 0;
 }
 

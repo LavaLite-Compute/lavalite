@@ -515,12 +515,27 @@ bool_t xdr_wire_svc_start(XDR *xdrs, struct wire_svc_start *p)
 {
     if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
         return false;
+    if (!xdr_opaque(xdrs, p->username, sizeof(p->username)))
+        return false;
+    if (!xdr_opaque(xdrs, p->home_dir, sizeof(p->home_dir)))
+        return false;
     return true;
 }
 
 bool_t xdr_wire_svc_stop(XDR *xdrs, struct wire_svc_stop *p)
 {
     if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
+        return false;
+    return true;
+}
+
+/* -----------------------------------------------------------------------
+ * spd registration
+ * ----------------------------------------------------------------------- */
+
+bool_t xdr_wire_sp_register(XDR *xdrs, struct wire_sp_register *p)
+{
+    if (!xdr_opaque(xdrs, (char *) p->hostname, MAXHOSTNAMELEN))
         return false;
     return true;
 }

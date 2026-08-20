@@ -348,10 +348,31 @@ struct wire_svc_info_array {
 
 struct wire_svc_start {
     char name[LL_BUFSIZ_64]; /* service definition name, from llb.services */
+    /* submission context, filled client-side (llb_service_start(), same
+     * convention as wire_job_submit -- see comment above it), never
+     * looked up mbd-side. cwd is deliberately not a separate field: a
+     * service has no meaningful launch directory, so service.c roots
+     * it at home_dir. */
+    char username[LL_BUFSIZ_64];
+    char home_dir[PATH_MAX];
 };
 
 struct wire_svc_stop {
     char svc_id[LL_BUFSIZ_64];
+};
+
+/* -----------------------------------------------------------------------
+ * spd (service_proxy) registration  (spd -> mbd)
+ *
+ * Just an identity announcement -- spd has no per-job state to resync
+ * the way sbd's register/register_ack does with wire_sbd_job[]. The
+ * real service registry resync (ADD per live instance) is a separate,
+ * not-yet-designed exchange that happens after this, not folded into
+ * it.
+ * ----------------------------------------------------------------------- */
+
+struct wire_sp_register {
+    char hostname[MAXHOSTNAMELEN];
 };
 
 /* -----------------------------------------------------------------------
@@ -404,3 +425,6 @@ bool_t xdr_wire_svc_info(XDR *, struct wire_svc_info *);
 bool_t xdr_wire_svc_info_array(XDR *, struct wire_svc_info_array *);
 bool_t xdr_wire_svc_start(XDR *, struct wire_svc_start *);
 bool_t xdr_wire_svc_stop(XDR *, struct wire_svc_stop *);
+
+/* spd registration */
+bool_t xdr_wire_sp_register(XDR *, struct wire_sp_register *);
