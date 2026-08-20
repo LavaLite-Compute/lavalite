@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <pwd.h>
 
 #include "base/lib/auth.h"
 #include "base/lib/ll.syslog.h"
@@ -48,7 +47,10 @@ static struct service_data *svc_find_by_name(const char *name)
 }
 
 /*
+<<<<<<< HEAD
 
+=======
+>>>>>>> 71908ef (service: move port allocation to service_proxy, add spd daemon)
  * Find an instance across every service by svc_id. Used by the proxy
  * ADD_OK/ADD_FAIL handlers below to resolve an async reply back to the
  * instance that asked for it. Same linear-scan-over-service_list shape
@@ -69,8 +71,15 @@ static struct service_instance *svc_find_instance_by_id(const char *svc_id)
                 return inst;
         }
     }
+<<<<<<< HEAD
     return NULL;
 }
+=======
+
+    return NULL;
+}
+
+>>>>>>> 71908ef (service: move port allocation to service_proxy, add spd daemon)
 /*
  * Send ADD svc_id:<svc_id> to service_proxy over the plain-text
  * svc_proto.h grammar. This is deliberately NOT xdr -- enqueue_payload()
@@ -420,6 +429,7 @@ int mbd_sp_register(XDR *xdrs, int chan_id)
         service_proxy_chan_id = -1;
         return -1;
     }
+
 
     size_t siz = sizeof(struct protocol_header) + sizeof(struct wire_sp_register)
         + LL_BUFSIZ_64;
