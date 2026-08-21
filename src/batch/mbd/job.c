@@ -41,8 +41,10 @@ static int64_t next_job_id(void)
 
 void job_free(struct job_data *job)
 {
+    dep_list_free(&job->deps);
     free(job->run_hosts);
     ll_hash_clear(&job->res.machines, NULL);
+    ll_list_clear(&job->res.tokens, free);
     free(job);
 }
 
@@ -409,7 +411,7 @@ static void mbd_job_reject_dispatch(struct job_data *job)
            job->job_id, chan_addr_str(sbd_chan));
 
     reset_host_resources(job);
-    token_free(job);
+    token_pool_release(job);
 
     if (job->state == JOB_RUNNING)
         job->queue->num_run--;
@@ -1249,7 +1251,7 @@ send_ack:
     // this function depends on the state of the job not
     // being DONE|EXIT yet
     reset_host_resources(job);
-    token_free(job);
+    token_pool_release(job);
 
     // Update the queue counters before resetting the job state
     if (job->state == JOB_RUNNING)
