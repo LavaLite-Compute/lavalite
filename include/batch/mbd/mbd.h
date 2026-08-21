@@ -403,7 +403,7 @@ void machines_hash_populate(struct ll_hash *, const char *);
 void mbd_job_signal_reply(struct mbd_host *, XDR *, struct protocol_header *);
 char *job_state_str(int);
 void token_alloc(const struct job_data *);
-void token_free(const struct job_data *);
+void token_pool_release(const struct job_data *);
 void job_free(struct job_data *);
 void job_id_seq_write(void);
 int gpu_ids_count_free(const struct mbd_gpu *);

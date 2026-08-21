@@ -489,7 +489,7 @@ void token_alloc(const struct job_data *job)
     }
 }
 
-void token_free(const struct job_data *job)
+void token_pool_release(const struct job_data *job)
 {
     struct ll_list_entry *e;
 

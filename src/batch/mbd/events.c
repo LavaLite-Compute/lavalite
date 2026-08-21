@@ -444,7 +444,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     if (job->run_hosts == NULL) {
         LL_ERR("calloc run_hosts with num_hosts=%d failed", job->res.num_hosts);
         job->res.num_hosts = 0;
-        free(job);
+        job_free(job);
         return NULL;
     }
 
@@ -459,7 +459,7 @@ static int replay_insert(struct job_data *job)
     snprintf(key, sizeof(key), "%ld", job->job_id);
     if (ll_hash_insert(&job_id_hash, key, job, 0) < 0) {
         LL_ERR("job_id=%ld hash insert failed", job->job_id);
-        free(job);
+        job_free(job);
         return 0;
     }
     job_set_list(job, &pend_jobs_list, JOB_LIST_PEND);

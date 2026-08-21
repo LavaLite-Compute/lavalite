@@ -507,7 +507,7 @@ void mbd_job_missing(struct mbd_host *n, XDR *xdrs)
 
     // Free host resources
     reset_host_resources(job);
-    token_free(job);
+    token_pool_release(job);
 
     // Update the queue counters before resetting the job state
     if (job->state == JOB_RUNNING)
