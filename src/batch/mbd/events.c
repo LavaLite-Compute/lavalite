@@ -1169,9 +1169,18 @@ static void manifest_rebuild(void)
         mbd_die(MBD_EXIT_EVENTS);
     }
 
-    FILE *fp = fopen(manifest_path, "a");
-    if (!fp)
+    int fd = open(manifest_path, O_CREAT | O_WRONLY | O_APPEND, 0640);
+    if (fd < 0) {
+        LL_ERR("open=%s", manifest_path);
         mbd_die(MBD_EXIT_EVENTS);
+    }
+
+    FILE *fp = fdopen(fd, "a");
+    if (!fp) {
+        LL_ERR("fdopen=%s", manifest_path);
+        close(fd);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
 
     struct ll_list_entry *e;
     struct ll_list_entry *next;
