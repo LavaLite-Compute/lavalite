@@ -59,6 +59,12 @@ int valid_batch_op(int op)
     case BATCH_SERVICE_STOP_ACK:
     case BATCH_SP_REGISTER:
     case BATCH_SP_REGISTER_ACK:
+    case BATCH_SVC_ADD:
+    case BATCH_SVC_ADD_ACK:
+    case BATCH_SVC_UPDATE:
+    case BATCH_SVC_UPDATE_ACK:
+    case BATCH_SVC_REMOVE:
+    case BATCH_SVC_REMOVE_ACK:
         return 1;
     default:
         return 0;
@@ -189,6 +195,15 @@ static void route(int chan_id)
     case BATCH_SP_REGISTER:
         if (mbd_sp_register(&xdrs, chan_id) < 0)
             chan_shutdown(chan_id);
+        break;
+    case BATCH_SVC_ADD_ACK:
+        svc_proxy_add_ack(&xdrs, &hdr);
+        break;
+    case BATCH_SVC_UPDATE_ACK:
+        svc_proxy_update_ack(&xdrs, &hdr);
+        break;
+    case BATCH_SVC_REMOVE_ACK:
+        svc_proxy_remove_ack(&xdrs, &hdr);
         break;
     }
 

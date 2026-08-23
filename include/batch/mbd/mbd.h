@@ -440,11 +440,14 @@ int service_start_instance(const struct protocol_header *, int,
 int service_collect_info(uid_t, int, struct wire_svc_info **);
 int service_stop_instance(uid_t, const char *);
 /* phase 2 of service start: resolves the async ADD round-trip to
- * service_proxy. Called from wherever net.c dispatches proxy-channel
- * replies -- that dispatch isn't written yet, these are its call
- * targets once it is. */
-void svc_proxy_add_ok(const char *svc_id, int port);
-void svc_proxy_add_fail(const char *svc_id, const char *reason);
+ * service_proxy. Called from net.c's route() on BATCH_SVC_ADD_ACK --
+ * status (hdr->status) tells success/failure, port is only valid on
+ * success. */
+void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr);
+/* called from net.c's route() on BATCH_SVC_UPDATE_ACK/BATCH_SVC_REMOVE_ACK
+ * -- both are status-only correlation acks, nothing blocks on them. */
+void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr);
+void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr);
 /* the RUNNING-transition callback: job.c's mbd_new_job_reply() calls
  * this the moment a service job's fork is acked by sbd. Sends the
  * proxy UPDATE run_host and the deferred BATCH_SERVICE_START_ACK

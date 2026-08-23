@@ -376,6 +376,43 @@ struct wire_sp_register {
 };
 
 /* -----------------------------------------------------------------------
+ * per-instance port grammar  (mbd <-> spd)
+ *
+ * Same channel/request-ack shape as everything else in this file --
+ * spd is an ordinary connected client, not a separate socket/protocol.
+ * status/error goes on protocol_header.status (MBD_OK or an errno),
+ * same convention as every other *_ACK in this file; these structs
+ * only carry what status alone can't (the allocated port, the svc_id
+ * to correlate against).
+ * ----------------------------------------------------------------------- */
+
+struct wire_svc_add {
+    char svc_id[LL_BUFSIZ_64];
+};
+
+struct wire_svc_add_ack {
+    char svc_id[LL_BUFSIZ_64];
+    int32_t port; /* valid only when status == MBD_OK */
+};
+
+struct wire_svc_update {
+    char svc_id[LL_BUFSIZ_64];
+    char run_host[MAXHOSTNAMELEN];
+};
+
+struct wire_svc_update_ack {
+    char svc_id[LL_BUFSIZ_64];
+};
+
+struct wire_svc_remove {
+    char svc_id[LL_BUFSIZ_64];
+};
+
+struct wire_svc_remove_ack {
+    char svc_id[LL_BUFSIZ_64];
+};
+
+/* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
 
@@ -428,3 +465,11 @@ bool_t xdr_wire_svc_stop(XDR *, struct wire_svc_stop *);
 
 /* spd registration */
 bool_t xdr_wire_sp_register(XDR *, struct wire_sp_register *);
+
+/* spd per-instance port grammar */
+bool_t xdr_wire_svc_add(XDR *, struct wire_svc_add *);
+bool_t xdr_wire_svc_add_ack(XDR *, struct wire_svc_add_ack *);
+bool_t xdr_wire_svc_update(XDR *, struct wire_svc_update *);
+bool_t xdr_wire_svc_update_ack(XDR *, struct wire_svc_update_ack *);
+bool_t xdr_wire_svc_remove(XDR *, struct wire_svc_remove *);
+bool_t xdr_wire_svc_remove_ack(XDR *, struct wire_svc_remove_ack *);

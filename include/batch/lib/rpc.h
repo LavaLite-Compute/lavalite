@@ -53,11 +53,18 @@ enum batch_lib_op {
     BATCH_SERVICE_STOP_ACK,
     // spd (service_proxy) registration -- spd connects in as an
     // ordinary client, same accept path as sbd, so it gets the same
-    // register/register_ack shape. ADD/UPDATE/REMOVE for the actual
-    // per-instance port grammar aren't designed yet -- opcodes land
-    // here once that's settled.
+    // register/register_ack shape.
     BATCH_SP_REGISTER,
     BATCH_SP_REGISTER_ACK,
+    // mbd -> spd: per-instance port grammar, same request/ack shape
+    // as everything else on this channel (chan_enqueue/chan_dequeue,
+    // XDR, no separate socket or text protocol).
+    BATCH_SVC_ADD,
+    BATCH_SVC_ADD_ACK,
+    BATCH_SVC_UPDATE,
+    BATCH_SVC_UPDATE_ACK,
+    BATCH_SVC_REMOVE,
+    BATCH_SVC_REMOVE_ACK,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);

@@ -47,15 +47,11 @@ static struct service_data *svc_find_by_name(const char *name)
 }
 
 /*
-<<<<<<< HEAD
-
-=======
->>>>>>> 71908ef (service: move port allocation to service_proxy, add spd daemon)
  * Find an instance across every service by svc_id. Used by the proxy
- * ADD_OK/ADD_FAIL handlers below to resolve an async reply back to the
- * instance that asked for it. Same linear-scan-over-service_list shape
- * that svc_port_in_use() used to be -- realistic instance counts are
- * tens, not thousands.
+ * ack handlers below to resolve an async reply back to the instance
+ * that asked for it. Same linear-scan-over-service_list shape that
+ * svc_port_in_use() used to be -- realistic instance counts are tens,
+ * not thousands.
  */
 static struct service_instance *svc_find_instance_by_id(const char *svc_id)
 {
@@ -71,23 +67,15 @@ static struct service_instance *svc_find_instance_by_id(const char *svc_id)
                 return inst;
         }
     }
-<<<<<<< HEAD
-    return NULL;
-}
-=======
 
     return NULL;
 }
-
->>>>>>> 71908ef (service: move port allocation to service_proxy, add spd daemon)
 /*
- * Send ADD svc_id:<svc_id> to service_proxy over the plain-text
- * svc_proto.h grammar. This is deliberately NOT xdr -- enqueue_payload()
- * (net.c) needs an xdr_func and svc_proto.h's grammar was decided
- * plain-text specifically to avoid that, so this can't reuse
- * enqueue_payload() as written. Needs a raw-send counterpart in net.c
- * (something like enqueue_raw(chan_id, buf, len)) that doesn't exist
- * yet -- everything below the LL_DEBUG is a placeholder for it.
+ * Send BATCH_SVC_ADD to service_proxy. spd is an ordinary connected
+ * client of mbd, same as sbd -- this is chan_enqueue/chan_dequeue and
+ * XDR over the existing service_proxy_chan_id, the same enqueue_payload()
+ * path every other opcode in this file uses. No separate socket, no
+ * text grammar.
  */
 static int svc_proxy_send_add(struct service_instance *inst)
 {
@@ -97,12 +85,79 @@ static int svc_proxy_send_add(struct service_instance *inst)
         return -1;
     }
 
+    struct wire_svc_add req;
+    memset(&req, 0, sizeof(req));
+    ll_strlcpy(req.svc_id, inst->svc_id, sizeof(req.svc_id));
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SVC_ADD;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("svc_proxy_send_add: auth_sign_header failed svc_id=%s",
+               inst->svc_id);
+        return -1;
+    }
+
+    size_t siz = sizeof(struct protocol_header) + sizeof(struct wire_svc_add)
+                 + LL_BUFSIZ_64;
+
+    if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
+                        xdr_wire_svc_add) < 0) {
+        LL_ERR("svc_proxy_send_add: enqueue_payload failed svc_id=%s",
+               inst->svc_id);
+        return -1;
+    }
+
     LL_DEBUG("service: svc_id=%s: ADD sent to proxy chan=%d", inst->svc_id,
              service_proxy_chan_id);
 
+    return 0;
+}
 
-    /* TODO: format "ADD svc_id:%s\n" (or whatever svc_proto.h settles
-     * on) and send it via net.c's raw-send path once that exists. */
+/*
+ * Send BATCH_SVC_REMOVE to service_proxy. Used both when mbd gives up
+ * on an instance after the proxy already bound a port (job_prepare()
+ * failure in svc_proxy_add_ack() below) and from service_stop_instance()
+ * once that's implemented -- either way the port is proxy's to free,
+ * not mbd's.
+ */
+static int svc_proxy_send_remove(const char *svc_id)
+{
+    if (service_proxy_chan_id < 0) {
+        LL_ERRX("svc_proxy_send_remove: service_proxy not connected svc_id=%s",
+                svc_id);
+        return -1;
+    }
+
+    struct wire_svc_remove req;
+    memset(&req, 0, sizeof(req));
+    ll_strlcpy(req.svc_id, svc_id, sizeof(req.svc_id));
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SVC_REMOVE;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("svc_proxy_send_remove: auth_sign_header failed svc_id=%s",
+               svc_id);
+        return -1;
+    }
+
+    size_t siz = sizeof(struct protocol_header) +
+                 sizeof(struct wire_svc_remove) + LL_BUFSIZ_64;
+
+    if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
+                        xdr_wire_svc_remove) < 0) {
+        LL_ERR("svc_proxy_send_remove: enqueue_payload failed svc_id=%s",
+               svc_id);
+        return -1;
+    }
+
+    LL_DEBUG("service: svc_id=%s: REMOVE sent to proxy chan=%d", svc_id,
+             service_proxy_chan_id);
 
     return 0;
 }
@@ -111,15 +166,15 @@ static int svc_proxy_send_add(struct service_instance *inst)
  * Phase 1 of service start: validate, build the instance and the job
  * submission it will need, ask service_proxy for a port, return
  * without touching job_prepare()/job_commit() at all. The job only
- * gets created once svc_proxy_add_ok() (below) fires with the real
+ * gets created once svc_proxy_add_ack() (below) fires with the real
  * port -- mbd never allocates or probes a port itself anymore.
  *
  * No reply to the client here either way: dispatch.c's service_start()
  * already replies immediately on a non-zero return (synchronous
  * validation failure), and stays silent on 0 -- the real
  * BATCH_SERVICE_START_ACK is deferred twice now: once for this ADD
- * round-trip (svc_proxy_add_ok/svc_proxy_add_fail), and again for
- * mbd_new_job_reply()'s RUNNING transition once the job exists.
+ * round-trip (svc_proxy_add_ack), and again for mbd_new_job_reply()'s
+ * RUNNING transition once the job exists.
  *
  * username/home_dir come straight off the wire (ws->username/home_dir,
  * filled client-side by llb_service_start(), same convention as
@@ -145,7 +200,7 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     inst->svc = svc;
     inst->chan_id = chan_id;
     inst->state = SVC_INST_STARTING;
-    snprintf(inst->svc_id, sizeof(inst->svc_id), "%d@%s", hdr->uid, ws->name);
+    snprintf(inst->svc_id, sizeof(inst->svc_id), "%u@%s", hdr->uid, ws->name);
 
     /* the synthesized command IS the whole job -- no user shell script
      * for a service, unlike an ordinary bsub. Stashed on the instance
@@ -202,23 +257,43 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
 }
 
 /*
- * Phase 2, success path: service_proxy bound a real port and told us
- * so. Only now do we build the actual job -- job_prepare()/job_commit()
- * moved here wholesale from the old single-phase service_start_instance().
+ * Phase 2 of service start: resolves the BATCH_SVC_ADD round-trip.
+ * hdr->status carries success/failure exactly like every other ack in
+ * this protocol (MBD_OK or an errno) -- no separate OK/FAIL opcode
+ * pair needed, and no reason string on the wire, same as
+ * BATCH_SERVICE_START_ACK already does.
  *
- * Called from wherever mbd's net.c dispatches proxy-channel replies
- * (not yet written) once ADD_OK svc_id:<> port:<> is parsed off
- * service_proxy_chan_id.
+ * On success, only now do we build the actual job -- job_prepare()/
+ * job_commit() were split out of service_start_instance() for exactly
+ * this: they can't run until the real port comes back from proxy.
  */
-void svc_proxy_add_ok(const char *svc_id, int port)
+void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
 {
-    struct service_instance *inst = svc_find_instance_by_id(svc_id);
-    if (inst == NULL) {
-        LL_ERRX("svc_proxy_add_ok: unknown svc_id=%s (stale reply?)", svc_id);
+    struct wire_svc_add_ack ack;
+    memset(&ack, 0, sizeof(ack));
+
+    if (!xdr_wire_svc_add_ack(xdrs, &ack)) {
+        LL_ERR("svc_proxy_add_ack: xdr decode failed");
         return;
     }
 
-    inst->port = port;
+    struct service_instance *inst = svc_find_instance_by_id(ack.svc_id);
+    if (inst == NULL) {
+        LL_ERRX("svc_proxy_add_ack: unknown svc_id=%s (stale reply?)",
+                ack.svc_id);
+        return;
+    }
+
+    if (hdr->status != MBD_OK) {
+        LL_ERRX("svc_proxy_add_ack: svc_id=%s failed status=%d", ack.svc_id,
+                hdr->status);
+        enqueue_header(inst->chan_id, BATCH_SERVICE_START_ACK, hdr->status);
+        ll_list_remove(&inst->svc->instances, &inst->ent);
+        free(inst);
+        return;
+    }
+
+    inst->port = ack.port;
 
     struct wire_job_script script;
     memset(&script, 0, sizeof(script));
@@ -229,13 +304,15 @@ void svc_proxy_add_ok(const char *svc_id, int port)
     struct job_data *job = job_prepare(&inst->pend_ws, &script, &inst->pend_hdr,
                                        &err);
     if (job == NULL) {
-        LL_ERRX("svc_proxy_add_ok: job_prepare failed svc_id=%s err=%d",
-                svc_id, err);
+        LL_ERRX("svc_proxy_add_ack: job_prepare failed svc_id=%s err=%d",
+                inst->svc_id, err);
         /* Client is still blocked waiting on inst->chan_id -- reply now,
-         * same op the eventual RUNNING-transition ack would have used. */
+         * same op the eventual RUNNING-transition ack would have used.
+         * proxy already bound the port on its side, so tell it to free
+         * the port too -- mbd giving up here shouldn't leave it
+         * listening forever. */
         enqueue_header(inst->chan_id, BATCH_SERVICE_START_ACK, err);
-        /* TODO: tell proxy REMOVE svc_id -- it already bound the port,
-         * mbd giving up here shouldn't leave it listening forever. */
+        svc_proxy_send_remove(inst->svc_id);
         ll_list_remove(&inst->svc->instances, &inst->ent);
         free(inst);
         return;
@@ -246,38 +323,11 @@ void svc_proxy_add_ok(const char *svc_id, int port)
 
     job_commit(job, &inst->pend_ws);
 
-    LL_INFO("svc_proxy_add_ok: svc_id=%s job_id=%ld port=%d", inst->svc_id,
+    LL_INFO("svc_proxy_add_ack: svc_id=%s job_id=%ld port=%d", inst->svc_id,
            job->job_id, inst->port);
 
     /* Still no reply to the client -- BATCH_SERVICE_START_ACK remains
      * deferred until mbd_new_job_reply() sees this job reach RUNNING. */
-}
-
-/*
- * Phase 2, failure path: proxy couldn't bind a port (range exhausted,
- * or whatever reason it reports). Tear down the instance and tell the
- * waiting client now -- this is a genuinely new failure mode the old
- * single-phase code never had, since port allocation used to be
- * synchronous and any failure returned straight from
- * service_start_instance() through dispatch.c's existing error-reply
- * path. This one has to reply explicitly since dispatch.c already
- * returned 0 and went silent.
- */
-void svc_proxy_add_fail(const char *svc_id, const char *reason)
-{
-    struct service_instance *inst = svc_find_instance_by_id(svc_id);
-    if (inst == NULL) {
-        LL_ERRX("svc_proxy_add_fail: unknown svc_id=%s (stale reply?)",
-                svc_id);
-        return;
-    }
-
-    LL_ERRX("svc_proxy_add_fail: svc_id=%s reason=%s", svc_id, reason);
-
-    enqueue_header(inst->chan_id, BATCH_SERVICE_START_ACK, ENOSPC);
-
-    ll_list_remove(&inst->svc->instances, &inst->ent);
-    free(inst);
 }
 
 /*
@@ -293,11 +343,9 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
 }
 
 /*
- * Send UPDATE svc_id:<> run_host:<> to service_proxy. Same status as
- * svc_proxy_send_add(): needs a real BATCH_SVC_UPDATE opcode + wire
- * struct in rpc.h/wire.h (same pattern as BATCH_SP_REGISTER, now that
- * svc_proto.h's plain-text approach is gone) once that grammar is
- * designed. Placeholder call site only.
+ * Send BATCH_SVC_UPDATE to service_proxy -- run_host changed (initial
+ * dispatch, or redispatch after a restart landing elsewhere). Same
+ * enqueue_payload() path as svc_proxy_send_add()/send_remove().
  */
 static int svc_proxy_send_update(struct service_instance *inst)
 {
@@ -307,12 +355,78 @@ static int svc_proxy_send_update(struct service_instance *inst)
         return -1;
     }
 
+    struct wire_svc_update req;
+    memset(&req, 0, sizeof(req));
+    ll_strlcpy(req.svc_id, inst->svc_id, sizeof(req.svc_id));
+    ll_strlcpy(req.run_host, inst->run_host, sizeof(req.run_host));
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SVC_UPDATE;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("svc_proxy_send_update: auth_sign_header failed svc_id=%s",
+               inst->svc_id);
+        return -1;
+    }
+
+    size_t siz = sizeof(struct protocol_header) +
+                 sizeof(struct wire_svc_update) + LL_BUFSIZ_64;
+
+    if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
+                        xdr_wire_svc_update) < 0) {
+        LL_ERR("svc_proxy_send_update: enqueue_payload failed svc_id=%s",
+               inst->svc_id);
+        return -1;
+    }
+
     LL_DEBUG("service: svc_id=%s: UPDATE run_host=%s sent to proxy chan=%d",
              inst->svc_id, inst->run_host, service_proxy_chan_id);
 
-    /* TODO: real BATCH_SVC_UPDATE send once designed. */
-
     return 0;
+}
+
+/*
+ * Correlation acks for BATCH_SVC_UPDATE/BATCH_SVC_REMOVE. Nothing on
+ * mbd's side blocks waiting for these -- the client-facing state
+ * (run_host, instance teardown) is already updated locally before the
+ * request was even sent -- but we still decode and log them instead
+ * of silently dropping, so a proxy-side failure (stale svc_id, whatever)
+ * is visible instead of invisible.
+ */
+void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr)
+{
+    struct wire_svc_update_ack ack;
+    memset(&ack, 0, sizeof(ack));
+
+    if (!xdr_wire_svc_update_ack(xdrs, &ack)) {
+        LL_ERR("svc_proxy_update_ack: xdr decode failed");
+        return;
+    }
+
+    if (hdr->status != MBD_OK)
+        LL_ERRX("svc_proxy_update_ack: svc_id=%s failed status=%d",
+                ack.svc_id, hdr->status);
+    else
+        LL_DEBUG("svc_proxy_update_ack: svc_id=%s ok", ack.svc_id);
+}
+
+void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
+{
+    struct wire_svc_remove_ack ack;
+    memset(&ack, 0, sizeof(ack));
+
+    if (!xdr_wire_svc_remove_ack(xdrs, &ack)) {
+        LL_ERR("svc_proxy_remove_ack: xdr decode failed");
+        return;
+    }
+
+    if (hdr->status != MBD_OK)
+        LL_ERRX("svc_proxy_remove_ack: svc_id=%s failed status=%d",
+                ack.svc_id, hdr->status);
+    else
+        LL_DEBUG("svc_proxy_remove_ack: svc_id=%s ok", ack.svc_id);
 }
 
 /*
@@ -331,9 +445,9 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
     ll_strlcpy(inst->run_host, host->net.name, sizeof(inst->run_host));
     inst->state = SVC_INST_RUNNING;
 
-    /* best-effort: a proxy UPDATE failure shouldn't block telling the
-     * client the service is up -- the URL is still correct, proxy just
-     * needs to catch up on reconnect/RESYNC same as any other drop. */
+    /* mbd doesn't block this RUNNING-transition reply on the UPDATE
+     * ack -- svc_proxy_update_ack() logs the result asynchronously,
+     * same request/ack shape as everything else on this channel. */
     svc_proxy_send_update(inst);
 
     struct wire_svc_info info;
@@ -344,9 +458,6 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
     info.port = inst->port;
     ll_strlcpy(info.run_host, inst->run_host, sizeof(info.run_host));
     info.job_id = job->job_id;
-    /* ASSUMPTION: SVC_RUNNING is llbatch.h's name for this state, per
-     * wire_svc_info's "state -- SVC_* from llbatch.h" comment. Haven't
-     * seen llbatch.h -- verify the real name before this compiles. */
     info.state = SVC_RUNNING;
 
     struct protocol_header rep_hdr;

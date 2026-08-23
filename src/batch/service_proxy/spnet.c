@@ -155,6 +155,99 @@ int sp_register(void)
     return 0;
 }
 
+/*
+ * BATCH_SVC_ADD handler. TODO: real port allocation -- bind() over
+ * SP_SVC_PORT_MIN..SP_SVC_PORT_MAX and hold the socket open, which is
+ * the entire reason this design moved port ownership here instead of
+ * mbd doing a probe-then-close. Stubbed with a placeholder port for
+ * now so the ADD/ADD_ACK round trip and mbd's job_prepare()/
+ * job_commit() path can be exercised end to end while the real bind()/
+ * forwarding table gets built -- same "prototype now, harden later"
+ * call already made for the port range itself.
+ */
+static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
+{
+    (void) hdr;
+
+    struct wire_svc_add req;
+    memset(&req, 0, sizeof(req));
+
+    if (!xdr_wire_svc_add(xdrs, &req)) {
+        LL_ERR("sp_svc_add: xdr decode failed");
+        return -1;
+    }
+
+    static int next_port = SP_SVC_PORT_MIN;
+    int port = next_port++;
+    if (next_port > SP_SVC_PORT_MAX)
+        next_port = SP_SVC_PORT_MIN;
+
+    LL_INFO("sp_svc_add: svc_id=%s port=%d (stub, no real bind yet)",
+            req.svc_id, port);
+
+    struct wire_svc_add_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
+    ack.port = port;
+
+    return sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
+                       xdr_wire_svc_add_ack);
+}
+
+/*
+ * BATCH_SVC_UPDATE handler. TODO: apply run_host to the real
+ * forwarding table once it exists -- stub just acks for now.
+ */
+static int sp_svc_update(XDR *xdrs, const struct protocol_header *hdr)
+{
+    (void) hdr;
+
+    struct wire_svc_update req;
+    memset(&req, 0, sizeof(req));
+
+    if (!xdr_wire_svc_update(xdrs, &req)) {
+        LL_ERR("sp_svc_update: xdr decode failed");
+        return -1;
+    }
+
+    LL_INFO("sp_svc_update: svc_id=%s run_host=%s (no forwarding table yet)",
+            req.svc_id, req.run_host);
+
+    struct wire_svc_update_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
+
+    return sp_send_msg(BATCH_SVC_UPDATE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
+                       xdr_wire_svc_update_ack);
+}
+
+/*
+ * BATCH_SVC_REMOVE handler. TODO: close the real listening socket and
+ * free the port once the forwarding table exists -- stub just acks.
+ */
+static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
+{
+    (void) hdr;
+
+    struct wire_svc_remove req;
+    memset(&req, 0, sizeof(req));
+
+    if (!xdr_wire_svc_remove(xdrs, &req)) {
+        LL_ERR("sp_svc_remove: xdr decode failed");
+        return -1;
+    }
+
+    LL_INFO("sp_svc_remove: svc_id=%s (no forwarding table yet, nothing to "
+            "free)", req.svc_id);
+
+    struct wire_svc_remove_ack ack;
+    memset(&ack, 0, sizeof(ack));
+    ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
+
+    return sp_send_msg(BATCH_SVC_REMOVE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
+                       xdr_wire_svc_remove_ack);
+}
+
 void sp_chan_shutdown(int chan_id)
 {
     epoll_ctl(sp_efd, EPOLL_CTL_DEL, chan_sock(chan_id), NULL);
@@ -220,9 +313,15 @@ int sp_mbd_route(int chan_id)
     case BATCH_SP_REGISTER_ACK:
         sp_register_ack(&xdrs);
         break;
-    /* BATCH_SVC_ADD / BATCH_SVC_UPDATE / BATCH_SVC_REMOVE handlers land
-     * here once svc_proto.h's grammar is settled -- scaffolding only
-     * for now, so anything else is unexpected. */
+    case BATCH_SVC_ADD:
+        sp_svc_add(&xdrs, &hdr);
+        break;
+    case BATCH_SVC_UPDATE:
+        sp_svc_update(&xdrs, &hdr);
+        break;
+    case BATCH_SVC_REMOVE:
+        sp_svc_remove(&xdrs, &hdr);
+        break;
     default:
         LL_ERRX("unknown protocol operation=%s on chan=%d",
                 batch_op_str(hdr.operation), chan_id);
