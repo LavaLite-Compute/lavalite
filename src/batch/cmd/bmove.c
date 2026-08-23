@@ -14,23 +14,20 @@
 
 static void usage(FILE *f)
 {
-    fprintf(f,
-            "Usage: bmove --to <queue> <job_id>\n"
-            "\n"
-            "Move a pending or held job to a different queue.\n"
-            "\n"
-            "Options:\n"
-            "  --to queue     Destination queue\n"
-            "  -h, --help     Display this help and exit\n"
-            "  -v, --version  Output version information and exit\n");
+    fprintf(f, "Usage: bmove --to <queue> <job_id>\n"
+               "\n"
+               "Move a pending or held job to a different queue.\n"
+               "\n"
+               "Options:\n"
+               "  --to queue     Destination queue\n"
+               "  -h, --help     Display this help and exit\n"
+               "  -v, --version  Output version information and exit\n");
 }
 
-static struct option longopts[] = {
-    { "to",      required_argument, NULL, 't' },
-    { "help",    no_argument,       NULL, 'h' },
-    { "version", no_argument,       NULL, 'v' },
-    { NULL, 0, NULL, 0 }
-};
+static struct option longopts[] = {{"to", required_argument, NULL, 't'},
+                                   {"help", no_argument, NULL, 'h'},
+                                   {"version", no_argument, NULL, 'v'},
+                                   {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {
@@ -74,8 +71,8 @@ int main(int argc, char **argv)
     }
 
     if (llb_move_job((int64_t) job_id, to_queue) < 0) {
-        fprintf(stderr, "bmove: job <%ld> move failed: %s\n",
-                job_id, strerror(errno));
+        fprintf(stderr, "bmove: job <%ld> move failed: %s\n", job_id,
+                strerror(errno));
         return 1;
     }
 

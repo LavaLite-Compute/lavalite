@@ -37,11 +37,11 @@ struct wire_job_sig {
     int64_t job_id;      /* job id, or array_id when array_index != 0 */
     int32_t array_index; /* 0 = job_id is not an array element reference */
     int32_t sig;
-    uint32_t uid;         /* NOT on the wire — xdr_wire_job_sig skips it on
-                            * purpose. mbd fills this in from hdr->uid
-                            * (authenticated) right after decode, for
-                            * event_job_signal and logging. Encoding it
-                            * would mean trusting a client-supplied uid. */
+    uint32_t uid; /* NOT on the wire — xdr_wire_job_sig skips it on
+                   * purpose. mbd fills this in from hdr->uid
+                   * (authenticated) right after decode, for
+                   * event_job_signal and logging. Encoding it
+                   * would mean trusting a client-supplied uid. */
 };
 
 /* -----------------------------------------------------------------------
@@ -104,7 +104,7 @@ struct wire_job_start {
     uint64_t mem_mb;
     char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* e.g. "0,1" — assigned CUDA device IDs */
-    struct wire_job_script script; /* job script, encoded last */
+    struct wire_job_script script;   /* job script, encoded last */
 };
 
 /* job finish sbd -> mbd
@@ -218,11 +218,11 @@ struct wire_job_info_array {
 };
 
 struct wire_job_query {
-    int64_t  job_id;
+    int64_t job_id;
     int64_t array_id;
     int32_t array_index;
-    int32_t  flags;
-    int32_t uid;    /* -1 = all */
+    int32_t flags;
+    int32_t uid; /* -1 = all */
 };
 
 /* -----------------------------------------------------------------------
@@ -303,7 +303,7 @@ struct wire_queue_info_array {
 /* after wire_queue_info_array */
 struct wire_queue_admin {
     char name[LL_BUFSIZ_64];
-    int32_t op;   /* QUEUE_OPEN | QUEUE_CLOSED */
+    int32_t op; /* QUEUE_OPEN | QUEUE_CLOSED */
 };
 
 struct wire_token_info {

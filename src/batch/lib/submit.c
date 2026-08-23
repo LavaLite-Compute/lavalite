@@ -29,14 +29,13 @@
 /* Validate locally so bsub can reject malformed specifications early.
  */
 
-int32_t llb_parse_array(const char *spec, int32_t *start,
-                        int32_t *end, int32_t *stride)
+int32_t llb_parse_array(const char *spec, int32_t *start, int32_t *end,
+                        int32_t *stride)
 {
     int n;
 
     if (strchr(spec, ':') != NULL) {
-        if (sscanf(spec, "%d-%d:%d%n",
-                   start, end, stride, &n) != 3)
+        if (sscanf(spec, "%d-%d:%d%n", start, end, stride, &n) != 3)
             goto bad;
 
         if (spec[n] != '\0')

@@ -139,7 +139,7 @@ static int build_plan_array(void)
 }
 
 static int host_has_gpu_count(const struct mbd_host *h,
-                               const struct job_data *job)
+                              const struct job_data *job)
 {
     int n = gpu_ids_count_free(&h->res.gpu);
     LL_DEBUG("job_id=%ld host=%s count=%d free=%d", job->job_id, h->net.name,
@@ -206,14 +206,13 @@ static void log_run_hosts(const struct job_data *job)
 
     for (i = 0; i < job->run_nhosts; i++) {
         int n = snprintf(buf + pos, sizeof(buf) - pos, "%d@%s ",
-                         job->res.num_cpus,
-                         job->run_hosts[i]->net.name);
+                         job->res.num_cpus, job->run_hosts[i]->net.name);
         if (n < 0 || pos + n >= (int) sizeof(buf))
             break;
         pos += n;
     }
-    LL_INFO("job_id=%ld run_hosts=%s gpus_per_host=%d",
-            job->job_id, buf, job->res.num_gpus);
+    LL_INFO("job_id=%ld run_hosts=%s gpus_per_host=%d", job->job_id, buf,
+            job->res.num_gpus);
 }
 
 // Build specific host plan given the job requested machines
@@ -228,7 +227,6 @@ static int build_host_plan_machines(struct job_data *job,
 
     ll_hash_iter_init(&it, &job->res.machines);
     while ((e = ll_hash_iter_next(&it)) != NULL) {
-
         struct mbd_host *h = ll_hash_search(&job->queue->host_hash, e->key);
         if (h == NULL) {
             diag->not_in_queue++;
@@ -247,7 +245,8 @@ static int build_host_plan_machines(struct job_data *job,
 
     size_t hosts_len = 0;
     for (int i = 0; i < job->res.num_hosts; i++)
-        hosts_len += strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
+        hosts_len +=
+            strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
     if (hosts_len >= LL_BUFSIZ_8K) {
         LL_ERRX("job_id=%ld hosts string overflow nhosts=%d", job->job_id,
                 job->res.num_hosts);
@@ -312,7 +311,8 @@ static int build_host_plan(struct job_data *job, struct pend_diag *diag)
      */
     size_t hosts_len = 0;
     for (int i = 0; i < job->res.num_hosts; i++)
-        hosts_len += strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
+        hosts_len +=
+            strlen(host_plan[i]->net.name) + 16; /* ":ncpus," overhead */
     if (hosts_len >= LL_BUFSIZ_8K) {
         LL_ERRX("job_id=%ld hosts string overflow nhosts=%d", job->job_id,
                 job->res.num_hosts);
@@ -467,7 +467,6 @@ void schedule(void)
 
         if (free_slots <= 0)
             break;
-
     }
     mbd_assert_counters();
 }

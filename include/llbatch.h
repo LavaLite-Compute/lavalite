@@ -12,15 +12,15 @@
  * -----------------------------------------------------------------------
  */
 enum job_state {
-    JOB_PENDING = 1,  /* waiting for dispatch */
-    JOB_HELD,         /* pending and held (bsub -H or STOP before dispatch) */
-    JOB_RUNNING,      /* accepted by SBD and executing */
-    JOB_SUSPENDED,    /* execution suspended on SBD */
-    JOB_EXITED,       /* finished with non-zero exit status */
-    JOB_DONE,         /* finished successfully */
-    JOB_ORPHAN,       /* known to MBD, rejected as unknown by SBD */
-    JOB_BROKEN,       /* replay failed, runtime state could not be rebuilt */
-    JOB_UNKNOWN,      /* SBD unavailable, actual state cannot be determined */
+    JOB_PENDING = 1, /* waiting for dispatch */
+    JOB_HELD,        /* pending and held (bsub -H or STOP before dispatch) */
+    JOB_RUNNING,     /* accepted by SBD and executing */
+    JOB_SUSPENDED,   /* execution suspended on SBD */
+    JOB_EXITED,      /* finished with non-zero exit status */
+    JOB_DONE,        /* finished successfully */
+    JOB_ORPHAN,      /* known to MBD, rejected as unknown by SBD */
+    JOB_BROKEN,      /* replay failed, runtime state could not be rebuilt */
+    JOB_UNKNOWN,     /* SBD unavailable, actual state cannot be determined */
 };
 
 /* These are the classical unix job exit status values
@@ -73,7 +73,7 @@ struct job_submit {
     char *name;          /* --name        */
     char *queue;         /* --queue       */
     char *machines;      /* --machines    */
-    char *gpu_model;      /* --gpu-model    */
+    char *gpu_model;     /* --gpu-model    */
     char *depend_cond;   /* --dependency  */
     char *in_file;       /* --stdin       */
     char *out_file;      /* --stdout      */
@@ -103,11 +103,11 @@ struct job_submit {
 #define LLB_JOB_HELD 0x0010
 
 struct job_info_req {
-    int64_t job_id;       /* -1 = all */
-    int64_t array_id;     /* 0 = not an array reference */
+    int64_t job_id;   /* -1 = all */
+    int64_t array_id; /* 0 = not an array reference */
     int32_t array_index;
-    int32_t uid;          /* -1 = all */
-    int32_t flags;        /* LLB_JOB_* */
+    int32_t uid;   /* -1 = all */
+    int32_t flags; /* LLB_JOB_* */
 };
 
 /* runtime resource usage, reported sbd via cgroup at the end of the job
@@ -163,11 +163,11 @@ enum queue_stat {
 };
 
 struct queue_info {
-    char *name;             /* queue name */
-    char *description;      /* human readable description */
-    char **hosts;           /* expanded host list */
+    char *name;        /* queue name */
+    char *description; /* human readable description */
+    char **hosts;      /* expanded host list */
     int32_t num_hosts;
-    char **users;           /* expanded user list, num_users=0 means "all" */
+    char **users; /* expanded user list, num_users=0 means "all" */
     int32_t num_users;
     int32_t status;         /* QUEUE_OPEN | QUEUE_CLOSED */
     int32_t priority;       /* scheduling priority, higher wins */
@@ -201,7 +201,7 @@ struct token_pool_info {
 
 /* llb_hist_info flags
  */
-#define LLB_HIST_ALL  0x0001
+#define LLB_HIST_ALL 0x0001
 
 /*
  * One event in the life of a job, decoded from the event log.
@@ -209,18 +209,18 @@ struct token_pool_info {
  * to type; unused fields are zero/NULL.
  */
 struct job_event {
-    int32_t        type;          /* EVENT_JOB_* from log.h         */
-    time_t         event_time;
-    int32_t        state;         /* JOB_START, JOB_FINISH          */
-    int32_t        exit_status;   /* JOB_FINISH                     */
-    int32_t        signal;        /* JOB_SIGNAL                     */
-    pid_t          pid;           /* JOB_FORK                       */
-    char          *run_hosts;     /* JOB_START                      */
-    char *from_queue;   /* JOB_MOVE */
-    char *to_queue;     /* JOB_MOVE */
-    int32_t old_priority;   /* JOB_PRIORITY */
-    int32_t new_priority;   /* JOB_PRIORITY */
-    char *gpu_assigned; /* JOB_START: assigned CUDA device IDs */
+    int32_t type; /* EVENT_JOB_* from log.h         */
+    time_t event_time;
+    int32_t state;        /* JOB_START, JOB_FINISH          */
+    int32_t exit_status;  /* JOB_FINISH                     */
+    int32_t signal;       /* JOB_SIGNAL                     */
+    pid_t pid;            /* JOB_FORK                       */
+    char *run_hosts;      /* JOB_START                      */
+    char *from_queue;     /* JOB_MOVE */
+    char *to_queue;       /* JOB_MOVE */
+    int32_t old_priority; /* JOB_PRIORITY */
+    int32_t new_priority; /* JOB_PRIORITY */
+    char *gpu_assigned;   /* JOB_START: assigned CUDA device IDs */
 };
 
 /*
@@ -229,40 +229,40 @@ struct job_event {
  * usage is from the usage sidecar, valid after job finishes.
  */
 struct job_hist_info {
-    int64_t        job_id;
-    int64_t        array_id;
-    int32_t        array_index;
-    int32_t        array_start;
-    int32_t        array_end;
-    int32_t        array_stride;
-    uid_t          uid;
-    int32_t        state;          /* current state  */
-    int32_t        priority;
-    time_t         submit_time;
-    int32_t        num_cpus;
-    int32_t        num_hosts;
-    int32_t        num_gpus;
-    uint64_t       mem_mb;
-    uint64_t       storage_mb;
-    char          *username;
-    char          *name;
-    char          *queue;
-    char          *project;
-    char          *submit_host;   /* submit host (where bsub was run)       */
-    char          *machines;      /* --machines constraint                  */
-    char          *cwd;
-    char          *command;
-    char          *depend_cond;   /* --dependency                           */
-    char          *in_file;
-    char          *out_file;
-    char          *err_file;
-    char          *comment;
-    char          *gpu_model;      /* --gpu-model                             */
-    char          *tokenpool;     /* --pool                                 */
-    time_t         begin_time;    /* --begin                                */
-    time_t         term_time;     /* --terminate                            */
-    struct job_res_usage usage;   /* from usage sidecar, valid after finish */
-    int32_t        num_events;
+    int64_t job_id;
+    int64_t array_id;
+    int32_t array_index;
+    int32_t array_start;
+    int32_t array_end;
+    int32_t array_stride;
+    uid_t uid;
+    int32_t state; /* current state  */
+    int32_t priority;
+    time_t submit_time;
+    int32_t num_cpus;
+    int32_t num_hosts;
+    int32_t num_gpus;
+    uint64_t mem_mb;
+    uint64_t storage_mb;
+    char *username;
+    char *name;
+    char *queue;
+    char *project;
+    char *submit_host; /* submit host (where bsub was run)       */
+    char *machines;    /* --machines constraint                  */
+    char *cwd;
+    char *command;
+    char *depend_cond; /* --dependency                           */
+    char *in_file;
+    char *out_file;
+    char *err_file;
+    char *comment;
+    char *gpu_model;            /* --gpu-model                             */
+    char *tokenpool;            /* --pool                                 */
+    time_t begin_time;          /* --begin                                */
+    time_t term_time;           /* --terminate                            */
+    struct job_res_usage usage; /* from usage sidecar, valid after finish */
+    int32_t num_events;
     struct job_event *events;
 };
 
@@ -292,7 +292,8 @@ struct queue_info *llb_queue_info(int32_t *);
 void llb_free_queue_info(struct queue_info *, int32_t);
 
 // bkill
-int32_t llb_signal_job(int64_t, int32_t, int32_t); /* job_id, array_index, sig */
+int32_t llb_signal_job(int64_t, int32_t,
+                       int32_t); /* job_id, array_index, sig */
 
 /* btokens */
 struct token_pool_info *llb_token_info(int32_t *);
@@ -303,7 +304,8 @@ int32_t llb_queue_admin(const char *, int32_t);
 int32_t llb_host_admin(const char *, int32_t);
 
 /* bhist */
-struct job_hist_info *llb_hist_info(int64_t, int64_t, int32_t, uid_t, int32_t *);
+struct job_hist_info *llb_hist_info(int64_t, int64_t, int32_t, uid_t,
+                                    int32_t *);
 void llb_free_hist_info(struct job_hist_info *, int32_t);
 int llb_caller_is_admin(void);
 void llb_free_hist_entry(struct job_hist_info *);

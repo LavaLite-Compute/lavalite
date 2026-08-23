@@ -14,7 +14,7 @@
 #include "base/lib/ll.conf.h"
 #include "batch/mbd/mbd.h"
 
-#define ARRAY_SIZE(a) ((int)(sizeof(a) / sizeof(a[0])))
+#define ARRAY_SIZE(a) ((int) (sizeof(a) / sizeof(a[0])))
 
 /* Parse a size string with optional suffix M/G/T (case-insensitive).
  * No suffix = MB. Returns value in MB, 0 on error.
@@ -102,7 +102,7 @@ static int parse_gpu_ids(const char *s, struct gpu_id *ids, int max_ids)
     return count;
 }
 
-static const char *tokens_hdr[] = { "POOL_NAME", "AVAILABLE" };
+static const char *tokens_hdr[] = {"POOL_NAME", "AVAILABLE"};
 static int parse_token_pools(const char *path)
 {
     FILE *f;
@@ -139,7 +139,8 @@ static int parse_token_pools(const char *path)
             continue;
 
         if (!header_checked) {
-            if (ll_conf_check_header(p, tokens_hdr, ARRAY_SIZE(tokens_hdr)) < 0) {
+            if (ll_conf_check_header(p, tokens_hdr, ARRAY_SIZE(tokens_hdr)) <
+                0) {
                 LL_ERRX("bad format of TokenPool header: %s", p);
                 fclose(f);
                 return -1;
@@ -205,9 +206,9 @@ static struct mbd_host *make_host(const char *p)
     char gpu_model_str[LL_BUFSIZ_64];
     char gpu_ids_str[LL_BUFSIZ_64];
 
-    int n = sscanf(p, "%63s %d %31s %31s %63s %63s",
-                   hostname, &h->res.total_cpu,
-                   mem_str, storage_str, gpu_model_str, gpu_ids_str);
+    int n =
+        sscanf(p, "%63s %d %31s %31s %63s %63s", hostname, &h->res.total_cpu,
+               mem_str, storage_str, gpu_model_str, gpu_ids_str);
     if (n != 6) {
         LL_ERRX("bad line: %s", p);
         free(h);
@@ -242,7 +243,8 @@ static struct mbd_host *make_host(const char *p)
             free(h);
             return NULL;
         }
-        ll_strlcpy(h->res.gpu.gpu_model, gpu_model_str, sizeof(h->res.gpu.gpu_model));
+        ll_strlcpy(h->res.gpu.gpu_model, gpu_model_str,
+                   sizeof(h->res.gpu.gpu_model));
         ll_strlcpy(h->res.gpu.gpu_ids, gpu_ids_str, sizeof(h->res.gpu.gpu_ids));
         h->res.gpu.count = count;
     }
@@ -256,8 +258,8 @@ static struct mbd_host *make_host(const char *p)
     return h;
 }
 
-static const char *host_hdr[] = { "HOST_NAME", "CPU", "MEM",
-    "STORAGE", "GPU_MODEL", "GPU_IDS" };
+static const char *host_hdr[] = {"HOST_NAME", "CPU",       "MEM",
+                                 "STORAGE",   "GPU_MODEL", "GPU_IDS"};
 static int parse_hosts(const char *path)
 {
     FILE *f;
@@ -323,9 +325,8 @@ static int parse_hosts(const char *path)
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
         ll_hash_insert(&host_addr_hash, h->net.addr, h, 0);
 
-        LL_INFO("host=%s cpu=%d mem=%luMB storage=%luMB gpu=%d",
-                h->net.name, h->res.total_cpu,
-                h->res.total_mem_mb, h->res.total_storage_mb,
+        LL_INFO("host=%s cpu=%d mem=%luMB storage=%luMB gpu=%d", h->net.name,
+                h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb,
                 h->res.gpu.count);
     }
 
@@ -598,8 +599,8 @@ static int parse_queues(const char *path)
  * real hosts so the scheduler treats them uniformly.
  * Section is optional — no error if absent.
  */
-static const char *sim_hdr[]   = { "NAME", "REAL_HOST", "PORT",
-    "CPU", "MEM", "STORAGE", "GPU_MODEL", "GPU_IDS" };
+static const char *sim_hdr[] = {"NAME", "REAL_HOST", "PORT",      "CPU",
+                                "MEM",  "STORAGE",   "GPU_MODEL", "GPU_IDS"};
 static int parse_sim(const char *path)
 {
     FILE *f = fopen(path, "r");
@@ -656,9 +657,9 @@ static int parse_sim(const char *path)
         int total_cpu;
 
         /* NAME  REAL_HOST  PORT  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS */
-        if (sscanf(p, "%255s %255s %d %d %31s %31s %63s %63s",
-                   sim_name, real_host, &port, &total_cpu,
-                   mem_str, storage_str, gpu_model_str, gpu_ids_str) != 8) {
+        if (sscanf(p, "%255s %255s %d %d %31s %31s %63s %63s", sim_name,
+                   real_host, &port, &total_cpu, mem_str, storage_str,
+                   gpu_model_str, gpu_ids_str) != 8) {
             LL_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
@@ -733,9 +734,8 @@ static int parse_sim(const char *path)
 
         LL_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB "
                 "storage=%luMB gpu=%d gpu_model=%s gpu_ids=%s",
-                sim_name, real_host, port, total_cpu,
-                h->res.total_mem_mb, h->res.total_storage_mb,
-                h->res.gpu.count,
+                sim_name, real_host, port, total_cpu, h->res.total_mem_mb,
+                h->res.total_storage_mb, h->res.gpu.count,
                 h->res.gpu.count > 0 ? gpu_model_str : "none",
                 h->res.gpu.count > 0 ? gpu_ids_str : "-");
     }
@@ -766,8 +766,8 @@ static int conf_expand_queues(void)
         char *outer_save;
         char *tok = strtok_r(tmp, " \t", &outer_save);
         while (tok != NULL) {
-            struct mbd_group *g = (struct mbd_group *) ll_hash_search(
-                &group_name_hash, tok);
+            struct mbd_group *g =
+                (struct mbd_group *) ll_hash_search(&group_name_hash, tok);
             if (g != NULL) {
                 char gtmp[LL_BUFSIZ_1K];
                 ll_strlcpy(gtmp, g->members, sizeof(gtmp));
@@ -776,8 +776,8 @@ static int conf_expand_queues(void)
                 while (mem != NULL) {
                     struct mbd_host *h = find_host_by_name(mem);
                     if (h == NULL) {
-                        LL_ERRX("queue=%s group=%s host=%s not found",
-                                q->name, g->name, mem);
+                        LL_ERRX("queue=%s group=%s host=%s not found", q->name,
+                                g->name, mem);
                         return -1;
                     }
                     enum ll_hash_status st =
@@ -790,15 +790,15 @@ static int conf_expand_queues(void)
             } else {
                 struct mbd_host *h = find_host_by_name(tok);
                 if (h == NULL) {
-                    LL_ERRX("queue=%s HOSTS=%s not a group or host",
-                            q->name, tok);
+                    LL_ERRX("queue=%s HOSTS=%s not a group or host", q->name,
+                            tok);
                     return -1;
                 }
                 enum ll_hash_status st =
                     ll_hash_insert(&q->host_hash, h->net.name, h, 0);
                 if (st == LL_HASH_EXISTS)
-                    LL_WARNING("queue=%s host=%s already in host_hash",
-                               q->name, h->net.name);
+                    LL_WARNING("queue=%s host=%s already in host_hash", q->name,
+                               h->net.name);
             }
             tok = strtok_r(NULL, " \t", &outer_save);
         }
@@ -921,7 +921,8 @@ int conf_init(void)
     }
     const char *conf_dir = getenv("LL_CONF_DIR");
     // open the log as soon as we have the configuration validated
-    int cc = ll_openlog("mbd", ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);
+    int cc = ll_openlog("mbd", ll_params[LL_LOG_DIR].val,
+                        ll_params[LL_LOG_MASK].val);
     if (cc < 0) {
         fprintf(stderr, "mbd: ll_openlog failed lodir=%s mask=%s %m\n",
                 ll_params[LL_LOG_DIR].val, ll_params[LL_LOG_MASK].val);

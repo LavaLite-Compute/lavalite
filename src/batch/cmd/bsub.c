@@ -34,7 +34,7 @@ static void usage(FILE *f)
         "  --nhosts n         number of execution hosts (default: 1)\n"
         "  --mem    size      Memory per host: n[M|G] (default MB)\n"
         "  --storage size     Local scratch storage per host: "
-                              "n[M|G] (default GB)\n"
+        "n[M|G] (default GB)\n"
         "  --gpus   n         GPUs per host (default: 0)\n"
         "  --gpu-model name   Required GPU model (requires --gpus)\n"
         "  --exclusive        Exclusive host, no job sharing\n"
@@ -51,7 +51,8 @@ static void usage(FILE *f)
         "\n"
         "Scheduling:\n"
         "  --hold             Submit in PSUSP state\n"
-        "  --array  start-end[:stride]  Submit an array job. start must be >= 1\n"
+        "  --array  start-end[:stride]  Submit an array job. start must be >= "
+        "1\n"
         "  --begin  [day:]h:m Do not dispatch before this time\n"
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
         "  --dependency expr  Hold until dependency expr is satisfied.\n"
@@ -153,9 +154,9 @@ static int parse_mem(const char *arg, uint64_t *out)
         return -1;
 
     if (*end == '\0' || *end == 'M')
-        *out = (uint64_t)v;
+        *out = (uint64_t) v;
     else if (*end == 'G')
-        *out = (uint64_t)v * 1024;
+        *out = (uint64_t) v * 1024;
     else
         return -1;
 
@@ -246,9 +247,9 @@ int main(int argc, char **argv)
         {NULL, 0, NULL, 0}};
 
     int c;
-    while (
-        (c = getopt_long(argc, argv, "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:w:hv",
-                         opts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv,
+                            "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:w:hv", opts,
+                            NULL)) != -1) {
         switch (c) {
         case 'q':
             js.queue = optarg;

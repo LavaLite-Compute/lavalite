@@ -385,11 +385,10 @@ static void job_terminate_check(struct sbd_job *job)
         return;
 
     time_t now = time(NULL);
-    if (now >= job->terminate_time
-        && job->terminate_kill_time == 0) {
+    if (now >= job->terminate_time && job->terminate_kill_time == 0) {
         LL_INFO("job=%ld terminate_time reached, sending SIGUSR2", job->job_id);
         killpg(job->pgid, SIGUSR2);
-        job->terminate_time = 0;  /* arm SIGKILL after grace */
+        job->terminate_time = 0; /* arm SIGKILL after grace */
         job->terminate_kill_time = now + 60;
         return;
     }

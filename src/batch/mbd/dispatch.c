@@ -117,7 +117,7 @@ static int maybe_collect_array(int64_t array_id, struct wire_job_info *dst,
          index += head->array_stride, job_id++) {
         struct job_data *job = job_find(job_id);
         if (job == NULL)
-            continue;   /* shouldn't happen -- head retention guarantees this */
+            continue; /* shouldn't happen -- head retention guarantees this */
 
         if (!all && job->uid != uid)
             continue;
@@ -129,8 +129,7 @@ static int maybe_collect_array(int64_t array_id, struct wire_job_info *dst,
     return count;
 }
 
-static int jobs_info_ref(int chan_id,
-                         const struct protocol_header *hdr,
+static int jobs_info_ref(int chan_id, const struct protocol_header *hdr,
                          const struct wire_job_query *req)
 {
     int n = 0;
@@ -153,8 +152,7 @@ static int jobs_info_ref(int chan_id,
      * Explicit array element: N[m].
      */
     if (req->array_id != 0) {
-        struct job_data *job =
-            job_find_array(req->array_id, req->array_index);
+        struct job_data *job = job_find_array(req->array_id, req->array_index);
 
         if (job == NULL) {
             free(jobs);
@@ -169,13 +167,13 @@ static int jobs_info_ref(int chan_id,
         job_data_to_wire(job, &jobs[0]);
         n = 1;
 
-    /*
-     * Numeric reference: N.
-     *
-     * First interpret N as an array_id.  This does not depend on
-     * the first array element still being present in memory.
-     * If no array exists, interpret N as an ordinary job_id.
-     */
+        /*
+         * Numeric reference: N.
+         *
+         * First interpret N as an array_id.  This does not depend on
+         * the first array element still being present in memory.
+         * If no array exists, interpret N as an ordinary job_id.
+         */
     } else {
         n = maybe_collect_array(req->job_id, jobs, 0, uid, all);
 
@@ -197,22 +195,19 @@ static int jobs_info_ref(int chan_id,
         }
     }
 
-    struct wire_job_info_array reply = {
-        .njobs = n,
-        .jobs = jobs
-    };
+    struct wire_job_info_array reply = {.njobs = n, .jobs = jobs};
 
     size_t siz = sizeof(struct wire_job_info) * n +
-                 sizeof(struct wire_job_info_array) +
-                 PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+                 sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
+                 LL_BUFSIZ_64;
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
     rep_hdr.operation = BATCH_JOB_INFO_ACK;
     rep_hdr.status = MBD_OK;
 
-    if (enqueue_payload(chan_id, &rep_hdr, &reply,
-                        siz, xdr_wire_job_info_array) < 0) {
+    if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
+                        xdr_wire_job_info_array) < 0) {
         LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
@@ -222,8 +217,7 @@ static int jobs_info_ref(int chan_id,
     return 0;
 }
 
-static int jobs_info_list(int chan_id,
-                          const struct protocol_header *hdr,
+static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
                           const struct wire_job_query *req)
 {
     int n = 0;
@@ -263,22 +257,19 @@ static int jobs_info_list(int chan_id,
         }
     }
 
-    struct wire_job_info_array reply = {
-        .njobs = n,
-        .jobs = jobs
-    };
+    struct wire_job_info_array reply = {.njobs = n, .jobs = jobs};
 
     size_t siz = sizeof(struct wire_job_info) * n +
-                 sizeof(struct wire_job_info_array) +
-                 PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+                 sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
+                 LL_BUFSIZ_64;
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
     rep_hdr.operation = BATCH_JOB_INFO_ACK;
     rep_hdr.status = MBD_OK;
 
-    if (enqueue_payload(chan_id, &rep_hdr, &reply,
-                        siz, xdr_wire_job_info_array) < 0) {
+    if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
+                        xdr_wire_job_info_array) < 0) {
         LL_ERR("enqueue_payload failed");
         free(jobs);
         return -1;
@@ -287,7 +278,6 @@ static int jobs_info_list(int chan_id,
     free(jobs);
     return 0;
 }
-
 
 int jobs_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
@@ -349,10 +339,8 @@ int queues_info(XDR *xdrs, int chan_id)
         queues[i].num_cpus_used = q->num_cpus_used;
         queues[i].num_hosts_used = q->num_hosts_used;
 
-        queues[i].num_hosts = hash_keys_dup(&q->host_hash,
-                                            &queues[i].hosts);
-        queues[i].num_users = hash_keys_dup(&q->user_hash,
-                                            &queues[i].users);
+        queues[i].num_hosts = hash_keys_dup(&q->host_hash, &queues[i].hosts);
+        queues[i].num_users = hash_keys_dup(&q->user_hash, &queues[i].users);
         if (queues[i].num_hosts < 0 || queues[i].num_users < 0) {
             LL_ERR("hash_keys_dup failed num_hosts=%d num_users=%d",
                    queues[i].num_hosts, queues[i].num_users);
@@ -362,7 +350,7 @@ int queues_info(XDR *xdrs, int chan_id)
             siz += strlen(queues[i].hosts[j]) + 4;
         for (int j = 0; j < queues[i].num_users; j++)
             siz += strlen(queues[i].users[j]) + 4;
-        siz += 8;  /* num_hosts + num_users int32 */
+        siz += 8; /* num_hosts + num_users int32 */
         i++;
     }
 
@@ -370,9 +358,9 @@ int queues_info(XDR *xdrs, int chan_id)
     reply.nqueues = nqueues;
     reply.queues = queues;
 
-    siz = siz + sizeof(struct wire_queue_info) * nqueues
-        + sizeof(struct wire_queue_info_array) + PACKET_HEADER_SIZE +
-        LL_BUFSIZ_64;
+    siz = siz + sizeof(struct wire_queue_info) * nqueues +
+          sizeof(struct wire_queue_info_array) + PACKET_HEADER_SIZE +
+          LL_BUFSIZ_64;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);

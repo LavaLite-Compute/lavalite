@@ -111,7 +111,7 @@ static void usage(void)
     fprintf(stderr, "bkill: -s SIGNAL jobid|jobid[idx] [...]\n");
     fprintf(stderr, " --signal SIGNAL jobid|jobid[idx] [...]\n");
     fprintf(stderr, "SIGNAL: kill | term | stop | tstp | "
-            "cont | int | hup | <number>\n");
+                    "cont | int | hup | <number>\n");
 }
 
 int main(int argc, char **argv)

@@ -167,11 +167,11 @@ int sbd_storage_init(void)
     LL_INFO("sbd_job_dir=%s", sbd_job_dir);
     LL_INFO("sbd_state_dir=%s", sbd_state_dir);
 
-    prune_interval=900;
-    if (! ll_atoi(ll_params[LL_SBD_PRUNE_INTERVAL].val, &prune_interval)) {
+    prune_interval = 900;
+    if (!ll_atoi(ll_params[LL_SBD_PRUNE_INTERVAL].val, &prune_interval)) {
         LL_ERRX("failed parsing LL_PRUNE_INTERVAL=%s set to default 900sec",
                 ll_params[LL_SBD_PRUNE_INTERVAL].val);
-        prune_interval=900;
+        prune_interval = 900;
     }
     if (prune_interval <= 0) {
         LL_ERRX("LL_SBD_PRUNE_INTERVAL invalid=%d reset to default=900",
@@ -180,7 +180,7 @@ int sbd_storage_init(void)
     }
 
     num_jobs_retain = 0;
-    if (! ll_atoi(ll_params[LL_SBD_JOB_FINISH_RETAIN].val, &num_jobs_retain)) {
+    if (!ll_atoi(ll_params[LL_SBD_JOB_FINISH_RETAIN].val, &num_jobs_retain)) {
         LL_ERRX("failed parsing LL_SBD_JOB_FINISH_RETAIN=%s set to default 100",
                 ll_params[LL_SBD_JOB_FINISH_RETAIN].val);
         num_jobs_retain = 100;
@@ -188,11 +188,11 @@ int sbd_storage_init(void)
 
     if (num_jobs_retain <= 0) {
         LL_ERRX("LL_SBD_JOB_FINISH_RETAIN invalid=%d reset to default=100",
-               num_jobs_retain);
+                num_jobs_retain);
         num_jobs_retain = 100;
     }
-    LL_INFO("LL_SBD_PRUNE_INTERVAL=%d LL_SBD_JOB_FINISH_RETAIN=%d", prune_interval,
-            num_jobs_retain);
+    LL_INFO("LL_SBD_PRUNE_INTERVAL=%d LL_SBD_JOB_FINISH_RETAIN=%d",
+            prune_interval, num_jobs_retain);
 
     return 0;
 }
@@ -230,11 +230,11 @@ void sbd_job_state_remove(struct sbd_job *job)
     char state_path[PATH_MAX];
     char dir_path[PATH_MAX];
 
-    if (make_path(state_path, sizeof(state_path), "%s/%ld/state",
-                  sbd_state_dir, job->job_id) < 0)
+    if (make_path(state_path, sizeof(state_path), "%s/%ld/state", sbd_state_dir,
+                  job->job_id) < 0)
         return;
-    if (make_path(dir_path, sizeof(dir_path), "%s/%ld",
-                  sbd_state_dir, job->job_id) < 0)
+    if (make_path(dir_path, sizeof(dir_path), "%s/%ld", sbd_state_dir,
+                  job->job_id) < 0)
         return;
 
     if (unlink(state_path) < 0 && errno != ENOENT)
@@ -286,12 +286,12 @@ int sbd_job_state_write(struct sbd_job *job)
                      "uid=%u\n"
                      "group=%u\n"
                      "user=%s\n",
-                     job->job_id, (int) job->pid, (int) job->pgid,
-                     pid_acked, (long) job->time_pid_acked,
-                     finish_acked, (long) job->time_finish_acked,
-                     exit_status_valid, job->exit_status, (long) job->end_time,
-                     job->user_cwd, job->user_home, (unsigned) job->uid,
-                     (unsigned) job->gid, job->user);
+                     job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
+                     (long) job->time_pid_acked, finish_acked,
+                     (long) job->time_finish_acked, exit_status_valid,
+                     job->exit_status, (long) job->end_time, job->user_cwd,
+                     job->user_home, (unsigned) job->uid, (unsigned) job->gid,
+                     job->user);
     if (n < 0) {
         errno = EINVAL;
         LL_ERRX("state format failed job=%ld", job->job_id);
@@ -561,15 +561,14 @@ int sbd_read_exit_status_file(struct sbd_job *job, int *exit_code,
     return 0;
 }
 
-#define PRUNE_MAX_SCAN  4096   /* sanity cap on dir entries */
+#define PRUNE_MAX_SCAN 4096 /* sanity cap on dir entries */
 
 struct prune_entry {
     int64_t jobid;
     time_t time_finish_acked;
 };
 
-static int
-prune_entry_cmp(const void *a, const void *b)
+static int prune_entry_cmp(const void *a, const void *b)
 {
     const struct prune_entry *pa = a;
     const struct prune_entry *pb = b;
@@ -633,8 +632,8 @@ static void sbd_prune_jobs(void)
         struct sbd_job job;
         memset(&job, 0, sizeof(job));
         job.job_id = entries[i].jobid;
-        LL_INFO("prune job=%ld finish_acked=%ld",
-                (long)job.job_id, (long)entries[i].time_finish_acked);
+        LL_INFO("prune job=%ld finish_acked=%ld", (long) job.job_id,
+                (long) entries[i].time_finish_acked);
         sbd_job_file_remove(&job);
         sbd_job_state_remove(&job);
     }
@@ -659,7 +658,7 @@ void sbd_prune_jobs_try(void)
         return;
     }
     if (pruner_pid > 0) {
-        LL_DEBUG("prune child pid=%d", (int)pruner_pid);
+        LL_DEBUG("prune child pid=%d", (int) pruner_pid);
         return;
     }
 

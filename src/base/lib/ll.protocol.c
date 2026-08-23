@@ -84,4 +84,3 @@ bool_t xdr_pack_hdr(XDR *xdrs, struct protocol_header *hdr)
         return false;
     return true;
 }
-

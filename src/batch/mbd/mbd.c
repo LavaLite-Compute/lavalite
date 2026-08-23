@@ -82,7 +82,7 @@ static int mbd_init(void)
 
     int auth_age;
     // AUTH_MAX_AGE is build with default 60 seconds
-    if (! ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age)) {
+    if (!ll_atoi(ll_params[LL_AUTH_MAX_AGE].val, &auth_age)) {
         LL_ERRX("invalid auth_age=%s set to default=60",
                 ll_params[LL_AUTH_MAX_AGE].val);
         auth_age = 60;
@@ -92,7 +92,7 @@ static int mbd_init(void)
         return -1;
     }
 
-    if (! ll_atoi(ll_params[LL_ARRAY_MAX_SIZE].val, &max_array_cnt)) {
+    if (!ll_atoi(ll_params[LL_ARRAY_MAX_SIZE].val, &max_array_cnt)) {
         LL_ERRX("invalid max_array_count=%s set to default=5000",
                 ll_params[LL_ARRAY_MAX_SIZE].val);
         max_array_cnt = 1000;
@@ -211,9 +211,8 @@ int main(int argc, char **argv)
             struct epoll_event *ev = &mbd_events[i];
             int chan_id = (int) ev->data.u32;
 
-            LL_DEBUG("chan_id=%d epoll_events=0x%x send=%d recv=%d",
-                     chan_id, ev->events,
-                     channels[chan_id].send.count,
+            LL_DEBUG("chan_id=%d epoll_events=0x%x send=%d recv=%d", chan_id,
+                     ev->events, channels[chan_id].send.count,
                      channels[chan_id].recv.count);
 
             /* skip channels still reading — full message not yet received

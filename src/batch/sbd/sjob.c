@@ -159,16 +159,16 @@ static int set_job_env(const struct sbd_job *job)
 
     LL_DEBUG("job=%ld LL_JOBID=%ld LL_JOBPID=%d LL_FIRST_HOST=%s "
              "LL_QUEUE=%s LL_JOBNAME=%s LL_HOSTS=%s LL_JOBDIR=%s",
-             job->job_id, job->job_id, getpid(), first_host,
-             job->queue, job->job_name, job->hosts, job_dir);
+             job->job_id, job->job_id, getpid(), first_host, job->queue,
+             job->job_name, job->hosts, job_dir);
 
     return 0;
 }
 
 static int set_user_id(const struct sbd_job *job)
 {
-    LL_INFO("job=%ld switching to uid=%d gid=%d user=%s",
-            job->job_id, job->uid, job->gid, job->user);
+    LL_INFO("job=%ld switching to uid=%d gid=%d user=%s", job->job_id, job->uid,
+            job->gid, job->user);
 
     if (initgroups(job->user, job->gid) < 0) {
         LL_ERR("initgroups job=%ld failed uid=%d name=%s group=%d", job->job_id,
@@ -507,8 +507,8 @@ static int make_job_dir(struct sbd_job *job)
         return -1;
     }
 
-    LL_INFO("job=%ld jobdir=%s uid=%d gid=%d", job->job_id, job_dir,
-            job->uid, job->gid);
+    LL_INFO("job=%ld jobdir=%s uid=%d gid=%d", job->job_id, job_dir, job->uid,
+            job->gid);
 
     return 0;
 }

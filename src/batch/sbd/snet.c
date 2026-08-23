@@ -303,14 +303,14 @@ void sbd_register_ack(XDR *xdrs)
                 sbd_fatal(SBD_FATAL_INVARIANT);
                 /* not reached */
             }
-            LL_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d",
-                    job->job_id, job->pid, job->pid_acked);
+            LL_INFO("mbd got the pid job=%ld pid=%d pid_acked=%d", job->job_id,
+                    job->pid, job->pid_acked);
             continue;
         }
 
         /* wj->pid == 0: mbd lost pid, force resend */
-        LL_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d",
-                wj->job_id, job->pid, job->pid_acked);
+        LL_INFO("mbd missing pid job=%ld sbd_pid=%d pid_acked=%d", wj->job_id,
+                job->pid, job->pid_acked);
         job->pid_acked = 0;
         job->reply_last_send = 0;
     }
