@@ -14,16 +14,31 @@ bkill - send a signal to a batch job
 
 **bkill** [**-s** | **--signal**] *signal* *job_id* [*job_id* ...]
 
+**bkill** [**-s** | **--signal**] *signal* *array_id*[[*index*]]
+
 # DESCRIPTION
 
 Sends a signal to one or more batch jobs. The job must belong to the
 current user unless the user has administrator privileges.
+
+A bare array ID signals every element of that array, equivalent to
+issuing the signal to each element individually. Use
+*array_id*[*index*] to target a single element instead.
+
+*job_id* **0** signals every job the calling user owns. A manager may
+signal any user's jobs this way.
 
 # OPTIONS
 
 **-s** *signal*, **--signal** *signal*
 :   Signal to send. Symbolic names (case-insensitive) or a numeric
     signal value are accepted.
+
+**--help**
+:   Print usage to stderr and exit.
+
+**--version**
+:   Print version to stderr and exit.
 
 # SIGNALS
 
@@ -72,6 +87,18 @@ Release a held job:
 Send SIGUSR1 to multiple jobs:
 
     bkill --signal 10 42 43 44
+
+Kill every element of array 142:
+
+    bkill --signal kill 142
+
+Kill a single element of array 142:
+
+    bkill --signal kill 142[3]
+
+Kill every job you own:
+
+    bkill --signal kill 0
 
 # SEE ALSO
 

@@ -28,11 +28,6 @@ status reporting.
 
 # OPTIONS
 
-**-n**, **--non_root**
-:   Run in non-root mode. Disables operations that require root
-    privileges such as cgroup setup and user switching. Useful for
-    testing.
-
 **-c** *dir*, **--confdir** *dir*
 :   Set the configuration directory, equivalent to setting the
     **LL_CONF_DIR** environment variable.

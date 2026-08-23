@@ -50,11 +50,9 @@ Displays a table with the following columns:
 **STATE**
 :   Host state. Values: **ok**, **unavail**, **ok|closed**, **unavail|closed**.
 
-**MAX**
-:   Maximum number of jobs allowed on the host.
-
 **NCPU**
-:   Total CPU slots.
+:   Total CPU slots. This is the sole scheduling capacity dial for the
+    host; there is no separate maximum-jobs limit.
 
 **MEM**
 :   Total memory (M, G, T suffixes).

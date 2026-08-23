@@ -96,8 +96,6 @@ restarts.
   mask and disposition; both now start with signals reset to default
   and `SIGPIPE` explicitly ignored, so a client disconnecting mid-response
   can no longer bring down the daemon.
-- Default scheduler timer interval (`--sched_timer`) reduced from 5s to
-  2s, improving slot utilization responsiveness. Remains configurable.
 
 ## Removed
 
@@ -256,4 +254,15 @@ Current validation targets:
 
 ## Known Limitations
 
-None currently tracked.
+- **Scheduling loop is O(pending) per tick for two cases.** A closed
+  queue that keeps accepting submissions, and a job with a far-future
+  `begin_time`, both sit on `pend_jobs_list` and get walked on every
+  scheduler tick even though neither is dispatchable yet. Not a
+  correctness issue, but a large enough backlog of either can add
+  measurable per-tick scheduling overhead. Deferred to 2.0.
+- **No backoff/quarantine for a host that repeatedly rejects
+  dispatch.** If a host keeps rejecting jobs sbd hands it (for
+  example, a persistent local misconfiguration), `mbd` will keep
+  redispatching the same job(s) to that host on every scheduler tick
+  rather than backing off. Workaround: close the affected host
+  (`bhosts --close`) until the underlying issue is resolved.

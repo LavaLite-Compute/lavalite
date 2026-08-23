@@ -8,9 +8,8 @@ StartLimitIntervalSec=0
 Type=simple
 # sbd must run as root for cgroup management and user switching.
 # Adjust if your configuration lives elsewhere.
-Environment=LL_CONF_DIR=/opt/lavalite/etc
-# Use stable symlink: /opt/lavalite -> /opt/lavalite-<version>
-ExecStart=/opt/lavalite/sbin/sbd
+Environment=LL_CONF_DIR=/opt/lavalite-<version>/etc
+ExecStart=/opt/lavalite-<version>/sbin/sbd
 # Jobs must outlive sbd restarts. Do not change to control-group.
 KillMode=process
 GuessMainPID=no
@@ -20,6 +19,7 @@ LimitNOFILE=65536
 LimitCORE=infinity
 # Required for cgroup v2 delegation.
 Delegate=yes
+WorkingDirectory=/var/log/lavalite-<version>-1.1.0
 
 [Install]
 WantedBy=multi-user.target

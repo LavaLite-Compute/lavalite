@@ -33,16 +33,23 @@ job lifecycle events.
 # OPTIONS
 
 **-u** *user*, **--user** *user*
-:   Show jobs belonging to the specified user.
+:   Show jobs belonging to the specified user. Restricted to admins
+    unless *user* is the calling user.
 
-**-l**, **--long**
+**-l**
 :   Display additional job information including timestamps,
     execution details, resource usage, and exit status.
 
-**--help**
+**-r**
+:   Show only jobs currently running.
+
+**-p**
+:   Show only jobs currently pending.
+
+**-h**, **--help**
 :   Print usage information and exit.
 
-**--version**
+**-V**, **--version**
 :   Print version information and exit.
 
 # ARGUMENTS
@@ -150,6 +157,14 @@ Display a single array element:
 Display extended information:
 
     bhist -l 42
+
+Display only currently running jobs:
+
+    bhist -r
+
+Display only currently pending jobs:
+
+    bhist -p
 
 # SEE ALSO
 
