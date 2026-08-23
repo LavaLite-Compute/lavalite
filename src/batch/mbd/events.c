@@ -28,7 +28,6 @@ static int job_finish_threshold = 1000;
 
 static FILE *open_manifest(void)
 {
-
     int fd = open(manifest_path, O_CREAT | O_WRONLY | O_APPEND, 0640);
     if (fd < 0) {
         LL_ERR("open=%s", manifest_path);
@@ -131,8 +130,8 @@ static void replay_rebuild_counters(void)
         else if (job->state == JOB_ORPHAN)
             job->queue->num_pend++;
         else {
-            LL_ERRX("job_id=%ld in invalid state %d in pending list", job->job_id,
-                    job->state);
+            LL_ERRX("job_id=%ld in invalid state %d in pending list",
+                    job->job_id, job->state);
             assert(0);
         }
     }
@@ -154,8 +153,8 @@ static void replay_rebuild_counters(void)
             job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
             job->queue->num_hosts_used += job->run_nhosts;
         } else {
-            LL_ERRX("job_id=%ld in invalid state %d in running list", job->job_id,
-                    job->state);
+            LL_ERRX("job_id=%ld in invalid state %d in running list",
+                    job->job_id, job->state);
             assert(0);
         }
         replay_charge_running_job(job);
@@ -217,8 +216,8 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     e.array_start = job->array_start;
     e.array_end = job->array_end;
     e.array_stride = job->array_stride;
-    e.uid = (uid_t)job->uid;
-    e.gid = (gid_t)job->gid;
+    e.uid = (uid_t) job->uid;
+    e.gid = (gid_t) job->gid;
     e.state = job->state;
     e.priority = job->priority;
     e.submit_time = job->submit_time;
@@ -425,7 +424,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
 
     machines_hash_populate(&job->res.machines, e->machines);
     if (job->res.machines.nentries > 0)
-        job->res.num_hosts = (int32_t)job->res.machines.nentries;
+        job->res.num_hosts = (int32_t) job->res.machines.nentries;
 
     job->flags = e->flags;
     ll_strlcpy(job->name, e->job_name, sizeof(job->name));
@@ -434,8 +433,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {
-        LL_ERR("job_id=%ld queue=%s not found, orphaned", e->job_id,
-               e->queue);
+        LL_ERR("job_id=%ld queue=%s not found, orphaned", e->job_id, e->queue);
         job->state = JOB_ORPHAN;
     }
 
@@ -504,13 +502,12 @@ static int replay_set_run_hosts(struct job_data *job,
 
     char *tok = strtok(hosts, " \t,");
     while (tok != NULL) {
-
         // Search the job hosts in the current job queue
         struct mbd_host *h = ll_hash_search(&job->queue->host_hash, tok);
         if (h == NULL) {
             // Configuration change?
-            LL_ERRX("job_id=%ld host=%s not found in job's queue",
-                    job->job_id, tok);
+            LL_ERRX("job_id=%ld host=%s not found in job's queue", job->job_id,
+                    tok);
             return -1;
         }
 
@@ -552,8 +549,8 @@ static void replay_job_start(const struct event_rec *rec)
     }
 
     if (job->state == JOB_ORPHAN) {
-        LL_ERRX("job_id=%ld state=%s skipping JOB_START_REPLAY",
-                job->job_id, llb_job_state_str(job->state));
+        LL_ERRX("job_id=%ld state=%s skipping JOB_START_REPLAY", job->job_id,
+                llb_job_state_str(job->state));
         return;
     }
 
@@ -564,7 +561,8 @@ static void replay_job_start(const struct event_rec *rec)
          * An administrator or owner may later terminate it.
          */
         LL_ERRX("job_id=%ld is broken cannot rebuild its runtime status "
-                "configuration changed?", e.job_id);
+                "configuration changed?",
+                e.job_id);
         job->state = JOB_BROKEN;
         // return preventing any resource allocation
         return;
@@ -737,7 +735,7 @@ static void manifest_seq_scan(void)
             q++;
         if (*q != '\0')
             continue;
-        uint32_t n = (uint32_t)atol(p);
+        uint32_t n = (uint32_t) atol(p);
         if (n > manifest_seq)
             manifest_seq = n;
     }
@@ -789,13 +787,15 @@ int events_init(void)
     if (!ll_atoi(ll_params[LL_MBD_JOB_FINISH_THRESHOLD].val,
                  &job_finish_threshold)) {
         LL_ERRX("failed parsing LL_MBD_JOB_FINISH_THRESHOLD=%s using "
-                "default=1000 jobs", ll_params[LL_MBD_JOB_FINISH_THRESHOLD].val);
+                "default=1000 jobs",
+                ll_params[LL_MBD_JOB_FINISH_THRESHOLD].val);
     }
 
     if (job_finish_threshold < 0) {
-        LL_ERRX("LL_MBD_JOB_FINISH_THRESHOLD=%d must be greater than or equal 0 "
-                "using default job_finish_threshold = 1000",
-                job_finish_threshold);
+        LL_ERRX(
+            "LL_MBD_JOB_FINISH_THRESHOLD=%d must be greater than or equal 0 "
+            "using default job_finish_threshold = 1000",
+            job_finish_threshold);
         job_finish_threshold = 1000;
     }
 
@@ -836,8 +836,8 @@ static void job_id_seq_read(void)
     }
 
     if (seq > job_id_seq) {
-        LL_INFO("job_id_seq: restoring from file seq=%ld (was %ld)",
-                seq, job_id_seq);
+        LL_INFO("job_id_seq: restoring from file seq=%ld (was %ld)", seq,
+                job_id_seq);
         job_id_seq = seq;
     }
 }
@@ -856,14 +856,14 @@ static void replay_job_move(const struct event_rec *rec)
     }
     struct mbd_queue *to = ll_hash_search(&queue_name_hash, e.to_queue);
     if (to == NULL) {
-        LL_ERRX("JOB_MOVE job_id=%ld queue=%s not found, orphaned",
-                e.job_id, e.to_queue);
+        LL_ERRX("JOB_MOVE job_id=%ld queue=%s not found, orphaned", e.job_id,
+                e.to_queue);
         job->state = JOB_ORPHAN;
         return;
     }
     job->queue = to;
-    LL_DEBUG("JOB_MOVE job_id=%ld from=%s to=%s", e.job_id,
-             e.from_queue, e.to_queue);
+    LL_DEBUG("JOB_MOVE job_id=%ld from=%s to=%s", e.job_id, e.from_queue,
+             e.to_queue);
 }
 
 static void replay_job_priority(const struct event_rec *rec)
@@ -879,8 +879,8 @@ static void replay_job_priority(const struct event_rec *rec)
         return;
     }
     job->priority = e.new_priority;
-    LL_DEBUG("JOB_PRIORITY job_id=%ld old=%d new=%d",
-             e.job_id, e.old_priority, e.new_priority);
+    LL_DEBUG("JOB_PRIORITY job_id=%ld old=%d new=%d", e.job_id, e.old_priority,
+             e.new_priority);
 }
 
 static void replay_job_pend(const struct event_rec *rec)
@@ -981,7 +981,8 @@ int jobs_replay(void)
 
     if (ferror(fp)) {
         fclose(fp);
-        LL_ERR("I/O error reading job manifest=%s line=%d", manifest_path, lineno);
+        LL_ERR("I/O error reading job manifest=%s line=%d", manifest_path,
+               lineno);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -1196,7 +1197,6 @@ static void manifest_rebuild(void)
             compact_write_job_fork(fp, job);
     }
 
-
     /*
      * Every finished job is dropped from memory on compaction unless
      * something still needs it: a pending job's dependency expression
@@ -1207,7 +1207,7 @@ static void manifest_rebuild(void)
     for (e = finish_jobs_list.head; e; e = next) {
         next = e->next;
 
-        struct job_data *job = (struct job_data *)e;
+        struct job_data *job = (struct job_data *) e;
 
         /* still referenced by a pending job's dependency expression,
          * purging it now would leave that job unable to ever resolve */
@@ -1220,8 +1220,8 @@ static void manifest_rebuild(void)
 
         /* array head: other elements may still be pending/running and
          * need job_find(array_id) to resolve array_start/end/stride */
-        if (job->array_id == job->job_id && job->array_id != 0
-            && job->array_element_cnt > 0) {
+        if (job->array_id == job->job_id && job->array_id != 0 &&
+            job->array_element_cnt > 0) {
             LL_DEBUG("job_id=%ld retained by compaction array_element_cnt=%d",
                      job->job_id, job->array_element_cnt);
             compact_write_job_finished(fp, job);

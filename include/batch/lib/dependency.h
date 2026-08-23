@@ -42,7 +42,7 @@ typedef int (*dep_check_fn)(enum dep_type type, int64_t job_id, void *ctx);
  * Returns DEP_PARSE_OK, DEP_PARSE_SYNTAX, or DEP_PARSE_UNKNOWN_JOB.
  */
 int dep_parse(const char *str, struct ll_list *deps, dep_resolve_fn resolve,
-             void *ctx);
+              void *ctx);
 
 /* Free every job_dep on the list and reinitialize it. */
 void dep_list_free(struct ll_list *deps);

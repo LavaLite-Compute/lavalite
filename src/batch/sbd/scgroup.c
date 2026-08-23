@@ -43,7 +43,7 @@
  * Override: LL_CGROUP_ROOT in ll.conf
  */
 #define CG_BASE_MAX LL_BUFSIZ_4K /* fits any realistic cgroup path */
-#define CG_PATH_MAX LL_BUFSIZ_8K  /* base + job suffix */
+#define CG_PATH_MAX LL_BUFSIZ_8K /* base + job suffix */
 
 static char cg_base[CG_BASE_MAX];
 
@@ -128,7 +128,7 @@ int cgroup_init(void)
     const char *root = ll_params[LL_CGROUP_ROOT].val;
 
     int n = snprintf(cg_base, sizeof(cg_base), "%s", root);
-    if (n <= 0 || n >= (int)sizeof(cg_base)) {
+    if (n <= 0 || n >= (int) sizeof(cg_base)) {
         LL_ERR("cgroup: LL_CGROUP_ROOT path too long");
         return -1;
     }

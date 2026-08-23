@@ -123,23 +123,10 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
 
     if (fprintf(fp,
                 " %ld %ld %d %d %d %d %u %u %d %d %ld %ld %d %d %d %lu %lu %u",
-                j->job_id,
-                j->array_id,
-                j->array_index,
-                j->array_start,
-                j->array_end,
-                j->array_stride,
-                j->uid,
-                j->gid,
-                j->state,
-                j->priority,
-                (long) j->begin_time,
-                (long) j->term_time,
-                j->num_cpu,
-                j->num_hosts,
-                j->num_gpus,
-                j->mem_mb,
-                j->storage_mb,
+                j->job_id, j->array_id, j->array_index, j->array_start,
+                j->array_end, j->array_stride, j->uid, j->gid, j->state,
+                j->priority, (long) j->begin_time, (long) j->term_time,
+                j->num_cpu, j->num_hosts, j->num_gpus, j->mem_mb, j->storage_mb,
                 j->flags) < 0) {
         return -1;
     }
@@ -169,27 +156,12 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
 {
     const char *p = rec->rest;
     int cc;
-    int n = sscanf(p,
-                   " %ld %ld %d %d %d %d %u %u %d %d %ld %ld %d %d %d %lu %lu %u%n",
-                   &j->job_id,
-                   &j->array_id,
-                   &j->array_index,
-                   &j->array_start,
-                   &j->array_end,
-                   &j->array_stride,
-                   &j->uid,
-                   &j->gid,
-                   &j->state,
-                   &j->priority,
-                   &j->begin_time,
-                   &j->term_time,
-                   &j->num_cpu,
-                   &j->num_hosts,
-                   &j->num_gpus,
-                   &j->mem_mb,
-                   &j->storage_mb,
-                   &j->flags,
-                   &cc);
+    int n = sscanf(
+        p, " %ld %ld %d %d %d %d %u %u %d %d %ld %ld %d %d %d %lu %lu %u%n",
+        &j->job_id, &j->array_id, &j->array_index, &j->array_start,
+        &j->array_end, &j->array_stride, &j->uid, &j->gid, &j->state,
+        &j->priority, &j->begin_time, &j->term_time, &j->num_cpu, &j->num_hosts,
+        &j->num_gpus, &j->mem_mb, &j->storage_mb, &j->flags, &cc);
     if (n != 18) {
         errno = EINVAL;
         return -1;
@@ -474,16 +446,17 @@ int log_write_job_priority(FILE *fp, const struct log_job_priority *j)
 {
     if (write_hdr(fp, EVENT_JOB_PRIORITY, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d %d\n", (long) j->job_id,
-                j->old_priority, j->new_priority) < 0)
+    if (fprintf(fp, " %ld %d %d\n", (long) j->job_id, j->old_priority,
+                j->new_priority) < 0)
         return -1;
     return 0;
 }
 
-int log_parse_job_priority(const struct event_rec *rec, struct log_job_priority *j)
+int log_parse_job_priority(const struct event_rec *rec,
+                           struct log_job_priority *j)
 {
-    int n = sscanf(rec->rest, " %ld %d %d",
-                   &j->job_id, &j->old_priority, &j->new_priority);
+    int n = sscanf(rec->rest, " %ld %d %d", &j->job_id, &j->old_priority,
+                   &j->new_priority);
     if (n != 3) {
         errno = EINVAL;
         return -1;

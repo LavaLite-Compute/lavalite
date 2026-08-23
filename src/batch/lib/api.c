@@ -105,17 +105,17 @@ struct queue_info *llb_queue_info(int32_t *nqueues)
         struct wire_queue_info *src = &w.queues[i];
         struct queue_info *dst = &out[i];
 
-        dst->name        = strdup(src->name);
+        dst->name = strdup(src->name);
         dst->description = strdup(src->description);
-        dst->status      = src->status;
-        dst->priority    = src->priority;
-        dst->max_jobs    = src->max_jobs;
-        dst->num_jobs    = src->num_jobs;
-        dst->num_pend    = src->num_pend;
-        dst->num_run     = src->num_run;
-        dst->num_susp    = src->num_susp;
-        dst->num_held    = src->num_held;
-        dst->num_cpus_used  = src->num_cpus_used;
+        dst->status = src->status;
+        dst->priority = src->priority;
+        dst->max_jobs = src->max_jobs;
+        dst->num_jobs = src->num_jobs;
+        dst->num_pend = src->num_pend;
+        dst->num_run = src->num_run;
+        dst->num_susp = src->num_susp;
+        dst->num_held = src->num_held;
+        dst->num_cpus_used = src->num_cpus_used;
         dst->num_hosts_used = src->num_hosts_used;
 
         dst->num_hosts = src->num_hosts;
@@ -375,7 +375,7 @@ struct host_info *llb_host_info(int32_t *nhosts)
         out[i].num_run = w.hosts[i].num_run;
         out[i].num_susp = w.hosts[i].num_susp;
         out[i].gpu_model = strdup(w.hosts[i].gpu_model);
-        out[i].gpu_ids  = strdup(w.hosts[i].gpu_ids);
+        out[i].gpu_ids = strdup(w.hosts[i].gpu_ids);
     }
 
     *nhosts = w.nhosts;

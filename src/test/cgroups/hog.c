@@ -20,7 +20,7 @@
 
 int main(int argc, char *argv[])
 {
-    int mem_mb  = 100;
+    int mem_mb = 100;
     int seconds = 10;
 
     if (argc > 1)

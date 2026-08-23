@@ -73,7 +73,8 @@ struct sbd_job {
     char out_file[PATH_MAX];
     char err_file[PATH_MAX];
     time_t terminate_time; /* wall-clock deadline send SIGUSR2 at this time */
-    time_t terminate_kill_time; /* KILL deadline terminate_time + grace period */
+    time_t
+        terminate_kill_time; /* KILL deadline terminate_time + grace period */
 
     bool_t pid_acked;
     time_t time_pid_acked;

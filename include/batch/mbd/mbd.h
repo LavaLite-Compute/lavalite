@@ -89,13 +89,14 @@ struct job_data {
     enum pend_reason pend_reason;
     struct ll_list deps;
     char depend_cond[LL_BUFSIZ_4K]; /* raw text, for compaction rewrite */
-    int32_t dep_refcnt; /* pending jobs whose deps still reference this job_id */
+    int32_t
+        dep_refcnt; /* pending jobs whose deps still reference this job_id */
     struct job_resources res; /* requested at submit */
     int run_nhosts;           /* the number of hosts where the job will run */
     struct mbd_host **run_hosts;
     char gpu_assigned[LL_BUFSIZ_64];
-    int64_t array_id;       /* 0 = ordinary job */
-    int32_t array_index;    /* valid only when array_id != 0 */
+    int64_t array_id;    /* 0 = ordinary job */
+    int32_t array_index; /* valid only when array_id != 0 */
     int32_t array_start;
     int32_t array_end;
     int32_t array_stride;
@@ -111,8 +112,8 @@ struct job_data {
 };
 
 struct gpu_id {
-    int id;      /* CUDA device index */
-    int in_use;  /* 0 = free, 1 = in use */
+    int id;     /* CUDA device index */
+    int in_use; /* 0 = free, 1 = in use */
 };
 
 /*
@@ -123,8 +124,8 @@ struct gpu_id {
 struct mbd_gpu {
     struct ll_list_entry ent;
     char gpu_model[LL_BUFSIZ_64]; /* A100, H100, etc. */
-    char gpu_ids[LL_BUFSIZ_64];  /* raw ids string, for logging */
-    int count;      /* total configured */
+    char gpu_ids[LL_BUFSIZ_64];   /* raw ids string, for logging */
+    int count;                    /* total configured */
     /* expanded device indices with in_use tracking */
     struct gpu_id ids[LL_BUFSIZ_64];
 };
@@ -180,7 +181,8 @@ struct mbd_queue {
     int num_cpus_used;        /* CPUs consumed by running jobs in this queue */
     int num_hosts_used;       /* distinct exec hosts in use by running jobs  */
     struct ll_hash host_hash; /* expanded host membership, keyed by hostname */
-    struct ll_hash user_hash; /* expanded user membership, empty = all allowed */
+    struct ll_hash
+        user_hash; /* expanded user membership, empty = all allowed */
 };
 
 struct mbd_group {
@@ -333,7 +335,6 @@ void mbd_die(enum mbd_exit);
 int conf_init(void);
 int init_manager(void);
 int is_manager(uid_t);
-
 
 // net.c
 int network_init(void);

@@ -315,11 +315,11 @@ static int chan_self_connected(int fd)
     socklen_t len;
 
     len = sizeof(local);
-    if (getsockname(fd, (struct sockaddr *)&local, &len) < 0)
+    if (getsockname(fd, (struct sockaddr *) &local, &len) < 0)
         return 0;
 
     len = sizeof(remote);
-    if (getpeername(fd, (struct sockaddr *)&remote, &len) < 0)
+    if (getpeername(fd, (struct sockaddr *) &remote, &len) < 0)
         return 0;
 
     if (local.sin_addr.s_addr == remote.sin_addr.s_addr &&
@@ -349,7 +349,7 @@ int chan_connect(int chan_id, struct sockaddr_in *peer, int timeout_sec)
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
         return -1;
 
-    int rc = connect(fd, (struct sockaddr *)peer, sizeof(*peer));
+    int rc = connect(fd, (struct sockaddr *) peer, sizeof(*peer));
     if (rc == 0)
         goto done;
 
@@ -391,30 +391,30 @@ done:
     }
     return 0;
 
-fail:
-    {
-        int save_errno = errno;
-        fcntl(fd, F_SETFL, flags);
-        errno = save_errno;
-        return -1;
-    }
+fail: {
+    int save_errno = errno;
+    fcntl(fd, F_SETFL, flags);
+    errno = save_errno;
+    return -1;
+}
 }
 
-int chan_send_dgram(int chan_id, char *buf, size_t len, struct sockaddr_in *peer)
+int chan_send_dgram(int chan_id, char *buf, size_t len,
+                    struct sockaddr_in *peer)
 {
     if (!chan_is_udp(channels[chan_id].type))
         return -1;
 
-    ssize_t cc = sendto(chan_sock(chan_id), buf, len, 0, (struct sockaddr *) peer,
-                        sizeof(struct sockaddr_in));
+    ssize_t cc = sendto(chan_sock(chan_id), buf, len, 0,
+                        (struct sockaddr *) peer, sizeof(struct sockaddr_in));
     if (cc < 0)
         return -1;
 
     return 0;
 }
 
-int chan_recv_dgram(int chan_id, void *buf, size_t len, struct sockaddr_in *peer,
-                    int timeout)
+int chan_recv_dgram(int chan_id, void *buf, size_t len,
+                    struct sockaddr_in *peer, int timeout)
 {
     if (!chan_is_udp(channels[chan_id].type))
         return -1;
@@ -789,8 +789,8 @@ int connect_timeout(int s, const struct sockaddr *name, socklen_t namelen,
     if (getpeername(s, (struct sockaddr *) &remote, &len) < 0)
         return -1;
 
-    if (local.sin_addr.s_addr == remote.sin_addr.s_addr
-        && local.sin_port == remote.sin_port) {
+    if (local.sin_addr.s_addr == remote.sin_addr.s_addr &&
+        local.sin_port == remote.sin_port) {
         errno = ECONNREFUSED;
         return -1;
     }
@@ -847,7 +847,8 @@ const char *chan_addr_str(int chan_id)
     struct sockaddr_in peer;
     socklen_t plen = sizeof(peer);
 
-    if (getpeername(chan_sock(chan_id), (struct sockaddr *) &peer, &plen) != 0) {
+    if (getpeername(chan_sock(chan_id), (struct sockaddr *) &peer, &plen) !=
+        0) {
         strcpy(buf, "?.?:?");
         return buf;
     }

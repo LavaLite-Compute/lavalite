@@ -20,8 +20,8 @@
 //   e.g. bkill on a job still waiting on its begin_time.
 
 struct ll_heap_entry {
-    int idx;      // position in the heap array, -1 if not in the heap
-    void *owner;  // caller's struct pointer, e.g. a job_data*
+    int idx;     // position in the heap array, -1 if not in the heap
+    void *owner; // caller's struct pointer, e.g. a job_data*
 };
 
 struct ll_heap {

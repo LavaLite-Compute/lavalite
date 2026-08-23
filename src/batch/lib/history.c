@@ -154,7 +154,7 @@ static struct job_hist_info *hist_find(struct job_hist *jh, int64_t job_id)
 
     /* stored as idx+1 so a real index of 0 is never confused with
      * ll_hash_search()'s NULL "not found" return */
-    return &jh->jobs[(intptr_t)v - 1];
+    return &jh->jobs[(intptr_t) v - 1];
 }
 
 /* -----------------------------------------------------------------------
@@ -165,22 +165,22 @@ static struct job_hist_info *hist_find(struct job_hist *jh, int64_t job_id)
  *   sidecar owns:       command, cwd, in_file, out_file, err_file, comment
  * ----------------------------------------------------------------------- */
 
-static int hist_job_sidecar_path(char *path, size_t size,
-                                 int64_t job_id, const char *file)
+static int hist_job_sidecar_path(char *path, size_t size, int64_t job_id,
+                                 const char *file)
 {
     int n;
 
     n = snprintf(path, size, "%s/mbd/jobs/%d/%ld/%s",
-                 ll_params[LL_STATE_DIR].val,
-                 (int)(job_id % HIST_JOB_BUCKETS), job_id, file);
-    if (n < 0 || n >= (int)size)
+                 ll_params[LL_STATE_DIR].val, (int) (job_id % HIST_JOB_BUCKETS),
+                 job_id, file);
+    if (n < 0 || n >= (int) size)
         return -1;
 
     return 0;
 }
 
-static void hist_apply_submit_field(struct job_hist_info *j,
-                                    const char *key, const char *val)
+static void hist_apply_submit_field(struct job_hist_info *j, const char *key,
+                                    const char *val)
 {
     if (strcasecmp(key, "command") == 0 && j->command == NULL) {
         j->command = hist_strdup(val);
@@ -227,11 +227,11 @@ static void hist_apply_submit_field(struct job_hist_info *j,
         return;
     }
     if (strcasecmp(key, "begin_time") == 0 && j->begin_time == 0) {
-        j->begin_time = (time_t)strtoll(val, NULL, 10);
+        j->begin_time = (time_t) strtoll(val, NULL, 10);
         return;
     }
     if (strcasecmp(key, "term_time") == 0 && j->term_time == 0) {
-        j->term_time = (time_t)strtoll(val, NULL, 10);
+        j->term_time = (time_t) strtoll(val, NULL, 10);
         return;
     }
 }
@@ -286,9 +286,9 @@ static void hist_load_usage_sidecar(struct job_hist_info *j)
         val = hist_trim(eq + 1);
 
         if (strcasecmp(key, "mem_mb") == 0)
-            j->usage.mem_mb = (uint64_t)strtoull(val, NULL, 10);
+            j->usage.mem_mb = (uint64_t) strtoull(val, NULL, 10);
         else if (strcasecmp(key, "swap_mb") == 0)
-            j->usage.swap_mb = (uint64_t)strtoull(val, NULL, 10);
+            j->usage.swap_mb = (uint64_t) strtoull(val, NULL, 10);
         else if (strcasecmp(key, "cpu_time") == 0)
             j->usage.cpu_time = atof(val);
     }
@@ -327,29 +327,29 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
     j = &jh->jobs[jh->num_jobs];
     memset(j, 0, sizeof(*j));
 
-    j->job_id      = e->job_id;
-    j->array_id     = e->array_id;
-    j->array_index  = e->array_index;
-    j->array_start  = e->array_start;
-    j->array_end    = e->array_end;
+    j->job_id = e->job_id;
+    j->array_id = e->array_id;
+    j->array_index = e->array_index;
+    j->array_start = e->array_start;
+    j->array_end = e->array_end;
     j->array_stride = e->array_stride;
-    j->uid         = e->uid;
-    j->state       = e->state;
-    j->priority    = e->priority;
+    j->uid = e->uid;
+    j->state = e->state;
+    j->priority = e->priority;
     j->submit_time = e->submit_time;
-    j->num_cpus    = e->num_cpu;
-    j->num_hosts   = e->num_hosts;
-    j->num_gpus    = e->num_gpus;
-    j->mem_mb      = e->mem_mb;
-    j->storage_mb  = e->storage_mb;
+    j->num_cpus = e->num_cpu;
+    j->num_hosts = e->num_hosts;
+    j->num_gpus = e->num_gpus;
+    j->mem_mb = e->mem_mb;
+    j->storage_mb = e->storage_mb;
 
     j->username = hist_strdup(e->username);
-    j->name     = hist_strdup(e->job_name);
-    j->queue    = hist_strdup(e->queue);
-    j->project  = hist_strdup(e->project_name);
+    j->name = hist_strdup(e->job_name);
+    j->queue = hist_strdup(e->queue);
+    j->project = hist_strdup(e->project_name);
 
-    if (j->username == NULL || j->name == NULL ||
-        j->queue == NULL || j->project == NULL) {
+    if (j->username == NULL || j->name == NULL || j->queue == NULL ||
+        j->project == NULL) {
         llb_free_hist_entry(j);
         memset(j, 0, sizeof(*j));
         return NULL;
@@ -360,7 +360,8 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
 
     snprintf(key, sizeof(key), "%ld", e->job_id);
     /* idx+1, see hist_find()'s comment on the NULL/index-0 clash */
-    ll_hash_insert(&jh->job_hash, key, (void *)(intptr_t)(jh->num_jobs + 1), 0);
+    ll_hash_insert(&jh->job_hash, key, (void *) (intptr_t) (jh->num_jobs + 1),
+                   0);
 
     jh->num_jobs++;
 
@@ -416,15 +417,13 @@ int llb_caller_is_admin(void)
  * just by guessing/knowing a job_id.
  */
 
-static int hist_match_new(struct job_hist *jh,
-                          const struct log_job_new *e)
+static int hist_match_new(struct job_hist *jh, const struct log_job_new *e)
 {
     /*
      * Explicit array element: N[m].
      */
     if (jh->array_id != 0) {
-        if (e->array_id != jh->array_id
-            || e->array_index != jh->array_index)
+        if (e->array_id != jh->array_id || e->array_index != jh->array_index)
             return 0;
 
         if (!jh->all && e->uid != jh->uid)
@@ -439,8 +438,7 @@ static int hist_match_new(struct job_hist *jh,
      * job array    -> array_id == N
      */
     if (jh->job_id > 0) {
-        if (e->job_id != jh->job_id
-            && e->array_id != jh->job_id)
+        if (e->job_id != jh->job_id && e->array_id != jh->job_id)
             return 0;
 
         if (!jh->all && e->uid != jh->uid)
@@ -461,8 +459,7 @@ static int hist_event_exists(struct job_hist_info *j, int32_t type,
     int32_t i;
 
     for (i = 0; i < j->num_events; i++) {
-        if (j->events[i].type == type &&
-            j->events[i].event_time == event_time)
+        if (j->events[i].type == type && j->events[i].event_time == event_time)
             return 1;
     }
 
@@ -484,7 +481,7 @@ static void hist_apply_new(struct job_hist *jh, const struct event_rec *rec)
 
     j = hist_find(jh, e.job_id);
     if (j != NULL) {
-       /* repeated JOB_NEW from compact checkpoint -- only update
+        /* repeated JOB_NEW from compact checkpoint -- only update
          * state if job hasn't progressed beyond pending/held yet
          */
         if (j->state == JOB_PENDING || j->state == JOB_HELD)
@@ -518,11 +515,11 @@ static void hist_apply_start(struct job_hist *jh, const struct event_rec *rec)
     if (ev == NULL)
         return;
 
-    j->state          = JOB_RUNNING;
-    ev->type          = EVENT_JOB_START;
-    ev->event_time    = rec->event_time;
-    ev->state         = JOB_RUNNING;
-    ev->run_hosts    = hist_strdup(e.hosts);
+    j->state = JOB_RUNNING;
+    ev->type = EVENT_JOB_START;
+    ev->event_time = rec->event_time;
+    ev->state = JOB_RUNNING;
+    ev->run_hosts = hist_strdup(e.hosts);
     ev->gpu_assigned = hist_strdup(e.gpu_assigned);
 }
 
@@ -548,9 +545,9 @@ static void hist_apply_fork(struct job_hist *jh, const struct event_rec *rec)
     if (ev == NULL)
         return;
 
-    ev->type       = EVENT_JOB_FORK;
+    ev->type = EVENT_JOB_FORK;
     ev->event_time = rec->event_time;
-    ev->pid        = (pid_t)e.job_pid;
+    ev->pid = (pid_t) e.job_pid;
 }
 
 static void hist_apply_signal(struct job_hist *jh, const struct event_rec *rec)
@@ -575,9 +572,9 @@ static void hist_apply_signal(struct job_hist *jh, const struct event_rec *rec)
     if (ev == NULL)
         return;
 
-    ev->type       = EVENT_JOB_SIGNAL;
+    ev->type = EVENT_JOB_SIGNAL;
     ev->event_time = rec->event_time;
-    ev->signal     = e.signal_num;
+    ev->signal = e.signal_num;
 }
 
 static void hist_apply_finish(struct job_hist *jh, const struct event_rec *rec)
@@ -602,11 +599,11 @@ static void hist_apply_finish(struct job_hist *jh, const struct event_rec *rec)
     if (ev == NULL)
         return;
 
-    j->state       = e.state;
-    j->uid         = e.uid;
-    ev->type       = EVENT_JOB_FINISH;
+    j->state = e.state;
+    j->uid = e.uid;
+    ev->type = EVENT_JOB_FINISH;
     ev->event_time = rec->event_time;
-    ev->state      = e.state;
+    ev->state = e.state;
     ev->exit_status = e.exit_status;
 }
 
@@ -633,10 +630,10 @@ static void hist_apply_pend_susp(struct job_hist *jh,
     if (ev == NULL)
         return;
 
-    j->state       = JOB_HELD;
-    ev->type       = EVENT_JOB_PEND_SUSP;
+    j->state = JOB_HELD;
+    ev->type = EVENT_JOB_PEND_SUSP;
     ev->event_time = rec->event_time;
-    ev->state      = JOB_HELD;
+    ev->state = JOB_HELD;
 }
 
 static void hist_apply_pend_resume(struct job_hist *jh,
@@ -662,10 +659,10 @@ static void hist_apply_pend_resume(struct job_hist *jh,
     if (ev == NULL)
         return;
 
-    j->state       = JOB_PENDING;
-    ev->type       = EVENT_JOB_PEND_RESUME;
+    j->state = JOB_PENDING;
+    ev->type = EVENT_JOB_PEND_RESUME;
     ev->event_time = rec->event_time;
-    ev->state      = JOB_PENDING;
+    ev->state = JOB_PENDING;
 }
 
 static void hist_apply_susp(struct job_hist *jh, const struct event_rec *rec)
@@ -691,10 +688,10 @@ static void hist_apply_susp(struct job_hist *jh, const struct event_rec *rec)
     if (ev == NULL)
         return;
 
-    j->state       = JOB_SUSPENDED;
-    ev->type       = EVENT_JOB_SUSP;
+    j->state = JOB_SUSPENDED;
+    ev->type = EVENT_JOB_SUSP;
     ev->event_time = rec->event_time;
-    ev->state      = JOB_SUSPENDED;
+    ev->state = JOB_SUSPENDED;
 }
 
 static void hist_apply_move(struct job_hist *jh, const struct event_rec *rec)
@@ -720,14 +717,15 @@ static void hist_apply_move(struct job_hist *jh, const struct event_rec *rec)
         return;
 
     free(j->queue);
-    j->queue       = hist_strdup(e.to_queue);
-    ev->type       = EVENT_JOB_MOVE;
+    j->queue = hist_strdup(e.to_queue);
+    ev->type = EVENT_JOB_MOVE;
     ev->event_time = rec->event_time;
     ev->from_queue = hist_strdup(e.from_queue);
-    ev->to_queue   = hist_strdup(e.to_queue);
+    ev->to_queue = hist_strdup(e.to_queue);
 }
 
-static void hist_apply_priority(struct job_hist *jh, const struct event_rec *rec)
+static void hist_apply_priority(struct job_hist *jh,
+                                const struct event_rec *rec)
 {
     struct log_job_priority e;
     struct job_hist_info *j;
@@ -749,13 +747,12 @@ static void hist_apply_priority(struct job_hist *jh, const struct event_rec *rec
     if (ev == NULL)
         return;
 
-    ev->type         = EVENT_JOB_PRIORITY;
-    ev->event_time   = rec->event_time;
+    ev->type = EVENT_JOB_PRIORITY;
+    ev->event_time = rec->event_time;
     ev->old_priority = e.old_priority;
     ev->new_priority = e.new_priority;
     j->priority = e.new_priority;
 }
-
 
 static void hist_apply_pend(struct job_hist *jh, const struct event_rec *rec)
 {
@@ -779,10 +776,10 @@ static void hist_apply_pend(struct job_hist *jh, const struct event_rec *rec)
     if (ev == NULL)
         return;
 
-    j->state       = JOB_PENDING;
-    ev->type       = EVENT_JOB_PEND;
+    j->state = JOB_PENDING;
+    ev->type = EVENT_JOB_PEND;
     ev->event_time = rec->event_time;
-    ev->state      = JOB_PENDING;
+    ev->state = JOB_PENDING;
 }
 
 static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
@@ -897,7 +894,7 @@ static int hist_scan_events(struct job_hist *jh)
     int n;
 
     n = snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
-    if (n < 0 || n >= (int)sizeof(dir))
+    if (n < 0 || n >= (int) sizeof(dir))
         return -1;
 
     dp = opendir(dir);
@@ -912,7 +909,7 @@ static int hist_scan_events(struct job_hist *jh)
             continue;
 
         n = snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);
-        if (n < 0 || n >= (int)sizeof(path)) {
+        if (n < 0 || n >= (int) sizeof(path)) {
             closedir(dp);
             return -1;
         }
@@ -930,13 +927,13 @@ static int hist_scan_events(struct job_hist *jh)
 
 static int hist_job_cmp(const void *a, const void *b)
 {
-    const struct job_hist_info *ja = (const struct job_hist_info *)a;
-    const struct job_hist_info *jb = (const struct job_hist_info *)b;
+    const struct job_hist_info *ja = (const struct job_hist_info *) a;
+    const struct job_hist_info *jb = (const struct job_hist_info *) b;
 
     if (ja->job_id < jb->job_id)
         return -1;
     if (ja->job_id > jb->job_id)
-        return  1;
+        return 1;
     return 0;
 }
 
@@ -944,10 +941,8 @@ static int hist_job_cmp(const void *a, const void *b)
  * Public API
  * ----------------------------------------------------------------------- */
 
-struct job_hist_info *llb_hist_info(int64_t job_id,
-                                    int64_t array_id,
-                                    int32_t array_index,
-                                    uid_t uid,
+struct job_hist_info *llb_hist_info(int64_t job_id, int64_t array_id,
+                                    int32_t array_index, uid_t uid,
                                     int32_t *num)
 {
     struct job_hist jh;
@@ -961,7 +956,7 @@ struct job_hist_info *llb_hist_info(int64_t job_id,
     jh.job_id = job_id;
     jh.array_id = array_id;
     jh.array_index = array_index;
-    jh.uid    = uid;
+    jh.uid = uid;
 
     if (ll_hash_init(&jh.job_hash, 16411) < 0) {
         errno = ENOMEM;

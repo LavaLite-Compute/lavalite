@@ -56,13 +56,13 @@ static int ndigits(int32_t n)
 /* memory: stored and displayed in MB */
 static void fmt_mem(uint64_t mb, char *buf, size_t len)
 {
-    snprintf(buf, len, "%lu", (unsigned long)mb);
+    snprintf(buf, len, "%lu", (unsigned long) mb);
 }
 
 /* storage: stored in MB, displayed in GB */
 static void fmt_stor(uint64_t mb, char *buf, size_t len)
 {
-    snprintf(buf, len, "%lu", (unsigned long)(mb / 1024));
+    snprintf(buf, len, "%lu", (unsigned long) (mb / 1024));
 }
 
 struct col_widths {
@@ -89,50 +89,50 @@ static void compute_widths(struct host_info *h, int n, struct col_widths *w)
 {
     char tmp[FMT_BUF_LEN];
 
-    w->name         = strlen("HOST_NAME");
-    w->state        = strlen("STATE");
-    w->total_cpu    = strlen("NCPU");
-    w->used_cpu     = strlen("USED_CPU");
-    w->mem          = strlen("MEM_MB");
-    w->used_mem     = strlen("USED_MB");
-    w->storage      = strlen("STOR_GB");
+    w->name = strlen("HOST_NAME");
+    w->state = strlen("STATE");
+    w->total_cpu = strlen("NCPU");
+    w->used_cpu = strlen("USED_CPU");
+    w->mem = strlen("MEM_MB");
+    w->used_mem = strlen("USED_MB");
+    w->storage = strlen("STOR_GB");
     w->used_storage = strlen("USED_GB");
-    w->total_gpu    = strlen("NGPU");
-    w->used_gpu     = strlen("USED_GPU");
-    w->njobs        = strlen("NJOBS");
-    w->run          = strlen("RUN");
-    w->susp         = strlen("SUSP");
-    w->gpu_model     = strlen("GPU_MODEL");
-    w->gpu_ids      = strlen("GPU_IDS");
+    w->total_gpu = strlen("NGPU");
+    w->used_gpu = strlen("USED_GPU");
+    w->njobs = strlen("NJOBS");
+    w->run = strlen("RUN");
+    w->susp = strlen("SUSP");
+    w->gpu_model = strlen("GPU_MODEL");
+    w->gpu_ids = strlen("GPU_IDS");
 
     for (int i = 0; i < n; i++) {
-        uint64_t used_mem  = h[i].total_mem_mb - h[i].free_mem_mb;
+        uint64_t used_mem = h[i].total_mem_mb - h[i].free_mem_mb;
         uint64_t used_stor = h[i].total_storage_mb - h[i].free_storage_mb;
-        int32_t  used_cpu  = h[i].total_cpu - h[i].free_cpu;
-        int32_t  used_gpu  = h[i].total_gpu - h[i].free_gpu;
+        int32_t used_cpu = h[i].total_cpu - h[i].free_cpu;
+        int32_t used_gpu = h[i].total_gpu - h[i].free_gpu;
 
         fmt_mem(h[i].total_mem_mb, tmp, sizeof(tmp));
-        w->mem = imax(w->mem, (int)strlen(tmp));
+        w->mem = imax(w->mem, (int) strlen(tmp));
         fmt_mem(used_mem, tmp, sizeof(tmp));
-        w->used_mem = imax(w->used_mem, (int)strlen(tmp));
+        w->used_mem = imax(w->used_mem, (int) strlen(tmp));
         fmt_stor(h[i].total_storage_mb, tmp, sizeof(tmp));
-        w->storage = imax(w->storage, (int)strlen(tmp));
+        w->storage = imax(w->storage, (int) strlen(tmp));
         fmt_stor(used_stor, tmp, sizeof(tmp));
-        w->used_storage = imax(w->used_storage, (int)strlen(tmp));
+        w->used_storage = imax(w->used_storage, (int) strlen(tmp));
 
-        w->name      = imax(w->name,      (int)strlen(h[i].name));
-        w->state     = imax(w->state,     (int)strlen(host_state_str(h[i].state)));
+        w->name = imax(w->name, (int) strlen(h[i].name));
+        w->state = imax(w->state, (int) strlen(host_state_str(h[i].state)));
         w->total_cpu = imax(w->total_cpu, ndigits(h[i].total_cpu));
-        w->used_cpu  = imax(w->used_cpu,  ndigits(used_cpu));
+        w->used_cpu = imax(w->used_cpu, ndigits(used_cpu));
         w->total_gpu = imax(w->total_gpu, ndigits(h[i].total_gpu));
-        w->used_gpu  = imax(w->used_gpu,  ndigits(used_gpu));
-        w->njobs     = imax(w->njobs,     ndigits(h[i].num_jobs));
-        w->run       = imax(w->run,       ndigits(h[i].num_run));
-        w->susp      = imax(w->susp,      ndigits(h[i].num_susp));
+        w->used_gpu = imax(w->used_gpu, ndigits(used_gpu));
+        w->njobs = imax(w->njobs, ndigits(h[i].num_jobs));
+        w->run = imax(w->run, ndigits(h[i].num_run));
+        w->susp = imax(w->susp, ndigits(h[i].num_susp));
         if (h[i].gpu_model != NULL)
-            w->gpu_model  = imax(w->gpu_model, (int)strlen(h[i].gpu_model));
+            w->gpu_model = imax(w->gpu_model, (int) strlen(h[i].gpu_model));
         if (h[i].gpu_ids != NULL)
-            w->gpu_ids   = imax(w->gpu_ids,  (int)strlen(h[i].gpu_ids));
+            w->gpu_ids = imax(w->gpu_ids, (int) strlen(h[i].gpu_ids));
     }
 }
 
@@ -144,19 +144,17 @@ static void usage(void)
                     "  --version      output version information and exit\n");
 }
 
-static struct option longopts[] = {
-    { "help",    no_argument,       NULL, 'h' },
-    { "version", no_argument,       NULL, 'v' },
-    { "close",   required_argument, NULL, 'c' },
-    { "open",    required_argument, NULL, 'o' },
-    { NULL, 0, NULL, 0 }
-};
+static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
+                                   {"version", no_argument, NULL, 'v'},
+                                   {"close", required_argument, NULL, 'c'},
+                                   {"open", required_argument, NULL, 'o'},
+                                   {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)
 {
     int cc;
     const char *close_host = NULL;
-    const char *open_host  = NULL;
+    const char *open_host = NULL;
 
     while ((cc = getopt_long(argc, argv, "c:o:hv", longopts, NULL)) != EOF) {
         switch (cc) {
@@ -209,50 +207,37 @@ int main(int argc, char **argv)
 
     compute_widths(hosts, nhosts, &w);
 
-    printf("%-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %-*s  %-*s\n",
-           w.name,         "HOST_NAME",
-           w.state,        "STATE",
-           w.total_cpu,    "NCPU",
-           w.mem,          "MEM_MB",
-           w.storage,      "STOR_GB",
-           w.total_gpu,    "NGPU",
-           w.njobs,        "NJOBS",
-           w.run,          "RUN",
-           w.susp,         "SUSP",
-           w.used_cpu,     "USED_CPU",
-           w.used_mem,     "USED_MB",
-           w.used_storage, "USED_GB",
-           w.used_gpu,     "USED_GPU",
-           w.gpu_model,     "GPU_MODEL",
-           w.gpu_ids,      "GPU_IDS");
+    printf("%-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  "
+           "%-*s  %-*s\n",
+           w.name, "HOST_NAME", w.state, "STATE", w.total_cpu, "NCPU", w.mem,
+           "MEM_MB", w.storage, "STOR_GB", w.total_gpu, "NGPU", w.njobs,
+           "NJOBS", w.run, "RUN", w.susp, "SUSP", w.used_cpu, "USED_CPU",
+           w.used_mem, "USED_MB", w.used_storage, "USED_GB", w.used_gpu,
+           "USED_GPU", w.gpu_model, "GPU_MODEL", w.gpu_ids, "GPU_IDS");
 
     for (int i = 0; i < nhosts; i++) {
-        uint64_t used_mem  = hosts[i].total_mem_mb - hosts[i].free_mem_mb;
-        uint64_t used_stor = hosts[i].total_storage_mb - hosts[i].free_storage_mb;
-        int32_t  used_cpu  = hosts[i].total_cpu - hosts[i].free_cpu;
-        int32_t  used_gpu  = hosts[i].total_gpu - hosts[i].free_gpu;
+        uint64_t used_mem = hosts[i].total_mem_mb - hosts[i].free_mem_mb;
+        uint64_t used_stor =
+            hosts[i].total_storage_mb - hosts[i].free_storage_mb;
+        int32_t used_cpu = hosts[i].total_cpu - hosts[i].free_cpu;
+        int32_t used_gpu = hosts[i].total_gpu - hosts[i].free_gpu;
 
-        fmt_mem(hosts[i].total_mem_mb,    mem_buf,      sizeof(mem_buf));
-        fmt_mem(used_mem,                 used_mem_buf, sizeof(used_mem_buf));
-        fmt_stor(hosts[i].total_storage_mb, stor_buf,   sizeof(stor_buf));
-        fmt_stor(used_stor,               used_stor_buf, sizeof(used_stor_buf));
+        fmt_mem(hosts[i].total_mem_mb, mem_buf, sizeof(mem_buf));
+        fmt_mem(used_mem, used_mem_buf, sizeof(used_mem_buf));
+        fmt_stor(hosts[i].total_storage_mb, stor_buf, sizeof(stor_buf));
+        fmt_stor(used_stor, used_stor_buf, sizeof(used_stor_buf));
 
-        printf("%-*s  %-*s  %*d  %*s  %*s  %*d  %*d  %*d  %*d  %*d  %*s  %*s  %*d  %-*s  %-*s\n",
-               w.name,         hosts[i].name,
-               w.state,        host_state_str(hosts[i].state),
-               w.total_cpu,    hosts[i].total_cpu,
-               w.mem,          mem_buf,
-               w.storage,      stor_buf,
-               w.total_gpu,    hosts[i].total_gpu,
-               w.njobs,        hosts[i].num_jobs,
-               w.run,          hosts[i].num_run,
-               w.susp,         hosts[i].num_susp,
-               w.used_cpu,     used_cpu,
-               w.used_mem,     used_mem_buf,
-               w.used_storage, used_stor_buf,
-               w.used_gpu,     used_gpu,
-               w.gpu_model,     hosts[i].gpu_model ? hosts[i].gpu_model : "-",
-               w.gpu_ids,      hosts[i].gpu_ids  ? hosts[i].gpu_ids  : "-");
+        printf("%-*s  %-*s  %*d  %*s  %*s  %*d  %*d  %*d  %*d  %*d  %*s  %*s  "
+               "%*d  %-*s  %-*s\n",
+               w.name, hosts[i].name, w.state, host_state_str(hosts[i].state),
+               w.total_cpu, hosts[i].total_cpu, w.mem, mem_buf, w.storage,
+               stor_buf, w.total_gpu, hosts[i].total_gpu, w.njobs,
+               hosts[i].num_jobs, w.run, hosts[i].num_run, w.susp,
+               hosts[i].num_susp, w.used_cpu, used_cpu, w.used_mem,
+               used_mem_buf, w.used_storage, used_stor_buf, w.used_gpu,
+               used_gpu, w.gpu_model,
+               hosts[i].gpu_model ? hosts[i].gpu_model : "-", w.gpu_ids,
+               hosts[i].gpu_ids ? hosts[i].gpu_ids : "-");
     }
 
     llb_free_host_info(hosts, nhosts);
