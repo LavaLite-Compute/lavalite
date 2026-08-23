@@ -29,9 +29,9 @@ Empty fields are not permitted.
 Defines the execution hosts and their schedulable resources.
 
     Begin Host
-    HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
-    node01        8    32    128G     1T      A100       0,1
-    node02        8    32    128G     1T      -          -
+    HOST_NAME   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
+    node01        32    128G     1T      A100       0,1
+    node02        32    128G     1T      -          -
     End Host
 
 Each line after the header defines one host. Columns are
@@ -45,11 +45,14 @@ For hosts without GPUs, use **-** for both **GPU_MODEL** and
 :   Hostname as returned by **hostname**(1). Must be reachable from
     the master host.
 
-**MXJ**
-:   Maximum number of concurrent job slots on this host.
-
 **CPU**
-:   Number of CPU cores available for scheduling.
+:   Number of CPU cores available for scheduling, and the sole
+    control over how many concurrent job slots a host offers — there
+    is no separate job-slot limit. This value is a scheduling
+    parameter, not a hardware assertion: LavaLite does not verify it
+    against the host's real core count, so a site may set it above or
+    below the physical core count to deliberately oversubscribe or
+    undersubscribe a host.
 
 **MEM**
 :   Total memory available. Accepts a plain integer (MB) or a suffix:
@@ -83,7 +86,7 @@ therefore cooperative: jobs are expected to respect the assigned
 ## Begin TokenPool / End TokenPool
 
 Defines floating token pools for license or resource gating.
-Jobs request tokens with **bsub --pool**.
+Jobs request tokens with **bsub --tokens**.
 
     Begin TokenPool
     POOL_NAME  AVAILABLE
@@ -92,7 +95,7 @@ Jobs request tokens with **bsub --pool**.
     End TokenPool
 
 **POOL_NAME**
-:   Name of the token pool. Referenced by **bsub --pool** and
+:   Name of the token pool. Referenced by **bsub --tokens** and
     displayed by **btokens**.
 
 **AVAILABLE**
@@ -123,8 +126,8 @@ Simulated hosts are registered by **sbd --simulator**.
 
 ```
 Begin Sim
-NAME          REAL_HOST   PORT  MXJ  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
-sim1          buntu24   33126    4     8  20G    100G      A100      0-1
+NAME          REAL_HOST   PORT  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
+sim1          buntu24   33126     8  20G    100G      A100      0-1
 End Sim
 ```
 
@@ -137,17 +140,17 @@ End Sim
 **PORT**
 :   Port the simulating **sbd** listens on.
 
-**MXJ**, **CPU**, **MEM**, **STORAGE**,  **GPU_MODEL**,  **GPU_IDS**
+**CPU**, **MEM**, **STORAGE**, **GPU_MODEL**, **GPU_IDS**
 :   Same meaning as in the **Host** section.
 
 # EXAMPLE
 
     Begin Host
-    HOST_NAME   MXJ   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
-    node01        8    64    256G      2T      -          -
-    node02        8    64    256G      2T      -          -
-    gpu01         4    32    512G      4T      H100       0,1,2,3
-    gpu02         4    32    512G      4T      A100       0,1
+    HOST_NAME   CPU   MEM    STORAGE   GPU_MODEL   GPU_IDS
+    node01        64    256G      2T      -          -
+    node02        64    256G      2T      -          -
+    gpu01         32    512G      4T      H100       0,1,2,3
+    gpu02         32    512G      4T      A100       0,1
     End Host
 
     Begin TokenPool

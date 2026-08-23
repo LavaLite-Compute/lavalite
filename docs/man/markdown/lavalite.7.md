@@ -36,10 +36,16 @@ protocol over TCP, authenticated with HMAC-SHA256.
 
 ## Directory layout
 
-A typical installation uses a versioned directory with a stable symlink:
+A default installation uses a versioned directory only, with no
+symlink:
 
-    /opt/lavalite-1.0.0/      versioned installation
-    /opt/lavalite/            symlink -> lavalite-1.0.0
+    /opt/lavalite-<version>/
+
+This lets multiple versions coexist on the same host, which a stable
+symlink would preclude. A site that only ever runs one version and
+prefers a fixed path may set up its own **/opt/lavalite** ->
+**/opt/lavalite-**_version_ symlink, but this is not the default and
+LavaLite does not assume it exists anywhere.
 
 Subdirectories:
 
@@ -60,8 +66,8 @@ before executing jobs.
 
 # CONFIGURATION
 
-Edit the three configuration files in **LL_CONF_DIR** (default
-**/opt/lavalite/etc**):
+Edit the three configuration files in **LL_CONF_DIR** (for example
+**/opt/lavalite-**_version_**/etc**):
 
 **ll.conf**
 :   Cluster environment: paths, ports, log level, event log parameters.
@@ -82,12 +88,12 @@ HMAC-SHA256. Both daemons must share the same key file.
 
 ## Generating the key
 
-    dd if=/dev/urandom bs=32 count=1 | base64 > /opt/lavalite/etc/auth.key
-    chmod 644 /opt/lavalite/etc/auth.key
-    chown lavalite:lavalite /opt/lavalite/etc/auth.key
+    dd if=/dev/urandom bs=32 count=1 | base64 > $LL_CONF_DIR/auth.key
+    chmod 644 $LL_CONF_DIR/auth.key
+    chown lavalite:lavalite $LL_CONF_DIR/auth.key
 
 The key file must be readable by **mbd** (runs as the lavalite user)
-and by root (for **sbd**). It must not be world-readable.
+and by root (for **sbd**). It must be world-readable.
 
 ## Replay protection
 
@@ -108,6 +114,31 @@ directive. Without it, **sbd** cannot create per-job cgroups.
 
 **sbd** must run as root for cgroup management. Jobs are executed under
 the submitting user's identity after the cgroup is set up.
+
+## Job survival across sbd restarts
+
+The systemd service unit for **sbd** must also include:
+
+    KillMode=process
+
+Do not change this to **control-group** or **mixed**. **sbd** is a
+pure executor: it forks job processes and enforces them via per-job
+cgroups, but **sbd** itself is expected to be stopped, restarted, and
+upgraded independently of the jobs it is running. Job processes must
+outlive an **sbd** restart; **sbd** reattaches to them afterward via
+its per-host state directory rather than re-launching them.
+
+systemd's **control-group** KillMode sends the stop signal to every
+process in the unit's cgroup tree, which includes the per-job cgroups
+nested under it — restarting **sbd** would kill every running job on
+that host along with the daemon. **process** KillMode signals only
+the main **sbd** process, leaving job cgroups and their processes
+untouched.
+
+This case is easy to miss in testing: nothing exercises "restart
+**sbd** while jobs are running" as distinct from a clean start, so an
+accidental change to KillMode will not surface until a real upgrade
+or crash recovery kills running jobs on that host.
 
 # SYSTEMD SERVICES
 
@@ -136,14 +167,14 @@ initiates the connection to **mbd** at startup and reconnects on failure.
 
 **/etc/systemd/system/lavalite-sbd.service**
 :   Unit for the slave batch daemon. Runs as root. Uses
-    **KillMode=process** so that running jobs are not killed when
-    **sbd** is restarted. Uses **Delegate=yes** for cgroup management.
+    **KillMode=process** (see CGROUP SETUP) so that running jobs are
+    not killed when **sbd** is restarted. Uses **Delegate=yes** for
+    cgroup management.
 
 # FIRST-TIME SETUP CHECKLIST
 
 1. Create the lavalite system user on the master host.
-2. Install LavaLite under **/opt/lavalite-**_version_ and create the
-   symlink.
+2. Install LavaLite under **/opt/lavalite-**_version_.
 3. Write **ll.conf**, **llb.queues**, and **llb.hosts**.
 4. Generate **auth.key** and set correct permissions.
 5. Install and enable **lavalite-mbd.service** on the master host.
@@ -153,16 +184,16 @@ initiates the connection to **mbd** at startup and reconnects on failure.
 
 # FILES
 
-*/opt/lavalite/etc/ll.conf*
+*$LL_CONF_DIR/ll.conf*
 :   Cluster environment configuration.
 
-*/opt/lavalite/etc/llb.queues*
+*$LL_CONF_DIR/llb.queues*
 :   Queue configuration.
 
-*/opt/lavalite/etc/llb.hosts*
+*$LL_CONF_DIR/llb.hosts*
 :   Host configuration.
 
-*/opt/lavalite/etc/auth.key*
+*$LL_CONF_DIR/auth.key*
 :   HMAC-SHA256 authentication key.
 
 */etc/systemd/system/lavalite-mbd.service*

@@ -45,7 +45,7 @@ make
 sudo make install
 ```
 By default LavaLite is installed under a versioned directory, for example
-`/opt/lavalite-1.0.0`.
+`/opt/lavalite-<version>` (e.g. `/opt/lavalite-1.1.0`).
 
 This directory forms the root of the LavaLite installation. All
 executables, configuration files, logs, and persistent state are located
@@ -66,7 +66,7 @@ in the examples in the `etc` directory.
 All commands and daemons **require**:
 
 ```sh
-export LL_CONF_DIR=/opt/lavalite-1.0.0/etc
+export LL_CONF_DIR=/opt/lavalite-<version>/etc
 ```
 
 Most installations configure this through an environment module or shell
@@ -137,9 +137,9 @@ Example:
 
 ```sh
 LL_CLUSTER_NAME=lavalite
-LL_STATE_DIR=/opt/lavalite-1.0.0/var/state
-LL_CONF_DIR=/opt/lavalite-1.0.0/etc
-LL_LOG_DIR=/opt/lavalite-1.0.0/var/log
+LL_STATE_DIR=/opt/lavalite-<version>/var/state
+LL_CONF_DIR=/opt/lavalite-<version>/etc
+LL_LOG_DIR=/opt/lavalite-<version>/var/log
 ```
 
 See:
@@ -195,7 +195,7 @@ that must be performed after installation. The script can be run directly or the
 
 ```sh
 export LL_CONF_DIR=/opt/lavalite-<version>/etc
-/opt/lavalite-1.0.0/etc/post-install.sh
+/opt/lavalite-<version>/etc/post-install.sh
 ```
 
 The script performs the following operations:
@@ -218,7 +218,7 @@ event manifest and report only records visible to the calling user.
 A typical installation contains:
 
 ```text
-/opt/lavalite
+/opt/lavalite-<version>
 ├── bin
 ├── sbin
 ├── etc
@@ -351,49 +351,11 @@ var/state/sbd              root:root         750
 bin/bhist                  root:lavalite     2755
 ```
 
-## Authentication Key
-
-LavaLite uses a shared authentication key to sign requests exchanged
-between clients, `mbd`, and `sbd`.
-
-```sh
-dd if=/dev/urandom bs=32 count=1 | base64 \
-    > /opt/lavalite/etc/auth.key
-```
-
-Set permissions:
-
-```sh
-chown lavalite:lavalite /opt/lavalite/etc/auth.key
-chmod 644 /opt/lavalite/etc/auth.key
-```
-
-The key must be world readable because user commands and applications
-linked against `libllbatch` generate HMAC signatures locally and must
-be able to read it.
-
-Copy the same file to every execution host.
-
-## Configure LL_CONF_DIR
-
-All commands and daemons require:
-
-```sh
-export LL_CONF_DIR=/opt/lavalite/etc
-```
-
-Most installations configure this through an environment module or shell
-initialization script.
-
-Verify:
-
-```sh
-echo $LL_CONF_DIR
-```
-
 ## Create Configuration Files
 
-See `02-configuration.md` for the complete reference.
+See [Configuration Files](#configuration-files) above for the file
+reference, or `man 5 ll.conf` / `man 5 llb.hosts` / `man 5 llb.queues`
+for the complete per-file reference.
 
 Create `ll.conf`, `llb.queues`, and `llb.hosts` under `$LL_CONF_DIR`
 before starting any daemon.
@@ -405,10 +367,10 @@ for sites that use systemd. Review and modify them according to your
 site policy before installing.
 
 ```sh
-cp /opt/lavalite/lib/systemd/lavalite-mbd.service \
+cp /opt/lavalite-<version>/lib/systemd/lavalite-mbd.service \
     /etc/systemd/system/
 
-cp /opt/lavalite/lib/systemd/lavalite-sbd.service \
+cp /opt/lavalite-<version>/lib/systemd/lavalite-sbd.service \
     /etc/systemd/system/
 
 systemctl daemon-reload

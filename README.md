@@ -47,9 +47,20 @@ The objective is not to implement every possible scheduler feature, but to build
 
 # Current Status
 
-LavaLite 1.0.0 has been released.
+LavaLite 1.1.0 has been released.
 
-This release establishes the initial stable foundation of the project, including:
+1.1.0 builds on the 1.0.0 baseline with:
+
+* Job arrays (`bsub --array`)
+* Job dependencies (`bsub --dependency`)
+* A ~125x `bhist` performance fix at large job-history scale
+* A data-integrity fix for manifest archives across daemon restart
+* Removal of the `lim` daemon and `ls*`-prefixed commands
+
+See `RELEASE-lavalite-1.1.0.md` for the complete release notes.
+
+1.0.0 established the initial stable foundation of the project,
+including:
 
 * Core batch scheduling
 * Multi-host scheduling
@@ -67,7 +78,8 @@ Current development on the `master` branch focuses on:
 * Documentation enhancements
 * User feedback and feature evaluation
 
-The `lavalite-1.0.0` tag identifies the exact source tree used for the 1.0.0 release.
+The `lavalite-1.1.0` tag identifies the exact source tree used for the
+1.1.0 release; `lavalite-1.0.0` identifies the prior 1.0.0 release.
 
 # Supported Platforms
 
@@ -85,6 +97,7 @@ The primary documentation is located under:
 docs/admin
 docs/testing
 docs/man
+```
 
 # License
 

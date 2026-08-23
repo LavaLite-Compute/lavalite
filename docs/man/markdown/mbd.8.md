@@ -12,7 +12,7 @@ mbd - LavaLite master batch daemon
 
 # SYNOPSIS
 
-**mbd** [**--confdir** *dir*] [**--timer_sched** *N*]
+**mbd** [**--confdir** *dir*] [**--sched_timer** *N*]
 
 **mbd** [**--help** | **--version**]
 
@@ -34,9 +34,9 @@ events during startup.
     **LL_CONF_DIR** environment variable. If not specified,
     **LL_CONF_DIR** must be set in the environment.
 
-**--timer_sched** *N*
+**--sched_timer** *N*
 :   Set the scheduler timer interval in seconds. Controls how frequently
-    the scheduler runs its dispatch cycle.
+    the scheduler runs its dispatch cycle. Default: 5.
 
 **--help**
 :   Print usage to stderr and exit.
