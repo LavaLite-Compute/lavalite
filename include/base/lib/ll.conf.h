@@ -29,6 +29,7 @@ enum ll_params {
     LL_MBD_USER,
     LL_STATE_DIR,
     LL_DEFAULT_QUEUE,
+    LL_ARRAY_MAX_SIZE,
     // auth
     LL_AUTH_MAX_AGE,
     // Debug
