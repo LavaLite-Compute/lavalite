@@ -753,6 +753,15 @@ void job_register(XDR *xdrs, int chan_id,
             return;
         }
 
+        int32_t array_cnt = (ws.array_end - ws.array_start) / ws.array_stride + 1;
+        if (array_cnt > max_array_cnt) {
+            LL_ERRX("array size=%d exceeds LL_ARRAY_MAX_SIZE=%d uid=%d",
+                    array_cnt, max_array_cnt, hdr->uid);
+            job_register_error(chan_id, EINVAL);
+            free(script.data);
+            return;
+        }
+
         start = ws.array_start;
         end = ws.array_end;
         stride = ws.array_stride;

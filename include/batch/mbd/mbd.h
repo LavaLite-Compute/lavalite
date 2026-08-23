@@ -257,6 +257,7 @@ extern int sched_timer;
 extern int chan_timer;
 extern char jobs_dir[];
 extern int assert_counters;
+extern int max_array_cnt;
 
 // main.c
 void mbd_die(enum mbd_exit);

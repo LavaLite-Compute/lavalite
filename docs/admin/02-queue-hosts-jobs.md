@@ -175,7 +175,7 @@ tokens become available.
 Submit a token-consuming job:
 
 ```sh
-bsub --pool license=1 sleep 3600
+bsub --tokens license=1 sleep 3600
 ```
 
 Observe token usage:
@@ -276,6 +276,33 @@ defaults to 1.
 Each array element is assigned its own job ID at submission. The
 first element's job ID is also the array's ID, used to refer to the
 array as a whole.
+
+### Array Size Limit
+
+The number of elements in an array is capped by `LL_ARRAY_MAX_SIZE`
+in `ll.conf` (default `1000`). The limit applies to the element
+count, not the numeric range — `--array 1-100000:1000` has only 100
+elements and is unaffected by a lower cap, while `--array 1-2000`
+exceeds the default.
+
+A submission over the configured limit is rejected before any
+element is created:
+
+```sh
+bsub --array 1-5000 myprogram
+```
+
+```
+mbd: array size 5000 exceeds LL_ARRAY_MAX_SIZE (1000)
+```
+
+Array elements are fully created at submission time — there is no
+separate array entity, so each element requires its own job record.
+This work happens synchronously before `bsub` returns, so submission
+time grows with element count. Requesting an array near the
+configured limit can noticeably delay `bsub`'s return; this is
+expected, not a hang. Raising `LL_ARRAY_MAX_SIZE` trades a higher
+per-submission ceiling for a longer worst-case delay.
 
 ### Display Array Jobs
 
