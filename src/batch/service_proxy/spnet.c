@@ -599,13 +599,16 @@ void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
     int is_client = (chan_id == relay->client_chan);
 
     if (events & EPOLLIN) {
-        int rc = is_client
-            ? sp_relay_pump(relay, relay->client_chan, relay->backend_chan,
-                            relay->c2b_buf, &relay->c2b_len,
-                            &relay->c2b_pos, 1)
-            : sp_relay_pump(relay, relay->backend_chan, relay->client_chan,
-                            relay->b2c_buf, &relay->b2c_len,
-                            &relay->b2c_pos, 1);
+        int rc;
+        if (is_client)
+            rc = sp_relay_pump(relay, relay->client_chan,
+                              relay->backend_chan, relay->c2b_buf,
+                              &relay->c2b_len, &relay->c2b_pos, 1);
+        else
+            rc = sp_relay_pump(relay, relay->backend_chan,
+                              relay->client_chan, relay->b2c_buf,
+                              &relay->b2c_len, &relay->b2c_pos, 1);
+
         if (rc < 0)
             return; /* relay closed and freed inside sp_relay_pump() */
     }
