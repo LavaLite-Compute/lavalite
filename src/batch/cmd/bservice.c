@@ -10,8 +10,7 @@
 #include "llbatch.h"
 
 struct col_widths {
-    int svc_id;
-    int name;
+    int name; /* holds either a bare service name, or an indented "  UID" */
     int port;
     int job_id;
     int run_host;
@@ -35,9 +34,15 @@ static int ndigits(int64_t n)
     return d;
 }
 
+/*
+ * Rows come pre-grouped from mbd (service_collect_info() walks
+ * service_list, then each service_data's instances) -- a service with
+ * no instances is a single SVC_NONE row, a service with instances is
+ * N consecutive rows sharing the same name, never both. This file
+ * only has to render that shape, not detect it.
+ */
 static void compute_widths(struct svc_info *s, int32_t n, struct col_widths *w)
 {
-    w->svc_id = strlen("SVC_ID");
     w->name = strlen("NAME");
     w->port = strlen("PORT");
     w->job_id = strlen("JOB_ID");
@@ -45,8 +50,13 @@ static void compute_widths(struct svc_info *s, int32_t n, struct col_widths *w)
     w->state = strlen("STATE");
 
     for (int i = 0; i < n; i++) {
-        w->svc_id = imax(w->svc_id, strlen(s[i].svc_id));
-        w->name = imax(w->name, strlen(s[i].name));
+        if (s[i].state == SVC_NONE) {
+            w->name = imax(w->name, strlen(s[i].name));
+            continue;
+        }
+
+        /* "  " + uid -- same indent used when printing below */
+        w->name = imax(w->name, 2 + ndigits((int64_t) s[i].uid));
         w->port = imax(w->port, ndigits(s[i].port));
         w->job_id = imax(w->job_id, ndigits(s[i].job_id));
         w->run_host = imax(w->run_host,
@@ -60,14 +70,36 @@ static void print_services(struct svc_info *s, int32_t n)
     struct col_widths w;
     compute_widths(s, n, &w);
 
-    printf("%-*s  %-*s  %*s  %*s  %-*s  %-*s\n",
-           w.svc_id, "SVC_ID", w.name, "NAME", w.port, "PORT",
-           w.job_id, "JOB_ID", w.run_host, "RUN_HOST", w.state, "STATE");
+    printf("%-*s  %*s  %*s  %-*s  %-*s\n",
+           w.name, "NAME", w.port, "PORT", w.job_id, "JOB_ID",
+           w.run_host, "RUN_HOST", w.state, "STATE");
+
+    const char *last_name = NULL;
 
     for (int i = 0; i < n; i++) {
-        printf("%-*s  %-*s  %*d  %*ld  %-*s  %-*s\n",
-               w.svc_id, s[i].svc_id, w.name, s[i].name,
-               w.port, s[i].port, w.job_id, (long) s[i].job_id,
+        if (last_name == NULL || strcmp(s[i].name, last_name) != 0) {
+            if (s[i].state == SVC_NONE) {
+                /* idle: no instance row will follow, so this line
+                 * carries the whole record -- fill the columns
+                 * instead of leaving them looking unfinished */
+                printf("%-*s  %*s  %*s  %-*s  %-*s\n",
+                       w.name, s[i].name, w.port, "-", w.job_id, "-",
+                       w.run_host, "-", w.state, "-");
+            } else {
+                printf("%s\n", s[i].name);
+            }
+            last_name = s[i].name;
+        }
+
+        if (s[i].state == SVC_NONE)
+            continue; /* def-only row: the name line above is the whole row */
+
+        char uid_col[16];
+        snprintf(uid_col, sizeof(uid_col), "  %u", s[i].uid);
+
+        printf("%-*s  %*d  %*ld  %-*s  %-*s\n",
+               w.name, uid_col, w.port, s[i].port,
+               w.job_id, (long) s[i].job_id,
                w.run_host, s[i].run_host ? s[i].run_host : "-",
                w.state, llb_svc_state_str(s[i].state));
     }

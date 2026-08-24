@@ -188,10 +188,17 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     struct wire_svc_add_ack ack;
     memset(&ack, 0, sizeof(ack));
     ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
+    // This is the port the proxy is bound to on behalf of the client
     ack.port = port;
 
-    return sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
-                       xdr_wire_svc_add_ack);
+    int cc = sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
+                         xdr_wire_svc_add_ack);
+    if (cc < 0) {
+        LL_ERR("sp_send_msg failed");
+        return -1;
+    }
+
+    return 0;
 }
 
 /*

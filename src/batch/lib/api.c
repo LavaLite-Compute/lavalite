@@ -951,7 +951,7 @@ struct svc_info *llb_service_info(int32_t *nsvc)
         dst->name = strdup(src->name);
         dst->uid = src->uid;
         dst->port = src->port;
-        dst->run_host = strdup(src->run_host);
+        dst->run_host = src->run_host[0] ? strdup(src->run_host) : NULL;
         dst->job_id = src->job_id;
         dst->state = src->state;
     }
@@ -1024,6 +1024,8 @@ int32_t llb_service_stop(const char *svc_id)
 const char *llb_svc_state_str(int32_t state)
 {
     switch (state) {
+    case SVC_NONE:
+        return "-";
     case SVC_PENDING:
         return "PEND";
     case SVC_RUNNING:

@@ -28,7 +28,7 @@ enum job_state {
 #define JOB_SUCCESS 0
 #define JOB_FAILURE 1
 enum pend_reason {
-    PEND_NONE = 0,
+    PEND_NONE,
     PEND_JOB_NOT_READY,
     PEND_QUEUE_CLOSED,
     PEND_TOKENS,
@@ -204,7 +204,8 @@ struct token_pool_info {
  * Service status
  * ----------------------------------------------------------------------- */
 enum svc_state {
-    SVC_PENDING = 1, /* backing job not yet running */
+    SVC_NONE,    /* configured (llb.services), never started */
+    SVC_PENDING,     /* backing job not yet running */
     SVC_RUNNING,     /* proxy mapping installed, endpoint live */
     SVC_FAILED,      /* backing job never reached RUNNING */
 };

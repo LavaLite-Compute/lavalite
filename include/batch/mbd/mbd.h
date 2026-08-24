@@ -455,4 +455,4 @@ void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr);
 void svc_job_running(struct job_data *job, struct mbd_host *host);
 /* handles BATCH_SP_REGISTER, called from net.c's route() -- sets
  * service_proxy_chan_id. */
-int mbd_sp_register(XDR *xdrs, int chan_id);
+int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *);

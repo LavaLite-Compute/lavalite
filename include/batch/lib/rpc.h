@@ -45,6 +45,7 @@ enum batch_lib_op {
     BATCH_JOB_MOVE_ACK,
     BATCH_JOB_PRIORITY,
     BATCH_JOB_PRIORITY_ACK,
+    // service api requests
     BATCH_SERVICE_START,
     BATCH_SERVICE_START_ACK,
     BATCH_SERVICE_INFO,

@@ -668,14 +668,14 @@ int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     reply.nsvc = n;
     reply.svc = svc;
 
-    size_t siz = sizeof(struct wire_svc_info) * n +
-                 sizeof(struct wire_svc_info_array) +
-                 PACKET_HEADER_SIZE + LL_BUFSIZ_64;
-
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
     rep_hdr.operation = BATCH_SERVICE_INFO_ACK;
     rep_hdr.status = MBD_OK;
+
+    size_t siz = sizeof(struct wire_svc_info) * n
+        + sizeof(struct wire_svc_info_array)
+        + PACKET_HEADER_SIZE + LL_BUFSIZ_64;
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
                         xdr_wire_svc_info_array) < 0) {

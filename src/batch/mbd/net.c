@@ -193,7 +193,7 @@ static void route(int chan_id)
             chan_shutdown(chan_id);
         break;
     case BATCH_SP_REGISTER:
-        if (mbd_sp_register(&xdrs, chan_id) < 0)
+        if (mbd_sp_register(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_SVC_ADD_ACK:

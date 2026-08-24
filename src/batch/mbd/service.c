@@ -256,8 +256,7 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     return 0;
 }
 
-/*
- * Phase 2 of service start: resolves the BATCH_SVC_ADD round-trip.
+/* Phase 2 of service start: resolves the BATCH_SVC_ADD round-trip.
  * hdr->status carries success/failure exactly like every other ack in
  * this protocol (MBD_OK or an errno) -- no separate OK/FAIL opcode
  * pair needed, and no reason string on the wire, same as
@@ -327,19 +326,129 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
            job->job_id, inst->port);
 
     /* Still no reply to the client -- BATCH_SERVICE_START_ACK remains
-     * deferred until mbd_new_job_reply() sees this job reach RUNNING. */
+     * deferred until mbd_new_job_reply() sees this job reach RUNNING.
+     */
+}
+
+/* Internal instance lifecycle (SVC_INST_STARTING/RUNNING/STOPPING,
+ * mbd.h) -> client-facing enum svc_state (SVC_PENDING/RUNNING/FAILED,
+ * llbatch.h). Different enums because the client only cares "up or
+ * not", not mbd's dispatch bookkeeping.
+ *
+ * STOPPING has no wire equivalent yet -- folded into SVC_RUNNING
+ * (still serving traffic until teardown actually completes). Revisit
+ * if bservice -l should show a distinct "stopping" state.
+ */
+static int32_t svc_inst_state_to_wire(int state)
+{
+    switch (state) {
+    case SVC_INST_STARTING:
+        return SVC_PENDING;
+    case SVC_INST_RUNNING:
+    case SVC_INST_STOPPING:
+        return SVC_RUNNING;
+    default:
+        /* unreachable in practice -- unknown internal state reported
+         * as FAILED rather than silently claiming healthy */
+        return SVC_FAILED;
+    }
 }
 
 /*
- * Stub only. No instances tracked yet -- always reports an empty list.
+ * One instance -> one wire_svc_info row. Same shape as
+ * svc_job_running()'s own info-fill block above, just generalized to
+ * any instance/state instead of always RUNNING.
+ */
+static void svc_inst_to_wire(const struct service_instance *inst,
+                             struct wire_svc_info *w)
+{
+    memset(w, 0, sizeof(*w));
+    ll_strlcpy(w->svc_id, inst->svc_id, sizeof(w->svc_id));
+    ll_strlcpy(w->name, inst->svc->name, sizeof(w->name));
+    w->uid = inst->pend_hdr.uid;
+    w->port = inst->port;
+    ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
+    w->job_id = inst->job_id;
+    w->state = svc_inst_state_to_wire(inst->state);
+}
+
+/*
+ * One configured-but-idle service_data -> one wire_svc_info row.
+ * Same reasoning as bqueues showing an empty queue: a service defined
+ * in llb.services is visible whether or not anyone has started it.
+ * svc_id/run_host/port/job_id all stay zeroed -- "-" for run_host is
+ * bservice.c's own display convention for an empty field (see
+ * print_services()'s `s[i].run_host ? ... : "-"`), not something mbd
+ * encodes. state stays at the memset zero -- SVC_NONE is 0 in
+ * llbatch.h precisely so this needs no explicit assignment.
+ */
+static void svc_def_to_wire(const struct service_data *svc,
+                            struct wire_svc_info *w)
+{
+    memset(w, 0, sizeof(*w));
+    ll_strlcpy(w->name, svc->name, sizeof(w->name));
+}
+
+/*
+ * Two-layer walk of service_list, same shape bqueues uses for queues:
+ * a service with no live instances gets one definition row
+ * (svc_def_to_wire); a service with instances gets one row per
+ * instance instead (svc_inst_to_wire), never both. uid/all filtering
+ * only applies to instance rows -- a configured-but-idle service is
+ * ownership-neutral, same as an empty queue in bqueues.
+ *
+ * Two-pass shape (count, then calloc, then fill) matches
+ * jobs_info_list()'s collect_list() in dispatch.c.
  */
 int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
 {
-    (void) uid;
-    (void) all;
+    int ntotal = 0;
 
     *out = NULL;
-    return 0;
+
+    for (struct ll_list_entry *se = service_list.head; se != NULL;
+         se = se->next) {
+        struct service_data *svc = (struct service_data *) se;
+        int ninst = ll_list_count(&svc->instances);
+
+        ntotal += (ninst > 0) ? ninst : 1;
+    }
+
+    if (ntotal == 0)
+        return 0;
+
+    struct wire_svc_info *dst = calloc(ntotal, sizeof(*dst));
+    if (dst == NULL) {
+        LL_ERR("calloc failed");
+        errno = ENOMEM;
+        return -1;
+    }
+
+    int n = 0;
+    for (struct ll_list_entry *se = service_list.head; se != NULL;
+         se = se->next) {
+        struct service_data *svc = (struct service_data *) se;
+
+        if (svc->instances.head == NULL) {
+            svc_def_to_wire(svc, &dst[n]);
+            n++;
+            continue;
+        }
+
+        for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
+             ie = ie->next) {
+            struct service_instance *inst = (struct service_instance *) ie;
+
+            if (!all && inst->pend_hdr.uid != uid)
+                continue;
+
+            svc_inst_to_wire(inst, &dst[n]);
+            n++;
+        }
+    }
+
+    *out = dst;
+    return n;
 }
 
 /*
@@ -506,7 +615,7 @@ int service_stop_instance(uid_t uid, const char *svc_id)
  * real service registry resync (ADD per live instance) is a separate
  * exchange, not folded into this ack.
  */
-int mbd_sp_register(XDR *xdrs, int chan_id)
+int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *hdr)
 {
     struct wire_sp_register reg;
     memset(&reg, 0, sizeof(reg));
@@ -522,20 +631,20 @@ int mbd_sp_register(XDR *xdrs, int chan_id)
 
     if (service_proxy_chan_id != -1) {
         LL_ERRX("duplicate service_proxy registration from host=%s "
-               "(already on chan=%d), rejecting", hostname,
-               service_proxy_chan_id);
+                "uid=%u already on chan=%d, rejecting", hostname, hdr->uid,
+                service_proxy_chan_id);
         return -1;
     }
 
     service_proxy_chan_id = chan_id;
     LL_INFO("service_proxy registered host=%s chan=%d", hostname, chan_id);
 
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_SP_REGISTER_ACK;
-    hdr.status = MBD_OK;
+    struct protocol_header hdr2;
+    init_protocol_header(&hdr2);
+    hdr2.operation = BATCH_SP_REGISTER_ACK;
+    hdr2.status = MBD_OK;
 
-    if (auth_sign_header(&hdr) < 0) {
+    if (auth_sign_header(&hdr2) < 0) {
         LL_ERR("auth_sign_header failed for service_proxy ack");
         service_proxy_chan_id = -1;
         return -1;
@@ -545,7 +654,7 @@ int mbd_sp_register(XDR *xdrs, int chan_id)
     size_t siz = sizeof(struct protocol_header) + sizeof(struct wire_sp_register)
         + LL_BUFSIZ_64;
 
-    if (enqueue_payload(chan_id, &hdr, &reg, siz, xdr_wire_sp_register) < 0) {
+    if (enqueue_payload(chan_id, &hdr2, &reg, siz, xdr_wire_sp_register) < 0) {
         LL_ERR("enqueue_payload failed for service_proxy ack");
         service_proxy_chan_id = -1;
         return -1;
