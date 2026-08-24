@@ -388,6 +388,9 @@ struct wire_sp_register {
 
 struct wire_svc_add {
     char svc_id[LL_BUFSIZ_64];
+    int32_t app_port; /* internal port from llb.services PORT -- static
+                       * for the service's lifetime, unlike run_host
+                       * which arrives later via BATCH_SVC_UPDATE */
 };
 
 struct wire_svc_add_ack {

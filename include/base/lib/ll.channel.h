@@ -19,6 +19,19 @@ enum chan_type {
     TCP_CLIENT,
     UDP_CLIENT,
     TIMER_FD,
+    TCP_RELAY, /* raw byte forwarding (service_proxy client/backend legs) --
+               * no protocol_header framing. chan_epoll() reports a bare
+               * CHAN_EPOLLIN (just enough to clear the CHAN_EPOLLNONE skip
+               * in the caller's dispatch loop) and steps aside instead of
+               * calling doread()/dowrite() -- those assume every message
+               * starts with a protocol_header, which raw relayed bytes
+               * don't have. The caller reads the real epoll event bits
+               * itself (EPOLLIN/EPOLLOUT/EPOLLERR/EPOLLHUP/EPOLLRDHUP,
+               * still sitting in its own struct epoll_event array,
+               * untouched by chan_epoll()) to tell read-ready from
+               * write-ready, and does its own recv()/send() via
+               * chan_sock() -- same precedent already set by the timerfd
+               * case reading chan_sock() directly in the main loop. */
 };
 
 // chan_events is a simple state machine, not a bitmask.

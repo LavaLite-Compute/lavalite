@@ -548,6 +548,8 @@ bool_t xdr_wire_svc_add(XDR *xdrs, struct wire_svc_add *p)
 {
     if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
         return false;
+    if (!xdr_int32_t(xdrs, &p->app_port))
+        return false;
     return true;
 }
 

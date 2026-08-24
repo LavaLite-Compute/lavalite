@@ -88,6 +88,7 @@ static int svc_proxy_send_add(struct service_instance *inst)
     struct wire_svc_add req;
     memset(&req, 0, sizeof(req));
     ll_strlcpy(req.svc_id, inst->svc_id, sizeof(req.svc_id));
+    req.app_port = inst->svc->port;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -205,9 +206,25 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     /* the synthesized command IS the whole job -- no user shell script
      * for a service, unlike an ordinary bsub. Stashed on the instance
      * (pend_cmd/pend_ws) since job_prepare() doesn't get called until
-     * phase 2, once the port comes back from proxy. */
+     * phase 2, once the port comes back from proxy.
+     *
+     * --bind ws->home_dir:ws->home_dir (identity mapping, not a
+     * remap) -- confirmed by hand on buntu24 that this apptainer
+     * install does NOT auto-mount $HOME (unprivileged/no-setuid
+     * install: "squashfuse not found... Converting SIF file to
+     * temporary sandbox"), so the container has no host paths visible
+     * at all without an explicit bind. The job already chdir()s to
+     * cwd (== home_dir for services) before exec, same as any
+     * ordinary bsub job -- once home_dir exists at the SAME absolute
+     * path inside the container, apptainer's own "replicate inherited
+     * host cwd" step (the thing that was failing) succeeds on its
+     * own. Identity mapping over a remap (e.g. :/mnt) specifically so
+     * COMMAND in llb.services can keep using ordinary host-style
+     * paths (jupyter --notebook-dir=..., etc.) without translation.
+     */
     int n = snprintf(inst->pend_cmd, sizeof(inst->pend_cmd),
-                     "apptainer exec %s %s", svc->image, svc->command);
+                     "apptainer exec --bind %s:%s %s %s",
+                     ws->home_dir, ws->home_dir, svc->image, svc->command);
     if (n < 0 || n >= (int) sizeof(inst->pend_cmd)) {
         LL_ERRX("service_start_instance: command too long service=%s",
                ws->name);
@@ -326,11 +343,11 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
            job->job_id, inst->port);
 
     /* Still no reply to the client -- BATCH_SERVICE_START_ACK remains
-     * deferred until mbd_new_job_reply() sees this job reach RUNNING.
-     */
+     * deferred until mbd_new_job_reply() sees this job reach RUNNING. */
 }
 
-/* Internal instance lifecycle (SVC_INST_STARTING/RUNNING/STOPPING,
+/*
+ * Internal instance lifecycle (SVC_INST_STARTING/RUNNING/STOPPING,
  * mbd.h) -> client-facing enum svc_state (SVC_PENDING/RUNNING/FAILED,
  * llbatch.h). Different enums because the client only cares "up or
  * not", not mbd's dispatch bookkeeping.

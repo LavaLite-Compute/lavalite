@@ -284,7 +284,7 @@ struct service_instance {
      * service_proxy -- job_prepare()/job_commit() can't run until then,
      * so this has to survive the async gap between the two. */
     struct wire_job_submit pend_ws;
-    char pend_cmd[LL_BUFSIZ_512];
+    char pend_cmd[PATH_MAX];
     struct protocol_header pend_hdr;
 };
 

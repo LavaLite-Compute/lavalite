@@ -25,6 +25,7 @@ static void sp_cleanup(void);
 
 char sim_name[MAXHOSTNAMELEN]; /* unused for now, kept for symmetry with sbd */
 struct ll_host mbd_node;
+struct ll_list sp_instance_list;
 
 int sp_efd = -1;
 int sp_mbd_chan = -1;
@@ -104,6 +105,7 @@ static int sp_init_network(void)
     }
 
     chan_init();
+    ll_list_init(&sp_instance_list);
 
     sp_efd = epoll_create1(EPOLL_CLOEXEC);
     if (sp_efd < 0) {
@@ -242,6 +244,29 @@ static void sp_run_daemon(void)
                 channels[chan_id].chan_events = CHAN_EPOLLNONE;
                 continue;
             }
+
+            // Everything else is either a service's listening socket
+            // (accept-ready) or one leg of an active client<->backend
+            // relay (read/write-ready). Linear scan is fine at the
+            // scale spd operates at -- same call already made
+            // mbd-side for service/instance lookups.
+            struct sp_instance *inst = sp_find_instance_by_listen(chan_id);
+            if (inst != NULL) {
+                sp_relay_accept(inst);
+                channels[chan_id].chan_events = CHAN_EPOLLNONE;
+                continue;
+            }
+
+            struct sp_relay *relay = sp_find_relay(chan_id);
+            if (relay != NULL) {
+                sp_relay_event(relay, chan_id, ev->events);
+                channels[chan_id].chan_events = CHAN_EPOLLNONE;
+                continue;
+            }
+
+            LL_ERRX("sp_run_daemon: event on unknown chan=%d, ignoring",
+                    chan_id);
+            channels[chan_id].chan_events = CHAN_EPOLLNONE;
         }
     }
 
