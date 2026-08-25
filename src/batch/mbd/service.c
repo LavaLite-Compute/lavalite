@@ -188,7 +188,8 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
 {
     struct service_data *svc = svc_find_by_name(ws->name);
     if (svc == NULL) {
-        LL_ERRX("service_start_instance: service=%s not found", ws->name);
+        LL_ERRX("service_start_instance: service=%s asked by uid=%u not found",
+                ws->name, hdr->uid);
         return ESRCH;
     }
 
@@ -283,6 +284,56 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
  * job_commit() were split out of service_start_instance() for exactly
  * this: they can't run until the real port comes back from proxy.
  */
+/*
+ * service_build_script - render the full job script text for a
+ * service instance, same section shape as an ordinary job's
+ * script.sh (shebang, env block, user command, exit tail). The exit
+ * line is written by the script itself, not read back by sbd from a
+ * live process -- so the exit status/time survive on disk even if
+ * sbd is down or restarts before it would otherwise have observed
+ * the job finish. Content here is fully bounded (three fixed env
+ * vars off inst->pend_ws, one synthesized command line) so a flat
+ * snprintf is enough -- no need for jobscript.c's growing ll_buf,
+ * which exists there only to handle an arbitrary-length client
+ * environ walk that services don't have.
+ *
+ * Unlike job_register()'s ordinary bsub path -- which receives an
+ * already-built wire_job_script from submit.c's client-side
+ * create_jobscript() call and just writes it verbatim via
+ * write_script() -- a service has no submitting shell to build one
+ * in. This is the one place mbd itself synthesizes a script rather
+ * than just relaying one.
+ *
+ * Returns the script length on success, -1 if it didn't fit in buf
+ * (shouldn't happen given the field sizes involved, checked rather
+ * than assumed).
+ */
+static int service_build_script(const struct service_instance *inst,
+                                char *buf, size_t bufsiz)
+{
+    int n = snprintf(buf, bufsiz,
+        "#!/bin/sh\n"
+        "# LavaLite: environment\n"
+        "HOME='%s'; export HOME\n"
+        "USER='%s'; export USER\n"
+        "PATH='/usr/bin:/bin'; export PATH\n"
+        "# LavaLite: end environment\n"
+        "# LavaLite: user command\n"
+        "%s\n"
+        "ExitStat=$?\n"
+        "echo \"$ExitStat $(date +%%s)\" > \"$LL_JOBDIR/exit\"\n"
+        "exit $ExitStat\n",
+        inst->pend_ws.home_dir, inst->pend_ws.username, inst->pend_cmd);
+
+    if (n < 0 || (size_t) n >= bufsiz) {
+        LL_ERRX("service_build_script: script truncated svc_id=%s",
+               inst->svc_id);
+        return -1;
+    }
+
+    return n;
+}
+
 void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
 {
     struct wire_svc_add_ack ack;
@@ -311,10 +362,23 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
 
     inst->port = ack.port;
 
+    char script_text[LL_BUFSIZ_8K];
+    int script_len = service_build_script(inst, script_text,
+                                          sizeof(script_text));
+    if (script_len < 0) {
+        LL_ERRX("svc_proxy_add_ack: script build failed svc_id=%s",
+                inst->svc_id);
+        enqueue_header(inst->chan_id, BATCH_SERVICE_START_ACK, EINVAL);
+        svc_proxy_send_remove(inst->svc_id);
+        ll_list_remove(&inst->svc->instances, &inst->ent);
+        free(inst);
+        return;
+    }
+
     struct wire_job_script script;
     memset(&script, 0, sizeof(script));
-    script.data = inst->pend_cmd;
-    script.len = (uint32_t) strlen(inst->pend_cmd);
+    script.data = script_text;
+    script.len = (uint32_t) script_len;
 
     int err = 0;
     struct job_data *job = job_prepare(&inst->pend_ws, &script, &inst->pend_hdr,
@@ -531,11 +595,13 @@ void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr)
         return;
     }
 
-    if (hdr->status != MBD_OK)
+    if (hdr->status != MBD_OK) {
         LL_ERRX("svc_proxy_update_ack: svc_id=%s failed status=%d",
                 ack.svc_id, hdr->status);
-    else
-        LL_DEBUG("svc_proxy_update_ack: svc_id=%s ok", ack.svc_id);
+        return;
+    }
+
+    LL_DEBUG("svc_proxy_update_ack: svc_id=%s ok", ack.svc_id);
 }
 
 void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
@@ -573,7 +639,8 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
 
     /* mbd doesn't block this RUNNING-transition reply on the UPDATE
      * ack -- svc_proxy_update_ack() logs the result asynchronously,
-     * same request/ack shape as everything else on this channel. */
+     * same request/ack shape as everything else on this channel.
+     */
     svc_proxy_send_update(inst);
 
     struct wire_svc_info info;

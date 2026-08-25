@@ -20,7 +20,7 @@
 static void sp_run_daemon(void);
 static int sp_init(void);
 static int sp_init_network(void);
-static void mbd_reconnect_try(void);
+static void sp_mbd_reconnect_try(void);
 static void sp_cleanup(void);
 
 char sim_name[MAXHOSTNAMELEN]; /* unused for now, kept for symmetry with sbd */
@@ -131,13 +131,12 @@ static int sp_init_network(void)
         return -1;
     }
 
-    LL_INFO("spd epoll_fd=%d timer=%dsec", sp_efd,
-            SP_OPERATION_TIMER);
+    LL_INFO("spd epoll_fd=%d timer=%dsec", sp_efd, SP_OPERATION_TIMER);
 
     return 0;
 }
 
-static void mbd_reconnect_try(void)
+static void sp_mbd_reconnect_try(void)
 {
     static time_t last_try = 0;
 
@@ -227,7 +226,7 @@ static void sp_run_daemon(void)
                 else if (cc >= 0 && (size_t) cc != sizeof(expirations))
                     LL_ERR("timer short read: %zd bytes", cc);
 
-                mbd_reconnect_try();
+                sp_mbd_reconnect_try();
                 // reset the state
                 channels[chan_id].chan_events = CHAN_EPOLLNONE;
                 continue;
@@ -264,8 +263,7 @@ static void sp_run_daemon(void)
                 continue;
             }
 
-            LL_ERRX("sp_run_daemon: event on unknown chan=%d, ignoring",
-                    chan_id);
+            LL_ERRX("event on unknown chan=%d, ignoring", chan_id);
             channels[chan_id].chan_events = CHAN_EPOLLNONE;
         }
     }

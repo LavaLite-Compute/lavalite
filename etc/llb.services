@@ -9,6 +9,14 @@
 # RESTART      = always | on-failure | never
 # End Service
 
+Begin Service
+SERVICE_NAME = echotest
+TYPE = user
+IMAGE = /export/service_images/python-slim.sif
+COMMAND = python3 /home/david/lavalite-test/echo_server.py 8888
+PORT = 8888
+RESTART      = always
+End Service
 
 Begin Service
 SERVICE_NAME = jupyter
@@ -17,6 +25,7 @@ IMAGE        = /export/service_images/jupyter-base.sif
 PORT         = 8888
 COMMAND      = jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
 RESTART      = always
+QUEUE = service-2.0
 End Service
 
 Begin Service
@@ -26,6 +35,7 @@ IMAGE        = /export/service_images/code-server.sif
 PORT         = 8080
 COMMAND = code-server --bind-addr 0.0.0.0:8080 --auth none
 RESTART      = always
+QUEUE = service-2.0
 End Service
 
 Begin Service
@@ -34,4 +44,5 @@ TYPE         = daemon
 IMAGE        = /export/service_images/busybox.sif
 COMMAND      = sh -c 'while true; do echo "hello from $(hostname) at $(date)"; sleep 30; done'
 RESTART      = always
+QUEUE = service-2.0
 End Service

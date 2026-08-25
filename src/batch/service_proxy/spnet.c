@@ -236,8 +236,13 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     if (listen_chan < 0) {
         LL_ERRX("sp_svc_add: svc_id=%s no free port in %d..%d", req.svc_id,
                 SP_SVC_PORT_MIN, SP_SVC_PORT_MAX);
-        return sp_send_msg(BATCH_SVC_ADD_ACK, ENOSPC, &ack, LL_BUFSIZ_1K,
-                           xdr_wire_svc_add_ack);
+        int cc = sp_send_msg(BATCH_SVC_ADD_ACK, ENOSPC, &ack, LL_BUFSIZ_1K,
+                             xdr_wire_svc_add_ack);
+        if (cc < 0) {
+            LL_ERR("listen failed and sp_send_msg failed");
+            return -1;
+        }
+        return 0;
     }
 
     struct epoll_event ev;
@@ -249,8 +254,13 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
                listen_chan);
         int save_errno = errno;
         chan_close(listen_chan);
-        return sp_send_msg(BATCH_SVC_ADD_ACK, save_errno, &ack, LL_BUFSIZ_1K,
-                           xdr_wire_svc_add_ack);
+        int cc = sp_send_msg(BATCH_SVC_ADD_ACK, save_errno, &ack, LL_BUFSIZ_1K,
+                             xdr_wire_svc_add_ack);
+        if (cc < 0) {
+            LL_ERR("epoll_ctl failed and sp_send_msg failed");
+            return -1;
+        }
+        return 0;
     }
 
     struct sp_instance *inst = calloc(1, sizeof(*inst));
@@ -272,8 +282,14 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
            inst->svc_id, port, inst->app_port, listen_chan);
 
     ack.port = port;
-    return sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
-                       xdr_wire_svc_add_ack);
+    int cc = sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
+                         xdr_wire_svc_add_ack);
+    if (cc < 0) {
+        LL_ERR("sp_send_msg failed");
+        return -1;
+    }
+
+    return 0;
 }
 
 static struct sp_instance *sp_find_instance_by_svc_id(const char *svc_id)
@@ -321,8 +337,14 @@ static int sp_svc_update(XDR *xdrs, const struct protocol_header *hdr)
     LL_INFO("sp_svc_update: svc_id=%s run_host=%s", inst->svc_id,
            inst->run_host);
 
-    return sp_send_msg(BATCH_SVC_UPDATE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
-                       xdr_wire_svc_update_ack);
+    int cc = sp_send_msg(BATCH_SVC_UPDATE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
+                         xdr_wire_svc_update_ack);
+    if (cc < 0) {
+        LL_ERR("sp_send_msg failed");
+        return -1;
+    }
+
+    return 0;
 }
 
 /*
@@ -370,8 +392,14 @@ static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
 
     free(inst);
 
-    return sp_send_msg(BATCH_SVC_REMOVE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
-                       xdr_wire_svc_remove_ack);
+    int cc = sp_send_msg(BATCH_SVC_REMOVE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
+                         xdr_wire_svc_remove_ack);
+    if (cc < 0) {
+        LL_ERR("sp_send_msg failed");
+        return -1;
+    }
+
+    return 0;
 }
 
 void sp_chan_shutdown(int chan_id)
@@ -400,8 +428,8 @@ struct sp_relay *sp_find_relay(int chan_id)
         for (struct ll_list_entry *re = inst->relays.head; re != NULL;
              re = re->next) {
             struct sp_relay *relay = (struct sp_relay *) re;
-            if (relay->client_chan == chan_id ||
-                relay->backend_chan == chan_id)
+            if (relay->client_chan == chan_id
+                || relay->backend_chan == chan_id)
                 return relay;
         }
     }
@@ -596,31 +624,59 @@ void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
         return;
     }
 
-    int is_client = (chan_id == relay->client_chan);
+    if (chan_id == relay->client_chan) {
+        if (events & EPOLLIN) {
+            if (sp_relay_pump(relay, relay->client_chan, relay->backend_chan,
+                              relay->c2b_buf, &relay->c2b_len,
+                              &relay->c2b_pos, 1) < 0) {
+                LL_ERR("sp_relay_event: svc_id=%s chan=%d c2b pump failed",
+                       relay->inst->svc_id, chan_id);
+                return; /* relay closed and freed inside sp_relay_pump() */
+            }
+        }
 
-    if (events & EPOLLIN) {
-        int rc;
-        if (is_client)
-            rc = sp_relay_pump(relay, relay->client_chan,
-                              relay->backend_chan, relay->c2b_buf,
-                              &relay->c2b_len, &relay->c2b_pos, 1);
-        else
-            rc = sp_relay_pump(relay, relay->backend_chan,
-                              relay->client_chan, relay->b2c_buf,
-                              &relay->b2c_len, &relay->b2c_pos, 1);
+        /* EPOLLOUT must stay last in this block: sp_relay_pump() may
+         * free relay on failure, and nothing here checks for that --
+         * safe only because there is no statement after it. Add one
+         * and you must add an explicit return on failure too. */
+        if (events & EPOLLOUT) {
+            if (sp_relay_pump(relay, relay->backend_chan, relay->client_chan,
+                              relay->b2c_buf, &relay->b2c_len,
+                              &relay->b2c_pos, 0) < 0)
+                LL_ERR("sp_relay_event: svc_id=%s chan=%d b2c pump failed",
+                       relay->inst->svc_id, chan_id);
+        }
 
-        if (rc < 0)
-            return; /* relay closed and freed inside sp_relay_pump() */
+        return;
     }
 
-    if (events & EPOLLOUT) {
-        if (is_client)
-            sp_relay_pump(relay, relay->backend_chan, relay->client_chan,
-                         relay->b2c_buf, &relay->b2c_len, &relay->b2c_pos, 0);
-        else
-            sp_relay_pump(relay, relay->client_chan, relay->backend_chan,
-                         relay->c2b_buf, &relay->c2b_len, &relay->c2b_pos, 0);
+    if (chan_id == relay->backend_chan) {
+        if (events & EPOLLIN) {
+            if (sp_relay_pump(relay, relay->backend_chan, relay->client_chan,
+                              relay->b2c_buf, &relay->b2c_len,
+                              &relay->b2c_pos, 1) < 0) {
+                LL_ERR("sp_relay_event: svc_id=%s chan=%d b2c pump failed",
+                       relay->inst->svc_id, chan_id);
+                return; /* relay closed and freed inside sp_relay_pump() */
+            }
+        }
+
+        /* EPOLLOUT must stay last in this block -- see comment above. */
+        if (events & EPOLLOUT) {
+            if (sp_relay_pump(relay, relay->client_chan, relay->backend_chan,
+                              relay->c2b_buf, &relay->c2b_len,
+                              &relay->c2b_pos, 0) < 0)
+                LL_ERR("sp_relay_event: svc_id=%s chan=%d c2b pump failed",
+                       relay->inst->svc_id, chan_id);
+        }
+
+        return;
     }
+
+    LL_ERR("sp_relay_event: chan_id=%d matches neither client nor backend "
+          "of relay, svc_id=%s -- caller/relay bookkeeping is corrupted",
+          chan_id, relay->inst->svc_id);
+    abort();
 }
 
 // the chan_id in input is the channel we have opened with mbatchd

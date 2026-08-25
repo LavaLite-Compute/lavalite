@@ -670,9 +670,10 @@ void job_commit(struct job_data *job, struct wire_job_submit *ws)
 
     job->queue->num_jobs++;
 
-    LL_INFO("job_id=%ld user=%s queue=%s num_jobs=%d num_pend=%d dependency=%s",
-            job->job_id, job->user, job->queue->name, job->queue->num_jobs,
-            job->queue->num_pend, job->depend_cond);
+    LL_INFO("job_id=%ld flags=0x%x user=%s queue=%s num_jobs=%d num_pend=%d "
+            "dependency=%s", job->job_id, job->flags, job->user,
+            job->queue->name, job->queue->num_jobs, job->queue->num_pend,
+            (job->depend_cond[0] != 0 ?job->depend_cond : "none"));
 }
 
 static void job_discard(struct job_data *job)
