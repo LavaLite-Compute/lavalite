@@ -391,27 +391,33 @@ struct wire_svc_add {
     int32_t app_port; /* internal port from llb.services PORT -- static
                        * for the service's lifetime, unlike run_host
                        * which arrives later via BATCH_SVC_UPDATE */
+    int64_t job_id;
 };
 
 struct wire_svc_add_ack {
     char svc_id[LL_BUFSIZ_64];
+    int64_t job_id;
     int32_t port; /* valid only when status == MBD_OK */
 };
 
 struct wire_svc_update {
+    int64_t job_id;
     char svc_id[LL_BUFSIZ_64];
     char run_host[MAXHOSTNAMELEN];
 };
 
 struct wire_svc_update_ack {
+    int64_t job_id;
     char svc_id[LL_BUFSIZ_64];
 };
 
 struct wire_svc_remove {
+    int64_t job_id;
     char svc_id[LL_BUFSIZ_64];
 };
 
 struct wire_svc_remove_ack {
+    int64_t job_id;
     char svc_id[LL_BUFSIZ_64];
 };
 

@@ -416,6 +416,7 @@ int job_dep_satisfied(const struct job_data *);
 void job_deps_hold(struct job_data *);
 void job_deps_release(struct job_data *);
 void job_replay_deps(struct job_data *, const char *);
+int signal_pending_job(struct job_data *, const struct wire_job_sig *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

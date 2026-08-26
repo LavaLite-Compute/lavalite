@@ -550,6 +550,8 @@ bool_t xdr_wire_svc_add(XDR *xdrs, struct wire_svc_add *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->app_port))
         return false;
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
     return true;
 }
 
@@ -559,11 +561,15 @@ bool_t xdr_wire_svc_add_ack(XDR *xdrs, struct wire_svc_add_ack *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->port))
         return false;
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
     return true;
 }
 
 bool_t xdr_wire_svc_update(XDR *xdrs, struct wire_svc_update *p)
 {
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
     if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
         return false;
     if (!xdr_opaque(xdrs, p->run_host, sizeof(p->run_host)))
@@ -573,6 +579,8 @@ bool_t xdr_wire_svc_update(XDR *xdrs, struct wire_svc_update *p)
 
 bool_t xdr_wire_svc_update_ack(XDR *xdrs, struct wire_svc_update_ack *p)
 {
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
     if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
         return false;
     return true;
@@ -580,6 +588,8 @@ bool_t xdr_wire_svc_update_ack(XDR *xdrs, struct wire_svc_update_ack *p)
 
 bool_t xdr_wire_svc_remove(XDR *xdrs, struct wire_svc_remove *p)
 {
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
     if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
         return false;
     return true;
@@ -587,6 +597,8 @@ bool_t xdr_wire_svc_remove(XDR *xdrs, struct wire_svc_remove *p)
 
 bool_t xdr_wire_svc_remove_ack(XDR *xdrs, struct wire_svc_remove_ack *p)
 {
+    if (! xdr_int64_t(xdrs, &p->job_id))
+        return false;
     if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
         return false;
     return true;

@@ -230,12 +230,13 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     struct wire_svc_add_ack ack;
     memset(&ack, 0, sizeof(ack));
     ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
+    ack.job_id = req.job_id;
 
     int port;
     int listen_chan = sp_bind_port(&port);
     if (listen_chan < 0) {
-        LL_ERRX("sp_svc_add: svc_id=%s no free port in %d..%d", req.svc_id,
-                SP_SVC_PORT_MIN, SP_SVC_PORT_MAX);
+        LL_ERRX("svc_id=%s job_id=%ld no free port in %d..%d", req.svc_id,
+                req.job_id, SP_SVC_PORT_MIN, SP_SVC_PORT_MAX);
         int cc = sp_send_msg(BATCH_SVC_ADD_ACK, ENOSPC, &ack, LL_BUFSIZ_1K,
                              xdr_wire_svc_add_ack);
         if (cc < 0) {
@@ -244,14 +245,15 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
         }
         return 0;
     }
+    ack.port = port;
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN;
     ev.data.u32 = (uint32_t) listen_chan;
     if (epoll_ctl(sp_efd, EPOLL_CTL_ADD, chan_sock(listen_chan), &ev) < 0) {
-        LL_ERR("sp_svc_add: epoll_ctl failed svc_id=%s chan=%d", req.svc_id,
-               listen_chan);
+        LL_ERR("epoll_ctl failed svc_id=%s job_id=%ld chan=%d", req.svc_id,
+               req.job_id, listen_chan);
         int save_errno = errno;
         chan_close(listen_chan);
         int cc = sp_send_msg(BATCH_SVC_ADD_ACK, save_errno, &ack, LL_BUFSIZ_1K,
@@ -265,7 +267,7 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
 
     struct sp_instance *inst = calloc(1, sizeof(*inst));
     if (inst == NULL) {
-        LL_ERR("sp_svc_add: calloc failed svc_id=%s", req.svc_id);
+        LL_ERR("calloc failed svc_id=%s job_id=%ld", req.svc_id, req.job_id);
         sp_chan_shutdown(listen_chan);
         sp_fatal(SP_FATAL_OOM);
         return -1; /* unreached -- sp_fatal() exits */
@@ -275,13 +277,13 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     inst->listen_chan = listen_chan;
     inst->port = port;
     inst->app_port = req.app_port;
+    inst->job_id = req.job_id;
     ll_list_init(&inst->relays);
     ll_list_append(&sp_instance_list, &inst->ent);
 
-    LL_INFO("sp_svc_add: svc_id=%s bound port=%d app_port=%d chan=%d",
-           inst->svc_id, port, inst->app_port, listen_chan);
+    LL_INFO("svc_id=%s job_id=%ld bound port=%d app_port=%d chan=%d",
+            inst->svc_id, inst->job_id, port, inst->app_port, listen_chan);
 
-    ack.port = port;
     int cc = sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
                          xdr_wire_svc_add_ack);
     if (cc < 0) {
@@ -292,12 +294,12 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     return 0;
 }
 
-static struct sp_instance *sp_find_instance_by_svc_id(const char *svc_id)
+static struct sp_instance *sp_find_instance_by_job_id(int64_t job_id)
 {
     for (struct ll_list_entry *e = sp_instance_list.head; e != NULL;
          e = e->next) {
         struct sp_instance *inst = (struct sp_instance *) e;
-        if (strcmp(inst->svc_id, svc_id) == 0)
+        if (inst->job_id == job_id)
             return inst;
     }
     return NULL;
@@ -317,24 +319,26 @@ static int sp_svc_update(XDR *xdrs, const struct protocol_header *hdr)
     memset(&req, 0, sizeof(req));
 
     if (!xdr_wire_svc_update(xdrs, &req)) {
-        LL_ERR("sp_svc_update: xdr decode failed");
+        LL_ERR("xdr decode failed");
         return -1;
     }
 
     struct wire_svc_update_ack ack;
     memset(&ack, 0, sizeof(ack));
+    // service instance identification
     ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
+    ack.job_id = req.job_id;
 
-    struct sp_instance *inst = sp_find_instance_by_svc_id(req.svc_id);
+    struct sp_instance *inst = sp_find_instance_by_job_id(req.job_id);
     if (inst == NULL) {
-        LL_ERRX("sp_svc_update: unknown svc_id=%s", req.svc_id);
+        LL_ERRX("unknown svc_id=%s job_id=%ld", req.svc_id, req.job_id);
         return sp_send_msg(BATCH_SVC_UPDATE_ACK, ESRCH, &ack, LL_BUFSIZ_1K,
                            xdr_wire_svc_update_ack);
     }
 
     ll_strlcpy(inst->run_host, req.run_host, sizeof(inst->run_host));
 
-    LL_INFO("sp_svc_update: svc_id=%s run_host=%s", inst->svc_id,
+    LL_INFO("svc_id=%s run_host=%s", inst->svc_id,
            inst->run_host);
 
     int cc = sp_send_msg(BATCH_SVC_UPDATE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
@@ -362,17 +366,18 @@ static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
     memset(&req, 0, sizeof(req));
 
     if (!xdr_wire_svc_remove(xdrs, &req)) {
-        LL_ERR("sp_svc_remove: xdr decode failed");
+        LL_ERR("xdr decode failed");
         return -1;
     }
 
     struct wire_svc_remove_ack ack;
     memset(&ack, 0, sizeof(ack));
     ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
+    ack.job_id = req.job_id;
 
-    struct sp_instance *inst = sp_find_instance_by_svc_id(req.svc_id);
+    struct sp_instance *inst = sp_find_instance_by_job_id(req.job_id);
     if (inst == NULL) {
-        LL_ERRX("sp_svc_remove: unknown svc_id=%s", req.svc_id);
+        LL_ERRX("unknown svc_id=%s job_id=%ld", req.svc_id, req.job_id);
         return sp_send_msg(BATCH_SVC_REMOVE_ACK, ESRCH, &ack, LL_BUFSIZ_1K,
                            xdr_wire_svc_remove_ack);
     }
@@ -387,8 +392,8 @@ static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
     sp_chan_shutdown(inst->listen_chan);
     ll_list_remove(&sp_instance_list, &inst->ent);
 
-    LL_INFO("sp_svc_remove: svc_id=%s removed, port=%d freed", inst->svc_id,
-           inst->port);
+    LL_INFO("svc_id=%s job_id=%ld removed, port=%d freed", inst->svc_id,
+            inst->job_id, inst->port);
 
     free(inst);
 

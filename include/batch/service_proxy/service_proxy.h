@@ -48,6 +48,7 @@ struct sp_instance {
     char svc_id[LL_BUFSIZ_64];     /* matches wire_svc_add.svc_id sizing */
     int listen_chan;               /* TCP_SERVER, bound at ADD time */
     int port;                      /* external port this is bound to */
+    int64_t job_id;                /* service job_id */
     int app_port;                  /* backend's internal port, from ADD */
     char run_host[MAXHOSTNAMELEN]; /* empty until BATCH_SVC_UPDATE arrives */
     struct ll_list relays;         /* active sp_relay pairs on this instance */

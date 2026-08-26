@@ -1641,26 +1641,6 @@ static int resume_pending_job(struct job_data *job,
     return MBD_OK;
 }
 
-static int signal_pending_job(struct job_data *job,
-                              const struct wire_job_sig *ws)
-{
-    switch (ws->sig) {
-    case SIGTERM:
-    case SIGINT:
-    case SIGKILL:
-        return finish_pending_job(job, ws);
-    case SIGSTOP:
-    case SIGTSTP:
-        return stop_pending_job(job, ws);
-    case SIGCONT:
-        return resume_pending_job(job, ws);
-    default:
-        LL_DEBUG("signal_pending_job: job_id=%ld sig=%d unsupported",
-                 (long) job->job_id, ws->sig);
-        return EINVAL;
-    }
-}
-
 static int signal_running_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
@@ -1909,6 +1889,25 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     int cc = signal_one_job(hdr->uid, job, &req);
     return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
+}
+
+int signal_pending_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    switch (ws->sig) {
+    case SIGTERM:
+    case SIGINT:
+    case SIGKILL:
+        return finish_pending_job(job, ws);
+    case SIGSTOP:
+    case SIGTSTP:
+        return stop_pending_job(job, ws);
+    case SIGCONT:
+        return resume_pending_job(job, ws);
+    default:
+        LL_DEBUG("signal_pending_job: job_id=%ld sig=%d unsupported",
+                 (long) job->job_id, ws->sig);
+        return EINVAL;
+    }
 }
 
 int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
