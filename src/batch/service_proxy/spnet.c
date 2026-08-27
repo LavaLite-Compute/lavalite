@@ -548,157 +548,227 @@ void sp_relay_accept(struct sp_instance *inst)
 }
 
 /*
- * Move at most one LL_BUFSIZ_8K chunk from src to dst for one
- * direction of a relay pair. do_read gates whether to attempt a new
- * recv() at all -- EPOLLOUT-triggered calls only want to flush an
- * already-buffered chunk, not pull in more. Only reads when the
- * pending buffer for this direction is fully flushed (pos == len) --
- * otherwise a fast reader could overwrite bytes not yet sent to a
- * slow dst.
+ * Relay I/O helpers.
  *
- * If dst can't take everything in one send(), the remainder stays
- * buffered and dst's EPOLLOUT interest turns on so sp_relay_event()
- * gets called again to flush it -- mirrors chan_data's own dowrite()
- * continuation for framed messages, same problem, same shape of fix,
- * just for one relay chunk instead of a queue of protocol messages.
- *
- * Returns -1 if the relay was closed during this call (peer EOF or a
- * real I/O error) -- caller must not touch relay again in that case.
+ * These functions never free or close the relay. They only move bytes
+ * and report EOF/error to the caller. sp_relay_event() owns the relay
+ * lifetime and decides when it is safe to tear both legs down.
  */
-static int sp_relay_pump(struct sp_relay *relay, int src, int dst,
-                         char *buf, int *len, int *pos, int do_read)
+
+enum sp_relay_io {
+    SP_RELAY_IO_OK = 0,
+    SP_RELAY_IO_EOF,
+    SP_RELAY_IO_ERROR,
+};
+
+enum sp_relay_close_state {
+    SP_RELAY_OPEN = 0,
+    SP_RELAY_CLOSE_AFTER_C2B,
+    SP_RELAY_CLOSE_AFTER_B2C,
+};
+
+struct sp_relay_dir {
+    int src;
+    int dst;
+    char *buf;
+    int *len;
+    int *pos;
+    enum sp_relay_close_state close_state;
+};
+
+static enum sp_relay_io sp_relay_read(int src, char *buf, int *len, int *pos)
 {
-    if (do_read && *pos == *len) {
-        ssize_t cc = recv(chan_sock(src), buf, LL_BUFSIZ_8K, 0);
-        if (cc > 0) {
-            *len = (int) cc;
-            *pos = 0;
-        } else if (cc == 0) {
-            LL_DEBUG("sp_relay: svc_id=%s chan=%d peer closed",
-                    relay->inst->svc_id, src);
-            sp_relay_close(relay);
-            return -1;
-        } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            LL_DEBUG("sp_relay: svc_id=%s chan=%d recv failed: %m",
-                    relay->inst->svc_id, src);
-            sp_relay_close(relay);
-            return -1;
-        }
-        /* EAGAIN: nothing ready right now, buffer stays as it was */
+    if (*pos != *len)
+        return SP_RELAY_IO_OK;
+
+    ssize_t cc = recv(chan_sock(src), buf, LL_BUFSIZ_8K, 0);
+    if (cc > 0) {
+        *len = (int) cc;
+        *pos = 0;
+        return SP_RELAY_IO_OK;
     }
 
-    if (*len > *pos) {
-        ssize_t cc = send(chan_sock(dst), buf + *pos, *len - *pos, 0);
-        if (cc > 0) {
-            *pos += (int) cc;
-        } else if (cc < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
-            LL_DEBUG("sp_relay: svc_id=%s chan=%d send failed: %m",
-                    relay->inst->svc_id, dst);
-            sp_relay_close(relay);
-            return -1;
+    if (cc == 0)
+        return SP_RELAY_IO_EOF;
+
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+        return SP_RELAY_IO_OK;
+
+    return SP_RELAY_IO_ERROR;
+}
+
+static enum sp_relay_io sp_relay_write(int dst, char *buf, int *len, int *pos)
+{
+    if (*pos == *len) {
+        *pos = 0;
+        *len = 0;
+
+        if (chan_set_write_interest(dst, sp_efd, 0) < 0)
+            return SP_RELAY_IO_ERROR;
+
+        return SP_RELAY_IO_OK;
+    }
+
+    ssize_t cc = send(chan_sock(dst), buf + *pos, *len - *pos, 0);
+    if (cc > 0) {
+        *pos += (int) cc;
+
+        if (*pos == *len) {
+            *pos = 0;
+            *len = 0;
         }
 
-        if (chan_set_write_interest(dst, sp_efd, *pos < *len) < 0)
-            LL_ERR("sp_relay: chan_set_write_interest failed chan=%d", dst);
+        if (chan_set_write_interest(dst, sp_efd, *len != 0) < 0)
+            return SP_RELAY_IO_ERROR;
+
+        return SP_RELAY_IO_OK;
+    }
+
+    if (cc < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        if (chan_set_write_interest(dst, sp_efd, 1) < 0)
+            return SP_RELAY_IO_ERROR;
+
+        return SP_RELAY_IO_OK;
+    }
+
+    return SP_RELAY_IO_ERROR;
+}
+
+static int sp_relay_read_dir(struct sp_relay *relay, struct sp_relay_dir *dir,
+                  uint32_t events)
+{
+    if (!(events & EPOLLIN))
+        return 0;
+
+    enum sp_relay_io rc =
+        sp_relay_read(dir->src, dir->buf, dir->len, dir->pos);
+
+    if (rc == SP_RELAY_IO_ERROR) {
+        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d read failed: %m",
+                 relay->inst->svc_id, dir->src);
+        return -1;
+    }
+
+    if (sp_relay_write(dir->dst, dir->buf, dir->len,
+                       dir->pos) == SP_RELAY_IO_ERROR) {
+        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d write failed: %m",
+                 relay->inst->svc_id, dir->dst);
+        return -1;
+    }
+
+    if (rc == SP_RELAY_IO_EOF)
+        relay->close_state = dir->close_state;
+
+    return 0;
+}
+
+static int sp_relay_flush_dir(struct sp_relay *relay, struct sp_relay_dir *dir)
+{
+    if (sp_relay_write(dir->dst, dir->buf, dir->len,
+                       dir->pos) == SP_RELAY_IO_ERROR) {
+        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d write failed: %m",
+                 relay->inst->svc_id, dir->dst);
+        return -1;
     }
 
     return 0;
 }
 
+static int sp_relay_should_close(struct sp_relay *relay)
+{
+    if (relay->close_state == SP_RELAY_CLOSE_AFTER_C2B)
+        return relay->c2b_len == 0;
+
+    if (relay->close_state == SP_RELAY_CLOSE_AFTER_B2C)
+        return relay->b2c_len == 0;
+
+    return 0;
+}
+
 /*
- * One epoll-ready event on either leg (chan_id) of relay. events is
- * spmain.c's raw sp_events[i].events -- TCP_RELAY channels bypass
- * chan_events entirely (chan_epoll() only sets a fixed CHAN_EPOLLIN so
- * the generic CHAN_EPOLLNONE skip in the main loop doesn't eat the
- * event; it carries no read/write distinction for this type, unlike
- * the framed-message channels).
+ * One epoll-ready event on either leg of a relay.
  *
- * Two independent pipes ride on one relay pair: client->backend (c2b)
- * and backend->client (b2c). EPOLLIN on a leg means that leg has new
- * data (advances the pipe whose SOURCE is this leg); EPOLLOUT on a
- * leg means that leg can now accept more writes (flushes the pipe
- * whose DESTINATION is this leg, only relevant if a previous send()
- * stalled).
+ * EOF/HUP on one side means: flush bytes already buffered in that
+ * direction, then close both legs. We deliberately do not implement
+ * TCP half-close semantics here.
+ *
+ * EPOLLIN is processed before EPOLLRDHUP/EPOLLHUP because epoll may
+ * report readable data and peer shutdown in the same event.
  */
 void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
 {
-    /*
-     * EPOLLIN and EPOLLRDHUP/EPOLLHUP may be reported together.  In that
-     * case there can still be readable data queued on the socket, so do
-     * not tear the relay down before the EPOLLIN path has had a chance to
-     * drain it.  EPOLLERR remains immediately fatal.
-     */
+    struct sp_relay_dir c2b = {
+        .src = relay->client_chan,
+        .dst = relay->backend_chan,
+        .buf = relay->c2b_buf,
+        .len = &relay->c2b_len,
+        .pos = &relay->c2b_pos,
+        .close_state = SP_RELAY_CLOSE_AFTER_C2B
+    };
+
+    struct sp_relay_dir b2c = {
+        .src = relay->backend_chan,
+        .dst = relay->client_chan,
+        .buf = relay->b2c_buf,
+        .len = &relay->b2c_len,
+        .pos = &relay->b2c_pos,
+        .close_state = SP_RELAY_CLOSE_AFTER_B2C
+    };
+
     if (events & EPOLLERR) {
         LL_DEBUG("sp_relay_event: svc_id=%s chan=%d err",
-                relay->inst->svc_id, chan_id);
+                 relay->inst->svc_id, chan_id);
         sp_relay_close(relay);
         return;
     }
 
     if (chan_id == relay->client_chan) {
-        if (events & EPOLLIN) {
-            if (sp_relay_pump(relay, relay->client_chan, relay->backend_chan,
-                              relay->c2b_buf, &relay->c2b_len,
-                              &relay->c2b_pos, 1) < 0) {
-                LL_ERR("sp_relay_event: svc_id=%s chan=%d c2b pump failed",
-                       relay->inst->svc_id, chan_id);
-                return; /* relay closed and freed inside sp_relay_pump() */
+        if (sp_relay_read_dir(relay, &c2b, events) < 0) {
+            sp_relay_close(relay);
+            return;
+        }
+
+        if (events & EPOLLOUT) {
+            if (sp_relay_flush_dir(relay, &b2c) < 0) {
+                sp_relay_close(relay);
+                return;
             }
         }
 
-        /* EPOLLOUT must stay last in this block: sp_relay_pump() may
-         * free relay on failure, and nothing here checks for that --
-         * safe only because there is no statement after it. Add one
-         * and you must add an explicit return on failure too. */
-        if (events & EPOLLOUT) {
-            if (sp_relay_pump(relay, relay->backend_chan, relay->client_chan,
-                              relay->b2c_buf, &relay->b2c_len,
-                              &relay->b2c_pos, 0) < 0)
-                LL_ERR("sp_relay_event: svc_id=%s chan=%d b2c pump failed",
-                       relay->inst->svc_id, chan_id);
-        }
+        if (events & (EPOLLHUP | EPOLLRDHUP))
+            relay->close_state = SP_RELAY_CLOSE_AFTER_C2B;
 
-        if (events & (EPOLLHUP | EPOLLRDHUP)) {
-            LL_DEBUG("sp_relay_event: svc_id=%s chan=%d hup after drain",
-                    relay->inst->svc_id, chan_id);
+        if (sp_relay_should_close(relay))
             sp_relay_close(relay);
-        }
 
         return;
     }
 
     if (chan_id == relay->backend_chan) {
-        if (events & EPOLLIN) {
-            if (sp_relay_pump(relay, relay->backend_chan, relay->client_chan,
-                              relay->b2c_buf, &relay->b2c_len,
-                              &relay->b2c_pos, 1) < 0) {
-                LL_ERR("sp_relay_event: svc_id=%s chan=%d b2c pump failed",
-                       relay->inst->svc_id, chan_id);
-                return; /* relay closed and freed inside sp_relay_pump() */
+        if (sp_relay_read_dir(relay, &b2c, events) < 0) {
+            sp_relay_close(relay);
+            return;
+        }
+
+        if (events & EPOLLOUT) {
+            if (sp_relay_flush_dir(relay, &c2b) < 0) {
+                sp_relay_close(relay);
+                return;
             }
         }
 
-        /* EPOLLOUT must stay last in this block -- see comment above. */
-        if (events & EPOLLOUT) {
-            if (sp_relay_pump(relay, relay->client_chan, relay->backend_chan,
-                              relay->c2b_buf, &relay->c2b_len,
-                              &relay->c2b_pos, 0) < 0)
-                LL_ERR("sp_relay_event: svc_id=%s chan=%d c2b pump failed",
-                       relay->inst->svc_id, chan_id);
-        }
+        if (events & (EPOLLHUP | EPOLLRDHUP))
+            relay->close_state = SP_RELAY_CLOSE_AFTER_B2C;
 
-        if (events & (EPOLLHUP | EPOLLRDHUP)) {
-            LL_DEBUG("sp_relay_event: svc_id=%s chan=%d hup after drain",
-                    relay->inst->svc_id, chan_id);
+        if (sp_relay_should_close(relay))
             sp_relay_close(relay);
-        }
 
         return;
     }
 
     LL_ERR("sp_relay_event: chan_id=%d matches neither client nor backend "
-          "of relay, svc_id=%s -- caller/relay bookkeeping is corrupted",
-          chan_id, relay->inst->svc_id);
+           "of relay, svc_id=%s -- caller/relay bookkeeping is corrupted",
+           chan_id, relay->inst->svc_id);
     abort();
 }
 

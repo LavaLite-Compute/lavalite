@@ -74,6 +74,7 @@ struct sp_relay {
     char b2c_buf[LL_BUFSIZ_8K];
     int b2c_len;
     int b2c_pos;
+    int close_state;
 };
 
 extern struct ll_list sp_instance_list;
