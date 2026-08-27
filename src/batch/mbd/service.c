@@ -172,8 +172,9 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     snprintf(inst->svc_id, sizeof(inst->svc_id), "%u@%s", hdr->uid, ws->name);
 
     int n = snprintf(inst->pend_cmd, sizeof(inst->pend_cmd),
-                     "apptainer exec --bind %s:%s %s %s",
-                     ws->home_dir, ws->home_dir, svc->image, svc->command);
+                     "%s exec --bind %s:%s %s %s",
+                     svc->runtime, ws->home_dir, ws->home_dir,
+                     svc->image, svc->command);
     if (n < 0 || n >= (int) sizeof(inst->pend_cmd)) {
         LL_ERRX("service_start_instance: command too long service=%s",
                ws->name);
@@ -181,8 +182,10 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
         return EINVAL;
     }
 
+    // Build the synthetic wire_job_submit structure
     memset(&inst->pend_ws, 0, sizeof(inst->pend_ws));
     inst->pend_ws.flags |= JOB_FLAG_SERVICE | JOB_FLAG_HOLD;
+
     ll_strlcpy(inst->pend_ws.name, inst->svc_id, sizeof(inst->pend_ws.name));
     ll_strlcpy(inst->pend_ws.queue, svc->queue, sizeof(inst->pend_ws.queue));
     ll_strlcpy(inst->pend_ws.username, ws->username,

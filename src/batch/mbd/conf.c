@@ -31,6 +31,7 @@ struct queue_conf {
 struct service_conf {
     char name[LL_BUFSIZ_64];
     char type[LL_BUFSIZ_32];
+    char runtime[PATH_MAX];
     char image[PATH_MAX];
     char command[LL_BUFSIZ_512];
     int port;
@@ -933,11 +934,12 @@ static void dump_config(void)
     for (e = service_list.head; e; e = e->next) {
         struct service_data *s = (struct service_data *) e;
         LL_DEBUG("service name=%s type=%s image=%s command=%s port=%d "
-                 "queue=%s restart=%s",
+                 "queue=%s restart=%s runtime=%s",
                  s->name, service_type_str(s->type),
                  s->image, s->command, s->port,
                  s->queue[0] ? s->queue : "-",
-                 service_restart_str(s->restart));
+                 service_restart_str(s->restart),
+                 s->runtime);
     }
 }
 
@@ -993,6 +995,9 @@ static int parse_service_conf(struct service_conf *sc,
     if (strcasecmp(key, "RESTART") == 0)
         return ll_strlcpy(sc->restart, val, sizeof(sc->restart));
 
+    if (strcasecmp(key, "RUNTIME") == 0)
+        return ll_strlcpy(sc->runtime, val, sizeof(sc->runtime));
+
     LL_ERRX("unknown service key=%s", key);
     return -1;
 }
@@ -1016,6 +1021,11 @@ static int commit_service(struct service_conf *sc)
         return -1;
     }
 
+    if (sc->runtime[0] == 0) {
+        LL_ERRX("service=%s missing RUNTIME", sc->name);
+        return -1;
+    }
+
     s = calloc(1, sizeof(struct service_data));
     if (s == NULL) {
         LL_ERR("calloc failed");
@@ -1025,6 +1035,7 @@ static int commit_service(struct service_conf *sc)
     ll_strlcpy(s->name, sc->name, sizeof(s->name));
     ll_strlcpy(s->image, sc->image, sizeof(s->image));
     ll_strlcpy(s->command, sc->command, sizeof(s->command));
+    ll_strlcpy(s->runtime, sc->runtime, sizeof(s->runtime));
     s->port = sc->port;
 
     if (strcasecmp(sc->type, "user") == 0)

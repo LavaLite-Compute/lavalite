@@ -612,24 +612,6 @@ int host_admin(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     return enqueue_header(chan_id, BATCH_HOST_ADMIN_ACK, 0);
 }
 
-/* -----------------------------------------------------------
- * service
- *
- * service_start_instance()/service_collect_info()/
- * service_stop_instance() are service.c's entry points -- this file
- * stays decode/validate/reply only, same as every other handler
- * above. service.c owns the instance registry and never exposes its
- * internal shape here, same reasoning as job.c never exposing
- * pend_jobs_list's internals through dispatch.c's job handlers.
- *
- * service_start is the one handler in this file that does NOT reply
- * on success: the backing job has only been created and is still
- * pending, so service_start_instance() holds onto chan_id and fires
- * the real BATCH_SERVICE_START_ACK itself, later, once mbd sees the
- * job reach RUNNING (see mbd_new_job_reply()). A non-zero return
- * here means the request never got that far (unknown service name,
- * no ports free, etc.) and dispatch.c replies immediately as usual.
- * ----------------------------------------------------------- */
 int service_start(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
     struct wire_svc_start req;

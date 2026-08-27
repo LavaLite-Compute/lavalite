@@ -622,8 +622,14 @@ static int sp_relay_pump(struct sp_relay *relay, int src, int dst,
  */
 void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
 {
-    if (events & (EPOLLHUP | EPOLLRDHUP | EPOLLERR)) {
-        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d hup/err",
+    /*
+     * EPOLLIN and EPOLLRDHUP/EPOLLHUP may be reported together.  In that
+     * case there can still be readable data queued on the socket, so do
+     * not tear the relay down before the EPOLLIN path has had a chance to
+     * drain it.  EPOLLERR remains immediately fatal.
+     */
+    if (events & EPOLLERR) {
+        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d err",
                 relay->inst->svc_id, chan_id);
         sp_relay_close(relay);
         return;
@@ -652,6 +658,12 @@ void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
                        relay->inst->svc_id, chan_id);
         }
 
+        if (events & (EPOLLHUP | EPOLLRDHUP)) {
+            LL_DEBUG("sp_relay_event: svc_id=%s chan=%d hup after drain",
+                    relay->inst->svc_id, chan_id);
+            sp_relay_close(relay);
+        }
+
         return;
     }
 
@@ -673,6 +685,12 @@ void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
                               &relay->c2b_pos, 0) < 0)
                 LL_ERR("sp_relay_event: svc_id=%s chan=%d c2b pump failed",
                        relay->inst->svc_id, chan_id);
+        }
+
+        if (events & (EPOLLHUP | EPOLLRDHUP)) {
+            LL_DEBUG("sp_relay_event: svc_id=%s chan=%d hup after drain",
+                    relay->inst->svc_id, chan_id);
+            sp_relay_close(relay);
         }
 
         return;

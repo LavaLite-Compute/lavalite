@@ -249,6 +249,7 @@ struct service_data {
     struct ll_list_entry ent;    /* linkage in service_list, must be first */
     char name[LL_BUFSIZ_64];
     char image[PATH_MAX];
+    char runtime[PATH_MAX];
     char command[LL_BUFSIZ_512];
     int port;
     char queue[LL_BUFSIZ_64];
