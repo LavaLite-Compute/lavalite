@@ -413,6 +413,6 @@ int32_t enqueue_header(int chan_id, int operation, int status)
         LL_ERR("chan_set_write_interest failed op=%d", operation);
         chan_free_buf(buf);
         return -1;
-    }
+    }n
     return 0;
 }

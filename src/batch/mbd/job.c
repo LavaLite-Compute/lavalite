@@ -1296,6 +1296,14 @@ send_ack:
 
     // debug code
     mbd_assert_counters();
+
+    // Now we can safely remove the service instance
+    if (job->flags & JOB_FLAG_SERVICE) {
+        LL_INFO("job_id=%ld destroying service=%s uid=%d port=%d run_host=%s",
+                job->job_id, job->svc_inst->svc->name, job->svc_inst->uid,
+                job->svc_inst->port, job->svc_inst->run_host);
+        svc_service_instance_destroy(job->svc_inst);
+    }
 }
 
 char *job_state_str(int state)
@@ -1641,40 +1649,6 @@ static int resume_pending_job(struct job_data *job,
     return MBD_OK;
 }
 
-static int signal_running_job(struct job_data *job,
-                              const struct wire_job_sig *ws)
-{
-    if (job->run_hosts[0]->sbd_chan < 0) {
-        LL_INFO("job_id=%ld unknown on disconnected host=%s cannot signal it",
-                job->job_id, job->run_hosts[0]->net.name);
-        return EAGAIN;
-    }
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_SBD_JOB_SIGNAL;
-    hdr.status = MBD_OK;
-
-    if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
-               job->run_hosts[0]->net.name);
-        return EAGAIN;
-    }
-
-    if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
-                        LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
-        LL_ERR("job_id=%ld enqueue_payload failed", job->job_id);
-        return EAGAIN;
-    }
-
-    job->signal_time = time(NULL);
-    event_job_signal(job, ws);
-
-    LL_INFO("job_id=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
-            job->run_hosts[0]->net.name);
-
-    return MBD_OK;
-}
-
 /*
  * signal_one_job - state machine for signaling a single, already-
  * resolved job. Shared by the ordinary job_id path in jobs_signal()
@@ -1722,7 +1696,14 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
     if (job->state == JOB_PENDING || job->state == JOB_HELD)
         return signal_pending_job(job, req);
 
-    return signal_running_job(job, req);
+    int cc = signal_running_job(job, req);
+    if (cc != 0) {
+        LL_ERRX("failed signal running job_id=%ld signal=%d", job->job_id,
+                req->sig);
+        return -1;
+    }
+
+    return 0;
 }
 
 /*
@@ -1827,6 +1808,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     if (!xdr_wire_job_sig(xdrs, &req)) {
         LL_ERR("job_signal: xdr decode failed chan_id=%d", chan_id);
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EPROTO);
+
     }
     // save the uid coming from the header rather then the protocol
     req.uid = hdr->uid;
@@ -1889,6 +1871,39 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     int cc = signal_one_job(hdr->uid, job, &req);
     return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, cc);
+}
+
+int signal_running_job(struct job_data *job, const struct wire_job_sig *ws)
+{
+    if (job->run_hosts[0]->sbd_chan < 0) {
+        LL_INFO("job_id=%ld unknown on disconnected host=%s cannot signal it",
+                job->job_id, job->run_hosts[0]->net.name);
+        return EAGAIN;
+    }
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SBD_JOB_SIGNAL;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
+               job->run_hosts[0]->net.name);
+        return EAGAIN;
+    }
+
+    if (enqueue_payload(job->run_hosts[0]->sbd_chan, &hdr, (void *) ws,
+                        LL_BUFSIZ_1K, xdr_wire_job_sig) < 0) {
+        LL_ERR("job_id=%ld enqueue_payload failed", job->job_id);
+        return EAGAIN;
+    }
+
+    job->signal_time = time(NULL);
+    event_job_signal(job, ws);
+
+    LL_INFO("job_id=%ld sig=%d sent to sbd=%s", job->job_id, ws->sig,
+            job->run_hosts[0]->net.name);
+
+    return MBD_OK;
 }
 
 int signal_pending_job(struct job_data *job, const struct wire_job_sig *ws)

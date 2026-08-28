@@ -418,6 +418,7 @@ void job_deps_hold(struct job_data *);
 void job_deps_release(struct job_data *);
 void job_replay_deps(struct job_data *, const char *);
 int signal_pending_job(struct job_data *, const struct wire_job_sig *);
+int signal_running_job(struct job_data *, const struct wire_job_sig *);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
@@ -441,6 +442,7 @@ int service_start_instance(const struct protocol_header *, int,
                            const struct wire_svc_start *);
 int service_collect_info(uid_t, int, struct wire_svc_info **);
 int service_delete_instance(uid_t, const char *, int32_t);
+int svc_service_instance_destroy(struct service_instance *);
 void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr);
 void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr);
 void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr);

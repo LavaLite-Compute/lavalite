@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "base/lib/auth.h"
 #include "base/lib/ll.syslog.h"
@@ -148,6 +149,25 @@ static struct job_data *service_job_create(struct service_instance *inst,
     job_id_seq_write(); /* sequence must never go backwards */
 
     return job;
+}
+
+static struct service_instance *svc_find_instance(uid_t uid, int port)
+{
+    for (struct ll_list_entry *se = service_list.head; se != NULL;
+         se = se->next) {
+        struct service_data *svc = (struct service_data *) se;
+
+        for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
+             ie = ie->next) {
+            struct service_instance *inst =
+                (struct service_instance *) ie;
+
+            if (inst->uid == uid && inst->port == port)
+                return inst;
+        }
+    }
+
+    return NULL;
 }
 
 int service_start_instance(const struct protocol_header *hdr, int chan_id,
@@ -302,28 +322,18 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
      */
 }
 
-/*
- * Internal instance lifecycle (SVC_INST_STARTING/RUNNING/STOPPING,
- * mbd.h) -> client-facing enum svc_state (SVC_PENDING/RUNNING/FAILED,
- * llbatch.h). Different enums because the client only cares "up or
- * not", not mbd's dispatch bookkeeping.
- *
- * STOPPING has no wire equivalent yet -- folded into SVC_RUNNING
- * (still serving traffic until teardown actually completes). Revisit
- * if bservice -l should show a distinct "stopping" state.
- */
 static int32_t svc_inst_state_to_wire(int state)
 {
     switch (state) {
     case SVC_INST_STARTING:
         return SVC_PENDING;
     case SVC_INST_RUNNING:
-    case SVC_INST_STOPPING:
         return SVC_RUNNING;
     default:
         /* unreachable in practice -- unknown internal state reported
-         * as FAILED rather than silently claiming healthy */
-        return SVC_FAILED;
+         * as NONE
+         */
+        return SVC_NONE;
     }
 }
 
@@ -486,17 +496,55 @@ void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr)
     memset(&ack, 0, sizeof(ack));
 
     if (!xdr_wire_svc_update_ack(xdrs, &ack)) {
-        LL_ERR("svc_proxy_update_ack: xdr decode failed");
+        LL_ERR("xdr decode failed");
         return;
     }
 
     if (hdr->status != MBD_OK) {
-        LL_ERRX("svc_proxy_update_ack: job_id=%ld failed status=%d",
-                ack.job_id, hdr->status);
+        LL_ERRX("job_id=%ld failed status=%d", ack.job_id, hdr->status);
         return;
     }
 
     LL_DEBUG("svc_proxy_update_ack: job_id=%ld ok", ack.job_id);
+}
+
+static int svc_proxy_send_remove(struct service_instance *inst)
+{
+    if (service_proxy_chan_id < 0) {
+        LL_ERRX("service_proxy not connected job_id=%ld uid=%ld proxy_port=%d",
+                inst->job_id, (long) inst->uid, inst->port);
+        return -1;
+    }
+
+    struct wire_svc_remove req;
+    memset(&req, 0, sizeof(req));
+    req.job_id = inst->job_id;
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SVC_REMOVE;
+    hdr.status = MBD_OK;
+
+    if (auth_sign_header(&hdr) < 0) {
+        LL_ERR("auth_sign_header failed job_id=%ld uid=%ld proxy_port=%d",
+               inst->job_id, (long) inst->uid, inst->port);
+        return -1;
+    }
+
+    size_t siz = sizeof(struct protocol_header) +
+                 sizeof(struct wire_svc_remove) + LL_BUFSIZ_64;
+
+    if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
+                        xdr_wire_svc_remove) < 0) {
+        LL_ERR("enqueue_payload failed job_id=%ld uid=%ld proxy_port=%d",
+               inst->job_id, (long) inst->uid, inst->port);
+        return -1;
+    }
+
+    LL_DEBUG("job_id=%ld uid=%u proxy_port=%d REMOVE sent to proxy chan=%d",
+             inst->job_id, inst->uid, inst->port, service_proxy_chan_id);
+
+    return 0;
 }
 
 void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
@@ -505,15 +553,16 @@ void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
     memset(&ack, 0, sizeof(ack));
 
     if (!xdr_wire_svc_remove_ack(xdrs, &ack)) {
-        LL_ERR("svc_proxy_remove_ack: xdr decode failed");
+        LL_ERR("xdr decode failed");
         return;
     }
 
-    if (hdr->status != MBD_OK)
-        LL_ERRX("svc_proxy_remove_ack: job_id=%ld failed status=%d",
-                ack.job_id, hdr->status);
-    else
-        LL_DEBUG("svc_proxy_remove_ack: job_id=%ld ok", ack.job_id);
+    if (hdr->status != MBD_OK) {
+        LL_ERRX("job_id=%ld failed status=%d", ack.job_id, hdr->status);
+        return;
+    }
+
+    LL_DEBUG("job_id=%ld ok", ack.job_id);
 }
 
 /*
@@ -576,6 +625,61 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
 int service_delete_instance(uid_t uid, const char *host, int port)
 {
     LL_INFO("uid=%u host=%s proxy_port=%d", uid, host, port);
+
+    struct service_instance *inst = svc_find_instance(uid, port);
+    if (inst == NULL) {
+        LL_ERRX("cannot find instance for uid=%u port=%d host=%s", uid, port, host);
+        return -1;
+    }
+    assert(strcmp(inst->run_host, host) == 0);
+
+    struct job_data *job = job_find(inst->job_id);
+    if (job == NULL) {
+        LL_ERRX("cannot find job_id=%ld for service=%s uid=%u port=%d",
+                inst->job_id, inst->svc->name, uid, port);
+        return -1;
+    }
+
+    assert(job->flags & JOB_FLAG_SERVICE);
+    assert(job->svc_inst == inst);
+
+    struct wire_job_sig sig;
+    memset(&sig, 0, sizeof(sig));
+    sig.job_id = job->job_id;
+    sig.sig = SIGKILL;
+
+    int rc = signal_running_job(job, &sig);
+    if (rc != MBD_OK) {
+        LL_ERRX("cannot kill job_id=%ld service=%s", job->job_id, inst->svc->name);
+        return rc;
+    }
+
+    return MBD_OK;
+}
+
+int svc_service_instance_destroy(struct service_instance *inst)
+{
+    assert(inst != NULL);
+
+    struct job_data *job = job_find(inst->job_id);
+    assert(job != NULL);
+    assert(job->svc_inst == inst);
+
+    int rc = svc_proxy_send_remove(inst);
+    if (rc < 0) {
+        LL_ERRX("cannot remove proxy mapping job_id=%ld uid=%u "
+                "proxy_port=%d", inst->job_id, inst->uid, inst->port);
+    }
+
+    job->svc_inst = NULL;
+
+    ll_list_remove(&inst->svc->instances, &inst->ent);
+
+    LL_INFO("destroyed service=%s uid=%ld proxy_port=%d job_id=%ld",
+            inst->svc->name, (long) inst->uid, inst->port, inst->job_id);
+
+    free(inst);
+
     return 0;
 }
 

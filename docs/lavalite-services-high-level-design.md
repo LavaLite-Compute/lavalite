@@ -103,6 +103,7 @@ For example:
 Begin Service
 SERVICE_NAME = echotest
 TYPE = user
+RUNTIME      = /usr/local/bin/apptainer
 IMAGE = /export/service_images/python-slim.sif
 COMMAND = python3 /home/david/lavalite-test/echo_server.py 8888
 PORT = 8888
@@ -115,6 +116,7 @@ The general form is:
 Begin Service
 SERVICE_NAME = <name>
 TYPE         = user | daemon
+RUNTIME      = <runtime path>
 IMAGE        = <sif path>
 COMMAND      = <cmd>
 PORT         = <port>
@@ -279,6 +281,127 @@ The user-facing endpoint can remain stable.
 
 ---
 
+
+## Connections, application state, and the proxy
+
+The stable service endpoint identifies **one service instance**, not one TCP connection. For example:
+
+```text
+bservice jupyter
+    -> http://proxy-host:3001
+    -> execution-host:8888
+    -> one Jupyter server instance
+```
+
+A complex application such as Jupyter or code-server may use many TCP connections at the same time. A browser can open ordinary HTTP connections for pages and API requests and longer-lived connections such as WebSockets for kernels, terminals, or interactive updates. All of those connections still reach the same application instance.
+
+The proxy does not interpret Jupyter, HTTP, WebSocket, or application state. Each accepted frontend TCP connection creates an independent relay to a new backend connection on the same configured service endpoint:
+
+```text
+client A ---- relay A ----> execution-host:8888
+client B ---- relay B ----> execution-host:8888
+client C ---- relay C ----> execution-host:8888
+                           ^
+                           |
+                    one listening server
+```
+
+The backend application listens on its configured port and calls `accept()` for each connection. It then interprets its own application protocol and dispatches requests internally. Conceptually, this is similar to LavaLite MBD accepting protocol connections and dispatching operations through its networking and dispatch layers.
+
+This distinction is important:
+
+```text
+service instance = lifetime and identity of the scheduled application
+proxy listener   = stable network entry point for that instance
+relay            = one active TCP connection through that entry point
+application      = owner of notebooks, kernels, terminals, sessions, etc.
+```
+
+Application state therefore remains entirely behind the proxy. SPD only transports bytes and tracks the sockets required to do so.
+
+---
+
+## Service deletion and teardown
+
+The URL returned by `bservice` is also the user-facing handle used to delete the service instance:
+
+```text
+$ bservice echotest
+http://proxy-host:3001
+
+$ bservice --delete http://proxy-host:3001
+```
+
+The client parses the URL into `host` and `port` and sends a `BATCH_SERVICE_DELETE` request. MBD obtains the user identity from the authenticated protocol header; the UID is not supplied by the user in the delete request. Internally the service instance is located by authenticated `uid + proxy port`, while the host from the URL is validated against the recorded frontend host.
+
+Deletion follows the same asynchronous philosophy as `bkill`. The request initiates termination of the backing service job; it does not wait for the process to disappear before returning to the client.
+
+```text
+bservice --delete http://proxy-host:3001
+        |
+        v
+BATCH_SERVICE_DELETE(host, port)
+        |
+        v
+MBD: locate instance using authenticated uid + port
+        |
+        v
+locate backing LavaLite job by job_id
+        |
+        v
+enqueue SIGKILL toward SBD
+        |
+        +---- BATCH_SERVICE_DELETE_ACK toward client
+        |
+        .
+        . asynchronous job lifecycle
+        .
+        v
+SBD reports JOB_FINISH
+        |
+        v
+MBD normal job-finish processing
+        |
+        v
+REMOVE(job_id) -> SPD
+        |
+        v
+close active relays
+close frontend listener
+remove/free proxy instance
+        |
+        v
+remove/free MBD service instance
+```
+
+The delete acknowledgement therefore means **the delete request has been accepted and termination initiated**, not that every socket and process has already disappeared. The kill request toward SBD and the acknowledgement toward the client are enqueued on independent channels.
+
+Final service-instance destruction is driven by the normal `JOB_FINISH` event. This preserves the central design rule that the backing LavaLite job remains the authority for execution lifecycle. MBD does not prematurely remove the service instance merely because a kill was requested.
+
+### Multiple connections during deletion
+
+A single service instance can have multiple active proxy relays. Deleting `http://proxy-host:3001` deletes the **service instance**, not one particular connection. SPD therefore tears down all active relays belonging to that instance before shutting down the listening socket and freeing the proxy-side instance:
+
+```text
+service instance :3001
+    |
+    +-- relay #1: browser HTTP request
+    +-- relay #2: WebSocket / interactive channel
+    +-- relay #3: second browser tab or client
+    |
+    +-- listener :3001
+
+DELETE instance
+    -> close relay #1
+    -> close relay #2
+    -> close relay #3
+    -> close listener :3001
+    -> free proxy instance
+```
+
+For applications such as Jupyter and code-server this is intentionally a hard service teardown. Persistent files may live on shared or durable storage, but in-memory application state, kernels, terminals, and active network sessions belong to the service process and disappear when the backing job is terminated. More graceful draining semantics could be added later if required, but they are deliberately outside the current minimal lifecycle.
+
+---
 ## A service remains an HPC job
 
 A key design decision is not to create an independent execution model for services.

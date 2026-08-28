@@ -6,8 +6,9 @@
 #include "base/lib/ll.protocol.h"
 
 enum mbd_err {
-    MBD_OK = 0,
-    /* non-zero status is an errno value */
+    MBD_OK,
+    /* non-zero status is an errno value
+     */
 };
 
 enum batch_lib_op {

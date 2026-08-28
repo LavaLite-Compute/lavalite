@@ -207,7 +207,6 @@ enum svc_state {
     SVC_NONE,    /* configured (llb.services), never started */
     SVC_PENDING,     /* backing job not yet running */
     SVC_RUNNING,     /* proxy mapping installed, endpoint live */
-    SVC_FAILED,      /* backing job never reached RUNNING */
 };
 
 struct svc_info {

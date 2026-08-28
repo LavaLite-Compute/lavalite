@@ -1021,14 +1021,10 @@ int32_t llb_service_delete(const char *host, int32_t port)
 const char *llb_svc_state_str(int32_t state)
 {
     switch (state) {
-    case SVC_NONE:
-        return "-";
     case SVC_PENDING:
         return "PEND";
     case SVC_RUNNING:
         return "RUN";
-    case SVC_FAILED:
-        return "FAILED";
     default:
         return "BADSTATE";
     }

@@ -689,5 +689,12 @@ int service_delete(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     LL_INFO("service instance host=%s port=%d by uid=%u", req.host, req.port,
             hdr->uid);
-    return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, MBD_OK);
+
+    int rc = enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, MBD_OK);
+    if (rc != MBD_OK) {
+        LL_ERRX("enqueue_header BATCH_SERVICE_DELETE_ACK failed chan=%d", chan_id);
+        return -1;
+    }
+
+    return 0;
 }
