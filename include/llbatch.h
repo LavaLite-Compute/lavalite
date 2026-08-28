@@ -211,7 +211,6 @@ enum svc_state {
 };
 
 struct svc_info {
-    char *svc_id;   /* user@name, unique service instance identity */
     char *name;     /* service definition name (llb.services SERVICE_NAME) */
     uid_t uid;
     int32_t port;   /* external port */
@@ -324,7 +323,7 @@ void llb_free_token_info(struct token_pool_info *, int32_t);
 int32_t llb_service_start(const char *, struct svc_info *);
 struct svc_info *llb_service_info(int32_t *);
 void llb_free_service_info(struct svc_info *, int32_t);
-int32_t llb_service_stop(const char *);
+int32_t llb_service_delete(const char *, int32_t);
 const char *llb_svc_state_str(int32_t);
 
 /* admin */

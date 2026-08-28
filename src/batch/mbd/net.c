@@ -55,8 +55,8 @@ int valid_batch_op(int op)
     case BATCH_SERVICE_START_ACK:
     case BATCH_SERVICE_INFO:
     case BATCH_SERVICE_INFO_ACK:
-    case BATCH_SERVICE_STOP:
-    case BATCH_SERVICE_STOP_ACK:
+    case BATCH_SERVICE_DELETE:
+    case BATCH_SERVICE_DELETE_ACK:
     case BATCH_SP_REGISTER:
     case BATCH_SP_REGISTER_ACK:
     case BATCH_SVC_ADD:
@@ -188,8 +188,8 @@ static void route(int chan_id)
         if (services_info(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
-    case BATCH_SERVICE_STOP:
-        if (service_stop(&xdrs, chan_id, &hdr) < 0)
+    case BATCH_SERVICE_DELETE:
+        if (service_delete(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
         break;
     case BATCH_SP_REGISTER:

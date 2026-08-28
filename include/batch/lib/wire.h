@@ -332,7 +332,6 @@ struct wire_job_priority {
  * ----------------------------------------------------------------------- */
 
 struct wire_svc_info {
-    char svc_id[LL_BUFSIZ_64];   /* user@name */
     char name[LL_BUFSIZ_64];     /* service definition name */
     uint32_t uid;
     int32_t port;
@@ -357,37 +356,17 @@ struct wire_svc_start {
     char home_dir[PATH_MAX];
 };
 
-struct wire_svc_stop {
-    char svc_id[LL_BUFSIZ_64];
+struct wire_svc_delete {
+    char host[MAXHOSTNAMELEN];
+    int32_t port;
 };
-
-/* -----------------------------------------------------------------------
- * spd (service_proxy) registration  (spd -> mbd)
- *
- * Just an identity announcement -- spd has no per-job state to resync
- * the way sbd's register/register_ack does with wire_sbd_job[]. The
- * real service registry resync (ADD per live instance) is a separate,
- * not-yet-designed exchange that happens after this, not folded into
- * it.
- * ----------------------------------------------------------------------- */
 
 struct wire_sp_register {
     char hostname[MAXHOSTNAMELEN];
 };
 
-/* -----------------------------------------------------------------------
- * per-instance port grammar  (mbd <-> spd)
- *
- * Same channel/request-ack shape as everything else in this file --
- * spd is an ordinary connected client, not a separate socket/protocol.
- * status/error goes on protocol_header.status (MBD_OK or an errno),
- * same convention as every other *_ACK in this file; these structs
- * only carry what status alone can't (the allocated port, the svc_id
- * to correlate against).
- * ----------------------------------------------------------------------- */
-
 struct wire_svc_add {
-    char svc_id[LL_BUFSIZ_64];
+    uid_t uid;
     int32_t app_port; /* internal port from llb.services PORT -- static
                        * for the service's lifetime, unlike run_host
                        * which arrives later via BATCH_SVC_UPDATE */
@@ -395,30 +374,25 @@ struct wire_svc_add {
 };
 
 struct wire_svc_add_ack {
-    char svc_id[LL_BUFSIZ_64];
     int64_t job_id;
     int32_t port; /* valid only when status == MBD_OK */
 };
 
 struct wire_svc_update {
     int64_t job_id;
-    char svc_id[LL_BUFSIZ_64];
     char run_host[MAXHOSTNAMELEN];
 };
 
 struct wire_svc_update_ack {
     int64_t job_id;
-    char svc_id[LL_BUFSIZ_64];
 };
 
 struct wire_svc_remove {
     int64_t job_id;
-    char svc_id[LL_BUFSIZ_64];
 };
 
 struct wire_svc_remove_ack {
     int64_t job_id;
-    char svc_id[LL_BUFSIZ_64];
 };
 
 /* -----------------------------------------------------------------------
@@ -470,7 +444,7 @@ bool_t xdr_wire_job_priority(XDR *, struct wire_job_priority *);
 bool_t xdr_wire_svc_info(XDR *, struct wire_svc_info *);
 bool_t xdr_wire_svc_info_array(XDR *, struct wire_svc_info_array *);
 bool_t xdr_wire_svc_start(XDR *, struct wire_svc_start *);
-bool_t xdr_wire_svc_stop(XDR *, struct wire_svc_stop *);
+bool_t xdr_wire_svc_delete(XDR *, struct wire_svc_delete *);
 
 /* spd registration */
 bool_t xdr_wire_sp_register(XDR *, struct wire_sp_register *);

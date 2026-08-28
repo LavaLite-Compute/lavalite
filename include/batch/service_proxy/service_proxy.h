@@ -45,9 +45,9 @@ extern char sim_name[MAXHOSTNAMELEN]; /* empty = not in sim mode, mirrors sbd */
  */
 struct sp_instance {
     struct ll_list_entry ent;      /* linkage in sp_instance_list */
-    char svc_id[LL_BUFSIZ_64];     /* matches wire_svc_add.svc_id sizing */
     int listen_chan;               /* TCP_SERVER, bound at ADD time */
     int port;                      /* external port this is bound to */
+    uid_t uid;                     /* user of the instance */
     int64_t job_id;                /* service job_id */
     int app_port;                  /* backend's internal port, from ADD */
     char run_host[MAXHOSTNAMELEN]; /* empty until BATCH_SVC_UPDATE arrives */

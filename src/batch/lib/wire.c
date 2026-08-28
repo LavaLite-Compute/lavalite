@@ -486,8 +486,6 @@ bool_t xdr_wire_job_query(XDR *xdrs, struct wire_job_query *r)
 
 bool_t xdr_wire_svc_info(XDR *xdrs, struct wire_svc_info *p)
 {
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
-        return false;
     if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
         return false;
     if (!xdr_uint32_t(xdrs, &p->uid))
@@ -522,9 +520,11 @@ bool_t xdr_wire_svc_start(XDR *xdrs, struct wire_svc_start *p)
     return true;
 }
 
-bool_t xdr_wire_svc_stop(XDR *xdrs, struct wire_svc_stop *p)
+bool_t xdr_wire_svc_delete(XDR *xdrs, struct wire_svc_delete *p)
 {
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
+    if (!xdr_opaque(xdrs, p->host, sizeof(p->host)))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->port))
         return false;
     return true;
 }
@@ -546,8 +546,12 @@ bool_t xdr_wire_sp_register(XDR *xdrs, struct wire_sp_register *p)
 
 bool_t xdr_wire_svc_add(XDR *xdrs, struct wire_svc_add *p)
 {
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
+    uint32_t uid = (uint32_t) p->uid;
+
+    if (!xdr_uint32_t(xdrs, &uid))
         return false;
+    if (xdrs->x_op == XDR_DECODE)
+        p->uid = (uid_t) uid;
     if (!xdr_int32_t(xdrs, &p->app_port))
         return false;
     if (!xdr_int64_t(xdrs, &p->job_id))
@@ -557,11 +561,9 @@ bool_t xdr_wire_svc_add(XDR *xdrs, struct wire_svc_add *p)
 
 bool_t xdr_wire_svc_add_ack(XDR *xdrs, struct wire_svc_add_ack *p)
 {
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
+    if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
     if (!xdr_int32_t(xdrs, &p->port))
-        return false;
-    if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
     return true;
 }
@@ -569,8 +571,6 @@ bool_t xdr_wire_svc_add_ack(XDR *xdrs, struct wire_svc_add_ack *p)
 bool_t xdr_wire_svc_update(XDR *xdrs, struct wire_svc_update *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
-        return false;
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
         return false;
     if (!xdr_opaque(xdrs, p->run_host, sizeof(p->run_host)))
         return false;
@@ -581,8 +581,6 @@ bool_t xdr_wire_svc_update_ack(XDR *xdrs, struct wire_svc_update_ack *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
-        return false;
     return true;
 }
 
@@ -590,16 +588,12 @@ bool_t xdr_wire_svc_remove(XDR *xdrs, struct wire_svc_remove *p)
 {
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
-        return false;
     return true;
 }
 
 bool_t xdr_wire_svc_remove_ack(XDR *xdrs, struct wire_svc_remove_ack *p)
 {
-    if (! xdr_int64_t(xdrs, &p->job_id))
-        return false;
-    if (!xdr_opaque(xdrs, p->svc_id, sizeof(p->svc_id)))
+    if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
     return true;
 }

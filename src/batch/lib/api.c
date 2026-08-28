@@ -876,7 +876,6 @@ int32_t llb_service_start(const char *name, struct svc_info *out)
     xdr_destroy(&xdrs);
     free(rep);
 
-    out->svc_id = strdup(w.svc_id);
     out->name = strdup(w.name);
     out->uid = w.uid;
     out->port = w.port;
@@ -947,7 +946,6 @@ struct svc_info *llb_service_info(int32_t *nsvc)
         struct wire_svc_info *src = &w.svc[i];
         struct svc_info *dst = &out[i];
 
-        dst->svc_id = strdup(src->svc_id);
         dst->name = strdup(src->name);
         dst->uid = src->uid;
         dst->port = src->port;
@@ -964,38 +962,37 @@ struct svc_info *llb_service_info(int32_t *nsvc)
 void llb_free_service_info(struct svc_info *s, int32_t n)
 {
     for (int i = 0; i < n; i++) {
-        free(s[i].svc_id);
         free(s[i].name);
         free(s[i].run_host);
     }
     free(s);
 }
 
-int32_t llb_service_stop(const char *svc_id)
+int32_t llb_service_delete(const char *host, int32_t port)
 {
-    size_t bufsz =
-        PACKET_HEADER_SIZE + sizeof(struct wire_svc_stop) + LL_BUFSIZ_64;
-    char *buf = malloc(bufsz);
-    if (buf == NULL)
-        return -1;
-
-    struct wire_svc_stop req;
+    struct wire_svc_delete req;
     memset(&req, 0, sizeof(req));
-    ll_strlcpy(req.svc_id, svc_id, sizeof(req.svc_id));
+    ll_strlcpy(req.host, host, sizeof(req.host));
+    req.port = port;
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
-    hdr.operation = BATCH_SERVICE_STOP;
+    hdr.operation = BATCH_SERVICE_DELETE;
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        free(buf);
         return -1;
     }
 
+    size_t bufsz = PACKET_HEADER_SIZE + sizeof(struct wire_svc_delete)
+        + LL_BUFSIZ_64;
+    char *buf = calloc(bufsz, sizeof(char));
+    if (buf == NULL)
+        return -1;
+
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
-    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_svc_stop, &hdr)) {
+    if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_svc_delete, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;

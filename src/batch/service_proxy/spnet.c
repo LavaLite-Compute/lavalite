@@ -117,7 +117,7 @@ void sp_mbd_link_down(void)
     sp_mbd_chan = -1;
 
     /* Unlike sbd, service_proxy has no per-job on-disk state to rewrite
-     * here -- the registry it maintains (svc_id -> forwarding state) is
+     * here -- the registry it maintains (job_id -> forwarding state) is
      * rebuilt from mbd's RESYNC on reconnect, not from local storage. */
 
     LL_ERRX("mbd link down");
@@ -174,8 +174,8 @@ static void sp_relay_close(struct sp_relay *relay)
 
     ll_list_remove(&relay->inst->relays, &relay->ent);
 
-    LL_DEBUG("sp_relay_close: svc_id=%s client_chan=%d backend_chan=%d "
-            "closed", relay->inst->svc_id, relay->client_chan,
+    LL_DEBUG("sp_relay_close: uid=%ld client_chan=%d backend_chan=%d "
+            "closed", (long) relay->inst->uid, relay->client_chan,
             relay->backend_chan);
 
     free(relay);
@@ -229,13 +229,12 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
 
     struct wire_svc_add_ack ack;
     memset(&ack, 0, sizeof(ack));
-    ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
     ack.job_id = req.job_id;
 
     int port;
     int listen_chan = sp_bind_port(&port);
     if (listen_chan < 0) {
-        LL_ERRX("svc_id=%s job_id=%ld no free port in %d..%d", req.svc_id,
+        LL_ERRX("uid=%ld job_id=%ld no free port in %d..%d", (long) req.uid,
                 req.job_id, SP_SVC_PORT_MIN, SP_SVC_PORT_MAX);
         int cc = sp_send_msg(BATCH_SVC_ADD_ACK, ENOSPC, &ack, LL_BUFSIZ_1K,
                              xdr_wire_svc_add_ack);
@@ -252,8 +251,8 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     ev.events = EPOLLIN;
     ev.data.u32 = (uint32_t) listen_chan;
     if (epoll_ctl(sp_efd, EPOLL_CTL_ADD, chan_sock(listen_chan), &ev) < 0) {
-        LL_ERR("epoll_ctl failed svc_id=%s job_id=%ld chan=%d", req.svc_id,
-               req.job_id, listen_chan);
+        LL_ERR("epoll_ctl failed uid=%ld job_id=%ld chan=%d",
+               (long) req.uid, req.job_id, listen_chan);
         int save_errno = errno;
         chan_close(listen_chan);
         int cc = sp_send_msg(BATCH_SVC_ADD_ACK, save_errno, &ack, LL_BUFSIZ_1K,
@@ -267,13 +266,14 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
 
     struct sp_instance *inst = calloc(1, sizeof(*inst));
     if (inst == NULL) {
-        LL_ERR("calloc failed svc_id=%s job_id=%ld", req.svc_id, req.job_id);
+        LL_ERR("calloc failed uid=%ld job_id=%ld", (long) req.uid,
+               req.job_id);
         sp_chan_shutdown(listen_chan);
         sp_fatal(SP_FATAL_OOM);
         return -1; /* unreached -- sp_fatal() exits */
     }
 
-    ll_strlcpy(inst->svc_id, req.svc_id, sizeof(inst->svc_id));
+    inst->uid = req.uid;
     inst->listen_chan = listen_chan;
     inst->port = port;
     inst->app_port = req.app_port;
@@ -281,8 +281,8 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     ll_list_init(&inst->relays);
     ll_list_append(&sp_instance_list, &inst->ent);
 
-    LL_INFO("svc_id=%s job_id=%ld bound port=%d app_port=%d chan=%d",
-            inst->svc_id, inst->job_id, port, inst->app_port, listen_chan);
+    LL_INFO("uid=%ld job_id=%ld bound port=%d app_port=%d chan=%d",
+            (long) inst->uid, inst->job_id, port, inst->app_port, listen_chan);
 
     int cc = sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
                          xdr_wire_svc_add_ack);
@@ -325,21 +325,19 @@ static int sp_svc_update(XDR *xdrs, const struct protocol_header *hdr)
 
     struct wire_svc_update_ack ack;
     memset(&ack, 0, sizeof(ack));
-    // service instance identification
-    ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
     ack.job_id = req.job_id;
 
     struct sp_instance *inst = sp_find_instance_by_job_id(req.job_id);
     if (inst == NULL) {
-        LL_ERRX("unknown svc_id=%s job_id=%ld", req.svc_id, req.job_id);
+        LL_ERRX("unknown job_id=%ld", req.job_id);
         return sp_send_msg(BATCH_SVC_UPDATE_ACK, ESRCH, &ack, LL_BUFSIZ_1K,
                            xdr_wire_svc_update_ack);
     }
 
     ll_strlcpy(inst->run_host, req.run_host, sizeof(inst->run_host));
 
-    LL_INFO("svc_id=%s run_host=%s", inst->svc_id,
-           inst->run_host);
+    LL_INFO("uid=%ld job_id=%ld run_host=%s", (long) inst->uid,
+            inst->job_id, inst->run_host);
 
     int cc = sp_send_msg(BATCH_SVC_UPDATE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
                          xdr_wire_svc_update_ack);
@@ -372,12 +370,11 @@ static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
 
     struct wire_svc_remove_ack ack;
     memset(&ack, 0, sizeof(ack));
-    ll_strlcpy(ack.svc_id, req.svc_id, sizeof(ack.svc_id));
     ack.job_id = req.job_id;
 
     struct sp_instance *inst = sp_find_instance_by_job_id(req.job_id);
     if (inst == NULL) {
-        LL_ERRX("unknown svc_id=%s job_id=%ld", req.svc_id, req.job_id);
+        LL_ERRX("unknown job_id=%ld", req.job_id);
         return sp_send_msg(BATCH_SVC_REMOVE_ACK, ESRCH, &ack, LL_BUFSIZ_1K,
                            xdr_wire_svc_remove_ack);
     }
@@ -392,8 +389,8 @@ static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
     sp_chan_shutdown(inst->listen_chan);
     ll_list_remove(&sp_instance_list, &inst->ent);
 
-    LL_INFO("svc_id=%s job_id=%ld removed, port=%d freed", inst->svc_id,
-            inst->job_id, inst->port);
+    LL_INFO("uid=%ld job_id=%ld removed, port=%d freed",
+            (long) inst->uid, inst->job_id, inst->port);
 
     free(inst);
 
@@ -463,31 +460,31 @@ void sp_relay_accept(struct sp_instance *inst)
 
     int client_chan = chan_accept(inst->listen_chan, &from);
     if (client_chan < 0) {
-        LL_ERR("sp_relay_accept: chan_accept failed svc_id=%s: %m",
-               inst->svc_id);
+        LL_ERR("sp_relay_accept: chan_accept failed uid=%ld: %m",
+               (long) inst->uid);
         return;
     }
     channels[client_chan].type = TCP_RELAY;
 
     if (inst->run_host[0] == '\0') {
-        LL_ERRX("sp_relay_accept: svc_id=%s no run_host yet, rejecting "
-                "client", inst->svc_id);
+        LL_ERRX("sp_relay_accept: uid=%ld no run_host yet, rejecting "
+                "client", (long) inst->uid);
         chan_close(client_chan);
         return;
     }
 
     struct ll_host backend_node;
     if (get_host_by_name(inst->run_host, &backend_node) < 0) {
-        LL_ERR("sp_relay_accept: cannot resolve run_host=%s svc_id=%s",
-               inst->run_host, inst->svc_id);
+        LL_ERR("sp_relay_accept: cannot resolve run_host=%s uid=%ld",
+               inst->run_host, (long) inst->uid);
         chan_close(client_chan);
         return;
     }
 
     int backend_chan = chan_tcp_client();
     if (backend_chan < 0) {
-        LL_ERR("sp_relay_accept: chan_tcp_client failed svc_id=%s",
-               inst->svc_id);
+        LL_ERR("sp_relay_accept: chan_tcp_client failed uid=%ld",
+               (long) inst->uid);
         chan_close(client_chan);
         return;
     }
@@ -500,8 +497,8 @@ void sp_relay_accept(struct sp_instance *inst)
 
     if (chan_connect(backend_chan, &addr, 3) < 0) {
         LL_ERR("sp_relay_accept: cannot connect to backend %s:%d "
-               "svc_id=%s: %m", inst->run_host, inst->app_port,
-               inst->svc_id);
+               "uid=%ld: %m", inst->run_host, inst->app_port,
+               (long) inst->uid);
         chan_close(backend_chan);
         chan_close(client_chan);
         return;
@@ -514,7 +511,7 @@ void sp_relay_accept(struct sp_instance *inst)
     ev.data.u32 = (uint32_t) client_chan;
     if (epoll_ctl(sp_efd, EPOLL_CTL_ADD, chan_sock(client_chan), &ev) < 0) {
         LL_ERR("sp_relay_accept: epoll_ctl add client_chan=%d failed "
-               "svc_id=%s", client_chan, inst->svc_id);
+               "uid=%ld", client_chan, (long) inst->uid);
         chan_close(backend_chan);
         chan_close(client_chan);
         return;
@@ -523,7 +520,7 @@ void sp_relay_accept(struct sp_instance *inst)
     ev.data.u32 = (uint32_t) backend_chan;
     if (epoll_ctl(sp_efd, EPOLL_CTL_ADD, chan_sock(backend_chan), &ev) < 0) {
         LL_ERR("sp_relay_accept: epoll_ctl add backend_chan=%d failed "
-               "svc_id=%s", backend_chan, inst->svc_id);
+               "uid=%ld", backend_chan, (long) inst->uid);
         sp_chan_shutdown(client_chan);
         chan_close(backend_chan);
         return;
@@ -531,7 +528,7 @@ void sp_relay_accept(struct sp_instance *inst)
 
     struct sp_relay *relay = calloc(1, sizeof(*relay));
     if (relay == NULL) {
-        LL_ERR("sp_relay_accept: calloc failed svc_id=%s", inst->svc_id);
+        LL_ERR("sp_relay_accept: calloc failed uid=%ld", (long) inst->uid);
         sp_chan_shutdown(client_chan);
         sp_chan_shutdown(backend_chan);
         return;
@@ -542,8 +539,8 @@ void sp_relay_accept(struct sp_instance *inst)
     relay->backend_chan = backend_chan;
     ll_list_append(&inst->relays, &relay->ent);
 
-    LL_INFO("sp_relay_accept: svc_id=%s client_chan=%d backend_chan=%d "
-           "%s:%d connected", inst->svc_id, client_chan, backend_chan,
+    LL_INFO("sp_relay_accept: uid=%ld client_chan=%d backend_chan=%d "
+           "%s:%d connected", (long) inst->uid, client_chan, backend_chan,
            inst->run_host, inst->app_port);
 }
 
@@ -644,15 +641,15 @@ static int sp_relay_read_dir(struct sp_relay *relay, struct sp_relay_dir *dir,
         sp_relay_read(dir->src, dir->buf, dir->len, dir->pos);
 
     if (rc == SP_RELAY_IO_ERROR) {
-        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d read failed: %m",
-                 relay->inst->svc_id, dir->src);
+        LL_DEBUG("sp_relay_event: uid=%ld chan=%d read failed: %m",
+                 (long) relay->inst->uid, dir->src);
         return -1;
     }
 
     if (sp_relay_write(dir->dst, dir->buf, dir->len,
                        dir->pos) == SP_RELAY_IO_ERROR) {
-        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d write failed: %m",
-                 relay->inst->svc_id, dir->dst);
+        LL_DEBUG("sp_relay_event: uid=%ld chan=%d write failed: %m",
+                 (long) relay->inst->uid, dir->dst);
         return -1;
     }
 
@@ -666,8 +663,8 @@ static int sp_relay_flush_dir(struct sp_relay *relay, struct sp_relay_dir *dir)
 {
     if (sp_relay_write(dir->dst, dir->buf, dir->len,
                        dir->pos) == SP_RELAY_IO_ERROR) {
-        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d write failed: %m",
-                 relay->inst->svc_id, dir->dst);
+        LL_DEBUG("sp_relay_event: uid=%ld chan=%d write failed: %m",
+                 (long) relay->inst->uid, dir->dst);
         return -1;
     }
 
@@ -716,8 +713,8 @@ void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
     };
 
     if (events & EPOLLERR) {
-        LL_DEBUG("sp_relay_event: svc_id=%s chan=%d err",
-                 relay->inst->svc_id, chan_id);
+        LL_DEBUG("sp_relay_event: uid=%ld chan=%d err",
+                 (long) relay->inst->uid, chan_id);
         sp_relay_close(relay);
         return;
     }
@@ -767,8 +764,8 @@ void sp_relay_event(struct sp_relay *relay, int chan_id, uint32_t events)
     }
 
     LL_ERR("sp_relay_event: chan_id=%d matches neither client nor backend "
-           "of relay, svc_id=%s -- caller/relay bookkeeping is corrupted",
-           chan_id, relay->inst->svc_id);
+           "of relay, uid=%ld -- caller/relay bookkeeping is corrupted",
+           chan_id, (long) relay->inst->uid);
     abort();
 }
 

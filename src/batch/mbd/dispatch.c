@@ -642,7 +642,7 @@ int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     struct wire_svc_info *svc = NULL;
     int n = service_collect_info(uid, all, &svc);
     if (n < 0) {
-        LL_ERR("services_info: service_collect_info failed");
+        LL_ERR("service_collect_info failed");
         return enqueue_header(chan_id, BATCH_SERVICE_INFO_ACK, errno);
     }
 
@@ -661,7 +661,7 @@ int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
                         xdr_wire_svc_info_array) < 0) {
-        LL_ERR("services_info: enqueue_payload failed");
+        LL_ERR("enqueue_payload failed");
         free(svc);
         return -1;
     }
@@ -670,23 +670,24 @@ int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     return 0;
 }
 
-int service_stop(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
+int service_delete(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 {
-    struct wire_svc_stop req;
+    struct wire_svc_delete req;
 
     memset(&req, 0, sizeof(req));
-    if (!xdr_wire_svc_stop(xdrs, &req)) {
-        LL_ERR("service_stop: xdr decode failed chan_id=%d", chan_id);
-        return enqueue_header(chan_id, BATCH_SERVICE_STOP_ACK, EPROTO);
+    if (!xdr_wire_svc_delete(xdrs, &req)) {
+        LL_ERR("xdr decode failed chan_id=%d", chan_id);
+        return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, EPROTO);
     }
 
-    int err = service_stop_instance(hdr->uid, req.svc_id);
+    int err = service_delete_instance(hdr->uid, req.host, req.port);
     if (err != 0) {
-        LL_INFO("service_stop: svc_id=%s uid=%u failed err=%d",
-                req.svc_id, hdr->uid, err);
-        return enqueue_header(chan_id, BATCH_SERVICE_STOP_ACK, err);
+        LL_INFO("host=%s uid=%u failed err=%d",
+                req.host, hdr->uid, err);
+        return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, err);
     }
 
-    LL_INFO("service_stop: svc_id=%s stopped by uid=%u", req.svc_id, hdr->uid);
-    return enqueue_header(chan_id, BATCH_SERVICE_STOP_ACK, MBD_OK);
+    LL_INFO("service instance host=%s port=%d by uid=%u", req.host, req.port,
+            hdr->uid);
+    return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, MBD_OK);
 }

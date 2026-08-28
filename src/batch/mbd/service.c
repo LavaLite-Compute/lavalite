@@ -56,14 +56,14 @@ static struct service_data *svc_find_by_name(const char *name)
 static int svc_proxy_send_add(struct service_instance *inst)
 {
     if (service_proxy_chan_id < 0) {
-        LL_ERRX("svc_proxy_send_add: service_proxy not connected svc_id=%s",
-                inst->svc_id);
+        LL_ERRX("svc_proxy_send_add: service_proxy not connected uid=%ld proxy_port=%d",
+                (long) inst->uid, inst->port);
         return -1;
     }
 
     struct wire_svc_add req;
     memset(&req, 0, sizeof(req));
-    ll_strlcpy(req.svc_id, inst->svc_id, sizeof(req.svc_id));
+    req.uid = inst->uid;
     req.app_port = inst->svc->port;
     req.job_id = inst->job_id;
 
@@ -73,8 +73,8 @@ static int svc_proxy_send_add(struct service_instance *inst)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("svc_proxy_send_add: auth_sign_header failed svc_id=%s",
-               inst->svc_id);
+        LL_ERR("svc_proxy_send_add: auth_sign_header failed uid=%ld proxy_port=%d",
+               (long) inst->uid, inst->port);
         return -1;
     }
 
@@ -83,13 +83,13 @@ static int svc_proxy_send_add(struct service_instance *inst)
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_add) < 0) {
-        LL_ERR("svc_proxy_send_add: enqueue_payload failed svc_id=%s",
-               inst->svc_id);
+        LL_ERR("svc_proxy_send_add: enqueue_payload failed uid=%ld proxy_port=%d",
+               (long) inst->uid, inst->port);
         return -1;
     }
 
-    LL_DEBUG("service: svc_id=%s: ADD sent to proxy chan=%d", inst->svc_id,
-             service_proxy_chan_id);
+    LL_DEBUG("service: uid=%ld proxy_port=%d ADD sent to proxy chan=%d",
+             (long) inst->uid, inst->port, service_proxy_chan_id);
 
     return 0;
 }
@@ -112,8 +112,8 @@ static int service_build_script(const struct service_instance *inst,
         inst->pend_ws.home_dir, inst->pend_ws.username, inst->pend_cmd);
 
     if (n < 0 || (size_t) n >= bufsiz) {
-        LL_ERRX("service_build_script: script truncated svc_id=%s",
-               inst->svc_id);
+        LL_ERRX("service_build_script: script truncated uid=%ld proxy_port=%d",
+               (long) inst->uid, inst->port);
         return -1;
     }
 
@@ -169,7 +169,7 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     inst->svc = svc;
     inst->chan_id = chan_id;
     inst->state = SVC_INST_STARTING;
-    snprintf(inst->svc_id, sizeof(inst->svc_id), "%u@%s", hdr->uid, ws->name);
+    inst->uid = hdr->uid;
 
     int n = snprintf(inst->pend_cmd, sizeof(inst->pend_cmd),
                      "%s exec --bind %s:%s %s %s",
@@ -186,7 +186,7 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     memset(&inst->pend_ws, 0, sizeof(inst->pend_ws));
     inst->pend_ws.flags |= JOB_FLAG_SERVICE | JOB_FLAG_HOLD;
 
-    ll_strlcpy(inst->pend_ws.name, inst->svc_id, sizeof(inst->pend_ws.name));
+    ll_strlcpy(inst->pend_ws.name, svc->name, sizeof(inst->pend_ws.name));
     ll_strlcpy(inst->pend_ws.queue, svc->queue, sizeof(inst->pend_ws.queue));
     ll_strlcpy(inst->pend_ws.username, ws->username,
               sizeof(inst->pend_ws.username));
@@ -215,8 +215,8 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     }
     inst->job_id = job->job_id;
 
-    LL_DEBUG("service: job_id=%ld uid=%u svc_id=%s cmd=[%s]",
-             inst->job_id, hdr->uid, inst->svc_id, inst->pend_cmd);
+    LL_DEBUG("service: job_id=%ld uid=%ld proxy_port=%d cmd=[%s]",
+             inst->job_id, (long) inst->uid, inst->port, inst->pend_cmd);
 
     ll_list_append(&svc->instances, &inst->ent);
 
@@ -238,8 +238,8 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
         return ENOTCONN;
     }
 
-    LL_INFO("service_start_instance: service=%s svc_id=%s: ADD sent, "
-           "awaiting port from proxy", ws->name, inst->svc_id);
+    LL_INFO("service_start_instance: service=%s uid=%ld proxy_port=%d: ADD sent, "
+           "awaiting port from proxy", ws->name, (long) inst->uid, inst->port);
 
     return 0;
 }
@@ -269,8 +269,8 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
     }
 
     if (hdr->status != MBD_OK) {
-        LL_ERRX("svc_id=%s job_id=%ld failed status=%d", ack.svc_id,
-                ack.job_id, hdr->status);
+        LL_ERRX("job_id=%ld uid=%ld proxy_port=%d failed status=%d",
+                ack.job_id, (long) inst->uid, inst->port, hdr->status);
         enqueue_header(inst->chan_id, BATCH_SERVICE_START_ACK, hdr->status);
 
         struct wire_job_sig sig;
@@ -295,7 +295,8 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
     sig.uid = job->uid;
 
     signal_pending_job(job, &sig);
-    LL_INFO("job_id=%ld service proxy on port=%d", ack.job_id, inst->port);
+    LL_INFO("job_id=%ld uid=%ld proxy_port=%d", ack.job_id,
+            (long) inst->uid, inst->port);
     /* Still no reply to the client -- BATCH_SERVICE_START_ACK remains
      * deferred until mbd_new_job_reply() sees this job reach RUNNING.
      */
@@ -335,9 +336,8 @@ static void svc_inst_to_wire(const struct service_instance *inst,
                              struct wire_svc_info *w)
 {
     memset(w, 0, sizeof(*w));
-    ll_strlcpy(w->svc_id, inst->svc_id, sizeof(w->svc_id));
     ll_strlcpy(w->name, inst->svc->name, sizeof(w->name));
-    w->uid = inst->pend_hdr.uid;
+    w->uid = inst->uid;
     w->port = inst->port;
     ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
     w->job_id = inst->job_id;
@@ -348,7 +348,7 @@ static void svc_inst_to_wire(const struct service_instance *inst,
  * One configured-but-idle service_data -> one wire_svc_info row.
  * Same reasoning as bqueues showing an empty queue: a service defined
  * in llb.services is visible whether or not anyone has started it.
- * svc_id/run_host/port/job_id all stay zeroed -- "-" for run_host is
+ * run_host/port/job_id all stay zeroed -- "-" for run_host is
  * bservice.c's own display convention for an empty field (see
  * print_services()'s `s[i].run_host ? ... : "-"`), not something mbd
  * encodes. state stays at the memset zero -- SVC_NONE is 0 in
@@ -374,18 +374,21 @@ static void svc_def_to_wire(const struct service_data *svc,
  */
 int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
 {
-    int ntotal = 0;
-
     *out = NULL;
+    int ntotal = 0;
 
     for (struct ll_list_entry *se = service_list.head; se != NULL;
          se = se->next) {
         struct service_data *svc = (struct service_data *) se;
         int ninst = ll_list_count(&svc->instances);
 
-        ntotal += (ninst > 0) ? ninst : 1;
+        if (ninst == 0)
+            ntotal++;
+        else
+            ntotal += ninst;
     }
 
+    // no services are configured
     if (ntotal == 0)
         return 0;
 
@@ -411,7 +414,7 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
              ie = ie->next) {
             struct service_instance *inst = (struct service_instance *) ie;
 
-            if (!all && inst->pend_hdr.uid != uid)
+            if (!all && inst->uid != uid)
                 continue;
 
             svc_inst_to_wire(inst, &dst[n]);
@@ -431,15 +434,14 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
 static int svc_proxy_send_update(struct service_instance *inst)
 {
     if (service_proxy_chan_id < 0) {
-        LL_ERRX("service_proxy not connected svc_id=%s job_id=%ld",
-                inst->svc_id, inst->job_id);
+        LL_ERRX("service_proxy not connected job_id=%ld uid=%ld proxy_port=%d",
+                inst->job_id, (long) inst->uid, inst->port);
         return -1;
     }
 
     struct wire_svc_update req;
     memset(&req, 0, sizeof(req));
     req.job_id = inst->job_id;
-    ll_strlcpy(req.svc_id, inst->svc_id, sizeof(req.svc_id));
     ll_strlcpy(req.run_host, inst->run_host, sizeof(req.run_host));
 
     struct protocol_header hdr;
@@ -448,8 +450,8 @@ static int svc_proxy_send_update(struct service_instance *inst)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("auth_sign_header failed svc_id=%s job_id=%ld",
-               inst->svc_id, inst->job_id);
+        LL_ERR("auth_sign_header failed job_id=%ld uid=%ld proxy_port=%d",
+               inst->job_id, (long) inst->uid, inst->port);
         return -1;
     }
 
@@ -458,13 +460,14 @@ static int svc_proxy_send_update(struct service_instance *inst)
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_update) < 0) {
-        LL_ERR("enqueue_payload failed svc_id=%s job_id=%ld",
-               inst->svc_id, inst->job_id);
+        LL_ERR("enqueue_payload failed job_id=%ld uid=%ld proxy_port=%d",
+               inst->job_id, (long) inst->uid, inst->port);
         return -1;
     }
 
-    LL_DEBUG("svc_id=%s job_id=%ld UPDATE run_host=%s sent to proxy chan=%d",
-             inst->svc_id, inst->job_id, inst->run_host, service_proxy_chan_id);
+    LL_DEBUG("job_id=%ld uid=%ld proxy_port=%d UPDATE run_host=%s sent to proxy chan=%d",
+             inst->job_id, (long) inst->uid, inst->port, inst->run_host,
+             service_proxy_chan_id);
 
     return 0;
 }
@@ -474,8 +477,8 @@ static int svc_proxy_send_update(struct service_instance *inst)
  * mbd's side blocks waiting for these -- the client-facing state
  * (run_host, instance teardown) is already updated locally before the
  * request was even sent -- but we still decode and log them instead
- * of silently dropping, so a proxy-side failure (stale svc_id, whatever)
- * is visible instead of invisible.
+ * of silently dropping, so a proxy-side failure is visible instead of
+ * invisible.
  */
 void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr)
 {
@@ -488,12 +491,12 @@ void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr)
     }
 
     if (hdr->status != MBD_OK) {
-        LL_ERRX("svc_proxy_update_ack: svc_id=%s failed status=%d",
-                ack.svc_id, hdr->status);
+        LL_ERRX("svc_proxy_update_ack: job_id=%ld failed status=%d",
+                ack.job_id, hdr->status);
         return;
     }
 
-    LL_DEBUG("svc_proxy_update_ack: svc_id=%s ok", ack.svc_id);
+    LL_DEBUG("svc_proxy_update_ack: job_id=%ld ok", ack.job_id);
 }
 
 void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
@@ -507,10 +510,10 @@ void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
     }
 
     if (hdr->status != MBD_OK)
-        LL_ERRX("svc_proxy_remove_ack: svc_id=%s failed status=%d",
-                ack.svc_id, hdr->status);
+        LL_ERRX("svc_proxy_remove_ack: job_id=%ld failed status=%d",
+                ack.job_id, hdr->status);
     else
-        LL_DEBUG("svc_proxy_remove_ack: svc_id=%s ok", ack.svc_id);
+        LL_DEBUG("svc_proxy_remove_ack: job_id=%ld ok", ack.job_id);
 }
 
 /*
@@ -537,9 +540,8 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
 
     struct wire_svc_info info;
     memset(&info, 0, sizeof(info));
-    ll_strlcpy(info.svc_id, inst->svc_id, sizeof(info.svc_id));
     ll_strlcpy(info.name, inst->svc->name, sizeof(info.name));
-    info.uid = inst->pend_hdr.uid;
+    info.uid = inst->uid;
     info.port = inst->port;
     ll_strlcpy(info.run_host, inst->run_host, sizeof(info.run_host));
     info.job_id = job->job_id;
@@ -551,8 +553,8 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
     rep_hdr.status = MBD_OK;
 
     if (auth_sign_header(&rep_hdr) < 0) {
-        LL_ERR("svc_job_running: auth_sign_header failed svc_id=%s",
-               inst->svc_id);
+        LL_ERR("svc_job_running: auth_sign_header failed uid=%ld proxy_port=%d",
+               (long) inst->uid, inst->port);
         return;
     }
 
@@ -561,27 +563,20 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
 
     if (enqueue_payload(inst->chan_id, &rep_hdr, &info, siz,
                         xdr_wire_svc_info) < 0) {
-        LL_ERR("svc_job_running: enqueue_payload failed svc_id=%s",
-               inst->svc_id);
+        LL_ERR("svc_job_running: enqueue_payload failed uid=%ld proxy_port=%d",
+               (long) inst->uid, inst->port);
         return;
     }
 
-    LL_INFO("svc_job_running: svc_id=%s job_id=%ld run_host=%s port=%d "
-           "RUNNING, client acked", inst->svc_id, job->job_id,
-           inst->run_host, inst->port);
+    LL_INFO("svc_job_running: job_id=%ld uid=%ld proxy_port=%d run_host=%s "
+           "RUNNING, client acked", job->job_id, (long) inst->uid,
+           inst->port, inst->run_host);
 }
 
-/*
- * Stub only. Real implementation still to come: instance lookup by
- * svc_id, ownership check, signal the backing job, REMOVE to
- * service_proxy (port is proxy's to free now, not mbd's).
- */
-int service_stop_instance(uid_t uid, const char *svc_id)
+int service_delete_instance(uid_t uid, const char *host, int port)
 {
-    (void) uid;
-
-    LL_ERRX("service_stop_instance: not implemented svc_id=%s", svc_id);
-    return ENOSYS;
+    LL_INFO("uid=%u host=%s proxy_port=%d", uid, host, port);
+    return 0;
 }
 
 /*

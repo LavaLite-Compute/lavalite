@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/param.h>
+
 #include "llbatch.h"
 
 struct col_widths {
@@ -105,55 +107,97 @@ static void print_services(struct svc_info *s, int32_t n)
     }
 }
 
+static int parse_service_url(const char *url, char *host, size_t hostsz,
+                             int *port)
+{
+    const char *prefix = "http://";
+    size_t prefix_len = strlen(prefix);
+
+    if (strncmp(url, prefix, prefix_len) != 0)
+        return -1;
+
+    const char *p = url + prefix_len;
+    const char *colon = strchr(p, ':');
+    if (colon == NULL || colon == p)
+        return -1;
+
+    size_t hostlen = (size_t) (colon - p);
+    if (hostlen >= hostsz)
+        return -1;
+
+    memcpy(host, p, hostlen);
+    host[hostlen] = 0;
+
+    char *end;
+    long n = strtol(colon + 1, &end, 10);
+    if (*end != 0 || n < 1 || n > 65535)
+        return -1;
+
+    *port = (int) n;
+    return 0;
+}
+
 static void usage(void)
 {
     fprintf(stderr, "bservice: --help display this help and exit\n"
                     "  bservice NAME  start a service defined in llb.services\n"
                     "  -l, --list list configured services and their instances\n"
-                    "  -s, --stop SVC_ID stop a running service instance\n"
+                    "  -d, --delete URL delete a running service instance\n"
                     "  --version output version information and exit\n");
 }
 
-static struct option longopts[] = {{"help", no_argument, NULL, 'h'},
-                                   {"version", no_argument, NULL, 'v'},
-                                   {"list", no_argument, NULL, 'l'},
-                                   {"stop", required_argument, NULL, 's'},
-                                   {NULL, 0, NULL, 0}};
+static struct option longopts[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"version", no_argument, NULL, 'v'},
+    {"list", no_argument, NULL, 'l'},
+    {"delete", required_argument, NULL, 'd'},
+    {NULL, 0, NULL, 0}
+};
 
 int main(int argc, char **argv)
 {
-    const char *stop_svc_id = NULL;
-    int list_fmt = 0;
 
-    int cc;
-    while ((cc = getopt_long(argc, argv, "hvls:", longopts, NULL)) != EOF) {
-        switch (cc) {
-        case 's':
-            stop_svc_id = optarg;
-            break;
-        case 'l':
-            list_fmt = 1;
-            break;
-        case 'v':
-            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            return 0;
-        case 'h':
-        default:
-            usage();
-            return 0;
-        }
-    }
+   const char *delete_url = NULL;
+   int list_fmt = 0;
 
-    if (stop_svc_id) {
-        int rc = llb_service_stop(stop_svc_id);
-        if (rc != 0)
-            fprintf(stderr, "bservice: %s: %m\n", stop_svc_id);
-        else
-            printf("service %s stopped\n", stop_svc_id);
-        return rc;
-    }
+   int cc;
+   while ((cc = getopt_long(argc, argv, "hvld:", longopts, NULL)) != EOF) {
+       switch (cc) {
+       case 'd':
+           delete_url = optarg;
+           break;
+       case 'l':
+           list_fmt = 1;
+           break;
+       case 'v':
+           fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+           return 0;
+       case 'h':
+       default:
+           usage();
+           return 0;
+       }
+   }
 
-    if (list_fmt) {
+   if (delete_url != NULL) {
+       char host[MAXHOSTNAMELEN];
+       int port;
+
+       if (parse_service_url(delete_url, host, sizeof(host), &port) < 0) {
+           fprintf(stderr, "bservice: invalid service URL: %s\n", delete_url);
+           return -1;
+       }
+
+       int rc = llb_service_delete(host, port);
+       if (rc != 0)
+           fprintf(stderr, "bservice: %s: %m\n", delete_url);
+       else
+           printf("service %s deleted\n", delete_url);
+
+       return rc;
+   }
+
+   if (list_fmt) {
         int32_t n;
         struct svc_info *s = llb_service_info(&n);
         if (!s) {
