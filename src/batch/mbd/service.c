@@ -33,7 +33,7 @@
 
 int service_proxy_chan_id = -1;
 
-static struct service_data *svc_find_by_name(const char *name)
+struct service_data *svc_find_by_name(const char *name)
 {
     struct ll_list_entry *e;
     struct service_data *svc;
@@ -725,6 +725,14 @@ int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *hdr)
      * service_instance here, so proxy rebuilds its forwarding table
      * on (re)connect instead of starting empty -- matters for mbd
      * restarts as much as proxy restarts. */
+
+    return 0;
+}
+
+int job_is_service(const struct job_data *job)
+{
+    if ((job->flags & JOB_FLAG_SERVICE) && job->svc_inst != NULL)
+        return 1;
 
     return 0;
 }

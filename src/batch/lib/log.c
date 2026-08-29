@@ -103,6 +103,12 @@ int log_read_hdr(FILE *fp, struct event_rec *rec)
         return -1;
     }
 
+    if (ver != LOG_VERSION) {
+        errno = EPROTO;
+        clearerr(fp);
+        return -1;
+    }
+
     rec->version = ver;
     rec->event_time = (time_t) ts;
     rec->type = parse_event_type(etype);
@@ -147,6 +153,8 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->depend_cond) < 0)
         return -1;
+    if (write_qstr(fp, j->service_name) < 0)
+        return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
     return 0;
@@ -184,6 +192,8 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
     if (read_qstr(&p, j->tokenpool, sizeof(j->tokenpool)) < 0)
         return -1;
     if (read_qstr(&p, j->depend_cond, sizeof(j->depend_cond)) < 0)
+        return -1;
+    if (read_qstr(&p, j->service_name, sizeof(j->service_name)) < 0)
         return -1;
 
     return 0;

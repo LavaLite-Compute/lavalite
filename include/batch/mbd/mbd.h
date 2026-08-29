@@ -448,3 +448,5 @@ void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr);
 void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr);
 void svc_job_running(struct job_data *job, struct mbd_host *host);
 int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *);
+struct service_data *svc_find_by_name(const char *);
+int job_is_service(const struct job_data *);

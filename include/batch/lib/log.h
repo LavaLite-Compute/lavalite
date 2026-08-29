@@ -14,7 +14,7 @@
 
 #include "base/lib/ll.bufsiz.h"
 
-#define LOG_VERSION 1
+#define LOG_VERSION 2
 
 /*
  * Event types. Values are stable on disk -- do not reorder.
@@ -89,6 +89,7 @@ struct log_job_new {
     char machines[LL_BUFSIZ_1K];
     char tokenpool[LL_BUFSIZ_256];
     char depend_cond[LL_BUFSIZ_4K];
+    char service_name[LL_BUFSIZ_64];
 };
 
 /* log_job_start: mbd dispatched the job to sbd.

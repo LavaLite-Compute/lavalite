@@ -242,6 +242,11 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     ll_strlcpy(e.tokenpool, ws->tokenpool, sizeof(e.tokenpool));
     ll_strlcpy(e.depend_cond, ws->depend_cond, sizeof(e.depend_cond));
 
+    if (job_is_service(job)) {
+        ll_strlcpy(e.service_name, job->svc_inst->svc->name,
+                   sizeof(e.service_name));
+    }
+
     FILE *fp = open_manifest();
     if (log_write_job_new(fp, &e) < 0) {
         fclose(fp);
@@ -464,6 +469,38 @@ static int replay_insert(struct job_data *job)
     return 1;
 }
 
+static int replay_service_job(struct job_data *job,
+                              const struct log_job_new *e)
+{
+    struct service_data *svc;
+
+    svc = svc_find_by_name(e->service_name);
+    if (svc == NULL) {
+        LL_ERRX("job_id=%ld service=%s not found, orphaned of its service",
+                e->job_id, e->service_name);
+        job->state = JOB_ORPHAN;
+        job->svc_inst = NULL;
+        return -1;
+    }
+
+    struct service_instance *inst;
+    inst = calloc(1, sizeof(*inst));
+    if (inst == NULL) {
+        LL_ERR("job_id=%ld cannot allocate service instance, dying",
+               job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+
+    inst->svc = svc;
+    inst->job_id = job->job_id;
+    inst->uid = job->uid;
+
+    job->svc_inst = inst;
+    ll_list_append(&svc->instances, &inst->ent);
+
+    return 0;
+}
+
 static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
 {
     struct log_job_new e;
@@ -487,9 +524,14 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
         return 0;
     }
 
-    LL_DEBUG("JOB_NEW job_id=%ld array_id=%ld array_index=%d depend=%s",
-             e.job_id, e.array_id, e.array_index,
-             (e.depend_cond[0] != 0) ? e.depend_cond : "none");
+    LL_DEBUG("JOB_NEW job_id=%ld array_id=%ld array_index=%d depend=%s "
+             "flags=0x%x", e.job_id, e.array_id, e.array_index,
+             (e.depend_cond[0] != 0) ? e.depend_cond : "none",
+             e.flags);
+
+    if (job_is_service(job))
+        replay_service_job(job, &e);
+
     return rc;
 }
 
@@ -1037,6 +1079,11 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     ll_strlcpy(e.tokenpool, job->res.tokenpool_str, sizeof(e.tokenpool));
     ll_strlcpy(e.machines, job->res.machines_str, sizeof(e.machines));
     ll_strlcpy(e.depend_cond, job->depend_cond, sizeof(e.depend_cond));
+
+    if (job_is_service(job)) {
+        ll_strlcpy(e.service_name, job->svc_inst->svc->name,
+                   sizeof(e.service_name));
+    }
 
     if (log_write_job_new(fp, &e) < 0)
         mbd_die(MBD_EXIT_EVENTS);

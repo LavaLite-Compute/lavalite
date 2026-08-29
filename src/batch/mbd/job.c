@@ -1298,7 +1298,7 @@ send_ack:
     mbd_assert_counters();
 
     // Now we can safely remove the service instance
-    if (job->flags & JOB_FLAG_SERVICE) {
+    if (job_is_service(job)) {
         LL_INFO("job_id=%ld destroying service=%s uid=%d port=%d run_host=%s",
                 job->job_id, job->svc_inst->svc->name, job->svc_inst->uid,
                 job->svc_inst->port, job->svc_inst->run_host);

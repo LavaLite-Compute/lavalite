@@ -249,6 +249,5 @@ int main(int argc, char **argv)
 void mbd_die(enum mbd_exit e)
 {
     LL_INFO("exiting with reason: %s", mbd_exit_str(e));
-    // mbd_compact_shutdown();
     exit(-1);
 }
