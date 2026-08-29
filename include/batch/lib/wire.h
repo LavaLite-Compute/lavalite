@@ -331,18 +331,25 @@ struct wire_job_priority {
  * service info  (mbd -> client)
  * ----------------------------------------------------------------------- */
 
-struct wire_svc_info {
-    char name[LL_BUFSIZ_64];     /* service definition name */
-    uint32_t uid;
-    int32_t port;
-    char run_host[MAXHOSTNAMELEN]; /* empty = not running yet */
-    int64_t job_id;
-    int32_t state;                /* SVC_* from llbatch.h */
+struct wire_svc_info_array {
+    uint32_t nsvc;
+    struct wire_svc_info *svc;
 };
 
-struct wire_svc_info_array {
-    int32_t nsvc;
-    struct wire_svc_info *svc;
+struct wire_svc_info {
+    char name[LL_BUFSIZ_64];
+    char queue[LL_BUFSIZ_64];
+    uint32_t ninstances;
+    struct wire_svc_instance_info *instances;
+};
+
+struct wire_svc_instance_info {
+    char service[LL_BUFSIZ_64];
+    uint32_t uid;
+    int32_t port;
+    char run_host[MAXHOSTNAMELEN];
+    int64_t job_id;
+    int32_t state;
 };
 
 struct wire_svc_start {
@@ -441,8 +448,9 @@ bool_t xdr_wire_job_move(XDR *, struct wire_job_move *);
 bool_t xdr_wire_job_priority(XDR *, struct wire_job_priority *);
 
 /* service */
-bool_t xdr_wire_svc_info(XDR *, struct wire_svc_info *);
 bool_t xdr_wire_svc_info_array(XDR *, struct wire_svc_info_array *);
+bool_t xdr_wire_svc_info(XDR *, struct wire_svc_info *);
+bool_t xdr_wire_svc_instance_info(XDR *, struct wire_svc_instance_info *);
 bool_t xdr_wire_svc_start(XDR *, struct wire_svc_start *);
 bool_t xdr_wire_svc_delete(XDR *, struct wire_svc_delete *);
 

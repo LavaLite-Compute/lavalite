@@ -657,16 +657,21 @@ int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 
     size_t siz = sizeof(struct wire_svc_info) * n
         + sizeof(struct wire_svc_info_array)
-        + PACKET_HEADER_SIZE + LL_BUFSIZ_64;
+        + PACKET_HEADER_SIZE + LL_BUFSIZ_256;
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
                         xdr_wire_svc_info_array) < 0) {
         LL_ERR("enqueue_payload failed");
+        for (int i = 0; i < n; i++)
+            free(svc[i].instances);
         free(svc);
         return -1;
     }
 
+    for (int i = 0; i < n; i++)
+        free(svc[i].instances);
     free(svc);
+
     return 0;
 }
 

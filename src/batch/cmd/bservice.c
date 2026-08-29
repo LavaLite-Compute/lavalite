@@ -7,12 +7,18 @@
 #include <stdint.h>
 #include <string.h>
 #include <getopt.h>
+#include <pwd.h>
 #include <sys/param.h>
 
 #include "llbatch.h"
 
-struct col_widths {
-    int name; /* holds either a bare service name, or an indented "  UID" */
+struct svc_col_widths {
+    int name;
+    int queue;
+};
+
+struct inst_col_widths {
+    int user;
     int port;
     int job_id;
     int run_host;
@@ -28,6 +34,7 @@ static int ndigits(int64_t n)
 {
     if (n <= 0)
         return 1;
+
     int d = 0;
     while (n > 0) {
         d++;
@@ -36,87 +43,96 @@ static int ndigits(int64_t n)
     return d;
 }
 
-/*
- * Rows come pre-grouped from mbd (service_collect_info() walks
- * service_list, then each service_data's instances) -- a service with
- * no instances is a single SVC_NONE row, a service with instances is
- * N consecutive rows sharing the same name, never both. This file
- * only has to render that shape, not detect it.
- */
-static void compute_widths(struct svc_info *s, int32_t n, struct col_widths *w)
+static const char *uid_name(uid_t uid, char *buf, size_t bufsz)
+{
+    struct passwd *pw = getpwuid(uid);
+    if (pw != NULL)
+        return pw->pw_name;
+
+    snprintf(buf, bufsz, "%u", (unsigned int) uid);
+    return buf;
+}
+
+static void compute_service_widths(const struct svc_info *s, int32_t n,
+                                   struct svc_col_widths *w)
 {
     w->name = strlen("NAME");
+    w->queue = strlen("QUEUE");
+
+    for (int32_t i = 0; i < n; i++) {
+        w->name = imax(w->name, strlen(s[i].name));
+        w->queue = imax(w->queue, strlen(s[i].queue));
+    }
+}
+
+static void compute_instance_widths(const struct svc_info *s,
+                                    struct inst_col_widths *w)
+{
+    w->user = strlen("USER");
     w->port = strlen("PORT");
     w->job_id = strlen("JOB_ID");
     w->run_host = strlen("RUN_HOST");
     w->state = strlen("STATE");
 
-    for (int i = 0; i < n; i++) {
-        if (s[i].state == SVC_NONE) {
-            w->name = imax(w->name, strlen(s[i].name));
-            continue;
-        }
+    for (uint32_t i = 0; i < s->ninstances; i++) {
+        const struct svc_instance_info *inst = &s->instances[i];
+        char uidbuf[32];
+        const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
 
-        /* "  " + uid -- same indent used when printing below */
-        w->name = imax(w->name, 2 + ndigits((int64_t) s[i].uid));
-        w->port = imax(w->port, ndigits(s[i].port));
-        w->job_id = imax(w->job_id, ndigits(s[i].job_id));
+        w->user = imax(w->user, strlen(user));
+        w->port = imax(w->port, ndigits(inst->port));
+        w->job_id = imax(w->job_id, ndigits(inst->job_id));
         w->run_host = imax(w->run_host,
-                           strlen(s[i].run_host ? s[i].run_host : "-"));
-        w->state = imax(w->state, strlen(llb_svc_state_str(s[i].state)));
+                           strlen(inst->run_host ? inst->run_host : "-"));
+        w->state = imax(w->state, strlen(llb_svc_state_str(inst->state)));
     }
 }
 
-static void print_services(struct svc_info *s, int32_t n)
+static void print_services(const struct svc_info *s, int32_t n)
 {
-    struct col_widths w;
-    compute_widths(s, n, &w);
+    struct svc_col_widths sw;
+    compute_service_widths(s, n, &sw);
 
-    printf("%-*s  %*s  %*s  %-*s  %-*s\n",
-           w.name, "NAME", w.port, "PORT", w.job_id, "JOB_ID",
-           w.run_host, "RUN_HOST", w.state, "STATE");
+    printf("%-*s  %-*s\n", sw.name, "NAME", sw.queue, "QUEUE");
 
-    const char *last_name = NULL;
+    for (int32_t i = 0; i < n; i++) {
+        printf("%-*s  %-*s\n", sw.name, s[i].name, sw.queue, s[i].queue);
 
-    for (int i = 0; i < n; i++) {
-        if (last_name == NULL || strcmp(s[i].name, last_name) != 0) {
-            if (s[i].state == SVC_NONE) {
-                /* idle: no instance row will follow, so this line
-                 * carries the whole record -- fill the columns
-                 * instead of leaving them looking unfinished */
-                printf("%-*s  %*s  %*s  %-*s  %-*s\n",
-                       w.name, s[i].name, w.port, "-", w.job_id, "-",
-                       w.run_host, "-", w.state, "-");
-            } else {
-                printf("%s\n", s[i].name);
-            }
-            last_name = s[i].name;
+        if (s[i].ninstances == 0)
+            continue;
+
+        struct inst_col_widths iw;
+        compute_instance_widths(&s[i], &iw);
+
+        printf("  %-*s  %*s  %*s  %-*s  %-*s\n",
+               iw.user, "USER", iw.port, "PORT", iw.job_id, "JOB_ID",
+               iw.run_host, "RUN_HOST", iw.state, "STATE");
+
+        for (uint32_t j = 0; j < s[i].ninstances; j++) {
+            const struct svc_instance_info *inst = &s[i].instances[j];
+            char uidbuf[32];
+            const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
+
+            printf("  %-*s  %*d  %*ld  %-*s  %-*s\n",
+                   iw.user, user,
+                   iw.port, inst->port,
+                   iw.job_id, (long) inst->job_id,
+                   iw.run_host, inst->run_host ? inst->run_host : "-",
+                   iw.state, llb_svc_state_str(inst->state));
         }
-
-        if (s[i].state == SVC_NONE)
-            continue; /* def-only row: the name line above is the whole row */
-
-        char uid_col[16];
-        snprintf(uid_col, sizeof(uid_col), "  %u", s[i].uid);
-
-        printf("%-*s  %*d  %*ld  %-*s  %-*s\n",
-               w.name, uid_col, w.port, s[i].port,
-               w.job_id, (long) s[i].job_id,
-               w.run_host, s[i].run_host ? s[i].run_host : "-",
-               w.state, llb_svc_state_str(s[i].state));
     }
 }
 
-static int parse_service_url(const char *url, char *host, size_t hostsz,
-                             int *port)
+static int parse_service_endpoint(const char *s, char *host, size_t hostsz,
+                                  int *port)
 {
+    const char *p = s;
     const char *prefix = "http://";
     size_t prefix_len = strlen(prefix);
 
-    if (strncmp(url, prefix, prefix_len) != 0)
-        return -1;
+    if (strncmp(p, prefix, prefix_len) == 0)
+        p += prefix_len;
 
-    const char *p = url + prefix_len;
     const char *colon = strchr(p, ':');
     if (colon == NULL || colon == p)
         return -1;
@@ -126,11 +142,11 @@ static int parse_service_url(const char *url, char *host, size_t hostsz,
         return -1;
 
     memcpy(host, p, hostlen);
-    host[hostlen] = 0;
+    host[hostlen] = '\0';
 
     char *end;
     long n = strtol(colon + 1, &end, 10);
-    if (*end != 0 || n < 1 || n > 65535)
+    if (*end != '\0' || n < 1 || n > 65535)
         return -1;
 
     *port = (int) n;
@@ -156,56 +172,61 @@ static struct option longopts[] = {
 
 int main(int argc, char **argv)
 {
+    const char *delete_url = NULL;
+    int list_fmt = 0;
 
-   const char *delete_url = NULL;
-   int list_fmt = 0;
+    int cc;
+    while ((cc = getopt_long(argc, argv, "hvld:", longopts, NULL)) != EOF) {
+        switch (cc) {
+        case 'd':
+            delete_url = optarg;
+            break;
+        case 'l':
+            list_fmt = 1;
+            break;
+        case 'v':
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
+        case 'h':
+        default:
+            usage();
+            return 0;
+        }
+    }
 
-   int cc;
-   while ((cc = getopt_long(argc, argv, "hvld:", longopts, NULL)) != EOF) {
-       switch (cc) {
-       case 'd':
-           delete_url = optarg;
-           break;
-       case 'l':
-           list_fmt = 1;
-           break;
-       case 'v':
-           fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-           return 0;
-       case 'h':
-       default:
-           usage();
-           return 0;
-       }
-   }
+    if (delete_url != NULL) {
+        char host[MAXHOSTNAMELEN];
+        int port;
 
-   if (delete_url != NULL) {
-       char host[MAXHOSTNAMELEN];
-       int port;
+        if (parse_service_endpoint(delete_url, host, sizeof(host), &port) < 0) {
+            fprintf(stderr, "bservice: invalid service URL: %s\n", delete_url);
+            return -1;
+        }
 
-       if (parse_service_url(delete_url, host, sizeof(host), &port) < 0) {
-           fprintf(stderr, "bservice: invalid service URL: %s\n", delete_url);
-           return -1;
-       }
+        int rc = llb_service_delete(host, port);
+        if (rc != 0)
+            fprintf(stderr, "bservice: %s: %m\n", delete_url);
+        else
+            printf("service %s deleted\n", delete_url);
 
-       int rc = llb_service_delete(host, port);
-       if (rc != 0)
-           fprintf(stderr, "bservice: %s: %m\n", delete_url);
-       else
-           printf("service %s deleted\n", delete_url);
+        return rc;
+    }
 
-       return rc;
-   }
+    if (list_fmt) {
+        int32_t nsvc = 0;
+        struct svc_info *s = llb_service_info(&nsvc);
 
-   if (list_fmt) {
-        int32_t n;
-        struct svc_info *s = llb_service_info(&n);
-        if (!s) {
+        if (s == NULL) {
+            if (nsvc == 0) {
+                printf("No services: %m\n");
+                return 0;
+            }
             fprintf(stderr, "bservice: failed\n");
             return -1;
         }
-        print_services(s, n);
-        llb_free_service_info(s, n);
+
+        print_services(s, nsvc);
+        llb_free_service_info(s, nsvc);
         return 0;
     }
 
@@ -215,7 +236,8 @@ int main(int argc, char **argv)
     }
 
     const char *name = argv[optind];
-    struct svc_info out;
+    struct svc_instance_info out;
+    memset(&out, 0, sizeof(out));
 
     /* blocks until the backing job reaches RUNNING -- see
      * llb_service_start()/call_mbd_timeout()
@@ -227,5 +249,9 @@ int main(int argc, char **argv)
     }
 
     printf("http://%s:%d\n", out.run_host, out.port);
+
+    free(out.service);
+    free(out.run_host);
+
     return 0;
 }

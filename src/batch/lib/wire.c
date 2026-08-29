@@ -488,6 +488,22 @@ bool_t xdr_wire_svc_info(XDR *xdrs, struct wire_svc_info *p)
 {
     if (!xdr_opaque(xdrs, p->name, sizeof(p->name)))
         return false;
+    if (!xdr_opaque(xdrs, p->queue, sizeof(p->queue)))
+        return false;
+
+    return xdr_array(xdrs,
+                     (char **)&p->instances,
+                     &p->ninstances,
+                     UINT32_MAX,
+                     sizeof(struct wire_svc_instance_info),
+                     (xdrproc_t)xdr_wire_svc_instance_info);
+}
+
+bool_t xdr_wire_svc_instance_info(XDR *xdrs,
+                                  struct wire_svc_instance_info *p)
+{
+    if (!xdr_opaque(xdrs, p->service, sizeof(p->service)))
+        return false;
     if (!xdr_uint32_t(xdrs, &p->uid))
         return false;
     if (!xdr_int32_t(xdrs, &p->port))
@@ -498,13 +514,18 @@ bool_t xdr_wire_svc_info(XDR *xdrs, struct wire_svc_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->state))
         return false;
+
     return true;
 }
 
 bool_t xdr_wire_svc_info_array(XDR *xdrs, struct wire_svc_info_array *p)
 {
-    if (!xdr_array(xdrs, (char **) &p->svc, (u_int *) &p->nsvc, INT32_MAX,
-                   sizeof(struct wire_svc_info), (xdrproc_t) xdr_wire_svc_info))
+    if (!xdr_array(xdrs,
+                   (char **) &p->svc,
+                   (u_int *) &p->nsvc,
+                   UINT32_MAX,
+                   sizeof(struct wire_svc_info),
+                   (xdrproc_t) xdr_wire_svc_info))
         return false;
     return true;
 }

@@ -802,7 +802,171 @@ int32_t llb_priority_job(int64_t job_id, int32_t priority)
     return 0;
 }
 
-int32_t llb_service_start(const char *name, struct svc_info *out)
+
+struct svc_info *llb_service_info(int32_t *nsvc)
+{
+    char buf[LL_BUFSIZ_256];
+    XDR xdrs;
+
+    if (nsvc == NULL) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    *nsvc = 0;
+
+    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
+
+    struct protocol_header hdr;
+    init_protocol_header(&hdr);
+    hdr.operation = BATCH_SERVICE_INFO;
+
+    if (auth_sign_header(&hdr) < 0) {
+        xdr_destroy(&xdrs);
+        return NULL;
+    }
+
+    if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
+        xdr_destroy(&xdrs);
+        errno = EPROTO;
+        return NULL;
+    }
+
+    size_t len = xdr_getpos(&xdrs);
+    xdr_destroy(&xdrs);
+
+    void *rep = NULL;
+    struct protocol_header rhdr;
+
+    if (call_mbd(buf, len, &rep, &rhdr) < 0)
+        return NULL;
+
+    if (rhdr.status != MBD_OK) {
+        errno = rhdr.status;
+        free(rep);
+        return NULL;
+    }
+
+    xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
+
+    struct wire_svc_info_array w;
+    memset(&w, 0, sizeof(w));
+
+    if (!xdr_wire_svc_info_array(&xdrs, &w)) {
+        xdr_destroy(&xdrs);
+        free(rep);
+        errno = EPROTO;
+        return NULL;
+    }
+
+    xdr_destroy(&xdrs);
+    free(rep);
+
+    if (w.nsvc == 0) {
+        xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
+        *nsvc = 0;
+        return NULL;
+    }
+
+    struct svc_info *out = calloc(w.nsvc, sizeof(*out));
+    if (out == NULL) {
+        xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
+        errno = ENOMEM;
+        return NULL;
+    }
+
+    for (uint32_t i = 0; i < w.nsvc; i++) {
+        struct wire_svc_info *src = &w.svc[i];
+        struct svc_info *dst = &out[i];
+
+        dst->name = strdup(src->name);
+        dst->queue = strdup(src->queue);
+
+        if (dst->name == NULL || dst->queue == NULL)
+            goto fail;
+
+        dst->ninstances = src->ninstances;
+
+        if (src->ninstances == 0)
+            continue;
+
+        dst->instances =
+            calloc(src->ninstances, sizeof(*dst->instances));
+        if (dst->instances == NULL)
+            goto fail;
+
+        for (uint32_t j = 0; j < src->ninstances; j++) {
+            struct wire_svc_instance_info *si = &src->instances[j];
+            struct svc_instance_info *di = &dst->instances[j];
+
+            di->service = strdup(si->service);
+            if (di->service == NULL)
+                goto fail;
+
+            di->uid = (uid_t) si->uid;
+            di->port = si->port;
+
+            if (si->run_host[0] != '\0') {
+                di->run_host = strdup(si->run_host);
+                if (di->run_host == NULL)
+                    goto fail;
+            }
+
+            di->job_id = si->job_id;
+            di->state = si->state;
+        }
+    }
+
+    *nsvc = (int32_t) w.nsvc;
+
+    xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
+
+    return out;
+
+fail:
+    for (uint32_t i = 0; i < w.nsvc; i++) {
+        free(out[i].name);
+        free(out[i].queue);
+
+        if (out[i].instances != NULL) {
+            for (uint32_t j = 0; j < out[i].ninstances; j++) {
+                free(out[i].instances[j].service);
+                free(out[i].instances[j].run_host);
+            }
+
+            free(out[i].instances);
+        }
+    }
+
+    free(out);
+
+    xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
+
+    errno = ENOMEM;
+    return NULL;
+}
+
+void llb_free_service_info(struct svc_info *s, int32_t n)
+{
+    if (s == NULL)
+        return;
+
+    for (int32_t i = 0; i < n; i++) {
+        free(s[i].name);
+        free(s[i].queue);
+
+        for (uint32_t j = 0; j < s[i].ninstances; j++) {
+            free(s[i].instances[j].service);
+            free(s[i].instances[j].run_host);
+        }
+
+        free(s[i].instances);
+    }
+
+    free(s);
+}
+
+int32_t llb_service_start(const char *name, struct svc_instance_info *out)
 {
     size_t bufsz =
         PACKET_HEADER_SIZE + sizeof(struct wire_svc_start) + LL_BUFSIZ_64;
@@ -814,15 +978,18 @@ int32_t llb_service_start(const char *name, struct svc_info *out)
     memset(&req, 0, sizeof(req));
     ll_strlcpy(req.name, name, sizeof(req.name));
 
-    /* submission context, local and cheap here (a client process
+    /*
+     * Submission context, local and cheap here (a client process
      * calling getpwuid() once), same convention as bsub's submit.c --
-     * mbd never resolves uid to a name/home_dir itself. */
+     * mbd never resolves uid to a name/home_dir itself.
+     */
     struct passwd *pw = getpwuid(getuid());
     if (pw == NULL) {
         free(buf);
         errno = EINVAL;
         return -1;
     }
+
     ll_strlcpy(req.username, pw->pw_name, sizeof(req.username));
     ll_strlcpy(req.home_dir, pw->pw_dir, sizeof(req.home_dir));
 
@@ -838,21 +1005,25 @@ int32_t llb_service_start(const char *name, struct svc_info *out)
 
     XDR xdrs;
     xdrmem_create(&xdrs, buf, (uint32_t) bufsz, XDR_ENCODE);
+
     if (!ll_encode_msg(&xdrs, (char *) &req, xdr_wire_svc_start, &hdr)) {
         xdr_destroy(&xdrs);
         free(buf);
         errno = EPROTO;
         return -1;
     }
+
     size_t len = xdr_getpos(&xdrs);
     xdr_destroy(&xdrs);
 
     void *rep = NULL;
     struct protocol_header rhdr;
+
     if (call_mbd(buf, len, &rep, &rhdr) < 0) {
         free(buf);
         return -1;
     }
+
     free(buf);
 
     if (rhdr.status != MBD_OK) {
@@ -863,10 +1034,10 @@ int32_t llb_service_start(const char *name, struct svc_info *out)
 
     xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
 
-    struct wire_svc_info w;
+    struct wire_svc_instance_info w;
     memset(&w, 0, sizeof(w));
 
-    if (!xdr_wire_svc_info(&xdrs, &w)) {
+    if (!xdr_wire_svc_instance_info(&xdrs, &w)) {
         xdr_destroy(&xdrs);
         free(rep);
         errno = EPROTO;
@@ -876,96 +1047,31 @@ int32_t llb_service_start(const char *name, struct svc_info *out)
     xdr_destroy(&xdrs);
     free(rep);
 
-    out->name = strdup(w.name);
-    out->uid = w.uid;
+    memset(out, 0, sizeof(*out));
+
+    out->service = strdup(w.service);
+    if (out->service == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    out->uid = (uid_t) w.uid;
     out->port = w.port;
-    out->run_host = strdup(w.run_host);
+
+    if (w.run_host[0] != '\0') {
+        out->run_host = strdup(w.run_host);
+        if (out->run_host == NULL) {
+            free(out->service);
+            out->service = NULL;
+            errno = ENOMEM;
+            return -1;
+        }
+    }
+
     out->job_id = w.job_id;
     out->state = w.state;
 
-    xdr_free((xdrproc_t) xdr_wire_svc_info, (char *) &w);
-
     return 0;
-}
-
-struct svc_info *llb_service_info(int32_t *nsvc)
-{
-    char buf[LL_BUFSIZ_256];
-    XDR xdrs;
-
-    xdrmem_create(&xdrs, buf, sizeof(buf), XDR_ENCODE);
-
-    struct protocol_header hdr;
-    init_protocol_header(&hdr);
-    hdr.operation = BATCH_SERVICE_INFO;
-
-    if (auth_sign_header(&hdr) < 0) {
-        xdr_destroy(&xdrs);
-        return NULL;
-    }
-    if (!ll_encode_msg(&xdrs, NULL, NULL, &hdr)) {
-        xdr_destroy(&xdrs);
-        return NULL;
-    }
-
-    size_t len = xdr_getpos(&xdrs);
-    xdr_destroy(&xdrs);
-
-    void *rep = NULL;
-    struct protocol_header rhdr;
-
-    if (call_mbd(buf, len, &rep, &rhdr) < 0)
-        return NULL;
-
-    if (rhdr.status != MBD_OK) {
-        return NULL;
-    }
-
-    xdrmem_create(&xdrs, rep, rhdr.length, XDR_DECODE);
-
-    struct wire_svc_info_array w;
-    memset(&w, 0, sizeof(w));
-
-    if (!xdr_wire_svc_info_array(&xdrs, &w)) {
-        xdr_destroy(&xdrs);
-        free(rep);
-        return NULL;
-    }
-
-    xdr_destroy(&xdrs);
-    free(rep);
-
-    struct svc_info *out;
-    out = calloc(w.nsvc, sizeof(*out));
-    if (!out) {
-        xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
-        return NULL;
-    }
-
-    for (int i = 0; i < w.nsvc; i++) {
-        struct wire_svc_info *src = &w.svc[i];
-        struct svc_info *dst = &out[i];
-
-        dst->name = strdup(src->name);
-        dst->uid = src->uid;
-        dst->port = src->port;
-        dst->run_host = src->run_host[0] ? strdup(src->run_host) : NULL;
-        dst->job_id = src->job_id;
-        dst->state = src->state;
-    }
-
-    *nsvc = w.nsvc;
-    xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
-    return out;
-}
-
-void llb_free_service_info(struct svc_info *s, int32_t n)
-{
-    for (int i = 0; i < n; i++) {
-        free(s[i].name);
-        free(s[i].run_host);
-    }
-    free(s);
 }
 
 int32_t llb_service_delete(const char *host, int32_t port)

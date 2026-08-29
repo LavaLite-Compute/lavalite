@@ -210,12 +210,19 @@ enum svc_state {
 };
 
 struct svc_info {
-    char *name;     /* service definition name (llb.services SERVICE_NAME) */
+    char *name;
+    char *queue;
+    uint32_t ninstances;
+    struct svc_instance_info *instances;
+};
+
+struct svc_instance_info {
+    char *service;     /* service definition name (llb.services SERVICE_NAME) */
     uid_t uid;
     int32_t port;   /* external port */
     char *run_host; /* backing job's execution host, NULL if not running yet */
     int64_t job_id; /* backing job id */
-    int32_t state;  /* SVC_* */
+    int32_t state;
 };
 
 /* llb_hist_info flags
@@ -319,7 +326,7 @@ struct token_pool_info *llb_token_info(int32_t *);
 void llb_free_token_info(struct token_pool_info *, int32_t);
 
 // bservice
-int32_t llb_service_start(const char *, struct svc_info *);
+int32_t llb_service_start(const char *, struct svc_instance_info *);
 struct svc_info *llb_service_info(int32_t *);
 void llb_free_service_info(struct svc_info *, int32_t);
 int32_t llb_service_delete(const char *, int32_t);

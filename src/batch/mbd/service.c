@@ -57,7 +57,7 @@ static struct service_data *svc_find_by_name(const char *name)
 static int svc_proxy_send_add(struct service_instance *inst)
 {
     if (service_proxy_chan_id < 0) {
-        LL_ERRX("svc_proxy_send_add: service_proxy not connected uid=%ld proxy_port=%d",
+        LL_ERRX("service_proxy not connected uid=%ld proxy_port=%d",
                 (long) inst->uid, inst->port);
         return -1;
     }
@@ -74,7 +74,7 @@ static int svc_proxy_send_add(struct service_instance *inst)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("svc_proxy_send_add: auth_sign_header failed uid=%ld proxy_port=%d",
+        LL_ERR("auth_sign_header failed uid=%ld proxy_port=%d",
                (long) inst->uid, inst->port);
         return -1;
     }
@@ -84,7 +84,7 @@ static int svc_proxy_send_add(struct service_instance *inst)
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_add) < 0) {
-        LL_ERR("svc_proxy_send_add: enqueue_payload failed uid=%ld proxy_port=%d",
+        LL_ERR("enqueue_payload failed uid=%ld proxy_port=%d",
                (long) inst->uid, inst->port);
         return -1;
     }
@@ -173,6 +173,12 @@ static struct service_instance *svc_find_instance(uid_t uid, int port)
 int service_start_instance(const struct protocol_header *hdr, int chan_id,
                            const struct wire_svc_start *ws)
 {
+    if (service_proxy_chan_id < 0) {
+        LL_ERRX("service_proxy not connected uid=%u requested proxy=%s",
+                hdr->uid, ws->name);
+        return ENOTCONN;
+    }
+
     struct service_data *svc = svc_find_by_name(ws->name);
     if (svc == NULL) {
         LL_ERRX("service_start_instance: service=%s asked by uid=%u not found",
@@ -337,72 +343,30 @@ static int32_t svc_inst_state_to_wire(int state)
     }
 }
 
-/*
- * One instance -> one wire_svc_info row. Same shape as
- * svc_job_running()'s own info-fill block above, just generalized to
- * any instance/state instead of always RUNNING.
- */
 static void svc_inst_to_wire(const struct service_instance *inst,
-                             struct wire_svc_info *w)
+                             struct wire_svc_instance_info *w)
 {
     memset(w, 0, sizeof(*w));
-    ll_strlcpy(w->name, inst->svc->name, sizeof(w->name));
+
+    ll_strlcpy(w->service, inst->svc->name, sizeof(w->service));
     w->uid = inst->uid;
     w->port = inst->port;
-    ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
     w->job_id = inst->job_id;
     w->state = svc_inst_state_to_wire(inst->state);
+
+    if (inst->run_host[0] != 0)
+        ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
 }
 
-/*
- * One configured-but-idle service_data -> one wire_svc_info row.
- * Same reasoning as bqueues showing an empty queue: a service defined
- * in llb.services is visible whether or not anyone has started it.
- * run_host/port/job_id all stay zeroed -- "-" for run_host is
- * bservice.c's own display convention for an empty field (see
- * print_services()'s `s[i].run_host ? ... : "-"`), not something mbd
- * encodes. state stays at the memset zero -- SVC_NONE is 0 in
- * llbatch.h precisely so this needs no explicit assignment.
- */
-static void svc_def_to_wire(const struct service_data *svc,
-                            struct wire_svc_info *w)
-{
-    memset(w, 0, sizeof(*w));
-    ll_strlcpy(w->name, svc->name, sizeof(w->name));
-}
-
-/*
- * Two-layer walk of service_list, same shape bqueues uses for queues:
- * a service with no live instances gets one definition row
- * (svc_def_to_wire); a service with instances gets one row per
- * instance instead (svc_inst_to_wire), never both. uid/all filtering
- * only applies to instance rows -- a configured-but-idle service is
- * ownership-neutral, same as an empty queue in bqueues.
- *
- * Two-pass shape (count, then calloc, then fill) matches
- * jobs_info_list()'s collect_list() in dispatch.c.
- */
 int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
 {
     *out = NULL;
-    int ntotal = 0;
 
-    for (struct ll_list_entry *se = service_list.head; se != NULL;
-         se = se->next) {
-        struct service_data *svc = (struct service_data *) se;
-        int ninst = ll_list_count(&svc->instances);
-
-        if (ninst == 0)
-            ntotal++;
-        else
-            ntotal += ninst;
-    }
-
-    // no services are configured
-    if (ntotal == 0)
+    int nsvc = ll_list_count(&service_list);
+    if (nsvc == 0)
         return 0;
 
-    struct wire_svc_info *dst = calloc(ntotal, sizeof(*dst));
+    struct wire_svc_info *dst = calloc(nsvc, sizeof(*dst));
     if (dst == NULL) {
         LL_ERR("calloc failed");
         errno = ENOMEM;
@@ -410,15 +374,16 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
     }
 
     int n = 0;
+
     for (struct ll_list_entry *se = service_list.head; se != NULL;
          se = se->next) {
         struct service_data *svc = (struct service_data *) se;
+        struct wire_svc_info *wsvc = &dst[n];
 
-        if (svc->instances.head == NULL) {
-            svc_def_to_wire(svc, &dst[n]);
-            n++;
-            continue;
-        }
+        ll_strlcpy(wsvc->name, svc->name, sizeof(wsvc->name));
+        ll_strlcpy(wsvc->queue, svc->queue, sizeof(wsvc->queue));
+
+        uint32_t ninstances = 0;
 
         for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
              ie = ie->next) {
@@ -427,13 +392,46 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
             if (!all && inst->uid != uid)
                 continue;
 
-            svc_inst_to_wire(inst, &dst[n]);
-            n++;
+            ninstances++;
         }
+
+        wsvc->ninstances = ninstances;
+        if (wsvc->ninstances == 0) {
+            ++n;
+            continue;
+        }
+
+        wsvc->instances =  calloc(ninstances, sizeof(*wsvc->instances));
+        if (wsvc->instances == NULL) {
+            LL_ERR("calloc failed");
+            errno = ENOMEM;
+            goto fail;
+        }
+
+        uint32_t j = 0;
+        for (struct ll_list_entry *ie = svc->instances.head;
+             ie != NULL;
+             ie = ie->next) {
+            struct service_instance *inst = (struct service_instance *) ie;
+
+            if (!all && inst->uid != uid)
+                continue;
+
+            svc_inst_to_wire(inst, &wsvc->instances[j]);
+            j++;
+        }
+        n++;
     }
 
     *out = dst;
-    return n;
+    return nsvc;
+
+fail:
+    for (int i = 0; i < nsvc; i++)
+        free(dst[i].instances);
+
+    free(dst);
+    return -1;
 }
 
 /*
@@ -565,15 +563,6 @@ void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
     LL_DEBUG("job_id=%ld ok", ack.job_id);
 }
 
-/*
- * RUNNING-transition callback, called from job.c's mbd_new_job_reply()
- * the moment a service job's fork is acked by sbd. This is the last
- * step of the whole bservice flow: tell proxy which host the backing
- * job landed on (redispatch across a restart can change this), then
- * finally reply to the client that's been blocked in
- * call_mbd_timeout() since service_start_instance() -- carrying the
- * real wire_svc_info llb_service_start() already expects to decode.
- */
 void svc_job_running(struct job_data *job, struct mbd_host *host)
 {
     struct service_instance *inst = job->svc_inst;
@@ -581,20 +570,15 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
     ll_strlcpy(inst->run_host, host->net.name, sizeof(inst->run_host));
     inst->state = SVC_INST_RUNNING;
 
-    /* mbd doesn't block this RUNNING-transition reply on the UPDATE
+    /*
+     * mbd doesn't block this RUNNING-transition reply on the UPDATE
      * ack -- svc_proxy_update_ack() logs the result asynchronously,
      * same request/ack shape as everything else on this channel.
      */
     svc_proxy_send_update(inst);
 
-    struct wire_svc_info info;
-    memset(&info, 0, sizeof(info));
-    ll_strlcpy(info.name, inst->svc->name, sizeof(info.name));
-    info.uid = inst->uid;
-    info.port = inst->port;
-    ll_strlcpy(info.run_host, inst->run_host, sizeof(info.run_host));
-    info.job_id = job->job_id;
-    info.state = SVC_RUNNING;
+    struct wire_svc_instance_info info;
+    svc_inst_to_wire(inst, &info);
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
@@ -607,19 +591,21 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
         return;
     }
 
-    size_t siz = sizeof(struct protocol_header) + sizeof(struct wire_svc_info)
-                 + LL_BUFSIZ_64;
+    size_t siz =
+        sizeof(struct protocol_header)
+        + sizeof(struct wire_svc_instance_info)
+        + LL_BUFSIZ_64;
 
     if (enqueue_payload(inst->chan_id, &rep_hdr, &info, siz,
-                        xdr_wire_svc_info) < 0) {
+                        xdr_wire_svc_instance_info) < 0) {
         LL_ERR("svc_job_running: enqueue_payload failed uid=%ld proxy_port=%d",
                (long) inst->uid, inst->port);
         return;
     }
 
     LL_INFO("svc_job_running: job_id=%ld uid=%ld proxy_port=%d run_host=%s "
-           "RUNNING, client acked", job->job_id, (long) inst->uid,
-           inst->port, inst->run_host);
+            "RUNNING, client acked",
+            job->job_id, (long) inst->uid, inst->port, inst->run_host);
 }
 
 int service_delete_instance(uid_t uid, const char *host, int port)
@@ -629,7 +615,7 @@ int service_delete_instance(uid_t uid, const char *host, int port)
     struct service_instance *inst = svc_find_instance(uid, port);
     if (inst == NULL) {
         LL_ERRX("cannot find instance for uid=%u port=%d host=%s", uid, port, host);
-        return -1;
+        return ESRCH;
     }
     assert(strcmp(inst->run_host, host) == 0);
 
@@ -637,7 +623,7 @@ int service_delete_instance(uid_t uid, const char *host, int port)
     if (job == NULL) {
         LL_ERRX("cannot find job_id=%ld for service=%s uid=%u port=%d",
                 inst->job_id, inst->svc->name, uid, port);
-        return -1;
+        return ESRCH;
     }
 
     assert(job->flags & JOB_FLAG_SERVICE);
