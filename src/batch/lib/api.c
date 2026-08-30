@@ -913,7 +913,6 @@ struct svc_info *llb_service_info(int32_t *nsvc)
             }
 
             di->job_id = si->job_id;
-            di->state = si->state;
         }
     }
 
@@ -1069,7 +1068,6 @@ int32_t llb_service_start(const char *name, struct svc_instance_info *out)
     }
 
     out->job_id = w.job_id;
-    out->state = w.state;
 
     return 0;
 }

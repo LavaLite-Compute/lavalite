@@ -519,7 +519,7 @@ static void hist_apply_start(struct job_hist *jh, const struct event_rec *rec)
     ev->type = EVENT_JOB_START;
     ev->event_time = rec->event_time;
     ev->state = JOB_RUNNING;
-    ev->run_hosts = hist_strdup(e.hosts);
+    ev->run_hosts = hist_strdup(e.run_hosts);
     ev->gpu_assigned = hist_strdup(e.gpu_assigned);
 }
 

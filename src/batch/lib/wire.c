@@ -512,8 +512,6 @@ bool_t xdr_wire_svc_instance_info(XDR *xdrs,
         return false;
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
-    if (!xdr_int32_t(xdrs, &p->state))
-        return false;
 
     return true;
 }

@@ -144,7 +144,6 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->project_name) < 0)
         return -1;
-    // gpu type and hosts are part of the requested resources
     if (write_qstr(fp, j->gpu_model) < 0)
         return -1;
     if (write_qstr(fp, j->machines) < 0)
@@ -218,7 +217,9 @@ int log_write_job_start(FILE *fp, const struct log_job_start *j)
         return -1;
     if (write_qstr(fp, j->gpu_assigned) < 0)
         return -1;
-    if (write_qstr(fp, j->hosts) < 0)
+    if (write_qstr(fp, j->run_hosts) < 0)
+        return -1;
+    if (fprintf(fp, " %d", j->service_port) <  0)
         return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
@@ -241,9 +242,14 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
         return -1;
     if (read_qstr(&p, j->gpu_assigned, sizeof(j->gpu_assigned)) < 0)
         return -1;
-    if (read_qstr(&p, j->hosts, sizeof(j->hosts)) < 0)
+    if (read_qstr(&p, j->run_hosts, sizeof(j->run_hosts)) < 0)
         return -1;
 
+    n = sscanf(p, "%d", &j->service_port);
+    if (n != 1) {
+        errno = EINVAL;
+        return -1;
+    }
     j->dispatch_time = rec->event_time;
 
     return 0;

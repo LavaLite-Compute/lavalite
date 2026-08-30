@@ -57,8 +57,8 @@ struct service_data *svc_find_by_name(const char *name)
 static int svc_proxy_send_add(struct service_instance *inst)
 {
     if (service_proxy_chan_id < 0) {
-        LL_ERRX("service_proxy not connected uid=%ld proxy_port=%d",
-                (long) inst->uid, inst->port);
+        LL_ERRX("service_proxy not connected uid=%u proxy_port=%d",
+                inst->uid, inst->port);
         return -1;
     }
 
@@ -74,8 +74,8 @@ static int svc_proxy_send_add(struct service_instance *inst)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("auth_sign_header failed uid=%ld proxy_port=%d",
-               (long) inst->uid, inst->port);
+        LL_ERR("auth_sign_header failed uid=%u proxy_port=%d",
+               inst->uid, inst->port);
         return -1;
     }
 
@@ -84,13 +84,13 @@ static int svc_proxy_send_add(struct service_instance *inst)
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_add) < 0) {
-        LL_ERR("enqueue_payload failed uid=%ld proxy_port=%d",
-               (long) inst->uid, inst->port);
+        LL_ERR("enqueue_payload failed uid=%u proxy_port=%d",
+               inst->uid, inst->port);
         return -1;
     }
 
-    LL_DEBUG("service: uid=%ld proxy_port=%d ADD sent to proxy chan=%d",
-             (long) inst->uid, inst->port, service_proxy_chan_id);
+    LL_DEBUG("service: uid=%u proxy_port=%d ADD sent to proxy chan=%d",
+             inst->uid, inst->port, service_proxy_chan_id);
 
     return 0;
 }
@@ -99,22 +99,23 @@ static int service_build_script(const struct service_instance *inst,
                                 char *buf, size_t bufsiz)
 {
     int n = snprintf(buf, bufsiz,
-        "#!/bin/sh\n"
-        "# LavaLite: environment\n"
-        "HOME='%s'; export HOME\n"
-        "USER='%s'; export USER\n"
-        "PATH='/usr/bin:/bin'; export PATH\n"
-        "# LavaLite: end environment\n"
-        "# LavaLite: user command\n"
-        "%s\n"
-        "ExitStat=$?\n"
-        "echo \"$ExitStat $(date +%%s)\" > \"$LL_JOBDIR/exit\"\n"
-        "exit $ExitStat\n",
-        inst->pend_ws.home_dir, inst->pend_ws.username, inst->pend_cmd);
+                     "#!/bin/sh\n"
+                     "# LavaLite: environment\n"
+                     "HOME='%s'; export HOME\n"
+                     "USER='%s'; export USER\n"
+                     "PATH='/usr/bin:/bin'; export PATH\n"
+                     "# LavaLite: end environment\n"
+                     "# LavaLite: user command\n"
+                     "%s\n"
+                     "ExitStat=$?\n"
+                     "echo \"$ExitStat $(date +%%s)\" > \"$LL_JOBDIR/exit\"\n"
+                     "exit $ExitStat\n",
+                     inst->pend_ws.home_dir,
+                     inst->pend_ws.username,
+                     inst->pend_ws.command);
 
     if (n < 0 || (size_t) n >= bufsiz) {
-        LL_ERRX("service_build_script: script truncated uid=%ld proxy_port=%d",
-               (long) inst->uid, inst->port);
+        LL_ERRX("script truncated uid=%u proxy_port=%d", inst->uid, inst->port);
         return -1;
     }
 
@@ -194,22 +195,23 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
 
     inst->svc = svc;
     inst->chan_id = chan_id;
-    inst->state = SVC_INST_STARTING;
     inst->uid = hdr->uid;
 
-    int n = snprintf(inst->pend_cmd, sizeof(inst->pend_cmd),
+    // Build the synthetic wire_job_submit structure
+    memset(&inst->pend_ws, 0, sizeof(inst->pend_ws));
+    int n = snprintf(inst->pend_ws.command, sizeof(inst->pend_ws.command),
                      "%s exec --bind %s:%s %s %s",
-                     svc->runtime, ws->home_dir, ws->home_dir,
-                     svc->image, svc->command);
-    if (n < 0 || n >= (int) sizeof(inst->pend_cmd)) {
-        LL_ERRX("service_start_instance: command too long service=%s",
-               ws->name);
+                     svc->runtime,
+                     ws->home_dir,
+                     ws->home_dir,
+                     svc->image,
+                     svc->command);
+    if (n < 0 || n >= (int) sizeof(inst->pend_ws.command)) {
+        LL_ERRX("command too long service=%s", ws->name);
         free(inst);
         return EINVAL;
     }
 
-    // Build the synthetic wire_job_submit structure
-    memset(&inst->pend_ws, 0, sizeof(inst->pend_ws));
     inst->pend_ws.flags |= JOB_FLAG_SERVICE | JOB_FLAG_HOLD;
 
     ll_strlcpy(inst->pend_ws.name, svc->name, sizeof(inst->pend_ws.name));
@@ -218,9 +220,6 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
               sizeof(inst->pend_ws.username));
     ll_strlcpy(inst->pend_ws.home_dir, ws->home_dir,
               sizeof(inst->pend_ws.home_dir));
-    ll_strlcpy(inst->pend_ws.cwd, ws->home_dir, sizeof(inst->pend_ws.cwd));
-    ll_strlcpy(inst->pend_ws.command, inst->pend_cmd,
-              sizeof(inst->pend_ws.command));
     inst->pend_ws.num_cpus = SVC_DEFAULT_NUM_CPUS;
     inst->pend_ws.num_hosts = SVC_DEFAULT_NUM_HOSTS;
     inst->pend_ws.mem_mb = SVC_DEFAULT_MEM_MB;
@@ -241,8 +240,8 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     }
     inst->job_id = job->job_id;
 
-    LL_DEBUG("service: job_id=%ld uid=%ld proxy_port=%d cmd=[%s]",
-             inst->job_id, (long) inst->uid, inst->port, inst->pend_cmd);
+    LL_DEBUG("service: job_id=%ld uid=%u proxy_port=%d cmd=[%s]",
+             inst->job_id, inst->uid, inst->port, inst->pend_ws.command);
 
     ll_list_append(&svc->instances, &inst->ent);
 
@@ -264,8 +263,8 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
         return ENOTCONN;
     }
 
-    LL_INFO("service_start_instance: service=%s uid=%ld proxy_port=%d: ADD sent, "
-           "awaiting port from proxy", ws->name, (long) inst->uid, inst->port);
+    LL_INFO("service_start_instance: service=%s uid=%u proxy_port=%d: ADD sent, "
+           "awaiting port from proxy", ws->name, inst->uid, inst->port);
 
     return 0;
 }
@@ -295,8 +294,8 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
     }
 
     if (hdr->status != MBD_OK) {
-        LL_ERRX("job_id=%ld uid=%ld proxy_port=%d failed status=%d",
-                ack.job_id, (long) inst->uid, inst->port, hdr->status);
+        LL_ERRX("job_id=%ld uid=%u proxy_port=%d failed status=%d",
+                ack.job_id, inst->uid, inst->port, hdr->status);
         enqueue_header(inst->chan_id, BATCH_SERVICE_START_ACK, hdr->status);
 
         struct wire_job_sig sig;
@@ -321,26 +320,11 @@ void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr)
     sig.uid = job->uid;
 
     signal_pending_job(job, &sig);
-    LL_INFO("job_id=%ld uid=%ld proxy_port=%d", ack.job_id,
-            (long) inst->uid, inst->port);
+    LL_INFO("job_id=%ld uid=%u proxy_port=%d", ack.job_id,
+            inst->uid, inst->port);
     /* Still no reply to the client -- BATCH_SERVICE_START_ACK remains
      * deferred until mbd_new_job_reply() sees this job reach RUNNING.
      */
-}
-
-static int32_t svc_inst_state_to_wire(int state)
-{
-    switch (state) {
-    case SVC_INST_STARTING:
-        return SVC_PENDING;
-    case SVC_INST_RUNNING:
-        return SVC_RUNNING;
-    default:
-        /* unreachable in practice -- unknown internal state reported
-         * as NONE
-         */
-        return SVC_NONE;
-    }
 }
 
 static void svc_inst_to_wire(const struct service_instance *inst,
@@ -352,7 +336,6 @@ static void svc_inst_to_wire(const struct service_instance *inst,
     w->uid = inst->uid;
     w->port = inst->port;
     w->job_id = inst->job_id;
-    w->state = svc_inst_state_to_wire(inst->state);
 
     if (inst->run_host[0] != 0)
         ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
@@ -442,8 +425,8 @@ fail:
 static int svc_proxy_send_update(struct service_instance *inst)
 {
     if (service_proxy_chan_id < 0) {
-        LL_ERRX("service_proxy not connected job_id=%ld uid=%ld proxy_port=%d",
-                inst->job_id, (long) inst->uid, inst->port);
+        LL_ERRX("service_proxy not connected job_id=%ld uid=%u proxy_port=%d",
+                inst->job_id, inst->uid, inst->port);
         return -1;
     }
 
@@ -458,8 +441,8 @@ static int svc_proxy_send_update(struct service_instance *inst)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("auth_sign_header failed job_id=%ld uid=%ld proxy_port=%d",
-               inst->job_id, (long) inst->uid, inst->port);
+        LL_ERR("auth_sign_header failed job_id=%ld uid=%u proxy_port=%d",
+               inst->job_id, inst->uid, inst->port);
         return -1;
     }
 
@@ -468,13 +451,13 @@ static int svc_proxy_send_update(struct service_instance *inst)
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_update) < 0) {
-        LL_ERR("enqueue_payload failed job_id=%ld uid=%ld proxy_port=%d",
-               inst->job_id, (long) inst->uid, inst->port);
+        LL_ERR("enqueue_payload failed job_id=%ld uid=%u proxy_port=%d",
+               inst->job_id, inst->uid, inst->port);
         return -1;
     }
 
-    LL_DEBUG("job_id=%ld uid=%ld proxy_port=%d UPDATE run_host=%s sent to proxy chan=%d",
-             inst->job_id, (long) inst->uid, inst->port, inst->run_host,
+    LL_DEBUG("job_id=%ld uid=%u proxy_port=%d UPDATE run_host=%s sent to proxy chan=%d",
+             inst->job_id, inst->uid, inst->port, inst->run_host,
              service_proxy_chan_id);
 
     return 0;
@@ -509,8 +492,8 @@ void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr)
 static int svc_proxy_send_remove(struct service_instance *inst)
 {
     if (service_proxy_chan_id < 0) {
-        LL_ERRX("service_proxy not connected job_id=%ld uid=%ld proxy_port=%d",
-                inst->job_id, (long) inst->uid, inst->port);
+        LL_ERRX("service_proxy not connected job_id=%ld uid=%u proxy_port=%d",
+                inst->job_id, inst->uid, inst->port);
         return -1;
     }
 
@@ -524,8 +507,8 @@ static int svc_proxy_send_remove(struct service_instance *inst)
     hdr.status = MBD_OK;
 
     if (auth_sign_header(&hdr) < 0) {
-        LL_ERR("auth_sign_header failed job_id=%ld uid=%ld proxy_port=%d",
-               inst->job_id, (long) inst->uid, inst->port);
+        LL_ERR("auth_sign_header failed job_id=%ld uid=%u proxy_port=%d",
+               inst->job_id, inst->uid, inst->port);
         return -1;
     }
 
@@ -534,8 +517,8 @@ static int svc_proxy_send_remove(struct service_instance *inst)
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_remove) < 0) {
-        LL_ERR("enqueue_payload failed job_id=%ld uid=%ld proxy_port=%d",
-               inst->job_id, (long) inst->uid, inst->port);
+        LL_ERR("enqueue_payload failed job_id=%ld uid=%u proxy_port=%d",
+               inst->job_id, inst->uid, inst->port);
         return -1;
     }
 
@@ -568,7 +551,6 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
     struct service_instance *inst = job->svc_inst;
 
     ll_strlcpy(inst->run_host, host->net.name, sizeof(inst->run_host));
-    inst->state = SVC_INST_RUNNING;
 
     /*
      * mbd doesn't block this RUNNING-transition reply on the UPDATE
@@ -586,8 +568,8 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
     rep_hdr.status = MBD_OK;
 
     if (auth_sign_header(&rep_hdr) < 0) {
-        LL_ERR("svc_job_running: auth_sign_header failed uid=%ld proxy_port=%d",
-               (long) inst->uid, inst->port);
+        LL_ERR("svc_job_running: auth_sign_header failed uid=%u proxy_port=%d",
+               inst->uid, inst->port);
         return;
     }
 
@@ -598,14 +580,14 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
 
     if (enqueue_payload(inst->chan_id, &rep_hdr, &info, siz,
                         xdr_wire_svc_instance_info) < 0) {
-        LL_ERR("svc_job_running: enqueue_payload failed uid=%ld proxy_port=%d",
-               (long) inst->uid, inst->port);
+        LL_ERR("svc_job_running: enqueue_payload failed uid=%u proxy_port=%d",
+               inst->uid, inst->port);
         return;
     }
 
-    LL_INFO("svc_job_running: job_id=%ld uid=%ld proxy_port=%d run_host=%s "
+    LL_INFO("svc_job_running: job_id=%ld uid=%u proxy_port=%d run_host=%s "
             "RUNNING, client acked",
-            job->job_id, (long) inst->uid, inst->port, inst->run_host);
+            job->job_id, inst->uid, inst->port, inst->run_host);
 }
 
 int service_delete_instance(uid_t uid, const char *host, int port)
@@ -661,8 +643,8 @@ int svc_service_instance_destroy(struct service_instance *inst)
 
     ll_list_remove(&inst->svc->instances, &inst->ent);
 
-    LL_INFO("destroyed service=%s uid=%ld proxy_port=%d job_id=%ld",
-            inst->svc->name, (long) inst->uid, inst->port, inst->job_id);
+    LL_INFO("destroyed service=%s uid=%u proxy_port=%d job_id=%ld",
+            inst->svc->name, inst->uid, inst->port, inst->job_id);
 
     free(inst);
 

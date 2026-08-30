@@ -222,7 +222,6 @@ struct svc_instance_info {
     int32_t port;   /* external port */
     char *run_host; /* backing job's execution host, NULL if not running yet */
     int64_t job_id; /* backing job id */
-    int32_t state;
 };
 
 /* llb_hist_info flags

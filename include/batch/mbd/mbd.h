@@ -258,19 +258,6 @@ struct service_data {
     struct ll_list instances;    /* active instances of this service */
 };
 
-enum service_instance_state {
-    SVC_INST_STARTING,  /* job dispatched/requeued, not yet RUNNING */
-    SVC_INST_RUNNING,   /* job RUNNING, proxy UPDATE sent           */
-    SVC_INST_STOPPING,  /* stop requested, waiting for job end      */
-};
-
-/*
- * One running (or starting/stopping) instance of a service_data
- * definition. job_id is stable for the instance's whole life --
- * restarts reuse the same backing job (see the requeue design),
- * they never allocate a new job_id -- only run_host changes across
- * a restart, since redispatch can land on a different host.
- */
 struct service_instance {
     struct ll_list_entry ent;    /* linkage in service_data.instances */
     struct service_data *svc;    /* owning service definition */
@@ -279,13 +266,7 @@ struct service_instance {
     int64_t job_id;
     char run_host[LL_BUFSIZ_64];  /* set once job reaches RUNNING */
     int chan_id;    /* held open for the deferred BATCH_SERVICE_START_ACK */
-    enum service_instance_state state;
-    /* Job submission built in phase 1 (service_start_instance()), used
-     * in phase 2 (svc_proxy_add_ok()) once the port comes back from
-     * service_proxy -- job_prepare()/job_commit() can't run until then,
-     * so this has to survive the async gap between the two. */
     struct wire_job_submit pend_ws;
-    char pend_cmd[PATH_MAX];
     struct protocol_header pend_hdr;
 };
 

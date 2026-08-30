@@ -349,7 +349,6 @@ struct wire_svc_instance_info {
     int32_t port;
     char run_host[MAXHOSTNAMELEN];
     int64_t job_id;
-    int32_t state;
 };
 
 struct wire_svc_start {
