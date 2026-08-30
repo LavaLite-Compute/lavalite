@@ -181,23 +181,11 @@ static void sp_relay_close(struct sp_relay *relay)
     free(relay);
 }
 
-/*
- * bind() itself is the authoritative check -- no separate probe step,
- * same reasoning that moved port ownership from mbd to spd in the
- * first place: a probe-then-bind-later window is exactly the TOCTOU
- * the old mbd-side allocator had.
- */
 static int sp_bind_port(int *out_port)
 {
-    static int next_port = SP_SVC_PORT_MIN;
+    for (int port = SP_SVC_PORT_MIN; port <= SP_SVC_PORT_MAX; port++) {
+        int ch = chan_tcp_server((uint16_t)port);
 
-    for (int tries = 0; tries <= (SP_SVC_PORT_MAX - SP_SVC_PORT_MIN);
-         tries++) {
-        int port = next_port++;
-        if (next_port > SP_SVC_PORT_MAX)
-            next_port = SP_SVC_PORT_MIN;
-
-        int ch = chan_tcp_server((uint16_t) port);
         if (ch >= 0) {
             *out_port = port;
             return ch;
