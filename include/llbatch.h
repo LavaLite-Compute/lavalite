@@ -203,10 +203,10 @@ struct token_pool_info {
 /* -----------------------------------------------------------------------
  * Service status
  * ----------------------------------------------------------------------- */
-enum svc_state {
-    SVC_NONE,    /* configured (llb.services), never started */
-    SVC_PENDING,     /* backing job not yet running */
-    SVC_RUNNING,     /* proxy mapping installed, endpoint live */
+enum svc_status {
+    SVC_PENDING,
+    SVC_RUNNING,
+    SVC_FINISH,
 };
 
 struct svc_info {
@@ -222,6 +222,7 @@ struct svc_instance_info {
     int32_t port;   /* external port */
     char *run_host; /* backing job's execution host, NULL if not running yet */
     int64_t job_id; /* backing job id */
+    int32_t status;
 };
 
 /* llb_hist_info flags
@@ -329,7 +330,7 @@ int32_t llb_service_start(const char *, struct svc_instance_info *);
 struct svc_info *llb_service_info(int32_t *);
 void llb_free_service_info(struct svc_info *, int32_t);
 int32_t llb_service_delete(const char *, int32_t);
-const char *llb_svc_state_str(int32_t);
+const char *llb_svc_status_str(int32_t);
 
 /* admin */
 int32_t llb_queue_admin(const char *, int32_t);

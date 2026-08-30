@@ -22,7 +22,7 @@ struct inst_col_widths {
     int port;
     int job_id;
     int run_host;
-    int state;
+    int status;
 };
 
 static int imax(int a, int b)
@@ -65,15 +65,6 @@ static void compute_service_widths(const struct svc_info *s, int32_t n,
     }
 }
 
-static const char *instance_state(const struct svc_instance_info *inst)
-{
-    if (inst->port > 0 && inst->run_host != NULL
-        && inst->run_host[0] != 0)
-        return "RUN";
-
-    return "WAIT";
-}
-
 static void compute_instance_widths(const struct svc_info *s,
                                     struct inst_col_widths *w)
 {
@@ -81,7 +72,7 @@ static void compute_instance_widths(const struct svc_info *s,
     w->port = strlen("PORT");
     w->job_id = strlen("JOB_ID");
     w->run_host = strlen("RUN_HOST");
-    w->state = strlen("STATE");
+    w->status = strlen("STATUS");
 
     for (uint32_t i = 0; i < s->ninstances; i++) {
         const struct svc_instance_info *inst = &s->instances[i];
@@ -93,8 +84,7 @@ static void compute_instance_widths(const struct svc_info *s,
         w->job_id = imax(w->job_id, ndigits(inst->job_id));
         w->run_host = imax(w->run_host,
                            strlen(inst->run_host ? inst->run_host : "-"));
-        // max length of WAIT RUN
-        w->state = 4;
+        w->status = imax(w->status, strlen(llb_svc_status_str(inst->status)));
     }
 }
 
@@ -116,7 +106,7 @@ static void print_services(const struct svc_info *s, int32_t n)
 
         printf("  %-*s  %*s  %*s  %-*s  %-*s\n",
                iw.user, "USER", iw.port, "PORT", iw.job_id, "JOB_ID",
-               iw.run_host, "RUN_HOST", iw.state, "STATE");
+               iw.run_host, "RUN_HOST", iw.status, "STATUS");
 
         for (uint32_t j = 0; j < s[i].ninstances; j++) {
             const struct svc_instance_info *inst = &s[i].instances[j];
@@ -128,7 +118,7 @@ static void print_services(const struct svc_info *s, int32_t n)
                    iw.port, inst->port,
                    iw.job_id, (long) inst->job_id,
                    iw.run_host, inst->run_host ? inst->run_host : "-",
-                   iw.state, instance_state(inst));
+                   iw.status, llb_svc_status_str(inst->status));
         }
     }
 }

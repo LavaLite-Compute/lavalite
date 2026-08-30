@@ -500,7 +500,10 @@ static int replay_service_job_new(struct job_data *job,
     inst->uid = job->uid;
 
     job->svc_inst = inst;
+    inst->status = SVC_PENDING;
     ll_list_append(&svc->instances, &inst->ent);
+
+    LL_DEBUG("job_id=%ld uid=%u", job->job_id, job->uid);
 
     return 0;
 }
@@ -533,7 +536,7 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
              (e.depend_cond[0] != 0) ? e.depend_cond : "none",
              e.flags);
 
-    if (job_is_service(job))
+    if (job->flags & JOB_FLAG_SERVICE)
         replay_service_job_new(job, &e);
 
     return rc;
@@ -588,6 +591,7 @@ static void replay_service_job_start(struct job_data *job,
 
     /* replay_job_start() already reconstructed run_hosts
      */
+    job->svc_inst->status = SVC_RUNNING;
     ll_strlcpy(job->svc_inst->run_host,
                job->run_hosts[0]->net.name,
                sizeof(job->svc_inst->run_host));
@@ -707,6 +711,8 @@ static void replay_job_finish(const struct event_rec *rec)
     /* No counter updates. These updates are performed only after
      * the full replay and only for jobs in pending or running lists.
      */
+    if (job_is_service(job))
+        job->svc_inst->status = SVC_FINISH;
 }
 
 static void replay_job_pend_susp(const struct event_rec *rec)
@@ -748,6 +754,7 @@ static void replay_job_pending_resume(const struct event_rec *rec)
         return;
     }
     job->state = JOB_PENDING;
+    job->flags &= ~JOB_FLAG_HOLD;
     LL_DEBUG("JOB_RESUME job_id=%ld", e.job_id);
 }
 

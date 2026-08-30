@@ -45,6 +45,12 @@ void job_free(struct job_data *job)
     free(job->run_hosts);
     ll_hash_clear(&job->res.machines, NULL);
     ll_list_clear(&job->res.tokens, free);
+    if (job_is_service(job)) {
+        struct service_instance *inst = job->svc_inst;
+        ll_list_remove(&inst->svc->instances, &inst->ent);
+        free(inst);
+    }
+
     free(job);
 }
 
@@ -1094,21 +1100,21 @@ int job_init(void)
     return 0;
 }
 
-void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
+void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
                        struct protocol_header *hdr)
 {
     struct wire_job_reply r;
     memset(&r, 0, sizeof(r));
     if (!xdr_wire_job_reply(xdrs, &r)) {
         LL_ERR("xdr_wire_job_reply decode failed from=%s",
-               chan_addr_str(n->sbd_chan));
+               chan_addr_str(host->sbd_chan));
         return;
     }
 
     struct job_data *job = job_find(r.job_id);
     if (job == NULL) {
         LL_ERR("job_id=%ld not found from=%s - admin intervention required",
-               r.job_id, chan_addr_str(n->sbd_chan));
+               r.job_id, chan_addr_str(host->sbd_chan));
         return;
     }
 
@@ -1121,20 +1127,30 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
         }
 
         LL_ERR("job_id=%ld rejected by sbd=%s status=%d (%s)", r.job_id,
-               chan_addr_str(n->sbd_chan), hdr->status, strerror(hdr->status));
+               chan_addr_str(host->sbd_chan), hdr->status, strerror(hdr->status));
 
         mbd_job_reject_dispatch(job);
         return;
     }
 
     int duplicate = 0;
-    /* duplicate: skip event log, sbd resends if it restarts before ack
-     */
     if (job->fork_time > 0) {
         LL_INFO("job_id=%ld fork duplicate from=%s", r.job_id,
-                chan_addr_str(n->sbd_chan));
+                chan_addr_str(host->sbd_chan));
         duplicate = 1;
         // fall through
+    }
+
+    if (duplicate == 0) {
+        job->pid = (pid_t) r.pid;
+        job->fork_time = time(NULL);
+        job->state = JOB_RUNNING;
+        event_job_fork(job);
+        /* duplicates are from sbd don't bother spd with them as it
+         * speaks different protocol.
+         */
+        if (job->svc_inst != NULL)
+            service_job_running(job, host);
     }
 
     struct wire_job_ack ack;
@@ -1149,31 +1165,18 @@ void mbd_new_job_reply(struct mbd_host *n, XDR *xdrs,
 
     if (auth_sign_header(&rep_hdr) < 0) {
         LL_ERR("job_id=%ld failed to sign header for host=%s", job->job_id,
-               n->net.name);
+               host->net.name);
         return;
     }
 
-    if (enqueue_payload(n->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
+    if (enqueue_payload(host->sbd_chan, &rep_hdr, &ack, LL_BUFSIZ_1K,
                         xdr_wire_job_ack) < 0) {
         LL_ERR("job_id=%ld enqueue_payload failed", r.job_id);
         return;
     }
 
-    if (duplicate)
-        return;
+    LL_INFO("job=%ld pid=%d acked duplicate=%d", r.job_id, r.pid, duplicate);
 
-    job->pid = (pid_t) r.pid;
-    job->fork_time = time(NULL);
-    job->state = JOB_RUNNING;
-    event_job_fork(job);
-    LL_INFO("job=%ld pid=%d acked", r.job_id, r.pid);
-
-    /* Service jobs need one more thing ordinary jobs don't: the
-     * blocked bservice client and service_proxy both need to hear
-     * about this transition. svc_job_running() (service.c) sends the
-     * proxy UPDATE and the deferred wire_svc_info reply. */
-    if (job->svc_inst != NULL)
-        svc_job_running(job, n);
 }
 
 void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
@@ -1221,12 +1224,62 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         LL_INFO("job_id=%ld finish duplicate from=%s", f.job_id,
                 chan_addr_str(n->sbd_chan));
         duplicate = 1;
-        goto send_ack;
-    }
-    // run the assert only the first time sbd is reporting job finished
-    assert((job->state == JOB_RUNNING) || (job->state == JOB_SUSPENDED));
 
-send_ack:
+    }
+
+    if (duplicate == 0) {
+        // run the assert only the first time sbd is reporting job finished
+        assert((job->state == JOB_RUNNING) || (job->state == JOB_SUSPENDED));
+
+        job->end_time = time(NULL);
+        job->exit_status = f.exit_status;
+
+        LL_INFO("job_id=%ld usage mem=%luMB swap=%luMB cpu=%.2fs", f.job_id,
+                f.mem_mb, f.swap_mb, f.cpu_time);
+
+        // this function depends on the state of the job not
+        // being DONE|EXIT yet
+        reset_host_resources(job);
+        token_pool_release(job);
+
+        // Update the queue counters before resetting the job state
+        if (job->state == JOB_RUNNING)
+            job->queue->num_run--;
+
+        if (job->state == JOB_SUSPENDED)
+            job->queue->num_susp--;
+
+        job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
+        job->queue->num_hosts_used -= job->run_nhosts;
+        job->queue->num_jobs--;
+
+        if (f.state == 0)
+            job->state = JOB_DONE;
+        else
+            job->state = JOB_EXITED;
+
+        job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+        job_array_element_finished(job);
+
+        LL_INFO("job_id=%ld finish acked state=%s", f.job_id,
+                job_state_str(job->state));
+
+        // We free the job only when we compact the events file
+        event_job_finish(job);
+        if (job_write_usage(job, &f) < 0) {
+            LL_ERR("job_id=%ld failed job_write_usage", job->job_id);
+        }
+
+        LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
+                 job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
+
+        // debug code
+        mbd_assert_counters();
+
+        if (job_is_service(job))
+            service_instance_finish(job->svc_inst);
+    }
+
     struct wire_job_ack ack;
     memset(&ack, 0, sizeof(ack));
     ack.job_id = f.job_id;
@@ -1247,62 +1300,6 @@ send_ack:
                         xdr_wire_job_ack) < 0) {
         LL_ERR("job_id=%ld enqueue_payload failed", f.job_id);
         return;
-    }
-
-    if (duplicate)
-        return;
-
-    job->end_time = time(NULL);
-    job->exit_status = f.exit_status;
-
-    LL_INFO("job_id=%ld usage mem=%luMB swap=%luMB cpu=%.2fs", f.job_id,
-            f.mem_mb, f.swap_mb, f.cpu_time);
-
-    // this function depends on the state of the job not
-    // being DONE|EXIT yet
-    reset_host_resources(job);
-    token_pool_release(job);
-
-    // Update the queue counters before resetting the job state
-    if (job->state == JOB_RUNNING)
-        job->queue->num_run--;
-
-    if (job->state == JOB_SUSPENDED)
-        job->queue->num_susp--;
-
-    job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
-    job->queue->num_hosts_used -= job->run_nhosts;
-    job->queue->num_jobs--;
-
-    if (f.state == 0)
-        job->state = JOB_DONE;
-    else
-        job->state = JOB_EXITED;
-
-    job_move_list(job, &run_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
-    job_array_element_finished(job);
-
-    LL_INFO("job_id=%ld finish acked state=%s", f.job_id,
-            job_state_str(job->state));
-
-    // We free the job only when we compact the events file
-    event_job_finish(job);
-    if (job_write_usage(job, &f) < 0) {
-        LL_ERR("job_id=%ld failed job_write_usage", job->job_id);
-    }
-
-    LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
-             job->queue->num_pend, job->queue->num_run, job->queue->num_susp);
-
-    // debug code
-    mbd_assert_counters();
-
-    // Now we can safely remove the service instance
-    if (job_is_service(job)) {
-        LL_INFO("job_id=%ld destroying service=%s uid=%d port=%d run_host=%s",
-                job->job_id, job->svc_inst->svc->name, job->svc_inst->uid,
-                job->svc_inst->port, job->svc_inst->run_host);
-        svc_service_instance_destroy(job->svc_inst);
     }
 }
 

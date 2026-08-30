@@ -263,7 +263,8 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
         return ENOTCONN;
     }
 
-    LL_INFO("service_start_instance: service=%s uid=%u proxy_port=%d: ADD sent, "
+    inst->status = SVC_PENDING;
+    LL_INFO("SVC_PENDING service=%s uid=%u proxy_port=%d: ADD sent, "
            "awaiting port from proxy", ws->name, inst->uid, inst->port);
 
     return 0;
@@ -336,6 +337,7 @@ static void svc_inst_to_wire(const struct service_instance *inst,
     w->uid = inst->uid;
     w->port = inst->port;
     w->job_id = inst->job_id;
+    w->status = inst->status;
 
     if (inst->run_host[0] != 0)
         ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
@@ -384,7 +386,7 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
             continue;
         }
 
-        wsvc->instances =  calloc(ninstances, sizeof(*wsvc->instances));
+        wsvc->instances = calloc(ninstances, sizeof(*wsvc->instances));
         if (wsvc->instances == NULL) {
             LL_ERR("calloc failed");
             errno = ENOMEM;
@@ -417,11 +419,6 @@ fail:
     return -1;
 }
 
-/*
- * Send BATCH_SVC_UPDATE to service_proxy -- run_host changed (initial
- * dispatch, or redispatch after a restart landing elsewhere). Same
- * enqueue_payload() path as svc_proxy_send_add()/send_remove().
- */
 static int svc_proxy_send_update(struct service_instance *inst)
 {
     if (service_proxy_chan_id < 0) {
@@ -463,14 +460,6 @@ static int svc_proxy_send_update(struct service_instance *inst)
     return 0;
 }
 
-/*
- * Correlation acks for BATCH_SVC_UPDATE/BATCH_SVC_REMOVE. Nothing on
- * mbd's side blocks waiting for these -- the client-facing state
- * (run_host, instance teardown) is already updated locally before the
- * request was even sent -- but we still decode and log them instead
- * of silently dropping, so a proxy-side failure is visible instead of
- * invisible.
- */
 void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr)
 {
     struct wire_svc_update_ack ack;
@@ -546,11 +535,13 @@ void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
     LL_DEBUG("job_id=%ld ok", ack.job_id);
 }
 
-void svc_job_running(struct job_data *job, struct mbd_host *host)
+void service_job_running(struct job_data *job, struct mbd_host *host)
 {
     struct service_instance *inst = job->svc_inst;
 
     ll_strlcpy(inst->run_host, host->net.name, sizeof(inst->run_host));
+
+    inst->status = SVC_RUNNING;
 
     /*
      * mbd doesn't block this RUNNING-transition reply on the UPDATE
@@ -568,7 +559,7 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
     rep_hdr.status = MBD_OK;
 
     if (auth_sign_header(&rep_hdr) < 0) {
-        LL_ERR("svc_job_running: auth_sign_header failed uid=%u proxy_port=%d",
+        LL_ERR("auth_sign_header failed uid=%u proxy_port=%d",
                inst->uid, inst->port);
         return;
     }
@@ -585,7 +576,7 @@ void svc_job_running(struct job_data *job, struct mbd_host *host)
         return;
     }
 
-    LL_INFO("svc_job_running: job_id=%ld uid=%u proxy_port=%d run_host=%s "
+    LL_INFO("SVC_RUNNING job_id=%ld uid=%u proxy_port=%d run_host=%s "
             "RUNNING, client acked",
             job->job_id, inst->uid, inst->port, inst->run_host);
 }
@@ -625,7 +616,7 @@ int service_delete_instance(uid_t uid, const char *host, int port)
     return MBD_OK;
 }
 
-int svc_service_instance_destroy(struct service_instance *inst)
+int service_instance_finish(struct service_instance *inst)
 {
     assert(inst != NULL);
 
@@ -639,25 +630,14 @@ int svc_service_instance_destroy(struct service_instance *inst)
                 "proxy_port=%d", inst->job_id, inst->uid, inst->port);
     }
 
-    job->svc_inst = NULL;
+    job->svc_inst->status = SVC_FINISH;
 
-    ll_list_remove(&inst->svc->instances, &inst->ent);
-
-    LL_INFO("destroyed service=%s uid=%u proxy_port=%d job_id=%ld",
+    LL_INFO("SVC_FINISH service=%s uid=%u proxy_port=%d job_id=%ld",
             inst->svc->name, inst->uid, inst->port, inst->job_id);
-
-    free(inst);
 
     return 0;
 }
 
-/*
- * spd connects in and registers, same accept path as sbd
- * (mbd_sbd_register() in sbd.c) but simpler: no per-job resync
- * payload, since service_proxy has no job state of its own -- the
- * real service registry resync (ADD per live instance) is a separate
- * exchange, not folded into this ack.
- */
 int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *hdr)
 {
     struct wire_sp_register reg;
@@ -713,8 +693,10 @@ int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *hdr)
 
 int job_is_service(const struct job_data *job)
 {
-    if ((job->flags & JOB_FLAG_SERVICE) && job->svc_inst != NULL)
+    if ((job->flags & JOB_FLAG_SERVICE)) {
+        assert(job->svc_inst);
         return 1;
+    }
 
     return 0;
 }

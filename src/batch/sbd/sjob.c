@@ -959,11 +959,8 @@ int sbd_job_signal(XDR *xdrs)
     if (killpg(job->pgid, sig.sig) < 0) {
         status = errno;
         LL_ERR("job=%ld killpg pgid=%d sig=%d failed", job->job_id,
-               (int) job->pgid, sig.sig);
+               job->pgid, sig.sig);
     }
-
-    LL_INFO("job=%ld sig=%d sent to pgid=%d", job->job_id, sig.sig,
-            (int) job->pgid);
 
 reply:
     if (sbd_send_msg(BATCH_SBD_JOB_SIGNAL_REPLY, status, &sig, LL_BUFSIZ_1K,
@@ -972,6 +969,9 @@ reply:
                 status);
         return -1;
     }
+
+    LL_INFO("job=%ld sig=%d pgid=%u status=%d", job->job_id, sig.sig,
+            job->pgid, status);
 
     return 0;
 }

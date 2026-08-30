@@ -268,6 +268,7 @@ struct service_instance {
     int chan_id;    /* held open for the deferred BATCH_SERVICE_START_ACK */
     struct wire_job_submit pend_ws;
     struct protocol_header pend_hdr;
+    enum svc_status status;
 };
 
 extern int64_t job_id_seq;
@@ -423,11 +424,11 @@ int service_start_instance(const struct protocol_header *, int,
                            const struct wire_svc_start *);
 int service_collect_info(uid_t, int, struct wire_svc_info **);
 int service_delete_instance(uid_t, const char *, int32_t);
-int svc_service_instance_destroy(struct service_instance *);
+void service_job_running(struct job_data *job, struct mbd_host *host);
+int service_instance_finish(struct service_instance *);
 void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr);
 void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr);
 void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr);
-void svc_job_running(struct job_data *job, struct mbd_host *host);
 int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *);
 struct service_data *svc_find_by_name(const char *);
 int job_is_service(const struct job_data *);

@@ -913,6 +913,7 @@ struct svc_info *llb_service_info(int32_t *nsvc)
             }
 
             di->job_id = si->job_id;
+            di->status = si->status;
         }
     }
 
@@ -1122,13 +1123,15 @@ int32_t llb_service_delete(const char *host, int32_t port)
     return 0;
 }
 
-const char *llb_svc_state_str(int32_t state)
+const char *llb_svc_status_str(int32_t state)
 {
     switch (state) {
     case SVC_PENDING:
         return "PEND";
     case SVC_RUNNING:
         return "RUN";
+    case SVC_FINISH:
+        return "FINISH";
     default:
         return "BADSTATE";
     }
