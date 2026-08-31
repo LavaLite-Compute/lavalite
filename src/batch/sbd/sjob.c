@@ -1010,12 +1010,6 @@ int sbd_job_signal(XDR *xdrs)
         goto reply;
     }
 
-    if (job->pgid <= 0) {
-        LL_ERRX("job=%ld signal=%d but pgid not set", job->job_id, sig.sig);
-        status = ESRCH;
-        goto reply;
-    }
-
     if (sig.sig == SIGSTOP) {
         if (cgroup_job_freeze(job->job_id) < 0)
             status = ESRCH;
@@ -1034,6 +1028,13 @@ int sbd_job_signal(XDR *xdrs)
         goto reply;
     }
 
+    if (job->pgid <= 0) {
+        LL_ERR("job=%ld invalid process group pgid=%d sig=%d failed",
+               job->job_id, job->pgid, sig.sig);
+        status = ESRCH;
+        goto reply;
+    }
+
     if (killpg(job->pgid, sig.sig) < 0) {
         status = errno;
         LL_ERR("job=%ld killpg pgid=%d sig=%d failed", job->job_id,
@@ -1048,8 +1049,7 @@ reply:
         return -1;
     }
 
-    LL_INFO("job=%ld sig=%d pgid=%u status=%d", job->job_id, sig.sig,
-            job->pgid, status);
+    LL_INFO("job=%ld sig=%d status=%d", sig.job_id, sig.sig, status);
 
     return 0;
 }

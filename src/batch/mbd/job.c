@@ -466,8 +466,8 @@ static void mbd_job_reject_dispatch(struct job_data *job)
         return;
     }
 
-    if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K, xdr_wire_job_ack) <
-        0) {
+    if (enqueue_payload(sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
+                        xdr_wire_job_ack) < 0) {
         LL_ERR("job_id=%ld enqueue_payload failed", job->job_id);
         return;
     }

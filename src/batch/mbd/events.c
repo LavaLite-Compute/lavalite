@@ -588,10 +588,8 @@ static void replay_service_job_start(struct job_data *job,
 {
     assert(e->service_port > 0);
     job->svc_inst->port = e->service_port;
-
-    /* replay_job_start() already reconstructed run_hosts
-     */
     job->svc_inst->status = SVC_RUNNING;
+
     ll_strlcpy(job->svc_inst->run_host,
                job->run_hosts[0]->net.name,
                sizeof(job->svc_inst->run_host));

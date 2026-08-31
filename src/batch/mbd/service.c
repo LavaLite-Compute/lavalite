@@ -79,8 +79,8 @@ static int svc_proxy_send_add(struct service_instance *inst)
         return -1;
     }
 
-    size_t siz = sizeof(struct protocol_header) + sizeof(struct wire_svc_add)
-                 + LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t) xdr_wire_svc_add, &req);
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_add) < 0) {
@@ -152,23 +152,45 @@ static struct job_data *service_job_create(struct service_instance *inst,
     return job;
 }
 
-static struct service_instance *svc_find_instance(uid_t uid, int port)
+static struct service_instance *svc_find_running_endpoint(uid_t uid,
+                                                          const char *host,
+                                                          int port)
 {
-    for (struct ll_list_entry *se = service_list.head; se != NULL;
-         se = se->next) {
-        struct service_data *svc = (struct service_data *) se;
+    struct service_instance *found = NULL;
 
-        for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
-             ie = ie->next) {
-            struct service_instance *inst =
-                (struct service_instance *) ie;
+    for (struct ll_list_entry *se = service_list.head;
+         se != NULL; se = se->next) {
 
-            if (inst->uid == uid && inst->port == port)
-                return inst;
+        struct service_data *svc = (struct service_data *)se;
+
+        for (struct ll_list_entry *ie = svc->instances.head;
+             ie != NULL; ie = ie->next) {
+
+            struct service_instance *inst = (struct service_instance *)ie;
+
+            if (inst->uid != uid)
+                continue;
+
+            if (inst->status != SVC_RUNNING)
+                continue;
+
+            if (inst->port != port)
+                continue;
+
+            if (strcmp(inst->run_host, host) != 0)
+                continue;
+
+            if (found != NULL) {
+                LL_ERRX("duplicate running service endpoint uid=%u host=%s "
+                        "port=%d job1=%ld job2=%ld",  uid, host, port,
+                        found->job_id, inst->job_id);
+                assert(found == NULL);
+            }
+            found = inst;
         }
     }
 
-    return NULL;
+    return found;
 }
 
 int service_start_instance(const struct protocol_header *hdr, int chan_id,
@@ -443,8 +465,8 @@ static int svc_proxy_send_update(struct service_instance *inst)
         return -1;
     }
 
-    size_t siz = sizeof(struct protocol_header) +
-                 sizeof(struct wire_svc_update) + LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_svc_update, &req);
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_update) < 0) {
@@ -501,8 +523,8 @@ static int svc_proxy_send_remove(struct service_instance *inst)
         return -1;
     }
 
-    size_t siz = sizeof(struct protocol_header) +
-                 sizeof(struct wire_svc_remove) + LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t) xdr_wire_svc_remove, &req);
 
     if (enqueue_payload(service_proxy_chan_id, &hdr, &req, siz,
                         xdr_wire_svc_remove) < 0) {
@@ -564,10 +586,8 @@ void service_job_running(struct job_data *job, struct mbd_host *host)
         return;
     }
 
-    size_t siz =
-        sizeof(struct protocol_header)
-        + sizeof(struct wire_svc_instance_info)
-        + LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_svc_instance_info, &info);
 
     if (enqueue_payload(inst->chan_id, &rep_hdr, &info, siz,
                         xdr_wire_svc_instance_info) < 0) {
@@ -585,9 +605,10 @@ int service_delete_instance(uid_t uid, const char *host, int port)
 {
     LL_INFO("uid=%u host=%s proxy_port=%d", uid, host, port);
 
-    struct service_instance *inst = svc_find_instance(uid, port);
+    struct service_instance *inst = svc_find_running_endpoint(uid, host, port);
     if (inst == NULL) {
-        LL_ERRX("cannot find instance for uid=%u port=%d host=%s", uid, port, host);
+        LL_ERRX("cannot find instance for uid=%u port=%d host=%s", uid, port,
+                host);
         return ESRCH;
     }
     assert(strcmp(inst->run_host, host) == 0);
@@ -673,9 +694,8 @@ int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *hdr)
         return -1;
     }
 
-
-    size_t siz = sizeof(struct protocol_header) + sizeof(struct wire_sp_register)
-        + LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_sp_register, &reg);
 
     if (enqueue_payload(chan_id, &hdr2, &reg, siz, xdr_wire_sp_register) < 0) {
         LL_ERR("enqueue_payload failed for service_proxy ack");
