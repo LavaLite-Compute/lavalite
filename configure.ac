@@ -24,8 +24,7 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
   [AC_MSG_ERROR([OpenSSL >= 1.1.1 not found])])
 
 dnl Project identity versioning
-AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 1.1.0"], [Human-readable LavaLite version])
-AC_DEFINE([LAVALITE_VERSION_HEX], [0x011000], [LavaLite version encoded as 0xMMmmpp])
+AC_DEFINE([LAVALITE_VERSION_STR], ["LavaLite 2.0.0"], [Human-readable LavaLite version])
 
 dnl ---- Dependencies ----
 

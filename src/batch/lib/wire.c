@@ -230,6 +230,8 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
         return false;
     if (!xdr_uint32_t(xdrs, &p->umask))
         return false;
+    if (!xdr_int32_t(xdrs, &p->flags))
+        return false;
     if (!xdr_opaque(xdrs, p->job_name, sizeof(p->job_name)))
         return false;
     if (!xdr_opaque(xdrs, p->queue, sizeof(p->queue)))

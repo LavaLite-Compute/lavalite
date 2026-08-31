@@ -411,6 +411,7 @@ int mbd_dispatch_job(struct job_data *job)
 
     /* fill wire_job_start from job_data and sched_plan */
     ws.job_id = job->job_id;
+    ws.flags = job->flags;
     ws.uid = job->uid;
     ws.gid = job->gid;
     ws.term_time = (int64_t) job->term_time;
@@ -464,7 +465,8 @@ int mbd_dispatch_job(struct job_data *job)
 
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    LL_INFO("job_id=%ld dispatched to host=%s", job->job_id, h->net.name);
+    LL_INFO("job_id=%ld flags=0x%x dispatched to host=%s", job->job_id,
+            job->flags, h->net.name);
 
     return 0;
 }

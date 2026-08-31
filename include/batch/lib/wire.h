@@ -88,6 +88,7 @@ struct wire_job_start {
     uint32_t uid;
     uint32_t gid;
     uint32_t umask;
+    int32_t flags;
     char job_name[LL_BUFSIZ_256];
     char queue[LL_BUFSIZ_64];
     char username[LL_BUFSIZ_64];

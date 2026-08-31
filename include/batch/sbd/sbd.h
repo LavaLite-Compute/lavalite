@@ -56,6 +56,7 @@ struct sbd_job {
     uid_t uid;
     gid_t gid;
     uint32_t umask;
+    int32_t flags;
     int32_t ncpus;
     uint64_t mem_mb;
 

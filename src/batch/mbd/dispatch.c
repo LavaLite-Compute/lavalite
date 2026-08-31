@@ -197,9 +197,8 @@ static int jobs_info_ref(int chan_id, const struct protocol_header *hdr,
 
     struct wire_job_info_array reply = {.njobs = n, .jobs = jobs};
 
-    size_t siz = sizeof(struct wire_job_info) * n +
-                 sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_job_info_array, &reply);
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
@@ -259,9 +258,8 @@ static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
 
     struct wire_job_info_array reply = {.njobs = n, .jobs = jobs};
 
-    size_t siz = sizeof(struct wire_job_info) * n +
-                 sizeof(struct wire_job_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_job_info_array, &reply);
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);
@@ -321,7 +319,6 @@ int queues_info(XDR *xdrs, int chan_id)
     }
 
     int i = 0;
-    size_t siz = 0;
     for (struct ll_list_entry *e = queue_list.head; e != NULL; e = e->next) {
         struct mbd_queue *q = (struct mbd_queue *) e;
 
@@ -346,11 +343,6 @@ int queues_info(XDR *xdrs, int chan_id)
                    queues[i].num_hosts, queues[i].num_users);
             goto fail;
         }
-        for (int j = 0; j < queues[i].num_hosts; j++)
-            siz += strlen(queues[i].hosts[j]) + 4;
-        for (int j = 0; j < queues[i].num_users; j++)
-            siz += strlen(queues[i].users[j]) + 4;
-        siz += 8; /* num_hosts + num_users int32 */
         i++;
     }
 
@@ -358,21 +350,20 @@ int queues_info(XDR *xdrs, int chan_id)
     reply.nqueues = nqueues;
     reply.queues = queues;
 
-    siz = siz + sizeof(struct wire_queue_info) * nqueues +
-          sizeof(struct wire_queue_info_array) + PACKET_HEADER_SIZE +
-          LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_queue_info_array, &reply);
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_QUEUE_INFO_ACK;
     hdr.status = MBD_OK;
 
-    if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_queue_info_array) <
-        0) {
+    if (enqueue_payload(chan_id, &hdr, &reply, siz,
+                        xdr_wire_queue_info_array) < 0) {
         LL_ERR("queue_info: enqueue_payload failed");
-        free(queues);
-        return -1;
+        goto fail;
     }
+
     for (int j = 0; j < nqueues; j++) {
         free(queues[j].hosts);
         free(queues[j].users);
@@ -381,8 +372,10 @@ int queues_info(XDR *xdrs, int chan_id)
     return 0;
 
 fail:
-    for (int j = 0; j <= i; j++)
-        free(queues[j].hosts), free(queues[j].users);
+    for (int j = 0; j < nqueues; j++) {
+        free(queues[j].hosts);
+        free(queues[j].users);
+    }
     free(queues);
     return -1;
 }
@@ -416,14 +409,13 @@ int host_group_info(XDR *xdrs, int chan_id)
     reply.ngroups = ngroups;
     reply.groups = groups;
 
-    size_t siz = sizeof(struct wire_group_info) * ngroups +
-                 sizeof(struct wire_group_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
-
     struct protocol_header hdr;
     init_protocol_header(&hdr);
     hdr.operation = BATCH_GROUP_INFO_ACK;
     hdr.status = MBD_OK;
+
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_group_info_array, &reply);
 
     if (enqueue_payload(chan_id, &hdr, &reply, siz, xdr_wire_group_info_array) <
         0) {
@@ -481,9 +473,8 @@ int hosts_info(XDR *xdrs, int chan_id)
     reply.nhosts = nhosts;
     reply.hosts = hosts;
 
-    size_t siz = sizeof(struct wire_host_info) * nhosts +
-                 sizeof(struct wire_host_info_array) + PACKET_HEADER_SIZE +
-                 LL_BUFSIZ_64;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_host_info_array, &reply);
 
     struct protocol_header hdr;
     init_protocol_header(&hdr);
@@ -535,13 +526,19 @@ int tokens_info(XDR *xdrs, int chan_id)
     hdr.operation = BATCH_TOKEN_INFO_ACK;
     hdr.status = MBD_OK;
 
-    size_t bufsz =
-        PACKET_HEADER_SIZE + n * sizeof(struct wire_token_info) + LL_BUFSIZ_256;
+    size_t bufsz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_token_info_array, &w);
 
-    enqueue_payload(chan_id, &hdr, &w, bufsz,
-                    (bool_t(*)()) xdr_wire_token_info_array);
+    int rc = enqueue_payload(chan_id, &hdr, &w, bufsz,
+                             (bool_t(*)()) xdr_wire_token_info_array);
+    if (rc < 0) {
+        LL_ERRX("enqueue_payload sized=%zu failed", bufsz);
+        free(w.tokens);
+        return -1;
+    }
 
     free(w.tokens);
+
     return 0;
 }
 /* -----------------------------------------------------------
@@ -655,9 +652,8 @@ int services_info(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     rep_hdr.operation = BATCH_SERVICE_INFO_ACK;
     rep_hdr.status = MBD_OK;
 
-    size_t siz = sizeof(struct wire_svc_info) * n
-        + sizeof(struct wire_svc_info_array)
-        + PACKET_HEADER_SIZE + LL_BUFSIZ_256;
+    size_t siz = PACKET_HEADER_SIZE
+        + xdr_sizeof((xdrproc_t)xdr_wire_svc_info_array, &reply);
 
     if (enqueue_payload(chan_id, &rep_hdr, &reply, siz,
                         xdr_wire_svc_info_array) < 0) {

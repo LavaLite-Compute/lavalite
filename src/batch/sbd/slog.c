@@ -199,7 +199,8 @@ int sbd_storage_init(void)
 
 void sbd_job_file_remove(struct sbd_job *job)
 {
-    static const char *const job_files[] = {"job.sh", "exit", NULL};
+    static const char *const job_files[]
+        = {"job.sh", "exit", "stdout", "stderr", NULL};
 
     char dir[PATH_MAX];
     char path[PATH_MAX];

@@ -36,6 +36,7 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->uid = (uid_t) ws->uid;
     job->gid = (gid_t) ws->gid;
     job->umask = ws->umask;
+    job->flags = ws->flags;
     job->ncpus = ws->ncpus;
     job->mem_mb = ws->mem_mb;
 
@@ -70,6 +71,9 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     assert(job->user[0] != 0);
     assert(job->user_home[0] != 0);
     assert(job->user_cwd[0] != 0);
+
+    LL_INFO("job=%ld flags=0x%x user=%s home=%s cwd=%s", job->job_id,
+            job->flags, job->user, job->user_home, job->user_cwd);
 
     return job;
 }
@@ -264,95 +268,169 @@ static int expand_stdio_path(int64_t job_id, const char *tmpl, char *out,
     return 0;
 }
 
-static int redirect_stdio(const struct sbd_job *job)
+static int define_regular_stdio(const struct sbd_job *job,
+                                char *stdin_path,
+                                char *stdout_path,
+                                char *stderr_path)
 {
-    LL_INFO("job=%ld redirecting stdin/stdout/stderr", job->job_id);
+    char expanded[PATH_MAX];
 
-    /* ---------- stdin ---------- */
-    char stdin_path[PATH_MAX];
-    snprintf(stdin_path, sizeof(stdin_path), "%s",
+    snprintf(stdin_path, PATH_MAX, "%s",
              job->in_file[0] ? job->in_file : "/dev/null");
 
-    LL_DEBUG("job=%ld stdin=%s", job->job_id, stdin_path);
+    snprintf(stdout_path, PATH_MAX, "stdout.%ld", job->job_id);
+    if (job->out_file[0] != 0) {
+        if (expand_stdio_path(job->job_id, job->out_file,
+                              expanded, sizeof(expanded)) < 0)
+            return -1;
+        snprintf(stdout_path, PATH_MAX, "%s", expanded);
+    }
 
-    int fd = open(stdin_path, O_RDONLY);
+    snprintf(stderr_path, PATH_MAX, "stderr.%ld", job->job_id);
+    if (job->err_file[0] != 0) {
+        if (expand_stdio_path(job->job_id, job->err_file,
+                              expanded, sizeof(expanded)) < 0)
+            return -1;
+        snprintf(stderr_path, PATH_MAX, "%s", expanded);
+    }
+
+    return 0;
+}
+
+static int define_service_stdio(const struct sbd_job *job,
+                                char *stdin_path,
+                                char *stdout_path,
+                                char *stderr_path)
+{
+    char expanded[PATH_MAX];
+
+    snprintf(stdin_path, PATH_MAX, "%s",
+             job->in_file[0] ? job->in_file : "/dev/null");
+
+    int cc;
+    if (job->out_file[0] != 0) {
+        if (expand_stdio_path(job->job_id, job->out_file,
+                              expanded, sizeof(expanded)) < 0)
+            return -1;
+        snprintf(stdout_path, PATH_MAX, "%s", expanded);
+    } else {
+        cc = snprintf(stdout_path, PATH_MAX, "%s/%ld/stdout",
+                      sbd_job_dir, job->job_id);
+        if (cc < 0 || cc >= PATH_MAX)
+            return -1;
+    }
+
+    if (job->err_file[0] != 0) {
+        if (expand_stdio_path(job->job_id, job->err_file,
+                              expanded, sizeof(expanded)) < 0)
+            return -1;
+        snprintf(stderr_path, PATH_MAX, "%s", expanded);
+    } else {
+        cc = snprintf(stderr_path, PATH_MAX, "%s/%ld/stderr",
+                      sbd_job_dir, job->job_id);
+        if (cc < 0 || cc >= PATH_MAX)
+            return -1;
+    }
+
+    return 0;
+}
+
+static int redirect_stdio_paths(const struct sbd_job *job,
+                                const char *stdin_path,
+                                const char *stdout_path,
+                                const char *stderr_path)
+{
+    int fd;
+
+    LL_DEBUG("job=%ld stdin=%s stdout=%s stderr=%s",
+             job->job_id, stdin_path, stdout_path, stderr_path);
+
+    /* ---------- stdin ---------- */
+    fd = open(stdin_path, O_RDONLY);
     if (fd < 0) {
-        LL_ERR("job=%ld open(stdin=%s) failed: %m", job->job_id, stdin_path);
+        LL_ERR("job=%ld open(stdin=%s) failed: %m",
+               job->job_id, stdin_path);
         return -1;
     }
+
     if (dup2(fd, STDIN_FILENO) < 0) {
         LL_ERR("job=%ld dup2(stdin) failed: %m", job->job_id);
         close(fd);
         return -1;
     }
+
     close(fd);
 
     /* ---------- stdout ---------- */
-    char expanded[PATH_MAX];
-    char stdout_path[PATH_MAX];
-    snprintf(stdout_path, sizeof(stdout_path), "stdout.%ld", job->job_id);
-    if (job->out_file[0] != 0) {
-        if (expand_stdio_path(job->job_id, job->out_file, expanded,
-                              sizeof(expanded)) < 0) {
-            LL_ERR("job=%ld stdout path expansion failed file=%s", job->job_id,
-                   job->out_file);
-            return -1;
-        }
-        snprintf(stdout_path, sizeof(stdout_path), "%s", expanded);
-    }
-
-    /* ---------- stderr ---------- */
-    char stderr_path[PATH_MAX];
-    snprintf(stderr_path, sizeof(stderr_path), "stderr.%ld", job->job_id);
-    if (job->err_file[0] != 0) {
-        if (expand_stdio_path(job->job_id, job->err_file, expanded,
-                              sizeof(expanded)) < 0) {
-            LL_ERR("job=%ld stderr path expansion failed file=%s", job->job_id,
-                   job->err_file);
-            return -1;
-        }
-        snprintf(stderr_path, sizeof(stderr_path), "%s", expanded);
-    }
-
-    LL_DEBUG("job=%ld stdout=%s stderr=%s", job->job_id, stdout_path,
-             stderr_path);
-
-    /* ---------- redirect stdout ---------- */
     fd = open(stdout_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        LL_ERR("job=%ld open(stdout=%s) failed: %m", job->job_id, stdout_path);
+        LL_ERR("job=%ld open(stdout=%s) failed: %m",
+               job->job_id, stdout_path);
         return -1;
     }
+
     if (dup2(fd, STDOUT_FILENO) < 0) {
         LL_ERR("job=%ld dup2(stdout) failed: %m", job->job_id);
         close(fd);
         return -1;
     }
 
-    /* ---------- redirect stderr ---------- */
+    /*
+     * stdout and stderr may intentionally refer to the same file.
+     * In that case duplicate the already-open stdout descriptor so
+     * both streams share the same open file description.
+     */
     if (strcmp(stdout_path, stderr_path) == 0) {
         if (dup2(fd, STDERR_FILENO) < 0) {
             LL_ERR("job=%ld dup2(stderr) failed: %m", job->job_id);
             close(fd);
             return -1;
         }
+
         close(fd);
         return 0;
     }
+
     close(fd);
 
+    /* ---------- stderr ---------- */
     fd = open(stderr_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        LL_ERR("job=%ld open(stderr=%s) failed: %m", job->job_id, stderr_path);
+        LL_ERR("job=%ld open(stderr=%s) failed: %m",
+               job->job_id, stderr_path);
         return -1;
     }
+
     if (dup2(fd, STDERR_FILENO) < 0) {
         LL_ERR("job=%ld dup2(stderr) failed: %m", job->job_id);
         close(fd);
         return -1;
     }
+
     close(fd);
     return 0;
+}
+
+static int redirect_stdio(const struct sbd_job *job)
+{
+    char stdin_path[PATH_MAX];
+    char stdout_path[PATH_MAX];
+    char stderr_path[PATH_MAX];
+
+    if (job->flags & JOB_FLAG_SERVICE) {
+        if (define_service_stdio(job, stdin_path,
+                                 stdout_path, stderr_path) < 0)
+            return -1;
+    } else {
+        if (define_regular_stdio(job, stdin_path,
+                                 stdout_path, stderr_path) < 0)
+            return -1;
+    }
+
+    return redirect_stdio_paths(job,
+                                stdin_path,
+                                stdout_path,
+                                stderr_path);
 }
 
 static void child_exec_job(struct sbd_job *job)
