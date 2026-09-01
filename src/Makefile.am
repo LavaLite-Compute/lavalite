@@ -1,5 +1,5 @@
 #
 # Copyright (C) LavaLite Contributors
 #
-SUBDIRS = base batch
+SUBDIRS = base batch tests
 

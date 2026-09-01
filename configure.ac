@@ -41,6 +41,8 @@ AC_CONFIG_FILES([
   Makefile
   include/Makefile
   src/Makefile
+  src/tests/Makefile
+  src/tests/netns/Makefile
   src/base/Makefile
   src/base/lib/Makefile
   src/batch/Makefile
