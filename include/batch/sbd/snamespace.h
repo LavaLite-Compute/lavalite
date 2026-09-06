@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 
 #include "base/lib/ll.bufsiz.h"
+#include "batch/sbd/sbd.h"
 
 struct snamespace {
     int64_t job_id;
@@ -21,5 +22,10 @@ struct snamespace {
     uint8_t prefix_len;            /* 30 */
 };
 
-int snamespace_create(int64_t job_id, struct snamespace *);
-int snamespace_destroy(struct snamespace *);
+int snamespace_setup(struct sbd_job *);
+int snamespace_create(const char *);
+int snamespace_open(const char *);
+int snamespace_enter(int);
+int snamespace_destroy(const char *);
+int snamespace_enter_job(const struct sbd_job *);
+int snamespace_destroy_job(const struct sbd_job *);

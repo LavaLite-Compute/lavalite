@@ -21,6 +21,7 @@
 #include "batch/lib/rpc.h"
 #include "batch/sbd/sbd.h"
 #include "batch/lib/wire.h"
+#include "batch/sbd/snamespace.h"
 
 static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
 {
@@ -453,6 +454,12 @@ static void child_exec_job(struct sbd_job *job)
     if (cgroup_job_assign(job->job_id, getpid()) < 0)
         LL_ERR("job=%ld cgroup_assign failed, continuing", job->job_id);
 
+    if (job->flags & JOB_FLAG_SERVICE) {
+        if (snamespace_enter_job(job) < 0) {
+            LL_ERR("job=%ld enter network namespace failed", job->job_id);
+            _exit(127);
+        }
+    }
     // Drop privileges before touching user paths.
     if (set_user_id(job) < 0) {
         LL_ERR("set ids failed job=%ld pid=%d pgid=%d", job->job_id, job->pid,
@@ -525,6 +532,13 @@ static int spawn_job(struct sbd_job *job)
 {
     if (cgroup_job_create(job->job_id, job->mem_mb, job->ncpus) < 0)
         LL_ERR("job=%ld cgroup_create failed, continuing", job->job_id);
+
+    if (job->flags & JOB_FLAG_SERVICE) {
+        if (snamespace_setup(job) < 0) {
+            LL_ERR("job=%ld namespace setup failed", job->job_id);
+            return -1;
+        }
+    }
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -898,6 +912,9 @@ int sbd_job_finish(struct sbd_job *job)
 
     // Collect job resources from the cgroup
     cgroup_job_collect(job->job_id, &job->res_usage);
+
+    // Remove the name space the job is running in
+    snamespace_destroy_job(job);
 
     struct wire_job_finish f;
     memset(&f, 0, sizeof(f));
