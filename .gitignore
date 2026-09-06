@@ -39,7 +39,7 @@ config.sub
 *.libs/
 
 # Ignore commands
-src/tests/netns/netns
+netns
 bhosts
 bhist
 bjobs
