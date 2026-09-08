@@ -51,57 +51,42 @@
 
 static uint16_t next_slot;
 
-static int slot_alloc(uint16_t *slot)
+static void namespace_addresses(struct snamespace *ns)
 {
-    *slot = next_slot;
+    uint16_t slot = next_slot;
 
     next_slot++;
     if (next_slot >= SVC_NET_NSLOTS)
         next_slot = 0;
 
-    return 0;
-}
-
-static void namespace_addresses(struct snamespace *ns, uint16_t slot)
-{
     uint32_t base;
-    char sbd_addr[INET_ADDRSTRLEN];
-    char svc_addr[INET_ADDRSTRLEN];
 
     base = SVC_NET_BASE + ((uint32_t)slot * SVC_NET_SLOT_ADDRS);
 
     ns->sbd_addr.s_addr = htonl(base + 1);
     ns->svc_addr.s_addr = htonl(base + 2);
-
-    if (inet_ntop(AF_INET, &ns->sbd_addr, sbd_addr, sizeof(sbd_addr)) == NULL)
-        strcpy(sbd_addr, "<invalid>");
-
-    if (inet_ntop(AF_INET, &ns->svc_addr, svc_addr, sizeof(svc_addr)) == NULL)
-        strcpy(svc_addr, "<invalid>");
-
-    LL_DEBUG("netns slot=%u sbd=%s svc=%s", slot, sbd_addr, svc_addr);
 }
 
-static int namespace_names(struct snamespace *ns, uint16_t slot)
+static int namespace_names(struct snamespace *ns)
 {
     int n;
 
     n = snprintf(ns->name, sizeof(ns->name),
-                 "svc%ld", (long)ns->job_id);
+                 "svc%ld", ns->job_id);
     if (n < 0 || (size_t)n >= sizeof(ns->name)) {
         errno = ENAMETOOLONG;
         return -1;
     }
 
     n = snprintf(ns->sbd_if, sizeof(ns->sbd_if),
-                 "ll_sbd%u", slot);
+                 "ll%lda", ns->job_id);
     if (n < 0 || (size_t)n >= sizeof(ns->sbd_if)) {
         errno = ENAMETOOLONG;
         return -1;
     }
 
     n = snprintf(ns->svc_if, sizeof(ns->svc_if),
-                 "ll_svc%u", slot);
+                 "ll%ldb", ns->job_id);
     if (n < 0 || (size_t)n >= sizeof(ns->svc_if)) {
         errno = ENAMETOOLONG;
         return -1;
@@ -112,18 +97,25 @@ static int namespace_names(struct snamespace *ns, uint16_t slot)
 
 static int snamespace_init(struct snamespace *ns, int64_t job_id)
 {
-    uint16_t slot;
-
     memset(ns, 0, sizeof(*ns));
     ns->job_id = job_id;
 
-    if (slot_alloc(&slot) < 0)
+    if (namespace_names(ns) < 0)
         return -1;
 
-    if (namespace_names(ns, slot) < 0)
-        return -1;
+    namespace_addresses(ns);
 
-    namespace_addresses(ns, slot);
+    char sbd_addr[INET_ADDRSTRLEN];
+    char svc_addr[INET_ADDRSTRLEN];
+
+    if (inet_ntop(AF_INET, &ns->sbd_addr, sbd_addr, sizeof(sbd_addr)) == NULL)
+        strcpy(sbd_addr, "<invalid>");
+
+    if (inet_ntop(AF_INET, &ns->svc_addr, svc_addr, sizeof(svc_addr)) == NULL)
+        strcpy(svc_addr, "<invalid>");
+
+    LL_DEBUG("netns=%s job_id=%ld ll%lda=%s ll%ldb=%s", ns->name, job_id,
+             job_id, sbd_addr,  job_id, svc_addr);
 
     return 0;
 }
@@ -380,7 +372,10 @@ static int rtnl_veth_create(const char *host_if, const char *peer_if)
     rtnl_nest_end(&req.nlh, infodata);
     rtnl_nest_end(&req.nlh, linkinfo);
 
-    return rtnl_talk(&req.nlh);
+    if (rtnl_talk(&req.nlh) < 0)
+        return -1;
+
+    return 0;
 }
 
 static int rtnl_link_set_netns(const char *ifname, int nsfd)
@@ -408,7 +403,10 @@ static int rtnl_link_set_netns(const char *ifname, int nsfd)
                      &nsfd, sizeof(nsfd)) < 0)
         return -1;
 
-    return rtnl_talk(&req.nlh);
+    if (rtnl_talk(&req.nlh) < 0)
+        return -1;
+
+    return 0;
 }
 
 static int rtnl_link_set_up(const char *ifname)
@@ -433,7 +431,10 @@ static int rtnl_link_set_up(const char *ifname)
     req.ifm.ifi_flags = IFF_UP;
     req.ifm.ifi_change = IFF_UP;
 
-    return rtnl_talk(&req.nlh);
+    if (rtnl_talk(&req.nlh) < 0)
+        return -1;
+
+    return 0;
 }
 
 static int rtnl_link_delete(const char *ifname)
@@ -456,7 +457,10 @@ static int rtnl_link_delete(const char *ifname)
     req.ifm.ifi_family = AF_UNSPEC;
     req.ifm.ifi_index = index;
 
-    return rtnl_talk(&req.nlh);
+    if (rtnl_talk(&req.nlh) < 0)
+        return -1;
+
+    return 0;
 }
 
 static int namespace_configure_child(int nsfd, const char *ifname,
@@ -524,7 +528,10 @@ int snamespace_create(const char *name)
         _exit(0);
     }
 
-    if (waitpid(pid, &status, 0) < 0) {
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno == EINTR)
+            continue;
+
         LL_ERR("waitpid");
         return -1;
     }

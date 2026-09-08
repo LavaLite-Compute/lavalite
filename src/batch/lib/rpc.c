@@ -132,7 +132,10 @@ int call_mbd(const void *req, size_t req_len, void **rep,
     if (mbd_rpc_init() < 0)
         return -1;
 
-    return call_mbd_timeout(req, req_len, rep, reply_hdr, recvtimeout);
+    if (call_mbd_timeout(req, req_len, rep, reply_hdr, recvtimeout) < 0)
+        return -1;
+
+    return 0;
 }
 
 const char *batch_op_str(enum batch_lib_op op)

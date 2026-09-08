@@ -1126,8 +1126,9 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
             return;
         }
 
-        LL_ERR("job_id=%ld rejected by sbd=%s status=%d (%s)", r.job_id,
-               chan_addr_str(host->sbd_chan), hdr->status, strerror(hdr->status));
+        LL_ERRX("job_id=%ld rejected by sbd=%s status=%d (%s)", r.job_id,
+                chan_addr_str(host->sbd_chan), hdr->status,
+                strerror(hdr->status));
 
         mbd_job_reject_dispatch(job);
         return;

@@ -574,6 +574,12 @@ int chan_rpc(int chan_id, struct chan_buffer *snd, struct chan_buffer *rcv,
         return -1;
     }
 
+    if (cc != (ssize_t)rcv->len) {
+        free(rcv->data);
+        errno = ECONNRESET;
+        return -1;
+    }
+
     return 0;
 }
 
@@ -729,7 +735,7 @@ ssize_t chan_read(int chan_id, void *buf, size_t len)
             continue;
         }
         if (cc == 0) {
-            errno = 0;
+            errno = ECONNRESET;
             return -1;
         }
         if (errno == EINTR)
@@ -821,8 +827,14 @@ int recv_protocol_header(int chan_id, struct protocol_header *hdr)
     XDR xdrs;
     char buf[PACKET_HEADER_SIZE];
 
-    if (chan_read(chan_id, buf, PACKET_HEADER_SIZE) != PACKET_HEADER_SIZE)
+    ssize_t cc = chan_read(chan_id, buf, PACKET_HEADER_SIZE);
+    if (cc < 0)
         return -1;
+
+    if (cc != PACKET_HEADER_SIZE) {
+        errno = ECONNRESET;
+        return -1;
+    }
 
     xdrmem_create(&xdrs, (char *) buf, PACKET_HEADER_SIZE, XDR_DECODE);
     if (!xdr_pack_hdr(&xdrs, hdr)) {

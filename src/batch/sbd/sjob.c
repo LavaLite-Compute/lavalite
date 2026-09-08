@@ -73,8 +73,9 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     assert(job->user_home[0] != 0);
     assert(job->user_cwd[0] != 0);
 
-    LL_INFO("job=%ld flags=0x%x user=%s home=%s cwd=%s", job->job_id,
-            job->flags, job->user, job->user_home, job->user_cwd);
+    LL_INFO("job=%ld flags=%s user=%s home=%s cwd=%s", job->job_id,
+            (job->flags & JOB_FLAG_SERVICE) ? "SERVICE" : "BATCH",
+            job->user, job->user_home, job->user_cwd);
 
     return job;
 }
