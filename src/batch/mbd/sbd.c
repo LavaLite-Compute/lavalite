@@ -424,6 +424,11 @@ int mbd_dispatch_job(struct job_data *job)
     ws.ncpus = job->res.num_cpus;
     ws.mem_mb = job->res.mem_mb;
 
+    if (job->svc_inst != NULL) {
+        ws.ext_port = job->svc_inst->port;
+        ws.app_port = job->svc_inst->svc->port;
+    }
+
     ll_strlcpy(ws.job_name, job->name, sizeof(ws.job_name));
     ll_strlcpy(ws.queue, job->queue->name, sizeof(ws.queue));
     ll_strlcpy(ws.username, job->user, sizeof(ws.username));

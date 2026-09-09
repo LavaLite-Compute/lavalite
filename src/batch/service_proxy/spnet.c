@@ -481,12 +481,16 @@ void sp_relay_accept(struct sp_instance *inst)
     memset(&addr, 0, sizeof(addr));
     get_host_addrv4(&backend_node, &addr);
     addr.sin_family = AF_INET;
-    addr.sin_port = htons((uint16_t) inst->app_port);
+    /* Not app_port: inst->port is the same client-facing port spd
+     * itself listens on. sbd DNATs it to svc_addr:app_port inside
+     * the job's netns -- app_port would only be reachable if spd
+     * happened to run on the same node as the backend.
+     */
+    addr.sin_port = htons((uint16_t) inst->port);
 
     if (chan_connect(backend_chan, &addr, 3) < 0) {
         LL_ERR("sp_relay_accept: cannot connect to backend %s:%d "
-               "uid=%ld: %m", inst->run_host, inst->app_port,
-               (long) inst->uid);
+               "uid=%u", inst->run_host, inst->app_port, inst->uid);
         chan_close(backend_chan);
         chan_close(client_chan);
         return;

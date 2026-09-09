@@ -40,6 +40,8 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->flags = ws->flags;
     job->ncpus = ws->ncpus;
     job->mem_mb = ws->mem_mb;
+    job->ext_port = ws->ext_port;
+    job->app_port = ws->app_port;
 
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
     ll_strlcpy(job->user_home, ws->home_dir, sizeof(job->user_home));

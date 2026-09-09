@@ -266,6 +266,10 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
         return false;
     if (!xdr_opaque(xdrs, p->gpu_assigned, sizeof(p->gpu_assigned)))
         return false;
+    if (!xdr_int32_t(xdrs, &p->ext_port))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->app_port))
+        return false;
     return true;
 }
 

@@ -49,7 +49,10 @@ struct sp_instance {
     int port;                      /* external port this is bound to */
     uid_t uid;                     /* user of the instance */
     int64_t job_id;                /* service job_id */
-    int app_port;                  /* backend's internal port, from ADD */
+    /* backend's internal port; DNAT target on sbd's side, unused for the
+     * connect itself
+     */
+    int app_port;
     char run_host[MAXHOSTNAMELEN]; /* empty until BATCH_SVC_UPDATE arrives */
     struct ll_list relays;         /* active sp_relay pairs on this instance */
 };
@@ -67,7 +70,8 @@ struct sp_relay {
     struct ll_list_entry ent;   /* linkage in sp_instance.relays */
     struct sp_instance *inst;   /* owning instance, for lookup/cleanup/logs */
     int client_chan;            /* accepted from inst->listen_chan */
-    int backend_chan;           /* connected to inst->run_host:app_port */
+    /* connected to inst->run_host:inst->port (DNAT'd to app_port on sbd) */
+    int backend_chan;
     char c2b_buf[LL_BUFSIZ_8K];
     int c2b_len;
     int c2b_pos;

@@ -105,6 +105,8 @@ struct wire_job_start {
     uint64_t mem_mb;
     char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* e.g. "0,1" — assigned CUDA device IDs */
+    int32_t ext_port;         // new: external port from service_proxy
+    int32_t app_port;         // new: service's internal listen port
     struct wire_job_script script;   /* job script, encoded last */
 };
 
