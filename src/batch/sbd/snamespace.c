@@ -53,22 +53,20 @@
  */
 #define CMD_TIMEOUT_SECS 3
 
-static uint16_t next_slot;
-
-static void namespace_addresses(struct snamespace *ns)
+static int namespace_addresses(struct snamespace *ns)
 {
-    uint16_t slot = next_slot;
+    if (ns->job_id <= 0) {
+        errno = EINVAL;
+        return -1;
+    }
 
-    next_slot++;
-    if (next_slot >= SVC_NET_NSLOTS)
-        next_slot = 0;
-
-    uint32_t base;
-
-    base = SVC_NET_BASE + ((uint32_t)slot * SVC_NET_SLOT_ADDRS);
+    uint32_t slot = ((uint64_t)ns->job_id - 1) % SVC_NET_NSLOTS;
+    uint32_t base = SVC_NET_BASE + slot * SVC_NET_SLOT_ADDRS;
 
     ns->sbd_addr.s_addr = htonl(base + 1);
     ns->svc_addr.s_addr = htonl(base + 2);
+
+    return 0;
 }
 
 static int namespace_names(struct snamespace *ns)
@@ -107,7 +105,8 @@ static int snamespace_init(struct snamespace *ns, int64_t job_id)
     if (namespace_names(ns) < 0)
         return -1;
 
-    namespace_addresses(ns);
+    if (namespace_addresses(ns) < 0)
+        return -1;
 
     char sbd_addr[INET_ADDRSTRLEN];
     char svc_addr[INET_ADDRSTRLEN];
@@ -211,14 +210,20 @@ static int run_cmd(char *const argv[])
 }
 
 /*
- * DNAT: exposing the service inside the netns to the rest of the
- * cluster.
+ * NAT: expose the service inside the netns to the rest of the cluster
+ * and provide outbound connectivity from the service.
  *
  * Each job gets its own nft table, named the same as its netns
- * (svc<job_id>). The table's only chain is a base "prerouting" nat
- * hook holding one rule: rewrite the destination of anything arriving
- * on ext_port to svc_addr:app_port. Since it's a whole table, cleanup
- * is one command -- "nft delete table" -- no rule handles to track.
+ * (svc<job_id>). It contains two base NAT chains:
+ *
+ *   prerouting: rewrite the destination of anything arriving on
+ *               ext_port to svc_addr:app_port;
+ *   postrouting: masquerade packets originating from svc_addr so that
+ *                replies from outside the SBD host are routed back to
+ *                the host and then translated back into the netns.
+ *
+ * Since both rules live in a per-job table, cleanup is one command --
+ * "nft delete table" -- with no rule handles to track.
  */
 static int snamespace_nat_destroy(const char *name)
 {
@@ -248,6 +253,13 @@ static int snamespace_nat_setup(const char *name, const struct in_addr *svc_addr
                           "dstnat", ";", "}", NULL};
     char *argv_rule[] = {"nft", "add", "rule", "ip", (char *)name, "prerouting",
                          "tcp", "dport", dport, "dnat", "to", dnat_to, NULL};
+    char *argv_post_chain[] = {"nft", "add", "chain", "ip", (char *)name,
+                               "postrouting", "{", "type", "nat", "hook",
+                               "postrouting", "priority", "srcnat", ";", "}",
+                               NULL};
+    char *argv_masquerade[] = {"nft", "add", "rule", "ip", (char *)name,
+                               "postrouting", "ip", "saddr", addr,
+                               "masquerade", NULL};
 
     if (run_cmd(argv_table) < 0)
         return -1;
@@ -258,6 +270,16 @@ static int snamespace_nat_setup(const char *name, const struct in_addr *svc_addr
     }
 
     if (run_cmd(argv_rule) < 0) {
+        snamespace_nat_destroy(name);
+        return -1;
+    }
+
+    if (run_cmd(argv_post_chain) < 0) {
+        snamespace_nat_destroy(name);
+        return -1;
+    }
+
+    if (run_cmd(argv_masquerade) < 0) {
         snamespace_nat_destroy(name);
         return -1;
     }
@@ -323,18 +345,27 @@ fail:
 
 /*
  * Service-side configuration, run inside the job's netns via
- * "ip netns exec": bring loopback up, address+up svc_if.
+ * "ip netns exec": bring loopback up, address+up svc_if, then install
+ * the default route through the host-side end of the veth pair.
  */
 static int ip_netns_configure_svc_side(const char *name, const char *svc_if,
-                                       const struct in_addr *svc_addr)
+                                       const struct in_addr *svc_addr,
+                                       const struct in_addr *sbd_addr)
 {
     char addr[INET_ADDRSTRLEN];
     char addr_cidr[INET_ADDRSTRLEN + 4];
+    char gateway[INET_ADDRSTRLEN];
 
     if (inet_ntop(AF_INET, svc_addr, addr, sizeof(addr)) == NULL) {
         errno = EINVAL;
         return -1;
     }
+
+    if (inet_ntop(AF_INET, sbd_addr, gateway, sizeof(gateway)) == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
     snprintf(addr_cidr, sizeof(addr_cidr), "%s/30", addr);
 
     char *argv_lo[] = {"ip", "netns", "exec", (char *)name,
@@ -344,6 +375,9 @@ static int ip_netns_configure_svc_side(const char *name, const char *svc_if,
                          (char *)svc_if, NULL};
     char *argv_up[] = {"ip", "netns", "exec", (char *)name,
                        "ip", "link", "set", (char *)svc_if, "up", NULL};
+    char *argv_route[] = {"ip", "netns", "exec", (char *)name,
+                          "ip", "route", "add", "default", "via",
+                          gateway, NULL};
 
     if (run_cmd(argv_lo) < 0)
         return -1;
@@ -352,6 +386,9 @@ static int ip_netns_configure_svc_side(const char *name, const char *svc_if,
         return -1;
 
     if (run_cmd(argv_up) < 0)
+        return -1;
+
+    if (run_cmd(argv_route) < 0)
         return -1;
 
     return 0;
@@ -430,7 +467,8 @@ int snamespace_setup(struct sbd_job *job)
     /* Configure the service side: bring loopback up, address+up
      * svc_if, all inside the job's netns.
      */
-    if (ip_netns_configure_svc_side(ns.name, ns.svc_if, &ns.svc_addr) < 0)
+    if (ip_netns_configure_svc_side(ns.name, ns.svc_if,
+                                    &ns.svc_addr, &ns.sbd_addr) < 0)
         goto fail_veth;
 
     /* Expose svc_addr:app_port to the cluster as node_ip:ext_port,
