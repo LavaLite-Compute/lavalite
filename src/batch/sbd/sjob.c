@@ -454,7 +454,7 @@ static void child_exec_job(struct sbd_job *job)
     }
 
     // write to cgroup till we are root
-    if (cgroup_job_assign(job->job_id, getpid()) < 0)
+    if (cgroup_job_assign(job) < 0)
         LL_ERR("job=%ld cgroup_assign failed, continuing", job->job_id);
 
     if (job->flags & JOB_FLAG_SERVICE) {
@@ -533,16 +533,6 @@ void reset_except_fd(int except_fd)
 
 static int spawn_job(struct sbd_job *job)
 {
-    if (cgroup_job_create(job->job_id, job->mem_mb, job->ncpus) < 0)
-        LL_ERR("job=%ld cgroup_create failed, continuing", job->job_id);
-
-    if (job->flags & JOB_FLAG_SERVICE) {
-        if (snamespace_setup(job) < 0) {
-            LL_ERR("job=%ld namespace setup failed", job->job_id);
-            return -1;
-        }
-    }
-
     pid_t pid = fork();
     if (pid < 0) {
         LL_ERR("fork failed for job=%ld", job->job_id);
@@ -687,12 +677,31 @@ void sbd_job_new(XDR *xdrs)
         goto out;
     }
 
+    if (cgroup_job_create(job))
+        LL_ERR("job=%ld cgroup_create failed, continuing", job->job_id);
+
+    if (job->flags & JOB_FLAG_SERVICE) {
+        if (snamespace_setup(job) < 0) {
+            int err = errno;
+            LL_ERR("job=%ld namespace setup failed", job->job_id);
+            sbd_job_new_reply_err(ws.job_id, err);
+            sbd_job_file_remove(job);
+            sbd_job_state_remove(job);
+            cgroup_job_destroy(job);
+            free(job);
+            goto out;
+        }
+    }
+
     if (spawn_job(job) < 0) {
         int err = errno;
         sbd_job_new_reply_err(ws.job_id, err);
         LL_ERR("job=%ld spawn failed", ws.job_id);
         sbd_job_file_remove(job);
         sbd_job_state_remove(job);
+        cgroup_job_destroy(job);
+        if (job->flags & JOB_FLAG_SERVICE)
+            snamespace_destroy_job(job);
         free(job);
         goto out;
     }
@@ -914,7 +923,7 @@ int sbd_job_finish(struct sbd_job *job)
     }
 
     // Collect job resources from the cgroup
-    cgroup_job_collect(job->job_id, &job->res_usage);
+    cgroup_job_collect(job);
 
     // Remove the name space the job is running in
     snamespace_destroy_job(job);
@@ -1001,7 +1010,7 @@ void sbd_job_finish_ack(XDR *xdrs)
 
     LL_INFO("job=%ld finish_acked and freed", job->job_id);
 
-    cgroup_job_destroy(job->job_id);
+    cgroup_job_destroy(job);
     free(job);
 }
 
@@ -1031,19 +1040,19 @@ int sbd_job_signal(XDR *xdrs)
     }
 
     if (sig.sig == SIGSTOP) {
-        if (cgroup_job_freeze(job->job_id) < 0)
+        if (cgroup_job_freeze(job) < 0)
             status = ESRCH;
         goto reply;
     }
 
     if (sig.sig == SIGCONT) {
-        if (cgroup_job_thaw(job->job_id) < 0)
+        if (cgroup_job_thaw(job) < 0)
             status = ESRCH;
         goto reply;
     }
 
     if (sig.sig == SIGKILL) {
-        if (cgroup_job_kill(job->job_id) < 0)
+        if (cgroup_job_kill(job) < 0)
             status = ESRCH;
         goto reply;
     }

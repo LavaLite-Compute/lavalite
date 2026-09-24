@@ -183,10 +183,10 @@ int write_all(int, const char *, size_t);
 /* cgroups
  */
 int cgroup_init(void);
-int cgroup_job_create(int64_t, uint64_t, int32_t);
-int cgroup_job_assign(int64_t, pid_t);
-void cgroup_job_destroy(int64_t);
-int cgroup_job_freeze(int64_t);
-int cgroup_job_thaw(int64_t);
-int cgroup_job_kill(int64_t);
-int cgroup_job_collect(int64_t, struct job_res_usage *);
+int cgroup_job_create(struct sbd_job *);
+int cgroup_job_assign(struct sbd_job *);
+void cgroup_job_destroy(struct sbd_job *);
+int cgroup_job_freeze(struct sbd_job *);
+int cgroup_job_thaw(struct sbd_job *);
+int cgroup_job_kill(struct sbd_job *);
+int cgroup_job_collect(struct sbd_job *);

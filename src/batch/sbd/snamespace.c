@@ -404,12 +404,11 @@ int snamespace_create(const char *name)
 int snamespace_open(const char *name)
 {
     char path[PATH_MAX];
-    int fd;
 
     if (netns_path(path, sizeof(path), name) < 0)
         return -1;
 
-    fd = open(path, O_RDONLY | O_CLOEXEC);
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
     if (fd < 0)
         return -1;
 
@@ -445,8 +444,12 @@ int snamespace_destroy(const char *name)
 
 int snamespace_setup(struct sbd_job *job)
 {
-    struct snamespace ns;
+    if (!(job->flags & JOB_FLAG_SERVICE)) {
+        errno = EINVAL;
+        return -1;
+    }
 
+    struct snamespace ns;
     /* Initialize the namespace description: namespace name, veth names,
      * slot and IP addresses.
      */
@@ -495,12 +498,15 @@ fail:
 
 int snamespace_enter_job(const struct sbd_job *job)
 {
-    char nsname[LL_BUFSIZ_64];
-    int nsfd;
+    if (!(job->flags & JOB_FLAG_SERVICE)) {
+        errno = EINVAL;
+        return -1;
+    }
 
+    char nsname[LL_BUFSIZ_64];
     snprintf(nsname, sizeof(nsname), "svc%ld", job->job_id);
 
-    nsfd = snamespace_open(nsname);
+    int nsfd = snamespace_open(nsname);
     if (nsfd < 0)
         return -1;
 
@@ -515,8 +521,10 @@ int snamespace_enter_job(const struct sbd_job *job)
 
 int snamespace_destroy_job(const struct sbd_job *job)
 {
-    char nsname[LL_BUFSIZ_64];
+    if (!(job->flags & JOB_FLAG_SERVICE))
+        return 0;
 
+    char nsname[LL_BUFSIZ_64];
     snprintf(nsname, sizeof(nsname), "svc%ld", job->job_id);
 
     /* Best-effort: a job that never got past snamespace_nat_setup()

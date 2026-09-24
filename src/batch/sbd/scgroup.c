@@ -151,158 +151,158 @@ int cgroup_init(void)
     return 0;
 }
 
-int cgroup_job_create(int64_t job_id, uint64_t mem_mb, int32_t ncpus)
+int cgroup_job_create(struct sbd_job *job)
 {
     char path[CG_PATH_MAX];
     char knob[CG_PATH_MAX];
     char val[LL_BUFSIZ_32];
 
-    snprintf(path, sizeof(path), "%s/job_%ld", cg_base, job_id);
+    snprintf(path, sizeof(path), "%s/job_%ld", cg_base, job->job_id);
 
     if (mkdir(path, 0755) < 0 && errno != EEXIST) {
-        LL_ERR("job=%ld cgroup mkdir(%s) failed: %m", job_id, path);
+        LL_ERR("job=%ld cgroup mkdir(%s) failed: %m", job->job_id, path);
         return -1;
     }
 
-    if (mem_mb > 0) {
-        snprintf(knob, sizeof(knob), "%s/job_%ld/memory.max", cg_base, job_id);
+    if (job->mem_mb > 0) {
+        snprintf(knob, sizeof(knob), "%s/job_%ld/memory.max", cg_base, job->job_id);
         snprintf(val, sizeof(val), "%llu",
-                 (unsigned long long) mem_mb * 1024 * 1024);
+                 (unsigned long long) job->mem_mb * 1024 * 1024);
 
         if (cg_write(knob, val) < 0)
-            LL_ERR("job=%ld cgroup set memory.max=%s failed", job_id, val);
+            LL_ERR("job=%ld cgroup set memory.max=%s failed", job->job_id, val);
         else
-            LL_INFO("job=%ld cgroup memory.max=%s bytes", job_id, val);
+            LL_INFO("job=%ld cgroup memory.max=%s bytes", job->job_id, val);
     }
 
-    if (ncpus > 0) {
+    if (job->ncpus > 0) {
         /*
          * cpu.max format: "quota period"
          * quota = ncpus * period -> ncpus CPUs worth of time per period.
          * period = 100000 us (kernel default).
          */
-        snprintf(knob, sizeof(knob), "%s/job_%ld/cpu.max", cg_base, job_id);
-        snprintf(val, sizeof(val), "%d 100000", ncpus * 100000);
+        snprintf(knob, sizeof(knob), "%s/job_%ld/cpu.max", cg_base, job->job_id);
+        snprintf(val, sizeof(val), "%d 100000", job->ncpus * 100000);
 
         if (cg_write(knob, val) < 0)
-            LL_ERR("job=%ld cgroup set cpu.max=%s failed", job_id, val);
+            LL_ERR("job=%ld cgroup set cpu.max=%s failed", job->job_id, val);
         else
-            LL_INFO("job=%ld cgroup cpu.max=%s", job_id, val);
+            LL_INFO("job=%ld cgroup cpu.max=%s", job->job_id, val);
     }
 
     return 0;
 }
 
-int cgroup_job_assign(int64_t job_id, pid_t pid)
+int cgroup_job_assign(struct sbd_job *job)
 {
     char knob[CG_PATH_MAX];
     char val[LL_BUFSIZ_32];
+    pid_t pid = getpid();
 
-    snprintf(knob, sizeof(knob), "%s/job_%ld/cgroup.procs", cg_base, job_id);
+    snprintf(knob, sizeof(knob), "%s/job_%ld/cgroup.procs", cg_base, job->job_id);
     snprintf(val, sizeof(val), "%d", (int) pid);
 
     if (cg_write(knob, val) < 0) {
-        LL_ERR("job=%ld cgroup assign pid=%d failed", job_id, (int) pid);
+        LL_ERR("job=%ld cgroup assign pid=%d failed", job->job_id, (int) pid);
         return -1;
     }
 
-    LL_INFO("job=%ld cgroup assigned pid=%d", job_id, (int) pid);
+    LL_INFO("job=%ld cgroup assigned pid=%d", job->job_id, (int) pid);
     return 0;
 }
 
-void cgroup_job_destroy(int64_t job_id)
+void cgroup_job_destroy(struct sbd_job *job)
 {
     char path[CG_PATH_MAX];
 
-    snprintf(path, sizeof(path), "%s/job_%ld", cg_base, job_id);
+    snprintf(path, sizeof(path), "%s/job_%ld", cg_base, job->job_id);
 
     if (rmdir(path) < 0) {
-        LL_ERR("job=%ld cgroup rmdir(%s) failed: %m", job_id, path);
+        LL_ERR("job=%ld cgroup rmdir(%s) failed: %m", job->job_id, path);
         return;
     }
 
-    LL_INFO("job=%ld cgroup destroyed", job_id);
+    LL_INFO("job=%ld cgroup destroyed", job->job_id);
 }
 
-int cgroup_job_freeze(int64_t job_id)
+int cgroup_job_freeze(struct sbd_job *job)
 {
     char path[CG_PATH_MAX];
 
-    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.freeze", cg_base, job_id);
+    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.freeze", cg_base, job->job_id);
 
     if (cg_write(path, "1") < 0) {
-        LL_ERR("job=%ld cgroup freeze failed", job_id);
+        LL_ERR("job=%ld cgroup freeze failed", job->job_id);
         return -1;
     }
 
-    LL_INFO("job=%ld cgroup frozen", job_id);
+    LL_INFO("job=%ld cgroup frozen", job->job_id);
     return 0;
 }
 
-int cgroup_job_thaw(int64_t job_id)
+int cgroup_job_thaw(struct sbd_job *job)
 {
     char path[CG_PATH_MAX];
 
-    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.freeze", cg_base, job_id);
+    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.freeze", cg_base, job->job_id);
 
     if (cg_write(path, "0") < 0) {
-        LL_ERR("job=%ld cgroup thaw failed", job_id);
+        LL_ERR("job=%ld cgroup thaw failed", job->job_id);
         return -1;
     }
 
-    LL_INFO("job=%ld cgroup thawed", job_id);
+    LL_INFO("job=%ld cgroup thawed", job->job_id);
     return 0;
 }
 
-int cgroup_job_kill(int64_t job_id)
+int cgroup_job_kill(struct sbd_job *job)
 {
     char path[CG_PATH_MAX];
 
-    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.kill", cg_base, job_id);
+    snprintf(path, sizeof(path), "%s/job_%ld/cgroup.kill", cg_base, job->job_id);
 
     if (cg_write(path, "1") < 0) {
-        LL_ERR("job=%ld cgroup kill failed", job_id);
+        LL_ERR("job=%ld cgroup kill failed", job->job_id);
         return -1;
     }
 
-    LL_INFO("job=%ld cgroup killed", job_id);
+    LL_INFO("job=%ld cgroup killed", job->job_id);
     return 0;
 }
 
-int cgroup_job_collect(int64_t job_id, struct job_res_usage *ru)
+int cgroup_job_collect(struct sbd_job *job)
 {
     char path[CG_PATH_MAX];
-    uint64_t val;
 
-    memset(ru, 0, sizeof(*ru));
+    memset(&job->res_usage, 0, sizeof(job->res_usage));
 
     /*
      * Prefer peak usage if supported (kernel >= 5.19).
      * Fallback to current on older systems (Rocky/Alma 9).
      */
-    val = 0;
-    snprintf(path, sizeof(path), "%s/job_%ld/memory.peak", cg_base, job_id);
+    uint64_t val = 0;
+    snprintf(path, sizeof(path), "%s/job_%ld/memory.peak", cg_base, job->job_id);
     if (cg_read_u64(path, &val) < 0) {
         snprintf(path, sizeof(path), "%s/job_%ld/memory.current", cg_base,
-                 job_id);
+                 job->job_id);
         cg_read_u64(path, &val);
     }
-    ru->mem_mb = val / (1024 * 1024);
+    job->res_usage.mem_mb = val / (1024 * 1024);
 
     val = 0;
     snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.peak", cg_base,
-             job_id);
+             job->job_id);
     if (cg_read_u64(path, &val) < 0) {
         snprintf(path, sizeof(path), "%s/job_%ld/memory.swap.current", cg_base,
-                 job_id);
+                 job->job_id);
         cg_read_u64(path, &val);
     }
-    ru->swap_mb = val / (1024 * 1024);
+    job->res_usage.swap_mb = val / (1024 * 1024);
 
     val = 0;
-    snprintf(path, sizeof(path), "%s/job_%ld/cpu.stat", cg_base, job_id);
+    snprintf(path, sizeof(path), "%s/job_%ld/cpu.stat", cg_base, job->job_id);
     if (cg_read_cpu_usec(path, &val) == 0)
-        ru->cpu_time = (double) val / 1000000.0;
+        job->res_usage.cpu_time = (double) val / 1000000.0;
 
     return 0;
 }
