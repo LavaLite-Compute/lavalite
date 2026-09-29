@@ -222,7 +222,7 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     int port;
     int listen_chan = sp_bind_port(&port);
     if (listen_chan < 0) {
-        LL_ERRX("uid=%ld job_id=%ld no free port in %d..%d", (long) req.uid,
+        LL_ERRX("uid=%ld job=%ld no free port in %d..%d", (long) req.uid,
                 req.job_id, SP_SVC_PORT_MIN, SP_SVC_PORT_MAX);
         int cc = sp_send_msg(BATCH_SVC_ADD_ACK, ENOSPC, &ack, LL_BUFSIZ_1K,
                              xdr_wire_svc_add_ack);
@@ -239,7 +239,7 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     ev.events = EPOLLIN;
     ev.data.u32 = (uint32_t) listen_chan;
     if (epoll_ctl(sp_efd, EPOLL_CTL_ADD, chan_sock(listen_chan), &ev) < 0) {
-        LL_ERR("epoll_ctl failed uid=%ld job_id=%ld chan=%d",
+        LL_ERR("epoll_ctl failed uid=%ld job=%ld chan=%d",
                (long) req.uid, req.job_id, listen_chan);
         int save_errno = errno;
         chan_close(listen_chan);
@@ -254,7 +254,7 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
 
     struct sp_instance *inst = calloc(1, sizeof(*inst));
     if (inst == NULL) {
-        LL_ERR("calloc failed uid=%ld job_id=%ld", (long) req.uid,
+        LL_ERR("calloc failed uid=%ld job=%ld", (long) req.uid,
                req.job_id);
         sp_chan_shutdown(listen_chan);
         sp_fatal(SP_FATAL_OOM);
@@ -269,7 +269,7 @@ static int sp_svc_add(XDR *xdrs, const struct protocol_header *hdr)
     ll_list_init(&inst->relays);
     ll_list_append(&sp_instance_list, &inst->ent);
 
-    LL_INFO("uid=%ld job_id=%ld bound port=%d app_port=%d chan=%d",
+    LL_INFO("uid=%ld job=%ld bound port=%d app_port=%d chan=%d",
             (long) inst->uid, inst->job_id, port, inst->app_port, listen_chan);
 
     int cc = sp_send_msg(BATCH_SVC_ADD_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
@@ -317,14 +317,14 @@ static int sp_svc_update(XDR *xdrs, const struct protocol_header *hdr)
 
     struct sp_instance *inst = sp_find_instance_by_job_id(req.job_id);
     if (inst == NULL) {
-        LL_ERRX("unknown job_id=%ld", req.job_id);
+        LL_ERRX("unknown job=%ld", req.job_id);
         return sp_send_msg(BATCH_SVC_UPDATE_ACK, ESRCH, &ack, LL_BUFSIZ_1K,
                            xdr_wire_svc_update_ack);
     }
 
     ll_strlcpy(inst->run_host, req.run_host, sizeof(inst->run_host));
 
-    LL_INFO("uid=%ld job_id=%ld run_host=%s", (long) inst->uid,
+    LL_INFO("uid=%ld job=%ld run_host=%s", (long) inst->uid,
             inst->job_id, inst->run_host);
 
     int cc = sp_send_msg(BATCH_SVC_UPDATE_ACK, MBD_OK, &ack, LL_BUFSIZ_1K,
@@ -362,7 +362,7 @@ static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
 
     struct sp_instance *inst = sp_find_instance_by_job_id(req.job_id);
     if (inst == NULL) {
-        LL_ERRX("unknown job_id=%ld", req.job_id);
+        LL_ERRX("unknown job=%ld", req.job_id);
         return sp_send_msg(BATCH_SVC_REMOVE_ACK, ESRCH, &ack, LL_BUFSIZ_1K,
                            xdr_wire_svc_remove_ack);
     }
@@ -377,7 +377,7 @@ static int sp_svc_remove(XDR *xdrs, const struct protocol_header *hdr)
     sp_chan_shutdown(inst->listen_chan);
     ll_list_remove(&sp_instance_list, &inst->ent);
 
-    LL_INFO("uid=%ld job_id=%ld removed, port=%d freed",
+    LL_INFO("uid=%ld job=%ld removed, port=%d freed",
             (long) inst->uid, inst->job_id, inst->port);
 
     free(inst);

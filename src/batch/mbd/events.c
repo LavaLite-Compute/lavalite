@@ -130,7 +130,7 @@ static void replay_rebuild_counters(void)
         else if (job->state == JOB_ORPHAN)
             job->queue->num_pend++;
         else {
-            LL_ERRX("job_id=%ld in invalid state %d in pending list",
+            LL_ERRX("job=%ld in invalid state %d in pending list",
                     job->job_id, job->state);
             assert(0);
         }
@@ -153,7 +153,7 @@ static void replay_rebuild_counters(void)
             job->queue->num_cpus_used += job->res.num_cpus * job->run_nhosts;
             job->queue->num_hosts_used += job->run_nhosts;
         } else {
-            LL_ERRX("job_id=%ld in invalid state %d in running list",
+            LL_ERRX("job=%ld in invalid state %d in running list",
                     job->job_id, job->state);
             assert(0);
         }
@@ -250,7 +250,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     FILE *fp = open_manifest();
     if (log_write_job_new(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_new failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_new failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -288,7 +288,7 @@ void event_job_start(const struct job_data *job)
     FILE *fp = open_manifest();
     if (log_write_job_start(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_start failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_start failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -306,7 +306,7 @@ void event_job_fork(const struct job_data *job)
     FILE *fp = open_manifest();
     if (log_write_job_fork(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_fork failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_fork failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -325,7 +325,7 @@ void event_job_signal(const struct job_data *job, const struct wire_job_sig *ws)
     FILE *fp = open_manifest();
     if (log_write_job_signal(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_signal failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_signal failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -345,7 +345,7 @@ void event_job_finish(const struct job_data *job)
     FILE *fp = open_manifest();
     if (log_write_job_finish(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_finish failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_finish failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -361,7 +361,7 @@ void event_job_pend_susp(const struct job_data *job)
     FILE *fp = open_manifest();
     if (log_write_job_pend_susp(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_pend_susp failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_pend_susp failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -377,7 +377,7 @@ void event_job_pend_resume(const struct job_data *job)
     FILE *fp = open_manifest();
     if (log_write_job_pend_resume(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_resume failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_resume failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -393,7 +393,7 @@ void event_job_susp(const struct job_data *job)
     FILE *fp = open_manifest();
     if (log_write_job_susp(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_susp failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_susp failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -442,7 +442,7 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
 
     job->queue = ll_hash_search(&queue_name_hash, e->queue);
     if (job->queue == NULL) {
-        LL_ERR("job_id=%ld queue=%s not found, orphaned", e->job_id, e->queue);
+        LL_ERR("job=%ld queue=%s not found, orphaned", e->job_id, e->queue);
         job->state = JOB_ORPHAN;
     }
 
@@ -465,7 +465,7 @@ static int replay_insert(struct job_data *job)
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%ld", job->job_id);
     if (ll_hash_insert(&job_id_hash, key, job, 0) < 0) {
-        LL_ERR("job_id=%ld hash insert failed", job->job_id);
+        LL_ERR("job=%ld hash insert failed", job->job_id);
         job_free(job);
         return 0;
     }
@@ -480,7 +480,7 @@ static int replay_service_job_new(struct job_data *job,
 
     svc = svc_find_by_name(e->service_name);
     if (svc == NULL) {
-        LL_ERRX("job_id=%ld service=%s not found, orphaned of its service",
+        LL_ERRX("job=%ld service=%s not found, orphaned of its service",
                 e->job_id, e->service_name);
         job->state = JOB_ORPHAN;
         job->svc_inst = NULL;
@@ -490,7 +490,7 @@ static int replay_service_job_new(struct job_data *job,
     struct service_instance *inst;
     inst = calloc(1, sizeof(*inst));
     if (inst == NULL) {
-        LL_ERR("job_id=%ld cannot allocate service instance, dying",
+        LL_ERR("job=%ld cannot allocate service instance, dying",
                job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
@@ -503,7 +503,7 @@ static int replay_service_job_new(struct job_data *job,
     inst->status = SVC_PENDING;
     ll_list_append(&svc->instances, &inst->ent);
 
-    LL_DEBUG("job_id=%ld uid=%u", job->job_id, job->uid);
+    LL_DEBUG("job=%ld uid=%u", job->job_id, job->uid);
 
     return 0;
 }
@@ -521,17 +521,17 @@ static int replay_job_new(const struct event_rec *rec, int64_t *max_id)
 
     struct job_data *job = replay_alloc(&e);
     if (job == NULL) {
-        LL_ERR("failed replay job_id=%ld", e.job_id);
+        LL_ERR("failed replay job=%ld", e.job_id);
         return 0;
     }
 
     int rc = replay_insert(job);
     if (rc == 0) {
-        LL_ERR("failed insert job_id=%ld", e.job_id);
+        LL_ERR("failed insert job=%ld", e.job_id);
         return 0;
     }
 
-    LL_DEBUG("JOB_NEW job_id=%ld array_id=%ld array_index=%d depend=%s "
+    LL_DEBUG("JOB_NEW job=%ld array_id=%ld array_index=%d depend=%s "
              "flags=0x%x", e.job_id, e.array_id, e.array_index,
              (e.depend_cond[0] != 0) ? e.depend_cond : "none",
              e.flags);
@@ -555,13 +555,13 @@ static int replay_set_run_hosts(struct job_data *job,
         struct mbd_host *h = ll_hash_search(&job->queue->host_hash, tok);
         if (h == NULL) {
             // Configuration change?
-            LL_ERRX("job_id=%ld host=%s not found in job's queue", job->job_id,
+            LL_ERRX("job=%ld host=%s not found in job's queue", job->job_id,
                     tok);
             return -1;
         }
 
         if (job->run_nhosts >= e->nhosts) {
-            LL_ERRX("job_id=%ld too many hosts run=%d e=%d", job->job_id,
+            LL_ERRX("job=%ld too many hosts run=%d e=%d", job->job_id,
                     job->run_nhosts, e->nhosts);
             break;
         }
@@ -574,7 +574,7 @@ static int replay_set_run_hosts(struct job_data *job,
     }
 
     if (job->run_nhosts != e->nhosts) {
-        LL_ERRX("JOB_START job_id=%ld expected_nhosts=%d got=%d", job->job_id,
+        LL_ERRX("JOB_START job=%ld expected_nhosts=%d got=%d", job->job_id,
                 e->nhosts, job->run_nhosts);
         assert(0);
         return -1;
@@ -605,12 +605,12 @@ static void replay_job_start(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERR("JOB_START job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_START job=%ld not found", e.job_id);
         return;
     }
 
     if (job->state == JOB_ORPHAN) {
-        LL_ERRX("job_id=%ld state=%s skipping JOB_START_REPLAY", job->job_id,
+        LL_ERRX("job=%ld state=%s skipping JOB_START_REPLAY", job->job_id,
                 llb_job_state_str(job->state));
         return;
     }
@@ -621,7 +621,7 @@ static void replay_job_start(const struct event_rec *rec)
          * Mark it BROKEN and leave it in the pending lists
          * An administrator or owner may later terminate it.
          */
-        LL_ERRX("job_id=%ld is broken cannot rebuild its runtime status "
+        LL_ERRX("job=%ld is broken cannot rebuild its runtime status "
                 "configuration changed?",
                 e.job_id);
         job->state = JOB_BROKEN;
@@ -634,7 +634,7 @@ static void replay_job_start(const struct event_rec *rec)
     ll_strlcpy(job->gpu_assigned, e.gpu_assigned, sizeof(job->gpu_assigned));
     job_move_list(job, &pend_jobs_list, &run_jobs_list, JOB_LIST_RUN);
 
-    LL_DEBUG("JOB_START job_id=%ld nhosts=%d cpus=%d gpus=%d gpu_assigned=%s",
+    LL_DEBUG("JOB_START job=%ld nhosts=%d cpus=%d gpus=%d gpu_assigned=%s",
              e.job_id, e.nhosts, e.cpus_per_host, e.gpus_per_host,
              (e.gpu_assigned[0] != 0) ? e.gpu_assigned : "none");
 
@@ -652,13 +652,13 @@ static void replay_job_fork(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERR("JOB_FORK job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_FORK job=%ld not found", e.job_id);
         return;
     }
     job->pid = (pid_t) e.job_pid;
     job->fork_time = e.fork_time;
 
-    LL_DEBUG("JOB_FORK job_id=%ld pid=%d", e.job_id, e.job_pid);
+    LL_DEBUG("JOB_FORK job=%ld pid=%d", e.job_id, e.job_pid);
 }
 
 static void replay_job_signal(const struct event_rec *rec)
@@ -670,11 +670,11 @@ static void replay_job_signal(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERR("JOB_SIGNAL job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_SIGNAL job=%ld not found", e.job_id);
         return;
     }
     job->signal_time = e.signal_time;
-    LL_DEBUG("JOB_SIGNAL job_id=%ld sig=%d uid=%u", e.job_id, e.signal_num,
+    LL_DEBUG("JOB_SIGNAL job=%ld sig=%d uid=%u", e.job_id, e.signal_num,
              e.uid);
 }
 
@@ -688,7 +688,7 @@ static void replay_job_finish(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERR("JOB_FINISH job_id=%ld not found", e.job_id);
+        LL_ERR("JOB_FINISH job=%ld not found", e.job_id);
         return;
     }
 
@@ -705,7 +705,7 @@ static void replay_job_finish(const struct event_rec *rec)
     job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
     job_array_element_finished(job);
 
-    LL_DEBUG("JOB_FINISH job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_FINISH job=%ld", e.job_id);
     /* No counter updates. These updates are performed only after
      * the full replay and only for jobs in pending or running lists.
      */
@@ -722,16 +722,16 @@ static void replay_job_pend_susp(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERRX("JOB_PEND_SUSP job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_PEND_SUSP job=%ld not found", e.job_id);
         return;
     }
     if (!(job->state == JOB_PENDING)) {
-        LL_ERRX("JOB_PEND_SUSP job_id=%ld not in PEND", e.job_id);
+        LL_ERRX("JOB_PEND_SUSP job=%ld not in PEND", e.job_id);
         assert(0);
         return;
     }
     job->state = JOB_HELD;
-    LL_DEBUG("JOB_PEND_SUSP job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_PEND_SUSP job=%ld", e.job_id);
 }
 
 static void replay_job_pending_resume(const struct event_rec *rec)
@@ -743,17 +743,17 @@ static void replay_job_pending_resume(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERRX("JOB_RESUME job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_RESUME job=%ld not found", e.job_id);
         return;
     }
     if (!(job->state == JOB_HELD)) {
-        LL_ERRX("JOB_PENDING_RESUME job_id=%ld not in PEND_SUSP", e.job_id);
+        LL_ERRX("JOB_PENDING_RESUME job=%ld not in PEND_SUSP", e.job_id);
         assert(0);
         return;
     }
     job->state = JOB_PENDING;
     job->flags &= ~JOB_FLAG_HOLD;
-    LL_DEBUG("JOB_RESUME job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_RESUME job=%ld", e.job_id);
 }
 
 static void replay_job_susp(const struct event_rec *rec)
@@ -765,11 +765,11 @@ static void replay_job_susp(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERRX("JOB_SUSP job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_SUSP job=%ld not found", e.job_id);
         return;
     }
     job->state = JOB_SUSPENDED;
-    LL_DEBUG("JOB_SUSP job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_SUSP job=%ld", e.job_id);
 }
 
 /*
@@ -918,18 +918,18 @@ static void replay_job_move(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERRX("JOB_MOVE job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_MOVE job=%ld not found", e.job_id);
         return;
     }
     struct mbd_queue *to = ll_hash_search(&queue_name_hash, e.to_queue);
     if (to == NULL) {
-        LL_ERRX("JOB_MOVE job_id=%ld queue=%s not found, orphaned", e.job_id,
+        LL_ERRX("JOB_MOVE job=%ld queue=%s not found, orphaned", e.job_id,
                 e.to_queue);
         job->state = JOB_ORPHAN;
         return;
     }
     job->queue = to;
-    LL_DEBUG("JOB_MOVE job_id=%ld from=%s to=%s", e.job_id, e.from_queue,
+    LL_DEBUG("JOB_MOVE job=%ld from=%s to=%s", e.job_id, e.from_queue,
              e.to_queue);
 }
 
@@ -942,11 +942,11 @@ static void replay_job_priority(const struct event_rec *rec)
     }
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERRX("JOB_PRIORITY job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_PRIORITY job=%ld not found", e.job_id);
         return;
     }
     job->priority = e.new_priority;
-    LL_DEBUG("JOB_PRIORITY job_id=%ld old=%d new=%d", e.job_id, e.old_priority,
+    LL_DEBUG("JOB_PRIORITY job=%ld old=%d new=%d", e.job_id, e.old_priority,
              e.new_priority);
 }
 
@@ -961,7 +961,7 @@ static void replay_job_pend(const struct event_rec *rec)
 
     struct job_data *job = job_find(e.job_id);
     if (job == NULL) {
-        LL_ERRX("JOB_PEND job_id=%ld not found", e.job_id);
+        LL_ERRX("JOB_PEND job=%ld not found", e.job_id);
         return;
     }
 
@@ -975,7 +975,7 @@ static void replay_job_pend(const struct event_rec *rec)
     job->state = JOB_PENDING;
     job->run_nhosts = 0;
 
-    LL_DEBUG("JOB_PEND job_id=%ld", e.job_id);
+    LL_DEBUG("JOB_PEND job=%ld", e.job_id);
 }
 
 int jobs_replay(void)
@@ -1287,7 +1287,7 @@ static void manifest_rebuild(void)
         /* still referenced by a pending job's dependency expression,
          * purging it now would leave that job unable to ever resolve */
         if (job->dep_refcnt > 0) {
-            LL_DEBUG("job_id=%ld retained by compaction dep_refcnt=%d",
+            LL_DEBUG("job=%ld retained by compaction dep_refcnt=%d",
                      job->job_id, job->dep_refcnt);
             compact_write_job_finished(fp, job);
             continue;
@@ -1297,7 +1297,7 @@ static void manifest_rebuild(void)
          * need job_find(array_id) to resolve array_start/end/stride */
         if (job->array_id == job->job_id && job->array_id != 0 &&
             job->array_element_cnt > 0) {
-            LL_DEBUG("job_id=%ld retained by compaction array_element_cnt=%d",
+            LL_DEBUG("job=%ld retained by compaction array_element_cnt=%d",
                      job->job_id, job->array_element_cnt);
             compact_write_job_finished(fp, job);
             continue;
@@ -1358,7 +1358,7 @@ void event_job_move(const struct job_data *job, const char *to_queue)
     FILE *fp = open_manifest();
     if (log_write_job_move(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_move failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_move failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -1377,7 +1377,7 @@ void event_job_priority(const struct job_data *job, int32_t old_priority)
     FILE *fp = open_manifest();
     if (log_write_job_priority(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_priority failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_priority failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -1394,7 +1394,7 @@ void event_job_pend(const struct job_data *job)
     FILE *fp = open_manifest();
     if (log_write_job_pend(fp, &e) < 0) {
         fclose(fp);
-        LL_ERR("log_write_job_pend failed job_id=%ld", job->job_id);
+        LL_ERR("log_write_job_pend failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);

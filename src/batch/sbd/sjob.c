@@ -733,7 +733,7 @@ void sbd_job_insert(struct sbd_job *job)
 
     rc = ll_hash_insert(sbd_job_hash, keybuf, job, 0);
     if (rc != LL_HASH_INSERTED) {
-        LL_ERR("ll_hash_insert failed for job_id=%ld", job->job_id);
+        LL_ERR("ll_hash_insert failed for job=%ld", job->job_id);
         return;
     }
 
@@ -925,9 +925,6 @@ int sbd_job_finish(struct sbd_job *job)
     // Collect job resources from the cgroup
     cgroup_job_collect(job);
 
-    // Remove the name space the job is running in
-    snamespace_destroy_job(job);
-
     struct wire_job_finish f;
     memset(&f, 0, sizeof(f));
 
@@ -1011,6 +1008,7 @@ void sbd_job_finish_ack(XDR *xdrs)
     LL_INFO("job=%ld finish_acked and freed", job->job_id);
 
     cgroup_job_destroy(job);
+    snamespace_destroy_job(job);
     free(job);
 }
 

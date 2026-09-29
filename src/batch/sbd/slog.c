@@ -272,7 +272,7 @@ int sbd_job_state_write(struct sbd_job *job)
     char buf[LL_BUFSIZ_4K];
     int n = snprintf(buf, sizeof(buf),
                      "version=1\n"
-                     "job_id=%ld\n"
+                     "job=%ld\n"
                      "pid=%d\n"
                      "pgid=%d\n"
                      "pid_acked=%d\n"
@@ -458,7 +458,7 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
     fclose(fp);
 
     if (version != 1 || got_job_id == FALSE) {
-        LL_ERRX("bad state file: version=%d got_job_id=%d path=%s", version,
+        LL_ERRX("bad state file: version=%d got_job=%d path=%s", version,
                 got_job_id, state_path);
         errno = EINVAL;
         return -1;

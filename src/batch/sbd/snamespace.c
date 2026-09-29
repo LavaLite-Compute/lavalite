@@ -117,7 +117,7 @@ static int snamespace_init(struct snamespace *ns, int64_t job_id)
     if (inet_ntop(AF_INET, &ns->svc_addr, svc_addr, sizeof(svc_addr)) == NULL)
         strcpy(svc_addr, "<invalid>");
 
-    LL_DEBUG("netns=%s job_id=%ld ll%lda=%s ll%ldb=%s", ns->name, job_id,
+    LL_DEBUG("netns=%s job=%ld ll%lda=%s ll%ldb=%s", ns->name, job_id,
              job_id, sbd_addr, job_id, svc_addr);
 
     return 0;
