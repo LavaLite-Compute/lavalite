@@ -155,8 +155,8 @@ static int parse_service_endpoint(const char *s, char *host, size_t hostsz,
 
 static void usage(void)
 {
-    fprintf(stderr, "bservice: --help display this help and exit\n"
-                    "  bservice NAME  start a service defined in llb.services\n"
+    fprintf(stderr, "bservices: --help display this help and exit\n"
+                    "  bservices NAME  start a service defined in llb.services\n"
                     "  -l, --list list configured services and their instances\n"
                     "  -d, --delete URL delete a running service instance\n"
                     "  --version output version information and exit\n");
