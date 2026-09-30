@@ -93,7 +93,7 @@ static void print_wrapped(const char *label, char **items, int n,
     int col = printf("  %-12s", label);
 
     if (n == 0) {
-        printf("%s\n", all_str);
+        printf(" %s\n", all_str);
         return;
     }
     for (int i = 0; i < n; i++) {
@@ -112,18 +112,23 @@ static void print_queue_long(const struct queue_info *q)
     printf("QUEUE: %s\n", q->name);
     if (q->description[0] != '\0')
         printf("  Description: %s\n", q->description);
-    printf("  Priority:    %d    Status: %s    Max jobs: ", q->priority,
-           queue_status_str(q->status));
+
+    printf("  Priority:    %d\n", q->priority);
+    printf("  Status:      %s\n", queue_status_str(q->status));
+    printf("  Max jobs:    ");
     if (q->max_jobs == 0)
         printf("unlimited\n");
     else
         printf("%d\n", q->max_jobs);
+
     print_wrapped("Users:", q->users, q->num_users, "all");
     print_wrapped("Hosts:", q->hosts, q->num_hosts, "all");
-    printf("  Jobs:        run=%-4d pend=%-4d held=%-4d susp=%d\n", q->num_run,
-           q->num_pend, q->num_held, q->num_susp);
-    printf("  Resources:   cpus_used=%-4d hosts_used=%d\n", q->num_cpus_used,
-           q->num_hosts_used);
+
+    printf("  Jobs:        running: %d    pending: %d    held: %d"
+           "    suspended: %d\n",
+           q->num_run, q->num_pend, q->num_held, q->num_susp);
+    printf("  Usage:       CPUs used: %d    hosts used: %d\n",
+           q->num_cpus_used, q->num_hosts_used);
 }
 
 static void print_queues_long(const struct queue_info *q, int n)

@@ -25,6 +25,7 @@ struct queue_conf {
     char hosts_spec[LL_BUFSIZ_256]; /* group name or single hostname */
     char users[LL_BUFSIZ_256];      /* space-separated, empty = all */
     int priority;
+    int max_jobs;
     int state;
 };
 
@@ -503,6 +504,7 @@ static int commit_queue(struct queue_conf *qc)
 
     q->priority = qc->priority;
     q->state = QUEUE_OPEN;
+    q->max_jobs = qc->max_jobs;
 
     ll_list_append(&queue_list, &q->ent);
     ll_hash_insert(&queue_name_hash, q->name, q, 0);
@@ -528,7 +530,18 @@ static int parse_queue_conf(struct queue_conf *qc, const char *key,
     if (strcasecmp(key, "USERS") == 0)
         return ll_strlcpy(qc->users, val, LL_BUFSIZ_256);
 
+    if (strcasecmp(key, "MAX_JOBS") == 0) {
+        if (ll_atoi(val, &qc->max_jobs) < 0)
+            return -1;
+        if (qc->max_jobs < 0) {
+            LL_ERRX("MAX_JOBS must be >= 0");
+            return -1;
+        }
+        return 0;
+    }
+
     LL_ERRX("unknown queue key=%s", key);
+
     return -1;
 }
 

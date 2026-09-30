@@ -41,6 +41,7 @@ enum pend_reason {
     PEND_HOST_EXCLUSIVE,
     PEND_HOST_OVERFLOW,
     PEND_DEPEND,
+    PEND_QUEUE_JOB_LIMIT,
 };
 
 // Pending messages table

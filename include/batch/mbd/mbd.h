@@ -171,7 +171,7 @@ struct mbd_queue {
     char hosts_spec[LL_BUFSIZ_4K];
     char users[LL_BUFSIZ_4K];
     int priority;
-    int max_jobs;
+    int max_jobs; /* max concurrent jobs, 0 = unlimited */
     int num_jobs;
     int num_pend;
     int num_run;

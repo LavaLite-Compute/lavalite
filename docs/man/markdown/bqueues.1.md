@@ -22,7 +22,7 @@ bqueues - display queue information and manage queue availability
 
 # DESCRIPTION
 
-Without options, displays the current status and counters for allb.queues
+Without options, displays the current status and counters for all queues
 in the cluster.
 
 The **--close** and **--open** options require administrator privileges.
@@ -31,7 +31,8 @@ The **--close** and **--open** options require administrator privileges.
 
 **-l**, **--long**
 :   Display detailed information for each queue, including description,
-    users, and hosts. Long lines are wrapped at 79 columns.
+    priority, status, job limit, users, hosts, job counts, and resource
+    usage. User and host lists are wrapped at 79 columns.
 
 **--close** *queue*
 :   Close the named queue. A closed queue does not accept new jobs and
@@ -60,7 +61,12 @@ Displays a table with the following columns:
 :   Queue status: **open** or **closed**.
 
 **MAX**
-:   Maximum number of jobs allowed in the queue simultaneously.
+:   Maximum number of running and suspended jobs in the queue,
+    configured by **MAX_JOBS** in **llb.queues**.
+    Pending and held jobs do not count toward this limit.
+    When the limit is reached, pending jobs wait until a slot becomes
+    available. An omitted setting or **0** means unlimited, displayed
+    as **-**.
 
 **NJOBS**
 :   Total jobs in the queue (pending + held + running + suspended).
@@ -78,32 +84,44 @@ Displays a table with the following columns:
 :   Suspended jobs.
 
 **USED_CPUS**
-:   CPU slots currently in use by this queue.
+:   CPU slots currently in use by jobs in this queue.
 
 **USED_HOSTS**
-:   Hosts currently running jobs from this queue.
+:   Sum of the hosts used by jobs in this queue. A host used by multiple
+    jobs is counted once for each job.
 
 ## Long format (-l)
 
 Each queue is displayed as a block with the following fields:
 
+**QUEUE**
+:   Queue name.
+
 **Description**
 :   Human-readable description, if configured.
 
-**Priority, Status, Max jobs**
-:   Same as the tabular columns.
+**Priority**
+:   Queue priority. Higher values are dispatched first.
+
+**Status**
+:   Queue status: **open** or **closed**.
+
+**Max jobs**
+:   Maximum number of running and suspended jobs in the queue,
+    as described under **MAX**. No limit is displayed as **unlimited**.
 
 **Users**
 :   Users allowed to submit to this queue. **all** if unrestricted.
 
 **Hosts**
-:   Hosts eligible to run jobs from this queue.
+:   Hosts eligible to run jobs from this queue. **all** if unrestricted.
 
 **Jobs**
-:   Running, pending, held, and suspended counts.
+:   Running, pending, held, and suspended job counts.
 
-**Resources**
-:   CPU slots and hosts currently in use.
+**Usage**
+:   CPUs used and hosts used by jobs in the queue, corresponding to
+    **USED_CPUS** and **USED_HOSTS** in the table.
 
 # SEE ALSO
 
