@@ -462,6 +462,7 @@ static void child_exec_job(struct sbd_job *job)
             LL_ERR("job=%ld enter network namespace failed", job->job_id);
             _exit(127);
         }
+        LL_DEBUG("job=%ld entered name space svc%ld", job->job_id, job->job_id);
     }
     // Drop privileges before touching user paths.
     if (set_user_id(job) < 0) {
@@ -649,6 +650,8 @@ void sbd_job_new(XDR *xdrs)
         LL_ERRX("job=%ld sbd_job_create failed", ws.job_id);
         goto out;
     }
+
+    LL_DEBUG("job=%ld job created", job->job_id);
 
     if (make_job_dir(job) < 0) {
         int err = errno;

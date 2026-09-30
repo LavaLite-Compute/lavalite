@@ -103,7 +103,7 @@ static int service_build_script(const struct service_instance *inst,
                      "# LavaLite: environment\n"
                      "HOME='%s'; export HOME\n"
                      "USER='%s'; export USER\n"
-                     "PATH='/usr/bin:/bin'; export PATH\n"
+                     "PATH='/usr/bin:/bin:/usr/local/bin'; export PATH\n"
                      "# LavaLite: end environment\n"
                      "# LavaLite: user command\n"
                      "%s\n"
@@ -239,9 +239,10 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     ll_strlcpy(inst->pend_ws.name, svc->name, sizeof(inst->pend_ws.name));
     ll_strlcpy(inst->pend_ws.queue, svc->queue, sizeof(inst->pend_ws.queue));
     ll_strlcpy(inst->pend_ws.username, ws->username,
-              sizeof(inst->pend_ws.username));
+               sizeof(inst->pend_ws.username));
     ll_strlcpy(inst->pend_ws.home_dir, ws->home_dir,
-              sizeof(inst->pend_ws.home_dir));
+               sizeof(inst->pend_ws.home_dir));
+    ll_strlcpy(inst->pend_ws.cwd, ws->home_dir, sizeof(inst->pend_ws.cwd));
     inst->pend_ws.num_cpus = SVC_DEFAULT_NUM_CPUS;
     inst->pend_ws.num_hosts = SVC_DEFAULT_NUM_HOSTS;
     inst->pend_ws.mem_mb = SVC_DEFAULT_MEM_MB;

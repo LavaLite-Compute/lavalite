@@ -22,14 +22,13 @@
  SHELL='/bin/sh'; export SHELL
  HISTSIZE='1000'; export HISTSIZE
  LANG='en_US.UTF-8'; export LANG
- LOGNAME='david'; export LOGNAME
+ LOGNAME='joe'; export LOGNAME
  PATH='/opt/lavalite/bin:/usr/local/bin:/usr/bin:/bin'; export PATH
  LD_LIBRARY_PATH='/opt/lavalite/lib'; export LD_LIBRARY_PATH
  MODULEPATH='/etc/modulefiles:/usr/share/modulefiles'; export MODULEPATH
  LOADEDMODULES='lavalite/lavalite'; export LOADEDMODULES
  LMOD_VERSION='8.7.65'; export LMOD_VERSION
  LMOD_DIR='/usr/share/lmod/lmod/libexec'; export LMOD_DIR
- MAIL='/var/spool/mail/david'; export MAIL
  # LavaLite: end environment
 
  # LavaLite: user command
