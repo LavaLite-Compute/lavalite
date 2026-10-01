@@ -1761,6 +1761,9 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
 
         assert(job->state == JOB_PENDING || job->state == JOB_HELD);
 
+        if (job_is_service(job))
+            continue;
+
         if (job->uid != uid && !is_manager(uid))
             continue;
 
@@ -1773,11 +1776,16 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
         job = (struct job_data *) e;
 
         assert(job->run_hosts[0]);
+
+        if (job_is_service(job))
+            continue;
+
         if (job->state == JOB_ORPHAN || job->state == JOB_BROKEN) {
             LL_INFO("job=%ld state=%s skipped by bulk signal", job->job_id,
                     llb_job_state_str(job->state));
             continue;
         }
+
         if (job->run_hosts[0]->sbd_chan < 0) {
             LL_INFO(
                 "job=%ld unknown on disconnected host=%s cannot signal it",
@@ -1819,7 +1827,12 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, MBD_OK);
     }
 
-    struct job_data *job;
+    struct job_data *job = job_find(req.job_id);
+    if (job != NULL && job_is_service(job)) {
+        LL_INFO("job=%ld is a service job; use bservices -d host:port",
+                job->job_id);
+        return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, EOPNOTSUPP);
+    }
 
     if (req.array_index != 0) {
         /*
