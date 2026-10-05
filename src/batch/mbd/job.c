@@ -1761,8 +1761,11 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
 
         assert(job->state == JOB_PENDING || job->state == JOB_HELD);
 
-        if (job_is_service(job))
+        if (job_is_service(job)) {
+            LL_DEBUG("job=%ld is a service job; skipping bulk signaling",
+                     job->job_id);
             continue;
+        }
 
         if (job->uid != uid && !is_manager(uid))
             continue;

@@ -60,7 +60,7 @@ man1/btokens.1:  markdown/btokens.1.md
 man1/bhist.1:    markdown/bhist.1.md
 man1/bpriority.1:  markdown/bpriority.1.md
 man1/bmove.1:    markdown/bmove.1.md
-man1/bmove.1:    markdown/bservices.1.md
+man1/bservices.1:    markdown/bservices.1.md
 
 man5/ll.conf.5:    markdown/ll.conf.5.md
 man5/llb.hosts.5:  markdown/llb.hosts.5.md

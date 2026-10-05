@@ -181,7 +181,7 @@ int main(int argc, char **argv)
         }
 
         if (jobid == 0)
-            printf("All your jobs are being signaled\n");
+            printf("All your batch jobs are being signaled\n");
         else if (array_index != 0)
             printf("Job <%ld[%d]> is being signaled\n", (long) jobid,
                    array_index);
