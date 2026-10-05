@@ -201,7 +201,12 @@ static int run_cmd(char *const argv[])
     }
 
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        LL_ERR("%s %s failed", argv[0], argv[1] ? argv[1] : "");
+        if (WIFSIGNALED(status))
+            LL_ERRX("%s %s killed by signal=%d", argv[0],
+                    argv[1] ? argv[1] : "", WTERMSIG(status));
+        else
+            LL_ERRX("%s %s failed exit_status=%d", argv[0],
+                    argv[1] ? argv[1] : "", WEXITSTATUS(status));
         errno = EIO;
         return -1;
     }

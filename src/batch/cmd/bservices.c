@@ -19,9 +19,8 @@ struct svc_col_widths {
 
 struct inst_col_widths {
     int user;
-    int port;
     int job_id;
-    int run_host;
+    int endpoint;
     int status;
 };
 
@@ -65,25 +64,36 @@ static void compute_service_widths(const struct svc_info *s, int32_t n,
     }
 }
 
+static void instance_endpoint(const struct svc_instance_info *inst,
+                              char *buf, size_t bufsz)
+{
+    const char *host = inst->run_host;
+
+    if (host == NULL || host[0] == '\0' || strcmp(host, "-") == 0)
+        snprintf(buf, bufsz, "-");
+    else
+        snprintf(buf, bufsz, "%s:%d", host, inst->port);
+}
+
 static void compute_instance_widths(const struct svc_info *s,
                                     struct inst_col_widths *w)
 {
     w->user = strlen("USER");
-    w->port = strlen("PORT");
+    w->endpoint = strlen("HOST:PORT");
     w->job_id = strlen("JOB_ID");
-    w->run_host = strlen("RUN_HOST");
     w->status = strlen("STATUS");
 
     for (uint32_t i = 0; i < s->ninstances; i++) {
         const struct svc_instance_info *inst = &s->instances[i];
         char uidbuf[32];
+        char endpoint[MAXHOSTNAMELEN + 16];
         const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
 
+        instance_endpoint(inst, endpoint, sizeof(endpoint));
+
         w->user = imax(w->user, strlen(user));
-        w->port = imax(w->port, ndigits(inst->port));
+        w->endpoint = imax(w->endpoint, strlen(endpoint));
         w->job_id = imax(w->job_id, ndigits(inst->job_id));
-        w->run_host = imax(w->run_host,
-                           strlen(inst->run_host ? inst->run_host : "-"));
         w->status = imax(w->status, strlen(llb_svc_status_str(inst->status)));
     }
 }
@@ -104,20 +114,22 @@ static void print_services(const struct svc_info *s, int32_t n)
         struct inst_col_widths iw;
         compute_instance_widths(&s[i], &iw);
 
-        printf("  %-*s  %*s  %*s  %-*s  %-*s\n",
-               iw.user, "USER", iw.port, "PORT", iw.job_id, "JOB_ID",
-               iw.run_host, "RUN_HOST", iw.status, "STATUS");
+        printf("  %-*s  %-*s  %*s  %-*s\n",
+               iw.user, "USER", iw.endpoint, "HOST:PORT",
+               iw.job_id, "JOB_ID", iw.status, "STATUS");
 
         for (uint32_t j = 0; j < s[i].ninstances; j++) {
             const struct svc_instance_info *inst = &s[i].instances[j];
             char uidbuf[32];
+            char endpoint[MAXHOSTNAMELEN + 16];
             const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
 
-            printf("  %-*s  %*d  %*ld  %-*s  %-*s\n",
+            instance_endpoint(inst, endpoint, sizeof(endpoint));
+
+            printf("  %-*s  %-*s  %*ld  %-*s\n",
                    iw.user, user,
-                   iw.port, inst->port,
+                   iw.endpoint, endpoint,
                    iw.job_id, (long) inst->job_id,
-                   iw.run_host, inst->run_host ? inst->run_host : "-",
                    iw.status, llb_svc_status_str(inst->status));
         }
     }
