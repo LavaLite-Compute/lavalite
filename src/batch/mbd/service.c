@@ -555,7 +555,31 @@ void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr)
         return;
     }
 
-    LL_DEBUG("job=%ld ok", ack.job_id);
+    LL_DEBUG("job=%ld REMOVE acked", ack.job_id);
+
+    struct job_data *job = job_find(ack.job_id);
+    if (job == NULL || job->svc_inst == NULL)
+        return;
+
+    struct service_instance *inst = job->svc_inst;
+
+    if (inst->flags & SVC_FLAG_TERMINATE)
+        return;
+
+    if (!(inst->flags & SVC_FLAG_RESTART_PENDING))
+        return;
+
+    assert(job->state == JOB_HELD);
+    assert(job->list_id == JOB_LIST_PEND);
+
+    if (svc_proxy_send_add(inst) < 0) {
+        LL_ERRX("cannot recreate proxy mapping job=%ld service=%s",
+                job->job_id, inst->svc->name);
+        return;
+    }
+
+    LL_INFO("service=%s job=%ld ADD sent for restart",
+            inst->svc->name, job->job_id);
 }
 
 void service_job_running(struct job_data *job, struct mbd_host *host)
@@ -629,8 +653,12 @@ int service_delete_instance(uid_t uid, const char *host, int port)
     sig.job_id = job->job_id;
     sig.sig = SIGKILL;
 
+    uint32_t old_flags = inst->flags;
+    inst->flags |= SVC_FLAG_TERMINATE;
+
     int rc = signal_running_job(job, &sig);
     if (rc != MBD_OK) {
+        inst->flags = old_flags;
         LL_ERRX("cannot kill job=%ld service=%s", job->job_id, inst->svc->name);
         return rc;
     }
@@ -645,6 +673,8 @@ int service_instance_finish(struct service_instance *inst)
     struct job_data *job = job_find(inst->job_id);
     assert(job != NULL);
     assert(job->svc_inst == inst);
+    assert(job->list_id == JOB_LIST_FINISH);
+    assert(job->state == JOB_DONE || job->state == JOB_EXITED);
 
     int rc = svc_proxy_send_remove(inst);
     if (rc < 0) {
@@ -652,10 +682,46 @@ int service_instance_finish(struct service_instance *inst)
                 "proxy_port=%d", inst->job_id, inst->uid, inst->port);
     }
 
-    job->svc_inst->status = SVC_FINISH;
+    inst->status = SVC_FINISH;
 
-    LL_INFO("SVC_FINISH service=%s uid=%u proxy_port=%d job=%ld",
-            inst->svc->name, inst->uid, inst->port, inst->job_id);
+    if (inst->flags & SVC_FLAG_TERMINATE) {
+        LL_INFO("SVC_FINISH terminated by bservices service=%s uid=%u "
+                "proxy_port=%d job=%ld", inst->svc->name, inst->uid,
+                inst->port, inst->job_id);
+        return 0;
+    }
+
+    inst->flags |= SVC_FLAG_RESTART_PENDING;
+
+    /* mbd_job_finish() already released resources and decremented
+     * the queue counters. Restore only the pending job counters.
+     */
+    job->queue->num_jobs++;
+    job->queue->num_held++;
+
+    job->pid = 0;
+    job->fork_time = 0;
+    job->dispatch_time = 0;
+    job->end_time = 0;
+    job->exit_status = 0;
+    job->pend_reason = PEND_NONE;
+
+    memset(job->run_hosts, 0,
+           job->res.num_hosts * sizeof(job->run_hosts[0]));
+    job->run_nhosts = 0;
+
+    job->state = JOB_HELD;
+    job_move_list(job, &finish_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
+
+    inst->status = SVC_PENDING;
+    inst->run_host[0] = 0;
+
+    event_job_pend(job);
+    event_job_pend_susp(job);
+    mbd_assert_counters();
+
+    LL_INFO("service=%s job=%ld waiting for proxy setup",
+            inst->svc->name, job->job_id);
 
     return 0;
 }
