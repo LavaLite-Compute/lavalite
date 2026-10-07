@@ -75,9 +75,11 @@ static void instance_endpoint(const struct svc_instance_info *inst,
         snprintf(buf, bufsz, "%s:%d", host, inst->port);
 }
 
-static void compute_instance_widths(const struct svc_info *s,
-                                    struct inst_col_widths *w)
+static uint32_t compute_instance_widths(const struct svc_info *s,
+                                       struct inst_col_widths *w, int all)
 {
+    uint32_t nvisible = 0;
+
     w->user = strlen("USER");
     w->endpoint = strlen("HOST:PORT");
     w->job_id = strlen("JOB_ID");
@@ -85,6 +87,10 @@ static void compute_instance_widths(const struct svc_info *s,
 
     for (uint32_t i = 0; i < s->ninstances; i++) {
         const struct svc_instance_info *inst = &s->instances[i];
+
+        if (!all && inst->status == SVC_FINISH)
+            continue;
+
         char uidbuf[32];
         char endpoint[MAXHOSTNAMELEN + 16];
         const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
@@ -95,10 +101,13 @@ static void compute_instance_widths(const struct svc_info *s,
         w->endpoint = imax(w->endpoint, strlen(endpoint));
         w->job_id = imax(w->job_id, ndigits(inst->job_id));
         w->status = imax(w->status, strlen(llb_svc_status_str(inst->status)));
+        nvisible++;
     }
+
+    return nvisible;
 }
 
-static void print_services(const struct svc_info *s, int32_t n)
+static void print_services(const struct svc_info *s, int32_t n, int all)
 {
     struct svc_col_widths sw;
     compute_service_widths(s, n, &sw);
@@ -108,11 +117,9 @@ static void print_services(const struct svc_info *s, int32_t n)
     for (int32_t i = 0; i < n; i++) {
         printf("%-*s  %-*s\n", sw.name, s[i].name, sw.queue, s[i].queue);
 
-        if (s[i].ninstances == 0)
-            continue;
-
         struct inst_col_widths iw;
-        compute_instance_widths(&s[i], &iw);
+        if (compute_instance_widths(&s[i], &iw, all) == 0)
+            continue;
 
         printf("  %-*s  %-*s  %*s  %-*s\n",
                iw.user, "USER", iw.endpoint, "HOST:PORT",
@@ -120,6 +127,10 @@ static void print_services(const struct svc_info *s, int32_t n)
 
         for (uint32_t j = 0; j < s[i].ninstances; j++) {
             const struct svc_instance_info *inst = &s[i].instances[j];
+
+            if (!all && inst->status == SVC_FINISH)
+                continue;
+
             char uidbuf[32];
             char endpoint[MAXHOSTNAMELEN + 16];
             const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
@@ -169,7 +180,8 @@ static void usage(void)
 {
     fprintf(stderr, "bservices: --help display this help and exit\n"
                     "  bservices NAME  start a service defined in llb.services\n"
-                    "  -l, --list list configured services and their instances\n"
+                    "  -l, --list list configured services and their active instances\n"
+                    "  -a, --all list configured services and all retained instances\n"
                     "  -d, --delete URL delete a running service instance\n"
                     "  --version output version information and exit\n");
 }
@@ -178,6 +190,7 @@ static struct option longopts[] = {
     {"help", no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'v'},
     {"list", no_argument, NULL, 'l'},
+    {"all", no_argument, NULL, 'a'},
     {"delete", required_argument, NULL, 'd'},
     {NULL, 0, NULL, 0}
 };
@@ -186,12 +199,17 @@ int main(int argc, char **argv)
 {
     const char *delete_url = NULL;
     int list_fmt = 0;
+    int all = 0;
 
     int cc;
-    while ((cc = getopt_long(argc, argv, "hvld:", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hvlad:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'd':
             delete_url = optarg;
+            break;
+        case 'a':
+            all = 1;
+            list_fmt = 1;
             break;
         case 'l':
             list_fmt = 1;
@@ -237,7 +255,7 @@ int main(int argc, char **argv)
             return -1;
         }
 
-        print_services(s, nsvc);
+        print_services(s, nsvc, all);
         llb_free_service_info(s, nsvc);
         return 0;
     }
@@ -260,7 +278,8 @@ int main(int argc, char **argv)
         return rc;
     }
 
-    printf("http://%s:%d\n", out.run_host, out.port);
+    printf("Job <%ld>: http://%s:%d\n",
+           (long) out.job_id, out.run_host, out.port);
 
     free(out.service);
     free(out.run_host);
