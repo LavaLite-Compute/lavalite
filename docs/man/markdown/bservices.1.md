@@ -12,15 +12,17 @@ bservices - list, start, and delete service instances
 
 # SYNOPSIS
 
-**bservices** *name*
+**bservices**
 
-**bservices** **-l**
+**bservices** *name*
 
 **bservices** **-d** *endpoint*
 
 # DESCRIPTION
 
 Manage instances of services defined in **llb.services**.
+
+Without arguments, lists configured services and their active instances.
 
 Each service instance runs as a job in its configured queue.
 Scheduling depends on queue availability, job limits, and available
@@ -34,18 +36,18 @@ Multiple instances of the same service may run simultaneously.
 *name*
 :   Start an instance of the named service defined in **llb.services**.
 
-**-l**, **--list**
-:   List configured services and their instances.
+**-a**, **--all**
+:   List configured services and all retained instances, including finished ones.
 
 **-d**, **--delete** *endpoint*
 :   Delete the service instance identified by its execution host and
     external port. Accepts **HOST:PORT** or **http://HOST:PORT**.
     A port alone is not sufficient.
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-v**, **--version**
 :   Print version to stderr and exit.
 
 # OUTPUT
@@ -87,7 +89,7 @@ Start an instance of **echotest**:
 
 List configured services and their instances:
 
-    bservices -l
+    bservices
 
 Delete an instance using its host and external port:
 
@@ -99,7 +101,7 @@ Delete the same instance using its URL:
 
 Inspect the job associated with an instance:
 
-    bjobs -l 3
+    bjobs 3
     bhist 3
 
 # SEE ALSO

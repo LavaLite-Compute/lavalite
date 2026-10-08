@@ -964,10 +964,13 @@ static void replay_job_pend(const struct event_rec *rec)
         LL_ERRX("JOB_PEND job=%ld not found", e.job_id);
         return;
     }
+    assert(job->list_id == JOB_LIST_RUN
+           || job->list_id == JOB_LIST_FINISH);
 
-    assert(job->list_id == JOB_LIST_RUN);
     if (job->list_id == JOB_LIST_RUN)
         job_move_list(job, &run_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
+    else
+        job_move_list(job, &finish_jobs_list, &pend_jobs_list, JOB_LIST_PEND);
 
     job->pid = 0;
     job->fork_time = 0;

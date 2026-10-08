@@ -179,17 +179,15 @@ static int parse_service_endpoint(const char *s, char *host, size_t hostsz,
 static void usage(void)
 {
     fprintf(stderr, "bservices: --help display this help and exit\n"
-                    "  bservices NAME  start a service defined in llb.services\n"
-                    "  -l, --list list configured services and their active instances\n"
-                    "  -a, --all list configured services and all retained instances\n"
-                    "  -d, --delete URL delete a running service instance\n"
-                    "  --version output version information and exit\n");
+            "  bservices NAME  start a service defined in llb.services\n"
+            "  -a, --all list configured services and all retained instances\n"
+            "  -d, --delete URL delete a running service instance\n"
+            "  --version output version information and exit\n");
 }
 
 static struct option longopts[] = {
     {"help", no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'v'},
-    {"list", no_argument, NULL, 'l'},
     {"all", no_argument, NULL, 'a'},
     {"delete", required_argument, NULL, 'd'},
     {NULL, 0, NULL, 0}
@@ -198,20 +196,17 @@ static struct option longopts[] = {
 int main(int argc, char **argv)
 {
     const char *delete_url = NULL;
-    int list_fmt = 0;
     int all = 0;
-
     int cc;
-    while ((cc = getopt_long(argc, argv, "hvlad:", longopts, NULL)) != EOF) {
+    int list_fmt = 0;
+
+    while ((cc = getopt_long(argc, argv, "hvad:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'd':
             delete_url = optarg;
             break;
         case 'a':
             all = 1;
-            list_fmt = 1;
-            break;
-        case 'l':
             list_fmt = 1;
             break;
         case 'v':
@@ -242,10 +237,9 @@ int main(int argc, char **argv)
         return rc;
     }
 
-    if (list_fmt) {
+    if (list_fmt || optind >= argc) {
         int32_t nsvc = 0;
         struct svc_info *s = llb_service_info(&nsvc);
-
         if (s == NULL) {
             if (nsvc == 0) {
                 printf("No services: %m\n");

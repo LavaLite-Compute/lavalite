@@ -27,17 +27,17 @@ The **--close** and **--open** options require administrator privileges.
 
 # OPTIONS
 
-**--close** *host*
+**-c**, **--close** *host*
 :   Close the named host. A closed host does not accept new jobs.
     Running jobs are not affected.
 
-**--open** *host*
+**-o**, **--open** *host*
 :   Open a previously closed host, making it available for job dispatch.
 
-**--help**
+**-h**, **--help**
 :   Print usage to stderr and exit.
 
-**--version**
+**-v**, **--version**
 :   Print version to stderr and exit.
 
 # OUTPUT
