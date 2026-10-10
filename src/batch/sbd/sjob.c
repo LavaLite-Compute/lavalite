@@ -40,8 +40,7 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->flags = ws->flags;
     job->ncpus = ws->ncpus;
     job->mem_mb = ws->mem_mb;
-    job->ext_port = ws->ext_port;
-    job->app_port = ws->app_port;
+    job->app_port = ws->app_port;  /* ext_port is picked by snamespace_setup() */
 
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
     ll_strlcpy(job->user_home, ws->home_dir, sizeof(job->user_home));
@@ -92,6 +91,33 @@ static struct sbd_job *sbd_job_find(int64_t job_id)
 /* Capture errno before calling.
  * Logging and other helpers may overwrite it.
  */
+/* Endpoint port for a new service job: SVC_PORT_BASE + the lowest slot
+ * no live job on this host holds. The new job is not in sbd_job_list
+ * yet; finished jobs stay there until finish ack, which is also when
+ * their netns is destroyed, so their slot stays taken until then.
+ * Jobs recovered after a restart carry ext_port from the state file.
+ */
+static int32_t svc_port_pick(void)
+{
+    for (uint32_t slot = 0; slot < SVC_NET_NSLOTS; slot++) {
+        int32_t port = SVC_PORT_BASE + (int32_t) slot;
+        struct ll_list_entry *e;
+
+        for (e = sbd_job_list.head; e != NULL; e = e->next) {
+            const struct sbd_job *j = (const struct sbd_job *) e;
+            if (j->ext_port == port)
+                break;
+        }
+
+        if (e == NULL)
+            return port;
+    }
+
+    LL_ERRX("no free service slot, %u in use", SVC_NET_NSLOTS);
+    errno = EADDRINUSE;
+    return -1;
+}
+
 static int sbd_job_new_reply_err(int64_t job_id, int err)
 {
     struct wire_job_reply r;
@@ -684,7 +710,8 @@ void sbd_job_new(XDR *xdrs)
         LL_ERR("job=%ld cgroup_create failed, continuing", job->job_id);
 
     if (job->flags & JOB_FLAG_SERVICE) {
-        if (snamespace_setup(job) < 0) {
+        job->ext_port = svc_port_pick();
+        if (job->ext_port < 0 || snamespace_setup(job) < 0) {
             int err = errno;
             LL_ERR("job=%ld namespace setup failed", job->job_id);
             sbd_job_new_reply_err(ws.job_id, err);
@@ -838,6 +865,7 @@ int sbd_job_new_reply(struct sbd_job *job)
     r.pid = job->pid;
     r.pgid = job->pgid;
     r.state = JOB_RUNNING;
+    r.ext_port = job->ext_port;
 
     if (sbd_send_msg(BATCH_NEW_JOB_REPLY, MBD_OK, &r, LL_BUFSIZ_1K,
                      (bool_t(*)()) xdr_wire_job_reply) < 0) {
@@ -845,8 +873,8 @@ int sbd_job_new_reply(struct sbd_job *job)
         return -1;
     }
 
-    LL_INFO("job=%ld pid=%d pgid=%d enqueued", job->job_id, job->pid,
-            job->pgid);
+    LL_INFO("job=%ld pid=%d pgid=%d ext_port=%d enqueued", job->job_id,
+            job->pid, job->pgid, job->ext_port);
     return 0;
 }
 

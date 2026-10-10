@@ -9,8 +9,14 @@
 #include "base/lib/ll.bufsiz.h"
 #include "batch/sbd/sbd.h"
 
+/* 10.200.0.0/16 cut in /30, one per service job on this host */
+#define SVC_NET_NSLOTS 16384U
+/* endpoint port of the service job in slot i is SVC_PORT_BASE + i */
+#define SVC_PORT_BASE  30000
+
 struct snamespace {
     int64_t job_id;
+    uint32_t slot;                 /* index into 10.200.0.0/16, see .c */
 
     char name[LL_BUFSIZ_64];       /* svc24 */
     char sbd_if[LL_BUFSIZ_64];     /* ll_sbd24 */

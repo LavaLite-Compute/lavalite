@@ -179,14 +179,6 @@ const char *batch_op_str(enum batch_lib_op op)
         [BATCH_SERVICE_INFO_ACK] = "BATCH_SERVICE_INFO_ACK",
         [BATCH_SERVICE_DELETE] = "BATCH_SERVICE_DELETE",
         [BATCH_SERVICE_DELETE_ACK] = "BATCH_SERVICE_DELETE_ACK",
-        [BATCH_SP_REGISTER] = "BATCH_SP_REGISTER",
-        [BATCH_SP_REGISTER_ACK] = "BATCH_SP_REGISTER_ACK",
-        [BATCH_SVC_ADD] = "BATCH_SVC_ADD",
-        [BATCH_SVC_ADD_ACK] = "BATCH_SVC_ADD_ACK",
-        [BATCH_SVC_UPDATE] = "BATCH_SVC_UPDATE",
-        [BATCH_SVC_UPDATE_ACK] = "BATCH_SVC_UPDATE_ACK",
-        [BATCH_SVC_REMOVE] = "BATCH_SVC_REMOVE",
-        [BATCH_SVC_REMOVE_ACK] = "BATCH_SVC_REMOVE_ACK",
     };
     static const size_t nnames = sizeof(names) / sizeof(names[0]);
 

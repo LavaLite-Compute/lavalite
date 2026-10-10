@@ -281,10 +281,6 @@ void event_job_start(const struct job_data *job)
         ll_strlcat(e.run_hosts, job->run_hosts[i]->net.name, sizeof(e.run_hosts));
     }
 
-    if (job_is_service(job)) {
-        e.service_port = job->svc_inst->port;
-    }
-
     FILE *fp = open_manifest();
     if (log_write_job_start(fp, &e) < 0) {
         fclose(fp);
@@ -302,6 +298,8 @@ void event_job_fork(const struct job_data *job)
     e.job_id = job->job_id;
     e.fork_time = job->fork_time;
     e.job_pid = job->pid;
+    if (job->svc_inst != NULL)
+        e.service_port = job->svc_inst->port;
 
     FILE *fp = open_manifest();
     if (log_write_job_fork(fp, &e) < 0) {
@@ -484,6 +482,7 @@ static int replay_service_job_new(struct job_data *job,
                 e->job_id, e->service_name);
         job->state = JOB_ORPHAN;
         job->svc_inst = NULL;
+        job->flags &= ~JOB_FLAG_SERVICE;
         return -1;
     }
 
@@ -498,6 +497,9 @@ static int replay_service_job_new(struct job_data *job,
     inst->svc = svc;
     inst->job_id = job->job_id;
     inst->uid = job->uid;
+    /* no client is waiting on a replayed instance, calloc's 0 is a
+     * valid chan_id */
+    inst->chan_id = -1;
 
     job->svc_inst = inst;
     inst->status = SVC_PENDING;
@@ -583,12 +585,9 @@ static int replay_set_run_hosts(struct job_data *job,
     return 0;
 }
 
-static void replay_service_job_start(struct job_data *job,
-                                     struct log_job_start *e)
+static void replay_service_job_start(struct job_data *job)
 {
-    assert(e->service_port > 0);
-    job->svc_inst->port = e->service_port;
-    job->svc_inst->status = SVC_RUNNING;
+    /* port arrives with JOB_FORK, picked by sbd */
 
     ll_strlcpy(job->svc_inst->run_host,
                job->run_hosts[0]->net.name,
@@ -639,7 +638,7 @@ static void replay_job_start(const struct event_rec *rec)
              (e.gpu_assigned[0] != 0) ? e.gpu_assigned : "none");
 
     if (job_is_service(job))
-        replay_service_job_start(job, &e);
+        replay_service_job_start(job);
 }
 
 static void replay_job_fork(const struct event_rec *rec)
@@ -657,8 +656,13 @@ static void replay_job_fork(const struct event_rec *rec)
     }
     job->pid = (pid_t) e.job_pid;
     job->fork_time = e.fork_time;
+    if (job_is_service(job)) {
+        job->svc_inst->port = e.service_port;
+        job->svc_inst->status = SVC_RUNNING;
+    }
 
-    LL_DEBUG("JOB_FORK job=%ld pid=%d", e.job_id, e.job_pid);
+    LL_DEBUG("JOB_FORK job=%ld pid=%d port=%d", e.job_id, e.job_pid,
+             e.service_port);
 }
 
 static void replay_job_signal(const struct event_rec *rec)
@@ -978,6 +982,13 @@ static void replay_job_pend(const struct event_rec *rec)
     job->state = JOB_PENDING;
     job->run_nhosts = 0;
 
+    /* service restart: the endpoint belonged to the old incarnation */
+    if (job->svc_inst != NULL) { /* not job_is_service(): orphans have no inst */
+        job->svc_inst->status = SVC_PENDING;
+        job->svc_inst->port = 0;
+        job->svc_inst->run_host[0] = 0;
+    }
+
     LL_DEBUG("JOB_PEND job=%ld", e.job_id);
 }
 
@@ -1135,9 +1146,6 @@ static void compact_write_job_start(FILE *fp, const struct job_data *job)
         ll_strlcat(e.run_hosts, job->run_hosts[i]->net.name, sizeof(e.run_hosts));
     }
 
-    if (job_is_service(job))
-        e.service_port = job->svc_inst->port;
-
     if (log_write_job_start(fp, &e) < 0)
         mbd_die(MBD_EXIT_EVENTS);
 }
@@ -1150,6 +1158,8 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
     e.job_id = job->job_id;
     e.fork_time = job->fork_time;
     e.job_pid = job->pid;
+    if (job->svc_inst != NULL)
+        e.service_port = job->svc_inst->port;
 
     if (log_write_job_fork(fp, &e) < 0)
         mbd_die(MBD_EXIT_EVENTS);

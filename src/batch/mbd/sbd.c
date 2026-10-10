@@ -425,7 +425,9 @@ int mbd_dispatch_job(struct job_data *job)
     ws.mem_mb = job->res.mem_mb;
 
     if (job->svc_inst != NULL) {
-        ws.ext_port = job->svc_inst->port;
+        /* the external port is picked by sbd and comes back
+         * in BATCH_NEW_JOB_REPLY
+         */
         ws.app_port = job->svc_inst->svc->port;
         if (job->svc_inst->flags & SVC_FLAG_RESTART_PENDING) {
             job->svc_inst->restart_count++;

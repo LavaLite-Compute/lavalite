@@ -103,7 +103,6 @@ struct log_job_start {
     char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* assigned CUDA device IDs e.g. "0,1" */
     char run_hosts[LL_BUFSIZ_4K];        /* space-separated exec hosts */
-    int service_port;
 };
 
 /*
@@ -113,6 +112,7 @@ struct log_job_start {
 struct log_job_fork {
     int64_t job_id;
     int32_t job_pid;
+    int32_t service_port; /* service jobs: endpoint port picked by sbd */
     time_t fork_time; /* mbd clock: set by caller before write */
 };
 

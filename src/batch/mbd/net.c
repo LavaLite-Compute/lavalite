@@ -57,14 +57,6 @@ int valid_batch_op(int op)
     case BATCH_SERVICE_INFO_ACK:
     case BATCH_SERVICE_DELETE:
     case BATCH_SERVICE_DELETE_ACK:
-    case BATCH_SP_REGISTER:
-    case BATCH_SP_REGISTER_ACK:
-    case BATCH_SVC_ADD:
-    case BATCH_SVC_ADD_ACK:
-    case BATCH_SVC_UPDATE:
-    case BATCH_SVC_UPDATE_ACK:
-    case BATCH_SVC_REMOVE:
-    case BATCH_SVC_REMOVE_ACK:
         return 1;
     default:
         return 0;
@@ -80,10 +72,6 @@ static void route(int chan_id)
     if (chan_has_error(chan_id)) {
         LL_DEBUG("channel=%d from=%s closed connection", chan_id,
                  chan_addr_str(chan_id));
-        if (chan_id == service_proxy_chan_id) {
-            LL_ERRX("service_proxy disconnected chan=%d", chan_id);
-            service_proxy_chan_id = -1;
-        }
         chan_shutdown(chan_id);
         return;
     }
@@ -191,19 +179,6 @@ static void route(int chan_id)
     case BATCH_SERVICE_DELETE:
         if (service_delete(&xdrs, chan_id, &hdr) < 0)
             chan_shutdown(chan_id);
-        break;
-    case BATCH_SP_REGISTER:
-        if (mbd_sp_register(&xdrs, chan_id, &hdr) < 0)
-            chan_shutdown(chan_id);
-        break;
-    case BATCH_SVC_ADD_ACK:
-        svc_proxy_add_ack(&xdrs, &hdr);
-        break;
-    case BATCH_SVC_UPDATE_ACK:
-        svc_proxy_update_ack(&xdrs, &hdr);
-        break;
-    case BATCH_SVC_REMOVE_ACK:
-        svc_proxy_remove_ack(&xdrs, &hdr);
         break;
     }
 
@@ -335,6 +310,7 @@ int mbd_accept(int chan_id)
 void chan_shutdown(int chan_id)
 {
     epoll_ctl(mbd_efd, EPOLL_CTL_DEL, chan_sock(chan_id), NULL);
+    service_invalidate_chan(chan_id);
     chan_close(chan_id);
 }
 

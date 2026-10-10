@@ -1146,12 +1146,10 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
         job->pid = (pid_t) r.pid;
         job->fork_time = time(NULL);
         job->state = JOB_RUNNING;
-        event_job_fork(job);
-        /* duplicates are from sbd don't bother spd with them as it
-         * speaks different protocol.
+        /* sbd owns the endpoint, mbd records it with the pid
          */
-        if (job->svc_inst != NULL)
-            service_job_running(job, host);
+        service_job_running(job, host, r.ext_port);
+        event_job_fork(job);
     }
 
     struct wire_job_ack ack;

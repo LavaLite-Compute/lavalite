@@ -219,8 +219,6 @@ int log_write_job_start(FILE *fp, const struct log_job_start *j)
         return -1;
     if (write_qstr(fp, j->run_hosts) < 0)
         return -1;
-    if (fprintf(fp, " %d", j->service_port) <  0)
-        return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
     return 0;
@@ -245,11 +243,6 @@ int log_parse_job_start(const struct event_rec *rec, struct log_job_start *j)
     if (read_qstr(&p, j->run_hosts, sizeof(j->run_hosts)) < 0)
         return -1;
 
-    n = sscanf(p, "%d", &j->service_port);
-    if (n != 1) {
-        errno = EINVAL;
-        return -1;
-    }
     j->dispatch_time = rec->event_time;
 
     return 0;
@@ -263,15 +256,17 @@ int log_write_job_fork(FILE *fp, const struct log_job_fork *j)
 {
     if (write_hdr(fp, EVENT_JOB_FORK, j->fork_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d\n", (long) j->job_id, j->job_pid) < 0)
+    if (fprintf(fp, " %ld %d %d\n", (long) j->job_id, j->job_pid,
+                j->service_port) < 0)
         return -1;
     return 0;
 }
 
 int log_parse_job_fork(const struct event_rec *rec, struct log_job_fork *j)
 {
-    int n = sscanf(rec->rest, " %ld %d", &j->job_id, &j->job_pid);
-    if (n != 2) {
+    int n = sscanf(rec->rest, " %ld %d %d", &j->job_id, &j->job_pid,
+                   &j->service_port);
+    if (n != 3) {
         errno = EINVAL;
         return -1;
     }

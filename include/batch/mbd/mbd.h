@@ -265,10 +265,12 @@ struct service_instance {
     struct ll_list_entry ent;    /* linkage in service_data.instances */
     struct service_data *svc;    /* owning service definition */
     uid_t uid;                   /* the userid running the service */
-    int port;    /* external port set by svc_proxy_add_ok() once proxy binds it */
+    int port;    /* external port on run_host, picked by sbd and recorded
+                  * from BATCH_NEW_JOB_REPLY, reset to 0 on restart */
     int64_t job_id;
-    char run_host[LL_BUFSIZ_64];  /* set once job reaches RUNNING */
-    int chan_id;    /* held open for the deferred BATCH_SERVICE_START_ACK */
+    char run_host[LL_BUFSIZ_64];  /* set at RUNNING, reset on restart */
+    int chan_id;    /* client waiting on the deferred BATCH_SERVICE_START_ACK,
+                     * -1 once acked, after restart and after replay */
     struct wire_job_submit pend_ws;
     struct protocol_header pend_hdr;
     enum svc_status status;
@@ -299,12 +301,6 @@ extern struct ll_list queue_list;
 extern struct ll_hash queue_name_hash;
 
 extern struct ll_list service_list;
-/* chan_id of the connected service_proxy, -1 if none. Set wherever
- * net.c's route() recognizes BATCH_SP_REGISTER coming in -- that
- * recognition isn't written yet, this is just the extern it needs to
- * set. Mirrors how sbd connections are tracked per mbd_host, except
- * there's only ever one service_proxy, so one global slot suffices. */
-extern int service_proxy_chan_id;
 
 extern struct mbd_manager mbd_mgr;
 extern int chan_mbd;
@@ -429,11 +425,8 @@ int service_start_instance(const struct protocol_header *, int,
                            const struct wire_svc_start *);
 int service_collect_info(uid_t, int, struct wire_svc_info **);
 int service_delete_instance(uid_t, const char *, int32_t);
-void service_job_running(struct job_data *job, struct mbd_host *host);
+void service_job_running(struct job_data *, struct mbd_host *, int32_t);
 int service_instance_finish(struct service_instance *);
-void svc_proxy_add_ack(XDR *xdrs, const struct protocol_header *hdr);
-void svc_proxy_update_ack(XDR *xdrs, const struct protocol_header *hdr);
-void svc_proxy_remove_ack(XDR *xdrs, const struct protocol_header *hdr);
-int mbd_sp_register(XDR *xdrs, int chan_id, struct protocol_header *);
 struct service_data *svc_find_by_name(const char *);
 int job_is_service(const struct job_data *);
+void service_invalidate_chan(int);

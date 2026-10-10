@@ -60,7 +60,8 @@ struct sbd_job {
     int32_t ncpus;
     uint64_t mem_mb;
 
-    int32_t ext_port;   /* service jobs only: proxy-facing port */
+    int32_t ext_port;   /* service jobs only: endpoint port on this host,
+                         * SVC_PORT_BASE + slot, persisted in the state file */
     int32_t app_port;   /* service jobs only: service's internal listen port */
 
     char user[LL_BUFSIZ_64];

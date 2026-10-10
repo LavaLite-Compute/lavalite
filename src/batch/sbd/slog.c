@@ -286,13 +286,15 @@ int sbd_job_state_write(struct sbd_job *job)
                      "user_home=%s\n"
                      "uid=%u\n"
                      "group=%u\n"
-                     "user=%s\n",
+                     "user=%s\n"
+                     "flags=%d\n"
+                     "ext_port=%d\n",
                      job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
                      (long) job->time_pid_acked, finish_acked,
                      (long) job->time_finish_acked, exit_status_valid,
                      job->exit_status, (long) job->end_time, job->user_cwd,
                      job->user_home, (unsigned) job->uid, (unsigned) job->gid,
-                     job->user);
+                     job->user, job->flags, job->ext_port);
     if (n < 0) {
         errno = EINVAL;
         LL_ERRX("state format failed job=%ld", job->job_id);
@@ -342,11 +344,12 @@ int sbd_job_state_write(struct sbd_job *job)
     LL_INFO("job=%ld pid=%d pgid=%d pid_acked=%d "
             "finish_acked=%d exit_status_valid=%d "
             "exit_status=%d end_time=%ld user_cwd=%s user_home=%s "
-            "uid=%u group=%u user=%s",
+            "uid=%u group=%u user=%s flags=0x%x ext_port=%d",
             job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
             finish_acked, exit_status_valid, job->exit_status,
             (long) job->end_time, job->user_cwd, job->user_home,
-            (unsigned) job->uid, (unsigned) job->gid, job->user);
+            (unsigned) job->uid, (unsigned) job->gid, job->user,
+            job->flags, job->ext_port);
 
     return 0;
 }
@@ -378,7 +381,8 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
             continue;
         }
 
-        if (strcmp(key, "job_id") == 0) {
+        /* writer emits "job=", it was never "job_id=" */
+        if (strcmp(key, "job") == 0) {
             job->job_id = (int64_t) strtoll(val, NULL, 10);
             got_job_id = TRUE;
             continue;
@@ -451,6 +455,20 @@ int sbd_job_state_read(struct sbd_job *job, char *state_path)
 
         if (strcmp(key, "user") == 0) {
             ll_strlcpy(job->user, val, sizeof(job->user));
+            continue;
+        }
+
+        /* flags: a recovered service job must still get its netns
+         * and nft table removed by snamespace_destroy_job() */
+        if (strcmp(key, "flags") == 0) {
+            job->flags = atoi(val);
+            continue;
+        }
+
+        /* ext_port: keeps the slot taken so a restarted sbd does not
+         * hand it to a new service job */
+        if (strcmp(key, "ext_port") == 0) {
+            job->ext_port = atoi(val);
             continue;
         }
     }

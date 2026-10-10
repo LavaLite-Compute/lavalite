@@ -74,6 +74,7 @@ struct wire_job_reply {
     int32_t pid;
     int32_t pgid;
     int32_t state;
+    int32_t ext_port; /* service jobs: endpoint port picked by sbd */
 };
 
 /* -----------------------------------------------------------------------
@@ -105,8 +106,7 @@ struct wire_job_start {
     uint64_t mem_mb;
     char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* e.g. "0,1" — assigned CUDA device IDs */
-    int32_t ext_port;         // new: external port from service_proxy
-    int32_t app_port;         // new: service's internal listen port
+    int32_t app_port;         /* service jobs: service's internal listen port */
     struct wire_job_script script;   /* job script, encoded last */
 };
 
@@ -371,40 +371,6 @@ struct wire_svc_delete {
     int32_t port;
 };
 
-struct wire_sp_register {
-    char hostname[MAXHOSTNAMELEN];
-};
-
-struct wire_svc_add {
-    uid_t uid;
-    int32_t app_port; /* internal port from llb.services PORT -- static
-                       * for the service's lifetime, unlike run_host
-                       * which arrives later via BATCH_SVC_UPDATE */
-    int64_t job_id;
-};
-
-struct wire_svc_add_ack {
-    int64_t job_id;
-    int32_t port; /* valid only when status == MBD_OK */
-};
-
-struct wire_svc_update {
-    int64_t job_id;
-    char run_host[MAXHOSTNAMELEN];
-};
-
-struct wire_svc_update_ack {
-    int64_t job_id;
-};
-
-struct wire_svc_remove {
-    int64_t job_id;
-};
-
-struct wire_svc_remove_ack {
-    int64_t job_id;
-};
-
 /* -----------------------------------------------------------------------
  * XDR serializers
  * ----------------------------------------------------------------------- */
@@ -456,14 +422,3 @@ bool_t xdr_wire_svc_info(XDR *, struct wire_svc_info *);
 bool_t xdr_wire_svc_instance_info(XDR *, struct wire_svc_instance_info *);
 bool_t xdr_wire_svc_start(XDR *, struct wire_svc_start *);
 bool_t xdr_wire_svc_delete(XDR *, struct wire_svc_delete *);
-
-/* spd registration */
-bool_t xdr_wire_sp_register(XDR *, struct wire_sp_register *);
-
-/* spd per-instance port grammar */
-bool_t xdr_wire_svc_add(XDR *, struct wire_svc_add *);
-bool_t xdr_wire_svc_add_ack(XDR *, struct wire_svc_add_ack *);
-bool_t xdr_wire_svc_update(XDR *, struct wire_svc_update *);
-bool_t xdr_wire_svc_update_ack(XDR *, struct wire_svc_update_ack *);
-bool_t xdr_wire_svc_remove(XDR *, struct wire_svc_remove *);
-bool_t xdr_wire_svc_remove_ack(XDR *, struct wire_svc_remove_ack *);

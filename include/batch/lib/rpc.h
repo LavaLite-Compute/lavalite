@@ -53,16 +53,6 @@ enum batch_lib_op {
     BATCH_SERVICE_INFO_ACK,
     BATCH_SERVICE_DELETE,
     BATCH_SERVICE_DELETE_ACK,
-    // spd <-> mbd
-    BATCH_SP_REGISTER,
-    BATCH_SP_REGISTER_ACK,
-    // mbd -> spd
-    BATCH_SVC_ADD,
-    BATCH_SVC_ADD_ACK,
-    BATCH_SVC_UPDATE,
-    BATCH_SVC_UPDATE_ACK,
-    BATCH_SVC_REMOVE,
-    BATCH_SVC_REMOVE_ACK,
 };
 
 int call_mbd(const void *, size_t, void **, struct protocol_header *);

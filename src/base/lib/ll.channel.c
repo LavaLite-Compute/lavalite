@@ -598,8 +598,8 @@ int chan_epoll(int efd, struct epoll_event *events, int max_events, int tm)
 
         chan->chan_events = CHAN_EPOLLNONE;
 
-        if (chan->type == TCP_SERVER || chan->type == UDP_SERVER ||
-            chan->type == TIMER_FD || chan->type == TCP_RELAY) {
+        if (chan->type == TCP_SERVER || chan->type == UDP_SERVER
+            || chan->type == TIMER_FD) {
             chan->chan_events = CHAN_EPOLLIN;
             continue;
         }

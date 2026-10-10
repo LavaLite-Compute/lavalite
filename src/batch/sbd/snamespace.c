@@ -37,11 +37,15 @@
  *       .7  broadcast
  *
  * There are 16384 available slots.
+ *
+ * sbd picks the lowest slot not used by another live job on this host
+ * and stores it as the endpoint port, ext_port = SVC_PORT_BASE + slot.
+ * The /30 is derived from the same slot, so address and port can never
+ * disagree. Only ext_port is persisted (state file), the slot is
+ * ext_port - SVC_PORT_BASE. The names stay job_id based.
  */
 #define SVC_NET_BASE       0x0ac80000U /* 10.200.0.0 */
-#define SVC_NET_POOL_ADDRS 65536U
 #define SVC_NET_SLOT_ADDRS 4U
-#define SVC_NET_NSLOTS     (SVC_NET_POOL_ADDRS / SVC_NET_SLOT_ADDRS)
 
 /* Both ip(8) and nft(8) run once per job start/stop, never on a hot
  * path, so a blocking wait would normally be harmless -- except
@@ -55,13 +59,12 @@
 
 static int namespace_addresses(struct snamespace *ns)
 {
-    if (ns->job_id <= 0) {
+    if (ns->slot >= SVC_NET_NSLOTS) {
         errno = EINVAL;
         return -1;
     }
 
-    uint32_t slot = ((uint64_t)ns->job_id - 1) % SVC_NET_NSLOTS;
-    uint32_t base = SVC_NET_BASE + slot * SVC_NET_SLOT_ADDRS;
+    uint32_t base = SVC_NET_BASE + ns->slot * SVC_NET_SLOT_ADDRS;
 
     ns->sbd_addr.s_addr = htonl(base + 1);
     ns->svc_addr.s_addr = htonl(base + 2);
@@ -97,10 +100,12 @@ static int namespace_names(struct snamespace *ns)
     return 0;
 }
 
-static int snamespace_init(struct snamespace *ns, int64_t job_id)
+static int snamespace_init(struct snamespace *ns, int64_t job_id,
+                           uint32_t slot)
 {
     memset(ns, 0, sizeof(*ns));
     ns->job_id = job_id;
+    ns->slot = slot;
 
     if (namespace_names(ns) < 0)
         return -1;
@@ -117,8 +122,8 @@ static int snamespace_init(struct snamespace *ns, int64_t job_id)
     if (inet_ntop(AF_INET, &ns->svc_addr, svc_addr, sizeof(svc_addr)) == NULL)
         strcpy(svc_addr, "<invalid>");
 
-    LL_DEBUG("netns=%s job=%ld ll%lda=%s ll%ldb=%s", ns->name, job_id,
-             job_id, sbd_addr, job_id, svc_addr);
+    LL_DEBUG("netns=%s job=%ld slot=%u ll%lda=%s ll%ldb=%s", ns->name,
+             job_id, slot, job_id, sbd_addr, job_id, svc_addr);
 
     return 0;
 }
@@ -454,11 +459,21 @@ int snamespace_setup(struct sbd_job *job)
         return -1;
     }
 
+    if (job->ext_port < SVC_PORT_BASE
+        || job->ext_port >= SVC_PORT_BASE + (int32_t) SVC_NET_NSLOTS) {
+        LL_ERRX("job=%ld ext_port=%d outside %d-%d", job->job_id,
+                job->ext_port, SVC_PORT_BASE,
+                SVC_PORT_BASE + (int) SVC_NET_NSLOTS - 1);
+        errno = EINVAL;
+        return -1;
+    }
+    int slot = job->ext_port - SVC_PORT_BASE;
+
     struct snamespace ns;
     /* Initialize the namespace description: namespace name, veth names,
      * slot and IP addresses.
      */
-    if (snamespace_init(&ns, job->job_id) < 0)
+    if (snamespace_init(&ns, job->job_id, (uint32_t) slot) < 0)
         return -1;
 
     /* Create the network namespace, pinned under /run/netns.
