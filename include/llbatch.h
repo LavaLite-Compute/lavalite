@@ -236,13 +236,14 @@ struct svc_instance_info {
  * to type; unused fields are zero/NULL.
  */
 struct job_event {
-    int32_t type; /* EVENT_JOB_* from log.h         */
+    int32_t type; /* EVENT_JOB_* from log.h */
     time_t event_time;
-    int32_t state;        /* JOB_START, JOB_FINISH          */
-    int32_t exit_status;  /* JOB_FINISH                     */
-    int32_t signal;       /* JOB_SIGNAL                     */
-    pid_t pid;            /* JOB_FORK                       */
-    char *run_hosts;      /* JOB_START                      */
+    int32_t state;        /* JOB_START, JOB_FINISH */
+    int32_t exit_status;  /* JOB_FINISH */
+    int32_t signal;       /* JOB_SIGNAL */
+    pid_t pid;            /* JOB_FORK */
+    int32_t service_port; /* JOB_FORK: 0 for batch jobs */
+    char *run_hosts;      /* JOB_START */
     char *from_queue;     /* JOB_MOVE */
     char *to_queue;       /* JOB_MOVE */
     int32_t old_priority; /* JOB_PRIORITY */
@@ -330,7 +331,7 @@ void llb_free_token_info(struct token_pool_info *, int32_t);
 int32_t llb_service_start(const char *, struct svc_instance_info *);
 struct svc_info *llb_service_info(int32_t *);
 void llb_free_service_info(struct svc_info *, int32_t);
-int32_t llb_service_delete(const char *, int32_t);
+int32_t llb_service_delete(int64_t, const char *, int32_t);
 const char *llb_svc_status_str(int32_t);
 
 /* admin */

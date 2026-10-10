@@ -1075,11 +1075,13 @@ int32_t llb_service_start(const char *name, struct svc_instance_info *out)
     return 0;
 }
 
-int32_t llb_service_delete(const char *host, int32_t port)
+int32_t llb_service_delete(int64_t job_id, const char *host, int32_t port)
 {
     struct wire_svc_delete req;
     memset(&req, 0, sizeof(req));
-    ll_strlcpy(req.host, host, sizeof(req.host));
+    req.job_id = job_id;
+    if (host != NULL)
+        ll_strlcpy(req.host, host, sizeof(req.host));
     req.port = port;
 
     struct protocol_header hdr;

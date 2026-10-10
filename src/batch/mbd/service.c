@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
+#include <signal.h>
 
 #include "base/lib/auth.h"
 #include "base/lib/ll.syslog.h"
@@ -94,8 +95,9 @@ static struct job_data *service_job_create(struct service_instance *inst,
     return job;
 }
 
-static struct service_instance *svc_find_running_endpoint(uid_t uid,
-                                                          const char *host,
+/* host:port is unique among running instances whatever the owner,
+ * the ownership check is done by the caller */
+static struct service_instance *svc_find_running_endpoint(const char *host,
                                                           int port)
 {
     struct service_instance *found = NULL;
@@ -110,9 +112,6 @@ static struct service_instance *svc_find_running_endpoint(uid_t uid,
 
             struct service_instance *inst = (struct service_instance *)ie;
 
-            if (inst->uid != uid)
-                continue;
-
             if (inst->status != SVC_RUNNING)
                 continue;
 
@@ -123,8 +122,8 @@ static struct service_instance *svc_find_running_endpoint(uid_t uid,
                 continue;
 
             if (found != NULL) {
-                LL_ERRX("duplicate running service endpoint uid=%u host=%s "
-                        "port=%d job1=%ld job2=%ld",  uid, host, port,
+                LL_ERRX("duplicate running service endpoint host=%s "
+                        "port=%d job1=%ld job2=%ld", host, port,
                         found->job_id, inst->job_id);
                 assert(found == NULL);
             }
@@ -353,32 +352,92 @@ void service_job_running(struct job_data *job, struct mbd_host *host,
             job->job_id, inst->run_host, inst->port);
 }
 
-int service_delete_instance(uid_t uid, const char *host, int port)
+static struct service_instance *svc_find_instance(int64_t job_id,
+                                                 const char *host, int port)
 {
-    LL_INFO("uid=%u host=%s port=%d", uid, host, port);
+    if (job_id == 0)
+        return svc_find_running_endpoint(host, port);
 
-    struct service_instance *inst = svc_find_running_endpoint(uid, host, port);
+    struct job_data *job = job_find(job_id);
+    if (job == NULL || !job_is_service(job))
+        return NULL;
+
+    return job->svc_inst;
+}
+
+/* The client blocked on the first start would otherwise wait forever
+ * for a job that is not going to run.
+ */
+static void svc_cancel_start(struct service_instance *inst)
+{
+    if (inst->chan_id < 0)
+        return;
+
+    int chan_id = inst->chan_id;
+    inst->chan_id = -1;
+
+    if (enqueue_header(chan_id, BATCH_SERVICE_START_ACK, ECANCELED) < 0)
+        LL_ERRX("job=%ld cannot cancel start chan=%d", inst->job_id, chan_id);
+}
+
+int service_delete_instance(uid_t uid, int64_t job_id, const char *host,
+                            int port)
+{
+    LL_INFO("uid=%u job=%ld endpoint=%s:%d", uid, job_id, host, port);
+
+    struct service_instance *inst = svc_find_instance(job_id, host, port);
     if (inst == NULL) {
-        LL_ERRX("cannot find instance for uid=%u port=%d host=%s", uid, port,
-                host);
+        LL_ERRX("cannot find instance job=%ld endpoint=%s:%d uid=%u",
+                job_id, host, port, uid);
         return ESRCH;
     }
-    assert(strcmp(inst->run_host, host) == 0);
+
+    if (inst->uid != uid && !is_manager(uid)) {
+        LL_ERRX("job=%ld service=%s owned by uid=%u not by uid=%u",
+                inst->job_id, inst->svc->name, inst->uid, uid);
+        return EPERM;
+    }
 
     struct job_data *job = job_find(inst->job_id);
     if (job == NULL) {
-        LL_ERRX("cannot find job=%ld for service=%s uid=%u port=%d",
-                inst->job_id, inst->svc->name, uid, port);
+        LL_ERRX("cannot find job=%ld for service=%s uid=%u",
+                inst->job_id, inst->svc->name, inst->uid);
         return ESRCH;
     }
 
     assert(job->flags & JOB_FLAG_SERVICE);
     assert(job->svc_inst == inst);
 
+    if (job->state == JOB_DONE || job->state == JOB_EXITED)
+        return EINVAL;
+
     struct wire_job_sig sig;
     memset(&sig, 0, sizeof(sig));
     sig.job_id = job->job_id;
+    sig.uid = uid;
     sig.sig = SIGKILL;
+
+    /* Never dispatched, or waiting to restart: nothing exists on sbd,
+     * no BATCH_JOB_FINISH will come, so service_instance_finish()
+     * never runs. Finish the instance here.
+     */
+    if (job->state == JOB_PENDING) {
+        int rc = signal_pending_job(job, &sig);
+        if (rc != MBD_OK) {
+            LL_ERRX("cannot finish pending job=%ld service=%s", job->job_id,
+                    inst->svc->name);
+            return rc;
+        }
+
+        inst->flags |= SVC_FLAG_TERMINATE;
+        inst->flags &= ~SVC_FLAG_RESTART_PENDING;
+        inst->status = SVC_FINISH;
+        svc_cancel_start(inst);
+
+        LL_INFO("SVC_FINISH pending deleted by uid=%u service=%s job=%ld",
+                uid, inst->svc->name, job->job_id);
+        return MBD_OK;
+    }
 
     uint32_t old_flags = inst->flags;
     inst->flags |= SVC_FLAG_TERMINATE;

@@ -424,7 +424,7 @@ int queue_state_init(void);
 int service_start_instance(const struct protocol_header *, int,
                            const struct wire_svc_start *);
 int service_collect_info(uid_t, int, struct wire_svc_info **);
-int service_delete_instance(uid_t, const char *, int32_t);
+int service_delete_instance(uid_t, int64_t, const char *, int32_t);
 void service_job_running(struct job_data *, struct mbd_host *, int32_t);
 int service_instance_finish(struct service_instance *);
 struct service_data *svc_find_by_name(const char *);

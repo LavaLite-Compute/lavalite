@@ -69,7 +69,8 @@ static void instance_endpoint(const struct svc_instance_info *inst,
 {
     const char *host = inst->run_host;
 
-    if (host == NULL || host[0] == '\0' || strcmp(host, "-") == 0)
+    if (host == NULL || host[0] == 0
+        || strcmp(host, "-") == 0 || inst->port == 0)
         snprintf(buf, bufsz, "-");
     else
         snprintf(buf, bufsz, "%s:%d", host, inst->port);
@@ -176,12 +177,25 @@ static int parse_service_endpoint(const char *s, char *host, size_t hostsz,
     return 0;
 }
 
+/* bare digits: job_id, anything else: [http://]host:port */
+static int parse_job_id(const char *s, int64_t *job_id)
+{
+    char *end;
+    errno = 0;
+    long long n = strtoll(s, &end, 10);
+    if (errno == ERANGE || *end != '\0' || end == s || n <= 0)
+        return -1;
+
+    *job_id = (int64_t) n;
+    return 0;
+}
+
 static void usage(void)
 {
     fprintf(stderr, "bservices: --help display this help and exit\n"
             "  bservices NAME  start a service defined in llb.services\n"
             "  -a, --all list configured services and all retained instances\n"
-            "  -d, --delete URL delete a running service instance\n"
+            "  -d, --delete JOB_ID|HOST:PORT delete a service instance\n"
             "  --version output version information and exit\n");
 }
 
@@ -195,7 +209,7 @@ static struct option longopts[] = {
 
 int main(int argc, char **argv)
 {
-    const char *delete_url = NULL;
+    const char *delete_arg = NULL;
     int all = 0;
     int cc;
     int list_fmt = 0;
@@ -203,7 +217,7 @@ int main(int argc, char **argv)
     while ((cc = getopt_long(argc, argv, "hvad:", longopts, NULL)) != EOF) {
         switch (cc) {
         case 'd':
-            delete_url = optarg;
+            delete_arg = optarg;
             break;
         case 'a':
             all = 1;
@@ -219,20 +233,25 @@ int main(int argc, char **argv)
         }
     }
 
-    if (delete_url != NULL) {
+    if (delete_arg != NULL) {
         char host[MAXHOSTNAMELEN];
-        int port;
+        int64_t job_id = 0;
+        int port = 0;
 
-        if (parse_service_endpoint(delete_url, host, sizeof(host), &port) < 0) {
-            fprintf(stderr, "bservice: invalid service URL: %s\n", delete_url);
+        host[0] = 0;
+        if (parse_job_id(delete_arg, &job_id) < 0
+            && parse_service_endpoint(delete_arg, host, sizeof(host),
+                                      &port) < 0) {
+            fprintf(stderr, "bservices: invalid job id or endpoint: %s\n",
+                    delete_arg);
             return -1;
         }
 
-        int rc = llb_service_delete(host, port);
+        int rc = llb_service_delete(job_id, host, port);
         if (rc != 0)
-            fprintf(stderr, "bservice: %s: %m\n", delete_url);
+            fprintf(stderr, "bservices: %s: %m\n", delete_arg);
         else
-            printf("service %s deleted\n", delete_url);
+            printf("service %s deleted\n", delete_arg);
 
         return rc;
     }
@@ -245,7 +264,7 @@ int main(int argc, char **argv)
                 printf("No services: %m\n");
                 return 0;
             }
-            fprintf(stderr, "bservice: failed\n");
+            fprintf(stderr, "bservices: failed\n");
             return -1;
         }
 
@@ -268,7 +287,7 @@ int main(int argc, char **argv)
      */
     int rc = llb_service_start(name, &out);
     if (rc != 0) {
-        fprintf(stderr, "bservice: %s: %m\n", name);
+        fprintf(stderr, "bservices: %s: %m\n", name);
         return rc;
     }
 

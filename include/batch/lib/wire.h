@@ -366,7 +366,10 @@ struct wire_svc_start {
     char home_dir[PATH_MAX];
 };
 
+/* job_id != 0 selects by job, otherwise host:port of a running
+ * instance */
 struct wire_svc_delete {
+    int64_t job_id;
     char host[MAXHOSTNAMELEN];
     int32_t port;
 };

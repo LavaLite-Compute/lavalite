@@ -655,7 +655,8 @@ void sbd_job_new(XDR *xdrs)
 
     if (!xdr_wire_job_start(xdrs, &ws)) {
         LL_ERRX("xdr_wire_job_start failed");
-        /* can't trust job_id, mbd will timeout and requeue */
+        xdr_free((xdrproc_t) xdr_wire_job_start, &ws);
+        sbd_chan_shutdown(sbd_mbd_chan);
         return;
     }
 

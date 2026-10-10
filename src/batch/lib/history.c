@@ -548,6 +548,7 @@ static void hist_apply_fork(struct job_hist *jh, const struct event_rec *rec)
     ev->type = EVENT_JOB_FORK;
     ev->event_time = rec->event_time;
     ev->pid = (pid_t) e.job_pid;
+    ev->service_port = e.service_port;
 }
 
 static void hist_apply_signal(struct job_hist *jh, const struct event_rec *rec)

@@ -549,6 +549,8 @@ bool_t xdr_wire_svc_start(XDR *xdrs, struct wire_svc_start *p)
 
 bool_t xdr_wire_svc_delete(XDR *xdrs, struct wire_svc_delete *p)
 {
+    if (!xdr_int64_t(xdrs, &p->job_id))
+        return false;
     if (!xdr_opaque(xdrs, p->host, sizeof(p->host)))
         return false;
     if (!xdr_int32_t(xdrs, &p->port))

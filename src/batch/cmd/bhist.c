@@ -326,6 +326,8 @@ static void print_job_full(const struct job_hist_info *j)
             continue;
         case EVENT_JOB_FORK:
             printf("  pid: %d", (int) e->pid);
+            if (e->service_port != 0)
+                printf(" port: %d", e->service_port);
             break;
         case EVENT_JOB_SIGNAL:
             printf("  signal: %d", e->signal);
