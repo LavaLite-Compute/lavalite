@@ -235,7 +235,6 @@ enum service_type {
 
 enum service_restart {
     LL_SERVICE_RESTART_ALWAYS,
-    LL_SERVICE_RESTART_ON_FAILURE,
     LL_SERVICE_RESTART_NEVER
 };
 
@@ -258,9 +257,6 @@ struct service_data {
     struct ll_list instances;    /* active instances of this service */
 };
 
-#define SVC_FLAG_TERMINATE 0x01 /* explicitly deleted by bservices -d */
-#define SVC_FLAG_RESTART_PENDING 0x02
-
 struct service_instance {
     struct ll_list_entry ent;    /* linkage in service_data.instances */
     struct service_data *svc;    /* owning service definition */
@@ -274,8 +270,6 @@ struct service_instance {
     struct wire_job_submit pend_ws;
     struct protocol_header pend_hdr;
     enum svc_status status;
-    uint32_t flags;          /* SVC_FLAG_* */
-    uint32_t restart_count;
 };
 
 extern int64_t job_id_seq;

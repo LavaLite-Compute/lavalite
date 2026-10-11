@@ -70,6 +70,7 @@ enum host_stat {
 #define JOB_FLAG_HOLD 0x02
 #define JOB_FLAG_ARRAY 0x04
 #define JOB_FLAG_SERVICE 0x08
+#define JOB_FLAG_RELOCATABLE 0x10 /* may be redispatched after it finishes */
 
 struct job_submit {
     char *name;          /* --name        */

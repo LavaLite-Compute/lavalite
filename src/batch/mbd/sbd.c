@@ -429,12 +429,6 @@ int mbd_dispatch_job(struct job_data *job)
          * in BATCH_NEW_JOB_REPLY
          */
         ws.app_port = job->svc_inst->svc->port;
-        if (job->svc_inst->flags & SVC_FLAG_RESTART_PENDING) {
-            job->svc_inst->restart_count++;
-            job->svc_inst->flags &= ~SVC_FLAG_RESTART_PENDING;
-            LL_DEBUG("job=%ld restart count=%d", job->job_id,
-                     job->svc_inst->restart_count);
-        }
     }
 
     ll_strlcpy(ws.job_name, job->name, sizeof(ws.job_name));

@@ -681,6 +681,9 @@ int service_delete(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
         return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, EPROTO);
     }
 
+    LL_INFO("service instance job=%ld endpoint=%s:%d deleted by uid=%u",
+            req.job_id, req.host, req.port, hdr->uid);
+
     int err = service_delete_instance(hdr->uid, req.job_id, req.host,
                                       req.port);
     if (err != 0) {
@@ -688,9 +691,6 @@ int service_delete(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
                 req.job_id, req.host, req.port, hdr->uid, err);
         return enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, err);
     }
-
-    LL_INFO("service instance job=%ld endpoint=%s:%d deleted by uid=%u",
-            req.job_id, req.host, req.port, hdr->uid);
 
     int rc = enqueue_header(chan_id, BATCH_SERVICE_DELETE_ACK, MBD_OK);
     if (rc != MBD_OK) {

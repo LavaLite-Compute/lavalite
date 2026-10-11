@@ -124,6 +124,7 @@ struct log_job_signal {
     int64_t job_id;
     int32_t signal_num;
     uint32_t uid;
+    uint32_t job_flags; /* JOB_FLAG_* at signal time */
     time_t signal_time; /* mbd clock: set by caller before write */
 };
 

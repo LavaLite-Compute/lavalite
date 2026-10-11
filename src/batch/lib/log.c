@@ -284,17 +284,17 @@ int log_write_job_signal(FILE *fp, const struct log_job_signal *j)
 {
     if (write_hdr(fp, EVENT_JOB_SIGNAL, j->signal_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d %u\n", (long) j->job_id, j->signal_num, j->uid) <
-        0)
+    if (fprintf(fp, " %ld %d %u %u\n", (long) j->job_id, j->signal_num,
+                j->uid, j->job_flags) < 0)
         return -1;
     return 0;
 }
 
 int log_parse_job_signal(const struct event_rec *rec, struct log_job_signal *j)
 {
-    int n =
-        sscanf(rec->rest, " %ld %d %u", &j->job_id, &j->signal_num, &j->uid);
-    if (n != 3) {
+    int n = sscanf(rec->rest, " %ld %d %u %u", &j->job_id, &j->signal_num,
+                   &j->uid, &j->job_flags);
+    if (n != 4) {
         errno = EINVAL;
         return -1;
     }

@@ -169,6 +169,8 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     }
 
     inst->pend_ws.flags |= JOB_FLAG_SERVICE;
+    if (svc->restart == LL_SERVICE_RESTART_ALWAYS)
+        inst->pend_ws.flags |= JOB_FLAG_RELOCATABLE;
 
     ll_strlcpy(inst->pend_ws.name, svc->name, sizeof(inst->pend_ws.name));
     ll_strlcpy(inst->pend_ws.queue, svc->queue, sizeof(inst->pend_ws.queue));
@@ -315,9 +317,8 @@ void service_job_running(struct job_data *job, struct mbd_host *host,
      * or, worse, reused by another client.
      */
     if (inst->chan_id < 0) {
-        LL_INFO("channel already invalid job=%ld endpoint=%s:%d restart=%u",
-                job->job_id, inst->run_host, inst->port,
-                inst->restart_count);
+        LL_INFO("job=%ld endpoint=%s:%d, client notified at first start",
+                job->job_id, inst->run_host, inst->port);
         return;
     }
 
@@ -414,8 +415,13 @@ int service_delete_instance(uid_t uid, int64_t job_id, const char *host,
     struct wire_job_sig sig;
     memset(&sig, 0, sizeof(sig));
     sig.job_id = job->job_id;
-    sig.uid = uid;
     sig.sig = SIGKILL;
+
+    /* Cleared before the signal so event_job_signal() logs it and
+     * replay knows not to redispatch.
+     */
+    uint32_t old_flags = job->flags;
+    job->flags &= ~JOB_FLAG_RELOCATABLE;
 
     /* Never dispatched, or waiting to restart: nothing exists on sbd,
      * no BATCH_JOB_FINISH will come, so service_instance_finish()
@@ -424,13 +430,12 @@ int service_delete_instance(uid_t uid, int64_t job_id, const char *host,
     if (job->state == JOB_PENDING) {
         int rc = signal_pending_job(job, &sig);
         if (rc != MBD_OK) {
+            job->flags = old_flags;
             LL_ERRX("cannot finish pending job=%ld service=%s", job->job_id,
                     inst->svc->name);
             return rc;
         }
 
-        inst->flags |= SVC_FLAG_TERMINATE;
-        inst->flags &= ~SVC_FLAG_RESTART_PENDING;
         inst->status = SVC_FINISH;
         svc_cancel_start(inst);
 
@@ -439,12 +444,9 @@ int service_delete_instance(uid_t uid, int64_t job_id, const char *host,
         return MBD_OK;
     }
 
-    uint32_t old_flags = inst->flags;
-    inst->flags |= SVC_FLAG_TERMINATE;
-
     int rc = signal_running_job(job, &sig);
     if (rc != MBD_OK) {
-        inst->flags = old_flags;
+        job->flags = old_flags;
         LL_ERRX("cannot kill job=%ld service=%s", job->job_id, inst->svc->name);
         return rc;
     }
@@ -464,13 +466,11 @@ int service_instance_finish(struct service_instance *inst)
 
     inst->status = SVC_FINISH;
 
-    if (inst->flags & SVC_FLAG_TERMINATE) {
-        LL_INFO("SVC_FINISH terminated by bservice service=%s uid=%u "
-                "job=%ld", inst->svc->name, inst->uid, inst->job_id);
+    if (!(job->flags & JOB_FLAG_RELOCATABLE)) {
+        LL_INFO("SVC_FINISH service=%s uid=%u job=%ld not relocatable",
+                inst->svc->name, inst->uid, inst->job_id);
         return 0;
     }
-
-    inst->flags |= SVC_FLAG_RESTART_PENDING;
 
     /* mbd_job_finish() already released resources and decremented
      * the queue counters. Restore only the pending job counters.

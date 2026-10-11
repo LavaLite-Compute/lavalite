@@ -319,6 +319,7 @@ void event_job_signal(const struct job_data *job, const struct wire_job_sig *ws)
     e.signal_time = job->signal_time;
     e.signal_num = ws->sig;
     e.uid = ws->uid;
+    e.job_flags = job->flags;
 
     FILE *fp = open_manifest();
     if (log_write_job_signal(fp, &e) < 0) {
@@ -678,8 +679,11 @@ static void replay_job_signal(const struct event_rec *rec)
         return;
     }
     job->signal_time = e.signal_time;
-    LL_DEBUG("JOB_SIGNAL job=%ld sig=%d uid=%u", e.job_id, e.signal_num,
-             e.uid);
+    /* snapshot of the flags at signal time, e.g. JOB_FLAG_RELOCATABLE
+     * cleared by bservices -d */
+    job->flags = e.job_flags;
+    LL_DEBUG("JOB_SIGNAL job=%ld sig=%d uid=%u flags=0x%x", e.job_id,
+             e.signal_num, e.uid, e.job_flags);
 }
 
 static void replay_job_finish(const struct event_rec *rec)
@@ -979,6 +983,8 @@ static void replay_job_pend(const struct event_rec *rec)
     job->pid = 0;
     job->fork_time = 0;
     job->dispatch_time = 0;
+    job->end_time = 0;
+    job->exit_status = 0;
     job->state = JOB_PENDING;
     job->run_nhosts = 0;
 

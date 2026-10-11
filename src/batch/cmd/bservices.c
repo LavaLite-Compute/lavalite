@@ -8,6 +8,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <pwd.h>
+#include <errno.h>
 #include <sys/param.h>
 
 #include "llbatch.h"

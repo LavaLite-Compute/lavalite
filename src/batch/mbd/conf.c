@@ -897,8 +897,6 @@ static const char *service_restart_str(enum service_restart restart)
     switch (restart) {
     case LL_SERVICE_RESTART_ALWAYS:
         return "always";
-    case LL_SERVICE_RESTART_ON_FAILURE:
-        return "on-failure";
     case LL_SERVICE_RESTART_NEVER:
         return "never";
     default:
@@ -1080,12 +1078,11 @@ static int commit_service(struct service_conf *sc)
     }
     ll_strlcpy(s->queue, sc->queue, sizeof(s->queue));
 
-    if (strcasecmp(sc->restart, "always") == 0)
+    /* RESTART defaults to always */
+    if (sc->restart[0] == 0 || strcasecmp(sc->restart, "always") == 0)
         s->restart = LL_SERVICE_RESTART_ALWAYS;
     else if (strcasecmp(sc->restart, "never") == 0)
         s->restart = LL_SERVICE_RESTART_NEVER;
-    else if (strcasecmp(sc->restart, "on-failure") == 0)
-        s->restart = LL_SERVICE_RESTART_ON_FAILURE;
     else {
         LL_ERRX("service=%s invalid RESTART=%s",
                 sc->name, sc->restart);
