@@ -107,6 +107,8 @@ struct wire_job_start {
     char gpu_model[LL_BUFSIZ_64];
     char gpu_assigned[LL_BUFSIZ_64]; /* e.g. "0,1" — assigned CUDA device IDs */
     int32_t app_port;         /* service jobs: service's internal listen port */
+    char token_env[LL_BUFSIZ_64]; /* service jobs: env name for token */
+    char token[LL_BUFSIZ_64];     /* service jobs: instance token */
     struct wire_job_script script;   /* job script, encoded last */
 };
 
@@ -354,6 +356,7 @@ struct wire_svc_instance_info {
     char run_host[MAXHOSTNAMELEN];
     int64_t job_id;
     int32_t status;
+    char token[LL_BUFSIZ_64]; /* empty unless the requester owns it */
 };
 
 struct wire_svc_start {

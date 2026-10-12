@@ -429,6 +429,9 @@ int mbd_dispatch_job(struct job_data *job)
          * in BATCH_NEW_JOB_REPLY
          */
         ws.app_port = job->svc_inst->svc->port;
+        ll_strlcpy(ws.token_env, job->svc_inst->svc->token_env,
+                   sizeof(ws.token_env));
+        ll_strlcpy(ws.token, job->svc_inst->token, sizeof(ws.token));
     }
 
     ll_strlcpy(ws.job_name, job->name, sizeof(ws.job_name));

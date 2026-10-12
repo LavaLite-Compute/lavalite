@@ -254,6 +254,8 @@ struct service_data {
     char queue[LL_BUFSIZ_64];
     enum service_type type;
     enum service_restart restart;
+    char token_env[LL_BUFSIZ_64]; /* TOKEN_ENV: env name the app reads its
+                                   * token from, empty means no token */
     struct ll_list instances;    /* active instances of this service */
 };
 
@@ -265,6 +267,8 @@ struct service_instance {
                   * from BATCH_NEW_JOB_REPLY, reset to 0 on restart */
     int64_t job_id;
     char run_host[LL_BUFSIZ_64];  /* set at RUNNING, reset on restart */
+    char token[LL_BUFSIZ_64];     /* per instance secret, kept across
+                                   * restarts, logged in JOB_NEW */
     int chan_id;    /* client waiting on the deferred BATCH_SERVICE_START_ACK,
                      * -1 once acked, after restart and after replay */
     struct wire_job_submit pend_ws;

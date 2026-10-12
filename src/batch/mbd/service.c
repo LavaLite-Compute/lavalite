@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <signal.h>
+#include <sys/random.h>
 
 #include "base/lib/auth.h"
 #include "base/lib/ll.syslog.h"
@@ -95,6 +96,22 @@ static struct job_data *service_job_create(struct service_instance *inst,
     return job;
 }
 
+/* 16 random bytes as 32 hex chars */
+static int svc_token_new(char *buf, size_t bufsiz)
+{
+    unsigned char r[16];
+
+    assert(bufsiz > 2 * sizeof(r));
+    if (getrandom(r, sizeof(r), 0) != (ssize_t) sizeof(r)) {
+        LL_ERR("getrandom failed");
+        return -1;
+    }
+    for (size_t i = 0; i < sizeof(r); i++)
+        snprintf(buf + 2 * i, 3, "%02x", r[i]);
+
+    return 0;
+}
+
 /* host:port is unique among running instances whatever the owner,
  * the ownership check is done by the caller */
 static struct service_instance *svc_find_running_endpoint(const char *host,
@@ -153,6 +170,12 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     inst->chan_id = chan_id;
     inst->uid = hdr->uid;
 
+    if (svc->token_env[0] != 0
+        && svc_token_new(inst->token, sizeof(inst->token)) < 0) {
+        free(inst);
+        return EIO;
+    }
+
     // Build the synthetic wire_job_submit structure
     memset(&inst->pend_ws, 0, sizeof(inst->pend_ws));
     int n = snprintf(inst->pend_ws.command, sizeof(inst->pend_ws.command),
@@ -208,8 +231,9 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
     return 0;
 }
 
+/* the token goes only to the instance owner */
 static void svc_inst_to_wire(const struct service_instance *inst,
-                             struct wire_svc_instance_info *w)
+                             struct wire_svc_instance_info *w, uid_t viewer)
 {
     memset(w, 0, sizeof(*w));
 
@@ -221,6 +245,9 @@ static void svc_inst_to_wire(const struct service_instance *inst,
 
     if (inst->run_host[0] != 0)
         ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
+
+    if (viewer == inst->uid)
+        ll_strlcpy(w->token, inst->token, sizeof(w->token));
 }
 
 int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
@@ -283,7 +310,7 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
             if (!all && inst->uid != uid)
                 continue;
 
-            svc_inst_to_wire(inst, &wsvc->instances[j]);
+            svc_inst_to_wire(inst, &wsvc->instances[j], uid);
             j++;
         }
         n++;
@@ -324,7 +351,7 @@ void service_job_running(struct job_data *job, struct mbd_host *host,
     }
 
     struct wire_svc_instance_info info;
-    svc_inst_to_wire(inst, &info);
+    svc_inst_to_wire(inst, &info, inst->uid);
 
     struct protocol_header rep_hdr;
     init_protocol_header(&rep_hdr);

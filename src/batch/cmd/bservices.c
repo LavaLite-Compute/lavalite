@@ -124,9 +124,9 @@ static void print_services(const struct svc_info *s, int32_t n, int all)
         if (compute_instance_widths(&s[i], &iw, all) == 0)
             continue;
 
-        printf("  %-*s  %-*s  %*s  %-*s\n",
+        printf("  %-*s  %-*s  %*s  %-*s  %s\n",
                iw.user, "USER", iw.endpoint, "HOST:PORT",
-               iw.job_id, "JOB_ID", iw.status, "STATUS");
+               iw.job_id, "JOB_ID", iw.status, "STATUS", "TOKEN");
 
         for (uint32_t j = 0; j < s[i].ninstances; j++) {
             const struct svc_instance_info *inst = &s[i].instances[j];
@@ -140,11 +140,12 @@ static void print_services(const struct svc_info *s, int32_t n, int all)
 
             instance_endpoint(inst, endpoint, sizeof(endpoint));
 
-            printf("  %-*s  %-*s  %*ld  %-*s\n",
+            printf("  %-*s  %-*s  %*ld  %-*s  %s\n",
                    iw.user, user,
                    iw.endpoint, endpoint,
                    iw.job_id, (long) inst->job_id,
-                   iw.status, llb_svc_status_str(inst->status));
+                   iw.status, llb_svc_status_str(inst->status),
+                   inst->token != NULL ? inst->token : "-");
         }
     }
 }
@@ -293,11 +294,16 @@ int main(int argc, char **argv)
         return rc;
     }
 
-    printf("Job <%ld>: http://%s:%d\n",
-           (long) out.job_id, out.run_host, out.port);
+    if (out.token != NULL)
+        printf("Job <%ld>: http://%s:%d/?token=%s\n",
+               (long) out.job_id, out.run_host, out.port, out.token);
+    else
+        printf("Job <%ld>: http://%s:%d\n",
+               (long) out.job_id, out.run_host, out.port);
 
     free(out.service);
     free(out.run_host);
+    free(out.token);
 
     return 0;
 }

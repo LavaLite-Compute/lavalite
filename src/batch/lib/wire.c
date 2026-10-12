@@ -268,6 +268,10 @@ bool_t xdr_wire_job_start(XDR *xdrs, struct wire_job_start *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->app_port))
         return false;
+    if (!xdr_opaque(xdrs, p->token_env, sizeof(p->token_env)))
+        return false;
+    if (!xdr_opaque(xdrs, p->token, sizeof(p->token)))
+        return false;
     return true;
 }
 
@@ -521,6 +525,8 @@ bool_t xdr_wire_svc_instance_info(XDR *xdrs,
     if (!xdr_int64_t(xdrs, &p->job_id))
         return false;
     if (!xdr_int32_t(xdrs, &p->status))
+        return false;
+    if (!xdr_opaque(xdrs, p->token, sizeof(p->token)))
         return false;
 
     return true;

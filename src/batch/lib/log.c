@@ -154,6 +154,8 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->service_name) < 0)
         return -1;
+    if (write_qstr(fp, j->service_token) < 0)
+        return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
     return 0;
@@ -193,6 +195,13 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
     if (read_qstr(&p, j->depend_cond, sizeof(j->depend_cond)) < 0)
         return -1;
     if (read_qstr(&p, j->service_name, sizeof(j->service_name)) < 0)
+        return -1;
+
+    /* absent in records written before tokens existed */
+    while (*p == ' ')
+        p++;
+    if (*p == '"'
+        && read_qstr(&p, j->service_token, sizeof(j->service_token)) < 0)
         return -1;
 
     return 0;

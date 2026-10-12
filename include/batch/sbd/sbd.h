@@ -63,6 +63,8 @@ struct sbd_job {
     int32_t ext_port;   /* service jobs only: endpoint port on this host,
                          * SVC_PORT_BASE + slot, persisted in the state file */
     int32_t app_port;   /* service jobs only: service's internal listen port */
+    char token_env[LL_BUFSIZ_64]; /* service jobs only, exported at exec */
+    char token[LL_BUFSIZ_64];     /* never written to the state file */
 
     char user[LL_BUFSIZ_64];
     char user_home[PATH_MAX];

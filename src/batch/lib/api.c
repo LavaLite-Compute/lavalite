@@ -917,6 +917,12 @@ struct svc_info *llb_service_info(int32_t *nsvc)
 
             di->job_id = si->job_id;
             di->status = si->status;
+
+            if (si->token[0] != '\0') {
+                di->token = strdup(si->token);
+                if (di->token == NULL)
+                    goto fail;
+            }
         }
     }
 
@@ -935,6 +941,7 @@ fail:
             for (uint32_t j = 0; j < out[i].ninstances; j++) {
                 free(out[i].instances[j].service);
                 free(out[i].instances[j].run_host);
+                free(out[i].instances[j].token);
             }
 
             free(out[i].instances);
@@ -961,6 +968,7 @@ void llb_free_service_info(struct svc_info *s, int32_t n)
         for (uint32_t j = 0; j < s[i].ninstances; j++) {
             free(s[i].instances[j].service);
             free(s[i].instances[j].run_host);
+            free(s[i].instances[j].token);
         }
 
         free(s[i].instances);
@@ -1072,6 +1080,18 @@ int32_t llb_service_start(const char *name, struct svc_instance_info *out)
     }
 
     out->job_id = w.job_id;
+
+    if (w.token[0] != '\0') {
+        out->token = strdup(w.token);
+        if (out->token == NULL) {
+            free(out->service);
+            free(out->run_host);
+            out->service = NULL;
+            out->run_host = NULL;
+            errno = ENOMEM;
+            return -1;
+        }
+    }
 
     return 0;
 }

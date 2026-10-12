@@ -41,6 +41,8 @@ static struct sbd_job *sbd_job_create(const struct wire_job_start *ws)
     job->ncpus = ws->ncpus;
     job->mem_mb = ws->mem_mb;
     job->app_port = ws->app_port;  /* ext_port is picked by snamespace_setup() */
+    ll_strlcpy(job->token_env, ws->token_env, sizeof(job->token_env));
+    ll_strlcpy(job->token, ws->token, sizeof(job->token));
 
     ll_strlcpy(job->user, ws->username, sizeof(job->user));
     ll_strlcpy(job->user_home, ws->home_dir, sizeof(job->user_home));
@@ -185,6 +187,12 @@ static int set_job_env(const struct sbd_job *job)
     snprintf(job_dir, sizeof(job_dir), "%s/%ld", sbd_job_dir, job->job_id);
     if (setenv("LL_JOBDIR", job_dir, 1) < 0)
         return -1;
+
+    /* service token: environment only, never argv, so ps cannot see it */
+    if (job->token_env[0] != 0 && job->token[0] != 0) {
+        if (setenv(job->token_env, job->token, 1) < 0)
+            return -1;
+    }
 
     char ll_conf_dir[PATH_MAX + LL_BUFSIZ_32];
     snprintf(ll_conf_dir, PATH_MAX, "%s", getenv("LL_CONF_DIR"));

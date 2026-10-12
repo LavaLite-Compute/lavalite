@@ -38,6 +38,7 @@ struct service_conf {
     int port;
     char queue[LL_BUFSIZ_64];
     char restart[LL_BUFSIZ_32];
+    char token_env[LL_BUFSIZ_64];
 };
 
 
@@ -1009,6 +1010,9 @@ static int parse_service_conf(struct service_conf *sc,
     if (strcasecmp(key, "RUNTIME") == 0)
         return ll_strlcpy(sc->runtime, val, sizeof(sc->runtime));
 
+    if (strcasecmp(key, "TOKEN_ENV") == 0)
+        return ll_strlcpy(sc->token_env, val, sizeof(sc->token_env));
+
     LL_ERRX("unknown service key=%s", key);
     return -1;
 }
@@ -1090,12 +1094,24 @@ static int commit_service(struct service_conf *sc)
         return -1;
     }
 
+    /* goes to setenv() on the exec host, a plain name only */
+    if (sc->token_env[0] != 0
+        && strspn(sc->token_env, "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                  "abcdefghijklmnopqrstuvwxyz0123456789_")
+           != strlen(sc->token_env)) {
+        LL_ERRX("service=%s invalid TOKEN_ENV=%s", sc->name, sc->token_env);
+        free(s);
+        return -1;
+    }
+    ll_strlcpy(s->token_env, sc->token_env, sizeof(s->token_env));
+
     ll_list_init(&s->instances);
     ll_list_append(&service_list, &s->ent);
 
-    LL_INFO("service=%s type=%s image=%s port=%d queue=%s restart=%s",
-            sc->name, sc->type, sc->image, sc->port,
-            sc->queue[0] ? sc->queue : "-", sc->restart);
+    LL_INFO("service=%s type=%s image=%s port=%d queue=%s restart=%s "
+            "token_env=%s", sc->name, sc->type, sc->image, sc->port,
+            sc->queue[0] ? sc->queue : "-", sc->restart,
+            sc->token_env[0] ? sc->token_env : "-");
 
     return 0;
 }

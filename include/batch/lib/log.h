@@ -90,6 +90,7 @@ struct log_job_new {
     char tokenpool[LL_BUFSIZ_256];
     char depend_cond[LL_BUFSIZ_4K];
     char service_name[LL_BUFSIZ_64];
+    char service_token[LL_BUFSIZ_64];
 };
 
 /* log_job_start: mbd dispatched the job to sbd.

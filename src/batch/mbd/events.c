@@ -245,6 +245,8 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     if (job_is_service(job)) {
         ll_strlcpy(e.service_name, job->svc_inst->svc->name,
                    sizeof(e.service_name));
+        ll_strlcpy(e.service_token, job->svc_inst->token,
+                   sizeof(e.service_token));
     }
 
     FILE *fp = open_manifest();
@@ -501,6 +503,7 @@ static int replay_service_job_new(struct job_data *job,
     /* no client is waiting on a replayed instance, calloc's 0 is a
      * valid chan_id */
     inst->chan_id = -1;
+    ll_strlcpy(inst->token, e->service_token, sizeof(inst->token));
 
     job->svc_inst = inst;
     inst->status = SVC_PENDING;
@@ -1128,6 +1131,8 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     if (job_is_service(job)) {
         ll_strlcpy(e.service_name, job->svc_inst->svc->name,
                    sizeof(e.service_name));
+        ll_strlcpy(e.service_token, job->svc_inst->token,
+                   sizeof(e.service_token));
     }
 
     if (log_write_job_new(fp, &e) < 0)

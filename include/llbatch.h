@@ -226,6 +226,7 @@ struct svc_instance_info {
     char *run_host; /* backing job's execution host, NULL if not running yet */
     int64_t job_id; /* backing job id */
     int32_t status;
+    char *token;    /* NULL unless the caller owns the instance */
 };
 
 /* llb_hist_info flags
