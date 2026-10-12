@@ -247,6 +247,7 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
 
         ll_strlcpy(wsvc->name, svc->name, sizeof(wsvc->name));
         ll_strlcpy(wsvc->queue, svc->queue, sizeof(wsvc->queue));
+        wsvc->restart_never = svc->restart == LL_SERVICE_RESTART_NEVER;
 
         uint32_t ninstances = 0;
 

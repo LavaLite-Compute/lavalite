@@ -114,10 +114,11 @@ static void print_services(const struct svc_info *s, int32_t n, int all)
     struct svc_col_widths sw;
     compute_service_widths(s, n, &sw);
 
-    printf("%-*s  %-*s\n", sw.name, "NAME", sw.queue, "QUEUE");
+    printf("%-*s  %-*s  RESTART\n", sw.name, "NAME", sw.queue, "QUEUE");
 
     for (int32_t i = 0; i < n; i++) {
-        printf("%-*s  %-*s\n", sw.name, s[i].name, sw.queue, s[i].queue);
+        printf("%-*s  %-*s  %s\n", sw.name, s[i].name, sw.queue, s[i].queue,
+               s[i].restart_never ? "never" : "always");
 
         struct inst_col_widths iw;
         if (compute_instance_widths(&s[i], &iw, all) == 0)

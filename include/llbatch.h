@@ -214,6 +214,7 @@ enum svc_status {
 struct svc_info {
     char *name;
     char *queue;
+    int32_t restart_never; /* 0 RESTART=always, 1 RESTART=never */
     uint32_t ninstances;
     struct svc_instance_info *instances;
 };

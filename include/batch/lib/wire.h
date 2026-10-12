@@ -342,6 +342,7 @@ struct wire_svc_info_array {
 struct wire_svc_info {
     char name[LL_BUFSIZ_64];
     char queue[LL_BUFSIZ_64];
+    int32_t restart_never;
     uint32_t ninstances;
     struct wire_svc_instance_info *instances;
 };

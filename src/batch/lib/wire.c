@@ -496,6 +496,8 @@ bool_t xdr_wire_svc_info(XDR *xdrs, struct wire_svc_info *p)
         return false;
     if (!xdr_opaque(xdrs, p->queue, sizeof(p->queue)))
         return false;
+    if (!xdr_int32_t(xdrs, &p->restart_never))
+        return false;
 
     return xdr_array(xdrs,
                      (char **)&p->instances,

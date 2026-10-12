@@ -887,6 +887,7 @@ struct svc_info *llb_service_info(int32_t *nsvc)
         if (dst->name == NULL || dst->queue == NULL)
             goto fail;
 
+        dst->restart_never = src->restart_never;
         dst->ninstances = src->ninstances;
 
         if (src->ninstances == 0)
