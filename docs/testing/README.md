@@ -1,6 +1,6 @@
-# LavaLite 1.0 Testing
+# LavaLite Testing
 
-This directory contains the manual test plan for LavaLite 1.0.
+This directory contains the manual test plan for LavaLite.
 
 The goal is to verify the documented user-visible behavior of the
 LavaLite commands, daemons, persistent state, and event replay logic.
@@ -20,42 +20,43 @@ LavaLite commands, daemons, persistent state, and event replay logic.
 - `11-bjobs.md`
   Job listing and visible job states: `PEND`, `HELD`, `RUN`, `SUSP`, `DONE`, `EXIT`.
 
-- `12-bhist.md`
-  Job history, detailed job view, lifecycle events, dispatch records, and fork records.
-
-- `13-bkill.md`
+- `12-bkill.md`
   Job termination, suspension, resume, and held-job release through signals.
 
-- `14-bmove.md`
+- `13-bmove.md`
   Moving pending or held jobs between queues.
 
-- `15-bpriority.md`
+- `14-bpriority.md`
   Changing job priority and verifying scheduling order.
 
-### Cluster State Commands
+- `15-bsub-options.md`
+  Resource, placement, I/O and scheduling option combinations.
 
-- `20-bhosts.md`
-  Host listing, resource counters, host close/open behavior.
+- `16-run-limit.md`
+  `--time` run limit, `--terminate` deadline, expiry while pending, `DISP`.
 
-- `21-bqueues.md`
-  Queue listing, queue counters, queue close/open behavior.
+- `17-bservices.md`
+  Service instances: start, endpoint, delete, restart, token, run limit.
 
-- `22-bgroups.md`
-  Host group listing and host group membership validation.
+### Reference
 
-- `23-btokens.md`
-  Token pool listing, token allocation, and token release.
+- `90-things-to-know.md`
+  Known limits and by-design behaviour. Read before filing a failure.
 
-### Recovery and Persistence
+- `bench-plan.md`
+  Performance benchmark plan.
 
-- `30-mbd-restart.md`
-  Restarting `mbd` and verifying state recovery.
+### Planned
 
-- `31-sbd-restart.md`
-  Restarting `sbd` and verifying running job behavior.
+- `bhist`, `bhosts`, `bqueues`, `bgroups`, `btokens` command tests.
+- `mbd` restart, `sbd` restart and event replay tests.
 
-- `32-event-replay.md`
-  Verifying event replay, job reconstruction, and `bhist` correctness.
+## Automated Tests
+
+`src/tests/system/run_tests.sh` runs the scripted subset as a normal
+user against a running cluster. Each script prints `PASS`, `FAIL` or
+`SKIP`. The service scripts use the service named by `$SVC`, default
+`echotest`, and skip when it is not configured.
 
 ## Test Format
 

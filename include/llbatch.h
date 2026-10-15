@@ -92,6 +92,7 @@ struct job_submit {
     char *tokenpool;     /* --pool name=N[,name=N]  */
     time_t begin_time;   /* --begin       */
     time_t term_time;    /* --terminate   */
+    int32_t run_limit;   /* --time, seconds, 0 = none */
     uint32_t flags;      /* JOB_FLAG_*    */
     int32_t array_start; /* --array START-END[:STRIDE] */
     int32_t array_end;
@@ -292,6 +293,7 @@ struct job_hist_info {
     char *tokenpool;            /* --pool                                 */
     time_t begin_time;          /* --begin                                */
     time_t term_time;           /* --terminate                            */
+    int32_t run_limit;          /* --time, seconds                        */
     struct job_res_usage usage; /* from usage sidecar, valid after finish */
     int32_t num_events;
     struct job_event *events;
@@ -305,6 +307,7 @@ struct job_hist_info {
 int32_t llb_submit(const struct job_submit *, int64_t *);
 int32_t llb_parse_array(const char *, int32_t *, int32_t *, int32_t *);
 int32_t llb_parse_dependency(const char *);
+int32_t llb_parse_time_limit(const char *, int32_t *);
 
 // bjobs
 struct job_info *llb_job_info(const struct job_info_req *, int32_t *);
@@ -331,7 +334,7 @@ struct token_pool_info *llb_token_info(int32_t *);
 void llb_free_token_info(struct token_pool_info *, int32_t);
 
 // bservice
-int32_t llb_service_start(const char *, struct svc_instance_info *);
+int32_t llb_service_start(const char *, int32_t, struct svc_instance_info *);
 struct svc_info *llb_service_info(int32_t *);
 void llb_free_service_info(struct svc_info *, int32_t);
 int32_t llb_service_delete(int64_t, const char *, int32_t);

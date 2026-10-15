@@ -188,7 +188,22 @@ static int set_job_env(const struct sbd_job *job)
     if (setenv("LL_JOBDIR", job_dir, 1) < 0)
         return -1;
 
-    /* service token: environment only, never argv, so ps cannot see it */
+    /* service: the port the app must listen on inside the job netns,
+     * COMMAND uses it as $LL_SVC_PORT
+     */
+    if (job->app_port > 0) {
+        snprintf(val, sizeof(val), "%d", job->app_port);
+        if (setenv("LL_SVC_PORT", val, 1) < 0)
+            return -1;
+    }
+
+    /* service token: environment only, never argv, so ps cannot see
+     * it. LL_SVC_TOKEN always, TOKEN_ENV for apps reading a fixed name.
+     */
+    if (job->token[0] != 0) {
+        if (setenv("LL_SVC_TOKEN", job->token, 1) < 0)
+            return -1;
+    }
     if (job->token_env[0] != 0 && job->token[0] != 0) {
         if (setenv(job->token_env, job->token, 1) < 0)
             return -1;
@@ -1054,7 +1069,10 @@ void sbd_job_finish_ack(XDR *xdrs)
 
 /* job signal  (mbd -> sbd: send signal to job)
  * LavaLite-managed job control:
- * STOP/CONT/KILL are implemented through cgroup v2.
+ * STOP/CONT/KILL are implemented through cgroup v2, which reaches
+ * every process of the job, also those that left its process group.
+ * Without a usable cgroup (v1 host, cgroup init failed) they fall
+ * back to the process group, the old school way.
  * All other signals are delivered to the job process group.
  */
 int sbd_job_signal(XDR *xdrs)
@@ -1077,23 +1095,20 @@ int sbd_job_signal(XDR *xdrs)
         goto reply;
     }
 
-    if (sig.sig == SIGSTOP) {
-        if (cgroup_job_freeze(job) < 0)
-            status = ESRCH;
-        goto reply;
-    }
+    int rc = -1;
+    if (sig.sig == SIGSTOP)
+        rc = cgroup_job_freeze(job);
+    if (sig.sig == SIGCONT)
+        rc = cgroup_job_thaw(job);
+    if (sig.sig == SIGKILL)
+        rc = cgroup_job_kill(job);
 
-    if (sig.sig == SIGCONT) {
-        if (cgroup_job_thaw(job) < 0)
-            status = ESRCH;
+    if (rc == 0)
         goto reply;
-    }
 
-    if (sig.sig == SIGKILL) {
-        if (cgroup_job_kill(job) < 0)
-            status = ESRCH;
-        goto reply;
-    }
+    if (sig.sig == SIGSTOP || sig.sig == SIGCONT || sig.sig == SIGKILL)
+        LL_INFO("job=%ld sig=%d no cgroup, using killpg", job->job_id,
+                sig.sig);
 
     if (job->pgid <= 0) {
         LL_ERR("job=%ld invalid process group pgid=%d sig=%d failed",

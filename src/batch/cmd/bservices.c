@@ -197,6 +197,7 @@ static void usage(void)
 {
     fprintf(stderr, "bservices: --help display this help and exit\n"
             "  bservices NAME  start a service defined in llb.services\n"
+            "  -t, --time [h:]m run limit, at most the service RUNLIMIT\n"
             "  -a, --all list configured services and all retained instances\n"
             "  -d, --delete JOB_ID|HOST:PORT delete a service instance\n"
             "  --version output version information and exit\n");
@@ -207,6 +208,7 @@ static struct option longopts[] = {
     {"version", no_argument, NULL, 'v'},
     {"all", no_argument, NULL, 'a'},
     {"delete", required_argument, NULL, 'd'},
+    {"time", required_argument, NULL, 't'},
     {NULL, 0, NULL, 0}
 };
 
@@ -216,9 +218,17 @@ int main(int argc, char **argv)
     int all = 0;
     int cc;
     int list_fmt = 0;
+    int32_t run_limit = 0;
 
-    while ((cc = getopt_long(argc, argv, "hvad:", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hvad:t:", longopts, NULL)) != EOF) {
         switch (cc) {
+        case 't':
+            if (llb_parse_time_limit(optarg, &run_limit) < 0) {
+                fprintf(stderr, "bservices: --time: invalid limit '%s'\n",
+                        optarg);
+                return -1;
+            }
+            break;
         case 'd':
             delete_arg = optarg;
             break;
@@ -288,7 +298,7 @@ int main(int argc, char **argv)
     /* blocks until the backing job reaches RUNNING -- see
      * llb_service_start()/call_mbd_timeout()
      */
-    int rc = llb_service_start(name, &out);
+    int rc = llb_service_start(name, run_limit, &out);
     if (rc != 0) {
         fprintf(stderr, "bservices: %s: %m\n", name);
         return rc;

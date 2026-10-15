@@ -98,6 +98,17 @@ struct col_widths {
     int name;
 };
 
+/* DISP is not a job state: RUN without a pid, dispatched to sbd and
+ * not forked yet, its run limit clock has not started
+ */
+static const char *job_stat_str(const struct job_info *j)
+{
+    if (j->state == JOB_RUNNING && j->pid == 0)
+        return "DISP";
+
+    return llb_job_state_str(j->state);
+}
+
 static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
 {
     int i;
@@ -118,7 +129,7 @@ static void compute_widths(struct job_info *jobs, int n, struct col_widths *w)
         fmt_jobid(j, jobid, sizeof(jobid));
         w->jobid = imax(w->jobid, (int) strlen(jobid));
         w->user = imax(w->user, (int) strlen(uid_to_name(j->uid)));
-        w->stat = imax(w->stat, (int) strlen(llb_job_state_str(j->state)));
+        w->stat = imax(w->stat, (int) strlen(job_stat_str(j)));
         w->queue = imax(w->queue, (int) strlen(j->queue));
         w->priority = imax(w->priority, ndigits(j->priority));
         w->run_hosts = imax(w->run_hosts, run_hosts_width(j->run_hosts));
@@ -156,7 +167,7 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
     if (j->run_hosts == NULL || j->run_hosts[0] == '\0') {
         printf("%-*s  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n", w->jobid,
                jobid, w->user, uid_to_name(j->uid), w->stat,
-               llb_job_state_str(j->state), w->queue, j->queue, w->priority,
+               job_stat_str(j), w->queue, j->queue, w->priority,
                j->priority, w->run_hosts, "-", w->name, j->name,
                fmt_time(j->submit_time));
         if (show_reason)
@@ -172,7 +183,7 @@ static void print_job(const struct job_info *j, const struct col_widths *w,
         if (first) {
             printf("%-*s  %-*s  %-*s  %-*s  %-*d  %-*s  %-*s  %s\n", w->jobid,
                    jobid, w->user, uid_to_name(j->uid), w->stat,
-                   llb_job_state_str(j->state), w->queue, j->queue, w->priority,
+                   job_stat_str(j), w->queue, j->queue, w->priority,
                    j->priority, w->run_hosts, tok, w->name, j->name,
                    fmt_time(j->submit_time));
             first = 0;

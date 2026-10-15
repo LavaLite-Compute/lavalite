@@ -142,6 +142,8 @@ bool_t xdr_wire_job_submit(XDR *xdrs, struct wire_job_submit *s)
         return false;
     if (!xdr_int64_t(xdrs, &s->term_time))
         return false;
+    if (!xdr_int32_t(xdrs, &s->run_limit))
+        return false;
     if (!xdr_int64_t(xdrs, &s->susp_time))
         return false;
     if (!xdr_int64_t(xdrs, &s->resume_time))
@@ -551,6 +553,8 @@ bool_t xdr_wire_svc_start(XDR *xdrs, struct wire_svc_start *p)
     if (!xdr_opaque(xdrs, p->username, sizeof(p->username)))
         return false;
     if (!xdr_opaque(xdrs, p->home_dir, sizeof(p->home_dir)))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->run_limit))
         return false;
     return true;
 }

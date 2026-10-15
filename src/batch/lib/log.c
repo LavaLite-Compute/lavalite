@@ -156,7 +156,7 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->service_token) < 0)
         return -1;
-    if (fprintf(fp, "\n") < 0)
+    if (fprintf(fp, " %d %ld\n", j->run_limit, (long) j->run_start) < 0)
         return -1;
     return 0;
 }
@@ -203,6 +203,11 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
     if (*p == '"'
         && read_qstr(&p, j->service_token, sizeof(j->service_token)) < 0)
         return -1;
+
+    /* absent in records written before run limits existed */
+    long run_start = 0;
+    if (sscanf(p, " %d %ld", &j->run_limit, &run_start) == 2)
+        j->run_start = (time_t) run_start;
 
     return 0;
 }

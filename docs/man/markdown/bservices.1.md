@@ -14,7 +14,7 @@ bservices - list, start, and delete service instances
 
 **bservices**
 
-**bservices** *name*
+**bservices** [**-t** [*hours*:]*minutes*] *name*
 
 **bservices** **-d** *endpoint*
 
@@ -35,6 +35,12 @@ Multiple instances of the same service may run simultaneously.
 
 *name*
 :   Start an instance of the named service defined in **llb.services**.
+
+**-t**, **--time** [*hours*:]*minutes*
+:   Run limit of the instance, at most the service's **RUNLIMIT**.
+    Without it the instance gets **RUNLIMIT**. The limit counts from the
+    first start and is not reset when the instance restarts; once it is
+    reached the instance is stopped and not restarted.
 
 **-a**, **--all**
 :   List configured services and all retained instances, including finished ones.

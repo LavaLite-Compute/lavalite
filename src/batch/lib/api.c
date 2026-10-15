@@ -977,7 +977,10 @@ void llb_free_service_info(struct svc_info *s, int32_t n)
     free(s);
 }
 
-int32_t llb_service_start(const char *name, struct svc_instance_info *out)
+/* run_limit in seconds, 0 takes the service RUNLIMIT
+ */
+int32_t llb_service_start(const char *name, int32_t run_limit,
+                          struct svc_instance_info *out)
 {
     size_t bufsz =
         PACKET_HEADER_SIZE + sizeof(struct wire_svc_start) + LL_BUFSIZ_64;
@@ -988,6 +991,7 @@ int32_t llb_service_start(const char *name, struct svc_instance_info *out)
     struct wire_svc_start req;
     memset(&req, 0, sizeof(req));
     ll_strlcpy(req.name, name, sizeof(req.name));
+    req.run_limit = run_limit;
 
     /*
      * Submission context, local and cheap here (a client process
@@ -1030,7 +1034,9 @@ int32_t llb_service_start(const char *name, struct svc_instance_info *out)
     void *rep = NULL;
     struct protocol_header rhdr;
 
-    if (call_mbd(buf, len, &rep, &rhdr) < 0) {
+    /* the ack is deferred until the backing job runs, which may take
+     * as long as the queue does: block, ^C gets out */
+    if (call_mbd_timeout(buf, len, &rep, &rhdr, -1) < 0) {
         free(buf);
         return -1;
     }

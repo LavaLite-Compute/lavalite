@@ -94,6 +94,40 @@ int32_t llb_parse_dependency(const char *cond)
     return 0;
 }
 
+/* [hours:]minutes, like LSF -W. Returns seconds in *secs.
+ */
+int32_t llb_parse_time_limit(const char *spec, int32_t *secs)
+{
+    int hours = 0;
+    int minutes;
+    int n;
+
+    if (strchr(spec, ':') != NULL) {
+        if (sscanf(spec, "%d:%d%n", &hours, &minutes, &n) != 2)
+            goto bad;
+    } else {
+        if (sscanf(spec, "%d%n", &minutes, &n) != 1)
+            goto bad;
+    }
+
+    if (spec[n] != '\0')
+        goto bad;
+
+    if (hours < 0 || minutes < 0)
+        goto bad;
+
+    int64_t t = ((int64_t) hours * 60 + minutes) * 60;
+    if (t <= 0 || t > INT32_MAX)
+        goto bad;
+
+    *secs = (int32_t) t;
+    return 0;
+
+bad:
+    errno = EINVAL;
+    return -1;
+}
+
 static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
 {
     if (js->command == NULL) {
@@ -143,6 +177,7 @@ static int fill_wire(const struct job_submit *js, struct wire_job_submit *w)
         ll_strlcpy(w->tokenpool, js->tokenpool, sizeof(w->tokenpool));
     w->begin_time = (int64_t) js->begin_time;
     w->term_time = (int64_t) js->term_time;
+    w->run_limit = js->run_limit;
     w->flags = js->flags;
     w->array_start = js->array_start;
     w->array_end = js->array_end;

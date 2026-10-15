@@ -166,6 +166,7 @@ struct wire_job_submit {
     uint32_t flags;
     int64_t begin_time;
     int64_t term_time;
+    int32_t run_limit; /* --time, seconds, 0 = none */
     int64_t susp_time;
     int64_t resume_time;
     int32_t array_start;
@@ -368,6 +369,7 @@ struct wire_svc_start {
      * it at home_dir. */
     char username[LL_BUFSIZ_64];
     char home_dir[PATH_MAX];
+    int32_t run_limit; /* --time, seconds, 0 = the service RUNLIMIT */
 };
 
 /* job_id != 0 selects by job, otherwise host:port of a running

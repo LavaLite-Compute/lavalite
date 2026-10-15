@@ -55,6 +55,7 @@ static void usage(FILE *f)
         "1\n"
         "  --begin  [day:]h:m Do not dispatch before this time\n"
         "  --terminate [d:]h:m Terminate at deadline (SIGUSR2 + kill)\n"
+        "  --time  [h:]m      Run limit, counted from job start\n"
         "  --dependency expr  Hold until dependency expr is satisfied.\n"
         "                     expr uses done(id)/exit(id)/ended(id) terms\n"
         "                     combined with && || ! and parentheses.\n"
@@ -241,6 +242,7 @@ int main(int argc, char **argv)
         {"array", required_argument, NULL, 'a'},
         {"begin", required_argument, NULL, 'b'},
         {"terminate", required_argument, NULL, 't'},
+        {"time", required_argument, NULL, 'W'},
         {"dependency", required_argument, NULL, 'w'},
         {"help", no_argument, NULL, 'h'},
         {"version", no_argument, NULL, 'v'},
@@ -248,7 +250,7 @@ int main(int argc, char **argv)
 
     int c;
     while ((c = getopt_long(argc, argv,
-                            "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:w:hv", opts,
+                            "q:J:P:C:n:N:M:s:g:G:T:xm:o:e:i:Ha:b:t:W:w:hv", opts,
                             NULL)) != -1) {
         switch (c) {
         case 'q':
@@ -376,6 +378,12 @@ int main(int argc, char **argv)
             if (parse_time_arg(optarg, &js.term_time) < 0) {
                 fprintf(stderr, "bsub: --terminate: invalid time '%s'\n",
                         optarg);
+                return 1;
+            }
+            break;
+        case 'W':
+            if (llb_parse_time_limit(optarg, &js.run_limit) < 0) {
+                fprintf(stderr, "bsub: --time: invalid limit '%s'\n", optarg);
                 return 1;
             }
             break;

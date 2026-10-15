@@ -337,6 +337,7 @@ static struct job_hist_info *hist_add(struct job_hist *jh,
     j->state = e->state;
     j->priority = e->priority;
     j->submit_time = e->submit_time;
+    j->run_limit = e->run_limit;
     j->num_cpus = e->num_cpu;
     j->num_hosts = e->num_hosts;
     j->num_gpus = e->num_gpus;

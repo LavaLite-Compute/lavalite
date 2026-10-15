@@ -79,8 +79,11 @@ struct job_data {
     time_t susp_time;
     time_t unknown_time;
     time_t begin_time;
-    time_t term_time;
+    time_t term_time;   /* absolute deadline, enforced by sbd      */
     time_t signal_time;
+    int32_t run_limit;  /* seconds, enforced by mbd, 0 = none      */
+    time_t run_start;   /* first fork_time, kept across relocations,
+                         * the run limit counts from here            */
     struct mbd_queue *queue;
     char project[LL_BUFSIZ_256];
     char name[LL_BUFSIZ_64];
@@ -247,10 +250,9 @@ enum service_restart {
 struct service_data {
     struct ll_list_entry ent;    /* linkage in service_list, must be first */
     char name[LL_BUFSIZ_64];
-    char image[PATH_MAX];
-    char runtime[PATH_MAX];
-    char command[LL_BUFSIZ_512];
+    char command[LL_BUFSIZ_1K]; /* full command line, run by sh */
     int port;
+    int32_t run_limit;           /* RUNLIMIT seconds, 0 = none */
     char queue[LL_BUFSIZ_64];
     enum service_type type;
     enum service_restart restart;
@@ -400,6 +402,9 @@ void job_deps_release(struct job_data *);
 void job_replay_deps(struct job_data *, const char *);
 int signal_pending_job(struct job_data *, const struct wire_job_sig *);
 int signal_running_job(struct job_data *, const struct wire_job_sig *);
+int job_time_expired(const struct job_data *, time_t);
+void job_expire_pending(struct job_data *);
+void jobs_run_limit_check(void);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);
@@ -425,6 +430,7 @@ int service_collect_info(uid_t, int, struct wire_svc_info **);
 int service_delete_instance(uid_t, int64_t, const char *, int32_t);
 void service_job_running(struct job_data *, struct mbd_host *, int32_t);
 int service_instance_finish(struct service_instance *);
+void service_pending_finished(struct service_instance *);
 struct service_data *svc_find_by_name(const char *);
 int job_is_service(const struct job_data *);
 void service_invalidate_chan(int);

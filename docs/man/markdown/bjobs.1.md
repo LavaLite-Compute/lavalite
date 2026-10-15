@@ -58,6 +58,7 @@ Jobs are displayed in a table with the following columns:
 **STAT** values:
 
 - **PEND** — waiting to be dispatched
+- **DISP** — dispatched to a host, not started yet (no pid)
 - **RUN** — executing on a host
 - **DONE** — completed successfully (exit status 0)
 - **EXIT** — completed with non-zero exit status

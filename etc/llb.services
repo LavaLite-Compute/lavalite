@@ -2,20 +2,25 @@
 # Begin Service
 # SERVICE_NAME = <name>
 # TYPE         = user | daemon
-# IMAGE        = <sif path>
-# RUNTIME      = <container runtime>
-# COMMAND      = <cmd>              # mandatory, all types
+# COMMAND      = <cmd>              # mandatory, full command line run by sh
 # PORT         = <port>             # mandatory if user, forbidden if daemon
+# TOKEN_ENV    = <env name>         # optional, token exported under this name
 # QUEUE        = <queue>            # optional
-# RESTART      = always | on-failure | never
+# RESTART      = always | never     # default always
+# RUNLIMIT     = [hours:]minutes    # optional, cap for bservices --time
 # End Service
+#
+# COMMAND is passed as is to the job shell: container runtime, image,
+# binds are the site's choice. The job environment has HOME, USER and
+#   LL_SVC_PORT   the PORT the app must listen on
+#   LL_SVC_TOKEN  the instance token, when TOKEN_ENV is set
+# Keep the token out of the command line, ps shows argv to everyone:
+# prefer an app that reads it from TOKEN_ENV.
 
 Begin Service
 SERVICE_NAME = echotest
 TYPE         = user
-RUNTIME      = apptainer
-IMAGE        = /export/service_images/python-slim.sif
-COMMAND      = python3 /home/david/lavalite-test/echo_server.py 8888
+COMMAND      = apptainer exec --bind $HOME /export/service_images/python-slim.sif python3 /home/david/lavalite-test/echo_server.py $LL_SVC_PORT
 PORT         = 8888
 RESTART      = always
 End Service
@@ -23,31 +28,29 @@ End Service
 Begin Service
 SERVICE_NAME = jupyter
 TYPE         = user
-RUNTIME      = apptainer
-IMAGE        = /export/service_images/jupyter-base.sif
 PORT         = 8888
-COMMAND      = jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+COMMAND      = apptainer exec --bind $HOME /export/service_images/jupyter-base.sif jupyter lab --ip=0.0.0.0 --port=$LL_SVC_PORT --no-browser
+TOKEN_ENV    = JUPYTER_TOKEN
 RESTART      = always
+RUNLIMIT     = 8:00
 QUEUE = service-2.0
 End Service
 
 Begin Service
 SERVICE_NAME = code-server
 TYPE         = user
-RUNTIME      = apptainer
-IMAGE        = /export/service_images/code-server.sif
 PORT         = 8080
-COMMAND = code-server --bind-addr 0.0.0.0:8080 --auth none
+COMMAND      = apptainer exec --bind $HOME /export/service_images/code-server.sif code-server --bind-addr 0.0.0.0:$LL_SVC_PORT --auth password
+TOKEN_ENV    = PASSWORD
 RESTART      = always
+RUNLIMIT     = 8:00
 QUEUE = service-2.0
 End Service
 
 Begin Service
 SERVICE_NAME = node-info
 TYPE         = daemon
-RUNTIME      = apptainer
-IMAGE        = /export/service_images/busybox.sif
-COMMAND      = sh -c 'while true; do echo "hello from $(hostname) at $(date)"; sleep 30; done'
+COMMAND      = apptainer exec /export/service_images/busybox.sif sh -c 'while true; do echo "hello from $(hostname) at $(date)"; sleep 30; done'
 RESTART      = always
 QUEUE = service-2.0
 End Service

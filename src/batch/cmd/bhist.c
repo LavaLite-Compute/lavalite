@@ -305,6 +305,9 @@ static void print_job_full(const struct job_hist_info *j)
         printf("  Begin:        %s\n", fmt_time(j->begin_time));
     if (j->term_time != 0)
         printf("  Terminate:    %s\n", fmt_time(j->term_time));
+    if (j->run_limit != 0)
+        printf("  Run limit:    %d:%02d\n", j->run_limit / 3600,
+               (j->run_limit % 3600) / 60);
 
     printf("\n");
 

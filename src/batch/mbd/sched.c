@@ -409,6 +409,12 @@ void schedule(void)
             continue;
         }
 
+        /* out of time already, sbd would kill it at once */
+        if (job_time_expired(job, time(NULL))) {
+            job_expire_pending(job);
+            continue;
+        }
+
         if (job->queue->state == QUEUE_CLOSED) {
             job->pend_reason = PEND_QUEUE_CLOSED;
             continue;

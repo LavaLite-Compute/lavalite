@@ -160,6 +160,17 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
         return ESRCH;
     }
 
+    /* RUNLIMIT is the site cap, the user may only ask for less */
+    int32_t run_limit = svc->run_limit;
+    if (ws->run_limit > 0) {
+        if (svc->run_limit > 0 && ws->run_limit > svc->run_limit) {
+            LL_ERRX("service=%s uid=%u run_limit=%d exceeds RUNLIMIT=%d",
+                    ws->name, hdr->uid, ws->run_limit, svc->run_limit);
+            return EINVAL;
+        }
+        run_limit = ws->run_limit;
+    }
+
     struct service_instance *inst = calloc(1, sizeof(*inst));
     if (inst == NULL) {
         LL_ERR("calloc failed");
@@ -176,20 +187,14 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
         return EIO;
     }
 
-    // Build the synthetic wire_job_submit structure
+    /* Build the synthetic wire_job_submit structure. COMMAND is the
+     * site's full command line, container runtime and binds included,
+     * run as is by the job script's shell.
+     */
     memset(&inst->pend_ws, 0, sizeof(inst->pend_ws));
-    int n = snprintf(inst->pend_ws.command, sizeof(inst->pend_ws.command),
-                     "%s exec --bind %s:%s %s %s",
-                     svc->runtime,
-                     ws->home_dir,
-                     ws->home_dir,
-                     svc->image,
-                     svc->command);
-    if (n < 0 || n >= (int) sizeof(inst->pend_ws.command)) {
-        LL_ERRX("command too long service=%s", ws->name);
-        free(inst);
-        return EINVAL;
-    }
+    ll_strlcpy(inst->pend_ws.command, svc->command,
+               sizeof(inst->pend_ws.command));
+    inst->pend_ws.run_limit = run_limit;
 
     inst->pend_ws.flags |= JOB_FLAG_SERVICE;
     if (svc->restart == LL_SERVICE_RESTART_ALWAYS)
@@ -225,8 +230,9 @@ int service_start_instance(const struct protocol_header *hdr, int chan_id,
      * mbd_new_job_reply() sees this job reach RUNNING, then the
      * client gets run_host:port.
      */
-    LL_INFO("SVC_PENDING service=%s job=%ld uid=%u cmd=[%s]", svc->name,
-            inst->job_id, inst->uid, inst->pend_ws.command);
+    LL_INFO("SVC_PENDING service=%s job=%ld uid=%u run_limit=%d cmd=[%s]",
+            svc->name, inst->job_id, inst->uid, run_limit,
+            inst->pend_ws.command);
 
     return 0;
 }
@@ -409,6 +415,15 @@ static void svc_cancel_start(struct service_instance *inst)
         LL_ERRX("job=%ld cannot cancel start chan=%d", inst->job_id, chan_id);
 }
 
+/* A pending instance finished by mbd itself, deleted or out of time.
+ * Nothing exists on sbd, service_instance_finish() never runs.
+ */
+void service_pending_finished(struct service_instance *inst)
+{
+    inst->status = SVC_FINISH;
+    svc_cancel_start(inst);
+}
+
 int service_delete_instance(uid_t uid, int64_t job_id, const char *host,
                             int port)
 {
@@ -464,8 +479,7 @@ int service_delete_instance(uid_t uid, int64_t job_id, const char *host,
             return rc;
         }
 
-        inst->status = SVC_FINISH;
-        svc_cancel_start(inst);
+        service_pending_finished(inst);
 
         LL_INFO("SVC_FINISH pending deleted by uid=%u service=%s job=%ld",
                 uid, inst->svc->name, job->job_id);
@@ -496,6 +510,14 @@ int service_instance_finish(struct service_instance *inst)
 
     if (!(job->flags & JOB_FLAG_RELOCATABLE)) {
         LL_INFO("SVC_FINISH service=%s uid=%u job=%ld not relocatable",
+                inst->svc->name, inst->uid, inst->job_id);
+        return 0;
+    }
+
+    /* out of time, killed by the run limit or by term_time:
+     * relocating would only restart a job that cannot run */
+    if (job_time_expired(job, time(NULL))) {
+        LL_INFO("SVC_FINISH service=%s uid=%u job=%ld time limit reached",
                 inst->svc->name, inst->uid, inst->job_id);
         return 0;
     }

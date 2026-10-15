@@ -91,6 +91,9 @@ struct log_job_new {
     char depend_cond[LL_BUFSIZ_4K];
     char service_name[LL_BUFSIZ_64];
     char service_token[LL_BUFSIZ_64];
+    int32_t run_limit; /* seconds from run_start, 0 = none */
+    time_t run_start;  /* first fork, kept across relocations; written
+                        * by compaction, 0 in a submit record */
 };
 
 /* log_job_start: mbd dispatched the job to sbd.

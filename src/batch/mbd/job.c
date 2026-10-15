@@ -87,6 +87,14 @@ static struct job_data *job_alloc(struct wire_job_submit *ws, int *err)
     job->term_time = (time_t) ws->term_time;
     ll_strlcpy(job->project, ws->project, sizeof(job->project));
 
+    if (ws->run_limit < 0) {
+        LL_ERRX("job=%ld invalid run_limit=%d", job->job_id, ws->run_limit);
+        free(job);
+        *err = EINVAL;
+        return NULL;
+    }
+    job->run_limit = ws->run_limit;
+
     ll_strlcpy(job->res.gpu_model, ws->gpu_model, sizeof(job->res.gpu_model));
     job->res.num_cpus = ws->num_cpus;
     job->res.num_hosts = ws->num_hosts;
@@ -1146,6 +1154,10 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
         job->pid = (pid_t) r.pid;
         job->fork_time = time(NULL);
         job->state = JOB_RUNNING;
+        /* the run limit counts from the first fork, a relocated job
+         * keeps its original run_start */
+        if (job->run_start == 0)
+            job->run_start = job->fork_time;
         /* sbd owns the endpoint, mbd records it with the pid
          */
         service_job_running(job, host, r.ext_port);
@@ -1934,6 +1946,92 @@ int signal_pending_job(struct job_data *job, const struct wire_job_sig *ws)
         LL_DEBUG("signal_pending_job: job=%ld sig=%d unsupported",
                  (long) job->job_id, ws->sig);
         return EINVAL;
+    }
+}
+
+/* term_time is absolute, run_start + run_limit counts from the
+ * first fork, both span the whole life of the job across relocations
+ */
+int job_time_expired(const struct job_data *job, time_t now)
+{
+    if (job->term_time > 0 && now >= job->term_time)
+        return 1;
+
+    if (job->run_limit > 0 && job->run_start > 0
+        && now >= job->run_start + job->run_limit)
+        return 1;
+
+    return 0;
+}
+
+/* The job ran out of time while pending: never dispatched before its
+ * term_time, or a relocated job whose run limit expired. Dispatching
+ * it would only get it killed, finish it here.
+ */
+void job_expire_pending(struct job_data *job)
+{
+    assert(job->state == JOB_PENDING);
+
+    struct wire_job_sig sig;
+    memset(&sig, 0, sizeof(sig));
+    sig.job_id = job->job_id;
+    sig.sig = SIGKILL;
+    sig.uid = mbd_mgr.uid;
+
+    LL_INFO("job=%ld time expired while pending term_time=%ld "
+            "run_start=%ld run_limit=%d", job->job_id, job->term_time,
+            job->run_start, job->run_limit);
+
+    finish_pending_job(job, &sig);
+
+    if (job_is_service(job))
+        service_pending_finished(job->svc_inst);
+}
+
+/* seconds between SIGTERM and SIGKILL, same grace as sbd's terminate */
+#define RUN_LIMIT_GRACE 60
+
+/* Run limit spans relocations, only mbd sees the whole life of the
+ * job, so mbd enforces it. A dispatched job without pid is in the
+ * dispatch window, its clock has not started. SIGTERM at the limit,
+ * then SIGKILL every grace period until sbd reports the finish. A
+ * signal not sent because sbd is disconnected leaves signal_time
+ * untouched, so it is retried on the next tick.
+ */
+void jobs_run_limit_check(void)
+{
+    time_t now = time(NULL);
+
+    for (struct ll_list_entry *e = run_jobs_list.head; e != NULL;
+         e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->run_limit <= 0 || job->pid == 0)
+            continue;
+
+        time_t deadline = job->run_start + job->run_limit;
+        if (now < deadline)
+            continue;
+
+        struct wire_job_sig sig;
+        memset(&sig, 0, sizeof(sig));
+        sig.job_id = job->job_id;
+        sig.uid = mbd_mgr.uid;
+
+        if (job->signal_time < deadline)
+            sig.sig = SIGTERM;
+        else if (now >= job->signal_time + RUN_LIMIT_GRACE)
+            sig.sig = SIGKILL;
+        else
+            continue;
+
+        LL_INFO("job=%ld run_limit=%d reached run_start=%ld sig=%d",
+                job->job_id, job->run_limit, job->run_start, sig.sig);
+
+        int rc = signal_running_job(job, &sig);
+        if (rc != MBD_OK)
+            LL_ERRX("job=%ld run limit signal=%d not sent rc=%d",
+                    job->job_id, sig.sig, rc);
     }
 }
 

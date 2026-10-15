@@ -228,6 +228,7 @@ int main(int argc, char **argv)
                 if (n < 0 && errno != EINTR)
                     LL_ERR("read timer failed");
                 LL_DEBUG("sched_timer expired timer=%d", sched_timer);
+                jobs_run_limit_check();
                 schedule();
                 maybe_rebuild_manifest();
                 continue;

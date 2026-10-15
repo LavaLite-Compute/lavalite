@@ -241,6 +241,7 @@ void event_job_new(const struct job_data *job, const struct wire_job_submit *ws)
     ll_strlcpy(e.project_name, ws->project, sizeof(e.project_name));
     ll_strlcpy(e.tokenpool, ws->tokenpool, sizeof(e.tokenpool));
     ll_strlcpy(e.depend_cond, ws->depend_cond, sizeof(e.depend_cond));
+    e.run_limit = job->run_limit;
 
     if (job_is_service(job)) {
         ll_strlcpy(e.service_name, job->svc_inst->svc->name,
@@ -424,6 +425,8 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     job->submit_time = e->submit_time;
     job->begin_time = e->begin_time;
     job->term_time = e->term_time;
+    job->run_limit = e->run_limit;
+    job->run_start = e->run_start;
 
     job->res.num_cpus = e->num_cpu;
     job->res.num_hosts = e->num_hosts;
@@ -660,6 +663,9 @@ static void replay_job_fork(const struct event_rec *rec)
     }
     job->pid = (pid_t) e.job_pid;
     job->fork_time = e.fork_time;
+    /* first fork, unless compaction already restored it in JOB_NEW */
+    if (job->run_start == 0)
+        job->run_start = e.fork_time;
     if (job_is_service(job)) {
         job->svc_inst->port = e.service_port;
         job->svc_inst->status = SVC_RUNNING;
@@ -1127,6 +1133,8 @@ static void compact_write_job_new(FILE *fp, const struct job_data *job)
     ll_strlcpy(e.tokenpool, job->res.tokenpool_str, sizeof(e.tokenpool));
     ll_strlcpy(e.machines, job->res.machines_str, sizeof(e.machines));
     ll_strlcpy(e.depend_cond, job->depend_cond, sizeof(e.depend_cond));
+    e.run_limit = job->run_limit;
+    e.run_start = job->run_start;
 
     if (job_is_service(job)) {
         ll_strlcpy(e.service_name, job->svc_inst->svc->name,

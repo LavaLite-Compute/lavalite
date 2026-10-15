@@ -32,13 +32,12 @@ struct queue_conf {
 struct service_conf {
     char name[LL_BUFSIZ_64];
     char type[LL_BUFSIZ_32];
-    char runtime[PATH_MAX];
-    char image[PATH_MAX];
-    char command[LL_BUFSIZ_512];
+    char command[LL_BUFSIZ_1K];
     int port;
     char queue[LL_BUFSIZ_64];
     char restart[LL_BUFSIZ_32];
     char token_env[LL_BUFSIZ_64];
+    char run_limit[LL_BUFSIZ_32];
 };
 
 
@@ -945,13 +944,13 @@ static void dump_config(void)
     LL_DEBUG("--- services ---");
     for (e = service_list.head; e; e = e->next) {
         struct service_data *s = (struct service_data *) e;
-        LL_DEBUG("service name=%s type=%s image=%s command=%s port=%d "
-                 "queue=%s restart=%s runtime=%s",
+        LL_DEBUG("service name=%s type=%s command=%s port=%d "
+                 "queue=%s restart=%s run_limit=%d",
                  s->name, service_type_str(s->type),
-                 s->image, s->command, s->port,
+                 s->command, s->port,
                  s->queue[0] ? s->queue : "-",
                  service_restart_str(s->restart),
-                 s->runtime);
+                 s->run_limit);
     }
 }
 
@@ -992,9 +991,6 @@ static int parse_service_conf(struct service_conf *sc,
     if (strcasecmp(key, "TYPE") == 0)
         return ll_strlcpy(sc->type, val, sizeof(sc->type));
 
-    if (strcasecmp(key, "IMAGE") == 0)
-        return ll_strlcpy(sc->image, val, sizeof(sc->image));
-
     if (strcasecmp(key, "COMMAND") == 0)
         return ll_strlcpy(sc->command, val, sizeof(sc->command));
 
@@ -1007,8 +1003,8 @@ static int parse_service_conf(struct service_conf *sc,
     if (strcasecmp(key, "RESTART") == 0)
         return ll_strlcpy(sc->restart, val, sizeof(sc->restart));
 
-    if (strcasecmp(key, "RUNTIME") == 0)
-        return ll_strlcpy(sc->runtime, val, sizeof(sc->runtime));
+    if (strcasecmp(key, "RUNLIMIT") == 0)
+        return ll_strlcpy(sc->run_limit, val, sizeof(sc->run_limit));
 
     if (strcasecmp(key, "TOKEN_ENV") == 0)
         return ll_strlcpy(sc->token_env, val, sizeof(sc->token_env));
@@ -1026,18 +1022,8 @@ static int commit_service(struct service_conf *sc)
         return -1;
     }
 
-    if (sc->image[0] == 0) {
-        LL_ERRX("service=%s missing IMAGE", sc->name);
-        return -1;
-    }
-
     if (sc->command[0] == 0) {
         LL_ERRX("service=%s missing COMMAND", sc->name);
-        return -1;
-    }
-
-    if (sc->runtime[0] == 0) {
-        LL_ERRX("service=%s missing RUNTIME", sc->name);
         return -1;
     }
 
@@ -1048,10 +1034,16 @@ static int commit_service(struct service_conf *sc)
     }
 
     ll_strlcpy(s->name, sc->name, sizeof(s->name));
-    ll_strlcpy(s->image, sc->image, sizeof(s->image));
     ll_strlcpy(s->command, sc->command, sizeof(s->command));
-    ll_strlcpy(s->runtime, sc->runtime, sizeof(s->runtime));
     s->port = sc->port;
+
+    /* RUNLIMIT is [hours:]minutes, absent means no limit */
+    if (sc->run_limit[0] != 0
+        && llb_parse_time_limit(sc->run_limit, &s->run_limit) < 0) {
+        LL_ERRX("service=%s invalid RUNLIMIT=%s", sc->name, sc->run_limit);
+        free(s);
+        return -1;
+    }
 
     if (strcasecmp(sc->type, "user") == 0)
         s->type = LL_SERVICE_USER;
@@ -1108,10 +1100,10 @@ static int commit_service(struct service_conf *sc)
     ll_list_init(&s->instances);
     ll_list_append(&service_list, &s->ent);
 
-    LL_INFO("service=%s type=%s image=%s port=%d queue=%s restart=%s "
-            "token_env=%s", sc->name, sc->type, sc->image, sc->port,
+    LL_INFO("service=%s type=%s port=%d queue=%s restart=%s "
+            "token_env=%s run_limit=%d", sc->name, sc->type, sc->port,
             sc->queue[0] ? sc->queue : "-", sc->restart,
-            sc->token_env[0] ? sc->token_env : "-");
+            sc->token_env[0] ? sc->token_env : "-", s->run_limit);
 
     return 0;
 }
