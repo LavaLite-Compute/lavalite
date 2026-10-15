@@ -518,7 +518,7 @@ static int dep_resolve_job(int64_t job_id, void *ctx)
     char key[LL_BUFSIZ_32];
 
     (void) ctx;
-    snprintf(key, sizeof(key), "%ld", (long) job_id);
+    snprintf(key, sizeof(key), "%ld", job_id);
     if (ll_hash_search(&job_id_hash, key))
         return 1;
 
@@ -1592,7 +1592,7 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 static int finish_pending_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
-    LL_INFO("finish_pending_job: job=%ld sig=%d -> EXIT", (long) job->job_id,
+    LL_INFO("finish_pending_job: job=%ld sig=%d -> EXIT", job->job_id,
             ws->sig);
     job->signal_time = job->end_time = time(NULL);
 
@@ -1621,7 +1621,7 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
 
     job->state = JOB_HELD;
     job->signal_time = time(NULL);
-    LL_INFO("stop_pending_job: job=%ld sig=%d -> PSUSP", (long) job->job_id,
+    LL_INFO("stop_pending_job: job=%ld sig=%d -> PSUSP", job->job_id,
             ws->sig);
     event_job_signal(job, ws);
     event_job_pend_susp(job);
@@ -1643,7 +1643,7 @@ static int resume_pending_job(struct job_data *job,
 
     job->state = JOB_PENDING;
     job->signal_time = time(NULL);
-    LL_INFO("resume_pending_job: job=%ld sig=%d -> PEND", (long) job->job_id,
+    LL_INFO("resume_pending_job: job=%ld sig=%d -> PEND", job->job_id,
             ws->sig);
     event_job_signal(job, ws);
     event_job_pend_resume(job);
@@ -1833,7 +1833,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     req.uid = hdr->uid;
 
     LL_DEBUG("job=%ld array_index=%d by uid=%u sig=%d chan_id=%d",
-             (long) req.job_id, req.array_index, req.uid, req.sig, chan_id);
+             req.job_id, req.array_index, req.uid, req.sig, chan_id);
 
     if (req.job_id == 0) {
         signal_jobs_scan(hdr->uid, &req);
@@ -1855,7 +1855,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
          */
         job = job_find_array(req.job_id, req.array_index);
         if (job == NULL) {
-            LL_INFO("job_signal: array_id=%ld[%d] not found", (long) req.job_id,
+            LL_INFO("job_signal: array_id=%ld[%d] not found", req.job_id,
                     req.array_index);
             return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
         }
@@ -1879,7 +1879,7 @@ int jobs_signal(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
          */
         job = job_find(req.job_id);
         if (job == NULL) {
-            LL_INFO("job_signal: job=%ld not found", (long) req.job_id);
+            LL_INFO("job_signal: job=%ld not found", req.job_id);
             return enqueue_header(chan_id, BATCH_JOB_SIGNAL_ACK, ESRCH);
         }
 
@@ -1944,7 +1944,7 @@ int signal_pending_job(struct job_data *job, const struct wire_job_sig *ws)
         return resume_pending_job(job, ws);
     default:
         LL_DEBUG("signal_pending_job: job=%ld sig=%d unsupported",
-                 (long) job->job_id, ws->sig);
+                 job->job_id, ws->sig);
         return EINVAL;
     }
 }

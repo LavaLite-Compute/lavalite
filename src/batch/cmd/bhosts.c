@@ -56,13 +56,13 @@ static int ndigits(int32_t n)
 /* memory: stored and displayed in MB */
 static void fmt_mem(uint64_t mb, char *buf, size_t len)
 {
-    snprintf(buf, len, "%lu", (unsigned long) mb);
+    snprintf(buf, len, "%lu", mb);
 }
 
 /* storage: stored in MB, displayed in GB */
 static void fmt_stor(uint64_t mb, char *buf, size_t len)
 {
-    snprintf(buf, len, "%lu", (unsigned long) (mb / 1024));
+    snprintf(buf, len, "%lu", (mb / 1024));
 }
 
 struct col_widths {
@@ -147,10 +147,10 @@ static void print_long(struct host_info *h, int n)
         printf("  CPU:       %d/%d\n",
                h[i].total_cpu - h[i].free_cpu, h[i].total_cpu);
         printf("  MEM_MB:    %lu/%lu\n",
-               (unsigned long) used_mem, (unsigned long) h[i].total_mem_mb);
+               used_mem, h[i].total_mem_mb);
         printf("  STOR_GB:   %lu/%lu\n",
-               (unsigned long) (used_stor / 1024),
-               (unsigned long) (h[i].total_storage_mb / 1024));
+               (used_stor / 1024),
+               (h[i].total_storage_mb / 1024));
         printf("  GPU:       %d/%d\n",
                h[i].total_gpu - h[i].free_gpu, h[i].total_gpu);
         printf("  GPU_MODEL: %s\n", h[i].gpu_model ? h[i].gpu_model : "-");

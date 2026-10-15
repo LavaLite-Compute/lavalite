@@ -37,7 +37,7 @@ _Static_assert(sizeof(event_names) / sizeof(event_names[0]) == EVENT_COUNT + 1,
 static int write_hdr(FILE *fp, enum event_type type, time_t t)
 {
     assert(t > 0);
-    if (fprintf(fp, "%s %d %ld", event_names[type], LOG_VERSION, (long) t) < 0)
+    if (fprintf(fp, "%s %d %ld", event_names[type], LOG_VERSION, t) < 0)
         return -1;
     return 0;
 }
@@ -96,7 +96,7 @@ int log_read_hdr(FILE *fp, struct event_rec *rec)
 
     char etype[LL_BUFSIZ_64];
     int ver;
-    long ts;
+    time_t ts;
     int cc;
     if (sscanf(line, "%63s %d %ld%n", etype, &ver, &ts, &cc) != 3) {
         errno = EINVAL;
@@ -110,7 +110,7 @@ int log_read_hdr(FILE *fp, struct event_rec *rec)
     }
 
     rec->version = ver;
-    rec->event_time = (time_t) ts;
+    rec->event_time = ts;
     rec->type = parse_event_type(etype);
 
     ll_strlcpy(rec->rest, line + cc, sizeof(rec->rest));
@@ -131,7 +131,7 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
                 " %ld %ld %d %d %d %d %u %u %d %d %ld %ld %d %d %d %lu %lu %u",
                 j->job_id, j->array_id, j->array_index, j->array_start,
                 j->array_end, j->array_stride, j->uid, j->gid, j->state,
-                j->priority, (long) j->begin_time, (long) j->term_time,
+                j->priority, j->begin_time, j->term_time,
                 j->num_cpu, j->num_hosts, j->num_gpus, j->mem_mb, j->storage_mb,
                 j->flags) < 0) {
         return -1;
@@ -156,7 +156,7 @@ int log_write_job_new(FILE *fp, const struct log_job_new *j)
         return -1;
     if (write_qstr(fp, j->service_token) < 0)
         return -1;
-    if (fprintf(fp, " %d %ld\n", j->run_limit, (long) j->run_start) < 0)
+    if (fprintf(fp, " %d %ld\n", j->run_limit, j->run_start) < 0)
         return -1;
     return 0;
 }
@@ -205,9 +205,10 @@ int log_parse_job_new(const struct event_rec *rec, struct log_job_new *j)
         return -1;
 
     /* absent in records written before run limits existed */
-    long run_start = 0;
-    if (sscanf(p, " %d %ld", &j->run_limit, &run_start) == 2)
-        j->run_start = (time_t) run_start;
+    if (sscanf(p, " %d %ld", &j->run_limit, &j->run_start) != 2) {
+        j->run_limit = 0;
+        j->run_start = 0;
+    }
 
     return 0;
 }
@@ -270,7 +271,7 @@ int log_write_job_fork(FILE *fp, const struct log_job_fork *j)
 {
     if (write_hdr(fp, EVENT_JOB_FORK, j->fork_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d %d\n", (long) j->job_id, j->job_pid,
+    if (fprintf(fp, " %ld %d %d\n", j->job_id, j->job_pid,
                 j->service_port) < 0)
         return -1;
     return 0;
@@ -298,7 +299,7 @@ int log_write_job_signal(FILE *fp, const struct log_job_signal *j)
 {
     if (write_hdr(fp, EVENT_JOB_SIGNAL, j->signal_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d %u %u\n", (long) j->job_id, j->signal_num,
+    if (fprintf(fp, " %ld %d %u %u\n", j->job_id, j->signal_num,
                 j->uid, j->job_flags) < 0)
         return -1;
     return 0;
@@ -326,8 +327,8 @@ int log_write_job_finish(FILE *fp, const struct log_job_finish *j)
 {
     if (write_hdr(fp, EVENT_JOB_FINISH, j->end_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %u %d %d %ld", (long) j->job_id, (unsigned) j->uid,
-                j->state, j->exit_status, (long) j->end_time) < 0)
+    if (fprintf(fp, " %ld %u %d %d %ld", j->job_id, (unsigned) j->uid,
+                j->state, j->exit_status, j->end_time) < 0)
         return -1;
     if (fprintf(fp, "\n") < 0)
         return -1;
@@ -358,7 +359,7 @@ int log_write_job_pend_susp(FILE *fp, const struct log_job_pend_susp *j)
 {
     if (write_hdr(fp, EVENT_JOB_PEND_SUSP, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld\n", (long) j->job_id) < 0)
+    if (fprintf(fp, " %ld\n", j->job_id) < 0)
         return -1;
     return 0;
 }
@@ -381,7 +382,7 @@ int log_write_job_pend_resume(FILE *fp, const struct log_job_pend_resume *j)
 {
     if (write_hdr(fp, EVENT_JOB_PEND_RESUME, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld\n", (long) j->job_id) < 0)
+    if (fprintf(fp, " %ld\n", j->job_id) < 0)
         return -1;
     return 0;
 }
@@ -404,7 +405,7 @@ int log_write_job_susp(FILE *fp, const struct log_job_susp *j)
 {
     if (write_hdr(fp, EVENT_JOB_SUSP, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld\n", (long) j->job_id) < 0)
+    if (fprintf(fp, " %ld\n", j->job_id) < 0)
         return -1;
     return 0;
 }
@@ -431,7 +432,7 @@ int log_write_job_move(FILE *fp, const struct log_job_move *j)
 {
     if (write_hdr(fp, EVENT_JOB_MOVE, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld", (long) j->job_id) < 0)
+    if (fprintf(fp, " %ld", j->job_id) < 0)
         return -1;
     if (write_qstr(fp, j->from_queue) < 0)
         return -1;
@@ -471,7 +472,7 @@ int log_write_job_priority(FILE *fp, const struct log_job_priority *j)
 {
     if (write_hdr(fp, EVENT_JOB_PRIORITY, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld %d %d\n", (long) j->job_id, j->old_priority,
+    if (fprintf(fp, " %ld %d %d\n", j->job_id, j->old_priority,
                 j->new_priority) < 0)
         return -1;
     return 0;
@@ -495,7 +496,7 @@ int log_write_job_pend(FILE *fp, const struct log_job_pend *j)
 {
     if (write_hdr(fp, EVENT_JOB_PEND, j->event_time) < 0)
         return -1;
-    if (fprintf(fp, " %ld\n", (long) j->job_id) < 0)
+    if (fprintf(fp, " %ld\n", j->job_id) < 0)
         return -1;
     return 0;
 }

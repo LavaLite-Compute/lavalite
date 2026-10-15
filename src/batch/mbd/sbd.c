@@ -315,7 +315,7 @@ static int read_script(const struct job_data *job,
 
     script->data = malloc((size_t) st.st_size + 1);
     if (script->data == NULL) {
-        LL_ERR("malloc failed size=%ld", (long) st.st_size);
+        LL_ERR("malloc failed size=%ld", st.st_size);
         return -1;
     }
 
@@ -332,7 +332,7 @@ static int read_script(const struct job_data *job,
 
     if (nr != (size_t) st.st_size) {
         LL_ERR("job=%ld script read short %zu/%ld", job->job_id, nr,
-               (long) st.st_size);
+               st.st_size);
         free(script->data);
         script->data = NULL;
         return -1;

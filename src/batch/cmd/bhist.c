@@ -293,7 +293,7 @@ static void print_job_full(const struct job_hist_info *j)
 
     printf("  Requested resources:  %d host(s)  %d cpu(s)/host"
            "  %d gpu(s)/host  %lu MB mem\n",
-           j->num_hosts, j->num_cpus, j->num_gpus, (unsigned long) j->mem_mb);
+           j->num_hosts, j->num_cpus, j->num_gpus, j->mem_mb);
 
     if (j->gpu_model != NULL && j->gpu_model[0] != '\0')
         printf("  GPU model:    %s\n", j->gpu_model);
@@ -356,8 +356,8 @@ static void print_job_full(const struct job_hist_info *j)
     if (j->usage.cpu_time > 0 || j->usage.mem_mb > 0) {
         printf("\n");
         printf("  CPU time:     %.2f sec\n", j->usage.cpu_time);
-        printf("  Max memory:   %lu MB\n", (unsigned long) j->usage.mem_mb);
-        printf("  Max swap:     %lu MB\n", (unsigned long) j->usage.swap_mb);
+        printf("  Max memory:   %lu MB\n", j->usage.mem_mb);
+        printf("  Max swap:     %lu MB\n", j->usage.swap_mb);
     }
 
     if (start == NULL && (j->state == JOB_DONE || j->state == JOB_EXITED))

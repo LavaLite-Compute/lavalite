@@ -290,9 +290,9 @@ int sbd_job_state_write(struct sbd_job *job)
                      "flags=%d\n"
                      "ext_port=%d\n",
                      job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
-                     (long) job->time_pid_acked, finish_acked,
-                     (long) job->time_finish_acked, exit_status_valid,
-                     job->exit_status, (long) job->end_time, job->user_cwd,
+                     job->time_pid_acked, finish_acked,
+                     job->time_finish_acked, exit_status_valid,
+                     job->exit_status, job->end_time, job->user_cwd,
                      job->user_home, (unsigned) job->uid, (unsigned) job->gid,
                      job->user, job->flags, job->ext_port);
     if (n < 0) {
@@ -347,7 +347,7 @@ int sbd_job_state_write(struct sbd_job *job)
             "uid=%u group=%u user=%s flags=0x%x ext_port=%d",
             job->job_id, (int) job->pid, (int) job->pgid, pid_acked,
             finish_acked, exit_status_valid, job->exit_status,
-            (long) job->end_time, job->user_cwd, job->user_home,
+            job->end_time, job->user_cwd, job->user_home,
             (unsigned) job->uid, (unsigned) job->gid, job->user,
             job->flags, job->ext_port);
 
@@ -543,7 +543,7 @@ int sbd_read_exit_status_file(struct sbd_job *job, int *exit_code,
     int fd;
     ssize_t n;
     int code;
-    long ts;
+    time_t ts;
 
     if (make_path(path, sizeof(path), "%s/%ld/exit", sbd_job_dir, job->job_id) <
         0) {
@@ -575,7 +575,7 @@ int sbd_read_exit_status_file(struct sbd_job *job, int *exit_code,
     if (exit_code != NULL)
         *exit_code = code;
     if (done_time != NULL)
-        *done_time = (time_t) ts;
+        *done_time = ts;
 
     return 0;
 }
@@ -651,8 +651,8 @@ static void sbd_prune_jobs(void)
         struct sbd_job job;
         memset(&job, 0, sizeof(job));
         job.job_id = entries[i].jobid;
-        LL_INFO("prune job=%ld finish_acked=%ld", (long) job.job_id,
-                (long) entries[i].time_finish_acked);
+        LL_INFO("prune job=%ld finish_acked=%ld", job.job_id,
+                entries[i].time_finish_acked);
         sbd_job_file_remove(&job);
         sbd_job_state_remove(&job);
     }

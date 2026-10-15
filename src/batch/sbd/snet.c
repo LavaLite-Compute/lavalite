@@ -23,8 +23,8 @@ static int32_t sbd_enqueue_payload(int chan_id, struct protocol_header *hdr,
     XDR xdrs;
 
     if (chan_alloc_buf(&buf, siz) < 0) {
-        LL_ERR("chan_alloc_buf failed op=%d siz=%ld", hdr->operation,
-               (long) siz);
+        LL_ERR("chan_alloc_buf failed op=%d siz=%zu", hdr->operation,
+               siz);
         return -1;
     }
 
@@ -299,7 +299,7 @@ void sbd_register_ack(XDR *xdrs)
         if (wj->pid > 0) {
             if (wj->pid != job->pid) {
                 LL_ERRX("register: pid mismatch job=%ld mbd_pid=%d sbd_pid=%d",
-                        (long) wj->job_id, (int) wj->pid, (int) job->pid);
+                        wj->job_id, (int) wj->pid, (int) job->pid);
                 sbd_fatal(SBD_FATAL_INVARIANT);
                 /* not reached */
             }

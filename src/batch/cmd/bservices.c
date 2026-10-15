@@ -143,7 +143,7 @@ static void print_services(const struct svc_info *s, int32_t n, int all)
             printf("  %-*s  %-*s  %*ld  %-*s  %s\n",
                    iw.user, user,
                    iw.endpoint, endpoint,
-                   iw.job_id, (long) inst->job_id,
+                   iw.job_id, inst->job_id,
                    iw.status, llb_svc_status_str(inst->status),
                    inst->token != NULL ? inst->token : "-");
         }
@@ -306,10 +306,10 @@ int main(int argc, char **argv)
 
     if (out.token != NULL)
         printf("Job <%ld>: http://%s:%d/?token=%s\n",
-               (long) out.job_id, out.run_host, out.port, out.token);
+               out.job_id, out.run_host, out.port, out.token);
     else
         printf("Job <%ld>: http://%s:%d\n",
-               (long) out.job_id, out.run_host, out.port);
+               out.job_id, out.run_host, out.port);
 
     free(out.service);
     free(out.run_host);

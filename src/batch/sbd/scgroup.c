@@ -166,8 +166,7 @@ int cgroup_job_create(struct sbd_job *job)
 
     if (job->mem_mb > 0) {
         snprintf(knob, sizeof(knob), "%s/job_%ld/memory.max", cg_base, job->job_id);
-        snprintf(val, sizeof(val), "%llu",
-                 (unsigned long long) job->mem_mb * 1024 * 1024);
+        snprintf(val, sizeof(val), "%lu", job->mem_mb * 1024 * 1024);
 
         if (cg_write(knob, val) < 0)
             LL_ERR("job=%ld cgroup set memory.max=%s failed", job->job_id, val);

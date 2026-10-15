@@ -449,7 +449,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    fprintf(stdout, "Job <%ld> is submitted to queue <%s>.\n", (long) job_id,
+    fprintf(stdout, "Job <%ld> is submitted to queue <%s>.\n", job_id,
             js.queue ? js.queue : "default");
 
     free(js.command);

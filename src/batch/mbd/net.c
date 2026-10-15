@@ -321,8 +321,8 @@ int32_t enqueue_payload(int chan_id, struct protocol_header *hdr, void *payload,
     XDR xdrs;
 
     if (chan_alloc_buf(&buf, siz) < 0) {
-        LL_ERR("chan_alloc_buf failed op=%d siz=%ld", hdr->operation,
-               (long) siz);
+        LL_ERR("chan_alloc_buf failed op=%d siz=%zu", hdr->operation,
+               siz);
         return -1;
     }
 
