@@ -20,7 +20,7 @@
 Begin Service
 SERVICE_NAME = echotest
 TYPE         = user
-COMMAND      = apptainer exec --bind $HOME /export/service_images/python-slim.sif python3 /home/david/lavalite-test/echo_server.py $LL_SVC_PORT
+COMMAND      = apptainer exec --bind $HOME /path/python-slim.sif python3 /home/david/lavalite-test/echo_server.py $LL_SVC_PORT
 PORT         = 8888
 RESTART      = always
 End Service
@@ -40,7 +40,7 @@ Begin Service
 SERVICE_NAME = code-server
 TYPE         = user
 PORT         = 8080
-COMMAND      = apptainer exec --bind $HOME /export/service_images/code-server.sif code-server --bind-addr 0.0.0.0:$LL_SVC_PORT --auth password
+COMMAND      = apptainer exec --bind $HOME /path/code-server.sif code-server --bind-addr 0.0.0.0:$LL_SVC_PORT --auth password
 TOKEN_ENV    = PASSWORD
 RESTART      = always
 RUNLIMIT     = 8:00
@@ -50,7 +50,7 @@ End Service
 Begin Service
 SERVICE_NAME = node-info
 TYPE         = daemon
-COMMAND      = apptainer exec /export/service_images/busybox.sif sh -c 'while true; do echo "hello from $(hostname) at $(date)"; sleep 30; done'
+COMMAND      = apptainer exec /path/busybox.sif sh -c 'while true; do echo "hello from $(hostname) at $(date)"; sleep 30; done'
 RESTART      = always
 QUEUE = service-2.0
 End Service

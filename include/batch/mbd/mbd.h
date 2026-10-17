@@ -75,6 +75,9 @@ struct job_data {
     time_t submit_time;   /* bsub received                      */
     time_t dispatch_time; /* mbd sent BATCH_NEW_JOB to sbd      */
     time_t fork_time;     /* sbd forked, pid received by mbd    */
+    time_t pid_wait_time; /* waiting for the pid since, not logged,
+                           * set at dispatch and at sbd register,
+                           * 0 once the pid is received             */
     time_t end_time;      /* job exited (DONE or EXIT)          */
     time_t susp_time;
     time_t unknown_time;
@@ -209,6 +212,9 @@ struct mbd_token_pool {
 #define JOB_BUCKETS 10
 #define SCHED_PLAN_MAX 1024
 #define SCHED_TIMER 2
+/* seconds a connected sbd has to report the pid of a dispatched job,
+ * also the period of the check */
+#define PID_TIMEOUT 20
 
 struct sched_plan {
     struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */
@@ -405,6 +411,7 @@ int signal_running_job(struct job_data *, const struct wire_job_sig *);
 int job_time_expired(const struct job_data *, time_t);
 void job_expire_pending(struct job_data *);
 void jobs_run_limit_check(void);
+void jobs_pid_timeout_check(void);
 
 // sbd.c
 int32_t mbd_sbd_route(struct mbd_host *);

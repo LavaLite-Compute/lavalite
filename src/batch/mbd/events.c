@@ -992,6 +992,7 @@ static void replay_job_pend(const struct event_rec *rec)
     job->pid = 0;
     job->fork_time = 0;
     job->dispatch_time = 0;
+    job->pid_wait_time = 0;
     job->end_time = 0;
     job->exit_status = 0;
     job->state = JOB_PENDING;

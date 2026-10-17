@@ -169,6 +169,55 @@ A launch failure is not considered a user job failure.
 If the user command starts successfully and later exits with
 a non-zero status, the job is reported as `EXIT`.
 
+## Unresponsive Execution Hosts
+
+When `mbd` dispatches a job, the job shows as `DISP` in `bjobs`
+until `sbd` reports the pid of the started job. A healthy `sbd`
+reports it within a few seconds and keeps resending it until
+`mbd` acknowledges it.
+
+If a connected `sbd` does not report the pid within 20 seconds,
+`mbd` treats it as unresponsive and closes the connection:
+
+- The host shows as `unavail` in `bhosts`.
+- All jobs on the host show as `UNKNOWN` in `bjobs`.
+- No job is killed or requeued.
+
+`mbd` logs the event:
+
+```
+job=N no pid from sbd=HOST in S secs, disconnecting it
+```
+
+When `sbd` reconnects and registers again, the job state is
+resynchronized:
+
+- If the job is running, `sbd` reports the pid and the job
+  becomes `RUN`.
+- If `sbd` has no record of the job, the job returns to the
+  pending queue and is dispatched again.
+
+The usual cause is a network problem between `mbd` and the
+execution host: messages lost in one direction are often lost
+in the other as well. `sbd` may not see the disconnect at once.
+It notices when its own sends fail, which depends on the TCP
+retransmission and keepalive settings of the host.
+
+If the host does not come back, check:
+
+- Network connectivity between the `mbd` host and the
+  execution host.
+- `sbd` status on the execution host:
+
+```sh
+systemctl status lavalite-sbd
+```
+
+- The `mbd` and `sbd` logs.
+
+Restarting `sbd` forces a new registration and resynchronizes
+the jobs.
+
 ## Cluster Health Checks
 
 ### Verify Daemon Status

@@ -41,11 +41,15 @@ static int build_sbd_run_list(struct mbd_host *n,
         return -1;
     }
 
+    time_t now = time(NULL);
     int i = 0;
     for (e = run_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
         if (job->run_hosts[0] != n)
             continue;
+        /* sbd syncs up on this list, restart the pid wait */
+        if (job->pid == 0)
+            job->pid_wait_time = now;
         reg_ack->jobs[i].job_id = job->job_id;
         reg_ack->jobs[i].pid = (int32_t) job->pid;
         i++;
@@ -474,6 +478,7 @@ int mbd_dispatch_job(struct job_data *job)
     free(ws.script.data);
 
     job->dispatch_time = time(NULL);
+    job->pid_wait_time = job->dispatch_time;
     job->state = JOB_RUNNING;
 
     event_job_start(job);
@@ -541,6 +546,7 @@ void mbd_job_missing(struct mbd_host *n, XDR *xdrs)
     job->pid = 0;
     job->fork_time = 0;
     job->dispatch_time = 0;
+    job->pid_wait_time = 0;
     job->pend_reason = PEND_NONE;
     job->state = JOB_PENDING;
     job->queue->num_cpus_used -= job->res.num_cpus * job->run_nhosts;

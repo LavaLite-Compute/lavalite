@@ -27,8 +27,8 @@ static void job_data_to_wire(const struct job_data *job,
      * lifecycle state. If the execution host is disconnected, clients cannot
      * know whether the process is still running, suspended, or gone.
      */
-    if ((w->state == JOB_RUNNING || w->state == JOB_SUSPENDED) &&
-        job->run_hosts[0]->sbd_chan < 0)
+    if ((w->state == JOB_RUNNING || w->state == JOB_SUSPENDED)
+        && job->run_hosts[0]->sbd_chan < 0)
         w->state = JOB_UNKNOWN;
     w->exit_status = job->exit_status;
     w->priority = job->priority;

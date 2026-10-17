@@ -439,6 +439,7 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     job->pid = 0;
     job->fork_time = 0;
     job->dispatch_time = 0;
+    job->pid_wait_time = 0;
     job->state = JOB_PENDING;
     job->pend_reason = PEND_NONE;
 
@@ -1153,6 +1154,7 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
     if (duplicate == 0) {
         job->pid = (pid_t) r.pid;
         job->fork_time = time(NULL);
+        job->pid_wait_time = 0; /* got the pid, done waiting */
         job->state = JOB_RUNNING;
         /* the run limit counts from the first fork, a relocated job
          * keeps its original run_start */
@@ -2032,6 +2034,43 @@ void jobs_run_limit_check(void)
         if (rc != MBD_OK)
             LL_ERRX("job=%ld run limit signal=%d not sent rc=%d",
                     job->job_id, sig.sig, rc);
+    }
+}
+
+/* A dispatched job without pid shows as DISP. A connected sbd resends
+ * the pid until acked, if it stays silent for PID_TIMEOUT something
+ * is wrong: sbd hosed, or a reply lost. Treat the sbd as unresponsive
+ * and close its channel. Its jobs show UNKNOWN, like for any
+ * disconnected sbd, and when it registers again the run list resyncs
+ * the job: pid resent, or BATCH_JOB_MISSING and back to pending.
+ * A disconnected sbd is skipped, its registration resolves the job.
+ * Checked every PID_TIMEOUT seconds, no need to do it more often.
+ */
+void jobs_pid_timeout_check(void)
+{
+    static time_t last_check;
+    time_t now = time(NULL);
+
+    if (now - last_check < PID_TIMEOUT)
+        return;
+    last_check = now;
+
+    for (struct ll_list_entry *e = run_jobs_list.head; e != NULL;
+         e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+        struct mbd_host *h = job->run_hosts[0];
+
+        if (job->state != JOB_RUNNING || job->pid != 0)
+            continue;
+        if (h->sbd_chan < 0)
+            continue;
+        if (now - job->pid_wait_time < PID_TIMEOUT)
+            continue;
+
+        LL_ERRX("job=%ld no pid from sbd=%s in %ld secs, disconnecting it",
+                job->job_id, h->net.name,
+                (long) (now - job->pid_wait_time));
+        mbd_sbd_disconnect(h);
     }
 }
 

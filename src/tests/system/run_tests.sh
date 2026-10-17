@@ -40,6 +40,7 @@ run_test $TESTS_DIR/bsub_time.sh
 run_test $TESTS_DIR/bsub_expire.sh
 run_test $TESTS_DIR/bservices_basic.sh
 run_test $TESTS_DIR/bservices_time.sh
+run_test $TESTS_DIR/sbd_pid_timeout.sh
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed, $SKIP skipped"

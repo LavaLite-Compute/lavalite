@@ -229,6 +229,7 @@ int main(int argc, char **argv)
                     LL_ERR("read timer failed");
                 LL_DEBUG("sched_timer expired timer=%d", sched_timer);
                 jobs_run_limit_check();
+                jobs_pid_timeout_check();
                 schedule();
                 maybe_rebuild_manifest();
                 continue;

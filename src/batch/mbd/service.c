@@ -531,6 +531,7 @@ int service_instance_finish(struct service_instance *inst)
     job->pid = 0;
     job->fork_time = 0;
     job->dispatch_time = 0;
+    job->pid_wait_time = 0;
     job->end_time = 0;
     job->exit_status = 0;
     job->pend_reason = PEND_NONE;
