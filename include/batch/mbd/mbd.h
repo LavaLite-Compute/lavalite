@@ -168,6 +168,7 @@ struct mbd_host {
     int num_susp;
     int sbd_chan;      /* -1 if not connected */
     int num_cpus_used; /* CPUs consumed by running jobs on this host */
+    time_t taint_time; /* HOST_TAINTED set at, 0 if not tainted */
 };
 
 struct mbd_queue {
@@ -215,6 +216,8 @@ struct mbd_token_pool {
 /* seconds a connected sbd has to report the pid of a dispatched job,
  * also the period of the check */
 #define PID_TIMEOUT 20
+/* seconds a host stays tainted after its sbd rejected a job */
+#define TAINT_TIME 60
 
 struct sched_plan {
     struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */

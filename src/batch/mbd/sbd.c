@@ -106,7 +106,9 @@ int mbd_sbd_register(XDR *xdrs, int32_t chan_id)
         return -1;
     }
 
+    /* a fresh sbd starts clean: HOST_TAINTED is cleared */
     host->state = HOST_OK | (host->state & HOST_CLOSED);
+    host->taint_time = 0;
     LL_INFO("hostname=%s canon=%s addr=%s chan_fd=%d state=%d", hostname,
             host->net.name, host->net.addr, chan_id, host->state);
 
@@ -222,7 +224,9 @@ int mbd_sbd_disconnect(struct mbd_host *n)
             n->net.name, n->net.addr);
 
     n->sbd_chan = -1;
+    /* HOST_TAINTED is cleared, the host is unavail anyway */
     n->state = HOST_UNAVAIL | (n->state & HOST_CLOSED);
+    n->taint_time = 0;
 
     char key[LL_BUFSIZ_32];
     snprintf(key, sizeof(key), "%d", chan_id);

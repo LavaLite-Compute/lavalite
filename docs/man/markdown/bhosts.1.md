@@ -49,6 +49,9 @@ Displays a table with the following columns:
 
 **STATE**
 :   Host state. Values: **ok**, **unavail**, **ok|closed**, **unavail|closed**.
+    **|tainted** is appended while the host is tainted: its **sbd**
+    rejected a job and the host gets no new jobs for 60 seconds.
+    The taint clears by itself, or when **sbd** reconnects.
 
 **NCPU**
 :   Total CPU slots. This is the sole scheduling capacity dial for the

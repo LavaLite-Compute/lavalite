@@ -50,15 +50,26 @@ static int host_plan_cmp(const void *a, const void *b)
     return ha->res.free_cpu - hb->res.free_cpu;
 }
 
+/* Runs on every timer tick, also with no pending job, so the taint
+ * expires on time and bhosts is honest about it. A tainted host is
+ * not HOST_OK and is skipped as any other.
+ */
 static int mark_candidates(void)
 {
     struct ll_list_entry *e;
     int free_slots = 0;
+    time_t now = time(NULL);
 
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
 
         h->candidate = 0;
+
+        if ((h->state & HOST_TAINTED) && now - h->taint_time >= TAINT_TIME) {
+            h->state &= ~HOST_TAINTED;
+            h->taint_time = 0;
+            LL_INFO("host=%s taint expired", h->net.name);
+        }
 
         if (h->state != HOST_OK)
             continue;
@@ -385,15 +396,16 @@ static int tokens_available(const struct job_data *job)
 
 void schedule(void)
 {
-    LL_DEBUG("num_pend_jobs=%d", ll_list_count(&pend_jobs_list));
-    if (ll_list_is_empty(&pend_jobs_list))
-        return;
-
     int free_slots = mark_candidates();
     if (free_slots == 0) {
         LL_DEBUG("no scheduling attempt possible free_slots=%d", free_slots);
         return;
     }
+
+    LL_DEBUG("num_pend_jobs=%d", ll_list_count(&pend_jobs_list));
+    if (ll_list_is_empty(&pend_jobs_list))
+        return;
+
     LL_DEBUG("scheduling clusterwide free_slots=%d", free_slots);
 
     ll_list_sort_buf(&pend_jobs_list, sort_buf, pend_job_cmp);

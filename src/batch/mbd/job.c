@@ -424,6 +424,15 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     LL_ERR("job=%ld rejected by sbd=%s, returning to pending", job->job_id,
            chan_addr_str(sbd_chan));
 
+    /* sbd rejects only before fork, on its own failures: job dir,
+     * state dir, script, namespace, fork. Taint the host so the
+     * next dispatch goes elsewhere, see mark_candidates().
+     */
+    h->state |= HOST_TAINTED;
+    h->taint_time = time(NULL);
+    LL_INFO("host=%s tainted for %d secs by job=%ld reject", h->net.name,
+            TAINT_TIME, job->job_id);
+
     reset_host_resources(job);
     token_pool_release(job);
 

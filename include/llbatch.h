@@ -56,6 +56,8 @@ enum host_stat {
 };
 
 #define HOST_CLOSED 0x01 /* admin disabled/locked — orthogonal to state */
+#define HOST_TAINTED 0x04 /* sbd rejected a job, no dispatch for TAINT_TIME,
+                           * cleared by time, sbd register or disconnect */
 
 /* -----------------------------------------------------------------------
  * Structs

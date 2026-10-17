@@ -14,7 +14,7 @@ static const char *host_state_str(int32_t status)
     const char *state;
     static char buf[32];
 
-    switch (status & ~HOST_CLOSED) {
+    switch (status & ~(HOST_CLOSED | HOST_TAINTED)) {
     case HOST_OK:
         state = "ok";
         break;
@@ -25,10 +25,9 @@ static const char *host_state_str(int32_t status)
         state = "unknown";
         break;
     }
-    if (status & HOST_CLOSED)
-        snprintf(buf, sizeof(buf), "%s|closed", state);
-    else
-        snprintf(buf, sizeof(buf), "%s", state);
+    snprintf(buf, sizeof(buf), "%s%s%s", state,
+             (status & HOST_CLOSED) ? "|closed" : "",
+             (status & HOST_TAINTED) ? "|tainted" : "");
     return buf;
 }
 

@@ -164,6 +164,17 @@ queue.
 This allows the scheduler to retry the job on a subsequent
 dispatch attempt.
 
+`sbd` rejects a job only for its own failures, before the job
+starts: it cannot create the job directories, write the job
+script, set up the service namespace, or fork. The host is
+then tainted for 60 seconds and receives no new jobs, so the
+job is dispatched to another host. `bhosts` shows the host as
+`ok|tainted`.
+
+The taint clears by itself, or when `sbd` reconnects. A host
+that keeps getting tainted has a local problem, such as a full
+disk; check the `sbd` log on that host.
+
 A launch failure is not considered a user job failure.
 
 If the user command starts successfully and later exits with
