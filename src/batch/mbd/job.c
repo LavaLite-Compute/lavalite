@@ -25,6 +25,7 @@
 struct ll_list pend_jobs_list;
 struct ll_list run_jobs_list;
 struct ll_list finish_jobs_list;
+struct ll_list orphan_jobs_list;
 
 int64_t job_id_seq = 0;
 struct ll_hash job_id_hash;
@@ -342,7 +343,12 @@ static int job_uses_host(struct job_data *job, struct mbd_host *h)
     return 0;
 }
 
-static int job_parse_tokens(struct job_data *job, const char *tokenpool)
+/* Parse "pool=count,..." into job->res.tokens. Submit checks the pools
+ * exist, replay does not: a pool missing from the config is kept by
+ * name and the job becomes an orphan, see job_is_orphan().
+ */
+int job_parse_tokens(struct job_data *job, const char *tokenpool,
+                     int check_pool)
 {
     if (tokenpool[0] == 0)
         return 0;
@@ -365,9 +371,7 @@ static int job_parse_tokens(struct job_data *job, const char *tokenpool)
             errno = EINVAL;
             return -1;
         }
-        struct mbd_token_pool *p;
-        p = ll_hash_search(&token_pool_name_hash, tok);
-        if (p == NULL) {
+        if (check_pool && ll_hash_search(&token_pool_name_hash, tok) == NULL) {
             LL_ERRX("job=%ld token pool=%s not found", job->job_id, tok);
             errno = EINVAL;
             return -1;
@@ -651,7 +655,7 @@ struct job_data * job_prepare(struct wire_job_submit *ws,
         return NULL;
     }
 
-    if (job_parse_tokens(job, ws->tokenpool) < 0) {
+    if (job_parse_tokens(job, ws->tokenpool, 1) < 0) {
         *err = errno;
         LL_ERRX("job=%ld invalid token pool spec", job->job_id);
         job_free(job);
@@ -1102,6 +1106,7 @@ int job_init(void)
     ll_list_init(&pend_jobs_list);
     ll_list_init(&run_jobs_list);
     ll_list_init(&finish_jobs_list);
+    ll_list_init(&orphan_jobs_list);
 
     LL_INFO("job structures initialized");
 
@@ -1133,6 +1138,14 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
     if (job == NULL) {
         LL_ERR("job=%ld not found from=%s - admin intervention required",
                r.job_id, chan_addr_str(host->sbd_chan));
+        return;
+    }
+
+    /* frozen: no ack, sbd keeps the job and resends until the config
+     * is fixed and the job heals, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, reply from sbd=%s not acked",
+                r.job_id, host->net.name);
         return;
     }
 
@@ -1231,6 +1244,14 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
         }
         enqueue_payload(n->sbd_chan, &hdr, &ack, LL_BUFSIZ_1K,
                         xdr_wire_job_ack);
+        return;
+    }
+
+    /* frozen: no ack, sbd keeps the finish and resends it until the
+     * config is fixed and the job heals, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, finish from sbd=%s not acked",
+                f.job_id, n->net.name);
         return;
     }
 
@@ -1367,6 +1388,13 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
         return;
     }
 
+    /* frozen, mbd never signals an orphan, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, signal reply from sbd=%s ignored",
+                job->job_id, n->net.name);
+        return;
+    }
+
     if (hdr->status != MBD_OK) {
         LL_ERRX("job=%ld signal=%d failed status=%d host=%s", job->job_id,
                 sig.sig, hdr->status, n->net.name);
@@ -1414,7 +1442,6 @@ void mbd_assert_counters(void)
         int num_susp = 0;
         int num_cpus_used = 0;
         int num_gpu_used = 0;
-        int num_orphan = 0;
 
         assert(h->res.free_cpu >= 0);
 
@@ -1432,8 +1459,6 @@ void mbd_assert_counters(void)
                 num_susp++;
             else if (job->state == JOB_RUNNING)
                 num_run++;
-            else if (job->state == JOB_ORPHAN)
-                num_orphan++;
             else
                 assert(0);
 
@@ -1450,6 +1475,23 @@ void mbd_assert_counters(void)
             }
         }
 
+        /* orphans still running hold the host, see replay_rebuild_counters() */
+        for (je = orphan_jobs_list.head; je != NULL; je = je->next) {
+            struct job_data *job = (struct job_data *) je;
+
+            if (!job_uses_host(job, h))
+                continue;
+
+            num_jobs++;
+            num_cpus_used += job->res.num_cpus;
+            if (job->state == JOB_SUSPENDED)
+                num_susp++;
+            else if (job->state == JOB_RUNNING)
+                num_run++;
+            else
+                assert(0);
+        }
+
         /* This is the core of the function compare what we have
          * count based on the running jobs with the counters
          * on the host.
@@ -1457,10 +1499,9 @@ void mbd_assert_counters(void)
         if (h->num_jobs != num_jobs || h->num_run != num_run ||
             h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
             LL_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
-                    "cpus_used=%d/%d orphan=%d",
+                    "cpus_used=%d/%d",
                     h->net.name, h->num_jobs, num_jobs, h->num_run, num_run,
-                    h->num_susp, num_susp, h->num_cpus_used, num_cpus_used,
-                    num_orphan);
+                    h->num_susp, num_susp, h->num_cpus_used, num_cpus_used);
             assert(0);
         }
     }
@@ -1484,10 +1525,6 @@ void mbd_assert_counters(void)
                 num_held++;
             else if (job->state == JOB_PENDING)
                 num_pend++;
-            else if (job->state == JOB_BROKEN)
-                num_pend++;
-            else if (job->state == JOB_ORPHAN)
-                num_pend++;
             else
                 assert(0);
         }
@@ -1505,6 +1542,34 @@ void mbd_assert_counters(void)
                 num_run++;
             else
                 assert(0);
+        }
+
+        /* orphans count in their queue, see replay_rebuild_counters() */
+        for (je = orphan_jobs_list.head; je != NULL; je = je->next) {
+            struct job_data *job = (struct job_data *) je;
+            if (job->queue != q)
+                continue;
+            num_jobs++;
+            switch (job->state) {
+            case JOB_HELD:
+                num_held++;
+                break;
+            case JOB_PENDING:
+                num_pend++;
+                break;
+            case JOB_RUNNING:
+                num_run++;
+                num_cpus_used += job->res.num_cpus * job->run_nhosts;
+                num_hosts_used += job->run_nhosts;
+                break;
+            case JOB_SUSPENDED:
+                num_susp++;
+                num_cpus_used += job->res.num_cpus * job->run_nhosts;
+                num_hosts_used += job->run_nhosts;
+                break;
+            default:
+                assert(0);
+            }
         }
 
         /* Compare the counters based on the running and pending jobs with
@@ -1538,6 +1603,12 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     if (job == NULL) {
         LL_ERRX("job=%ld not found", wm.job_id);
         enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, ESRCH);
+        return 0;
+    }
+
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, move refused", wm.job_id);
+        enqueue_header(chan_id, BATCH_JOB_MOVE_ACK, EPERM);
         return 0;
     }
 
@@ -1682,6 +1753,13 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
         return EPERM;
     }
 
+    /* frozen until the config is fixed, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, signal=%d refused", job->job_id,
+                req->sig);
+        return EPERM;
+    }
+
     if (job->state == JOB_DONE || job->state == JOB_EXITED) {
         LL_DEBUG("job_signal: job=%ld already finished", job->job_id);
         return EINVAL;
@@ -1700,17 +1778,6 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
     }
 
     req->job_id = job->job_id;
-
-    if (job->state == JOB_ORPHAN || job->state == JOB_BROKEN) {
-        const char *host = "-";
-        if (job->run_nhosts > 0 && job->run_hosts[0] != NULL)
-            host = job->run_hosts[0]->net.name;
-
-        LL_INFO("job=%ld state=%s host=%s terminating it", job->job_id,
-                llb_job_state_str(job->state), host);
-
-        return signal_pending_job(job, req);
-    }
 
     if (job->state == JOB_PENDING || job->state == JOB_HELD)
         return signal_pending_job(job, req);
@@ -1803,12 +1870,6 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
 
         if (job_is_service(job))
             continue;
-
-        if (job->state == JOB_ORPHAN || job->state == JOB_BROKEN) {
-            LL_INFO("job=%ld state=%s skipped by bulk signal", job->job_id,
-                    llb_job_state_str(job->state));
-            continue;
-        }
 
         if (job->run_hosts[0]->sbd_chan < 0) {
             LL_INFO(
@@ -2096,6 +2157,11 @@ int job_priority(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
     if (job == NULL) {
         LL_INFO("job=%ld not found", wp.job_id);
         return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, ESRCH);
+    }
+
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, priority change refused", wp.job_id);
+        return enqueue_header(chan_id, BATCH_JOB_PRIORITY_ACK, EPERM);
     }
 
     if (job->state == JOB_DONE || job->state == JOB_EXITED) {

@@ -18,8 +18,9 @@ enum job_state {
     JOB_SUSPENDED,   /* execution suspended on SBD */
     JOB_EXITED,      /* finished with non-zero exit status */
     JOB_DONE,        /* finished successfully */
-    JOB_ORPHAN,      /* known to MBD, rejected as unknown by SBD */
-    JOB_BROKEN,      /* replay failed, runtime state could not be rebuilt */
+    JOB_ORPHAN,      /* reporting state: the job references a queue,
+                      * service, host or token pool missing from the
+                      * config, it is frozen until the config is fixed */
     JOB_UNKNOWN,     /* SBD unavailable, actual state cannot be determined */
 };
 

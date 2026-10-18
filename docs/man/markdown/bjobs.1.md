@@ -65,6 +65,9 @@ Jobs are displayed in a table with the following columns:
 - **SUSP** — suspended job
 - **HELD** — held job, not eligible for dispatch
 - **UNKNOWN** — job state cannot currently be determined
+- **ORPHAN** — the job references a queue, service, host or token
+  pool no longer in the configuration; it is frozen until the configuration is fixed
+  and **mbd** restarted, see the administrator guide, *Orphan Jobs*
 
 ## Array Jobs
 

@@ -20,6 +20,7 @@ enum job_list_id {
     JOB_LIST_PEND,
     JOB_LIST_RUN,
     JOB_LIST_FINISH,
+    JOB_LIST_ORPHAN, /* frozen, see replay_mark_orphans() */
 };
 
 // mbd_die exit value
@@ -169,6 +170,8 @@ struct mbd_host {
     int sbd_chan;      /* -1 if not connected */
     int num_cpus_used; /* CPUs consumed by running jobs on this host */
     time_t taint_time; /* HOST_TAINTED set at, 0 if not tainted */
+    int stale;         /* not in the config, built by replay for jobs
+                        * that reference it, never registers an sbd */
 };
 
 struct mbd_queue {
@@ -190,6 +193,8 @@ struct mbd_queue {
     struct ll_hash host_hash; /* expanded host membership, keyed by hostname */
     struct ll_hash
         user_hash; /* expanded user membership, empty = all allowed */
+    int stale;     /* not in the config, built by replay for jobs that
+                    * reference it, never dispatches */
 };
 
 struct mbd_group {
@@ -268,6 +273,7 @@ struct service_data {
     char token_env[LL_BUFSIZ_64]; /* TOKEN_ENV: env name the app reads its
                                    * token from, empty means no token */
     struct ll_list instances;    /* active instances of this service */
+    int stale;                   /* not in the config, built by replay */
 };
 
 struct service_instance {
@@ -293,6 +299,7 @@ extern struct ll_hash job_id_hash;
 extern struct ll_list pend_jobs_list;
 extern struct ll_list run_jobs_list;
 extern struct ll_list finish_jobs_list;
+extern struct ll_list orphan_jobs_list;
 
 extern struct ll_list host_list;
 extern struct ll_hash host_name_hash;
@@ -409,6 +416,7 @@ int job_dep_satisfied(const struct job_data *);
 void job_deps_hold(struct job_data *);
 void job_deps_release(struct job_data *);
 void job_replay_deps(struct job_data *, const char *);
+int job_parse_tokens(struct job_data *, const char *, int);
 int signal_pending_job(struct job_data *, const struct wire_job_sig *);
 int signal_running_job(struct job_data *, const struct wire_job_sig *);
 int job_time_expired(const struct job_data *, time_t);

@@ -355,6 +355,47 @@ bhist
 
 Verify that jobs remain visible after restart.
 
+## Orphan Jobs
+
+A job is an orphan when it references a queue, a service, a host or
+a token pool that is no longer in the configuration. This happens when the
+configuration is changed while the job is pending or running, and
+`mbd` is restarted.
+
+`mbd` replays the full history of the job and logs what is missing:
+
+```
+queue=QUEUE not in the config, stale
+job=N state=RUN queue=QUEUE is orphan: it references a queue,
+service or host not in the config, frozen until the config is fixed
+```
+
+An orphan is frozen:
+
+- `bjobs` shows it as `ORPHAN`, with its queue and run host.
+- It is not scheduled. It still holds what it held: a running orphan
+  keeps its cpus, memory and tokens, and counts in its queue and on
+  its hosts, as long as those are still in the configuration.
+- `bkill`, `bmove` and `bpriority` are refused.
+- Messages from `sbd` about the job are logged and not acknowledged.
+  `sbd` keeps the job, and its exit status, and keeps reporting it.
+- An `sbd` running on a host removed from the configuration cannot
+  register.
+
+Nothing about the job is lost. If the job is running, it keeps
+running on its host.
+
+To recover, restore the missing queue, service, host or token pool
+in the configuration and restart `mbd`:
+
+```sh
+systemctl restart lavalite-mbd
+```
+
+The job replays as it was: pending, or running on its host with its
+pid. `sbd` reports what happened in the meantime, for example that
+the job finished, and the job continues normally.
+
 ## Recovery Validation
 
 A basic recovery test:

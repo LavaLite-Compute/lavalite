@@ -1183,8 +1183,6 @@ const char *llb_job_state_str(int32_t state)
         return "EXIT";
     case JOB_DONE:
         return "DONE";
-    case JOB_BROKEN:
-        return "BROKEN";
     case JOB_ORPHAN:
         return "ORPHAN";
     case JOB_UNKNOWN:

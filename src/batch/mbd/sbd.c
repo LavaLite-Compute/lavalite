@@ -516,9 +516,10 @@ void mbd_job_missing(struct mbd_host *n, XDR *xdrs)
         return;
     }
 
-    // Add the guard for the state
-    if (job->state == JOB_ORPHAN) {
-        LL_INFO("job=%ld already orphan", job->job_id);
+    /* frozen, see replay_mark_orphans() */
+    if (job->list_id == JOB_LIST_ORPHAN) {
+        LL_ERRX("job=%ld is orphan, missing report from sbd=%s ignored",
+                job->job_id, n->net.name);
         return;
     }
     if (job->run_nhosts <= 0 || job->run_hosts[0] != n) {

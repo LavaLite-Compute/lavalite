@@ -85,6 +85,10 @@ static void replay_charge_running_job(struct job_data *job)
     for (int i = 0; i < job->run_nhosts; i++) {
         struct mbd_host *h = job->run_hosts[i];
 
+        /* only an orphan can run on a stale host, see job_is_orphan() */
+        if (h->stale)
+            continue;
+
         // TODO what to do if a cpu has been taken of line
         h->res.free_cpu -= job->res.num_cpus;
         h->res.free_mem_mb -= job->res.mem_mb;
@@ -125,10 +129,6 @@ static void replay_rebuild_counters(void)
             job->queue->num_held++;
         else if (job->state == JOB_PENDING)
             job->queue->num_pend++;
-        else if (job->state == JOB_BROKEN)
-            job->queue->num_pend++;
-        else if (job->state == JOB_ORPHAN)
-            job->queue->num_pend++;
         else {
             LL_ERRX("job=%ld in invalid state %d in pending list",
                     job->job_id, job->state);
@@ -162,12 +162,64 @@ static void replay_rebuild_counters(void)
     }
 
     /*
+     * Orphans hold what they hold. A frozen job is still pending in
+     * its queue, or still running on its hosts with their cpus, memory
+     * and tokens. Count it on every real object it references, by its
+     * real state, so the scheduler never hands out what it holds and
+     * the counters stay right when the config is fixed. Stale objects
+     * are not counted, they are in no list.
+     */
+    for (e = orphan_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+        struct mbd_queue *q = job->queue;
+
+        if (!q->stale)
+            q->num_jobs++;
+
+        switch (job->state) {
+        case JOB_HELD:
+            if (!q->stale)
+                q->num_held++;
+            break;
+        case JOB_PENDING:
+            if (!q->stale)
+                q->num_pend++;
+            break;
+        case JOB_RUNNING:
+        case JOB_SUSPENDED:
+            if (!q->stale) {
+                if (job->state == JOB_RUNNING)
+                    q->num_run++;
+                else
+                    q->num_susp++;
+                q->num_cpus_used += job->res.num_cpus * job->run_nhosts;
+                q->num_hosts_used += job->run_nhosts;
+            }
+            replay_charge_running_job(job);
+            token_alloc(job);
+            break;
+        default:
+            LL_ERRX("job=%ld orphan in invalid state %d", job->job_id,
+                    job->state);
+            assert(0);
+        }
+    }
+
+    /*
      * dep_refcnt is derived state, not persisted directly (see
      * job_replay_deps()). Rebuild it here, once every job_id from the
      * manifest is in job_id_hash, by walking every still-pending job's
      * dependency expression and re-establishing its holds.
      */
     for (e = pend_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->deps.count > 0)
+            job_deps_hold(job);
+    }
+    /* an orphan is a live job, frozen: its dependencies stay held so
+     * the jobs it waits on survive compaction until it heals */
+    for (e = orphan_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
 
         if (job->deps.count > 0)
@@ -194,6 +246,16 @@ static void replay_rebuild_counters(void)
             head->array_element_cnt++;
     }
     for (e = run_jobs_list.head; e != NULL; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+
+        if (job->array_id == 0)
+            continue;
+
+        struct job_data *head = job_find(job->array_id);
+        if (head != NULL)
+            head->array_element_cnt++;
+    }
+    for (e = orphan_jobs_list.head; e != NULL; e = e->next) {
         struct job_data *job = (struct job_data *) e;
 
         if (job->array_id == 0)
@@ -402,6 +464,157 @@ void event_job_susp(const struct job_data *job)
 }
 
 /* -----------------------------------------------------------------------
+ * stale objects
+ *
+ * A queue, service or host the manifest references but the config no
+ * longer has. Replay builds a stale object carrying only the name, so
+ * the history of every job replays to the end and nothing is ever
+ * NULL. A token pool needs no object, tokens keep the pool name. Stale objects live only in these hashes, never in queue_list,
+ * service_list, host_list or host_name_hash: they are never scheduled,
+ * never counted, and an sbd can never register as a stale host.
+ * Jobs that reference them become orphans, see replay_mark_orphans().
+ * ----------------------------------------------------------------------- */
+static struct ll_hash stale_queue_hash;
+static struct ll_hash stale_service_hash;
+static struct ll_hash stale_host_hash;
+
+static struct mbd_queue *replay_queue(const char *name)
+{
+    struct mbd_queue *q = ll_hash_search(&queue_name_hash, name);
+    if (q != NULL)
+        return q;
+
+    q = ll_hash_search(&stale_queue_hash, name);
+    if (q != NULL)
+        return q;
+
+    q = calloc(1, sizeof(*q));
+    if (q == NULL) {
+        LL_ERR("calloc stale queue=%s failed", name);
+        mbd_die(MBD_EXIT_MEM);
+    }
+    ll_strlcpy(q->name, name, sizeof(q->name));
+    ll_hash_init(&q->host_hash, 0);
+    ll_hash_init(&q->user_hash, 0);
+    q->state = QUEUE_CLOSED;
+    q->stale = 1;
+    ll_hash_insert(&stale_queue_hash, q->name, q, 0);
+
+    LL_ERRX("queue=%s not in the config, stale", name);
+    return q;
+}
+
+static struct service_data *replay_service(const char *name)
+{
+    struct service_data *s = svc_find_by_name(name);
+    if (s != NULL)
+        return s;
+
+    s = ll_hash_search(&stale_service_hash, name);
+    if (s != NULL)
+        return s;
+
+    s = calloc(1, sizeof(*s));
+    if (s == NULL) {
+        LL_ERR("calloc stale service=%s failed", name);
+        mbd_die(MBD_EXIT_MEM);
+    }
+    ll_strlcpy(s->name, name, sizeof(s->name));
+    ll_list_init(&s->instances);
+    s->stale = 1;
+    ll_hash_insert(&stale_service_hash, s->name, s, 0);
+
+    LL_ERRX("service=%s not in the config, stale", name);
+    return s;
+}
+
+/* Run hosts are looked up in the whole config, not in the job's queue:
+ * a host dropped from a queue still exists and still runs the job.
+ */
+static struct mbd_host *replay_host(const char *name)
+{
+    struct mbd_host *h = ll_hash_search(&host_name_hash, name);
+    if (h != NULL)
+        return h;
+
+    h = ll_hash_search(&stale_host_hash, name);
+    if (h != NULL)
+        return h;
+
+    h = calloc(1, sizeof(*h));
+    if (h == NULL) {
+        LL_ERR("calloc stale host=%s failed", name);
+        mbd_die(MBD_EXIT_MEM);
+    }
+    ll_strlcpy(h->net.name, name, sizeof(h->net.name));
+    h->state = HOST_UNAVAIL;
+    h->sbd_chan = -1;
+    h->stale = 1;
+    ll_hash_insert(&stale_host_hash, h->net.name, h, 0);
+
+    LL_ERRX("host=%s not in the config, stale", name);
+    return h;
+}
+
+static int job_is_orphan(const struct job_data *job)
+{
+    if (job->queue->stale)
+        return 1;
+
+    if (job->svc_inst != NULL && job->svc_inst->svc->stale)
+        return 1;
+
+    for (int i = 0; i < job->run_nhosts; i++) {
+        if (job->run_hosts[i]->stale)
+            return 1;
+    }
+
+    /* tokens keep the pool name, see job_parse_tokens() */
+    for (struct ll_list_entry *e = job->res.tokens.head; e != NULL;
+         e = e->next) {
+        struct job_token *t = (struct job_token *) e;
+        if (ll_hash_search(&token_pool_name_hash, t->name) == NULL)
+            return 1;
+    }
+
+    return 0;
+}
+
+static void replay_orphan_list(struct ll_list *list)
+{
+    struct ll_list_entry *e;
+    struct ll_list_entry *next;
+
+    for (e = list->head; e != NULL; e = next) {
+        struct job_data *job = (struct job_data *) e;
+        next = e->next;
+
+        if (!job_is_orphan(job))
+            continue;
+
+        job_move_list(job, list, &orphan_jobs_list, JOB_LIST_ORPHAN);
+
+        LL_ERRX("job=%ld state=%s queue=%s is orphan: it references a "
+                "queue, service, host or token pool not in the config, "
+                "frozen until the config is fixed", job->job_id,
+                llb_job_state_str(job->state), job->queue->name);
+    }
+}
+
+/* After the whole history has replayed, a live job referencing a stale
+ * object, or a token pool not in the config, is an orphan: it moves to orphan_jobs_list and is frozen.
+ * Its state, dispatch_time, fork_time, pid and run hosts stay exactly
+ * as replay built them, compaction writes them back as they are, so
+ * once the config is fixed the next replay rebuilds the job as it was.
+ * Finished jobs need nothing, they keep their stale names for display.
+ */
+static void replay_mark_orphans(void)
+{
+    replay_orphan_list(&pend_jobs_list);
+    replay_orphan_list(&run_jobs_list);
+}
+
+/* -----------------------------------------------------------------------
  * replay
  * ----------------------------------------------------------------------- */
 static struct job_data *replay_alloc(const struct log_job_new *e)
@@ -438,17 +651,22 @@ static struct job_data *replay_alloc(const struct log_job_new *e)
     machines_hash_populate(&job->res.machines, e->machines);
     if (job->res.machines.nentries > 0)
         job->res.num_hosts = (int32_t) job->res.machines.nentries;
+    /* compaction writes these back, see compact_write_job_new() */
+    ll_strlcpy(job->res.machines_str, e->machines,
+               sizeof(job->res.machines_str));
+    ll_strlcpy(job->res.tokenpool_str, e->tokenpool,
+               sizeof(job->res.tokenpool_str));
+    /* a pool missing from the config is kept by name, the job becomes
+     * an orphan, see job_is_orphan() */
+    if (job_parse_tokens(job, e->tokenpool, 0) < 0)
+        LL_ERRX("job=%ld invalid token spec=%s", e->job_id, e->tokenpool);
 
     job->flags = e->flags;
     ll_strlcpy(job->name, e->job_name, sizeof(job->name));
     ll_strlcpy(job->user, e->username, sizeof(job->user));
     ll_strlcpy(job->project, e->project_name, sizeof(job->project));
 
-    job->queue = ll_hash_search(&queue_name_hash, e->queue);
-    if (job->queue == NULL) {
-        LL_ERR("job=%ld queue=%s not found, orphaned", e->job_id, e->queue);
-        job->state = JOB_ORPHAN;
-    }
+    job->queue = replay_queue(e->queue);
 
     // job owned storage for hosts pointers
     job->run_hosts = calloc(job->res.num_hosts, sizeof(struct mbd_host *));
@@ -480,17 +698,7 @@ static int replay_insert(struct job_data *job)
 static int replay_service_job_new(struct job_data *job,
                                   const struct log_job_new *e)
 {
-    struct service_data *svc;
-
-    svc = svc_find_by_name(e->service_name);
-    if (svc == NULL) {
-        LL_ERRX("job=%ld service=%s not found, orphaned of its service",
-                e->job_id, e->service_name);
-        job->state = JOB_ORPHAN;
-        job->svc_inst = NULL;
-        job->flags &= ~JOB_FLAG_SERVICE;
-        return -1;
-    }
+    struct service_data *svc = replay_service(e->service_name);
 
     struct service_instance *inst;
     inst = calloc(1, sizeof(*inst));
@@ -560,14 +768,7 @@ static int replay_set_run_hosts(struct job_data *job,
 
     char *tok = strtok(hosts, " \t,");
     while (tok != NULL) {
-        // Search the job hosts in the current job queue
-        struct mbd_host *h = ll_hash_search(&job->queue->host_hash, tok);
-        if (h == NULL) {
-            // Configuration change?
-            LL_ERRX("job=%ld host=%s not found in job's queue", job->job_id,
-                    tok);
-            return -1;
-        }
+        struct mbd_host *h = replay_host(tok);
 
         if (job->run_nhosts >= e->nhosts) {
             LL_ERRX("job=%ld too many hosts run=%d e=%d", job->job_id,
@@ -615,23 +816,9 @@ static void replay_job_start(const struct event_rec *rec)
         return;
     }
 
-    if (job->state == JOB_ORPHAN) {
-        LL_ERRX("job=%ld state=%s skipping JOB_START_REPLAY", job->job_id,
-                llb_job_state_str(job->state));
-        return;
-    }
-
     if (replay_set_run_hosts(job, &e) < 0) {
-        /* JOB_START references a host that is not present in the current config
-         * The job cannot be reconstructed safely.
-         * Mark it BROKEN and leave it in the pending lists
-         * An administrator or owner may later terminate it.
-         */
-        LL_ERRX("job=%ld is broken cannot rebuild its runtime status "
-                "configuration changed?",
-                e.job_id);
-        job->state = JOB_BROKEN;
-        // return preventing any resource allocation
+        LL_ERRX("job=%ld JOB_START run hosts do not match nhosts=%d",
+                e.job_id, e.nhosts);
         return;
     }
 
@@ -714,8 +901,7 @@ static void replay_job_finish(const struct event_rec *rec)
     job->uid = e.uid;
     job->end_time = e.end_time;
 
-    // The job could be broken so still in the pending list, or just
-    // simply pending and then bkilled
+    // The job was running, or pending and then bkilled
     struct ll_list *from = &pend_jobs_list;
     if (job->list_id == JOB_LIST_RUN)
         from = &run_jobs_list;
@@ -938,14 +1124,7 @@ static void replay_job_move(const struct event_rec *rec)
         LL_ERRX("JOB_MOVE job=%ld not found", e.job_id);
         return;
     }
-    struct mbd_queue *to = ll_hash_search(&queue_name_hash, e.to_queue);
-    if (to == NULL) {
-        LL_ERRX("JOB_MOVE job=%ld queue=%s not found, orphaned", e.job_id,
-                e.to_queue);
-        job->state = JOB_ORPHAN;
-        return;
-    }
-    job->queue = to;
+    job->queue = replay_queue(e.to_queue);
     LL_DEBUG("JOB_MOVE job=%ld from=%s to=%s", e.job_id, e.from_queue,
              e.to_queue);
 }
@@ -999,7 +1178,7 @@ static void replay_job_pend(const struct event_rec *rec)
     job->run_nhosts = 0;
 
     /* service restart: the endpoint belonged to the old incarnation */
-    if (job->svc_inst != NULL) { /* not job_is_service(): orphans have no inst */
+    if (job_is_service(job)) {
         job->svc_inst->status = SVC_PENDING;
         job->svc_inst->port = 0;
         job->svc_inst->run_host[0] = 0;
@@ -1010,6 +1189,10 @@ static void replay_job_pend(const struct event_rec *rec)
 
 int jobs_replay(void)
 {
+    ll_hash_init(&stale_queue_hash, 0);
+    ll_hash_init(&stale_service_hash, 0);
+    ll_hash_init(&stale_host_hash, 0);
+
     FILE *fp = fopen(manifest_path, "r");
     if (fp == NULL) {
         if (errno == ENOENT) {
@@ -1093,6 +1276,7 @@ int jobs_replay(void)
      */
     job_id_seq_read();
 
+    replay_mark_orphans();
     replay_rebuild_counters();
     // debug
     mbd_assert_counters();
@@ -1303,6 +1487,21 @@ static void manifest_rebuild(void)
         compact_write_job_start(fp, job);
         if (job->fork_time)
             compact_write_job_fork(fp, job);
+    }
+
+    /* orphans are written back exactly as replay rebuilt them, with
+     * their stale names, so a fixed config heals them on the next
+     * replay. dispatch_time and fork_time gate START and FORK as in
+     * compact_write_job_finished().
+     */
+    for (e = orphan_jobs_list.head; e; e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+        compact_write_job_new(fp, job);
+        if (job->dispatch_time) {
+            compact_write_job_start(fp, job);
+            if (job->fork_time)
+                compact_write_job_fork(fp, job);
+        }
     }
 
     /*

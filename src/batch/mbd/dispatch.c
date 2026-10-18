@@ -23,6 +23,12 @@ static void job_data_to_wire(const struct job_data *job,
     w->pid = job->pid;
     w->state = job->state;
     /*
+     * ORPHAN is a reporting state too: the job keeps its real state
+     * underneath, frozen on orphan_jobs_list, see replay_mark_orphans().
+     */
+    if (job->list_id == JOB_LIST_ORPHAN)
+        w->state = JOB_ORPHAN;
+    /*
      * UNKNOWN is a public/reporting state. Internally the job keeps its last
      * lifecycle state. If the execution host is disconnected, clients cannot
      * know whether the process is still running, suspended, or gone.
@@ -138,7 +144,8 @@ static int jobs_info_ref(int chan_id, const struct protocol_header *hdr,
 
     int ntotal = ll_list_count(&pend_jobs_list) +
                  ll_list_count(&run_jobs_list) +
-                 ll_list_count(&finish_jobs_list);
+                 ll_list_count(&finish_jobs_list) +
+                 ll_list_count(&orphan_jobs_list);
 
     if (ntotal == 0)
         ntotal = 1;
@@ -230,7 +237,8 @@ static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
 
     int ntotal = ll_list_count(&pend_jobs_list) +
                  ll_list_count(&run_jobs_list) +
-                 ll_list_count(&finish_jobs_list);
+                 ll_list_count(&finish_jobs_list) +
+                 ll_list_count(&orphan_jobs_list);
 
     struct wire_job_info *jobs = NULL;
 
@@ -241,15 +249,20 @@ static int jobs_info_list(int chan_id, const struct protocol_header *hdr,
             return -1;
         }
 
+        /* orphans are live jobs and an alarm: always listed */
         if (req->flags == 0) {
             n = collect_list(&pend_jobs_list, jobs, n, uid, all);
             n = collect_list(&run_jobs_list, jobs, n, uid, all);
+            n = collect_list(&orphan_jobs_list, jobs, n, uid, all);
         } else {
             if (req->flags & LLB_JOB_PEND)
                 n = collect_list(&pend_jobs_list, jobs, n, uid, all);
 
             if (req->flags & LLB_JOB_RUN)
                 n = collect_list(&run_jobs_list, jobs, n, uid, all);
+
+            if (req->flags & (LLB_JOB_PEND | LLB_JOB_RUN))
+                n = collect_list(&orphan_jobs_list, jobs, n, uid, all);
 
             if (req->flags & LLB_JOB_DONE)
                 n = collect_list(&finish_jobs_list, jobs, n, uid, all);
