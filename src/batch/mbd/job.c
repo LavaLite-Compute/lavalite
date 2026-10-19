@@ -500,6 +500,10 @@ void reset_host_resources(struct job_data *job)
     for (int i = 0; i < job->run_nhosts; i++) {
         struct mbd_host *h = job->run_hosts[i];
 
+        /* only an orphan runs on a stale host, nothing was charged */
+        if (h->stale)
+            continue;
+
         h->res.free_cpu += job->res.num_cpus;
         h->res.free_mem_mb += job->res.mem_mb;
         h->res.free_storage_mb += job->res.storage_mb;
@@ -1151,6 +1155,13 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
 
     // Something went really wrong
     if (r.state == JOB_PENDING) {
+        /* sbd rejected a job that bkill -s 9 already finished, the
+         * messages crossed, see kill_running_job() */
+        if (job->list_id == JOB_LIST_FINISH) {
+            LL_INFO("job=%ld finished, reject from sbd=%s dropped",
+                    r.job_id, host->net.name);
+            return;
+        }
         if (job->state == JOB_PENDING || job->state == JOB_HELD) {
             assert(job->list_id == JOB_LIST_PEND);
             LL_INFO("job=%ld duplicated event received", r.job_id);
@@ -1166,7 +1177,14 @@ void mbd_new_job_reply(struct mbd_host *host, XDR *xdrs,
     }
 
     int duplicate = 0;
-    if (job->fork_time > 0) {
+    /* bkill -s 9 finished the job while sbd was starting it, the
+     * messages crossed: ack the pid so sbd moves on to the finish,
+     * change nothing, see kill_running_job() */
+    if (job->list_id == JOB_LIST_FINISH) {
+        LL_INFO("job=%ld finished, pid=%d from sbd=%s acked and discarded",
+                r.job_id, r.pid, host->net.name);
+        duplicate = 1;
+    } else if (job->fork_time > 0) {
         LL_INFO("job=%ld fork duplicate from=%s", r.job_id,
                 chan_addr_str(host->sbd_chan));
         duplicate = 1;
@@ -1678,19 +1696,27 @@ static int finish_pending_job(struct job_data *job,
             ws->sig);
     job->signal_time = job->end_time = time(NULL);
 
-    if (job->state == JOB_PENDING)
-        job->queue->num_pend--;
+    /* a pending orphan is killed by bkill -s 9 only, its queue may be
+     * stale and was not counted, see replay_rebuild_counters() */
+    struct ll_list *from = &pend_jobs_list;
+    if (job->list_id == JOB_LIST_ORPHAN)
+        from = &orphan_jobs_list;
 
-    if (job->state == JOB_HELD)
-        job->queue->num_held--;
+    if (!job->queue->stale) {
+        if (job->state == JOB_PENDING)
+            job->queue->num_pend--;
 
-    job->queue->num_jobs--;
+        if (job->state == JOB_HELD)
+            job->queue->num_held--;
+
+        job->queue->num_jobs--;
+    }
 
     job->state = JOB_EXITED;
     job_deps_release(job);
     event_job_signal(job, ws);
     event_job_finish(job);
-    job_move_list(job, &pend_jobs_list, &finish_jobs_list, JOB_LIST_FINISH);
+    job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
     job_array_element_finished(job);
 
     return MBD_OK;
@@ -1740,6 +1766,63 @@ static int resume_pending_job(struct job_data *job,
 }
 
 /*
+ * bkill -s 9 on a running, suspended or dispatched job, orphan or not.
+ * No mercy, like kill -9: mbd finishes the job now, as if sbd had
+ * reported the finish, and tells sbd to kill it if sbd is there. If
+ * sbd is not there the kill is only logged, the job ends anyway.
+ *
+ * The job keeps end_time and run_hosts on the finished list: a pid
+ * reply, a reject or a finish crossing the kill on the wire meets a
+ * finished job and is acked or dropped, see mbd_new_job_reply() and
+ * mbd_job_finish(). The run limit and bservices -d send SIGKILL
+ * through signal_running_job() and wait for sbd, they never get here.
+ */
+static int kill_running_job(struct job_data *job, struct wire_job_sig *req)
+{
+    struct mbd_queue *q = job->queue;
+    struct ll_list *from = &run_jobs_list;
+    if (job->list_id == JOB_LIST_ORPHAN)
+        from = &orphan_jobs_list;
+
+    assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
+
+    if (signal_running_job(job, req) != MBD_OK) {
+        job->signal_time = time(NULL);
+        event_job_signal(job, req);
+    }
+
+    /* host counters depend on the state, release before changing it */
+    reset_host_resources(job);
+    token_pool_release(job);
+
+    /* a stale queue was not counted, see replay_rebuild_counters() */
+    if (!q->stale) {
+        if (job->state == JOB_RUNNING)
+            q->num_run--;
+        else
+            q->num_susp--;
+        q->num_cpus_used -= job->res.num_cpus * job->run_nhosts;
+        q->num_hosts_used -= job->run_nhosts;
+        q->num_jobs--;
+    }
+
+    job->end_time = time(NULL);
+    job->exit_status = SIGKILL; /* the wait status sbd would report */
+    job->state = JOB_EXITED;
+
+    job_move_list(job, from, &finish_jobs_list, JOB_LIST_FINISH);
+    job_array_element_finished(job);
+    event_job_finish(job);
+
+    LL_INFO("job=%ld killed -9 on host=%s, finished by mbd", job->job_id,
+            job->run_hosts[0]->net.name);
+
+    mbd_assert_counters();
+
+    return MBD_OK;
+}
+
+/*
  * signal_one_job - state machine for signaling a single, already-
  * resolved job. Shared by the ordinary job_id path in jobs_signal()
  * and by signal_array() below, so the two can't drift apart.
@@ -1753,8 +1836,9 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
         return EPERM;
     }
 
-    /* frozen until the config is fixed, see replay_mark_orphans() */
-    if (job->list_id == JOB_LIST_ORPHAN) {
+    /* frozen until the config is fixed, see replay_mark_orphans().
+     * Only bkill -s 9 gets through, it ends the job for good. */
+    if (job->list_id == JOB_LIST_ORPHAN && req->sig != SIGKILL) {
         LL_ERRX("job=%ld is orphan, signal=%d refused", job->job_id,
                 req->sig);
         return EPERM;
@@ -1781,6 +1865,9 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
 
     if (job->state == JOB_PENDING || job->state == JOB_HELD)
         return signal_pending_job(job, req);
+
+    if (req->sig == SIGKILL)
+        return kill_running_job(job, req);
 
     int cc = signal_running_job(job, req);
     if (cc != 0) {
@@ -1863,7 +1950,9 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
         // Best effort, even if one failed keep going
         signal_pending_job(job, req);
     }
-    for (e = run_jobs_list.head; e != NULL; e = e->next) {
+    /* kill_running_job() moves the job off the list, keep next */
+    for (e = run_jobs_list.head; e != NULL; e = next) {
+        next = e->next;
         job = (struct job_data *) e;
 
         assert(job->run_hosts[0]);
@@ -1871,17 +1960,24 @@ static int signal_jobs_scan(uint32_t uid, struct wire_job_sig *req)
         if (job_is_service(job))
             continue;
 
+        if (job->uid != uid && !is_manager(uid))
+            continue;
+
+        /* -9 has no mercy, a disconnected host does not stop it */
+        if (req->sig == SIGKILL) {
+            n++;
+            req->job_id = job->job_id;
+            kill_running_job(job, req);
+            continue;
+        }
+
         if (job->run_hosts[0]->sbd_chan < 0) {
-            LL_INFO(
-                "job=%ld unknown on disconnected host=%s cannot signal it",
-                job->job_id, job->run_hosts[0]->net.name);
+            LL_INFO("job=%ld unknown on disconnected host=%s cannot signal it",
+                    job->job_id, job->run_hosts[0]->net.name);
             continue;
         }
 
         assert(job->state == JOB_RUNNING || job->state == JOB_SUSPENDED);
-
-        if (job->uid != uid && !is_manager(uid))
-            continue;
 
         n++;
         req->job_id = job->job_id;

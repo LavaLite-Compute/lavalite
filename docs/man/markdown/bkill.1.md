@@ -45,7 +45,11 @@ signal any user's jobs this way.
 The following symbolic names are accepted:
 
 **kill**
-:   SIGKILL. Unconditionally terminates the job. The job enters EXIT state.
+:   SIGKILL. No mercy, like **kill -9**. The job enters EXIT state at
+    once and its resources are released, whether or not the execution
+    host answers. If **sbd** is reachable it kills the job; if not,
+    the process may still be running there until the host comes back.
+    This is also the only signal accepted by an ORPHAN job.
 
 **term**
 :   SIGTERM. Requests graceful termination.

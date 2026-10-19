@@ -376,7 +376,8 @@ An orphan is frozen:
 - It is not scheduled. It still holds what it held: a running orphan
   keeps its cpus, memory and tokens, and counts in its queue and on
   its hosts, as long as those are still in the configuration.
-- `bkill`, `bmove` and `bpriority` are refused.
+- `bmove` and `bpriority` are refused. `bkill` is refused except
+  `bkill -s kill`, which ends the job for good, see below.
 - Messages from `sbd` about the job are logged and not acknowledged.
   `sbd` keeps the job, and its exit status, and keeps reporting it.
 - An `sbd` running on a host removed from the configuration cannot
@@ -395,6 +396,16 @@ systemctl restart lavalite-mbd
 The job replays as it was: pending, or running on its host with its
 pid. `sbd` reports what happened in the meantime, for example that
 the job finished, and the job continues normally.
+
+If the missing queue, service, host or token pool is gone for good,
+end the orphan instead:
+
+```sh
+bkill -s kill <jobid>
+```
+
+The job enters EXIT and releases what it held. If it was running on
+a host that can still be reached, `sbd` kills it there.
 
 ## Recovery Validation
 
