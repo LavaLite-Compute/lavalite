@@ -25,6 +25,7 @@ char jobs_dir[PATH_MAX];
 static ino_t manifest_ino = 0;
 static uint32_t manifest_seq = 0;
 static int job_finish_threshold = 1000;
+static int job_finish_period = 3600;
 
 static FILE *open_manifest(void)
 {
@@ -1069,6 +1070,15 @@ int events_init(void)
         job_finish_threshold = 1000;
     }
 
+    if (!ll_atoi(ll_params[LL_MBD_JOB_FINISH_PERIOD].val,
+                 &job_finish_period) || job_finish_period < 0) {
+        LL_ERRX("invalid LL_MBD_JOB_FINISH_PERIOD=%s using default=3600 "
+                "seconds", ll_params[LL_MBD_JOB_FINISH_PERIOD].val);
+        job_finish_period = 3600;
+    }
+    LL_INFO("job_finish_threshold=%d job_finish_period=%d",
+            job_finish_threshold, job_finish_period);
+
     manifest_seq_scan();
 
     LL_INFO("manifest seq initialized seq=%u", manifest_seq);
@@ -1511,10 +1521,28 @@ static void manifest_rebuild(void)
      * running/pending. No partial retain window -- either a job is
      * still referenced or it isn't.
      */
+    /*
+     * A finished job younger than job_finish_period is kept and written
+     * back, so recent finished jobs survive a restart: replay never
+     * reads the archived manifest. Older ones are dropped, unless
+     * something still needs them. Every job is checked on its own, the
+     * list is not strictly in end_time order: jobs retained by a
+     * dependency or an array head stay where they were.
+     */
+    time_t now = time(NULL);
+    int dropped = 0;
+    int kept = 0;
+
     for (e = finish_jobs_list.head; e; e = next) {
         next = e->next;
 
         struct job_data *job = (struct job_data *) e;
+
+        if (now - job->end_time < job_finish_period) {
+            compact_write_job_finished(fp, job);
+            kept++;
+            continue;
+        }
 
         /* still referenced by a pending job's dependency expression,
          * purging it now would leave that job unable to ever resolve */
@@ -1522,6 +1550,7 @@ static void manifest_rebuild(void)
             LL_DEBUG("job=%ld retained by compaction dep_refcnt=%d",
                      job->job_id, job->dep_refcnt);
             compact_write_job_finished(fp, job);
+            kept++;
             continue;
         }
 
@@ -1532,6 +1561,7 @@ static void manifest_rebuild(void)
             LL_DEBUG("job=%ld retained by compaction array_element_cnt=%d",
                      job->job_id, job->array_element_cnt);
             compact_write_job_finished(fp, job);
+            kept++;
             continue;
         }
 
@@ -1544,7 +1574,11 @@ static void manifest_rebuild(void)
         assert(j2 == job);
 
         job_free(job);
+        dropped++;
     }
+
+    LL_INFO("compaction finished jobs dropped=%d kept=%d period=%d",
+            dropped, kept, job_finish_period);
 
     if (fflush(fp) != 0 || fsync(fileno(fp)) != 0)
         mbd_die(MBD_EXIT_EVENTS);
@@ -1563,11 +1597,21 @@ static void manifest_rebuild(void)
     LL_INFO("manifest rebuild seq=%u archived=%s", manifest_seq, archived);
 }
 
-/* Rebuild the event log when the number of finished jobs
- * currently held in memory reaches this threshold.
+/* Rebuild the event log when the number of finished jobs held in
+ * memory reaches the threshold. Checked every MANIFEST_CHECK_TIME
+ * seconds: finished jobs younger than job_finish_period are kept, so
+ * the list may stay above the threshold, and a rewrite every tick
+ * would be pointless.
  */
 void maybe_rebuild_manifest(void)
 {
+    static time_t last_check;
+    time_t now = time(NULL);
+
+    if (now - last_check < MANIFEST_CHECK_TIME)
+        return;
+    last_check = now;
+
     if (ll_list_count(&finish_jobs_list) < job_finish_threshold)
         return;
 

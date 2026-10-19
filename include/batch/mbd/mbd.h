@@ -223,6 +223,8 @@ struct mbd_token_pool {
 #define PID_TIMEOUT 20
 /* seconds a host stays tainted after its sbd rejected a job */
 #define TAINT_TIME 60
+/* seconds between checks of the finished job threshold */
+#define MANIFEST_CHECK_TIME 300
 
 struct sched_plan {
     struct mbd_host *hosts[SCHED_PLAN_MAX]; /* hosts[0] is exec host */

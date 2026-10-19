@@ -91,9 +91,15 @@ Lines starting with **#** are comments. Blank lines are ignored.
     are removed. Default: 100.
 
 **LL_MBD_JOB_FINISH_THRESHOLD**
-:   Maximum number of finished jobs retained in memory by mbd.
-    When the threshold is exceeded, mbd rebuilds its active scheduler
-    state from the event manifest. Default: 1000.
+:   Number of finished jobs held in memory by mbd that triggers a
+    compaction of the event manifest. Checked every 5 minutes.
+    Default: 1000.
+
+**LL_MBD_JOB_FINISH_PERIOD**
+:   Seconds a finished job is kept by mbd, visible with
+    **bjobs --done**, before a compaction may drop it. Younger
+    finished jobs are kept across compactions and mbd restarts.
+    0 drops every finished job at each compaction. Default: 3600.
 
 ## Timeouts (optional)
 
@@ -123,6 +129,7 @@ Lines starting with **#** are comments. Blank lines are ignored.
     LL_SBD_PORT=33125
     LL_SBD_JOB_FINISH_RETAIN=100
     LL_MBD_JOB_FINISH_THRESHOLD=1000
+    LL_MBD_JOB_FINISH_PERIOD=3600
     LL_DEFAULT_QUEUE=normal
 
 # SEE ALSO
