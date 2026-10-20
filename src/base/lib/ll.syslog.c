@@ -73,12 +73,18 @@ int ll_openlog(const char *ident, const char *logdir, const char *mask)
     return 0;
 }
 
+/* Logging must not change errno: callers log a failure, then return
+ * and their caller reads errno. isatty(), fstat(), localtime() and
+ * write() below may all set it, so it is saved here and restored on
+ * every return after the first library call.
+ */
 void ll_syslog(int level, const char *fmt, ...)
 {
     va_list ap;
     char msg[LL_BUFSIZ_1K];
     char line[LL_BUFSIZ_4K];
     int n;
+    int saved_errno = errno;
 
     // no logger configured return, sorry no implicit
     // logging to stderr but definite behaviour
@@ -110,8 +116,10 @@ void ll_syslog(int level, const char *fmt, ...)
         n = snprintf(line, sizeof(line), "%s [%s] %d %s\n", ts,
                      level_str(level), getpid(), msg);
     }
-    if (n < 0)
+    if (n < 0) {
+        errno = saved_errno;
         return;
+    }
 
     size_t len = (size_t) n;
     if (len >= sizeof(line))
@@ -129,6 +137,8 @@ void ll_syslog(int level, const char *fmt, ...)
         ssize_t cc = write(STDERR_FILENO, line, len);
         (void) cc;
     }
+
+    errno = saved_errno;
 }
 
 static void ll_reopen_log(void)
