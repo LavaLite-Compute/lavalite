@@ -16,10 +16,10 @@ filing a test failure.
   sbd logs only `namespace setup failed: No such file or directory`
   and rejects the dispatch.
 
-- **Reject loop.** A dispatch rejected by `sbd` goes back to pending
-  and is retried every scheduler tick, with no backoff. A broken host
-  (missing `ip`, bad state dir) gets the same job every 2 seconds.
-  Look at the `sbd` log, not at the job.
+- **Rejecting host.** A dispatch rejected by `sbd` goes back to
+  pending and the host is tainted for 60 seconds, `ok|tainted` in
+  `bhosts`. A broken host (missing `ip`, bad state dir) gets one job a
+  minute, not one every tick. Look at the `sbd` log, not at the job.
 
 - **Endpoint changes on restart.** The job ID is the stable handle.
   After a relocation look the endpoint up again with `bservices`.

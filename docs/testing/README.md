@@ -38,6 +38,10 @@ LavaLite commands, daemons, persistent state, and event replay logic.
 - `17-bservices.md`
   Service instances: start, endpoint, delete, restart, token, run limit.
 
+- `18-robustness.md`
+  Silent and rejecting `sbd`, orphan jobs, `bkill -s kill`, replay and
+  finished job retention.
+
 ### Reference
 
 - `90-things-to-know.md`
@@ -57,6 +61,10 @@ LavaLite commands, daemons, persistent state, and event replay logic.
 user against a running cluster. Each script prints `PASS`, `FAIL` or
 `SKIP`. The service scripts use the service named by `$SVC`, default
 `echotest`, and skip when it is not configured.
+
+`src/tests/sim/simqa.sh` runs the robustness scenarios of
+`18-robustness.md` on one box, as root, with its own configuration,
+`mbd` and two sim `sbd`s. It needs no running cluster.
 
 ## Test Format
 
