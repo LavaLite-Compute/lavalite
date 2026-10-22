@@ -568,7 +568,10 @@ int job_is_service(const struct job_data *job)
     return 0;
 }
 
-/* Invalidate the channel if the user reset the connection
+/* The client waiting for the first start went away (^C, lost
+ * connection): it withdrew the request. A pending instance is deleted
+ * like bkill on a pending job; one already dispatched or running is
+ * left alone, bservices shows it and -d stops it.
  */
 void service_invalidate_chan(int chan_id)
 {
@@ -580,12 +583,23 @@ void service_invalidate_chan(int chan_id)
         for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
              ie = ie->next) {
             struct service_instance *inst = (struct service_instance *)ie;
-            if (inst->chan_id == chan_id) {
-                LL_DEBUG("job=%ld service=%s channel=%d", inst->job_id,
-                         inst->svc->name, chan_id);
-                inst->chan_id = -1;
+            if (inst->chan_id != chan_id)
+                continue;
+
+            /* no ack on a closed channel */
+            inst->chan_id = -1;
+
+            struct job_data *job = job_find(inst->job_id);
+            if (job == NULL || job->state != JOB_PENDING) {
+                LL_INFO("job=%ld service=%s client gone, instance kept",
+                        inst->job_id, inst->svc->name);
                 return;
             }
+
+            LL_INFO("job=%ld service=%s client gone while pending, deleting",
+                    inst->job_id, inst->svc->name);
+            service_delete_instance(inst->uid, inst->job_id, "", 0);
+            return;
         }
 
     }

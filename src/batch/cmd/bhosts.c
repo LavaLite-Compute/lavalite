@@ -157,9 +157,39 @@ static void print_long(struct host_info *h, int n)
     }
 }
 
+/* Move the hosts named on the command line to the front, in the
+ * order given, and return how many. The array keeps all its entries,
+ * so llb_free_host_info() still frees them all.
+ */
+static int select_hosts(struct host_info *h, int n, char **names,
+                        int nnames, int *bad)
+{
+    int m = 0;
+
+    for (int k = 0; k < nnames; k++) {
+        int i = 0;
+        while (i < n && strcmp(h[i].name, names[k]) != 0)
+            i++;
+        if (i == n) {
+            fprintf(stderr, "bhosts: %s: no such host\n", names[k]);
+            *bad = 1;
+            continue;
+        }
+        if (i < m)
+            continue;
+        struct host_info tmp = h[m];
+        h[m] = h[i];
+        h[i] = tmp;
+        m++;
+    }
+
+    return m;
+}
+
 static void usage(void)
 {
-    fprintf(stderr, "bhosts: --help display this help and exit\n"
+    fprintf(stderr, "bhosts: [-l] [HOST...]\n"
+                    "  --help         display this help and exit\n"
                     "  -l, --long     per-host detail\n"
                     "  -c, --close    HOST close a host\n"
                     "  -o, --open     HOST open a host\n"
@@ -226,11 +256,17 @@ int main(int argc, char **argv)
         return -1;
     }
 
+    int bad = 0;
+    int nprint = nhosts;
+    if (optind < argc)
+        nprint = select_hosts(hosts, nhosts, &argv[optind], argc - optind,
+                              &bad);
+
     if (long_fmt)
-        print_long(hosts, nhosts);
+        print_long(hosts, nprint);
     else
-        print_short(hosts, nhosts);
+        print_short(hosts, nprint);
 
     llb_free_host_info(hosts, nhosts);
-    return 0;
+    return bad;
 }

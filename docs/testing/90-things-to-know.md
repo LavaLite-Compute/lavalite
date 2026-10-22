@@ -37,7 +37,28 @@ filing a test failure.
   runtimes may not, and may create their own netns or cgroup; such a
   runtime needs flags in `COMMAND` and is not tested.
 
-- **`bservices -a` shows a stale endpoint** for `FINISH` instances.
+- **Apptainer binds only `$HOME`, `/tmp` and the cwd.** A shared area
+  like `/export` is invisible inside the container, and the job fails
+  with `No such file or directory` although the file exists on the
+  host. Two ways, both site configuration:
+  - `bind path = /export` in `/etc/apptainer/apptainer.conf` on every
+    execution host: all containers see it, LavaLite or not;
+  - `--bind /export` in the service `COMMAND`: only that service.
+
+- **An instance keeps the `COMMAND` it was started with.** A change in
+  `llb.services` applies to new instances only; delete and start the
+  existing ones again.
+
+- **`QUEUE` is mandatory for a service.** A block with an error
+  (missing `COMMAND`/`QUEUE`/`PORT`, unknown queue or key) is not
+  configured; the `mbd` log says why, the other services load.
+
+- **Removing a service with live instances** makes them `ORPHAN` in
+  `bjobs`: frozen, still charged on their hosts, not listed by
+  `bservices`. Their processes keep running. Only `bkill -s kill` ends
+  an orphan. Restoring the block heals them, same endpoint and token
+  (TEST-248). Delete the instances (`bservices -d`) before removing
+  the service.
 
 - **`bservices` shows `PEND` during the dispatch window**, `bjobs`
   shows `DISP` for the same job.
@@ -72,9 +93,30 @@ filing a test failure.
 - **`UNKNOWN`** is shown for `RUN`/`SUSP` jobs whose host `sbd` is
   disconnected, for example right after an `mbd` restart.
 
-- **`bsub` prints `queue <default>`** when `--queue` is not given,
-  even if the default queue has another name. `bjobs` shows the real
-  queue.
+- **`bsub` without `--queue`** prints `is submitted to the default
+  queue`: the queue name is not in the submit reply. `bjobs` shows it.
+
+## Configuration
+
+- **mbd stays up on errors in services and queue membership** and
+  creates all it can: a bad service is skipped, an unknown host in a
+  queue is skipped, a queue with no valid host stays defined and
+  schedules nothing. A required `ll.conf` parameter that is missing
+  (`LL_STATE_DIR`, `LL_MBD_PORT`, `LL_MBD_HOST`, `LL_MBD_USER`,
+  `LL_DEFAULT_QUEUE`), a `LL_DEFAULT_QUEUE` that names no queue, a
+  port in use, or a syntax error in `llb.hosts` or `llb.queues` still
+  stops `mbd`: the reason is in the `mbd` log. After a restart check
+  the line `hosts=N queues=N groups=N services=N services_skipped=N`
+  in the `mbd` log.
+
+- **Lowering capacity drains a host.** Lowering `CPU`, `MEM`,
+  `STORAGE` or the GPUs below what running jobs use is legal: the jobs
+  keep running, `bhosts -l` shows used above total, and the host gets
+  no new jobs until it fits again.
+
+- **GPU ids are counted, not tracked per job.** After a GPU count is
+  lowered under running jobs the free count is right only once the
+  host has drained.
 
 ## Environment
 

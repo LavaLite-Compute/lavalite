@@ -122,7 +122,8 @@ static void print_queue_long(const struct queue_info *q)
         printf("%d\n", q->max_jobs);
 
     print_wrapped("Users:", q->users, q->num_users, "all");
-    print_wrapped("Hosts:", q->hosts, q->num_hosts, "all");
+    /* no hosts means none: the queue schedules nothing */
+    print_wrapped("Hosts:", q->hosts, q->num_hosts, "none");
 
     printf("  Jobs:        running: %d    pending: %d    held: %d"
            "    suspended: %d\n",
@@ -140,9 +141,39 @@ static void print_queues_long(const struct queue_info *q, int n)
     }
 }
 
+/* Move the queues named on the command line to the front, in the
+ * order given, and return how many. The array keeps all its entries,
+ * so llb_free_queue_info() still frees them all.
+ */
+static int select_queues(struct queue_info *q, int n, char **names,
+                         int nnames, int *bad)
+{
+    int m = 0;
+
+    for (int k = 0; k < nnames; k++) {
+        int i = 0;
+        while (i < n && strcmp(q[i].name, names[k]) != 0)
+            i++;
+        if (i == n) {
+            fprintf(stderr, "bqueues: %s: no such queue\n", names[k]);
+            *bad = 1;
+            continue;
+        }
+        if (i < m)
+            continue;
+        struct queue_info tmp = q[m];
+        q[m] = q[i];
+        q[i] = tmp;
+        m++;
+    }
+
+    return m;
+}
+
 static void usage(void)
 {
-    fprintf(stderr, "bqueues: --help display this help and exit\n"
+    fprintf(stderr, "bqueues: [-l] [QUEUE...]\n"
+                    "  --help         display this help and exit\n"
                     "  -l, --long     display detailed queue information\n"
                     "  -c, --close    QUEUE close a queue\n"
                     "  -o, --open     QUEUE open a queue\n"
@@ -212,12 +243,17 @@ int main(int argc, char **argv)
         return -1;
     }
 
+    int bad = 0;
+    int nprint = n;
+    if (optind < argc)
+        nprint = select_queues(q, n, &argv[optind], argc - optind, &bad);
+
     if (long_fmt) {
-        print_queues_long(q, n);
+        print_queues_long(q, nprint);
         llb_free_queue_info(q, n);
-        return 0;
+        return bad;
     }
-    compute_widths(q, n, &w);
+    compute_widths(q, nprint, &w);
 
     printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s\n", w.name,
            "QUEUE_NAME", w.prio, "PRIO", w.status, "STATUS", w.max, "MAX",
@@ -225,7 +261,7 @@ int main(int argc, char **argv)
            w.susp, "SUSP", w.used_cpus, "USED_CPUS", w.used_hosts,
            "USED_HOSTS");
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < nprint; i++) {
         char maxbuf[16];
 
         printf("%-*s  %-*d  %-*s  %*s  %*d  %*d  %*d  %*d  %*d  %*d  %*d\n",
@@ -238,5 +274,5 @@ int main(int argc, char **argv)
     }
 
     llb_free_queue_info(q, n);
-    return 0;
+    return bad;
 }

@@ -16,7 +16,9 @@ bservices - list, start, and delete service instances
 
 **bservices** [**-t** [*hours*:]*minutes*] *name*
 
-**bservices** **-d** *endpoint*
+**bservices** **-l** [*name*...]
+
+**bservices** **-d** *job_id*|*endpoint*
 
 # DESCRIPTION
 
@@ -42,13 +44,24 @@ Multiple instances of the same service may run simultaneously.
     first start and is not reset when the instance restarts; once it is
     reached the instance is stopped and not restarted.
 
+**-l**, **--long** [*name*...]
+:   One block per service: queue, restart policy, instance counts and
+    all its instances. Names select the services to show; an unknown
+    name is reported on stderr and the exit status is non-zero.
+
 **-a**, **--all**
 :   List configured services and all retained instances, including finished ones.
 
-**-d**, **--delete** *endpoint*
-:   Delete the service instance identified by its execution host and
-    external port. Accepts **HOST:PORT** or **http://HOST:PORT**.
-    A port alone is not sufficient.
+**-d**, **--delete** *job_id*|*endpoint*
+:   Delete the service instance identified by its job ID, or by its
+    execution host and external port (**HOST:PORT** or
+    **http://HOST:PORT**). A port alone is not sufficient. Pending
+    instances can be deleted by job ID. Prints
+    **Service <...> is being deleted**: a running instance ends when
+    sbd reports it finished.
+
+Interrupting **bservices** *name* (**^C**) while the instance is still
+pending deletes the instance. Once dispatched it keeps running.
 
 **-h**, **--help**
 :   Print usage to stderr and exit.

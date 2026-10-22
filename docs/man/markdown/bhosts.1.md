@@ -12,7 +12,7 @@ bhosts - display host information and manage host availability
 
 # SYNOPSIS
 
-**bhosts**
+**bhosts** [**-l**] [*host*...]
 
 **bhosts** **--close** *host*
 
@@ -26,6 +26,15 @@ hosts in the cluster.
 The **--close** and **--open** options require administrator privileges.
 
 # OPTIONS
+
+*host*...
+:   Show only the named hosts, in the order given. An unknown name is
+    reported on stderr and the exit status is non-zero.
+
+**-l**, **--long**
+:   One block per host with used/total for each resource. Used can
+    exceed total when the host capacity was lowered in **llb.hosts**
+    while jobs were running: the host gets no new jobs until it drains.
 
 **-c**, **--close** *host*
 :   Close the named host. A closed host does not accept new jobs.

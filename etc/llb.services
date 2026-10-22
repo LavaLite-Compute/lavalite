@@ -5,10 +5,13 @@
 # COMMAND      = <cmd>              # mandatory, full command line run by sh
 # PORT         = <port>             # mandatory if user, forbidden if daemon
 # TOKEN_ENV    = <env name>         # optional, token exported under this name
-# QUEUE        = <queue>            # optional
+# QUEUE        = <queue>            # mandatory
 # RESTART      = always | never     # default always
 # RUNLIMIT     = [hours:]minutes    # optional, cap for bservices --time
 # End Service
+#
+# A block with an error (missing key, unknown queue, unknown key) is
+# not configured, mbd logs the reason and loads the others.
 #
 # COMMAND is passed as is to the job shell: container runtime, image,
 # binds are the site's choice. The job environment has HOME, USER and
@@ -23,6 +26,7 @@ TYPE         = user
 COMMAND      = apptainer exec --bind $HOME /path/python-slim.sif python3 /home/david/lavalite-test/echo_server.py $LL_SVC_PORT
 PORT         = 8888
 RESTART      = always
+QUEUE        = service-2.0
 End Service
 
 Begin Service

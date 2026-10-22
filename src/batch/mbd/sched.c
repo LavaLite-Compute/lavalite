@@ -190,11 +190,11 @@ static int host_meets_requirements(struct mbd_host *h, struct job_data *job,
         diag->no_cpus++;
         return 0;
     }
-    if (h->res.free_mem_mb < job->res.mem_mb) {
+    if (h->res.free_mem_mb < (int64_t) job->res.mem_mb) {
         diag->no_mem++;
         return 0;
     }
-    if (h->res.free_storage_mb < job->res.storage_mb) {
+    if (h->res.free_storage_mb < (int64_t) job->res.storage_mb) {
         diag->no_storage++;
         return 0;
     }
@@ -350,8 +350,8 @@ static void host_update_resources(const struct job_data *job)
         struct mbd_host *h = job->run_hosts[i];
 
         h->res.free_cpu -= job->res.num_cpus;
-        h->res.free_mem_mb -= job->res.mem_mb;
-        h->res.free_storage_mb -= job->res.storage_mb;
+        h->res.free_mem_mb -= (int64_t) job->res.mem_mb;
+        h->res.free_storage_mb -= (int64_t) job->res.storage_mb;
         h->num_jobs++;
         h->num_run++;
         h->num_cpus_used += job->res.num_cpus;
@@ -365,8 +365,8 @@ static void host_update_resources(const struct job_data *job)
 
         // gpu ids were already updated during dispatch to sbd
         int n = gpu_ids_count_free(&h->res.gpu);
-        LL_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%lu "
-                 "free_storage_mb=%lu free_gpu=%d",
+        LL_DEBUG("host=%s num_jobs=%d free_cpu=%d free_mem_mb=%ld "
+                 "free_storage_mb=%ld free_gpu=%d",
                  h->net.name, h->num_jobs, h->res.free_cpu, h->res.free_mem_mb,
                  h->res.free_storage_mb, n);
     }

@@ -92,8 +92,8 @@ static void replay_charge_running_job(struct job_data *job)
 
         // TODO what to do if a cpu has been taken of line
         h->res.free_cpu -= job->res.num_cpus;
-        h->res.free_mem_mb -= job->res.mem_mb;
-        h->res.free_storage_mb -= job->res.storage_mb;
+        h->res.free_mem_mb -= (int64_t) job->res.mem_mb;
+        h->res.free_storage_mb -= (int64_t) job->res.storage_mb;
         h->num_jobs++;
         h->num_cpus_used += job->res.num_cpus;
 

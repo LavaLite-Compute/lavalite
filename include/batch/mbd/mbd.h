@@ -148,9 +148,9 @@ struct host_resources {
     int total_cpu;
     int free_cpu;
     uint64_t total_mem_mb;
-    uint64_t free_mem_mb;
+    int64_t free_mem_mb;      /* < 0: capacity lowered under running jobs */
     uint64_t total_storage_mb;
-    uint64_t free_storage_mb;
+    int64_t free_storage_mb;
     struct mbd_gpu gpu;
 };
 

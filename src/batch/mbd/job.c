@@ -505,8 +505,8 @@ void reset_host_resources(struct job_data *job)
             continue;
 
         h->res.free_cpu += job->res.num_cpus;
-        h->res.free_mem_mb += job->res.mem_mb;
-        h->res.free_storage_mb += job->res.storage_mb;
+        h->res.free_mem_mb += (int64_t) job->res.mem_mb;
+        h->res.free_storage_mb += (int64_t) job->res.storage_mb;
         h->num_jobs--;
         h->num_cpus_used -= job->res.num_cpus;
 
@@ -523,7 +523,7 @@ void reset_host_resources(struct job_data *job)
             gpu_ids_mark_free(&h->res.gpu, job->res.num_gpus);
         }
 
-        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%lu free_storage_mb=%lu "
+        LL_DEBUG("host=%s free_cpu=%d free_mem_mb=%ld free_storage_mb=%ld "
                  "free_gpu=%d num_jobs=%d",
                  h->net.name, h->res.free_cpu, h->res.free_mem_mb,
                  h->res.free_storage_mb, gpu_ids_count_free(&h->res.gpu),
@@ -1274,7 +1274,7 @@ void mbd_job_finish(struct mbd_host *n, XDR *xdrs)
     }
 
     if (strcmp(n->net.name, job->run_hosts[0]->net.name) != 0) {
-        LL_WARNING("job=%ld finish reported by host=%s but dispatched to "
+        LL_WARNINGX("job=%ld finish reported by host=%s but dispatched to "
                    " host=%s — ignoring",
                    job->job_id, n->net.name, job->run_hosts[0]->net.name);
         return;
@@ -1461,7 +1461,8 @@ void mbd_assert_counters(void)
         int num_cpus_used = 0;
         int num_gpu_used = 0;
 
-        assert(h->res.free_cpu >= 0);
+        /* free_cpu < 0 is legal: NCPU lowered in llb.hosts while jobs
+         * ran, the host drains and gets nothing new */
 
         for (je = run_jobs_list.head; je != NULL; je = je->next) {
             struct job_data *job = (struct job_data *) je;
@@ -2314,36 +2315,42 @@ int gpu_ids_count_free(const struct mbd_gpu *g)
 }
 
 /* Mark num_gpus devices as free. This is called after job finishes.
+ * Fewer than num_gpus in use is legal: the GPU count was lowered in
+ * llb.hosts while the job ran.
  */
 int gpu_ids_mark_free(struct mbd_gpu *g, int num_gpus)
 {
     int freed = 0;
 
-    assert(g->count >= num_gpus);
-    for (int i = 0; i < num_gpus; i++) {
+    for (int i = 0; i < g->count && freed < num_gpus; i++) {
         if (g->ids[i].in_use == 1) {
             g->ids[i].in_use = 0;
             freed++;
         }
     }
-    assert(freed == num_gpus);
+    if (freed < num_gpus)
+        LL_INFO("gpu ids=%s freed=%d of %d, GPU count lowered under a "
+                "running job", g->gpu_ids, freed, num_gpus);
     return freed;
 }
 
 /* Mark num_gpus devices as used. This is called after scheduling
- * and after replay to restore the in use device ids.
+ * and after replay to restore the in use device ids. Fewer free than
+ * num_gpus is legal after the GPU count was lowered in llb.hosts: all
+ * are marked, the host has none free until it drains.
  */
 int gpu_ids_mark_inuse(struct mbd_gpu *g, int num_gpus)
 {
     int marked = 0;
 
-    assert(g->count >= num_gpus);
-    for (int i = 0; i < num_gpus; i++) {
+    for (int i = 0; i < g->count && marked < num_gpus; i++) {
         if (g->ids[i].in_use == 0) {
             g->ids[i].in_use = 1;
             marked++;
         }
     }
-    assert(marked == num_gpus);
+    if (marked < num_gpus)
+        LL_INFO("gpu ids=%s marked=%d of %d, GPU count lowered under "
+                "running jobs", g->gpu_ids, marked, num_gpus);
     return marked;
 }

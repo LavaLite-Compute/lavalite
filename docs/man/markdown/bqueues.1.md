@@ -12,9 +12,7 @@ bqueues - display queue information and manage queue availability
 
 # SYNOPSIS
 
-**bqueues**
-
-**bqueues** **-l**
+**bqueues** [**-l**] [*queue*...]
 
 **bqueues** **--close** *queue*
 
@@ -28,6 +26,10 @@ in the cluster.
 The **--close** and **--open** options require administrator privileges.
 
 # OPTIONS
+
+*queue*...
+:   Show only the named queues, in the order given. An unknown name is
+    reported on stderr and the exit status is non-zero.
 
 **-l**, **--long**
 :   Display detailed information for each queue, including description,

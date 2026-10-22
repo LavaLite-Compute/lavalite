@@ -449,8 +449,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    fprintf(stdout, "Job <%ld> is submitted to queue <%s>.\n", job_id,
-            js.queue ? js.queue : "default");
+    /* without --queue mbd picks LL_DEFAULT_QUEUE, its name is not in
+     * the submit reply */
+    if (js.queue != NULL)
+        fprintf(stdout, "Job <%ld> is submitted to queue <%s>.\n", job_id,
+                js.queue);
+    else
+        fprintf(stdout, "Job <%ld> is submitted to the default queue.\n",
+                job_id);
 
     free(js.command);
     free(js.tokenpool);

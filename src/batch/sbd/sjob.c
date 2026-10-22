@@ -686,7 +686,7 @@ void sbd_job_new(XDR *xdrs)
     /* duplicate NEW_JOB: echo our current view back */
     struct sbd_job *job = sbd_job_find(ws.job_id);
     if (job != NULL) {
-        LL_WARNING("duplicate BATCH_NEW_JOB job=%ld pid=%d", job->job_id,
+        LL_WARNINGX("duplicate BATCH_NEW_JOB job=%ld pid=%d", job->job_id,
                    job->pid);
         if (sbd_job_new_reply(job) < 0)
             LL_ERR("job=%ld enqueue duplicate reply failed", job->job_id);

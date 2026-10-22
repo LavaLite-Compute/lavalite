@@ -150,9 +150,11 @@ desktop session or display server are not propagated.
 
 # OUTPUT
 
-On successful submission, prints the job ID and queue name to stdout:
+On successful submission, prints the job ID to stdout, with the queue
+name when **--queue** was given:
 
     Job <42> is submitted to queue <normal>.
+    Job <43> is submitted to the default queue.
 
 # EXAMPLES
 

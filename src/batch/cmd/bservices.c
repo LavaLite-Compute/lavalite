@@ -65,12 +65,13 @@ static void compute_service_widths(const struct svc_info *s, int32_t n,
     }
 }
 
+/* the endpoint exists only while the instance runs */
 static void instance_endpoint(const struct svc_instance_info *inst,
                               char *buf, size_t bufsz)
 {
     const char *host = inst->run_host;
 
-    if (host == NULL || host[0] == 0
+    if (inst->status != SVC_RUNNING || host == NULL || host[0] == 0
         || strcmp(host, "-") == 0 || inst->port == 0)
         snprintf(buf, bufsz, "-");
     else
@@ -109,6 +110,37 @@ static uint32_t compute_instance_widths(const struct svc_info *s,
     return nvisible;
 }
 
+static void print_instances(const struct svc_info *s, int all)
+{
+    struct inst_col_widths iw;
+    if (compute_instance_widths(s, &iw, all) == 0)
+        return;
+
+    printf("  %-*s  %-*s  %*s  %-*s  %s\n",
+           iw.user, "USER", iw.endpoint, "HOST:PORT",
+           iw.job_id, "JOB_ID", iw.status, "STATUS", "TOKEN");
+
+    for (uint32_t j = 0; j < s->ninstances; j++) {
+        const struct svc_instance_info *inst = &s->instances[j];
+
+        if (!all && inst->status == SVC_FINISH)
+            continue;
+
+        char uidbuf[32];
+        char endpoint[MAXHOSTNAMELEN + 16];
+        const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
+
+        instance_endpoint(inst, endpoint, sizeof(endpoint));
+
+        printf("  %-*s  %-*s  %*ld  %-*s  %s\n",
+               iw.user, user,
+               iw.endpoint, endpoint,
+               iw.job_id, inst->job_id,
+               iw.status, llb_svc_status_str(inst->status),
+               inst->token != NULL ? inst->token : "-");
+    }
+}
+
 static void print_services(const struct svc_info *s, int32_t n, int all)
 {
     struct svc_col_widths sw;
@@ -119,35 +151,65 @@ static void print_services(const struct svc_info *s, int32_t n, int all)
     for (int32_t i = 0; i < n; i++) {
         printf("%-*s  %-*s  %s\n", sw.name, s[i].name, sw.queue, s[i].queue,
                s[i].restart_never ? "never" : "always");
+        print_instances(&s[i], all);
+    }
+}
 
-        struct inst_col_widths iw;
-        if (compute_instance_widths(&s[i], &iw, all) == 0)
-            continue;
-
-        printf("  %-*s  %-*s  %*s  %-*s  %s\n",
-               iw.user, "USER", iw.endpoint, "HOST:PORT",
-               iw.job_id, "JOB_ID", iw.status, "STATUS", "TOKEN");
+/* one block per service, like bqueues -l, all instances included */
+static void print_services_long(const struct svc_info *s, int32_t n)
+{
+    for (int32_t i = 0; i < n; i++) {
+        int run = 0;
+        int pend = 0;
+        int finish = 0;
 
         for (uint32_t j = 0; j < s[i].ninstances; j++) {
-            const struct svc_instance_info *inst = &s[i].instances[j];
-
-            if (!all && inst->status == SVC_FINISH)
-                continue;
-
-            char uidbuf[32];
-            char endpoint[MAXHOSTNAMELEN + 16];
-            const char *user = uid_name(inst->uid, uidbuf, sizeof(uidbuf));
-
-            instance_endpoint(inst, endpoint, sizeof(endpoint));
-
-            printf("  %-*s  %-*s  %*ld  %-*s  %s\n",
-                   iw.user, user,
-                   iw.endpoint, endpoint,
-                   iw.job_id, inst->job_id,
-                   iw.status, llb_svc_status_str(inst->status),
-                   inst->token != NULL ? inst->token : "-");
+            if (s[i].instances[j].status == SVC_RUNNING)
+                run++;
+            else if (s[i].instances[j].status == SVC_PENDING)
+                pend++;
+            else
+                finish++;
         }
+
+        if (i > 0)
+            printf("\n");
+        printf("SERVICE: %s\n", s[i].name);
+        printf("  Queue:       %s\n", s[i].queue);
+        printf("  Restart:     %s\n", s[i].restart_never ? "never" : "always");
+        printf("  Instances:   running: %d    pending: %d    finished: %d\n",
+               run, pend, finish);
+        print_instances(&s[i], 1);
     }
+}
+
+/* Move the services named on the command line to the front, in the
+ * order given, and return how many. The array keeps all its entries,
+ * so llb_free_service_info() still frees them all.
+ */
+static int select_services(struct svc_info *s, int n, char **names,
+                           int nnames, int *bad)
+{
+    int m = 0;
+
+    for (int k = 0; k < nnames; k++) {
+        int i = 0;
+        while (i < n && strcmp(s[i].name, names[k]) != 0)
+            i++;
+        if (i == n) {
+            fprintf(stderr, "bservices: %s: no such service\n", names[k]);
+            *bad = 1;
+            continue;
+        }
+        if (i < m)
+            continue;
+        struct svc_info tmp = s[m];
+        s[m] = s[i];
+        s[i] = tmp;
+        m++;
+    }
+
+    return m;
 }
 
 static int parse_service_endpoint(const char *s, char *host, size_t hostsz,
@@ -199,6 +261,7 @@ static void usage(void)
             "  bservices NAME  start a service defined in llb.services\n"
             "  -t, --time [h:]m run limit, at most the service RUNLIMIT\n"
             "  -a, --all list configured services and all retained instances\n"
+            "  -l, --long [NAME...] one block per service\n"
             "  -d, --delete JOB_ID|HOST:PORT delete a service instance\n"
             "  --version output version information and exit\n");
 }
@@ -207,6 +270,7 @@ static struct option longopts[] = {
     {"help", no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'v'},
     {"all", no_argument, NULL, 'a'},
+    {"long", no_argument, NULL, 'l'},
     {"delete", required_argument, NULL, 'd'},
     {"time", required_argument, NULL, 't'},
     {NULL, 0, NULL, 0}
@@ -218,10 +282,15 @@ int main(int argc, char **argv)
     int all = 0;
     int cc;
     int list_fmt = 0;
+    int long_fmt = 0;
     int32_t run_limit = 0;
 
-    while ((cc = getopt_long(argc, argv, "hvad:t:", longopts, NULL)) != EOF) {
+    while ((cc = getopt_long(argc, argv, "hvald:t:", longopts, NULL)) != EOF) {
         switch (cc) {
+        case 'l':
+            long_fmt = 1;
+            list_fmt = 1;
+            break;
         case 't':
             if (llb_parse_time_limit(optarg, &run_limit) < 0) {
                 fprintf(stderr, "bservices: --time: invalid limit '%s'\n",
@@ -264,7 +333,7 @@ int main(int argc, char **argv)
         if (rc != 0)
             fprintf(stderr, "bservices: %s: %m\n", delete_arg);
         else
-            printf("service %s deleted\n", delete_arg);
+            printf("Service <%s> is being deleted\n", delete_arg);
 
         return rc;
     }
@@ -281,9 +350,19 @@ int main(int argc, char **argv)
             return -1;
         }
 
-        print_services(s, nsvc, all);
+        /* names after -l select services, a bare name starts one */
+        int bad = 0;
+        int nprint = nsvc;
+        if (long_fmt && optind < argc)
+            nprint = select_services(s, nsvc, &argv[optind], argc - optind,
+                                     &bad);
+
+        if (long_fmt)
+            print_services_long(s, nprint);
+        else
+            print_services(s, nprint, all);
         llb_free_service_info(s, nsvc);
-        return 0;
+        return bad;
     }
 
     if (optind >= argc) {

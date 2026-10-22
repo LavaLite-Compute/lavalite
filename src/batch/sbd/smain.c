@@ -345,7 +345,7 @@ static void sbd_reap_children(void)
 
         struct sbd_job *job = sbd_find_job_by_pid(pid);
         if (job == NULL) {
-            LL_WARNING("reaped unknown child pid=%d status=0x%x", (int) pid,
+            LL_WARNINGX("reaped unknown child pid=%d status=0x%x", (int) pid,
                        (unsigned) status);
             continue;
         }

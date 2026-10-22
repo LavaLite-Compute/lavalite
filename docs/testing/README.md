@@ -42,6 +42,12 @@ LavaLite commands, daemons, persistent state, and event replay logic.
   Silent and rejecting `sbd`, orphan jobs, `bkill -s kill`, replay and
   finished job retention.
 
+### Configuration
+
+- `19-config-changes.md`
+  Configuration changes and mbd restart: configuration errors, lowering
+  host capacity under running jobs.
+
 ### Reference
 
 - `90-things-to-know.md`
@@ -53,7 +59,7 @@ LavaLite commands, daemons, persistent state, and event replay logic.
 ### Planned
 
 - `bhist`, `bhosts`, `bqueues`, `bgroups`, `btokens` command tests.
-- `mbd` restart, `sbd` restart and event replay tests.
+- `sbd` restart and event replay tests.
 
 ## Automated Tests
 

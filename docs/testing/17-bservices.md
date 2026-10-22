@@ -126,7 +126,7 @@ bkill <N>
 
 ### Expected Result
 
-The command fails with `Operation not supported`.
+The command fails with `bkill: job <N> is a service, use bservices -d N`.
 
 ### Pass Criteria
 
@@ -153,7 +153,7 @@ nft list tables
 
 ### Expected Result
 
-- `service <N> deleted`.
+- `Service <N> is being deleted`.
 - Instance `FINISH`, job `EXIT`.
 - No `svc<N>` netns and no `svc<N>` nft table left.
 
@@ -465,6 +465,70 @@ Each command fails with a useful message and non-zero status.
 
 No instance is created.
 
+---
+
+## TEST-218: Interrupt a pending start
+
+### Setup
+
+Close the service queue as in TEST-207.
+
+### Commands
+
+```sh
+bservices echotest
+```
+
+Press `^C` while it waits, then:
+
+```sh
+bservices -a
+bhist -l <N>
+```
+
+The job ID is in `bservices -a` or `bjobs -a`.
+
+### Expected Result
+
+- The instance is `FINISH`, `bhist -l` says `Never dispatched`.
+- The `mbd` log has `client gone while pending, deleting`.
+
+### Pass Criteria
+
+Leaving before the endpoint withdraws the request, like `bkill` on a
+pending job.
+
+### Cleanup
+
+```sh
+bqueues --open <queue>
+```
+
+---
+
+## TEST-219: Long format and names
+
+### Commands
+
+```sh
+bservices -l
+bservices -l echotest
+bservices -l nosuchservice
+bqueues <queue>
+bhosts -l <host>
+```
+
+### Expected Result
+
+- `-l` prints one block per service: queue, restart, instance counts,
+  instances.
+- Names select what is shown; an unknown name prints `no such ...`
+  and the exit status is non-zero.
+
+### Pass Criteria
+
+All three commands accept names.
+
 ## Completion Criteria
 
 The `bservices` test set passes when:
@@ -477,3 +541,4 @@ The `bservices` test set passes when:
 - Tokens are shown only to their owner, deletes are owner or manager.
 - Run limits stop a service for good and survive restarts.
 - An instance survives an `mbd` restart.
+- `^C` on a pending start deletes the instance.

@@ -786,6 +786,24 @@ static int parse_sim(const char *path)
     return 0;
 }
 
+/* A host the queue names but llb.hosts does not define is skipped,
+ * the queue keeps the others. mbd keeps running: a configuration
+ * error takes out its own object only.
+ */
+static void queue_add_host(struct mbd_queue *q, const char *name)
+{
+    struct mbd_host *h = find_host_by_name(name);
+    if (h == NULL) {
+        LL_ERRX("queue=%s host=%s not in llb.hosts, skipped", q->name, name);
+        return;
+    }
+
+    enum ll_hash_status st = ll_hash_insert(&q->host_hash, h->net.name, h, 0);
+    if (st == LL_HASH_EXISTS)
+        LL_WARNINGX("queue=%s host=%s listed twice in HOSTS, ignored",
+                    q->name, h->net.name);
+}
+
 /*
  * Expand queue host membership after all hosts, groups and queues are parsed.
  * Resolves hosts_spec (group name or single hostname) into host_hash so the
@@ -811,34 +829,19 @@ static int conf_expand_queues(void)
                 char *inner_save;
                 char *mem = strtok_r(gtmp, " \t", &inner_save);
                 while (mem != NULL) {
-                    struct mbd_host *h = find_host_by_name(mem);
-                    if (h == NULL) {
-                        LL_ERRX("queue=%s group=%s host=%s not found", q->name,
-                                g->name, mem);
-                        return -1;
-                    }
-                    enum ll_hash_status st =
-                        ll_hash_insert(&q->host_hash, h->net.name, h, 0);
-                    if (st == LL_HASH_EXISTS)
-                        LL_WARNING("queue=%s host=%s already in host_hash",
-                                   q->name, h->net.name);
+                    queue_add_host(q, mem);
                     mem = strtok_r(NULL, " \t", &inner_save);
                 }
             } else {
-                struct mbd_host *h = find_host_by_name(tok);
-                if (h == NULL) {
-                    LL_ERRX("queue=%s HOSTS=%s not a group or host", q->name,
-                            tok);
-                    return -1;
-                }
-                enum ll_hash_status st =
-                    ll_hash_insert(&q->host_hash, h->net.name, h, 0);
-                if (st == LL_HASH_EXISTS)
-                    LL_WARNING("queue=%s host=%s already in host_hash", q->name,
-                               h->net.name);
+                queue_add_host(q, tok);
             }
             tok = strtok_r(NULL, " \t", &outer_save);
         }
+
+        /* kept: its jobs stay, nothing is scheduled until fixed */
+        if (q->host_hash.nentries == 0)
+            LL_ERRX("queue=%s has no valid host, it will not schedule",
+                    q->name);
     }
     return 0;
 }
@@ -1027,6 +1030,13 @@ static int commit_service(struct service_conf *sc)
         return -1;
     }
 
+    /* without a queue the service would land in LL_DEFAULT_QUEUE,
+     * on batch hosts */
+    if (sc->queue[0] == 0) {
+        LL_ERRX("service=%s missing QUEUE", sc->name);
+        return -1;
+    }
+
     s = calloc(1, sizeof(struct service_data));
     if (s == NULL) {
         LL_ERR("calloc failed");
@@ -1067,7 +1077,7 @@ static int commit_service(struct service_conf *sc)
         return -1;
     }
 
-    if (sc->queue[0] != 0 && !ll_hash_contains(&queue_name_hash, sc->queue)) {
+    if (!ll_hash_contains(&queue_name_hash, sc->queue)) {
         LL_ERRX("service=%s QUEUE=%s not found", sc->name, sc->queue);
         free(s);
         return -1;
@@ -1108,12 +1118,26 @@ static int commit_service(struct service_conf *sc)
     return 0;
 }
 
+static int services_skipped;
+
+/* A service block with an error is not configured, the reason is
+ * logged and the other services are loaded: mbd keeps running.
+ * Instances of a skipped service already in the manifest come back
+ * ORPHAN at replay.
+ */
+static void service_skip(const char *name)
+{
+    LL_ERRX("service=%s not configured", name[0] != 0 ? name : "-");
+    services_skipped++;
+}
+
 static int parse_services(const char *path)
 {
     FILE *f;
     struct service_conf svc;
     char line[LL_BUFSIZ_1K];
     int in_section;
+    int bad = 0;
 
     f = fopen(path, "r");
     if (f == NULL) {
@@ -1138,6 +1162,7 @@ static int parse_services(const char *path)
         if (section != NULL) {
             if (strncmp(section, "Service", 5) == 0) {
                 in_section = 1;
+                bad = 0;
                 memset(&svc, 0, sizeof(svc));
             }
             continue;
@@ -1147,45 +1172,35 @@ static int parse_services(const char *path)
             continue;
 
         if (ll_conf_parse_end(p)) {
-            if (commit_service(&svc) < 0) {
-                fclose(f);
-                return -1;
-            }
+            if (bad || commit_service(&svc) < 0)
+                service_skip(svc.name);
             in_section = 0;
             memset(&svc, 0, sizeof(svc));
             continue;
         }
 
-        {
-            char *eq;
-            char *key;
-            char *val;
-
-            eq = strchr(p, '=');
-            if (eq == NULL) {
-                LL_ERRX("parse_queues: bad line: %s", p);
-                fclose(f);
-                return -1;
-            }
-
-            *eq = 0;
-            key = p;
-            val = ltrim(eq + 1);
-            rtrim(key);
-            rtrim(val);
-
-            if (parse_service_conf(&svc, key, val) < 0) {
-                fclose(f);
-                return -1;
-            }
+        char *eq = strchr(p, '=');
+        if (eq == NULL) {
+            LL_ERRX("service=%s bad line: %s", svc.name, p);
+            bad = 1;
+            continue;
         }
+
+        *eq = 0;
+        char *key = p;
+        char *val = ltrim(eq + 1);
+        rtrim(key);
+        rtrim(val);
+
+        if (parse_service_conf(&svc, key, val) < 0)
+            bad = 1;
     }
 
     fclose(f);
 
     if (in_section) {
         LL_ERRX("missing End Service in %s", path);
-        return -1;
+        service_skip(svc.name);
     }
 
     return 0;
@@ -1281,6 +1296,12 @@ int conf_init(void)
     }
 
     dump_config();
+
+    /* one line to see after a restart whether something is missing */
+    LL_INFO("hosts=%d queues=%d groups=%d services=%d "
+            "services_skipped=%d", ll_list_count(&host_list),
+            ll_list_count(&queue_list), ll_list_count(&group_list),
+            ll_list_count(&service_list), services_skipped);
 
     return 0;
 }
