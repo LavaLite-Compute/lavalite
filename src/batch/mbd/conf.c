@@ -239,6 +239,12 @@ static struct mbd_host *make_host(const char *p)
         free(h);
         return NULL;
     }
+    /* reserved, HOSTS = all in llb.queues */
+    if (strcmp(hostname, "all") == 0) {
+        LL_ERRX("host name all is reserved: %s", p);
+        free(h);
+        return NULL;
+    }
 
     if (get_host_by_name(hostname, &h->net) < 0) {
         LL_ERR("get_host_by_name failed host=%s", hostname);
@@ -385,6 +391,12 @@ static struct mbd_group *make_group(char *p)
     rtrim(name);
     rtrim(members);
 
+    /* reserved, HOSTS = all in llb.queues */
+    if (strcmp(name, "all") == 0) {
+        LL_ERRX("group name all is reserved");
+        return NULL;
+    }
+
     g = calloc(1, sizeof(*g));
     if (g == NULL) {
         LL_ERR("calloc failed");
@@ -487,7 +499,8 @@ static int commit_queue(struct queue_conf *qc)
     }
 
     if (qc->hosts_spec[0] == 0) {
-        LL_ERRX("queue=%s missing HOSTS", qc->name);
+        LL_ERRX("queue=%s missing HOSTS, use HOSTS = all for every host",
+                qc->name);
         return -1;
     }
 
@@ -702,6 +715,12 @@ static int parse_sim(const char *path)
             return -1;
         }
 
+        if (strcmp(sim_name, "all") == 0) {
+            LL_ERRX("sim name all is reserved");
+            fclose(f);
+            return -1;
+        }
+
         if (port < 1 || port > 65535) {
             LL_ERRX("sim=%s invalid port=%d", sim_name, port);
             fclose(f);
@@ -823,7 +842,14 @@ static int conf_expand_queues(void)
         while (tok != NULL) {
             struct mbd_group *g =
                 (struct mbd_group *) ll_hash_search(&group_name_hash, tok);
-            if (g != NULL) {
+            if (strcmp(tok, "all") == 0) {
+                /* every host in llb.hosts, sims included */
+                for (struct ll_list_entry *he = host_list.head; he != NULL;
+                     he = he->next) {
+                    struct mbd_host *h = (struct mbd_host *) he;
+                    queue_add_host(q, h->net.name);
+                }
+            } else if (g != NULL) {
                 char gtmp[LL_BUFSIZ_1K];
                 ll_strlcpy(gtmp, g->members, sizeof(gtmp));
                 char *inner_save;

@@ -104,7 +104,9 @@ Jobs request tokens with **bsub --tokens**.
 ## Begin HostGroup / End HostGroup
 
 Defines named groups of hosts. Host groups are referenced by
-**HOSTS** in **llb.queues** and by **bsub --machines**.
+**HOSTS** in **llb.queues** and by **bsub --machines**. No host, sim
+or group may be named **all**: the name is reserved for **HOSTS = all**
+in **llb.queues**, and mbd refuses to start.
 
     Begin HostGroup
     GROUP_NAME    GROUP_MEMBER
@@ -113,7 +115,7 @@ Defines named groups of hosts. Host groups are referenced by
     End HostGroup
 
 **GROUP_NAME**
-:   Name of the host group.
+:   Name of the host group. **all** is reserved, see **llb.queues**(5).
 
 **GROUP_MEMBER**
 :   Parenthesised, space-separated list of host names belonging to

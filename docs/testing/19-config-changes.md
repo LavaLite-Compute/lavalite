@@ -279,6 +279,36 @@ then lower to `GPU_IDS = 0`.
 
 ---
 
+## TEST-310: HOSTS = all
+
+### Setup
+
+1. In a queue replace the `HOSTS` line with `HOSTS = all`.
+2. Then comment the `HOSTS` line out.
+3. Then add a HostGroup named `all` to `llb.hosts`.
+
+Restart `mbd` after each step.
+
+### Commands
+
+```sh
+bqueues -l <queue>
+bsub -q <queue> -m <host> sleep 10
+grep -E "missing HOSTS|reserved" <mbd log>
+```
+
+### Expected Result
+
+1. `bqueues -l` lists every host in `llb.hosts`, the job runs on any
+   of them, `-m <host>` included.
+2. `mbd` exits: `queue=<queue> missing HOSTS, use HOSTS = all for
+   every host`.
+3. `mbd` exits: `group name all is reserved`.
+
+### Pass Criteria
+
+`all` is every host, and is never a name.
+
 ## Completion Criteria
 
 The configuration test set passes when:
@@ -288,5 +318,6 @@ The configuration test set passes when:
 - The summary line counts what was loaded and skipped.
 - Lowering CPU, memory or GPUs under running jobs keeps `mbd` up and
   drains the host.
+- `HOSTS = all` means every host, `all` is reserved.
 - Removing a service with live instances: see TEST-248 in
   `18-robustness.md`.

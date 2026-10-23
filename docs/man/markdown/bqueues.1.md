@@ -109,7 +109,9 @@ Each queue is displayed as a block with the following fields:
 :   Users allowed to submit to this queue. **all** if unrestricted.
 
 **Hosts**
-:   Hosts eligible to run jobs from this queue. **all** if unrestricted.
+:   Hosts eligible to run jobs from this queue, **HOSTS = all**
+    expanded to the host names. **none** if the queue has no valid
+    host: it schedules nothing.
 
 **Jobs**
 :   Running, pending, held, and suspended job counts.

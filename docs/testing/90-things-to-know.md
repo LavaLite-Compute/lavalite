@@ -111,6 +111,11 @@ filing a test failure.
   the line `hosts=N queues=N groups=N services=N services_skipped=N`
   in the `mbd` log.
 
+- **`HOSTS = all`** in `llb.queues` means every host in `llb.hosts`.
+  `all` is reserved: a host, sim or HostGroup named `all` stops `mbd`.
+  A queue with no `HOSTS` line stops `mbd` too; there is no implicit
+  all.
+
 - **Lowering capacity drains a host.** Lowering `CPU`, `MEM`,
   `STORAGE` or the GPUs below what running jobs use is legal: the jobs
   keep running, `bhosts -l` shows used above total, and the host gets

@@ -40,8 +40,11 @@ Multiple queues may be defined in the same file.
     Required.
 
 **HOSTS**
-:   Host group that this queue dispatches jobs to. Must match a group
-    defined in **llb.hosts**. Required.
+:   Hosts this queue dispatches jobs to: space-separated host names,
+    host groups defined in **llb.hosts**, or **all** for every host in
+    **llb.hosts**. Required: a queue without **HOSTS** stops mbd. A
+    name not in **llb.hosts** is skipped with a log line; a queue left
+    with no host is kept and schedules nothing.
 
 **USERS**
 :   Space-separated list of users allowed to submit to this queue.
@@ -64,6 +67,13 @@ Multiple queues may be defined in the same file.
     PRIORITY    = 50
     HOSTS       = group-gpu
     DESCRIPTION = GPU workloads
+    End Queue
+
+    Begin Queue
+    QUEUE_NAME  = normal
+    PRIORITY    = 10
+    HOSTS       = all
+    DESCRIPTION = Every host in llb.hosts
     End Queue
 
     Begin Queue
