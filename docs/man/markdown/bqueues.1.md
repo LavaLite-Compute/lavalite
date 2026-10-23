@@ -85,13 +85,6 @@ Displays a table with the following columns:
 **SUSP**
 :   Suspended jobs.
 
-**USED_CPUS**
-:   CPU slots currently in use by jobs in this queue.
-
-**USED_HOSTS**
-:   Sum of the hosts used by jobs in this queue. A host used by multiple
-    jobs is counted once for each job.
-
 ## Long format (-l)
 
 Each queue is displayed as a block with the following fields:
@@ -122,8 +115,8 @@ Each queue is displayed as a block with the following fields:
 :   Running, pending, held, and suspended job counts.
 
 **Usage**
-:   CPUs used and hosts used by jobs in the queue, corresponding to
-    **USED_CPUS** and **USED_HOSTS** in the table.
+:   CPU slots in use by jobs in the queue, and the sum of the hosts
+    they use: a host used by several jobs is counted once per job.
 
 # SEE ALSO
 

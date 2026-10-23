@@ -8,49 +8,54 @@ date: 2026
 
 # NAME
 
-bservices - list, start, and delete service instances
+bservices - show, start, and delete service instances
 
 # SYNOPSIS
 
-**bservices**
+**bservices** [**-a**] [**-l**] [*name*...]
 
-**bservices** [**-t** [*hours*:]*minutes*] *name*
-
-**bservices** **-l** [*name*...]
+**bservices** **-s** *name* [**-t** [*hours*:]*minutes*]
 
 **bservices** **-d** *job_id*|*endpoint*
 
 # DESCRIPTION
 
-Manage instances of services defined in **llb.services**.
-
-Without arguments, lists configured services and their active instances.
+Show the services defined in **llb.services** and their instances,
+start an instance, or delete one. Without **-s** or **-d** the command
+only shows, like **bqueues** and **bhosts**.
 
 Each service instance runs as a job in its configured queue.
 Scheduling depends on queue availability, job limits, and available
-host resources.
-
-Starting a service prints its HTTP URL when the instance is running.
-Multiple instances of the same service may run simultaneously.
+host resources. Multiple instances of the same service may run
+simultaneously.
 
 # OPTIONS
 
-*name*
-:   Start an instance of the named service defined in **llb.services**.
-
-**-t**, **--time** [*hours*:]*minutes*
-:   Run limit of the instance, at most the service's **RUNLIMIT**.
-    Without it the instance gets **RUNLIMIT**. The limit counts from the
-    first start and is not reset when the instance restarts; once it is
-    reached the instance is stopped and not restarted.
-
-**-l**, **--long** [*name*...]
-:   One block per service: queue, restart policy, instance counts and
-    all its instances. Names select the services to show; an unknown
-    name is reported on stderr and the exit status is non-zero.
+*name*...
+:   Show only the named services. An unknown name is reported on
+    stderr and the exit status is non-zero.
 
 **-a**, **--all**
-:   List configured services and all retained instances, including finished ones.
+:   Include finished instances still retained by mbd.
+
+**-l**, **--long**
+:   One block per service with its definition: queue, type, port,
+    restart policy, run limit, token environment variable, command and
+    instance counts. Instances are not listed, use **bservices** for
+    them.
+
+**-s**, **--start** *name*
+:   Start an instance of the named service. The command blocks until
+    the instance runs, then prints its job ID and URL. Interrupting it
+    (**^C**) while the instance is still pending deletes the instance;
+    once dispatched it keeps running.
+
+**-t**, **--time** [*hours*:]*minutes*
+:   With **-s** only. Run limit of the instance, at most the service's
+    **RUNLIMIT**. Without it the instance gets **RUNLIMIT**. The limit
+    counts from the first start and is not reset when the instance
+    restarts; once it is reached the instance is stopped and not
+    restarted.
 
 **-d**, **--delete** *job_id*|*endpoint*
 :   Delete the service instance identified by its job ID, or by its
@@ -59,9 +64,6 @@ Multiple instances of the same service may run simultaneously.
     instances can be deleted by job ID. Prints
     **Service <...> is being deleted**: a running instance ends when
     sbd reports it finished.
-
-Interrupting **bservices** *name* (**^C**) while the instance is still
-pending deletes the instance. Once dispatched it keeps running.
 
 **-h**, **--help**
 :   Print usage to stderr and exit.
@@ -73,42 +75,64 @@ pending deletes the instance. Once dispatched it keeps running.
 
 ## Starting a service
 
-Prints the URL of the running instance:
+Prints the job ID and the URL of the running instance, with the token
+when the service has **TOKEN_ENV**:
 
-    http://worker4:30000
+    Job <3> http://worker4:30000/?token=3adf689f99445585f4564b12f98de424
 
 The port is the external port on the execution host. It may differ
 from the application port inside the service's network namespace.
 
 ## Listing services
 
-Services are grouped by name and queue. Each instance has the
-following fields:
+One line per service, **NAME**, **QUEUE** and **RESTART**, followed by
+its instances. A user sees their own instances, a manager all of them.
+Each instance has the following fields:
 
 **USER**
 :   User who owns the instance.
 
-**PORT**
-:   External port on the execution host.
+**HOST:PORT**
+:   Execution host and external port, **-** unless the instance runs.
 
 **JOB_ID**
-:   Job ID assigned to the instance.
-
-**RUN_HOST**
-:   Host running the instance.
+:   Job ID of the instance.
 
 **STATUS**
-:   Current instance status.
+:   **PEND**, **DISP** (dispatched, not started yet, as in **bjobs**),
+    **RUN** or **FINISH**.
+
+**TOKEN**
+:   The instance token, shown to its owner only, **-** otherwise.
+
+## Long format (-l)
+
+    SERVICE: echotest
+      Queue:       service-2.0
+      Type:        user
+      Port:        8888
+      Restart:     always
+      Run limit:   0:10
+      Token env:   ECHO_TOKEN
+      Command:     apptainer exec ... $LL_SVC_PORT
+      Instances:   running: 1    pending: 0    finished: 3
+
+Empty settings are shown as **-**. The instance counts are for all
+users; a dispatched instance not started yet counts as pending.
 
 # EXAMPLES
 
 Start an instance of **echotest**:
 
-    bservices echotest
+    bservices -s echotest
 
 List configured services and their instances:
 
     bservices
+
+Show the definition of **echotest**:
+
+    bservices -l echotest
 
 Delete an instance using its host and external port:
 

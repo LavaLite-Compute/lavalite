@@ -27,7 +27,7 @@ wait_stat() {
 bservices 2>/dev/null | grep -q "^$SVC " \
     || { echo "SKIP: $NAME service $SVC not configured"; exit 0; }
 
-OUT=$(timeout 60 bservices $SVC 2>&1)
+OUT=$(timeout 60 bservices -s $SVC 2>&1)
 JID=$(echo "$OUT" | grep -oP 'Job <\K[0-9]+')
 EP=$(echo "$OUT" | grep -oP 'http://\K[^/ ]+')
 [ -z "$JID" ] && fail "start failed: $OUT"
@@ -43,7 +43,7 @@ bservices -d $JID >/dev/null 2>&1 || fail "delete by job id failed"
 wait_stat $JID FINISH 15 || fail "expected FINISH got $(svc_stat $JID)"
 
 # delete by host:port
-OUT=$(timeout 60 bservices $SVC 2>&1)
+OUT=$(timeout 60 bservices -s $SVC 2>&1)
 JID=$(echo "$OUT" | grep -oP 'Job <\K[0-9]+')
 EP=$(echo "$OUT" | grep -oP 'http://\K[^/ ]+')
 [ -z "$JID" ] && fail "second start failed: $OUT"

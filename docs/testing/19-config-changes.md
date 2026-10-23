@@ -66,7 +66,7 @@ Restart `mbd`, then:
 
 ```sh
 bservices
-bservices noqueue
+bservices -s noqueue
 grep noqueue <mbd log>
 ```
 

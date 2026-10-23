@@ -249,6 +249,12 @@ static void svc_inst_to_wire(const struct service_instance *inst,
     w->job_id = inst->job_id;
     w->status = inst->status;
 
+    /* DISP, as bjobs: dispatched, no pid yet, display only */
+    struct job_data *job = job_find(inst->job_id);
+    if (inst->status == SVC_PENDING && job != NULL
+        && job->state == JOB_RUNNING && job->pid == 0)
+        w->status = SVC_DISP;
+
     if (inst->run_host[0] != 0)
         ll_strlcpy(w->run_host, inst->run_host, sizeof(w->run_host));
 
@@ -281,12 +287,25 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
         ll_strlcpy(wsvc->name, svc->name, sizeof(wsvc->name));
         ll_strlcpy(wsvc->queue, svc->queue, sizeof(wsvc->queue));
         wsvc->restart_never = svc->restart == LL_SERVICE_RESTART_NEVER;
+        wsvc->daemon = svc->type == LL_SERVICE_DAEMON;
+        wsvc->port = svc->port;
+        wsvc->run_limit = svc->run_limit;
+        ll_strlcpy(wsvc->token_env, svc->token_env, sizeof(wsvc->token_env));
+        ll_strlcpy(wsvc->command, svc->command, sizeof(wsvc->command));
 
         uint32_t ninstances = 0;
 
         for (struct ll_list_entry *ie = svc->instances.head; ie != NULL;
              ie = ie->next) {
             struct service_instance *inst = (struct service_instance *) ie;
+
+            /* counts are for all users, as bqueues */
+            if (inst->status == SVC_RUNNING)
+                wsvc->num_run++;
+            else if (inst->status == SVC_PENDING)
+                wsvc->num_pend++;
+            else
+                wsvc->num_finish++;
 
             if (!all && inst->uid != uid)
                 continue;

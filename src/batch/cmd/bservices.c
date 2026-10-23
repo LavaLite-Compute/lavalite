@@ -155,31 +155,31 @@ static void print_services(const struct svc_info *s, int32_t n, int all)
     }
 }
 
-/* one block per service, like bqueues -l, all instances included */
+/* one block per service, like bqueues -l: the definition from
+ * llb.services and the instance counts of all users
+ */
 static void print_services_long(const struct svc_info *s, int32_t n)
 {
     for (int32_t i = 0; i < n; i++) {
-        int run = 0;
-        int pend = 0;
-        int finish = 0;
-
-        for (uint32_t j = 0; j < s[i].ninstances; j++) {
-            if (s[i].instances[j].status == SVC_RUNNING)
-                run++;
-            else if (s[i].instances[j].status == SVC_PENDING)
-                pend++;
-            else
-                finish++;
-        }
-
         if (i > 0)
             printf("\n");
         printf("SERVICE: %s\n", s[i].name);
         printf("  Queue:       %s\n", s[i].queue);
+        printf("  Type:        %s\n", s[i].daemon ? "daemon" : "user");
+        if (s[i].port > 0)
+            printf("  Port:        %d\n", s[i].port);
+        else
+            printf("  Port:        -\n");
         printf("  Restart:     %s\n", s[i].restart_never ? "never" : "always");
+        if (s[i].run_limit > 0)
+            printf("  Run limit:   %d:%02d\n", s[i].run_limit / 3600,
+                   (s[i].run_limit % 3600) / 60);
+        else
+            printf("  Run limit:   -\n");
+        printf("  Token env:   %s\n", s[i].token_env ? s[i].token_env : "-");
+        printf("  Command:     %s\n", s[i].command);
         printf("  Instances:   running: %d    pending: %d    finished: %d\n",
-               run, pend, finish);
-        print_instances(&s[i], 1);
+               s[i].num_run, s[i].num_pend, s[i].num_finish);
     }
 }
 
@@ -257,13 +257,17 @@ static int parse_job_id(const char *s, int64_t *job_id)
 
 static void usage(void)
 {
-    fprintf(stderr, "bservices: --help display this help and exit\n"
-            "  bservices NAME  start a service defined in llb.services\n"
-            "  -t, --time [h:]m run limit, at most the service RUNLIMIT\n"
-            "  -a, --all list configured services and all retained instances\n"
-            "  -l, --long [NAME...] one block per service\n"
-            "  -d, --delete JOB_ID|HOST:PORT delete a service instance\n"
-            "  --version output version information and exit\n");
+    fprintf(stderr,
+            "Usage: bservices [-a] [-l] [NAME...]\n"
+            "       bservices -s NAME [-t [h:]m]\n"
+            "       bservices -d JOB_ID|HOST:PORT\n"
+            "  -a, --all       include finished instances\n"
+            "  -l, --long      one block per service, its definition\n"
+            "  -s, --start     start an instance of service NAME\n"
+            "  -t, --time      run limit, at most the service RUNLIMIT\n"
+            "  -d, --delete    delete a service instance\n"
+            "  -h, --help      display this help and exit\n"
+            "  -v, --version   output version information and exit\n");
 }
 
 static struct option longopts[] = {
@@ -271,106 +275,14 @@ static struct option longopts[] = {
     {"version", no_argument, NULL, 'v'},
     {"all", no_argument, NULL, 'a'},
     {"long", no_argument, NULL, 'l'},
+    {"start", required_argument, NULL, 's'},
     {"delete", required_argument, NULL, 'd'},
     {"time", required_argument, NULL, 't'},
     {NULL, 0, NULL, 0}
 };
 
-int main(int argc, char **argv)
+static int start_service(const char *name, int32_t run_limit)
 {
-    const char *delete_arg = NULL;
-    int all = 0;
-    int cc;
-    int list_fmt = 0;
-    int long_fmt = 0;
-    int32_t run_limit = 0;
-
-    while ((cc = getopt_long(argc, argv, "hvald:t:", longopts, NULL)) != EOF) {
-        switch (cc) {
-        case 'l':
-            long_fmt = 1;
-            list_fmt = 1;
-            break;
-        case 't':
-            if (llb_parse_time_limit(optarg, &run_limit) < 0) {
-                fprintf(stderr, "bservices: --time: invalid limit '%s'\n",
-                        optarg);
-                return -1;
-            }
-            break;
-        case 'd':
-            delete_arg = optarg;
-            break;
-        case 'a':
-            all = 1;
-            list_fmt = 1;
-            break;
-        case 'v':
-            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
-            return 0;
-        case 'h':
-        default:
-            usage();
-            return 0;
-        }
-    }
-
-    if (delete_arg != NULL) {
-        char host[MAXHOSTNAMELEN];
-        int64_t job_id = 0;
-        int port = 0;
-
-        host[0] = 0;
-        if (parse_job_id(delete_arg, &job_id) < 0
-            && parse_service_endpoint(delete_arg, host, sizeof(host),
-                                      &port) < 0) {
-            fprintf(stderr, "bservices: invalid job id or endpoint: %s\n",
-                    delete_arg);
-            return -1;
-        }
-
-        int rc = llb_service_delete(job_id, host, port);
-        if (rc != 0)
-            fprintf(stderr, "bservices: %s: %m\n", delete_arg);
-        else
-            printf("Service <%s> is being deleted\n", delete_arg);
-
-        return rc;
-    }
-
-    if (list_fmt || optind >= argc) {
-        int32_t nsvc = 0;
-        struct svc_info *s = llb_service_info(&nsvc);
-        if (s == NULL) {
-            if (nsvc == 0) {
-                printf("No services: %m\n");
-                return 0;
-            }
-            fprintf(stderr, "bservices: failed\n");
-            return -1;
-        }
-
-        /* names after -l select services, a bare name starts one */
-        int bad = 0;
-        int nprint = nsvc;
-        if (long_fmt && optind < argc)
-            nprint = select_services(s, nsvc, &argv[optind], argc - optind,
-                                     &bad);
-
-        if (long_fmt)
-            print_services_long(s, nprint);
-        else
-            print_services(s, nprint, all);
-        llb_free_service_info(s, nsvc);
-        return bad;
-    }
-
-    if (optind >= argc) {
-        usage();
-        return -1;
-    }
-
-    const char *name = argv[optind];
     struct svc_instance_info out;
     memset(&out, 0, sizeof(out));
 
@@ -384,10 +296,10 @@ int main(int argc, char **argv)
     }
 
     if (out.token != NULL)
-        printf("Job <%ld>: http://%s:%d/?token=%s\n",
+        printf("Job <%ld> http://%s:%d/?token=%s\n",
                out.job_id, out.run_host, out.port, out.token);
     else
-        printf("Job <%ld>: http://%s:%d\n",
+        printf("Job <%ld> http://%s:%d\n",
                out.job_id, out.run_host, out.port);
 
     free(out.service);
@@ -395,4 +307,109 @@ int main(int argc, char **argv)
     free(out.token);
 
     return 0;
+}
+
+static int delete_service(const char *arg)
+{
+    char host[MAXHOSTNAMELEN];
+    int64_t job_id = 0;
+    int port = 0;
+
+    host[0] = 0;
+    if (parse_job_id(arg, &job_id) < 0
+        && parse_service_endpoint(arg, host, sizeof(host), &port) < 0) {
+        fprintf(stderr, "bservices: invalid job id or endpoint: %s\n", arg);
+        return -1;
+    }
+
+    int rc = llb_service_delete(job_id, host, port);
+    if (rc != 0)
+        fprintf(stderr, "bservices: %s: %m\n", arg);
+    else
+        printf("Service <%s> is being deleted\n", arg);
+
+    return rc;
+}
+
+int main(int argc, char **argv)
+{
+    const char *delete_arg = NULL;
+    const char *start_arg = NULL;
+    int all = 0;
+    int cc;
+    int long_fmt = 0;
+    int32_t run_limit = 0;
+
+    while ((cc = getopt_long(argc, argv, "hvals:d:t:", longopts, NULL))
+           != EOF) {
+        switch (cc) {
+        case 'l':
+            long_fmt = 1;
+            break;
+        case 's':
+            start_arg = optarg;
+            break;
+        case 't':
+            if (llb_parse_time_limit(optarg, &run_limit) < 0) {
+                fprintf(stderr, "bservices: --time: invalid limit '%s'\n",
+                        optarg);
+                return -1;
+            }
+            break;
+        case 'd':
+            delete_arg = optarg;
+            break;
+        case 'a':
+            all = 1;
+            break;
+        case 'v':
+            fprintf(stderr, "%s\n", LAVALITE_VERSION_STR);
+            return 0;
+        case 'h':
+            usage();
+            return 0;
+        default:
+            usage();
+            return -1;
+        }
+    }
+
+    /* one action at a time: start, delete or view */
+    if ((start_arg && delete_arg)
+        || ((start_arg || delete_arg)
+            && (optind < argc || all || long_fmt))
+        || (run_limit > 0 && start_arg == NULL)) {
+        usage();
+        return -1;
+    }
+
+    if (start_arg != NULL)
+        return start_service(start_arg, run_limit);
+
+    if (delete_arg != NULL)
+        return delete_service(delete_arg);
+
+    int32_t nsvc = 0;
+    struct svc_info *s = llb_service_info(&nsvc);
+    if (s == NULL) {
+        if (nsvc == 0) {
+            printf("No services: %m\n");
+            return 0;
+        }
+        fprintf(stderr, "bservices: failed\n");
+        return -1;
+    }
+
+    /* names select services, as bqueues and bhosts */
+    int bad = 0;
+    int nprint = nsvc;
+    if (optind < argc)
+        nprint = select_services(s, nsvc, &argv[optind], argc - optind, &bad);
+
+    if (nprint > 0 && long_fmt)
+        print_services_long(s, nprint);
+    else if (nprint > 0)
+        print_services(s, nprint, all);
+    llb_free_service_info(s, nsvc);
+    return bad;
 }

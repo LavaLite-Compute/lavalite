@@ -17,7 +17,7 @@ svc_stat() {
 bservices 2>/dev/null | grep -q "^$SVC " \
     || { echo "SKIP: $NAME service $SVC not configured"; exit 0; }
 
-OUT=$(timeout 60 bservices --time 1 $SVC 2>&1)
+OUT=$(timeout 60 bservices -s $SVC --time 1 2>&1)
 JID=$(echo "$OUT" | grep -oP 'Job <\K[0-9]+')
 [ -z "$JID" ] && fail "start failed: $OUT"
 echo "RUN: $NAME jobid=$JID"

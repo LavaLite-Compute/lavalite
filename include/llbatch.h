@@ -213,12 +213,21 @@ enum svc_status {
     SVC_PENDING,
     SVC_RUNNING,
     SVC_FINISH,
+    SVC_DISP, /* reporting only: PENDING with the job dispatched, no pid */
 };
 
 struct svc_info {
     char *name;
     char *queue;
     int32_t restart_never; /* 0 RESTART=always, 1 RESTART=never */
+    int32_t daemon;        /* 0 TYPE=user, 1 TYPE=daemon */
+    int32_t port;          /* PORT, 0 for a daemon */
+    int32_t run_limit;     /* RUNLIMIT seconds, 0 = none */
+    char *token_env;       /* TOKEN_ENV, NULL if not set */
+    char *command;
+    int32_t num_run;       /* instance counts, all users */
+    int32_t num_pend;
+    int32_t num_finish;
     uint32_t ninstances;
     struct svc_instance_info *instances;
 };

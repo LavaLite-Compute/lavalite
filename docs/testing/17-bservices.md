@@ -56,7 +56,7 @@ Every `Begin Service` block is listed.
 ### Commands
 
 ```sh
-bservices echotest
+bservices -s echotest
 ```
 
 ### Expected Result
@@ -64,7 +64,7 @@ bservices echotest
 The command blocks until the instance runs, then prints:
 
 ```text
-Job <N>: http://<host>:<port>/?token=<token>
+Job <N> http://<host>:<port>/?token=<token>
 ```
 
 ### Pass Criteria
@@ -204,7 +204,7 @@ bqueues --close <queue>
 Terminal 1:
 
 ```sh
-bservices echotest
+bservices -s echotest
 ```
 
 Terminal 2:
@@ -241,7 +241,7 @@ Close the queue as in TEST-207.
 ### Commands
 
 ```sh
-bservices echotest
+bservices -s echotest
 ```
 
 Wait at least one minute, then open the queue.
@@ -295,7 +295,7 @@ A copy of `echotest` named `echoonce` with `RESTART = never`.
 
 ### Commands
 
-Start it, kill the app as in TEST-209, then `bservices -a`.
+Start it with `bservices -s echoonce`, kill the app as in TEST-209, then `bservices -a`.
 
 ### Expected Result
 
@@ -360,7 +360,7 @@ Only the owner or a manager can delete.
 ### Commands
 
 ```sh
-bservices --time 1 echotest
+bservices -s echotest --time 1
 ```
 
 Wait about 70 seconds.
@@ -387,8 +387,8 @@ The run limit stops the service for good.
 ### Commands
 
 ```sh
-bservices --time 20 echotest
-bservices echotest
+bservices -s echotest --time 20
+bservices -s echotest
 ```
 
 ### Expected Result
@@ -408,7 +408,7 @@ The user may only ask for less than `RUNLIMIT`.
 ### Commands
 
 ```sh
-bservices --time 3 echotest
+bservices -s echotest --time 3
 ```
 
 After one minute kill the app as in TEST-209. Let it restart.
@@ -451,10 +451,10 @@ The instance survives the `mbd` restart.
 ### Commands
 
 ```sh
-bservices nosuchservice
+bservices -s nosuchservice
 bservices -d 99999999
 bservices -d banana
-bservices --time abc echotest
+bservices -s echotest --time abc
 ```
 
 ### Expected Result
@@ -476,7 +476,7 @@ Close the service queue as in TEST-207.
 ### Commands
 
 ```sh
-bservices echotest
+bservices -s echotest
 ```
 
 Press `^C` while it waits, then:
@@ -506,28 +506,94 @@ bqueues --open <queue>
 
 ---
 
-## TEST-219: Long format and names
+## TEST-219: Show without starting
 
 ### Commands
 
 ```sh
+bservices echotest
+bservices echotest nosuchservice
 bservices -l
 bservices -l echotest
-bservices -l nosuchservice
 bqueues <queue>
-bhosts -l <host>
+bhosts <host>
 ```
 
 ### Expected Result
 
-- `-l` prints one block per service: queue, restart, instance counts,
-  instances.
-- Names select what is shown; an unknown name prints `no such ...`
-  and the exit status is non-zero.
+- `bservices echotest` shows the service and its instances, it does
+  not start one: `bjobs` has no new job.
+- `-l` prints one block per service with its definition: queue,
+  type, port, restart, run limit, token env, command, instance counts.
+  No instance rows.
+- An unknown name prints `no such service` and the exit status is
+  non-zero; the known names are still shown.
 
 ### Pass Criteria
 
-All three commands accept names.
+A name selects what is shown, as in `bqueues` and `bhosts`. Only `-s`
+starts an instance.
+
+---
+
+## TEST-220: Bad option combinations
+
+### Commands
+
+```sh
+bservices -s echotest -d 1
+bservices -t 5
+bservices -s echotest otherservice
+bservices -d 1 -l
+```
+
+### Expected Result
+
+Each prints the usage and exits non-zero. No instance is started or
+deleted.
+
+### Pass Criteria
+
+One action per command: show, start or delete.
+
+---
+
+## TEST-221: DISP
+
+### Setup
+
+Root on the execution hosts of the service queue. Freeze `sbd` on all
+of them, as in TEST-196:
+
+```sh
+kill -STOP $(pidof sbd)
+```
+
+### Commands
+
+Terminal 1:
+
+```sh
+bservices -s echotest
+```
+
+Terminal 2, after a few seconds:
+
+```sh
+bservices
+bjobs <N>
+```
+
+Then thaw `sbd` (`kill -CONT`).
+
+### Expected Result
+
+- While `sbd` is stopped `bservices` and `bjobs` both show `DISP`.
+- After `SIGCONT` terminal 1 prints the endpoint, both show `RUN`.
+
+### Pass Criteria
+
+`bservices` and `bjobs` agree on the state.
 
 ## Completion Criteria
 
@@ -542,3 +608,5 @@ The `bservices` test set passes when:
 - Run limits stop a service for good and survive restarts.
 - An instance survives an `mbd` restart.
 - `^C` on a pending start deletes the instance.
+- A name only shows a service, `-s` starts, `-l` shows the definition.
+- `bservices` shows `DISP` as `bjobs` does.

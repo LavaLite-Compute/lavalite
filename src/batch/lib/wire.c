@@ -504,6 +504,22 @@ bool_t xdr_wire_svc_info(XDR *xdrs, struct wire_svc_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->restart_never))
         return false;
+    if (!xdr_int32_t(xdrs, &p->daemon))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->port))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->run_limit))
+        return false;
+    if (!xdr_opaque(xdrs, p->token_env, sizeof(p->token_env)))
+        return false;
+    if (!xdr_opaque(xdrs, p->command, sizeof(p->command)))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_run))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_pend))
+        return false;
+    if (!xdr_int32_t(xdrs, &p->num_finish))
+        return false;
 
     return xdr_array(xdrs,
                      (char **)&p->instances,

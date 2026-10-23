@@ -26,8 +26,6 @@ struct col_widths {
     int held;
     int run;
     int susp;
-    int used_cpus;
-    int used_hosts;
 };
 
 static int imax(int a, int b)
@@ -59,8 +57,6 @@ static void compute_widths(struct queue_info *q, int32_t n,
     w->held = strlen("HELD");
     w->run = strlen("RUN");
     w->susp = strlen("SUSP");
-    w->used_cpus = strlen("USED_CPUS");
-    w->used_hosts = strlen("USED_HOSTS");
 
     for (int i = 0; i < n; i++) {
         int njobs =
@@ -74,8 +70,6 @@ static void compute_widths(struct queue_info *q, int32_t n,
         w->held = imax(w->held, ndigits(q[i].num_held));
         w->run = imax(w->run, ndigits(q[i].num_run));
         w->susp = imax(w->susp, ndigits(q[i].num_susp));
-        w->used_cpus = imax(w->used_cpus, ndigits(q[i].num_cpus_used));
-        w->used_hosts = imax(w->used_hosts, ndigits(q[i].num_hosts_used));
     }
 }
 
@@ -255,22 +249,21 @@ int main(int argc, char **argv)
     }
     compute_widths(q, nprint, &w);
 
-    printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s  %*s\n", w.name,
+    /* CPUs and hosts used are in -l only */
+    printf("%-*s  %-*s  %-*s  %*s  %*s  %*s  %*s  %*s  %*s\n", w.name,
            "QUEUE_NAME", w.prio, "PRIO", w.status, "STATUS", w.max, "MAX",
            w.njobs, "NJOBS", w.pend, "PEND", w.held, "HELD", w.run, "RUN",
-           w.susp, "SUSP", w.used_cpus, "USED_CPUS", w.used_hosts,
-           "USED_HOSTS");
+           w.susp, "SUSP");
 
     for (int i = 0; i < nprint; i++) {
         char maxbuf[16];
 
-        printf("%-*s  %-*d  %-*s  %*s  %*d  %*d  %*d  %*d  %*d  %*d  %*d\n",
+        printf("%-*s  %-*d  %-*s  %*s  %*d  %*d  %*d  %*d  %*d\n",
                w.name, q[i].name, w.prio, q[i].priority, w.status,
                queue_status_str(q[i].status), w.max,
                max_str(q[i].max_jobs, maxbuf, sizeof(maxbuf)), w.njobs,
                q[i].num_jobs, w.pend, q[i].num_pend, w.held, q[i].num_held,
-               w.run, q[i].num_run, w.susp, q[i].num_susp, w.used_cpus,
-               q[i].num_cpus_used, w.used_hosts, q[i].num_hosts_used);
+               w.run, q[i].num_run, w.susp, q[i].num_susp);
     }
 
     llb_free_queue_info(q, n);

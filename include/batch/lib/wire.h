@@ -346,6 +346,14 @@ struct wire_svc_info {
     char name[LL_BUFSIZ_64];
     char queue[LL_BUFSIZ_64];
     int32_t restart_never;
+    int32_t daemon;
+    int32_t port;
+    int32_t run_limit;
+    char token_env[LL_BUFSIZ_64];
+    char command[LL_BUFSIZ_1K];
+    int32_t num_run; /* instance counts, all users */
+    int32_t num_pend;
+    int32_t num_finish;
     uint32_t ninstances;
     struct wire_svc_instance_info *instances;
 };

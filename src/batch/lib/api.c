@@ -883,11 +883,24 @@ struct svc_info *llb_service_info(int32_t *nsvc)
 
         dst->name = strdup(src->name);
         dst->queue = strdup(src->queue);
+        dst->command = strdup(src->command);
 
-        if (dst->name == NULL || dst->queue == NULL)
+        if (dst->name == NULL || dst->queue == NULL || dst->command == NULL)
             goto fail;
 
+        if (src->token_env[0] != '\0') {
+            dst->token_env = strdup(src->token_env);
+            if (dst->token_env == NULL)
+                goto fail;
+        }
+
         dst->restart_never = src->restart_never;
+        dst->daemon = src->daemon;
+        dst->port = src->port;
+        dst->run_limit = src->run_limit;
+        dst->num_run = src->num_run;
+        dst->num_pend = src->num_pend;
+        dst->num_finish = src->num_finish;
         dst->ninstances = src->ninstances;
 
         if (src->ninstances == 0)
@@ -936,6 +949,8 @@ fail:
     for (uint32_t i = 0; i < w.nsvc; i++) {
         free(out[i].name);
         free(out[i].queue);
+        free(out[i].command);
+        free(out[i].token_env);
 
         if (out[i].instances != NULL) {
             for (uint32_t j = 0; j < out[i].ninstances; j++) {
@@ -964,6 +979,8 @@ void llb_free_service_info(struct svc_info *s, int32_t n)
     for (int32_t i = 0; i < n; i++) {
         free(s[i].name);
         free(s[i].queue);
+        free(s[i].command);
+        free(s[i].token_env);
 
         for (uint32_t j = 0; j < s[i].ninstances; j++) {
             free(s[i].instances[j].service);
@@ -1163,6 +1180,8 @@ const char *llb_svc_status_str(int32_t state)
         return "RUN";
     case SVC_FINISH:
         return "FINISH";
+    case SVC_DISP:
+        return "DISP";
     default:
         return "BADSTATE";
     }

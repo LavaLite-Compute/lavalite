@@ -60,8 +60,10 @@ filing a test failure.
   (TEST-248). Delete the instances (`bservices -d`) before removing
   the service.
 
-- **`bservices` shows `PEND` during the dispatch window**, `bjobs`
-  shows `DISP` for the same job.
+- **`RESTART` belongs to the instance.** It is fixed when the
+  instance is created and kept across `mbd` restarts. Changing
+  `RESTART` in `llb.services` affects new instances only; instances
+  already pending or running keep the policy they were started with.
 
 ## Time limits
 
