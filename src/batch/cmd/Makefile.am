@@ -25,3 +25,18 @@ bservices_SOURCES   = bservices.c $(COMMON_CMD_SOURCES)
 
 EXTRA_DIST = Make.common
 
+
+# bhist reads the manifest as the mbd group, see etc/post-install.sh.
+# install replaces it root:root 755, put the group and setgid back
+# when root and ll.conf is installed. chgrp first, it clears setgid.
+install-exec-hook:
+	@conf=$(DESTDIR)$(sysconfdir)/ll.conf; \
+	user=`grep '^LL_MBD_USER' $$conf 2>/dev/null | cut -d= -f2`; \
+	group=`id -gn "$$user" 2>/dev/null`; \
+	bhist=$(DESTDIR)$(bindir)/bhist; \
+	if [ -n "$$user" ] && [ -n "$$group" ] && [ "`id -u`" = 0 ]; then \
+	    chgrp "$$group" $$bhist && chmod 2755 $$bhist && \
+	    echo "bhist: setgid group $$group"; \
+	else \
+	    echo "bhist: not setgid, run post-install.sh as root"; \
+	fi
