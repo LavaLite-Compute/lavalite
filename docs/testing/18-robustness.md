@@ -103,27 +103,52 @@ seconds before resuming `sbd`.
 
 No timeout fires for a job whose `sbd` is not connected.
 
-### TEST-232: Lost reply, sbd reconnects (manual)
+### TEST-232: Lost pid reply, sbd reconnects (manual)
+
+sbd is alive and starts the job, only its reply to mbd is lost.
 
 #### Commands
 
+On worker1, as root, drop what sbd sends to mbd:
+
 ```sh
-iptables -A OUTPUT -p tcp --dport $LL_MBD_PORT -j DROP   # worker1
+iptables -A OUTPUT -p tcp --dport <LL_MBD_PORT> -j DROP
+```
+
+From any host:
+
+```sh
 bsub --machines worker1 sleep 600
-# wait for UNKNOWN
-iptables -D OUTPUT -p tcp --dport $LL_MBD_PORT -j DROP
+bjobs <jobid>                  # DISP, then UNKNOWN within 40 seconds
+```
+
+On worker1, once the job is UNKNOWN:
+
+```sh
+ps -ef | grep 'sleep 600'      # the job runs although mbd has no pid
+iptables -D OUTPUT -p tcp --dport <LL_MBD_PORT> -j DROP
+```
+
+Then:
+
+```sh
+bjobs <jobid>
+bhist -l <jobid>
 ```
 
 #### Expected Result
 
-`UNKNOWN`, then `RUN` once `sbd` reconnects. How long `sbd` takes to
-notice depends on TCP retransmission and keepalive.
+- mbd logs `no pid from sbd=worker1`, the job is UNKNOWN, worker1
+  unavail.
+- After the rule is removed sbd reconnects, typically within a minute:
+  its pending reply hits a closed socket and is reset. The longer the
+  drop lasted, the longer TCP backoff makes this wait.
+- The job is RUN on worker1, `bhist -l` shows one Dispatched and one
+  Forked, `ps` shows one `sleep 600`.
 
 #### Pass Criteria
 
-The job reaches `RUN` without being dispatched again.
-
----
+A lost reply never starts the job twice: same process, one dispatch.
 
 ## Host taint
 
