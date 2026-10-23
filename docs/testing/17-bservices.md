@@ -524,7 +524,8 @@ bhosts <host>
 - `bservices echotest` shows the service and its instances, it does
   not start one: `bjobs` has no new job.
 - `-l` prints one block per service with its definition: queue,
-  type, port, restart, run limit, token env, command, instance counts.
+  type, port, restart, run limit, token env, instance counts, and the
+  command last.
   No instance rows.
 - An unknown name prints `no such service` and the exit status is
   non-zero; the known names are still shown.

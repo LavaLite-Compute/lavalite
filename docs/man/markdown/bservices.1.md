@@ -40,8 +40,8 @@ simultaneously.
 
 **-l**, **--long**
 :   One block per service with its definition: queue, type, port,
-    restart policy, run limit, token environment variable, command and
-    instance counts. Instances are not listed, use **bservices** for
+    restart policy, run limit, token environment variable, instance
+    counts and command. Instances are not listed, use **bservices** for
     them.
 
 **-s**, **--start** *name*
@@ -114,8 +114,8 @@ Each instance has the following fields:
       Restart:     always
       Run limit:   0:10
       Token env:   ECHO_TOKEN
-      Command:     apptainer exec ... $LL_SVC_PORT
       Instances:   running: 1    pending: 0    finished: 3
+      Command:     apptainer exec ... $LL_SVC_PORT
 
 Empty settings are shown as **-**. The instance counts are for all
 users; a dispatched instance not started yet counts as pending.

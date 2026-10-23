@@ -177,9 +177,10 @@ static void print_services_long(const struct svc_info *s, int32_t n)
         else
             printf("  Run limit:   -\n");
         printf("  Token env:   %s\n", s[i].token_env ? s[i].token_env : "-");
-        printf("  Command:     %s\n", s[i].command);
         printf("  Instances:   running: %d    pending: %d    finished: %d\n",
                s[i].num_run, s[i].num_pend, s[i].num_finish);
+        /* last: the longest line, it would shadow the counts */
+        printf("  Command:     %s\n", s[i].command);
     }
 }
 
