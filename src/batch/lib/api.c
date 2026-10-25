@@ -864,13 +864,8 @@ struct svc_info *llb_service_info(int32_t *nsvc)
     xdr_destroy(&xdrs);
     free(rep);
 
-    if (w.nsvc == 0) {
-        xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
-        *nsvc = 0;
-        return NULL;
-    }
-
-    struct svc_info *out = calloc(w.nsvc, sizeof(*out));
+    /* NULL is an error, no services is an empty array and *nsvc 0 */
+    struct svc_info *out = calloc(w.nsvc > 0 ? w.nsvc : 1, sizeof(*out));
     if (out == NULL) {
         xdr_free((xdrproc_t) xdr_wire_svc_info_array, (char *) &w);
         errno = ENOMEM;

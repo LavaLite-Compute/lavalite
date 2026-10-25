@@ -550,8 +550,9 @@ bservices -d 1 -l
 
 ### Expected Result
 
-Each prints the usage and exits non-zero. No instance is started or
-deleted.
+Each prints why (`-s and -d are exclusive`, `-t needs -s`, `-s and -d
+take no names, -a or -l`) and exits non-zero. No instance is started
+or deleted.
 
 ### Pass Criteria
 

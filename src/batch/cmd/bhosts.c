@@ -175,6 +175,7 @@ static int select_hosts(struct host_info *h, int n, char **names,
             *bad = 1;
             continue;
         }
+        /* a name given twice is already at the front */
         if (i < m)
             continue;
         struct host_info tmp = h[m];

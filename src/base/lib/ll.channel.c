@@ -392,11 +392,11 @@ done:
     return 0;
 
 fail: {
-    int save_errno = errno;
-    fcntl(fd, F_SETFL, flags);
-    errno = save_errno;
-    return -1;
-}
+        int save_errno = errno;
+        fcntl(fd, F_SETFL, flags);
+        errno = save_errno;
+        return -1;
+    }
 }
 
 int chan_send_dgram(int chan_id, char *buf, size_t len,

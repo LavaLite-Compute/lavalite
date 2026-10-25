@@ -153,6 +153,7 @@ static int select_queues(struct queue_info *q, int n, char **names,
             *bad = 1;
             continue;
         }
+        /* a name given twice is already at the front */
         if (i < m)
             continue;
         struct queue_info tmp = q[m];

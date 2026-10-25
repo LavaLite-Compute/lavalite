@@ -69,13 +69,10 @@ static void compute_service_widths(const struct svc_info *s, int32_t n,
 static void instance_endpoint(const struct svc_instance_info *inst,
                               char *buf, size_t bufsz)
 {
-    const char *host = inst->run_host;
-
-    if (inst->status != SVC_RUNNING || host == NULL || host[0] == 0
-        || strcmp(host, "-") == 0 || inst->port == 0)
+    if (inst->status != SVC_RUNNING || inst->run_host == NULL)
         snprintf(buf, bufsz, "-");
     else
-        snprintf(buf, bufsz, "%s:%d", host, inst->port);
+        snprintf(buf, bufsz, "%s:%d", inst->run_host, inst->port);
 }
 
 static uint32_t compute_instance_widths(const struct svc_info *s,
@@ -143,6 +140,9 @@ static void print_instances(const struct svc_info *s, int all)
 
 static void print_services(const struct svc_info *s, int32_t n, int all)
 {
+    if (n == 0)
+        return;
+
     struct svc_col_widths sw;
     compute_service_widths(s, n, &sw);
 
@@ -202,6 +202,7 @@ static int select_services(struct svc_info *s, int n, char **names,
             *bad = 1;
             continue;
         }
+        /* a name given twice is already at the front */
         if (i < m)
             continue;
         struct svc_info tmp = s[m];
@@ -375,12 +376,18 @@ int main(int argc, char **argv)
         }
     }
 
-    /* one action at a time: start, delete or view */
-    if ((start_arg && delete_arg)
-        || ((start_arg || delete_arg)
-            && (optind < argc || all || long_fmt))
-        || (run_limit > 0 && start_arg == NULL)) {
-        usage();
+    /* one action per command: show, start or delete */
+    if (start_arg != NULL && delete_arg != NULL) {
+        fprintf(stderr, "bservices: -s and -d are exclusive\n");
+        return -1;
+    }
+    if ((start_arg != NULL || delete_arg != NULL)
+        && (optind < argc || all || long_fmt)) {
+        fprintf(stderr, "bservices: -s and -d take no names, -a or -l\n");
+        return -1;
+    }
+    if (run_limit > 0 && start_arg == NULL) {
+        fprintf(stderr, "bservices: -t needs -s\n");
         return -1;
     }
 
@@ -393,12 +400,14 @@ int main(int argc, char **argv)
     int32_t nsvc = 0;
     struct svc_info *s = llb_service_info(&nsvc);
     if (s == NULL) {
-        if (nsvc == 0) {
-            printf("No services: %m\n");
-            return 0;
-        }
-        fprintf(stderr, "bservices: failed\n");
+        fprintf(stderr, "bservices: %m\n");
         return -1;
+    }
+    /* with names, select_services() reports each one as unknown */
+    if (nsvc == 0 && optind >= argc) {
+        printf("No services configured.\n");
+        llb_free_service_info(s, nsvc);
+        return 0;
     }
 
     /* names select services, as bqueues and bhosts */
@@ -407,9 +416,9 @@ int main(int argc, char **argv)
     if (optind < argc)
         nprint = select_services(s, nsvc, &argv[optind], argc - optind, &bad);
 
-    if (nprint > 0 && long_fmt)
+    if (long_fmt)
         print_services_long(s, nprint);
-    else if (nprint > 0)
+    else
         print_services(s, nprint, all);
     llb_free_service_info(s, nsvc);
     return bad;

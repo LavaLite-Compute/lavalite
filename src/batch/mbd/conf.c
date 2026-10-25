@@ -153,7 +153,7 @@ static int parse_token_pools(const char *path)
 
         char *section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "TokenPool", 9) == 0) {
+            if (strcmp(section, "TokenPool") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -320,7 +320,7 @@ static int parse_hosts(const char *path)
 
         section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "Host", 4) == 0) {
+            if (strcmp(section, "Host") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -450,7 +450,7 @@ static int parse_groups(const char *path)
 
         section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "HostGroup", 9) == 0) {
+            if (strcmp(section, "HostGroup") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -586,7 +586,7 @@ static int parse_queues(const char *path)
 
         section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "Queue", 5) == 0) {
+            if (strcmp(section, "Queue") == 0) {
                 in_section = 1;
                 memset(&qc, 0, sizeof(qc));
             }
@@ -672,7 +672,7 @@ static int parse_sim(const char *path)
 
         char *section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "Sim", 3) == 0) {
+            if (strcmp(section, "Sim") == 0) {
                 in_section = 1;
                 header_checked = 0;
             }
@@ -1186,7 +1186,7 @@ static int parse_services(const char *path)
 
         section = ll_conf_parse_begin(p);
         if (section != NULL) {
-            if (strncmp(section, "Service", 5) == 0) {
+            if (strcmp(section, "Service") == 0) {
                 in_section = 1;
                 bad = 0;
                 memset(&svc, 0, sizeof(svc));
