@@ -103,52 +103,39 @@ seconds before resuming `sbd`.
 
 No timeout fires for a job whose `sbd` is not connected.
 
-### TEST-232: Lost pid reply, sbd reconnects (manual)
-
-sbd is alive and starts the job, only its reply to mbd is lost.
+### TEST-232: Lost reply, sbd reconnects (manual)
 
 #### Commands
 
-On worker1, as root, drop what sbd sends to mbd:
-
 ```sh
-iptables -A OUTPUT -p tcp --dport <LL_MBD_PORT> -j DROP
-```
-
-From any host:
-
-```sh
+iptables -A OUTPUT -p tcp --dport $LL_MBD_PORT -j DROP   # worker1
 bsub --machines worker1 sleep 600
-bjobs <jobid>                  # DISP, then UNKNOWN within 40 seconds
-```
-
-On worker1, once the job is UNKNOWN:
-
-```sh
-ps -ef | grep 'sleep 600'      # the job runs although mbd has no pid
-iptables -D OUTPUT -p tcp --dport <LL_MBD_PORT> -j DROP
-```
-
-Then:
-
-```sh
-bjobs <jobid>
-bhist -l <jobid>
+# wait for UNKNOWN
+iptables -D OUTPUT -p tcp --dport $LL_MBD_PORT -j DROP
 ```
 
 #### Expected Result
 
-- mbd logs `no pid from sbd=worker1`, the job is UNKNOWN, worker1
-  unavail.
-- After the rule is removed sbd reconnects, typically within a minute:
-  its pending reply hits a closed socket and is reset. The longer the
-  drop lasted, the longer TCP backoff makes this wait.
-- The job is RUN on worker1, `bhist -l` shows one Dispatched and one
-  Forked, `ps` shows one `sleep 600`.
+`UNKNOWN`, then `RUN` once `sbd` reconnects. How long `sbd` takes to
+notice depends on TCP retransmission and keepalive.
 
 #### Pass Criteria
 
-A lost reply never starts the job twice: same process, one dispatch.
+The job reaches `RUN` without being dispatched again.
+
+#### Note
+
+With a one-way drop the outcome depends on the size of the dispatch.
+TCP sends only about 14 KB without acknowledgement: a larger
+`BATCH_NEW_JOB`, for example a user with a big environment, reaches
+`sbd` only in part. `sbd` never sees the job, the pid timeout closes
+the channel on the `mbd` side, and the idle `sbd` does not notice.
+`sbd` keepalive on its `mbd` socket finds the dead connection within
+about 90 seconds once the rule is removed, drops it and reconnects;
+the job comes back through `BATCH_JOB_MISSING` and is dispatched
+again.
+
+---
 
 ## Host taint
 

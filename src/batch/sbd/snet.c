@@ -7,6 +7,9 @@
 #include <syslog.h>
 #include <assert.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include "base/lib/auth.h"
 #include "base/lib/ll.conf.h"
@@ -82,6 +85,26 @@ int sbd_mbd_connect(void)
         sbd_mbd_chan = -1;
         return -1;
     }
+
+    /* sbd sends nothing while idle, so a dead link or mbd host would
+     * go unnoticed: keepalive probes after 60s of silence, 3 every
+     * 10s, and unacked data is given up after 90s. Either way the
+     * socket errors out, sbd drops the link and reconnects.
+     */
+    int s = chan_sock(sbd_mbd_chan);
+    int on = 1;
+    int idle = 60;
+    int intvl = 10;
+    int cnt = 3;
+    unsigned int user_timeout = 90 * 1000;
+
+    if (setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) < 0
+        || setsockopt(s, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)) < 0
+        || setsockopt(s, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)) < 0
+        || setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)) < 0
+        || setsockopt(s, IPPROTO_TCP, TCP_USER_TIMEOUT, &user_timeout,
+                      sizeof(user_timeout)) < 0)
+        LL_ERR("setsockopt keepalive on mbd socket failed");
 
     // Now we set the socket as non blocking for all our
     // communication with mbd

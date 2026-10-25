@@ -48,7 +48,7 @@ Multiple queues may be defined in the same file.
 
 **USERS**
 :   Space-separated list of users allowed to submit to this queue.
-    If omitted, all users are allowed.
+    If omitted or **all**, all users are allowed.
 
 **DESCRIPTION**
 :   Human-readable description of the queue. Optional.

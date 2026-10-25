@@ -881,8 +881,8 @@ static int conf_expand_queue_users(void)
 
         ll_hash_init(&q->user_hash, 101);
 
-        /* empty or '*' means all users allowed — leave hash empty */
-        if (q->users[0] == '\0' || strcmp(q->users, "*") == 0)
+        /* empty or all means all users allowed — leave hash empty */
+        if (q->users[0] == '\0' || strcmp(q->users, "all") == 0)
             continue;
 
         char tmp[LL_BUFSIZ_4K];

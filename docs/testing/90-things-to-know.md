@@ -127,6 +127,13 @@ filing a test failure.
 
 ## Environment
 
+- **sbd detects a dead link to mbd within about 90 seconds.** `sbd`
+  sends nothing while idle; TCP keepalive on its socket to `mbd`
+  (probes after 60s of silence, 3 every 10s) and a 90s
+  `TCP_USER_TIMEOUT` for unacknowledged data close a dead connection,
+  and `sbd` reconnects. A hung `mbd` whose kernel still answers is not
+  detected this way.
+
 - **Without cgroup v2 job control falls back to the process group.**
   `sbd` implements SIGSTOP, SIGCONT and SIGKILL through the job cgroup
   (`cgroup.freeze`, `cgroup.kill`), which also reaches processes that
