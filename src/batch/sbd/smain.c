@@ -216,7 +216,7 @@ static int sbd_init_network(void)
         return -1;
     }
 
-    // timout is in second
+    // timeout is in second
     sbd_resend_timer = opt_resend_timer;
     LL_INFO("sbd_resend_timer set to %d secs", sbd_resend_timer);
 
@@ -625,7 +625,7 @@ static void sbd_run_daemon(void)
                     read(chan_sock(chan_id), &expirations, sizeof(expirations));
                 if (cc < 0) {
                     if (errno == EINTR) {
-                        LL_ERR("timer interrepted, do maintainance");
+                        LL_ERR("timer interrupted, do maintenance");
                         goto timer_maintenance;
                     }
                     LL_ERR("timer read failed, do maintenance");
@@ -652,8 +652,7 @@ static void sbd_run_daemon(void)
             if (channels[chan_id].chan_events == CHAN_EPOLLNONE)
                 continue;
 
-            // There is an event on the permament channel
-            // connection with mbd
+            // There is an event on the permanent channel connection with mbd
             if (chan_id == sbd_mbd_chan) {
                 sbd_mbd_route(chan_id);
                 // reset the channel state
