@@ -1086,8 +1086,9 @@ int sbd_job_signal(XDR *xdrs)
         return -1;
     }
 
-    int status = MBD_OK;
+    LL_DEBUG("job=%ld signal=%d", sig.job_id, sig.sig);
 
+    int status = MBD_OK;
     struct sbd_job *job = sbd_job_lookup(sig.job_id);
     if (job == NULL) {
         LL_ERRX("unknown job=%ld signal=%d", sig.job_id, sig.sig);

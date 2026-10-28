@@ -116,10 +116,11 @@ filing a test failure.
   A queue with no `HOSTS` line stops `mbd` too; there is no implicit
   all.
 
-- **Lowering capacity drains a host.** Lowering `CPU`, `MEM`,
-  `STORAGE` or the GPUs below what running jobs use is legal: the jobs
-  keep running, `bhosts -l` shows used above total, and the host gets
-  no new jobs until it fits again.
+- **Lowering capacity drains a host or a token pool.** Lowering
+  `CPU`, `MEM`, `STORAGE`, the GPUs or a pool's `AVAILABLE` below what
+  running jobs use is legal: the jobs keep running, `bhosts -l` shows
+  used above total, `btokens` shows a negative `FREE`, and nothing new
+  is dispatched until it fits again.
 
 - **GPU ids are counted, not tracked per job.** After a GPU count is
   lowered under running jobs the free count is right only once the

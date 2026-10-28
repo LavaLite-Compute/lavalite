@@ -2,7 +2,6 @@
 # LavaLite Batch Host Configuration
 #
 # HOST_NAME  - Hostname as returned by hostname(1)
-# MXJ        - Maximum number of concurrent allocations on this host
 # CPU        - Number of CPU cores available for scheduling
 # MEM        - Total memory available (M=megabytes, G=gigabytes)
 # STORAGE    - Total scratch storage available (M=megabytes, G=gigabytes)
@@ -32,7 +31,7 @@ End TokenPool
 
 # Column order is mandatory and must not be changed.
 # Begin Sim
-# NAME          REAL_HOST   PORT  MXJ  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
-# mysim         myhost      33126   4     8  20G    100G      A100      0-1
+# NAME          REAL_HOST   PORT  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
+# mysim         myhost      33126  8  20G    100G      A100      0-1
 # End Sim
 

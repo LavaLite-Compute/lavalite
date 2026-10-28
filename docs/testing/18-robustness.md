@@ -323,7 +323,9 @@ restore it and restart again.
 #### Expected Result
 
 The instance job is `ORPHAN`, then running again with the same
-endpoint and token.
+endpoint and token. While frozen the instance is not listed by
+`bservices`, its service is not in the config; `bjobs` shows it
+`ORPHAN`.
 
 #### Pass Criteria
 

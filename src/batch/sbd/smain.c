@@ -803,7 +803,7 @@ int main(int argc, char **argv)
     }
 
     if (geteuid() != 0) {
-        fprintf(stderr, "Only root wants to run sbd");
+        fprintf(stderr, "Only root wants to run sbd\n");
         return -1;
     }
 
