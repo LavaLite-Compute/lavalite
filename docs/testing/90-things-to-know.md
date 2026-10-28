@@ -151,8 +151,11 @@ filing a test failure.
   fails it, only the `mbd` and `sbd` logs say so, and a deleted
   service instance stays `RUN` (no longer restartable).
 
-- **Per-host state.** `sbd` state directories must be local to each
-  host, not shared over NFS.
+- **Shared state is supported.** `LL_STATE_DIR` may be local or on a
+  shared filesystem: `mbd` uses `state/mbd`, each `sbd` its own
+  `state/sbd/<hostname>`, so hosts never share files. Daemons run with
+  that directory as working directory: a core file lands there when
+  `kernel.core_pattern` writes to the cwd.
 
 - **`make install` resets permissions.** Run `post-install.sh` after
   every install, or `bhist` fails with `EACCES` on the manifest.

@@ -1027,6 +1027,11 @@ int events_init(void)
     }
     LL_INFO("working dir initialized %s", dir);
 
+    /* our own directory, also on a shared LL_STATE_DIR: a core
+     * dump lands here when kernel.core_pattern writes to the cwd */
+    if (chdir(dir) < 0)
+        LL_ERR("chdir(%s) failed", dir);
+
     n = snprintf(manifest_path, sizeof(manifest_path), "%s/manifest", dir);
     if (n < 0 || n >= (int) sizeof(manifest_path))
         mbd_die(MBD_EXIT_EVENTS);

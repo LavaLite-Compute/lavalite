@@ -262,7 +262,7 @@ etc/
 ├── ll.conf
 ├── llb.queues
 ├── llb.hosts
-└── auth.key
+└── ll.auth.key
 ```
 
 ### Master State
@@ -285,50 +285,72 @@ var/state/sbd/
 └── hostname
     ├── jobs
     └── state
-
 ```
 
-This directory is maintained by `sbd`.
+This directory is maintained by `sbd`, one per host.
 
 ### Simulator State
 
-When simulated hosts are configured:
+When simulated hosts are configured, each simulator has its own
+directory next to the real hosts, named after the sim:
 
 ```text
-var/state/
+var/state/sbd/
+├── worker4/
 ├── sim1/
 ├── sim2/
 └── ...
 ```
 
-Each simulator instance maintains its own local `sbd` state.
+### Shared State
+
+`var/state` may be local to each host or on a shared filesystem. Each
+daemon only uses its own directory, `mbd/` or `sbd/<hostname>`, so
+hosts never share files. A fast NFS server is fine for small and
+medium clusters.
 
 ## Daemon Working Directory and Core Files
 
-Core files are an essential debug tool when a daemon crashes
-unexpectedly. The following is a suggested setup; actual configuration
-depends on site policy and how systemd units are configured.
+Each daemon changes to its own state directory at startup, also when
+started by hand:
 
-A suggested working directory for the daemons:
-
-```sh
-mkdir /var/log/lavalite
-chown -R lavalite:lavalite /var/log/lavalite
+```text
+mbd        var/state/mbd
+sbd        var/state/sbd/<hostname>
+sim sbd    var/state/sbd/<sim name>
 ```
 
-A suggested core pattern (relative path, no directory prefix):
+A daemon that crashes leaves its core file there, next to its state,
+one directory per host also when `var/state` is shared. The units set
+`LimitCORE=infinity`.
+
+Where the kernel writes core files is set by `kernel.core_pattern`,
+for the whole host. Core files land in the working directory only if
+the pattern is a plain file name:
 
 ```sh
-sysctl -w kernel.core_pattern=core.%e.%p
+# /etc/sysctl.d/50-core.conf
+kernel.core_pattern = core.%e.%p.%t
 ```
 
-Inspect the current setting:
-
 ```sh
+sysctl --system
 sysctl kernel.core_pattern
 ```
 
-Site administrators should adjust these settings to match local policy.
+If the pattern starts with `|`, a handler takes the core instead:
+
+- `|/usr/lib/systemd/systemd-coredump`, the default on RHEL and Rocky:
+  cores are kept in `/var/lib/systemd/coredump`, find them with
+  `coredumpctl list mbd` and open the last one with `coredumpctl gdb
+  mbd`.
+- `|/usr/share/apport/apport`, the default on Ubuntu: apport drops the
+  core of a program that is not from a package, LavaLite daemons
+  included. Set the plain pattern above, or install
+  `systemd-coredump`.
+
+Choose per site policy; the plain pattern keeps everything LavaLite
+needs in one tree.
 
 ## Ownership and Permissions
 
@@ -340,13 +362,13 @@ maintains them.
 Typical ownership:
 
 ```text
-auth.key                   lavalite:lavalite 644
+ll.auth.key                lavalite:lavalite 644
 
 var/state/mbd              lavalite:lavalite 750
 var/state/mbd/manifest     lavalite:lavalite 640
 var/log                    lavalite:lavalite 755
 
-var/state/sbd              root:root         750
+var/state/sbd              root:root         755
 
 bin/bhist                  root:lavalite     2755
 ```
@@ -362,17 +384,16 @@ before starting any daemon.
 
 ## Install systemd Units
 
-Example systemd unit files are provided in `etc/` as a starting point
-for sites that use systemd. Review and modify them according to your
-site policy before installing.
+`make install` puts the units in `lib/systemd`. Review them against
+your site before installing:
+
+- `User=` in `lavalite-mbd.service` must be `LL_MBD_USER` of `ll.conf`.
+- `LL_CONF_DIR` and the paths use the `/opt/lavalite` symlink to the
+  active version.
 
 ```sh
-cp /opt/lavalite-<version>/lib/systemd/lavalite-mbd.service \
+cp /opt/lavalite-<version>/lib/systemd/lavalite-*.service \
     /etc/systemd/system/
-
-cp /opt/lavalite-<version>/lib/systemd/lavalite-sbd.service \
-    /etc/systemd/system/
-
 systemctl daemon-reload
 ```
 
@@ -387,6 +408,18 @@ Enable `sbd` on each execution host:
 ```sh
 systemctl enable --now lavalite-sbd
 ```
+
+Simulated hosts use the template `lavalite-sbd-sim@.service`, one
+instance per `Begin Sim` row, named `NAME:PORT`, on the sim's
+`REAL_HOST`:
+
+```sh
+systemctl enable --now lavalite-sbd-sim@sim1:33126
+```
+
+All units restart their daemon when it dies (`Restart=on-failure`).
+`sbd` units use `KillMode=process`: running jobs survive a restart of
+`sbd`.
 
 ## Verification
 

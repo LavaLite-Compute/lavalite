@@ -1,24 +1,24 @@
 [Unit]
-Description=LavaLite lim daemon
+Description=LavaLite sim sbd %i
 Wants=network-online.target remote-fs.target
 After=network-online.target remote-fs.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=lavalite
-Group=lavalite
-# Required for all daemons. Adjust if your config lives elsewhere.
 Environment=LL_CONF_DIR=/opt/lavalite/etc
 # Use stable symlink path: /opt/lavalite -> /opt/lavalite-<version>
-ExecStart=/opt/lavalite/sbin/lim
+# Instance is NAME:PORT of a Begin Sim row in llb.hosts, e.g.
+#   systemctl enable --now lavalite-sbd-sim@sim1:33126
+ExecStart=/opt/lavalite/sbin/sbd -s %i
+# Jobs must outlive sbd restarts. Do not change to control-group.
+KillMode=process
+GuessMainPID=no
 Restart=on-failure
 RestartSec=2
-KillSignal=SIGTERM
-TimeoutStopSec=10
 LimitNOFILE=65536
 LimitCORE=infinity
-WorkingDirectory=/var/log/lavalite
+Delegate=yes
 
 [Install]
 WantedBy=multi-user.target

@@ -6,6 +6,7 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
+# Must be LL_MBD_USER of ll.conf: mbd owns its state and refuses root.
 User=lavalite
 Group=lavalite
 Environment=LL_CONF_DIR=/opt/lavalite/etc
@@ -17,7 +18,6 @@ KillSignal=SIGTERM
 TimeoutStopSec=20
 LimitNOFILE=65536
 LimitCORE=infinity
-WorkingDirectory=/var/log/lavalite
 
 [Install]
 WantedBy=multi-user.target

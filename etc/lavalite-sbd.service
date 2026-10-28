@@ -16,7 +16,6 @@ Restart=on-failure
 RestartSec=2
 LimitNOFILE=65536
 LimitCORE=infinity
-WorkingDirectory=/var/log/lavalite
 Delegate=yes
 
 [Install]

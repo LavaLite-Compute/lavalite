@@ -163,6 +163,11 @@ int sbd_storage_init(void)
     if (check_dir(sbd_state_dir) < 0)
         return -1;
 
+    /* our own directory, also on a shared LL_STATE_DIR: a core
+     * dump lands here when kernel.core_pattern writes to the cwd */
+    if (chdir(sbd_root_dir) < 0)
+        LL_ERR("chdir(%s) failed", sbd_root_dir);
+
     LL_INFO("sbd_root_dir=%s", sbd_root_dir);
     LL_INFO("sbd_job_dir=%s", sbd_job_dir);
     LL_INFO("sbd_state_dir=%s", sbd_state_dir);
