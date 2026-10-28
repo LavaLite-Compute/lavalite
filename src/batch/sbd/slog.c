@@ -80,19 +80,19 @@ static int check_dir(const char *path)
 
 static int job_dir_path(char *buf, size_t bufsz, int64_t job_id)
 {
-    // /opt/lavalite/var/sbd/jobs/job_id
+    // $LL_STATE_DIR/sbd/<hostname>/jobs/<job_id>
     return make_path(buf, bufsz, "%s/%ld", sbd_job_dir, job_id);
 }
 
 static int state_dir_path(char *buf, size_t bufsz, int64_t job_id)
 {
-    // /opt/lavalite/var/sbd/state/job_id
+    // $LL_STATE_DIR/sbd/<hostname>/state/<job_id>
     return make_path(buf, bufsz, "%s/%ld", sbd_state_dir, job_id);
 }
 
 static int state_file_path(char *buf, size_t bufsz, int64_t job_id)
 {
-    // /opt/lavalite/var/sbd/state/job_id/state
+    // $LL_STATE_DIR/sbd/<hostname>/state/<job_id>/state
     return make_path(buf, bufsz, "%s/%ld/state", sbd_state_dir, job_id);
 }
 
@@ -119,7 +119,7 @@ static int build_sbd_root_dir(char *buf, size_t bufsz)
 
 int sbd_storage_init(void)
 {
-    // /opt/lavalite/var/state/sbd
+    // $LL_STATE_DIR/sbd
     char parent[PATH_MAX];
     if (make_path(parent, sizeof(parent), "%s/sbd",
                   ll_params[LL_STATE_DIR].val) < 0) {
@@ -129,7 +129,7 @@ int sbd_storage_init(void)
 
     if (mkdir_chmod(parent, 0755) < 0)
         return -1;
-    // /opt/lavalite/var/state/sbd/<hostname>
+    // $LL_STATE_DIR/sbd/<hostname>
     if (build_sbd_root_dir(sbd_root_dir, sizeof(sbd_root_dir)) < 0) {
         LL_ERR("sbd root path too long");
         return -1;
@@ -138,7 +138,7 @@ int sbd_storage_init(void)
     if (mkdir_chmod(sbd_root_dir, 0755) < 0)
         return -1;
 
-    // /opt/lavalite/var/state/sbd/jobs
+    // $LL_STATE_DIR/sbd/<hostname>/jobs
     if (make_path(sbd_job_dir, sizeof(sbd_job_dir), "%s/jobs", sbd_root_dir) <
         0) {
         LL_ERR("sbd jobs path too long");
@@ -147,7 +147,7 @@ int sbd_storage_init(void)
     if (mkdir_chmod(sbd_job_dir, 0755) < 0)
         return -1;
 
-    // /opt/lavalite/var/state/sbd/state
+    // $LL_STATE_DIR/sbd/<hostname>/state
     if (make_path(sbd_state_dir, sizeof(sbd_state_dir), "%s/state",
                   sbd_root_dir) < 0) {
         LL_ERR("sbd state path too long");
@@ -210,7 +210,7 @@ void sbd_job_file_remove(struct sbd_job *job)
     char dir[PATH_MAX];
     char path[PATH_MAX];
 
-    // /opt/lavalite/var/sbd/jobs/job_id
+    // $LL_STATE_DIR/sbd/<hostname>/jobs/<job_id>
     if (job_dir_path(dir, sizeof(dir), job->job_id) < 0) {
         LL_ERR("job dir path too long job=%ld", job->job_id);
         return;

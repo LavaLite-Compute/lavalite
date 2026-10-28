@@ -23,8 +23,8 @@
  HISTSIZE='1000'; export HISTSIZE
  LANG='en_US.UTF-8'; export LANG
  LOGNAME='joe'; export LOGNAME
- PATH='/opt/lavalite/bin:/usr/local/bin:/usr/bin:/bin'; export PATH
- LD_LIBRARY_PATH='/opt/lavalite/lib'; export LD_LIBRARY_PATH
+ PATH='/opt/lavalite-2.0.0/bin:/usr/local/bin:/usr/bin:/bin'; export PATH
+ LD_LIBRARY_PATH='/opt/lavalite-2.0.0/lib'; export LD_LIBRARY_PATH
  MODULEPATH='/etc/modulefiles:/usr/share/modulefiles'; export MODULEPATH
  LOADEDMODULES='lavalite/lavalite'; export LOADEDMODULES
  LMOD_VERSION='8.7.65'; export LMOD_VERSION

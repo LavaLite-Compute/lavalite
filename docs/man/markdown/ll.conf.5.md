@@ -118,9 +118,9 @@ Lines starting with **#** are comments. Blank lines are ignored.
 # EXAMPLE
 
     LL_CLUSTER_NAME=mycluster
-    LL_STATE_DIR=/opt/lavalite/var/state
-    LL_CONF_DIR=/opt/lavalite/etc
-    LL_LOG_DIR=/opt/lavalite/var/log
+    LL_STATE_DIR=/opt/lavalite-2.0.0/var/state
+    LL_CONF_DIR=/opt/lavalite-2.0.0/etc
+    LL_LOG_DIR=/opt/lavalite-2.0.0/var/log
     LL_LOG_MASK=LOG_WARNING
     LL_LIM_PORT=33123
     LL_MBD_PORT=33124

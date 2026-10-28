@@ -9,9 +9,9 @@ Type=simple
 # Must be LL_MBD_USER of ll.conf: mbd owns its state and refuses root.
 User=lavalite
 Group=lavalite
-Environment=LL_CONF_DIR=/opt/lavalite/etc
-# Use stable symlink path: /opt/lavalite -> /opt/lavalite-<version>
-ExecStart=/opt/lavalite/sbin/mbd
+# Replace <version> with the installed tree, e.g. 2.0.0
+Environment=LL_CONF_DIR=/opt/lavalite-<version>/etc
+ExecStart=/opt/lavalite-<version>/sbin/mbd
 Restart=on-failure
 RestartSec=2
 KillSignal=SIGTERM

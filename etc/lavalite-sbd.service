@@ -6,9 +6,9 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-Environment=LL_CONF_DIR=/opt/lavalite/etc
-# Use stable symlink path: /opt/lavalite -> /opt/lavalite-<version>
-ExecStart=/opt/lavalite/sbin/sbd
+# Replace <version> with the installed tree, e.g. 2.0.0
+Environment=LL_CONF_DIR=/opt/lavalite-<version>/etc
+ExecStart=/opt/lavalite-<version>/sbin/sbd
 # Jobs must outlive sbd restarts. Do not change to control-group.
 KillMode=process
 GuessMainPID=no

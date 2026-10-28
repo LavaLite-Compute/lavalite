@@ -384,16 +384,17 @@ before starting any daemon.
 
 ## Install systemd Units
 
-`make install` puts the units in `lib/systemd`. Review them against
-your site before installing:
+`make install` puts the units in `lib/systemd`. They are templates
+for the site to adapt:
 
+- Replace `<version>` in the paths with the installed tree, e.g.
+  `/opt/lavalite-2.0.0`.
 - `User=` in `lavalite-mbd.service` must be `LL_MBD_USER` of `ll.conf`.
-- `LL_CONF_DIR` and the paths use the `/opt/lavalite` symlink to the
-  active version.
 
 ```sh
 cp /opt/lavalite-<version>/lib/systemd/lavalite-*.service \
     /etc/systemd/system/
+# edit <version> and User= in /etc/systemd/system/lavalite-*.service
 systemctl daemon-reload
 ```
 
