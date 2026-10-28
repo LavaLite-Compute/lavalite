@@ -1,16 +1,16 @@
 [Unit]
-Description=LavaLite sim sbd %i
+Description=LavaLite sim sbd
 Wants=network-online.target remote-fs.target
 After=network-online.target remote-fs.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-# Replace <version> with the installed tree, e.g. 2.0.0
+# Debug tool. One copy per sim, e.g. lavalite-sbd-sim1.service,
+# on the sim's REAL_HOST. Replace <version> with the installed tree,
+# e.g. 2.0.0, and <name>:<port> with NAME and PORT of its Begin Sim row.
 Environment=LL_CONF_DIR=/opt/lavalite-<version>/etc
-# Instance is NAME:PORT of a Begin Sim row in llb.hosts, e.g.
-#   systemctl enable --now lavalite-sbd-sim@sim1:33126
-ExecStart=/opt/lavalite-<version>/sbin/sbd -s %i
+ExecStart=/opt/lavalite-<version>/sbin/sbd -s <name>:<port>
 # Jobs must outlive sbd restarts. Do not change to control-group.
 KillMode=process
 GuessMainPID=no

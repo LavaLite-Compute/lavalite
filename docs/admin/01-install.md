@@ -410,13 +410,9 @@ Enable `sbd` on each execution host:
 systemctl enable --now lavalite-sbd
 ```
 
-Simulated hosts use the template `lavalite-sbd-sim@.service`, one
-instance per `Begin Sim` row, named `NAME:PORT`, on the sim's
-`REAL_HOST`:
-
-```sh
-systemctl enable --now lavalite-sbd-sim@sim1:33126
-```
+Simulated hosts, a debug tool, run as `sbd -s <name>:<port>` on their
+`REAL_HOST`, by hand or with a copy of `lavalite-sbd-sim.service` per
+sim.
 
 All units restart their daemon when it dies (`Restart=on-failure`).
 `sbd` units use `KillMode=process`: running jobs survive a restart of
