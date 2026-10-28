@@ -4,7 +4,7 @@
 
 LavaLite requires:
 
-- Linux x86_64
+- Linux on x86_64 or aarch64 (64-bit ARM)
 - Kernel 5.14 or later
 - cgroup v2
 - a service manager (systemd examples provided)
