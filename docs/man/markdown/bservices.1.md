@@ -120,6 +120,14 @@ Each instance has the following fields:
 Empty settings are shown as **-**. The instance counts are for all
 users; a dispatched instance not started yet counts as pending.
 
+# NOTES
+
+Start instances and connect to their endpoints from a host that does
+not run them, normally the login node. The endpoint is a DNAT rule in
+the execution host's `prerouting` chain, which only sees traffic from
+other hosts: from the execution host itself the endpoint does not
+answer.
+
 # EXAMPLES
 
 Start an instance of **echotest**:

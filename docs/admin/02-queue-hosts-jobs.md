@@ -371,6 +371,28 @@ depends on all simulations completing successfully. The dependent job remains
 pending without requiring the user to monitor the earlier jobs or manually
 submit the next stage when they finish.
 
+## Services
+
+A service is a long-running application, such as Jupyter or
+code-server, defined in `llb.services`. Each instance is a job in the
+service's `QUEUE`, running in its own network namespace on an
+execution host. `bservices -s` starts one and prints its endpoint,
+`http://host:port`.
+
+**Use services from the login node.** Users start instances and
+connect to their endpoints from the login or frontend node, a host
+that is not in the service queue's `HOSTS`. The endpoint is a DNAT
+rule in the `prerouting` chain of the execution host, and that chain
+only sees traffic arriving from other hosts: a connection from the
+execution host to itself never passes through it and gets nothing.
+From any other host the endpoint works.
+
+So keep the login node out of the service queue. Users reach the
+endpoint from their workstation through the login node, for example
+with `ssh -L`; routing beyond the login node is the site's own.
+
+Execution hosts of a service queue need `iproute2` (`ip`) and `nft`.
+
 ## Administrative Maintenance
 
 A common maintenance workflow is:

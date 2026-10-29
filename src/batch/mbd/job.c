@@ -425,7 +425,7 @@ static void mbd_job_reject_dispatch(struct job_data *job)
     struct mbd_host *h = job->run_hosts[0];
     int sbd_chan = h->sbd_chan;
 
-    LL_ERR("job=%ld rejected by sbd=%s, returning to pending", job->job_id,
+    LL_ERRX("job=%ld rejected by sbd=%s, returning to pending", job->job_id,
            chan_addr_str(sbd_chan));
 
     /* sbd rejects only before fork, on its own failures: job dir,

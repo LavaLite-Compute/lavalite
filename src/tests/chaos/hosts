@@ -1,1 +1,8 @@
-buntu24
+# chaos hosts file: <kind> <host>, kind mbd or sbd.
+# chaos kills, freezes and stops the daemons listed here. On a host
+# with sims, killing sbd kills the sims too: their units restart them.
+mbd buntu24
+sbd worker4
+sbd worker5
+sbd worker6
+sbd worker7

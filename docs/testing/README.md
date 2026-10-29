@@ -42,6 +42,10 @@ LavaLite commands, daemons, persistent state, and event replay logic.
   Silent and rejecting `sbd`, orphan jobs, `bkill -s kill`, replay and
   finished job retention.
 
+- `20-chaos.md`
+  Users load the cluster with `jload` and `sload` while the
+  administrator runs `chaos`.
+
 ### Configuration
 
 - `19-config-changes.md`
