@@ -5,7 +5,8 @@
 # PRIORITY    - Higher values are scheduled first
 # HOSTS       - Hosts, host groups, or all for every host in llb.hosts
 # USERS       - Users allowed to access the queue
-# MAX_JOBS    - Maximum number of running and suspended jobs in the queue; 0 = unlimited
+# MAX_JOBS    - Maximum number of running and suspended jobs in the queue;
+#               omitted = unlimited, 0 = dispatch nothing
 # DESCRIPTION - Human readable description
 #
 

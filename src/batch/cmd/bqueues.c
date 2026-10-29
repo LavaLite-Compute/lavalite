@@ -75,7 +75,7 @@ static void compute_widths(struct queue_info *q, int32_t n,
 
 static const char *max_str(int32_t max_jobs, char *buf, size_t bufsz)
 {
-    if (max_jobs == 0)
+    if (max_jobs < 0)
         return "-";
     snprintf(buf, bufsz, "%d", max_jobs);
     return buf;
@@ -110,7 +110,7 @@ static void print_queue_long(const struct queue_info *q)
     printf("  Priority:    %d\n", q->priority);
     printf("  Status:      %s\n", queue_status_str(q->status));
     printf("  Max jobs:    ");
-    if (q->max_jobs == 0)
+    if (q->max_jobs < 0)
         printf("unlimited\n");
     else
         printf("%d\n", q->max_jobs);

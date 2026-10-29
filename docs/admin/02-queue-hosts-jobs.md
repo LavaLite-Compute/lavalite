@@ -57,6 +57,7 @@ bqueues --close queue_name
 Closing a queue:
 
 - Prevents new dispatches
+- Still accepts new jobs, they stay pending
 - Does not affect running jobs
 - Does not remove pending jobs
 

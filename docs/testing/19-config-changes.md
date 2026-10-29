@@ -301,20 +301,60 @@ grep -E "missing HOSTS|reserved" <mbd log>
 
 1. `bqueues -l` lists every host in `llb.hosts`, the job runs on any
    of them, `-m <host>` included.
-2. `mbd` exits: `queue=<queue> missing HOSTS, use HOSTS = all for
-   every host`.
+2. `mbd` keeps running: `queue=<queue> missing HOSTS, kept with no
+   host`; `bqueues -l` shows `Hosts: none`, the job pends.
 3. `mbd` exits: `group name all is reserved`.
 
 ### Pass Criteria
 
 `all` is every host, and is never a name.
 
+---
+
+## TEST-311: Errors in a queue block
+
+### Setup
+
+One queue at a time, restart `mbd` after each:
+
+```
+MAX_JOBS = abc
+PRIORITY = high
+COLOUR   = red
+this line has no equal sign
+```
+
+and a second block with the same `QUEUE_NAME`.
+
+### Commands
+
+```sh
+bqueues -l <queue>
+grep "queue=<queue>" <mbd log>
+```
+
+### Expected Result
+
+`mbd` keeps running every time, and logs:
+
+- `bad MAX_JOBS=abc, using unlimited`: `Max jobs: unlimited`;
+- `bad PRIORITY=high, using the default`;
+- `unknown key=COLOUR, ignored`;
+- `bad line, ignored`;
+- `defined twice, second block skipped`: the first block is used.
+
+### Pass Criteria
+
+No error in `llb.queues` stops `mbd`; each one is logged with what
+`mbd` did instead.
+
 ## Completion Criteria
 
 The configuration test set passes when:
 
-- A bad service, an unknown queue host, a queue with no hosts and a
-  duplicate host never stop `mbd`; each is logged with its reason.
+- A bad service, an unknown queue host, a queue with no hosts, a
+  duplicate host and a bad queue value never stop `mbd`; each is
+  logged with its reason.
 - The summary line counts what was loaded and skipped.
 - Lowering CPU, memory or GPUs under running jobs keeps `mbd` up and
   drains the host.

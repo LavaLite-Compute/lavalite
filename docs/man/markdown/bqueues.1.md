@@ -37,8 +37,9 @@ The **--close** and **--open** options require administrator privileges.
     usage. User and host lists are wrapped at 79 columns.
 
 **--close** *queue*
-:   Close the named queue. A closed queue does not accept new jobs and
-    does not dispatch pending jobs. Running jobs are not affected.
+:   Close the named queue. A closed queue still accepts new jobs but
+    does not dispatch them: they stay pending with reason queue closed.
+    Running jobs are not affected.
 
 **--open** *queue*
 :   Open a previously closed queue, restoring normal operation.
@@ -67,8 +68,8 @@ Displays a table with the following columns:
     configured by **MAX_JOBS** in **llb.queues**.
     Pending and held jobs do not count toward this limit.
     When the limit is reached, pending jobs wait until a slot becomes
-    available. An omitted setting or **0** means unlimited, displayed
-    as **-**.
+    available. An omitted setting means unlimited, displayed as **-**.
+    **0** dispatches nothing.
 
 **NJOBS**
 :   Total jobs in the queue (pending + held + running + suspended).

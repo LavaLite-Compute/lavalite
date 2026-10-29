@@ -489,20 +489,29 @@ static int parse_groups(const char *path)
     return 0;
 }
 
+/* A queue with a config error is kept with a safe default and the
+ * error logged, mbd keeps running: a dead mbd cannot say anything.
+ * Only a block without a name, or a name already taken, is skipped.
+ */
 static int commit_queue(struct queue_conf *qc)
 {
     struct mbd_queue *q;
 
     if (qc->name[0] == 0) {
-        LL_ERRX("queue missing NAME");
-        return -1;
+        LL_ERRX("queue block without QUEUE_NAME, skipped");
+        return 0;
     }
 
-    if (qc->hosts_spec[0] == 0) {
-        LL_ERRX("queue=%s missing HOSTS, use HOSTS = all for every host",
-                qc->name);
-        return -1;
+    if (ll_hash_search(&queue_name_hash, qc->name) != NULL) {
+        LL_ERRX("queue=%s defined twice, second block skipped", qc->name);
+        return 0;
     }
+
+    /* no hosts, as when HOSTS names only unknown hosts: the queue
+     * is kept and schedules nothing, see conf_expand_queues() */
+    if (qc->hosts_spec[0] == 0)
+        LL_ERRX("queue=%s missing HOSTS, kept with no host, use HOSTS = all "
+                "for every host", qc->name);
 
     q = calloc(1, sizeof(struct mbd_queue));
     if (q == NULL) {
@@ -531,8 +540,14 @@ static int parse_queue_conf(struct queue_conf *qc, const char *key,
     if (strcasecmp(key, "QUEUE_NAME") == 0)
         return ll_strlcpy(qc->name, val, LL_BUFSIZ_64);
 
-    if (strcasecmp(key, "PRIORITY") == 0)
-        return ll_atoi(val, &qc->priority);
+    /* ll_atoi() returns 1 on success, 0 on a bad number. A bad value
+     * is logged and the default kept, as if the key were omitted */
+    if (strcasecmp(key, "PRIORITY") == 0) {
+        if (!ll_atoi(val, &qc->priority))
+            LL_ERRX("queue=%s bad PRIORITY=%s, using the default",
+                    qc->name, val);
+        return 0;
+    }
 
     if (strcasecmp(key, "DESCRIPTION") == 0)
         return ll_strlcpy(qc->desc, val, LL_BUFSIZ_256);
@@ -543,19 +558,19 @@ static int parse_queue_conf(struct queue_conf *qc, const char *key,
     if (strcasecmp(key, "USERS") == 0)
         return ll_strlcpy(qc->users, val, LL_BUFSIZ_256);
 
+    /* unset is unlimited, 0 dispatches nothing */
     if (strcasecmp(key, "MAX_JOBS") == 0) {
-        if (ll_atoi(val, &qc->max_jobs) < 0)
-            return -1;
-        if (qc->max_jobs < 0) {
-            LL_ERRX("MAX_JOBS must be >= 0");
-            return -1;
+        if (!ll_atoi(val, &qc->max_jobs) || qc->max_jobs < 0) {
+            LL_ERRX("queue=%s bad MAX_JOBS=%s, using unlimited", qc->name,
+                    val);
+            qc->max_jobs = -1;
         }
         return 0;
     }
 
-    LL_ERRX("unknown queue key=%s", key);
+    LL_ERRX("queue=%s unknown key=%s, ignored", qc->name, key);
 
-    return -1;
+    return 0;
 }
 
 static int parse_queues(const char *path)
@@ -589,6 +604,7 @@ static int parse_queues(const char *path)
             if (strcmp(section, "Queue") == 0) {
                 in_section = 1;
                 memset(&qc, 0, sizeof(qc));
+                qc.max_jobs = -1; /* unlimited unless MAX_JOBS is set */
             }
             continue;
         }
@@ -613,9 +629,8 @@ static int parse_queues(const char *path)
 
             eq = strchr(p, '=');
             if (eq == NULL) {
-                LL_ERRX("parse_queues: bad line: %s", p);
-                fclose(f);
-                return -1;
+                LL_ERRX("queue=%s bad line, ignored: %s", qc.name, p);
+                continue;
             }
 
             *eq = 0;
@@ -633,9 +648,12 @@ static int parse_queues(const char *path)
 
     fclose(f);
 
+    /* a truncated file: keep the last queue as read */
     if (in_section) {
-        LL_ERRX("missing End Queue in %s", path);
-        return -1;
+        LL_ERRX("missing End Queue in %s, queue=%s kept as read", path,
+                qc.name);
+        if (commit_queue(&qc) < 0)
+            return -1;
     }
 
     return 0;
@@ -1014,8 +1032,13 @@ static int parse_service_conf(struct service_conf *sc,
     if (strcasecmp(key, "COMMAND") == 0)
         return ll_strlcpy(sc->command, val, sizeof(sc->command));
 
-    if (strcasecmp(key, "PORT") == 0)
-        return ll_atoi(val, &sc->port);
+    if (strcasecmp(key, "PORT") == 0) {
+        if (!ll_atoi(val, &sc->port)) {
+            LL_ERRX("service=%s bad PORT=%s", sc->name, val);
+            return -1;
+        }
+        return 0;
+    }
 
     if (strcasecmp(key, "QUEUE") == 0)
         return ll_strlcpy(sc->queue, val, sizeof(sc->queue));

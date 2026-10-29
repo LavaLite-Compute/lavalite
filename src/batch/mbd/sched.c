@@ -432,7 +432,7 @@ void schedule(void)
             continue;
         }
 
-        if (job->queue->max_jobs > 0
+        if (job->queue->max_jobs >= 0
             && (job->queue->num_run
                 + job->queue->num_susp >= job->queue->max_jobs)) {
             job->pend_reason = PEND_QUEUE_JOB_LIMIT;

@@ -42,16 +42,35 @@ Multiple queues may be defined in the same file.
 **HOSTS**
 :   Hosts this queue dispatches jobs to: space-separated host names,
     host groups defined in **llb.hosts**, or **all** for every host in
-    **llb.hosts**. Required: a queue without **HOSTS** stops mbd. A
-    name not in **llb.hosts** is skipped with a log line; a queue left
-    with no host is kept and schedules nothing.
+    **llb.hosts**. Required. A name not in **llb.hosts** is skipped
+    with a log line. A queue without **HOSTS**, or left with no valid
+    host, is kept and schedules nothing.
 
 **USERS**
 :   Space-separated list of users allowed to submit to this queue.
     If omitted or **all**, all users are allowed.
 
+**MAX_JOBS**
+:   Maximum number of running and suspended jobs in the queue. If
+    omitted, unlimited. **0** dispatches nothing: the queue accepts
+    jobs and keeps them pending. Optional.
+
 **DESCRIPTION**
 :   Human-readable description of the queue. Optional.
+
+# ERRORS
+
+An error in a queue block never stops **mbd**. It is logged with the
+queue name and what **mbd** did instead:
+
+- a bad **MAX_JOBS** or **PRIORITY** value: the default, as if omitted;
+- an unknown key or a line without **=**: the line is ignored;
+- a missing **HOSTS**: the queue is kept with no host;
+- a block without **QUEUE_NAME**, or a name defined twice: the block
+  is skipped.
+
+Jobs of a queue that schedules nothing stay pending, with their
+pending reason. Check the **mbd** log after every restart.
 
 # EXAMPLE
 

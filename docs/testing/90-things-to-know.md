@@ -100,21 +100,22 @@ filing a test failure.
 
 ## Configuration
 
-- **mbd stays up on errors in services and queue membership** and
-  creates all it can: a bad service is skipped, an unknown host in a
-  queue is skipped, a queue with no valid host stays defined and
-  schedules nothing. A required `ll.conf` parameter that is missing
+- **mbd stays up on errors in `llb.services` and `llb.queues`**: a
+  dead `mbd` cannot say anything. A bad service is skipped. In a queue
+  a bad value takes its default, an unknown key is ignored, an unknown
+  host is skipped, and a queue without `HOSTS` or with no valid host
+  is kept and schedules nothing: its jobs pend with their reason, see
+  `llb.queues(5)`. A required `ll.conf` parameter that is missing
   (`LL_STATE_DIR`, `LL_MBD_PORT`, `LL_MBD_HOST`, `LL_MBD_USER`,
   `LL_DEFAULT_QUEUE`), a `LL_DEFAULT_QUEUE` that names no queue, a
-  port in use, or a syntax error in `llb.hosts` or `llb.queues` still
-  stops `mbd`: the reason is in the `mbd` log. After a restart check
+  port in use, or a syntax error in `llb.hosts` still stops `mbd`: the
+  reason is in the `mbd` log. After a restart check
   the line `hosts=N queues=N groups=N services=N services_skipped=N`
   in the `mbd` log.
 
 - **`HOSTS = all`** in `llb.queues` means every host in `llb.hosts`.
   `all` is reserved: a host, sim or HostGroup named `all` stops `mbd`.
-  A queue with no `HOSTS` line stops `mbd` too; there is no implicit
-  all.
+  A queue with no `HOSTS` line has no host; there is no implicit all.
 
 - **Lowering capacity drains a host or a token pool.** Lowering
   `CPU`, `MEM`, `STORAGE`, the GPUs or a pool's `AVAILABLE` below what
