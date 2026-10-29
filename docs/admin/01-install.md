@@ -410,7 +410,7 @@ Enable `sbd` on each execution host:
 systemctl enable --now lavalite-sbd
 ```
 
-Simulated hosts, a debug tool, run as `sbd -s <name>:<port>` on their
+Simulated hosts, a debug tool, run as `sbd -s <name>` on their
 `REAL_HOST`, by hand or with a copy of `lavalite-sbd-sim.service` per
 sim.
 

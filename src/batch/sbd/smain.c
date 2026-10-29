@@ -38,16 +38,13 @@ static int opt_op_timer = SBD_OPERATION_TIMER;
 static int opt_resend_timer = SBD_RESEND_ACK_TIMEOUT;
 
 char sim_name[MAXHOSTNAMELEN]; /* empty = not in sim mode */
-int sim_port = 0;              /* 0 = use LL_SBD_PORT    */
 
 // List and table of all jobs
 struct ll_list sbd_job_list;
 struct ll_hash *sbd_job_hash;
 struct ll_host mbd_node;
 
-static uint16_t sbd_port;
 static int sbd_timer;
-int sbd_listen_chan = -1;
 int sbd_timer_chan = -1;
 int sbd_mbd_chan = -1;
 int sbd_efd = -1;
@@ -189,58 +186,25 @@ static void mbd_reconnect_try(void)
     sbd_register();
 }
 
+/* sbd is a client: it connects to mbd and registers, mbd never
+ * connects to sbd, so there is nothing to listen on */
 static int sbd_init_network(void)
 {
-    // create the listening port and the sbd channel
-    if (ll_params[LL_SBD_PORT].val == NULL) {
-        LL_ERR("LSB_SBD_PORT is not defined");
-        return -1;
-    }
-
     if (get_host_by_name(ll_params[LL_MBD_HOST].val, &mbd_node) < 0) {
         LL_ERR("cannot resolve LL_MBD_HOST=%s", ll_params[LL_MBD_HOST].val);
         return -1;
     }
 
-    int t;
-    // create the listining port and the sbd channel
-    if (!ll_atoi(ll_params[LL_SBD_PORT].val, &t)) {
-        LL_ERR("the LSB_SBD_PORT is not defined correcly %s, cannot run",
-               ll_params[LL_SBD_PORT].val);
-        return -1;
-    }
-    sbd_port = (sim_port > 0) ? (uint16_t) sim_port : (uint16_t) t;
-
     chan_init();
 
-    // now open the sbd server channel
-    sbd_listen_chan = chan_tcp_server(sbd_port);
-    if (sbd_listen_chan < 0) {
-        LL_ERR("Failed to initialize the sbd channel, another sbd running?");
-        return -1;
-    }
-
-    // init the epoll
     sbd_efd = epoll_create1(EPOLL_CLOEXEC);
     if (sbd_efd < 0) {
         LL_ERR("epoll_create1() failed: %m");
-        chan_close(sbd_listen_chan);
         return -1;
     }
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof(ev));
-    ev.events = EPOLLIN | EPOLLRDHUP;
-    ev.data.u32 = sbd_listen_chan;
-    if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_listen_chan), &ev) <
-        0) {
-        LL_ERR("epoll_ctl add chan_mbd=%d failed", sbd_listen_chan);
-        chan_close(sbd_listen_chan);
-        sbd_listen_chan = -1;
-        close(sbd_efd);
-        sbd_efd = -1;
-        return -1;
-    }
 
     LL_INFO("chan_epoll_register sbd_efd=%d", sbd_efd);
 
@@ -249,7 +213,6 @@ static int sbd_init_network(void)
     sbd_timer_chan = chan_create_timer(sbd_timer);
     if (sbd_timer_chan < 0) {
         close(sbd_efd);
-        chan_close(sbd_listen_chan);
         return -1;
     }
 
@@ -263,13 +226,11 @@ static int sbd_init_network(void)
     if (epoll_ctl(sbd_efd, EPOLL_CTL_ADD, chan_sock(sbd_timer_chan), &ev) < 0) {
         LL_ERR("epoll_ctl() failed to add sbd chan");
         close(sbd_efd);
-        chan_close(sbd_listen_chan);
         return -1;
     }
 
-    LL_INFO("sbd listening on port=%d sbd_listen_chan=%d, epoll_fd=%d "
-            "sbd_timer_chan=%d timer=%dsec sbd_resend_timer=%d",
-            sbd_port, sbd_listen_chan, sbd_efd, sbd_timer_chan, sbd_timer,
+    LL_INFO("sbd epoll_fd=%d sbd_timer_chan=%d timer=%dsec "
+            "sbd_resend_timer=%d", sbd_efd, sbd_timer_chan, sbd_timer,
             sbd_resend_timer);
 
     return 0;
@@ -579,7 +540,6 @@ static bool_t sbd_pid_alive(struct sbd_job *job)
 // descriptors and buffers
 static void sbd_cleanup(void)
 {
-    chan_close(sbd_listen_chan);
     chan_close(sbd_timer_chan);
     close(sbd_efd);
     // free the hash but not the job entries
@@ -704,33 +664,19 @@ static void sbd_run_daemon(void)
     }
 
     LL_INFO("terminate requested, exiting");
-    chan_close(sbd_listen_chan);
     chan_close(sbd_timer_chan);
     chan_close(sbd_mbd_chan);
 }
 
+/* the sim name must match a NAME of the Begin Sim section */
 static int parse_simulator(const char *arg)
 {
-    char tmp[MAXHOSTNAMELEN];
-    char *colon;
-    int port;
-
-    ll_strlcpy(tmp, arg, sizeof(tmp));
-
-    colon = strchr(tmp, ':');
-    if (colon == NULL) {
-        fprintf(stderr, "sbd: --simulator: expected name:port\n");
-        return -1;
-    }
-    *colon = 0;
-
-    if (!ll_atoi(colon + 1, &port) || port < 1 || port > 65535) {
-        fprintf(stderr, "sbd: --simulator: invalid port '%s'\n", colon + 1);
+    if (arg[0] == 0 || strchr(arg, ':') != NULL) {
+        fprintf(stderr, "sbd: --simulator: expected the sim name, no port\n");
         return -1;
     }
 
-    ll_strlcpy(sim_name, tmp, sizeof(sim_name));
-    sim_port = port;
+    ll_strlcpy(sim_name, arg, sizeof(sim_name));
     return 0;
 }
 
@@ -750,7 +696,7 @@ static void usage(void)
         "sbd: [OPTIONS]\n"
         " -V, --version           Print version and exit\n"
         " -c, --confdir dir       Set LL_CONF_DIR\n"
-        " -s, --simulator name:port  Sim mode: register as name on port\n"
+        " -s, --simulator name    Sim mode: register as sim name\n"
         " -o, --op_timer N        Operation timer seconds (default: %d)\n"
         " -r, --resend_timer N    Resend ACK timeout seconds (default: %d)\n"
         " -h, --help              Show this help\n",

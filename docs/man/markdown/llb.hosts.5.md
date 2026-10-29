@@ -124,23 +124,22 @@ in **llb.queues**, and mbd refuses to start.
 ## Begin Sim / End Sim
 
 Defines simulated hosts for testing without real execution hardware.
-Simulated hosts are registered by **sbd --simulator**.
+A simulated host runs as **sbd -s** *name* on its **REAL_HOST**, and
+registers with **mbd** under that name.
 
 ```
 Begin Sim
-NAME          REAL_HOST   PORT  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
-sim1          buntu24   33126     8  20G    100G      A100      0-1
+NAME          REAL_HOST   CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
+sim1          buntu24       8  20G    100G      A100      0-1
 End Sim
 ```
 
 **NAME**
-:   Name the simulated host registers as with **mbd**.
+:   Name the simulated host registers as with **mbd**. It must be
+    unique: a second **sbd** with the same name is rejected by **mbd**.
 
 **REAL_HOST**
 :   Physical host where the simulating **sbd** process runs.
-
-**PORT**
-:   Port the simulating **sbd** listens on.
 
 **CPU**, **MEM**, **STORAGE**, **GPU_MODEL**, **GPU_IDS**
 :   Same meaning as in the **Host** section.

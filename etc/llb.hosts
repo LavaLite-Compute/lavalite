@@ -29,11 +29,11 @@ End TokenPool
 #mygroup     (myhost)
 #End HostGroup
 
-# Simulated hosts, a debug tool. A sim runs as sbd -s <name>:<port>
+# Simulated hosts, a debug tool. A sim runs as sbd -s <name>
 # on its REAL_HOST, by hand or with a copy of lavalite-sbd-sim.service.
 # Column order is mandatory and must not be changed.
 # Begin Sim
-# NAME          REAL_HOST   PORT  CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
-# mysim         myhost      33126  8  20G    100G      A100      0-1
+# NAME          REAL_HOST   CPU  MEM    STORAGE   GPU_MODEL  GPU_IDS
+# mysim         myhost      8    20G    100G      A100      0-1
 # End Sim
 

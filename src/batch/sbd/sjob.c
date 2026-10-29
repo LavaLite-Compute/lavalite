@@ -594,7 +594,6 @@ static int spawn_job(struct sbd_job *job)
         setpgid(0, 0);
 
         // child goes and runs the job
-        chan_close(sbd_listen_chan);
         chan_close(sbd_timer_chan);
         chan_close(sbd_mbd_chan);
         int log_fd = ll_getlogfd();

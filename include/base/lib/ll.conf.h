@@ -14,10 +14,7 @@ enum ll_params {
     LL_LOG_DIR,
     LL_LOG_MASK,
 
-    // lim
-    LL_LIM_PORT,
     // sbd
-    LL_SBD_PORT,
     LL_CGROUP_ROOT,
     LL_SBD_JOB_FINISH_RETAIN,
     LL_SBD_PRUNE_INTERVAL,

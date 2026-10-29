@@ -16,7 +16,6 @@
  * Global daemon state.
  */
 extern int sbd_efd;
-extern int sbd_listen_chan;
 extern int sbd_timer_chan;
 extern int sbd_mbd_chan;
 

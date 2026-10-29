@@ -170,8 +170,7 @@ int sbd_register(void)
     }
 
     /*
-     * Sim mode: --simulator name:port overrides gethostname.
-     * mbd strips the :port suffix to look up the host in its hash.
+     * Sim mode: --simulator name overrides gethostname.
      */
     if (sim_name[0] != 0)
         ll_strlcpy(host, sim_name, MAXHOSTNAMELEN);

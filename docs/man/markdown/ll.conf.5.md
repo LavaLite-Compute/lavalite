@@ -62,10 +62,6 @@ Lines starting with **#** are comments. Blank lines are ignored.
 
 ## Network
 
-**LL_LIM_PORT**
-:   TCP port for the Load Information Manager. Must not conflict with
-    other services.
-
 **LL_MBD_PORT**
 :   TCP port for **mbd**.
 
@@ -74,9 +70,6 @@ Lines starting with **#** are comments. Blank lines are ignored.
 
 **LL_MBD_USER**
 :   User account under which **mbd** runs.
-
-**LL_SBD_PORT**
-:   TCP port for **sbd** on each execution host.
 
 ## Scheduling
 
@@ -122,11 +115,9 @@ Lines starting with **#** are comments. Blank lines are ignored.
     LL_CONF_DIR=/opt/lavalite-2.0.0/etc
     LL_LOG_DIR=/opt/lavalite-2.0.0/var/log
     LL_LOG_MASK=LOG_WARNING
-    LL_LIM_PORT=33123
     LL_MBD_PORT=33124
     LL_MBD_HOST=master01
     LL_MBD_USER=lavalite
-    LL_SBD_PORT=33125
     LL_SBD_JOB_FINISH_RETAIN=100
     LL_MBD_JOB_FINISH_THRESHOLD=1000
     LL_MBD_JOB_FINISH_PERIOD=3600

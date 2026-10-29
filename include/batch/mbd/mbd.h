@@ -159,7 +159,6 @@ struct mbd_host {
     struct ll_list_entry ent;
     struct ll_host net;        /* resolved network identity */
     struct host_resources res; /* capacity + availability + gpu_list */
-    uint16_t port;             /* 0 = use LL_SBD_PORT; sim override otherwise */
     int host_idx;              /* dense index assigned at conf_init */
     int state;
     int candidate; /* set by mark_candidates() each sched cycle */

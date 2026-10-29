@@ -643,14 +643,14 @@ static int parse_queues(const char *path)
 
 /*
  * Parse Begin Sim section.
- * Each line: SIM_NAME  REAL_HOST  PORT
- * Clones the real host entry with a new name and port override.
+ * Each line: NAME  REAL_HOST  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS
+ * The sim gets the real host network identity under its own name.
  * Sim hosts are registered in host_list and host_name_hash alongside
  * real hosts so the scheduler treats them uniformly.
  * Section is optional — no error if absent.
  */
-static const char *sim_hdr[] = {"NAME", "REAL_HOST", "PORT",      "CPU",
-                                "MEM",  "STORAGE",   "GPU_MODEL", "GPU_IDS"};
+static const char *sim_hdr[] = {"NAME",    "REAL_HOST", "CPU",    "MEM",
+                                "STORAGE", "GPU_MODEL", "GPU_IDS"};
 static int parse_sim(const char *path)
 {
     FILE *f = fopen(path, "r");
@@ -703,13 +703,12 @@ static int parse_sim(const char *path)
         char storage_str[LL_BUFSIZ_32];
         char gpu_model_str[LL_BUFSIZ_64];
         char gpu_ids_str[LL_BUFSIZ_64];
-        int port;
         int total_cpu;
 
-        /* NAME  REAL_HOST  PORT  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS */
-        if (sscanf(p, "%255s %255s %d %d %31s %31s %63s %63s", sim_name,
-                   real_host, &port, &total_cpu, mem_str, storage_str,
-                   gpu_model_str, gpu_ids_str) != 8) {
+        /* NAME  REAL_HOST  CPU  MEM  STORAGE  GPU_MODEL  GPU_IDS */
+        if (sscanf(p, "%255s %255s %d %31s %31s %63s %63s", sim_name,
+                   real_host, &total_cpu, mem_str, storage_str, gpu_model_str,
+                   gpu_ids_str) != 7) {
             LL_ERRX("bad sim line: %s", p);
             fclose(f);
             return -1;
@@ -717,12 +716,6 @@ static int parse_sim(const char *path)
 
         if (strcmp(sim_name, "all") == 0) {
             LL_ERRX("sim name all is reserved");
-            fclose(f);
-            return -1;
-        }
-
-        if (port < 1 || port > 65535) {
-            LL_ERRX("sim=%s invalid port=%d", sim_name, port);
             fclose(f);
             return -1;
         }
@@ -766,7 +759,6 @@ static int parse_sim(const char *path)
         }
         h->res.free_storage_mb = h->res.total_storage_mb;
 
-        h->port = (uint16_t) port;
         h->sbd_chan = -1;
         h->state = HOST_UNAVAIL;
 
@@ -788,9 +780,9 @@ static int parse_sim(const char *path)
         ll_list_append(&host_list, &h->ent);
         ll_hash_insert(&host_name_hash, h->net.name, h, 0);
 
-        LL_INFO("sim host=%s real=%s port=%d cpu=%d mem=%luMB "
+        LL_INFO("sim host=%s real=%s cpu=%d mem=%luMB "
                 "storage=%luMB gpu=%d gpu_model=%s gpu_ids=%s",
-                sim_name, real_host, port, total_cpu, h->res.total_mem_mb,
+                sim_name, real_host, total_cpu, h->res.total_mem_mb,
                 h->res.total_storage_mb, h->res.gpu.count,
                 h->res.gpu.count > 0 ? gpu_model_str : "none",
                 h->res.gpu.count > 0 ? gpu_ids_str : "-");
@@ -940,10 +932,9 @@ static void dump_config(void)
     LL_DEBUG("--- hosts ---");
     for (e = host_list.head; e; e = e->next) {
         struct mbd_host *h = (struct mbd_host *) e;
-        LL_DEBUG("host name=%s addr=%s port=%d cpu=%d mem=%luMB storage=%luMB "
+        LL_DEBUG("host name=%s addr=%s cpu=%d mem=%luMB storage=%luMB "
                  "gpu_count=%d gpu_model=%s gpu_ids=%s",
-                 h->net.name, h->net.addr, h->port ? h->port : 0,
-                 h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb,
+                 h->net.name, h->net.addr, h->res.total_cpu, h->res.total_mem_mb, h->res.total_storage_mb,
                  h->res.gpu.count,
                  h->res.gpu.count > 0 ? h->res.gpu.gpu_model : "none",
                  h->res.gpu.count > 0 ? h->res.gpu.gpu_ids : "-");

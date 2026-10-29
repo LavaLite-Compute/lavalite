@@ -8,9 +8,9 @@ StartLimitIntervalSec=0
 Type=simple
 # Debug tool. One copy per sim, e.g. lavalite-sbd-sim1.service,
 # on the sim's REAL_HOST. Replace <version> with the installed tree,
-# e.g. 2.0.0, and <name>:<port> with NAME and PORT of its Begin Sim row.
+# e.g. 2.0.0, and <name> with the NAME of its Begin Sim row.
 Environment=LL_CONF_DIR=/opt/lavalite-<version>/etc
-ExecStart=/opt/lavalite-<version>/sbin/sbd -s <name>:<port>
+ExecStart=/opt/lavalite-<version>/sbin/sbd -s <name>
 # Jobs must outlive sbd restarts. Do not change to control-group.
 KillMode=process
 GuessMainPID=no
