@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+#
+# sload - LavaLite service load generator, run by an ordinary user.
+#
+# For --seconds it starts instances of one service with a run limit,
+# checks that each endpoint accepts a connection, deletes some by job
+# id or by endpoint, and abandons some starts with SIGINT. Then it
+# waits until every instance it started is FINISH and the user has no
+# instance of the service left pending or running.
+#
+# The run limit (--time, minutes) bounds every instance: if sload
+# dies, its instances still end. One sload per user and service: the
+# final check looks at all instances of the user.
+#
+# mbd may be down while chaos restarts it: a failed start or delete is
+# counted, a failed bservices is retried. Only the end state counts.
+# Exits 0 when everything finished, 1 otherwise.
+#
+#  Copyright (C) LavaLite Contributors
+#  GPL v2
+#
+
+import argparse
+import os
+import random
+import re
+import signal
+import socket
+import subprocess
+import sys
+import time
+
+TIMEOUT = 5.0  # seconds for any single command but the start
+
+
+def log(msg):
+    sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} sload: {msg}\n")
+    sys.stdout.flush()
+
+
+def run(cmd, timeout=TIMEOUT):
+    """Run cmd, never raise, rc 124 on timeout like timeout(1)."""
+    try:
+        return subprocess.run(cmd, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, text=True,
+                              timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, 124, "", "timeout")
+    except OSError as e:
+        return subprocess.CompletedProcess(cmd, 127, "", str(e))
+
+
+def parse_start(txt):
+    """Job <N> http://host:port/... -> (N, "host:port"), (None, None)."""
+    m = re.search(r"Job\s+<(\d+)>\s+http://([^/\s]+)", txt)
+    if not m:
+        return None, None
+    return int(m.group(1)), m.group(2)
+
+
+def instances(service):
+    """
+    {job_id: (status, endpoint)} of our instances of service, from
+    bservices -a, None if bservices failed.
+    """
+    cp = run(["bservices", "-a", service])
+    if cp.returncode != 0:
+        return None
+
+    out = {}
+    for line in cp.stdout.splitlines():
+        # instance rows: USER HOST:PORT JOB_ID STATUS TOKEN
+        parts = line.split()
+        if len(parts) >= 4 and line.startswith("  ") and parts[2].isdigit():
+            out[int(parts[2])] = (parts[3], parts[1])
+    return out
+
+
+def reachable(endpoint, wait):
+    """
+    A TCP connect to host:port succeeds within wait seconds. The start
+    returns once the job runs, the application may still be starting
+    and not yet listening, so retry once a second.
+    """
+    host, port = endpoint.rsplit(":", 1)
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            s = socket.create_connection((host, int(port)), timeout=TIMEOUT)
+            s.close()
+            return True
+        except OSError:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(1)
+
+
+def main():
+    if not os.environ.get("LL_CONF_DIR"):
+        print("sload: LL_CONF_DIR must be defined", file=sys.stderr)
+        sys.exit(1)
+
+    ap = argparse.ArgumentParser(
+        prog="sload", description="Service load generator for chaos runs.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument("--service", default="echotest",
+                    help="service from llb.services")
+    ap.add_argument("--seconds", type=int, default=300,
+                    help="duration of the start/delete loop")
+    ap.add_argument("--time", type=int, default=5,
+                    help="run limit of every instance, minutes")
+    ap.add_argument("--start-every", type=int, default=20,
+                    help="start an instance every N seconds")
+    ap.add_argument("--start-timeout", type=int, default=120,
+                    help="give up a start after N seconds, the pending "
+                         "instance is deleted")
+    ap.add_argument("--reach-timeout", type=int, default=30,
+                    help="seconds a new endpoint has to accept a connection")
+    ap.add_argument("--delete-every", type=int, default=45,
+                    help="delete one of our instances every N seconds, "
+                         "0 off")
+    ap.add_argument("--abandon-every", type=int, default=60,
+                    help="start and SIGINT the client every N seconds, "
+                         "0 off")
+    ap.add_argument("--verify-timeout", type=int, default=0,
+                    help="give up waiting after N seconds, 0 waits for "
+                         "the run limit and then forever")
+    args = ap.parse_args()
+
+    svc = args.service
+    started = {}       # job_id -> endpoint at start
+    nfail = 0
+    nunreach = 0
+    ndelete = 0
+    nabandon = 0
+    by_endpoint = False
+
+    t0 = time.monotonic()
+    t_end = t0 + args.seconds
+    next_start = t0
+    next_delete = t0 + args.delete_every
+    next_abandon = t0 + args.abandon_every
+
+    while time.monotonic() < t_end:
+        now = time.monotonic()
+
+        if now >= next_start:
+            cp = run(["bservices", "-s", svc, "--time", str(args.time)],
+                     timeout=args.start_timeout)
+            jid, ep = parse_start(cp.stdout)
+            if jid is None:
+                nfail += 1
+                log(f"start failed rc={cp.returncode}: {cp.stderr.strip()}")
+            else:
+                started[jid] = ep
+                if ep.split(":")[0] == socket.gethostname().split(".")[0]:
+                    # DNAT is in prerouting, see 90-things-to-know.md
+                    log(f"start job <{jid}> {ep} local, not checked")
+                elif reachable(ep, args.reach_timeout):
+                    log(f"start job <{jid}> {ep} reachable")
+                else:
+                    nunreach += 1
+                    log(f"start job <{jid}> {ep} NOT reachable")
+            next_start += args.start_every
+
+        if args.delete_every > 0 and now >= next_delete:
+            inst = instances(svc)
+            live = [j for j in started
+                    if inst and j in inst and inst[j][0] == "RUN"]
+            if live:
+                jid = random.choice(live)
+                # alternate job id and current endpoint, it changes on
+                # relocation
+                target = inst[jid][1] if by_endpoint else str(jid)
+                by_endpoint = not by_endpoint
+                cp = run(["bservices", "-d", target])
+                log(f"delete job <{jid}> by {target} rc={cp.returncode}")
+                ndelete += 1
+            next_delete += args.delete_every
+
+        if args.abandon_every > 0 and now >= next_abandon:
+            # leave before the endpoint: a pending instance must go away
+            p = subprocess.Popen(["bservices", "-s", svc, "--time",
+                                  str(args.time)], stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, text=True)
+            time.sleep(random.uniform(0.1, 1.0))
+            p.send_signal(signal.SIGINT)
+            try:
+                out, _ = p.communicate(timeout=TIMEOUT)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                out, _ = p.communicate()
+            jid, ep = parse_start(out)
+            if jid is not None:
+                # it was faster than us, an ordinary instance
+                started[jid] = ep
+                log(f"abandon too late, job <{jid}> {ep} kept")
+            else:
+                log("abandon start")
+            nabandon += 1
+            next_abandon += args.abandon_every
+
+        time.sleep(0.05)
+
+    # every instance we started ends at the latest at its run limit,
+    # and nothing of ours may be left pending or running
+    log(f"verify: {len(started)} instances, run limit {args.time} min")
+    t_verify = time.monotonic()
+    ok = False
+
+    while True:
+        inst = instances(svc)
+        if inst is None:
+            log("verify: bservices failed, mbd down? retrying")
+        else:
+            left = [j for j, (st, _) in inst.items() if st != "FINISH"]
+            gone = [j for j in started if j not in inst]
+            if not left:
+                ok = True
+                if gone:
+                    # purged with their finished jobs: they ended
+                    log(f"verify: {len(gone)} instances no longer listed")
+                break
+            log(f"verify: {len(left)} instances not finished: "
+                + " ".join(f"{j}:{inst[j][0]}" for j in sorted(left)[:10]))
+
+        if (args.verify_timeout > 0
+                and time.monotonic() - t_verify > args.verify_timeout):
+            log("verify: timeout")
+            break
+        time.sleep(10)
+
+    log(f"done seconds={args.seconds} started={len(started)} "
+        f"start_fail={nfail} unreachable={nunreach} delete={ndelete} "
+        f"abandon={nabandon} "
+        f"result={'ok' if ok and started and nunreach == 0 else 'FAIL'}")
+    if not started:
+        log("FAIL no instance started")
+    sys.exit(0 if ok and started and nunreach == 0 else 1)
+
+
+if __name__ == "__main__":
+    main()

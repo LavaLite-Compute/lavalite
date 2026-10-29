@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+#
+# jload - LavaLite job load generator, run by an ordinary user.
+#
+# For --seconds it submits plain, array and dependent jobs with random
+# cpus, hosts and gpus, and bkills some of its own jobs. Then it waits
+# until bjobs -a accounts for every job it submitted: DONE, EXIT, or
+# purged from the table. It never kills daemons, that is chaos's job.
+#
+# mbd may be down while chaos restarts it: a failed bsub is counted
+# and skipped, a failed bjobs is retried. Only the end state counts.
+# Exits 0 when every job finished, 1 otherwise.
+#
+#  Copyright (C) LavaLite Contributors
+#  GPL v2
+#
+
+import argparse
+import os
+import random
+import re
+import shlex
+import subprocess
+import sys
+import time
+
+TIMEOUT = 5.0  # seconds for any single command
+
+# short commands, false and true exercise the EXIT and DONE paths
+JOB_CMDS = ["sleep 1", "sleep 2", "sleep 10", "sleep 20", "false", "true"]
+
+
+def log(msg):
+    sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} jload: {msg}\n")
+    sys.stdout.flush()
+
+
+def run(cmd, timeout=TIMEOUT):
+    """Run cmd, never raise, rc 124 on timeout like timeout(1)."""
+    try:
+        return subprocess.run(cmd, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, text=True,
+                              timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, 124, "", "timeout")
+    except OSError as e:
+        return subprocess.CompletedProcess(cmd, 127, "", str(e))
+
+
+def jobid_of(txt):
+    """Job <42> is submitted ... -> 42, None if not found."""
+    m = re.search(r"Job\s+<(\d+)>", txt)
+    return int(m.group(1)) if m else None
+
+
+def bsub(args, extra, cmd_str):
+    """Submit one job, return its id or None. extra: list of bsub flags."""
+    cmd = ["bsub", "-o", "/dev/null", "-e", "/dev/null",
+           "--cpus", str(random.randint(1, args.max_cpus)),
+           "--nhosts", str(random.randint(1, args.max_nhosts))]
+    gpus = random.randint(0, args.max_gpus)
+    if gpus > 0:
+        cmd += ["--gpus", str(gpus)]
+    if args.queue:
+        cmd += ["-q", args.queue]
+    cmd += extra + shlex.split(cmd_str)
+
+    cp = run(cmd)
+    if cp.returncode != 0:
+        log(f"bsub failed rc={cp.returncode}: {cp.stderr.strip()}")
+        return None
+    return jobid_of(cp.stdout)
+
+
+def active_jobs(jobids):
+    """
+    Our jobs still active in bjobs -a, None if bjobs failed. A job
+    missing from the output was purged, so it finished.
+    """
+    cp = run(["bjobs", "-a"])
+    if cp.returncode == 124 or (cp.returncode != 0 and not cp.stdout):
+        return None
+
+    active = set()
+    for line in cp.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 3 or not parts[0].isdigit():
+            continue
+        jid = int(parts[0])
+        if jid in jobids and parts[2] not in ("DONE", "EXIT"):
+            active.add(jid)
+    return active
+
+
+def active_elements(array_id):
+    """Elements of array_id still active, 0 if purged, None if bjobs failed."""
+    cp = run(["bjobs", str(array_id)])
+    if cp.returncode == 124:
+        return None
+    if cp.returncode != 0 and not cp.stdout:
+        return 0
+
+    n = 0
+    for line in cp.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[0].startswith(f"{array_id}["):
+            if parts[2] not in ("DONE", "EXIT"):
+                n += 1
+    return n
+
+
+def main():
+    if not os.environ.get("LL_CONF_DIR"):
+        print("jload: LL_CONF_DIR must be defined", file=sys.stderr)
+        sys.exit(1)
+
+    ap = argparse.ArgumentParser(
+        prog="jload", description="Job load generator for chaos runs.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    ap.add_argument("--seconds", type=int, default=120,
+                    help="duration of the submit loop")
+    ap.add_argument("--queue", default=None,
+                    help="queue, omit for the default queue")
+    ap.add_argument("--submit-every", type=int, default=2,
+                    help="submit a plain job every N seconds")
+    ap.add_argument("--array-every", type=int, default=0,
+                    help="submit an array every N seconds, 0 off")
+    ap.add_argument("--array-size", type=int, default=5,
+                    help="elements per array")
+    ap.add_argument("--dep-every", type=int, default=0,
+                    help="submit a job depending on the last plain job "
+                         "every N seconds, 0 off")
+    ap.add_argument("--bkill-every", type=int, default=0,
+                    help="bkill one of our jobs every N seconds, 0 off")
+    ap.add_argument("--max-cpus", type=int, default=1,
+                    help="max --cpus per job")
+    ap.add_argument("--max-nhosts", type=int, default=1,
+                    help="max --nhosts per job")
+    ap.add_argument("--max-gpus", type=int, default=0,
+                    help="max --gpus per job, 0 never asks for gpus")
+    ap.add_argument("--verify-timeout", type=int, default=0,
+                    help="give up waiting for the jobs after N seconds, "
+                         "0 waits forever")
+    args = ap.parse_args()
+
+    jobids = []       # plain and dependent jobs
+    array_ids = []
+    last_plain = None
+    nfail = 0
+    nbkill = 0
+
+    t0 = time.monotonic()
+    t_end = t0 + args.seconds
+    next_submit = t0
+    next_array = t0 + args.array_every
+    next_dep = t0 + args.dep_every
+    next_bkill = t0 + args.bkill_every
+
+    while time.monotonic() < t_end:
+        now = time.monotonic()
+
+        if now >= next_submit:
+            cmd_str = random.choice(JOB_CMDS)
+            jid = bsub(args, [], cmd_str)
+            if jid is None:
+                nfail += 1
+            else:
+                jobids.append(jid)
+                last_plain = jid
+                log(f"submit job <{jid}> cmd={cmd_str}")
+            next_submit += args.submit_every
+
+        if args.array_every > 0 and now >= next_array:
+            cmd_str = random.choice(JOB_CMDS)
+            aid = bsub(args, ["-a", f"1-{args.array_size}"], cmd_str)
+            if aid is None:
+                nfail += 1
+            else:
+                array_ids.append(aid)
+                log(f"submit array <{aid}> size={args.array_size} "
+                    f"cmd={cmd_str}")
+            next_array += args.array_every
+
+        if args.dep_every > 0 and now >= next_dep:
+            if last_plain is not None:
+                cmd_str = random.choice(JOB_CMDS)
+                dep = f"ended({last_plain})"
+                jid = bsub(args, ["-w", dep], cmd_str)
+                if jid is None:
+                    nfail += 1
+                else:
+                    jobids.append(jid)
+                    log(f"submit job <{jid}> on {dep} cmd={cmd_str}")
+            next_dep += args.dep_every
+
+        if args.bkill_every > 0 and now >= next_bkill:
+            if jobids:
+                # the job may have finished already, that is fine
+                jid = random.choice(jobids)
+                cp = run(["bkill", str(jid)])
+                log(f"bkill job <{jid}> rc={cp.returncode}")
+                nbkill += 1
+            next_bkill += args.bkill_every
+
+        time.sleep(0.05)
+
+    # every job must reach DONE or EXIT, bjobs failures are retried:
+    # mbd may be restarting under chaos
+    log(f"verify: {len(jobids)} jobs, {len(array_ids)} arrays")
+    jobset = set(jobids)
+    t_verify = time.monotonic()
+    ok = False
+
+    while True:
+        active = active_jobs(jobset)
+        elements = 0
+        failed = active is None
+        for aid in array_ids:
+            n = active_elements(aid)
+            if n is None:
+                failed = True
+                break
+            elements += n
+
+        if failed:
+            log("verify: bjobs failed, mbd down? retrying")
+        elif not active and elements == 0:
+            ok = True
+            break
+        else:
+            log(f"verify: {len(active)} jobs, {elements} array elements "
+                f"still active")
+
+        if (args.verify_timeout > 0
+                and time.monotonic() - t_verify > args.verify_timeout):
+            log("verify: timeout")
+            break
+        time.sleep(5)
+
+    log(f"done seconds={args.seconds} jobs={len(jobids)} "
+        f"arrays={len(array_ids)} bsub_fail={nfail} bkill={nbkill} "
+        f"result={'ok' if ok else 'FAIL'}")
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()
