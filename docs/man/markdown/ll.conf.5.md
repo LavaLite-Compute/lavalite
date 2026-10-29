@@ -84,9 +84,9 @@ Lines starting with **#** are comments. Blank lines are ignored.
     are removed. Default: 100.
 
 **LL_MBD_JOB_FINISH_THRESHOLD**
-:   Number of finished jobs held in memory by mbd that triggers a
-    compaction of the event manifest. Checked every 5 minutes.
-    Default: 1000.
+:   Number of finished jobs older than **LL_MBD_JOB_FINISH_PERIOD**,
+    the ones a compaction can drop, that triggers a compaction of the
+    event manifest. Checked every 5 minutes. Default: 1000.
 
 **LL_MBD_JOB_FINISH_PERIOD**
 :   Seconds a finished job is kept by mbd, visible with

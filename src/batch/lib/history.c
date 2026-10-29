@@ -835,9 +835,15 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
 /* -----------------------------------------------------------------------
  * Event file scanning.
  *
- * All manifest files live in the same directory. Scan them all in
- * readdir order; duplicate events across archives are deduplicated
- * by hist_event_exists() via type + timestamp.
+ * All manifest files live in the same directory. One job's events
+ * can be spread over several of them: compaction rewrites a live job
+ * into the new manifest, its older events stay in the archive. Scan
+ * them oldest first, manifest.1, manifest.2, ..., the current
+ * manifest last, so a job's events are applied in the order they
+ * happened and its state is the one of its last event. Within one
+ * file a job's own events are already in order. Duplicate events
+ * across files are dropped by hist_event_exists() via type +
+ * timestamp.
  * ----------------------------------------------------------------------- */
 
 static int hist_scan_file(struct job_hist *jh, const char *path)
@@ -858,6 +864,14 @@ static int hist_scan_file(struct job_hist *jh, const char *path)
 
     fclose(fp);
     return 0;
+}
+
+/* manifest.N -> N, the current manifest after every archive */
+static long long hist_manifest_seq(const char *name)
+{
+    if (name[8] == '\0')
+        return LLONG_MAX;
+    return strtoll(name + 9, NULL, 10);
 }
 
 static int hist_is_manifest(const char *name)
@@ -887,44 +901,61 @@ static int hist_is_manifest(const char *name)
     return 1;
 }
 
+static int hist_manifest_filter(const struct dirent *de)
+{
+    return hist_is_manifest(de->d_name);
+}
+
+static int hist_manifest_cmp(const struct dirent **a, const struct dirent **b)
+{
+    long long sa = hist_manifest_seq((*a)->d_name);
+    long long sb = hist_manifest_seq((*b)->d_name);
+
+    if (sa < sb)
+        return -1;
+    if (sa > sb)
+        return 1;
+    return 0;
+}
+
 static int hist_scan_events(struct job_hist *jh)
 {
     char dir[PATH_MAX];
     char path[PATH_MAX];
-    DIR *dp;
-    struct dirent *de;
-    int n;
+    struct dirent **list;
+    int rc = 0;
 
-    n = snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
+    int n = snprintf(dir, sizeof(dir), "%s/mbd", ll_params[LL_STATE_DIR].val);
     if (n < 0 || n >= (int) sizeof(dir))
         return -1;
 
-    dp = opendir(dir);
-    if (dp == NULL) {
+    int nfiles = scandir(dir, &list, hist_manifest_filter, hist_manifest_cmp);
+    if (nfiles < 0) {
+        /* no state directory yet: no history */
         if (errno == ENOENT)
             return 0;
         return -1;
     }
 
-    while ((de = readdir(dp)) != NULL) {
-        if (!hist_is_manifest(de->d_name))
-            continue;
-
-        n = snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);
+    for (int i = 0; i < nfiles; i++) {
+        n = snprintf(path, sizeof(path), "%s/%s", dir, list[i]->d_name);
         if (n < 0 || n >= (int) sizeof(path)) {
-            closedir(dp);
-            return -1;
+            rc = -1;
+            break;
         }
 
+        /* a compaction renames manifest to manifest.N under us */
         if (hist_scan_file(jh, path) < 0 && errno != ENOENT) {
-            closedir(dp);
-            return -1;
+            rc = -1;
+            break;
         }
     }
 
-    closedir(dp);
+    for (int i = 0; i < nfiles; i++)
+        free(list[i]);
+    free(list);
 
-    return 0;
+    return rc;
 }
 
 static int hist_job_cmp(const void *a, const void *b)

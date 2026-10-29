@@ -333,7 +333,30 @@ Administrative operations should never modify files in:
 LL_STATE_DIR
 ```
 
-while daemons are running.
+while daemons are running. The one exception is the manifest
+archives, below.
+
+### Manifest Archives
+
+`mbd` compacts its event log, `var/state/mbd/manifest`, when
+`LL_MBD_JOB_FINISH_THRESHOLD` finished jobs are older than
+`LL_MBD_JOB_FINISH_PERIOD`, checked every 5 minutes: it writes the
+live jobs and the recent finished ones into a new `manifest`, drops
+the old finished ones, and renames the old file `manifest.N`, with N
+growing by one each time.
+
+The archives are history only. `mbd` never reads them, `bhist` reads
+all of them, oldest first, on every call. They are never removed by
+LavaLite: keeping or removing them is site policy. Remove old archives
+when their history is no longer needed, for example from cron:
+
+```sh
+find /opt/lavalite-<version>/var/state/mbd -name 'manifest.*' -mtime +30 -delete
+```
+
+This is safe while `mbd` runs. Never remove or edit the live
+`manifest`: it is the scheduler state. `bhist` no longer shows the
+events of a removed archive.
 
 ## Event Replay
 

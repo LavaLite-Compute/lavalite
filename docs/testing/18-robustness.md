@@ -458,16 +458,26 @@ Finish two jobs, wait 22 seconds, finish two more, restart `mbd`.
 
 Recent finished jobs survive compaction and restart, old ones go.
 
-### TEST-262: Threshold checked every 5 minutes (manual)
+### TEST-262: Threshold counts only droppable jobs (manual)
+
+#### Commands
+
+Keep the defaults, `LL_MBD_JOB_FINISH_THRESHOLD=1000` and
+`LL_MBD_JOB_FINISH_PERIOD=3600`, and run `jload` for two hours at a
+few jobs a second.
 
 #### Expected Result
 
-With the default `MANIFEST_CHECK_TIME` of 300 seconds, `manifest
-rebuild` appears in the `mbd` log at most once every five minutes.
+- During the first hour no `manifest rebuild` in the `mbd` log: the
+  finished jobs are all younger than the period, a compaction could
+  drop none of them.
+- Afterwards a rebuild about once per thousand jobs that age past the
+  hour, never more than once every five minutes, each logging
+  `compaction finished jobs dropped=N` with N of 1000 or more.
 
 #### Pass Criteria
 
-No rewrite every scheduler tick.
+No rewrite that drops nothing, no rewrite every scheduler tick.
 
 ---
 

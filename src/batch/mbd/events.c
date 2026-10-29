@@ -1602,11 +1602,11 @@ static void manifest_rebuild(void)
     LL_INFO("manifest rebuild seq=%u archived=%s", manifest_seq, archived);
 }
 
-/* Rebuild the event log when the number of finished jobs held in
- * memory reaches the threshold. Checked every MANIFEST_CHECK_TIME
- * seconds: finished jobs younger than job_finish_period are kept, so
- * the list may stay above the threshold, and a rewrite every tick
- * would be pointless.
+/* Rebuild the event log when the finished jobs a rebuild can drop,
+ * those that ended more than job_finish_period ago, reach the
+ * threshold. Younger ones are kept and written back: counting them
+ * too would rewrite the same jobs at every check under steady load.
+ * Checked every MANIFEST_CHECK_TIME seconds.
  */
 void maybe_rebuild_manifest(void)
 {
@@ -1617,11 +1617,20 @@ void maybe_rebuild_manifest(void)
         return;
     last_check = now;
 
-    if (ll_list_count(&finish_jobs_list) < job_finish_threshold)
+    int old = 0;
+    for (struct ll_list_entry *e = finish_jobs_list.head; e != NULL;
+         e = e->next) {
+        struct job_data *job = (struct job_data *) e;
+        if (now - job->end_time >= job_finish_period)
+            old++;
+    }
+
+    if (old < job_finish_threshold)
         return;
 
-    LL_DEBUG("manifest rebuild triggered finished_jobs=%d threshold=%d",
-             ll_list_count(&finish_jobs_list), job_finish_threshold);
+    LL_DEBUG("manifest rebuild triggered finished_jobs=%d old=%d "
+             "threshold=%d", ll_list_count(&finish_jobs_list), old,
+             job_finish_threshold);
 
     manifest_rebuild();
 }

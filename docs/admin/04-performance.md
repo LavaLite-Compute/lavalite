@@ -22,11 +22,13 @@ The manifest is the durable event log maintained by `mbd` under
 finish, and so on) is applied to in-memory state, then appended to the
 manifest to keep durable state consistent with it.
 
-The live manifest is the file named `manifest`. When it grows past an
-internal size threshold, `mbd` rotates it: the current file is closed
-and renamed `manifest.N`, and a new empty `manifest` is opened. Rotated
-files (`manifest.1`, `manifest.2`, ...) are immutable archives; they
-are never written to again.
+The live manifest is the file named `manifest`. When
+`LL_MBD_JOB_FINISH_THRESHOLD` finished jobs are older than
+`LL_MBD_JOB_FINISH_PERIOD`, `mbd` compacts it: the live jobs and the recent finished ones are written to a new
+`manifest` and the old file is renamed `manifest.N`. Rotated files
+(`manifest.1`, `manifest.2`, ...) are immutable archives; they are
+never written to again, and never removed by LavaLite: see Manifest
+Archives in the operations guide.
 
 `bhist` reconstructs job history by reading the live manifest and every
 rotated archive. `mbd` itself only ever appends to the live manifest;
@@ -149,7 +151,7 @@ one.
 invocation — there is currently no index to skip directly to the
 events for a requested job. Query time therefore still scales with
 total event volume, not job count, but no longer with the *square* of
-either.
+either. Removing old archives keeps it short.
 
 ### Large-scale, real-dispatch cross-check
 
