@@ -1419,18 +1419,27 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
         return;
     }
 
-    if (sig.sig == SIGSTOP || sig.sig == SIGTSTP) {
+    /* the state change is logged, a restart must find the job as sbd
+     * left it: a suspended job comes back suspended, see
+     * replay_job_susp(). A SIGCONT to a job already running changes
+     * nothing, see signal_one_job() */
+    if ((sig.sig == SIGSTOP || sig.sig == SIGTSTP)
+        && job->state == JOB_RUNNING) {
         job->state = JOB_SUSPENDED;
+        job->susp_time = time(NULL);
         job->queue->num_run--;
         job->queue->num_susp++;
         n->num_susp++;
         n->num_run--;
-    } else if (sig.sig == SIGCONT) {
+        event_job_susp(job);
+    } else if (sig.sig == SIGCONT && job->state == JOB_SUSPENDED) {
         job->state = JOB_RUNNING;
+        job->susp_time = 0;
         job->queue->num_susp--;
         job->queue->num_run++;
         n->num_susp--;
         n->num_run++;
+        event_job_resume(job);
     }
 
     LL_DEBUG("queue=%s num_pend=%d num_run=%d num_susp=%d", job->queue->name,
@@ -1856,8 +1865,9 @@ static int signal_one_job(uint32_t uid, struct job_data *job,
         return MBD_OK;
     }
 
-    if (req->sig == SIGCONT &&
-        (job->state == JOB_PENDING || job->state == JOB_RUNNING)) {
+    /* a SIGCONT to a running job goes to sbd anyway: harmless to a
+     * running process, and it frees one mbd wrongly thinks running */
+    if (req->sig == SIGCONT && job->state == JOB_PENDING) {
         LL_DEBUG("job_signal: job=%ld SIGCONT no-op", job->job_id);
         return MBD_OK;
     }

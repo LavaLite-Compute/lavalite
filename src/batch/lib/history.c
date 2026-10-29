@@ -696,6 +696,34 @@ static void hist_apply_susp(struct job_hist *jh, const struct event_rec *rec)
     ev->state = JOB_SUSPENDED;
 }
 
+static void hist_apply_resume(struct job_hist *jh, const struct event_rec *rec)
+{
+    struct log_job_resume e;
+    struct job_hist_info *j;
+    struct job_event *ev;
+
+    memset(&e, 0, sizeof(e));
+
+    if (log_parse_job_resume(rec, &e) < 0)
+        return;
+
+    j = hist_find(jh, e.job_id);
+    if (j == NULL)
+        return;
+
+    if (hist_event_exists(j, EVENT_JOB_RESUME, rec->event_time))
+        return;
+
+    ev = event_add(j);
+    if (ev == NULL)
+        return;
+
+    j->state = JOB_RUNNING;
+    ev->type = EVENT_JOB_RESUME;
+    ev->event_time = rec->event_time;
+    ev->state = JOB_RUNNING;
+}
+
 static void hist_apply_move(struct job_hist *jh, const struct event_rec *rec)
 {
     struct log_job_move e;
@@ -816,6 +844,10 @@ static void hist_apply_event(struct job_hist *jh, const struct event_rec *rec)
     }
     if (rec->type == EVENT_JOB_SUSP) {
         hist_apply_susp(jh, rec);
+        return;
+    }
+    if (rec->type == EVENT_JOB_RESUME) {
+        hist_apply_resume(jh, rec);
         return;
     }
     if (rec->type == EVENT_JOB_MOVE) {

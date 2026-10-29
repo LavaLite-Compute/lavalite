@@ -3,13 +3,23 @@
 # jload - LavaLite job load generator, run by an ordinary user.
 #
 # For --seconds it submits plain, array and dependent jobs with random
-# cpus, hosts and gpus, and bkills some of its own jobs. Then it waits
+# cpus, hosts and gpus, bkills some of its own jobs, and stops and
+# continues some: a pending job is held, a running one suspended.
+# Then it waits
 # until bjobs -a accounts for every job it submitted: DONE, EXIT, or
 # purged from the table. It never kills daemons, that is chaos's job.
 #
 # mbd may be down while chaos restarts it: a failed bsub is counted
 # and skipped, a failed bjobs is retried. Only the end state counts.
-# Exits 0 when every job finished, 1 otherwise.
+#
+# Then it checks the history of --hist-check random jobs with bhist:
+# event times never go back, a fork follows a dispatch, and the
+# status is the one of the last Finished event. A job's events can be
+# spread over several manifest archives, this is what keeps bhist
+# honest about it.
+#
+# Exits 0 when every job finished and every history checked out, 1
+# otherwise.
 #
 #  Copyright (C) LavaLite Contributors
 #  GPL v2
@@ -109,6 +119,66 @@ def active_elements(array_id):
     return n
 
 
+# "  Oct 29 16:32:54  Signal  signal: 19", "  Submitted:    Oct 29 ..."
+EVENT_RE = re.compile(r"^\s+(?:Submitted:\s+)?([A-Z][a-z]{2} +\d+ "
+                      r"\d\d:\d\d:\d\d)\s+(.*)$")
+
+
+def hist_errors(jid):
+    """
+    What is wrong in bhist jid, an empty list if all is well, None if
+    bhist failed or knows nothing about the job.
+    """
+    cp = run(["bhist", jid], timeout=30)
+    if cp.returncode != 0 or "Status <" not in cp.stdout:
+        return None
+
+    year = time.strftime("%Y")
+    status = re.search(r"Status <(\w+)>", cp.stdout).group(1)
+    errors = []
+    last = None
+    dispatched = False
+    finished = None
+
+    for line in cp.stdout.splitlines():
+        m = EVENT_RE.match(line)
+        if not m:
+            continue
+        t = time.mktime(time.strptime(f"{year} {m.group(1)}",
+                                      "%Y %b %d %H:%M:%S"))
+        what = m.group(2)
+        if last is not None and t < last:
+            errors.append(f"time goes back: {line.strip()}")
+        last = t
+        if what.startswith("Dispatched"):
+            dispatched = True
+        elif what.startswith("Forked") and not dispatched:
+            errors.append(f"forked before dispatched: {line.strip()}")
+        elif what.startswith("Finished"):
+            st = re.search(r"state: (\w+)", what)
+            finished = st.group(1) if st else "?"
+
+    if finished is None:
+        errors.append(f"no Finished event, status {status}")
+    elif status != finished:
+        errors.append(f"status {status} but last Finished {finished}")
+    return errors
+
+
+def release(jid):
+    """bkill -s cont jid, True when mbd took it. A job that ended
+    meanwhile cannot be continued and needs it no more."""
+    cp = run(["bkill", "-s", "cont", str(jid)])
+    log(f"release job <{jid}> rc={cp.returncode}")
+    if cp.returncode == 0:
+        return True
+    st = run(["bjobs", str(jid)])
+    if st.returncode == 0 and "HELD" not in st.stdout \
+            and "SUSP" not in st.stdout:
+        return True
+    return False
+
+
 def main():
     if not os.environ.get("LL_CONF_DIR"):
         print("jload: LL_CONF_DIR must be defined", file=sys.stderr)
@@ -130,6 +200,11 @@ def main():
     ap.add_argument("--dep-every", type=int, default=0,
                     help="submit a job depending on the last plain job "
                          "every N seconds, 0 off")
+    ap.add_argument("--hold-every", type=int, default=0,
+                    help="bkill -s stop one of our jobs every N seconds: "
+                         "held if pending, suspended if running, 0 off")
+    ap.add_argument("--hold-secs", type=int, default=60,
+                    help="bkill -s cont it after 5 to N seconds")
     ap.add_argument("--bkill-every", type=int, default=0,
                     help="bkill one of our jobs every N seconds, 0 off")
     ap.add_argument("--max-cpus", type=int, default=1,
@@ -138,6 +213,9 @@ def main():
                     help="max --nhosts per job")
     ap.add_argument("--max-gpus", type=int, default=0,
                     help="max --gpus per job, 0 never asks for gpus")
+    ap.add_argument("--hist-check", type=int, default=20,
+                    help="check the bhist history of N random jobs at "
+                         "the end, 0 off")
     ap.add_argument("--verify-timeout", type=int, default=0,
                     help="give up waiting for the jobs after N seconds, "
                          "0 waits forever")
@@ -148,6 +226,8 @@ def main():
     last_plain = None
     nfail = 0
     nbkill = 0
+    nhold = 0
+    stopped = {}      # job id -> cont time
 
     t0 = time.monotonic()
     t_end = t0 + args.seconds
@@ -155,6 +235,7 @@ def main():
     next_array = t0 + args.array_every
     next_dep = t0 + args.dep_every
     next_bkill = t0 + args.bkill_every
+    next_hold = t0 + args.hold_every
 
     while time.monotonic() < t_end:
         now = time.monotonic()
@@ -202,7 +283,37 @@ def main():
                 nbkill += 1
             next_bkill += args.bkill_every
 
+        # a hold and its release may straddle a compaction: the
+        # signals stay in the old archive, the rest goes to the new
+        for jid, t in list(stopped.items()):
+            if now >= t:
+                if release(jid):
+                    del stopped[jid]
+                else:
+                    stopped[jid] = now + 5  # mbd down? retry
+
+        if args.hold_every > 0 and now >= next_hold:
+            if jobids:
+                # pending is held, running suspended, finished refuses
+                jid = random.choice(jobids)
+                if jid not in stopped:
+                    cp = run(["bkill", "-s", "stop", str(jid)])
+                    if cp.returncode == 0:
+                        stopped[jid] = now + random.randint(
+                            5, max(5, args.hold_secs))
+                        nhold += 1
+                        log(f"hold job <{jid}>")
+            next_hold += args.hold_every
+
         time.sleep(0.05)
+
+    # nothing of ours stays stopped, retry while mbd restarts
+    while stopped:
+        for jid in list(stopped):
+            if release(jid):
+                del stopped[jid]
+        if stopped:
+            time.sleep(5)
 
     # every job must reach DONE or EXIT, bjobs failures are retried:
     # mbd may be restarting under chaos
@@ -237,8 +348,29 @@ def main():
             break
         time.sleep(5)
 
+    # the history of a sample of our jobs, plain ones and elements
+    nhist = nhist_bad = 0
+    if ok and args.hist_check > 0:
+        pool = [str(j) for j in jobids]
+        pool += [f"{a}[{i}]" for a in array_ids
+                 for i in range(1, args.array_size + 1)]
+        for jid in random.sample(pool, min(args.hist_check, len(pool))):
+            errors = hist_errors(jid)
+            if errors is None:
+                log(f"hist: job <{jid}> not in bhist, skipped")
+                continue
+            nhist += 1
+            for e in errors:
+                log(f"hist: FAIL job <{jid}> {e}")
+            if errors:
+                nhist_bad += 1
+        if nhist_bad > 0:
+            ok = False
+
     log(f"done seconds={args.seconds} jobs={len(jobids)} "
         f"arrays={len(array_ids)} bsub_fail={nfail} bkill={nbkill} "
+        f"hold={nhold} "
+        f"hist_checked={nhist} hist_bad={nhist_bad} "
         f"result={'ok' if ok else 'FAIL'}")
     sys.exit(0 if ok else 1)
 

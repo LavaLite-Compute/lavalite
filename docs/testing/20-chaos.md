@@ -9,8 +9,12 @@ end state and `mbd` never fails on its own.
 The work is split by role, each program in its own window:
 
 - `jload`, run by ordinary users: submits jobs, arrays and
-  dependencies, bkills some of its own jobs, then waits until every
-  job it submitted is `DONE` or `EXIT`.
+  dependencies, bkills some of its own jobs, stops and continues some
+  (`--hold-every`: a pending job is held, a running one suspended),
+  then waits until every job it submitted is `DONE` or `EXIT`. At the
+  end it checks the `bhist` of `--hist-check` random jobs: event
+  times never go back, `Forked` follows `Dispatched`, and the status
+  is the one of the last `Finished`.
 - `sload`, run by ordinary users: starts service instances with a run
   limit, checks their endpoints, deletes some, abandons some starts,
   then waits until every instance is `FINISH`.
@@ -62,7 +66,7 @@ Window 1, dario:
 
 ```sh
 jload --seconds 1800 --submit-every 2 --array-every 10 --dep-every 7 \
-      --bkill-every 15
+      --bkill-every 15 --hold-every 20 --hist-check 100
 ```
 
 Window 2, maria:
@@ -95,6 +99,7 @@ their jobs and instances, `sload` at most its run limit.
   only sends SIGKILL, SIGSTOP and SIGCONT, which dump no core: a core
   is a crash, logged as `FAIL core <host>:<path>` when found.
 - `bhosts` shows every host `ok`, `bjobs -u all` no `UNKNOWN` job.
+- `jload` reports `hist_bad=0`.
 
 ### Pass Criteria
 

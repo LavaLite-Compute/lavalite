@@ -448,17 +448,36 @@ void event_job_pend_resume(const struct job_data *job)
     fclose(fp);
 }
 
+/* a running job suspended, event_time is job->susp_time: compaction
+ * writes it again with the same time, see compact_write_job_susp() */
 void event_job_susp(const struct job_data *job)
 {
     struct log_job_susp e;
     memset(&e, 0, sizeof(e));
     e.job_id = job->job_id;
-    e.event_time = time(NULL);
+    e.event_time = job->susp_time;
 
     FILE *fp = open_manifest();
     if (log_write_job_susp(fp, &e) < 0) {
         fclose(fp);
         LL_ERR("log_write_job_susp failed job=%ld", job->job_id);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    fclose(fp);
+}
+
+/* a suspended running job resumed */
+void event_job_resume(const struct job_data *job)
+{
+    struct log_job_resume e;
+    memset(&e, 0, sizeof(e));
+    e.job_id = job->job_id;
+    e.event_time = time(NULL);
+
+    FILE *fp = open_manifest();
+    if (log_write_job_resume(fp, &e) < 0) {
+        fclose(fp);
+        LL_ERR("log_write_job_resume failed job=%ld", job->job_id);
         mbd_die(MBD_EXIT_EVENTS);
     }
     fclose(fp);
@@ -973,7 +992,25 @@ static void replay_job_susp(const struct event_rec *rec)
         return;
     }
     job->state = JOB_SUSPENDED;
+    job->susp_time = e.event_time;
     LL_DEBUG("JOB_SUSP job=%ld", e.job_id);
+}
+
+static void replay_job_resume(const struct event_rec *rec)
+{
+    struct log_job_resume e;
+    if (log_parse_job_resume(rec, &e) < 0) {
+        LL_ERR("parse JOB_RESUME failed");
+        return;
+    }
+    struct job_data *job = job_find(e.job_id);
+    if (job == NULL) {
+        LL_ERRX("JOB_RESUME job=%ld not found", e.job_id);
+        return;
+    }
+    job->state = JOB_RUNNING;
+    job->susp_time = 0;
+    LL_DEBUG("JOB_RESUME job=%ld", e.job_id);
 }
 
 /*
@@ -1260,6 +1297,10 @@ int jobs_replay(void)
             replay_job_susp(&rec);
             continue;
         }
+        if (rec.type == EVENT_JOB_RESUME) {
+            replay_job_resume(&rec);
+            continue;
+        }
         if (rec.type == EVENT_JOB_MOVE) {
             replay_job_move(&rec);
             continue;
@@ -1384,6 +1425,21 @@ static void compact_write_job_fork(FILE *fp, const struct job_data *job)
         mbd_die(MBD_EXIT_EVENTS);
 }
 
+/* a suspended running job stays suspended across the rewrite */
+static void compact_write_job_susp(FILE *fp, const struct job_data *job)
+{
+    if (job->state != JOB_SUSPENDED)
+        return;
+
+    struct log_job_susp e;
+    memset(&e, 0, sizeof(e));
+    e.job_id = job->job_id;
+    e.event_time = job->susp_time;
+
+    if (log_write_job_susp(fp, &e) < 0)
+        mbd_die(MBD_EXIT_EVENTS);
+}
+
 static void compact_write_job_finish(FILE *fp, const struct job_data *job)
 {
     struct log_job_finish e;
@@ -1502,6 +1558,7 @@ static void manifest_rebuild(void)
         compact_write_job_start(fp, job);
         if (job->fork_time)
             compact_write_job_fork(fp, job);
+        compact_write_job_susp(fp, job);
     }
 
     /* orphans are written back exactly as replay rebuilt them, with
@@ -1516,6 +1573,7 @@ static void manifest_rebuild(void)
             compact_write_job_start(fp, job);
             if (job->fork_time)
                 compact_write_job_fork(fp, job);
+            compact_write_job_susp(fp, job);
         }
     }
 

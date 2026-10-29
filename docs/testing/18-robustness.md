@@ -479,6 +479,30 @@ few jobs a second.
 
 No rewrite that drops nothing, no rewrite every scheduler tick.
 
+### TEST-263: Suspended job across mbd restarts
+
+Automated: `t_suspend_restart`, with `LL_MBD_JOB_FINISH_THRESHOLD=1`
+and `LL_MBD_JOB_FINISH_PERIOD=0` so every restart compacts.
+
+#### Commands
+
+Run `sleep 8` on worker1, `bkill -s stop` it, restart `mbd` twice,
+wait 10 seconds, `bkill -s cont` it.
+
+#### Expected Result
+
+- `bjobs` shows `SUSP` after both restarts, and the `sleep` is still
+  there past its 8 seconds: it stayed frozen.
+- After the `cont` the job is `RUN`, then `DONE`.
+- `bhist` shows `Suspended`, then `Resumed`.
+
+#### Pass Criteria
+
+A suspended job stays suspended through replay and compaction, and
+can be continued. Without the `JOB_SUSP` time and `JOB_RESUME` events
+in the manifest, after a restart `mbd` showed the job `RUN`, ignored
+the `cont`, and the job stayed frozen on its host forever.
+
 ---
 
 ## Global

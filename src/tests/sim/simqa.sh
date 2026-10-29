@@ -2,7 +2,8 @@
 # tests/sim/simqa.sh
 #
 # Robustness scenarios on a one box sim cluster: pid timeout, host
-# taint, orphan jobs, bkill -s 9, finished job retention.
+# taint, orphan jobs, bkill -s 9, finished job retention, a suspended
+# job across mbd restarts.
 #
 # The script builds its own config in a scratch directory, starts mbd
 # as SIMQA_USER and two sim sbds, worker1 and worker2, cloned from the
@@ -471,6 +472,37 @@ t_retention()
     mbd_start
 }
 
+t_suspend_restart()
+{
+    local T=suspend_restart
+    # threshold 1 period 0: every restart compacts
+    mbd_stop
+    conf_ll 1 0
+    mbd_start
+    wait_host worker1 ok 20
+    submit true >/dev/null   # something finished to compact away
+    local j=$(submit -m worker1 sleep 8)
+    wait_state $j RUN 20 || { fail $T "no RUN"; return; }
+    as_user bkill -s stop $j >/dev/null
+    wait_state $j SUSP 10 || { fail $T "no SUSP"; return; }
+    mbd_restart
+    wait_host worker1 ok 20
+    mbd_restart
+    wait_host worker1 ok 20
+    [ "$(jstate $j)" = SUSP ] || { fail $T "after restart: $(jstate $j)"; return; }
+    # frozen: past its 8 seconds it is still there
+    sleep 10
+    alive 8 || { fail $T "ran while suspended"; return; }
+    as_user bkill -s cont $j >/dev/null
+    wait_state $j DONE 30 || { fail $T "no DONE: $(jstate $j)"; return; }
+    as_user bhist $j | grep -oE 'Suspended|Resumed' | tr '\n' ' ' |
+        grep -q '^Suspended Resumed $' &&
+        pass $T || fail $T "bhist events"
+    mbd_stop
+    conf_ll 1000 3600
+    mbd_start
+}
+
 t_counters()
 {
     local T=counters_and_alive
@@ -517,7 +549,7 @@ wait_host worker1 ok 20 && wait_host worker2 ok 20 ||
 for t in ${SIMQA_ONLY:-t_kill9_running t_kill9_disp t_kill9_all \
          t_pid_timeout t_pid_timeout_mbd_restart t_kill9_disconnected \
          t_taint t_orphans t_token_pool_orphan t_replay_machines_tokens \
-         t_retention t_counters}; do
+         t_retention t_suspend_restart t_counters}; do
     settle
     $t
 done

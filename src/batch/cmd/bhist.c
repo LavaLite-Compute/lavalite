@@ -60,6 +60,8 @@ static const char *event_type_str(int32_t type)
         return "Resumed (pend)";
     case EVENT_JOB_SUSP:
         return "Suspended";
+    case EVENT_JOB_RESUME:
+        return "Resumed";
     case EVENT_JOB_MOVE:
         return "Moved queue";
     case EVENT_JOB_PRIORITY:

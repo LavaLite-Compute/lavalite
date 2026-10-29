@@ -32,6 +32,7 @@ enum event_type {
     EVENT_JOB_MOVE,        /* job moved to a different queue */
     EVENT_JOB_PRIORITY,    /* job priority changed */
     EVENT_JOB_PEND,        /* dispatched job returned to pending */
+    EVENT_JOB_RESUME,      /* sbd resumed suspended running job   */
     EVENT_COUNT
 };
 
@@ -163,6 +164,11 @@ struct log_job_susp {
     time_t event_time;
 };
 
+struct log_job_resume {
+    int64_t job_id;
+    time_t event_time;
+};
+
 struct log_job_move {
     int64_t job_id;
     time_t event_time;
@@ -196,6 +202,7 @@ int log_parse_job_fork(const struct event_rec *, struct log_job_fork *);
 int log_parse_job_signal(const struct event_rec *, struct log_job_signal *);
 int log_parse_job_finish(const struct event_rec *, struct log_job_finish *);
 int log_parse_job_susp(const struct event_rec *, struct log_job_susp *);
+int log_parse_job_resume(const struct event_rec *, struct log_job_resume *);
 int log_parse_job_pend_resume(const struct event_rec *,
                               struct log_job_pend_resume *);
 int log_parse_job_pend_susp(const struct event_rec *,
@@ -211,6 +218,7 @@ int log_write_job_fork(FILE *, const struct log_job_fork *);
 int log_write_job_signal(FILE *, const struct log_job_signal *);
 int log_write_job_finish(FILE *, const struct log_job_finish *);
 int log_write_job_susp(FILE *, const struct log_job_susp *);
+int log_write_job_resume(FILE *, const struct log_job_resume *);
 int log_write_job_pend_resume(FILE *, const struct log_job_pend_resume *);
 int log_write_job_pend_susp(FILE *, const struct log_job_pend_susp *);
 int log_write_job_move(FILE *, const struct log_job_move *);
