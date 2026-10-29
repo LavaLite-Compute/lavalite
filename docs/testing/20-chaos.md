@@ -15,9 +15,9 @@ The work is split by role, each program in its own window:
   limit, checks their endpoints, deletes some, abandons some starts,
   then waits until every instance is `FINISH`.
 - `chaos`, run by the administrator or root: submits nothing; kills,
-  freezes and stops `mbd` and `sbd`, then checks that every daemon is
-  up and that `mbd` did not restart, assert or log `bad counters` on
-  its own.
+  freezes and stops `mbd` and `sbd`, looks for core files every
+  minute, then checks that every daemon is up and that `mbd` did not
+  restart, assert or log `bad counters` on its own.
 
 Users judge their own work, chaos judges the daemons. `jload` and
 `sload` also run on their own, without `chaos`, as plain load. A failure in
@@ -31,6 +31,11 @@ The programs are in `src/tests/chaos`.
 - All daemons run under systemd with `Restart=on-failure`, sims
   included: chaos only kills, systemd brings them back.
 - `LL_ASSERT_COUNTERS=1` in `ll.conf` for the run.
+- `kernel.core_pattern` a plain name on every host, for example
+  `core.%e.%p.%t`, so a crashing daemon leaves its core in its state
+  directory, or systemd-coredump. Check with a `kill -ABRT` of one sim
+  `sbd`: the core must appear in `var/state/sbd/<sim>` and chaos must
+  report it.
 - The administrator has passwordless `sudo` and ssh keys to every host
   in the hosts file.
 - `LL_CONF_DIR` set in every window.
@@ -86,7 +91,9 @@ their jobs and instances, `sload` at most its run limit.
 ### Expected Result
 
 - Every program ends with `result=ok` and exit status 0.
-- `chaos` reports `mbd_unexpected_restarts=0`.
+- `chaos` reports `mbd_unexpected_restarts=0` and `cores=0`. chaos
+  only sends SIGKILL, SIGSTOP and SIGCONT, which dump no core: a core
+  is a crash, logged as `FAIL core <host>:<path>` when found.
 - `bhosts` shows every host `ok`, `bjobs -u all` no `UNKNOWN` job.
 
 ### Pass Criteria
