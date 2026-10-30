@@ -166,16 +166,22 @@ def hist_errors(jid):
 
 
 def release(jid):
-    """bkill -s cont jid, True when mbd took it. A job that ended
-    meanwhile cannot be continued and needs it no more."""
+    """bkill -s cont jid, True when mbd took it or the job ended. Any
+    other answer is retried: mbd down, or the job UNKNOWN on a host
+    that has not registered again after an mbd restart."""
     cp = run(["bkill", "-s", "cont", str(jid)])
     log(f"release job <{jid}> rc={cp.returncode}")
     if cp.returncode == 0:
         return True
-    st = run(["bjobs", str(jid)])
-    if st.returncode == 0 and "HELD" not in st.stdout \
-            and "SUSP" not in st.stdout:
+    # mbd no longer has it: it ended and was purged
+    if "No such process" in cp.stderr:
         return True
+    st = run(["bjobs", str(jid)])
+    for line in st.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[0] == str(jid):
+            if parts[2] in ("DONE", "EXIT"):
+                return True
     return False
 
 

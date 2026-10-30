@@ -1386,6 +1386,28 @@ char *job_state_str(int state)
     }
 }
 
+/* a stopped or continued job changes state on every host it runs on,
+ * not only on the first one that got the signal, the same walk as
+ * reset_host_resources(). Called after job->state changed */
+static void job_hosts_state(struct job_data *job)
+{
+    for (int i = 0; i < job->run_nhosts; i++) {
+        struct mbd_host *h = job->run_hosts[i];
+
+        /* only an orphan runs on a stale host, nothing was charged */
+        if (h->stale)
+            continue;
+
+        if (job->state == JOB_SUSPENDED) {
+            h->num_run--;
+            h->num_susp++;
+        } else {
+            h->num_susp--;
+            h->num_run++;
+        }
+    }
+}
+
 void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
                           struct protocol_header *hdr)
 {
@@ -1429,16 +1451,14 @@ void mbd_job_signal_reply(struct mbd_host *n, XDR *xdrs,
         job->susp_time = time(NULL);
         job->queue->num_run--;
         job->queue->num_susp++;
-        n->num_susp++;
-        n->num_run--;
+        job_hosts_state(job);
         event_job_susp(job);
     } else if (sig.sig == SIGCONT && job->state == JOB_SUSPENDED) {
         job->state = JOB_RUNNING;
         job->susp_time = 0;
         job->queue->num_susp--;
         job->queue->num_run++;
-        n->num_susp--;
-        n->num_run++;
+        job_hosts_state(job);
         event_job_resume(job);
     }
 

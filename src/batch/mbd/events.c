@@ -622,7 +622,8 @@ static void replay_orphan_list(struct ll_list *list)
 }
 
 /* After the whole history has replayed, a live job referencing a stale
- * object, or a token pool not in the config, is an orphan: it moves to orphan_jobs_list and is frozen.
+ * object, or a token pool not in the config, is an orphan: it moves to
+ * orphan_jobs_list and is frozen.
  * Its state, dispatch_time, fork_time, pid and run hosts stay exactly
  * as replay built them, compaction writes them back as they are, so
  * once the config is fixed the next replay rebuilds the job as it was.
@@ -1333,6 +1334,7 @@ int jobs_replay(void)
     job_id_seq_read();
 
     replay_mark_orphans();
+
     replay_rebuild_counters();
     // debug
     mbd_assert_counters();

@@ -486,15 +486,19 @@ and `LL_MBD_JOB_FINISH_PERIOD=0` so every restart compacts.
 
 #### Commands
 
-Run `sleep 8` on worker1, `bkill -s stop` it, restart `mbd` twice,
-wait 10 seconds, `bkill -s cont` it.
+Run `sleep 8` on worker1 and `sleep 9` with `--nhosts 2`,
+`bkill -s stop` both, restart `mbd` twice, wait 11 seconds,
+`bkill -s cont` both.
 
 #### Expected Result
 
-- `bjobs` shows `SUSP` after both restarts, and the `sleep` is still
-  there past its 8 seconds: it stayed frozen.
-- After the `cont` the job is `RUN`, then `DONE`.
-- `bhist` shows `Suspended`, then `Resumed`.
+- `bjobs` shows both `SUSP` after both restarts, and the `sleep`s are
+  still there past their 8 and 9 seconds: they stayed frozen.
+- After the `cont` both are `RUN`, then `DONE`.
+- `bhist` shows `Suspended`, then `Resumed`, for each.
+- No `bad counters`: a stop and a cont move the counters of every
+  host of the 2-host job, not only of the first one, which got the
+  signal.
 
 #### Pass Criteria
 

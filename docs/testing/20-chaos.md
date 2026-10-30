@@ -42,7 +42,6 @@ The programs are in `src/tests/chaos`.
   report it.
 - The administrator has passwordless `sudo` and ssh keys to every host
   in the hosts file.
-- `LL_CONF_DIR` set in every window.
 - For `sload`: a service in `llb.services`, `echotest` by default.
   Run `sload` on the login node, a host not in the service queue: see
   Services in the administrator guide. On an execution host the

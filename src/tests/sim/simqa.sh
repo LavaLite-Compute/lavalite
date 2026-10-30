@@ -479,25 +479,34 @@ t_suspend_restart()
     mbd_stop
     conf_ll 1 0
     mbd_start
-    wait_host worker1 ok 20
+    wait_host worker1 ok 20 && wait_host worker2 ok 20
     submit true >/dev/null   # something finished to compact away
+    # j on one host, k on both: stop and cont must move the counters of
+    # every host of k, not only its first one
     local j=$(submit -m worker1 sleep 8)
-    wait_state $j RUN 20 || { fail $T "no RUN"; return; }
+    local k=$(submit --nhosts 2 sleep 9)
+    wait_state $j RUN 20 && wait_state $k RUN 20 ||
+        { fail $T "no RUN"; return; }
     as_user bkill -s stop $j >/dev/null
-    wait_state $j SUSP 10 || { fail $T "no SUSP"; return; }
+    as_user bkill -s stop $k >/dev/null
+    wait_state $j SUSP 10 && wait_state $k SUSP 10 ||
+        { fail $T "no SUSP: $(jstate $j) $(jstate $k)"; return; }
     mbd_restart
     wait_host worker1 ok 20
     mbd_restart
     wait_host worker1 ok 20
-    [ "$(jstate $j)" = SUSP ] || { fail $T "after restart: $(jstate $j)"; return; }
-    # frozen: past its 8 seconds it is still there
-    sleep 10
-    alive 8 || { fail $T "ran while suspended"; return; }
+    [ "$(jstate $j) $(jstate $k)" = "SUSP SUSP" ] ||
+        { fail $T "after restart: $(jstate $j) $(jstate $k)"; return; }
+    # frozen: past their 8 and 9 seconds they are still there
+    sleep 11
+    alive 8 && alive 9 || { fail $T "ran while suspended"; return; }
     as_user bkill -s cont $j >/dev/null
-    wait_state $j DONE 30 || { fail $T "no DONE: $(jstate $j)"; return; }
-    as_user bhist $j | grep -oE 'Suspended|Resumed' | tr '\n' ' ' |
-        grep -q '^Suspended Resumed $' &&
-        pass $T || fail $T "bhist events"
+    as_user bkill -s cont $k >/dev/null
+    wait_state $j DONE 30 && wait_state $k DONE 30 ||
+        { fail $T "no DONE: $(jstate $j) $(jstate $k)"; return; }
+    local ev="$( (as_user bhist $j; as_user bhist $k) | grep -oE 'Suspended|Resumed' | tr '\n' ' ')"
+    [ "$ev" = "Suspended Resumed Suspended Resumed " ] &&
+        pass $T || fail $T "bhist events: $ev"
     mbd_stop
     conf_ll 1000 3600
     mbd_start
