@@ -444,11 +444,11 @@ void schedule(void)
             LL_ERRX("job_id=%ld dispatch failed", job->job_id);
             continue;
         }
-        // Clean the dependency of the jobs this job depeneds upon
+        // Clean the dependency of the jobs this job depends upon
         if (job->deps.count > 0)
             job_deps_release(job);
 
-        // udpate host and queue counters and resources
+        // update host and queue counters and resources
         host_update_resources(job);
         token_alloc(job);
 

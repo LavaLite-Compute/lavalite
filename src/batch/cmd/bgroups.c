@@ -63,7 +63,7 @@ static void usage(void)
 }
 
 static const struct option long_opts[] = {{"help", no_argument, NULL, 'h'},
-                                          {"vesion", no_argument, NULL, 'v'},
+                                          {"version", no_argument, NULL, 'v'},
                                           {NULL, 0, NULL, 0}};
 
 int main(int argc, char **argv)

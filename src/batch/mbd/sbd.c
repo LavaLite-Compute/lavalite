@@ -367,7 +367,7 @@ static void build_gpu_assigned_str(struct mbd_gpu *g, int num_gpus, char *buf,
         if (g->ids[i].in_use)
             continue;
         /* Mark in use when building the sbd data buffer.
-         * The ids must not be udpated again in host_update_resource
+         * The ids must not be updated again in host_update_resource
          */
         g->ids[i].in_use = 1;
         if (assigned > 0)
