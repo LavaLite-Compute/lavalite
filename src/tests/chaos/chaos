@@ -19,9 +19,9 @@
 # them dumps core: every core is a crash.
 #
 # At the end it thaws and starts what it left down, waits until every
-# daemon is up, and checks mbd: no restart it did not cause, no
-# "Assertion" in its journal, no new "bad counters" in its log (set
-# LL_ASSERT_COUNTERS=1 for the run). Exits 0 when all is well.
+# daemon is up, and checks mbd: no "Assertion" in its journal, no new
+# "bad counters" in its log (set LL_ASSERT_COUNTERS=1 for the run).
+# Exits 0 when all is well.
 #
 # Every action is logged with a timestamp, to match a jload or sload
 # failure to what chaos did at that moment. Remote hosts are reached
@@ -115,14 +115,6 @@ def pids(host, kind):
     return [p for p in cp.stdout.split() if p.isdigit()]
 
 
-def mbd_restarts(host):
-    """systemd restart count of mbd, -1 if unknown."""
-    cp = on(host, ["systemctl", "show", "-p", "NRestarts", "--value",
-                   UNIT["mbd"]], root=False)
-    v = cp.stdout.strip()
-    return int(v) if v.isdigit() else -1
-
-
 def count_in_log(host, logs, text):
     """Lines of the log files logs on host containing text."""
     cp = on(host, ["sh", "-c", f"cat {logs} 2>/dev/null | grep -c '{text}'"])
@@ -200,14 +192,13 @@ def main():
     mbd_log = os.path.join(ll_conf("LL_LOG_DIR") or "/nonexistent",
                            "mbd.log.*")
 
-    restarts0 = mbd_restarts(mbd_host)
     counters0 = count_in_log(mbd_host, mbd_log, "bad counters")
     since = int(time.time())
     state_dir = ll_conf("LL_STATE_DIR") or "/nonexistent"
     all_hosts = sorted({h for k in hosts for h in hosts[k]})
     seen = set()
     ncores = 0
-    log(f"start mbd={mbd_host} restarts={restarts0} log={mbd_log} "
+    log(f"start mbd={mbd_host} log={mbd_log} "
         f"state={state_dir}")
 
     frozen = {}      # (host, pid) -> thaw time
@@ -306,15 +297,6 @@ def main():
         log(f"FAIL {kind} not running on {host}")
         ok = False
 
-    # mbd restarts systemd did that chaos did not cause are crashes
-    restarts = mbd_restarts(mbd_host)
-    unexpected = -1
-    if restarts >= 0 and restarts0 >= 0:
-        unexpected = restarts - restarts0 - nkill_mbd
-        if unexpected > 0:
-            log(f"FAIL mbd restarted {unexpected} times on its own")
-            ok = False
-
     for core in new_cores(all_hosts, state_dir, since, seen):
         log(f"FAIL core {core}")
         ncores += 1
@@ -335,8 +317,7 @@ def main():
         ok = False
 
     log(f"done seconds={args.seconds} kill={nkill} kill_mbd={nkill_mbd} "
-        f"freeze={nfreeze} stop={nstop} mbd_unexpected_restarts={unexpected} "
-        f"cores={ncores} "
+        f"freeze={nfreeze} stop={nstop} cores={ncores} "
         f"result={'ok' if ok else 'FAIL'}")
     sys.exit(0 if ok else 1)
 

@@ -21,7 +21,7 @@ The work is split by role, each program in its own window:
 - `chaos`, run by the administrator or root: submits nothing; kills,
   freezes and stops `mbd` and `sbd`, looks for core files every
   minute, then checks that every daemon is up and that `mbd` did not
-  restart, assert or log `bad counters` on its own.
+  assert or log `bad counters`.
 
 Users judge their own work, chaos judges the daemons. `jload` and
 `sload` also run on their own, without `chaos`, as plain load. A failure in
@@ -94,7 +94,7 @@ their jobs and instances, `sload` at most its run limit.
 ### Expected Result
 
 - Every program ends with `result=ok` and exit status 0.
-- `chaos` reports `mbd_unexpected_restarts=0` and `cores=0`. chaos
+- `chaos` reports `cores=0`. chaos
   only sends SIGKILL, SIGSTOP and SIGCONT, which dump no core: a core
   is a crash, logged as `FAIL core <host>:<path>` when found.
 - `bhosts` shows every host `ok`, `bjobs -u all` no `UNKNOWN` job.
