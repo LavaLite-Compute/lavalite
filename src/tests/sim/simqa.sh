@@ -3,7 +3,7 @@
 #
 # Robustness scenarios on a one box sim cluster: pid timeout, host
 # taint, orphan jobs, bkill -s 9, finished job retention, a suspended
-# job across mbd restarts.
+# job across mbd restarts, gpus of a multi-host job.
 #
 # The script builds its own config in a scratch directory, starts mbd
 # as SIMQA_USER and two sim sbds, worker1 and worker2, cloned from the
@@ -67,7 +67,7 @@ conf_hosts()   # $1 sims, e.g. "worker1 worker2", $2 1 = with token pool
         echo "Begin Sim"
         echo "NAME REAL_HOST CPU MEM STORAGE GPU_MODEL GPU_IDS"
         for s in $1; do
-            echo "$s $H 4 8G 10G - -"
+            echo "$s $H 4 8G 10G H100 0-1"
         done
         echo "End Sim"
     } > $CONF/llb.hosts
@@ -512,6 +512,33 @@ t_suspend_restart()
     mbd_start
 }
 
+t_gpu_multihost()
+{
+    local T=gpu_multihost
+    # a job on both sims with one gpu each must hold a gpu on both, not
+    # only on the first one: mbd_assert_counters() checks the gpu ids.
+    # The jobs write their environment: CUDA_VISIBLE_DEVICES is set on
+    # a job of one host only
+    mkdir -p $QA/env; chmod 777 $QA/env
+    printf '#!/bin/sh\nenv > %s/env/$1\nsleep $2\n' $QA > $QA/env.sh
+    chmod 755 $QA/env.sh
+    local a=$(submit -m worker1 --gpus 1 $QA/env.sh a 8)
+    local b=$(submit -m worker2 --gpus 1 $QA/env.sh b 8)
+    wait_state $a RUN 20 && wait_state $b RUN 20 ||
+        { fail $T "no RUN"; return; }
+    local k=$(submit --nhosts 2 --gpus 1 $QA/env.sh k 3)
+    wait_state $k RUN 20 || { fail $T "k no RUN: $(jstate $k)"; return; }
+    wait_state $k DONE 20 || { fail $T "k no DONE: $(jstate $k)"; return; }
+    wait_state $a DONE 20 && wait_state $b DONE 20 ||
+        { fail $T "no DONE"; return; }
+    grep -q '^CUDA_VISIBLE_DEVICES=' $QA/env/a &&
+    ! grep -q '^CUDA_VISIBLE_DEVICES=' $QA/env/k ||
+        { fail $T "CUDA_VISIBLE_DEVICES, see $QA/env"; return; }
+    kill -0 "$(cat $QA/mbd.pid)" 2>/dev/null &&
+    ! mlog | grep -q "bad counters" &&
+        pass $T || fail $T "mbd died or bad counters, see $QA"
+}
+
 t_counters()
 {
     local T=counters_and_alive
@@ -558,7 +585,7 @@ wait_host worker1 ok 20 && wait_host worker2 ok 20 ||
 for t in ${SIMQA_ONLY:-t_kill9_running t_kill9_disp t_kill9_all \
          t_pid_timeout t_pid_timeout_mbd_restart t_kill9_disconnected \
          t_taint t_orphans t_token_pool_orphan t_replay_machines_tokens \
-         t_retention t_suspend_restart t_counters}; do
+         t_retention t_suspend_restart t_gpu_multihost t_counters}; do
     settle
     $t
 done

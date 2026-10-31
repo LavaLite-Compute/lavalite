@@ -1501,26 +1501,13 @@ void mbd_assert_counters(void)
 
             num_jobs++;
             num_cpus_used += job->res.num_cpus;
-            if (job->res.num_gpus > 0)
-                num_gpu_used += job->res.num_gpus;
+            num_gpu_used += job->res.num_gpus;
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
             else if (job->state == JOB_RUNNING)
                 num_run++;
             else
                 assert(0);
-
-            if (job->res.num_gpus > 0) {
-                int n = gpu_ids_count_free(&h->res.gpu);
-                int used = h->res.gpu.count - n;
-                if (job->res.num_gpus > used ||
-                    job->res.num_gpus > h->res.gpu.count) {
-                    LL_ERRX("job=%ld num_gpus=%d gpu_count=%d gpu_free=%d "
-                            "gpu_used=%d",
-                            job->job_id, job->res.num_gpus, h->res.gpu.count, n,
-                            used);
-                }
-            }
         }
 
         /* orphans still running hold the host, see replay_rebuild_counters() */
@@ -1532,6 +1519,7 @@ void mbd_assert_counters(void)
 
             num_jobs++;
             num_cpus_used += job->res.num_cpus;
+            num_gpu_used += job->res.num_gpus;
             if (job->state == JOB_SUSPENDED)
                 num_susp++;
             else if (job->state == JOB_RUNNING)
@@ -1540,16 +1528,25 @@ void mbd_assert_counters(void)
                 assert(0);
         }
 
+        /* gpu ids in use on the host. More asked than the host has is
+         * legal after its GPU count was lowered under running jobs:
+         * then all are in use, see gpu_ids_mark_inuse() */
+        int gpu_used = h->res.gpu.count - gpu_ids_count_free(&h->res.gpu);
+        if (num_gpu_used > h->res.gpu.count)
+            num_gpu_used = h->res.gpu.count;
+
         /* This is the core of the function compare what we have
          * count based on the running jobs with the counters
          * on the host.
          */
         if (h->num_jobs != num_jobs || h->num_run != num_run ||
-            h->num_susp != num_susp || h->num_cpus_used != num_cpus_used) {
+            h->num_susp != num_susp || h->num_cpus_used != num_cpus_used ||
+            gpu_used != num_gpu_used) {
             LL_ERRX("host=%s bad counters jobs=%d/%d run=%d/%d susp=%d/%d "
-                    "cpus_used=%d/%d",
+                    "cpus_used=%d/%d gpus_used=%d/%d",
                     h->net.name, h->num_jobs, num_jobs, h->num_run, num_run,
-                    h->num_susp, num_susp, h->num_cpus_used, num_cpus_used);
+                    h->num_susp, num_susp, h->num_cpus_used, num_cpus_used,
+                    gpu_used, num_gpu_used);
             assert(0);
         }
     }

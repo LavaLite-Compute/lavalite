@@ -455,6 +455,13 @@ int mbd_dispatch_job(struct job_data *job)
                                sizeof(ws.gpu_assigned));
         ll_strlcpy(job->gpu_assigned, ws.gpu_assigned,
                    sizeof(job->gpu_assigned));
+        /* the job holds num_gpus on every host, as reset_host_resources()
+         * frees and the replay charges them. Which ids it uses there
+         * only its own processes know, gpu_assigned names the first
+         * host's */
+        for (int i = 1; i < job->run_nhosts; i++)
+            gpu_ids_mark_inuse(&job->run_hosts[i]->res.gpu,
+                               job->res.num_gpus);
     }
 
     struct protocol_header hdr;

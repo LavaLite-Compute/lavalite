@@ -507,6 +507,29 @@ can be continued. Without the `JOB_SUSP` time and `JOB_RESUME` events
 in the manifest, after a restart `mbd` showed the job `RUN`, ignored
 the `cont`, and the job stayed frozen on its host forever.
 
+### TEST-264: GPUs of a multi-host job
+
+Automated: `t_gpu_multihost`. The sims have two GPUs each, `H100 0-1`.
+
+#### Commands
+
+Run a job with `--gpus 1` on worker1 and on worker2, then one with
+`--nhosts 2 --gpus 1`. Each writes its environment and sleeps.
+
+#### Expected Result
+
+- All three jobs `DONE`, `mbd` alive.
+- The one-host jobs have `CUDA_VISIBLE_DEVICES`, the 2-host job has
+  none, see `llb.hosts`(5).
+- No `bad counters`: the 2-host job holds one GPU on both hosts, and
+  `mbd_assert_counters()` checks the GPU ids in use on every host.
+
+#### Pass Criteria
+
+A job on several hosts holds its GPUs on every host. Before the fix
+only the first host marked them: at the end the job freed a GPU of
+another job on the other host, and two jobs could get the same GPU.
+
 ---
 
 ## Global

@@ -176,8 +176,11 @@ static int set_job_env(const struct sbd_job *job)
             return -1;
     }
 
-    /* CUDA_VISIBLE_DEVICES */
-    if (job->gpu_assigned[0] != 0) {
+    /* CUDA_VISIBLE_DEVICES, on a job of one host only: the processes a
+     * multi-host job starts on its other hosts would not get it, and
+     * the ids of the first host mean nothing there. Such a job runs
+     * exclusive and uses all the gpus, see llb.hosts(5) */
+    if (job->gpu_assigned[0] != 0 && strchr(job->hosts, ',') == NULL) {
         if (setenv("CUDA_VISIBLE_DEVICES", job->gpu_assigned, 1) < 0)
             return -1;
     }

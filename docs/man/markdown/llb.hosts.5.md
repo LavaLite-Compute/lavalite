@@ -83,6 +83,14 @@ through Linux cgroups or other kernel mechanisms. GPU isolation is
 therefore cooperative: jobs are expected to respect the assigned
 **CUDA_VISIBLE_DEVICES** setting.
 
+A job on several hosts, **bsub --nhosts** *n* **--gpus** *m* with *n*
+above 1, holds *m* GPUs on every host, but gets no
+**CUDA_VISIBLE_DEVICES**: the processes it starts on the other hosts,
+with **mpirun** or **torchrun**, would not get it from LavaLite. Run
+such a job with **--exclusive** and ask for all the GPUs of each host:
+every GPU of a host is then the job's, and the framework picks one per
+process by its local rank.
+
 ## Begin TokenPool / End TokenPool
 
 Defines floating token pools for license or resource gating.

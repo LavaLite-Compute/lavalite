@@ -65,7 +65,9 @@ desktop session or display server are not propagated.
     integer (MB) or a suffix: K, M, G. Example: **--storage 100G**.
 
 **--gpus** *n*
-:   Request *n* GPUs per host. Default is 0.
+:   Request *n* GPUs per host. Default is 0. With **--nhosts** above 1
+    the job gets no **CUDA_VISIBLE_DEVICES**: run it with **--exclusive**
+    and all the GPUs of each host, see **llb.hosts**(5).
 
 **--gpu-model** *name*
 :   Require a specific GPU model, as defined in llb.hosts. Example:
