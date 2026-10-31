@@ -34,6 +34,11 @@ PKG_CHECK_MODULES([TIRPC], [libtirpc],
    LIBS="$LIBS $TIRPC_LIBS"],
   [AC_MSG_ERROR([libtirpc not found — required for XDR support])])
 
+AC_PATH_PROG([PANDOC], [pandoc])
+if test -z "$PANDOC"; then
+    AC_MSG_ERROR([pandoc not found, needed to build the man pages])
+fi
+
 dnl Generate Makefiles
 AC_CONFIG_FILES([
   docs/Makefile

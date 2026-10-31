@@ -289,7 +289,7 @@ int mbd_accept(int chan_id)
 
     struct mbd_node *n = ll_hash_search(&host_addr_hash, addr);
     if (n == NULL) {
-        LL_ERR("rejected accept from unknown host %s", addr);
+        LL_ERRX("rejected accept from unknown host %s", addr);
         chan_close(ch_accept);
         return -1;
     }
