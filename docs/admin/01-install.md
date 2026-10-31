@@ -4,11 +4,11 @@
 
 LavaLite requires:
 
-- Linux x86_64
+- Linux x86_64 or aarch64
 - Kernel 5.14 or later
 - cgroup v2
 - a service manager (systemd examples provided)
-- OpenSSL
+- OpenSSL 1.1.1 or later
 - NTP or chrony
 
 Verify cgroup v2:
@@ -22,6 +22,32 @@ Expected output:
 ```text
 cgroup on /sys/fs/cgroup type cgroup2 (...)
 ```
+
+## Build Requirements
+
+- A C compiler supporting C17: GCC 8 or later, or clang 6 or later.
+  `configure` appends `-std=gnu17` to `CFLAGS`, so the language level
+  does not depend on the compiler's default.
+- autoconf, automake, libtool, pkg-config
+- OpenSSL development headers
+- libtirpc development headers
+- pandoc, to build the man pages
+
+Debian/Ubuntu:
+
+```sh
+apt install build-essential autoconf automake libtool pkg-config \
+    libssl-dev libtirpc-dev pandoc
+```
+
+Rocky/RHEL:
+
+```sh
+dnf install gcc make autoconf automake libtool pkgconf-pkg-config \
+    openssl-devel libtirpc-devel pandoc
+```
+
+If `pandoc` is not found on Rocky/RHEL, enable EPEL or CRB.
 
 ## Create the LavaLite Administrator Account
 
@@ -44,6 +70,17 @@ Build LavaLite as admin or ordinary user:
 make
 sudo make install
 ```
+
+Compiler flags are passed to `configure`, `-std=gnu17` is appended to
+them:
+
+```sh
+./configure CFLAGS="-ggdb -O0 -Wall"
+```
+
+Do not override `CFLAGS` on the `make` command line, it replaces the
+configured flags and drops `-std=gnu17`.
+
 By default LavaLite is installed under a versioned directory, for example
 `/opt/lavalite-<version>` (e.g. `/opt/lavalite-1.1.0`).
 
@@ -87,14 +124,14 @@ Generate the key:
 
 ```sh
 dd if=/dev/urandom bs=32 count=1 | base64 \
-    > $LL_CONF_DIR/auth.key
+    > $LL_CONF_DIR/ll.auth.key
 ```
 
 Set permissions:
 
 ```sh
-chown lavalite:lavalite $LL_CONF_DIR/auth.key
-chmod 644 $LL_CONF_DIR/auth.key
+chown lavalite:lavalite $LL_CONF_DIR/ll.auth.key
+chmod 644 $LL_CONF_DIR/ll.auth.key
 ```
 
 The key must be world readable because user commands and applications

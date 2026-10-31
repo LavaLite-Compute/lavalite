@@ -16,6 +16,7 @@ LT_INIT([disable-shared])
 
 dnl Compilers / tools
 AC_PROG_CC
+CFLAGS="$CFLAGS -std=gnu17"
 AC_PROG_INSTALL
 
 dnl Check for OpenSSL via pkg-config
