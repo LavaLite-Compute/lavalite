@@ -138,6 +138,18 @@ The key must be world readable because user commands and applications
 linked against `libllbatch` generate HMAC signatures locally and must
 be able to read it.
 
+The key authenticates the cluster, not the user: whoever can read it
+can sign a request with any uid. The trust boundary is the cluster,
+run LavaLite where the users who can log in are trusted not to forge
+requests. The key keeps out hosts and processes outside the cluster.
+
+Every execution host must know the users' uids, from the same passwd,
+LDAP or other name service as the submission hosts. A host where the
+job's uid is unknown, or belongs to another user name than on the
+submission host, rejects the job: it returns to pending, the host is
+tainted for a while and the job runs elsewhere. The reason is in the
+`sbd` log.
+
 Copy the same file to every execution host.
 
 ## Configuration Files

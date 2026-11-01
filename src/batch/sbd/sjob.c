@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <grp.h>
+#include <pwd.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -704,6 +705,26 @@ void sbd_job_new(XDR *xdrs)
     }
 
     LL_DEBUG("job=%ld job created", job->job_id);
+
+    /* the uid and the name the client sent must be the same user on
+     * this host, initgroups() takes the groups by name. Unknown or
+     * different: we do not know the truth, reject, mbd retries
+     * elsewhere */
+    struct passwd *pw = getpwuid2(job->uid);
+    if (pw == NULL) {
+        sbd_job_new_reply_err(ws.job_id, ENOENT);
+        LL_ERRX("job=%ld uid=%d unknown on this host, rejected",
+                job->job_id, job->uid);
+        free(job);
+        goto out;
+    }
+    if (strcmp(pw->pw_name, job->user) != 0) {
+        sbd_job_new_reply_err(ws.job_id, EPERM);
+        LL_ERRX("job=%ld uid=%d is %s on this host, not %s, rejected",
+                job->job_id, job->uid, pw->pw_name, job->user);
+        free(job);
+        goto out;
+    }
 
     if (make_job_dir(job) < 0) {
         int err = errno;
