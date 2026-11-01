@@ -54,7 +54,6 @@ Add to `llb.services`:
 ```
 Begin Service
 SERVICE_NAME = noqueue
-TYPE         = user
 COMMAND      = sleep 3600
 PORT         = 8888
 End Service

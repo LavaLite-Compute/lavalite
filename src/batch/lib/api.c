@@ -890,7 +890,6 @@ struct svc_info *llb_service_info(int32_t *nsvc)
         }
 
         dst->restart_never = src->restart_never;
-        dst->daemon = src->daemon;
         dst->port = src->port;
         dst->run_limit = src->run_limit;
         dst->num_run = src->num_run;

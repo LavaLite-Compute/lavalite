@@ -21,7 +21,6 @@ instance restarts on another host.
 ```
 Begin Service
 SERVICE_NAME = echotest
-TYPE         = user
 COMMAND      = apptainer exec /export/service_images/python-slim.sif python3 <path>/echo_server.py $LL_SVC_PORT
 PORT         = 8888
 TOKEN_ENV    = ECHO_TOKEN

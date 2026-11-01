@@ -31,7 +31,6 @@ struct queue_conf {
 
 struct service_conf {
     char name[LL_BUFSIZ_64];
-    char type[LL_BUFSIZ_32];
     char command[LL_BUFSIZ_1K];
     int port;
     char queue[LL_BUFSIZ_64];
@@ -919,18 +918,6 @@ static int conf_expand_queue_users(void)
     return 0;
 }
 
-static const char *service_type_str(enum service_type type)
-{
-    switch (type) {
-    case LL_SERVICE_USER:
-        return "user";
-    case LL_SERVICE_DAEMON:
-        return "daemon";
-    default:
-        return "?";
-    }
-}
-
 static const char *service_restart_str(enum service_restart restart)
 {
     switch (restart) {
@@ -982,10 +969,9 @@ static void dump_config(void)
     LL_DEBUG("--- services ---");
     for (e = service_list.head; e; e = e->next) {
         struct service_data *s = (struct service_data *) e;
-        LL_DEBUG("service name=%s type=%s command=%s port=%d "
+        LL_DEBUG("service name=%s command=%s port=%d "
                  "queue=%s restart=%s run_limit=%d",
-                 s->name, service_type_str(s->type),
-                 s->command, s->port,
+                 s->name, s->command, s->port,
                  s->queue[0] ? s->queue : "-",
                  service_restart_str(s->restart),
                  s->run_limit);
@@ -1025,9 +1011,6 @@ static int parse_service_conf(struct service_conf *sc,
 {
     if (strcasecmp(key, "SERVICE_NAME") == 0)
         return ll_strlcpy(sc->name, val, sizeof(sc->name));
-
-    if (strcasecmp(key, "TYPE") == 0)
-        return ll_strlcpy(sc->type, val, sizeof(sc->type));
 
     if (strcasecmp(key, "COMMAND") == 0)
         return ll_strlcpy(sc->command, val, sizeof(sc->command));
@@ -1095,24 +1078,8 @@ static int commit_service(struct service_conf *sc)
         return -1;
     }
 
-    if (strcasecmp(sc->type, "user") == 0)
-        s->type = LL_SERVICE_USER;
-    else if (strcasecmp(sc->type, "daemon") == 0)
-        s->type = LL_SERVICE_DAEMON;
-    else {
-        LL_ERRX("service=%s invalid TYPE=%s", sc->name, sc->type);
-        free(s);
-        return -1;
-    }
-
-    if (s->type == LL_SERVICE_USER && sc->port <= 0) {
-        LL_ERRX("service=%s type=user requires valid PORT", sc->name);
-        free(s);
-        return -1;
-    }
-
-    if (s->type == LL_SERVICE_DAEMON && sc->port != 0) {
-        LL_ERRX("service=%s type=daemon must not set PORT", sc->name);
+    if (sc->port <= 0) {
+        LL_ERRX("service=%s requires valid PORT", sc->name);
         free(s);
         return -1;
     }
@@ -1150,8 +1117,8 @@ static int commit_service(struct service_conf *sc)
     ll_list_init(&s->instances);
     ll_list_append(&service_list, &s->ent);
 
-    LL_INFO("service=%s type=%s port=%d queue=%s restart=%s "
-            "token_env=%s run_limit=%d", sc->name, sc->type, sc->port,
+    LL_INFO("service=%s port=%d queue=%s restart=%s "
+            "token_env=%s run_limit=%d", sc->name, sc->port,
             sc->queue[0] ? sc->queue : "-", sc->restart,
             sc->token_env[0] ? sc->token_env : "-", s->run_limit);
 

@@ -246,11 +246,6 @@ struct pend_diag {
     int host_overflow;
 };
 
-enum service_type {
-    LL_SERVICE_USER,
-    LL_SERVICE_DAEMON
-};
-
 enum service_restart {
     LL_SERVICE_RESTART_ALWAYS,
     LL_SERVICE_RESTART_NEVER
@@ -269,7 +264,6 @@ struct service_data {
     int port;
     int32_t run_limit;           /* RUNLIMIT seconds, 0 = none */
     char queue[LL_BUFSIZ_64];
-    enum service_type type;
     enum service_restart restart;
     char token_env[LL_BUFSIZ_64]; /* TOKEN_ENV: env name the app reads its
                                    * token from, empty means no token */

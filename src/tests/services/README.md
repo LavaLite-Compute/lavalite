@@ -42,7 +42,6 @@ matches production behavior.
 ```
 Begin Service
 SERVICE_NAME = echotest
-TYPE = user
 IMAGE = /export/service_images/python-slim.sif
 COMMAND = python3 /home/david/soft/lavalite/services/src/test/services/echo_server.py 8888
 PORT = 8888

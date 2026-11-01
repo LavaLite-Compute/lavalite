@@ -346,7 +346,6 @@ struct wire_svc_info {
     char name[LL_BUFSIZ_64];
     char queue[LL_BUFSIZ_64];
     int32_t restart_never;
-    int32_t daemon;
     int32_t port;
     int32_t run_limit;
     char token_env[LL_BUFSIZ_64];

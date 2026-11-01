@@ -504,8 +504,6 @@ bool_t xdr_wire_svc_info(XDR *xdrs, struct wire_svc_info *p)
         return false;
     if (!xdr_int32_t(xdrs, &p->restart_never))
         return false;
-    if (!xdr_int32_t(xdrs, &p->daemon))
-        return false;
     if (!xdr_int32_t(xdrs, &p->port))
         return false;
     if (!xdr_int32_t(xdrs, &p->run_limit))

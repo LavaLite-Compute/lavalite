@@ -165,11 +165,7 @@ static void print_services_long(const struct svc_info *s, int32_t n)
             printf("\n");
         printf("SERVICE: %s\n", s[i].name);
         printf("  Queue:       %s\n", s[i].queue);
-        printf("  Type:        %s\n", s[i].daemon ? "daemon" : "user");
-        if (s[i].port > 0)
-            printf("  Port:        %d\n", s[i].port);
-        else
-            printf("  Port:        -\n");
+        printf("  Port:        %d\n", s[i].port);
         printf("  Restart:     %s\n", s[i].restart_never ? "never" : "always");
         if (s[i].run_limit > 0)
             printf("  Run limit:   %d:%02d\n", s[i].run_limit / 3600,

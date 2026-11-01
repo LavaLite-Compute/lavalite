@@ -1,9 +1,8 @@
 
 # Begin Service
 # SERVICE_NAME = <name>
-# TYPE         = user | daemon
 # COMMAND      = <cmd>              # mandatory, full command line run by sh
-# PORT         = <port>             # mandatory if user, forbidden if daemon
+# PORT         = <port>             # mandatory
 # TOKEN_ENV    = <env name>         # optional, token exported under this name
 # QUEUE        = <queue>            # mandatory
 # RESTART      = always | never     # default always
@@ -22,7 +21,6 @@
 
 Begin Service
 SERVICE_NAME = echotest
-TYPE         = user
 COMMAND      = apptainer exec --bind $HOME /path/python-slim.sif python3 /home/david/lavalite-test/echo_server.py $LL_SVC_PORT
 PORT         = 8888
 RESTART      = always
@@ -31,7 +29,6 @@ End Service
 
 Begin Service
 SERVICE_NAME = jupyter
-TYPE         = user
 PORT         = 8888
 COMMAND      = apptainer exec --bind $HOME /export/service_images/jupyter-base.sif jupyter lab --ip=0.0.0.0 --port=$LL_SVC_PORT --no-browser
 TOKEN_ENV    = JUPYTER_TOKEN
@@ -42,19 +39,10 @@ End Service
 
 Begin Service
 SERVICE_NAME = code-server
-TYPE         = user
 PORT         = 8080
 COMMAND      = apptainer exec --bind $HOME /path/code-server.sif code-server --bind-addr 0.0.0.0:$LL_SVC_PORT --auth password
 TOKEN_ENV    = PASSWORD
 RESTART      = always
 RUNLIMIT     = 8:00
-QUEUE = service-2.0
-End Service
-
-Begin Service
-SERVICE_NAME = node-info
-TYPE         = daemon
-COMMAND      = apptainer exec /path/busybox.sif sh -c 'while true; do echo "hello from $(hostname) at $(date)"; sleep 30; done'
-RESTART      = always
 QUEUE = service-2.0
 End Service

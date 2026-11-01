@@ -287,7 +287,6 @@ int service_collect_info(uid_t uid, int all, struct wire_svc_info **out)
         ll_strlcpy(wsvc->name, svc->name, sizeof(wsvc->name));
         ll_strlcpy(wsvc->queue, svc->queue, sizeof(wsvc->queue));
         wsvc->restart_never = svc->restart == LL_SERVICE_RESTART_NEVER;
-        wsvc->daemon = svc->type == LL_SERVICE_DAEMON;
         wsvc->port = svc->port;
         wsvc->run_limit = svc->run_limit;
         ll_strlcpy(wsvc->token_env, svc->token_env, sizeof(wsvc->token_env));

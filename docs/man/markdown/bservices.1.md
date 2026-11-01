@@ -39,7 +39,7 @@ simultaneously.
 :   Include finished instances still retained by mbd.
 
 **-l**, **--long**
-:   One block per service with its definition: queue, type, port,
+:   One block per service with its definition: queue, port,
     restart policy, run limit, token environment variable, instance
     counts and command. Instances are not listed, use **bservices** for
     them.
@@ -109,7 +109,6 @@ Each instance has the following fields:
 
     SERVICE: echotest
       Queue:       service-2.0
-      Type:        user
       Port:        8888
       Restart:     always
       Run limit:   0:10
