@@ -156,4 +156,4 @@ Inspect the job associated with an instance:
 
 # SEE ALSO
 
-**bjobs**(1), **bhist**(1), **bqueues**(1), **mbd**(8)
+**bjobs**(1), **bhist**(1), **bqueues**(1), **llb.services**(5), **mbd**(8)

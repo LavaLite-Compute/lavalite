@@ -16,7 +16,8 @@ MAN1 = man1/bhosts.1 \
 
 MAN5 = man5/ll.conf.5 \
        man5/llb.hosts.5 \
-       man5/llb.queues.5
+       man5/llb.queues.5 \
+       man5/llb.services.5
 
 MAN7 = man7/lavalite.7
 
@@ -43,6 +44,7 @@ EXTRA_DIST = \
 	markdown/ll.conf.5.md \
 	markdown/llb.hosts.5.md \
 	markdown/llb.queues.5.md \
+	markdown/llb.services.5.md \
 	markdown/lavalite.7.md \
 	markdown/mbd.8.md \
 	markdown/sbd.8.md
@@ -65,6 +67,7 @@ man1/bservices.1:    markdown/bservices.1.md
 man5/ll.conf.5:    markdown/ll.conf.5.md
 man5/llb.hosts.5:  markdown/llb.hosts.5.md
 man5/llb.queues.5: markdown/llb.queues.5.md
+man5/llb.services.5: markdown/llb.services.5.md
 
 man7/lavalite.7: markdown/lavalite.7.md
 

@@ -240,8 +240,14 @@ for the complete reference.
 `llb.services` defines the services users can start with
 `bservices`: the command, the application port, the queue, the
 restart policy, an optional run limit and an optional token variable.
-The keys are described at the top of the example file in the
-installation `etc` directory.
+
+See:
+
+```text
+man 5 llb.services
+```
+
+for the complete reference.
 
 ### Service Hosts
 

@@ -29,8 +29,10 @@ errors, and recovery from the manifest.
   use addresses from `10.200.0.0/16`, one `/30` per instance.
 - An instance gets a random token in the variable named by
   `TOKEN_ENV`, for applications that protect their endpoint with it.
-- `RESTART = always` brings an instance back after its host fails,
-  with the same job id. `RESTART = never` lets it end.
+- `RESTART = always` starts an instance again when it ends, with the
+  same job id: the application exited, was killed, or its host
+  failed. Not after `bservices -d` or the run limit. `RESTART = never`
+  lets it end.
 - `bservices --time` limits the life of an instance, capped by the
   service's `RUNLIMIT`. An instance that reaches its run limit ends
   and is not restarted.

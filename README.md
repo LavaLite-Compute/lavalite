@@ -94,7 +94,7 @@ All contributions must be compatible with GPLv2.
 
 Issues and feature requests:
 
-* [https://github.com/LavaLite-Compute/lavalite/issues](https://github.com/LavaLite-Compute/lavalite/issues)
+* [https://codeberg.org/lavalitecompute/lavalite/issues](https://codeberg.org/lavalitecompute/lavalite/issues)
 
 Maintainer:
 
