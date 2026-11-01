@@ -289,8 +289,9 @@ def main():
                 nbkill += 1
             next_bkill += args.bkill_every
 
-        # a hold and its release may straddle a compaction: the
-        # signals stay in the old archive, the rest goes to the new
+        # between a stop and its cont mbd may compact the manifest: the stop
+        # stays in the old archive, the cont goes to the new one, bhist must
+        # read both in order
         for jid, t in list(stopped.items()):
             if now >= t:
                 if release(jid):

@@ -1719,8 +1719,7 @@ int job_move(XDR *xdrs, int chan_id, const struct protocol_header *hdr)
 static int finish_pending_job(struct job_data *job,
                               const struct wire_job_sig *ws)
 {
-    LL_INFO("finish_pending_job: job=%ld sig=%d -> EXIT", job->job_id,
-            ws->sig);
+    LL_INFO("job=%ld sig=%d -> EXIT", job->job_id, ws->sig);
     job->signal_time = job->end_time = time(NULL);
 
     /* a pending orphan is killed by bkill -s 9 only, its queue may be
@@ -1756,8 +1755,7 @@ static int stop_pending_job(struct job_data *job, const struct wire_job_sig *ws)
 
     job->state = JOB_HELD;
     job->signal_time = time(NULL);
-    LL_INFO("stop_pending_job: job=%ld sig=%d -> PSUSP", job->job_id,
-            ws->sig);
+    LL_INFO("job=%ld sig=%d -> PSUSP", job->job_id, ws->sig);
     event_job_signal(job, ws);
     event_job_pend_susp(job);
 
@@ -1778,8 +1776,7 @@ static int resume_pending_job(struct job_data *job,
 
     job->state = JOB_PENDING;
     job->signal_time = time(NULL);
-    LL_INFO("resume_pending_job: job=%ld sig=%d -> PEND", job->job_id,
-            ws->sig);
+    LL_INFO("job=%ld sig=%d -> PEND", job->job_id, ws->sig);
     event_job_signal(job, ws);
     event_job_pend_resume(job);
 

@@ -3,7 +3,8 @@
 #
 # Robustness scenarios on a one box sim cluster: pid timeout, host
 # taint, orphan jobs, bkill -s 9, finished job retention, a suspended
-# job across mbd restarts, gpus of a multi-host job.
+# job across mbd restarts, gpus of a multi-host job, a removed
+# manifest.
 #
 # The script builds its own config in a scratch directory, starts mbd
 # as SIMQA_USER and two sim sbds, worker1 and worker2, cloned from the
@@ -539,6 +540,22 @@ t_gpu_multihost()
         pass $T || fail $T "mbd died or bad counters, see $QA"
 }
 
+t_manifest_removed()
+{
+    local T=manifest_removed
+    # the jobs in memory are no longer on disk: mbd must die at its
+    # next write, not quietly start a new manifest
+    rm -f $QA/state/mbd/manifest
+    local j=$(submit true)
+    sleep 2
+    local dead=0
+    kill -0 "$(cat $QA/mbd.pid)" 2>/dev/null || dead=1
+    mbd_start
+    wait_host worker1 ok 20
+    [ -z "$j" ] && [ $dead = 1 ] && mlog | grep -q "integrity lost" &&
+        pass $T || fail $T "job=$j dead=$dead, see $QA"
+}
+
 t_counters()
 {
     local T=counters_and_alive
@@ -585,7 +602,8 @@ wait_host worker1 ok 20 && wait_host worker2 ok 20 ||
 for t in ${SIMQA_ONLY:-t_kill9_running t_kill9_disp t_kill9_all \
          t_pid_timeout t_pid_timeout_mbd_restart t_kill9_disconnected \
          t_taint t_orphans t_token_pool_orphan t_replay_machines_tokens \
-         t_retention t_suspend_restart t_gpu_multihost t_counters}; do
+         t_retention t_suspend_restart t_gpu_multihost t_manifest_removed \
+         t_counters}; do
     settle
     $t
 done

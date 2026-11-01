@@ -27,11 +27,15 @@ static uint32_t manifest_seq = 0;
 static int job_finish_threshold = 1000;
 static int job_finish_period = 3600;
 
+/* The manifest is created only by events_init() and the rebuild: a
+ * manifest missing here was removed under us, the jobs in memory are
+ * no longer on disk. No O_CREAT, a new file would likely get the
+ * freed inode back and pass the inode check below */
 static FILE *open_manifest(void)
 {
-    int fd = open(manifest_path, O_CREAT | O_WRONLY | O_APPEND, 0640);
+    int fd = open(manifest_path, O_WRONLY | O_APPEND);
     if (fd < 0) {
-        LL_ERR("open=%s", manifest_path);
+        LL_ERR("open=%s, removed? integrity lost", manifest_path);
         mbd_die(MBD_EXIT_EVENTS);
     }
 
@@ -1073,7 +1077,21 @@ int events_init(void)
     n = snprintf(manifest_path, sizeof(manifest_path), "%s/manifest", dir);
     if (n < 0 || n >= (int) sizeof(manifest_path))
         mbd_die(MBD_EXIT_EVENTS);
-    LL_INFO("job events initialized %s", manifest_path);
+
+    /* created here or by the rebuild only, see open_manifest() */
+    int fd = open(manifest_path, O_CREAT | O_WRONLY | O_APPEND, 0640);
+    if (fd < 0) {
+        LL_ERR("open=%s", manifest_path);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        LL_ERR("fstat=%s", manifest_path);
+        mbd_die(MBD_EXIT_EVENTS);
+    }
+    manifest_ino = st.st_ino;
+    close(fd);
+    LL_INFO("job manifest initialized %s", manifest_path);
 
     n = snprintf(jobs_dir, sizeof(jobs_dir), "%s/jobs", dir);
     if (n < 0 || n >= (int) sizeof(jobs_dir))
