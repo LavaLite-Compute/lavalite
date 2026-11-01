@@ -82,7 +82,7 @@ Do not override `CFLAGS` on the `make` command line, it replaces the
 configured flags and drops `-std=gnu17`.
 
 By default LavaLite is installed under a versioned directory, for example
-`/opt/lavalite-<version>` (e.g. `/opt/lavalite-1.1.0`).
+`/opt/lavalite-<version>` (e.g. `/opt/lavalite-2.0.0`).
 
 This directory forms the root of the LavaLite installation. All
 executables, configuration files, logs, and persistent state are located
@@ -160,6 +160,7 @@ LavaLite configuration is stored in:
 ll.conf
 llb.queues
 llb.hosts
+llb.services
 ```
 
 All files reside under:
@@ -233,6 +234,29 @@ man 5 llb.queues
 ```
 
 for the complete reference.
+
+### llb.services
+
+`llb.services` defines the services users can start with
+`bservices`: the command, the application port, the queue, the
+restart policy, an optional run limit and an optional token variable.
+The keys are described at the top of the example file in the
+installation `etc` directory.
+
+### Service Hosts
+
+The execution hosts of a service queue need:
+
+- `iproute2` (`ip`) and `nftables` (`nft`).
+- IP forwarding, `net.ipv4.ip_forward = 1`: the endpoint traffic is
+  forwarded from the host's interface to the instance's namespace.
+- The service network `10.200.0.0/16` free on the host: each instance
+  gets a `/30` from it, on a veth pair local to the host.
+- The endpoint ports, 30000 and up, reachable from the login node.
+
+Users start instances and connect to them from the login node, a host
+that is not in the service queue: see Services in the queues, hosts
+and jobs guide.
 
 ## Post-Install Setup
 

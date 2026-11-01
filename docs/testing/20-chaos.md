@@ -97,7 +97,8 @@ their jobs and instances, `sload` at most its run limit.
 - `chaos` reports `cores=0`. chaos
   only sends SIGKILL, SIGSTOP and SIGCONT, which dump no core: a core
   is a crash, logged as `FAIL core <host>:<path>` when found.
-- `bhosts` shows every host `ok`, `bjobs -u all` no `UNKNOWN` job.
+- `bhosts` shows every host `ok`, `bjobs` run by the administrator no
+  `UNKNOWN` job.
 - `jload` reports `hist_bad=0`.
 
 ### Pass Criteria

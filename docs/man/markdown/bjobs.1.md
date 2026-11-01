@@ -19,12 +19,13 @@ bjobs - display batch jobs
 # DESCRIPTION
 
 Displays information about batch jobs. Without options, shows active
-jobs for the current user.
+jobs for the current user. The administrator sees the jobs of all
+users.
 
 # OPTIONS
 
 **--all**
-:   Show active jobs for all users. Requires administrator privileges.
+:   Show jobs in every state, finished ones included.
 
 **--pend**
 :   Show pending jobs with the pending reason for each job.

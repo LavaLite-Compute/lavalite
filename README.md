@@ -19,7 +19,7 @@ explicit state transitions and replayable event flow. Inter-daemon and library-t
 communication uses a simple explicit wire protocol with well-defined message formats and
 acknowledgment events.
 
-LavaLite supports traditional HPC clusters, parallel workloads, GPU-aware scheduling, distributed scientific computing, and AI/ML execution environments where scheduler correctness and operational visibility matter more than feature breadth.
+LavaLite schedules batch jobs and long-running services, such as Jupyter or code-server, on HPC clusters: serial and multi-host jobs, GPU workloads, scientific computing and AI/ML environments where scheduler correctness and operational visibility matter more than feature breadth. For a multi-host job LavaLite allocates the hosts and starts the job on the first one; starting processes on the others is up to the application or its launcher.
 
 The architecture favors:
 
@@ -47,39 +47,25 @@ The objective is not to implement every possible scheduler feature, but to build
 
 # Current Status
 
-LavaLite 1.1.0 has been released.
+LavaLite 2.0.0 has been released.
 
-1.1.0 builds on the 1.0.0 baseline with:
+2.0.0 adds services, long-running applications started by users on
+demand and reached over the network, each instance an ordinary job in
+its own network namespace. It also hardens the daemons for failures:
+unresponsive and failing hosts, daemons killed or stopped under load,
+configuration errors, and recovery from the manifest.
 
-* Job arrays (`bsub --array`)
-* Job dependencies (`bsub --dependency`)
-* A ~125x `bhist` performance fix at large job-history scale
-* A data-integrity fix for manifest archives across daemon restart
-* Removal of the `lim` daemon and `ls*`-prefixed commands
+See `docs/RELEASE-lavalite-2.0.0.md` for the complete release notes.
 
-See `RELEASE-lavalite-1.1.0.md` for the complete release notes.
+Earlier releases:
 
-1.0.0 established the initial stable foundation of the project,
-including:
+* 1.1.0: job arrays, job dependencies, a ~125x `bhist` speedup,
+  removal of the `lim` daemon. See `docs/RELEASE-lavalite-1.1.0.md`.
+* 1.0.0: the initial stable foundation, batch, multi-host and GPU
+  scheduling, durable event logging and replay, restart and recovery.
 
-* Core batch scheduling
-* Multi-host scheduling
-* GPU-aware scheduling
-* Durable event logging and replay
-* Restart and recovery support
-* Administrative and user command-line tools
-* Comprehensive administrator and user documentation
-
-Current development on the `master` branch focuses on:
-
-* Stability improvements
-* Bug fixes
-* Performance tuning
-* Documentation enhancements
-* User feedback and feature evaluation
-
-The `lavalite-1.1.0` tag identifies the exact source tree used for the
-1.1.0 release; `lavalite-1.0.0` identifies the prior 1.0.0 release.
+The `lavalite-2.0.0`, `lavalite-1.1.0` and `lavalite-1.0.0` tags
+identify the exact source tree of each release.
 
 # Supported Platforms
 

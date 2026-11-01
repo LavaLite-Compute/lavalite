@@ -249,7 +249,7 @@ static void usage(void)
             " current user.\n"
             "\n"
             "Options:\n"
-            "  --all          Show active jobs for all users (admin only)\n"
+            "  --all          Show jobs in every state, finished included\n"
             "  --pend         Show pending jobs with pending reason\n"
             "  --run          Show running jobs only\n"
             "  --done         Show finished jobs (DONE and EXIT)\n"

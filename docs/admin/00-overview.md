@@ -1,6 +1,6 @@
 # LavaLite Administrator Guide
 
-Version 1.0
+Version 2.0
 
 ## What is LavaLite
 
@@ -20,6 +20,12 @@ Users submit jobs using `bsub`, monitor and control them using
 commands such as `bjobs`, `bhist`, and `bkill`. The scheduler dispatches
 jobs to execution hosts based on resource availability, queue policy,
 host configuration, token pools, and GPU requirements.
+
+LavaLite also runs services: long-running applications such as
+Jupyter or code-server, defined by the administrator in
+`llb.services` and started by users with `bservices`. Each instance is
+an ordinary job running in its own network namespace, reached through
+an endpoint on its execution host.
 
 ## Architecture
 
@@ -50,6 +56,10 @@ Responsibilities:
 - Process tracking
 - Job state reporting
 - Recovery after restart
+- Network namespaces and endpoints of service instances
+
+`sbd` connects to `mbd` and registers; it does not listen on a port,
+and `mbd` never connects to it.
 
 
 CPU and memory allocations are enforced using Linux cgroup v2 controls.
@@ -92,6 +102,7 @@ bhosts
 bqueues
 bgroups
 btokens
+bservices
 ```
 These commands are thin wrappers around the same API available to
 applications.
@@ -113,6 +124,7 @@ Applications
     +-- bqueues
     +-- bgroups
     +-- btokens
+    +-- bservices
     |
 llbatch API (libllbatch)
     |
@@ -166,6 +178,7 @@ Cluster configuration is stored in text files:
 ll.conf
 llb.queues
 llb.hosts
+llb.services
 ```
 
 No external database is required.
@@ -177,6 +190,7 @@ LavaLite depends only on standard Linux facilities:
 - service manager (systemd examples provided)
 - cgroup v2
 - OpenSSL
+- `iproute2` and `nftables`, on the execution hosts of service queues
 
 ## Directory Layout
 
