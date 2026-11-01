@@ -31,6 +31,11 @@ The architecture favors:
 
 Rather than accumulating loosely coupled features, LavaLite focuses on building a scheduler core that is operationally predictable, debuggable, and recoverable.
 
+# Get the code
+
+Source code: https://codeberg.org/lavalitecompute/lavalite
+(mirrored on GitHub: https://github.com/LavaLite-Compute/lavalite)
+
 # About the Name
 
 The term *Lite* in LavaLite does not mean reduced functionality.
