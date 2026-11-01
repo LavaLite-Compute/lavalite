@@ -408,7 +408,16 @@ int snamespace_create(const char *name)
 {
     char *argv[] = {"ip", "netns", "add", (char *)name, NULL};
 
-    return run_cmd(argv);
+    /* no cleanup of a leftover here: the job fails and the admin
+     * removes it */
+    int cc = run_cmd(argv);
+    if (cc < 0) {
+        LL_ERRX("netns=%s cannot be created, left by an earlier start? "
+                "remove it with: ip netns del %s", name, name);
+        return -1;
+    }
+
+    return 0;
 }
 
 int snamespace_open(const char *name)
